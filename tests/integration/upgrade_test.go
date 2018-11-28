@@ -61,8 +61,9 @@ type UpgradeSuite struct {
 func (s *UpgradeSuite) SetupSuite() {
 	s.namespace = "upgrade-ns"
 	useDevices := true
-
-	s.op, s.k8sh = StartTestCluster(s.T, s.namespace, "bluestore", false, useDevices, 3, installer.Version0_8, installer.LuminousVersion)
+	mons := 3
+	rbdMirrorWorkers := 0
+	s.op, s.k8sh = StartTestCluster(s.T, s.namespace, "bluestore", false, useDevices, mons, rbdMirrorWorkers, installer.Version0_8, installer.LuminousVersion)
 	s.helper = clients.CreateTestClient(s.k8sh, s.op.installer.Manifests)
 }
 

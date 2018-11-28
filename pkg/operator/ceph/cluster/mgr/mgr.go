@@ -25,6 +25,7 @@ import (
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -35,7 +36,6 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mgr")
 
 const (
 	appName              = "rook-ceph-mgr"
-	keyringSecretKeyName = "keyring"
 	prometheusModuleName = "prometheus"
 	metricsPort          = 9283
 )
@@ -98,7 +98,10 @@ func (c *Cluster) Start() error {
 
 		daemonName := mgrNames[i]
 		resourceName := fmt.Sprintf("%s-%s", appName, daemonName)
-		if err := c.createKeyring(c.Namespace, resourceName, daemonName); err != nil {
+		username := fmt.Sprintf("mgr.%s", daemonName)
+		access := []string{"mon", "allow profile mgr", "mds", "allow *", "osd", "allow *"}
+		cfg := opspec.KeyringConfig{Namespace: c.Namespace, ResourceName: resourceName, DaemonName: daemonName, OwnerRef: c.ownerRef, Username: username, Access: access}
+		if err := opspec.CreateKeyring(c.context, cfg); err != nil {
 			return fmt.Errorf("failed to create %s keyring. %+v", resourceName, err)
 		}
 
@@ -145,66 +148,10 @@ func (c *Cluster) Start() error {
 	return nil
 }
 
-func (c *Cluster) createKeyring(clusterName, name, daemonName string) error {
-	_, err := c.context.Clientset.CoreV1().Secrets(c.Namespace).Get(name, metav1.GetOptions{})
-	if err == nil {
-		logger.Infof("the mgr keyring was already generated")
-		return nil
-	}
-	if !errors.IsNotFound(err) {
-		return fmt.Errorf("failed to get mgr secrets. %+v", err)
-	}
-
-	// get-or-create-key for the user account
-	keyring, err := createKeyring(c.context, clusterName, daemonName)
-	if err != nil {
-		return fmt.Errorf("failed to create mgr keyring. %+v", err)
-	}
-
-	// Store the keyring in a secret
-	secrets := map[string]string{
-		keyringSecretKeyName: keyring,
-	}
-	secret := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: c.Namespace,
-		},
-		StringData: secrets,
-		Type:       k8sutil.RookType,
-	}
-	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &secret.ObjectMeta, &c.ownerRef)
-
-	_, err = c.context.Clientset.CoreV1().Secrets(c.Namespace).Create(secret)
-	if err != nil {
-		return fmt.Errorf("failed to save mgr secrets. %+v", err)
-	}
-
-	return nil
-}
-
 // Ceph docs about the prometheus module: http://docs.ceph.com/docs/master/mgr/prometheus/
 func (c *Cluster) enablePrometheusModule(clusterName string) error {
 	if err := client.MgrEnableModule(c.context, clusterName, prometheusModuleName, true); err != nil {
 		return fmt.Errorf("failed to enable mgr prometheus module. %+v", err)
 	}
 	return nil
-}
-
-func getKeyringProperties(name string) (string, []string) {
-	username := fmt.Sprintf("mgr.%s", name)
-	access := []string{"mon", "allow profile mgr", "mds", "allow *", "osd", "allow *"}
-	return username, access
-}
-
-// create a keyring for the mds client with a limited set of privileges
-func createKeyring(context *clusterd.Context, clusterName, name string) (string, error) {
-	// get-or-create-key for the user account
-	username, access := getKeyringProperties(name)
-	keyring, err := client.AuthGetOrCreateKey(context, clusterName, username, access)
-	if err != nil {
-		return "", fmt.Errorf("failed to get or create auth key for %s. %+v", username, err)
-	}
-
-	return keyring, nil
 }

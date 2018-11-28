@@ -72,6 +72,9 @@ type ClusterSpec struct {
 	// A spec for mon related options
 	Mon MonSpec `json:"mon"`
 
+	// A spec for rbd mirroring
+	RBDMirroring RBDMirroringSpec `json:"rbdMirroring"`
+
 	// Dashboard settings
 	Dashboard DashboardSpec `json:"dashboard,omitempty"`
 }
@@ -113,6 +116,10 @@ const (
 type MonSpec struct {
 	Count                int  `json:"count"`
 	AllowMultiplePerNode bool `json:"allowMultiplePerNode"`
+}
+
+type RBDMirroringSpec struct {
+	Workers int `json:"workers"`
 }
 
 // +genclient

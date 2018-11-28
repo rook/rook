@@ -20,9 +20,10 @@ import (
 )
 
 const (
-	PlacementKeyMgr = "mgr"
-	PlacementKeyMon = "mon"
-	PlacementKeyOSD = "osd"
+	PlacementKeyMgr       = "mgr"
+	PlacementKeyMon       = "mon"
+	PlacementKeyOSD       = "osd"
+	PlacementKeyRBDMirror = "rbdmirror"
 )
 
 // GetMgrPlacement returns the placement for the MGR service
@@ -38,4 +39,9 @@ func GetMonPlacement(p rook.PlacementSpec) rook.Placement {
 // GetOSDPlacement returns the placement for the OSD service
 func GetOSDPlacement(p rook.PlacementSpec) rook.Placement {
 	return p.All().Merge(p[PlacementKeyOSD])
+}
+
+// GetRBDMirrorPlacement returns the placement for the RBD mirrors
+func GetRBDMirrorPlacement(p rook.PlacementSpec) rook.Placement {
+	return p.All().Merge(p[PlacementKeyRBDMirror])
 }

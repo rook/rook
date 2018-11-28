@@ -58,6 +58,9 @@ If this value is empty, each pod will get an ephemeral directory to store their 
   - `hostNetwork`: uses network of the hosts instead of using the SDN below the containers.
 - `mon`: contains mon related options [mon settings](#mon-settings)
 For more details on the mons and when to choose a number other than `3`, see the [mon health design doc](https://github.com/rook/rook/blob/master/design/mon-health.md).
+- `rbdMirroring`: The settings for rbd mirror daemon(s). Configuring which pools or images to be mirrored must be completed in the rook toolbox by running the
+[rbd mirror](http://docs.ceph.com/docs/mimic/rbd/rbd-mirroring/) command.
+  - `workers`: The number of rbd daemons to perform the rbd mirroring between clusters.
 - `placement`: [placement configuration settings](#placement-configuration-settings)
 - `resources`: [resources configuration settings](#cluster-wide-resources-configuration-settings)
 - `storage`: Storage selection and configuration that will be used across the cluster.  Note that these settings can be overridden for specific nodes.

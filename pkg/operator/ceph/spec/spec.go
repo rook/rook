@@ -18,6 +18,7 @@ limitations under the License.
 package spec
 
 import (
+	"github.com/coreos/pkg/capnslog"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/api/core/v1"
@@ -28,6 +29,8 @@ const (
 	// in all Ceph pods.
 	ConfigInitContainerName = "config-init"
 )
+
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "ceph-spec")
 
 // PodVolumes fills in the volumes parameter with the common list of Kubernetes volumes for use in Ceph pods.
 func PodVolumes(dataDirHostPath string) []v1.Volume {

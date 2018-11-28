@@ -66,6 +66,7 @@ func AddCommands(command *cobra.Command) {
 	command.AddCommand(mgrCmd)
 	command.AddCommand(rgwCmd)
 	command.AddCommand(mdsCmd)
+	command.AddCommand(configCmd)
 }
 
 func createContext() *clusterd.Context {

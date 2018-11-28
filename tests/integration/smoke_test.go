@@ -76,7 +76,9 @@ type SmokeSuite struct {
 func (suite *SmokeSuite) SetupSuite() {
 	suite.namespace = "smoke-ns"
 	useDevices := true
-	suite.op, suite.k8sh = StartTestCluster(suite.T, suite.namespace, "bluestore", false, useDevices, 3, installer.VersionMaster, installer.MimicVersion)
+	mons := 3
+	rbdMirrorWorkers := 1
+	suite.op, suite.k8sh = StartTestCluster(suite.T, suite.namespace, "bluestore", false, useDevices, mons, rbdMirrorWorkers, installer.VersionMaster, installer.MimicVersion)
 	suite.helper = clients.CreateTestClient(suite.k8sh, suite.op.installer.Manifests)
 }
 
