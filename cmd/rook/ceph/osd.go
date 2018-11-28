@@ -182,7 +182,7 @@ func writeOSDConfig(cmd *cobra.Command, args []string) error {
 	kv := k8sutil.NewConfigMapKVStore(clusterInfo.Name, clientset, metav1.OwnerReference{})
 
 	if err := osddaemon.WriteConfigFile(context, &clusterInfo, kv, osdID, cfg.storeConfig, cfg.nodeName, crushLocation); err != nil {
-		logger.Errorf("failed to write osd config file. %+v", err)
+		rook.TerminateFatal(fmt.Errorf("failed to write osd config file. %+v", err))
 	}
 	return nil
 }
@@ -192,7 +192,7 @@ func copyRookBinaries(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	if err := osddaemon.CopyBinariesForDaemon(copyBinariesPath); err != nil {
-		logger.Errorf("failed to copy rook binaries for filestore device. %+v", err)
+		rook.TerminateFatal(fmt.Errorf("failed to copy rook binaries for filestore device. %+v", err))
 	} else {
 		logger.Infof("successfully copied rook binaries")
 	}
