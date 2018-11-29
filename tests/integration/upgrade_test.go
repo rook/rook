@@ -106,6 +106,10 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	assert.Nil(s.T(), s.k8sh.WriteToPod(s.namespace, filePodName, preFilename, message))
 	assert.Nil(s.T(), s.k8sh.ReadFromPod(s.namespace, filePodName, preFilename, message))
 
+	// Update the 0.9 ClusterRole before the operator is restarted
+	err = s.updateClusterRoles()
+	require.Nil(s.T(), err)
+
 	// Upgrade to master
 	require.Nil(s.T(), s.k8sh.SetDeploymentVersion(systemNamespace, operatorContainer, operatorContainer, installer.VersionMaster))
 
@@ -122,13 +126,15 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	err = k8sutil.WaitForDeploymentImage(s.k8sh.Clientset, s.namespace, "app=rook-ceph-mon", "mon", cephv1beta1.DefaultLuminousImage)
 	require.Nil(s.T(), err)
 
-	s.k8sh.WaitForLabeledPodsToRun("app=rook-ceph-mon", s.namespace)
+	err = s.k8sh.WaitForLabeledPodsToRun("app=rook-ceph-mon", s.namespace)
+	require.Nil(s.T(), err)
 
 	// wait for the osd pods to be updated
 	err = k8sutil.WaitForDeploymentImage(s.k8sh.Clientset, s.namespace, "app=rook-ceph-osd", "osd", cephv1beta1.DefaultLuminousImage)
 	require.Nil(s.T(), err)
 
-	s.k8sh.WaitForLabeledPodsToRun("app=rook-ceph-osd", s.namespace)
+	err = s.k8sh.WaitForLabeledPodsToRun("app=rook-ceph-osd", s.namespace)
+	require.Nil(s.T(), err)
 	logger.Infof("Done with automatic upgrade to master")
 
 	// Give a few seconds for the daemons to settle down after the upgrade
@@ -145,6 +151,58 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	assert.Nil(s.T(), s.k8sh.ReadFromPodRetry("", podName, preFilename, message, 5))
 	assert.Nil(s.T(), s.k8sh.WriteToPodRetry("", podName, postFilename, message, 5))
 	assert.Nil(s.T(), s.k8sh.ReadFromPodRetry("", podName, postFilename, message, 5))
+}
+
+// Update the clusterroles that have been modified in master from the previous release
+func (s *UpgradeSuite) updateClusterRoles() error {
+	if _, err := s.k8sh.DeleteResource("ClusterRole", "rook-ceph-cluster-mgmt"); err != nil {
+		return err
+	}
+
+	modifiedClusterRole := `
+# The cluster role for managing all the cluster-specific resources in a namespace
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: rook-ceph-cluster-mgmt
+  labels:
+    operator: rook
+    storage-backend: ceph
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  - pods
+  - pods/log
+  - services
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - patch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - extensions
+  resources:
+  - deployments
+  - daemonsets
+  - replicasets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+`
+
+	logger.Infof("creating the new ClusterRole that was modified from 0.8: rook-ceph-cluster-mgmt")
+	_, err := s.k8sh.ResourceOperation("create", modifiedClusterRole)
+	return err
 }
 
 func (s *UpgradeSuite) waitForLegacyMonReplicaSetDeletion() error {
@@ -167,12 +225,12 @@ func (s *UpgradeSuite) waitForLegacyMonReplicaSetDeletion() error {
 
 		if matches == 0 {
 			logger.Infof("all %d replicasets were deleted", len(rs.Items))
-			break
+			return nil
 		}
 
 		logger.Infof("%d legacy mon replicasets still exist", matches)
 		time.Sleep(time.Duration(sleepTime) * time.Second)
 	}
 
-	return nil
+	return fmt.Errorf("legacy replicasets were not deleted")
 }
