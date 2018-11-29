@@ -15,6 +15,7 @@ storage cluster.
 - [Configuring Pools](#configuring-pools)
 - [Custom ceph.conf Settings](#custom-cephconf-settings)
 - [OSD CRUSH Settings](#osd-crush-settings)
+- [OSD Dedicated Network](#osd-dedicated-network)
 - [Phantom OSD Removal](#phantom-osd-removal)
 
 ## Prerequisites
@@ -428,6 +429,54 @@ other OSDs holding replica data are unavailable:
 ```bash
 ceph osd primary-affinity osd.0 0
 ```
+
+## OSD Dedicated Network
+
+It is possible to configure ceph to leverage a dedicated network for the OSDs to
+communicate across. A useful overview is the [CEPH Networks](http://docs.ceph.com/docs/master/rados/configuration/network-config-ref/#ceph-networks)
+section of the Ceph documentation. If you declare a cluster network, OSDs will
+route heartbeat, object replication and recovery traffic over the cluster
+network. This may improve performance compared to using a single network.
+
+Two changes are necessary to the configuration to enable this capability:
+
+### Use hostNetwork in the rook ceph cluster configuration
+
+Enable the `hostNetwork` setting in the [Ceph Cluster CRD configuration](https://rook.io/docs/rook/master/ceph-cluster-crd.html#samples).
+For example,
+
+```yaml
+  network:
+    hostNetwork: true
+```
+
+### Define the subnets to use for public and private OSD networks
+
+Edit the `rook-config-override` configmap to define the custom network
+configuration:
+
+```bash
+kubectl -n rook-ceph edit configmap rook-config-override
+```
+
+In the editor, add a custom configuration to instruct ceph which subnet is the
+public network and which subnet is the private network. For example:
+
+```yaml
+apiVersion: v1
+data:
+  config: |
+    [global]
+    public network =  10.0.7.0/24
+    cluster network = 10.0.10.0/24
+    public addr = ""
+    cluster addr = ""
+```
+
+After applying the updated rook-config-override configmap, it will be necessary
+to restart the OSDs by deleting the OSD pods in order to apply the change.
+Restart the OSD pods by deleting them, one at a time, and running ceph -s
+between each restart to ensure the cluster goes back to "active/clean" state.
 
 ## Phantom OSD Removal
 
