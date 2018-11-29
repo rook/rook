@@ -141,11 +141,15 @@ func (c *cluster) start() error {
 		_, err := c.context.Clientset.ExtensionsV1beta1().Deployments(c.fs.Namespace).Create(d)
 		if err != nil {
 			if !errors.IsAlreadyExists(err) {
-				return fmt.Errorf("failed to create mds deployment: %+v", err)
+				return fmt.Errorf("failed to create mds deployment %s: %+v", mdsConfig.ResourceName, err)
 			}
-			logger.Infof("mds deployment %s already exists", d.Name)
-		} else {
-			logger.Infof("mds deployment %s started", d.Name)
+			logger.Infof("deployment for mds %s already exists. updating if needed", mdsConfig.ResourceName)
+			// TODO: need to prepare for upgrade here each time. Also, before a given deployment is
+			// terminated, I think we should somehow make sure that it isn't running the single
+			// active daemon. If it is, then we should have another daemon take over as active. @Jan?
+			if err := k8sutil.UpdateDeploymentAndWait(c.context, d, c.fs.Namespace); err != nil {
+				return fmt.Errorf("failed to update mds deployment %s. %+v", mdsConfig.ResourceName, err)
+			}
 		}
 		desiredDeployments[d.GetName()] = true // add deployment name to improvised set
 	}

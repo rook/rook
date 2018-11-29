@@ -116,26 +116,10 @@ func (c *config) startRGWPods(update bool) error {
 	}
 
 	// start the deployment or daemonset
-	var rgwType string
-	var err error
 	if c.store.Spec.Gateway.AllNodes {
-		rgwType = "daemonset"
-		err = c.startDaemonset()
-	} else {
-		rgwType = "deployment"
-		err = c.startDeployment()
+		return c.startDaemonset()
 	}
-
-	if err != nil {
-		if !errors.IsAlreadyExists(err) {
-			return fmt.Errorf("failed to create rgw %store. %+v", rgwType, err)
-		}
-		logger.Infof("rgw %s already exists", rgwType)
-	} else {
-		logger.Infof("rgw %s started", rgwType)
-	}
-
-	return nil
+	return c.startDeployment()
 }
 
 // Delete the object store.
