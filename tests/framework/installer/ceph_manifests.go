@@ -403,7 +403,7 @@ func (m *CephManifestsMaster) GetClusterRoles(namespace, systemNamespace string)
 	return `apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: rook-ceph-cluster
+  name: rook-ceph-osd
   namespace: ` + namespace + `
 ---
 apiVersion: v1
@@ -415,7 +415,7 @@ metadata:
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
-  name: rook-ceph-cluster
+  name: rook-ceph-osd
   namespace: ` + namespace + `
 rules:
 - apiGroups: [""]
@@ -491,15 +491,15 @@ subjects:
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
-  name: rook-ceph-cluster
+  name: rook-ceph-osd
   namespace: ` + namespace + `
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: rook-ceph-cluster
+  name: rook-ceph-osd
 subjects:
 - kind: ServiceAccount
-  name: rook-ceph-cluster
+  name: rook-ceph-osd
   namespace: ` + namespace + `
 ---
 # Allow the ceph mgr to access the cluster-specific resources necessary for the mgr modules
@@ -561,7 +561,6 @@ spec:
   cephVersion:
     image: ` + settings.CephVersion.Image + `
     allowUnsupported: ` + strconv.FormatBool(settings.CephVersion.AllowUnsupported) + `
-  serviceAccount: rook-ceph-cluster
   dataDirHostPath: ` + settings.DataDirHostPath + `
   network:
     hostNetwork: false

@@ -179,7 +179,7 @@ func (c *cluster) createInstance(rookImage string) error {
 	}
 
 	// Start the OSDs
-	osds := osd.New(c.context, c.Namespace, rookImage, c.Spec.CephVersion, c.Spec.ServiceAccount, c.Spec.Storage, c.Spec.DataDirHostPath,
+	osds := osd.New(c.context, c.Namespace, rookImage, c.Spec.CephVersion, c.Spec.Storage, c.Spec.DataDirHostPath,
 		cephv1beta1.GetOSDPlacement(c.Spec.Placement), c.Spec.Network.HostNetwork, cephv1beta1.GetOSDResources(c.Spec.Resources), c.ownerRef)
 	err = osds.Start()
 	if err != nil {

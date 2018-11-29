@@ -11,6 +11,7 @@
 - Ceph OSDs will be automatically updated by the operator when there is a change to the operator version or when the OSD configuration changes. See the [OSD upgrade notes](Documentation/upgrade-patch.md#object-storage-daemons-osds).
 - Rook Ceph block storage provisioner can now correctly create erasure coded block images. See [Advanced Example: Erasure Coded Block Storage](Documentation/block.md#advanced-example-erasure-coded-block-storage) for an example usage.
 - [Network File System (NFS)](https://github.com/nfs-ganesha/nfs-ganesha/wiki) is now supported by Rook with a new operator to deploy and manage this widely used server. NFS servers can be automatically deployed by creating an instance of the new `nfsservers.nfs.rook.io` custom resource. See the [NFS server user guide](Documentation/nfs.md) to get started with NFS.
+- Service account (`rook-ceph-mgr`) added for the mgr daemon to grant the mgr orchestrator modules access to the K8s APIs.
 - The minimum version of Kubernetes supported by Rook changed from `1.7` to `1.8`.
 - `reclaimPolicy` parameter of `StorageClass` definition is now supported.
 - K8s client-go updated from version 1.8.2 to 1.11.3
@@ -22,6 +23,9 @@
 
 ## Breaking Changes
 
+- The `rook-ceph-cluster` service account was renamed to `rook-ceph-osd` as this service account only applies to OSDs.
+  - On upgrade from v0.8, the `rook-ceph-osd` service account must be created before starting the operator on v0.9.
+  - The `serviceAccount` property has been removed from the cluster CRD.
 - Ceph mons are [named consistently](https://github.com/rook/rook/issues/1751) with other daemons with the letters a, b, c, etc.
 - Ceph mons are now created with Deployments instead of ReplicaSets to improve the upgrade implementation.
 - Ceph mon, mgr, mds, and rgw container names in pods have changed with the refactors to initialize the

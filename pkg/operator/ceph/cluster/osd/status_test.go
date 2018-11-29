@@ -36,7 +36,7 @@ import (
 
 func TestOrchestrationStatus(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "myversion", cephv1beta1.CephVersionSpec{}, "",
+	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "myversion", cephv1beta1.CephVersionSpec{},
 		rookalpha.StorageScopeSpec{}, "", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 	kv := k8sutil.NewConfigMapKVStore(c.Namespace, clientset, metav1.OwnerReference{})
 	nodeName := "mynode"

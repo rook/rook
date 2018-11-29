@@ -39,4 +39,5 @@ users:
   # If other namespaces or service accounts are configured, they need to be updated here.
   - system:serviceaccount:rook-ceph-system:rook-ceph-system
   - system:serviceaccount:rook-ceph:default
-  - system:serviceaccount:rook-ceph:rook-ceph-cluster
+  - system:serviceaccount:rook-ceph:rook-ceph-mgr
+  - system:serviceaccount:rook-ceph:rook-ceph-osd

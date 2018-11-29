@@ -73,7 +73,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 
 	clientset := fake.NewSimpleClientset()
 	cephVersion := cephv1beta1.CephVersionSpec{Image: "ceph/ceph:v12.2.8"}
-	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", cephVersion, "mysa",
+	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", cephVersion,
 		storageSpec, dataDir, rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	devMountNeeded := deviceName != "" || allDevices
@@ -91,7 +91,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.NotNil(t, deployment)
 	assert.Equal(t, "rook-ceph-osd-0", deployment.Name)
 	assert.Equal(t, c.Namespace, deployment.Namespace)
-	assert.Equal(t, "mysa", deployment.Spec.Template.Spec.ServiceAccountName)
+	assert.Equal(t, serviceAccountName, deployment.Spec.Template.Spec.ServiceAccountName)
 	assert.Equal(t, int32(1), *(deployment.Spec.Replicas))
 	assert.Equal(t, "node1", deployment.Spec.Template.Spec.NodeSelector[apis.LabelHostname])
 	assert.Equal(t, v1.RestartPolicyAlways, deployment.Spec.Template.Spec.RestartPolicy)
@@ -160,7 +160,7 @@ func TestStorageSpecDevicesAndDirectories(t *testing.T) {
 	}
 
 	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", cephv1beta1.CephVersionSpec{}, "",
+	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", cephv1beta1.CephVersionSpec{},
 		storageSpec, "/var/lib/rook", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	n := c.Storage.ResolveNode(storageSpec.Nodes[0].Name)
@@ -247,7 +247,7 @@ func TestStorageSpecConfig(t *testing.T) {
 	}
 
 	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", cephv1beta1.CephVersionSpec{}, "",
+	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", cephv1beta1.CephVersionSpec{},
 		storageSpec, "", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	n := c.Storage.ResolveNode(storageSpec.Nodes[0].Name)
@@ -297,7 +297,7 @@ func TestHostNetwork(t *testing.T) {
 	}
 
 	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "myversion", cephv1beta1.CephVersionSpec{}, "",
+	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "myversion", cephv1beta1.CephVersionSpec{},
 		storageSpec, "", rookalpha.Placement{}, true, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	n := c.Storage.ResolveNode(storageSpec.Nodes[0].Name)
