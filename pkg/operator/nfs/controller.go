@@ -117,22 +117,6 @@ func nfsOwnerRef(namespace, nfsServerID string) metav1.OwnerReference {
 	}
 }
 
-func getServerConfig(exports []nfsv1alpha1.ExportsSpec) map[string]map[string]string {
-	claimConfigOpt := make(map[string]map[string]string)
-	configOpt := make(map[string]string)
-
-	for _, export := range exports {
-		claimName := export.PersistentVolumeClaim.ClaimName
-		if claimName != "" {
-			configOpt["accessMode"] = export.Server.AccessMode
-			configOpt["squash"] = export.Server.Squash
-			claimConfigOpt[claimName] = configOpt
-		}
-	}
-
-	return claimConfigOpt
-}
-
 func createAppLabels() map[string]string {
 	return map[string]string{
 		k8sutil.AppAttr: appName,
@@ -182,19 +166,44 @@ func (c *Controller) createNFSService(nfsServer *nfsServer) error {
 	return nil
 }
 
-func createCephNFSExport(id int, path string, access string, squash string) string {
-	var accessType string
-	// validateNFSServerSpec guarantees `access` will be one of these values at this point
-	switch s.ToLower(access) {
-	case "readwrite":
-		accessType = "RW"
-	case "readonly":
-		accessType = "RO"
-	case "none":
-		accessType = "None"
+func createCephNFSExport(id int, path string, serverConfig nfsv1alpha1.ServerSpec) string {
+
+	ganeshaClientConfigs := make([]string, 0)
+	for _, clientConfig := range serverConfig.AllowedClients {
+		_accessMode := clientConfig.AccessMode
+		_squash := clientConfig.Squash
+		if serverConfig.AccessMode != "" {
+			_accessMode = serverConfig.AccessMode
+		}
+		if serverConfig.Squash != "" {
+			_squash = serverConfig.Squash
+		}
+		for idx, client := range clientConfig.Clients {
+			if client == "all" {
+				clientConfig.Clients[idx] = "*"
+			}
+		}
+		ganeshaConf := `
+	CLIENT {
+		Clients = ` + s.Join(clientConfig.Clients, ", ") + `;
+		Access_Type = ` + accessType(_accessMode) + `;
+		Squash = ` + _squash + `;
+	}`
+		ganeshaClientConfigs = append(ganeshaClientConfigs, ganeshaConf)
 	}
 
+	exportAccessType := ""
+	exportSquash := ""
 	idStr := fmt.Sprintf("%v", id)
+
+	// Yea this doesn't look great but we've gotta be able
+	// to support not having these present in a clean way.
+	if serverConfig.AccessMode != "" {
+		exportAccessType = fmt.Sprintf("	Access_Type = %s;\n", accessType(serverConfig.AccessMode))
+	}
+	if serverConfig.Squash != "" {
+		exportSquash = fmt.Sprintf("	Squash = %s;\n", s.ToLower(serverConfig.Squash))
+	}
 	nfsGaneshaConfig := `
 EXPORT {
 	Export_Id = ` + idStr + `;
@@ -203,34 +212,48 @@ EXPORT {
 	Protocols = 4;
 	Transports = TCP;
 	Sectype = sys;
-	Access_Type = ` + accessType + `;
-	Squash = ` + s.ToLower(squash) + `;
-	FSAL {
+` + exportAccessType +
+		exportSquash + `	FSAL {
 		Name = VFS;
-	}
+	}` + s.Join(ganeshaClientConfigs, "") + `
 }`
 
 	return nfsGaneshaConfig
 }
 
+func accessType(val string) string {
+	switch s.ToLower(val) {
+	case "readwrite":
+		return "RW"
+	case "readonly":
+		return "RO"
+	case "none":
+		return "None"
+	default:
+		return ""
+	}
+}
+
 func createCephNFSConfig(spec *nfsv1alpha1.NFSServerSpec) string {
-	serverConfig := getServerConfig(spec.Exports)
 
 	exportsList := make([]string, 0)
 	id := 10
-	for claimName, claimConfig := range serverConfig {
-		exportsList = append(exportsList, createCephNFSExport(id, claimName, claimConfig["accessMode"], claimConfig["squash"]))
+	for _, export := range spec.Exports {
+		claimName := export.PersistentVolumeClaim.ClaimName
+		claimConfig := export.Server
+		exportsList = append(exportsList, createCephNFSExport(id, claimName, claimConfig))
 		id++
 	}
 
 	// fsid_device parameter is important as in case of an overlayfs there is a chance that the fsid of the mounted share is same as that of the fsid of "/"
 	// so setting this to true uses device number as fsid
 	// related issue https://github.com/nfs-ganesha/nfs-ganesha/issues/140
-	exportsList = append(exportsList, `NFS_Core_Param
+	exportsList = append(exportsList, `
+NFS_Core_Param
 {
 	fsid_device = true;
 }`)
-	nfsGaneshaConfig := s.Join(exportsList, "\n")
+	nfsGaneshaConfig := s.Join(exportsList, "")
 
 	return nfsGaneshaConfig
 }
@@ -440,12 +463,40 @@ func (c *Controller) onDelete(obj interface{}) {
 
 func validateNFSServerSpec(spec nfsv1alpha1.NFSServerSpec) error {
 	serverConfig := spec.Exports
+
 	for _, export := range serverConfig {
-		if err := validateAccessMode(export.Server.AccessMode); err != nil {
-			return err
+		// According to our spec, if the AccessMode or Squash is set
+		// in the "main" export config, we should override any client setting.
+		// These can be empty in the "main" export config but then each AllowedClient
+		// is required to have it set. If there are no clients then these are required
+		// in the "main" config.
+		// The actual override takes place when we create the ganesha config
+		if export.Server.AccessMode != "" && len(export.Server.AllowedClients) > 0 {
+			if err := validateAccessMode(export.Server.AccessMode); err != nil {
+				return err
+			}
 		}
-		if err := validateSquashMode(export.Server.Squash); err != nil {
-			return err
+		if export.Server.Squash != "" && len(export.Server.AllowedClients) > 0 {
+			if err := validateSquashMode(export.Server.Squash); err != nil {
+				return err
+			}
+		}
+		if len(export.Server.AllowedClients) == 0 {
+			if err := validateAccessMode(export.Server.AccessMode); err != nil {
+				return err
+			}
+			if err := validateSquashMode(export.Server.Squash); err != nil {
+				return err
+			}
+		}
+
+		for _, client := range export.Server.AllowedClients {
+			if err := validateAccessMode(client.AccessMode); err != nil {
+				return err
+			}
+			if err := validateSquashMode(client.Squash); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

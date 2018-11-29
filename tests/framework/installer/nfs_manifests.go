@@ -196,7 +196,13 @@ spec:
   - name: nfs-share
     server:
       accessMode: ReadWrite
-      squash: "none"
+      squash: root
+      allowedClients:
+      - name: testsuite
+        clients:
+        - all
+        accessMode: ReadWrite
+        squash: none
     persistentVolumeClaim:
       claimName: test-claim
 `

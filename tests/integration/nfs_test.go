@@ -49,7 +49,7 @@ type NfsSuite struct {
 	suite.Suite
 	k8shelper       *utils.K8sHelper
 	installer       *installer.NFSInstaller
-	rwClient        *clients.ReadWriteOperation
+	nfsClient       *clients.NfsClientOperation
 	namespace       string
 	systemNamespace string
 	instanceCount   int
@@ -77,7 +77,7 @@ func (suite *NfsSuite) Setup() {
 
 	suite.installer = installer.NewNFSInstaller(suite.k8shelper, suite.T)
 
-	suite.rwClient = clients.CreateReadWriteOperation(suite.k8shelper)
+	suite.nfsClient = clients.CreateNfsClientOperation(suite.k8shelper)
 
 	err = suite.installer.InstallNFSServer(suite.systemNamespace, suite.namespace, suite.instanceCount)
 	if err != nil {
@@ -94,6 +94,7 @@ func (suite *NfsSuite) Teardown() {
 		installer.GatherCRDObjectDebuggingInfo(suite.k8shelper, suite.namespace)
 		suite.installer.GatherAllNFSServerLogs(suite.systemNamespace, suite.namespace, suite.T().Name())
 	}
+
 	suite.installer.UninstallNFSServer(suite.systemNamespace, suite.namespace)
 }
 
@@ -111,8 +112,8 @@ func (suite *NfsSuite) TestNfsServerInstallation() {
 	// verify nfs server storage
 	assert.True(suite.T(), true, suite.k8shelper.WaitUntilPVCIsBound("default", "nfs-pv-claim"))
 
-	defer suite.rwClient.Delete()
-	podList, err := suite.rwClient.CreateWriteClient("nfs-pv-claim")
+	defer suite.nfsClient.Delete("read-write-test")
+	podList, err := suite.nfsClient.CreateReadWriteClient("read-write-test", "nfs-pv-claim")
 	require.NoError(suite.T(), err)
 	assert.True(suite.T(), true, suite.checkReadData(podList))
 }
@@ -125,7 +126,7 @@ func (suite *NfsSuite) checkReadData(podList []string) bool {
 	for inc < utils.RetryLoop {
 		// the nfs volume is mounted on "/mnt" and the data(hostname of the pod) is written in "/mnt/data" of the pod
 		// results stores the hostname of either one of the pod which is same as the pod name, which is read from "/mnt/data"
-		result, err = suite.rwClient.Read(podList[0])
+		result, err = suite.nfsClient.Read(podList[0])
 		logger.Infof("nfs volume read exited, err: %+v. result: %s", err, result)
 		if err == nil {
 			break
@@ -141,4 +142,23 @@ func (suite *NfsSuite) checkReadData(podList []string) bool {
 	}
 
 	return false
+}
+
+func (suite *NfsSuite) TestNfsServerClients() {
+
+	// verify nfs server operator is running OK
+	assert.True(suite.T(), suite.k8shelper.CheckPodCountAndState("rook-nfs-operator", suite.systemNamespace, 1, "Running"),
+		"1 rook-nfs-operator must be in Running state")
+
+	// verify nfs server instances are running OK
+	assert.True(suite.T(), suite.k8shelper.CheckPodCountAndState("rook-nfs", suite.namespace, suite.instanceCount, "Running"),
+		fmt.Sprintf("%d rook-nfs pods must be in Running state", suite.instanceCount))
+
+	// verify nfs server storage
+	assert.True(suite.T(), true, suite.k8shelper.WaitUntilPVCIsBound("default", "nfs-pv-claim"))
+
+	defer suite.nfsClient.Delete("write-client-test")
+	podList, err := suite.nfsClient.CreateReadWriteClient("write-client-test", "nfs-pv-claim")
+	require.NoError(suite.T(), err)
+	assert.True(suite.T(), true, suite.checkReadData(podList))
 }

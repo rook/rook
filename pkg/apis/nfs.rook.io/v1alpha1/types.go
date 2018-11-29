@@ -26,25 +26,25 @@ import (
 // `make codegen` to generate the new types under the client/clientset folder.
 // ***************************************************************************
 
+// NFSServer represents the spec / configuration of a Ganesha NFS Server
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
 type NFSServer struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 	Spec              NFSServerSpec `json:"spec"`
 }
 
+// NFSServerList represents list of NFSServers
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
 type NFSServerList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
 	Items           []NFSServer `json:"items"`
 }
 
-// NFSSpec represents the spec of NFS daemon
+// NFSServerSpec represents the spec of NFS daemon
 type NFSServerSpec struct {
 	// Replicas of the NFS daemon
 	Replicas int `json:"replicas,omitempty"`
