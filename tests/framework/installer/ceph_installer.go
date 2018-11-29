@@ -31,7 +31,6 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/tests/framework/utils"
-	"github.com/stretchr/testify/assert"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -360,20 +359,8 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(helmInstalled bool, systemNa
 	logger.Infof("Uninstalling Rook")
 	var err error
 	for _, namespace := range namespaces {
-
-		if !h.k8shelper.VersionAtLeast("v1.8.0") {
-			_, err = h.k8shelper.DeleteResource("-n", namespace, "serviceaccount", "rook-ceph-cluster")
-			checkError(h.T(), err, "cannot remove serviceaccount rook-ceph-cluster")
-			assert.NoError(h.T(), err, "%s  err -> %v", namespace, err)
-
-			err = h.k8shelper.DeleteRoleAndBindings("rook-ceph-cluster", namespace)
-			checkError(h.T(), err, "rook-ceph-cluster cluster role and binding cannot be deleted")
-			assert.NoError(h.T(), err, "rook-ceph-cluster cluster role and binding cannot be deleted: %+v", err)
-
-			err = h.k8shelper.DeleteRoleBinding("rook-ceph-cluster-mgmt", namespace)
-			checkError(h.T(), err, "rook-ceph-cluster-mgmt binding cannot be deleted")
-			assert.NoError(h.T(), err, "rook-ceph-cluster-mgmt binding cannot be deleted: %+v", err)
-		}
+		roles := h.Manifests.GetClusterRoles(namespace, systemNamespace)
+		_, err = h.k8shelper.KubectlWithStdin(roles, deleteFromStdinArgs...)
 
 		_, err = h.k8shelper.DeleteResourceAndWait(false, "-n", namespace, "cluster.ceph.rook.io", namespace)
 		checkError(h.T(), err, fmt.Sprintf("cannot remove cluster %s", namespace))

@@ -78,6 +78,7 @@ func TestPodSpec(t *testing.T) {
 	assert.Nil(t, optest.VolumeExists("rook-data", pod.Spec.Volumes))
 	assert.Nil(t, optest.VolumeExists(cephconfig.DefaultConfigMountName, pod.Spec.Volumes))
 	assert.Nil(t, optest.VolumeExists(k8sutil.ConfigOverrideName, pod.Spec.Volumes))
+	assert.Equal(t, serviceAccountName, pod.Spec.ServiceAccountName)
 
 	assert.Equal(t, 1, len(pod.Spec.InitContainers))
 	assert.Equal(t, 1, len(pod.Spec.Containers))
