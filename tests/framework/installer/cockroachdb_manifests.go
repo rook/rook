@@ -20,9 +20,11 @@ import (
 	"strconv"
 )
 
+// CockroachDBManifests holds the funcs which return the CockroachDB manifests
 type CockroachDBManifests struct {
 }
 
+// GetCockroachDBCRDs return the CockroachDB Cluster CRD
 func (i *CockroachDBManifests) GetCockroachDBCRDs() string {
 	return `apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -40,8 +42,8 @@ spec:
 `
 }
 
+// GetCockroachDBOperator return the CockroachDB operator manifest
 func (i *CockroachDBManifests) GetCockroachDBOperator(namespace string) string {
-
 	return `kind: Namespace
 apiVersion: v1
 metadata:
@@ -136,6 +138,7 @@ spec:
 `
 }
 
+// GetCockroachDBCluster return a CockroacDB Cluster object
 func (i *CockroachDBManifests) GetCockroachDBCluster(namespace string, count int) string {
 	return `apiVersion: cockroachdb.rook.io/v1alpha1
 kind: Cluster
@@ -145,8 +148,8 @@ metadata:
 spec:
   scope:
     nodeCount: ` + strconv.Itoa(count) + `
+    volumeClaimTemplates: []
   secure: false
-  volumeSize: 1Gi
   cachePercent: 25
   maxSQLMemoryPercent: 25
 `

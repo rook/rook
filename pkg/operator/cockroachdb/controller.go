@@ -16,7 +16,7 @@ limitations under the License.
 Portions of this file came from https://github.com/cockroachdb/cockroach, which uses the same license.
 */
 
-// Package cluster to manage a cockroachdb cluster.
+// Package cockroachdb to manage a cockroachdb cluster.
 package cockroachdb
 
 import (
@@ -56,7 +56,7 @@ const (
 	httpPortName                   = "http"
 	grpcPortDefault                = int32(26257)
 	grpcPortName                   = "grpc"
-	volumeNameDataDir              = "datadir"
+	volumeDataName                 = "datadir"
 	envVarChannel                  = "COCKROACH_CHANNEL"
 	envVarValChannelSecure         = "kubernetes-secure"
 	envVarValChannelInsecure       = "kubernetes-insecure"
@@ -113,7 +113,6 @@ func clusterOwnerRef(namespace, clusterID string) metav1.OwnerReference {
 }
 
 func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) error {
-
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
 		UpdateFunc: c.onUpdate,
@@ -332,22 +331,7 @@ func (c *ClusterController) createStatefulSet(cluster *cluster) error {
 			UpdateStrategy: appsv1beta1.StatefulSetUpdateStrategy{
 				Type: appsv1beta1.RollingUpdateStatefulSetStrategyType,
 			},
-			VolumeClaimTemplates: []v1.PersistentVolumeClaim{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      volumeNameDataDir,
-						Namespace: cluster.namespace,
-					},
-					Spec: v1.PersistentVolumeClaimSpec{
-						AccessModes: []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
-						Resources: v1.ResourceRequirements{
-							Requests: v1.ResourceList{
-								v1.ResourceStorage: cluster.spec.VolumeSize,
-							},
-						},
-					},
-				},
-			},
+			VolumeClaimTemplates: cluster.spec.Storage.VolumeClaimTemplates,
 		},
 	}
 	k8sutil.SetOwnerRef(c.context.Clientset, cluster.namespace, &statefulSet.ObjectMeta, &cluster.ownerRef)
@@ -366,6 +350,16 @@ func (c *ClusterController) createStatefulSet(cluster *cluster) error {
 
 func createPodSpec(cluster *cluster, containerImage string, httpPort, grpcPort int32) v1.PodSpec {
 	terminationGracePeriodSeconds := int64(60)
+
+	volumes := []v1.Volume{}
+	if len(cluster.spec.Storage.VolumeClaimTemplates) == 0 {
+		volumes = append(volumes, v1.Volume{
+			Name: volumeDataName,
+			VolumeSource: v1.VolumeSource{
+				EmptyDir: &v1.EmptyDirVolumeSource{},
+			},
+		})
+	}
 
 	return v1.PodSpec{
 		Affinity: &v1.Affinity{
@@ -390,18 +384,9 @@ func createPodSpec(cluster *cluster, containerImage string, httpPort, grpcPort i
 			},
 		},
 		Containers: []v1.Container{createContainer(cluster, containerImage, httpPort, grpcPort)},
-		//  No pre-stop hook is required, a SIGTERM plus some time is all that's needed for graceful shutdown of a node.
+		// No pre-stop hook is required, a SIGTERM plus some time is all that's needed for graceful shutdown of a node.
 		TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
-		Volumes: []v1.Volume{
-			{
-				Name: volumeNameDataDir,
-				VolumeSource: v1.VolumeSource{
-					PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{
-						ClaimName: volumeNameDataDir,
-					},
-				},
-			},
-		},
+		Volumes:                       volumes,
 	}
 }
 
@@ -411,6 +396,11 @@ func createContainer(cluster *cluster, containerImage string, httpPort, grpcPort
 		envVarChannelVal = envVarValChannelSecure
 	} else {
 		envVarChannelVal = envVarValChannelInsecure
+	}
+
+	cockroachDataVolumeName := volumeDataName
+	if len(cluster.spec.Storage.VolumeClaimTemplates) == 1 {
+		cockroachDataVolumeName = cluster.spec.Storage.VolumeClaimTemplates[0].GetName()
 	}
 
 	return v1.Container{
@@ -450,7 +440,7 @@ func createContainer(cluster *cluster, containerImage string, httpPort, grpcPort
 		},
 		VolumeMounts: []v1.VolumeMount{
 			{
-				Name:      volumeNameDataDir,
+				Name:      cockroachDataVolumeName,
 				MountPath: "/cockroach/cockroach-data",
 			},
 		},

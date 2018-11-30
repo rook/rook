@@ -222,7 +222,7 @@ spec:
 #    osd:
   storage: # cluster level storage configuration and selection
     useAllNodes: true
-    useAllDevices: false
+    useAllDevices: true
     deviceFilter:
     location:
     config:

@@ -21,6 +21,15 @@ metadata:
 spec:
   scope:
     nodeCount: 3
+    volumeClaimTemplates:
+      - spec:
+          accessModes: [ "ReadWriteOnce" ]
+          # Uncomment and specify your StorageClass, otherwise
+          # the cluster admin defined default StorageClass will be used.
+          #storageClassName: "my-storage-class"
+          resources:
+            requests:
+              storage: "100Gi"
   network:
     ports:
     - name: http
@@ -28,7 +37,6 @@ spec:
     - name: grpc
       port: 26257
   secure: false
-  volumeSize: 100Gi
   cachePercent: 25
   maxSQLMemoryPercent: 25
 ```
@@ -40,7 +48,6 @@ spec:
 The settings below are specific to CockroachDB database clusters:
 
 * `secure`: `true` to create a secure cluster installation using certificates and encryption. `false` to create an insecure installation (strongly discouraged for production usage).  Currently, only insecure is supported.
-* `volumeSize`: Each database instance will get an underlying persistent data volume created to store its instance data using the default storage class.  This value represents the size of the volume that will be created.  The value should be expressed in the [standard Kubernetes resource format](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#meaning-of-memory).
 * `cachePercent`: The total size used for caches, expressed as a percentage of total physical memory.
 * `maxSQLMemoryPercent`: The maximum memory capacity available to store temporary data for SQL clients, expressed as a percentage of total physical memory.
 
@@ -50,6 +57,7 @@ Under the `scope` field, a `StorageScopeSpec` can be specified to influence the 
 These properties are currently supported:
 
 * `nodeCount`: The number of CockroachDB instances to create.  Some of these instances may be scheduled on the same nodes, but exactly this many instances will be created and included in the cluster.
+* `volumeClaimTemplates`: A list of PersistentVolumeClaim templates which must contain only **one or no** PersistentVolumeClaim. If no PersistentVolumeClaim is given an `emptyDir` will be given, meaning the instance data will be lost when a Pod is restarted. For an example of how PersistentVolumeClaim template should look, please look at the above [sample](#sample).
 
 ### Network
 

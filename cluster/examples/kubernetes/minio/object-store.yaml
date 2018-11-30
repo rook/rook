@@ -23,6 +23,28 @@ metadata:
 spec:
   scope:
     nodeCount: 4
+    # You can have multiple PersistentVolumeClaims in the volumeClaimTemplates list.
+    # Be aware though that all PersistentVolumeClaim Templates will be used for each intance (see nodeCount).
+    volumeClaimTemplates:
+    - metadata:
+        name: rook-minio-data1
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        # Set the storage class that will be used, otherwise Kubernetes' default storage class will be used.
+        #storageClassName: "my-storage-class"
+        resources:
+          requests:
+            storage: "8Gi"
+    #- metadata:
+    #    name: rook-minio-data2
+    #  spec:
+    #    accessModes: [ "ReadWriteOnce" ]
+    #    # Uncomment and specify your StorageClass, otherwise
+    #    # the cluster admin defined default StorageClass will be used.
+    #    #storageClassName: "your-cluster-storageclass"
+    #    resources:
+    #      requests:
+    #        storage: "8Gi"
   placement:
     tolerations:
     nodeAffinity:
@@ -31,7 +53,6 @@ spec:
   credentials:
     name: access-keys
     namespace: rook-minio
-  storageAmount: "10G"
   clusterDomain:
 ---
 apiVersion: v1
