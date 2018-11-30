@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-	http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -159,8 +159,34 @@ func (s *UpgradeSuite) updateClusterRoles() error {
 	if _, err := s.k8sh.DeleteResource("ClusterRole", "rook-ceph-cluster-mgmt"); err != nil {
 		return err
 	}
+	if _, err := s.k8sh.DeleteResource("-n", s.namespace, "serviceaccount", "rook-ceph-cluster"); err != nil {
+		return err
+	}
+	if _, err := s.k8sh.DeleteResource("-n", s.namespace, "rolebinding", "rook-ceph-cluster"); err != nil {
+		return err
+	}
+	if _, err := s.k8sh.DeleteResource("-n", s.namespace, "role", "rook-ceph-cluster"); err != nil {
+		return err
+	}
 
-	modifiedClusterRole := `
+	// create the new service accounts, cluster roles, etc needed for 0.9
+	newResources := `
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: objectstoreusers.ceph.rook.io
+spec:
+  group: ceph.rook.io
+  names:
+    kind: ObjectStoreUser
+    listKind: ObjectStoreUserList
+    plural: objectstoreusers
+    singular: objectstoreuser
+    shortNames:
+    - rcou
+  scope: Namespaced
+  version: v1beta1
+---
 # The cluster role for managing all the cluster-specific resources in a namespace
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
@@ -199,10 +225,158 @@ rules:
   - create
   - update
   - delete
+---
+# Aspects of ceph-mgr that require cluster-wide access
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr-cluster
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  - nodes/proxy
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-ceph-osd
+  namespace: ` + s.namespace + `
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-ceph-mgr
+  namespace: ` + s.namespace + `
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-osd
+  namespace: ` + s.namespace + `
+rules:
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: [ "get", "list", "watch", "create", "update", "delete" ]
+---
+# Aspects of ceph-mgr that require access to the system namespace
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr-system
+  namespace: ` + s.namespace + `
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+---
+# Aspects of ceph-mgr that operate within the cluster's namespace
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr
+  namespace: ` + s.namespace + `
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - services
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - ceph.rook.io
+  resources:
+  - "*"
+  verbs:
+  - "*"
+---
+# Allow the osd pods in this namespace to work with configmaps
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-osd
+  namespace: ` + s.namespace + `
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-ceph-osd
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-osd
+  namespace: ` + s.namespace + `
+---
+# Allow the ceph mgr to access the cluster-specific resources necessary for the mgr modules
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr
+  namespace: ` + s.namespace + `
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-ceph-mgr
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-mgr
+  namespace: ` + s.namespace + `
+---
+# Allow the ceph mgr to access the rook system resources necessary for the mgr modules
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr-system
+  namespace: ` + installer.SystemNamespace(s.namespace) + `
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-ceph-mgr-system
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-mgr
+  namespace: ` + s.namespace + `
+---
+# Allow the ceph mgr to access cluster-wide resources necessary for the mgr modules
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr-cluster
+  namespace: ` + s.namespace + `
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-mgr-cluster
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-mgr
+  namespace: ` + s.namespace + `
 `
 
-	logger.Infof("creating the new ClusterRole that was modified from 0.8: rook-ceph-cluster-mgmt")
-	_, err := s.k8sh.ResourceOperation("create", modifiedClusterRole)
+	logger.Infof("creating the new resources that have been added since 0.8")
+	_, err := s.k8sh.ResourceOperation("create", newResources)
 	return err
 }
 
