@@ -113,8 +113,8 @@ func (f *Filesystem) CreateFilesystem(context *clusterd.Context, clusterName str
 	return nil
 }
 
-// DeleteFilesystem removes the filesystem in Ceph and removes the Ceph file daemons.
-func DeleteFilesystem(context *clusterd.Context, clusterName, filesystemName string) error {
+// DownFilesystem marks the filesystem as down and the MDS' as failed
+func DownFilesystem(context *clusterd.Context, clusterName, filesystemName string) error {
 	logger.Infof("Removing file system %s", filesystemName)
 
 	// mark the cephFS instance as cluster_down before removing
@@ -131,11 +131,6 @@ func DeleteFilesystem(context *clusterd.Context, clusterName, filesystemName str
 		if err := client.FailMDS(context, clusterName, mdsInfo.GID); err != nil {
 			return err
 		}
-	}
-
-	// Permanently remove the file system
-	if err := client.RemoveFilesystem(context, clusterName, filesystemName); err != nil {
-		return err
 	}
 
 	logger.Infof("Removed file system %s", filesystemName)

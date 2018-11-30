@@ -76,9 +76,16 @@ func createFilesystem(
 // deleteFileSystem deletes the file system and the metadata servers
 func deleteFilesystem(context *clusterd.Context, fs cephv1beta1.Filesystem) error {
 	// The most important part of deletion is that the filesystem gets removed from Ceph
-	if err := mdsdaemon.DeleteFilesystem(context, fs.Namespace, fs.Name); err != nil {
+	if err := mdsdaemon.DownFilesystem(context, fs.Namespace, fs.Name); err != nil {
 		// If the fs isn't deleted from Ceph, leave the daemons so it can still be used.
-		return fmt.Errorf("failed to delete filesystem %s: %+v", fs.Name, err)
+		return fmt.Errorf("failed to down filesystem %s: %+v", fs.Name, err)
+	}
+
+	// Permanently remove the file system if it was created by rook
+	if len(fs.Spec.DataPools) != 0 {
+		if err := client.RemoveFilesystem(context, fs.Namespace, fs.Name); err != nil {
+			return fmt.Errorf("failed to remove filesystem %s: %+v", fs.Name, err)
+		}
 	}
 
 	return deleteMdsCluster(context, fs.Namespace, fs.Name)
