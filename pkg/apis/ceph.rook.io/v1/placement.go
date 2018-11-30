@@ -13,16 +13,17 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package v1alpha1
+package v1
 
 import (
 	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 )
 
 const (
-	PlacementKeyMgr = "mgr"
-	PlacementKeyMon = "mon"
-	PlacementKeyOSD = "osd"
+	PlacementKeyMgr       = "mgr"
+	PlacementKeyMon       = "mon"
+	PlacementKeyOSD       = "osd"
+	PlacementKeyRBDMirror = "rbdmirror"
 )
 
 // GetMgrPlacement returns the placement for the MGR service
@@ -38,4 +39,9 @@ func GetMonPlacement(p rook.PlacementSpec) rook.Placement {
 // GetOSDPlacement returns the placement for the OSD service
 func GetOSDPlacement(p rook.PlacementSpec) rook.Placement {
 	return p.All().Merge(p[PlacementKeyOSD])
+}
+
+// GetRBDMirrorPlacement returns the placement for the RBD mirrors
+func GetRBDMirrorPlacement(p rook.PlacementSpec) rook.Placement {
+	return p.All().Merge(p[PlacementKeyRBDMirror])
 }

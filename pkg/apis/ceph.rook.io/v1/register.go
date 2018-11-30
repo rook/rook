@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package v1alpha1
+package v1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,7 +25,7 @@ import (
 
 const (
 	CustomResourceGroup = "ceph.rook.io"
-	Version             = "v1alpha1"
+	Version             = "v1beta1"
 )
 
 // SchemeGroupVersion is group version used to register these objects
@@ -61,6 +61,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&FilesystemList{},
 		&ObjectStore{},
 		&ObjectStoreList{},
+		&ObjectStoreUser{},
+		&ObjectStoreUserList{},
 	)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil

@@ -13,9 +13,26 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+package v1
 
-// +k8s:deepcopy-gen=package,register
+const (
+	Luminous             = "luminous"
+	Mimic                = "mimic"
+	Nautilus             = "nautilus"
+	DefaultLuminousImage = "ceph/ceph:v12.2.9-20181026"
+)
 
-// Package v1 is the v1 version of the API.
-// +groupName=ceph.rook.io
-package v1alpha1
+func VersionAtLeast(version, minimumVersion string) bool {
+	orderedVersions := []string{Luminous, Mimic, Nautilus}
+	found := false
+	for _, v := range orderedVersions {
+		if v == minimumVersion {
+			found = true
+		}
+		if v == version {
+			// if we found the matching version, the version is at least the minimum version if found==true
+			return found
+		}
+	}
+	return false
+}

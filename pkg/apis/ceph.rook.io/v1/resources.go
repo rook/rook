@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package v1alpha1
+package v1
 
 import (
 	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
@@ -21,9 +21,10 @@ import (
 )
 
 const (
-	ResourcesKeyMgr = "mgr"
-	ResourcesKeyMon = "mon"
-	ResourcesKeyOSD = "osd"
+	ResourcesKeyMgr       = "mgr"
+	ResourcesKeyMon       = "mon"
+	ResourcesKeyOSD       = "osd"
+	ResourcesKeyRBDMirror = "rbdmirror"
 )
 
 // GetMgrResources returns the placement for the MGR service
@@ -39,4 +40,9 @@ func GetMonResources(p rook.ResourceSpec) v1.ResourceRequirements {
 // GetOSDResources returns the placement for the OSDs
 func GetOSDResources(p rook.ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyOSD]
+}
+
+// GetRBDMirrorResources returns the placement for the RBD Mirrors
+func GetRBDMirrorResources(p rook.ResourceSpec) v1.ResourceRequirements {
+	return p[ResourcesKeyRBDMirror]
 }

@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package v1alpha1
+package v1
 
 import (
 	"k8s.io/api/core/v1"
@@ -48,11 +48,11 @@ type ClusterList struct {
 }
 
 type ClusterSpec struct {
+	// The version information that instructs Rook to orchestrate a particular version of Ceph.
+	CephVersion CephVersionSpec `json:"cephVersion,omitempty"`
+
 	// A spec for available storage in the cluster and how it should be used
 	Storage rook.StorageScopeSpec `json:"storage,omitempty"`
-
-	// Dashboard settings
-	Dashboard DashboardSpec `json:"dashboard,omitempty"`
 
 	// The placement-related configuration to pass to kubernetes (affinity, node selector, tolerations).
 	Placement rook.PlacementSpec `json:"placement,omitempty"`
@@ -63,20 +63,37 @@ type ClusterSpec struct {
 	// Resources set resource requests and limits
 	Resources rook.ResourceSpec `json:"resources,omitempty"`
 
-	// The service account in which to start the cluster resources if the default is not sufficient (OSD pods)
-	ServiceAccount string `json:"serviceAccount,omitempty"`
-
 	// The path on the host where config and data can be persisted.
 	DataDirHostPath string `json:"dataDirHostPath,omitempty"`
 
 	// A spec for mon related options
 	Mon MonSpec `json:"mon"`
+
+	// A spec for rbd mirroring
+	RBDMirroring RBDMirroringSpec `json:"rbdMirroring"`
+
+	// Dashboard settings
+	Dashboard DashboardSpec `json:"dashboard,omitempty"`
+}
+
+// VersionSpec represents the settings for the Ceph version that Rook is orchestrating.
+type CephVersionSpec struct {
+	// Image is the container image used to launch the ceph daemons, such as ceph/ceph:v12.2.7 or ceph/ceph:v13.2.1
+	Image string `json:"image,omitempty"`
+
+	// The name of the major release of Ceph: luminous, mimic, or nautilus
+	Name string `json:"name,omitempty"`
+
+	// Whether to allow unsupported versions (do not set to true in production)
+	AllowUnsupported bool `json:"allowUnsupported,omitempty"`
 }
 
 // DashboardSpec represents the settings for the Ceph dashboard
 type DashboardSpec struct {
 	// Whether to enable the dashboard
 	Enabled bool `json:"enabled,omitempty"`
+	// A prefix for all URLs to use the dashboard with a reverse proxy
+	UrlPrefix string `json:"urlPrefix,omitempty"`
 }
 
 type ClusterStatus struct {
@@ -96,6 +113,10 @@ const (
 type MonSpec struct {
 	Count                int  `json:"count"`
 	AllowMultiplePerNode bool `json:"allowMultiplePerNode"`
+}
+
+type RBDMirroringSpec struct {
+	Workers int `json:"workers"`
 }
 
 // +genclient
@@ -222,6 +243,32 @@ type ObjectStoreSpec struct {
 
 	// The rgw pod info
 	Gateway GatewaySpec `json:"gateway"`
+}
+
+// +genclient
+// +genclient:noStatus
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type ObjectStoreUser struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+	Spec              ObjectStoreUserSpec `json:"spec"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type ObjectStoreUserList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+	Items           []ObjectStoreUser `json:"items"`
+}
+
+// ObjectStoreUserSpec represent the spec of an Objectstoreuser
+type ObjectStoreUserSpec struct {
+	//The store the user will be created in
+	Store string `json:"store,omitempty"`
+	//The display name for the ceph users
+	DisplayName string `json:"displayName,omitempty"`
 }
 
 type GatewaySpec struct {
