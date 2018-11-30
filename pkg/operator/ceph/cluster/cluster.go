@@ -31,6 +31,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/rbd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	batch "k8s.io/api/batch/v1"
 	"k8s.io/api/core/v1"
@@ -54,8 +55,6 @@ type cluster struct {
 	Namespace string
 	Spec      *cephv1beta1.ClusterSpec
 	mons      *mon.Cluster
-	mgrs      *mgr.Cluster
-	osds      *osd.Cluster
 	stopCh    chan struct{}
 	ownerRef  metav1.OwnerReference
 }
@@ -172,19 +171,27 @@ func (c *cluster) createInstance(rookImage string) error {
 		return fmt.Errorf("failed to create initial crushmap: %+v", err)
 	}
 
-	c.mgrs = mgr.New(c.context, c.Namespace, rookImage, c.Spec.CephVersion, cephv1beta1.GetMgrPlacement(c.Spec.Placement),
+	mgrs := mgr.New(c.context, c.Namespace, rookImage, c.Spec.CephVersion, cephv1beta1.GetMgrPlacement(c.Spec.Placement),
 		c.Spec.Network.HostNetwork, c.Spec.Dashboard, cephv1beta1.GetMgrResources(c.Spec.Resources), c.ownerRef)
-	err = c.mgrs.Start()
+	err = mgrs.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the ceph mgr. %+v", err)
 	}
 
 	// Start the OSDs
-	c.osds = osd.New(c.context, c.Namespace, rookImage, c.Spec.CephVersion, c.Spec.ServiceAccount, c.Spec.Storage, c.Spec.DataDirHostPath,
+	osds := osd.New(c.context, c.Namespace, rookImage, c.Spec.CephVersion, c.Spec.ServiceAccount, c.Spec.Storage, c.Spec.DataDirHostPath,
 		cephv1beta1.GetOSDPlacement(c.Spec.Placement), c.Spec.Network.HostNetwork, cephv1beta1.GetOSDResources(c.Spec.Resources), c.ownerRef)
-	err = c.osds.Start()
+	err = osds.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the osds. %+v", err)
+	}
+
+	// Start the rbd mirroring daemon(s)
+	rbdmirror := rbd.New(c.context, c.Namespace, rookImage, c.Spec.CephVersion, cephv1beta1.GetRBDMirrorPlacement(c.Spec.Placement),
+		c.Spec.Network.HostNetwork, c.Spec.RBDMirroring, cephv1beta1.GetRBDMirrorResources(c.Spec.Resources), c.ownerRef)
+	err = rbdmirror.Start()
+	if err != nil {
+		return fmt.Errorf("failed to start the rbd mirrors. %+v", err)
 	}
 
 	logger.Infof("Done creating rook instance in namespace %s", c.Namespace)
@@ -284,6 +291,11 @@ func clusterChanged(oldCluster, newCluster cephv1beta1.ClusterSpec, clusterRef *
 		clusterRef.mons.MonCountMutex.Lock()
 		clusterRef.mons.AllowMultiplePerNode = newCluster.Mon.AllowMultiplePerNode
 		clusterRef.mons.MonCountMutex.Unlock()
+	}
+
+	if oldCluster.RBDMirroring.Workers != newCluster.RBDMirroring.Workers {
+		logger.Infof("rbd mirrors changed from %d to %d", oldCluster.RBDMirroring.Workers, newCluster.RBDMirroring.Workers)
+		changeFound = true
 	}
 
 	if oldCluster.CephVersion.AllowUnsupported != newCluster.CephVersion.AllowUnsupported {

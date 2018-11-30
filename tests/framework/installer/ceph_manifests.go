@@ -42,12 +42,13 @@ type CephManifests interface {
 }
 
 type ClusterSettings struct {
-	Namespace       string
-	StoreType       string
-	DataDirHostPath string
-	UseAllDevices   bool
-	Mons            int
-	CephVersion     cephv1beta1.CephVersionSpec
+	Namespace        string
+	StoreType        string
+	DataDirHostPath  string
+	UseAllDevices    bool
+	Mons             int
+	RBDMirrorWorkers int
+	CephVersion      cephv1beta1.CephVersionSpec
 }
 
 //CephManifestsMaster wraps rook yaml definitions
@@ -451,6 +452,8 @@ spec:
     allowMultiplePerNode: true
   dashboard:
     enabled: true
+  rbdMirroring:
+    workers: ` + strconv.Itoa(settings.RBDMirrorWorkers) + `
   metadataDevice:
   storage:
     useAllNodes: true
