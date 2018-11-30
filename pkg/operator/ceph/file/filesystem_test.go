@@ -134,6 +134,57 @@ func TestCreateFilesystem(t *testing.T) {
 	assert.Equal(t, "failed to create file system myfs: Cannot create multiple filesystems. Enable ROOK_ALLOW_MULTIPLE_FILESYSTEMS env variable to create more than one", err.Error())
 }
 
+func TestCreateNopoolFilesystem(t *testing.T) {
+	configDir, _ := ioutil.TempDir("", "")
+	// Output to check multiple file system creation
+	fses := `[{"name":"myfs"}]`
+
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
+			return "{\"key\":\"mysecurekey\"}", nil
+		},
+		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
+			if strings.Contains(command, "ceph-authtool") {
+				cephtest.CreateConfigDir(path.Join(configDir, "ns"))
+			}
+
+			return "", nil
+		},
+	}
+	defer os.RemoveAll(configDir)
+	context := &clusterd.Context{
+		Executor:  executor,
+		ConfigDir: configDir,
+		Clientset: testop.New(3)}
+	fs := cephv1beta1.Filesystem{
+		ObjectMeta: metav1.ObjectMeta{Name: "myfs", Namespace: "ns"},
+		Spec: cephv1beta1.FilesystemSpec{
+			MetadataServer: cephv1beta1.MetadataServerSpec{
+				ActiveCount: 1,
+			},
+		},
+	}
+
+	// start a basic cluster
+	err := createFilesystem(context, fs, "v0.1", cephv1beta1.CephVersionSpec{}, false, []metav1.OwnerReference{})
+	assert.Nil(t, err)
+	validateStart(t, context, fs)
+
+	// starting again should be a no-op
+	err = createFilesystem(context, fs, "v0.1", cephv1beta1.CephVersionSpec{}, false, []metav1.OwnerReference{})
+	assert.Nil(t, err)
+	validateStart(t, context, fs)
+
+	// Test multiple filesystem creation
+	executor = &exectest.MockExecutor{
+		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
+			if contains(args, "ls") {
+				return fses, nil
+			}
+			return "{\"key\":\"mysecurekey\"}", errors.New("multiple fs")
+		},
+	}
+}
 func contains(arr []string, str string) bool {
 	for _, a := range arr {
 		if a == str {
