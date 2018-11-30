@@ -19,7 +19,7 @@ limitations under the License.
 package fake
 
 import (
-	v1alpha1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
+	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -30,29 +30,29 @@ import (
 
 // FakeFilesystems implements FilesystemInterface
 type FakeFilesystems struct {
-	Fake *FakeCephV1alpha1
+	Fake *FakeCephV1
 	ns   string
 }
 
-var filesystemsResource = schema.GroupVersionResource{Group: "ceph.rook.io", Version: "v1alpha1", Resource: "filesystems"}
+var filesystemsResource = schema.GroupVersionResource{Group: "ceph.rook.io", Version: "v1", Resource: "filesystems"}
 
-var filesystemsKind = schema.GroupVersionKind{Group: "ceph.rook.io", Version: "v1alpha1", Kind: "Filesystem"}
+var filesystemsKind = schema.GroupVersionKind{Group: "ceph.rook.io", Version: "v1", Kind: "Filesystem"}
 
 // Get takes name of the filesystem, and returns the corresponding filesystem object, and an error if there is any.
-func (c *FakeFilesystems) Get(name string, options v1.GetOptions) (result *v1alpha1.Filesystem, err error) {
+func (c *FakeFilesystems) Get(name string, options v1.GetOptions) (result *cephrookiov1.Filesystem, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(filesystemsResource, c.ns, name), &v1alpha1.Filesystem{})
+		Invokes(testing.NewGetAction(filesystemsResource, c.ns, name), &cephrookiov1.Filesystem{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha1.Filesystem), err
+	return obj.(*cephrookiov1.Filesystem), err
 }
 
 // List takes label and field selectors, and returns the list of Filesystems that match those selectors.
-func (c *FakeFilesystems) List(opts v1.ListOptions) (result *v1alpha1.FilesystemList, err error) {
+func (c *FakeFilesystems) List(opts v1.ListOptions) (result *cephrookiov1.FilesystemList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(filesystemsResource, filesystemsKind, c.ns, opts), &v1alpha1.FilesystemList{})
+		Invokes(testing.NewListAction(filesystemsResource, filesystemsKind, c.ns, opts), &cephrookiov1.FilesystemList{})
 
 	if obj == nil {
 		return nil, err
@@ -62,8 +62,8 @@ func (c *FakeFilesystems) List(opts v1.ListOptions) (result *v1alpha1.Filesystem
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &v1alpha1.FilesystemList{ListMeta: obj.(*v1alpha1.FilesystemList).ListMeta}
-	for _, item := range obj.(*v1alpha1.FilesystemList).Items {
+	list := &cephrookiov1.FilesystemList{ListMeta: obj.(*cephrookiov1.FilesystemList).ListMeta}
+	for _, item := range obj.(*cephrookiov1.FilesystemList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)
 		}
@@ -79,31 +79,31 @@ func (c *FakeFilesystems) Watch(opts v1.ListOptions) (watch.Interface, error) {
 }
 
 // Create takes the representation of a filesystem and creates it.  Returns the server's representation of the filesystem, and an error, if there is any.
-func (c *FakeFilesystems) Create(filesystem *v1alpha1.Filesystem) (result *v1alpha1.Filesystem, err error) {
+func (c *FakeFilesystems) Create(filesystem *cephrookiov1.Filesystem) (result *cephrookiov1.Filesystem, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(filesystemsResource, c.ns, filesystem), &v1alpha1.Filesystem{})
+		Invokes(testing.NewCreateAction(filesystemsResource, c.ns, filesystem), &cephrookiov1.Filesystem{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha1.Filesystem), err
+	return obj.(*cephrookiov1.Filesystem), err
 }
 
 // Update takes the representation of a filesystem and updates it. Returns the server's representation of the filesystem, and an error, if there is any.
-func (c *FakeFilesystems) Update(filesystem *v1alpha1.Filesystem) (result *v1alpha1.Filesystem, err error) {
+func (c *FakeFilesystems) Update(filesystem *cephrookiov1.Filesystem) (result *cephrookiov1.Filesystem, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(filesystemsResource, c.ns, filesystem), &v1alpha1.Filesystem{})
+		Invokes(testing.NewUpdateAction(filesystemsResource, c.ns, filesystem), &cephrookiov1.Filesystem{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha1.Filesystem), err
+	return obj.(*cephrookiov1.Filesystem), err
 }
 
 // Delete takes name of the filesystem and deletes it. Returns an error if one occurs.
 func (c *FakeFilesystems) Delete(name string, options *v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(filesystemsResource, c.ns, name), &v1alpha1.Filesystem{})
+		Invokes(testing.NewDeleteAction(filesystemsResource, c.ns, name), &cephrookiov1.Filesystem{})
 
 	return err
 }
@@ -112,17 +112,17 @@ func (c *FakeFilesystems) Delete(name string, options *v1.DeleteOptions) error {
 func (c *FakeFilesystems) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
 	action := testing.NewDeleteCollectionAction(filesystemsResource, c.ns, listOptions)
 
-	_, err := c.Fake.Invokes(action, &v1alpha1.FilesystemList{})
+	_, err := c.Fake.Invokes(action, &cephrookiov1.FilesystemList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched filesystem.
-func (c *FakeFilesystems) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.Filesystem, err error) {
+func (c *FakeFilesystems) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *cephrookiov1.Filesystem, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(filesystemsResource, c.ns, name, data, subresources...), &v1alpha1.Filesystem{})
+		Invokes(testing.NewPatchSubresourceAction(filesystemsResource, c.ns, name, data, subresources...), &cephrookiov1.Filesystem{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha1.Filesystem), err
+	return obj.(*cephrookiov1.Filesystem), err
 }

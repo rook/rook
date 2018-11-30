@@ -20,7 +20,7 @@ package fake
 
 import (
 	cassandrav1alpha1 "github.com/rook/rook/pkg/apis/cassandra.rook.io/v1alpha1"
-	cephv1alpha1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	cockroachdbv1alpha1 "github.com/rook/rook/pkg/apis/cockroachdb.rook.io/v1alpha1"
 	miniov1alpha1 "github.com/rook/rook/pkg/apis/minio.rook.io/v1alpha1"
@@ -58,8 +58,8 @@ func init() {
 // correctly.
 func AddToScheme(scheme *runtime.Scheme) {
 	cassandrav1alpha1.AddToScheme(scheme)
-	cephv1alpha1.AddToScheme(scheme)
 	cephv1beta1.AddToScheme(scheme)
+	cephv1.AddToScheme(scheme)
 	cockroachdbv1alpha1.AddToScheme(scheme)
 	miniov1alpha1.AddToScheme(scheme)
 	nfsv1alpha1.AddToScheme(scheme)

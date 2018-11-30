@@ -22,8 +22,8 @@ import (
 	clientset "github.com/rook/rook/pkg/client/clientset/versioned"
 	cassandrav1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/cassandra.rook.io/v1alpha1"
 	fakecassandrav1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/cassandra.rook.io/v1alpha1/fake"
-	cephv1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1alpha1"
-	fakecephv1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1alpha1/fake"
+	cephv1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1"
+	fakecephv1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1/fake"
 	cephv1beta1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1beta1"
 	fakecephv1beta1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1beta1/fake"
 	cockroachdbv1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/cockroachdb.rook.io/v1alpha1"
@@ -95,19 +95,19 @@ func (c *Clientset) Cassandra() cassandrav1alpha1.CassandraV1alpha1Interface {
 	return &fakecassandrav1alpha1.FakeCassandraV1alpha1{Fake: &c.Fake}
 }
 
-// CephV1alpha1 retrieves the CephV1alpha1Client
-func (c *Clientset) CephV1alpha1() cephv1alpha1.CephV1alpha1Interface {
-	return &fakecephv1alpha1.FakeCephV1alpha1{Fake: &c.Fake}
-}
-
 // CephV1beta1 retrieves the CephV1beta1Client
 func (c *Clientset) CephV1beta1() cephv1beta1.CephV1beta1Interface {
 	return &fakecephv1beta1.FakeCephV1beta1{Fake: &c.Fake}
 }
 
-// Ceph retrieves the CephV1beta1Client
-func (c *Clientset) Ceph() cephv1beta1.CephV1beta1Interface {
-	return &fakecephv1beta1.FakeCephV1beta1{Fake: &c.Fake}
+// CephV1 retrieves the CephV1Client
+func (c *Clientset) CephV1() cephv1.CephV1Interface {
+	return &fakecephv1.FakeCephV1{Fake: &c.Fake}
+}
+
+// Ceph retrieves the CephV1Client
+func (c *Clientset) Ceph() cephv1.CephV1Interface {
+	return &fakecephv1.FakeCephV1{Fake: &c.Fake}
 }
 
 // CockroachdbV1alpha1 retrieves the CockroachdbV1alpha1Client

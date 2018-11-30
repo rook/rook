@@ -19,7 +19,7 @@ limitations under the License.
 package fake
 
 import (
-	v1alpha1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
+	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -30,29 +30,29 @@ import (
 
 // FakePools implements PoolInterface
 type FakePools struct {
-	Fake *FakeCephV1alpha1
+	Fake *FakeCephV1
 	ns   string
 }
 
-var poolsResource = schema.GroupVersionResource{Group: "ceph.rook.io", Version: "v1alpha1", Resource: "pools"}
+var poolsResource = schema.GroupVersionResource{Group: "ceph.rook.io", Version: "v1", Resource: "pools"}
 
-var poolsKind = schema.GroupVersionKind{Group: "ceph.rook.io", Version: "v1alpha1", Kind: "Pool"}
+var poolsKind = schema.GroupVersionKind{Group: "ceph.rook.io", Version: "v1", Kind: "Pool"}
 
 // Get takes name of the pool, and returns the corresponding pool object, and an error if there is any.
-func (c *FakePools) Get(name string, options v1.GetOptions) (result *v1alpha1.Pool, err error) {
+func (c *FakePools) Get(name string, options v1.GetOptions) (result *cephrookiov1.Pool, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(poolsResource, c.ns, name), &v1alpha1.Pool{})
+		Invokes(testing.NewGetAction(poolsResource, c.ns, name), &cephrookiov1.Pool{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha1.Pool), err
+	return obj.(*cephrookiov1.Pool), err
 }
 
 // List takes label and field selectors, and returns the list of Pools that match those selectors.
-func (c *FakePools) List(opts v1.ListOptions) (result *v1alpha1.PoolList, err error) {
+func (c *FakePools) List(opts v1.ListOptions) (result *cephrookiov1.PoolList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(poolsResource, poolsKind, c.ns, opts), &v1alpha1.PoolList{})
+		Invokes(testing.NewListAction(poolsResource, poolsKind, c.ns, opts), &cephrookiov1.PoolList{})
 
 	if obj == nil {
 		return nil, err
@@ -62,8 +62,8 @@ func (c *FakePools) List(opts v1.ListOptions) (result *v1alpha1.PoolList, err er
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &v1alpha1.PoolList{ListMeta: obj.(*v1alpha1.PoolList).ListMeta}
-	for _, item := range obj.(*v1alpha1.PoolList).Items {
+	list := &cephrookiov1.PoolList{ListMeta: obj.(*cephrookiov1.PoolList).ListMeta}
+	for _, item := range obj.(*cephrookiov1.PoolList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)
 		}
@@ -79,31 +79,31 @@ func (c *FakePools) Watch(opts v1.ListOptions) (watch.Interface, error) {
 }
 
 // Create takes the representation of a pool and creates it.  Returns the server's representation of the pool, and an error, if there is any.
-func (c *FakePools) Create(pool *v1alpha1.Pool) (result *v1alpha1.Pool, err error) {
+func (c *FakePools) Create(pool *cephrookiov1.Pool) (result *cephrookiov1.Pool, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(poolsResource, c.ns, pool), &v1alpha1.Pool{})
+		Invokes(testing.NewCreateAction(poolsResource, c.ns, pool), &cephrookiov1.Pool{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha1.Pool), err
+	return obj.(*cephrookiov1.Pool), err
 }
 
 // Update takes the representation of a pool and updates it. Returns the server's representation of the pool, and an error, if there is any.
-func (c *FakePools) Update(pool *v1alpha1.Pool) (result *v1alpha1.Pool, err error) {
+func (c *FakePools) Update(pool *cephrookiov1.Pool) (result *cephrookiov1.Pool, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(poolsResource, c.ns, pool), &v1alpha1.Pool{})
+		Invokes(testing.NewUpdateAction(poolsResource, c.ns, pool), &cephrookiov1.Pool{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha1.Pool), err
+	return obj.(*cephrookiov1.Pool), err
 }
 
 // Delete takes name of the pool and deletes it. Returns an error if one occurs.
 func (c *FakePools) Delete(name string, options *v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(poolsResource, c.ns, name), &v1alpha1.Pool{})
+		Invokes(testing.NewDeleteAction(poolsResource, c.ns, name), &cephrookiov1.Pool{})
 
 	return err
 }
@@ -112,17 +112,17 @@ func (c *FakePools) Delete(name string, options *v1.DeleteOptions) error {
 func (c *FakePools) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
 	action := testing.NewDeleteCollectionAction(poolsResource, c.ns, listOptions)
 
-	_, err := c.Fake.Invokes(action, &v1alpha1.PoolList{})
+	_, err := c.Fake.Invokes(action, &cephrookiov1.PoolList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched pool.
-func (c *FakePools) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.Pool, err error) {
+func (c *FakePools) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *cephrookiov1.Pool, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(poolsResource, c.ns, name, data, subresources...), &v1alpha1.Pool{})
+		Invokes(testing.NewPatchSubresourceAction(poolsResource, c.ns, name, data, subresources...), &cephrookiov1.Pool{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha1.Pool), err
+	return obj.(*cephrookiov1.Pool), err
 }

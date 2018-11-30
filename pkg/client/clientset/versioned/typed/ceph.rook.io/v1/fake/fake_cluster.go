@@ -19,7 +19,7 @@ limitations under the License.
 package fake
 
 import (
-	v1alpha1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
+	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -30,29 +30,29 @@ import (
 
 // FakeClusters implements ClusterInterface
 type FakeClusters struct {
-	Fake *FakeCephV1alpha1
+	Fake *FakeCephV1
 	ns   string
 }
 
-var clustersResource = schema.GroupVersionResource{Group: "ceph.rook.io", Version: "v1alpha1", Resource: "clusters"}
+var clustersResource = schema.GroupVersionResource{Group: "ceph.rook.io", Version: "v1", Resource: "clusters"}
 
-var clustersKind = schema.GroupVersionKind{Group: "ceph.rook.io", Version: "v1alpha1", Kind: "Cluster"}
+var clustersKind = schema.GroupVersionKind{Group: "ceph.rook.io", Version: "v1", Kind: "Cluster"}
 
 // Get takes name of the cluster, and returns the corresponding cluster object, and an error if there is any.
-func (c *FakeClusters) Get(name string, options v1.GetOptions) (result *v1alpha1.Cluster, err error) {
+func (c *FakeClusters) Get(name string, options v1.GetOptions) (result *cephrookiov1.Cluster, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(clustersResource, c.ns, name), &v1alpha1.Cluster{})
+		Invokes(testing.NewGetAction(clustersResource, c.ns, name), &cephrookiov1.Cluster{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha1.Cluster), err
+	return obj.(*cephrookiov1.Cluster), err
 }
 
 // List takes label and field selectors, and returns the list of Clusters that match those selectors.
-func (c *FakeClusters) List(opts v1.ListOptions) (result *v1alpha1.ClusterList, err error) {
+func (c *FakeClusters) List(opts v1.ListOptions) (result *cephrookiov1.ClusterList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(clustersResource, clustersKind, c.ns, opts), &v1alpha1.ClusterList{})
+		Invokes(testing.NewListAction(clustersResource, clustersKind, c.ns, opts), &cephrookiov1.ClusterList{})
 
 	if obj == nil {
 		return nil, err
@@ -62,8 +62,8 @@ func (c *FakeClusters) List(opts v1.ListOptions) (result *v1alpha1.ClusterList, 
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &v1alpha1.ClusterList{ListMeta: obj.(*v1alpha1.ClusterList).ListMeta}
-	for _, item := range obj.(*v1alpha1.ClusterList).Items {
+	list := &cephrookiov1.ClusterList{ListMeta: obj.(*cephrookiov1.ClusterList).ListMeta}
+	for _, item := range obj.(*cephrookiov1.ClusterList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)
 		}
@@ -79,31 +79,31 @@ func (c *FakeClusters) Watch(opts v1.ListOptions) (watch.Interface, error) {
 }
 
 // Create takes the representation of a cluster and creates it.  Returns the server's representation of the cluster, and an error, if there is any.
-func (c *FakeClusters) Create(cluster *v1alpha1.Cluster) (result *v1alpha1.Cluster, err error) {
+func (c *FakeClusters) Create(cluster *cephrookiov1.Cluster) (result *cephrookiov1.Cluster, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(clustersResource, c.ns, cluster), &v1alpha1.Cluster{})
+		Invokes(testing.NewCreateAction(clustersResource, c.ns, cluster), &cephrookiov1.Cluster{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha1.Cluster), err
+	return obj.(*cephrookiov1.Cluster), err
 }
 
 // Update takes the representation of a cluster and updates it. Returns the server's representation of the cluster, and an error, if there is any.
-func (c *FakeClusters) Update(cluster *v1alpha1.Cluster) (result *v1alpha1.Cluster, err error) {
+func (c *FakeClusters) Update(cluster *cephrookiov1.Cluster) (result *cephrookiov1.Cluster, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(clustersResource, c.ns, cluster), &v1alpha1.Cluster{})
+		Invokes(testing.NewUpdateAction(clustersResource, c.ns, cluster), &cephrookiov1.Cluster{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha1.Cluster), err
+	return obj.(*cephrookiov1.Cluster), err
 }
 
 // Delete takes name of the cluster and deletes it. Returns an error if one occurs.
 func (c *FakeClusters) Delete(name string, options *v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(clustersResource, c.ns, name), &v1alpha1.Cluster{})
+		Invokes(testing.NewDeleteAction(clustersResource, c.ns, name), &cephrookiov1.Cluster{})
 
 	return err
 }
@@ -112,17 +112,17 @@ func (c *FakeClusters) Delete(name string, options *v1.DeleteOptions) error {
 func (c *FakeClusters) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
 	action := testing.NewDeleteCollectionAction(clustersResource, c.ns, listOptions)
 
-	_, err := c.Fake.Invokes(action, &v1alpha1.ClusterList{})
+	_, err := c.Fake.Invokes(action, &cephrookiov1.ClusterList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched cluster.
-func (c *FakeClusters) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.Cluster, err error) {
+func (c *FakeClusters) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *cephrookiov1.Cluster, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(clustersResource, c.ns, name, data, subresources...), &v1alpha1.Cluster{})
+		Invokes(testing.NewPatchSubresourceAction(clustersResource, c.ns, name, data, subresources...), &cephrookiov1.Cluster{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha1.Cluster), err
+	return obj.(*cephrookiov1.Cluster), err
 }

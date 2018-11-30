@@ -19,7 +19,7 @@ limitations under the License.
 package fake
 
 import (
-	v1alpha1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
+	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -30,29 +30,29 @@ import (
 
 // FakeObjectStores implements ObjectStoreInterface
 type FakeObjectStores struct {
-	Fake *FakeCephV1alpha1
+	Fake *FakeCephV1
 	ns   string
 }
 
-var objectstoresResource = schema.GroupVersionResource{Group: "ceph.rook.io", Version: "v1alpha1", Resource: "objectstores"}
+var objectstoresResource = schema.GroupVersionResource{Group: "ceph.rook.io", Version: "v1", Resource: "objectstores"}
 
-var objectstoresKind = schema.GroupVersionKind{Group: "ceph.rook.io", Version: "v1alpha1", Kind: "ObjectStore"}
+var objectstoresKind = schema.GroupVersionKind{Group: "ceph.rook.io", Version: "v1", Kind: "ObjectStore"}
 
 // Get takes name of the objectStore, and returns the corresponding objectStore object, and an error if there is any.
-func (c *FakeObjectStores) Get(name string, options v1.GetOptions) (result *v1alpha1.ObjectStore, err error) {
+func (c *FakeObjectStores) Get(name string, options v1.GetOptions) (result *cephrookiov1.ObjectStore, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(objectstoresResource, c.ns, name), &v1alpha1.ObjectStore{})
+		Invokes(testing.NewGetAction(objectstoresResource, c.ns, name), &cephrookiov1.ObjectStore{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha1.ObjectStore), err
+	return obj.(*cephrookiov1.ObjectStore), err
 }
 
 // List takes label and field selectors, and returns the list of ObjectStores that match those selectors.
-func (c *FakeObjectStores) List(opts v1.ListOptions) (result *v1alpha1.ObjectStoreList, err error) {
+func (c *FakeObjectStores) List(opts v1.ListOptions) (result *cephrookiov1.ObjectStoreList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(objectstoresResource, objectstoresKind, c.ns, opts), &v1alpha1.ObjectStoreList{})
+		Invokes(testing.NewListAction(objectstoresResource, objectstoresKind, c.ns, opts), &cephrookiov1.ObjectStoreList{})
 
 	if obj == nil {
 		return nil, err
@@ -62,8 +62,8 @@ func (c *FakeObjectStores) List(opts v1.ListOptions) (result *v1alpha1.ObjectSto
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &v1alpha1.ObjectStoreList{ListMeta: obj.(*v1alpha1.ObjectStoreList).ListMeta}
-	for _, item := range obj.(*v1alpha1.ObjectStoreList).Items {
+	list := &cephrookiov1.ObjectStoreList{ListMeta: obj.(*cephrookiov1.ObjectStoreList).ListMeta}
+	for _, item := range obj.(*cephrookiov1.ObjectStoreList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)
 		}
@@ -79,31 +79,31 @@ func (c *FakeObjectStores) Watch(opts v1.ListOptions) (watch.Interface, error) {
 }
 
 // Create takes the representation of a objectStore and creates it.  Returns the server's representation of the objectStore, and an error, if there is any.
-func (c *FakeObjectStores) Create(objectStore *v1alpha1.ObjectStore) (result *v1alpha1.ObjectStore, err error) {
+func (c *FakeObjectStores) Create(objectStore *cephrookiov1.ObjectStore) (result *cephrookiov1.ObjectStore, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(objectstoresResource, c.ns, objectStore), &v1alpha1.ObjectStore{})
+		Invokes(testing.NewCreateAction(objectstoresResource, c.ns, objectStore), &cephrookiov1.ObjectStore{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha1.ObjectStore), err
+	return obj.(*cephrookiov1.ObjectStore), err
 }
 
 // Update takes the representation of a objectStore and updates it. Returns the server's representation of the objectStore, and an error, if there is any.
-func (c *FakeObjectStores) Update(objectStore *v1alpha1.ObjectStore) (result *v1alpha1.ObjectStore, err error) {
+func (c *FakeObjectStores) Update(objectStore *cephrookiov1.ObjectStore) (result *cephrookiov1.ObjectStore, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(objectstoresResource, c.ns, objectStore), &v1alpha1.ObjectStore{})
+		Invokes(testing.NewUpdateAction(objectstoresResource, c.ns, objectStore), &cephrookiov1.ObjectStore{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha1.ObjectStore), err
+	return obj.(*cephrookiov1.ObjectStore), err
 }
 
 // Delete takes name of the objectStore and deletes it. Returns an error if one occurs.
 func (c *FakeObjectStores) Delete(name string, options *v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(objectstoresResource, c.ns, name), &v1alpha1.ObjectStore{})
+		Invokes(testing.NewDeleteAction(objectstoresResource, c.ns, name), &cephrookiov1.ObjectStore{})
 
 	return err
 }
@@ -112,17 +112,17 @@ func (c *FakeObjectStores) Delete(name string, options *v1.DeleteOptions) error 
 func (c *FakeObjectStores) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
 	action := testing.NewDeleteCollectionAction(objectstoresResource, c.ns, listOptions)
 
-	_, err := c.Fake.Invokes(action, &v1alpha1.ObjectStoreList{})
+	_, err := c.Fake.Invokes(action, &cephrookiov1.ObjectStoreList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched objectStore.
-func (c *FakeObjectStores) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.ObjectStore, err error) {
+func (c *FakeObjectStores) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *cephrookiov1.ObjectStore, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(objectstoresResource, c.ns, name, data, subresources...), &v1alpha1.ObjectStore{})
+		Invokes(testing.NewPatchSubresourceAction(objectstoresResource, c.ns, name, data, subresources...), &cephrookiov1.ObjectStore{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha1.ObjectStore), err
+	return obj.(*cephrookiov1.ObjectStore), err
 }

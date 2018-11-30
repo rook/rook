@@ -19,34 +19,38 @@ limitations under the License.
 package fake
 
 import (
-	v1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1alpha1"
+	v1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1"
 	rest "k8s.io/client-go/rest"
 	testing "k8s.io/client-go/testing"
 )
 
-type FakeCephV1alpha1 struct {
+type FakeCephV1 struct {
 	*testing.Fake
 }
 
-func (c *FakeCephV1alpha1) Clusters(namespace string) v1alpha1.ClusterInterface {
+func (c *FakeCephV1) Clusters(namespace string) v1.ClusterInterface {
 	return &FakeClusters{c, namespace}
 }
 
-func (c *FakeCephV1alpha1) Filesystems(namespace string) v1alpha1.FilesystemInterface {
+func (c *FakeCephV1) Filesystems(namespace string) v1.FilesystemInterface {
 	return &FakeFilesystems{c, namespace}
 }
 
-func (c *FakeCephV1alpha1) ObjectStores(namespace string) v1alpha1.ObjectStoreInterface {
+func (c *FakeCephV1) ObjectStores(namespace string) v1.ObjectStoreInterface {
 	return &FakeObjectStores{c, namespace}
 }
 
-func (c *FakeCephV1alpha1) Pools(namespace string) v1alpha1.PoolInterface {
+func (c *FakeCephV1) ObjectStoreUsers(namespace string) v1.ObjectStoreUserInterface {
+	return &FakeObjectStoreUsers{c, namespace}
+}
+
+func (c *FakeCephV1) Pools(namespace string) v1.PoolInterface {
 	return &FakePools{c, namespace}
 }
 
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
-func (c *FakeCephV1alpha1) RESTClient() rest.Interface {
+func (c *FakeCephV1) RESTClient() rest.Interface {
 	var ret *rest.RESTClient
 	return ret
 }
