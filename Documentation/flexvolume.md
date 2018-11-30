@@ -46,7 +46,28 @@ Continue with [configuring the FlexVolume path](#configuring-the-flexvolume-path
 Rancher provides an easy way to configure kubelet. The FlexVolume flag will be shown later on in the [configuring the FlexVolume path](#configuring-the-flexvolume-path).
 It can be provided to the kubelet configuration template at deployment time or by using the `up to date` feature if Kubernetes is already deployed.
 
-Continue with [configuring the FlexVolume path](#configuring-the-flexvolume-path) to configure Rook to use the FlexVolume path.
+Rancher deploys kubelet as a docker container, you need to mount the host's flexvolume path into the kubelet image as a volume,
+this can be done in the `extra_binds` section of the kubelet cluster config.
+
+Configure the Rancher deployed kubelet by updating the `cluster.yml` file kubelet section:
+
+```yaml
+kubelet:
+ image: ""
+ extra_args:
+  volume-plugin-dir: /usr/libexec/kubernetes/kubelet-plugins/volume/exec
+  extra_binds:
+  - /usr/libexec/kubernetes/kubelet-plugins/volume/exec:/usr/libexec/kubernetes/kubelet-plugins/volume/exec
+```
+
+If you're using [rke](https://github.com/rancher/rke), run `rke up`, this will update and restart your kubernetes cluster system components, in this case the kubelet docker instance(s)
+will get restarted with the new volume bind and volume plugin dir flag.
+
+The default FlexVolume path for Rancher is `/usr/libexec/kubernetes/kubelet-plugins/volume/exec` which is also the default
+FlexVolume path for the Rook operator.
+
+If the default path as above is used no further configuration is required, otherwise if a different path is used
+the Rook operator will need to be reconfigured, to do this continue with [configuring the FlexVolume path](#configuring-the-flexvolume-path) to configure Rook to use the FlexVolume path.
 
 ### Google Kubernetes Engine (GKE)
 Google's Kubernetes Engine uses a non-standard FlexVolume plugin directory: `/home/kubernetes/flexvolume`
@@ -78,6 +99,8 @@ This path is commonly used for FlexVolume because `/var/lib/kubelet` is read wri
 You must provide the above found FlexVolume path when deploying the [rook-operator](https://github.com/rook/rook/blob/master/cluster/examples/kubernetes/ceph/operator.yaml) by setting the environment variable `FLEXVOLUME_DIR_PATH`.
 For example:
 ```yaml
+env:
+[...]
 - name: FLEXVOLUME_DIR_PATH
   value: "/var/lib/kubelet/volumeplugins"
 ```
