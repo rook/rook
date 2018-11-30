@@ -55,6 +55,13 @@ func createFilesystem(
 		return fmt.Errorf("failed to get file system %s: %+v", fs.Name, err)
 	}
 
+	// set the number of active mds instances
+	if fs.Spec.MetadataServer.ActiveCount > 1 {
+		if err = client.SetNumMDSRanks(context, fs.Namespace, fs.Name, fs.Spec.MetadataServer.ActiveCount); err != nil {
+			logger.Warningf("failed setting active mds count to %d. %+v", fs.Spec.MetadataServer.ActiveCount, err)
+		}
+	}
+
 	logger.Infof("start running mdses for file system %s", fs.Name)
 	c := newCluster(context, rookVersion, cephVersion, hostNetwork, fs, filesystem, ownerRefs)
 	if err := c.start(); err != nil {
