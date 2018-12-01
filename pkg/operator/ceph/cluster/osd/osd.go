@@ -50,7 +50,7 @@ const (
 	osdAppNameFmt                = "rook-ceph-osd-%d"
 	osdLabelKey                  = "ceph-osd-id"
 	clusterAvailableSpaceReserve = 0.05
-	defaultServiceAccountName    = "rook-ceph-cluster"
+	serviceAccountName           = "rook-ceph-osd"
 	unknownID                    = -1
 )
 
@@ -67,7 +67,6 @@ type Cluster struct {
 	HostNetwork     bool
 	resources       v1.ResourceRequirements
 	ownerRef        metav1.OwnerReference
-	serviceAccount  string
 	kv              *k8sutil.ConfigMapKVStore
 }
 
@@ -77,7 +76,6 @@ func New(
 	namespace string,
 	rookVersion string,
 	cephVersion cephv1beta1.CephVersionSpec,
-	serviceAccount string,
 	storageSpec rookalpha.StorageScopeSpec,
 	dataDirHostPath string,
 	placement rookalpha.Placement,
@@ -86,16 +84,9 @@ func New(
 	ownerRef metav1.OwnerReference,
 ) *Cluster {
 
-	if serviceAccount == "" {
-		// if the service account was not set, make a best effort with the example service account name since the default is unlikely to be sufficient.
-		serviceAccount = defaultServiceAccountName
-		logger.Infof("setting the osd pods to use the service account name: %s", serviceAccount)
-	}
-
 	return &Cluster{
 		context:         context,
 		Namespace:       namespace,
-		serviceAccount:  serviceAccount,
 		placement:       placement,
 		rookVersion:     rookVersion,
 		cephVersion:     cephVersion,

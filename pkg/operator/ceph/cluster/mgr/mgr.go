@@ -36,6 +36,7 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mgr")
 
 const (
 	appName              = "rook-ceph-mgr"
+	serviceAccountName   = "rook-ceph-mgr"
 	prometheusModuleName = "prometheus"
 	metricsPort          = 9283
 )

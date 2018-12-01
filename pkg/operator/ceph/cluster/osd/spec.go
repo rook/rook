@@ -209,7 +209,7 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 				Spec: v1.PodSpec{
 					NodeSelector:       map[string]string{apis.LabelHostname: nodeName},
 					RestartPolicy:      v1.RestartPolicyAlways,
-					ServiceAccountName: c.serviceAccount,
+					ServiceAccountName: serviceAccountName,
 					HostNetwork:        c.HostNetwork,
 					HostPID:            true,
 					DNSPolicy:          DNSPolicy,
@@ -295,7 +295,7 @@ func (c *Cluster) provisionPodTemplateSpec(devices []rookalpha.Device, selection
 	}
 
 	podSpec := v1.PodSpec{
-		ServiceAccountName: c.serviceAccount,
+		ServiceAccountName: serviceAccountName,
 		Containers: []v1.Container{
 			*copyBinariesContainer,
 			c.provisionOSDContainer(devices, selection, resources, storeConfig, metadataDevice, nodeName, location, copyBinariesContainer.VolumeMounts[0]),

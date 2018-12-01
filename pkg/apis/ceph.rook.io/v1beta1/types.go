@@ -63,9 +63,6 @@ type ClusterSpec struct {
 	// Resources set resource requests and limits
 	Resources rook.ResourceSpec `json:"resources,omitempty"`
 
-	// The service account in which to start the cluster resources if the default is not sufficient (OSD pods)
-	ServiceAccount string `json:"serviceAccount,omitempty"`
-
 	// The path on the host where config and data can be persisted.
 	DataDirHostPath string `json:"dataDirHostPath,omitempty"`
 

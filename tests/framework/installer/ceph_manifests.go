@@ -299,6 +299,21 @@ rules:
   verbs:
   - "*"
 ---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr-cluster
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  - nodes/proxy
+  verbs:
+  - get
+  - list
+  - watch
+---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -388,18 +403,74 @@ func (m *CephManifestsMaster) GetClusterRoles(namespace, systemNamespace string)
 	return `apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: rook-ceph-cluster
+  name: rook-ceph-osd
+  namespace: ` + namespace + `
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-ceph-mgr
   namespace: ` + namespace + `
 ---
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
-  name: rook-ceph-cluster
+  name: rook-ceph-osd
   namespace: ` + namespace + `
 rules:
 - apiGroups: [""]
   resources: ["configmaps"]
   verbs: [ "get", "list", "watch", "create", "update", "delete" ]
+---
+# Aspects of ceph-mgr that require access to the system namespace
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr-system
+  namespace: ` + namespace + `
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+---
+# Aspects of ceph-mgr that operate within the cluster's namespace
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr
+  namespace: ` + namespace + `
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - services
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - ceph.rook.io
+  resources:
+  - "*"
+  verbs:
+  - "*"
 ---
 # Allow the operator to create resources in this cluster's namespace
 kind: RoleBinding
@@ -416,20 +487,67 @@ subjects:
   name: rook-ceph-system
   namespace: ` + systemNamespace + `
 ---
-# Allow the pods in this namespace to work with configmaps
+# Allow the osd pods in this namespace to work with configmaps
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
-  name: rook-ceph-cluster
+  name: rook-ceph-osd
   namespace: ` + namespace + `
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: rook-ceph-cluster
+  name: rook-ceph-osd
 subjects:
 - kind: ServiceAccount
-  name: rook-ceph-cluster
-  namespace: ` + namespace
+  name: rook-ceph-osd
+  namespace: ` + namespace + `
+---
+# Allow the ceph mgr to access the cluster-specific resources necessary for the mgr modules
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr
+  namespace: ` + namespace + `
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-ceph-mgr
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-mgr
+  namespace: ` + namespace + `
+---
+# Allow the ceph mgr to access the rook system resources necessary for the mgr modules
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr-system ` + namespace + `
+  namespace: ` + systemNamespace + `
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-ceph-mgr-system
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-mgr
+  namespace: ` + namespace + `
+---
+# Allow the ceph mgr to access cluster-wide resources necessary for the mgr modules
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr-cluster
+  namespace: ` + namespace + `
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-mgr-cluster
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-mgr
+  namespace: ` + namespace + `
+---
+`
 }
 
 //GetRookCluster returns rook-cluster manifest
@@ -443,7 +561,6 @@ spec:
   cephVersion:
     image: ` + settings.CephVersion.Image + `
     allowUnsupported: ` + strconv.FormatBool(settings.CephVersion.AllowUnsupported) + `
-  serviceAccount: rook-ceph-cluster
   dataDirHostPath: ` + settings.DataDirHostPath + `
   network:
     hostNetwork: false

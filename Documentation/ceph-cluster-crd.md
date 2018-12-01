@@ -21,7 +21,6 @@ spec:
     # see the "Cluster Settings" section below for more details on which image of ceph to run
     image: ceph/ceph:v13.2.2-20181023
   dataDirHostPath: /var/lib/rook
-  serviceAccount: rook-ceph-cluster
   storage:
     useAllNodes: true
     useAllDevices: true
@@ -53,7 +52,6 @@ If this value is empty, each pod will get an ephemeral directory to store their 
 - `dashboard`: Settings for the Ceph dashboard. To view the dashboard in your browser see the [dashboard guide](ceph-dashboard.md).
   - `enabled`: Whether to enable the dashboard to view cluster status
   - `urlPrefix`: Allows to serve the dashboard under a subpath (useful when you are accessing the dashboard via a reverse proxy)
-- `serviceAccount`: The service account under which the OSD pods will run that will give access to ConfigMaps in the cluster's namespace. If not set, the default of `rook-ceph-cluster` will be used.
 - `network`: The network settings for the cluster
   - `hostNetwork`: uses network of the hosts instead of using the SDN below the containers.
 - `mon`: contains mon related options [mon settings](#mon-settings)
@@ -172,7 +170,6 @@ spec:
   cephVersion:
     image: ceph/ceph:v13.2.2-20181023
   dataDirHostPath: /var/lib/rook
-  serviceAccount: rook-ceph-cluster
   network:
     hostNetwork: false
   dashboard:
@@ -203,7 +200,6 @@ spec:
   cephVersion:
     image: ceph/ceph:v13.2.2-20181023
   dataDirHostPath: /var/lib/rook
-  serviceAccount: rook-ceph-cluster
   network:
     hostNetwork: false
   dashboard:
@@ -246,7 +242,6 @@ spec:
   cephVersion:
     image: ceph/ceph:v13.2.2-20181023
   dataDirHostPath: /var/lib/rook
-  serviceAccount: rook-ceph-cluster
   network:
     hostNetwork: false
   dashboard:
@@ -283,7 +278,6 @@ spec:
   cephVersion:
     image: ceph/ceph:v13.2.2-20181023
   dataDirHostPath: /var/lib/rook
-  serviceAccount: rook-ceph-cluster
   network:
     hostNetwork: false
   dashboard:
@@ -328,7 +322,6 @@ spec:
   cephVersion:
     image: ceph/ceph:v13.2.2-20181023
   dataDirHostPath: /var/lib/rook
-  serviceAccount: rook-ceph-cluster
   # cluster level resource requests/limits configuration
   resources:
   storage:
@@ -356,18 +349,74 @@ metadata:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: rook-ceph-cluster
+  name: rook-ceph-osd
+  namespace: rook-ceph
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-ceph-mgr
   namespace: rook-ceph
 ---
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
-  name: rook-ceph-cluster
+  name: rook-ceph-osd
   namespace: rook-ceph
 rules:
 - apiGroups: [""]
   resources: ["configmaps"]
   verbs: [ "get", "list", "watch", "create", "update", "delete" ]
+---
+# Aspects of ceph-mgr that require access to the system namespace
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr-system
+  namespace: rook-ceph
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+---
+# Aspects of ceph-mgr that operate within the cluster's namespace
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr
+  namespace: rook-ceph
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - services
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - ceph.rook.io
+  resources:
+  - "*"
+  verbs:
+  - "*"
 ---
 # Allow the operator to create resources in this cluster's namespace
 kind: RoleBinding
@@ -384,18 +433,63 @@ subjects:
   name: rook-ceph-system
   namespace: rook-ceph-system
 ---
-# Allow the pods in this namespace to work with configmaps
+# Allow the osd pods in this namespace to work with configmaps
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
-  name: rook-ceph-cluster
+  name: rook-ceph-osd
   namespace: rook-ceph
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: rook-ceph-cluster
+  name: rook-ceph-osd
 subjects:
 - kind: ServiceAccount
-  name: rook-ceph-cluster
+  name: rook-ceph-osd
+  namespace: rook-ceph
+---
+# Allow the ceph mgr to access the cluster-specific resources necessary for the mgr modules
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr
+  namespace: rook-ceph
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-ceph-mgr
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-mgr
+  namespace: rook-ceph
+---
+# Allow the ceph mgr to access the rook system resources necessary for the mgr modules
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr-system
+  namespace: rook-ceph-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-ceph-mgr-system
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-mgr
+  namespace: rook-ceph
+---
+# Allow the ceph mgr to access cluster-wide resources necessary for the mgr modules
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr-cluster
+  namespace: rook-ceph
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-mgr-cluster
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-mgr
   namespace: rook-ceph
 ```

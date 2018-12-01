@@ -148,6 +148,6 @@ roleRef:
   name: privileged-psp-user
 subjects:
 - kind: ServiceAccount
-  name: rook-ceph-cluster
+  name: rook-ceph-osd
   namespace: rook-ceph
 ```

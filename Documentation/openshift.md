@@ -62,7 +62,8 @@ users:
   # If other namespaces or service accounts are configured, they need to be updated here.
   - system:serviceaccount:rook-ceph-system:rook-ceph-system
   - system:serviceaccount:rook-ceph:default
-  - system:serviceaccount:rook-ceph:rook-ceph-cluster
+  - system:serviceaccount:rook-ceph:rook-ceph-mgr
+  - system:serviceaccount:rook-ceph:rook-ceph-osd
 ```
 
 Important to note is that if you plan on running Rook in namespaces other than the defaults of `rook-ceph-system` and `rook-ceph`, the example scc will need to be modified to accommodate for your namespaces where the Rook pods are running.
