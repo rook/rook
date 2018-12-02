@@ -38,7 +38,7 @@ For filing bugs, suggesting improvements, or requesting new features, please ope
 
 Please use the following to reach members of the community:
 
-- Slack: Join our [slack channel](https://rook-slackin.herokuapp.com)
+- Slack: Join our [slack channel](https://slack.rook.io)
 - Forums: [rook-dev](https://groups.google.com/forum/#!forum/rook-dev)
 - Twitter: [@rook_io](https://twitter.com/rook_io)
 - Email: [info@rook.io](mailto:info@rook.io)
