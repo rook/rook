@@ -32,8 +32,6 @@ import (
 	fakeminiov1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/minio.rook.io/v1alpha1/fake"
 	nfsv1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/nfs.rook.io/v1alpha1"
 	fakenfsv1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/nfs.rook.io/v1alpha1/fake"
-	rookv1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/rook.io/v1alpha1"
-	fakerookv1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/rook.io/v1alpha1/fake"
 	rookv1alpha2 "github.com/rook/rook/pkg/client/clientset/versioned/typed/rook.io/v1alpha2"
 	fakerookv1alpha2 "github.com/rook/rook/pkg/client/clientset/versioned/typed/rook.io/v1alpha2/fake"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -140,17 +138,12 @@ func (c *Clientset) Nfs() nfsv1alpha1.NfsV1alpha1Interface {
 	return &fakenfsv1alpha1.FakeNfsV1alpha1{Fake: &c.Fake}
 }
 
-// RookV1alpha1 retrieves the RookV1alpha1Client
-func (c *Clientset) RookV1alpha1() rookv1alpha1.RookV1alpha1Interface {
-	return &fakerookv1alpha1.FakeRookV1alpha1{Fake: &c.Fake}
-}
-
-// Rook retrieves the RookV1alpha1Client
-func (c *Clientset) Rook() rookv1alpha1.RookV1alpha1Interface {
-	return &fakerookv1alpha1.FakeRookV1alpha1{Fake: &c.Fake}
-}
-
 // RookV1alpha2 retrieves the RookV1alpha2Client
 func (c *Clientset) RookV1alpha2() rookv1alpha2.RookV1alpha2Interface {
+	return &fakerookv1alpha2.FakeRookV1alpha2{Fake: &c.Fake}
+}
+
+// Rook retrieves the RookV1alpha2Client
+func (c *Clientset) Rook() rookv1alpha2.RookV1alpha2Interface {
 	return &fakerookv1alpha2.FakeRookV1alpha2{Fake: &c.Fake}
 }

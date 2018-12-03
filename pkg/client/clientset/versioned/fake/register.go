@@ -25,7 +25,6 @@ import (
 	cockroachdbv1alpha1 "github.com/rook/rook/pkg/apis/cockroachdb.rook.io/v1alpha1"
 	miniov1alpha1 "github.com/rook/rook/pkg/apis/minio.rook.io/v1alpha1"
 	nfsv1alpha1 "github.com/rook/rook/pkg/apis/nfs.rook.io/v1alpha1"
-	rookv1alpha1 "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
@@ -63,6 +62,5 @@ func AddToScheme(scheme *runtime.Scheme) {
 	cockroachdbv1alpha1.AddToScheme(scheme)
 	miniov1alpha1.AddToScheme(scheme)
 	nfsv1alpha1.AddToScheme(scheme)
-	rookv1alpha1.AddToScheme(scheme)
 	rookv1alpha2.AddToScheme(scheme)
 }
