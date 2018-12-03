@@ -97,6 +97,8 @@ func (c *cluster) deleteLegacyMdsDeployment() bool {
 	return true
 }
 
+var updateDeploymentAndWait = k8sutil.UpdateDeploymentAndWait
+
 func (c *cluster) start() error {
 	// If attempt was made to prepare daemons for upgrade, make sure that an attempt is made to
 	// bring fs state back to desired when this method returns with any error or success.
@@ -147,7 +149,7 @@ func (c *cluster) start() error {
 			// TODO: need to prepare for upgrade here each time. Also, before a given deployment is
 			// terminated, I think we should somehow make sure that it isn't running the single
 			// active daemon. If it is, then we should have another daemon take over as active. @Jan?
-			if err := k8sutil.UpdateDeploymentAndWait(c.context, d, c.fs.Namespace); err != nil {
+			if err := updateDeploymentAndWait(c.context, d, c.fs.Namespace); err != nil {
 				return fmt.Errorf("failed to update mds deployment %s. %+v", mdsConfig.ResourceName, err)
 			}
 		}

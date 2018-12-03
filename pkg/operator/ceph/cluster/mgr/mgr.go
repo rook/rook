@@ -82,6 +82,8 @@ func New(context *clusterd.Context, namespace, rookVersion string, cephVersion c
 	}
 }
 
+var updateDeploymentAndWait = k8sutil.UpdateDeploymentAndWait
+
 // Start begins the process of running a cluster of Ceph mgrs.
 func (c *Cluster) Start() error {
 	logger.Infof("start running mgr")
@@ -120,7 +122,7 @@ func (c *Cluster) Start() error {
 				return fmt.Errorf("failed to create mgr deployment %s. %+v", resourceName, err)
 			}
 			logger.Infof("deployment for mgr %s already exists. updating if needed", resourceName)
-			if err := k8sutil.UpdateDeploymentAndWait(c.context, d, c.Namespace); err != nil {
+			if err := updateDeploymentAndWait(c.context, d, c.Namespace); err != nil {
 				return fmt.Errorf("failed to update mgr deployment %s. %+v", resourceName, err)
 			}
 		}

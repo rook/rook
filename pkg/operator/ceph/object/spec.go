@@ -52,8 +52,6 @@ func (c *config) startDeployment() error {
 		logger.Infof("deployment for rgw %s already exists. updating if needed", c.instanceName())
 		// There may be a *lot* of rgws, and they are stateless, so don't bother waiting until the
 		// entire deployment is updated to move on.
-		// TODO: is the above statement safe to assume?
-		// TODO: Are there any steps for RGW that need to happen before the daemons upgrade?
 		_, err := c.context.Clientset.Extensions().Deployments(c.store.Namespace).Update(d)
 		if err != nil {
 			return fmt.Errorf("failed to update rgw deployment %s. %+v", c.instanceName(), err)
