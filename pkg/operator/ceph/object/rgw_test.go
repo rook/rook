@@ -21,7 +21,7 @@ import (
 	"os"
 	"testing"
 
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -49,7 +49,7 @@ func TestStartRGW(t *testing.T) {
 	version := "v1.1.0"
 
 	// start a basic cluster
-	c := &config{context, store, version, cephv1beta1.CephVersionSpec{}, false, []metav1.OwnerReference{}}
+	c := &config{context, store, version, cephv1.CephVersionSpec{}, false, []metav1.OwnerReference{}}
 	err := c.createStore()
 	assert.Nil(t, err)
 
@@ -116,18 +116,18 @@ func TestCreateObjectStore(t *testing.T) {
 	context := &clusterd.Context{Executor: executor, Clientset: clientset}
 
 	// create the pools
-	c := &config{context, store, "1.2.3.4", cephv1beta1.CephVersionSpec{}, false, []metav1.OwnerReference{}}
+	c := &config{context, store, "1.2.3.4", cephv1.CephVersionSpec{}, false, []metav1.OwnerReference{}}
 	err := c.createStore()
 	assert.Nil(t, err)
 }
 
-func simpleStore() cephv1beta1.ObjectStore {
-	return cephv1beta1.ObjectStore{
+func simpleStore() cephv1.ObjectStore {
+	return cephv1.ObjectStore{
 		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "mycluster"},
-		Spec: cephv1beta1.ObjectStoreSpec{
-			MetadataPool: cephv1beta1.PoolSpec{Replicated: cephv1beta1.ReplicatedSpec{Size: 1}},
-			DataPool:     cephv1beta1.PoolSpec{ErasureCoded: cephv1beta1.ErasureCodedSpec{CodingChunks: 1, DataChunks: 2}},
-			Gateway:      cephv1beta1.GatewaySpec{Port: 123},
+		Spec: cephv1.ObjectStoreSpec{
+			MetadataPool: cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1}},
+			DataPool:     cephv1.PoolSpec{ErasureCoded: cephv1.ErasureCodedSpec{CodingChunks: 1, DataChunks: 2}},
+			Gateway:      cephv1.GatewaySpec{Port: 123},
 		},
 	}
 }

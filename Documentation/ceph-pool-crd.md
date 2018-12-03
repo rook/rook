@@ -15,7 +15,7 @@ for pools.
 
 For optimal performance while adding redundancy to the system, configure the data to be copied in full to multiple locations.
 ```yaml
-apiVersion: ceph.rook.io/v1beta1
+apiVersion: ceph.rook.io/v1
 kind: Pool
 metadata:
   name: replicapool
@@ -30,7 +30,7 @@ spec:
 
 To lower your storage capacity requirements while adding redundancy, use [erasure coding](#erasure-coding).
 ```yaml
-apiVersion: ceph.rook.io/v1beta1
+apiVersion: ceph.rook.io/v1
 kind: Pool
 metadata:
   name: ecpool

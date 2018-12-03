@@ -23,8 +23,8 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	opkit "github.com/rook/operator-kit"
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
-	rookv1alpha1 "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	cephbeta "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/clusterd"
 	ceph "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/daemon/ceph/model"
@@ -48,19 +48,19 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-pool")
 var PoolResource = opkit.CustomResource{
 	Name:    customResourceName,
 	Plural:  customResourceNamePlural,
-	Group:   cephv1beta1.CustomResourceGroup,
-	Version: cephv1beta1.Version,
+	Group:   cephv1.CustomResourceGroup,
+	Version: cephv1.Version,
 	Scope:   apiextensionsv1beta1.NamespaceScoped,
-	Kind:    reflect.TypeOf(cephv1beta1.Pool{}).Name(),
+	Kind:    reflect.TypeOf(cephv1.Pool{}).Name(),
 }
 
 var PoolResourceRookLegacy = opkit.CustomResource{
 	Name:    customResourceName,
 	Plural:  customResourceNamePlural,
-	Group:   rookv1alpha1.CustomResourceGroup,
-	Version: rookv1alpha1.Version,
+	Group:   cephbeta.CustomResourceGroup,
+	Version: cephbeta.Version,
 	Scope:   apiextensionsv1beta1.NamespaceScoped,
-	Kind:    reflect.TypeOf(rookv1alpha1.Pool{}).Name(),
+	Kind:    reflect.TypeOf(cephbeta.Pool{}).Name(),
 }
 
 // PoolController represents a controller object for pool custom resources
@@ -85,8 +85,8 @@ func (c *PoolController) StartWatch(namespace string, stopCh chan struct{}) erro
 	}
 
 	logger.Infof("start watching pool resources in namespace %s", namespace)
-	watcher := opkit.NewWatcher(PoolResource, namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1beta1().RESTClient())
-	go watcher.Watch(&cephv1beta1.Pool{}, stopCh)
+	watcher := opkit.NewWatcher(PoolResource, namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1().RESTClient())
+	go watcher.Watch(&cephv1.Pool{}, stopCh)
 
 	// watch for events on all legacy types too
 	c.watchLegacyPools(namespace, stopCh, resourceHandlerFuncs)
@@ -153,7 +153,7 @@ func (c *PoolController) onUpdate(oldObj, newObj interface{}) {
 	}
 }
 
-func poolChanged(old, new cephv1beta1.PoolSpec) bool {
+func poolChanged(old, new cephv1.PoolSpec) bool {
 	if old.Replicated.Size != new.Replicated.Size {
 		logger.Infof("pool replication changed from %d to %d", old.Replicated.Size, new.Replicated.Size)
 		return true
@@ -179,7 +179,7 @@ func (c *PoolController) onDelete(obj interface{}) {
 }
 
 // Create the pool
-func createPool(context *clusterd.Context, p *cephv1beta1.Pool) error {
+func createPool(context *clusterd.Context, p *cephv1.Pool) error {
 	// validate the pool settings
 	if err := ValidatePool(context, p); err != nil {
 		return fmt.Errorf("invalid pool %s arguments. %+v", p.Name, err)
@@ -196,7 +196,7 @@ func createPool(context *clusterd.Context, p *cephv1beta1.Pool) error {
 }
 
 // Delete the pool
-func deletePool(context *clusterd.Context, p *cephv1beta1.Pool) error {
+func deletePool(context *clusterd.Context, p *cephv1.Pool) error {
 
 	if err := ceph.DeletePool(context, p.Namespace, p.Name); err != nil {
 		return fmt.Errorf("failed to delete pool '%s'. %+v", p.Name, err)
@@ -206,7 +206,7 @@ func deletePool(context *clusterd.Context, p *cephv1beta1.Pool) error {
 }
 
 // Check if the pool exists
-func poolExists(context *clusterd.Context, p *cephv1beta1.Pool) (bool, error) {
+func poolExists(context *clusterd.Context, p *cephv1.Pool) (bool, error) {
 	pools, err := ceph.GetPools(context, p.Namespace)
 	if err != nil {
 		return false, err
@@ -219,18 +219,18 @@ func poolExists(context *clusterd.Context, p *cephv1beta1.Pool) (bool, error) {
 	return false, nil
 }
 
-func ModelToSpec(pool model.Pool) cephv1beta1.PoolSpec {
+func ModelToSpec(pool model.Pool) cephv1.PoolSpec {
 	ec := pool.ErasureCodedConfig
-	return cephv1beta1.PoolSpec{
+	return cephv1.PoolSpec{
 		FailureDomain: pool.FailureDomain,
 		CrushRoot:     pool.CrushRoot,
-		Replicated:    cephv1beta1.ReplicatedSpec{Size: pool.ReplicatedConfig.Size},
-		ErasureCoded:  cephv1beta1.ErasureCodedSpec{CodingChunks: ec.CodingChunkCount, DataChunks: ec.DataChunkCount, Algorithm: ec.Algorithm},
+		Replicated:    cephv1.ReplicatedSpec{Size: pool.ReplicatedConfig.Size},
+		ErasureCoded:  cephv1.ErasureCodedSpec{CodingChunks: ec.CodingChunkCount, DataChunks: ec.DataChunkCount, Algorithm: ec.Algorithm},
 	}
 }
 
 // Validate the pool arguments
-func ValidatePool(context *clusterd.Context, p *cephv1beta1.Pool) error {
+func ValidatePool(context *clusterd.Context, p *cephv1.Pool) error {
 	if p.Name == "" {
 		return fmt.Errorf("missing name")
 	}
@@ -243,7 +243,7 @@ func ValidatePool(context *clusterd.Context, p *cephv1beta1.Pool) error {
 	return nil
 }
 
-func ValidatePoolSpec(context *clusterd.Context, namespace string, p *cephv1beta1.PoolSpec) error {
+func ValidatePoolSpec(context *clusterd.Context, namespace string, p *cephv1.PoolSpec) error {
 	if p.Replication() != nil && p.ErasureCode() != nil {
 		return fmt.Errorf("both replication and erasure code settings cannot be specified")
 	}
@@ -293,18 +293,18 @@ func ValidatePoolSpec(context *clusterd.Context, namespace string, p *cephv1beta
 
 func (c *PoolController) watchLegacyPools(namespace string, stopCh chan struct{}, resourceHandlerFuncs cache.ResourceEventHandlerFuncs) {
 	// watch for pool.rook.io/v1alpha1 events if the CRD exists
-	if _, err := c.context.RookClientset.RookV1alpha1().Pools(namespace).List(metav1.ListOptions{}); err != nil {
+	if _, err := c.context.RookClientset.CephV1beta1().Pools(namespace).List(metav1.ListOptions{}); err != nil {
 		logger.Infof("skipping watching for legacy rook pool events (legacy pool CRD probably doesn't exist): %+v", err)
 	} else {
 		logger.Infof("start watching legacy rook pools in all namespaces")
-		watcherLegacy := opkit.NewWatcher(PoolResourceRookLegacy, namespace, resourceHandlerFuncs, c.context.RookClientset.RookV1alpha1().RESTClient())
-		go watcherLegacy.Watch(&rookv1alpha1.Pool{}, stopCh)
+		watcherLegacy := opkit.NewWatcher(PoolResourceRookLegacy, namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1beta1().RESTClient())
+		go watcherLegacy.Watch(&cephbeta.Pool{}, stopCh)
 	}
 }
 
-func getPoolObject(obj interface{}) (pool *cephv1beta1.Pool, migrationNeeded bool, err error) {
+func getPoolObject(obj interface{}) (pool *cephv1.Pool, migrationNeeded bool, err error) {
 	var ok bool
-	pool, ok = obj.(*cephv1beta1.Pool)
+	pool, ok = obj.(*cephv1.Pool)
 	if ok {
 		// the pool object is of the latest type, simply return it
 		return pool.DeepCopy(), false, nil
@@ -312,7 +312,7 @@ func getPoolObject(obj interface{}) (pool *cephv1beta1.Pool, migrationNeeded boo
 
 	// type assertion to current pool type failed, try instead asserting to the legacy pool types
 	// then convert it to the current pool type
-	poolRookLegacy, ok := obj.(*rookv1alpha1.Pool)
+	poolRookLegacy, ok := obj.(*cephbeta.Pool)
 	if ok {
 		return convertRookLegacyPool(poolRookLegacy.DeepCopy()), true, nil
 	}
@@ -320,10 +320,10 @@ func getPoolObject(obj interface{}) (pool *cephv1beta1.Pool, migrationNeeded boo
 	return nil, false, fmt.Errorf("not a known pool object: %+v", obj)
 }
 
-func (c *PoolController) migratePoolObject(poolToMigrate *cephv1beta1.Pool, legacyObj interface{}) error {
+func (c *PoolController) migratePoolObject(poolToMigrate *cephv1.Pool, legacyObj interface{}) error {
 	logger.Infof("migrating legacy pool %s in namespace %s", poolToMigrate.Name, poolToMigrate.Namespace)
 
-	_, err := c.context.RookClientset.CephV1beta1().Pools(poolToMigrate.Namespace).Get(poolToMigrate.Name, metav1.GetOptions{})
+	_, err := c.context.RookClientset.CephV1().Pools(poolToMigrate.Namespace).Get(poolToMigrate.Name, metav1.GetOptions{})
 	if err == nil {
 		// pool of current type with same name/namespace already exists, don't overwrite it
 		logger.Warningf("pool object %s in namespace %s already exists, will not overwrite with migrated legacy pool.",
@@ -334,7 +334,7 @@ func (c *PoolController) migratePoolObject(poolToMigrate *cephv1beta1.Pool, lega
 		}
 
 		// pool of current type does not already exist, create it now to complete the migration
-		_, err = c.context.RookClientset.CephV1beta1().Pools(poolToMigrate.Namespace).Create(poolToMigrate)
+		_, err = c.context.RookClientset.CephV1().Pools(poolToMigrate.Namespace).Create(poolToMigrate)
 		if err != nil {
 			return err
 		}
@@ -344,23 +344,23 @@ func (c *PoolController) migratePoolObject(poolToMigrate *cephv1beta1.Pool, lega
 
 	// delete the legacy pool instance, it should not be used anymore now that a migrated instance of the current type exists
 	deletePropagation := metav1.DeletePropagationOrphan
-	if _, ok := legacyObj.(*rookv1alpha1.Pool); ok {
+	if _, ok := legacyObj.(*cephbeta.Pool); ok {
 		logger.Infof("deleting legacy rook pool %s in namespace %s", poolToMigrate.Name, poolToMigrate.Namespace)
-		return c.context.RookClientset.RookV1alpha1().Pools(poolToMigrate.Namespace).Delete(
+		return c.context.RookClientset.CephV1beta1().Pools(poolToMigrate.Namespace).Delete(
 			poolToMigrate.Name, &metav1.DeleteOptions{PropagationPolicy: &deletePropagation})
 	}
 
 	return fmt.Errorf("not a known pool object: %+v", legacyObj)
 }
 
-func ConvertRookLegacyPoolSpec(legacySpec rookv1alpha1.PoolSpec) cephv1beta1.PoolSpec {
-	return cephv1beta1.PoolSpec{
+func ConvertRookLegacyPoolSpec(legacySpec cephbeta.PoolSpec) cephv1.PoolSpec {
+	return cephv1.PoolSpec{
 		FailureDomain: legacySpec.FailureDomain,
 		CrushRoot:     legacySpec.CrushRoot,
-		Replicated: cephv1beta1.ReplicatedSpec{
+		Replicated: cephv1.ReplicatedSpec{
 			Size: legacySpec.Replicated.Size,
 		},
-		ErasureCoded: cephv1beta1.ErasureCodedSpec{
+		ErasureCoded: cephv1.ErasureCodedSpec{
 			DataChunks:   legacySpec.ErasureCoded.DataChunks,
 			CodingChunks: legacySpec.ErasureCoded.CodingChunks,
 			Algorithm:    legacySpec.ErasureCoded.Algorithm,
@@ -368,12 +368,12 @@ func ConvertRookLegacyPoolSpec(legacySpec rookv1alpha1.PoolSpec) cephv1beta1.Poo
 	}
 }
 
-func convertRookLegacyPool(legacyPool *rookv1alpha1.Pool) *cephv1beta1.Pool {
+func convertRookLegacyPool(legacyPool *cephbeta.Pool) *cephv1.Pool {
 	if legacyPool == nil {
 		return nil
 	}
 
-	pool := &cephv1beta1.Pool{
+	pool := &cephv1.Pool{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      legacyPool.Name,
 			Namespace: legacyPool.Namespace,

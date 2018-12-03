@@ -23,7 +23,7 @@ import (
 	"testing"
 
 	"github.com/coreos/pkg/capnslog"
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
@@ -101,7 +101,7 @@ type TestCluster struct {
 }
 
 // StartTestCluster creates new instance of TestCluster struct
-func StartTestCluster(t func() *testing.T, namespace, storeType string, helmInstalled, useDevices bool, mons, rbdMirrorWorkers int, rookVersion string, cephVersion cephv1beta1.CephVersionSpec) (*TestCluster, *utils.K8sHelper) {
+func StartTestCluster(t func() *testing.T, namespace, storeType string, helmInstalled, useDevices bool, mons, rbdMirrorWorkers int, rookVersion string, cephVersion cephv1.CephVersionSpec) (*TestCluster, *utils.K8sHelper) {
 	kh, err := utils.CreateK8sHelper(t)
 	require.NoError(t(), err)
 
@@ -123,7 +123,7 @@ func StartTestCluster(t func() *testing.T, namespace, storeType string, helmInst
 // SetUpRook is a wrapper for setting up rook
 func (op *TestCluster) Setup() {
 	isRookInstalled, err := op.installer.InstallRookOnK8sWithHostPathAndDevices(op.namespace, op.storeType,
-		op.helmInstalled, op.useDevices, cephv1beta1.MonSpec{Count: op.mons, AllowMultiplePerNode: true}, false /* startWithAllNodes */, op.rbdMirrorWorkers)
+		op.helmInstalled, op.useDevices, cephv1.MonSpec{Count: op.mons, AllowMultiplePerNode: true}, false /* startWithAllNodes */, op.rbdMirrorWorkers)
 
 	if !isRookInstalled || err != nil {
 		logger.Errorf("Rook was not installed successfully: %v", err)

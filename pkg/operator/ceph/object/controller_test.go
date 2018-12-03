@@ -20,8 +20,8 @@ package object
 import (
 	"testing"
 
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
-	rookv1alpha1 "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	cephbeta "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	rookfake "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/clusterd"
@@ -34,37 +34,37 @@ import (
 )
 
 func TestObjectStoreChanged(t *testing.T) {
-	old := cephv1beta1.ObjectStoreSpec{Gateway: cephv1beta1.GatewaySpec{Port: 80, SecurePort: 443, Instances: 1, AllNodes: false, SSLCertificateRef: ""}}
-	new := cephv1beta1.ObjectStoreSpec{Gateway: cephv1beta1.GatewaySpec{Port: 80, SecurePort: 443, Instances: 1, AllNodes: false, SSLCertificateRef: ""}}
+	old := cephv1.ObjectStoreSpec{Gateway: cephv1.GatewaySpec{Port: 80, SecurePort: 443, Instances: 1, AllNodes: false, SSLCertificateRef: ""}}
+	new := cephv1.ObjectStoreSpec{Gateway: cephv1.GatewaySpec{Port: 80, SecurePort: 443, Instances: 1, AllNodes: false, SSLCertificateRef: ""}}
 	// nothing changed
 	assert.False(t, storeChanged(old, new))
 
 	// there was a change
-	new = cephv1beta1.ObjectStoreSpec{Gateway: cephv1beta1.GatewaySpec{Port: 81, SecurePort: 443, Instances: 1, AllNodes: false, SSLCertificateRef: ""}}
+	new = cephv1.ObjectStoreSpec{Gateway: cephv1.GatewaySpec{Port: 81, SecurePort: 443, Instances: 1, AllNodes: false, SSLCertificateRef: ""}}
 	assert.True(t, storeChanged(old, new))
 
-	new = cephv1beta1.ObjectStoreSpec{Gateway: cephv1beta1.GatewaySpec{Port: 80, SecurePort: 444, Instances: 1, AllNodes: false, SSLCertificateRef: ""}}
+	new = cephv1.ObjectStoreSpec{Gateway: cephv1.GatewaySpec{Port: 80, SecurePort: 444, Instances: 1, AllNodes: false, SSLCertificateRef: ""}}
 	assert.True(t, storeChanged(old, new))
 
-	new = cephv1beta1.ObjectStoreSpec{Gateway: cephv1beta1.GatewaySpec{Port: 80, SecurePort: 443, Instances: 2, AllNodes: false, SSLCertificateRef: ""}}
+	new = cephv1.ObjectStoreSpec{Gateway: cephv1.GatewaySpec{Port: 80, SecurePort: 443, Instances: 2, AllNodes: false, SSLCertificateRef: ""}}
 	assert.True(t, storeChanged(old, new))
 
-	new = cephv1beta1.ObjectStoreSpec{Gateway: cephv1beta1.GatewaySpec{Port: 80, SecurePort: 443, Instances: 1, AllNodes: true, SSLCertificateRef: ""}}
+	new = cephv1.ObjectStoreSpec{Gateway: cephv1.GatewaySpec{Port: 80, SecurePort: 443, Instances: 1, AllNodes: true, SSLCertificateRef: ""}}
 	assert.True(t, storeChanged(old, new))
 
-	new = cephv1beta1.ObjectStoreSpec{Gateway: cephv1beta1.GatewaySpec{Port: 80, SecurePort: 443, Instances: 1, AllNodes: false, SSLCertificateRef: "mysecret"}}
+	new = cephv1.ObjectStoreSpec{Gateway: cephv1.GatewaySpec{Port: 80, SecurePort: 443, Instances: 1, AllNodes: false, SSLCertificateRef: "mysecret"}}
 	assert.True(t, storeChanged(old, new))
 }
 
 func TestGetObjectStoreObject(t *testing.T) {
 	// get a current version objectstore object, should return with no error and no migration needed
-	objectstore, migrationNeeded, err := getObjectStoreObject(&cephv1beta1.ObjectStore{})
+	objectstore, migrationNeeded, err := getObjectStoreObject(&cephv1.ObjectStore{})
 	assert.NotNil(t, objectstore)
 	assert.False(t, migrationNeeded)
 	assert.Nil(t, err)
 
 	// get a legacy version objectstore object, should return with no error and yes migration needed
-	objectstore, migrationNeeded, err = getObjectStoreObject(&rookv1alpha1.ObjectStore{})
+	objectstore, migrationNeeded, err = getObjectStoreObject(&cephbeta.ObjectStore{})
 	assert.NotNil(t, objectstore)
 	assert.True(t, migrationNeeded)
 	assert.Nil(t, err)
@@ -78,7 +78,7 @@ func TestGetObjectStoreObject(t *testing.T) {
 
 func TestMigrateObjectStoreObject(t *testing.T) {
 	// create a legacy objectstore that will get migrated
-	legacyObjectStore := &rookv1alpha1.ObjectStore{
+	legacyObjectStore := &cephbeta.ObjectStore{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "legacy-objectstore-861",
 			Namespace: "rook-267",
@@ -91,7 +91,7 @@ func TestMigrateObjectStoreObject(t *testing.T) {
 		Clientset:     clientset,
 		RookClientset: rookfake.NewSimpleClientset(legacyObjectStore),
 	}
-	controller := NewObjectStoreController(context, "", cephv1beta1.CephVersionSpec{}, false, metav1.OwnerReference{})
+	controller := NewObjectStoreController(context, "", cephv1.CephVersionSpec{}, false, metav1.OwnerReference{})
 
 	// convert the legacy objectstore object in memory and assert that a migration is needed
 	convertedObjectStore, migrationNeeded, err := getObjectStoreObject(legacyObjectStore)
@@ -104,43 +104,43 @@ func TestMigrateObjectStoreObject(t *testing.T) {
 	assert.Nil(t, err)
 
 	// assert that a current objectstore object was created via the migration
-	migratedObjectStore, err := context.RookClientset.CephV1beta1().ObjectStores(legacyObjectStore.Namespace).Get(
+	migratedObjectStore, err := context.RookClientset.CephV1().ObjectStores(legacyObjectStore.Namespace).Get(
 		legacyObjectStore.Name, metav1.GetOptions{})
 	assert.NotNil(t, migratedObjectStore)
 	assert.Nil(t, err)
 
 	// assert that the legacy objectstore object was deleted
-	_, err = context.RookClientset.RookV1alpha1().ObjectStores(legacyObjectStore.Namespace).Get(legacyObjectStore.Name, metav1.GetOptions{})
+	_, err = context.RookClientset.CephV1beta1().ObjectStores(legacyObjectStore.Namespace).Get(legacyObjectStore.Name, metav1.GetOptions{})
 	assert.NotNil(t, err)
 	assert.True(t, errors.IsNotFound(err))
 }
 
 func TestConvertLegacyObjectStore(t *testing.T) {
-	legacyObjectStore := rookv1alpha1.ObjectStore{
+	legacyObjectStore := cephbeta.ObjectStore{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "legacy-objectstore-3545",
 			Namespace: "rook-96874",
 		},
-		Spec: rookv1alpha1.ObjectStoreSpec{
-			MetadataPool: rookv1alpha1.PoolSpec{
+		Spec: cephbeta.ObjectStoreSpec{
+			MetadataPool: cephbeta.PoolSpec{
 				FailureDomain: "fd1",
-				Replicated:    rookv1alpha1.ReplicatedSpec{Size: 5},
+				Replicated:    cephbeta.ReplicatedSpec{Size: 5},
 			},
-			DataPool: rookv1alpha1.PoolSpec{
+			DataPool: cephbeta.PoolSpec{
 				CrushRoot: "root329",
-				ErasureCoded: rookv1alpha1.ErasureCodedSpec{
+				ErasureCoded: cephbeta.ErasureCodedSpec{
 					CodingChunks: 5,
 					DataChunks:   10,
 					Algorithm:    "ec-algorithm-367",
 				},
 			},
-			Gateway: rookv1alpha1.GatewaySpec{
+			Gateway: cephbeta.GatewaySpec{
 				Port:              3093,
 				SecurePort:        2022,
 				Instances:         2,
 				AllNodes:          true,
 				SSLCertificateRef: "my-ssl-cert",
-				Placement: rookv1alpha1.Placement{
+				Placement: rookv1alpha2.Placement{
 					PodAntiAffinity: &v1.PodAntiAffinity{
 						RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
 							{LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"label": "value"}}},
@@ -152,25 +152,25 @@ func TestConvertLegacyObjectStore(t *testing.T) {
 		},
 	}
 
-	expectedObjectStore := cephv1beta1.ObjectStore{
+	expectedObjectStore := cephv1.ObjectStore{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "legacy-objectstore-3545",
 			Namespace: "rook-96874",
 		},
-		Spec: cephv1beta1.ObjectStoreSpec{
-			MetadataPool: cephv1beta1.PoolSpec{
+		Spec: cephv1.ObjectStoreSpec{
+			MetadataPool: cephv1.PoolSpec{
 				FailureDomain: "fd1",
-				Replicated:    cephv1beta1.ReplicatedSpec{Size: 5},
+				Replicated:    cephv1.ReplicatedSpec{Size: 5},
 			},
-			DataPool: cephv1beta1.PoolSpec{
+			DataPool: cephv1.PoolSpec{
 				CrushRoot: "root329",
-				ErasureCoded: cephv1beta1.ErasureCodedSpec{
+				ErasureCoded: cephv1.ErasureCodedSpec{
 					CodingChunks: 5,
 					DataChunks:   10,
 					Algorithm:    "ec-algorithm-367",
 				},
 			},
-			Gateway: cephv1beta1.GatewaySpec{
+			Gateway: cephv1.GatewaySpec{
 				Port:              3093,
 				SecurePort:        2022,
 				Instances:         2,

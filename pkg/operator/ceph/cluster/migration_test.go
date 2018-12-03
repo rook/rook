@@ -20,8 +20,8 @@ import (
 	"testing"
 	"time"
 
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
-	rookv1alpha1 "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	cephbeta "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	rookfake "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/clusterd"
@@ -36,13 +36,13 @@ import (
 
 func TestGetClusterObject(t *testing.T) {
 	// get a current version cluster object, should return with no error and no migration needed
-	cluster, migrationNeeded, err := getClusterObject(&cephv1beta1.Cluster{})
+	cluster, migrationNeeded, err := getClusterObject(&cephv1.Cluster{})
 	assert.NotNil(t, cluster)
 	assert.False(t, migrationNeeded)
 	assert.Nil(t, err)
 
 	// get a legacy version cluster object, should return with no error and yes migration needed
-	cluster, migrationNeeded, err = getClusterObject(&rookv1alpha1.Cluster{})
+	cluster, migrationNeeded, err = getClusterObject(&cephbeta.Cluster{})
 	assert.NotNil(t, cluster)
 	assert.True(t, migrationNeeded)
 	assert.Nil(t, err)
@@ -56,15 +56,15 @@ func TestGetClusterObject(t *testing.T) {
 
 func TestDefaultClusterValues(t *testing.T) {
 	// the default ceph version should be set
-	cluster, _, err := getClusterObject(&cephv1beta1.Cluster{})
+	cluster, _, err := getClusterObject(&cephv1.Cluster{})
 	assert.NotNil(t, cluster)
 	assert.Nil(t, err)
-	assert.Equal(t, cephv1beta1.DefaultLuminousImage, cluster.Spec.CephVersion.Image)
+	assert.Equal(t, cephv1.DefaultLuminousImage, cluster.Spec.CephVersion.Image)
 }
 
 func TestMigrateClusterObject(t *testing.T) {
 	// create a legacy cluster that will get migrated
-	legacyCluster := &rookv1alpha1.Cluster{
+	legacyCluster := &cephbeta.Cluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "legacy-cluster-3093",
 			Namespace: "rook-384",
@@ -94,8 +94,8 @@ func TestMigrateClusterObject(t *testing.T) {
 
 func TestOnUpdateLegacyClusterMigration(t *testing.T) {
 	// create an old/new legacy cluster pair to simulate an update event on a legacy cluster
-	oldLegacyCluster := &rookv1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "legacy-cluster-681", Namespace: "rook-159"}}
-	newLegacyCluster := &rookv1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "legacy-cluster-681", Namespace: "rook-159"}}
+	oldLegacyCluster := &cephbeta.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "legacy-cluster-681", Namespace: "rook-159"}}
+	newLegacyCluster := &cephbeta.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "legacy-cluster-681", Namespace: "rook-159"}}
 
 	// create fake core and rook clientsets and a cluster controller
 	clientset := testop.New(3)
@@ -118,8 +118,8 @@ func TestOnUpdateLegacyClusterDeleted(t *testing.T) {
 	// create an old/new legacy cluster pair to simulate an update event on a legacy cluster
 	// simulate that the legacy cluster has been deleted by setting the deletion timestamp (the legacy cluster should also
 	// have a legacy finalizer too)
-	oldLegacyCluster := &rookv1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "legacy-cluster-428", Namespace: "rook-361"}}
-	newLegacyCluster := &rookv1alpha1.Cluster{
+	oldLegacyCluster := &cephbeta.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "legacy-cluster-428", Namespace: "rook-361"}}
+	newLegacyCluster := &cephbeta.Cluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:              "legacy-cluster-428",
 			Namespace:         "rook-361",
@@ -143,7 +143,7 @@ func TestOnUpdateLegacyClusterDeleted(t *testing.T) {
 	controller.onUpdate(oldLegacyCluster, newLegacyCluster)
 
 	// the finalizer should have been removed so that deletion of the legacy cluster object can proceed by the API
-	deletedLegacyCluster, err := context.RookClientset.RookV1alpha1().Clusters(newLegacyCluster.Namespace).Get(
+	deletedLegacyCluster, err := context.RookClientset.CephV1beta1().Clusters(newLegacyCluster.Namespace).Get(
 		newLegacyCluster.Name, metav1.GetOptions{})
 	assert.NotNil(t, deletedLegacyCluster)
 	assert.Nil(t, err)
@@ -152,73 +152,81 @@ func TestOnUpdateLegacyClusterDeleted(t *testing.T) {
 func TestConvertLegacyCluster(t *testing.T) {
 	f := false
 
-	legacyCluster := rookv1alpha1.Cluster{
+	legacyCluster := cephbeta.Cluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "legacy-cluster-5283",
 			Namespace: "rook-9837",
 		},
-		Spec: rookv1alpha1.ClusterSpec{
-			Backend:         "ceph",
+		Spec: cephbeta.ClusterSpec{
 			DataDirHostPath: "/var/lib/rook302",
-			HostNetwork:     true,
-			MonCount:        5,
-			Placement: rookv1alpha1.PlacementSpec{
-				All: rookv1alpha1.Placement{Tolerations: []v1.Toleration{{Key: "storage-node", Operator: v1.TolerationOpExists}}},
-				Mon: rookv1alpha1.Placement{
+			Mon: cephbeta.MonSpec{
+				Count:                5,
+				AllowMultiplePerNode: true,
+			},
+			Network: rookv1alpha2.NetworkSpec{HostNetwork: true},
+			Placement: rookv1alpha2.PlacementSpec{
+				rookv1alpha2.PlacementKeyAll: rookv1alpha2.Placement{Tolerations: []v1.Toleration{{Key: "storage-node", Operator: v1.TolerationOpExists}}},
+				cephv1.PlacementKeyMon: rookv1alpha2.Placement{
 					PodAntiAffinity: &v1.PodAntiAffinity{
 						RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
 							{LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"label": "value"}}},
 						},
 					},
 				},
+				cephv1.PlacementKeyMgr: rookv1alpha2.Placement{},
+				cephv1.PlacementKeyOSD: rookv1alpha2.Placement{},
 			},
-			Resources: rookv1alpha1.ResourceSpec{
-				OSD: v1.ResourceRequirements{Limits: v1.ResourceList{v1.ResourceMemory: resource.MustParse("250Mi")}},
+			Resources: rookv1alpha2.ResourceSpec{
+				cephv1.ResourcesKeyOSD: v1.ResourceRequirements{Limits: v1.ResourceList{v1.ResourceMemory: resource.MustParse("250Mi")}},
+				cephv1.ResourcesKeyMon: v1.ResourceRequirements{},
+				cephv1.ResourcesKeyMgr: v1.ResourceRequirements{},
 			},
-			Storage: rookv1alpha1.StorageSpec{
+			Storage: rookv1alpha2.StorageScopeSpec{
 				UseAllNodes: false,
-				Selection: rookv1alpha1.Selection{
-					UseAllDevices:  &f,
-					DeviceFilter:   "dev1*",
-					MetadataDevice: "nvme033",
-					Directories: []rookv1alpha1.Directory{
-						{Path: "/rook/dir1"},
+				Location:    "datacenter=dc083",
+				Config: map[string]string{
+					"storeType":      "filestore",
+					"journalSizeMB":  "100",
+					"walSizeMB":      "200",
+					"databaseSizeMB": "300",
+					"metadataDevice": "nvme033",
+				},
+				Selection: rookv1alpha2.Selection{
+					UseAllDevices: &f,
+					DeviceFilter:  "dev1*",
+					Devices:       []rookv1alpha2.Device{},
+					Directories: []rookv1alpha2.Directory{
+						{Path: "/rook/dir1", Config: map[string]string{}},
 					},
 				},
-				Config: rookv1alpha1.Config{
-					Location: "datacenter=dc083",
-					StoreConfig: rookv1alpha1.StoreConfig{
-						StoreType:      "filestore",
-						JournalSizeMB:  100,
-						WalSizeMB:      200,
-						DatabaseSizeMB: 300,
-					},
-				},
-				Nodes: []rookv1alpha1.Node{
-					{ // node with no node specific config
-						Name: "node1",
-					},
-					{ // node with a lot of node specific config
-						Name: "node2",
-						Devices: []rookv1alpha1.Device{
-							{Name: "vdx1"},
+				Nodes: []rookv1alpha2.Node{
+					{
+						Name:   "node1",
+						Config: map[string]string{},
+						Selection: rookv1alpha2.Selection{
+							Devices:     []rookv1alpha2.Device{},
+							Directories: []rookv1alpha2.Directory{},
 						},
-						Selection: rookv1alpha1.Selection{
-							UseAllDevices:  &f,
-							DeviceFilter:   "dev2*",
-							MetadataDevice: "nvme982",
-							Directories: []rookv1alpha1.Directory{
-								{Path: "/rook/dir2"},
+					},
+					{
+						Name:     "node2",
+						Location: "datacenter=dc083,rack=rackA",
+						Selection: rookv1alpha2.Selection{
+							UseAllDevices: &f,
+							DeviceFilter:  "dev2*",
+							Devices: []rookv1alpha2.Device{
+								{Name: "vdx1", Config: map[string]string{}},
+							},
+							Directories: []rookv1alpha2.Directory{
+								{Path: "/rook/dir2", Config: map[string]string{}},
 							},
 						},
-						Config: rookv1alpha1.Config{
-							Location: "datacenter=dc083,rack=rackA",
-							StoreConfig: rookv1alpha1.StoreConfig{
-								StoreType:      "bluestore",
-								JournalSizeMB:  1000,
-								WalSizeMB:      2000,
-								DatabaseSizeMB: 3000,
-							},
+						Config: map[string]string{
+							"metadataDevice": "nvme982",
+							"storeType":      "bluestore",
+							"journalSizeMB":  "1000",
+							"walSizeMB":      "2000",
+							"databaseSizeMB": "3000",
 						},
 					},
 				},
@@ -226,34 +234,38 @@ func TestConvertLegacyCluster(t *testing.T) {
 		},
 	}
 
-	expectedCluster := cephv1beta1.Cluster{
+	expectedCluster := cephv1.Cluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "legacy-cluster-5283",
 			Namespace: "rook-9837",
 		},
-		Spec: cephv1beta1.ClusterSpec{
+		Spec: cephv1.ClusterSpec{
 			DataDirHostPath: "/var/lib/rook302",
-			Mon: cephv1beta1.MonSpec{
+			CephVersion: cephv1.CephVersionSpec{
+				Image:            cephv1.DefaultLuminousImage,
+				AllowUnsupported: false,
+			},
+			Mon: cephv1.MonSpec{
 				Count:                5,
 				AllowMultiplePerNode: true,
 			},
 			Network: rookv1alpha2.NetworkSpec{HostNetwork: true},
 			Placement: rookv1alpha2.PlacementSpec{
 				rookv1alpha2.PlacementKeyAll: rookv1alpha2.Placement{Tolerations: []v1.Toleration{{Key: "storage-node", Operator: v1.TolerationOpExists}}},
-				cephv1beta1.PlacementKeyMon: rookv1alpha2.Placement{
+				cephv1.PlacementKeyMon: rookv1alpha2.Placement{
 					PodAntiAffinity: &v1.PodAntiAffinity{
 						RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
 							{LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"label": "value"}}},
 						},
 					},
 				},
-				cephv1beta1.PlacementKeyMgr: rookv1alpha2.Placement{},
-				cephv1beta1.PlacementKeyOSD: rookv1alpha2.Placement{},
+				cephv1.PlacementKeyMgr: rookv1alpha2.Placement{},
+				cephv1.PlacementKeyOSD: rookv1alpha2.Placement{},
 			},
 			Resources: rookv1alpha2.ResourceSpec{
-				cephv1beta1.ResourcesKeyOSD: v1.ResourceRequirements{Limits: v1.ResourceList{v1.ResourceMemory: resource.MustParse("250Mi")}},
-				cephv1beta1.ResourcesKeyMon: v1.ResourceRequirements{},
-				cephv1beta1.ResourcesKeyMgr: v1.ResourceRequirements{},
+				cephv1.ResourcesKeyOSD: v1.ResourceRequirements{Limits: v1.ResourceList{v1.ResourceMemory: resource.MustParse("250Mi")}},
+				cephv1.ResourcesKeyMon: v1.ResourceRequirements{},
+				cephv1.ResourcesKeyMgr: v1.ResourceRequirements{},
 			},
 			Storage: rookv1alpha2.StorageScopeSpec{
 				UseAllNodes: false,
@@ -310,21 +322,16 @@ func TestConvertLegacyCluster(t *testing.T) {
 
 	// convert the legacy cluster and compare it to the expected cluster result
 	assert.Equal(t, expectedCluster, *(convertRookLegacyCluster(&legacyCluster)))
-
-	// check if legacy monCount is `0` that we default to `3`
-	legacyCluster.Spec.MonCount = 0
-	expectedCluster.Spec.Mon.Count = 3
-	assert.Equal(t, expectedCluster, *(convertRookLegacyCluster(&legacyCluster)))
 }
 
-func assertLegacyClusterMigrated(t *testing.T, context *clusterd.Context, legacyCluster *rookv1alpha1.Cluster) {
+func assertLegacyClusterMigrated(t *testing.T, context *clusterd.Context, legacyCluster *cephbeta.Cluster) {
 	// assert that a current cluster object was created via the migration
-	migratedCluster, err := context.RookClientset.CephV1beta1().Clusters(legacyCluster.Namespace).Get(legacyCluster.Name, metav1.GetOptions{})
+	migratedCluster, err := context.RookClientset.CephV1().Clusters(legacyCluster.Namespace).Get(legacyCluster.Name, metav1.GetOptions{})
 	assert.NotNil(t, migratedCluster)
 	assert.Nil(t, err)
 
 	// assert that the legacy cluster object was deleted
-	_, err = context.RookClientset.RookV1alpha1().Clusters(legacyCluster.Namespace).Get(legacyCluster.Name, metav1.GetOptions{})
+	_, err = context.RookClientset.CephV1beta1().Clusters(legacyCluster.Namespace).Get(legacyCluster.Name, metav1.GetOptions{})
 	assert.NotNil(t, err)
 	assert.True(t, errors.IsNotFound(err))
 }

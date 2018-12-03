@@ -24,7 +24,7 @@ import (
 	"strings"
 	"time"
 
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
@@ -45,21 +45,21 @@ const (
 
 var (
 	// supportedVersions are production-ready versions that rook supports
-	supportedVersions = []string{cephv1beta1.Luminous, cephv1beta1.Mimic}
+	supportedVersions = []string{cephv1.Luminous, cephv1.Mimic}
 	// allVersions includes all supportedVersions as well as unreleased versions that are being tested with rook
-	allVersions = append(supportedVersions, cephv1beta1.Nautilus)
+	allVersions = append(supportedVersions, cephv1.Nautilus)
 )
 
 type cluster struct {
 	context   *clusterd.Context
 	Namespace string
-	Spec      *cephv1beta1.ClusterSpec
+	Spec      *cephv1.ClusterSpec
 	mons      *mon.Cluster
 	stopCh    chan struct{}
 	ownerRef  metav1.OwnerReference
 }
 
-func newCluster(c *cephv1beta1.Cluster, context *clusterd.Context) *cluster {
+func newCluster(c *cephv1.Cluster, context *clusterd.Context) *cluster {
 	return &cluster{Namespace: c.Namespace, Spec: &c.Spec, context: context,
 		stopCh:   make(chan struct{}),
 		ownerRef: ClusterOwnerRef(c.Namespace, string(c.UID))}
@@ -159,8 +159,8 @@ func (c *cluster) createInstance(rookImage string) error {
 	}
 
 	// Start the mon pods
-	c.mons = mon.New(c.context, c.Namespace, c.Spec.DataDirHostPath, rookImage, c.Spec.CephVersion, c.Spec.Mon, cephv1beta1.GetMonPlacement(c.Spec.Placement),
-		c.Spec.Network.HostNetwork, cephv1beta1.GetMonResources(c.Spec.Resources), c.ownerRef)
+	c.mons = mon.New(c.context, c.Namespace, c.Spec.DataDirHostPath, rookImage, c.Spec.CephVersion, c.Spec.Mon, cephv1.GetMonPlacement(c.Spec.Placement),
+		c.Spec.Network.HostNetwork, cephv1.GetMonResources(c.Spec.Resources), c.ownerRef)
 	err = c.mons.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the mons. %+v", err)
@@ -171,8 +171,8 @@ func (c *cluster) createInstance(rookImage string) error {
 		return fmt.Errorf("failed to create initial crushmap: %+v", err)
 	}
 
-	mgrs := mgr.New(c.context, c.Namespace, rookImage, c.Spec.CephVersion, cephv1beta1.GetMgrPlacement(c.Spec.Placement),
-		c.Spec.Network.HostNetwork, c.Spec.Dashboard, cephv1beta1.GetMgrResources(c.Spec.Resources), c.ownerRef)
+	mgrs := mgr.New(c.context, c.Namespace, rookImage, c.Spec.CephVersion, cephv1.GetMgrPlacement(c.Spec.Placement),
+		c.Spec.Network.HostNetwork, c.Spec.Dashboard, cephv1.GetMgrResources(c.Spec.Resources), c.ownerRef)
 	err = mgrs.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the ceph mgr. %+v", err)
@@ -180,15 +180,15 @@ func (c *cluster) createInstance(rookImage string) error {
 
 	// Start the OSDs
 	osds := osd.New(c.context, c.Namespace, rookImage, c.Spec.CephVersion, c.Spec.Storage, c.Spec.DataDirHostPath,
-		cephv1beta1.GetOSDPlacement(c.Spec.Placement), c.Spec.Network.HostNetwork, cephv1beta1.GetOSDResources(c.Spec.Resources), c.ownerRef)
+		cephv1.GetOSDPlacement(c.Spec.Placement), c.Spec.Network.HostNetwork, cephv1.GetOSDResources(c.Spec.Resources), c.ownerRef)
 	err = osds.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the osds. %+v", err)
 	}
 
 	// Start the rbd mirroring daemon(s)
-	rbdmirror := rbd.New(c.context, c.Namespace, rookImage, c.Spec.CephVersion, cephv1beta1.GetRBDMirrorPlacement(c.Spec.Placement),
-		c.Spec.Network.HostNetwork, c.Spec.RBDMirroring, cephv1beta1.GetRBDMirrorResources(c.Spec.Resources), c.ownerRef)
+	rbdmirror := rbd.New(c.context, c.Namespace, rookImage, c.Spec.CephVersion, cephv1.GetRBDMirrorPlacement(c.Spec.Placement),
+		c.Spec.Network.HostNetwork, c.Spec.RBDMirroring, cephv1.GetRBDMirrorResources(c.Spec.Resources), c.ownerRef)
 	err = rbdmirror.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the rbd mirrors. %+v", err)
@@ -257,7 +257,7 @@ func (c *cluster) createInitialCrushMap() error {
 	return nil
 }
 
-func clusterChanged(oldCluster, newCluster cephv1beta1.ClusterSpec, clusterRef *cluster) bool {
+func clusterChanged(oldCluster, newCluster cephv1.ClusterSpec, clusterRef *cluster) bool {
 	changeFound := false
 	oldStorage := oldCluster.Storage
 	newStorage := newCluster.Storage

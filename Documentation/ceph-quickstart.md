@@ -212,7 +212,7 @@ subjects:
 #################################################################################
 # The Ceph Cluster CRD example
 #################################################################################
-apiVersion: ceph.rook.io/v1beta1
+apiVersion: ceph.rook.io/v1
 kind: Cluster
 metadata:
   name: rook-ceph

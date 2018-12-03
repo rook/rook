@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 )
 
@@ -21,7 +21,7 @@ func MgrDisableModule(context *clusterd.Context, clusterName, name string) error
 func MgrSetConfig(context *clusterd.Context, clusterName, cephVersionName, key, val string) (bool, error) {
 	var getArgs, setArgs []string
 
-	if cephVersionName == cephv1beta1.Luminous || cephVersionName == "" {
+	if cephVersionName == cephv1.Luminous || cephVersionName == "" {
 		getArgs = append(getArgs, "config-key", "get", key)
 		if val == "" {
 			setArgs = append(setArgs, "config-key", "del", key)

@@ -21,7 +21,7 @@ import (
 	"fmt"
 
 	"github.com/coreos/pkg/capnslog"
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
@@ -53,8 +53,8 @@ type Cluster struct {
 	HostNetwork bool
 	resources   v1.ResourceRequirements
 	ownerRef    metav1.OwnerReference
-	dashboard   cephv1beta1.DashboardSpec
-	cephVersion cephv1beta1.CephVersionSpec
+	dashboard   cephv1.DashboardSpec
+	cephVersion cephv1.CephVersionSpec
 	rookVersion string
 }
 
@@ -65,7 +65,7 @@ type mgrConfig struct {
 }
 
 // New creates an instance of the mgr
-func New(context *clusterd.Context, namespace, rookVersion string, cephVersion cephv1beta1.CephVersionSpec, placement rookalpha.Placement, hostNetwork bool, dashboard cephv1beta1.DashboardSpec,
+func New(context *clusterd.Context, namespace, rookVersion string, cephVersion cephv1.CephVersionSpec, placement rookalpha.Placement, hostNetwork bool, dashboard cephv1.DashboardSpec,
 	resources v1.ResourceRequirements, ownerRef metav1.OwnerReference) *Cluster {
 	return &Cluster{
 		context:     context,
@@ -89,7 +89,7 @@ func (c *Cluster) Start() error {
 	logger.Infof("start running mgr")
 
 	dashboardPort := dashboardPortHttps
-	if c.cephVersion.Name == cephv1beta1.Luminous {
+	if c.cephVersion.Name == cephv1.Luminous {
 		dashboardPort = dashboardPortHttp
 	}
 

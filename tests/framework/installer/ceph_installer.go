@@ -27,7 +27,7 @@ import (
 	"testing"
 	"time"
 
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/tests/framework/utils"
@@ -49,8 +49,8 @@ const (
 )
 
 var (
-	LuminousVersion = cephv1beta1.CephVersionSpec{Image: luminousTestImage, Name: cephv1beta1.Luminous}
-	MimicVersion    = cephv1beta1.CephVersionSpec{Image: mimicTestImage, Name: cephv1beta1.Mimic}
+	LuminousVersion = cephv1.CephVersionSpec{Image: luminousTestImage, Name: cephv1.Luminous}
+	MimicVersion    = cephv1.CephVersionSpec{Image: mimicTestImage, Name: cephv1.Mimic}
 )
 
 // CephInstaller wraps installing and uninstalling rook on a platform
@@ -61,7 +61,7 @@ type CephInstaller struct {
 	helmHelper       *utils.HelmHelper
 	k8sVersion       string
 	changeHostnames  bool
-	cephVersion      cephv1beta1.CephVersionSpec
+	cephVersion      cephv1.CephVersionSpec
 	T                func() *testing.T
 }
 
@@ -186,14 +186,14 @@ func (h *CephInstaller) CreateK8sRookToolbox(namespace string) (err error) {
 
 func (h *CephInstaller) CreateK8sRookCluster(namespace, systemNamespace string, storeType string) (err error) {
 	return h.CreateK8sRookClusterWithHostPathAndDevices(namespace, systemNamespace, storeType, false,
-		cephv1beta1.MonSpec{Count: 3, AllowMultiplePerNode: true}, true, /* startWithAllNodes */
+		cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, true, /* startWithAllNodes */
 		1, /* rbd workers */
 		LuminousVersion)
 }
 
 // CreateK8sRookCluster creates rook cluster via kubectl
 func (h *CephInstaller) CreateK8sRookClusterWithHostPathAndDevices(namespace, systemNamespace, storeType string,
-	useAllDevices bool, mon cephv1beta1.MonSpec, startWithAllNodes bool, rbdMirrorWorkers int, cephVersion cephv1beta1.CephVersionSpec) error {
+	useAllDevices bool, mon cephv1.MonSpec, startWithAllNodes bool, rbdMirrorWorkers int, cephVersion cephv1.CephVersionSpec) error {
 
 	dataDirHostPath, err := h.initTestDir(namespace)
 	if err != nil {
@@ -278,7 +278,7 @@ func (h *CephInstaller) GetNodeHostnames() ([]string, error) {
 
 // InstallRookOnK8sWithHostPathAndDevices installs rook on k8s
 func (h *CephInstaller) InstallRookOnK8sWithHostPathAndDevices(namespace, storeType string,
-	helmInstalled, useDevices bool, mon cephv1beta1.MonSpec, startWithAllNodes bool, rbdMirrorWorkers int) (bool, error) {
+	helmInstalled, useDevices bool, mon cephv1.MonSpec, startWithAllNodes bool, rbdMirrorWorkers int) (bool, error) {
 
 	var err error
 	// flag used for local debuggin purpose, when rook is pre-installed
@@ -326,7 +326,7 @@ func (h *CephInstaller) InstallRookOnK8sWithHostPathAndDevices(namespace, storeT
 
 	// Create rook cluster
 	err = h.CreateK8sRookClusterWithHostPathAndDevices(namespace, onamespace, storeType,
-		useDevices, cephv1beta1.MonSpec{Count: mon.Count, AllowMultiplePerNode: mon.AllowMultiplePerNode}, startWithAllNodes,
+		useDevices, cephv1.MonSpec{Count: mon.Count, AllowMultiplePerNode: mon.AllowMultiplePerNode}, startWithAllNodes,
 		rbdMirrorWorkers,
 		h.cephVersion)
 	if err != nil {
@@ -366,7 +366,7 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(helmInstalled bool, systemNa
 		checkError(h.T(), err, fmt.Sprintf("cannot remove cluster %s", namespace))
 
 		crdCheckerFunc := func() error {
-			_, err := h.k8shelper.RookClientset.CephV1beta1().Clusters(namespace).Get(namespace, metav1.GetOptions{})
+			_, err := h.k8shelper.RookClientset.CephV1().Clusters(namespace).Get(namespace, metav1.GetOptions{})
 			return err
 		}
 		err = h.k8shelper.WaitForCustomResourceDeletion(namespace, crdCheckerFunc)
@@ -438,7 +438,7 @@ func (h *CephInstaller) GatherAllRookLogs(namespace, systemNamespace string, tes
 }
 
 // NewCephInstaller creates new instance of CephInstaller
-func NewCephInstaller(t func() *testing.T, clientset *kubernetes.Clientset, rookVersion string, cephVersion cephv1beta1.CephVersionSpec) *CephInstaller {
+func NewCephInstaller(t func() *testing.T, clientset *kubernetes.Clientset, rookVersion string, cephVersion cephv1.CephVersionSpec) *CephInstaller {
 
 	// All e2e tests should run ceph commands in the toolbox since we are not inside a container
 	client.RunAllCephCommandsInToolbox = true

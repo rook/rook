@@ -50,7 +50,7 @@ osd, rgw, and mds pods. The significance of this approach is that the Rook binar
 In the following Cluster CRD example, the Ceph version is Mimic `13.2.2` built on 23 Oct 2018.
 
 ```yaml
-apiVersion: ceph.rook.io/v1beta1
+apiVersion: ceph.rook.io/v1
 kind: Cluster
 metadata:
   name: rook-ceph

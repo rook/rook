@@ -49,7 +49,7 @@ or object store.
 ### Before (pools always specified)
 
 ```yaml
-apiVersion: ceph.rook.io/v1beta1
+apiVersion: ceph.rook.io/v1
 kind: Filesystem
 metadata:
   name: myfs
@@ -74,7 +74,7 @@ any pools or a Ceph filesystem.  A filesystem named ``myfs`` should already
 exist in Ceph, otherwise Rook will not start any MDS pods.
 
 ```yaml
-apiVersion: ceph.rook.io/v1beta1
+apiVersion: ceph.rook.io/v1
 kind: Filesystem
 metadata:
   name: myfs
@@ -93,4 +93,3 @@ management when pools are omitted in FilesystemSpec or ObjectStoreSpec
 
 - Migration: none required.  Existing filesystems and objectstores always
 have pools set explicitly, so will continue to have these managed by Rook.
-

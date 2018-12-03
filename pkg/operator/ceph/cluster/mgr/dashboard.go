@@ -24,7 +24,7 @@ import (
 	"syscall"
 	"time"
 
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/api/core/v1"
@@ -114,7 +114,7 @@ func (c *Cluster) configureDashboardModule() error {
 }
 
 func (c *Cluster) initializeSecureDashboard() error {
-	if c.cephVersion.Name == cephv1beta1.Luminous || c.cephVersion.Name == "" {
+	if c.cephVersion.Name == cephv1.Luminous || c.cephVersion.Name == "" {
 		logger.Infof("skipping cert and user configuration on luminous")
 		return nil
 	}

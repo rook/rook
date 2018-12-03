@@ -26,7 +26,7 @@ Create the file system by specifying the desired settings for the metadata pool,
 Save this shared file system definition as `filesystem.yaml`:
 
 ```yaml
-apiVersion: ceph.rook.io/v1beta1
+apiVersion: ceph.rook.io/v1
 kind: Filesystem
 metadata:
   name: myfs

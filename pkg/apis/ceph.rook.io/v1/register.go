@@ -25,7 +25,7 @@ import (
 
 const (
 	CustomResourceGroup = "ceph.rook.io"
-	Version             = "v1beta1"
+	Version             = "v1"
 )
 
 // SchemeGroupVersion is group version used to register these objects

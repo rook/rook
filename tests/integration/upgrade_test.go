@@ -22,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
@@ -127,14 +127,14 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	require.Nil(s.T(), err)
 
 	// wait for the mon pods to be running
-	err = k8sutil.WaitForDeploymentImage(s.k8sh.Clientset, s.namespace, "app=rook-ceph-mon", "mon", cephv1beta1.DefaultLuminousImage)
+	err = k8sutil.WaitForDeploymentImage(s.k8sh.Clientset, s.namespace, "app=rook-ceph-mon", "mon", cephv1.DefaultLuminousImage)
 	require.Nil(s.T(), err)
 
 	err = s.k8sh.WaitForLabeledPodsToRun("app=rook-ceph-mon", s.namespace)
 	require.Nil(s.T(), err)
 
 	// wait for the osd pods to be updated
-	err = k8sutil.WaitForDeploymentImage(s.k8sh.Clientset, s.namespace, "app=rook-ceph-osd", "osd", cephv1beta1.DefaultLuminousImage)
+	err = k8sutil.WaitForDeploymentImage(s.k8sh.Clientset, s.namespace, "app=rook-ceph-osd", "osd", cephv1.DefaultLuminousImage)
 	require.Nil(s.T(), err)
 
 	err = s.k8sh.WaitForLabeledPodsToRun("app=rook-ceph-osd", s.namespace)
@@ -188,7 +188,7 @@ spec:
     shortNames:
     - rcou
   scope: Namespaced
-  version: v1beta1
+  version: v1
 ---
 # The cluster role for managing all the cluster-specific resources in a namespace
 apiVersion: rbac.authorization.k8s.io/v1beta1

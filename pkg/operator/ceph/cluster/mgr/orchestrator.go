@@ -20,7 +20,7 @@ package mgr
 import (
 	"fmt"
 
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 )
 
@@ -31,7 +31,7 @@ const (
 
 // Ceph docs about the orchestrator modules: http://docs.ceph.com/docs/master/mgr/orchestrator_cli/
 func (c *Cluster) configureOrchestratorModules() error {
-	if !cephv1beta1.VersionAtLeast(c.cephVersion.Name, cephv1beta1.Nautilus) {
+	if !cephv1.VersionAtLeast(c.cephVersion.Name, cephv1.Nautilus) {
 		logger.Infof("skipping enabling orchestrator modules on releases older than nautilus")
 		return nil
 	}

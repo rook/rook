@@ -21,7 +21,7 @@ import (
 	"os"
 	"testing"
 
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	testopk8s "github.com/rook/rook/pkg/operator/k8sutil/test"
@@ -50,7 +50,7 @@ func TestStartMGR(t *testing.T) {
 		Executor:  executor,
 		ConfigDir: configDir,
 		Clientset: testop.New(3)}
-	c := New(context, "ns", "myversion", cephv1beta1.CephVersionSpec{}, rookalpha.Placement{}, false, cephv1beta1.DashboardSpec{Enabled: true}, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(context, "ns", "myversion", cephv1.CephVersionSpec{}, rookalpha.Placement{}, false, cephv1.DashboardSpec{Enabled: true}, v1.ResourceRequirements{}, metav1.OwnerReference{})
 	defer os.RemoveAll(c.dataDir)
 
 	// start a basic service

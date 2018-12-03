@@ -19,7 +19,7 @@ package file
 import (
 	"testing"
 
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
@@ -35,10 +35,10 @@ import (
 )
 
 func testDeploymentObject(hostNetwork bool) *extensions.Deployment {
-	fs := cephv1beta1.Filesystem{
+	fs := cephv1.Filesystem{
 		ObjectMeta: metav1.ObjectMeta{Name: "myfs", Namespace: "ns"},
-		Spec: cephv1beta1.FilesystemSpec{
-			MetadataServer: cephv1beta1.MetadataServerSpec{
+		Spec: cephv1.FilesystemSpec{
+			MetadataServer: cephv1.MetadataServerSpec{
 				ActiveCount:   1,
 				ActiveStandby: false,
 				Resources: v1.ResourceRequirements{
@@ -52,7 +52,7 @@ func testDeploymentObject(hostNetwork bool) *extensions.Deployment {
 	c := newCluster(
 		&clusterd.Context{Clientset: testop.New(1)},
 		"rook/rook:myversion",
-		cephv1beta1.CephVersionSpec{Image: "ceph/ceph:testversion"},
+		cephv1.CephVersionSpec{Image: "ceph/ceph:testversion"},
 		hostNetwork,
 		fs,
 		&client.CephFilesystemDetails{ID: 15},

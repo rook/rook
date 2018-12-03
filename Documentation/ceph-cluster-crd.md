@@ -11,7 +11,7 @@ Rook allows creation and customization of storage clusters through the custom re
 To get you started, here is a simple example of a CRD to configure a Ceph cluster with all nodes and all devices. More examples are included [later in this doc](#samples).
 
 ```yaml
-apiVersion: ceph.rook.io/v1beta1
+apiVersion: ceph.rook.io/v1
 kind: Cluster
 metadata:
   name: rook-ceph
@@ -161,7 +161,7 @@ Here are several samples for configuring Ceph clusters. Each of the samples must
 
 ### Storage configuration: All devices
 ```yaml
-apiVersion: ceph.rook.io/v1beta1
+apiVersion: ceph.rook.io/v1
 kind: Cluster
 metadata:
   name: rook-ceph
@@ -191,7 +191,7 @@ Individual nodes and their config can be specified so that only the named nodes 
 Each node's 'name' field should match their 'kubernetes.io/hostname' label.
 
 ```yaml
-apiVersion: ceph.rook.io/v1beta1
+apiVersion: ceph.rook.io/v1
 kind: Cluster
 metadata:
   name: rook-ceph
@@ -233,7 +233,7 @@ This example is based up on the [Storage Configuration: Specific devices](#stora
 Individual nodes can override the cluster wide specified directories list.
 
 ```yaml
-apiVersion: ceph.rook.io/v1beta1
+apiVersion: ceph.rook.io/v1
 kind: Cluster
 metadata:
   name: rook-ceph
@@ -269,7 +269,7 @@ The example under 'all' would have all services scheduled on kubernetes nodes la
 tolerate taints with a key of 'storage-node'.
 
 ```yaml
-apiVersion: ceph.rook.io/v1beta1
+apiVersion: ceph.rook.io/v1
 kind: Cluster
 metadata:
   name: rook-ceph
@@ -313,7 +313,7 @@ You can override these requests/limits for OSDs per node when using `useAllNodes
 **WARNING** Before setting resource requests/limits, please take a look at the Ceph documentation for recommendations for each component: [Ceph - Hardware Recommendations](http://docs.ceph.com/docs/master/start/hardware-recommendations/).
 
 ```yaml
-apiVersion: ceph.rook.io/v1beta1
+apiVersion: ceph.rook.io/v1
 kind: Cluster
 metadata:
   name: rook-ceph

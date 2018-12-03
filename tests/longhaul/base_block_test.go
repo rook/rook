@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
@@ -145,7 +145,7 @@ func StartLoadTestCluster(t func() *testing.T, namespace string) (LoadTestCluste
 	kh, err := utils.CreateK8sHelper(t)
 	require.NoError(t(), err)
 
-	i := installer.NewCephInstaller(t, kh.Clientset, installer.VersionMaster, cephv1beta1.CephVersionSpec{Image: "ceph/ceph:v12.2.7", Name: "luminous"})
+	i := installer.NewCephInstaller(t, kh.Clientset, installer.VersionMaster, cephv1.CephVersionSpec{Image: "ceph/ceph:v12.2.7", Name: "luminous"})
 
 	op := LoadTestCluster{i, kh, nil, t, namespace}
 	op.Setup()
@@ -157,7 +157,7 @@ func (o LoadTestCluster) Setup() {
 
 	if !o.kh.IsRookInstalled(o.namespace) {
 		isRookInstalled, err := o.installer.InstallRookOnK8sWithHostPathAndDevices(o.namespace, "bluestore",
-			false, true, cephv1beta1.MonSpec{Count: 3, AllowMultiplePerNode: true},
+			false, true, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true},
 			true, /* startWithAllNodes */
 			1 /*rbd mirror workers*/)
 		require.NoError(o.T(), err)

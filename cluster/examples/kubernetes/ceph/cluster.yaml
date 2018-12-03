@@ -150,7 +150,7 @@ subjects:
   name: rook-ceph-mgr
   namespace: rook-ceph
 ---
-apiVersion: ceph.rook.io/v1beta1
+apiVersion: ceph.rook.io/v1
 kind: Cluster
 metadata:
   name: rook-ceph

@@ -21,7 +21,7 @@ import (
 	"strconv"
 
 	"github.com/google/uuid"
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 )
 
 type CephManifests interface {
@@ -48,7 +48,7 @@ type ClusterSettings struct {
 	UseAllDevices    bool
 	Mons             int
 	RBDMirrorWorkers int
-	CephVersion      cephv1beta1.CephVersionSpec
+	CephVersion      cephv1.CephVersionSpec
 }
 
 // CephManifestsMaster wraps rook yaml definitions
@@ -80,7 +80,7 @@ spec:
     plural: clusters
     singular: cluster
   scope: Namespaced
-  version: v1beta1
+  version: v1
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -94,7 +94,7 @@ spec:
     plural: filesystems
     singular: filesystem
   scope: Namespaced
-  version: v1beta1
+  version: v1
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -108,7 +108,7 @@ spec:
     plural: objectstores
     singular: objectstore
   scope: Namespaced
-  version: v1beta1
+  version: v1
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -124,7 +124,7 @@ spec:
     shortNames:
     - rcou
   scope: Namespaced
-  version: v1beta1
+  version: v1
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -138,7 +138,7 @@ spec:
     plural: pools
     singular: pool
   scope: Namespaced
-  version: v1beta1
+  version: v1
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -567,7 +567,7 @@ subjects:
 
 // GetRookCluster returns rook-cluster manifest
 func (m *CephManifestsMaster) GetRookCluster(settings *ClusterSettings) string {
-	return `apiVersion: ceph.rook.io/v1beta1
+	return `apiVersion: ceph.rook.io/v1
 kind: Cluster
 metadata:
   name: ` + settings.Namespace + `
@@ -680,7 +680,7 @@ spec:
 }
 
 func (m *CephManifestsMaster) GetBlockPoolDef(poolName string, namespace string, replicaSize string) string {
-	return `apiVersion: ceph.rook.io/v1beta1
+	return `apiVersion: ceph.rook.io/v1
 kind: Pool
 metadata:
   name: ` + poolName + `
@@ -732,7 +732,7 @@ func (m *CephManifestsMaster) GetBlockPoolStorageClass(namespace string, poolNam
 
 // GetFilesystem returns the manifest to create a Rook filesystem resource with the given config.
 func (m *CephManifestsMaster) GetFilesystem(namespace, name string, activeCount int) string {
-	return `apiVersion: ceph.rook.io/v1beta1
+	return `apiVersion: ceph.rook.io/v1
 kind: Filesystem
 metadata:
   name: ` + name + `
@@ -750,7 +750,7 @@ spec:
 }
 
 func (m *CephManifestsMaster) GetObjectStore(namespace, name string, replicaCount, port int) string {
-	return `apiVersion: ceph.rook.io/v1beta1
+	return `apiVersion: ceph.rook.io/v1
 kind: ObjectStore
 metadata:
   name: ` + name + `
@@ -773,7 +773,7 @@ spec:
 }
 
 func (m *CephManifestsMaster) GetObjectStoreUser(namespace, name string, displayName string, store string) string {
-	return `apiVersion: ceph.rook.io/v1beta1
+	return `apiVersion: ceph.rook.io/v1
 kind: ObjectStoreUser
 metadata:
   name: ` + name + `

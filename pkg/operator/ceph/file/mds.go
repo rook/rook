@@ -21,7 +21,7 @@ import (
 	"strconv"
 	"time"
 
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	mdsdaemon "github.com/rook/rook/pkg/daemon/ceph/mds"
@@ -45,9 +45,9 @@ const (
 type cluster struct {
 	context     *clusterd.Context
 	rookVersion string
-	cephVersion cephv1beta1.CephVersionSpec
+	cephVersion cephv1.CephVersionSpec
 	HostNetwork bool
-	fs          cephv1beta1.Filesystem
+	fs          cephv1.Filesystem
 	fsID        string
 	ownerRefs   []metav1.OwnerReference
 }
@@ -55,9 +55,9 @@ type cluster struct {
 func newCluster(
 	context *clusterd.Context,
 	rookVersion string,
-	cephVersion cephv1beta1.CephVersionSpec,
+	cephVersion cephv1.CephVersionSpec,
 	hostNetwork bool,
-	fs cephv1beta1.Filesystem,
+	fs cephv1.Filesystem,
 	fsdetails *client.CephFilesystemDetails,
 	ownerRefs []metav1.OwnerReference,
 ) *cluster {

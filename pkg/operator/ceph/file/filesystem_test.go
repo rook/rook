@@ -24,7 +24,7 @@ import (
 	"strings"
 	"testing"
 
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephtest "github.com/rook/rook/pkg/daemon/ceph/test"
 	testopk8s "github.com/rook/rook/pkg/operator/k8sutil/test"
@@ -39,7 +39,7 @@ import (
 
 func TestValidateSpec(t *testing.T) {
 	context := &clusterd.Context{Executor: &exectest.MockExecutor{}}
-	fs := cephv1beta1.Filesystem{}
+	fs := cephv1.Filesystem{}
 
 	// missing name
 	assert.NotNil(t, validateFilesystem(context, fs))
@@ -51,7 +51,7 @@ func TestValidateSpec(t *testing.T) {
 
 	// missing data pools
 	assert.NotNil(t, validateFilesystem(context, fs))
-	p := cephv1beta1.PoolSpec{Replicated: cephv1beta1.ReplicatedSpec{Size: 1}}
+	p := cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1}}
 	fs.Spec.DataPools = append(fs.Spec.DataPools, p)
 
 	// missing metadata pool
@@ -91,12 +91,12 @@ func TestCreateFilesystem(t *testing.T) {
 		Executor:  executor,
 		ConfigDir: configDir,
 		Clientset: testop.New(3)}
-	fs := cephv1beta1.Filesystem{
+	fs := cephv1.Filesystem{
 		ObjectMeta: metav1.ObjectMeta{Name: "myfs", Namespace: "ns"},
-		Spec: cephv1beta1.FilesystemSpec{
-			MetadataPool: cephv1beta1.PoolSpec{Replicated: cephv1beta1.ReplicatedSpec{Size: 1}},
-			DataPools:    []cephv1beta1.PoolSpec{{Replicated: cephv1beta1.ReplicatedSpec{Size: 1}}},
-			MetadataServer: cephv1beta1.MetadataServerSpec{
+		Spec: cephv1.FilesystemSpec{
+			MetadataPool: cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1}},
+			DataPools:    []cephv1.PoolSpec{{Replicated: cephv1.ReplicatedSpec{Size: 1}}},
+			MetadataServer: cephv1.MetadataServerSpec{
 				ActiveCount: 1,
 				Resources: v1.ResourceRequirements{
 					Limits: v1.ResourceList{
@@ -111,14 +111,14 @@ func TestCreateFilesystem(t *testing.T) {
 	}
 
 	// start a basic cluster
-	err := createFilesystem(context, fs, "v0.1", cephv1beta1.CephVersionSpec{}, false, []metav1.OwnerReference{})
+	err := createFilesystem(context, fs, "v0.1", cephv1.CephVersionSpec{}, false, []metav1.OwnerReference{})
 	assert.Nil(t, err)
 	validateStart(t, context, fs)
 	assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
 	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 
 	// starting again should be a no-op
-	err = createFilesystem(context, fs, "v0.1", cephv1beta1.CephVersionSpec{}, false, []metav1.OwnerReference{})
+	err = createFilesystem(context, fs, "v0.1", cephv1.CephVersionSpec{}, false, []metav1.OwnerReference{})
 	assert.Nil(t, err)
 	validateStart(t, context, fs)
 	assert.ElementsMatch(t, []string{"rook-ceph-mds-myfs-a", "rook-ceph-mds-myfs-b"}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
@@ -139,7 +139,7 @@ func TestCreateFilesystem(t *testing.T) {
 		Clientset: testop.New(3)}
 
 	//Create another filesystem which should fail
-	err = createFilesystem(context, fs, "v0.1", cephv1beta1.CephVersionSpec{}, false, []metav1.OwnerReference{})
+	err = createFilesystem(context, fs, "v0.1", cephv1.CephVersionSpec{}, false, []metav1.OwnerReference{})
 	assert.Equal(t, "failed to create file system myfs: Cannot create multiple filesystems. Enable ROOK_ALLOW_MULTIPLE_FILESYSTEMS env variable to create more than one", err.Error())
 }
 
@@ -203,7 +203,7 @@ func contains(arr []string, str string) bool {
 	return false
 }
 
-func validateStart(t *testing.T, context *clusterd.Context, fs cephv1beta1.Filesystem) {
+func validateStart(t *testing.T, context *clusterd.Context, fs cephv1.Filesystem) {
 	r, err := context.Clientset.ExtensionsV1beta1().Deployments(fs.Namespace).Get("rook-ceph-mds-myfs-a", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, "rook-ceph-mds-myfs-a", r.Name)

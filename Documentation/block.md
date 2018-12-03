@@ -25,7 +25,7 @@ Before Rook can start provisioning storage, a StorageClass and its storage pool 
 Save this storage class definition as `storageclass.yaml`:
 
 ```yaml
-apiVersion: ceph.rook.io/v1beta1
+apiVersion: ceph.rook.io/v1
 kind: Pool
 metadata:
   name: replicapool
@@ -45,7 +45,7 @@ parameters:
   clusterNamespace: rook-ceph
   # Specify the filesystem type of the volume. If not specified, it will use `ext4`.
   fstype: xfs
-# Optional, default reclaimPolicy is "Delete". Other options are: "Retain", "Recycle" as documented in https://kubernetes.io/docs/concepts/storage/storage-classes/ 
+# Optional, default reclaimPolicy is "Delete". Other options are: "Retain", "Recycle" as documented in https://kubernetes.io/docs/concepts/storage/storage-classes/
 reclaimPolicy: Retain
 ```
 
@@ -118,7 +118,7 @@ The replicated pool must be specified as the `pool` parameter. It is used for th
 The erasure coded pool must be set as the `dataPool` parameter below. It is used for the data of the RBD images.
 
 ```yaml
-apiVersion: ceph.rook.io/v1beta1
+apiVersion: ceph.rook.io/v1
 kind: Pool
 metadata:
   name: replicated-metadata-pool
@@ -127,7 +127,7 @@ spec:
   replicated:
     size: 3
 ---
-apiVersion: ceph.rook.io/v1beta1
+apiVersion: ceph.rook.io/v1
 kind: Pool
 metadata:
   name: ec-data-pool
