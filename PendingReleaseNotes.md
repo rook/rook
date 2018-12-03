@@ -20,6 +20,7 @@
 - The number of mons can be changed by updating the `mon.count` in the cluster CRD.
 - RBD Mirroring is enabled by Rook. By setting the number of [rbd mirroring workers](Documentation/ceph-cluster-crd.md#cluster-settings), the daemon(s) will be started by rook. To configure the pools or images to be mirrored, use the Rook toolbox to run the [rbd mirror](http://docs.ceph.com/docs/mimic/rbd/rbd-mirroring/) configuration tool.
 - Object Store User creation via CRD for Ceph clusters.
+- Ceph MON, MGR, MDS, and RGW deployments (or DaemonSets) will be updated/upgraded automatically with updates to the Rook operator.
 
 ## Breaking Changes
 
