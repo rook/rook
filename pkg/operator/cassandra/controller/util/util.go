@@ -28,7 +28,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/client-go/kubernetes"
+	appslisters "k8s.io/client-go/listers/apps/v1"
 	corelisters "k8s.io/client-go/listers/core/v1"
+	"strconv"
+	"strings"
 )
 
 // GetPodsForCluster returns the existing Pods for
@@ -41,6 +44,29 @@ func GetPodsForCluster(cluster *cassandrav1alpha1.Cluster, podLister corelisters
 	}
 	clusterSelector := labels.NewSelector().Add(*clusterRequirement)
 	return podLister.Pods(cluster.Namespace).List(clusterSelector)
+
+}
+
+// GetMemberServicesForRack returns the member services for the given rack.
+func GerMemberServicesForRack(
+	r cassandrav1alpha1.RackSpec,
+	c *cassandrav1alpha1.Cluster,
+	serviceLister corelisters.ServiceLister,
+) ([]*corev1.Service, error) {
+
+	sel := RackSelector(r, c)
+	return serviceLister.Services(c.Namespace).List(sel)
+}
+
+// GetPodsForRack returns the created Pods for the given rack.
+func GetPodsForRack(
+	r cassandrav1alpha1.RackSpec,
+	c *cassandrav1alpha1.Cluster,
+	podLister corelisters.PodLister,
+) ([]*corev1.Pod, error) {
+
+	sel := RackSelector(r, c)
+	return podLister.Pods(c.Namespace).List(sel)
 
 }
 
@@ -68,6 +94,49 @@ func NewControllerRef(c *cassandrav1alpha1.Cluster) metav1.OwnerReference {
 		Version: "v1alpha1",
 		Kind:    "Cluster",
 	})
+}
+
+// RefFromString is a helper function that takes a string
+// and outputs a reference to that string.
+// Useful for initializing a string pointer from a literal.
+func RefFromString(s string) *string {
+	return &s
+}
+
+// RefFromInt is a helper function that takes a int
+// and outputs a reference to that int.
+// Useful for initializing an int pointer from a literal.
+func RefFromInt(i int32) *int32 {
+	return &i
+}
+
+// IndexFromName attempts to get the index from a name using the
+// naming convention <name>-<index>.
+func IndexFromName(n string) (int32, error) {
+
+	// index := svc.Name[strings.LastIndex(svc.Name, "-") + 1 : len(svc.Name)]
+	delimIndex := strings.LastIndex(n, "-")
+	if delimIndex == -1 {
+		return -1, fmt.Errorf("couldn't get index from name %s", n)
+	}
+
+	index, err := strconv.Atoi(n[delimIndex+1:])
+	if err != nil {
+		return -1, fmt.Errorf("couldn't get index from name %s", n)
+	}
+
+	return int32(index), nil
+}
+
+// isPodUnschedulable iterates a Pod's Status.Conditions to find out
+// if it has been deemed unschedulable
+func IsPodUnschedulable(pod *corev1.Pod) bool {
+	for _, v := range pod.Status.Conditions {
+		if v.Reason == corev1.PodReasonUnschedulable {
+			return true
+		}
+	}
+	return false
 }
 
 // RefFromInt32 is a helper function that takes a int32
@@ -108,4 +177,36 @@ func ScaleStatefulSet(sts *appsv1.StatefulSet, amount int32, kubeClient kubernet
 	updatedSts.Spec.Replicas = &updatedReplicas
 	err := PatchStatefulSet(sts, updatedSts, kubeClient)
 	return err
+}
+
+// IsRackConditionTrue checks a rack's status for the presense of a condition type
+// and checks if it is true.
+func IsRackConditionTrue(rackStatus *cassandrav1alpha1.RackStatus, condType cassandrav1alpha1.RackConditionType) bool {
+	for _, cond := range rackStatus.Conditions {
+		if cond.Type == cassandrav1alpha1.RackConditionTypeMemberLeaving && cond.Status == cassandrav1alpha1.ConditionTrue {
+			return true
+		}
+	}
+	return false
+}
+
+// StatefulSetStatusesStale checks if the StatefulSet Objects of a Cluster
+// have been observed by the StatefulSet controller.
+// If they haven't, their status might be stale, so it's better to wait
+// and process them later.
+func StatefulSetStatusesStale(c *cassandrav1alpha1.Cluster, statefulSetLister appslisters.StatefulSetLister) (bool, error) {
+	// Before proceeding, ensure all the Statefulset Statuses are valid
+	for _, r := range c.Spec.Datacenter.Racks {
+		if _, ok := c.Status.Racks[r.Name]; !ok {
+			continue
+		}
+		sts, err := statefulSetLister.StatefulSets(c.Namespace).Get(StatefulSetNameForRack(r, c))
+		if err != nil {
+			return true, fmt.Errorf("error getting statefulset: %s", err.Error())
+		}
+		if sts.Generation != sts.Status.ObservedGeneration {
+			return true, nil
+		}
+	}
+	return false, nil
 }

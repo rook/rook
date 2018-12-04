@@ -34,7 +34,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	appsinformers "k8s.io/client-go/informers/apps/v1"
 	coreinformers "k8s.io/client-go/informers/core/v1"
-	rbacinformers "k8s.io/client-go/informers/rbac/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -88,10 +87,6 @@ func New(
 	statefulSetInformer appsinformers.StatefulSetInformer,
 	serviceInformer coreinformers.ServiceInformer,
 	podInformer coreinformers.PodInformer,
-	serviceAccountInformer coreinformers.ServiceAccountInformer,
-	roleInformer rbacinformers.RoleInformer,
-	roleBindingInformer rbacinformers.RoleBindingInformer,
-
 ) *ClusterController {
 
 	// Add sample-controller types to the default Kubernetes Scheme so Events can be
@@ -139,9 +134,12 @@ func New(
 			}
 			cc.enqueueCluster(newCluster)
 		},
-		DeleteFunc: func(obj interface{}) {
-			// TODO: handle deletion
-		},
+		//Deletion handling:
+		// Atm, the only thing left behind will be the state, ie
+		// the PVCs that the StatefulSets don't erase.
+		// This behaviour may actually be preferrable to deleting them,
+		// since it ensures that no data will be lost if someone accidentally
+		// deletes the cluster.
 	})
 
 	statefulSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{

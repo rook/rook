@@ -87,9 +87,6 @@ func startOperator(cmd *cobra.Command, args []string) error {
 		kubeInformerFactory.Apps().V1().StatefulSets(),
 		kubeInformerFactory.Core().V1().Services(),
 		kubeInformerFactory.Core().V1().Pods(),
-		kubeInformerFactory.Core().V1().ServiceAccounts(),
-		kubeInformerFactory.Rbac().V1().Roles(),
-		kubeInformerFactory.Rbac().V1().RoleBindings(),
 	)
 
 	// Create a channel to receive OS signals
