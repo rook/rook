@@ -23,7 +23,10 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apiserver/pkg/server"
+	kubeinformers "k8s.io/client-go/informers"
+	"k8s.io/client-go/informers/internalinterfaces"
 	"os"
 )
 
@@ -58,11 +61,29 @@ func startSidecar(cmd *cobra.Command, args []string) error {
 		rook.TerminateFatal(fmt.Errorf("cannot detect the pod namespace. Please provide it using the downward API in the manifest file"))
 	}
 
+	// This func will make our informer only watch resources with the name of our member
+	tweakListOptionsFunc := internalinterfaces.TweakListOptionsFunc(
+		func(options *metav1.ListOptions) {
+			options.FieldSelector = fmt.Sprintf("metadata.name=%s", podName)
+		},
+	)
+
+	// kubeInformerFactory watches resources with:
+	// namespace: podNamespace
+	// name: podName
+	kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
+		kubeClient,
+		resyncPeriod,
+		kubeinformers.WithNamespace(podNamespace),
+		kubeinformers.WithTweakListOptions(tweakListOptionsFunc),
+	)
+
 	mc, err := sidecar.New(
 		podName,
 		podNamespace,
 		kubeClient,
 		rookClient,
+		kubeInformerFactory.Core().V1().Services(),
 	)
 
 	if err != nil {
@@ -72,6 +93,7 @@ func startSidecar(cmd *cobra.Command, args []string) error {
 
 	// Create a channel to receive OS signals
 	stopCh := server.SetupSignalHandler()
+	go kubeInformerFactory.Start(stopCh)
 
 	// Start the controller loop
 	logger.Infof("Starting rook sidecar for Cassandra.")

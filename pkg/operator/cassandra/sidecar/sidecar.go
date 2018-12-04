@@ -19,18 +19,25 @@ package sidecar
 import (
 	"fmt"
 	"github.com/coreos/pkg/capnslog"
+	"github.com/davecgh/go-spew/spew"
 	cassandrav1alpha1 "github.com/rook/rook/pkg/apis/cassandra.rook.io/v1alpha1"
 	rookClientset "github.com/rook/rook/pkg/client/clientset/versioned"
 	"github.com/rook/rook/pkg/operator/cassandra/constants"
 	"github.com/yanniszark/go-nodetool/nodetool"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
+	coreinformers "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
+	corelisters "k8s.io/client-go/listers/core/v1"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"net/url"
 	"os"
 	"os/exec"
+	"reflect"
 	"time"
 )
 
@@ -42,9 +49,11 @@ type MemberController struct {
 	cluster, datacenter, rack string
 	mode                      cassandrav1alpha1.ClusterMode
 
-	// Clients to handle Kubernetes Objects
-	kubeClient kubernetes.Interface
-	rookClient rookClientset.Interface
+	// Clients and listers to handle Kubernetes Objects
+	kubeClient          kubernetes.Interface
+	rookClient          rookClientset.Interface
+	serviceLister       corelisters.ServiceLister
+	serviceListerSynced cache.InformerSynced
 
 	nodetool *nodetool.Nodetool
 	queue    workqueue.RateLimitingInterface
@@ -56,6 +65,7 @@ func New(
 	name, namespace string,
 	kubeClient kubernetes.Interface,
 	rookClient rookClientset.Interface,
+	serviceInformer coreinformers.ServiceInformer,
 ) (*MemberController, error) {
 
 	logger := capnslog.NewPackageLogger("github.com/rook/rook", "sidecar")
@@ -95,19 +105,50 @@ func New(
 	}
 
 	m := &MemberController{
-		name:       name,
-		namespace:  namespace,
-		ip:         memberService.Spec.ClusterIP,
-		cluster:    pod.Labels[constants.ClusterNameLabel],
-		datacenter: pod.Labels[constants.DatacenterNameLabel],
-		rack:       pod.Labels[constants.RackNameLabel],
-		mode:       cluster.Spec.Mode,
-		kubeClient: kubeClient,
-		rookClient: rookClient,
-		nodetool:   nodetool,
-		queue:      workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
-		logger:     logger,
+		name:                name,
+		namespace:           namespace,
+		ip:                  memberService.Spec.ClusterIP,
+		cluster:             pod.Labels[constants.ClusterNameLabel],
+		datacenter:          pod.Labels[constants.DatacenterNameLabel],
+		rack:                pod.Labels[constants.RackNameLabel],
+		mode:                cluster.Spec.Mode,
+		kubeClient:          kubeClient,
+		rookClient:          rookClient,
+		serviceLister:       serviceInformer.Lister(),
+		serviceListerSynced: serviceInformer.Informer().HasSynced,
+		nodetool:            nodetool,
+		queue:               workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
+		logger:              logger,
 	}
+
+	serviceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			svc := obj.(*corev1.Service)
+			if svc.Name != m.name {
+				logger.Errorf("Lister returned unexpected service %s", svc.Name)
+				return
+			}
+			m.enqueueMemberService(svc)
+		},
+		UpdateFunc: func(old, new interface{}) {
+			oldService := old.(*corev1.Service)
+			newService := new.(*corev1.Service)
+			if oldService.ResourceVersion == newService.ResourceVersion {
+				return
+			}
+			if reflect.DeepEqual(oldService.Labels, newService.Labels) {
+				return
+			}
+			logger.Infof("New event for my MemberService %s", newService.Name)
+			m.enqueueMemberService(newService)
+		},
+		DeleteFunc: func(obj interface{}) {
+			svc := obj.(*corev1.Service)
+			if svc.Name == m.name {
+				logger.Errorf("Unexpected deletion of MemberService %s", svc.Name)
+			}
+		},
+	})
 
 	return m, nil
 }
@@ -117,14 +158,82 @@ func (m *MemberController) Run(threadiness int, stopCh <-chan struct{}) error {
 
 	defer runtime.HandleCrash()
 
+	if ok := cache.WaitForCacheSync(stopCh, m.serviceListerSynced); !ok {
+		return fmt.Errorf("failed to wait for caches to sync")
+	}
+
 	if err := m.onStartup(); err != nil {
 		return fmt.Errorf("error on startup: %s", err.Error())
 	}
+
+	m.logger.Infof("Main event loop")
+	go wait.Until(m.runWorker, time.Second, stopCh)
 
 	<-stopCh
 	m.logger.Info("Shutting down sidecar.")
 	return nil
 
+}
+
+func (m *MemberController) runWorker() {
+	for m.processNextWorkItem() {
+	}
+}
+
+func (m *MemberController) processNextWorkItem() bool {
+	obj, shutdown := m.queue.Get()
+
+	if shutdown {
+		return false
+	}
+
+	err := func(obj interface{}) error {
+		defer m.queue.Done(obj)
+		key, ok := obj.(string)
+		if !ok {
+			m.queue.Forget(obj)
+			runtime.HandleError(fmt.Errorf("expected string in queue but got %#v", obj))
+		}
+		if err := m.syncHandler(key); err != nil {
+			m.queue.AddRateLimited(key)
+			return fmt.Errorf("error syncing '%s', requeueing: %s", key, err.Error())
+		}
+		m.queue.Forget(obj)
+		m.logger.Infof("Successfully synced '%s'", key)
+		return nil
+	}(obj)
+
+	if err != nil {
+		runtime.HandleError(err)
+		return true
+	}
+
+	return true
+}
+
+func (m *MemberController) syncHandler(key string) error {
+	// Convert the namespace/name string into a distinct namespace and name.
+	namespace, name, err := cache.SplitMetaNamespaceKey(key)
+	if err != nil {
+		runtime.HandleError(fmt.Errorf("invalid resource key: %s", key))
+		return nil
+	}
+
+	// Get the Cluster resource with this namespace/name
+	svc, err := m.serviceLister.Services(namespace).Get(name)
+	if err != nil {
+		// The Cluster resource may no longer exist, in which case we stop processing.
+		if apierrors.IsNotFound(err) {
+			runtime.HandleError(fmt.Errorf("member service '%s' in work queue no longer exists", key))
+			return nil
+		}
+		return fmt.Errorf("unexpected error while getting member service object: %s", err)
+	}
+
+	m.logger.Infof("handling member service object: %+v", spew.Sdump(svc))
+	err = m.Sync(svc)
+
+	return err
 }
 
 // onStartup is executed before the MemberController starts
@@ -156,4 +265,14 @@ func (m *MemberController) onStartup() error {
 	}
 
 	return nil
+}
+
+func (m *MemberController) enqueueMemberService(obj metav1.Object) {
+	var key string
+	var err error
+	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
+		runtime.HandleError(err)
+		return
+	}
+	m.queue.AddRateLimited(key)
 }
