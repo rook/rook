@@ -1,6 +1,6 @@
 ---
 title: Ceph Cluster
-weight: 32
+weight: 31
 indent: true
 ---
 

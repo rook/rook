@@ -1,6 +1,6 @@
 ---
 title: Ceph Shared File System
-weight: 36
+weight: 35
 indent: true
 ---
 {% assign url = page.url | split: '/' %}

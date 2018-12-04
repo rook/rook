@@ -1,6 +1,6 @@
 ---
 title: Ceph Object Store
-weight: 34
+weight: 33
 indent: true
 ---
 

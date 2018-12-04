@@ -1,4 +1,10 @@
-# Quickstart
+---
+title: Cassandra
+weight: 7
+indent: true
+---
+
+# Cassandra Quickstart
 
 [Cassandra](http://cassandra.apache.org/) is a highly available, fault tolerant, peer-to-peer NoSQL database featuring lightning fast performance and tunable consistency. It provides massive scalability with no single point of failure.
 
@@ -83,9 +89,28 @@ To get a cqlsh shell in your new Cluster:
 
 ## Scale Up
 
-The operator supports scale up of a rack as well as addition of new racks. To make the changes, you can use `kubectl edit clusters.cassandra.rook.io rook-cassandra`:
+The operator supports scale up of a rack as well as addition of new racks. To make the changes, you can use:
+ ```console
+ kubectl edit clusters.cassandra.rook.io rook-cassandra
+ ```
  * To scale up a rack, change the `Spec.Members` field of the rack to the desired value.
  * To add a new rack, append the `racks` list with a new rack. Remember to choose a different rack name for the new rack.
+ * After editing and saving the yaml, check your cluster's Status and Events for information on what's happening:  
+ ```console
+ kubectl -n rook-cassandra describe clusters.cassandra.rook.io rook-cassandra 
+ ```
+ 
+## Scale Down
+
+The operator supports scale down of a rack. To make the changes, you can use:
+ ```console
+ kubectl edit clusters.cassandra.rook.io rook-cassandra
+ ```
+ * To scale down a rack, change the `Spec.Members` field of the rack to the desired value.
+ * After editing and saving the yaml, check your cluster's Status and Events for information on what's happening:
+ ```console
+ kubectl -n rook-cassandra describe clusters.cassandra.rook.io rook-cassandra
+ ```
   
 ## Clean Up
  

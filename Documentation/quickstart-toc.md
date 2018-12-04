@@ -16,3 +16,4 @@ Rook provides growing number of storage providers to a Kubernetes cluster, each 
 | [CockroachDB](cockroachdb.md) | Alpha | CockroachDB is a cloud-native SQL database for building global, scalable cloud services that survive disasters.  |
 | [EdgeFS](edgefs-quickstart.md) | Alpha | EdgeFS is high-performance and low-latency object storage system with Geo-Transparent data access via standard protocols (S3, NFS, iSCSI) from on-prem, private/public clouds or small footprint edge (IoT) devices. |
 | [Minio](minio-object-store.md) | Alpha | Minio is a high performance distributed object storage server, designed for large-scale private cloud infrastructure. |
+| [Cassandra](cassandra.md) | Alpha | Cassandra is a highly available NoSQL database featuring lightning fast performance, tunable consistency and massive scalability.|
