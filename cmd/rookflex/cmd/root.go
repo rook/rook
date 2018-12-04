@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package cmd
 
 import (
@@ -34,15 +35,12 @@ const (
 	cephFS = "ceph"
 )
 
+// RootCmd the rookflex volume plugin cobra root command
 var RootCmd = &cobra.Command{
 	Use:           "rookflex",
 	Short:         "Rook Flex volume plugin",
 	SilenceErrors: true,
 	SilenceUsage:  true,
-}
-
-func Execute() {
-	RootCmd.Execute()
 }
 
 func getRPCClient() (*rpc.Client, error) {

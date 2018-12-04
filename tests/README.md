@@ -118,7 +118,7 @@ go test -v -timeout 1800s -run SmokeSuite github.com/rook/rook/tests/integration
 
 #### To run specific tests inside a suite:
 ```
-go test -v -timeout 1800s -run SmokeSuite github.com/rook/rook/tests/integration -testify.m TestRookClusterInstallation_smokeTest
+go test -v -timeout 1800s -run SmokeSuite github.com/rook/rook/tests/integration -testify.m TestRookClusterInstallation_SmokeTest
 ```
 
 ##### To run specific without installing rook

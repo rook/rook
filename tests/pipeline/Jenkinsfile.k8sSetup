@@ -44,7 +44,7 @@ pipeline {
                }
             }
         }
-        //start 3 node k8s cluster
+        // start 3 node k8s cluster
         stage ("Set Up k8s") {
             steps{
                 script{
@@ -94,7 +94,7 @@ pipeline {
 }
 
 def setUpRookImages(){
-    //tag rook images need for testing
+    // tag rook images need for testing
     env.versionId = readFile('version').trim()
     sh'''
           #!/bin/bash

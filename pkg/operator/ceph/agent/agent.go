@@ -40,9 +40,17 @@ const (
 	flexvolumeDefaultDirPath       = "/usr/libexec/kubernetes/kubelet-plugins/volume/exec/"
 	agentDaemonsetTolerationEnv    = "AGENT_TOLERATION"
 	agentDaemonsetTolerationKeyEnv = "AGENT_TOLERATION_KEY"
+	AgentMountSecurityModeEnv      = "AGENT_MOUNT_SECURITY_MODE"
+
+	// MountSecurityModeAny "any" security mode for the agent for mount action
+	MountSecurityModeAny = "Any"
+	// MountSecurityModeRestricted restricted security mode for the agent for mount action
+	MountSecurityModeRestricted = "Restricted"
 )
 
-var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-agent")
+var (
+	logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-agent")
+)
 
 // New creates an instance of Agent
 func New(clientset kubernetes.Interface) *Agent {
@@ -53,22 +61,28 @@ func New(clientset kubernetes.Interface) *Agent {
 
 // Start the agent
 func (a *Agent) Start(namespace, agentImage, serviceAccount string) error {
-
 	err := a.createAgentDaemonSet(namespace, agentImage, serviceAccount)
 	if err != nil {
-		return fmt.Errorf("Error starting agent daemonset: %v", err)
+		return fmt.Errorf("error starting agent daemonset: %v", err)
 	}
 	return nil
 }
 
 func (a *Agent) createAgentDaemonSet(namespace, agentImage, serviceAccount string) error {
-
 	flexvolumeDirPath, source := a.discoverFlexvolumeDir()
 	logger.Infof("discovered flexvolume dir path from source %s. value: %s", source, flexvolumeDirPath)
 
 	libModulesDirPath := os.Getenv(libModulesPathDirEnv)
 	if libModulesDirPath == "" {
 		libModulesDirPath = "/lib/modules"
+	}
+	agentMountSecurityMode := os.Getenv(AgentMountSecurityModeEnv)
+	if agentMountSecurityMode == "" {
+		logger.Info("no agent mount security mode given, defaulting to '%s' mode", MountSecurityModeAny)
+		agentMountSecurityMode = MountSecurityModeAny
+	}
+	if agentMountSecurityMode != MountSecurityModeAny && agentMountSecurityMode != MountSecurityModeRestricted {
+		return fmt.Errorf("invalid agent mount security mode specified (given: %s)", agentMountSecurityMode)
 	}
 
 	privileged := true
@@ -117,6 +131,7 @@ func (a *Agent) createAgentDaemonSet(namespace, agentImage, serviceAccount strin
 							Env: []v1.EnvVar{
 								k8sutil.NamespaceEnvVar(),
 								k8sutil.NodeEnvVar(),
+								{Name: AgentMountSecurityModeEnv, Value: agentMountSecurityMode},
 							},
 						},
 					},

@@ -111,6 +111,9 @@ kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-ceph-mgr-cluster
+  labels:
+    operator: rook
+    storage-backend: ceph
 rules:
 - apiGroups:
   - ""
@@ -121,6 +124,23 @@ rules:
   - get
   - list
   - watch
+{{- if ((.Values.agent) and .Values.agent.mountSecurityMode) and ne .Values.agent.mountSecurityMode "Any" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: rook-ceph-agent-mount
+  labels:
+    operator: rook
+    storage-backend: ceph
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+{{- end }}
 {{- if .Values.pspEnable }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1

@@ -22,7 +22,7 @@ import (
 	"github.com/google/uuid"
 )
 
-//CephManifestsV0_8 wraps rook yaml definitions
+// CephManifestsV0_8 wraps rook yaml definitions
 type CephManifestsV0_8 struct {
 	imageTag string
 }
@@ -99,7 +99,7 @@ spec:
   version: v1alpha2`
 }
 
-//GetRookOperator returns rook Operator  manifest
+// GetRookOperator returns rook Operator  manifest
 func (m *CephManifestsV0_8) GetRookOperator(namespace string) string {
 
 	return `kind: Namespace
@@ -326,7 +326,7 @@ spec:
               fieldPath: metadata.namespace`
 }
 
-//GetRookCluster returns rook-cluster manifest
+// GetRookCluster returns rook-cluster manifest
 func (m *CephManifestsV0_8) GetClusterRoles(namespace, systemNamespace string) string {
 	return `apiVersion: v1
 kind: ServiceAccount
@@ -375,7 +375,7 @@ subjects:
   namespace: ` + namespace
 }
 
-//GetRookCluster returns rook-cluster manifest
+// GetRookCluster returns rook-cluster manifest
 func (m *CephManifestsV0_8) GetRookCluster(settings *ClusterSettings) string {
 	return `apiVersion: ceph.rook.io/v1beta1
 kind: Cluster
@@ -404,7 +404,7 @@ spec:
       journalSizeMB: "1024"`
 }
 
-//GetRookToolBox returns rook-toolbox manifest
+// GetRookToolBox returns rook-toolbox manifest
 func (m *CephManifestsV0_8) GetRookToolBox(namespace string) string {
 	return `apiVersion: v1
 kind: Pod
@@ -453,7 +453,7 @@ spec:
           path: mon-endpoints`
 }
 
-//GetCleanupPod gets a cleanup Pod manifest
+// GetCleanupPod gets a cleanup Pod manifest
 func (m *CephManifestsV0_8) GetCleanupPod(node, removalDir string) string {
 	return `apiVersion: batch/v1
 kind: Job

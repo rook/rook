@@ -28,7 +28,7 @@ var (
 	versionCmd = []string{"rook", "version"}
 )
 
-//TestClient is a wrapper for test client, containing interfaces for all rook operations
+// TestClient is a wrapper for test client, containing interfaces for all rook operations
 type TestClient struct {
 	BlockClient      *BlockOperation
 	FSClient         *FilesystemOperation
@@ -42,9 +42,8 @@ const (
 	unableToCheckRookStatusMsg = "Unable to check rook status - please check of rook is up and running"
 )
 
-//CreateTestClient creates new instance of test client for a platform
+// CreateTestClient creates new instance of test client for a platform
 func CreateTestClient(k8sHelper *utils.K8sHelper, manifests installer.CephManifests) *TestClient {
-
 	return &TestClient{
 		CreateBlockOperation(k8sHelper, manifests),
 		CreateFilesystemOperation(k8sHelper, manifests),
@@ -55,7 +54,7 @@ func CreateTestClient(k8sHelper *utils.K8sHelper, manifests installer.CephManife
 	}
 }
 
-//Status returns rook status details
+// Status returns rook status details
 func (c TestClient) Status(namespace string) (client.CephStatus, error) {
 	context := c.k8sh.MakeContext()
 	status, err := client.Status(context, namespace)

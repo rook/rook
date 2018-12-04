@@ -133,7 +133,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	logger.Infof("Object store deleted successfully")
 }
 
-//Test Object StoreCreation on Rook that was installed via helm
+// Test Object StoreCreation on Rook that was installed via helm
 func runObjectE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, name string, replicaSize int) {
 	logger.Infof("Object Storage End To End Integration Test - Create Object Store and check if rgw service is Running")
 	logger.Infof("Running on Rook Cluster %s", namespace)
@@ -168,7 +168,6 @@ func objectTestDataCleanUp(helper *clients.TestClient, k8sh *utils.K8sHelper, na
 }
 
 func getBucket(bucketname string, bucketList []rgwdaemon.ObjectBucket) (rgwdaemon.ObjectBucket, error) {
-
 	for _, bucket := range bucketList {
 		if bucket.Name == bucketname {
 			return bucket, nil

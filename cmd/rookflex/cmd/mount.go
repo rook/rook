@@ -32,7 +32,7 @@ import (
 )
 
 const (
-	mds_namespace_kernel_support = "4.7"
+	mdsNamespaceKernelSupport = "4.7"
 )
 
 var (
@@ -41,6 +41,10 @@ var (
 		Short: "Mounts the volume to the pod volume",
 		RunE:  handleMount,
 	}
+	keyringTemplate = `
+[client.%s]
+key = %s
+`
 )
 
 func init() {
@@ -48,14 +52,13 @@ func init() {
 }
 
 func handleMount(cmd *cobra.Command, args []string) error {
-
 	client, err := getRPCClient()
 	if err != nil {
 		return fmt.Errorf("Rook: Error getting RPC client: %v", err)
 	}
 
 	var opts = &flexvolume.AttachOptions{}
-	if err := json.Unmarshal([]byte(args[1]), opts); err != nil {
+	if err = json.Unmarshal([]byte(args[1]), opts); err != nil {
 		return fmt.Errorf("Rook: Could not parse options for mounting %s. Got %v", args[1], err)
 	}
 	opts.MountDir = args[0]
@@ -111,7 +114,6 @@ func handleMount(cmd *cobra.Command, args []string) error {
 }
 
 func attach(client *rpc.Client, opts *flexvolume.AttachOptions) (string, error) {
-
 	log(client, fmt.Sprintf("calling agent to attach volume %s/%s", opts.Pool, opts.Image), false)
 	var devicePath string
 	err := client.Call("Controller.Attach", opts, &devicePath)
@@ -126,7 +128,7 @@ func mountDevice(client *rpc.Client, mounter *k8smount.SafeFormatAndMount, devic
 	notMnt, err := mounter.Interface.IsLikelyNotMountPoint(globalVolumeMountPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			if err := os.MkdirAll(globalVolumeMountPath, 0750); err != nil {
+			if err = os.MkdirAll(globalVolumeMountPath, 0750); err != nil {
 				return fmt.Errorf("Rook: Mount volume failed. Cannot create global volume mount path dir: %v", err)
 			}
 			notMnt = true
@@ -159,7 +161,6 @@ func mountDevice(client *rpc.Client, mounter *k8smount.SafeFormatAndMount, devic
 }
 
 func mount(client *rpc.Client, mounter *k8smount.SafeFormatAndMount, globalVolumeMountPath string, opts *flexvolume.AttachOptions) error {
-
 	log(client, fmt.Sprintf("mounting global mount path %s on %s", globalVolumeMountPath, opts.MountDir), false)
 	// Perform a bind mount to the full path to allow duplicate mounts of the same volume. This is only supported for RO attachments.
 	options := []string{opts.RW, "bind"}
@@ -198,7 +199,6 @@ func mount(client *rpc.Client, mounter *k8smount.SafeFormatAndMount, globalVolum
 }
 
 func mountCephFS(client *rpc.Client, opts *flexvolume.AttachOptions) error {
-
 	if opts.FsName == "" {
 		return errors.New("Rook: Attach filesystem failed: Filesystem name is not provided")
 	}
@@ -208,21 +208,20 @@ func mountCephFS(client *rpc.Client, opts *flexvolume.AttachOptions) error {
 	if opts.ClusterNamespace == "" {
 		if opts.ClusterName == "" {
 			return fmt.Errorf("Rook: Attach filesystem %s failed: cluster namespace is not provided", opts.FsName)
-		} else {
-			opts.ClusterNamespace = opts.ClusterName
 		}
+		opts.ClusterNamespace = opts.ClusterName
 	}
 
 	// Get client access info
 	var clientAccessInfo flexvolume.ClientAccessInfo
-	err := client.Call("Controller.GetClientAccessInfo", opts.ClusterNamespace, &clientAccessInfo)
+	err := client.Call("Controller.GetClientAccessInfo", []string{opts.ClusterNamespace, opts.PodNamespace, opts.MountUser, opts.MountSecret}, &clientAccessInfo)
 	if err != nil {
 		errorMsg := fmt.Sprintf("Attach filesystem %s on cluster %s failed: %v", opts.FsName, opts.ClusterNamespace, err)
 		log(client, errorMsg, true)
 		return fmt.Errorf("Rook: %v", errorMsg)
 	}
 
-	// if a path has not been provided, just use the root of the filesystem.
+	// If a path has not been provided, just use the root of the filesystem.
 	// otherwise, ensure that the provided path starts with the path separator char.
 	path := string(os.PathSeparator)
 	if opts.Path != "" {
@@ -232,27 +231,30 @@ func mountCephFS(client *rpc.Client, opts *flexvolume.AttachOptions) error {
 		}
 	}
 
-	options := []string{fmt.Sprintf("name=%s", clientAccessInfo.UserName), fmt.Sprintf("secret=%s", clientAccessInfo.SecretKey)}
+	options := []string{
+		fmt.Sprintf("name=%s", clientAccessInfo.UserName),
+		fmt.Sprintf("secret=%s", clientAccessInfo.SecretKey),
+	}
 
 	// Get kernel version
 	var kernelVersion string
 	err = client.Call("Controller.GetKernelVersion", struct{}{} /* no inputs */, &kernelVersion)
 	if err != nil {
 		log(client, fmt.Sprintf("WARNING: The node kernel version cannot be detected. The kernel version has to be at least %s in order to specify a filesystem namespace."+
-			" If you have multiple ceph filesystems, the result could be inconsistent", mds_namespace_kernel_support), false)
+			" If you have multiple ceph filesystems, the result could be inconsistent", mdsNamespaceKernelSupport), false)
 	} else {
 		kernelVersionParsed, err := version.ParseGeneric(kernelVersion)
 		if err != nil {
 			log(client, fmt.Sprintf("WARNING: The node kernel version %s cannot be parsed. The kernel version has to be at least %s in order to specify a filesystem namespace."+
-				" If you have multiple ceph filesystems, the result could be inconsistent", kernelVersion, mds_namespace_kernel_support), false)
+				" If you have multiple ceph filesystems, the result could be inconsistent", kernelVersion, mdsNamespaceKernelSupport), false)
 		} else {
-			if kernelVersionParsed.AtLeast(version.MustParseGeneric(mds_namespace_kernel_support)) {
+			if kernelVersionParsed.AtLeast(version.MustParseGeneric(mdsNamespaceKernelSupport)) {
 				options = append(options, fmt.Sprintf("mds_namespace=%s", opts.FsName))
 			} else {
 				log(client,
 					fmt.Sprintf("WARNING: The node kernel version is %s, which do not support multiple ceph filesystems. "+
 						"The kernel version has to be at least %s. If you have multiple ceph filesystems, the result could be inconsistent",
-						kernelVersion, mds_namespace_kernel_support), false)
+						kernelVersion, mdsNamespaceKernelSupport), false)
 			}
 		}
 	}

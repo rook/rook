@@ -109,7 +109,6 @@ func bucketOperations(s3 *utils.S3Helper, bucketName string, wg *sync.WaitGroup,
 		s3.DeleteObjectInBucket(bucketName, key4)
 		elapsed = time.Since(start).Seconds()
 	}
-
 }
 
 func randomBool() bool {

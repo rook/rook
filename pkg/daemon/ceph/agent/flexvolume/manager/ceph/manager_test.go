@@ -46,7 +46,6 @@ func (f *fakeDevicePathFinder) FindDevicePath(image, pool, clusterNamespace stri
 }
 
 func TestInitLoadRBDModSingleMajor(t *testing.T) {
-
 	modInfoCalled := false
 	modprobeCalled := false
 
@@ -75,7 +74,6 @@ func TestInitLoadRBDModSingleMajor(t *testing.T) {
 }
 
 func TestInitLoadRBDModNoSingleMajor(t *testing.T) {
-
 	modInfoCalled := false
 	modprobeCalled := false
 
@@ -116,24 +114,30 @@ func TestAttach(t *testing.T) {
 	cm.Name = "rook-ceph-mon-endpoints"
 	clientset.CoreV1().ConfigMaps(clusterNamespace).Create(cm)
 
+	runCount := 1
+
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
 			if strings.Contains(command, "ceph-authtool") {
 				cephtest.CreateConfigDir(path.Join(configDir, clusterNamespace))
 			}
-
 			return "", nil
 		},
 		MockExecuteCommandWithTimeout: func(debug bool, timeout time.Duration, actionName string, command string, args ...string) (string, error) {
 			assert.Equal(t, "rbd", command)
 			assert.Equal(t, "map", args[0])
-			assert.Equal(t, "testpool/image1", args[1])
-			assert.Equal(t, "admin", args[3])
-			assert.Equal(t, "--cluster=testCluster", args[4])
-			assert.True(t, strings.HasPrefix(args[5], "--keyring="))
-			assert.Contains(t, args[7], "10.0.0.1:6790", fmt.Sprintf("But '%s' does contain '%s'", args[7], "10.0.0.1:6790"))
-			assert.Contains(t, args[7], "10.0.0.2:6790", fmt.Sprintf("But '%s' does contain '%s'", args[7], "10.0.0.2:6790"))
-			assert.Contains(t, args[7], "10.0.0.3:6790", fmt.Sprintf("But '%s' does contain '%s'", args[7], "10.0.0.3:6790"))
+			assert.Equal(t, fmt.Sprintf("testpool/image%d", runCount), args[1])
+			if runCount == 1 {
+				assert.Equal(t, "--id=admin", args[2])
+			} else {
+				assert.Equal(t, "--id=user1", args[2])
+			}
+			assert.Equal(t, "--cluster=testCluster", args[3])
+			assert.True(t, strings.HasPrefix(args[4], "--keyring="))
+			assert.Contains(t, args[6], "10.0.0.1:6790", fmt.Sprintf("But '%s' does contain '%s'", args[6], "10.0.0.1:6790"))
+			assert.Contains(t, args[6], "10.0.0.2:6790", fmt.Sprintf("But '%s' does contain '%s'", args[6], "10.0.0.2:6790"))
+			assert.Contains(t, args[6], "10.0.0.3:6790", fmt.Sprintf("But '%s' does contain '%s'", args[6], "10.0.0.3:6790"))
+			runCount++
 			return "", nil
 		},
 	}
@@ -152,8 +156,20 @@ func TestAttach(t *testing.T) {
 	}
 	mon.CreateOrLoadClusterInfo(context, clusterNamespace, &metav1.OwnerReference{})
 
-	devicePath, err := vm.Attach("image1", "testpool", clusterNamespace)
+	devicePath, err := vm.Attach("image1", "testpool", "admin", "never-gonna-give-you-up", clusterNamespace)
 	assert.Equal(t, "/dev/rbd3", devicePath)
+	assert.Nil(t, err)
+
+	vm = &VolumeManager{
+		context: context,
+		devicePathFinder: &fakeDevicePathFinder{
+			response: []string{"", "/dev/rbd4"},
+			called:   0,
+		},
+	}
+
+	devicePath, err = vm.Attach("image2", "testpool", "user1", "never-gonna-let-you-down", clusterNamespace)
+	assert.Equal(t, "/dev/rbd4", devicePath)
 	assert.Nil(t, err)
 }
 
@@ -165,7 +181,7 @@ func TestAttachAlreadyExists(t *testing.T) {
 			called:   0,
 		},
 	}
-	devicePath, err := vm.Attach("image1", "testpool", "testCluster")
+	devicePath, err := vm.Attach("image1", "testpool", "admin", "never-gonna-run-around-and-desert-you ", "testCluster")
 	assert.Equal(t, "/dev/rbd3", devicePath)
 	assert.Nil(t, err)
 }
@@ -188,19 +204,18 @@ func TestDetach(t *testing.T) {
 			if strings.Contains(command, "ceph-authtool") {
 				cephtest.CreateConfigDir(path.Join(configDir, clusterNamespace))
 			}
-
 			return "", nil
 		},
 		MockExecuteCommandWithTimeout: func(debug bool, timeout time.Duration, actionName string, command string, args ...string) (string, error) {
 			assert.Equal(t, "rbd", command)
 			assert.Equal(t, "unmap", args[0])
 			assert.Equal(t, "testpool/image1", args[1])
-			assert.Equal(t, "admin", args[3])
-			assert.Equal(t, "--cluster=testCluster", args[4])
-			assert.True(t, strings.HasPrefix(args[5], "--keyring="))
-			assert.Contains(t, args[7], "10.0.0.1:6790", fmt.Sprintf("But '%s' does contain '%s'", args[7], "10.0.0.1:6790"))
-			assert.Contains(t, args[7], "10.0.0.2:6790", fmt.Sprintf("But '%s' does contain '%s'", args[7], "10.0.0.2:6790"))
-			assert.Contains(t, args[7], "10.0.0.3:6790", fmt.Sprintf("But '%s' does contain '%s'", args[7], "10.0.0.3:6790"))
+			assert.Equal(t, "--id=admin", args[2])
+			assert.Equal(t, "--cluster=testCluster", args[3])
+			assert.True(t, strings.HasPrefix(args[4], "--keyring="))
+			assert.Contains(t, args[6], "10.0.0.1:6790", fmt.Sprintf("But '%s' does contain '%s'", args[6], "10.0.0.1:6790"))
+			assert.Contains(t, args[6], "10.0.0.2:6790", fmt.Sprintf("But '%s' does contain '%s'", args[6], "10.0.0.2:6790"))
+			assert.Contains(t, args[6], "10.0.0.3:6790", fmt.Sprintf("But '%s' does contain '%s'", args[6], "10.0.0.3:6790"))
 			return "", nil
 		},
 	}
@@ -218,7 +233,58 @@ func TestDetach(t *testing.T) {
 		},
 	}
 	mon.CreateOrLoadClusterInfo(context, clusterNamespace, &metav1.OwnerReference{})
-	err := vm.Detach("image1", "testpool", clusterNamespace, false)
+	err := vm.Detach("image1", "testpool", "admin", "", clusterNamespace, false)
+	assert.Nil(t, err)
+}
+
+func TestDetachCustomKeyring(t *testing.T) {
+	clientset := test.New(3)
+	clusterNamespace := "testCluster"
+	configDir, _ := ioutil.TempDir("", "")
+	defer os.RemoveAll(configDir)
+	cm := &v1.ConfigMap{
+		Data: map[string]string{
+			"data": "rook-ceph-mon0=10.0.0.1:6790,rook-ceph-mon1=10.0.0.2:6790,rook-ceph-mon2=10.0.0.3:6790",
+		},
+	}
+	cm.Name = "rook-ceph-mon-endpoints"
+	clientset.CoreV1().ConfigMaps(clusterNamespace).Create(cm)
+
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
+			if strings.Contains(command, "ceph-authtool") {
+				cephtest.CreateConfigDir(path.Join(configDir, clusterNamespace))
+			}
+			return "", nil
+		},
+		MockExecuteCommandWithTimeout: func(debug bool, timeout time.Duration, actionName string, command string, args ...string) (string, error) {
+			assert.Equal(t, "rbd", command)
+			assert.Equal(t, "unmap", args[0])
+			assert.Equal(t, "testpool/image1", args[1])
+			assert.Equal(t, "--id=user1", args[2])
+			assert.Equal(t, "--cluster=testCluster", args[3])
+			assert.True(t, strings.HasPrefix(args[4], "--keyring="))
+			assert.Contains(t, args[6], "10.0.0.1:6790", fmt.Sprintf("But '%s' does contain '%s'", args[6], "10.0.0.1:6790"))
+			assert.Contains(t, args[6], "10.0.0.2:6790", fmt.Sprintf("But '%s' does contain '%s'", args[6], "10.0.0.2:6790"))
+			assert.Contains(t, args[6], "10.0.0.3:6790", fmt.Sprintf("But '%s' does contain '%s'", args[6], "10.0.0.3:6790"))
+			return "", nil
+		},
+	}
+
+	context := &clusterd.Context{
+		Clientset: clientset,
+		Executor:  executor,
+		ConfigDir: configDir,
+	}
+	vm := &VolumeManager{
+		context: context,
+		devicePathFinder: &fakeDevicePathFinder{
+			response: []string{"/dev/rbd3"},
+			called:   0,
+		},
+	}
+	mon.CreateOrLoadClusterInfo(context, clusterNamespace, &metav1.OwnerReference{})
+	err := vm.Detach("image1", "testpool", "user1", "", clusterNamespace, false)
 	assert.Nil(t, err)
 }
 
@@ -230,6 +296,6 @@ func TestAlreadyDetached(t *testing.T) {
 			called:   0,
 		},
 	}
-	err := vm.Detach("image1", "testpool", "testCluster", false)
+	err := vm.Detach("image1", "testpool", "admin", "", "testCluster", false)
 	assert.Nil(t, err)
 }

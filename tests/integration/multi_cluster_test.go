@@ -61,7 +61,7 @@ type MultiClusterDeploySuite struct {
 	op         *MCTestOperations
 }
 
-//Deploy Multiple Rook clusters
+// Deploy Multiple Rook clusters
 func (mrc *MultiClusterDeploySuite) SetupSuite() {
 
 	mrc.namespace1 = "mrc-n1"
@@ -91,36 +91,36 @@ func (mrc *MultiClusterDeploySuite) TearDownSuite() {
 	mrc.op.Teardown()
 }
 
-//Test to make sure all rook components are installed and Running
+// Test to make sure all rook components are installed and Running
 func (mrc *MultiClusterDeploySuite) TestInstallingMultipleRookClusters() {
-	//Check if Rook cluster 1 is deployed successfully
+	// Check if Rook cluster 1 is deployed successfully
 	checkIfRookClusterIsInstalled(mrc.Suite, mrc.k8sh, installer.SystemNamespace(mrc.namespace1), mrc.namespace1, 1)
 	checkIfRookClusterIsHealthy(mrc.Suite, mrc.testClient, mrc.namespace1)
 
-	//Check if Rook cluster 2 is deployed successfully
+	// Check if Rook cluster 2 is deployed successfully
 	checkIfRookClusterIsInstalled(mrc.Suite, mrc.k8sh, installer.SystemNamespace(mrc.namespace1), mrc.namespace2, 1)
 	checkIfRookClusterIsHealthy(mrc.Suite, mrc.testClient, mrc.namespace2)
 }
 
-//Test Block Store Creation on multiple rook clusters
+// Test Block Store Creation on multiple rook clusters
 func (mrc *MultiClusterDeploySuite) TestBlockStoreOnMultipleRookCluster() {
 	runBlockE2ETestLite(mrc.testClient, mrc.k8sh, mrc.Suite, mrc.namespace1)
 	runBlockE2ETestLite(mrc.testClient, mrc.k8sh, mrc.Suite, mrc.namespace2)
 }
 
-//Test Filesystem Creation on multiple rook clusters
+// Test Filesystem Creation on multiple rook clusters
 func (mrc *MultiClusterDeploySuite) TestFileStoreOnMultiRookCluster() {
 	runFileE2ETestLite(mrc.testClient, mrc.k8sh, mrc.Suite, mrc.namespace1, "test-fs-1")
 	runFileE2ETestLite(mrc.testClient, mrc.k8sh, mrc.Suite, mrc.namespace2, "test-fs-2")
 }
 
-//Test Object Store Creation on multiple rook clusters
+// Test Object Store Creation on multiple rook clusters
 func (mrc *MultiClusterDeploySuite) TestObjectStoreOnMultiRookCluster() {
 	runObjectE2ETestLite(mrc.testClient, mrc.k8sh, mrc.Suite, mrc.namespace1, "default-c1", 2)
 	runObjectE2ETestLite(mrc.testClient, mrc.k8sh, mrc.Suite, mrc.namespace2, "default-c2", 1)
 }
 
-//MCTestOperations struct for handling panic and test suite tear down
+// MCTestOperations struct for handling panic and test suite tear down
 type MCTestOperations struct {
 	installer       *installer.CephInstaller
 	kh              *utils.K8sHelper
@@ -130,7 +130,7 @@ type MCTestOperations struct {
 	systemNamespace string
 }
 
-//NewMCTestOperations creates new instance of TestCluster struct
+// NewMCTestOperations creates new instance of TestCluster struct
 func NewMCTestOperations(t func() *testing.T, namespace1 string, namespace2 string) (*MCTestOperations, *utils.K8sHelper) {
 
 	kh, err := utils.CreateK8sHelper(t)
@@ -142,7 +142,7 @@ func NewMCTestOperations(t func() *testing.T, namespace1 string, namespace2 stri
 	return op, kh
 }
 
-//SetUpRook is wrapper for setting up multiple rook clusters.
+// SetUpRook is wrapper for setting up multiple rook clusters.
 func (o MCTestOperations) Setup() {
 	var err error
 	err = o.installer.CreateCephOperator(installer.SystemNamespace(o.namespace1))
@@ -171,7 +171,7 @@ func (o MCTestOperations) Setup() {
 
 }
 
-//TearDownRook is a wrapper for tearDown after suite
+// TearDownRook is a wrapper for tearDown after suite
 func (o MCTestOperations) Teardown() {
 	defer func() {
 		if r := recover(); r != nil {

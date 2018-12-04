@@ -23,6 +23,7 @@ import (
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"k8s.io/kubernetes/pkg/util/version"
@@ -34,7 +35,7 @@ const (
 )
 
 // Smoke Test for File System Storage - Test check the following operations on Filesystem Storage in order
-//Create,Mount,Write,Read,Unmount and Delete.
+// Create,Mount,Write,Read,Unmount and Delete.
 func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, filesystemName string) {
 	defer fileTestDataCleanUp(helper, k8sh, s, filePodName, namespace, filesystemName)
 	logger.Infof("Running on Rook Cluster %s", namespace)
@@ -42,13 +43,15 @@ func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.S
 
 	createFilesystem(helper, k8sh, s, namespace, filesystemName)
 	createFilesystemConsumerPod(helper, k8sh, s, namespace, filesystemName)
-	writeAndReadToFilesystem(helper, k8sh, s, namespace, "test_file")
+	err := writeAndReadToFilesystem(helper, k8sh, s, namespace, filePodName, "test_file")
+	require.Nil(s.T(), err)
 	downscaleMetadataServers(helper, k8sh, s, namespace, filesystemName)
-	cleanupFilesystemConsumer(helper, k8sh, s, namespace, filesystemName)
+	cleanupFilesystemConsumer(helper, k8sh, s, namespace, filesystemName, filePodName)
+	cleanupFilesystem(helper, k8sh, s, namespace, filesystemName)
 }
 
 func createFilesystemConsumerPod(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, filesystemName string) {
-	mtfsErr := podWithFilesystem(k8sh, s, filePodName, namespace, filesystemName, "create")
+	mtfsErr := podWithFilesystem(k8sh, s, filePodName, namespace, filesystemName, "create", getFilesystemTestPod)
 	require.Nil(s.T(), mtfsErr)
 	filePodRunning := k8sh.IsPodRunning(filePodName, namespace)
 	if !filePodRunning {
@@ -60,15 +63,14 @@ func createFilesystemConsumerPod(helper *clients.TestClient, k8sh *utils.K8sHelp
 	logger.Infof("File system mounted successfully")
 }
 
-func writeAndReadToFilesystem(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace, filename string) {
-
+func writeAndReadToFilesystem(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace, podName, filename string) error {
 	logger.Infof("Write to file system")
 	message := "Test Data for file system storage"
-	err := k8sh.WriteToPod(namespace, filePodName, filename, message)
-	require.Nil(s.T(), err)
+	if err := k8sh.WriteToPod(namespace, podName, filename, message); err != nil {
+		return err
+	}
 
-	err = k8sh.ReadFromPod(namespace, filePodName, filename, message)
-	require.Nil(s.T(), err)
+	return k8sh.ReadFromPod(namespace, podName, filename, message)
 }
 
 func downscaleMetadataServers(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace, fsName string) {
@@ -77,25 +79,32 @@ func downscaleMetadataServers(helper *clients.TestClient, k8sh *utils.K8sHelper,
 	require.Nil(s.T(), err)
 }
 
-func cleanupFilesystemConsumer(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, filesystemName string) {
-	logger.Infof("Unmount file System")
-	_, err := k8sh.DeletePod(namespace, filePodName)
+func cleanupFilesystemConsumer(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, filesystemName string, podName string) {
+	logger.Infof("Delete file System consumer")
+	_, err := k8sh.DeletePod(namespace, podName)
 	require.Nil(s.T(), err)
-	require.True(s.T(), k8sh.IsPodTerminated(filePodName, namespace), "make sure file-test pod is terminated")
-	logger.Infof("File system unmounted successfully")
-
-	logger.Infof("Deleting file storage")
-	helper.FSClient.Delete(filesystemName, namespace)
-	//Delete is not deleting filesystem - known issue
-	//require.Nil(suite.T(), fsd_err)
-	logger.Infof("File system deleted")
+	require.True(s.T(), k8sh.IsPodTerminated(podName, namespace), fmt.Sprintf("make sure %s pod is terminated", podName))
+	logger.Infof("File system consumer deleted")
 }
 
-//Test File System Creation on Rook that was installed on a custom namespace i.e. Namespace != "rook"
+// cleanupFilesystem cleans up the filesystem and checks if all mds pods are teminated before continuing
+func cleanupFilesystem(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, filesystemName string) {
+	args := []string{"--grace-period=0", "-n", namespace, "deployment", "-l", fmt.Sprintf("rook_file_system=%s", filesystemName)}
+	_, err := k8sh.DeleteResourceAndWait(false, args...)
+	assert.Nil(s.T(), err, "force and no wait delete of rook file system deployments failed")
+
+	logger.Infof("Deleting file system")
+	err = helper.FSClient.Delete(filesystemName, namespace)
+	require.Nil(s.T(), err)
+	logger.Infof("File system %s deleted", filesystemName)
+}
+
+// Test File System Creation on Rook that was installed on a custom namespace i.e. Namespace != "rook" and delete it again
 func runFileE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, filesystemName string) {
 	logger.Infof("File Storage End to End Integration Test - create Filesystem and make sure mds pod is running")
 	logger.Infof("Running on Rook Cluster %s", namespace)
 	createFilesystem(helper, k8sh, s, namespace, filesystemName)
+	cleanupFilesystem(helper, k8sh, s, namespace, filesystemName)
 }
 
 func createFilesystem(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace, filesystemName string) {
@@ -108,13 +117,21 @@ func createFilesystem(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	require.Equal(s.T(), 1, len(filesystemList), "There should be one shared file system present")
 }
 
-func fileTestDataCleanUp(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, podname string, namespace string, filesystemName string) {
+func fileTestDataCleanUp(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, podName string, namespace string, filesystemName string) {
 	logger.Infof("Cleaning up file system")
-	podWithFilesystem(k8sh, s, podname, namespace, filesystemName, "delete")
+	podWithFilesystem(k8sh, s, podName, namespace, filesystemName, "delete", getFilesystemTestPod)
 	helper.FSClient.Delete(filesystemName, namespace)
 }
 
-func podWithFilesystem(k8sh *utils.K8sHelper, s suite.Suite, podname string, namespace string, filesystemName string, action string) error {
+func podWithFilesystem(
+	k8sh *utils.K8sHelper,
+	s suite.Suite,
+	podName string,
+	namespace string,
+	filesystemName string,
+	action string,
+	testPod func(podName string, namespace string, filesystemName string, driverName string) string,
+) error {
 	driverName := installer.SystemNamespace(namespace)
 	v := version.MustParseSemantic(k8sh.GetK8sServerVersion())
 	if v.LessThan(version.MustParseSemantic("1.10.0")) {
@@ -122,24 +139,24 @@ func podWithFilesystem(k8sh *utils.K8sHelper, s suite.Suite, podname string, nam
 		driverName = flexvolume.FlexDriverName
 	}
 
-	testPod := getFilesystemTestPod(podname, namespace, filesystemName, driverName)
-	logger.Infof("creating test pod: %s", testPod)
-	_, err := k8sh.ResourceOperation(action, testPod)
+	testPodManifest := testPod(podName, namespace, filesystemName, driverName)
+	logger.Infof("creating test pod: %s", testPodManifest)
+	_, err := k8sh.ResourceOperation(action, testPodManifest)
 	if err != nil {
-		return fmt.Errorf("failed to %s pod -- %s. %+v", action, testPod, err)
+		return fmt.Errorf("failed to %s pod -- %s. %+v", action, testPodManifest, err)
 	}
 	return nil
 }
 
-func getFilesystemTestPod(podname, namespace, filesystemName, driverName string) string {
+func getFilesystemTestPod(podName string, namespace string, filesystemName string, driverName string) string {
 	return `apiVersion: v1
 kind: Pod
 metadata:
-  name: ` + podname + `
+  name: ` + podName + `
   namespace: ` + namespace + `
 spec:
   containers:
-  - name: ` + podname + `
+  - name: ` + podName + `
     image: busybox
     command:
         - sleep

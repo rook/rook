@@ -23,10 +23,11 @@ import (
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-//FilesystemOperation is a wrapper for k8s rook file operations
+// FilesystemOperation is a wrapper for k8s rook file operations
 type FilesystemOperation struct {
 	k8sh      *utils.K8sHelper
 	manifests installer.CephManifests
@@ -39,7 +40,6 @@ func CreateFilesystemOperation(k8sh *utils.K8sHelper, manifests installer.CephMa
 
 // Create creates a filesystem in Rook
 func (f *FilesystemOperation) Create(name, namespace string) error {
-
 	logger.Infof("creating the filesystem via CRD")
 	if _, err := f.k8sh.ResourceOperation("create", f.manifests.GetFilesystem(namespace, name, 2)); err != nil {
 		return err
@@ -71,7 +71,14 @@ func (f *FilesystemOperation) ScaleDown(name, namespace string) error {
 // Delete deletes a filesystem in Rook
 func (f *FilesystemOperation) Delete(name, namespace string) error {
 	options := &metav1.DeleteOptions{}
-	return f.k8sh.RookClientset.RookV1alpha1().Filesystems(namespace).Delete(name, options)
+	logger.Infof("Deleting filesystem %s in namespace %s", name, namespace)
+	err := f.k8sh.RookClientset.CephV1beta1().Filesystems(namespace).Delete(name, options)
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+
+	logger.Infof("Deleted filesystem %s in namespace %s (CephV1beta1)", name, namespace)
+	return nil
 }
 
 // List lists filesystems in Rook

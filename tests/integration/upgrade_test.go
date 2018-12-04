@@ -88,7 +88,10 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	filesystemName := "upgrade-test-fs"
 	createFilesystem(s.helper, s.k8sh, s.Suite, s.namespace, filesystemName)
 	createFilesystemConsumerPod(s.helper, s.k8sh, s.Suite, s.namespace, filesystemName)
-	defer cleanupFilesystemConsumer(s.helper, s.k8sh, s.Suite, s.namespace, filesystemName)
+	defer func() {
+		cleanupFilesystemConsumer(s.helper, s.k8sh, s.Suite, s.namespace, filesystemName, filePodName)
+		cleanupFilesystem(s.helper, s.k8sh, s.Suite, s.namespace, filesystemName)
+	}()
 
 	logger.Infof("Initializing object before the upgrade")
 	objectStoreName := "upgraded-object"

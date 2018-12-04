@@ -31,6 +31,7 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/manager/ceph"
+	"github.com/rook/rook/pkg/operator/ceph/agent"
 	"k8s.io/api/core/v1"
 )
 
@@ -48,7 +49,6 @@ func New(context *clusterd.Context) *Agent {
 
 // Run the agent
 func (a *Agent) Run() error {
-
 	volumeAttachmentController, err := attachment.New(a.context)
 	if err != nil {
 		return fmt.Errorf("failed to create volume attachment controller: %+v", err)
@@ -59,7 +59,14 @@ func (a *Agent) Run() error {
 		return fmt.Errorf("failed to create volume manager: %+v", err)
 	}
 
-	flexvolumeController := flexvolume.NewController(a.context, volumeAttachmentController, volumeManager)
+	mountSecurityMode := os.Getenv(agent.AgentMountSecurityModeEnv)
+	// Don't check if it is not empty because the operator always sets it on the DaemonSet
+	// meaning if it is not set, there is something wrong thus return an error.
+	if mountSecurityMode == "" {
+		return fmt.Errorf("no mount security mode env var found on the agent, have you upgraded your Rook operator correctly?")
+	}
+
+	flexvolumeController := flexvolume.NewController(a.context, volumeAttachmentController, volumeManager, mountSecurityMode)
 
 	flexvolumeServer := flexvolume.NewFlexvolumeServer(
 		a.context,

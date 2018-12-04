@@ -35,7 +35,7 @@ import (
 )
 
 // Smoke Test for Block Storage - Test check the following operations on Block Storage in order
-//Create,Mount,Write,Read,Unmount and Delete.
+// Create,Mount,Write,Read,Unmount and Delete.
 func runBlockE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
 	podName := "block-test"
 	poolName := "replicapool"
@@ -193,7 +193,7 @@ func runBlockE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s su
 func setupBlockLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite,
 	clusterNamespace, poolName, storageClassName, blockName, podName string) int {
 
-	//Check initial number of blocks
+	// Check initial number of blocks
 	initialBlocks, err := helper.BlockClient.List(clusterNamespace)
 	require.Nil(s.T(), err)
 	initBlockCount := len(initialBlocks)
@@ -206,7 +206,7 @@ func setupBlockLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.S
 
 	require.True(s.T(), k8sh.WaitUntilPVCIsBound(defaultNamespace, blockName))
 
-	//Make sure new block is created
+	// Make sure new block is created
 	b, _ := helper.BlockClient.List(clusterNamespace)
 	assert.Equal(s.T(), initBlockCount+1, len(b), "Make sure new block image is created")
 	poolExists, err := helper.PoolClient.CephPoolExists(clusterNamespace, poolName)
@@ -219,7 +219,7 @@ func deleteBlockLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.
 	clusterNamespace, poolName, storageClassName, blockName, podName string, initBlockCount int) {
 
 	logger.Infof("deleteBlockLite: cleaning up after test")
-	//Delete pvc and storageclass
+	// Delete pvc and storageclass
 	err := helper.PoolClient.DeleteStorageClassAndPvc(clusterNamespace, poolName, storageClassName, "Delete", blockName, "ReadWriteOnce")
 	assert.NoError(s.T(), err)
 
@@ -250,9 +250,9 @@ func checkPoolDeleted(helper *clients.TestClient, s suite.Suite, namespace, name
 	assert.Fail(s.T(), fmt.Sprintf("pool %s was not deleted", name))
 }
 
-func blockTestDataCleanUp(helper *clients.TestClient, k8sh *utils.K8sHelper, namespace, poolname, storageclassname, blockname, podname string) {
+func blockTestDataCleanUp(helper *clients.TestClient, k8sh *utils.K8sHelper, namespace, poolname, storageclassname, blockname, podName string) {
 	logger.Infof("Cleaning up block storage")
-	k8sh.DeletePod(k8sutil.DefaultNamespace, podname)
+	k8sh.DeletePod(k8sutil.DefaultNamespace, podName)
 	helper.PoolClient.DeleteStorageClassAndPvc(namespace, poolname, storageclassname, "Delete", blockname, "ReadWriteOnce")
 	cleanupDynamicBlockStorage(helper, namespace)
 }
@@ -293,7 +293,7 @@ func retryPVCheck(k8sh *utils.K8sHelper, name string, exists bool, status string
 	return false
 }
 
-//CleanUpDynamicBlockStorage is helper method to clean up bock storage created by tests
+// CleanUpDynamicBlockStorage is helper method to clean up bock storage created by tests
 func cleanupDynamicBlockStorage(helper *clients.TestClient, namespace string) {
 	// Delete storage pool, storage class and pvc
 	blockImagesList, _ := helper.BlockClient.List(namespace)
@@ -302,11 +302,11 @@ func cleanupDynamicBlockStorage(helper *clients.TestClient, namespace string) {
 	}
 }
 
-func getBlockPodDefintion(podname, blockName string, readOnly bool) string {
+func getBlockPodDefintion(podName, blockName string, readOnly bool) string {
 	return `apiVersion: v1
 kind: Pod
 metadata:
-  name: ` + podname + `
+  name: ` + podName + `
 spec:
       containers:
       - image: busybox
@@ -326,7 +326,7 @@ spec:
       restartPolicy: Never`
 }
 
-func getBlockStatefulSetAndServiceDefinition(namespace, statefulsetName, podname, StorageClassName string) (*v1.Service, *v1beta1.StatefulSet) {
+func getBlockStatefulSetAndServiceDefinition(namespace, statefulsetName, podName, StorageClassName string) (*v1.Service, *v1beta1.StatefulSet) {
 	service := &v1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -361,7 +361,7 @@ func getBlockStatefulSetAndServiceDefinition(namespace, statefulsetName, podname
 			Kind:       "StatefulSet",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      podname,
+			Name:      podName,
 			Namespace: namespace,
 		},
 		Spec: v1beta1.StatefulSetSpec{
@@ -382,7 +382,7 @@ func getBlockStatefulSetAndServiceDefinition(namespace, statefulsetName, podname
 							Ports: []v1.ContainerPort{
 								{
 									ContainerPort: 80,
-									Name:          podname,
+									Name:          podName,
 								},
 							},
 							VolumeMounts: []v1.VolumeMount{
