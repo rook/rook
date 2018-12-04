@@ -82,6 +82,8 @@ func New(context *clusterd.Context, namespace, rookVersion string, cephVersion c
 	}
 }
 
+var updateDeploymentAndWait = k8sutil.UpdateDeploymentAndWait
+
 // Start begins the process of running a cluster of Ceph mgrs.
 func (c *Cluster) Start() error {
 	logger.Infof("start running mgr")
@@ -112,14 +114,17 @@ func (c *Cluster) Start() error {
 		}
 
 		// start the deployment
-		deployment := c.makeDeployment(mgrConfig, dashboardPort)
-		if _, err := c.context.Clientset.ExtensionsV1beta1().Deployments(c.Namespace).Create(deployment); err != nil {
+		d := c.makeDeployment(mgrConfig, dashboardPort)
+		logger.Debugf("starting mgr deployment: %+v", d)
+		_, err := c.context.Clientset.ExtensionsV1beta1().Deployments(c.Namespace).Create(d)
+		if err != nil {
 			if !errors.IsAlreadyExists(err) {
-				return fmt.Errorf("failed to create %s deployment. %+v", resourceName, err)
+				return fmt.Errorf("failed to create mgr deployment %s. %+v", resourceName, err)
 			}
-			logger.Infof("%s deployment already exists", resourceName)
-		} else {
-			logger.Infof("%s deployment started", resourceName)
+			logger.Infof("deployment for mgr %s already exists. updating if needed", resourceName)
+			if err := updateDeploymentAndWait(c.context, d, c.Namespace); err != nil {
+				return fmt.Errorf("failed to update mgr deployment %s. %+v", resourceName, err)
+			}
 		}
 	}
 

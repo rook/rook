@@ -34,21 +34,36 @@ import (
 
 func (c *config) startDeployment() error {
 
-	deployment := &extensions.Deployment{
+	d := &extensions.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      c.instanceName(),
 			Namespace: c.store.Namespace,
 		},
 		Spec: extensions.DeploymentSpec{Template: c.makeRGWPodSpec(), Replicas: &c.store.Spec.Gateway.Instances},
 	}
-	k8sutil.SetOwnerRefs(c.context.Clientset, c.store.Namespace, &deployment.ObjectMeta, c.ownerRefs)
-	_, err := c.context.Clientset.ExtensionsV1beta1().Deployments(c.store.Namespace).Create(deployment)
-	return err
+	k8sutil.SetOwnerRefs(c.context.Clientset, c.store.Namespace, &d.ObjectMeta, c.ownerRefs)
+
+	logger.Debugf("starting mds deployment: %+v", d)
+	_, err := c.context.Clientset.ExtensionsV1beta1().Deployments(c.store.Namespace).Create(d)
+	if err != nil {
+		if !errors.IsAlreadyExists(err) {
+			return fmt.Errorf("failed to create rgw deployment %s: %+v", c.instanceName(), err)
+		}
+		logger.Infof("deployment for rgw %s already exists. updating if needed", c.instanceName())
+		// There may be a *lot* of rgws, and they are stateless, so don't bother waiting until the
+		// entire deployment is updated to move on.
+		_, err := c.context.Clientset.Extensions().Deployments(c.store.Namespace).Update(d)
+		if err != nil {
+			return fmt.Errorf("failed to update rgw deployment %s. %+v", c.instanceName(), err)
+		}
+	}
+
+	return nil
 }
 
 func (c *config) startDaemonset() error {
 
-	daemonset := &extensions.DaemonSet{
+	d := &extensions.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      c.instanceName(),
 			Namespace: c.store.Namespace,
@@ -60,10 +75,26 @@ func (c *config) startDaemonset() error {
 			Template: c.makeRGWPodSpec(),
 		},
 	}
-	k8sutil.SetOwnerRefs(c.context.Clientset, c.store.Namespace, &daemonset.ObjectMeta, c.ownerRefs)
+	k8sutil.SetOwnerRefs(c.context.Clientset, c.store.Namespace, &d.ObjectMeta, c.ownerRefs)
 
-	_, err := c.context.Clientset.ExtensionsV1beta1().DaemonSets(c.store.Namespace).Create(daemonset)
-	return err
+	logger.Debugf("starting rgw daemonset: %+v", d)
+	_, err := c.context.Clientset.ExtensionsV1beta1().DaemonSets(c.store.Namespace).Create(d)
+	if err != nil {
+		if !errors.IsAlreadyExists(err) {
+			return fmt.Errorf("failed to create rgw daemonset %s: %+v", c.instanceName(), err)
+		}
+		logger.Infof("daemonset for rgw %s already exists. updating if needed", c.instanceName())
+		// There may be a *lot* of rgws, and they are stateless, so don't bother waiting until the
+		// entire daemonset is updated to move on.
+		// TODO: is the above statement safe to assume?
+		// TODO: Are there any steps for RGW that need to happen before the daemons upgrade?
+		_, err := c.context.Clientset.Extensions().DaemonSets(c.store.Namespace).Update(d)
+		if err != nil {
+			return fmt.Errorf("failed to update rgw daemonset %s. %+v", c.instanceName(), err)
+		}
+	}
+
+	return nil
 }
 
 func (c *config) makeRGWPodSpec() v1.PodTemplateSpec {
