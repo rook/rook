@@ -185,9 +185,6 @@ spec:
     listKind: CephClusterList
     plural: cephclusters
     singular: cephcluster
-    shortNames:
-    - rcc
-    - cluster
   scope: Namespaced
   version: v1
   validation:
@@ -249,9 +246,6 @@ spec:
     listKind: CephFilesystemList
     plural: cephfilesystems
     singular: cephfilesystem
-    shortNames:
-    - rcfs
-    - filesystem
   scope: Namespaced
   version: v1
 ---
@@ -266,9 +260,6 @@ spec:
     listKind: CephObjectStoreList
     plural: cephobjectstores
     singular: cephobjectstore
-    shortNames:
-    - rco
-    - objectstore
   scope: Namespaced
   version: v1
 ---
@@ -283,9 +274,6 @@ spec:
     listKind: CephObjectStoreUserList
     plural: cephobjectstoreusers
     singular: cephobjectstoreuser
-    shortNames:
-    - rcou
-    - objectuser
   scope: Namespaced
   version: v1
 ---
@@ -300,9 +288,6 @@ spec:
     listKind: CephBlockPoolList
     plural: cephblockpools
     singular: cephblockpool
-    shortNames:
-    - rcp
-    - pool
   scope: Namespaced
   version: v1
 ---
@@ -317,8 +302,6 @@ spec:
     listKind: ObjectStoreUserList
     plural: objectstoreusers
     singular: objectstoreuser
-    shortNames:
-    - rcou
   scope: Namespaced
   version: v1
 ---
