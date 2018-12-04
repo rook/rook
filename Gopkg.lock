@@ -1317,7 +1317,6 @@
     "k8s.io/client-go/informers/apps/v1",
     "k8s.io/client-go/informers/core/v1",
     "k8s.io/client-go/informers/internalinterfaces",
-    "k8s.io/client-go/informers/rbac/v1",
     "k8s.io/client-go/kubernetes",
     "k8s.io/client-go/kubernetes/fake",
     "k8s.io/client-go/kubernetes/scheme",
