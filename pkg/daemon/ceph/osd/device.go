@@ -71,14 +71,22 @@ type Device struct {
 	Dir    bool   `json:"bool"`
 }
 
+// DesiredDevice keeps track of the desired settings for a device
+type DesiredDevice struct {
+	Name          string
+	OSDsPerDevice int
+	IsFilter      bool
+}
+
 type DeviceOsdMapping struct {
 	Entries map[string]*DeviceOsdIDEntry // device name to OSD ID mapping entry
 }
 
 type DeviceOsdIDEntry struct {
-	Data                  int   // OSD ID that has data stored here
-	Metadata              []int // OSD IDs (multiple) that have metadata stored here
-	LegacyPartitionsFound bool  // Whether legacy rook partitions were found
+	Data                  int           // OSD ID that has data stored here
+	Metadata              []int         // OSD IDs (multiple) that have metadata stored here
+	Config                DesiredDevice // Device specific config options
+	LegacyPartitionsFound bool          // Whether legacy rook partitions were found
 }
 
 type devicePartInfo struct {

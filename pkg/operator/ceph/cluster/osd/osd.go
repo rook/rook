@@ -202,7 +202,7 @@ func (c *Cluster) Start() error {
 }
 
 func (c *Cluster) startProvisioning(config *provisionConfig) {
-	config.devicesToUse = make(map[string][]rookalpha.Device, len(c.Storage.Nodes))
+	config.devicesToUse = make(map[string][]rookalpha.Device)
 
 	// start with nodes currently in the storage spec
 	for _, node := range c.Storage.Nodes {

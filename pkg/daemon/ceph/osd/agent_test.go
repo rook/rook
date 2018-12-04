@@ -331,7 +331,7 @@ func TestRemoveDevices(t *testing.T) {
 
 	nodeName := "node0347"
 	agent, mockExec, context := createTestAgent(t, "none", configDir, nodeName, &config.StoreConfig{StoreType: config.Bluestore})
-	agent.usingDeviceFilter = true
+	agent.devices[0].IsFilter = true
 
 	_, removedDevices, _ := mockPartitionSchemeEntry(t, 1, "sdx", &agent.storeConfig, agent.kv, nodeName)
 
@@ -366,6 +366,11 @@ func createTestAgent(t *testing.T, devices, configDir, nodeName string, storeCon
 	if storeConfig == nil {
 		storeConfig = &config.StoreConfig{StoreType: config.Bluestore}
 	}
+	var desiredDevices []DesiredDevice
+	testDevices := strings.Split(devices, ",")
+	for _, d := range testDevices {
+		desiredDevices = append(desiredDevices, DesiredDevice{Name: d, OSDsPerDevice: 1})
+	}
 
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
@@ -374,7 +379,7 @@ func createTestAgent(t *testing.T, devices, configDir, nodeName string, storeCon
 	}
 	cluster := &cephconfig.ClusterInfo{Name: "myclust"}
 	context := &clusterd.Context{ConfigDir: configDir, Executor: executor, Clientset: testop.New(1)}
-	agent := NewAgent(context, devices, false, "", "", forceFormat, location, *storeConfig,
+	agent := NewAgent(context, desiredDevices, "", "", forceFormat, location, *storeConfig,
 		cluster, nodeName, mockKVStore())
 
 	return agent, executor, context
@@ -398,7 +403,7 @@ func TestGetPartitionPerfScheme(t *testing.T) {
 	test.CreateConfigDir(configDir)
 
 	// 3 disks: 2 for data and 1 for the metadata of both disks (2 WALs and 2 DBs)
-	a := &OsdAgent{devices: "sda,sdb", metadataDevice: "sdc", kv: mockKVStore(), nodeName: "a"}
+	a := &OsdAgent{devices: []DesiredDevice{{Name: "sda"}, {Name: "sdb"}}, metadataDevice: "sdc", kv: mockKVStore(), nodeName: "a"}
 	context.Devices = []*sys.LocalDisk{
 		{Name: "sda", Size: 107374182400}, // 100 GB
 		{Name: "sdb", Size: 107374182400}, // 100 GB
@@ -442,7 +447,7 @@ func TestGetPartitionPerfScheme(t *testing.T) {
 	}
 	context.Executor = executor
 
-	devices, err := getAvailableDevices(context, "sda,sdb", "sdc", false)
+	devices, err := getAvailableDevices(context, []DesiredDevice{{Name: "sda"}, {Name: "sdb"}}, "sdc")
 	assert.Nil(t, err)
 	scheme, err := a.getPartitionPerfScheme(context, devices)
 	assert.Nil(t, err)
@@ -510,7 +515,7 @@ func TestGetPartitionSchemeDiskInUse(t *testing.T) {
 		Executor:  executor,
 	}
 
-	a := &OsdAgent{devices: "sda", kv: mockKVStore()}
+	a := &OsdAgent{devices: []DesiredDevice{{Name: "sda"}}, kv: mockKVStore()}
 	_, _, sdaUUID := mockPartitionSchemeEntry(t, 1, "sda", nil, a.kv, a.nodeName)
 
 	context.Devices = []*sys.LocalDisk{
@@ -519,7 +524,7 @@ func TestGetPartitionSchemeDiskInUse(t *testing.T) {
 
 	// get the partition scheme based on the available devices.  Since sda is already in use, the partition
 	// scheme returned should reflect that.
-	devices, err := getAvailableDevices(context, "sda", "", false)
+	devices, err := getAvailableDevices(context, []DesiredDevice{{Name: "sda"}}, "")
 	scheme, err := a.getPartitionPerfScheme(context, devices)
 	assert.Nil(t, err)
 
@@ -575,7 +580,7 @@ func TestGetPartitionSchemeDiskNameChanged(t *testing.T) {
 	}
 
 	// mock the currently discovered hardware, note the device names have changed (e.g., across reboots) but their UUIDs are always static
-	a := &OsdAgent{devices: "sda-changed", kv: mockKVStore()}
+	a := &OsdAgent{devices: []DesiredDevice{{Name: "sda-changed"}}, kv: mockKVStore()}
 
 	// setup an existing partition scheme with metadata on nvme01 and data on sda
 	_, metadataUUID, sdaUUID := mockDistributedPartitionScheme(t, 1, "nvme01", "sda", a.kv, a.nodeName)
@@ -587,7 +592,7 @@ func TestGetPartitionSchemeDiskNameChanged(t *testing.T) {
 
 	// get the current partition scheme.  This should notice that the device names changed and update the
 	// partition scheme to have the latest device names
-	devices, err := getAvailableDevices(context, "sda-changed", "nvme01", false)
+	devices, err := getAvailableDevices(context, []DesiredDevice{{Name: "sda-changed"}}, "nvme01")
 	scheme, err := a.getPartitionPerfScheme(context, devices)
 	assert.Nil(t, err)
 	require.NotNil(t, scheme)

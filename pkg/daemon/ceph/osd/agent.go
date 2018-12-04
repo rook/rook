@@ -45,38 +45,41 @@ const (
 )
 
 type OsdAgent struct {
-	cluster           *cephconfig.ClusterInfo
-	nodeName          string
-	forceFormat       bool
-	location          string
-	osdProc           map[int]*proc.MonitoredProc
-	devices           string
-	usingDeviceFilter bool
-	metadataDevice    string
-	directories       string
-	procMan           *proc.ProcManager
-	storeConfig       config.StoreConfig
-	kv                *k8sutil.ConfigMapKVStore
-	configCounter     int32
-	osdsCompleted     chan struct{}
+	cluster        *cephconfig.ClusterInfo
+	nodeName       string
+	forceFormat    bool
+	location       string
+	osdProc        map[int]*proc.MonitoredProc
+	devices        []DesiredDevice
+	metadataDevice string
+	directories    string
+	procMan        *proc.ProcManager
+	storeConfig    config.StoreConfig
+	kv             *k8sutil.ConfigMapKVStore
+	configCounter  int32
+	osdsCompleted  chan struct{}
 }
 
-func NewAgent(context *clusterd.Context, devices string, usingDeviceFilter bool, metadataDevice, directories string, forceFormat bool,
+type device struct {
+	name     string
+	osdCount int
+}
+
+func NewAgent(context *clusterd.Context, devices []DesiredDevice, metadataDevice, directories string, forceFormat bool,
 	location string, storeConfig config.StoreConfig, cluster *cephconfig.ClusterInfo, nodeName string, kv *k8sutil.ConfigMapKVStore) *OsdAgent {
 
 	return &OsdAgent{
-		devices:           devices,
-		usingDeviceFilter: usingDeviceFilter,
-		metadataDevice:    metadataDevice,
-		directories:       directories,
-		forceFormat:       forceFormat,
-		location:          location,
-		storeConfig:       storeConfig,
-		cluster:           cluster,
-		nodeName:          nodeName,
-		kv:                kv,
-		procMan:           proc.New(context.Executor),
-		osdProc:           make(map[int]*proc.MonitoredProc),
+		devices:        devices,
+		metadataDevice: metadataDevice,
+		directories:    directories,
+		forceFormat:    forceFormat,
+		location:       location,
+		storeConfig:    storeConfig,
+		cluster:        cluster,
+		nodeName:       nodeName,
+		kv:             kv,
+		procMan:        proc.New(context.Executor),
+		osdProc:        make(map[int]*proc.MonitoredProc),
 	}
 }
 
@@ -154,7 +157,7 @@ func (a *OsdAgent) configureAllDevices(context *clusterd.Context, devices *Devic
 		return osds, nil
 	}
 
-	// get info about legacy OSDs prepared without ceph-volume
+	// If ceph-volume is not supported, go ahead and configure the osds natively with rook
 
 	// compute an OSD layout scheme that will optimize performance
 	scheme, err := a.getPartitionPerfScheme(context, devices)

@@ -19,6 +19,7 @@ package ceph
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/rook/rook/cmd/rook/rook"
@@ -71,7 +72,7 @@ var (
 	mountPath           string
 	osdID               int
 	copyBinariesPath    string
-	bluestoreOSD        bool
+	osdStoreType        string
 	osdStringID         string
 	osdUUID             string
 	osdIsDevice         bool
@@ -103,7 +104,7 @@ func addOSDFlags(command *cobra.Command) {
 	// flags for running osds that were provisioned by ceph-volume
 	osdStartCmd.Flags().StringVar(&osdStringID, "osd-id", "", "the osd ID")
 	osdStartCmd.Flags().StringVar(&osdUUID, "osd-uuid", "", "the osd UUID")
-	osdStartCmd.Flags().BoolVar(&bluestoreOSD, "bluestore", false, "whether the osd is bluestore")
+	osdStartCmd.Flags().StringVar(&osdStoreType, "osd-store-type", "", "whether the osd is bluestore or filestore")
 
 	// add the subcommands to the parent osd command
 	osdCmd.AddCommand(osdConfigCmd)
@@ -123,6 +124,8 @@ func addOSDConfigFlags(command *cobra.Command) {
 	command.Flags().IntVar(&cfg.storeConfig.DatabaseSizeMB, "osd-database-size", osdcfg.DBDefaultSizeMB, "default size (MB) for OSD database (bluestore)")
 	command.Flags().IntVar(&cfg.storeConfig.JournalSizeMB, "osd-journal-size", osdcfg.JournalDefaultSizeMB, "default size (MB) for OSD journal (filestore)")
 	command.Flags().StringVar(&cfg.storeConfig.StoreType, "osd-store", "", "type of backing OSD store to use (bluestore or filestore)")
+	command.Flags().IntVar(&cfg.storeConfig.OSDsPerDevice, "osds-per-device", 1, "the number of OSDs per device")
+	command.Flags().BoolVar(&cfg.storeConfig.EncryptedDevice, "encrypted-device", false, "whether to encreypt the OSD with dmcrypt")
 }
 
 func init() {
@@ -144,7 +147,7 @@ func init() {
 
 // Start the osd daemon if provisioned by ceph-volume
 func startOSD(cmd *cobra.Command, args []string) error {
-	required := []string{"osd-id", "osd-uuid"}
+	required := []string{"osd-id", "osd-uuid", "osd-store-type"}
 	if err := flags.VerifyRequiredFlags(osdStartCmd, required); err != nil {
 		return err
 	}
@@ -152,7 +155,7 @@ func startOSD(cmd *cobra.Command, args []string) error {
 	commonOSDInit(osdStartCmd)
 
 	context := createContext()
-	err := osddaemon.StartOSD(context, bluestoreOSD, osdStringID, osdUUID, args)
+	err := osddaemon.StartOSD(context, osdStoreType, osdStringID, osdUUID, args)
 	if err != nil {
 		rook.TerminateFatal(err)
 	}
@@ -244,17 +247,21 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	var dataDevices string
-	var usingDeviceFilter bool
+	var dataDevices []osddaemon.DesiredDevice
 	if osdDataDeviceFilter != "" {
 		if cfg.devices != "" {
 			return fmt.Errorf("Only one of --data-devices and --data-device-filter can be specified.")
 		}
 
-		dataDevices = osdDataDeviceFilter
-		usingDeviceFilter = true
+		dataDevices = []osddaemon.DesiredDevice{
+			{Name: osdDataDeviceFilter, IsFilter: true},
+		}
 	} else {
-		dataDevices = cfg.devices
+		var err error
+		dataDevices, err = parseDevices(cfg.devices)
+		if err != nil {
+			rook.TerminateFatal(fmt.Errorf("failed to parse device list (%s). %+v", cfg.devices, err))
+		}
 	}
 
 	clientset, _, rookClientset, err := rook.GetClientset()
@@ -276,7 +283,7 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 	forceFormat := false
 	ownerRef := cluster.ClusterOwnerRef(clusterInfo.Name, ownerRefID)
 	kv := k8sutil.NewConfigMapKVStore(clusterInfo.Name, clientset, ownerRef)
-	agent := osddaemon.NewAgent(context, dataDevices, usingDeviceFilter, cfg.metadataDevice, cfg.directories, forceFormat,
+	agent := osddaemon.NewAgent(context, dataDevices, cfg.metadataDevice, cfg.directories, forceFormat,
 		crushLocation, cfg.storeConfig, &clusterInfo, cfg.nodeName, kv)
 
 	err = osddaemon.Provision(context, agent)
@@ -299,4 +306,30 @@ func commonOSDInit(cmd *cobra.Command) {
 	rook.LogStartupInfo(cmd.Flags())
 
 	clusterInfo.Monitors = mondaemon.ParseMonEndpoints(cfg.monEndpoints)
+}
+
+// Parse the devices, which are comma separated. A colon indicates a non-default number of osds per device.
+// For example, one osd will be created on each of sda and sdb, with 5 osds on the nvme01 device.
+//   sda,sdb,nvme01:5
+func parseDevices(devices string) ([]osddaemon.DesiredDevice, error) {
+	var result []osddaemon.DesiredDevice
+	parsed := strings.Split(devices, ",")
+	for _, device := range parsed {
+		parts := strings.Split(device, ":")
+		d := osddaemon.DesiredDevice{Name: parts[0], OSDsPerDevice: 1}
+		if len(parts) > 1 {
+			count, err := strconv.Atoi(parts[1])
+			if err != nil {
+				return nil, fmt.Errorf("error parsing count from devices (%s). %+v", devices, err)
+			}
+			if count < 1 {
+				return nil, fmt.Errorf("osds per device should be greater than 0 (%s)", parts[1])
+			}
+			d.OSDsPerDevice = count
+		}
+		result = append(result, d)
+	}
+
+	logger.Infof("desired devices to configure osds: %+v", result)
+	return result, nil
 }

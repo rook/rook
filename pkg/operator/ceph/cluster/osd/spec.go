@@ -43,6 +43,8 @@ const (
 	osdDatabaseSizeEnvVarName   = "ROOK_OSD_DATABASE_SIZE"
 	osdWalSizeEnvVarName        = "ROOK_OSD_WAL_SIZE"
 	osdJournalSizeEnvVarName    = "ROOK_OSD_JOURNAL_SIZE"
+	osdsPerDeviceEnvVarName     = "ROOK_OSDS_PER_DEVICE"
+	encryptedDeviceEnvVarName   = "ROOK_ENCRYPTED_DEVICE"
 	osdMetadataDeviceEnvVarName = "ROOK_METADATA_DEVICE"
 	rookBinariesMountPath       = "/rook"
 	rookBinariesVolumeName      = "rook-binaries"
@@ -111,6 +113,11 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 		return nil, fmt.Errorf("empty volumes")
 	}
 
+	storeType := config.Bluestore
+	if osd.IsFileStore {
+		storeType = config.Filestore
+	}
+
 	osdID := strconv.Itoa(osd.ID)
 	tiniEnvVar := v1.EnvVar{Name: "TINI_SUBREAPER", Value: ""}
 	envVars := []v1.EnvVar{
@@ -123,7 +130,7 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 	envVars = append(envVars, []v1.EnvVar{
 		{Name: "ROOK_OSD_UUID", Value: osd.UUID},
 		{Name: "ROOK_OSD_ID", Value: osdID},
-		{Name: "ROOK_BLUESTORE", Value: strconv.FormatBool(!osd.IsFileStore)},
+		{Name: "ROOK_OSD_STORE_TYPE", Value: storeType},
 	}...)
 	configEnvVars := append(c.getConfigEnvVars(storeConfig, dataDir, nodeName, location), []v1.EnvVar{
 		tiniEnvVar,
@@ -361,19 +368,27 @@ func (c *Cluster) getConfigEnvVars(storeConfig config.StoreConfig, dataDir, node
 	}
 
 	if storeConfig.StoreType != "" {
-		envVars = append(envVars, osdStoreEnvVar(storeConfig.StoreType))
+		envVars = append(envVars, v1.EnvVar{Name: osdStoreEnvVarName, Value: storeConfig.StoreType})
 	}
 
 	if storeConfig.DatabaseSizeMB != 0 {
-		envVars = append(envVars, osdDatabaseSizeEnvVar(storeConfig.DatabaseSizeMB))
+		envVars = append(envVars, v1.EnvVar{Name: osdDatabaseSizeEnvVarName, Value: strconv.Itoa(storeConfig.DatabaseSizeMB)})
 	}
 
 	if storeConfig.WalSizeMB != 0 {
-		envVars = append(envVars, osdWalSizeEnvVar(storeConfig.WalSizeMB))
+		envVars = append(envVars, v1.EnvVar{Name: osdWalSizeEnvVarName, Value: strconv.Itoa(storeConfig.WalSizeMB)})
 	}
 
 	if storeConfig.JournalSizeMB != 0 {
-		envVars = append(envVars, osdJournalSizeEnvVar(storeConfig.JournalSizeMB))
+		envVars = append(envVars, v1.EnvVar{Name: osdJournalSizeEnvVarName, Value: strconv.Itoa(storeConfig.JournalSizeMB)})
+	}
+
+	if storeConfig.OSDsPerDevice != 0 {
+		envVars = append(envVars, v1.EnvVar{Name: osdsPerDeviceEnvVarName, Value: strconv.Itoa(storeConfig.OSDsPerDevice)})
+	}
+
+	if storeConfig.EncryptedDevice {
+		envVars = append(envVars, v1.EnvVar{Name: encryptedDeviceEnvVarName, Value: "true"})
 	}
 
 	if location != "" {
@@ -393,8 +408,13 @@ func (c *Cluster) provisionOSDContainer(devices []rookalpha.Device, selection ro
 	// only 1 of device list, device filter and use all devices can be specified.  We prioritize in that order.
 	if len(devices) > 0 {
 		deviceNames := make([]string, len(devices))
-		for i := range devices {
-			deviceNames[i] = devices[i].Name
+		for i, device := range devices {
+			countSuffix := ""
+			if count, ok := device.Config[config.OSDsPerDeviceKey]; ok {
+				logger.Infof("%s osds requested on device %s (node %s)", count, device.Name, nodeName)
+				countSuffix = ":" + count
+			}
+			deviceNames[i] = device.Name + countSuffix
 		}
 		envVars = append(envVars, dataDevicesEnvVar(strings.Join(deviceNames, ",")))
 		devMountNeeded = true
@@ -476,22 +496,6 @@ func metadataDeviceEnvVar(metadataDevice string) v1.EnvVar {
 
 func dataDirectoriesEnvVar(dataDirectories string) v1.EnvVar {
 	return v1.EnvVar{Name: dataDirsEnvVarName, Value: dataDirectories}
-}
-
-func osdStoreEnvVar(osdStore string) v1.EnvVar {
-	return v1.EnvVar{Name: osdStoreEnvVarName, Value: osdStore}
-}
-
-func osdDatabaseSizeEnvVar(databaseSize int) v1.EnvVar {
-	return v1.EnvVar{Name: osdDatabaseSizeEnvVarName, Value: strconv.Itoa(databaseSize)}
-}
-
-func osdWalSizeEnvVar(walSize int) v1.EnvVar {
-	return v1.EnvVar{Name: osdWalSizeEnvVarName, Value: strconv.Itoa(walSize)}
-}
-
-func osdJournalSizeEnvVar(journalSize int) v1.EnvVar {
-	return v1.EnvVar{Name: osdJournalSizeEnvVarName, Value: strconv.Itoa(journalSize)}
 }
 
 func getDirectoriesFromContainer(osdContainer v1.Container) []rookalpha.Directory {
