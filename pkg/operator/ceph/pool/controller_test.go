@@ -35,22 +35,22 @@ func TestValidatePool(t *testing.T) {
 	context := &clusterd.Context{Executor: &exectest.MockExecutor{}}
 
 	// must specify some replication or EC settings
-	p := cephv1.Pool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
+	p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
 	err := ValidatePool(context, &p)
 	assert.NotNil(t, err)
 
 	// must specify name
-	p = cephv1.Pool{ObjectMeta: metav1.ObjectMeta{Namespace: "myns"}}
+	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Namespace: "myns"}}
 	err = ValidatePool(context, &p)
 	assert.NotNil(t, err)
 
 	// must specify namespace
-	p = cephv1.Pool{ObjectMeta: metav1.ObjectMeta{Name: "mypool"}}
+	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool"}}
 	err = ValidatePool(context, &p)
 	assert.NotNil(t, err)
 
 	// must not specify both replication and EC settings
-	p = cephv1.Pool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
+	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
 	p.Spec.Replicated.Size = 1
 	p.Spec.ErasureCoded.CodingChunks = 2
 	p.Spec.ErasureCoded.DataChunks = 3
@@ -58,13 +58,13 @@ func TestValidatePool(t *testing.T) {
 	assert.NotNil(t, err)
 
 	// succeed with replication settings
-	p = cephv1.Pool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
+	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
 	p.Spec.Replicated.Size = 1
 	err = ValidatePool(context, &p)
 	assert.Nil(t, err)
 
 	// succeed with ec settings
-	p = cephv1.Pool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
+	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
 	p.Spec.ErasureCoded.CodingChunks = 1
 	p.Spec.ErasureCoded.DataChunks = 2
 	err = ValidatePool(context, &p)
@@ -83,7 +83,7 @@ func TestValidateCrushProperties(t *testing.T) {
 	}
 
 	// succeed with a failure domain that exists
-	p := &cephv1.Pool{
+	p := &cephv1.CephBlockPool{
 		ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"},
 		Spec: cephv1.PoolSpec{
 			Replicated:    cephv1.ReplicatedSpec{Size: 1},
@@ -121,7 +121,7 @@ func TestCreatePool(t *testing.T) {
 	}
 	context := &clusterd.Context{Executor: executor}
 
-	p := &cephv1.Pool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
+	p := &cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
 	p.Spec.Replicated.Size = 1
 
 	exists, err := poolExists(context, p)
@@ -169,7 +169,7 @@ func TestDeletePool(t *testing.T) {
 	context := &clusterd.Context{Executor: executor}
 
 	// delete a pool that exists
-	p := &cephv1.Pool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
+	p := &cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
 	exists, err := poolExists(context, p)
 	assert.Nil(t, err)
 	assert.True(t, exists)
@@ -177,7 +177,7 @@ func TestDeletePool(t *testing.T) {
 	assert.Nil(t, err)
 
 	// succeed even if the pool doesn't exist
-	p = &cephv1.Pool{ObjectMeta: metav1.ObjectMeta{Name: "otherpool", Namespace: "myns"}}
+	p = &cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "otherpool", Namespace: "myns"}}
 	exists, err = poolExists(context, p)
 	assert.Nil(t, err)
 	assert.False(t, exists)
@@ -187,7 +187,7 @@ func TestDeletePool(t *testing.T) {
 
 func TestGetPoolObject(t *testing.T) {
 	// get a current version pool object, should return with no error and no migration needed
-	pool, migrationNeeded, err := getPoolObject(&cephv1.Pool{})
+	pool, migrationNeeded, err := getPoolObject(&cephv1.CephBlockPool{})
 	assert.NotNil(t, pool)
 	assert.False(t, migrationNeeded)
 	assert.Nil(t, err)
@@ -233,7 +233,7 @@ func TestMigratePoolObject(t *testing.T) {
 	assert.Nil(t, err)
 
 	// assert that a current pool object was created via the migration
-	migratedPool, err := context.RookClientset.CephV1().Pools(legacyPool.Namespace).Get(
+	migratedPool, err := context.RookClientset.CephV1().CephBlockPools(legacyPool.Namespace).Get(
 		legacyPool.Name, metav1.GetOptions{})
 	assert.NotNil(t, migratedPool)
 	assert.Nil(t, err)
@@ -262,7 +262,7 @@ func TestConvertLegacyPool(t *testing.T) {
 		},
 	}
 
-	expectedPool := cephv1.Pool{
+	expectedPool := cephv1.CephBlockPool{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "legacy-pool-383",
 			Namespace: "rook-215",

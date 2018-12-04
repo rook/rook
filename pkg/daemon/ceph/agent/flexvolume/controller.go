@@ -46,6 +46,8 @@ const (
 	StorageClassKey = "storageClass"
 	// PoolKey key for pool name option.
 	PoolKey = "pool"
+	// BlockPoolKey key for blockPool name option.
+	BlockPoolKey = "blockPool"
 	// PoolKey key for image name option.
 	ImageKey = "image"
 	// PoolKey key for data pool name option.
@@ -186,9 +188,9 @@ func (c *Controller) Attach(attachOpts AttachOptions, devicePath *string) error 
 			}
 		}
 	}
-	*devicePath, err = c.volumeManager.Attach(attachOpts.Image, attachOpts.Pool, attachOpts.MountUser, attachOpts.MountSecret, attachOpts.ClusterNamespace)
+	*devicePath, err = c.volumeManager.Attach(attachOpts.Image, attachOpts.BlockPool, attachOpts.MountUser, attachOpts.MountSecret, attachOpts.ClusterNamespace)
 	if err != nil {
-		return fmt.Errorf("failed to attach volume %s/%s: %+v", attachOpts.Pool, attachOpts.Image, err)
+		return fmt.Errorf("failed to attach volume %s/%s: %+v", attachOpts.BlockPool, attachOpts.Image, err)
 	}
 	return nil
 }
@@ -206,13 +208,13 @@ func (c *Controller) DetachForce(detachOpts AttachOptions, _ *struct{} /* void r
 func (c *Controller) doDetach(detachOpts AttachOptions, force bool) error {
 	if err := c.volumeManager.Detach(
 		detachOpts.Image,
-		detachOpts.Pool,
+		detachOpts.BlockPool,
 		detachOpts.MountUser,
 		detachOpts.MountSecret,
 		detachOpts.ClusterNamespace,
 		force,
 	); err != nil {
-		return fmt.Errorf("failed to detach volume %s/%s: %+v", detachOpts.Pool, detachOpts.Image, err)
+		return fmt.Errorf("failed to detach volume %s/%s: %+v", detachOpts.BlockPool, detachOpts.Image, err)
 	}
 
 	namespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
@@ -334,8 +336,12 @@ func (c *Controller) GetAttachInfoFromMountDir(mountDir string, attachOptions *A
 	if attachOptions.Image == "" {
 		attachOptions.Image = pv.Spec.PersistentVolumeSource.FlexVolume.Options[ImageKey]
 	}
-	if attachOptions.Pool == "" {
-		attachOptions.Pool = pv.Spec.PersistentVolumeSource.FlexVolume.Options[PoolKey]
+	if attachOptions.BlockPool == "" {
+		attachOptions.BlockPool = pv.Spec.PersistentVolumeSource.FlexVolume.Options[BlockPoolKey]
+		if attachOptions.BlockPool == "" {
+			// fall back to the "pool" if the "blockPool" is not set
+			attachOptions.BlockPool = pv.Spec.PersistentVolumeSource.FlexVolume.Options[PoolKey]
+		}
 	}
 	if attachOptions.StorageClass == "" {
 		attachOptions.StorageClass = pv.Spec.PersistentVolumeSource.FlexVolume.Options[StorageClassKey]

@@ -172,8 +172,140 @@ func (s *UpgradeSuite) updateClusterRoles() error {
 		return err
 	}
 
-	// create the new service accounts, cluster roles, etc needed for 0.9
+	// create the v1 crds and other new resources suchas service accounts, cluster roles, etc needed for 0.9
 	newResources := `
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: cephclusters.ceph.rook.io
+spec:
+  group: ceph.rook.io
+  names:
+    kind: CephCluster
+    listKind: CephClusterList
+    plural: cephclusters
+    singular: cephcluster
+    shortNames:
+    - rcc
+    - cluster
+  scope: Namespaced
+  version: v1
+  validation:
+    openAPIV3Schema:
+      properties:
+        spec:
+          properties:
+            cephVersion:
+              properties:
+                allowUnsupported:
+                  type: boolean
+                image:
+                  type: string
+                name:
+                  pattern: ^(luminous|mimic|nautilus)$
+                  type: string
+            dashboard:
+              properties:
+                enabled:
+                  type: boolean
+                urlPrefix:
+                  type: string
+            dataDirHostPath:
+              pattern: ^/(\S+)
+              type: string
+            mon:
+              properties:
+                allowMultiplePerNode:
+                  type: boolean
+                count:
+                  maximum: 9
+                  minimum: 1
+                  type: integer
+              required:
+              - count
+            network:
+              properties:
+                hostNetwork:
+                  type: boolean
+            storage:
+              properties:
+                nodes:
+                  items: {}
+                  type: array
+                useAllDevices: {}
+                useAllNodes:
+                  type: boolean
+          required:
+          - mon
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: cephfilesystems.ceph.rook.io
+spec:
+  group: ceph.rook.io
+  names:
+    kind: CephFilesystem
+    listKind: CephFilesystemList
+    plural: cephfilesystems
+    singular: cephfilesystem
+    shortNames:
+    - rcfs
+    - filesystem
+  scope: Namespaced
+  version: v1
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: cephobjectstores.ceph.rook.io
+spec:
+  group: ceph.rook.io
+  names:
+    kind: CephObjectStore
+    listKind: CephObjectStoreList
+    plural: cephobjectstores
+    singular: cephobjectstore
+    shortNames:
+    - rco
+    - objectstore
+  scope: Namespaced
+  version: v1
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: cephobjectstoreusers.ceph.rook.io
+spec:
+  group: ceph.rook.io
+  names:
+    kind: CephObjectStoreUser
+    listKind: CephObjectStoreUserList
+    plural: cephobjectstoreusers
+    singular: cephobjectstoreuser
+    shortNames:
+    - rcou
+    - objectuser
+  scope: Namespaced
+  version: v1
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: cephblockpools.ceph.rook.io
+spec:
+  group: ceph.rook.io
+  names:
+    kind: CephBlockPool
+    listKind: CephBlockPoolList
+    plural: cephblockpools
+    singular: cephblockpool
+    shortNames:
+    - rcp
+    - pool
+  scope: Namespaced
+  version: v1
+---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:

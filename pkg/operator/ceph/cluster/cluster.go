@@ -59,7 +59,7 @@ type cluster struct {
 	ownerRef  metav1.OwnerReference
 }
 
-func newCluster(c *cephv1.Cluster, context *clusterd.Context) *cluster {
+func newCluster(c *cephv1.CephCluster, context *clusterd.Context) *cluster {
 	return &cluster{Namespace: c.Namespace, Spec: &c.Spec, context: context,
 		stopCh:   make(chan struct{}),
 		ownerRef: ClusterOwnerRef(c.Namespace, string(c.UID))}

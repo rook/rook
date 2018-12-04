@@ -53,16 +53,16 @@ func init() {
 // Adds the list of known types to api.Scheme.
 func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(SchemeGroupVersion,
-		&Cluster{},
-		&ClusterList{},
-		&Pool{},
-		&PoolList{},
-		&Filesystem{},
-		&FilesystemList{},
-		&ObjectStore{},
-		&ObjectStoreList{},
-		&ObjectStoreUser{},
-		&ObjectStoreUserList{},
+		&CephCluster{},
+		&CephClusterList{},
+		&CephBlockPool{},
+		&CephBlockPoolList{},
+		&CephFilesystem{},
+		&CephFilesystemList{},
+		&CephObjectStore{},
+		&CephObjectStoreList{},
+		&CephObjectStoreUser{},
+		&CephObjectStoreUserList{},
 	)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil

@@ -19,7 +19,7 @@ Specify your desired settings for the object store in the `object.yaml`. For mor
 
 ```yaml
 apiVersion: ceph.rook.io/v1
-kind: ObjectStore
+kind: CephObjectStore
 metadata:
   name: my-store
   namespace: rook-ceph
@@ -56,7 +56,7 @@ Specify your desired settings for the object store user in the `object-user.yaml
 
 ```yaml
 apiVersion: ceph.rook.io/v1
-kind: ObjectStoreUser
+kind: CephObjectStoreUser
 metadata:
   name: my-user
   namespace: rook-ceph

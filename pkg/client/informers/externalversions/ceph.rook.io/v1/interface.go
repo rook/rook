@@ -24,16 +24,16 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
-	// Clusters returns a ClusterInformer.
-	Clusters() ClusterInformer
-	// Filesystems returns a FilesystemInformer.
-	Filesystems() FilesystemInformer
-	// ObjectStores returns a ObjectStoreInformer.
-	ObjectStores() ObjectStoreInformer
-	// ObjectStoreUsers returns a ObjectStoreUserInformer.
-	ObjectStoreUsers() ObjectStoreUserInformer
-	// Pools returns a PoolInformer.
-	Pools() PoolInformer
+	// CephBlockPools returns a CephBlockPoolInformer.
+	CephBlockPools() CephBlockPoolInformer
+	// CephClusters returns a CephClusterInformer.
+	CephClusters() CephClusterInformer
+	// CephFilesystems returns a CephFilesystemInformer.
+	CephFilesystems() CephFilesystemInformer
+	// CephObjectStores returns a CephObjectStoreInformer.
+	CephObjectStores() CephObjectStoreInformer
+	// CephObjectStoreUsers returns a CephObjectStoreUserInformer.
+	CephObjectStoreUsers() CephObjectStoreUserInformer
 }
 
 type version struct {
@@ -47,27 +47,27 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
-// Clusters returns a ClusterInformer.
-func (v *version) Clusters() ClusterInformer {
-	return &clusterInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+// CephBlockPools returns a CephBlockPoolInformer.
+func (v *version) CephBlockPools() CephBlockPoolInformer {
+	return &cephBlockPoolInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
-// Filesystems returns a FilesystemInformer.
-func (v *version) Filesystems() FilesystemInformer {
-	return &filesystemInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+// CephClusters returns a CephClusterInformer.
+func (v *version) CephClusters() CephClusterInformer {
+	return &cephClusterInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
-// ObjectStores returns a ObjectStoreInformer.
-func (v *version) ObjectStores() ObjectStoreInformer {
-	return &objectStoreInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+// CephFilesystems returns a CephFilesystemInformer.
+func (v *version) CephFilesystems() CephFilesystemInformer {
+	return &cephFilesystemInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
-// ObjectStoreUsers returns a ObjectStoreUserInformer.
-func (v *version) ObjectStoreUsers() ObjectStoreUserInformer {
-	return &objectStoreUserInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+// CephObjectStores returns a CephObjectStoreInformer.
+func (v *version) CephObjectStores() CephObjectStoreInformer {
+	return &cephObjectStoreInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
-// Pools returns a PoolInformer.
-func (v *version) Pools() PoolInformer {
-	return &poolInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+// CephObjectStoreUsers returns a CephObjectStoreUserInformer.
+func (v *version) CephObjectStoreUsers() CephObjectStoreUserInformer {
+	return &cephObjectStoreUserInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

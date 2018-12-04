@@ -40,7 +40,7 @@ func TestCreateInitialCrushMap(t *testing.T) {
 	clientset := testop.New(3)
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Clientset: clientset, Executor: executor}
-	c := newCluster(&cephv1.Cluster{}, context)
+	c := newCluster(&cephv1.CephCluster{}, context)
 	c.Namespace = "rook294"
 
 	// create the initial crush map and verify that a configmap value was created that says the crush map was created
@@ -106,7 +106,7 @@ func TestClusterDelete(t *testing.T) {
 
 	// create the cluster controller and tell it that the cluster has been deleted
 	controller := NewClusterController(context, "", volumeAttachmentController)
-	clusterToDelete := &cephv1.Cluster{ObjectMeta: metav1.ObjectMeta{Namespace: clusterName}}
+	clusterToDelete := &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: clusterName}}
 	controller.handleDelete(clusterToDelete, time.Microsecond)
 
 	// listing of volume attachments should have been called twice.  the first time there were volume attachments
@@ -177,7 +177,7 @@ func TestRemoveFinalizer(t *testing.T) {
 	// *****************************************
 	// start with a current version ceph cluster
 	// *****************************************
-	cluster := &cephv1.Cluster{
+	cluster := &cephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "cluster-1893",
 			Namespace:  "namespace-6551",
@@ -186,7 +186,7 @@ func TestRemoveFinalizer(t *testing.T) {
 	}
 
 	// create the cluster initially so it exists in the k8s api
-	cluster, err := context.RookClientset.CephV1().Clusters(cluster.Namespace).Create(cluster)
+	cluster, err := context.RookClientset.CephV1().CephClusters(cluster.Namespace).Create(cluster)
 	assert.NoError(t, err)
 	assert.Len(t, cluster.Finalizers, 1)
 
@@ -194,7 +194,7 @@ func TestRemoveFinalizer(t *testing.T) {
 	controller.removeFinalizer(cluster)
 
 	// verify the finalizer was removed
-	cluster, err = context.RookClientset.CephV1().Clusters(cluster.Namespace).Get(cluster.Name, metav1.GetOptions{})
+	cluster, err = context.RookClientset.CephV1().CephClusters(cluster.Namespace).Get(cluster.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, cluster)
 	assert.Len(t, cluster.Finalizers, 0)

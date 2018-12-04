@@ -69,17 +69,17 @@ func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) e
 
 	logger.Infof("start watching cluster resources")
 	watcher := opkit.NewWatcher(opcluster.ClusterResource, namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1().RESTClient())
-	go watcher.Watch(&cephv1.Cluster{}, stopCh)
+	go watcher.Watch(&cephv1.CephCluster{}, stopCh)
 	return nil
 }
 
 func (c *ClusterController) onDelete(obj interface{}) {
-	cluster := obj.(*cephv1.Cluster).DeepCopy()
+	cluster := obj.(*cephv1.CephCluster).DeepCopy()
 
 	c.handleClusterDelete(cluster, removeAttachmentRetryInterval*time.Second)
 }
 
-func (c *ClusterController) handleClusterDelete(cluster *cephv1.Cluster, retryInterval time.Duration) {
+func (c *ClusterController) handleClusterDelete(cluster *cephv1.CephCluster, retryInterval time.Duration) {
 	node := os.Getenv(k8sutil.NodeNameEnvVar)
 	agentNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
 	logger.Infof("cluster in namespace %s is being deleted, agent on node %s will attempt to clean up.", cluster.Namespace, node)

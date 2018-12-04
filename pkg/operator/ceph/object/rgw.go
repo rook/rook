@@ -42,7 +42,7 @@ const (
 
 type config struct {
 	context     *clusterd.Context
-	store       cephv1.ObjectStore
+	store       cephv1.CephObjectStore
 	rookVersion string
 	cephVersion cephv1.CephVersionSpec
 	hostNetwork bool
@@ -255,7 +255,7 @@ func (c *config) createRGWKeyring() (string, error) {
 }
 
 // Validate the object store arguments
-func validateStore(context *clusterd.Context, s cephv1.ObjectStore) error {
+func validateStore(context *clusterd.Context, s cephv1.CephObjectStore) error {
 	if s.Name == "" {
 		return fmt.Errorf("missing name")
 	}

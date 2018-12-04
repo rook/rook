@@ -36,7 +36,7 @@ import (
 
 func TestGetClusterObject(t *testing.T) {
 	// get a current version cluster object, should return with no error and no migration needed
-	cluster, migrationNeeded, err := getClusterObject(&cephv1.Cluster{})
+	cluster, migrationNeeded, err := getClusterObject(&cephv1.CephCluster{})
 	assert.NotNil(t, cluster)
 	assert.False(t, migrationNeeded)
 	assert.Nil(t, err)
@@ -56,7 +56,7 @@ func TestGetClusterObject(t *testing.T) {
 
 func TestDefaultClusterValues(t *testing.T) {
 	// the default ceph version should be set
-	cluster, _, err := getClusterObject(&cephv1.Cluster{})
+	cluster, _, err := getClusterObject(&cephv1.CephCluster{})
 	assert.NotNil(t, cluster)
 	assert.Nil(t, err)
 	assert.Equal(t, cephv1.DefaultLuminousImage, cluster.Spec.CephVersion.Image)
@@ -234,7 +234,7 @@ func TestConvertLegacyCluster(t *testing.T) {
 		},
 	}
 
-	expectedCluster := cephv1.Cluster{
+	expectedCluster := cephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "legacy-cluster-5283",
 			Namespace: "rook-9837",
@@ -326,7 +326,7 @@ func TestConvertLegacyCluster(t *testing.T) {
 
 func assertLegacyClusterMigrated(t *testing.T, context *clusterd.Context, legacyCluster *cephbeta.Cluster) {
 	// assert that a current cluster object was created via the migration
-	migratedCluster, err := context.RookClientset.CephV1().Clusters(legacyCluster.Namespace).Get(legacyCluster.Name, metav1.GetOptions{})
+	migratedCluster, err := context.RookClientset.CephV1().CephClusters(legacyCluster.Namespace).Get(legacyCluster.Name, metav1.GetOptions{})
 	assert.NotNil(t, migratedCluster)
 	assert.Nil(t, err)
 

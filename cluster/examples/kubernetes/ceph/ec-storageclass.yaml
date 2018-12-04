@@ -1,5 +1,5 @@
 apiVersion: ceph.rook.io/v1
-kind: Pool
+kind: CephBlockPool
 metadata:
   name: replicated-metadata-pool
   namespace: rook-ceph
@@ -8,7 +8,7 @@ spec:
     size: 1
 ---
 apiVersion: ceph.rook.io/v1
-kind: Pool
+kind: CephBlockPool
 metadata:
   name: ec-data-pool
   namespace: rook-ceph
@@ -27,10 +27,10 @@ metadata:
 provisioner: ceph.rook.io/block
 parameters:
   # If you want to use erasure coded pool with RBD, you need to create two pools (as seen above): one erasure coded and one replicated.
-  # You need to specify the replicated pool here in the `pool` parameter, it is used for the metadata of the images.
-  # The erasure coded pool must be set as the `dataPool` parameter below.
-  pool: replicated-metadata-pool
-  dataPool: ec-data-pool
+  # You need to specify the replicated pool here in the `blockPool` parameter, it is used for the metadata of the images.
+  # The erasure coded pool must be set as the `dataBlockPool` parameter below.
+  blockPool: replicated-metadata-pool
+  dataBlockPool: ec-data-pool
   # Specify the namespace of the rook cluster from which to create volumes.
   # If not specified, it will use `rook` as the default namespace of the cluster.
   # This is also the namespace where the cluster will be

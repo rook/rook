@@ -34,26 +34,21 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
-const (
-	customResourceName       = "filesystem"
-	customResourceNamePlural = "filesystems"
-)
-
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-file")
 
 // FilesystemResource represents the file system custom resource
 var FilesystemResource = opkit.CustomResource{
-	Name:    customResourceName,
-	Plural:  customResourceNamePlural,
+	Name:    "cephfilesystem",
+	Plural:  "cephfilesystems",
 	Group:   cephv1.CustomResourceGroup,
 	Version: cephv1.Version,
 	Scope:   apiextensionsv1beta1.NamespaceScoped,
-	Kind:    reflect.TypeOf(cephv1.Filesystem{}).Name(),
+	Kind:    reflect.TypeOf(cephv1.CephFilesystem{}).Name(),
 }
 
 var filesystemResourceRookLegacy = opkit.CustomResource{
-	Name:    customResourceName,
-	Plural:  customResourceNamePlural,
+	Name:    "filesystem",
+	Plural:  "filesystems",
 	Group:   cephbeta.CustomResourceGroup,
 	Version: cephbeta.Version,
 	Scope:   apiextensionsv1beta1.NamespaceScoped,
@@ -97,7 +92,7 @@ func (c *FilesystemController) StartWatch(namespace string, stopCh chan struct{}
 
 	logger.Infof("start watching filesystem resource in namespace %s", namespace)
 	watcher := opkit.NewWatcher(FilesystemResource, namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1().RESTClient())
-	go watcher.Watch(&cephv1.Filesystem{}, stopCh)
+	go watcher.Watch(&cephv1.CephFilesystem{}, stopCh)
 
 	// watch for events on all legacy types too
 	c.watchLegacyFilesystems(namespace, stopCh, resourceHandlerFuncs)
@@ -175,7 +170,7 @@ func (c *FilesystemController) onDelete(obj interface{}) {
 	}
 }
 
-func (c *FilesystemController) filesystemOwners(fs *cephv1.Filesystem) []metav1.OwnerReference {
+func (c *FilesystemController) filesystemOwners(fs *cephv1.CephFilesystem) []metav1.OwnerReference {
 	// Only set the cluster crd as the owner of the filesystem resources.
 	// If the filesystem crd is deleted, the operator will explicitly remove the filesystem resources.
 	// If the filesystem crd still exists when the cluster crd is deleted, this will make sure the filesystem
@@ -210,9 +205,9 @@ func (c *FilesystemController) watchLegacyFilesystems(namespace string, stopCh c
 	}
 }
 
-func getFilesystemObject(obj interface{}) (filesystem *cephv1.Filesystem, migrationNeeded bool, err error) {
+func getFilesystemObject(obj interface{}) (filesystem *cephv1.CephFilesystem, migrationNeeded bool, err error) {
 	var ok bool
-	filesystem, ok = obj.(*cephv1.Filesystem)
+	filesystem, ok = obj.(*cephv1.CephFilesystem)
 	if ok {
 		// the filesystem object is of the latest type, simply return it
 		return filesystem.DeepCopy(), false, nil
@@ -228,10 +223,10 @@ func getFilesystemObject(obj interface{}) (filesystem *cephv1.Filesystem, migrat
 	return nil, false, fmt.Errorf("not a known filesystem object: %+v", obj)
 }
 
-func (c *FilesystemController) migrateFilesystemObject(filesystemToMigrate *cephv1.Filesystem, legacyObj interface{}) error {
+func (c *FilesystemController) migrateFilesystemObject(filesystemToMigrate *cephv1.CephFilesystem, legacyObj interface{}) error {
 	logger.Infof("migrating legacy filesystem %s in namespace %s", filesystemToMigrate.Name, filesystemToMigrate.Namespace)
 
-	_, err := c.context.RookClientset.CephV1().Filesystems(filesystemToMigrate.Namespace).Get(filesystemToMigrate.Name, metav1.GetOptions{})
+	_, err := c.context.RookClientset.CephV1().CephFilesystems(filesystemToMigrate.Namespace).Get(filesystemToMigrate.Name, metav1.GetOptions{})
 	if err == nil {
 		// filesystem of current type with same name/namespace already exists, don't overwrite it
 		logger.Warningf("filesystem object %s in namespace %s already exists, will not overwrite with migrated legacy filesystem.",
@@ -242,7 +237,7 @@ func (c *FilesystemController) migrateFilesystemObject(filesystemToMigrate *ceph
 		}
 
 		// filesystem of current type does not already exist, create it now to complete the migration
-		_, err = c.context.RookClientset.CephV1().Filesystems(filesystemToMigrate.Namespace).Create(filesystemToMigrate)
+		_, err = c.context.RookClientset.CephV1().CephFilesystems(filesystemToMigrate.Namespace).Create(filesystemToMigrate)
 		if err != nil {
 			return err
 		}
@@ -261,7 +256,7 @@ func (c *FilesystemController) migrateFilesystemObject(filesystemToMigrate *ceph
 	return fmt.Errorf("not a known filesystem object: %+v", legacyObj)
 }
 
-func convertRookLegacyFilesystem(legacyFilesystem *cephbeta.Filesystem) *cephv1.Filesystem {
+func convertRookLegacyFilesystem(legacyFilesystem *cephbeta.Filesystem) *cephv1.CephFilesystem {
 	if legacyFilesystem == nil {
 		return nil
 	}
@@ -273,7 +268,7 @@ func convertRookLegacyFilesystem(legacyFilesystem *cephbeta.Filesystem) *cephv1.
 		dataPools[i] = pool.ConvertRookLegacyPoolSpec(dp)
 	}
 
-	filesystem := &cephv1.Filesystem{
+	filesystem := &cephv1.CephFilesystem{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      legacyFilesystem.Name,
 			Namespace: legacyFilesystem.Namespace,

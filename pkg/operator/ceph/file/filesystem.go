@@ -31,7 +31,7 @@ import (
 // createFilesystem creates a Ceph filesystem with metadata servers
 func createFilesystem(
 	context *clusterd.Context,
-	fs cephv1.Filesystem,
+	fs cephv1.CephFilesystem,
 	rookVersion string,
 	cephVersion cephv1.CephVersionSpec,
 	hostNetwork bool,
@@ -74,7 +74,7 @@ func createFilesystem(
 }
 
 // deleteFileSystem deletes the file system and the metadata servers
-func deleteFilesystem(context *clusterd.Context, fs cephv1.Filesystem) error {
+func deleteFilesystem(context *clusterd.Context, fs cephv1.CephFilesystem) error {
 	// The most important part of deletion is that the filesystem gets removed from Ceph
 	if err := mdsdaemon.DownFilesystem(context, fs.Namespace, fs.Name); err != nil {
 		// If the fs isn't deleted from Ceph, leave the daemons so it can still be used.
@@ -91,7 +91,7 @@ func deleteFilesystem(context *clusterd.Context, fs cephv1.Filesystem) error {
 	return deleteMdsCluster(context, fs.Namespace, fs.Name)
 }
 
-func validateFilesystem(context *clusterd.Context, f cephv1.Filesystem) error {
+func validateFilesystem(context *clusterd.Context, f cephv1.CephFilesystem) error {
 	if f.Name == "" {
 		return fmt.Errorf("missing name")
 	}

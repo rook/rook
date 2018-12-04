@@ -31,7 +31,7 @@ func TestSetCephVersion(t *testing.T) {
 	clientset := testop.New(3)
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Clientset: clientset, Executor: executor}
-	cluster := &cephv1.Cluster{}
+	cluster := &cephv1.CephCluster{}
 	c := newCluster(cluster, context)
 	c.Namespace = "myns"
 

@@ -72,12 +72,12 @@ func (f *FilesystemOperation) ScaleDown(name, namespace string) error {
 func (f *FilesystemOperation) Delete(name, namespace string) error {
 	options := &metav1.DeleteOptions{}
 	logger.Infof("Deleting filesystem %s in namespace %s", name, namespace)
-	err := f.k8sh.RookClientset.CephV1().Filesystems(namespace).Delete(name, options)
+	err := f.k8sh.RookClientset.CephV1().CephFilesystems(namespace).Delete(name, options)
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}
 
-	logger.Infof("Deleted filesystem %s in namespace %s (CephV1beta1)", name, namespace)
+	logger.Infof("Deleted filesystem %s in namespace %s", name, namespace)
 	return nil
 }
 

@@ -39,7 +39,7 @@ import (
 
 func TestValidateSpec(t *testing.T) {
 	context := &clusterd.Context{Executor: &exectest.MockExecutor{}}
-	fs := cephv1.Filesystem{}
+	fs := cephv1.CephFilesystem{}
 
 	// missing name
 	assert.NotNil(t, validateFilesystem(context, fs))
@@ -91,7 +91,7 @@ func TestCreateFilesystem(t *testing.T) {
 		Executor:  executor,
 		ConfigDir: configDir,
 		Clientset: testop.New(3)}
-	fs := cephv1.Filesystem{
+	fs := cephv1.CephFilesystem{
 		ObjectMeta: metav1.ObjectMeta{Name: "myfs", Namespace: "ns"},
 		Spec: cephv1.FilesystemSpec{
 			MetadataPool: cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1}},
@@ -165,22 +165,22 @@ func TestCreateNopoolFilesystem(t *testing.T) {
 		Executor:  executor,
 		ConfigDir: configDir,
 		Clientset: testop.New(3)}
-	fs := cephv1beta1.Filesystem{
+	fs := cephv1.CephFilesystem{
 		ObjectMeta: metav1.ObjectMeta{Name: "myfs", Namespace: "ns"},
-		Spec: cephv1beta1.FilesystemSpec{
-			MetadataServer: cephv1beta1.MetadataServerSpec{
+		Spec: cephv1.FilesystemSpec{
+			MetadataServer: cephv1.MetadataServerSpec{
 				ActiveCount: 1,
 			},
 		},
 	}
 
 	// start a basic cluster
-	err := createFilesystem(context, fs, "v0.1", cephv1beta1.CephVersionSpec{}, false, []metav1.OwnerReference{})
+	err := createFilesystem(context, fs, "v0.1", cephv1.CephVersionSpec{}, false, []metav1.OwnerReference{})
 	assert.Nil(t, err)
 	validateStart(t, context, fs)
 
 	// starting again should be a no-op
-	err = createFilesystem(context, fs, "v0.1", cephv1beta1.CephVersionSpec{}, false, []metav1.OwnerReference{})
+	err = createFilesystem(context, fs, "v0.1", cephv1.CephVersionSpec{}, false, []metav1.OwnerReference{})
 	assert.Nil(t, err)
 	validateStart(t, context, fs)
 
@@ -203,7 +203,7 @@ func contains(arr []string, str string) bool {
 	return false
 }
 
-func validateStart(t *testing.T, context *clusterd.Context, fs cephv1.Filesystem) {
+func validateStart(t *testing.T, context *clusterd.Context, fs cephv1.CephFilesystem) {
 	r, err := context.Clientset.ExtensionsV1beta1().Deployments(fs.Namespace).Get("rook-ceph-mds-myfs-a", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, "rook-ceph-mds-myfs-a", r.Name)

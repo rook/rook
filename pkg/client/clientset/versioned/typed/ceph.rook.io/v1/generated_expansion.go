@@ -18,12 +18,12 @@ limitations under the License.
 
 package v1
 
-type ClusterExpansion interface{}
+type CephBlockPoolExpansion interface{}
 
-type FilesystemExpansion interface{}
+type CephClusterExpansion interface{}
 
-type ObjectStoreExpansion interface{}
+type CephFilesystemExpansion interface{}
 
-type ObjectStoreUserExpansion interface{}
+type CephObjectStoreExpansion interface{}
 
-type PoolExpansion interface{}
+type CephObjectStoreUserExpansion interface{}

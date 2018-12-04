@@ -151,7 +151,7 @@ subjects:
   namespace: rook-ceph
 ---
 apiVersion: ceph.rook.io/v1
-kind: Cluster
+kind: CephCluster
 metadata:
   name: rook-ceph
   namespace: rook-ceph

@@ -140,17 +140,17 @@ func (k8sh *K8sHelper) PurgeClusters() error {
 	for _, n := range namespaces.Items {
 		namespace := n.Name
 		logger.Infof("looking in namespace %s for clusters to purge", namespace)
-		clusters, err := k8sh.RookClientset.CephV1().Clusters(namespace).List(metav1.ListOptions{})
+		clusters, err := k8sh.RookClientset.CephV1().CephClusters(namespace).List(metav1.ListOptions{})
 		if err != nil {
 			logger.Warningf("failed to get clusters in namespace %s. %+v", namespace, err)
 			continue
 		}
 		for _, cluster := range clusters.Items {
 			logger.Infof("Ensuring rook cluster crd %s in namespace %s is deleted", cluster.Name, namespace)
-			if _, err := k8sh.Kubectl("patch", "clusters.ceph.rook.io", cluster.Name, "-n", namespace, "-p", `{"metadata":{"finalizers": []}}`, "--type=merge"); err != nil {
+			if _, err := k8sh.Kubectl("patch", "cephclusters.ceph.rook.io", cluster.Name, "-n", namespace, "-p", `{"metadata":{"finalizers": []}}`, "--type=merge"); err != nil {
 				logger.Warningf("failed to remove finalizer from cluster %s. %+v", cluster.Name, err)
 			}
-			if err := k8sh.RookClientset.CephV1().Clusters(namespace).Delete(cluster.Name, &metav1.DeleteOptions{}); err != nil {
+			if err := k8sh.RookClientset.CephV1().CephClusters(namespace).Delete(cluster.Name, &metav1.DeleteOptions{}); err != nil {
 				logger.Warningf("failed to delete cluster %s", cluster.Name)
 			}
 		}

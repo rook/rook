@@ -41,6 +41,7 @@ type VolumeController interface {
 
 type AttachOptions struct {
 	Image            string `json:"image"`
+	BlockPool        string `json:"blockPool"`
 	Pool             string `json:"pool"`
 	ClusterNamespace string `json:"clusterNamespace"`
 	ClusterName      string `json:"clusterName"`

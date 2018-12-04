@@ -31,59 +31,59 @@ import (
 	cache "k8s.io/client-go/tools/cache"
 )
 
-// FilesystemInformer provides access to a shared informer and lister for
-// Filesystems.
-type FilesystemInformer interface {
+// CephObjectStoreInformer provides access to a shared informer and lister for
+// CephObjectStores.
+type CephObjectStoreInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1.FilesystemLister
+	Lister() v1.CephObjectStoreLister
 }
 
-type filesystemInformer struct {
+type cephObjectStoreInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 	namespace        string
 }
 
-// NewFilesystemInformer constructs a new informer for Filesystem type.
+// NewCephObjectStoreInformer constructs a new informer for CephObjectStore type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilesystemInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredFilesystemInformer(client, namespace, resyncPeriod, indexers, nil)
+func NewCephObjectStoreInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredCephObjectStoreInformer(client, namespace, resyncPeriod, indexers, nil)
 }
 
-// NewFilteredFilesystemInformer constructs a new informer for Filesystem type.
+// NewFilteredCephObjectStoreInformer constructs a new informer for CephObjectStore type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredFilesystemInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredCephObjectStoreInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CephV1().Filesystems(namespace).List(options)
+				return client.CephV1().CephObjectStores(namespace).List(options)
 			},
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CephV1().Filesystems(namespace).Watch(options)
+				return client.CephV1().CephObjectStores(namespace).Watch(options)
 			},
 		},
-		&cephrookiov1.Filesystem{},
+		&cephrookiov1.CephObjectStore{},
 		resyncPeriod,
 		indexers,
 	)
 }
 
-func (f *filesystemInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredFilesystemInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+func (f *cephObjectStoreInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+	return NewFilteredCephObjectStoreInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
-func (f *filesystemInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&cephrookiov1.Filesystem{}, f.defaultInformer)
+func (f *cephObjectStoreInformer) Informer() cache.SharedIndexInformer {
+	return f.factory.InformerFor(&cephrookiov1.CephObjectStore{}, f.defaultInformer)
 }
 
-func (f *filesystemInformer) Lister() v1.FilesystemLister {
-	return v1.NewFilesystemLister(f.Informer().GetIndexer())
+func (f *cephObjectStoreInformer) Lister() v1.CephObjectStoreLister {
+	return v1.NewCephObjectStoreLister(f.Informer().GetIndexer())
 }

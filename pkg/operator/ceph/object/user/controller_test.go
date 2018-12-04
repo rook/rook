@@ -26,7 +26,7 @@ import (
 
 func TestGetObjectStoreUserObject(t *testing.T) {
 	// get a current version objectstoreuser object, should return with no error
-	objectuser, err := getObjectStoreUserObject(&cephv1.ObjectStoreUser{})
+	objectuser, err := getObjectStoreUserObject(&cephv1.CephObjectStoreUser{})
 	assert.NotNil(t, objectuser)
 	assert.Nil(t, err)
 

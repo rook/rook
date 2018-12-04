@@ -18,42 +18,42 @@ limitations under the License.
 
 package v1
 
-// ClusterListerExpansion allows custom methods to be added to
-// ClusterLister.
-type ClusterListerExpansion interface{}
+// CephBlockPoolListerExpansion allows custom methods to be added to
+// CephBlockPoolLister.
+type CephBlockPoolListerExpansion interface{}
 
-// ClusterNamespaceListerExpansion allows custom methods to be added to
-// ClusterNamespaceLister.
-type ClusterNamespaceListerExpansion interface{}
+// CephBlockPoolNamespaceListerExpansion allows custom methods to be added to
+// CephBlockPoolNamespaceLister.
+type CephBlockPoolNamespaceListerExpansion interface{}
 
-// FilesystemListerExpansion allows custom methods to be added to
-// FilesystemLister.
-type FilesystemListerExpansion interface{}
+// CephClusterListerExpansion allows custom methods to be added to
+// CephClusterLister.
+type CephClusterListerExpansion interface{}
 
-// FilesystemNamespaceListerExpansion allows custom methods to be added to
-// FilesystemNamespaceLister.
-type FilesystemNamespaceListerExpansion interface{}
+// CephClusterNamespaceListerExpansion allows custom methods to be added to
+// CephClusterNamespaceLister.
+type CephClusterNamespaceListerExpansion interface{}
 
-// ObjectStoreListerExpansion allows custom methods to be added to
-// ObjectStoreLister.
-type ObjectStoreListerExpansion interface{}
+// CephFilesystemListerExpansion allows custom methods to be added to
+// CephFilesystemLister.
+type CephFilesystemListerExpansion interface{}
 
-// ObjectStoreNamespaceListerExpansion allows custom methods to be added to
-// ObjectStoreNamespaceLister.
-type ObjectStoreNamespaceListerExpansion interface{}
+// CephFilesystemNamespaceListerExpansion allows custom methods to be added to
+// CephFilesystemNamespaceLister.
+type CephFilesystemNamespaceListerExpansion interface{}
 
-// ObjectStoreUserListerExpansion allows custom methods to be added to
-// ObjectStoreUserLister.
-type ObjectStoreUserListerExpansion interface{}
+// CephObjectStoreListerExpansion allows custom methods to be added to
+// CephObjectStoreLister.
+type CephObjectStoreListerExpansion interface{}
 
-// ObjectStoreUserNamespaceListerExpansion allows custom methods to be added to
-// ObjectStoreUserNamespaceLister.
-type ObjectStoreUserNamespaceListerExpansion interface{}
+// CephObjectStoreNamespaceListerExpansion allows custom methods to be added to
+// CephObjectStoreNamespaceLister.
+type CephObjectStoreNamespaceListerExpansion interface{}
 
-// PoolListerExpansion allows custom methods to be added to
-// PoolLister.
-type PoolListerExpansion interface{}
+// CephObjectStoreUserListerExpansion allows custom methods to be added to
+// CephObjectStoreUserLister.
+type CephObjectStoreUserListerExpansion interface{}
 
-// PoolNamespaceListerExpansion allows custom methods to be added to
-// PoolNamespaceLister.
-type PoolNamespaceListerExpansion interface{}
+// CephObjectStoreUserNamespaceListerExpansion allows custom methods to be added to
+// CephObjectStoreUserNamespaceLister.
+type CephObjectStoreUserNamespaceListerExpansion interface{}

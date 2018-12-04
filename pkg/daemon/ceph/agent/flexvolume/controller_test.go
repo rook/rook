@@ -774,7 +774,7 @@ func TestGetAttachInfoFromMountDir(t *testing.T) {
 	assert.Equal(t, "testnamespace", opts.PodNamespace)
 	assert.Equal(t, "myPod", opts.Pod)
 	assert.Equal(t, "pvc-123", opts.Image)
-	assert.Equal(t, "pool123", opts.Pool)
+	assert.Equal(t, "pool123", opts.BlockPool)
 	assert.Equal(t, "storageClass1", opts.StorageClass)
 	assert.Equal(t, "testCluster", opts.ClusterNamespace)
 }

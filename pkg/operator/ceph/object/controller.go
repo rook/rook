@@ -33,26 +33,21 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
-const (
-	customResourceName       = "objectstore"
-	customResourceNamePlural = "objectstores"
-)
-
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-object")
 
 // ObjectStoreResource represents the object store custom resource
 var ObjectStoreResource = opkit.CustomResource{
-	Name:    customResourceName,
-	Plural:  customResourceNamePlural,
+	Name:    "cephobjectstore",
+	Plural:  "cephobjectstores",
 	Group:   cephv1.CustomResourceGroup,
 	Version: cephv1.Version,
 	Scope:   apiextensionsv1beta1.NamespaceScoped,
-	Kind:    reflect.TypeOf(cephv1.ObjectStore{}).Name(),
+	Kind:    reflect.TypeOf(cephv1.CephObjectStore{}).Name(),
 }
 
 var ObjectStoreResourceRookLegacy = opkit.CustomResource{
-	Name:    customResourceName,
-	Plural:  customResourceNamePlural,
+	Name:    "objectstore",
+	Plural:  "objectstores",
 	Group:   cephbeta.CustomResourceGroup,
 	Version: cephbeta.Version,
 	Scope:   apiextensionsv1beta1.NamespaceScoped,
@@ -90,7 +85,7 @@ func (c *ObjectStoreController) StartWatch(namespace string, stopCh chan struct{
 
 	logger.Infof("start watching object store resources in namespace %s", namespace)
 	watcher := opkit.NewWatcher(ObjectStoreResource, namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1().RESTClient())
-	go watcher.Watch(&cephv1.ObjectStore{}, stopCh)
+	go watcher.Watch(&cephv1.CephObjectStore{}, stopCh)
 
 	// watch for events on all legacy types too
 	c.watchLegacyObjectStores(namespace, stopCh, resourceHandlerFuncs)
@@ -168,7 +163,7 @@ func (c *ObjectStoreController) onDelete(obj interface{}) {
 	}
 }
 
-func (c *ObjectStoreController) storeOwners(store *cephv1.ObjectStore) []metav1.OwnerReference {
+func (c *ObjectStoreController) storeOwners(store *cephv1.CephObjectStore) []metav1.OwnerReference {
 	// Only set the cluster crd as the owner of the object store resources.
 	// If the object store crd is deleted, the operator will explicitly remove the object store resources.
 	// If the object store crd still exists when the cluster crd is deleted, this will make sure the object store
@@ -219,9 +214,9 @@ func (c *ObjectStoreController) watchLegacyObjectStores(namespace string, stopCh
 	}
 }
 
-func getObjectStoreObject(obj interface{}) (objectstore *cephv1.ObjectStore, migrationNeeded bool, err error) {
+func getObjectStoreObject(obj interface{}) (objectstore *cephv1.CephObjectStore, migrationNeeded bool, err error) {
 	var ok bool
-	objectstore, ok = obj.(*cephv1.ObjectStore)
+	objectstore, ok = obj.(*cephv1.CephObjectStore)
 	if ok {
 		// the objectstore object is of the latest type, simply return it
 		return objectstore.DeepCopy(), false, nil
@@ -237,10 +232,10 @@ func getObjectStoreObject(obj interface{}) (objectstore *cephv1.ObjectStore, mig
 	return nil, false, fmt.Errorf("not a known objectstore object: %+v", obj)
 }
 
-func (c *ObjectStoreController) migrateObjectStoreObject(objectstoreToMigrate *cephv1.ObjectStore, legacyObj interface{}) error {
+func (c *ObjectStoreController) migrateObjectStoreObject(objectstoreToMigrate *cephv1.CephObjectStore, legacyObj interface{}) error {
 	logger.Infof("migrating legacy objectstore %s in namespace %s", objectstoreToMigrate.Name, objectstoreToMigrate.Namespace)
 
-	_, err := c.context.RookClientset.CephV1().ObjectStores(objectstoreToMigrate.Namespace).Get(objectstoreToMigrate.Name, metav1.GetOptions{})
+	_, err := c.context.RookClientset.CephV1().CephObjectStores(objectstoreToMigrate.Namespace).Get(objectstoreToMigrate.Name, metav1.GetOptions{})
 	if err == nil {
 		// objectstore of current type with same name/namespace already exists, don't overwrite it
 		logger.Warningf("objectstore object %s in namespace %s already exists, will not overwrite with migrated legacy objectstore.",
@@ -251,7 +246,7 @@ func (c *ObjectStoreController) migrateObjectStoreObject(objectstoreToMigrate *c
 		}
 
 		// objectstore of current type does not already exist, create it now to complete the migration
-		_, err = c.context.RookClientset.CephV1().ObjectStores(objectstoreToMigrate.Namespace).Create(objectstoreToMigrate)
+		_, err = c.context.RookClientset.CephV1().CephObjectStores(objectstoreToMigrate.Namespace).Create(objectstoreToMigrate)
 		if err != nil {
 			return err
 		}
@@ -270,14 +265,14 @@ func (c *ObjectStoreController) migrateObjectStoreObject(objectstoreToMigrate *c
 	return fmt.Errorf("not a known objectstore object: %+v", legacyObj)
 }
 
-func convertRookLegacyObjectStore(legacyObjectStore *cephbeta.ObjectStore) *cephv1.ObjectStore {
+func convertRookLegacyObjectStore(legacyObjectStore *cephbeta.ObjectStore) *cephv1.CephObjectStore {
 	if legacyObjectStore == nil {
 		return nil
 	}
 
 	legacySpec := legacyObjectStore.Spec
 
-	objectStore := &cephv1.ObjectStore{
+	objectStore := &cephv1.CephObjectStore{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      legacyObjectStore.Name,
 			Namespace: legacyObjectStore.Namespace,

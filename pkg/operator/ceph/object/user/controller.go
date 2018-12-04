@@ -34,21 +34,19 @@ import (
 )
 
 const (
-	customResourceName       = "objectstoreuser"
-	customResourceNamePlural = "objectstoreusers"
-	AppName                  = "rook-ceph-rgw"
+	AppName = "rook-ceph-rgw"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-object")
 
 // ObjectStoreResource represents the object store user custom resource
 var ObjectStoreUserResource = opkit.CustomResource{
-	Name:    customResourceName,
-	Plural:  customResourceNamePlural,
+	Name:    "cephobjectstoreuser",
+	Plural:  "cephobjectstoreusers",
 	Group:   cephv1.CustomResourceGroup,
 	Version: cephv1.Version,
 	Scope:   apiextensionsv1beta1.NamespaceScoped,
-	Kind:    reflect.TypeOf(cephv1.ObjectStoreUser{}).Name(),
+	Kind:    reflect.TypeOf(cephv1.CephObjectStoreUser{}).Name(),
 }
 
 // ObjectStoreUserController represents a controller object for object store user custom resources
@@ -76,7 +74,7 @@ func (c *ObjectStoreUserController) StartWatch(namespace string, stopCh chan str
 
 	logger.Infof("start watching object store user resources in namespace %s", namespace)
 	watcher := opkit.NewWatcher(ObjectStoreUserResource, namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1().RESTClient())
-	go watcher.Watch(&cephv1.ObjectStoreUser{}, stopCh)
+	go watcher.Watch(&cephv1.CephObjectStoreUser{}, stopCh)
 
 	return nil
 }
@@ -109,7 +107,7 @@ func (c *ObjectStoreUserController) onDelete(obj interface{}) {
 	}
 }
 
-func (c *ObjectStoreUserController) storeUserOwners(store *cephv1.ObjectStoreUser) []metav1.OwnerReference {
+func (c *ObjectStoreUserController) storeUserOwners(store *cephv1.CephObjectStoreUser) []metav1.OwnerReference {
 	// Only set the cluster crd as the owner of the object store user resources.
 	// If the object store user crd is deleted, the operator will explicitly remove the object store user resources.
 	// If the object store user crd still exists when the cluster crd is deleted, this will make sure the object store user
@@ -117,9 +115,9 @@ func (c *ObjectStoreUserController) storeUserOwners(store *cephv1.ObjectStoreUse
 	return []metav1.OwnerReference{c.ownerRef}
 }
 
-func getObjectStoreUserObject(obj interface{}) (objectstoreuser *cephv1.ObjectStoreUser, err error) {
+func getObjectStoreUserObject(obj interface{}) (objectstoreuser *cephv1.CephObjectStoreUser, err error) {
 	var ok bool
-	objectstoreuser, ok = obj.(*cephv1.ObjectStoreUser)
+	objectstoreuser, ok = obj.(*cephv1.CephObjectStoreUser)
 	if ok {
 		// the objectstoreuser object is of the latest type, simply return it
 		return objectstoreuser.DeepCopy(), nil
@@ -128,7 +126,7 @@ func getObjectStoreUserObject(obj interface{}) (objectstoreuser *cephv1.ObjectSt
 }
 
 // Create the user
-func (c *ObjectStoreUserController) createUser(context *clusterd.Context, u *cephv1.ObjectStoreUser) error {
+func (c *ObjectStoreUserController) createUser(context *clusterd.Context, u *cephv1.CephObjectStoreUser) error {
 	// validate the user settings
 	if err := ValidateUser(context, u); err != nil {
 		return fmt.Errorf("invalid user %s arguments. %+v", u.Name, err)
@@ -182,7 +180,7 @@ func (c *ObjectStoreUserController) createUser(context *clusterd.Context, u *cep
 }
 
 // Delete the user
-func deleteUser(context *clusterd.Context, u *cephv1.ObjectStoreUser) error {
+func deleteUser(context *clusterd.Context, u *cephv1.CephObjectStoreUser) error {
 	objContext := cephrgw.NewContext(context, u.Spec.Store, u.Namespace)
 	_, rgwerr, err := cephrgw.DeleteUser(objContext, u.Name)
 	if err != nil {
@@ -203,7 +201,7 @@ func deleteUser(context *clusterd.Context, u *cephv1.ObjectStoreUser) error {
 }
 
 // Validate the user arguments
-func ValidateUser(context *clusterd.Context, u *cephv1.ObjectStoreUser) error {
+func ValidateUser(context *clusterd.Context, u *cephv1.CephObjectStoreUser) error {
 	if u.Name == "" {
 		return fmt.Errorf("missing name")
 	}

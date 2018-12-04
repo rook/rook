@@ -26,7 +26,7 @@ kubectl -n rook-ceph-system delete deployment rook-ceph-operator
 **WARNING: Injecting a monmap must be done very carefully. If run incorrectly, your cluster could be permanently destroyed.**
 
 The Ceph monmap keeps track of the mon quorum. We will update the monmap to only contain the healthy mon.
-In this example, the healthy mon is `rook-ceph-mon1`, while the unhealthy mons are `rook-ceph-mon0` and `rook-ceph-mon2`.
+In this example, the healthy mon is `rook-ceph-mon-b`, while the unhealthy mons are `rook-ceph-mon-a` and `rook-ceph-mon-c`.
 
 Connect to the pod of a healthy mon and run the following commands.
 ```bash
@@ -34,7 +34,7 @@ kubectl -n rook-ceph exec -it <mon-pod> bash
 
 # set a few simple variables
 cluster_namespace=rook
-good_mon_id=rook-ceph-mon1
+good_mon_id=rook-ceph-mon-b
 monmap_path=/tmp/monmap
 
 # make sure the quorum lock file does not exist
@@ -54,8 +54,8 @@ monmaptool --print /tmp/monmap
 monmaptool ${monmap_path} --rm <bad_mon>
 
 # in this example we remove mon0 and mon2:
-monmaptool ${monmap_path} --rm rook-ceph-mon0
-monmaptool ${monmap_path} --rm rook-ceph-mon2
+monmaptool ${monmap_path} --rm rook-ceph-mon-a
+monmaptool ${monmap_path} --rm rook-ceph-mon-c
 
 # inject the monmap into the good mon
 ceph-mon -i ${good_mon_id} --inject-monmap ${monmap_path} \
@@ -75,12 +75,12 @@ kubectl -n rook-ceph edit configmap rook-ceph-mon-endpoints
 
 In the `data` element you will see three mons such as the following (or more depending on your `moncount`):
 ```
-data: rook-ceph-mon0=10.100.35.200:6790;rook-ceph-mon1=10.100.35.233:6790;rook-ceph-mon2=10.100.35.12:6790
+data: rook-ceph-mon-a=10.100.35.200:6790;rook-ceph-mon-b=10.100.35.233:6790;rook-ceph-mon-c=10.100.35.12:6790
 ```
 
 Delete the bad mons from the list, for example to end up with a single good mon:
 ```
-data: rook-ceph-mon1=10.100.35.233:6790
+data: rook-ceph-mon-b=10.100.35.233:6790
 ```
 
 Save the file and exit.
@@ -88,7 +88,7 @@ Save the file and exit.
 ### Restart the mon
 You will need to restart the good mon pod to pick up the changes. Delete the good mon pod and kubernetes will automatically restart the mon.
 ```bash
-kubectl -n rook-ceph delete pod -l mon=rook-ceph-mon1
+kubectl -n rook-ceph delete pod -l mon=rook-ceph-mon-b
 ```
 
 Start the rook [toolbox](/Documentation/toolbox.md) and verify the status of the cluster.

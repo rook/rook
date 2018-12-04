@@ -74,8 +74,8 @@ func (p *PoolOperation) GetCephPoolDetails(namespace, name string) (client.CephS
 	return details, nil
 }
 
-func (p *PoolOperation) ListPoolCRDs(namespace string) ([]cephv1.Pool, error) {
-	pools, err := p.k8sh.RookClientset.CephV1().Pools(namespace).List(metav1.ListOptions{})
+func (p *PoolOperation) ListPoolCRDs(namespace string) ([]cephv1.CephBlockPool, error) {
+	pools, err := p.k8sh.RookClientset.CephV1().CephBlockPools(namespace).List(metav1.ListOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil, nil
@@ -87,7 +87,7 @@ func (p *PoolOperation) ListPoolCRDs(namespace string) ([]cephv1.Pool, error) {
 }
 
 func (p *PoolOperation) PoolCRDExists(namespace, name string) (bool, error) {
-	_, err := p.k8sh.RookClientset.CephV1().Pools(namespace).Get(name, metav1.GetOptions{})
+	_, err := p.k8sh.RookClientset.CephV1().CephBlockPools(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return false, nil

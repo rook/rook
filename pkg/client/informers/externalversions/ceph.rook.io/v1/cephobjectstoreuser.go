@@ -31,59 +31,59 @@ import (
 	cache "k8s.io/client-go/tools/cache"
 )
 
-// PoolInformer provides access to a shared informer and lister for
-// Pools.
-type PoolInformer interface {
+// CephObjectStoreUserInformer provides access to a shared informer and lister for
+// CephObjectStoreUsers.
+type CephObjectStoreUserInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1.PoolLister
+	Lister() v1.CephObjectStoreUserLister
 }
 
-type poolInformer struct {
+type cephObjectStoreUserInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 	namespace        string
 }
 
-// NewPoolInformer constructs a new informer for Pool type.
+// NewCephObjectStoreUserInformer constructs a new informer for CephObjectStoreUser type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewPoolInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredPoolInformer(client, namespace, resyncPeriod, indexers, nil)
+func NewCephObjectStoreUserInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredCephObjectStoreUserInformer(client, namespace, resyncPeriod, indexers, nil)
 }
 
-// NewFilteredPoolInformer constructs a new informer for Pool type.
+// NewFilteredCephObjectStoreUserInformer constructs a new informer for CephObjectStoreUser type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredPoolInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredCephObjectStoreUserInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CephV1().Pools(namespace).List(options)
+				return client.CephV1().CephObjectStoreUsers(namespace).List(options)
 			},
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CephV1().Pools(namespace).Watch(options)
+				return client.CephV1().CephObjectStoreUsers(namespace).Watch(options)
 			},
 		},
-		&cephrookiov1.Pool{},
+		&cephrookiov1.CephObjectStoreUser{},
 		resyncPeriod,
 		indexers,
 	)
 }
 
-func (f *poolInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredPoolInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+func (f *cephObjectStoreUserInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+	return NewFilteredCephObjectStoreUserInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
-func (f *poolInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&cephrookiov1.Pool{}, f.defaultInformer)
+func (f *cephObjectStoreUserInformer) Informer() cache.SharedIndexInformer {
+	return f.factory.InformerFor(&cephrookiov1.CephObjectStoreUser{}, f.defaultInformer)
 }
 
-func (f *poolInformer) Lister() v1.PoolLister {
-	return v1.NewPoolLister(f.Informer().GetIndexer())
+func (f *cephObjectStoreUserInformer) Lister() v1.CephObjectStoreUserLister {
+	return v1.NewCephObjectStoreUserLister(f.Informer().GetIndexer())
 }

@@ -26,7 +26,7 @@ Save this storage class definition as `storageclass.yaml`:
 
 ```yaml
 apiVersion: ceph.rook.io/v1
-kind: Pool
+kind: CephBlockPool
 metadata:
   name: replicapool
   namespace: rook-ceph
@@ -40,7 +40,7 @@ metadata:
    name: rook-ceph-block
 provisioner: ceph.rook.io/block
 parameters:
-  pool: replicapool
+  blockPool: replicapool
   # The value of "clusterNamespace" MUST be the same as the one in which your rook cluster exist
   clusterNamespace: rook-ceph
   # Specify the filesystem type of the volume. If not specified, it will use `ext4`.
@@ -114,12 +114,12 @@ If you want to use erasure coded pool with RBD, your OSDs must use `bluestore` a
 Additionally the nodes that are going to mount the erasure coded RBD block storage must have Linux kernel >= `4.11`.
 
 To be able to use an erasure coded pool you need to create two pools (as seen below in the definitions): one erasure coded and one replicated.
-The replicated pool must be specified as the `pool` parameter. It is used for the metadata of the RBD images.
-The erasure coded pool must be set as the `dataPool` parameter below. It is used for the data of the RBD images.
+The replicated pool must be specified as the `blockPool` parameter. It is used for the metadata of the RBD images.
+The erasure coded pool must be set as the `dataBlockPool` parameter below. It is used for the data of the RBD images.
 
 ```yaml
 apiVersion: ceph.rook.io/v1
-kind: Pool
+kind: CephBlockPool
 metadata:
   name: replicated-metadata-pool
   namespace: rook-ceph
@@ -128,7 +128,7 @@ spec:
     size: 3
 ---
 apiVersion: ceph.rook.io/v1
-kind: Pool
+kind: CephBlockPool
 metadata:
   name: ec-data-pool
   namespace: rook-ceph
@@ -145,8 +145,8 @@ metadata:
    name: rook-ceph-block
 provisioner: ceph.rook.io/block
 parameters:
-  pool: replicated-metadata-pool
-  dataPool: ec-data-pool
+  blockPool: replicated-metadata-pool
+  dataBlockPool: ec-data-pool
   # Specify the namespace of the rook cluster from which to create volumes.
   # If not specified, it will use `rook` as the default namespace of the cluster.
   # This is also the namespace where the cluster will be

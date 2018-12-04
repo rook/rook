@@ -32,7 +32,7 @@ import (
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-type Cluster struct {
+type CephCluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 	Spec              ClusterSpec   `json:"spec"`
@@ -41,10 +41,10 @@ type Cluster struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-type ClusterList struct {
+type CephClusterList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
-	Items           []Cluster `json:"items"`
+	Items           []CephCluster `json:"items"`
 }
 
 type ClusterSpec struct {
@@ -123,7 +123,7 @@ type RBDMirroringSpec struct {
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-type Pool struct {
+type CephBlockPool struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 	Spec              PoolSpec `json:"spec"`
@@ -131,13 +131,13 @@ type Pool struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-type PoolList struct {
+type CephBlockPoolList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
-	Items           []Pool `json:"items"`
+	Items           []CephBlockPool `json:"items"`
 }
 
-// PoolSpec represent the spec of a pool
+// CephBlockPoolSpec represent the spec of a pool
 type PoolSpec struct {
 	// The failure domain: osd or host (technically also any type in the crush map)
 	FailureDomain string `json:"failureDomain"`
@@ -174,7 +174,7 @@ type ErasureCodedSpec struct {
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-type Filesystem struct {
+type CephFilesystem struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 	Spec              FilesystemSpec `json:"spec"`
@@ -182,19 +182,19 @@ type Filesystem struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-type FilesystemList struct {
+type CephFilesystemList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
-	Items           []Filesystem `json:"items"`
+	Items           []CephFilesystem `json:"items"`
 }
 
 // FilesystemSpec represents the spec of a file system
 type FilesystemSpec struct {
 	// The metadata pool settings
-	MetadataPool PoolSpec `json:"metadataPool"`
+	MetadataPool PoolSpec `json:"metadataPool,omitempty"`
 
 	// The data pool settings
-	DataPools []PoolSpec `json:"dataPools"`
+	DataPools []PoolSpec `json:"dataPools,omitempty"`
 
 	// The mds pod info
 	MetadataServer MetadataServerSpec `json:"metadataServer"`
@@ -219,7 +219,7 @@ type MetadataServerSpec struct {
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-type ObjectStore struct {
+type CephObjectStore struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 	Spec              ObjectStoreSpec `json:"spec"`
@@ -227,10 +227,10 @@ type ObjectStore struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-type ObjectStoreList struct {
+type CephObjectStoreList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
-	Items           []ObjectStore `json:"items"`
+	Items           []CephObjectStore `json:"items"`
 }
 
 // ObjectStoreSpec represent the spec of a pool
@@ -249,7 +249,7 @@ type ObjectStoreSpec struct {
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-type ObjectStoreUser struct {
+type CephObjectStoreUser struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 	Spec              ObjectStoreUserSpec `json:"spec"`
@@ -257,10 +257,10 @@ type ObjectStoreUser struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-type ObjectStoreUserList struct {
+type CephObjectStoreUserList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
-	Items           []ObjectStoreUser `json:"items"`
+	Items           []CephObjectStoreUser `json:"items"`
 }
 
 // ObjectStoreUserSpec represent the spec of an Objectstoreuser

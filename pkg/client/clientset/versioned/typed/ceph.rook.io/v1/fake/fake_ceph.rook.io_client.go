@@ -28,24 +28,24 @@ type FakeCephV1 struct {
 	*testing.Fake
 }
 
-func (c *FakeCephV1) Clusters(namespace string) v1.ClusterInterface {
-	return &FakeClusters{c, namespace}
+func (c *FakeCephV1) CephBlockPools(namespace string) v1.CephBlockPoolInterface {
+	return &FakeCephBlockPools{c, namespace}
 }
 
-func (c *FakeCephV1) Filesystems(namespace string) v1.FilesystemInterface {
-	return &FakeFilesystems{c, namespace}
+func (c *FakeCephV1) CephClusters(namespace string) v1.CephClusterInterface {
+	return &FakeCephClusters{c, namespace}
 }
 
-func (c *FakeCephV1) ObjectStores(namespace string) v1.ObjectStoreInterface {
-	return &FakeObjectStores{c, namespace}
+func (c *FakeCephV1) CephFilesystems(namespace string) v1.CephFilesystemInterface {
+	return &FakeCephFilesystems{c, namespace}
 }
 
-func (c *FakeCephV1) ObjectStoreUsers(namespace string) v1.ObjectStoreUserInterface {
-	return &FakeObjectStoreUsers{c, namespace}
+func (c *FakeCephV1) CephObjectStores(namespace string) v1.CephObjectStoreInterface {
+	return &FakeCephObjectStores{c, namespace}
 }
 
-func (c *FakeCephV1) Pools(namespace string) v1.PoolInterface {
-	return &FakePools{c, namespace}
+func (c *FakeCephV1) CephObjectStoreUsers(namespace string) v1.CephObjectStoreUserInterface {
+	return &FakeCephObjectStoreUsers{c, namespace}
 }
 
 // RESTClient returns a RESTClient that is used to communicate

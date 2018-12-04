@@ -1,5 +1,5 @@
 apiVersion: ceph.rook.io/v1
-kind: Filesystem
+kind: CephFilesystem
 metadata:
   name: myfs
   namespace: rook-ceph

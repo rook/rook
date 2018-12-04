@@ -42,10 +42,9 @@ const (
 	// test with the latest luminous build
 	luminousTestImage = "ceph/ceph:v12"
 	// test with the latest mimic build
-	mimicTestImage         = "ceph/ceph:v13"
-	rookOperatorCreatedCrd = "clusters.ceph.rook.io"
-	helmChartName          = "local/rook-ceph"
-	helmDeployName         = "rook-ceph"
+	mimicTestImage = "ceph/ceph:v13"
+	helmChartName  = "local/rook-ceph"
+	helmDeployName = "rook-ceph"
 )
 
 var (
@@ -95,7 +94,7 @@ func (h *CephInstaller) CreateCephCRDs() error {
 		}
 
 		// remove the finalizer from the cluster CRD
-		if _, err := h.k8shelper.Kubectl("patch", "crd", "clusters.ceph.rook.io", "-p", `{"metadata":{"finalizers": []}}`, "--type=merge"); err != nil {
+		if _, err := h.k8shelper.Kubectl("patch", "crd", "cephclusters.ceph.rook.io", "-p", `{"metadata":{"finalizers": []}}`, "--type=merge"); err != nil {
 			logger.Warningf("could not remove finalizer from cluster crd. %+v", err)
 		}
 
@@ -131,10 +130,6 @@ func (h *CephInstaller) CreateCephOperator(namespace string) (err error) {
 		return fmt.Errorf("Failed to create rook-operator pod : %v ", err)
 	}
 
-	if !h.k8shelper.IsCRDPresent(rookOperatorCreatedCrd) {
-		return fmt.Errorf("Failed to start Rook Operator; k8s CustomResourceDefinition did not appear")
-	}
-
 	logger.Infof("Rook Operator started")
 
 	return nil
@@ -155,10 +150,6 @@ func (h *CephInstaller) CreateK8sRookOperatorViaHelm(namespace string) error {
 	if err != nil {
 		return fmt.Errorf("failed to install rook operator via helm, err : %v", err)
 
-	}
-
-	if !h.k8shelper.IsCRDPresent(rookOperatorCreatedCrd) {
-		return fmt.Errorf("Failed to start Rook Operator; k8s CustomResourceDefinition did not appear")
 	}
 
 	return nil
@@ -362,11 +353,11 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(helmInstalled bool, systemNa
 		roles := h.Manifests.GetClusterRoles(namespace, systemNamespace)
 		_, err = h.k8shelper.KubectlWithStdin(roles, deleteFromStdinArgs...)
 
-		_, err = h.k8shelper.DeleteResourceAndWait(false, "-n", namespace, "cluster.ceph.rook.io", namespace)
+		_, err = h.k8shelper.DeleteResourceAndWait(false, "-n", namespace, "cephcluster", namespace)
 		checkError(h.T(), err, fmt.Sprintf("cannot remove cluster %s", namespace))
 
 		crdCheckerFunc := func() error {
-			_, err := h.k8shelper.RookClientset.CephV1().Clusters(namespace).Get(namespace, metav1.GetOptions{})
+			_, err := h.k8shelper.RookClientset.CephV1().CephClusters(namespace).Get(namespace, metav1.GetOptions{})
 			return err
 		}
 		err = h.k8shelper.WaitForCustomResourceDeletion(namespace, crdCheckerFunc)
@@ -377,7 +368,14 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(helmInstalled bool, systemNa
 	}
 
 	logger.Infof("removing the operator from namespace %s", systemNamespace)
-	_, err = h.k8shelper.DeleteResource("crd", "clusters.ceph.rook.io", "pools.ceph.rook.io", "objectstores.ceph.rook.io", "objectstoreusers.ceph.rook.io", "filesystems.ceph.rook.io", "volumes.rook.io")
+	_, err = h.k8shelper.DeleteResource(
+		"crd",
+		"cephclusters.ceph.rook.io",
+		"cephblockpools.ceph.rook.io",
+		"cephobjectstores.ceph.rook.io",
+		"cephobjectstoreusers.ceph.rook.io",
+		"cephfilesystems.ceph.rook.io",
+		"volumes.rook.io")
 	checkError(h.T(), err, "cannot delete CRDs")
 
 	if helmInstalled {

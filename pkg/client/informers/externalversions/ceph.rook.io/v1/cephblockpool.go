@@ -31,59 +31,59 @@ import (
 	cache "k8s.io/client-go/tools/cache"
 )
 
-// ObjectStoreInformer provides access to a shared informer and lister for
-// ObjectStores.
-type ObjectStoreInformer interface {
+// CephBlockPoolInformer provides access to a shared informer and lister for
+// CephBlockPools.
+type CephBlockPoolInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1.ObjectStoreLister
+	Lister() v1.CephBlockPoolLister
 }
 
-type objectStoreInformer struct {
+type cephBlockPoolInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 	namespace        string
 }
 
-// NewObjectStoreInformer constructs a new informer for ObjectStore type.
+// NewCephBlockPoolInformer constructs a new informer for CephBlockPool type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewObjectStoreInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredObjectStoreInformer(client, namespace, resyncPeriod, indexers, nil)
+func NewCephBlockPoolInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredCephBlockPoolInformer(client, namespace, resyncPeriod, indexers, nil)
 }
 
-// NewFilteredObjectStoreInformer constructs a new informer for ObjectStore type.
+// NewFilteredCephBlockPoolInformer constructs a new informer for CephBlockPool type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredObjectStoreInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredCephBlockPoolInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CephV1().ObjectStores(namespace).List(options)
+				return client.CephV1().CephBlockPools(namespace).List(options)
 			},
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CephV1().ObjectStores(namespace).Watch(options)
+				return client.CephV1().CephBlockPools(namespace).Watch(options)
 			},
 		},
-		&cephrookiov1.ObjectStore{},
+		&cephrookiov1.CephBlockPool{},
 		resyncPeriod,
 		indexers,
 	)
 }
 
-func (f *objectStoreInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredObjectStoreInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+func (f *cephBlockPoolInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+	return NewFilteredCephBlockPoolInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
-func (f *objectStoreInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&cephrookiov1.ObjectStore{}, f.defaultInformer)
+func (f *cephBlockPoolInformer) Informer() cache.SharedIndexInformer {
+	return f.factory.InformerFor(&cephrookiov1.CephBlockPool{}, f.defaultInformer)
 }
 
-func (f *objectStoreInformer) Lister() v1.ObjectStoreLister {
-	return v1.NewObjectStoreLister(f.Informer().GetIndexer())
+func (f *cephBlockPoolInformer) Lister() v1.CephBlockPoolLister {
+	return v1.NewCephBlockPoolLister(f.Informer().GetIndexer())
 }

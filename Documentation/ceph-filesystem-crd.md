@@ -21,7 +21,7 @@ for Ceph file systems.
 
 ```yaml
 apiVersion: ceph.rook.io/v1
-kind: Filesystem
+kind: CephFilesystem
 metadata:
   name: myfs
   namespace: rook-ceph
@@ -70,7 +70,7 @@ For erasure coded to make sense, you need **at least three OSDs for the below `d
 
 ```yaml
 apiVersion: ceph.rook.io/v1
-kind: Filesystem
+kind: CephFilesystem
 metadata:
   name: myfs-ec
   namespace: rook-ceph

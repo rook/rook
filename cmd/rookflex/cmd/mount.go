@@ -69,7 +69,7 @@ func handleMount(cmd *cobra.Command, args []string) error {
 
 	err = client.Call("Controller.GetAttachInfoFromMountDir", opts.MountDir, &opts)
 	if err != nil {
-		log(client, fmt.Sprintf("Attach volume %s/%s failed: %v", opts.Pool, opts.Image, err), true)
+		log(client, fmt.Sprintf("Attach volume %s/%s failed: %v", opts.BlockPool, opts.Image, err), true)
 		return fmt.Errorf("Rook: Mount volume failed: %v", err)
 	}
 
@@ -93,7 +93,7 @@ func handleMount(cmd *cobra.Command, args []string) error {
 	var globalVolumeMountPath string
 	err = client.Call("Controller.GetGlobalMountPath", globalMountPathInput, &globalVolumeMountPath)
 	if err != nil {
-		log(client, fmt.Sprintf("Attach volume %s/%s failed. Cannot get global volume mount path: %v", opts.Pool, opts.Image, err), true)
+		log(client, fmt.Sprintf("Attach volume %s/%s failed. Cannot get global volume mount path: %v", opts.BlockPool, opts.Image, err), true)
 		return fmt.Errorf("Rook: Mount volume failed. Cannot get global volume mount path: %v", err)
 	}
 
@@ -109,16 +109,17 @@ func handleMount(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	log(client, fmt.Sprintf("volume %s/%s has been attached and mounted", opts.Pool, opts.Image), false)
+	log(client, fmt.Sprintf("volume %s/%s has been attached and mounted", opts.BlockPool, opts.Image), false)
 	return nil
 }
 
 func attach(client *rpc.Client, opts *flexvolume.AttachOptions) (string, error) {
-	log(client, fmt.Sprintf("calling agent to attach volume %s/%s", opts.Pool, opts.Image), false)
+
+	log(client, fmt.Sprintf("calling agent to attach volume %s/%s", opts.BlockPool, opts.Image), false)
 	var devicePath string
 	err := client.Call("Controller.Attach", opts, &devicePath)
 	if err != nil {
-		log(client, fmt.Sprintf("Attach volume %s/%s failed: %v", opts.Pool, opts.Image, err), true)
+		log(client, fmt.Sprintf("Attach volume %s/%s failed: %v", opts.BlockPool, opts.Image, err), true)
 		return "", fmt.Errorf("Rook: Mount volume failed: %v", err)
 	}
 	return devicePath, err
@@ -148,7 +149,7 @@ func mountDevice(client *rpc.Client, mounter *k8smount.SafeFormatAndMount, devic
 			},
 		)
 		if err != nil {
-			log(client, fmt.Sprintf("mount volume %s/%s failed: %v", opts.Pool, opts.Image, err), true)
+			log(client, fmt.Sprintf("mount volume %s/%s failed: %v", opts.BlockPool, opts.Image, err), true)
 			os.Remove(globalVolumeMountPath)
 			return err
 		}
@@ -193,7 +194,7 @@ func mount(client *rpc.Client, mounter *k8smount.SafeFormatAndMount, globalVolum
 		},
 	)
 	if err != nil {
-		log(client, fmt.Sprintf("mount volume %s/%s failed: %v", opts.Pool, opts.Image, err), true)
+		log(client, fmt.Sprintf("mount volume %s/%s failed: %v", opts.BlockPool, opts.Image, err), true)
 	}
 	return err
 }

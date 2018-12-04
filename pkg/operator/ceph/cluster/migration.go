@@ -40,9 +40,9 @@ func (c *ClusterController) watchLegacyClusters(namespace string, stopCh chan st
 	}
 }
 
-func getClusterObject(obj interface{}) (cluster *cephv1.Cluster, migrationNeeded bool, err error) {
+func getClusterObject(obj interface{}) (cluster *cephv1.CephCluster, migrationNeeded bool, err error) {
 	var ok bool
-	cluster, ok = obj.(*cephv1.Cluster)
+	cluster, ok = obj.(*cephv1.CephCluster)
 	if ok {
 		// the cluster object is of the latest type, simply return it
 		cluster = cluster.DeepCopy()
@@ -60,7 +60,7 @@ func getClusterObject(obj interface{}) (cluster *cephv1.Cluster, migrationNeeded
 	return nil, false, fmt.Errorf("not a known cluster object: %+v", obj)
 }
 
-func setClusterDefaults(cluster *cephv1.Cluster) {
+func setClusterDefaults(cluster *cephv1.CephCluster) {
 	// The ceph version image should be set in the CRD.
 	// If/when the v1beta1 CRD is converted to v1, we could set this permanently during the conversion instead of
 	// setting this default in memory every time we run the operator.
@@ -70,10 +70,10 @@ func setClusterDefaults(cluster *cephv1.Cluster) {
 	}
 }
 
-func (c *ClusterController) migrateClusterObject(clusterToMigrate *cephv1.Cluster, legacyObj interface{}) error {
+func (c *ClusterController) migrateClusterObject(clusterToMigrate *cephv1.CephCluster, legacyObj interface{}) error {
 	logger.Infof("migrating legacy cluster %s in namespace %s", clusterToMigrate.Name, clusterToMigrate.Namespace)
 
-	_, err := c.context.RookClientset.CephV1().Clusters(clusterToMigrate.Namespace).Get(clusterToMigrate.Name, metav1.GetOptions{})
+	_, err := c.context.RookClientset.CephV1().CephClusters(clusterToMigrate.Namespace).Get(clusterToMigrate.Name, metav1.GetOptions{})
 	if err == nil {
 		// cluster of current type with same name/namespace already exists, don't overwrite it
 		logger.Warningf("cluster object %s in namespace %s already exists, will not overwrite with migrated legacy cluster.",
@@ -84,7 +84,7 @@ func (c *ClusterController) migrateClusterObject(clusterToMigrate *cephv1.Cluste
 		}
 
 		// cluster of current type does not already exist, create it now to complete the migration
-		_, err = c.context.RookClientset.CephV1().Clusters(clusterToMigrate.Namespace).Create(clusterToMigrate)
+		_, err = c.context.RookClientset.CephV1().CephClusters(clusterToMigrate.Namespace).Create(clusterToMigrate)
 		if err != nil {
 			return err
 		}
@@ -107,16 +107,16 @@ func (c *ClusterController) migrateClusterObject(clusterToMigrate *cephv1.Cluste
 // Rook legacy conversion functions (rook.io/v1alpha1)
 // ************************************************************************************************
 
-// converts a legacy cluster.rook.io/v1alpha1 object to the current cluster.ceph.rook.io/v1beta1 object.
+// converts a legacy ceph.cluster.rook.io/v1beta1 object to the current cephcluster.ceph.rook.io/v1 object.
 // Traverses through the entire object to convert all specs/fields.
-func convertRookLegacyCluster(legacyCluster *cephv1beta1.Cluster) *cephv1.Cluster {
+func convertRookLegacyCluster(legacyCluster *cephv1beta1.Cluster) *cephv1.CephCluster {
 	if legacyCluster == nil {
 		return nil
 	}
 
 	legacySpec := legacyCluster.Spec
 
-	cluster := &cephv1.Cluster{
+	cluster := &cephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      legacyCluster.Name,
 			Namespace: legacyCluster.Namespace,

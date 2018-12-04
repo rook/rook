@@ -35,7 +35,7 @@ import (
 )
 
 func testDeploymentObject(hostNetwork bool) *extensions.Deployment {
-	fs := cephv1.Filesystem{
+	fs := cephv1.CephFilesystem{
 		ObjectMeta: metav1.ObjectMeta{Name: "myfs", Namespace: "ns"},
 		Spec: cephv1.FilesystemSpec{
 			MetadataServer: cephv1.MetadataServerSpec{

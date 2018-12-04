@@ -7,6 +7,7 @@
 - Different versions of Ceph can be orchestrated by Rook. Both Luminous and Mimic are now supported, with Nautilus coming soon.
   The version of Ceph is specified in the cluster CRD with the cephVersion.image property. For example, to run Mimic you could use image `ceph/ceph:v13.2.2-20181023`
   or any other image found on the [Ceph DockerHub](https://hub.docker.com/r/ceph/ceph/tags).
+- The Ceph CRDs are now v1. The operator will automatically convert the CRDs from v1beta1 to v1.
 - The `fsType` default for StorageClass examples are now using XFS to bring it in line with Ceph recommendations.
 - Ceph OSDs will be automatically updated by the operator when there is a change to the operator version or when the OSD configuration changes. See the [OSD upgrade notes](Documentation/upgrade-patch.md#object-storage-daemons-osds).
 - Rook Ceph block storage provisioner can now correctly create erasure coded block images. See [Advanced Example: Erasure Coded Block Storage](Documentation/block.md#advanced-example-erasure-coded-block-storage) for an example usage.
@@ -26,6 +27,12 @@
 
 ## Breaking Changes
 
+- The Ceph CRDs are now v1. With the version change, the `kind` has been renamed for the following Ceph CRDs:
+  - `Cluster` --> `CephCluster`
+  - `Pool` --> `CephBlockPool`
+  - `Filesystem` --> `CephFilesystem`
+  - `ObjectStore` --> `CephObjectStore`
+  - `ObjectStoreUser` --> `CephObjectStoreUser`
 - The `rook-ceph-cluster` service account was renamed to `rook-ceph-osd` as this service account only applies to OSDs.
   - On upgrade from v0.8, the `rook-ceph-osd` service account must be created before starting the operator on v0.9.
   - The `serviceAccount` property has been removed from the cluster CRD.

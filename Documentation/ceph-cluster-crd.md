@@ -12,7 +12,7 @@ To get you started, here is a simple example of a CRD to configure a Ceph cluste
 
 ```yaml
 apiVersion: ceph.rook.io/v1
-kind: Cluster
+kind: CephCluster
 metadata:
   name: rook-ceph
   namespace: rook-ceph
@@ -70,7 +70,7 @@ For more details on the mons and when to choose a number other than `3`, see the
   - [storage selection settings](#storage-selection-settings)
 
 #### Node Updates
-Nodes can be added and removed over time by updating the Cluster CRD, for example with `kubectl -n rook-ceph edit cluster.ceph.rook.io rook-ceph`.
+Nodes can be added and removed over time by updating the Cluster CRD, for example with `kubectl -n rook-ceph edit cephcluster rook-ceph`.
 This will bring up your default text editor and allow you to add and remove storage nodes from the cluster.
 This feature is only available when `useAllNodes` has been set to `false`.
 
@@ -162,7 +162,7 @@ Here are several samples for configuring Ceph clusters. Each of the samples must
 ### Storage configuration: All devices
 ```yaml
 apiVersion: ceph.rook.io/v1
-kind: Cluster
+kind: CephCluster
 metadata:
   name: rook-ceph
   namespace: rook-ceph
@@ -192,7 +192,7 @@ Each node's 'name' field should match their 'kubernetes.io/hostname' label.
 
 ```yaml
 apiVersion: ceph.rook.io/v1
-kind: Cluster
+kind: CephCluster
 metadata:
   name: rook-ceph
   namespace: rook-ceph
@@ -234,7 +234,7 @@ Individual nodes can override the cluster wide specified directories list.
 
 ```yaml
 apiVersion: ceph.rook.io/v1
-kind: Cluster
+kind: CephCluster
 metadata:
   name: rook-ceph
   namespace: rook-ceph
@@ -270,7 +270,7 @@ tolerate taints with a key of 'storage-node'.
 
 ```yaml
 apiVersion: ceph.rook.io/v1
-kind: Cluster
+kind: CephCluster
 metadata:
   name: rook-ceph
   namespace: rook-ceph
@@ -314,7 +314,7 @@ You can override these requests/limits for OSDs per node when using `useAllNodes
 
 ```yaml
 apiVersion: ceph.rook.io/v1
-kind: Cluster
+kind: CephCluster
 metadata:
   name: rook-ceph
   namespace: rook-ceph

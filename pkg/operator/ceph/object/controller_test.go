@@ -58,7 +58,7 @@ func TestObjectStoreChanged(t *testing.T) {
 
 func TestGetObjectStoreObject(t *testing.T) {
 	// get a current version objectstore object, should return with no error and no migration needed
-	objectstore, migrationNeeded, err := getObjectStoreObject(&cephv1.ObjectStore{})
+	objectstore, migrationNeeded, err := getObjectStoreObject(&cephv1.CephObjectStore{})
 	assert.NotNil(t, objectstore)
 	assert.False(t, migrationNeeded)
 	assert.Nil(t, err)
@@ -104,7 +104,7 @@ func TestMigrateObjectStoreObject(t *testing.T) {
 	assert.Nil(t, err)
 
 	// assert that a current objectstore object was created via the migration
-	migratedObjectStore, err := context.RookClientset.CephV1().ObjectStores(legacyObjectStore.Namespace).Get(
+	migratedObjectStore, err := context.RookClientset.CephV1().CephObjectStores(legacyObjectStore.Namespace).Get(
 		legacyObjectStore.Name, metav1.GetOptions{})
 	assert.NotNil(t, migratedObjectStore)
 	assert.Nil(t, err)
@@ -152,7 +152,7 @@ func TestConvertLegacyObjectStore(t *testing.T) {
 		},
 	}
 
-	expectedObjectStore := cephv1.ObjectStore{
+	expectedObjectStore := cephv1.CephObjectStore{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "legacy-objectstore-3545",
 			Namespace: "rook-96874",

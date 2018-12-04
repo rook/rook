@@ -50,7 +50,7 @@ func TestFilesystemChanged(t *testing.T) {
 
 func TestGetFilesystemObject(t *testing.T) {
 	// get a current version filesystem object, should return with no error and no migration needed
-	filesystem, migrationNeeded, err := getFilesystemObject(&cephv1.Filesystem{})
+	filesystem, migrationNeeded, err := getFilesystemObject(&cephv1.CephFilesystem{})
 	assert.NotNil(t, filesystem)
 	assert.False(t, migrationNeeded)
 	assert.Nil(t, err)
@@ -96,7 +96,7 @@ func TestMigrateFilesystemObject(t *testing.T) {
 	assert.Nil(t, err)
 
 	// assert that a current filesystem object was created via the migration
-	migratedFilesystem, err := context.RookClientset.CephV1().Filesystems(legacyFilesystem.Namespace).Get(
+	migratedFilesystem, err := context.RookClientset.CephV1().CephFilesystems(legacyFilesystem.Namespace).Get(
 		legacyFilesystem.Name, metav1.GetOptions{})
 	assert.NotNil(t, migratedFilesystem)
 	assert.Nil(t, err)
@@ -142,7 +142,7 @@ func TestConvertLegacyFilesystem(t *testing.T) {
 		},
 	}
 
-	expectedFilesystem := cephv1.Filesystem{
+	expectedFilesystem := cephv1.CephFilesystem{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "legacy-filesystem-3215",
 			Namespace: "rook-6468",

@@ -27,11 +27,11 @@ import (
 
 type CephV1Interface interface {
 	RESTClient() rest.Interface
-	ClustersGetter
-	FilesystemsGetter
-	ObjectStoresGetter
-	ObjectStoreUsersGetter
-	PoolsGetter
+	CephBlockPoolsGetter
+	CephClustersGetter
+	CephFilesystemsGetter
+	CephObjectStoresGetter
+	CephObjectStoreUsersGetter
 }
 
 // CephV1Client is used to interact with features provided by the ceph.rook.io group.
@@ -39,24 +39,24 @@ type CephV1Client struct {
 	restClient rest.Interface
 }
 
-func (c *CephV1Client) Clusters(namespace string) ClusterInterface {
-	return newClusters(c, namespace)
+func (c *CephV1Client) CephBlockPools(namespace string) CephBlockPoolInterface {
+	return newCephBlockPools(c, namespace)
 }
 
-func (c *CephV1Client) Filesystems(namespace string) FilesystemInterface {
-	return newFilesystems(c, namespace)
+func (c *CephV1Client) CephClusters(namespace string) CephClusterInterface {
+	return newCephClusters(c, namespace)
 }
 
-func (c *CephV1Client) ObjectStores(namespace string) ObjectStoreInterface {
-	return newObjectStores(c, namespace)
+func (c *CephV1Client) CephFilesystems(namespace string) CephFilesystemInterface {
+	return newCephFilesystems(c, namespace)
 }
 
-func (c *CephV1Client) ObjectStoreUsers(namespace string) ObjectStoreUserInterface {
-	return newObjectStoreUsers(c, namespace)
+func (c *CephV1Client) CephObjectStores(namespace string) CephObjectStoreInterface {
+	return newCephObjectStores(c, namespace)
 }
 
-func (c *CephV1Client) Pools(namespace string) PoolInterface {
-	return newPools(c, namespace)
+func (c *CephV1Client) CephObjectStoreUsers(namespace string) CephObjectStoreUserInterface {
+	return newCephObjectStoreUsers(c, namespace)
 }
 
 // NewForConfig creates a new CephV1Client for the given config.
