@@ -109,7 +109,7 @@ func GetFilesystem(context *clusterd.Context, clusterName string, fsName string)
 }
 
 // CreateFilesystem performs software configuration steps for Ceph to provide a new filesystem.
-func CreateFilesystem(context *clusterd.Context, clusterName, name, metadataPool string, dataPools []string, activeMDSCount int32) error {
+func CreateFilesystem(context *clusterd.Context, clusterName, name, metadataPool string, dataPools []string) error {
 	if len(dataPools) == 0 {
 		return fmt.Errorf("at least one data pool is required")
 	}
@@ -141,13 +141,6 @@ func CreateFilesystem(context *clusterd.Context, clusterName, name, metadataPool
 		_, err = ExecuteCephCommand(context, clusterName, args)
 		if err != nil {
 			logger.Errorf("failed to add pool %s to file system %s. %+v", poolName, name, err)
-		}
-	}
-
-	// set the number of active mds instances
-	if activeMDSCount > 1 {
-		if err = SetNumMDSRanks(context, clusterName, name, activeMDSCount); err != nil {
-			logger.Warningf("failed setting active mds count to %d. %+v", activeMDSCount, err)
 		}
 	}
 
