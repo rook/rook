@@ -18,6 +18,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/rook/rook/cmd/rook/cassandra"
 	"github.com/rook/rook/cmd/rook/ceph"
 	"github.com/rook/rook/cmd/rook/cockroachdb"
 	"github.com/rook/rook/cmd/rook/minio"
@@ -40,6 +41,7 @@ func addCommands() {
 	rook.RootCmd.AddCommand(cockroachdb.Cmd)
 	rook.RootCmd.AddCommand(minio.Cmd)
 	rook.RootCmd.AddCommand(nfs.Cmd)
+	rook.RootCmd.AddCommand(cassandra.Cmd)
 
 	// add the ceph legacy commands to the main command for backwards compatibility
 	// TODO: remove these Ceph legacy commands in the future

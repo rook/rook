@@ -91,3 +91,8 @@ ignored = [
   name = "github.com/docker/distribution"
   revision = "edc3ab29cdff8694dd6feb85cfeb4b5f1b38ed9c"
 
+# Github mirror of goautoneg, original repo uses Mercurial
+# and the Jenkins AMI doesn't have hg installed
+[[override]]
+  name = "bitbucket.org/ww/goautoneg"
+  source = "github.com/rancher/goautoneg"

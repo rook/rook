@@ -19,6 +19,7 @@ limitations under the License.
 package fake
 
 import (
+	cassandrav1alpha1 "github.com/rook/rook/pkg/apis/cassandra.rook.io/v1alpha1"
 	cephv1alpha1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
 	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	cockroachdbv1alpha1 "github.com/rook/rook/pkg/apis/cockroachdb.rook.io/v1alpha1"
@@ -56,6 +57,7 @@ func init() {
 // After this, RawExtensions in Kubernetes types will serialize kube-aggregator types
 // correctly.
 func AddToScheme(scheme *runtime.Scheme) {
+	cassandrav1alpha1.AddToScheme(scheme)
 	cephv1alpha1.AddToScheme(scheme)
 	cephv1beta1.AddToScheme(scheme)
 	cockroachdbv1alpha1.AddToScheme(scheme)
