@@ -12,8 +12,8 @@ for Ceph object store users.
 ## Sample
 
 ```yaml
-apiVersion: ceph.rook.io/v1beta1
-kind: ObjectStoreUser
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStoreUser
 metadata:
   name: my-user
   namespace: rook-ceph

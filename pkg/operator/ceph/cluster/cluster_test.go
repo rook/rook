@@ -20,7 +20,7 @@ import (
 	"testing"
 	"time"
 
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -31,7 +31,7 @@ func TestSetCephVersion(t *testing.T) {
 	clientset := testop.New(3)
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Clientset: clientset, Executor: executor}
-	cluster := &cephv1beta1.Cluster{}
+	cluster := &cephv1.CephCluster{}
 	c := newCluster(cluster, context)
 	c.Namespace = "myns"
 

@@ -19,7 +19,7 @@ package file
 import (
 	"fmt"
 
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	mdsdaemon "github.com/rook/rook/pkg/daemon/ceph/mds"
@@ -31,9 +31,9 @@ import (
 // createFilesystem creates a Ceph filesystem with metadata servers
 func createFilesystem(
 	context *clusterd.Context,
-	fs cephv1beta1.Filesystem,
+	fs cephv1.CephFilesystem,
 	rookVersion string,
-	cephVersion cephv1beta1.CephVersionSpec,
+	cephVersion cephv1.CephVersionSpec,
 	hostNetwork bool,
 	ownerRefs []metav1.OwnerReference,
 ) error {
@@ -74,7 +74,7 @@ func createFilesystem(
 }
 
 // deleteFileSystem deletes the file system and the metadata servers
-func deleteFilesystem(context *clusterd.Context, fs cephv1beta1.Filesystem) error {
+func deleteFilesystem(context *clusterd.Context, fs cephv1.CephFilesystem) error {
 	// The most important part of deletion is that the filesystem gets removed from Ceph
 	if err := mdsdaemon.DownFilesystem(context, fs.Namespace, fs.Name); err != nil {
 		// If the fs isn't deleted from Ceph, leave the daemons so it can still be used.
@@ -91,7 +91,7 @@ func deleteFilesystem(context *clusterd.Context, fs cephv1beta1.Filesystem) erro
 	return deleteMdsCluster(context, fs.Namespace, fs.Name)
 }
 
-func validateFilesystem(context *clusterd.Context, f cephv1beta1.Filesystem) error {
+func validateFilesystem(context *clusterd.Context, f cephv1.CephFilesystem) error {
 	if f.Name == "" {
 		return fmt.Errorf("missing name")
 	}

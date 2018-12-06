@@ -81,7 +81,7 @@ func handleUnmount(cmd *cobra.Command, args []string) error {
 	var globalVolumeMountPath string
 	err = client.Call("Controller.GetGlobalMountPath", globalMountPathInput, &globalVolumeMountPath)
 	if err != nil {
-		log(client, fmt.Sprintf("Detach volume %s/%s failed. Cannot get global volume mount path: %v", opts.Pool, opts.Image, err), true)
+		log(client, fmt.Sprintf("Detach volume %s/%s failed. Cannot get global volume mount path: %v", opts.BlockPool, opts.Image, err), true)
 		return fmt.Errorf("Rook: Unmount volume failed. Cannot get global volume mount path: %v", err)
 	}
 

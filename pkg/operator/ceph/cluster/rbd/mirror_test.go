@@ -19,7 +19,7 @@ package rbd
 import (
 	"testing"
 
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	testop "github.com/rook/rook/pkg/operator/test"
@@ -46,10 +46,10 @@ func TestRBDMirror(t *testing.T) {
 	c := New(&clusterd.Context{Clientset: clientset, Executor: executor},
 		"ns",
 		"rook/rook:myversion",
-		cephv1beta1.CephVersionSpec{Image: "ceph/ceph:myceph"},
+		cephv1.CephVersionSpec{Image: "ceph/ceph:myceph"},
 		rookalpha.Placement{},
 		false,
-		cephv1beta1.RBDMirroringSpec{Workers: 2},
+		cephv1.RBDMirroringSpec{Workers: 2},
 		v1.ResourceRequirements{},
 		metav1.OwnerReference{},
 	)

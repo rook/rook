@@ -1,5 +1,5 @@
-apiVersion: ceph.rook.io/v1beta1
-kind: Pool
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
 metadata:
   name: replicapool
   namespace: rook-ceph
@@ -13,7 +13,7 @@ metadata:
    name: rook-ceph-block
 provisioner: ceph.rook.io/block
 parameters:
-  pool: replicapool
+  blockPool: replicapool
   # Specify the namespace of the rook cluster from which to create volumes.
   # If not specified, it will use `rook` as the default namespace of the cluster.
   # This is also the namespace where the cluster will be

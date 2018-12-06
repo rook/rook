@@ -154,19 +154,19 @@ func TestParseClassParameters(t *testing.T) {
 	provConfig, err := parseClassParameters(cfg)
 	assert.Nil(t, err)
 
-	assert.Equal(t, "testPool", provConfig.pool)
+	assert.Equal(t, "testPool", provConfig.blockPool)
 	assert.Equal(t, "myname", provConfig.clusterNamespace)
 	assert.Equal(t, "ext4", provConfig.fstype)
 }
 
 func TestParseClassParametersDefault(t *testing.T) {
 	cfg := make(map[string]string)
-	cfg["pool"] = "testPool"
+	cfg["blockPool"] = "testPool"
 
 	provConfig, err := parseClassParameters(cfg)
 	assert.Nil(t, err)
 
-	assert.Equal(t, "testPool", provConfig.pool)
+	assert.Equal(t, "testPool", provConfig.blockPool)
 	assert.Equal(t, "rook-ceph", provConfig.clusterNamespace)
 	assert.Equal(t, "", provConfig.fstype)
 }
@@ -176,7 +176,7 @@ func TestParseClassParametersNoPool(t *testing.T) {
 	cfg["clustername"] = "myname"
 
 	_, err := parseClassParameters(cfg)
-	assert.EqualError(t, err, "StorageClass for provisioner rookVolumeProvisioner must contain 'pool' parameter")
+	assert.EqualError(t, err, "StorageClass for provisioner rookVolumeProvisioner must contain 'blockPool' parameter")
 
 }
 

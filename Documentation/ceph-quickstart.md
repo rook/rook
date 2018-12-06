@@ -47,7 +47,7 @@ You can also deploy the operator with the [Rook Helm Chart](helm-operator.md).
 ## Create a Rook Cluster
 
 Now that the Rook operator, agent, and discover pods are running, we can create the Rook cluster. For the cluster to survive reboots,
-make sure you set the `dataDirHostPath` property. For more settings, see the documentation on [configuring the cluster](ceph-cluster-crd.md).
+make sure you set the `dataDirHostPath` property that is valid for your hosts. For more settings, see the documentation on [configuring the cluster](ceph-cluster-crd.md).
 
 
 Save the cluster spec as `cluster.yaml`:
@@ -212,8 +212,8 @@ subjects:
 #################################################################################
 # The Ceph Cluster CRD example
 #################################################################################
-apiVersion: ceph.rook.io/v1beta1
-kind: Cluster
+apiVersion: ceph.rook.io/v1
+kind: CephCluster
 metadata:
   name: rook-ceph
   namespace: rook-ceph

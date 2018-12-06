@@ -20,7 +20,7 @@ package object
 import (
 	"fmt"
 
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	rgwdaemon "github.com/rook/rook/pkg/daemon/ceph/rgw"
@@ -42,9 +42,9 @@ const (
 
 type config struct {
 	context     *clusterd.Context
-	store       cephv1beta1.ObjectStore
+	store       cephv1.CephObjectStore
 	rookVersion string
-	cephVersion cephv1beta1.CephVersionSpec
+	cephVersion cephv1.CephVersionSpec
 	hostNetwork bool
 	ownerRefs   []metav1.OwnerReference
 }
@@ -255,7 +255,7 @@ func (c *config) createRGWKeyring() (string, error) {
 }
 
 // Validate the object store arguments
-func validateStore(context *clusterd.Context, s cephv1beta1.ObjectStore) error {
+func validateStore(context *clusterd.Context, s cephv1.CephObjectStore) error {
 	if s.Name == "" {
 		return fmt.Errorf("missing name")
 	}

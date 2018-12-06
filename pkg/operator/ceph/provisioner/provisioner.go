@@ -50,7 +50,7 @@ type RookVolumeProvisioner struct {
 
 type provisionerConfig struct {
 	// Required: The pool name to provision volumes from.
-	pool string
+	blockPool string
 
 	// Optional: Name of the cluster. Default is `rook`
 	clusterNamespace string
@@ -95,7 +95,7 @@ func (p *RookVolumeProvisioner) Provision(options controller.VolumeOptions) (*v1
 		return nil, err
 	}
 
-	blockImage, err := p.createVolume(imageName, cfg.pool, cfg.dataPool, cfg.clusterNamespace, requestBytes)
+	blockImage, err := p.createVolume(imageName, cfg.blockPool, cfg.dataPool, cfg.clusterNamespace, requestBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +130,7 @@ func (p *RookVolumeProvisioner) Provision(options controller.VolumeOptions) (*v1
 					FSType: cfg.fstype,
 					Options: map[string]string{
 						flexvolume.StorageClassKey:     storageClass,
-						flexvolume.PoolKey:             cfg.pool,
+						flexvolume.PoolKey:             cfg.blockPool,
 						flexvolume.ImageKey:            imageName,
 						flexvolume.ClusterNamespaceKey: cfg.clusterNamespace,
 						flexvolume.DataPoolKey:         cfg.dataPool,
@@ -198,7 +198,9 @@ func parseClassParameters(params map[string]string) (*provisionerConfig, error) 
 	for k, v := range params {
 		switch strings.ToLower(k) {
 		case "pool":
-			cfg.pool = v
+			cfg.blockPool = v
+		case "blockpool":
+			cfg.blockPool = v
 		case "clusternamespace":
 			cfg.clusterNamespace = v
 		case "clustername":
@@ -212,8 +214,8 @@ func parseClassParameters(params map[string]string) (*provisionerConfig, error) 
 		}
 	}
 
-	if len(cfg.pool) == 0 {
-		return nil, fmt.Errorf("StorageClass for provisioner %s must contain 'pool' parameter", "rookVolumeProvisioner")
+	if len(cfg.blockPool) == 0 {
+		return nil, fmt.Errorf("StorageClass for provisioner %s must contain 'blockPool' parameter", "rookVolumeProvisioner")
 	}
 
 	if len(cfg.clusterNamespace) == 0 {

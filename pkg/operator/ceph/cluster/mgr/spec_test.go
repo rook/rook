@@ -21,7 +21,7 @@ import (
 	"strconv"
 	"testing"
 
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
@@ -41,10 +41,10 @@ func TestPodSpec(t *testing.T) {
 		&clusterd.Context{Clientset: testop.New(1)},
 		"ns",
 		"rook/rook:myversion",
-		cephv1beta1.CephVersionSpec{Image: "ceph/ceph:myceph"},
+		cephv1.CephVersionSpec{Image: "ceph/ceph:myceph"},
 		rookalpha.Placement{},
 		false,
-		cephv1beta1.DashboardSpec{},
+		cephv1.DashboardSpec{},
 		v1.ResourceRequirements{
 			Limits: v1.ResourceList{
 				v1.ResourceCPU: *resource.NewQuantity(100.0, resource.BinarySI),
@@ -147,7 +147,7 @@ func TestPodSpec(t *testing.T) {
 }
 
 func TestServiceSpec(t *testing.T) {
-	c := New(&clusterd.Context{}, "ns", "myversion", cephv1beta1.CephVersionSpec{}, rookalpha.Placement{}, false, cephv1beta1.DashboardSpec{}, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(&clusterd.Context{}, "ns", "myversion", cephv1.CephVersionSpec{}, rookalpha.Placement{}, false, cephv1.DashboardSpec{}, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	s := c.makeMetricsService("rook-mgr")
 	assert.NotNil(t, s)
@@ -160,10 +160,10 @@ func TestHostNetwork(t *testing.T) {
 		&clusterd.Context{Clientset: testop.New(1)},
 		"ns",
 		"myversion",
-		cephv1beta1.CephVersionSpec{},
+		cephv1.CephVersionSpec{},
 		rookalpha.Placement{},
 		true,
-		cephv1beta1.DashboardSpec{},
+		cephv1.DashboardSpec{},
 		v1.ResourceRequirements{},
 		metav1.OwnerReference{},
 	)

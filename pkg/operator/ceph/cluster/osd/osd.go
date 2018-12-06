@@ -24,7 +24,7 @@ import (
 	"strings"
 
 	"github.com/coreos/pkg/capnslog"
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
@@ -61,7 +61,7 @@ type Cluster struct {
 	placement       rookalpha.Placement
 	Keyring         string
 	rookVersion     string
-	cephVersion     cephv1beta1.CephVersionSpec
+	cephVersion     cephv1.CephVersionSpec
 	Storage         rookalpha.StorageScopeSpec
 	dataDirHostPath string
 	HostNetwork     bool
@@ -75,7 +75,7 @@ func New(
 	context *clusterd.Context,
 	namespace string,
 	rookVersion string,
-	cephVersion cephv1beta1.CephVersionSpec,
+	cephVersion cephv1.CephVersionSpec,
 	storageSpec rookalpha.StorageScopeSpec,
 	dataDirHostPath string,
 	placement rookalpha.Placement,

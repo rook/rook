@@ -20,13 +20,13 @@ package objectuser
 import (
 	"testing"
 
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestGetObjectStoreUserObject(t *testing.T) {
 	// get a current version objectstoreuser object, should return with no error
-	objectuser, err := getObjectStoreUserObject(&cephv1beta1.ObjectStoreUser{})
+	objectuser, err := getObjectStoreUserObject(&cephv1.CephObjectStoreUser{})
 	assert.NotNil(t, objectuser)
 	assert.Nil(t, err)
 

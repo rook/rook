@@ -60,7 +60,7 @@ func (o *ObjectOperation) Create(namespace, storeName string, replicaCount int32
 func (o *ObjectOperation) Delete(namespace, storeName string) error {
 
 	logger.Infof("Deleting the object store via CRD")
-	if _, err := o.k8sh.DeleteResource("-n", namespace, "ObjectStore", storeName); err != nil {
+	if _, err := o.k8sh.DeleteResource("-n", namespace, "CephObjectStore", storeName); err != nil {
 		return err
 	}
 

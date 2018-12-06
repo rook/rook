@@ -28,7 +28,7 @@ function purge_rook_pods {
   kubectl delete storageclass rook-ceph-block || true
   kubectl delete -f kube-registry.yaml || true
   kubectl delete -n rook-ceph cluster rook-ceph || true
-  kubectl delete crd clusters.ceph.rook.io pools.ceph.rook.io objectstores.ceph.rook.io filesystems.ceph.rook.io volumes.rook.io || true
+  kubectl delete crd cephclusters.ceph.rook.io cephblockpools.ceph.rook.io cephobjectstores.ceph.rook.io cephobjectstoreusers.ceph.rook.io cephfilesystems.ceph.rook.io volumes.rook.io || true
   kubectl delete -n rook-ceph-system daemonset rook-ceph-agent || true
   kubectl delete -f operator.yaml || true
   kubectl delete clusterroles rook-ceph-agent || true
@@ -85,7 +85,7 @@ function make_rook {
 function run_rook {
   cd "$rook_kube_templates_dir"
   kubectl create -f operator.yaml
-  while ! kubectl get crd clusters.ceph.rook.io >/dev/null 2>&1; do
+  while ! kubectl get crd cephclusters.ceph.rook.io >/dev/null 2>&1; do
     echo "waiting for Rook operator"
     sleep 10
   done

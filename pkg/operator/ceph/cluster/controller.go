@@ -25,8 +25,8 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	opkit "github.com/rook/operator-kit"
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
-	rookv1alpha1 "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	cephbeta "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
 
@@ -46,14 +46,12 @@ import (
 )
 
 const (
-	CustomResourceName       = "cluster"
-	CustomResourceNamePlural = "clusters"
-	crushConfigMapName       = "rook-crush-config"
-	crushmapCreatedKey       = "initialCrushMapCreated"
-	clusterCreateInterval    = 6 * time.Second
-	clusterCreateTimeout     = 60 * time.Minute
-	updateClusterInterval    = 30 * time.Second
-	updateClusterTimeout     = 1 * time.Hour
+	crushConfigMapName    = "rook-crush-config"
+	crushmapCreatedKey    = "initialCrushMapCreated"
+	clusterCreateInterval = 6 * time.Second
+	clusterCreateTimeout  = 60 * time.Minute
+	updateClusterInterval = 30 * time.Second
+	updateClusterTimeout  = 1 * time.Hour
 )
 
 const (
@@ -70,21 +68,21 @@ var (
 )
 
 var ClusterResource = opkit.CustomResource{
-	Name:    CustomResourceName,
-	Plural:  CustomResourceNamePlural,
-	Group:   cephv1beta1.CustomResourceGroup,
-	Version: cephv1beta1.Version,
+	Name:    "cephcluster",
+	Plural:  "cephclusters",
+	Group:   cephv1.CustomResourceGroup,
+	Version: cephv1.Version,
 	Scope:   apiextensionsv1beta1.NamespaceScoped,
-	Kind:    reflect.TypeOf(cephv1beta1.Cluster{}).Name(),
+	Kind:    reflect.TypeOf(cephv1.CephCluster{}).Name(),
 }
 
 var ClusterResourceRookLegacy = opkit.CustomResource{
-	Name:    CustomResourceName,
-	Plural:  CustomResourceNamePlural,
-	Group:   rookv1alpha1.CustomResourceGroup,
-	Version: rookv1alpha1.Version,
+	Name:    "cluster",
+	Plural:  "clusters",
+	Group:   cephbeta.CustomResourceGroup,
+	Version: cephbeta.Version,
 	Scope:   apiextensionsv1beta1.NamespaceScoped,
-	Kind:    reflect.TypeOf(rookv1alpha1.Cluster{}).Name(),
+	Kind:    reflect.TypeOf(cephbeta.Cluster{}).Name(),
 }
 
 // ClusterController controls an instance of a Rook cluster
@@ -115,8 +113,8 @@ func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) e
 	}
 
 	logger.Infof("start watching clusters in all namespaces")
-	watcher := opkit.NewWatcher(ClusterResource, namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1beta1().RESTClient())
-	go watcher.Watch(&cephv1beta1.Cluster{}, stopCh)
+	watcher := opkit.NewWatcher(ClusterResource, namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1().RESTClient())
+	go watcher.Watch(&cephv1.CephCluster{}, stopCh)
 
 	// watch for events on all legacy types too
 	c.watchLegacyClusters(namespace, stopCh, resourceHandlerFuncs)
@@ -160,7 +158,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	if c.devicesInUse && cluster.Spec.Storage.AnyUseAllDevices() {
 		message := "using all devices in more than one namespace not supported"
 		logger.Error(message)
-		if err := c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1beta1.ClusterStateError, message); err != nil {
+		if err := c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1.ClusterStateError, message); err != nil {
 			logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
 		}
 		return
@@ -198,7 +196,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 
 	// Start the Rook cluster components. Retry several times in case of failure.
 	err = wait.Poll(clusterCreateInterval, clusterCreateTimeout, func() (bool, error) {
-		if err := c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1beta1.ClusterStateCreating, ""); err != nil {
+		if err := c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1.ClusterStateCreating, ""); err != nil {
 			logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
 			return false, nil
 		}
@@ -210,7 +208,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		}
 
 		// cluster is created, update the cluster CRD status now
-		if err := c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1beta1.ClusterStateCreated, ""); err != nil {
+		if err := c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1.ClusterStateCreated, ""); err != nil {
 			logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
 			return false, nil
 		}
@@ -220,7 +218,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	if err != nil {
 		message := fmt.Sprintf("giving up creating cluster in namespace %s after %s", cluster.Namespace, clusterCreateTimeout)
 		logger.Error(message)
-		if err := c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1beta1.ClusterStateError, message); err != nil {
+		if err := c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1.ClusterStateError, message); err != nil {
 			logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
 		}
 		return
@@ -350,7 +348,7 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 	if err != nil {
 		message := fmt.Sprintf("giving up trying to update cluster in namespace %s after %s", cluster.Namespace, updateClusterTimeout)
 		logger.Error(message)
-		if err := c.updateClusterStatus(newClust.Namespace, newClust.Name, cephv1beta1.ClusterStateError, message); err != nil {
+		if err := c.updateClusterStatus(newClust.Namespace, newClust.Name, cephv1.ClusterStateError, message); err != nil {
 			logger.Errorf("failed to update cluster status in namespace %s: %+v", newClust.Namespace, err)
 		}
 		return
@@ -358,7 +356,7 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 }
 
 func (c *ClusterController) handleUpdate(crdName string, cluster *cluster) (bool, error) {
-	if err := c.updateClusterStatus(cluster.Namespace, crdName, cephv1beta1.ClusterStateUpdating, ""); err != nil {
+	if err := c.updateClusterStatus(cluster.Namespace, crdName, cephv1.ClusterStateUpdating, ""); err != nil {
 		logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
 		return false, nil
 	}
@@ -368,7 +366,7 @@ func (c *ClusterController) handleUpdate(crdName string, cluster *cluster) (bool
 		return false, nil
 	}
 
-	if err := c.updateClusterStatus(cluster.Namespace, crdName, cephv1beta1.ClusterStateCreated, ""); err != nil {
+	if err := c.updateClusterStatus(cluster.Namespace, crdName, cephv1.ClusterStateCreated, ""); err != nil {
 		logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
 		return false, nil
 	}
@@ -410,7 +408,7 @@ func (c *ClusterController) onDelete(obj interface{}) {
 	discover.FreeDevicesByCluster(c.context, clust.Namespace)
 }
 
-func (c *ClusterController) handleDelete(cluster *cephv1beta1.Cluster, retryInterval time.Duration) error {
+func (c *ClusterController) handleDelete(cluster *cephv1.CephCluster, retryInterval time.Duration) error {
 
 	operatorNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
 	retryCount := 0
@@ -459,7 +457,7 @@ func (c *ClusterController) handleDelete(cluster *cephv1beta1.Cluster, retryInte
 func isLegacyClusterObjectDeleted(obj interface{}) bool {
 	// if the object is a legacy cluster type and the deletion timestamp on the legacy cluster object is set,
 	// it has been requested to be deleted
-	if clusterLegacy, ok := obj.(*rookv1alpha1.Cluster); ok {
+	if clusterLegacy, ok := obj.(*cephbeta.Cluster); ok {
 		return clusterLegacy.DeletionTimestamp != nil
 	}
 
@@ -470,15 +468,15 @@ func isLegacyClusterObjectDeleted(obj interface{}) bool {
 // ************************************************************************************************
 // Finalizer functions
 // ************************************************************************************************
-func (c *ClusterController) addFinalizer(clust *cephv1beta1.Cluster) error {
+func (c *ClusterController) addFinalizer(clust *cephv1.CephCluster) error {
 
 	// get the latest cluster object since we probably updated it before we got to this point (e.g. by updating its status)
-	clust, err := c.context.RookClientset.CephV1beta1().Clusters(clust.Namespace).Get(clust.Name, metav1.GetOptions{})
+	clust, err := c.context.RookClientset.CephV1().CephClusters(clust.Namespace).Get(clust.Name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 
-	// add the finalizer (cluster.ceph.rook.io) if it is not yet defined on the cluster CRD
+	// add the finalizer (cephcluster.ceph.rook.io) if it is not yet defined on the cluster CRD
 	for _, finalizer := range clust.Finalizers {
 		if finalizer == finalizerName {
 			logger.Infof("finalizer already set on cluster %s", clust.Namespace)
@@ -490,7 +488,7 @@ func (c *ClusterController) addFinalizer(clust *cephv1beta1.Cluster) error {
 	clust.Finalizers = append(clust.Finalizers, finalizerName)
 
 	// update the crd
-	_, err = c.context.RookClientset.CephV1beta1().Clusters(clust.Namespace).Update(clust)
+	_, err = c.context.RookClientset.CephV1().CephClusters(clust.Namespace).Update(clust)
 	if err != nil {
 		return fmt.Errorf("failed to add finalizer to cluster. %+v", err)
 	}
@@ -504,10 +502,10 @@ func (c *ClusterController) removeFinalizer(obj interface{}) {
 	var objectMeta *metav1.ObjectMeta
 
 	// first determine what type/version of cluster we are dealing with
-	if cl, ok := obj.(*cephv1beta1.Cluster); ok {
+	if cl, ok := obj.(*cephv1.CephCluster); ok {
 		fname = finalizerName
 		objectMeta = &cl.ObjectMeta
-	} else if cl, ok := obj.(*rookv1alpha1.Cluster); ok {
+	} else if cl, ok := obj.(*cephbeta.Cluster); ok {
 		fname = finalizerNameRookLegacy
 		objectMeta = &cl.ObjectMeta
 	} else {
@@ -534,11 +532,11 @@ func (c *ClusterController) removeFinalizer(obj interface{}) {
 	retrySeconds := 5 * time.Second
 	for i := 0; i < maxRetries; i++ {
 		var err error
-		if cluster, ok := obj.(*cephv1beta1.Cluster); ok {
-			_, err = c.context.RookClientset.CephV1beta1().Clusters(cluster.Namespace).Update(cluster)
+		if cluster, ok := obj.(*cephv1.CephCluster); ok {
+			_, err = c.context.RookClientset.CephV1().CephClusters(cluster.Namespace).Update(cluster)
 		} else {
-			clusterLegacy := obj.(*rookv1alpha1.Cluster)
-			_, err = c.context.RookClientset.RookV1alpha1().Clusters(clusterLegacy.Namespace).Update(clusterLegacy)
+			clusterLegacy := obj.(*cephbeta.Cluster)
+			_, err = c.context.RookClientset.CephV1beta1().Clusters(clusterLegacy.Namespace).Update(clusterLegacy)
 		}
 
 		if err != nil {
@@ -553,16 +551,16 @@ func (c *ClusterController) removeFinalizer(obj interface{}) {
 	logger.Warningf("giving up from removing the %s cluster finalizer", fname)
 }
 
-func (c *ClusterController) updateClusterStatus(namespace, name string, state cephv1beta1.ClusterState, message string) error {
+func (c *ClusterController) updateClusterStatus(namespace, name string, state cephv1.ClusterState, message string) error {
 	// get the most recent cluster CRD object
-	cluster, err := c.context.RookClientset.CephV1beta1().Clusters(namespace).Get(name, metav1.GetOptions{})
+	cluster, err := c.context.RookClientset.CephV1().CephClusters(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get cluster from namespace %s prior to updating its status: %+v", namespace, err)
 	}
 
 	// update the status on the retrieved cluster object
-	cluster.Status = cephv1beta1.ClusterStatus{State: state, Message: message}
-	if _, err := c.context.RookClientset.CephV1beta1().Clusters(cluster.Namespace).Update(cluster); err != nil {
+	cluster.Status = cephv1.ClusterStatus{State: state, Message: message}
+	if _, err := c.context.RookClientset.CephV1().CephClusters(cluster.Namespace).Update(cluster); err != nil {
 		return fmt.Errorf("failed to update cluster %s status: %+v", cluster.Namespace, err)
 	}
 

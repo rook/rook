@@ -28,7 +28,7 @@ import (
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
@@ -76,7 +76,7 @@ type Cluster struct {
 	Namespace            string
 	Keyring              string
 	rookVersion          string
-	cephVersion          cephv1beta1.CephVersionSpec
+	cephVersion          cephv1.CephVersionSpec
 	Count                int
 	AllowMultiplePerNode bool
 	MonCountMutex        sync.Mutex
@@ -121,7 +121,7 @@ type NodeInfo struct {
 }
 
 // New creates an instance of a mon cluster
-func New(context *clusterd.Context, namespace, dataDirHostPath, rookVersion string, cephVersion cephv1beta1.CephVersionSpec, mon cephv1beta1.MonSpec,
+func New(context *clusterd.Context, namespace, dataDirHostPath, rookVersion string, cephVersion cephv1.CephVersionSpec, mon cephv1.MonSpec,
 	placement rookalpha.Placement, hostNetwork bool, resources v1.ResourceRequirements, ownerRef metav1.OwnerReference) *Cluster {
 	return &Cluster{
 		context:              context,

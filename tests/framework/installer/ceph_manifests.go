@@ -21,7 +21,7 @@ import (
 	"strconv"
 
 	"github.com/google/uuid"
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 )
 
 type CephManifests interface {
@@ -48,7 +48,7 @@ type ClusterSettings struct {
 	UseAllDevices    bool
 	Mons             int
 	RBDMirrorWorkers int
-	CephVersion      cephv1beta1.CephVersionSpec
+	CephVersion      cephv1.CephVersionSpec
 }
 
 // CephManifestsMaster wraps rook yaml definitions
@@ -68,77 +68,123 @@ func NewCephManifests(version string) CephManifests {
 }
 
 func (m *CephManifestsMaster) GetRookCRDs() string {
-	return `apiVersion: apiextensions.k8s.io/v1beta1
+	return `
+apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: clusters.ceph.rook.io
+  name: cephclusters.ceph.rook.io
 spec:
   group: ceph.rook.io
   names:
-    kind: Cluster
-    listKind: ClusterList
-    plural: clusters
-    singular: cluster
+    kind: CephCluster
+    listKind: CephClusterList
+    plural: cephclusters
+    singular: cephcluster
   scope: Namespaced
-  version: v1beta1
+  version: v1
+  validation:
+    openAPIV3Schema:
+      properties:
+        spec:
+          properties:
+            cephVersion:
+              properties:
+                allowUnsupported:
+                  type: boolean
+                image:
+                  type: string
+                name:
+                  pattern: ^(luminous|mimic|nautilus)$
+                  type: string
+            dashboard:
+              properties:
+                enabled:
+                  type: boolean
+                urlPrefix:
+                  type: string
+            dataDirHostPath:
+              pattern: ^/(\S+)
+              type: string
+            mon:
+              properties:
+                allowMultiplePerNode:
+                  type: boolean
+                count:
+                  maximum: 9
+                  minimum: 1
+                  type: integer
+              required:
+              - count
+            network:
+              properties:
+                hostNetwork:
+                  type: boolean
+            storage:
+              properties:
+                nodes:
+                  items: {}
+                  type: array
+                useAllDevices: {}
+                useAllNodes:
+                  type: boolean
+          required:
+          - mon
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: filesystems.ceph.rook.io
+  name: cephfilesystems.ceph.rook.io
 spec:
   group: ceph.rook.io
   names:
-    kind: Filesystem
-    listKind: FilesystemList
-    plural: filesystems
-    singular: filesystem
+    kind: CephFilesystem
+    listKind: CephFilesystemList
+    plural: cephfilesystems
+    singular: cephfilesystem
   scope: Namespaced
-  version: v1beta1
+  version: v1
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: objectstores.ceph.rook.io
+  name: cephobjectstores.ceph.rook.io
 spec:
   group: ceph.rook.io
   names:
-    kind: ObjectStore
-    listKind: ObjectStoreList
-    plural: objectstores
-    singular: objectstore
+    kind: CephObjectStore
+    listKind: CephObjectStoreList
+    plural: cephobjectstores
+    singular: cephobjectstore
   scope: Namespaced
-  version: v1beta1
+  version: v1
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: objectstoreusers.ceph.rook.io
+  name: cephobjectstoreusers.ceph.rook.io
 spec:
   group: ceph.rook.io
   names:
-    kind: ObjectStoreUser
-    listKind: ObjectStoreUserList
-    plural: objectstoreusers
-    singular: objectstoreuser
-    shortNames:
-    - rcou
+    kind: CephObjectStoreUser
+    listKind: CephObjectStoreUserList
+    plural: cephobjectstoreusers
+    singular: cephobjectstoreuser
   scope: Namespaced
-  version: v1beta1
+  version: v1
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: pools.ceph.rook.io
+  name: cephblockpools.ceph.rook.io
 spec:
   group: ceph.rook.io
   names:
-    kind: Pool
-    listKind: PoolList
-    plural: pools
-    singular: pool
+    kind: CephBlockPool
+    listKind: CephBlockPoolList
+    plural: cephblockpools
+    singular: cephblockpool
   scope: Namespaced
-  version: v1beta1
+  version: v1
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -567,8 +613,8 @@ subjects:
 
 // GetRookCluster returns rook-cluster manifest
 func (m *CephManifestsMaster) GetRookCluster(settings *ClusterSettings) string {
-	return `apiVersion: ceph.rook.io/v1beta1
-kind: Cluster
+	return `apiVersion: ceph.rook.io/v1
+kind: CephCluster
 metadata:
   name: ` + settings.Namespace + `
   namespace: ` + settings.Namespace + `
@@ -680,8 +726,8 @@ spec:
 }
 
 func (m *CephManifestsMaster) GetBlockPoolDef(poolName string, namespace string, replicaSize string) string {
-	return `apiVersion: ceph.rook.io/v1beta1
-kind: Pool
+	return `apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
 metadata:
   name: ` + poolName + `
   namespace: ` + namespace + `
@@ -702,7 +748,7 @@ metadata:
 provisioner: ceph.rook.io/block
 reclaimPolicy: ` + reclaimPolicy + `
 parameters:
-    pool: ` + poolName + `
+    blockPool: ` + poolName + `
     ` + namespaceParameter + `: ` + namespace
 }
 
@@ -732,8 +778,8 @@ func (m *CephManifestsMaster) GetBlockPoolStorageClass(namespace string, poolNam
 
 // GetFilesystem returns the manifest to create a Rook filesystem resource with the given config.
 func (m *CephManifestsMaster) GetFilesystem(namespace, name string, activeCount int) string {
-	return `apiVersion: ceph.rook.io/v1beta1
-kind: Filesystem
+	return `apiVersion: ceph.rook.io/v1
+kind: CephFilesystem
 metadata:
   name: ` + name + `
   namespace: ` + namespace + `
@@ -750,8 +796,8 @@ spec:
 }
 
 func (m *CephManifestsMaster) GetObjectStore(namespace, name string, replicaCount, port int) string {
-	return `apiVersion: ceph.rook.io/v1beta1
-kind: ObjectStore
+	return `apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
 metadata:
   name: ` + name + `
   namespace: ` + namespace + `
@@ -773,8 +819,8 @@ spec:
 }
 
 func (m *CephManifestsMaster) GetObjectStoreUser(namespace, name string, displayName string, store string) string {
-	return `apiVersion: ceph.rook.io/v1beta1
-kind: ObjectStoreUser
+	return `apiVersion: ceph.rook.io/v1
+kind: CephObjectStoreUser
 metadata:
   name: ` + name + `
   namespace: ` + namespace + `

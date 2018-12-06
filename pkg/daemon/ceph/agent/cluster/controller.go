@@ -23,7 +23,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	opkit "github.com/rook/operator-kit"
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
@@ -68,18 +68,18 @@ func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) e
 	}
 
 	logger.Infof("start watching cluster resources")
-	watcher := opkit.NewWatcher(opcluster.ClusterResource, namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1beta1().RESTClient())
-	go watcher.Watch(&cephv1beta1.Cluster{}, stopCh)
+	watcher := opkit.NewWatcher(opcluster.ClusterResource, namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1().RESTClient())
+	go watcher.Watch(&cephv1.CephCluster{}, stopCh)
 	return nil
 }
 
 func (c *ClusterController) onDelete(obj interface{}) {
-	cluster := obj.(*cephv1beta1.Cluster).DeepCopy()
+	cluster := obj.(*cephv1.CephCluster).DeepCopy()
 
 	c.handleClusterDelete(cluster, removeAttachmentRetryInterval*time.Second)
 }
 
-func (c *ClusterController) handleClusterDelete(cluster *cephv1beta1.Cluster, retryInterval time.Duration) {
+func (c *ClusterController) handleClusterDelete(cluster *cephv1.CephCluster, retryInterval time.Duration) {
 	node := os.Getenv(k8sutil.NodeNameEnvVar)
 	agentNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
 	logger.Infof("cluster in namespace %s is being deleted, agent on node %s will attempt to clean up.", cluster.Namespace, node)

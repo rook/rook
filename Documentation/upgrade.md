@@ -356,7 +356,7 @@ kubectl -n rook delete secret rook-ceph-mgr0
 
 ### Legacy Custom Resource Definitions (CRDs)
 
-During this upgrade process, the new Ceph operator automatically migrated legacy custom resources to their new `rook.io/v1alpha2` and `ceph.rook.io/v1beta1` types.
+During this upgrade process, the new Ceph operator automatically migrated legacy custom resources to their new `rook.io/v1alpha2` and `ceph.rook.io/v1` types.
 First confirm that there are no remaining legacy CRD instances:
 
 ```bash
@@ -467,7 +467,7 @@ Wait a few seconds to make sure the types have been completely removed, and now 
 kubectl create -f operator.yaml
 ```
 
-After the operator is running, we can restore all the CRD instances as their new `ceph.rook.io/v1beta1` types:
+After the operator is running, we can restore all the CRD instances as their new `ceph.rook.io/v1` types:
 
 ```console
 for c in $(ls rook-clusters-*-backup.yaml); do cat ${c} | sed -e 's/ceph.rook.io\/v1alpha1/ceph.rook.io\/v1beta1/g' -e 's/namespace: ""/namespace: rook-ceph/g' | kubectl create -f -; done

@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"testing"
 
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -41,7 +41,7 @@ func TestPodSpecs(t *testing.T) {
 		},
 	}
 
-	c := &config{store: store, rookVersion: "rook/rook:myversion", cephVersion: cephv1beta1.CephVersionSpec{Image: "ceph/ceph:v13.2.1"}, hostNetwork: true}
+	c := &config{store: store, rookVersion: "rook/rook:myversion", cephVersion: cephv1.CephVersionSpec{Image: "ceph/ceph:v13.2.1"}, hostNetwork: true}
 	s := c.makeRGWPodSpec()
 	assert.NotNil(t, s)
 	//assert.Equal(t, instanceName(store), s.Name)

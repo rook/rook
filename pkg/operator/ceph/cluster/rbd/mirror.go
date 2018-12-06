@@ -21,7 +21,7 @@ import (
 	"fmt"
 
 	"github.com/coreos/pkg/capnslog"
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/ceph/spec"
@@ -44,15 +44,15 @@ type Mirroring struct {
 	context     *clusterd.Context
 	resources   v1.ResourceRequirements
 	ownerRef    metav1.OwnerReference
-	spec        cephv1beta1.RBDMirroringSpec
-	cephVersion cephv1beta1.CephVersionSpec
+	spec        cephv1.RBDMirroringSpec
+	cephVersion cephv1.CephVersionSpec
 	rookVersion string
 	hostNetwork bool
 }
 
 // New creates an instance of the rbd mirroring
-func New(context *clusterd.Context, namespace, rookVersion string, cephVersion cephv1beta1.CephVersionSpec, placement rookalpha.Placement, hostNetwork bool,
-	spec cephv1beta1.RBDMirroringSpec, resources v1.ResourceRequirements, ownerRef metav1.OwnerReference) *Mirroring {
+func New(context *clusterd.Context, namespace, rookVersion string, cephVersion cephv1.CephVersionSpec, placement rookalpha.Placement, hostNetwork bool,
+	spec cephv1.RBDMirroringSpec, resources v1.ResourceRequirements, ownerRef metav1.OwnerReference) *Mirroring {
 	return &Mirroring{
 		context:     context,
 		Namespace:   namespace,

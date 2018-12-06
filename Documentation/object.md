@@ -18,8 +18,8 @@ Now we will create the object store, which starts the RGW service in the cluster
 Specify your desired settings for the object store in the `object.yaml`. For more details on the settings see the [Object Store CRD](ceph-object-store-crd.md).
 
 ```yaml
-apiVersion: ceph.rook.io/v1beta1
-kind: ObjectStore
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
 metadata:
   name: my-store
   namespace: rook-ceph
@@ -55,8 +55,8 @@ Next we will create the object store user, which calls the RGW service in the cl
 Specify your desired settings for the object store user in the `object-user.yaml`. For more details on the settings see the [Object Store User CRD](ceph-object-store-user-crd.md).
 
 ```yaml
-apiVersion: ceph.rook.io/v1beta1
-kind: ObjectStoreUser
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStoreUser
 metadata:
   name: my-user
   namespace: rook-ceph

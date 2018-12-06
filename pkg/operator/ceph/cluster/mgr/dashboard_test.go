@@ -18,7 +18,7 @@ package mgr
 import (
 	"testing"
 
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -80,7 +80,7 @@ func TestStartSecureDashboard(t *testing.T) {
 		},
 	}
 	c := &Cluster{context: &clusterd.Context{Clientset: test.New(3), Executor: executor}, Namespace: "myns",
-		dashboard: cephv1beta1.DashboardSpec{Enabled: true}, cephVersion: cephv1beta1.CephVersionSpec{Name: cephv1beta1.Mimic, Image: "ceph/ceph:v13.2.2"}}
+		dashboard: cephv1.DashboardSpec{Enabled: true}, cephVersion: cephv1.CephVersionSpec{Name: cephv1.Mimic, Image: "ceph/ceph:v13.2.2"}}
 	dashboardInitWaitTime = 0
 	err := c.configureDashboard(dashboardPortHttp)
 	assert.Nil(t, err)

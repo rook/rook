@@ -20,8 +20,8 @@ for Ceph file systems.
 ### Replicated
 
 ```yaml
-apiVersion: ceph.rook.io/v1beta1
-kind: Filesystem
+apiVersion: ceph.rook.io/v1
+kind: CephFilesystem
 metadata:
   name: myfs
   namespace: rook-ceph
@@ -69,8 +69,8 @@ The sample below requires that you have at least 3 `bluestore` OSDs on different
 For erasure coded to make sense, you need **at least three OSDs for the below `dataPools` config** to work.
 
 ```yaml
-apiVersion: ceph.rook.io/v1beta1
-kind: Filesystem
+apiVersion: ceph.rook.io/v1
+kind: CephFilesystem
 metadata:
   name: myfs-ec
   namespace: rook-ceph
