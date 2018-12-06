@@ -547,6 +547,8 @@ func getNodeNameFromHostname(nodes *v1.NodeList, hostname string) (string, bool)
 	return "", false
 }
 
+var updateDeploymentAndWait = k8sutil.UpdateDeploymentAndWait
+
 func (c *Cluster) startMon(m *monConfig, hostname string) error {
 	// If we determine the legacy replicaset exists, delete it so we can start the new deployment in its place
 	if err := k8sutil.DeleteReplicaSet(c.context.Clientset, c.Namespace, m.ResourceName); err != nil {
@@ -560,7 +562,19 @@ func (c *Cluster) startMon(m *monConfig, hostname string) error {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create mon %s. %+v", m.ResourceName, err)
 		}
-		logger.Debugf("mon %s already exists", m.ResourceName)
+		logger.Debugf("deployment for mon %s already exists. updating if needed", m.ResourceName)
+		p, err := c.context.Clientset.Extensions().Deployments(c.Namespace).Get(d.Name, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to update mon deployment %s. failed to inspect preexisting deployment. %+v", d.Name, err)
+		}
+		// Workaround for #2331 targeted for Rook v0.9: only update the deployment if the Rook init
+		// image or Ceph image has changed.
+		if p.Spec.Template.Spec.Containers[0].Image != d.Spec.Template.Spec.Containers[0].Image ||
+			p.Spec.Template.Spec.InitContainers[0].Image != d.Spec.Template.Spec.InitContainers[0].Image {
+			if err := updateDeploymentAndWait(c.context, d, c.Namespace); err != nil {
+				return fmt.Errorf("failed to update mon deployment %s. %+v", m.ResourceName, err)
+			}
+		}
 	}
 
 	return nil
