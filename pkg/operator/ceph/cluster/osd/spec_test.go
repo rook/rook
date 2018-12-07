@@ -96,10 +96,10 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, "node1", deployment.Spec.Template.Spec.NodeSelector[apis.LabelHostname])
 	assert.Equal(t, v1.RestartPolicyAlways, deployment.Spec.Template.Spec.RestartPolicy)
 	if devMountNeeded && len(dataDir) > 0 {
-		assert.Equal(t, 4, len(deployment.Spec.Template.Spec.Volumes))
+		assert.Equal(t, 5, len(deployment.Spec.Template.Spec.Volumes))
 	}
 	if devMountNeeded && len(dataDir) == 0 {
-		assert.Equal(t, 4, len(deployment.Spec.Template.Spec.Volumes))
+		assert.Equal(t, 5, len(deployment.Spec.Template.Spec.Volumes))
 	}
 	if !devMountNeeded && len(dataDir) > 0 {
 		assert.Equal(t, 2, len(deployment.Spec.Template.Spec.Volumes))
@@ -113,7 +113,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, c.Namespace, deployment.Spec.Template.ObjectMeta.Labels["rook_cluster"])
 	assert.Equal(t, 0, len(deployment.Spec.Template.ObjectMeta.Annotations))
 
-	assert.Equal(t, 1, len(deployment.Spec.Template.Spec.InitContainers))
+	assert.Equal(t, 2, len(deployment.Spec.Template.Spec.InitContainers))
 	initCont := deployment.Spec.Template.Spec.InitContainers[0]
 	assert.Equal(t, "rook/rook:myversion", initCont.Image)
 	assert.Equal(t, "config-init", initCont.Name)
@@ -122,11 +122,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Containers))
 	cont := deployment.Spec.Template.Spec.Containers[0]
 	assert.Equal(t, cephVersion.Image, cont.Image)
-	if devMountNeeded {
-		assert.Equal(t, 3, len(cont.VolumeMounts))
-	} else {
-		assert.Equal(t, 3, len(cont.VolumeMounts))
-	}
+	assert.Equal(t, 4, len(cont.VolumeMounts))
 	assert.Equal(t, "ceph-osd", cont.Command[0])
 }
 
@@ -174,15 +170,15 @@ func TestStorageSpecDevicesAndDirectories(t *testing.T) {
 	assert.Nil(t, err)
 	// pod spec should have a volume for the given dir in the main container and the init container
 	podSpec := deployment.Spec.Template.Spec
-	assert.Equal(t, 4, len(podSpec.Volumes))
+	assert.Equal(t, 5, len(podSpec.Volumes))
 	require.Equal(t, 1, len(podSpec.Containers))
 	cont := podSpec.Containers[0]
-	assert.Equal(t, 3, len(cont.VolumeMounts))
+	assert.Equal(t, 4, len(cont.VolumeMounts))
 	assert.Equal(t, "/var/lib/rook", cont.VolumeMounts[0].MountPath)
 	assert.Equal(t, "/etc/ceph", cont.VolumeMounts[1].MountPath)
 	assert.Equal(t, "/my/root/path", cont.VolumeMounts[2].MountPath)
 
-	require.Equal(t, 1, len(podSpec.InitContainers))
+	require.Equal(t, 2, len(podSpec.InitContainers))
 	initCont := podSpec.InitContainers[0]
 	assert.Equal(t, 4, len(initCont.VolumeMounts))
 	assert.Equal(t, "/var/lib/rook", initCont.VolumeMounts[0].MountPath)
@@ -201,16 +197,16 @@ func TestStorageSpecDevicesAndDirectories(t *testing.T) {
 	assert.Nil(t, err)
 	// pod spec should have a volume for the given dir in the main container and the init container
 	podSpec = deployment.Spec.Template.Spec
-	assert.Equal(t, 3, len(podSpec.Volumes))
+	assert.Equal(t, 4, len(podSpec.Volumes))
 	require.Equal(t, 1, len(podSpec.Containers))
 	cont = podSpec.Containers[0]
-	require.Equal(t, 2, len(cont.VolumeMounts))
+	require.Equal(t, 3, len(cont.VolumeMounts))
 	assert.Equal(t, "/var/lib/rook", cont.VolumeMounts[0].MountPath)
 	assert.Equal(t, "/etc/ceph", cont.VolumeMounts[1].MountPath)
 
-	assert.Equal(t, (4 + len(k8sutil.ClusterDaemonEnvVars())), len(cont.Env))
+	assert.Equal(t, (7 + len(k8sutil.ClusterDaemonEnvVars())), len(cont.Env))
 
-	require.Equal(t, 1, len(podSpec.InitContainers))
+	require.Equal(t, 2, len(podSpec.InitContainers))
 	initCont = podSpec.InitContainers[0]
 	require.Equal(t, 3, len(initCont.VolumeMounts))
 	assert.Equal(t, "/var/lib/rook", initCont.VolumeMounts[0].MountPath)

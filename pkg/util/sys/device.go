@@ -218,6 +218,11 @@ func FormatDevice(devicePath string, executor exec.Executor) error {
 
 // look up the UUID for a disk.
 func GetDiskUUID(device string, executor exec.Executor) (string, error) {
+	if _, err := os.Stat("/usr/sbin/sgdisk"); err != nil {
+		logger.Warningf("sgdisk not found. skipping disk UUID.")
+		return "sgdiskNotFound", nil
+	}
+
 	cmd := fmt.Sprintf("get disk %s uuid", device)
 	output, err := executor.ExecuteCommandWithOutput(false, cmd,
 		sgdisk, "--print", fmt.Sprintf("/dev/%s", device))

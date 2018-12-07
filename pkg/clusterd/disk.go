@@ -86,7 +86,7 @@ func DiscoverDevices(executor exec.Executor) ([]*sys.LocalDisk, error) {
 		if diskType != sys.PartType {
 			diskUUID, err = sys.GetDiskUUID(d, executor)
 			if err != nil {
-				logger.Warningf("skipping device %s with an unknown uuid. %+v", d, err)
+				logger.Warningf("device %s has an unknown uuid. %+v", d, err)
 				continue
 			}
 		}

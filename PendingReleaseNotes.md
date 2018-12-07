@@ -22,7 +22,8 @@
 - The number of mons can be changed by updating the `mon.count` in the cluster CRD.
 - RBD Mirroring is enabled by Rook. By setting the number of [rbd mirroring workers](Documentation/ceph-cluster-crd.md#cluster-settings), the daemon(s) will be started by rook. To configure the pools or images to be mirrored, use the Rook toolbox to run the [rbd mirror](http://docs.ceph.com/docs/mimic/rbd/rbd-mirroring/) configuration tool.
 - Object Store User creation via CRD for Ceph clusters.
-- Ceph MON, MGR, MDS, and RGW deployments (or DaemonSets) will be updated/upgraded automatically with updates to the Rook operator.
+- Ceph OSD, MGR, MDS, and RGW deployments (or DaemonSets) will be updated/upgraded automatically with updates to the Rook operator.
+- Ceph OSDs are created with the `ceph-volume` tool when configuring devices, adding support for multiple OSDs per device. See the [OSD configuration settings](Documentation/ceph-cluster-crd.md#osd-configuration-settings)
 
 
 ## Breaking Changes
@@ -48,5 +49,6 @@
   All connections from users and clients are expected to come in through the [configurable Service instance](cluster/examples/kubernetes/minio/object-store.yaml#37).
 
 ## Known Issues
+- Upgrades are not supported to nautilus. Specifically, OSDs configured before the upgrade (without ceph-volume) will fail to start on nautilus. Nautilus is not officially supported until its release, but otherwise is expected to be working in test clusters.
 
 ## Deprecations

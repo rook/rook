@@ -189,7 +189,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 
 	if !cluster.Spec.CephVersion.AllowUnsupported {
 		if !versionSupported(cluster.Spec.CephVersion.Name) {
-			logger.Errorf("unsupported ceph version detected: %s. allowUnupported must be set to true to run with this version.", cluster.Spec.CephVersion.Name)
+			logger.Errorf("unsupported ceph version detected: %s. allowUnsupported must be set to true to run with this version.", cluster.Spec.CephVersion.Name)
 			return
 		}
 	}
@@ -321,8 +321,10 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 	// if the image changed, we need to detect the new image version
 	if oldClust.Spec.CephVersion.Image != newClust.Spec.CephVersion.Image {
 		logger.Infof("the ceph version changed. detecting the new image version...")
+		cluster.Spec.CephVersion.Image = newClust.Spec.CephVersion.Image
 		if err := cluster.setCephMajorVersion(15 * time.Minute); err != nil {
 			logger.Errorf("unknown ceph major version. %+v", err)
+			cluster.Spec.CephVersion.Image = oldClust.Spec.CephVersion.Image
 			return
 		}
 	} else {

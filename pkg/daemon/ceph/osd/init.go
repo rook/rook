@@ -29,7 +29,8 @@ import (
 )
 
 const (
-	keyringFileName = "keyring"
+	keyringFileName     = "keyring"
+	bootstrapOsdKeyring = "bootstrap-osd/ceph.keyring"
 )
 
 // get the bootstrap OSD root dir
@@ -39,11 +40,6 @@ func getBootstrapOSDDir(configDir string) string {
 
 func getOSDRootDir(root string, osdID int) string {
 	return filepath.Join(root, fmt.Sprintf("osd%d", osdID))
-}
-
-// get the full path to the bootstrap OSD keyring
-func getBootstrapOSDKeyringPath(configDir, clusterName string) string {
-	return fmt.Sprintf("%s/%s.keyring", getBootstrapOSDDir(configDir), clusterName)
 }
 
 // get the full path to the given OSD's config file
@@ -67,9 +63,9 @@ func getOSDTempMonMapPath(osdDataPath string) string {
 }
 
 // create a keyring for the bootstrap-osd client, it gets a limited set of privileges
-func createOSDBootstrapKeyring(context *clusterd.Context, clusterName string) error {
+func createOSDBootstrapKeyring(context *clusterd.Context, clusterName, rootDir string) error {
 	username := "client.bootstrap-osd"
-	keyringPath := getBootstrapOSDKeyringPath(context.ConfigDir, clusterName)
+	keyringPath := path.Join(rootDir, bootstrapOsdKeyring)
 	access := []string{"mon", "allow profile bootstrap-osd"}
 	keyringEval := func(key string) string {
 		return fmt.Sprintf(bootstrapOSDKeyringTemplate, key)
