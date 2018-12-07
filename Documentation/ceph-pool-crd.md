@@ -13,6 +13,9 @@ for pools.
 
 ### Replicated
 
+**NOTE** This example requires you to have **at least 3 OSDs each on a different node**.
+This is because the `replicated.size: 3` will require at least 3 OSDs and as [`failureDomain` setting](ceph-pool-crd.md#spec) to `host` (default), each OSD needs to be on a different nodes.
+
 For optimal performance while adding redundancy to the system, configure the data to be copied in full to multiple locations.
 ```yaml
 apiVersion: ceph.rook.io/v1
@@ -27,6 +30,9 @@ spec:
 ```
 
 ### Erasure Coded
+
+**NOTE** This example requires you to have **at least 3 bluestore OSDs on one or more nodes**.
+This is because the below `erasureCoded` chunk settings require at least 3 bluestore OSDs and as [`failureDomain` setting](ceph-pool-crd.md#spec) is set to `osd`, the OSDs can be on one or more nodes to be on a different nodes.
 
 To lower your storage capacity requirements while adding redundancy, use [erasure coding](#erasure-coding).
 ```yaml

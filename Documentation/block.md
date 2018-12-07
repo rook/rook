@@ -22,6 +22,9 @@ This guide assumes you have created a Rook cluster as explained in the main [Qui
 
 Before Rook can start provisioning storage, a StorageClass and its storage pool need to be created. This is needed for Kubernetes to interoperate with Rook for provisioning persistent volumes. For more options on pools, see the documentation on [creating storage pools](ceph-pool-crd.md).
 
+**NOTE** This example requires you to have **at least 3 OSDs each on a different node**.
+This is because the `replicated.size: 3` will require at least 3 OSDs and as [`failureDomain` setting](ceph-pool-crd.md#spec) to `host` (default), each OSD needs to be on a different nodes.
+
 Save this storage class definition as `storageclass.yaml`:
 
 ```yaml
@@ -31,6 +34,7 @@ metadata:
   name: replicapool
   namespace: rook-ceph
 spec:
+  failureDomain: host
   replicated:
     size: 3
 ---
@@ -117,6 +121,9 @@ To be able to use an erasure coded pool you need to create two pools (as seen be
 The replicated pool must be specified as the `blockPool` parameter. It is used for the metadata of the RBD images.
 The erasure coded pool must be set as the `dataBlockPool` parameter below. It is used for the data of the RBD images.
 
+**NOTE** This example requires you to have **at least 3 bluestore OSDs each on a different node**.
+This is because the below `erasureCoded` chunk settings require at least 3 bluestore OSDs and as [`failureDomain` setting](ceph-pool-crd.md#spec) to `host` (default), each OSD needs to be on a different nodes.
+
 ```yaml
 apiVersion: ceph.rook.io/v1
 kind: CephBlockPool
@@ -124,6 +131,7 @@ metadata:
   name: replicated-metadata-pool
   namespace: rook-ceph
 spec:
+  failureDomain: host
   replicated:
     size: 3
 ---
@@ -133,6 +141,7 @@ metadata:
   name: ec-data-pool
   namespace: rook-ceph
 spec:
+  failureDomain: host
   # Make sure you have enough nodes and OSDs running bluestore to support the replica size or erasure code chunks.
   # For the below settings, you need at least 3 OSDs on different nodes (because the `failureDomain` is `host` by default).
   erasureCoded:

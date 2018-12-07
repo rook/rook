@@ -14,6 +14,9 @@ This guide assumes you have created a Rook cluster as explained in the main [Kub
 
 ## Create an Object Store
 
+**NOTE** This example requires you to have **at least 3 bluestore OSDs each on a different node**.
+This is because the below `erasureCoded` chunk settings require at least 3 bluestore OSDs and as [`failureDomain` setting](ceph-pool-crd.md#spec) to `host` (default), each OSD needs to be on a different nodes.
+
 Now we will create the object store, which starts the RGW service in the cluster with the S3 API.
 Specify your desired settings for the object store in the `object.yaml`. For more details on the settings see the [Object Store CRD](ceph-object-store-crd.md).
 
@@ -25,9 +28,11 @@ metadata:
   namespace: rook-ceph
 spec:
   metadataPool:
+    failureDomain: host
     replicated:
       size: 3
   dataPool:
+    failureDomain: host
     erasureCoded:
       dataChunks: 2
       codingChunks: 1
