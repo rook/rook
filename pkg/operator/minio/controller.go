@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package to manage a Minio object store.
+// Package minio to manage a Minio object store.
 package minio
 
 import (
@@ -29,7 +29,6 @@ import (
 	"k8s.io/api/apps/v1beta2"
 	"k8s.io/api/core/v1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/cache"
@@ -38,15 +37,15 @@ import (
 // TODO: A lot of these constants are specific to the KubeCon demo. Let's
 // revisit these and determine what should be specified in the resource spec.
 const (
-	customResourceName       = "objectstore"
-	customResourceNamePlural = "objectstores"
-	minioCtrName             = "minio"
-	minioLabel               = "minio"
-	minioPVCName             = "minio-pvc"
-	minioServerSuffixFmt     = "%s.svc.%s" // namespace.svc.clusterDomain, e.g., default.svc.cluster.local
-	minioVolumeName          = "data"
-	objectStoreDataDir       = "/data"
-	minioPort                = int32(9000)
+	objectStoreDataDirTemplate  = "/data/%s"
+	objectStoreDataEmptyDirName = "minio-data"
+	customResourceName          = "objectstore"
+	customResourceNamePlural    = "objectstores"
+	minioCtrName                = "minio"
+	minioLabel                  = "minio"
+	minioPVCName                = "minio-pvc"
+	minioServerSuffixFmt        = "%s.svc.%s" // namespace.svc.clusterDomain, e.g., default.svc.cluster.local
+	minioPort                   = int32(9000)
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "minio-op-object")
@@ -110,11 +109,12 @@ func (c *MinioController) makeMinioHeadlessService(name, namespace string, spec 
 	return svc, err
 }
 
-func (c *MinioController) buildMinioCtrArgs(statefulSetPrefix, headlessServiceName, namespace, clusterDomain string, serverCount int32) []string {
-
+func (c *MinioController) buildMinioCtrArgs(statefulSetPrefix, headlessServiceName, namespace, clusterDomain string, serverCount int32, volumeMounts []v1.VolumeMount) []string {
 	args := []string{"server"}
 	for i := int32(0); i < serverCount; i++ {
-		args = append(args, makeServerAddress(statefulSetPrefix, headlessServiceName, namespace, clusterDomain, i))
+		for _, mount := range volumeMounts {
+			args = append(args, makeServerAddress(statefulSetPrefix, headlessServiceName, namespace, clusterDomain, i, getPVCDataDir(mount.Name)))
+		}
 	}
 
 	logger.Infof("Building Minio container args: %v", args)
@@ -122,20 +122,42 @@ func (c *MinioController) buildMinioCtrArgs(statefulSetPrefix, headlessServiceNa
 }
 
 // Generates the full server address for the given server params, e.g., http://my-store-0.my-store.rook-minio.svc.cluster.local/data
-func makeServerAddress(statefulSetPrefix, headlessServiceName, namespace, clusterDomain string, serverNum int32) string {
+func makeServerAddress(statefulSetPrefix, headlessServiceName, namespace, clusterDomain string, serverNum int32, pvcDataDir string) string {
 	if clusterDomain == "" {
 		clusterDomain = miniov1alpha1.ClusterDomainDefault
 	}
 
 	dnsSuffix := fmt.Sprintf(minioServerSuffixFmt, namespace, clusterDomain)
-	return fmt.Sprintf("http://%s-%d.%s.%s%s", statefulSetPrefix, serverNum, headlessServiceName, dnsSuffix, objectStoreDataDir)
+	return fmt.Sprintf("http://%s-%d.%s.%s%s", statefulSetPrefix, serverNum, headlessServiceName, dnsSuffix, pvcDataDir)
 }
 
-func (c *MinioController) makeMinioPodSpec(name, namespace string, ctrName string, ctrImage string, clusterDomain string, envVars map[string]string, numServers int32) v1.PodTemplateSpec {
-
+func (c *MinioController) makeMinioPodSpec(name, namespace string, ctrName string, ctrImage string, clusterDomain string, envVars map[string]string, numServers int32, volumeClaims []v1.PersistentVolumeClaim) v1.PodTemplateSpec {
 	var env []v1.EnvVar
 	for k, v := range envVars {
 		env = append(env, v1.EnvVar{Name: k, Value: v})
+	}
+
+	volumes := []v1.Volume{}
+	volumeMounts := []v1.VolumeMount{}
+	if len(volumeClaims) > 0 {
+		for i := range volumeClaims {
+			volumeMounts = append(volumeMounts, v1.VolumeMount{
+				Name:      volumeClaims[i].GetName(),
+				MountPath: getPVCDataDir(volumeClaims[i].GetName()),
+			})
+		}
+	} else {
+		volumes = append(volumes, v1.Volume{
+			Name: objectStoreDataEmptyDirName,
+			VolumeSource: v1.VolumeSource{
+				// TODO should the size limit be configurable (only) on empty dir?
+				EmptyDir: &v1.EmptyDirVolumeSource{},
+			},
+		})
+		volumeMounts = append(volumeMounts, v1.VolumeMount{
+			Name:      objectStoreDataEmptyDirName,
+			MountPath: fmt.Sprintf(objectStoreDataDirTemplate, objectStoreDataEmptyDirName),
+		})
 	}
 
 	podSpec := v1.PodTemplateSpec{
@@ -147,30 +169,16 @@ func (c *MinioController) makeMinioPodSpec(name, namespace string, ctrName strin
 		Spec: v1.PodSpec{
 			Containers: []v1.Container{
 				{
-					Name:    ctrName,
-					Image:   ctrImage,
-					Env:     env,
-					Command: []string{"/usr/bin/minio"},
-					Ports:   []v1.ContainerPort{{ContainerPort: minioPort}},
-					Args:    c.buildMinioCtrArgs(name, name, namespace, clusterDomain, numServers),
-					VolumeMounts: []v1.VolumeMount{
-						{
-							Name:      minioVolumeName,
-							MountPath: objectStoreDataDir,
-						},
-					},
+					Name:         ctrName,
+					Image:        ctrImage,
+					Env:          env,
+					Command:      []string{"/usr/bin/minio"},
+					Ports:        []v1.ContainerPort{{ContainerPort: minioPort}},
+					Args:         c.buildMinioCtrArgs(name, name, namespace, clusterDomain, numServers, volumeMounts),
+					VolumeMounts: volumeMounts,
 				},
 			},
-			Volumes: []v1.Volume{
-				{
-					Name: minioVolumeName,
-					VolumeSource: v1.VolumeSource{
-						PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{
-							ClaimName: minioPVCName,
-						},
-					},
-				},
-			},
+			Volumes: volumes,
 		},
 	}
 
@@ -212,7 +220,7 @@ func (c *MinioController) makeMinioStatefulSet(name, namespace string, spec mini
 		"MINIO_SECRET_KEY": secretKey,
 	}
 
-	podSpec := c.makeMinioPodSpec(name, namespace, minioCtrName, c.rookImage, spec.ClusterDomain, envVars, int32(spec.Storage.NodeCount))
+	podSpec := c.makeMinioPodSpec(name, namespace, minioCtrName, c.rookImage, spec.ClusterDomain, envVars, int32(spec.Storage.NodeCount), spec.Storage.VolumeClaimTemplates)
 
 	nodeCount := int32(spec.Storage.NodeCount)
 	ss := v1beta2.StatefulSet{
@@ -226,24 +234,9 @@ func (c *MinioController) makeMinioStatefulSet(name, namespace string, spec mini
 			Selector: &meta_v1.LabelSelector{
 				MatchLabels: map[string]string{k8sutil.AppAttr: minioLabel},
 			},
-			Template: podSpec,
-			VolumeClaimTemplates: []v1.PersistentVolumeClaim{
-				{
-					ObjectMeta: meta_v1.ObjectMeta{
-						Name:      minioVolumeName,
-						Namespace: namespace,
-					},
-					Spec: v1.PersistentVolumeClaimSpec{
-						AccessModes: []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
-						Resources: v1.ResourceRequirements{
-							Requests: v1.ResourceList{
-								v1.ResourceStorage: resource.MustParse(spec.StorageSize),
-							},
-						},
-					},
-				},
-			},
-			ServiceName: name,
+			Template:             podSpec,
+			VolumeClaimTemplates: spec.Storage.VolumeClaimTemplates,
+			ServiceName:          name,
 			// TODO: liveness probe
 		},
 	}
@@ -303,4 +296,8 @@ func (c *MinioController) onDelete(obj interface{}) {
 	logger.Infof("Delete Minio object store %s", objectstore.Name)
 
 	// Cleanup is handled by the owner references set in 'onAdd' and the k8s garbage collector.
+}
+
+func getPVCDataDir(pvcName string) string {
+	return fmt.Sprintf(objectStoreDataDirTemplate, pvcName)
 }
