@@ -1,6 +1,6 @@
 ---
 title: Ceph Block Pool
-weight: 33
+weight: 32
 indent: true
 ---
 

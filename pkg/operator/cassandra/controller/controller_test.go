@@ -31,7 +31,7 @@ import (
 	"time"
 )
 
-const informerResyncPeriod = time.Millisecond * 300
+const informerResyncPeriod = time.Millisecond
 
 // newFakeClusterController returns a ClusterController with fake clientsets
 // and informers.

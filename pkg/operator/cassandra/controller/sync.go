@@ -18,6 +18,7 @@ package controller
 
 import (
 	cassandrav1alpha1 "github.com/rook/rook/pkg/apis/cassandra.rook.io/v1alpha1"
+	"github.com/rook/rook/pkg/operator/cassandra/controller/util"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -30,19 +31,41 @@ const (
 	// existing.
 	ErrSyncFailed = "ErrSyncFailed"
 
-	MessageRackCreated  = "Rack %s created"
-	MessageRackScaledUp = "Rack %s scaled up to %d members"
+	MessageRackCreated             = "Rack %s created"
+	MessageRackScaledUp            = "Rack %s scaled up to %d members"
+	MessageRackScaleDownInProgress = "Rack %s scaling down to %d members"
+	MessageRackScaledDown          = "Rack %s scaled down to %d members"
 
 	// Messages to display when experiencing an error.
 	MessageHeadlessServiceSyncFailed = "Failed to sync Headless Service for cluster"
 	MessageMemberServicesSyncFailed  = "Failed to sync MemberServices for cluster"
 	MessageUpdateStatusFailed        = "Failed to update status for cluster"
+	MessageCleanupFailed             = "Failed to clean up cluster resources"
 	MessageClusterSyncFailed         = "Failed to sync cluster"
 )
 
 // Sync attempts to sync the given Cassandra Cluster.
 // NOTE: the Cluster Object is a DeepCopy. Modify at will.
 func (cc *ClusterController) Sync(c *cassandrav1alpha1.Cluster) error {
+
+	// Before syncing, ensure that all StatefulSets are up-to-date
+	stale, err := util.StatefulSetStatusesStale(c, cc.statefulSetLister)
+	if err != nil {
+		return err
+	}
+	if stale {
+		return nil
+	}
+
+	// Cleanup Cluster resources
+	if err := cc.cleanup(c); err != nil {
+		cc.recorder.Event(
+			c,
+			corev1.EventTypeWarning,
+			ErrSyncFailed,
+			MessageCleanupFailed,
+		)
+	}
 
 	// Sync Headless Service for Cluster
 	if err := cc.syncClusterHeadlessService(c); err != nil {

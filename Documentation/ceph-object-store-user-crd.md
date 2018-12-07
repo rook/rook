@@ -1,6 +1,6 @@
 ---
 title: Ceph Object Store User
-weight: 35
+weight: 34
 indent: true
 ---
 

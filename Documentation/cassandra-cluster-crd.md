@@ -1,3 +1,9 @@
+---
+title: Cassandra Cluster
+weight: 36
+indent: true
+---
+
 # Cassandra Cluster CRD
 
 Cassandra database clusters can be created and configuring using the `clusters.cassandra.rook.io` custom resource definition (CRD).

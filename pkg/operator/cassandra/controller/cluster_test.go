@@ -17,9 +17,12 @@ limitations under the License.
 package controller
 
 import (
+	"fmt"
 	cassandrav1alpha1 "github.com/rook/rook/pkg/apis/cassandra.rook.io/v1alpha1"
+	"github.com/rook/rook/pkg/operator/cassandra/constants"
 	"github.com/rook/rook/pkg/operator/cassandra/controller/util"
-	"github.com/rook/rook/pkg/operator/cassandra/test"
+	casstest "github.com/rook/rook/pkg/operator/cassandra/test"
+	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -28,7 +31,7 @@ import (
 
 func TestCreateRack(t *testing.T) {
 
-	simpleCluster := test.NewSimpleCluster(3)
+	simpleCluster := casstest.NewSimpleCluster(3)
 
 	tests := []struct {
 		name        string
@@ -105,7 +108,7 @@ func TestScaleUpRack(t *testing.T) {
 
 	currMembers := int32(2)
 	expMembers := int32(3)
-	c := test.NewSimpleCluster(expMembers)
+	c := casstest.NewSimpleCluster(expMembers)
 	r := c.Spec.Datacenter.Racks[0]
 	sts := util.StatefulSetForRack(r, c, "")
 	*sts.Spec.Replicas = currMembers
@@ -174,4 +177,74 @@ func TestScaleUpRack(t *testing.T) {
 
 		})
 	}
+}
+
+func TestScaleDownRack(t *testing.T) {
+
+	desired := int32(2)
+	actual := int32(3)
+
+	c := casstest.NewSimpleCluster(desired)
+	r := c.Spec.Datacenter.Racks[0]
+	c.Status = cassandrav1alpha1.ClusterStatus{
+		Racks: map[string]*cassandrav1alpha1.RackStatus{
+			r.Name: {
+				Members:      actual,
+				ReadyMembers: actual,
+			},
+		},
+	}
+	sts := util.StatefulSetForRack(r, c, "")
+	memberServices := casstest.MemberServicesForCluster(c)
+
+	// Find the member to decommission
+	memberName := fmt.Sprintf("%s-%d", util.StatefulSetNameForRack(r, c), actual-1)
+
+	t.Run("scale down requested and started", func(t *testing.T) {
+
+		kubeObjects := append(memberServices, sts)
+		rookObjects := []runtime.Object{c}
+		cc := newFakeClusterController(kubeObjects, rookObjects)
+
+		err := cc.scaleDownRack(r, c)
+		require.NoErrorf(t, err, "Unexpected error while scaling down: %v", err)
+
+		// Check that MemberService has the decomissioned label
+		svc, err := cc.serviceLister.Services(c.Namespace).Get(memberName)
+		require.NoErrorf(t, err, "Unexpected error while getting MemberService: %v", err)
+
+		val, ok := svc.Labels[constants.DecommissionLabel]
+		require.True(t, ok, "Service didn't have the decommissioned label as expected")
+		require.Truef(t, val == constants.LabelValueFalse, "Decomissioned Label had unexpected value: %s", val)
+
+	})
+
+	t.Run("scale down resumed", func(t *testing.T) {
+
+		sts.Spec.Replicas = &actual
+
+		kubeObjects := append(memberServices, sts)
+		rookObjects := []runtime.Object{c}
+
+		cc := newFakeClusterController(kubeObjects, rookObjects)
+
+		svc, err := cc.serviceLister.Services(c.Namespace).Get(memberName)
+		require.NoErrorf(t, err, "Unexpected error while getting MemberService: %v", err)
+
+		// Mark as decommissioned
+		svc.Labels[constants.DecommissionLabel] = constants.LabelValueTrue
+		_, err = cc.kubeClient.CoreV1().Services(svc.Namespace).Update(svc)
+		require.Nilf(t, err, "Unexpected error while updating MemberService: %v", err)
+
+		// Resume decommission
+		err = cc.scaleDownRack(r, c)
+		require.NoErrorf(t, err, "Unexpected error while resuming scale down: %v", err)
+
+		// Check that StatefulSet is scaled
+		updatedSts, err := cc.kubeClient.AppsV1().StatefulSets(sts.Namespace).Get(sts.Name, metav1.GetOptions{})
+		require.NoErrorf(t, err, "Unexpected error while getting statefulset: %v", err)
+		require.Truef(t, *updatedSts.Spec.Replicas == *sts.Spec.Replicas-1, "Statefulset has incorrect number of replicas. Expected: %d, got %d.", *sts.Spec.Replicas-1, *updatedSts.Spec.Replicas)
+
+	})
+
 }

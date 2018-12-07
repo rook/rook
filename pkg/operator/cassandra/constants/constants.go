@@ -28,6 +28,13 @@ const (
 	// SeedLabel determines if a member is a seed or not.
 	SeedLabel = "cassandra.rook.io/seed"
 
+	// DecommissionLabel expresses the intent to decommission
+	// the specific member. The presence of the label expresses
+	// the intent to decommission. If the value is true, it means
+	// the member has finished decommissioning.
+	// Values: {true, false}
+	DecommissionLabel = "cassandra.rook.io/decommissioned"
+
 	// DeveloperModeAnnotation is present when the user wishes
 	// to bypass production-readiness checks and start the database
 	// either way. Currently useful for scylla, may get removed

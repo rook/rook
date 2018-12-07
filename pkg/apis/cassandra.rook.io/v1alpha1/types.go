@@ -120,4 +120,29 @@ type RackStatus struct {
 	Members int32 `json:"members"`
 	// ReadyMembers is the number of ready members in the specific Rack
 	ReadyMembers int32 `json:"readyMembers"`
+	// Conditions are the latest available observations of a rack's state.
+	Conditions []RackCondition `json:"conditions,omitempty"`
 }
+
+// RackCondition is an observation about the state of a rack.
+type RackCondition struct {
+	Type   RackConditionType `json:"type"`
+	Status ConditionStatus   `json:"status"`
+}
+
+type RackConditionType string
+
+const (
+	RackConditionTypeMemberLeaving RackConditionType = "MemberLeaving"
+)
+
+type ConditionStatus string
+
+// These are valid condition statuses. "ConditionTrue" means a resource is in the condition;
+// "ConditionFalse" means a resource is not in the condition; "ConditionUnknown" means kubernetes
+// can't decide if a resource is in the condition or not.
+const (
+	ConditionTrue    ConditionStatus = "True"
+	ConditionFalse   ConditionStatus = "False"
+	ConditionUnknown ConditionStatus = "Unknown"
+)

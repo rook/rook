@@ -27,9 +27,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-// PatchPod patches the old Pod so that it matches the
-// new Pod.
-func PatchPod(old, new *corev1.Pod, kubeClient kubernetes.Interface) error {
+// PatchService patches the old Service so that it matches the
+// new Service.
+func PatchService(old, new *corev1.Service, kubeClient kubernetes.Interface) error {
 
 	oldJSON, err := json.Marshal(old)
 	if err != nil {
@@ -41,12 +41,12 @@ func PatchPod(old, new *corev1.Pod, kubeClient kubernetes.Interface) error {
 		return err
 	}
 
-	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldJSON, newJSON, corev1.Pod{})
+	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldJSON, newJSON, corev1.Service{})
 	if err != nil {
 		return err
 	}
 
-	_, err = kubeClient.CoreV1().Pods(old.Namespace).Patch(old.Name, types.StrategicMergePatchType, patchBytes)
+	_, err = kubeClient.CoreV1().Services(old.Namespace).Patch(old.Name, types.StrategicMergePatchType, patchBytes)
 	return err
 }
 
