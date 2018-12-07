@@ -1,11 +1,12 @@
 ---
 title: Monitoring
-weight: 45
+weight: 27
+indent: true
 ---
 
 # Monitoring
 
-Each Rook cluster has some built in metrics collectors/exporters for monitoring with [Prometheus](https://prometheus.io/).
+Each Rook Ceph cluster has some built in metrics collectors/exporters for monitoring with [Prometheus](https://prometheus.io/).
 If you do not have Prometheus running, follow the steps below to enable monitoring of Rook. If your cluster already
 contains a Prometheus instance, it will automatically discover Rooks scrape endpoint using the standard
 `prometheus.io/scrape` and `prometheus.io/port` annotations.
@@ -14,9 +15,9 @@ contains a Prometheus instance, it will automatically discover Rooks scrape endp
 ## Prometheus Operator
 
 First the Prometheus operator needs to be started in the cluster so it can watch for our requests to start monitoring Rook and respond by deploying the correct Prometheus pods and configuration.
-A full explanation can be found in the [Prometheus operator repository on github](https://github.com/coreos/prometheus-operator), but the quick instructions can be found here:
+A full explanation can be found in the [Prometheus operator repository on GitHub](https://github.com/coreos/prometheus-operator), but the quick instructions can be found here:
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/coreos/prometheus-operator/release-0.15/bundle.yaml
+kubectl apply -f https://raw.githubusercontent.com/coreos/prometheus-operator/v0.26.0/bundle.yaml
 ```
 This will start the Prometheus operator, but before moving on, wait until the operator is in the `Running` state:
 ```bash
@@ -29,7 +30,7 @@ Once the Prometheus operator is in the `Running` state, proceed to the next sect
 With the Prometheus operator running, we can create a service monitor that will watch the Rook cluster and collect metrics regularly.
 From the root of your locally cloned Rook repo, go the monitoring directory:
 ```bash
-cd cluster/examples/kubernetes/monitoring
+cd cluster/examples/kubernetes/ceph/monitoring
 ```
 
 Create the service monitor as well as the Prometheus server pod and service:
@@ -96,8 +97,7 @@ To clean up all the artifacts created by the monitoring walkthrough, copy/paste 
 kubectl delete -f service-monitor.yaml
 kubectl delete -f prometheus.yaml
 kubectl delete -f prometheus-service.yaml
-kubectl -n rook-ceph delete statefulset prometheus-rook-prometheus
-kubectl delete -f https://raw.githubusercontent.com/coreos/prometheus-operator/release-0.8/bundle.yaml
+kubectl delete -f https://raw.githubusercontent.com/coreos/prometheus-operator/v0.26.0/bundle.yaml
 ```
 Then the rest of the instructions in the [Prometheus Operator docs](https://github.com/coreos/prometheus-operator#removal) can be followed to finish cleaning up.
 
