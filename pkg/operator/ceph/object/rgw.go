@@ -69,7 +69,7 @@ func (c *config) createOrUpdate(update bool) error {
 	if err == nil && exists {
 		if !update {
 			logger.Infof("object store %s exists in namespace %s", c.store.Name, c.store.Namespace)
-			return nil
+			return c.startRGWPods(false)
 		}
 		logger.Infof("object store %s exists in namespace %s. checking for updates", c.store.Name, c.store.Namespace)
 	}
