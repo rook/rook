@@ -31,7 +31,7 @@ mkdir -p $GOPATH/src/github.com/rook
 # Navigate to the local repo path and clone your fork
 cd $GOPATH/src/github.com/rook
 
-# Clone your fork, where <user> is your github account name
+# Clone your fork, where <user> is your GitHub account name
 git clone https://github.com/<user>/rook.git
 
 cd rook

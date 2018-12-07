@@ -271,7 +271,7 @@ We have created a toolbox container that contains the full suite of Ceph clients
 # Monitoring
 
 Each Rook cluster has some built in metrics collectors/exporters for monitoring with [Prometheus](https://prometheus.io/).
-To learn how to set up monitoring for your Rook cluster, you can follow the steps in the [monitoring guide](./monitoring.md).
+To learn how to set up monitoring for your Rook cluster, you can follow the steps in the [monitoring guide](./ceph-monitoring.md).
 
 # Teardown
 

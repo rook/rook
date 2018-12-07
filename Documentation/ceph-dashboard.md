@@ -35,7 +35,7 @@ rook-ceph-mgr                ClusterIP   10.108.111.192   <none>        9283/TCP
 rook-ceph-mgr-dashboard      ClusterIP   10.110.113.240   <none>        8443/TCP         3h
 ```
 
-The first service is for reporting the [Prometheus metrics](monitoring.md), while the latter service is for the dashboard.
+The first service is for reporting the [Prometheus metrics](ceph-monitoring.md), while the latter service is for the dashboard.
 If you are on a node in the cluster, you will be able to connect to the dashboard by using either the
 DNS name of the service at `https://rook-ceph-mgr-dashboard-https:8443` or by connecting to the cluster IP,
 in this example at `https://10.110.113.240:8443`.
