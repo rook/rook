@@ -37,37 +37,30 @@ const (
 	cephVolumeCmd     = "ceph-volume"
 )
 
-func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOsdMapping) ([]oposd.OSDInfo, bool, error) {
+func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *DeviceOsdMapping) ([]oposd.OSDInfo, error) {
 	var osds []oposd.OSDInfo
 
-	useCephVolume, err := getCephVolumeSupported(context)
-	if err != nil {
-		return nil, false, fmt.Errorf("failed to detect if ceph-volume is available. %+v", err)
-	}
-	if !useCephVolume {
-		return osds, false, nil
-	}
-
-	if devices == nil || len(devices.Entries) == 0 {
+	var err error
+	if len(devices.Entries) == 0 {
 		logger.Infof("no new devices to configure. returning devices already configured with ceph-volume.")
 		osds, err = getCephVolumeOSDs(context, a.cluster.Name)
 		if err != nil {
 			logger.Infof("failed to get devices already provisioned by ceph-volume. %+v", err)
 		}
-		return osds, true, nil
+		return osds, nil
 	}
 
 	err = createOSDBootstrapKeyring(context, a.cluster.Name, cephConfigDir)
 	if err != nil {
-		return nil, true, fmt.Errorf("failed to generate osd keyring. %+v", err)
+		return nil, fmt.Errorf("failed to generate osd keyring. %+v", err)
 	}
 
 	if err = a.initializeDevices(context, devices); err != nil {
-		return nil, true, fmt.Errorf("failed to initialize devices. %+v", err)
+		return nil, fmt.Errorf("failed to initialize devices. %+v", err)
 	}
 
 	osds, err = getCephVolumeOSDs(context, a.cluster.Name)
-	return osds, true, err
+	return osds, err
 }
 
 func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceOsdMapping) error {
@@ -86,6 +79,10 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 		strconv.Itoa(a.storeConfig.OSDsPerDevice),
 	}...)
 
+	// ceph-volume is soon implementing a parameter to specify the "fast devices", which correspond to the "metadataDevice" from the
+	// crd spec. After that is implemented, we can implement this. In the meantime, we fall back to use rook's partitioning.
+	metadataDeviceSpecified := false
+
 	configured := 0
 	for name, device := range devices.Entries {
 		if device.LegacyPartitionsFound {
@@ -96,7 +93,7 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 		if device.Data == -1 {
 			logger.Infof("configuring new device %s", name)
 			deviceArg := path.Join("/dev", name)
-			if device.Config.OSDsPerDevice <= 1 {
+			if metadataDeviceSpecified {
 				// the device will be configured as a batch at the end of the method
 				batchArgs = append(batchArgs, deviceArg)
 				configured++
@@ -135,10 +132,9 @@ func getCephVolumeSupported(context *clusterd.Context) (bool, error) {
 				logger.Infof("supported version of ceph-volume not available")
 				return false, nil
 			}
-			logger.Warningf("unknown return code from ceph-volume when checking for compatibility: %d", exitStatus)
+			return false, fmt.Errorf("unknown return code from ceph-volume when checking for compatibility: %d", exitStatus)
 		}
-		logger.Warningf("unknown ceph-volume failure. %+v", err)
-		return false, nil
+		return false, fmt.Errorf("unknown ceph-volume failure. %+v", err)
 	}
 
 	return true, nil
@@ -188,7 +184,7 @@ func getCephVolumeOSDs(context *clusterd.Context, clusterName string) ([]oposd.O
 		osds = append(osds, osd)
 	}
 
-	logger.Infof("%d osd devices configured on this node", len(osds))
+	logger.Infof("%d ceph-volume osd devices configured on this node", len(osds))
 	return osds, nil
 }
 

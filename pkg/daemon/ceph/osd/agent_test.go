@@ -120,7 +120,7 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig config.StoreConfig,
 
 	execCount := 0
 	executor.MockExecuteCommand = func(debug bool, name string, command string, args ...string) error {
-		logger.Infof("RUN %d: %s %+v", execCount, command, args)
+		logger.Infof("EXEC %d: %s %+v", execCount, command, args)
 		parts := strings.Split(name, " ")
 		nameSuffix := parts[0]
 		if len(parts) > 1 {
@@ -247,15 +247,22 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig config.StoreConfig,
 		"sdx": {Data: -1},
 		"sdy": {Data: -1},
 	}}
-	_, err = agent.configureAllDevices(context, devices)
+	_, err = agent.configureDevices(context, devices)
 	assert.Nil(t, err)
 
 	assert.Equal(t, int32(0), agent.configCounter)
 	assert.Equal(t, 0, startCount) // 2 OSD procs should be started
 
 	if !legacyProvisioner {
-		assert.Equal(t, 3, outputExecCount)
-		assert.Equal(t, 1, execCount)
+		if storeConfig.StoreType == config.Bluestore {
+			assert.Equal(t, 7, outputExecCount)
+			assert.Equal(t, 2, execCount)
+		} else {
+			assert.Equal(t, 6, outputExecCount)
+			// filestore on a device has two more calls than bluestore because of the mount/unmount commands of the legacy sdx device
+			// where sdy is created as the new c-v osd
+			assert.Equal(t, 4, execCount)
+		}
 	} else if storeConfig.StoreType == config.Bluestore {
 		assert.Equal(t, 12, outputExecCount) // Bluestore has 2 extra output exec calls to get device properties of each device to determine CRUSH weight
 		assert.Equal(t, 5, execCount)        // 1 osd mkfs for sdx, 3 partition steps for sdy, 1 osd mkfs for sdy
@@ -374,7 +381,18 @@ func createTestAgent(t *testing.T, devices, configDir, nodeName string, storeCon
 
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
+			logger.Infof("%s %v", command, args)
 			return "{\"key\":\"mysecurekey\", \"osdid\":3.0}", nil
+		},
+		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
+			logger.Infof("%s %v", command, args)
+			if command == "ceph-volume" {
+				if len(args) == 3 && args[0] == "lvm" && args[1] == "batch" && args[2] == "--prepare" {
+					logger.Infof("test c-v not supported")
+					return "", fmt.Errorf("c-v not supported")
+				}
+			}
+			return "", nil
 		},
 	}
 	cluster := &cephconfig.ClusterInfo{Name: "myclust"}
@@ -449,7 +467,7 @@ func TestGetPartitionPerfScheme(t *testing.T) {
 
 	devices, err := getAvailableDevices(context, []DesiredDevice{{Name: "sda"}, {Name: "sdb"}}, "sdc")
 	assert.Nil(t, err)
-	scheme, err := a.getPartitionPerfScheme(context, devices)
+	scheme, _, err := a.getPartitionPerfScheme(context, devices, false)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(scheme.Entries))
 
@@ -525,7 +543,7 @@ func TestGetPartitionSchemeDiskInUse(t *testing.T) {
 	// get the partition scheme based on the available devices.  Since sda is already in use, the partition
 	// scheme returned should reflect that.
 	devices, err := getAvailableDevices(context, []DesiredDevice{{Name: "sda"}}, "")
-	scheme, err := a.getPartitionPerfScheme(context, devices)
+	scheme, _, err := a.getPartitionPerfScheme(context, devices, false)
 	assert.Nil(t, err)
 
 	// the partition scheme should have a single entry for osd 1 on sda and it should have collocated data and metadata
@@ -593,13 +611,30 @@ func TestGetPartitionSchemeDiskNameChanged(t *testing.T) {
 	// get the current partition scheme.  This should notice that the device names changed and update the
 	// partition scheme to have the latest device names
 	devices, err := getAvailableDevices(context, []DesiredDevice{{Name: "sda-changed"}}, "nvme01")
-	scheme, err := a.getPartitionPerfScheme(context, devices)
+	scheme, _, err := a.getPartitionPerfScheme(context, devices, false)
 	assert.Nil(t, err)
 	require.NotNil(t, scheme)
 	assert.Equal(t, "sda-changed", scheme.Entries[0].Partitions[config.BlockPartitionType].Device)
 	assert.Equal(t, "nvme01", scheme.Metadata.Device)
 	assert.Equal(t, "nvme01", scheme.Entries[0].Partitions[config.WalPartitionType].Device)
 	assert.Equal(t, "nvme01", scheme.Entries[0].Partitions[config.DatabasePartitionType].Device)
+
+	// new devices should be skipped for ceph-volume to configure.
+	logger.Infof("testing skipping new devices that should be configured by ceph-volume instead of with legacy")
+	context.Devices = []*sys.LocalDisk{
+		{Name: "sdx"},
+	}
+	devices = &DeviceOsdMapping{Entries: map[string]*DeviceOsdIDEntry{"nvme05": {Data: -1, Config: DesiredDevice{Name: "nvme05", OSDsPerDevice: 5}}}}
+	scheme, skipped, err := a.getPartitionPerfScheme(context, devices, true)
+	assert.Nil(t, err)
+	require.NotNil(t, scheme)
+	require.Equal(t, 1, len(skipped.Entries))
+	require.Equal(t, 1, len(scheme.Entries))
+	assert.Equal(t, "nvme05", skipped.Entries["nvme05"].Config.Name)
+	assert.Equal(t, 5, skipped.Entries["nvme05"].Config.OSDsPerDevice)
+	for _, p := range scheme.Entries[0].Partitions {
+		assert.NotEqual(t, "nvme05", p.Device)
+	}
 }
 
 func TestPrepareOSDRoot(t *testing.T) {

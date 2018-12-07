@@ -145,22 +145,32 @@ func (a *OsdAgent) removeDirs(context *clusterd.Context, removedDirs map[string]
 	return nil
 }
 
-func (a *OsdAgent) configureAllDevices(context *clusterd.Context, devices *DeviceOsdMapping) ([]oposd.OSDInfo, error) {
+func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOsdMapping) ([]oposd.OSDInfo, error) {
 
-	// prepare the OSDs with ceph-volume
-	osds, configured, err := a.configureDevices(context, devices)
+	cvSupported, err := getCephVolumeSupported(context)
 	if err != nil {
-		return nil, fmt.Errorf("failed to configure devices with ceph-volume. %+v", err)
+		logger.Errorf("failed to detect if ceph-volume is available. %+v", err)
+	}
+	if a.metadataDevice != "" {
+		// ceph-volume still is work in progress for accepting fast devices for the metadata
+		logger.Infof("skipping ceph-volume until the fast devices can be specified for the metadata")
+		cvSupported = false
 	}
 
-	if devices == nil || len(devices.Entries) == 0 || configured {
+	var osds []oposd.OSDInfo
+	if devices == nil || len(devices.Entries) == 0 {
+		logger.Infof("no more devices to configure")
+		if cvSupported {
+			return getCephVolumeOSDs(context, a.cluster.Name)
+		}
 		return osds, nil
 	}
 
+	// Detect OSDs provisioned already with legacy rook
 	// If ceph-volume is not supported, go ahead and configure the osds natively with rook
 
 	// compute an OSD layout scheme that will optimize performance
-	scheme, err := a.getPartitionPerfScheme(context, devices)
+	scheme, cvDevices, err := a.getPartitionPerfScheme(context, devices, cvSupported)
 	logger.Debugf("partition scheme: %+v, err: %+v", scheme, err)
 	if err != nil {
 		return osds, fmt.Errorf("failed to get OSD partition scheme: %+v", err)
@@ -173,18 +183,30 @@ func (a *OsdAgent) configureAllDevices(context *clusterd.Context, devices *Devic
 	}
 	// initialize and start all the desired OSDs using the computed scheme
 	succeeded := 0
+	nonCVTotal := len(scheme.Entries)
 	for _, entry := range scheme.Entries {
 		config := &osdConfig{id: entry.ID, uuid: entry.OsdUUID, configRoot: context.ConfigDir,
 			partitionScheme: entry, storeConfig: a.storeConfig, kv: a.kv, storeName: config.GetConfigStoreName(a.nodeName)}
 		osd, err := a.prepareOSD(context, config)
 		if err != nil {
 			return osds, fmt.Errorf("failed to config osd %d. %+v", entry.ID, err)
-		} else {
-			succeeded++
-			osds = append(osds, *osd)
 		}
+
+		succeeded++
+		osds = append(osds, *osd)
 	}
-	logger.Infof("%d/%d osd devices succeeded on this node", succeeded, len(scheme.Entries))
+	logger.Infof("%d/%d pre-ceph-volume osd devices succeeded on this node", succeeded, nonCVTotal)
+
+	if !cvSupported {
+		return osds, nil
+	}
+
+	// Now ask ceph-volume for osds already configured or to newly configure devices
+	cvOSDs, err := a.configureCVDevices(context, cvDevices)
+	if err != nil {
+		return nil, fmt.Errorf("failed to configure devices with ceph-volume. %+v", err)
+	}
+	osds = append(osds, cvOSDs...)
 	return osds, nil
 }
 
@@ -224,12 +246,13 @@ func (a *OsdAgent) removeDevices(context *clusterd.Context, removedDevicesScheme
 
 // computes a partitioning scheme for all the given desired devices.  This could be devices already in use,
 // devices dedicated to metadata, and devices with all bluestore partitions collocated.
-func (a *OsdAgent) getPartitionPerfScheme(context *clusterd.Context, devices *DeviceOsdMapping) (*config.PerfScheme, error) {
+func (a *OsdAgent) getPartitionPerfScheme(context *clusterd.Context, devices *DeviceOsdMapping, skipNewDevices bool) (*config.PerfScheme, *DeviceOsdMapping, error) {
+	skippedDevices := &DeviceOsdMapping{Entries: map[string]*DeviceOsdIDEntry{}}
 
 	// load the existing (committed) partition scheme from disk
 	perfScheme, err := config.LoadScheme(a.kv, config.GetConfigStoreName(a.nodeName))
 	if err != nil {
-		return nil, fmt.Errorf("failed to load partition scheme: %+v", err)
+		return nil, skippedDevices, fmt.Errorf("failed to load partition scheme: %+v", err)
 	}
 
 	nameToUUID := map[string]string{}
@@ -254,16 +277,21 @@ func (a *OsdAgent) getPartitionPerfScheme(context *clusterd.Context, devices *De
 			logger.Infof("device %s (%s) is already in use", name, nameToUUID)
 			refreshDeviceInfo(name, nameToUUID, perfScheme)
 		} else if isDeviceDesiredForData(mapping) {
-			// device needs data partitioning
-			logger.Infof("configuring device %s (%s) for data", name, nameToUUID)
-			numDataNeeded++
+			if skipNewDevices {
+				logger.Infof("device %s to be configured by ceph-volume", name)
+				skippedDevices.Entries[name] = mapping
+			} else {
+				// device needs data partitioning
+				logger.Infof("configuring device %s (%s) for data", name, nameToUUID)
+				numDataNeeded++
+			}
 		} else if isDeviceDesiredForMetadata(mapping, perfScheme) {
 			// device is desired to store metadata for other OSDs
 			logger.Infof("configuring device %s (%s) for metadata", name, nameToUUID)
 			if perfScheme.Metadata != nil {
 				// TODO: this perf scheme creation algorithm assumes either zero or one metadata device, enhance to allow multiple
 				// https://github.com/rook/rook/issues/341
-				return nil, fmt.Errorf("%s is desired for metadata, but %s (%s) is already the metadata device",
+				return nil, nil, fmt.Errorf("%s is desired for metadata, but %s (%s) is already the metadata device",
 					name, perfScheme.Metadata.Device, perfScheme.Metadata.DiskUUID)
 			}
 
@@ -282,7 +310,7 @@ func (a *OsdAgent) getPartitionPerfScheme(context *clusterd.Context, devices *De
 			// register/create the OSD with ceph, which will assign it a cluster wide ID
 			osdID, osdUUID, err := registerOSD(context, a.cluster.Name)
 			if err != nil {
-				return nil, fmt.Errorf("failed to register OSD for device %s: %+v", name, err)
+				return nil, nil, fmt.Errorf("failed to register OSD for device %s: %+v", name, err)
 			}
 
 			schemeEntry := config.NewPerfSchemeEntry(a.storeConfig.StoreType)
@@ -297,7 +325,7 @@ func (a *OsdAgent) getPartitionPerfScheme(context *clusterd.Context, devices *De
 				// populate the perf partition scheme entry with distributed partition details
 				err := config.PopulateDistributedPerfSchemeEntry(schemeEntry, name, perfScheme.Metadata, a.storeConfig)
 				if err != nil {
-					return nil, fmt.Errorf("failed to create distributed perf scheme entry for %s: %+v", name, err)
+					return nil, nil, fmt.Errorf("failed to create distributed perf scheme entry for %s: %+v", name, err)
 				}
 			} else {
 				// there is no metadata device to use, store everything on the data device
@@ -309,7 +337,7 @@ func (a *OsdAgent) getPartitionPerfScheme(context *clusterd.Context, devices *De
 				// populate the perf partition scheme entry with collocated partition details
 				err := config.PopulateCollocatedPerfSchemeEntry(schemeEntry, name, a.storeConfig)
 				if err != nil {
-					return nil, fmt.Errorf("failed to create collocated perf scheme entry for %s: %+v", name, err)
+					return nil, nil, fmt.Errorf("failed to create collocated perf scheme entry for %s: %+v", name, err)
 				}
 			}
 
@@ -317,7 +345,7 @@ func (a *OsdAgent) getPartitionPerfScheme(context *clusterd.Context, devices *De
 		}
 	}
 
-	return perfScheme, nil
+	return perfScheme, skippedDevices, nil
 }
 
 // determines if the given device name is already in use with existing/committed partitions

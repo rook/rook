@@ -73,7 +73,7 @@ func TestOSDBootstrap(t *testing.T) {
 	err := createOSDBootstrapKeyring(context, clusterName, configDir)
 	assert.Nil(t, err)
 
-	targetPath := path.Join(configDir, "bootstrap-osd/ceph.keyring")
+	targetPath := path.Join(configDir, bootstrapOsdKeyring)
 	contents, err := ioutil.ReadFile(targetPath)
 	assert.Nil(t, err)
 	assert.NotEqual(t, -1, strings.Index(string(contents), "[client.bootstrap-osd]"))
