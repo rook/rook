@@ -49,5 +49,6 @@
   All connections from users and clients are expected to come in through the [configurable Service instance](cluster/examples/kubernetes/minio/object-store.yaml#37).
 
 ## Known Issues
+- Upgrades are not supported to nautilus. Specifically, OSDs configured before the upgrade (without ceph-volume) will fail to start on nautilus. Nautilus is not officially supported until its release, but otherwise is expected to be working in test clusters.
 
 ## Deprecations
