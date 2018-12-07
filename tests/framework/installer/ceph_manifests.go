@@ -376,6 +376,7 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - configmaps
   - nodes
   - nodes/proxy
   verbs:
