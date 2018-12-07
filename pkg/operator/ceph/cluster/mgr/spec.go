@@ -66,7 +66,13 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig, port int) *extensions.Dep
 			Name:      mgrConfig.ResourceName,
 			Namespace: c.Namespace,
 		},
-		Spec: extensions.DeploymentSpec{Template: podSpec, Replicas: &replicas},
+		Spec: extensions.DeploymentSpec{
+			Template: podSpec,
+			Replicas: &replicas,
+			Strategy: extensions.DeploymentStrategy{
+				Type: extensions.RecreateDeploymentStrategyType,
+			},
+		},
 	}
 	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &d.ObjectMeta, &c.ownerRef)
 	return d
