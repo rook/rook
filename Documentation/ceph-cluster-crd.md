@@ -8,7 +8,10 @@ indent: true
 Rook allows creation and customization of storage clusters through the custom resource definitions (CRDs).
 
 ## Sample
+
 To get you started, here is a simple example of a CRD to configure a Ceph cluster with all nodes and all devices. More examples are included [later in this doc](#samples).
+
+**NOTE** In addition to your CephCluster object, you need to create RBAC rules for the namespace you are going to create the CephCluster in, see [Common Cluster Resources](#common-cluster-resources) section below.
 
 ```yaml
 apiVersion: ceph.rook.io/v1

@@ -11,6 +11,9 @@ for Ceph object stores.
 
 ## Sample
 
+**NOTE** This example requires you to have **at least 3 bluestore OSDs each on a different node**.
+This is because the below `erasureCoded` chunk settings require at least 3 bluestore OSDs and as [`failureDomain` setting](ceph-pool-crd.md#spec) to `host` (default), each OSD needs to be on a different nodes.
+
 ```yaml
 apiVersion: ceph.rook.io/v1
 kind: CephObjectStore
@@ -19,9 +22,11 @@ metadata:
   namespace: rook-ceph
 spec:
   metadataPool:
+    failureDomain: host
     replicated:
       size: 3
   dataPool:
+    failureDomain: host
     erasureCoded:
       dataChunks: 2
       codingChunks: 1

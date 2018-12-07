@@ -7,9 +7,13 @@ indent: true
 # RBAC Security
 
 ## Cluster Role
+
+**NOTE** This is only needed when you are not already `cluster-admin` in your Kubernetes cluster!
+
 Creating the Rook operator requires privileges for setting up RBAC. To launch the operator you need to have created your user certificate that is bound to ClusterRole `cluster-admin`.
 
 One simple way to achieve it is to assign your certificate with the `system:masters` group:
+
 ```
 -subj "/CN=admin/O=system:masters"
 ```
