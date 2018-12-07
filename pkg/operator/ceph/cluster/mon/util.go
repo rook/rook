@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"path"
 	"strconv"
@@ -50,7 +51,6 @@ func LoadClusterInfo(context *clusterd.Context, namespace string) (*cephconfig.C
 
 // CreateOrLoadClusterInfo constructs or loads a clusterinfo and returns it along with the maxMonID
 func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerRef *metav1.OwnerReference) (*cephconfig.ClusterInfo, int, *Mapping, error) {
-
 	var clusterInfo *cephconfig.ClusterInfo
 	maxMonID := -1
 	monMapping := &Mapping{
@@ -107,7 +107,6 @@ func writeConnectionConfig(context *clusterd.Context, clusterInfo *cephconfig.Cl
 
 // loadMonConfig returns the monitor endpoints and maxMonID
 func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string]*cephconfig.MonInfo, int, *Mapping, error) {
-
 	monEndpointMap := map[string]*cephconfig.MonInfo{}
 	maxMonID := -1
 	monMapping := &Mapping{
@@ -275,4 +274,16 @@ func fullNameToIndex(name string) (int, error) {
 		return -1, err
 	}
 	return id, nil
+}
+
+// getPortFromEndpoint return the port from an endpoint string (my-host:6790)
+func getPortFromEndpoint(endpoint string) int32 {
+	port := mondaemon.DefaultPort
+	_, portString, err := net.SplitHostPort(endpoint)
+	if err != nil {
+		logger.Errorf("failed to split host and port for endpoint %s, assuming default Ceph port %d", endpoint, port)
+	} else {
+		port, _ = strconv.Atoi(portString)
+	}
+	return int32(port)
 }
