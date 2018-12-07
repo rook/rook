@@ -1,0 +1,51 @@
+---
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: edgefs-data-0
+  namespace: rook-edgefs
+  labels:
+    type: local
+spec:
+  storageClassName: local-storage
+  persistentVolumeReclaimPolicy: Retain
+  capacity:
+    storage: 100Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/mnt/edgefs"
+---
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: edgefs-data-1
+  namespace: rook-edgefs
+  labels:
+    type: local
+spec:
+  storageClassName: local-storage
+  persistentVolumeReclaimPolicy: Retain
+  capacity:
+    storage: 100Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/mnt/edgefs"
+---
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: edgefs-data-2
+  namespace: rook-edgefs
+  labels:
+    type: local
+spec:
+  storageClassName: local-storage
+  persistentVolumeReclaimPolicy: Retain
+  capacity:
+    storage: 100Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/mnt/edgefs"

@@ -1,0 +1,29 @@
+apiVersion: edgefs.rook.io/v1alpha1
+kind: S3X
+metadata:
+  name: s3x01
+  namespace: rook-edgefs
+spec:
+  instances: 1
+  #sslCertificateRef: s3x-ssl-secret
+  #placement:
+  #  nodeAffinity:
+  #    requiredDuringSchedulingIgnoredDuringExecution:
+  #      nodeSelectorTerms:
+  #      - matchExpressions:
+  #        - key: rook-edgefs-nodetype
+  #          operator: In
+  #          values:
+  #          - gateway
+  #  tolerations:
+  #  - key: node230
+  #    operator: Exists
+  #  podAffinity:
+  #  podAntiAffinity:
+  #resources:
+  #  limits:
+  #    cpu: "2"
+  #    memory: "4Gi"
+  #  requests:
+  #    cpu: "2"
+  #    memory: "4Gi"

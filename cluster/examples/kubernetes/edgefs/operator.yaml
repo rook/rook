@@ -1,0 +1,222 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rook-edgefs-system
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: clusters.edgefs.rook.io
+spec:
+  group: edgefs.rook.io
+  names:
+    kind: Cluster
+    listKind: ClusterList
+    plural: clusters
+    singular: cluster
+  scope: Namespaced
+  version: v1alpha1
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: nfss.edgefs.rook.io
+spec:
+  group: edgefs.rook.io
+  names:
+    kind: NFS
+    listKind: NFSList
+    plural: nfss
+    singular: nfs
+  scope: Namespaced
+  version: v1alpha1
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: s3s.edgefs.rook.io
+spec:
+  group: edgefs.rook.io
+  names:
+    kind: S3
+    listKind: S3List
+    plural: s3s
+    singular: s3
+  scope: Namespaced
+  version: v1alpha1
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: s3xs.edgefs.rook.io
+spec:
+  group: edgefs.rook.io
+  names:
+    kind: S3X
+    listKind: S3XList
+    plural: s3xs
+    singular: s3x
+  scope: Namespaced
+  version: v1alpha1
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: iscsis.edgefs.rook.io
+spec:
+  group: edgefs.rook.io
+  names:
+    kind: ISCSI
+    listKind: ISCSIList
+    plural: iscsis
+    singular: iscsi
+  scope: Namespaced
+  version: v1alpha1
+---
+# The cluster role for managing all the cluster-specific resources in a namespace
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: rook-edgefs-cluster-mgmt
+  labels:
+    operator: rook
+    storage-backend: edgefs
+rules:
+- apiGroups: [""]
+  resources: ["secrets", "pods", "nodes", "services", "configmaps", "endpoints"]
+  verbs: ["get", "list", "watch", "patch", "create", "update", "delete"]
+- apiGroups: ["apps"]
+  resources: ["statefulsets", "statefulsets/scale"]
+  verbs: ["create", "delete", "deletecollection", "patch", "update"]
+- apiGroups: ["extensions"]
+  resources: ["deployments", "daemonsets", "replicasets", "statefulsets"]
+  verbs: ["get", "list", "watch", "create", "update", "delete"]
+---
+# The role for the operator to manage resources in the system namespace
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+metadata:
+  name: rook-edgefs-system
+  namespace: rook-edgefs-system
+  labels:
+    operator: rook
+    storage-backend: edgefs
+rules:
+- apiGroups: [""]
+  resources: ["pods", "nodes", "configmaps"]
+  verbs: ["get", "list", "watch", "patch", "create", "update", "delete"]
+- apiGroups: ["extensions"]
+  resources: ["daemonsets"]
+  verbs: ["get", "list", "watch", "create", "update", "delete"]
+---
+# The cluster role for managing the Rook CRDs
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: rook-edgefs-global
+  labels:
+    operator: rook
+    storage-backend: edgefs
+rules:
+- apiGroups: [""]
+  # Pod access is needed for fencing
+  # Node access is needed for determining nodes where mons should run
+  resources: ["pods", "nodes", "nodes/proxy"]
+  verbs: ["get", "list", "watch", "update", "patch"]
+- apiGroups: [""]
+  # PVs and PVCs are managed by the Rook provisioner
+  resources: ["events", "persistentvolumes", "persistentvolumeclaims"]
+  verbs: ["get", "list", "watch", "patch", "create", "update", "delete"]
+- apiGroups: ["storage.k8s.io"]
+  resources: ["storageclasses"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["batch"]
+  resources: ["jobs"]
+  verbs: ["get", "list", "watch", "create", "update", "delete"]   
+- apiGroups: ["edgefs.rook.io"]
+  resources: ["*"]
+  verbs: ["*"]
+- apiGroups: ["rook.io"]
+  resources: ["*"]
+  verbs: ["*"]
+---
+# The rook system service account used by the operator, agent, and discovery pods
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-edgefs-system
+  namespace: rook-edgefs-system
+  labels:
+    operator: rook
+    storage-backend: edgefs
+---
+# Grant the operator, agent, and discovery agents access to resources in the rook-ceph-system namespace
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-edgefs-system
+  namespace: rook-edgefs-system
+  labels:
+    operator: rook
+    storage-backend: edgefs
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-edgefs-system
+subjects:
+- kind: ServiceAccount
+  name: rook-edgefs-system
+  namespace: rook-edgefs-system    
+---
+# Grant the rook system daemons cluster-wide access to manage the Rook CRDs, PVCs, and storage classes
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-edgefs-global
+  namespace: rook-edgefs-system
+  labels:
+    operator: rook
+    storage-backend: edgefs
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-edgefs-global
+subjects:
+- kind: ServiceAccount
+  name: rook-edgefs-system
+  namespace: rook-edgefs-system
+---
+# The deployment for the rook operator
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: rook-edgefs-operator
+  namespace: rook-edgefs-system
+  labels:
+    operator: rook
+    storage-backend: edgefs
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: rook-edgefs-operator
+    spec:
+      serviceAccountName: rook-edgefs-system
+      containers:
+      - name: rook-edgefs-operator
+        image: rook/edgefs:master
+        imagePullPolicy: "Always"
+        args: ["edgefs", "operator"]
+        env:
+        - name: ROOK_LOG_LEVEL
+          value: "TRACE"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+

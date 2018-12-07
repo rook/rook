@@ -23,6 +23,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	cockroachdbv1alpha1 "github.com/rook/rook/pkg/apis/cockroachdb.rook.io/v1alpha1"
+	edgefsv1alpha1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1alpha1"
 	miniov1alpha1 "github.com/rook/rook/pkg/apis/minio.rook.io/v1alpha1"
 	nfsv1alpha1 "github.com/rook/rook/pkg/apis/nfs.rook.io/v1alpha1"
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
@@ -60,6 +61,7 @@ func AddToScheme(scheme *runtime.Scheme) {
 	cephv1beta1.AddToScheme(scheme)
 	cephv1.AddToScheme(scheme)
 	cockroachdbv1alpha1.AddToScheme(scheme)
+	edgefsv1alpha1.AddToScheme(scheme)
 	miniov1alpha1.AddToScheme(scheme)
 	nfsv1alpha1.AddToScheme(scheme)
 	rookv1alpha2.AddToScheme(scheme)

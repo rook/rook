@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx2
+spec:
+  containers:
+  - image: maersk/nginx
+    imagePullPolicy: Always
+    name: nginx2
+    ports:
+    - containerPort: 80
+      protocol: TCP
+    volumeMounts:
+      - mountPath: /var/www
+        name: csi-volume
+  volumes:
+  - name: csi-volume
+    persistentVolumeClaim:
+      claimName: csi-nedge-pvc

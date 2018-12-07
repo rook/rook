@@ -35,6 +35,9 @@ cockroachdb.%:
 minio.%:
 	@$(MAKE) -C minio PLATFORM=$*
 
+edgefs.%:
+	@$(MAKE) -C edgefs PLATFORM=$*
+
 nfs.%:
 	@$(MAKE) -C nfs PLATFORM=$*
 
