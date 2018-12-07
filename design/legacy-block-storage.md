@@ -42,4 +42,50 @@ Through this implementation, we can quickly extend Rook's storage backend suppor
 
 ![legacy-block-storage-architecture-diagram](legacy-block-storage-architecture.png)
 
+### Operator
+
+* start and monitor the Cinder service pods
+* watch for state changes and apply the changes
+* monitor the healthy of external storage systems
+* manage custom resourece definitions (CRDs) for pools
+
+
+### Agent
+
+* deployed on each Kubernetes nodes
+* handle attching/detaching, mounting/unmounting volumes and formatting the filesystem
+
+
+## Details
+
+### lbs (legacy block storage) cluster CRD example
+
+```yaml
+apiVersion: lbs.rook.io/v1alpha1
+kind: Cluster
+metadata:
+  name: rook-lbs
+  namespace: rook-lbs
+spec:
+  cinderVersion:
+    image: openstack/cinder:v13.0.2-4
+  dataDirHostPath: /var/lib/rook
+  api:
+    count: 3
+    allowMultiplePerNode: true
+  scheduler:
+    count: 3
+    allowMultiplePerNode: true
+  volume:
+    useAllNodes: true
+  config:
+    enabled_backends = svc1234
+    svc1234:
+      volume_backend_name = svc1234
+      volume_driver = cinder.volume.drivers.ibm.storwize_svc.storwize_svc_iscsi.StorwizeSVCISCSIDriver
+      san_ip = 1.2.3.4
+      san_login = superuser
+      san_password = passw0rd
+      storwize_svc_volpool_name = pool1
+```
 
