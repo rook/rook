@@ -33,13 +33,18 @@ import (
 )
 
 func (c *config) startDeployment() error {
-
 	d := &extensions.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      c.instanceName(),
 			Namespace: c.store.Namespace,
 		},
-		Spec: extensions.DeploymentSpec{Template: c.makeRGWPodSpec(), Replicas: &c.store.Spec.Gateway.Instances},
+		Spec: extensions.DeploymentSpec{
+			Template: c.makeRGWPodSpec(),
+			Replicas: &c.store.Spec.Gateway.Instances,
+			Strategy: extensions.DeploymentStrategy{
+				Type: extensions.RecreateDeploymentStrategyType,
+			},
+		},
 	}
 	k8sutil.SetOwnerRefs(c.context.Clientset, c.store.Namespace, &d.ObjectMeta, c.ownerRefs)
 
@@ -62,7 +67,6 @@ func (c *config) startDeployment() error {
 }
 
 func (c *config) startDaemonset() error {
-
 	d := &extensions.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      c.instanceName(),
