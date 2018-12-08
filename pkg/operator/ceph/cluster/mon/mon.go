@@ -205,7 +205,6 @@ func (c *Cluster) startMons() error {
 // initClusterInfo retrieves the ceph cluster info if it already exists.
 // If a new cluster, create new keys.
 func (c *Cluster) initClusterInfo() error {
-
 	var err error
 	// get the cluster info from secret
 	c.clusterInfo, c.maxMonID, c.mapping, err = CreateOrLoadClusterInfo(c.context, c.Namespace, &c.ownerRef)
@@ -226,7 +225,7 @@ func (c *Cluster) initMonConfig(size int) []*monConfig {
 
 	// initialize the mon pod info for mons that have been previously created
 	for _, monitor := range c.clusterInfo.Monitors {
-		mons = append(mons, &monConfig{ResourceName: resourceName(monitor.Name), DaemonName: monitor.Name, Port: int32(mondaemon.DefaultPort)})
+		mons = append(mons, &monConfig{ResourceName: resourceName(monitor.Name), DaemonName: monitor.Name, Port: getPortFromEndpoint(monitor.Endpoint)})
 	}
 
 	// initialize mon info if we don't have enough mons (at first startup)

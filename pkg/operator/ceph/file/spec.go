@@ -62,7 +62,13 @@ func (c *cluster) makeDeployment(mdsConfig *mdsConfig) *extensions.Deployment {
 			Name:      mdsConfig.ResourceName,
 			Namespace: c.fs.Namespace,
 		},
-		Spec: extensions.DeploymentSpec{Template: podSpec, Replicas: &replicas},
+		Spec: extensions.DeploymentSpec{
+			Template: podSpec,
+			Replicas: &replicas,
+			Strategy: extensions.DeploymentStrategy{
+				Type: extensions.RecreateDeploymentStrategyType,
+			},
+		},
 	}
 	k8sutil.SetOwnerRefs(c.context.Clientset, c.fs.Namespace, &d.ObjectMeta, c.ownerRefs)
 	return d
