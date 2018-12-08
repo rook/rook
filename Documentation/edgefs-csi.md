@@ -10,7 +10,7 @@ indent: true
 
 ## Overview
 
-EdgeFS CSI plugins implement an interface between CSI enabled Container Orchestrator (CO) and EdgeFS local cluster site. It allows dynamic and static provisioning of EdgeFS NFS exports, and attaching them to application workloads. With EdgeFS NFS implementation, I/O load can be spread-out across multiple PODs, thus eliminating I/O bottlenecks of classing single-node NFS.  Current implementation of EdgeFS CSI plugins was tested in Kubernetes environment (requires Kubernetes 1.11+), but the code is Kubernetes version agnostic and should be able to run with any CSI enabled CO.
+EdgeFS CSI plugins implements interface between CSI enabled Container Orchestrator (CO) and EdgeFS local cluster site. It allows dynamic and static provisioning of EdgeFS NFS exports or iSCSI LUNs, and attaching them to stateful application workloads. With EdgeFS NFS implementation, I/O load can be spread-out across multiple PODs, thus eliminating networking I/O bottlenecks of classic single-node NFS. Current implementation of EdgeFS CSI plugin was tested in Kubernetes environment (requires Kubernetes 1.11+), however the code is Kubernetes version agnostic and should be able to run with any CSI enabled CO.
 
 ## Deployment
 
@@ -133,7 +133,7 @@ kubectl apply -f ./dynamic-nginx.yaml
 
 ## Troubleshooting and log collection
 
-For details about other configuration and deployment of NFS and EdgeFS CSI plugin, see Wiki pages:
+For details about other configuration and deployment of EdgeFS CSI plugin, see Wiki pages:
 
 * [Quick Start Guide](https://github.com/Nexenta/edgefs-csi/wiki/EdgeFS-CSI-Quick-Start-Guide)
 
