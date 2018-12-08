@@ -1,9 +1,9 @@
 ---
-title: Tools
+title: Ceph Tools
 weight: 70
 ---
 
-# Tools
+# Ceph Tools
 
 Rook provides a number of tools to help you manage your cluster.
 - [Toolbox](toolbox.md): A pod from which you can run all of the tools to troubleshoot the storage cluster

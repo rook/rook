@@ -77,9 +77,9 @@ When the object store user is created the Rook operator will create the RGW user
 kubectl create -f object-user.yaml
 
 # To confirm the object store user is configured, describe the secret
-kubectl -n rook-ceph describe secret rook-ceph-object-user-my-user
+kubectl -n rook-ceph describe secret rook-ceph-object-user-my-store-my-user
 
-Name:		rook-ceph-object-user-my-user
+Name:		rook-ceph-object-user-my-store-my-user
 Namespace:	rook-ceph
 Labels:			app=rook-ceph-rgw
 			      rook_cluster=rook-ceph
@@ -95,7 +95,13 @@ SecretKey:	40 bytes
 ```
 
 The AccessKey and SecretKey data fields can be mounted in a pod as an environment variable. More information on consuming
-kubernetes secrets can be found on [The kubernetes website](https://kubernetes.io/docs/concepts/configuration/secret/)
+kubernetes secrets can be found in the [K8s secret documentation](https://kubernetes.io/docs/concepts/configuration/secret/)
+
+To directly retrieve the secrets:
+```bash
+kubectl -n rook-ceph get secret rook-ceph-object-user-my-store-my-user -o yaml | grep AccessKey | awk '{print $2}' | base64 --decode
+kubectl -n rook-ceph get secret rook-ceph-object-user-my-store-my-user -o yaml | grep SecretKey | awk '{print $2}' | base64 --decode
+```
 
 ## Consume the Object Storage
 
@@ -132,6 +138,8 @@ export AWS_ENDPOINT=10.104.35.31:80
 export AWS_ACCESS_KEY_ID=XEZDB3UJ6X7HVBE7X7MA
 export AWS_SECRET_ACCESS_KEY=7yGIZON7EhFORz0I40BFniML36D2rl8CQQ5kXU6l
 ```
+
+The access key and secret key can be retreived as described in the section above on [creating a user](#create-a-user).
 
 ### Create a bucket
 
