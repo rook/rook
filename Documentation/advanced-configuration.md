@@ -1,6 +1,6 @@
 ---
 title: Advanced Configuration
-weight: 76
+weight: 113
 indent: true
 ---
 
@@ -22,7 +22,7 @@ storage cluster.
 ## Prerequisites
 
 Most of the examples make use of the `ceph` client command.  A quick way to use
-the Ceph client suite is from a [Rook Toolbox container](toolbox.md).
+the Ceph client suite is from a [Rook Toolbox container](ceph-toolbox.md).
 
 The Kubernetes based examples assume Rook OSD pods are in the `rook-ceph` namespace.
 If you run them in a different namespace, modify `kubectl -n rook-ceph [...]` to fit

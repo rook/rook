@@ -1,7 +1,6 @@
 ---
-title: CockroachDB Cluster
-weight: 37
-indent: true
+title: CockroachDB Cluster CRD
+weight: 60
 ---
 
 # CockroachDB Cluster CRD

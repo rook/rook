@@ -1,6 +1,6 @@
 ---
 title: Container Linux
-weight: 80
+weight: 115
 indent: true
 ---
 # Using the Container Linux Update Operator with Rook

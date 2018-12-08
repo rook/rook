@@ -1,12 +1,11 @@
 ---
-title: Ceph Rook Operator Design
-weight: 1
-indent: true
+title: Ceph Storage
+weight: 20
 ---
 
-# Ceph Rook Operator Design
+# Ceph Storage
 
-Ceph is a highly scalable distributed storage solution for block storage, object storage, and shared file systems with years of production deployments.
+Ceph is a highly scalable distributed storage solution for **block storage**, **object storage**, and **shared file systems** with years of production deployments.
 
 ## Design
 

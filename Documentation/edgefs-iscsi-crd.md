@@ -1,10 +1,10 @@
 ---
-title: EdgeFS iSCSI Target
-weight: 41
+title: EdgeFS iSCSI Target CRD
+weight: 46
 indent: true
 ---
 
-# EdgeFS iSCSI Target
+# EdgeFS iSCSI Target CRD
 
 Rook allows creation and customization of High Performance iSCSI Target compatible services through the custom resource definitions (CRDs).
 The following settings are available for customization of iSCSI Target services.

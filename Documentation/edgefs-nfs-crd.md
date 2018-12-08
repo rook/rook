@@ -1,10 +1,10 @@
 ---
-title: EdgeFS Scale-Out NFS
-weight: 38
+title: EdgeFS Scale-Out NFS CRD
+weight: 43
 indent: true
 ---
 
-# EdgeFS Scale-Out NFS
+# EdgeFS Scale-Out NFS CRD
 
 Rook allows creation and customization of EdgeFS NFS file systems through the custom resource definitions (CRDs).
 The following settings are available for customization of EdgeFS NFS services.

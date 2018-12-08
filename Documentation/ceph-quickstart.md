@@ -256,9 +256,9 @@ rook-ceph-osd-prepare-mynode-ftt57     0/1       Completed   0          1m
 # Storage
 
 For a walkthrough of the three types of storage exposed by Rook, see the guides for:
-- **[Block](block.md)**: Create block storage to be consumed by a pod
-- **[Object](object.md)**: Create an object store that is accessible inside or outside the Kubernetes cluster
-- **[Shared File System](filesystem.md)**: Create a file system to be shared across multiple pods
+- **[Block](ceph-block.md)**: Create block storage to be consumed by a pod
+- **[Object](ceph-object.md)**: Create an object store that is accessible inside or outside the Kubernetes cluster
+- **[Shared File System](ceph-filesystem.md)**: Create a file system to be shared across multiple pods
 
 # Ceph Dashboard
 
@@ -266,7 +266,7 @@ Ceph has a dashboard in which you can view the status of your cluster. Please se
 
 # Tools
 
-We have created a toolbox container that contains the full suite of Ceph clients for debugging and troubleshooting your Rook cluster.  Please see the [toolbox readme](toolbox.md) for setup and usage information. Also see our [advanced configuration](advanced-configuration.md) document for helpful maintenance and tuning examples.
+We have created a toolbox container that contains the full suite of Ceph clients for debugging and troubleshooting your Rook cluster.  Please see the [toolbox readme](ceph-toolbox.md) for setup and usage information. Also see our [advanced configuration](advanced-configuration.md) document for helpful maintenance and tuning examples.
 
 # Monitoring
 

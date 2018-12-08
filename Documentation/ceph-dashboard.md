@@ -1,6 +1,6 @@
 ---
-title: Ceph Dashboard
-weight: 46
+title: Dashboard
+weight: 24
 indent: true
 ---
 

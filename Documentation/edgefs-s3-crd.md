@@ -1,10 +1,10 @@
 ---
-title: EdgeFS AWS S3
-weight: 40
+title: EdgeFS AWS S3 CRD
+weight: 45
 indent: true
 ---
 
-# EdgeFS AWS S3
+# EdgeFS AWS S3 CRD
 
 Rook allows creation and customization of AWS S3 compatible services through the custom resource definitions (CRDs).
 The following settings are available for customization of S3 services.

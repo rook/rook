@@ -1,6 +1,6 @@
 ---
-title: Ceph Block Pool
-weight: 32
+title: Block Pool CRD
+weight: 27
 indent: true
 ---
 

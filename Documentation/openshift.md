@@ -99,7 +99,7 @@ The cluster settings in `cluster.yaml` are largely isolated from the differences
 
 
 ### Object Store Settings
-In OpenShift, ports less than 1024 cannot be bound. In the [object store CRD](object.md), ensure the port is modified to meet this requirement.
+In OpenShift, ports less than 1024 cannot be bound. In the [object store CRD](ceph-object.md), ensure the port is modified to meet this requirement.
 ```yaml
 gateway:
     port: 8080

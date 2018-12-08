@@ -1,6 +1,6 @@
 ---
 title: Block Storage
-weight: 22
+weight: 21
 indent: true
 ---
 {% assign url = page.url | split: '/' %}

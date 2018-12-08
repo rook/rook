@@ -19,7 +19,7 @@ High-level Storage Provider design documents:
 
 | Storage Provider | Status | Description |
 |---|---|---|
-| [Ceph](ceph-design.md) | Beta | Ceph is a highly scalable distributed storage solution for block storage, object storage, and shared file systems with years of production deployments. |
-| [EdgeFS](edgefs-design.md) | Alpha | EdgeFS is high-performance and low-latency object storage system with Geo-Transparent data access via standard protocols (S3, NFS, iSCSI) from on-prem, private/public clouds or small footprint edge (IoT) devices. |
+| [Ceph](ceph-storage.md) | Beta | Ceph is a highly scalable distributed storage solution for block storage, object storage, and shared file systems with years of production deployments. |
+| [EdgeFS](edgefs-storage.md) | Alpha | EdgeFS is high-performance and low-latency object storage system with Geo-Transparent data access via standard protocols (S3, NFS, iSCSI) from on-prem, private/public clouds or small footprint edge (IoT) devices. |
 
 Low level design documentation for supported list of storage systems collected at [design docs](https://github.com/rook/rook/tree/master/design) section.

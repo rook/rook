@@ -184,7 +184,7 @@ using NFS clients.
 [NFS-Ganesha]: https://github.com/nfs-ganesha/nfs-ganesha/wiki
 [CephFS]: http://docs.ceph.com/docs/master/cephfs/nfs/
 [RGW]: http://docs.ceph.com/docs/master/radosgw/nfs/
-[Rook toolbox]: (/Documentation/toolbox.md)
+[Rook toolbox]: (/Documentation/ceph-toolbox.md)
 [Ceph manager]: (http://docs.ceph.com/docs/master/mgr/)
 [OpenStack]: (https://www.openstack.org/software/)
 [Manila]: (https://wiki.openstack.org/wiki/Manila)
