@@ -20,9 +20,11 @@ To orchestrate the storage platform, Rook requires the following access in the c
 
 Before starting the Rook operator or cluster, create the security context constraints needed by the Rook pods. The following yaml is found in `scc.yaml` under `/cluster/examples/kubernetes/ceph`.
 
+**NOTE** Older versions of OpenShift may require `apiVersion: v1`.
+
 ```yaml
 kind: SecurityContextConstraints
-apiVersion: v1
+apiVersion: security.openshift.io/v1
 metadata:
   name: rook-ceph
 allowPrivilegedContainer: true
