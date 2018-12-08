@@ -161,7 +161,7 @@ spec:
     # v12 is luminous, v13 is mimic, and v14 is nautilus.
     # RECOMMENDATION: In production, use a specific version tag instead of the general v13 flag, which pulls the latest release and could result in different
     # versions running within the cluster. See tags available at https://hub.docker.com/r/ceph/ceph/tags/.
-    image: ceph/ceph:v13
+    image: ceph/ceph:v13.2.2-20181023
     # Whether to allow unsupported versions of Ceph. Currently only luminous and mimic are supported.
     # After nautilus is released, Rook will be updated to support nautilus.
     # Do not set to true in production.
