@@ -47,7 +47,7 @@ Settings can be specified at the global level to apply to the cluster as a whole
 ### Cluster metadata
 - `name`: The name that will be used internally for the EdgeFS cluster. Most commonly the name is the same as the namespace since multiple clusters are not supported in the same namespace.
 - `namespace`: The Kubernetes namespace that will be created for the Rook cluster. The services, pods, and other resources created by the operator will be added to this namespace. The common scenario is to create a single Rook cluster. If multiple clusters are created, they must not have conflicting devices or host paths.
-- `edgefsImageName`: EdgeFS image to use. If not specified then edgefs/edgefs:latest is used. We recommend to specify particular image version for production use, i.e. edgefs/edgefs:1.0.0.
+- `edgefsImageName`: EdgeFS image to use. If not specified then edgefs/edgefs:latest is used. We recommend to specify particular image version for production use, for example edgefs/edgefs:1.0.0.
 
 ### Cluster Settings
 - `dataDirHostPath`: The path on the host ([hostPath](https://kubernetes.io/docs/concepts/storage/volumes/#hostpath)) where config and data should be stored for each of the services. If the directory does not exist, it will be created. Because this directory persists on the host, it will remain after pods are deleted. If `storage` settings not provided then provisioned hostPath will also be used as a storage device for Target pods (automatic provisioning via `rtlfs`).
@@ -61,7 +61,7 @@ If this value is empty, each pod will get an ephemeral directory to store their 
 - `devicesResurrectMode`: When enabled, this mode attempts to recreate cluster based on previous CRD definition. If this flag set to one of the parameters, then operator will only adjust networking. Often used when clean up of old devices is needed. Only applicable when used with `dataDirHostPath`.
   - `restore`: Attempt to restart and restore previously enabled cluster CRD.
   - `restoreZap`: Attempt to re-initialize previously selected `devices` prior to restore. By default cluster assumes that selected devices have no logical partitions and considered empty.
-  - `restoreZapWait`: Attempt to cleanup preveiously selected `devices` and wait for cluster delete. This is useful when clean up of old devices is needed.
+  - `restoreZapWait`: Attempt to cleanup previously selected `devices` and wait for cluster delete. This is useful when clean up of old devices is needed.
 - `serviceAccount`: The service account under which the EdgeFS pods will run that will give access to ConfigMaps in the cluster's namespace. If not set, the default of `rook-edgefs-cluster` will be used.
 - `placement`: [placement configuration settings](#placement-configuration-settings)
 - `resources`: [resources configuration settings](#cluster-wide-resources-configuration-settings)

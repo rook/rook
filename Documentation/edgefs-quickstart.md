@@ -17,7 +17,23 @@ EdgeFS operator, CSI plugin and CRDs were tested with Kubernetes **v1.11** or hi
 
 To make sure you have a Kubernetes cluster that is ready for `Rook`, you can [follow these instructions](k8s-pre-reqs.md).
 
+To operate efficiently EdgeFS requires 1 CPU core and 1GB of memory per storage device. Minimal memory requirement for EdgeFS target pod is 4GB. To get maximum out of SSD/NVMe device we recommend to double requirements to 2 CPU and 2GB per device.
+
 If you are using `dataDirHostPath` to persist rook data on kubernetes hosts, make sure your host has at least 5GB of space available on the specified path.
+
+We recommend you to configure EdgeFS to use of raw devices and equal distribution of available storage capacity.
+
+**IMPORTANT** If you planning to use larger then 128KB data chunk sizes, make sure to adjust selected nodes host configuration with the following addition to /etc/sysctl.conf:
+
+```
+net.core.rmem_default = 80331648
+net.core.rmem_max = 80331648
+net.core.wmem_default = 33554432
+net.core.wmem_max = 50331648
+vm.dirty_ratio = 10
+vm.dirty_background_ratio = 5
+vm.swappiness = 15
+```
 
 ## TL;DR
 
@@ -67,7 +83,7 @@ kubectl create -f cluster.yaml
 ```
 
 Use `kubectl` to list pods in the `rook` namespace. You should be able to see the following pods once they are all running.
-The number of osd pods will depend on the number of nodes in the cluster and the number of devices and directories configured.
+The number of target pods will depend on the number of nodes in the cluster and the number of devices and directories configured.
 
 ```bash
 $ kubectl -n rook-edgefs get pod
@@ -82,10 +98,10 @@ Notice that EdgeFS Targets are running as StatefulSet.
 # Storage
 
 For a walkthrough of the types of Storage CRDs exposed by EdgeFS Rook, see the guides for:
-- **[NFS Server](edgefs-nfs-crd.md)**: Create Scale-Out NFS storage to be consumed by multiple pods
+- **[NFS Server](edgefs-nfs-crd.md)**: Create Scale-Out NFS storage to be consumed by multiple pods, simultaneously
 - **[S3X](edgefs-s3x-crd.md)**: Create an Extended S3 HTTP/2 compatible object and key-value store that is accessible inside or outside the Kubernetes cluster
 - **[AWS S3](edgefs-s3-crd.md)**: Create an AWS S3 compatible object store that is accessible inside or outside the Kubernetes cluster
-- **[iSCSI Target](edgefs-iscsi-crd.md)**: Create low-latency and high-performance iSCSI block to be consumed by a pod
+- **[iSCSI Target](edgefs-iscsi-crd.md)**: Create low-latency and high-throughput iSCSI block to be consumed by a pod
 
 # CSI Integration
 
@@ -99,4 +115,4 @@ To learn how to set up monitoring for your Rook cluster, you can follow the step
 
 # Teardown
 
-When you are done with the test cluster, see [these instructions](edgefs-teardown.md) to clean up the cluster.
+When you are done with the cluster, simply delete CRDs in reverse order. You may want to re-format your raw disks with `wipefs -a` command. Or if you using raw devices and want to keep same storage configuration but change some resource or networking parameters, consider to use `devicesResurrectMode`.
