@@ -1,6 +1,6 @@
 ---
-title: Ceph Shared File System
-weight: 35
+title: Shared File System CRD
+weight: 30
 indent: true
 ---
 {% assign url = page.url | split: '/' %}

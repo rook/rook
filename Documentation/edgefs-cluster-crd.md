@@ -1,6 +1,6 @@
 ---
-title: EdgeFS Cluster
-weight: 32
+title: EdgeFS Cluster CRD
+weight: 41
 indent: true
 ---
 
@@ -321,7 +321,7 @@ subjects:
 - kind: ServiceAccount
   name: rook-edgefs-cluster
   namespace: rook-edgefs
----  
+---
 apiVersion: extensions/v1beta1
 kind: PodSecurityPolicy
 metadata:

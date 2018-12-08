@@ -1,6 +1,6 @@
 ---
-title: EdgeFS Rook integrated CSI provisioner
-weight: 35
+title: EdgeFS CSI provisioner
+weight: 47
 indent: true
 ---
 
@@ -43,10 +43,10 @@ Secret file configuration options example:
 
 By using `k8sEdgefsNamespace` parameter, driver is capable of detecting ClusterIPs and Endpoint IPs to provision and attach volumes.
 
-Check configuration options and create kubernetes secret for NexentaEdge CSI plugin 
+Check configuration options and create kubernetes secret for NexentaEdge CSI plugin
 ```
 cd cluster/examples/kubernetes/edgefs/csi/secret
-kubectl create secret generic rook-edgefs-cluster --from-file=./cluster-config.json 
+kubectl create secret generic rook-edgefs-cluster --from-file=./cluster-config.json
 ```
 
 After secret is created successfully, deploy EdgeFS CSI plugin, provisioner and attacher using the following command
@@ -141,7 +141,7 @@ Please submit an issue at: [Issues](https://github.com/Nexenta/edgefs-csi/issues
 
 ### Tips
 
-In case any problems using EdgeFS CSI driver 
+In case any problems using EdgeFS CSI driver
 1. Check CSI plugin pods state
 ```
 kubectl describe pod edgefs-csi-plugin-xxxxx

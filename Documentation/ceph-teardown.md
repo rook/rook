@@ -1,6 +1,6 @@
 ---
-title: Ceph Cleanup
-weight: 4
+title: Cleanup
+weight: 39
 indent: true
 ---
 
@@ -19,7 +19,7 @@ If you are tearing down a cluster frequently for development purposes, it is ins
 ## Delete the Block and File artifacts
 First you will need to clean up the resources created on top of the Rook cluster.
 
-These commands will clean up the resources from the [block](block.md#teardown) and [file](filesystem.md#teardown) walkthroughs (unmount volumes, delete volume claims, etc). If you did not complete those parts of the walkthrough, you can skip these instructions:
+These commands will clean up the resources from the [block](ceph-block.md#teardown) and [file](ceph-filesystem.md#teardown) walkthroughs (unmount volumes, delete volume claims, etc). If you did not complete those parts of the walkthrough, you can skip these instructions:
 ```console
 kubectl delete -f ../wordpress.yaml
 kubectl delete -f ../mysql.yaml

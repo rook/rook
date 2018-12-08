@@ -1,6 +1,7 @@
 ---
 title: Custom Resources
-weight: 30
+weight: 9
+indent: true
 ---
 
 # Custom Resources (CRDs)

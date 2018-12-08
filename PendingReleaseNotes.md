@@ -10,7 +10,7 @@
 - The Ceph CRDs are now v1. The operator will automatically convert the CRDs from v1beta1 to v1.
 - The `fsType` default for StorageClass examples are now using XFS to bring it in line with Ceph recommendations.
 - Ceph OSDs will be automatically updated by the operator when there is a change to the operator version or when the OSD configuration changes. See the [OSD upgrade notes](Documentation/upgrade-patch.md#object-storage-daemons-osds).
-- Rook Ceph block storage provisioner can now correctly create erasure coded block images. See [Advanced Example: Erasure Coded Block Storage](Documentation/block.md#advanced-example-erasure-coded-block-storage) for an example usage.
+- Rook Ceph block storage provisioner can now correctly create erasure coded block images. See [Advanced Example: Erasure Coded Block Storage](Documentation/ceph-block.md#advanced-example-erasure-coded-block-storage) for an example usage.
 - [Network File System (NFS)](https://github.com/nfs-ganesha/nfs-ganesha/wiki) is now supported by Rook with a new operator to deploy and manage this widely used server. NFS servers can be automatically deployed by creating an instance of the new `nfsservers.nfs.rook.io` custom resource. See the [NFS server user guide](Documentation/nfs.md) to get started with NFS.
 - [Cassandra](http://cassandra.apache.org/) and [Scylla](https://www.scylladb.com/) are now supported by Rook with the rook-cassandra operator. Users can now deploy, configure and manage Cassandra or Scylla clusters, by creating an instance of the `clusters.cassandra.rook.io` custom resource. See the [user guide](Documentation/cassandra.md) to get started.
 - Service account (`rook-ceph-mgr`) added for the mgr daemon to grant the mgr orchestrator modules access to the K8s APIs.

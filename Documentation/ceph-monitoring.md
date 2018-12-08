@@ -1,6 +1,6 @@
 ---
 title: Monitoring
-weight: 27
+weight: 25
 indent: true
 ---
 

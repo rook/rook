@@ -1,6 +1,6 @@
 ---
 title: Object Storage
-weight: 24
+weight: 22
 indent: true
 ---
 
@@ -107,7 +107,7 @@ kubectl -n rook-ceph get secret rook-ceph-object-user-my-store-my-user -o yaml |
 
 Use an S3 compatible client to create a bucket in the object store.
 
-This section will allow you to test connecting to the object store and uploading and downloading from it. Run the following commands after you have connected to the [Rook toolbox](toolbox.md).
+This section will allow you to test connecting to the object store and uploading and downloading from it. Run the following commands after you have connected to the [Rook toolbox](ceph-toolbox.md).
 
 ### Install s3cmd
 

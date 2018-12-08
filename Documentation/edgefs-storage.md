@@ -1,10 +1,9 @@
 ---
-title: EdgeFS Rook Operator Design
-weight: 1
-indent: true
+title: EdgeFS Storage
+weight: 40
 ---
 
-# EdgeFS Rook Operator Design
+# EdgeFS Storage
 
 EdgeFS is high-performance and low-latency object storage system with Geo-Transparent data access via standard protocols (S3, NFS, iSCSI) from on-prem, private/public clouds or small footprint edge (IoT) devices.
 

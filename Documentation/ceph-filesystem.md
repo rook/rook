@@ -1,6 +1,6 @@
 ---
 title: Shared File System
-weight: 26
+weight: 23
 indent: true
 ---
 
@@ -56,7 +56,7 @@ rook-ceph-mds-myfs-7d59fdfcf4-h8kw9       1/1       Running   0          12s
 rook-ceph-mds-myfs-7d59fdfcf4-kgkjp       1/1       Running   0          12s
 ```
 
-To see detailed status of the file system, start and connect to the [Rook toolbox](toolbox.md). A new line will be shown with `ceph status` for the `mds` service. In this example, there is one active instance of MDS which is up, with one MDS instance in `standby-replay` mode in case of failover.
+To see detailed status of the file system, start and connect to the [Rook toolbox](ceph-toolbox.md). A new line will be shown with `ceph status` for the `mds` service. In this example, there is one active instance of MDS which is up, with one MDS instance in `standby-replay` mode in case of failover.
 
 ```bash
 $ ceph status

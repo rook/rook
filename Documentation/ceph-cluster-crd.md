@@ -1,6 +1,6 @@
 ---
-title: Ceph Cluster
-weight: 31
+title: Cluster CRD
+weight: 26
 indent: true
 ---
 

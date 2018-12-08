@@ -1,6 +1,6 @@
 ---
-title: Ceph Object Store
-weight: 33
+title: Object Store CRD
+weight: 28
 indent: true
 ---
 

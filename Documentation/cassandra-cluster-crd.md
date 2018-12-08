@@ -1,7 +1,6 @@
 ---
-title: Cassandra Cluster
-weight: 36
-indent: true
+title: Cassandra Cluster CRD
+weight: 50
 ---
 
 # Cassandra Cluster CRD
@@ -16,7 +15,7 @@ This page will explain all the available configuration options on the Cassandra 
 ```yaml
 apiVersion: cassandra.rook.io/v1alpha1
 kind: Cluster
-metadata: 
+metadata:
   name: rook-cassandra
   namespace: rook-cassandra
 spec:
@@ -29,12 +28,12 @@ spec:
       - name: us-east-1a
         members: 3
         storage:
-          volumeClaimTemplates: 
+          volumeClaimTemplates:
             - metadata:
                 name: rook-cassandra-data
               spec:
                 storageClassName: my-storage-class
-                resources: 
+                resources:
                   requests:
                     storage: 200Gi
         resources:
@@ -85,4 +84,3 @@ Rack Settings:
     * [`podAffinity`](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity)
     * [`podAntiAffinity`](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity)
     * [`tolerations`](https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/)
-

@@ -1,6 +1,6 @@
 ---
 title: Direct Tools
-weight: 74
+weight: 112
 indent: true
 ---
 
@@ -13,10 +13,10 @@ If your pod dies, your mount will die with it.
 
 ## Block Storage Tools
 
-After you have created a pool as described in the [Block Storage](block.md) topic, you can create a block image and mount it directly in a pod.
+After you have created a pool as described in the [Block Storage](ceph-block.md) topic, you can create a block image and mount it directly in a pod.
 This example will show how the Ceph rbd volume can be mounted in the toolbox pod.
 
-After you have started and connected to the [Rook toolbox](toolbox.md), proceed with the following commands in the toolbox.
+After you have started and connected to the [Rook toolbox](ceph-toolbox.md), proceed with the following commands in the toolbox.
 
 Create a volume image (10MB):
 ```bash
@@ -60,11 +60,11 @@ rbd unmap /dev/rbd0
 
 ## Shared Filesystem Tools
 
-After you have created a file system as described in the [Shared Filesystem](filesystem.md) topic, you can mount the filesystem from multiple pods.
+After you have created a file system as described in the [Shared Filesystem](ceph-filesystem.md) topic, you can mount the filesystem from multiple pods.
 The the other topic you may have mounted the filesystem already in the registry pod. Now we will mount the same file system in the toolbox pod.
 This is just a simple way to validate the Ceph file system and is not recommended for production Kubernetes pods.
 
-After you have started and connected to the [Rook toolbox](toolbox.md), proceed with the following commands in the toolbox.
+After you have started and connected to the [Rook toolbox](ceph-toolbox.md), proceed with the following commands in the toolbox.
 
 ```bash
 # Create the directory

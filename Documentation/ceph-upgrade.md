@@ -1,6 +1,7 @@
 ---
-title: Ceph Upgrades
-weight: 60
+title: Upgrades
+weight: 38
+indent: true
 ---
 
 # Ceph Upgrades
@@ -111,7 +112,7 @@ Before we begin the upgrade process, let's first review some ways that you can v
 your cluster, ensuring that the upgrade is going smoothly after each step. Most of the health
 verification checks for your cluster during the upgrade process can be performed with the Rook
 toolbox. For more information about how to run the toolbox, please visit the
-[Rook toolbox readme](./toolbox.md#running-the-toolbox-in-kubernetes).
+[Rook toolbox readme](./ceph-toolbox.md#running-the-toolbox-in-kubernetes).
 
 ### Pods all Running
 In a healthy Rook cluster, the operator, the agents and all Rook namespace pods should be in the

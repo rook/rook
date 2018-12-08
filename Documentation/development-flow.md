@@ -1,6 +1,6 @@
 ---
 title: Contributing
-weight: 90
+weight: 120
 ---
 
 # Contributing

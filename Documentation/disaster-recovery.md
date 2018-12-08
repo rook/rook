@@ -1,6 +1,6 @@
 ---
 title: Disaster Recovery
-weight: 82
+weight: 116
 indent: true
 ---
 
@@ -91,7 +91,7 @@ You will need to restart the good mon pod to pick up the changes. Delete the goo
 kubectl -n rook-ceph delete pod -l mon=rook-ceph-mon-b
 ```
 
-Start the rook [toolbox](/Documentation/toolbox.md) and verify the status of the cluster.
+Start the rook [toolbox](/Documentation/ceph-toolbox.md) and verify the status of the cluster.
 ```bash
 ceph -s
 ```
