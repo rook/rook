@@ -224,6 +224,9 @@ spec:
   dataDirHostPath: /var/lib/rook
   dashboard:
     enabled: true
+  mon:
+    count: 3
+    allowMultiplePerNode: true
   storage:
     useAllNodes: true
     useAllDevices: false
