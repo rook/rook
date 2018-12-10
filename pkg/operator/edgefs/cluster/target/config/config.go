@@ -71,7 +71,7 @@ func DefaultStoreConfig() StoreConfig {
 		LmdbPageSize:       16348,
 		UseBCacheWB:        false,
 		UseMetadataMask:    "0xff",
-		UseMetadataOffload: true,
+		UseMetadataOffload: false,
 		UseAllSSD:          false,
 		RtrdPLevelOverride: 0,
 	}
