@@ -361,7 +361,7 @@ Ceph image field in the cluster CRD (`spec:cephVersion:image`).
 # kubectl -n $ROOK_SYSTEM_NAMESPACE replace -f cluster.yaml
 NEW_CEPH_IMAGE='ceph/ceph:v13.2.2-20181023'
 CLUSTER_NAME="$ROOK_NAMESPACE"  # change if your cluster name is not the Rook namespace
-kubectl patch CephCluster $CLUSTER_NAME --type=merge \
+kubectl -n $ROOK_NAMESPACE patch CephCluster $CLUSTER_NAME --type=merge \
   -p "{\"spec\": {\"cephVersion\": {\"image\": \"$NEW_CEPH_IMAGE\"}}}"
 ```
 
