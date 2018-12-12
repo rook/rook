@@ -277,6 +277,13 @@ func mountCephFS(client *rpc.Client, opts *flexvolume.AttachOptions) error {
 				return nil
 			}
 			os.MkdirAll(opts.MountDir, 0750)
+			// Make the mountpoint shared so that mounts inside of a container, such as when
+			// kubelet is being run containerized, can be shared across the container boundary.
+			err = mounter.MakeRShared(opts.MountDir)
+			if err != nil {
+				return fmt.Errorf("failed to set RSHARED flag on mountpoint %s: %+v", opts.MountDir, err)
+
+			}
 
 			err = mounter.Interface.Mount(devicePath, opts.MountDir, cephFS, options)
 			if err != nil {
