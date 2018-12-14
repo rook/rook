@@ -65,26 +65,7 @@ func newCluster(c *cephv1.CephCluster, context *clusterd.Context) *cluster {
 		ownerRef: ClusterOwnerRef(c.Namespace, string(c.UID))}
 }
 
-func (c *cluster) setCephMajorVersion(timeout time.Duration) error {
-	version, err := c.detectCephMajorVersion(timeout)
-	if err != nil {
-		// Don't return the err yet here so we can override the failure with a setting in the crd below.
-		logger.Errorf("failed to detect ceph version. %+v", err)
-	} else {
-		logger.Infof("detected ceph version %s for image %s", version, c.Spec.CephVersion.Image)
-	}
-
-	if c.Spec.CephVersion.Name != "" {
-		// if the cephVersion.name is already set, override the detected version
-		logger.Warningf("overriding ceph version to %s specified in the CRD", c.Spec.CephVersion.Name)
-		return nil
-	}
-
-	c.Spec.CephVersion.Name = version
-	return err
-}
-
-func (c *cluster) detectCephMajorVersion(timeout time.Duration) (string, error) {
+func (c *cluster) detectCephMajorVersion(image string, timeout time.Duration) (string, error) {
 	// get the major ceph version by running "ceph --version" in the ceph image
 	job := &batch.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -104,7 +85,7 @@ func (c *cluster) detectCephMajorVersion(timeout time.Duration) (string, error) 
 							Command: []string{"ceph"},
 							Args:    []string{"--version"},
 							Name:    "version",
-							Image:   c.Spec.CephVersion.Image,
+							Image:   image,
 						},
 					},
 					RestartPolicy: v1.RestartPolicyOnFailure,
