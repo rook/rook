@@ -44,6 +44,7 @@ const (
 	UseMetadataOffloadKey = "useMetadataOffload"
 	UseAllSSDKey          = "useAllSSD"
 	RtrdPlevelOverrideKey = "rtrdPLevelOverride"
+	SyncKey               = "sync"
 )
 
 type StoreConfig struct {
@@ -51,7 +52,7 @@ type StoreConfig struct {
 	RtVerifyChid int `json:"rtVerifyChid,omitempty"`
 	// 4096, 8192, 16384 or 32768
 	LmdbPageSize int `json:"lmdbPageSize,omitempty"`
-	// enable use of back cache
+	// enable use of bcache
 	UseBCache bool `json:"useBCache,omitempty"`
 	// enable write back cache
 	UseBCacheWB bool `json:"useBCacheWB,omitempty"`
@@ -63,17 +64,21 @@ type StoreConfig struct {
 	UseAllSSD bool `json:"useAllSSD,omitempty"`
 	// if > 0, override automatic partitioning numbering logic
 	RtrdPLevelOverride int `json:"rtrdPLevelOverride,omitempty"`
+	// sync cluster option [0:3]
+	Sync int `json:"sync"`
 }
 
 func DefaultStoreConfig() StoreConfig {
 	return StoreConfig{
 		RtVerifyChid:       1,
 		LmdbPageSize:       16348,
+		UseBCache:          false,
 		UseBCacheWB:        false,
 		UseMetadataMask:    "0xff",
 		UseMetadataOffload: false,
 		UseAllSSD:          false,
 		RtrdPLevelOverride: 0,
+		Sync:               1,
 	}
 }
 
@@ -89,14 +94,21 @@ func ToStoreConfig(config map[string]string) StoreConfig {
 	for k, v := range config {
 		switch k {
 		case RtVerifyChidKey:
-			if storeConfig.RtVerifyChid < 0 || storeConfig.RtVerifyChid > 2 {
-				storeConfig.RtVerifyChid = convertToIntIgnoreErr(v)
+			value := convertToIntIgnoreErr(v)
+			if value >= 0 && value <= 2 {
+				storeConfig.RtVerifyChid = value
+			} else {
+				logger.Warningf("Incorrect 'verifyChid' value %d ignored", value)
 			}
 		case LmdbPageSizeKey:
-
-			if validLmbdPageSize[storeConfig.LmdbPageSize] {
-				storeConfig.LmdbPageSize = convertToIntIgnoreErr(v)
+			value := convertToIntIgnoreErr(v)
+			if validLmbdPageSize[value] {
+				storeConfig.LmdbPageSize = value
+			} else {
+				logger.Warningf("Incorrect 'lmdbPageSize' value %d ignored", value)
 			}
+		case UseBcacheKey:
+			storeConfig.UseBCache = convertToBoolIgnoreErr(v)
 		case UseBcacheWBKey:
 			storeConfig.UseBCacheWB = convertToBoolIgnoreErr(v)
 		case UseMetadataMaskKey:
@@ -107,6 +119,13 @@ func ToStoreConfig(config map[string]string) StoreConfig {
 			storeConfig.UseAllSSD = convertToBoolIgnoreErr(v)
 		case RtrdPlevelOverrideKey:
 			storeConfig.RtrdPLevelOverride = convertToIntIgnoreErr(v)
+		case SyncKey:
+			value := convertToIntIgnoreErr(v)
+			if value >= 0 && value <= 3 {
+				storeConfig.Sync = value
+			} else {
+				logger.Warningf("Incorrect 'sync' value %d ignored", value)
+			}
 		}
 	}
 
