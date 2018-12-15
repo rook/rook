@@ -80,6 +80,7 @@ type SetupNode struct {
 	ClusterNodes    []string     `json:"cluster_nodes,omitempty"`
 	Rtrd            RTDevices    `json:"rtrd"`
 	Rtlfs           RtlfsDevices `json:"rtlfs"`
+	NodeType        string       `json:"nodeType"`
 }
 
 // As we relying on StatefulSet, we want to build global ConfigMap shared
@@ -122,6 +123,11 @@ func (c *Cluster) createSetupConfigs(resurrect bool) error {
 			rtlfsAutoDetectPath = "/data"
 		}
 
+		nodeType := "target"
+		if devConfig.isGatewayNode {
+			nodeType = "gateway"
+		}
+
 		if resurrect || devConfig.isGatewayNode {
 			// In resurrection case we only need to adjust networking selections
 			// in ccow.json, ccowd.json and corosync.conf. And keep device transport
@@ -161,6 +167,7 @@ func (c *Cluster) createSetupConfigs(resurrect bool) error {
 			Ipv4Autodetect:  1,
 			RtlfsAutodetect: rtlfsAutoDetectPath,
 			ClusterNodes:    dnsRecords,
+			NodeType:        nodeType,
 		}
 
 		cm[node.Name] = nodeConfig

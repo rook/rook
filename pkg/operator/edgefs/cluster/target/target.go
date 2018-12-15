@@ -291,6 +291,7 @@ func (c *Cluster) createDeploymentConfig(resurrect bool) error {
 		}
 
 		storeConfig := config.ToStoreConfig(n.Config)
+		logger.Infof("Storage config for node: %s is %+v", n.Name, storeConfig)
 		rtDevices, err := GetRTDevices(availDisks, &storeConfig)
 		if err != nil {
 			logger.Warningf("Can't get rtDevices for node %s due %v", n.Name, err)
