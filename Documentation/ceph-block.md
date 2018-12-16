@@ -108,7 +108,7 @@ To clean up all the artifacts created by the block demo:
 ```
 kubectl delete -f wordpress.yaml
 kubectl delete -f mysql.yaml
-kubectl delete -n rook-ceph pool replicapool
+kubectl delete -n rook-ceph cephblockpools.ceph.rook.io replicapool
 kubectl delete storageclass rook-ceph-block
 ```
 
