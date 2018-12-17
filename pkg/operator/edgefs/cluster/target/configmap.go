@@ -34,6 +34,7 @@ type RtlfsDevice struct {
 	Name            string `json:"name"`
 	Path            string `json:"path"`
 	CheckMountpoint int    `json:"check_mountpoint"`
+	Sync            int    `json:"sync"`
 }
 
 type RtlfsDevices struct {

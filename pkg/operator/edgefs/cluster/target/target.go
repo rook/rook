@@ -81,6 +81,7 @@ type ClusterDeploymentConfig struct {
 	directories    []RtlfsDevice //cluster wide directories
 	devConfig      map[string]DevicesConfig
 	needPriviliges bool
+	sync           int
 }
 
 type DevicesConfig struct {
@@ -198,7 +199,6 @@ func (c *Cluster) Start(rookImage, devicesResurrectMode string) (err error) {
 	}
 
 	logger.Infof("Deployment Config : %+v", c.deploymentConfig)
-
 	if err := c.createSetupConfigs(rmo.needToResurrect); err != nil {
 		logger.Errorf("Failed to create/update Edgefs cluster configuration: %+v", err)
 		return err
@@ -289,22 +289,23 @@ func (c *Cluster) createDeploymentConfig(resurrect bool) error {
 				}
 			}
 		}
+		nodeStorageConfig := config.ToStoreConfig(n.Config)
 
-		storeConfig := config.ToStoreConfig(n.Config)
-		logger.Infof("Storage config for node: %s is %+v", n.Name, storeConfig)
-		rtDevices, err := GetRTDevices(availDisks, &storeConfig)
+		logger.Infof("nodeStorageConfig for node: %s is %+v", n.Name, nodeStorageConfig)
+		rtDevices, err := GetRTDevices(availDisks, &nodeStorageConfig)
 		if err != nil {
 			logger.Warningf("Can't get rtDevices for node %s due %v", n.Name, err)
 			rtDevices = make([]RTDevice, 0)
 		}
 
 		devicesConfig.rtrd.Devices = rtDevices
-		devicesConfig.rtlfs.Devices = getRtlfsDevices(c.Storage.Directories)
+		devicesConfig.rtlfs.Devices = getRtlfsDevices(c.Storage.Directories, &nodeStorageConfig)
 		c.deploymentConfig.devConfig[node.Name] = devicesConfig
 	}
 
 	// Add Directories to deploymentConfig
-	c.deploymentConfig.directories = getRtlfsDevices(c.Storage.Directories)
+	clusterStorageConfig := config.ToStoreConfig(c.Storage.Config)
+	c.deploymentConfig.directories = getRtlfsDevices(c.Storage.Directories, &clusterStorageConfig)
 
 	if len(c.Storage.Directories) > 0 && (len(c.dataDirHostPath) > 0 || c.dataVolumeSize.Value() != 0) {
 		c.deploymentConfig.deploymentType = deploymentRtlfs

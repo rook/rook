@@ -18,6 +18,7 @@ package target
 
 import (
 	edgefsv1alpha1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1alpha1"
+	"github.com/rook/rook/pkg/operator/edgefs/cluster/target/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	appsv1beta1 "k8s.io/api/apps/v1beta1"
 	"k8s.io/api/core/v1"
@@ -183,10 +184,14 @@ func (c *Cluster) makeDaemonContainer(containerImage string, dro DevicesResurrec
 		},
 	}
 
+	// get cluster wide sync option, and apply for deploymentConfig
+	clusterStorageConfig := config.ToStoreConfig(c.Storage.Config)
+	logger.Debugf("clusterStorageConfig %+v", clusterStorageConfig)
+
 	if c.deploymentConfig.deploymentType == deploymentAutoRtlfs {
 		volumeMounts = append(volumeMounts, v1.VolumeMount{Name: dataVolumeName, MountPath: "/data"})
 	} else if c.deploymentConfig.deploymentType == deploymentRtlfs {
-		rtlfsDevices := getRtlfsDevices(c.Storage.Directories)
+		rtlfsDevices := getRtlfsDevices(c.Storage.Directories, &clusterStorageConfig)
 		for _, device := range rtlfsDevices {
 			volumeMounts = append(volumeMounts, v1.VolumeMount{Name: device.Name, MountPath: device.Path})
 		}

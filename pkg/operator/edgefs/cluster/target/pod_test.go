@@ -45,7 +45,7 @@ func TestStorageSpecDefaultPV(t *testing.T) {
 		storageSpec, "/var/lib/rook", *resource.NewQuantity(100000.0, resource.BinarySI),
 		rookalpha.Placement{}, edgefsv1alpha1.NetworkSpec{}, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
-	c.createSetupConfigs(false)
+	c.createSetupConfigs(false /* resurrect bool */)
 }
 
 func TestStorageSpecDevices(t *testing.T) {
@@ -68,7 +68,7 @@ func TestStorageSpecDevices(t *testing.T) {
 		storageSpec, "/var/lib/rook", *resource.NewQuantity(100000.0, resource.BinarySI),
 		rookalpha.Placement{}, edgefsv1alpha1.NetworkSpec{}, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
-	c.createSetupConfigs(false)
+	c.createSetupConfigs(false /* resurrect bool */)
 }
 
 func TestStorageSpecDirectories(t *testing.T) {
@@ -91,7 +91,7 @@ func TestStorageSpecDirectories(t *testing.T) {
 		storageSpec, "/var/lib/rook", *resource.NewQuantity(100000.0, resource.BinarySI),
 		rookalpha.Placement{}, edgefsv1alpha1.NetworkSpec{}, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
-	c.createSetupConfigs(false)
+	c.createSetupConfigs(false /* resurrect bool */)
 }
 
 func TestStorageSpecConfig(t *testing.T) {
@@ -130,7 +130,7 @@ func TestStorageSpecConfig(t *testing.T) {
 		storageSpec, "", *resource.NewQuantity(100000.0, resource.BinarySI),
 		rookalpha.Placement{}, edgefsv1alpha1.NetworkSpec{}, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
-	c.createSetupConfigs(false)
+	c.createSetupConfigs(false /* resurrect bool */)
 
 	n := c.Storage.ResolveNode(storageSpec.Nodes[0].Name)
 	storeConfig := config.ToStoreConfig(storageSpec.Nodes[0].Config)
@@ -168,5 +168,5 @@ func TestHostNetwork(t *testing.T) {
 		storageSpec, "", *resource.NewQuantity(100000.0, resource.BinarySI),
 		rookalpha.Placement{}, edgefsv1alpha1.NetworkSpec{ServerIfName: "eth0"}, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
-	c.createSetupConfigs(false)
+	c.createSetupConfigs(false /* resurrect bool */)
 }

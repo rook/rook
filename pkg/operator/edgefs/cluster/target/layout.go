@@ -35,11 +35,13 @@ type RTDevice struct {
 	Name              string `json:"name,omitempty"`
 	Device            string `json:"device,omitempty"`
 	Psize             int    `json:"psize,omitempty"`
-	VerifyChid        int    `json:"verify_chid,omitempty"`
+	VerifyChid        int    `json:"verify_chid"`
 	Journal           string `json:"journal,omitempty"`
 	Metadata          string `json:"metadata,omitempty"`
-	BcacheWritearound int    `json:"bcache_writearound,omitempty"`
+	Bcache            int    `json:"bcache,omitempty"`
+	BcacheWritearound int    `json:"bcache_writearound"`
 	PlevelOverride    int    `json:"plevel_override,omitempty"`
+	Sync              int    `json:"sync"`
 }
 
 func getIdDevLinkName(dls string) (dl string) {
@@ -102,6 +104,7 @@ func GetRTDevices(nodeDisks []sys.LocalDisk, storeConfig *config.StoreConfig) (r
 				Device:     "/dev/" + devices[i].Name,
 				Psize:      storeConfig.LmdbPageSize,
 				VerifyChid: storeConfig.RtVerifyChid,
+				Sync:       storeConfig.Sync,
 			}
 			if storeConfig.RtrdPLevelOverride != 0 {
 				rtdev.PlevelOverride = storeConfig.RtrdPLevelOverride
@@ -128,6 +131,7 @@ func GetRTDevices(nodeDisks []sys.LocalDisk, storeConfig *config.StoreConfig) (r
 				Device:     "/dev/" + devices[i].Name,
 				Psize:      storeConfig.LmdbPageSize,
 				VerifyChid: storeConfig.RtVerifyChid,
+				Sync:       storeConfig.Sync,
 			}
 			if storeConfig.RtrdPLevelOverride != 0 {
 				rtdev.PlevelOverride = storeConfig.RtrdPLevelOverride
@@ -158,13 +162,20 @@ func GetRTDevices(nodeDisks []sys.LocalDisk, storeConfig *config.StoreConfig) (r
 	for i := range hdds_divided {
 		for j := range hdds_divided[i] {
 			rtdev := RTDevice{
-				Name:              getIdDevLinkName(hdds_divided[i][j].DevLinks),
-				Device:            "/dev/" + hdds_divided[i][j].Name,
-				Psize:             storeConfig.LmdbPageSize,
-				VerifyChid:        storeConfig.RtVerifyChid,
-				BcacheWritearound: (map[bool]int{true: 0, false: 1})[storeConfig.UseBCacheWB],
-				Journal:           getIdDevLinkName(ssds[i].DevLinks),
-				Metadata:          getIdDevLinkName(ssds[i].DevLinks) + "," + storeConfig.UseMetadataMask,
+				Name:       getIdDevLinkName(hdds_divided[i][j].DevLinks),
+				Device:     "/dev/" + hdds_divided[i][j].Name,
+				Psize:      storeConfig.LmdbPageSize,
+				VerifyChid: storeConfig.RtVerifyChid,
+				Journal:    getIdDevLinkName(ssds[i].DevLinks),
+				Metadata:   getIdDevLinkName(ssds[i].DevLinks) + "," + storeConfig.UseMetadataMask,
+				Bcache:     0,
+				Sync:       storeConfig.Sync,
+			}
+			if storeConfig.UseBCache {
+				rtdev.Bcache = 1
+				if storeConfig.UseBCacheWB {
+					rtdev.BcacheWritearound = 0
+				}
 			}
 			if storeConfig.RtrdPLevelOverride != 0 {
 				rtdev.PlevelOverride = storeConfig.RtrdPLevelOverride
@@ -175,13 +186,14 @@ func GetRTDevices(nodeDisks []sys.LocalDisk, storeConfig *config.StoreConfig) (r
 	return rtDevices, nil
 }
 
-func getRtlfsDevices(directories []rookalpha.Directory) []RtlfsDevice {
+func getRtlfsDevices(directories []rookalpha.Directory, storeConfig *config.StoreConfig) []RtlfsDevice {
 	rtlfsDevices := make([]RtlfsDevice, 0)
 	for _, dir := range directories {
 		rtlfsDevice := RtlfsDevice{
 			Name:            filepath.Base(dir.Path),
 			Path:            dir.Path,
 			CheckMountpoint: 1,
+			Sync:            storeConfig.Sync,
 		}
 		rtlfsDevices = append(rtlfsDevices, rtlfsDevice)
 	}
