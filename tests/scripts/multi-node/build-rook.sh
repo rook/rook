@@ -24,10 +24,16 @@ function fail_if {
 
 function purge_rook_pods {
   cd "$rook_kube_templates_dir"
+  # Older rook versions use resource type "pool", newer versions
+  # use resource type "cephblockpools".
   kubectl delete -n rook-ceph pool replicapool || true
+  kubectl delete -n rook-ceph cephblockpools replicapool || true
   kubectl delete storageclass rook-ceph-block || true
   kubectl delete -f kube-registry.yaml || true
+  # Older rook versions use resource type "cluster",
+  # versions > 0.8 use resource type "cephcluster".
   kubectl delete -n rook-ceph cluster rook-ceph || true
+  kubectl delete -n rook-ceph cephcluster rook-ceph || true
   kubectl delete crd cephclusters.ceph.rook.io cephblockpools.ceph.rook.io cephobjectstores.ceph.rook.io cephobjectstoreusers.ceph.rook.io cephfilesystems.ceph.rook.io volumes.rook.io || true
   kubectl delete -n rook-ceph-system daemonset rook-ceph-agent || true
   kubectl delete -f operator.yaml || true
