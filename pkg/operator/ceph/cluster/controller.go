@@ -181,7 +181,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		logger.Warningf("mon count is even (given: %d), should be uneven, continuing", cluster.Spec.Mon.Count)
 	}
 
-	err = cluster.setCephMajorVersion(15 * time.Minute)
+	cluster.Spec.CephVersion.Name, err = cluster.detectCephMajorVersion(cluster.Spec.CephVersion.Image, 15*time.Minute)
 	if err != nil {
 		logger.Errorf("unknown ceph major version. %+v", err)
 		return
@@ -321,12 +321,12 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 	// if the image changed, we need to detect the new image version
 	if oldClust.Spec.CephVersion.Image != newClust.Spec.CephVersion.Image {
 		logger.Infof("the ceph version changed. detecting the new image version...")
-		cluster.Spec.CephVersion.Image = newClust.Spec.CephVersion.Image
-		if err := cluster.setCephMajorVersion(15 * time.Minute); err != nil {
+		version, err := cluster.detectCephMajorVersion(newClust.Spec.CephVersion.Image, 15*time.Minute)
+		if err != nil {
 			logger.Errorf("unknown ceph major version. %+v", err)
-			cluster.Spec.CephVersion.Image = oldClust.Spec.CephVersion.Image
 			return
 		}
+		newClust.Spec.CephVersion.Name = version
 	} else {
 		logger.Infof("ceph version is still %s on image %s", cluster.Spec.CephVersion.Name, cluster.Spec.CephVersion.Image)
 		newClust.Spec.CephVersion.Name = cluster.Spec.CephVersion.Name
