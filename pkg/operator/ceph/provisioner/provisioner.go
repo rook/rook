@@ -59,7 +59,7 @@ type provisionerConfig struct {
 	fstype string
 
 	// Optional: For erasure coded pools the data pool must be given
-	dataPool string
+	dataBlockPool string
 }
 
 // New creates RookVolumeProvisioner
@@ -95,7 +95,7 @@ func (p *RookVolumeProvisioner) Provision(options controller.VolumeOptions) (*v1
 		return nil, err
 	}
 
-	blockImage, err := p.createVolume(imageName, cfg.blockPool, cfg.dataPool, cfg.clusterNamespace, requestBytes)
+	blockImage, err := p.createVolume(imageName, cfg.blockPool, cfg.dataBlockPool, cfg.clusterNamespace, requestBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +133,7 @@ func (p *RookVolumeProvisioner) Provision(options controller.VolumeOptions) (*v1
 						flexvolume.PoolKey:             cfg.blockPool,
 						flexvolume.ImageKey:            imageName,
 						flexvolume.ClusterNamespaceKey: cfg.clusterNamespace,
-						flexvolume.DataPoolKey:         cfg.dataPool,
+						flexvolume.DataBlockPoolKey:    cfg.dataBlockPool,
 					},
 				},
 			},
@@ -207,8 +207,8 @@ func parseClassParameters(params map[string]string) (*provisionerConfig, error) 
 			cfg.clusterNamespace = v
 		case "fstype":
 			cfg.fstype = v
-		case "datapool":
-			cfg.dataPool = v
+		case "datablockpool":
+			cfg.dataBlockPool = v
 		default:
 			return nil, fmt.Errorf("invalid option %q for volume plugin %s", k, "rookVolumeProvisioner")
 		}
