@@ -51,7 +51,7 @@ const (
 	// PoolKey key for image name option.
 	ImageKey = "image"
 	// PoolKey key for data pool name option.
-	DataPoolKey           = "dataPool"
+	DataBlockPoolKey      = "dataBlockPool"
 	kubeletDefaultRootDir = "/var/lib/kubelet"
 )
 
