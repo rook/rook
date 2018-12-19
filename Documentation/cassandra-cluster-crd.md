@@ -58,7 +58,6 @@ spec:
 
 ## Settings Explanation
 
-
 Cluster Settings:
 
 * `version`: The version of Cassandra to use. It is used as the image tag to pull.
