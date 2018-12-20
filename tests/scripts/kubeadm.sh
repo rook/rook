@@ -5,9 +5,9 @@ scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 tarname=image.tar
 tarfile="${WORK_DIR}/tests/${tarname}"
 
-export KUBE_VERSION=${KUBE_VERSION:-"v1.8.5"}
+export KUBE_VERSION=${KUBE_VERSION:-"v1.13.1"}
 
-if [[ $KUBE_VERSION == v1.12* ]] ; then
+if [[ $KUBE_VERSION != v1.10* && $KUBE_VERSION != v1.11* ]] ; then
     skippreflightcheck=--ignore-preflight-errors=all
 else
     skippreflightcheck=--skip-preflight-checks
@@ -24,15 +24,6 @@ usage(){
 
 #install k8s master node
 install_master(){
-
-    if [[ $KUBE_VERSION == v1.8* ]] ; then
-        # for k8s 1.8, use a non default value for volume plugins
-        cat << EOF | sudo tee -a /etc/systemd/system/kubelet.service.d/11-volume_plugin_dir.conf
-[Service]
-Environment="KUBELET_SYSTEM_PODS_ARGS=--pod-manifest-path=/etc/kubernetes/manifests --allow-privileged=true --volume-plugin-dir=/var/lib/kubelet/volumeplugins"
-EOF
-        sudo systemctl daemon-reload
-    fi
 
     sudo kubeadm init $skippreflightcheck --kubernetes-version ${KUBE_VERSION}
 
@@ -66,16 +57,6 @@ EOF
 #install k8s node
 install_node(){
     echo "inside install node function"
-
-    # for k8s 1.8, use a non default value for volume plugins
-    if [[ $KUBE_VERSION == v1.8* ]] ; then
-        cat << EOF | sudo tee -a /etc/systemd/system/kubelet.service.d/11-volume_plugin_dir.conf
-[Service]
-Environment="KUBELET_SYSTEM_PODS_ARGS=--pod-manifest-path=/etc/kubernetes/manifests --allow-privileged=true --volume-plugin-dir=/var/lib/kubelet/volumeplugins"
-EOF
-        sudo systemctl daemon-reload
-    fi
-
     echo "kubeadm join ${1} ${2} ${3} ${4} ${5} $skippreflightcheck"
     sudo kubeadm join ${1} ${2} ${3} ${4} ${5} $skippreflightcheck || true
 }

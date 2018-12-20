@@ -353,10 +353,6 @@ func (k8sh *K8sHelper) DeleteResource(args ...string) (string, error) {
 
 // WaitForCustomResourceDeletion waits for the CRD deletion
 func (k8sh *K8sHelper) WaitForCustomResourceDeletion(namespace string, checkerFunc func() error) error {
-	if !k8sh.VersionAtLeast("v1.8.0") {
-		// v1.7 has an intermittent issue with long delay to delete resources so we will skip waiting
-		return nil
-	}
 
 	// wait for the operator to finalize and delete the CRD
 	for i := 0; i < 10; i++ {
@@ -1482,14 +1478,8 @@ func (k8sh *K8sHelper) CreateAnonSystemClusterBinding() {
 	inc := 0
 	for inc < RetryLoop {
 		var err error
-		if k8sh.VersionAtLeast("v1.8.0") {
-			if _, err = k8sh.Clientset.RbacV1().ClusterRoleBindings().Get("anon-user-access", metav1.GetOptions{}); err == nil {
-				break
-			}
-		} else {
-			if _, err = k8sh.Clientset.RbacV1beta1().ClusterRoleBindings().Get("anon-user-access", metav1.GetOptions{}); err == nil {
-				break
-			}
+		if _, err = k8sh.Clientset.RbacV1beta1().ClusterRoleBindings().Get("anon-user-access", metav1.GetOptions{}); err == nil {
+			break
 		}
 		logger.Warningf("failed to get anon-user-access clusterrolebinding, will try again: %+v", err)
 		inc++

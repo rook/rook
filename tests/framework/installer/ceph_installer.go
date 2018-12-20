@@ -458,7 +458,7 @@ func NewCephInstaller(t func() *testing.T, clientset *kubernetes.Clientset, rook
 		helmHelper:      utils.NewHelmHelper(Env.Helm),
 		k8sVersion:      version.String(),
 		cephVersion:     cephVersion,
-		changeHostnames: rookVersion != Version0_8 && k8shelp.VersionAtLeast("v1.11.0"),
+		changeHostnames: rookVersion != Version0_8 && k8shelp.VersionAtLeast("v1.13.0"),
 		T:               t,
 	}
 	flag.Parse()
