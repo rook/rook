@@ -36,8 +36,7 @@ MEMORY=${MEMORY:-"3000"}
 
 case "${1:-}" in
   up)
-    # Use kubeadm bootstrapper for 1.9+ since localkube was deprecated in 1.8
-    echo "starting minishift with localkube bootstrapper"
+    echo "starting minishift"
     minishift start --memory=${MEMORY} --vm-driver=virtualbox --iso-url centos
     wait_for_ssh
 

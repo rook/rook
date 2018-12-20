@@ -120,13 +120,11 @@ function copy_images() {
 }
 
 # configure minikube
-# ** K8s v1.12 requires at least minikube v0.30.0 **
-KUBE_VERSION=${KUBE_VERSION:-"v1.12.2"}
+KUBE_VERSION=${KUBE_VERSION:-"v1.13.1"}
 MEMORY=${MEMORY:-"3000"}
 
 case "${1:-}" in
   up)
-    # Use kubeadm bootstrapper for 1.8+ since localkube was deprecated in 1.8
     echo "starting minikube with kubeadm bootstrapper"
     minikube start --memory="${MEMORY}" -b kubeadm --kubernetes-version "${KUBE_VERSION}"
     wait_for_ssh

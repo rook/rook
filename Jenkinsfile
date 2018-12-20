@@ -68,11 +68,10 @@ pipeline {
                 stash name: 'repo-amd64',includes: 'ceph-amd64.tar,cockroachdb-amd64.tar,cassandra-amd64.tar,nfs-amd64.tar,build/common.sh,_output/tests/linux_amd64/,_output/charts/,tests/scripts/'
                 script{
                     def data = [
-                        "aws_1.8.x": "v1.8.5",
-                        "gce_1.9.x": "v1.9.9",
-                        "aws_1.10.x": "v1.10.5",
-                        "aws_1.11.x": "v1.11.1",
-                        "aws_1.12.x": "v1.12.0"
+                        "aws_1.10.x": "v1.10.11",
+                        "aws_1.11.x": "v1.11.5",
+                        "aws_1.12.x": "v1.12.3",
+                        "gce_1.13.x": "v1.13.1"
                     ]
                     testruns = [:]
                     for (kv in mapToList(data)) {
