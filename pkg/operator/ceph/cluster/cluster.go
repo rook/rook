@@ -116,6 +116,8 @@ func (c *cluster) detectCephMajorVersion(image string, timeout time.Duration) (s
 
 	// delete the job since we're done with it
 	k8sutil.DeleteBatchJob(c.context.Clientset, c.Namespace, job.Name, false)
+
+	logger.Infof("Detected ceph image version: %s", version)
 	return version, nil
 }
 
