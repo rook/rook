@@ -1,0 +1,54 @@
+# Webhook Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: rook-cassandra-admission-webhook
+  namespace: rook-cassandra-system
+  labels:
+    app: rook-cassandra-admission-webhook
+spec:
+  ports:
+  - port: 443
+    targetPort: 443
+  selector:
+    app: rook-cassandra-admission-webhook
+
+---
+
+# Webhook Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rook-cassandra-admission-webhook
+  namespace: rook-cassandra-system
+  labels:
+    app: rook-cassandra-admission-webhook
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rook-cassandra-admission-webhook
+  template:
+    metadata:
+      labels:
+        app: rook-cassandra-admission-webhook
+    spec:
+      containers:
+        - name: admission-webhook-example
+          image: 192.168.1.8:5000/rook/cassandra:master
+          imagePullPolicy: Always
+          command:
+            - rook
+            - cassandra
+            - webhook
+          args:
+            - --tlsCertFile=/etc/webhook/certs/cert.pem
+            - --tlsKeyFile=/etc/webhook/certs/key.pem
+          volumeMounts:
+            - name: webhook-certs
+              mountPath: /etc/webhook/certs
+              readOnly: true
+      volumes:
+        - name: webhook-certs
+          secret:
+            secretName: rook-cassandra-admission-webhook-certs
