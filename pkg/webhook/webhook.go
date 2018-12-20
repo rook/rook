@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/coreos/pkg/capnslog"
 	"github.com/davecgh/go-spew/spew"
+	cassandrav1alpha1 "github.com/rook/rook/pkg/apis/cassandra.rook.io/v1alpha1"
 	"io/ioutil"
 	admissionv1beta1 "k8s.io/api/admission/v1beta1"
 	admissionregistrationv1beta1 "k8s.io/api/admissionregistration/v1beta1"
@@ -47,6 +48,8 @@ var (
 func init() {
 	_ = corev1.AddToScheme(runtimeScheme)
 	_ = admissionregistrationv1beta1.AddToScheme(runtimeScheme)
+	// Add Cassandra Scheme
+	_ = cassandrav1alpha1.AddToScheme(runtimeScheme)
 }
 
 func NewServerFromConfig(whConfig WebhookConfig, validater Validater) *WebhookServer {
