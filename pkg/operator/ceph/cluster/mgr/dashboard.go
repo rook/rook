@@ -41,6 +41,7 @@ const (
 	passwordLength                 = 10
 	passwordKeyName                = "password"
 	certAlreadyConfiguredErrorCode = 5
+	invalidArgErrorCode            = 22
 )
 
 var (
@@ -145,20 +146,38 @@ func (c *Cluster) initializeSecureDashboard() error {
 func (c *Cluster) createSelfSignedCert() (bool, error) {
 	// create a self-signed cert for the https connections required in mimic
 	args := []string{"dashboard", "create-self-signed-cert"}
-	_, err := client.ExecuteCephCommand(c.context, c.Namespace, args)
-	if err != nil {
-		if exiterr, ok := err.(*exec.ExitError); ok {
-			if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-				exitCode := status.ExitStatus()
+
+	// retry a few times in the case that the mgr module is not ready to accept commands
+	for i := 0; i < 5; i++ {
+		_, err := client.ExecuteCephCommand(c.context, c.Namespace, args)
+		if err != nil {
+			exitCode, parsed := c.exitCode(err)
+			if parsed {
 				if exitCode == certAlreadyConfiguredErrorCode {
 					logger.Infof("dashboard is already initialized with a cert")
 					return true, nil
 				}
+				if exitCode == invalidArgErrorCode {
+					logger.Infof("dashboard module is not ready yet. trying again...")
+					time.Sleep(dashboardInitWaitTime)
+					continue
+				}
 			}
+			return false, fmt.Errorf("failed to create self signed cert on mgr. %+v", err)
 		}
-		return false, fmt.Errorf("failed to create self signed cert on mgr. %+v", err)
+		break
 	}
 	return false, nil
+}
+
+// Get the return code from the process
+func getExitCode(err error) (int, bool) {
+	if exiterr, ok := err.(*exec.ExitError); ok {
+		if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
+			return status.ExitStatus(), true
+		}
+	}
+	return 0, false
 }
 
 func (c *Cluster) setLoginCredentials(password string) error {
