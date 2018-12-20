@@ -30,6 +30,22 @@ This will install the operator in namespace rook-cassandra-system. You can check
   kubectl -n rook-cassandra-system get pod
  ```
  
+## [Optional] Deploy the Validating Webhook
+
+A [validating webhook](https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#validatingadmissionwebhook) is an HTTP server that will validate each change you submit to a Cluster object, to ensure it is correct. This makes sure mistakes are caught before they even happen! Deployment is straightforward, but a little manual effort is required to make sure that certificates are set up correctly.
+
+The first script generates a new TLS keypair, signs it via a CertificateSigningRequest and creates a secret with the key and certificate. Then we deploy the webhook server.
+```console
+$ ./webhook-create-signed-certificates.sh --service rook-cassandra-admission-webhook --namespace rook-cassandra-system --secret rook-cassandra-admission-webhook-certs
+$ kubectl apply -f webhook-deployment.yaml
+```
+
+Finally, we have to create a `ValidatingWebhookConfiguration` object to tell the apiserver that we want requests for cassandra Clusters to be validated by the server we just deployed. The `webhook-template.yaml` file has everything ready except the `$(CA_BUNDLE)`, which is the CA the apiserver will trust to authenticate the webhook. To fill this field and apply the yaml, run:
+```console
+$ cat ./webhook-template.yaml | ./webhook-patch-ca-bundle.sh > ./webhook.yaml
+$ kubectl apply -f webhook.yaml
+```
+ 
 ## Create and Initialize a Cassandra/Scylla Cluster
 
 Now that the operator is running, we can create an instance of a Cassandra/Scylla cluster by creating an instance of the `clusters.cassandra.rook.io` resource.
