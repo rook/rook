@@ -25,8 +25,10 @@ import (
 )
 
 var (
-	mgrName    string
-	mgrKeyring string
+	mgrName             string
+	mgrKeyring          string
+	mgrModuleServerAddr string
+	cephVersionName     string
 )
 
 var mgrCmd = &cobra.Command{
@@ -38,6 +40,8 @@ var mgrCmd = &cobra.Command{
 func init() {
 	mgrCmd.Flags().StringVar(&mgrName, "mgr-name", "", "name of the mgr")
 	mgrCmd.Flags().StringVar(&mgrKeyring, "mgr-keyring", "", "the mgr keyring")
+	mgrCmd.Flags().StringVar(&mgrModuleServerAddr, "mgr-module-server-addr", "", "the server_addr to set for the mgr module bindings")
+	mgrCmd.Flags().StringVar(&cephVersionName, "ceph-version-name", "", "the major version of ceph running")
 	addCephFlags(mgrCmd)
 
 	flags.SetFlagsFromEnv(mgrCmd.Flags(), rook.RookEnvVarPrefix)
@@ -47,7 +51,7 @@ func init() {
 
 func initMgr(cmd *cobra.Command, args []string) error {
 	required := []string{
-		"mgr-name", "mgr-keyring",
+		"mgr-name", "mgr-keyring", "ceph-version-name", "mgr-module-server-addr",
 		"mon-endpoints", "cluster-name", "mon-secret", "admin-secret"}
 	if err := flags.VerifyRequiredFlags(mgrCmd, required); err != nil {
 		return err
@@ -63,9 +67,11 @@ func initMgr(cmd *cobra.Command, args []string) error {
 
 	clusterInfo.Monitors = mondaemon.ParseMonEndpoints(cfg.monEndpoints)
 	config := &mgrdaemon.Config{
-		Name:        mgrName,
-		Keyring:     mgrKeyring,
-		ClusterInfo: &clusterInfo,
+		Name:             mgrName,
+		Keyring:          mgrKeyring,
+		ClusterInfo:      &clusterInfo,
+		ModuleServerAddr: mgrModuleServerAddr,
+		CephVersionName:  cephVersionName,
 	}
 
 	err := mgrdaemon.Initialize(createContext(), config)

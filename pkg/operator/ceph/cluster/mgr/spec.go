@@ -98,6 +98,8 @@ func (c *Cluster) makeConfigInitContainer(mgrConfig *mgrConfig) v1.Container {
 					}}},
 			k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
 			k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
+			k8sutil.PodIPEnvVar("ROOK_MGR_MODULE_SERVER_ADDR"),
+			{Name: "ROOK_CEPH_VERSION_NAME", Value: c.cephVersion.Name},
 			opmon.EndpointEnvVar(),
 			opmon.SecretEnvVar(),
 			opmon.AdminSecretEnvVar(),

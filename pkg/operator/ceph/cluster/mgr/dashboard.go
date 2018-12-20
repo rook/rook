@@ -102,7 +102,7 @@ func (c *Cluster) toggleDashboardModule() error {
 }
 
 func (c *Cluster) configureDashboardModule() error {
-	hasChanged, err := client.MgrSetConfig(c.context, c.Namespace, c.cephVersion.Name, "mgr/dashboard/url_prefix", c.dashboard.UrlPrefix)
+	hasChanged, err := client.MgrSetAllConfig(c.context, c.Namespace, c.cephVersion.Name, "mgr/dashboard/url_prefix", c.dashboard.UrlPrefix)
 	if err != nil {
 		return err
 	}
