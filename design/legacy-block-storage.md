@@ -46,14 +46,14 @@ Through this implementation, we can quickly extend Rook's storage backend suppor
 
 * start and monitor the Cinder service pods
 * watch for state changes and apply the changes
-* monitor the healthy of external storage systems
-* manage custom resourece definitions (CRDs) for pools
+* monitor the health of external storage systems
+* manage custom resource definitions (CRDs) for pools
 
 
 ### Agent
 
 * deployed on each Kubernetes nodes
-* handle attching/detaching, mounting/unmounting volumes and formatting the filesystem
+* handle attaching/detaching, mounting/unmounting volumes and formatting the file system
 
 
 ## Details
