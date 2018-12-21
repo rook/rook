@@ -56,6 +56,7 @@ type Cluster struct {
 	dashboard   cephv1.DashboardSpec
 	cephVersion cephv1.CephVersionSpec
 	rookVersion string
+	exitCode    func(err error) (int, bool)
 }
 
 // mgrConfig for a single mgr
@@ -79,6 +80,7 @@ func New(context *clusterd.Context, namespace, rookVersion string, cephVersion c
 		HostNetwork: hostNetwork,
 		resources:   resources,
 		ownerRef:    ownerRef,
+		exitCode:    getExitCode,
 	}
 }
 
