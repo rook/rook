@@ -38,7 +38,15 @@ After the helm chart is installed, you will need to [create a Rook cluster](ceph
 
 The `helm install` command deploys rook on the Kubernetes cluster in the default configuration. The [configuration](#configuration) section lists the parameters that can be configured during installation. It is recommended that the rook operator be installed into the `rook-ceph-system` namespace (you will install your clusters into separate namespaces).
 
-Rook currently publishes builds of the Ceph operator to the `beta`, `alpha`, and `master` channels. In the future `stable` will also be available.
+Rook currently publishes builds of the Ceph operator to the `stable`, `beta`, `alpha`, and `master` channels.
+
+### Stable
+The stable channel is the most recent release of Rook that is considered stable for the community, starting with the v0.9 release.
+
+```console
+helm repo add rook-stable https://charts.rook.io/stable
+helm install --namespace rook-ceph-system rook-stable/rook-ceph
+```
 
 ### Beta
 The beta channel is the most recent release of Rook that is considered nearly stable for the community, starting with the v0.8 release.
@@ -126,14 +134,14 @@ You can pass the settings with helm command line parameters. Specify each parame
 `--set key=value[,key=value]` argument to `helm install`. For example, the following command will install rook where RBAC is not enabled.
 
 ```console
-$ helm install --namespace rook-ceph-system --name rook-ceph rook-beta/rook-ceph --set rbacEnable=false
+$ helm install --namespace rook-ceph-system --name rook-ceph rook-stable/rook-ceph --set rbacEnable=false
 ```
 
 ### Settings File
 Alternatively, a yaml file that specifies the values for the above parameters (`values.yaml`) can be provided while installing the chart.
 
 ```console
-$ helm install --namespace rook-ceph-system --name rook-ceph rook-beta/rook-ceph -f values.yaml
+$ helm install --namespace rook-ceph-system --name rook-ceph rook-stable/rook-ceph -f values.yaml
 ```
 
 Here are the sample settings to get you started.
