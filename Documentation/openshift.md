@@ -90,7 +90,7 @@ There is an environment variable that needs to be set in the operator spec that 
 
 ```yaml
 - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
-    value: "true"
+  value: "true"
 ```
 
 ### Cluster Settings
@@ -102,7 +102,7 @@ The cluster settings in `cluster.yaml` are largely isolated from the differences
 In OpenShift, ports less than 1024 cannot be bound. In the [object store CRD](ceph-object.md), ensure the port is modified to meet this requirement.
 ```yaml
 gateway:
-    port: 8080
+  port: 8080
 ```
 
 You can expose a different port such as `80` by creating a service.
