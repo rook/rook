@@ -160,13 +160,6 @@ build.image.$(1).$(2).$(3):
 build.all.images: build.image.$(1).$(2).$(3)
 publish.image.$(1).$(2).$(3): ; @docker push $(1)/$(2)-$(3):$(VERSION)
 publish.all.images: publish.image.$(1).$(2).$(3)
-promote.image.$(1).$(2).$(3):
-	@docker pull $(1)/$(2)-$(3):$(VERSION)
-	@[ "$(CHANNEL)" = "master" ] || docker tag $(1)/$(2)-$(3):$(VERSION) $(1)/$(2)-$(3):$(VERSION)-$(CHANNEL)
-	@docker tag $(1)/$(2)-$(3):$(VERSION) $(1)/$(2)-$(3):$(CHANNEL)
-	@[ "$(CHANNEL)" = "master" ] || docker push $(1)/$(2)-$(3):$(VERSION)-$(CHANNEL)
-	@docker push $(1)/$(2)-$(3):$(CHANNEL)
-promote.all.images: promote.image.$(1).$(2).$(3)
 clean.image.$(1).$(2).$(3):
 	@[ -z "$$$$(docker images -q $(1)/$(2)-$(3):$(VERSION))" ] || docker rmi $(1)/$(2)-$(3):$(VERSION)
 	@[ -z "$$$$(docker images -q $(1)/$(2)-$(3):$(VERSION)-$(CHANNEL))" ] || docker rmi $(1)/$(2)-$(3):$(VERSION)-$(CHANNEL)
@@ -178,13 +171,9 @@ $(foreach r,$(REGISTRIES), $(foreach i,$(IMAGES), $(foreach a,$(IMAGE_ARCHS),$(e
 publish.manifest.image.%: publish.all.images $(MANIFEST_TOOL)
 	@$(MANIFEST_TOOL) push from-args --platforms $(IMAGE_PLATFORMS) --template $(DOCKER_REGISTRY)/$*-ARCH:$(VERSION) --target $(DOCKER_REGISTRY)/$*:$(VERSION)
 
-promote.manifest.image.%: promote.all.images $(MANIFEST_TOOL)
-	@[ "$(CHANNEL)" = "master" ] || $(MANIFEST_TOOL) push from-args --platforms $(IMAGE_PLATFORMS) --template $(DOCKER_REGISTRY)/$*-ARCH:$(VERSION) --target $(DOCKER_REGISTRY)/$*:$(VERSION)-$(CHANNEL)
-	@$(MANIFEST_TOOL) push from-args --platforms $(IMAGE_PLATFORMS) --template $(DOCKER_REGISTRY)/$*-ARCH:$(VERSION) --target $(DOCKER_REGISTRY)/$*:$(CHANNEL)
-
 build.images: build.all.images
 publish.images: $(addprefix publish.manifest.image.,$(IMAGES))
-promote.images: $(addprefix promote.manifest.image.,$(IMAGES))
+promote.images:
 clean.images: clean.all.images
 
 # ====================================================================================
