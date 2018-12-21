@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Rook Authors. All rights reserved.
+Copyright 2019 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import (
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/edgefs/cluster/mgr"
+	"github.com/rook/rook/pkg/operator/edgefs/cluster/prepare"
 	"github.com/rook/rook/pkg/operator/edgefs/cluster/target"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/api/core/v1"
@@ -69,8 +70,7 @@ func newCluster(c *edgefsv1alpha1.Cluster, context *clusterd.Context) *cluster {
 
 func (c *cluster) createInstance(rookImage string) error {
 
-	logger.Infof("Cluster spec\n %+v", c.Spec)
-
+	logger.Debugf("Cluster spec: %+v", c.Spec)
 	//
 	// Validate Cluster CRD
 	//
@@ -78,7 +78,6 @@ func (c *cluster) createInstance(rookImage string) error {
 		logger.Errorf("invalid cluster spec: %+v", err)
 		return err
 	}
-
 	// Create a configmap for overriding edgefs config settings
 	// These settings should only be modified by a user after they are initialized
 	placeholderConfig := map[string]string{
@@ -96,17 +95,50 @@ func (c *cluster) createInstance(rookImage string) error {
 		return fmt.Errorf("failed to create override configmap %s. %+v", c.Namespace, err)
 	}
 
+	clusterNodes, err := c.getClusterNodes()
+	if err != nil {
+		return fmt.Errorf("failed to get nodes for cluster %s. %s", c.Namespace, err)
+	}
+
+	dro := ParseDevicesResurrectMode(c.Spec.DevicesResurrectMode)
+	logger.Infof("DevicesResurrect mode: %s options %+v", c.Spec.DevicesResurrectMode, dro)
+
+	deploymentConfig, err := c.createDeploymentConfig(clusterNodes, dro.NeedToResurrect)
+	if err != nil {
+		logger.Errorf("Failed to create deploymentConfig %+v", err)
+		return err
+	}
+	logger.Debugf("DeploymentConfig: %+v ", deploymentConfig)
+
+	if err := c.createClusterConfigMap(clusterNodes, deploymentConfig, dro.NeedToResurrect); err != nil {
+		logger.Errorf("Failed to create/update Edgefs cluster configuration: %+v", err)
+		return err
+	}
+	//
+	// Create and start EdgeFS prepare job (set some networking parameters that we cannot set via InitContainers)
+	// Skip preparation job in case of resurrect option is on
+	//
+
+	if c.Spec.SkipHostPrepare == false && dro.NeedToResurrect == false {
+		err = c.prepareHostNodes(rookImage, deploymentConfig)
+		if err != nil {
+			logger.Errorf("Failed to create preparation jobs. %+v", err)
+		}
+	} else {
+		logger.Infof("EdgeFS node preparation will be skipped due skipHostPrepare=true or resurrect cluster option")
+	}
+
 	//
 	// Create and start EdgeFS Targets StatefulSet
 	//
-	c.targets = target.New(c.context, c.Namespace, "latest", c.Spec.ServiceAccount, c.Spec.Storage, c.Spec.DataDirHostPath, c.Spec.DataVolumeSize,
-		edgefsv1alpha1.GetTargetPlacement(c.Spec.Placement), c.Spec.Network, c.Spec.Resources, c.ownerRef)
 
-	err = c.targets.Start(rookImage, c.Spec.DevicesResurrectMode)
+	c.targets = target.New(c.context, c.Namespace, "latest", c.Spec.ServiceAccount, c.Spec.Storage, c.Spec.DataDirHostPath, c.Spec.DataVolumeSize,
+		edgefsv1alpha1.GetTargetPlacement(c.Spec.Placement), c.Spec.Network, c.Spec.Resources, c.ownerRef, deploymentConfig)
+
+	err = c.targets.Start(rookImage, clusterNodes, dro)
 	if err != nil {
 		return fmt.Errorf("failed to start the targets. %+v", err)
 	}
-
 	//
 	// Create and start EdgeFS manager Deployment (gRPC proxy, Prometheus metrics)
 	//
@@ -119,6 +151,22 @@ func (c *cluster) createInstance(rookImage string) error {
 	}
 
 	logger.Infof("Done creating rook instance in namespace %s", c.Namespace)
+	return nil
+}
+
+func (c *cluster) prepareHostNodes(rookImage string, deploymentConfig edgefsv1alpha1.ClusterDeploymentConfig) error {
+
+	prep := prepare.New(c.context, c.Namespace, "latest", c.Spec.ServiceAccount,
+		edgefsv1alpha1.GetTargetPlacement(c.Spec.Placement), v1.ResourceRequirements{}, c.ownerRef)
+
+	for nodeName, devicesConfig := range deploymentConfig.DevConfig {
+
+		logger.Debugf("HostNodePreparation %s devConfig: %+v", nodeName, devicesConfig)
+		err := prep.Start(rookImage, nodeName)
+		if err != nil {
+			return fmt.Errorf("failed to start the edgefs preparation on node %s . %+v", nodeName, err)
+		}
+	}
 	return nil
 }
 
@@ -146,7 +194,7 @@ func clusterChanged(oldCluster, newCluster edgefsv1alpha1.ClusterSpec) bool {
 	oldStorage := oldCluster.Storage
 	newStorage := newCluster.Storage
 
-	// sort the nodes by name then compare to see if there are changes
+	// Sort the nodes by name then compare to see if there are changes
 	sort.Sort(rookv1alpha2.NodesByName(oldStorage.Nodes))
 	sort.Sort(rookv1alpha2.NodesByName(newStorage.Nodes))
 	if !reflect.DeepEqual(oldStorage.Nodes, newStorage.Nodes) {

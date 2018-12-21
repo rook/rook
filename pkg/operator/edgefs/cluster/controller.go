@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Rook Authors. All rights reserved.
+Copyright 2019 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -316,6 +316,7 @@ func (c *ClusterController) onDelete(obj interface{}) {
 }
 
 func (c *ClusterController) handleDelete(clust *edgefsv1alpha1.Cluster, retryInterval time.Duration) error {
+
 	cluster, ok := c.clusterMap[clust.Namespace]
 	if !ok {
 		return fmt.Errorf("Cannot delete cluster %s that does not exist", clust.Namespace)
@@ -323,7 +324,7 @@ func (c *ClusterController) handleDelete(clust *edgefsv1alpha1.Cluster, retryInt
 
 	for _, node := range cluster.targets.Storage.Nodes {
 		k := cluster.Namespace
-		err := cluster.targets.RemoveLabelOffNode(cluster.context.Clientset, node.Name, []string{k})
+		err := cluster.RemoveLabelOffNode(cluster.context.Clientset, node.Name, []string{k})
 		logger.Infof("removed label %s from %s: %+v", k, node.Name, err)
 	}
 

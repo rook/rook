@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Rook Authors. All rights reserved.
+Copyright 2019 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -50,7 +50,7 @@ func (c *Cluster) createAppLabels() map[string]string {
 
 func (c *Cluster) makeCorosyncContainer(containerImage string) v1.Container {
 
-	privileged := c.deploymentConfig.needPriviliges
+	privileged := c.deploymentConfig.NeedPriviliges
 	runAsUser := int64(0)
 	readOnlyRootFilesystem := false
 	securityContext := &v1.SecurityContext{
@@ -89,8 +89,7 @@ func (c *Cluster) makeCorosyncContainer(containerImage string) v1.Container {
 		ImagePullPolicy: v1.PullAlways,
 		Args:            []string{"corosync"},
 		SecurityContext: securityContext,
-		//Resources:       c.resources,
-		VolumeMounts: volumeMounts,
+		VolumeMounts:    volumeMounts,
 		Env: []v1.EnvVar{
 			{
 				Name: "HOST_HOSTNAME",
@@ -106,7 +105,7 @@ func (c *Cluster) makeCorosyncContainer(containerImage string) v1.Container {
 
 func (c *Cluster) makeAuditdContainer(containerImage string) v1.Container {
 
-	privileged := c.deploymentConfig.needPriviliges
+	privileged := c.deploymentConfig.NeedPriviliges
 	runAsUser := int64(0)
 	readOnlyRootFilesystem := false
 	securityContext := &v1.SecurityContext{
@@ -148,14 +147,13 @@ func (c *Cluster) makeAuditdContainer(containerImage string) v1.Container {
 			},
 		},
 		SecurityContext: securityContext,
-		//Resources:       c.resources,
-		VolumeMounts: volumeMounts,
+		VolumeMounts:    volumeMounts,
 	}
 }
 
-func (c *Cluster) makeDaemonContainer(containerImage string, dro DevicesResurrectOptions, isInitContainer bool) v1.Container {
+func (c *Cluster) makeDaemonContainer(containerImage string, dro edgefsv1alpha1.DevicesResurrectOptions, isInitContainer bool) v1.Container {
 
-	privileged := c.deploymentConfig.needPriviliges
+	privileged := c.deploymentConfig.NeedPriviliges
 	runAsUser := int64(0)
 	readOnlyRootFilesystem := false
 	securityContext := &v1.SecurityContext{
@@ -186,12 +184,11 @@ func (c *Cluster) makeDaemonContainer(containerImage string, dro DevicesResurrec
 
 	// get cluster wide sync option, and apply for deploymentConfig
 	clusterStorageConfig := config.ToStoreConfig(c.Storage.Config)
-	logger.Debugf("clusterStorageConfig %+v", clusterStorageConfig)
 
-	if c.deploymentConfig.deploymentType == deploymentAutoRtlfs {
+	if c.deploymentConfig.DeploymentType == edgefsv1alpha1.DeploymentAutoRtlfs {
 		volumeMounts = append(volumeMounts, v1.VolumeMount{Name: dataVolumeName, MountPath: "/data"})
-	} else if c.deploymentConfig.deploymentType == deploymentRtlfs {
-		rtlfsDevices := getRtlfsDevices(c.Storage.Directories, &clusterStorageConfig)
+	} else if c.deploymentConfig.DeploymentType == edgefsv1alpha1.DeploymentRtlfs {
+		rtlfsDevices := GetRtlfsDevices(c.Storage.Directories, &clusterStorageConfig)
 		for _, device := range rtlfsDevices {
 			volumeMounts = append(volumeMounts, v1.VolumeMount{Name: device.Name, MountPath: device.Path})
 		}
@@ -200,7 +197,7 @@ func (c *Cluster) makeDaemonContainer(containerImage string, dro DevicesResurrec
 	name := "daemon"
 	args := []string{"daemon"}
 	if isInitContainer {
-		if dro.needToZap {
+		if dro.NeedToZap {
 			name = "daemon-zap"
 			args = []string{"toolbox", "nezap --do-as-i-say"}
 
@@ -211,7 +208,7 @@ func (c *Cluster) makeDaemonContainer(containerImage string, dro DevicesResurrec
 			})
 		}
 	} else {
-		if dro.needToWait {
+		if dro.NeedToWait {
 			args = []string{"wait"}
 		}
 	}
@@ -254,7 +251,7 @@ func isHostNetworkDefined(hostNetworkSpec edgefsv1alpha1.NetworkSpec) bool {
 	return false
 }
 
-func (c *Cluster) createPodSpec(rookImage string, dro DevicesResurrectOptions) v1.PodSpec {
+func (c *Cluster) createPodSpec(rookImage string, dro edgefsv1alpha1.DevicesResurrectOptions) v1.PodSpec {
 	terminationGracePeriodSeconds := int64(60)
 
 	DNSPolicy := v1.DNSClusterFirst
@@ -296,9 +293,9 @@ func (c *Cluster) createPodSpec(rookImage string, dro DevicesResurrectOptions) v
 		})
 	}
 
-	if c.deploymentConfig.deploymentType == deploymentRtlfs {
+	if c.deploymentConfig.DeploymentType == edgefsv1alpha1.DeploymentRtlfs {
 		// RTLFS with specified folders
-		for _, folder := range c.deploymentConfig.directories {
+		for _, folder := range c.deploymentConfig.Directories {
 			volumes = append(volumes, v1.Volume{
 				Name: folder.Name,
 				VolumeSource: v1.VolumeSource{
@@ -315,7 +312,7 @@ func (c *Cluster) createPodSpec(rookImage string, dro DevicesResurrectOptions) v
 
 	var containers []v1.Container
 	var initContainers []v1.Container
-	if dro.needToZap {
+	if dro.NeedToZap {
 		// To execute "zap" functions (devices or directories) we
 		// create InitContainer to ensure it completes fully.
 		initContainers = []v1.Container{
@@ -366,7 +363,7 @@ func (c *Cluster) createPodSpec(rookImage string, dro DevicesResurrectOptions) v
 	}
 }
 
-func (c *Cluster) makeStatefulSet(replicas int32, rookImage string, dro DevicesResurrectOptions) (*appsv1beta1.StatefulSet, error) {
+func (c *Cluster) makeStatefulSet(replicas int32, rookImage string, dro edgefsv1alpha1.DevicesResurrectOptions) (*appsv1beta1.StatefulSet, error) {
 
 	statefulSet := &appsv1beta1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
