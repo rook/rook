@@ -84,7 +84,7 @@ func TestPodSpec(t *testing.T) {
 	assert.Equal(t, 1, len(pod.Spec.Containers))
 
 	configImage := "rook/rook:myversion"
-	configEnvs := 7
+	configEnvs := 9
 	configContainerDefinition := cephtest.ContainerTestDefinition{
 		Image:   &configImage,
 		Command: []string{}, // no command

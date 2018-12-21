@@ -16,6 +16,7 @@ limitations under the License.
 package mgr
 
 import (
+	"fmt"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -66,9 +67,12 @@ func TestGetOrGeneratePassword(t *testing.T) {
 func TestStartSecureDashboard(t *testing.T) {
 	enables := 0
 	disables := 0
+	moduleRetries := 0
+	exitCodeResponse := 0
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
 			logger.Infof("command: %s %v", command, args)
+			exitCodeResponse = 0
 			if args[1] == "module" {
 				if args[2] == "enable" {
 					enables++
@@ -76,17 +80,33 @@ func TestStartSecureDashboard(t *testing.T) {
 					disables++
 				}
 			}
+			if args[0] == "dashboard" && args[1] == "create-self-signed-cert" {
+				if moduleRetries < 2 {
+					logger.Infof("simulating retry...")
+					exitCodeResponse = invalidArgErrorCode
+					moduleRetries++
+					return "", fmt.Errorf("test failure")
+				}
+			}
 			return "", nil
 		},
 	}
 	c := &Cluster{context: &clusterd.Context{Clientset: test.New(3), Executor: executor}, Namespace: "myns",
 		dashboard: cephv1.DashboardSpec{Enabled: true}, cephVersion: cephv1.CephVersionSpec{Name: cephv1.Mimic, Image: "ceph/ceph:v13.2.2"}}
+	c.exitCode = func(err error) (int, bool) {
+		if exitCodeResponse != 0 {
+			return exitCodeResponse, true
+		}
+		return exitCodeResponse, false
+	}
+
 	dashboardInitWaitTime = 0
 	err := c.configureDashboard(dashboardPortHttp)
 	assert.Nil(t, err)
 	// the dashboard is enabled, then disabled and enabled again to restart it with the cert
 	assert.Equal(t, 2, enables)
 	assert.Equal(t, 1, disables)
+	assert.Equal(t, 2, moduleRetries)
 
 	svc, err := c.context.Clientset.CoreV1().Services(c.Namespace).Get("rook-ceph-mgr-dashboard", metav1.GetOptions{})
 	assert.Nil(t, err)

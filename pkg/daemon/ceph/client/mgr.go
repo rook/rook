@@ -18,9 +18,15 @@ func MgrDisableModule(context *clusterd.Context, clusterName, name string) error
 	return enableModule(context, clusterName, name, false, "disable")
 }
 
-func MgrSetConfig(context *clusterd.Context, clusterName, cephVersionName, key, val string) (bool, error) {
-	var getArgs, setArgs []string
+// MgrSetAllConfig applies a setting for all mgr daemons
+func MgrSetAllConfig(context *clusterd.Context, clusterName, cephVersionName, key, val string) (bool, error) {
+	return MgrSetConfig(context, clusterName, "", cephVersionName, key, val)
+}
 
+// MgrSetConfig applies a setting for a single mgr daemon
+func MgrSetConfig(context *clusterd.Context, clusterName, mgrName, cephVersionName, key, val string) (bool, error) {
+	var getArgs, setArgs []string
+	mgrID := fmt.Sprintf("mgr.%s", mgrName)
 	if cephVersionName == cephv1.Luminous || cephVersionName == "" {
 		getArgs = append(getArgs, "config-key", "get", key)
 		if val == "" {
@@ -29,11 +35,11 @@ func MgrSetConfig(context *clusterd.Context, clusterName, cephVersionName, key, 
 			setArgs = append(setArgs, "config-key", "set", key, val)
 		}
 	} else {
-		getArgs = append(getArgs, "config", "get", "mgr.", key)
+		getArgs = append(getArgs, "config", "get", mgrID, key)
 		if val == "" {
-			setArgs = append(setArgs, "config", "rm", "mgr", key)
+			setArgs = append(setArgs, "config", "rm", mgrID, key)
 		} else {
-			setArgs = append(setArgs, "config", "set", "mgr", key, val)
+			setArgs = append(setArgs, "config", "set", mgrID, key, val)
 		}
 	}
 
