@@ -243,11 +243,11 @@ kubectl -n $ROOK_NAMESPACE patch rolebinding rook-ceph-osd-psp -p "{\"subjects\"
 ```
 
 ### 3. Update the Rook operator image
-The largest portion of the upgrade is triggered when the operator's image is updated to v0.9.0, and
+The largest portion of the upgrade is triggered when the operator's image is updated to v0.9.1, and
 with the greatly-expanded automatic update features in the new version, this is all done
 automatically.
 ```sh
-kubectl -n $ROOK_SYSTEM_NAMESPACE set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v0.9.0
+kubectl -n $ROOK_SYSTEM_NAMESPACE set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v0.9.1
 ```
 
 Watch now in amazement as the Ceph MONs, MGR, OSDs, RGWs, and MDSes are terminated and replaced with
@@ -285,11 +285,11 @@ being used in the cluster.
 kubectl -n $ROOK_NAMESPACE describe pods | grep "Image:.*" | sort | uniq
 # This cluster is not yet finished:
 #      Image:         ceph/ceph:v12.2.9-20181026
-#      Image:         rook/ceph:v0.9.0
+#      Image:         rook/ceph:v0.9.1
 #      Image:         rook/ceph:v0.8.3
 # This cluster is finished:
 #      Image:         ceph/ceph:v12.2.9-20181026
-#      Image:         rook/ceph:v0.9.0
+#      Image:         rook/ceph:v0.9.1
 ```
 
 ### 6. Remove unused resources
@@ -314,7 +314,7 @@ kubectl -n $ROOK_NAMESPACE patch rolebinding rook-ceph-osd-psp -p "{\"subjects\"
 ```
 
 ### 7. Verify the updated cluster
-At this point, your Rook operator should be running version `rook/ceph:v0.9.0`, and the Ceph daemons
+At this point, your Rook operator should be running version `rook/ceph:v0.9.1`, and the Ceph daemons
 should be running image `ceph/ceph:v12.2.9-20181026`. The Rook operator version and the Ceph version
 are no longer tied together, and we'll cover how to upgrade Ceph later in this document.
 
@@ -379,10 +379,10 @@ kubectl -n $ROOK_NAMESPACE describe pods | grep "Image:.*ceph/ceph" | sort | uni
 # This cluster is not yet finished:
 #      Image:         ceph/ceph:v12.2.9-20181026
 #      Image:         ceph/ceph:v13.2.2-20181023
-#      Image:         rook/ceph:v0.9.0
+#      Image:         rook/ceph:v0.9.1
 # This cluster is finished:
 #      Image:         ceph/ceph:v13.2.2-20181023
-#      Image:         rook/ceph:v0.9.0
+#      Image:         rook/ceph:v0.9.1
 ```
 
 #### 2. Update dashboard external service if applicable
