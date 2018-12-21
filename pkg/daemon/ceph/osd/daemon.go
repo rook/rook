@@ -29,7 +29,6 @@ import (
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
-	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/sys"
 	"k8s.io/apimachinery/pkg/api/errors"
 )
@@ -87,13 +86,39 @@ func Provision(context *clusterd.Context, agent *OsdAgent) error {
 		return err
 	}
 
+	// Delete legacy config path which may be persisted to disk and are is longer needed. The legacy
+	// config path includes the admin keyring (security risk) and a potentially confusing old
+	// config. Needed for upgrade from Rook v0.8 to v0.9.
+	legacyConfigPath := path.Join(context.ConfigDir, agent.cluster.Name)
+	logger.Infof("Deleting legacy osd provisioning agent config path: %s", legacyConfigPath)
+	if err := os.RemoveAll(legacyConfigPath); err != nil && !os.IsNotExist(err) {
+		logger.Errorf("failed to delete legacy config file %s. %+v", legacyConfigPath, err)
+	}
+
+	// Generate a connection config file with the admin user for bootstrapping, but don't generate
+	// it as though this is an operator (i.e., calling cephconfig.GenerateAdminConnectionConfig...)
+	configPath := cephconfig.DefaultConfigFilePath()
+	// Use the default keyring path in /etc/ceph so the bootstrap key isn't persisted to disk
+	keyringPath := cephconfig.DefaultKeyringFilePath()
+	runDir := context.ConfigDir
+	username := cephconfig.AdminUsername
+	settings := map[string]string{}
+
 	// set the crush location in the osd config file
-	cephConfig := cephconfig.CreateDefaultCephConfig(context, agent.cluster, path.Join(context.ConfigDir, agent.cluster.Name))
+	cephConfig := cephconfig.CreateDefaultCephConfig(context, agent.cluster, runDir)
 	cephConfig.GlobalConfig.CrushLocation = agent.location
 
-	// write the latest config to the config dir
-	if err := cephconfig.GenerateAdminConnectionConfigWithSettings(context, agent.cluster, cephConfig); err != nil {
-		return fmt.Errorf("failed to write connection config. %+v", err)
+	err := cephconfig.GenerateConfigFile(context, agent.cluster,
+		configPath, username, keyringPath, runDir, cephConfig, settings)
+	if err != nil {
+		return fmt.Errorf("failed to generate config file for osd provisioning agent. %+v", err)
+	}
+
+	keyringEval := func(_ string) string {
+		return cephconfig.AdminKeyring(agent.cluster)
+	}
+	if err := cephconfig.WriteKeyring(keyringPath, "", keyringEval); err != nil {
+		return fmt.Errorf("failed to generate keyring file for osd provisioning agent. %+v", err)
 	}
 
 	logger.Infof("discovering hardware")
@@ -133,7 +158,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent) error {
 	// determine the set of directories that can/should be used for OSDs, with the default dir if no devices were specified. save off the node's crush name if needed.
 	logger.Infof("devices = %+v", deviceOSDs)
 	devicesConfigured := len(deviceOSDs) > 0
-	dirs, removedDirs, err := getDataDirs(context, agent.kv, agent.directories, devicesConfigured, agent.nodeName)
+	dirs, removedDirs, err := agent.getDataDirs(devicesConfigured)
 	if err != nil {
 		return fmt.Errorf("failed to get data dirs. %+v", err)
 	}
@@ -242,22 +267,21 @@ func isRemovingNode(devices []DesiredDevice) bool {
 	return oposd.IsRemovingNode(devices[0].Name)
 }
 
-func getDataDirs(context *clusterd.Context, kv *k8sutil.ConfigMapKVStore, desiredDirs string,
-	devicesSpecified bool, nodeName string) (dirs, removedDirs map[string]int, err error) {
-
+func (a *OsdAgent) getDataDirs(devicesSpecified bool) (dirs, removedDirs map[string]int, err error) {
 	var dirList []string
-	if desiredDirs != "" {
-		dirList = strings.Split(desiredDirs, ",")
+	if a.directories != "" {
+		dirList = strings.Split(a.directories, ",")
 	}
 
 	if len(dirList) == 0 && !devicesSpecified {
 		// user has not specified any dirs or any devices, give them the default dir at least
-		dirList = append(dirList, context.ConfigDir)
+		/* TODO: give them the dataDirHostPath */
+		dirList = append(dirList, a.dataDirHostPath) // context. context.ConfigDir)
 	}
 
 	removedDirs = make(map[string]int)
 
-	dirMap, err := config.LoadOSDDirMap(kv, nodeName)
+	dirMap, err := config.LoadOSDDirMap(a.kv, a.nodeName)
 	if err == nil {
 		// we have an existing saved dir map, merge the user specified directories into it
 		addDirsToDirMap(dirList, &dirMap)

@@ -24,12 +24,13 @@ import (
 	"syscall"
 
 	"github.com/rook/rook/pkg/clusterd"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/util/exec"
 )
 
-var cephConfigDir = "/var/lib/ceph"
+// var cephConfigDir = "/var/lib/ceph"
 
 const (
 	osdsPerDeviceFlag = "--osds-per-device"
@@ -50,7 +51,10 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 		return osds, nil
 	}
 
-	err = createOSDBootstrapKeyring(context, a.cluster.Name, cephConfigDir)
+	/* TODO: iirc, the bootstrap keyring has a lot of privileges. It might be better to move it to
+	/etc/ceph or remove it from /var/lib/ceph once its no longer needed so that it isn't persisted
+	to disk. Is a defer(remove_file) here sufficient? */
+	err = createOSDBootstrapKeyring(context, a.cluster.Name, cephconfig.VarLibCephDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate osd keyring. %+v", err)
 	}
@@ -170,16 +174,20 @@ func getCephVolumeOSDs(context *clusterd.Context, clusterName string) ([]oposd.O
 		}
 		logger.Infof("osdInfo has %d elements. %+v", len(osdInfo), osdInfo)
 
-		configDir := "/var/lib/rook/osd" + name
+		configBase := path.Join(cephconfig.VarLibCephDir, "osd")
+		// TODO: I think this comes out to be /var/lib/ceph/osd<ID>, so should be able to use
+		// cephconfig.DaemonRunDir(cephconfig.VarLibCephDir, "osd", name) here
+		configDir := configBase + name
 		osd := oposd.OSDInfo{
 			ID:                  id,
 			DataPath:            configDir,
-			Config:              fmt.Sprintf("%s/%s.config", configDir, clusterName),
-			KeyringPath:         path.Join(configDir, "keyring"),
-			Cluster:             "ceph",
+			Config:              cephconfig.DefaultConfigFilePath(),                  /* TODO: config is always /etc/ceph/ceph.conf (?), factor this out */
+			KeyringPath:         path.Join(configDir, cephconfig.DefaultKeyringFile), /* TODO: w/ above, use cephconfig.DaemonKeyringFilePath(...) here? */
+			Cluster:             "ceph",                                              /* TODO: cluster is always 'ceph', factor this out */
 			UUID:                osdFSID,
 			CephVolumeInitiated: true,
 			IsFileStore:         isFilestore,
+			IsDirectory:         false,
 		}
 		osds = append(osds, osd)
 	}

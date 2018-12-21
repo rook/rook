@@ -77,6 +77,7 @@ var (
 	osdStringID         string
 	osdUUID             string
 	osdIsDevice         bool
+	dataDirHostPath     string
 )
 
 func addOSDFlags(command *cobra.Command) {
@@ -90,6 +91,7 @@ func addOSDFlags(command *cobra.Command) {
 	provisionCmd.Flags().StringVar(&cfg.metadataDevice, "metadata-device", "", "device to use for metadata (e.g. a high performance SSD/NVMe device)")
 	provisionCmd.Flags().BoolVar(&cfg.forceFormat, "force-format", false,
 		"true to force the format of any specified devices, even if they already have a filesystem.  BE CAREFUL!")
+	provisionCmd.Flags().StringVar(&dataDirHostPath, "data-dir-host-path", "", "the cluster's dataDirHostPath")
 
 	// flags for generating the osd config
 	osdConfigCmd.Flags().IntVar(&osdID, "osd-id", -1, "osd id for which to generate config")
@@ -213,7 +215,7 @@ func writeOSDConfig(cmd *cobra.Command, args []string) error {
 
 	context := createContext()
 	context.Clientset = clientset
-	context.ConfigDir = configDir
+	// context.ConfigDir = configDir
 	commonOSDInit(osdConfigCmd)
 	locArgs, err := client.FormatLocation(cfg.location, cfg.nodeName)
 	if err != nil {
@@ -287,7 +289,7 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 	ownerRef := cluster.ClusterOwnerRef(clusterInfo.Name, ownerRefID)
 	kv := k8sutil.NewConfigMapKVStore(clusterInfo.Name, clientset, ownerRef)
 	agent := osddaemon.NewAgent(context, dataDevices, cfg.metadataDevice, cfg.directories, forceFormat,
-		crushLocation, cfg.storeConfig, &clusterInfo, cfg.nodeName, kv)
+		crushLocation, cfg.storeConfig, &clusterInfo, cfg.nodeName, kv, dataDirHostPath)
 
 	err = osddaemon.Provision(context, agent)
 	if err != nil {

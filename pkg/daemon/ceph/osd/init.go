@@ -25,11 +25,12 @@ import (
 	"path/filepath"
 
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 )
 
 const (
-	keyringFileName     = "keyring"
+	//keyringFileName     = "keyring"
 	bootstrapOsdKeyring = "bootstrap-osd/ceph.keyring"
 )
 
@@ -49,7 +50,7 @@ func getOSDConfFilePath(osdDataPath, clusterName string) string {
 
 // get the full path to the given OSD's keyring
 func getOSDKeyringPath(osdDataPath string) string {
-	return filepath.Join(osdDataPath, keyringFileName)
+	return filepath.Join(osdDataPath, cephconfig.DefaultKeyringFile)
 }
 
 // get the full path to the given OSD's journal
@@ -58,6 +59,7 @@ func getOSDJournalPath(osdDataPath string) string {
 }
 
 // get the full path to the given OSD's temporary mon map
+/* TODO: change this to /etc/ceph */
 func getOSDTempMonMapPath(osdDataPath string) string {
 	return filepath.Join(osdDataPath, "tmp", "activate.monmap")
 }
@@ -71,7 +73,18 @@ func createOSDBootstrapKeyring(context *clusterd.Context, clusterName, rootDir s
 		return fmt.Sprintf(bootstrapOSDKeyringTemplate, key)
 	}
 
-	return cephconfig.CreateKeyring(context, clusterName, username, keyringPath, access, keyringEval)
+	/* TODO: the cephconfig.CreateKeyring function would not create and save the key if one already
+	existed, but is this necessary? Do we risk errors by always writing the file? I don't think so ...
+	return cephconfig.CreateKeyring(context, clusterName, username, keyringPath, access, keyringEval) */
+
+	// get-or-create-key for the user account
+	key, err := client.AuthGetOrCreateKey(context, clusterName, username, access)
+	if err != nil {
+		return fmt.Errorf("failed to get or create auth key for %s. %+v", username, err)
+	}
+
+	return cephconfig.WriteKeyring(keyringPath, key, keyringEval)
+
 }
 
 // CopyBinariesForDaemon copies the "tini" and "rook" binaries to a shared volume at the target path.

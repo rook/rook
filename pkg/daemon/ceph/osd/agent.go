@@ -45,19 +45,20 @@ const (
 )
 
 type OsdAgent struct {
-	cluster        *cephconfig.ClusterInfo
-	nodeName       string
-	forceFormat    bool
-	location       string
-	osdProc        map[int]*proc.MonitoredProc
-	devices        []DesiredDevice
-	metadataDevice string
-	directories    string
-	procMan        *proc.ProcManager
-	storeConfig    config.StoreConfig
-	kv             *k8sutil.ConfigMapKVStore
-	configCounter  int32
-	osdsCompleted  chan struct{}
+	cluster         *cephconfig.ClusterInfo
+	nodeName        string
+	forceFormat     bool
+	location        string
+	osdProc         map[int]*proc.MonitoredProc
+	devices         []DesiredDevice
+	metadataDevice  string
+	directories     string
+	procMan         *proc.ProcManager
+	storeConfig     config.StoreConfig
+	kv              *k8sutil.ConfigMapKVStore
+	configCounter   int32
+	osdsCompleted   chan struct{}
+	dataDirHostPath string
 }
 
 type device struct {
@@ -65,21 +66,32 @@ type device struct {
 	osdCount int
 }
 
-func NewAgent(context *clusterd.Context, devices []DesiredDevice, metadataDevice, directories string, forceFormat bool,
-	location string, storeConfig config.StoreConfig, cluster *cephconfig.ClusterInfo, nodeName string, kv *k8sutil.ConfigMapKVStore) *OsdAgent {
-
+func NewAgent(
+	context *clusterd.Context,
+	devices []DesiredDevice,
+	metadataDevice string,
+	directories string,
+	forceFormat bool,
+	location string,
+	storeConfig config.StoreConfig,
+	cluster *cephconfig.ClusterInfo,
+	nodeName string,
+	kv *k8sutil.ConfigMapKVStore,
+	dataDirHostPath string,
+) *OsdAgent {
 	return &OsdAgent{
-		devices:        devices,
-		metadataDevice: metadataDevice,
-		directories:    directories,
-		forceFormat:    forceFormat,
-		location:       location,
-		storeConfig:    storeConfig,
-		cluster:        cluster,
-		nodeName:       nodeName,
-		kv:             kv,
-		procMan:        proc.New(context.Executor),
-		osdProc:        make(map[int]*proc.MonitoredProc),
+		devices:         devices,
+		metadataDevice:  metadataDevice,
+		directories:     directories,
+		forceFormat:     forceFormat,
+		location:        location,
+		storeConfig:     storeConfig,
+		cluster:         cluster,
+		nodeName:        nodeName,
+		kv:              kv,
+		procMan:         proc.New(context.Executor),
+		osdProc:         make(map[int]*proc.MonitoredProc),
+		dataDirHostPath: dataDirHostPath,
 	}
 }
 
@@ -464,11 +476,13 @@ func (a *OsdAgent) prepareOSD(context *clusterd.Context, cfg *osdConfig) (*oposd
 			return nil, fmt.Errorf("failed to initialize OSD at %s: %+v", cfg.rootPath, err)
 		}
 	} else {
-		// update the osd config file
-		err := writeConfigFile(cfg, context, a.cluster, a.location)
-		if err != nil {
-			logger.Warningf("failed to update config file. %+v", err)
-		}
+		/* TODO: I think the below stores osd config in /var/lib/ceph/osd<id> dir; we don't want to
+		do this if we don't have to. It should be able to get generated at init */
+		// // update the osd config file
+		// err := writeConfigFile(cfg, context, a.cluster, a.location)
+		// if err != nil {
+		// 	logger.Warningf("failed to update config file. %+v", err)
+		// }
 
 		// osd_data_dir/ready already exists, meaning the OSD is already set up.
 		// look up some basic information about it so we can run it.
@@ -513,14 +527,15 @@ func getOSDInfo(clusterName string, config *osdConfig, devPartInfo *devicePartIn
 	confFile := getOSDConfFilePath(config.rootPath, clusterName)
 	util.WriteFileToLog(logger, confFile)
 	osd := &oposd.OSDInfo{
-		ID:          config.id,
-		DataPath:    config.rootPath,
-		Config:      confFile,
-		Cluster:     clusterName,
-		KeyringPath: getOSDKeyringPath(config.rootPath),
-		UUID:        config.uuid.String(),
-		IsFileStore: isFilestore(config),
-		IsDirectory: config.dir,
+		ID:                  config.id,
+		DataPath:            config.rootPath, /* TODO: rootPath is runDir */
+		Config:              cephconfig.DefaultConfigFilePath(),
+		Cluster:             clusterName, /* TODO: cluster is always 'ceph', yes? Can this be removed, or is this needed for legacy support? */
+		KeyringPath:         getOSDKeyringPath(config.rootPath),
+		UUID:                config.uuid.String(),
+		CephVolumeInitiated: false,
+		IsFileStore:         isFilestore(config),
+		IsDirectory:         config.dir,
 	}
 	if devPartInfo != nil {
 		osd.DevicePartUUID = devPartInfo.deviceUUID

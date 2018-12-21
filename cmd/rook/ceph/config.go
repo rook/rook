@@ -22,7 +22,6 @@ import (
 	"github.com/rook/rook/cmd/rook/rook"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	mondaemon "github.com/rook/rook/pkg/daemon/ceph/mon"
-	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
 )
@@ -74,23 +73,26 @@ func initConfig(cmd *cobra.Command, args []string) error {
 	clusterInfo.Name = "ceph"
 	context := createContext()
 
-	keyringPath := "/etc/ceph/keyring"
-	_, err := cephconfig.GenerateConfigFile(context, &clusterInfo, "/etc/ceph", configUsername, keyringPath, nil, nil)
-	if err != nil {
-		return fmt.Errorf("failed to create config file: %+v", err)
-	}
+	configPath := cephconfig.DefaultConfigFilePath()
+	keyringPath := cephconfig.DefaultKeyringFilePath() // /etc/ceph/keyring
+	runDir := cephconfig.EtcCephDir
 
-	util.WriteFileToLog(logger, cephconfig.DefaultConfigFilePath())
+	err := cephconfig.GenerateConfigFile(context, &clusterInfo,
+		configPath, configUsername, keyringPath, runDir, nil, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create config file at %s: %+v", configPath, err)
+	}
 
 	keyringEval := func(key string) string {
 		r := fmt.Sprintf(configKeyringTemplate, configUsername, key)
 		return r
 	}
-
-	err = cephconfig.WriteKeyring(keyringPath, configKeyring, keyringEval)
-	if err != nil {
-		return fmt.Errorf("failed to create keyring: %+v", err)
+	if err := cephconfig.WriteKeyring(keyringPath, configKeyring, keyringEval); err != nil {
+		return fmt.Errorf("failed to create keyring at %s: %+v", keyringPath, err)
 	}
+
+	/* TODO: This can never be true, because we return error if there are errors found. Should all
+	errors here terminate fatal? */
 	if err != nil {
 		rook.TerminateFatal(err)
 	}

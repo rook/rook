@@ -516,6 +516,12 @@ func writeConfigFile(cfg *osdConfig, context *clusterd.Context, cluster *cephcon
 		cephConfig.GlobalConfig.OsdMaxObjectNamespaceLen = 64
 	}
 
+	strID := strconv.Itoa(cfg.id)
+	configPath := cephconfig.DefaultConfigFilePath()
+	keyringPath := cephconfig.DaemonKeyringFilePath(cephconfig.VarLibCephDir, "osd", strID)
+	runDir := cephconfig.DaemonRunDir(cephconfig.VarLibCephDir, "osd", strID)
+	username := fmt.Sprintf("osd.%s", strID)
+
 	// bluestore has some extra settings
 	settings, err := getStoreSettings(cfg)
 	if err != nil {
@@ -523,8 +529,8 @@ func writeConfigFile(cfg *osdConfig, context *clusterd.Context, cluster *cephcon
 	}
 
 	// write the OSD config file to disk
-	_, err = cephconfig.GenerateConfigFile(context, cluster, cfg.rootPath, fmt.Sprintf("osd.%d", cfg.id),
-		getOSDKeyringPath(cfg.rootPath), cephConfig, settings)
+	err = cephconfig.GenerateConfigFile(context, cluster,
+		configPath, username, keyringPath, runDir, cephConfig, settings)
 	if err != nil {
 		return fmt.Errorf("failed to write OSD %d config file: %+v", cfg.id, err)
 	}
