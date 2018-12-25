@@ -73,19 +73,69 @@ spec:
   api:
     count: 3
     allowMultiplePerNode: true
-  scheduler:
-    count: 3
-    allowMultiplePerNode: true
-  volume:
+  storage:
     useAllNodes: true
-  config:
-    enabled_backends = svc1234
-    svc1234:
-      volume_backend_name = svc1234
-      volume_driver = cinder.volume.drivers.ibm.storwize_svc.storwize_svc_iscsi.StorwizeSVCISCSIDriver
-      san_ip = 1.2.3.4
-      san_login = superuser
-      san_password = passw0rd
-      storwize_svc_volpool_name = pool1
+    resources:
+      limits:
+        cpu: 2
+        memory: 2048Mi
+      requests:
+        cpu: 2
+        memory: 2048Mi
+    config:
+      enabled_backends: svc1234, netapp123
+      svc1234:
+        volume_backend_name: svc1234
+        volume_driver: cinder.volume.drivers.ibm.storwize_svc.storwize_svc_iscsi.StorwizeSVCISCSIDriver
+        san_ip: 1.2.3.4
+        san_login: superuser
+        san_password: passw0rd
+        storwize_svc_volpool_name: pool1
+      netapp123:
+        volume_driver: cinder.volume.drivers.netapp.common.NetAppDriver
+        netapp_storage_family: ontap_cluster
+        netapp_storage_protocol: iscsi
+        netapp_server_hostname: 1.2.3.5
+        netapp_server_port: 443
+        netapp_login: root
+        netapp_password: password
 ```
 
+### StorageClass example:
+
+When multiple backends are configured, each of the pools on all backends should be mapped to a StorageClass.
+
+```yaml
+apiVersion: lbs.rook.io/v1
+kind: LegacyBlockPool
+metadata:
+  name: netapp_pool1
+  namespace: rook-lbs
+spec:
+  thinprovision: true
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+   name: legacy-netapp
+provisioner: lbs.rook.io/block
+parameters:
+  blockPool: netapp_pool1
+  clusterNamespace: rook-lbs
+  fstype: xfs
+```
+
+### PersistentVolumeClaim example:
+
+```yaml
+apiVersion: v1
+metadata:
+  name: myclaim
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 8Gi
+  storageClassName: legacy-netapp
+```
