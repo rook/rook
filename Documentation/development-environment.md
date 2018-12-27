@@ -39,7 +39,6 @@ Clone it:
 git clone https://github.com/kubernetes-incubator/kubespray
 cd kubespray
 ```
-
 Edit `inventory/group_vars/k8s-cluster.yml` with:
 
 ```bash
