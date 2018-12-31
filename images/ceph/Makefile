@@ -19,7 +19,8 @@ include ../image.mk
 
 CEPH_IMAGE = $(BUILD_REGISTRY)/ceph-$(GOARCH)
 
-BASEIMAGE = ubuntu:18.04
+CEPH_VERSION = v13.2.2-20181023
+BASEIMAGE = ceph/ceph-$(GOARCH):$(CEPH_VERSION)
 
 TEMP := $(shell mktemp -d)
 
