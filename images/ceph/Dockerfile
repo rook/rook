@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # the latest mimic release is the base image
-FROM ceph/ceph:v13
+FROM BASEIMAGE
 
 ARG ARCH
 ARG TINI_VERSION
