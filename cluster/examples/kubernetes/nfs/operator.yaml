@@ -88,7 +88,7 @@ spec:
       serviceAccountName: rook-nfs-operator
       containers:
       - name: rook-nfs-operator
-        image: rook/nfs:v0.9.0
+        image: rook/nfs:v0.9.1
         args: ["nfs", "operator"]
         env:
         - name: POD_NAME
