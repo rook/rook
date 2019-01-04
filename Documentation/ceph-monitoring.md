@@ -81,7 +81,7 @@ You can find Prometheus Consoles here: https://github.com/ceph/cephmetrics/tree/
 A guide to how you can write your own Prometheus consoles can be found on the official Prometheus site here: https://prometheus.io/docs/visualization/consoles/.
 
 ## Grafana Dashboards
-The dashboards have been created by [@galexrt](https://github.com/galexrt). For feedback on the dashboards please reach out to him on the [Rook.io Slack](https://rook-slackin.herokuapp.com/).
+The dashboards have been created by [@galexrt](https://github.com/galexrt). For feedback on the dashboards please reach out to him on the [Rook.io Slack](https://slack.rook.io).
 
 > **NOTE** The dashboards are only compatible with Grafana 5.0.3 or higher.
 
