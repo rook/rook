@@ -480,7 +480,7 @@ between each restart to ensure the cluster goes back to "active/clean" state.
 - MDS: the pods are stateless and can be restarted as needed
 
 After the pod restart, your new settings should be in effect. Note that if you create
-the ConfigMap in the `rook` namespace before the cluster is even created
+the ConfigMap in the `rook-ceph` namespace before the cluster is even created
 the daemons will pick up the settings at first launch.
 
 The only validation of the settings done by Rook is whether the settings can be merged
