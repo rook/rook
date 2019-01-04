@@ -8,7 +8,7 @@ indent: true
 
 Many of these problem cases are hard to summarize down to a short phrase that adequately describes the problem. Each problem will start with a bulleted list of symptoms. Keep in mind that all symptoms may not apply depending upon the configuration of the Rook. If the majority of the symptoms are seen there is a fair chance you are experiencing that problem.
 
-If after trying the suggestions found on this page and the problem is not resolved, the Rook team is very happy to help you troubleshoot the issues in their Slack channel. Once you have [registered for the Rook Slack](https://rook-slackin.herokuapp.com/), proceed to the General channel to ask for assistance.
+If after trying the suggestions found on this page and the problem is not resolved, the Rook team is very happy to help you troubleshoot the issues in their Slack channel. Once you have [registered for the Rook Slack](https://slack.rook.io), proceed to the General channel to ask for assistance.
 
 ## Table of Contents
 - [Troubleshooting Techniques](#troubleshooting-techniques)
@@ -227,7 +227,7 @@ This will happen in kernels with versions older than 4.7, where the option `mds_
 
 In this case, if there is only one filesystem in the Rook cluster, there should be no issues and the mount should succeed. If you have more than one filesystem, inconsistent results may arise and the filesystem mounted may not be the one you specified.
 
-If the issue is still not resolved from the steps above, please come chat with us on the **#general** channel of our [Rook Slack](https://rook-slackin.herokuapp.com/).
+If the issue is still not resolved from the steps above, please come chat with us on the **#general** channel of our [Rook Slack](https://slack.rook.io).
 We want to help you get your storage working and learn from those lessons to prevent users in the future from seeing the same issue.
 
 # Cluster failing to service requests
