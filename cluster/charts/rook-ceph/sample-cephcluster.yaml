@@ -1,0 +1,92 @@
+#
+# Sample CephCluster to customise and deploy after you have deployed the rook-ceph operator
+#
+# See: https://rook.io/docs/rook/v0.9/ceph-cluster-crd.html
+#
+# Important Notes:
+# - You must customise the 'CephCluster' resource at the bottom of the example to met your situation.
+# - Each cluster should be deployed to its own namespace.
+# - The example below assumes you installed the rook-ceph operator in the `rook-ceph-system` namespace.
+# - The example below creates a cluster in a `rook-ceph-cluster` namespace.
+# - The RBAC in this file is *required* for this cluster, the rook-ceph operator/chart does not include everything required.
+#
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rook-ceph-cluster
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-ceph-cluster
+  namespace: rook-ceph-cluster
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-cluster
+  namespace: rook-ceph-cluster
+rules:
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: [ "get", "list", "watch", "create", "update", "delete" ]
+---
+# Allow the operator to create resources in this cluster's namespace
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-cluster-mgmt
+  namespace: rook-ceph-cluster
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-cluster-mgmt
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-system
+  namespace: rook-ceph-system
+---
+# Allow the pods in this namespace to work with configmaps
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-cluster
+  namespace: rook-ceph-cluster
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-ceph-cluster
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-cluster
+  namespace: rook-ceph-cluster
+---
+apiVersion: ceph.rook.io/v1
+kind: CephCluster
+metadata:
+  name: rook-ceph-cluster
+  namespace: rook-ceph-cluster
+spec:
+  cephVersion:
+    # See the "Cluster Settings" at https://rook.io/docs/rook/v0.9/ceph-cluster-crd.html#cluster-settings
+    # for more details on which image of ceph to run
+    image: ceph/ceph:v13.2.2-20181206
+  mon:
+    count: 3
+    allowMultiplePerNode: false
+  # 'dataDirHostPath' is the path on each node where config and data will be stored
+  # If you need to start over creating your cluster, you also need to delete this folder on each node
+  dataDirHostPath: /var/lib/rook
+  storage:
+    useAllNodes: true
+    # You must customise and enable one of these three ways to specify devices
+    # (1) All devices that don't appear to be in use, or
+    #useAllDevices: true
+    # (2) All device names that match this regex
+    #deviceFilter: "^sd[b-d]$"
+    # (3) The specific device names listed
+    #devices:
+    #- name: sdd
+  dashboard:
+    enabled: true
