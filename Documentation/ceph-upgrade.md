@@ -97,6 +97,13 @@ kind: CephCluster
   namespace: rook-ceph
 spec:
   dataDirHostPath: /var/lib/rook
+  # set the amount of mons to be started
+  mon:
+    count: 3
+    allowMultiplePerNode: true
+  # enable the ceph dashboard for viewing cluster status
+  dashboard:
+    enabled: true
   storage:
     useAllNodes: true
     useAllDevices: true

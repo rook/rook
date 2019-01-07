@@ -24,6 +24,9 @@ spec:
     # see the "Cluster Settings" section below for more details on which image of ceph to run
     image: ceph/ceph:v13.2.2-20181023
   dataDirHostPath: /var/lib/rook
+  mon:
+    count: 3
+    allowMultiplePerNode: true
   storage:
     useAllNodes: true
     useAllDevices: true
@@ -179,8 +182,9 @@ spec:
   cephVersion:
     image: ceph/ceph:v13.2.2-20181023
   dataDirHostPath: /var/lib/rook
-  network:
-    hostNetwork: false
+  mon:
+    count: 3
+    allowMultiplePerNode: true
   dashboard:
     enabled: true
   # cluster level storage configuration and selection
@@ -210,8 +214,9 @@ spec:
   cephVersion:
     image: ceph/ceph:v13.2.2-20181023
   dataDirHostPath: /var/lib/rook
-  network:
-    hostNetwork: false
+  mon:
+    count: 3
+    allowMultiplePerNode: true
   dashboard:
     enabled: true
   # cluster level storage configuration and selection
@@ -252,8 +257,9 @@ spec:
   cephVersion:
     image: ceph/ceph:v13.2.2-20181023
   dataDirHostPath: /var/lib/rook
-  network:
-    hostNetwork: false
+  mon:
+    count: 3
+    allowMultiplePerNode: true
   dashboard:
     enabled: true
   # cluster level storage configuration and selection
@@ -288,8 +294,10 @@ spec:
   cephVersion:
     image: ceph/ceph:v13.2.2-20181023
   dataDirHostPath: /var/lib/rook
-  network:
-    hostNetwork: false
+  mon:
+    count: 3
+    allowMultiplePerNode: true
+  # enable the ceph dashboard for viewing cluster status
   dashboard:
     enabled: true
   placement:
@@ -332,6 +340,12 @@ spec:
   cephVersion:
     image: ceph/ceph:v13.2.2-20181023
   dataDirHostPath: /var/lib/rook
+  mon:
+    count: 3
+    allowMultiplePerNode: true
+  # enable the ceph dashboard for viewing cluster status
+  dashboard:
+    enabled: true
   # cluster level resource requests/limits configuration
   resources:
   storage:

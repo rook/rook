@@ -222,11 +222,11 @@ spec:
     # For the latest ceph images, see https://hub.docker.com/r/ceph/ceph/tags
     image: ceph/ceph:v13.2.2-20181023
   dataDirHostPath: /var/lib/rook
-  dashboard:
-    enabled: true
   mon:
     count: 3
     allowMultiplePerNode: true
+  dashboard:
+    enabled: true
   storage:
     useAllNodes: true
     useAllDevices: false
