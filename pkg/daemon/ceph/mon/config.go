@@ -18,7 +18,6 @@ package mon
 
 import (
 	"fmt"
-	"net"
 	"path"
 	"path/filepath"
 	"strings"
@@ -66,14 +65,6 @@ func getMonKeyringPath(configDir, monName string) string {
 
 // generateConnectionConfigFile generates and writes the monitor config file to disk
 func generateConnectionConfigFile(context *clusterd.Context, config *Config, pathRoot, keyringPath string) (string, error) {
-	// public_bind_addr is set from the pod IP which can only be known at runtime, so set this
-	// at config init int the Ceph config file.
-	// See pkg/operator/ceph/cluster/mon/spec.go - makeMonDaemonContainer() comment notes for more
-	privateAddr := net.JoinHostPort(context.NetworkInfo.ClusterAddr, fmt.Sprintf("%d", config.Port))
-	settings := map[string]string{
-		"public bind addr": privateAddr,
-	}
-
 	// The user is "mon.<mon-name>" for mon config items
 	clientUser := fmt.Sprintf("mon.%s", config.Name)
 
@@ -82,6 +73,6 @@ func generateConnectionConfigFile(context *clusterd.Context, config *Config, pat
 		config.Cluster,
 		pathRoot, clientUser, keyringPath,
 		nil,
-		settings,
+		nil,
 	)
 }

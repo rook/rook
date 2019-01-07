@@ -193,14 +193,6 @@ func (c *Cluster) makeMonFSInitContainer(monConfig *monConfig) v1.Container {
 
 func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 	return v1.Container{
-		// The operator has set up the mon's service already, so the IP that the mon should
-		// broadcast as its own (--public-addr) is known. But the pod's IP, which the mon should
-		// bind to (--public-bind-addr) isn't known until runtime. 3 solutions were considered for
-		// resolving this issue:
-		// 1. Rook in config init sets "public_bind_addr" in the Ceph config file
-		//    - Chosen solution, but is not as transparent to inspection as using commandline arg
-		// 2. Use bash to do variable substitution with the pod IP env var; but bash is a poor PID1
-		// 3. Use tini to do var substitution as above; but tini doesn't exist in the ceph images.
 		Name: "mon",
 		Command: []string{
 			cephMonCommand,
@@ -209,7 +201,7 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 			[]string{
 				"--foreground",
 				"--public-addr", joinHostPort(monConfig.PublicIP, monConfig.Port),
-				// --public-bind-addr is set in the config file at init time
+				"--public-bind-addr", joinHostPort("$(ROOK_PRIVATE_IP)", monConfig.Port),
 				// do not add the '--cluster/--conf/--keyring' flags; rook wants their default values
 			},
 			c.cephMonCommonArgs(monConfig)...,
@@ -224,7 +216,10 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 				Protocol:      v1.ProtocolTCP,
 			},
 		},
-		Env:       k8sutil.ClusterDaemonEnvVars(),
+		Env: append(
+			k8sutil.ClusterDaemonEnvVars(),
+			k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
+		),
 		Resources: c.resources,
 	}
 }

@@ -149,7 +149,7 @@ func testPodSpec(t *testing.T, dataDir string) {
 	assert.Equal(t, "1337", cont.Resources.Requests.Memory().String())
 
 	// main mon daemon container
-	monDaemonEnvs := len(k8sutil.ClusterDaemonEnvVars())
+	monDaemonEnvs := len(k8sutil.ClusterDaemonEnvVars()) + 1
 	monDaemonContDev := test_opceph.ContainerTestDefinition{
 		Image: &cephImage,
 		Command: []string{
@@ -157,7 +157,8 @@ func testPodSpec(t *testing.T, dataDir string) {
 		Args: append(
 			monCommonExpectedArgs(name, c),
 			[]string{"--foreground"},
-			[]string{"--public-addr", "2.4.6.1:6790"}),
+			[]string{"--public-addr", "2.4.6.1:6790"},
+			[]string{"--public-bind-addr", "$(ROOK_PRIVATE_IP):6790"}),
 		VolumeMountNames: cephVolumeMountNames,
 		EnvCount:         &monDaemonEnvs,
 		Ports: []v1.ContainerPort{
