@@ -103,9 +103,10 @@ func TestStartSecureDashboard(t *testing.T) {
 	dashboardInitWaitTime = 0
 	err := c.configureDashboard(dashboardPortHttp)
 	assert.Nil(t, err)
-	// the dashboard is enabled, then disabled and enabled again to restart it with the cert
-	assert.Equal(t, 2, enables)
-	assert.Equal(t, 1, disables)
+	// the dashboard is enabled, then disabled and enabled again to restart
+	// it with the cert, and another restart when setting the dashboard port
+	assert.Equal(t, 3, enables)
+	assert.Equal(t, 2, disables)
 	assert.Equal(t, 2, moduleRetries)
 
 	svc, err := c.context.Clientset.CoreV1().Services(c.Namespace).Get("rook-ceph-mgr-dashboard", metav1.GetOptions{})
@@ -116,8 +117,8 @@ func TestStartSecureDashboard(t *testing.T) {
 	c.dashboard.Enabled = false
 	err = c.configureDashboard(dashboardPortHttp)
 	assert.Nil(t, err)
-	assert.Equal(t, 2, enables)
-	assert.Equal(t, 2, disables)
+	assert.Equal(t, 3, enables)
+	assert.Equal(t, 3, disables)
 
 	svc, err = c.context.Clientset.CoreV1().Services(c.Namespace).Get("rook-ceph-mgr-dashboard", metav1.GetOptions{})
 	assert.NotNil(t, err)
