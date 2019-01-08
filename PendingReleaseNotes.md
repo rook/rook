@@ -6,6 +6,7 @@
 
 ## Notable Features
 
+- Minio Object Storage now use `Readiness` and `Liveness` probes.
 
 ## Breaking Changes
 

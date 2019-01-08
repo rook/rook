@@ -27,10 +27,12 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/api/apps/v1beta2"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -60,22 +62,22 @@ var ObjectStoreResource = opkit.CustomResource{
 	Kind:    reflect.TypeOf(miniov1alpha1.ObjectStore{}).Name(),
 }
 
-// MinioController represents a controller object for object store custom resources
-type MinioController struct {
+// Controller represents a controller object for object store custom resources
+type Controller struct {
 	context   *clusterd.Context
 	rookImage string
 }
 
-// NewMinioController create controller for watching object store custom resources created
-func NewMinioController(context *clusterd.Context, rookImage string) *MinioController {
-	return &MinioController{
+// NewController create controller for watching object store custom resources created
+func NewController(context *clusterd.Context, rookImage string) *Controller {
+	return &Controller{
 		context:   context,
 		rookImage: rookImage,
 	}
 }
 
 // StartWatch watches for instances of ObjectStore custom resources and acts on them
-func (c *MinioController) StartWatch(namespace string, stopCh chan struct{}) error {
+func (c *Controller) StartWatch(namespace string, stopCh chan struct{}) error {
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
 		UpdateFunc: c.onUpdate,
@@ -89,10 +91,8 @@ func (c *MinioController) StartWatch(namespace string, stopCh chan struct{}) err
 	return nil
 }
 
-func (c *MinioController) makeMinioHeadlessService(name, namespace string, spec miniov1alpha1.ObjectStoreSpec, ownerRef meta_v1.OwnerReference) (*v1.Service, error) {
-	coreV1Client := c.context.Clientset.CoreV1()
-
-	svc, err := coreV1Client.Services(namespace).Create(&v1.Service{
+func (c *Controller) makeMinioHeadlessService(name, namespace string, spec miniov1alpha1.ObjectStoreSpec, ownerRef meta_v1.OwnerReference) (*v1.Service, error) {
+	svc := &v1.Service{
 		ObjectMeta: meta_v1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
@@ -103,13 +103,22 @@ func (c *MinioController) makeMinioHeadlessService(name, namespace string, spec 
 			Ports:     []v1.ServicePort{{Port: minioPort}},
 			ClusterIP: v1.ClusterIPNone,
 		},
-	})
+	}
 	k8sutil.SetOwnerRef(c.context.Clientset, namespace, &svc.ObjectMeta, &ownerRef)
 
-	return svc, err
+	svc, err := c.context.Clientset.CoreV1().Services(namespace).Create(svc)
+	if err != nil && !k8serrors.IsAlreadyExists(err) {
+		return nil, fmt.Errorf("failed to create minio headless service. %+v", err)
+	}
+	svc, err = c.context.Clientset.CoreV1().Services(namespace).Update(svc)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update minio headless service. %+v", err)
+	}
+
+	return svc, nil
 }
 
-func (c *MinioController) buildMinioCtrArgs(statefulSetPrefix, headlessServiceName, namespace, clusterDomain string, serverCount int32, volumeMounts []v1.VolumeMount) []string {
+func (c *Controller) buildMinioCtrArgs(statefulSetPrefix, headlessServiceName, namespace, clusterDomain string, serverCount int32, volumeMounts []v1.VolumeMount) []string {
 	args := []string{"server"}
 	for i := int32(0); i < serverCount; i++ {
 		for _, mount := range volumeMounts {
@@ -131,7 +140,7 @@ func makeServerAddress(statefulSetPrefix, headlessServiceName, namespace, cluste
 	return fmt.Sprintf("http://%s-%d.%s.%s%s", statefulSetPrefix, serverNum, headlessServiceName, dnsSuffix, pvcDataDir)
 }
 
-func (c *MinioController) makeMinioPodSpec(name, namespace string, ctrName string, ctrImage string, clusterDomain string, envVars map[string]string, numServers int32, volumeClaims []v1.PersistentVolumeClaim) v1.PodTemplateSpec {
+func (c *Controller) makeMinioPodSpec(name, namespace string, ctrName string, ctrImage string, clusterDomain string, envVars map[string]string, numServers int32, volumeClaims []v1.PersistentVolumeClaim) v1.PodTemplateSpec {
 	var env []v1.EnvVar
 	for k, v := range envVars {
 		env = append(env, v1.EnvVar{Name: k, Value: v})
@@ -176,6 +185,32 @@ func (c *MinioController) makeMinioPodSpec(name, namespace string, ctrName strin
 					Ports:        []v1.ContainerPort{{ContainerPort: minioPort}},
 					Args:         c.buildMinioCtrArgs(name, name, namespace, clusterDomain, numServers, volumeMounts),
 					VolumeMounts: volumeMounts,
+					ReadinessProbe: &v1.Probe{
+						Handler: v1.Handler{
+							HTTPGet: &v1.HTTPGetAction{
+								Path: "/minio/health/ready",
+								Port: intstr.FromInt(int(minioPort)),
+							},
+						},
+						InitialDelaySeconds: 2,
+						PeriodSeconds:       30,
+						TimeoutSeconds:      2,
+						SuccessThreshold:    1,
+						FailureThreshold:    3,
+					},
+					LivenessProbe: &v1.Probe{
+						Handler: v1.Handler{
+							HTTPGet: &v1.HTTPGetAction{
+								Path: "/minio/health/live",
+								Port: intstr.FromInt(int(minioPort)),
+							},
+						},
+						InitialDelaySeconds: 5,
+						PeriodSeconds:       30,
+						TimeoutSeconds:      2,
+						SuccessThreshold:    1,
+						FailureThreshold:    3,
+					},
 				},
 			},
 			Volumes: volumes,
@@ -185,7 +220,7 @@ func (c *MinioController) makeMinioPodSpec(name, namespace string, ctrName strin
 	return podSpec
 }
 
-func (c *MinioController) getAccessCredentials(secretName, namespace string) (string, string, error) {
+func (c *Controller) getAccessCredentials(secretName, namespace string) (string, string, error) {
 	coreV1Client := c.context.Clientset.CoreV1()
 	var getOpts meta_v1.GetOptions
 	val, err := coreV1Client.Secrets(namespace).Get(secretName, getOpts)
@@ -207,9 +242,7 @@ func validateObjectStoreSpec(spec miniov1alpha1.ObjectStoreSpec) error {
 	return nil
 }
 
-func (c *MinioController) makeMinioStatefulSet(name, namespace string, spec miniov1alpha1.ObjectStoreSpec, ownerRef meta_v1.OwnerReference) (*v1beta2.StatefulSet, error) {
-	appsClient := c.context.Clientset.AppsV1beta2()
-
+func (c *Controller) makeMinioStatefulSet(name, namespace string, spec miniov1alpha1.ObjectStoreSpec, ownerRef meta_v1.OwnerReference) (*v1beta2.StatefulSet, error) {
 	accessKey, secretKey, err := c.getAccessCredentials(spec.Credentials.Name, spec.Credentials.Namespace)
 	if err != nil {
 		return nil, err
@@ -223,7 +256,7 @@ func (c *MinioController) makeMinioStatefulSet(name, namespace string, spec mini
 	podSpec := c.makeMinioPodSpec(name, namespace, minioCtrName, c.rookImage, spec.ClusterDomain, envVars, int32(spec.Storage.NodeCount), spec.Storage.VolumeClaimTemplates)
 
 	nodeCount := int32(spec.Storage.NodeCount)
-	ss := v1beta2.StatefulSet{
+	sts := &v1beta2.StatefulSet{
 		ObjectMeta: meta_v1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
@@ -237,15 +270,22 @@ func (c *MinioController) makeMinioStatefulSet(name, namespace string, spec mini
 			Template:             podSpec,
 			VolumeClaimTemplates: spec.Storage.VolumeClaimTemplates,
 			ServiceName:          name,
-			// TODO: liveness probe
 		},
 	}
-	k8sutil.SetOwnerRef(c.context.Clientset, namespace, &ss.ObjectMeta, &ownerRef)
+	k8sutil.SetOwnerRef(c.context.Clientset, namespace, &sts.ObjectMeta, &ownerRef)
+	sts, err = c.context.Clientset.AppsV1beta2().StatefulSets(namespace).Create(sts)
+	if err != nil && !k8serrors.IsAlreadyExists(err) {
+		return nil, fmt.Errorf("failed to create minio statefulset. %+v", err)
+	}
+	sts, err = c.context.Clientset.AppsV1beta2().StatefulSets(namespace).Update(sts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update minio statefulset. %+v", err)
+	}
 
-	return appsClient.StatefulSets(namespace).Create(&ss)
+	return sts, err
 }
 
-func (c *MinioController) onAdd(obj interface{}) {
+func (c *Controller) onAdd(obj interface{}) {
 	objectstore := obj.(*miniov1alpha1.ObjectStore).DeepCopy()
 
 	ownerRef := meta_v1.OwnerReference{
@@ -266,32 +306,28 @@ func (c *MinioController) onAdd(obj interface{}) {
 	logger.Infof("Creating Minio headless service %s in namespace %s.", objectstore.Name, objectstore.Namespace)
 	_, err = c.makeMinioHeadlessService(objectstore.Name, objectstore.Namespace, objectstore.Spec, ownerRef)
 	if err != nil {
-		logger.Errorf("failed to create minio headless service: %v", err)
+		logger.Errorf(err.Error())
 		return
 	}
-	logger.Infof("Finished creating Minio headless service %s in namespace %s.", objectstore.Name, objectstore.Namespace)
+	logger.Infof("Finished creating/updating Minio headless service %s in namespace %s.", objectstore.Name, objectstore.Namespace)
 
 	// Create the stateful set.
-	logger.Infof("Creating Minio stateful set %s.", objectstore.Name)
+	logger.Infof("Creating/Updating Minio stateful set %s.", objectstore.Name)
 	_, err = c.makeMinioStatefulSet(objectstore.Name, objectstore.Namespace, objectstore.Spec, ownerRef)
 	if err != nil {
-		logger.Errorf("failed to create minio stateful set: %v", err)
+		logger.Errorf(err.Error())
 		return
 	}
-	logger.Infof("Finished creating Minio stateful set %s in namespace %s.", objectstore.Name, objectstore.Namespace)
+	logger.Infof("Finished creating/updating Minio stateful set %s in namespace %s.", objectstore.Name, objectstore.Namespace)
 }
 
-func (c *MinioController) onUpdate(oldObj, newObj interface{}) {
-	oldStore := oldObj.(*miniov1alpha1.ObjectStore).DeepCopy()
+func (c *Controller) onUpdate(oldObj, newObj interface{}) {
 	newStore := newObj.(*miniov1alpha1.ObjectStore).DeepCopy()
 
-	_ = oldStore
-	_ = newStore
-
-	logger.Infof("Received update on object store %s in namespace %s. This is currently unsupported.", oldStore.Name, oldStore.Namespace)
+	c.onAdd(newStore)
 }
 
-func (c *MinioController) onDelete(obj interface{}) {
+func (c *Controller) onDelete(obj interface{}) {
 	objectstore := obj.(*miniov1alpha1.ObjectStore).DeepCopy()
 	logger.Infof("Delete Minio object store %s", objectstore.Name)
 

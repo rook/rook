@@ -85,7 +85,7 @@ func TestOnAdd(t *testing.T) {
 	// Initialize the controller and its dependencies.
 	clientset := testop.New(3)
 	context := &clusterd.Context{Clientset: clientset}
-	controller := NewMinioController(context, "rook/minio:mockTag")
+	controller := NewController(context, "rook/minio:mockTag")
 
 	// Make the credentials.
 	_, err := clientset.CoreV1().Secrets(namespace).Create(&v1.Secret{
