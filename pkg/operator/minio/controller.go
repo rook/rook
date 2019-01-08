@@ -32,6 +32,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -184,6 +185,32 @@ func (c *Controller) makeMinioPodSpec(name, namespace string, ctrName string, ct
 					Ports:        []v1.ContainerPort{{ContainerPort: minioPort}},
 					Args:         c.buildMinioCtrArgs(name, name, namespace, clusterDomain, numServers, volumeMounts),
 					VolumeMounts: volumeMounts,
+					ReadinessProbe: &v1.Probe{
+						Handler: v1.Handler{
+							HTTPGet: &v1.HTTPGetAction{
+								Path: "/minio/health/ready",
+								Port: intstr.FromInt(int(minioPort)),
+							},
+						},
+						InitialDelaySeconds: 2,
+						PeriodSeconds:       30,
+						TimeoutSeconds:      2,
+						SuccessThreshold:    1,
+						FailureThreshold:    3,
+					},
+					LivenessProbe: &v1.Probe{
+						Handler: v1.Handler{
+							HTTPGet: &v1.HTTPGetAction{
+								Path: "/minio/health/live",
+								Port: intstr.FromInt(int(minioPort)),
+							},
+						},
+						InitialDelaySeconds: 5,
+						PeriodSeconds:       30,
+						TimeoutSeconds:      2,
+						SuccessThreshold:    1,
+						FailureThreshold:    3,
+					},
 				},
 			},
 			Volumes: volumes,
@@ -243,7 +270,6 @@ func (c *Controller) makeMinioStatefulSet(name, namespace string, spec miniov1al
 			Template:             podSpec,
 			VolumeClaimTemplates: spec.Storage.VolumeClaimTemplates,
 			ServiceName:          name,
-			// TODO: liveness probe
 		},
 	}
 	k8sutil.SetOwnerRef(c.context.Clientset, namespace, &sts.ObjectMeta, &ownerRef)
