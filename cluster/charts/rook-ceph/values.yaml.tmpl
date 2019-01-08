@@ -67,3 +67,8 @@ pspEnable: true
 # discover:
 #   toleration: NoSchedule
 #   tolerationKey: key
+
+# In some situations SELinux relabelling breaks (times out) on large filesystems, and doesn't work with cephfs ReadWriteMany volumes (last relabel wins).
+# Disable it here if you have similiar issues.
+# For more details see https://github.com/rook/rook/issues/2417
+enableSelinuxRelabeling: true

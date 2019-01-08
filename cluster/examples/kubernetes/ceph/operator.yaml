@@ -452,6 +452,11 @@ spec:
         # For more details see https://github.com/rook/rook/issues/1314#issuecomment-355799641
         - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
           value: "false"
+        # In some situations SELinux relabelling breaks (times out) on large filesystems, and doesn't work with cephfs ReadWriteMany volumes (last relabel wins).
+        # Disable it here if you have similiar issues.
+        # For more details see https://github.com/rook/rook/issues/2417
+        - name: ROOK_ENABLE_SELINUX_RELABELING
+          value: "true"
         # The name of the node to pass with the downward API
         - name: NODE_NAME
           valueFrom:
