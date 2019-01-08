@@ -30,12 +30,12 @@ import (
 type Operator struct {
 	context    *clusterd.Context
 	rookImage  string
-	controller *MinioController
+	controller *Controller
 }
 
 // New creates an operator instance.
 func New(context *clusterd.Context, rookImage string) *Operator {
-	minioController := NewMinioController(context, rookImage)
+	minioController := NewController(context, rookImage)
 
 	return &Operator{
 		context:    context,
