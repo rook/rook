@@ -262,6 +262,11 @@ func clusterChanged(oldCluster, newCluster cephv1.ClusterSpec, clusterRef *clust
 		changeFound = true
 	}
 
+	if oldCluster.Dashboard.Port != newCluster.Dashboard.Port {
+		logger.Infof("dashboard port has changed from \"%d\" to \"%d\"", oldCluster.Dashboard.Port, newCluster.Dashboard.Port)
+		changeFound = true
+	}
+
 	if oldCluster.Mon.Count != newCluster.Mon.Count {
 		logger.Infof("number of mons have changed from %d to %d. The health check will update the mons...", oldCluster.Mon.Count, newCluster.Mon.Count)
 		clusterRef.mons.MonCountMutex.Lock()

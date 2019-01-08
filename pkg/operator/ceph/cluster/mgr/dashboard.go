@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os/exec"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -54,7 +55,7 @@ func init() {
 
 func (c *Cluster) configureDashboard(port int) error {
 	// enable or disable the dashboard module
-	if err := c.toggleDashboardModule(); err != nil {
+	if err := c.toggleDashboardModule(port); err != nil {
 		return err
 	}
 
@@ -66,6 +67,17 @@ func (c *Cluster) configureDashboard(port int) error {
 				return fmt.Errorf("failed to create dashboard mgr service. %+v", err)
 			}
 			logger.Infof("dashboard service already exists")
+			original, err := c.context.Clientset.CoreV1().Services(c.Namespace).Get(dashboardService.Name, metav1.GetOptions{})
+			if err != nil {
+				return fmt.Errorf("failed to get dashboard service. %+v", err)
+			}
+			if original.Spec.Ports[0].Port != int32(port) {
+				logger.Infof("dashboard port changed. updating service")
+				original.Spec.Ports[0].Port = int32(port)
+				if _, err := c.context.Clientset.CoreV1().Services(c.Namespace).Update(original); err != nil {
+					return fmt.Errorf("failed to update dashboard mgr service. %+v", err)
+				}
+			}
 		} else {
 			logger.Infof("dashboard service started")
 		}
@@ -81,7 +93,7 @@ func (c *Cluster) configureDashboard(port int) error {
 }
 
 // Ceph docs about the dashboard module: http://docs.ceph.com/docs/luminous/mgr/dashboard/
-func (c *Cluster) toggleDashboardModule() error {
+func (c *Cluster) toggleDashboardModule(dashboardPort int) error {
 	if c.dashboard.Enabled {
 		if err := client.MgrEnableModule(c.context, c.Namespace, dashboardModuleName, true); err != nil {
 			return fmt.Errorf("failed to enable mgr dashboard module. %+v", err)
@@ -91,7 +103,7 @@ func (c *Cluster) toggleDashboardModule() error {
 			return fmt.Errorf("failed to initialize dashboard. %+v", err)
 		}
 
-		if err := c.configureDashboardModule(); err != nil {
+		if err := c.configureDashboardModule(dashboardPort); err != nil {
 			return fmt.Errorf("failed to configure mgr dashboard module. %+v", err)
 		}
 	} else {
@@ -102,11 +114,17 @@ func (c *Cluster) toggleDashboardModule() error {
 	return nil
 }
 
-func (c *Cluster) configureDashboardModule() error {
+func (c *Cluster) configureDashboardModule(dashboardPort int) error {
 	hasChanged, err := client.MgrSetAllConfig(c.context, c.Namespace, c.cephVersion.Name, "mgr/dashboard/url_prefix", c.dashboard.UrlPrefix)
 	if err != nil {
 		return err
 	}
+	port := strconv.Itoa(dashboardPort)
+	changed, err := client.MgrSetAllConfig(c.context, c.Namespace, c.cephVersion.Name, "mgr/dashboard/server_port", port)
+	if err != nil {
+		return err
+	}
+	hasChanged = hasChanged || changed
 	if hasChanged {
 		logger.Infof("dashboard config has changed")
 		return c.restartDashboard()

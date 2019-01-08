@@ -26,6 +26,8 @@
 - Ceph OSDs are created with the `ceph-volume` tool when configuring devices, adding support for multiple OSDs per device. See the [OSD configuration settings](Documentation/ceph-cluster-crd.md#osd-configuration-settings)
 - Selinux labeling for mounts can now be toggled with the ROOK_ENABLE_SELINUX_RELABELING environment variable. This addresses https://github.com/rook/rook/issues/2417
 
+- Added the dashboard `port` configuration setting.
+
 ## Breaking Changes
 
 - The Ceph CRDs are now v1. With the version change, the `kind` has been renamed for the following Ceph CRDs:

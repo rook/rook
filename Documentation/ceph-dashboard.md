@@ -51,13 +51,23 @@ kubectl -n rook-ceph get secret rook-ceph-dashboard-password -o yaml | grep "pas
 
 ## Configure the Dashboard
 
-If you are accessing the dashboard via a reverse proxy, you may wish to serve it under a URL prefix.
-To get the dashboard to use hyperlinks that include your prefix, you can set the `urlPrefix` setting:
+The following dashboard configuration settings are supported:
+
 ```yaml
   spec:
     dashboard:
       urlPrefix: /ceph-dashboard
+      port: 8443
 ```
+
+* `urlPrefix` If you are accessing the dashboard via a reverse proxy, you may
+  wish to serve it under a URL prefix.  To get the dashboard to use hyperlinks
+  that include your prefix, you can set the `urlPrefix` setting.
+
+* `port` The port that the dashboard is served on may be changed from the
+  default using the `port` setting. The corresponding K8s service exposing the
+  port will automatically be updated.
+
 
 ## Viewing the Dashboard External to the Cluster
 
