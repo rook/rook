@@ -24,6 +24,8 @@ type CephClusterExpansion interface{}
 
 type CephFilesystemExpansion interface{}
 
+type CephNFSExpansion interface{}
+
 type CephObjectStoreExpansion interface{}
 
 type CephObjectStoreUserExpansion interface{}

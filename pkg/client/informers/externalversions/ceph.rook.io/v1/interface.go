@@ -30,6 +30,8 @@ type Interface interface {
 	CephClusters() CephClusterInformer
 	// CephFilesystems returns a CephFilesystemInformer.
 	CephFilesystems() CephFilesystemInformer
+	// CephNFSs returns a CephNFSInformer.
+	CephNFSs() CephNFSInformer
 	// CephObjectStores returns a CephObjectStoreInformer.
 	CephObjectStores() CephObjectStoreInformer
 	// CephObjectStoreUsers returns a CephObjectStoreUserInformer.
@@ -60,6 +62,11 @@ func (v *version) CephClusters() CephClusterInformer {
 // CephFilesystems returns a CephFilesystemInformer.
 func (v *version) CephFilesystems() CephFilesystemInformer {
 	return &cephFilesystemInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// CephNFSs returns a CephNFSInformer.
+func (v *version) CephNFSs() CephNFSInformer {
+	return &cephNFSInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // CephObjectStores returns a CephObjectStoreInformer.

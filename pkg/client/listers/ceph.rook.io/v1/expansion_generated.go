@@ -42,6 +42,14 @@ type CephFilesystemListerExpansion interface{}
 // CephFilesystemNamespaceLister.
 type CephFilesystemNamespaceListerExpansion interface{}
 
+// CephNFSListerExpansion allows custom methods to be added to
+// CephNFSLister.
+type CephNFSListerExpansion interface{}
+
+// CephNFSNamespaceListerExpansion allows custom methods to be added to
+// CephNFSNamespaceLister.
+type CephNFSNamespaceListerExpansion interface{}
+
 // CephObjectStoreListerExpansion allows custom methods to be added to
 // CephObjectStoreLister.
 type CephObjectStoreListerExpansion interface{}
