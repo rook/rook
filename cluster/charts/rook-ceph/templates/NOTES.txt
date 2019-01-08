@@ -4,15 +4,17 @@ The Rook Operator has been installed. Check its status by running:
 Visit https://rook.io/docs/rook/master for instructions on how to create and configure Rook clusters
 
 Note: You cannot just create a CephCluster resource, you need to also create a namespace and
-provide your own RBAC Roles and RoleBinding resources for the cluster. The Rook Operator
-will not do this for you. Sample CephCluster manifest templates are available:
+install suitable RBAC roles and role bindings for the cluster. The Rook Operator will not do
+this for you. Sample CephCluster manifest templates that include RBAC resources are available:
 
-- https://rook.github.io/docs/rook/v0.9/ceph-quickstart.html
-- https://github.com/rook/rook/blob/release-0.9/cluster/examples/kubernetes/ceph/cluster.yaml
+- https://rook.github.io/docs/rook/master/ceph-quickstart.html
+- https://github.com/rook/rook/blob/master/cluster/examples/kubernetes/ceph/cluster.yaml
 
 Important Notes:
-- The links above are for release 0.9, if you deploy a different release you must find matching manifests.
+- The links above are for the unreleaed master version, if you deploy a different release you must find matching manifests.
 - You must customise the 'CephCluster' resource at the bottom of the sample manifests to met your situation.
-- Each CephCluster must be deployed to its own namespace.
+- Each CephCluster must be deployed to its own namespace, the samples use `rook-ceph` for the cluster.
 - The sample manifests assume you installed the rook-ceph operator in the `rook-ceph-system` namespace.
 - The RBAC in the sample manifests are required, the helm chart does not include everything required.
+- Any disk devices you add to the cluster in the 'CephCluster' must be empty (no filesystem and no partitions).
+- In the 'CephCluster' you must refer to disk devices by their '/dev/something' name, e.g. 'sdb' or 'xvde'.
