@@ -10,6 +10,8 @@
     - Now have an additional label named `objectstore` with the name of the Object Store, to allow better selection for Services.
     - Use `Readiness` and `Liveness` probes.
     - Updated automatically on Object Store CRD changes.
+    
+- Selinux labeling for mounts can now be toggled with the ROOK_ENABLE_SELINUX_RELABELING environment variable. This addresses https://github.com/rook/rook/issues/2417
 
 ## Breaking Changes
 

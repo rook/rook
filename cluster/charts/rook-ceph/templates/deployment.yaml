@@ -69,6 +69,8 @@ spec:
 {{- end }}
         - name: ROOK_LOG_LEVEL
           value: {{ .Values.logLevel }}
+        - name: ROOK_ENABLE_SELINUX_RELABELING
+          value: {{ .Values.enableSelinuxRelabeling | quote }}
         - name: NODE_NAME
           valueFrom:
             fieldRef:
