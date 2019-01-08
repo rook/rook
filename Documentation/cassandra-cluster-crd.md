@@ -50,10 +50,12 @@ spec:
                 - matchExpressions:
                   - key: failure-domain.beta.kubernetes.io/region
                     operator: In
-                    values: us-east-1
+                    values: 
+                      - us-east-1
                   - key: failure-domain.beta.kubernetes.io/zone
                     operator: In
-                    value: us-east-1a
+                    values: 
+                      - us-east-1a
 ```
 
 ## Settings Explanation
@@ -79,7 +81,6 @@ Rack Settings:
 * `resources`: Defines the CPU and RAM resources for the Cassandra Pods.
 * `placement`: Defines the placement of Cassandra Pods. Has the following subfields:
     * [`nodeAffinity`](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity)
-    * [`nodeAntiAffinity`](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity)
     * [`podAffinity`](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity)
     * [`podAntiAffinity`](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity)
     * [`tolerations`](https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/)
