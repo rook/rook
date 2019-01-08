@@ -56,7 +56,7 @@ kubectl -n rook-minio get objectstores.minio.rook.io
 To check if all the desired replicas are running, you should see the same number of entries from the following command as the replica count that was specified in `object-store.yaml`:
 
 ```console
-kubectl -n rook-minio get pod -l app=minio
+kubectl -n rook-minio get pod -l app=minio,objectstore=my-store
 ```
 
 ## Accessing the Object Store
@@ -65,7 +65,7 @@ Minio comes with an embedded web based object browser. In the example, the objec
 which port has been assigned to the service via:
 
 ```console
-kubectl -n rook-minio get service minio-service -o jsonpath='{.spec.ports[0].nodePort}'
+kubectl -n rook-minio get service minio-my-store -o jsonpath='{.spec.ports[0].nodePort}'
 ```
 
 If you are using [Minikube](https://github.com/kubernetes/minikube), you can get your cluster IP via
@@ -73,7 +73,7 @@ If you are using [Minikube](https://github.com/kubernetes/minikube), you can get
 The full address of the Minio service when using Minikube can be obtained with the following:
 
 ```console
-echo http://$(minikube ip):$(kubectl -n rook-minio get service minio-service -o jsonpath='{.spec.ports[0].nodePort}')
+echo http://$(minikube ip):$(kubectl -n rook-minio get service minio-my-store -o jsonpath='{.spec.ports[0].nodePort}')
 ```
 
 Copy and paste the full address and port into an internet browser and you will be taken to the Minio web console login page, as shown in the screenshot below:
