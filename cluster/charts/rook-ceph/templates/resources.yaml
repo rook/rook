@@ -32,6 +32,8 @@ spec:
                   type: boolean
                 urlPrefix:
                   type: string
+                port:
+                  type: integer
             dataDirHostPath:
               pattern: ^/(\S+)
               type: string

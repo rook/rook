@@ -59,6 +59,15 @@ To get the dashboard to use hyperlinks that include your prefix, you can set the
       urlPrefix: /ceph-dashboard
 ```
 
+The port that the dashboard is served on may be changed from the defaults using
+the `port` settings. The corresponding K8s service exposing the port will
+automatically be updated:
+```yaml
+  spec:
+    dashboard:
+      port: 43219
+```
+
 ## Viewing the Dashboard External to the Cluster
 
 Commonly you will want to view the dashboard from outside the cluster. For example, on a development machine with the
