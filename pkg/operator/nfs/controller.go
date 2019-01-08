@@ -182,7 +182,7 @@ func (c *Controller) createNFSService(nfsServer *nfsServer) error {
 	return nil
 }
 
-func createGaneshaExport(id int, path string, access string, squash string) string {
+func createCephNFSExport(id int, path string, access string, squash string) string {
 	var accessType string
 	// validateNFSServerSpec guarantees `access` will be one of these values at this point
 	switch s.ToLower(access) {
@@ -213,13 +213,13 @@ EXPORT {
 	return nfsGaneshaConfig
 }
 
-func createGaneshaConfig(spec *nfsv1alpha1.NFSServerSpec) string {
+func createCephNFSConfig(spec *nfsv1alpha1.NFSServerSpec) string {
 	serverConfig := getServerConfig(spec.Exports)
 
 	exportsList := make([]string, 0)
 	id := 10
 	for claimName, claimConfig := range serverConfig {
-		exportsList = append(exportsList, createGaneshaExport(id, claimName, claimConfig["accessMode"], claimConfig["squash"]))
+		exportsList = append(exportsList, createCephNFSExport(id, claimName, claimConfig["accessMode"], claimConfig["squash"]))
 		id++
 	}
 
@@ -236,7 +236,7 @@ func createGaneshaConfig(spec *nfsv1alpha1.NFSServerSpec) string {
 }
 
 func (c *Controller) createNFSConfigMap(nfsServer *nfsServer) error {
-	nfsGaneshaConfig := createGaneshaConfig(&nfsServer.spec)
+	nfsGaneshaConfig := createCephNFSConfig(&nfsServer.spec)
 
 	configMap := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{

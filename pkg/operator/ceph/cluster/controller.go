@@ -33,6 +33,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/file"
+	"github.com/rook/rook/pkg/operator/ceph/nfs"
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/ceph/object/user"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
@@ -239,6 +240,10 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	// Start file system CRD watcher
 	fileController := file.NewFilesystemController(c.context, c.rookImage, cluster.Spec.CephVersion, cluster.Spec.Network.HostNetwork, cluster.ownerRef)
 	fileController.StartWatch(cluster.Namespace, cluster.stopCh)
+
+	// Start nfs ganesha CRD watcher
+	ganeshaController := nfs.NewCephNFSController(c.context, c.rookImage, cluster.Spec.CephVersion, cluster.Spec.Network.HostNetwork, cluster.ownerRef)
+	ganeshaController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start mon health checker
 	healthChecker := mon.NewHealthChecker(cluster.mons)

@@ -222,6 +222,7 @@ func writeOSDConfig(cmd *cobra.Command, args []string) error {
 	if err := osddaemon.WriteConfigFile(context, &clusterInfo, kv, osdID, osdIsDevice, cfg.storeConfig, cfg.nodeName, crushLocation); err != nil {
 		rook.TerminateFatal(fmt.Errorf("failed to write osd config file. %+v", err))
 	}
+
 	return nil
 }
 
@@ -229,11 +230,7 @@ func copyRookBinaries(cmd *cobra.Command, args []string) error {
 	if err := flags.VerifyRequiredFlags(copyBinariesCmd, []string{"path"}); err != nil {
 		return err
 	}
-	if err := osddaemon.CopyBinariesForDaemon(copyBinariesPath); err != nil {
-		rook.TerminateFatal(fmt.Errorf("failed to copy rook binaries for filestore device. %+v", err))
-	} else {
-		logger.Infof("successfully copied rook binaries")
-	}
+	copyBinaries(copyBinariesPath)
 	return nil
 }
 
@@ -332,4 +329,14 @@ func parseDevices(devices string) ([]osddaemon.DesiredDevice, error) {
 
 	logger.Infof("desired devices to configure osds: %+v", result)
 	return result, nil
+}
+
+func copyBinaries(path string) {
+	if path != "" {
+		if err := osddaemon.CopyBinariesForDaemon(path); err != nil {
+			logger.Errorf("failed to copy rook binaries for daemon container. %+v", err)
+		} else {
+			logger.Infof("successfully copied rook binaries")
+		}
+	}
 }
