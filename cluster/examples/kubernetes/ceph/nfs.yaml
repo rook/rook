@@ -4,7 +4,7 @@ metadata:
   name: my-nfs
   namespace: rook-ceph
 spec:
-  RADOS:
+  rados:
     # RADOS pool where NFS client recovery data is stored.
     # In this example the data pool for the "myfs" filesystem is used.
     # If using the object store example, the data pool would be "my-store.rgw.buckets.data".
