@@ -21,8 +21,8 @@ import (
 	"os"
 
 	"github.com/rook/rook/cmd/rook/rook"
-	mondaemon "github.com/rook/rook/pkg/daemon/ceph/mon"
 	rgwdaemon "github.com/rook/rook/pkg/daemon/ceph/rgw"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
 )
@@ -74,7 +74,7 @@ func initRGW(cmd *cobra.Command, args []string) error {
 
 	rook.LogStartupInfo(rgwCmd.Flags())
 
-	clusterInfo.Monitors = mondaemon.ParseMonEndpoints(cfg.monEndpoints)
+	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
 	config := &rgwdaemon.Config{
 		ClusterInfo:     &clusterInfo,
 		Name:            rgwName,

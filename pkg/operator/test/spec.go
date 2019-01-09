@@ -44,7 +44,7 @@ func ArgumentsMatchExpected(actualArgs []string, expectedArgs [][]string) error 
 	// join all args into a big space-separated arg string so we can use string search on it
 	// this is simpler than a bunch of nested for loops and if statements with continues in them
 	fullArgString := strings.Join(actualArgs, " ")
-	logger.Info("testing that actual args: %s\nmatch expected args:%v", fullArgString, actualArgs)
+	logger.Infof("testing that actual args: %s\nmatch expected args:%v", fullArgString, actualArgs)
 	for _, arg := range expectedArgs {
 		// We join each individual argument together the same was as the big string
 		validArgMatcher := strings.Join(arg, " ")

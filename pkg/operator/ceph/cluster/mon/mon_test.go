@@ -17,12 +17,17 @@ limitations under the License.
 package mon
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
@@ -36,6 +41,33 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+// generate a standard mon config from a mon id w/ default port and IP 2.4.6.{1,2,3,...}
+// support mon ID as new ["a", "b", etc.] form or as legacy ["mon0", "mon1", etc.] form
+func testGenMonConfig(monID string) *monConfig {
+	var moniker string
+	var index int
+	var err error
+	if strings.HasPrefix(monID, "mon") { // is legacy mon name
+		moniker = monID                                                 // keep legacy "mon#" name
+		index, err = strconv.Atoi(strings.Replace(monID, "mon", "", 1)) // get # off end of mon#
+	} else {
+		moniker = "mon-" + monID
+		index, err = k8sutil.NameToIndex(monID)
+	}
+	if err != nil {
+		panic(err)
+	}
+	return &monConfig{
+		ResourceName: "rook-ceph-" + moniker, // rook-ceph-mon-A or rook-ceph-mon#
+		DaemonName:   monID,                  // A or mon#
+		Port:         DefaultPort,
+		PublicIP:     fmt.Sprintf("2.4.6.%d", index+1),
+		// dataDirHostPath assumed to be /var/lib/rook
+		DataPathMap: config.NewStatefulDaemonDataPathMap(
+			"/var/lib/rook", dataDirRelativeHostPath(monID), config.MonType, monID),
+	}
+}
 
 func newTestStartCluster(namespace string) *clusterd.Context {
 	clientset := test.New(3)

@@ -61,7 +61,6 @@ func init() {
 func AddCommands(command *cobra.Command) {
 	command.AddCommand(operatorCmd)
 	command.AddCommand(agentCmd)
-	command.AddCommand(monCmd)
 	command.AddCommand(osdCmd)
 	command.AddCommand(mgrCmd)
 	command.AddCommand(rgwCmd)

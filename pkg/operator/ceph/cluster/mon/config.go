@@ -29,7 +29,6 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
-	mondaemon "github.com/rook/rook/pkg/daemon/ceph/mon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/sys"
@@ -38,6 +37,38 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
+
+const (
+	// All mons share the same keyring
+	keyringStoreName = "rook-ceph-mons"
+
+	// The final string field is for the admin keyring
+	keyringTemplate = `
+[mon.]
+	key = %s
+	caps mon = "allow *"
+
+%s`
+)
+
+func (c *Cluster) genMonSharedKeyring() string {
+	return fmt.Sprintf(
+		keyringTemplate,
+		c.clusterInfo.MonitorSecret,
+		cephconfig.AdminKeyring(c.clusterInfo),
+	)
+}
+
+// return mon data dir path relative to the dataDirHostPath given a mon's name
+func dataDirRelativeHostPath(monName string) string {
+	monHostDir := monName // support legacy case where the mon name is "mon#" and not a lettered ID
+	if strings.Index(monName, "mon") == -1 {
+		// if the mon name doesn't have "mon" in it, mon dir is "mon-<ID>"
+		monHostDir = "mon-" + monName
+	}
+	// Keep existing behavior where Rook stores the mon's data in the "data" subdir
+	return path.Join(monHostDir, "data")
+}
 
 // LoadClusterInfo constructs or loads a clusterinfo and returns it along with the maxMonID
 func LoadClusterInfo(context *clusterd.Context, namespace string) (*cephconfig.ClusterInfo, int, *Mapping, error) {
@@ -120,7 +151,7 @@ func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string
 
 	// Parse the monitor List
 	if info, ok := cm.Data[EndpointDataKey]; ok {
-		monEndpointMap = mondaemon.ParseMonEndpoints(info)
+		monEndpointMap = ParseMonEndpoints(info)
 	}
 
 	// Parse the max monitor id

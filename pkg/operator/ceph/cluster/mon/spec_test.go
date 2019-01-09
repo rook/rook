@@ -18,15 +18,18 @@ package mon
 
 import (
 	"fmt"
+	"path"
+	"strings"
 	"testing"
+
+	"github.com/rook/rook/pkg/operator/ceph/config"
+
+	"github.com/rook/rook/pkg/operator/ceph/spec"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
-	mondaemon "github.com/rook/rook/pkg/daemon/ceph/mon"
 	test_opceph "github.com/rook/rook/pkg/operator/ceph/test"
-	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -35,23 +38,16 @@ import (
 )
 
 func TestPodSpecs(t *testing.T) {
-	testPodSpec(t, "")
-	testPodSpec(t, "/var/lib/mydatadir")
+	testPodSpec(t, "a")
+	testPodSpec(t, "mon0")
 }
 
-func monCommonExpectedArgs(name string, c *Cluster) [][]string {
-	return [][]string{
-		{"--name", fmt.Sprintf("mon.%s", name)},
-		{"--mon-data", mondaemon.GetMonDataDirPath(c.context.ConfigDir, name)},
-	}
-}
-
-func testPodSpec(t *testing.T, dataDir string) {
+func testPodSpec(t *testing.T, monID string) {
 	clientset := testop.New(1)
 	c := New(
 		&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook"},
 		"ns",
-		dataDir,
+		"/var/lib/rook",
 		"rook/rook:myversion",
 		cephv1.CephVersionSpec{Image: "ceph/ceph:myceph"},
 		cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true},
@@ -68,106 +64,79 @@ func testPodSpec(t *testing.T, dataDir string) {
 		metav1.OwnerReference{},
 	)
 	c.clusterInfo = testop.CreateConfigDir(0)
-	name := "a"
-	config := &monConfig{ResourceName: name, DaemonName: name, Port: 6790, PublicIP: "2.4.6.1"}
+	monConfig := testGenMonConfig(monID)
 
-	pod := c.makeMonPod(config, "foo")
+	pod := c.makeMonPod(monConfig, "foo")
 	assert.NotNil(t, pod)
-	assert.Equal(t, "a", pod.Name)
+	assert.Equal(t, monConfig.ResourceName, pod.Name)
 	assert.Equal(t, v1.RestartPolicyAlways, pod.Spec.RestartPolicy)
 	assert.Equal(t, 3, len(pod.Spec.Volumes))
-	assert.Nil(t, testop.VolumeExists("rook-data", pod.Spec.Volumes))
-	assert.Nil(t, testop.VolumeExists(k8sutil.ConfigOverrideName, pod.Spec.Volumes))
-	if dataDir == "" {
-		assert.Nil(t, testop.VolumeIsEmptyDir(k8sutil.DataDirVolume, pod.Spec.Volumes))
+	assert.Nil(t, testop.VolumeExists("rook-ceph-config", pod.Spec.Volumes))       // ceph.conf
+	assert.Nil(t, testop.VolumeExists("rook-ceph-mons-keyring", pod.Spec.Volumes)) // mon shared keyring
+	if strings.HasPrefix(monID, "mon") {
+		// is legacy mon id (mon0, mon1, ...)
+		assert.Nil(t, testop.VolumeIsHostPath("ceph-daemon-data", path.Join("/var/lib/rook/", monID, "data"), pod.Spec.Volumes))
 	} else {
-		assert.Nil(t, testop.VolumeIsHostPath(k8sutil.DataDirVolume, dataDir, pod.Spec.Volumes))
+		// is new mon id (a, b, c, ...)
+		assert.Nil(t, testop.VolumeIsHostPath("ceph-daemon-data", path.Join("/var/lib/rook/", "mon-"+monID, "data"), pod.Spec.Volumes))
 	}
 
-	assert.Equal(t, "a", pod.ObjectMeta.Name)
-	assert.Nil(t, test_opceph.VerifyPodLabels("rook-ceph-mon", "ns", "mon", "a", pod.ObjectMeta.Labels))
+	assert.Equal(t, monConfig.ResourceName, pod.ObjectMeta.Name)
+	assert.Nil(t, test_opceph.VerifyPodLabels("rook-ceph-mon", "ns", "mon", monConfig.DaemonName, pod.ObjectMeta.Labels))
 	assert.Equal(t, c.Namespace, pod.ObjectMeta.Labels["mon_cluster"])
 
-	assert.Equal(t, 2, len(pod.Spec.InitContainers))
+	assert.Equal(t, 1, len(pod.Spec.InitContainers))
 	assert.Equal(t, 1, len(pod.Spec.Containers))
 
 	// All containers have the same privilege
 	isPrivileged := false
-
-	// config w/ rook binary init container
-	configImage := "rook/rook:myversion"
-	configEnvs := 7
-	configContDev := test_opceph.ContainerTestDefinition{
-		Image:   &configImage,
-		Command: []string{}, // no command
-		Args: [][]string{
-			{"ceph"},
-			{mondaemon.InitCommand},
-			{"--config-dir=/var/lib/rook"},
-			{fmt.Sprintf("--name=%s", name)},
-			{"--port=6790"},
-			{fmt.Sprintf("--fsid=%s", c.clusterInfo.FSID)}},
-		InOrderArgs: map[int]string{
-			0: "ceph",                 // ceph must be first arg
-			1: mondaemon.InitCommand}, // mgr init command must be second arg
-		VolumeMountNames: []string{
-			"rook-data",
-			cephconfig.DefaultConfigMountName,
-			k8sutil.ConfigOverrideName},
-		EnvCount:     &configEnvs,
-		Ports:        []v1.ContainerPort{},
-		IsPrivileged: &isPrivileged,
-	}
-	cont := &pod.Spec.InitContainers[0]
-	configContDev.TestContainer(t, "config init", cont, logger)
-	assert.Equal(t, "100", cont.Resources.Limits.Cpu().String())
-	assert.Equal(t, "1337", cont.Resources.Requests.Memory().String())
-
-	// All ceph images have the same image, no envs, and the same volume mounts
+	// All ceph images have the same image, basic envs, and the same volume mounts
 	cephImage := "ceph/ceph:myceph"
-	cephEnvs := 0
+	envVars := len(spec.DaemonEnvVars())
 	cephVolumeMountNames := []string{
-		"rook-data",
-		cephconfig.DefaultConfigMountName}
+		"rook-ceph-config",
+		"rook-ceph-mons-keyring",
+		"ceph-daemon-data"}
+	commonFlags := [][]string{}
+	for _, f := range spec.DaemonFlags(c.clusterInfo, config.MonType, monID) {
+		commonFlags = append(commonFlags, []string{f})
+	}
+	fmt.Println(commonFlags)
 
 	// mon fs init container
-	monFsContDev := test_opceph.ContainerTestDefinition{
-		Image: &cephImage,
-		Command: []string{
-			"ceph-mon"},
-		Args: append(
-			monCommonExpectedArgs(name, c),
-			[]string{"--mkfs"}),
+	monFsInitContDef := test_opceph.ContainerTestDefinition{
+		Image:            &cephImage,
+		Command:          []string{"ceph-mon"},
+		Args:             append(commonFlags, []string{"--mkfs"}),
 		VolumeMountNames: cephVolumeMountNames,
-		EnvCount:         &cephEnvs,
+		EnvCount:         &envVars,
 		Ports:            []v1.ContainerPort{},
 		IsPrivileged:     &isPrivileged,
 	}
-	cont = &pod.Spec.InitContainers[1]
-	monFsContDev.TestContainer(t, "mon mkfs init", cont, logger)
+	cont := &pod.Spec.InitContainers[0]
+	monFsInitContDef.TestContainer(t, "config init", cont, logger)
 	assert.Equal(t, "100", cont.Resources.Limits.Cpu().String())
 	assert.Equal(t, "1337", cont.Resources.Requests.Memory().String())
 
 	// main mon daemon container
-	monDaemonEnvs := len(k8sutil.ClusterDaemonEnvVars()) + 1
-	monDaemonContDev := test_opceph.ContainerTestDefinition{
+	monDaemonEnvs := len(spec.DaemonEnvVars()) + 1
+	monDaemonContDef := test_opceph.ContainerTestDefinition{
 		Image: &cephImage,
 		Command: []string{
 			"ceph-mon"},
-		Args: append(
-			monCommonExpectedArgs(name, c),
+		Args: append(commonFlags,
 			[]string{"--foreground"},
-			[]string{"--public-addr", "2.4.6.1:6790"},
-			[]string{"--public-bind-addr", "$(ROOK_PRIVATE_IP):6790"}),
+			[]string{"--public-addr=2.4.6.1:6789"},
+			[]string{"--public-bind-addr=$(ROOK_PRIVATE_IP):6789"}),
 		VolumeMountNames: cephVolumeMountNames,
 		EnvCount:         &monDaemonEnvs,
 		Ports: []v1.ContainerPort{
-			{ContainerPort: config.Port,
+			{ContainerPort: monConfig.Port,
 				Protocol: v1.ProtocolTCP}},
 		IsPrivileged: &isPrivileged,
 	}
 	cont = &pod.Spec.Containers[0]
-	monDaemonContDev.TestContainer(t, "mon init", cont, logger)
+	monDaemonContDef.TestContainer(t, "mon", cont, logger)
 	assert.Equal(t, "100", cont.Resources.Limits.Cpu().String())
 	assert.Equal(t, "1337", cont.Resources.Requests.Memory().String())
 
@@ -175,8 +144,7 @@ func testPodSpec(t *testing.T, dataDir string) {
 	volsMountsTestDef := testop.VolumesAndMountsTestDefinition{
 		VolumesSpec: &testop.VolumesSpec{Moniker: "mon pod volumes", Volumes: pod.Spec.Volumes},
 		MountsSpecItems: []*testop.MountsSpec{
-			{Moniker: "mon config init mounts", Mounts: pod.Spec.InitContainers[0].VolumeMounts},
-			{Moniker: "mon fs init mounts", Mounts: pod.Spec.InitContainers[1].VolumeMounts},
+			{Moniker: "mon fs init mounts", Mounts: pod.Spec.InitContainers[0].VolumeMounts},
 			{Moniker: "mon daemon mounts", Mounts: pod.Spec.Containers[0].VolumeMounts}},
 	}
 	volsMountsTestDef.TestMountsMatchVolumes(t)

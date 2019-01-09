@@ -17,7 +17,6 @@ limitations under the License.
 package mon
 
 import (
-	"fmt"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -69,8 +68,9 @@ func TestAvailableNodesInUse(t *testing.T) {
 	assert.Equal(t, 3, len(nodes))
 
 	// start pods on two of the nodes so that only one node will be available
+	monIDs := []string{"a", "b"}
 	for i := 0; i < 2; i++ {
-		pod := c.makeMonPod(&monConfig{ResourceName: fmt.Sprintf("rook-ceph-mon%d", i)}, nodes[i].Name)
+		pod := c.makeMonPod(testGenMonConfig(monIDs[i]), nodes[i].Name)
 		_, err = clientset.CoreV1().Pods(c.Namespace).Create(pod)
 		assert.Nil(t, err)
 	}
@@ -81,7 +81,7 @@ func TestAvailableNodesInUse(t *testing.T) {
 
 	// start pods on the remaining node. We expect no nodes to be available for placement
 	// since there is no way to place a mon on an unused node.
-	pod := c.makeMonPod(&monConfig{ResourceName: "rook-ceph-mon2"}, nodes[2].Name)
+	pod := c.makeMonPod(testGenMonConfig("c"), nodes[2].Name)
 	_, err = clientset.CoreV1().Pods(c.Namespace).Create(pod)
 	assert.Nil(t, err)
 	nodes, err = c.getMonNodes()
@@ -201,7 +201,7 @@ func TestHostNetwork(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 3, len(nodes))
 
-	pod := c.makeMonPod(&monConfig{ResourceName: "rook-ceph-mon2"}, nodes[2].Name)
+	pod := c.makeMonPod(testGenMonConfig("c"), nodes[2].Name)
 	assert.NotNil(t, pod)
 
 	assert.Equal(t, true, pod.Spec.HostNetwork)

@@ -23,7 +23,6 @@ import (
 	"strings"
 
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	mondaemon "github.com/rook/rook/pkg/daemon/ceph/mon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 )
 
@@ -61,7 +60,7 @@ func fullNameToIndex(name string) (int, error) {
 
 // getPortFromEndpoint return the port from an endpoint string (192.168.0.1:6790)
 func getPortFromEndpoint(endpoint string) int32 {
-	port := mondaemon.DefaultPort
+	port := DefaultPort
 	_, portString, err := net.SplitHostPort(endpoint)
 	if err != nil {
 		logger.Errorf("failed to split host and port for endpoint %s, assuming default Ceph port %d", endpoint, port)

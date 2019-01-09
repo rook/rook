@@ -20,6 +20,8 @@ package spec
 import (
 	"github.com/coreos/pkg/capnslog"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/api/core/v1"
 )
@@ -59,6 +61,47 @@ func RookVolumeMounts() []v1.VolumeMount {
 	return append(
 		CephVolumeMounts(),
 		k8sutil.ConfigOverrideMount(),
+	)
+}
+
+// DaemonVolumes returns the pod volumes used by all Ceph daemons.
+func DaemonVolumes(dataPaths *config.DataPathMap, keyringResourceName string) []v1.Volume {
+	var dataDirSource v1.VolumeSource
+	if dataPaths.PersistData {
+		dataDirSource = v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: dataPaths.HostDataDir}}
+	} else {
+		dataDirSource = v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}
+	}
+	return []v1.Volume{
+		{Name: "ceph-daemon-data", VolumeSource: dataDirSource},
+		config.StoredFileVolume(),
+		keyring.StoredVolume(keyringResourceName),
+	}
+}
+
+// DaemonVolumeMounts returns volume mounts which correspond to the DaemonVolumes. These
+// volume mounts are shared by most all Ceph daemon containers, both init and standard.
+func DaemonVolumeMounts(dataPaths *config.DataPathMap, keyringResourceName string) []v1.VolumeMount {
+	return []v1.VolumeMount{
+		{Name: "ceph-daemon-data", MountPath: dataPaths.ContainerDataDir},
+		config.StoredFileVolumeMount(),
+		keyring.StoredVolumeMount(keyringResourceName),
+	}
+}
+
+// DaemonFlags returns the command line flags used by all Ceph daemons.
+func DaemonFlags(
+	clusterInfo *cephconfig.ClusterInfo,
+	daemonType config.DaemonType, daemonID string,
+) []string {
+	return config.DefaultFlags(clusterInfo.FSID, daemonType, daemonID)
+}
+
+// DaemonEnvVars returns the container environment variables used by all Ceph daemons.
+func DaemonEnvVars() []v1.EnvVar {
+	return append(
+		k8sutil.ClusterDaemonEnvVars(),
+		config.StoredMonHostEnvVars()...,
 	)
 }
 

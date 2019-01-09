@@ -19,7 +19,7 @@ package ceph
 import (
 	"github.com/rook/rook/cmd/rook/rook"
 	mgrdaemon "github.com/rook/rook/pkg/daemon/ceph/mgr"
-	mondaemon "github.com/rook/rook/pkg/daemon/ceph/mon"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
 )
@@ -65,7 +65,7 @@ func initMgr(cmd *cobra.Command, args []string) error {
 
 	rook.LogStartupInfo(mgrCmd.Flags())
 
-	clusterInfo.Monitors = mondaemon.ParseMonEndpoints(cfg.monEndpoints)
+	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
 	config := &mgrdaemon.Config{
 		Name:             mgrName,
 		Keyring:          mgrKeyring,

@@ -33,7 +33,8 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
-	mondaemon "github.com/rook/rook/pkg/daemon/ceph/mon"
+	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -61,6 +62,8 @@ const (
 	adminSecretName   = "admin-secret"
 	clusterSecretName = "cluster-name"
 
+	// DefaultPort is the default port mons use to communicate with each other
+	DefaultPort = 6789
 	// DefaultMonCount Default mon count for a cluster
 	DefaultMonCount = 3
 	// MaxMonCount Maximum allowed mon count for a cluster
@@ -102,6 +105,9 @@ type monConfig struct {
 	PublicIP string
 	// Port is the port on which the mon will listen for connections
 	Port int32
+	// DataPathMap is the mapping relationship between mon data stored on the host and mon data
+	// stored in containers.
+	DataPathMap *config.DataPathMap
 }
 
 // Mapping is mon node and port mapping
@@ -208,7 +214,7 @@ func (c *Cluster) startMons() error {
 		}
 	}
 
-	logger.Debugf("mon endpoints used are: %s", mondaemon.FlattenMonEndpoints(c.clusterInfo.Monitors))
+	logger.Debugf("mon endpoints used are: %s", FlattenMonEndpoints(c.clusterInfo.Monitors))
 	return nil
 }
 
@@ -227,6 +233,10 @@ func (c *Cluster) initClusterInfo() error {
 		return fmt.Errorf("failed to save mons. %+v", err)
 	}
 
+	// store the keyring which all mons share
+	keyring.GetSecretStore(c.context, c.Namespace, &c.ownerRef).
+		CreateOrUpdate(keyringStoreName, c.genMonSharedKeyring())
+
 	return nil
 }
 
@@ -239,24 +249,28 @@ func (c *Cluster) initMonConfig(size int) []*monConfig {
 			ResourceName: resourceName(monitor.Name),
 			DaemonName:   monitor.Name,
 			Port:         getPortFromEndpoint(monitor.Endpoint),
+			DataPathMap: config.NewStatefulDaemonDataPathMap(
+				c.dataDirHostPath, dataDirRelativeHostPath(monitor.Name), config.MonType, monitor.Name),
 		})
 	}
 
 	// initialize mon info if we don't have enough mons (at first startup)
 	for i := len(c.clusterInfo.Monitors); i < size; i++ {
 		c.maxMonID++
-		mons = append(mons, newMonConfig(c.maxMonID))
+		mons = append(mons, c.newMonConfig(c.maxMonID))
 	}
 
 	return mons
 }
 
-func newMonConfig(monID int) *monConfig {
+func (c *Cluster) newMonConfig(monID int) *monConfig {
 	daemonName := k8sutil.IndexToName(monID)
 	return &monConfig{
 		ResourceName: resourceName(daemonName),
 		DaemonName:   daemonName,
-		Port:         int32(mondaemon.DefaultPort),
+		Port:         int32(DefaultPort),
+		DataPathMap: config.NewStatefulDaemonDataPathMap(
+			c.dataDirHostPath, dataDirRelativeHostPath(daemonName), config.MonType, daemonName),
 	}
 }
 
@@ -377,7 +391,7 @@ func (c *Cluster) saveMonConfig() error {
 	}
 
 	configMap.Data = map[string]string{
-		EndpointDataKey: mondaemon.FlattenMonEndpoints(c.clusterInfo.Monitors),
+		EndpointDataKey: FlattenMonEndpoints(c.clusterInfo.Monitors),
 		MaxMonIDKey:     strconv.Itoa(c.maxMonID),
 		MappingKey:      string(monMapping),
 	}
@@ -394,6 +408,10 @@ func (c *Cluster) saveMonConfig() error {
 	}
 
 	logger.Infof("saved mon endpoints to config map %+v", configMap.Data)
+
+	// Every time the mon config is updated, must also update the global config so that all daemons
+	// have the most updated version if they restart.
+	config.GetStore(c.context, c.Namespace, &c.ownerRef).CreateOrUpdate(c.clusterInfo)
 
 	// write the latest config to the config dir
 	if err := writeConnectionConfig(c.context, c.clusterInfo); err != nil {
