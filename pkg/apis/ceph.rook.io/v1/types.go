@@ -96,6 +96,8 @@ type DashboardSpec struct {
 	UrlPrefix string `json:"urlPrefix,omitempty"`
 	// The dashboard webserver port
 	Port int `json:"port,omitempty"`
+	// Whether SSL should be used
+	SSL *bool `json:"ssl,omitempty"`
 }
 
 type ClusterStatus struct {

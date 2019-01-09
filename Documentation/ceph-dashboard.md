@@ -58,6 +58,7 @@ The following dashboard configuration settings are supported:
     dashboard:
       urlPrefix: /ceph-dashboard
       port: 8443
+      ssl: true
 ```
 
 * `urlPrefix` If you are accessing the dashboard via a reverse proxy, you may
@@ -68,6 +69,10 @@ The following dashboard configuration settings are supported:
   default using the `port` setting. The corresponding K8s service exposing the
   port will automatically be updated.
 
+* `ssl` The dashboard may be served without SSL (useful for when you deploy the
+  dashboard behind a proxy already served using SSL) by setting the `ssl` option
+  to be false. Note that the ssl setting will be ignored in Luminous as well as
+  Mimic 13.2.2 or older where it is not supported
 
 ## Viewing the Dashboard External to the Cluster
 
