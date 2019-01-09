@@ -181,6 +181,8 @@ spec:
     # urlPrefix: /ceph-dashboard
     # serve the dashboard at the given port.
     # port: 8443
+    # serve the dashboard using SSL
+    # ssl: true
   network:
     # toggle to use hostNetwork
     hostNetwork: false

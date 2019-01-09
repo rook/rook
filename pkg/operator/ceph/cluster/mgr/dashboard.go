@@ -115,16 +115,33 @@ func (c *Cluster) toggleDashboardModule(dashboardPort int) error {
 }
 
 func (c *Cluster) configureDashboardModule(dashboardPort int) error {
+	// url prefix
 	hasChanged, err := client.MgrSetAllConfig(c.context, c.Namespace, c.cephVersion.Name, "mgr/dashboard/url_prefix", c.dashboard.UrlPrefix)
 	if err != nil {
 		return err
 	}
+
+	// server port
 	port := strconv.Itoa(dashboardPort)
 	changed, err := client.MgrSetAllConfig(c.context, c.Namespace, c.cephVersion.Name, "mgr/dashboard/server_port", port)
 	if err != nil {
 		return err
 	}
 	hasChanged = hasChanged || changed
+
+	// ssl support
+	var ssl string
+	if c.dashboard.SSL == nil {
+		ssl = ""
+	} else {
+		ssl = strconv.FormatBool(*c.dashboard.SSL)
+	}
+	changed, err = client.MgrSetAllConfig(c.context, c.Namespace, c.cephVersion.Name, "mgr/dashboard/ssl", ssl)
+	if err != nil {
+		return err
+	}
+	hasChanged = hasChanged || changed
+
 	if hasChanged {
 		logger.Infof("dashboard config has changed")
 		return c.restartDashboard()
@@ -146,12 +163,14 @@ func (c *Cluster) initializeSecureDashboard() error {
 		return fmt.Errorf("failed to generate a password. %+v", err)
 	}
 
-	alreadyCreated, err := c.createSelfSignedCert()
-	if err != nil {
-		return fmt.Errorf("failed to create a self signed cert. %+v", err)
-	}
-	if alreadyCreated {
-		return nil
+	if c.dashboard.SSL == nil || *c.dashboard.SSL {
+		alreadyCreated, err := c.createSelfSignedCert()
+		if err != nil {
+			return fmt.Errorf("failed to create a self signed cert. %+v", err)
+		}
+		if alreadyCreated {
+			return nil
+		}
 	}
 
 	if err := c.setLoginCredentials(password); err != nil {

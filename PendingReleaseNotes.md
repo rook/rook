@@ -12,6 +12,7 @@
     - Updated automatically on Object Store CRD changes.
 
 - Added the dashboard `port` configuration setting.
+- Added the dashboard `ssl` configuration setting.
 
 ## Breaking Changes
 
