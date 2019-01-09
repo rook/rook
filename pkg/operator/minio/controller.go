@@ -45,6 +45,7 @@ const (
 	customResourceNamePlural    = "objectstores"
 	minioCtrName                = "minio"
 	minioLabel                  = "minio"
+	minioObjectStoreLabel       = "objectstore"
 	minioPVCName                = "minio-pvc"
 	minioServerSuffixFmt        = "%s.svc.%s" // namespace.svc.clusterDomain, e.g., default.svc.cluster.local
 	minioPort                   = int32(9000)
@@ -96,7 +97,7 @@ func (c *Controller) makeMinioHeadlessService(name, namespace string, spec minio
 		ObjectMeta: meta_v1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
-			Labels:    map[string]string{k8sutil.AppAttr: minioLabel},
+			Labels:    getMinioLabels(name),
 		},
 		Spec: v1.ServiceSpec{
 			Selector:  map[string]string{k8sutil.AppAttr: minioLabel},
@@ -173,7 +174,7 @@ func (c *Controller) makeMinioPodSpec(name, namespace string, ctrName string, ct
 		ObjectMeta: meta_v1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
-			Labels:    map[string]string{k8sutil.AppAttr: minioLabel},
+			Labels:    getMinioLabels(name),
 		},
 		Spec: v1.PodSpec{
 			Containers: []v1.Container{
@@ -260,12 +261,12 @@ func (c *Controller) makeMinioStatefulSet(name, namespace string, spec miniov1al
 		ObjectMeta: meta_v1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
-			Labels:    map[string]string{k8sutil.AppAttr: minioLabel},
+			Labels:    getMinioLabels(name),
 		},
 		Spec: v1beta2.StatefulSetSpec{
 			Replicas: &nodeCount,
 			Selector: &meta_v1.LabelSelector{
-				MatchLabels: map[string]string{k8sutil.AppAttr: minioLabel},
+				MatchLabels: getMinioLabels(name),
 			},
 			Template:             podSpec,
 			VolumeClaimTemplates: spec.Storage.VolumeClaimTemplates,
@@ -336,4 +337,11 @@ func (c *Controller) onDelete(obj interface{}) {
 
 func getPVCDataDir(pvcName string) string {
 	return fmt.Sprintf(objectStoreDataDirTemplate, pvcName)
+}
+
+func getMinioLabels(name string) map[string]string {
+	return map[string]string{
+		k8sutil.AppAttr:       minioLabel,
+		minioObjectStoreLabel: name,
+	}
 }

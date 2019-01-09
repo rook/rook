@@ -6,7 +6,7 @@ metadata:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: access-keys
+  name: minio-my-store-access-keys
   namespace: rook-minio
 type: Opaque
 data:
@@ -51,14 +51,14 @@ spec:
     podAffinity:
     podAnyAffinity:
   credentials:
-    name: access-keys
+    name: minio-my-store-access-keys
     namespace: rook-minio
   clusterDomain:
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: minio-service
+  name: minio-my-store
   namespace: rook-minio
 spec:
   type: NodePort

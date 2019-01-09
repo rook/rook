@@ -46,7 +46,7 @@ spec:
     podAffinity:
     podAnyAffinity:
   credentials:
-    name: access-keys
+    name: minio-my-store-access-keys
     namespace: rook-minio
   clusterDomain:
 ```

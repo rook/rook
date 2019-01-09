@@ -6,7 +6,10 @@
 
 ## Notable Features
 
-- Minio Object Storage now use `Readiness` and `Liveness` probes.
+- Minio Object Stores:
+    - Now have an additional label named `objectstore` with the name of the Object Store, to allow better selection for Services.
+    - Use `Readiness` and `Liveness` probes.
+    - Updated automatically on Object Store CRD changes.
 
 ## Breaking Changes
 
