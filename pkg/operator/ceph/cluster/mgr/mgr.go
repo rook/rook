@@ -90,9 +90,17 @@ var updateDeploymentAndWait = k8sutil.UpdateDeploymentAndWait
 func (c *Cluster) Start() error {
 	logger.Infof("start running mgr")
 
-	dashboardPort := dashboardPortHttps
-	if c.cephVersion.Name == cephv1.Luminous {
-		dashboardPort = dashboardPortHttp
+	var dashboardPort int
+	if c.dashboard.Port == 0 {
+		// select default ports
+		if c.cephVersion.Name == cephv1.Luminous {
+			dashboardPort = dashboardPortHttp
+		} else {
+			dashboardPort = dashboardPortHttps
+		}
+	} else {
+		// crd validates port >= 0
+		dashboardPort = c.dashboard.Port
 	}
 
 	for i := 0; i < c.Replicas; i++ {

@@ -94,6 +94,10 @@ type DashboardSpec struct {
 	Enabled bool `json:"enabled,omitempty"`
 	// A prefix for all URLs to use the dashboard with a reverse proxy
 	UrlPrefix string `json:"urlPrefix,omitempty"`
+	// The dashboard webserver port
+	Port int `json:"port,omitempty"`
+	// Whether SSL should be used
+	SSL *bool `json:"ssl,omitempty"`
 }
 
 type ClusterStatus struct {

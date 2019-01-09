@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -259,6 +260,27 @@ func clusterChanged(oldCluster, newCluster cephv1.ClusterSpec, clusterRef *clust
 	}
 	if oldCluster.Dashboard.UrlPrefix != newCluster.Dashboard.UrlPrefix {
 		logger.Infof("dashboard url prefix has changed from \"%s\" to \"%s\"", oldCluster.Dashboard.UrlPrefix, newCluster.Dashboard.UrlPrefix)
+		changeFound = true
+	}
+
+	if oldCluster.Dashboard.Port != newCluster.Dashboard.Port {
+		logger.Infof("dashboard port has changed from \"%d\" to \"%d\"", oldCluster.Dashboard.Port, newCluster.Dashboard.Port)
+		changeFound = true
+	}
+
+	if (oldCluster.Dashboard.SSL == nil && newCluster.Dashboard.SSL != nil) ||
+		(oldCluster.Dashboard.SSL != nil && newCluster.Dashboard.SSL == nil) ||
+		(oldCluster.Dashboard.SSL != nil && newCluster.Dashboard.SSL != nil &&
+			*oldCluster.Dashboard.SSL != *newCluster.Dashboard.SSL) {
+		oldSSL := "<default>"
+		if oldCluster.Dashboard.SSL != nil {
+			oldSSL = strconv.FormatBool(*oldCluster.Dashboard.SSL)
+		}
+		newSSL := "<default>"
+		if newCluster.Dashboard.SSL != nil {
+			newSSL = strconv.FormatBool(*newCluster.Dashboard.SSL)
+		}
+		logger.Infof("dashboard ssl option has changed from \"%s\" to \"%s\"", oldSSL, newSSL)
 		changeFound = true
 	}
 
