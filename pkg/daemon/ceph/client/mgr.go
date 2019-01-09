@@ -20,11 +20,11 @@ func MgrDisableModule(context *clusterd.Context, clusterName, name string) error
 
 // MgrSetAllConfig applies a setting for all mgr daemons
 func MgrSetAllConfig(context *clusterd.Context, clusterName, cephVersionName, key, val string) (bool, error) {
-	return MgrSetConfig(context, clusterName, "", cephVersionName, key, val)
+	return MgrSetConfig(context, clusterName, "", cephVersionName, key, val, false)
 }
 
 // MgrSetConfig applies a setting for a single mgr daemon
-func MgrSetConfig(context *clusterd.Context, clusterName, mgrName, cephVersionName, key, val string) (bool, error) {
+func MgrSetConfig(context *clusterd.Context, clusterName, mgrName, cephVersionName, key, val string, force bool) (bool, error) {
 	var getArgs, setArgs []string
 	mgrID := fmt.Sprintf("mgr.%s", mgrName)
 	if cephVersionName == cephv1.Luminous || cephVersionName == "" {
@@ -40,6 +40,9 @@ func MgrSetConfig(context *clusterd.Context, clusterName, mgrName, cephVersionNa
 			setArgs = append(setArgs, "config", "rm", mgrID, key)
 		} else {
 			setArgs = append(setArgs, "config", "set", mgrID, key, val)
+		}
+		if force && cephv1.VersionAtLeast(cephVersionName, cephv1.Nautilus) {
+			setArgs = append(setArgs, "--force")
 		}
 	}
 

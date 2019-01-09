@@ -86,7 +86,7 @@ func setServerAddr(context *clusterd.Context, config *Config) error {
 	modules := []string{"prometheus", "dashboard"}
 	for _, module := range modules {
 		settingPath := fmt.Sprintf("mgr/%s/server_addr", module)
-		if _, err := client.MgrSetConfig(context, clusterName, config.Name, config.CephVersionName, settingPath, config.ModuleServerAddr); err != nil {
+		if _, err := client.MgrSetConfig(context, clusterName, config.Name, config.CephVersionName, settingPath, config.ModuleServerAddr, true); err != nil {
 			return fmt.Errorf("setting %s server_addr failed. %+v", module, err)
 		}
 	}
