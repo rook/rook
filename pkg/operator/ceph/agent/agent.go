@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/coreos/pkg/capnslog"
@@ -41,6 +42,7 @@ const (
 	agentDaemonsetTolerationEnv    = "AGENT_TOLERATION"
 	agentDaemonsetTolerationKeyEnv = "AGENT_TOLERATION_KEY"
 	AgentMountSecurityModeEnv      = "AGENT_MOUNT_SECURITY_MODE"
+	RookEnableSelinuxRelabelingEnv = "ROOK_ENABLE_SELINUX_RELABELING"
 
 	// MountSecurityModeAny "any" security mode for the agent for mount action
 	MountSecurityModeAny = "Any"
@@ -83,6 +85,13 @@ func (a *Agent) createAgentDaemonSet(namespace, agentImage, serviceAccount strin
 	}
 	if agentMountSecurityMode != MountSecurityModeAny && agentMountSecurityMode != MountSecurityModeRestricted {
 		return fmt.Errorf("invalid agent mount security mode specified (given: %s)", agentMountSecurityMode)
+	}
+
+	rookEnableSelinuxRelabeling := os.Getenv(RookEnableSelinuxRelabelingEnv)
+	_, err := strconv.ParseBool(rookEnableSelinuxRelabeling)
+	if err != nil {
+		logger.Warningf("Invalid %s value \"%s\". Defaulting to \"true\".", RookEnableSelinuxRelabelingEnv, rookEnableSelinuxRelabeling)
+		rookEnableSelinuxRelabeling = "true"
 	}
 
 	privileged := true
@@ -132,6 +141,7 @@ func (a *Agent) createAgentDaemonSet(namespace, agentImage, serviceAccount strin
 								k8sutil.NamespaceEnvVar(),
 								k8sutil.NodeEnvVar(),
 								{Name: AgentMountSecurityModeEnv, Value: agentMountSecurityMode},
+								{Name: RookEnableSelinuxRelabelingEnv, Value: rookEnableSelinuxRelabeling},
 							},
 						},
 					},
@@ -216,7 +226,7 @@ func (a *Agent) createAgentDaemonSet(namespace, agentImage, serviceAccount strin
 		}
 	}
 
-	_, err := a.clientset.Extensions().DaemonSets(namespace).Create(ds)
+	_, err = a.clientset.Extensions().DaemonSets(namespace).Create(ds)
 	if err != nil {
 		if !kserrors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create rook-ceph-agent daemon set. %+v", err)
