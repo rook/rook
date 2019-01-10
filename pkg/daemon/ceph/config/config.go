@@ -42,6 +42,7 @@ const (
 
 // GlobalConfig represents the [global] sections of Ceph's config file.
 type GlobalConfig struct {
+	// mon_max_pg_per_osd setting is potentially dangerous; do not include here
 	EnableExperimental       string `ini:"enable experimental unrecoverable data corrupting features,omitempty"`
 	FSID                     string `ini:"fsid,omitempty"`
 	RunDir                   string `ini:"run dir,omitempty"`
@@ -55,7 +56,6 @@ type GlobalConfig struct {
 	ClusterNetwork           string `ini:"cluster network,omitempty"`
 	MonKeyValueDb            string `ini:"mon keyvaluedb"`
 	MonAllowPoolDelete       bool   `ini:"mon_allow_pool_delete"`
-	MaxPgsPerOsd             int    `ini:"mon_max_pg_per_osd"`
 	DebugLogDefaultLevel     int    `ini:"debug default"`
 	DebugLogRadosLevel       int    `ini:"debug rados"`
 	DebugLogMonLevel         int    `ini:"debug mon"`
@@ -209,7 +209,6 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, ru
 			ClusterNetwork:         context.NetworkInfo.ClusterNetwork,
 			MonKeyValueDb:          "rocksdb",
 			MonAllowPoolDelete:     true,
-			MaxPgsPerOsd:           1000,
 			DebugLogDefaultLevel:   cephLogLevel,
 			DebugLogRadosLevel:     cephLogLevel,
 			DebugLogMonLevel:       cephLogLevel,
