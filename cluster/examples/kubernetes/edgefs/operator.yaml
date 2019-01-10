@@ -210,7 +210,7 @@ spec:
         args: ["edgefs", "operator"]
         env:
         - name: ROOK_LOG_LEVEL
-          value: "TRACE"
+          value: "INFO"
         - name: POD_NAME
           valueFrom:
             fieldRef:

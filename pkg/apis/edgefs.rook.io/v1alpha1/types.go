@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Rook Authors. All rights reserved.
+Copyright 2019 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -57,9 +57,7 @@ type ClusterSpec struct {
 	// The placement-related configuration to pass to kubernetes (affinity, node selector, tolerations).
 	Placement rook.PlacementSpec `json:"placement,omitempty"`
 	Network   NetworkSpec        `json:"network,omitempty"`
-
 	// Resources set resource requests and limits
-	//Resources rook.ResourceSpec `json:"resources,omitempty"`
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`
 	// The path on the host where config and data can be persisted.
 	DataDirHostPath      string            `json:"dataDirHostPath,omitempty"`
@@ -67,6 +65,7 @@ type ClusterSpec struct {
 	DataVolumeSize       resource.Quantity `json:"dataVolumeSize,omitempty"`
 	DevicesResurrectMode string            `json:"devicesResurrectMode,omitempty"`
 	EdgefsImageName      string            `json:"edgefsImageName,omitempty"`
+	SkipHostPrepare      bool              `json:"skipHostPrepare,omitempty"`
 }
 
 type NetworkSpec struct {

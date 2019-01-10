@@ -23,7 +23,7 @@ If you are using `dataDirHostPath` to persist rook data on kubernetes hosts, mak
 
 We recommend you to configure EdgeFS to use of raw devices and equal distribution of available storage capacity.
 
-**IMPORTANT** If you planning to use larger then 128KB data chunk sizes, make sure to adjust selected nodes host configuration with the following addition to /etc/sysctl.conf:
+**IMPORTANT** EdgeFS will automatically adjust deployment nodes to use larger then 128KB data chunks, with the following addition to /etc/sysctl.conf:
 
 ```
 net.core.rmem_default = 80331648
@@ -34,6 +34,7 @@ vm.dirty_ratio = 10
 vm.dirty_background_ratio = 5
 vm.swappiness = 15
 ```
+To turn off this node adjustment need to enable `skipHostPrepare` option in cluster CRD [configuring the cluster](edgefs-cluster-crd.md)
 
 ## TL;DR
 

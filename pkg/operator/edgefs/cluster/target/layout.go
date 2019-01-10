@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Rook Authors. All rights reserved.
+Copyright 2019 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,26 +22,16 @@ import (
 	"path/filepath"
 	"strings"
 
+	edgefsv1alpha1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1alpha1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/operator/edgefs/cluster/target/config"
 	"github.com/rook/rook/pkg/util/sys"
 )
 
-type RTDevices struct {
-	Devices []RTDevice `json:"devices"`
-}
-
-type RTDevice struct {
-	Name              string `json:"name,omitempty"`
-	Device            string `json:"device,omitempty"`
-	Psize             int    `json:"psize,omitempty"`
-	VerifyChid        int    `json:"verify_chid"`
-	Journal           string `json:"journal,omitempty"`
-	Metadata          string `json:"metadata,omitempty"`
-	Bcache            int    `json:"bcache,omitempty"`
-	BcacheWritearound int    `json:"bcache_writearound"`
-	PlevelOverride    int    `json:"plevel_override,omitempty"`
-	Sync              int    `json:"sync"`
+// CreateQualifiedHeadlessServiceName creates a qualified name of the headless service for a given replica id and namespace,
+// e.g., edgefs-0.edgefs.rook-edgefs
+func CreateQualifiedHeadlessServiceName(replicaNum int, namespace string) string {
+	return fmt.Sprintf("%s-%d.%s.%s", appName, replicaNum, appName, namespace)
 }
 
 func getIdDevLinkName(dls string) (dl string) {
@@ -57,8 +47,8 @@ func getIdDevLinkName(dls string) (dl string) {
 	return dl
 }
 
-func GetRTDevices(nodeDisks []sys.LocalDisk, storeConfig *config.StoreConfig) (rtDevices []RTDevice, err error) {
-	rtDevices = make([]RTDevice, 0)
+func GetRTDevices(nodeDisks []sys.LocalDisk, storeConfig *config.StoreConfig) (rtDevices []edgefsv1alpha1.RTDevice, err error) {
+	rtDevices = make([]edgefsv1alpha1.RTDevice, 0)
 	if storeConfig == nil {
 		return rtDevices, fmt.Errorf("no pointer to StoreConfig provided")
 	}
@@ -99,7 +89,7 @@ func GetRTDevices(nodeDisks []sys.LocalDisk, storeConfig *config.StoreConfig) (r
 			if devices[i].Rotational {
 				continue
 			}
-			rtdev := RTDevice{
+			rtdev := edgefsv1alpha1.RTDevice{
 				Name:       getIdDevLinkName(devices[i].DevLinks),
 				Device:     "/dev/" + devices[i].Name,
 				Psize:      storeConfig.LmdbPageSize,
@@ -126,7 +116,7 @@ func GetRTDevices(nodeDisks []sys.LocalDisk, storeConfig *config.StoreConfig) (r
 			if !devices[i].Rotational {
 				continue
 			}
-			rtdev := RTDevice{
+			rtdev := edgefsv1alpha1.RTDevice{
 				Name:       getIdDevLinkName(devices[i].DevLinks),
 				Device:     "/dev/" + devices[i].Name,
 				Psize:      storeConfig.LmdbPageSize,
@@ -161,22 +151,25 @@ func GetRTDevices(nodeDisks []sys.LocalDisk, storeConfig *config.StoreConfig) (r
 
 	for i := range hdds_divided {
 		for j := range hdds_divided[i] {
-			rtdev := RTDevice{
-				Name:       getIdDevLinkName(hdds_divided[i][j].DevLinks),
-				Device:     "/dev/" + hdds_divided[i][j].Name,
-				Psize:      storeConfig.LmdbPageSize,
-				VerifyChid: storeConfig.RtVerifyChid,
-				Journal:    getIdDevLinkName(ssds[i].DevLinks),
-				Metadata:   getIdDevLinkName(ssds[i].DevLinks) + "," + storeConfig.UseMetadataMask,
-				Bcache:     0,
-				Sync:       storeConfig.Sync,
+			rtdev := edgefsv1alpha1.RTDevice{
+				Name:              getIdDevLinkName(hdds_divided[i][j].DevLinks),
+				Device:            "/dev/" + hdds_divided[i][j].Name,
+				Psize:             storeConfig.LmdbPageSize,
+				VerifyChid:        storeConfig.RtVerifyChid,
+				BcacheWritearound: (map[bool]int{true: 0, false: 1})[storeConfig.UseBCacheWB],
+				Journal:           getIdDevLinkName(ssds[i].DevLinks),
+				Metadata:          getIdDevLinkName(ssds[i].DevLinks) + "," + storeConfig.UseMetadataMask,
+				Bcache:            0,
+				Sync:              storeConfig.Sync,
 			}
+
 			if storeConfig.UseBCache {
 				rtdev.Bcache = 1
 				if storeConfig.UseBCacheWB {
 					rtdev.BcacheWritearound = 0
 				}
 			}
+
 			if storeConfig.RtrdPLevelOverride != 0 {
 				rtdev.PlevelOverride = storeConfig.RtrdPLevelOverride
 			}
@@ -186,10 +179,10 @@ func GetRTDevices(nodeDisks []sys.LocalDisk, storeConfig *config.StoreConfig) (r
 	return rtDevices, nil
 }
 
-func getRtlfsDevices(directories []rookalpha.Directory, storeConfig *config.StoreConfig) []RtlfsDevice {
-	rtlfsDevices := make([]RtlfsDevice, 0)
+func GetRtlfsDevices(directories []rookalpha.Directory, storeConfig *config.StoreConfig) []edgefsv1alpha1.RtlfsDevice {
+	rtlfsDevices := make([]edgefsv1alpha1.RtlfsDevice, 0)
 	for _, dir := range directories {
-		rtlfsDevice := RtlfsDevice{
+		rtlfsDevice := edgefsv1alpha1.RtlfsDevice{
 			Name:            filepath.Base(dir.Path),
 			Path:            dir.Path,
 			CheckMountpoint: 1,

@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Rook Authors. All rights reserved.
+Copyright 2019 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -30,69 +30,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
-
-func TestStorageSpecDefaultPV(t *testing.T) {
-	storageSpec := rookalpha.StorageScopeSpec{
-		Nodes: []rookalpha.Node{
-			{
-				Name: "node1",
-			},
-		},
-	}
-
-	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", "",
-		storageSpec, "/var/lib/rook", *resource.NewQuantity(100000.0, resource.BinarySI),
-		rookalpha.Placement{}, edgefsv1alpha1.NetworkSpec{}, v1.ResourceRequirements{}, metav1.OwnerReference{})
-
-	c.createSetupConfigs(false /* resurrect bool */)
-}
-
-func TestStorageSpecDevices(t *testing.T) {
-	storageSpec := rookalpha.StorageScopeSpec{
-		Selection: rookalpha.Selection{
-			Directories: []rookalpha.Directory{{Path: "/rook/dir2"}},
-		},
-		Nodes: []rookalpha.Node{
-			{
-				Name: "node1",
-				Selection: rookalpha.Selection{
-					Devices: []rookalpha.Device{{Name: "sda"}, {Name: "sdb"}},
-				},
-			},
-		},
-	}
-
-	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", "",
-		storageSpec, "/var/lib/rook", *resource.NewQuantity(100000.0, resource.BinarySI),
-		rookalpha.Placement{}, edgefsv1alpha1.NetworkSpec{}, v1.ResourceRequirements{}, metav1.OwnerReference{})
-
-	c.createSetupConfigs(false /* resurrect bool */)
-}
-
-func TestStorageSpecDirectories(t *testing.T) {
-	storageSpec := rookalpha.StorageScopeSpec{
-		Selection: rookalpha.Selection{
-			Directories: []rookalpha.Directory{{Path: "/rook/dir2"}},
-		},
-		Nodes: []rookalpha.Node{
-			{
-				Name: "node1",
-				Selection: rookalpha.Selection{
-					Directories: []rookalpha.Directory{{Path: "/rook/dir1"}, {Path: "/rook/dir2"}},
-				},
-			},
-		},
-	}
-
-	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", "",
-		storageSpec, "/var/lib/rook", *resource.NewQuantity(100000.0, resource.BinarySI),
-		rookalpha.Placement{}, edgefsv1alpha1.NetworkSpec{}, v1.ResourceRequirements{}, metav1.OwnerReference{})
-
-	c.createSetupConfigs(false /* resurrect bool */)
-}
 
 func TestStorageSpecConfig(t *testing.T) {
 	storageSpec := rookalpha.StorageScopeSpec{
@@ -126,11 +63,10 @@ func TestStorageSpecConfig(t *testing.T) {
 	}
 
 	clientset := fake.NewSimpleClientset()
+	deploymentConfig := edgefsv1alpha1.ClusterDeploymentConfig{}
 	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", "",
 		storageSpec, "", *resource.NewQuantity(100000.0, resource.BinarySI),
-		rookalpha.Placement{}, edgefsv1alpha1.NetworkSpec{}, v1.ResourceRequirements{}, metav1.OwnerReference{})
-
-	c.createSetupConfigs(false /* resurrect bool */)
+		rookalpha.Placement{}, edgefsv1alpha1.NetworkSpec{}, v1.ResourceRequirements{}, metav1.OwnerReference{}, deploymentConfig)
 
 	n := c.Storage.ResolveNode(storageSpec.Nodes[0].Name)
 	storeConfig := config.ToStoreConfig(storageSpec.Nodes[0].Config)
@@ -144,29 +80,13 @@ func TestStorageSpecConfig(t *testing.T) {
 	// UseMetadataOffload will override default value of true
 	assert.Equal(t, storeConfig.UseMetadataOffload, false)
 
+	//check default config options
+	assert.Equal(t, storeConfig.RtVerifyChid, 1)
+	assert.Equal(t, storeConfig.LmdbPageSize, 16348)
+	assert.Equal(t, storeConfig.UseMetadataMask, "0xff")
+	assert.Equal(t, storeConfig.RtrdPLevelOverride, 0)
+	assert.Equal(t, storeConfig.Sync, 1)
+
 	logger.Infof("Node Config is %+v", n.Config)
 	logger.Infof("storeConfig is %+v", storeConfig)
-
-}
-
-func TestHostNetwork(t *testing.T) {
-	storageSpec := rookalpha.StorageScopeSpec{
-		Nodes: []rookalpha.Node{
-			{
-				Name:     "node1",
-				Location: "zone1",
-				Config: map[string]string{
-					"rtTransport": "rtrd",
-					"useAllSSD":   "true",
-				},
-			},
-		},
-	}
-
-	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "myversion", "",
-		storageSpec, "", *resource.NewQuantity(100000.0, resource.BinarySI),
-		rookalpha.Placement{}, edgefsv1alpha1.NetworkSpec{ServerIfName: "eth0"}, v1.ResourceRequirements{}, metav1.OwnerReference{})
-
-	c.createSetupConfigs(false /* resurrect bool */)
 }

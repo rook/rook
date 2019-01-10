@@ -116,6 +116,7 @@ spec:
   #network: # cluster level networking configuration aka "host network"
   #  serverIfName: "enp2s0f0"
   #  brokerIfName: "enp2s0f0"
+  #skipHostPrepare: false
   storage: # cluster level storage configuration and selection
     useAllNodes: true
   #  directories:
