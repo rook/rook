@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"testing"
 
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
@@ -53,7 +53,8 @@ func testPodSpec(t *testing.T, dataDir string) {
 		"ns",
 		dataDir,
 		"rook/rook:myversion",
-		cephv1beta1.MonSpec{Count: 3, AllowMultiplePerNode: true},
+		cephv1.CephVersionSpec{Image: "ceph/ceph:myceph"},
+		cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true},
 		rookalpha.Placement{},
 		false,
 		v1.ResourceRequirements{
@@ -84,7 +85,7 @@ func testPodSpec(t *testing.T, dataDir string) {
 	}
 
 	assert.Equal(t, "a", pod.ObjectMeta.Name)
-	assert.Equal(t, appName, pod.ObjectMeta.Labels["app"])
+	assert.Nil(t, test_opceph.VerifyPodLabels("rook-ceph-mon", "ns", "mon", "a", pod.ObjectMeta.Labels))
 	assert.Equal(t, c.Namespace, pod.ObjectMeta.Labels["mon_cluster"])
 
 	assert.Equal(t, 3, len(pod.Spec.InitContainers))
@@ -123,7 +124,7 @@ func testPodSpec(t *testing.T, dataDir string) {
 	assert.Equal(t, "1337", cont.Resources.Requests.Memory().String())
 
 	// All ceph images have the same image, no envs, and the same volume mounts
-	cephImage := "rook/rook:myversion"
+	cephImage := "ceph/ceph:myceph"
 	cephEnvs := 0
 	cephVolumeMountNames := []string{
 		"rook-data",

@@ -1,5 +1,5 @@
-apiVersion: ceph.rook.io/v1beta1
-kind: Pool
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
 metadata:
   name: replicapool
   namespace: rook-ceph
@@ -13,10 +13,15 @@ metadata:
    name: rook-ceph-block
 provisioner: ceph.rook.io/block
 parameters:
-  pool: replicapool
+  blockPool: replicapool
   # Specify the namespace of the rook cluster from which to create volumes.
   # If not specified, it will use `rook` as the default namespace of the cluster.
   # This is also the namespace where the cluster will be
   clusterNamespace: rook-ceph
   # Specify the filesystem type of the volume. If not specified, it will use `ext4`.
   fstype: xfs
+  # (Optional) Specify an existing Ceph user that will be used for mounting storage with this StorageClass.
+  #mountUser: user1
+  # (Optional) Specify an existing Kubernetes secret name containing just one key holding the Ceph user secret.
+  # The secret must exist in each namespace(s) where the storage will be consumed.
+  #mountSecret: ceph-user1-secret

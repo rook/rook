@@ -21,7 +21,7 @@ import (
 	"strconv"
 	"testing"
 
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
@@ -41,9 +41,10 @@ func TestPodSpec(t *testing.T) {
 		&clusterd.Context{Clientset: testop.New(1)},
 		"ns",
 		"rook/rook:myversion",
+		cephv1.CephVersionSpec{Image: "ceph/ceph:myceph"},
 		rookalpha.Placement{},
 		false,
-		cephv1beta1.DashboardSpec{},
+		cephv1.DashboardSpec{},
 		v1.ResourceRequirements{
 			Limits: v1.ResourceList{
 				v1.ResourceCPU: *resource.NewQuantity(100.0, resource.BinarySI),
@@ -60,7 +61,7 @@ func TestPodSpec(t *testing.T) {
 		ResourceName: "mgr-a",
 	}
 
-	d := c.makeDeployment(&mgrTestConfig)
+	d := c.makeDeployment(&mgrTestConfig, dashboardPortHttp)
 
 	assert.NotNil(t, d)
 	assert.Equal(t, "mgr-a", d.Name)
@@ -68,8 +69,8 @@ func TestPodSpec(t *testing.T) {
 	assert.Equal(t, 0, len(d.ObjectMeta.Annotations))
 
 	pod := d.Spec.Template
-	assert.Equal(t, appName, pod.ObjectMeta.Labels["app"])
-	assert.Equal(t, c.Namespace, pod.ObjectMeta.Labels["rook_cluster"])
+	assert.Nil(t, cephtest.VerifyPodLabels("rook-ceph-mgr", "ns", "mgr", "a", pod.ObjectMeta.Labels))
+	assert.Equal(t, "a", pod.ObjectMeta.Labels["instance"])
 	assert.Equal(t, 2, len(pod.ObjectMeta.Annotations))
 	assert.Equal(t, "true", pod.ObjectMeta.Annotations["prometheus.io/scrape"])
 	assert.Equal(t, strconv.Itoa(metricsPort), pod.ObjectMeta.Annotations["prometheus.io/port"])
@@ -77,12 +78,13 @@ func TestPodSpec(t *testing.T) {
 	assert.Nil(t, optest.VolumeExists("rook-data", pod.Spec.Volumes))
 	assert.Nil(t, optest.VolumeExists(cephconfig.DefaultConfigMountName, pod.Spec.Volumes))
 	assert.Nil(t, optest.VolumeExists(k8sutil.ConfigOverrideName, pod.Spec.Volumes))
+	assert.Equal(t, serviceAccountName, pod.Spec.ServiceAccountName)
 
 	assert.Equal(t, 1, len(pod.Spec.InitContainers))
 	assert.Equal(t, 1, len(pod.Spec.Containers))
 
 	configImage := "rook/rook:myversion"
-	configEnvs := 8
+	configEnvs := 9
 	configContainerDefinition := cephtest.ContainerTestDefinition{
 		Image:   &configImage,
 		Command: []string{}, // no command
@@ -106,9 +108,9 @@ func TestPodSpec(t *testing.T) {
 	configContainerDefinition.TestContainer(t, "config init", cont, logger)
 	assert.Equal(t, "100", cont.Resources.Limits.Cpu().String())
 	assert.Equal(t, "1337", cont.Resources.Requests.Memory().String())
-
-	daemonImage := "rook/rook:myversion"
-	daemonEnvs := len(k8sutil.ClusterDaemonEnvVars())
+	daemonImage := "ceph/ceph:myceph"
+	// +1 for $ROOK_CLUSTER_NAME
+	daemonEnvs := len(k8sutil.ClusterDaemonEnvVars()) + 1
 	daemonContainerDefinition := cephtest.ContainerTestDefinition{
 		Image: &daemonImage,
 		Command: []string{
@@ -125,7 +127,7 @@ func TestPodSpec(t *testing.T) {
 				Protocol: v1.ProtocolTCP},
 			{ContainerPort: int32(metricsPort),
 				Protocol: v1.ProtocolTCP},
-			{ContainerPort: int32(dashboardPort),
+			{ContainerPort: int32(dashboardPortHttp),
 				Protocol: v1.ProtocolTCP}},
 		IsPrivileged: nil, // not set in spec
 	}
@@ -145,7 +147,7 @@ func TestPodSpec(t *testing.T) {
 }
 
 func TestServiceSpec(t *testing.T) {
-	c := New(&clusterd.Context{}, "ns", "myversion", rookalpha.Placement{}, false, cephv1beta1.DashboardSpec{}, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(&clusterd.Context{}, "ns", "myversion", cephv1.CephVersionSpec{}, rookalpha.Placement{}, false, cephv1.DashboardSpec{}, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	s := c.makeMetricsService("rook-mgr")
 	assert.NotNil(t, s)
@@ -158,9 +160,10 @@ func TestHostNetwork(t *testing.T) {
 		&clusterd.Context{Clientset: testop.New(1)},
 		"ns",
 		"myversion",
+		cephv1.CephVersionSpec{},
 		rookalpha.Placement{},
 		true,
-		cephv1beta1.DashboardSpec{},
+		cephv1.DashboardSpec{},
 		v1.ResourceRequirements{},
 		metav1.OwnerReference{},
 	)
@@ -170,7 +173,7 @@ func TestHostNetwork(t *testing.T) {
 		ResourceName: "mgr-a",
 	}
 
-	d := c.makeDeployment(&mgrTestConfig)
+	d := c.makeDeployment(&mgrTestConfig, dashboardPortHttp)
 	assert.NotNil(t, d)
 
 	assert.Equal(t, true, d.Spec.Template.Spec.HostNetwork)

@@ -40,7 +40,6 @@ func init() {
 }
 
 func startAgent(cmd *cobra.Command, args []string) error {
-
 	rook.SetLogLevel()
 
 	rook.LogStartupInfo(agentCmd.Flags())
@@ -50,7 +49,7 @@ func startAgent(cmd *cobra.Command, args []string) error {
 		rook.TerminateFatal(fmt.Errorf("failed to get k8s client. %+v", err))
 	}
 
-	logger.Info("starting rook ceph agent")
+	logger.Infof("starting rook ceph agent")
 	context := &clusterd.Context{
 		Executor:              &exec.CommandExecutor{},
 		ConfigDir:             k8sutil.DataDir,

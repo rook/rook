@@ -1,5 +1,6 @@
 kind: SecurityContextConstraints
-apiVersion: v1
+# older versions of openshift have "apiVersion: v1"
+apiVersion: security.openshift.io/v1
 metadata:
   name: rook-ceph
 allowPrivilegedContainer: true
@@ -39,4 +40,5 @@ users:
   # If other namespaces or service accounts are configured, they need to be updated here.
   - system:serviceaccount:rook-ceph-system:rook-ceph-system
   - system:serviceaccount:rook-ceph:default
-  - system:serviceaccount:rook-ceph:rook-ceph-cluster
+  - system:serviceaccount:rook-ceph:rook-ceph-mgr
+  - system:serviceaccount:rook-ceph:rook-ceph-osd

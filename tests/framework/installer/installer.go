@@ -32,7 +32,7 @@ const (
 	// Version tag for the latest manifests
 	VersionMaster = "master"
 	// Version tag for Rook v0.8
-	Version0_8 = "v0.8.1"
+	Version0_8 = "v0.8.3"
 )
 
 var (

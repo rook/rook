@@ -20,9 +20,11 @@ To orchestrate the storage platform, Rook requires the following access in the c
 
 Before starting the Rook operator or cluster, create the security context constraints needed by the Rook pods. The following yaml is found in `scc.yaml` under `/cluster/examples/kubernetes/ceph`.
 
+**NOTE** Older versions of OpenShift may require `apiVersion: v1`.
+
 ```yaml
 kind: SecurityContextConstraints
-apiVersion: v1
+apiVersion: security.openshift.io/v1
 metadata:
   name: rook-ceph
 allowPrivilegedContainer: true
@@ -62,7 +64,8 @@ users:
   # If other namespaces or service accounts are configured, they need to be updated here.
   - system:serviceaccount:rook-ceph-system:rook-ceph-system
   - system:serviceaccount:rook-ceph:default
-  - system:serviceaccount:rook-ceph:rook-ceph-cluster
+  - system:serviceaccount:rook-ceph:rook-ceph-mgr
+  - system:serviceaccount:rook-ceph:rook-ceph-osd
 ```
 
 Important to note is that if you plan on running Rook in namespaces other than the defaults of `rook-ceph-system` and `rook-ceph`, the example scc will need to be modified to accommodate for your namespaces where the Rook pods are running.
@@ -87,7 +90,7 @@ There is an environment variable that needs to be set in the operator spec that 
 
 ```yaml
 - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
-    value: "true"
+  value: "true"
 ```
 
 ### Cluster Settings
@@ -96,10 +99,10 @@ The cluster settings in `cluster.yaml` are largely isolated from the differences
 
 
 ### Object Store Settings
-In OpenShift, ports less than 1024 cannot be bound. In the [object store CRD](object.md), ensure the port is modified to meet this requirement.
+In OpenShift, ports less than 1024 cannot be bound. In the [object store CRD](ceph-object.md), ensure the port is modified to meet this requirement.
 ```yaml
 gateway:
-    port: 8080
+  port: 8080
 ```
 
 You can expose a different port such as `80` by creating a service.

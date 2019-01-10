@@ -16,7 +16,6 @@ limitations under the License.
 package v1alpha2
 
 import (
-	rookv1alpha1 "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -40,31 +39,4 @@ func NewVolume(name, namespace, node, podNamespace, podName, clusterName, mountD
 	}
 
 	return volumeAttachmentObj
-}
-
-// ConvertLegacyVolume takes a legacy rookv1alpha1 VolumeAttachment object and converts it to a current
-// rookv1alpha2 Volume object.
-func ConvertLegacyVolume(legacyVolume rookv1alpha1.VolumeAttachment) *Volume {
-	va := &Volume{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      legacyVolume.Name,
-			Namespace: legacyVolume.Namespace,
-		},
-		Attachments: make([]Attachment, len(legacyVolume.Attachments)),
-	}
-
-	for i, la := range legacyVolume.Attachments {
-		a := Attachment{
-			Node:         la.Node,
-			PodNamespace: la.PodNamespace,
-			PodName:      la.PodName,
-			ClusterName:  la.ClusterName,
-			MountDir:     la.MountDir,
-			ReadOnly:     la.ReadOnly,
-		}
-
-		va.Attachments[i] = a
-	}
-
-	return va
 }

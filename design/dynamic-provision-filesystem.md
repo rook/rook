@@ -59,7 +59,7 @@ To create a filesystem, you just create a PVC object. This is consistent with al
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: myfsData
+  name: myfsdata
 spec:
   storageClassName: rook-filesystem-simple
   path: /myData # Will use root path, "/", if not provided
@@ -94,7 +94,7 @@ spec:
       volumes:
       - name: mysql-persistent-storage
         persistentVolumeClaim:
-          claimName: myfsData
+          claimName: myfsdata
 ```
 
 Note that the consuming pod manifest looks the same whether it is mounting a filesystem or a block device.

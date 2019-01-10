@@ -6,7 +6,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/rook/rook)](https://goreportcard.com/report/github.com/rook/rook)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/1599/badge)](https://bestpractices.coreinfrastructure.org/projects/1599)
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Frook%2Frook.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Frook%2Frook?ref=badge_shield)
-[![Slack](https://rook-slackin.herokuapp.com/badge.svg)](https://rook-slackin.herokuapp.com/badge.svg)
+[![Slack](https://slack.rook.io/badge.svg)](https://slack.rook.io/badge.svg)
 [![Twitter Follow](https://img.shields.io/twitter/follow/rook_io.svg?style=social&label=Follow)](https://twitter.com/intent/follow?screen_name=rook_io&user_id=788180534543339520)
 
 ## What is Rook?
@@ -20,7 +20,7 @@ Rook integrates deeply into cloud native environments leveraging extension point
 For more details about the storage solutions currently supported by Rook, please refer to the [project status section](#project-status) below.
 We plan to continue adding support for other storage systems and environments based on community demand and engagement in future releases. See our [roadmap](ROADMAP.md) for more details.
 
-Rook is hosted by the [Cloud Native Computing Foundation](https://cncf.io) (CNCF) as sandbox level project. If you are a company that wants to help shape the evolution of technologies that are container-packaged, dynamically-scheduled and microservices-oriented, consider joining the CNCF. For details about who's involved and how Rook plays a role, read the CNCF [announcement](https://www.cncf.io/blog/2018/01/29/cncf-host-rook-project-cloud-native-storage-capabilities).
+Rook is hosted by the [Cloud Native Computing Foundation](https://cncf.io) (CNCF) as an incubating level project. If you are a company that wants to help shape the evolution of technologies that are container-packaged, dynamically-scheduled and microservices-oriented, consider joining the CNCF. For details about who's involved and how Rook plays a role, read the CNCF [announcement](https://www.cncf.io/blog/2018/01/29/cncf-host-rook-project-cloud-native-storage-capabilities).
 
 ## Getting Started and Documentation
 
@@ -38,7 +38,7 @@ For filing bugs, suggesting improvements, or requesting new features, please ope
 
 Please use the following to reach members of the community:
 
-- Slack: Join our [slack channel](https://rook-slackin.herokuapp.com)
+- Slack: Join our [slack channel](https://slack.rook.io)
 - Forums: [rook-dev](https://groups.google.com/forum/#!forum/rook-dev)
 - Twitter: [@rook_io](https://twitter.com/rook_io)
 - Email: [info@rook.io](mailto:info@rook.io)
@@ -68,8 +68,10 @@ More details about API versioning and status in Kubernetes can be found on the K
 Name | Details | API Group | Status
 -----|---------|-----------|-------
 Rook Framework|The framework for common storage specs and logic used to support other storage providers.|rook.io/v1alpha2|Alpha
-Ceph|[Ceph](https://ceph.com/) is a distributed storage system that provides file, block and object storage and is deployed in large scale production clusters.|ceph.rook.io/v1beta1|Beta
+Ceph|[Ceph](https://ceph.com/) is a distributed storage system that provides file, block and object storage and is deployed in large scale production clusters.|ceph.rook.io/v1|Stable
 CockroachDB|[CockroachDB](https://www.cockroachlabs.com/product/cockroachdb/) is a cloud-native SQL database for building global, scalable cloud services that survive disasters.|cockroachdb.rook.io/v1alpha1|Alpha
+Cassandra| [Cassandra](http://cassandra.apache.org/) is a highly available NoSQL database featuring lightning fast performance, tunable consistency and massive scalability. [Scylla](https://www.scylladb.com) is a close-to-the-hardware rewrite of Cassandra in C++, which enables much lower latencies and higher throughput.|cassandra.rook.io/v1alpha1|Alpha
+EdgeFS|[EdgeFS](http://edgefs.io) is high-performance and fault-tolerant object storage system with Geo-Transparent data access to file, block or object.|edgefs.rook.io/v1alpha1|Alpha
 Minio|[Minio](https://www.minio.io/) is a high performance distributed object storage server, designed for large-scale private cloud infrastructure.|minio.rook.io/v1alpha1|Alpha
 NFS|[Network File System (NFS)](https://github.com/nfs-ganesha/nfs-ganesha/wiki) allows remote hosts to mount file systems over a network and interact with those file systems as though they are mounted locally.|nfs.rook.io/v1alpha1|Alpha
 

@@ -30,6 +30,8 @@ type Interface interface {
 	Filesystems() FilesystemInformer
 	// ObjectStores returns a ObjectStoreInformer.
 	ObjectStores() ObjectStoreInformer
+	// ObjectStoreUsers returns a ObjectStoreUserInformer.
+	ObjectStoreUsers() ObjectStoreUserInformer
 	// Pools returns a PoolInformer.
 	Pools() PoolInformer
 }
@@ -58,6 +60,11 @@ func (v *version) Filesystems() FilesystemInformer {
 // ObjectStores returns a ObjectStoreInformer.
 func (v *version) ObjectStores() ObjectStoreInformer {
 	return &objectStoreInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// ObjectStoreUsers returns a ObjectStoreUserInformer.
+func (v *version) ObjectStoreUsers() ObjectStoreUserInformer {
+	return &objectStoreUserInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // Pools returns a PoolInformer.

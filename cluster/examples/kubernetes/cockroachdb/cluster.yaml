@@ -13,6 +13,18 @@ spec:
   # https://rook.io/docs/rook/master/cockroachdb-cluster-crd.html
   scope:
     nodeCount: 3
+    # You can only have one PersistentVolumeClaim in this list!
+    volumeClaimTemplates:
+    - metadata:
+        name: rook-cockroachdb-data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        # Uncomment and specify your StorageClass, otherwise
+        # the cluster admin defined default StorageClass will be used.
+        #storageClassName: "your-cluster-storageclass"
+        resources:
+          requests:
+            storage: "1Gi"
   network:
     ports:
     - name: http
@@ -20,6 +32,5 @@ spec:
     - name: grpc
       port: 26257
   secure: false
-  volumeSize: 1Gi
   cachePercent: 25
   maxSQLMemoryPercent: 25

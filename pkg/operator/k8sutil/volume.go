@@ -31,6 +31,9 @@ func PathToVolumeName(path string) string {
 	// first replace all filepath separators with hyphens
 	volumeName := strings.Replace(path, string(filepath.Separator), "-", -1)
 
+	// convert underscores to hyphens
+	volumeName = strings.Replace(volumeName, "_", "-", -1)
+
 	// trim any leading/trailing hyphens
 	volumeName = strings.TrimPrefix(volumeName, "-")
 	volumeName = strings.TrimSuffix(volumeName, "-")

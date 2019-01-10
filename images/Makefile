@@ -29,17 +29,21 @@ cross.%:
 ceph.%:
 	@$(MAKE) -C ceph PLATFORM=$*
 
-ceph-toolbox.%: ceph.%
-	@$(MAKE) -C ceph-toolbox PLATFORM=$*
-
 cockroachdb.%:
 	@$(MAKE) -C cockroachdb PLATFORM=$*
 
 minio.%:
 	@$(MAKE) -C minio PLATFORM=$*
 
+edgefs.%:
+	@$(MAKE) -C edgefs PLATFORM=$*
+
 nfs.%:
 	@$(MAKE) -C nfs PLATFORM=$*
+
+cassandra.%:
+	@$(MAKE) -C cassandra PLATFORM=$*
+
 
 do.build.images.%: $(foreach i,$(IMAGES), $(i).%);
 

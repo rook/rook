@@ -1,0 +1,28 @@
+apiVersion: edgefs.rook.io/v1alpha1
+kind: ISCSI
+metadata:
+  name: iscsi01
+  namespace: rook-edgefs
+spec:
+  #targetName: 
+  #placement:
+  #  nodeAffinity:
+  #    requiredDuringSchedulingIgnoredDuringExecution:
+  #      nodeSelectorTerms:
+  #      - matchExpressions:
+  #        - key: rook-edgefs-nodetype
+  #          operator: In
+  #          values:
+  #          - gateway
+  #  tolerations:
+  #  - key: node230
+  #    operator: Exists
+  #  podAffinity:
+  #  podAntiAffinity:
+  #resources:
+  #  limits:
+  #    cpu: "2"
+  #    memory: "4Gi"
+  #  requests:
+  #    cpu: "2"
+  #    memory: "4Gi"

@@ -24,10 +24,11 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
@@ -74,9 +75,11 @@ type Cluster struct {
 	context              *clusterd.Context
 	Namespace            string
 	Keyring              string
-	Version              string
-	Size                 int
+	rookVersion          string
+	cephVersion          cephv1.CephVersionSpec
+	Count                int
 	AllowMultiplePerNode bool
+	MonCountMutex        sync.Mutex
 	Port                 int32
 	clusterInfo          *cephconfig.ClusterInfo
 	placement            rookalpha.Placement
@@ -118,15 +121,16 @@ type NodeInfo struct {
 }
 
 // New creates an instance of a mon cluster
-func New(context *clusterd.Context, namespace, dataDirHostPath, version string, mon cephv1beta1.MonSpec, placement rookalpha.Placement, hostNetwork bool,
-	resources v1.ResourceRequirements, ownerRef metav1.OwnerReference) *Cluster {
+func New(context *clusterd.Context, namespace, dataDirHostPath, rookVersion string, cephVersion cephv1.CephVersionSpec, mon cephv1.MonSpec,
+	placement rookalpha.Placement, hostNetwork bool, resources v1.ResourceRequirements, ownerRef metav1.OwnerReference) *Cluster {
 	return &Cluster{
 		context:              context,
 		placement:            placement,
 		dataDirHostPath:      dataDirHostPath,
 		Namespace:            namespace,
-		Version:              version,
-		Size:                 mon.Count,
+		rookVersion:          rookVersion,
+		cephVersion:          cephVersion,
+		Count:                mon.Count,
 		AllowMultiplePerNode: mon.AllowMultiplePerNode,
 		maxMonID:             -1,
 		waitForStart:         true,
@@ -157,7 +161,7 @@ func (c *Cluster) Start() error {
 
 func (c *Cluster) startMons() error {
 	// init the mons config
-	mons := c.initMonConfig(c.Size)
+	mons := c.initMonConfig(c.Count)
 
 	// Assign the pods to nodes
 	if err := c.assignMons(mons); err != nil {
@@ -165,12 +169,13 @@ func (c *Cluster) startMons() error {
 	}
 
 	// Start one monitor at a time
-	for i := 0; i < c.Size; i++ {
+	for i := 0; i < c.Count; i++ {
 		logger.Infof("ensuring mon %s (%s) is started", mons[i].ResourceName, mons[i].DaemonName)
 		endIndex := len(c.clusterInfo.Monitors)
-		if endIndex < c.Size {
+		if endIndex < c.Count {
 			endIndex++
 		}
+		logger.Infof("looping to start mons. i=%d, endIndex=%d, c.Size=%d", i, endIndex, c.Count)
 
 		// Init the mon IPs
 		if err := c.initMonIPs(mons[0:endIndex]); err != nil {
@@ -200,7 +205,6 @@ func (c *Cluster) startMons() error {
 // initClusterInfo retrieves the ceph cluster info if it already exists.
 // If a new cluster, create new keys.
 func (c *Cluster) initClusterInfo() error {
-
 	var err error
 	// get the cluster info from secret
 	c.clusterInfo, c.maxMonID, c.mapping, err = CreateOrLoadClusterInfo(c.context, c.Namespace, &c.ownerRef)
@@ -221,7 +225,7 @@ func (c *Cluster) initMonConfig(size int) []*monConfig {
 
 	// initialize the mon pod info for mons that have been previously created
 	for _, monitor := range c.clusterInfo.Monitors {
-		mons = append(mons, &monConfig{ResourceName: resourceName(monitor.Name), DaemonName: monitor.Name, Port: int32(mondaemon.DefaultPort)})
+		mons = append(mons, &monConfig{ResourceName: resourceName(monitor.Name), DaemonName: monitor.Name, Port: getPortFromEndpoint(monitor.Endpoint)})
 	}
 
 	// initialize mon info if we don't have enough mons (at first startup)
@@ -319,16 +323,16 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 		return fmt.Errorf("failed to get available nodes for mons. %+v", err)
 	}
 
-	// if all nodes already have mons return error as we don't place two mons on one node
-	if len(availableNodes) == 0 {
-		return fmt.Errorf("no nodes available for mon placement")
-	}
-
 	nodeIndex := 0
 	for _, m := range mons {
 		if _, ok := c.mapping.Node[m.DaemonName]; ok {
 			logger.Debugf("mon %s already assigned to a node, no need to assign", m.DaemonName)
 			continue
+		}
+
+		// if we need to place a new mon and don't have any more nodes available, we fail to add the mon
+		if len(availableNodes) == 0 {
+			return fmt.Errorf("no nodes available for mon placement")
 		}
 
 		// pick one of the available nodes where the mon will be assigned
@@ -379,12 +383,13 @@ func (c *Cluster) startDeployments(mons []*monConfig, index int) error {
 		return fmt.Errorf("cannot start 0 mons")
 	}
 
-	// Start the last mon in the list. The others have already been started by a previous call.
-	m := mons[index]
-	node, _ := c.mapping.Node[m.DaemonName]
-	err := c.startMon(m, node.Hostname)
-	if err != nil {
-		return fmt.Errorf("failed to create mon %s. %+v", m.DaemonName, err)
+	// Ensure each of the mons have been created. If already created, it will be a no-op.
+	for i := 0; i < len(mons); i++ {
+		node, _ := c.mapping.Node[mons[i].DaemonName]
+		err := c.startMon(mons[i], node.Hostname)
+		if err != nil {
+			return fmt.Errorf("failed to create mon %s. %+v", mons[i].DaemonName, err)
+		}
 	}
 
 	logger.Infof("mons created: %d", len(mons))
@@ -541,6 +546,8 @@ func getNodeNameFromHostname(nodes *v1.NodeList, hostname string) (string, bool)
 	return "", false
 }
 
+var updateDeploymentAndWait = k8sutil.UpdateDeploymentAndWait
+
 func (c *Cluster) startMon(m *monConfig, hostname string) error {
 	// If we determine the legacy replicaset exists, delete it so we can start the new deployment in its place
 	if err := k8sutil.DeleteReplicaSet(c.context.Clientset, c.Namespace, m.ResourceName); err != nil {
@@ -554,7 +561,19 @@ func (c *Cluster) startMon(m *monConfig, hostname string) error {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create mon %s. %+v", m.ResourceName, err)
 		}
-		logger.Infof("mon %s already exists", m.ResourceName)
+		logger.Debugf("deployment for mon %s already exists. updating if needed", m.ResourceName)
+		p, err := c.context.Clientset.Extensions().Deployments(c.Namespace).Get(d.Name, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to update mon deployment %s. failed to inspect preexisting deployment. %+v", d.Name, err)
+		}
+		// Workaround for #2331 targeted for Rook v0.9: only update the deployment if the Rook init
+		// image or Ceph image has changed.
+		if p.Spec.Template.Spec.Containers[0].Image != d.Spec.Template.Spec.Containers[0].Image ||
+			p.Spec.Template.Spec.InitContainers[0].Image != d.Spec.Template.Spec.InitContainers[0].Image {
+			if err := updateDeploymentAndWait(c.context, d, c.Namespace); err != nil {
+				return fmt.Errorf("failed to update mon deployment %s. %+v", m.ResourceName, err)
+			}
+		}
 	}
 
 	return nil

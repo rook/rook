@@ -12,21 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# the latest mimic release is the base image
 FROM BASEIMAGE
-
-RUN yum --assumeyes install \
-        net-tools \
-        nmap-ncat && \
-    yum clean all && rm -rf /tmp/* /var/tmp/*
 
 ARG ARCH
 ARG TINI_VERSION
 
 # Run tini as PID 1 and avoid signal handling issues
-ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-${ARCH} /tini
-RUN chmod +x /tini
+RUN curl --fail -sSL -o /tini https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-${ARCH} && \
+    chmod +x /tini
 
-ADD rook rookflex /usr/local/bin/
+COPY rook rookflex toolbox.sh /usr/local/bin/
 
 ENTRYPOINT ["/tini", "--", "/usr/local/bin/rook"]
 CMD [""]

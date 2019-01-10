@@ -42,6 +42,7 @@ pipeline {
                 }
             }
             steps {
+                sh 'build/run make -j\$(nproc) vendor.check'
                 sh 'build/run make -j\$(nproc) build.all'
             }
         }
@@ -64,13 +65,13 @@ pipeline {
             }
             steps{
                 sh 'cat _output/version | xargs tests/scripts/makeTestImages.sh  save amd64'
-                stash name: 'repo-amd64',includes: 'ceph-amd64.tar,cockroachdb-amd64.tar,nfs-amd64.tar,build/common.sh,_output/tests/linux_amd64/,_output/charts/,tests/scripts/'
+                stash name: 'repo-amd64',includes: 'ceph-amd64.tar,cockroachdb-amd64.tar,cassandra-amd64.tar,nfs-amd64.tar,build/common.sh,_output/tests/linux_amd64/,_output/charts/,tests/scripts/'
                 script{
                     def data = [
-                        "aws_1.8.x": "v1.8.5",
-                        "gce_1.9.x": "v1.9.9",
-                        "aws_1.10.x": "v1.10.5",
-                        "aws_1.11.x": "v1.11.1"
+                        "aws_1.10.x": "v1.10.11",
+                        "aws_1.11.x": "v1.11.5",
+                        "aws_1.12.x": "v1.12.3",
+                        "gce_1.13.x": "v1.13.1"
                     ]
                     testruns = [:]
                     for (kv in mapToList(data)) {
@@ -143,7 +144,7 @@ def RunIntegrationTest(k, v) {
                                   export PATH="/tmp/rook-tests-scripts-helm/linux-amd64:$PATH" \
                                       KUBECONFIG=$HOME/admin.conf
                                   kubectl config view
-                                  _output/tests/linux_amd64/integration -test.v -test.timeout 600s -test.run SmokeSuite --host_type '''+"${k}"+''' --helm /tmp/rook-tests-scripts-helm/linux-amd64/helm 2>&1 | tee _output/tests/integrationTests.log'''
+                                  _output/tests/linux_amd64/integration -test.v -test.timeout 1800s -test.run SmokeSuite --host_type '''+"${k}"+''' --helm /tmp/rook-tests-scripts-helm/linux-amd64/helm 2>&1 | tee _output/tests/integrationTests.log'''
                         }
                         else {
                         echo "Running full regression"
@@ -152,7 +153,7 @@ def RunIntegrationTest(k, v) {
                               export PATH="/tmp/rook-tests-scripts-helm/linux-amd64:$PATH" \
                                   KUBECONFIG=$HOME/admin.conf
                               kubectl config view
-                              _output/tests/linux_amd64/integration -test.v -test.timeout 2400s --host_type '''+"${k}"+''' --helm /tmp/rook-tests-scripts-helm/linux-amd64/helm 2>&1 | tee _output/tests/integrationTests.log'''
+                              _output/tests/linux_amd64/integration -test.v -test.timeout 7200s --host_type '''+"${k}"+''' --helm /tmp/rook-tests-scripts-helm/linux-amd64/helm 2>&1 | tee _output/tests/integrationTests.log'''
                          }
                     }
                     finally{

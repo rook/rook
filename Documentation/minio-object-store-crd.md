@@ -1,7 +1,6 @@
 ---
 title: Minio Object Store CRD
-weight: 38
-indent: true
+weight: 70
 ---
 
 # Minio Object Store CRD
@@ -18,16 +17,38 @@ metadata:
 spec:
   scope:
     nodeCount: 4
+    # You can have multiple PersistentVolumeClaims in the volumeClaimTemplates list.
+    # Be aware though that all PersistentVolumeClaim Templates will be used for each intance (see nodeCount).
+    volumeClaimTemplates:
+    - metadata:
+        name: rook-minio-data1
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        # Uncomment and specify your StorageClass, otherwise
+        # the cluster admin defined default StorageClass will be used.
+        #storageClassName: "your-cluster-storageclass"
+        resources:
+          requests:
+            storage: "8Gi"
+    #- metadata:
+    #    name: rook-minio-data2
+    #  spec:
+    #    accessModes: [ "ReadWriteOnce" ]
+    #    # Uncomment and specify your StorageClass, otherwise
+    #    # the cluster admin defined default StorageClass will be used.
+    #    #storageClassName: "my-storage-class"
+    #    resources:
+    #      requests:
+    #        storage: "8Gi"
   placement:
     tolerations:
     nodeAffinity:
     podAffinity:
     podAnyAffinity:
-  port: 9000
   credentials:
-    name: access-keys
+    name: minio-my-store-access-keys
     namespace: rook-minio
-  storageAmount: "10G"
+  clusterDomain:
 ```
 
 ## Cluster Settings
@@ -36,12 +57,13 @@ spec:
 
 The settings below are specific to Minio object stores:
 
-* `port`: The internal port exposed internal to the cluster by the Minio service.
 * `credentials`: This accepts the `name` and `namespace` strings of an existing Secret to specify the access credentials for the object store.
 * `storageAmount`: The size of the volume that will be mounted at the data directory.
+* `clusterDomain`: The local cluster domain for this cluster. This should be set if an alternative cluster domain is in use.  If not set, then the default of cluster.local will be assumed.  This field is needed to workaround https://github.com/minio/minio/issues/6775, and is expected to be removed in the future.
 
 ### Storage Scope
 
 Under the `scope` field, a `StorageScopeSpec` can be specified to influence the scope or boundaries of storage that the cluster will use for its underlying storage. These properties are currently supported:
 
 * `nodeCount`: The number of Minio instances to create.  Some of these instances may be scheduled on the same nodes, but exactly this many instances will be created and included in the cluster.
+* `volumeClaimTemplates`: A list of one or more PersistentVolumeClaim templates to use for each Minio repliace. For an example of how the list should look like, please look at the above [sample](#sample).

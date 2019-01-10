@@ -31,6 +31,7 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/manager/ceph"
+	"github.com/rook/rook/pkg/operator/ceph/agent"
 	"k8s.io/api/core/v1"
 )
 
@@ -48,7 +49,6 @@ func New(context *clusterd.Context) *Agent {
 
 // Run the agent
 func (a *Agent) Run() error {
-
 	volumeAttachmentController, err := attachment.New(a.context)
 	if err != nil {
 		return fmt.Errorf("failed to create volume attachment controller: %+v", err)
@@ -59,7 +59,14 @@ func (a *Agent) Run() error {
 		return fmt.Errorf("failed to create volume manager: %+v", err)
 	}
 
-	flexvolumeController := flexvolume.NewController(a.context, volumeAttachmentController, volumeManager)
+	mountSecurityMode := os.Getenv(agent.AgentMountSecurityModeEnv)
+	// Don't check if it is not empty because the operator always sets it on the DaemonSet
+	// meaning if it is not set, there is something wrong thus return an error.
+	if mountSecurityMode == "" {
+		return fmt.Errorf("no mount security mode env var found on the agent, have you upgraded your Rook operator correctly?")
+	}
+
+	flexvolumeController := flexvolume.NewController(a.context, volumeAttachmentController, volumeManager, mountSecurityMode)
 
 	flexvolumeServer := flexvolume.NewFlexvolumeServer(
 		a.context,
@@ -81,7 +88,7 @@ func (a *Agent) Run() error {
 		if i > 0 {
 			// Wait before the next driver is registered. In 1.11 and newer there is a timing issue if flex drivers are registered too quickly.
 			// See https://github.com/rook/rook/issues/1501 and https://github.com/kubernetes/kubernetes/issues/60694
-			time.Sleep(500 * time.Millisecond)
+			time.Sleep(time.Second)
 		}
 
 		err = flexvolumeServer.Start(vendor, driverName)
@@ -90,7 +97,7 @@ func (a *Agent) Run() error {
 		}
 
 		// Wait before the next driver is registered
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(time.Second)
 
 		// Register drivers both with the name of the namespace and the name "rook"
 		// for the volume plugins not based on the namespace.
@@ -107,6 +114,7 @@ func (a *Agent) Run() error {
 		volumeAttachmentController)
 	stopChan := make(chan struct{})
 	clusterController.StartWatch(v1.NamespaceAll, stopChan)
+	go periodicallyRefreshFlexDrivers(driverName, stopChan)
 
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc, syscall.SIGTERM)
@@ -117,6 +125,30 @@ func (a *Agent) Run() error {
 			flexvolumeServer.StopAll()
 			close(stopChan)
 			return nil
+		}
+	}
+}
+
+// In 1.11 and newer there is a timing issue loading flex drivers.
+// See https://github.com/rook/rook/issues/1501 and https://github.com/kubernetes/kubernetes/issues/60694
+// With this loop we constantly make sure the flex drivers are all loaded.
+func periodicallyRefreshFlexDrivers(driverName string, stopCh chan struct{}) {
+	waitTime := 2 * time.Minute
+	for {
+		logger.Debugf("waiting %s before refreshing flex", waitTime.String())
+		select {
+		case <-time.After(waitTime):
+			flexvolume.TouchFlexDrivers(flexvolume.FlexvolumeVendor, driverName)
+
+			// increase the wait time after the first few times we refresh
+			// at most the delay will be 32 minutes between each refresh of the flex drivers
+			if waitTime < 32*time.Minute {
+				waitTime = waitTime * 2
+			}
+			break
+		case <-stopCh:
+			logger.Infof("stopping flex driver refresh goroutine")
+			return
 		}
 	}
 }

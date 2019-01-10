@@ -184,9 +184,16 @@ func (c *Controller) createNFSService(nfsServer *nfsServer) error {
 
 func createGaneshaExport(id int, path string, access string, squash string) string {
 	var accessType string
-	if access == "ReadWrite" {
+	// validateNFSServerSpec guarantees `access` will be one of these values at this point
+	switch s.ToLower(access) {
+	case "readwrite":
 		accessType = "RW"
+	case "readonly":
+		accessType = "RO"
+	case "none":
+		accessType = "None"
 	}
+
 	idStr := fmt.Sprintf("%v", id)
 	nfsGaneshaConfig := `
 EXPORT {
@@ -197,7 +204,7 @@ EXPORT {
 	Transports = TCP;
 	Sectype = sys;
 	Access_Type = ` + accessType + `;
-	Squash = ` + squash + `;
+	Squash = ` + s.ToLower(squash) + `;
 	FSAL {
 		Name = VFS;
 	}
@@ -398,6 +405,12 @@ func (c *Controller) onAdd(obj interface{}) {
 
 	logger.Infof("new NFS server %s added to namespace %s", nfsObj.Name, nfsServer.namespace)
 
+	logger.Infof("validating nfs server spec in namespace %s", nfsServer.namespace)
+	if err := validateNFSServerSpec(nfsServer.spec); err != nil {
+		logger.Errorf("Invalid NFS Server spec: %+v", err)
+		return
+	}
+
 	logger.Infof("creating nfs server service in namespace %s", nfsServer.namespace)
 	if err := c.createNFSService(nfsServer); err != nil {
 		logger.Errorf("Unable to create NFS service %+v", err)
@@ -423,4 +436,40 @@ func (c *Controller) onUpdate(oldObj, newObj interface{}) {
 func (c *Controller) onDelete(obj interface{}) {
 	cluster := obj.(*nfsv1alpha1.NFSServer).DeepCopy()
 	logger.Infof("cluster %s deleted from namespace %s", cluster.Name, cluster.Namespace)
+}
+
+func validateNFSServerSpec(spec nfsv1alpha1.NFSServerSpec) error {
+	serverConfig := spec.Exports
+	for _, export := range serverConfig {
+		if err := validateAccessMode(export.Server.AccessMode); err != nil {
+			return err
+		}
+		if err := validateSquashMode(export.Server.Squash); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateAccessMode(mode string) error {
+	switch s.ToLower(mode) {
+	case "readonly":
+	case "readwrite":
+	case "none":
+	default:
+		return fmt.Errorf("Invalid value (%s) for accessMode, valid values are (ReadOnly, ReadWrite, none)", mode)
+	}
+	return nil
+}
+
+func validateSquashMode(mode string) error {
+	switch s.ToLower(mode) {
+	case "none":
+	case "rootid":
+	case "root":
+	case "all":
+	default:
+		return fmt.Errorf("Invalid value (%s) for squash, valid values are (none, rootId, root, all)", mode)
+	}
+	return nil
 }

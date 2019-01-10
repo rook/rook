@@ -721,10 +721,10 @@ func TestGetAttachInfoFromMountDir(t *testing.T) {
 					FSType:   "ext4",
 					ReadOnly: false,
 					Options: map[string]string{
-						StorageClassKey: "storageClass1",
-						PoolKey:         "pool123",
-						ImageKey:        "pvc-123",
-						DataPoolKey:     "",
+						StorageClassKey:  "storageClass1",
+						PoolKey:          "pool123",
+						ImageKey:         "pvc-123",
+						DataBlockPoolKey: "",
 					},
 				},
 			},
@@ -774,7 +774,7 @@ func TestGetAttachInfoFromMountDir(t *testing.T) {
 	assert.Equal(t, "testnamespace", opts.PodNamespace)
 	assert.Equal(t, "myPod", opts.Pod)
 	assert.Equal(t, "pvc-123", opts.Image)
-	assert.Equal(t, "pool123", opts.Pool)
+	assert.Equal(t, "pool123", opts.BlockPool)
 	assert.Equal(t, "storageClass1", opts.StorageClass)
 	assert.Equal(t, "testCluster", opts.ClusterNamespace)
 }

@@ -67,7 +67,14 @@ func (hc *HealthChecker) Check(stopCh chan struct{}) {
 }
 
 func (c *Cluster) checkHealth() error {
-	logger.Debugf("Checking health for mons. %+v", c.clusterInfo)
+	logger.Debugf("Checking health for mons (desired=%d). %+v", c.Count, c.clusterInfo)
+
+	// Use a local mon count in case the user updates the crd in another goroutine.
+	// We need to complete a health check with a consistent value.
+	c.MonCountMutex.Lock()
+	desiredMonCount := c.Count
+	allowMultiplePerNode := c.AllowMultiplePerNode
+	c.MonCountMutex.Unlock()
 
 	// connect to the mons
 	// get the status and check for quorum
@@ -85,6 +92,7 @@ func (c *Cluster) checkHealth() error {
 
 	// first handle mons that are not in quorum but in the ceph mon map
 	// failover the unhealthy mons
+	allMonsInQuorum := true
 	for _, mon := range status.MonMap.Mons {
 		inQuorum := monInQuorum(mon, status.Quorum)
 		// if the mon is in quorum remove it from our check for "existence"
@@ -93,15 +101,15 @@ func (c *Cluster) checkHealth() error {
 			delete(monsNotFound, mon.Name)
 		} else {
 			// when the mon isn't in the clusterInfo, but is in quorum and there are
-			//enough mons, remove it else remove it on the next run
-			if inQuorum && len(status.MonMap.Mons) > c.Size {
+			// enough mons, remove it else remove it on the next run
+			if inQuorum && len(status.MonMap.Mons) > desiredMonCount {
 				logger.Warningf("mon %s not in source of truth but in quorum, removing", mon.Name)
 				c.removeMon(mon.Name)
 			} else {
 				logger.Warningf(
 					"mon %s not in source of truth and not in quorum, not enough mons to remove now (wanted: %d, current: %d)",
 					mon.Name,
-					c.Size,
+					desiredMonCount,
 					len(status.MonMap.Mons),
 				)
 			}
@@ -116,6 +124,7 @@ func (c *Cluster) checkHealth() error {
 			}
 		} else {
 			logger.Debugf("mon %s NOT found in quorum. Mon status: %+v", mon.Name, status)
+			allMonsInQuorum = false
 
 			// If not yet set, add the current time, for the timeout
 			// calculation, to the list
@@ -131,7 +140,7 @@ func (c *Cluster) checkHealth() error {
 			}
 
 			logger.Warningf("mon %s NOT found in quorum and timeout exceeded, mon will be failed over", mon.Name)
-			c.failMon(len(status.MonMap.Mons), mon.Name)
+			c.failMon(len(status.MonMap.Mons), desiredMonCount, mon.Name)
 			// only deal with one unhealthy mon per health check
 			return nil
 		}
@@ -141,32 +150,44 @@ func (c *Cluster) checkHealth() error {
 	// handle all mons that haven't been in the Ceph mon map
 	for mon := range monsNotFound {
 		logger.Warningf("mon %s NOT found in ceph mon map, failover", mon)
-		c.failMon(len(c.clusterInfo.Monitors), mon)
+		c.failMon(len(c.clusterInfo.Monitors), desiredMonCount, mon)
 		// only deal with one "not found in ceph mon map" mon per health check
 		return nil
 	}
 
-	// check if there are more than two mons running on the same node, failover one mon in that case
-	done, err := c.checkMonsOnSameNode()
+	if !allowMultiplePerNode {
+		// check if there are more than two mons running on the same node, failover one mon in that case
+		done, err := c.checkMonsOnSameNode(desiredMonCount)
+		if done || err != nil {
+			return err
+		}
+	}
+
+	done, err := c.checkMonsOnValidNodes()
 	if done || err != nil {
 		return err
 	}
 
-	done, err = c.checkMonsOnValidNodes()
-	if done || err != nil {
-		return err
-	}
-
-	// create/start new mons when there are less mons
-	if len(status.MonMap.Mons) < c.Size {
-		logger.Infof("found only %d mons less than given mon.count %d, starting more mons", len(status.MonMap.Mons), c.Size)
+	// create/start new mons when there are fewer mons than the desired count in the CRD
+	if len(status.MonMap.Mons) < desiredMonCount {
+		logger.Infof("adding mons. currently %d mons are in quorum and the desired count is %d.", len(status.MonMap.Mons), desiredMonCount)
 		return c.startMons()
+	}
+
+	// remove extra mons if the desired count has decreased in the CRD and all the mons are currently healthy
+	if allMonsInQuorum && len(status.MonMap.Mons) > desiredMonCount {
+		if desiredMonCount < 2 && len(status.MonMap.Mons) == 2 {
+			logger.Warningf("cannot reduce mon quorum size from 2 to 1")
+		} else {
+			logger.Infof("removing an extra mon. currently %d are in quorum and only %d are desired", len(status.MonMap.Mons), desiredMonCount)
+			return c.removeMon(status.MonMap.Mons[0].Name)
+		}
 	}
 
 	return nil
 }
 
-func (c *Cluster) checkMonsOnSameNode() (bool, error) {
+func (c *Cluster) checkMonsOnSameNode(desiredMonCount int) (bool, error) {
 	nodesUsed := map[string]struct{}{}
 	for name, node := range c.mapping.Node {
 		// when the node is already in the list we have more than one mon on that node
@@ -180,7 +201,7 @@ func (c *Cluster) checkMonsOnSameNode() (bool, error) {
 			// fail it over to an other node
 			if len(availableNodes) > 0 {
 				logger.Infof("rebalance: enough nodes available %d to failover mon %s", len(availableNodes), name)
-				c.failMon(len(c.clusterInfo.Monitors), name)
+				c.failMon(len(c.clusterInfo.Monitors), desiredMonCount, name)
 			} else {
 				logger.Debugf("rebalance: not enough nodes available to failover mon %s", name)
 			}
@@ -214,9 +235,9 @@ func (c *Cluster) checkMonsOnValidNodes() (bool, error) {
 	return false, nil
 }
 
-// failMon compares the monCount against c.Size (wanted mon count)
-func (c *Cluster) failMon(monCount int, name string) {
-	if monCount > c.Size {
+// failMon compares the monCount against desiredMonCount
+func (c *Cluster) failMon(monCount, desiredMonCount int, name string) {
+	if monCount > desiredMonCount {
 		// no need to create a new mon since we have an extra
 		if err := c.removeMon(name); err != nil {
 			logger.Errorf("failed to remove mon %s. %+v", name, err)

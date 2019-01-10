@@ -37,18 +37,22 @@ func GetConfigStoreName(nodeName string) string {
 }
 
 const (
-	StoreTypeKey      = "storeType"
-	WalSizeMBKey      = "walSizeMB"
-	DatabaseSizeMBKey = "databaseSizeMB"
-	JournalSizeMBKey  = "journalSizeMB"
-	MetadataDeviceKey = "metadataDevice"
+	StoreTypeKey       = "storeType"
+	WalSizeMBKey       = "walSizeMB"
+	DatabaseSizeMBKey  = "databaseSizeMB"
+	JournalSizeMBKey   = "journalSizeMB"
+	OSDsPerDeviceKey   = "osdsPerDevice"
+	EncryptedDeviceKey = "encryptedDevice"
+	MetadataDeviceKey  = "metadataDevice"
 )
 
 type StoreConfig struct {
-	StoreType      string `json:"storeType,omitempty"`
-	WalSizeMB      int    `json:"walSizeMB,omitempty"`
-	DatabaseSizeMB int    `json:"databaseSizeMB,omitempty"`
-	JournalSizeMB  int    `json:"journalSizeMB,omitempty"`
+	StoreType       string `json:"storeType,omitempty"`
+	WalSizeMB       int    `json:"walSizeMB,omitempty"`
+	DatabaseSizeMB  int    `json:"databaseSizeMB,omitempty"`
+	JournalSizeMB   int    `json:"journalSizeMB,omitempty"`
+	OSDsPerDevice   int    `json:"osdsPerDevice,omitempty"`
+	EncryptedDevice bool   `json:"encryptedDevice,omitempty"`
 }
 
 func ToStoreConfig(config map[string]string) StoreConfig {
@@ -63,6 +67,10 @@ func ToStoreConfig(config map[string]string) StoreConfig {
 			storeConfig.DatabaseSizeMB = convertToIntIgnoreErr(v)
 		case JournalSizeMBKey:
 			storeConfig.JournalSizeMB = convertToIntIgnoreErr(v)
+		case OSDsPerDeviceKey:
+			storeConfig.OSDsPerDevice = convertToIntIgnoreErr(v)
+		case EncryptedDeviceKey:
+			storeConfig.EncryptedDevice = (v == "true")
 		}
 	}
 

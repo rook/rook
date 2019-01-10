@@ -18,10 +18,12 @@ package mgr
 
 import (
 	"fmt"
+	"os"
 	"path"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/util"
 )
@@ -46,9 +48,11 @@ const (
 
 // Config contains the necessary parameters Rook needs to know to set up a mgr for a Ceph cluster.
 type Config struct {
-	ClusterInfo *cephconfig.ClusterInfo
-	Name        string
-	Keyring     string
+	ClusterInfo      *cephconfig.ClusterInfo
+	Name             string
+	Keyring          string
+	ModuleServerAddr string
+	CephVersionName  string
 }
 
 // Initialize generates configuration files for a Ceph mgr
@@ -61,6 +65,36 @@ func Initialize(context *clusterd.Context, config *Config) error {
 
 	util.WriteFileToLog(logger, cephconfig.DefaultConfigFilePath())
 
+	return setServerAddr(context, config)
+}
+
+func setServerAddr(context *clusterd.Context, config *Config) error {
+	logger.Infof("setting server_addr for the prometheus and dashboard modules")
+
+	// use the admin keyring for these operations
+	adminKeyringEval := func(key string) string {
+		return fmt.Sprintf(cephconfig.AdminKeyringTemplate, key)
+	}
+
+	keyringPath := path.Join(cephconfig.DefaultConfigDir, "keyring")
+	if err := cephconfig.WriteKeyring(keyringPath, config.ClusterInfo.AdminSecret, adminKeyringEval); err != nil {
+		return fmt.Errorf("failed to write admin keyring. %+v", err)
+	}
+
+	clusterName := "ceph"
+	context.ConfigDir = "/etc"
+	modules := []string{"prometheus", "dashboard"}
+	for _, module := range modules {
+		settingPath := fmt.Sprintf("mgr/%s/server_addr", module)
+		if _, err := client.MgrSetConfig(context, clusterName, config.Name, config.CephVersionName, settingPath, config.ModuleServerAddr, true); err != nil {
+			return fmt.Errorf("setting %s server_addr failed. %+v", module, err)
+		}
+	}
+
+	// remove the admin keyring
+	if err := os.Remove(keyringPath); err != nil {
+		logger.Warningf("failed to remove admin keyring. %+v", err)
+	}
 	return nil
 }
 
@@ -84,7 +118,7 @@ func generateConfigFiles(context *clusterd.Context, config *Config) error {
 
 	err = cephconfig.WriteKeyring(keyringPath, config.Keyring, keyringEval)
 	if err != nil {
-		return fmt.Errorf("failed to create mds keyring. %+v", err)
+		return fmt.Errorf("failed to create mgr keyring. %+v", err)
 	}
 
 	return nil
@@ -92,10 +126,6 @@ func generateConfigFiles(context *clusterd.Context, config *Config) error {
 
 func getMgrConfDir(dir, name string) string {
 	return path.Join(dir, fmt.Sprintf("mgr-%s", name))
-}
-
-func getMgrConfFilePath(dir, name, clusterName string) string {
-	return path.Join(getMgrConfDir(dir, name), fmt.Sprintf("%s.config", clusterName))
 }
 
 func getMgrKeyringPath(dir, name string) string {

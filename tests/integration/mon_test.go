@@ -25,7 +25,7 @@ import (
 )
 
 // Smoke Test for Mon failover - Test check the following operations for the Mon failover in order
-//Delete mon pod, Wait for new mon pod
+// Delete mon pod, Wait for new mon pod
 func (suite *SmokeSuite) TestMonFailover() {
 	logger.Infof("Mon Failover Smoke Test")
 

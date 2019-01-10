@@ -54,8 +54,10 @@ func TestProvisionImage(t *testing.T) {
 				return `[{"image":"pvc-uid-1-1","size":1048576,"format":2}]`, nil
 			}
 
-			if command == "rbd" && args[0] == "ls" && args[1] == "-l" {
-				return `[{"image":"pvc-uid-1-1","size":1048576,"format":2}]`, nil
+			if command == "rbd" && args[0] == "info" {
+				assert.Equal(t, "testpool/pvc-uid-1-1", args[1])
+				return `{"name":"pvc-uid-1-1","size":1048576,"objects":1,"order":20,"object_size":1048576,"block_name_prefix":"testpool_data.229226b8b4567",` +
+					`"format":2,"features":["layering"],"op_features":[],"flags":[],"create_timestamp":"Fri Oct  5 19:46:20 2018"}`, nil
 			}
 			return "", nil
 		},
@@ -68,7 +70,7 @@ func TestProvisionImage(t *testing.T) {
 	}
 
 	provisioner := New(context, "foo.io")
-	volume := newVolumeOptions(newStorageClass("class-1", "foo.io/block", map[string]string{"pool": "testpool", "clusterNamespace": "testCluster", "fsType": "ext3", "dataPool": ""}, v1.PersistentVolumeReclaimRetain), newClaim("claim-1", "uid-1-1", "class-1", "", "class-1", nil), v1.PersistentVolumeReclaimRetain)
+	volume := newVolumeOptions(newStorageClass("class-1", "foo.io/block", map[string]string{"pool": "testpool", "clusterNamespace": "testCluster", "fsType": "ext3", "dataBlockPool": ""}, v1.PersistentVolumeReclaimRetain), newClaim("claim-1", "uid-1-1", "class-1", "", "class-1", nil), v1.PersistentVolumeReclaimRetain)
 
 	pv, err := provisioner.Provision(volume)
 	assert.Nil(t, err)
@@ -82,9 +84,9 @@ func TestProvisionImage(t *testing.T) {
 	assert.Equal(t, "class-1", pv.Spec.PersistentVolumeSource.FlexVolume.Options["storageClass"])
 	assert.Equal(t, "testpool", pv.Spec.PersistentVolumeSource.FlexVolume.Options["pool"])
 	assert.Equal(t, "pvc-uid-1-1", pv.Spec.PersistentVolumeSource.FlexVolume.Options["image"])
-	assert.Equal(t, "", pv.Spec.PersistentVolumeSource.FlexVolume.Options["dataPool"])
+	assert.Equal(t, "", pv.Spec.PersistentVolumeSource.FlexVolume.Options["dataBlockPool"])
 
-	volume = newVolumeOptions(newStorageClass("class-1", "foo.io/block", map[string]string{"pool": "testpool", "clusterNamespace": "testCluster", "fsType": "ext3", "dataPool": "iamdatapool"}, v1.PersistentVolumeReclaimRecycle), newClaim("claim-1", "uid-1-1", "class-1", "", "class-1", nil), v1.PersistentVolumeReclaimRecycle)
+	volume = newVolumeOptions(newStorageClass("class-1", "foo.io/block", map[string]string{"pool": "testpool", "clusterNamespace": "testCluster", "fsType": "ext3", "dataBlockPool": "iamdatapool"}, v1.PersistentVolumeReclaimRecycle), newClaim("claim-1", "uid-1-1", "class-1", "", "class-1", nil), v1.PersistentVolumeReclaimRecycle)
 
 	pv, err = provisioner.Provision(volume)
 	assert.Nil(t, err)
@@ -98,7 +100,7 @@ func TestProvisionImage(t *testing.T) {
 	assert.Equal(t, "class-1", pv.Spec.PersistentVolumeSource.FlexVolume.Options["storageClass"])
 	assert.Equal(t, "testpool", pv.Spec.PersistentVolumeSource.FlexVolume.Options["pool"])
 	assert.Equal(t, "pvc-uid-1-1", pv.Spec.PersistentVolumeSource.FlexVolume.Options["image"])
-	assert.Equal(t, "iamdatapool", pv.Spec.PersistentVolumeSource.FlexVolume.Options["dataPool"])
+	assert.Equal(t, "iamdatapool", pv.Spec.PersistentVolumeSource.FlexVolume.Options["dataBlockPool"])
 }
 
 func TestReclaimPolicyForProvisionedImages(t *testing.T) {
@@ -118,8 +120,10 @@ func TestReclaimPolicyForProvisionedImages(t *testing.T) {
 				return `[{"image":"pvc-uid-1-1","size":1048576,"format":2}]`, nil
 			}
 
-			if command == "rbd" && args[0] == "ls" && args[1] == "-l" {
-				return `[{"image":"pvc-uid-1-1","size":1048576,"format":2}]`, nil
+			if command == "rbd" && args[0] == "info" {
+				assert.Equal(t, "testpool/pvc-uid-1-1", args[1])
+				return `{"name":"pvc-uid-1-1","size":1048576,"objects":1,"order":20,"object_size":1048576,"block_name_prefix":"testpool_data.229226b8b4567",` +
+					`"format":2,"features":["layering"],"op_features":[],"flags":[],"create_timestamp":"Fri Oct  5 19:46:20 2018"}`, nil
 			}
 			return "", nil
 		},
@@ -133,7 +137,7 @@ func TestReclaimPolicyForProvisionedImages(t *testing.T) {
 
 	provisioner := New(context, "foo.io")
 	for _, reclaimPolicy := range []v1.PersistentVolumeReclaimPolicy{v1.PersistentVolumeReclaimDelete, v1.PersistentVolumeReclaimRetain, v1.PersistentVolumeReclaimRecycle} {
-		volume := newVolumeOptions(newStorageClass("class-1", "foo.io/block", map[string]string{"pool": "testpool", "clusterNamespace": "testCluster", "fsType": "ext3", "dataPool": "iamdatapool"}, reclaimPolicy), newClaim("claim-1", "uid-1-1", "class-1", "", "class-1", nil), reclaimPolicy)
+		volume := newVolumeOptions(newStorageClass("class-1", "foo.io/block", map[string]string{"pool": "testpool", "clusterNamespace": "testCluster", "fsType": "ext3", "dataBlockPool": "iamdatapool"}, reclaimPolicy), newClaim("claim-1", "uid-1-1", "class-1", "", "class-1", nil), reclaimPolicy)
 		pv, err := provisioner.Provision(volume)
 		assert.Nil(t, err)
 
@@ -150,19 +154,19 @@ func TestParseClassParameters(t *testing.T) {
 	provConfig, err := parseClassParameters(cfg)
 	assert.Nil(t, err)
 
-	assert.Equal(t, "testPool", provConfig.pool)
+	assert.Equal(t, "testPool", provConfig.blockPool)
 	assert.Equal(t, "myname", provConfig.clusterNamespace)
 	assert.Equal(t, "ext4", provConfig.fstype)
 }
 
 func TestParseClassParametersDefault(t *testing.T) {
 	cfg := make(map[string]string)
-	cfg["pool"] = "testPool"
+	cfg["blockPool"] = "testPool"
 
 	provConfig, err := parseClassParameters(cfg)
 	assert.Nil(t, err)
 
-	assert.Equal(t, "testPool", provConfig.pool)
+	assert.Equal(t, "testPool", provConfig.blockPool)
 	assert.Equal(t, "rook-ceph", provConfig.clusterNamespace)
 	assert.Equal(t, "", provConfig.fstype)
 }
@@ -172,7 +176,7 @@ func TestParseClassParametersNoPool(t *testing.T) {
 	cfg["clustername"] = "myname"
 
 	_, err := parseClassParameters(cfg)
-	assert.EqualError(t, err, "StorageClass for provisioner rookVolumeProvisioner must contain 'pool' parameter")
+	assert.EqualError(t, err, "StorageClass for provisioner rookVolumeProvisioner must contain 'blockPool' parameter")
 
 }
 

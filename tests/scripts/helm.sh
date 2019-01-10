@@ -54,7 +54,7 @@ install() {
     done
 
     if [ "${helm_ready}" != "Running" ]; then
-        echo "Helm init not successfully"
+        echo "Helm init not successful"
         exit 1
     fi
 

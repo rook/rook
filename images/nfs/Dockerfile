@@ -22,7 +22,7 @@ FROM NFS_BASEIMAGE
 # 2. Set NFS_V4_RECOV_ROOT to /export
 # 3. Use device major/minor as fsid major/minor to work on OverlayFS
 
-RUN dnf install -y tar gcc cmake autoconf libtool bison flex make gcc-c++ krb5-devel dbus-devel jemalloc-devel libnfsidmap-devel patch && dnf clean all \
+RUN dnf install -y tar gcc cmake autoconf libtool bison flex make gcc-c++ krb5-devel dbus-devel jemalloc-devel libnfsidmap-devel patch libnsl2-devel && dnf clean all \
  && curl -L https://github.com/nfs-ganesha/nfs-ganesha/archive/V2.4.1.tar.gz | tar zx \
  && curl -L https://github.com/nfs-ganesha/nfs-ganesha/commit/c583534b166be198755d905c82a7687d83b458d8.patch -o /nfs-ganesha.patch \
  && curl -L https://github.com/nfs-ganesha/ntirpc/archive/v1.4.4.tar.gz | tar zx \
@@ -47,7 +47,7 @@ COPY start.sh /
 
 EXPOSE 2049 38465-38467 662 111/udp 111
 
-ADD rook /usr/local/bin/
+COPY rook /usr/local/bin/
 
 ENTRYPOINT ["/usr/local/bin/rook"]
 CMD [""]

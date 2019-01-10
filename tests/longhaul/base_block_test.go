@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
@@ -19,7 +19,7 @@ var (
 
 // Create StorageClass and poll if needed
 func createStorageClassAndPool(t func() *testing.T, testClient *clients.TestClient, kh *utils.K8sHelper, namespace string, storageClassName string, poolName string) {
-	//create storage class
+	// Create storage class
 	if err := kh.IsStorageClassPresent(storageClassName); err != nil {
 		logger.Infof("Install pool and storage class for rook block")
 		_, err := testClient.PoolClient.Create(poolName, namespace, 3)
@@ -27,7 +27,7 @@ func createStorageClassAndPool(t func() *testing.T, testClient *clients.TestClie
 		_, err = testClient.BlockClient.CreateStorageClass(poolName, storageClassName, "Delete", namespace, false)
 		require.NoError(t(), err)
 
-		//make sure storageclass is created
+		// make sure storageclass is created
 		err = kh.IsStorageClassPresent(storageClassName)
 		require.NoError(t(), err)
 	}
@@ -37,13 +37,13 @@ func createStorageClassAndPool(t func() *testing.T, testClient *clients.TestClie
 // All the set up is if needed.
 func createPVCAndMountMysqlPod(t func() *testing.T, kh *utils.K8sHelper, storageClassName string, appName string, appLabel string, pvcName string) *utils.MySQLHelper {
 
-	//create mysql pod
+	// Create mysql pod
 	if _, err := kh.GetPVCStatus(defaultNamespace, pvcName); err != nil {
 		logger.Infof("Create PVC")
 
 		mySqlPodOperation(kh, storageClassName, appName, appLabel, pvcName, "create")
 
-		//wait till mysql pod is up
+		// Wait till mysql pod is up
 		require.True(t(), kh.IsPodInExpectedState(appLabel, "", "Running"))
 		require.True(t(), kh.WaitUntilPVCIsBound(defaultNamespace, pvcName))
 	}
@@ -51,7 +51,7 @@ func createPVCAndMountMysqlPod(t func() *testing.T, kh *utils.K8sHelper, storage
 	require.Nil(t(), err)
 	dbPort, err := kh.GetServiceNodePort(appName, "default")
 	require.Nil(t(), err)
-	//create database connection
+	// Create database connection
 	db := utils.CreateNewMySQLHelper("mysql", "mysql", dbIP+":"+dbPort, "sample")
 
 	require.True(t(), db.PingSuccess())
@@ -61,7 +61,6 @@ func createPVCAndMountMysqlPod(t func() *testing.T, kh *utils.K8sHelper, storage
 	}
 
 	return db
-
 }
 
 func mySqlPodOperation(k8sh *utils.K8sHelper, storageClassName string, appName string, appLabel string, pvcName string, action string) (string, error) {
@@ -73,7 +72,6 @@ func mySqlPodOperation(k8sh *utils.K8sHelper, storageClassName string, appName s
 	}
 
 	result, err := k8sh.ResourceOperationFromTemplate(action, GetMySqlPodDef(), config)
-
 	return result, err
 
 }
@@ -115,7 +113,7 @@ func dbOperation(db *utils.MySQLHelper, wg *sync.WaitGroup, runtime int, loadSiz
 	start := time.Now()
 	elapsed := time.Since(start).Seconds()
 	for elapsed < float64(runtime) {
-		//InsertRandomData
+		// InsertRandomData
 		db.InsertRandomData(ds)
 		db.InsertRandomData(ds)
 		db.InsertRandomData(ds)
@@ -125,7 +123,7 @@ func dbOperation(db *utils.MySQLHelper, wg *sync.WaitGroup, runtime int, loadSiz
 		db.InsertRandomData(ds)
 		db.SelectRandomData(10)
 
-		//delete Data
+		// Delete Data
 		db.DeleteRandomRow()
 		db.SelectRandomData(20)
 		elapsed = time.Since(start).Seconds()
@@ -147,7 +145,7 @@ func StartLoadTestCluster(t func() *testing.T, namespace string) (LoadTestCluste
 	kh, err := utils.CreateK8sHelper(t)
 	require.NoError(t(), err)
 
-	i := installer.NewCephInstaller(t, kh.Clientset, installer.VersionMaster)
+	i := installer.NewCephInstaller(t, kh.Clientset, installer.VersionMaster, cephv1.CephVersionSpec{Image: "ceph/ceph:v12.2.7", Name: "luminous"})
 
 	op := LoadTestCluster{i, kh, nil, t, namespace}
 	op.Setup()
@@ -159,8 +157,9 @@ func (o LoadTestCluster) Setup() {
 
 	if !o.kh.IsRookInstalled(o.namespace) {
 		isRookInstalled, err := o.installer.InstallRookOnK8sWithHostPathAndDevices(o.namespace, "bluestore",
-			false, true, cephv1beta1.MonSpec{Count: 3, AllowMultiplePerNode: true},
-			true /* startWithAllNodes */)
+			false, true, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true},
+			true, /* startWithAllNodes */
+			1 /*rbd mirror workers*/)
 		require.NoError(o.T(), err)
 		require.True(o.T(), isRookInstalled)
 	}
@@ -172,7 +171,7 @@ func (o LoadTestCluster) Setup() {
 	}
 }
 
-//TearDownRook is a wrapper for tearDown after suite
+// TearDownRook is a wrapper for tearDown after suite
 func (o LoadTestCluster) Teardown() {
 	// No Clean up for load test
 }

@@ -40,9 +40,21 @@ spec:
         - name: AGENT_TOLERATION_KEY
           value: {{ .Values.agent.tolerationKey }}
 {{- end }}
+{{- if .Values.agent.mountSecurityMode }}
+        - name: AGENT_MOUNT_SECURITY_MODE
+          value: {{ .Values.agent.mountSecurityMode }}
+{{- end }}
 {{- if .Values.agent.flexVolumeDirPath }}
         - name: FLEXVOLUME_DIR_PATH
           value: {{ .Values.agent.flexVolumeDirPath }}
+{{- end }}
+{{- if .Values.agent.libModulesDirPath }}
+        - name: LIB_MODULES_DIR_PATH
+          value: {{ .Values.agent.libModulesDirPath }}
+{{- end }}
+{{- if .Values.agent.mounts }}
+        - name: AGENT_MOUNTS
+          value: {{ .Values.agent.mounts }}
 {{- end }}
 {{- end }}
 {{- if .Values.discover }}

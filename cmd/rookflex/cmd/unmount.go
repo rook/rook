@@ -19,9 +19,9 @@ package cmd
 import (
 	"fmt"
 	"net/rpc"
+	"os/exec"
 
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume"
-	"github.com/rook/rook/pkg/util/exec"
 	"github.com/spf13/cobra"
 	k8smount "k8s.io/kubernetes/pkg/util/mount"
 	"k8s.io/kubernetes/pkg/volume/util"
@@ -33,7 +33,6 @@ var (
 		Short: "Unmounts the pod volume",
 		RunE:  handleUnmount,
 	}
-	executor = &exec.CommandExecutor{}
 )
 
 func init() {
@@ -53,7 +52,8 @@ func handleUnmount(cmd *cobra.Command, args []string) error {
 	mounter := getMounter()
 
 	// Check if it's a cephfs
-	err = executor.ExecuteCommand(false, "", "df", "--type", cephFS, mountDir)
+	command := exec.Command("df", "--type", cephFS, mountDir)
+	err = command.Run()
 	if err == nil {
 		return unmountCephFS(client, mounter, mountDir)
 	}
@@ -81,7 +81,7 @@ func handleUnmount(cmd *cobra.Command, args []string) error {
 	var globalVolumeMountPath string
 	err = client.Call("Controller.GetGlobalMountPath", globalMountPathInput, &globalVolumeMountPath)
 	if err != nil {
-		log(client, fmt.Sprintf("Detach volume %s/%s failed. Cannot get global volume mount path: %v", opts.Pool, opts.Image, err), true)
+		log(client, fmt.Sprintf("Detach volume %s/%s failed. Cannot get global volume mount path: %v", opts.BlockPool, opts.Image, err), true)
 		return fmt.Errorf("Rook: Unmount volume failed. Cannot get global volume mount path: %v", err)
 	}
 

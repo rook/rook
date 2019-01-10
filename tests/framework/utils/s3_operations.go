@@ -26,7 +26,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
-//S3Helper contains pointer to s3 client and wrappers for basic object store operations
+// S3Helper contains pointer to s3 client and wrappers for basic object store operations
 type S3Helper struct {
 	s3client *s3.S3
 }
@@ -45,16 +45,16 @@ func CreateNewS3Helper(endpoint string, keyID string, keySecret string) *S3Helpe
 		WithDisableSSL(true).
 		WithMaxRetries(20)
 
-	//create new session
+	// create new session
 	ses := session.New()
 
-	//create new s3 client connection
+	// create new s3 client connection
 	c := s3.New(ses, awsConfig)
 
 	return &S3Helper{c}
 }
 
-//CreateBucket function creates  bucket using s3 client
+// CreateBucket function creates  bucket using s3 client
 func (h *S3Helper) CreateBucket(name string) (bool, error) {
 	_, err := h.s3client.CreateBucket(&s3.CreateBucketInput{
 		Bucket: aws.String(name),
@@ -67,7 +67,7 @@ func (h *S3Helper) CreateBucket(name string) (bool, error) {
 	return true, nil
 }
 
-//DeleteBucket function deletes given bucket using s3 client
+// DeleteBucket function deletes given bucket using s3 client
 func (h *S3Helper) DeleteBucket(name string) (bool, error) {
 	_, err := h.s3client.DeleteBucket(&s3.DeleteBucketInput{
 		Bucket: aws.String(name),
@@ -80,7 +80,7 @@ func (h *S3Helper) DeleteBucket(name string) (bool, error) {
 	return true, nil
 }
 
-//PutObjectInBucket function puts an object in a bucket using s3 client
+// PutObjectInBucket function puts an object in a bucket using s3 client
 func (h *S3Helper) PutObjectInBucket(bucketname string, body string, key string,
 	contentType string) (bool, error) {
 	_, err := h.s3client.PutObject(&s3.PutObjectInput{
@@ -97,7 +97,7 @@ func (h *S3Helper) PutObjectInBucket(bucketname string, body string, key string,
 	return true, nil
 }
 
-//GetObjectInBucket function retrieves an object from a bucket using s3 client
+// GetObjectInBucket function retrieves an object from a bucket using s3 client
 func (h *S3Helper) GetObjectInBucket(bucketname string, key string) (string, error) {
 	result, err := h.s3client.GetObject(&s3.GetObjectInput{
 		Bucket: aws.String(bucketname),
@@ -115,7 +115,7 @@ func (h *S3Helper) GetObjectInBucket(bucketname string, key string) (string, err
 	return buf.String(), nil
 }
 
-//DeleteObjectInBucket function deletes given bucket using s3 client
+// DeleteObjectInBucket function deletes given bucket using s3 client
 func (h *S3Helper) DeleteObjectInBucket(bucketname string, key string) (bool, error) {
 	_, err := h.s3client.DeleteObject(&s3.DeleteObjectInput{
 		Bucket: aws.String(bucketname),
@@ -129,7 +129,7 @@ func (h *S3Helper) DeleteObjectInBucket(bucketname string, key string) (bool, er
 	return true, nil
 }
 
-//IsBucketPresent function returns true if a bucket is present and false if it's not present
+// IsBucketPresent function returns true if a bucket is present and false if it's not present
 func (h *S3Helper) IsBucketPresent(bucketname string) (bool, error) {
 	_, err := h.s3client.HeadBucket(&s3.HeadBucketInput{
 		Bucket: aws.String(bucketname),

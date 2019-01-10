@@ -25,6 +25,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"time"
 )
 
 var (
@@ -51,19 +52,19 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	require.Nil(s.T(), cobsErr)
 	logger.Infof("Object store created successfully")
 
-	/* TODO: Reenable this test after we have the object user CRD
-
 	logger.Infof("Step 1 : Create Object Store User")
-	initialUsers, _ := helper.ObjectClient.ObjectListUser(storeName)
-	_, cosuErr := helper.ObjectClient.CreateUser(storeName, userid, userdisplayname)
+	cosuErr := helper.ObjectUserClient.Create(namespace, userid, userdisplayname, storeName)
 	require.Nil(s.T(), cosuErr)
-	usersAfterCreate, _ := helper.ObjectClient.ObjectListUser(storeName)
-	require.Equal(s.T(), len(initialUsers)+1, len(usersAfterCreate), "Make sure user list count is increased by 1")
-	getuserData, guErr := helper.ObjectClient.ObjectGetUser(storeName, userid)
-	require.Nil(s.T(), guErr)
-	require.Equal(s.T(), userid, getuserData.UserID, "Check user id returned")
-	require.Equal(s.T(), userdisplayname, *getuserData.DisplayName, "Check user name returned")
+	logger.Infof("Waiting 5 seconds to ensure user was created")
+	time.Sleep(5 * time.Second)
+	require.True(s.T(), helper.ObjectUserClient.UserSecretExists(namespace, userid, storeName), "make sure user secret was created")
+	userInfo, gosuErr := helper.ObjectUserClient.GetUser(namespace, storeName, userid)
+	require.Nil(s.T(), gosuErr)
+	require.Equal(s.T(), userid, userInfo.UserID)
+	require.Equal(s.T(), userdisplayname, *userInfo.DisplayName)
 	logger.Infof("Object store user created successfully")
+
+	/* TODO: We need bucket management tests.
 
 	logger.Infof("Step 2 : Get connection information")
 	conninfo, conninfoError := helper.ObjectClient.ObjectGetUser(storeName, userid)
@@ -115,13 +116,12 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	require.Equal(s.T(), len(initialBuckets), len(BucketsAfterDelete), "Make sure new bucket is deleted")
 	logger.Infof("Bucket  deleted successfully")
 
-	logger.Infof("Step 8 : Delete  User")
-	usersBeforeDelete, _ := helper.ObjectClient.ObjectListUser(storeName)
-	helper.ObjectClient.DeleteUser(storeName, userid)
-	usersAfterDelete, _ := helper.ObjectClient.ObjectListUser(storeName)
-	require.Equal(s.T(), len(usersBeforeDelete)-1, len(usersAfterDelete), "Make sure user list count is reduced by 1")
+	*/ // End of object operation tests
+
+	logger.Infof("Step 2 : Test Deleting User")
+	dosuErr := helper.ObjectUserClient.Delete(namespace, userid)
+	require.Nil(s.T(), dosuErr)
 	logger.Infof("Object store user deleted successfully")
-	*/
 
 	logger.Infof("Check that MGRs are not in a crashloop")
 	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-ceph-mgr", namespace, 1, "Running"))
@@ -133,7 +133,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	logger.Infof("Object store deleted successfully")
 }
 
-//Test Object StoreCreation on Rook that was installed via helm
+// Test Object StoreCreation on Rook that was installed via helm
 func runObjectE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, name string, replicaSize int) {
 	logger.Infof("Object Storage End To End Integration Test - Create Object Store and check if rgw service is Running")
 	logger.Infof("Running on Rook Cluster %s", namespace)
@@ -168,7 +168,6 @@ func objectTestDataCleanUp(helper *clients.TestClient, k8sh *utils.K8sHelper, na
 }
 
 func getBucket(bucketname string, bucketList []rgwdaemon.ObjectBucket) (rgwdaemon.ObjectBucket, error) {
-
 	for _, bucket := range bucketList {
 		if bucket.Name == bucketname {
 			return bucket, nil

@@ -28,7 +28,7 @@ import (
 	"github.com/icrowley/fake"
 )
 
-//MySQLHelper contains pointer to MySqlDB  and wrappers for basic object on mySql database
+// MySQLHelper contains pointer to MySqlDB  and wrappers for basic object on mySql database
 type MySQLHelper struct {
 	DB *sql.DB
 }
@@ -44,12 +44,12 @@ func CreateNewMySQLHelper(username string, password string, url string, dbname s
 	return &MySQLHelper{DB: db}
 }
 
-//CloseConnection function closes mysql connection
+// CloseConnection function closes mysql connection
 func (h *MySQLHelper) CloseConnection() {
 	h.DB.Close()
 }
 
-//PingSuccess function is used check connection to a database
+// PingSuccess function is used check connection to a database
 func (h *MySQLHelper) PingSuccess() bool {
 	inc := 0
 
@@ -66,7 +66,7 @@ func (h *MySQLHelper) PingSuccess() bool {
 	return false
 }
 
-//CreateTable func create sample Table
+// CreateTable func create sample Table
 func (h *MySQLHelper) CreateTable() sql.Result {
 	result, err := h.DB.Exec("CREATE TABLE LONGHAUL (id int NOT NULL AUTO_INCREMENT,number int,data1 varchar(10000),data2 varchar(10000),data3 varchar(10000),data4 varchar(10000),data5 varchar(10000)" +
 		", PRIMARY KEY (id) )")
@@ -76,7 +76,7 @@ func (h *MySQLHelper) CreateTable() sql.Result {
 	return result
 }
 
-//InsertRandomData Inserts random Data into the table
+// InsertRandomData Inserts random Data into the table
 func (h *MySQLHelper) InsertRandomData(dataSize int) sql.Result {
 	stmtIns, err := h.DB.Prepare("INSERT INTO LONGHAUL (number, data1, data2, data3, data4, data5) VALUES ( ?, ?, ?, ?, ? )") // ? = placeholder
 	if err != nil {
@@ -92,7 +92,7 @@ func (h *MySQLHelper) InsertRandomData(dataSize int) sql.Result {
 	return result
 }
 
-//TableRowCount gets row count of table
+// TableRowCount gets row count of table
 func (h *MySQLHelper) SelectRandomData(limit int) *sql.Rows {
 	query := fmt.Sprintf("SELECT * FROM  LONGHAUL ORDER BY RAND() LIMIT %d", limit)
 	rows, err := h.DB.Query(query)
@@ -104,7 +104,7 @@ func (h *MySQLHelper) SelectRandomData(limit int) *sql.Rows {
 	return rows
 }
 
-//TableRowCount gets row count of table
+// TableRowCount gets row count of table
 func (h *MySQLHelper) TableRowCount() (count int) {
 	rows, err := h.DB.Query("SELECT COUNT(*) as count FROM LONGHAUL")
 	if err != nil {
@@ -120,7 +120,7 @@ func (h *MySQLHelper) TableRowCount() (count int) {
 	return count
 }
 
-//TableExists checks if a table exists
+// TableExists checks if a table exists
 func (h *MySQLHelper) TableExists() bool {
 	_, err := h.DB.Query("SELECT 1 FROM LONGHAUL LIMIT 1 ")
 	if err != nil {
@@ -129,7 +129,7 @@ func (h *MySQLHelper) TableExists() bool {
 	return true
 }
 
-//DeleteRandomRow deletes a random row
+// DeleteRandomRow deletes a random row
 func (h *MySQLHelper) DeleteRandomRow() sql.Result {
 	var id int
 	rows, err := h.DB.Query("SELECT id FROM LONGHAUL ORDER BY RAND() LIMIT 1")

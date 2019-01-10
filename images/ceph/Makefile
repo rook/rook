@@ -19,8 +19,8 @@ include ../image.mk
 
 CEPH_IMAGE = $(BUILD_REGISTRY)/ceph-$(GOARCH)
 
-CEPH_VERSION = $(shell cat ceph_version)
-BASEIMAGE = $(CEPH_VERSION)-$(PLATFORM_ARCH)
+CEPH_VERSION = v13.2.2-20181023
+BASEIMAGE = ceph/ceph-$(GOARCH):$(CEPH_VERSION)
 
 TEMP := $(shell mktemp -d)
 
@@ -30,6 +30,7 @@ TEMP := $(shell mktemp -d)
 do.build:
 	@echo === docker build $(CEPH_IMAGE)
 	@cp Dockerfile $(TEMP)
+	@cp toolbox.sh $(TEMP)
 	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rook $(TEMP)
 	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rookflex $(TEMP)
 	@cd $(TEMP) && $(SED_CMD) 's|BASEIMAGE|$(BASEIMAGE)|g' Dockerfile

@@ -30,10 +30,10 @@ make -j4
 
 Developers may often wish to make only images for a particular backend in their testing. This can
 be done by specifying the `IMAGES` environment variable with `make` as exemplified below. Possible
-values for are as defined by subdir names in the `/rook/images/` dir.
+values for are as defined by subdir names in the `/rook/images/` dir. Multiple images can be separated by a space.
 
 ```
-make -j4 IMAGES='ceph ceph-toolbox' build
+make -j4 IMAGES='ceph' build
 ```
 
 Run `make help` for more options.

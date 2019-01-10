@@ -24,11 +24,11 @@ import (
 	testop "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var appName = "some_object_store"
-var magicPort int32 = 8675309
 
 func TestOnAdd(t *testing.T) {
 	namespace := "rook-minio-123"
@@ -38,20 +38,54 @@ func TestOnAdd(t *testing.T) {
 			Namespace: namespace,
 		},
 		Spec: miniov.ObjectStoreSpec{
-			Storage: rookalpha.StorageScopeSpec{NodeCount: 6},
-			Port:    magicPort,
+			Storage: rookalpha.StorageScopeSpec{
+				NodeCount: 6,
+				Selection: rookalpha.Selection{
+					VolumeClaimTemplates: []v1.PersistentVolumeClaim{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "rook-minio-test1",
+							},
+							Spec: v1.PersistentVolumeClaimSpec{
+								AccessModes: []v1.PersistentVolumeAccessMode{
+									v1.ReadWriteOnce,
+								},
+								Resources: v1.ResourceRequirements{
+									Requests: v1.ResourceList{
+										v1.ResourceStorage: resource.MustParse("10Gi"),
+									},
+								},
+							},
+						},
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "rook-minio-test2",
+							},
+							Spec: v1.PersistentVolumeClaimSpec{
+								AccessModes: []v1.PersistentVolumeAccessMode{
+									v1.ReadWriteOnce,
+								},
+								Resources: v1.ResourceRequirements{
+									Requests: v1.ResourceList{
+										v1.ResourceStorage: resource.MustParse("10Gi"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
 			Credentials: v1.SecretReference{
 				Name:      "whatever",
 				Namespace: namespace,
 			},
-			StorageSize: "1337G",
 		},
 	}
 
 	// Initialize the controller and its dependencies.
 	clientset := testop.New(3)
 	context := &clusterd.Context{Clientset: clientset}
-	controller := NewMinioController(context, "rook/minio:mockTag")
+	controller := NewController(context, "rook/minio:mockTag")
 
 	// Make the credentials.
 	_, err := clientset.CoreV1().Secrets(namespace).Create(&v1.Secret{
@@ -73,18 +107,37 @@ func TestOnAdd(t *testing.T) {
 	svc, err := clientset.CoreV1().Services(namespace).Get(appName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.NotNil(t, svc)
-	assert.Equal(t, magicPort, svc.Spec.Ports[0].Port)
+	assert.Equal(t, minioPort, svc.Spec.Ports[0].Port)
 
 	// verify stateful set
 	ss, err := clientset.AppsV1beta2().StatefulSets(namespace).Get(appName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.NotNil(t, ss)
 	assert.Equal(t, int32(6), *ss.Spec.Replicas)
-	assert.Equal(t, 1, len(ss.Spec.VolumeClaimTemplates))
+	assert.Equal(t, 2, len(ss.Spec.VolumeClaimTemplates))
 	assert.Equal(t, 1, len(ss.Spec.Template.Spec.Containers))
 	container := ss.Spec.Template.Spec.Containers[0]
-	expectedContainerPorts := []v1.ContainerPort{{ContainerPort: magicPort}}
+	expectedContainerPorts := []v1.ContainerPort{{ContainerPort: minioPort}}
 	assert.Equal(t, expectedContainerPorts, container.Ports)
+	assert.Equal(t, 2, len(container.VolumeMounts))
+	assert.Equal(t, 13, len(container.Args))
+
+	expectedContainerArgs := []string{
+		"server",
+		"http://some_object_store-0.some_object_store.rook-minio-123.svc.cluster.local/data/rook-minio-test1",
+		"http://some_object_store-0.some_object_store.rook-minio-123.svc.cluster.local/data/rook-minio-test2",
+		"http://some_object_store-1.some_object_store.rook-minio-123.svc.cluster.local/data/rook-minio-test1",
+		"http://some_object_store-1.some_object_store.rook-minio-123.svc.cluster.local/data/rook-minio-test2",
+		"http://some_object_store-2.some_object_store.rook-minio-123.svc.cluster.local/data/rook-minio-test1",
+		"http://some_object_store-2.some_object_store.rook-minio-123.svc.cluster.local/data/rook-minio-test2",
+		"http://some_object_store-3.some_object_store.rook-minio-123.svc.cluster.local/data/rook-minio-test1",
+		"http://some_object_store-3.some_object_store.rook-minio-123.svc.cluster.local/data/rook-minio-test2",
+		"http://some_object_store-4.some_object_store.rook-minio-123.svc.cluster.local/data/rook-minio-test1",
+		"http://some_object_store-4.some_object_store.rook-minio-123.svc.cluster.local/data/rook-minio-test2",
+		"http://some_object_store-5.some_object_store.rook-minio-123.svc.cluster.local/data/rook-minio-test1",
+		"http://some_object_store-5.some_object_store.rook-minio-123.svc.cluster.local/data/rook-minio-test2",
+	}
+	assert.Equal(t, expectedContainerArgs, ss.Spec.Template.Spec.Containers[0].Args)
 }
 
 func TestSpecVerification(t *testing.T) {
@@ -95,13 +148,32 @@ func TestSpecVerification(t *testing.T) {
 			Namespace: namespace,
 		},
 		Spec: miniov.ObjectStoreSpec{
-			Storage: rookalpha.StorageScopeSpec{NodeCount: 6},
-			Port:    magicPort,
+			Storage: rookalpha.StorageScopeSpec{
+				NodeCount: 6,
+				Selection: rookalpha.Selection{
+					VolumeClaimTemplates: []v1.PersistentVolumeClaim{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "rook-minio-test",
+							},
+							Spec: v1.PersistentVolumeClaimSpec{
+								AccessModes: []v1.PersistentVolumeAccessMode{
+									v1.ReadWriteOnce,
+								},
+								Resources: v1.ResourceRequirements{
+									Requests: v1.ResourceList{
+										v1.ResourceStorage: resource.MustParse("10Gi"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
 			Credentials: v1.SecretReference{
 				Name:      "whatever",
 				Namespace: namespace,
 			},
-			StorageSize: "1337G",
 		},
 	}
 
@@ -120,10 +192,18 @@ func TestSpecVerification(t *testing.T) {
 	err = validateObjectStoreSpec(objectstore.Spec)
 	assert.NotNil(t, err)
 	objectstore = validObjectstore
+}
 
-	// Test invalid ports.
-	objectstore = validObjectstore
-	objectstore.Spec.Port = 1000
-	err = validateObjectStoreSpec(objectstore.Spec)
-	assert.NotNil(t, err)
+func TestMakeServerAddress(t *testing.T) {
+	// pass empty string for cluster domain, default should be used
+	serverAddress := makeServerAddress("my-store", "my-store", "rook-minio", "", 3, "/my-cool-data/dir123")
+	assert.Equal(t, "http://my-store-3.my-store.rook-minio.svc.cluster.local/my-cool-data/dir123", serverAddress)
+
+	// pass custom cluster domain, it should be used
+	serverAddress = makeServerAddress("my-store", "my-store", "rook-minio", "acme.com", 3, "/data/mydir1")
+	assert.Equal(t, "http://my-store-3.my-store.rook-minio.svc.acme.com/data/mydir1", serverAddress)
+}
+
+func TestGetPVCDataDir(t *testing.T) {
+	assert.Equal(t, "/data/rook-test123", getPVCDataDir("rook-test123"))
 }

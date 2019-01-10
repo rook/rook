@@ -47,7 +47,8 @@ func (o *ObjectOperation) Create(namespace, storeName string, replicaCount int32
 		return err
 	}
 
-	err := o.k8sh.WaitForLabeledPodsToRun(fmt.Sprintf("rook_object_store=%s", storeName), namespace)
+	// Starting an object store takes longer than the average operation, so add more retries
+	err := o.k8sh.WaitForLabeledPodsToRunWithRetries(fmt.Sprintf("rook_object_store=%s", storeName), namespace, 40)
 	if err != nil {
 		return fmt.Errorf("rgw did not start via crd. %+v", err)
 	}
@@ -59,7 +60,7 @@ func (o *ObjectOperation) Create(namespace, storeName string, replicaCount int32
 func (o *ObjectOperation) Delete(namespace, storeName string) error {
 
 	logger.Infof("Deleting the object store via CRD")
-	if _, err := o.k8sh.DeleteResource("-n", namespace, "ObjectStore", storeName); err != nil {
+	if _, err := o.k8sh.DeleteResource("-n", namespace, "CephObjectStore", storeName); err != nil {
 		return err
 	}
 

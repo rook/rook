@@ -26,7 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-//utility to install and prometheus and grafana to monitor rook cluster
+// utility to install and prometheus and grafana to monitor rook cluster
 var (
 	logger = capnslog.NewPackageLogger("github.com/rook/rook", "longhaul")
 )

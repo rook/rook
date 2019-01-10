@@ -20,8 +20,8 @@ package file
 import (
 	"testing"
 
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
-	rookv1alpha1 "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	cephbeta "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	rookfake "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/clusterd"
@@ -35,28 +35,28 @@ import (
 
 func TestFilesystemChanged(t *testing.T) {
 	// no change
-	old := cephv1beta1.FilesystemSpec{MetadataServer: cephv1beta1.MetadataServerSpec{ActiveCount: 1, ActiveStandby: true}}
-	new := cephv1beta1.FilesystemSpec{MetadataServer: cephv1beta1.MetadataServerSpec{ActiveCount: 1, ActiveStandby: true}}
+	old := cephv1.FilesystemSpec{MetadataServer: cephv1.MetadataServerSpec{ActiveCount: 1, ActiveStandby: true}}
+	new := cephv1.FilesystemSpec{MetadataServer: cephv1.MetadataServerSpec{ActiveCount: 1, ActiveStandby: true}}
 	changed := filesystemChanged(old, new)
 	assert.False(t, changed)
 
 	// changed properties
-	new = cephv1beta1.FilesystemSpec{MetadataServer: cephv1beta1.MetadataServerSpec{ActiveCount: 2, ActiveStandby: true}}
+	new = cephv1.FilesystemSpec{MetadataServer: cephv1.MetadataServerSpec{ActiveCount: 2, ActiveStandby: true}}
 	assert.True(t, filesystemChanged(old, new))
 
-	new = cephv1beta1.FilesystemSpec{MetadataServer: cephv1beta1.MetadataServerSpec{ActiveCount: 1, ActiveStandby: false}}
+	new = cephv1.FilesystemSpec{MetadataServer: cephv1.MetadataServerSpec{ActiveCount: 1, ActiveStandby: false}}
 	assert.True(t, filesystemChanged(old, new))
 }
 
 func TestGetFilesystemObject(t *testing.T) {
 	// get a current version filesystem object, should return with no error and no migration needed
-	filesystem, migrationNeeded, err := getFilesystemObject(&cephv1beta1.Filesystem{})
+	filesystem, migrationNeeded, err := getFilesystemObject(&cephv1.CephFilesystem{})
 	assert.NotNil(t, filesystem)
 	assert.False(t, migrationNeeded)
 	assert.Nil(t, err)
 
 	// get a legacy version filesystem object, should return with no error and yes migration needed
-	filesystem, migrationNeeded, err = getFilesystemObject(&rookv1alpha1.Filesystem{})
+	filesystem, migrationNeeded, err = getFilesystemObject(&cephbeta.Filesystem{})
 	assert.NotNil(t, filesystem)
 	assert.True(t, migrationNeeded)
 	assert.Nil(t, err)
@@ -70,7 +70,7 @@ func TestGetFilesystemObject(t *testing.T) {
 
 func TestMigrateFilesystemObject(t *testing.T) {
 	// create a legacy filesystem that will get migrated
-	legacyFilesystem := &rookv1alpha1.Filesystem{
+	legacyFilesystem := &cephbeta.Filesystem{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "legacy-filesystem-861",
 			Namespace: "rook-267",
@@ -83,7 +83,7 @@ func TestMigrateFilesystemObject(t *testing.T) {
 		Clientset:     clientset,
 		RookClientset: rookfake.NewSimpleClientset(legacyFilesystem),
 	}
-	controller := NewFilesystemController(context, "", false, metav1.OwnerReference{})
+	controller := NewFilesystemController(context, "", cephv1.CephVersionSpec{}, false, metav1.OwnerReference{})
 
 	// convert the legacy filesystem object in memory and assert that a migration is needed
 	convertedFilesystem, migrationNeeded, err := getFilesystemObject(legacyFilesystem)
@@ -96,41 +96,41 @@ func TestMigrateFilesystemObject(t *testing.T) {
 	assert.Nil(t, err)
 
 	// assert that a current filesystem object was created via the migration
-	migratedFilesystem, err := context.RookClientset.CephV1beta1().Filesystems(legacyFilesystem.Namespace).Get(
+	migratedFilesystem, err := context.RookClientset.CephV1().CephFilesystems(legacyFilesystem.Namespace).Get(
 		legacyFilesystem.Name, metav1.GetOptions{})
 	assert.NotNil(t, migratedFilesystem)
 	assert.Nil(t, err)
 
 	// assert that the legacy filesystem object was deleted
-	_, err = context.RookClientset.RookV1alpha1().Filesystems(legacyFilesystem.Namespace).Get(legacyFilesystem.Name, metav1.GetOptions{})
+	_, err = context.RookClientset.CephV1beta1().Filesystems(legacyFilesystem.Namespace).Get(legacyFilesystem.Name, metav1.GetOptions{})
 	assert.NotNil(t, err)
 	assert.True(t, errors.IsNotFound(err))
 }
 
 func TestConvertLegacyFilesystem(t *testing.T) {
-	legacyFilesystem := rookv1alpha1.Filesystem{
+	legacyFilesystem := cephbeta.Filesystem{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "legacy-filesystem-3215",
 			Namespace: "rook-6468",
 		},
-		Spec: rookv1alpha1.FilesystemSpec{
-			MetadataPool: rookv1alpha1.PoolSpec{
+		Spec: cephbeta.FilesystemSpec{
+			MetadataPool: cephbeta.PoolSpec{
 				FailureDomain: "fd1",
-				Replicated:    rookv1alpha1.ReplicatedSpec{Size: 5}},
-			DataPools: []rookv1alpha1.PoolSpec{
+				Replicated:    cephbeta.ReplicatedSpec{Size: 5}},
+			DataPools: []cephbeta.PoolSpec{
 				{
 					CrushRoot: "root32",
-					ErasureCoded: rookv1alpha1.ErasureCodedSpec{
+					ErasureCoded: cephbeta.ErasureCodedSpec{
 						CodingChunks: 5,
 						DataChunks:   10,
 						Algorithm:    "ec-algorithm-048",
 					},
 				},
 			},
-			MetadataServer: rookv1alpha1.MetadataServerSpec{
+			MetadataServer: cephbeta.MetadataServerSpec{
 				ActiveCount:   2,
 				ActiveStandby: true,
-				Placement: rookv1alpha1.Placement{
+				Placement: rookv1alpha2.Placement{
 					PodAntiAffinity: &v1.PodAntiAffinity{
 						RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
 							{LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"label": "value"}}},
@@ -142,26 +142,26 @@ func TestConvertLegacyFilesystem(t *testing.T) {
 		},
 	}
 
-	expectedFilesystem := cephv1beta1.Filesystem{
+	expectedFilesystem := cephv1.CephFilesystem{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "legacy-filesystem-3215",
 			Namespace: "rook-6468",
 		},
-		Spec: cephv1beta1.FilesystemSpec{
-			MetadataPool: cephv1beta1.PoolSpec{
+		Spec: cephv1.FilesystemSpec{
+			MetadataPool: cephv1.PoolSpec{
 				FailureDomain: "fd1",
-				Replicated:    cephv1beta1.ReplicatedSpec{Size: 5}},
-			DataPools: []cephv1beta1.PoolSpec{
+				Replicated:    cephv1.ReplicatedSpec{Size: 5}},
+			DataPools: []cephv1.PoolSpec{
 				{
 					CrushRoot: "root32",
-					ErasureCoded: cephv1beta1.ErasureCodedSpec{
+					ErasureCoded: cephv1.ErasureCodedSpec{
 						CodingChunks: 5,
 						DataChunks:   10,
 						Algorithm:    "ec-algorithm-048",
 					},
 				},
 			},
-			MetadataServer: cephv1beta1.MetadataServerSpec{
+			MetadataServer: cephv1.MetadataServerSpec{
 				ActiveCount:   2,
 				ActiveStandby: true,
 				Placement: rookv1alpha2.Placement{

@@ -19,6 +19,7 @@ package ceph
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/rook/rook/cmd/rook/rook"
@@ -40,8 +41,13 @@ var osdCmd = &cobra.Command{
 	Hidden: true,
 }
 var osdConfigCmd = &cobra.Command{
-	Use:    "config",
+	Use:    "init",
 	Short:  "Updates ceph.conf for the osd",
+	Hidden: true,
+}
+var copyBinariesCmd = &cobra.Command{
+	Use:    "copybins",
+	Short:  "Copies rook binaries for use by a ceph container",
 	Hidden: true,
 }
 var provisionCmd = &cobra.Command{
@@ -54,12 +60,22 @@ var filestoreDeviceCmd = &cobra.Command{
 	Short:  "Runs the ceph daemon for a filestore device",
 	Hidden: true,
 }
+var osdStartCmd = &cobra.Command{
+	Use:    "start",
+	Short:  "Starts the osd daemon", // OSDs that were provisioned by ceph-volume
+	Hidden: true,
+}
 var (
 	osdDataDeviceFilter string
 	ownerRefID          string
 	mountSourcePath     string
 	mountPath           string
 	osdID               int
+	copyBinariesPath    string
+	osdStoreType        string
+	osdStringID         string
+	osdUUID             string
+	osdIsDevice         bool
 )
 
 func addOSDFlags(command *cobra.Command) {
@@ -74,17 +90,28 @@ func addOSDFlags(command *cobra.Command) {
 	provisionCmd.Flags().BoolVar(&cfg.forceFormat, "force-format", false,
 		"true to force the format of any specified devices, even if they already have a filesystem.  BE CAREFUL!")
 
-	// flags for generating the osd config file
+	// flags for generating the osd config
 	osdConfigCmd.Flags().IntVar(&osdID, "osd-id", -1, "osd id for which to generate config")
+	osdConfigCmd.Flags().BoolVar(&osdIsDevice, "is-device", false, "whether the osd is a device")
+
+	// flag for copying the rook binaries for use by a ceph container
+	copyBinariesCmd.Flags().StringVar(&copyBinariesPath, "path", "", "Copy the rook binaries to this path for use by a ceph container")
 
 	// flags for running filestore on a device
 	filestoreDeviceCmd.Flags().StringVar(&mountSourcePath, "source-path", "", "the source path of the device to mount")
 	filestoreDeviceCmd.Flags().StringVar(&mountPath, "mount-path", "", "the path where the device should be mounted")
 
+	// flags for running osds that were provisioned by ceph-volume
+	osdStartCmd.Flags().StringVar(&osdStringID, "osd-id", "", "the osd ID")
+	osdStartCmd.Flags().StringVar(&osdUUID, "osd-uuid", "", "the osd UUID")
+	osdStartCmd.Flags().StringVar(&osdStoreType, "osd-store-type", "", "whether the osd is bluestore or filestore")
+
 	// add the subcommands to the parent osd command
 	osdCmd.AddCommand(osdConfigCmd)
+	osdCmd.AddCommand(copyBinariesCmd)
 	osdCmd.AddCommand(provisionCmd)
 	osdCmd.AddCommand(filestoreDeviceCmd)
+	osdCmd.AddCommand(osdStartCmd)
 }
 
 func addOSDConfigFlags(command *cobra.Command) {
@@ -97,6 +124,8 @@ func addOSDConfigFlags(command *cobra.Command) {
 	command.Flags().IntVar(&cfg.storeConfig.DatabaseSizeMB, "osd-database-size", osdcfg.DBDefaultSizeMB, "default size (MB) for OSD database (bluestore)")
 	command.Flags().IntVar(&cfg.storeConfig.JournalSizeMB, "osd-journal-size", osdcfg.JournalDefaultSizeMB, "default size (MB) for OSD journal (filestore)")
 	command.Flags().StringVar(&cfg.storeConfig.StoreType, "osd-store", "", "type of backing OSD store to use (bluestore or filestore)")
+	command.Flags().IntVar(&cfg.storeConfig.OSDsPerDevice, "osds-per-device", 1, "the number of OSDs per device")
+	command.Flags().BoolVar(&cfg.storeConfig.EncryptedDevice, "encrypted-device", false, "whether to encrypt the OSD with dmcrypt")
 }
 
 func init() {
@@ -104,12 +133,33 @@ func init() {
 	addCephFlags(osdCmd)
 	flags.SetFlagsFromEnv(osdCmd.Flags(), rook.RookEnvVarPrefix)
 	flags.SetFlagsFromEnv(osdConfigCmd.Flags(), rook.RookEnvVarPrefix)
+	flags.SetFlagsFromEnv(copyBinariesCmd.Flags(), rook.RookEnvVarPrefix)
 	flags.SetFlagsFromEnv(provisionCmd.Flags(), rook.RookEnvVarPrefix)
 	flags.SetFlagsFromEnv(filestoreDeviceCmd.Flags(), rook.RookEnvVarPrefix)
+	flags.SetFlagsFromEnv(osdStartCmd.Flags(), rook.RookEnvVarPrefix)
 
 	osdConfigCmd.RunE = writeOSDConfig
+	copyBinariesCmd.RunE = copyRookBinaries
 	provisionCmd.RunE = prepareOSD
 	filestoreDeviceCmd.RunE = runFilestoreDeviceOSD
+	osdStartCmd.RunE = startOSD
+}
+
+// Start the osd daemon if provisioned by ceph-volume
+func startOSD(cmd *cobra.Command, args []string) error {
+	required := []string{"osd-id", "osd-uuid", "osd-store-type"}
+	if err := flags.VerifyRequiredFlags(osdStartCmd, required); err != nil {
+		return err
+	}
+
+	commonOSDInit(osdStartCmd)
+
+	context := createContext()
+	err := osddaemon.StartOSD(context, osdStoreType, osdStringID, osdUUID, args)
+	if err != nil {
+		rook.TerminateFatal(err)
+	}
+	return nil
 }
 
 // Start the osd daemon for filestore running on a device
@@ -169,8 +219,20 @@ func writeOSDConfig(cmd *cobra.Command, args []string) error {
 	crushLocation := strings.Join(locArgs, " ")
 	kv := k8sutil.NewConfigMapKVStore(clusterInfo.Name, clientset, metav1.OwnerReference{})
 
-	if err := osddaemon.WriteConfigFile(context, &clusterInfo, kv, osdID, cfg.storeConfig, cfg.nodeName, crushLocation); err != nil {
-		logger.Errorf("failed to write osd config file. %+v", err)
+	if err := osddaemon.WriteConfigFile(context, &clusterInfo, kv, osdID, osdIsDevice, cfg.storeConfig, cfg.nodeName, crushLocation); err != nil {
+		rook.TerminateFatal(fmt.Errorf("failed to write osd config file. %+v", err))
+	}
+	return nil
+}
+
+func copyRookBinaries(cmd *cobra.Command, args []string) error {
+	if err := flags.VerifyRequiredFlags(copyBinariesCmd, []string{"path"}); err != nil {
+		return err
+	}
+	if err := osddaemon.CopyBinariesForDaemon(copyBinariesPath); err != nil {
+		rook.TerminateFatal(fmt.Errorf("failed to copy rook binaries for filestore device. %+v", err))
+	} else {
+		logger.Infof("successfully copied rook binaries")
 	}
 	return nil
 }
@@ -185,17 +247,21 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	var dataDevices string
-	var usingDeviceFilter bool
+	var dataDevices []osddaemon.DesiredDevice
 	if osdDataDeviceFilter != "" {
 		if cfg.devices != "" {
 			return fmt.Errorf("Only one of --data-devices and --data-device-filter can be specified.")
 		}
 
-		dataDevices = osdDataDeviceFilter
-		usingDeviceFilter = true
+		dataDevices = []osddaemon.DesiredDevice{
+			{Name: osdDataDeviceFilter, IsFilter: true},
+		}
 	} else {
-		dataDevices = cfg.devices
+		var err error
+		dataDevices, err = parseDevices(cfg.devices)
+		if err != nil {
+			rook.TerminateFatal(fmt.Errorf("failed to parse device list (%s). %+v", cfg.devices, err))
+		}
 	}
 
 	clientset, _, rookClientset, err := rook.GetClientset()
@@ -217,7 +283,7 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 	forceFormat := false
 	ownerRef := cluster.ClusterOwnerRef(clusterInfo.Name, ownerRefID)
 	kv := k8sutil.NewConfigMapKVStore(clusterInfo.Name, clientset, ownerRef)
-	agent := osddaemon.NewAgent(context, dataDevices, usingDeviceFilter, cfg.metadataDevice, cfg.directories, forceFormat,
+	agent := osddaemon.NewAgent(context, dataDevices, cfg.metadataDevice, cfg.directories, forceFormat,
 		crushLocation, cfg.storeConfig, &clusterInfo, cfg.nodeName, kv)
 
 	err = osddaemon.Provision(context, agent)
@@ -240,4 +306,30 @@ func commonOSDInit(cmd *cobra.Command) {
 	rook.LogStartupInfo(cmd.Flags())
 
 	clusterInfo.Monitors = mondaemon.ParseMonEndpoints(cfg.monEndpoints)
+}
+
+// Parse the devices, which are comma separated. A colon indicates a non-default number of osds per device.
+// For example, one osd will be created on each of sda and sdb, with 5 osds on the nvme01 device.
+//   sda,sdb,nvme01:5
+func parseDevices(devices string) ([]osddaemon.DesiredDevice, error) {
+	var result []osddaemon.DesiredDevice
+	parsed := strings.Split(devices, ",")
+	for _, device := range parsed {
+		parts := strings.Split(device, ":")
+		d := osddaemon.DesiredDevice{Name: parts[0], OSDsPerDevice: 1}
+		if len(parts) > 1 {
+			count, err := strconv.Atoi(parts[1])
+			if err != nil {
+				return nil, fmt.Errorf("error parsing count from devices (%s). %+v", devices, err)
+			}
+			if count < 1 {
+				return nil, fmt.Errorf("osds per device should be greater than 0 (%s)", parts[1])
+			}
+			d.OSDsPerDevice = count
+		}
+		result = append(result, d)
+	}
+
+	logger.Infof("desired devices to configure osds: %+v", result)
+	return result, nil
 }

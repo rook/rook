@@ -35,10 +35,9 @@ func TestMergeResourceRequirements(t *testing.T) {
 	first := v1.ResourceRequirements{}
 	second := v1.ResourceRequirements{}
 	result := MergeResourceRequirements(first, second)
-	// both are 2 because when first has one value unset it gets set from second
-	// even when it is empty/nil
-	assert.Equal(t, 2, len(result.Limits))
-	assert.Equal(t, 2, len(result.Requests))
+	// Both are 0 because first and second don't have a value set, so there is nothing to merge
+	assert.Equal(t, 0, len(result.Limits))
+	assert.Equal(t, 0, len(result.Requests))
 
 	first = v1.ResourceRequirements{}
 	second = v1.ResourceRequirements{
@@ -50,8 +49,8 @@ func TestMergeResourceRequirements(t *testing.T) {
 		},
 	}
 	result = MergeResourceRequirements(first, second)
-	assert.Equal(t, 2, len(result.Limits))
-	assert.Equal(t, 2, len(result.Requests))
+	assert.Equal(t, 1, len(result.Limits))
+	assert.Equal(t, 1, len(result.Requests))
 	assert.Equal(t, "100", result.Limits.Cpu().String())
 	assert.Equal(t, "1337", result.Requests.Memory().String())
 
@@ -65,11 +64,12 @@ func TestMergeResourceRequirements(t *testing.T) {
 			v1.ResourceCPU: *resource.NewQuantity(100.0, resource.BinarySI),
 		},
 		Requests: v1.ResourceList{
+			v1.ResourceCPU:    *resource.NewQuantity(100.0, resource.BinarySI),
 			v1.ResourceMemory: *resource.NewQuantity(1337.0, resource.BinarySI),
 		},
 	}
 	result = MergeResourceRequirements(first, second)
-	assert.Equal(t, 2, len(result.Limits))
+	assert.Equal(t, 1, len(result.Limits))
 	assert.Equal(t, 2, len(result.Requests))
 	assert.Equal(t, "42", result.Limits.Cpu().String())
 	assert.Equal(t, "1337", result.Requests.Memory().String())

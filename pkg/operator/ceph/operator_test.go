@@ -25,6 +25,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster"
 	"github.com/rook/rook/pkg/operator/ceph/file"
 	"github.com/rook/rook/pkg/operator/ceph/object"
+	"github.com/rook/rook/pkg/operator/ceph/object/user"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
 	"github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
@@ -39,10 +40,10 @@ func TestOperator(t *testing.T) {
 	assert.NotNil(t, o.clusterController)
 	assert.NotNil(t, o.resources)
 	assert.Equal(t, context, o.context)
-	assert.Equal(t, len(o.resources), 5)
+	assert.Equal(t, len(o.resources), 6)
 	for _, r := range o.resources {
 		if r.Name != cluster.ClusterResource.Name && r.Name != pool.PoolResource.Name && r.Name != object.ObjectStoreResource.Name &&
-			r.Name != file.FilesystemResource.Name && r.Name != attachment.VolumeResource.Name {
+			r.Name != file.FilesystemResource.Name && r.Name != attachment.VolumeResource.Name && r.Name != objectuser.ObjectStoreUserResource.Name {
 			assert.Fail(t, fmt.Sprintf("Resource %s is not valid", r.Name))
 		}
 	}

@@ -1,6 +1,6 @@
 #!/bin/bash +e
 
-KUBE_VERSION=${1:-"v1.8.5"}
+KUBE_VERSION=${1:-"v1.13.1"}
 
 null_str=
 KUBE_INSTALL_VERSION="${KUBE_VERSION/v/$null_str}"-00

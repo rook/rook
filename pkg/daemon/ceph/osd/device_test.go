@@ -62,9 +62,6 @@ func TestOSDBootstrap(t *testing.T) {
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
 
-	targetPath := getBootstrapOSDKeyringPath(configDir, clusterName)
-	defer os.Remove(targetPath)
-
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
 			return "{\"key\":\"mysecurekey\"}", nil
@@ -73,9 +70,10 @@ func TestOSDBootstrap(t *testing.T) {
 
 	context := &clusterd.Context{Executor: executor, ConfigDir: configDir}
 	defer os.RemoveAll(context.ConfigDir)
-	err := createOSDBootstrapKeyring(context, clusterName)
+	err := createOSDBootstrapKeyring(context, clusterName, configDir)
 	assert.Nil(t, err)
 
+	targetPath := path.Join(configDir, bootstrapOsdKeyring)
 	contents, err := ioutil.ReadFile(targetPath)
 	assert.Nil(t, err)
 	assert.NotEqual(t, -1, strings.Index(string(contents), "[client.bootstrap-osd]"))

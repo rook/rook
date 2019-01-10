@@ -1,4 +1,4 @@
-# Default values for rook-ceph-operator.
+# Default values for rook-ceph-operator
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
@@ -51,11 +51,15 @@ pspEnable: true
 ## toleration: NoSchedule, PreferNoSchedule or NoExecute
 ## tolerationKey: Set this to the specific key of the taint to tolerate
 ## flexVolumeDirPath: The path where the Rook agent discovers the flex volume plugins
+## libModulesDirPath: The path where the Rook agent can find kernel modules
 # agent:
 #   toleration: NoSchedule
 #   tolerationKey: key
+#   mountSecurityMode: Any
 ## For information on FlexVolume path, please refer to https://rook.io/docs/rook/master/flexvolume.html
 #   flexVolumeDirPath: /usr/libexec/kubernetes/kubelet-plugins/volume/exec/
+#   libModulesDirPath: /lib/modules
+#   mounts: mount1=/host/path:/container/path,/host/path2:/container/path2
 
 ## Rook Discover configuration
 ## toleration: NoSchedule, PreferNoSchedule or NoExecute

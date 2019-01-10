@@ -20,26 +20,30 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"testing"
 
-	"os"
-
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
 	mondaemon "github.com/rook/rook/pkg/daemon/ceph/mon"
+	testopk8s "github.com/rook/rook/pkg/operator/k8sutil/test"
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
+	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
 
 func TestCheckHealth(t *testing.T) {
+	var deploymentsUpdated *[]*extensions.Deployment
+	updateDeploymentAndWait, deploymentsUpdated = testopk8s.UpdateDeploymentAndWaitStub()
+
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
 			return clienttest.MonInQuorumResponse(), nil
@@ -53,7 +57,7 @@ func TestCheckHealth(t *testing.T) {
 		ConfigDir: configDir,
 		Executor:  executor,
 	}
-	c := New(context, "ns", "", "myversion", cephv1beta1.MonSpec{Count: 3, AllowMultiplePerNode: true},
+	c := New(context, "ns", "", "myversion", cephv1.CephVersionSpec{}, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true},
 		rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 	c.clusterInfo = test.CreateConfigDir(1)
 	logger.Infof("initial mons: %v", c.clusterInfo.Monitors)
@@ -70,9 +74,15 @@ func TestCheckHealth(t *testing.T) {
 	err := c.checkHealth()
 	assert.Nil(t, err)
 	logger.Infof("mons after checkHealth: %v", c.clusterInfo.Monitors)
+	// No updates in unit tests w/ workaround
+	assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
+	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 
 	err = c.failoverMon("f")
 	assert.Nil(t, err)
+	// No updates in unit tests w/ workaround
+	assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
+	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 
 	newMons := []string{
 		"g",
@@ -84,6 +94,9 @@ func TestCheckHealth(t *testing.T) {
 }
 
 func TestCheckHealthNotFound(t *testing.T) {
+	var deploymentsUpdated *[]*extensions.Deployment
+	updateDeploymentAndWait, deploymentsUpdated = testopk8s.UpdateDeploymentAndWaitStub()
+
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
 			return clienttest.MonInQuorumResponse(), nil
@@ -97,7 +110,7 @@ func TestCheckHealthNotFound(t *testing.T) {
 		ConfigDir: configDir,
 		Executor:  executor,
 	}
-	c := New(context, "ns", "", "myversion", cephv1beta1.MonSpec{Count: 3, AllowMultiplePerNode: true},
+	c := New(context, "ns", "", "myversion", cephv1.CephVersionSpec{}, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true},
 		rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 	c.clusterInfo = test.CreateConfigDir(2)
 	c.waitForStart = false
@@ -125,6 +138,9 @@ func TestCheckHealthNotFound(t *testing.T) {
 	delete(c.mapping.Node, "b")
 	err = c.checkHealth()
 	assert.Nil(t, err)
+	// No updates in unit tests w/ workaround
+	assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
+	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 
 	// recheck that the "not found" mon has been replaced with a new one
 	cm, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(EndpointConfigMapName, metav1.GetOptions{})
@@ -166,7 +182,7 @@ func TestCheckHealthTwoMonsOneNode(t *testing.T) {
 		ConfigDir: configDir,
 		Executor:  executor,
 	}
-	c := New(context, "ns", "", "myversion", cephv1beta1.MonSpec{Count: 3, AllowMultiplePerNode: true},
+	c := New(context, "ns", "", "myversion", cephv1.CephVersionSpec{}, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true},
 		rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 	c.clusterInfo = test.CreateConfigDir(2)
 	c.waitForStart = false
@@ -199,7 +215,7 @@ func TestCheckHealthTwoMonsOneNode(t *testing.T) {
 	}
 
 	// initial health check should already see that there is more than one mon on one node (node0)
-	_, err := c.checkMonsOnSameNode()
+	_, err := c.checkMonsOnSameNode(3)
 	assert.Nil(t, err)
 	assert.Equal(t, "node0", c.mapping.Node["a"].Name)
 	assert.Equal(t, "node0", c.mapping.Node["b"].Name)
@@ -225,7 +241,7 @@ func TestCheckHealthTwoMonsOneNode(t *testing.T) {
 	n.Name = "node2"
 	clientset.CoreV1().Nodes().Create(n)
 
-	_, err = c.checkMonsOnSameNode()
+	_, err = c.checkMonsOnSameNode(3)
 	assert.Nil(t, err)
 
 	// check that mon c exists
@@ -247,7 +263,7 @@ func TestCheckHealthTwoMonsOneNode(t *testing.T) {
 
 	// enable different ceph mon map output
 	executorNextMons = true
-	_, err = c.checkMonsOnSameNode()
+	_, err = c.checkMonsOnSameNode(3)
 	assert.Nil(t, err)
 
 	// check that nothing has changed
@@ -277,7 +293,7 @@ func TestCheckMonsValid(t *testing.T) {
 		ConfigDir: configDir,
 		Executor:  executor,
 	}
-	c := New(context, "ns", "", "myversion", cephv1beta1.MonSpec{Count: 3, AllowMultiplePerNode: true},
+	c := New(context, "ns", "", "myversion", cephv1.CephVersionSpec{}, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true},
 		rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 	c.clusterInfo = test.CreateConfigDir(1)
 	c.waitForStart = false
@@ -347,10 +363,14 @@ func TestCheckMonsValid(t *testing.T) {
 	assert.Equal(t, "node1", c.mapping.Node["b"].Name)
 }
 
-func TestCheckLessMonsStartNewMons(t *testing.T) {
+func TestAddRemoveMons(t *testing.T) {
+	var deploymentsUpdated *[]*extensions.Deployment
+	updateDeploymentAndWait, deploymentsUpdated = testopk8s.UpdateDeploymentAndWaitStub()
+
+	monQuorumResponse := clienttest.MonInQuorumResponse()
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
-			return clienttest.MonInQuorumResponse(), nil
+			return monQuorumResponse, nil
 		},
 	}
 	clientset := test.New(1)
@@ -361,14 +381,56 @@ func TestCheckLessMonsStartNewMons(t *testing.T) {
 		ConfigDir: configDir,
 		Executor:  executor,
 	}
-	c := New(context, "ns", "", "myversion", cephv1beta1.MonSpec{Count: 5, AllowMultiplePerNode: true},
+	c := New(context, "ns", "", "myversion", cephv1.CephVersionSpec{}, cephv1.MonSpec{Count: 5, AllowMultiplePerNode: true},
 		rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 	c.maxMonID = 0
 	c.clusterInfo = test.CreateConfigDir(0)
 	c.waitForStart = false
 	defer os.RemoveAll(c.context.ConfigDir)
 
+	// checking the health will increase the mons as desired all in one go
 	err := c.checkHealth()
 	assert.Nil(t, err)
 	assert.Equal(t, 5, len(c.clusterInfo.Monitors), fmt.Sprintf("mons: %v", c.clusterInfo.Monitors))
+	// No updates in unit tests w/ workaround
+	assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
+	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
+
+	// reducing the mon count to 3 will reduce the mon count once each time we call checkHealth
+	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(c.clusterInfo.Monitors)
+	c.Count = 3
+	err = c.checkHealth()
+	assert.Nil(t, err)
+	assert.Equal(t, 4, len(c.clusterInfo.Monitors))
+	// No updates in unit tests w/ workaround
+	assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
+	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
+
+	// after the second call we will be down to the expected count of 3
+	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(c.clusterInfo.Monitors)
+	err = c.checkHealth()
+	assert.Nil(t, err)
+	assert.Equal(t, 3, len(c.clusterInfo.Monitors))
+	// No updates in unit tests w/ workaround
+	assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
+	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
+
+	// now attempt to reduce the mons down to quorum size 1
+	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(c.clusterInfo.Monitors)
+	c.Count = 1
+	err = c.checkHealth()
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(c.clusterInfo.Monitors))
+	// No updates in unit tests w/ workaround
+	assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
+	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
+
+	// cannot reduce from quorum size of 2 to 1
+	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(c.clusterInfo.Monitors)
+	err = c.checkHealth()
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(c.clusterInfo.Monitors))
+	// No updates in unit tests w/ workaround
+	assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
+	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 }

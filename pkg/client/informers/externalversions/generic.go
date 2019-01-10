@@ -21,12 +21,13 @@ package externalversions
 import (
 	"fmt"
 
-	v1alpha1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
+	v1alpha1 "github.com/rook/rook/pkg/apis/cassandra.rook.io/v1alpha1"
+	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	v1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	cockroachdbrookiov1alpha1 "github.com/rook/rook/pkg/apis/cockroachdb.rook.io/v1alpha1"
+	edgefsrookiov1alpha1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1alpha1"
 	miniorookiov1alpha1 "github.com/rook/rook/pkg/apis/minio.rook.io/v1alpha1"
 	nfsrookiov1alpha1 "github.com/rook/rook/pkg/apis/nfs.rook.io/v1alpha1"
-	rookiov1alpha1 "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
 	v1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
@@ -58,15 +59,21 @@ func (f *genericInformer) Lister() cache.GenericLister {
 // TODO extend this to unknown resources with a client pool
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
-	// Group=ceph.rook.io, Version=v1alpha1
+	// Group=cassandra.rook.io, Version=v1alpha1
 	case v1alpha1.SchemeGroupVersion.WithResource("clusters"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Ceph().V1alpha1().Clusters().Informer()}, nil
-	case v1alpha1.SchemeGroupVersion.WithResource("filesystems"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Ceph().V1alpha1().Filesystems().Informer()}, nil
-	case v1alpha1.SchemeGroupVersion.WithResource("objectstores"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Ceph().V1alpha1().ObjectStores().Informer()}, nil
-	case v1alpha1.SchemeGroupVersion.WithResource("pools"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Ceph().V1alpha1().Pools().Informer()}, nil
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Cassandra().V1alpha1().Clusters().Informer()}, nil
+
+		// Group=ceph.rook.io, Version=v1
+	case v1.SchemeGroupVersion.WithResource("cephblockpools"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Ceph().V1().CephBlockPools().Informer()}, nil
+	case v1.SchemeGroupVersion.WithResource("cephclusters"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Ceph().V1().CephClusters().Informer()}, nil
+	case v1.SchemeGroupVersion.WithResource("cephfilesystems"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Ceph().V1().CephFilesystems().Informer()}, nil
+	case v1.SchemeGroupVersion.WithResource("cephobjectstores"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Ceph().V1().CephObjectStores().Informer()}, nil
+	case v1.SchemeGroupVersion.WithResource("cephobjectstoreusers"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Ceph().V1().CephObjectStoreUsers().Informer()}, nil
 
 		// Group=ceph.rook.io, Version=v1beta1
 	case v1beta1.SchemeGroupVersion.WithResource("clusters"):
@@ -75,12 +82,26 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Ceph().V1beta1().Filesystems().Informer()}, nil
 	case v1beta1.SchemeGroupVersion.WithResource("objectstores"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Ceph().V1beta1().ObjectStores().Informer()}, nil
+	case v1beta1.SchemeGroupVersion.WithResource("objectstoreusers"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Ceph().V1beta1().ObjectStoreUsers().Informer()}, nil
 	case v1beta1.SchemeGroupVersion.WithResource("pools"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Ceph().V1beta1().Pools().Informer()}, nil
 
 		// Group=cockroachdb.rook.io, Version=v1alpha1
 	case cockroachdbrookiov1alpha1.SchemeGroupVersion.WithResource("clusters"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Cockroachdb().V1alpha1().Clusters().Informer()}, nil
+
+		// Group=edgefs.rook.io, Version=v1alpha1
+	case edgefsrookiov1alpha1.SchemeGroupVersion.WithResource("clusters"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Edgefs().V1alpha1().Clusters().Informer()}, nil
+	case edgefsrookiov1alpha1.SchemeGroupVersion.WithResource("iscsis"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Edgefs().V1alpha1().ISCSIs().Informer()}, nil
+	case edgefsrookiov1alpha1.SchemeGroupVersion.WithResource("nfss"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Edgefs().V1alpha1().NFSs().Informer()}, nil
+	case edgefsrookiov1alpha1.SchemeGroupVersion.WithResource("s3s"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Edgefs().V1alpha1().S3s().Informer()}, nil
+	case edgefsrookiov1alpha1.SchemeGroupVersion.WithResource("s3xs"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Edgefs().V1alpha1().S3Xs().Informer()}, nil
 
 		// Group=minio.rook.io, Version=v1alpha1
 	case miniorookiov1alpha1.SchemeGroupVersion.WithResource("objectstores"):
@@ -89,18 +110,6 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		// Group=nfs.rook.io, Version=v1alpha1
 	case nfsrookiov1alpha1.SchemeGroupVersion.WithResource("nfsservers"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Nfs().V1alpha1().NFSServers().Informer()}, nil
-
-		// Group=rook.io, Version=v1alpha1
-	case rookiov1alpha1.SchemeGroupVersion.WithResource("clusters"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Rook().V1alpha1().Clusters().Informer()}, nil
-	case rookiov1alpha1.SchemeGroupVersion.WithResource("filesystems"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Rook().V1alpha1().Filesystems().Informer()}, nil
-	case rookiov1alpha1.SchemeGroupVersion.WithResource("objectstores"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Rook().V1alpha1().ObjectStores().Informer()}, nil
-	case rookiov1alpha1.SchemeGroupVersion.WithResource("pools"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Rook().V1alpha1().Pools().Informer()}, nil
-	case rookiov1alpha1.SchemeGroupVersion.WithResource("volumeattachments"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Rook().V1alpha1().VolumeAttachments().Informer()}, nil
 
 		// Group=rook.io, Version=v1alpha2
 	case v1alpha2.SchemeGroupVersion.WithResource("volumes"):

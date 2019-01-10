@@ -53,10 +53,10 @@ func init() {
 
 	flags.SetFlagsFromEnv(rgwCmd.Flags(), rook.RookEnvVarPrefix)
 
-	rgwCmd.RunE = startRGW
+	rgwCmd.RunE = initRGW
 }
 
-func startRGW(cmd *cobra.Command, args []string) error {
+func initRGW(cmd *cobra.Command, args []string) error {
 	required := []string{"mon-endpoints", "cluster-name", "rgw-name", "rgw-keyring"}
 	if err := flags.VerifyRequiredFlags(rgwCmd, required); err != nil {
 		return err
@@ -85,7 +85,7 @@ func startRGW(cmd *cobra.Command, args []string) error {
 		CertificatePath: rgwCert,
 	}
 
-	err := rgwdaemon.Run(createContext(), config)
+	err := rgwdaemon.Initialize(createContext(), config)
 	if err != nil {
 		rook.TerminateFatal(err)
 	}

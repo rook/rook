@@ -25,7 +25,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume"
@@ -110,7 +110,7 @@ func TestClusterDeleteSingleAttachment(t *testing.T) {
 	// tell the cluster controller that a cluster has been deleted.  the controller will perform the cleanup
 	// async, but block and wait for it all to complete before returning to us, so there should be no races
 	// with the asserts later on.
-	clusterToDelete := &cephv1beta1.Cluster{ObjectMeta: metav1.ObjectMeta{Namespace: clusterName}}
+	clusterToDelete := &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: clusterName}}
 	controller.handleClusterDelete(clusterToDelete, time.Millisecond)
 
 	// detaching, removing the attachment from the CRD, and deleting the CRD should have been called
@@ -173,7 +173,7 @@ func TestClusterDeleteAttachedToOtherNode(t *testing.T) {
 	controller := NewClusterController(context, flexvolumeController, volumeAttachmentController)
 
 	// delete the cluster, nothing should happen
-	clusterToDelete := &cephv1beta1.Cluster{ObjectMeta: metav1.ObjectMeta{Namespace: clusterName}}
+	clusterToDelete := &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: clusterName}}
 	controller.handleClusterDelete(clusterToDelete, time.Millisecond)
 
 	// since the volume attachment was on a different node, nothing should have been called
@@ -270,7 +270,7 @@ func TestClusterDeleteMultiAttachmentRace(t *testing.T) {
 
 	// kick off the cluster deletion process
 	controller := NewClusterController(context, flexvolumeController, volumeAttachmentController)
-	clusterToDelete := &cephv1beta1.Cluster{ObjectMeta: metav1.ObjectMeta{Namespace: clusterName}}
+	clusterToDelete := &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: clusterName}}
 	controller.handleClusterDelete(clusterToDelete, time.Millisecond)
 
 	// both attachments should have made it all the way through the clean up process, meaing that Delete

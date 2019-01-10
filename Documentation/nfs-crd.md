@@ -1,7 +1,6 @@
 ---
-title: NFS Server
-weight: 39
-indent: true
+title: NFS Server CRD
+weight: 80
 ---
 
 # NFS Server CRD

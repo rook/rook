@@ -6,18 +6,74 @@ metadata:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: rook-ceph-cluster
+  name: rook-ceph-osd
+  namespace: rook-ceph
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-ceph-mgr
   namespace: rook-ceph
 ---
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
-  name: rook-ceph-cluster
+  name: rook-ceph-osd
   namespace: rook-ceph
 rules:
 - apiGroups: [""]
   resources: ["configmaps"]
   verbs: [ "get", "list", "watch", "create", "update", "delete" ]
+---
+# Aspects of ceph-mgr that require access to the system namespace
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr-system
+  namespace: rook-ceph
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+---
+# Aspects of ceph-mgr that operate within the cluster's namespace
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr
+  namespace: rook-ceph
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - services
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - ceph.rook.io
+  resources:
+  - "*"
+  verbs:
+  - "*"
 ---
 # Allow the operator to create resources in this cluster's namespace
 kind: RoleBinding
@@ -34,33 +90,86 @@ subjects:
   name: rook-ceph-system
   namespace: rook-ceph-system
 ---
-# Allow the pods in this namespace to work with configmaps
+# Allow the osd pods in this namespace to work with configmaps
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
-  name: rook-ceph-cluster
+  name: rook-ceph-osd
   namespace: rook-ceph
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: rook-ceph-cluster
+  name: rook-ceph-osd
 subjects:
 - kind: ServiceAccount
-  name: rook-ceph-cluster
+  name: rook-ceph-osd
   namespace: rook-ceph
 ---
-apiVersion: ceph.rook.io/v1beta1
-kind: Cluster
+# Allow the ceph mgr to access the cluster-specific resources necessary for the mgr modules
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr
+  namespace: rook-ceph
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-ceph-mgr
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-mgr
+  namespace: rook-ceph
+---
+# Allow the ceph mgr to access the rook system resources necessary for the mgr modules
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr-system
+  namespace: rook-ceph-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-ceph-mgr-system
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-mgr
+  namespace: rook-ceph
+---
+# Allow the ceph mgr to access cluster-wide resources necessary for the mgr modules
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr-cluster
+  namespace: rook-ceph
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-mgr-cluster
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-mgr
+  namespace: rook-ceph
+---
+apiVersion: ceph.rook.io/v1
+kind: CephCluster
 metadata:
   name: rook-ceph
   namespace: rook-ceph
 spec:
+  cephVersion:
+    # The container image used to launch the Ceph daemon pods (mon, mgr, osd, mds, rgw).
+    # v12 is luminous, v13 is mimic, and v14 is nautilus.
+    # RECOMMENDATION: In production, use a specific version tag instead of the general v13 flag, which pulls the latest release and could result in different
+    # versions running within the cluster. See tags available at https://hub.docker.com/r/ceph/ceph/tags/.
+    image: ceph/ceph:v13
+    # Whether to allow unsupported versions of Ceph. Currently only luminous and mimic are supported.
+    # After nautilus is released, Rook will be updated to support nautilus.
+    # Do not set to true in production.
+    allowUnsupported: false
   # The path on the host where configuration files will be persisted. If not specified, a kubernetes emptyDir will be created (not recommended).
   # Important: if you reinstall the cluster, make sure you delete this directory from each host or else the mons will fail to start on the new cluster.
   # In Minikube, the '/data' directory is configured to persist across reboots. Use "/data/rook" in Minikube environment.
   dataDirHostPath: /var/lib/rook
-  # The service account under which to run the daemon pods in this cluster if the default account is not sufficient (OSDs)
-  serviceAccount: rook-ceph-cluster
   # set the amount of mons to be started
   mon:
     count: 3
@@ -68,9 +177,19 @@ spec:
   # enable the ceph dashboard for viewing cluster status
   dashboard:
     enabled: true
+    # serve the dashboard under a subpath (useful when you are accessing the dashboard via a reverse proxy)
+    # urlPrefix: /ceph-dashboard
+    # serve the dashboard at the given port.
+    # port: 8443
+    # serve the dashboard using SSL
+    # ssl: true
   network:
     # toggle to use hostNetwork
     hostNetwork: false
+  rbdMirroring:
+    # The number of daemons that will perform the rbd mirroring.
+    # rbd mirroring must be configured with "rbd mirror" from the rook toolbox.
+    workers: 0
   # To control where various services will be scheduled by kubernetes, use the placement configuration sections below.
   # The example under 'all' would have all services scheduled on kubernetes nodes labeled with 'role=storage-node' and
   # tolerate taints with a key of 'storage-node'.
@@ -116,6 +235,7 @@ spec:
       # storeType: bluestore
       databaseSizeMB: "1024" # this value can be removed for environments with normal sized disks (100 GB or larger)
       journalSizeMB: "1024"  # this value can be removed for environments with normal sized disks (20 GB or larger)
+      osdsPerDevice: "1" # this value can be overridden at the node or device level
 # Cluster level list of directories to use for storage. These values will be set for all nodes that have no `directories` set.
 #    directories:
 #    - path: /rook/storage-dir
@@ -135,7 +255,9 @@ spec:
 #    - name: "172.17.4.201"
 #      devices: # specific devices to use for storage can be specified for each node
 #      - name: "sdb"
-#      - name: "sdc"
+#      - name: "nvme01" # multiple osds can be created on high performance devices
+#        config:
+#          osdsPerDevice: "5"
 #      config: # configuration can be specified at the node level which overrides the cluster level config
 #        storeType: filestore
 #    - name: "172.17.4.301"

@@ -14,7 +14,7 @@
 
 FROM cockroachdb/cockroach:v2.0.2
 
-ADD rook /usr/local/bin/
+COPY rook /usr/local/bin/
 
 ENTRYPOINT ["/usr/local/bin/rook"]
 CMD [""]

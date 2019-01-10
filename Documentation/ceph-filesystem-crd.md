@@ -1,6 +1,6 @@
 ---
-title: Ceph Shared File System
-weight: 35
+title: Shared File System CRD
+weight: 30
 indent: true
 ---
 {% assign url = page.url | split: '/' %}
@@ -19,18 +19,23 @@ for Ceph file systems.
 
 ### Replicated
 
+**NOTE** This example requires you to have **at least 3 OSDs each on a different node**.
+This is because the `replicated.size: 3` (in both defined Pools) will require at least 3 OSDs and as [`failureDomain` setting](ceph-pool-crd.md#spec) to `host` (default), each OSD needs to be on a different nodes.
+
 ```yaml
-apiVersion: ceph.rook.io/v1beta1
-kind: Filesystem
+apiVersion: ceph.rook.io/v1
+kind: CephFilesystem
 metadata:
   name: myfs
   namespace: rook-ceph
 spec:
   metadataPool:
+    failureDomain: host
     replicated:
       size: 3
   dataPools:
-    - replicated:
+    - failureDomain: host
+      replicated:
         size: 3
   metadataServer:
     activeCount: 1
@@ -69,8 +74,8 @@ The sample below requires that you have at least 3 `bluestore` OSDs on different
 For erasure coded to make sense, you need **at least three OSDs for the below `dataPools` config** to work.
 
 ```yaml
-apiVersion: ceph.rook.io/v1beta1
-kind: Filesystem
+apiVersion: ceph.rook.io/v1
+kind: CephFilesystem
 metadata:
   name: myfs-ec
   namespace: rook-ceph

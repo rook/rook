@@ -23,7 +23,7 @@ import (
 	"testing"
 
 	"github.com/coreos/pkg/capnslog"
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
@@ -40,7 +40,7 @@ var (
 	logger = capnslog.NewPackageLogger("github.com/rook/rook", "integrationTest")
 )
 
-//Test to make sure all rook components are installed and Running
+// Test to make sure all rook components are installed and Running
 func checkIfRookClusterIsInstalled(s suite.Suite, k8sh *utils.K8sHelper, opNamespace, clusterNamespace string, mons int) {
 	logger.Infof("Make sure all Pods in Rook Cluster %s are running", clusterNamespace)
 	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-ceph-operator", opNamespace, 1, "Running"),
@@ -86,42 +86,44 @@ func HandlePanics(r interface{}, op installer.TestSuite, t func() *testing.T) {
 	}
 }
 
-//TestCluster struct for handling panic and test suite tear down
+// TestCluster struct for handling panic and test suite tear down
 type TestCluster struct {
-	installer     *installer.CephInstaller
-	kh            *utils.K8sHelper
-	helper        *clients.TestClient
-	T             func() *testing.T
-	namespace     string
-	storeType     string
-	helmInstalled bool
-	useDevices    bool
-	mons          int
+	installer        *installer.CephInstaller
+	kh               *utils.K8sHelper
+	helper           *clients.TestClient
+	T                func() *testing.T
+	namespace        string
+	storeType        string
+	helmInstalled    bool
+	useDevices       bool
+	mons             int
+	rbdMirrorWorkers int
 }
 
 // StartTestCluster creates new instance of TestCluster struct
-func StartTestCluster(t func() *testing.T, namespace, storeType string, helmInstalled, useDevices bool, mons int, rookVersion string) (*TestCluster, *utils.K8sHelper) {
+func StartTestCluster(t func() *testing.T, namespace, storeType string, helmInstalled, useDevices bool, mons, rbdMirrorWorkers int, rookVersion string, cephVersion cephv1.CephVersionSpec) (*TestCluster, *utils.K8sHelper) {
 	kh, err := utils.CreateK8sHelper(t)
 	require.NoError(t(), err)
 
-	i := installer.NewCephInstaller(t, kh.Clientset, rookVersion)
+	i := installer.NewCephInstaller(t, kh.Clientset, rookVersion, cephVersion)
 
-	op := &TestCluster{i, kh, nil, t, namespace, storeType, helmInstalled, useDevices, mons}
+	op := &TestCluster{i, kh, nil, t, namespace, storeType, helmInstalled, useDevices, mons, rbdMirrorWorkers}
 
 	if rookVersion != installer.VersionMaster {
 		// make sure we have the images from a previous release locally so the test doesn't hit a timeout
 		assert.NoError(t(), kh.GetDockerImage("rook/ceph:"+rookVersion))
 		assert.NoError(t(), kh.GetDockerImage("rook/ceph-toolbox:"+rookVersion))
 	}
+	assert.NoError(t(), kh.GetDockerImage(cephVersion.Image))
 
 	op.Setup()
 	return op, kh
 }
 
-//SetUpRook is a wrapper for setting up rook
+// SetUpRook is a wrapper for setting up rook
 func (op *TestCluster) Setup() {
 	isRookInstalled, err := op.installer.InstallRookOnK8sWithHostPathAndDevices(op.namespace, op.storeType,
-		op.helmInstalled, op.useDevices, cephv1beta1.MonSpec{Count: op.mons, AllowMultiplePerNode: true}, false /* startWithAllNodes */)
+		op.helmInstalled, op.useDevices, cephv1.MonSpec{Count: op.mons, AllowMultiplePerNode: true}, false /* startWithAllNodes */, op.rbdMirrorWorkers)
 
 	if !isRookInstalled || err != nil {
 		logger.Errorf("Rook was not installed successfully: %v", err)
@@ -135,11 +137,9 @@ func (op *TestCluster) Setup() {
 }
 
 // SetInstallData updates the installer helper based on the version of Rook desired
-func (op *TestCluster) SetInstallData(version string) {
+func (op *TestCluster) SetInstallData(version string) {}
 
-}
-
-//TearDownRook is a wrapper for tearDown after Suite
+// TearDownRook is a wrapper for tearDown after Suite
 func (op *TestCluster) Teardown() {
 	if op.installer.T().Failed() {
 		op.installer.GatherAllRookLogs(op.namespace, installer.SystemNamespace(op.namespace), op.installer.T().Name())

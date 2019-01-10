@@ -9,7 +9,7 @@ Rook can be installed on any existing Kubernetes clusters as long as it meets th
 
 ## Minimum Version
 
-Kubernetes v1.8 or higher is supported by Rook.
+Kubernetes v1.10 or higher is supported by Rook.
 
 ## Privileges and RBAC
 
@@ -19,6 +19,14 @@ Rook requires privileges to manage the storage in your cluster. See the details 
 
 The Rook agent requires setup as a Flex volume plugin to manage the storage attachments in your cluster.
 See the [Flex Volume Configuration](flexvolume.md) topic to configure your Kubernetes deployment to load the Rook volume plugin.
+
+## Kernel modules directory configuration
+
+Normally, on Linux, kernel modules can be found in `/lib/modules`. However, there are some distributions that put them elsewhere. In that case the environment variable `LIB_MODULES_DIR_PATH` can be used to override the default. Also see the documentation in [helm-operator](helm-operator.md) on the parameter `agent.libModulesDirPath`. One notable distribution where this setting is useful would be [NixOS](https://nixos.org).
+
+## Extra agent mounts
+
+On certain distributions it may be necessary to mount additional directories into the agent container. That is what the environment variable `AGENT_MOUNTS` is for. Also see the documentation in [helm-operator](helm-operator.md) on the parameter `agent.mounts`. The format of the variable content should be `mountname1=/host/path1:/container/path1,mountname2=/host/path2:/container/path2`.
 
 ## Bootstrapping Kubernetes
 
@@ -69,6 +77,64 @@ kubectl cluster-info
 
 Once you see a url response, your cluster is [ready for use by Rook](ceph-quickstart.md#deploy-rook).
 
+## Support for authenticated docker registries
+
+If you want to use an image from authenticated docker registry (e.g. for image cache/mirror), you'll need to
+add an `imagePullSecret` to all relevant service accounts. This way all pods created by the operator (for service account:
+`rook-ceph-system`) or all new pods in the namespace (for service account: `default`) will have the `imagePullSecret` added
+to their spec.
+
+The whole process is described in the [official kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#add-imagepullsecrets-to-a-service-account).
+
+### Example setup for a ceph cluster
+
+To get you started, here's a quick rundown for the ceph example from the [quickstart guide](/Documentation/ceph-quickstart.md).
+
+First, we'll create the secret for our registry as described [here](https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod):
+
+```bash
+# for namespace rook-ceph-system (operator)
+kubectl -n rook-ceph-system create secret docker-registry my-registry-secret --docker-server=DOCKER_REGISTRY_SERVER --docker-username=DOCKER_USER --docker-password=DOCKER_PASSWORD --docker-email=DOCKER_EMAIL
+
+# and for namespace rook-ceph (cluster)
+kubectl -n rook-ceph create secret docker-registry my-registry-secret --docker-server=DOCKER_REGISTRY_SERVER --docker-username=DOCKER_USER --docker-password=DOCKER_PASSWORD --docker-email=DOCKER_EMAIL
+```
+
+Next we'll add the following snippet to all relevant service accounts as described [here](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#add-imagepullsecrets-to-a-service-account):
+
+```yaml
+imagePullSecrets:
+- name: my-registry-secret
+```
+
+The service accounts are:
+* `rook-ceph-system` (namespace: `rook-ceph-system`): Will affect all pods created by the rook operator in the `rook-ceph-system` namespace.
+* `default` (namespace: `rook-ceph`): Will affect most pods in the `rook-ceph` namespace.
+* `rook-ceph-mgr` (namespace: `rook-ceph`): Will affect the MGR pods in the `rook-ceph` namespace.
+* `rook-ceph-osd` (namespace: `rook-ceph`): Will affect the OSD pods in the `rook-ceph` namespace.
+
+You can do it either via e.g. `kubectl -n <namespace> edit serviceaccount default` or by modifying the [`operator.yaml`](https://github.com/rook/rook/blob/master/cluster/examples/kubernetes/ceph/operator.yaml)
+and [`cluster.yaml`](https://github.com/rook/rook/blob/master/cluster/examples/kubernetes/ceph/cluster.yaml) before deploying them.
+
+Since it's the same procedure for all service accounts, here is just one example:
+
+```bash
+kubectl -n rook-ceph edit serviceaccount default
+```
+
+```yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: default
+  namespace: rook-ceph
+secrets:
+- name: default-token-12345
+imagePullSecrets:                # here are the new
+- name: my-registry-secret       # parts
+```
+
+After doing this for all service accounts all pods should be able to pull the image from your registry.
 
 ## Using Rook in Kubernetes
 

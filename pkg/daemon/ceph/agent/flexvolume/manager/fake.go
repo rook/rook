@@ -21,7 +21,7 @@ import "fmt"
 // FakeVolumeManager represents a fake (mocked) implementation of the VolumeManager interface for testing.
 type FakeVolumeManager struct {
 	FakeInit   func() error
-	FakeAttach func(image, pool, clusterName string) (string, error)
+	FakeAttach func(image, pool, id, key, clusterName string) (string, error)
 	FakeDetach func(image, pool, clusterName string, force bool) error
 }
 
@@ -34,15 +34,15 @@ func (f *FakeVolumeManager) Init() error {
 }
 
 // Attach a volume image to the node
-func (f *FakeVolumeManager) Attach(image, pool, clusterName string) (string, error) {
+func (f *FakeVolumeManager) Attach(image, pool, id, key, clusterName string) (string, error) {
 	if f.FakeAttach != nil {
-		return f.FakeAttach(image, pool, clusterName)
+		return f.FakeAttach(image, pool, id, key, clusterName)
 	}
 	return fmt.Sprintf("/%s/%s/%s", image, pool, clusterName), nil
 }
 
 // Detach a volume image from a node
-func (f *FakeVolumeManager) Detach(image, pool, clusterName string, force bool) error {
+func (f *FakeVolumeManager) Detach(image, pool, id, key, clusterName string, force bool) error {
 	if f.FakeDetach != nil {
 		return f.FakeDetach(image, pool, clusterName, force)
 	}

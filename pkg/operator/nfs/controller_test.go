@@ -17,6 +17,7 @@ package nfs
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	nfsv1alpha1 "github.com/rook/rook/pkg/apis/nfs.rook.io/v1alpha1"
@@ -28,6 +29,62 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
+
+func TestValidateNFSServerSpec(t *testing.T) {
+
+	// first, test that a good NFSServerSpec is good
+	spec := nfsv1alpha1.NFSServerSpec{
+		Replicas: 1,
+		Exports: []nfsv1alpha1.ExportsSpec{
+			{
+				Name: "test",
+				Server: nfsv1alpha1.ServerSpec{
+					AccessMode: "readwrite",
+					Squash:     "none",
+				},
+			},
+		},
+	}
+
+	err := validateNFSServerSpec(spec)
+	assert.Nil(t, err)
+
+	// test that AccessMode is invalid
+	spec = nfsv1alpha1.NFSServerSpec{
+		Replicas: 1,
+		Exports: []nfsv1alpha1.ExportsSpec{
+			{
+				Name: "test",
+				Server: nfsv1alpha1.ServerSpec{
+					AccessMode: "badValue",
+					Squash:     "none",
+				},
+			},
+		},
+	}
+
+	err = validateNFSServerSpec(spec)
+	assert.NotNil(t, err)
+	assert.True(t, strings.Contains(err.Error(), "Invalid value (badValue) for accessMode"))
+
+	// test that Squash is invalid
+	spec = nfsv1alpha1.NFSServerSpec{
+		Replicas: 1,
+		Exports: []nfsv1alpha1.ExportsSpec{
+			{
+				Name: "test",
+				Server: nfsv1alpha1.ServerSpec{
+					AccessMode: "ReadWrite",
+					Squash:     "badValue",
+				},
+			},
+		},
+	}
+
+	err = validateNFSServerSpec(spec)
+	assert.NotNil(t, err)
+	assert.True(t, strings.Contains(err.Error(), "Invalid value (badValue) for squash"))
+}
 
 func TestOnAdd(t *testing.T) {
 	namespace := "rook-nfs-test"

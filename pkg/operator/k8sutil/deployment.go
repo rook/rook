@@ -17,7 +17,6 @@ package k8sutil
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/rook/rook/pkg/clusterd"
@@ -26,30 +25,25 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-// GetDeploymentVersion returns the version of the image running in the pod spec for the desired container
-func GetDeploymentVersion(clientset kubernetes.Interface, namespace, name, container string) (string, error) {
+// GetDeploymentImage returns the version of the image running in the pod spec for the desired container
+func GetDeploymentImage(clientset kubernetes.Interface, namespace, name, container string) (string, error) {
 	d, err := clientset.Extensions().Deployments(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		return "", fmt.Errorf("failed to find deployment %s. %v", name, err)
 	}
-	return GetDeploymentSpecVersion(clientset, *d, container)
+	return GetDeploymentSpecImage(clientset, *d, container)
 }
 
-func GetDeploymentSpecVersion(clientset kubernetes.Interface, d extensions.Deployment, container string) (string, error) {
+func GetDeploymentSpecImage(clientset kubernetes.Interface, d extensions.Deployment, container string) (string, error) {
 	image, err := GetSpecContainerImage(d.Spec.Template.Spec, container)
 	if err != nil {
 		return "", err
 	}
 
-	parts := strings.Split(image, ":")
-	if len(parts) != 2 {
-		return "", fmt.Errorf("unexpected version in image: %s", image)
-	}
-
-	return parts[1], nil
+	return image, nil
 }
 
-func WaitForDeploymentVersion(clientset kubernetes.Interface, namespace, label, container, desiredVersion string) error {
+func WaitForDeploymentImage(clientset kubernetes.Interface, namespace, label, container, desiredImage string) error {
 
 	sleepTime := 3
 	attempts := 30
@@ -61,25 +55,25 @@ func WaitForDeploymentVersion(clientset kubernetes.Interface, namespace, label, 
 
 		matches := 0
 		for _, d := range deployments.Items {
-			version, err := GetDeploymentSpecVersion(clientset, d, container)
+			image, err := GetDeploymentSpecImage(clientset, d, container)
 			if err != nil {
-				logger.Infof("failed to get version for deployment %s. %+v", d.Name, err)
+				logger.Infof("failed to get image for deployment %s. %+v", d.Name, err)
 				continue
 			}
-			if version == desiredVersion {
+			if image == desiredImage {
 				matches++
 			}
 		}
 
 		if matches == len(deployments.Items) && matches > 0 {
-			logger.Infof("all %d %s deployments are on version %s", matches, container, desiredVersion)
+			logger.Infof("all %d %s deployments are on image %s", matches, container, desiredImage)
 			break
 		}
 
 		if len(deployments.Items) == 0 {
 			logger.Infof("waiting for at least one deployment to start to see the version")
 		} else {
-			logger.Infof("%d/%d %s deployments match version %s", matches, len(deployments.Items), container, desiredVersion)
+			logger.Infof("%d/%d %s deployments match image %s", matches, len(deployments.Items), container, desiredImage)
 		}
 		time.Sleep(time.Duration(sleepTime) * time.Second)
 	}
@@ -120,4 +114,16 @@ func UpdateDeploymentAndWait(context *clusterd.Context, deployment *extensions.D
 	}
 
 	return fmt.Errorf("gave up waiting for deployment %s to update", deployment.Name)
+}
+
+// GetDeployments returns a list of deployment names labels matching a given selector
+// example of a label selector might be "app=rook-ceph-mon, mon!=b"
+// more: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+func GetDeployments(clientset kubernetes.Interface, namespace, labelSelector string) (*extensions.DeploymentList, error) {
+	listOptions := metav1.ListOptions{LabelSelector: labelSelector}
+	deployments, err := clientset.Extensions().Deployments(namespace).List(listOptions)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list deployments with labelSelector %s: %v", labelSelector, err)
+	}
+	return deployments, nil
 }

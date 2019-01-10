@@ -32,7 +32,6 @@ import (
 	"github.com/rook/rook/pkg/util/sys"
 	"k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
-	"k8s.io/api/rbac/v1beta1"
 	kserrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -45,17 +44,10 @@ const (
 	deviceInUseCMName                 = "local-device-in-use-cluster-%s-node-%s"
 	deviceInUseAppName                = "rook-claimed-devices"
 	deviceInUseClusterAttr            = "rook.io/cluster"
+	discoverIntervalEnv               = "ROOK_DISCOVER_DEVICES_INTERVAL"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-discover")
-
-var accessRules = []v1beta1.PolicyRule{
-	{
-		APIGroups: []string{""},
-		Resources: []string{"configmaps"},
-		Verbs:     []string{"get", "list", "update", "create", "delete"},
-	},
-}
 
 // Discover reference to be deployed
 type Discover struct {
@@ -101,7 +93,7 @@ func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage, securityAcc
 						{
 							Name:  discoverDaemonsetName,
 							Image: discoverImage,
-							Args:  []string{"discover"},
+							Args:  []string{"discover", "--discover-interval", getDiscoverInterval()},
 							SecurityContext: &v1.SecurityContext{
 								Privileged: &privileged,
 							},
@@ -190,8 +182,26 @@ func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage, securityAcc
 
 }
 
+func getDiscoverInterval() string {
+	discoverValue := os.Getenv(discoverIntervalEnv)
+	if discoverValue != "" {
+		return discoverValue
+	}
+	// Default is 60 minutes
+	return "60m"
+}
+
 // ListDevices lists all devices discovered on all nodes or specific node if node name is provided.
 func ListDevices(context *clusterd.Context, namespace, nodeName string) (map[string][]sys.LocalDisk, error) {
+	// convert the host name label to the k8s node name to look up the configmap  with the devices
+	if len(nodeName) > 0 {
+		var err error
+		nodeName, err = k8sutil.GetNodeNameFromHostname(context.Clientset, nodeName)
+		if err != nil {
+			logger.Warningf("failed to get node name from hostname. %+v", err)
+		}
+	}
+
 	var devices map[string][]sys.LocalDisk
 	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", k8sutil.AppAttr, discoverDaemon.AppName)}
 	// wait for device discovery configmaps
@@ -289,7 +299,7 @@ func FreeDevices(context *clusterd.Context, nodeName, clusterName string) error 
 		return nil
 	}
 	namespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
-	cmName := fmt.Sprintf(deviceInUseCMName, clusterName, nodeName)
+	cmName := k8sutil.TruncateNodeName(fmt.Sprintf(deviceInUseCMName, clusterName, "%s"), nodeName)
 	// delete configmap
 	err := context.Clientset.CoreV1().ConfigMaps(namespace).Delete(cmName, &metav1.DeleteOptions{})
 	if err != nil && !kserrors.IsNotFound(err) {
@@ -399,7 +409,7 @@ func GetAvailableDevices(context *clusterd.Context, nodeName, clusterName string
 
 		cm := &v1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      fmt.Sprintf(deviceInUseCMName, clusterName, nodeName),
+				Name:      k8sutil.TruncateNodeName(fmt.Sprintf(deviceInUseCMName, clusterName, "%s"), nodeName),
 				Namespace: namespace,
 				Labels: map[string]string{
 					k8sutil.AppAttr:         deviceInUseAppName,

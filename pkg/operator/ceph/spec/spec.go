@@ -18,6 +18,7 @@ limitations under the License.
 package spec
 
 import (
+	"github.com/coreos/pkg/capnslog"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/api/core/v1"
@@ -28,6 +29,8 @@ const (
 	// in all Ceph pods.
 	ConfigInitContainerName = "config-init"
 )
+
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "ceph-spec")
 
 // PodVolumes fills in the volumes parameter with the common list of Kubernetes volumes for use in Ceph pods.
 func PodVolumes(dataDirHostPath string) []v1.Volume {
@@ -57,4 +60,25 @@ func RookVolumeMounts() []v1.VolumeMount {
 		CephVolumeMounts(),
 		k8sutil.ConfigOverrideMount(),
 	)
+}
+
+// AppLabels returns labels common for all Rook-Ceph applications which may be useful for admins.
+// App name is the name of the application: e.g., 'rook-ceph-mon', 'rook-ceph-mgr', etc.
+func AppLabels(appName, namespace string) map[string]string {
+	return map[string]string{
+		k8sutil.AppAttr:     appName,
+		k8sutil.ClusterAttr: namespace,
+	}
+}
+
+// PodLabels returns pod labels common to all Rook-Ceph pods which may be useful for admins.
+// App name is the name of the application: e.g., 'rook-ceph-mon', 'rook-ceph-mgr', etc.
+// Daemon type is the Ceph daemon type: "mon", "mgr", "osd", "mds", "rgw"
+// Daemon ID is the ID portion of the Ceph daemon name: "a" for "mon.a"; "c" for "mds.c"
+func PodLabels(appName, namespace, daemonType, daemonID string) map[string]string {
+	labels := AppLabels(appName, namespace)
+	labels["ceph_daemon_id"] = daemonID
+	// Also report the daemon id keyed by its daemon type: "mon: a", "mds: c", etc.
+	labels[daemonType] = daemonID
+	return labels
 }

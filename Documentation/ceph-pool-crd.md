@@ -1,10 +1,10 @@
 ---
-title: Ceph Pool
-weight: 33
+title: Block Pool CRD
+weight: 27
 indent: true
 ---
 
-# Ceph Pool CRD
+# Ceph Block Pool CRD
 
 Rook allows creation and customization of storage pools through the custom resource definitions (CRDs). The following settings are available
 for pools.
@@ -13,10 +13,13 @@ for pools.
 
 ### Replicated
 
+**NOTE** This example requires you to have **at least 3 OSDs each on a different node**.
+This is because the `replicated.size: 3` will require at least 3 OSDs and as [`failureDomain` setting](ceph-pool-crd.md#spec) to `host` (default), each OSD needs to be on a different nodes.
+
 For optimal performance while adding redundancy to the system, configure the data to be copied in full to multiple locations.
 ```yaml
-apiVersion: ceph.rook.io/v1beta1
-kind: Pool
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
 metadata:
   name: replicapool
   namespace: rook-ceph
@@ -28,10 +31,13 @@ spec:
 
 ### Erasure Coded
 
+**NOTE** This example requires you to have **at least 3 bluestore OSDs on one or more nodes**.
+This is because the below `erasureCoded` chunk settings require at least 3 bluestore OSDs and as [`failureDomain` setting](ceph-pool-crd.md#spec) is set to `osd`, the OSDs can be on one or more nodes to be on a different nodes.
+
 To lower your storage capacity requirements while adding redundancy, use [erasure coding](#erasure-coding).
 ```yaml
-apiVersion: ceph.rook.io/v1beta1
-kind: Pool
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
 metadata:
   name: ecpool
   namespace: rook-ceph
@@ -66,6 +72,8 @@ When creating an erasure-coded pool, it is highly recommended to create the pool
 with the default of `host`. For example, if you have replication of size `3` and the failure domain is `host`, all three copies of the data will be
 placed on osds that are found on unique hosts. In that case you would be guaranteed to tolerate the failure of two hosts. If the failure domain were `osd`,
 you would be able to tolerate the loss of two devices. Similarly for erasure coding, the data and coding chunks would be spread across the requested failure domain.
+<br>**NOTE:** Neither Rook nor Ceph will prevent the user from creating a cluster where data (or chunks) cannot be replicated safely;
+it is Ceph's design to delay checking for OSDs until a write request is made, and the write will hang if there are not sufficient OSDs to satisfy the request.
 - `crushRoot`: The root in the crush map to be used by the pool. If left empty or unspecified, the default root will be used. Creating a crush hierarchy for the OSDs currently requires the Rook toolbox to run the Ceph tools described [here](http://docs.ceph.com/docs/master/rados/operations/crush-map/#modifying-the-crush-map).
 
 ### Erasure Coding

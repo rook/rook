@@ -1,0 +1,29 @@
+apiVersion: edgefs.rook.io/v1alpha1
+kind: S3
+metadata:
+  name: s301
+  namespace: rook-edgefs
+spec:
+  instances: 1
+  #sslCertificateRef: ssl-secret
+  #placement:
+  #  nodeAffinity:
+  #    requiredDuringSchedulingIgnoredDuringExecution:
+  #      nodeSelectorTerms:
+  #      - matchExpressions:
+  #        - key: rook-edgefs-nodetype
+  #          operator: In
+  #          values:
+  #          - gateway
+  #  tolerations:
+  #  - key: rook-edgefs-nodetype
+  #    operator: Exists
+  #  podAffinity:
+  #  podAntiAffinity:
+  #resources:
+  #  limits:
+  #    cpu: "2"
+  #    memory: "4Gi"
+  #  requests:
+  #    cpu: "2"
+  #    memory: "4Gi"

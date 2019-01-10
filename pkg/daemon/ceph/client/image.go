@@ -33,9 +33,10 @@ const (
 )
 
 type CephBlockImage struct {
-	Name   string `json:"image"`
-	Size   uint64 `json:"size"`
-	Format int    `json:"format"`
+	Name     string `json:"image"`
+	Size     uint64 `json:"size"`
+	Format   int    `json:"format"`
+	InfoName string `json:"name"`
 }
 
 func ListImages(context *clusterd.Context, clusterName, poolName string) ([]CephBlockImage, error) {
@@ -61,6 +62,24 @@ func ListImages(context *clusterd.Context, clusterName, poolName string) ([]Ceph
 	}
 
 	return images, nil
+}
+
+func getImageInfo(context *clusterd.Context, clusterName, name, poolName string) (*CephBlockImage, error) {
+	imageSpec := getImageSpec(name, poolName)
+	args := []string{"info", imageSpec}
+	buf, err := ExecuteRBDCommand(context, clusterName, args)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get image %s info: %+v", imageSpec, err)
+	}
+
+	var image CephBlockImage
+	if err = json.Unmarshal(buf, &image); err != nil {
+		return nil, fmt.Errorf("unmarshal failed: %+v. raw buffer response: %s", err, string(buf))
+	}
+
+	image.Name = image.InfoName
+
+	return &image, nil
 }
 
 // CreateImage creates a block storage image.
@@ -98,17 +117,12 @@ func CreateImage(context *clusterd.Context, clusterName, name, poolName, dataPoo
 	}
 
 	// now that the image is created, retrieve it
-	images, err := ListImages(context, clusterName, poolName)
+	image, err := getImageInfo(context, clusterName, name, poolName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list images after successfully creating image %s: %v", name, err)
-	}
-	for i := range images {
-		if images[i].Name == name {
-			return &images[i], nil
-		}
+		return nil, fmt.Errorf("failed to get image %s info after successfully creating it: %v", name, err)
 	}
 
-	return nil, fmt.Errorf("failed to find image %s after creating it", name)
+	return image, nil
 }
 
 func DeleteImage(context *clusterd.Context, clusterName, name, poolName string) error {
@@ -124,12 +138,12 @@ func DeleteImage(context *clusterd.Context, clusterName, name, poolName string) 
 }
 
 // MapImage maps an RBD image using admin cephfx and returns the device path
-func MapImage(context *clusterd.Context, imageName, poolName, clusterName, keyring, monitors string) error {
+func MapImage(context *clusterd.Context, imageName, poolName, id, keyring, clusterName, monitors string) error {
 	imageSpec := getImageSpec(imageName, poolName)
 	args := []string{
 		"map",
 		imageSpec,
-		"--id", "admin",
+		fmt.Sprintf("--id=%s", id),
 		fmt.Sprintf("--cluster=%s", clusterName),
 		fmt.Sprintf("--keyring=%s", keyring),
 		"-m", monitors,
@@ -145,12 +159,12 @@ func MapImage(context *clusterd.Context, imageName, poolName, clusterName, keyri
 }
 
 // UnMapImage unmap an RBD image from the node
-func UnMapImage(context *clusterd.Context, imageName, poolName, clusterName, keyring, monitors string, force bool) error {
+func UnMapImage(context *clusterd.Context, imageName, poolName, id, keyring, clusterName, monitors string, force bool) error {
 	deviceImage := getImageSpec(imageName, poolName)
 	args := []string{
 		"unmap",
 		deviceImage,
-		"--id", "admin",
+		fmt.Sprintf("--id=%s", id),
 		fmt.Sprintf("--cluster=%s", clusterName),
 		fmt.Sprintf("--keyring=%s", keyring),
 		"-m", monitors,

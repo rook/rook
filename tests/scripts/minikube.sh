@@ -95,12 +95,17 @@ function copy_images() {
     if [[ "$1" == "" || "$1" == "ceph" ]]; then
       echo "copying ceph images"
       copy_image_to_cluster "${BUILD_REGISTRY}/ceph-amd64" rook/ceph:master
-      copy_image_to_cluster "${BUILD_REGISTRY}/ceph-toolbox-amd64" rook/ceph-toolbox:master
+      copy_image_to_cluster ceph/ceph:v13 ceph/ceph:v13
     fi
 
     if [[ "$1" == "" || "$1" == "cockroachdb" ]]; then
       echo "copying cockroachdb image"
       copy_image_to_cluster "${BUILD_REGISTRY}/cockroachdb-amd64" rook/cockroachdb:master
+    fi
+
+    if [[ "$1" == "" || "$1" == "cassandra" ]]; then
+      echo "copying cassandra image"
+      copy_image_to_cluster "${BUILD_REGISTRY}/cassandra-amd64" rook/cassandra:master
     fi
 
     if [[ "$1" == "" || "$1" == "minio" ]]; then
@@ -115,12 +120,11 @@ function copy_images() {
 }
 
 # configure minikube
-KUBE_VERSION=${KUBE_VERSION:-"v1.11.0"}
+KUBE_VERSION=${KUBE_VERSION:-"v1.13.1"}
 MEMORY=${MEMORY:-"3000"}
 
 case "${1:-}" in
   up)
-    # Use kubeadm bootstrapper for 1.8+ since localkube was deprecated in 1.8
     echo "starting minikube with kubeadm bootstrapper"
     minikube start --memory="${MEMORY}" -b kubeadm --kubernetes-version "${KUBE_VERSION}"
     wait_for_ssh
@@ -155,6 +159,10 @@ case "${1:-}" in
     copy_image_to_cluster mysql:5.6 mysql:5.6
     copy_image_to_cluster wordpress:4.6.1-apache wordpress:4.6.1-apache
     ;;
+  cockroachdb-loadgen)
+    echo "copying the cockroachdb loadgen images"
+    copy_image_to_cluster cockroachdb/loadgen-kv:0.1 cockroachdb/loadgen-kv:0.1
+    ;;
   helm)
     echo " copying rook image for helm"
     helm_tag="$(cat _output/version)"
@@ -166,12 +174,13 @@ case "${1:-}" in
     ;;
   *)
     echo "usage:" >&2
-    echo "  $0 up [ceph | cockroachdb | minio | nfs]" >&2
+    echo "  $0 up [ceph | cockroachdb | cassandra | minio | nfs]" >&2
     echo "  $0 down" >&2
     echo "  $0 clean" >&2
     echo "  $0 ssh" >&2
-    echo "  $0 update [ceph | cockroachdb | minio | nfs]" >&2
+    echo "  $0 update [ceph | cockroachdb | cassandra | minio | nfs]" >&2
     echo "  $0 restart <pod-name-regex> (the pod name is a regex to match e.g. restart ^rook-ceph-osd)" >&2
     echo "  $0 wordpress" >&2
+    echo "  $0 cockroachdb-loadgen" >&2
     echo "  $0 helm" >&2
 esac

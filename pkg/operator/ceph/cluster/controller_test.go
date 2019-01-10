@@ -22,12 +22,13 @@ import (
 	"testing"
 	"time"
 
-	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
-	rookv1alpha1 "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	cephbeta "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	rookfake "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -39,7 +40,7 @@ func TestCreateInitialCrushMap(t *testing.T) {
 	clientset := testop.New(3)
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Clientset: clientset, Executor: executor}
-	c := newCluster(&cephv1beta1.Cluster{}, context)
+	c := newCluster(&cephv1.CephCluster{}, context)
 	c.Namespace = "rook294"
 
 	// create the initial crush map and verify that a configmap value was created that says the crush map was created
@@ -105,7 +106,7 @@ func TestClusterDelete(t *testing.T) {
 
 	// create the cluster controller and tell it that the cluster has been deleted
 	controller := NewClusterController(context, "", volumeAttachmentController)
-	clusterToDelete := &cephv1beta1.Cluster{ObjectMeta: metav1.ObjectMeta{Namespace: clusterName}}
+	clusterToDelete := &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: clusterName}}
 	controller.handleDelete(clusterToDelete, time.Microsecond)
 
 	// listing of volume attachments should have been called twice.  the first time there were volume attachments
@@ -115,14 +116,14 @@ func TestClusterDelete(t *testing.T) {
 
 func TestClusterChanged(t *testing.T) {
 	// a new node added, should be a change
-	old := cephv1beta1.ClusterSpec{
+	old := cephv1.ClusterSpec{
 		Storage: rookalpha.StorageScopeSpec{
 			Nodes: []rookalpha.Node{
 				{Name: "node1", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
 			},
 		},
 	}
-	new := cephv1beta1.ClusterSpec{
+	new := cephv1.ClusterSpec{
 		Storage: rookalpha.StorageScopeSpec{
 			Nodes: []rookalpha.Node{
 				{Name: "node1", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
@@ -130,7 +131,9 @@ func TestClusterChanged(t *testing.T) {
 			},
 		},
 	}
-	assert.True(t, clusterChanged(old, new))
+	c := &cluster{Spec: &cephv1.ClusterSpec{}, mons: &mon.Cluster{}}
+	assert.True(t, clusterChanged(old, new, c))
+	assert.Equal(t, 0, c.Spec.Mon.Count)
 
 	// a node was removed, should be a change
 	old.Storage.Nodes = []rookalpha.Node{
@@ -140,7 +143,7 @@ func TestClusterChanged(t *testing.T) {
 	new.Storage.Nodes = []rookalpha.Node{
 		{Name: "node1", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
 	}
-	assert.True(t, clusterChanged(old, new))
+	assert.True(t, clusterChanged(old, new, c))
 
 	// the nodes being in a different order should not be a change
 	old.Storage.Nodes = []rookalpha.Node{
@@ -151,7 +154,16 @@ func TestClusterChanged(t *testing.T) {
 		{Name: "node2", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
 		{Name: "node1", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
 	}
-	assert.False(t, clusterChanged(old, new))
+	assert.False(t, clusterChanged(old, new, c))
+	assert.Equal(t, 0, c.Spec.Mon.Count)
+
+	// If the number of mons changes, the mon count on the cluster should be updated so the health check can adjust the mons
+	new.Mon.Count = 3
+	new.Mon.AllowMultiplePerNode = true
+	assert.False(t, c.mons.AllowMultiplePerNode)
+	assert.False(t, clusterChanged(old, new, c))
+	assert.Equal(t, 3, c.mons.Count)
+	assert.True(t, c.mons.AllowMultiplePerNode)
 }
 
 func TestRemoveFinalizer(t *testing.T) {
@@ -165,7 +177,7 @@ func TestRemoveFinalizer(t *testing.T) {
 	// *****************************************
 	// start with a current version ceph cluster
 	// *****************************************
-	cluster := &cephv1beta1.Cluster{
+	cluster := &cephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "cluster-1893",
 			Namespace:  "namespace-6551",
@@ -174,7 +186,7 @@ func TestRemoveFinalizer(t *testing.T) {
 	}
 
 	// create the cluster initially so it exists in the k8s api
-	cluster, err := context.RookClientset.CephV1beta1().Clusters(cluster.Namespace).Create(cluster)
+	cluster, err := context.RookClientset.CephV1().CephClusters(cluster.Namespace).Create(cluster)
 	assert.NoError(t, err)
 	assert.Len(t, cluster.Finalizers, 1)
 
@@ -182,7 +194,7 @@ func TestRemoveFinalizer(t *testing.T) {
 	controller.removeFinalizer(cluster)
 
 	// verify the finalizer was removed
-	cluster, err = context.RookClientset.CephV1beta1().Clusters(cluster.Namespace).Get(cluster.Name, metav1.GetOptions{})
+	cluster, err = context.RookClientset.CephV1().CephClusters(cluster.Namespace).Get(cluster.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, cluster)
 	assert.Len(t, cluster.Finalizers, 0)
@@ -190,7 +202,7 @@ func TestRemoveFinalizer(t *testing.T) {
 	// ****************************************
 	// now try with with a legacy rook cluster
 	// ****************************************
-	legacyRookCluster := &rookv1alpha1.Cluster{
+	legacyRookCluster := &cephbeta.Cluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "cluster-6842",
 			Namespace:  "namespace-9523",
@@ -199,7 +211,7 @@ func TestRemoveFinalizer(t *testing.T) {
 	}
 
 	// create the cluster initially so it exists in the k8s api
-	legacyRookCluster, err = context.RookClientset.RookV1alpha1().Clusters(legacyRookCluster.Namespace).Create(legacyRookCluster)
+	legacyRookCluster, err = context.RookClientset.CephV1beta1().Clusters(legacyRookCluster.Namespace).Create(legacyRookCluster)
 	assert.NoError(t, err)
 	assert.Len(t, legacyRookCluster.Finalizers, 1)
 
@@ -207,7 +219,7 @@ func TestRemoveFinalizer(t *testing.T) {
 	controller.removeFinalizer(legacyRookCluster)
 
 	// verify the finalizer was removed
-	legacyRookCluster, err = context.RookClientset.RookV1alpha1().Clusters(legacyRookCluster.Namespace).Get(legacyRookCluster.Name, metav1.GetOptions{})
+	legacyRookCluster, err = context.RookClientset.CephV1beta1().Clusters(legacyRookCluster.Namespace).Get(legacyRookCluster.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, legacyRookCluster)
 	assert.Len(t, legacyRookCluster.Finalizers, 0)

@@ -40,12 +40,13 @@ const (
 	monmapFile = "monmap"
 )
 
-func (c *Cluster) getLabels(name string) map[string]string {
-	return map[string]string{
-		k8sutil.AppAttr: appName,
-		"mon":           name,
-		monClusterAttr:  c.Namespace,
-	}
+func (c *Cluster) getLabels(daemonName string) map[string]string {
+	// Mons have a service for each mon, so the additional pod data is relevant for its services
+	// Use pod labels to keep "mon: id" for legacy
+	labels := opspec.PodLabels(appName, c.Namespace, "mon", daemonName)
+	// Add "mon_cluster: <namespace>" for legacy
+	labels[monClusterAttr] = c.Namespace
+	return labels
 }
 
 func (c *Cluster) makeDeployment(monConfig *monConfig, hostname string) *extensions.Deployment {
@@ -141,7 +142,7 @@ func (c *Cluster) makeConfigInitContainer(monConfig *monConfig) v1.Container {
 			fmt.Sprintf("--port=%d", monConfig.Port),
 			fmt.Sprintf("--fsid=%s", c.clusterInfo.FSID),
 		},
-		Image: k8sutil.MakeRookImage(c.Version),
+		Image: k8sutil.MakeRookImage(c.rookVersion),
 		Env: []v1.EnvVar{
 			k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
 			{Name: k8sutil.PublicIPEnvVar, Value: monConfig.PublicIP},
@@ -185,7 +186,7 @@ func (c *Cluster) makeMonmapInitContainer(monConfig *monConfig) v1.Container {
 			},
 			monmapAddMonArgs...,
 		),
-		Image:           k8sutil.MakeRookImage(c.Version), // TODO: ceph:<vers> image
+		Image:           c.cephVersion.Image,
 		VolumeMounts:    opspec.CephVolumeMounts(),
 		SecurityContext: podSecurityContext(),
 		// monmap creation does not require ports to be exposed
@@ -214,7 +215,7 @@ func (c *Cluster) makeMonFSInitContainer(monConfig *monConfig) v1.Container {
 			},
 			c.cephMonCommonArgs(monConfig)...,
 		),
-		Image:           k8sutil.MakeRookImage(c.Version), // TODO: ceph:<vers> image
+		Image:           c.cephVersion.Image,
 		VolumeMounts:    opspec.CephVolumeMounts(),
 		SecurityContext: podSecurityContext(),
 		// filesystem creation does not require ports to be exposed
@@ -241,10 +242,11 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 				"--foreground",
 				"--public-addr", joinHostPort(monConfig.PublicIP, monConfig.Port),
 				// --public-bind-addr is set in the config file at init time
+				// do not add the '--cluster/--conf/--keyring' flags; rook wants their default values
 			},
 			c.cephMonCommonArgs(monConfig)...,
 		),
-		Image:           k8sutil.MakeRookImage(c.Version), // TODO: ceph:<vers> image
+		Image:           c.cephVersion.Image,
 		VolumeMounts:    opspec.CephVolumeMounts(),
 		SecurityContext: podSecurityContext(),
 		Ports: []v1.ContainerPort{
