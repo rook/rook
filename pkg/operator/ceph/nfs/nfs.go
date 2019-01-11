@@ -19,13 +19,21 @@ package nfs
 
 import (
 	"fmt"
+	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
+	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	batch "k8s.io/api/batch/v1"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+const (
+	ganeshaRadosGraceCmd = "ganesha-rados-grace"
 )
 
 // Create the ganesha server
@@ -89,15 +97,94 @@ func (c *CephNFSController) addRADOSConfigFile(n cephv1.CephNFS, name string) er
 }
 
 func (c *CephNFSController) addServerToDatabase(n cephv1.CephNFS, name string) error {
-	nodeID := getNFSNodeID(n, name)
-	logger.Infof("Adding ganesha %s to grace db", nodeID)
-	return c.context.Executor.ExecuteCommand(false, "", "ganesha-rados-grace", "--pool", n.Spec.RADOS.Pool, "--ns", n.Spec.RADOS.Namespace, "add", nodeID)
+	logger.Infof("Adding ganesha %s to grace db", name)
+
+	if err := c.runGaneshaRadosGraceJob(n, name, "add", 10*time.Minute); err != nil {
+		logger.Errorf("failed to add %s to grace db. %+v", name, err)
+	}
+	return nil
 }
 
 func (c *CephNFSController) removeServerFromDatabase(n cephv1.CephNFS, name string) error {
+	logger.Infof("Removing ganesha %s from grace db", name)
+
+	if err := c.runGaneshaRadosGraceJob(n, name, "remove", 10*time.Minute); err != nil {
+		logger.Errorf("failed to remmove %s from grace db. %+v", name, err)
+	}
+	return nil
+}
+
+func (c *CephNFSController) runGaneshaRadosGraceJob(n cephv1.CephNFS, name, action string, timeout time.Duration) error {
 	nodeID := getNFSNodeID(n, name)
-	logger.Infof("Removing ganesha %s from grace db", nodeID)
-	return c.context.Executor.ExecuteCommand(false, "", "ganesha-rados-grace", "--pool", n.Spec.RADOS.Pool, "--ns", n.Spec.RADOS.Namespace, "remove", nodeID)
+	args := []string{"--pool", n.Spec.RADOS.Pool, "--ns", n.Spec.RADOS.Namespace, action, nodeID}
+
+	// FIX: After the operator is based on the nautilus image, we can execute the command directly instead of running a job
+	//return c.context.Executor.ExecuteCommand(false, "", ganeshaRadosGraceCmd, args...)
+
+	job := &batch.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rook-ceph-nfs-ganesha-rados-grace",
+			Namespace: n.Namespace,
+		},
+		Spec: batch.JobSpec{
+			Template: v1.PodTemplateSpec{
+				Spec: v1.PodSpec{
+					InitContainers: []v1.Container{
+						{
+							Name: opspec.ConfigInitContainerName,
+							Args: []string{
+								"ceph",
+								"config-init",
+							},
+							Image: k8sutil.MakeRookImage(c.rookImage),
+							Env: []v1.EnvVar{
+								{Name: "ROOK_USERNAME", Value: "client.admin"},
+								{Name: "ROOK_KEYRING",
+									ValueFrom: &v1.EnvVarSource{
+										SecretKeyRef: &v1.SecretKeySelector{
+											LocalObjectReference: v1.LocalObjectReference{Name: "rook-ceph-mon"},
+											Key:                  "admin-secret",
+										}}},
+								k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
+								k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
+								opmon.EndpointEnvVar(),
+								k8sutil.ConfigOverrideEnvVar(),
+							},
+							VolumeMounts: opspec.RookVolumeMounts(),
+						},
+					},
+					Containers: []v1.Container{
+						{
+							Command:      []string{ganeshaRadosGraceCmd},
+							Args:         args,
+							Name:         ganeshaRadosGraceCmd,
+							Image:        c.cephVersion.Image,
+							VolumeMounts: opspec.RookVolumeMounts(),
+						},
+					},
+					Volumes:       opspec.PodVolumes(""),
+					RestartPolicy: v1.RestartPolicyOnFailure,
+				},
+			},
+		},
+	}
+	k8sutil.SetOwnerRef(c.context.Clientset, n.Namespace, &job.ObjectMeta, &c.ownerRef)
+
+	// run the job to detect the version
+	if err := k8sutil.RunReplaceableJob(c.context.Clientset, job); err != nil {
+		return fmt.Errorf("failed to start job %s. %+v", job.Name, err)
+	}
+
+	if err := k8sutil.WaitForJobCompletion(c.context.Clientset, job, timeout); err != nil {
+		return fmt.Errorf("failed to complete job %s. %+v", job.Name, err)
+	}
+
+	if err := k8sutil.DeleteBatchJob(c.context.Clientset, n.Namespace, job.Name, false); err != nil {
+		return fmt.Errorf("failed to delete job %s. %+v", job.Name, err)
+	}
+
+	logger.Infof("successfully completed job %s", job.Name)
+	return nil
 }
 
 func (c *CephNFSController) generateConfig(n cephv1.CephNFS, name string) (string, error) {
