@@ -32,7 +32,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -386,7 +386,7 @@ func (c *Controller) GetClientAccessInfo(args []string, clientAccessInfo *Client
 
 	podNamespace := args[1]
 	clientAccessInfo.UserName = args[2]
-	secretKey := args[3]
+	clientAccessInfo.SecretKey = args[3]
 
 	if c.mountSecurityMode == agent.MountSecurityModeRestricted && (clientAccessInfo.UserName == "" || clientAccessInfo.SecretKey == "") {
 		return fmt.Errorf("no mount user and/or mount secret given")
@@ -396,13 +396,13 @@ func (c *Controller) GetClientAccessInfo(args []string, clientAccessInfo *Client
 		clientAccessInfo.UserName = "admin"
 	}
 
-	if secretKey != "" {
-		secret, err := c.context.Clientset.Core().Secrets(podNamespace).Get(secretKey, metav1.GetOptions{})
+	if clientAccessInfo.SecretKey != "" {
+		secret, err := c.context.Clientset.Core().Secrets(podNamespace).Get(clientAccessInfo.SecretKey, metav1.GetOptions{})
 		if err != nil {
-			return fmt.Errorf("unable to get mount secret %s from pod namespace %s. %+v", secretKey, podNamespace, err)
+			return fmt.Errorf("unable to get mount secret %s from pod namespace %s. %+v", clientAccessInfo.SecretKey, podNamespace, err)
 		}
 		if len(secret.Data) == 0 || len(secret.Data) > 1 {
-			return fmt.Errorf("no data or more than one data (length %d) in mount secret %s in namespace %s", len(secret.Data), secretKey, podNamespace)
+			return fmt.Errorf("no data or more than one data (length %d) in mount secret %s in namespace %s", len(secret.Data), clientAccessInfo.SecretKey, podNamespace)
 		}
 		var secretValue string
 		for _, value := range secret.Data {
@@ -410,7 +410,7 @@ func (c *Controller) GetClientAccessInfo(args []string, clientAccessInfo *Client
 			break
 		}
 		clientAccessInfo.SecretKey = secretValue
-	} else if c.mountSecurityMode == agent.MountSecurityModeAny && secretKey == "" {
+	} else if c.mountSecurityMode == agent.MountSecurityModeAny && clientAccessInfo.SecretKey == "" {
 		clientAccessInfo.SecretKey = clusterInfo.AdminSecret
 	}
 
