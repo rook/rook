@@ -46,17 +46,13 @@ _As a Kubernetes user, I want to use kubectl to delete object bucket API resourc
 ### CephObjectBucket
 
 ```yaml
-apiVersion: object.k8s.io/v1alpha
+apiVersion: object.k8s.io/v1
 kind: CephObjectBucket
 metadata:
   name: my-bucket-1
   namespace: dev-user
-  annotations:     # added by provisioner
-    bucket_owner: “dev-user/my-user-1”
-  finalizers:      # added by provisioner
-  - rook-ceph.io/provisioner/bucket
   ownerReferences: # added by provisioner
-  - apiVersion: ceph.rook.io/v1beta1
+  - apiVersion: ceph.rook.io/v1
     blockOwnerDeletion: true
     kind: ObjectStoreUser
     name: my-user-1
@@ -86,7 +82,7 @@ metadata:
   ownerReferences:
   - name: my-bucket-1
     uid: 1234-qwer-4321-rewq
-    apiVersion: object.k8s.io/v1alpha
+    apiVersion: object.k8s.io/v1
     kind: CephObjectBucket 
   finalizers:
   - rook-ceph.io/provisioner/my-bucket-1
@@ -107,7 +103,8 @@ apiVersion: storage.k8s.io/v1
    provisioner: kubernetes.io/rook-ceph-operator
    parameters:
      # namespace/objectStoreService
-     objectStore: rook-ceph.io/objectStoreName
+     objectStoreNamespace: rook-ceph 
+     objectStoreName: objectStoreName
 ```
 
 ## Rejected Alternatives
