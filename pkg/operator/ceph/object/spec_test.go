@@ -26,7 +26,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
@@ -93,6 +93,7 @@ func TestSSLPodSpec(t *testing.T) {
 
 	c := &config{store: store, rookVersion: "v1.0", hostNetwork: true}
 	s := c.makeRGWPodSpec()
+
 	assert.NotNil(t, s)
 	assert.Equal(t, c.instanceName(), s.Name)
 	assert.Equal(t, 4, len(s.Spec.Volumes))
@@ -100,14 +101,19 @@ func TestSSLPodSpec(t *testing.T) {
 	assert.True(t, s.Spec.HostNetwork)
 	assert.Equal(t, v1.DNSClusterFirstWithHostNet, s.Spec.DNSPolicy)
 
-	cont := s.Spec.InitContainers[0]
-	assert.Equal(t, 4, len(cont.VolumeMounts))
-	assert.Equal(t, certVolumeName, cont.VolumeMounts[3].Name)
-	assert.Equal(t, certMountPath, cont.VolumeMounts[3].MountPath)
+	initCont := s.Spec.InitContainers[0]
 
-	assert.Equal(t, 7, len(cont.Args))
-	assert.Equal(t, fmt.Sprintf("--rgw-secure-port=%d", 443), cont.Args[5])
-	assert.Equal(t, fmt.Sprintf("--rgw-cert=%s/%s", certMountPath, certFilename), cont.Args[6])
+	assert.Equal(t, 3, len(initCont.VolumeMounts))
+	assert.Equal(t, 7, len(initCont.Args))
+	assert.Equal(t, fmt.Sprintf("--rgw-secure-port=%d", 443), initCont.Args[5])
+	assert.Equal(t, fmt.Sprintf("--rgw-cert=%s/%s", certMountPath, certFilename), initCont.Args[6])
+
+	rgwCont := s.Spec.Containers[0]
+
+	assert.Equal(t, 3, len(rgwCont.VolumeMounts))
+	assert.Equal(t, certVolumeName, rgwCont.VolumeMounts[2].Name)
+	assert.Equal(t, certMountPath, rgwCont.VolumeMounts[2].MountPath)
+	assert.Equal(t, 3, len(rgwCont.Args))
 }
 
 func TestValidateSpec(t *testing.T) {
