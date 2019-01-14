@@ -25,7 +25,7 @@ import (
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -164,11 +164,6 @@ func (c *config) makeConfigInitContainer() v1.Container {
 	}
 
 	if c.store.Spec.Gateway.SSLCertificateRef != "" {
-		// Add a volume mount for the ssl certificate
-		mount := v1.VolumeMount{Name: certVolumeName, MountPath: certMountPath, ReadOnly: true}
-		container.VolumeMounts = append(container.VolumeMounts, mount)
-
-		// Pass the flag for using the ssl cert
 		path := path.Join(certMountPath, certFilename)
 		container.Args = append(container.Args, fmt.Sprintf("--rgw-cert=%s", path))
 	}
@@ -193,6 +188,12 @@ func (c *config) makeDaemonContainer() v1.Container {
 		VolumeMounts: opspec.CephVolumeMounts(),
 		Env:          k8sutil.ClusterDaemonEnvVars(),
 		Resources:    c.store.Spec.Gateway.Resources,
+	}
+
+	if c.store.Spec.Gateway.SSLCertificateRef != "" {
+		// Add a volume mount for the ssl certificate
+		mount := v1.VolumeMount{Name: certVolumeName, MountPath: certMountPath, ReadOnly: true}
+		container.VolumeMounts = append(container.VolumeMounts, mount)
 	}
 
 	return container
