@@ -168,9 +168,9 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 		// for this scenario, we will copy the binaries necessary to a mount, which will then be mounted
 		// to the daemon container.
 		sourcePath := path.Join("/dev/disk/by-partuuid", osd.DevicePartUUID)
-		command = []string{path.Join(rookBinariesMountPath, "tini")}
+		command = []string{path.Join(k8sutil.BinariesMountPath, "tini")}
 		args = append([]string{
-			"--", path.Join(rookBinariesMountPath, "rook"),
+			"--", path.Join(k8sutil.BinariesMountPath, "rook"),
 			"ceph", "osd", "filestore-device",
 			"--source-path", sourcePath,
 			"--mount-path", osd.DataPath,

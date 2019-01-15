@@ -297,3 +297,47 @@ type GatewaySpec struct {
 	// The resource requirements for the rgw pods
 	Resources v1.ResourceRequirements `json:"resources"`
 }
+
+// +genclient
+// +genclient:noStatus
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type CephNFS struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+	Spec              NFSGaneshaSpec `json:"spec"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type CephNFSList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+	Items           []CephNFS `json:"items"`
+}
+
+// NFSGaneshaSpec represents the spec of an nfs ganesha server
+type NFSGaneshaSpec struct {
+	RADOS GaneshaRADOSSpec `json:"rados"`
+
+	Server GaneshaServerSpec `json:"server"`
+}
+
+type GaneshaRADOSSpec struct {
+	// Pool is the RADOS pool where NFS client recovery data is stored.
+	Pool string `json:"pool"`
+
+	// Namespace is the RADOS namespace where NFS client recovery data is stored.
+	Namespace string `json:"namespace"`
+}
+
+type GaneshaServerSpec struct {
+	// The number of active Ganesha servers
+	Active int `json:"active"`
+
+	// The affinity to place the ganesha pods
+	Placement rook.Placement `json:"placement"`
+
+	// Resources set resource requests and limits
+	Resources v1.ResourceRequirements `json:"resources,omitempty"`
+}

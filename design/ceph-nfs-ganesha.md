@@ -22,12 +22,16 @@ storage backend for rook (the general NFS solution) in the following ways:
 
 ## Design of Ceph NFS-Ganesha CRD
 
-The NFS-Ganesha server and its exports' settings will be exposed to rook as a
+The NFS-Ganesha server settings will be exposed to Rook as a
 Custom Resource Definition (CRD). Creating the nfs-ganesha CRD will launch
-a cluster of NFS-Ganesha server pods that will be configured with a rook CephFS
-filesystem or a RGW object store backend. The servers' exports will be stored
-in [k8s ConfigMaps]; the NFS client recovery data will be stored in a Ceph RADOS
-pool; and the servers will have stable IP addresses by using [k8s Service].
+a cluster of NFS-Ganesha server pods that will be configured with no exports.
+
+The NFS client recovery data will be stored in a Ceph RADOS pool; and
+the servers will have stable IP addresses by using [k8s Service].
+Export management will be done by updating a per-pod config file object
+in RADOS by external tools and issuing dbus commands to the server to
+reread the configuration.
+
 This allows the NFS-Ganesha server cluster to be scalable and highly available.
 
 ### Prerequisities
@@ -47,24 +51,21 @@ This allows the NFS-Ganesha server cluster to be scalable and highly available.
 
 The NFS-Ganesha CRD will specify the following:
 
-- Ceph filesystem or object store (RGW) that will be exported
-
 - Number of active Ganesha servers in the cluster
 
 - Placement of the Ganesha servers
 
 - Resource limits (memory, CPU) of the Ganesha server pods
 
-- NFS-Ganesha server export settings
-
-- RADOS pool and namespace where the NFS client recovery data will be stored
+- RADOS pool and namespace where backend objects will be stored (supplemental
+  config objects and recovery backend objects)
 
 
 Below is an example NFS-Ganesha CRD, `nfs-ganesha.yaml`
 
 ```yaml
-apiVersion: ceph.rook.io/v1alpha1
-kind: NFSGanesha
+apiVersion: ceph.rook.io/v1
+kind: CephNFS
 metadata:
   # The name of Ganesha server cluster to create. It will be reflected in
   # the name(s) of the ganesha server pod(s)
@@ -73,36 +74,17 @@ metadata:
   # created.
   namespace: rook-ceph
 spec:
-  store:
-    # The name of the filesystem or object store CRD that ganesha will export
-    name: myfs
-    # Either "file" for a filesystem or "object" for the object store
-    type: file
-
   # NFS client recovery storage settings
-  clientRecovery:
-    # RADOS pool where NFS client recovery data is stored.
-    # In this example the data pool for the "myfs" filesystem is used.
+  rados:
+    # RADOS pool where NFS client recovery data and per-daemon configs are
+    # stored. In this example the data pool for the "myfs" filesystem is used.
     # If using the object store example, the data pool would be
-    # "my-store.rgw.buckets.data".
+    # "my-store.rgw.buckets.data". Note that this has nothing to do with where
+    # exported CephFS' or objectstores live.
     pool: myfs-data0
-    # RADOS namespace where NFS client recovery data is stored.
+    # RADOS namespace where NFS client recovery data and per-daemon configs are
+    # stored.
     namespace: ganesha-ns
-
-  # Export settings
-  exports:
-    # The pseudoroot path. This is where the export will appear in the
-    # NFSv4 pseudoroot namespace.
-  - pseudoPath: /cephfs
-    # The directory in the exported file system this export is rooted on
-    path: /
-    accessType: ReadWrite
-    squash: No_root_squash
-    # List of allowed clients and their settings
-    #allowedClients:
-    #- clients: 192.168.0.0/16, minikube
-    #  accessType: ReadOnly
-    #  squash: none
 
   # Settings for the ganesha server
   server:
@@ -136,15 +118,16 @@ spec:
 
 When the  nfs-ganesha.yaml is created the following will happen:
 
-- Rook's Ceph operator sees the creation of the NFS-Ganesha CRD. It
-  generates exports specified in the CRD and stores them as ConfigMaps.
+- Rook's Ceph operator sees the creation of the NFS-Ganesha CRD.
 
 - The operator creates as many [k8s Deployments] as the number of active
   Ganesha servers mentioned in the CRD. Each deployment brings up a Ganesha
   server pod, a replicaset of size 1.
 
-- The ganesha servers, each running in a separate pod, use identical ganesha
-  config (ganesha.conf) that refer to exports stored as ConfigMaps.
+- The ganesha servers, each running in a separate pod, use a mostly-identical
+  ganesha config (ganesha.conf) with no EXPORT definitions. The end of the
+  file will have it do a %url include on a pod-specific RADOS object from which
+  it reads the rest of its config.
 
 - The operator creates a k8s service for each of the ganesha server pods
   to allow each of the them to have a stable IP address.
@@ -156,12 +139,14 @@ The NFS server cluster can be scaled up or down by updating the
 number of the active Ganesha servers in the CRD (using `kubectl edit` or
 modifying the original CRD and running `kubectly apply -f <CRD yaml file>`).
 
-### Dynamically adding, updating, and  removing exports of running Ganesha servers
+### Per-node config files
+After loading the basic ganesha config from inside the container, the node
+will read the rest of its config from an object in RADOS. This allows external
+tools to generate EXPORT definitions for ganesha.
 
-To dynamically update the exports of a Ganesha cluster you will have to update
-its CRD. On updating the CRD, the operator  will update the exports stored in
-the ConfigMaps, and will send DBus signals to the Ganesha servers to refresh
-their exports.
+The object will be named "conf-<metadata.name>.<index>", where metadata.name
+is taken from the CRD and the index is internally generated. It will be stored
+in `rados.pool` and `rados.namespace` from the above CRD.
 
 ### Consuming the NFS shares
 

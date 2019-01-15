@@ -15,6 +15,7 @@ has its own CRD defined.
 - [Object Store](ceph-object-store-crd.md): An object store exposes storage with an S3-compatible interface.
 - [Object Store User](ceph-object-store-user-crd.md): An object store user manages creation of S3 user credentials to access an object store.
 - [File System](ceph-filesystem-crd.md): A file system provides shared storage for multiple Kubernetes pods.
+- [NFS](ceph-nfs-crd.md): Expose the Ceph file system or object store via NFS.
 
 ## CockroachDB
 - [Cluster](cockroachdb-cluster-crd.md): CockroachDB is an open-source distributed SQL database that is highly scalable across multiple global regions and also highly durable.

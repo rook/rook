@@ -59,6 +59,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&CephBlockPoolList{},
 		&CephFilesystem{},
 		&CephFilesystemList{},
+		&CephNFS{},
+		&CephNFSList{},
 		&CephObjectStore{},
 		&CephObjectStoreList{},
 		&CephObjectStoreUser{},

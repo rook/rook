@@ -22,6 +22,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"k8s.io/api/core/v1"
+)
+
+const (
+	BinariesMountPath = "/rook"
 )
 
 // PathToVolumeName converts a path to a valid volume name
@@ -48,4 +54,15 @@ func NodeConfigURI() (string, error) {
 		return "", fmt.Errorf("cannot detect the node name. Please provide using the downward API in the rook operator manifest file")
 	}
 	return fmt.Sprintf("api/v1/nodes/%s/proxy/configz", nodeName), nil
+}
+
+func BinariesMountInfo() (v1.EnvVar, v1.Volume, v1.VolumeMount) {
+	// To get rook inside the container, the config init container needs to copy "tini" and "rook" binaries into a volume.
+	// Set the config flag so rook will copy the binaries.
+	// Create the volume and mount that will be shared between the init container and the daemon container
+	volumeName := "rookbinaries"
+	e := v1.EnvVar{Name: "ROOK_COPY_BINARIES_PATH", Value: BinariesMountPath}
+	v := v1.Volume{Name: volumeName, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}}
+	m := v1.VolumeMount{Name: volumeName, MountPath: BinariesMountPath}
+	return e, v, m
 }

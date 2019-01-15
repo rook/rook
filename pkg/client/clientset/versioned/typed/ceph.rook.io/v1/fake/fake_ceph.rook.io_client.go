@@ -40,6 +40,10 @@ func (c *FakeCephV1) CephFilesystems(namespace string) v1.CephFilesystemInterfac
 	return &FakeCephFilesystems{c, namespace}
 }
 
+func (c *FakeCephV1) CephNFSs(namespace string) v1.CephNFSInterface {
+	return &FakeCephNFSs{c, namespace}
+}
+
 func (c *FakeCephV1) CephObjectStores(namespace string) v1.CephObjectStoreInterface {
 	return &FakeCephObjectStores{c, namespace}
 }
