@@ -96,11 +96,15 @@ func ConfigDirEnvVar(dataDir string) v1.EnvVar {
 }
 
 func GetContainerImage(pod *v1.Pod, name string) (string, error) {
-	return GetSpecContainerImage(pod.Spec, name)
+	return GetSpecContainerImage(pod.Spec, name, false)
 }
 
-func GetSpecContainerImage(spec v1.PodSpec, name string) (string, error) {
-	image, err := GetMatchingContainer(spec.Containers, name)
+func GetSpecContainerImage(spec v1.PodSpec, name string, initContainer bool) (string, error) {
+	containers := spec.Containers
+	if initContainer {
+		containers = spec.InitContainers
+	}
+	image, err := GetMatchingContainer(containers, name)
 	if err != nil {
 		return "", err
 	}

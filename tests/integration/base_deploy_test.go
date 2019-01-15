@@ -112,8 +112,8 @@ func StartTestCluster(t func() *testing.T, namespace, storeType string, helmInst
 	if rookVersion != installer.VersionMaster {
 		// make sure we have the images from a previous release locally so the test doesn't hit a timeout
 		assert.NoError(t(), kh.GetDockerImage("rook/ceph:"+rookVersion))
-		assert.NoError(t(), kh.GetDockerImage("rook/ceph-toolbox:"+rookVersion))
 	}
+
 	assert.NoError(t(), kh.GetDockerImage(cephVersion.Image))
 
 	op.Setup()

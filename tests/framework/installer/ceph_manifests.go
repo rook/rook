@@ -61,8 +61,8 @@ func NewCephManifests(version string) CephManifests {
 	switch version {
 	case VersionMaster:
 		return &CephManifestsMaster{imageTag: VersionMaster}
-	case Version0_8:
-		return &CephManifestsV0_8{imageTag: Version0_8}
+	case Version0_9:
+		return &CephManifestsV0_9{imageTag: Version0_9}
 	}
 	panic(fmt.Errorf("unrecognized ceph manifest version: %s", version))
 }
