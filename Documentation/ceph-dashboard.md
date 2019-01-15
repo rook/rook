@@ -126,3 +126,8 @@ rook-ceph-mgr-dashboard-external-https  NodePort    10.101.209.6     <none>     
 In this example, port `31176` will be opened to expose port `8443` from the ceph-mgr pod. Find the ip address
 of the VM. If using minikube, you can run `minikube ip` to find the ip address.
 Now you can enter the URL in your browser such as `https://192.168.99.110:31176` and the dashboard will appear.
+
+To be able to login to the Ceph Dashboard, you will want to set the login credentials:
+```bash
+$ kubectl -n rook-ceph exec rook-ceph-tools -- ceph dashboard set-login-credentials <login> <password>
+```
