@@ -31,11 +31,11 @@ func GetDeploymentImage(clientset kubernetes.Interface, namespace, name, contain
 	if err != nil {
 		return "", fmt.Errorf("failed to find deployment %s. %v", name, err)
 	}
-	return GetDeploymentSpecImage(clientset, *d, container)
+	return GetDeploymentSpecImage(clientset, *d, container, false)
 }
 
-func GetDeploymentSpecImage(clientset kubernetes.Interface, d extensions.Deployment, container string) (string, error) {
-	image, err := GetSpecContainerImage(d.Spec.Template.Spec, container)
+func GetDeploymentSpecImage(clientset kubernetes.Interface, d extensions.Deployment, container string, initContainer bool) (string, error) {
+	image, err := GetSpecContainerImage(d.Spec.Template.Spec, container, initContainer)
 	if err != nil {
 		return "", err
 	}
@@ -43,7 +43,7 @@ func GetDeploymentSpecImage(clientset kubernetes.Interface, d extensions.Deploym
 	return image, nil
 }
 
-func WaitForDeploymentImage(clientset kubernetes.Interface, namespace, label, container, desiredImage string) error {
+func WaitForDeploymentImage(clientset kubernetes.Interface, namespace, label, container string, initContainer bool, desiredImage string) error {
 
 	sleepTime := 3
 	attempts := 30
@@ -55,7 +55,7 @@ func WaitForDeploymentImage(clientset kubernetes.Interface, namespace, label, co
 
 		matches := 0
 		for _, d := range deployments.Items {
-			image, err := GetDeploymentSpecImage(clientset, d, container)
+			image, err := GetDeploymentSpecImage(clientset, d, container, initContainer)
 			if err != nil {
 				logger.Infof("failed to get image for deployment %s. %+v", d.Name, err)
 				continue
@@ -66,14 +66,14 @@ func WaitForDeploymentImage(clientset kubernetes.Interface, namespace, label, co
 		}
 
 		if matches == len(deployments.Items) && matches > 0 {
-			logger.Infof("all %d %s deployments are on image %s", matches, container, desiredImage)
+			logger.Infof("all %d %s deployments are on image %s", matches, label, desiredImage)
 			break
 		}
 
 		if len(deployments.Items) == 0 {
 			logger.Infof("waiting for at least one deployment to start to see the version")
 		} else {
-			logger.Infof("%d/%d %s deployments match image %s", matches, len(deployments.Items), container, desiredImage)
+			logger.Infof("%d/%d %s deployments match image %s", matches, len(deployments.Items), label, desiredImage)
 		}
 		time.Sleep(time.Duration(sleepTime) * time.Second)
 	}
