@@ -32,6 +32,10 @@ spec:
                   type: boolean
                 urlPrefix:
                   type: string
+                port:
+                  type: integer
+                  minimum: 0
+                  maximum: 65535
             dataDirHostPath:
               pattern: ^/(\S+)
               type: string

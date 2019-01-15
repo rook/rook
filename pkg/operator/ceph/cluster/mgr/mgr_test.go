@@ -61,6 +61,7 @@ func TestStartMGR(t *testing.T) {
 	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 
 	c.dashboard.UrlPrefix = "/test"
+	c.dashboard.Port = 12345
 	err = c.Start()
 	assert.Nil(t, err)
 	validateStart(t, c)
@@ -92,9 +93,16 @@ func validateStart(t *testing.T, c *Cluster) {
 	_, err := c.context.Clientset.CoreV1().Services(c.Namespace).Get("rook-ceph-mgr", metav1.GetOptions{})
 	assert.Nil(t, err)
 
-	_, err = c.context.Clientset.CoreV1().Services(c.Namespace).Get("rook-ceph-mgr-dashboard", metav1.GetOptions{})
+	ds, err := c.context.Clientset.CoreV1().Services(c.Namespace).Get("rook-ceph-mgr-dashboard", metav1.GetOptions{})
 	if c.dashboard.Enabled {
 		assert.Nil(t, err)
+		if c.dashboard.Port == 0 {
+			// port=0 -> default port
+			assert.Equal(t, ds.Spec.Ports[0].Port, int32(dashboardPortHttps))
+		} else {
+			// non-zero ports are configured as-is
+			assert.Equal(t, ds.Spec.Ports[0].Port, int32(c.dashboard.Port))
+		}
 	} else {
 		assert.True(t, errors.IsNotFound(err))
 	}
