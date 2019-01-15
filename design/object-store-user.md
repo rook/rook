@@ -10,10 +10,10 @@ Some issues with this approach are:
 <sup>[1]  It is desirable that the app developer be able to produce the pod yaml before creation of the object store user and its generated secret, and, thus, the secret’s name must be predictable since it is consumed by the pod. Today, the secret name consists of “rook-ceph-object-user-” + _objectStore’s metadata.Name_ + _CephObjectStoreUser’s metadata.Name_, and is assumed to live in the object store’s namespace. This enhancement proposes to remove the object store name from the secret’s name. Since object store user names must be unique within a namespace, a secret name derived from the CephObjectStoreUser’s `metadata.Name` is also unique, thus the object store name is not required. This supports an advantage of using a storage class (see below), namely, that the developer does not need to know the name (or namespace) of the object store.</sup>
 
 ## Proposed Enhancement
-1. Replace the `store` parameter with `storageClass` which references an object store service. Note: this change is **not** backwards compatible, and this proposal does not include a deprecation period due to the assumption that there are few users of the CephObjectStoreUser CRD.
+1. Allow a storage class, which references an object store service, to be defined in the object user API, but continue to support the existing `store` property.
 1. Remove the restriction that a CephObjectStoreUser be located in the same namespace as the ObjectStore.
 1. Change the ownerReference of the generated key-pair Secret to reference the CephObjectStoreUser rather than the ceph-cluster.
-1. Change the name of the generated secret per [1] above. Note: this change is also **not** backwards compatible.
+1. Change the name of the generated secret per [1] above. Note: this change is **not** backwards compatible.
 
 #### Storage Class
 A [storage class](https://kubernetes.io/docs/concepts/storage/storage-classes/) is a global Kubernetes resource with the ability to pass parameters to a provisioner. Storage classes further abstract the underlying storage based on admin policies. Storage class visibility can be controlled by RBAC rules. A simple storage class for a rook-ceph object store might look like this:
@@ -28,6 +28,8 @@ parameters:
 ```
 There should be a 1:1 mapping of storage class and rook object store. For example, if there are 5 object stores, each in their own namespace, then 5 global storage classes are needed. Likewise, if there are 5 object stores in a single namespace, then, again, 5 storage classes are required. Note that the creation of an object store does not require an associated storage class. Using storage class more closely adheres to the Kubernetes storage model and offers greater flexibility to the developer and storage admin.
 
+Adding storage class to the rook-ceph object user API more closely adheres to the Kubernetes storage model and offers greater flexibility to the developer and the storage admin. However, the existing `store` stanza will be supported for backwards compatibility. The API will verify that `store` and `storageClass` are mutually exclusive and return an error if both (or neither) are specified.
+
 #### Namespace
 When a storage class is specified the object store’s namespace is found in the storage class parameter. A typical object store user definition might look like this:
 ```yaml
@@ -40,10 +42,13 @@ spec:
   storageClass: rook-ceph-object-store  # name of storage class
   displayName: aUserDisplayName
 ```
-Through the `storageClass` value we know the namespace and name of the object store.
+Since a storage class is specified we don’t need to know the namespace nor name of the object store. If the storage class is omitted then the `store` stanza must be provided and non-empty, and the user and secret will reside in the same namespace as the object store (as is true today). When `storageClass` is defined the `store` property may be completely omitted, or specified but its value must be empty.
 
 #### Secret OwnerReference
-Today, the generated key-pair secret’s owner reference is the id of the ceph cluster, which is also the same owner set for the CephObjectStoreUser. Thus, using the Kubernete’s [cascading deletes feature](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#foreground-cascading-deletion), the secret is not actually deleted until the ceph cluster is deleted. This enhancement proposes to set the Secret’s OwnerReference to the id of the CephObjectStoreUser that created the secret. So, when the CephObjectStoreUser is deleted, its secret is automatically deleted. A finalizer will also be added so that the the generated secret cannot be deleted until its ownerCephObjectStoreUser is first deleted.
+Today, the generated key-pair secret’s owner reference is the id of the ceph cluster, which is also the same owner set for the CephObjectStoreUser. Thus, using the Kubernete’s [cascading deletes feature](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#foreground-cascading-deletion), the secret is not actually deleted until the ceph cluster is deleted. This enhancement proposes to set the Secret’s OwnerReference to the id of the CephObjectStoreUser that created the secret. So, when the CephObjectStoreUser is deleted, its secret is automatically deleted.
+
+#### Secret Finalizer
+A finalizer will be added so that the the generated secret cannot be prematurely deleted until its owner CephObjectStoreUser is deleted. The purpose of this is to prevent the stand-alone deletion of the generated secret and thus to ensure that the user and secret resources are coupled. It is possible to allow deletion of the secret without deleting the user depending on how rook-ceph behaves when a bucket's credentials are missing.
 
 #### Secret Name
 See note [1] above. Essentially, if the object store name is embedded in the secret’s name then the app developer needs to know the name (and namespace) of the object store. This defeats the main benefit of adding a storage class property to the API.
@@ -62,6 +67,9 @@ The kubectl API call to delete the object user triggers an automated cleanup seq
   1. Since the Secret’s ownerReference points to the CephObjectStoreUser, it is automatically deleted, and then Kubernetes removes the automated foreground finalizer on the CephObjectStoreUser.
   1.  The CephObjectStoreUser is is garbage collected once the foreground finalizer is removed.
 
+**Note:**
+The actual S3 user and key-pair credentials are **not** deleted. Only the associated Kubernetes resources are deleted. Thus, creating _user-1_, deleting _user-1_ and re-creating _user-1_ will fail due to _user-1_ already existing. It would be possible, in a later release, to add a retention property to the `CephObjectStoreUser` CRD to control whether or not the underlying S3 resources are physically deleted.
+
 ### Resource Specs
 _rookObjectUser.yaml_ (user defined):
 ```yaml
@@ -74,6 +82,25 @@ spec:
   displayName: my-goodness-user-1
   storageClass: rook-ceph-object-store
 ```
+_rookObjectUser.yaml_ (after creation):
+```yaml
+apiVersion: ceph.rook.io/v1beta1
+kind: CephObjectStoreUser
+metadata:
+  name: my-user-1
+  namespace: dev-user
+  objectReference: # bookkeeping
+    kind: Secret
+    apiVersion: v1
+    name: rook-ceph-object-user-my-user-1
+    namespace: dev-user  # can't yet get a secret via uid so name+ns are used here
+spec:
+  displayName: my-goodness-user-1
+  storageClass: rook-ceph-object-store
+status:
+  ...
+```
+
 _secret.yaml_ (operator generated):
 ```yaml
 apiVersion: v1
