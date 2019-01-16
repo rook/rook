@@ -27,7 +27,7 @@ _As a Kubernetes user, I want leverage the Kubernetes API to create S3 buckets. 
 ![work flow](./ObjectBucketClaim.png)
 
 1. The Rook Operator detects a new `ObjectBucketClaim` instance.  
-    1. The operator uses `objectBucketClaim.spec.accessKeySecretName` to get the S3 access keys secret.  
+    1. The operator uses `objectBucketClaim.spec.secretName` to get the S3 access keys secret.  
     1. The operator uses `objectBucketClaim.spec.storageClassName` to get the `Service` endpoint of the object store.
 1. The operator uses the object store endpoint and access keys for an S3 "make bucket" call.
 1. The operator creates a ConfigMap in the namespace of the `ObjectBucketClaim` with relevant connection data of the bucket.
@@ -74,18 +74,28 @@ metadata:
   namespace: dev-user
   labels:
     rook.io/bucket-provisioner:
-    rook.io/object-bucket-claim: my-bucket-1 <sup>1</sup>
+    rook.io/object-bucket-claim: my-bucket-1 [1]
 spec:
   storageClassName: some-object-store
-  accessKeySecretName: my-s3-access-keys
-  generateBucketName: prefix<sup>2</sup>
-status:
-  phase: ["creating", "available", "error", "unknown"]
-  events:
+  secretName: my-s3-key-pair
+  generateBucketName: prefix [2]
 ```
 
 1. Added by the rook operator.
 1. As with `metadata.generateName`, the operator will append a hyphen followed by random characters to the string given here.
+
+#### Access Keys Secret  
+  
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-s3-key-pair
+  namespace: dev-user
+data:
+  accessKeyId: <base64 encoded string>
+  secretAccessKey: <base64 encoded string>
+```
 
 #### ObjectBucketClaim ConfigMap
 
@@ -98,7 +108,7 @@ metadata:
   labels:
     rook.io/object-bucket-claim-controller:
     rook.io/object-bucket-claim: my-bucket-1
-  ownerReferences: <sup>1</sup>
+  ownerReferences:  [1]
   - name: my-bucket-1
     uid: 1234-qwer-4321-rewq
     apiVersion: rook.io/v1alpha2
@@ -122,7 +132,6 @@ metadata:
   name: some-object-store
 provisioner: rook.io/object-bucket-claim-controller
 parameters:
-  objectStoreService: "my-store"
-  objectStoreNamespace: "some-namespace"
+  objectStoreService: my-store
+  objectStoreNamespace: some-namespace
 ```
-  
