@@ -53,7 +53,7 @@ func startDiscover(cmd *cobra.Command, args []string) error {
 
 	clientset, apiExtClientset, rookClientset, err := rook.GetClientset()
 	if err != nil {
-		rook.TerminateFatal(fmt.Errorf("failed to init k8s client. %+v\n", err))
+		rook.TerminateFatal(fmt.Errorf("failed to init k8s client. %+v", err))
 	}
 
 	context := &clusterd.Context{
