@@ -119,10 +119,10 @@ build.docs:
 	git clone --depth=1 -b master $(DOCS_GIT_REPO) $(DOCS_WORK_DIR)
 	rm -rf $(DOCS_VERSION_DIR)
 	cp -r $(DOCS_DIR)/ $(DOCS_VERSION_DIR)
-	cd $(DOCS_WORK_DIR) && npm install && node build/scripts/preprocess.js
+	cd $(DOCS_WORK_DIR) && DOCS_VERSION=$(DOCS_VERSION) $(MAKE) _data/projects.json
 
 publish.docs:
-	$(DOCS_WORK_DIR)/build/publish.sh
+	cd $(DOCS_WORK_DIR) && DOCS_VERSION=$(DOCS_VERSION) $(MAKE) publish
 
 # ====================================================================================
 # helm
