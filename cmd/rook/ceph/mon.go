@@ -115,7 +115,7 @@ func compareMonSecret(secret, configDir string) error {
 		return nil
 	}
 	if cachedKeyring.Value() != secret {
-		return fmt.Errorf("The keyring does not match the existing keyring in %s. You may need to delete the contents of dataDirHostPath on the host from a previous deployment.", cachedKeyringFile)
+		return fmt.Errorf("keyring does not match the existing keyring in %s. You may need to delete the contents of dataDirHostPath on the host from a previous deployment", cachedKeyringFile)
 	}
 	logger.Infof("cached mon secret matches the expected keyring")
 	return nil
