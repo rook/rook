@@ -40,6 +40,7 @@ ignored = [
 
 [prune]
   go-tests = true
+  non-go = true
   unused-packages = true
 
   # we need "unused packages" for code generator related repos because
