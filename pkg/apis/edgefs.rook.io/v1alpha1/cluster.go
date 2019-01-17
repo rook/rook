@@ -26,7 +26,7 @@ type ClusterDeploymentConfig struct {
 	TransportKey   string        //rtlfs or rtrd
 	Directories    []RtlfsDevice //cluster wide directories
 	DevConfig      map[string]DevicesConfig
-	NeedPriviliges bool
+	NeedPrivileges bool
 }
 
 type DevicesConfig struct {

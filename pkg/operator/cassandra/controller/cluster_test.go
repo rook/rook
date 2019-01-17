@@ -209,13 +209,13 @@ func TestScaleDownRack(t *testing.T) {
 		err := cc.scaleDownRack(r, c)
 		require.NoErrorf(t, err, "Unexpected error while scaling down: %v", err)
 
-		// Check that MemberService has the decomissioned label
+		// Check that MemberService has the decommissioned label
 		svc, err := cc.serviceLister.Services(c.Namespace).Get(memberName)
 		require.NoErrorf(t, err, "Unexpected error while getting MemberService: %v", err)
 
 		val, ok := svc.Labels[constants.DecommissionLabel]
 		require.True(t, ok, "Service didn't have the decommissioned label as expected")
-		require.Truef(t, val == constants.LabelValueFalse, "Decomissioned Label had unexpected value: %s", val)
+		require.Truef(t, val == constants.LabelValueFalse, "Decommissioned Label had unexpected value: %s", val)
 
 	})
 

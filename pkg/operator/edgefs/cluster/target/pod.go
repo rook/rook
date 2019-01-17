@@ -50,7 +50,7 @@ func (c *Cluster) createAppLabels() map[string]string {
 
 func (c *Cluster) makeCorosyncContainer(containerImage string) v1.Container {
 
-	privileged := c.deploymentConfig.NeedPriviliges
+	privileged := c.deploymentConfig.NeedPrivileges
 	runAsUser := int64(0)
 	readOnlyRootFilesystem := false
 	securityContext := &v1.SecurityContext{
@@ -105,7 +105,7 @@ func (c *Cluster) makeCorosyncContainer(containerImage string) v1.Container {
 
 func (c *Cluster) makeAuditdContainer(containerImage string) v1.Container {
 
-	privileged := c.deploymentConfig.NeedPriviliges
+	privileged := c.deploymentConfig.NeedPrivileges
 	runAsUser := int64(0)
 	readOnlyRootFilesystem := false
 	securityContext := &v1.SecurityContext{
@@ -153,7 +153,7 @@ func (c *Cluster) makeAuditdContainer(containerImage string) v1.Container {
 
 func (c *Cluster) makeDaemonContainer(containerImage string, dro edgefsv1alpha1.DevicesResurrectOptions, isInitContainer bool) v1.Container {
 
-	privileged := c.deploymentConfig.NeedPriviliges
+	privileged := c.deploymentConfig.NeedPrivileges
 	runAsUser := int64(0)
 	readOnlyRootFilesystem := false
 	securityContext := &v1.SecurityContext{
