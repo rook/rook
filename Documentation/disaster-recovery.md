@@ -75,12 +75,12 @@ kubectl -n rook-ceph edit configmap rook-ceph-mon-endpoints
 
 In the `data` element you will see three mons such as the following (or more depending on your `moncount`):
 ```
-data: rook-ceph-mon-a=10.100.35.200:6790;rook-ceph-mon-b=10.100.35.233:6790;rook-ceph-mon-c=10.100.35.12:6790
+data: rook-ceph-mon-a=10.100.35.200:6789;rook-ceph-mon-b=10.100.35.233:6789;rook-ceph-mon-c=10.100.35.12:6789
 ```
 
 Delete the bad mons from the list, for example to end up with a single good mon:
 ```
-data: rook-ceph-mon-b=10.100.35.233:6790
+data: rook-ceph-mon-b=10.100.35.233:6789
 ```
 
 Save the file and exit.

@@ -108,7 +108,7 @@ func TestAttach(t *testing.T) {
 	defer os.RemoveAll(configDir)
 	cm := &v1.ConfigMap{
 		Data: map[string]string{
-			"data": "rook-ceph-mon0=10.0.0.1:6790,rook-ceph-mon1=10.0.0.2:6790,rook-ceph-mon2=10.0.0.3:6790",
+			"data": "rook-ceph-mon0=10.0.0.1:6789,rook-ceph-mon1=10.0.0.2:6789,rook-ceph-mon2=10.0.0.3:6789",
 		},
 	}
 	cm.Name = "rook-ceph-mon-endpoints"
@@ -134,9 +134,9 @@ func TestAttach(t *testing.T) {
 			}
 			assert.Equal(t, "--cluster=testCluster", args[3])
 			assert.True(t, strings.HasPrefix(args[4], "--keyring="))
-			assert.Contains(t, args[6], "10.0.0.1:6790", fmt.Sprintf("But '%s' does contain '%s'", args[6], "10.0.0.1:6790"))
-			assert.Contains(t, args[6], "10.0.0.2:6790", fmt.Sprintf("But '%s' does contain '%s'", args[6], "10.0.0.2:6790"))
-			assert.Contains(t, args[6], "10.0.0.3:6790", fmt.Sprintf("But '%s' does contain '%s'", args[6], "10.0.0.3:6790"))
+			assert.Contains(t, args[6], "10.0.0.1:6789", fmt.Sprintf("But '%s' does contain '%s'", args[6], "10.0.0.1:6789"))
+			assert.Contains(t, args[6], "10.0.0.2:6789", fmt.Sprintf("But '%s' does contain '%s'", args[6], "10.0.0.2:6789"))
+			assert.Contains(t, args[6], "10.0.0.3:6789", fmt.Sprintf("But '%s' does contain '%s'", args[6], "10.0.0.3:6789"))
 			runCount++
 			return "", nil
 		},
@@ -193,7 +193,7 @@ func TestDetach(t *testing.T) {
 	defer os.RemoveAll(configDir)
 	cm := &v1.ConfigMap{
 		Data: map[string]string{
-			"data": "rook-ceph-mon0=10.0.0.1:6790,rook-ceph-mon1=10.0.0.2:6790,rook-ceph-mon2=10.0.0.3:6790",
+			"data": "rook-ceph-mon0=10.0.0.1:6789,rook-ceph-mon1=10.0.0.2:6789,rook-ceph-mon2=10.0.0.3:6789",
 		},
 	}
 	cm.Name = "rook-ceph-mon-endpoints"
@@ -213,9 +213,9 @@ func TestDetach(t *testing.T) {
 			assert.Equal(t, "--id=admin", args[2])
 			assert.Equal(t, "--cluster=testCluster", args[3])
 			assert.True(t, strings.HasPrefix(args[4], "--keyring="))
-			assert.Contains(t, args[6], "10.0.0.1:6790", fmt.Sprintf("But '%s' does contain '%s'", args[6], "10.0.0.1:6790"))
-			assert.Contains(t, args[6], "10.0.0.2:6790", fmt.Sprintf("But '%s' does contain '%s'", args[6], "10.0.0.2:6790"))
-			assert.Contains(t, args[6], "10.0.0.3:6790", fmt.Sprintf("But '%s' does contain '%s'", args[6], "10.0.0.3:6790"))
+			assert.Contains(t, args[6], "10.0.0.1:6789", fmt.Sprintf("But '%s' does contain '%s'", args[6], "10.0.0.1:6789"))
+			assert.Contains(t, args[6], "10.0.0.2:6789", fmt.Sprintf("But '%s' does contain '%s'", args[6], "10.0.0.2:6789"))
+			assert.Contains(t, args[6], "10.0.0.3:6789", fmt.Sprintf("But '%s' does contain '%s'", args[6], "10.0.0.3:6789"))
 			return "", nil
 		},
 	}
@@ -244,7 +244,7 @@ func TestDetachCustomKeyring(t *testing.T) {
 	defer os.RemoveAll(configDir)
 	cm := &v1.ConfigMap{
 		Data: map[string]string{
-			"data": "rook-ceph-mon0=10.0.0.1:6790,rook-ceph-mon1=10.0.0.2:6790,rook-ceph-mon2=10.0.0.3:6790",
+			"data": "rook-ceph-mon0=10.0.0.1:6789,rook-ceph-mon1=10.0.0.2:6789,rook-ceph-mon2=10.0.0.3:6789",
 		},
 	}
 	cm.Name = "rook-ceph-mon-endpoints"
@@ -264,9 +264,9 @@ func TestDetachCustomKeyring(t *testing.T) {
 			assert.Equal(t, "--id=user1", args[2])
 			assert.Equal(t, "--cluster=testCluster", args[3])
 			assert.True(t, strings.HasPrefix(args[4], "--keyring="))
-			assert.Contains(t, args[6], "10.0.0.1:6790", fmt.Sprintf("But '%s' does contain '%s'", args[6], "10.0.0.1:6790"))
-			assert.Contains(t, args[6], "10.0.0.2:6790", fmt.Sprintf("But '%s' does contain '%s'", args[6], "10.0.0.2:6790"))
-			assert.Contains(t, args[6], "10.0.0.3:6790", fmt.Sprintf("But '%s' does contain '%s'", args[6], "10.0.0.3:6790"))
+			assert.Contains(t, args[6], "10.0.0.1:6789", fmt.Sprintf("But '%s' does contain '%s'", args[6], "10.0.0.1:6789"))
+			assert.Contains(t, args[6], "10.0.0.2:6789", fmt.Sprintf("But '%s' does contain '%s'", args[6], "10.0.0.2:6789"))
+			assert.Contains(t, args[6], "10.0.0.3:6789", fmt.Sprintf("But '%s' does contain '%s'", args[6], "10.0.0.3:6789"))
 			return "", nil
 		},
 	}

@@ -177,12 +177,12 @@ func TestSaveMonEndpoints(t *testing.T) {
 
 	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(EndpointConfigMapName, metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, "a=1.2.3.1:6790", cm.Data[EndpointDataKey])
+	assert.Equal(t, "a=1.2.3.1:6789", cm.Data[EndpointDataKey])
 	assert.Equal(t, `{"node":{},"port":{}}`, cm.Data[MappingKey])
 	assert.Equal(t, "-1", cm.Data[MaxMonIDKey])
 
 	// update the config map
-	c.clusterInfo.Monitors["a"].Endpoint = "2.3.4.5:6790"
+	c.clusterInfo.Monitors["a"].Endpoint = "2.3.4.5:6789"
 	c.maxMonID = 2
 	c.mapping.Node["a"] = &NodeInfo{
 		Name:     "node0",
@@ -195,7 +195,7 @@ func TestSaveMonEndpoints(t *testing.T) {
 
 	cm, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(EndpointConfigMapName, metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, "a=2.3.4.5:6790", cm.Data[EndpointDataKey])
+	assert.Equal(t, "a=2.3.4.5:6789", cm.Data[EndpointDataKey])
 	assert.Equal(t, `{"node":{"a":{"Name":"node0","Hostname":"myhost","Address":"1.1.1.1"}},"port":{"node0":12345}}`, cm.Data[MappingKey])
 	assert.Equal(t, "2", cm.Data[MaxMonIDKey])
 }

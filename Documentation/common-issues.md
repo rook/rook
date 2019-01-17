@@ -210,7 +210,7 @@ In this case, the agent waited for the `rbd` command but it did not finish in a 
 This can happen for multiple reasons, but using `dmesg` will likely give you insight into the root cause.
 If `dmesg` shows something similar to below, then it means you have an old kernel that can't talk to the cluster:
 ```console
-libceph: mon2 10.205.92.13:6790 feature set mismatch, my 4a042a42 < server's 2004a042a42, missing 20000000000
+libceph: mon2 10.205.92.13:6789 feature set mismatch, my 4a042a42 < server's 2004a042a42, missing 20000000000
 ```
 If `uname -a` shows that you have a kernel version older than `3.15`, you'll need to perform **one** of the following:
 * Disable some Ceph features by starting the [rook toolbox](./ceph-toolbox.md) and running `ceph osd crush tunables bobtail`
