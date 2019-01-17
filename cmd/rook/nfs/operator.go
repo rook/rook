@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package nfs
 
 import (
@@ -62,18 +63,18 @@ func startOperator(cmd *cobra.Command, args []string) error {
 	// Using the current image version to deploy other rook pods
 	pod, err := k8sutil.GetRunningPod(clientset)
 	if err != nil {
-		rook.TerminateFatal(fmt.Errorf("failed to get pod. %+v\n", err))
+		rook.TerminateFatal(fmt.Errorf("failed to get pod. %+v", err))
 	}
 
 	rookImage, err := k8sutil.GetContainerImage(pod, containerName)
 	if err != nil {
-		rook.TerminateFatal(fmt.Errorf("failed to get container image. %+v\n", err))
+		rook.TerminateFatal(fmt.Errorf("failed to get container image. %+v", err))
 	}
 
 	op := operator.New(context, rookImage)
 	err = op.Run()
 	if err != nil {
-		rook.TerminateFatal(fmt.Errorf("failed to run operator. %+v\n", err))
+		rook.TerminateFatal(fmt.Errorf("failed to run operator. %+v", err))
 	}
 
 	return nil
