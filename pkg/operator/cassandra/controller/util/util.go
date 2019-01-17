@@ -179,7 +179,7 @@ func ScaleStatefulSet(sts *appsv1.StatefulSet, amount int32, kubeClient kubernet
 	return err
 }
 
-// IsRackConditionTrue checks a rack's status for the presense of a condition type
+// IsRackConditionTrue checks a rack's status for the presence of a condition type
 // and checks if it is true.
 func IsRackConditionTrue(rackStatus *cassandrav1alpha1.RackStatus, condType cassandrav1alpha1.RackConditionType) bool {
 	for _, cond := range rackStatus.Conditions {

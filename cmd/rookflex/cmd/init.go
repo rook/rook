@@ -49,7 +49,7 @@ func initPlugin(cmd *cobra.Command, args []string) error {
 		Status: flexvolume.StatusSuccess,
 		Capabilities: &flexvolume.DriverCapabilities{
 			Attach: false,
-			// Required for any mount peformed on a host running selinux
+			// Required for any mount performed on a host running selinux
 			SELinuxRelabel: rookEnableSelinuxRelabeling,
 		},
 	}

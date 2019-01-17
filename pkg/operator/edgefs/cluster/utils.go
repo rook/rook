@@ -181,7 +181,7 @@ func (c *cluster) createDeploymentConfig(nodes []rookalpha.Node, resurrect bool)
 
 		deploymentConfig.DeploymentType = edgefsv1alpha1.DeploymentRtrd
 		deploymentConfig.TransportKey = "rtrd"
-		deploymentConfig.NeedPriviliges = true
+		deploymentConfig.NeedPrivileges = true
 	} else if len(c.Spec.DataDirHostPath) == 0 || c.Spec.DataVolumeSize.Value() == 0 {
 		deploymentConfig.DeploymentType = edgefsv1alpha1.DeploymentAutoRtlfs
 		deploymentConfig.TransportKey = "rtlfs"
@@ -189,9 +189,9 @@ func (c *cluster) createDeploymentConfig(nodes []rookalpha.Node, resurrect bool)
 		return deploymentConfig, fmt.Errorf("Unknown deployment type! Cluster spec:\n %+v", c)
 	}
 
-	// Set priviliges==true in case of HostNetwork
+	// Set privileges==true in case of HostNetwork
 	if len(c.Spec.Network.ServerIfName) > 0 || len(c.Spec.Network.BrokerIfName) > 0 {
-		deploymentConfig.NeedPriviliges = true
+		deploymentConfig.NeedPrivileges = true
 	}
 
 	return deploymentConfig, nil
