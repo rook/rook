@@ -2,13 +2,13 @@
 
 ## Proposed Feature
 
-**A generalized method of S3 bucket provisioning through the implementation of an `ObjectBucketClaim` CRD and controller.** 
+**A generalized method of S3 bucket provisioning through the implementation of an ObjectBucketClaim CRD and controller.** 
 
 Users will request buckets via the Kubernetes API and have returned ConfigMaps with connection information for that bucket.  
 
-One ConfigMap will be created per `ObjectBucketClaim` instance.  ConfigMap names will be deterministic and derived from the `ObjectBucketClaim` name.  This gives users the opportunity to define their Pod spec at the same time as the `ObjectBucketClaim`.  Additionally, the `ObjectBucketClaim` and Pod can be deployed at the same time thanks to in-built synchronization in Kubernetes.
+One ConfigMap will be created per ObjectBucketClaim instance.  ConfigMap names will be deterministic and derived from the ObjectBucketClaim name.  This gives users the opportunity to define their Pod spec at the same time as the ObjectBucketClaim.
 
-Pods mounting the configMap as either `envFrom:` or `env[0].valueFrom.ConfigMapKeyRef` will have a status of `CreateContainerConfigError` until the configMap is created. Pods mounting as a volume will have a status of `ContainerCreating` until the configMap is created. In both cases, the Pod will start once the configMap exists.
+Additionally, the ObjectBucketClaim and Pod can be deployed at the same time thanks to in-built synchronization in Kubernetes. Pods mounting the configMap as either `envFrom:` or `env[0].valueFrom.ConfigMapKeyRef` will have a status of `CreateContainerConfigError` until the configMap is created. Pods mounting as a volume will have a status of `ContainerCreating` until the configMap is created. In both cases, the Pod will start once the configMap exists.
 
 Bucket deletion in the early stages of this controller design will not be addressed beyond cleaning up API objects.  Deletion of the bucket within the object store is left as an administrator responsibility.  This is to prevent the accidental destruction of data by users.
 
@@ -18,6 +18,25 @@ Bucket deletion in the early stages of this controller design will not be addres
 
 #### Assumptions
 
+- An object store has been provisioned with a reachable endpoint.  ([e.g. the Rook-Ceph Object provisioner](https://rook.github.io/docs/rook/master/ceph-object.html)) This may also be an external endpoint such as AWS S3.
+- A Service and/or Endpoint API object exists to route connections to the object store.  Typically, object store operators generate these. In cases where the is external to the cluster, they must be configured manually.
+
+#### Use Cases
+
+**Use Case: Expose an Object Store Endpoint**
+
+_As a cluster admin, I want to expose an object store to cluster users so that they may begin bucket provisioning via the Kubernetes API._
+
+![admin-actions](./obc-admin.png)
+
+These steps may be performed in any order.
+
+The admin ...
+
+- creates the ObjectBucketClaim Operator (a Deployment API object)
+- creates a StorageClass with `parameters[serviceName]=objectstore-service` and `parameters[serviceNamespace]=some-namespace`
+
+Once the operator is running, it will be begin watching ObjectBucketClaims.
 - An object store has been provisioned with a reachable endpoint.  ([e.g. Rook-Ceph Object](https://rook.github.io/docs/rook/master/ceph-object.html))
 
 #### MVP Use Cases
@@ -42,21 +61,21 @@ _As a Kubernetes user, I want to leverage the Kubernetes API to create S3 bucket
  
 ![user-actions](./obc-user.png)
 
-1. The Rook Operator detects a new `ObjectBucketClaim` instance.  
+1. The Rook Operator detects a new ObjectBucketClaim instance.  
     1. The operator uses `objectBucketClaim.spec.secretName` to get the S3 access keys secret.  
     1. The operator uses `objectBucketClaim.spec.storageClassName` to get the `Service` endpoint of the object store.
 1. The operator uses the object store endpoint and access keys for an S3 "make bucket" call.
-1. The operator creates a ConfigMap in the namespace of the `ObjectBucketClaim` with relevant connection data of the bucket.
+1. The operator creates a ConfigMap in the namespace of the ObjectBucketClaim with relevant connection data of the bucket.
 1. An app Pod may then mount the Secret and the ConfigMap to begin accessing the bucket. 
 
 **Use Case:** Delete an Object Bucket
 
-_As a Kubernetes user, I want to delete `ObjectBucketClaim` instances and cleanup generated API resources._
+_As a Kubernetes user, I want to delete ObjectBucketClaim instances and cleanup generated API resources._
 
-1. The user deletes the `ObjectBucketClaim` via `kubectl delete ...`.
-1. The `ObjectBucketClaim` is marked for deletion and left in the foreground.
+1. The user deletes the ObjectBucketClaim via `kubectl delete ...`.
+1. The ObjectBucketClaim is marked for deletion and left in the foreground.
 1. The respective ConfigMap is deleted.
-1. The `ObjectBucketClaim` is garbage collected.
+1. The ObjectBucketClaim is garbage collected.
 
 ---
 
@@ -128,7 +147,7 @@ metadata:
   - name: my-bucket-1
     uid: 1234-qwer-4321-rewq
     apiVersion: rook.io/v1alpha2
-    kind: `ObjectBucketClaim`
+    kind: ObjectBucketClaim
     blockOwnerDeletion: true 
 data:
   ROOK_BUCKET_HOST: http://my-store-url-or-ip
@@ -137,7 +156,7 @@ data:
   ROOK_BUCKET_SSL: no
 ```
 
-1. Treat the configMap as a child of the `ObjectBucketClaim` for garbage collection.
+1. Treat the configMap as a child of the ObjectBucketClaim for garbage collection.
 
 #### ObjectStore StorageClass
 
@@ -148,6 +167,6 @@ metadata:
   name: some-object-store
 provisioner: rook.io/object-bucket-claim-controller
 parameters:
-  objectStoreService: my-store
-  objectStoreNamespace: some-namespace
+  serviceName: my-store
+  serviceNamespace: some-namespace
 ```
