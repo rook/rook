@@ -1,0 +1,19 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: rook-edgefs-mgr
+  namespace: rook-edgefs
+  labels:
+    team: rook
+spec:
+  namespaceSelector:
+    matchNames:
+      - rook-edgefs
+  selector:
+    matchLabels:
+      app: rook-edgefs-mgr
+      rook_cluster: rook-edgefs
+  endpoints:
+  - port: http-metrics
+    path: /metrics
+    interval: 5s

@@ -20,6 +20,7 @@ package mgr
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/coreos/pkg/capnslog"
 	edgefsv1alpha1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1alpha1"
@@ -39,6 +40,8 @@ const (
 	appName                   = "rook-edgefs-mgr"
 	defaultServiceAccountName = "rook-edgefs-cluster"
 	defaultGrpcPort           = 6789
+	defaultRestPort           = 8080
+	defaultRestSPort          = 4443
 	defaultMetricsPort        = 8881
 
 	/* Volumes definitions */
@@ -153,6 +156,16 @@ func (c *Cluster) makeMgrService(name string) *v1.Service {
 					Port:     int32(defaultMetricsPort),
 					Protocol: v1.ProtocolTCP,
 				},
+				{
+					Name:     "http-mgmt",
+					Port:     int32(defaultRestPort),
+					Protocol: v1.ProtocolTCP,
+				},
+				{
+					Name:     "https-mgmt",
+					Port:     int32(defaultRestSPort),
+					Protocol: v1.ProtocolTCP,
+				},
 			},
 		},
 	}
@@ -186,6 +199,13 @@ func (c *Cluster) makeDeployment(name, clusterName, rookImage string, replicas i
 		})
 	}
 
+	var rookImageVer string
+	rookImageComponents := strings.Split(rookImage, ":")
+	if len(rookImageComponents) == 2 {
+		rookImageVer = rookImageComponents[1]
+	} else {
+		rookImageVer = "latest"
+	}
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   name,
@@ -195,7 +215,7 @@ func (c *Cluster) makeDeployment(name, clusterName, rookImage string, replicas i
 		},
 		Spec: v1.PodSpec{
 			ServiceAccountName: c.serviceAccount,
-			Containers:         []v1.Container{c.mgrContainer(name, rookImage)},
+			Containers:         []v1.Container{c.mgmtContainer(name, "edgefs/edgefs-restapi:"+rookImageVer), c.mgrContainer("grpc", rookImage)},
 			RestartPolicy:      v1.RestartPolicyAlways,
 			Volumes:            volumes,
 			HostIPC:            true,
@@ -217,6 +237,77 @@ func (c *Cluster) makeDeployment(name, clusterName, rookImage string, replicas i
 	}
 	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &d.ObjectMeta, &c.ownerRef)
 	return d
+}
+
+func (c *Cluster) mgmtContainer(name string, containerImage string) v1.Container {
+
+	runAsUser := int64(0)
+	readOnlyRootFilesystem := false
+	securityContext := &v1.SecurityContext{
+		RunAsUser:              &runAsUser,
+		ReadOnlyRootFilesystem: &readOnlyRootFilesystem,
+		Capabilities: &v1.Capabilities{
+			Add: []v1.Capability{"SYS_NICE", "SYS_RESOURCE", "IPC_LOCK"},
+		},
+	}
+
+	volumeMounts := []v1.VolumeMount{
+		{
+			Name:      dataVolumeName,
+			MountPath: "/opt/nedge/etc.target",
+			SubPath:   etcVolumeFolder,
+		},
+		{
+			Name:      dataVolumeName,
+			MountPath: "/opt/nedge/var/run",
+			SubPath:   stateVolumeFolder,
+		},
+	}
+
+	return v1.Container{
+		Name:            name,
+		Image:           containerImage,
+		ImagePullPolicy: v1.PullAlways,
+		Args:            []string{"mgmt"},
+		Env: []v1.EnvVar{
+			{
+				Name:  "CCOW_LOG_LEVEL",
+				Value: "5",
+			},
+			{
+				Name:  "DEBUG",
+				Value: "alert,error,info",
+			},
+			{
+				Name: "HOST_HOSTNAME",
+				ValueFrom: &v1.EnvVarSource{
+					FieldRef: &v1.ObjectFieldSelector{
+						FieldPath: "spec.nodeName",
+					},
+				},
+			},
+		},
+		SecurityContext: securityContext,
+		Resources:       c.resources,
+		Ports: []v1.ContainerPort{
+			{
+				Name:          "http-metrics",
+				ContainerPort: int32(defaultMetricsPort),
+				Protocol:      v1.ProtocolTCP,
+			},
+			{
+				Name:          "http-mgmt",
+				ContainerPort: int32(defaultRestPort),
+				Protocol:      v1.ProtocolTCP,
+			},
+			{
+				Name:          "https-mgmt",
+				ContainerPort: int32(defaultRestSPort),
+				Protocol:      v1.ProtocolTCP,
+			},
+		},
+		VolumeMounts: volumeMounts,
+	}
 }
 
 func (c *Cluster) mgrContainer(name string, containerImage string) v1.Container {
@@ -269,11 +360,6 @@ func (c *Cluster) mgrContainer(name string, containerImage string) v1.Container 
 			{
 				Name:          "mgr",
 				ContainerPort: int32(defaultGrpcPort),
-				Protocol:      v1.ProtocolTCP,
-			},
-			{
-				Name:          "http-metrics",
-				ContainerPort: int32(defaultMetricsPort),
 				Protocol:      v1.ProtocolTCP,
 			},
 		},
