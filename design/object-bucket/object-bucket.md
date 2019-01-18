@@ -6,7 +6,9 @@
 
 Users will request buckets via the Kubernetes API and have returned ConfigMaps with connection information for that bucket.  
 
-One ConfigMap will be created per `ObjectBucketClaim` instance.  ConfigMap names will be deterministic and derived from the `ObjectBucketClaim` name.  This gives users the opportunity to define their Pod spec at the same time as the `ObjectBucketClaim`.  Additionally, the `ObjectBucketClaim` and Pod can be deployed at the same time thanks in-built synchronization in Kubernetes.
+One ConfigMap will be created per `ObjectBucketClaim` instance.  ConfigMap names will be deterministic and derived from the `ObjectBucketClaim` name.  This gives users the opportunity to define their Pod spec at the same time as the `ObjectBucketClaim`.  Additionally, the `ObjectBucketClaim` and Pod can be deployed at the same time thanks to in-built synchronization in Kubernetes.
+
+Pods mounting the configMap as either `envFrom:` or `env[0].valueFrom.ConfigMapKeyRef` will have a status of `CreateContainerConfigError` until the configMap is created. Pods mounting as a volume will have a status of `ContainerCreating` until the configMap is created. In both cases, the Pod will start once the configMap exists.
 
 Bucket deletion in the early stages of this controller design will not be addressed beyond cleaning up API objects.  Deletion of the bucket within the object store is left as an administrator responsibility.  This is to prevent the accidental destruction of data by users.
 
@@ -16,15 +18,29 @@ Bucket deletion in the early stages of this controller design will not be addres
 
 #### Assumptions
 
-- An object store has been deployed in a Kubernetes Cluster ([e.g. Rook-Ceph Object](https://rook.github.io/docs/rook/master/ceph-object.html))
-- A `Secret` (defined below) containing the Access Key and Secret Key has been created.
-- A `StorageClass` (defined below) has been created for the object store service.
+- An object store has been provisioned with a reachable endpoint.  ([e.g. Rook-Ceph Object](https://rook.github.io/docs/rook/master/ceph-object.html))
+
+#### MVP Use Cases
+
+**Use Case: Expose an Object Store Endpoint**
+
+_As a Kubernetes admin, I want to expose an object store to cluster users for bucket provisioning via the Kubernetes API._
+
+![admin-actions](./obc-admin.png)
+
+These next steps may be performed in any order.
+
+_The administrator ..._
+- creates the Rook ObjectBucketClaim Operator
+- creates a StorageClass with `parameters[objectStoreService]=in-cluster-service` and `parameters[objectStoreNamespace]=admin-namespace`
+
+
 
 **Use Case: Provision a Bucket** 
 
-_As a Kubernetes user, I want leverage the Kubernetes API to create S3 buckets. I expect to get back the bucket connection information in a ConfigMap._
+_As a Kubernetes user, I want to leverage the Kubernetes API to create S3 buckets. I expect to get back the bucket connection information in a ConfigMap._
  
-![work flow](./ObjectBucketClaim.png)
+![user-actions](./obc-user.png)
 
 1. The Rook Operator detects a new `ObjectBucketClaim` instance.  
     1. The operator uses `objectBucketClaim.spec.secretName` to get the S3 access keys secret.  
@@ -78,11 +94,11 @@ metadata:
 spec:
   storageClassName: some-object-store
   secretName: my-s3-key-pair
-  generateBucketName: prefix [2]
+  bucketNamePrefix: prefix [2]
 ```
 
 1. Added by the rook operator.
-1. As with `metadata.generateName`, the operator will append a hyphen followed by random characters to the string given here.
+1. The operator will append a hyphen followed by random characters to the string given here.
 
 #### Access Keys Secret  
   
