@@ -33,7 +33,7 @@ Kubernetes status is the first line of investigating when something goes wrong w
   - `kubectl get pod -n rook-ceph -o wide`
   - `kubectl get pod -n rook-ceph-system -o wide`
 - Logs for Rook pods
-  - Logs for the operator: `kubectl logs -n rook-ceph-system -l app=rook-operator`
+  - Logs for the operator: `kubectl logs -n rook-ceph-system -l app=rook-ceph-operator`
   - Logs for a specific pod: `kubectl logs -n rook-ceph <pod-name>`, or a pod using a label such as mon1: `kubectl logs -n rook-ceph -l mon=rook-ceph-mon1`
   - Logs on a specific node to find why a PVC is failing to mount:
     - Rook agent errors around the attach/detach: `kubectl logs -n rook-ceph-system <rook-ceph-agent-pod>`
