@@ -24,6 +24,7 @@ import (
 	"syscall"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/kubernetes-sigs/sig-storage-lib-external-provisioner/controller"
 	opkit "github.com/rook/operator-kit"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume"
@@ -35,7 +36,6 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/object/user"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
 	"github.com/rook/rook/pkg/operator/ceph/provisioner"
-	"github.com/rook/rook/pkg/operator/ceph/provisioner/controller"
 	"github.com/rook/rook/pkg/operator/discover"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/api/core/v1"
