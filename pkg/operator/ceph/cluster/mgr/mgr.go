@@ -112,7 +112,7 @@ func (c *Cluster) Start() error {
 		daemonName := mgrNames[i]
 		resourceName := fmt.Sprintf("%s-%s", appName, daemonName)
 		username := fmt.Sprintf("mgr.%s", daemonName)
-		access := []string{"mon", "allow profile mgr", "mds", "allow *", "osd", "allow *"}
+		access := []string{"mon", "allow *", "mds", "allow *", "osd", "allow *"}
 		cfg := opspec.KeyringConfig{Namespace: c.Namespace, ResourceName: resourceName, DaemonName: daemonName, OwnerRef: c.ownerRef, Username: username, Access: access}
 		if err := opspec.CreateKeyring(c.context, cfg); err != nil {
 			return fmt.Errorf("failed to create %s keyring. %+v", resourceName, err)
