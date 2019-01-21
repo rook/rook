@@ -36,8 +36,8 @@ func TestCreateDefaultCephConfig(t *testing.T) {
 		AdminSecret:   "adminsecret",
 		Name:          "foo-cluster",
 		Monitors: map[string]*MonInfo{
-			"node0": {Name: "mon0", Endpoint: "10.0.0.1:6790"},
-			"node1": {Name: "mon1", Endpoint: "10.0.0.2:6790"},
+			"node0": {Name: "mon0", Endpoint: "10.0.0.1:6789"},
+			"node1": {Name: "mon1", Endpoint: "10.0.0.2:6789"},
 		},
 	}
 
@@ -98,7 +98,7 @@ debug bluestore = 1234`
 		AdminSecret:   "adminsecret",
 		Name:          "foo-cluster",
 		Monitors: map[string]*MonInfo{
-			"node0": {Name: "mon0", Endpoint: "10.0.0.1:6790"},
+			"node0": {Name: "mon0", Endpoint: "10.0.0.1:6789"},
 		},
 	}
 

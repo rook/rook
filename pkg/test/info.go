@@ -36,7 +36,7 @@ func CreateConfigDir(mons int) *cephconfig.ClusterInfo {
 		id := fmt.Sprintf("mon%d", i)
 		c.Monitors[id] = &cephconfig.MonInfo{
 			Name:     id,
-			Endpoint: fmt.Sprintf("1.2.3.%d:6790", i),
+			Endpoint: fmt.Sprintf("1.2.3.%d:6789", i),
 		}
 	}
 	return c

@@ -31,7 +31,7 @@ const (
 	InitCommand = "mon-init"
 
 	// DefaultPort is the default port Ceph mons use to communicate amongst themselves.
-	DefaultPort = 6790
+	DefaultPort = 6789
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephmon")
