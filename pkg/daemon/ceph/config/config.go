@@ -54,6 +54,8 @@ type GlobalConfig struct {
 	ClusterAddr              string `ini:"cluster addr,omitempty"`
 	ClusterNetwork           string `ini:"cluster network,omitempty"`
 	MonKeyValueDb            string `ini:"mon keyvaluedb"`
+	LogToStderr		 bool	`ini:"log_to_stderr"`
+	ClusterLogToStderr	 bool	`ini:"cluster_log_to_stderr"`
 	MonAllowPoolDelete       bool   `ini:"mon_allow_pool_delete"`
 	MaxPgsPerOsd             int    `ini:"mon_max_pg_per_osd"`
 	DebugLogDefaultLevel     int    `ini:"debug default"`
@@ -198,31 +200,18 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, ru
 	return &CephConfig{
 		GlobalConfig: &GlobalConfig{
 			FSID:                   cluster.FSID,
-			RunDir:                 runDir,
 			MonMembers:             strings.Join(monMembers, " "),
 			MonHost:                strings.Join(monHosts, ","),
-			LogFile:                "/dev/stderr",
-			MonClusterLogFile:      "/dev/stderr",
+			LogToStderr:		true,
+			ClusterLogToStderr:	true,
 			PublicAddr:             context.NetworkInfo.PublicAddr,
 			PublicNetwork:          context.NetworkInfo.PublicNetwork,
 			ClusterAddr:            context.NetworkInfo.ClusterAddr,
 			ClusterNetwork:         context.NetworkInfo.ClusterNetwork,
-			MonKeyValueDb:          "rocksdb",
 			MonAllowPoolDelete:     true,
 			MaxPgsPerOsd:           1000,
-			DebugLogDefaultLevel:   cephLogLevel,
-			DebugLogRadosLevel:     cephLogLevel,
-			DebugLogMonLevel:       cephLogLevel,
-			DebugLogOSDLevel:       cephLogLevel,
-			DebugLogBluestoreLevel: cephLogLevel,
-			DebugLogFilestoreLevel: cephLogLevel,
-			DebugLogJournalLevel:   cephLogLevel,
-			DebugLogLevelDBLevel:   cephLogLevel,
-			FileStoreOmapBackend:   "rocksdb",
 			OsdPgBits:              11,
 			OsdPgpBits:             11,
-			OsdPoolDefaultSize:     1,
-			OsdPoolDefaultMinSize:  1,
 			OsdPoolDefaultPgNum:    100,
 			OsdPoolDefaultPgpNum:   100,
 			RbdDefaultFeatures:     3,
