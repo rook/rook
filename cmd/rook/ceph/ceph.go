@@ -28,7 +28,7 @@ import (
 	"github.com/rook/rook/pkg/util/flags"
 )
 
-//Cmd is the main command for operator and daemons.
+// Cmd is the main command for operator and daemons.
 var Cmd = &cobra.Command{
 	Use:    "ceph",
 	Short:  "Main command for Ceph operator and daemons.",

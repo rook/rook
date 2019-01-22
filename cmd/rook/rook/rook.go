@@ -106,7 +106,7 @@ func GetClientset() (kubernetes.Interface, apiextensionsclient.Interface, rookcl
 	return clientset, apiExtClientset, rookClientset, nil
 }
 
-// TerminateFatal terminate the terminationlog file.
+// TerminateFatal terminates the process with an exit code of 1 and writes the given reason to stderr and // the termination log file.
 func TerminateFatal(reason error) {
 	fmt.Fprintln(os.Stderr, reason)
 

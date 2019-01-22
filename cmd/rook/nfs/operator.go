@@ -49,7 +49,7 @@ func startOperator(cmd *cobra.Command, args []string) error {
 
 	clientset, apiExtClientset, rookClientset, err := rook.GetClientset()
 	if err != nil {
-		rook.TerminateFatal(fmt.Errorf("failed to get k8s clients. %+v", err))
+		rook.TerminateFatal(fmt.Errorf("failed to get k8s clients. %+v\n", err))
 	}
 
 	logger.Infof("starting NFS operator")
@@ -63,18 +63,18 @@ func startOperator(cmd *cobra.Command, args []string) error {
 	// Using the current image version to deploy other rook pods
 	pod, err := k8sutil.GetRunningPod(clientset)
 	if err != nil {
-		rook.TerminateFatal(fmt.Errorf("failed to get pod. %+v", err))
+		rook.TerminateFatal(fmt.Errorf("failed to get pod. %+v\n", err))
 	}
 
 	rookImage, err := k8sutil.GetContainerImage(pod, containerName)
 	if err != nil {
-		rook.TerminateFatal(fmt.Errorf("failed to get container image. %+v", err))
+		rook.TerminateFatal(fmt.Errorf("failed to get container image. %+v\n", err))
 	}
 
 	op := operator.New(context, rookImage)
 	err = op.Run()
 	if err != nil {
-		rook.TerminateFatal(fmt.Errorf("failed to run operator. %+v", err))
+		rook.TerminateFatal(fmt.Errorf("failed to run operator. %+v\n", err))
 	}
 
 	return nil
