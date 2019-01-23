@@ -131,9 +131,9 @@ func Provision(context *clusterd.Context, agent *OsdAgent) error {
 	}
 
 	// determine the set of directories that can/should be used for OSDs, with the default dir if no devices were specified. save off the node's crush name if needed.
-	logger.Infof("devices = %+v", deviceOSDs)
-	devicesConfigured := len(deviceOSDs) > 0
-	dirs, removedDirs, err := getDataDirs(context, agent.kv, agent.directories, devicesConfigured, agent.nodeName)
+	logger.Infof("devices = %+v, configured devices = %+v", agent.devices, deviceOSDs)
+	devicesSpecified := len(agent.devices) > 0
+	dirs, removedDirs, err := getDataDirs(context, agent.kv, agent.directories, devicesSpecified, agent.nodeName)
 	if err != nil {
 		return fmt.Errorf("failed to get data dirs. %+v", err)
 	}
