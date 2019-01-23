@@ -87,9 +87,10 @@ func TestPodSpec(t *testing.T) {
 	assert.Equal(t, 1, len(d.Spec.Template.Spec.Volumes))
 
 	//check ports
-	assert.Equal(t, 2, len(d.Spec.Template.Spec.Containers[0].Ports))
-	assert.Equal(t, int32(6789), d.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort)
-	assert.Equal(t, int32(8881), d.Spec.Template.Spec.Containers[0].Ports[1].ContainerPort)
+	assert.Equal(t, 3, len(d.Spec.Template.Spec.Containers[0].Ports))
+	assert.Equal(t, int32(8881), d.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort)
+	assert.Equal(t, int32(8080), d.Spec.Template.Spec.Containers[0].Ports[1].ContainerPort)
+	assert.Equal(t, int32(4443), d.Spec.Template.Spec.Containers[0].Ports[2].ContainerPort)
 
 	assert.Equal(t, "edgefs-datadir", d.Spec.Template.Spec.Volumes[0].Name)
 	assert.Equal(t, "mgr-a", d.ObjectMeta.Name)
@@ -116,7 +117,7 @@ func TestServiceSpec(t *testing.T) {
 	s := c.makeMgrService("rook-edgefs-mgr")
 	assert.NotNil(t, s)
 	assert.Equal(t, "rook-edgefs-mgr", s.Name)
-	assert.Equal(t, 2, len(s.Spec.Ports))
+	assert.Equal(t, 4, len(s.Spec.Ports))
 }
 
 func TestHostNetwork(t *testing.T) {
