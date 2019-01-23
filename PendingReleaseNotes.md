@@ -24,7 +24,8 @@
 - Object Store User creation via CRD for Ceph clusters.
 - Ceph OSD, MGR, MDS, and RGW deployments (or DaemonSets) will be updated/upgraded automatically with updates to the Rook operator.
 - Ceph OSDs are created with the `ceph-volume` tool when configuring devices, adding support for multiple OSDs per device. See the [OSD configuration settings](Documentation/ceph-cluster-crd.md#osd-configuration-settings)
-- Selinux labeling for mounts can now be toggled with the ROOK_ENABLE_SELINUX_RELABELING environment variable. This addresses https://github.com/rook/rook/issues/2417
+- Selinux labeling for mounts can now be toggled with the [ROOK_ENABLE_SELINUX_RELABELING](https://github.com/rook/rook/issues/2417) environment variable.
+- Recursive chown for mounts can now be toggled with the [ROOK_ENABLE_FSGROUP](https://github.com/rook/rook/issues/2254) environment variable.
 - Added the dashboard `port` configuration setting.
 - Added the dashboard `ssl` configuration setting.
 
