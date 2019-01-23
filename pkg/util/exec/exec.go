@@ -169,16 +169,32 @@ func startCommand(debug bool, command string, arg ...string) (*exec.Cmd, io.Read
 	logCommand(debug, command, arg...)
 
 	cmd := exec.Command(command, arg...)
-	stdout, _ := cmd.StdoutPipe()
-	stderr, _ := cmd.StderrPipe()
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		logger.Warningf("failed to open stdout pipe: %+v", err)
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		logger.Warningf("failed to open stderr pipe: %+v", err)
+	}
 
-	err := cmd.Start()
+	err = cmd.Start()
 
 	return cmd, stdout, stderr, err
 }
 
 func (*CommandExecutor) ExecuteStat(name string) (os.FileInfo, error) {
 	return os.Stat(name)
+}
+
+// read from reader line by line and write it to the log
+func logFromReader(logger *capnslog.PackageLogger, reader io.ReadCloser) {
+	in := bufio.NewScanner(reader)
+	lastLine := ""
+	for in.Scan() {
+		lastLine = in.Text()
+		logger.Info(lastLine)
+	}
 }
 
 func logOutput(name string, stdout, stderr io.ReadCloser) {
@@ -198,13 +214,8 @@ func logOutput(name string, stdout, stderr io.ReadCloser) {
 		}
 	}
 
-	// read command's stdout line by line and write it to the log
-	in := bufio.NewScanner(io.MultiReader(stdout, stderr))
-	lastLine := ""
-	for in.Scan() {
-		lastLine = in.Text()
-		childLogger.Info(lastLine)
-	}
+	go logFromReader(childLogger, stderr)
+	logFromReader(childLogger, stdout)
 }
 
 func runCommandWithOutput(actionName string, cmd *exec.Cmd, combinedOutput bool) (string, error) {
