@@ -81,6 +81,10 @@ func (suite *SmokeSuite) TearDownSuite() {
 	suite.op.Teardown()
 }
 
+func (suite *SmokeSuite) TestBlockCSI_SmokeTest() {
+	runCephCSIE2ETest(suite.helper, suite.k8sh, suite.Suite, suite.namespace)
+}
+
 func (suite *SmokeSuite) TestBlockStorage_SmokeTest() {
 	runBlockE2ETest(suite.helper, suite.k8sh, suite.Suite, suite.namespace)
 }
