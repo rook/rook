@@ -28,15 +28,27 @@ import (
 var RunAllCephCommandsInToolbox = false
 
 const (
-	AdminUsername     = "client.admin"
-	CephTool          = "ceph"
-	RBDTool           = "rbd"
-	Kubectl           = "kubectl"
-	CrushTool         = "crushtool"
-	cmdExecuteTimeout = 1 * time.Minute
+	AdminUsername         = "client.admin"
+	CephTool              = "ceph"
+	RBDTool               = "rbd"
+	Kubectl               = "kubectl"
+	CrushTool             = "crushtool"
+	cmdExecuteTimeout     = 1 * time.Minute
+	cephConnectionTimeout = "15" // in seconds
 )
 
 func FinalizeCephCommandArgs(command string, args []string, configDir, clusterName string) (string, []string) {
+	// the rbd client tool does not support the '--connect-timeout' option
+	// so we only use it for the 'ceph' command
+	// Also, there is no point of adding that option to 'crushtool' since that CLI does not connect to anything
+	// 'crushtool' is a utility that lets you create, compile, decompile and test CRUSH map files.
+
+	// we could use a slice and iterate over it but since we have only 3 elements
+	// I don't think this is worth a loop
+	if command != "rbd" && command != "crushtool" && command != "radosgw-admin" {
+		args = append(args, "--connect-timeout="+cephConnectionTimeout)
+	}
+
 	// If the command should be run inside the toolbox pod, include the kubectl args to call the toolbox
 	if RunAllCephCommandsInToolbox {
 		toolArgs := []string{"-it", "exec", "rook-ceph-tools", "-n", clusterName, "--", command}
