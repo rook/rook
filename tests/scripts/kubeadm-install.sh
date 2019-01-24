@@ -12,7 +12,7 @@ sudo swapoff -a
 wait_for_dpkg_unlock() {
     #wait for dpkg lock to disappear.
     retry=0
-    maxRetries=20
+    maxRetries=100
     retryInterval=10
     until [ ${retry} -ge ${maxRetries} ]
     do
