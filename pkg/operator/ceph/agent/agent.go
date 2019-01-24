@@ -43,6 +43,7 @@ const (
 	agentDaemonsetTolerationKeyEnv = "AGENT_TOLERATION_KEY"
 	AgentMountSecurityModeEnv      = "AGENT_MOUNT_SECURITY_MODE"
 	RookEnableSelinuxRelabelingEnv = "ROOK_ENABLE_SELINUX_RELABELING"
+	RookEnableFSGroupEnv           = "ROOK_ENABLE_FSGROUP"
 
 	// MountSecurityModeAny "any" security mode for the agent for mount action
 	MountSecurityModeAny = "Any"
@@ -94,6 +95,13 @@ func (a *Agent) createAgentDaemonSet(namespace, agentImage, serviceAccount strin
 		rookEnableSelinuxRelabeling = "true"
 	}
 
+	rookEnableFSGroup := os.Getenv(RookEnableFSGroupEnv)
+	_, err = strconv.ParseBool(rookEnableFSGroup)
+	if err != nil {
+		logger.Warningf("Invalid %s value \"%s\". Defaulting to \"true\".", RookEnableFSGroupEnv, rookEnableFSGroup)
+		rookEnableFSGroup = "true"
+	}
+
 	privileged := true
 	ds := &extensions.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -142,6 +150,7 @@ func (a *Agent) createAgentDaemonSet(namespace, agentImage, serviceAccount strin
 								k8sutil.NodeEnvVar(),
 								{Name: AgentMountSecurityModeEnv, Value: agentMountSecurityMode},
 								{Name: RookEnableSelinuxRelabelingEnv, Value: rookEnableSelinuxRelabeling},
+								{Name: RookEnableFSGroupEnv, Value: rookEnableFSGroup},
 							},
 						},
 					},

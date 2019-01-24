@@ -13,7 +13,8 @@
 
 ### Ceph
 - A `CephNFS` CRD will start NFS daemon(s) for exporting CephFS volumes or RGW buckets. See the [NFS documentation](Documentation/ceph-nfs-crd.md).
-- Selinux labeling for mounts can now be toggled with the ROOK_ENABLE_SELINUX_RELABELING environment variable. This addresses https://github.com/rook/rook/issues/2417
+- Selinux labeling for mounts can now be toggled with the [ROOK_ENABLE_SELINUX_RELABELING](https://github.com/rook/rook/issues/2417) environment variable.
+- Recursive chown for mounts can now be toggled with the [ROOK_ENABLE_FSGROUP](https://github.com/rook/rook/issues/2254) environment variable.
 - Added the dashboard `port` configuration setting.
 - Added the dashboard `ssl` configuration setting.
 
