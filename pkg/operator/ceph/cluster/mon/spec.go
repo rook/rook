@@ -17,16 +17,15 @@ limitations under the License.
 package mon
 
 import (
-	"fmt"
-	"net"
 	"os"
 
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
@@ -138,6 +137,9 @@ func (c *Cluster) makeMonFSInitContainer(monConfig *monConfig) v1.Container {
 		},
 		Args: append(
 			opspec.DaemonFlags(c.clusterInfo, config.MonType, monConfig.DaemonName),
+			// needed so we can generate an initial monmap
+			// otherwise the mkfs will say: "0  no local addrs match monmap"
+			config.NewFlag("public-addr", monConfig.PublicIP),
 			"--mkfs",
 		),
 		Image:           c.cephVersion.Image,
@@ -150,7 +152,7 @@ func (c *Cluster) makeMonFSInitContainer(monConfig *monConfig) v1.Container {
 }
 
 func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
-	return v1.Container{
+	container := v1.Container{
 		Name: "mon",
 		Command: []string{
 			cephMonCommand,
@@ -158,8 +160,8 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 		Args: append(
 			opspec.DaemonFlags(c.clusterInfo, config.MonType, monConfig.DaemonName),
 			"--foreground",
-			config.NewFlag("public-addr", joinHostPort(monConfig.PublicIP, monConfig.Port)),
-			config.NewFlag("public-bind-addr", joinHostPort("$(ROOK_PRIVATE_IP)", monConfig.Port)),
+			config.NewFlag("public-addr", monConfig.PublicIP),
+			config.NewFlag("public-bind-addr", "$(ROOK_PRIVATE_IP)"),
 		),
 		Image:           c.cephVersion.Image,
 		VolumeMounts:    opspec.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),
@@ -177,8 +179,11 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 		),
 		Resources: c.resources,
 	}
-}
 
-func joinHostPort(host string, port int32) string {
-	return net.JoinHostPort(host, fmt.Sprintf("%d", port))
+	// If deploying Nautilus and newer we need a new port of the monitor container
+	if cephv1.VersionAtLeast(c.cephVersion.Name, cephv1.Nautilus) {
+		addContainerPort(container, "msgr2", 3300)
+	}
+
+	return container
 }

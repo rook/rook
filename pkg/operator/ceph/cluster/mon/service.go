@@ -18,9 +18,11 @@ package mon
 
 import (
 	"fmt"
+	"strconv"
 
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -50,6 +52,11 @@ func (c *Cluster) createService(mon *monConfig) (string, error) {
 		s.Spec.ClusterIP = v1.ClusterIPNone
 	}
 
+	// If deploying Nautilus or newer we need a new port for the monitor service
+	if cephv1.VersionAtLeast(c.cephVersion.Name, cephv1.Nautilus) {
+		addServicePort(s, "msgr2", Msgr2port)
+	}
+
 	s, err := c.context.Clientset.CoreV1().Services(c.Namespace).Create(s)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
@@ -66,6 +73,13 @@ func (c *Cluster) createService(mon *monConfig) (string, error) {
 		return "", nil
 	}
 
-	logger.Infof("mon %s endpoint is %s:%d", mon.DaemonName, s.Spec.ClusterIP, mon.Port)
+	// mon endpoint are not actually like, they remain with the mgrs1 format
+	// however it's interesting to show that monitors can be addressed via 2 different ports
+	// in the end the service has msgr1 and msgr2 ports configured so it's not entirely wrong
+	if cephv1.VersionAtLeast(c.cephVersion.Name, cephv1.Nautilus) {
+		logger.Infof("mon %s endpoint are [v2:%s:%s,v1:%s:%d]", mon.DaemonName, s.Spec.ClusterIP, strconv.Itoa(int(Msgr2port)), s.Spec.ClusterIP, mon.Port)
+	} else {
+		logger.Infof("mon %s endpoint is %s:%d", mon.DaemonName, s.Spec.ClusterIP, mon.Port)
+	}
 	return s.Spec.ClusterIP, nil
 }

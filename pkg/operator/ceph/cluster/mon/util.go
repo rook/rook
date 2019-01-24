@@ -18,12 +18,13 @@ package mon
 
 import (
 	"fmt"
-	"net"
 	"strconv"
 	"strings"
 
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 const (
@@ -58,14 +59,27 @@ func fullNameToIndex(name string) (int, error) {
 	return id, nil
 }
 
-// getPortFromEndpoint return the port from an endpoint string (192.168.0.1:6790)
-func getPortFromEndpoint(endpoint string) int32 {
-	port := DefaultPort
-	_, portString, err := net.SplitHostPort(endpoint)
-	if err != nil {
-		logger.Errorf("failed to split host and port for endpoint %s, assuming default Ceph port %d", endpoint, port)
-	} else {
-		port, _ = strconv.Atoi(portString)
+// addServicePort adds a port to a service
+func addServicePort(service *v1.Service, name string, port int32) {
+	if port == 0 {
+		return
 	}
-	return int32(port)
+	service.Spec.Ports = append(service.Spec.Ports, v1.ServicePort{
+		Name:       name,
+		Port:       port,
+		TargetPort: intstr.FromInt(int(port)),
+		Protocol:   v1.ProtocolTCP,
+	})
+}
+
+// addContainerPort adds a port to a container
+func addContainerPort(container v1.Container, name string, port int32) {
+	if port == 0 {
+		return
+	}
+	container.Ports = append(container.Ports, v1.ContainerPort{
+		Name:          name,
+		ContainerPort: port,
+		Protocol:      v1.ProtocolTCP,
+	})
 }

@@ -19,14 +19,18 @@ package config
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/go-ini/ini"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephconfig")
@@ -38,6 +42,8 @@ const (
 	DefaultConfigFile = "ceph.conf"
 	// DefaultKeyringFile is the default name of the file where Ceph stores its keyring info
 	DefaultKeyringFile = "keyring"
+	// Msgr2port is the listening port of the messenger v2 protocol
+	Msgr2port = 3300
 )
 
 // GlobalConfig represents the [global] sections of Ceph's config file.
@@ -124,11 +130,7 @@ func GenerateAdminConnectionConfigWithSettings(context *clusterd.Context, cluste
 }
 
 // GenerateConfigFile generates and writes a config file to disk.
-func GenerateConfigFile(context *clusterd.Context,
-	cluster *ClusterInfo,
-	pathRoot, user, keyringPath string,
-	globalConfig *CephConfig,
-	clientSettings map[string]string) (string, error) {
+func GenerateConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoot, user, keyringPath string, globalConfig *CephConfig, clientSettings map[string]string) (string, error) {
 
 	// create the config directory
 	if err := os.MkdirAll(pathRoot, 0744); err != nil {
@@ -189,7 +191,22 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, ru
 	i := 0
 	for _, monitor := range cluster.Monitors {
 		monMembers[i] = monitor.Name
-		monHosts[i] = monitor.Endpoint
+		monIP := cephutil.GetIPFromEndpoint(monitor.Endpoint)
+
+		// This tries to detect the current port if the mon already exists
+		// This basically handles the transtion between monitors running on 6790 to msgr2
+		// So whatever the previous monitor port was we keep it
+		currentMonPort := cephutil.GetPortFromEndpoint(monitor.Endpoint)
+
+		monPorts := [2]string{strconv.Itoa(int(Msgr2port)), strconv.Itoa(int(currentMonPort))}
+		msgr2Endpoint := net.JoinHostPort(monIP, monPorts[0])
+		msgr1Endpoint := net.JoinHostPort(monIP, monPorts[1])
+
+		if cephv1.VersionAtLeast(cluster.CephVersionName, cephv1.Nautilus) {
+			monHosts[i] = "[v2:" + msgr2Endpoint + ",v1:" + msgr1Endpoint + "]"
+		} else {
+			monHosts[i] = msgr1Endpoint
+		}
 		i++
 	}
 

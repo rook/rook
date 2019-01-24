@@ -19,9 +19,13 @@ package util
 import (
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+
+	"github.com/coreos/pkg/capnslog"
 )
 
 const (
@@ -29,6 +33,8 @@ const (
 	RBDDevicesDir        = "devices"
 	RBDDevicePathPrefix  = "/dev/rbd"
 )
+
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-ceph-util")
 
 // FindRBDMappedFile search for the mapped RBD volume and returns its device path
 func FindRBDMappedFile(imageName, poolName, sysBusDir string) (string, error) {
@@ -56,4 +62,28 @@ func FindRBDMappedFile(imageName, poolName, sysBusDir string) (string, error) {
 		}
 	}
 	return "", nil
+}
+
+// GetIPFromEndpoint return the IP from an endpoint string (192.168.0.1:6789)
+func GetIPFromEndpoint(endpoint string) string {
+	host, _, err := net.SplitHostPort(endpoint)
+	if err != nil {
+		logger.Errorf("failed to split ip and port for endpoint %s", endpoint)
+	}
+	return host
+}
+
+// GetPortFromEndpoint return the port from an endpoint string (192.168.0.1:6789)
+func GetPortFromEndpoint(endpoint string) int32 {
+	var port int
+	_, portString, err := net.SplitHostPort(endpoint)
+	if err != nil {
+		logger.Errorf("failed to split host and port for endpoint %s, assuming default Ceph port %s", endpoint, portString)
+	} else {
+		port, err = strconv.Atoi(portString)
+		if err != nil {
+			logger.Errorf("failed to convert %s to integer", portString)
+		}
+	}
+	return int32(port)
 }

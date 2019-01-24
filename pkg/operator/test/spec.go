@@ -46,8 +46,8 @@ func ArgumentsMatchExpected(actualArgs []string, expectedArgs [][]string) error 
 	fullArgString := strings.Join(actualArgs, " ")
 	logger.Infof("testing that actual args: %s\nmatch expected args:%v", fullArgString, actualArgs)
 	for _, arg := range expectedArgs {
-		// We join each individual argument together the same was as the big string
 		validArgMatcher := strings.Join(arg, " ")
+		// We join each individual argument together the same was as the big string
 		if validArgMatcher == "" {
 			return fmt.Errorf("Expected argument %v evaluated to empty string; ArgumentsMatchExpected() doesn't know what to do", arg)
 		}
