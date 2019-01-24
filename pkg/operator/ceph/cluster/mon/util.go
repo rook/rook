@@ -276,7 +276,7 @@ func fullNameToIndex(name string) (int, error) {
 	return id, nil
 }
 
-// getPortFromEndpoint return the port from an endpoint string (my-host:6789)
+// getPortFromEndpoint return the port from an endpoint string (192.168.0.1:6790)
 func getPortFromEndpoint(endpoint string) int32 {
 	port := mondaemon.DefaultPort
 	_, portString, err := net.SplitHostPort(endpoint)
