@@ -135,6 +135,7 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 	configEnvVars := append(c.getConfigEnvVars(storeConfig, dataDir, nodeName, location), []v1.EnvVar{
 		tiniEnvVar,
 		{Name: "ROOK_OSD_ID", Value: osdID},
+		{Name: "ROOK_OSD_STORE_TYPE", Value: storeType},
 	}...)
 
 	if !osd.IsDirectory {
