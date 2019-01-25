@@ -57,7 +57,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v13.2.2-20181023
+    image: ceph/ceph:v13.2.4-20190109
 ```
 
 ### Operator Requirements
@@ -131,7 +131,7 @@ spec:
     allowUnsupported: false
   upgradePolicy:
     cephVersion:
-      image: ceph/ceph:v13.2.2-20181023
+      image: ceph/ceph:v13.2.4-20190109
       allowUnsupported: false
     components:
     - mon
