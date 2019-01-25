@@ -29,7 +29,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -88,7 +88,7 @@ func testPodSpec(t *testing.T, dataDir string) {
 	assert.Nil(t, test_opceph.VerifyPodLabels("rook-ceph-mon", "ns", "mon", "a", pod.ObjectMeta.Labels))
 	assert.Equal(t, c.Namespace, pod.ObjectMeta.Labels["mon_cluster"])
 
-	assert.Equal(t, 3, len(pod.Spec.InitContainers))
+	assert.Equal(t, 2, len(pod.Spec.InitContainers))
 	assert.Equal(t, 1, len(pod.Spec.Containers))
 
 	// All containers have the same privilege
@@ -130,26 +130,6 @@ func testPodSpec(t *testing.T, dataDir string) {
 		"rook-data",
 		cephconfig.DefaultConfigMountName}
 
-	// monmap init container
-	monmapContDev := test_opceph.ContainerTestDefinition{
-		Image: &cephImage,
-		Command: []string{
-			"/usr/bin/monmaptool"},
-		Args: [][]string{
-			{"/var/lib/rook/mon-a/monmap"},
-			{"--create"},
-			{"--clobber"},
-			{"--fsid", c.clusterInfo.FSID}},
-		VolumeMountNames: cephVolumeMountNames,
-		EnvCount:         &cephEnvs,
-		Ports:            []v1.ContainerPort{},
-		IsPrivileged:     &isPrivileged,
-	}
-	cont = &pod.Spec.InitContainers[1]
-	monmapContDev.TestContainer(t, "monmap init", cont, logger)
-	assert.Equal(t, "100", cont.Resources.Limits.Cpu().String())
-	assert.Equal(t, "1337", cont.Resources.Requests.Memory().String())
-
 	// mon fs init container
 	monFsContDev := test_opceph.ContainerTestDefinition{
 		Image: &cephImage,
@@ -157,15 +137,14 @@ func testPodSpec(t *testing.T, dataDir string) {
 			"ceph-mon"},
 		Args: append(
 			monCommonExpectedArgs(name, c),
-			[]string{"--mkfs"},
-			[]string{"--monmap", "/var/lib/rook/mon-a/monmap"}),
+			[]string{"--mkfs"}),
 		VolumeMountNames: cephVolumeMountNames,
 		EnvCount:         &cephEnvs,
 		Ports:            []v1.ContainerPort{},
 		IsPrivileged:     &isPrivileged,
 	}
-	cont = &pod.Spec.InitContainers[2]
-	monFsContDev.TestContainer(t, "monmap init", cont, logger)
+	cont = &pod.Spec.InitContainers[1]
+	monFsContDev.TestContainer(t, "mon mkfs init", cont, logger)
 	assert.Equal(t, "100", cont.Resources.Limits.Cpu().String())
 	assert.Equal(t, "1337", cont.Resources.Requests.Memory().String())
 
@@ -187,7 +166,7 @@ func testPodSpec(t *testing.T, dataDir string) {
 		IsPrivileged: &isPrivileged,
 	}
 	cont = &pod.Spec.Containers[0]
-	monDaemonContDev.TestContainer(t, "monmap init", cont, logger)
+	monDaemonContDev.TestContainer(t, "mon init", cont, logger)
 	assert.Equal(t, "100", cont.Resources.Limits.Cpu().String())
 	assert.Equal(t, "1337", cont.Resources.Requests.Memory().String())
 
@@ -196,8 +175,7 @@ func testPodSpec(t *testing.T, dataDir string) {
 		VolumesSpec: &testop.VolumesSpec{Moniker: "mon pod volumes", Volumes: pod.Spec.Volumes},
 		MountsSpecItems: []*testop.MountsSpec{
 			{Moniker: "mon config init mounts", Mounts: pod.Spec.InitContainers[0].VolumeMounts},
-			{Moniker: "mon monmap init mounts", Mounts: pod.Spec.InitContainers[1].VolumeMounts},
-			{Moniker: "mon fs init mounts", Mounts: pod.Spec.InitContainers[2].VolumeMounts},
+			{Moniker: "mon fs init mounts", Mounts: pod.Spec.InitContainers[1].VolumeMounts},
 			{Moniker: "mon daemon mounts", Mounts: pod.Spec.Containers[0].VolumeMounts}},
 	}
 	volsMountsTestDef.TestMountsMatchVolumes(t)
