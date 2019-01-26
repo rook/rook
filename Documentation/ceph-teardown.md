@@ -59,6 +59,21 @@ In the future this step will not be necessary when we build on the K8s local sto
 
 If you modified the demo settings, additional cleanup is up to you for devices, host paths, etc.
 
+Disks on nodes used by Rook for osds can be reset to a usable state with the following methods:
+```sh
+#!/usr/bin/env bash
+DISK="/dev/sdb"
+# Zap the disk to a fresh, usable state (zap-all is important, b/c MBR has to be clean)
+# You will have to run this step for all disks.
+sgdisk --zap-all $DISK
+
+# These steps only have to be run once on each node
+# If rook sets up osds using ceph-volume, teardown leaves some devices mapped that lock the disks.
+ls /dev/mapper/ceph-* | xargs -I% -- dmsetup remove %
+# ceph-volume setup can leave ceph-<UUID> directories in /dev (unnecessary clutter)
+rm -rf /dev/ceph-*
+```
+
 ## Troubleshooting
 If the cleanup instructions are not executed in the order above, or you otherwise have difficulty cleaning up the cluster, here are a few things to try.
 
