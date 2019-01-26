@@ -220,7 +220,7 @@ metadata:
 spec:
   cephVersion:
     # For the latest ceph images, see https://hub.docker.com/r/ceph/ceph/tags
-    image: ceph/ceph:v13.2.2-20181023
+    image: ceph/ceph:v13.2.4-20190109
   dataDirHostPath: /var/lib/rook
   dashboard:
     enabled: true

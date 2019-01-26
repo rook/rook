@@ -22,7 +22,7 @@ metadata:
 spec:
   cephVersion:
     # see the "Cluster Settings" section below for more details on which image of ceph to run
-    image: ceph/ceph:v13.2.2-20181023
+    image: ceph/ceph:v13.2.4-20190109
   dataDirHostPath: /var/lib/rook
   storage:
     useAllNodes: true
@@ -42,7 +42,7 @@ Settings can be specified at the global level to apply to the cluster as a whole
 ### Cluster Settings
 
 - `cephVersion`: The version information for launching the ceph daemons.
-  - `image`: The image used for running the ceph daemons. For example, `ceph/ceph:v12.2.9-20181026` or `ceph/ceph:v13.2.2-20181023`.
+  - `image`: The image used for running the ceph daemons. For example, `ceph/ceph:v12.2.9-20181026` or `ceph/ceph:v13.2.4-20190109`.
   For the latest ceph images, see the [Ceph DockerHub](https://hub.docker.com/r/ceph/ceph/tags/).
   To ensure a consistent version of the image is running across all nodes in the cluster, it is recommended to use a very specific image version.
   Tags also exist that would give the latest version, but they are only recommended for test environments. For example, the tag `v13` will be updated each time a new mimic build is released.
@@ -177,7 +177,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v13.2.2-20181023
+    image: ceph/ceph:v13.2.4-20190109
   dataDirHostPath: /var/lib/rook
   network:
     hostNetwork: false
@@ -208,7 +208,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v13.2.2-20181023
+    image: ceph/ceph:v13.2.4-20190109
   dataDirHostPath: /var/lib/rook
   network:
     hostNetwork: false
@@ -250,7 +250,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v13.2.2-20181023
+    image: ceph/ceph:v13.2.4-20190109
   dataDirHostPath: /var/lib/rook
   network:
     hostNetwork: false
@@ -286,7 +286,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v13.2.2-20181023
+    image: ceph/ceph:v13.2.4-20190109
   dataDirHostPath: /var/lib/rook
   network:
     hostNetwork: false
@@ -330,7 +330,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v13.2.2-20181023
+    image: ceph/ceph:v13.2.4-20190109
   dataDirHostPath: /var/lib/rook
   # cluster level resource requests/limits configuration
   resources:
