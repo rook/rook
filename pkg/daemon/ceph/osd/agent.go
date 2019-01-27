@@ -153,8 +153,7 @@ func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOs
 	}
 	if a.metadataDevice != "" {
 		// ceph-volume still is work in progress for accepting fast devices for the metadata
-		logger.Infof("skipping ceph-volume until the fast devices can be specified for the metadata")
-		cvSupported = false
+		logger.Warningf("ceph-volume metadata support is experimental. osd provision might fail if vg on %s does not have enough space", a.metadataDevice)
 	}
 
 	var osds []oposd.OSDInfo
@@ -202,7 +201,7 @@ func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOs
 	}
 
 	// Now ask ceph-volume for osds already configured or to newly configure devices
-	cvOSDs, err := a.configureCVDevices(context, cvDevices)
+	cvOSDs, err := a.configureCVDevices(context, cvDevices, a.metadataDevice)
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure devices with ceph-volume. %+v", err)
 	}

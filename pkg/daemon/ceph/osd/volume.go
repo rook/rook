@@ -37,7 +37,7 @@ const (
 	cephVolumeCmd     = "ceph-volume"
 )
 
-func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *DeviceOsdMapping) ([]oposd.OSDInfo, error) {
+func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *DeviceOsdMapping, metadataDevice string) ([]oposd.OSDInfo, error) {
 	var osds []oposd.OSDInfo
 
 	var err error
@@ -55,7 +55,7 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 		return nil, fmt.Errorf("failed to generate osd keyring. %+v", err)
 	}
 
-	if err = a.initializeDevices(context, devices); err != nil {
+	if err = a.initializeDevices(context, devices, metadataDevice); err != nil {
 		return nil, fmt.Errorf("failed to initialize devices. %+v", err)
 	}
 
@@ -63,7 +63,7 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 	return osds, err
 }
 
-func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceOsdMapping) error {
+func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceOsdMapping, metadataDevice string) error {
 	storeFlag := "--bluestore"
 	if a.storeConfig.StoreType == config.Filestore {
 		storeFlag = "--filestore"
@@ -79,9 +79,13 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 		strconv.Itoa(a.storeConfig.OSDsPerDevice),
 	}...)
 
-	// ceph-volume is soon implementing a parameter to specify the "fast devices", which correspond to the "metadataDevice" from the
-	// crd spec. After that is implemented, we can implement this. In the meantime, we fall back to use rook's partitioning.
+	// When mixed hdd/ssd devices are given, ceph-volume configures db lv on the ssd.
 	metadataDeviceSpecified := false
+	if metadataDevice != "" {
+		logger.Infof("using %s as metadataDevice and let ceph-volume lvm batch decide how to create volumes", metadataDevice)
+		metadataDeviceSpecified = true
+		batchArgs = append(batchArgs, path.Join("/dev", metadataDevice))
+	}
 
 	configured := 0
 	for name, device := range devices.Entries {
