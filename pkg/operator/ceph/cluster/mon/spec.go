@@ -84,8 +84,6 @@ func (c *Cluster) makeMonPod(monConfig *monConfig, hostname string) *v1.Pod {
 		InitContainers: []v1.Container{
 			// Config file init performed by Rook
 			c.makeConfigInitContainer(monConfig),
-			// Ceph monmap init performed by 'monmaptool'
-			c.makeMonmapInitContainer(monConfig),
 			// mon filesystem init performed by mon daemon
 			c.makeMonFSInitContainer(monConfig),
 		},
@@ -165,35 +163,6 @@ func (c *Cluster) monmapFilePath(monConfig *monConfig) string {
 	)
 }
 
-func (c *Cluster) makeMonmapInitContainer(monConfig *monConfig) v1.Container {
-	// Add mons w/ monmaptool w/ args: [--add <mon-name> <mon-endpoint>]...
-	monmapAddMonArgs := []string{}
-	for _, mon := range c.clusterInfo.Monitors {
-		monmapAddMonArgs = append(monmapAddMonArgs, "--add", mon.Name, mon.Endpoint)
-	}
-
-	return v1.Container{
-		Name: "monmap-init",
-		Command: []string{
-			monmaptoolCommand,
-		},
-		Args: append(
-			[]string{
-				c.monmapFilePath(monConfig),
-				"--create",
-				"--clobber",
-				"--fsid", c.clusterInfo.FSID,
-			},
-			monmapAddMonArgs...,
-		),
-		Image:           c.cephVersion.Image,
-		VolumeMounts:    opspec.CephVolumeMounts(),
-		SecurityContext: podSecurityContext(),
-		// monmap creation does not require ports to be exposed
-		Resources: c.resources,
-	}
-}
-
 // args needed for all ceph-mon calls
 func (c *Cluster) cephMonCommonArgs(monConfig *monConfig) []string {
 	return []string{
@@ -211,7 +180,6 @@ func (c *Cluster) makeMonFSInitContainer(monConfig *monConfig) v1.Container {
 		Args: append(
 			[]string{
 				"--mkfs",
-				"--monmap", c.monmapFilePath(monConfig),
 			},
 			c.cephMonCommonArgs(monConfig)...,
 		),
