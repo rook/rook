@@ -18,7 +18,6 @@ package target
 
 import (
 	"fmt"
-	"math"
 	"path/filepath"
 	"strings"
 
@@ -138,15 +137,19 @@ func GetRTDevices(nodeDisks []sys.LocalDisk, storeConfig *config.StoreConfig) (r
 		return rtDevices, fmt.Errorf("Confusing use of useMetadataOffload parameter HDDs(%d) < SSDs(%d)\n", len(hdds), len(ssds))
 	}
 
-	chunkSize := int(math.Ceil(float64(len(hdds) / len(ssds))))
 	var hdds_divided [][]sys.LocalDisk
-	for i := 0; i < len(hdds); i += chunkSize {
-		end := i + chunkSize
-
-		if end > len(hdds) {
-			end = len(hdds)
+	for i := len(ssds); i > 0; i-- {
+		chunkSize := len(hdds) / i
+		mod := len(hdds) % i
+		if mod > 0 {
+			chunkSize++
 		}
-		hdds_divided = append(hdds_divided, hdds[i:end])
+
+		if len(hdds) < chunkSize {
+			chunkSize = len(hdds)
+		}
+		hdds_divided = append(hdds_divided, hdds[:chunkSize])
+		hdds = hdds[chunkSize:]
 	}
 
 	for i := range hdds_divided {
