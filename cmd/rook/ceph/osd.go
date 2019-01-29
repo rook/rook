@@ -310,6 +310,11 @@ func commonOSDInit(cmd *cobra.Command) {
 //   sda,sdb,nvme01:5
 func parseDevices(devices string) ([]osddaemon.DesiredDevice, error) {
 	var result []osddaemon.DesiredDevice
+
+	if devices == "" {
+		return result, nil
+	}
+
 	parsed := strings.Split(devices, ",")
 	for _, device := range parsed {
 		parts := strings.Split(device, ":")

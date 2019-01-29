@@ -48,4 +48,11 @@ func TestParseDesiredDevices(t *testing.T) {
 	result, err = parseDevices(devices)
 	assert.Nil(t, result)
 	assert.NotNil(t, err)
+
+	// empty osd is parsed
+	devices = ""
+	result, err = parseDevices(devices)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(result))
+
 }
