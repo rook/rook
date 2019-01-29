@@ -117,7 +117,7 @@ func TestServiceSpec(t *testing.T) {
 	s := c.makeMgrService("rook-edgefs-mgr")
 	assert.NotNil(t, s)
 	assert.Equal(t, "rook-edgefs-mgr", s.Name)
-	assert.Equal(t, 4, len(s.Spec.Ports))
+	assert.Equal(t, 1, len(s.Spec.Ports))
 }
 
 func TestHostNetwork(t *testing.T) {

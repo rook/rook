@@ -38,11 +38,15 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "edgefs-op-mgr")
 
 const (
 	appName                   = "rook-edgefs-mgr"
+	restapiSvcName            = "rook-edgefs-restapi"
+	uiSvcName                 = "rook-edgefs-ui"
 	defaultServiceAccountName = "rook-edgefs-cluster"
 	defaultGrpcPort           = 6789
 	defaultRestPort           = 8080
 	defaultRestSPort          = 4443
 	defaultMetricsPort        = 8881
+	defaultUiPort             = 3000
+	defaultUiSPort            = 3443
 
 	/* Volumes definitions */
 	dataVolumeName    = "edgefs-datadir"
@@ -121,14 +125,36 @@ func (c *Cluster) Start(rookImage string) error {
 	}
 
 	// create the mgr service
-	service := c.makeMgrService(appName)
-	if _, err := c.context.Clientset.CoreV1().Services(c.Namespace).Create(service); err != nil {
+	mgrService := c.makeMgrService(appName)
+	if _, err := c.context.Clientset.CoreV1().Services(c.Namespace).Create(mgrService); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create mgr service. %+v", err)
 		}
-		logger.Infof("mgr mgr service already exists")
+		logger.Infof("mgr service already exists")
 	} else {
-		logger.Infof("mgr mgr service started")
+		logger.Infof("mgr service started")
+	}
+
+	// create the restapi service
+	restapiService := c.makeRestapiService(restapiSvcName)
+	if _, err := c.context.Clientset.CoreV1().Services(c.Namespace).Create(restapiService); err != nil {
+		if !errors.IsAlreadyExists(err) {
+			return fmt.Errorf("failed to create restapi service. %+v", err)
+		}
+		logger.Infof("restapi service already exists")
+	} else {
+		logger.Infof("restapi service started")
+	}
+
+	// create the ui/dashboard service
+	uiService := c.makeUiService(uiSvcName)
+	if _, err := c.context.Clientset.CoreV1().Services(c.Namespace).Create(uiService); err != nil {
+		if !errors.IsAlreadyExists(err) {
+			return fmt.Errorf("failed to create ui service. %+v", err)
+		}
+		logger.Infof("ui service already exists")
+	} else {
+		logger.Infof("ui service started")
 	}
 
 	return nil
@@ -144,26 +170,76 @@ func (c *Cluster) makeMgrService(name string) *v1.Service {
 		},
 		Spec: v1.ServiceSpec{
 			Selector: labels,
-			Type:     v1.ServiceTypeClusterIP,
+			Type:     v1.ServiceTypeNodePort,
 			Ports: []v1.ServicePort{
 				{
 					Name:     "mgr",
 					Port:     int32(defaultGrpcPort),
 					Protocol: v1.ProtocolTCP,
 				},
+			},
+		},
+	}
+
+	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &svc.ObjectMeta, &c.ownerRef)
+	return svc
+}
+
+func (c *Cluster) makeRestapiService(name string) *v1.Service {
+	labels := c.getLabels()
+	svc := &v1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: c.Namespace,
+			Labels:    labels,
+		},
+		Spec: v1.ServiceSpec{
+			Selector: labels,
+			Type:     v1.ServiceTypeNodePort,
+			Ports: []v1.ServicePort{
 				{
 					Name:     "http-metrics",
 					Port:     int32(defaultMetricsPort),
 					Protocol: v1.ProtocolTCP,
 				},
 				{
-					Name:     "http-mgmt",
+					Name:     "http-restapi",
 					Port:     int32(defaultRestPort),
 					Protocol: v1.ProtocolTCP,
 				},
 				{
-					Name:     "https-mgmt",
+					Name:     "https-restapi",
 					Port:     int32(defaultRestSPort),
+					Protocol: v1.ProtocolTCP,
+				},
+			},
+		},
+	}
+
+	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &svc.ObjectMeta, &c.ownerRef)
+	return svc
+}
+
+func (c *Cluster) makeUiService(name string) *v1.Service {
+	labels := c.getLabels()
+	svc := &v1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: c.Namespace,
+			Labels:    labels,
+		},
+		Spec: v1.ServiceSpec{
+			Selector: labels,
+			Type:     v1.ServiceTypeNodePort,
+			Ports: []v1.ServicePort{
+				{
+					Name:     "http-ui",
+					Port:     int32(defaultUiPort),
+					Protocol: v1.ProtocolTCP,
+				},
+				{
+					Name:     "https-ui",
+					Port:     int32(defaultUiSPort),
 					Protocol: v1.ProtocolTCP,
 				},
 			},
@@ -215,12 +291,13 @@ func (c *Cluster) makeDeployment(name, clusterName, rookImage string, replicas i
 		},
 		Spec: v1.PodSpec{
 			ServiceAccountName: c.serviceAccount,
-			Containers:         []v1.Container{c.mgmtContainer(name, "edgefs/edgefs-restapi:"+rookImageVer), c.mgrContainer("grpc", rookImage)},
-			RestartPolicy:      v1.RestartPolicyAlways,
-			Volumes:            volumes,
-			HostIPC:            true,
-			HostNetwork:        isHostNetworkDefined(c.HostNetworkSpec),
-			NodeSelector:       map[string]string{c.Namespace: "cluster"},
+			Containers: []v1.Container{c.mgmtContainer(name, "edgefs/edgefs-restapi:"+rookImageVer),
+				c.mgrContainer("grpc", rookImage), c.uiContainer("ui", "edgefs/edgefs-ui:"+rookImageVer)},
+			RestartPolicy: v1.RestartPolicyAlways,
+			Volumes:       volumes,
+			HostIPC:       true,
+			HostNetwork:   isHostNetworkDefined(c.HostNetworkSpec),
+			NodeSelector:  map[string]string{c.Namespace: "cluster"},
 		},
 	}
 	if isHostNetworkDefined(c.HostNetworkSpec) {
@@ -237,6 +314,43 @@ func (c *Cluster) makeDeployment(name, clusterName, rookImage string, replicas i
 	}
 	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &d.ObjectMeta, &c.ownerRef)
 	return d
+}
+
+func (c *Cluster) uiContainer(name string, containerImage string) v1.Container {
+
+	runAsUser := int64(0)
+	readOnlyRootFilesystem := false
+	securityContext := &v1.SecurityContext{
+		RunAsUser:              &runAsUser,
+		ReadOnlyRootFilesystem: &readOnlyRootFilesystem,
+	}
+
+	return v1.Container{
+		Name:            name,
+		Image:           containerImage,
+		ImagePullPolicy: v1.PullAlways,
+		Args:            []string{},
+		Env: []v1.EnvVar{
+			{
+				Name:  "API_ENDPOINT",
+				Value: "http://0.0.0.0:8080",
+			},
+		},
+		SecurityContext: securityContext,
+		Resources:       c.resources,
+		Ports: []v1.ContainerPort{
+			{
+				Name:          "http-ui",
+				ContainerPort: int32(defaultUiPort),
+				Protocol:      v1.ProtocolTCP,
+			},
+			{
+				Name:          "https-ui",
+				ContainerPort: int32(defaultUiSPort),
+				Protocol:      v1.ProtocolTCP,
+			},
+		},
+	}
 }
 
 func (c *Cluster) mgmtContainer(name string, containerImage string) v1.Container {
