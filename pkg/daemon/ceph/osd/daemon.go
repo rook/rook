@@ -250,10 +250,10 @@ func getDataDirs(context *clusterd.Context, kv *k8sutil.ConfigMapKVStore, desire
 		dirList = strings.Split(desiredDirs, ",")
 	}
 
-	if len(dirList) == 0 && !devicesSpecified {
-		// user has not specified any dirs or any devices, give them the default dir at least
-		dirList = append(dirList, context.ConfigDir)
-	}
+	// when user has not specified any dirs or any devices, legacy behavior was to give them the
+	// default dir. no longer automatically create this fallback osd. the legacy conditional is
+	// still important for determining when the fallback osd may be deleted.
+	noDirsOrDevicesSpecified := len(dirList) == 0 && !devicesSpecified
 
 	removedDirs = make(map[string]int)
 
@@ -263,7 +263,7 @@ func getDataDirs(context *clusterd.Context, kv *k8sutil.ConfigMapKVStore, desire
 		addDirsToDirMap(dirList, &dirMap)
 
 		// determine which dirs are still active, which should be removed, then return them
-		activeDirs, removedDirs := getActiveAndRemovedDirs(dirList, dirMap)
+		activeDirs, removedDirs := getActiveAndRemovedDirs(dirList, dirMap, context.ConfigDir, noDirsOrDevicesSpecified)
 		return activeDirs, removedDirs, nil
 	}
 
@@ -324,12 +324,21 @@ func getRemovedDevices(agent *OsdAgent) (*config.PerfScheme, *DeviceOsdMapping, 
 	return removedDevicesScheme, removedDevicesMapping, nil
 }
 
-func getActiveAndRemovedDirs(currentDirList []string, savedDirMap map[string]int) (activeDirs, removedDirs map[string]int) {
+func getActiveAndRemovedDirs(
+	currentDirList []string, savedDirMap map[string]int, configDir string, noDirsOrDevicesSpecified bool,
+) (activeDirs, removedDirs map[string]int) {
 	activeDirs = map[string]int{}
 	removedDirs = map[string]int{}
 
 	for savedDir, id := range savedDirMap {
 		foundSavedDir := false
+
+		// If a legacy 'fallback' osd and no dirs/devices are yet specified, keep it to preserve
+		// legacy behavior for migrated clusters.
+		if savedDir == configDir && noDirsOrDevicesSpecified {
+			foundSavedDir = true
+		}
+
 		for _, dir := range currentDirList {
 			if dir == savedDir {
 				foundSavedDir = true

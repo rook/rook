@@ -539,16 +539,5 @@ func (c *Cluster) resolveNode(nodeName string) *rookalpha.Node {
 	}
 	rookNode.Resources = k8sutil.MergeResourceRequirements(rookNode.Resources, c.resources)
 
-	// ensure no invalid dirs are specified
-	var validDirs []rookalpha.Directory
-	for _, dir := range rookNode.Directories {
-		if dir.Path == k8sutil.DataDir || dir.Path == c.dataDirHostPath {
-			logger.Warningf("skipping directory %s that would conflict with the dataDirHostPath", dir.Path)
-			continue
-		}
-		validDirs = append(validDirs, dir)
-	}
-	rookNode.Directories = validDirs
-
 	return rookNode
 }

@@ -661,6 +661,8 @@ spec:
   storage:
     useAllNodes: true
     useAllDevices: ` + strconv.FormatBool(settings.UseAllDevices) + `
+    directories:
+    - path: ` + settings.DataDirHostPath + /* simulate legacy fallback osd behavior so existing tests still work */ `
     deviceFilter:
     location:
     config:
