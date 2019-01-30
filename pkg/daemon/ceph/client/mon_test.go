@@ -27,16 +27,18 @@ func TestCephArgs(t *testing.T) {
 	args := []string{}
 	command, args := FinalizeCephCommandArgs(CephTool, args, "/etc", "a")
 	assert.Equal(t, CephTool, command)
-	assert.Equal(t, 3, len(args))
-	assert.Equal(t, "--cluster=a", args[0])
-	assert.Equal(t, "--conf=/etc/a/a.config", args[1])
-	assert.Equal(t, "--keyring=/etc/a/client.admin.keyring", args[2])
+	assert.Equal(t, 4, len(args))
+	assert.Equal(t, 4, len(args))
+	assert.Equal(t, "--connect-timeout=15", args[0])
+	assert.Equal(t, "--cluster=a", args[1])
+	assert.Equal(t, "--conf=/etc/a/a.config", args[2])
+	assert.Equal(t, "--keyring=/etc/a/client.admin.keyring", args[3])
 
 	RunAllCephCommandsInToolbox = true
 	args = []string{}
 	command, args = FinalizeCephCommandArgs(CephTool, args, "/etc", "a")
 	assert.Equal(t, Kubectl, command)
-	assert.Equal(t, 7, len(args), fmt.Sprintf("%+v", args))
+	assert.Equal(t, 8, len(args), fmt.Sprintf("%+v", args))
 	assert.Equal(t, "-it", args[0])
 	assert.Equal(t, "exec", args[1])
 	assert.Equal(t, "rook-ceph-tools", args[2])
@@ -44,6 +46,7 @@ func TestCephArgs(t *testing.T) {
 	assert.Equal(t, "a", args[4])
 	assert.Equal(t, "--", args[5])
 	assert.Equal(t, CephTool, args[6])
+	assert.Equal(t, "--connect-timeout=15", args[7])
 	RunAllCephCommandsInToolbox = false
 
 	// cluster under /var/lib/rook
@@ -60,6 +63,6 @@ func TestCephArgs(t *testing.T) {
 	args = []string{"myarg"}
 	command, args = FinalizeCephCommandArgs(CephTool, args, "/etc", "ceph")
 	assert.Equal(t, CephTool, command)
-	assert.Equal(t, 1, len(args))
+	assert.Equal(t, 2, len(args))
 	assert.Equal(t, "myarg", args[0])
 }
