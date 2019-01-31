@@ -46,7 +46,7 @@ After you connect to the dashboard you will need to login for secure access. Roo
 `admin` and generates a secret called `rook-ceph-dashboard-admin-password` in the namespace where rook is running.
 To retrieve the generated password, you can run the following:
 ```
-kubectl -n rook-ceph get secret rook-ceph-dashboard-password -o yaml | grep "password:" | awk '{print $2}' | base64 --decode
+kubectl -n rook-ceph get secret rook-ceph-dashboard-password -o jsonpath="{['data']['password']}" | base64 --decode && echo
 ```
 
 ## Configure the Dashboard
