@@ -21,7 +21,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -31,12 +30,11 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
-	mondaemon "github.com/rook/rook/pkg/daemon/ceph/mon"
 	cephtest "github.com/rook/rook/pkg/daemon/ceph/test"
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -63,14 +61,14 @@ func newTestStartCluster(namespace string) *clusterd.Context {
 	}
 }
 
-func newCluster(context *clusterd.Context, namespace string, hostNetwork bool, resources v1.ResourceRequirements) *Cluster {
+func newCluster(context *clusterd.Context, namespace string, hostNetwork bool, allowMultiplePerNode bool, resources v1.ResourceRequirements) *Cluster {
 	return &Cluster{
 		HostNetwork:          hostNetwork,
 		context:              context,
 		Namespace:            namespace,
 		rookVersion:          "myversion",
 		Count:                3,
-		AllowMultiplePerNode: true,
+		AllowMultiplePerNode: allowMultiplePerNode,
 		maxMonID:             -1,
 		waitForStart:         false,
 		monPodRetryInterval:  10 * time.Millisecond,
@@ -94,7 +92,7 @@ func TestResourceName(t *testing.T) {
 func TestStartMonPods(t *testing.T) {
 	namespace := "ns"
 	context := newTestStartCluster(namespace)
-	c := newCluster(context, namespace, false, v1.ResourceRequirements{})
+	c := newCluster(context, namespace, false, true, v1.ResourceRequirements{})
 
 	// start a basic cluster
 	err := c.Start()
@@ -112,7 +110,7 @@ func TestStartMonPods(t *testing.T) {
 func TestOperatorRestart(t *testing.T) {
 	namespace := "ns"
 	context := newTestStartCluster(namespace)
-	c := newCluster(context, namespace, false, v1.ResourceRequirements{})
+	c := newCluster(context, namespace, false, true, v1.ResourceRequirements{})
 	c.clusterInfo = test.CreateConfigDir(1)
 
 	// start a basic cluster
@@ -121,7 +119,7 @@ func TestOperatorRestart(t *testing.T) {
 
 	validateStart(t, c)
 
-	c = newCluster(context, namespace, false, v1.ResourceRequirements{})
+	c = newCluster(context, namespace, false, true, v1.ResourceRequirements{})
 
 	// starting again should be a no-op, but will not result in an error
 	err = c.Start()
@@ -134,7 +132,9 @@ func TestOperatorRestart(t *testing.T) {
 func TestOperatorRestartHostNetwork(t *testing.T) {
 	namespace := "ns"
 	context := newTestStartCluster(namespace)
-	c := newCluster(context, namespace, false, v1.ResourceRequirements{})
+
+	// cluster without host networking
+	c := newCluster(context, namespace, false, false, v1.ResourceRequirements{})
 	c.clusterInfo = test.CreateConfigDir(1)
 
 	// start a basic cluster
@@ -143,13 +143,28 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 
 	validateStart(t, c)
 
-	c = newCluster(context, namespace, true, v1.ResourceRequirements{})
+	// cluster with host networking
+	c = newCluster(context, namespace, true, false, v1.ResourceRequirements{})
 
 	// starting again should be a no-op, but still results in an error
 	err = c.Start()
 	assert.Nil(t, err)
 
 	validateStart(t, c)
+}
+
+// this tests can 3 mons with hostnetwroking on the same host is rejected
+func TestHostNetworkSameNode(t *testing.T) {
+	namespace := "ns"
+	context := newTestStartCluster(namespace)
+
+	// cluster host networking
+	c := newCluster(context, namespace, true, true, v1.ResourceRequirements{})
+	c.clusterInfo = test.CreateConfigDir(1)
+
+	// start a basic cluster
+	err := c.Start()
+	assert.NotNil(t, err)
 }
 
 func validateStart(t *testing.T, c *Cluster) {
@@ -386,7 +401,7 @@ func TestNodeAffinity(t *testing.T) {
 func TestHostNetwork(t *testing.T) {
 	clientset := test.New(3)
 	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", cephv1.CephVersionSpec{},
-		cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, rookalpha.Placement{},
+		cephv1.MonSpec{Count: 3, AllowMultiplePerNode: false}, rookalpha.Placement{},
 		false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 	c.clusterInfo = test.CreateConfigDir(0)
 
@@ -427,54 +442,4 @@ func TestGetNodeInfoFromNode(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.Equal(t, "1.1.1.1", info.Address)
-}
-
-func TestHostNetworkPortIncrease(t *testing.T) {
-	clientset := test.New(1)
-	node, err := clientset.CoreV1().Nodes().Get("node0", metav1.GetOptions{})
-	assert.Nil(t, err)
-	assert.NotNil(t, node)
-
-	node.Status = v1.NodeStatus{}
-	node.Status.Addresses = []v1.NodeAddress{
-		{
-			Type:    v1.NodeExternalIP,
-			Address: "1.1.1.1",
-		},
-	}
-
-	configDir, _ := ioutil.TempDir("", "")
-	defer os.RemoveAll(configDir)
-	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: configDir},
-		"ns", "", "myversion", cephv1.CephVersionSpec{}, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true},
-		rookalpha.Placement{}, true, v1.ResourceRequirements{}, metav1.OwnerReference{})
-	c.clusterInfo = test.CreateConfigDir(0)
-
-	mons := []*monConfig{
-		{
-			ResourceName: "rook-ceph-mon-a",
-			DaemonName:   "a",
-			Port:         mondaemon.DefaultPort,
-		},
-		{
-			ResourceName: "rook-ceph-mon-b",
-			DaemonName:   "b",
-			Port:         mondaemon.DefaultPort,
-		},
-	}
-	c.maxMonID = 1
-
-	err = c.assignMons(mons)
-	assert.Nil(t, err)
-
-	err = c.initMonIPs(mons)
-	assert.Nil(t, err)
-
-	assert.Equal(t, node.Name, c.mapping.Node["a"].Name)
-	assert.Equal(t, node.Name, c.mapping.Node["b"].Name)
-
-	sEndpoint := strings.Split(c.clusterInfo.Monitors["a"].Endpoint, ":")
-	assert.Equal(t, strconv.Itoa(mondaemon.DefaultPort), sEndpoint[1])
-	sEndpoint = strings.Split(c.clusterInfo.Monitors["b"].Endpoint, ":")
-	assert.Equal(t, strconv.Itoa(mondaemon.DefaultPort+1), sEndpoint[1])
 }
