@@ -184,37 +184,28 @@ func (c *Cluster) startMons() error {
 		return fmt.Errorf("failed to assign pods to mons. %+v", err)
 	}
 
-	// Start one monitor at a time
-	for i := 0; i < c.Count; i++ {
-		logger.Infof("ensuring mon %s (%s) is started", mons[i].ResourceName, mons[i].DaemonName)
-		endIndex := len(c.clusterInfo.Monitors)
-		if endIndex < c.Count {
-			endIndex++
-		}
-		logger.Infof("looping to start mons. i=%d, endIndex=%d, c.Size=%d", i, endIndex, c.Count)
-
-		// Init the mon IPs
-		if err := c.initMonIPs(mons[0:endIndex]); err != nil {
-			return fmt.Errorf("failed to init mon services. %+v", err)
-		}
-
-		// save the mon config after we have "initiated the IPs"
-		if err := c.saveMonConfig(); err != nil {
-			return fmt.Errorf("failed to save mons. %+v", err)
-		}
-
-		// make sure we have the connection info generated so connections can happen
-		if err := writeConnectionConfig(c.context, c.clusterInfo); err != nil {
-			return err
-		}
-
-		// Start the deployment
-		if err := c.startDeployments(mons[0:endIndex], i); err != nil {
-			return fmt.Errorf("failed to start mon pods. %+v", err)
-		}
+	// Get public IPs (services) for mons all at once so we can build mon_host
+	if err := c.initMonIPs(mons); err != nil {
+		return fmt.Errorf("failed to init mon services. %+v", err)
 	}
 
-	logger.Debugf("mon endpoints used are: %s", FlattenMonEndpoints(c.clusterInfo.Monitors))
+	// save the mon config after we have "initiated the IPs"
+	if err := c.saveMonConfig(); err != nil {
+		return fmt.Errorf("failed to save mons. %+v", err)
+	}
+
+	// make sure we have the connection info generated so connections can happen
+	if err := writeConnectionConfig(c.context, c.clusterInfo); err != nil {
+		return err
+	}
+
+	logger.Debugf("mon endpoints are: %s", FlattenMonEndpoints(c.clusterInfo.Monitors))
+
+	// Start (or update) one monitor at a time
+	if err := c.startDeployments(mons); err != nil {
+		return fmt.Errorf("failed to start mon pods. %+v", err)
+	}
+
 	return nil
 }
 
@@ -338,41 +329,173 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 	return nil
 }
 
-func (c *Cluster) startDeployments(mons []*monConfig, index int) error {
+func (c *Cluster) startDeployments(mons []*monConfig) error {
 	if len(mons) == 0 {
 		return fmt.Errorf("cannot start 0 mons")
 	}
 
-	// Ensure each of the mons have been created. If already created, it will be a no-op.
-	for i := 0; i < len(mons); i++ {
-		node, _ := c.mapping.Node[mons[i].DaemonName]
-		err := c.startMon(mons[i], node.Hostname)
-		if err != nil {
-			return fmt.Errorf("failed to create mon %s. %+v", mons[i].DaemonName, err)
+	// mon deployments already created must have a quorum before we can update/add mons
+	existingDeployments := 0
+	for i, m := range mons {
+		if s, err := c.monIsCreated(m); err != nil {
+			return fmt.Errorf("could not determine existing mon cluster status. %+v", err)
+		} else if !s {
+			// because the rook operator creates/updates mons in order, the first non-started mon
+			// indicates the end of the preexisting mons in the list
+			break
+		}
+		existingDeployments = i + 1
+	}
+	if existingDeployments > 0 && c.waitForStart {
+		if err := c.waitForQuorumWithMons(mons[0:existingDeployments]); err != nil {
+			/* TODO: take steps to heal cluster */
+			return fmt.Errorf("preexisting mon cluster cannot establish quorum. %+v", err)
 		}
 	}
 
-	logger.Infof("mons created: %d", len(mons))
-	return c.waitForMonsToJoin(mons)
+	// when updating, make sure full quorum is maintained for each individual updated daemon
+	for i := 0; i < existingDeployments; i++ {
+		node, _ := c.mapping.Node[mons[i].DaemonName]
+		if err := c.updateMon(mons[i], node.Hostname); err != nil {
+			return fmt.Errorf("failed to update mon daemon %s. %+v", mons[i].DaemonName, err)
+		}
+		if c.waitForStart {
+			if err := c.waitForQuorumWithMons(mons[0:existingDeployments]); err != nil {
+				/* TODO: take steps to heal cluster */
+				return fmt.Errorf("mon cluster failed to establish quorum. %+v", err)
+			}
+		}
+	}
+
+	// when creating mons, we just want to create all of them and then wait for them to join quorum
+	for i := existingDeployments; i < len(mons); i++ {
+		node, _ := c.mapping.Node[mons[i].DaemonName]
+		if err := c.createMon(mons[i], node.Hostname); err != nil {
+			return fmt.Errorf("failed to start mon %s. %+v", mons[i].DaemonName, err)
+		}
+	}
+	if c.waitForStart {
+		if err := c.waitForQuorumWithMons(mons); err != nil {
+			/* TODO: take steps to heal cluster */
+			return fmt.Errorf("mon cluster failed to establish quorum. %+v", err)
+		}
+	}
+
+	logger.Infof("%d mons updated, %d mons created", existingDeployments, len(mons)-existingDeployments)
+	return nil
 }
 
-func (c *Cluster) waitForMonsToJoin(mons []*monConfig) error {
-	if !c.waitForStart {
-		return nil
-	}
-
-	starting := []string{}
-	for _, m := range mons {
-		starting = append(starting, m.DaemonName)
-	}
-
-	// wait for the monitors to join quorum
-	err := waitForQuorumWithMons(c.context, c.clusterInfo.Name, starting)
+func (c *Cluster) monIsCreated(m *monConfig) (bool, error) {
+	_, err := c.context.Clientset.Extensions().Deployments(c.Namespace).Get(m.ResourceName, metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to wait for mon quorum. %+v", err)
+		if errors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
+func (c *Cluster) createMon(m *monConfig, hostname string) error {
+	d := c.makeDeployment(m, hostname)
+	logger.Debugf("Creating mon: %+v", d.Name)
+	if _, err := c.context.Clientset.Extensions().Deployments(c.Namespace).Create(d); err != nil {
+		return fmt.Errorf("failed to create mon %s. %+v", m.ResourceName, err)
+	}
+	return nil
+}
+
+var updateDeploymentAndWait = k8sutil.UpdateDeploymentAndWait
+
+func (c *Cluster) updateMon(m *monConfig, hostname string) error {
+	d := c.makeDeployment(m, hostname)
+	logger.Debugf("Updating mon: %+v", d.Name)
+
+	if err := updateDeploymentAndWait(c.context, d, c.Namespace); err != nil {
+		return fmt.Errorf("failed to update mon deployment %s. %+v", m.ResourceName, err)
+	}
+	return nil
+}
+
+func (c *Cluster) waitForQuorumWithMons(mons []*monConfig) error {
+	monIDs := []string{}
+	for _, m := range mons {
+		monIDs = append(monIDs, m.DaemonName)
+	}
+	logger.Infof("waiting for mon quorum with %v", monIDs)
+
+	// wait for monitors to establish quorum
+	retryCount := 0
+	retryMax := 20
+	sleepTime := 5
+	for {
+		retryCount++
+		if retryCount > retryMax {
+			return fmt.Errorf("exceeded max retry count waiting for monitors to reach quorum")
+		}
+		if retryCount > 1 {
+			// only sleep after the first time
+			<-time.After(time.Duration(sleepTime) * time.Second)
+		}
+
+		// wait for the mon pods to be running
+		running, err := k8sutil.PodsRunningWithLabel(c.context.Clientset, c.Namespace, "app="+appName)
+		if err != nil {
+			logger.Warningf("failed to query mon pod status, trying again. %+v", err)
+			continue
+		}
+		if running != len(monIDs) {
+			logger.Infof("%d/%d mon pods are running. waiting for pods to start", running, len(monIDs))
+			continue
+		}
+
+		// get mon_status response w/ info about all monitors in the mon map and their quorum status
+		status, err := client.GetMonStatus(c.context, c.Namespace, false)
+		if err != nil {
+			logger.Debugf("failed to get mon_status, err: %+v", err)
+			continue
+		}
+
+		// check if each of the initial monitors is in quorum
+		allInQuorum := true
+		for _, id := range monIDs {
+			if !monIsInQuorum(id, status) {
+				allInQuorum = false
+				break
+			}
+		}
+
+		if allInQuorum {
+			break
+		}
 	}
 
+	logger.Infof("Ceph monitors formed quorum")
 	return nil
+}
+
+func monIsInQuorum(monID string, status client.MonStatusResponse) bool {
+	var mon *client.MonMapEntry
+	for i := range status.MonMap.Mons {
+		if monID == status.MonMap.Mons[i].Name {
+			mon = &status.MonMap.Mons[i]
+			break
+		}
+	}
+
+	if mon == nil {
+		logger.Warningf("failed to find monitor %s in Ceph mon map", monID)
+		return false
+	}
+
+	for _, q := range status.Quorum {
+		if mon.Rank == q {
+			return true
+		}
+	}
+
+	logger.Warningf("monitor %s is not in quorum list", monID)
+	return false
 }
 
 func (c *Cluster) saveMonConfig() error {
@@ -418,122 +541,5 @@ func (c *Cluster) saveMonConfig() error {
 		return fmt.Errorf("failed to write connection config for new mons. %+v", err)
 	}
 
-	return nil
-}
-
-var updateDeploymentAndWait = k8sutil.UpdateDeploymentAndWait
-
-func (c *Cluster) startMon(m *monConfig, hostname string) error {
-	// If we determine the legacy replicaset exists, delete it so we can start the new deployment in its place
-	if err := k8sutil.DeleteReplicaSet(c.context.Clientset, c.Namespace, m.ResourceName); err != nil {
-		logger.Errorf("failed to delete legacy mon replicaset. %+v", err)
-	}
-
-	d := c.makeDeployment(m, hostname)
-	logger.Debugf("Starting mon: %+v", d.Name)
-	_, err := c.context.Clientset.Extensions().Deployments(c.Namespace).Create(d)
-	if err != nil {
-		if !errors.IsAlreadyExists(err) {
-			return fmt.Errorf("failed to create mon %s. %+v", m.ResourceName, err)
-		}
-		logger.Debugf("deployment for mon %s already exists. updating if needed", m.ResourceName)
-		p, err := c.context.Clientset.Extensions().Deployments(c.Namespace).Get(d.Name, metav1.GetOptions{})
-		if err != nil {
-			return fmt.Errorf("failed to update mon deployment %s. failed to inspect preexisting deployment. %+v", d.Name, err)
-		}
-		// Workaround for #2331 targeted for Rook v0.9: only update the deployment if the Rook init
-		// image or Ceph image has changed.
-		if p.Spec.Template.Spec.Containers[0].Image != d.Spec.Template.Spec.Containers[0].Image ||
-			p.Spec.Template.Spec.InitContainers[0].Image != d.Spec.Template.Spec.InitContainers[0].Image {
-			if err := updateDeploymentAndWait(c.context, d, c.Namespace); err != nil {
-				return fmt.Errorf("failed to update mon deployment %s. %+v", m.ResourceName, err)
-			}
-		}
-	}
-
-	return nil
-}
-
-func waitForQuorumWithMons(context *clusterd.Context, clusterName string, mons []string) error {
-	logger.Infof("waiting for mon quorum with %v", mons)
-
-	// wait for monitors to establish quorum
-	retryCount := 0
-	retryMax := 20
-	sleepTime := 5
-	for {
-		retryCount++
-		if retryCount > retryMax {
-			return fmt.Errorf("exceeded max retry count waiting for monitors to reach quorum")
-		}
-
-		if retryCount > 1 {
-			// only sleep after the first time
-			<-time.After(time.Duration(sleepTime) * time.Second)
-		}
-
-		// wait for the mon pods to be running
-		running, err := k8sutil.PodsRunningWithLabel(context.Clientset, clusterName, "app="+appName)
-		if err != nil {
-			logger.Infof("failed to query mon pod status, trying again. %+v", err)
-			continue
-		}
-		if running != len(mons) {
-			logger.Infof("%d/%d mon pods are running. waiting for pods to start", running, len(mons))
-			continue
-		}
-
-		// get the mon_status response that contains info about all monitors in the mon map and
-		// their quorum status
-		monStatusResp, err := client.GetMonStatus(context, clusterName, false)
-		if err != nil {
-			logger.Debugf("failed to get mon_status, err: %+v", err)
-			continue
-		}
-
-		// check if each of the initial monitors is in quorum
-		allInQuorum := true
-		for _, name := range mons {
-			// first get the initial monitors corresponding mon map entry
-			var monMapEntry *client.MonMapEntry
-			for i := range monStatusResp.MonMap.Mons {
-				if name == monStatusResp.MonMap.Mons[i].Name {
-					monMapEntry = &monStatusResp.MonMap.Mons[i]
-					break
-				}
-			}
-
-			if monMapEntry == nil {
-				// found an initial monitor that is not in the mon map, bail out of this retry
-				logger.Warningf("failed to find initial monitor %s in mon map", name)
-				allInQuorum = false
-				break
-			}
-
-			// using the current initial monitor's mon map entry, check to see if it's in the quorum list
-			// (a list of monitor rank values)
-			inQuorumList := false
-			for _, q := range monStatusResp.Quorum {
-				if monMapEntry.Rank == q {
-					inQuorumList = true
-					break
-				}
-			}
-
-			if !inQuorumList {
-				// found an initial monitor that is not in quorum, bail out of this retry
-				logger.Warningf("initial monitor %s is not in quorum list", name)
-				allInQuorum = false
-				break
-			}
-		}
-
-		if allInQuorum {
-			logger.Debugf("all initial monitors are in quorum")
-			break
-		}
-	}
-
-	logger.Infof("Ceph monitors formed quorum")
 	return nil
 }

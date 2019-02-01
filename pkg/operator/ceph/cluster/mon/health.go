@@ -107,9 +107,7 @@ func (c *Cluster) checkHealth() error {
 			} else {
 				logger.Warningf(
 					"mon %s not in source of truth and not in quorum, not enough mons to remove now (wanted: %d, current: %d)",
-					mon.Name,
-					desiredMonCount,
-					len(status.MonMap.Mons),
+					mon.Name, desiredMonCount, len(status.MonMap.Mons),
 				)
 			}
 		}
@@ -197,7 +195,7 @@ func (c *Cluster) checkMonsOnSameNode(desiredMonCount int) (bool, error) {
 				return true, fmt.Errorf("failed to get available mon nodes. %+v", err)
 			}
 			// if there are enough nodes for one mon "that is too much" to be failovered,
-			// fail it over to an other node
+			// fail it over to another node
 			if len(availableNodes) > 0 {
 				logger.Infof("rebalance: enough nodes available %d to failover mon %s", len(availableNodes), name)
 				c.failMon(len(c.clusterInfo.Monitors), desiredMonCount, name)
@@ -262,6 +260,10 @@ func (c *Cluster) failoverMon(name string) error {
 		return fmt.Errorf("failed to create mon service. %+v", err)
 	}
 
+	// Objective here is to start the new mon regardless of the health status of the rest of the
+	// cluster, and we know at least one mon is failing, possibly more. The replacement process
+	// effectively creates a new "cluster" with only one mon, and then joining the new single-mon
+	// cluster to the existing mon cluster before removing the existing mon being failed over.
 	mConf := []*monConfig{m}
 
 	// Assign the pod to a node
@@ -269,11 +271,12 @@ func (c *Cluster) failoverMon(name string) error {
 		return fmt.Errorf("failed to place new mon on a node. %+v", err)
 	}
 
+	node, ok := c.mapping.Node[m.DaemonName]
+	if !ok {
+		return fmt.Errorf("mon %s doesn't exist in assignment map", m.DaemonName)
+	}
+
 	if c.HostNetwork {
-		node, ok := c.mapping.Node[m.DaemonName]
-		if !ok {
-			return fmt.Errorf("mon %s doesn't exist in assignment map", m.DaemonName)
-		}
 		m.PublicIP = node.Address
 	} else {
 		m.PublicIP = serviceIP
@@ -281,7 +284,7 @@ func (c *Cluster) failoverMon(name string) error {
 	c.clusterInfo.Monitors[m.DaemonName] = cephconfig.NewMonInfo(m.DaemonName, m.PublicIP, m.Port)
 
 	// Start the deployment
-	if err = c.startDeployments(mConf, len(mConf)-1); err != nil {
+	if err = c.startDeployments(mConf); err != nil {
 		return fmt.Errorf("failed to start new mon %s. %+v", m.DaemonName, err)
 	}
 

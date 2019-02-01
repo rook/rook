@@ -136,7 +136,6 @@ func (s *Section) Merge(overrides *Section) {
 		// this condition should never exist except in case of some kind of mem corruption
 		logger.Errorf("override config key %s could not be applied. possible struct corruption of overrides: %+v", k, overrides)
 	}
-
 }
 
 // Merge modifies the Config in-place, adding Sections from the overrides config, and overriding
