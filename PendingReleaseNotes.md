@@ -22,6 +22,10 @@
 
 - Rook no longer supports Kubernetes `1.8` and `1.9`.
 
+### Ceph
+- Rook will no longer create a directory-based osd in the `dataDirHostPath` if no directories or
+  devices are specified or if there are no disks on the host.
+
 ## Known Issues
 
 
