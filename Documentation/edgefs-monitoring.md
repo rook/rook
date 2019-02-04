@@ -1,6 +1,6 @@
 ---
 title: EdgeFS Monitoring
-weight: 48
+weight: 4800
 indent: true
 ---
 

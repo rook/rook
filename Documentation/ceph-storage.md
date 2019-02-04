@@ -1,6 +1,6 @@
 ---
 title: Ceph Storage
-weight: 20
+weight: 2000
 ---
 
 # Ceph Storage

@@ -1,6 +1,6 @@
 ---
 title: Tectonic Bare Metal
-weight: 16
+weight: 1600
 indent: true
 ---
 

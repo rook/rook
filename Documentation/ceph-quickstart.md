@@ -1,6 +1,6 @@
 ---
 title: Ceph Storage
-weight: 3
+weight: 300
 indent: true
 ---
 

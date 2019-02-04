@@ -1,6 +1,6 @@
 ---
 title: NFS Server CRD
-weight: 80
+weight: 8000
 ---
 
 # NFS Server CRD

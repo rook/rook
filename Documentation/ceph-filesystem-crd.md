@@ -1,6 +1,6 @@
 ---
 title: Shared File System CRD
-weight: 30
+weight: 3000
 indent: true
 ---
 {% assign url = page.url | split: '/' %}

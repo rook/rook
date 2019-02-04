@@ -1,6 +1,6 @@
 ---
 title: Cluster CRD
-weight: 26
+weight: 2600
 indent: true
 ---
 

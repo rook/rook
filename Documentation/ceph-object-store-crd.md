@@ -1,6 +1,6 @@
 ---
 title: Object Store CRD
-weight: 28
+weight: 2800
 indent: true
 ---
 

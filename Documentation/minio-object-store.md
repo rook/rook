@@ -1,6 +1,6 @@
 ---
 title: Minio Object Store
-weight: 6
+weight: 600
 indent: true
 ---
 

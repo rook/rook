@@ -1,6 +1,6 @@
 ---
 title: EdgeFS CSI provisioner
-weight: 47
+weight: 4700
 indent: true
 ---
 

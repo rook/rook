@@ -1,6 +1,6 @@
 ---
 title: Edge-X S3 CRD
-weight: 44
+weight: 4400
 indent: true
 ---
 
