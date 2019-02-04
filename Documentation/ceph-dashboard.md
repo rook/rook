@@ -1,6 +1,6 @@
 ---
 title: Dashboard
-weight: 24
+weight: 2400
 indent: true
 ---
 

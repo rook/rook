@@ -1,6 +1,6 @@
 ---
 title: Object Storage
-weight: 22
+weight: 2200
 indent: true
 ---
 

@@ -1,6 +1,6 @@
 ---
 title: Cassandra
-weight: 7
+weight: 700
 indent: true
 ---
 

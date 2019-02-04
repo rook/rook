@@ -1,6 +1,6 @@
 ---
 title: EdgeFS Cluster CRD
-weight: 41
+weight: 4100
 indent: true
 ---
 

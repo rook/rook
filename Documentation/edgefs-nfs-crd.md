@@ -1,6 +1,6 @@
 ---
 title: EdgeFS Scale-Out NFS CRD
-weight: 43
+weight: 4300
 indent: true
 ---
 

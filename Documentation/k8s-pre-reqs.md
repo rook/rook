@@ -1,6 +1,6 @@
 ---
 title: Prerequisites
-weight: 10
+weight: 1000
 ---
 
 # Prerequisites

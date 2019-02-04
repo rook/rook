@@ -1,6 +1,6 @@
 ---
 title: Cassandra Cluster CRD
-weight: 50
+weight: 5000
 ---
 
 # Cassandra Cluster CRD

@@ -1,6 +1,6 @@
 ---
 title: Minio Object Store CRD
-weight: 70
+weight: 7000
 ---
 
 # Minio Object Store CRD

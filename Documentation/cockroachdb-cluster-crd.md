@@ -1,6 +1,6 @@
 ---
 title: CockroachDB Cluster CRD
-weight: 60
+weight: 6000
 ---
 
 # CockroachDB Cluster CRD
