@@ -30,8 +30,8 @@ import (
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/sys"
+	apps "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
 	kserrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -73,13 +73,18 @@ func (d *Discover) Start(namespace, discoverImage, securityAccount string) error
 
 func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage, securityAccount string) error {
 	privileged := true
-	ds := &extensions.DaemonSet{
+	ds := &apps.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: discoverDaemonsetName,
 		},
-		Spec: extensions.DaemonSetSpec{
-			UpdateStrategy: extensions.DaemonSetUpdateStrategy{
-				Type: extensions.RollingUpdateDaemonSetStrategyType,
+		Spec: apps.DaemonSetSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": discoverDaemonsetName,
+				},
+			},
+			UpdateStrategy: apps.DaemonSetUpdateStrategy{
+				Type: apps.RollingUpdateDaemonSetStrategyType,
 			},
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
@@ -165,13 +170,13 @@ func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage, securityAcc
 		}
 	}
 
-	_, err := d.clientset.Extensions().DaemonSets(namespace).Create(ds)
+	_, err := d.clientset.Apps().DaemonSets(namespace).Create(ds)
 	if err != nil {
 		if !kserrors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create rook-discover daemon set. %+v", err)
 		}
 		logger.Infof("rook-discover daemonset already exists, updating ...")
-		_, err = d.clientset.Extensions().DaemonSets(namespace).Update(ds)
+		_, err = d.clientset.Apps().DaemonSets(namespace).Update(ds)
 		if err != nil {
 			return fmt.Errorf("failed to update rook-discover daemon set. %+v", err)
 		}

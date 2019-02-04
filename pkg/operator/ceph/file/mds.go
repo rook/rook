@@ -26,8 +26,8 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	mdsdaemon "github.com/rook/rook/pkg/daemon/ceph/mds"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	apps "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -81,7 +81,7 @@ type mdsConfig struct {
 func (c *cluster) deleteLegacyMdsDeployment() bool {
 	legacyName := fmt.Sprintf("%s-%s", AppName, c.fs.Name) // rook-ceph-mds-<fsname>
 	logger.Debugf("getting legacy mds deployment %s for filesystem %s if it exists", legacyName, c.fs.Name)
-	_, err := c.context.Clientset.Extensions().Deployments(c.fs.Namespace).Get(legacyName, metav1.GetOptions{})
+	_, err := c.context.Clientset.Apps().Deployments(c.fs.Namespace).Get(legacyName, metav1.GetOptions{})
 	if err != nil && errors.IsNotFound(err) {
 		logger.Infof("legacy mds deployment %s not found, no update needed", legacyName)
 		return false
@@ -140,7 +140,7 @@ func (c *cluster) start() error {
 		// start the deployment
 		d := c.makeDeployment(mdsConfig)
 		logger.Debugf("starting mds: %+v", d)
-		_, err := c.context.Clientset.ExtensionsV1beta1().Deployments(c.fs.Namespace).Create(d)
+		_, err := c.context.Clientset.Apps().Deployments(c.fs.Namespace).Create(d)
 		if err != nil {
 			if !errors.IsAlreadyExists(err) {
 				return fmt.Errorf("failed to create mds deployment %s: %+v", mdsConfig.ResourceName, err)
@@ -281,7 +281,7 @@ func deleteMdsCluster(context *clusterd.Context, namespace, fsName string) error
 	return nil
 }
 
-func getMdsDeployments(context *clusterd.Context, namespace, fsName string) (*extensions.DeploymentList, error) {
+func getMdsDeployments(context *clusterd.Context, namespace, fsName string) (*apps.DeploymentList, error) {
 	fsLabelSelector := fmt.Sprintf("rook_file_system=%s", fsName)
 	deps, err := k8sutil.GetDeployments(context.Clientset, namespace, fsLabelSelector)
 	if err != nil {
@@ -290,7 +290,7 @@ func getMdsDeployments(context *clusterd.Context, namespace, fsName string) (*ex
 	return deps, nil
 }
 
-func deleteMdsDeployment(context *clusterd.Context, namespace string, deployment *extensions.Deployment) error {
+func deleteMdsDeployment(context *clusterd.Context, namespace string, deployment *apps.Deployment) error {
 	errCount := 0
 
 	// Delete the mds deployment
@@ -298,7 +298,7 @@ func deleteMdsDeployment(context *clusterd.Context, namespace string, deployment
 	var gracePeriod int64
 	propagation := metav1.DeletePropagationForeground
 	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
-	if err := context.Clientset.ExtensionsV1beta1().Deployments(namespace).Delete(deployment.GetName(), options); err != nil {
+	if err := context.Clientset.Apps().Deployments(namespace).Delete(deployment.GetName(), options); err != nil {
 		errCount++
 		logger.Errorf("failed to delete mds deployment %s: %+v", deployment.GetName(), err)
 	}

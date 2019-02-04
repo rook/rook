@@ -223,10 +223,10 @@ func GetPodLog(clientset kubernetes.Interface, namespace string, labelSelector s
 func DeleteDeployment(clientset kubernetes.Interface, namespace, name string) error {
 	logger.Debugf("removing %s deployment if it exists", name)
 	deleteAction := func(options *metav1.DeleteOptions) error {
-		return clientset.ExtensionsV1beta1().Deployments(namespace).Delete(name, options)
+		return clientset.Apps().Deployments(namespace).Delete(name, options)
 	}
 	getAction := func() error {
-		_, err := clientset.ExtensionsV1beta1().Deployments(namespace).Get(name, metav1.GetOptions{})
+		_, err := clientset.Apps().Deployments(namespace).Get(name, metav1.GetOptions{})
 		return err
 	}
 	return deleteResourceAndWait(namespace, name, "deployment", deleteAction, getAction)
@@ -235,10 +235,10 @@ func DeleteDeployment(clientset kubernetes.Interface, namespace, name string) er
 // DeleteReplicaSet makes a best effort at deleting a deployment and its pods, then waits for them to be deleted
 func DeleteReplicaSet(clientset kubernetes.Interface, namespace, name string) error {
 	deleteAction := func(options *metav1.DeleteOptions) error {
-		return clientset.ExtensionsV1beta1().ReplicaSets(namespace).Delete(name, options)
+		return clientset.Apps().ReplicaSets(namespace).Delete(name, options)
 	}
 	getAction := func() error {
-		_, err := clientset.ExtensionsV1beta1().ReplicaSets(namespace).Get(name, metav1.GetOptions{})
+		_, err := clientset.Apps().ReplicaSets(namespace).Get(name, metav1.GetOptions{})
 		return err
 	}
 	return deleteResourceAndWait(namespace, name, "replicaset", deleteAction, getAction)
@@ -248,10 +248,10 @@ func DeleteReplicaSet(clientset kubernetes.Interface, namespace, name string) er
 func DeleteDaemonset(clientset kubernetes.Interface, namespace, name string) error {
 	logger.Infof("removing %s daemonset if it exists", name)
 	deleteAction := func(options *metav1.DeleteOptions) error {
-		return clientset.ExtensionsV1beta1().DaemonSets(namespace).Delete(name, options)
+		return clientset.Apps().DaemonSets(namespace).Delete(name, options)
 	}
 	getAction := func() error {
-		_, err := clientset.ExtensionsV1beta1().DaemonSets(namespace).Get(name, metav1.GetOptions{})
+		_, err := clientset.Apps().DaemonSets(namespace).Get(name, metav1.GetOptions{})
 		return err
 	}
 	return deleteResourceAndWait(namespace, name, "daemonset", deleteAction, getAction)

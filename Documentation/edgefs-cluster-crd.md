@@ -336,7 +336,7 @@ subjects:
   name: rook-edgefs-cluster
   namespace: rook-edgefs
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: PodSecurityPolicy
 metadata:
   name: privileged
@@ -364,7 +364,7 @@ metadata:
   name: privileged-psp-user
 rules:
 - apiGroups:
-  - extensions
+  - apps
   resources:
   - podsecuritypolicies
   resourceNames:

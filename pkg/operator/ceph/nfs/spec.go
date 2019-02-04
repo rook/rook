@@ -25,8 +25,8 @@ import (
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	apps "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -76,10 +76,10 @@ func (c *CephNFSController) createCephNFSService(n cephv1.CephNFS, name string) 
 	return nil
 }
 
-func (c *CephNFSController) makeDeployment(n cephv1.CephNFS, name, configName string) *extensions.Deployment {
+func (c *CephNFSController) makeDeployment(n cephv1.CephNFS, name, configName string) *apps.Deployment {
 	binariesEnvVar, binariesVolume, binariesMount := k8sutil.BinariesMountInfo()
 
-	deployment := &extensions.Deployment{
+	deployment := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      instanceName(n, name),
 			Namespace: n.Namespace,
@@ -119,7 +119,13 @@ func (c *CephNFSController) makeDeployment(n cephv1.CephNFS, name, configName st
 
 	// Multiple replicas of the nfs service would be handled by creating a service and a new deployment for each one, rather than increasing the pod count here
 	replicas := int32(1)
-	deployment.Spec = extensions.DeploymentSpec{Template: podTemplateSpec, Replicas: &replicas}
+	deployment.Spec = apps.DeploymentSpec{
+		Selector: &metav1.LabelSelector{
+			MatchLabels: getLabels(n, name),
+		},
+		Template: podTemplateSpec,
+		Replicas: &replicas,
+	}
 	return deployment
 }
 

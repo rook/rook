@@ -25,31 +25,34 @@ import (
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func (c *config) startDeployment() error {
-	d := &extensions.Deployment{
+	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      c.instanceName(),
 			Namespace: c.store.Namespace,
 		},
-		Spec: extensions.DeploymentSpec{
+		Spec: apps.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: c.getLabels(),
+			},
 			Template: c.makeRGWPodSpec(),
 			Replicas: &c.store.Spec.Gateway.Instances,
-			Strategy: extensions.DeploymentStrategy{
-				Type: extensions.RecreateDeploymentStrategyType,
+			Strategy: apps.DeploymentStrategy{
+				Type: apps.RecreateDeploymentStrategyType,
 			},
 		},
 	}
 	k8sutil.SetOwnerRefs(c.context.Clientset, c.store.Namespace, &d.ObjectMeta, c.ownerRefs)
 
 	logger.Debugf("starting mds deployment: %+v", d)
-	_, err := c.context.Clientset.ExtensionsV1beta1().Deployments(c.store.Namespace).Create(d)
+	_, err := c.context.Clientset.Apps().Deployments(c.store.Namespace).Create(d)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create rgw deployment %s: %+v", c.instanceName(), err)
@@ -57,7 +60,7 @@ func (c *config) startDeployment() error {
 		logger.Infof("deployment for rgw %s already exists. updating if needed", c.instanceName())
 		// There may be a *lot* of rgws, and they are stateless, so don't bother waiting until the
 		// entire deployment is updated to move on.
-		_, err := c.context.Clientset.Extensions().Deployments(c.store.Namespace).Update(d)
+		_, err := c.context.Clientset.Apps().Deployments(c.store.Namespace).Update(d)
 		if err != nil {
 			return fmt.Errorf("failed to update rgw deployment %s. %+v", c.instanceName(), err)
 		}
@@ -67,14 +70,17 @@ func (c *config) startDeployment() error {
 }
 
 func (c *config) startDaemonset() error {
-	d := &extensions.DaemonSet{
+	d := &apps.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      c.instanceName(),
 			Namespace: c.store.Namespace,
 		},
-		Spec: extensions.DaemonSetSpec{
-			UpdateStrategy: extensions.DaemonSetUpdateStrategy{
-				Type: extensions.RollingUpdateDaemonSetStrategyType,
+		Spec: apps.DaemonSetSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: c.getLabels(),
+			},
+			UpdateStrategy: apps.DaemonSetUpdateStrategy{
+				Type: apps.RollingUpdateDaemonSetStrategyType,
 			},
 			Template: c.makeRGWPodSpec(),
 		},
@@ -82,7 +88,7 @@ func (c *config) startDaemonset() error {
 	k8sutil.SetOwnerRefs(c.context.Clientset, c.store.Namespace, &d.ObjectMeta, c.ownerRefs)
 
 	logger.Debugf("starting rgw daemonset: %+v", d)
-	_, err := c.context.Clientset.ExtensionsV1beta1().DaemonSets(c.store.Namespace).Create(d)
+	_, err := c.context.Clientset.Apps().DaemonSets(c.store.Namespace).Create(d)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create rgw daemonset %s: %+v", c.instanceName(), err)
@@ -92,7 +98,7 @@ func (c *config) startDaemonset() error {
 		// entire daemonset is updated to move on.
 		// TODO: is the above statement safe to assume?
 		// TODO: Are there any steps for RGW that need to happen before the daemons upgrade?
-		_, err := c.context.Clientset.Extensions().DaemonSets(c.store.Namespace).Update(d)
+		_, err := c.context.Clientset.Apps().DaemonSets(c.store.Namespace).Update(d)
 		if err != nil {
 			return fmt.Errorf("failed to update rgw daemonset %s. %+v", c.instanceName(), err)
 		}

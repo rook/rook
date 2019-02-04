@@ -2,7 +2,7 @@ package test
 
 import (
 	"github.com/rook/rook/pkg/clusterd"
-	extensions "k8s.io/api/extensions/v1beta1"
+	apps "k8s.io/api/apps/v1"
 )
 
 // UpdateDeploymentAndWaitStub returns a stub replacement for the UpdateDeploymentAndWait function
@@ -14,11 +14,11 @@ import (
 // returns a pointer to this slice which the calling func may use to verify the expected contents of
 // deploymentsUpdated based on expected behavior.
 func UpdateDeploymentAndWaitStub() (
-	stubFunc func(context *clusterd.Context, deployment *extensions.Deployment, namespace string) error,
-	deploymentsUpdated *[]*extensions.Deployment,
+	stubFunc func(context *clusterd.Context, deployment *apps.Deployment, namespace string) error,
+	deploymentsUpdated *[]*apps.Deployment,
 ) {
-	deploymentsUpdated = &[]*extensions.Deployment{}
-	stubFunc = func(context *clusterd.Context, deployment *extensions.Deployment, namespace string) error {
+	deploymentsUpdated = &[]*apps.Deployment{}
+	stubFunc = func(context *clusterd.Context, deployment *apps.Deployment, namespace string) error {
 		*deploymentsUpdated = append(*deploymentsUpdated, deployment)
 		return nil
 	}
@@ -26,7 +26,7 @@ func UpdateDeploymentAndWaitStub() (
 }
 
 // DeploymentNamesUpdated converts a deploymentsUpdated slice into a string slice of deployment names
-func DeploymentNamesUpdated(deploymentsUpdated *[]*extensions.Deployment) []string {
+func DeploymentNamesUpdated(deploymentsUpdated *[]*apps.Deployment) []string {
 	ns := []string{}
 	for _, d := range *deploymentsUpdated {
 		ns = append(ns, d.GetName())
@@ -35,6 +35,6 @@ func DeploymentNamesUpdated(deploymentsUpdated *[]*extensions.Deployment) []stri
 }
 
 // ClearDeploymentsUpdated clears the deploymentsUpdated list
-func ClearDeploymentsUpdated(deploymentsUpdated *[]*extensions.Deployment) {
-	*deploymentsUpdated = []*extensions.Deployment{}
+func ClearDeploymentsUpdated(deploymentsUpdated *[]*apps.Deployment) {
+	*deploymentsUpdated = []*apps.Deployment{}
 }

@@ -32,9 +32,9 @@ import (
 	"github.com/rook/rook/pkg/operator/discover"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/display"
+	apps "k8s.io/api/apps/v1"
 	batch "k8s.io/api/batch/v1"
 	"k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/kubelet/apis"
@@ -308,7 +308,7 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 			logger.Warningf("failed to delete legacy osd deployment. %+v", err)
 		}
 
-		_, err = c.context.Clientset.Extensions().Deployments(c.Namespace).Create(dp)
+		_, err = c.context.Clientset.Apps().Deployments(c.Namespace).Create(dp)
 		if err != nil {
 			if !errors.IsAlreadyExists(err) {
 				// we failed to create job, update the orchestration status for this node
@@ -432,14 +432,14 @@ func (c *Cluster) cleanupRemovedNode(config *provisionConfig, nodeName, crushNam
 	}
 }
 
-func (c *Cluster) discoverStorageNodes() (map[string][]*extensions.Deployment, error) {
+func (c *Cluster) discoverStorageNodes() (map[string][]*apps.Deployment, error) {
 
 	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", appName)}
-	osdDeployments, err := c.context.Clientset.Extensions().Deployments(c.Namespace).List(listOpts)
+	osdDeployments, err := c.context.Clientset.Apps().Deployments(c.Namespace).List(listOpts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list osd deployment: %+v", err)
 	}
-	discoveredNodes := map[string][]*extensions.Deployment{}
+	discoveredNodes := map[string][]*apps.Deployment{}
 	for _, osdDeployment := range osdDeployments.Items {
 		osdPodSpec := osdDeployment.Spec.Template.Spec
 
@@ -450,7 +450,7 @@ func (c *Cluster) discoverStorageNodes() (map[string][]*extensions.Deployment, e
 		}
 
 		if _, ok := discoveredNodes[nodeName]; !ok {
-			discoveredNodes[nodeName] = []*extensions.Deployment{}
+			discoveredNodes[nodeName] = []*apps.Deployment{}
 		}
 
 		logger.Debugf("adding osd %s to node %s", osdDeployment.Name, nodeName)
@@ -461,7 +461,7 @@ func (c *Cluster) discoverStorageNodes() (map[string][]*extensions.Deployment, e
 	return discoveredNodes, nil
 }
 
-func (c *Cluster) isSafeToRemoveNode(nodeName string, osdDeployments []*extensions.Deployment) error {
+func (c *Cluster) isSafeToRemoveNode(nodeName string, osdDeployments []*apps.Deployment) error {
 	if err := client.IsClusterClean(c.context, c.Namespace); err != nil {
 		// the cluster isn't clean, it's not safe to remove this node
 		return err
@@ -518,7 +518,7 @@ func (c *Cluster) isSafeToRemoveNode(nodeName string, osdDeployments []*extensio
 	return nil
 }
 
-func getIDFromDeployment(deployment *extensions.Deployment) int {
+func getIDFromDeployment(deployment *apps.Deployment) int {
 	if idstr, ok := deployment.Labels[osdLabelKey]; ok {
 		id, err := strconv.Atoi(idstr)
 		if err != nil {

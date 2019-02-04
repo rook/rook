@@ -27,7 +27,7 @@ import (
 var (
 	testDSTemplate = []byte(`
 kind: DaemonSet
-apiVersion: apps/v1beta2
+apiVersion: apps/v1
 metadata:
   name: test-label
   namespace: {{ .Namespace }}  
@@ -51,7 +51,7 @@ spec:
 `)
 	testSSTemplate = []byte(`
 kind: StatefulSet
-apiVersion: apps/v1beta2
+apiVersion: apps/v1
 metadata:
   name: test-label
   namespace: {{ .Namespace }}  

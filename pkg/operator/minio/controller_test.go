@@ -110,7 +110,7 @@ func TestOnAdd(t *testing.T) {
 	assert.Equal(t, minioPort, svc.Spec.Ports[0].Port)
 
 	// verify stateful set
-	ss, err := clientset.AppsV1beta2().StatefulSets(namespace).Get(appName, metav1.GetOptions{})
+	ss, err := clientset.Apps().StatefulSets(namespace).Get(appName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.NotNil(t, ss)
 	assert.Equal(t, int32(6), *ss.Spec.Replicas)

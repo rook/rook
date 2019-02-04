@@ -31,8 +31,8 @@ import (
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	apps "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -67,7 +67,7 @@ func TestValidateSpec(t *testing.T) {
 }
 
 func TestCreateFilesystem(t *testing.T) {
-	var deploymentsUpdated *[]*extensions.Deployment
+	var deploymentsUpdated *[]*apps.Deployment
 	updateDeploymentAndWait, deploymentsUpdated = testopk8s.UpdateDeploymentAndWaitStub()
 
 	configDir, _ := ioutil.TempDir("", "")
@@ -204,11 +204,11 @@ func contains(arr []string, str string) bool {
 }
 
 func validateStart(t *testing.T, context *clusterd.Context, fs cephv1.CephFilesystem) {
-	r, err := context.Clientset.ExtensionsV1beta1().Deployments(fs.Namespace).Get("rook-ceph-mds-myfs-a", metav1.GetOptions{})
+	r, err := context.Clientset.Apps().Deployments(fs.Namespace).Get("rook-ceph-mds-myfs-a", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, "rook-ceph-mds-myfs-a", r.Name)
 
-	r, err = context.Clientset.ExtensionsV1beta1().Deployments(fs.Namespace).Get("rook-ceph-mds-myfs-b", metav1.GetOptions{})
+	r, err = context.Clientset.Apps().Deployments(fs.Namespace).Get("rook-ceph-mds-myfs-b", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, "rook-ceph-mds-myfs-b", r.Name)
 }

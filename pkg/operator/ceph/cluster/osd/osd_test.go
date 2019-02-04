@@ -29,9 +29,9 @@ import (
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	apps "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
@@ -94,13 +94,13 @@ func TestLegacyDeployment(t *testing.T) {
 		rookalpha.StorageScopeSpec{}, "", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	osdID := 23
-	d := &extensions.Deployment{ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf(legacyAppNameFmt, osdID), Namespace: c.Namespace}}
-	_, err := clientset.Extensions().Deployments(c.Namespace).Create(d)
+	d := &apps.Deployment{ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf(legacyAppNameFmt, osdID), Namespace: c.Namespace}}
+	_, err := clientset.Apps().Deployments(c.Namespace).Create(d)
 	require.Nil(t, err)
 
 	// delete the deployment
 	assert.Nil(t, c.deleteDeploymentWithLegacyName(osdID))
-	deployments, err := clientset.Extensions().Deployments(c.Namespace).List(metav1.ListOptions{})
+	deployments, err := clientset.Apps().Deployments(c.Namespace).List(metav1.ListOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(deployments.Items))
 
@@ -108,11 +108,11 @@ func TestLegacyDeployment(t *testing.T) {
 	assert.Nil(t, c.deleteDeploymentWithLegacyName(osdID))
 
 	// don't delete the newer deployment name
-	d = &extensions.Deployment{ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf(osdAppNameFmt, osdID), Namespace: c.Namespace}}
-	_, err = clientset.Extensions().Deployments(c.Namespace).Create(d)
+	d = &apps.Deployment{ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf(osdAppNameFmt, osdID), Namespace: c.Namespace}}
+	_, err = clientset.Apps().Deployments(c.Namespace).Create(d)
 	require.Nil(t, err)
 	assert.Nil(t, c.deleteDeploymentWithLegacyName(osdID))
-	deployments, err = clientset.Extensions().Deployments(c.Namespace).List(metav1.ListOptions{})
+	deployments, err = clientset.Apps().Deployments(c.Namespace).List(metav1.ListOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(deployments.Items))
 }
@@ -257,7 +257,7 @@ func TestAddRemoveNode(t *testing.T) {
 }
 
 func TestGetIDFromDeployment(t *testing.T) {
-	d := &extensions.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "foo"}}
+	d := &apps.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "foo"}}
 	d.Labels = map[string]string{"ceph-osd-id": "0"}
 	assert.Equal(t, 0, getIDFromDeployment(d))
 

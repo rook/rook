@@ -155,6 +155,12 @@ func (s *UpgradeSuite) updateClusterRoles() error {
 	if _, err := s.k8sh.DeleteResource("ClusterRole", "rook-ceph-global"); err != nil {
 		return err
 	}
+	if _, err := s.k8sh.DeleteResource("ClusterRole", "rook-ceph-cluster-mgmt"); err != nil {
+		return err
+	}
+	if _, err := s.k8sh.DeleteResource("-n", s.namespace, "Role", "rook-ceph-system"); err != nil {
+		return err
+	}
 
 	newResources := `
 apiVersion: rbac.authorization.k8s.io/v1beta1
@@ -221,6 +227,91 @@ rules:
   - "*"
   verbs:
   - "*"
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: rook-ceph-cluster-mgmt
+  labels:
+    operator: rook
+    storage-backend: ceph
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  - pods
+  - pods/log
+  - services
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - patch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  - daemonsets
+  - replicasets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+metadata:
+  name: rook-ceph-system
+  namespace: ` + s.namespace + `
+  labels:
+    operator: rook
+    storage-backend: ceph
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - configmaps
+  - services
+  verbs:
+  - get
+  - list
+  - watch
+  - patch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - apps
+  resources:
+  - daemonsets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - apps
+  resources:
+  - daemonsets
+  - statefulsets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
 `
 	logger.Infof("creating the new resources that have been added since 0.9")
 	_, err := s.k8sh.ResourceOperation("create", newResources)

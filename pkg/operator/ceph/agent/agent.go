@@ -26,8 +26,8 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	apps "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
 	kserrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -103,13 +103,18 @@ func (a *Agent) createAgentDaemonSet(namespace, agentImage, serviceAccount strin
 	}
 
 	privileged := true
-	ds := &extensions.DaemonSet{
+	ds := &apps.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: agentDaemonsetName,
 		},
-		Spec: extensions.DaemonSetSpec{
-			UpdateStrategy: extensions.DaemonSetUpdateStrategy{
-				Type: extensions.RollingUpdateDaemonSetStrategyType,
+		Spec: apps.DaemonSetSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": agentDaemonsetName,
+				},
+			},
+			UpdateStrategy: apps.DaemonSetUpdateStrategy{
+				Type: apps.RollingUpdateDaemonSetStrategyType,
 			},
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
@@ -235,13 +240,13 @@ func (a *Agent) createAgentDaemonSet(namespace, agentImage, serviceAccount strin
 		}
 	}
 
-	_, err = a.clientset.Extensions().DaemonSets(namespace).Create(ds)
+	_, err = a.clientset.Apps().DaemonSets(namespace).Create(ds)
 	if err != nil {
 		if !kserrors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create rook-ceph-agent daemon set. %+v", err)
 		}
 		logger.Infof("rook-ceph-agent daemonset already exists, updating ...")
-		_, err = a.clientset.Extensions().DaemonSets(namespace).Update(ds)
+		_, err = a.clientset.Apps().DaemonSets(namespace).Update(ds)
 		if err != nil {
 			return fmt.Errorf("failed to update rook-ceph-agent daemon set. %+v", err)
 		}

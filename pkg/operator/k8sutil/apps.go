@@ -19,7 +19,7 @@ package k8sutil
 import (
 	"fmt"
 
-	apps "k8s.io/api/apps/v1beta2"
+	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -49,10 +49,10 @@ func makeHeadlessSvc(name, namespace string, label map[string]string, clientset 
 
 // create a apps.daemonset
 func CreateDaemonSet(name, namespace string, clientset kubernetes.Interface, ds *apps.DaemonSet) error {
-	_, err := clientset.AppsV1beta2().DaemonSets(namespace).Create(ds)
+	_, err := clientset.Apps().DaemonSets(namespace).Create(ds)
 	if err != nil {
 		if k8serrors.IsAlreadyExists(err) {
-			_, err = clientset.AppsV1beta2().DaemonSets(namespace).Update(ds)
+			_, err = clientset.Apps().DaemonSets(namespace).Update(ds)
 		}
 		if err != nil {
 			return fmt.Errorf("failed to start %s daemonset: %v\n%v", name, err, ds)
@@ -69,10 +69,10 @@ func CreateStatefulSet(name, namespace, appName string, clientset kubernetes.Int
 		return nil, fmt.Errorf("failed to start %s service: %v\n%v", name, err, ss)
 	}
 
-	_, err = clientset.AppsV1beta2().StatefulSets(namespace).Create(ss)
+	_, err = clientset.Apps().StatefulSets(namespace).Create(ss)
 	if err != nil {
 		if k8serrors.IsAlreadyExists(err) {
-			_, err = clientset.AppsV1beta2().StatefulSets(namespace).Update(ss)
+			_, err = clientset.Apps().StatefulSets(namespace).Update(ss)
 		}
 		if err != nil {
 			return nil, fmt.Errorf("failed to start %s statefulset: %v\n%v", name, err, ss)

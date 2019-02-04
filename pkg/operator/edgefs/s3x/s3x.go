@@ -23,8 +23,8 @@ import (
 	edgefsv1alpha1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	apps "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -82,7 +82,7 @@ func (c *S3XController) CreateOrUpdate(s edgefsv1alpha1.S3X, update bool, ownerR
 
 	// start the deployment
 	deployment := c.makeDeployment(s.Name, s.Namespace, c.rookImage, s.Spec)
-	if _, err := c.context.Clientset.ExtensionsV1beta1().Deployments(s.Namespace).Create(deployment); err != nil {
+	if _, err := c.context.Clientset.Apps().Deployments(s.Namespace).Create(deployment); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create %s deployment. %+v", appName, err)
 		}
@@ -128,7 +128,7 @@ func (c *S3XController) makeS3XService(name, svcname, namespace string, s3xSpec 
 	return svc
 }
 
-func (c *S3XController) makeDeployment(svcname, namespace, rookImage string, s3xSpec edgefsv1alpha1.S3XSpec) *extensions.Deployment {
+func (c *S3XController) makeDeployment(svcname, namespace, rookImage string, s3xSpec edgefsv1alpha1.S3XSpec) *apps.Deployment {
 
 	name := instanceName(svcname)
 	volumes := []v1.Volume{}
@@ -198,12 +198,18 @@ func (c *S3XController) makeDeployment(svcname, namespace, rookImage string, s3x
 	// apply current S3X CRD options to pod's specification
 	s3xSpec.Placement.ApplyToPodSpec(&podSpec.Spec)
 
-	d := &extensions.Deployment{
+	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec: extensions.DeploymentSpec{Template: podSpec, Replicas: &s3xSpec.Instances},
+		Spec: apps.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: podSpec.Labels,
+			},
+			Template: podSpec,
+			Replicas: &s3xSpec.Instances,
+		},
 	}
 	k8sutil.SetOwnerRef(c.context.Clientset, namespace, &d.ObjectMeta, &c.ownerRef)
 	return d
@@ -341,7 +347,7 @@ func instanceName(svcname string) string {
 
 // Check if the S3X service exists
 func serviceExists(context *clusterd.Context, s edgefsv1alpha1.S3X) (bool, error) {
-	_, err := context.Clientset.ExtensionsV1beta1().Deployments(s.Namespace).Get(instanceName(s.Name), metav1.GetOptions{})
+	_, err := context.Clientset.Apps().Deployments(s.Namespace).Get(instanceName(s.Name), metav1.GetOptions{})
 	if err == nil {
 		// the deployment was found
 		return true, nil

@@ -108,7 +108,7 @@ func (c *Cluster) Start() error {
 		// start the deployment
 		d := c.makeDeployment(mgrConfig)
 		logger.Debugf("starting mgr deployment: %+v", d)
-		_, err := c.context.Clientset.ExtensionsV1beta1().Deployments(c.Namespace).Create(d)
+		_, err := c.context.Clientset.Apps().Deployments(c.Namespace).Create(d)
 		if err != nil {
 			if !errors.IsAlreadyExists(err) {
 				return fmt.Errorf("failed to create mgr deployment %s. %+v", resourceName, err)

@@ -23,6 +23,7 @@
 
 - Rook no longer supports Kubernetes `1.8` and `1.9`.
 - Rook no longer supports running more than one monitor on the same node when `hostNetwork` and `allowMultiplePerNode` are `true`.
+- Rook Operator switches from Extensions v1beta1 to use Apps v1 API for DaemonSet and Deployment.
 
 ### Ceph
 
