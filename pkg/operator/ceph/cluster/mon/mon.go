@@ -36,7 +36,7 @@ import (
 	mondaemon "github.com/rook/rook/pkg/daemon/ceph/mon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -149,6 +149,11 @@ func New(context *clusterd.Context, namespace, dataDirHostPath, rookVersion stri
 
 // Start begins the process of running a cluster of Ceph mons.
 func (c *Cluster) Start() error {
+	// fail if we were instructed to deploy more than one mon on the same machine with host networking
+	if c.HostNetwork && c.AllowMultiplePerNode && c.Count > 1 {
+		return fmt.Errorf("refusing to deploy %d monitors on the same host since hostNetwork is %v and allowMultiplePerNode is %v. Only one monitor per node is allowed", c.Count, c.HostNetwork, c.AllowMultiplePerNode)
+	}
+
 	logger.Infof("start running mons")
 
 	if err := c.initClusterInfo(); err != nil {
@@ -341,15 +346,6 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 		nodeInfo, err := getNodeInfoFromNode(node)
 		if err != nil {
 			return fmt.Errorf("couldn't get node info from node %s. %+v", node.Name, err)
-		}
-		// when hostNetwork is used check if we need to increase the port of the node
-		if c.HostNetwork {
-			if _, ok := c.mapping.Port[node.Name]; ok {
-				// when the node was already chosen increase port by 1 and set
-				// assignment and that the node was chosen
-				m.Port = c.mapping.Port[node.Name] + int32(1)
-			}
-			c.mapping.Port[node.Name] = m.Port
 		}
 		c.mapping.Node[m.DaemonName] = nodeInfo
 		nodeIndex++
