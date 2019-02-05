@@ -23,7 +23,6 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
-	mondaemon "github.com/rook/rook/pkg/daemon/ceph/mon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -254,7 +253,7 @@ func (c *Cluster) failoverMon(name string) error {
 	logger.Infof("Failing over monitor %s", name)
 
 	// Start a new monitor
-	m := newMonConfig(c.maxMonID + 1)
+	m := c.newMonConfig(c.maxMonID + 1)
 	logger.Infof("starting new mon: %+v", m)
 
 	// Create the service endpoint
@@ -320,7 +319,7 @@ func (c *Cluster) removeMon(daemonName string) error {
 		delete(c.mapping.Node, daemonName)
 		// if node->port "mapping" has been created, decrease or delete it
 		if port, ok := c.mapping.Port[nodeName]; ok {
-			if port == mondaemon.DefaultPort {
+			if port == DefaultPort {
 				delete(c.mapping.Port, nodeName)
 			}
 			// don't clean up if a node port is higher than the default port, other

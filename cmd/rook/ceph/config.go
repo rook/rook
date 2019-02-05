@@ -21,7 +21,7 @@ import (
 
 	"github.com/rook/rook/cmd/rook/rook"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
-	mondaemon "github.com/rook/rook/pkg/daemon/ceph/mon"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
@@ -70,7 +70,7 @@ func initConfig(cmd *cobra.Command, args []string) error {
 
 	rook.LogStartupInfo(configCmd.Flags())
 
-	clusterInfo.Monitors = mondaemon.ParseMonEndpoints(cfg.monEndpoints)
+	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
 	clusterInfo.Name = "ceph"
 	context := createContext()
 

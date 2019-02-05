@@ -28,7 +28,6 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
-	mondaemon "github.com/rook/rook/pkg/daemon/ceph/mon"
 	testopk8s "github.com/rook/rook/pkg/operator/k8sutil/test"
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -68,7 +67,7 @@ func TestCheckHealth(t *testing.T) {
 		Name:    "node0",
 		Address: "",
 	}
-	c.mapping.Port["node0"] = mondaemon.DefaultPort
+	c.mapping.Port["node0"] = DefaultPort
 	c.maxMonID = 4
 
 	err := c.checkHealth()
@@ -122,7 +121,7 @@ func TestCheckHealthNotFound(t *testing.T) {
 	c.mapping.Node["b"] = &NodeInfo{
 		Name: "node0",
 	}
-	c.mapping.Port["node0"] = mondaemon.DefaultPort
+	c.mapping.Port["node0"] = DefaultPort
 	c.maxMonID = 4
 
 	c.saveMonConfig()
@@ -204,12 +203,11 @@ func TestCheckHealthTwoMonsOneNode(t *testing.T) {
 
 	monNames := []string{"a", "b"}
 	for i := 0; i < len(monNames); i++ {
-		prefix := appName + "-"
-		name := monNames[i]
-		d := c.makeDeployment(&monConfig{ResourceName: prefix + name, DaemonName: name}, "node0")
+		monConfig := testGenMonConfig(monNames[i])
+		d := c.makeDeployment(monConfig, "node0")
 		_, err := clientset.ExtensionsV1beta1().Deployments(c.Namespace).Create(d)
 		assert.Nil(t, err)
-		po := c.makeMonPod(&monConfig{ResourceName: prefix + name, DaemonName: name}, "node0")
+		po := c.makeMonPod(monConfig, "node0")
 		_, err = clientset.CoreV1().Pods(c.Namespace).Create(po)
 		assert.Nil(t, err)
 	}
@@ -344,9 +342,9 @@ func TestCheckMonsValid(t *testing.T) {
 	assert.Nil(t, err)
 
 	// add the pods so the getNodesInUse() works correctly
-	for i := 1; i <= 2; i++ {
-		name := fmt.Sprintf("mon%d", i)
-		po := c.makeMonPod(&monConfig{ResourceName: name, DaemonName: name}, fmt.Sprintf("node%d", i-1))
+	monNames := []string{"a", "b", "c"}
+	for i := 1; i <= 2; i++ { // 1=b, 2=c
+		po := c.makeMonPod(testGenMonConfig(monNames[i]), fmt.Sprintf("node%d", i-1))
 		_, err = clientset.CoreV1().Pods(c.Namespace).Create(po)
 		assert.Nil(t, err)
 	}

@@ -20,9 +20,9 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"path"
 
-	mondaemon "github.com/rook/rook/pkg/daemon/ceph/mon"
+	"github.com/rook/rook/pkg/operator/ceph/config"
+
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/api/core/v1"
@@ -80,11 +80,9 @@ func (c *Cluster) makeDeployment(monConfig *monConfig, hostname string) *extensi
  */
 
 func (c *Cluster) makeMonPod(monConfig *monConfig, hostname string) *v1.Pod {
+	logger.Debug("monConfig: %+v", monConfig)
 	podSpec := v1.PodSpec{
 		InitContainers: []v1.Container{
-			// Config file init performed by Rook
-			c.makeConfigInitContainer(monConfig),
-			// mon filesystem init performed by mon daemon
 			c.makeMonFSInitContainer(monConfig),
 		},
 		Containers: []v1.Container{
@@ -92,7 +90,7 @@ func (c *Cluster) makeMonPod(monConfig *monConfig, hostname string) *v1.Pod {
 		},
 		RestartPolicy: v1.RestartPolicyAlways,
 		NodeSelector:  map[string]string{apis.LabelHostname: hostname},
-		Volumes:       opspec.PodVolumes(c.dataDirHostPath),
+		Volumes:       opspec.DaemonVolumes(monConfig.DataPathMap, keyringStoreName),
 		HostNetwork:   c.HostNetwork,
 	}
 	if c.HostNetwork {
@@ -129,48 +127,6 @@ func podSecurityContext() *v1.SecurityContext {
 	return &v1.SecurityContext{Privileged: &privileged}
 }
 
-func (c *Cluster) makeConfigInitContainer(monConfig *monConfig) v1.Container {
-	return v1.Container{
-		Name: opspec.ConfigInitContainerName,
-		Args: []string{
-			"ceph",
-			mondaemon.InitCommand,
-			fmt.Sprintf("--config-dir=%s", k8sutil.DataDir),
-			fmt.Sprintf("--name=%s", monConfig.DaemonName),
-			fmt.Sprintf("--port=%d", monConfig.Port),
-			fmt.Sprintf("--fsid=%s", c.clusterInfo.FSID),
-		},
-		Image: k8sutil.MakeRookImage(c.rookVersion),
-		Env: []v1.EnvVar{
-			k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
-			{Name: k8sutil.PublicIPEnvVar, Value: monConfig.PublicIP},
-			ClusterNameEnvVar(c.Namespace),
-			EndpointEnvVar(),
-			SecretEnvVar(),
-			AdminSecretEnvVar(),
-			k8sutil.ConfigOverrideEnvVar(),
-		},
-		VolumeMounts:    opspec.RookVolumeMounts(),
-		SecurityContext: podSecurityContext(),
-		Resources:       c.resources,
-	}
-}
-
-func (c *Cluster) monmapFilePath(monConfig *monConfig) string {
-	return path.Join(
-		mondaemon.GetMonRunDirPath(c.context.ConfigDir, monConfig.DaemonName),
-		monmapFile,
-	)
-}
-
-// args needed for all ceph-mon calls
-func (c *Cluster) cephMonCommonArgs(monConfig *monConfig) []string {
-	return []string{
-		"--name", fmt.Sprintf("mon.%s", monConfig.DaemonName),
-		"--mon-data", mondaemon.GetMonDataDirPath(c.context.ConfigDir, monConfig.DaemonName),
-	}
-}
-
 func (c *Cluster) makeMonFSInitContainer(monConfig *monConfig) v1.Container {
 	return v1.Container{
 		Name: "mon-fs-init",
@@ -178,44 +134,32 @@ func (c *Cluster) makeMonFSInitContainer(monConfig *monConfig) v1.Container {
 			cephMonCommand,
 		},
 		Args: append(
-			[]string{
-				"--mkfs",
-			},
-			c.cephMonCommonArgs(monConfig)...,
+			opspec.DaemonFlags(c.clusterInfo, config.MonType, monConfig.DaemonName),
+			"--mkfs",
 		),
 		Image:           c.cephVersion.Image,
-		VolumeMounts:    opspec.CephVolumeMounts(),
+		VolumeMounts:    opspec.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),
 		SecurityContext: podSecurityContext(),
 		// filesystem creation does not require ports to be exposed
+		Env:       opspec.DaemonEnvVars(),
 		Resources: c.resources,
 	}
 }
 
 func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 	return v1.Container{
-		// The operator has set up the mon's service already, so the IP that the mon should
-		// broadcast as its own (--public-addr) is known. But the pod's IP, which the mon should
-		// bind to (--public-bind-addr) isn't known until runtime. 3 solutions were considered for
-		// resolving this issue:
-		// 1. Rook in config init sets "public_bind_addr" in the Ceph config file
-		//    - Chosen solution, but is not as transparent to inspection as using commandline arg
-		// 2. Use bash to do variable substitution with the pod IP env var; but bash is a poor PID1
-		// 3. Use tini to do var substitution as above; but tini doesn't exist in the ceph images.
 		Name: "mon",
 		Command: []string{
 			cephMonCommand,
 		},
 		Args: append(
-			[]string{
-				"--foreground",
-				"--public-addr", joinHostPort(monConfig.PublicIP, monConfig.Port),
-				// --public-bind-addr is set in the config file at init time
-				// do not add the '--cluster/--conf/--keyring' flags; rook wants their default values
-			},
-			c.cephMonCommonArgs(monConfig)...,
+			opspec.DaemonFlags(c.clusterInfo, config.MonType, monConfig.DaemonName),
+			"--foreground",
+			config.NewFlag("public-addr", joinHostPort(monConfig.PublicIP, monConfig.Port)),
+			config.NewFlag("public-bind-addr", joinHostPort("$(ROOK_PRIVATE_IP)", monConfig.Port)),
 		),
 		Image:           c.cephVersion.Image,
-		VolumeMounts:    opspec.CephVolumeMounts(),
+		VolumeMounts:    opspec.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),
 		SecurityContext: podSecurityContext(),
 		Ports: []v1.ContainerPort{
 			{
@@ -224,7 +168,10 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 				Protocol:      v1.ProtocolTCP,
 			},
 		},
-		Env:       k8sutil.ClusterDaemonEnvVars(),
+		Env: append(
+			opspec.DaemonEnvVars(),
+			k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
+		),
 		Resources: c.resources,
 	}
 }

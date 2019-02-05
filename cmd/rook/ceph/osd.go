@@ -24,9 +24,9 @@ import (
 
 	"github.com/rook/rook/cmd/rook/rook"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	mondaemon "github.com/rook/rook/pkg/daemon/ceph/mon"
 	osddaemon "github.com/rook/rook/pkg/daemon/ceph/osd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	osdcfg "github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -302,7 +302,7 @@ func commonOSDInit(cmd *cobra.Command) {
 	rook.SetLogLevel()
 	rook.LogStartupInfo(cmd.Flags())
 
-	clusterInfo.Monitors = mondaemon.ParseMonEndpoints(cfg.monEndpoints)
+	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
 }
 
 // Parse the devices, which are comma separated. A colon indicates a non-default number of osds per device.

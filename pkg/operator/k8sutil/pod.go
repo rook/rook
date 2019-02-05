@@ -70,7 +70,8 @@ func ConfigOverrideEnvVar() v1.EnvVar {
 	return v1.EnvVar{Name: "ROOK_CEPH_CONFIG_OVERRIDE", Value: path.Join(configMountDir, overrideFilename)}
 }
 
-// PodIPEnvVar private ip env var
+// PodIPEnvVar returns an env var such that the pod's ip will be mapped to the given property (env
+// var) name within the container.
 func PodIPEnvVar(property string) v1.EnvVar {
 	return v1.EnvVar{Name: property, ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "status.podIP"}}}
 }
