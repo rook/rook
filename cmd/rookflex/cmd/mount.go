@@ -26,8 +26,8 @@ import (
 
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume"
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/util/version"
 	k8smount "k8s.io/kubernetes/pkg/util/mount"
-	"k8s.io/kubernetes/pkg/util/version"
 	"k8s.io/kubernetes/pkg/volume/util"
 )
 

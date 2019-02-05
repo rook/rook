@@ -60,39 +60,39 @@ ignored = [
 
 [[override]]
   name = "k8s.io/kubernetes"
-  version = "=v1.12.0"
+  version = "=v1.13.0"
 
 [[override]]
   name = "k8s.io/kube-controller-manager"
-  version = "kubernetes-1.12.0"
+  version = "kubernetes-1.13.0"
 
 [[override]]
   name = "k8s.io/api"
-  version = "kubernetes-1.12.0"
+  version = "kubernetes-1.13.0"
 
 [[override]]
   name = "k8s.io/apiserver"
-  version = "kubernetes-1.12.0"
+  version = "kubernetes-1.13.0"
 
 [[override]]
   name = "k8s.io/apiextensions-apiserver"
-  version = "kubernetes-1.12.0"
+  version = "kubernetes-1.13.0"
 
 [[override]]
   name = "k8s.io/apimachinery"
-  version = "kubernetes-1.12.0"
+  version = "kubernetes-1.13.0"
 
 [[override]]
   name = "k8s.io/code-generator"
-  version = "kubernetes-1.12.0"
+  version = "kubernetes-1.13.0"
 
 [[override]]
   name = "k8s.io/client-go"
-  version = "v9.0.0"
+  version = "v10.0.0"
 
 [[override]]
   name = "github.com/kubernetes-sigs/sig-storage-lib-external-provisioner"
-  version = "v1.0.0"
+  version = "v2.1.0"
 
 # kubernetes requires an older version of docker distribution
 [[override]]

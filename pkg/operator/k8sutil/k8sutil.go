@@ -28,8 +28,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation"
+	"k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/kubernetes/pkg/util/version"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-k8sutil")
