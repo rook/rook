@@ -159,20 +159,20 @@ func New(
 }
 
 // Start begins the process of running a cluster of Ceph mons.
-func (c *Cluster) Start() error {
+func (c *Cluster) Start() (*cephconfig.ClusterInfo, error) {
 	// fail if we were instructed to deploy more than one mon on the same machine with host networking
 	if c.HostNetwork && c.AllowMultiplePerNode && c.Count > 1 {
-		return fmt.Errorf("refusing to deploy %d monitors on the same host since hostNetwork is %v and allowMultiplePerNode is %v. Only one monitor per node is allowed", c.Count, c.HostNetwork, c.AllowMultiplePerNode)
+		return nil, fmt.Errorf("refusing to deploy %d monitors on the same host since hostNetwork is %v and allowMultiplePerNode is %v. Only one monitor per node is allowed", c.Count, c.HostNetwork, c.AllowMultiplePerNode)
 	}
 
 	logger.Infof("start running mons")
 
 	if err := c.initClusterInfo(); err != nil {
-		return fmt.Errorf("failed to initialize ceph cluster info. %+v", err)
+		return nil, fmt.Errorf("failed to initialize ceph cluster info. %+v", err)
 	}
 
 	// create the mons for a new cluster or ensure mons are running in an existing cluster
-	return c.startMons()
+	return c.clusterInfo, c.startMons()
 }
 
 func (c *Cluster) startMons() error {
@@ -233,9 +233,15 @@ func (c *Cluster) initClusterInfo() error {
 		return fmt.Errorf("failed to save mons. %+v", err)
 	}
 
+	k := keyring.GetSecretStore(c.context, c.Namespace, &c.ownerRef)
 	// store the keyring which all mons share
-	keyring.GetSecretStore(c.context, c.Namespace, &c.ownerRef).
-		CreateOrUpdate(keyringStoreName, c.genMonSharedKeyring())
+	if err := k.CreateOrUpdate(keyringStoreName, c.genMonSharedKeyring()); err != nil {
+		return fmt.Errorf("failed to save mon keyring secret. %+v", err)
+	}
+	// also store the admin keyring for other daemons that might need it during init
+	if err := k.Admin().CreateOrUpdate(c.clusterInfo); err != nil {
+		return fmt.Errorf("failed to save admin keyring secret. %+v", err)
+	}
 
 	return nil
 }

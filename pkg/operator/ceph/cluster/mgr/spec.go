@@ -19,9 +19,11 @@ package mgr
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
-	mgrdaemon "github.com/rook/rook/pkg/daemon/ceph/mgr"
-	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/api/core/v1"
@@ -29,42 +31,48 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const (
-	mgrDaemonCommand = "ceph-mgr"
-)
-
-func (c *Cluster) makeDeployment(mgrConfig *mgrConfig, port int) *extensions.Deployment {
+func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *extensions.Deployment {
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   mgrConfig.ResourceName,
-			Labels: c.getPodLabels(mgrConfig.DaemonName),
+			Labels: c.getPodLabels(mgrConfig.DaemonID),
 			Annotations: map[string]string{"prometheus.io/scrape": "true",
 				"prometheus.io/port": strconv.Itoa(metricsPort)},
 		},
 		Spec: v1.PodSpec{
 			InitContainers: []v1.Container{
-				// Config file init performed by Rook
-				c.makeConfigInitContainer(mgrConfig),
+				c.makeSetServerAddrInitContainer(mgrConfig, "dashboard"),
+				c.makeSetServerAddrInitContainer(mgrConfig, "prometheus"),
 			},
 			Containers: []v1.Container{
-				c.makeMgrDaemonContainer(mgrConfig, port),
+				c.makeMgrDaemonContainer(mgrConfig),
 			},
 			ServiceAccountName: serviceAccountName,
 			RestartPolicy:      v1.RestartPolicyAlways,
-			Volumes:            opspec.PodVolumes(""),
-			HostNetwork:        c.HostNetwork,
+			Volumes: append(
+				opspec.DaemonVolumes(mgrConfig.DataPathMap, mgrConfig.ResourceName),
+				keyring.Volume().Admin(), // ceph config set commands want admin keyring
+			),
+			HostNetwork: c.HostNetwork,
 		},
 	}
 	if c.HostNetwork {
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 	c.placement.ApplyToPodSpec(&podSpec.Spec)
+	if c.cephVersion.Name == cephv1.Luminous || c.cephVersion.Name == "" {
+		// prepend the keyring-copy workaround for luminous clusters
+		podSpec.Spec.InitContainers = append(
+			[]v1.Container{c.makeCopyKeyringInitContainer(mgrConfig)},
+			podSpec.Spec.InitContainers...)
+	}
 
 	replicas := int32(1)
 	d := &extensions.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      mgrConfig.ResourceName,
 			Namespace: c.Namespace,
+			Labels:    c.getPodLabels(mgrConfig.DaemonID),
 		},
 		Spec: extensions.DeploymentSpec{
 			Template: podSpec,
@@ -78,52 +86,85 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig, port int) *extensions.Dep
 	return d
 }
 
-func (c *Cluster) makeConfigInitContainer(mgrConfig *mgrConfig) v1.Container {
-	return v1.Container{
-		Name: opspec.ConfigInitContainerName,
+func (c *Cluster) makeCopyKeyringInitContainer(mgrConfig *mgrConfig) v1.Container {
+	// mgr does not obey `--keyring=/etc/ceph/keyring-store/keyring` flag, and always reports:
+	// "unable to find a keyring on /var/lib/ceph/mgr/ceph-a/keyring: (2) No such file or directory"
+	// Workaround: copy the keyring to the container data dir
+	container := v1.Container{
+		Name: "init-copy-keyring-to-data-dir",
+		Command: []string{
+			"cp",
+		},
 		Args: []string{
-			"ceph",
-			mgrdaemon.InitCommand,
-			fmt.Sprintf("--config-dir=%s", k8sutil.DataDir),
-			fmt.Sprintf("--mgr-name=%s", mgrConfig.DaemonName),
+			"--verbose",
+			"--preserve=all",
+			"--force", // overwrite existing keyring if exists
+			keyring.VolumeMount().KeyringFilePath(),
+			mgrConfig.DataPathMap.ContainerDataDir,
 		},
-		Image: k8sutil.MakeRookImage(c.rookVersion),
-		Env: []v1.EnvVar{
-			// Set '--mgr-keyring' flag with an env var sourced from the secret
-			{Name: "ROOK_MGR_KEYRING",
-				ValueFrom: &v1.EnvVarSource{
-					SecretKeyRef: &v1.SecretKeySelector{
-						LocalObjectReference: v1.LocalObjectReference{Name: mgrConfig.ResourceName},
-						Key:                  opspec.KeyringSecretKeyName,
-					}}},
-			k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
-			k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
-			k8sutil.PodIPEnvVar("ROOK_MGR_MODULE_SERVER_ADDR"),
-			{Name: "ROOK_CEPH_VERSION_NAME", Value: c.cephVersion.Name},
-			opmon.EndpointEnvVar(),
-			opmon.SecretEnvVar(),
-			opmon.AdminSecretEnvVar(),
-			k8sutil.ConfigOverrideEnvVar(),
-		},
-		VolumeMounts: opspec.RookVolumeMounts(),
-		// config file creation does not require ports to be open
+		Image:        c.cephVersion.Image,
+		VolumeMounts: opspec.DaemonVolumeMounts(mgrConfig.DataPathMap, mgrConfig.ResourceName),
+		// no env vars needed
 		Resources: c.resources,
 	}
+	return container
 }
 
-func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig, port int) v1.Container {
+func (c *Cluster) makeSetServerAddrInitContainer(mgrConfig *mgrConfig, mgrModule string) v1.Container {
+	// Commands produced for various Ceph major versions (differences highlighted)
+	//  L: config-key set       mgr/<mod>/server_addr $(ROOK_CEPH_<MOD>_SERVER_ADDR)
+	//  M: config     set mgr.a mgr/<mod>/server_addr $(ROOK_CEPH_<MOD>_SERVER_ADDR)
+	//  N: config     set mgr.a mgr/<mod>/server_addr $(ROOK_CEPH_<MOD>_SERVER_ADDR) --force
+	envVarName := fmt.Sprintf("ROOK_CEPH_%s_SERVER_ADDR", strings.ToUpper(mgrModule))
+	envVarReference := fmt.Sprintf("$(%s)", envVarName)
+	cfgSetArgs := []string{"config", "set"}
+	if c.cephVersion.Name == cephv1.Luminous || c.cephVersion.Name == "" {
+		cfgSetArgs[0] = "config-key"
+	} else {
+		cfgSetArgs = append(cfgSetArgs, fmt.Sprintf("mgr.%s", mgrConfig.DaemonID))
+	}
+	cfgPath := fmt.Sprintf("mgr/%s/server_addr", mgrModule)
+	cfgSetArgs = append(cfgSetArgs, cfgPath, envVarReference)
+	if cephv1.VersionAtLeast(c.cephVersion.Name, cephv1.Nautilus) {
+		cfgSetArgs = append(cfgSetArgs, "--force")
+	}
+	cfgSetArgs = append(cfgSetArgs, "--verbose")
+
+	container := v1.Container{
+		Name: "init-set-" + strings.ToLower(mgrModule) + "-server-addr",
+		Command: []string{
+			"ceph",
+		},
+		Args: append(
+			opspec.AdminFlags(c.clusterInfo),
+			cfgSetArgs...,
+		),
+		Image: c.cephVersion.Image,
+		VolumeMounts: append(
+			opspec.DaemonVolumeMounts(mgrConfig.DataPathMap, mgrConfig.ResourceName),
+			keyring.VolumeMount().Admin(),
+		),
+		Env: append(
+			opspec.DaemonEnvVars(),
+			k8sutil.PodIPEnvVar(envVarName),
+		),
+		Resources: c.resources,
+	}
+	return container
+}
+
+func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 	container := v1.Container{
 		Name: "mgr",
 		Command: []string{
-			mgrDaemonCommand,
+			"ceph-mgr",
 		},
-		Args: []string{
+		Args: append(
+			opspec.DaemonFlags(c.clusterInfo, config.MgrType, mgrConfig.DaemonID),
 			"--foreground",
-			"--id", mgrConfig.DaemonName,
-			// do not add the '--cluster/--conf/--keyring' flags; rook wants their default values
-		},
+		),
 		Image:        c.cephVersion.Image,
-		VolumeMounts: opspec.CephVolumeMounts(),
+		VolumeMounts: opspec.DaemonVolumeMounts(mgrConfig.DataPathMap, mgrConfig.ResourceName),
 		Ports: []v1.ContainerPort{
 			{
 				Name:          "mgr",
@@ -137,14 +178,13 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig, port int) v1.Cont
 			},
 			{
 				Name:          "dashboard",
-				ContainerPort: int32(port),
+				ContainerPort: int32(mgrConfig.DashboardPort),
 				Protocol:      v1.ProtocolTCP,
 			},
 		},
-		Env:       k8sutil.ClusterDaemonEnvVars(),
+		Env:       opspec.DaemonEnvVars(),
 		Resources: c.resources,
 	}
-	container.Env = append(container.Env, opmon.ClusterNameEnvVar(c.Namespace))
 	return container
 }
 

@@ -17,16 +17,57 @@ limitations under the License.
 package keyring
 
 import (
+	"fmt"
 	"path"
 	"testing"
 
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
+	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+func TestGenerateKey(t *testing.T) {
+	clientset := testop.New(1)
+	var generateKey = ""
+	var failGenerateKey = false
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
+			if failGenerateKey {
+				return "", fmt.Errorf("test error")
+			}
+			return "{\"key\": \"" + generateKey + "\"}", nil
+		},
+	}
+	ctx := &clusterd.Context{
+		Clientset: clientset,
+		Executor:  executor,
+	}
+	ns := "rook-ceph"
+	owner := metav1.OwnerReference{}
+	s := GetSecretStore(ctx, ns, &owner)
+
+	generateKey = "generatedsecretkey"
+	failGenerateKey = false
+	k, e := s.GenerateKey("testresource", "testuser", []string{"test", "access"})
+	assert.NoError(t, e)
+	assert.Equal(t, "generatedsecretkey", k)
+
+	generateKey = "differentsecretkey"
+	failGenerateKey = false
+	k, e = s.GenerateKey("testresource", "testuser", []string{"test", "access"})
+	assert.NoError(t, e)
+	assert.Equal(t, "differentsecretkey", k)
+
+	// make sure error on fail
+	generateKey = "failgeneratekey"
+	failGenerateKey = true
+	_, e = s.GenerateKey("newresource", "newuser", []string{"new", "access"})
+	assert.Error(t, e)
+}
 
 func TestKeyringStore(t *testing.T) {
 	clientset := testop.New(1)
@@ -70,9 +111,7 @@ func TestKeyringStore(t *testing.T) {
 	assertKeyringData("second-resource-keyring", "lkjhgfdsa")
 }
 
-func TestSecureVolumeAndMount(t *testing.T) {
-	// TODO: test that volume and mount match names
-
+func TestResourceVolumeAndMount(t *testing.T) {
 	clientset := testop.New(1)
 	ctx := &clusterd.Context{
 		Clientset: clientset,
@@ -83,11 +122,11 @@ func TestSecureVolumeAndMount(t *testing.T) {
 	k.CreateOrUpdate("test-resource", "qwertyuiop")
 	k.CreateOrUpdate("second-resource", "asdfgyhujkl")
 
-	v := StoredVolume("test-resource")
-	m := StoredVolumeMount("test-resource")
+	v := Volume().Resource("test-resource")
+	m := VolumeMount().Resource("test-resource")
 	// Test that the secret will make it into containers with the appropriate filename at the
 	// location where it is expected.
 	assert.Equal(t, v.Name, m.Name)
 	assert.Equal(t, "test-resource-keyring", v.VolumeSource.Secret.SecretName)
-	assert.Equal(t, ContainerMountedFilePath(), path.Join(m.MountPath, keyringFileName))
+	assert.Equal(t, VolumeMount().KeyringFilePath(), path.Join(m.MountPath, keyringFileName))
 }

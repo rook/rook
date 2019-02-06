@@ -126,14 +126,16 @@ func TestStartMonPods(t *testing.T) {
 	c := newCluster(context, namespace, false, true, v1.ResourceRequirements{})
 
 	// start a basic cluster
-	err := c.Start()
+	i, err := c.Start()
 	assert.Nil(t, err)
+	assert.Equal(t, i, c.clusterInfo)
 
 	validateStart(t, c)
 
 	// starting again should be a no-op, but still results in an error
-	err = c.Start()
+	i, err = c.Start()
 	assert.Nil(t, err)
+	assert.Equal(t, i, c.clusterInfo)
 
 	validateStart(t, c)
 }
@@ -145,16 +147,18 @@ func TestOperatorRestart(t *testing.T) {
 	c.clusterInfo = test.CreateConfigDir(1)
 
 	// start a basic cluster
-	err := c.Start()
+	i, err := c.Start()
 	assert.Nil(t, err)
+	assert.Equal(t, i, c.clusterInfo)
 
 	validateStart(t, c)
 
 	c = newCluster(context, namespace, false, true, v1.ResourceRequirements{})
 
 	// starting again should be a no-op, but will not result in an error
-	err = c.Start()
+	i, err = c.Start()
 	assert.Nil(t, err)
+	assert.Equal(t, i, c.clusterInfo)
 
 	validateStart(t, c)
 }
@@ -169,8 +173,9 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 	c.clusterInfo = test.CreateConfigDir(1)
 
 	// start a basic cluster
-	err := c.Start()
+	i, err := c.Start()
 	assert.Nil(t, err)
+	assert.Equal(t, i, c.clusterInfo)
 
 	validateStart(t, c)
 
@@ -178,8 +183,9 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 	c = newCluster(context, namespace, true, false, v1.ResourceRequirements{})
 
 	// starting again should be a no-op, but still results in an error
-	err = c.Start()
+	i, err = c.Start()
 	assert.Nil(t, err)
+	assert.Equal(t, i, c.clusterInfo)
 
 	validateStart(t, c)
 }

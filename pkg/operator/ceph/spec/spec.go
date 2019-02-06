@@ -18,6 +18,8 @@ limitations under the License.
 package spec
 
 import (
+	"fmt"
+
 	"github.com/coreos/pkg/capnslog"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config"
@@ -75,7 +77,7 @@ func DaemonVolumes(dataPaths *config.DataPathMap, keyringResourceName string) []
 	return []v1.Volume{
 		{Name: "ceph-daemon-data", VolumeSource: dataDirSource},
 		config.StoredFileVolume(),
-		keyring.StoredVolume(keyringResourceName),
+		keyring.Volume().Resource(keyringResourceName),
 	}
 }
 
@@ -85,7 +87,7 @@ func DaemonVolumeMounts(dataPaths *config.DataPathMap, keyringResourceName strin
 	return []v1.VolumeMount{
 		{Name: "ceph-daemon-data", MountPath: dataPaths.ContainerDataDir},
 		config.StoredFileVolumeMount(),
-		keyring.StoredVolumeMount(keyringResourceName),
+		keyring.VolumeMount().Resource(keyringResourceName),
 	}
 }
 
@@ -94,7 +96,16 @@ func DaemonFlags(
 	clusterInfo *cephconfig.ClusterInfo,
 	daemonType config.DaemonType, daemonID string,
 ) []string {
-	return config.DefaultFlags(clusterInfo.FSID, daemonType, daemonID)
+	return append(
+		config.DefaultFlags(clusterInfo.FSID, keyring.VolumeMount().KeyringFilePath()),
+		// all daemons are named in the format <type>.<id>
+		config.NewFlag("name", fmt.Sprintf("%s.%s", string(daemonType), daemonID)),
+	)
+}
+
+// AdminFlags returns the command line flags used for Ceph commands requiring admin authentication.
+func AdminFlags(clusterInfo *cephconfig.ClusterInfo) []string {
+	return config.DefaultFlags(clusterInfo.FSID, keyring.VolumeMount().AdminKeyringFilePath())
 }
 
 // DaemonEnvVars returns the container environment variables used by all Ceph daemons.

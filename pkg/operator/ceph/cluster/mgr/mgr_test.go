@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package mgr
 
 import (
@@ -25,6 +26,7 @@ import (
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	testopk8s "github.com/rook/rook/pkg/operator/k8sutil/test"
+	optest "github.com/rook/rook/pkg/operator/test"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -50,7 +52,18 @@ func TestStartMGR(t *testing.T) {
 		Executor:  executor,
 		ConfigDir: configDir,
 		Clientset: testop.New(3)}
-	c := New(context, "ns", "myversion", cephv1.CephVersionSpec{}, rookalpha.Placement{}, false, cephv1.DashboardSpec{Enabled: true}, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(
+		context,
+		"ns",
+		"myversion",
+		cephv1.CephVersionSpec{},
+		rookalpha.Placement{},
+		false,
+		cephv1.DashboardSpec{Enabled: true},
+		v1.ResourceRequirements{},
+		metav1.OwnerReference{},
+		optest.CreateConfigDir(1),
+	)
 	defer os.RemoveAll(c.dataDir)
 
 	// start a basic service
@@ -79,9 +92,9 @@ func TestStartMGR(t *testing.T) {
 }
 
 func validateStart(t *testing.T, c *Cluster) {
-
+	mgrNames := []string{"a", "b"}
 	for i := 0; i < c.Replicas; i++ {
-		if i == len(mgrNames) {
+		if i == 2 {
 			break
 		}
 		logger.Infof("Looking for cephmgr replica %d", i)
@@ -98,7 +111,7 @@ func validateStart(t *testing.T, c *Cluster) {
 		assert.Nil(t, err)
 		if c.dashboard.Port == 0 {
 			// port=0 -> default port
-			assert.Equal(t, ds.Spec.Ports[0].Port, int32(dashboardPortHttps))
+			assert.Equal(t, ds.Spec.Ports[0].Port, int32(dashboardPortHTTPS))
 		} else {
 			// non-zero ports are configured as-is
 			assert.Equal(t, ds.Spec.Ports[0].Port, int32(c.dashboard.Port))
