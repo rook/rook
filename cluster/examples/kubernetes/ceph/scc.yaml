@@ -9,7 +9,7 @@ allowHostDirVolumePlugin: true
 priority:
 allowedCapabilities: []
 allowHostPorts: false
-allowHostPID: true
+allowHostPID: false
 allowHostIPC: false
 readOnlyRootFilesystem: false
 requiredDropCapabilities: []

@@ -52,7 +52,7 @@ spec:
   - '*'
   allowedCapabilities:
   - '*'
-  hostPID: true
+  hostPID: false
   hostIPC: true
   hostNetwork: false
 ```

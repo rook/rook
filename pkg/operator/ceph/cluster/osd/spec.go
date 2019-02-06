@@ -238,7 +238,6 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 					RestartPolicy:      v1.RestartPolicyAlways,
 					ServiceAccountName: serviceAccountName,
 					HostNetwork:        c.HostNetwork,
-					HostPID:            true,
 					DNSPolicy:          DNSPolicy,
 					InitContainers: []v1.Container{
 						{

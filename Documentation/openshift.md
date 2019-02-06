@@ -14,7 +14,6 @@ To orchestrate the storage platform, Rook requires the following access in the c
 - Create `hostPath` volumes, for persistence by the Ceph mon and osd pods
 - Run pods in `privileged` mode, for access to `/dev` and `hostPath` volumes
 - Host networking for the Rook agent and clusters that require host networking
-- Ceph OSDs require host PIDs for communication on the same node
 
 ## Security Context Constraints
 
@@ -33,7 +32,7 @@ allowHostDirVolumePlugin: true
 priority:
 allowedCapabilities: []
 allowHostPorts: false
-allowHostPID: true
+allowHostPID: false
 allowHostIPC: false
 readOnlyRootFilesystem: false
 requiredDropCapabilities: []
