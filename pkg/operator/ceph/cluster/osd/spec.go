@@ -308,6 +308,10 @@ func (c *Cluster) provisionPodTemplateSpec(devices []rookalpha.Device, selection
 
 	// add each OSD directory as another host path volume source
 	for _, d := range selection.Directories {
+		if c.skipVolumeForDirectory(d.Path) {
+			// the dataDirHostPath has already been added as a volume
+			continue
+		}
 		dirVolume := v1.Volume{
 			Name:         k8sutil.PathToVolumeName(d.Path),
 			VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: d.Path}},
@@ -445,6 +449,10 @@ func (c *Cluster) provisionOSDContainer(devices []rookalpha.Device, selection ro
 		for i := range selection.Directories {
 			dpath := selection.Directories[i].Path
 			dirPaths[i] = dpath
+			if c.skipVolumeForDirectory(dpath) {
+				// the dataDirHostPath has already been added as a volume mount
+				continue
+			}
 			volumeMounts = append(volumeMounts, v1.VolumeMount{Name: k8sutil.PathToVolumeName(dpath), MountPath: dpath})
 		}
 
@@ -476,6 +484,12 @@ func (c *Cluster) provisionOSDContainer(devices []rookalpha.Device, selection ro
 		},
 		Resources: resources,
 	}
+}
+
+func (c *Cluster) skipVolumeForDirectory(path string) bool {
+	// If attempting to add both a directory at /var/lib/rook, we need to skip the volume and volume mount
+	// since the dataDirHostPath is always mounting at /var/lib/rook
+	return path == k8sutil.DataDir
 }
 
 func nodeNameEnvVar(name string) v1.EnvVar {
