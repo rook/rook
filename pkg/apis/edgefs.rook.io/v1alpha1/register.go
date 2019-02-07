@@ -63,6 +63,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&S3XList{},
 		&ISCSI{},
 		&ISCSIList{},
+		&ISGW{},
+		&ISGWList{},
 	)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil

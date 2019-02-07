@@ -30,6 +30,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/discover"
 	"github.com/rook/rook/pkg/operator/edgefs/iscsi"
+	"github.com/rook/rook/pkg/operator/edgefs/isgw"
 	"github.com/rook/rook/pkg/operator/edgefs/nfs"
 	"github.com/rook/rook/pkg/operator/edgefs/s3"
 	"github.com/rook/rook/pkg/operator/edgefs/s3x"
@@ -211,6 +212,15 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		cluster.Spec.Resources,
 		cluster.ownerRef)
 	ISCSIController.StartWatch(cluster.Namespace, cluster.stopCh)
+
+	// Start ISGW service CRD watcher
+	ISGWController := isgw.NewISGWController(c.context, c.containerImage,
+		isHostNetworkDefined(cluster.Spec.Network),
+		cluster.Spec.DataDirHostPath, cluster.Spec.DataVolumeSize,
+		edgefsv1alpha1.GetTargetPlacement(cluster.Spec.Placement),
+		cluster.Spec.Resources,
+		cluster.ownerRef)
+	ISGWController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// add the finalizer to the crd
 	err = c.addFinalizer(clusterObj)

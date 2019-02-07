@@ -1,0 +1,37 @@
+apiVersion: edgefs.rook.io/v1alpha1
+kind: ISGW
+metadata:
+  name: isgw01          # Inter-Segment Gateway service name
+  namespace: rook-edgefs
+spec:
+  direction: "send+recieve"                  # I/O flow direction: send, recieve or send-receive
+  remoteURL: "ccow://192.168.1.43:14000"     # I/O flow with destination antoher EdgeFS cluster, pointing to ISGW endpoint service
+  #remoteURL: "file://volumeDir"             # I/O flow with destination as locally mounted POSIX directory
+  #remoteURL: "s3://mybucket.aws.com"        # I/O flow with destination as remote S3 bucket
+  #remoteURL: "s3://214.4.34.22:4567"        # I/O flow with destination as remote S3 compatible server
+  #replicationType: "initial"                # Replication: initial, continuous, initial+continuous (default)
+  #metadataOnly: true                        # Replicate only metadata, thus enable on-demand fetch at destination (ccow protocol only)
+  #useEncryptedTunnel: true                  # Enables usage of encrypted SSH tunnel (ccow protocol only)
+  #dynamicFetchPort: 49600                   # Override dynamic fetch service port (default 49678)
+  #localAddr: 0.0.0.0:10000                  # Override endpoint listening port (default 0.0.0.0:14000)
+  #placement:
+  #  nodeAffinity:
+  #    requiredDuringSchedulingIgnoredDuringExecution:
+  #      nodeSelectorTerms:
+  #      - matchExpressions:
+  #        - key: rook-edgefs-nodetype
+  #          operator: In
+  #          values:
+  #          - isgw
+  #  tolerations:
+  #  - key: node230
+  #    operator: Exists
+  #  podAffinity:
+  #  podAntiAffinity:
+  #resources:
+  #  limits:
+  #    cpu: "2"
+  #    memory: "4Gi"
+  #  requests:
+  #    cpu: "2"
+  #    memory: "4Gi"

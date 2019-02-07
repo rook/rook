@@ -31,7 +31,7 @@ REST API endpoint is used by Console and Graphical UIs. It exposing ClusterIPs w
 The `rook-edgefs-ui` service is used to expose browser based User Interface ports.
 Using NodePort you will be able to connect to the dashboard by direct node IP and provided port number, in this example at `http://NODEIP:32048`.
 
-The `rook-edgefs-mgr` service is for gRPC communication between the [EdgeFS CSI Provisioner](edgefs-si.md), REST API and services. It exposes cluster internal port 6789.
+The `rook-edgefs-mgr` service is for gRPC communication between the [EdgeFS CSI Provisioner](edgefs-csi.md), REST API and services. It exposes cluster internal port 6789.
 
 ## Dynamic EdgeFS Service CRD editing
 

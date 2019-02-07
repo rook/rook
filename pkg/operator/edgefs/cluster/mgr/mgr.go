@@ -19,6 +19,7 @@ package mgr
 
 import (
 	"fmt"
+	"net"
 	"strconv"
 	"strings"
 
@@ -64,7 +65,8 @@ type Cluster struct {
 	dataVolumeSize  resource.Quantity
 	placement       rookalpha.Placement
 	context         *clusterd.Context
-	HostNetworkSpec edgefsv1alpha1.NetworkSpec
+	hostNetworkSpec edgefsv1alpha1.NetworkSpec
+	dashboardSpec   edgefsv1alpha1.DashboardSpec
 	resources       v1.ResourceRequirements
 	ownerRef        metav1.OwnerReference
 }
@@ -75,7 +77,9 @@ func New(
 	serviceAccount string,
 	dataDirHostPath string,
 	dataVolumeSize resource.Quantity,
-	placement rookalpha.Placement, HostNetworkSpec edgefsv1alpha1.NetworkSpec,
+	placement rookalpha.Placement,
+	hostNetworkSpec edgefsv1alpha1.NetworkSpec,
+	dashboardSpec edgefsv1alpha1.DashboardSpec,
 	resources v1.ResourceRequirements,
 	ownerRef metav1.OwnerReference,
 ) *Cluster {
@@ -95,7 +99,8 @@ func New(
 		Replicas:        1,
 		dataDirHostPath: dataDirHostPath,
 		dataVolumeSize:  dataVolumeSize,
-		HostNetworkSpec: HostNetworkSpec,
+		hostNetworkSpec: hostNetworkSpec,
+		dashboardSpec:   dashboardSpec,
 		resources:       resources,
 		ownerRef:        ownerRef,
 	}
@@ -170,7 +175,7 @@ func (c *Cluster) makeMgrService(name string) *v1.Service {
 		},
 		Spec: v1.ServiceSpec{
 			Selector: labels,
-			Type:     v1.ServiceTypeNodePort,
+			Type:     v1.ServiceTypeClusterIP,
 			Ports: []v1.ServicePort{
 				{
 					Name:     "mgr",
@@ -195,7 +200,7 @@ func (c *Cluster) makeRestapiService(name string) *v1.Service {
 		},
 		Spec: v1.ServiceSpec{
 			Selector: labels,
-			Type:     v1.ServiceTypeNodePort,
+			Type:     v1.ServiceTypeClusterIP,
 			Ports: []v1.ServicePort{
 				{
 					Name:     "http-metrics",
@@ -247,6 +252,22 @@ func (c *Cluster) makeUiService(name string) *v1.Service {
 	}
 
 	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &svc.ObjectMeta, &c.ownerRef)
+
+	if c.dashboardSpec.LocalAddr != "" {
+		ip := net.ParseIP(c.dashboardSpec.LocalAddr)
+		if ip == nil {
+			logger.Errorf("wrong dashboard localAddr format")
+			return svc
+		}
+
+		if !ip.IsUnspecified() {
+			logger.Infof("Cluster dashboard assigned with externalIP=%s", c.dashboardSpec.LocalAddr)
+			svc.Spec.ExternalIPs = []string{c.dashboardSpec.LocalAddr}
+		} else {
+			logger.Errorf("Cluster dashboard externalIP cannot be assigned to %s", c.dashboardSpec.LocalAddr)
+		}
+	}
+
 	return svc
 }
 
@@ -296,11 +317,11 @@ func (c *Cluster) makeDeployment(name, clusterName, rookImage string, replicas i
 			RestartPolicy: v1.RestartPolicyAlways,
 			Volumes:       volumes,
 			HostIPC:       true,
-			HostNetwork:   isHostNetworkDefined(c.HostNetworkSpec),
+			HostNetwork:   isHostNetworkDefined(c.hostNetworkSpec),
 			NodeSelector:  map[string]string{c.Namespace: "cluster"},
 		},
 	}
-	if isHostNetworkDefined(c.HostNetworkSpec) {
+	if isHostNetworkDefined(c.hostNetworkSpec) {
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 	c.placement.ApplyToPodSpec(&podSpec.Spec)

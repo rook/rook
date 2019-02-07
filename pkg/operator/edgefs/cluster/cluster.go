@@ -143,7 +143,7 @@ func (c *cluster) createInstance(rookImage string) error {
 	// Create and start EdgeFS manager Deployment (gRPC proxy, Prometheus metrics)
 	//
 	c.mgrs = mgr.New(c.context, c.Namespace, "latest", c.Spec.ServiceAccount, c.Spec.DataDirHostPath, c.Spec.DataVolumeSize,
-		edgefsv1alpha1.GetMgrPlacement(c.Spec.Placement), c.Spec.Network,
+		edgefsv1alpha1.GetMgrPlacement(c.Spec.Placement), c.Spec.Network, c.Spec.Dashboard,
 		v1.ResourceRequirements{}, c.ownerRef)
 	err = c.mgrs.Start(rookImage)
 	if err != nil {

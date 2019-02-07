@@ -34,6 +34,14 @@ type ISCSIListerExpansion interface{}
 // ISCSINamespaceLister.
 type ISCSINamespaceListerExpansion interface{}
 
+// ISGWListerExpansion allows custom methods to be added to
+// ISGWLister.
+type ISGWListerExpansion interface{}
+
+// ISGWNamespaceListerExpansion allows custom methods to be added to
+// ISGWNamespaceLister.
+type ISGWNamespaceListerExpansion interface{}
+
 // NFSListerExpansion allows custom methods to be added to
 // NFSLister.
 type NFSListerExpansion interface{}
