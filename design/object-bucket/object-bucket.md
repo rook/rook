@@ -81,7 +81,7 @@ _As a Kubernetes user, I want to delete ObjectBucketClaim instances and cleanup 
 
 ## Looking Forward
 
-- Resource Quotas cannot be defined for CRDs.  This limits admin control over how many buckets can be created per object store.  A operator could be made configurable (via ConfigMap) to cap the number of buckets per object store.
+- Resource Quotas cannot be defined for CRDs.  This limits admin control over how many buckets can be created per object store.  A operator could be made configurable (via ConfigMap) to cap the number of buckets per object store.  A PR exists for enabling quotas on CRDs (https://github.com/kubernetes/kube).  If it is merged into Kubernetes, a ResourceQuota example should be defined for CephObjectBucketClaims.
 
 - ACL control doesn't exist for CephObjectBucketClaims.  Currently all user end keys will have Object PUT/GET/DELETE.  It would be useful to allow users to request secondary keys with a subset of these ACLs. For instance, an Object GET-only key.
 
