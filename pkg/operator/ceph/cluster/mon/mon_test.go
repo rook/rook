@@ -26,6 +26,8 @@ import (
 	"testing"
 	"time"
 
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
@@ -41,6 +43,13 @@ import (
 )
 
 func newTestStartCluster(namespace string) *clusterd.Context {
+	monResponse := func() (string, error) {
+		return clienttest.MonInQuorumResponseMany(3), nil
+	}
+	return newTestStartClusterWithQuorumResponse(namespace, monResponse)
+}
+
+func newTestStartClusterWithQuorumResponse(namespace string, monResponse func() (string, error)) *clusterd.Context {
 	clientset := test.New(3)
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
@@ -53,7 +62,7 @@ func newTestStartCluster(namespace string) *clusterd.Context {
 		},
 		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
 			// mock quorum health check because a second `Start()` triggers a health check
-			return clienttest.MonInQuorumResponseMany(3), nil
+			return monResponse()
 		},
 	}
 	return &clusterd.Context{
@@ -477,4 +486,49 @@ func TestHostNetworkPortIncrease(t *testing.T) {
 	assert.Equal(t, strconv.Itoa(mondaemon.DefaultPort), sEndpoint[1])
 	sEndpoint = strings.Split(c.clusterInfo.Monitors["b"].Endpoint, ":")
 	assert.Equal(t, strconv.Itoa(mondaemon.DefaultPort+1), sEndpoint[1])
+
+}
+
+func TestWaitForQuorum(t *testing.T) {
+	namespace := "ns"
+	quorumChecks := 0
+	quorumResponse := func() (string, error) {
+		mons := map[string]*cephconfig.MonInfo{
+			"a": {},
+		}
+		quorumChecks++
+		if quorumChecks == 1 {
+			// return an error the first time while we're waiting for the mon to join quorum
+			return "", fmt.Errorf("test error")
+		}
+		// a successful response indicates that we have quorum, even if we didn't check which specific mons were in quorum
+		return clienttest.MonInQuorumResponseFromMons(mons), nil
+	}
+	context := newTestStartClusterWithQuorumResponse(namespace, quorumResponse)
+	requireAllInQuorum := false
+	expectedMons := []string{"a"}
+	err := waitForQuorumWithMons(context, namespace, expectedMons, 0, requireAllInQuorum)
+	assert.Nil(t, err)
+}
+
+func TestMonFoundInQuorum(t *testing.T) {
+	response := client.MonStatusResponse{}
+
+	// "a" is in quorum
+	response.Quorum = []int{0}
+	response.MonMap.Mons = []client.MonMapEntry{
+		{Name: "a", Rank: 0},
+		{Name: "b", Rank: 1},
+		{Name: "c", Rank: 2},
+	}
+	assert.True(t, monFoundInQuorum("a", response))
+	assert.False(t, monFoundInQuorum("b", response))
+	assert.False(t, monFoundInQuorum("c", response))
+
+	// b and c also in quorum, but not d
+	response.Quorum = []int{0, 1, 2}
+	assert.True(t, monFoundInQuorum("a", response))
+	assert.True(t, monFoundInQuorum("b", response))
+	assert.True(t, monFoundInQuorum("c", response))
+	assert.False(t, monFoundInQuorum("d", response))
 }
