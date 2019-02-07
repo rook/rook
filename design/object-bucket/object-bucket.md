@@ -6,11 +6,12 @@ Add a CephObjectBucketClaim API endpoint and control loop to the Rook-Ceph opera
 
 ### Overview
 
-  Rook-Ceph has developed Custom Resource Definitions to support the dynamic provisioning of Ceph Object Stores and Ceph Object Store Users.  This proposal introduces the next logical step of dynamic bucket provisioning with the addition of a CephObjectBucketClaim CRD.  The intent is to round out the Rook-Ceph experience for Kubernetes users by providing a single control plane for the managing of Ceph Object components.      
+  Rook-Ceph has developed Custom Resource Definitions (CRDs) to support the dynamic provisioning of Ceph Object Stores and Ceph Object Store Users.  This proposal introduces the next logical step: dynamic bucket provisioning with the addition of a CephObjectBucketClaim CRD.  The intent is to round out the Rook-Ceph experience for Kubernetes users by providing a single control plane for the managing of Ceph Object components.      
 
 ## Goals
 
-- Provide Rook-Ceph users the ability to dynamically provision object buckets via the Kubernetes API with a CephObjectBucketClaim Custom Resource Definition (CRD).
+- Provide Rook-Ceph users the ability to dynamically provision object buckets via the Kubernetes API with a CephObjectBucketClaim CRD.
+- Enable cluster admin control over bucket creation and object store access via the Kubernetes API.
 - Utilize a familiar and deterministic pattern when injecting bucket connection information into workload environments. 
 
 ## Non-Goals
@@ -20,18 +21,24 @@ Add a CephObjectBucketClaim API endpoint and control loop to the Rook-Ceph opera
 - This design does not include the Swift interface implementation by Ceph Object.
 - This design does not provide users a means of deleting buckets via the Kubernetes API in order to avoid accidental loss of data.  A Delete operation only deletes the Kubernetes API objects.
 
+## Requirements
+
+1. The Rook-Ceph operator should be the only object store accessor with bucket CREATE privileges.
+1. Users' access key privileges must only have object PUT, GET, and DELETE rights for the bucket they have requested.
+1. When a user creates a CephObjectBucketClaim instance, the operator should create, in the CephObjectBucketClaims' namespace,
+    1. a ConfigMap with the bucket's connection information
+    1. a Secret with the access key with an object PUT/GET/DELETE ACL.
+
 ## Users
 
-- Admin: A Kubernetes cluster administrator with permissions to instantiate and control access to cluster storage. The admin will use existing Rook-Ceph CRDs to create object stores and StorageClasses to make them accessible to users.  
-- User: A Kubernetes cluster user with limited permissions, typically confined to CRUD operations on Kubernetes objects within a single namespace.  The user will request Ceph object buckets by instantiating CephObjectBucketClaims. 
+- Admin: A Kubernetes cluster administrator with RBAC permissions to instantiate and control access to cluster storage. The admin will use existing Rook-Ceph CRDs to create Ceph Object Stores and StorageClasses to make them accessible to users.  
+- User: A Kubernetes cluster user with limited permissions, typically confined to CRUD operations on Kubernetes objects within a single namespace.  The user will request Ceph Object buckets by instantiating CephObjectBucketClaims. 
 
 ## Use Cases
 
 ### Assumptions
 
-1. A Rook-Ceph operator deployed on a Kubernetes Cluster.
-1. A CephObjectStore object exists along with the accompanying Service in a protected namespace.
-1. An existing CephObjectStoreUser exists along with the accompanying Secret in the user's namespace.
+- A running Kubernetes cluster
 
 ##### Use Case: Expose an Object Store Endpoint for Bucket Provisioning
 
@@ -39,8 +46,10 @@ As an admin, I want to expose an existing object store to cluster users so they 
 
 ![admin-actions](./cobc-admin.png)
 
+1. The admin creates the Rook-Ceph Operator and a CephCluster in namespace `rook-ceph-system`
+1. The admin creates a CephObjectStore in namespace `rook-ceph`
+1. The operator detects a new CephObjectStore and provisions a Ceph Object store. 
 1. The admin creates a StorageClass with `parameters[serviceName]=OBJECT-STORE-SERVICE` and `parameters[serviceNamespace]=OBJECT-STORE-NAMESPACE`
-  - _Note:_ the `provisioner` field is ignored.  Defining the provisioner is unnecessary as Rook-Ceph is the only operator watching for CephObjectBucketClaims.
 
 **Use Case: Provision a Bucket** 
 
@@ -48,13 +57,16 @@ _As a Kubernetes user, I want to leverage the Kubernetes API to create Ceph Obje
  
 ![user-actions](./cobc-user.png)
 
-0. The user creates a CephObjectBucketClaim in the user's namespace.
-1. The Rook Operator detects a new ObjectBucketClaim instance.  
-    1. The operator gets the user's credentials via `cephObjectBucketClaim.spec.secretName`.  
-    1. The operator gets the object store URL via `storageClass.parameters.serviceNamespace` + `storageClass.parameters.serviceName`.
-1. The operator uses the object store URL and credentials to make an S3 "make bucket" call.
+1. The user creates a CephObjectBucketClaim in their namespace.
+1. The operator detects the new ObjectBucketClaim instance.
+    1. The operator derives the object store service via `storageClass.parameters.objectStoreNamespace` + `storageClass.parameters.objectStore`.
+    1. If a CephObjectUser for the CephObjectStore does not exist, the operator creates it and waits for the associated Secret.  This will give the operator **bucket** CREATE/GET/DELETE permissions in the object store.  This key is reused later and exists for the lifetime of the object store.
+1. The operator uses the radosgw-admin CLI to generate a **user** access key.  This key will be bound to the bucket with an **object** PUT/GET/DELETE ACL and be given to the user.  
+1. The operator creates the bucket using the service endpoint and CephObjectStoreUser **bucket** access key.
+1. The operator binds the **user** key to the bucket with an **object** PUT/GET/DELETE ACL.
 1. The operator creates a ConfigMap in the namespace of the CephObjectBucketClaim with relevant connection data for that bucket.
-1. An app Pod may then mount the Secret and the ConfigMap to begin accessing the bucket. 
+1. The operator creates a Secret in the namespace of the CephObjectBucketClaim with the **user** key pair.
+1. An app Pod may then mount the Secret and the ConfigMap to begin accessing the bucket.
 
 ##### Use Case: Delete an Object Bucket
 
@@ -64,6 +76,10 @@ _As a Kubernetes user, I want to delete ObjectBucketClaim instances and cleanup 
 1. The CephObjectBucketClaim is marked for deletion and left in the foreground.
 1. The respective ConfigMap is deleted.
 1. The CephObjectBucketClaim is garbage collected.
+
+---
+
+## Future Stuff 
 
 ---
 
@@ -104,11 +120,10 @@ metadata:
     ceph.rook.io/object/claims: [4]
 spec:
   storageClassName: SOME-OBJECT-STORE [5]
-  secretName: MY-USER-SECRET [6]
-  bucketPrefix: PREFIX [7]
+  bucketPrefix: PREFIX [6]
 status:
-  phase: {"pending", "available", "error"}  [8]
-  configMapRef: objectReference{}  [9]
+  phase: {"pending", "available", "error"}  [7]
+  configMapRef: objectReference{}  [8]
 ```
 
 1. `name` of the CephObjectBucketClaim composes part of the ConfigMap name
@@ -116,7 +131,6 @@ status:
 1. `ownerReference` sets the CephObjectBucketClaim as a child of the Ceph Cluster.  Cluster deletion causes the deletion of the ConfigMap 
 1. Label `ceph.rook.io/object/claims` associates all artifacts under the CephObjectBucketClaim operator. Set by operator.
 1. `storageClassName` is used to target the desired Object Store.  Used by the operator to get the Object Store service URL.
-1. `secretName` designates which Secret containg an access key pair to use for bucket creation.
 1. `bucketPrefix` the operator will utilize the k8s.io/apiserver `names` package for generating random 5 character suffixes
 1. `phase` 3 possible phases of bucket creation, mutually exclusive
 1. `configMapRef` is an objectReference to the generated ConfigMap 
@@ -162,11 +176,11 @@ metadata:
     ceph.rook.io/object/claims: [1]
 provisioner: "" [2]
 parameters:
-  serviceName: MY-STORE [3]
-  serviceNamespace: MY-STORE-NAMESPACE [4]
+  objectStore: MY-STORE [3]
+  objectStoreNamespace: MY-STORE-NAMESPACE [4]
 ```
 
 1. Label `ceph.rook.io/object/claims` associates all artifacts under the CephObjectBucketClaim operator.  Defined in example StorageClass and set by cluster admin.  
 1. `provisioner` value ignored, only the Rook-Ceph operator will watch CephObjectBucketClaims
-1. `serviceName` directs the operator to the object store service
-1. `serviceNamespace` the namespace where the object store service exists
+1. `objectStore` used by the operator to derive the object store Service name.
+1. `objectStoreNamespace` the namespace of the object store
