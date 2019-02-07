@@ -47,6 +47,7 @@ As an admin, I want to expose an existing object store to cluster users so they 
 ![admin-actions](./cobc-admin.png)
 
 1. The admin creates the Rook-Ceph Operator and a CephCluster in namespace `rook-ceph-system`
+    1. The operator begins watching for CephObjectBucketClaim instances in all namespaces
 1. The admin creates a CephObjectStore in namespace `rook-ceph`
 1. The operator detects a new CephObjectStore and provisions a Ceph Object store. 
 1. The admin creates a StorageClass with `parameters[serviceName]=OBJECT-STORE-SERVICE` and `parameters[serviceNamespace]=OBJECT-STORE-NAMESPACE`
@@ -55,16 +56,18 @@ As an admin, I want to expose an existing object store to cluster users so they 
 
 _As a Kubernetes user, I want to leverage the Kubernetes API to create Ceph Object Buckets. I expect to get back the bucket connection information in a Pod-attachable object._
  
+ **TODO** Update user action diagram!
+ 
 ![user-actions](./cobc-user.png)
 
 1. The user creates a CephObjectBucketClaim in their namespace.
 1. The operator detects the new ObjectBucketClaim instance.
     1. The operator derives the object store service via `storageClass.parameters.objectStoreNamespace` + `storageClass.parameters.objectStore`.
     1. If a CephObjectUser for the CephObjectStore does not exist, the operator creates it and waits for the associated Secret.  This will give the operator **bucket** CREATE/GET/DELETE permissions in the object store.  This key is reused later and exists for the lifetime of the object store.
-1. The operator uses the radosgw-admin CLI to generate a **user** access key.  This key will be bound to the bucket with an **object** PUT/GET/DELETE ACL and be given to the user.  
+1. The operator uses the radosgw-admin CLI to generate a **user** access key.  This key will be bound to the bucket with an **object** PUT/GET/DELETE ACL.
 1. The operator creates the bucket using the service endpoint and CephObjectStoreUser **bucket** access key.
 1. The operator binds the **user** key to the bucket with an **object** PUT/GET/DELETE ACL.
-1. The operator creates a ConfigMap in the namespace of the CephObjectBucketClaim with relevant connection data for that bucket.
+1. The operator creates or updates a ConfigMap in the namespace of the CephObjectBucketClaim with relevant connection data for that bucket.
 1. The operator creates a Secret in the namespace of the CephObjectBucketClaim with the **user** key pair.
 1. An app Pod may then mount the Secret and the ConfigMap to begin accessing the bucket.
 
@@ -79,7 +82,11 @@ _As a Kubernetes user, I want to delete ObjectBucketClaim instances and cleanup 
 
 ---
 
-## Future Stuff 
+## Looking Forward
+
+- Resource Quotas cannot be defined for CRDs.  This limits admin control over how many buckets can be created per object store.  A operator could be made configurable (via ConfigMap) to cap the number of buckets per object store.
+
+- ACL control doesn't exist for CephObjectBucketClaims.  Currently all user end keys will have Object PUT/GET/DELETE.  It would be useful to allow users to request secondary keys with a subset of these ACLs. For instance, an Object GET-only key.
 
 ---
 
