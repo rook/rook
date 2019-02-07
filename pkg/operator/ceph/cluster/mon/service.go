@@ -66,6 +66,6 @@ func (c *Cluster) createService(mon *monConfig) (string, error) {
 		return "", nil
 	}
 
-	logger.Infof("mon %s running at %s:%d", mon.DaemonName, s.Spec.ClusterIP, mon.Port)
+	logger.Infof("mon %s endpoint is %s:%d", mon.DaemonName, s.Spec.ClusterIP, mon.Port)
 	return s.Spec.ClusterIP, nil
 }
