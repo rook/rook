@@ -40,7 +40,7 @@ Add a CephObjectBucketClaim API endpoint and control loop to the Rook-Ceph opera
 
 - A running Kubernetes cluster
 
-##### Use Case: Expose an Object Store Endpoint for Bucket Provisioning
+**Use Case: Expose an Object Store Endpoint for Bucket Provisioning**
 
 As an admin, I want to expose an existing object store to cluster users so they can begin bucket provisioning via the Kubernetes API._
 
@@ -69,7 +69,7 @@ _As a Kubernetes user, I want to leverage the Kubernetes API to create Ceph Obje
 1. The operator creates a Secret in the namespace of the CephObjectBucketClaim with the **user** key pair.
 1. An app Pod may then mount the Secret and the ConfigMap to begin accessing the bucket.
 
-##### Use Case: Delete an Object Bucket
+**Use Case: Delete an Object Bucket**
 
 _As a Kubernetes user, I want to delete ObjectBucketClaim instances and cleanup generated API resources._
 
