@@ -39,6 +39,9 @@ Add a CephObjectBucketClaim API endpoint and control loop to the Rook-Ceph opera
 ### Assumptions
 
 - A running Kubernetes cluster
+- The Rook-Ceph Operator is deployed in namespace `rook-ceph-system`
+- A CephCluster CRD instance created in namespace `rook-ceph-system`
+- A CephObjectStore CRD instance created in namespace `rook-ceph`
 
 **Use Case: Expose an Object Store Endpoint for Bucket Provisioning**
 
@@ -46,10 +49,6 @@ As an admin, I want to expose an existing object store to cluster users so they 
 
 ![admin-actions](./cobc-admin.png)
 
-1. The admin creates the Rook-Ceph Operator and a CephCluster in namespace `rook-ceph-system`
-    1. The operator begins watching for CephObjectBucketClaim instances in all namespaces
-1. The admin creates a CephObjectStore in namespace `rook-ceph`
-1. The operator detects a new CephObjectStore and provisions a Ceph Object store. 
 1. The admin creates a StorageClass with `parameters[serviceName]=OBJECT-STORE-SERVICE` and `parameters[serviceNamespace]=OBJECT-STORE-NAMESPACE`
 
 **Use Case: Provision a Bucket** 
