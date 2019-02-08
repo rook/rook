@@ -12,22 +12,22 @@ Add a CephObjectBucketClaim API endpoint and control loop to the Rook-Ceph opera
 
 - Provide Rook-Ceph users the ability to dynamically provision object buckets via the Kubernetes API with a CephObjectBucketClaim CRD.
 - Enable cluster admin control over bucket creation and object store access via the Kubernetes API.
-- Utilize a familiar and deterministic pattern when injecting bucket connection information into workload environments. 
+- Restrict users from creating buckets with their access keys outside the view of Kubernetes (e.g. via `s3cmd` CLI tool)
+- Utilize a familiar and deterministic pattern when injecting bucket connection information into workload environments.
+- Ensure the app Pod will not be started until the bucket has been created.
 
 ## Non-Goals
 
 - This proposal does not implement a generalized method for bucket provisioning; it will be specific to Rook-Ceph
 - This design does not attempt to implement a 1:1 model of Kubernetes PersistentVolumes and PersistentVolumeClaims.  Some shallow similarities will exist. 
 - This design does not include the Swift interface implementation by Ceph Object.
-- This design does not provide users a means of deleting buckets via the Kubernetes API in order to avoid accidental loss of data.  A Delete operation only deletes the Kubernetes API objects.
+- This design does not provide users a means of deleting buckets via the Kubernetes API so as to avoid accidental loss of data.  A Delete operation only deletes the Kubernetes API objects.
 
 ## Requirements
 
 1. The Rook-Ceph operator should be the only object store accessor with bucket CREATE privileges.
-1. Users' access key privileges must only have object PUT, GET, and DELETE rights for the bucket they have requested.
-1. When a user creates a CephObjectBucketClaim instance, the operator should create, in the CephObjectBucketClaims' namespace,
-    1. a ConfigMap with the bucket's connection information
-    1. a Secret with the access key with an object PUT/GET/DELETE ACL.
+1. User access key privileges must only have _object_ PUT, GET, and DELETE rights for the bucket they have requested.
+1. Users should be provided credential and connection information in a Pod-attachable resource.
 
 ## Users
 
@@ -74,7 +74,7 @@ _As a Kubernetes user, I want to delete ObjectBucketClaim instances and cleanup 
 
 1. The user deletes the CephObjectBucketClaim via `kubectl delete ...`.
 1. The CephObjectBucketClaim is marked for deletion and left in the foreground.
-1. The respective ConfigMap is deleted.
+1. The respective ConfigMap and user Secret are deleted.
 1. The CephObjectBucketClaim is garbage collected.
 
 ---
