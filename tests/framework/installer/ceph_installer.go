@@ -43,13 +43,16 @@ const (
 	luminousTestImage = "ceph/ceph:v12"
 	// test with the latest mimic build
 	mimicTestImage = "ceph/ceph:v13"
-	helmChartName  = "local/rook-ceph"
-	helmDeployName = "rook-ceph"
+	// test with the latest master build until nautilus is released
+	nautilusTestImage = "ceph/daemon-base:latest-master"
+	helmChartName     = "local/rook-ceph"
+	helmDeployName    = "rook-ceph"
 )
 
 var (
 	LuminousVersion = cephv1.CephVersionSpec{Image: luminousTestImage}
 	MimicVersion    = cephv1.CephVersionSpec{Image: mimicTestImage}
+	NautilusVersion = cephv1.CephVersionSpec{Image: nautilusTestImage, AllowUnsupported: true}
 )
 
 // CephInstaller wraps installing and uninstalling rook on a platform
