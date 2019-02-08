@@ -780,6 +780,10 @@ spec:
     activeStandby: true`
 }
 
+func (m *CephManifestsV0_9) GetNFS(namespace, name, pool string, count int) string {
+	panic("GetNFS not implemented")
+}
+
 func (m *CephManifestsV0_9) GetObjectStore(namespace, name string, replicaCount, port int) string {
 	return `apiVersion: ceph.rook.io/v1
 kind: CephObjectStore
