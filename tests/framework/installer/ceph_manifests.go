@@ -328,6 +328,7 @@ rules:
   - events
   - persistentvolumes
   - persistentvolumeclaims
+  - endpoints
   verbs:
   - get
   - list
