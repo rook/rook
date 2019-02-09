@@ -56,8 +56,8 @@ kubelet:
  image: ""
  extra_args:
   volume-plugin-dir: /usr/libexec/kubernetes/kubelet-plugins/volume/exec
-  extra_binds:
-  - /usr/libexec/kubernetes/kubelet-plugins/volume/exec:/usr/libexec/kubernetes/kubelet-plugins/volume/exec
+ extra_binds:
+ - /usr/libexec/kubernetes/kubelet-plugins/volume/exec:/usr/libexec/kubernetes/kubelet-plugins/volume/exec
 ```
 
 If you're using [rke](https://github.com/rancher/rke), run `rke up`, this will update and restart your kubernetes cluster system components, in this case the kubelet docker instance(s)
