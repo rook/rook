@@ -21,6 +21,7 @@ for Ceph file systems.
 
 **NOTE** This example requires you to have **at least 3 OSDs each on a different node**.
 This is because the `replicated.size: 3` (in both defined Pools) will require at least 3 OSDs and as [`failureDomain` setting](ceph-pool-crd.md#spec) to `host` (default), each OSD needs to be on a different nodes.
+In case you added another location type to your nodes in the [Storage Selection Settings](ceph-cluster-crd.md#storage-selection-settings) (e.g. `rack`), you can also specify this type as your failure domain.
 
 ```yaml
 apiVersion: ceph.rook.io/v1
