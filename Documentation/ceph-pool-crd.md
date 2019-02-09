@@ -68,10 +68,11 @@ When creating an erasure-coded pool, it is highly recommended to create the pool
 - `erasureCoded`: Settings for an erasure-coded pool. If specified, `replicated` settings must not be specified. See below for more details on [erasure coding](#erasure-coding).
   - `dataChunks`: Number of chunks to divide the original object into
   - `codingChunks`: Number of redundant chunks to store
-- `failureDomain`: The failure domain across which the replicas or chunks of data will be spread. Possible values are `osd` or `host`,
+- `failureDomain`: The failure domain across which the replicas or chunks of data will be spread. Possible values per default are `osd` or `host`,
 with the default of `host`. For example, if you have replication of size `3` and the failure domain is `host`, all three copies of the data will be
 placed on osds that are found on unique hosts. In that case you would be guaranteed to tolerate the failure of two hosts. If the failure domain were `osd`,
 you would be able to tolerate the loss of two devices. Similarly for erasure coding, the data and coding chunks would be spread across the requested failure domain.
+<br>In case you added another location type to your nodes in the [Storage Selection Settings](ceph-cluster-crd.md#storage-selection-settings) (e.g. `rack`), you can also specify this type as your failure domain.
 <br>**NOTE:** Neither Rook nor Ceph will prevent the user from creating a cluster where data (or chunks) cannot be replicated safely;
 it is Ceph's design to delay checking for OSDs until a write request is made, and the write will hang if there are not sufficient OSDs to satisfy the request.
 - `crushRoot`: The root in the crush map to be used by the pool. If left empty or unspecified, the default root will be used. Creating a crush hierarchy for the OSDs currently requires the Rook toolbox to run the Ceph tools described [here](http://docs.ceph.com/docs/master/rados/operations/crush-map/#modifying-the-crush-map).

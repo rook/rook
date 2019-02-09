@@ -116,7 +116,7 @@ Below are the settings available, both at the cluster and individual node level,
 - `directories`:  A list of directory paths that will be included in the storage cluster. Note that using two directories on the same physical device can cause a negative performance impact.
   - `path`: The path on disk of the directory (e.g., `/rook/storage-dir`).
   - `config`: Directory-specific config settings. See the [config settings](#osd-configuration-settings) below.
-- `location`: Location information about the cluster to help with data placement, such as region or data center.  This is directly fed into the underlying Ceph CRUSH map.  More information on CRUSH maps can be found in the [ceph docs](http://docs.ceph.com/docs/master/rados/operations/crush-map/).
+- `location`: Location information about the cluster to help with data placement, such as region or data center.  This is directly fed into the underlying Ceph CRUSH map. The type of this field is `string`. For example, to add datacenter location information, set this field to `rack=rack1`.  More information on CRUSH maps can be found in the [ceph docs](http://docs.ceph.com/docs/master/rados/operations/crush-map/).
 
 
 ### OSD Configuration Settings
@@ -324,7 +324,7 @@ spec:
       tolerations:
 ```
 
-### Resource requests/Limits
+### Resource Requests/Limits
 To control how many resources the rook components can request/use, you can set requests and limits in Kubernetes for them.
 You can override these requests/limits for OSDs per node when using `useAllNodes: false` in the `node` item in the `nodes` list.
 
@@ -360,6 +360,71 @@ spec:
           cpu: "2"
           memory: "4096Mi"
 ```
+
+### Custom Location Information On Node Level
+For each individual node a `location` can be configured. The provided information is fed directly into the CRUSH map of Ceph. More information on CRUSH maps can be found in the [ceph docs](http://docs.ceph.com/docs/master/rados/operations/crush-map/).
+
+**HINT** When setting this prior to `CephCluster` creation, these settings take immediate effect. However, applying this to an already deployed `CephCluster` requires to remove each node from the cluster first and then re-add it with new configuration to take effect. Do this node by node to keep your data safe! You can check the result with `ceph osd tree` from the [Rook Toolbox](ceph-toolbox.md) in your setup. The OSD tree should display your location hierarchy for the nodes you already re-added. 
+
+This example assumes you have 3 unique racks in your datacenter and want to use them as failure domain
+
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephCluster
+metadata:
+  name: rook-ceph
+  namespace: rook-ceph
+spec:
+  cephVersion:
+    image: ceph/ceph:v13.2.2-20181023
+  dataDirHostPath: /var/lib/rook
+  mon:
+    count: 3
+    allowMultiplePerNode: true
+  dashboard:
+    enabled: true
+  # cluster level storage configuration and selection
+  storage:
+    useAllNodes: false
+    useAllDevices: false
+    deviceFilter:
+    location:
+    config:
+      databaseSizeMB: "1024"
+      journalSizeMB: "1024"
+    nodes:
+    - name: "node1"
+      location: rack=rack1   # a location can be specified for every node and will be added to the CRUSH map
+      devices:
+      - name: "sdb"
+      - name: "sdc"
+    - name: "node2"
+      location: rack=rack2   # a location can be specified for every node and will be added to the CRUSH map
+      devices:
+      - name: "sdb"
+      - name: "sdc"
+    - name: "node3"
+      location: rack=rack3   # a location can be specified for every node and will be added to the CRUSH map
+      devices:
+      - name: "sdb"
+      - name: "sdc"
+```
+
+To utilize the `location` as a `failureDomain`, specify the corresponding option in your [CephBlockPool](ceph-pool-crd.md)
+
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: replicapool
+  namespace: rook-ceph
+spec:
+  failureDomain: rack        # this uses the location setting from the CephCluster
+  replicated:
+    size: 3
+```
+
+This configuration will split replication of your volumes across unique racks in your datacenter setup.
 
 ## Common Cluster Resources
 Each Ceph cluster must be created in a namespace and also give access to the Rook operator to manage the cluster in the namespace. Creating the namespace and these controls must be added to each of the examples previously shown.
