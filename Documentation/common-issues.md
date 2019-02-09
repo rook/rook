@@ -14,7 +14,7 @@ If after trying the suggestions found on this page and the problem is not resolv
 - [Troubleshooting Techniques](#troubleshooting-techniques)
 - [Pod using Rook storage is not running](#pod-using-rook-storage-is-not-running)
 - [Cluster failing to service requests](#cluster-failing-to-service-requests)
-- [Only a single monitor pod starts](#only-a-single-monitor-pod-starts)
+- [Monitors are the only pods running](#monitors-are-the-only-pods-running)
 - [OSD pods are failing to start](#osd-pods-are-failing-to-start)
 - [OSDs are not created on my devices](#osd-pods-are-not-created-on-my-devices)
 - [Node hangs after reboot](#node-hangs-after-reboot)
@@ -266,17 +266,22 @@ What is happening here is that the MON pods are restarting and one or more of th
 
 The `dataDirHostPath` setting specifies a path on the local host for the CEPH daemons to store configuration and data. Setting this to a path like `/var/lib/rook`, reapplying your Cluster CRD and restarting all the CEPH daemons (MON, MGR, OSD, RGW) should solve this problem. After the CEPH daemons have been restarted, it is advisable to restart the [rook-tool pod](./toolbox.md).
 
-# Only a single monitor pod starts
+# Monitors are the only pods running
 
 ## Symptoms
 * Rook operator is running
-* Only one mon pod is running
+* Either a single mon starts or the mons skip letters, specifically named `a`, `d`, and `f`
+* No mgr, osd, or other daemons are created
 
 ## Investigation
 When the operator is starting a cluster, the operator will start one mon at a time and check that they are healthy before continuing to bring up all three mons.
-If the first mon is not detected healthy, the operator will continue to check until it is healthy. There are two likely causes for the mon health not being detected:
+If the first mon is not detected healthy, the operator will continue to check until it is healthy. If the first mon fails to start, a second and then a third
+mon may attempt to start. However, they will never form quorum and the orchestration will be blocked from proceeding.
+
+The likely causes for the mon health not being detected:
 - The operator pod does not have network connectivity to the mon pod
 - The mon pod is failing to start
+- One or more mon pods are in running state, but are not able to form quorum
 
 ### Operator fails to connect to the mon
 First look at the logs of the operator to confirm if it is able to connect to the mons.
@@ -325,6 +330,18 @@ $ kubectl -n rook-ceph describe pod -l mon=rook-ceph-mon0
 ...
 ```
 
+See the solution in the next section regarding cleaning up the `dataDirHostPath` on the nodes.
+
+### Three mons named a, d, and f
+
+If you see the three mons running with the names `a`, `d`, and `f`, they likely did not form quorum even though they are running.
+```
+NAME                               READY   STATUS    RESTARTS   AGE
+rook-ceph-mon-a-7d9fd97d9b-cdq7g   1/1     Running   0          10m
+rook-ceph-mon-d-77df8454bd-r5jwr   1/1     Running   0          9m2s
+rook-ceph-mon-f-58b4f8d9c7-89lgs   1/1     Running   0          7m38s
+```
+
 ### Solution
 This is a common problem reinitializing the Rook cluster when the local directory used for persistence has **not** been purged.
 This directory is the `dataDirHostPath` setting in the cluster CRD and is typically set to `/var/lib/rook`.
@@ -333,6 +350,7 @@ Then when the cluster CRD is applied to start a new cluster, the rook-operator s
 
 **Important: Deleting the `dataDirHostPath` folder is destructive to the storage. Only delete the folder if you are trying to permanently purge the Rook cluster.**
 
+See the [Cleanup Guide](ceph-teardown.md) for more details.
 
 # OSD pods are failing to start
 
