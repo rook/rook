@@ -27,7 +27,6 @@ Add a CephObjectBucketClaim API endpoint and control loop to the Rook-Ceph opera
 - This design does not attempt to implement a 1:1 model of Kubernetes PersistentVolumes and PersistentVolumeClaims.  Some shallow similarities will exist. 
 - This design does not include the Swift interface implementation by Ceph Object.
 - This design does not provide users a means of deleting buckets via the Kubernetes API so as to avoid accidental loss of data.  A Delete operation only deletes the Kubernetes API objects.
-- This design does not consider brown field case of exposing pre-created buckets in an object store.
 
 ## Requirements
 
@@ -84,7 +83,7 @@ _As a Kubernetes user, I want to delete ObjectBucketClaim instances and cleanup 
 
 ## Looking Forward
 
-- Resource Quotas cannot be defined for CRDs.  This limits admin control over how many buckets can be created per object store.  A operator could be made configurable (via ConfigMap) to cap the number of buckets per object store.  A PR exists for enabling quotas on CRDs (https://github.com/kubernetes/kube).  If it is merged into Kubernetes, a ResourceQuota example should be defined for CephObjectBucketClaims.
+- Resource Quotas cannot be defined for CRDs.  This limits admin control over how many buckets can be created per object store.  A operator could be made configurable (via ConfigMap) to cap the number of buckets per object store.  A PR exists for enabling quotas on CRDs (https://github.com/kubernetes/kubernetes/pull/72384).  If it is merged into Kubernetes, a ResourceQuota example should be defined for CephObjectBucketClaims.
 
 - ACL control doesn't exist for CephObjectBucketClaims.  Currently all user end keys will have Object PUT/GET/DELETE.  It would be useful to allow users to request secondary keys with a subset of these ACLs. For instance, an Object GET-only key.
 
