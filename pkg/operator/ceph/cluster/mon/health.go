@@ -134,7 +134,7 @@ func (c *Cluster) checkHealth() error {
 			// when the timeout for the mon has been reached, continue to the
 			// normal failover/delete mon pod part of the code
 			if time.Since(c.monTimeoutList[mon.Name]) <= MonOutTimeout {
-				logger.Warningf("mon %s not found in quorum, still in mon out timeout", mon.Name)
+				logger.Warningf("mon %s not found in quorum, waiting for timeout before failover", mon.Name)
 				continue
 			}
 
@@ -281,7 +281,7 @@ func (c *Cluster) failoverMon(name string) error {
 	c.clusterInfo.Monitors[m.DaemonName] = cephconfig.NewMonInfo(m.DaemonName, m.PublicIP, m.Port)
 
 	// Start the deployment
-	if err = c.startDeployments(mConf, len(mConf)-1); err != nil {
+	if err = c.startDeployments(mConf, true); err != nil {
 		return fmt.Errorf("failed to start new mon %s. %+v", m.DaemonName, err)
 	}
 
