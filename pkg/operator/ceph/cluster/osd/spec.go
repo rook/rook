@@ -85,6 +85,7 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 	volumes := opspec.PodVolumes(c.dataDirHostPath)
 
 	var dataDir string
+	var deviceVolumeMount v1.VolumeMount // additional mount for `spec` containers
 	if osd.IsDirectory {
 		// Mount the path to the directory-based osd
 		// osd.DataPath includes the osd subdirectory, so we want to mount the parent directory
@@ -96,8 +97,10 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 			volumeName := k8sutil.PathToVolumeName(parentDir)
 			dataDirSource := v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: parentDir}}
 			volumes = append(volumes, v1.Volume{Name: volumeName, VolumeSource: dataDirSource})
-			configVolumeMounts = append(configVolumeMounts, v1.VolumeMount{Name: volumeName, MountPath: parentDir})
-			volumeMounts = append(volumeMounts, v1.VolumeMount{Name: volumeName, MountPath: parentDir})
+			dirMount := v1.VolumeMount{Name: volumeName, MountPath: parentDir}
+			configVolumeMounts = append(configVolumeMounts, dirMount)
+			volumeMounts = append(volumeMounts, dirMount)
+			deviceVolumeMount = dirMount
 		}
 	} else {
 		dataDir = k8sutil.DataDir
@@ -107,6 +110,7 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 		volumes = append(volumes, devVolume)
 		devMount := v1.VolumeMount{Name: "devices", MountPath: "/dev"}
 		volumeMounts = append(volumeMounts, devMount)
+		deviceVolumeMount = devMount
 	}
 
 	if len(volumes) == 0 {
@@ -159,8 +163,19 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 	volumes = append(volumes, copyBinariesVolume)
 	volumeMounts = append(volumeMounts, copyBinariesContainer.VolumeMounts[0])
 
+	privileged := true
+	runAsUser := int64(0)
+	readOnlyRootFilesystem := false
+	securityContext := &v1.SecurityContext{
+		Privileged:             &privileged,
+		RunAsUser:              &runAsUser,
+		ReadOnlyRootFilesystem: &readOnlyRootFilesystem,
+	}
+
 	var command []string
 	var args []string
+	initContainers := []v1.Container{}
+	runContainers := []v1.Container{}
 	if !osd.IsDirectory && osd.IsFileStore && !osd.CephVolumeInitiated {
 		// All scenarios except one can call the ceph-osd daemon directly. The one different scenario is when
 		// filestore is running on a device. Rook needs to mount the device, run the ceph-osd daemon, and then
@@ -178,31 +193,37 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 			commonArgs...)
 
 	} else if osd.CephVolumeInitiated {
-		// if the osd was provisioned by ceph-volume, we need to launch it with rook as the parent process
-		command = []string{path.Join(rookBinariesMountPath, "tini")}
-		args = []string{
-			"--", path.Join(rookBinariesMountPath, "rook"),
-			"ceph", "osd", "start",
-			"--",
-			"--foreground",
-			"--id", osdID,
-			"--osd-uuid", osd.UUID,
-			"--conf", osd.Config,
-			"--cluster", "ceph",
-		}
+		initContainers, runContainers = newSpec(c, securityContext, configEnvVars).
+			CephVolume().Containers(storeType, osdID, osd.UUID, osd.Config, &deviceVolumeMount)
 	} else {
 		// other osds can launch the osd daemon directly
 		command = []string{"ceph-osd"}
 		args = commonArgs
 	}
-
-	privileged := true
-	runAsUser := int64(0)
-	readOnlyRootFilesystem := false
-	securityContext := &v1.SecurityContext{
-		Privileged:             &privileged,
-		RunAsUser:              &runAsUser,
-		ReadOnlyRootFilesystem: &readOnlyRootFilesystem,
+	if len(runContainers) == 0 {
+		initContainers = []v1.Container{
+			{
+				Args:            []string{"ceph", "osd", "init"},
+				Name:            opspec.ConfigInitContainerName,
+				Image:           k8sutil.MakeRookImage(c.rookVersion),
+				VolumeMounts:    configVolumeMounts,
+				Env:             configEnvVars,
+				SecurityContext: securityContext,
+			},
+			*copyBinariesContainer,
+		}
+		runContainers = []v1.Container{
+			{
+				Command:         command,
+				Args:            args,
+				Name:            "osd",
+				Image:           c.cephVersion.Image,
+				VolumeMounts:    volumeMounts,
+				Env:             envVars,
+				Resources:       resources,
+				SecurityContext: securityContext,
+			},
+		}
 	}
 
 	DNSPolicy := v1.DNSClusterFirst
@@ -240,30 +261,9 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 					HostNetwork:        c.HostNetwork,
 					HostPID:            true,
 					DNSPolicy:          DNSPolicy,
-					InitContainers: []v1.Container{
-						{
-							Args:            []string{"ceph", "osd", "init"},
-							Name:            opspec.ConfigInitContainerName,
-							Image:           k8sutil.MakeRookImage(c.rookVersion),
-							VolumeMounts:    configVolumeMounts,
-							Env:             configEnvVars,
-							SecurityContext: securityContext,
-						},
-						*copyBinariesContainer,
-					},
-					Containers: []v1.Container{
-						{
-							Command:         command,
-							Args:            args,
-							Name:            "osd",
-							Image:           c.cephVersion.Image,
-							VolumeMounts:    volumeMounts,
-							Env:             envVars,
-							Resources:       resources,
-							SecurityContext: securityContext,
-						},
-					},
-					Volumes: volumes,
+					InitContainers:     initContainers,
+					Containers:         runContainers,
+					Volumes:            volumes,
 				},
 			},
 			Replicas: &replicaCount,

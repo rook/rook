@@ -60,11 +60,6 @@ var filestoreDeviceCmd = &cobra.Command{
 	Short:  "Runs the ceph daemon for a filestore device",
 	Hidden: true,
 }
-var osdStartCmd = &cobra.Command{
-	Use:    "start",
-	Short:  "Starts the osd daemon", // OSDs that were provisioned by ceph-volume
-	Hidden: true,
-}
 var (
 	osdDataDeviceFilter string
 	ownerRefID          string
@@ -101,17 +96,11 @@ func addOSDFlags(command *cobra.Command) {
 	filestoreDeviceCmd.Flags().StringVar(&mountSourcePath, "source-path", "", "the source path of the device to mount")
 	filestoreDeviceCmd.Flags().StringVar(&mountPath, "mount-path", "", "the path where the device should be mounted")
 
-	// flags for running osds that were provisioned by ceph-volume
-	osdStartCmd.Flags().StringVar(&osdStringID, "osd-id", "", "the osd ID")
-	osdStartCmd.Flags().StringVar(&osdUUID, "osd-uuid", "", "the osd UUID")
-	osdStartCmd.Flags().StringVar(&osdStoreType, "osd-store-type", "", "whether the osd is bluestore or filestore")
-
 	// add the subcommands to the parent osd command
 	osdCmd.AddCommand(osdConfigCmd)
 	osdCmd.AddCommand(copyBinariesCmd)
 	osdCmd.AddCommand(provisionCmd)
 	osdCmd.AddCommand(filestoreDeviceCmd)
-	osdCmd.AddCommand(osdStartCmd)
 }
 
 func addOSDConfigFlags(command *cobra.Command) {
@@ -136,30 +125,11 @@ func init() {
 	flags.SetFlagsFromEnv(copyBinariesCmd.Flags(), rook.RookEnvVarPrefix)
 	flags.SetFlagsFromEnv(provisionCmd.Flags(), rook.RookEnvVarPrefix)
 	flags.SetFlagsFromEnv(filestoreDeviceCmd.Flags(), rook.RookEnvVarPrefix)
-	flags.SetFlagsFromEnv(osdStartCmd.Flags(), rook.RookEnvVarPrefix)
 
 	osdConfigCmd.RunE = writeOSDConfig
 	copyBinariesCmd.RunE = copyRookBinaries
 	provisionCmd.RunE = prepareOSD
 	filestoreDeviceCmd.RunE = runFilestoreDeviceOSD
-	osdStartCmd.RunE = startOSD
-}
-
-// Start the osd daemon if provisioned by ceph-volume
-func startOSD(cmd *cobra.Command, args []string) error {
-	required := []string{"osd-id", "osd-uuid", "osd-store-type"}
-	if err := flags.VerifyRequiredFlags(osdStartCmd, required); err != nil {
-		return err
-	}
-
-	commonOSDInit(osdStartCmd)
-
-	context := createContext()
-	err := osddaemon.StartOSD(context, osdStoreType, osdStringID, osdUUID, args)
-	if err != nil {
-		rook.TerminateFatal(err)
-	}
-	return nil
 }
 
 // Start the osd daemon for filestore running on a device
