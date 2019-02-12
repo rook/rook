@@ -17,23 +17,15 @@ limitations under the License.
 // Package config provides default configurations which Rook will set in Ceph clusters.
 package config
 
-import (
-	"fmt"
-
-	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
-)
-
 // DefaultFlags returns the default configuration flags Rook will set on the command line for all
 // calls to Ceph daemons and tools. Values specified here will not be able to be overridden using
 // the mon's central KV store, and that is (and should be) by intent.
-func DefaultFlags(fsid string, daemonType DaemonType, daemonID string) []string {
+func DefaultFlags(fsid, mountedKeyringPath string) []string {
 	c := NewConfig()
 	c.Section("global").
 		// fsid unnecessary but is a safety to make sure daemons can only connect to their cluster
 		Set("fsid", fsid).
-		// all daemon names are of the form "<type>.<id>"
-		Set("name", fmt.Sprintf("%s.%s", string(daemonType), daemonID)).
-		Set("keyring", keyring.ContainerMountedFilePath()).
+		Set("keyring", mountedKeyringPath).
 		// For containers, we're expected to log everything to stderr
 		Set("log-to-stderr", "true").
 		Set("err-to-stderr", "true").

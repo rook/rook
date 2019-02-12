@@ -129,7 +129,7 @@ func podSecurityContext() *v1.SecurityContext {
 
 func (c *Cluster) makeMonFSInitContainer(monConfig *monConfig) v1.Container {
 	return v1.Container{
-		Name: "mon-fs-init",
+		Name: "init-mon-fs",
 		Command: []string{
 			cephMonCommand,
 		},

@@ -15,32 +15,32 @@ limitations under the License.
 */
 
 // Package keyring provides methods for accessing keyrings for Ceph daemons stored securely in
-// Kubernetes.
+// Kubernetes secrets. It also provides methods for creating keyrings with desired permissions which
+// are stored persistently and a special subset of methods for the Ceph admin keyring.
 package keyring
 
 import (
 	"fmt"
-	"path"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-cfg-keyring")
 
 const (
-	keyringStorePath = "/etc/ceph/keyring-store/"
-	keyringFileName  = "keyring"
+	keyKeyName      = "key"
+	keyringFileName = "keyring"
 )
 
 // SecretStore is a helper to store Ceph daemon keyrings as Kubernetes secrets.
 type SecretStore struct {
-	clientset kubernetes.Interface
+	context   *clusterd.Context
 	namespace string
 	ownerRef  *metav1.OwnerReference
 }
@@ -48,22 +48,38 @@ type SecretStore struct {
 // GetSecretStore returns a new SecretStore struct.
 func GetSecretStore(context *clusterd.Context, namespace string, ownerRef *metav1.OwnerReference) *SecretStore {
 	return &SecretStore{
-		clientset: context.Clientset,
+		context:   context,
 		namespace: namespace,
 		ownerRef:  ownerRef,
 	}
 }
 
-func secretName(resourceName string) string {
+func keySecretName(resourceName string) string {
+	return resourceName + "-key" // all keys named by suffixing key to the resource name
+}
+
+func keyringSecretName(resourceName string) string {
 	return resourceName + "-keyring" // all keyrings named by suffixing keyring to the resource name
 }
 
+// GenerateKey generates a key for a Ceph user with the given access permissions. It returns the key
+// generated on success. Ceph will always return the most up-to-date key for a daemon, and the key
+// usually does not change.
+func (k *SecretStore) GenerateKey(resourceName, user string, access []string) (string, error) {
+	// get-or-create-key for the user account
+	key, err := client.AuthGetOrCreateKey(k.context, k.namespace, user, access)
+	if err != nil {
+		return "", fmt.Errorf("failed to get or create auth key for %s. %+v", user, err)
+	}
+	return key, nil
+}
+
 // CreateOrUpdate creates or updates the keyring secret for the resource with the keyring specified.
+// WARNING: Do not use "rook-ceph-admin" as the resource name; conflicts with the AdminStore.
 func (k *SecretStore) CreateOrUpdate(resourceName, keyring string) error {
-	secretName := secretName(resourceName)
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      secretName,
+			Name:      keyringSecretName(resourceName),
 			Namespace: k.namespace,
 		},
 		StringData: map[string]string{
@@ -71,31 +87,15 @@ func (k *SecretStore) CreateOrUpdate(resourceName, keyring string) error {
 		},
 		Type: k8sutil.RookType,
 	}
-	k8sutil.SetOwnerRef(k.clientset, k.namespace, &secret.ObjectMeta, k.ownerRef)
+	k8sutil.SetOwnerRef(k.context.Clientset, k.namespace, &secret.ObjectMeta, k.ownerRef)
 
-	_, err := k.clientset.CoreV1().Secrets(k.namespace).Get(secretName, metav1.GetOptions{})
-	if err != nil {
-		if errors.IsNotFound(err) {
-			logger.Debugf("creating keyring secret for %s", secretName)
-			if _, err := k.clientset.CoreV1().Secrets(k.namespace).Create(secret); err != nil {
-				return fmt.Errorf("failed to create keyring secret for %s. %+v", secretName, err)
-			}
-		}
-		return fmt.Errorf("failed to get keyring secret for %s. %+v", secretName, err)
-	}
-
-	logger.Debugf("updating keyring secret for %s", secretName)
-	if _, err := k.clientset.CoreV1().Secrets(k.namespace).Update(secret); err != nil {
-		return fmt.Errorf("failed to update keyring secret for %s. %+v", secretName, err)
-	}
-
-	return nil
+	return k.createSecret(secret)
 }
 
 // Delete deletes the keyring secret for the resource.
 func (k *SecretStore) Delete(resourceName string) error {
-	secretName := secretName(resourceName)
-	err := k.clientset.CoreV1().Secrets(k.namespace).Delete(secretName, &metav1.DeleteOptions{})
+	secretName := keyringSecretName(resourceName)
+	err := k.context.Clientset.CoreV1().Secrets(k.namespace).Delete(secretName, &metav1.DeleteOptions{})
 	if err != nil && !errors.IsNotFound(err) {
 		logger.Warningf("failed to delete keyring secret for %s. user may need to delete the resource manually. %+v", secretName, err)
 	}
@@ -103,28 +103,22 @@ func (k *SecretStore) Delete(resourceName string) error {
 	return nil
 }
 
-// StoredVolume returns a pod volume that mounts the resource's keyring secret.
-func StoredVolume(resourceName string) v1.Volume {
-	return v1.Volume{
-		Name: secretName(resourceName),
-		VolumeSource: v1.VolumeSource{Secret: &v1.SecretVolumeSource{
-			SecretName: secretName(resourceName),
-		}},
+func (k *SecretStore) createSecret(secret *v1.Secret) error {
+	secretName := secret.ObjectMeta.Name
+	_, err := k.context.Clientset.CoreV1().Secrets(k.namespace).Get(secretName, metav1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			logger.Debugf("creating secret for %s", secretName)
+			if _, err := k.context.Clientset.CoreV1().Secrets(k.namespace).Create(secret); err != nil {
+				return fmt.Errorf("failed to create secret for %s. %+v", secretName, err)
+			}
+			return nil
+		}
+		return fmt.Errorf("failed to get secret for %s. %+v", secretName, err)
 	}
-}
-
-// StoredVolumeMount returns a volume mount that mounts the resource's keyring secret in the
-// container at the given directory path. Keyring is mounted at `<dirPath>/keyring`.
-func StoredVolumeMount(resourceName string) v1.VolumeMount {
-	return v1.VolumeMount{
-		Name:      secretName(resourceName),
-		ReadOnly:  true, // should be no reason to write to the keyring in pods, so enforce this
-		MountPath: keyringStorePath,
+	logger.Debugf("updating secret for %s", secretName)
+	if _, err := k.context.Clientset.CoreV1().Secrets(k.namespace).Update(secret); err != nil {
+		return fmt.Errorf("failed to update secret for %s. %+v", secretName, err)
 	}
-}
-
-// ContainerMountedFilePath is the path where the keyring file can be found in pods+containers with
-// the volumes and volume mounts from the keyring store.
-func ContainerMountedFilePath() string {
-	return path.Join(keyringStorePath, keyringFileName)
+	return nil
 }

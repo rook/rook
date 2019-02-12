@@ -101,7 +101,7 @@ func TestStartSecureDashboard(t *testing.T) {
 	}
 
 	dashboardInitWaitTime = 0
-	err := c.configureDashboard(dashboardPortHttp)
+	err := c.configureDashboard(dashboardPortHTTP)
 	assert.Nil(t, err)
 	// the dashboard is enabled, then disabled and enabled again to restart
 	// it with the cert, and another restart when setting the dashboard port
@@ -115,7 +115,7 @@ func TestStartSecureDashboard(t *testing.T) {
 
 	// disable the dashboard
 	c.dashboard.Enabled = false
-	err = c.configureDashboard(dashboardPortHttp)
+	err = c.configureDashboard(dashboardPortHTTP)
 	assert.Nil(t, err)
 	assert.Equal(t, 3, enables)
 	assert.Equal(t, 3, disables)

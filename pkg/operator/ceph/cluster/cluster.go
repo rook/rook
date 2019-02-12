@@ -145,7 +145,7 @@ func (c *cluster) createInstance(rookImage string) error {
 	// Start the mon pods
 	c.mons = mon.New(c.context, c.Namespace, c.Spec.DataDirHostPath, rookImage, c.Spec.CephVersion, c.Spec.Mon, cephv1.GetMonPlacement(c.Spec.Placement),
 		c.Spec.Network.HostNetwork, cephv1.GetMonResources(c.Spec.Resources), c.ownerRef)
-	err = c.mons.Start()
+	clusterInfo, err := c.mons.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the mons. %+v", err)
 	}
@@ -156,7 +156,7 @@ func (c *cluster) createInstance(rookImage string) error {
 	}
 
 	mgrs := mgr.New(c.context, c.Namespace, rookImage, c.Spec.CephVersion, cephv1.GetMgrPlacement(c.Spec.Placement),
-		c.Spec.Network.HostNetwork, c.Spec.Dashboard, cephv1.GetMgrResources(c.Spec.Resources), c.ownerRef)
+		c.Spec.Network.HostNetwork, c.Spec.Dashboard, cephv1.GetMgrResources(c.Spec.Resources), c.ownerRef, clusterInfo)
 	err = mgrs.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the ceph mgr. %+v", err)

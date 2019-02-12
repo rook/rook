@@ -27,9 +27,9 @@
 
 - Rook will no longer create a directory-based osd in the `dataDirHostPath` if no directories or
   devices are specified or if there are no disks on the host.
-- Containers in `mon` pods have been removed and/or changed names.
-- Config paths in `mon` containers are now always the Ceph default paths
-  (`/etc/ceph`, `/var/lib/ceph`) regardless of the `dataDirHostPath` setting.
+- Containers in `mon` and `mgr` pods have been removed and/or changed names.
+- Config paths in `mon` and `mgr` containers are now always the Ceph default paths
+  (`/etc/ceph`, `/var/lib/ceph/...`) regardless of the `dataDirHostPath` setting.
 
 ## Known Issues
 

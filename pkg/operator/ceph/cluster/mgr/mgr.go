@@ -25,7 +25,8 @@ import (
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -41,8 +42,6 @@ const (
 	metricsPort          = 9283
 )
 
-var mgrNames = []string{"a", "b"}
-
 // Cluster represents the Rook and environment configuration settings needed to set up Ceph mgrs.
 type Cluster struct {
 	Namespace   string
@@ -57,17 +56,12 @@ type Cluster struct {
 	cephVersion cephv1.CephVersionSpec
 	rookVersion string
 	exitCode    func(err error) (int, bool)
-}
-
-// mgrConfig for a single mgr
-type mgrConfig struct {
-	ResourceName string // the name rook gives to mgr resources in k8s metadata
-	DaemonName   string // the name of the Ceph daemon ("a", "b", ...)
+	clusterInfo *cephconfig.ClusterInfo
 }
 
 // New creates an instance of the mgr
 func New(context *clusterd.Context, namespace, rookVersion string, cephVersion cephv1.CephVersionSpec, placement rookalpha.Placement, hostNetwork bool, dashboard cephv1.DashboardSpec,
-	resources v1.ResourceRequirements, ownerRef metav1.OwnerReference) *Cluster {
+	resources v1.ResourceRequirements, ownerRef metav1.OwnerReference, cInfo *cephconfig.ClusterInfo) *Cluster {
 	return &Cluster{
 		context:     context,
 		Namespace:   namespace,
@@ -81,6 +75,7 @@ func New(context *clusterd.Context, namespace, rookVersion string, cephVersion c
 		resources:   resources,
 		ownerRef:    ownerRef,
 		exitCode:    getExitCode,
+		clusterInfo: cInfo,
 	}
 }
 
@@ -90,41 +85,28 @@ var updateDeploymentAndWait = k8sutil.UpdateDeploymentAndWait
 func (c *Cluster) Start() error {
 	logger.Infof("start running mgr")
 
-	var dashboardPort int
-	if c.dashboard.Port == 0 {
-		// select default ports
-		if c.cephVersion.Name == cephv1.Luminous {
-			dashboardPort = dashboardPortHttp
-		} else {
-			dashboardPort = dashboardPortHttps
-		}
-	} else {
-		// crd validates port >= 0
-		dashboardPort = c.dashboard.Port
-	}
-
 	for i := 0; i < c.Replicas; i++ {
-		if i >= len(mgrNames) {
-			logger.Errorf("cannot have more than %d mgrs", len(mgrNames))
+		if i >= 2 {
+			logger.Errorf("cannot have more than 2 mgrs")
 			break
 		}
 
-		daemonName := mgrNames[i]
-		resourceName := fmt.Sprintf("%s-%s", appName, daemonName)
-		username := fmt.Sprintf("mgr.%s", daemonName)
-		access := []string{"mon", "allow *", "mds", "allow *", "osd", "allow *"}
-		cfg := opspec.KeyringConfig{Namespace: c.Namespace, ResourceName: resourceName, DaemonName: daemonName, OwnerRef: c.ownerRef, Username: username, Access: access}
-		if err := opspec.CreateKeyring(c.context, cfg); err != nil {
-			return fmt.Errorf("failed to create %s keyring. %+v", resourceName, err)
+		daemonID := k8sutil.IndexToName(i)
+		resourceName := fmt.Sprintf("%s-%s", appName, daemonID)
+		mgrConfig := &mgrConfig{
+			DaemonID:      daemonID,
+			ResourceName:  resourceName,
+			DashboardPort: c.dashboardPort(),
+			DataPathMap:   config.NewStatelessDaemonDataPathMap(config.MgrType, daemonID),
 		}
 
-		mgrConfig := &mgrConfig{
-			DaemonName:   daemonName,
-			ResourceName: resourceName,
+		// generate keyring specific to this mgr daemon saved to k8s secret
+		if err := c.generateKeyring(mgrConfig); err != nil {
+			return fmt.Errorf("failed to generate keyring for %s. %+v", resourceName, err)
 		}
 
 		// start the deployment
-		d := c.makeDeployment(mgrConfig, dashboardPort)
+		d := c.makeDeployment(mgrConfig)
 		logger.Debugf("starting mgr deployment: %+v", d)
 		_, err := c.context.Clientset.ExtensionsV1beta1().Deployments(c.Namespace).Create(d)
 		if err != nil {
@@ -146,7 +128,7 @@ func (c *Cluster) Start() error {
 		logger.Errorf("failed to enable mgr prometheus module. %+v", err)
 	}
 
-	if err := c.configureDashboard(dashboardPort); err != nil {
+	if err := c.configureDashboard(c.dashboardPort()); err != nil {
 		logger.Errorf("failed to enable mgr dashboard. %+v", err)
 	}
 

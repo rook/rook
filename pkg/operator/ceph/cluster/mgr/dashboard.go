@@ -35,8 +35,8 @@ import (
 
 const (
 	dashboardModuleName            = "dashboard"
-	dashboardPortHttps             = 8443
-	dashboardPortHttp              = 7000
+	dashboardPortHTTPS             = 8443
+	dashboardPortHTTP              = 7000
 	dashboardUsername              = "admin"
 	dashboardPasswordName          = "rook-ceph-dashboard-password"
 	passwordLength                 = 10

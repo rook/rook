@@ -174,7 +174,7 @@ func TestNodeAffinity(t *testing.T) {
 	assert.Equal(t, nodes[2].Name, cleanNodes[1].Name)
 }
 
-// this tests can 3 mons with hostnetwroking on the same host is rejected
+// this tests can 3 mons with hostnetworking on the same host is rejected
 func TestHostNetworkSameNode(t *testing.T) {
 	namespace := "ns"
 	context := newTestStartCluster(namespace)
@@ -184,8 +184,8 @@ func TestHostNetworkSameNode(t *testing.T) {
 	c.clusterInfo = test.CreateConfigDir(1)
 
 	// start a basic cluster
-	err := c.Start()
-	assert.NotNil(t, err)
+	_, err := c.Start()
+	assert.Error(t, err)
 }
 
 func TestHostNetwork(t *testing.T) {
