@@ -19,6 +19,7 @@ package mon
 import (
 	"fmt"
 	"os"
+	"path"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -90,6 +91,7 @@ func (c *Cluster) makeMonPod(monConfig *monConfig, hostname string) *v1.Pod {
 	logger.Debug("monConfig: %+v", monConfig)
 	podSpec := v1.PodSpec{
 		InitContainers: []v1.Container{
+			c.makeChownDataDirInitContainer(monConfig),
 			c.makeMonFSInitContainer(monConfig),
 		},
 		Containers: []v1.Container{
@@ -134,7 +136,33 @@ func podSecurityContext() *v1.SecurityContext {
 	if os.Getenv("ROOK_HOSTPATH_REQUIRES_PRIVILEGED") == "true" {
 		privileged = true
 	}
-	return &v1.SecurityContext{Privileged: &privileged}
+
+	return &v1.SecurityContext{
+		Privileged: &privileged,
+	}
+}
+
+func (c *Cluster) makeChownDataDirInitContainer(monConfig *monConfig) v1.Container {
+	// Before makeMonFSInitContainer starts we must apply the right ownership to the mon data dir
+	// so the mkfs can succeed, otherwise it'll fail since it's owned by root
+	// Unfortunately, we can't use:
+	// Lifecycle: &v1.Lifecycle{PostStart: &v1.Handler{Exec: &v1.ExecAction{
+	// On an InitContainer :-(
+	container := v1.Container{
+		Name: "chown-container-data-dir",
+		Command: []string{
+			"chown",
+		},
+		Args: []string{
+			"--verbose",
+			"ceph:ceph",
+			monConfig.DataPathMap.ContainerDataDir,
+		},
+		Image:        c.spec.CephVersion.Image,
+		VolumeMounts: opspec.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),
+		Resources:    cephv1.GetMonResources(c.spec.Resources),
+	}
+	return container
 }
 
 func (c *Cluster) makeMonFSInitContainer(monConfig *monConfig) v1.Container {
@@ -182,6 +210,13 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 			// If the mon is already in the monmap, when the port is left off of --public-addr,
 			// it will still advertise on the previous port b/c monmap is saved to mon database.
 			config.NewFlag("public-addr", publicAddr),
+			// Set '--setuser-match-path' so that existing directory owned by root won't affect the daemon startup.
+			// For existing data store owned by root, the daemon will continue to run as root
+			//
+			// We use 'store.db' here because during an upgrade the init container will set 'ceph:ceph' to monConfig.DataPathMap.ContainerDataDir
+			// but inside the permissions will be 'root:root' AND we don't want to chown recursively on the mon data directory
+			// We want to avoid potential startup time issue if the store is big
+			config.NewFlag("setuser-match-path", path.Join(monConfig.DataPathMap.ContainerDataDir, "store.db")),
 		),
 		Image:           c.spec.CephVersion.Image,
 		VolumeMounts:    opspec.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),

@@ -210,6 +210,11 @@ func (c *Cluster) makeDeployment(nodeName string, selection rookalpha.Selection,
 			"--osd-uuid", osd.UUID,
 			"--conf", osd.Config,
 			"--cluster", "ceph",
+			"--setuser", "ceph",
+			"--setgroup", "ceph",
+			// Set '--setuser-match-path' so that existing directory owned by root won't affect the daemon startup.
+			// For existing data store owned by root, the daemon will continue to run as root
+			"--setuser-match-path", osd.DataPath,
 		}
 
 		// Set osd memory target to the best appropriate value

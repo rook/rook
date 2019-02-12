@@ -220,8 +220,17 @@ func (s *Store) createOrUpdateMonHostSecrets(clusterInfo *cephconfig.ClusterInfo
 
 // StoredFileVolume returns a pod volume sourced from the stored config file.
 func StoredFileVolume() v1.Volume {
-	// TL;DR: mount the configmap's "ceph.conf" to a file called "ceph.conf" with 0400 permissions
-	mode := int32(0400) // security: only allow the owner to read and no one to write
+	// TL;DR: mount the configmap's "ceph.conf" to a file called "ceph.conf" with 0444 permissions
+	// security: allow to be read by everyone since now ceph processes run as 'ceph' and not 'root' user
+	// Further investigation needs to be done to copy the ceph.conf and change its ownership
+	// since configuring a owner of a ConfigMap secret is currently impossible
+	// This also works around the following issue: https://tracker.ceph.com/issues/38606
+	//
+	// This design choice avoids the crash/restart situation in Rook
+	// If we don't set 0444 to the ceph.conf configuration file during its respawn (with exec) the ceph-mgr
+	// won't be able to read the ceph.conf and the container will die, the "restart" count will increase in k8s
+	// This will mislead users thinking something won't wrong but that a false positive
+	mode := int32(0444)
 	return v1.Volume{
 		Name: configVolumeName,
 		VolumeSource: v1.VolumeSource{
