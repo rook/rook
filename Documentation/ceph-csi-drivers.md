@@ -4,9 +4,9 @@ weight: 3200
 indent: true
 ---
 
-# Running ceph CSI drivers with Rook
+# Running Ceph CSI drivers with Rook
 
-Here is a guide on how to implement ceph-csi drivers on a Kubernetes cluster with Rook. The way to implement it should change relatively soon as there is an effort to manage deployments of the ceph-csi plugin within Rook directly ([#1385](https://github.com/rook/rook/issues/1385), [#2059](https://github.com/rook/rook/pull/2059)).
+Here is a guide on how to use Rook to deploy ceph-csi drivers on a Kubernetes cluster.
 
 - [Enable CSI drivers](#enable-csi-drivers)
 - [Test the CSI driver](#test-the-csi-driver)
@@ -15,134 +15,112 @@ Here is a guide on how to implement ceph-csi drivers on a Kubernetes cluster wit
 
 ## Prerequisites
 
-1. A Kubernetes v1.12+ cluster with at least one node
+1. a Kubernetes v1.13+ is needed in order to support CSI Spec 1.0.
 2. `--allow-privileged` flag set to true in [kubelet](https://kubernetes.io/docs/reference/command-line-tools-reference/kubelet/) and your [API server](https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/)
-3. An up and running Rook instance (see [Rook - ceph quickstart guide](https://github.com/rook/rook/blob/master/Documentation/ceph-quickstart.md))
+3. An up and running Rook instance (see [Rook - Ceph quickstart guide](https://github.com/rook/rook/blob/master/Documentation/ceph-quickstart.md))
 
-## Enable CSI drivers
+## CSI Drivers Enablement
 
-As described by the ceph-csi [Cephfs](https://github.com/ceph/ceph-csi/blob/master/docs/deploy-cephfs.md) and [RBD](https://github.com/ceph/ceph-csi/blob/master/docs/deploy-rbd.md) plugins deployment guides, the plugins yaml manifests are located in ceph-csi repository in the [deploy folder](https://github.com/ceph/ceph-csi/tree/master/deploy), and should be deployed as follow:
+### Create RBAC used by CSI drivers in the same namespace as Rook Ceph Operator
 
-### Deploy RBACs for node plugins, csi-attacher and csi-provisioner (common to Cephfs and RBD):
-```
-kubectl create -f https://raw.githubusercontent.com/ceph/ceph-csi/master/deploy/rbd/kubernetes/csi-attacher-rbac.yaml
-kubectl create -f https://raw.githubusercontent.com/ceph/ceph-csi/master/deploy/rbd/kubernetes/csi-provisioner-rbac.yaml
-kubectl create -f https://raw.githubusercontent.com/ceph/ceph-csi/master/deploy/rbd/kubernetes/csi-nodeplugin-rbac.yaml
-```
-Those manifests deploy service accounts, cluster roles and cluster role bindings.
-### Deploy csi-attacher and csi-provisioner containers:
-Deploys stateful sets for external-attacher and external-provisioner sidecar containers.
-##### Cephfs
-
-```
-kubectl create -f https://raw.githubusercontent.com/ceph/ceph-csi/master/deploy/cephfs/kubernetes/csi-cephfsplugin-attacher.yaml
-kubectl create -f https://raw.githubusercontent.com/ceph/ceph-csi/master/deploy/cephfs/kubernetes/csi-cephfsplugin-provisioner.yaml
-```
-##### RBD
-```
-kubectl create -f https://raw.githubusercontent.com/ceph/ceph-csi/master/deploy/rbd/kubernetes/csi-rbdplugin-attacher.yaml
-kubectl create -f https://raw.githubusercontent.com/ceph/ceph-csi/master/deploy/rbd/kubernetes/csi-rbdplugin-provisioner.yaml
-```
-### Deploy the CSI driver:
-Deploys a daemon set with two containers: CSI driver-registrar and the driver.
-##### Cephfs
-```
-kubectl create -f https://raw.githubusercontent.com/ceph/ceph-csi/master/deploy/cephfs/kubernetes/csi-cephfsplugin.yaml
-```
-##### RBD
-```
-kubectl create -f https://raw.githubusercontent.com/ceph/ceph-csi/master/deploy/rbd/kubernetes/csi-rbdplugin.yaml
+```console
+kubectl create namespace rook-ceph-system
+# create rbac. Since rook operator is not permitted to create rbac rules, these rules have to be created outside of operator
+kubectl apply -f cluster/examples/kubernetes/ceph/csi/rbac/rbd/
+kubectl apply -f cluster/examples/kubernetes/ceph/csi/rbac/cephfs/
 ```
 
-### Verify the plugin, its attacher and provisioner are running:
-You should see an output similar to this when you run `kubectl get all`.
+### Create CSI driver deployment templates and persist them in configmaps
+
+```console
+kubectl create configmap csi-cephfs-config -n rook-ceph-system --from-file=cluster/examples/kubernetes/ceph/csi/template/cephfs
+
+kubectl create configmap csi-rbd-config -n rook-ceph-system --from-file=cluster/examples/kubernetes/ceph/csi/template/rbd
 ```
-# kubectl get all
 
-NAMESPACE   NAME                                       READY   STATUS      RESTARTS   AGE
-default     pod/csi-rbdplugin-975c4                    2/2     Running     0          132m
-default     pod/csi-rbdplugin-attacher-0               1/1     Running     0          132m
-default     pod/csi-rbdplugin-provisioner-0            1/1     Running     0          132m
+### Start Rook Ceph Operator
 
-NAMESPACE   NAME                                TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)         AGE
-default     service/csi-rbdplugin-attacher      ClusterIP   10.107.65.227    <none>        12345/TCP       132m
-default     service/csi-rbdplugin-provisioner   ClusterIP   10.108.120.159   <none>        12345/TCP       132m
+```console
+kubectl apply -f cluster/examples/kubernetes/ceph/operator-with-csi.yaml
+```
 
-NAMESPACE   NAME                             DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR   AGE
-default     daemonset.apps/csi-rbdplugin     1         1         1       1            1           <none>          132m
+### Verify CSI drivers and Operator are up and running
 
-NAMESPACE   NAME                                         DESIRED   CURRENT   AGE
-default     statefulset.apps/csi-rbdplugin-attacher      1         1         132m
-default     statefulset.apps/csi-rbdplugin-provisioner   1         1         132m
+```bash
+# kubectl get all -n rook-ceph-system
+NAME                                     READY     STATUS    RESTARTS   AGE
+pod/csi-cephfsplugin-h5spd               2/2       Running   0          1d
+pod/csi-cephfsplugin-provisioner-0       2/2       Running   0          1d
+pod/csi-rbdplugin-4l6zg                  2/2       Running   2          1d
+pod/csi-rbdplugin-attacher-0             1/1       Running   0          1d
+pod/csi-rbdplugin-provisioner-0          2/2       Running   2          1d
+pod/rook-ceph-agent-zlm84                1/1       Running   0          1d
+pod/rook-ceph-operator-c84954957-jdzk6   1/1       Running   0          1d
+pod/rook-discover-66hjp                  1/1       Running   0          1d
 
+NAME                                   TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)    AGE
+service/csi-cephfsplugin-provisioner   ClusterIP   10.0.0.107   <none>        1234/TCP   1d
+service/csi-rbdplugin-attacher         ClusterIP   10.0.0.109   <none>        1234/TCP   1d
+service/csi-rbdplugin-provisioner      ClusterIP   10.0.0.56    <none>        1234/TCP   1d
+
+NAME                              DESIRED   CURRENT   READY     UP-TO-DATE   AVAILABLE   NODE SELECTOR   AGE
+daemonset.apps/csi-cephfsplugin   1         1         1         1            1           <none>          1d
+daemonset.apps/csi-rbdplugin      1         1         1         1            1           <none>          1d
+daemonset.apps/rook-ceph-agent    1         1         1         1            1           <none>          1d
+daemonset.apps/rook-discover      1         1         1         1            1           <none>          1d
+
+NAME                                 DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/rook-ceph-operator   1         1         1            1           1d
+
+NAME                                           DESIRED   CURRENT   READY     AGE
+replicaset.apps/rook-ceph-operator-c84954957   1         1         1         1d
+
+NAME                                            DESIRED   CURRENT   AGE
+statefulset.apps/csi-cephfsplugin-provisioner   1         1         1d
+statefulset.apps/csi-rbdplugin-attacher         1         1         1d
+statefulset.apps/csi-rbdplugin-provisioner      1         1         1d
 ```
 
 ## Test the CSI driver
 
-Once the plugin is successfully deployed, test it by running the following example
+Once the plugin is successfully deployed, test it by running the following example.
 
-This example is based on the ceph-csi [examples](https://github.com/ceph/ceph-csi/tree/master/examples) directory. It will describe how to test the RBD csi-driver, but it is very similar to run the cephfs one.
+### Create the StorageClass
 
-### Create the StorageClass:
-This storageclass expect a pool named `rbd` in your ceph cluster. You can create this pool using [rook pool CRD](https://github.com/rook/rook/blob/master/Documentation/ceph-pool-crd.md)
-##### storageclass.yaml
+This [storageclass](../cluster/examples/kubernetes/ceph/csi/example/rbd/storageclass.yaml) expect a pool named `rbd` in your Ceph cluster. You can create this pool using [rook pool CRD](https://github.com/rook/rook/blob/master/Documentation/ceph-pool-crd.md).
+
+Please update `monitors` to reflect the Ceph mointors.
+
+
+### Create the Secret
+
+Create a Secret that matches that specified in the [storageclass](../cluster/examples/kubernetes/ceph/csi/example/rbd/storageclass.yaml).
+
+Find a Ceph mon pod (in the following example, the pod is `rook-ceph-mon-a-6c4f9f6b6-rzp6r`) and create a Ceph user for that pool called `kubernetes`:
+```bash
+kubectl exec -ti -n rook-ceph rook-ceph-mon-a-6c4f9f6b6-rzp6r -- bash -c "ceph -c /var/lib/rook/rook-ceph/rook-ceph.config auth get-or-create-key client.kub2 mon \"allow profile rbd\" osd \"profile rbd pool=rbd\""
 ```
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-   name: csi-rbd
-provisioner: csi-rbdplugin 
-parameters:
-    # Comma separated list of Ceph monitors
-    # if using FQDN, make sure csi plugin's dns policy is appropriate.
-    monitors: mon1:port,mon2:port,...
 
-    # if "monitors" parameter is not set, driver to get monitors from same
-    # secret as admin/user credentials. "monValueFromSecret" provides the
-    # key in the secret whose value is the mons
-    #monValueFromSecret: "monitors"
+Then create a Secret using admin and `kubernetes` keyrings:
 
-    
-    # Ceph pool into which the RBD image shall be created
-    pool: rbd
-
-    # RBD image format. Defaults to "2".
-    imageFormat: "2"
-
-    # RBD image features. Available for imageFormat: "2". CSI RBD currently supports only `layering` feature.
-    imageFeatures: layering
-    
-    # The secrets have to contain Ceph admin credentials.
-    csiProvisionerSecretName: csi-rbd-secret
-    csiProvisionerSecretNamespace: default
-    csiNodePublishSecretName: csi-rbd-secret
-    csiNodePublishSecretNamespace: default
-
-    # Ceph users for operating RBD
-    adminid: admin
-    userid: kubernetes
-    # uncomment the following to use rbd-nbd as mounter on supported nodes
-    #mounter: rbd-nbd
-reclaimPolicy: Delete
-```
-### Create the Secret:
-##### secret.yaml
 ```
 apiVersion: v1
 kind: Secret
 metadata:
   name: csi-rbd-secret
-  namespace: default 
+  namespace: default
 data:
-  # Key value corresponds to a user name defined in ceph cluster
+  # Key value corresponds to a user name defined in Ceph cluster
   admin: BASE64-ENCODED-PASSWORD
-  # Key value corresponds to a user name defined in ceph cluster
+  # Key value corresponds to a user name defined in Ceph cluster
   kubernetes: BASE64-ENCODED-PASSWORD
   # if monValueFromSecret is set to "monitors", uncomment the
   # following and set the mon there
   #monitors: BASE64-ENCODED-Comma-Delimited-Mons
 ```
-Here, you need your ceph admin/user password encoded in base64. Run `ceph auth ls` in one of your ceph pod, encode the key of your admin/user and replace `BASE64-ENCODED-PASSWORD` by your encoded key.
+
+Here, you need your Ceph admin/user password encoded in base64. Run `ceph auth ls` in one of your Ceph pod, encode the key of your admin/user and replace `BASE64-ENCODED-PASSWORD` by your encoded key.
+
 ### Create the PersistentVolumeClaim:
 ##### pvc.yaml
 ```
@@ -188,7 +166,7 @@ spec:
        readOnly: false
 ```
 
-When running `rbd list block --pool [yourpool]` in one of your ceph pod you should see the created PVC:
+When running `rbd list block --pool [yourpool]` in one of your Ceph pod you should see the created PVC:
 ```
 # rbd list block --pool rbd
 pvc-c20495c0d5de11e8
@@ -220,7 +198,7 @@ You must download this file and modify it to match your Ceph cluster.
 ```
 # wget https://raw.githubusercontent.com/ceph/ceph-csi/master/examples/rbd/snapshotclass.yaml
 ```
-The `csiSnapshotterSecretName` parameter should reference the name of the secret created for the ceph-csi plugin you deployed. The monitors are a comma separated list of your ceph monitors, same as in the StorageClass of the plugin you chosen. When this is done, run:
+The `csiSnapshotterSecretName` parameter should reference the name of the secret created for the ceph-csi plugin you deployed. The monitors are a comma separated list of your Ceph monitors, same as in the StorageClass of the plugin you chosen. When this is done, run:
 ```
 # kubectl create -f snapshotclass.yaml
 ```
@@ -238,7 +216,7 @@ csi-rbdplugin-snapclass   4s
 NAME               AGE
 rbd-pvc-snapshot   6s
 ```
-In one of your ceph pod, run `rbd snap ls [name-of-your-pvc]`.
+In one of your Ceph pod, run `rbd snap ls [name-of-your-pvc]`.
 The output should be similar to this:
 ```
 # rbd snap ls pvc-c20495c0d5de11e8
@@ -256,20 +234,8 @@ To clean your cluster of the resources created by this example, run the followin
 # kubectl delete -f pvc.yaml
 # kubectl delete -f secret.yaml
 # kubectl delete -f storageclass.yaml
-
-# kubectl delete -f https://raw.githubusercontent.com/ceph/ceph-csi/master/deploy/rbd/kubernetes/csi-rbdplugin.yaml
-# Or https://raw.githubusercontent.com/ceph/ceph-csi/master/deploy/cephfs/kubernetes/csi-cephfsplugin.yaml  if you deployed cephfs plugin
-
-# kubectl delete -f https://raw.githubusercontent.com/ceph/ceph-csi/master/deploy/rbd/kubernetes/csi-rbdplugin-provisioner.yaml
-# Or https://raw.githubusercontent.com/ceph/ceph-csi/master/deploy/cephfs/kubernetes/csi-cephfsplugin-provisioner.yaml
-
-# kubectl delete -f https://raw.githubusercontent.com/ceph/ceph-csi/master/deploy/rbd/kubernetes/csi-rbdplugin-attacher.yaml
-# Or https://raw.githubusercontent.com/ceph/ceph-csi/master/deploy/cephfs/kubernetes/csi-cephfsplugin-attacher.yaml
-
-# kubectl delete -f https://raw.githubusercontent.com/ceph/ceph-csi/master/deploy/rbd/kubernetes/csi-nodeplugin-rbac.yaml
-# kubectl delete -f https://raw.githubusercontent.com/ceph/ceph-csi/master/deploy/rbd/kubernetes/csi-provisioner-rbac.yaml
-# kubectl delete -f https://raw.githubusercontent.com/ceph/ceph-csi/master/deploy/rbd/kubernetes/csi-attacher-rbac.yaml
 ```
+
 If you tested snapshots too:
 ```
 # kubectl delete -f https://raw.githubusercontent.com/ceph/ceph-csi/master/examples/rbd/snapshot.yaml

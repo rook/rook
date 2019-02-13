@@ -17,6 +17,7 @@
 - Recursive chown for mounts can now be toggled with the [ROOK_ENABLE_FSGROUP](https://github.com/rook/rook/issues/2254) environment variable.
 - Added the dashboard `port` configuration setting.
 - Added the dashboard `ssl` configuration setting.
+- Added Ceph CSI driver deployments on Kubernetes 1.13 and above.
 
 ## Breaking Changes
 

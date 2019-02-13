@@ -246,6 +246,7 @@ rules:
   resources:
   - pods
   - configmaps
+  - services
   verbs:
   - get
   - list
@@ -265,6 +266,19 @@ rules:
   - create
   - update
   - delete
+- apiGroups:
+  - apps
+  resources:
+  - daemonsets
+  - statefulsets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
@@ -444,6 +458,250 @@ subjects:
   name: rook-ceph-system
   namespace: ` + namespace + `
 ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: csi-rbd-config
+  namespace: ` + namespace + `
+data:
+  csi-rbdplugin-attacher.yaml: |-` + rbdAttacherTemplate + `
+  csi-rbdplugin-provisioner.yaml: |-` + rbdProvisionerTemplate + `
+  csi-rbdplugin.yaml: |-` + rbdPluginTemplate + `
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: csi-cephfs-config
+  namespace: ` + namespace + `
+data:
+  csi-cephfsplugin-provisioner.yaml: |` + cephfsProvisionerTemplate + `
+  csi-cephfsplugin.yaml: |` + cephfsPluginTemplate + `
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-csi-rbd-attacher-sa
+  namespace: ` + namespace + `
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rbd-external-attacher-runner
+rules:
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments"]
+    verbs: ["get", "list", "watch", "update"]
+
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rbd-csi-attacher-role
+subjects:
+  - kind: ServiceAccount
+    name: rook-csi-rbd-attacher-sa
+    namespace: ` + namespace + `
+roleRef:
+  kind: ClusterRole
+  name: rbd-external-attacher-runner
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-csi-rbd-plugin-sa
+  namespace: ` + namespace + `
+
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rbd-csi-nodeplugin
+rules:
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "update"]
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list"]
+
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rbd-csi-nodeplugin
+subjects:
+  - kind: ServiceAccount
+    name: rook-csi-rbd-plugin-sa
+    namespace: ` + namespace + `
+roleRef:
+  kind: ClusterRole
+  name: rbd-csi-nodeplugin
+  apiGroup: rbac.authorization.k8s.io          
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-csi-rbd-provisioner-sa
+  namespace: ` + namespace + `
+
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rbd-external-provisioner-runner
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["list", "watch", "create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["endpoints"]
+    verbs: ["get", "create", "update"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshots"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "create", "delete"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshotcontents"]
+    verbs: ["create", "get", "list", "watch", "update", "delete"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshotclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["create"]
+    
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rbd-csi-provisioner-role
+subjects:
+  - kind: ServiceAccount
+    name: rook-csi-rbd-provisioner-sa
+    namespace: ` + namespace + `
+roleRef:
+  kind: ClusterRole
+  name: rbd-external-provisioner-runner
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-csi-cephfs-plugin-sa
+  namespace: ` + namespace + `
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: cephfs-csi-nodeplugin
+rules:
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "update"]
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list"]
+
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: cephfs-csi-nodeplugin
+subjects:
+  - kind: ServiceAccount
+    name: rook-csi-cephfs-plugin-sa
+    namespace: ` + namespace + `
+roleRef:
+  kind: ClusterRole
+  name: cephfs-csi-nodeplugin
+  apiGroup: rbac.authorization.k8s.io          
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-csi-cephfs-provisioner-sa
+  namespace: ` + namespace + `
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: cephfs-external-provisioner-runner
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["list", "watch", "create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "create", "delete"]
+    
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: cephfs-csi-provisioner-role
+subjects:
+  - kind: ServiceAccount
+    name: rook-csi-cephfs-provisioner-sa
+    namespace: ` + namespace + `
+roleRef:
+  kind: ClusterRole
+  name: cephfs-external-provisioner-runner
+  apiGroup: rbac.authorization.k8s.io
+---
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
@@ -482,7 +740,37 @@ spec:
         - name: POD_NAMESPACE
           valueFrom:
             fieldRef:
-              fieldPath: metadata.namespace`
+              fieldPath: metadata.namespace
+        # CSI enablement
+        - name: ROOK_CSI_ENABLE_CEPHFS
+          value: "true"
+        - name: ROOK_CSI_CEPHFS_IMAGE
+          value: "quay.io/cephcsi/cephfsplugin:v1.0.0"
+        - name: ROOK_CSI_ENABLE_RBD
+          value: "true"
+        - name: ROOK_CSI_RBD_IMAGE
+          value: "quay.io/cephcsi/rbdplugin:v1.0.0"
+        - name: ROOK_CSI_REGISTRAR_IMAGE
+          value: "quay.io/k8scsi/csi-node-driver-registrar:v1.0.2"
+        - name: ROOK_CSI_PROVISIONER_IMAGE
+          value: "quay.io/k8scsi/csi-provisioner:v1.0.1"
+        - name: ROOK_CSI_SNAPSHOTTER_IMAGE
+          value: "quay.io/k8scsi/csi-snapshotter:v1.0.1"
+        - name: ROOK_CSI_ATTACHER_IMAGE
+          value: "quay.io/k8scsi/csi-attacher:v1.0.1"
+        volumeMounts:
+        - mountPath: /etc/ceph-csi/rbd
+          name: csi-rbd-config
+        - mountPath: /etc/ceph-csi/cephfs
+          name: csi-cephfs-config
+      volumes:
+      - name: csi-rbd-config
+        configMap:
+          name: csi-rbd-config
+      - name: csi-cephfs-config
+        configMap:
+          name: csi-cephfs-config
+`
 }
 
 // GetClusterRoles returns rook-cluster manifest
