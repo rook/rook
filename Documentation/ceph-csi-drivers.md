@@ -89,7 +89,7 @@ Once the plugin is successfully deployed, test it by running the following examp
 
 This [storageclass](../cluster/examples/kubernetes/ceph/csi/example/rbd/storageclass.yaml) expect a pool named `rbd` in your Ceph cluster. You can create this pool using [rook pool CRD](https://github.com/rook/rook/blob/master/Documentation/ceph-pool-crd.md).
 
-Please update `monitors` to reflect the Ceph mointors.
+Please update `monitors` to reflect the Ceph monitors.
 
 
 ### Create the Secret
