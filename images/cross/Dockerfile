@@ -29,7 +29,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
         runit \
         sudo \
         zip && \
-    curl -sL https://deb.nodesource.com/setup_8.x | bash - && \
+    curl -sL https://deb.nodesource.com/setup_10.x | bash - && \
     DEBIAN_FRONTEND=noninteractive apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -yy -q --no-install-recommends nodejs && \
     DEBIAN_FRONTEND=noninteractive apt-get upgrade -y && \
