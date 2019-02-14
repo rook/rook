@@ -95,9 +95,9 @@ func DaemonVolumeMounts(dataPaths *config.DataPathMap, keyringResourceName strin
 func DaemonFlags(cluster *cephconfig.ClusterInfo, daemonType config.DaemonType, daemonID string) []string {
 	return append(
 		config.DefaultFlags(cluster.FSID, keyring.VolumeMount().KeyringFilePath()),
-		// all daemons are named in the format <type>.<id>
-		config.NewFlag("name", fmt.Sprintf("%s.%s", string(daemonType), daemonID)),
+		config.NewFlag("id", daemonID),
 	)
+
 }
 
 // AdminFlags returns the command line flags used for Ceph commands requiring admin authentication.

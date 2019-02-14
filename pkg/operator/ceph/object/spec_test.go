@@ -17,13 +17,13 @@ limitations under the License.
 package object
 
 import (
-	"fmt"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
-	"github.com/rook/rook/pkg/operator/k8sutil"
+	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
+	cephtest "github.com/rook/rook/pkg/operator/ceph/test"
+	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -40,80 +40,59 @@ func TestPodSpecs(t *testing.T) {
 			v1.ResourceMemory: *resource.NewQuantity(1337.0, resource.BinarySI),
 		},
 	}
+	info := testop.CreateConfigDir(1)
+	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "default")
 
-	c := &config{store: store, rookVersion: "rook/rook:myversion", cephVersion: cephv1.CephVersionSpec{Image: "ceph/ceph:v13.2.1", Name: "mimic"}, hostNetwork: true}
+	c := &clusterConfig{
+		clusterInfo: info,
+		store:       store,
+		rookVersion: "rook/rook:myversion",
+		cephVersion: cephv1.CephVersionSpec{Image: "ceph/ceph:v13.2.1", Name: "mimic"},
+		hostNetwork: true,
+		DataPathMap: data,
+	}
+
 	s := c.makeRGWPodSpec()
-	assert.NotNil(t, s)
-	//assert.Equal(t, instanceName(store), s.Name)
-	assert.Equal(t, v1.RestartPolicyAlways, s.Spec.RestartPolicy)
-	assert.Equal(t, 3, len(s.Spec.Volumes))
-	assert.Equal(t, "rook-data", s.Spec.Volumes[0].Name)
-	assert.Equal(t, cephconfig.DefaultConfigMountName, s.Spec.Volumes[1].Name)
 
-	assert.Equal(t, c.instanceName(), s.ObjectMeta.Name)
-	assert.Equal(t, appName, s.ObjectMeta.Labels["app"])
-	assert.Equal(t, store.Namespace, s.ObjectMeta.Labels["rook_cluster"])
-	assert.Equal(t, store.Name, s.ObjectMeta.Labels["rook_object_store"])
-	assert.Equal(t, 0, len(s.ObjectMeta.Annotations))
-
-	cont := s.Spec.InitContainers[0]
-	assert.Equal(t, 1, len(s.Spec.InitContainers))
-	assert.Equal(t, "rook/rook:myversion", cont.Image)
-	assert.Equal(t, 3, len(cont.VolumeMounts))
-	assert.Equal(t, 0, len(cont.Command))
-	assert.Equal(t, 6, len(cont.Args))
-	assert.Equal(t, "ceph", cont.Args[0])
-	assert.Equal(t, "rgw", cont.Args[1])
-	assert.Equal(t, "--config-dir=/var/lib/rook", cont.Args[2])
-	assert.Equal(t, "--rgw-name=default", cont.Args[3])
-	assert.Equal(t, "--rgw-port=123", cont.Args[4])
-	assert.Equal(t, "--rgw-secure-port=0", cont.Args[5])
-
-	cont = s.Spec.Containers[0]
-	assert.Equal(t, "ceph/ceph:v13.2.1", cont.Image)
-	assert.Equal(t, 2, len(cont.VolumeMounts))
-
-	assert.Equal(t, 1, len(cont.Command))
-	assert.Equal(t, "radosgw", cont.Command[0])
-	assert.Equal(t, 3, len(cont.Args))
-	assert.Equal(t, "--foreground", cont.Args[0])
-	assert.Equal(t, "--name=client.radosgw.gateway", cont.Args[1])
-	assert.Equal(t, "--rgw-mime-types-file=/var/lib/rook/rgw/mime.types", cont.Args[2])
-
-	assert.Equal(t, len(k8sutil.ClusterDaemonEnvVars("ceph/ceph:v14")), len(cont.Env))
-
-	assert.Equal(t, "100", cont.Resources.Limits.Cpu().String())
-	assert.Equal(t, "1337", cont.Resources.Requests.Memory().String())
+	podTemplate := cephtest.NewPodTemplateSpecTester(t, &s)
+	podTemplate.RunFullSuite(cephconfig.RgwType, "default", "rook-ceph-rgw", "mycluster", "ceph/ceph:myversion",
+		"100", "1337" /* resources */)
 }
 
 func TestSSLPodSpec(t *testing.T) {
 	store := simpleStore()
+	store.Spec.Gateway.Resources = v1.ResourceRequirements{
+		Limits: v1.ResourceList{
+			v1.ResourceCPU: *resource.NewQuantity(100.0, resource.BinarySI),
+		},
+		Requests: v1.ResourceList{
+			v1.ResourceMemory: *resource.NewQuantity(1337.0, resource.BinarySI),
+		},
+	}
+	info := testop.CreateConfigDir(1)
+	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "default")
 	store.Spec.Gateway.SSLCertificateRef = "mycert"
 	store.Spec.Gateway.SecurePort = 443
 
-	c := &config{store: store, rookVersion: "v1.0", hostNetwork: true}
+	c := &clusterConfig{
+		clusterInfo: info,
+		store:       store,
+		rookVersion: "rook/rook:myversion",
+		cephVersion: cephv1.CephVersionSpec{Image: "ceph/ceph:v13.2.1", Name: "mimic"},
+		hostNetwork: true,
+		DataPathMap: data,
+	}
+	c.hostNetwork = true
+
 	s := c.makeRGWPodSpec()
 
-	assert.NotNil(t, s)
-	assert.Equal(t, c.instanceName(), s.Name)
-	assert.Equal(t, 4, len(s.Spec.Volumes))
-	assert.Equal(t, certVolumeName, s.Spec.Volumes[3].Name)
+	podTemplate := cephtest.NewPodTemplateSpecTester(t, &s)
+	podTemplate.RunFullSuite(cephconfig.RgwType, "default", "rook-ceph-rgw", "mycluster", "ceph/ceph:myversion",
+		"100", "1337" /* resources */)
+
 	assert.True(t, s.Spec.HostNetwork)
 	assert.Equal(t, v1.DNSClusterFirstWithHostNet, s.Spec.DNSPolicy)
 
-	initCont := s.Spec.InitContainers[0]
-
-	assert.Equal(t, 3, len(initCont.VolumeMounts))
-	assert.Equal(t, 7, len(initCont.Args))
-	assert.Equal(t, fmt.Sprintf("--rgw-secure-port=%d", 443), initCont.Args[5])
-	assert.Equal(t, fmt.Sprintf("--rgw-cert=%s/%s", certMountPath, certFilename), initCont.Args[6])
-
-	rgwCont := s.Spec.Containers[0]
-
-	assert.Equal(t, 3, len(rgwCont.VolumeMounts))
-	assert.Equal(t, certVolumeName, rgwCont.VolumeMounts[2].Name)
-	assert.Equal(t, certMountPath, rgwCont.VolumeMounts[2].MountPath)
-	assert.Equal(t, 3, len(rgwCont.Args))
 }
 
 func TestValidateSpec(t *testing.T) {

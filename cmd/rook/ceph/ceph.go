@@ -58,7 +58,6 @@ func init() {
 	Cmd.AddCommand(operatorCmd,
 		agentCmd,
 		osdCmd,
-		rgwCmd,
 		configCmd,
 		nfsCmd)
 }

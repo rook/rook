@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package rgw
+package object
 
 import (
 	"fmt"
@@ -43,9 +43,8 @@ func TestCreateRealm(t *testing.T) {
 		} else if args[0] == "realm" && args[1] == "list" {
 			if defaultStore {
 				return "", fmt.Errorf("failed to run radosgw-admin: Failed to complete : exit status 2")
-			} else {
-				return `{"realms": ["myobj"]}`, nil
 			}
+			return `{"realms": ["myobj"]}`, nil
 		}
 		return idResponse, nil
 	}
@@ -146,7 +145,7 @@ func deleteStore(t *testing.T, name string, existingStores string, expectedDelet
 	context := &Context{context: &clusterd.Context{Executor: executor}, Name: "myobj", ClusterName: "ns"}
 
 	// Delete an object store
-	err := DeleteObjectStore(context)
+	err := deleteRealmAndPools(context)
 	assert.Nil(t, err)
 	expectedPoolsDeleted := 5
 	if expectedDeleteRootPool {

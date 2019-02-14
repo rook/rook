@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package rgw
+package object
 
 import (
 	"encoding/json"
@@ -24,13 +24,14 @@ import (
 )
 
 const (
-	RGWErrorNone     = iota
-	RGWErrorUnknown  = iota
-	RGWErrorNotFound = iota
-	RGWErrorBadData  = iota
-	RGWErrorParse    = iota
+	RGWErrorNone = iota
+	RGWErrorUnknown
+	RGWErrorNotFound
+	RGWErrorBadData
+	RGWErrorParse
 )
 
+// An ObjectUser defines the details of an object store user.
 type ObjectUser struct {
 	UserID      string  `json:"userId"`
 	DisplayName *string `json:"displayName"`
@@ -39,6 +40,7 @@ type ObjectUser struct {
 	SecretKey   *string `json:"secretKey"`
 }
 
+// ListUsers lists the object pool users.
 func ListUsers(c *Context) ([]string, int, error) {
 	result, err := runAdminCommand(c, "user", "list")
 	if err != nil {
@@ -80,6 +82,7 @@ func decodeUser(data string) (*ObjectUser, int, error) {
 	return &rookUser, RGWErrorNone, nil
 }
 
+// GetUser returns the user with the given ID.
 func GetUser(c *Context, id string) (*ObjectUser, int, error) {
 	logger.Infof("Getting user: %s", id)
 
@@ -93,6 +96,7 @@ func GetUser(c *Context, id string) (*ObjectUser, int, error) {
 	return decodeUser(result)
 }
 
+// CreateUser creates a new user with the information given.
 func CreateUser(c *Context, user ObjectUser) (*ObjectUser, int, error) {
 	logger.Infof("Creating user: %s", user.UserID)
 
@@ -131,6 +135,7 @@ func CreateUser(c *Context, user ObjectUser) (*ObjectUser, int, error) {
 	return decodeUser(result)
 }
 
+// UpdateUser updates the user whose ID matches the user.
 func UpdateUser(c *Context, user ObjectUser) (*ObjectUser, int, error) {
 	logger.Infof("Updating user: %s", user.UserID)
 
@@ -155,6 +160,7 @@ func UpdateUser(c *Context, user ObjectUser) (*ObjectUser, int, error) {
 	return decodeUser(body)
 }
 
+// DeleteUser deletes the user with the given ID.
 func DeleteUser(c *Context, id string) (string, int, error) {
 	logger.Infof("Deleting user: %s", id)
 	result, err := runAdminCommand(c, "user", "rm", "--uid", id)

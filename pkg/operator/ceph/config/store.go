@@ -161,7 +161,7 @@ func (s *Store) createOrUpdateMonHostSecrets(clusterInfo *cephconfig.ClusterInfo
 		monIP := cephutil.GetIPFromEndpoint(m.Endpoint)
 
 		// This tries to detect the current port if the mon already exists
-		// This basically handles the transtion between monitors running on 6790 to msgr2
+		// This basically handles the transition between monitors running on 6790 to msgr2
 		// So whatever the previous monitor port was we keep it
 		currentMonPort := cephutil.GetPortFromEndpoint(m.Endpoint)
 

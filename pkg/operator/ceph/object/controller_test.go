@@ -91,7 +91,8 @@ func TestMigrateObjectStoreObject(t *testing.T) {
 		Clientset:     clientset,
 		RookClientset: rookfake.NewSimpleClientset(legacyObjectStore),
 	}
-	controller := NewObjectStoreController(context, "", cephv1.CephVersionSpec{}, false, metav1.OwnerReference{})
+	info := testop.CreateConfigDir(1)
+	controller := NewObjectStoreController(info, context, "", cephv1.CephVersionSpec{}, false, metav1.OwnerReference{})
 
 	// convert the legacy objectstore object in memory and assert that a migration is needed
 	convertedObjectStore, migrationNeeded, err := getObjectStoreObject(legacyObjectStore)

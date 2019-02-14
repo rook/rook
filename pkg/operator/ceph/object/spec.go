@@ -14,15 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package object for the Ceph object store.
 package object
 
 import (
 	"fmt"
-	"path"
 
-	rgwdaemon "github.com/rook/rook/pkg/daemon/ceph/rgw"
-	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
+	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
@@ -32,11 +29,12 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func (c *config) startDeployment() error {
+func (c *clusterConfig) startDeployment() (*apps.Deployment, error) {
 	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      c.instanceName(),
 			Namespace: c.store.Namespace,
+			Labels:    c.getLabels(),
 		},
 		Spec: apps.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
@@ -51,29 +49,29 @@ func (c *config) startDeployment() error {
 	}
 	k8sutil.SetOwnerRefs(c.context.Clientset, c.store.Namespace, &d.ObjectMeta, c.ownerRefs)
 
-	logger.Debugf("starting mds deployment: %+v", d)
-	_, err := c.context.Clientset.Apps().Deployments(c.store.Namespace).Create(d)
+	logger.Debugf("starting rgw deployment: %+v", d)
+	deployment, err := c.context.Clientset.Apps().Deployments(c.store.Namespace).Create(d)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
-			return fmt.Errorf("failed to create rgw deployment %s: %+v", c.instanceName(), err)
+			return nil, fmt.Errorf("failed to create rgw deployment %s: %+v", c.instanceName(), err)
 		}
 		logger.Infof("deployment for rgw %s already exists. updating if needed", c.instanceName())
 		// There may be a *lot* of rgws, and they are stateless, so don't bother waiting until the
 		// entire deployment is updated to move on.
-		_, err := c.context.Clientset.Apps().Deployments(c.store.Namespace).Update(d)
+		deployment, err = c.context.Clientset.Apps().Deployments(c.store.Namespace).Update(d)
 		if err != nil {
-			return fmt.Errorf("failed to update rgw deployment %s. %+v", c.instanceName(), err)
+			return nil, fmt.Errorf("failed to update rgw deployment %s. %+v", c.instanceName(), err)
 		}
 	}
-
-	return nil
+	return deployment, nil
 }
 
-func (c *config) startDaemonset() error {
+func (c *clusterConfig) startDaemonset() (*apps.DaemonSet, error) {
 	d := &apps.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      c.instanceName(),
 			Namespace: c.store.Namespace,
+			Labels:    c.getLabels(),
 		},
 		Spec: apps.DaemonSetSpec{
 			Selector: &metav1.LabelSelector{
@@ -88,36 +86,36 @@ func (c *config) startDaemonset() error {
 	k8sutil.SetOwnerRefs(c.context.Clientset, c.store.Namespace, &d.ObjectMeta, c.ownerRefs)
 
 	logger.Debugf("starting rgw daemonset: %+v", d)
-	_, err := c.context.Clientset.Apps().DaemonSets(c.store.Namespace).Create(d)
+	daemonSet, err := c.context.Clientset.Apps().DaemonSets(c.store.Namespace).Create(d)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
-			return fmt.Errorf("failed to create rgw daemonset %s: %+v", c.instanceName(), err)
+			return nil, fmt.Errorf("failed to create rgw daemonset %s: %+v", c.instanceName(), err)
 		}
 		logger.Infof("daemonset for rgw %s already exists. updating if needed", c.instanceName())
 		// There may be a *lot* of rgws, and they are stateless, so don't bother waiting until the
 		// entire daemonset is updated to move on.
 		// TODO: is the above statement safe to assume?
 		// TODO: Are there any steps for RGW that need to happen before the daemons upgrade?
-		_, err := c.context.Clientset.Apps().DaemonSets(c.store.Namespace).Update(d)
+		daemonSet, err = c.context.Clientset.Apps().DaemonSets(c.store.Namespace).Update(d)
 		if err != nil {
-			return fmt.Errorf("failed to update rgw daemonset %s. %+v", c.instanceName(), err)
+			return nil, fmt.Errorf("failed to update rgw daemonset %s. %+v", c.instanceName(), err)
 		}
 	}
-
-	return nil
+	return daemonSet, nil
 }
 
-func (c *config) makeRGWPodSpec() v1.PodTemplateSpec {
+func (c *clusterConfig) makeRGWPodSpec() v1.PodTemplateSpec {
 	podSpec := v1.PodSpec{
-		InitContainers: []v1.Container{
-			c.makeConfigInitContainer(),
-		},
+		InitContainers: []v1.Container{},
 		Containers: []v1.Container{
 			c.makeDaemonContainer(),
 		},
 		RestartPolicy: v1.RestartPolicyAlways,
-		Volumes:       opspec.PodVolumes(""),
-		HostNetwork:   c.hostNetwork,
+		Volumes: append(
+			opspec.DaemonVolumes(c.DataPathMap, c.instanceName()),
+			c.mimeTypesVolume(),
+		),
+		HostNetwork: c.hostNetwork,
 	}
 	if c.hostNetwork {
 		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
@@ -125,10 +123,16 @@ func (c *config) makeRGWPodSpec() v1.PodTemplateSpec {
 
 	// Set the ssl cert if specified
 	if c.store.Spec.Gateway.SSLCertificateRef != "" {
-		certVol := v1.Volume{Name: certVolumeName, VolumeSource: v1.VolumeSource{Secret: &v1.SecretVolumeSource{
-			SecretName: c.store.Spec.Gateway.SSLCertificateRef,
-			Items:      []v1.KeyToPath{{Key: certKeyName, Path: certFilename}},
-		}}}
+		// Keep the SSL secret as secure as possible in the container. Give only user read perms.
+		userReadOnly := int32(0400)
+		certVol := v1.Volume{
+			Name: certVolumeName,
+			VolumeSource: v1.VolumeSource{
+				Secret: &v1.SecretVolumeSource{
+					SecretName: c.store.Spec.Gateway.SSLCertificateRef,
+					Items: []v1.KeyToPath{
+						{Key: certKeyName, Path: certFilename, Mode: &userReadOnly},
+					}}}}
 		podSpec.Volumes = append(podSpec.Volumes, certVol)
 	}
 
@@ -144,40 +148,7 @@ func (c *config) makeRGWPodSpec() v1.PodTemplateSpec {
 	}
 }
 
-func (c *config) makeConfigInitContainer() v1.Container {
-	container := v1.Container{
-		Name:  opspec.ConfigInitContainerName,
-		Image: k8sutil.MakeRookImage(c.rookVersion),
-		Args: []string{
-			"ceph",
-			"rgw",
-			fmt.Sprintf("--config-dir=%s", k8sutil.DataDir),
-			fmt.Sprintf("--rgw-name=%s", c.store.Name),
-			fmt.Sprintf("--rgw-port=%d", c.store.Spec.Gateway.Port),
-			fmt.Sprintf("--rgw-secure-port=%d", c.store.Spec.Gateway.SecurePort),
-		},
-		VolumeMounts: opspec.RookVolumeMounts(),
-		Env: []v1.EnvVar{
-			{Name: "ROOK_RGW_KEYRING", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: c.instanceName()}, Key: keyringName}}},
-			k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
-			k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
-			opmon.ClusterNameEnvVar(c.store.Namespace),
-			opmon.EndpointEnvVar(),
-			opmon.SecretEnvVar(),
-			k8sutil.ConfigOverrideEnvVar(),
-		},
-		Resources: c.store.Spec.Gateway.Resources,
-	}
-
-	if c.store.Spec.Gateway.SSLCertificateRef != "" {
-		path := path.Join(certMountPath, certFilename)
-		container.Args = append(container.Args, fmt.Sprintf("--rgw-cert=%s", path))
-	}
-
-	return container
-}
-
-func (c *config) makeDaemonContainer() v1.Container {
+func (c *clusterConfig) makeDaemonContainer() v1.Container {
 
 	// start the rgw daemon in the foreground
 	container := v1.Container{
@@ -186,26 +157,33 @@ func (c *config) makeDaemonContainer() v1.Container {
 		Command: []string{
 			"radosgw",
 		},
-		Args: []string{
-			"--foreground",
-			"--name=client.radosgw.gateway",
-			fmt.Sprintf("--rgw-mime-types-file=%s", rgwdaemon.GetMimeTypesPath(k8sutil.DataDir)),
-		},
-		VolumeMounts: opspec.CephVolumeMounts(),
-		Env:          k8sutil.ClusterDaemonEnvVars(c.cephVersion.Image),
-		Resources:    c.store.Spec.Gateway.Resources,
+		Args: append(
+			append(
+				opspec.DaemonFlags(c.clusterInfo, cephconfig.RgwType, c.store.Name),
+				"--foreground",
+				"--name=client.radosgw.gateway",
+				cephconfig.NewFlag("host", opspec.ContainerEnvVarReference("POD_NAME")),
+				cephconfig.NewFlag("rgw-mime-types-file", mimeTypesMountPath()),
+			), c.defaultSettings().GlobalFlags()..., // use default settings as flags until mon kv store supported
+		),
+		VolumeMounts: append(
+			opspec.DaemonVolumeMounts(c.DataPathMap, c.instanceName()),
+			c.mimeTypesVolumeMount(),
+		),
+		Env:       opspec.DaemonEnvVars(c.cephVersion.Image),
+		Resources: c.store.Spec.Gateway.Resources,
 	}
 
 	if c.store.Spec.Gateway.SSLCertificateRef != "" {
 		// Add a volume mount for the ssl certificate
-		mount := v1.VolumeMount{Name: certVolumeName, MountPath: certMountPath, ReadOnly: true}
+		mount := v1.VolumeMount{Name: certVolumeName, MountPath: certDir, ReadOnly: true}
 		container.VolumeMounts = append(container.VolumeMounts, mount)
 	}
 
 	return container
 }
 
-func (c *config) startService() (string, error) {
+func (c *clusterConfig) startService() (string, error) {
 	labels := c.getLabels()
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -253,10 +231,8 @@ func addPort(service *v1.Service, name string, port int32) {
 	})
 }
 
-func (c *config) getLabels() map[string]string {
-	return map[string]string{
-		k8sutil.AppAttr:     appName,
-		k8sutil.ClusterAttr: c.store.Namespace,
-		"rook_object_store": c.store.Name,
-	}
+func (c *clusterConfig) getLabels() map[string]string {
+	labels := opspec.PodLabels(AppName, c.store.Namespace, "rgw", c.store.Name)
+	labels["rook_object_store"] = c.store.Name
+	return labels
 }

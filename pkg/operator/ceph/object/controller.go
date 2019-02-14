@@ -14,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package rgw to manage a rook object store.
 package object
 
 import (
@@ -26,6 +25,8 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephbeta "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/clusterd"
+	daemonconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -56,6 +57,7 @@ var ObjectStoreResourceRookLegacy = opkit.CustomResource{
 
 // ObjectStoreController represents a controller object for object store custom resources
 type ObjectStoreController struct {
+	clusterInfo *daemonconfig.ClusterInfo
 	context     *clusterd.Context
 	rookImage   string
 	cephVersion cephv1.CephVersionSpec
@@ -64,8 +66,16 @@ type ObjectStoreController struct {
 }
 
 // NewObjectStoreController create controller for watching object store custom resources created
-func NewObjectStoreController(context *clusterd.Context, rookImage string, cephVersion cephv1.CephVersionSpec, hostNetwork bool, ownerRef metav1.OwnerReference) *ObjectStoreController {
+func NewObjectStoreController(
+	clusterInfo *daemonconfig.ClusterInfo,
+	context *clusterd.Context,
+	rookImage string,
+	cephVersion cephv1.CephVersionSpec,
+	hostNetwork bool,
+	ownerRef metav1.OwnerReference,
+) *ObjectStoreController {
 	return &ObjectStoreController{
+		clusterInfo: clusterInfo,
 		context:     context,
 		rookImage:   rookImage,
 		cephVersion: cephVersion,
@@ -107,7 +117,16 @@ func (c *ObjectStoreController) onAdd(obj interface{}) {
 		return
 	}
 
-	cfg := config{c.context, *objectstore, c.rookImage, c.cephVersion, c.hostNetwork, c.storeOwners(objectstore)}
+	cfg := clusterConfig{
+		clusterInfo: c.clusterInfo,
+		context:     c.context,
+		store:       *objectstore,
+		rookVersion: c.rookImage,
+		cephVersion: c.cephVersion,
+		hostNetwork: c.hostNetwork,
+		ownerRefs:   c.storeOwners(objectstore),
+		DataPathMap: cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, objectstore.Name),
+	}
 	if err = cfg.createStore(); err != nil {
 		logger.Errorf("failed to create object store %s. %+v", objectstore.Name, err)
 	}
@@ -139,7 +158,16 @@ func (c *ObjectStoreController) onUpdate(oldObj, newObj interface{}) {
 	}
 
 	logger.Infof("applying object store %s changes", newStore.Name)
-	cfg := config{c.context, *newStore, c.rookImage, c.cephVersion, c.hostNetwork, c.storeOwners(newStore)}
+	cfg := clusterConfig{
+		c.clusterInfo,
+		c.context,
+		*newStore,
+		c.rookImage,
+		c.cephVersion,
+		c.hostNetwork,
+		c.storeOwners(newStore),
+		cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, newStore.Name),
+	}
 	if err = cfg.updateStore(); err != nil {
 		logger.Errorf("failed to create (modify) object store %s. %+v", newStore.Name, err)
 	}
@@ -157,7 +185,7 @@ func (c *ObjectStoreController) onDelete(obj interface{}) {
 		return
 	}
 
-	cfg := config{context: c.context, store: *objectstore}
+	cfg := clusterConfig{context: c.context, store: *objectstore}
 	if err = cfg.deleteStore(); err != nil {
 		logger.Errorf("failed to delete object store %s. %+v", objectstore.Name, err)
 	}

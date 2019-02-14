@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package rgw
+package object
 
 import (
 	"encoding/json"
@@ -27,7 +27,9 @@ import (
 
 const (
 	rootPool = ".rgw.root"
-	appName  = "rgw"
+
+	// AppName is the name Rook uses for the object store's application
+	AppName = "rook-ceph-rgw"
 )
 
 var (
@@ -51,7 +53,7 @@ type realmType struct {
 	Realms []string `json:"realms"`
 }
 
-func CreateObjectStore(context *Context, metadataSpec, dataSpec model.Pool, serviceIP string, port int32) error {
+func createObjectStore(context *Context, metadataSpec, dataSpec model.Pool, serviceIP string, port int32) error {
 	err := createPools(context, metadataSpec, dataSpec)
 	if err != nil {
 		return fmt.Errorf("failed to create object pools. %+v", err)
@@ -64,8 +66,8 @@ func CreateObjectStore(context *Context, metadataSpec, dataSpec model.Pool, serv
 	return nil
 }
 
-func DeleteObjectStore(context *Context) error {
-	stores, err := GetObjectStores(context)
+func deleteRealmAndPools(context *Context) error {
+	stores, err := getObjectStores(context)
 	if err != nil {
 		return fmt.Errorf("failed to detect object stores during deletion. %+v", err)
 	}
@@ -95,7 +97,7 @@ func createRealm(context *Context, serviceIP string, port int32) error {
 
 	// The first realm must be marked as the default
 	defaultArg := ""
-	stores, err := GetObjectStores(context)
+	stores, err := getObjectStores(context)
 	if err != nil {
 		return fmt.Errorf("failed to get object stores. %+v", err)
 	}
@@ -189,7 +191,7 @@ func decodeID(data string) (string, error) {
 	return id.ID, err
 }
 
-func GetObjectStores(context *Context) ([]string, error) {
+func getObjectStores(context *Context) ([]string, error) {
 	output, err := runAdminCommandNoRealm(context, "realm", "list")
 	if err != nil {
 		if strings.Index(err.Error(), "exit status 2") != 0 {
@@ -274,9 +276,9 @@ func createSimilarPools(context *Context, pools []string, poolSpec model.Pool) e
 			if isECPool {
 				// An EC pool backing an object store does not need to enable EC overwrites, so the pool is
 				// created with that property disabled to avoid unnecessary performance impact.
-				err = ceph.CreateECPoolForApp(context.context, context.ClusterName, cephConfig, appName, false /* enableECOverwrite */, poolSpec.ErasureCodedConfig)
+				err = ceph.CreateECPoolForApp(context.context, context.ClusterName, cephConfig, AppName, false /* enableECOverwrite */, poolSpec.ErasureCodedConfig)
 			} else {
-				err = ceph.CreateReplicatedPoolForApp(context.context, context.ClusterName, cephConfig, appName)
+				err = ceph.CreateReplicatedPoolForApp(context.context, context.ClusterName, cephConfig, AppName)
 			}
 			if err != nil {
 				return fmt.Errorf("failed to create pool %s for object store %s", name, context.Name)

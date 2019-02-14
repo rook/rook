@@ -23,6 +23,7 @@ import (
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -44,12 +45,14 @@ func TestStartRGW(t *testing.T) {
 
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
+	info := testop.CreateConfigDir(1)
 	context := &clusterd.Context{Clientset: clientset, Executor: executor, ConfigDir: configDir}
 	store := simpleStore()
 	version := "v1.1.0"
+	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "my-fs")
 
 	// start a basic cluster
-	c := &config{context, store, version, cephv1.CephVersionSpec{}, false, []metav1.OwnerReference{}}
+	c := &clusterConfig{info, context, store, version, cephv1.CephVersionSpec{}, false, []metav1.OwnerReference{}, data}
 	err := c.createStore()
 	assert.Nil(t, err)
 
@@ -63,7 +66,7 @@ func TestStartRGW(t *testing.T) {
 	validateStart(t, c, clientset, true)
 }
 
-func validateStart(t *testing.T, c *config, clientset *fake.Clientset, allNodes bool) {
+func validateStart(t *testing.T, c *clusterConfig, clientset *fake.Clientset, allNodes bool) {
 	if !allNodes {
 		r, err := clientset.Apps().Deployments(c.store.Namespace).Get(c.instanceName(), metav1.GetOptions{})
 		assert.Nil(t, err)
@@ -83,11 +86,6 @@ func validateStart(t *testing.T, c *config, clientset *fake.Clientset, allNodes 
 	s, err := clientset.CoreV1().Services(c.store.Namespace).Get(c.instanceName(), metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, c.instanceName(), s.Name)
-
-	secret, err := clientset.CoreV1().Secrets(c.store.Namespace).Get(c.instanceName(), metav1.GetOptions{})
-	assert.Nil(t, err)
-	assert.Equal(t, c.instanceName(), secret.Name)
-	assert.Equal(t, 1, len(secret.StringData))
 }
 
 func TestCreateObjectStore(t *testing.T) {
@@ -114,9 +112,11 @@ func TestCreateObjectStore(t *testing.T) {
 	store := simpleStore()
 	clientset := testop.New(3)
 	context := &clusterd.Context{Executor: executor, Clientset: clientset}
+	info := testop.CreateConfigDir(1)
+	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "my-fs")
 
 	// create the pools
-	c := &config{context, store, "1.2.3.4", cephv1.CephVersionSpec{}, false, []metav1.OwnerReference{}}
+	c := &clusterConfig{info, context, store, "1.2.3.4", cephv1.CephVersionSpec{}, false, []metav1.OwnerReference{}, data}
 	err := c.createStore()
 	assert.Nil(t, err)
 }

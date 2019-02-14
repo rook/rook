@@ -14,7 +14,67 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package rgw
+package object
+
+import (
+	"fmt"
+	"path"
+
+	"github.com/rook/rook/pkg/operator/k8sutil"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+const (
+	// these control the location where the mime.types file is mounted in containers.
+	// Ceph's default is /etc/mime.types, but we can't mount a configmap to `/etc` without breaking
+	// the container. /etc/ceph/rgw won't overwrite ceph.conf (if it exists), and it will be easy to
+	// find manually by inspection of the `/etc/ceph` dir.
+	mimeTypesMountDir = "/etc/ceph/rgw"
+	mimeTypesFileName = "mime.types"
+)
+
+func (c *clusterConfig) mimeTypesConfigMapName() string {
+	return fmt.Sprintf("%s-mime-types", c.instanceName())
+}
+
+func mimeTypesMountPath() string {
+	return path.Join(mimeTypesMountDir, mimeTypesFileName)
+}
+
+// store mime.types file in a config map
+func (c *clusterConfig) generateMimeTypes(ownerRef *metav1.OwnerReference) error {
+	k := k8sutil.NewConfigMapKVStore(c.store.Namespace, c.context.Clientset, *ownerRef)
+	if _, err := k.GetValue(c.mimeTypesConfigMapName(), mimeTypesFileName); err == nil || !errors.IsNotFound(err) {
+		logger.Infof("config map for object pool %s already exists, not overwriting", c.store.Name)
+		return nil
+	}
+	// is not found
+	if err := k.SetValue(c.mimeTypesConfigMapName(), mimeTypesFileName, mimeTypes); err != nil {
+		return fmt.Errorf("failed to create config map for object pool %s. %+v", c.store.Name, err)
+	}
+	return nil
+}
+
+func (c *clusterConfig) mimeTypesVolume() v1.Volume {
+	return v1.Volume{
+		Name: c.mimeTypesConfigMapName(),
+		VolumeSource: v1.VolumeSource{
+			ConfigMap: &v1.ConfigMapVolumeSource{LocalObjectReference: v1.LocalObjectReference{
+				Name: c.mimeTypesConfigMapName(),
+			}}}}
+}
+
+func (c *clusterConfig) mimeTypesVolumeMount() v1.VolumeMount {
+	return v1.VolumeMount{
+		Name:      c.mimeTypesConfigMapName(),
+		MountPath: mimeTypesMountDir,
+		ReadOnly:  true,
+		// read-only so malicious actors can't edit, which could allow them to add file type
+		// execution vulnerabilities that an admin has taken care to eliminate
+	}
+}
 
 const mimeTypes = `
 application/activemessage
