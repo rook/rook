@@ -152,6 +152,7 @@ func (c *Cluster) makeMonFSInitContainer(monConfig *monConfig) v1.Container {
 }
 
 func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
+	podIPEnvVar := "ROOK_POD_IP"
 	container := v1.Container{
 		Name: "mon",
 		Command: []string{
@@ -161,7 +162,7 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 			opspec.DaemonFlags(c.clusterInfo, config.MonType, monConfig.DaemonName),
 			"--foreground",
 			config.NewFlag("public-addr", monConfig.PublicIP),
-			config.NewFlag("public-bind-addr", "$(ROOK_PRIVATE_IP)"),
+			config.NewFlag("public-bind-addr", opspec.ContainerEnvVarReference(podIPEnvVar)),
 		),
 		Image:           c.cephVersion.Image,
 		VolumeMounts:    opspec.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),
@@ -175,7 +176,7 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 		},
 		Env: append(
 			opspec.DaemonEnvVars(),
-			k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
+			k8sutil.PodIPEnvVar(podIPEnvVar),
 		),
 		Resources: c.resources,
 	}

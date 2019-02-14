@@ -238,7 +238,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	objectStoreUserController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start file system CRD watcher
-	fileController := file.NewFilesystemController(c.context, c.rookImage, cluster.Spec.CephVersion, cluster.Spec.Network.HostNetwork, cluster.ownerRef)
+	fileController := file.NewFilesystemController(cluster.Info, c.context, c.rookImage, cluster.Spec.CephVersion, cluster.Spec.Network.HostNetwork, cluster.ownerRef)
 	fileController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start nfs ganesha CRD watcher

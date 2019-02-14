@@ -59,7 +59,6 @@ func init() {
 		agentCmd,
 		osdCmd,
 		rgwCmd,
-		mdsCmd,
 		configCmd,
 		nfsCmd)
 }

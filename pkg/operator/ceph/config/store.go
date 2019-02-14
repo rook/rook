@@ -256,10 +256,13 @@ func StoredMonHostEnvVars() []v1.EnvVar {
 	}
 }
 
-// StoredMonHostEnvVarFlags returns a flag compatible with Ceph daemons and tools to read "mon_host"
-// and "mon_initial_members" information from the StoredMonHostEnvVar.
-func StoredMonHostEnvVarFlags() []string {
-	return []string{
-		NewFlag(monHostKey, "$(ROOK_CEPH_MON_HOST)"),
-		NewFlag(monInitialMembersKey, "$(ROOK_CEPH_MON_INITIAL_MEMBERS)")}
+// StoredMonHostEnvVarReferences returns a small Ceph Config which references "mon_host" and
+// "mon_initial_members" information from the StoredMonHostEnvVars. This config can be used to
+// generate flags referencing the env vars or to generate the string representation of a Config.
+func StoredMonHostEnvVarReferences() *Config {
+	c := NewConfig()
+	c.Section("global").
+		Set(monHostKey, "$(ROOK_CEPH_MON_HOST)").
+		Set(monInitialMembersKey, "$(ROOK_CEPH_MON_INITIAL_MEMBERS)")
+	return c
 }

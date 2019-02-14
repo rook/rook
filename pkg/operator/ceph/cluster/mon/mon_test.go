@@ -102,6 +102,7 @@ func newTestStartClusterWithQuorumResponse(namespace string, monResponse func() 
 
 func newCluster(context *clusterd.Context, namespace string, hostNetwork bool, allowMultiplePerNode bool, resources v1.ResourceRequirements) *Cluster {
 	return &Cluster{
+		clusterInfo:          nil,
 		HostNetwork:          hostNetwork,
 		context:              context,
 		Namespace:            namespace,
@@ -134,16 +135,14 @@ func TestStartMonPods(t *testing.T) {
 	c := newCluster(context, namespace, false, true, v1.ResourceRequirements{})
 
 	// start a basic cluster
-	i, err := c.Start()
+	_, err := c.Start()
 	assert.Nil(t, err)
-	assert.Equal(t, i, c.clusterInfo)
 
 	validateStart(t, c)
 
 	// starting again should be a no-op, but still results in an error
-	i, err = c.Start()
+	_, err = c.Start()
 	assert.Nil(t, err)
-	assert.Equal(t, i, c.clusterInfo)
 
 	validateStart(t, c)
 }
@@ -155,18 +154,18 @@ func TestOperatorRestart(t *testing.T) {
 	c.clusterInfo = test.CreateConfigDir(1)
 
 	// start a basic cluster
-	i, err := c.Start()
+	info, err := c.Start()
 	assert.Nil(t, err)
-	assert.Equal(t, i, c.clusterInfo)
+	assert.True(t, info.IsInitialized())
 
 	validateStart(t, c)
 
 	c = newCluster(context, namespace, false, true, v1.ResourceRequirements{})
 
 	// starting again should be a no-op, but will not result in an error
-	i, err = c.Start()
+	info, err = c.Start()
 	assert.Nil(t, err)
-	assert.Equal(t, i, c.clusterInfo)
+	assert.True(t, info.IsInitialized())
 
 	validateStart(t, c)
 }
@@ -181,9 +180,9 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 	c.clusterInfo = test.CreateConfigDir(1)
 
 	// start a basic cluster
-	i, err := c.Start()
+	info, err := c.Start()
 	assert.Nil(t, err)
-	assert.Equal(t, i, c.clusterInfo)
+	assert.True(t, info.IsInitialized())
 
 	validateStart(t, c)
 
@@ -191,9 +190,9 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 	c = newCluster(context, namespace, true, false, v1.ResourceRequirements{})
 
 	// starting again should be a no-op, but still results in an error
-	i, err = c.Start()
+	info, err = c.Start()
 	assert.Nil(t, err)
-	assert.Equal(t, i, c.clusterInfo)
+	assert.True(t, info.IsInitialized(), info)
 
 	validateStart(t, c)
 }
@@ -201,7 +200,7 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 func validateStart(t *testing.T, c *Cluster) {
 	s, err := c.context.Clientset.CoreV1().Secrets(c.Namespace).Get(appName, metav1.GetOptions{})
 	assert.Nil(t, err) // there shouldn't be an error due the secret existing
-	assert.Equal(t, 4, len(s.StringData))
+	assert.Equal(t, 4, len(s.Data))
 
 	// there is only one pod created. the other two won't be created since the first one doesn't start
 	_, err = c.context.Clientset.Apps().Deployments(c.Namespace).Get("rook-ceph-mon-a", metav1.GetOptions{})
@@ -212,10 +211,10 @@ func TestSaveMonEndpoints(t *testing.T) {
 	clientset := test.New(1)
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
-	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: configDir}, "ns", "", "myversion", cephv1.CephVersionSpec{},
+	c := New(test.CreateConfigDir(1), &clusterd.Context{Clientset: clientset, ConfigDir: configDir},
+		"ns", "", "myversion", cephv1.CephVersionSpec{},
 		cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, rookalpha.Placement{}, false,
 		v1.ResourceRequirements{}, metav1.OwnerReference{})
-	c.clusterInfo = test.CreateConfigDir(1)
 
 	// create the initial config map
 	err := c.saveMonConfig()

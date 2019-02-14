@@ -17,10 +17,35 @@ limitations under the License.
 // Package config provides default configurations which Rook will set in Ceph clusters.
 package config
 
+import (
+	"bytes"
+	"fmt"
+)
+
 // DefaultFlags returns the default configuration flags Rook will set on the command line for all
 // calls to Ceph daemons and tools. Values specified here will not be able to be overridden using
 // the mon's central KV store, and that is (and should be) by intent.
 func DefaultFlags(fsid, mountedKeyringPath string) []string {
+	return defaultFlagConfigs(fsid, mountedKeyringPath).GlobalFlags()
+}
+
+// DefaultFlagsAsConfigFile is the same as DefaultFlags except that it returns the ceph.conf file
+// text which corresponds to the flags. In some versions of Ceph and for some Daemons, the default
+// flags are not accepted in flag form.
+func DefaultFlagsAsConfigFile(fsid, mountedKeyringPath string) (string, error) {
+	c := defaultFlagConfigs(fsid, mountedKeyringPath)
+	f, err := c.IniFile()
+	if err != nil {
+		return "", fmt.Errorf("failed to generate text for default flags compatible with ceph.conf. %v", err)
+	}
+	b := new(bytes.Buffer)
+	if _, err := f.WriteTo(b); err != nil {
+		return "", fmt.Errorf("failed to generate text for default flags compatible with ceph.conf. %v", err)
+	}
+	return b.String(), nil
+}
+
+func defaultFlagConfigs(fsid, mountedKeyringPath string) *Config {
 	c := NewConfig()
 	c.Section("global").
 		// fsid unnecessary but is a safety to make sure daemons can only connect to their cluster
@@ -32,10 +57,9 @@ func DefaultFlags(fsid, mountedKeyringPath string) []string {
 		Set("mon-cluster-log-to-stderr", "true").
 		Set("log-stderr-prefix", "debug ")
 		// ^ differentiate debug text from audit text, and the space after 'debug' is critical
-	return append(
-		c.GlobalFlags(),
-		StoredMonHostEnvVarFlags()...,
-	)
+	m := StoredMonHostEnvVarReferences()
+	c.Merge(m)
+	return c
 }
 
 // DefaultCentralizedConfigs returns the default configuration options Rook will set in Ceph's
@@ -68,7 +92,10 @@ func DefaultLegacyConfigs() *Config {
 		Set("osd pool default pgp num", "100").
 		//
 		Set("rbd_default_features", "3"). // TODO: still needed?
-		//
-		Set("fatal signal handlers", "false") // TODO: still needed?
+		// Setting fatal signal handlers to true (the default) will print a lot of extra information
+		// from daemons when they encounter a failures, but it is VERY verbose. When the mon kv
+		// store is available, it will probably be best to set this to false by default if it is
+		// unset, but leave it set to true if the user has specified it as true during runtime.
+		Set("fatal signal handlers", "false")
 	return c
 }

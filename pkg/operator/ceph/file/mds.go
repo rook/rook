@@ -24,10 +24,10 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	mdsdaemon "github.com/rook/rook/pkg/daemon/ceph/mds"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
-	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -43,6 +43,7 @@ const (
 )
 
 type cluster struct {
+	clusterInfo *cephconfig.ClusterInfo
 	context     *clusterd.Context
 	rookVersion string
 	cephVersion cephv1.CephVersionSpec
@@ -52,7 +53,14 @@ type cluster struct {
 	ownerRefs   []metav1.OwnerReference
 }
 
+type mdsConfig struct {
+	ResourceName string
+	DaemonID     string
+	DataPathMap  *config.DataPathMap // location to store data in container
+}
+
 func newCluster(
+	clusterInfo *cephconfig.ClusterInfo,
 	context *clusterd.Context,
 	rookVersion string,
 	cephVersion cephv1.CephVersionSpec,
@@ -62,6 +70,7 @@ func newCluster(
 	ownerRefs []metav1.OwnerReference,
 ) *cluster {
 	return &cluster{
+		clusterInfo: clusterInfo,
 		context:     context,
 		rookVersion: rookVersion,
 		cephVersion: cephVersion,
@@ -72,31 +81,6 @@ func newCluster(
 	}
 }
 
-type mdsConfig struct {
-	ResourceName string
-	DaemonName   string
-}
-
-// return true if an attempt was made to prepare the filesystem associated for upgrade
-func (c *cluster) deleteLegacyMdsDeployment() bool {
-	legacyName := fmt.Sprintf("%s-%s", AppName, c.fs.Name) // rook-ceph-mds-<fsname>
-	logger.Debugf("getting legacy mds deployment %s for filesystem %s if it exists", legacyName, c.fs.Name)
-	_, err := c.context.Clientset.Apps().Deployments(c.fs.Namespace).Get(legacyName, metav1.GetOptions{})
-	if err != nil && errors.IsNotFound(err) {
-		logger.Infof("legacy mds deployment %s not found, no update needed", legacyName)
-		return false
-		// if any other error, failed to get legacy dep., but it exists, so still try deleting it.
-	}
-	logger.Infof("deleting legacy mds deployment %s", legacyName)
-	if err := mdsdaemon.PrepareForDaemonUpgrade(c.context, c.fs.Namespace, c.fs.Name, fsWaitForActiveTimeout); err != nil {
-		logger.Errorf("failed to prepare filesystem %s for mds upgrade while deleting legacy deployment %s, continuing anyway: %+v", c.fs.Name, legacyName, err)
-	}
-	if err := k8sutil.DeleteDeployment(c.context.Clientset, c.fs.Namespace, legacyName); err != nil {
-		logger.Errorf("failed to delete legacy deployment %s, USER should delete the legacy mds deployment manually if it still exists: %+v", legacyName, err)
-	}
-	return true
-}
-
 var updateDeploymentAndWait = k8sutil.UpdateDeploymentAndWait
 
 func (c *cluster) start() error {
@@ -105,15 +89,12 @@ func (c *cluster) start() error {
 	var fsPreparedForUpgrade = false
 	defer func() {
 		if fsPreparedForUpgrade {
-			if err := mdsdaemon.FinishedWithDaemonUpgrade(c.context, c.fs.Namespace, c.fs.Name, c.fs.Spec.MetadataServer.ActiveCount); err != nil {
+			if err := finishedWithDaemonUpgrade(c.context, c.fs.Namespace, c.fs.Name, c.fs.Spec.MetadataServer.ActiveCount); err != nil {
 				logger.Errorf("for filesystem %s, USER should make sure the Ceph fs max_mds property is set to %d: %+v",
 					c.fs.Name, c.fs.Spec.MetadataServer.ActiveCount, err)
 			}
 		}
 	}()
-	// Delete legacy daemonset, and remove it if it exists.
-	// This is relevant to the upgrade from Rook 0.8 to 0.9.
-	fsPreparedForUpgrade = c.deleteLegacyMdsDeployment()
 
 	// Always create double the number of metadata servers to have standby mdses available
 	replicas := c.fs.Spec.MetadataServer.ActiveCount * 2
@@ -129,18 +110,14 @@ func (c *cluster) start() error {
 
 		mdsConfig := &mdsConfig{
 			ResourceName: resourceName,
-			DaemonName:   daemonName,
-		}
-
-		// create unique key for each mds
-		if err := c.getOrCreateKeyring(mdsConfig); err != nil {
-			return fmt.Errorf("failed to create mds keyring for filesystem %s: %+v", c.fs.Name, err)
+			DaemonID:     daemonName,
+			DataPathMap:  config.NewStatelessDaemonDataPathMap(config.MdsType, daemonName),
 		}
 
 		// start the deployment
 		d := c.makeDeployment(mdsConfig)
 		logger.Debugf("starting mds: %+v", d)
-		_, err := c.context.Clientset.Apps().Deployments(c.fs.Namespace).Create(d)
+		createdDeployment, err := c.context.Clientset.Apps().Deployments(c.fs.Namespace).Create(d)
 		if err != nil {
 			if !errors.IsAlreadyExists(err) {
 				return fmt.Errorf("failed to create mds deployment %s: %+v", mdsConfig.ResourceName, err)
@@ -149,11 +126,16 @@ func (c *cluster) start() error {
 			// TODO: need to prepare for upgrade here each time. Also, before a given deployment is
 			// terminated, I think we should somehow make sure that it isn't running the single
 			// active daemon. If it is, then we should have another daemon take over as active. @Jan?
-			if err := updateDeploymentAndWait(c.context, d, c.fs.Namespace); err != nil {
+			if createdDeployment, err = updateDeploymentAndWait(c.context, d, c.fs.Namespace); err != nil {
 				return fmt.Errorf("failed to update mds deployment %s. %+v", mdsConfig.ResourceName, err)
 			}
 		}
 		desiredDeployments[d.GetName()] = true // add deployment name to improvised set
+
+		// create unique key for each mds saved to k8s secret
+		if err := c.generateKeyring(mdsConfig, createdDeployment.UID); err != nil {
+			return fmt.Errorf("failed to generate keyring for %s. %+v", resourceName, err)
+		}
 	}
 
 	// Remove extraneous mds deployments if they exist
@@ -202,62 +184,6 @@ func (c *cluster) start() error {
 	logger.Infof("successfully deleted extraneous mds deployments")
 
 	return nil
-}
-
-func (c *cluster) getOrCreateKeyring(mdsConfig *mdsConfig) error {
-	_, err := c.context.Clientset.CoreV1().Secrets(c.fs.Namespace).Get(
-		mdsConfig.ResourceName, metav1.GetOptions{})
-	if err == nil {
-		logger.Infof("the mds keyring was already generated")
-		return nil
-	}
-	if !errors.IsNotFound(err) {
-		return fmt.Errorf("failed to get mds secrets: %+v", err)
-	}
-
-	// get or create key for the mds user
-	key, err := getOrCreateKey(c.context, c.fs.Namespace, mdsConfig.DaemonName)
-	if err != nil {
-		return err // there isn't any additional useful information to add here
-	}
-
-	// Store the keyring in a secret
-	secrets := map[string]string{
-		keyringSecretKeyName: key,
-	}
-	secret := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      mdsConfig.ResourceName,
-			Namespace: c.fs.Namespace,
-		},
-		StringData: secrets,
-		Type:       k8sutil.RookType,
-	}
-	k8sutil.SetOwnerRefs(c.context.Clientset, c.fs.Namespace, &secret.ObjectMeta, c.ownerRefs)
-
-	_, err = c.context.Clientset.CoreV1().Secrets(c.fs.Namespace).Create(secret)
-	if err != nil {
-		return fmt.Errorf("failed to save mds secret: %+v", err)
-	}
-
-	return nil
-}
-
-// create a keyring for the mds cluster with a limited set of privileges
-func getOrCreateKey(context *clusterd.Context, clusterName, daemonName string) (string, error) {
-	access := []string{"osd", "allow *", "mds", "allow", "mon", "allow profile mds"}
-	username := fmt.Sprintf("mds.%s", daemonName)
-	// "mds."" without a letter ID creates a key that can work for all mdses. This also means that
-	// it *could* work for mdses serving a different filesystem, though we want to have a unique key
-	// for each filesystem so that access can be quickly revoked by deleting the secret.
-
-	// get-or-create-key for the user account
-	key, err := client.AuthGetOrCreateKey(context, clusterName, username, access)
-	if err != nil {
-		return "", fmt.Errorf("failed to get or create auth key for user %s: %+v", username, err)
-	}
-
-	return key, nil
 }
 
 func deleteMdsCluster(context *clusterd.Context, namespace, fsName string) error {
