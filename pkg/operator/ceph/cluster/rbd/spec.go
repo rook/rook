@@ -21,12 +21,12 @@ import (
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	apps "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (m *Mirroring) makeDeployment(resourceName, daemonName string) *extensions.Deployment {
+func (m *Mirroring) makeDeployment(resourceName, daemonName string) *apps.Deployment {
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   resourceName,
@@ -50,12 +50,18 @@ func (m *Mirroring) makeDeployment(resourceName, daemonName string) *extensions.
 	m.placement.ApplyToPodSpec(&podSpec.Spec)
 
 	replicas := int32(1)
-	d := &extensions.Deployment{
+	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      resourceName,
 			Namespace: m.Namespace,
 		},
-		Spec: extensions.DeploymentSpec{Template: podSpec, Replicas: &replicas},
+		Spec: apps.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: podSpec.Labels,
+			},
+			Template: podSpec,
+			Replicas: &replicas,
+		},
 	}
 	k8sutil.SetOwnerRef(m.context.Clientset, m.Namespace, &d.ObjectMeta, &m.ownerRef)
 	return d

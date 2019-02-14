@@ -23,8 +23,8 @@ import (
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	apps "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -32,7 +32,7 @@ const (
 	mdsDaemonCommand = "ceph-mds"
 )
 
-func (c *cluster) makeDeployment(mdsConfig *mdsConfig) *extensions.Deployment {
+func (c *cluster) makeDeployment(mdsConfig *mdsConfig) *apps.Deployment {
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        mdsConfig.ResourceName,
@@ -57,16 +57,19 @@ func (c *cluster) makeDeployment(mdsConfig *mdsConfig) *extensions.Deployment {
 	c.fs.Spec.MetadataServer.Placement.ApplyToPodSpec(&podSpec.Spec)
 
 	replicas := int32(1)
-	d := &extensions.Deployment{
+	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      mdsConfig.ResourceName,
 			Namespace: c.fs.Namespace,
 		},
-		Spec: extensions.DeploymentSpec{
+		Spec: apps.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: podSpec.Labels,
+			},
 			Template: podSpec,
 			Replicas: &replicas,
-			Strategy: extensions.DeploymentStrategy{
-				Type: extensions.RecreateDeploymentStrategyType,
+			Strategy: apps.DeploymentStrategy{
+				Type: apps.RecreateDeploymentStrategyType,
 			},
 		},
 	}

@@ -30,14 +30,14 @@ import (
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	apps "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestStartMGR(t *testing.T) {
-	var deploymentsUpdated *[]*extensions.Deployment
+	var deploymentsUpdated *[]*apps.Deployment
 	updateDeploymentAndWait, deploymentsUpdated = testopk8s.UpdateDeploymentAndWaitStub()
 
 	executor := &exectest.MockExecutor{
@@ -99,7 +99,7 @@ func validateStart(t *testing.T, c *Cluster) {
 		}
 		logger.Infof("Looking for cephmgr replica %d", i)
 		daemonName := mgrNames[i]
-		_, err := c.context.Clientset.ExtensionsV1beta1().Deployments(c.Namespace).Get(fmt.Sprintf("rook-ceph-mgr-%s", daemonName), metav1.GetOptions{})
+		_, err := c.context.Clientset.Apps().Deployments(c.Namespace).Get(fmt.Sprintf("rook-ceph-mgr-%s", daemonName), metav1.GetOptions{})
 		assert.Nil(t, err)
 	}
 

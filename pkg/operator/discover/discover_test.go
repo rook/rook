@@ -50,7 +50,7 @@ func TestStartDiscoveryDaemonset(t *testing.T) {
 	assert.Nil(t, err)
 
 	// check daemonset parameters
-	agentDS, err := clientset.Extensions().DaemonSets(namespace).Get("rook-discover", metav1.GetOptions{})
+	agentDS, err := clientset.Apps().DaemonSets(namespace).Get("rook-discover", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, namespace, agentDS.Namespace)
 	assert.Equal(t, "rook-discover", agentDS.Name)

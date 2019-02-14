@@ -25,7 +25,7 @@ rules:
   - update
   - delete
 - apiGroups:
-  - extensions
+  - apps
   resources:
   - deployments
   - daemonsets
@@ -155,7 +155,7 @@ metadata:
     chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
 rules:
 - apiGroups:
-  - extensions
+  - apps
   resources:
   - podsecuritypolicies
   resourceNames:

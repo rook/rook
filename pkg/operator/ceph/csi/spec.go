@@ -21,7 +21,7 @@ import (
 
 	"github.com/rook/rook/pkg/operator/k8sutil"
 
-	apps "k8s.io/api/apps/v1beta2"
+	apps "k8s.io/api/apps/v1"
 	"k8s.io/client-go/kubernetes"
 )
 

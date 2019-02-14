@@ -62,7 +62,7 @@ func TestStartAgentDaemonset(t *testing.T) {
 	assert.Nil(t, err)
 
 	// check daemonset parameters
-	agentDS, err := clientset.Extensions().DaemonSets(namespace).Get("rook-ceph-agent", metav1.GetOptions{})
+	agentDS, err := clientset.Apps().DaemonSets(namespace).Get("rook-ceph-agent", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, namespace, agentDS.Namespace)
 	assert.Equal(t, "rook-ceph-agent", agentDS.Name)
@@ -177,7 +177,7 @@ func TestStartAgentDaemonsetWithToleration(t *testing.T) {
 	assert.Nil(t, err)
 
 	// check daemonset toleration
-	agentDS, err := clientset.Extensions().DaemonSets(namespace).Get("rook-ceph-agent", metav1.GetOptions{})
+	agentDS, err := clientset.Apps().DaemonSets(namespace).Get("rook-ceph-agent", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(agentDS.Spec.Template.Spec.Tolerations))
 	assert.Equal(t, "mysa", agentDS.Spec.Template.Spec.ServiceAccountName)

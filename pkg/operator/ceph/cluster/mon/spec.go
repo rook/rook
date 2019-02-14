@@ -25,8 +25,8 @@ import (
 
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	apps "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
@@ -49,8 +49,8 @@ func (c *Cluster) getLabels(daemonName string) map[string]string {
 	return labels
 }
 
-func (c *Cluster) makeDeployment(monConfig *monConfig, hostname string) *extensions.Deployment {
-	d := &extensions.Deployment{
+func (c *Cluster) makeDeployment(monConfig *monConfig, hostname string) *apps.Deployment {
+	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      monConfig.ResourceName,
 			Namespace: c.Namespace,
@@ -61,14 +61,17 @@ func (c *Cluster) makeDeployment(monConfig *monConfig, hostname string) *extensi
 
 	pod := c.makeMonPod(monConfig, hostname)
 	replicaCount := int32(1)
-	d.Spec = extensions.DeploymentSpec{
+	d.Spec = apps.DeploymentSpec{
+		Selector: &metav1.LabelSelector{
+			MatchLabels: c.getLabels(monConfig.DaemonName),
+		},
 		Template: v1.PodTemplateSpec{
 			ObjectMeta: pod.ObjectMeta,
 			Spec:       pod.Spec,
 		},
 		Replicas: &replicaCount,
-		Strategy: extensions.DeploymentStrategy{
-			Type: extensions.RecreateDeploymentStrategyType,
+		Strategy: apps.DeploymentStrategy{
+			Type: apps.RecreateDeploymentStrategyType,
 		},
 	}
 

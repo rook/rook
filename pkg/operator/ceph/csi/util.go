@@ -23,7 +23,7 @@ import (
 
 	"github.com/ghodss/yaml"
 
-	apps "k8s.io/api/apps/v1beta2"
+	apps "k8s.io/api/apps/v1"
 )
 
 func loadTemplate(name, templatePath string) (string, error) {

@@ -22,7 +22,7 @@ rules:
   - update
   - delete
 - apiGroups:
-  - extensions
+  - apps
   resources:
   - daemonsets
   verbs:

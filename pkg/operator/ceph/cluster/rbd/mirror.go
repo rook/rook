@@ -83,7 +83,7 @@ func (m *Mirroring) Start() error {
 
 		// Start the deployment
 		deployment := m.makeDeployment(resourceName, daemonName)
-		if _, err := m.context.Clientset.ExtensionsV1beta1().Deployments(m.Namespace).Create(deployment); err != nil {
+		if _, err := m.context.Clientset.Apps().Deployments(m.Namespace).Create(deployment); err != nil {
 			if !errors.IsAlreadyExists(err) {
 				return fmt.Errorf("failed to create %s deployment. %+v", resourceName, err)
 			}
@@ -104,7 +104,7 @@ func (m *Mirroring) Start() error {
 
 func (m *Mirroring) removeExtraMirrors() error {
 	opts := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", appName)}
-	d, err := m.context.Clientset.ExtensionsV1beta1().Deployments(m.Namespace).List(opts)
+	d, err := m.context.Clientset.Apps().Deployments(m.Namespace).List(opts)
 	if err != nil {
 		return fmt.Errorf("failed to get mirrors. %+v", err)
 	}
@@ -130,7 +130,7 @@ func (m *Mirroring) removeExtraMirrors() error {
 			var gracePeriod int64
 			propagation := metav1.DeletePropagationForeground
 			deleteOpts := metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
-			if err = m.context.Clientset.ExtensionsV1beta1().Deployments(m.Namespace).Delete(deploy.Name, &deleteOpts); err != nil {
+			if err = m.context.Clientset.Apps().Deployments(m.Namespace).Delete(deploy.Name, &deleteOpts); err != nil {
 				logger.Warningf("failed to delete rbd mirror %s. %+v", daemonName, err)
 			}
 

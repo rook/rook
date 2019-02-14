@@ -65,18 +65,18 @@ func TestStartRGW(t *testing.T) {
 
 func validateStart(t *testing.T, c *config, clientset *fake.Clientset, allNodes bool) {
 	if !allNodes {
-		r, err := clientset.ExtensionsV1beta1().Deployments(c.store.Namespace).Get(c.instanceName(), metav1.GetOptions{})
+		r, err := clientset.Apps().Deployments(c.store.Namespace).Get(c.instanceName(), metav1.GetOptions{})
 		assert.Nil(t, err)
 		assert.Equal(t, c.instanceName(), r.Name)
 
-		_, err = clientset.ExtensionsV1beta1().DaemonSets(c.store.Namespace).Get(c.instanceName(), metav1.GetOptions{})
+		_, err = clientset.Apps().DaemonSets(c.store.Namespace).Get(c.instanceName(), metav1.GetOptions{})
 		assert.True(t, errors.IsNotFound(err))
 	} else {
-		r, err := clientset.ExtensionsV1beta1().DaemonSets(c.store.Namespace).Get(c.instanceName(), metav1.GetOptions{})
+		r, err := clientset.Apps().DaemonSets(c.store.Namespace).Get(c.instanceName(), metav1.GetOptions{})
 		assert.Nil(t, err)
 		assert.Equal(t, c.instanceName(), r.Name)
 
-		_, err = clientset.ExtensionsV1beta1().Deployments(c.store.Namespace).Get(c.instanceName(), metav1.GetOptions{})
+		_, err = clientset.Apps().Deployments(c.store.Namespace).Get(c.instanceName(), metav1.GetOptions{})
 		assert.True(t, errors.IsNotFound(err))
 	}
 

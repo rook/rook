@@ -26,7 +26,7 @@ import (
 	miniov1alpha1 "github.com/rook/rook/pkg/apis/minio.rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"k8s.io/api/apps/v1beta2"
+	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -243,7 +243,7 @@ func validateObjectStoreSpec(spec miniov1alpha1.ObjectStoreSpec) error {
 	return nil
 }
 
-func (c *Controller) makeMinioStatefulSet(name, namespace string, spec miniov1alpha1.ObjectStoreSpec, ownerRef meta_v1.OwnerReference) (*v1beta2.StatefulSet, error) {
+func (c *Controller) makeMinioStatefulSet(name, namespace string, spec miniov1alpha1.ObjectStoreSpec, ownerRef meta_v1.OwnerReference) (*apps.StatefulSet, error) {
 	accessKey, secretKey, err := c.getAccessCredentials(spec.Credentials.Name, spec.Credentials.Namespace)
 	if err != nil {
 		return nil, err
@@ -257,13 +257,13 @@ func (c *Controller) makeMinioStatefulSet(name, namespace string, spec miniov1al
 	podSpec := c.makeMinioPodSpec(name, namespace, minioCtrName, c.rookImage, spec.ClusterDomain, envVars, int32(spec.Storage.NodeCount), spec.Storage.VolumeClaimTemplates)
 
 	nodeCount := int32(spec.Storage.NodeCount)
-	sts := &v1beta2.StatefulSet{
+	sts := &apps.StatefulSet{
 		ObjectMeta: meta_v1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 			Labels:    getMinioLabels(name),
 		},
-		Spec: v1beta2.StatefulSetSpec{
+		Spec: apps.StatefulSetSpec{
 			Replicas: &nodeCount,
 			Selector: &meta_v1.LabelSelector{
 				MatchLabels: getMinioLabels(name),
@@ -274,11 +274,11 @@ func (c *Controller) makeMinioStatefulSet(name, namespace string, spec miniov1al
 		},
 	}
 	k8sutil.SetOwnerRef(c.context.Clientset, namespace, &sts.ObjectMeta, &ownerRef)
-	sts, err = c.context.Clientset.AppsV1beta2().StatefulSets(namespace).Create(sts)
+	sts, err = c.context.Clientset.Apps().StatefulSets(namespace).Create(sts)
 	if err != nil && !k8serrors.IsAlreadyExists(err) {
 		return nil, fmt.Errorf("failed to create minio statefulset. %+v", err)
 	}
-	sts, err = c.context.Clientset.AppsV1beta2().StatefulSets(namespace).Update(sts)
+	sts, err = c.context.Clientset.Apps().StatefulSets(namespace).Update(sts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update minio statefulset. %+v", err)
 	}

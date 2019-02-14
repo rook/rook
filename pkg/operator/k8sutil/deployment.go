@@ -20,21 +20,21 @@ import (
 	"time"
 
 	"github.com/rook/rook/pkg/clusterd"
-	extensions "k8s.io/api/extensions/v1beta1"
+	apps "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
 // GetDeploymentImage returns the version of the image running in the pod spec for the desired container
 func GetDeploymentImage(clientset kubernetes.Interface, namespace, name, container string) (string, error) {
-	d, err := clientset.Extensions().Deployments(namespace).Get(name, metav1.GetOptions{})
+	d, err := clientset.Apps().Deployments(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		return "", fmt.Errorf("failed to find deployment %s. %v", name, err)
 	}
 	return GetDeploymentSpecImage(clientset, *d, container, false)
 }
 
-func GetDeploymentSpecImage(clientset kubernetes.Interface, d extensions.Deployment, container string, initContainer bool) (string, error) {
+func GetDeploymentSpecImage(clientset kubernetes.Interface, d apps.Deployment, container string, initContainer bool) (string, error) {
 	image, err := GetSpecContainerImage(d.Spec.Template.Spec, container, initContainer)
 	if err != nil {
 		return "", err
@@ -48,7 +48,7 @@ func WaitForDeploymentImage(clientset kubernetes.Interface, namespace, label, co
 	sleepTime := 3
 	attempts := 30
 	for i := 0; i < attempts; i++ {
-		deployments, err := clientset.Extensions().Deployments(namespace).List(metav1.ListOptions{LabelSelector: label})
+		deployments, err := clientset.Apps().Deployments(namespace).List(metav1.ListOptions{LabelSelector: label})
 		if err != nil {
 			return fmt.Errorf("failed to list deployments with label %s. %v", label, err)
 		}
@@ -80,14 +80,14 @@ func WaitForDeploymentImage(clientset kubernetes.Interface, namespace, label, co
 	return nil
 }
 
-func UpdateDeploymentAndWait(context *clusterd.Context, deployment *extensions.Deployment, namespace string) error {
-	original, err := context.Clientset.Extensions().Deployments(namespace).Get(deployment.Name, metav1.GetOptions{})
+func UpdateDeploymentAndWait(context *clusterd.Context, deployment *apps.Deployment, namespace string) error {
+	original, err := context.Clientset.Apps().Deployments(namespace).Get(deployment.Name, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get deployment %s. %+v", deployment.Name, err)
 	}
 
 	logger.Infof("updating deployment %s", deployment.Name)
-	if _, err := context.Clientset.Extensions().Deployments(namespace).Update(deployment); err != nil {
+	if _, err := context.Clientset.Apps().Deployments(namespace).Update(deployment); err != nil {
 		return fmt.Errorf("failed to update deployment %s. %+v", deployment.Name, err)
 	}
 
@@ -100,7 +100,7 @@ func UpdateDeploymentAndWait(context *clusterd.Context, deployment *extensions.D
 	}
 	for i := 0; i < attempts; i++ {
 		// check for the status of the deployment
-		d, err := context.Clientset.Extensions().Deployments(namespace).Get(deployment.Name, metav1.GetOptions{})
+		d, err := context.Clientset.Apps().Deployments(namespace).Get(deployment.Name, metav1.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to get deployment %s. %+v", deployment.Name, err)
 		}
@@ -119,9 +119,9 @@ func UpdateDeploymentAndWait(context *clusterd.Context, deployment *extensions.D
 // GetDeployments returns a list of deployment names labels matching a given selector
 // example of a label selector might be "app=rook-ceph-mon, mon!=b"
 // more: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
-func GetDeployments(clientset kubernetes.Interface, namespace, labelSelector string) (*extensions.DeploymentList, error) {
+func GetDeployments(clientset kubernetes.Interface, namespace, labelSelector string) (*apps.DeploymentList, error) {
 	listOptions := metav1.ListOptions{LabelSelector: labelSelector}
-	deployments, err := clientset.Extensions().Deployments(namespace).List(listOptions)
+	deployments, err := clientset.Apps().Deployments(namespace).List(listOptions)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list deployments with labelSelector %s: %v", labelSelector, err)
 	}

@@ -204,7 +204,7 @@ rules:
   - update
   - delete
 - apiGroups:
-  - extensions
+  - apps
   resources:
   - deployments
   - daemonsets
@@ -241,7 +241,7 @@ rules:
   - update
   - delete
 - apiGroups:
-  - extensions
+  - apps
   resources:
   - daemonsets
   verbs:

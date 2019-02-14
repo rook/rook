@@ -467,13 +467,13 @@ func (c *Cluster) startMon(m *monConfig, hostname string) error {
 
 	d := c.makeDeployment(m, hostname)
 	logger.Debugf("Starting mon: %+v", d.Name)
-	_, err := c.context.Clientset.Extensions().Deployments(c.Namespace).Create(d)
+	_, err := c.context.Clientset.Apps().Deployments(c.Namespace).Create(d)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create mon %s. %+v", m.ResourceName, err)
 		}
 		logger.Debugf("deployment for mon %s already exists. updating if needed", m.ResourceName)
-		p, err := c.context.Clientset.Extensions().Deployments(c.Namespace).Get(d.Name, metav1.GetOptions{})
+		p, err := c.context.Clientset.Apps().Deployments(c.Namespace).Get(d.Name, metav1.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to update mon deployment %s. failed to inspect preexisting deployment. %+v", d.Name, err)
 		}

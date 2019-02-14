@@ -176,7 +176,7 @@ func (c *config) deleteStore() error {
 
 // Check if the object store exists depending on either the deployment or the daemonset
 func (c *config) storeExists() (bool, error) {
-	_, err := c.context.Clientset.ExtensionsV1beta1().Deployments(c.store.Namespace).Get(c.instanceName(), metav1.GetOptions{})
+	_, err := c.context.Clientset.Apps().Deployments(c.store.Namespace).Get(c.instanceName(), metav1.GetOptions{})
 	if err == nil {
 		// the deployment was found
 		return true, nil
@@ -185,7 +185,7 @@ func (c *config) storeExists() (bool, error) {
 		return false, err
 	}
 
-	_, err = c.context.Clientset.ExtensionsV1beta1().DaemonSets(c.store.Namespace).Get(c.instanceName(), metav1.GetOptions{})
+	_, err = c.context.Clientset.Apps().DaemonSets(c.store.Namespace).Get(c.instanceName(), metav1.GetOptions{})
 	if err == nil {
 		//  the daemonset was found
 		return true, nil

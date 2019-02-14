@@ -28,8 +28,8 @@ import (
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	apps "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -120,7 +120,7 @@ func (c *Cluster) Start(rookImage string) error {
 	logger.Infof("Mgr Image is %s", rookImage)
 	// start the deployment
 	deployment := c.makeDeployment(appName, c.Namespace, rookImage, 1)
-	if _, err := c.context.Clientset.ExtensionsV1beta1().Deployments(c.Namespace).Create(deployment); err != nil {
+	if _, err := c.context.Clientset.Apps().Deployments(c.Namespace).Create(deployment); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create %s deployment. %+v", appName, err)
 		}
@@ -271,7 +271,7 @@ func (c *Cluster) makeUiService(name string) *v1.Service {
 	return svc
 }
 
-func (c *Cluster) makeDeployment(name, clusterName, rookImage string, replicas int32) *extensions.Deployment {
+func (c *Cluster) makeDeployment(name, clusterName, rookImage string, replicas int32) *apps.Deployment {
 
 	volumes := []v1.Volume{}
 	if c.dataVolumeSize.Value() > 0 {
@@ -326,12 +326,18 @@ func (c *Cluster) makeDeployment(name, clusterName, rookImage string, replicas i
 	}
 	c.placement.ApplyToPodSpec(&podSpec.Spec)
 
-	d := &extensions.Deployment{
+	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: c.Namespace,
 		},
-		Spec: extensions.DeploymentSpec{Template: podSpec, Replicas: &replicas},
+		Spec: apps.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: podSpec.Labels,
+			},
+			Template: podSpec,
+			Replicas: &replicas,
+		},
 	}
 	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &d.ObjectMeta, &c.ownerRef)
 	return d

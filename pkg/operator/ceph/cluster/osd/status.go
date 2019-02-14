@@ -25,9 +25,9 @@ import (
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
+	apps "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
@@ -274,8 +274,8 @@ func IsRemovingNode(devices string) bool {
 	return devices == "none"
 }
 
-func (c *Cluster) findRemovedNodes() (map[string][]*extensions.Deployment, error) {
-	removedNodes := map[string][]*extensions.Deployment{}
+func (c *Cluster) findRemovedNodes() (map[string][]*apps.Deployment, error) {
+	removedNodes := map[string][]*apps.Deployment{}
 
 	// first discover the storage nodes that are still running
 	discoveredNodes, err := c.discoverStorageNodes()

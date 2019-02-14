@@ -30,9 +30,9 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	apps "k8s.io/api/apps/v1"
 	batch "k8s.io/api/batch/v1"
 	"k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
@@ -77,7 +77,7 @@ func (c *Cluster) makeJob(nodeName string, devices []rookalpha.Device,
 }
 
 func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, selection rookalpha.Selection, resources v1.ResourceRequirements,
-	storeConfig config.StoreConfig, metadataDevice, location string, osd OSDInfo) (*extensions.Deployment, error) {
+	storeConfig config.StoreConfig, metadataDevice, location string, osd OSDInfo) (*apps.Deployment, error) {
 
 	replicaCount := int32(1)
 	volumeMounts := opspec.CephVolumeMounts()
@@ -209,7 +209,7 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 	if c.HostNetwork {
 		DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
-	deployment := &extensions.Deployment{
+	deployment := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf(osdAppNameFmt, osd.ID),
 			Namespace: c.Namespace,
@@ -219,9 +219,16 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 				osdLabelKey:         fmt.Sprintf("%d", osd.ID),
 			},
 		},
-		Spec: extensions.DeploymentSpec{
-			Strategy: extensions.DeploymentStrategy{
-				Type: extensions.RecreateDeploymentStrategyType,
+		Spec: apps.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					k8sutil.AppAttr:     appName,
+					k8sutil.ClusterAttr: c.Namespace,
+					osdLabelKey:         fmt.Sprintf("%d", osd.ID),
+				},
+			},
+			Strategy: apps.DeploymentStrategy{
+				Type: apps.RecreateDeploymentStrategyType,
 			},
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{

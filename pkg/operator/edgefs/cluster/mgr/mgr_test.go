@@ -63,7 +63,7 @@ func TestStartMGR(t *testing.T) {
 
 func validateStart(t *testing.T, c *Cluster) {
 
-	_, err := c.context.Clientset.ExtensionsV1beta1().Deployments(c.Namespace).Get("rook-edgefs-mgr", metav1.GetOptions{})
+	_, err := c.context.Clientset.Apps().Deployments(c.Namespace).Get("rook-edgefs-mgr", metav1.GetOptions{})
 	assert.Nil(t, err)
 
 	_, err = c.context.Clientset.CoreV1().Services(c.Namespace).Get("rook-edgefs-mgr", metav1.GetOptions{})

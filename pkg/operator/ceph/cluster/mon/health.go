@@ -300,7 +300,7 @@ func (c *Cluster) removeMon(daemonName string) error {
 	var gracePeriod int64
 	propagation := metav1.DeletePropagationForeground
 	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
-	if err := c.context.Clientset.Extensions().Deployments(c.Namespace).Delete(resourceName, options); err != nil {
+	if err := c.context.Clientset.Apps().Deployments(c.Namespace).Delete(resourceName, options); err != nil {
 		if errors.IsNotFound(err) {
 			logger.Infof("dead mon %s was already gone", resourceName)
 		} else {

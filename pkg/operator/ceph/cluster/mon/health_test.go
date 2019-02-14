@@ -32,15 +32,14 @@ import (
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	apps "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
-	"k8s.io/api/extensions/v1beta1"
-	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
 
 func TestCheckHealth(t *testing.T) {
-	var deploymentsUpdated *[]*extensions.Deployment
+	var deploymentsUpdated *[]*apps.Deployment
 	updateDeploymentAndWait, deploymentsUpdated = testopk8s.UpdateDeploymentAndWaitStub()
 
 	executor := &exectest.MockExecutor{
@@ -93,7 +92,7 @@ func TestCheckHealth(t *testing.T) {
 }
 
 func TestCheckHealthNotFound(t *testing.T) {
-	var deploymentsUpdated *[]*extensions.Deployment
+	var deploymentsUpdated *[]*apps.Deployment
 	updateDeploymentAndWait, deploymentsUpdated = testopk8s.UpdateDeploymentAndWaitStub()
 
 	executor := &exectest.MockExecutor{
@@ -205,7 +204,7 @@ func TestCheckHealthTwoMonsOneNode(t *testing.T) {
 	for i := 0; i < len(monNames); i++ {
 		monConfig := testGenMonConfig(monNames[i])
 		d := c.makeDeployment(monConfig, "node0")
-		_, err := clientset.ExtensionsV1beta1().Deployments(c.Namespace).Create(d)
+		_, err := clientset.Apps().Deployments(c.Namespace).Create(d)
 		assert.Nil(t, err)
 		po := c.makeMonPod(monConfig, "node0")
 		_, err = clientset.CoreV1().Pods(c.Namespace).Create(po)
@@ -248,8 +247,8 @@ func TestCheckHealthTwoMonsOneNode(t *testing.T) {
 	assert.Equal(t, "node2", c.mapping.Node["c"].Name)
 
 	// check if mon b has been deleted
-	var dlist *v1beta1.DeploymentList
-	dlist, err = clientset.ExtensionsV1beta1().Deployments(c.Namespace).List(metav1.ListOptions{})
+	var dlist *apps.DeploymentList
+	dlist, err = clientset.Apps().Deployments(c.Namespace).List(metav1.ListOptions{})
 	assert.Nil(t, err)
 	deleted := true
 	for _, d := range dlist.Items {
@@ -265,7 +264,7 @@ func TestCheckHealthTwoMonsOneNode(t *testing.T) {
 	assert.Nil(t, err)
 
 	// check that nothing has changed
-	dlist, err = clientset.ExtensionsV1beta1().Deployments(c.Namespace).List(metav1.ListOptions{})
+	dlist, err = clientset.Apps().Deployments(c.Namespace).List(metav1.ListOptions{})
 	assert.Nil(t, err)
 
 	for _, d := range dlist.Items {
@@ -362,7 +361,7 @@ func TestCheckMonsValid(t *testing.T) {
 }
 
 func TestAddRemoveMons(t *testing.T) {
-	var deploymentsUpdated *[]*extensions.Deployment
+	var deploymentsUpdated *[]*apps.Deployment
 	updateDeploymentAndWait, deploymentsUpdated = testopk8s.UpdateDeploymentAndWaitStub()
 
 	monQuorumResponse := clienttest.MonInQuorumResponse()
