@@ -57,6 +57,8 @@ Settings can be specified at the global level to apply to the cluster as a whole
   - **WARNING**: For test scenarios, if you delete a cluster and start a new cluster on the same hosts, the path used by `dataDirHostPath` must be deleted. Otherwise, stale information and other config will remain from the previous cluster and the new target will fail to start.
 If this value is empty, each pod will get an ephemeral directory to store their config files that is tied to the lifetime of the pod running on that node. More details can be found in the Kubernetes [empty dir docs](https://kubernetes.io/docs/concepts/storage/volumes/#emptydir).
 - `dataVolumeSize`: Alternative to `dataDirHostPath`. If defined then Cluster CRD operator will disregard `dataDirHostPath` setting and instead will automatically claim persistent volume. If `storage` settings not provided then provisioned volume will also be used as a storage device for Target pods (automatic provisioning via `rtlfs`).
+- `dashboard`: This specification may be used to override and enable additional [EdgeFS UI Dashboard](edgefs-ui.md) functionality.
+  - `localAddr`: Specifies local IP address to be used as Kubernetes external IP.
 - `network`: If defined then host network will be enabled for the cluster and services. This is optional and if not defined then `eth0` will be used to construct cluster bucket network.
   - `serverIfName`: Specifies data daemon networking interface name. If not defined then `eth0` is assumed.
   - `brokerIfName`: Specifies broker daemon networking interface name. If not defined then `eth0` is assumed.

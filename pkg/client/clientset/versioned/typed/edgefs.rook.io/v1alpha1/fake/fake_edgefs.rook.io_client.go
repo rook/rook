@@ -36,6 +36,10 @@ func (c *FakeEdgefsV1alpha1) ISCSIs(namespace string) v1alpha1.ISCSIInterface {
 	return &FakeISCSIs{c, namespace}
 }
 
+func (c *FakeEdgefsV1alpha1) ISGWs(namespace string) v1alpha1.ISGWInterface {
+	return &FakeISGWs{c, namespace}
+}
+
 func (c *FakeEdgefsV1alpha1) NFSs(namespace string) v1alpha1.NFSInterface {
 	return &FakeNFSs{c, namespace}
 }

@@ -57,6 +57,7 @@ type ClusterSpec struct {
 	// The placement-related configuration to pass to kubernetes (affinity, node selector, tolerations).
 	Placement rook.PlacementSpec `json:"placement,omitempty"`
 	Network   NetworkSpec        `json:"network,omitempty"`
+	Dashboard DashboardSpec      `json:"dashboard,omitempty"`
 	// Resources set resource requests and limits
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`
 	// The path on the host where config and data can be persisted.
@@ -66,6 +67,10 @@ type ClusterSpec struct {
 	DevicesResurrectMode string            `json:"devicesResurrectMode,omitempty"`
 	EdgefsImageName      string            `json:"edgefsImageName,omitempty"`
 	SkipHostPrepare      bool              `json:"skipHostPrepare,omitempty"`
+}
+
+type DashboardSpec struct {
+	LocalAddr string `json:"localAddr"`
 }
 
 type NetworkSpec struct {
@@ -218,4 +223,46 @@ type TargetParametersSpec struct {
 	FirstBurstLength         uint `json:"firstBurstLength"`
 	MaxBurstLength           uint `json:"maxBurstLength"`
 	MaxQueueCmd              uint `json:"maxQueueCmd"`
+}
+
+// +genclient
+// +genclient:noStatus
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type ISGW struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+	Spec              ISGWSpec `json:"spec"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type ISGWList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+	Items           []ISGW `json:"items"`
+}
+
+// ISGWSpec represent the spec of a isgw service
+type ISGWSpec struct {
+	// The affinity to place the ISGW pods (default is to place on any available nodes in EdgeFS running namespace)
+	Placement rook.Placement `json:"placement"`
+	// Resources set resource requests and limits
+	Resources v1.ResourceRequirements `json:"resources,omitempty"`
+	// The number of pods in the ISGW replicaset
+	Instances int32 `json:"instances"`
+	// ISGW I/O flow direction
+	Direction string `json:"direction,omitempty"`
+	// ISGW remote URL
+	RemoteURL string `json:"remoteURL,omitempty"`
+	// ISGW Replication Type
+	ReplicationType string `json:"replicationType,omitempty"`
+	// ISGW Metadata Only flag
+	MetadataOnly bool `json:"metadataOnly,omitempty"`
+	// ISGW Dynamic Fetch Port (default 49678)
+	DynamicFetchPort uint `json:"dynamicFetchPort,omitempty"`
+	// ISGW Endpoint local address (default value 0.0.0.0:14000)
+	LocalAddr string `json:"localAddr,omitempty"`
+	// ISGW Encrypted Tunnel flag
+	UseEncryptedTunnel bool `json:"useEncryptedTunnel,omitempty"`
 }

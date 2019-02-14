@@ -28,6 +28,8 @@ type Interface interface {
 	Clusters() ClusterInformer
 	// ISCSIs returns a ISCSIInformer.
 	ISCSIs() ISCSIInformer
+	// ISGWs returns a ISGWInformer.
+	ISGWs() ISGWInformer
 	// NFSs returns a NFSInformer.
 	NFSs() NFSInformer
 	// S3s returns a S3Informer.
@@ -55,6 +57,11 @@ func (v *version) Clusters() ClusterInformer {
 // ISCSIs returns a ISCSIInformer.
 func (v *version) ISCSIs() ISCSIInformer {
 	return &iSCSIInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// ISGWs returns a ISGWInformer.
+func (v *version) ISGWs() ISGWInformer {
+	return &iSGWInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // NFSs returns a NFSInformer.

@@ -29,6 +29,7 @@ type EdgefsV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	ClustersGetter
 	ISCSIsGetter
+	ISGWsGetter
 	NFSsGetter
 	S3sGetter
 	S3XsGetter
@@ -45,6 +46,10 @@ func (c *EdgefsV1alpha1Client) Clusters(namespace string) ClusterInterface {
 
 func (c *EdgefsV1alpha1Client) ISCSIs(namespace string) ISCSIInterface {
 	return newISCSIs(c, namespace)
+}
+
+func (c *EdgefsV1alpha1Client) ISGWs(namespace string) ISGWInterface {
+	return newISGWs(c, namespace)
 }
 
 func (c *EdgefsV1alpha1Client) NFSs(namespace string) NFSInterface {

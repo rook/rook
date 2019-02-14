@@ -116,6 +116,8 @@ spec:
   dataDirHostPath: /var/lib/edgefs
   #dataVolumeSize: 10Gi
   #devicesResurrectMode: "restoreZapWait"
+  #dashboard:
+  #  localAddr: 10.3.30.75
   #network: # cluster level networking configuration aka "host network"
   #  serverIfName: "enp2s0f0"
   #  brokerIfName: "enp2s0f0"

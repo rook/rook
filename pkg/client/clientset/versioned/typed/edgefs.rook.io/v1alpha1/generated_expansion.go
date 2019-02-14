@@ -22,6 +22,8 @@ type ClusterExpansion interface{}
 
 type ISCSIExpansion interface{}
 
+type ISGWExpansion interface{}
+
 type NFSExpansion interface{}
 
 type S3Expansion interface{}
