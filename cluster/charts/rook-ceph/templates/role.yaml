@@ -32,4 +32,12 @@ rules:
   - create
   - update
   - delete
+- apiGroups:
+  - ""
+  resources:
+  - endpoints
+  verbs:
+  - get
+  - create
+  - update
 {{- end }}
