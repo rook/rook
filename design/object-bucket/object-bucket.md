@@ -10,7 +10,7 @@ Rook-Ceph has developed Custom Resource Definitions (CRDs) to support the dynami
 
 ## Glossary
 
-- Admin: A Kubernetes cluster administrator with RBAC permissions to instantiate and control access to cluster storage. The admin will use provision object stores via CephObjectStore custom resources and create StorageClasses to enable user access.  
+- Admin: A Kubernetes cluster administrator with RBAC permissions to instantiate and control access to cluster storage. The admin will provision object stores via CephObjectStore custom resources and create StorageClasses to enable user access.  
 - User: A Kubernetes cluster user with limited permissions, typically confined to CRUD operations on Kubernetes objects within a single namespace.  The user will request Ceph Object buckets by instantiating ObjectBucketClaims.
 - ObjectBucketClaim: a namespaced, user facing Custom Resource Definition representing a request for a dynamically created bucket (similar in use to PersistentVolumeClaims).  ObjectBucketClaims reference a StorageClass whose _provisioner:_ field contains the name of an object store provisioner capable of dynamically provisioning buckets.  ObjectBucketClaims serve to abstract the underlying object store provider from the user.
 - ObjectBucket: a non-namespace, admin facing Custom Resource Definition representing the fulfillment of a user request for a dynamically created bucket in an existing object store (similar in use to PersistentVolumes).  ObjectBuckets serve to provide discrete information about the bucket and object store provider to admins.
@@ -98,7 +98,7 @@ _As a Kubernetes user, I want to delete ObjectBucketClaim instances and cleanup 
 1. The OBC is marked for deletion and left in the foreground.
 1. The respective ConfigMap and user Secret are deleted.
 1. The OBC is garbage collected.
-1. The OB phase is changed from ""
+1. The OB phase is changed from "bound" to "lost"
 
     Note: this does not cause the deletion of the OB.  Since the actual bucket is not deleted, it is reasonable that it should still tracked in Kubernetes.
 
@@ -227,7 +227,7 @@ status:
 1. `phase` is the current state of the ObjectBucket
     - `pending`: provisioning has begun but not finished
     - `bound`: provisioning has finished and the bucket is accessible to the user
-    - `lost`: the OBC has been deleted, orphaning the OB.  
+    - `lost`: the OBC has been deleted, orphaning the OB.
 
 ### (User Access Key) Secret
 
