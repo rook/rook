@@ -25,8 +25,8 @@ import (
 	edgefsv1alpha1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	apps "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -88,7 +88,7 @@ func (c *ISGWController) CreateOrUpdate(s edgefsv1alpha1.ISGW, update bool, owne
 
 	// start the deployment
 	deployment := c.makeDeployment(s.Name, s.Namespace, c.rookImage, s.Spec)
-	if _, err := c.context.Clientset.ExtensionsV1beta1().Deployments(s.Namespace).Create(deployment); err != nil {
+	if _, err := c.context.Clientset.Apps().Deployments(s.Namespace).Create(deployment); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create %s deployment. %+v", appName, err)
 		}
@@ -164,7 +164,7 @@ func (c *ISGWController) makeISGWService(name, svcname, namespace string, isgwSp
 	return svc
 }
 
-func (c *ISGWController) makeDeployment(svcname, namespace, rookImage string, isgwSpec edgefsv1alpha1.ISGWSpec) *extensions.Deployment {
+func (c *ISGWController) makeDeployment(svcname, namespace, rookImage string, isgwSpec edgefsv1alpha1.ISGWSpec) *apps.Deployment {
 
 	name := instanceName(svcname)
 	volumes := []v1.Volume{}
@@ -213,12 +213,12 @@ func (c *ISGWController) makeDeployment(svcname, namespace, rookImage string, is
 	isgwSpec.Placement.ApplyToPodSpec(&podSpec.Spec)
 
 	instancesCount := int32(1)
-	d := &extensions.Deployment{
+	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec: extensions.DeploymentSpec{Template: podSpec, Replicas: &instancesCount},
+		Spec: apps.DeploymentSpec{Template: podSpec, Replicas: &instancesCount},
 	}
 	k8sutil.SetOwnerRef(c.context.Clientset, namespace, &d.ObjectMeta, &c.ownerRef)
 	return d
@@ -403,7 +403,7 @@ func instanceName(svcname string) string {
 
 // Check if the ISGW service exists
 func serviceExists(context *clusterd.Context, s edgefsv1alpha1.ISGW) (bool, error) {
-	_, err := context.Clientset.ExtensionsV1beta1().Deployments(s.Namespace).Get(instanceName(s.Name), metav1.GetOptions{})
+	_, err := context.Clientset.Apps().Deployments(s.Namespace).Get(instanceName(s.Name), metav1.GetOptions{})
 	if err == nil {
 		// the deployment was found
 		return true, nil

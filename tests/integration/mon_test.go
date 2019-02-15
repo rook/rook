@@ -30,7 +30,7 @@ func (suite *SmokeSuite) TestMonFailover() {
 	logger.Infof("Mon Failover Smoke Test")
 
 	opts := metav1.ListOptions{LabelSelector: "app=rook-ceph-mon"}
-	deployments, err := suite.k8sh.Clientset.Extensions().Deployments(suite.namespace).List(opts)
+	deployments, err := suite.k8sh.Clientset.Apps().Deployments(suite.namespace).List(opts)
 	require.Nil(suite.T(), err)
 	require.Equal(suite.T(), 3, len(deployments.Items))
 
@@ -38,12 +38,12 @@ func (suite *SmokeSuite) TestMonFailover() {
 	logger.Infof("Killing mon %s", monToKill)
 	propagation := metav1.DeletePropagationForeground
 	delOptions := &metav1.DeleteOptions{PropagationPolicy: &propagation}
-	err = suite.k8sh.Clientset.Extensions().Deployments(suite.namespace).Delete(monToKill, delOptions)
+	err = suite.k8sh.Clientset.Apps().Deployments(suite.namespace).Delete(monToKill, delOptions)
 	require.Nil(suite.T(), err)
 
 	// Wait for the health check to start a new monitor
 	for i := 0; i < 10; i++ {
-		deployments, err := suite.k8sh.Clientset.Extensions().Deployments(suite.namespace).List(opts)
+		deployments, err := suite.k8sh.Clientset.Apps().Deployments(suite.namespace).List(opts)
 		require.Nil(suite.T(), err)
 
 		// Make sure the old mon is not still alive
