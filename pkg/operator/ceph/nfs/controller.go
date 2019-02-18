@@ -84,7 +84,7 @@ func (c *CephNFSController) onAdd(obj interface{}) {
 		return
 	}
 
-	err := c.createCephNFS(*nfs)
+	err := c.upCephNFS(*nfs, 0)
 	if err != nil {
 		logger.Errorf("failed to create NFS Ganesha %s. %+v", nfs.Name, err)
 	}
@@ -103,7 +103,19 @@ func (c *CephNFSController) onUpdate(oldObj, newObj interface{}) {
 		return
 	}
 
-	logger.Infof("TODO: Update the ganesha server from %d to %d active count", oldNFS.Spec.Server.Active, newNFS.Spec.Server.Active)
+	logger.Infof("Updating the ganesha server from %d to %d active count", oldNFS.Spec.Server.Active, newNFS.Spec.Server.Active)
+	if oldNFS.Spec.Server.Active < newNFS.Spec.Server.Active {
+		err := c.upCephNFS(*newNFS, oldNFS.Spec.Server.Active)
+		if err != nil {
+			logger.Errorf("Failed to start daemons for CephNFS %s. %+v", newNFS.Name, err)
+		}
+	} else {
+		err := c.downCephNFS(*oldNFS, newNFS.Spec.Server.Active)
+		if err != nil {
+			logger.Errorf("Failed to stop daemons for CephNFS %s. %+v", newNFS.Name, err)
+		}
+	}
+
 }
 
 func (c *CephNFSController) onDelete(obj interface{}) {
@@ -113,7 +125,7 @@ func (c *CephNFSController) onDelete(obj interface{}) {
 		return
 	}
 
-	err := c.deleteGanesha(*nfs)
+	err := c.downCephNFS(*nfs, 0)
 	if err != nil {
 		logger.Errorf("failed to delete file system %s. %+v", nfs.Name, err)
 	}

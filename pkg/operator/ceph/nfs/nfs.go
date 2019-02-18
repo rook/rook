@@ -37,14 +37,15 @@ const (
 )
 
 // Create the ganesha server
-func (c *CephNFSController) createCephNFS(n cephv1.CephNFS) error {
+func (c *CephNFSController) upCephNFS(n cephv1.CephNFS, oldActive int) error {
 	if err := validateGanesha(c.context, n); err != nil {
 		return err
 	}
 
-	logger.Infof("start running ceph nfs %s", n.Name)
+	logger.Infof("Starting cephNFS %s(%d-%d)", n.Name, oldActive,
+		n.Spec.Server.Active-1)
 
-	for i := 0; i < n.Spec.Server.Active; i++ {
+	for i := oldActive; i < n.Spec.Server.Active; i++ {
 		name := k8sutil.IndexToName(i)
 
 		configName, err := c.generateConfig(n, name)
@@ -213,8 +214,8 @@ func (c *CephNFSController) generateConfig(n cephv1.CephNFS, name string) (strin
 }
 
 // Delete the ganesha server
-func (c *CephNFSController) deleteGanesha(n cephv1.CephNFS) error {
-	for i := 0; i < n.Spec.Server.Active; i++ {
+func (c *CephNFSController) downCephNFS(n cephv1.CephNFS, newActive int) error {
+	for i := n.Spec.Server.Active - 1; i >= newActive; i-- {
 		name := k8sutil.IndexToName(i)
 
 		// Remove from grace db
