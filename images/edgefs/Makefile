@@ -27,21 +27,21 @@ TEMP := $(shell mktemp -d)
 
 # since this is a leaf image we avoid leaving around a lot of dangling images
 # by removing the last build of the final cockroachdb image
-OLD_IMAGE_ID := $(shell docker images -q $(EDGEFS_IMAGE))
-CURRENT_IMAGE_ID := $$(docker images -q $(EDGEFS_IMAGE))
+OLD_IMAGE_ID := $(shell $(DOCKERCMD) images -q $(EDGEFS_IMAGE))
+CURRENT_IMAGE_ID := $$($(DOCKERCMD) images -q $(EDGEFS_IMAGE))
 IMAGE_FILENAME := $(IMAGE_OUTPUT_DIR)/edgefs.tar.gz
 
 do.build:
 	@echo === docker build $(EDGEFS_IMAGE)
 	@cp Dockerfile $(TEMP)
 	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rook $(TEMP)
-	@docker build $(BUILD_ARGS) \
+	@$(DOCKERCMD) build $(BUILD_ARGS) \
 		-t $(EDGEFS_IMAGE) \
 		$(TEMP)
-	@[ "$(OLD_IMAGE_ID)" != "$(CURRENT_IMAGE_ID)" ] && [ -n "$(OLD_IMAGE_ID)" ] && docker rmi $(OLD_IMAGE_ID) || true
+	@[ "$(OLD_IMAGE_ID)" != "$(CURRENT_IMAGE_ID)" ] && [ -n "$(OLD_IMAGE_ID)" ] && $(DOCKERCMD) rmi $(OLD_IMAGE_ID) || true
 	@if [ ! -e "$(IMAGE_FILENAME)" ] || [ "$(OLD_IMAGE_ID)" != "$(CURRENT_IMAGE_ID)" ] || [ -n "$(OLD_IMAGE_ID)" ]; then \
 		echo === saving image $(EDGEFS_IMAGE); \
 		mkdir -p $(IMAGE_OUTPUT_DIR); \
-		docker save $(EDGEFS_IMAGE) | gzip -c > $(IMAGE_FILENAME); \
+		$(DOCKERCMD) save $(EDGEFS_IMAGE) | gzip -c > $(IMAGE_FILENAME); \
 	fi
 	@rm -fr $(TEMP)

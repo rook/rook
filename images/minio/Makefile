@@ -28,7 +28,7 @@ do.build:
 	@echo === docker build $(MINIO_IMAGE)
 	@cp Dockerfile $(TEMP)
 	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rook $(TEMP)
-	@docker build $(BUILD_ARGS) \
+	@$(DOCKERCMD) build $(BUILD_ARGS) \
 		--build-arg ARCH=$(GOARCH) \
 		-t $(MINIO_IMAGE) \
 		$(TEMP)
