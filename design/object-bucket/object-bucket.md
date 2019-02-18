@@ -106,11 +106,9 @@ _As a Kubernetes user, I want to delete ObjectBucketClaim instances and cleanup 
 
 ## Looking Forward
 
-- Resource Quotas cannot yet be defined for CRDs.  This limits admin control over how many buckets can be created per object store.  A operator could be made configurable (via ConfigMap) to cap the number of buckets per object store.  A PR exists for enabling quotas on CRDs (https://github.com/kubernetes/kubernetes/pull/72384).  If it is merged into Kubernetes, a ResourceQuota example should be defined for OBCs.
+- Resource Quotas cannot yet be defined for CRDs.  This limits admin control over how many buckets can be created per object store.  An operator could be made configurable (via ConfigMap) to cap the number of buckets per object store.  A PR exists for enabling quotas on CRDs (https://github.com/kubernetes/kubernetes/pull/72384).  If it is merged into Kubernetes, a ResourceQuota example should be defined for OBCs.
 
 - Custom Bucket and Object policies are not defined for OBCs.  Currently all user keys will have Object PUT/GET/DELETE and object policy setting permissions.  It would be useful to allow users to link secondary keys with a subset of these permissions to buckets.
-
-- A generic S3 user API is not defined in this proposal but should be given serious consideration.  A user API should allow cluster users to generate new S3 users, tenants, and access keys in an object store.  This API could be used as method of manually creating object store users or incorporated into the bucket provisioning automation to generate the user's access key.
 
 ---
 
@@ -119,26 +117,27 @@ _As a Kubernetes user, I want to delete ObjectBucketClaim instances and cleanup 
 ### OBC Custom Resource Definition
 
 ```yaml
-apiVersion: apiextensions.k8s.io/v1beta1 
+apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: objectbucketclaims.rook.io
+  name: objectbucketclaims.store-operator.s3
 spec:
-  group: rook.io
-  version: v1
-  scope: namespaced
+  group: store-operator.s3
   names:
-      kind: ObjectBucketClaim
-      listKind: ObjectBucketClaimList
-      singular: objectbucketclaim
-      plural: objectbucketclaims
+    kind: ObjectBucketClaim
+    listKind: ObjectBucketClaimList
+    plural: objectbucketclaims
+    singular: objectbucketclaim
+  scope: Namespaced
+  version: v1alpha1
+  subresources:
+    status: {}
 ```
-
 
 ### OBC Custom Resource (User Defined)
 
 ```yaml
-apiVersion: rook.io/v1
+apiVersion: objectbucket.s3.io/v1alpha1
 kind: ObjectBucketClaim
 metadata:
   name: MY-BUCKET-1 [1]
@@ -156,28 +155,24 @@ spec:
 ### OBC Custom Resource (Operator Updated)
 
 ```yaml
-apiVersion: rook.io/v1
+apiVersion: store-operator.s3/v1alpha1
 kind: ObjectBucketClaim
 metadata:
   name: MY-BUCKET-1
   namespace: USER-NAMESPACE
-  ownerReferences: [1]
-  - name: CEPH-CLUSTER
-    ...
 spec:
   storageClassName: SOME-OBJECT-STORE-STORAGE-CLASS
 status:
-  phase: {"pending", "bound", "error"}  [2]
-  objectBucketRef: objectReference{}  [3]
-  configMapRef: objectReference{}  [4]
-  secretRef: objectReference{}  [5]
+  phase: {"pending", "bound", "lost"}  [1]
+  objectBucketRef: objectReference{}  [2]
+  configMapRef: objectReference{}  [3]
+  secretRef: objectReference{}  [4]
 ```
-
-1. `ownerReference` sets the ObjectBucketClaim as a child of the Ceph Cluster.  Cluster deletion causes the deletion of the OBC 
+ 
 1. `phase` 3 possible phases of bucket creation, mutually exclusive
-    - `pending`
-    - `bound`
-    - `error`
+    - `pending`: the operator is processing the request
+    - `bound`: the operator finished processing the request and linked the OBC and OB
+    - `lost`: the OBC has been deleted, leaving the OB unclaimed
 1. `objectBucketRef` is an objectReference to the bound ObjectBucket 
 1. `configMapRef` is an objectReference to the generated ConfigMap 
 1. `secretRef` is an objectReference to the generated Secret
@@ -185,25 +180,27 @@ status:
 ### OB Custom Resource Definition
 
 ```yaml
-apiVersion: apiextensions.k8s.io/v1beta1 
+apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: objectbucket.rook.io
+  name: objectbuckets.store-operator.s3
 spec:
-  group: rook.io
-  version: v1
-  scope: namespaced
+  group: store-operator.s3
   names:
-      kind: ObjectBucket
-      listKind: ObjectBucketList
-      singular: objectbucket
-      plural: objectbucket
+    kind: ObjectBucket
+    listKind: ObjectBucketList
+    plural: objectbuckets
+    singular: objectbucket
+  scope: Namespaced
+  version: v1alpha1
+  subresources:
+    status: {}
 ```
 
 ### OB Custom Resource
 
 ```yaml
-apiVersion: apiextensions.k8s.io/v1beta1
+apiVersion: store-operator.s3/v1alpha1
 kind: ObjectBucket
 metadata:
   name: object-bucket-claim-MY-BUCKET-1
@@ -217,22 +214,22 @@ spec:
     provider: ceph.rook.io/object
 status:
   claimRef: objectreference [5]
-  phase: {"pending", "bound", "lost", "error"} [6]
+  phase: {"pending", "bound", "lost"} [6]
 ```
 
-1. `ownerReferences` makes the bucket abstraction a child of the object store.  If the store is destroyed, the buckets are deleted.
+1. `ownerReferences` makes the OB a child of the object store.  If the store is destroyed, the OBs are deleted.
 1. Label `ceph.rook.io/object/claims` associates all artifacts under the Rook-Ceph object provisioner.
 1. `objectBucketSource` is a struct containing metadata of the object store provider
 1. `claimRef` is an objectReference to the ObjectBucketClaim associated with this ObjectBucket
 1. `phase` is the current state of the ObjectBucket
-    - `pending`: provisioning has begun but not finished
-    - `bound`: provisioning has finished and the bucket is accessible to the user
-    - `lost`: the OBC has been deleted, orphaning the OB.
+    - `pending`: the operator is processing the request
+    - `bound`: the operator finished processing the request and linked the OBC and OB
+    - `lost`: the OBC has been deleted, leaving the OB unclaimed
 
 ### (User Access Key) Secret
 
 ```yaml
-apiVersion: v1
+apiVersion: store-operator.s3/v1alpha1
 kind: Secret
 metadata:
   name: object-bucket-claim-MY-BUCKET-1 [1]
@@ -263,19 +260,19 @@ metadata:
   - name: MY-BUCKET-1
     ...
 data: 
-  CEPH_BUCKET_HOST: http://MY-STORE-URL [5]
-  CEPH_BUCKET_PORT: 80 [6]
-  CEPH_BUCKET_NAME: MY-BUCKET-1 [7]
-  CEPH_BUCKET_SSL: no [8]
+  S3_BUCKET_HOST: http://MY-STORE-URL [5]
+  S3_BUCKET_PORT: 80 [6]
+  S3_BUCKET_NAME: MY-BUCKET-1 [7]
+  S3_BUCKET_SSL: no [8]
 ```
 1. `name` composed from `rook-ceph-object-bucket-` and ObjectBucketClaim `metadata.name` value concatenated
 1. `namespace` determined by the namespace of the ObjectBucketClaim
 1. Label `ceph.rook.io/object/claims` associates all artifacts under the ObjectBucketClaim operator. Set by operator.
 1. `ownerReference` sets the ConfigMap as a child of the ObjectBucketClaim. Deletion of the ObjectBucketClaim causes the deletion of the ConfigMap
-1. `CEPH_BUCKET_HOST` host URL
-1. `CEPH_BUCKET_PORT` host port
-1. `CEPH_BUCKET_NAME` bucket name
-1. `CEPH_BUCKET_SSL` boolean representing SSL connection
+1. `S3_BUCKET_HOST` host URL
+1. `S3_BUCKET_PORT` host port
+1. `S3_BUCKET_NAME` bucket name
+1. `S3_BUCKET_SSL` boolean representing SSL connection
 
 ### StorageClass
 
