@@ -17,7 +17,8 @@
 BUILD_HOST=$(hostname)
 BUILD_REPO=github.com/rook/rook
 BUILD_ROOT=$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd -P)
-BUILD_REGISTRY=build-$(echo ${BUILD_HOST}-${BUILD_ROOT} | shasum -a 256 | cut -c1-8)
+SHA256CMD=${SHA256CMD:-shasum -a 256}
+BUILD_REGISTRY=build-$(echo ${BUILD_HOST}-${BUILD_ROOT} | ${SHA256CMD} | cut -c1-8)
 
 OUTPUT_DIR=${BUILD_ROOT}/_output
 WORK_DIR=${BUILD_ROOT}/.work
