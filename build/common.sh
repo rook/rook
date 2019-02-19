@@ -20,6 +20,8 @@ BUILD_ROOT=$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd -P)
 SHA256CMD=${SHA256CMD:-shasum -a 256}
 BUILD_REGISTRY=build-$(echo ${BUILD_HOST}-${BUILD_ROOT} | ${SHA256CMD} | cut -c1-8)
 
+DOCKERCMD=${DOCKERCMD:-docker}
+
 OUTPUT_DIR=${BUILD_ROOT}/_output
 WORK_DIR=${BUILD_ROOT}/.work
 CACHE_DIR=${BUILD_ROOT}/.cache
@@ -46,7 +48,7 @@ function check_git() {
 }
 
 function start_rsync_container() {
-    docker run \
+    ${DOCKERCMD} run \
         -d \
         -e OWNER=root \
         -e GROUP=root \
@@ -75,8 +77,8 @@ function wait_for_rsync() {
 function stop_rsync_container() {
     local id=$1
 
-    docker stop ${id} &> /dev/null || true
-    docker rm ${id} &> /dev/null || true
+    ${DOCKERCMD} stop ${id} &> /dev/null || true
+    ${DOCKERCMD} rm ${id} &> /dev/null || true
 }
 
 function run_rsync() {

@@ -30,7 +30,7 @@ if [ "`uname -m`" != "x86_64" ]; then
     exit 1
 fi
 echo ==== building the cross container \(this could take minutes the first time\)
-make_cmd="make --no-print-directory -C ${scriptdir}/../images cross PULL=0"
+make_cmd="make --no-print-directory -C ${scriptdir}/../images cross PULL=0 DOCKERCMD=${DOCKERCMD}"
 make_output=$($make_cmd 2>&1) || {
     cat <<EOF >&2
 === cross build image failed for ${CROSS_IMAGE}
@@ -65,10 +65,10 @@ if [ "`uname -s`" != "Linux" ]; then
     # runs of the build container are supported they will share the same volume
     # and we will be rsyncing to it at different times. This could lead to
     # undefined behavior but this should be a rare case on non-linux envs.
-    if [[ ! $(docker volume ls | grep ${CROSS_IMAGE_VOLUME}) ]]; then
+    if [[ ! $(${DOCKERCMD} volume ls | grep ${CROSS_IMAGE_VOLUME}) ]]; then
         echo ==== Creating docker volume "${CROSS_IMAGE_VOLUME}" and syncing sources
         echo ==== for first time. This could take a few seconds.
-        docker volume create --name ${CROSS_IMAGE_VOLUME} &> /dev/null
+        ${DOCKERCMD} volume create --name ${CROSS_IMAGE_VOLUME} &> /dev/null
     fi
 
     # On non-linux the layout is as follows:
@@ -154,7 +154,7 @@ rsync_back() {
     fi
 }
 
-docker run \
+${DOCKERCMD} run \
     --rm \
     -h ${BUILD_HOST} \
     -e BUILD_REGISTRY=${BUILD_REGISTRY} \
