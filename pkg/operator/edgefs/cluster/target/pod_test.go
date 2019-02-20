@@ -82,7 +82,7 @@ func TestStorageSpecConfig(t *testing.T) {
 
 	//check default config options
 	assert.Equal(t, storeConfig.RtVerifyChid, 1)
-	assert.Equal(t, storeConfig.LmdbPageSize, 16348)
+	assert.Equal(t, storeConfig.LmdbPageSize, 16384)
 	assert.Equal(t, storeConfig.UseMetadataMask, "0xff")
 	assert.Equal(t, storeConfig.RtrdPLevelOverride, 0)
 	assert.Equal(t, storeConfig.Sync, 1)

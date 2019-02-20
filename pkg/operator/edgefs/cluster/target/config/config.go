@@ -71,7 +71,7 @@ type StoreConfig struct {
 func DefaultStoreConfig() StoreConfig {
 	return StoreConfig{
 		RtVerifyChid:       1,
-		LmdbPageSize:       16348,
+		LmdbPageSize:       16384,
 		UseBCache:          false,
 		UseBCacheWB:        false,
 		UseMetadataMask:    "0xff",

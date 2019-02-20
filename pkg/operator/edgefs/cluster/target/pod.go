@@ -169,6 +169,17 @@ func (c *Cluster) makeDaemonContainer(containerImage string, dro edgefsv1alpha1.
 		{
 			Name:      "devices",
 			MountPath: "/dev",
+			ReadOnly:  false,
+		},
+		{
+			Name:      "sys",
+			MountPath: "/sys",
+			ReadOnly:  true,
+		},
+		{
+			Name:      "udev",
+			MountPath: "/run/udev",
+			ReadOnly:  true,
 		},
 		{
 			Name:      dataVolumeName,
@@ -268,6 +279,22 @@ func (c *Cluster) createPodSpec(rookImage string, dro edgefsv1alpha1.DevicesResu
 				},
 			},
 		},
+		{
+			Name: "sys",
+			VolumeSource: v1.VolumeSource{
+				HostPath: &v1.HostPathVolumeSource{
+					Path: "/sys",
+				},
+			},
+		},
+		{
+			Name: "udev",
+			VolumeSource: v1.VolumeSource{
+				HostPath: &v1.HostPathVolumeSource{
+					Path: "/run/udev",
+				},
+			},
+		},
 	}
 
 	hostPathDirectoryOrCreate := v1.HostPathDirectoryOrCreate
@@ -323,9 +350,9 @@ func (c *Cluster) createPodSpec(rookImage string, dro edgefsv1alpha1.DevicesResu
 	volumes = append(volumes, c.configOverrideVolume())
 
 	containers = []v1.Container{
+		c.makeDaemonContainer(rookImage, dro, false),
 		c.makeCorosyncContainer(rookImage),
 		c.makeAuditdContainer(rookImage),
-		c.makeDaemonContainer(rookImage, dro, false),
 	}
 
 	return v1.PodSpec{

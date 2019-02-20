@@ -66,53 +66,53 @@ Root object holds system information and table of namespaces registered to a loc
 
 To initialize system and prepare logical definitions, login to the toolbox as shown in this example:
 
-<pre>
+```
 kubectl get po --all-namespaces | grep edgefs-mgr
 kubectl exec -it -n rook-edgefs rook-edgefs-mgr-6cb9598469-czr7p -- env COLUMNS=$COLUMNS LINES=$LINES TERM=linux toolbox
-</pre>
+```
 
 Assumption at this point is that nodes are all configured and can be seen via the following command:
 
-<pre>
+```
 efscli system status
-</pre>
+```
 
 1. Initialize cluster
 
 Verify that HW (or better say emulated in this case) configuration look normal and accept it
 
-<pre>
+```
 efscli system init
-</pre>
+```
 
 At this point new dynamically discovered configuration checkpoint will be created at $NEDGE_HOME/var/run/flexhash-checkpoint.json
 This will also create system "root" object, holding Site's Namespace. Namespace may consist of more then single region.
 
 2. Create new local namespace (or we also call it "Region" or "Segment")
 
-<pre>
+```
 efscli cluster create Hawaii
-</pre>
+```
 
 3. Create logical tenants of cluster namespace "Hawaii", also buckets if needed
 
-<pre>
+```
 efscli tenant create Hawaii/Cola
 efscli bucket create Hawaii/Cola/bk1
 efscli tenant create Hawaii/Pepsi
 efscli bucket create Hawaii/Pepsi/bk1
-</pre>
+```
 
 Now cluster is setup, services can be now created and attached to CSI provisioner.
 
 4. Create NFS service objects for tenants
 
-<pre>
+```
 efscli service create nfs nfsCola
 efscli service serve nfsCola Hawaii/Cola/bk1
 efscli service create nfs nfsPepsi
 efscli service serve nfsPepsi Hawaii/Pepsi/bk1
-</pre>
+```
 
 5. Create NFS CRDs
 
@@ -138,8 +138,7 @@ spec:
 
 At this point two NFS services should be available. Verify that showmount command can see service (substitute CLUSTERIP with corresponding entry from `kubectl get svc` command):
 
-<pre>
+```
 kubectl get svc --all-namespaces
 showmount -e CLUSTERIP
-</pre>
-</pre>
+```

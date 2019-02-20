@@ -5,6 +5,9 @@ metadata:
   namespace: rook-edgefs
 spec:
   instances: 1
+  #s3type: s3s                    # s3 (default) for path style, s3s for buckets as DNS style
+  #port: 4500                     # HTTP port (default is 9982 or 9983 for s3s)
+  #securePort: 4501               # HTTPS port (default is 8443 or 8444 for s3s)
   #sslCertificateRef: ssl-secret
   #placement:
   #  nodeAffinity:
