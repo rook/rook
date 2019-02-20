@@ -81,7 +81,7 @@ func (a *Agent) createAgentDaemonSet(namespace, agentImage, serviceAccount strin
 	}
 	agentMountSecurityMode := os.Getenv(AgentMountSecurityModeEnv)
 	if agentMountSecurityMode == "" {
-		logger.Info("no agent mount security mode given, defaulting to '%s' mode", MountSecurityModeAny)
+		logger.Infof("no agent mount security mode given, defaulting to '%s' mode", MountSecurityModeAny)
 		agentMountSecurityMode = MountSecurityModeAny
 	}
 	if agentMountSecurityMode != MountSecurityModeAny && agentMountSecurityMode != MountSecurityModeRestricted {
