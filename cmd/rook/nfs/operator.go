@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package nfs
 
 import (
@@ -48,7 +49,7 @@ func startOperator(cmd *cobra.Command, args []string) error {
 
 	clientset, apiExtClientset, rookClientset, err := rook.GetClientset()
 	if err != nil {
-		rook.TerminateFatal(fmt.Errorf("failed to get k8s clients. %+v", err))
+		rook.TerminateFatal(fmt.Errorf("failed to get k8s clients. %+v\n", err))
 	}
 
 	logger.Infof("starting NFS operator")

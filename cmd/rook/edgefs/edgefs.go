@@ -24,6 +24,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+//Cmd is the main command for edgefs operator and daemons
 var Cmd = &cobra.Command{
 	Use:    "edgefs",
 	Short:  "Main command for edgefs operator and daemons.",

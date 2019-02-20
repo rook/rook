@@ -75,7 +75,7 @@ func startOperator(cmd *cobra.Command, args []string) error {
 
 	clientset, apiExtClientset, rookClientset, err := rook.GetClientset()
 	if err != nil {
-		rook.TerminateFatal(fmt.Errorf("failed to get k8s client. %+v", err))
+		rook.TerminateFatal(fmt.Errorf("failed to get k8s client. %+v\n", err))
 	}
 
 	logger.Infof("starting operator")

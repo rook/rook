@@ -273,7 +273,7 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 
 	locArgs, err := client.FormatLocation(cfg.location, cfg.nodeName)
 	if err != nil {
-		rook.TerminateFatal(fmt.Errorf("invalid location. %+v\n", err))
+		rook.TerminateFatal(fmt.Errorf("invalid location. %+v", err))
 	}
 	crushLocation := strings.Join(locArgs, " ")
 

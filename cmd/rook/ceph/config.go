@@ -89,7 +89,7 @@ func initConfig(cmd *cobra.Command, args []string) error {
 
 	err = cephconfig.WriteKeyring(keyringPath, configKeyring, keyringEval)
 	if err != nil {
-		return fmt.Errorf("failed to create keyring: %+v", err)
+		return fmt.Errorf("failed to create keyring: %+v\n", err)
 	}
 	if err != nil {
 		rook.TerminateFatal(err)
