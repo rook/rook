@@ -61,8 +61,8 @@ spec:
 
 ### RADOS Settings
 
-- `pool`: The pool where ganesha recovery backend and supplimental configuration objects will be stored
-- `namespace`: The namespace in `pool` where ganesha recovery backend and supplimental configuration objects will be stored
+- `pool`: The pool where ganesha recovery backend and supplemental configuration objects will be stored
+- `namespace`: The namespace in `pool` where ganesha recovery backend and supplemental configuration objects will be stored
 
 ## EXPORT Block Configuration
 

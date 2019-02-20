@@ -46,7 +46,7 @@ spec:
 - `name`: The name of the iSCSI target service to create, which must match existing EdgeFS service.
 - `namespace`: The namespace of the Rook cluster where the iSCSI Target service is created.
 - `targetName`: The name for iSCSI target name. Default is iqn.2018-11.edgefs.io.
-- `targetParams`: If specified, then some of iSCSI target protocol parameters can be overriden.
+- `targetParams`: If specified, then some of iSCSI target protocol parameters can be overridden.
   - `MaxRecvDataSegmentLength`: Value in range value range 512..16777215. Default is 524288.
   - `DefaultTime2Retain`: Value in range 0..3600. Default is 60.
   - `DefaultTime2Wait`: Value in range 0..3600. Default is 30.

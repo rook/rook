@@ -136,7 +136,7 @@ spec:
   instances: 1
 ```
 
-At this point two NFS services should be available. Verify that showmount command can see service (substitue CLUSTERIP with corresponding entry from `kubectl get svc` command):
+At this point two NFS services should be available. Verify that showmount command can see service (substitute CLUSTERIP with corresponding entry from `kubectl get svc` command):
 
 <pre>
 kubectl get svc --all-namespaces

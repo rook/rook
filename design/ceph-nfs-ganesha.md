@@ -34,7 +34,7 @@ reread the configuration.
 
 This allows the NFS-Ganesha server cluster to be scalable and highly available.
 
-### Prerequisities
+### Prerequisites
 
 - A running rook Ceph filesystem or object store, whose namespaces will be
   exported by the NFS-Ganesha server cluster.
