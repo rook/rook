@@ -55,7 +55,7 @@ cd cluster/examples/kubernetes/edgefs/csi
 kubectl apply -f .
 ```
 
-Note that for Kubernetes versions >= v1.12.1 CSI architecutre introduced kind=CSIDriver CRD. To use earlier version change pwd to 'k8s-prior-12.1' subdirectory.
+Note that for Kubernetes versions >= v1.12.1 CSI architecture introduced kind=CSIDriver CRD. To use earlier version change pwd to 'k8s-prior-12.1' subdirectory.
 
 There should be number of EdgeFS CSI plugin PODs available running as a DaemonSet
 ```

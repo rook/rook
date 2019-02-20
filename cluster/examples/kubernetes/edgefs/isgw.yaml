@@ -4,7 +4,7 @@ metadata:
   name: isgw01          # Inter-Segment Gateway service name
   namespace: rook-edgefs
 spec:
-  direction: "send+recieve"                  # I/O flow direction: send, recieve or send-receive
+  direction: "send+receive"                  # I/O flow direction: send, receive or send-receive
   remoteURL: "ccow://192.168.1.43:14000"     # I/O flow with destination antoher EdgeFS cluster, pointing to ISGW endpoint service
   #remoteURL: "file://volumeDir"             # I/O flow with destination as locally mounted POSIX directory
   #remoteURL: "s3://mybucket.aws.com"        # I/O flow with destination as remote S3 bucket
