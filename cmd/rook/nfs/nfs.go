@@ -26,9 +26,8 @@ import (
 )
 
 var Cmd = &cobra.Command{
-	Use:    "nfs",
-	Short:  "Main command for NFS operator and daemons.",
-	Hidden: true,
+	Use:   "nfs",
+	Short: "Main command for NFS operator and daemons.",
 }
 
 var (

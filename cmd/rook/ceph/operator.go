@@ -22,7 +22,7 @@ import (
 	"github.com/rook/rook/cmd/rook/rook"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
-	"github.com/rook/rook/pkg/operator/ceph"
+	operator "github.com/rook/rook/pkg/operator/ceph"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -37,7 +37,6 @@ var operatorCmd = &cobra.Command{
 	Short: "Runs the Ceph operator for orchestrating and managing Ceph storage in a Kubernetes cluster",
 	Long: `Runs the Ceph operator for orchestrating and managing Ceph storage in a Kubernetes cluster
 https://github.com/rook/rook`,
-	Hidden: true,
 }
 
 func init() {

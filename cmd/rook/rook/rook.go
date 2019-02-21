@@ -39,8 +39,7 @@ const (
 )
 
 var RootCmd = &cobra.Command{
-	Use:    "rook",
-	Hidden: true,
+	Use: "rook",
 }
 
 var (

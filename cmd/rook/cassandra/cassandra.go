@@ -27,9 +27,8 @@ import (
 
 // Cmd exports cobra command according to the cobra documentation.
 var Cmd = &cobra.Command{
-	Use:    "cassandra",
-	Short:  "Main command for cassandra controller pod.",
-	Hidden: true,
+	Use:   "cassandra",
+	Short: "Main command for cassandra controller pod.",
 }
 
 var (
@@ -37,8 +36,7 @@ var (
 )
 
 func init() {
-	Cmd.AddCommand(operatorCmd)
-	Cmd.AddCommand(sidecarCmd)
+	Cmd.AddCommand(operatorCmd, sidecarCmd)
 }
 
 func createContext() *clusterd.Context {

@@ -36,16 +36,13 @@ func main() {
 }
 
 func addCommands() {
-	rook.RootCmd.AddCommand(version.VersionCmd)
-	rook.RootCmd.AddCommand(discoverCmd)
-	rook.RootCmd.AddCommand(ceph.Cmd)
-	rook.RootCmd.AddCommand(cockroachdb.Cmd)
-	rook.RootCmd.AddCommand(minio.Cmd)
-	rook.RootCmd.AddCommand(edgefs.Cmd)
-	rook.RootCmd.AddCommand(nfs.Cmd)
-	rook.RootCmd.AddCommand(cassandra.Cmd)
-
-	// add the ceph legacy commands to the main command for backwards compatibility
-	// TODO: remove these Ceph legacy commands in the future
-	ceph.AddCommands(rook.RootCmd)
+	rook.RootCmd.AddCommand(
+		version.VersionCmd,
+		discoverCmd,
+		ceph.Cmd,
+		cockroachdb.Cmd,
+		minio.Cmd,
+		edgefs.Cmd,
+		nfs.Cmd,
+		cassandra.Cmd)
 }

@@ -28,7 +28,7 @@ import (
 var Cmd = &cobra.Command{
 	Use:    "cockroachdb",
 	Short:  "Main command for cockroachdb operator and daemons.",
-	Hidden: true,
+	Hidden: false,
 }
 
 var (

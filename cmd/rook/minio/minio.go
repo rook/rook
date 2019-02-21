@@ -26,9 +26,8 @@ import (
 )
 
 var Cmd = &cobra.Command{
-	Use:    "minio",
-	Short:  "Main command for Minio operator and daemons.",
-	Hidden: true,
+	Use:   "minio",
+	Short: "Main command for Minio operator and daemons.",
 }
 
 var (

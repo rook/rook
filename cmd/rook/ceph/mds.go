@@ -32,9 +32,8 @@ var (
 )
 
 var mdsCmd = &cobra.Command{
-	Use:    mdsdaemon.InitCommand,
-	Short:  "Generates mds config and runs the mds daemon",
-	Hidden: true,
+	Use:   mdsdaemon.InitCommand,
+	Short: "Generates mds config and runs the mds daemon",
 }
 
 func init() {
