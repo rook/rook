@@ -35,7 +35,7 @@ The `rook-edgefs-mgr` service is for gRPC communication between the [EdgeFS CSI 
 
 ## Dynamic EdgeFS Service CRD editing
 
-One of the very useful features of EdgeFS Dashboard is Dynamic Service CRD editing UI. Ability to edit CRDs via intuitive graphical inteface can simplify on-going EdgeFS cluster management drastically. For instance, below picture demostrantes how NFS CRD service can be dynamically edited, exports can be added or removed:
+One of the very useful features of EdgeFS Dashboard is Dynamic Service CRD editing UI. Ability to edit CRDs via intuitive graphical interface can simplify on-going EdgeFS cluster management drastically. For instance, below picture demonstrates how NFS CRD service can be dynamically edited, exports can be added or removed:
 
 ![EdgeFS UI NFS Editing](media/edgefs-ui-nfs-edit.png)
 
