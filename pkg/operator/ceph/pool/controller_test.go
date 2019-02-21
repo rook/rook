@@ -144,14 +144,14 @@ func TestCreatePool(t *testing.T) {
 func TestUpdatePool(t *testing.T) {
 	// the pool did not change for properties that are updatable
 	old := cephv1.PoolSpec{FailureDomain: "osd", ErasureCoded: cephv1.ErasureCodedSpec{CodingChunks: 2, DataChunks: 2}}
-	new := cephv1.PoolSpec{FailureDomain: "host", ErasureCoded: cephv1.ErasureCodedSpec{CodingChunks: 3, DataChunks: 3}}
-	changed := poolChanged(old, new)
+	newPoolSpec := cephv1.PoolSpec{FailureDomain: "host", ErasureCoded: cephv1.ErasureCodedSpec{CodingChunks: 3, DataChunks: 3}}
+	changed := poolChanged(old, newPoolSpec)
 	assert.False(t, changed)
 
 	// the pool changed for properties that are updatable
 	old = cephv1.PoolSpec{FailureDomain: "osd", Replicated: cephv1.ReplicatedSpec{Size: 1}}
-	new = cephv1.PoolSpec{FailureDomain: "osd", Replicated: cephv1.ReplicatedSpec{Size: 2}}
-	changed = poolChanged(old, new)
+	newPoolSpec = cephv1.PoolSpec{FailureDomain: "osd", Replicated: cephv1.ReplicatedSpec{Size: 2}}
+	changed = poolChanged(old, newPoolSpec)
 	assert.True(t, changed)
 }
 

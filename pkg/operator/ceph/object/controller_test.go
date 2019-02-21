@@ -35,25 +35,25 @@ import (
 
 func TestObjectStoreChanged(t *testing.T) {
 	old := cephv1.ObjectStoreSpec{Gateway: cephv1.GatewaySpec{Port: 80, SecurePort: 443, Instances: 1, AllNodes: false, SSLCertificateRef: ""}}
-	new := cephv1.ObjectStoreSpec{Gateway: cephv1.GatewaySpec{Port: 80, SecurePort: 443, Instances: 1, AllNodes: false, SSLCertificateRef: ""}}
+	newObjectStoreSpec := cephv1.ObjectStoreSpec{Gateway: cephv1.GatewaySpec{Port: 80, SecurePort: 443, Instances: 1, AllNodes: false, SSLCertificateRef: ""}}
 	// nothing changed
-	assert.False(t, storeChanged(old, new))
+	assert.False(t, storeChanged(old, newObjectStoreSpec))
 
 	// there was a change
-	new = cephv1.ObjectStoreSpec{Gateway: cephv1.GatewaySpec{Port: 81, SecurePort: 443, Instances: 1, AllNodes: false, SSLCertificateRef: ""}}
-	assert.True(t, storeChanged(old, new))
+	newObjectStoreSpec = cephv1.ObjectStoreSpec{Gateway: cephv1.GatewaySpec{Port: 81, SecurePort: 443, Instances: 1, AllNodes: false, SSLCertificateRef: ""}}
+	assert.True(t, storeChanged(old, newObjectStoreSpec))
 
-	new = cephv1.ObjectStoreSpec{Gateway: cephv1.GatewaySpec{Port: 80, SecurePort: 444, Instances: 1, AllNodes: false, SSLCertificateRef: ""}}
-	assert.True(t, storeChanged(old, new))
+	newObjectStoreSpec = cephv1.ObjectStoreSpec{Gateway: cephv1.GatewaySpec{Port: 80, SecurePort: 444, Instances: 1, AllNodes: false, SSLCertificateRef: ""}}
+	assert.True(t, storeChanged(old, newObjectStoreSpec))
 
-	new = cephv1.ObjectStoreSpec{Gateway: cephv1.GatewaySpec{Port: 80, SecurePort: 443, Instances: 2, AllNodes: false, SSLCertificateRef: ""}}
-	assert.True(t, storeChanged(old, new))
+	newObjectStoreSpec = cephv1.ObjectStoreSpec{Gateway: cephv1.GatewaySpec{Port: 80, SecurePort: 443, Instances: 2, AllNodes: false, SSLCertificateRef: ""}}
+	assert.True(t, storeChanged(old, newObjectStoreSpec))
 
-	new = cephv1.ObjectStoreSpec{Gateway: cephv1.GatewaySpec{Port: 80, SecurePort: 443, Instances: 1, AllNodes: true, SSLCertificateRef: ""}}
-	assert.True(t, storeChanged(old, new))
+	newObjectStoreSpec = cephv1.ObjectStoreSpec{Gateway: cephv1.GatewaySpec{Port: 80, SecurePort: 443, Instances: 1, AllNodes: true, SSLCertificateRef: ""}}
+	assert.True(t, storeChanged(old, newObjectStoreSpec))
 
-	new = cephv1.ObjectStoreSpec{Gateway: cephv1.GatewaySpec{Port: 80, SecurePort: 443, Instances: 1, AllNodes: false, SSLCertificateRef: "mysecret"}}
-	assert.True(t, storeChanged(old, new))
+	newObjectStoreSpec = cephv1.ObjectStoreSpec{Gateway: cephv1.GatewaySpec{Port: 80, SecurePort: 443, Instances: 1, AllNodes: false, SSLCertificateRef: "mysecret"}}
+	assert.True(t, storeChanged(old, newObjectStoreSpec))
 }
 
 func TestGetObjectStoreObject(t *testing.T) {

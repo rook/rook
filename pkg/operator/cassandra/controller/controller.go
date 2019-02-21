@@ -280,10 +280,10 @@ func (cc *ClusterController) syncHandler(key string) error {
 
 	logger.Infof("handling cluster object: %+v", spew.Sdump(cluster))
 	// Deepcopy here to ensure nobody messes with the cache.
-	old, new := cluster, cluster.DeepCopy()
+	old, newObj := cluster, cluster.DeepCopy()
 	// If sync was successful and Status has changed, update the Cluster.
-	if err = cc.Sync(new); err == nil && !reflect.DeepEqual(old.Status, new.Status) {
-		err = util.PatchClusterStatus(new, cc.rookClient)
+	if err = cc.Sync(newObj); err == nil && !reflect.DeepEqual(old.Status, newObj.Status) {
+		err = util.PatchClusterStatus(newObj, cc.rookClient)
 	}
 
 	return err

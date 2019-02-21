@@ -36,16 +36,16 @@ import (
 func TestFilesystemChanged(t *testing.T) {
 	// no change
 	old := cephv1.FilesystemSpec{MetadataServer: cephv1.MetadataServerSpec{ActiveCount: 1, ActiveStandby: true}}
-	new := cephv1.FilesystemSpec{MetadataServer: cephv1.MetadataServerSpec{ActiveCount: 1, ActiveStandby: true}}
-	changed := filesystemChanged(old, new)
+	newFileSpec := cephv1.FilesystemSpec{MetadataServer: cephv1.MetadataServerSpec{ActiveCount: 1, ActiveStandby: true}}
+	changed := filesystemChanged(old, newFileSpec)
 	assert.False(t, changed)
 
 	// changed properties
-	new = cephv1.FilesystemSpec{MetadataServer: cephv1.MetadataServerSpec{ActiveCount: 2, ActiveStandby: true}}
-	assert.True(t, filesystemChanged(old, new))
+	newFileSpec = cephv1.FilesystemSpec{MetadataServer: cephv1.MetadataServerSpec{ActiveCount: 2, ActiveStandby: true}}
+	assert.True(t, filesystemChanged(old, newFileSpec))
 
-	new = cephv1.FilesystemSpec{MetadataServer: cephv1.MetadataServerSpec{ActiveCount: 1, ActiveStandby: false}}
-	assert.True(t, filesystemChanged(old, new))
+	newFileSpec = cephv1.FilesystemSpec{MetadataServer: cephv1.MetadataServerSpec{ActiveCount: 1, ActiveStandby: false}}
+	assert.True(t, filesystemChanged(old, newFileSpec))
 }
 
 func TestGetFilesystemObject(t *testing.T) {

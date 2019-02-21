@@ -123,7 +123,7 @@ func TestClusterChanged(t *testing.T) {
 			},
 		},
 	}
-	new := cephv1.ClusterSpec{
+	newClusterSpec := cephv1.ClusterSpec{
 		Storage: rookalpha.StorageScopeSpec{
 			Nodes: []rookalpha.Node{
 				{Name: "node1", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
@@ -132,7 +132,7 @@ func TestClusterChanged(t *testing.T) {
 		},
 	}
 	c := &cluster{Spec: &cephv1.ClusterSpec{}, mons: &mon.Cluster{}}
-	assert.True(t, clusterChanged(old, new, c))
+	assert.True(t, clusterChanged(old, newClusterSpec, c))
 	assert.Equal(t, 0, c.Spec.Mon.Count)
 
 	// a node was removed, should be a change
@@ -140,28 +140,28 @@ func TestClusterChanged(t *testing.T) {
 		{Name: "node1", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
 		{Name: "node2", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
 	}
-	new.Storage.Nodes = []rookalpha.Node{
+	newClusterSpec.Storage.Nodes = []rookalpha.Node{
 		{Name: "node1", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
 	}
-	assert.True(t, clusterChanged(old, new, c))
+	assert.True(t, clusterChanged(old, newClusterSpec, c))
 
 	// the nodes being in a different order should not be a change
 	old.Storage.Nodes = []rookalpha.Node{
 		{Name: "node1", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
 		{Name: "node2", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
 	}
-	new.Storage.Nodes = []rookalpha.Node{
+	newClusterSpec.Storage.Nodes = []rookalpha.Node{
 		{Name: "node2", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
 		{Name: "node1", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
 	}
-	assert.False(t, clusterChanged(old, new, c))
+	assert.False(t, clusterChanged(old, newClusterSpec, c))
 	assert.Equal(t, 0, c.Spec.Mon.Count)
 
 	// If the number of mons changes, the mon count on the cluster should be updated so the health check can adjust the mons
-	new.Mon.Count = 3
-	new.Mon.AllowMultiplePerNode = true
+	newClusterSpec.Mon.Count = 3
+	newClusterSpec.Mon.AllowMultiplePerNode = true
 	assert.False(t, c.mons.AllowMultiplePerNode)
-	assert.False(t, clusterChanged(old, new, c))
+	assert.False(t, clusterChanged(old, newClusterSpec, c))
 	assert.Equal(t, 3, c.mons.Count)
 	assert.True(t, c.mons.AllowMultiplePerNode)
 }

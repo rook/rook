@@ -59,7 +59,7 @@ func TestClusterChanged(t *testing.T) {
 			},
 		},
 	}
-	new := edgefsv1alpha1.ClusterSpec{
+	newClusterSpec := edgefsv1alpha1.ClusterSpec{
 		Storage: rookalpha.StorageScopeSpec{
 			Nodes: []rookalpha.Node{
 				{Name: "node1", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
@@ -67,28 +67,28 @@ func TestClusterChanged(t *testing.T) {
 			},
 		},
 	}
-	assert.True(t, clusterChanged(old, new))
+	assert.True(t, clusterChanged(old, newClusterSpec))
 
 	// a node was removed, should be a change
 	old.Storage.Nodes = []rookalpha.Node{
 		{Name: "node1", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
 		{Name: "node2", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
 	}
-	new.Storage.Nodes = []rookalpha.Node{
+	newClusterSpec.Storage.Nodes = []rookalpha.Node{
 		{Name: "node1", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
 	}
-	assert.True(t, clusterChanged(old, new))
+	assert.True(t, clusterChanged(old, newClusterSpec))
 
 	// the nodes being in a different order should not be a change
 	old.Storage.Nodes = []rookalpha.Node{
 		{Name: "node1", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
 		{Name: "node2", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
 	}
-	new.Storage.Nodes = []rookalpha.Node{
+	newClusterSpec.Storage.Nodes = []rookalpha.Node{
 		{Name: "node2", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
 		{Name: "node1", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
 	}
-	assert.False(t, clusterChanged(old, new))
+	assert.False(t, clusterChanged(old, newClusterSpec))
 }
 
 func TestRemoveFinalizer(t *testing.T) {
