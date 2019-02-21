@@ -696,7 +696,7 @@ func (k8sh *K8sHelper) ReadFromPodRetry(namespace, podName, filename, expectedMe
 		var data string
 		data, err = k8sh.readFromPod(namespace, podName, filename)
 		if err == nil {
-			logger.Infof("read file %s from pod %s was successful after %d attempt(s)", filename, podName, (i + 1))
+			logger.Infof("read file %s from pod %s was successful after %d attempt(s)", filename, podName, i + 1)
 			if !strings.Contains(data, expectedMessage) {
 				return fmt.Errorf(`file %s in pod %s returned message "%s" instead of "%s"`, filename, podName, data, expectedMessage)
 			}

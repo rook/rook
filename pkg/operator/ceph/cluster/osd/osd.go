@@ -507,7 +507,7 @@ func (c *Cluster) isSafeToRemoveNode(nodeName string, osdDeployments []*apps.Dep
 		return err
 	}
 
-	if (clusterAvailableBytes - nodeUsage) < int64((float64(clusterTotalBytes) * clusterAvailableSpaceReserve)) {
+	if (clusterAvailableBytes - nodeUsage) < int64(float64(clusterTotalBytes) * clusterAvailableSpaceReserve) {
 		// the remaining available space in the cluster after the space that this node is using gets moved elsewhere
 		// would be less than the cluster available space reserve, it's not safe to remove this node
 		return fmt.Errorf("insufficient available space in the cluster to remove node %s. node usage: %s, cluster available: %s",

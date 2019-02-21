@@ -70,7 +70,7 @@ func ToStoreConfig(config map[string]string) StoreConfig {
 		case OSDsPerDeviceKey:
 			storeConfig.OSDsPerDevice = convertToIntIgnoreErr(v)
 		case EncryptedDeviceKey:
-			storeConfig.EncryptedDevice = (v == "true")
+			storeConfig.EncryptedDevice = v == "true"
 		}
 	}
 

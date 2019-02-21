@@ -262,7 +262,7 @@ func blockTestDataCleanUp(helper *clients.TestClient, k8sh *utils.K8sHelper, nam
 func retryBlockImageCountCheck(helper *clients.TestClient, imageCount, expectedChange int, namespace string) bool {
 	inc := 0
 	for inc < utils.RetryLoop {
-		logger.Infof("Getting list of blocks (expecting %d)", (imageCount + expectedChange))
+		logger.Infof("Getting list of blocks (expecting %d)", imageCount + expectedChange)
 		blockImages, _ := helper.BlockClient.List(namespace)
 		if imageCount+expectedChange == len(blockImages) {
 			return true

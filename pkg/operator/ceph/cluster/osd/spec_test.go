@@ -204,7 +204,7 @@ func TestStorageSpecDevicesAndDirectories(t *testing.T) {
 	assert.Equal(t, "/var/lib/rook", cont.VolumeMounts[0].MountPath)
 	assert.Equal(t, "/etc/ceph", cont.VolumeMounts[1].MountPath)
 
-	assert.Equal(t, (7 + len(k8sutil.ClusterDaemonEnvVars())), len(cont.Env))
+	assert.Equal(t, 7 + len(k8sutil.ClusterDaemonEnvVars()), len(cont.Env))
 
 	require.Equal(t, 2, len(podSpec.InitContainers))
 	initCont = podSpec.InitContainers[0]

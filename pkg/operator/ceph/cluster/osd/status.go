@@ -180,7 +180,7 @@ func (c *Cluster) completeOSDsForAllNodes(config *provisionConfig, configOSDs bo
 			// start watching for changes on the orchestration status map
 			ResourceVersion: statuses.ResourceVersion,
 		}
-		logger.Infof("%d/%d node(s) completed osd provisioning, resource version %v", (originalNodes - remainingNodes.Count()), originalNodes, opts.ResourceVersion)
+		logger.Infof("%d/%d node(s) completed osd provisioning, resource version %v", originalNodes - remainingNodes.Count(), originalNodes, opts.ResourceVersion)
 
 		w, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Watch(opts)
 		if err != nil {

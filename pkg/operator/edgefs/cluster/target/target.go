@@ -95,7 +95,7 @@ func New(
 		dataDirHostPath:  dataDirHostPath,
 		dataVolumeSize:   dataVolumeSize,
 		HostNetworkSpec:  hostNetworkSpec,
-		Privileged:       (isHostNetworkDefined(hostNetworkSpec) || os.Getenv("ROOK_HOSTPATH_REQUIRES_PRIVILEGED") == "true"),
+		Privileged:       isHostNetworkDefined(hostNetworkSpec) || os.Getenv("ROOK_HOSTPATH_REQUIRES_PRIVILEGED") == "true",
 		resources:        resources,
 		ownerRef:         ownerRef,
 		deploymentConfig: deploymentConfig,
