@@ -201,7 +201,7 @@ func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOs
 	}
 
 	// Now ask ceph-volume for osds already configured or to newly configure devices
-	cvOSDs, err := a.configureCVDevices(context, cvDevices, a.metadataDevice)
+	cvOSDs, err := a.configureCVDevices(context, cvDevices)
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure devices with ceph-volume. %+v", err)
 	}
