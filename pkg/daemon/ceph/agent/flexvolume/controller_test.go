@@ -827,20 +827,6 @@ func TestGetCRDNameFromMountDirInvalid(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func defaultHeader() http.Header {
-	header := http.Header{}
-	header.Set("Content-Type", runtime.ContentTypeJSON)
-	return header
-}
-
-func objBody(object interface{}) io.ReadCloser {
-	output, err := json.MarshalIndent(object, "", "")
-	if err != nil {
-		panic(err)
-	}
-	return ioutil.NopCloser(bytes.NewReader([]byte(output)))
-}
-
 func containsAttachment(attachment rookalpha.Attachment, attachments []rookalpha.Attachment) bool {
 	for _, a := range attachments {
 		if a.PodNamespace == attachment.PodNamespace && a.PodName == attachment.PodName && a.MountDir == attachment.MountDir && a.ReadOnly == attachment.ReadOnly && a.Node == attachment.Node {
