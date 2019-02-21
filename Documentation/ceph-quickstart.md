@@ -85,7 +85,7 @@ rules:
   verbs: [ "get", "list", "watch", "create", "update", "delete" ]
 ---
 # Aspects of ceph-mgr that require access to the system namespace
-kind: Role
+kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-ceph-mgr-system
@@ -187,7 +187,7 @@ metadata:
   namespace: rook-ceph-system
 roleRef:
   apiGroup: rbac.authorization.k8s.io
-  kind: Role
+  kind: ClusterRole
   name: rook-ceph-mgr-system
 subjects:
 - kind: ServiceAccount
@@ -195,11 +195,10 @@ subjects:
   namespace: rook-ceph
 ---
 # Allow the ceph mgr to access cluster-wide resources necessary for the mgr modules
-kind: RoleBinding
+kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-ceph-mgr-cluster
-  namespace: rook-ceph
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole

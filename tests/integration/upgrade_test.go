@@ -152,6 +152,8 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 
 // Update the clusterroles that have been modified in master from the previous release
 func (s *UpgradeSuite) updateClusterRoles() error {
+	systemNamespace := installer.SystemNamespace(s.namespace)
+
 	if _, err := s.k8sh.DeleteResource("ClusterRole", "rook-ceph-global"); err != nil {
 		return err
 	}
@@ -159,6 +161,15 @@ func (s *UpgradeSuite) updateClusterRoles() error {
 		return err
 	}
 	if _, err := s.k8sh.DeleteResource("-n", s.namespace, "Role", "rook-ceph-system"); err != nil {
+		return err
+	}
+	if _, err := s.k8sh.DeleteResource("-n", s.namespace, "Role", "rook-ceph-mgr-system"); err != nil {
+		return err
+	}
+	if _, err := s.k8sh.DeleteResource("-n", systemNamespace, "RoleBinding", "rook-ceph-mgr-system"); err != nil {
+		return err
+	}
+	if _, err := s.k8sh.DeleteResource("-n", s.namespace, "RoleBinding", "rook-ceph-mgr-cluster"); err != nil {
 		return err
 	}
 
@@ -312,6 +323,50 @@ rules:
   - create
   - update
   - delete
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr-system
+  namespace: ` + s.namespace + `
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+---
+# Allow the ceph mgr to access the rook system resources necessary for the mgr modules
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr-system
+  namespace: ` + systemNamespace + `
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-mgr-system
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-mgr
+  namespace: rook-ceph
+---
+# Allow the ceph mgr to access cluster-wide resources necessary for the mgr modules
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr-cluster
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-mgr-cluster
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-mgr
+  namespace: rook-ceph
 `
 	logger.Infof("creating the new resources that have been added since 0.9")
 	_, err := s.k8sh.ResourceOperation("create", newResources)
