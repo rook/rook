@@ -415,6 +415,22 @@ rules:
   verbs:
   - get
 ---
+# Aspects of ceph-mgr that require access to the system namespace
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr-system
+  namespace: ` + namespace + `
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -456,6 +472,20 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: rook-ceph-system
+  namespace: ` + namespace + `
+---
+# Allow the ceph mgr to access cluster-wide resources necessary for the mgr modules
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr-cluster
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-mgr-cluster
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-mgr
   namespace: ` + namespace + `
 ---
 apiVersion: v1
@@ -797,22 +827,6 @@ rules:
   resources: ["configmaps"]
   verbs: [ "get", "list", "watch", "create", "update", "delete" ]
 ---
-# Aspects of ceph-mgr that require access to the system namespace
-kind: Role
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-mgr-system
-  namespace: ` + namespace + `
-rules:
-- apiGroups:
-  - ""
-  resources:
-  - configmaps
-  verbs:
-  - get
-  - list
-  - watch
----
 # Aspects of ceph-mgr that operate within the cluster's namespace
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1beta1
@@ -900,28 +914,12 @@ metadata:
   namespace: ` + systemNamespace + `
 roleRef:
   apiGroup: rbac.authorization.k8s.io
-  kind: Role
+  kind: ClusterRole
   name: rook-ceph-mgr-system
 subjects:
 - kind: ServiceAccount
   name: rook-ceph-mgr
   namespace: ` + namespace + `
----
-# Allow the ceph mgr to access cluster-wide resources necessary for the mgr modules
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-mgr-cluster
-  namespace: ` + namespace + `
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: rook-ceph-mgr-cluster
-subjects:
-- kind: ServiceAccount
-  name: rook-ceph-mgr
-  namespace: ` + namespace + `
----
 `
 }
 
