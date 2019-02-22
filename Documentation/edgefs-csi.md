@@ -38,7 +38,7 @@ Secret file configuration options example:
 | password            | EdgeFS gRPC API server password | "admin" | true |
 | cluster             | EdgeFS cluster namespace also known as 'region' |  | false |
 | tenant              | EdgeFS tenant isolated namespace  |  | false |
-| serviceFilter       | List of comma delimeted allowed service names to filter |  "" means all services allowed | false |
+| serviceFilter       | List of comma delimited allowed service names to filter |  "" means all services allowed | false |
 | k8sEdgefsNamespace  | Rook EdgeFS cluster namespace | | true |
 
 By using `k8sEdgefsNamespace` parameter, driver is capable of detecting ClusterIPs and Endpoint IPs to provision and attach volumes.
@@ -67,7 +67,7 @@ default       edgefs-csi-plugin-7s6wc                 2/2       Running   0     
 ...
 ```
 
-At this point configuration is all ready and available for consumption by appliations.
+At this point configuration is all ready and available for consumption by applications.
 
 ## Pre-provisioned volumes (NFS)
 
