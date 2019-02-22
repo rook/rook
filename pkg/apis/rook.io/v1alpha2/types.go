@@ -26,15 +26,12 @@ import (
 // `make codegen` to generate the new types under the client/clientset folder.
 // ************************************************************************************
 
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
 type StorageScopeSpec struct {
-	metav1.TypeMeta `json:",inline"`
-	Nodes           []Node            `json:"nodes,omitempty"`
-	UseAllNodes     bool              `json:"useAllNodes,omitempty"`
-	NodeCount       int               `json:"nodeCount,omitempty"`
-	Location        string            `json:"location,omitempty"`
-	Config          map[string]string `json:"config"`
+	Nodes       []Node            `json:"nodes,omitempty"`
+	UseAllNodes bool              `json:"useAllNodes,omitempty"`
+	NodeCount   int               `json:"nodeCount,omitempty"`
+	Location    string            `json:"location,omitempty"`
+	Config      map[string]string `json:"config"`
 	Selection
 }
 
