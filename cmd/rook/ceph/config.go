@@ -35,9 +35,8 @@ key = %s
 )
 
 var configCmd = &cobra.Command{
-	Use:    "config-init",
-	Short:  "Generates basic ceph config",
-	Hidden: true,
+	Use:   "config-init",
+	Short: "Generates basic ceph config",
 }
 
 var (

@@ -28,9 +28,8 @@ import (
 )
 
 var rgwCmd = &cobra.Command{
-	Use:    "rgw",
-	Short:  "Generates rgw config and runs the rgw daemon",
-	Hidden: true,
+	Use:   "rgw",
+	Short: "Generates rgw config and runs the rgw daemon",
 }
 
 var (

@@ -30,19 +30,16 @@ var (
 )
 
 var nfsCmd = &cobra.Command{
-	Use:    "nfs",
-	Short:  "Configures and runs the ceph nfs daemon",
-	Hidden: true,
+	Use:   "nfs",
+	Short: "Configures and runs the ceph nfs daemon",
 }
 var ganeshaConfigCmd = &cobra.Command{
-	Use:    "init",
-	Short:  "Updates ceph.conf for nfs",
-	Hidden: true,
+	Use:   "init",
+	Short: "Updates ceph.conf for nfs",
 }
 var ganeshaRunCmd = &cobra.Command{
-	Use:    "run",
-	Short:  "Runs the ceph nfs daemon",
-	Hidden: true,
+	Use:   "run",
+	Short: "Runs the ceph nfs daemon",
 }
 
 func init() {
@@ -50,8 +47,7 @@ func init() {
 	ganeshaConfigCmd.Flags().StringVar(&ganeshaCopyBinariesPath, "copy-binaries-path", "", "If specified, copy the rook binaries to this path for use by the daemon container")
 	addCephFlags(ganeshaConfigCmd)
 
-	nfsCmd.AddCommand(ganeshaConfigCmd)
-	nfsCmd.AddCommand(ganeshaRunCmd)
+	nfsCmd.AddCommand(ganeshaConfigCmd, ganeshaRunCmd)
 
 	flags.SetFlagsFromEnv(nfsCmd.Flags(), rook.RookEnvVarPrefix)
 	flags.SetFlagsFromEnv(ganeshaConfigCmd.Flags(), rook.RookEnvVarPrefix)

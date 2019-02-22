@@ -30,9 +30,8 @@ import (
 
 var (
 	discoverCmd = &cobra.Command{
-		Use:    "discover",
-		Short:  "Discover devices",
-		Hidden: true,
+		Use:   "discover",
+		Short: "Discover devices",
 	}
 
 	// interval between discovering devices

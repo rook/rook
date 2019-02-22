@@ -28,7 +28,7 @@ import (
 var Cmd = &cobra.Command{
 	Use:    "edgefs",
 	Short:  "Main command for edgefs operator and daemons.",
-	Hidden: true,
+	Hidden: false,
 }
 
 var (
