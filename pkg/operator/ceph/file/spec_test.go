@@ -29,7 +29,7 @@ import (
 	testop "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 	apps "k8s.io/api/apps/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -52,7 +52,7 @@ func testDeploymentObject(hostNetwork bool) *apps.Deployment {
 	c := newCluster(
 		&clusterd.Context{Clientset: testop.New(1)},
 		"rook/rook:myversion",
-		cephv1.CephVersionSpec{Image: "ceph/ceph:testversion"},
+		cephv1.CephVersionSpec{Image: "ceph/ceph:testversion", Name: "mimic"},
 		hostNetwork,
 		fs,
 		&client.CephFilesystemDetails{ID: 15},

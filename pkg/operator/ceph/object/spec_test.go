@@ -41,7 +41,7 @@ func TestPodSpecs(t *testing.T) {
 		},
 	}
 
-	c := &config{store: store, rookVersion: "rook/rook:myversion", cephVersion: cephv1.CephVersionSpec{Image: "ceph/ceph:v13.2.1"}, hostNetwork: true}
+	c := &config{store: store, rookVersion: "rook/rook:myversion", cephVersion: cephv1.CephVersionSpec{Image: "ceph/ceph:v13.2.1", Name: "mimic"}, hostNetwork: true}
 	s := c.makeRGWPodSpec()
 	assert.NotNil(t, s)
 	//assert.Equal(t, instanceName(store), s.Name)

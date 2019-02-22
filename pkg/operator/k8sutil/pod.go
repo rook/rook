@@ -28,7 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 )
 
@@ -303,4 +303,9 @@ func ClusterDaemonEnvVars() []v1.EnvVar {
 		{Name: "POD_NAMESPACE", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.namespace"}}},
 		{Name: "NODE_NAME", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "spec.nodeName"}}},
 	}
+}
+
+// CephVersionName is the name of the ceph version
+func CephVersionName(version string) v1.EnvVar {
+	return v1.EnvVar{Name: "ROOK_CEPH_VERSION_NAME", Value: version}
 }

@@ -33,15 +33,20 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mon")
+var (
+	logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mon")
+	// DefaultPort is the default port Ceph mons use to communicate amongst themselves.
+	DefaultPort int32 = 6789
+)
 
 const (
 	// EndpointConfigMapName is the name of the configmap with mon endpoints
@@ -62,12 +67,12 @@ const (
 	adminSecretName   = "admin-secret"
 	clusterSecretName = "cluster-name"
 
-	// DefaultPort is the default port mons use to communicate with each other
-	DefaultPort = 6789
 	// DefaultMonCount Default mon count for a cluster
 	DefaultMonCount = 3
 	// MaxMonCount Maximum allowed mon count for a cluster
 	MaxMonCount = 9
+	// Msgr2port is the listening port of the messenger v2 protocol
+	Msgr2port int32 = 3300
 )
 
 // Cluster represents the Rook and environment configuration settings needed to set up Ceph mons.
@@ -252,6 +257,8 @@ func (c *Cluster) initClusterInfo() error {
 	var err error
 	// get the cluster info from secret
 	c.clusterInfo, c.maxMonID, c.mapping, err = CreateOrLoadClusterInfo(c.context, c.Namespace, &c.ownerRef)
+	c.clusterInfo.CephVersionName = c.cephVersion.Name
+
 	if err != nil {
 		return fmt.Errorf("failed to get cluster info. %+v", err)
 	}
@@ -282,7 +289,7 @@ func (c *Cluster) initMonConfig(size int) (int, []*monConfig) {
 		mons = append(mons, &monConfig{
 			ResourceName: resourceName(monitor.Name),
 			DaemonName:   monitor.Name,
-			Port:         getPortFromEndpoint(monitor.Endpoint),
+			Port:         cephutil.GetPortFromEndpoint(monitor.Endpoint),
 			DataPathMap: config.NewStatefulDaemonDataPathMap(
 				c.dataDirHostPath, dataDirRelativeHostPath(monitor.Name), config.MonType, monitor.Name),
 		})
@@ -300,10 +307,11 @@ func (c *Cluster) initMonConfig(size int) (int, []*monConfig) {
 
 func (c *Cluster) newMonConfig(monID int) *monConfig {
 	daemonName := k8sutil.IndexToName(monID)
+
 	return &monConfig{
 		ResourceName: resourceName(daemonName),
 		DaemonName:   daemonName,
-		Port:         int32(DefaultPort),
+		Port:         DefaultPort,
 		DataPathMap: config.NewStatefulDaemonDataPathMap(
 			c.dataDirHostPath, dataDirRelativeHostPath(daemonName), config.MonType, daemonName),
 	}

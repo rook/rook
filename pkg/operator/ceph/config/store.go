@@ -21,13 +21,17 @@ package config
 import (
 	"bytes"
 	"fmt"
+	"net"
+	"strconv"
 	"strings"
 
 	"github.com/go-ini/ini"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -40,6 +44,8 @@ const (
 	confFileName         = "ceph.conf"
 	monHostKey           = "mon_host"
 	monInitialMembersKey = "mon_initial_members"
+	// Msgr2port is the listening port of the messenger v2 protocol
+	Msgr2port = 3300
 )
 
 // Store manages storage of the Ceph config file shared by all daemons (if applicable) as well as an
@@ -152,7 +158,23 @@ func (s *Store) createOrUpdateMonHostSecrets(clusterInfo *cephconfig.ClusterInfo
 	members := make([]string, len(clusterInfo.Monitors))
 	i := 0
 	for _, m := range clusterInfo.Monitors {
-		hosts[i] = m.Endpoint
+		monIP := cephutil.GetIPFromEndpoint(m.Endpoint)
+
+		// This tries to detect the current port if the mon already exists
+		// This basically handles the transtion between monitors running on 6790 to msgr2
+		// So whatever the previous monitor port was we keep it
+		currentMonPort := cephutil.GetPortFromEndpoint(m.Endpoint)
+
+		monPorts := [2]string{strconv.Itoa(int(Msgr2port)), strconv.Itoa(int(currentMonPort))}
+		msgr2Endpoint := net.JoinHostPort(monIP, monPorts[0])
+		msgr1Endpoint := net.JoinHostPort(monIP, monPorts[1])
+
+		if cephv1.VersionAtLeast(clusterInfo.CephVersionName, cephv1.Nautilus) {
+			hosts[i] = "[v2:" + msgr2Endpoint + ",v1:" + msgr1Endpoint + "]"
+		} else {
+			hosts[i] = msgr1Endpoint
+		}
+
 		members[i] = m.Name
 		i++
 	}

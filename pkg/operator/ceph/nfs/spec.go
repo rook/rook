@@ -26,7 +26,7 @@ import (
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -177,7 +177,8 @@ func (c *CephNFSController) daemonContainer(n cephv1.CephNFS, name string, binar
 		),
 		Env: append(
 			k8sutil.ClusterDaemonEnvVars(),
-			v1.EnvVar{Name: "ROOK_CEPH_NFS_NAME", Value: name}),
+			v1.EnvVar{Name: "ROOK_CEPH_NFS_NAME", Value: name},
+		),
 		Resources: n.Spec.Server.Resources,
 	}
 }

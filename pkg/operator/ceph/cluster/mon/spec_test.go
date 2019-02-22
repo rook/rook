@@ -105,9 +105,11 @@ func testPodSpec(t *testing.T, monID string) {
 
 	// mon fs init container
 	monFsInitContDef := test_opceph.ContainerTestDefinition{
-		Image:            &cephImage,
-		Command:          []string{"ceph-mon"},
-		Args:             append(commonFlags, []string{"--mkfs"}),
+		Image:   &cephImage,
+		Command: []string{"ceph-mon"},
+		Args: append(commonFlags,
+			[]string{"--public-addr=2.4.6.1"},
+			[]string{"--mkfs"}),
 		VolumeMountNames: cephVolumeMountNames,
 		EnvCount:         &envVars,
 		Ports:            []v1.ContainerPort{},
@@ -126,8 +128,8 @@ func testPodSpec(t *testing.T, monID string) {
 			"ceph-mon"},
 		Args: append(commonFlags,
 			[]string{"--foreground"},
-			[]string{"--public-addr=2.4.6.1:6789"},
-			[]string{"--public-bind-addr=$(ROOK_PRIVATE_IP):6789"}),
+			[]string{"--public-addr=2.4.6.1"},
+			[]string{"--public-bind-addr=$(ROOK_PRIVATE_IP)"}),
 		VolumeMountNames: cephVolumeMountNames,
 		EnvCount:         &monDaemonEnvs,
 		Ports: []v1.ContainerPort{

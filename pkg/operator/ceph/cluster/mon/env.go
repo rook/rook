@@ -16,7 +16,7 @@ limitations under the License.
 
 package mon
 
-import "k8s.io/api/core/v1"
+import v1 "k8s.io/api/core/v1"
 
 // ClusterNameEnvVar is the cluster name environment var
 func ClusterNameEnvVar(name string) v1.EnvVar {
