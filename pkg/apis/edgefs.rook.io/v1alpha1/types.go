@@ -142,12 +142,14 @@ type S3Spec struct {
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`
 	// The number of pods in the S3 replicaset
 	Instances int32 `json:"instances"`
-	//S3X Http port (default value 3000)
+	//S3 Http port (default value 9982)
 	Port uint `json:"port,omitempty"`
-	//S3X Https port (default value 3001)
+	//S3 Https port (default value 9443)
 	SecurePort uint `json:"securePort,omitempty"`
 	// The name of the secret that stores the ssl certificate for secure s3 connections
-	SSLCertificateRef string `json:"sslCertificateRef,,omitempty"`
+	SSLCertificateRef string `json:"sslCertificateRef,omitempty"`
+	// S3 type: s3 (bucket as url, default), s3s (bucket as DNS subdomain), s3g (new, experimental)
+	S3Type string `json:"s3type,omitempty"`
 }
 
 // +genclient
@@ -181,7 +183,7 @@ type S3XSpec struct {
 	//S3X Https port (default value 3001)
 	SecurePort uint `json:"securePort,omitempty"`
 	// The name of the secret that stores the ssl certificate for secure s3x connections
-	SSLCertificateRef string `json:"sslCertificateRef,,omitempty"`
+	SSLCertificateRef string `json:"sslCertificateRef,omitempty"`
 }
 
 // +genclient

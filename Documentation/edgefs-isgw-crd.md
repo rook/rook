@@ -108,50 +108,50 @@ Root object holds system information and table of namespaces registered to a loc
 
 For each cluster, to initialize system and prepare logical definitions, login to the toolbox as shown in this example:
 
-<pre>
+```
 kubectl get po --all-namespaces | grep edgefs-mgr
 kubectl exec -it -n rook-edgefs rook-edgefs-mgr-6cb9598469-czr7p -- env COLUMNS=$COLUMNS LINES=$LINES TERM=linux toolbox
-</pre>
+```
 
 Assumption at this point is that nodes are all configured and can be seen via the following command:
 
-<pre>
+```
 efscli system status
-</pre>
+```
 
 1. Initialize cluster
 
 Verify that HW (or better say emulated in this case) configuration look normal and accept it
 
-<pre>
+```
 efscli system init
-</pre>
+```
 
 At this point new dynamically discovered configuration checkpoint will be created at $NEDGE_HOME/var/run/flexhash-checkpoint.json
 This will also create system "root" object, holding Site's Namespace. Namespace may consist of more then single region.
 
 2. Create new local namespace (or we also call it "Region" or "Segment")
 
-<pre>
+```
 efscli cluster create Hawaii
-</pre>
+```
 
 3. Create logical tenants of cluster namespace "Hawaii", also buckets if needed
 
-<pre>
+```
 efscli tenant create Hawaii/Cola
 efscli bucket create Hawaii/Cola/bk1
 efscli tenant create Hawaii/Pepsi
 efscli bucket create Hawaii/Pepsi/bk1
-</pre>
+```
 
 Now that Hawaii serving namespace cluster is setup, repeat steps on the secondary site:
 
-<pre>
+```
 efscli cluster create Hawaii
 efscli tenant create Hawaii/Cola -r 2
 efscli tenant create Hawaii/Pepsi -r 2
-</pre>
+```
 
 This steps also includes a possibility to override destination defaults on per-tenant (Cola and Pepsi) basis.
 In the example above we setting replication count to 2 on the secondary site.
@@ -163,11 +163,11 @@ Link status change will be noticed automatically and syncing can be delayed for 
 
 On the primary site:
 
-<pre>
+```
 efscli service create isgw hawaii
 efscli service serve hawaii Hawaii/Cola/bk1
 efscli service serve hawaii Hawaii/Pepsi/bk1
-</pre>
+```
 
 Because we creating bi-directional link, on the secondary site we would need to create exactly same configuration except X-ISGW-Remote (remoteURL in CRD) where it should point back to primary. Synchronization is enabled on per-bucket level. Buckets which do not yet exist will be automatically created with tenant parameter overrides taken into an account.
 
@@ -205,6 +205,6 @@ EdgeFS UI Dashboard automates the process of CRD composing but also has a capabi
 
 At this point two ISGW link services should be operational. Verify its operation with `show` command:
 
-<pre>
+```
 efscli service show hawaii -s
-</pre>
+```
