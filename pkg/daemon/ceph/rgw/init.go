@@ -24,12 +24,16 @@ import (
 	"strconv"
 
 	"github.com/coreos/pkg/capnslog"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/util"
 )
 
-var logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephrgw")
+var (
+	logger          = capnslog.NewPackageLogger("github.com/rook/rook", "cephrgw")
+	rgwFrontendName = "civetweb"
+)
 
 const (
 	keyringTemplate = `[client.radosgw.gateway]
@@ -78,6 +82,13 @@ func portString(config *Config) string {
 	return portString
 }
 
+func rgwFrontend(config *Config) string {
+	if cephv1.VersionAtLeast(config.ClusterInfo.CephVersionName, cephv1.Nautilus) {
+		rgwFrontendName = "beast"
+	}
+	return rgwFrontendName
+}
+
 func generateConfigFiles(context *clusterd.Context, config *Config) error {
 
 	// create the rgw data directory
@@ -92,7 +103,7 @@ func generateConfigFiles(context *clusterd.Context, config *Config) error {
 		"rgw log nonexistent bucket":     "true",
 		"rgw intent log object name utc": "true",
 		"rgw enable usage log":           "true",
-		"rgw_frontends":                  fmt.Sprintf("civetweb port=%s", portString(config)),
+		"rgw_frontends":                  fmt.Sprintf("%s port=%s", rgwFrontend(config), portString(config)),
 		"rgw_zone":                       config.Name,
 		"rgw_zonegroup":                  config.Name,
 	}
