@@ -18,13 +18,18 @@ package sidecar
 
 import (
 	"fmt"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/ghodss/yaml"
 	cassandrav1alpha1 "github.com/rook/rook/pkg/apis/cassandra.rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/operator/cassandra/constants"
 	"github.com/rook/rook/pkg/operator/cassandra/controller/util"
+	"github.com/yanniszark/go-nodetool/nodetool"
 	"io/ioutil"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"math/rand"
+	"net"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -113,6 +118,36 @@ func (m *MemberController) generateCassandraConfigFiles() error {
 		return fmt.Errorf("error trying to open cassandra-env.sh, %s", err.Error())
 	}
 
+	// See if the Member is already bootstrapped.
+	// If it is, start with the "replace_address_first_boot" option.
+	// In case of data loss, it will instruct the Cluster to stream back the Member's data.
+	isBootstrapped, err := m.isBootstrapped()
+	if err != nil {
+		return err
+	}
+	if isBootstrapped {
+		m.logger.Infof("Member is already bootstrapped, starting with replace_address_first_boot option.")
+		cassandraEnv = append(
+			cassandraEnv,
+			[]byte(fmt.Sprintf(`JVM_OPTS="$JVM_OPTS -Dcassandra.replace_address_first_boot=%s"`, m.ip))...,
+		)
+		cassandraEnv = append(cassandraEnv, byte('\n'))
+	}
+
+	// Add jolokia javaagent
+	jolokiaConfig := []byte(fmt.Sprintf(`JVM_OPTS="$JVM_OPTS %s"`,
+		getJolokiaConfig()))
+	cassandraEnv = append(cassandraEnv, jolokiaConfig...)
+
+	err = ioutil.WriteFile(cassandraEnvPath, cassandraEnv, os.ModePerm)
+	if err != nil {
+		return fmt.Errorf("error trying to write cassandra-env.sh: %s", err.Error())
+	}
+
+	/////////////////////////
+	// Calculate Heap Size //
+	/////////////////////////
+
 	// Calculate heap sizes
 	// https://github.com/apache/cassandra/blob/521542ff26f9482b733e4f0f86281f07c3af29da/conf/cassandra-env.sh
 	cpu := os.Getenv(constants.ResourceLimitCPUEnvVar)
@@ -132,15 +167,6 @@ func (m *MemberController) generateCassandraConfigFiles() error {
 	}
 	if err := os.Setenv("HEAP_NEWSIZE", fmt.Sprintf("%dM", heapNewSize)); err != nil {
 		return fmt.Errorf("error setting HEAP_NEWSIZE: %s", err.Error())
-	}
-
-	// Add jolokia javaagent
-	jolokiaConfig := []byte(fmt.Sprintf(`JVM_OPTS="$JVM_OPTS %s"`,
-		getJolokiaConfig()))
-
-	err = ioutil.WriteFile(cassandraEnvPath, append(cassandraEnv, jolokiaConfig...), os.ModePerm)
-	if err != nil {
-		return fmt.Errorf("error trying to write cassandra-env.sh: %s", err.Error())
 	}
 
 	////////////////////////////
@@ -180,6 +206,19 @@ func (m *MemberController) generateScyllaConfigFiles() error {
 	customScyllaYAML, err := m.overrideConfigValues(scyllaYAML)
 	if err != nil {
 		return fmt.Errorf("error trying to override config values: %s", err.Error())
+	}
+
+	// See if we're already bootstrapped
+	isBootstrapped, err := m.isBootstrapped()
+	if err != nil {
+		return err
+	}
+	if isBootstrapped {
+		m.logger.Infof("Member is already bootstrapped, starting with replace_address_first_boot option.")
+		customScyllaYAML = append(
+			customScyllaYAML,
+			[]byte(fmt.Sprintf("replace_address_first_boot: %s\n", m.ip))...,
+		)
 	}
 
 	// Write result to file
@@ -321,14 +360,10 @@ func (m *MemberController) overrideConfigValues(configText []byte) ([]byte, erro
 		return nil, fmt.Errorf("error unmarshaling cassandra.yaml: %s", err.Error())
 	}
 
+	// Get seeds
 	seeds, err := m.getSeeds()
 	if err != nil {
 		return nil, fmt.Errorf("error getting seeds: %s", err.Error())
-	}
-
-	localIP := os.Getenv(constants.PodIPEnvVar)
-	if localIP == "" {
-		return nil, fmt.Errorf("POD_IP environment variable not set")
 	}
 
 	seedProvider := []map[string]interface{}{
@@ -340,6 +375,12 @@ func (m *MemberController) overrideConfigValues(configText []byte) ([]byte, erro
 				},
 			},
 		},
+	}
+
+	// Get local IP address
+	localIP := os.Getenv(constants.PodIPEnvVar)
+	if localIP == "" {
+		return nil, fmt.Errorf("POD_IP environment variable not set")
 	}
 
 	config["cluster_name"] = m.cluster
@@ -390,7 +431,7 @@ func getJolokiaConfig() string {
 	}{
 		{
 			flag:  "host",
-			value: "localhost",
+			value: "0.0.0.0",
 		},
 		{
 			flag:  "port",
@@ -411,6 +452,63 @@ func getJolokiaConfig() string {
 		cmd = append(cmd, fmt.Sprintf("%s=%s", opt.flag, opt.value))
 	}
 	return fmt.Sprintf("-javaagent:%s=%s", jolokiaPath, strings.Join(cmd, ","))
+}
+
+// isBootstrapped checks if a Cassandra member with the given IP
+// exists in the ring. The algorithm is the following:
+// 1. Resolve the client service and get IPs of ready members
+// 2. Until a max number of retries is reached:
+//   1. Select a random member and try to get ring status
+//      1. If an error occurs, retry.
+//      2. If our ip is not found, retry.
+//      3. If our ip is found, return.
+func (m *MemberController) isBootstrapped() (bool, error) {
+
+	c, err := m.rookClient.CassandraV1alpha1().Clusters(m.namespace).Get(m.cluster, metav1.GetOptions{})
+	if err != nil {
+		return false, fmt.Errorf("error getting cluster %s", m.cluster)
+	}
+
+	// If no members are ready, no use asking
+	ips, err := net.LookupIP(fmt.Sprintf("%s.%s", util.HeadlessServiceNameForCluster(c), c.Namespace))
+	if len(ips) == 0 {
+		m.logger.Info("No instances found.")
+		return false, nil
+	}
+
+	if err != nil {
+		return false, fmt.Errorf("failed to parse client service url: %s", err.Error())
+	}
+
+	const maxRetry = 5
+	for i := 0; i < maxRetry; i++ {
+		var nodeMap nodetool.NodeMap
+		// Sleep a little to let the state propagate
+		time.Sleep(time.Second)
+		// Select a random member to connect to
+		address := fmt.Sprintf("http://%s:%d/jolokia/", ips[rand.Int()%len(ips)].String(), constants.JolokiaPort)
+		addressURL, err := url.Parse(address)
+		if err != nil {
+			return false, fmt.Errorf("error parsing address %s: %s", address, err.Error())
+		}
+		nodeMap, err = nodetool.NewFromURL(addressURL).Status()
+		m.logger.Info(spew.Sdump(nodeMap))
+		if err != nil {
+			continue
+		}
+		// Check if our ip is part of the ring.
+		// The Member's UUID must also be non-empty.
+		for _, node := range nodeMap {
+			if node.Host == m.ip && len(node.ID) != 0 {
+				return true, nil
+			}
+		}
+	}
+	if err != nil {
+		return false, fmt.Errorf("couldn't get nodetool status: %s", err.Error())
+	}
+	m.logger.Info("My ip was not found.")
+	return false, nil
 }
 
 // Merge YAMLs merges two arbitrary YAML structures on the top level.
