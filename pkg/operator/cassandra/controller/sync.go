@@ -35,6 +35,8 @@ const (
 	MessageRackScaledUp            = "Rack %s scaled up to %d members"
 	MessageRackScaleDownInProgress = "Rack %s scaling down to %d members"
 	MessageRackScaledDown          = "Rack %s scaled down to %d members"
+	MessageDiskLost                = "Rack %s member %s lost its disk."
+	MessageDiskReplaced            = "Rack %s member %s replaced its disk."
 
 	// Messages to display when experiencing an error.
 	MessageHeadlessServiceSyncFailed = "Failed to sync Headless Service for cluster"

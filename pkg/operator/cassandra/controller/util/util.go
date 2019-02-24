@@ -23,6 +23,7 @@ import (
 	"github.com/rook/rook/pkg/operator/cassandra/constants"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -30,6 +31,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	appslisters "k8s.io/client-go/listers/apps/v1"
 	corelisters "k8s.io/client-go/listers/core/v1"
+	"k8s.io/kubernetes/pkg/kubelet/apis"
 	"strconv"
 	"strings"
 )
@@ -96,20 +98,6 @@ func NewControllerRef(c *cassandrav1alpha1.Cluster) metav1.OwnerReference {
 	})
 }
 
-// RefFromString is a helper function that takes a string
-// and outputs a reference to that string.
-// Useful for initializing a string pointer from a literal.
-func RefFromString(s string) *string {
-	return &s
-}
-
-// RefFromInt is a helper function that takes a int
-// and outputs a reference to that int.
-// Useful for initializing an int pointer from a literal.
-func RefFromInt(i int32) *int32 {
-	return &i
-}
-
 // IndexFromName attempts to get the index from a name using the
 // naming convention <name>-<index>.
 func IndexFromName(n string) (int32, error) {
@@ -126,17 +114,6 @@ func IndexFromName(n string) (int32, error) {
 	}
 
 	return int32(index), nil
-}
-
-// isPodUnschedulable iterates a Pod's Status.Conditions to find out
-// if it has been deemed unschedulable
-func IsPodUnschedulable(pod *corev1.Pod) bool {
-	for _, v := range pod.Status.Conditions {
-		if v.Reason == corev1.PodReasonUnschedulable {
-			return true
-		}
-	}
-	return false
 }
 
 // RefFromInt32 is a helper function that takes a int32
@@ -209,4 +186,48 @@ func StatefulSetStatusesStale(c *cassandrav1alpha1.Cluster, statefulSetLister ap
 		}
 	}
 	return false, nil
+}
+
+// IsPVCsVolumeLost determines if a PVC's volume is on a node that
+// does not exist anymore.
+// To decide that, it examines the Volume's NodeSelector
+// and checks that each referenced node exists.
+func IsPVCsVolumeLost(pvc *corev1.PersistentVolumeClaim, kubeclient kubernetes.Interface) (bool, error) {
+
+	pvName := pvc.Spec.VolumeName
+	if pvName == "" {
+		return false, nil
+	}
+	pv, err := kubeclient.CoreV1().PersistentVolumes().Get(pvName, metav1.GetOptions{})
+	if err != nil {
+		return false, fmt.Errorf("Error trying to get PV %s : %s", pv.Name, err.Error())
+	}
+	if pv.Spec.NodeAffinity == nil {
+		return false, nil
+	}
+
+	// Check nodeAffinity for Nodes that do not exist
+	for _, term := range pv.Spec.NodeAffinity.Required.NodeSelectorTerms {
+		for _, expr := range term.MatchExpressions {
+			if expr.Key == apis.LabelHostname && expr.Operator == corev1.NodeSelectorOpIn {
+				for _, nodeName := range expr.Values {
+
+					_, err := kubeclient.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+					// The current Node is not found but maybe there are others.
+					// Continue the check.
+					if apierrors.IsNotFound(err) {
+						continue
+					}
+					// Error occured while getting the Node.
+					if err != nil {
+						return false, fmt.Errorf("Error trying to get Node %s: %s", nodeName, err.Error())
+					}
+					// A Node exists that the PV can be attached to.
+					return false, nil
+				}
+			}
+		}
+	}
+
+	return true, nil
 }

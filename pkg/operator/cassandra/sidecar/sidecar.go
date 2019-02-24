@@ -231,7 +231,8 @@ func (m *MemberController) syncHandler(key string) error {
 	}
 
 	m.logger.Infof("handling member service object: %+v", spew.Sdump(svc))
-	err = m.Sync(svc)
+	// Pass a DeepCopy to ensure nobody messes with the cache by mistake.
+	err = m.Sync(svc.DeepCopy())
 
 	return err
 }

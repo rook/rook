@@ -23,6 +23,8 @@ import (
 	"github.com/rook/rook/pkg/operator/cassandra/controller/util"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
 )
 
 // UpdateStatus updates the status of the given Cassandra Cluster.
@@ -116,7 +118,8 @@ func (cc *ClusterController) syncCluster(c *cassandrav1alpha1.Cluster) error {
 		rackStatus := c.Status.Racks[rack.Name]
 		if rackStatus.Members != rackStatus.ReadyMembers {
 			logger.Infof("Rack %s is not ready, %+v", rack.Name, *rackStatus)
-			return nil
+			err := cc.checkForLostVolumes(rack, c)
+			return err
 		}
 	}
 
@@ -260,6 +263,95 @@ func (cc *ClusterController) scaleDownRack(r cassandrav1alpha1.RackSpec, c *cass
 			SuccessSynced,
 			fmt.Sprintf(MessageRackScaleDownInProgress, r.Name, members-1),
 		)
+	}
+
+	return nil
+}
+
+// checkForLostVolumes checks the Pods of the given Cassandra Rack
+// for lost volumes. If it finds any, it deletes the PVC and the Pod
+// in order to make it use a new volume.
+func (cc *ClusterController) checkForLostVolumes(r cassandrav1alpha1.RackSpec, c *cassandrav1alpha1.Cluster) error {
+
+	pods, err := util.GetPodsForRack(r, c, cc.podLister)
+	if err != nil {
+		return err
+	}
+	for _, pod := range pods {
+		if !podutil.IsPodReady(pod) {
+			logger.Infof("Pod %s potentially unschedulable, checking its volumes", pod.Name)
+			for _, vol := range pod.Spec.Volumes {
+
+				// If it is not a PVC backed volume (eg emptyDir) continue
+				if vol.PersistentVolumeClaim == nil {
+					continue
+				}
+				// Get the corresponding PVC
+				pvc, err := cc.kubeClient.CoreV1().PersistentVolumeClaims(pod.Namespace).
+					Get(vol.PersistentVolumeClaim.ClaimName, metav1.GetOptions{})
+				if err != nil {
+					return fmt.Errorf("Error getting pvc %s for pod %s in namespace %s: %s", vol.PersistentVolumeClaim.ClaimName, pod.Name, pod.Namespace, err)
+				}
+
+				// Check that the PVC's volumes are on nodes that exist
+				isVolumeLost, err := util.IsPVCsVolumeLost(pvc, cc.kubeClient)
+				if err != nil {
+					return fmt.Errorf("Error checking if volume exists for pvc %s in namespace %s: %s", vol.PersistentVolumeClaim.ClaimName, pod.Namespace, err)
+				}
+
+				// TODO: This needs to be an atomic action. If the PVC is deleted
+				// then the Pod should be deleted as well. Otherwise, we need some
+				// way of noticing when a PVC has been deleted but the Pod has not.
+				// Maybe we could use a label here ?
+				if isVolumeLost {
+
+					cc.recorder.Event(
+						c,
+						corev1.EventTypeWarning,
+						SuccessSynced,
+						fmt.Sprintf(MessageDiskLost, r.Name, pod.Name),
+					)
+					logger.Infof("Volume of PVC %s is lost, attempting to use a new one", pvc.Name)
+					// Delete PVC
+					err := cc.kubeClient.CoreV1().PersistentVolumeClaims(pvc.Namespace).
+						Delete(pvc.Name, &metav1.DeleteOptions{})
+					if err != nil {
+						return fmt.Errorf("Error deleting PVC %s in namespace %s: %s", pvc.Name, pvc.Namespace, err)
+					}
+
+					// Wait until PVC is deleted
+					for {
+						_, err := cc.kubeClient.CoreV1().PersistentVolumeClaims(pvc.Namespace).Get(pvc.Name, metav1.GetOptions{})
+						if apierrors.IsNotFound(err) {
+							break
+						}
+					}
+
+					// Create new PVC
+					replacementPVC := &corev1.PersistentVolumeClaim{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:            pvc.Name,
+							Namespace:       pvc.Namespace,
+							Labels:          pvc.Labels,
+							OwnerReferences: pvc.OwnerReferences,
+						},
+						Spec: pvc.Spec,
+					}
+					replacementPVC.Spec.VolumeName = ""
+
+					_, err = cc.kubeClient.CoreV1().PersistentVolumeClaims(pvc.Namespace).Create(replacementPVC)
+					if err != nil {
+						return fmt.Errorf("Error creating replacement PVC %s in namespace %s: %s", pod.Name, pod.Namespace, err)
+					}
+					cc.recorder.Event(
+						c,
+						corev1.EventTypeWarning,
+						SuccessSynced,
+						fmt.Sprintf(MessageDiskReplaced, r.Name, pod.Name),
+					)
+				}
+			}
+		}
 	}
 
 	return nil
