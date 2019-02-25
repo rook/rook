@@ -24,6 +24,8 @@ Here is a guide on how to use Rook to deploy ceph-csi drivers on a Kubernetes cl
 ### Create RBAC used by CSI drivers in the same namespace as Rook Ceph Operator
 
 ```console
+#check if rook-ceph-system namespace is already created, if not create it
+kubectl get ns
 kubectl create namespace rook-ceph-system
 # create rbac. Since rook operator is not permitted to create rbac rules, these rules have to be created outside of operator
 kubectl apply -f cluster/examples/kubernetes/ceph/csi/rbac/rbd/
