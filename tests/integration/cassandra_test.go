@@ -24,7 +24,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -81,12 +80,6 @@ func (s *CassandraSuite) SetupSuite() {
 
 	s.installer = installer.NewCassandraInstaller(s.k8sHelper, s.T)
 
-	skip, err := shouldSkip(s.k8sHelper)
-	assert.Nil(s.T(), err)
-	if skip {
-		return
-	}
-
 	if err = s.installer.InstallCassandra(s.systemNamespace, s.namespace, s.instanceCount, cassandrav1alpha1.ClusterModeCassandra); err != nil {
 		logger.Errorf("Cassandra was not installed successfully: %s", err.Error())
 		s.T().Fail()
@@ -107,19 +100,8 @@ func (s *CassandraSuite) TeardownSuite() {
 // TestCassandraClusterCreation tests the creation of a Cassandra cluster.
 func (s *CassandraSuite) TestCassandraClusterCreation() {
 
-	skip, err := shouldSkip(s.k8sHelper)
-	assert.Nil(s.T(), err)
-	if skip {
-		return
-	}
-
 	s.CheckClusterHealth()
 }
-
-// TestScyllaClusterCreation tests the creation of a Scylla cluster.
-// func (s *CassandraSuite) TestScyllaClusterCreation() {
-// 	s.CheckClusterHealth()
-// }
 
 //////////////////////
 // Helper Functions //
@@ -193,20 +175,4 @@ SELECT key,value FROM map WHERE key='test_key';`,
 	assert.True(s.T(), strings.Contains(result, "test_key"))
 	assert.True(s.T(), strings.Contains(result, "test_value"))
 
-}
-
-func shouldSkip(k8sHelper *utils.K8sHelper) (bool, error) {
-
-	v, err := k8sHelper.Clientset.ServerVersion()
-	if err != nil {
-		return false, err
-	}
-	if v.Major != "1" {
-		return true, nil
-	}
-	minor, _ := strconv.Atoi(v.Minor)
-	if minor < 9 {
-		return true, nil
-	}
-	return false, nil
 }
