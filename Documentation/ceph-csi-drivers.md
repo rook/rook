@@ -93,19 +93,21 @@ This [storageclass](../cluster/examples/kubernetes/ceph/csi/example/rbd/storagec
 
 Please update `monitors` to reflect the Ceph monitors.
 
-
 ### Create the Secret
 
 Create a Secret that matches that specified in the [storageclass](../cluster/examples/kubernetes/ceph/csi/example/rbd/storageclass.yaml).
 
-Find a Ceph mon pod (in the following example, the pod is `rook-ceph-mon-a-6c4f9f6b6-rzp6r`) and create a Ceph user for that pool called `kubernetes`:
+Find a Ceph mon pod (in the following example, the pod is
+`rook-ceph-mon-a-6c4f9f6b6-rzp6r`) and create a Ceph user for that pool called
+`kubernetes`:
+
 ```bash
 kubectl exec -ti -n rook-ceph rook-ceph-mon-a-6c4f9f6b6-rzp6r -- bash -c "ceph -c /var/lib/rook/rook-ceph/rook-ceph.config auth get-or-create-key client.kub2 mon \"allow profile rbd\" osd \"profile rbd pool=rbd\""
 ```
 
 Then create a Secret using admin and `kubernetes` keyrings:
 
-```
+```yaml
 apiVersion: v1
 kind: Secret
 metadata:
@@ -123,9 +125,11 @@ data:
 
 Here, you need your Ceph admin/user password encoded in base64. Run `ceph auth ls` in one of your Ceph pod, encode the key of your admin/user and replace `BASE64-ENCODED-PASSWORD` by your encoded key.
 
-### Create the PersistentVolumeClaim:
-##### pvc.yaml
-```
+### Create the PersistentVolumeClaim
+
+#### pvc.yaml
+
+```yaml
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -138,18 +142,24 @@ spec:
       storage: 1Gi
   storageClassName: csi-rbd
 ```
+
 Make sure your `storageClassName` is the name of the StorageClass previously defined in storageclass.yaml
 
-### Verify the PVC has successfully been created:
-```
+### Verify the PVC has successfully been created
+
+```yaml
 # kubectl get pvc
 NAME      STATUS   VOLUME                 CAPACITY   ACCESS MODES   STORAGECLASS   AGE
 rbd-pvc   Bound    pvc-c20495c0d5de11e8   1Gi        RWO            csi-rbd        21s
 ```
+
 If your PVC status isn't `Bound`, check the csi-rbdplugin logs to see what's preventing the PVC from being up and bound.
-### Create the demo Pod:
-##### pod.yaml
-```
+
+### Create the demo Pod
+
+#### pod.yaml
+
+```yaml
 apiVersion: v1
 kind: Pod
 metadata:
@@ -157,7 +167,7 @@ metadata:
 spec:
   containers:
    - name: web-server
-     image: nginx 
+     image: nginx
      volumeMounts:
        - name: mypvc
          mountPath: /var/lib/www/html
@@ -169,48 +179,62 @@ spec:
 ```
 
 When running `rbd list block --pool [yourpool]` in one of your Ceph pod you should see the created PVC:
-```
+
+```bash
 # rbd list block --pool rbd
 pvc-c20495c0d5de11e8
 ```
 
 # Additional features
 
-### Snapshots
+## Snapshots
+
 This example is based on [kubernetes-csi/external-snapshotter](https://github.com/kubernetes-csi/external-snapshotter), with a few tweaks to make it work along ceph-csi RBD plugin. This is a basic example of the kubernetes snapshot feature. For more information and functionalities please refer to the [volume snapshot documentation](https://kubernetes.io/docs/concepts/storage/volume-snapshots/).
 
 Since this feature is still in [alpha stage](https://kubernetes.io/blog/2018/10/09/introducing-volume-snapshot-alpha-for-kubernetes/) (k8s 1.12+), make sure to enable `VolumeSnapshotDataSource` feature gate in your Kubernetes cluster.
 
 ### Enable csi-snapshotter
+
 First, create RBAC rules to authorize the snapshotter to access the needed resources
+
+```console
+kubectl create -f https://raw.githubusercontent.com/ceph/ceph-csi/master/examples/rbd/csi-snapshotter-rbac.yaml
 ```
-# kubectl create -f https://raw.githubusercontent.com/ceph/ceph-csi/master/examples/rbd/csi-snapshotter-rbac.yaml
-```
+
 Then, deploy the csi-snapshotter service. This file is based on [setup-csi-snapshotter.yaml](https://github.com/kubernetes-csi/external-snapshotter/blob/master/deploy/kubernetes/setup-csi-snapshotter.yaml) without the csi-provisioner and hostpath-plugin containers that are given as an example. The `volumes` part has been modified to match the ceph-csi plugin socket path.
 
 If you followed this guide without changing anything, this file should be left as is. If you made modifications like changing the socket-dir in the plugin deployment, you must edit this file to match your configuration.
+
+```console
+kubectl create -f  https://raw.githubusercontent.com/ceph/ceph-csi/master/examples/rbd/csi-snapshotter.yaml
 ```
-# kubectl create -f  https://raw.githubusercontent.com/ceph/ceph-csi/master/examples/rbd/csi-snapshotter.yaml
-```
+
 ### Test csi-snapshotter
+
 Next you need to create the SnapshotClass. The purpose of a SnapshotClass is defined in [the kubernetes documentation](https://kubernetes.io/docs/concepts/storage/volume-snapshot-classes/). In short, as the documentation describes it:
 > Just like StorageClass provides a way for administrators to describe the “classes” of storage they offer when provisioning a volume, VolumeSnapshotClass provides a way to describe the “classes” of storage when provisioning a volume snapshot.
 
 You must download this file and modify it to match your Ceph cluster.
+
+```console
+wget https://raw.githubusercontent.com/ceph/ceph-csi/master/examples/rbd/snapshotclass.yaml
 ```
-# wget https://raw.githubusercontent.com/ceph/ceph-csi/master/examples/rbd/snapshotclass.yaml
-```
+
 The `csiSnapshotterSecretName` parameter should reference the name of the secret created for the ceph-csi plugin you deployed. The monitors are a comma separated list of your Ceph monitors, same as in the StorageClass of the plugin you chosen. When this is done, run:
-```
-# kubectl create -f snapshotclass.yaml
+
+```console
+kubectl create -f snapshotclass.yaml
 ```
 
 Finally, create the VolumeSnapshot resource. its `snapshotClassName` should be the name of the VolumeSnapshotClass previously created. The source name should be the name of the PVC you created earlier.
+
+```console
+kubectl create -f https://raw.githubusercontent.com/ceph/ceph-csi/master/examples/rbd/snapshot.yaml
 ```
-# kubectl create -f https://raw.githubusercontent.com/ceph/ceph-csi/master/examples/rbd/snapshot.yaml
-```
-### Verify the Snapshot has successfully been created:
-```
+
+### Verify the Snapshot has successfully been created
+
+```bash
 # kubectl get volumesnapshotclass
 NAME                      AGE
 csi-rbdplugin-snapclass   4s
@@ -218,30 +242,32 @@ csi-rbdplugin-snapclass   4s
 NAME               AGE
 rbd-pvc-snapshot   6s
 ```
+
 In one of your Ceph pod, run `rbd snap ls [name-of-your-pvc]`.
 The output should be similar to this:
-```
-# rbd snap ls pvc-c20495c0d5de11e8
-SNAPID NAME                                                                      SIZE TIMESTAMP                
-     4 csi-rbd-pvc-c20495c0d5de11e8-snap-4c0b455b-d5fe-11e8-bebb-525400123456 1024 MB Mon Oct 22 13:28:03 2018 
 
+```bash
+# rbd snap ls pvc-c20495c0d5de11e8
+SNAPID NAME                                                                      SIZE TIMESTAMP
+     4 csi-rbd-pvc-c20495c0d5de11e8-snap-4c0b455b-d5fe-11e8-bebb-525400123456 1024 MB Mon Oct 22 13:28:03 2018
 ```
 
 ## Cleanup
 
 To clean your cluster of the resources created by this example, run the following:
 
-```
-# kubectl delete -f pod.yaml
-# kubectl delete -f pvc.yaml
-# kubectl delete -f secret.yaml
-# kubectl delete -f storageclass.yaml
+```console
+kubectl delete -f pod.yaml
+kubectl delete -f pvc.yaml
+kubectl delete -f secret.yaml
+kubectl delete -f storageclass.yaml
 ```
 
 If you tested snapshots too:
-```
-# kubectl delete -f https://raw.githubusercontent.com/ceph/ceph-csi/master/examples/rbd/snapshot.yaml
-# kubectl delete -f snapshotclass.yaml
-# kubectl delete -f https://raw.githubusercontent.com/ceph/ceph-csi/master/examples/rbd/csi-snapshotter.yaml
-# kubectl delete -f https://raw.githubusercontent.com/ceph/ceph-csi/master/examples/rbd/csi-snapshotter-rbac.yaml
+
+```console
+kubectl delete -f https://raw.githubusercontent.com/ceph/ceph-csi/master/examples/rbd/snapshot.yaml
+kubectl delete -f snapshotclass.yaml
+kubectl delete -f https://raw.githubusercontent.com/ceph/ceph-csi/master/examples/rbd/csi-snapshotter.yaml
+kubectl delete -f https://raw.githubusercontent.com/ceph/ceph-csi/master/examples/rbd/csi-snapshotter-rbac.yaml
 ```
