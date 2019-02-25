@@ -19,6 +19,7 @@ package rgw
 import (
 	"testing"
 
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -47,4 +48,20 @@ func TestPortString(t *testing.T) {
 	cfg = &Config{SecurePort: 443}
 	result = portString(cfg)
 	assert.Equal(t, "", result)
+}
+
+func TestFrontend(t *testing.T) {
+	cfg := &Config{}
+	cfg.ClusterInfo = &cephconfig.ClusterInfo{CephVersionName: "mimic"}
+
+	result := rgwFrontend(cfg)
+	assert.Equal(t, "civetweb", result)
+
+	cfg.ClusterInfo.CephVersionName = "nautilus"
+	result = rgwFrontend(cfg)
+	assert.Equal(t, "beast", result)
+
+	cfg.ClusterInfo.CephVersionName = "octopus"
+	result = rgwFrontend(cfg)
+	assert.Equal(t, "beast", result)
 }
