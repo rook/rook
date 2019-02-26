@@ -77,13 +77,11 @@ func (mrc *MultiClusterDeploySuite) createPools() {
 	poolName := "multi-cluster-pool1"
 	logger.Infof("Creating pool %s", poolName)
 	result, err := mrc.testClient.PoolClient.Create(poolName, mrc.namespace1, 1)
-	checkOrderedSubstrings(mrc.T(), result, poolName, "created")
 	require.Nil(mrc.T(), err)
 
 	poolName = "multi-cluster-pool2"
 	logger.Infof("Creating pool %s", poolName)
 	result, err = mrc.testClient.PoolClient.Create(poolName, mrc.namespace2, 1)
-	checkOrderedSubstrings(mrc.T(), result, poolName, "created")
 	require.Nil(mrc.T(), err)
 }
 

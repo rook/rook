@@ -75,7 +75,6 @@ func (s *BlockCreateSuite) TestCreatePVCWhenNoStorageClassExists() {
 	defer s.tearDownTest(claimName, poolName, storageClassName, reclaimPolicy, "ReadWriteOnce")
 
 	result, err := s.testClient.BlockClient.CreatePvc(claimName, storageClassName, "ReadWriteOnce")
-	checkOrderedSubstrings(s.T(), result, "persistentvolumeclaim", claimName, "created")
 	require.NoError(s.T(), err)
 
 	// check status of PVC
@@ -108,11 +107,9 @@ func (s *BlockCreateSuite) TestCreateSamePVCTwice() {
 
 	logger.Infof("create pool and storageclass")
 	result0, err0 := s.testClient.PoolClient.Create(poolName, s.namespace, 1)
-	checkOrderedSubstrings(s.T(), result0, poolName, "created")
 	require.NoError(s.T(), err0)
 
 	result1, err1 := s.testClient.BlockClient.CreateStorageClass(poolName, storageClassName, reclaimPolicy, s.namespace, true)
-	checkOrderedSubstrings(s.T(), result1, storageClassName, "created")
 	require.NoError(s.T(), err1)
 
 	logger.Infof("make sure storageclass is created")
@@ -121,7 +118,6 @@ func (s *BlockCreateSuite) TestCreateSamePVCTwice() {
 
 	logger.Infof("create pvc")
 	result2, err2 := s.testClient.BlockClient.CreatePvc(claimName, storageClassName, "ReadWriteOnce")
-	checkOrderedSubstrings(s.T(), result2, claimName, "created")
 	require.NoError(s.T(), err2)
 
 	logger.Infof("check status of PVC")
@@ -133,7 +129,6 @@ func (s *BlockCreateSuite) TestCreateSamePVCTwice() {
 
 	logger.Infof("Create same pvc again")
 	_, err3 := s.testClient.BlockClient.CreatePvc(claimName, storageClassName, "ReadWriteOnce")
-	checkOrderedSubstrings(s.T(), err3.Error(), claimName, "already exists")
 
 	logger.Infof("check status of PVC")
 	require.True(s.T(), s.kh.WaitUntilPVCIsBound(defaultNamespace, claimName))
@@ -224,10 +219,8 @@ func (s *BlockCreateSuite) CheckCreatingPVC(pvcName, pvcAccessMode string) {
 
 	// create pool and storageclass
 	result0, err0 := s.testClient.PoolClient.Create(poolName, s.namespace, 1)
-	checkOrderedSubstrings(s.T(), result0, poolName, "created")
 	require.NoError(s.T(), err0)
 	result1, err1 := s.testClient.BlockClient.CreateStorageClass(poolName, storageClassName, reclaimPolicy, s.namespace, true)
-	checkOrderedSubstrings(s.T(), result1, storageClassName, "created")
 	require.NoError(s.T(), err1)
 
 	// make sure storageclass is created
@@ -236,7 +229,6 @@ func (s *BlockCreateSuite) CheckCreatingPVC(pvcName, pvcAccessMode string) {
 
 	// create pvc
 	result2, err2 := s.testClient.BlockClient.CreatePvc(claimName, storageClassName, pvcAccessMode)
-	checkOrderedSubstrings(s.T(), result2, claimName, "created")
 	require.NoError(s.T(), err2)
 
 	// check status of PVC
