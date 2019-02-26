@@ -157,10 +157,16 @@ func (h *NFSInstaller) UninstallNFSServer(systemNamespace, namespace string) {
 	logger.Infof("uninstalling nfsserver from namespace %s", namespace)
 
 	_, err := h.k8shelper.DeleteResource("pvc", "nfs-pv-claim")
-	checkError(h.T(), err, fmt.Sprintf("cannot remove nfs pvc"))
+	checkError(h.T(), err, fmt.Sprintf("cannot remove nfs pvc : nfs-pv-claim"))
+
+	_, err = h.k8shelper.DeleteResource("pvc", "nfs-pv-claim-bigger")
+	checkError(h.T(), err, fmt.Sprintf("cannot remove nfs pvc : nfs-pv-claim-bigger"))
 
 	_, err = h.k8shelper.DeleteResource("pv", "nfs-pv")
-	checkError(h.T(), err, fmt.Sprintf("cannot remove nfs pv"))
+	checkError(h.T(), err, fmt.Sprintf("cannot remove nfs pv : nfs-pv"))
+
+	_, err = h.k8shelper.DeleteResource("pv", "nfs-pv1")
+	checkError(h.T(), err, fmt.Sprintf("cannot remove nfs pv : nfs-pv1"))
 
 	_, err = h.k8shelper.DeleteResource("-n", namespace, "nfsservers.nfs.rook.io", namespace)
 	checkError(h.T(), err, fmt.Sprintf("cannot remove nfsserver %s", namespace))

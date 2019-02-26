@@ -151,6 +151,23 @@ spec:
   nfs:
     server: ` + clusterIP + `
     path: "/test-claim"
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nfs-pv1
+  namespace: ` + namespace + `
+  annotations:
+    volume.beta.kubernetes.io/mount-options: "vers=4.1"
+spec:
+  storageClassName: nfs-sc
+  capacity:
+    storage: 2Mi
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    server: ` + clusterIP + `
+    path: "/test-claim1"
 `
 }
 
@@ -167,6 +184,18 @@ spec:
   resources:
     requests:
       storage: 1Mi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nfs-pv-claim-bigger
+spec:
+  storageClassName: nfs-sc
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 2Mi
 `
 }
 
@@ -185,6 +214,19 @@ spec:
     requests:
       storage: 1Mi
 ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: test-claim1
+  namespace: ` + namespace + `
+spec:
+  storageClassName: ` + storageClassName + `
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 2Mi
+---
 apiVersion: nfs.rook.io/v1alpha1
 kind: NFSServer
 metadata:
@@ -199,5 +241,11 @@ spec:
       squash: "none"
     persistentVolumeClaim:
       claimName: test-claim
+  - name: nfs-share1
+    server:
+      accessMode: ReadWrite
+      squash: "none"
+    persistentVolumeClaim:
+      claimName: test-claim1
 `
 }
