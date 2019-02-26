@@ -2,17 +2,23 @@
 
 ## Proposed Feature
 
-Enable Rook-Ceph Object users the ability to request buckets in an object store through the ObjectBucketClaim (OBC) and ObjectBucket (OB) API resource types.
+Enable Rook-Ceph Object users the ability to request buckets via an ObjectBucketClaim, similar
+to requesting a Persistent Volume using a Persistent Volume Claim. 
 
 ### Overview
 
-Rook-Ceph has developed Custom Resource Definitions (CRDs) to support the dynamic provisioning of object stores and users (CephObjectStores and CephObjectStoreUsers, respectively).  This proposal introduces the next logical step in this design: the addition a controller for handling dynamic bucket creation requests via the generalized ObjectBucketClaim and ObjectBucket APIs.  These APIs are defined in an external project with the intent of working to garner broader community support.  The intent is to round out the Rook-Ceph experience for Kubernetes users by providing a single control plane for the managing of Ceph Object components.  The ObjectBucketClaim and ObjectBucket APIs represent generic S3 bucket creation requests to enable the provisioning of buckets by most object store providers.
+There is recent support for a bucket provisioning library, very similar in concept to the 
+[sig-storage-lib-external-provisioner](https://github.com/kubernetes-sigs/sig-storage-lib-external-provisioner/blob/master/controller/controller.go) library. See the
+[lib-bucket-provisioner](https://github.com/yard-turkey/lib-bucket-provisioner) repo for more
+details. The proposal here covers only the design of Rook-Ceph RGW specific bucket provisioning.
+
+Rook-Ceph has developed Custom Resource Definitions (CRDs) to support the dynamic provisioning of object stores and users (`CephObjectStore`s and `CephObjectStoreUser`s, respectively).  This proposal introduces the next logical step in this design: the addition a controller for handling dynamic bucket creation requests leveraging the ObjectBucketClaim and ObjectBucket library.  The intent is to round out the Rook-Ceph experience for Kubernetes users by providing a single control plane for the managing of Ceph Object components.  The bucket provisioning lib does all of the heavy lifting in terms of watching OBCs and responding to events. The new Rook-Ceph code willsupport `Provision()` and `Delete` methods and adhere to the generic bucket provisioning interface.
 
 ## Glossary
 
 - Admin: A Kubernetes cluster administrator with RBAC permissions to instantiate and control access to cluster storage. The admin will provision object stores via CephObjectStore custom resources and create StorageClasses to enable user access.  
 - User: A Kubernetes cluster user with limited permissions, typically confined to CRUD operations on Kubernetes objects within a single namespace.  The user will request Ceph Object buckets by instantiating ObjectBucketClaims.
-- ObjectBucketClaim: a namespaced, user facing Custom Resource Definition representing a request for a dynamically created bucket (similar in use to PersistentVolumeClaims).  ObjectBucketClaims reference a StorageClass whose _provisioner:_ field contains the name of an object store provisioner capable of dynamically provisioning buckets.  ObjectBucketClaims serve to abstract the underlying object store provider from the user.
+- ObjectBucketClaim: a namespaced, user facing Custom Resource Definition representing a request for a dynamically created bucket.  ObjectBucketClaims reference a StorageClass whose _provisioner_ field contains the name of an object store provisioner capable of dynamically provisioning CCeph-RGW buckets.
 - ObjectBucket: a non-namespace, admin facing Custom Resource Definition representing the fulfillment of a user request for a dynamically created bucket in an existing object store (similar in use to PersistentVolumes).  ObjectBuckets serve to provide discrete information about the bucket and object store provider to admins.
 
 ## Goals
@@ -20,25 +26,24 @@ Rook-Ceph has developed Custom Resource Definitions (CRDs) to support the dynami
 - Provide Rook-Ceph users the ability to dynamically provision object buckets via the Kubernetes API
 - Enable cluster admin control over bucket creation and object store access via the Kubernetes API
 - Restrict users from creating buckets with automation-generated access keys outside of the Kubernetes API (e.g. via `s3cmd` CLI tool)
-- Utilize a familiar and deterministic pattern when injecting bucket connection information into workload environments
-- Ensure the consuming Pod will not be started until the bucket has been created
 
 ## Non-Goals
 
-- This design does not describe a generalized bucket provisioner
-- This design does not provide users a means of deleting buckets via the Kubernetes API so as to avoid accidental loss of data.  A Delete operation only deletes operator created API resources.
+- This design does not describe a generalized bucket provisioner, instead [see here](https://github.com/yard-turkey/lib-bucket-provisioner).
+- This design does not provide users a means of deleting buckets via the Kubernetes API so as to avoid accidental loss of data.  A Delete operation only removes the artifacts greated by the bucket lib on behalf of the OBC (basic Kubernetes housekeeping). Physically deleting the bucket, per the Storage Class' _retainPolicy_ will be considered in a later phase.
 - This design does not include the Swift interface implementation by Ceph Object.
+- This design does not cover _brownfield_ use cases, meaning use of existing buckets, which may have been created outside of Kubernetes.
 
 ## Requirements
 
-1. The Rook-Ceph operator must have a single access key for bucket creation and reuse this key for the lifetime of the object store.
-1. Users must have permissions to PUT/GET/DELETE objects in the requested bucket
-1. Users must have permissions to define the access policies of objects in the requested bucket
-1. Users must be provided credential and connection information in a Pod-consumable resource
-1. Users must be able to reacquire bucket credential and connection information should the ObjectBucketClaim or child resource be deleted
-1. Deleting ObjectBucketClaims and/or ObjectBuckets should not cause the deletion of a bucket to prevent accidental loss of data
-1. Bucket naming conventions should protect users from bucket name collisions in the object store by concatenating the `metadata.namespace` and `metadata.name` of the OBC.
-1. The object store endpoint must be exposed inside the cluster through a Service
+1. The Rook-Ceph operator must have a single access key for bucket creation and reuse this key for the lifetime of the object store. This is the key used to actually create the bucket. **Note:** the credentials returned via the `Provision()` method will allow full access to the bucket, but will not permit the user to create additional buckets outside of Kubernetes.
+1. Users must have permissions to PUT/GET/DELETE objects in the requested bucket.
+1. Users must have permissions to define the access policies of objects in the requested bucket.
+1. Users must be provided credential and connection information in a Pod-consumable resource.
+1. Users must be able to reacquire bucket credential and connection information should the ObjectBucketClaim or child resource be deleted.
+1. Deleting ObjectBucketClaims and/or ObjectBuckets should not cause the deletion of a bucket to prevent accidental loss of data.
+1. The bucket naming convention, provided by the bucket lib, creates a unique bucket name (in this case by concatenating the OBC's namespace + name to form the bucket name).
+1. The object store endpoint must be exposed inside the cluster through a Service.
 
 ## Use Cases
 
@@ -69,7 +74,7 @@ _As an admin, I want to quickly list all dynamically created buckets in a cluste
 
 **Use Case: Provision a Bucket** 
 
-_As a Kubernetes user, I want to leverage the Kubernetes API to create object store buckets. I expect to get back the bucket endpoint information in a Pod-consumable API resource._
+_As a Kubernetes user, I want to leverage the Kubernetes API to create object store buckets. I expect to get back the bucket endpoint and credentials information in a Pod-consumable API resource(s)._
  
 //TODO update diagram to reflect API changes  
  
@@ -95,8 +100,8 @@ _As a Kubernetes user, I want to leverage the Kubernetes API to create object st
 _As a Kubernetes user, I want to delete ObjectBucketClaim instances and cleanup generated API resources._
 
 1. The user deletes the OBC via `kubectl delete objectbucketclaim -n default FOO`.
-1. The OBC is marked for deletion and left in the foreground.
-1. The respective ConfigMap and user Secret are deleted.
+1. The OBC is marked for deletion and left in the foreground and the `Delete()` method, implemented by this provisioner, is invoked by the bucket lib.
+1. The respective ConfigMap and user Secret are deleted (done by the bucket lib).
 1. The OBC is garbage collected.
 1. The OB phase is changed from "bound" to "lost"
 
@@ -106,7 +111,8 @@ _As a Kubernetes user, I want to delete ObjectBucketClaim instances and cleanup 
 
 ## Looking Forward
 
-- Resource Quotas cannot yet be defined for CRDs.  This limits admin control over how many buckets can be created per object store.  An operator could be made configurable (via ConfigMap) to cap the number of buckets per object store.  A PR exists for enabling quotas on CRDs (https://github.com/kubernetes/kubernetes/pull/72384).  If it is merged into Kubernetes, a ResourceQuota example should be defined for OBCs.
+- The bucket lib does not enforce Resource Quotas because quota are not yet supported for CRDs.
+A [PR](https://github.com/kubernetes/kubernetes/pull/72384) exists for enabling quotas on CRDs.
 
 - Custom Bucket and Object policies are not defined for OBCs.  Currently all user keys will have Object PUT/GET/DELETE and object policy setting permissions.  It would be useful to allow users to link secondary keys with a subset of these permissions to buckets.
 
