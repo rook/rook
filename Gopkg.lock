@@ -86,6 +86,14 @@
   revision = "3a771d992973f24aa725d07868b467d1ddfceafb"
 
 [[projects]]
+  digest = "1:94ffc0947c337d618b6ff5ed9abaddc1217b090c1b3a1ae4739b35b7b25851d5"
+  name = "github.com/container-storage-interface/spec"
+  packages = ["lib/go/csi"]
+  pruneopts = "UT"
+  revision = "ed0bb0e1557548aa028307f48728767cfe8f6345"
+  version = "v1.0.0"
+
+[[projects]]
   digest = "1:50f39e37fd7347733d97e4a88a3d4674ead4abc2eab15b25522f5d9dd5495dd3"
   name = "github.com/coreos/etcd"
   packages = [
@@ -288,14 +296,17 @@
   revision = "c65c006176ff7ff98bb916961c7abbc6b0afc0aa"
 
 [[projects]]
-  digest = "1:4c0989ca0bcd10799064318923b9bc2db6b4d6338dd75f3f2d86c3511aaaf5cf"
+  digest = "1:9cab16c200148edbdc9f314f69bf71987085f618ec107385bd6634be21d1aae8"
   name = "github.com/golang/protobuf"
   packages = [
+    "descriptor",
     "proto",
+    "protoc-gen-go/descriptor",
     "ptypes",
     "ptypes/any",
     "ptypes/duration",
     "ptypes/timestamp",
+    "ptypes/wrappers",
   ]
   pruneopts = "UT"
   revision = "aa810b61a9c79d51363740d207bb46cf8e620ed5"
@@ -434,6 +445,38 @@
   pruneopts = "UT"
   revision = "1624edc4454b8682399def8740d46db5e4362ba4"
   version = "v1.1.5"
+
+[[projects]]
+  digest = "1:610f50d23ee3e0fa37d77fc23bf2c3b6897d2dc1c934739f13cdf551e9fc57d9"
+  name = "github.com/kubernetes-csi/csi-lib-utils"
+  packages = ["protosanitizer"]
+  pruneopts = "UT"
+  revision = "1628ab5351eafa4fc89a96862a08a891e601e03a"
+  version = "v0.1.0"
+
+[[projects]]
+  digest = "1:5f8a90bbf7d50b528879e283a77eabde63833f879c07b5e76d081972b3956637"
+  name = "github.com/kubernetes-csi/external-provisioner"
+  packages = [
+    "pkg/controller",
+    "pkg/features",
+  ]
+  pruneopts = "UT"
+  revision = "9a258a0accf64d688f312697db871ceaf42e6478"
+  version = "v1.0.1"
+
+[[projects]]
+  digest = "1:aa5b698b0274a8b8ea3ede91f4f0284ba1b3b2ff9c8525651b9b6857aafdfac1"
+  name = "github.com/kubernetes-csi/external-snapshotter"
+  packages = [
+    "pkg/apis/volumesnapshot/v1alpha1",
+    "pkg/client/clientset/versioned",
+    "pkg/client/clientset/versioned/scheme",
+    "pkg/client/clientset/versioned/typed/volumesnapshot/v1alpha1",
+  ]
+  pruneopts = "UT"
+  revision = "0d2cdd7bde5ea9d41ae47ef4184ca20ebe0435e1"
+  version = "v1.0.1"
 
 [[projects]]
   digest = "1:87b8c5f48e71daa0fa2e0f1f18fbaafc797bc287f4da3bedc5ed653f3443dc11"
@@ -1260,7 +1303,6 @@
   version = "kubernetes-1.12.0"
 
 [[projects]]
-  branch = "master"
   digest = "1:e79eeb85f6f9636d4a9f1c36f1bdab1b2684db3621d7feea1d087edab281154c"
   name = "k8s.io/csi-api"
   packages = [
@@ -1270,7 +1312,8 @@
     "pkg/client/clientset/versioned/typed/csi/v1alpha1",
   ]
   pruneopts = "UT"
-  revision = "102ae30137c98787ea40b5eb9fe236496a2407fd"
+  revision = "504ff913b8b7b6ee9cca269105b6c4a4c7923655"
+  version = "kubernetes-1.13.0-beta.1"
 
 [[projects]]
   branch = "master"
@@ -1285,14 +1328,6 @@
   ]
   pruneopts = "T"
   revision = "f8a0810f38afb8478882b3835a615aebfda39afa"
-
-[[projects]]
-  digest = "1:e2999bf1bb6eddc2a6aa03fe5e6629120a53088926520ca3b4765f77d7ff7eab"
-  name = "k8s.io/klog"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "a5bc97fbc634d635061f3146511332c7e313a55a"
-  version = "v0.1.0"
 
 [[projects]]
   digest = "1:bcd57f8e20b04c39d15eb74dc2708596f7e2b725c1df4282886f5f0f9b8ece18"
@@ -1406,6 +1441,8 @@
     "github.com/google/uuid",
     "github.com/icrowley/fake",
     "github.com/jbw976/go-ps",
+    "github.com/kubernetes-csi/external-provisioner/pkg/controller",
+    "github.com/kubernetes-csi/external-snapshotter/pkg/client/clientset/versioned",
     "github.com/kubernetes-sigs/sig-storage-lib-external-provisioner/controller",
     "github.com/rook/operator-kit",
     "github.com/spf13/cobra",
@@ -1414,6 +1451,7 @@
     "github.com/stretchr/testify/require",
     "github.com/stretchr/testify/suite",
     "github.com/yanniszark/go-nodetool/nodetool",
+    "google.golang.org/grpc",
     "k8s.io/api/apps/v1",
     "k8s.io/api/apps/v1beta1",
     "k8s.io/api/batch/v1",
@@ -1459,6 +1497,7 @@
     "k8s.io/client-go/util/flowcontrol",
     "k8s.io/client-go/util/workqueue",
     "k8s.io/code-generator/cmd/client-gen",
+    "k8s.io/csi-api/pkg/client/clientset/versioned",
     "k8s.io/kube-controller-manager/config/v1alpha1",
     "k8s.io/kubernetes/pkg/apis/core/v1/helper",
     "k8s.io/kubernetes/pkg/apis/storage/v1/util",

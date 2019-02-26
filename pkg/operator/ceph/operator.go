@@ -115,7 +115,7 @@ func (o *Operator) Run() error {
 			}
 		} else {
 			csi.SetCSINamespace(namespace)
-			if err = csi.StartCSIDrivers(namespace, o.context.Clientset); err != nil {
+			if err = csi.StartCSIDrivers(namespace, o.context.Clientset, o.context); err != nil {
 				logger.Warningf("failed to start Ceph csi drivers: %v", err)
 				if csi.ExitOnError {
 					return err

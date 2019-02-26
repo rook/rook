@@ -59,7 +59,7 @@ const (
 	tprName           = "mon.rook.io"
 	fsidSecretName    = "fsid"
 	monSecretName     = "mon-secret"
-	adminSecretName   = "admin-secret"
+	adminSecretName   = "admin"
 	clusterSecretName = "cluster-name"
 
 	// DefaultMonCount Default mon count for a cluster

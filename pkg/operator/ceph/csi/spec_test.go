@@ -41,6 +41,6 @@ func TestStartCSI(t *testing.T) {
 		SnapshotterImage:  "image",
 	}
 	clientset := test.New(3)
-	err := StartCSIDrivers("ns", clientset)
+	err := StartCSIDrivers("ns", clientset, nil)
 	assert.Nil(t, err)
 }

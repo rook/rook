@@ -19,10 +19,14 @@ package csi
 import (
 	"fmt"
 
+	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/operator/ceph/csi/provisioner"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 
 	apps "k8s.io/api/apps/v1"
 	"k8s.io/client-go/kubernetes"
+
+	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 type Param struct {
@@ -129,7 +133,7 @@ func ValidateCSIParam() error {
 	return nil
 }
 
-func StartCSIDrivers(namespace string, clientset kubernetes.Interface) error {
+func StartCSIDrivers(namespace string, clientset kubernetes.Interface, context *clusterd.Context) error {
 	var (
 		err                                            error
 		rbdPlugin, cephfsPlugin                        *apps.DaemonSet
@@ -193,6 +197,10 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface) error {
 			return fmt.Errorf("failed to start cephfs provisioner statefulset: %v\n%v", err, cephfsProvisioner)
 		}
 
+	}
+	if context != nil {
+		provisionerController := provisioner.NewCSIProvisioner(context)
+		go provisionerController.Run(wait.NeverStop)
 	}
 	return nil
 }
