@@ -245,7 +245,7 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 		}
 
 		dataDevices = []osddaemon.DesiredDevice{
-			{Name: osdDataDeviceFilter, IsFilter: true},
+			{Name: osdDataDeviceFilter, IsFilter: true, OSDsPerDevice: cfg.storeConfig.OSDsPerDevice},
 		}
 	} else {
 		var err error

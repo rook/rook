@@ -186,7 +186,7 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 		if device.Type == sys.PartType {
 			continue
 		}
-		ownPartitions, fs, err := sys.CheckIfDeviceAvailable(context.Executor, device.Name)
+		partCount, ownPartitions, fs, err := sys.CheckIfDeviceAvailable(context.Executor, device.Name)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get device %s info. %+v", device.Name, err)
 		}
@@ -197,12 +197,13 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 			continue
 		}
 
+		var deviceInfo *DeviceOsdIDEntry
 		if metadataDevice != "" && metadataDevice == device.Name {
 			// current device is desired as the metadata device
-			available.Entries[device.Name] = &DeviceOsdIDEntry{Data: unassignedOSDID, Metadata: []int{}, LegacyPartitionsFound: ownPartitions}
+			deviceInfo = &DeviceOsdIDEntry{Data: unassignedOSDID, Metadata: []int{}}
 		} else if len(desiredDevices) == 1 && desiredDevices[0].Name == "all" {
 			// user has specified all devices, use the current one for data
-			available.Entries[device.Name] = &DeviceOsdIDEntry{Data: unassignedOSDID, LegacyPartitionsFound: ownPartitions}
+			deviceInfo = &DeviceOsdIDEntry{Data: unassignedOSDID}
 		} else if len(desiredDevices) > 0 {
 			var matched bool
 			var err error
@@ -211,8 +212,13 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 				if desiredDevice.IsFilter {
 					// the desired devices is a regular expression
 					matched, err = regexp.Match(desiredDevice.Name, []byte(device.Name))
-				}
-				if device.Name == desiredDevice.Name {
+					if err != nil {
+						logger.Errorf("regex failed on device %s and filter %s. %+v", device.Name, desiredDevice.Name, err)
+						continue
+					}
+					logger.Infof("device %s matches device filter %s: %t", device.Name, desiredDevice.Name, matched)
+				} else if device.Name == desiredDevice.Name {
+					logger.Infof("%s found in the desired devices", device.Name)
 					matched = true
 				}
 				matchedDevice = desiredDevice
@@ -223,12 +229,19 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 
 			if err == nil && matched {
 				// the current device matches the user specifies filter/list, use it for data
-				available.Entries[device.Name] = &DeviceOsdIDEntry{Data: unassignedOSDID, Config: matchedDevice}
+				deviceInfo = &DeviceOsdIDEntry{Data: unassignedOSDID, Config: matchedDevice}
 			} else {
 				logger.Infof("skipping device %s that does not match the device filter/list (%v). %+v", device.Name, desiredDevices, err)
 			}
 		} else {
 			logger.Infof("skipping device %s until the admin specifies it can be used by an osd", device.Name)
+		}
+
+		if deviceInfo != nil {
+			if partCount > 0 {
+				deviceInfo.LegacyPartitionsFound = ownPartitions
+			}
+			available.Entries[device.Name] = deviceInfo
 		}
 	}
 

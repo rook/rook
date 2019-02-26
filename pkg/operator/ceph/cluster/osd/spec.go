@@ -76,7 +76,7 @@ func (c *Cluster) makeJob(nodeName string, devices []rookalpha.Device,
 	return job, nil
 }
 
-func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, selection rookalpha.Selection, resources v1.ResourceRequirements,
+func (c *Cluster) makeDeployment(nodeName string, selection rookalpha.Selection, resources v1.ResourceRequirements,
 	storeConfig config.StoreConfig, metadataDevice, location string, osd OSDInfo) (*apps.Deployment, error) {
 
 	replicaCount := int32(1)

@@ -28,7 +28,6 @@ import (
 	opkit "github.com/rook/operator-kit"
 	edgefsv1alpha1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/operator/discover"
 	"github.com/rook/rook/pkg/operator/edgefs/iscsi"
 	"github.com/rook/rook/pkg/operator/edgefs/isgw"
 	"github.com/rook/rook/pkg/operator/edgefs/nfs"
@@ -322,7 +321,6 @@ func (c *ClusterController) onDelete(obj interface{}) {
 	if clust.Spec.Storage.AnyUseAllDevices() {
 		c.devicesInUse = false
 	}
-	discover.FreeDevicesByCluster(c.context, clust.Namespace)
 }
 
 func (c *ClusterController) handleDelete(clust *edgefsv1alpha1.Cluster, retryInterval time.Duration) error {

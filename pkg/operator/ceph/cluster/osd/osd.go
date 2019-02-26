@@ -174,13 +174,8 @@ func (c *Cluster) Start() error {
 	logger.Infof("%d of the %d storage nodes are valid", len(validNodes), len(c.Storage.Nodes))
 	c.Storage.Nodes = validNodes
 
-	// orchestrate individual nodes, starting with any that are still ongoing (in the case that we
-	// are resuming a previous orchestration attempt)
-	config := newProvisionConfig()
-	logger.Infof("checking if orchestration is still in progress")
-	c.completeProvisionSkipOSDStart(config)
-
 	// start the jobs to provision the OSD devices and directories
+	config := newProvisionConfig()
 	logger.Infof("start provisioning the osds on nodes, if needed")
 	c.startProvisioning(config)
 
@@ -202,7 +197,10 @@ func (c *Cluster) Start() error {
 }
 
 func (c *Cluster) startProvisioning(config *provisionConfig) {
-	config.devicesToUse = make(map[string][]rookalpha.Device)
+	if len(c.dataDirHostPath) == 0 {
+		logger.Warningf("skipping osd provisioning where no dataDirHostPath is set")
+		return
+	}
 
 	// start with nodes currently in the storage spec
 	for _, node := range c.Storage.Nodes {
@@ -224,23 +222,11 @@ func (c *Cluster) startProvisioning(config *provisionConfig) {
 			config.addError("failed to set orchestration starting status for node %s: %+v", n.Name, err)
 			continue
 		}
-		config.devicesToUse[n.Name] = n.Devices
-		availDev, deviceErr := discover.GetAvailableDevices(c.context, n.Name, c.Namespace, n.Devices, n.Selection.DeviceFilter, n.Selection.GetUseAllDevices())
-		if deviceErr != nil {
-			logger.Warningf("failed to get devices for node %s cluster %s: %v", n.Name, c.Namespace, deviceErr)
-		} else {
-			config.devicesToUse[n.Name] = availDev
-			logger.Infof("avail devices for node %s: %+v", n.Name, availDev)
-		}
-		if len(availDev) == 0 && len(c.dataDirHostPath) == 0 {
-			config.addError("empty volumes for node %s", n.Name)
-			continue
-		}
 
 		// create the job that prepares osds on the node
 		storeConfig := osdconfig.ToStoreConfig(n.Config)
 		metadataDevice := osdconfig.MetadataDevice(n.Config)
-		job, err := c.makeJob(n.Name, config.devicesToUse[n.Name], n.Selection, n.Resources, storeConfig, metadataDevice, n.Location)
+		job, err := c.makeJob(n.Name, n.Devices, n.Selection, n.Resources, storeConfig, metadataDevice, n.Location)
 		if err != nil {
 			message := fmt.Sprintf("failed to create prepare job node %s: %v", n.Name, err)
 			config.addError(message)
@@ -252,8 +238,9 @@ func (c *Cluster) startProvisioning(config *provisionConfig) {
 		}
 
 		if !c.runJob(job, n.Name, config, "provision") {
-			if err = discover.FreeDevices(c.context, n.Name, c.Namespace); err != nil {
-				logger.Warningf("failed to free devices: %s", err)
+			status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: fmt.Sprintf("failed to start osd provisioning on node %s", n.Name)}
+			if err := c.updateNodeStatus(n.Name, status); err != nil {
+				config.addError("failed to update node %s status. %+v", n.Name, err)
 			}
 		}
 	}
@@ -293,19 +280,11 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 	// start osds
 	for _, osd := range osds {
 		logger.Debugf("start osd %v", osd)
-		dp, err := c.makeDeployment(n.Name, config.devicesToUse[n.Name], n.Selection, n.Resources, storeConfig, metadataDevice, n.Location, osd)
+		dp, err := c.makeDeployment(n.Name, n.Selection, n.Resources, storeConfig, metadataDevice, n.Location, osd)
 		if err != nil {
-			errMsg := fmt.Sprintf("nil deployment for node %s: %v", n.Name, err)
+			errMsg := fmt.Sprintf("failed to create deployment for node %s: %v", n.Name, err)
 			config.addError(errMsg)
-			err = discover.FreeDevices(c.context, n.Name, c.Namespace)
-			if err != nil {
-				logger.Warningf("failed to free devices: %s", err)
-			}
 			continue
-		}
-
-		if err = c.deleteDeploymentWithLegacyName(osd.ID); err != nil {
-			logger.Warningf("failed to delete legacy osd deployment. %+v", err)
 		}
 
 		_, err = c.context.Clientset.Apps().Deployments(c.Namespace).Create(dp)
@@ -313,10 +292,6 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 			if !errors.IsAlreadyExists(err) {
 				// we failed to create job, update the orchestration status for this node
 				logger.Warningf("failed to create osd deployment for node %s, osd %v: %+v", n.Name, osd, err)
-				err = discover.FreeDevices(c.context, n.Name, c.Namespace)
-				if err != nil {
-					logger.Warningf("failed to free devices: %s", err)
-				}
 				continue
 			}
 			logger.Infof("deployment for osd %d already exists. updating if needed", osd.ID)
@@ -327,11 +302,6 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 
 		logger.Infof("started deployment for osd %d (dir=%t, type=%s)", osd.ID, osd.IsDirectory, storeConfig.StoreType)
 	}
-}
-
-func (c *Cluster) deleteDeploymentWithLegacyName(osdID int) error {
-	legacyName := fmt.Sprintf(legacyAppNameFmt, osdID)
-	return k8sutil.DeleteDeployment(c.context.Clientset, c.Namespace, legacyName)
 }
 
 func (c *Cluster) handleRemovedNodes(config *provisionConfig) {
