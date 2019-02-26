@@ -58,6 +58,8 @@ If this value is empty, each pod will get an ephemeral directory to store their 
 - `dashboard`: Settings for the Ceph dashboard. To view the dashboard in your browser see the [dashboard guide](ceph-dashboard.md).
   - `enabled`: Whether to enable the dashboard to view cluster status
   - `urlPrefix`: Allows to serve the dashboard under a subpath (useful when you are accessing the dashboard via a reverse proxy)
+  - `port`: Allows to change the default port where the dashboard is served
+  - `ssl`: Whether to serve the dashboard via SSL, ignored on Ceph versions older than `13.2.2`
 - `network`: The network settings for the cluster
   - `hostNetwork`: uses network of the hosts instead of using the SDN below the containers.
 - `mon`: contains mon related options [mon settings](#mon-settings)
