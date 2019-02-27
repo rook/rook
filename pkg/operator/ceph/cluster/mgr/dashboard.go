@@ -42,7 +42,7 @@ const (
 	passwordLength                 = 10
 	passwordKeyName                = "password"
 	certAlreadyConfiguredErrorCode = 5
-	invalidArgErrorCode            = 22
+	invalidArgErrorCode            = int(syscall.EINVAL)
 )
 
 var (
