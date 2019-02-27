@@ -19,6 +19,7 @@ package mgr
 
 import (
 	"fmt"
+	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
@@ -27,6 +28,10 @@ import (
 const (
 	orchestratorModuleName = "orchestrator_cli"
 	rookModuleName         = "rook"
+)
+
+var (
+	orchestratorInitWaitTime = 5 * time.Second
 )
 
 // Ceph docs about the orchestrator modules: http://docs.ceph.com/docs/master/mgr/orchestrator_cli/
@@ -42,8 +47,21 @@ func (c *Cluster) configureOrchestratorModules() error {
 	if err := client.MgrEnableModule(c.context, c.Namespace, rookModuleName, true); err != nil {
 		return fmt.Errorf("failed to enable mgr rook module. %+v", err)
 	}
-	if _, err := client.ExecuteCephCommand(c.context, c.Namespace, []string{"orchestrator", "set", "backend", "rook"}); err != nil {
-		return fmt.Errorf("failed to set rook as the orchestrator backend. %+v", err)
+	// retry a few times in the case that the mgr module is not ready to accept commands
+	for i := 0; i < 5; i++ {
+		_, err := client.ExecuteCephCommand(c.context, c.Namespace, []string{"orchestrator", "set", "backend", "rook"})
+		if err != nil {
+			exitCode, parsed := c.exitCode(err)
+			if parsed {
+				if exitCode == invalidArgErrorCode {
+					logger.Infof("orchestrator module is not ready yet. trying again...")
+					time.Sleep(orchestratorInitWaitTime)
+					continue
+				}
+			}
+			return fmt.Errorf("failed to set rook as the orchestrator backend. %+v", err)
+		}
+		break
 	}
 
 	return nil
