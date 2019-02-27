@@ -68,8 +68,8 @@ const (
 	SharedDirName = "/mnt/shared"
 	PluginDirName = SharedDirName + "/" + "plugins"
 
-	DataDirCassandra = "/var/lib/cassandra/data"
-	DataDirScylla    = "/var/lib/scylla/data"
+	DataDirCassandra = "/var/lib/cassandra"
+	DataDirScylla    = "/var/lib/scylla"
 
 	JolokiaJarName = "jolokia.jar"
 	JolokiaPort    = 8778
