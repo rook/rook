@@ -108,11 +108,19 @@ func (suite *NfsSuite) TestNfsServerInstallation() {
 	assert.True(suite.T(), suite.k8shelper.CheckPodCountAndState("rook-nfs", suite.namespace, suite.instanceCount, "Running"),
 		fmt.Sprintf("%d rook-nfs pods must be in Running state", suite.instanceCount))
 
-	// verify nfs server storage
+	// verify bigger export is running OK
+	assert.True(suite.T(), true, suite.k8shelper.WaitUntilPVCIsBound("default", "nfs-pv-claim-bigger"))
+
+	podList, err := suite.rwClient.CreateWriteClient("nfs-pv-claim-bigger")
+	require.NoError(suite.T(), err)
+	assert.True(suite.T(), true, suite.checkReadData(podList))
+	suite.rwClient.Delete()
+
+	// verify another smaller export is running OK
 	assert.True(suite.T(), true, suite.k8shelper.WaitUntilPVCIsBound("default", "nfs-pv-claim"))
 
 	defer suite.rwClient.Delete()
-	podList, err := suite.rwClient.CreateWriteClient("nfs-pv-claim")
+	podList, err = suite.rwClient.CreateWriteClient("nfs-pv-claim")
 	require.NoError(suite.T(), err)
 	assert.True(suite.T(), true, suite.checkReadData(podList))
 }
