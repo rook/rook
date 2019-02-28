@@ -139,7 +139,7 @@ export AWS_ACCESS_KEY_ID=XEZDB3UJ6X7HVBE7X7MA
 export AWS_SECRET_ACCESS_KEY=7yGIZON7EhFORz0I40BFniML36D2rl8CQQ5kXU6l
 ```
 
-The access key and secret key can be retreived as described in the section above on [creating a user](#create-a-user).
+The access key and secret key can be retrieved as described in the section above on [creating a user](#create-a-user).
 
 ### Create a bucket
 
