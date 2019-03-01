@@ -103,28 +103,29 @@ The command removes all the Kubernetes components associated with the chart and 
 
 The following tables lists the configurable parameters of the rook-operator chart and their default values.
 
-| Parameter                 | Description                                                     | Default                                                |
-| ------------------------- | --------------------------------------------------------------- | ------------------------------------------------------ |
-| `image.repository`        | Image                                                           | `rook/ceph`                                            |
-| `image.tag`               | Image tag                                                       | `v0.9.2`                                               |
-| `image.pullPolicy`        | Image pull policy                                               | `IfNotPresent`                                         |
-| `rbacEnable`              | If true, create & use RBAC resources                            | `true`                                                 |
-| `pspEnable`               | If true, create & use PSP resources                             | `true`                                                 |
-| `resources`               | Pod resource requests & limits                                  | `{}`                                                   |
-| `annotations`             | Pod annotations                                                 | `{}`                                                   |
-| `logLevel`                | Global log level                                                | `INFO`                                                 |
-| `nodeSelector`            | Kubernetes `nodeSelector` to add to the Deployment.             | <none>                                                 |
-| `tolerations`             | List of Kubernetes `tolerations` to add to the Deployment.      | `[]`                                                   |
-| `agent.flexVolumeDirPath` | Path where the Rook agent discovers the flex volume plugins (*) | `/usr/libexec/kubernetes/kubelet-plugins/volume/exec/` |
-| `agent.libModulesDirPath` | Path where the Rook agent should look for kernel modules (*)    | `/lib/modules`                                         |
-| `agent.mounts`            | Additional paths to be mounted in the agent container           | <none>                                                 |
-| `agent.mountSecurityMode` | Mount Security Mode for the agent.                              | `Any`                                                  |
-| `agent.toleration`        | Toleration for the agent pods                                   | <none>                                                 |
-| `agent.tolerationKey`     | The specific key of the taint to tolerate                       | <none>                                                 |
-| `discover.toleration`     | Toleration for the discover pods                                | <none>                                                 |
-| `discover.tolerationKey`  | The specific key of the taint to tolerate                       | <none>                                                 |
-| `mon.healthCheckInterval` | The frequency for the operator to check the mon health          | `45s`                                                  |
-| `mon.monOutTimeout`       | The time to wait before failing over an unhealthy mon           | `300s`                                                 |
+| Parameter                    | Description                                                                                             | Default                                                |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| `image.repository`           | Image                                                                                                   | `rook/ceph`                                            |
+| `image.tag`                  | Image tag                                                                                               | `master`                                               |
+| `image.pullPolicy`           | Image pull policy                                                                                       | `IfNotPresent`                                         |
+| `rbacEnable`                 | If true, create & use RBAC resources                                                                    | `true`                                                 |
+| `pspEnable`                  | If true, create & use PSP resources                                                                     | `true`                                                 |
+| `resources`                  | Pod resource requests & limits                                                                          | `{}`                                                   |
+| `annotations`                | Pod annotations                                                                                         | `{}`                                                   |
+| `logLevel`                   | Global log level                                                                                        | `INFO`                                                 |
+| `nodeSelector`               | Kubernetes `nodeSelector` to add to the Deployment.                                                     | <none>                                                 |
+| `tolerations`                | List of Kubernetes `tolerations` to add to the Deployment.                                              | `[]`                                                   |
+| `hostpathRequiresPrivileged` | Runs Ceph Pods as privileged to be able to write to `hostPath`s in OpenShift with SELinux restrictions. | `false`                                                |
+| `agent.flexVolumeDirPath`    | Path where the Rook agent discovers the flex volume plugins (*)                                         | `/usr/libexec/kubernetes/kubelet-plugins/volume/exec/` |
+| `agent.libModulesDirPath`    | Path where the Rook agent should look for kernel modules (*)                                            | `/lib/modules`                                         |
+| `agent.mounts`               | Additional paths to be mounted in the agent container                                                   | <none>                                                 |
+| `agent.mountSecurityMode`    | Mount Security Mode for the agent.                                                                      | `Any`                                                  |
+| `agent.toleration`           | Toleration for the agent pods                                                                           | <none>                                                 |
+| `agent.tolerationKey`        | The specific key of the taint to tolerate                                                               | <none>                                                 |
+| `discover.toleration`        | Toleration for the discover pods                                                                        | <none>                                                 |
+| `discover.tolerationKey`     | The specific key of the taint to tolerate                                                               | <none>                                                 |
+| `mon.healthCheckInterval`    | The frequency for the operator to check the mon health                                                  | `45s`                                                  |
+| `mon.monOutTimeout`          | The time to wait before failing over an unhealthy mon                                                   | `300s`                                                 |
 
 &ast; For information on what to set `agent.flexVolumeDirPath` to, please refer to the [Rook flexvolume documentation](flexvolume.md)
 &ast; `agent.mounts` should have this format `mountname1=/host/path:/container/path,mountname2=/host/path2:/container/path2`

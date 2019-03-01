@@ -67,6 +67,10 @@ spec:
           value: {{ .Values.discover.tolerationKey }}
 {{- end }}
 {{- end }}
+{{- if .Values.hostpathRequiresPrivileged }}
+        - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
+          value: {{ .Values.hostpathRequiresPrivileged }}
+{{- end }}
         - name: ROOK_LOG_LEVEL
           value: {{ .Values.logLevel }}
         - name: ROOK_ENABLE_SELINUX_RELABELING
