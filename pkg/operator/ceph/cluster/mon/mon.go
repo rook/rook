@@ -77,6 +77,7 @@ const (
 
 // Cluster represents the Rook and environment configuration settings needed to set up Ceph mons.
 type Cluster struct {
+	clusterInfo          *cephconfig.ClusterInfo
 	context              *clusterd.Context
 	Namespace            string
 	Keyring              string
@@ -86,7 +87,6 @@ type Cluster struct {
 	AllowMultiplePerNode bool
 	MonCountMutex        sync.Mutex
 	Port                 int32
-	clusterInfo          *cephconfig.ClusterInfo
 	placement            rookalpha.Placement
 	maxMonID             int
 	waitForStart         bool
@@ -130,6 +130,7 @@ type NodeInfo struct {
 
 // New creates an instance of a mon cluster
 func New(
+	clusterInfo *cephconfig.ClusterInfo,
 	context *clusterd.Context,
 	namespace, dataDirHostPath, rookVersion string,
 	cephVersion cephv1.CephVersionSpec,
@@ -140,6 +141,7 @@ func New(
 	ownerRef metav1.OwnerReference,
 ) *Cluster {
 	return &Cluster{
+		clusterInfo:          clusterInfo,
 		context:              context,
 		placement:            placement,
 		dataDirHostPath:      dataDirHostPath,
@@ -172,6 +174,7 @@ func (c *Cluster) Start() (*cephconfig.ClusterInfo, error) {
 
 	logger.Infof("start running mons")
 
+	logger.Debugf("establishing ceph cluster info")
 	if err := c.initClusterInfo(); err != nil {
 		return nil, fmt.Errorf("failed to initialize ceph cluster info. %+v", err)
 	}
@@ -489,7 +492,7 @@ func (c *Cluster) startMon(m *monConfig, hostname string) error {
 		// image or Ceph image has changed.
 		if p.Spec.Template.Spec.Containers[0].Image != d.Spec.Template.Spec.Containers[0].Image ||
 			p.Spec.Template.Spec.InitContainers[0].Image != d.Spec.Template.Spec.InitContainers[0].Image {
-			if err := updateDeploymentAndWait(c.context, d, c.Namespace); err != nil {
+			if _, err := updateDeploymentAndWait(c.context, d, c.Namespace); err != nil {
 				return fmt.Errorf("failed to update mon deployment %s. %+v", m.ResourceName, err)
 			}
 		}

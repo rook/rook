@@ -204,7 +204,7 @@ func TestEnvVarsAndFlags(t *testing.T) {
 	s.CreateOrUpdate(testop.CreateConfigDir(3))
 
 	v := StoredMonHostEnvVars()
-	f := StoredMonHostEnvVarFlags()
+	f := StoredMonHostEnvVarReferences().GlobalFlags()
 
 	// make sure the env var names and flags are matching pairs
 	mh := v[0].Name

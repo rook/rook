@@ -30,10 +30,10 @@ import (
 
 func TestAvailableMonNodes(t *testing.T) {
 	clientset := test.New(1)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", cephv1.CephVersionSpec{},
-		cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, rookalpha.Placement{},
-		false, v1.ResourceRequirements{}, metav1.OwnerReference{})
-	c.clusterInfo = test.CreateConfigDir(0)
+	c := New(test.CreateConfigDir(0), &clusterd.Context{Clientset: clientset}, "ns", "", "myversion",
+		cephv1.CephVersionSpec{}, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true},
+		rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+
 	nodes, err := c.getMonNodes()
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(nodes))
@@ -57,10 +57,9 @@ func TestAvailableMonNodes(t *testing.T) {
 
 func TestAvailableNodesInUse(t *testing.T) {
 	clientset := test.New(3)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", cephv1.CephVersionSpec{},
-		cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, rookalpha.Placement{},
-		false, v1.ResourceRequirements{}, metav1.OwnerReference{})
-	c.clusterInfo = test.CreateConfigDir(0)
+	c := New(test.CreateConfigDir(0), &clusterd.Context{Clientset: clientset}, "ns", "", "myversion",
+		cephv1.CephVersionSpec{}, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true},
+		rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	// all three nodes are available by default
 	nodes, err := c.getMonNodes()
@@ -99,10 +98,9 @@ func TestAvailableNodesInUse(t *testing.T) {
 
 func TestTaintedNodes(t *testing.T) {
 	clientset := test.New(3)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", cephv1.CephVersionSpec{},
-		cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, rookalpha.Placement{},
-		false, v1.ResourceRequirements{}, metav1.OwnerReference{})
-	c.clusterInfo = test.CreateConfigDir(0)
+	c := New(test.CreateConfigDir(0), &clusterd.Context{Clientset: clientset}, "ns", "", "myversion",
+		cephv1.CephVersionSpec{}, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true},
+		rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	nodes, err := c.getMonNodes()
 	assert.Nil(t, err)
@@ -134,10 +132,9 @@ func TestTaintedNodes(t *testing.T) {
 
 func TestNodeAffinity(t *testing.T) {
 	clientset := test.New(3)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", cephv1.CephVersionSpec{},
-		cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, rookalpha.Placement{},
-		false, v1.ResourceRequirements{}, metav1.OwnerReference{})
-	c.clusterInfo = test.CreateConfigDir(0)
+	c := New(test.CreateConfigDir(0), &clusterd.Context{Clientset: clientset}, "ns", "", "myversion",
+		cephv1.CephVersionSpec{}, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true},
+		rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	nodes, err := c.getMonNodes()
 	assert.Nil(t, err)
@@ -190,10 +187,9 @@ func TestHostNetworkSameNode(t *testing.T) {
 
 func TestHostNetwork(t *testing.T) {
 	clientset := test.New(3)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", cephv1.CephVersionSpec{},
-		cephv1.MonSpec{Count: 3, AllowMultiplePerNode: false}, rookalpha.Placement{},
-		false, v1.ResourceRequirements{}, metav1.OwnerReference{})
-	c.clusterInfo = test.CreateConfigDir(0)
+	c := New(test.CreateConfigDir(0), &clusterd.Context{Clientset: clientset}, "ns", "", "myversion",
+		cephv1.CephVersionSpec{}, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: false},
+		rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	c.HostNetwork = true
 
@@ -221,11 +217,6 @@ func TestGetNodeInfoFromNode(t *testing.T) {
 			Address: "1.1.1.1",
 		},
 	}
-
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", cephv1.CephVersionSpec{},
-		cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, rookalpha.Placement{},
-		true, v1.ResourceRequirements{}, metav1.OwnerReference{})
-	c.clusterInfo = test.CreateConfigDir(0)
 
 	var info *NodeInfo
 	info, err = getNodeInfoFromNode(*node)

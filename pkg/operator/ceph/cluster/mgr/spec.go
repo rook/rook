@@ -118,8 +118,7 @@ func (c *Cluster) makeSetServerAddrInitContainer(mgrConfig *mgrConfig, mgrModule
 	//  L: config-key set       mgr/<mod>/server_addr $(ROOK_CEPH_<MOD>_SERVER_ADDR)
 	//  M: config     set mgr.a mgr/<mod>/server_addr $(ROOK_CEPH_<MOD>_SERVER_ADDR)
 	//  N: config     set mgr.a mgr/<mod>/server_addr $(ROOK_CEPH_<MOD>_SERVER_ADDR) --force
-	envVarName := fmt.Sprintf("ROOK_CEPH_%s_SERVER_ADDR", strings.ToUpper(mgrModule))
-	envVarReference := fmt.Sprintf("$(%s)", envVarName)
+	podIPEnvVar := "ROOK_POD_IP"
 	cfgSetArgs := []string{"config", "set"}
 	if c.cephVersion.Name == cephv1.Luminous || c.cephVersion.Name == "" {
 		cfgSetArgs[0] = "config-key"
@@ -127,7 +126,7 @@ func (c *Cluster) makeSetServerAddrInitContainer(mgrConfig *mgrConfig, mgrModule
 		cfgSetArgs = append(cfgSetArgs, fmt.Sprintf("mgr.%s", mgrConfig.DaemonID))
 	}
 	cfgPath := fmt.Sprintf("mgr/%s/server_addr", mgrModule)
-	cfgSetArgs = append(cfgSetArgs, cfgPath, envVarReference)
+	cfgSetArgs = append(cfgSetArgs, cfgPath, opspec.ContainerEnvVarReference(podIPEnvVar))
 	if cephv1.VersionAtLeast(c.cephVersion.Name, cephv1.Nautilus) {
 		cfgSetArgs = append(cfgSetArgs, "--force")
 	}
@@ -149,7 +148,7 @@ func (c *Cluster) makeSetServerAddrInitContainer(mgrConfig *mgrConfig, mgrModule
 		),
 		Env: append(
 			opspec.DaemonEnvVars(),
-			k8sutil.PodIPEnvVar(envVarName),
+			k8sutil.PodIPEnvVar(podIPEnvVar),
 		),
 		Resources: c.resources,
 	}

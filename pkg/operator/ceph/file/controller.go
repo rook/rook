@@ -21,13 +21,13 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/operator/ceph/pool"
-
 	"github.com/coreos/pkg/capnslog"
 	opkit "github.com/rook/operator-kit"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephbeta "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
+	"github.com/rook/rook/pkg/clusterd"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/pool"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,7 +36,7 @@ import (
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-file")
 
-// FilesystemResource represents the file system custom resource
+// FilesystemResource represents the filesystem custom resource
 var FilesystemResource = opkit.CustomResource{
 	Name:    "cephfilesystem",
 	Plural:  "cephfilesystems",
@@ -55,8 +55,9 @@ var filesystemResourceRookLegacy = opkit.CustomResource{
 	Kind:    reflect.TypeOf(cephbeta.Filesystem{}).Name(),
 }
 
-// FilesystemController represents a controller for file system custom resources
+// FilesystemController represents a controller for filesystem custom resources
 type FilesystemController struct {
+	clusterInfo *cephconfig.ClusterInfo
 	context     *clusterd.Context
 	rookVersion string
 	cephVersion cephv1.CephVersionSpec
@@ -64,8 +65,9 @@ type FilesystemController struct {
 	ownerRef    metav1.OwnerReference
 }
 
-// NewFilesystemController create controller for watching file system custom resources created
+// NewFilesystemController create controller for watching filesystem custom resources created
 func NewFilesystemController(
+	clusterInfo *cephconfig.ClusterInfo,
 	context *clusterd.Context,
 	rookVersion string,
 	cephVersion cephv1.CephVersionSpec,
@@ -73,6 +75,7 @@ func NewFilesystemController(
 	ownerRef metav1.OwnerReference,
 ) *FilesystemController {
 	return &FilesystemController{
+		clusterInfo: clusterInfo,
 		context:     context,
 		rookVersion: rookVersion,
 		cephVersion: cephVersion,
@@ -114,9 +117,9 @@ func (c *FilesystemController) onAdd(obj interface{}) {
 		return
 	}
 
-	err = createFilesystem(c.context, *filesystem, c.rookVersion, c.cephVersion, c.hostNetwork, c.filesystemOwners(filesystem))
+	err = createFilesystem(c.clusterInfo, c.context, *filesystem, c.rookVersion, c.cephVersion, c.hostNetwork, c.filesystemOwners(filesystem))
 	if err != nil {
-		logger.Errorf("failed to create file system %s: %+v", filesystem.Name, err)
+		logger.Errorf("failed to create filesystem %s: %+v", filesystem.Name, err)
 	}
 }
 
@@ -144,11 +147,11 @@ func (c *FilesystemController) onUpdate(oldObj, newObj interface{}) {
 		return
 	}
 
-	// if the file system is modified, allow the file system to be created if it wasn't already
+	// if the filesystem is modified, allow the filesystem to be created if it wasn't already
 	logger.Infof("updating filesystem %s", newFS.Name)
-	err = createFilesystem(c.context, *newFS, c.rookVersion, c.cephVersion, c.hostNetwork, c.filesystemOwners(newFS))
+	err = createFilesystem(c.clusterInfo, c.context, *newFS, c.rookVersion, c.cephVersion, c.hostNetwork, c.filesystemOwners(newFS))
 	if err != nil {
-		logger.Errorf("failed to create (modify) file system %s: %+v", newFS.Name, err)
+		logger.Errorf("failed to create (modify) filesystem %s: %+v", newFS.Name, err)
 	}
 }
 
@@ -166,7 +169,7 @@ func (c *FilesystemController) onDelete(obj interface{}) {
 
 	err = deleteFilesystem(c.context, *filesystem)
 	if err != nil {
-		logger.Errorf("failed to delete file system %s: %+v", filesystem.Name, err)
+		logger.Errorf("failed to delete filesystem %s: %+v", filesystem.Name, err)
 	}
 }
 

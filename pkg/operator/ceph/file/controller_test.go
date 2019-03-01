@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package mds to manage a rook file system.
+// Package mds to manage a rook filesystem.
 package file
 
 import (
@@ -25,6 +25,8 @@ import (
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	rookfake "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/clusterd"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+
 	testop "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/api/core/v1"
@@ -83,7 +85,9 @@ func TestMigrateFilesystemObject(t *testing.T) {
 		Clientset:     clientset,
 		RookClientset: rookfake.NewSimpleClientset(legacyFilesystem),
 	}
-	controller := NewFilesystemController(context, "", cephv1.CephVersionSpec{}, false, metav1.OwnerReference{})
+	clusterInfo := &cephconfig.ClusterInfo{FSID: "myfsid"}
+
+	controller := NewFilesystemController(clusterInfo, context, "", cephv1.CephVersionSpec{}, false, metav1.OwnerReference{})
 
 	// convert the legacy filesystem object in memory and assert that a migration is needed
 	convertedFilesystem, migrationNeeded, err := getFilesystemObject(legacyFilesystem)
