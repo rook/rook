@@ -205,6 +205,9 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 		ReadOnlyRootFilesystem: &readOnlyRootFilesystem,
 	}
 
+	// needed for luksOpen synchronization when devices are encrypted
+	hostIPC := storeConfig.EncryptedDevice
+
 	DNSPolicy := v1.DNSClusterFirst
 	if c.HostNetwork {
 		DNSPolicy = v1.DNSClusterFirstWithHostNet
@@ -239,6 +242,7 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 					ServiceAccountName: serviceAccountName,
 					HostNetwork:        c.HostNetwork,
 					HostPID:            true,
+					HostIPC:            hostIPC,
 					DNSPolicy:          DNSPolicy,
 					InitContainers: []v1.Container{
 						{
@@ -333,6 +337,10 @@ func (c *Cluster) provisionPodTemplateSpec(devices []rookalpha.Device, selection
 		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 	c.placement.ApplyToPodSpec(&podSpec)
+
+	// ceph-volume --dmcrypt uses cryptsetup that synchronizes with udev on
+	// host through semaphore
+	podSpec.HostIPC = storeConfig.EncryptedDevice
 
 	return &v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{

@@ -51,7 +51,7 @@ nodes or devices.
   storage:
     config:
       # whether to encrypt the contents of the OSD with dmcrypt
-      encryptDevice: true
+      encryptedDevice: "true"
       # how many OSDs should be configured on each device. only recommended to be greater than 1 for NVME devices
       osdsPerDevice: 1
       # the class name for the OSD(s) on devices
