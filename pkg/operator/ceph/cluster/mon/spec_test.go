@@ -17,17 +17,13 @@ limitations under the License.
 package mon
 
 import (
-	"fmt"
-	"path"
-	"strings"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/ceph/config"
-	"github.com/rook/rook/pkg/operator/ceph/spec"
-	test_opceph "github.com/rook/rook/pkg/operator/ceph/test"
+	cephtest "github.com/rook/rook/pkg/operator/ceph/test"
 	testop "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -64,91 +60,14 @@ func testPodSpec(t *testing.T, monID string) {
 	)
 	monConfig := testGenMonConfig(monID)
 
-	pod := c.makeMonPod(monConfig, "foo")
-	assert.NotNil(t, pod)
-	assert.Equal(t, monConfig.ResourceName, pod.Name)
-	assert.Equal(t, v1.RestartPolicyAlways, pod.Spec.RestartPolicy)
-	assert.Equal(t, 3, len(pod.Spec.Volumes))
-	assert.Nil(t, testop.VolumeExists("rook-ceph-config", pod.Spec.Volumes))       // ceph.conf
-	assert.Nil(t, testop.VolumeExists("rook-ceph-mons-keyring", pod.Spec.Volumes)) // mon shared keyring
-	if strings.HasPrefix(monID, "mon") {
-		// is legacy mon id (mon0, mon1, ...)
-		assert.Nil(t, testop.VolumeIsHostPath("ceph-daemon-data", path.Join("/var/lib/rook/", monID, "data"), pod.Spec.Volumes))
-	} else {
-		// is new mon id (a, b, c, ...)
-		assert.Nil(t, testop.VolumeIsHostPath("ceph-daemon-data", path.Join("/var/lib/rook/", "mon-"+monID, "data"), pod.Spec.Volumes))
-	}
+	d := c.makeDeployment(monConfig, "node0")
+	assert.NotNil(t, d)
 
-	assert.Equal(t, monConfig.ResourceName, pod.ObjectMeta.Name)
-	assert.Nil(t, test_opceph.VerifyPodLabels("rook-ceph-mon", "ns", "mon", monConfig.DaemonName, pod.ObjectMeta.Labels))
-	assert.Equal(t, c.Namespace, pod.ObjectMeta.Labels["mon_cluster"])
+	// Deployment should have Ceph labels
+	cephtest.AssertLabelsContainCephRequirements(t, d.ObjectMeta.Labels,
+		config.MonType, monID, appName, "ns")
 
-	assert.Equal(t, 1, len(pod.Spec.InitContainers))
-	assert.Equal(t, 1, len(pod.Spec.Containers))
-
-	// All containers have the same privilege
-	isPrivileged := false
-	// All ceph images have the same image, basic envs, and the same volume mounts
-	cephImage := "ceph/ceph:myceph"
-	envVars := len(spec.DaemonEnvVars(c.cephVersion.Image))
-	cephVolumeMountNames := []string{
-		"rook-ceph-config",
-		"rook-ceph-mons-keyring",
-		"ceph-daemon-data"}
-	commonFlags := [][]string{}
-	for _, f := range spec.DaemonFlags(c.clusterInfo, config.MonType, monID) {
-		commonFlags = append(commonFlags, []string{f})
-	}
-	fmt.Println(commonFlags)
-
-	// mon fs init container
-	monFsInitContDef := test_opceph.ContainerTestDefinition{
-		Image:   &cephImage,
-		Command: []string{"ceph-mon"},
-		Args: append(commonFlags,
-			[]string{"--public-addr=2.4.6.1"},
-			[]string{"--mkfs"}),
-		VolumeMountNames: cephVolumeMountNames,
-		EnvCount:         &envVars,
-		Ports:            []v1.ContainerPort{},
-		IsPrivileged:     &isPrivileged,
-	}
-	cont := &pod.Spec.InitContainers[0]
-	monFsInitContDef.TestContainer(t, "config init", cont, logger)
-	assert.Equal(t, "100", cont.Resources.Limits.Cpu().String())
-	assert.Equal(t, "1337", cont.Resources.Requests.Memory().String())
-
-	// main mon daemon container
-	monDaemonEnvs := len(spec.DaemonEnvVars(c.cephVersion.Image)) + 1
-	monDaemonContDef := test_opceph.ContainerTestDefinition{
-		Image: &cephImage,
-		Command: []string{
-			"ceph-mon"},
-		Args: append(commonFlags,
-			[]string{"--foreground"},
-			[]string{"--public-addr=2.4.6.1"},
-			[]string{"--public-bind-addr=$(ROOK_POD_IP)"}),
-		VolumeMountNames: cephVolumeMountNames,
-		EnvCount:         &monDaemonEnvs,
-		Ports: []v1.ContainerPort{
-			{ContainerPort: monConfig.Port,
-				Protocol: v1.ProtocolTCP}},
-		IsPrivileged: &isPrivileged,
-	}
-	cont = &pod.Spec.Containers[0]
-	monDaemonContDef.TestContainer(t, "mon", cont, logger)
-	assert.Equal(t, "100", cont.Resources.Limits.Cpu().String())
-	assert.Equal(t, "1337", cont.Resources.Requests.Memory().String())
-
-	// Verify that all the mounts have volumes and that there are no extraneous volumes
-	volsMountsTestDef := testop.VolumesAndMountsTestDefinition{
-		VolumesSpec: &testop.VolumesSpec{Moniker: "mon pod volumes", Volumes: pod.Spec.Volumes},
-		MountsSpecItems: []*testop.MountsSpec{
-			{Moniker: "mon fs init mounts", Mounts: pod.Spec.InitContainers[0].VolumeMounts},
-			{Moniker: "mon daemon mounts", Mounts: pod.Spec.Containers[0].VolumeMounts}},
-	}
-	volsMountsTestDef.TestMountsMatchVolumes(t)
-
-	assert.Equal(t, "100", cont.Resources.Limits.Cpu().String())
-	assert.Equal(t, "1337", cont.Resources.Requests.Memory().String())
+	podTemplate := cephtest.NewPodTemplateSpecTester(t, &d.Spec.Template)
+	podTemplate.RunFullSuite(config.MonType, monID, appName, "ns", "ceph/ceph:myceph",
+		"100", "1337" /* resources */)
 }
