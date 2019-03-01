@@ -10,7 +10,7 @@ priority:
 allowedCapabilities: []
 allowHostPorts: false
 allowHostPID: true
-allowHostIPC: false
+allowHostIPC: true
 readOnlyRootFilesystem: false
 requiredDropCapabilities: []
 defaultAddCapabilities: []
