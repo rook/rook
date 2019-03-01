@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package file
+package mds
 
 import (
 	"fmt"
@@ -35,7 +35,7 @@ caps mds = "allow"
 `
 )
 
-func (c *cluster) generateKeyring(m *mdsConfig, deploymentUID types.UID) error {
+func (c *Cluster) generateKeyring(m *mdsConfig, deploymentUID types.UID) error {
 	user := fmt.Sprintf("mds.%s", m.DaemonID)
 	access := []string{"osd", "allow *", "mds", "allow", "mon", "allow profile mds"}
 	ownerRef := &metav1.OwnerReference{

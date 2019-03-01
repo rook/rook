@@ -18,13 +18,13 @@ package file
 
 import (
 	"fmt"
-	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/daemon/ceph/model"
+	"github.com/rook/rook/pkg/operator/ceph/file/mds"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -81,8 +81,8 @@ func createFilesystem(
 	}
 
 	logger.Infof("start running mdses for filesystem %s", fs.Name)
-	c := newCluster(clusterInfo, context, rookVersion, cephVersion, hostNetwork, fs, filesystem, ownerRefs)
-	if err := c.start(); err != nil {
+	c := mds.NewCluster(clusterInfo, context, rookVersion, cephVersion, hostNetwork, fs, filesystem, ownerRefs)
+	if err := c.Start(); err != nil {
 		return err
 	}
 
@@ -104,7 +104,7 @@ func deleteFilesystem(context *clusterd.Context, fs cephv1.CephFilesystem) error
 		}
 	}
 
-	return deleteMdsCluster(context, fs.Namespace, fs.Name)
+	return mds.DeleteCluster(context, fs.Namespace, fs.Name)
 }
 
 func validateFilesystem(context *clusterd.Context, f cephv1.CephFilesystem) error {
@@ -228,52 +228,5 @@ func downFilesystem(context *clusterd.Context, clusterName, filesystemName strin
 	}
 
 	logger.Infof("Removed filesystem %s", filesystemName)
-	return nil
-}
-
-// prepareForDaemonUpgrade performs all actions necessary to ensure the filesystem is prepared
-// to have its daemon(s) updated. This helps ensure there is no aberrant behavior during upgrades.
-// If the mds is not prepared within the timeout window, an error will be reported.
-// Ceph docs: http://docs.ceph.com/docs/master/cephfs/upgrading/
-func prepareForDaemonUpgrade(
-	context *clusterd.Context,
-	clusterName, fsName string,
-	timeout time.Duration,
-) error {
-	logger.Infof("preparing filesystem %s for daemon upgrade", fsName)
-	// * Beginning of noted section 1
-	// This section is necessary for upgrading to Mimic and to/past Luminous 12.2.3.
-	//   See more:  https://ceph.com/releases/v13-2-0-mimic-released/
-	//              http://docs.ceph.com/docs/mimic/cephfs/upgrading/
-	// As of Oct. 2018, this is only necessary for Luminous and Mimic.
-	if err := client.SetNumMDSRanks(context, clusterName, fsName, 1); err != nil {
-		return fmt.Errorf("Could not Prepare filesystem %s for daemon upgrade: %+v", fsName, err)
-	}
-	if err := client.WaitForActiveRanks(context, clusterName, fsName, 1, false, timeout); err != nil {
-		return err
-	}
-	// * End of Noted section 1
-
-	logger.Infof("Filesystem %s successfully prepared for mds daemon upgrade", fsName)
-	return nil
-}
-
-// finishedWithDaemonUpgrade performs all actions necessary to bring the filesystem back to its
-// ideal state following an upgrade of its daemon(s).
-func finishedWithDaemonUpgrade(
-	context *clusterd.Context,
-	clusterName, fsName string,
-	activeMDSCount int32,
-) error {
-	logger.Debugf("restoring filesystem %s from daemon upgrade", fsName)
-	logger.Debugf("bringing num active mds daemons for fs %s back to %d", fsName, activeMDSCount)
-	// * Beginning of noted section 1
-	// This section is necessary for upgrading to Mimic and to/past Luminous 12.2.3.
-	//   See more:  https://ceph.com/releases/v13-2-0-mimic-released/
-	//              http://docs.ceph.com/docs/mimic/cephfs/upgrading/
-	// TODO: Unknown (Oct. 2018) if any parts can be removed once Rook no longer supports Mimic.
-	if err := client.SetNumMDSRanks(context, clusterName, fsName, activeMDSCount); err != nil {
-		return fmt.Errorf("Failed to restore filesystem %s following daemon upgrade: %+v", fsName, err)
-	} // * End of noted section 1
 	return nil
 }
