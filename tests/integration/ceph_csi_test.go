@@ -88,12 +88,10 @@ func createCephCSISecret(helper *clients.TestClient, k8sh *utils.K8sHelper, s su
 }
 
 func createCephPools(helper *clients.TestClient, s suite.Suite, namespace string) {
-	out, err := helper.PoolClient.Create(csiPoolRBD, namespace, 1)
-	logger.Infof("rbd pool create: %+v", out)
+	err := helper.PoolClient.Create(csiPoolRBD, namespace, 1)
 	require.Nil(s.T(), err)
 
-	out, err = helper.PoolClient.Create(csiPoolCephFS, namespace, 1)
-	logger.Infof("cephFS pool create: %+v", out)
+	err = helper.PoolClient.Create(csiPoolCephFS, namespace, 1)
 	require.Nil(s.T(), err)
 }
 
@@ -130,12 +128,10 @@ parameters:
     adminid: admin
     userid: admin
 `
-	out, err := k8sh.ResourceOperation("apply", rbdSC)
-	logger.Infof("create rbd storage class: %v", out)
+	err := k8sh.ResourceOperation("apply", rbdSC)
 	require.Nil(s.T(), err)
 
-	out, err = k8sh.ResourceOperation("apply", cephFSSC)
-	logger.Infof("create cephfs storage class: %v", out)
+	err = k8sh.ResourceOperation("apply", cephFSSC)
 	require.Nil(s.T(), err)
 }
 
@@ -170,7 +166,7 @@ spec:
     imagePullPolicy: IfNotPresent
     env:
     volumeMounts:
-    - mountPath: /test 
+    - mountPath: /test
       name: csivol
   volumes:
   - name: csivol
@@ -179,8 +175,7 @@ spec:
        readOnly: false
   restartPolicy: Never
 `
-	out, err := k8sh.ResourceOperation("create", pod)
-	logger.Infof("create csi rbd test pod: %v", out)
+	err := k8sh.ResourceOperation("create", pod)
 	require.Nil(s.T(), err)
 	isPodRunning := k8sh.IsPodRunning(csiTestRBDPodName, namespace)
 	if !isPodRunning {
@@ -188,7 +183,7 @@ spec:
 		k8sh.PrintPodStatus(namespace)
 	} else {
 		// cleanup the pod and pv
-		_, err = k8sh.ResourceOperation("delete", pod)
+		err = k8sh.ResourceOperation("delete", pod)
 	}
 
 	require.True(s.T(), isPodRunning, "csi rbd test pod fails to run")

@@ -353,7 +353,7 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(helmInstalled bool, systemNa
 		roles := h.Manifests.GetClusterRoles(namespace, systemNamespace)
 		_, err = h.k8shelper.KubectlWithStdin(roles, deleteFromStdinArgs...)
 
-		_, err = h.k8shelper.DeleteResourceAndWait(false, "-n", namespace, "cephcluster", namespace)
+		err = h.k8shelper.DeleteResourceAndWait(false, "-n", namespace, "cephcluster", namespace)
 		checkError(h.T(), err, fmt.Sprintf("cannot remove cluster %s", namespace))
 
 		crdCheckerFunc := func() error {
@@ -363,12 +363,12 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(helmInstalled bool, systemNa
 		err = h.k8shelper.WaitForCustomResourceDeletion(namespace, crdCheckerFunc)
 		checkError(h.T(), err, fmt.Sprintf("failed to wait for crd %s deletion", namespace))
 
-		_, err = h.k8shelper.DeleteResourceAndWait(false, "namespace", namespace)
+		err = h.k8shelper.DeleteResourceAndWait(false, "namespace", namespace)
 		checkError(h.T(), err, fmt.Sprintf("cannot delete namespace %s", namespace))
 	}
 
 	logger.Infof("removing the operator from namespace %s", systemNamespace)
-	_, err = h.k8shelper.DeleteResource(
+	err = h.k8shelper.DeleteResource(
 		"crd",
 		"cephclusters.ceph.rook.io",
 		"cephblockpools.ceph.rook.io",

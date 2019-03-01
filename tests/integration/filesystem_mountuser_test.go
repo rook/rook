@@ -55,7 +55,7 @@ func runFileMountUserE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, 
 
 func createFilesystemMountCephCredentials(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, filesystemName string) {
 	// Create agent binding for access to Secrets
-	_, err := k8sh.ResourceOperation("apply", getFilesystemAgentMountSecretsBinding(namespace))
+	err := k8sh.ResourceOperation("apply", getFilesystemAgentMountSecretsBinding(namespace))
 	require.Nil(s.T(), err)
 	// Mount CephFS in toolbox and create /foo directory on it
 	logger.Info("Creating /foo directory on CephFS")

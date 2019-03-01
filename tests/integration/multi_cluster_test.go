@@ -76,12 +76,12 @@ func (mrc *MultiClusterDeploySuite) createPools() {
 	// create a test pool in each cluster so that we get some PGs
 	poolName := "multi-cluster-pool1"
 	logger.Infof("Creating pool %s", poolName)
-	result, err := mrc.testClient.PoolClient.Create(poolName, mrc.namespace1, 1)
+	err := mrc.testClient.PoolClient.Create(poolName, mrc.namespace1, 1)
 	require.Nil(mrc.T(), err)
 
 	poolName = "multi-cluster-pool2"
 	logger.Infof("Creating pool %s", poolName)
-	result, err = mrc.testClient.PoolClient.Create(poolName, mrc.namespace2, 1)
+	err = mrc.testClient.PoolClient.Create(poolName, mrc.namespace2, 1)
 	require.Nil(mrc.T(), err)
 }
 

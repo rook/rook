@@ -64,21 +64,21 @@ func (b *BlockOperation) Create(manifest string, size int) (string, error) {
 
 }
 
-func (b *BlockOperation) CreatePvc(claimName, storageClassName, mode string) (string, error) {
+func (b *BlockOperation) CreatePvc(claimName, storageClassName, mode string) error {
 	return b.k8sClient.ResourceOperation("create", b.manifests.GetBlockPvcDef(claimName, storageClassName, mode))
 }
 
-func (b *BlockOperation) CreateStorageClass(poolName, storageClassName, reclaimPolicy, namespace string, varClusterName bool) (string, error) {
+func (b *BlockOperation) CreateStorageClass(poolName, storageClassName, reclaimPolicy, namespace string, varClusterName bool) error {
 	return b.k8sClient.ResourceOperation("create", b.manifests.GetBlockStorageClassDef(poolName, storageClassName, reclaimPolicy, namespace, varClusterName))
 }
 
 func (b *BlockOperation) DeletePvc(claimName, storageClassName, mode string) error {
-	_, err := b.k8sClient.ResourceOperation("delete", b.manifests.GetBlockPvcDef(claimName, storageClassName, mode))
+	err := b.k8sClient.ResourceOperation("delete", b.manifests.GetBlockPvcDef(claimName, storageClassName, mode))
 	return err
 }
 
 func (b *BlockOperation) DeleteStorageClass(poolName, storageClassName, reclaimPolicy, namespace string) error {
-	_, err := b.k8sClient.ResourceOperation("delete", b.manifests.GetBlockStorageClassDef(poolName, storageClassName, reclaimPolicy, namespace, false))
+	err := b.k8sClient.ResourceOperation("delete", b.manifests.GetBlockStorageClassDef(poolName, storageClassName, reclaimPolicy, namespace, false))
 	return err
 }
 

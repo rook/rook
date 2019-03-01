@@ -38,7 +38,7 @@ func (f *ReadWriteOperation) CreateWriteClient(volName string) ([]string, error)
 	logger.Infof("creating the filesystem via replication controller")
 	writerSpec := getReplicationController(volName)
 
-	if _, err := f.k8sh.ResourceOperation("create", writerSpec); err != nil {
+	if err := f.k8sh.ResourceOperation("create", writerSpec); err != nil {
 		return nil, err
 	}
 
@@ -54,7 +54,7 @@ func (f *ReadWriteOperation) CreateWriteClient(volName string) ([]string, error)
 }
 
 // Delete Function to delete a nfs consuming pod in rook
-func (f *ReadWriteOperation) Delete() (string, error) {
+func (f *ReadWriteOperation) Delete() error {
 	return f.k8sh.DeleteResource("rc", "read-write-test")
 }
 

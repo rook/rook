@@ -156,19 +156,19 @@ func (h *NFSInstaller) CreateNFSServerVolume(namespace string) error {
 func (h *NFSInstaller) UninstallNFSServer(systemNamespace, namespace string) {
 	logger.Infof("uninstalling nfsserver from namespace %s", namespace)
 
-	_, err := h.k8shelper.DeleteResource("pvc", "nfs-pv-claim")
+	err := h.k8shelper.DeleteResource("pvc", "nfs-pv-claim")
 	checkError(h.T(), err, fmt.Sprintf("cannot remove nfs pvc : nfs-pv-claim"))
 
-	_, err = h.k8shelper.DeleteResource("pvc", "nfs-pv-claim-bigger")
+	err = h.k8shelper.DeleteResource("pvc", "nfs-pv-claim-bigger")
 	checkError(h.T(), err, fmt.Sprintf("cannot remove nfs pvc : nfs-pv-claim-bigger"))
 
-	_, err = h.k8shelper.DeleteResource("pv", "nfs-pv")
+	err = h.k8shelper.DeleteResource("pv", "nfs-pv")
 	checkError(h.T(), err, fmt.Sprintf("cannot remove nfs pv : nfs-pv"))
 
-	_, err = h.k8shelper.DeleteResource("pv", "nfs-pv1")
+	err = h.k8shelper.DeleteResource("pv", "nfs-pv1")
 	checkError(h.T(), err, fmt.Sprintf("cannot remove nfs pv : nfs-pv1"))
 
-	_, err = h.k8shelper.DeleteResource("-n", namespace, "nfsservers.nfs.rook.io", namespace)
+	err = h.k8shelper.DeleteResource("-n", namespace, "nfsservers.nfs.rook.io", namespace)
 	checkError(h.T(), err, fmt.Sprintf("cannot remove nfsserver %s", namespace))
 
 	crdCheckerFunc := func() error {
@@ -178,11 +178,11 @@ func (h *NFSInstaller) UninstallNFSServer(systemNamespace, namespace string) {
 	err = h.k8shelper.WaitForCustomResourceDeletion(namespace, crdCheckerFunc)
 	checkError(h.T(), err, fmt.Sprintf("failed to wait for crd %s deletion", namespace))
 
-	_, err = h.k8shelper.DeleteResource("namespace", namespace)
+	err = h.k8shelper.DeleteResource("namespace", namespace)
 	checkError(h.T(), err, fmt.Sprintf("cannot delete namespace %s", namespace))
 
 	logger.Infof("removing the operator from namespace %s", systemNamespace)
-	_, err = h.k8shelper.DeleteResource("crd", "nfsservers.nfs.rook.io")
+	err = h.k8shelper.DeleteResource("crd", "nfsservers.nfs.rook.io")
 	checkError(h.T(), err, "cannot delete CRDs")
 
 	nfsOperator := h.manifests.GetNFSServerOperator(systemNamespace)

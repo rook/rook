@@ -39,20 +39,19 @@ func CreatePoolOperation(k8sh *utils.K8sHelper, manifests installer.CephManifest
 	return &PoolOperation{k8sh, manifests}
 }
 
-func (p *PoolOperation) Create(name, namespace string, replicas int) (string, error) {
+func (p *PoolOperation) Create(name, namespace string, replicas int) error {
 	return p.createOrUpdatePool(name, namespace, "create", replicas)
 }
 
 func (p *PoolOperation) Delete(name string, namespace string) error {
-	_, err := p.k8sh.ResourceOperation("delete", p.manifests.GetBlockPoolDef(name, namespace, "1"))
-	return err
+	return p.k8sh.ResourceOperation("delete", p.manifests.GetBlockPoolDef(name, namespace, "1"))
 }
 
-func (p *PoolOperation) Update(name, namespace string, replicas int) (string, error) {
+func (p *PoolOperation) Update(name, namespace string, replicas int) error {
 	return p.createOrUpdatePool(name, namespace, "apply", replicas)
 }
 
-func (p *PoolOperation) createOrUpdatePool(name, namespace, action string, replicas int) (string, error) {
+func (p *PoolOperation) createOrUpdatePool(name, namespace, action string, replicas int) error {
 	return p.k8sh.ResourceOperation(action, p.manifests.GetBlockPoolDef(name, namespace, strconv.Itoa(replicas)))
 }
 
@@ -110,25 +109,25 @@ func (p *PoolOperation) CephPoolExists(namespace, name string) (bool, error) {
 	return false, nil
 }
 
-func (p *PoolOperation) CreateStorageClassAndPvc(namespace, poolName, storageClassName, reclaimPolicy, blockName, mode string) (string, error) {
+func (p *PoolOperation) CreateStorageClassAndPvc(namespace, poolName, storageClassName, reclaimPolicy, blockName, mode string) error {
 	return p.k8sh.ResourceOperation("create", p.manifests.GetBlockPoolStorageClassAndPvcDef(namespace, poolName, storageClassName, reclaimPolicy, blockName, mode))
 }
 
 func (p *PoolOperation) DeleteStorageClass(namespace, poolName, storageClassName, reclaimPolicy string) error {
-	_, err := p.k8sh.ResourceOperation("delete", p.manifests.GetBlockPoolStorageClass(namespace, poolName, storageClassName, reclaimPolicy))
+	err := p.k8sh.ResourceOperation("delete", p.manifests.GetBlockPoolStorageClass(namespace, poolName, storageClassName, reclaimPolicy))
 	return err
 }
 
 func (p *PoolOperation) DeleteStorageClassAndPvc(namespace, poolName, storageClassName, reclaimPolicy, blockName, mode string) error {
-	_, err := p.k8sh.ResourceOperation("delete", p.manifests.GetBlockPoolStorageClassAndPvcDef(namespace, poolName, storageClassName, reclaimPolicy, blockName, mode))
+	err := p.k8sh.ResourceOperation("delete", p.manifests.GetBlockPoolStorageClassAndPvcDef(namespace, poolName, storageClassName, reclaimPolicy, blockName, mode))
 	return err
 }
 
 func (p *PoolOperation) DeletePvc(blockName, storageClassName, mode string) error {
-	_, err := p.k8sh.ResourceOperation("delete", p.manifests.GetBlockPvcDef(blockName, storageClassName, mode))
+	err := p.k8sh.ResourceOperation("delete", p.manifests.GetBlockPvcDef(blockName, storageClassName, mode))
 	return err
 }
 
-func (p *PoolOperation) CreateStorageClass(namespace, poolName, storageClassName, reclaimPolicy string) (string, error) {
+func (p *PoolOperation) CreateStorageClass(namespace, poolName, storageClassName, reclaimPolicy string) error {
 	return p.k8sh.ResourceOperation("create", p.manifests.GetBlockPoolStorageClass(namespace, poolName, storageClassName, reclaimPolicy))
 }

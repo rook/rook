@@ -60,7 +60,7 @@ func (o *ObjectUserOperation) UserSecretExists(namespace string, store string, u
 func (o *ObjectUserOperation) Create(namespace string, userid string, displayName string, store string) error {
 
 	logger.Infof("creating the object store user via CRD")
-	if _, err := o.k8sh.ResourceOperation("create", o.manifests.GetObjectStoreUser(namespace, userid, displayName, store)); err != nil {
+	if err := o.k8sh.ResourceOperation("create", o.manifests.GetObjectStoreUser(namespace, userid, displayName, store)); err != nil {
 		return err
 	}
 	return nil
@@ -69,7 +69,7 @@ func (o *ObjectUserOperation) Create(namespace string, userid string, displayNam
 func (o *ObjectUserOperation) Delete(namespace string, userid string) error {
 
 	logger.Infof("Deleting the object store user via CRD")
-	if _, err := o.k8sh.DeleteResource("-n", namespace, "ObjectStoreUser", userid); err != nil {
+	if err := o.k8sh.DeleteResource("-n", namespace, "ObjectStoreUser", userid); err != nil {
 		return err
 	}
 	return nil

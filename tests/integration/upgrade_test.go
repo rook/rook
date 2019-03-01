@@ -154,22 +154,22 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 func (s *UpgradeSuite) updateClusterRoles() error {
 	systemNamespace := installer.SystemNamespace(s.namespace)
 
-	if _, err := s.k8sh.DeleteResource("ClusterRole", "rook-ceph-global"); err != nil {
+	if err := s.k8sh.DeleteResource("ClusterRole", "rook-ceph-global"); err != nil {
 		return err
 	}
-	if _, err := s.k8sh.DeleteResource("ClusterRole", "rook-ceph-cluster-mgmt"); err != nil {
+	if err := s.k8sh.DeleteResource("ClusterRole", "rook-ceph-cluster-mgmt"); err != nil {
 		return err
 	}
-	if _, err := s.k8sh.DeleteResource("-n", s.namespace, "Role", "rook-ceph-system"); err != nil {
+	if err := s.k8sh.DeleteResource("-n", s.namespace, "Role", "rook-ceph-system"); err != nil {
 		return err
 	}
-	if _, err := s.k8sh.DeleteResource("-n", s.namespace, "Role", "rook-ceph-mgr-system"); err != nil {
+	if err := s.k8sh.DeleteResource("-n", s.namespace, "Role", "rook-ceph-mgr-system"); err != nil {
 		return err
 	}
-	if _, err := s.k8sh.DeleteResource("-n", systemNamespace, "RoleBinding", "rook-ceph-mgr-system"); err != nil {
+	if err := s.k8sh.DeleteResource("-n", systemNamespace, "RoleBinding", "rook-ceph-mgr-system"); err != nil {
 		return err
 	}
-	if _, err := s.k8sh.DeleteResource("-n", s.namespace, "RoleBinding", "rook-ceph-mgr-cluster"); err != nil {
+	if err := s.k8sh.DeleteResource("-n", s.namespace, "RoleBinding", "rook-ceph-mgr-cluster"); err != nil {
 		return err
 	}
 
@@ -369,6 +369,5 @@ subjects:
   namespace: rook-ceph
 `
 	logger.Infof("creating the new resources that have been added since 0.9")
-	_, err := s.k8sh.ResourceOperation("create", newResources)
-	return err
+	return s.k8sh.ResourceOperation("create", newResources)
 }
