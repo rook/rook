@@ -25,6 +25,8 @@ If you're feeling lucky, a simple Rook cluster can be created with the following
 ```
 cd cluster/examples/kubernetes/ceph
 kubectl create -f operator.yaml
+  # verify the rook-ceph-operator, rook-ceph-agent, and rook-discover pods are in the `Running` state before proceeding
+  kubectl -n rook-ceph-system get pod
 kubectl create -f cluster.yaml
 ```
 
