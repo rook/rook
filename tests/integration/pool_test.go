@@ -28,8 +28,7 @@ func (suite *SmokeSuite) TestPoolResize() {
 	logger.Infof("Pool Resize Smoke Test")
 
 	poolName := "testpool"
-	out, err := suite.helper.PoolClient.Create(poolName, suite.namespace, 1)
-	logger.Infof("poolCreate: %+v", out)
+	err := suite.helper.PoolClient.Create(poolName, suite.namespace, 1)
 	require.Nil(suite.T(), err)
 
 	poolFound := false
@@ -54,8 +53,7 @@ func (suite *SmokeSuite) TestPoolResize() {
 
 	require.Equal(suite.T(), true, poolFound, "pool not found")
 
-	_, err = suite.helper.PoolClient.Update(poolName, suite.namespace, 3)
-	logger.Infof("poolCreate (modify): %+v", out)
+	err = suite.helper.PoolClient.Update(poolName, suite.namespace, 3)
 	require.Nil(suite.T(), err)
 
 	poolFound = false

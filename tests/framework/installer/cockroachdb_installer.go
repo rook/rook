@@ -121,7 +121,7 @@ func (h *CockroachDBInstaller) CreateCockroachDBCluster(namespace string, count 
 func (h *CockroachDBInstaller) UninstallCockroachDB(systemNamespace, namespace string) {
 	logger.Infof("uninstalling cockroachdb from namespace %s", namespace)
 
-	_, err := h.k8shelper.DeleteResourceAndWait(false, "-n", namespace, "cluster.cockroachdb.rook.io", namespace)
+	err := h.k8shelper.DeleteResourceAndWait(false, "-n", namespace, "cluster.cockroachdb.rook.io", namespace)
 	checkError(h.T(), err, fmt.Sprintf("cannot remove cluster %s", namespace))
 
 	crdCheckerFunc := func() error {
@@ -131,11 +131,11 @@ func (h *CockroachDBInstaller) UninstallCockroachDB(systemNamespace, namespace s
 	err = h.k8shelper.WaitForCustomResourceDeletion(namespace, crdCheckerFunc)
 	checkError(h.T(), err, fmt.Sprintf("failed to wait for crd %s deletion", namespace))
 
-	_, err = h.k8shelper.DeleteResourceAndWait(false, "namespace", namespace)
+	err = h.k8shelper.DeleteResourceAndWait(false, "namespace", namespace)
 	checkError(h.T(), err, fmt.Sprintf("cannot delete namespace %s", namespace))
 
 	logger.Infof("removing the operator from namespace %s", systemNamespace)
-	_, err = h.k8shelper.DeleteResource("crd", "clusters.cockroachdb.rook.io")
+	err = h.k8shelper.DeleteResource("crd", "clusters.cockroachdb.rook.io")
 	checkError(h.T(), err, "cannot delete CRDs")
 
 	cockroachDBOperator := h.manifests.GetCockroachDBOperator(systemNamespace)

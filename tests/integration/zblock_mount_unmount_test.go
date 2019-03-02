@@ -99,11 +99,11 @@ func (s *BlockMountUnMountSuite) setupPVCs() {
 	storageClassNameRWO := "rook-ceph-block-rwo"
 
 	// Create PVCs
-	_, cbErr := s.testClient.PoolClient.CreateStorageClassAndPvc(s.namespace, poolNameRWO, storageClassNameRWO, "Delete", s.pvcNameRWO, "ReadWriteOnce")
+	cbErr := s.testClient.PoolClient.CreateStorageClassAndPvc(s.namespace, poolNameRWO, storageClassNameRWO, "Delete", s.pvcNameRWO, "ReadWriteOnce")
 	require.Nil(s.T(), cbErr)
 	require.True(s.T(), s.kh.WaitUntilPVCIsBound(defaultNamespace, s.pvcNameRWO), "Make sure PVC is Bound")
 
-	_, cbErr2 := s.testClient.BlockClient.CreatePvc(s.pvcNameRWX, storageClassNameRWO, "ReadWriteMany")
+	cbErr2 := s.testClient.BlockClient.CreatePvc(s.pvcNameRWX, storageClassNameRWO, "ReadWriteMany")
 	require.Nil(s.T(), cbErr2)
 	require.True(s.T(), s.kh.WaitUntilPVCIsBound(defaultNamespace, s.pvcNameRWX), "Make sure PVC is Bound")
 

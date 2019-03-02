@@ -79,7 +79,7 @@ func downscaleMetadataServers(helper *clients.TestClient, k8sh *utils.K8sHelper,
 
 func cleanupFilesystemConsumer(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, filesystemName string, podName string) {
 	logger.Infof("Delete file System consumer")
-	_, err := k8sh.DeletePod(namespace, podName)
+	err := k8sh.DeletePod(namespace, podName)
 	require.Nil(s.T(), err)
 	require.True(s.T(), k8sh.IsPodTerminated(podName, namespace), fmt.Sprintf("make sure %s pod is terminated", podName))
 	logger.Infof("File system consumer deleted")
@@ -88,7 +88,7 @@ func cleanupFilesystemConsumer(helper *clients.TestClient, k8sh *utils.K8sHelper
 // cleanupFilesystem cleans up the filesystem and checks if all mds pods are teminated before continuing
 func cleanupFilesystem(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, filesystemName string) {
 	args := []string{"--grace-period=0", "-n", namespace, "deployment", "-l", fmt.Sprintf("rook_file_system=%s", filesystemName)}
-	_, err := k8sh.DeleteResourceAndWait(false, args...)
+	err := k8sh.DeleteResourceAndWait(false, args...)
 	assert.Nil(s.T(), err, "force and no wait delete of rook file system deployments failed")
 
 	logger.Infof("Deleting file system")
@@ -133,8 +133,7 @@ func podWithFilesystem(
 	driverName := installer.SystemNamespace(namespace)
 	testPodManifest := testPod(podName, namespace, filesystemName, driverName)
 	logger.Infof("creating test pod: %s", testPodManifest)
-	_, err := k8sh.ResourceOperation(action, testPodManifest)
-	if err != nil {
+	if err := k8sh.ResourceOperation(action, testPodManifest); err != nil {
 		return fmt.Errorf("failed to %s pod -- %s. %+v", action, testPodManifest, err)
 	}
 	return nil

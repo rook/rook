@@ -22,9 +22,9 @@ func createStorageClassAndPool(t func() *testing.T, testClient *clients.TestClie
 	// Create storage class
 	if err := kh.IsStorageClassPresent(storageClassName); err != nil {
 		logger.Infof("Install pool and storage class for rook block")
-		_, err := testClient.PoolClient.Create(poolName, namespace, 3)
+		err := testClient.PoolClient.Create(poolName, namespace, 3)
 		require.NoError(t(), err)
-		_, err = testClient.BlockClient.CreateStorageClass(poolName, storageClassName, "Delete", namespace, false)
+		err = testClient.BlockClient.CreateStorageClass(poolName, storageClassName, "Delete", namespace, false)
 		require.NoError(t(), err)
 
 		// make sure storageclass is created

@@ -319,18 +319,18 @@ func (k8sh *K8sHelper) ResourceOperationFromTemplate(action string, podDefinitio
 }
 
 // ResourceOperation performs a kubectl action on a pod definition
-func (k8sh *K8sHelper) ResourceOperation(action string, manifest string) (string, error) {
+func (k8sh *K8sHelper) ResourceOperation(action string, manifest string) error {
 	args := []string{action, "-f", "-"}
-	result, err := k8sh.KubectlWithStdin(manifest, args...)
+	_, err := k8sh.KubectlWithStdin(manifest, args...)
 	if err == nil {
-		return result, nil
+		return nil
 	}
 	logger.Errorf("Failed to execute kubectl %v -- %v", args, err)
-	return "", fmt.Errorf("Could Not create resource in args : %v -- %v", args, err)
+	return fmt.Errorf("Could Not create resource in args : %v -- %v", args, err)
 }
 
 // DeletePod performs a kubectl delete pod on the given pod
-func (k8sh *K8sHelper) DeletePod(namespace, name string) (string, error) {
+func (k8sh *K8sHelper) DeletePod(namespace, name string) error {
 	args := append([]string{"--grace-period=0", "pod"}, name)
 	if namespace != "" {
 		args = append(args, []string{"-n", namespace}...)
@@ -341,13 +341,15 @@ func (k8sh *K8sHelper) DeletePod(namespace, name string) (string, error) {
 // DeletePods performs a kubectl delete pod on the given pods
 func (k8sh *K8sHelper) DeletePods(pods ...string) (msg string, err error) {
 	for _, pod := range pods {
-		msg, err = k8sh.DeletePod("", pod)
+		if perr := k8sh.DeletePod("", pod); perr != nil {
+			err = perr
+		}
 	}
 	return
 }
 
 // DeleteResource performs a kubectl delete on the given args
-func (k8sh *K8sHelper) DeleteResource(args ...string) (string, error) {
+func (k8sh *K8sHelper) DeleteResource(args ...string) error {
 	return k8sh.DeleteResourceAndWait(true, args...)
 }
 
@@ -374,7 +376,7 @@ func (k8sh *K8sHelper) WaitForCustomResourceDeletion(namespace string, checkerFu
 
 // DeleteResource performs a kubectl delete on give args.
 // If wait is false, a flag will be passed to indicate the delete should return immediately
-func (k8sh *K8sHelper) DeleteResourceAndWait(wait bool, args ...string) (string, error) {
+func (k8sh *K8sHelper) DeleteResourceAndWait(wait bool, args ...string) error {
 	if !wait {
 		// new flag in k8s 1.11
 		v := version.MustParseSemantic(k8sh.GetK8sServerVersion())
@@ -383,11 +385,11 @@ func (k8sh *K8sHelper) DeleteResourceAndWait(wait bool, args ...string) (string,
 		}
 	}
 	args = append([]string{"delete"}, args...)
-	result, err := k8sh.Kubectl(args...)
+	_, err := k8sh.Kubectl(args...)
 	if err == nil {
-		return result, nil
+		return nil
 	}
-	return "", fmt.Errorf("Could Not delete resource in k8s -- %v", err)
+	return fmt.Errorf("Could Not delete resource in k8s -- %v", err)
 }
 
 // GetResource performs a kubectl get on give args
@@ -1488,12 +1490,12 @@ func (k8sh *K8sHelper) CreateAnonSystemClusterBinding() {
 }
 
 func (k8sh *K8sHelper) DeleteRoleAndBindings(name, namespace string) error {
-	_, err := k8sh.DeleteResource("role", name, "-n", namespace)
+	err := k8sh.DeleteResource("role", name, "-n", namespace)
 	if err != nil {
 		return err
 	}
 
-	_, err = k8sh.DeleteResource("rolebinding", name, "-n", namespace)
+	err = k8sh.DeleteResource("rolebinding", name, "-n", namespace)
 	if err != nil {
 		return err
 	}
@@ -1502,7 +1504,7 @@ func (k8sh *K8sHelper) DeleteRoleAndBindings(name, namespace string) error {
 }
 
 func (k8sh *K8sHelper) DeleteRoleBinding(name, namespace string) error {
-	_, err := k8sh.DeleteResource("rolebinding", name, "-n", namespace)
+	err := k8sh.DeleteResource("rolebinding", name, "-n", namespace)
 	return err
 }
 
