@@ -111,10 +111,10 @@ spec:
 
 Now create the service:
 ```bash
-$ kubectl create -f dashboard-external.yaml
+$ kubectl create -f dashboard-external-https.yaml
 ```
 
-You will see the new service `rook-ceph-mgr-dashboard-external` created:
+You will see the new service `rook-ceph-mgr-dashboard-external-https` created:
 ```bash
 $ kubectl -n rook-ceph get service
 NAME                                    TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE
