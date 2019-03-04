@@ -28,7 +28,7 @@ If running `mkdir -p /usr/libexec/kubernetes/kubelet-plugins/volume/exec/` shoul
 Continue with [configuring the FlexVolume path](#configuring-the-flexvolume-path) to configure Rook to use the FlexVolume path.
 
 ### Atomic
-See the [OpenShift](#openshift) section.
+See the [OpenShift](#openshift) section, unless running with OpenStack Magnum, then see [OpenStack Magnum](#openstack-magnum) section.
 
 ### ContainerLinux
 Use the [Most common read/write FlexVolume path](#most-common-readwrite-flexvolume-path) for the next steps.
@@ -80,6 +80,11 @@ Follow [these instructions](tectonic.md) to configure the Flexvolume plugin for 
 If you want to use Rook with an already provisioned Tectonic cluster, please refer to the [ContainerLinux](#containerlinux) section.
 
 Continue with [configuring the FlexVolume path](#configuring-the-flexvolume-path) to configure Rook to use the FlexVolume path.
+
+### OpenStack Magnum
+OpenStack Magnum is using Atomic, which uses a non-standard FlexVolume plugin directory at:  `/var/lib/kubelet/volumeplugins`
+The kubelet in OpenStack Magnum is already configured to use that directory.
+You will need to use this value when [configuring the Rook operator](#configuring-the-rook-operator)
 
 ### Custom containerized kubelet
 Use the [most common read/write FlexVolume path](#most-common-readwrite-flexvolume-path) for the next steps.
