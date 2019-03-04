@@ -90,7 +90,7 @@ func (c *cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
 		Image:        c.cephVersion.Image,
 		VolumeMounts: opspec.DaemonVolumeMounts(mdsConfig.DataPathMap, mdsConfig.ResourceName),
 		Env: append(
-			opspec.DaemonEnvVars(),
+			opspec.DaemonEnvVars(c.cephVersion.Image),
 		),
 		Resources: c.fs.Spec.MetadataServer.Resources,
 	}

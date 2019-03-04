@@ -297,8 +297,9 @@ func deleteResourceAndWait(namespace, name, resourceType string,
 }
 
 // Environment variables used by storage cluster daemons
-func ClusterDaemonEnvVars() []v1.EnvVar {
+func ClusterDaemonEnvVars(image string) []v1.EnvVar {
 	return []v1.EnvVar{
+		{Name: "CONTAINER_IMAGE", Value: image},
 		{Name: "POD_NAME", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.name"}}},
 		{Name: "POD_NAMESPACE", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.namespace"}}},
 		{Name: "NODE_NAME", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "spec.nodeName"}}},

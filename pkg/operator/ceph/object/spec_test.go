@@ -80,7 +80,7 @@ func TestPodSpecs(t *testing.T) {
 	assert.Equal(t, "--name=client.radosgw.gateway", cont.Args[1])
 	assert.Equal(t, "--rgw-mime-types-file=/var/lib/rook/rgw/mime.types", cont.Args[2])
 
-	assert.Equal(t, len(k8sutil.ClusterDaemonEnvVars()), len(cont.Env))
+	assert.Equal(t, len(k8sutil.ClusterDaemonEnvVars("ceph/ceph:v14")), len(cont.Env))
 
 	assert.Equal(t, "100", cont.Resources.Limits.Cpu().String())
 	assert.Equal(t, "1337", cont.Resources.Requests.Memory().String())

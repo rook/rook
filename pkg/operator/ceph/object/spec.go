@@ -192,7 +192,7 @@ func (c *config) makeDaemonContainer() v1.Container {
 			fmt.Sprintf("--rgw-mime-types-file=%s", rgwdaemon.GetMimeTypesPath(k8sutil.DataDir)),
 		},
 		VolumeMounts: opspec.CephVolumeMounts(),
-		Env:          k8sutil.ClusterDaemonEnvVars(),
+		Env:          k8sutil.ClusterDaemonEnvVars(c.cephVersion.Image),
 		Resources:    c.store.Spec.Gateway.Resources,
 	}
 

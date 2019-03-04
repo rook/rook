@@ -146,7 +146,7 @@ func (c *Cluster) makeMonFSInitContainer(monConfig *monConfig) v1.Container {
 		VolumeMounts:    opspec.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),
 		SecurityContext: podSecurityContext(),
 		// filesystem creation does not require ports to be exposed
-		Env:       opspec.DaemonEnvVars(),
+		Env:       opspec.DaemonEnvVars(c.cephVersion.Image),
 		Resources: c.resources,
 	}
 }
@@ -175,7 +175,7 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 			},
 		},
 		Env: append(
-			opspec.DaemonEnvVars(),
+			opspec.DaemonEnvVars(c.cephVersion.Image),
 			k8sutil.PodIPEnvVar(podIPEnvVar),
 		),
 		Resources: c.resources,

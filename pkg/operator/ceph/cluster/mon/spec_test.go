@@ -90,7 +90,7 @@ func testPodSpec(t *testing.T, monID string) {
 	isPrivileged := false
 	// All ceph images have the same image, basic envs, and the same volume mounts
 	cephImage := "ceph/ceph:myceph"
-	envVars := len(spec.DaemonEnvVars())
+	envVars := len(spec.DaemonEnvVars(c.cephVersion.Image))
 	cephVolumeMountNames := []string{
 		"rook-ceph-config",
 		"rook-ceph-mons-keyring",
@@ -119,7 +119,7 @@ func testPodSpec(t *testing.T, monID string) {
 	assert.Equal(t, "1337", cont.Resources.Requests.Memory().String())
 
 	// main mon daemon container
-	monDaemonEnvs := len(spec.DaemonEnvVars()) + 1
+	monDaemonEnvs := len(spec.DaemonEnvVars(c.cephVersion.Image)) + 1
 	monDaemonContDef := test_opceph.ContainerTestDefinition{
 		Image: &cephImage,
 		Command: []string{
