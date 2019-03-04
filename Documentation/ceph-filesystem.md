@@ -95,13 +95,17 @@ spec:
       containers:
       - name: registry
         image: registry:2
+        imagePullPolicy: Always
         resources:
           limits:
             cpu: 100m
             memory: 100Mi
         env:
+        # Configuration reference: https://docs.docker.com/registry/configuration/
         - name: REGISTRY_HTTP_ADDR
           value: :5000
+        - name: REGISTRY_HTTP_SECRET
+          value: "Ple4seCh4ngeThisN0tAVerySecretV4lue"
         - name: REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY
           value: /var/lib/registry
         volumeMounts:
@@ -111,6 +115,14 @@ spec:
         - containerPort: 5000
           name: registry
           protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /
+            port: registry
+        readinessProbe:
+          httpGet:
+            path: /
+            port: registry
       volumes:
       - name: image-store
         flexVolume:
