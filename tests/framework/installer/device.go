@@ -40,7 +40,7 @@ func IsAdditionalDeviceAvailableOnCluster() bool {
 			continue
 		}
 
-		ownPartitions, fs, err := sys.CheckIfDeviceAvailable(executor, device)
+		_, ownPartitions, fs, err := sys.CheckIfDeviceAvailable(executor, device)
 		if err != nil {
 			logger.Warningf("failed to detect device %s availability. %+v", device, err)
 			continue

@@ -107,3 +107,10 @@ func TestParseCephVolumeResult(t *testing.T) {
 	require.NotNil(t, osds)
 	assert.Equal(t, 2, len(osds))
 }
+
+func TestSanitizeOSDsPerDevice(t *testing.T) {
+	assert.Equal(t, "1", sanitizeOSDsPerDevice(-1))
+	assert.Equal(t, "1", sanitizeOSDsPerDevice(0))
+	assert.Equal(t, "1", sanitizeOSDsPerDevice(1))
+	assert.Equal(t, "2", sanitizeOSDsPerDevice(2))
+}

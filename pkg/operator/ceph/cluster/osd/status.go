@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"time"
 
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
 	apps "k8s.io/api/apps/v1"
@@ -48,7 +47,6 @@ const (
 )
 
 type provisionConfig struct {
-	devicesToUse  map[string][]rookalpha.Device
 	errorMessages []string
 }
 

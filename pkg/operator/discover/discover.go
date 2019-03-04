@@ -298,44 +298,6 @@ func ListDevicesInUse(context *clusterd.Context, namespace, nodeName string) ([]
 	return devices, nil
 }
 
-// FreeDevices frees up devices used by a cluster on a node.
-func FreeDevices(context *clusterd.Context, nodeName, clusterName string) error {
-	if len(nodeName) == 0 || len(clusterName) == 0 {
-		return nil
-	}
-	namespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
-	cmName := k8sutil.TruncateNodeName(fmt.Sprintf(deviceInUseCMName, clusterName, "%s"), nodeName)
-	// delete configmap
-	err := context.Clientset.CoreV1().ConfigMaps(namespace).Delete(cmName, &metav1.DeleteOptions{})
-	if err != nil && !kserrors.IsNotFound(err) {
-		return fmt.Errorf("failed to delete configmap %s/%s. %+v", namespace, cmName, err)
-	}
-
-	return nil
-}
-
-// FreeDevicesByCluster frees devices on all nodes that are used by the cluster
-func FreeDevicesByCluster(context *clusterd.Context, clusterName string) error {
-	logger.Infof("freeing devices used by cluster %s", clusterName)
-	namespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
-	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", deviceInUseClusterAttr, clusterName)}
-	cms, err := context.Clientset.CoreV1().ConfigMaps(namespace).List(listOpts)
-	if err != nil {
-		return fmt.Errorf("failed to list device in use configmaps for cluster %s: %+v", clusterName, err)
-	}
-
-	for _, cm := range cms.Items {
-		// delete configmap
-		cmName := cm.Name
-		err := context.Clientset.CoreV1().ConfigMaps(namespace).Delete(cmName, &metav1.DeleteOptions{})
-		logger.Infof("deleting configmap %s: %+v", cmName, err)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // GetAvailableDevices conducts outer join using input filters with free devices that a node has. It marks the devices from join result as in-use.
 func GetAvailableDevices(context *clusterd.Context, nodeName, clusterName string, devices []rookalpha.Device, filter string, useAllDevices bool) ([]rookalpha.Device, error) {
 	results := []rookalpha.Device{}

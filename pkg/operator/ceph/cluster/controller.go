@@ -37,7 +37,6 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/ceph/object/user"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
-	"github.com/rook/rook/pkg/operator/discover"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -412,7 +411,6 @@ func (c *ClusterController) onDelete(obj interface{}) {
 	if clust.Spec.Storage.AnyUseAllDevices() {
 		c.devicesInUse = false
 	}
-	discover.FreeDevicesByCluster(c.context, clust.Namespace)
 }
 
 func (c *ClusterController) handleDelete(cluster *cephv1.CephCluster, retryInterval time.Duration) error {

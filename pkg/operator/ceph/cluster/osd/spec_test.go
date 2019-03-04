@@ -86,7 +86,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 		ID: 0,
 	}
 
-	deployment, err := c.makeDeployment(n.Name, devices, n.Selection, v1.ResourceRequirements{}, config.StoreConfig{}, "", n.Location, osd)
+	deployment, err := c.makeDeployment(n.Name, n.Selection, v1.ResourceRequirements{}, config.StoreConfig{}, "", n.Location, osd)
 	assert.Nil(t, err)
 	assert.NotNil(t, deployment)
 	assert.Equal(t, "rook-ceph-osd-0", deployment.Name)
@@ -165,7 +165,7 @@ func TestStorageSpecDevicesAndDirectories(t *testing.T) {
 		IsDirectory: true,
 		DataPath:    "/my/root/path/osd1",
 	}
-	deployment, err := c.makeDeployment(n.Name, n.Devices, n.Selection, v1.ResourceRequirements{}, config.StoreConfig{}, "", n.Location, osd)
+	deployment, err := c.makeDeployment(n.Name, n.Selection, v1.ResourceRequirements{}, config.StoreConfig{}, "", n.Location, osd)
 	assert.NotNil(t, deployment)
 	assert.Nil(t, err)
 	// pod spec should have a volume for the given dir in the main container and the init container
@@ -192,7 +192,7 @@ func TestStorageSpecDevicesAndDirectories(t *testing.T) {
 		IsDirectory: true,
 		DataPath:    "/var/lib/rook/osd1",
 	}
-	deployment, err = c.makeDeployment(n.Name, n.Devices, n.Selection, v1.ResourceRequirements{}, config.StoreConfig{}, "", n.Location, osd)
+	deployment, err = c.makeDeployment(n.Name, n.Selection, v1.ResourceRequirements{}, config.StoreConfig{}, "", n.Location, osd)
 	assert.NotNil(t, deployment)
 	assert.Nil(t, err)
 	// pod spec should have a volume for the given dir in the main container and the init container
@@ -300,7 +300,7 @@ func TestHostNetwork(t *testing.T) {
 	osd := OSDInfo{
 		ID: 0,
 	}
-	r, err := c.makeDeployment(n.Name, n.Devices, n.Selection, v1.ResourceRequirements{}, config.StoreConfig{}, "", n.Location, osd)
+	r, err := c.makeDeployment(n.Name, n.Selection, v1.ResourceRequirements{}, config.StoreConfig{}, "", n.Location, osd)
 	assert.NotNil(t, r)
 	assert.Nil(t, err)
 

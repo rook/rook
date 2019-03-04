@@ -289,12 +289,18 @@ func UnmountDevice(devicePath string, executor exec.Executor) error {
 	return nil
 }
 
-func CheckIfDeviceAvailable(executor exec.Executor, name string) (bool, string, error) {
+// CheckIfDeviceAvailable checks if a device is available for consumption. The caller
+// needs to decide based on the return values whether it is available. The return values are
+// the number of partitions, whether Rook has created partitions on the device in the past
+// possibly from the same or a previous cluster, the filesystem found, or an err if failed
+// to retrieve the properties.
+func CheckIfDeviceAvailable(executor exec.Executor, name string) (int, bool, string, error) {
 	ownPartitions := true
 	partitions, _, err := GetDevicePartitions(name, executor)
 	if err != nil {
-		return false, "", fmt.Errorf("failed to get %s partitions. %+v", name, err)
+		return 0, false, "", fmt.Errorf("failed to get %s partitions. %+v", name, err)
 	}
+	partCount := len(partitions)
 	if !RookOwnsPartitions(partitions) {
 		ownPartitions = false
 	}
@@ -302,10 +308,10 @@ func CheckIfDeviceAvailable(executor exec.Executor, name string) (bool, string, 
 	// check if there is a file system on the device
 	devFS, err := GetDeviceFilesystems(name, executor)
 	if err != nil {
-		return false, "", fmt.Errorf("failed to get device %s filesystem: %+v", name, err)
+		return 0, false, "", fmt.Errorf("failed to get device %s filesystem: %+v", name, err)
 	}
 
-	return ownPartitions, devFS, nil
+	return partCount, ownPartitions, devFS, nil
 }
 
 // RookOwnsPartitions check if all partitions in list are owned by Rook

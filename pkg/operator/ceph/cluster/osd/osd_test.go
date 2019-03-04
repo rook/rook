@@ -88,35 +88,6 @@ func createNode(nodeName string, condition v1.NodeConditionType, clientset *fake
 	return err
 }
 
-func TestLegacyDeployment(t *testing.T) {
-	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "myversion", cephv1.CephVersionSpec{},
-		rookalpha.StorageScopeSpec{}, "", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
-
-	osdID := 23
-	d := &apps.Deployment{ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf(legacyAppNameFmt, osdID), Namespace: c.Namespace}}
-	_, err := clientset.Apps().Deployments(c.Namespace).Create(d)
-	require.Nil(t, err)
-
-	// delete the deployment
-	assert.Nil(t, c.deleteDeploymentWithLegacyName(osdID))
-	deployments, err := clientset.Apps().Deployments(c.Namespace).List(metav1.ListOptions{})
-	assert.Nil(t, err)
-	assert.Equal(t, 0, len(deployments.Items))
-
-	// return success if the deployment doesn't exist
-	assert.Nil(t, c.deleteDeploymentWithLegacyName(osdID))
-
-	// don't delete the newer deployment name
-	d = &apps.Deployment{ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf(osdAppNameFmt, osdID), Namespace: c.Namespace}}
-	_, err = clientset.Apps().Deployments(c.Namespace).Create(d)
-	require.Nil(t, err)
-	assert.Nil(t, c.deleteDeploymentWithLegacyName(osdID))
-	deployments, err = clientset.Apps().Deployments(c.Namespace).List(metav1.ListOptions{})
-	assert.Nil(t, err)
-	assert.Equal(t, 1, len(deployments.Items))
-}
-
 func TestAddRemoveNode(t *testing.T) {
 	// create a storage spec with the given nodes/devices/dirs
 	nodeName := "node8230"
@@ -146,7 +117,7 @@ func TestAddRemoveNode(t *testing.T) {
 	clientset.PrependWatchReactor("configmaps", k8stesting.DefaultWatchReactor(statusMapWatcher, nil))
 
 	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns-add-remove", "myversion", cephv1.CephVersionSpec{},
-		storageSpec, "", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+		storageSpec, "/foo", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	// kick off the start of the orchestration in a goroutine
 	var startErr error
@@ -275,17 +246,17 @@ func TestDiscoverOSDs(t *testing.T) {
 	node2 := "n2"
 
 	osd1 := OSDInfo{ID: 0, IsDirectory: true, IsFileStore: true, DataPath: "/rook/path"}
-	d1, err := c.makeDeployment(node1, []rookalpha.Device{}, rookalpha.Selection{}, v1.ResourceRequirements{}, config.StoreConfig{}, "", "", osd1)
+	d1, err := c.makeDeployment(node1, rookalpha.Selection{}, v1.ResourceRequirements{}, config.StoreConfig{}, "", "", osd1)
 	assert.Nil(t, err)
 	assert.NotNil(t, d1)
 
 	osd2 := OSDInfo{ID: 101, IsDirectory: true, IsFileStore: true, DataPath: "/rook/path"}
-	d2, err := c.makeDeployment(node1, []rookalpha.Device{}, rookalpha.Selection{}, v1.ResourceRequirements{}, config.StoreConfig{}, "", "", osd2)
+	d2, err := c.makeDeployment(node1, rookalpha.Selection{}, v1.ResourceRequirements{}, config.StoreConfig{}, "", "", osd2)
 	assert.Nil(t, err)
 	assert.NotNil(t, d2)
 
 	osd3 := OSDInfo{ID: 23, IsDirectory: true, IsFileStore: true, DataPath: "/rook/path"}
-	d3, err := c.makeDeployment(node2, []rookalpha.Device{}, rookalpha.Selection{}, v1.ResourceRequirements{}, config.StoreConfig{}, "", "", osd3)
+	d3, err := c.makeDeployment(node2, rookalpha.Selection{}, v1.ResourceRequirements{}, config.StoreConfig{}, "", "", osd3)
 	assert.Nil(t, err)
 	assert.NotNil(t, d3)
 
@@ -338,7 +309,7 @@ func TestAddNodeFailure(t *testing.T) {
 	assert.Nil(t, cmErr)
 
 	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns-add-remove", "myversion", cephv1.CephVersionSpec{},
-		storageSpec, "", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+		storageSpec, "/foo", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	// kick off the start of the orchestration in a goroutine
 	var startErr error
