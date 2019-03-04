@@ -112,9 +112,9 @@ func ContainerEnvVarReference(envVarName string) string {
 }
 
 // DaemonEnvVars returns the container environment variables used by all Ceph daemons.
-func DaemonEnvVars() []v1.EnvVar {
+func DaemonEnvVars(image string) []v1.EnvVar {
 	return append(
-		k8sutil.ClusterDaemonEnvVars(),
+		k8sutil.ClusterDaemonEnvVars(image),
 		config.StoredMonHostEnvVars()...,
 	)
 }

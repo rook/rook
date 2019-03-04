@@ -27,7 +27,7 @@ import (
 )
 
 var requiredEnvVars = []string{
-	"POD_NAME", "POD_NAMESPACE", "NODE_NAME",
+	"CONTAINER_IMAGE", "POD_NAME", "POD_NAMESPACE", "NODE_NAME",
 	"ROOK_CEPH_MON_HOST", "ROOK_CEPH_MON_INITIAL_MEMBERS",
 }
 
@@ -86,6 +86,9 @@ func (ct *ContainersTester) AssertEnvVarsContainCephRequirements() {
 		for _, e := range c.Env {
 			// For the required env vars, make sure they are sourced as expected
 			switch e.Name {
+			case "CONTAINER_IMAGE":
+				assert.Equal(ct.t, c.Image, e.Value,
+					"CONTAINER_IMAGE env var does not have the appropriate source:", e)
 			case "POD_NAME":
 				assert.Equal(ct.t, "metadata.name", e.ValueFrom.FieldRef.FieldPath,
 					"POD_NAME env var does not have the appropriate source:", e)

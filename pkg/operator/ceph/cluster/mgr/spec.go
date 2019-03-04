@@ -147,7 +147,7 @@ func (c *Cluster) makeSetServerAddrInitContainer(mgrConfig *mgrConfig, mgrModule
 			keyring.VolumeMount().Admin(),
 		),
 		Env: append(
-			opspec.DaemonEnvVars(),
+			opspec.DaemonEnvVars(c.cephVersion.Image),
 			k8sutil.PodIPEnvVar(podIPEnvVar),
 		),
 		Resources: c.resources,
@@ -184,7 +184,7 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 				Protocol:      v1.ProtocolTCP,
 			},
 		},
-		Env:       opspec.DaemonEnvVars(),
+		Env:       opspec.DaemonEnvVars(c.cephVersion.Image),
 		Resources: c.resources,
 	}
 	return container

@@ -176,7 +176,7 @@ func (c *CephNFSController) daemonContainer(n cephv1.CephNFS, name string, binar
 			binariesMount,
 		),
 		Env: append(
-			k8sutil.ClusterDaemonEnvVars(),
+			k8sutil.ClusterDaemonEnvVars(c.cephVersion.Image),
 			v1.EnvVar{Name: "ROOK_CEPH_NFS_NAME", Value: name},
 		),
 		Resources: n.Spec.Server.Resources,
