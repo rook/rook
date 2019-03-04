@@ -43,10 +43,10 @@ spec:
 
 // GetNFSServerOperator returns the NFSServer operator definition
 func (i *NFSManifests) GetNFSServerOperator(namespace string) string {
-	return `kind: Namespace
-apiVersion: v1
+	return `apiVersion: v1
+kind: Namespace
 metadata:
-  name: ` + namespace + `
+  name:  ` + namespace + `
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
@@ -54,12 +54,13 @@ metadata:
   name: rook-nfs-operator
 rules:
 - apiGroups:
-  - ""
+  - "*"
   resources:
   - namespaces
   - configmaps
   - pods
   - services
+  - storageclasses
   verbs:
   - get
   - watch
@@ -124,6 +125,7 @@ spec:
       serviceAccountName: rook-nfs-operator
       containers:
       - name: rook-nfs-operator
+        imagePullPolicy: IfNotPresent
         image: rook/nfs:master
         args: ["nfs", "operator"]
         env:
@@ -183,7 +185,7 @@ kind: PersistentVolumeClaim
 metadata:
   name: nfs-pv-claim
 spec:
-  storageClassName: nfs-sc
+  storageClassName: nfs-share
   accessModes:
     - ReadWriteMany
   resources:
@@ -195,7 +197,7 @@ kind: PersistentVolumeClaim
 metadata:
   name: nfs-pv-claim-bigger
 spec:
-  storageClassName: nfs-sc
+  storageClassName: nfs-share1
   accessModes:
     - ReadWriteMany
   resources:
@@ -206,7 +208,69 @@ spec:
 
 // GetNFSServer returns NFSServer CRD instance definition
 func (i *NFSManifests) GetNFSServer(namespace string, count int, storageClassName string) string {
-	return `apiVersion: v1
+	return `kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: nfs-client-provisioner-runner
+rules:
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "update", "patch"]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: run-nfs-client-provisioner
+subjects:
+  - kind: ServiceAccount
+    name: ` + namespace + `
+    namespace: ` + namespace + `
+roleRef:
+  kind: ClusterRole
+  name: nfs-client-provisioner-runner
+  apiGroup: rbac.authorization.k8s.io
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: leader-locking-nfs-client-provisioner
+  namespace: ` + namespace + `
+rules:
+  - apiGroups: [""]
+    resources: ["endpoints"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: leader-locking-nfs-client-provisioner
+  namespace: ` + namespace + `
+subjects:
+  - kind: ServiceAccount
+    name: ` + namespace + `
+    # replace with namespace where provisioner is deployed
+    namespace: ` + namespace + `
+roleRef:
+  kind: Role
+  name: leader-locking-nfs-client-provisioner
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ` + namespace + `
+  namespace: ` + namespace + `
+---
+apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: test-claim
@@ -238,6 +302,7 @@ metadata:
   name: ` + namespace + `
   namespace: ` + namespace + `
 spec:
+  serviceAccountName: ` + namespace + `
   replicas: ` + strconv.Itoa(count) + `
   exports:
   - name: nfs-share

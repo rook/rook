@@ -17,7 +17,7 @@ package v1alpha1
 
 import (
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -52,6 +52,11 @@ type NFSServerSpec struct {
 
 	// Replicas of the NFS daemon
 	Replicas int `json:"replicas,omitempty"`
+
+	// ServiceAccountName is the name of the ServiceAccount to use to run this nfs server pod.
+	// More info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
+	// +optional
+	ServiceAccountName string `json:"serviceAccountName,omitempty" protobuf:"bytes,8,opt,name=serviceAccountName"`
 
 	// The parameters to configure the NFS export
 	Exports []ExportsSpec `json:"exports,omitempty"`

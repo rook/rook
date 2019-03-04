@@ -19,7 +19,7 @@ include ../image.mk
 
 NFS_IMAGE = $(BUILD_REGISTRY)/nfs-$(GOARCH)
 
-NFS_BASE ?= fedora:28
+NFS_BASE ?= ubuntu:xenial
 
 ifeq ($(GOARCH),amd64)
 NFS_BASEIMAGE = $(NFS_BASE)
@@ -41,7 +41,6 @@ IMAGE_FILENAME := $(IMAGE_OUTPUT_DIR)/nfs.tar.gz
 do.build:
 	@echo === docker build $(NFS_IMAGE)
 	@cp Dockerfile $(TEMP)
-	@cp start.sh $(TEMP)
 	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rook $(TEMP)
 	@cd $(TEMP) && $(SED_CMD) 's|NFS_BASEIMAGE|$(NFS_BASEIMAGE)|g' Dockerfile
 	@$(DOCKERCMD) build $(BUILD_ARGS) \

@@ -23,12 +23,13 @@ metadata:
   name: rook-nfs-operator
 rules:
 - apiGroups:
-  - ""
+  - "*"
   resources:
   - namespaces
   - configmaps
   - pods
   - services
+  - storageclasses
   verbs:
   - get
   - watch
