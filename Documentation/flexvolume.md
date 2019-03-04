@@ -52,12 +52,12 @@ this can be done in the `extra_binds` section of the kubelet cluster config.
 Configure the Rancher deployed kubelet by updating the `cluster.yml` file kubelet section:
 
 ```yaml
-kubelet:
- image: ""
- extra_args:
-  volume-plugin-dir: /usr/libexec/kubernetes/kubelet-plugins/volume/exec
- extra_binds:
- - /usr/libexec/kubernetes/kubelet-plugins/volume/exec:/usr/libexec/kubernetes/kubelet-plugins/volume/exec
+services:
+  kubelet:
+    extra_args:
+      volume-plugin-dir: /usr/libexec/kubernetes/kubelet-plugins/volume/exec
+    extra_binds:
+      - /usr/libexec/kubernetes/kubelet-plugins/volume/exec:/usr/libexec/kubernetes/kubelet-plugins/volume/exec
 ```
 
 If you're using [rke](https://github.com/rancher/rke), run `rke up`, this will update and restart your kubernetes cluster system components, in this case the kubelet docker instance(s)
@@ -71,7 +71,7 @@ the Rook operator will need to be reconfigured, to do this continue with [config
 
 ### Google Kubernetes Engine (GKE)
 Google's Kubernetes Engine uses a non-standard FlexVolume plugin directory: `/home/kubernetes/flexvolume`
-The kubelet on GKE is already configured to use that directory. 
+The kubelet on GKE is already configured to use that directory.
 
 Continue with [configuring the FlexVolume path](#configuring-the-flexvolume-path) to configure Rook to use the FlexVolume path.
 
