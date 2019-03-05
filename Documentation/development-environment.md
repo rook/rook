@@ -6,7 +6,12 @@ indent: true
 
 # Multi-Node Test Environment
 
-## Setup expectation
+- [Using KVM/QEMU and Kubespray](#using-kvmqemu-and-kubespray)
+- [Using VirtualBox and k8s-vagrant-multi-node](#using-virtualbox-and-k8s-vagrant-multi-node)
+
+## Using KVM/QEMU and Kubespray
+
+### Setup expectation
 
 There are a bunch of pre-requisites to be able to deploy the following environment. Such as:
 
@@ -17,7 +22,7 @@ There are a bunch of pre-requisites to be able to deploy the following environme
 For other Linux distribution, there is no guarantee the following will work.
 However adapting commands (apt/yum/dnf) could just work.
 
-## Prerequisites installation
+### Prerequisites installation
 
 On your host machine, execute `tests/scripts/multi-node/rpm-system-prerequisites.sh` (or
 do the equivalent for your distribution)
@@ -30,8 +35,7 @@ Edit `/etc/docker/daemon.json` to add insecure-registries:
 }
 ```
 
-
-## Deploy Kubernetes with Kubespray
+### Deploy Kubernetes with Kubespray
 
 Clone it:
 
@@ -120,7 +124,7 @@ k8s-08    Ready     node          2m        v1.9.0+coreos.0
 k8s-09    Ready     node          2m        v1.9.0+coreos.0
 ```
 
-## Running the Kubernetes Dashboard UI
+### Running the Kubernetes Dashboard UI
 
 kubespray sets up the Dashboard pod by default, but you must authenticate with a bearer token, even for localhost access with kubectl proxy.  To allow access, one possible solution is to:
 
@@ -163,7 +167,7 @@ and you can use that token to log into the UI at http://localhost:8001/ui.
 
 
 
-## Development workflow on the host
+### Development workflow on the host
 
 Everything should happen on the host, your development environment will reside on the host machine NOT inside the virtual machines running the Kubernetes cluster.
 
@@ -182,7 +186,7 @@ You can run `bash tests/scripts/multi-node/build-rook.sh` as many times as you w
 From here, resume your dev, change your code and test it by running `bash tests/scripts/multi-node/build-rook.sh`.
 
 
-## Teardown
+### Teardown
 
 Typically, to flush your environment you will run the following from within kubespray's git repository.
 This action will be performed on the host:
@@ -194,3 +198,19 @@ This action will be performed on the host:
 Also, if you were using `kubectl` on that host machine, you can resurrect your old configuration by renaming `$HOME/.kube/config.before.rook.$TIMESTAMP` with `$HOME/.kube/config`.
 
 If you were not using `kubectl`, feel free to simply remove `$HOME/.kube/config.rook`.
+
+## Using VirtualBox and k8s-vagrant-multi-node
+
+### Prerequisites
+
+Be sure to follow the prerequisites here: https://github.com/galexrt/k8s-vagrant-multi-node/tree/master#prerequisites.
+
+### Quickstart
+
+To start up the environment just run `./tests/scripts/k8s-vagrant-multi-node.sh up`.
+This will bring up one master and 2 workers by default.
+
+To change the amount of workers to bring up and their resources, be sure to checkout the [galexrt/k8s-vagrant-multi-node project README Variables section](https://github.com/galexrt/k8s-vagrant-multi-node/tree/master#variables).
+Just set or export the variables as you need on the script, e.g., either `NODE_COUNT=5 ./tests/scripts/k8s-vagrant-multi-node.sh up`, or `export NODE_COUNT=5` and then `./tests/scripts/k8s-vagrant-multi-node.sh up`.
+
+For more information or if you are experiencing issues, please create an issue at [GitHub galexrt/k8s-vagrant-multi-node](https://github.com/galexrt/k8s-vagrant-multi-node).
