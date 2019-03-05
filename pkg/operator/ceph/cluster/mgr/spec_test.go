@@ -19,7 +19,6 @@ package mgr
 import (
 	"testing"
 
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/stretchr/testify/assert"
 
@@ -34,9 +33,7 @@ import (
 )
 
 func TestPodSpec(t *testing.T) {
-	clusterInfo := &cephconfig.ClusterInfo{FSID: "myfsid"}
 	c := New(
-		clusterInfo,
 		&clusterd.Context{Clientset: optest.New(1)},
 		"ns",
 		"rook/rook:myversion",
@@ -53,6 +50,7 @@ func TestPodSpec(t *testing.T) {
 			},
 		},
 		metav1.OwnerReference{},
+		optest.CreateConfigDir(1),
 	)
 
 	mgrTestConfig := mgrConfig{
@@ -75,9 +73,7 @@ func TestPodSpec(t *testing.T) {
 }
 
 func TestServiceSpec(t *testing.T) {
-	clusterInfo := &cephconfig.ClusterInfo{FSID: "myfsid"}
 	c := New(
-		clusterInfo,
 		&clusterd.Context{Clientset: optest.New(1)},
 		"ns",
 		"myversion",
@@ -87,6 +83,7 @@ func TestServiceSpec(t *testing.T) {
 		cephv1.DashboardSpec{},
 		v1.ResourceRequirements{},
 		metav1.OwnerReference{},
+		optest.CreateConfigDir(1),
 	)
 
 	s := c.makeMetricsService("rook-mgr")
@@ -96,9 +93,7 @@ func TestServiceSpec(t *testing.T) {
 }
 
 func TestHostNetwork(t *testing.T) {
-	clusterInfo := &cephconfig.ClusterInfo{FSID: "myfsid"}
 	c := New(
-		clusterInfo,
 		&clusterd.Context{Clientset: optest.New(1)},
 		"ns",
 		"myversion",
@@ -108,6 +103,7 @@ func TestHostNetwork(t *testing.T) {
 		cephv1.DashboardSpec{},
 		v1.ResourceRequirements{},
 		metav1.OwnerReference{},
+		optest.CreateConfigDir(1),
 	)
 
 	mgrTestConfig := mgrConfig{

@@ -41,18 +41,6 @@ type MonInfo struct {
 	Endpoint string `json:"endpoint"`
 }
 
-// IsInitialized returns true if the critical information in the ClusterInfo struct has been filled
-// in. This method exists less out of necessity than the desire to be explicit about the lifecycle
-// of the ClusterInfo struct during startup, specifically that it is expected to exist after the
-// Rook operator has started up or connected to the first components of the Ceph cluster.
-func (c *ClusterInfo) IsInitialized() bool {
-	if c == nil || c.FSID == "" || c.MonitorSecret == "" || c.AdminSecret == "" {
-		logger.Errorf("clusterInfo: %+v", c)
-		return false
-	}
-	return true
-}
-
 // NewMonInfo returns a new Ceph mon info struct from the given inputs.
 func NewMonInfo(name, ip string, port int32) *MonInfo {
 	return &MonInfo{Name: name, Endpoint: net.JoinHostPort(ip, fmt.Sprintf("%d", port))}

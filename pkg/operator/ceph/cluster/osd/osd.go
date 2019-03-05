@@ -295,7 +295,7 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 				continue
 			}
 			logger.Infof("deployment for osd %d already exists. updating if needed", osd.ID)
-			if _, err = k8sutil.UpdateDeploymentAndWait(c.context, dp, c.Namespace); err != nil {
+			if err = k8sutil.UpdateDeploymentAndWait(c.context, dp, c.Namespace); err != nil {
 				config.addError(fmt.Sprintf("failed to update osd deployment %d. %+v", osd.ID, err))
 			}
 		}

@@ -17,7 +17,6 @@ limitations under the License.
 package test
 
 import (
-	"fmt"
 	"regexp"
 	"strings"
 	"testing"
@@ -125,10 +124,7 @@ func (ct *ContainersTester) AssertArgReferencesMatchEnvVars() {
 	}
 	// also make sure there are no extraneous env vars
 	// the only allowed extraneous vars are the required vars
-	assert.ElementsMatch(ct.t, ct.allNonrequiredVarNames(), ct.allNonrequiredArgEnvReferences(),
-		"there are extra arguments or references which do not have a corresponding ref/arg",
-		fmt.Sprintf("%+v", ct.allNonrequiredVarNames()),
-		fmt.Sprintf("%+v", ct.allNonrequiredArgEnvReferences()))
+	assert.ElementsMatch(ct.t, ct.allNonrequiredVarNames(), ct.allNonrequiredArgEnvReferences())
 }
 
 // AssertCephImagesMatch asserts that for all Ceph containers under test, the Ceph image used is the

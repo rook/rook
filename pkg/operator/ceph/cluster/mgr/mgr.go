@@ -44,7 +44,6 @@ const (
 
 // Cluster represents the Rook and environment configuration settings needed to set up Ceph mgrs.
 type Cluster struct {
-	clusterInfo *cephconfig.ClusterInfo
 	Namespace   string
 	Replicas    int
 	placement   rookalpha.Placement
@@ -57,22 +56,13 @@ type Cluster struct {
 	cephVersion cephv1.CephVersionSpec
 	rookVersion string
 	exitCode    func(err error) (int, bool)
+	clusterInfo *cephconfig.ClusterInfo
 }
 
 // New creates an instance of the mgr
-func New(
-	clusterInfo *cephconfig.ClusterInfo,
-	context *clusterd.Context,
-	namespace, rookVersion string,
-	cephVersion cephv1.CephVersionSpec,
-	placement rookalpha.Placement,
-	hostNetwork bool,
-	dashboard cephv1.DashboardSpec,
-	resources v1.ResourceRequirements,
-	ownerRef metav1.OwnerReference,
-) *Cluster {
+func New(context *clusterd.Context, namespace, rookVersion string, cephVersion cephv1.CephVersionSpec, placement rookalpha.Placement, hostNetwork bool, dashboard cephv1.DashboardSpec,
+	resources v1.ResourceRequirements, ownerRef metav1.OwnerReference, cInfo *cephconfig.ClusterInfo) *Cluster {
 	return &Cluster{
-		clusterInfo: clusterInfo,
 		context:     context,
 		Namespace:   namespace,
 		placement:   placement,
@@ -85,6 +75,7 @@ func New(
 		resources:   resources,
 		ownerRef:    ownerRef,
 		exitCode:    getExitCode,
+		clusterInfo: cInfo,
 	}
 }
 
@@ -123,7 +114,7 @@ func (c *Cluster) Start() error {
 				return fmt.Errorf("failed to create mgr deployment %s. %+v", resourceName, err)
 			}
 			logger.Infof("deployment for mgr %s already exists. updating if needed", resourceName)
-			if _, err := updateDeploymentAndWait(c.context, d, c.Namespace); err != nil {
+			if err := updateDeploymentAndWait(c.context, d, c.Namespace); err != nil {
 				return fmt.Errorf("failed to update mgr deployment %s. %+v", resourceName, err)
 			}
 		}

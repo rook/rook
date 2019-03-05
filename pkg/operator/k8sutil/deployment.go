@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/rook/rook/pkg/clusterd"
-	"k8s.io/api/apps/v1"
 	apps "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -81,17 +80,15 @@ func WaitForDeploymentImage(clientset kubernetes.Interface, namespace, label, co
 	return nil
 }
 
-// UpdateDeploymentAndWait updates a deployment and waits until it is running to return. It will
-// error if the deployment does not exist to be updated or if it takes too long.
-func UpdateDeploymentAndWait(context *clusterd.Context, deployment *apps.Deployment, namespace string) (*v1.Deployment, error) {
+func UpdateDeploymentAndWait(context *clusterd.Context, deployment *apps.Deployment, namespace string) error {
 	original, err := context.Clientset.Apps().Deployments(namespace).Get(deployment.Name, metav1.GetOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get deployment %s. %+v", deployment.Name, err)
+		return fmt.Errorf("failed to get deployment %s. %+v", deployment.Name, err)
 	}
 
 	logger.Infof("updating deployment %s", deployment.Name)
 	if _, err := context.Clientset.Apps().Deployments(namespace).Update(deployment); err != nil {
-		return nil, fmt.Errorf("failed to update deployment %s. %+v", deployment.Name, err)
+		return fmt.Errorf("failed to update deployment %s. %+v", deployment.Name, err)
 	}
 
 	// wait for the deployment to be restarted
@@ -105,18 +102,18 @@ func UpdateDeploymentAndWait(context *clusterd.Context, deployment *apps.Deploym
 		// check for the status of the deployment
 		d, err := context.Clientset.Apps().Deployments(namespace).Get(deployment.Name, metav1.GetOptions{})
 		if err != nil {
-			return nil, fmt.Errorf("failed to get deployment %s. %+v", deployment.Name, err)
+			return fmt.Errorf("failed to get deployment %s. %+v", deployment.Name, err)
 		}
 		if d.Status.ObservedGeneration != original.Status.ObservedGeneration && d.Status.UpdatedReplicas > 0 && d.Status.ReadyReplicas > 0 {
 			logger.Infof("finished waiting for updated deployment %s", d.Name)
-			return d, nil
+			return nil
 		}
 
 		logger.Debugf("deployment %s status=%v", d.Name, d.Status)
 		time.Sleep(time.Duration(sleepTime) * time.Second)
 	}
 
-	return nil, fmt.Errorf("gave up waiting for deployment %s to update", deployment.Name)
+	return fmt.Errorf("gave up waiting for deployment %s to update", deployment.Name)
 }
 
 // GetDeployments returns a list of deployment names labels matching a given selector

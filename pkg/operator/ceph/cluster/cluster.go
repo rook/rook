@@ -29,7 +29,6 @@ import (
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
@@ -53,7 +52,6 @@ var (
 )
 
 type cluster struct {
-	Info      *cephconfig.ClusterInfo
 	context   *clusterd.Context
 	Namespace string
 	Spec      *cephv1.ClusterSpec
@@ -63,17 +61,9 @@ type cluster struct {
 }
 
 func newCluster(c *cephv1.CephCluster, context *clusterd.Context) *cluster {
-	return &cluster{
-		// at this phase of the cluster creation process, the identity components of the cluster are
-		// not yet established. we reserve this struct which is filled in as soon as the cluster's
-		// identity can be established.
-		Info:      nil,
-		Namespace: c.Namespace,
-		Spec:      &c.Spec,
-		context:   context,
-		stopCh:    make(chan struct{}),
-		ownerRef:  ClusterOwnerRef(c.Namespace, string(c.UID)),
-	}
+	return &cluster{Namespace: c.Namespace, Spec: &c.Spec, context: context,
+		stopCh:   make(chan struct{}),
+		ownerRef: ClusterOwnerRef(c.Namespace, string(c.UID))}
 }
 
 func (c *cluster) detectCephMajorVersion(image string, timeout time.Duration) (string, error) {
@@ -153,19 +143,11 @@ func (c *cluster) createInstance(rookImage string) error {
 	}
 
 	// Start the mon pods
-	c.mons = mon.New(c.Info, c.context, c.Namespace,
-		c.Spec.DataDirHostPath, rookImage, c.Spec.CephVersion, c.Spec.Mon,
-		cephv1.GetMonPlacement(c.Spec.Placement), c.Spec.Network.HostNetwork,
-		cephv1.GetMonResources(c.Spec.Resources), c.ownerRef)
+	c.mons = mon.New(c.context, c.Namespace, c.Spec.DataDirHostPath, rookImage, c.Spec.CephVersion, c.Spec.Mon, cephv1.GetMonPlacement(c.Spec.Placement),
+		c.Spec.Network.HostNetwork, cephv1.GetMonResources(c.Spec.Resources), c.ownerRef)
 	clusterInfo, err := c.mons.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the mons. %+v", err)
-	}
-	c.Info = clusterInfo // mons return the cluster's info
-
-	// The cluster Identity must be established at this point
-	if !c.Info.IsInitialized() {
-		return fmt.Errorf("the cluster identity was not established: %+v", c.Info)
 	}
 
 	err = c.createInitialCrushMap()
@@ -173,9 +155,8 @@ func (c *cluster) createInstance(rookImage string) error {
 		return fmt.Errorf("failed to create initial crushmap: %+v", err)
 	}
 
-	mgrs := mgr.New(c.Info, c.context, c.Namespace, rookImage,
-		c.Spec.CephVersion, cephv1.GetMgrPlacement(c.Spec.Placement), c.Spec.Network.HostNetwork,
-		c.Spec.Dashboard, cephv1.GetMgrResources(c.Spec.Resources), c.ownerRef)
+	mgrs := mgr.New(c.context, c.Namespace, rookImage, c.Spec.CephVersion, cephv1.GetMgrPlacement(c.Spec.Placement),
+		c.Spec.Network.HostNetwork, c.Spec.Dashboard, cephv1.GetMgrResources(c.Spec.Resources), c.ownerRef, clusterInfo)
 	err = mgrs.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the ceph mgr. %+v", err)

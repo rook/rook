@@ -184,19 +184,19 @@ func createClusterAccessSecret(clientset kubernetes.Interface, namespace string,
 	var err error
 
 	// store the secrets for internal usage of the rook pods
-	secrets := map[string][]byte{
-		clusterSecretName: []byte(clusterInfo.Name),
-		fsidSecretName:    []byte(clusterInfo.FSID),
-		monSecretName:     []byte(clusterInfo.MonitorSecret),
-		adminSecretName:   []byte(clusterInfo.AdminSecret),
+	secrets := map[string]string{
+		clusterSecretName: clusterInfo.Name,
+		fsidSecretName:    clusterInfo.FSID,
+		monSecretName:     clusterInfo.MonitorSecret,
+		adminSecretName:   clusterInfo.AdminSecret,
 	}
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      appName,
 			Namespace: namespace,
 		},
-		Data: secrets,
-		Type: k8sutil.RookType,
+		StringData: secrets,
+		Type:       k8sutil.RookType,
 	}
 	k8sutil.SetOwnerRef(clientset, namespace, &secret.ObjectMeta, ownerRef)
 

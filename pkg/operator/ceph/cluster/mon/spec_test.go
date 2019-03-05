@@ -22,11 +22,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rook/rook/pkg/operator/ceph/config"
+
+	"github.com/rook/rook/pkg/operator/ceph/spec"
+
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/operator/ceph/config"
-	"github.com/rook/rook/pkg/operator/ceph/spec"
 	test_opceph "github.com/rook/rook/pkg/operator/ceph/test"
 	testop "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
@@ -43,7 +45,6 @@ func TestPodSpecs(t *testing.T) {
 func testPodSpec(t *testing.T, monID string) {
 	clientset := testop.New(1)
 	c := New(
-		testop.CreateConfigDir(0),
 		&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook"},
 		"ns",
 		"/var/lib/rook",
@@ -62,6 +63,7 @@ func testPodSpec(t *testing.T, monID string) {
 		},
 		metav1.OwnerReference{},
 	)
+	c.clusterInfo = testop.CreateConfigDir(0)
 	monConfig := testGenMonConfig(monID)
 
 	pod := c.makeMonPod(monConfig, "foo")
@@ -127,7 +129,7 @@ func testPodSpec(t *testing.T, monID string) {
 		Args: append(commonFlags,
 			[]string{"--foreground"},
 			[]string{"--public-addr=2.4.6.1"},
-			[]string{"--public-bind-addr=$(ROOK_POD_IP)"}),
+			[]string{"--public-bind-addr=$(ROOK_PRIVATE_IP)"}),
 		VolumeMountNames: cephVolumeMountNames,
 		EnvCount:         &monDaemonEnvs,
 		Ports: []v1.ContainerPort{

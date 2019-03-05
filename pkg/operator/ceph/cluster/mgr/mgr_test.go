@@ -25,8 +25,8 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	testopk8s "github.com/rook/rook/pkg/operator/k8sutil/test"
+	optest "github.com/rook/rook/pkg/operator/test"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -52,9 +52,7 @@ func TestStartMGR(t *testing.T) {
 		Executor:  executor,
 		ConfigDir: configDir,
 		Clientset: testop.New(3)}
-	clusterInfo := &cephconfig.ClusterInfo{FSID: "myfsid"}
 	c := New(
-		clusterInfo,
 		context,
 		"ns",
 		"myversion",
@@ -64,6 +62,7 @@ func TestStartMGR(t *testing.T) {
 		cephv1.DashboardSpec{Enabled: true},
 		v1.ResourceRequirements{},
 		metav1.OwnerReference{},
+		optest.CreateConfigDir(1),
 	)
 	defer os.RemoveAll(c.dataDir)
 
