@@ -1,0 +1,55 @@
+# This YAML file contains nginx & Edgfefs ISCSI ISCSI driver objects,
+# which are necessary to run nginx with edgefs ISCSI csi driver.
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: edgefs-iscsi-csi-pv
+  labels:
+    name: edgefs-iscsi-csi-pv
+spec:
+  accessModes:
+  - ReadWriteMany
+  capacity:
+    storage: 1Gi
+  csi:
+    driver: io.edgefs.csi.iscsi
+    volumeHandle: cltest/test/bk1/lun1
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: edgefs-iscsi-csi-pvc
+spec:
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+  selector:
+    matchExpressions:
+    - key: name
+      operator: In
+      values: ["edgefs-iscsi-csi-pv"]
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+spec:
+  containers:
+  - image: maersk/nginx
+    imagePullPolicy: Always
+    name: nginx
+    ports:
+    - containerPort: 80
+      protocol: TCP
+    volumeMounts:
+      - mountPath: /var/www
+        name: edgefs-iscsi-csi-volume
+  volumes:
+  - name: edgefs-iscsi-csi-volume
+    persistentVolumeClaim:
+      claimName: edgefs-iscsi-csi-pvc
+

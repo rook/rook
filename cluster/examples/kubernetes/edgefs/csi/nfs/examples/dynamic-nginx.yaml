@@ -4,21 +4,21 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: csi-sc-nedgeplugin
-provisioner: edgefs-csi-plugin
+  name: edgefs-nfs-csi-storageclass
+provisioner: io.edgefs.csi.nfs
 parameters:
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: csi-pvc-nedgeplugin
+  name: edgefs-nfs-csi-pvc
 spec:
   accessModes:
   - ReadWriteOnce
   resources:
     requests:
       storage: 1Gi
-  storageClassName: csi-sc-nedgeplugin
+  storageClassName: edgefs-nfs-csi-storageclass
 
 ---
 apiVersion: v1
@@ -35,9 +35,9 @@ spec:
       protocol: TCP
     volumeMounts:
       - mountPath: /var/lib/www/html
-        name: csi-data-nedgeplugin 
+        name: edgefs-nfs-csi-volume 
   volumes:
-  - name: csi-data-nedgeplugin
+  - name: edgefs-nfs-csi-volume
     persistentVolumeClaim:
-      claimName: csi-pvc-nedgeplugin
+      claimName: edgefs-nfs-csi-pvc
       readOnly: false

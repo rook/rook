@@ -1,0 +1,13 @@
+# Create a new snapshot class
+#
+# !!! Make sure to run nginx-persistent-volume.yaml before running this example
+#
+# $ kubectl apply -f csi/iscsi/examples/snapshots/snapshot-class.yaml
+#
+
+apiVersion: snapshot.storage.k8s.io/v1alpha1
+kind: VolumeSnapshotClass
+metadata:
+  name: edgefs-iscsi-csi-snapshot-class
+snapshotter: io.edgefs.csi.iscsi
+# parameters:

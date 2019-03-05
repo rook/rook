@@ -1,0 +1,69 @@
+# Nginx pod with a new volume pre-populated with data from a snapshot object using Edgefs ISCSI CSI driver
+#
+# $ kubectl apply -f csi/iscsi/examples/snapshots/nginx-snapshot-clone-volume.yaml
+#
+
+
+# --------------------------------------
+# Edgefs ISCSI CSI Driver - Storage Class
+# --------------------------------------
+
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: edgefs-iscsi-csi-driver-storageclass
+provisioner: io.edgefs.csi.iscsi
+parameters:
+  cluster: cltest # to overwrite 'cluster' in driver's config secret
+  tenant: test    # to overwrite 'tenant' in driver's config secret
+  bucket: bk1    # to overwrite 'bucket' in driver's config secret  
+  object: lun1
+---
+
+
+# ------------------------------------------------------------------------------------------
+# Edgefs ISCSI CSI Driver - Persistent Volume Claim - pre-populated with data from a snapshot
+# ------------------------------------------------------------------------------------------
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: edgefs-iscsi-csi-driver-nginx-snapshot-pvc
+spec:
+  storageClassName: edgefs-iscsi-csi-driver-storageclass
+  dataSource:
+    kind: VolumeSnapshot
+    apiGroup: snapshot.storage.k8s.io
+    name: snap1 # snapshots created by ./take-snapshot.yaml
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+---
+
+
+# ---------
+# Nginx pod
+# ---------
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-persistent-volume-clone
+spec:
+  containers:
+    - image: nginx
+      imagePullPolicy: IfNotPresent
+      name: nginx
+      ports:
+        - containerPort: 80
+          protocol: TCP
+      volumeMounts:
+        - mountPath: /usr/share/nginx/html
+          name: edgefs-iscsi-csi-volume
+  volumes:
+    - name: edgefs-iscsi-csi-volume
+      persistentVolumeClaim:
+        claimName: edgefs-iscsi-csi-driver-nginx-snapshot-pvc
+        readOnly: false

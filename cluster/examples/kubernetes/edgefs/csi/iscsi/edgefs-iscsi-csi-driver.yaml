@@ -1,0 +1,341 @@
+# Edgefs ISCSI CSI Driver (master)
+#
+# This driver version works with Kubernetes version >=1.13
+#
+# In production, each CSI driver deployment has to be customized to avoid conflicts,
+# use non-default namespace and different names for non-namespaced entities like the ClusterRole
+#
+# Before installation, make sure "csidrivers" and "csinodeinfos" resource types exist:
+# $ kubectl create -f https://raw.githubusercontent.com/kubernetes/csi-api/ce972859c46136a1f4a9fe119d05482a739c6311/pkg/crd/manifests/csidriver.yaml
+# $ kubectl create -f https://raw.githubusercontent.com/kubernetes/csi-api/ce972859c46136a1f4a9fe119d05482a739c6311/pkg/crd/manifests/csinodeinfo.yaml
+#
+# Install to Kubernetes:
+# $ kubectl apply -f deploy/kubernetes/edgefs-iscsi-csi-driver.yaml
+#
+
+
+# ----------------------
+# Edgefs ISCSI CSI Driver
+# ----------------------
+
+apiVersion: csi.storage.k8s.io/v1alpha1
+kind: CSIDriver
+metadata:
+  name: io.edgefs.csi.iscsi
+spec:
+  attachRequired: false
+  podInfoOnMountVersion: ''
+---
+
+
+# ---------------------------------
+# Edgefs ISCSI CSI Controller Server
+# ---------------------------------
+#
+# Runs single driver controller server (driver + provisioner + attacher + snapshotter) on one of the nodes
+#
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: edgefs-iscsi-csi-controller-service-account
+  namespace: default # replace with non-default namespace name if needed
+---
+
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: edgefs-iscsi-csi-controller-cluster-role
+rules:
+  - apiGroups: ['']
+    resources: ['secrets']
+    verbs: ['get', 'list']
+  - apiGroups: ['']
+    resources: ['persistentvolumes']
+    verbs: ['get', 'list', 'watch', 'create', 'update', 'delete'] # "update" for attacher
+  - apiGroups: ['']
+    resources: ['persistentvolumeclaims']
+    verbs: ['get', 'list', 'watch', 'update']
+  - apiGroups: ['storage.k8s.io']
+    resources: ['storageclasses']
+    verbs: ['get', 'list', 'watch']
+  - apiGroups: ['']
+    resources: ['events']
+    verbs: ['list', 'watch', 'create', 'update', 'patch']
+  - apiGroups: ['snapshot.storage.k8s.io']
+    resources: ['volumesnapshots']
+    verbs: ['get', 'list']
+  - apiGroups: ['snapshot.storage.k8s.io']
+    resources: ['volumesnapshotcontents']
+    verbs: ['get', 'list']
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list", "watch", "update"]
+  # attacher specific
+  - apiGroups: ['']
+    resources: ['nodes']
+    verbs: ['get', 'list', 'watch']
+  - apiGroups: ['csi.storage.k8s.io']
+    resources: ['csinodeinfos']
+    verbs: ['get', 'list', 'watch']
+  - apiGroups: ['storage.k8s.io']
+    resources: ['volumeattachments']
+    verbs: ['get', 'list', 'watch', 'update']
+  # snapshotter specific
+  - apiGroups: ['snapshot.storage.k8s.io']
+    resources: ['volumesnapshotclasses']
+    verbs: ['get', 'list', 'watch']
+  - apiGroups: ['snapshot.storage.k8s.io']
+    resources: ['volumesnapshotcontents']
+    verbs: ['create', 'get', 'list', 'watch', 'update', 'delete']
+  - apiGroups: ['snapshot.storage.k8s.io']
+    resources: ['volumesnapshots']
+    verbs: ['get', 'list', 'watch', 'update']
+  - apiGroups: ['apiextensions.k8s.io']
+    resources: ['customresourcedefinitions']
+    verbs: ['create', 'list', 'watch', 'delete']
+---
+
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: edgefs-iscsi-csi-controller-cluster-role-binding
+subjects:
+  - kind: ServiceAccount
+    name: edgefs-iscsi-csi-controller-service-account
+    namespace: default # replace with non-default namespace name if needed
+roleRef:
+  kind: ClusterRole
+  name: edgefs-iscsi-csi-controller-cluster-role
+  apiGroup: rbac.authorization.k8s.io
+---
+
+kind: Service
+apiVersion: v1
+metadata:
+  name: edgefs-iscsi-csi-controller
+  labels:
+    app: edgefs-iscsi-csi-controller
+spec:
+  selector:
+    app: edgefs-iscsi-csi-controller
+  ports:
+    - name: dummy
+      port: 12345
+---
+
+kind: StatefulSet
+apiVersion: apps/v1
+metadata:
+  name: edgefs-iscsi-csi-controller
+spec:
+  selector:
+    matchLabels:
+      app: edgefs-iscsi-csi-controller
+  serviceName: edgefs-iscsi-csi-controller
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: edgefs-iscsi-csi-controller
+    spec:
+      serviceAccount: edgefs-iscsi-csi-controller-service-account
+      containers:
+        # csi-provisioner: sidecar container that watches Kubernetes PersistentVolumeClaim objects
+        # and triggers CreateVolume/DeleteVolume against a CSI endpoint
+        - name: csi-provisioner
+          image: quay.io/k8scsi/csi-provisioner:v1.0.1
+          imagePullPolicy: IfNotPresent
+          args:
+            - --connection-timeout=25s
+            - --provisioner=io.edgefs.csi.iscsi
+            - --csi-address=/var/lib/csi/sockets/pluginproxy/csi.sock
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /var/lib/csi/sockets/pluginproxy
+        # csi-attacher: sidecar container that watches Kubernetes VolumeAttachment objects
+        # and triggers ControllerPublish/Unpublish against a CSI endpoint
+        - name: csi-attacher
+          image: quay.io/k8scsi/csi-attacher:v1.0.1
+          imagePullPolicy: IfNotPresent
+          args:
+            - --v=3
+            - --csi-address=/var/lib/csi/sockets/pluginproxy/csi.sock
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /var/lib/csi/sockets/pluginproxy
+        - name: csi-snapshotter
+          image: quay.io/k8scsi/csi-snapshotter:v1.0.1
+          imagePullPolicy: IfNotPresent
+          args:
+            - --connection-timeout=25s
+            - --csi-address=/var/lib/csi/sockets/pluginproxy/csi.sock
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /var/lib/csi/sockets/pluginproxy
+        - name: driver
+          image: edgefs/edgefs-csi:latest
+          imagePullPolicy: Always
+          args:
+            - --role=controller
+            - --driverType=iscsi          
+            - --nodeid=$(KUBE_NODE_NAME)
+            - --endpoint=unix://csi/csi.sock
+            - --verbose=debug
+          env:
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+            - name: secret
+              mountPath: /config
+              readOnly: true
+      volumes:
+        - name: socket-dir
+          emptyDir:
+        - name: secret
+          secret:
+            secretName: edgefs-iscsi-csi-driver-config
+---
+
+
+# ---------------------------
+# Edgefs ISCSI CSI Node Server
+# ---------------------------
+#
+# Runs driver node server (driver + registrar) on each node
+#
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: edgefs-iscsi-csi-node-service-account
+  namespace: default # replace with non-default namespace name if needed
+---
+
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: edgefs-iscsi-csi-node-cluster-role
+rules:
+  - apiGroups: ['']
+    resources: ['events']
+    verbs: ['get', 'list', 'watch', 'create', 'update', 'patch']
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list", "watch", "update"]
+---
+
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: edgefs-iscsi-csi-node-cluster-role-binding
+subjects:
+  - kind: ServiceAccount
+    name: edgefs-iscsi-csi-node-service-account
+    namespace: default # replace with non-default namespace name if needed
+roleRef:
+  kind: ClusterRole
+  name: edgefs-iscsi-csi-node-cluster-role
+  apiGroup: rbac.authorization.k8s.io
+---
+
+# EdgeFS Node Server as a daemon
+
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: edgefs-iscsi-csi-node
+spec:
+  selector:
+    matchLabels:
+      app: edgefs-iscsi-csi-node
+  template:
+    metadata:
+      labels:
+        app: edgefs-iscsi-csi-node
+    spec:
+      serviceAccount: edgefs-iscsi-csi-node-service-account
+      hostNetwork: true
+      containers:
+        # driver-registrar: sidecar container that:
+        # 1) registers the CSI driver with kubelet
+        # 2) adds the drivers custom NodeId to a label on the Kubernetes Node API Object
+        - name: driver-registrar
+          image: quay.io/k8scsi/csi-node-driver-registrar:v1.0.1
+          imagePullPolicy: IfNotPresent
+          args:
+            - --v=3
+            - --csi-address=/csi/csi.sock
+            - --kubelet-registration-path=/var/lib/kubelet/plugins_registry/io.edgefs.csi.iscsi/csi.sock
+          env:
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+            - name: registration-dir
+              mountPath: /registration
+        - name: driver
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ['SYS_ADMIN',"SYS_RESOURCE", "IPC_LOCK"]
+            allowPrivilegeEscalation: true
+          image: edgefs/edgefs-csi:latest
+          imagePullPolicy: Always
+          args:
+            - --role=node
+            - --driverType=iscsi          
+            - --nodeid=$(KUBE_NODE_NAME)
+            - --endpoint=unix://csi/csi.sock
+            - --verbose=info
+          env:
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+            - name: secret
+              mountPath: /config
+            - name: dev-mount-dir
+              mountPath: /dev
+              mountPropagation: Bidirectional
+            - name: pods-mount-dir
+              mountPath: /var/lib/kubelet/pods
+              mountPropagation: Bidirectional
+            - name: host
+              mountPath: /host
+              mountPropagation: Bidirectional
+      volumes:
+        - name: socket-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins_registry/io.edgefs.csi.iscsi
+            type: DirectoryOrCreate
+        - name: registration-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins_registry/
+            type: Directory
+        - name: pods-mount-dir
+          hostPath:
+            path: /var/lib/kubelet/pods
+            type: Directory
+        - name: dev-mount-dir
+          hostPath:
+            path: /dev
+            type: Directory
+        - name: host
+          hostPath:
+            path: /
+            type: Directory
+        - name: secret
+          secret:
+            secretName: edgefs-iscsi-csi-driver-config
+---
