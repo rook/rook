@@ -73,6 +73,15 @@ func createFilesystem(
 		return fmt.Errorf("failed to get filesystem %s: %+v", fs.Name, err)
 	}
 
+	// As of Nautilus, allow_standby_replay is a fs property so we need to apply it
+	if cephv1.VersionAtLeast(clusterInfo.CephVersionName, cephv1.Nautilus) {
+		if fs.Spec.MetadataServer.ActiveStandby {
+			if err = client.AllowStandbyReplay(context, fs.Namespace, fs.Name, fs.Spec.MetadataServer.ActiveStandby); err != nil {
+				return fmt.Errorf("failed to set allow_standby_replay to filesystem %s: %v", fs.Name, err)
+			}
+		}
+	}
+
 	// set the number of active mds instances
 	if fs.Spec.MetadataServer.ActiveCount > 1 {
 		if err = client.SetNumMDSRanks(context, fs.Namespace, fs.Name, fs.Spec.MetadataServer.ActiveCount); err != nil {
