@@ -25,6 +25,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/display"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -144,4 +145,35 @@ func PodLabels(appName, namespace, daemonType, daemonID string) map[string]strin
 	// Also report the daemon id keyed by its daemon type: "mon: a", "mds: c", etc.
 	labels[daemonType] = daemonID
 	return labels
+}
+
+// CheckPodMemory verify pod's memory limit is valid
+func CheckPodMemory(resources v1.ResourceRequirements, cephPodMinimumMemory uint64) error {
+	// Ceph related PR: https://github.com/ceph/ceph/pull/26856
+	podMemoryLimit := resources.Limits.Memory()
+	podMemoryRequest := resources.Requests.Memory()
+	errorMessage := `refuse to run the pod with %dmb of ram, provide at least %dmb.`
+
+	// If nothing was provided let's just return
+	// This means no restrictions on pod's resources
+	if podMemoryLimit.IsZero() && podMemoryRequest.IsZero() {
+		return nil
+	}
+
+	// This means LIMIT and REQUEST are either identical or different but still we use LIMIT as a reference
+	if uint64(podMemoryLimit.Value()) < display.MbTob(cephPodMinimumMemory) {
+		return fmt.Errorf(errorMessage, display.BToMb(uint64(podMemoryLimit.Value())), cephPodMinimumMemory)
+	}
+
+	// This means LIMIT < REQUEST
+	// Kubernetes will refuse to schedule that pod however it's still valuable to indicate that user's input was incorrect
+	if uint64(podMemoryLimit.Value()) < display.MbTob(cephPodMinimumMemory) {
+		extraErrorLine := `\n
+		User has specified a pod memory limit below the pod memory request in the cluster CRD.\n
+		Rook will create pods that are expected to fail to serve as a more apparent error indicator to the user.`
+
+		return fmt.Errorf(errorMessage+extraErrorLine, display.BToMb(uint64(podMemoryLimit.Value())), cephPodMinimumMemory)
+	}
+
+	return nil
 }

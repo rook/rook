@@ -161,6 +161,8 @@ func (ct *ContainersTester) AssertCephImagesMatch(image string) {
 func (ct *ContainersTester) AssertResourceSpec(cpuResourceLimit, cpuResourceRequest, memoryResourceLimit, memoryResourceRequest string) {
 	for _, c := range ct.containers {
 		assert.Equal(ct.t, cpuResourceLimit, c.Resources.Limits.Cpu().String())
+		assert.Equal(ct.t, cpuResourceRequest, c.Resources.Requests.Cpu().String())
+		assert.Equal(ct.t, memoryResourceLimit, c.Resources.Limits.Memory().String())
 		assert.Equal(ct.t, memoryResourceRequest, c.Resources.Requests.Memory().String())
 	}
 }

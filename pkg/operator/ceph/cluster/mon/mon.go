@@ -35,16 +35,11 @@ import (
 	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
+	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-)
-
-var (
-	logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mon")
-	// DefaultPort is the default port Ceph mons use to communicate amongst themselves.
-	DefaultPort int32 = 6789
 )
 
 const (
@@ -72,6 +67,14 @@ const (
 	MaxMonCount = 9
 	// Msgr2port is the listening port of the messenger v2 protocol
 	Msgr2port int32 = 3300
+	// minimum amount of memory in MB to run the pod
+	cephMonPodMinimumMemory uint64 = 1024
+)
+
+var (
+	logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mon")
+	// DefaultPort is the default port Ceph mons use to communicate amongst themselves.
+	DefaultPort int32 = 6789
 )
 
 // Cluster represents the Rook and environment configuration settings needed to set up Ceph mons.
@@ -157,6 +160,12 @@ func (c *Cluster) Start(clusterInfo *cephconfig.ClusterInfo, rookVersion string,
 	// fail if we were instructed to deploy more than one mon on the same machine with host networking
 	if c.HostNetwork && c.spec.Mon.AllowMultiplePerNode && c.spec.Mon.Count > 1 {
 		return nil, fmt.Errorf("refusing to deploy %d monitors on the same host since hostNetwork is %v and allowMultiplePerNode is %v. Only one monitor per node is allowed", c.spec.Mon.Count, c.HostNetwork, c.spec.Mon.AllowMultiplePerNode)
+	}
+
+	// Validate pod's memory if specified
+	err := opspec.CheckPodMemory(cephv1.GetMonResources(c.spec.Resources), cephMonPodMinimumMemory)
+	if err != nil {
+		return nil, fmt.Errorf("%v", err)
 	}
 
 	logger.Infof("start running mons")

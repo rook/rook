@@ -29,12 +29,13 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	osdconfig "github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
+	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/discover"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/display"
 	apps "k8s.io/api/apps/v1"
 	batch "k8s.io/api/batch/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/kubelet/apis"
@@ -43,15 +44,16 @@ import (
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-osd")
 
 const (
-	appName                      = "rook-ceph-osd"
-	prepareAppName               = "rook-ceph-osd-prepare"
-	prepareAppNameFmt            = "rook-ceph-osd-prepare-%s"
-	legacyAppNameFmt             = "rook-ceph-osd-id-%d"
-	osdAppNameFmt                = "rook-ceph-osd-%d"
-	osdLabelKey                  = "ceph-osd-id"
-	clusterAvailableSpaceReserve = 0.05
-	serviceAccountName           = "rook-ceph-osd"
-	unknownID                    = -1
+	appName                             = "rook-ceph-osd"
+	prepareAppName                      = "rook-ceph-osd-prepare"
+	prepareAppNameFmt                   = "rook-ceph-osd-prepare-%s"
+	legacyAppNameFmt                    = "rook-ceph-osd-id-%d"
+	osdAppNameFmt                       = "rook-ceph-osd-%d"
+	osdLabelKey                         = "ceph-osd-id"
+	clusterAvailableSpaceReserve        = 0.05
+	serviceAccountName                  = "rook-ceph-osd"
+	unknownID                           = -1
+	cephOsdPodMinimumMemory      uint64 = 4096 // minimum amount of memory in MB to run the pod
 )
 
 // Cluster keeps track of the OSDs
@@ -121,6 +123,13 @@ type OrchestrationStatus struct {
 
 // Start the osd management
 func (c *Cluster) Start() error {
+	// Validate pod's memory if specified
+	// This is valid for both Filestore and Bluestore
+	err := opspec.CheckPodMemory(c.resources, cephOsdPodMinimumMemory)
+	if err != nil {
+		return fmt.Errorf("%v", err)
+	}
+
 	logger.Infof("start running osds in namespace %s", c.Namespace)
 
 	if c.Storage.UseAllNodes == false && len(c.Storage.Nodes) == 0 {

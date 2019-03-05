@@ -27,7 +27,7 @@ import (
 	cephtest "github.com/rook/rook/pkg/operator/ceph/test"
 	optest "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -44,10 +44,12 @@ func TestPodSpec(t *testing.T) {
 		cephv1.RBDMirroringSpec{Workers: 2},
 		v1.ResourceRequirements{
 			Limits: v1.ResourceList{
-				v1.ResourceCPU: *resource.NewQuantity(100.0, resource.BinarySI),
+				v1.ResourceCPU:    *resource.NewQuantity(200.0, resource.BinarySI),
+				v1.ResourceMemory: *resource.NewQuantity(600.0, resource.BinarySI),
 			},
 			Requests: v1.ResourceList{
-				v1.ResourceMemory: *resource.NewQuantity(1337.0, resource.BinarySI),
+				v1.ResourceCPU:    *resource.NewQuantity(100.0, resource.BinarySI),
+				v1.ResourceMemory: *resource.NewQuantity(300.0, resource.BinarySI),
 			},
 		},
 		metav1.OwnerReference{},
@@ -67,5 +69,5 @@ func TestPodSpec(t *testing.T) {
 
 	podTemplate := cephtest.NewPodTemplateSpecTester(t, &d.Spec.Template)
 	podTemplate.RunFullSuite(config.RbdMirrorType, "a", appName, "ns", "ceph/ceph:myceph",
-		"100", "1337" /* resources */)
+		"200", "100", "600", "300" /* resources */)
 }

@@ -35,4 +35,7 @@ func TestBytesToString(t *testing.T) {
 	// min and max values
 	assert.Equal(t, "0 B", BytesToString(0))
 	assert.Equal(t, "16.00 EiB", BytesToString(math.MaxUint64))
+	assert.Equal(t, uint64(50), BToMb(uint64(52428800)))
+	assert.Equal(t, uint64(52428800), MbTob(uint64(50)))
+
 }

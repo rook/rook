@@ -25,6 +25,7 @@ import (
 	"github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -181,6 +182,81 @@ func TestHostNetworkSameNode(t *testing.T) {
 	// start a basic cluster
 	_, err := c.Start(c.clusterInfo, c.rookVersion, c.spec)
 	assert.Error(t, err)
+}
+
+func TestPodMemory(t *testing.T) {
+	namespace := "ns"
+	context := newTestStartCluster(namespace)
+
+	// Test memory limit alone
+	r := v1.ResourceRequirements{
+		Limits: v1.ResourceList{
+			v1.ResourceMemory: *resource.NewQuantity(536870912, resource.BinarySI), // size in Bytes
+		},
+	}
+
+	c := newCluster(context, namespace, false, true, r)
+	c.clusterInfo = test.CreateConfigDir(1)
+	// start a basic cluster
+	_, err := c.Start(c.clusterInfo, c.rookVersion, c.spec)
+	assert.Error(t, err)
+
+	// Test REQUEST == LIMIT
+	r = v1.ResourceRequirements{
+		Limits: v1.ResourceList{
+			v1.ResourceMemory: *resource.NewQuantity(536870912, resource.BinarySI), // size in Bytes
+		},
+		Requests: v1.ResourceList{
+			v1.ResourceMemory: *resource.NewQuantity(536870912, resource.BinarySI), // size in Bytes
+		},
+	}
+
+	c = newCluster(context, namespace, false, true, r)
+	c.clusterInfo = test.CreateConfigDir(1)
+	// start a basic cluster
+	_, err = c.Start(c.clusterInfo, c.rookVersion, c.spec)
+	assert.Error(t, err)
+
+	// Test LIMIT != REQUEST but obviously LIMIT > REQUEST
+	r = v1.ResourceRequirements{
+		Limits: v1.ResourceList{
+			v1.ResourceMemory: *resource.NewQuantity(536870912, resource.BinarySI), // size in Bytes
+		},
+		Requests: v1.ResourceList{
+			v1.ResourceMemory: *resource.NewQuantity(236870912, resource.BinarySI), // size in Bytes
+		},
+	}
+
+	c = newCluster(context, namespace, false, true, r)
+	c.clusterInfo = test.CreateConfigDir(1)
+	// start a basic cluster
+	_, err = c.Start(c.clusterInfo, c.rookVersion, c.spec)
+	assert.Error(t, err)
+
+	// Test valid case where pod resource is set approprietly
+	r = v1.ResourceRequirements{
+		Limits: v1.ResourceList{
+			v1.ResourceMemory: *resource.NewQuantity(1073741824, resource.BinarySI), // size in Bytes
+		},
+		Requests: v1.ResourceList{
+			v1.ResourceMemory: *resource.NewQuantity(236870912, resource.BinarySI), // size in Bytes
+		},
+	}
+
+	c = newCluster(context, namespace, false, true, r)
+	c.clusterInfo = test.CreateConfigDir(1)
+	// start a basic cluster
+	_, err = c.Start(c.clusterInfo, c.rookVersion, c.spec)
+	assert.Nil(t, err)
+
+	// Test no resources were specified on the pod
+	r = v1.ResourceRequirements{}
+	c = newCluster(context, namespace, false, true, r)
+	c.clusterInfo = test.CreateConfigDir(1)
+	// start a basic cluster
+	_, err = c.Start(c.clusterInfo, c.rookVersion, c.spec)
+	assert.Nil(t, err)
+
 }
 
 func TestHostNetwork(t *testing.T) {

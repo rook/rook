@@ -232,10 +232,12 @@ func TestStorageSpecConfig(t *testing.T) {
 				},
 				Resources: v1.ResourceRequirements{
 					Limits: v1.ResourceList{
-						v1.ResourceCPU: *resource.NewQuantity(100.0, resource.BinarySI),
+						v1.ResourceCPU:    *resource.NewQuantity(1024.0, resource.BinarySI),
+						v1.ResourceMemory: *resource.NewQuantity(4096.0, resource.BinarySI),
 					},
 					Requests: v1.ResourceList{
-						v1.ResourceMemory: *resource.NewQuantity(1337.0, resource.BinarySI),
+						v1.ResourceCPU:    *resource.NewQuantity(500.0, resource.BinarySI),
+						v1.ResourceMemory: *resource.NewQuantity(2048.0, resource.BinarySI),
 					},
 				},
 			},
@@ -266,8 +268,10 @@ func TestStorageSpecConfig(t *testing.T) {
 	verifyEnvVar(t, container.Env, "ROOK_LOCATION", "rack=foo", true)
 	verifyEnvVar(t, container.Env, "ROOK_METADATA_DEVICE", "nvme093", true)
 
-	assert.Equal(t, "100", container.Resources.Limits.Cpu().String())
-	assert.Equal(t, "1337", container.Resources.Requests.Memory().String())
+	assert.Equal(t, "1Ki", container.Resources.Limits.Cpu().String(), "limit cpu is: %s", container.Resources.Limits.Cpu().String())
+	assert.Equal(t, "500", container.Resources.Requests.Cpu().String())
+	assert.Equal(t, "4Ki", container.Resources.Limits.Memory().String())
+	assert.Equal(t, "2Ki", container.Resources.Requests.Memory().String())
 
 	// verify that osd config can be discovered from the container and matches the original config from the spec
 	discoveredConfig := getConfigFromContainer(container)
