@@ -32,6 +32,10 @@ import (
 
 const (
 	mdsDaemonCommand = "ceph-mds"
+	// MDS cache memory limit should be set to 50-60% of RAM reserved for the MDS container
+	// MDS uses approximately 125% of the value of mds_cache_memory_limit in RAM.
+	// Eventually we will tune this automatically: http://tracker.ceph.com/issues/36663
+	mdsCacheMemoryLimitFactor = 0.5
 )
 
 func (c *Cluster) makeDeployment(mdsConfig *mdsConfig) *apps.Deployment {
@@ -90,6 +94,13 @@ func (c *Cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
 			args,
 			config.NewFlag("mds-standby-for-fscid", c.fsID),
 			config.NewFlag("mds-standby-replay", strconv.FormatBool(c.fs.Spec.MetadataServer.ActiveStandby)))
+	}
+
+	// Set mds cache memory limit to the best appropriate value
+	// This is new in Luminous so there is no need to check for a Ceph version
+	if !c.fs.Spec.MetadataServer.Resources.Limits.Memory().IsZero() {
+		mdsCacheMemoryLimit := float64(c.fs.Spec.MetadataServer.Resources.Limits.Memory().Value()) * mdsCacheMemoryLimitFactor
+		args = append(args, config.NewFlag("mds-cache-memory-limit", strconv.Itoa(int(mdsCacheMemoryLimit))))
 	}
 
 	container := v1.Container{
