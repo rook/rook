@@ -225,6 +225,7 @@ func (c *S3Controller) makeDeployment(svcname, namespace, rookImage, imageArgs s
 
 	// apply current S3 CRD options to pod's specification
 	s3Spec.Placement.ApplyToPodSpec(&podSpec.Spec)
+	s3Spec.Annotations.ApplyToObjectMeta(&podSpec.ObjectMeta)
 
 	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -240,6 +241,7 @@ func (c *S3Controller) makeDeployment(svcname, namespace, rookImage, imageArgs s
 		},
 	}
 	k8sutil.SetOwnerRef(c.context.Clientset, namespace, &d.ObjectMeta, &c.ownerRef)
+	s3Spec.Annotations.ApplyToObjectMeta(&d.ObjectMeta)
 	return d
 }
 

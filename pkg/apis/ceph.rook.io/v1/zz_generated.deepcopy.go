@@ -446,6 +446,23 @@ func (in *ClusterSpec) DeepCopyInto(out *ClusterSpec) {
 	*out = *in
 	out.CephVersion = in.CephVersion
 	in.Storage.DeepCopyInto(&out.Storage)
+	if in.Annotations != nil {
+		in, out := &in.Annotations, &out.Annotations
+		*out = make(v1alpha2.AnnotationsSpec, len(*in))
+		for key, val := range *in {
+			var outVal map[string]string
+			if val == nil {
+				(*out)[key] = nil
+			} else {
+				in, out := &val, &outVal
+				*out = make(v1alpha2.Annotations, len(*in))
+				for key, val := range *in {
+					(*out)[key] = val
+				}
+			}
+			(*out)[key] = outVal
+		}
+	}
 	if in.Placement != nil {
 		in, out := &in.Placement, &out.Placement
 		*out = make(v1alpha2.PlacementSpec, len(*in))
@@ -578,6 +595,13 @@ func (in *GaneshaRADOSSpec) DeepCopy() *GaneshaRADOSSpec {
 func (in *GaneshaServerSpec) DeepCopyInto(out *GaneshaServerSpec) {
 	*out = *in
 	in.Placement.DeepCopyInto(&out.Placement)
+	if in.Annotations != nil {
+		in, out := &in.Annotations, &out.Annotations
+		*out = make(v1alpha2.Annotations, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	in.Resources.DeepCopyInto(&out.Resources)
 	return
 }
@@ -596,6 +620,13 @@ func (in *GaneshaServerSpec) DeepCopy() *GaneshaServerSpec {
 func (in *GatewaySpec) DeepCopyInto(out *GatewaySpec) {
 	*out = *in
 	in.Placement.DeepCopyInto(&out.Placement)
+	if in.Annotations != nil {
+		in, out := &in.Annotations, &out.Annotations
+		*out = make(v1alpha2.Annotations, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	in.Resources.DeepCopyInto(&out.Resources)
 	return
 }
@@ -614,6 +645,13 @@ func (in *GatewaySpec) DeepCopy() *GatewaySpec {
 func (in *MetadataServerSpec) DeepCopyInto(out *MetadataServerSpec) {
 	*out = *in
 	in.Placement.DeepCopyInto(&out.Placement)
+	if in.Annotations != nil {
+		in, out := &in.Annotations, &out.Annotations
+		*out = make(v1alpha2.Annotations, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	in.Resources.DeepCopyInto(&out.Resources)
 	return
 }

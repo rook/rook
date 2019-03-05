@@ -18,6 +18,8 @@ package controller
 
 import (
 	"fmt"
+	"testing"
+
 	cassandrav1alpha1 "github.com/rook/rook/pkg/apis/cassandra.rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/operator/cassandra/constants"
 	"github.com/rook/rook/pkg/operator/cassandra/controller/util"
@@ -26,11 +28,9 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"testing"
 )
 
 func TestCreateRack(t *testing.T) {
-
 	simpleCluster := casstest.NewSimpleCluster(3)
 
 	tests := []struct {
@@ -77,14 +77,14 @@ func TestCreateRack(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			cc := newFakeClusterController(test.kubeObjects, nil)
-			err := cc.createRack(test.rack, test.cluster)
 
-			if err == nil {
+			if err := cc.createRack(test.rack, test.cluster); err == nil {
 				if test.expectedErr {
 					t.Errorf("Expected an error, got none.")
 				} else {
 
-					sts, err := cc.kubeClient.AppsV1().StatefulSets(test.cluster.Namespace).
+					var sts *appsv1.StatefulSet
+					sts, err = cc.kubeClient.AppsV1().StatefulSets(test.cluster.Namespace).
 						Get(util.StatefulSetNameForRack(test.rack, test.cluster), metav1.GetOptions{})
 					if err != nil {
 						t.Errorf("Couldn't retrieve expected StatefulSet: %s", err.Error())
@@ -92,8 +92,7 @@ func TestCreateRack(t *testing.T) {
 						t.Logf("Got StatefulSet as expected: %s", sts.Name)
 					}
 				}
-			}
-			if err != nil {
+			} else {
 				if test.expectedErr {
 					t.Logf("Got an error as expected: %s", err.Error())
 				} else {

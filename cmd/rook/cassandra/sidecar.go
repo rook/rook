@@ -18,6 +18,8 @@ package cassandra
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/rook/rook/cmd/rook/rook"
 	"github.com/rook/rook/pkg/operator/cassandra/sidecar"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -27,7 +29,6 @@ import (
 	"k8s.io/apiserver/pkg/server"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/informers/internalinterfaces"
-	"os"
 )
 
 var sidecarCmd = &cobra.Command{

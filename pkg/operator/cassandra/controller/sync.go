@@ -26,7 +26,7 @@ const (
 	// SuccessSynced is used as part of the Event 'reason' when a Cluster is
 	// synced.
 	SuccessSynced = "Synced"
-	// ErrResourceExists is used as part of the Event 'reason' when a
+	// ErrSyncFailed is used as part of the Event 'reason' when a
 	// Cluster fails to sync due to a resource of the same name already
 	// existing.
 	ErrSyncFailed = "ErrSyncFailed"

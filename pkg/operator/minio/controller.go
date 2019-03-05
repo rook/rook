@@ -24,6 +24,7 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	opkit "github.com/rook/operator-kit"
 	miniov1alpha1 "github.com/rook/rook/pkg/apis/minio.rook.io/v1alpha1"
+	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
@@ -141,7 +142,17 @@ func makeServerAddress(statefulSetPrefix, headlessServiceName, namespace, cluste
 	return fmt.Sprintf("http://%s-%d.%s.%s%s", statefulSetPrefix, serverNum, headlessServiceName, dnsSuffix, pvcDataDir)
 }
 
-func (c *Controller) makeMinioPodSpec(name, namespace string, ctrName string, ctrImage string, clusterDomain string, envVars map[string]string, numServers int32, volumeClaims []v1.PersistentVolumeClaim) v1.PodTemplateSpec {
+func (c *Controller) makeMinioPodSpec(
+	name string,
+	namespace string,
+	ctrName string,
+	ctrImage string,
+	clusterDomain string,
+	envVars map[string]string,
+	numServers int32,
+	volumeClaims []v1.PersistentVolumeClaim,
+	annotations rookalpha.Annotations,
+) v1.PodTemplateSpec {
 	var env []v1.EnvVar
 	for k, v := range envVars {
 		env = append(env, v1.EnvVar{Name: k, Value: v})
@@ -217,6 +228,7 @@ func (c *Controller) makeMinioPodSpec(name, namespace string, ctrName string, ct
 			Volumes: volumes,
 		},
 	}
+	annotations.ApplyToObjectMeta(&podSpec.ObjectMeta)
 
 	return podSpec
 }
@@ -243,7 +255,7 @@ func validateObjectStoreSpec(spec miniov1alpha1.ObjectStoreSpec) error {
 	return nil
 }
 
-func (c *Controller) makeMinioStatefulSet(name, namespace string, spec miniov1alpha1.ObjectStoreSpec, ownerRef meta_v1.OwnerReference) (*apps.StatefulSet, error) {
+func (c *Controller) makeMinioStatefulSet(name, namespace string, spec miniov1alpha1.ObjectStoreSpec, ownerRef meta_v1.OwnerReference, annotations rookalpha.Annotations) (*apps.StatefulSet, error) {
 	accessKey, secretKey, err := c.getAccessCredentials(spec.Credentials.Name, spec.Credentials.Namespace)
 	if err != nil {
 		return nil, err
@@ -254,7 +266,17 @@ func (c *Controller) makeMinioStatefulSet(name, namespace string, spec miniov1al
 		"MINIO_SECRET_KEY": secretKey,
 	}
 
-	podSpec := c.makeMinioPodSpec(name, namespace, minioCtrName, c.rookImage, spec.ClusterDomain, envVars, int32(spec.Storage.NodeCount), spec.Storage.VolumeClaimTemplates)
+	podSpec := c.makeMinioPodSpec(
+		name,
+		namespace,
+		minioCtrName,
+		c.rookImage,
+		spec.ClusterDomain,
+		envVars,
+		int32(spec.Storage.NodeCount),
+		spec.Storage.VolumeClaimTemplates,
+		spec.Annotations,
+	)
 
 	nodeCount := int32(spec.Storage.NodeCount)
 	sts := &apps.StatefulSet{
@@ -273,6 +295,7 @@ func (c *Controller) makeMinioStatefulSet(name, namespace string, spec miniov1al
 			ServiceName:          name,
 		},
 	}
+	annotations.ApplyToObjectMeta(&sts.ObjectMeta)
 	k8sutil.SetOwnerRef(c.context.Clientset, namespace, &sts.ObjectMeta, &ownerRef)
 	sts, err = c.context.Clientset.AppsV1().StatefulSets(namespace).Create(sts)
 	if err != nil && !k8serrors.IsAlreadyExists(err) {
@@ -314,7 +337,7 @@ func (c *Controller) onAdd(obj interface{}) {
 
 	// Create the stateful set.
 	logger.Infof("Creating/Updating Minio stateful set %s.", objectstore.Name)
-	_, err = c.makeMinioStatefulSet(objectstore.Name, objectstore.Namespace, objectstore.Spec, ownerRef)
+	_, err = c.makeMinioStatefulSet(objectstore.Name, objectstore.Namespace, objectstore.Spec, ownerRef, objectstore.Annotations)
 	if err != nil {
 		logger.Errorf(err.Error())
 		return

@@ -41,6 +41,7 @@ func TestPodSpec(t *testing.T) {
 		"rook/rook:myversion",
 		cephv1.CephVersionSpec{Image: "ceph/ceph:myceph"},
 		rookalpha.Placement{},
+		rookalpha.Annotations{},
 		false,
 		cephv1.DashboardSpec{},
 		v1.ResourceRequirements{
@@ -88,6 +89,7 @@ func TestServiceSpec(t *testing.T) {
 		"myversion",
 		cephv1.CephVersionSpec{},
 		rookalpha.Placement{},
+		rookalpha.Annotations{},
 		false,
 		cephv1.DashboardSpec{},
 		v1.ResourceRequirements{},
@@ -110,6 +112,7 @@ func TestHostNetwork(t *testing.T) {
 		"myversion",
 		cephv1.CephVersionSpec{},
 		rookalpha.Placement{},
+		rookalpha.Annotations{},
 		true,
 		cephv1.DashboardSpec{},
 		v1.ResourceRequirements{},

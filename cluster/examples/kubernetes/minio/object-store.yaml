@@ -45,6 +45,9 @@ spec:
     #    resources:
     #      requests:
     #        storage: "8Gi"
+  # A key value list of annotations
+  annotations:
+  #  key: value
   placement:
     tolerations:
     nodeAffinity:

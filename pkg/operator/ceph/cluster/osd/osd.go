@@ -63,6 +63,7 @@ type Cluster struct {
 	context         *clusterd.Context
 	Namespace       string
 	placement       rookalpha.Placement
+	annotations     rookalpha.Annotations
 	Keyring         string
 	rookVersion     string
 	cephVersion     cephv1.CephVersionSpec
@@ -85,16 +86,17 @@ func New(
 	storageSpec rookalpha.StorageScopeSpec,
 	dataDirHostPath string,
 	placement rookalpha.Placement,
+	annotations rookalpha.Annotations,
 	hostNetwork bool,
 	resources v1.ResourceRequirements,
 	ownerRef metav1.OwnerReference,
 ) *Cluster {
-
 	return &Cluster{
 		clusterInfo:     clusterInfo,
 		context:         context,
 		Namespace:       namespace,
 		placement:       placement,
+		annotations:     annotations,
 		rookVersion:     rookVersion,
 		cephVersion:     cephVersion,
 		DesiredStorage:  storageSpec,

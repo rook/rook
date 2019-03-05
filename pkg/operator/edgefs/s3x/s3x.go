@@ -198,6 +198,7 @@ func (c *S3XController) makeDeployment(svcname, namespace, rookImage string, s3x
 	}
 
 	// apply current S3X CRD options to pod's specification
+	s3xSpec.Annotations.ApplyToObjectMeta(&podSpec.ObjectMeta)
 	s3xSpec.Placement.ApplyToPodSpec(&podSpec.Spec)
 
 	d := &apps.Deployment{
@@ -214,6 +215,7 @@ func (c *S3XController) makeDeployment(svcname, namespace, rookImage string, s3x
 		},
 	}
 	k8sutil.SetOwnerRef(c.context.Clientset, namespace, &d.ObjectMeta, &c.ownerRef)
+	s3xSpec.Annotations.ApplyToObjectMeta(&d.ObjectMeta)
 	return d
 }
 

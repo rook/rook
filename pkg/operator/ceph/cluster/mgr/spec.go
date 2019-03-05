@@ -37,8 +37,6 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   mgrConfig.ResourceName,
 			Labels: c.getPodLabels(mgrConfig.DaemonID),
-			Annotations: map[string]string{"prometheus.io/scrape": "true",
-				"prometheus.io/port": strconv.Itoa(metricsPort)},
 		},
 		Spec: v1.PodSpec{
 			InitContainers: []v1.Container{
@@ -60,6 +58,7 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
 	if c.HostNetwork {
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
+	c.annotations.ApplyToObjectMeta(&podSpec.ObjectMeta)
 	c.placement.ApplyToPodSpec(&podSpec.Spec)
 	if c.clusterInfo.CephVersion.IsLuminous() {
 		// prepend the keyring-copy workaround for luminous clusters
@@ -87,6 +86,14 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
 		},
 	}
 	k8sutil.AddRookVersionLabelToDeployment(d)
+	if len(c.annotations) == 0 {
+		prometheusAnnotations := map[string]string{
+			"prometheus.io/scrape": "true",
+			"prometheus.io/port":   strconv.Itoa(metricsPort),
+		}
+		podSpec.ObjectMeta.Annotations = prometheusAnnotations
+		d.ObjectMeta.Annotations = prometheusAnnotations
+	}
 	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &d.ObjectMeta, &c.ownerRef)
 	return d
 }

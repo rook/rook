@@ -40,6 +40,7 @@ func TestPodSpec(t *testing.T) {
 		"rook/rook:myversion",
 		cephv1.CephVersionSpec{Image: "ceph/ceph:myceph"},
 		rookalpha.Placement{},
+		rookalpha.Annotations{},
 		false,
 		cephv1.RBDMirroringSpec{Workers: 2},
 		v1.ResourceRequirements{

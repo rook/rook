@@ -58,6 +58,7 @@ type ISCSIController struct {
 	dataDirHostPath string
 	dataVolumeSize  resource.Quantity
 	placement       rookalpha.Placement
+	annotations     rookalpha.Annotations
 	resources       v1.ResourceRequirements
 	resourceProfile string
 	ownerRef        metav1.OwnerReference

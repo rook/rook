@@ -45,6 +45,7 @@ type Cluster struct {
 	Namespace      string
 	Version        string
 	serviceAccount string
+	annotations    rookalpha.Annotations
 	placement      rookalpha.Placement
 	context        *clusterd.Context
 	resources      v1.ResourceRequirements
@@ -56,6 +57,7 @@ type Cluster struct {
 func New(
 	context *clusterd.Context, namespace, version string,
 	serviceAccount string,
+	annotations rookalpha.Annotations,
 	placement rookalpha.Placement,
 	resources v1.ResourceRequirements,
 	ownerRef metav1.OwnerReference,
@@ -71,6 +73,7 @@ func New(
 		context:        context,
 		Namespace:      namespace,
 		serviceAccount: serviceAccount,
+		annotations:    annotations,
 		placement:      placement,
 		Version:        version,
 		resources:      resources,

@@ -48,6 +48,7 @@ func (c *clusterConfig) startDeployment() (*apps.Deployment, error) {
 		},
 	}
 	k8sutil.AddRookVersionLabelToDeployment(d)
+	c.store.Spec.Gateway.Annotations.ApplyToObjectMeta(&d.ObjectMeta)
 	k8sutil.SetOwnerRefs(c.context.Clientset, c.store.Namespace, &d.ObjectMeta, c.ownerRefs)
 
 	logger.Debugf("starting rgw deployment: %+v", d)
@@ -147,17 +148,18 @@ func (c *clusterConfig) makeRGWPodSpec() v1.PodTemplateSpec {
 					}}}}
 		podSpec.Volumes = append(podSpec.Volumes, certVol)
 	}
-
 	c.store.Spec.Gateway.Placement.ApplyToPodSpec(&podSpec)
 
-	return v1.PodTemplateSpec{
+	podTemplateSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        c.instanceName(),
-			Labels:      c.getLabels(),
-			Annotations: map[string]string{},
+			Name:   c.instanceName(),
+			Labels: c.getLabels(),
 		},
 		Spec: podSpec,
 	}
+	c.store.Spec.Gateway.Annotations.ApplyToObjectMeta(&podTemplateSpec.ObjectMeta)
+
+	return podTemplateSpec
 }
 
 func (c *clusterConfig) makeDaemonContainer() v1.Container {

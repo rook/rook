@@ -46,6 +46,8 @@ type ClusterList struct {
 }
 
 type ClusterSpec struct {
+	// The annotations-related configuration to add/set on each Pod related object.
+	Annotations         rook.Annotations      `json:"annotations,omitempty"`
 	Storage             rook.StorageScopeSpec `json:"scope,omitempty"`
 	Network             rook.NetworkSpec      `json:"network,omitempty"`
 	Secure              bool                  `json:"secure,omitempty"`

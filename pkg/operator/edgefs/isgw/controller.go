@@ -57,6 +57,7 @@ type ISGWController struct {
 	hostNetwork     bool
 	dataDirHostPath string
 	dataVolumeSize  resource.Quantity
+	annotations     rookalpha.Annotations
 	placement       rookalpha.Placement
 	resources       v1.ResourceRequirements
 	resourceProfile string

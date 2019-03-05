@@ -32,6 +32,9 @@ spec:
   server:
     # the number of active NFS servers
     active: 2
+    # A key/value list of annotations
+    annotations:
+    #  key: value
     # where to run the NFS server
     placement:
     #  nodeAffinity:

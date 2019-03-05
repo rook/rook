@@ -60,6 +60,7 @@ func TestStartMGR(t *testing.T) {
 		"myversion",
 		cephv1.CephVersionSpec{},
 		rookalpha.Placement{},
+		rookalpha.Annotations{},
 		false,
 		cephv1.DashboardSpec{Enabled: true},
 		v1.ResourceRequirements{},

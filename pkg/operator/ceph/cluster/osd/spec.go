@@ -268,7 +268,6 @@ func (c *Cluster) makeDeployment(nodeName string, selection rookalpha.Selection,
 						k8sutil.ClusterAttr: c.Namespace,
 						osdLabelKey:         fmt.Sprintf("%d", osd.ID),
 					},
-					Annotations: map[string]string{},
 				},
 				Spec: v1.PodSpec{
 					NodeSelector:       map[string]string{apis.LabelHostname: nodeName},
@@ -308,6 +307,8 @@ func (c *Cluster) makeDeployment(nodeName string, selection rookalpha.Selection,
 		},
 	}
 	k8sutil.AddRookVersionLabelToDeployment(deployment)
+	c.annotations.ApplyToObjectMeta(&deployment.ObjectMeta)
+	c.annotations.ApplyToObjectMeta(&deployment.Spec.Template.ObjectMeta)
 	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &deployment.ObjectMeta, &c.ownerRef)
 	c.placement.ApplyToPodSpec(&deployment.Spec.Template.Spec)
 	return deployment, nil
@@ -377,20 +378,24 @@ func (c *Cluster) provisionPodTemplateSpec(devices []rookalpha.Device, selection
 	}
 	c.placement.ApplyToPodSpec(&podSpec)
 
+	podMeta := metav1.ObjectMeta{
+		Name: appName,
+		Labels: map[string]string{
+			k8sutil.AppAttr:     prepareAppName,
+			k8sutil.ClusterAttr: c.Namespace,
+		},
+		Annotations: map[string]string{},
+	}
+
+	c.annotations.ApplyToObjectMeta(&podMeta)
+
 	// ceph-volume --dmcrypt uses cryptsetup that synchronizes with udev on
 	// host through semaphore
 	podSpec.HostIPC = storeConfig.EncryptedDevice
 
 	return &v1.PodTemplateSpec{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: appName,
-			Labels: map[string]string{
-				k8sutil.AppAttr:     prepareAppName,
-				k8sutil.ClusterAttr: c.Namespace,
-			},
-			Annotations: map[string]string{},
-		},
-		Spec: podSpec,
+		ObjectMeta: podMeta,
+		Spec:       podSpec,
 	}, nil
 }
 

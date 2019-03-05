@@ -86,18 +86,20 @@ func NewClusterController(context *clusterd.Context, containerImage string) *Clu
 }
 
 type cluster struct {
-	context   *clusterd.Context
-	namespace string
-	spec      cockroachdbv1alpha1.ClusterSpec
-	ownerRef  metav1.OwnerReference
+	context     *clusterd.Context
+	namespace   string
+	spec        cockroachdbv1alpha1.ClusterSpec
+	annotations rookv1alpha2.Annotations
+	ownerRef    metav1.OwnerReference
 }
 
 func newCluster(c *cockroachdbv1alpha1.Cluster, context *clusterd.Context) *cluster {
 	return &cluster{
-		context:   context,
-		namespace: c.Namespace,
-		spec:      c.Spec,
-		ownerRef:  clusterOwnerRef(c.Namespace, string(c.UID)),
+		context:     context,
+		namespace:   c.Namespace,
+		spec:        c.Spec,
+		annotations: c.Spec.Annotations,
+		ownerRef:    clusterOwnerRef(c.Namespace, string(c.UID)),
 	}
 }
 
@@ -337,6 +339,8 @@ func (c *ClusterController) createStatefulSet(cluster *cluster) error {
 			VolumeClaimTemplates: cluster.spec.Storage.VolumeClaimTemplates,
 		},
 	}
+	cluster.annotations.ApplyToObjectMeta(&statefulSet.Spec.Template.ObjectMeta)
+	cluster.annotations.ApplyToObjectMeta(&statefulSet.ObjectMeta)
 	k8sutil.SetOwnerRef(c.context.Clientset, cluster.namespace, &statefulSet.ObjectMeta, &cluster.ownerRef)
 
 	if _, err := c.context.Clientset.AppsV1().StatefulSets(cluster.namespace).Create(statefulSet); err != nil {

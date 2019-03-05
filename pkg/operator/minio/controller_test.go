@@ -148,6 +148,10 @@ func TestSpecVerification(t *testing.T) {
 			Namespace: namespace,
 		},
 		Spec: miniov.ObjectStoreSpec{
+			Annotations: map[string]string{
+				"test123": "this is a test",
+				"rook.io": "this is a test",
+			},
 			Storage: rookalpha.StorageScopeSpec{
 				NodeCount: 6,
 				Selection: rookalpha.Selection{

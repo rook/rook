@@ -386,6 +386,8 @@ func (c *Controller) createNfsStatefulSet(nfsServer *nfsServer, replicas int32) 
 			ServiceName: nfsServer.name,
 		},
 	}
+	nfsServer.spec.Annotations.ApplyToObjectMeta(&statefulSet.Spec.Template.ObjectMeta)
+	nfsServer.spec.Annotations.ApplyToObjectMeta(&statefulSet.ObjectMeta)
 
 	if _, err := appsClient.StatefulSets(nfsServer.namespace).Create(&statefulSet); err != nil {
 		if !errors.IsAlreadyExists(err) {

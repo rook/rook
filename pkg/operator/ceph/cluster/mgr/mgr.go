@@ -51,6 +51,7 @@ type Cluster struct {
 	Namespace       string
 	Replicas        int
 	placement       rookalpha.Placement
+	annotations     rookalpha.Annotations
 	context         *clusterd.Context
 	dataDir         string
 	HostNetwork     bool
@@ -70,6 +71,7 @@ func New(
 	namespace, rookVersion string,
 	cephVersion cephv1.CephVersionSpec,
 	placement rookalpha.Placement,
+	annotations rookalpha.Annotations,
 	hostNetwork bool,
 	dashboard cephv1.DashboardSpec,
 	resources v1.ResourceRequirements,

@@ -54,6 +54,9 @@ type ClusterSpec struct {
 	// A spec for available storage in the cluster and how it should be used
 	Storage rook.StorageScopeSpec `json:"storage,omitempty"`
 
+	// The annotations-related configuration to add/set on each Pod related object.
+	Annotations rook.AnnotationsSpec `json:"annotations,omitempty"`
+
 	// The placement-related configuration to pass to kubernetes (affinity, node selector, tolerations).
 	Placement rook.PlacementSpec `json:"placement,omitempty"`
 
@@ -227,6 +230,9 @@ type MetadataServerSpec struct {
 	// The affinity to place the mds pods (default is to place on all available node) with a daemonset
 	Placement rook.Placement `json:"placement"`
 
+	// The annotations-related configuration to add/set on each Pod related object.
+	Annotations rook.Annotations `json:"annotations,omitempty"`
+
 	// The resource requirements for the rgw pods
 	Resources v1.ResourceRequirements `json:"resources"`
 }
@@ -306,6 +312,9 @@ type GatewaySpec struct {
 	// The affinity to place the rgw pods (default is to place on any available node)
 	Placement rook.Placement `json:"placement"`
 
+	// The annotations-related configuration to add/set on each Pod related object.
+	Annotations rook.Annotations `json:"annotations,omitempty"`
+
 	// The resource requirements for the rgw pods
 	Resources v1.ResourceRequirements `json:"resources"`
 }
@@ -349,6 +358,9 @@ type GaneshaServerSpec struct {
 
 	// The affinity to place the ganesha pods
 	Placement rook.Placement `json:"placement"`
+
+	// The annotations-related configuration to add/set on each Pod related object.
+	Annotations rook.Annotations `json:"annotations,omitempty"`
 
 	// Resources set resource requests and limits
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`

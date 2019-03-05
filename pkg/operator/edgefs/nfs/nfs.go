@@ -171,6 +171,7 @@ func (c *NFSController) makeDeployment(svcname, namespace, rookImage string, nfs
 	if c.hostNetwork {
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
+	nfsSpec.Annotations.ApplyToObjectMeta(&podSpec.ObjectMeta)
 
 	// apply current NFS CRD options to pod's specification
 	nfsSpec.Placement.ApplyToPodSpec(&podSpec.Spec)
@@ -189,6 +190,7 @@ func (c *NFSController) makeDeployment(svcname, namespace, rookImage string, nfs
 		},
 	}
 	k8sutil.SetOwnerRef(c.context.Clientset, namespace, &d.ObjectMeta, &c.ownerRef)
+	nfsSpec.Annotations.ApplyToObjectMeta(&d.ObjectMeta)
 	return d
 }
 
