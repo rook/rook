@@ -66,10 +66,7 @@ rules:
   resources:
   - services
   verbs:
-  - get
-  - list
   - create
-  - update
 - apiGroups:
   - apps
   resources:
