@@ -4,7 +4,7 @@ weight: 1200
 indent: true
 ---
 # FlexVolume Configuration
-Rook uses [FlexVolume](https://github.com/kubernetes/community/blob/master/contributors/devel/flexvolume.md) to integrate with Kubernetes for performing storage operations. In some operating systems where Kubernetes is deployed, the [default Flexvolume plugin directory](https://github.com/kubernetes/community/blob/master/contributors/devel/flexvolume.md#prerequisites) (the directory where FlexVolume drivers are installed) is **read-only**.
+Rook uses [FlexVolume](https://github.com/kubernetes/community/blob/master/contributors/devel/sig-storage/flexvolume.md) to integrate with Kubernetes for performing storage operations. In some operating systems where Kubernetes is deployed, the [default Flexvolume plugin directory](https://github.com/kubernetes/community/blob/master/contributors/devel/sig-storage/flexvolume.md#prerequisites) (the directory where FlexVolume drivers are installed) is **read-only**.
 This is the case for Kubernetes deployments on:
 
 * [Atomic](https://www.projectatomic.io/)
@@ -34,6 +34,12 @@ See the [OpenShift](#openshift) section, unless running with OpenStack Magnum, t
 Use the [Most common read/write FlexVolume path](#most-common-readwrite-flexvolume-path) for the next steps.
 
 The kubelet's systemD unit file can be located at: `/etc/systemd/system/kubelet.service`.
+
+Continue with [configuring the FlexVolume path](#configuring-the-flexvolume-path) to configure Rook to use the FlexVolume path.
+
+### Kubespray
+Kubespray uses a non-standard [FlexVolume plugin directory](https://github.com/kubernetes-sigs/kubespray/blob/master/roles/kubernetes/node/defaults/main.yml#L55): `/var/lib/kubelet/volume-plugins`.
+The Kubespray configured kubelet is already configured to use that directory.
 
 Continue with [configuring the FlexVolume path](#configuring-the-flexvolume-path) to configure Rook to use the FlexVolume path.
 
