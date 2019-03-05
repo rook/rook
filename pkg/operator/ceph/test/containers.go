@@ -23,12 +23,14 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 )
 
 var requiredEnvVars = []string{
 	"CONTAINER_IMAGE", "POD_NAME", "POD_NAMESPACE", "NODE_NAME",
 	"ROOK_CEPH_MON_HOST", "ROOK_CEPH_MON_INITIAL_MEMBERS",
+	"POD_CPU_LIMIT", "POD_MEMORY_LIMIT", "POD_MEMORY_REQUEST",
+	"POD_CPU_REQUEST",
 }
 
 // A ContainersTester is a helper exposing methods for testing required Ceph specifications common
@@ -108,6 +110,18 @@ func (ct *ContainersTester) AssertEnvVarsContainCephRequirements() {
 					"ROOK_CEPH_MON_INITIAL_MEMBERS env var does not have appropriate source:", e)
 				assert.Equal(ct.t, "mon_initial_members", e.ValueFrom.SecretKeyRef.Key,
 					"ROOK_CEPH_MON_INITIAL_MEMBERS env var does not have appropriate source:", e)
+			case "POD_MEMORY_LIMIT":
+				assert.Equal(ct.t, "limits.memory", e.ValueFrom.ResourceFieldRef.Resource,
+					"POD_MEMORY_LIMIT env var does not have the appropriate source:", e)
+			case "POD_MEMORY_REQUEST":
+				assert.Equal(ct.t, "requests.memory", e.ValueFrom.ResourceFieldRef.Resource,
+					"POD_MEMORY_REQUEST env var does not have the appropriate source:", e)
+			case "POD_CPU_LIMIT":
+				assert.Equal(ct.t, "limits.cpu", e.ValueFrom.ResourceFieldRef.Resource,
+					"POD_CPU_LIMIT env var does not have the appropriate source:", e)
+			case "POD_CPU_REQUEST":
+				assert.Equal(ct.t, "requests.cpu", e.ValueFrom.ResourceFieldRef.Resource,
+					"POD_CPU_REQUEST env var does not have the appropriate source:", e)
 			}
 		}
 	}
@@ -144,7 +158,7 @@ func (ct *ContainersTester) AssertCephImagesMatch(image string) {
 
 // AssertResourceSpec asserts that the container under test's resource limits/requests match the
 // given (in string format) resource limits/requests.
-func (ct *ContainersTester) AssertResourceSpec(cpuResourceLimit, memoryResourceRequest string) {
+func (ct *ContainersTester) AssertResourceSpec(cpuResourceLimit, cpuResourceRequest, memoryResourceLimit, memoryResourceRequest string) {
 	for _, c := range ct.containers {
 		assert.Equal(ct.t, cpuResourceLimit, c.Resources.Limits.Cpu().String())
 		assert.Equal(ct.t, memoryResourceRequest, c.Resources.Requests.Memory().String())
@@ -152,12 +166,12 @@ func (ct *ContainersTester) AssertResourceSpec(cpuResourceLimit, memoryResourceR
 }
 
 // RunFullSuite runs all assertion tests for the Containers under test.
-func (ct *ContainersTester) RunFullSuite(cephImage, cpuResourceLimit, memoryResourceRequest string) {
+func (ct *ContainersTester) RunFullSuite(cephImage, cpuResourceLimit, cpuResourceRequest, memoryResourceLimit, memoryResourceRequest string) {
 	ct.AssertEnvVarsContainCephRequirements()
 	ct.AssertArgReferencesMatchEnvVars()
 	ct.AssertArgsContainCephRequirements()
 	ct.AssertCephImagesMatch(cephImage)
-	ct.AssertResourceSpec(cpuResourceLimit, memoryResourceRequest)
+	ct.AssertResourceSpec(cpuResourceLimit, cpuResourceRequest, memoryResourceLimit, memoryResourceRequest)
 }
 
 func isCephCommand(command []string) bool {

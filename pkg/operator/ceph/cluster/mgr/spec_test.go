@@ -27,7 +27,7 @@ import (
 	cephtest "github.com/rook/rook/pkg/operator/ceph/test"
 	optest "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -45,9 +45,11 @@ func TestPodSpec(t *testing.T) {
 		cephv1.DashboardSpec{},
 		v1.ResourceRequirements{
 			Limits: v1.ResourceList{
-				v1.ResourceCPU: *resource.NewQuantity(100.0, resource.BinarySI),
+				v1.ResourceCPU:    *resource.NewQuantity(100.0, resource.BinarySI),
+				v1.ResourceMemory: *resource.NewQuantity(1337.0, resource.BinarySI),
 			},
 			Requests: v1.ResourceList{
+				v1.ResourceCPU:    *resource.NewQuantity(100.0, resource.BinarySI),
 				v1.ResourceMemory: *resource.NewQuantity(1337.0, resource.BinarySI),
 			},
 		},
@@ -69,7 +71,7 @@ func TestPodSpec(t *testing.T) {
 
 	podTemplate := cephtest.NewPodTemplateSpecTester(t, &d.Spec.Template)
 	podTemplate.RunFullSuite(config.MgrType, "a", appName, "ns", "ceph/ceph:myceph",
-		"100", "1337" /* resources */)
+		"100", "1337", "100", "1337" /* resources */)
 
 }
 
