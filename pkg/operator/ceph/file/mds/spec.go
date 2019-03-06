@@ -14,11 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package file
+package mds
 
 import (
+	"fmt"
 	"strconv"
 
+	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -31,7 +33,7 @@ const (
 	mdsDaemonCommand = "ceph-mds"
 )
 
-func (c *cluster) makeDeployment(mdsConfig *mdsConfig) *apps.Deployment {
+func (c *Cluster) makeDeployment(mdsConfig *mdsConfig) *apps.Deployment {
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        mdsConfig.ResourceName,
@@ -75,7 +77,7 @@ func (c *cluster) makeDeployment(mdsConfig *mdsConfig) *apps.Deployment {
 	return d
 }
 
-func (c *cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
+func (c *Cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
 	return v1.Container{
 		Name: "mds",
 		Command: []string{
@@ -96,8 +98,31 @@ func (c *cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
 	}
 }
 
-func (c *cluster) podLabels(mdsConfig *mdsConfig) map[string]string {
+func (c *Cluster) podLabels(mdsConfig *mdsConfig) map[string]string {
 	labels := opspec.PodLabels(AppName, c.fs.Namespace, "mds", mdsConfig.DaemonID)
 	labels["rook_file_system"] = c.fs.Name
 	return labels
+}
+
+func getMdsDeployments(context *clusterd.Context, namespace, fsName string) (*apps.DeploymentList, error) {
+	fsLabelSelector := fmt.Sprintf("rook_file_system=%s", fsName)
+	deps, err := k8sutil.GetDeployments(context.Clientset, namespace, fsLabelSelector)
+	if err != nil {
+		return nil, fmt.Errorf("could not get deployments for filesystem %s (matching label selector '%s'): %+v", fsName, fsLabelSelector, err)
+	}
+	return deps, nil
+}
+
+func deleteMdsDeployment(context *clusterd.Context, namespace string, deployment *apps.Deployment) error {
+	errCount := 0
+	// Delete the mds deployment
+	logger.Infof("deleting mds deployment %s", deployment.Name)
+	var gracePeriod int64
+	propagation := metav1.DeletePropagationForeground
+	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
+	if err := context.Clientset.Apps().Deployments(namespace).Delete(deployment.GetName(), options); err != nil {
+		errCount++
+		logger.Errorf("failed to delete mds deployment %s: %+v", deployment.GetName(), err)
+	}
+	return nil
 }

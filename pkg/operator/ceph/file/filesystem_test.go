@@ -28,6 +28,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	cephtest "github.com/rook/rook/pkg/daemon/ceph/test"
+	"github.com/rook/rook/pkg/operator/ceph/file/mds"
 	testopk8s "github.com/rook/rook/pkg/operator/k8sutil/test"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -69,7 +70,7 @@ func TestValidateSpec(t *testing.T) {
 
 func TestCreateFilesystem(t *testing.T) {
 	var deploymentsUpdated *[]*apps.Deployment
-	updateDeploymentAndWait, deploymentsUpdated = testopk8s.UpdateDeploymentAndWaitStub()
+	mds.UpdateDeploymentAndWait, deploymentsUpdated = testopk8s.UpdateDeploymentAndWaitStub()
 
 	configDir, _ := ioutil.TempDir("", "")
 	// Output to check multiple filesystem creation

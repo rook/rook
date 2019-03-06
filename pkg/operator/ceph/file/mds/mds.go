@@ -14,23 +14,26 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package file
+// Package mds provides methods for managing a Ceph mds cluster.
+package mds
 
 import (
 	"fmt"
 	"strconv"
 	"time"
 
+	"github.com/coreos/pkg/capnslog"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	apps "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mds")
 
 const (
 	// AppName is the name of Rook's Ceph mds (File) sub-app
@@ -42,7 +45,8 @@ const (
 	fsWaitForActiveTimeout = 3 * time.Minute
 )
 
-type cluster struct {
+// Cluster represents a Ceph mds cluster.
+type Cluster struct {
 	clusterInfo *cephconfig.ClusterInfo
 	context     *clusterd.Context
 	rookVersion string
@@ -59,7 +63,8 @@ type mdsConfig struct {
 	DataPathMap  *config.DataPathMap // location to store data in container
 }
 
-func newCluster(
+// NewCluster creates a Ceph mds cluster representation.
+func NewCluster(
 	clusterInfo *cephconfig.ClusterInfo,
 	context *clusterd.Context,
 	rookVersion string,
@@ -68,8 +73,8 @@ func newCluster(
 	fs cephv1.CephFilesystem,
 	fsdetails *client.CephFilesystemDetails,
 	ownerRefs []metav1.OwnerReference,
-) *cluster {
-	return &cluster{
+) *Cluster {
+	return &Cluster{
 		clusterInfo: clusterInfo,
 		context:     context,
 		rookVersion: rookVersion,
@@ -81,9 +86,11 @@ func newCluster(
 	}
 }
 
-var updateDeploymentAndWait = k8sutil.UpdateDeploymentAndWait
+// UpdateDeploymentAndWait can be overridden for unit tests. Do not alter this for runtime operation.
+var UpdateDeploymentAndWait = k8sutil.UpdateDeploymentAndWait
 
-func (c *cluster) start() error {
+// Start starts or updates a Ceph mds cluster in Kubernetes.
+func (c *Cluster) Start() error {
 	// If attempt was made to prepare daemons for upgrade, make sure that an attempt is made to
 	// bring fs state back to desired when this method returns with any error or success.
 	var fsPreparedForUpgrade = false
@@ -126,7 +133,7 @@ func (c *cluster) start() error {
 			// TODO: need to prepare for upgrade here each time. Also, before a given deployment is
 			// terminated, I think we should somehow make sure that it isn't running the single
 			// active daemon. If it is, then we should have another daemon take over as active. @Jan?
-			if createdDeployment, err = updateDeploymentAndWait(c.context, d, c.fs.Namespace); err != nil {
+			if createdDeployment, err = UpdateDeploymentAndWait(c.context, d, c.fs.Namespace); err != nil {
 				return fmt.Errorf("failed to update mds deployment %s. %+v", mdsConfig.ResourceName, err)
 			}
 		}
@@ -138,6 +145,14 @@ func (c *cluster) start() error {
 		}
 	}
 
+	if err := c.scaleDownDeployments(replicas, desiredDeployments); err != nil {
+		return fmt.Errorf("failed to scale down mds deployments. %+v", err)
+	}
+
+	return nil
+}
+
+func (c *Cluster) scaleDownDeployments(replicas int32, desiredDeployments map[string]bool) error {
 	// Remove extraneous mds deployments if they exist
 	deps, err := getMdsDeployments(c.context, c.fs.Namespace, c.fs.Name)
 	if err != nil {
@@ -186,7 +201,8 @@ func (c *cluster) start() error {
 	return nil
 }
 
-func deleteMdsCluster(context *clusterd.Context, namespace, fsName string) error {
+// DeleteCluster deletes a Ceph mds cluster from Kubernetes.
+func DeleteCluster(context *clusterd.Context, namespace, fsName string) error {
 	// Try to delete all mds deployments and secret keys serving the filesystem, and aggregate
 	// failures together to report all at once at the end.
 	deps, err := getMdsDeployments(context, namespace, fsName)
@@ -207,36 +223,49 @@ func deleteMdsCluster(context *clusterd.Context, namespace, fsName string) error
 	return nil
 }
 
-func getMdsDeployments(context *clusterd.Context, namespace, fsName string) (*apps.DeploymentList, error) {
-	fsLabelSelector := fmt.Sprintf("rook_file_system=%s", fsName)
-	deps, err := k8sutil.GetDeployments(context.Clientset, namespace, fsLabelSelector)
-	if err != nil {
-		return nil, fmt.Errorf("could not get deployments for filesystem %s (matching label selector '%s'): %+v", fsName, fsLabelSelector, err)
+// prepareForDaemonUpgrade performs all actions necessary to ensure the filesystem is prepared
+// to have its daemon(s) updated. This helps ensure there is no aberrant behavior during upgrades.
+// If the mds is not prepared within the timeout window, an error will be reported.
+// Ceph docs: http://docs.ceph.com/docs/master/cephfs/upgrading/
+func prepareForDaemonUpgrade(
+	context *clusterd.Context,
+	clusterName, fsName string,
+	timeout time.Duration,
+) error {
+	logger.Infof("preparing filesystem %s for daemon upgrade", fsName)
+	// * Beginning of noted section 1
+	// This section is necessary for upgrading to Mimic and to/past Luminous 12.2.3.
+	//   See more:  https://ceph.com/releases/v13-2-0-mimic-released/
+	//              http://docs.ceph.com/docs/mimic/cephfs/upgrading/
+	// As of Oct. 2018, this is only necessary for Luminous and Mimic.
+	if err := client.SetNumMDSRanks(context, clusterName, fsName, 1); err != nil {
+		return fmt.Errorf("Could not Prepare filesystem %s for daemon upgrade: %+v", fsName, err)
 	}
-	return deps, nil
+	if err := client.WaitForActiveRanks(context, clusterName, fsName, 1, false, timeout); err != nil {
+		return err
+	}
+	// * End of Noted section 1
+
+	logger.Infof("Filesystem %s successfully prepared for mds daemon upgrade", fsName)
+	return nil
 }
 
-func deleteMdsDeployment(context *clusterd.Context, namespace string, deployment *apps.Deployment) error {
-	errCount := 0
-
-	// Delete the mds deployment
-	logger.Infof("deleting mds deployment %s", deployment.Name)
-	var gracePeriod int64
-	propagation := metav1.DeletePropagationForeground
-	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
-	if err := context.Clientset.Apps().Deployments(namespace).Delete(deployment.GetName(), options); err != nil {
-		errCount++
-		logger.Errorf("failed to delete mds deployment %s: %+v", deployment.GetName(), err)
-	}
-
-	// Delete the mds secret
-	err := context.Clientset.CoreV1().Secrets(namespace).Delete(deployment.GetName(), &metav1.DeleteOptions{})
-	if err != nil && !errors.IsNotFound(err) {
-		errCount++
-		logger.Errorf("failed to delete mds secret %s: %+v", deployment.GetName(), err)
-	}
-	if errCount > 0 {
-		return fmt.Errorf("%d error(s) during deletion of mds deployment %s, see logs above", errCount, deployment.GetName())
-	}
+// finishedWithDaemonUpgrade performs all actions necessary to bring the filesystem back to its
+// ideal state following an upgrade of its daemon(s).
+func finishedWithDaemonUpgrade(
+	context *clusterd.Context,
+	clusterName, fsName string,
+	activeMDSCount int32,
+) error {
+	logger.Debugf("restoring filesystem %s from daemon upgrade", fsName)
+	logger.Debugf("bringing num active mds daemons for fs %s back to %d", fsName, activeMDSCount)
+	// * Beginning of noted section 1
+	// This section is necessary for upgrading to Mimic and to/past Luminous 12.2.3.
+	//   See more:  https://ceph.com/releases/v13-2-0-mimic-released/
+	//              http://docs.ceph.com/docs/mimic/cephfs/upgrading/
+	// TODO: Unknown (Oct. 2018) if any parts can be removed once Rook no longer supports Mimic.
+	if err := client.SetNumMDSRanks(context, clusterName, fsName, activeMDSCount); err != nil {
+		return fmt.Errorf("Failed to restore filesystem %s following daemon upgrade: %+v", fsName, err)
+	} // * End of noted section 1
 	return nil
 }

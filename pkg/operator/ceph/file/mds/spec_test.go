@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package file
+package mds
 
 import (
 	"testing"
@@ -52,7 +52,7 @@ func testDeploymentObject(hostNetwork bool) *apps.Deployment {
 				}}}}
 	clusterInfo := &cephconfig.ClusterInfo{FSID: "myfsid"}
 
-	c := newCluster(
+	c := NewCluster(
 		clusterInfo,
 		&clusterd.Context{Clientset: testop.New(1)},
 		"rook/rook:myversion",
