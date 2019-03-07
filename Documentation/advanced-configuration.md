@@ -18,6 +18,7 @@ storage cluster.
 - [OSD CRUSH Settings](#osd-crush-settings)
 - [OSD Dedicated Network](#osd-dedicated-network)
 - [Phantom OSD Removal](#phantom-osd-removal)
+- [Change Failure Domain](#change-failure-domain)
 
 ## Prerequisites
 
@@ -615,3 +616,34 @@ To recheck that the Phantom OSD got removed, re-run the following command and ch
 ```bash
 ceph osd tree
 ```
+
+## Change Failure Domain
+
+Since `v0.9` it is possible to indicate to Rook how the default CRUSH failure domain rule must be configured in order to ensure that replicas or erasure code shards are separated across hosts and a single host failure will not affect availability. For instance, in the case of a block pool:
+
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: replicapool
+  namespace: rook
+spec:
+  # The failure domain will spread the replicas of the data across different failure zones
+  failureDomain: osd
+  ...
+```
+
+However, due to several reasons, we may need to change such failure domain to its other value: `host`. Unfortunately, changing it directly in the YAML manifest is not currently handled by Rook, so we need to perform the change directly using Ceph commands in the Rook tools pod, for instance:
+
+```bash
+ceph osd pool get <your_pool_name> crush_rule
+crush_rule: <your_pool_name>
+
+ceph osd crush rule create-replicated <your_pool_name>_host_rule default host
+ceph osd pool set <your_pool_name> crush_rule <your_pool_name>_host_rule
+
+ceph osd pool get <your_pool_name> crush_rule
+crush_rule: <your_pool_name>_host_rule
+```
+
+Same approach can be used to change from `host` to `osd`.
