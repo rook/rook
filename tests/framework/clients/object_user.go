@@ -18,7 +18,8 @@ package clients
 
 import (
 	"fmt"
-	"github.com/rook/rook/pkg/daemon/ceph/rgw"
+
+	rgw "github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 )

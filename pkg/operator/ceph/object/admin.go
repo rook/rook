@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package rgw
+package object
 
 import (
 	"fmt"
@@ -23,12 +23,14 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 )
 
+// Context holds the context for the object store.
 type Context struct {
 	context     *clusterd.Context
 	Name        string
 	ClusterName string
 }
 
+// NewContext creates a new object store context.
 func NewContext(context *clusterd.Context, name, clusterName string) *Context {
 	return &Context{context: context, Name: name, ClusterName: clusterName}
 }
