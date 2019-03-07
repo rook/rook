@@ -285,7 +285,7 @@ func TestOSDAgentNoDevices(t *testing.T) {
 
 	startCount := 0
 	executor.MockStartExecuteCommand = func(debug bool, name string, command string, args ...string) (*exec.Cmd, error) {
-		logger.Infof("StartExecuteCommand: %s %v", command, args)
+		logger.Infof("StartExecuteCommand: %s %+v", command, args)
 		startCount++
 		cmd := &exec.Cmd{Args: append([]string{command}, args...)}
 		return cmd, nil
@@ -293,7 +293,7 @@ func TestOSDAgentNoDevices(t *testing.T) {
 
 	runCount := 0
 	executor.MockExecuteCommand = func(debug bool, name string, command string, args ...string) error {
-		logger.Infof("ExecuteCommand: %s %v", command, args)
+		logger.Infof("ExecuteCommand: %s %+v", command, args)
 		runCount++
 		createTestKeyring(t, configDir, args)
 		return nil
@@ -301,14 +301,14 @@ func TestOSDAgentNoDevices(t *testing.T) {
 
 	execWithOutputFileCount := 0
 	executor.MockExecuteCommandWithOutputFile = func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
-		logger.Infof("ExecuteCommandWithOutputFile: %s %v", command, args)
+		logger.Infof("ExecuteCommandWithOutputFile: %s %+v", command, args)
 		execWithOutputFileCount++
 		return "{\"key\":\"mysecurekey\", \"osdid\":3.0}", nil
 	}
 
 	execWithOutputCount := 0
 	executor.MockExecuteCommandWithOutput = func(debug bool, actionName string, command string, arg ...string) (string, error) {
-		logger.Infof("ExecuteCommandWithOutput: %s %v", command, arg)
+		logger.Infof("ExecuteCommandWithOutput: %s %+v", command, arg)
 		execWithOutputCount++
 		return "", nil
 	}
@@ -344,7 +344,7 @@ func TestRemoveDevices(t *testing.T) {
 
 	osdUsageCallCount := 0
 	mockExec.MockExecuteCommandWithOutputFile = func(debug bool, actionName, command, outputFile string, args ...string) (string, error) {
-		logger.Infof("Command: %s %v", command, args)
+		logger.Infof("Command: %s %+v", command, args)
 		if args[0] == "osd" && args[1] == "df" {
 			osdUsageCallCount++
 			if osdUsageCallCount == 1 {
@@ -439,10 +439,10 @@ func TestGetPartitionPerfScheme(t *testing.T) {
 				currOsdID++
 				return fmt.Sprintf(`{"osdid": %d}`, currOsdID), nil
 			}
-			return "", fmt.Errorf("unexpected command '%v'", args)
+			return "", fmt.Errorf("unexpected command '%+v'", args)
 		},
 		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
-			logger.Infof("Command: %s %v", command, args)
+			logger.Infof("Command: %s %+v", command, args)
 			if command == "lsblk" {
 				if args[0] == "/dev/sda" {
 					return `NAME="sda" SIZE="107374182400" TYPE="disk" PKNAME=""`, nil
@@ -460,7 +460,7 @@ func TestGetPartitionPerfScheme(t *testing.T) {
 			if command == "udevadm" {
 				return "", nil
 			}
-			return "", fmt.Errorf("unexpected command %s %v", command, args)
+			return "", fmt.Errorf("unexpected command %s %+v", command, args)
 		},
 	}
 	context.Executor = executor
@@ -510,7 +510,7 @@ func TestGetPartitionSchemeDiskInUse(t *testing.T) {
 
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
-			logger.Infof("Command: %s %v", command, args)
+			logger.Infof("Command: %s %+v", command, args)
 			if command == "lsblk" {
 				if args[0] == "/dev/sda" {
 					return `NAME="sda" SIZE="20971520000" TYPE="disk" PKNAME=""
@@ -524,7 +524,7 @@ func TestGetPartitionSchemeDiskInUse(t *testing.T) {
 			if command == "udevadm" {
 				return "", nil
 			}
-			return "", fmt.Errorf("unexpected command %s %v", command, args)
+			return "", fmt.Errorf("unexpected command %s %+v", command, args)
 		},
 	}
 	context := &clusterd.Context{
@@ -569,7 +569,7 @@ func TestGetPartitionSchemeDiskNameChanged(t *testing.T) {
 
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
-			logger.Infof("Command: %s %v", command, args)
+			logger.Infof("Command: %s %+v", command, args)
 			if command == "lsblk" {
 				if args[0] == "/dev/sda-changed" {
 					return `NAME="sda" SIZE="20971520000" TYPE="disk" PKNAME=""
@@ -588,7 +588,7 @@ func TestGetPartitionSchemeDiskNameChanged(t *testing.T) {
 			if command == "udevadm" {
 				return "", nil
 			}
-			return "", fmt.Errorf("unexpected command %s %v", command, args)
+			return "", fmt.Errorf("unexpected command %s %+v", command, args)
 		},
 	}
 	context := &clusterd.Context{

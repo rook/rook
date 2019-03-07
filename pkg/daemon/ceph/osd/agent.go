@@ -139,7 +139,7 @@ func (a *OsdAgent) removeDirs(context *clusterd.Context, removedDirs map[string]
 
 	if len(failedDirs) > 0 {
 		// at least one OSD failed, return an overall error
-		return fmt.Errorf("failed to cleanup directories: %v", failedDirs)
+		return fmt.Errorf("failed to cleanup directories: %+v", failedDirs)
 	}
 
 	return nil
@@ -478,7 +478,7 @@ func (a *OsdAgent) prepareOSD(context *clusterd.Context, cfg *osdConfig) (*oposd
 		}
 	}
 	osdInfo := getOSDInfo(a.cluster.Name, cfg, devPartInfo)
-	logger.Infof("completed preparing osd %v", osdInfo)
+	logger.Infof("completed preparing osd %+v", osdInfo)
 
 	if devPartInfo != nil {
 		sys.UnmountDevice(devPartInfo.pathToUnmount, context.Executor)
