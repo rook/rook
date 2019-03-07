@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"strconv"
 
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
@@ -78,17 +79,25 @@ func (c *Cluster) makeDeployment(mdsConfig *mdsConfig) *apps.Deployment {
 }
 
 func (c *Cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
-	return v1.Container{
+	args := append(
+		opspec.DaemonFlags(c.clusterInfo, config.MdsType, mdsConfig.DaemonID),
+		"--foreground",
+	)
+
+	// These flags are obsoleted as of Nautilus
+	if !cephv1.VersionAtLeast(c.cephVersion.Name, cephv1.Nautilus) {
+		args = append(
+			args,
+			config.NewFlag("mds-standby-for-fscid", c.fsID),
+			config.NewFlag("mds-standby-replay", strconv.FormatBool(c.fs.Spec.MetadataServer.ActiveStandby)))
+	}
+
+	container := v1.Container{
 		Name: "mds",
 		Command: []string{
 			"ceph-mds",
 		},
-		Args: append(
-			opspec.DaemonFlags(c.clusterInfo, config.MdsType, mdsConfig.DaemonID),
-			"--foreground",
-			config.NewFlag("mds-standby-for-fscid", c.fsID),
-			config.NewFlag("mds-standby-replay", strconv.FormatBool(c.fs.Spec.MetadataServer.ActiveStandby)),
-		),
+		Args:         args,
 		Image:        c.cephVersion.Image,
 		VolumeMounts: opspec.DaemonVolumeMounts(mdsConfig.DataPathMap, mdsConfig.ResourceName),
 		Env: append(
@@ -96,6 +105,8 @@ func (c *Cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
 		),
 		Resources: c.fs.Spec.MetadataServer.Resources,
 	}
+
+	return container
 }
 
 func (c *Cluster) podLabels(mdsConfig *mdsConfig) map[string]string {

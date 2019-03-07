@@ -108,6 +108,17 @@ func GetFilesystem(context *clusterd.Context, clusterName string, fsName string)
 	return &fs, nil
 }
 
+// AllowStandbyReplay gets detailed status information about a Ceph filesystem.
+func AllowStandbyReplay(context *clusterd.Context, clusterName string, fsName string, allowStandbyReplay bool) error {
+	args := []string{"fs", "set", fsName, "allow_standby_replay", strconv.FormatBool(allowStandbyReplay)}
+	_, err := ExecuteCephCommand(context, clusterName, args)
+	if err != nil {
+		return fmt.Errorf("failed to set allow_standby_replay to filesystem %s: %+v", fsName, err)
+	}
+
+	return nil
+}
+
 // CreateFilesystem performs software configuration steps for Ceph to provide a new filesystem.
 func CreateFilesystem(context *clusterd.Context, clusterName, name, metadataPool string, dataPools []string) error {
 	if len(dataPools) == 0 {
