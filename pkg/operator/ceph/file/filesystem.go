@@ -63,7 +63,7 @@ func createFilesystem(
 			dataPools = append(dataPools, p.ToModel(""))
 		}
 		f := newFS(fs.Name, fs.Spec.MetadataPool.ToModel(""), dataPools, fs.Spec.MetadataServer.ActiveCount)
-		if err := f.doFilesystemCreate(context, fs.Namespace); err != nil {
+		if err := f.doFilesystemCreate(context, cephVersion.Name, fs.Namespace); err != nil {
 			return fmt.Errorf("failed to create filesystem %s: %+v", fs.Name, err)
 		}
 	}
@@ -84,7 +84,7 @@ func createFilesystem(
 
 	// set the number of active mds instances
 	if fs.Spec.MetadataServer.ActiveCount > 1 {
-		if err = client.SetNumMDSRanks(context, fs.Namespace, fs.Name, fs.Spec.MetadataServer.ActiveCount); err != nil {
+		if err = client.SetNumMDSRanks(context, cephVersion.Name, fs.Namespace, fs.Name, fs.Spec.MetadataServer.ActiveCount); err != nil {
 			logger.Warningf("failed setting active mds count to %d. %+v", fs.Spec.MetadataServer.ActiveCount, err)
 		}
 	}
@@ -159,12 +159,13 @@ func newFS(name string, metadataPool *model.Pool, dataPools []*model.Pool, activ
 }
 
 // doFilesystemCreate starts the Ceph file daemons and creates the filesystem in Ceph.
-func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, clusterName string) error {
+func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, cephVersionName, clusterName string) error {
 	_, err := client.GetFilesystem(context, clusterName, f.Name)
 	if err == nil {
 		logger.Infof("filesystem %s already exists", f.Name)
 		// Even if the fs already exists, the num active mdses may have changed
-		if err := client.SetNumMDSRanks(context, clusterName, f.Name, f.activeMDSCount); err != nil {
+
+		if err := client.SetNumMDSRanks(context, cephVersionName, clusterName, f.Name, f.activeMDSCount); err != nil {
 			logger.Errorf(
 				fmt.Sprintf("failed to set num mds ranks (max_mds) to %d for filesystem %s, still continuing. ", f.activeMDSCount, f.Name) +
 					"this error is not critical, but mdses may not be as failure tolerant as desired. " +

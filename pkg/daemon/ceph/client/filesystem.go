@@ -23,6 +23,7 @@ import (
 	"strconv"
 	"time"
 
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
@@ -169,12 +170,10 @@ func IsMultiFSEnabled() bool {
 }
 
 // SetNumMDSRanks sets the number of mds ranks (max_mds) for a Ceph filesystem.
-func SetNumMDSRanks(context *clusterd.Context, clusterName, fsName string, activeMDSCount int32) error {
+func SetNumMDSRanks(context *clusterd.Context, cephVersionName, clusterName, fsName string, activeMDSCount int32) error {
 	// Noted sections 1 and 2 are necessary for reducing max_mds in Luminous.
 	//   See more:   [1] http://docs.ceph.com/docs/luminous/cephfs/upgrading/
 	//               [2] https://tracker.ceph.com/issues/23172
-	// TODO: These two sections SHOULD be conditionally skipped if this function can be informed that
-	//   the version of Ceph mdses currently running is >=13.0.0
 
 	// * Noted section 1 - See note at top of function
 	fsAtStart, errAtStart := GetFilesystem(context, clusterName, fsName)
@@ -186,6 +185,10 @@ func SetNumMDSRanks(context *clusterd.Context, clusterName, fsName string, activ
 	if _, err := ExecuteCephCommand(context, clusterName, args); err != nil {
 		return fmt.Errorf("failed to set filesystem %s num mds ranks (max_mds) to %d: %v",
 			fsName, activeMDSCount, err)
+	}
+
+	if cephv1.VersionAtLeast(cephVersionName, cephv1.Mimic) {
+		return nil
 	}
 
 	// ** Noted section 2 - See note at top of function
@@ -214,7 +217,7 @@ if Ceph version is Luminous (12.y.z) and num active mdses (max_mds) was lowered,
 	// Ceph only allows mdses to be deactivated in reverse order starting with the highest rank
 	for gid := int(len(fs.MDSMap.In)) - 1; gid >= int(activeMDSCount); gid-- {
 		if err := deactivateMdsWithRetry(context, gid, clusterName, fsName); err != nil {
-			logger.Warningf("in mimic+ this error means nothing. in luminous this is non-ideal but not necessarily critical: %v", err)
+			logger.Warningf("in luminous this is non-ideal but not necessarily critical: %v", err)
 		}
 	}
 	// ** End of noted section 2
