@@ -68,6 +68,9 @@ func (ps *PodSpecTester) AssertVolumesMeetCephRequirements(
 	daemonType config.DaemonType, daemonID string,
 ) {
 	keyringSecretName := fmt.Sprintf("rook-ceph-%s-%s-keyring", daemonType, daemonID)
+	if daemonType == config.MonType {
+		keyringSecretName = "rook-ceph-mons-keyring" // mons share a keyring
+	}
 	requiredVols := []string{"ceph-daemon-data", "rook-ceph-config", keyringSecretName}
 	vols := []string{}
 
@@ -114,6 +117,11 @@ func (ps *PodSpecTester) AssertVolumesAndMountsMatch() {
 	pod.TestMountsMatchVolumes(ps.t)
 }
 
+// AssertRestartPolicyAlways asserts that the pod spec is set to always restart on failure.
+func (ps *PodSpecTester) AssertRestartPolicyAlways() {
+	assert.Equal(ps.t, v1.RestartPolicyAlways, ps.spec.RestartPolicy)
+}
+
 // RunFullSuite runs all assertion tests for the PodSpec under test and its sub-resources.
 func (ps *PodSpecTester) RunFullSuite(
 	daemonType config.DaemonType,
@@ -121,6 +129,7 @@ func (ps *PodSpecTester) RunFullSuite(
 ) {
 	ps.AssertVolumesAndMountsMatch()
 	ps.AssertVolumesMeetCephRequirements(daemonType, resourceName)
+	ps.AssertRestartPolicyAlways()
 	ps.Containers().RunFullSuite(cephImage, cpuResourceLimit, memoryResourceRequest)
 }
 
