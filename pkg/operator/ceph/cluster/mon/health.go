@@ -66,14 +66,17 @@ func (hc *HealthChecker) Check(stopCh chan struct{}) {
 }
 
 func (c *Cluster) checkHealth() error {
+	logger.Debugf("Acquiring mon lock to check mon health")
+	c.monMutex.Lock()
+	defer c.monMutex.Unlock()
+	logger.Debugf("Acquired mon lock to check mon health")
+
 	logger.Debugf("Checking health for mons (desired=%d). %+v", c.Count, c.clusterInfo)
 
 	// Use a local mon count in case the user updates the crd in another goroutine.
 	// We need to complete a health check with a consistent value.
-	c.MonCountMutex.Lock()
 	desiredMonCount := c.Count
 	allowMultiplePerNode := c.AllowMultiplePerNode
-	c.MonCountMutex.Unlock()
 
 	// connect to the mons
 	// get the status and check for quorum

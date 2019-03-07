@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
@@ -30,9 +29,8 @@ import (
 
 func TestAvailableMonNodes(t *testing.T) {
 	clientset := test.New(1)
-	c := New(test.CreateConfigDir(0), &clusterd.Context{Clientset: clientset}, "ns", "", "myversion",
-		cephv1.CephVersionSpec{}, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true},
-		rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", false, metav1.OwnerReference{})
+	setTestMonSettings(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 
 	nodes, err := c.getMonNodes()
 	assert.Nil(t, err)
@@ -57,9 +55,8 @@ func TestAvailableMonNodes(t *testing.T) {
 
 func TestAvailableNodesInUse(t *testing.T) {
 	clientset := test.New(3)
-	c := New(test.CreateConfigDir(0), &clusterd.Context{Clientset: clientset}, "ns", "", "myversion",
-		cephv1.CephVersionSpec{}, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true},
-		rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", false, metav1.OwnerReference{})
+	setTestMonSettings(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 
 	// all three nodes are available by default
 	nodes, err := c.getMonNodes()
@@ -98,9 +95,8 @@ func TestAvailableNodesInUse(t *testing.T) {
 
 func TestTaintedNodes(t *testing.T) {
 	clientset := test.New(3)
-	c := New(test.CreateConfigDir(0), &clusterd.Context{Clientset: clientset}, "ns", "", "myversion",
-		cephv1.CephVersionSpec{}, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true},
-		rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", false, metav1.OwnerReference{})
+	setTestMonSettings(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 
 	nodes, err := c.getMonNodes()
 	assert.Nil(t, err)
@@ -132,9 +128,8 @@ func TestTaintedNodes(t *testing.T) {
 
 func TestNodeAffinity(t *testing.T) {
 	clientset := test.New(3)
-	c := New(test.CreateConfigDir(0), &clusterd.Context{Clientset: clientset}, "ns", "", "myversion",
-		cephv1.CephVersionSpec{}, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true},
-		rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", false, metav1.OwnerReference{})
+	setTestMonSettings(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 
 	nodes, err := c.getMonNodes()
 	assert.Nil(t, err)
@@ -181,15 +176,14 @@ func TestHostNetworkSameNode(t *testing.T) {
 	c.clusterInfo = test.CreateConfigDir(1)
 
 	// start a basic cluster
-	_, err := c.Start()
+	_, err := testStart(c)
 	assert.Error(t, err)
 }
 
 func TestHostNetwork(t *testing.T) {
 	clientset := test.New(3)
-	c := New(test.CreateConfigDir(0), &clusterd.Context{Clientset: clientset}, "ns", "", "myversion",
-		cephv1.CephVersionSpec{}, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: false},
-		rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", false, metav1.OwnerReference{})
+	setTestMonSettings(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 
 	c.HostNetwork = true
 

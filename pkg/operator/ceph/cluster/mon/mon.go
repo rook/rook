@@ -85,7 +85,7 @@ type Cluster struct {
 	cephVersion          cephv1.CephVersionSpec
 	Count                int
 	AllowMultiplePerNode bool
-	MonCountMutex        sync.Mutex
+	monMutex             sync.Mutex
 	Port                 int32
 	placement            rookalpha.Placement
 	maxMonID             int
@@ -129,44 +129,43 @@ type NodeInfo struct {
 }
 
 // New creates an instance of a mon cluster
-func New(
-	clusterInfo *cephconfig.ClusterInfo,
-	context *clusterd.Context,
-	namespace, dataDirHostPath, rookVersion string,
-	cephVersion cephv1.CephVersionSpec,
-	mon cephv1.MonSpec,
-	placement rookalpha.Placement,
-	hostNetwork bool,
-	resources v1.ResourceRequirements,
-	ownerRef metav1.OwnerReference,
-) *Cluster {
+func New(context *clusterd.Context, namespace, dataDirHostPath string, hostNetwork bool, ownerRef metav1.OwnerReference) *Cluster {
 	return &Cluster{
-		clusterInfo:          clusterInfo,
-		context:              context,
-		placement:            placement,
-		dataDirHostPath:      dataDirHostPath,
-		Namespace:            namespace,
-		rookVersion:          rookVersion,
-		cephVersion:          cephVersion,
-		Count:                mon.Count,
-		AllowMultiplePerNode: mon.AllowMultiplePerNode,
-		maxMonID:             -1,
-		waitForStart:         true,
-		monPodRetryInterval:  6 * time.Second,
-		monPodTimeout:        5 * time.Minute,
-		monTimeoutList:       map[string]time.Time{},
-		HostNetwork:          hostNetwork,
+		context:             context,
+		dataDirHostPath:     dataDirHostPath,
+		Namespace:           namespace,
+		maxMonID:            -1,
+		waitForStart:        true,
+		monPodRetryInterval: 6 * time.Second,
+		monPodTimeout:       5 * time.Minute,
+		monTimeoutList:      map[string]time.Time{},
+		HostNetwork:         hostNetwork,
 		mapping: &Mapping{
 			Node: map[string]*NodeInfo{},
 			Port: map[string]int32{},
 		},
-		resources: resources,
-		ownerRef:  ownerRef,
+		ownerRef: ownerRef,
 	}
 }
 
 // Start begins the process of running a cluster of Ceph mons.
-func (c *Cluster) Start() (*cephconfig.ClusterInfo, error) {
+func (c *Cluster) Start(clusterInfo *cephconfig.ClusterInfo, rookVersion string, cephVersion cephv1.CephVersionSpec,
+	mon cephv1.MonSpec, placement rookalpha.Placement, resources v1.ResourceRequirements) (*cephconfig.ClusterInfo, error) {
+
+	// Only one goroutine can orchestrate the mons at a time
+	logger.Infof("Acquiring lock for mon orchestration")
+	c.monMutex.Lock()
+	defer c.monMutex.Unlock()
+	logger.Infof("Acquired lock for mon orchestration")
+
+	c.clusterInfo = clusterInfo
+	c.Count = mon.Count
+	c.AllowMultiplePerNode = mon.AllowMultiplePerNode
+	c.placement = placement
+	c.rookVersion = rookVersion
+	c.cephVersion = cephVersion
+	c.resources = resources
+
 	// fail if we were instructed to deploy more than one mon on the same machine with host networking
 	if c.HostNetwork && c.AllowMultiplePerNode && c.Count > 1 {
 		return nil, fmt.Errorf("refusing to deploy %d monitors on the same host since hostNetwork is %v and allowMultiplePerNode is %v. Only one monitor per node is allowed", c.Count, c.HostNetwork, c.AllowMultiplePerNode)

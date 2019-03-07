@@ -157,13 +157,11 @@ func TestClusterChanged(t *testing.T) {
 	assert.False(t, clusterChanged(old, new, c))
 	assert.Equal(t, 0, c.Spec.Mon.Count)
 
-	// If the number of mons changes, the mon count on the cluster should be updated so the health check can adjust the mons
+	// If the number of mons changes, the cluster would be updated
 	new.Mon.Count = 3
 	new.Mon.AllowMultiplePerNode = true
 	assert.False(t, c.mons.AllowMultiplePerNode)
-	assert.False(t, clusterChanged(old, new, c))
-	assert.Equal(t, 3, c.mons.Count)
-	assert.True(t, c.mons.AllowMultiplePerNode)
+	assert.True(t, clusterChanged(old, new, c))
 }
 
 func TestRemoveFinalizer(t *testing.T) {

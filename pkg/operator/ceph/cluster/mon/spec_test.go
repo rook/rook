@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	cephtest "github.com/rook/rook/pkg/operator/ceph/test"
@@ -39,25 +38,22 @@ func TestPodSpecs(t *testing.T) {
 func testPodSpec(t *testing.T, monID string) {
 	clientset := testop.New(1)
 	c := New(
-		testop.CreateConfigDir(0),
 		&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook"},
 		"ns",
 		"/var/lib/rook",
-		"rook/rook:myversion",
-		cephv1.CephVersionSpec{Image: "ceph/ceph:myceph"},
-		cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true},
-		rookalpha.Placement{},
 		false,
-		v1.ResourceRequirements{
-			Limits: v1.ResourceList{
-				v1.ResourceCPU: *resource.NewQuantity(100.0, resource.BinarySI),
-			},
-			Requests: v1.ResourceList{
-				v1.ResourceMemory: *resource.NewQuantity(1337.0, resource.BinarySI),
-			},
-		},
 		metav1.OwnerReference{},
 	)
+	setTestMonSettings(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "rook/rook:myversion")
+	c.cephVersion = cephv1.CephVersionSpec{Image: "ceph/ceph:myceph"}
+	c.resources = v1.ResourceRequirements{
+		Limits: v1.ResourceList{
+			v1.ResourceCPU: *resource.NewQuantity(100.0, resource.BinarySI),
+		},
+		Requests: v1.ResourceList{
+			v1.ResourceMemory: *resource.NewQuantity(1337.0, resource.BinarySI),
+		},
+	}
 	monConfig := testGenMonConfig(monID)
 
 	d := c.makeDeployment(monConfig, "node0")

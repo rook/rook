@@ -123,6 +123,19 @@ func newCluster(context *clusterd.Context, namespace string, hostNetwork bool, a
 	}
 }
 
+// testStart will orchestrate the mons with the existing settings on the mon cluster
+func testStart(c *Cluster) (*cephconfig.ClusterInfo, error) {
+	return c.Start(c.clusterInfo, c.rookVersion, c.cephVersion, cephv1.MonSpec{Count: c.Count, AllowMultiplePerNode: c.AllowMultiplePerNode},
+		rookalpha.Placement{}, v1.ResourceRequirements{})
+}
+
+func setTestMonSettings(c *Cluster, currentMons int, mon cephv1.MonSpec, rookVersion string) {
+	c.clusterInfo = test.CreateConfigDir(currentMons)
+	c.Count = mon.Count
+	c.AllowMultiplePerNode = mon.AllowMultiplePerNode
+	c.rookVersion = rookVersion
+}
+
 func TestResourceName(t *testing.T) {
 	assert.Equal(t, "rook-ceph-mon-a", resourceName("rook-ceph-mon-a"))
 	assert.Equal(t, "rook-ceph-mon123", resourceName("rook-ceph-mon123"))
@@ -135,13 +148,13 @@ func TestStartMonPods(t *testing.T) {
 	c := newCluster(context, namespace, false, true, v1.ResourceRequirements{})
 
 	// start a basic cluster
-	_, err := c.Start()
+	_, err := testStart(c)
 	assert.Nil(t, err)
 
 	validateStart(t, c)
 
 	// starting again should be a no-op, but still results in an error
-	_, err = c.Start()
+	_, err = testStart(c)
 	assert.Nil(t, err)
 
 	validateStart(t, c)
@@ -154,7 +167,7 @@ func TestOperatorRestart(t *testing.T) {
 	c.clusterInfo = test.CreateConfigDir(1)
 
 	// start a basic cluster
-	info, err := c.Start()
+	info, err := testStart(c)
 	assert.Nil(t, err)
 	assert.True(t, info.IsInitialized())
 
@@ -163,7 +176,7 @@ func TestOperatorRestart(t *testing.T) {
 	c = newCluster(context, namespace, false, true, v1.ResourceRequirements{})
 
 	// starting again should be a no-op, but will not result in an error
-	info, err = c.Start()
+	info, err = testStart(c)
 	assert.Nil(t, err)
 	assert.True(t, info.IsInitialized())
 
@@ -180,7 +193,7 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 	c.clusterInfo = test.CreateConfigDir(1)
 
 	// start a basic cluster
-	info, err := c.Start()
+	info, err := testStart(c)
 	assert.Nil(t, err)
 	assert.True(t, info.IsInitialized())
 
@@ -190,7 +203,7 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 	c = newCluster(context, namespace, true, false, v1.ResourceRequirements{})
 
 	// starting again should be a no-op, but still results in an error
-	info, err = c.Start()
+	info, err = testStart(c)
 	assert.Nil(t, err)
 	assert.True(t, info.IsInitialized(), info)
 
@@ -211,10 +224,8 @@ func TestSaveMonEndpoints(t *testing.T) {
 	clientset := test.New(1)
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
-	c := New(test.CreateConfigDir(1), &clusterd.Context{Clientset: clientset, ConfigDir: configDir},
-		"ns", "", "myversion", cephv1.CephVersionSpec{},
-		cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, rookalpha.Placement{}, false,
-		v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: configDir}, "ns", "", false, metav1.OwnerReference{})
+	setTestMonSettings(c, 1, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 
 	// create the initial config map
 	err := c.saveMonConfig()
