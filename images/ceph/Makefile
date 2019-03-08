@@ -34,7 +34,7 @@ do.build:
 	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rook $(TEMP)
 	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rookflex $(TEMP)
 	@cd $(TEMP) && $(SED_CMD) 's|BASEIMAGE|$(BASEIMAGE)|g' Dockerfile
-	@docker build $(BUILD_ARGS) \
+	@$(DOCKERCMD) build $(BUILD_ARGS) \
 		--build-arg ARCH=$(GOARCH) \
 		--build-arg TINI_VERSION=$(TINI_VERSION) \
 		-t $(CEPH_IMAGE) \

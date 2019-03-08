@@ -22,7 +22,7 @@ TEMP := $(shell mktemp -d)
 do.build:
 	@echo === docker build $(IMAGE)
 	@cp -a . $(TEMP)
-	@docker build $(BUILD_ARGS) \
+	@$(DOCKERCMD) build $(BUILD_ARGS) \
 		--build-arg ARCH=$(GOARCH) \
 		--build-arg TINI_VERSION=$(TINI_VERSION) \
 		-t $(IMAGE) \
