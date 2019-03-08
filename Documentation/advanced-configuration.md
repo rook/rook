@@ -641,7 +641,7 @@ crush_rule: replicapool
 $ceph osd crush rule create-replicated replicapool_host_rule default host
 ```
 
-Once the new rule has been created, we simply apply it to our block pool:
+Notice that the suffix `host_rule` in the name of the rule is just for clearness about the type of rule we are creating here, and can be anything else as long as it is different from the existing one. Once the new rule has been created, we simply apply it to our block pool:
 
 ```bash
 $ ceph osd pool set replicapool crush_rule replicapool_host_rule
