@@ -618,7 +618,8 @@ ceph osd tree
 ```
 
 ## Change Failure Domain
-Since `v0.9` it is possible to indicate to Rook how the default CRUSH failure domain rule must be configured in order to ensure that replicas or erasure code shards are separated across hosts and a single host failure will not affect availability. For instance, in the case of a block pool:
+In Rook, it is now possible to indicate how the default CRUSH failure domain rule must be configured in order to ensure that replicas or erasure code shards are separated across hosts, and a single host failure does not affect availability. For instance, this is an example manifest of a block pool named `replicapool` configured with a `failureDomain` set to `osd`:
+
 ```yaml
 apiVersion: ceph.rook.io/v1
 kind: CephBlockPool
@@ -630,13 +631,29 @@ spec:
   failureDomain: osd
   ...
 ```
-However, due to several reasons, we may need to change such failure domain to its other value: `host`. Unfortunately, changing it directly in the YAML manifest is not currently handled by Rook, so we need to perform the change directly using Ceph commands in the Rook tools pod, for instance:
+
+However, due to several reasons, we may need to change such failure domain to its other value: `host`. Unfortunately, changing it directly in the YAML manifest is not currently handled by Rook, so we need to perform the change directly using Ceph commands using the Rook tools pod, for instance:
+
 ```bash
-ceph osd pool get <your_pool_name> crush_rule
-crush_rule: <your_pool_name>
-ceph osd crush rule create-replicated <your_pool_name>_host_rule default host
-ceph osd pool set <your_pool_name> crush_rule <your_pool_name>_host_rule
-ceph osd pool get <your_pool_name> crush_rule
-crush_rule: <your_pool_name>_host_rule
+$ ceph osd pool get replicapool crush_rule
+crush_rule: replicapool
+
+$ceph osd crush rule create-replicated replicapool_host_rule default host
 ```
-Same approach can be used to change from `host` to `osd`.
+
+Once the new rule has been created, we simply apply it to our block pool:
+
+```bash
+$ ceph osd pool set replicapool crush_rule replicapool_host_rule
+```
+
+And validate that it has been actually applied properly:
+
+```bash
+$ ceph osd pool get replicapool crush_rule
+crush_rule: replicapool_host_rule
+```
+
+If the cluster's health was `HEALTH_OK` when we performed this change, immediately, the new rule is applied to the cluster transparently without service disruption.
+
+Exactly the same approach can be used to change from `host` back to `osd`.
