@@ -80,7 +80,7 @@ func (c *Cluster) makeDeployment(mdsConfig *mdsConfig) *apps.Deployment {
 
 func (c *Cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
 	args := append(
-		opspec.DaemonFlags(c.clusterInfo, config.MdsType, mdsConfig.DaemonID),
+		opspec.DaemonFlags(c.clusterInfo, mdsConfig.DaemonID),
 		"--foreground",
 	)
 

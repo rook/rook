@@ -190,7 +190,7 @@ func (c *cluster) createInstance(rookImage string) error {
 	}
 
 	// Start the rbd mirroring daemon(s)
-	rbdmirror := rbd.New(c.context, c.Namespace, rookImage, c.Spec.CephVersion, cephv1.GetRBDMirrorPlacement(c.Spec.Placement),
+	rbdmirror := rbd.New(c.Info, c.context, c.Namespace, rookImage, c.Spec.CephVersion, cephv1.GetRBDMirrorPlacement(c.Spec.Placement),
 		c.Spec.Network.HostNetwork, c.Spec.RBDMirroring, cephv1.GetRBDMirrorResources(c.Spec.Resources), c.ownerRef)
 	err = rbdmirror.Start()
 	if err != nil {

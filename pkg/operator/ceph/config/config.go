@@ -49,6 +49,8 @@ const (
 
 	// RgwType defines the rgw DaemonType
 	RgwType DaemonType = "rgw"
+
+	RbdMirrorType DaemonType = "rbd-mirror"
 )
 
 // VarLibCephDir is simply "/var/lib/ceph". It is made overwriteable only for unit tests where it

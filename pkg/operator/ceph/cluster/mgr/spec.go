@@ -22,7 +22,6 @@ import (
 	"strings"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -162,7 +161,7 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 			"ceph-mgr",
 		},
 		Args: append(
-			opspec.DaemonFlags(c.clusterInfo, config.MgrType, mgrConfig.DaemonID),
+			opspec.DaemonFlags(c.clusterInfo, mgrConfig.DaemonID),
 			"--foreground",
 		),
 		Image:        c.cephVersion.Image,

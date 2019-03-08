@@ -22,6 +22,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -43,7 +44,9 @@ func TestRBDMirror(t *testing.T) {
 		return "", nil
 	}
 
-	c := New(&clusterd.Context{Clientset: clientset, Executor: executor},
+	c := New(
+		&cephconfig.ClusterInfo{FSID: "myfsid"},
+		&clusterd.Context{Clientset: clientset, Executor: executor},
 		"ns",
 		"rook/rook:myversion",
 		cephv1.CephVersionSpec{Image: "ceph/ceph:myceph"},

@@ -136,7 +136,7 @@ func (c *Cluster) makeMonFSInitContainer(monConfig *monConfig) v1.Container {
 			cephMonCommand,
 		},
 		Args: append(
-			opspec.DaemonFlags(c.clusterInfo, config.MonType, monConfig.DaemonName),
+			opspec.DaemonFlags(c.clusterInfo, monConfig.DaemonName),
 			// needed so we can generate an initial monmap
 			// otherwise the mkfs will say: "0  no local addrs match monmap"
 			config.NewFlag("public-addr", monConfig.PublicIP),
@@ -159,7 +159,7 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 			cephMonCommand,
 		},
 		Args: append(
-			opspec.DaemonFlags(c.clusterInfo, config.MonType, monConfig.DaemonName),
+			opspec.DaemonFlags(c.clusterInfo, monConfig.DaemonName),
 			"--foreground",
 			config.NewFlag("public-addr", monConfig.PublicIP),
 			config.NewFlag("public-bind-addr", opspec.ContainerEnvVarReference(podIPEnvVar)),

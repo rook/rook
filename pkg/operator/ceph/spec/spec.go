@@ -68,31 +68,37 @@ func RookVolumeMounts() []v1.VolumeMount {
 
 // DaemonVolumes returns the pod volumes used by all Ceph daemons.
 func DaemonVolumes(dataPaths *config.DataPathMap, keyringResourceName string) []v1.Volume {
-	var dataDirSource v1.VolumeSource
-	if dataPaths.PersistData {
-		dataDirSource = v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: dataPaths.HostDataDir}}
-	} else {
-		dataDirSource = v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}
-	}
-	return []v1.Volume{
-		{Name: "ceph-daemon-data", VolumeSource: dataDirSource},
+	vols := []v1.Volume{
 		config.StoredFileVolume(),
 		keyring.Volume().Resource(keyringResourceName),
 	}
+	if dataPaths.NoData {
+		return vols
+	}
+	src := v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}
+	if dataPaths.PersistData {
+		src = v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: dataPaths.HostDataDir}}
+	}
+	return append(vols, v1.Volume{Name: "ceph-daemon-data", VolumeSource: src})
 }
 
 // DaemonVolumeMounts returns volume mounts which correspond to the DaemonVolumes. These
 // volume mounts are shared by most all Ceph daemon containers, both init and standard.
 func DaemonVolumeMounts(dataPaths *config.DataPathMap, keyringResourceName string) []v1.VolumeMount {
-	return []v1.VolumeMount{
-		{Name: "ceph-daemon-data", MountPath: dataPaths.ContainerDataDir},
+	mounts := []v1.VolumeMount{
 		config.StoredFileVolumeMount(),
 		keyring.VolumeMount().Resource(keyringResourceName),
 	}
+	if dataPaths.NoData {
+		return mounts
+	}
+	return append(mounts,
+		v1.VolumeMount{Name: "ceph-daemon-data", MountPath: dataPaths.ContainerDataDir},
+	)
 }
 
 // DaemonFlags returns the command line flags used by all Ceph daemons.
-func DaemonFlags(cluster *cephconfig.ClusterInfo, daemonType config.DaemonType, daemonID string) []string {
+func DaemonFlags(cluster *cephconfig.ClusterInfo, daemonID string) []string {
 	return append(
 		config.DefaultFlags(cluster.FSID, keyring.VolumeMount().KeyringFilePath()),
 		config.NewFlag("id", daemonID),

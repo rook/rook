@@ -29,10 +29,11 @@
 
 - Rook will no longer create a directory-based osd in the `dataDirHostPath` if no directories or
   devices are specified or if there are no disks on the host.
-- Containers in `mon`, `mgr`, `mds`, and `rgw` pods have been removed and/or changed names.
+- Containers in `mon`, `mgr`, `mds`, `rgw`, and `rbd-mirror` pods have been removed and/or changed names.
 - Config paths in `mon`, `mgr`, `mds` and `rgw` containers are now always under
   `/etc/ceph` or `/var/lib/ceph` and as close to Ceph's default path as possible regardless of the
   `dataDirHostPath` setting.
+- The `rbd-mirror` pod labels now read `rbd-mirror` instead of `rbdmirror` for consistency.
 
 ## Known Issues
 

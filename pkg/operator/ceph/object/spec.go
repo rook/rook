@@ -159,7 +159,7 @@ func (c *clusterConfig) makeDaemonContainer() v1.Container {
 		},
 		Args: append(
 			append(
-				opspec.DaemonFlags(c.clusterInfo, cephconfig.RgwType, c.store.Name),
+				opspec.DaemonFlags(c.clusterInfo, c.store.Name),
 				"--foreground",
 				"--name=client.radosgw.gateway",
 				cephconfig.NewFlag("host", opspec.ContainerEnvVarReference("POD_NAME")),
