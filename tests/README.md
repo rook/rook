@@ -152,4 +152,5 @@ Here a couple of helpful links to get prometheus and grafana started and collect
 **Prerequisites**:
 * Go installed and GO_PATH set
 * Dep installed
+* Wget installed
 * When running tests locally, make sure `kubectl` is accessible globally in your `PATH` as the test framework uses `kubectl`
