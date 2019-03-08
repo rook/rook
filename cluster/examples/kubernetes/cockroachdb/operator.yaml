@@ -32,18 +32,9 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - configmaps
-  verbs:
-  - create
-- apiGroups:
-  - ""
-  resources:
   - services
   verbs:
-  - get
-  - list
   - create
-  - update
 - apiGroups:
   - apps
   resources:
