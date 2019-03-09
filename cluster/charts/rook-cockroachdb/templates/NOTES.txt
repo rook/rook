@@ -1,0 +1,14 @@
+The Rook Operator has been installed. Check its status by running:
+  kubectl --namespace {{ .Release.Namespace }} get pods -l "app=rook-cockroachdb-operator"
+
+Visit https://rook.io/docs/rook/master for instructions on how to create and configure Rook clusters
+
+Note: You cannot just create a CockroachdbCluster resource, you need to also create a namespace and
+install suitable RBAC roles and role bindings for the cluster. The Rook Operator will not do
+this for you. For now, the kubernetes default RBAC are enough for cockroachdb pods, since pods don't need talk to api-server
+
+Important Notes:
+- The links above are for the unreleased master version, if you deploy a different release you must find matching manifests.
+- You must customise the 'CockroachdbCluster' resource at the bottom of the sample manifests to met your situation.
+- Each CockroachdbCluster must be deployed to its own namespace, the samples use `rook-cockroachdb` for the cluster.
+- The sample manifests assume you installed the rook-cockroachdb operator in the `rook-cockroachdb-system` namespace.
