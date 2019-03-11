@@ -153,8 +153,7 @@ func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOs
 	}
 	if a.metadataDevice != "" {
 		// ceph-volume still is work in progress for accepting fast devices for the metadata
-		logger.Infof("skipping ceph-volume until the fast devices can be specified for the metadata")
-		cvSupported = false
+		logger.Warningf("ceph-volume metadata support is experimental. osd provision might fail if vg on %s does not have enough space", a.metadataDevice)
 	}
 
 	var osds []oposd.OSDInfo
