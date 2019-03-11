@@ -34,7 +34,7 @@ const (
 `
 )
 
-// daemonConfig for a single rbd mirror
+// daemonConfig for a single rbd-mirror
 type daemonConfig struct {
 	ResourceName string              // the name rook gives to mirror resources in k8s metadata
 	DaemonID     string              // the ID of the Ceph daemon ("a", "b", ...)

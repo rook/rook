@@ -78,9 +78,11 @@ func New(
 	}
 }
 
+var updateDeploymentAndWait = k8sutil.UpdateDeploymentAndWait
+
 // Start begins the process of running rbd mirroring daemons.
 func (m *Mirroring) Start() error {
-	logger.Infof("configure rbd mirroring with %d workers", m.spec.Workers)
+	logger.Infof("configure rbd-mirroring with %d workers", m.spec.Workers)
 
 	for i := 0; i < m.spec.Workers; i++ {
 		daemonID := k8sutil.IndexToName(i)
@@ -96,19 +98,29 @@ func (m *Mirroring) Start() error {
 		}
 
 		// Start the deployment
-		deployment := m.makeDeployment(daemonConf)
-		if _, err := m.context.Clientset.Apps().Deployments(m.Namespace).Create(deployment); err != nil {
+		d := m.makeDeployment(daemonConf)
+		if _, err := m.context.Clientset.Apps().Deployments(m.Namespace).Create(d); err != nil {
 			if !errors.IsAlreadyExists(err) {
 				return fmt.Errorf("failed to create %s deployment. %+v", resourceName, err)
-				/* TODO: update rbd mirrors if already exist */
 			}
-			logger.Infof("%s deployment already exists", resourceName)
+			logger.Infof("deployment for rbd-mirror %s already exists. updating if needed", resourceName)
+			if _, err := updateDeploymentAndWait(m.context, d, m.Namespace); err != nil {
+				// fail could be an issue updating label selector (immutable), so try del and recreate
+				logger.Debugf("updateDeploymentAndWait failed for rbd-mirror %s. Attempting del-and-recreate. %+v", resourceName, err)
+				err = m.context.Clientset.Apps().Deployments(m.Namespace).Delete(d.Name, &metav1.DeleteOptions{})
+				if err != nil {
+					return fmt.Errorf("failed to delete rbd-mirror %s during del-and-recreate update attempt. %+v", resourceName, err)
+				}
+				if _, err := m.context.Clientset.Apps().Deployments(m.Namespace).Create(d); err != nil {
+					return fmt.Errorf("failed to recreate rbd-mirror deployment %s during del-and-recreate update attempt. %+v", resourceName, err)
+				}
+			}
 		} else {
 			logger.Infof("%s deployment started", resourceName)
 		}
 	}
 
-	// Remove extra rbd mirror deployments if necessary
+	// Remove extra rbd-mirror deployments if necessary
 	err := m.removeExtraMirrors()
 	if err != nil {
 		logger.Errorf("failed to remove extra mirrors. %+v", err)
@@ -141,15 +153,15 @@ func (m *Mirroring) removeExtraMirrors() error {
 			continue
 		}
 		if index >= m.spec.Workers {
-			logger.Infof("removing extra rbd mirror %s", daemonName)
+			logger.Infof("removing extra rbd-mirror %s", daemonName)
 			var gracePeriod int64
 			propagation := metav1.DeletePropagationForeground
 			deleteOpts := metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
 			if err = m.context.Clientset.Apps().Deployments(m.Namespace).Delete(deploy.Name, &deleteOpts); err != nil {
-				logger.Warningf("failed to delete rbd mirror %s. %+v", daemonName, err)
+				logger.Warningf("failed to delete rbd-mirror %s. %+v", daemonName, err)
 			}
 
-			logger.Infof("removed rbd mirror %s", daemonName)
+			logger.Infof("removed rbd-mirror %s", daemonName)
 		}
 	}
 	return nil
