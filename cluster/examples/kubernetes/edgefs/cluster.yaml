@@ -150,7 +150,7 @@ spec:
   #    useBCache: "true"           # enable SSD cache device and read-cache
   #    useBCacheWB: "true"         # enable SSD write-cache
   #    useMetadataMask: "0xff"     # all metadata on SSD
-  #    rtrdPLevelOverride: "4"     # enable large device partitioning, only needed if automatic not working
+  #    rtPLevelOverride: "4"       # enable large device partitioning, only needed if automatic not working
   #    sync: "0"                   # highest performance, consistent on pod/software failures, not-consistent on power failures
   #    useAllSSD: "true"           # use only SSDs during deployment
   #  nodes:
@@ -162,7 +162,7 @@ spec:
   #    - name: "sdb"
   #    - name: "sdc"
   #    config: # configuration can be specified at the node level which overrides the cluster level config
-  #      rtrdPLevelOverride: 8
+  #      rtPLevelOverride: 8
   #resources:
   #  limits:
   #    cpu: "2"

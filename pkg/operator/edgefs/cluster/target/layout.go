@@ -95,8 +95,8 @@ func GetRTDevices(nodeDisks []sys.LocalDisk, storeConfig *config.StoreConfig) (r
 				VerifyChid: storeConfig.RtVerifyChid,
 				Sync:       storeConfig.Sync,
 			}
-			if storeConfig.RtrdPLevelOverride != 0 {
-				rtdev.PlevelOverride = storeConfig.RtrdPLevelOverride
+			if storeConfig.RtPLevelOverride != 0 {
+				rtdev.PlevelOverride = storeConfig.RtPLevelOverride
 			}
 			rtDevices = append(rtDevices, rtdev)
 		}
@@ -122,8 +122,8 @@ func GetRTDevices(nodeDisks []sys.LocalDisk, storeConfig *config.StoreConfig) (r
 				VerifyChid: storeConfig.RtVerifyChid,
 				Sync:       storeConfig.Sync,
 			}
-			if storeConfig.RtrdPLevelOverride != 0 {
-				rtdev.PlevelOverride = storeConfig.RtrdPLevelOverride
+			if storeConfig.RtPLevelOverride != 0 {
+				rtdev.PlevelOverride = storeConfig.RtPLevelOverride
 			}
 			rtDevices = append(rtDevices, rtdev)
 		}
@@ -173,8 +173,8 @@ func GetRTDevices(nodeDisks []sys.LocalDisk, storeConfig *config.StoreConfig) (r
 				}
 			}
 
-			if storeConfig.RtrdPLevelOverride != 0 {
-				rtdev.PlevelOverride = storeConfig.RtrdPLevelOverride
+			if storeConfig.RtPLevelOverride != 0 {
+				rtdev.PlevelOverride = storeConfig.RtPLevelOverride
 			}
 			rtDevices = append(rtDevices, rtdev)
 		}
@@ -188,8 +188,16 @@ func GetRtlfsDevices(directories []rookalpha.Directory, storeConfig *config.Stor
 		rtlfsDevice := edgefsv1alpha1.RtlfsDevice{
 			Name:            filepath.Base(dir.Path),
 			Path:            dir.Path,
-			CheckMountpoint: 1,
+			CheckMountpoint: 0,
+			Psize:           storeConfig.LmdbPageSize,
+			VerifyChid:      storeConfig.RtVerifyChid,
 			Sync:            storeConfig.Sync,
+		}
+		if storeConfig.MaxSize != 0 {
+			rtlfsDevice.Maxsize = storeConfig.MaxSize
+		}
+		if storeConfig.RtPLevelOverride != 0 {
+			rtlfsDevice.PlevelOverride = storeConfig.RtPLevelOverride
 		}
 		rtlfsDevices = append(rtlfsDevices, rtlfsDevice)
 	}

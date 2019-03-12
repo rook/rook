@@ -39,6 +39,10 @@ type RtlfsDevices struct {
 type RtlfsDevice struct {
 	Name            string `json:"name"`
 	Path            string `json:"path"`
+	Psize           int    `json:"psize,omitempty"`
+	Maxsize         uint64 `json:"maxsize,omitempty"`
+	VerifyChid      int    `json:"verify_chid"`
+	PlevelOverride  int    `json:"plevel_override,omitempty"`
 	CheckMountpoint int    `json:"check_mountpoint"`
 	Sync            int    `json:"sync"`
 }
