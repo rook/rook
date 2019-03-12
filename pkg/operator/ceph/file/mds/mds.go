@@ -96,7 +96,7 @@ func (c *Cluster) Start() error {
 	var fsPreparedForUpgrade = false
 	defer func() {
 		if fsPreparedForUpgrade {
-			if err := finishedWithDaemonUpgrade(c.context, c.fs.Namespace, c.fs.Name, c.fs.Spec.MetadataServer.ActiveCount); err != nil {
+			if err := finishedWithDaemonUpgrade(c.context, c.cephVersion.Name, c.fs.Namespace, c.fs.Name, c.fs.Spec.MetadataServer.ActiveCount); err != nil {
 				logger.Errorf("for filesystem %s, USER should make sure the Ceph fs max_mds property is set to %d: %+v",
 					c.fs.Name, c.fs.Spec.MetadataServer.ActiveCount, err)
 			}
@@ -229,7 +229,7 @@ func DeleteCluster(context *clusterd.Context, namespace, fsName string) error {
 // Ceph docs: http://docs.ceph.com/docs/master/cephfs/upgrading/
 func prepareForDaemonUpgrade(
 	context *clusterd.Context,
-	clusterName, fsName string,
+	cephVersionName, clusterName, fsName string,
 	timeout time.Duration,
 ) error {
 	logger.Infof("preparing filesystem %s for daemon upgrade", fsName)
@@ -238,7 +238,7 @@ func prepareForDaemonUpgrade(
 	//   See more:  https://ceph.com/releases/v13-2-0-mimic-released/
 	//              http://docs.ceph.com/docs/mimic/cephfs/upgrading/
 	// As of Oct. 2018, this is only necessary for Luminous and Mimic.
-	if err := client.SetNumMDSRanks(context, clusterName, fsName, 1); err != nil {
+	if err := client.SetNumMDSRanks(context, cephVersionName, clusterName, fsName, 1); err != nil {
 		return fmt.Errorf("Could not Prepare filesystem %s for daemon upgrade: %+v", fsName, err)
 	}
 	if err := client.WaitForActiveRanks(context, clusterName, fsName, 1, false, timeout); err != nil {
@@ -254,7 +254,7 @@ func prepareForDaemonUpgrade(
 // ideal state following an upgrade of its daemon(s).
 func finishedWithDaemonUpgrade(
 	context *clusterd.Context,
-	clusterName, fsName string,
+	cephVersionName, clusterName, fsName string,
 	activeMDSCount int32,
 ) error {
 	logger.Debugf("restoring filesystem %s from daemon upgrade", fsName)
@@ -264,7 +264,7 @@ func finishedWithDaemonUpgrade(
 	//   See more:  https://ceph.com/releases/v13-2-0-mimic-released/
 	//              http://docs.ceph.com/docs/mimic/cephfs/upgrading/
 	// TODO: Unknown (Oct. 2018) if any parts can be removed once Rook no longer supports Mimic.
-	if err := client.SetNumMDSRanks(context, clusterName, fsName, activeMDSCount); err != nil {
+	if err := client.SetNumMDSRanks(context, cephVersionName, clusterName, fsName, activeMDSCount); err != nil {
 		return fmt.Errorf("Failed to restore filesystem %s following daemon upgrade: %+v", fsName, err)
 	} // * End of noted section 1
 	return nil
