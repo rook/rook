@@ -282,15 +282,25 @@ type kuserContext struct {
 }
 
 func (k8sh *K8sHelper) Exec(namespace, podName, command string, commandArgs []string) (string, error) {
-	args := []string{"exec", "-n", namespace, podName, "--", command}
-	args = append(args, commandArgs...)
-	result, err := k8sh.Kubectl(args...)
-	if err != nil {
-		return "", fmt.Errorf("kubectl exec command %s failed on pod %s in namespace %s: %+v. output: %s",
-			command, podName, namespace, err, result)
-	}
+	return k8sh.ExecWithRetry(1, namespace, podName, command, commandArgs)
+}
 
-	return result, nil
+// ExecWithRetry will attempt to run a command "retries" times, waiting 3s between each call. Upon success, returns the output.
+func (k8sh *K8sHelper) ExecWithRetry(retries int, namespace, podName, command string, commandArgs []string) (string, error) {
+	var err error
+	for i := 0; i < retries; i++ {
+		args := []string{"exec", "-n", namespace, podName, "--", command}
+		args = append(args, commandArgs...)
+		var result string
+		result, err = k8sh.Kubectl(args...)
+		if err == nil {
+			return result, nil
+		}
+		if i < retries-1 {
+			time.Sleep(3 * time.Second)
+		}
+	}
+	return "", fmt.Errorf("kubectl exec command %s failed on pod %s in namespace %s. %+v", command, podName, namespace, err)
 }
 
 // ResourceOperationFromTemplate performs a kubectl action from a template file after replacing its context
