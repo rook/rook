@@ -218,7 +218,7 @@ func validateStart(t *testing.T, c *Cluster) {
 	assert.Equal(t, 4, len(s.Data))
 
 	// there is only one pod created. the other two won't be created since the first one doesn't start
-	_, err = c.context.Clientset.Apps().Deployments(c.Namespace).Get("rook-ceph-mon-a", metav1.GetOptions{})
+	_, err = c.context.Clientset.AppsV1().Deployments(c.Namespace).Get("rook-ceph-mon-a", metav1.GetOptions{})
 	assert.Nil(t, err)
 }
 

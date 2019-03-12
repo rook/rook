@@ -27,7 +27,7 @@ import (
 	nfsv1alpha1 "github.com/rook/rook/pkg/apis/nfs.rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"k8s.io/api/apps/v1beta1"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -45,6 +45,7 @@ const (
 	nfsConfigMapPath         = "/nfs-ganesha/config"
 	nfsPort                  = 2049
 	rpcPort                  = 111
+	noneMode                 = "none"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "nfs-operator")
@@ -190,7 +191,7 @@ func createCephNFSExport(id int, path string, access string, squash string) stri
 		accessType = "RW"
 	case "readonly":
 		accessType = "RO"
-	case "none":
+	case noneMode:
 		accessType = "None"
 	}
 
@@ -365,18 +366,18 @@ func (c *Controller) createNfsPodSpec(nfsServer *nfsServer) v1.PodTemplateSpec {
 }
 
 func (c *Controller) createNfsStatefulSet(nfsServer *nfsServer, replicas int32) error {
-	appsClient := c.context.Clientset.AppsV1beta1()
+	appsClient := c.context.Clientset.AppsV1()
 
 	nfsPodSpec := c.createNfsPodSpec(nfsServer)
 
-	statefulSet := v1beta1.StatefulSet{
+	statefulSet := appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            nfsServer.name,
 			Namespace:       nfsServer.namespace,
 			Labels:          createAppLabels(),
 			OwnerReferences: []metav1.OwnerReference{nfsServer.ownerRef},
 		},
-		Spec: v1beta1.StatefulSetSpec{
+		Spec: appsv1.StatefulSetSpec{
 			Replicas: &replicas,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: createAppLabels(),
@@ -455,7 +456,7 @@ func validateAccessMode(mode string) error {
 	switch s.ToLower(mode) {
 	case "readonly":
 	case "readwrite":
-	case "none":
+	case noneMode:
 	default:
 		return fmt.Errorf("Invalid value (%s) for accessMode, valid values are (ReadOnly, ReadWrite, none)", mode)
 	}
@@ -464,10 +465,10 @@ func validateAccessMode(mode string) error {
 
 func validateSquashMode(mode string) error {
 	switch s.ToLower(mode) {
-	case "none":
 	case "rootid":
 	case "root":
 	case "all":
+	case noneMode:
 	default:
 		return fmt.Errorf("Invalid value (%s) for squash, valid values are (none, rootId, root, all)", mode)
 	}

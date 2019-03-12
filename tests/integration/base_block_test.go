@@ -29,7 +29,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"k8s.io/api/apps/v1beta1"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -330,7 +330,7 @@ spec:
       restartPolicy: Never`
 }
 
-func getBlockStatefulSetAndServiceDefinition(namespace, statefulsetName, podName, StorageClassName string) (*v1.Service, *v1beta1.StatefulSet) {
+func getBlockStatefulSetAndServiceDefinition(namespace, statefulsetName, podName, StorageClassName string) (*v1.Service, *appsv1.StatefulSet) {
 	service := &v1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -359,23 +359,28 @@ func getBlockStatefulSetAndServiceDefinition(namespace, statefulsetName, podName
 
 	var replica int32 = 1
 
-	statefulSet := &v1beta1.StatefulSet{
+	labels := map[string]string{
+		"app": statefulsetName,
+	}
+
+	statefulSet := &appsv1.StatefulSet{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1beta1",
+			APIVersion: "apps/v1",
 			Kind:       "StatefulSet",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      podName,
 			Namespace: namespace,
 		},
-		Spec: v1beta1.StatefulSetSpec{
+		Spec: appsv1.StatefulSetSpec{
 			ServiceName: statefulsetName,
-			Replicas:    &replica,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: labels,
+			},
+			Replicas: &replica,
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						"app": statefulsetName,
-					},
+					Labels: labels,
 				},
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{

@@ -64,7 +64,7 @@ func TestRBDMirror(t *testing.T) {
 	assert.False(t, keysCreated[fullDaemonName("c")])
 
 	opts := metav1.ListOptions{}
-	d, err := clientset.Apps().Deployments(c.Namespace).List(opts)
+	d, err := clientset.AppsV1().Deployments(c.Namespace).List(opts)
 	assert.Equal(t, 2, len(d.Items))
 	for _, de := range d.Items {
 		daemonName := de.Name[len(de.Name)-1:]

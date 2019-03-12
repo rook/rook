@@ -134,7 +134,7 @@ func (c *Cluster) Start() error {
 		// start the deployment
 		d := c.makeDeployment(mdsConfig)
 		logger.Debugf("starting mds: %+v", d)
-		createdDeployment, err := c.context.Clientset.Apps().Deployments(c.fs.Namespace).Create(d)
+		createdDeployment, err := c.context.Clientset.AppsV1().Deployments(c.fs.Namespace).Create(d)
 		if err != nil {
 			if !errors.IsAlreadyExists(err) {
 				return fmt.Errorf("failed to create mds deployment %s: %+v", mdsConfig.ResourceName, err)

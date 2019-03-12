@@ -123,7 +123,7 @@ func (c *Cluster) Start(rookImage string) error {
 	logger.Infof("Mgr Image is %s", rookImage)
 	// start the deployment
 	deployment := c.makeDeployment(appName, c.Namespace, rookImage, 1)
-	if _, err := c.context.Clientset.Apps().Deployments(c.Namespace).Create(deployment); err != nil {
+	if _, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Create(deployment); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create %s deployment. %+v", appName, err)
 		}

@@ -207,7 +207,7 @@ spec:
     requests:
       storage: 20Gi
 ---
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{.appName}}
@@ -216,6 +216,9 @@ metadata:
 spec:
   strategy:
     type: Recreate
+  selector:
+    matchLabels:
+      app: {{.appLabel}}
   template:
     metadata:
       labels:

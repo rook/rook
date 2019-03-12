@@ -708,7 +708,7 @@ roleRef:
   name: cephfs-external-provisioner-runner
   apiGroup: rbac.authorization.k8s.io
 ---
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: rook-ceph-operator
@@ -718,6 +718,9 @@ metadata:
     storage-backend: ceph
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: rook-ceph-operator
   template:
     metadata:
       labels:

@@ -141,7 +141,7 @@ func deleteMdsDeployment(context *clusterd.Context, namespace string, deployment
 	var gracePeriod int64
 	propagation := metav1.DeletePropagationForeground
 	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
-	if err := context.Clientset.Apps().Deployments(namespace).Delete(deployment.GetName(), options); err != nil {
+	if err := context.Clientset.AppsV1().Deployments(namespace).Delete(deployment.GetName(), options); err != nil {
 		errCount++
 		logger.Errorf("failed to delete mds deployment %s: %+v", deployment.GetName(), err)
 	}

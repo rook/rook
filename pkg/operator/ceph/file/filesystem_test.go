@@ -208,11 +208,11 @@ func contains(arr []string, str string) bool {
 }
 
 func validateStart(t *testing.T, context *clusterd.Context, fs cephv1.CephFilesystem) {
-	r, err := context.Clientset.Apps().Deployments(fs.Namespace).Get("rook-ceph-mds-myfs-a", metav1.GetOptions{})
+	r, err := context.Clientset.AppsV1().Deployments(fs.Namespace).Get("rook-ceph-mds-myfs-a", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, "rook-ceph-mds-myfs-a", r.Name)
 
-	r, err = context.Clientset.Apps().Deployments(fs.Namespace).Get("rook-ceph-mds-myfs-b", metav1.GetOptions{})
+	r, err = context.Clientset.AppsV1().Deployments(fs.Namespace).Get("rook-ceph-mds-myfs-b", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, "rook-ceph-mds-myfs-b", r.Name)
 }

@@ -55,10 +55,10 @@ func CreateStatefulSet(name, namespace, appName string, clientset kubernetes.Int
 		return nil, fmt.Errorf("failed to start %s service: %v\n%v", name, err, ss)
 	}
 
-	_, err = clientset.Apps().StatefulSets(namespace).Create(ss)
+	_, err = clientset.AppsV1().StatefulSets(namespace).Create(ss)
 	if err != nil {
 		if k8serrors.IsAlreadyExists(err) {
-			_, err = clientset.Apps().StatefulSets(namespace).Update(ss)
+			_, err = clientset.AppsV1().StatefulSets(namespace).Update(ss)
 		}
 		if err != nil {
 			return nil, fmt.Errorf("failed to start %s statefulset: %v\n%v", name, err, ss)

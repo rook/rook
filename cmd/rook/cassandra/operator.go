@@ -18,6 +18,8 @@ package cassandra
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/rook/rook/cmd/rook/rook"
 	rookinformers "github.com/rook/rook/pkg/client/informers/externalversions"
 	"github.com/rook/rook/pkg/operator/cassandra/constants"
@@ -29,7 +31,6 @@ import (
 	"k8s.io/apiserver/pkg/server"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/informers/internalinterfaces"
-	"time"
 )
 
 const resyncPeriod = time.Second * 30

@@ -17,6 +17,8 @@ limitations under the License.
 package controller
 
 import (
+	"time"
+
 	rookfake "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	rookScheme "github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	rookinformers "github.com/rook/rook/pkg/client/informers/externalversions"
@@ -28,7 +30,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
-	"time"
 )
 
 const informerResyncPeriod = time.Millisecond

@@ -36,7 +36,7 @@ func CreateReadWriteOperation(k8sh *utils.K8sHelper) *ReadWriteOperation {
 // CreateWriteClient Function to create a nfs client in rook
 func (f *ReadWriteOperation) CreateWriteClient(volName string) ([]string, error) {
 	logger.Infof("creating the filesystem via replication controller")
-	writerSpec := getReplicationController(volName)
+	writerSpec := getDeployment(volName)
 
 	if err := f.k8sh.ResourceOperation("create", writerSpec); err != nil {
 		return nil, err
@@ -55,7 +55,7 @@ func (f *ReadWriteOperation) CreateWriteClient(volName string) ([]string, error)
 
 // Delete Function to delete a nfs consuming pod in rook
 func (f *ReadWriteOperation) Delete() error {
-	return f.k8sh.DeleteResource("rc", "read-write-test")
+	return f.k8sh.DeleteResource("deployment", "read-write-test")
 }
 
 // Read Function to read from nfs mount point created by rook ,i.e. Read data from a pod that has an nfs export mounted
@@ -74,15 +74,16 @@ func (f *ReadWriteOperation) Read(name string) (string, error) {
 	return result, nil
 }
 
-func getReplicationController(volName string) string {
-	return `apiVersion: v1
-kind: ReplicationController
+func getDeployment(volName string) string {
+	return `apiVersion: apps/v1
+kind: Deployment
 metadata:
   name: read-write-test
 spec:
   replicas: 2
   selector:
-    app: read-write-test
+    matchLabels:
+      app: read-write-test
   template:
     metadata:
       labels:

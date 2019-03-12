@@ -83,7 +83,7 @@ func (c *S3XController) CreateOrUpdate(s edgefsv1alpha1.S3X, update bool, ownerR
 
 	// start the deployment
 	deployment := c.makeDeployment(s.Name, s.Namespace, c.rookImage, s.Spec)
-	if _, err := c.context.Clientset.Apps().Deployments(s.Namespace).Create(deployment); err != nil {
+	if _, err := c.context.Clientset.AppsV1().Deployments(s.Namespace).Create(deployment); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create %s deployment. %+v", appName, err)
 		}
@@ -355,7 +355,7 @@ func instanceName(svcname string) string {
 
 // Check if the S3X service exists
 func serviceExists(context *clusterd.Context, s edgefsv1alpha1.S3X) (bool, error) {
-	_, err := context.Clientset.Apps().Deployments(s.Namespace).Get(instanceName(s.Name), metav1.GetOptions{})
+	_, err := context.Clientset.AppsV1().Deployments(s.Namespace).Get(instanceName(s.Name), metav1.GetOptions{})
 	if err == nil {
 		// the deployment was found
 		return true, nil

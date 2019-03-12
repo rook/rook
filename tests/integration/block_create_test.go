@@ -157,7 +157,7 @@ func (s *BlockCreateSuite) TestBlockStorageMountUnMountForStatefulSets() {
 	service, statefulset := getBlockStatefulSetAndServiceDefinition(defaultNamespace, statefulSetName, statefulPodsName, storageClassName)
 	_, err = s.kh.Clientset.CoreV1().Services(defaultNamespace).Create(service)
 	assert.Nil(s.T(), err)
-	_, err = s.kh.Clientset.AppsV1beta1().StatefulSets(defaultNamespace).Create(statefulset)
+	_, err = s.kh.Clientset.AppsV1().StatefulSets(defaultNamespace).Create(statefulset)
 	assert.Nil(s.T(), err)
 	require.True(s.T(), s.kh.CheckPodCountAndState(statefulSetName, defaultNamespace, 1, "Running"))
 	require.True(s.T(), s.kh.CheckPvcCountAndStatus(statefulSetName, defaultNamespace, 1, "Bound"))
@@ -179,7 +179,7 @@ func (s *BlockCreateSuite) TestBlockStorageMountUnMountForStatefulSets() {
 	listOpts := metav1.ListOptions{LabelSelector: "app=" + statefulSetName}
 	err = s.kh.Clientset.CoreV1().Services(defaultNamespace).Delete(statefulSetName, &delOpts)
 	assert.Nil(s.T(), err)
-	err = s.kh.Clientset.AppsV1beta1().StatefulSets(defaultNamespace).Delete(statefulPodsName, &delOpts)
+	err = s.kh.Clientset.AppsV1().StatefulSets(defaultNamespace).Delete(statefulPodsName, &delOpts)
 	assert.Nil(s.T(), err)
 	err = s.kh.Clientset.CoreV1().Pods(defaultNamespace).DeleteCollection(&delOpts, listOpts)
 	assert.Nil(s.T(), err)
@@ -192,7 +192,7 @@ func (s *BlockCreateSuite) statefulSetDataCleanup(namespace, poolName, storageCl
 	listOpts := metav1.ListOptions{LabelSelector: "app=" + statefulSetName}
 	// Delete stateful set
 	s.kh.Clientset.CoreV1().Services(namespace).Delete(statefulSetName, &delOpts)
-	s.kh.Clientset.AppsV1beta1().StatefulSets(defaultNamespace).Delete(statefulPodsName, &delOpts)
+	s.kh.Clientset.AppsV1().StatefulSets(defaultNamespace).Delete(statefulPodsName, &delOpts)
 	s.kh.Clientset.CoreV1().Pods(defaultNamespace).DeleteCollection(&delOpts, listOpts)
 	// Delete all PVCs
 	s.kh.DeletePvcWithLabel(defaultNamespace, statefulSetName)

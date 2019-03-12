@@ -202,7 +202,7 @@ func TestCheckHealthTwoMonsOneNode(t *testing.T) {
 	for i := 0; i < len(monNames); i++ {
 		monConfig := testGenMonConfig(monNames[i])
 		d := c.makeDeployment(monConfig, "node0")
-		_, err := clientset.Apps().Deployments(c.Namespace).Create(d)
+		_, err := clientset.AppsV1().Deployments(c.Namespace).Create(d)
 		assert.Nil(t, err)
 		po := c.makeMonPod(monConfig, "node0")
 		_, err = clientset.CoreV1().Pods(c.Namespace).Create(po)
@@ -246,7 +246,7 @@ func TestCheckHealthTwoMonsOneNode(t *testing.T) {
 
 	// check if mon b has been deleted
 	var dlist *apps.DeploymentList
-	dlist, err = clientset.Apps().Deployments(c.Namespace).List(metav1.ListOptions{})
+	dlist, err = clientset.AppsV1().Deployments(c.Namespace).List(metav1.ListOptions{})
 	assert.Nil(t, err)
 	deleted := true
 	for _, d := range dlist.Items {
@@ -262,7 +262,7 @@ func TestCheckHealthTwoMonsOneNode(t *testing.T) {
 	assert.Nil(t, err)
 
 	// check that nothing has changed
-	dlist, err = clientset.Apps().Deployments(c.Namespace).List(metav1.ListOptions{})
+	dlist, err = clientset.AppsV1().Deployments(c.Namespace).List(metav1.ListOptions{})
 	assert.Nil(t, err)
 
 	for _, d := range dlist.Items {
