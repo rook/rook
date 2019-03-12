@@ -44,9 +44,10 @@ func testPodSpec(t *testing.T, monID string) {
 		false,
 		metav1.OwnerReference{},
 	)
-	setTestMonSettings(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "rook/rook:myversion")
-	c.cephVersion = cephv1.CephVersionSpec{Image: "ceph/ceph:myceph"}
-	c.resources = v1.ResourceRequirements{
+	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "rook/rook:myversion")
+	c.spec.CephVersion = cephv1.CephVersionSpec{Image: "ceph/ceph:myceph"}
+	c.spec.Resources = map[string]v1.ResourceRequirements{}
+	c.spec.Resources["mon"] = v1.ResourceRequirements{
 		Limits: v1.ResourceList{
 			v1.ResourceCPU: *resource.NewQuantity(100.0, resource.BinarySI),
 		},

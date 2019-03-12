@@ -31,7 +31,6 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
@@ -102,37 +101,36 @@ func newTestStartClusterWithQuorumResponse(namespace string, monResponse func() 
 
 func newCluster(context *clusterd.Context, namespace string, hostNetwork bool, allowMultiplePerNode bool, resources v1.ResourceRequirements) *Cluster {
 	return &Cluster{
-		clusterInfo:          nil,
-		HostNetwork:          hostNetwork,
-		context:              context,
-		Namespace:            namespace,
-		rookVersion:          "myversion",
-		Count:                3,
-		AllowMultiplePerNode: allowMultiplePerNode,
-		maxMonID:             -1,
-		waitForStart:         false,
-		monPodRetryInterval:  10 * time.Millisecond,
-		monPodTimeout:        1 * time.Second,
-		monTimeoutList:       map[string]time.Time{},
+		clusterInfo: nil,
+		HostNetwork: hostNetwork,
+		context:     context,
+		Namespace:   namespace,
+		rookVersion: "myversion",
+		spec: cephv1.ClusterSpec{
+			Mon: cephv1.MonSpec{
+				Count:                3,
+				AllowMultiplePerNode: allowMultiplePerNode,
+			},
+			Resources: map[string]v1.ResourceRequirements{"mon": resources},
+		},
+		maxMonID:            -1,
+		waitForStart:        false,
+		monPodRetryInterval: 10 * time.Millisecond,
+		monPodTimeout:       1 * time.Second,
+		monTimeoutList:      map[string]time.Time{},
 		mapping: &Mapping{
 			Node: map[string]*NodeInfo{},
 			Port: map[string]int32{},
 		},
-		resources: resources,
-		ownerRef:  metav1.OwnerReference{},
+		ownerRef: metav1.OwnerReference{},
 	}
 }
 
-// testStart will orchestrate the mons with the existing settings on the mon cluster
-func testStart(c *Cluster) (*cephconfig.ClusterInfo, error) {
-	return c.Start(c.clusterInfo, c.rookVersion, c.cephVersion, cephv1.MonSpec{Count: c.Count, AllowMultiplePerNode: c.AllowMultiplePerNode},
-		rookalpha.Placement{}, v1.ResourceRequirements{})
-}
-
-func setTestMonSettings(c *Cluster, currentMons int, mon cephv1.MonSpec, rookVersion string) {
+// setCommonMonProperties is a convenience helper for setting common test properties
+func setCommonMonProperties(c *Cluster, currentMons int, mon cephv1.MonSpec, rookVersion string) {
 	c.clusterInfo = test.CreateConfigDir(currentMons)
-	c.Count = mon.Count
-	c.AllowMultiplePerNode = mon.AllowMultiplePerNode
+	c.spec.Mon.Count = mon.Count
+	c.spec.Mon.AllowMultiplePerNode = mon.AllowMultiplePerNode
 	c.rookVersion = rookVersion
 }
 
@@ -148,13 +146,13 @@ func TestStartMonPods(t *testing.T) {
 	c := newCluster(context, namespace, false, true, v1.ResourceRequirements{})
 
 	// start a basic cluster
-	_, err := testStart(c)
+	_, err := c.Start(c.clusterInfo, c.rookVersion, c.spec)
 	assert.Nil(t, err)
 
 	validateStart(t, c)
 
 	// starting again should be a no-op, but still results in an error
-	_, err = testStart(c)
+	_, err = c.Start(c.clusterInfo, c.rookVersion, c.spec)
 	assert.Nil(t, err)
 
 	validateStart(t, c)
@@ -167,7 +165,7 @@ func TestOperatorRestart(t *testing.T) {
 	c.clusterInfo = test.CreateConfigDir(1)
 
 	// start a basic cluster
-	info, err := testStart(c)
+	info, err := c.Start(c.clusterInfo, c.rookVersion, c.spec)
 	assert.Nil(t, err)
 	assert.True(t, info.IsInitialized())
 
@@ -176,7 +174,7 @@ func TestOperatorRestart(t *testing.T) {
 	c = newCluster(context, namespace, false, true, v1.ResourceRequirements{})
 
 	// starting again should be a no-op, but will not result in an error
-	info, err = testStart(c)
+	info, err = c.Start(c.clusterInfo, c.rookVersion, c.spec)
 	assert.Nil(t, err)
 	assert.True(t, info.IsInitialized())
 
@@ -193,7 +191,7 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 	c.clusterInfo = test.CreateConfigDir(1)
 
 	// start a basic cluster
-	info, err := testStart(c)
+	info, err := c.Start(c.clusterInfo, c.rookVersion, c.spec)
 	assert.Nil(t, err)
 	assert.True(t, info.IsInitialized())
 
@@ -203,7 +201,7 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 	c = newCluster(context, namespace, true, false, v1.ResourceRequirements{})
 
 	// starting again should be a no-op, but still results in an error
-	info, err = testStart(c)
+	info, err = c.Start(c.clusterInfo, c.rookVersion, c.spec)
 	assert.Nil(t, err)
 	assert.True(t, info.IsInitialized(), info)
 
@@ -225,7 +223,7 @@ func TestSaveMonEndpoints(t *testing.T) {
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
 	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: configDir}, "ns", "", false, metav1.OwnerReference{})
-	setTestMonSettings(c, 1, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
+	setCommonMonProperties(c, 1, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 
 	// create the initial config map
 	err := c.saveMonConfig()

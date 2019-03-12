@@ -55,7 +55,7 @@ func TestCheckHealth(t *testing.T) {
 		Executor:  executor,
 	}
 	c := New(context, "ns", "", false, metav1.OwnerReference{})
-	setTestMonSettings(c, 1, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
+	setCommonMonProperties(c, 1, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 	logger.Infof("initial mons: %v", c.clusterInfo.Monitors)
 	c.waitForStart = false
 	defer os.RemoveAll(c.context.ConfigDir)
@@ -107,7 +107,7 @@ func TestCheckHealthNotFound(t *testing.T) {
 		Executor:  executor,
 	}
 	c := New(context, "ns", "", false, metav1.OwnerReference{})
-	setTestMonSettings(c, 2, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
+	setCommonMonProperties(c, 2, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 	c.waitForStart = false
 	defer os.RemoveAll(c.context.ConfigDir)
 
@@ -179,7 +179,7 @@ func TestCheckHealthTwoMonsOneNode(t *testing.T) {
 	}
 
 	c := New(context, "ns", "", false, metav1.OwnerReference{})
-	setTestMonSettings(c, 2, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
+	setCommonMonProperties(c, 2, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 	c.waitForStart = false
 	defer os.RemoveAll(c.context.ConfigDir)
 
@@ -288,7 +288,7 @@ func TestCheckMonsValid(t *testing.T) {
 		Executor:  executor,
 	}
 	c := New(context, "ns", "", false, metav1.OwnerReference{})
-	setTestMonSettings(c, 1, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
+	setCommonMonProperties(c, 1, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 	c.waitForStart = false
 	defer os.RemoveAll(c.context.ConfigDir)
 
@@ -375,7 +375,7 @@ func TestAddRemoveMons(t *testing.T) {
 		Executor:  executor,
 	}
 	c := New(context, "ns", "", false, metav1.OwnerReference{})
-	setTestMonSettings(c, 0, cephv1.MonSpec{Count: 5, AllowMultiplePerNode: true}, "myversion")
+	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 5, AllowMultiplePerNode: true}, "myversion")
 	c.maxMonID = 0
 	c.waitForStart = false
 	defer os.RemoveAll(c.context.ConfigDir)
@@ -390,7 +390,7 @@ func TestAddRemoveMons(t *testing.T) {
 
 	// reducing the mon count to 3 will reduce the mon count once each time we call checkHealth
 	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(c.clusterInfo.Monitors)
-	c.Count = 3
+	c.spec.Mon.Count = 3
 	err = c.checkHealth()
 	assert.Nil(t, err)
 	assert.Equal(t, 4, len(c.clusterInfo.Monitors))
@@ -409,7 +409,7 @@ func TestAddRemoveMons(t *testing.T) {
 
 	// now attempt to reduce the mons down to quorum size 1
 	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(c.clusterInfo.Monitors)
-	c.Count = 1
+	c.spec.Mon.Count = 1
 	err = c.checkHealth()
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(c.clusterInfo.Monitors))

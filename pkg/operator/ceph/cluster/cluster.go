@@ -175,10 +175,7 @@ func (c *cluster) createInstance(rookImage string) error {
 		}
 
 		// Start the mon pods
-		clusterInfo, err := c.mons.Start(c.Info,
-			rookImage, c.Spec.CephVersion, c.Spec.Mon,
-			cephv1.GetMonPlacement(c.Spec.Placement),
-			cephv1.GetMonResources(c.Spec.Resources))
+		clusterInfo, err := c.mons.Start(c.Info, rookImage, *c.Spec)
 		if err != nil {
 			return fmt.Errorf("failed to start the mons. %+v", err)
 		}

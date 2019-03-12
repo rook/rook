@@ -98,10 +98,13 @@ func (c *Cluster) makeMonPod(monConfig *monConfig, hostname string) *v1.Pod {
 	if c.HostNetwork {
 		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
-	c.placement.ApplyToPodSpec(&podSpec)
+
+	// apply the pod placement if specified in the crd
 	// remove Pod (anti-)affinity because we have our own placement logic
-	c.placement.PodAffinity = nil
-	c.placement.PodAntiAffinity = nil
+	p := cephv1.GetMonPlacement(c.spec.Placement)
+	p.PodAffinity = nil
+	p.PodAntiAffinity = nil
+	p.ApplyToPodSpec(&podSpec)
 
 	pod := &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -142,12 +145,12 @@ func (c *Cluster) makeMonFSInitContainer(monConfig *monConfig) v1.Container {
 			config.NewFlag("public-addr", monConfig.PublicIP),
 			"--mkfs",
 		),
-		Image:           c.cephVersion.Image,
+		Image:           c.spec.CephVersion.Image,
 		VolumeMounts:    opspec.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),
 		SecurityContext: podSecurityContext(),
 		// filesystem creation does not require ports to be exposed
-		Env:       opspec.DaemonEnvVars(c.cephVersion.Image),
-		Resources: c.resources,
+		Env:       opspec.DaemonEnvVars(c.spec.CephVersion.Image),
+		Resources: cephv1.GetMonResources(c.spec.Resources),
 	}
 }
 
@@ -164,7 +167,7 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 			config.NewFlag("public-addr", monConfig.PublicIP),
 			config.NewFlag("public-bind-addr", opspec.ContainerEnvVarReference(podIPEnvVar)),
 		),
-		Image:           c.cephVersion.Image,
+		Image:           c.spec.CephVersion.Image,
 		VolumeMounts:    opspec.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),
 		SecurityContext: podSecurityContext(),
 		Ports: []v1.ContainerPort{
@@ -175,14 +178,14 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 			},
 		},
 		Env: append(
-			opspec.DaemonEnvVars(c.cephVersion.Image),
+			opspec.DaemonEnvVars(c.spec.CephVersion.Image),
 			k8sutil.PodIPEnvVar(podIPEnvVar),
 		),
-		Resources: c.resources,
+		Resources: cephv1.GetMonResources(c.spec.Resources),
 	}
 
 	// If deploying Nautilus and newer we need a new port of the monitor container
-	if cephv1.VersionAtLeast(c.cephVersion.Name, cephv1.Nautilus) {
+	if cephv1.VersionAtLeast(c.spec.CephVersion.Name, cephv1.Nautilus) {
 		addContainerPort(container, "msgr2", 3300)
 	}
 

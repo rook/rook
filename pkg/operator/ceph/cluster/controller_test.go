@@ -160,7 +160,6 @@ func TestClusterChanged(t *testing.T) {
 	// If the number of mons changes, the cluster would be updated
 	new.Mon.Count = 3
 	new.Mon.AllowMultiplePerNode = true
-	assert.False(t, c.mons.AllowMultiplePerNode)
 	assert.True(t, clusterChanged(old, new, c))
 }
 
