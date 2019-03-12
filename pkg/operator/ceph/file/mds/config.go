@@ -55,9 +55,9 @@ func (c *Cluster) generateKeyring(m *mdsConfig, deploymentUID types.UID) error {
 	err = c.context.Clientset.CoreV1().Secrets(c.fs.Namespace).Delete(m.ResourceName, &metav1.DeleteOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
-			logger.Debugf("legacy mgr key %s is already removed", m.ResourceName)
+			logger.Debugf("legacy mds key %s is already removed", m.ResourceName)
 		} else {
-			logger.Warningf("legacy mgr key %s could not be removed: %+v", m.ResourceName, err)
+			logger.Warningf("legacy mds key %s could not be removed: %+v", m.ResourceName, err)
 		}
 	}
 
