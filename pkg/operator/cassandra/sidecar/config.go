@@ -318,7 +318,7 @@ func (m *MemberController) overrideConfigValues(configText []byte) ([]byte, erro
 	var config map[string]interface{}
 
 	if err := yaml.Unmarshal(configText, &config); err != nil {
-		return nil, fmt.Errorf("error unmarshaling cassandra.yaml: %s", err.Error())
+		return nil, fmt.Errorf("error unmarshalling cassandra.yaml: %s", err.Error())
 	}
 
 	seeds, err := m.getSeeds()
