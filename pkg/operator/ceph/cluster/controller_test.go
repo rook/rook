@@ -132,7 +132,9 @@ func TestClusterChanged(t *testing.T) {
 		},
 	}
 	c := &cluster{Spec: &cephv1.ClusterSpec{}, mons: &mon.Cluster{}}
-	assert.True(t, clusterChanged(old, new, c))
+	changed, diff := clusterChanged(old, new, c)
+	assert.True(t, changed)
+	assert.Equal(t, "{v1.ClusterSpec}.Storage.Nodes[?->1]:\n\t-: <non-existent>\n\t+: v1alpha2.Node{Name: \"node2\", Selection: v1alpha2.Selection{Devices: []v1alpha2.Device{{Name: \"sda\"}}}}\n", diff)
 	assert.Equal(t, 0, c.Spec.Mon.Count)
 
 	// a node was removed, should be a change
@@ -143,7 +145,9 @@ func TestClusterChanged(t *testing.T) {
 	new.Storage.Nodes = []rookalpha.Node{
 		{Name: "node1", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
 	}
-	assert.True(t, clusterChanged(old, new, c))
+	changed, diff = clusterChanged(old, new, c)
+	assert.True(t, changed)
+	assert.Equal(t, "{v1.ClusterSpec}.Storage.Nodes[1->?]:\n\t-: v1alpha2.Node{Name: \"node2\", Selection: v1alpha2.Selection{Devices: []v1alpha2.Device{{Name: \"sda\"}}}}\n\t+: <non-existent>\n", diff)
 
 	// the nodes being in a different order should not be a change
 	old.Storage.Nodes = []rookalpha.Node{
@@ -154,13 +158,17 @@ func TestClusterChanged(t *testing.T) {
 		{Name: "node2", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
 		{Name: "node1", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
 	}
-	assert.False(t, clusterChanged(old, new, c))
+	changed, diff = clusterChanged(old, new, c)
+	assert.False(t, changed)
 	assert.Equal(t, 0, c.Spec.Mon.Count)
+	assert.Equal(t, "", diff)
 
 	// If the number of mons changes, the cluster would be updated
 	new.Mon.Count = 3
 	new.Mon.AllowMultiplePerNode = true
-	assert.True(t, clusterChanged(old, new, c))
+	changed, diff = clusterChanged(old, new, c)
+	assert.True(t, changed)
+	assert.Equal(t, "{v1.ClusterSpec}.Mon.Count:\n\t-: 0\n\t+: 3\n{v1.ClusterSpec}.Mon.AllowMultiplePerNode:\n\t-: false\n\t+: true\n", diff)
 }
 
 func TestRemoveFinalizer(t *testing.T) {

@@ -25,6 +25,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
@@ -280,7 +281,7 @@ func (c *cluster) createInitialCrushMap() error {
 	return nil
 }
 
-func clusterChanged(oldCluster, newCluster cephv1.ClusterSpec, clusterRef *cluster) bool {
+func clusterChanged(oldCluster, newCluster cephv1.ClusterSpec, clusterRef *cluster) (bool, string) {
 
 	// sort the nodes by name then compare to see if there are changes
 	sort.Sort(rookv1alpha2.NodesByName(oldCluster.Storage.Nodes))
@@ -288,11 +289,12 @@ func clusterChanged(oldCluster, newCluster cephv1.ClusterSpec, clusterRef *clust
 
 	// any change in the crd will trigger an orchestration
 	if !reflect.DeepEqual(oldCluster, newCluster) {
-		logger.Infof("The Cluster CRD has changed")
-		return true
+		diff := cmp.Diff(oldCluster, newCluster)
+		logger.Infof("The Cluster CRD has changed. diff=%s", diff)
+		return true, diff
 	}
 
-	return false
+	return false, ""
 }
 
 func extractCephVersion(version string) (string, error) {
