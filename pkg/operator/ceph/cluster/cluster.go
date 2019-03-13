@@ -78,6 +78,21 @@ func newCluster(c *cephv1.CephCluster, context *clusterd.Context) *cluster {
 
 func (c *cluster) detectCephMajorVersion(image string, timeout time.Duration) (string, error) {
 	// get the major ceph version by running "ceph --version" in the ceph image
+	podSpec := v1.PodSpec{
+		Containers: []v1.Container{
+			{
+				Command: []string{"ceph"},
+				Args:    []string{"--version"},
+				Name:    "version",
+				Image:   image,
+			},
+		},
+		RestartPolicy: v1.RestartPolicyOnFailure,
+	}
+
+	// apply "mon" placement
+	cephv1.GetMonPlacement(c.Spec.Placement).ApplyToPodSpec(&podSpec)
+
 	job := &batch.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      detectVersionName,
@@ -90,17 +105,7 @@ func (c *cluster) detectCephMajorVersion(image string, timeout time.Duration) (s
 						"job": detectVersionName,
 					},
 				},
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{
-						{
-							Command: []string{"ceph"},
-							Args:    []string{"--version"},
-							Name:    "version",
-							Image:   image,
-						},
-					},
-					RestartPolicy: v1.RestartPolicyOnFailure,
-				},
+				Spec: podSpec,
 			},
 		},
 	}
