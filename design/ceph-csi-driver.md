@@ -4,9 +4,9 @@
 ## Background
 
 Container Storage Interface (CSI) is a set of gRPC specifications for container orchestrators to manage storage drivers. CSI spec abstracts
-common storage features such as create/delete volumes, publish/unpublish volumes, stage/unstage volumes, and more. It is currently at 0.3.0 release.
+common storage features such as create/delete volumes and snapshots, publish/unpublish volumes, stage/unstage volumes, and more. It is currently at 1.0 release.
 
-Kubernetes started to CSI driver alpha support in [1.9](https://kubernetes.io/blog/2018/01/introducing-container-storage-interface/), beta support in [1.10](https://kubernetes.io/blog/2018/04/10/container-storage-interface-beta/).
+Kubernetes started to CSI driver alpha support in [1.9](https://kubernetes.io/blog/2018/01/introducing-container-storage-interface/), beta support in [1.10](https://kubernetes.io/blog/2018/04/10/container-storage-interface-beta/). It starts supporting CSI 1.0 spec in [1.13](https://kubernetes.io/blog/2018/12/03/kubernetes-1-13-release-announcement/). 
 
 It is projected that CSI will be the only supported persistent storage driver
 in the near feature. In-tree drivers such as Ceph RBD and CephFS will be replaced with their respective CSI drivers.
@@ -20,6 +20,8 @@ Both Ceph RBD and CephFS drivers can be found at [ceph/ceph-csi](https://github.
 * CephFS driver. Both Kernel CephFS and Ceph FUSE are supported. When `ceph-fuse` is installed on the CSI plugin container, it can be used to mount CephFS shares.
 
 There is also upstream Kubernetes work to [include these drivers for e2e tests](https://github.com/kubernetes/kubernetes/pull/67088).
+
+Currently Ceph CSI drivers support both CSI 0.3 and 1.0 specs.
 
 ## Kubernetes CSI Driver Deployment
 
@@ -53,6 +55,15 @@ If CSI drivers are already successfully deployed, Rook should help monitor the S
 
 ### Rook initiated CSI drivers deployment
 
-If Rook is instructed to deploy CSI drivers and other external controllers, Rook Operator should create all the driver and daemon deployments as well.
+If Rook is instructed to deploy CSI drivers and other external controllers, Rook Operator should create all the driver and daemon deployments as well. Since there are breaking changes in CSI 1.0 spec and Kubernetes 1.13, it makes sense to focus on newer CSI specs and only on latest Kubernetes releases (i.e. 1.13 and beyond).
 
-The probe based CSI driver discovery feature is currently in alpha in Kubernetes 1.11. If the feature is not turned on, CSI driver registratar will not be able to annotate the node, the external attacher will thus fail to attach the volume. The feature is expected to be in beta in Kubernetes 1.12. Before then, Rook Operator has to annotate the node if necessary.
+Rook Ceph Operator will have new options to start CSI drivers. The options inform Rook Ceph Operator which driver (rbd or Ceph FS, or both) to start, in which namespace to run the CSI drivers. When the CSI drivers are started and StorageClasses are created to use CSI provisioners, Rook Ceph Operator should be able to prevent CSI PVs use stale Ceph mons.
+
+In the near term (Kubernetes 1.13 and maybe 1.14 timeframe), we adopt the following approaches, allowing us to use latest CSI driver image and runtime configuration:
+- Use Golang template to materialize Kubernetes and Rook API objects.
+- Consume the same Container images as provided by Ceph CSI. 
+
+In the long run, when CSI spec and drivers stablize, we will switch to the following:
+
+- Vendor in Ceph CSI drivers and create CSI driver binaries in Rook Ceph container image, rather than directly consuming ceph-csi images.
+- Strong typed API Object construction, in line with other objects created by the Rook Operator.
