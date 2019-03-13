@@ -150,6 +150,8 @@ The `mon` pod does not allow `Pod` affinity or anti-affinity.
 This is because of the mons having built-in anti-affinity with each other through the operator. The operator chooses which nodes are to run a mon on. Each mon is then tied to a node with a node selector using a hostname.
 See the [mon design doc](https://github.com/rook/rook/blob/master/design/mon-health.md) for more details on the mon failover design.
 
+The Rook Ceph operator creates a Job called `rook-ceph-detect-version` to detect the full Ceph version used by the given `cephVersion.image`. The placement from the `mon` section is used for the Job.
+
 ### Cluster-wide Resources Configuration Settings
 Resources should be specified so that the rook components are handled after [Kubernetes Pod Quality of Service classes](https://kubernetes.io/docs/tasks/configure-pod-container/quality-service-pod/).
 This allows to keep rook components running when for example a node runs out of memory and the rook components are not killed depending on their Quality of Service class.
