@@ -32,6 +32,9 @@ type DataPathMap struct {
 	// daemon's data is stored.
 	HostDataDir string
 
+	// If NoData is true, the daemon has no data to store.
+	NoData bool
+
 	// ContainerDataDir should be set to the path in the container where the specific daemon's data
 	// is stored.
 	ContainerDataDir string
@@ -49,6 +52,7 @@ func NewStatefulDaemonDataPathMap(
 	return &DataPathMap{
 		PersistData:      true,
 		HostDataDir:      path.Join(dataDirHostPath, daemonDataDirHostRelativePath),
+		NoData:           false,
 		ContainerDataDir: cephDataDir(daemonType, daemonID),
 	}
 }
@@ -61,7 +65,17 @@ func NewStatelessDaemonDataPathMap(
 	return &DataPathMap{
 		PersistData:      false,
 		HostDataDir:      "",
+		NoData:           false,
 		ContainerDataDir: cephDataDir(daemonType, daemonID),
+	}
+}
+
+func NewDatalessDaemonDataPathMap() *DataPathMap {
+	return &DataPathMap{
+		PersistData:      false,
+		HostDataDir:      "",
+		NoData:           true,
+		ContainerDataDir: "",
 	}
 }
 

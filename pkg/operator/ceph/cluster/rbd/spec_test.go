@@ -22,34 +22,50 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/config"
+	cephtest "github.com/rook/rook/pkg/operator/ceph/test"
+	optest "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestPodSpec(t *testing.T) {
-	c := New(&clusterd.Context{},
+	c := New(
+		&cephconfig.ClusterInfo{FSID: "myfsid"},
+		&clusterd.Context{Clientset: optest.New(1)},
 		"ns",
 		"rook/rook:myversion",
 		cephv1.CephVersionSpec{Image: "ceph/ceph:myceph"},
 		rookalpha.Placement{},
 		false,
 		cephv1.RBDMirroringSpec{Workers: 2},
-		v1.ResourceRequirements{},
+		v1.ResourceRequirements{
+			Limits: v1.ResourceList{
+				v1.ResourceCPU: *resource.NewQuantity(100.0, resource.BinarySI),
+			},
+			Requests: v1.ResourceList{
+				v1.ResourceMemory: *resource.NewQuantity(1337.0, resource.BinarySI),
+			},
+		},
 		metav1.OwnerReference{},
 	)
+	daemonConf := daemonConfig{
+		DaemonID:     "a",
+		ResourceName: "rook-ceph-rbd-mirror-a",
+		DataPathMap:  config.NewDatalessDaemonDataPathMap(),
+	}
 
-	d := c.makeDeployment("rname", "dname")
-	assert.Equal(t, "rname", d.Name)
-	spec := d.Spec.Template.Spec
-	require.Equal(t, 1, len(spec.Containers))
-	assert.Equal(t, 1, len(spec.InitContainers))
-	assert.Equal(t, 3, len(spec.Volumes))
-	cont := spec.Containers[0]
-	assert.Equal(t, "rbd-mirror", cont.Command[0])
-	assert.Equal(t, 7, len(cont.Args))
-	assert.Equal(t, "--foreground", cont.Args[0])
-	assert.Equal(t, "-n", cont.Args[1])
-	assert.Equal(t, "client.rbd-mirror.dname", cont.Args[2])
+	d := c.makeDeployment(&daemonConf)
+	assert.Equal(t, "rook-ceph-rbd-mirror-a", d.Name)
+
+	// Deployment should have Ceph labels
+	cephtest.AssertLabelsContainCephRequirements(t, d.ObjectMeta.Labels,
+		config.RbdMirrorType, "a", appName, "ns")
+
+	podTemplate := cephtest.NewPodTemplateSpecTester(t, &d.Spec.Template)
+	podTemplate.RunFullSuite(config.RbdMirrorType, "a", appName, "ns", "ceph/ceph:myceph",
+		"100", "1337" /* resources */)
 }
