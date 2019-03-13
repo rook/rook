@@ -53,6 +53,7 @@ users:
   - system:serviceaccount:rook-ceph:rook-ceph-osd
 ---
 # The deployment for the rook operator
+# OLM: BEGIN OPERATOR DEPLOYMENT
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -173,3 +174,4 @@ spec:
         emptyDir: {}
       - name: default-config-dir
         emptyDir: {}
+# OLM: END OPERATOR DEPLOYMENT
