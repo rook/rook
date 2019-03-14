@@ -418,7 +418,8 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 		return
 	}
 
-	if !clusterChanged(oldClust.Spec, newClust.Spec, cluster) {
+	changed, _ := clusterChanged(oldClust.Spec, newClust.Spec, cluster)
+	if !changed {
 		logger.Infof("update event for cluster %s is not supported", newClust.Namespace)
 		return
 	}

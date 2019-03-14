@@ -29,7 +29,6 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
@@ -77,27 +76,23 @@ const (
 
 // Cluster represents the Rook and environment configuration settings needed to set up Ceph mons.
 type Cluster struct {
-	clusterInfo          *cephconfig.ClusterInfo
-	context              *clusterd.Context
-	Namespace            string
-	Keyring              string
-	rookVersion          string
-	cephVersion          cephv1.CephVersionSpec
-	Count                int
-	AllowMultiplePerNode bool
-	MonCountMutex        sync.Mutex
-	Port                 int32
-	placement            rookalpha.Placement
-	maxMonID             int
-	waitForStart         bool
-	dataDirHostPath      string
-	monPodRetryInterval  time.Duration
-	monPodTimeout        time.Duration
-	monTimeoutList       map[string]time.Time
-	HostNetwork          bool
-	mapping              *Mapping
-	resources            v1.ResourceRequirements
-	ownerRef             metav1.OwnerReference
+	clusterInfo         *cephconfig.ClusterInfo
+	context             *clusterd.Context
+	spec                cephv1.ClusterSpec
+	Namespace           string
+	Keyring             string
+	rookVersion         string
+	orchestrationMutex  sync.Mutex
+	Port                int32
+	HostNetwork         bool
+	maxMonID            int
+	waitForStart        bool
+	dataDirHostPath     string
+	monPodRetryInterval time.Duration
+	monPodTimeout       time.Duration
+	monTimeoutList      map[string]time.Time
+	mapping             *Mapping
+	ownerRef            metav1.OwnerReference
 }
 
 // monConfig for a single monitor
@@ -129,47 +124,39 @@ type NodeInfo struct {
 }
 
 // New creates an instance of a mon cluster
-func New(
-	clusterInfo *cephconfig.ClusterInfo,
-	context *clusterd.Context,
-	namespace, dataDirHostPath, rookVersion string,
-	cephVersion cephv1.CephVersionSpec,
-	mon cephv1.MonSpec,
-	placement rookalpha.Placement,
-	hostNetwork bool,
-	resources v1.ResourceRequirements,
-	ownerRef metav1.OwnerReference,
-) *Cluster {
+func New(context *clusterd.Context, namespace, dataDirHostPath string, hostNetwork bool, ownerRef metav1.OwnerReference) *Cluster {
 	return &Cluster{
-		clusterInfo:          clusterInfo,
-		context:              context,
-		placement:            placement,
-		dataDirHostPath:      dataDirHostPath,
-		Namespace:            namespace,
-		rookVersion:          rookVersion,
-		cephVersion:          cephVersion,
-		Count:                mon.Count,
-		AllowMultiplePerNode: mon.AllowMultiplePerNode,
-		maxMonID:             -1,
-		waitForStart:         true,
-		monPodRetryInterval:  6 * time.Second,
-		monPodTimeout:        5 * time.Minute,
-		monTimeoutList:       map[string]time.Time{},
-		HostNetwork:          hostNetwork,
+		context:             context,
+		dataDirHostPath:     dataDirHostPath,
+		Namespace:           namespace,
+		maxMonID:            -1,
+		waitForStart:        true,
+		monPodRetryInterval: 6 * time.Second,
+		monPodTimeout:       5 * time.Minute,
+		monTimeoutList:      map[string]time.Time{},
+		HostNetwork:         hostNetwork,
 		mapping: &Mapping{
 			Node: map[string]*NodeInfo{},
 			Port: map[string]int32{},
 		},
-		resources: resources,
-		ownerRef:  ownerRef,
+		ownerRef: ownerRef,
 	}
 }
 
 // Start begins the process of running a cluster of Ceph mons.
-func (c *Cluster) Start() (*cephconfig.ClusterInfo, error) {
+func (c *Cluster) Start(clusterInfo *cephconfig.ClusterInfo, rookVersion string, spec cephv1.ClusterSpec) (*cephconfig.ClusterInfo, error) {
+
+	// Only one goroutine can orchestrate the mons at a time
+	c.acquireOrchestrationLock()
+	defer c.releaseOrchestrationLock()
+
+	c.clusterInfo = clusterInfo
+	c.rookVersion = rookVersion
+	c.spec = spec
+
 	// fail if we were instructed to deploy more than one mon on the same machine with host networking
-	if c.HostNetwork && c.AllowMultiplePerNode && c.Count > 1 {
-		return nil, fmt.Errorf("refusing to deploy %d monitors on the same host since hostNetwork is %v and allowMultiplePerNode is %v. Only one monitor per node is allowed", c.Count, c.HostNetwork, c.AllowMultiplePerNode)
+	if c.HostNetwork && c.spec.Mon.AllowMultiplePerNode && c.spec.Mon.Count > 1 {
+		return nil, fmt.Errorf("refusing to deploy %d monitors on the same host since hostNetwork is %v and allowMultiplePerNode is %v. Only one monitor per node is allowed", c.spec.Mon.Count, c.HostNetwork, c.spec.Mon.AllowMultiplePerNode)
 	}
 
 	logger.Infof("start running mons")
@@ -185,7 +172,7 @@ func (c *Cluster) Start() (*cephconfig.ClusterInfo, error) {
 
 func (c *Cluster) startMons() error {
 	// init the mon config
-	existingCount, mons := c.initMonConfig(c.Count)
+	existingCount, mons := c.initMonConfig(c.spec.Mon.Count)
 
 	// Assign the mons to nodes
 	if err := c.assignMons(mons); err != nil {
@@ -194,7 +181,7 @@ func (c *Cluster) startMons() error {
 
 	if existingCount < len(mons) {
 		// Start the new mons one at a time
-		for i := existingCount; i < c.Count; i++ {
+		for i := existingCount; i < c.spec.Mon.Count; i++ {
 			if err := c.ensureMonsRunning(mons, i, true); err != nil {
 				return err
 			}
@@ -227,7 +214,7 @@ func (c *Cluster) ensureMonsRunning(mons []*monConfig, i int, requireAllInQuorum
 	// If we are adding a new mon, we expect one more than currently exist.
 	// If we haven't created all the desired mons already, we will be adding a new one with this iteration
 	expectedMonCount := len(c.clusterInfo.Monitors)
-	if expectedMonCount < c.Count {
+	if expectedMonCount < c.spec.Mon.Count {
 		expectedMonCount++
 	}
 
@@ -260,7 +247,7 @@ func (c *Cluster) initClusterInfo() error {
 	var err error
 	// get the cluster info from secret
 	c.clusterInfo, c.maxMonID, c.mapping, err = CreateOrLoadClusterInfo(c.context, c.Namespace, &c.ownerRef)
-	c.clusterInfo.CephVersionName = c.cephVersion.Name
+	c.clusterInfo.CephVersionName = c.spec.CephVersion.Name
 
 	if err != nil {
 		return fmt.Errorf("failed to get cluster info. %+v", err)
@@ -608,4 +595,15 @@ func monFoundInQuorum(name string, monStatusResp client.MonStatusResponse) bool 
 	}
 
 	return false
+}
+
+func (c *Cluster) acquireOrchestrationLock() {
+	logger.Debugf("Acquiring lock for mon orchestration")
+	c.orchestrationMutex.Lock()
+	logger.Debugf("Acquired lock for mon orchestration")
+}
+
+func (c *Cluster) releaseOrchestrationLock() {
+	c.orchestrationMutex.Unlock()
+	logger.Debugf("Released lock for mon orchestration")
 }

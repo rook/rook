@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"time"
 
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
@@ -66,14 +67,15 @@ func (hc *HealthChecker) Check(stopCh chan struct{}) {
 }
 
 func (c *Cluster) checkHealth() error {
-	logger.Debugf("Checking health for mons (desired=%d). %+v", c.Count, c.clusterInfo)
+	c.acquireOrchestrationLock()
+	defer c.releaseOrchestrationLock()
+
+	logger.Debugf("Checking health for mons (desired=%d). %+v", c.spec.Mon.Count, c.clusterInfo)
 
 	// Use a local mon count in case the user updates the crd in another goroutine.
 	// We need to complete a health check with a consistent value.
-	c.MonCountMutex.Lock()
-	desiredMonCount := c.Count
-	allowMultiplePerNode := c.AllowMultiplePerNode
-	c.MonCountMutex.Unlock()
+	desiredMonCount := c.spec.Mon.Count
+	allowMultiplePerNode := c.spec.Mon.AllowMultiplePerNode
 
 	// connect to the mons
 	// get the status and check for quorum
@@ -221,7 +223,7 @@ func (c *Cluster) checkMonsOnValidNodes() (bool, error) {
 			return true, err
 		}
 		// check if node the mon is on is still valid
-		valid, err := k8sutil.ValidNode(*node, c.placement)
+		valid, err := k8sutil.ValidNode(*node, cephv1.GetMonPlacement(c.spec.Placement))
 		if err != nil {
 			logger.Warning("failed to validate node %s %v", node.Name, err)
 		} else if !valid {

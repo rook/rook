@@ -21,11 +21,11 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
@@ -68,18 +68,18 @@ type cluster struct {
 }
 
 func newCluster(c *cephv1.CephCluster, context *clusterd.Context) *cluster {
+	ownerRef := ClusterOwnerRef(c.Namespace, string(c.UID))
 	return &cluster{
 		// at this phase of the cluster creation process, the identity components of the cluster are
 		// not yet established. we reserve this struct which is filled in as soon as the cluster's
 		// identity can be established.
-		Info:                 nil,
-		Namespace:            c.Namespace,
-		Spec:                 &c.Spec,
-		context:              context,
-		stopCh:               make(chan struct{}),
-		ownerRef:             ClusterOwnerRef(c.Namespace, string(c.UID)),
-		orchestrationRunning: false,
-		orchestrationPending: false,
+		Info:      nil,
+		Namespace: c.Namespace,
+		Spec:      &c.Spec,
+		context:   context,
+		stopCh:    make(chan struct{}),
+		ownerRef:  ownerRef,
+		mons:      mon.New(context, c.Namespace, c.Spec.DataDirHostPath, c.Spec.Network.HostNetwork, ownerRef),
 	}
 }
 
@@ -170,18 +170,13 @@ func (c *cluster) createInstance(rookImage string) error {
 			Data: placeholderConfig,
 		}
 		k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &cm.ObjectMeta, &c.ownerRef)
-
 		_, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(cm)
 		if err != nil && !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create override configmap %s. %+v", c.Namespace, err)
 		}
 
 		// Start the mon pods
-		c.mons = mon.New(c.Info, c.context, c.Namespace,
-			spec.DataDirHostPath, rookImage, spec.CephVersion, spec.Mon,
-			cephv1.GetMonPlacement(spec.Placement), spec.Network.HostNetwork,
-			cephv1.GetMonResources(spec.Resources), c.ownerRef)
-		clusterInfo, err := c.mons.Start()
+		clusterInfo, err := c.mons.Start(c.Info, rookImage, *c.Spec)
 		if err != nil {
 			return fmt.Errorf("failed to start the mons. %+v", err)
 		}
@@ -286,79 +281,20 @@ func (c *cluster) createInitialCrushMap() error {
 	return nil
 }
 
-func clusterChanged(oldCluster, newCluster cephv1.ClusterSpec, clusterRef *cluster) bool {
-	changeFound := false
-	oldStorage := oldCluster.Storage
-	newStorage := newCluster.Storage
+func clusterChanged(oldCluster, newCluster cephv1.ClusterSpec, clusterRef *cluster) (bool, string) {
 
 	// sort the nodes by name then compare to see if there are changes
-	sort.Sort(rookv1alpha2.NodesByName(oldStorage.Nodes))
-	sort.Sort(rookv1alpha2.NodesByName(newStorage.Nodes))
-	if !reflect.DeepEqual(oldStorage.Nodes, newStorage.Nodes) {
-		logger.Infof("The list of nodes has changed")
-		changeFound = true
+	sort.Sort(rookv1alpha2.NodesByName(oldCluster.Storage.Nodes))
+	sort.Sort(rookv1alpha2.NodesByName(newCluster.Storage.Nodes))
+
+	// any change in the crd will trigger an orchestration
+	if !reflect.DeepEqual(oldCluster, newCluster) {
+		diff := cmp.Diff(oldCluster, newCluster)
+		logger.Infof("The Cluster CRD has changed. diff=%s", diff)
+		return true, diff
 	}
 
-	if oldCluster.Dashboard.Enabled != newCluster.Dashboard.Enabled {
-		logger.Infof("dashboard enabled has changed from %t to %t", oldCluster.Dashboard.Enabled, newCluster.Dashboard.Enabled)
-		changeFound = true
-	}
-	if oldCluster.Dashboard.UrlPrefix != newCluster.Dashboard.UrlPrefix {
-		logger.Infof("dashboard url prefix has changed from \"%s\" to \"%s\"", oldCluster.Dashboard.UrlPrefix, newCluster.Dashboard.UrlPrefix)
-		changeFound = true
-	}
-
-	if oldCluster.Dashboard.Port != newCluster.Dashboard.Port {
-		logger.Infof("dashboard port has changed from \"%d\" to \"%d\"", oldCluster.Dashboard.Port, newCluster.Dashboard.Port)
-		changeFound = true
-	}
-
-	if (oldCluster.Dashboard.SSL == nil && newCluster.Dashboard.SSL != nil) ||
-		(oldCluster.Dashboard.SSL != nil && newCluster.Dashboard.SSL == nil) ||
-		(oldCluster.Dashboard.SSL != nil && newCluster.Dashboard.SSL != nil &&
-			*oldCluster.Dashboard.SSL != *newCluster.Dashboard.SSL) {
-		oldSSL := "<default>"
-		if oldCluster.Dashboard.SSL != nil {
-			oldSSL = strconv.FormatBool(*oldCluster.Dashboard.SSL)
-		}
-		newSSL := "<default>"
-		if newCluster.Dashboard.SSL != nil {
-			newSSL = strconv.FormatBool(*newCluster.Dashboard.SSL)
-		}
-		logger.Infof("dashboard ssl option has changed from \"%s\" to \"%s\"", oldSSL, newSSL)
-		changeFound = true
-	}
-
-	if oldCluster.Mon.Count != newCluster.Mon.Count {
-		logger.Infof("number of mons have changed from %d to %d. The health check will update the mons...", oldCluster.Mon.Count, newCluster.Mon.Count)
-		clusterRef.mons.MonCountMutex.Lock()
-		clusterRef.mons.Count = newCluster.Mon.Count
-		clusterRef.mons.MonCountMutex.Unlock()
-	}
-
-	if oldCluster.Mon.AllowMultiplePerNode != newCluster.Mon.AllowMultiplePerNode {
-		logger.Infof("allow multiple mons per node changed from %t to %t. The health check will update the mons...", oldCluster.Mon.AllowMultiplePerNode, newCluster.Mon.AllowMultiplePerNode)
-		clusterRef.mons.MonCountMutex.Lock()
-		clusterRef.mons.AllowMultiplePerNode = newCluster.Mon.AllowMultiplePerNode
-		clusterRef.mons.MonCountMutex.Unlock()
-	}
-
-	if oldCluster.RBDMirroring.Workers != newCluster.RBDMirroring.Workers {
-		logger.Infof("rbd mirrors changed from %d to %d", oldCluster.RBDMirroring.Workers, newCluster.RBDMirroring.Workers)
-		changeFound = true
-	}
-
-	if oldCluster.CephVersion.AllowUnsupported != newCluster.CephVersion.AllowUnsupported {
-		logger.Infof("ceph version allowUnsupported has changed from %t to %t", oldCluster.CephVersion.AllowUnsupported, newCluster.CephVersion.AllowUnsupported)
-		changeFound = true
-	}
-
-	if oldCluster.CephVersion.Image != newCluster.CephVersion.Image {
-		logger.Infof("ceph version changing from %s to %s", oldCluster.CephVersion.Image, newCluster.CephVersion.Image)
-		changeFound = true
-	}
-
-	return changeFound
+	return false, ""
 }
 
 func extractCephVersion(version string) (string, error) {

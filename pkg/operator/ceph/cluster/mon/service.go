@@ -53,7 +53,7 @@ func (c *Cluster) createService(mon *monConfig) (string, error) {
 	}
 
 	// If deploying Nautilus or newer we need a new port for the monitor service
-	if cephv1.VersionAtLeast(c.cephVersion.Name, cephv1.Nautilus) {
+	if cephv1.VersionAtLeast(c.spec.CephVersion.Name, cephv1.Nautilus) {
 		addServicePort(s, "msgr2", Msgr2port)
 	}
 
@@ -76,7 +76,7 @@ func (c *Cluster) createService(mon *monConfig) (string, error) {
 	// mon endpoint are not actually like, they remain with the mgrs1 format
 	// however it's interesting to show that monitors can be addressed via 2 different ports
 	// in the end the service has msgr1 and msgr2 ports configured so it's not entirely wrong
-	if cephv1.VersionAtLeast(c.cephVersion.Name, cephv1.Nautilus) {
+	if cephv1.VersionAtLeast(c.spec.CephVersion.Name, cephv1.Nautilus) {
 		logger.Infof("mon %s endpoint are [v2:%s:%s,v1:%s:%d]", mon.DaemonName, s.Spec.ClusterIP, strconv.Itoa(int(Msgr2port)), s.Spec.ClusterIP, mon.Port)
 	} else {
 		logger.Infof("mon %s endpoint is %s:%d", mon.DaemonName, s.Spec.ClusterIP, mon.Port)

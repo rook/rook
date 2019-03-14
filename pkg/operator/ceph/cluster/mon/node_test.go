@@ -30,9 +30,8 @@ import (
 
 func TestAvailableMonNodes(t *testing.T) {
 	clientset := test.New(1)
-	c := New(test.CreateConfigDir(0), &clusterd.Context{Clientset: clientset}, "ns", "", "myversion",
-		cephv1.CephVersionSpec{}, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true},
-		rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", false, metav1.OwnerReference{})
+	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 
 	nodes, err := c.getMonNodes()
 	assert.Nil(t, err)
@@ -49,7 +48,7 @@ func TestAvailableMonNodes(t *testing.T) {
 	assert.Equal(t, 0, len(emptyNodes))
 
 	// even if AllowMultiplePerNode is true there should be no node returned
-	c.AllowMultiplePerNode = true
+	c.spec.Mon.AllowMultiplePerNode = true
 	emptyNodes, err = c.getMonNodes()
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(emptyNodes))
@@ -57,9 +56,8 @@ func TestAvailableMonNodes(t *testing.T) {
 
 func TestAvailableNodesInUse(t *testing.T) {
 	clientset := test.New(3)
-	c := New(test.CreateConfigDir(0), &clusterd.Context{Clientset: clientset}, "ns", "", "myversion",
-		cephv1.CephVersionSpec{}, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true},
-		rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", false, metav1.OwnerReference{})
+	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 
 	// all three nodes are available by default
 	nodes, err := c.getMonNodes()
@@ -89,7 +87,7 @@ func TestAvailableNodesInUse(t *testing.T) {
 	assert.Equal(t, 3, len(nodes))
 
 	// no nodes should be returned when AllowMultiplePerNode is false
-	c.AllowMultiplePerNode = false
+	c.spec.Mon.AllowMultiplePerNode = false
 	nodes, err = c.getMonNodes()
 	// no mon nodes is no error, just an empty nodes list
 	assert.Nil(t, err)
@@ -98,9 +96,8 @@ func TestAvailableNodesInUse(t *testing.T) {
 
 func TestTaintedNodes(t *testing.T) {
 	clientset := test.New(3)
-	c := New(test.CreateConfigDir(0), &clusterd.Context{Clientset: clientset}, "ns", "", "myversion",
-		cephv1.CephVersionSpec{}, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true},
-		rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", false, metav1.OwnerReference{})
+	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 
 	nodes, err := c.getMonNodes()
 	assert.Nil(t, err)
@@ -132,15 +129,15 @@ func TestTaintedNodes(t *testing.T) {
 
 func TestNodeAffinity(t *testing.T) {
 	clientset := test.New(3)
-	c := New(test.CreateConfigDir(0), &clusterd.Context{Clientset: clientset}, "ns", "", "myversion",
-		cephv1.CephVersionSpec{}, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true},
-		rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", false, metav1.OwnerReference{})
+	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 
 	nodes, err := c.getMonNodes()
 	assert.Nil(t, err)
 	assert.Equal(t, 3, len(nodes))
 
-	c.placement.NodeAffinity = &v1.NodeAffinity{
+	c.spec.Placement = map[string]rookalpha.Placement{}
+	c.spec.Placement["mon"] = rookalpha.Placement{NodeAffinity: &v1.NodeAffinity{
 		RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
 			NodeSelectorTerms: []v1.NodeSelectorTerm{
 				{
@@ -154,6 +151,7 @@ func TestNodeAffinity(t *testing.T) {
 				},
 			},
 		},
+	},
 	}
 
 	// label nodes so node0 will not be schedulable for new pods
@@ -181,15 +179,14 @@ func TestHostNetworkSameNode(t *testing.T) {
 	c.clusterInfo = test.CreateConfigDir(1)
 
 	// start a basic cluster
-	_, err := c.Start()
+	_, err := c.Start(c.clusterInfo, c.rookVersion, c.spec)
 	assert.Error(t, err)
 }
 
 func TestHostNetwork(t *testing.T) {
 	clientset := test.New(3)
-	c := New(test.CreateConfigDir(0), &clusterd.Context{Clientset: clientset}, "ns", "", "myversion",
-		cephv1.CephVersionSpec{}, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: false},
-		rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", false, metav1.OwnerReference{})
+	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 
 	c.HostNetwork = true
 

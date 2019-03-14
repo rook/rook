@@ -19,6 +19,7 @@ package mon
 import (
 	"fmt"
 
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
 	"k8s.io/api/core/v1"
@@ -35,10 +36,10 @@ func (c *Cluster) getMonNodes() ([]v1.Node, error) {
 	logger.Infof("Found %d running nodes without mons", len(availableNodes))
 
 	// if all nodes already have mons and the user has given the mon.count, add all nodes to be available
-	if c.AllowMultiplePerNode && len(availableNodes) == 0 {
+	if c.spec.Mon.AllowMultiplePerNode && len(availableNodes) == 0 {
 		logger.Infof("All nodes are running mons. Adding all %d nodes to the availability.", len(nodes.Items))
 		for _, node := range nodes.Items {
-			valid, err := k8sutil.ValidNode(node, c.placement)
+			valid, err := k8sutil.ValidNode(node, cephv1.GetMonPlacement(c.spec.Placement))
 			if err != nil {
 				logger.Warning("failed to validate node %s %v", node.Name, err)
 			} else if valid {
@@ -70,7 +71,7 @@ func (c *Cluster) getAvailableMonNodes() ([]v1.Node, *v1.NodeList, error) {
 	availableNodes := []v1.Node{}
 	for _, node := range nodes.Items {
 		if !nodesInUse.Contains(node.Name) {
-			valid, err := k8sutil.ValidNode(node, c.placement)
+			valid, err := k8sutil.ValidNode(node, cephv1.GetMonPlacement(c.spec.Placement))
 			if err != nil {
 				logger.Warning("failed to validate node %s %v", node.Name, err)
 			} else if valid {
