@@ -61,7 +61,7 @@ func createFilesystemMountCephCredentials(helper *clients.TestClient, k8sh *util
 	logger.Info("Creating /foo directory on CephFS")
 	_, err = k8sh.Exec(namespace, "rook-ceph-tools", "mkdir", []string{"-p", utils.TestMountPath})
 	require.Nil(s.T(), err)
-	_, err = k8sh.Exec(namespace, "rook-ceph-tools", "bash", []string{"-c", fmt.Sprintf("mount -t ceph -o mds_namespace=%s,name=admin,secret=$(grep key /etc/ceph/keyring | awk '{print $3}') $(grep mon_host /etc/ceph/ceph.conf | awk '{print $3}'):/ %s", filesystemName, utils.TestMountPath)})
+	_, err = k8sh.ExecWithRetry(3, namespace, "rook-ceph-tools", "bash", []string{"-c", fmt.Sprintf("mount -t ceph -o mds_namespace=%s,name=admin,secret=$(grep key /etc/ceph/keyring | awk '{print $3}') $(grep mon_host /etc/ceph/ceph.conf | awk '{print $3}'):/ %s", filesystemName, utils.TestMountPath)})
 	require.Nil(s.T(), err)
 	_, err = k8sh.Exec(namespace, "rook-ceph-tools", "mkdir", []string{"-p", fmt.Sprintf("%s/foo", utils.TestMountPath)})
 	require.Nil(s.T(), err)
