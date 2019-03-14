@@ -1,26 +1,26 @@
-# This YAML file contains nginx & csi cinder driver objects,
-# which are necessary to run nginx with nexentaedge csi nfs driver.
+# This YAML file contains nginx & Edgfefs NFS CSI driver objects,
+# which are necessary to run nginx with edgefs nfs csi driver.
 
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: csi-nedge-pv
+  name: edgefs-nfs-csi-pv
   labels:
-    name: csi-nedge-pv
+    name: edgefs-nfs-csi-pv
 spec:
   accessModes:
   - ReadWriteMany
   capacity:
     storage: 1Gi
   csi:
-    driver: edgefs-csi-plugin
-    volumeHandle: cltest/test/bk1
+    driver: io.edgefs.csi.nfs
+    volumeHandle: cltest/test/pvc-0f49393d-2fbb-11e9-aeb6-002590ebe9b4
 
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: csi-nedge-pvc
+  name: edgefs-nfs-csi-pvc
 spec:
   accessModes:
   - ReadWriteMany
@@ -31,7 +31,7 @@ spec:
     matchExpressions:
     - key: name
       operator: In
-      values: ["csi-nedge-pv"]
+      values: ["edgefs-nfs-csi-pv"]
 ---
 apiVersion: v1
 kind: Pod
@@ -47,8 +47,9 @@ spec:
       protocol: TCP
     volumeMounts:
       - mountPath: /var/www
-        name: csi-volume
+        name: edgefs-nfs-csi-volume
   volumes:
-  - name: csi-volume
+  - name: edgefs-nfs-csi-volume
     persistentVolumeClaim:
-      claimName: csi-nedge-pvc
+      claimName: edgefs-nfs-csi-pvc
+
