@@ -3,7 +3,7 @@
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
 metadata:
-  name: rook-ceph-cluster-mgmt
+  name: {{ if .Values.multipleOperators }}{{.Release.Name }}-{{ end }}rook-ceph-cluster-mgmt
   labels:
     operator: rook
     storage-backend: ceph
@@ -42,7 +42,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
 metadata:
-  name: rook-ceph-global
+  name: {{ if .Values.multipleOperators }}{{.Release.Name }}-{{ end }}rook-ceph-global
   labels:
     operator: rook
     storage-backend: ceph
@@ -111,7 +111,7 @@ rules:
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
-  name: rook-ceph-mgr-cluster
+  name: {{ if .Values.multipleOperators }}{{.Release.Name }}-{{ end }}rook-ceph-mgr-cluster
   labels:
     operator: rook
     storage-backend: ceph
@@ -131,7 +131,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
 metadata:
-  name: rook-ceph-agent-mount
+  name: {{ if .Values.multipleOperators }}{{.Release.Name }}-{{ end }}rook-ceph-agent-mount
   labels:
     operator: rook
     storage-backend: ceph
@@ -148,7 +148,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
 metadata:
-  name: rook-ceph-system-psp-user
+  name: {{ if .Values.multipleOperators }}{{.Release.Name }}-{{ end }}rook-ceph-system-psp-user
   labels:
     operator: rook
     storage-backend: ceph
@@ -159,7 +159,7 @@ rules:
   resources:
   - podsecuritypolicies
   resourceNames:
-  - 00-rook-ceph-operator
+  - 00-{{ if .Values.multipleOperators }}{{.Release.Name }}-{{ end }}rook-ceph-operator
   verbs:
   - use
 {{- end }}

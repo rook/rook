@@ -14,7 +14,7 @@
 apiVersion: policy/v1beta1
 kind: PodSecurityPolicy
 metadata:
-  name: 00-rook-ceph-operator
+  name: 00-{{ if .Values.multipleOperators }}{{.Release.Name }}-{{ end }}rook-ceph-operator
 spec:
   fsGroup:
     rule: RunAsAny
