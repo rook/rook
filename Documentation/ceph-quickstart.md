@@ -24,6 +24,7 @@ If you are using `dataDirHostPath` to persist rook data on kubernetes hosts, mak
 If you're feeling lucky, a simple Rook cluster can be created with the following kubectl commands. For the more detailed install, skip to the next section to [deploy the Rook operator](#deploy-the-rook-operator).
 ```
 cd cluster/examples/kubernetes/ceph
+kubectl create -f operator-common.yaml
 kubectl create -f operator.yaml
 kubectl create -f cluster.yaml
 ```
@@ -36,6 +37,7 @@ The first step is to deploy the Rook system components, which include the Rook a
 
 ```bash
 cd cluster/examples/kubernetes/ceph
+kubectl create -f operator-common.yaml
 kubectl create -f operator.yaml
 
 # verify the rook-ceph-operator, rook-ceph-agent, and rook-discover pods are in the `Running` state before proceeding
@@ -53,164 +55,6 @@ make sure you set the `dataDirHostPath` property that is valid for your hosts. F
 Save the cluster spec as `cluster.yaml`:
 
 ```yaml
-#################################################################################
-# This example first defines some necessary namespace and RBAC security objects.
-# The actual Ceph Cluster CRD example can be found at the bottom of this example.
-#################################################################################
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: rook-ceph
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: rook-ceph-osd
-  namespace: rook-ceph
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: rook-ceph-mgr
-  namespace: rook-ceph
----
-kind: Role
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-osd
-  namespace: rook-ceph
-rules:
-- apiGroups: [""]
-  resources: ["configmaps"]
-  verbs: [ "get", "list", "watch", "create", "update", "delete" ]
----
-# Aspects of ceph-mgr that require access to the system namespace
-kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-mgr-system
-  namespace: rook-ceph
-rules:
-- apiGroups:
-  - ""
-  resources:
-  - configmaps
-  verbs:
-  - get
-  - list
-  - watch
----
-# Aspects of ceph-mgr that operate within the cluster's namespace
-kind: Role
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-mgr
-  namespace: rook-ceph
-rules:
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  - services
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - batch
-  resources:
-  - jobs
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - delete
-- apiGroups:
-  - ceph.rook.io
-  resources:
-  - "*"
-  verbs:
-  - "*"
----
-# Allow the operator to create resources in this cluster's namespace
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-cluster-mgmt
-  namespace: rook-ceph
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: rook-ceph-cluster-mgmt
-subjects:
-- kind: ServiceAccount
-  name: rook-ceph-system
-  namespace: rook-ceph-system
----
-# Allow the osd pods in this namespace to work with configmaps
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-osd
-  namespace: rook-ceph
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: rook-ceph-osd
-subjects:
-- kind: ServiceAccount
-  name: rook-ceph-osd
-  namespace: rook-ceph
----
-# Allow the ceph mgr to access the cluster-specific resources necessary for the mgr modules
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-mgr
-  namespace: rook-ceph
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: rook-ceph-mgr
-subjects:
-- kind: ServiceAccount
-  name: rook-ceph-mgr
-  namespace: rook-ceph
----
-# Allow the ceph mgr to access the rook system resources necessary for the mgr modules
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-mgr-system
-  namespace: rook-ceph-system
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: rook-ceph-mgr-system
-subjects:
-- kind: ServiceAccount
-  name: rook-ceph-mgr
-  namespace: rook-ceph
----
-# Allow the ceph mgr to access cluster-wide resources necessary for the mgr modules
-kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-mgr-cluster
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: rook-ceph-mgr-cluster
-subjects:
-- kind: ServiceAccount
-  name: rook-ceph-mgr
-  namespace: rook-ceph
----
-#################################################################################
-# The Ceph Cluster CRD example
-#################################################################################
 apiVersion: ceph.rook.io/v1
 kind: CephCluster
 metadata:
@@ -219,7 +63,7 @@ metadata:
 spec:
   cephVersion:
     # For the latest ceph images, see https://hub.docker.com/r/ceph/ceph/tags
-    image: ceph/ceph:v13.2.2-20181023
+    image: ceph/ceph:v13.2.4-20190109
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3

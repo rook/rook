@@ -1,5 +1,5 @@
 {{- if .Values.rbacEnable }}
-# The role for the operator to manage resources in the system namespace
+# The role for the operator to manage resources in its own namespace
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: Role
 metadata:
@@ -13,6 +13,7 @@ rules:
   resources:
   - pods
   - configmaps
+  - services
   verbs:
   - get
   - list
@@ -25,6 +26,7 @@ rules:
   - apps
   resources:
   - daemonsets
+  - statefulsets
   verbs:
   - get
   - list

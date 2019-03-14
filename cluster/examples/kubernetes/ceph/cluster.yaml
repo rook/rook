@@ -1,154 +1,14 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: rook-ceph
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: rook-ceph-osd
-  namespace: rook-ceph
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: rook-ceph-mgr
-  namespace: rook-ceph
----
-kind: Role
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-osd
-  namespace: rook-ceph
-rules:
-- apiGroups: [""]
-  resources: ["configmaps"]
-  verbs: [ "get", "list", "watch", "create", "update", "delete" ]
----
-# Aspects of ceph-mgr that require access to the system namespace
-kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-mgr-system
-  namespace: rook-ceph
-rules:
-- apiGroups:
-  - ""
-  resources:
-  - configmaps
-  verbs:
-  - get
-  - list
-  - watch
----
-# Aspects of ceph-mgr that operate within the cluster's namespace
-kind: Role
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-mgr
-  namespace: rook-ceph
-rules:
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  - services
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - batch
-  resources:
-  - jobs
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - delete
-- apiGroups:
-  - ceph.rook.io
-  resources:
-  - "*"
-  verbs:
-  - "*"
----
-# Allow the operator to create resources in this cluster's namespace
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-cluster-mgmt
-  namespace: rook-ceph
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: rook-ceph-cluster-mgmt
-subjects:
-- kind: ServiceAccount
-  name: rook-ceph-system
-  namespace: rook-ceph-system
----
-# Allow the osd pods in this namespace to work with configmaps
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-osd
-  namespace: rook-ceph
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: rook-ceph-osd
-subjects:
-- kind: ServiceAccount
-  name: rook-ceph-osd
-  namespace: rook-ceph
----
-# Allow the ceph mgr to access the cluster-specific resources necessary for the mgr modules
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-mgr
-  namespace: rook-ceph
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: rook-ceph-mgr
-subjects:
-- kind: ServiceAccount
-  name: rook-ceph-mgr
-  namespace: rook-ceph
----
-# Allow the ceph mgr to access the rook system resources necessary for the mgr modules
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-mgr-system
-  namespace: rook-ceph-system
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: rook-ceph-mgr-system
-subjects:
-- kind: ServiceAccount
-  name: rook-ceph-mgr
-  namespace: rook-ceph
----
-# Allow the ceph mgr to access cluster-wide resources necessary for the mgr modules
-kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-mgr-cluster
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: rook-ceph-mgr-cluster
-subjects:
-- kind: ServiceAccount
-  name: rook-ceph-mgr
-  namespace: rook-ceph
----
+#################################################################################################################
+# Define the settings for the rook-ceph cluster with common settings for a production cluster.
+# All nodes with available raw devices will be used for the Ceph cluster. At least three nodes are required
+# in this example. See the documentation for more details on storage settings available.
+
+# For example, to create the cluster:
+#   kubectl create -f common.yaml
+#   kubectl create -f operator.yaml
+#   kubectl create -f cluster.yaml
+#################################################################################################################
+
 apiVersion: ceph.rook.io/v1
 kind: CephCluster
 metadata:
@@ -160,7 +20,7 @@ spec:
     # v12 is luminous, v13 is mimic, and v14 is nautilus.
     # RECOMMENDATION: In production, use a specific version tag instead of the general v13 flag, which pulls the latest release and could result in different
     # versions running within the cluster. See tags available at https://hub.docker.com/r/ceph/ceph/tags/.
-    image: ceph/ceph:v13
+    image: ceph/ceph:v13.2.5-20190319
     # Whether to allow unsupported versions of Ceph. Currently only luminous and mimic are supported.
     # After nautilus is released, Rook will be updated to support nautilus.
     # Do not set to true in production.
@@ -172,7 +32,7 @@ spec:
   # set the amount of mons to be started
   mon:
     count: 3
-    allowMultiplePerNode: true
+    allowMultiplePerNode: false
   # enable the ceph dashboard for viewing cluster status
   dashboard:
     enabled: true
@@ -225,22 +85,20 @@ spec:
 #    osd:
   storage: # cluster level storage configuration and selection
     useAllNodes: true
-    useAllDevices: false
+    useAllDevices: true
     deviceFilter:
     location:
     config:
       # The default and recommended storeType is dynamically set to bluestore for devices and filestore for directories.
       # Set the storeType explicitly only if it is required not to use the default.
       # storeType: bluestore
-      databaseSizeMB: "1024" # this value can be removed for environments with normal sized disks (100 GB or larger)
-      journalSizeMB: "1024"  # this value can be removed for environments with normal sized disks (20 GB or larger)
-      osdsPerDevice: "1" # this value can be overridden at the node or device level
-      # encryptedDevice: "false" # the default value for this option is "false"
-# Cluster level list of directories to use for storage. These values will be set for all nodes that have no `directories` set.
-    directories:
-    # By default create a osd in the dataDirHostPath directory. This should be removed for
-    # environments where nodes have disks available for Rook to use.
-    - path: /var/lib/rook
+      # databaseSizeMB: "1024" # uncomment if the disks are smaller than 100 GB
+      # journalSizeMB: "1024"  # uncomment if the disks are 20 GB or smaller
+      # osdsPerDevice: "1" # this value can be overridden at the node or device level
+      # encryptedDevice: "true" # the default value for this option is "false"
+# Cluster level list of directories to use for filestore-based OSD storage. If uncommented, this example would create an OSD under the dataDirHostPath.
+    #directories:
+    #- path: /var/lib/rook
 # Individual nodes and their config can be specified as well, but 'useAllNodes' above must be set to false. Then, only the named
 # nodes below will be used as storage resources.  Each node's 'name' field should match their 'kubernetes.io/hostname' label.
 #    nodes:

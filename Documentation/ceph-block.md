@@ -166,4 +166,4 @@ parameters:
   fstype: xfs
 ```
 
-(These definitions can also be found in the [`ec-storageclass.yaml`](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/cluster.yaml) file)
+(These definitions can also be found in the [`storageclass-ec.yaml`](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/cluster.yaml) file)

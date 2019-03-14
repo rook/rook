@@ -1,3 +1,9 @@
+#################################################################################################################
+# Create a filesystem with settings for erasure-coding instead of replication. A minimum of three nodes with OSDs
+# are required in this example since the default failureDomain is host.
+#  kubectl create -f filesystem-ec.yaml
+#################################################################################################################
+
 apiVersion: ceph.rook.io/v1
 kind: CephFilesystem
 metadata:

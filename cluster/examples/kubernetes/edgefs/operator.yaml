@@ -160,7 +160,7 @@ rules:
   verbs: ["get", "list", "watch"]
 - apiGroups: ["batch"]
   resources: ["jobs"]
-  verbs: ["get", "list", "watch", "create", "update", "delete"]   
+  verbs: ["get", "list", "watch", "create", "update", "delete"]
 - apiGroups: ["edgefs.rook.io"]
   resources: ["*"]
   verbs: ["*"]
@@ -178,7 +178,7 @@ metadata:
     operator: rook
     storage-backend: edgefs
 ---
-# Grant the operator, agent, and discovery agents access to resources in the rook-ceph-system namespace
+# Grant the operator, agent, and discovery agents access to resources in its own namespace
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
@@ -194,7 +194,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: rook-edgefs-system
-  namespace: rook-edgefs-system    
+  namespace: rook-edgefs-system
 ---
 # Grant the rook system daemons cluster-wide access to manage the Rook CRDs, PVCs, and storage classes
 kind: ClusterRoleBinding
@@ -247,4 +247,3 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-

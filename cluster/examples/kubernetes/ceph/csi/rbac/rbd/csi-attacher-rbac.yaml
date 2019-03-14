@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: rook-csi-rbd-attacher-sa
-  namespace: rook-ceph-system
+  namespace: rook-ceph
 
 ---
 kind: ClusterRole
@@ -31,7 +31,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: rook-csi-rbd-attacher-sa
-    namespace: rook-ceph-system
+    namespace: rook-ceph
 roleRef:
   kind: ClusterRole
   name: rbd-external-attacher-runner

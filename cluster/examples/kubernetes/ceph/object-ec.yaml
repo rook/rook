@@ -1,7 +1,7 @@
 #################################################################################################################
-# Create an object store with settings for replication in a production environment. A minimum of 3 hosts with
-# OSDs are required in this example.
-#  kubectl create -f object.yaml
+# Create an object store with settings for erasure coding for the data pool. A minimum of 3 nodes with OSDs are
+# required in this example since failureDomain is host.
+#  kubectl create -f object-ec.yaml
 #################################################################################################################
 
 apiVersion: ceph.rook.io/v1
@@ -18,8 +18,9 @@ spec:
   # The pool spec used to create the data pool. Can use replication or erasure coding.
   dataPool:
     failureDomain: host
-    replicated:
-      size: 3
+    erasureCoded:
+      dataChunks: 2
+      codingChunks: 1
   # The gaeteway service configuration
   gateway:
     # type of the gateway (s3)

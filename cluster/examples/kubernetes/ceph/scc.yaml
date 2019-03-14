@@ -8,7 +8,7 @@ allowHostNetwork: true
 allowHostDirVolumePlugin: true
 priority:
 allowedCapabilities: []
-allowHostPorts: false
+allowHostPorts: true
 allowHostPID: true
 allowHostIPC: true
 readOnlyRootFilesystem: false
