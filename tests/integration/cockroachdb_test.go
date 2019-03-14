@@ -117,7 +117,7 @@ func (suite *CockroachDBSuite) TestCockroachDBClusterInstallation() {
 	command := "/cockroach/cockroach"
 	commandArgs := []string{
 		"sql", "--insecure", fmt.Sprintf("--host=cockroachdb-public.%s", suite.namespace), "-e",
-		`create database rookcockroachdb; use rookcockroachdb; create table testtable ( testID int ); insert into testtable values (123456789); select * from testtable;`,
+		`create database if not exists rookcockroachdb; use rookcockroachdb; create table if not exists testtable ( testID int ); insert into testtable values (123456789); select * from testtable;`,
 	}
 
 	inc := 0
