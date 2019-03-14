@@ -18,6 +18,7 @@
 - Added the dashboard `port` configuration setting.
 - Added the dashboard `ssl` configuration setting.
 - Added Ceph CSI driver deployments on Kubernetes 1.13 and above.
+- New Kubernetes nodes or nodes which are not tainted `NoSchedule` anymore get added automatically to the existing rook cluster if `useAllNodes` is set. [Issue #2208](https://github.com/rook/rook/issues/2208)
 
 ## Breaking Changes
 

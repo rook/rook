@@ -29,20 +29,23 @@ import (
 	cephbeta "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
-
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/file"
 	"github.com/rook/rook/pkg/operator/ceph/nfs"
 	"github.com/rook/rook/pkg/operator/ceph/object"
-	"github.com/rook/rook/pkg/operator/ceph/object/user"
+	objectuser "github.com/rook/rook/pkg/operator/ceph/object/user"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	v1 "k8s.io/api/core/v1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
 
 const (
@@ -116,6 +119,29 @@ func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) e
 	watcher := opkit.NewWatcher(ClusterResource, namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1().RESTClient())
 	go watcher.Watch(&cephv1.CephCluster{}, stopCh)
 
+	// watch for events on new/updated K8s nodes, too
+
+	lwNodes := &cache.ListWatch{
+		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
+			return c.context.Clientset.CoreV1().Nodes().List(options)
+		},
+		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+			return c.context.Clientset.CoreV1().Nodes().Watch(options)
+		},
+	}
+
+	_, nodeController := cache.NewInformer(
+		lwNodes,
+		&v1.Node{},
+		0,
+		cache.ResourceEventHandlerFuncs{
+			AddFunc:    c.onK8sNodeAdd,
+			UpdateFunc: c.onK8sNodeUpdate,
+			DeleteFunc: nil,
+		},
+	)
+	go nodeController.Run(stopCh)
+
 	// watch for events on all legacy types too
 	c.watchLegacyClusters(namespace, stopCh, resourceHandlerFuncs)
 
@@ -132,6 +158,37 @@ func (c *ClusterController) StopWatch() {
 // ************************************************************************************************
 // Add event functions
 // ************************************************************************************************
+func (c *ClusterController) onK8sNodeAdd(obj interface{}) {
+	newNode, ok := obj.(*v1.Node)
+	if !ok {
+		logger.Warningf("Expected NodeList but handler received %#v", obj)
+	}
+
+	if k8sutil.GetNodeSchedulable(*newNode) == false {
+		logger.Debugf("Skipping cluster update. Added node %s is unschedulable", newNode.Labels[apis.LabelHostname])
+		return
+	}
+
+	for _, cluster := range c.clusterMap {
+		if cluster.Spec.Storage.UseAllNodes == false {
+			logger.Debugf("Skipping -> Do not use all Nodes")
+			continue
+		}
+
+		if valid, _ := k8sutil.ValidNode(*newNode, cluster.Spec.Placement.All()); valid == true {
+			logger.Debugf("Adding %s to cluster %s", newNode.Labels[apis.LabelHostname], cluster.Namespace)
+			err := cluster.createInstance(c.rookImage)
+			if err != nil {
+				logger.Errorf("Failed to update cluster in namespace %s. Was not able to add %s. %+v", cluster.Namespace, newNode.Labels[apis.LabelHostname], err)
+			}
+		} else {
+			logger.Infof("Could not add host %s . It is not valid", newNode.Labels[apis.LabelHostname])
+			continue
+		}
+		logger.Infof("Added %s to cluster %s", newNode.Labels[apis.LabelHostname], cluster.Namespace)
+	}
+}
+
 func (c *ClusterController) onAdd(obj interface{}) {
 	clusterObj, migrationNeeded, err := getClusterObject(obj)
 	if err != nil {
@@ -262,6 +319,52 @@ func (c *ClusterController) onAdd(obj interface{}) {
 // ************************************************************************************************
 // Update event functions
 // ************************************************************************************************
+func (c *ClusterController) onK8sNodeUpdate(oldObj, newObj interface{}) {
+	// skip forced resyncs
+	if reflect.DeepEqual(oldObj, newObj) {
+		return
+	}
+
+	// Checking for nodes where NoSchedule-Taint got removed
+	newNode, ok := newObj.(*v1.Node)
+	if !ok {
+		logger.Warningf("Expected Node but handler received %#v", newObj)
+		return
+	}
+
+	oldNode, ok := oldObj.(*v1.Node)
+	if !ok {
+		logger.Warningf("Expected Node but handler received %#v", oldObj)
+		return
+	}
+
+	if k8sutil.GetNodeSchedulable(*newNode) == false {
+		logger.Debugf("Skipping cluster update. Updated node %s is unschedulable", newNode.Labels[apis.LabelHostname])
+		return
+	}
+
+	// Checking for nodes where NoSchedule-Taint got removed
+	if k8sutil.GetNodeSchedulable(*oldNode) == true {
+		logger.Debugf("Skipping cluster update. Updated node %s was and it is still schedulable", oldNode.Labels[apis.LabelHostname])
+		return
+	}
+
+	for _, cluster := range c.clusterMap {
+		if valid, _ := k8sutil.ValidNode(*newNode, cephv1.GetOSDPlacement(cluster.Spec.Placement)); valid == true {
+			logger.Debugf("Adding %s to cluster %s", newNode.Labels[apis.LabelHostname], cluster.Namespace)
+			err := cluster.createInstance(c.rookImage)
+			if err != nil {
+				logger.Errorf("Failed adding the updated node %s to cluster in namespace %s. %+v", newNode.Labels[apis.LabelHostname], cluster.Namespace, err)
+				continue
+			}
+		} else {
+			logger.Infof("Updated node %s is not valid and could not get added to cluster in namespace %s.", newNode.Labels[apis.LabelHostname], cluster.Namespace)
+			continue
+		}
+		logger.Infof("Added updated node %s to cluster %s", newNode.Labels[apis.LabelHostname], cluster.Namespace)
+	}
+}
+
 func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 	oldClust, _, err := getClusterObject(oldObj)
 	if err != nil {

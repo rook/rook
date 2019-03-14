@@ -23,6 +23,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -36,7 +37,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/rbd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	batch "k8s.io/api/batch/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -53,13 +54,17 @@ var (
 )
 
 type cluster struct {
-	Info      *cephconfig.ClusterInfo
-	context   *clusterd.Context
-	Namespace string
-	Spec      *cephv1.ClusterSpec
-	mons      *mon.Cluster
-	stopCh    chan struct{}
-	ownerRef  metav1.OwnerReference
+	Info                 *cephconfig.ClusterInfo
+	context              *clusterd.Context
+	Namespace            string
+	Spec                 *cephv1.ClusterSpec
+	mons                 *mon.Cluster
+	stopCh               chan struct{}
+	ownerRef             metav1.OwnerReference
+	orchestrationRunning bool
+	orchestrationPending bool
+	orchRunMux           sync.Mutex
+	orchPenMux           sync.Mutex
 }
 
 func newCluster(c *cephv1.CephCluster, context *clusterd.Context) *cluster {
@@ -67,12 +72,14 @@ func newCluster(c *cephv1.CephCluster, context *clusterd.Context) *cluster {
 		// at this phase of the cluster creation process, the identity components of the cluster are
 		// not yet established. we reserve this struct which is filled in as soon as the cluster's
 		// identity can be established.
-		Info:      nil,
-		Namespace: c.Namespace,
-		Spec:      &c.Spec,
-		context:   context,
-		stopCh:    make(chan struct{}),
-		ownerRef:  ClusterOwnerRef(c.Namespace, string(c.UID)),
+		Info:                 nil,
+		Namespace:            c.Namespace,
+		Spec:                 &c.Spec,
+		context:              context,
+		stopCh:               make(chan struct{}),
+		ownerRef:             ClusterOwnerRef(c.Namespace, string(c.UID)),
+		orchestrationRunning: false,
+		orchestrationPending: false,
 	}
 }
 
@@ -138,71 +145,85 @@ func (c *cluster) detectCephMajorVersion(image string, timeout time.Duration) (s
 }
 
 func (c *cluster) createInstance(rookImage string) error {
-
-	// Create a configmap for overriding ceph config settings
-	// These settings should only be modified by a user after they are initialized
-	placeholderConfig := map[string]string{
-		k8sutil.ConfigOverrideVal: "",
-	}
-	cm := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: k8sutil.ConfigOverrideName,
-		},
-		Data: placeholderConfig,
-	}
-	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &cm.ObjectMeta, &c.ownerRef)
-
-	_, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(cm)
-	if err != nil && !errors.IsAlreadyExists(err) {
-		return fmt.Errorf("failed to create override configmap %s. %+v", c.Namespace, err)
+	if c.checkSetOrchestrationRunning() == true {
+		logger.Debugf("As createInstance is currently running added this request as pending.")
+		c.setOrchestrationPending()
+		return nil
 	}
 
-	// Start the mon pods
-	c.mons = mon.New(c.Info, c.context, c.Namespace,
-		c.Spec.DataDirHostPath, rookImage, c.Spec.CephVersion, c.Spec.Mon,
-		cephv1.GetMonPlacement(c.Spec.Placement), c.Spec.Network.HostNetwork,
-		cephv1.GetMonResources(c.Spec.Resources), c.ownerRef)
-	clusterInfo, err := c.mons.Start()
-	if err != nil {
-		return fmt.Errorf("failed to start the mons. %+v", err)
-	}
-	c.Info = clusterInfo // mons return the cluster's info
+	defer c.unsetOrchestrationRunning()
+	initRun := true
+	for c.checkUnsetOrchestrationPending() == true || initRun == true {
+		initRun = false
+		// Use a DeepCopy of the spec to avoid using an inconsistent data-set
+		spec := c.Spec.DeepCopy()
 
-	// The cluster Identity must be established at this point
-	if !c.Info.IsInitialized() {
-		return fmt.Errorf("the cluster identity was not established: %+v", c.Info)
+		// Create a configmap for overriding ceph config settings
+		// These settings should only be modified by a user after they are initialized
+		placeholderConfig := map[string]string{
+			k8sutil.ConfigOverrideVal: "",
+		}
+		cm := &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: k8sutil.ConfigOverrideName,
+			},
+			Data: placeholderConfig,
+		}
+		k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &cm.ObjectMeta, &c.ownerRef)
+
+		_, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(cm)
+		if err != nil && !errors.IsAlreadyExists(err) {
+			return fmt.Errorf("failed to create override configmap %s. %+v", c.Namespace, err)
+		}
+
+		// Start the mon pods
+		c.mons = mon.New(c.Info, c.context, c.Namespace,
+			spec.DataDirHostPath, rookImage, spec.CephVersion, spec.Mon,
+			cephv1.GetMonPlacement(spec.Placement), spec.Network.HostNetwork,
+			cephv1.GetMonResources(spec.Resources), c.ownerRef)
+		clusterInfo, err := c.mons.Start()
+		if err != nil {
+			return fmt.Errorf("failed to start the mons. %+v", err)
+		}
+		c.Info = clusterInfo // mons return the cluster's info
+
+		// The cluster Identity must be established at this point
+		if !c.Info.IsInitialized() {
+			return fmt.Errorf("the cluster identity was not established: %+v", c.Info)
+		}
+
+		err = c.createInitialCrushMap()
+		if err != nil {
+			return fmt.Errorf("failed to create initial crushmap: %+v", err)
+		}
+
+		mgrs := mgr.New(c.Info, c.context, c.Namespace, rookImage,
+			spec.CephVersion, cephv1.GetMgrPlacement(spec.Placement), spec.Network.HostNetwork,
+			spec.Dashboard, cephv1.GetMgrResources(spec.Resources), c.ownerRef)
+		err = mgrs.Start()
+		if err != nil {
+			return fmt.Errorf("failed to start the ceph mgr. %+v", err)
+		}
+
+		// Start the OSDs
+		osds := osd.New(c.context, c.Namespace, rookImage, spec.CephVersion, spec.Storage, spec.DataDirHostPath,
+			cephv1.GetOSDPlacement(spec.Placement), spec.Network.HostNetwork, cephv1.GetOSDResources(spec.Resources), c.ownerRef)
+		err = osds.Start()
+		if err != nil {
+			return fmt.Errorf("failed to start the osds. %+v", err)
+		}
+
+		// Start the rbd mirroring daemon(s)
+		rbdmirror := rbd.New(c.Info, c.context, c.Namespace, rookImage, spec.CephVersion, cephv1.GetRBDMirrorPlacement(spec.Placement),
+			spec.Network.HostNetwork, spec.RBDMirroring, cephv1.GetRBDMirrorResources(spec.Resources), c.ownerRef)
+		err = rbdmirror.Start()
+		if err != nil {
+			return fmt.Errorf("failed to start the rbd mirrors. %+v", err)
+		}
+
+		logger.Infof("Done creating rook instance in namespace %s", c.Namespace)
 	}
 
-	err = c.createInitialCrushMap()
-	if err != nil {
-		return fmt.Errorf("failed to create initial crushmap: %+v", err)
-	}
-
-	mgrs := mgr.New(c.Info, c.context, c.Namespace, rookImage,
-		c.Spec.CephVersion, cephv1.GetMgrPlacement(c.Spec.Placement), c.Spec.Network.HostNetwork,
-		c.Spec.Dashboard, cephv1.GetMgrResources(c.Spec.Resources), c.ownerRef)
-	err = mgrs.Start()
-	if err != nil {
-		return fmt.Errorf("failed to start the ceph mgr. %+v", err)
-	}
-
-	// Start the OSDs
-	osds := osd.New(c.context, c.Namespace, rookImage, c.Spec.CephVersion, c.Spec.Storage, c.Spec.DataDirHostPath,
-		cephv1.GetOSDPlacement(c.Spec.Placement), c.Spec.Network.HostNetwork, cephv1.GetOSDResources(c.Spec.Resources), c.ownerRef)
-	err = osds.Start()
-	if err != nil {
-		return fmt.Errorf("failed to start the osds. %+v", err)
-	}
-
-	// Start the rbd mirroring daemon(s)
-	rbdmirror := rbd.New(c.Info, c.context, c.Namespace, rookImage, c.Spec.CephVersion, cephv1.GetRBDMirrorPlacement(c.Spec.Placement),
-		c.Spec.Network.HostNetwork, c.Spec.RBDMirroring, cephv1.GetRBDMirrorResources(c.Spec.Resources), c.ownerRef)
-	err = rbdmirror.Start()
-	if err != nil {
-		return fmt.Errorf("failed to start the rbd mirrors. %+v", err)
-	}
-
-	logger.Infof("Done creating rook instance in namespace %s", c.Namespace)
 	return nil
 }
 
@@ -354,6 +375,52 @@ func versionSupported(version string) bool {
 		if v == version {
 			return true
 		}
+	}
+	return false
+}
+
+func (c *cluster) unsetOrchestrationRunning() {
+	c.orchRunMux.Lock()
+	c.orchestrationRunning = false
+	c.orchRunMux.Unlock()
+}
+
+func (c *cluster) setOrchestrationPending() {
+	c.orchPenMux.Lock()
+	c.orchestrationPending = true
+	c.orchPenMux.Unlock()
+}
+
+func (c *cluster) getOrchestrationRunning() bool {
+	c.orchRunMux.Lock()
+	defer c.orchRunMux.Unlock()
+	return c.orchestrationRunning
+}
+
+func (c *cluster) getOrchestrationPending() bool {
+	c.orchPenMux.Lock()
+	defer c.orchPenMux.Unlock()
+	return c.orchestrationPending
+}
+
+// make checking and setting orchestrationRunning "atomic"
+func (c *cluster) checkSetOrchestrationRunning() bool {
+	defer c.orchRunMux.Unlock()
+	c.orchRunMux.Lock()
+	if c.orchestrationRunning == false {
+		c.orchestrationRunning = true
+		return false
+	}
+	return true
+}
+
+// make checking and unsetting orchestrationPending "atomic"
+func (c *cluster) checkUnsetOrchestrationPending() bool {
+	defer c.orchPenMux.Unlock()
+	c.orchPenMux.Lock()
+	if c.orchestrationPending == true {
+		c.orchestrationPending = false
+		return true
 	}
 	return false
 }

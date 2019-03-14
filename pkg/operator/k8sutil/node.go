@@ -21,7 +21,7 @@ import (
 	"fmt"
 
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
@@ -143,4 +143,17 @@ func GetNodeHostNames(clientset kubernetes.Interface) (map[string]string, error)
 		nodeMap[node.Name] = node.Labels[apis.LabelHostname]
 	}
 	return nodeMap, nil
+}
+
+// GetNodeSchedulable returns a boolean if the node is tainted as Schedulable or not
+// true -> Node is schedulable
+// false -> Node is unschedulable
+func GetNodeSchedulable(node v1.Node) bool {
+	for i := range node.Spec.Taints {
+		if node.Spec.Taints[i].Effect == "NoSchedule" {
+			logger.Debugf("Node %s is unschedulable", node.Labels[apis.LabelHostname])
+			return false
+		}
+	}
+	return true
 }
