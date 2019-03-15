@@ -42,7 +42,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	optest "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 )
 
 // A PodSpecTester is a helper exposing methods for testing required Ceph specifications common for
@@ -128,12 +128,12 @@ func (ps *PodSpecTester) AssertRestartPolicyAlways() {
 // RunFullSuite runs all assertion tests for the PodSpec under test and its sub-resources.
 func (ps *PodSpecTester) RunFullSuite(
 	daemonType config.DaemonType,
-	resourceName, cephImage, cpuResourceLimit, memoryResourceRequest string,
+	resourceName, cephImage, cpuResourceLimit, cpuResourceRequest, memoryResourceLimit, memoryResourceRequest string,
 ) {
 	ps.AssertVolumesAndMountsMatch()
 	ps.AssertVolumesMeetCephRequirements(daemonType, resourceName)
 	ps.AssertRestartPolicyAlways()
-	ps.Containers().RunFullSuite(cephImage, cpuResourceLimit, memoryResourceRequest)
+	ps.Containers().RunFullSuite(cephImage, cpuResourceLimit, cpuResourceRequest, memoryResourceLimit, memoryResourceRequest)
 }
 
 func allContainers(p *v1.PodSpec) []v1.Container {

@@ -27,8 +27,9 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -40,6 +41,8 @@ const (
 	serviceAccountName   = "rook-ceph-mgr"
 	prometheusModuleName = "prometheus"
 	metricsPort          = 9283
+	// minimum amount of memory in MB to run the pod
+	cephMgrPodMinimumMemory uint64 = 512
 )
 
 // Cluster represents the Rook and environment configuration settings needed to set up Ceph mgrs.
@@ -92,6 +95,12 @@ var updateDeploymentAndWait = k8sutil.UpdateDeploymentAndWait
 
 // Start begins the process of running a cluster of Ceph mgrs.
 func (c *Cluster) Start() error {
+	// Validate pod's memory if specified
+	err := opspec.CheckPodMemory(c.resources, cephMgrPodMinimumMemory)
+	if err != nil {
+		return fmt.Errorf("%v", err)
+	}
+
 	logger.Infof("start running mgr")
 
 	for i := 0; i < c.Replicas; i++ {

@@ -34,7 +34,7 @@ import (
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	apps "k8s.io/api/apps/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -102,7 +102,7 @@ func TestCreateFilesystem(t *testing.T) {
 				ActiveCount: 1,
 				Resources: v1.ResourceRequirements{
 					Limits: v1.ResourceList{
-						v1.ResourceCPU: *resource.NewQuantity(100.0, resource.BinarySI),
+						v1.ResourceMemory: *resource.NewQuantity(4294967296, resource.BinarySI),
 					},
 					Requests: v1.ResourceList{
 						v1.ResourceMemory: *resource.NewQuantity(1337.0, resource.BinarySI),

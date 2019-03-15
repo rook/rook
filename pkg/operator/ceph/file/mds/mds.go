@@ -28,6 +28,7 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -43,6 +44,8 @@ const (
 
 	// timeout if mds is not ready for upgrade after some time
 	fsWaitForActiveTimeout = 3 * time.Minute
+	// minimum amount of memory in MB to run the pod
+	cephMdsPodMinimumMemory uint64 = 4096
 )
 
 // Cluster represents a Ceph mds cluster.
@@ -91,6 +94,12 @@ var UpdateDeploymentAndWait = k8sutil.UpdateDeploymentAndWait
 
 // Start starts or updates a Ceph mds cluster in Kubernetes.
 func (c *Cluster) Start() error {
+	// Validate pod's memory if specified
+	err := opspec.CheckPodMemory(c.fs.Spec.MetadataServer.Resources, cephMdsPodMinimumMemory)
+	if err != nil {
+		return fmt.Errorf("%+v", err)
+	}
+
 	// If attempt was made to prepare daemons for upgrade, make sure that an attempt is made to
 	// bring fs state back to desired when this method returns with any error or success.
 	var fsPreparedForUpgrade = false

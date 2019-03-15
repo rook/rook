@@ -150,6 +150,14 @@ func (c *Cluster) makeDeployment(nodeName string, selection rookalpha.Selection,
 		"--cluster", osd.Cluster,
 		"--osd-uuid", osd.UUID,
 	}
+
+	// Set osd memory target to the best appropriate value
+	if !osd.IsFileStore {
+		if !c.resources.Limits.Memory().IsZero() {
+			commonArgs = append(commonArgs, "--osd-memory-target", strconv.Itoa(int(c.resources.Limits.Memory().Value())))
+		}
+	}
+
 	if osd.IsFileStore {
 		commonArgs = append(commonArgs, fmt.Sprintf("--osd-journal=%s", osd.Journal))
 	}
@@ -190,6 +198,14 @@ func (c *Cluster) makeDeployment(nodeName string, selection rookalpha.Selection,
 			"--conf", osd.Config,
 			"--cluster", "ceph",
 		}
+
+		// Set osd memory target to the best appropriate value
+		if !osd.IsFileStore {
+			if !c.resources.Limits.Memory().IsZero() {
+				args = append(args, "--osd-memory-target", strconv.Itoa(int(c.resources.Limits.Memory().Value())))
+			}
+		}
+
 	} else {
 		// other osds can launch the osd daemon directly
 		command = []string{"ceph-osd"}

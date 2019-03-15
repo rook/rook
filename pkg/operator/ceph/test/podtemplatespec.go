@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	"github.com/rook/rook/pkg/operator/ceph/config"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 )
 
 // A PodTemplateSpecTester is a helper exposing methods for testing required Ceph specifications
@@ -47,9 +47,10 @@ func (pt *PodTemplateSpecTester) AssertLabelsContainCephRequirements(
 // RunFullSuite runs all assertion tests for the PodTemplateSpec under test and its sub-resources.
 func (pt *PodTemplateSpecTester) RunFullSuite(
 	daemonType config.DaemonType,
-	daemonID, appName, namespace, cephImage string,
-	cpuResourceLimit, memoryResourceRequest string,
+	daemonID, appName, namespace, cephImage,
+	cpuResourceLimit, cpuResourceRequest,
+	memoryResourceLimit, memoryResourceRequest string,
 ) {
 	pt.AssertLabelsContainCephRequirements(daemonType, daemonID, appName, namespace)
-	pt.Spec().RunFullSuite(daemonType, daemonID, cephImage, cpuResourceLimit, memoryResourceRequest)
+	pt.Spec().RunFullSuite(daemonType, daemonID, cephImage, cpuResourceLimit, cpuResourceRequest, memoryResourceLimit, memoryResourceRequest)
 }

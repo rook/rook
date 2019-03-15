@@ -34,10 +34,12 @@ func TestPodSpecs(t *testing.T) {
 	store := simpleStore()
 	store.Spec.Gateway.Resources = v1.ResourceRequirements{
 		Limits: v1.ResourceList{
-			v1.ResourceCPU: *resource.NewQuantity(100.0, resource.BinarySI),
+			v1.ResourceCPU:    *resource.NewQuantity(200.0, resource.BinarySI),
+			v1.ResourceMemory: *resource.NewQuantity(1337.0, resource.BinarySI),
 		},
 		Requests: v1.ResourceList{
-			v1.ResourceMemory: *resource.NewQuantity(1337.0, resource.BinarySI),
+			v1.ResourceCPU:    *resource.NewQuantity(100.0, resource.BinarySI),
+			v1.ResourceMemory: *resource.NewQuantity(500.0, resource.BinarySI),
 		},
 	}
 	info := testop.CreateConfigDir(1)
@@ -56,17 +58,19 @@ func TestPodSpecs(t *testing.T) {
 
 	podTemplate := cephtest.NewPodTemplateSpecTester(t, &s)
 	podTemplate.RunFullSuite(cephconfig.RgwType, "default", "rook-ceph-rgw", "mycluster", "ceph/ceph:myversion",
-		"100", "1337" /* resources */)
+		"200", "100", "1337", "500" /* resources */)
 }
 
 func TestSSLPodSpec(t *testing.T) {
 	store := simpleStore()
 	store.Spec.Gateway.Resources = v1.ResourceRequirements{
 		Limits: v1.ResourceList{
-			v1.ResourceCPU: *resource.NewQuantity(100.0, resource.BinarySI),
+			v1.ResourceCPU:    *resource.NewQuantity(200.0, resource.BinarySI),
+			v1.ResourceMemory: *resource.NewQuantity(1337.0, resource.BinarySI),
 		},
 		Requests: v1.ResourceList{
-			v1.ResourceMemory: *resource.NewQuantity(1337.0, resource.BinarySI),
+			v1.ResourceCPU:    *resource.NewQuantity(100.0, resource.BinarySI),
+			v1.ResourceMemory: *resource.NewQuantity(500.0, resource.BinarySI),
 		},
 	}
 	info := testop.CreateConfigDir(1)
@@ -88,7 +92,7 @@ func TestSSLPodSpec(t *testing.T) {
 
 	podTemplate := cephtest.NewPodTemplateSpecTester(t, &s)
 	podTemplate.RunFullSuite(cephconfig.RgwType, "default", "rook-ceph-rgw", "mycluster", "ceph/ceph:myversion",
-		"100", "1337" /* resources */)
+		"200", "100", "1337", "500" /* resources */)
 
 	assert.True(t, s.Spec.HostNetwork)
 	assert.Equal(t, v1.DNSClusterFirstWithHostNet, s.Spec.DNSPolicy)

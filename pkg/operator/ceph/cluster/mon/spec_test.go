@@ -49,10 +49,12 @@ func testPodSpec(t *testing.T, monID string) {
 	c.spec.Resources = map[string]v1.ResourceRequirements{}
 	c.spec.Resources["mon"] = v1.ResourceRequirements{
 		Limits: v1.ResourceList{
-			v1.ResourceCPU: *resource.NewQuantity(100.0, resource.BinarySI),
+			v1.ResourceCPU:    *resource.NewQuantity(200.0, resource.BinarySI),
+			v1.ResourceMemory: *resource.NewQuantity(1337.0, resource.BinarySI),
 		},
 		Requests: v1.ResourceList{
-			v1.ResourceMemory: *resource.NewQuantity(1337.0, resource.BinarySI),
+			v1.ResourceCPU:    *resource.NewQuantity(100.0, resource.BinarySI),
+			v1.ResourceMemory: *resource.NewQuantity(500.0, resource.BinarySI),
 		},
 	}
 	monConfig := testGenMonConfig(monID)
@@ -66,5 +68,5 @@ func testPodSpec(t *testing.T, monID string) {
 
 	podTemplate := cephtest.NewPodTemplateSpecTester(t, &d.Spec.Template)
 	podTemplate.RunFullSuite(config.MonType, monID, appName, "ns", "ceph/ceph:myceph",
-		"100", "1337" /* resources */)
+		"200", "100", "1337", "500" /* resources */)
 }

@@ -44,12 +44,17 @@ func testDeploymentObject(hostNetwork bool) *apps.Deployment {
 				ActiveStandby: false,
 				Resources: v1.ResourceRequirements{
 					Limits: v1.ResourceList{
-						v1.ResourceCPU: *resource.NewQuantity(100.0, resource.BinarySI),
+						v1.ResourceCPU:    *resource.NewQuantity(500.0, resource.BinarySI),
+						v1.ResourceMemory: *resource.NewQuantity(4337.0, resource.BinarySI),
 					},
 					Requests: v1.ResourceList{
-						v1.ResourceMemory: *resource.NewQuantity(1337.0, resource.BinarySI),
+						v1.ResourceCPU:    *resource.NewQuantity(250.0, resource.BinarySI),
+						v1.ResourceMemory: *resource.NewQuantity(2169.0, resource.BinarySI),
 					},
-				}}}}
+				},
+			},
+		},
+	}
 	clusterInfo := &cephconfig.ClusterInfo{FSID: "myfsid"}
 
 	c := NewCluster(
@@ -82,7 +87,7 @@ func TestPodSpecs(t *testing.T) {
 
 	podTemplate := cephtest.NewPodTemplateSpecTester(t, &d.Spec.Template)
 	podTemplate.RunFullSuite(config.MdsType, "myfs-a", "rook-ceph-mds", "ns", "ceph/ceph:testversion",
-		"100", "1337" /* resources */)
+		"500", "250", "4337", "2169" /* resources */)
 }
 
 func TestHostNetwork(t *testing.T) {
