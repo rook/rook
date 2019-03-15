@@ -141,3 +141,31 @@ func executeCommandWithOutputFile(context *clusterd.Context, debug bool, command
 	output, err := context.Executor.ExecuteCommandWithOutputFile(debug, "", command, "--out-file", args...)
 	return []byte(output), err
 }
+
+func ExecuteCephCommandWithRetry(
+	cmd func() ([]byte, error),
+	getExitCode func(err error) (int, bool),
+	retries int,
+	retryOnExitCode int,
+	waitTime time.Duration,
+) ([]byte, error) {
+	for i := 0; i < retries; i++ {
+		data, err := cmd()
+		if err != nil {
+			exitCode, parsed := getExitCode(err)
+			if parsed {
+				if exitCode == retryOnExitCode {
+					logger.Infof("command failed. trying again...")
+					time.Sleep(waitTime)
+					continue
+				}
+			}
+			return nil, fmt.Errorf("failed to complete command %+v", err)
+		}
+		if i > 0 {
+			logger.Infof("command succeeded on attempt %d", i)
+		}
+		return data, nil
+	}
+	return nil, fmt.Errorf("max command retries exceeded")
+}

@@ -48,20 +48,13 @@ func (c *Cluster) configureOrchestratorModules() error {
 		return fmt.Errorf("failed to enable mgr rook module. %+v", err)
 	}
 	// retry a few times in the case that the mgr module is not ready to accept commands
-	for i := 0; i < 5; i++ {
-		_, err := client.ExecuteCephCommand(c.context, c.Namespace, []string{"orchestrator", "set", "backend", "rook"})
-		if err != nil {
-			exitCode, parsed := c.exitCode(err)
-			if parsed {
-				if exitCode == invalidArgErrorCode {
-					logger.Infof("orchestrator module is not ready yet. trying again...")
-					time.Sleep(orchestratorInitWaitTime)
-					continue
-				}
-			}
-			return fmt.Errorf("failed to set rook as the orchestrator backend. %+v", err)
-		}
-		break
+	_, err := client.ExecuteCephCommandWithRetry(func() ([]byte, error) {
+		args := []string{"orchestrator", "set", "backend", "rook"}
+		return client.ExecuteCephCommand(c.context, c.Namespace, args)
+	}, c.exitCode, 5, invalidArgErrorCode, orchestratorInitWaitTime)
+	if err != nil {
+		return fmt.Errorf("failed to set rook as the orchestrator backend. %+v", err)
+
 	}
 
 	return nil

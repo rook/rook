@@ -220,8 +220,11 @@ func getExitCode(err error) (int, bool) {
 func (c *Cluster) setLoginCredentials(password string) error {
 	// Set the login credentials. Write the command/args to the debug log so we don't write the password by default to the log.
 	logger.Infof("Running command: ceph dashboard set-login-credentials admin *******")
-	args := []string{"dashboard", "set-login-credentials", dashboardUsername, password}
-	_, err := client.ExecuteCephCommandDebugLog(c.context, c.Namespace, args)
+	// retry a few times in the case that the mgr module is not ready to accept commands
+	_, err := client.ExecuteCephCommandWithRetry(func() ([]byte, error) {
+		args := []string{"dashboard", "set-login-credentials", dashboardUsername, password}
+		return client.ExecuteCephCommandDebugLog(c.context, c.Namespace, args)
+	}, c.exitCode, 5, invalidArgErrorCode, dashboardInitWaitTime)
 	if err != nil {
 		return fmt.Errorf("failed to set login creds on mgr. %+v", err)
 	}
