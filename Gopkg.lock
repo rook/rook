@@ -1402,7 +1402,6 @@
     "github.com/ghodss/yaml",
     "github.com/go-ini/ini",
     "github.com/go-sql-driver/mysql",
-    "github.com/golang/glog",
     "github.com/google/go-cmp/cmp",
     "github.com/google/uuid",
     "github.com/icrowley/fake",

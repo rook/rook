@@ -21,7 +21,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	edgefsv1alpha1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1alpha1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/operator/discover"
@@ -269,7 +268,7 @@ func (c *cluster) RemoveLabelOffNode(cs clientset.Interface, nodeName string, la
 			if !apierrs.IsConflict(err) {
 				return err
 			} else {
-				glog.V(2).Infof("Conflict when trying to remove a labels %v from %v", labelKeys, nodeName)
+				logger.Warningf("Conflict when trying to remove a labels %v from %v", labelKeys, nodeName)
 			}
 		} else {
 			break
