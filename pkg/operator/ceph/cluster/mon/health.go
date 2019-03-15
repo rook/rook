@@ -70,12 +70,15 @@ func (c *Cluster) checkHealth() error {
 	c.acquireOrchestrationLock()
 	defer c.releaseOrchestrationLock()
 
-	logger.Debugf("Checking health for mons (desired=%d). %+v", c.spec.Mon.Count, c.clusterInfo)
+	logger.Debugf("Checking health for mons in cluster. %s", c.clusterInfo.Name)
 
 	// Use a local mon count in case the user updates the crd in another goroutine.
 	// We need to complete a health check with a consistent value.
-	desiredMonCount := c.spec.Mon.Count
-	allowMultiplePerNode := c.spec.Mon.AllowMultiplePerNode
+	desiredMonCount, msg, err := c.getTargetMonCount()
+	if err != nil {
+		return fmt.Errorf("failed to get target mon count. %+v", err)
+	}
+	logger.Debugf(msg)
 
 	// connect to the mons
 	// get the status and check for quorum
@@ -156,7 +159,7 @@ func (c *Cluster) checkHealth() error {
 		return nil
 	}
 
-	if !allowMultiplePerNode {
+	if !c.spec.Mon.AllowMultiplePerNode {
 		// check if there are more than two mons running on the same node, failover one mon in that case
 		done, err := c.checkMonsOnSameNode(desiredMonCount)
 		if done || err != nil {
@@ -172,7 +175,7 @@ func (c *Cluster) checkHealth() error {
 	// create/start new mons when there are fewer mons than the desired count in the CRD
 	if len(status.MonMap.Mons) < desiredMonCount {
 		logger.Infof("adding mons. currently %d mons are in quorum and the desired count is %d.", len(status.MonMap.Mons), desiredMonCount)
-		return c.startMons()
+		return c.startMons(desiredMonCount)
 	}
 
 	// remove extra mons if the desired count has decreased in the CRD and all the mons are currently healthy
