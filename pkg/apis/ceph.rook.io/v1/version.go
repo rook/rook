@@ -16,23 +16,5 @@ limitations under the License.
 package v1
 
 const (
-	Luminous             = "luminous"
-	Mimic                = "mimic"
-	Nautilus             = "nautilus"
 	DefaultLuminousImage = "ceph/ceph:v12.2.9-20181026"
 )
-
-func VersionAtLeast(version, minimumVersion string) bool {
-	orderedVersions := []string{Luminous, Mimic, Nautilus}
-	found := false
-	for _, v := range orderedVersions {
-		if v == minimumVersion {
-			found = true
-		}
-		if v == version {
-			// if we found the matching version, the version is at least the minimum version if found==true
-			return found
-		}
-	}
-	return false
-}

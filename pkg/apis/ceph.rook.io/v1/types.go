@@ -81,9 +81,6 @@ type CephVersionSpec struct {
 	// Image is the container image used to launch the ceph daemons, such as ceph/ceph:v12.2.7 or ceph/ceph:v13.2.1
 	Image string `json:"image,omitempty"`
 
-	// The name of the major release of Ceph: luminous, mimic, or nautilus
-	Name string `json:"name,omitempty"`
-
 	// Whether to allow unsupported versions (do not set to true in production)
 	AllowUnsupported bool `json:"allowUnsupported,omitempty"`
 }

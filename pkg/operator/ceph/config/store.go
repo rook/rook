@@ -26,7 +26,6 @@ import (
 	"strings"
 
 	"github.com/go-ini/ini"
-	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
@@ -169,7 +168,7 @@ func (s *Store) createOrUpdateMonHostSecrets(clusterInfo *cephconfig.ClusterInfo
 		msgr2Endpoint := net.JoinHostPort(monIP, monPorts[0])
 		msgr1Endpoint := net.JoinHostPort(monIP, monPorts[1])
 
-		if cephv1.VersionAtLeast(clusterInfo.CephVersionName, cephv1.Nautilus) {
+		if clusterInfo.CephVersion.IsAtLeastNautilus() {
 			hosts[i] = "[v2:" + msgr2Endpoint + ",v1:" + msgr1Endpoint + "]"
 		} else {
 			hosts[i] = msgr1Endpoint

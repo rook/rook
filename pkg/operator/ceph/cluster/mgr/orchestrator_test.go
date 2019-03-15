@@ -19,8 +19,9 @@ import (
 	"fmt"
 	"testing"
 
-	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -50,10 +51,14 @@ func TestOrchestratorModules(t *testing.T) {
 		return "", fmt.Errorf("unexpected ceph command '%v'", args)
 	}
 
-	c := &Cluster{context: context}
+	clusterInfo := &cephconfig.ClusterInfo{
+		CephVersion: cephver.Mimic,
+	}
+
+	c := &Cluster{clusterInfo: clusterInfo, context: context}
 
 	// the modules are skipped on luminous
-	c.cephVersion.Name = cephv1.Luminous
+	c.clusterInfo.CephVersion = cephver.Luminous
 	err := c.configureOrchestratorModules()
 	assert.Nil(t, err)
 	assert.False(t, orchestratorModuleEnabled)
@@ -61,7 +66,7 @@ func TestOrchestratorModules(t *testing.T) {
 	assert.False(t, rookBackendSet)
 
 	// the modules are skipped on mimic
-	c.cephVersion.Name = cephv1.Mimic
+	c.clusterInfo.CephVersion = cephver.Mimic
 	err = c.configureOrchestratorModules()
 	assert.Nil(t, err)
 	assert.False(t, orchestratorModuleEnabled)
@@ -69,7 +74,7 @@ func TestOrchestratorModules(t *testing.T) {
 	assert.False(t, rookBackendSet)
 
 	// the modules are configured on nautilus
-	c.cephVersion.Name = cephv1.Nautilus
+	c.clusterInfo.CephVersion = cephver.Nautilus
 	err = c.configureOrchestratorModules()
 	assert.Nil(t, err)
 	assert.True(t, orchestratorModuleEnabled)

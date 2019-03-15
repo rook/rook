@@ -90,7 +90,7 @@ func (v *CephVersion) IsLuminous() bool {
 	return v.isRelease(Luminous)
 }
 
-func (v *CephVersion) AtLeast(other CephVersion) bool {
+func (v *CephVersion) IsAtLeast(other CephVersion) bool {
 	if v.Major > other.Major {
 		return true
 	} else if v.Major < other.Major {
@@ -109,10 +109,10 @@ func (v *CephVersion) AtLeast(other CephVersion) bool {
 	return true
 }
 
-func (v *CephVersion) AtLeastNautilus() bool {
-	return v.AtLeast(Nautilus)
+func (v *CephVersion) IsAtLeastNautilus() bool {
+	return v.IsAtLeast(Nautilus)
 }
 
-func (v *CephVersion) AtLeastMimic() bool {
-	return v.AtLeast(Mimic)
+func (v *CephVersion) IsAtLeastMimic() bool {
+	return v.IsAtLeast(Mimic)
 }

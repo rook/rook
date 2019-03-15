@@ -48,8 +48,8 @@ const (
 )
 
 var (
-	LuminousVersion = cephv1.CephVersionSpec{Image: luminousTestImage, Name: cephv1.Luminous}
-	MimicVersion    = cephv1.CephVersionSpec{Image: mimicTestImage, Name: cephv1.Mimic}
+	LuminousVersion = cephv1.CephVersionSpec{Image: luminousTestImage}
+	MimicVersion    = cephv1.CephVersionSpec{Image: mimicTestImage}
 )
 
 // CephInstaller wraps installing and uninstalling rook on a platform
@@ -474,7 +474,7 @@ func NewCephInstaller(t func() *testing.T, clientset *kubernetes.Clientset, rook
 		panic("failed to get kubectl client :" + err.Error())
 	}
 	logger.Infof("Rook Version: %s", rookVersion)
-	logger.Infof("Ceph Version: %s (%s)", cephVersion.Image, cephVersion.Name)
+	logger.Infof("Ceph Version: %s", cephVersion.Image)
 	h := &CephInstaller{
 		Manifests:       NewCephManifests(rookVersion),
 		k8shelper:       k8shelp,

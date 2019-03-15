@@ -23,8 +23,8 @@ import (
 	"strconv"
 	"time"
 
-	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
@@ -170,7 +170,7 @@ func IsMultiFSEnabled() bool {
 }
 
 // SetNumMDSRanks sets the number of mds ranks (max_mds) for a Ceph filesystem.
-func SetNumMDSRanks(context *clusterd.Context, cephVersionName, clusterName, fsName string, activeMDSCount int32) error {
+func SetNumMDSRanks(context *clusterd.Context, cephVersion cephver.CephVersion, clusterName, fsName string, activeMDSCount int32) error {
 	// Noted sections 1 and 2 are necessary for reducing max_mds in Luminous.
 	//   See more:   [1] http://docs.ceph.com/docs/luminous/cephfs/upgrading/
 	//               [2] https://tracker.ceph.com/issues/23172
@@ -187,7 +187,7 @@ func SetNumMDSRanks(context *clusterd.Context, cephVersionName, clusterName, fsN
 			fsName, activeMDSCount, err)
 	}
 
-	if cephv1.VersionAtLeast(cephVersionName, cephv1.Mimic) {
+	if cephVersion.IsAtLeastMimic() {
 		return nil
 	}
 

@@ -36,6 +36,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -147,7 +148,7 @@ func New(context *clusterd.Context, namespace, dataDirHostPath string, hostNetwo
 }
 
 // Start begins the process of running a cluster of Ceph mons.
-func (c *Cluster) Start(clusterInfo *cephconfig.ClusterInfo, rookVersion string, spec cephv1.ClusterSpec) (*cephconfig.ClusterInfo, error) {
+func (c *Cluster) Start(clusterInfo *cephconfig.ClusterInfo, rookVersion string, cephVersion cephver.CephVersion, spec cephv1.ClusterSpec) (*cephconfig.ClusterInfo, error) {
 
 	// Only one goroutine can orchestrate the mons at a time
 	c.acquireOrchestrationLock()
@@ -171,7 +172,7 @@ func (c *Cluster) Start(clusterInfo *cephconfig.ClusterInfo, rookVersion string,
 	logger.Infof("start running mons")
 
 	logger.Debugf("establishing ceph cluster info")
-	if err := c.initClusterInfo(); err != nil {
+	if err := c.initClusterInfo(cephVersion); err != nil {
 		return nil, fmt.Errorf("failed to initialize ceph cluster info. %+v", err)
 	}
 
@@ -252,11 +253,11 @@ func (c *Cluster) ensureMonsRunning(mons []*monConfig, i int, requireAllInQuorum
 
 // initClusterInfo retrieves the ceph cluster info if it already exists.
 // If a new cluster, create new keys.
-func (c *Cluster) initClusterInfo() error {
+func (c *Cluster) initClusterInfo(cephVersion cephver.CephVersion) error {
 	var err error
 	// get the cluster info from secret
 	c.clusterInfo, c.maxMonID, c.mapping, err = CreateOrLoadClusterInfo(c.context, c.Namespace, &c.ownerRef)
-	c.clusterInfo.CephVersionName = c.spec.CephVersion.Name
+	c.clusterInfo.CephVersion = cephVersion
 
 	if err != nil {
 		return fmt.Errorf("failed to get cluster info. %+v", err)

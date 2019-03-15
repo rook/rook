@@ -185,7 +185,7 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 	}
 
 	// If deploying Nautilus and newer we need a new port of the monitor container
-	if cephv1.VersionAtLeast(c.spec.CephVersion.Name, cephv1.Nautilus) {
+	if c.clusterInfo.CephVersion.IsAtLeastNautilus() {
 		addContainerPort(container, "msgr2", 3300)
 	}
 
