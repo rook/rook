@@ -153,6 +153,7 @@ spec:
   #    rtPLevelOverride: "4"       # enable large device partitioning, only needed if automatic not working
   #    sync: "0"                   # highest performance, consistent on pod/software failures, not-consistent on power failures
   #    useAllSSD: "true"           # use only SSDs during deployment
+  #    zone: "1"                   # defines failure domain's zone number for all edgefs nodes
   #  nodes:
   #  - name: node3071ub16
   #  - name: node3072ub16
@@ -163,6 +164,7 @@ spec:
   #    - name: "sdc"
   #    config: # configuration can be specified at the node level which overrides the cluster level config
   #      rtPLevelOverride: 8
+  #      zone: "2"  # defines failure domain's zone number for specific node(node3074ub16)
   #resources:
   #  limits:
   #    cpu: "2"
