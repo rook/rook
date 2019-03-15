@@ -37,13 +37,14 @@ func GetConfigStoreName(nodeName string) string {
 
 const (
 	RtVerifyChidKey       = "rtVerifyChid"
+	MaxSizeGB             = "maxSizeGB"
 	LmdbPageSizeKey       = "lmdbPageSize"
 	UseBcacheKey          = "useBCache"
 	UseBcacheWBKey        = "useBCacheWB"
 	UseMetadataMaskKey    = "useMetadataMask"
 	UseMetadataOffloadKey = "useMetadataOffload"
 	UseAllSSDKey          = "useAllSSD"
-	RtrdPlevelOverrideKey = "rtrdPLevelOverride"
+	RtPlevelOverrideKey   = "rtPLevelOverride"
 	SyncKey               = "sync"
 )
 
@@ -52,6 +53,8 @@ type StoreConfig struct {
 	RtVerifyChid int `json:"rtVerifyChid,omitempty"`
 	// 4096, 8192, 16384 or 32768
 	LmdbPageSize int `json:"lmdbPageSize,omitempty"`
+	// rtlfs only, max size to use per directory, in bytes
+	MaxSize uint64 `json:"maxsize,omitempty"`
 	// enable use of bcache
 	UseBCache bool `json:"useBCache,omitempty"`
 	// enable write back cache
@@ -63,7 +66,7 @@ type StoreConfig struct {
 	// only look for SSD/NVMe
 	UseAllSSD bool `json:"useAllSSD,omitempty"`
 	// if > 0, override automatic partitioning numbering logic
-	RtrdPLevelOverride int `json:"rtrdPLevelOverride,omitempty"`
+	RtPLevelOverride int `json:"rtPLevelOverride,omitempty"`
 	// sync cluster option [0:3]
 	Sync int `json:"sync"`
 }
@@ -77,7 +80,7 @@ func DefaultStoreConfig() StoreConfig {
 		UseMetadataMask:    "0xff",
 		UseMetadataOffload: false,
 		UseAllSSD:          false,
-		RtrdPLevelOverride: 0,
+		RtPLevelOverride:   0,
 		Sync:               1,
 	}
 }
@@ -100,6 +103,13 @@ func ToStoreConfig(config map[string]string) StoreConfig {
 			} else {
 				logger.Warningf("Incorrect 'verifyChid' value %d ignored", value)
 			}
+		case MaxSizeGB:
+			value := convertToUint64IgnoreErr(v)
+			if value > 0 {
+				storeConfig.MaxSize = value * 1024 * 1024 * 1024
+			} else {
+				logger.Warningf("Incorrect 'MaxSizeGB' value %v ignored", value)
+			}
 		case LmdbPageSizeKey:
 			value := convertToIntIgnoreErr(v)
 			if validLmbdPageSize[value] {
@@ -117,8 +127,8 @@ func ToStoreConfig(config map[string]string) StoreConfig {
 			storeConfig.UseMetadataOffload = convertToBoolIgnoreErr(v)
 		case UseAllSSDKey:
 			storeConfig.UseAllSSD = convertToBoolIgnoreErr(v)
-		case RtrdPlevelOverrideKey:
-			storeConfig.RtrdPLevelOverride = convertToIntIgnoreErr(v)
+		case RtPlevelOverrideKey:
+			storeConfig.RtPLevelOverride = convertToIntIgnoreErr(v)
 		case SyncKey:
 			value := convertToIntIgnoreErr(v)
 			if value >= 0 && value <= 3 {
@@ -130,6 +140,15 @@ func ToStoreConfig(config map[string]string) StoreConfig {
 	}
 
 	return storeConfig
+}
+
+func convertToUint64IgnoreErr(raw string) uint64 {
+	val, err := strconv.ParseUint(raw, 10, 64)
+	if err != nil {
+		val = 0
+	}
+
+	return val
 }
 
 func convertToIntIgnoreErr(raw string) int {
