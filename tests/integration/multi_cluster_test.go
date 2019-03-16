@@ -133,7 +133,7 @@ func NewMCTestOperations(t func() *testing.T, namespace1 string, namespace2 stri
 
 	kh, err := utils.CreateK8sHelper(t)
 	require.NoError(t(), err)
-	i := installer.NewCephInstaller(t, kh.Clientset, installer.VersionMaster, installer.LuminousVersion)
+	i := installer.NewCephInstaller(t, kh.Clientset, false, installer.VersionMaster, installer.LuminousVersion)
 
 	op := &MCTestOperations{i, kh, t, namespace1, namespace2, installer.SystemNamespace(namespace1)}
 	op.Setup()
@@ -181,7 +181,7 @@ func (o MCTestOperations) Teardown() {
 	o.installer.GatherAllRookLogs(o.namespace1, o.systemNamespace, o.T().Name())
 	o.installer.GatherAllRookLogs(o.namespace2, o.systemNamespace, o.T().Name())
 
-	o.installer.UninstallRookFromMultipleNS(false, installer.SystemNamespace(o.namespace1), o.namespace1, o.namespace2)
+	o.installer.UninstallRookFromMultipleNS(installer.SystemNamespace(o.namespace1), o.namespace1, o.namespace2)
 }
 
 func (o MCTestOperations) startCluster(namespace, store string, errCh chan error) {

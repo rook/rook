@@ -61,6 +61,7 @@ type CephInstaller struct {
 	k8shelper        *utils.K8sHelper
 	hostPathToDelete string
 	helmHelper       *utils.HelmHelper
+	useHelm          bool
 	k8sVersion       string
 	changeHostnames  bool
 	CephVersion      cephv1.CephVersionSpec
@@ -203,10 +204,13 @@ func (h *CephInstaller) CreateK8sRookClusterWithHostPathAndDevices(namespace, sy
 		return fmt.Errorf("failed to create namespace %s. %+v", namespace, err)
 	}
 
-	logger.Infof("Creating cluster roles")
-	roles := h.Manifests.GetClusterRoles(namespace, systemNamespace)
-	if _, err := h.k8shelper.KubectlWithStdin(roles, createFromStdinArgs...); err != nil {
-		return fmt.Errorf("Failed to create cluster roles. %+v", err)
+	// Skip this step since the helm chart already includes the roles and bindings
+	if !h.useHelm {
+		logger.Infof("Creating cluster roles")
+		roles := h.Manifests.GetClusterRoles(namespace, systemNamespace)
+		if _, err := h.k8shelper.KubectlWithStdin(roles, createFromStdinArgs...); err != nil {
+			return fmt.Errorf("Failed to create cluster roles. %+v", err)
+		}
 	}
 
 	logger.Infof("Starting Rook Cluster with yaml")
@@ -272,7 +276,7 @@ func (h *CephInstaller) GetNodeHostnames() ([]string, error) {
 
 // InstallRookOnK8sWithHostPathAndDevices installs rook on k8s
 func (h *CephInstaller) InstallRookOnK8sWithHostPathAndDevices(namespace, storeType string,
-	helmInstalled, useDevices bool, mon cephv1.MonSpec, startWithAllNodes bool, rbdMirrorWorkers int) (bool, error) {
+	useDevices bool, mon cephv1.MonSpec, startWithAllNodes bool, rbdMirrorWorkers int) (bool, error) {
 
 	var err error
 	// flag used for local debuggin purpose, when rook is pre-installed
@@ -286,7 +290,7 @@ func (h *CephInstaller) InstallRookOnK8sWithHostPathAndDevices(namespace, storeT
 
 	onamespace := namespace
 	// Create rook operator
-	if helmInstalled {
+	if h.useHelm {
 		err = h.CreateK8sRookOperatorViaHelm(namespace)
 		if err != nil {
 			logger.Errorf("Rook Operator not installed ,error -> %v", err)
@@ -338,12 +342,12 @@ func (h *CephInstaller) InstallRookOnK8sWithHostPathAndDevices(namespace, storeT
 }
 
 // UninstallRookFromK8s uninstalls rook from k8s
-func (h *CephInstaller) UninstallRook(helmInstalled bool, namespace string) {
-	h.UninstallRookFromMultipleNS(helmInstalled, SystemNamespace(namespace), namespace)
+func (h *CephInstaller) UninstallRook(namespace string) {
+	h.UninstallRookFromMultipleNS(SystemNamespace(namespace), namespace)
 }
 
 // UninstallRookFromK8s uninstalls rook from multiple namespaces in k8s
-func (h *CephInstaller) UninstallRookFromMultipleNS(helmInstalled bool, systemNamespace string, namespaces ...string) {
+func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, namespaces ...string) {
 	// flag used for local debugging purpose, when rook is pre-installed
 	if Env.SkipInstallRook {
 		return
@@ -386,7 +390,7 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(helmInstalled bool, systemNa
 		"volumes.rook.io")
 	checkError(h.T(), err, "cannot delete CRDs")
 
-	if helmInstalled {
+	if h.useHelm {
 		err = h.helmHelper.DeleteLocalRookHelmChart(helmDeployName)
 	} else {
 		rookOperator := h.Manifests.GetRookOperator(systemNamespace)
@@ -461,7 +465,7 @@ func (h *CephInstaller) GatherAllRookLogs(namespace, systemNamespace string, tes
 }
 
 // NewCephInstaller creates new instance of CephInstaller
-func NewCephInstaller(t func() *testing.T, clientset *kubernetes.Clientset, rookVersion string, cephVersion cephv1.CephVersionSpec) *CephInstaller {
+func NewCephInstaller(t func() *testing.T, clientset *kubernetes.Clientset, useHelm bool, rookVersion string, cephVersion cephv1.CephVersionSpec) *CephInstaller {
 
 	// All e2e tests should run ceph commands in the toolbox since we are not inside a container
 	client.RunAllCephCommandsInToolbox = true
@@ -481,6 +485,7 @@ func NewCephInstaller(t func() *testing.T, clientset *kubernetes.Clientset, rook
 		Manifests:       NewCephManifests(rookVersion),
 		k8shelper:       k8shelp,
 		helmHelper:      utils.NewHelmHelper(Env.Helm),
+		useHelm:         useHelm,
 		k8sVersion:      version.String(),
 		CephVersion:     cephVersion,
 		changeHostnames: rookVersion != Version0_9 && k8shelp.VersionAtLeast("v1.13.0"),
