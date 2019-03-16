@@ -143,8 +143,17 @@ func (o *Operator) Run() error {
 		logger.Infof("rook-provisioner %s started using %s flex vendor dir", name, vendor)
 	}
 
+	var namespaceToWatch string
+	if os.Getenv("ROOK_CURRENT_NAMESPACE_ONLY") == "true" {
+		logger.Infof("Watching the current namespace for a cluster CRD")
+		namespaceToWatch = namespace
+	} else {
+		logger.Infof("Watching all namespaces for cluster CRDs")
+		namespaceToWatch = v1.NamespaceAll
+	}
+
 	// watch for changes to the rook clusters
-	o.clusterController.StartWatch(v1.NamespaceAll, stopChan)
+	o.clusterController.StartWatch(namespaceToWatch, stopChan)
 
 	for {
 		select {

@@ -27,6 +27,8 @@ spec:
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         args: ["ceph", "operator"]
         env:
+        - name: ROOK_CURRENT_NAMESPACE_ONLY
+          value: "true"
 {{- if not .Values.rbacEnable }}
         - name: RBAC_ENABLED
           value: "false"

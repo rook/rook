@@ -10,7 +10,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: rook-ceph-operator
-  namespace: rook-ceph-system
+  namespace: rook-ceph
   labels:
     operator: rook
     storage-backend: ceph
@@ -39,6 +39,8 @@ spec:
         - mountPath: /etc/ceph-csi/cephfs
           name: csi-cephfs-config
         env:
+        - name: ROOK_CURRENT_NAMESPACE_ONLY
+          value: "true"
         # CSI enablement
         - name: ROOK_CSI_ENABLE_CEPHFS
           value: "true"

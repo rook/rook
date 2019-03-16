@@ -8,7 +8,7 @@
 # where the operator needs to manage the cluster. The resources above that section do not be created again.
 ###################################################################################################################
 
-# Namespace where the operaotr and other rook resources are created
+# Namespace where the operator and other rook resources are created
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -232,13 +232,13 @@ rules:
   - create
   - update
   - delete
----
-# The role for the operator to manage resources in the system namespace
+  ---
+# The role for the operator to manage resources in its own namespace
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: Role
 metadata:
   name: rook-ceph-system
-  namespace: rook-ceph-system
+  namespace: rook-ceph
   labels:
     operator: rook
     storage-backend: ceph
@@ -315,7 +315,7 @@ rules:
   - get
   - list
   - watch
-- apiGroups:
+  - apiGroups:
   - batch
   resources:
   - jobs
@@ -364,17 +364,17 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: rook-ceph-system
-  namespace: rook-ceph-system
+  namespace: rook-ceph
   labels:
     operator: rook
     storage-backend: ceph
 ---
-# Grant the operator, agent, and discovery agents access to resources in the rook-ceph-system namespace
+# Grant the operator, agent, and discovery agents access to resources in the namespace
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-ceph-system
-  namespace: rook-ceph-system
+  namespace: rook-ceph
   labels:
     operator: rook
     storage-backend: ceph
@@ -385,14 +385,14 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: rook-ceph-system
-  namespace: rook-ceph-system
+  namespace: rook-ceph
 ---
 # Grant the rook system daemons cluster-wide access to manage the Rook CRDs, PVCs, and storage classes
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-ceph-global
-  namespace: rook-ceph-system
+  namespace: rook-ceph
   labels:
     operator: rook
     storage-backend: ceph
@@ -403,7 +403,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: rook-ceph-system
-  namespace: rook-ceph-system
+  namespace: rook-ceph
 ---
 #################################################################################################################
 # Beginning of cluster-specific resources. The example will assume the cluster will be created in the "rook-ceph"
@@ -484,7 +484,7 @@ rules:
   verbs:
   - "*"
 ---
-# Allow the operator to create resources in this cluster's namespace
+  # Allow the operator to create resources in this cluster's namespace
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
@@ -497,7 +497,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: rook-ceph-system
-  namespace: rook-ceph-system
+  namespace: rook-ceph
 ---
 # Allow the osd pods in this namespace to work with configmaps
 kind: RoleBinding
@@ -534,7 +534,7 @@ kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-ceph-mgr-system
-  namespace: rook-ceph-system
+  namespace: rook-ceph
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole

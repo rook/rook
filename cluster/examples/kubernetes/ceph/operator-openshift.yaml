@@ -57,7 +57,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: rook-ceph-operator
-  namespace: rook-ceph-system
+  namespace: rook-ceph
   labels:
     operator: rook
     storage-backend: ceph
@@ -82,6 +82,8 @@ spec:
         - mountPath: /etc/ceph
           name: default-config-dir
         env:
+        - name: ROOK_CURRENT_NAMESPACE_ONLY
+          value: "true"
         # To disable RBAC, uncomment the following:
         # - name: RBAC_ENABLED
         #  value: "false"

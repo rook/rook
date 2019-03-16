@@ -34,4 +34,46 @@ rules:
   - create
   - update
   - delete
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-osd
+rules:
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: [ "get", "list", "watch", "create", "update", "delete" ]
+---
+# Aspects of ceph-mgr that operate within the cluster's namespace
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - services
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - ceph.rook.io
+  resources:
+  - "*"
+  verbs:
+  - "*"
 {{- end }}
