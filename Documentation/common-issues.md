@@ -31,12 +31,11 @@ There are two main categories of information you will need to investigate issues
 Kubernetes status is the first line of investigating when something goes wrong with the cluster. Here are a few artifacts that are helpful to gather:
 - Rook pod status:
   - `kubectl get pod -n rook-ceph -o wide`
-  - `kubectl get pod -n rook-ceph-system -o wide`
 - Logs for Rook pods
-  - Logs for the operator: `kubectl logs -n rook-ceph-system -l app=rook-ceph-operator`
+  - Logs for the operator: `kubectl logs -n rook-ceph -l app=rook-ceph-operator`
   - Logs for a specific pod: `kubectl logs -n rook-ceph <pod-name>`, or a pod using a label such as mon1: `kubectl logs -n rook-ceph -l mon=rook-ceph-mon1`
   - Logs on a specific node to find why a PVC is failing to mount:
-    - Rook agent errors around the attach/detach: `kubectl logs -n rook-ceph-system <rook-ceph-agent-pod>`
+    - Rook agent errors around the attach/detach: `kubectl logs -n rook-ceph <rook-ceph-agent-pod>`
     - Connect to the node, then get kubelet logs (if your distro is using systemd): `journalctl -u kubelet`
   - See the [log collection topic](advanced-configuration.md#log-collection) for a script that will help you gather the logs
 - Other Rook artifacts:
@@ -56,7 +55,7 @@ After you verify the basic health of the running pods, next you will want to run
 The Ceph tools are found in all of the Rook pods where Ceph is running, such as the operator and monitors. Rather than starting the toolbox pod, you can connect to the existing pods to more quickly execute the Ceph tools. For example, to connect to the operator pod:
 
 ```bash
-kubectl -n rook-ceph-system exec -it $(kubectl -n rook-ceph-system get pods -l app=rook-operator -o jsonpath='{.items[0].metadata.name}') -- bash
+kubectl -n rook-ceph exec -it $(kubectl -n rook-ceph get pods -l app=rook-operator -o jsonpath='{.items[0].metadata.name}') -- bash
 ```
 
 Now from inside the operator pod you can execute the Ceph tools.
@@ -85,7 +84,7 @@ There are many Ceph sub-commands to look at and manipulate Ceph objects, well be
 * `kubectl describe pod` for the pod mentions one or more of the following:
   * `PersistentVolumeClaim is not bound`
   * `timeout expired waiting for volumes to attach/mount`
-* `kubectl -n rook-ceph-system get pod` shows the rook-ceph-agent pods in a `CrashLoopBackOff` status
+* `kubectl -n rook-ceph get pod` shows the rook-ceph-agent pods in a `CrashLoopBackOff` status
 
 ## Possible Solutions Summary
 * `rook-ceph-agent` pod is in a `CrashLoopBackOff` status because it cannot deploy its driver on a read-only filesystem: [Flexvolume configuration pre-reqs](./k8s-pre-reqs.md#flexvolume-configuration)
@@ -119,7 +118,7 @@ The `rook-ceph-agent` pods are responsible for mapping and mounting the volume f
 If the `rook-ceph-agent` pod is not running then it cannot perform this function.
 Below is an example of the `rook-ceph-agent` pods failing to get to the `Running` status because they are in a `CrashLoopBackOff` status:
 ```console
-> kubectl -n rook-ceph-system get pod
+> kubectl -n rook-ceph get pod
 NAME                                  READY     STATUS             RESTARTS   AGE
 rook-ceph-agent-ct5pj                 0/1       CrashLoopBackOff   16         59m
 rook-ceph-agent-zb6n9                 0/1       CrashLoopBackOff   16         59m
@@ -127,7 +126,7 @@ rook-operator-2203999069-pmhzn        1/1       Running            0          59
 ```
 If you see this occurring, you can get more details about why the `rook-ceph-agent` pods are continuing to crash with the following command and its sample output:
 ```console
-> kubectl -n rook-ceph-system get pod -l app=rook-ceph-agent -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.containerStatuses[0].lastState.terminated.message}{"\n"}{end}'
+> kubectl -n rook-ceph get pod -l app=rook-ceph-agent -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.containerStatuses[0].lastState.terminated.message}{"\n"}{end}'
 rook-ceph-agent-ct5pj	mkdir /usr/libexec/kubernetes: read-only file system
 rook-ceph-agent-zb6n9	mkdir /usr/libexec/kubernetes: read-only file system
 ```
@@ -136,12 +135,12 @@ For some environments, this default path is read-only and therefore a better pat
 
 First, clean up the agent deployment with:
 ```console
-kubectl -n rook-ceph-system delete daemonset rook-ceph-agent
+kubectl -n rook-ceph delete daemonset rook-ceph-agent
 ```
 Once the `rook-ceph-agent` pods are gone, **follow the instructions in the [Flexvolume configuration pre-reqs](./k8s-pre-reqs.md#flexvolume-configuration)** to ensure a good value for `--volume-plugin-dir` has been provided to the Kubelet.
 After that has been configured, and the Kubelet has been restarted, start the agent pods up again by restarting `rook-operator`:
 ```console
-kubectl -n rook-ceph-system delete pod -l app=rook-operator
+kubectl -n rook-ceph delete pod -l app=rook-operator
 ```
 
 ### Kubelet Restart
@@ -169,7 +168,7 @@ mysql-pv-claim   Bound     pvc-9f273fbc-bdbf-11e7-bc4c-001c428b9fc8   20Gi      
 Both your volume and its claim should be in the `Bound` status.
 If one or neither of them is not in the `Bound` status, then look for details of the issue in the `rook-operator` logs:
 ```console
-kubectl -n rook-ceph-system logs `kubectl -n rook-ceph-system -l app=rook-operator get pods -o jsonpath='{.items[*].metadata.name}'`
+kubectl -n rook-ceph logs `kubectl -n rook-ceph -l app=rook-operator get pods -o jsonpath='{.items[*].metadata.name}'`
 ```
 
 If the volume is failing to be created, there should be details in the `rook-operator` log output, especially those tagged with `op-provisioner`.
@@ -191,13 +190,13 @@ The final step in preparing Rook storage for your pod is for the `rook-ceph-agen
 If all the preceding sections have been successful or inconclusive, then take a look at the `rook-ceph-agent` pod logs for further clues.
 You can determine which `rook-ceph-agent` is running on the same node that your pod is scheduled on by using the `-o wide` output, then you can get the logs for that `rook-ceph-agent` pod similar to the example below:
 ```console
-> kubectl -n rook-ceph-system get pod -o wide
+> kubectl -n rook-ceph get pod -o wide
 NAME                                  READY     STATUS    RESTARTS   AGE       IP             NODE
 rook-ceph-agent-h6scx                 1/1       Running   0          9m        172.17.8.102   172.17.8.102
 rook-ceph-agent-mp7tn                 1/1       Running   0          9m        172.17.8.101   172.17.8.101
 rook-operator-2203999069-3tb68        1/1       Running   0          9m        10.32.0.7      172.17.8.101
 
-> kubectl -n rook-ceph-system logs rook-ceph-agent-h6scx
+> kubectl -n rook-ceph logs rook-ceph-agent-h6scx
 2017-10-30 23:07:06.984108 I | rook: starting Rook v0.5.0-241.g48ce6de.dirty with arguments '/usr/local/bin/rook agent'
 ...
 ```
@@ -286,7 +285,7 @@ The likely causes for the mon health not being detected:
 ### Operator fails to connect to the mon
 First look at the logs of the operator to confirm if it is able to connect to the mons.
 ```
-$ kubectl -n rook-ceph-system logs -l app=rook-operator
+$ kubectl -n rook-ceph logs -l app=rook-operator
 ```
 
 Likely you will see an error similar to the following that the operator is timing out when connecting to the mon. The last command is `ceph mon_status`,
@@ -432,7 +431,7 @@ will ensure all the desired devices are configured.
 
 ```
 # Restart the operator to ensure devices are configured. A new pod will automatically be started when the current operator pod is deleted.
-$ kubectl -n rook-ceph-system delete pod -l app=rook-ceph-operator
+$ kubectl -n rook-ceph delete pod -l app=rook-ceph-operator
 ```
 
 # Node hangs after reboot
@@ -481,7 +480,7 @@ Now when a host is restarted, the module should be loaded automatically.
 ## Symptoms
 * Rook Agent in `Error` or `CrashLoopBackOff` status when deploying the Rook operator with `kubectl create -f operator.yaml`:
 ```
-$kubectl -n rook-ceph-system get pod
+$kubectl -n rook-ceph get pod
 NAME                                 READY     STATUS    RESTARTS   AGE
 rook-ceph-agent-gfrm5                0/1       Error     0          14s
 rook-ceph-operator-5f4866946-vmtff   1/1       Running   0          23s

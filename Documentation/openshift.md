@@ -3,10 +3,30 @@ title: OpenShift
 weight: 1700
 indent: true
 ---
+{% assign url = page.url | split: '/' %}
+{% assign currentVersion = url[3] %}
+{% if currentVersion != 'master' %}
+{% assign branchName = currentVersion | replace: 'v', '' | prepend: 'release-' %}
+{% else %}
+{% assign branchName = currentVersion %}
+{% endif %}
 
 # OpenShift
 
 [OpenShift](https://www.openshift.com/) adds a number of security and other enhancements to Kubernetes. In particular, [security context constraints](https://blog.openshift.com/understanding-service-accounts-sccs/) allow the cluster admin to define exactly which permissions are allowed to pods running in the cluster. You will need to define those permissions that allow the Rook pods to run.
+
+The settings for Rook in OpenShift are described below, and are also included in the [example yaml files](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph):
+- `operator-openshift.yaml`: Creates the security context constraints and starts the operator deployment
+- `object-openshift.yaml`: Creates an object store with rgw listening on a valid port number for OpenShift
+
+## TL;DR
+
+To create an OpenShift cluster, the commands basically include:
+```
+oc create -f common.yaml
+oc create -f operator-openshift.yaml
+oc create -f cluster.yaml
+```
 
 ## Rook Privileges
 
@@ -18,7 +38,7 @@ To orchestrate the storage platform, Rook requires the following access in the c
 
 ## Security Context Constraints
 
-Before starting the Rook operator or cluster, create the security context constraints needed by the Rook pods. The following yaml is found in `scc.yaml` under `/cluster/examples/kubernetes/ceph`.
+Before starting the Rook operator or cluster, create the security context constraints needed by the Rook pods. The following yaml is found in `operator-openshift.yaml` under `/cluster/examples/kubernetes/ceph`.
 
 **NOTE** Older versions of OpenShift may require `apiVersion: v1`.
 
@@ -60,25 +80,22 @@ volumes:
   - secret
 users:
   # A user needs to be added for each rook service account.
-  # This assumes running in the default sample "rook-ceph" and "rook-ceph-system" namespaces.
+  # This assumes running in the default sample "rook-ceph" namespace.
   # If other namespaces or service accounts are configured, they need to be updated here.
-  - system:serviceaccount:rook-ceph-system:rook-ceph-system
+  - system:serviceaccount:rook-ceph:rook-ceph-system
   - system:serviceaccount:rook-ceph:default
   - system:serviceaccount:rook-ceph:rook-ceph-mgr
   - system:serviceaccount:rook-ceph:rook-ceph-osd
 ```
 
-Important to note is that if you plan on running Rook in namespaces other than the defaults of `rook-ceph-system` and `rook-ceph`, the example scc will need to be modified to accommodate for your namespaces where the Rook pods are running.
+Important to note is that if you plan on running Rook in namespaces other than the default `rook-ceph`, the example scc will need to be modified to accommodate for your namespaces where the Rook pods are running.
 
 To create the scc you will need a privileged account:
 ```bash
 oc login -u system:admin
 ```
 
-Now create the scc:
-```bash
-oc create -f scc.yaml
-```
+We will create the security context constraints with the operator in the next section.
 
 ## Rook Settings
 
@@ -91,6 +108,11 @@ There is an environment variable that needs to be set in the operator spec that 
 ```yaml
 - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
   value: "true"
+```
+
+Now create the security context constraints and the operator:
+```bash
+oc create -f operator-openshift.yaml
 ```
 
 ### Cluster Settings
@@ -106,6 +128,11 @@ gateway:
 ```
 
 You can expose a different port such as `80` by creating a service.
+
+A sample object store can be created with these settings:
+```bash
+oc create -f object-openshift.yaml
+```
 
 ## MiniShift
 There is a known issue in MiniShift that does not allow Rook to be tested in some common end-to-end scenarios. Flex drivers are not currently supported, which means that block and file volumes cannot be mounted. See this [tracking issue](https://github.com/minishift/minishift/issues/2387).

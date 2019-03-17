@@ -91,7 +91,8 @@ rules:
 has access to Kubernetes secrets in all namespaces.
 
 Create the RoleBinding shown here in each namespace the Rook Ceph agent should read secrets for mounting.
-The RoleBinding `subjects`' `namespace` must be the one the Rook Ceph agent runs in (default `rook-ceph-system`).
+The RoleBinding `subjects`' `namespace` must be the one the Rook Ceph agent runs in (default `rook-ceph` for version 1.0 and newer. The default namespace in
+previous versions was `rook-ceph-system`).
 
 Replace `namespace: name-of-namespace-with-mountsecret` according to the name of all namespaces a `mountSecret` can be in.
 ```yaml
@@ -110,7 +111,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: rook-ceph-system
-  namespace: rook-ceph-system
+  namespace: rook-ceph
 ```
 
 ### ClusterRoleBinding
@@ -132,7 +133,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: rook-ceph-system
-  namespace: rook-ceph-system
+  namespace: rook-ceph
 ```
 
 ## Log Collection
