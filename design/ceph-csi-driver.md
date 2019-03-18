@@ -50,11 +50,18 @@ Rook Ceph Agent supports Ceph mon failover by storing Ceph cluster instead of Ce
 
 ### Coexist with flex driver
 
-Rook's local Ceph Node Agent is modeled after flexvolume drivers. There are some overlapping with Kubernetes CSI model:
+No changes to the current method of deploying Storage Classes with the flex
+driver should be required. Eventually, the flex driver approach will be
+deprecated and CSI will become the default method of working with Storage
+Classes. At or around the time of flex driver deprecation Rook should provide a
+method to upgrade/convert existing flex driver based provisioning with CSI
+based provisioning.
 
-- VolumeAttachment API objects are currently in Kubernetes storage API group. The VolumeAttachment watchers and finalizers can be replaced with CSI attacher.
-- There is external CSI volume provisioner that calls out the drivers' create/delete volume. Rook's own provisioner needs to be integrated/replaced with the external provisioner
-- The flexvolume drivers can be replaced by CSI drivers when running on Kubernetes 1.10+.
+The behavior of the CSI integration must be complementary to the approach
+currently taken by the flex volume driver. When CSI is managed through Rook it
+should work with the existing Rook CRDs and aim to minimize the required
+configuration parameters.
+
 
 ### Work with out-of-band CSI drivers deployment
 
