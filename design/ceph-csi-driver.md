@@ -42,6 +42,9 @@ For example, deploying a CephFS CSI driver consists of the following steps:
 
 ## Integration Plan
 
+The aim is to support CSI 1.0 in Rook as a beta with Rook release 1.0. In Rook
+1.1 CSI support will be considered stable.
+
 ### How can Rook improve CSI drivers reliability?
 
 Rook can ensure resources used by CSI drivers and their associated Storage Classes are created, protected, and updated. Specifically, when a CSI based Storage Class is created, the referenced Pools and Filesystems should exist by the time a PVC uses this Storage Class. Otherwise Rook should resolve missing resources to avoid PVC creation failure. Rook should prevent Pools or Filesystems that are still being used by PVCs from accidental removal. Similarly, when the resources, especially mon addresses, are updated, Rook should try to update the Storage Class as well.
@@ -101,11 +104,11 @@ ceph-csi project:
   * User Id
 * The key "blockpool" will serve as an alias to "pool"
 
-To additionally minimize the required parameters in a Storage Class
-it may require changes to create CSI instance secrets; secrets
-that are associated with CSI outside of the storage class (see https://github.com/ceph/ceph-csi/pull/224).
-If this change is made nearly no parameters will be directly required in the
-storage class.
+To additionally minimize the required parameters in a Storage Class it may
+require changes to create CSI instance secrets; secrets that are associated
+with CSI outside of the storage class (see [ceph-csi
+PR#244](https://github.com/ceph/ceph-csi/pull/224)).  If this change is made
+nearly no parameters will be directly required in the storage class.
 
 #### Rook Requirements
 
@@ -120,3 +123,23 @@ To manage CSI with Rook the following requirements are place on Rook:
 * When provisioning Ceph-CSI Rook must uniquely identify the
   driver/provisioner name so that multiple CSI drivers or multiple Rook
   instances within a (Kubernetes) cluster will not collide
+
+
+### Future points of integration
+
+While not immediately required this section outlines a few improvements
+that could be made to improve the Rook and CSI integration:
+
+#### Extend CephBlockPool and CephFilesystem CRDs to provision Storage Classes
+
+Extend CephBlockPool and CephFilesystem CRDs to automatically provision Storage
+Classes when so configured. Instead of requiring an administrator to create a
+CRD and a Storage Class, add metatdata to the CRD such that Rook will
+automatically create storage classes based on that additional metadata.
+
+#### Select Flex Provisioning or CSI based on CephCluster CRD
+
+Currently the code requires changing numerous parameters to enable CSI.  This
+document aims to change that to a single parameter. In the future it may be
+desirable to make this more of a "runtime" parameter that could be managed in
+the cluster CRD.
