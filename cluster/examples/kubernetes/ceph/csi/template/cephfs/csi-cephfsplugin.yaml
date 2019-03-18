@@ -23,7 +23,7 @@ spec:
           args:
             - "--v=5"
             - "--csi-address=/csi/csi.sock"
-            - "--kubelet-registration-path=/var/lib/kubelet/plugins/csi-cephfsplugin/csi.sock"
+            - "--kubelet-registration-path=/var/lib/kubelet/plugins/cephfs.csi.ceph.com/csi.sock"
           lifecycle:
             preStop:
               exec:
@@ -49,7 +49,7 @@ spec:
             - "--nodeid=$(NODE_ID)"
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--v=5"
-            - "--drivername=csi-cephfsplugin"
+            - "--drivername=cephfs.csi.ceph.com"
             - "--metadatastorage=k8s_configmap"
           env:
             - name: NODE_ID
@@ -82,7 +82,7 @@ spec:
       volumes:
         - name: plugin-dir
           hostPath:
-            path: /var/lib/kubelet/plugins/csi-cephfsplugin/
+            path: /var/lib/kubelet/plugins/cephfs.csi.ceph.com/
             type: DirectoryOrCreate
         - name: csi-plugins-dir
           hostPath:

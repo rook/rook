@@ -2,7 +2,7 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
    name: csi-rbd
-provisioner: csi-rbdplugin 
+provisioner: rbd.csi.ceph.com
 parameters:
     # Comma separated list of Ceph monitors
     # if using FQDN, make sure csi plugin's dns policy is appropriate.
@@ -12,7 +12,6 @@ parameters:
     # secret as admin/user credentials. "monValueFromSecret" provides the
     # key in the secret whose value is the mons
     #monValueFromSecret: "monitors"
-
     
     # Ceph pool into which the RBD image shall be created
     pool: rbd

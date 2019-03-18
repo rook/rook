@@ -38,7 +38,7 @@ spec:
             - "--nodeid=$(NODE_ID)"
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--v=5"
-            - "--drivername=csi-cephfsplugin"
+            - "--drivername=cephfs.csi.ceph.com"
             - "--metadatastorage=k8s_configmap"
           env:
             - name: NODE_ID
@@ -65,7 +65,7 @@ spec:
       volumes:
         - name: socket-dir
           hostPath:
-            path: /var/lib/kubelet/plugins/csi-cephfsplugin
+            path: /var/lib/kubelet/plugins/cephfs.csi.ceph.com
             type: DirectoryOrCreate
         - name: host-sys
           hostPath:

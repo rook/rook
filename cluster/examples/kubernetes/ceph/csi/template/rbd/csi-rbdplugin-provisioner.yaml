@@ -53,7 +53,7 @@ spec:
             - "--nodeid=$(NODE_ID)"
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--v=5"
-            - "--drivername=csi-rbdplugin"
+            - "--drivername=rbd.csi.ceph.com"
             - "--containerized=true"
             - "--metadatastorage=k8s_configmap"
           env:
@@ -97,5 +97,5 @@ spec:
             path: /lib/modules              
         - name: socket-dir
           hostPath:
-            path: /var/lib/kubelet/plugins/csi-rbdplugin
+            path: /var/lib/kubelet/plugins/rbd.csi.ceph.com
             type: DirectoryOrCreate
