@@ -43,15 +43,15 @@ const (
                 - "--csi-address=$(ADDRESS)"
               env:
                 - name: ADDRESS
-                  value: /var/lib/kubelet/plugins/csi-rbdplugin/csi.sock
+                  value: unix:///csi/csi.sock
               imagePullPolicy: "IfNotPresent"
               volumeMounts:
                 - name: socket-dir
-                  mountPath: /var/lib/kubelet/plugins/csi-rbdplugin
+                  mountPath: /csi
           volumes:
             - name: socket-dir
               hostPath:
-                path: /var/lib/kubelet/plugins/csi-rbdplugin
+                path: /var/lib/kubelet/plugins/rbd.csi.ceph.com
                 type: DirectoryOrCreate
 `
 	rbdProvisionerTemplate = `
@@ -80,11 +80,11 @@ const (
                 - "--v=5"
               env:
                 - name: ADDRESS
-                  value: /var/lib/kubelet/plugins/csi-rbdplugin/csi-provisioner.sock
+                  value: unix:///csi/csi-provisioner.sock
               imagePullPolicy: "IfNotPresent"
               volumeMounts:
                 - name: socket-dir
-                  mountPath: /var/lib/kubelet/plugins/csi-rbdplugin
+                  mountPath: /csi
             - name: csi-snapshotter
               image:  {{ .SnapshotterImage }}
               args:
@@ -93,13 +93,13 @@ const (
                 - "--v=5"
               env:
                 - name: ADDRESS
-                  value: /var/lib/kubelet/plugins/csi-rbdplugin/csi-provisioner.sock
+                  value: unix:///csi/csi-provisioner.sock
               imagePullPolicy: Always
               securityContext:
                 privileged: true
               volumeMounts:
                 - name: socket-dir
-                  mountPath: /var/lib/kubelet/plugins/csi-rbdplugin              
+                  mountPath: /csi
             - name: csi-rbdplugin
               securityContext:
                 privileged: true
@@ -110,7 +110,7 @@ const (
                 - "--nodeid=$(NODE_ID)"
                 - "--endpoint=$(CSI_ENDPOINT)"
                 - "--v=5"
-                - "--drivername=csi-rbdplugin"
+                - "--drivername=rbd.csi.ceph.com"
                 - "--containerized=true"
                 - "--metadatastorage=k8s_configmap"
               env:
@@ -125,11 +125,11 @@ const (
                     fieldRef:
                       fieldPath: metadata.namespace
                 - name: CSI_ENDPOINT
-                  value: unix://var/lib/kubelet/plugins/csi-rbdplugin/csi-provisioner.sock
+                  value: unix:///csi/csi-provisioner.sock
               imagePullPolicy: "IfNotPresent"
               volumeMounts:
                 - name: socket-dir
-                  mountPath: /var/lib/kubelet/plugins/csi-rbdplugin
+                  mountPath: /csi
                 - mountPath: /dev
                   name: host-dev
                 - mountPath: /rootfs
@@ -154,7 +154,7 @@ const (
                 path: /lib/modules              
             - name: socket-dir
               hostPath:
-                path: /var/lib/kubelet/plugins/csi-rbdplugin
+                path: /var/lib/kubelet/plugins/rbd.csi.ceph.com
                 type: DirectoryOrCreate
 `
 	rbdPluginTemplate = `
@@ -184,7 +184,7 @@ const (
               args:
                 - "--v=5"
                 - "--csi-address=/csi/csi.sock"
-                - "--kubelet-registration-path=/var/lib/kubelet/plugins/csi-rbdplugin/csi.sock"
+                - "--kubelet-registration-path=/var/lib/kubelet/plugins/rbd.csi.ceph.com/csi.sock"
               lifecycle:
                 preStop:
                   exec:
@@ -210,7 +210,7 @@ const (
                 - "--nodeid=$(NODE_ID)"
                 - "--endpoint=$(CSI_ENDPOINT)"
                 - "--v=5"
-                - "--drivername=csi-rbdplugin"
+                - "--drivername=rbd.csi.ceph.com"
                 - "--containerized=true"
                 - "--metadatastorage=k8s_configmap"
               env:
@@ -225,11 +225,11 @@ const (
                     fieldRef:
                       fieldPath: metadata.namespace
                 - name: CSI_ENDPOINT
-                  value: unix://var/lib/kubelet/plugins_registry/csi-rbdplugin/csi.sock
+                  value: unix:///csi/csi.sock
               imagePullPolicy: "IfNotPresent"
               volumeMounts:
                 - name: plugin-dir
-                  mountPath: /var/lib/kubelet/plugins_registry/csi-rbdplugin
+                  mountPath: /csi
                 - name: pods-mount-dir
                   mountPath: /var/lib/kubelet/pods
                   mountPropagation: "Bidirectional"
@@ -248,7 +248,7 @@ const (
           volumes:
             - name: plugin-dir
               hostPath:
-                path: /var/lib/kubelet/plugins/csi-rbdplugin
+                path: /var/lib/kubelet/plugins/rbd.csi.ceph.com
                 type: DirectoryOrCreate
             - name: plugin-mount-dir
               hostPath: 
@@ -301,11 +301,11 @@ const (
                 - "--v=5"
               env:
                 - name: ADDRESS
-                  value: /var/lib/kubelet/plugins/csi-cephfsplugin/csi-provisioner.sock
+                  value: unix:///csi/csi-provisioner.sock
               imagePullPolicy: "IfNotPresent"
               volumeMounts:
                 - name: socket-dir
-                  mountPath: /var/lib/kubelet/plugins/csi-cephfsplugin
+                  mountPath: /csi
             - name: csi-cephfsplugin
               securityContext:
                 privileged: true
@@ -316,7 +316,7 @@ const (
                 - "--nodeid=$(NODE_ID)"
                 - "--endpoint=$(CSI_ENDPOINT)"
                 - "--v=5"
-                - "--drivername=csi-cephfsplugin"
+                - "--drivername=cephfs.csi.ceph.com"
                 - "--metadatastorage=k8s_configmap"
               env:
                 - name: NODE_ID
@@ -328,11 +328,11 @@ const (
                     fieldRef:
                       fieldPath: metadata.namespace
                 - name: CSI_ENDPOINT
-                  value: unix://var/lib/kubelet/plugins/csi-cephfsplugin/csi-provisioner.sock
+                  value: unix:///csi/csi-provisioner.sock
               imagePullPolicy: "IfNotPresent"
               volumeMounts:
                 - name: socket-dir
-                  mountPath: /var/lib/kubelet/plugins/csi-cephfsplugin            
+                  mountPath: /csi
                 - name: host-sys
                   mountPath: /sys
                 - name: lib-modules
@@ -343,7 +343,7 @@ const (
           volumes:
             - name: socket-dir
               hostPath:
-                path: /var/lib/kubelet/plugins/csi-cephfsplugin
+                path: /var/lib/kubelet/plugins/cephfs.csi.ceph.com
                 type: DirectoryOrCreate
             - name: host-sys
               hostPath:
@@ -381,7 +381,7 @@ const (
               args:
                 - "--v=5"
                 - "--csi-address=/csi/csi.sock"
-                - "--kubelet-registration-path=/var/lib/kubelet/plugins/csi-cephfsplugin/csi.sock"
+                - "--kubelet-registration-path=/var/lib/kubelet/plugins/cephfs.csi.ceph.com/csi.sock"
               lifecycle:
                 preStop:
                   exec:
@@ -407,7 +407,7 @@ const (
                 - "--nodeid=$(NODE_ID)"
                 - "--endpoint=$(CSI_ENDPOINT)"
                 - "--v=5"
-                - "--drivername=csi-cephfsplugin"
+                - "--drivername=cephfs.csi.ceph.com"
                 - "--metadatastorage=k8s_configmap"
               env:
                 - name: NODE_ID
@@ -419,11 +419,11 @@ const (
                     fieldRef:
                       fieldPath: metadata.namespace
                 - name: CSI_ENDPOINT
-                  value: unix://var/lib/kubelet/plugins/csi-cephfsplugin/csi.sock
+                  value: unix:///csi/csi.sock
               imagePullPolicy: "IfNotPresent"
               volumeMounts:
                 - name: plugin-dir
-                  mountPath: /var/lib/kubelet/plugins/csi-cephfsplugin
+                  mountPath: /csi
                 - name: csi-plugins-dir
                   mountPath: /var/lib/kubelet/plugins/kubernetes.io/csi
                   mountPropagation: "Bidirectional"
@@ -440,7 +440,7 @@ const (
           volumes:
             - name: plugin-dir
               hostPath:
-                path: /var/lib/kubelet/plugins/csi-cephfsplugin/
+                path: /var/lib/kubelet/plugins/cephfs.csi.ceph.com/
                 type: DirectoryOrCreate
             - name: csi-plugins-dir
               hostPath:

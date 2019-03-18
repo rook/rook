@@ -23,11 +23,11 @@ spec:
             - "--v=5"
           env:
             - name: ADDRESS
-              value: /var/lib/kubelet/plugins/csi-rbdplugin/csi-provisioner.sock
+              value: unix:///csi/csi-provisioner.sock
           imagePullPolicy: "IfNotPresent"
           volumeMounts:
             - name: socket-dir
-              mountPath: /var/lib/kubelet/plugins/csi-rbdplugin
+              mountPath: /csi
         - name: csi-snapshotter
           image:  {{ .SnapshotterImage }}
           args:
@@ -36,13 +36,13 @@ spec:
             - "--v=5"
           env:
             - name: ADDRESS
-              value: /var/lib/kubelet/plugins/csi-rbdplugin/csi-provisioner.sock
+              value: unix://csi/csi-provisioner.sock
           imagePullPolicy: Always
           securityContext:
             privileged: true
           volumeMounts:
             - name: socket-dir
-              mountPath: /var/lib/kubelet/plugins/csi-rbdplugin              
+              mountPath: /csi
         - name: csi-rbdplugin
           securityContext:
             privileged: true
@@ -68,11 +68,11 @@ spec:
                 fieldRef:
                   fieldPath: metadata.namespace
             - name: CSI_ENDPOINT
-              value: unix://var/lib/kubelet/plugins/csi-rbdplugin/csi-provisioner.sock
+              value: unix:///csi/csi-provisioner.sock
           imagePullPolicy: "IfNotPresent"
           volumeMounts:
             - name: socket-dir
-              mountPath: /var/lib/kubelet/plugins/csi-rbdplugin
+              mountPath: /csi
             - mountPath: /dev
               name: host-dev
             - mountPath: /rootfs

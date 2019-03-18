@@ -23,18 +23,18 @@ spec:
             - "--v=5"
           env:
             - name: ADDRESS
-              value: /var/lib/kubelet/plugins/csi-cephfsplugin/csi-provisioner.sock
+              value: unix:///csi/csi-provisioner.sock
           imagePullPolicy: "IfNotPresent"
           volumeMounts:
             - name: socket-dir
-              mountPath: /var/lib/kubelet/plugins/csi-cephfsplugin
+              mountPath: /csi
         - name: csi-cephfsplugin
           securityContext:
             privileged: true
             capabilities:
               add: ["SYS_ADMIN"]
           image: {{ .CephFSPluginImage }}
-          args :
+          args:
             - "--nodeid=$(NODE_ID)"
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--v=5"
@@ -50,11 +50,11 @@ spec:
                 fieldRef:
                   fieldPath: metadata.namespace
             - name: CSI_ENDPOINT
-              value: unix://var/lib/kubelet/plugins/csi-cephfsplugin/csi-provisioner.sock
+              value: unix:///csi/csi-provisioner.sock
           imagePullPolicy: "IfNotPresent"
           volumeMounts:
             - name: socket-dir
-              mountPath: /var/lib/kubelet/plugins/csi-cephfsplugin            
+              mountPath: /csi
             - name: host-sys
               mountPath: /sys
             - name: lib-modules

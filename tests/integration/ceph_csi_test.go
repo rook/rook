@@ -26,7 +26,7 @@ import (
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -101,7 +101,7 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
    name: ` + csiSCRBD + `
-provisioner: csi-rbdplugin
+provisioner: rbd.csi.ceph.com
 parameters:
     monValueFromSecret: "monitors"
     pool: ` + csiPoolRBD + `
@@ -117,7 +117,7 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
    name: ` + csiSCCephFS + `
-provisioner: csi-cephFSplugin
+provisioner: cephfs.csi.ceph.com
 parameters:
     monValueFromSecret: "monitors"
     pool: ` + csiPoolCephFS + `
