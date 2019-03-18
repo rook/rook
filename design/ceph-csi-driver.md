@@ -3,10 +3,17 @@
 
 ## Background
 
-Container Storage Interface (CSI) is a set of gRPC specifications for container orchestrators to manage storage drivers. CSI spec abstracts
-common storage features such as create/delete volumes, publish/unpublish volumes, stage/unstage volumes, and more. It is currently at 0.3.0 release.
+Container Storage Interface (CSI) is a set of specifications for container
+orchestration frameworks to manage storage. The CSI spec abstracts common
+storage features such as create/delete volumes, publish/unpublish volumes,
+stage/unstage volumes, and more. It is currently at the 1.0 release.
 
-Kubernetes started to CSI driver alpha support in [1.9](https://kubernetes.io/blog/2018/01/introducing-container-storage-interface/), beta support in [1.10](https://kubernetes.io/blog/2018/04/10/container-storage-interface-beta/).
+Kubernetes started to support CSI with alpha support in
+[1.9](https://kubernetes.io/blog/2018/01/introducing-container-storage-interface/),
+beta support in
+[1.10](https://kubernetes.io/blog/2018/04/10/container-storage-interface-beta/),
+and CSI 1.0 in [Kubernetes
+1.13](https://kubernetes.io/blog/2018/12/03/kubernetes-1-13-release-announcement/).
 
 It is projected that CSI will be the only supported persistent storage driver
 in the near feature. In-tree drivers such as Ceph RBD and CephFS will be replaced with their respective CSI drivers.
@@ -14,7 +21,9 @@ in the near feature. In-tree drivers such as Ceph RBD and CephFS will be replace
 ## Ceph CSI Drivers Status
 
 There have been active Ceph CSI drivers developments since Kubernetes 1.9.
-Both Ceph RBD and CephFS drivers can be found at [ceph/ceph-csi](https://github.com/ceph/ceph-csi). Currently the drivers are up to CSI v0.3.0 spec.
+Both Ceph RBD and CephFS drivers can be found at
+[ceph/ceph-csi](https://github.com/ceph/ceph-csi). Currently ceph-csi
+supports both the CSI v0.3.0 spec and CSI v1.0 spec.
 
 * RBD driver. Currently, rbd CSI driver supports both krbd and rbd-nbd. There is a consideration to support other forms of TCMU based drivers.
 * CephFS driver. Both Kernel CephFS and Ceph FUSE are supported. When `ceph-fuse` is installed on the CSI plugin container, it can be used to mount CephFS shares.
