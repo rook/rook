@@ -119,9 +119,8 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), "rook/ceph:"+installer.VersionMaster, version)
 
-	// wait for the mon pods to be running
-	err = k8sutil.WaitForDeploymentImage(s.k8sh.Clientset, s.namespace, "app=rook-ceph-mon", opspec.ConfigInitContainerName, true, "rook/ceph:master")
-	require.Nil(s.T(), err)
+	// wait for the mon pods to be running. we can no longer check a version in the pod spec, so we just wait a bit.
+	time.Sleep(15 * time.Second)
 
 	err = s.k8sh.WaitForLabeledPodsToRun("app=rook-ceph-mon", s.namespace)
 	require.Nil(s.T(), err)
@@ -160,7 +159,7 @@ func (s *UpgradeSuite) updateClusterRoles() error {
 	if err := s.k8sh.DeleteResource("ClusterRole", "rook-ceph-cluster-mgmt"); err != nil {
 		return err
 	}
-	if err := s.k8sh.DeleteResource("-n", s.namespace, "Role", "rook-ceph-system"); err != nil {
+	if err := s.k8sh.DeleteResource("-n", systemNamespace, "Role", "rook-ceph-system"); err != nil {
 		return err
 	}
 	if err := s.k8sh.DeleteResource("-n", s.namespace, "Role", "rook-ceph-mgr-system"); err != nil {
@@ -281,7 +280,7 @@ apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: Role
 metadata:
   name: rook-ceph-system
-  namespace: ` + s.namespace + `
+  namespace: ` + systemNamespace + `
   labels:
     operator: rook
     storage-backend: ceph
@@ -304,17 +303,6 @@ rules:
   - apps
   resources:
   - daemonsets
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - delete
-- apiGroups:
-  - apps
-  resources:
-  - daemonsets
   - statefulsets
   verbs:
   - get
@@ -328,7 +316,6 @@ kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-ceph-mgr-system
-  namespace: ` + s.namespace + `
 rules:
 - apiGroups:
   - ""
