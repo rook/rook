@@ -22,6 +22,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -180,7 +181,7 @@ func TestHostNetworkSameNode(t *testing.T) {
 	c.clusterInfo = test.CreateConfigDir(1)
 
 	// start a basic cluster
-	_, err := c.Start(c.clusterInfo, c.rookVersion, c.spec)
+	_, err := c.Start(c.clusterInfo, c.rookVersion, cephver.Mimic, c.spec)
 	assert.Error(t, err)
 }
 
@@ -198,7 +199,7 @@ func TestPodMemory(t *testing.T) {
 	c := newCluster(context, namespace, false, true, r)
 	c.clusterInfo = test.CreateConfigDir(1)
 	// start a basic cluster
-	_, err := c.Start(c.clusterInfo, c.rookVersion, c.spec)
+	_, err := c.Start(c.clusterInfo, c.rookVersion, cephver.Mimic, c.spec)
 	assert.Error(t, err)
 
 	// Test REQUEST == LIMIT
@@ -214,7 +215,7 @@ func TestPodMemory(t *testing.T) {
 	c = newCluster(context, namespace, false, true, r)
 	c.clusterInfo = test.CreateConfigDir(1)
 	// start a basic cluster
-	_, err = c.Start(c.clusterInfo, c.rookVersion, c.spec)
+	_, err = c.Start(c.clusterInfo, c.rookVersion, cephver.Mimic, c.spec)
 	assert.Error(t, err)
 
 	// Test LIMIT != REQUEST but obviously LIMIT > REQUEST
@@ -230,7 +231,7 @@ func TestPodMemory(t *testing.T) {
 	c = newCluster(context, namespace, false, true, r)
 	c.clusterInfo = test.CreateConfigDir(1)
 	// start a basic cluster
-	_, err = c.Start(c.clusterInfo, c.rookVersion, c.spec)
+	_, err = c.Start(c.clusterInfo, c.rookVersion, cephver.Mimic, c.spec)
 	assert.Error(t, err)
 
 	// Test valid case where pod resource is set approprietly
@@ -246,7 +247,7 @@ func TestPodMemory(t *testing.T) {
 	c = newCluster(context, namespace, false, true, r)
 	c.clusterInfo = test.CreateConfigDir(1)
 	// start a basic cluster
-	_, err = c.Start(c.clusterInfo, c.rookVersion, c.spec)
+	_, err = c.Start(c.clusterInfo, c.rookVersion, cephver.Mimic, c.spec)
 	assert.Nil(t, err)
 
 	// Test no resources were specified on the pod
@@ -254,7 +255,7 @@ func TestPodMemory(t *testing.T) {
 	c = newCluster(context, namespace, false, true, r)
 	c.clusterInfo = test.CreateConfigDir(1)
 	// start a basic cluster
-	_, err = c.Start(c.clusterInfo, c.rookVersion, c.spec)
+	_, err = c.Start(c.clusterInfo, c.rookVersion, cephver.Mimic, c.spec)
 	assert.Nil(t, err)
 
 }

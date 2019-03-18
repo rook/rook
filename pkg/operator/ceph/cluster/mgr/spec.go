@@ -21,7 +21,6 @@ import (
 	"strconv"
 	"strings"
 
-	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -59,7 +58,7 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 	c.placement.ApplyToPodSpec(&podSpec.Spec)
-	if c.cephVersion.Name == cephv1.Luminous || c.cephVersion.Name == "" {
+	if c.clusterInfo.CephVersion.IsLuminous() {
 		// prepend the keyring-copy workaround for luminous clusters
 		podSpec.Spec.InitContainers = append(
 			[]v1.Container{c.makeCopyKeyringInitContainer(mgrConfig)},
@@ -119,14 +118,14 @@ func (c *Cluster) makeSetServerAddrInitContainer(mgrConfig *mgrConfig, mgrModule
 	//  N: config     set mgr.a mgr/<mod>/server_addr $(ROOK_CEPH_<MOD>_SERVER_ADDR) --force
 	podIPEnvVar := "ROOK_POD_IP"
 	cfgSetArgs := []string{"config", "set"}
-	if c.cephVersion.Name == cephv1.Luminous || c.cephVersion.Name == "" {
+	if c.clusterInfo.CephVersion.IsLuminous() {
 		cfgSetArgs[0] = "config-key"
 	} else {
 		cfgSetArgs = append(cfgSetArgs, fmt.Sprintf("mgr.%s", mgrConfig.DaemonID))
 	}
 	cfgPath := fmt.Sprintf("mgr/%s/server_addr", mgrModule)
 	cfgSetArgs = append(cfgSetArgs, cfgPath, opspec.ContainerEnvVarReference(podIPEnvVar))
-	if cephv1.VersionAtLeast(c.cephVersion.Name, cephv1.Nautilus) {
+	if c.clusterInfo.CephVersion.IsAtLeastNautilus() {
 		cfgSetArgs = append(cfgSetArgs, "--force")
 	}
 	cfgSetArgs = append(cfgSetArgs, "--verbose")

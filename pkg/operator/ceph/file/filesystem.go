@@ -26,6 +26,7 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/model"
 	"github.com/rook/rook/pkg/operator/ceph/file/mds"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -63,7 +64,7 @@ func createFilesystem(
 			dataPools = append(dataPools, p.ToModel(""))
 		}
 		f := newFS(fs.Name, fs.Spec.MetadataPool.ToModel(""), dataPools, fs.Spec.MetadataServer.ActiveCount)
-		if err := f.doFilesystemCreate(context, cephVersion.Name, fs.Namespace); err != nil {
+		if err := f.doFilesystemCreate(context, clusterInfo.CephVersion, fs.Namespace); err != nil {
 			return fmt.Errorf("failed to create filesystem %s: %+v", fs.Name, err)
 		}
 	}
@@ -74,7 +75,7 @@ func createFilesystem(
 	}
 
 	// As of Nautilus, allow_standby_replay is a fs property so we need to apply it
-	if cephv1.VersionAtLeast(clusterInfo.CephVersionName, cephv1.Nautilus) {
+	if clusterInfo.CephVersion.IsAtLeastNautilus() {
 		if fs.Spec.MetadataServer.ActiveStandby {
 			if err = client.AllowStandbyReplay(context, fs.Namespace, fs.Name, fs.Spec.MetadataServer.ActiveStandby); err != nil {
 				return fmt.Errorf("failed to set allow_standby_replay to filesystem %s: %v", fs.Name, err)
@@ -84,7 +85,7 @@ func createFilesystem(
 
 	// set the number of active mds instances
 	if fs.Spec.MetadataServer.ActiveCount > 1 {
-		if err = client.SetNumMDSRanks(context, cephVersion.Name, fs.Namespace, fs.Name, fs.Spec.MetadataServer.ActiveCount); err != nil {
+		if err = client.SetNumMDSRanks(context, clusterInfo.CephVersion, fs.Namespace, fs.Name, fs.Spec.MetadataServer.ActiveCount); err != nil {
 			logger.Warningf("failed setting active mds count to %d. %+v", fs.Spec.MetadataServer.ActiveCount, err)
 		}
 	}
@@ -159,13 +160,13 @@ func newFS(name string, metadataPool *model.Pool, dataPools []*model.Pool, activ
 }
 
 // doFilesystemCreate starts the Ceph file daemons and creates the filesystem in Ceph.
-func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, cephVersionName, clusterName string) error {
+func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, cephVersion cephver.CephVersion, clusterName string) error {
 	_, err := client.GetFilesystem(context, clusterName, f.Name)
 	if err == nil {
 		logger.Infof("filesystem %s already exists", f.Name)
 		// Even if the fs already exists, the num active mdses may have changed
 
-		if err := client.SetNumMDSRanks(context, cephVersionName, clusterName, f.Name, f.activeMDSCount); err != nil {
+		if err := client.SetNumMDSRanks(context, cephVersion, clusterName, f.Name, f.activeMDSCount); err != nil {
 			logger.Errorf(
 				fmt.Sprintf("failed to set num mds ranks (max_mds) to %d for filesystem %s, still continuing. ", f.activeMDSCount, f.Name) +
 					"this error is not critical, but mdses may not be as failure tolerant as desired. " +

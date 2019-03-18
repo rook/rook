@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"strconv"
 
-	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
@@ -89,7 +88,7 @@ func (c *Cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
 	)
 
 	// These flags are obsoleted as of Nautilus
-	if !cephv1.VersionAtLeast(c.cephVersion.Name, cephv1.Nautilus) {
+	if !c.clusterInfo.CephVersion.IsAtLeastNautilus() {
 		args = append(
 			args,
 			config.NewFlag("mds-standby-for-fscid", c.fsID),

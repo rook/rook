@@ -22,17 +22,18 @@ import (
 	"strings"
 
 	"github.com/coreos/pkg/capnslog"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 )
 
 // ClusterInfo is a collection of information about a particular Ceph cluster. Rook uses information
 // about the cluster to configure daemons to connect to the desired cluster.
 type ClusterInfo struct {
-	FSID            string
-	MonitorSecret   string
-	AdminSecret     string
-	Name            string
-	Monitors        map[string]*MonInfo
-	CephVersionName string
+	FSID          string
+	MonitorSecret string
+	AdminSecret   string
+	Name          string
+	Monitors      map[string]*MonInfo
+	CephVersion   cephver.CephVersion
 }
 
 // MonInfo is a collection of information about a Ceph mon.

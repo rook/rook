@@ -36,7 +36,7 @@ import (
 )
 
 func TestPodContainer(t *testing.T) {
-	cluster := &Cluster{Namespace: "myosd", rookVersion: "23", cephVersion: cephv1.CephVersionSpec{Name: "mimic"}}
+	cluster := &Cluster{Namespace: "myosd", rookVersion: "23", cephVersion: cephv1.CephVersionSpec{}}
 	c, err := cluster.provisionPodTemplateSpec([]rookalpha.Device{}, rookalpha.Selection{}, v1.ResourceRequirements{}, config.StoreConfig{}, "", "node", "", v1.RestartPolicyAlways)
 	assert.NotNil(t, c)
 	assert.Nil(t, err)

@@ -25,8 +25,8 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/go-ini/ini"
-	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -40,7 +40,7 @@ func TestCreateDefaultCephConfig(t *testing.T) {
 			"node0": {Name: "mon0", Endpoint: "10.0.0.1:6789"},
 			"node1": {Name: "mon1", Endpoint: "10.0.0.2:6789"},
 		},
-		CephVersionName: "mimic",
+		CephVersion: cephver.Mimic,
 	}
 
 	// start with INFO level logging
@@ -100,7 +100,7 @@ debug bluestore = 1234`
 		Monitors: map[string]*MonInfo{
 			"node0": {Name: "mon0", Endpoint: "10.0.0.1:6789"},
 		},
-		CephVersionName: "mimic",
+		CephVersion: cephver.Mimic,
 	}
 
 	// generate the config file to disk now
@@ -136,7 +136,7 @@ func verifyConfig(t *testing.T, cephConfig *CephConfig, cluster *ClusterInfo, lo
 	// Testing mon_host
 	expectedMons := "10.0.0.1:6789,10.0.0.2:6789"
 
-	if cephv1.VersionAtLeast(cluster.CephVersionName, cephv1.Nautilus) {
+	if cluster.CephVersion.IsAtLeastNautilus() {
 		expectedMons = "[v2:10.0.0.1:3300,v1:10.0.0.1:6789],[v2:10.0.0.2:3300,v1:10.0.0.2:6789]"
 	}
 

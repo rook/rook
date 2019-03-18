@@ -35,6 +35,7 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
 	cephtest "github.com/rook/rook/pkg/daemon/ceph/test"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -146,13 +147,13 @@ func TestStartMonPods(t *testing.T) {
 	c := newCluster(context, namespace, false, true, v1.ResourceRequirements{})
 
 	// start a basic cluster
-	_, err := c.Start(c.clusterInfo, c.rookVersion, c.spec)
+	_, err := c.Start(c.clusterInfo, c.rookVersion, cephver.Mimic, c.spec)
 	assert.Nil(t, err)
 
 	validateStart(t, c)
 
 	// starting again should be a no-op, but still results in an error
-	_, err = c.Start(c.clusterInfo, c.rookVersion, c.spec)
+	_, err = c.Start(c.clusterInfo, c.rookVersion, cephver.Mimic, c.spec)
 	assert.Nil(t, err)
 
 	validateStart(t, c)
@@ -165,7 +166,7 @@ func TestOperatorRestart(t *testing.T) {
 	c.clusterInfo = test.CreateConfigDir(1)
 
 	// start a basic cluster
-	info, err := c.Start(c.clusterInfo, c.rookVersion, c.spec)
+	info, err := c.Start(c.clusterInfo, c.rookVersion, cephver.Mimic, c.spec)
 	assert.Nil(t, err)
 	assert.True(t, info.IsInitialized())
 
@@ -174,7 +175,7 @@ func TestOperatorRestart(t *testing.T) {
 	c = newCluster(context, namespace, false, true, v1.ResourceRequirements{})
 
 	// starting again should be a no-op, but will not result in an error
-	info, err = c.Start(c.clusterInfo, c.rookVersion, c.spec)
+	info, err = c.Start(c.clusterInfo, c.rookVersion, cephver.Mimic, c.spec)
 	assert.Nil(t, err)
 	assert.True(t, info.IsInitialized())
 
@@ -191,7 +192,7 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 	c.clusterInfo = test.CreateConfigDir(1)
 
 	// start a basic cluster
-	info, err := c.Start(c.clusterInfo, c.rookVersion, c.spec)
+	info, err := c.Start(c.clusterInfo, c.rookVersion, cephver.Mimic, c.spec)
 	assert.Nil(t, err)
 	assert.True(t, info.IsInitialized())
 
@@ -201,7 +202,7 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 	c = newCluster(context, namespace, true, false, v1.ResourceRequirements{})
 
 	// starting again should be a no-op, but still results in an error
-	info, err = c.Start(c.clusterInfo, c.rookVersion, c.spec)
+	info, err = c.Start(c.clusterInfo, c.rookVersion, cephver.Mimic, c.spec)
 	assert.Nil(t, err)
 	assert.True(t, info.IsInitialized(), info)
 

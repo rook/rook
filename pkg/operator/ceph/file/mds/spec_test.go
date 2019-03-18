@@ -25,6 +25,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 
 	cephtest "github.com/rook/rook/pkg/operator/ceph/test"
 	testop "github.com/rook/rook/pkg/operator/test"
@@ -55,13 +56,16 @@ func testDeploymentObject(hostNetwork bool) *apps.Deployment {
 			},
 		},
 	}
-	clusterInfo := &cephconfig.ClusterInfo{FSID: "myfsid"}
+	clusterInfo := &cephconfig.ClusterInfo{
+		FSID:        "myfsid",
+		CephVersion: cephver.Mimic,
+	}
 
 	c := NewCluster(
 		clusterInfo,
 		&clusterd.Context{Clientset: testop.New(1)},
 		"rook/rook:myversion",
-		cephv1.CephVersionSpec{Image: "ceph/ceph:testversion", Name: "mimic"},
+		cephv1.CephVersionSpec{Image: "ceph/ceph:testversion"},
 		hostNetwork,
 		fs,
 		&client.CephFilesystemDetails{ID: 15},

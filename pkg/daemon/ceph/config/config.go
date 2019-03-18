@@ -27,7 +27,6 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/go-ini/ini"
-	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
@@ -202,7 +201,7 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, ru
 		msgr2Endpoint := net.JoinHostPort(monIP, monPorts[0])
 		msgr1Endpoint := net.JoinHostPort(monIP, monPorts[1])
 
-		if cephv1.VersionAtLeast(cluster.CephVersionName, cephv1.Nautilus) {
+		if cluster.CephVersion.IsAtLeastNautilus() {
 			monHosts[i] = "[v2:" + msgr2Endpoint + ",v1:" + msgr1Endpoint + "]"
 		} else {
 			monHosts[i] = msgr1Endpoint

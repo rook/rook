@@ -83,7 +83,6 @@ func addCephFlags(command *cobra.Command) {
 	command.Flags().StringVar(&cfg.monEndpoints, "mon-endpoints", "", "ceph mon endpoints")
 	command.Flags().StringVar(&cfg.dataDir, "config-dir", "/var/lib/rook", "directory for storing configuration")
 	command.Flags().StringVar(&cfg.cephConfigOverride, "ceph-config-override", "", "optional path to a ceph config file that will be appended to the config files that rook generates")
-	command.Flags().StringVar(&clusterInfo.CephVersionName, "ceph-version-name", "", "name of the ceph version")
 
 	// deprecated ipv4 format address
 	// TODO: remove these legacy flags in the future

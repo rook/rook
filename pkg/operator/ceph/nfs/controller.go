@@ -24,6 +24,7 @@ import (
 	opkit "github.com/rook/operator-kit"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
@@ -43,6 +44,7 @@ var CephNFSResource = opkit.CustomResource{
 
 // NFSCephNFSController represents a controller for NFS custom resources
 type CephNFSController struct {
+	clusterInfo *cephconfig.ClusterInfo
 	context     *clusterd.Context
 	rookImage   string
 	cephVersion cephv1.CephVersionSpec
@@ -51,8 +53,9 @@ type CephNFSController struct {
 }
 
 // NewNFSCephNFSController create controller for watching NFS custom resources created
-func NewCephNFSController(context *clusterd.Context, rookImage string, cephVersion cephv1.CephVersionSpec, hostNetwork bool, ownerRef metav1.OwnerReference) *CephNFSController {
+func NewCephNFSController(clusterInfo *cephconfig.ClusterInfo, context *clusterd.Context, rookImage string, cephVersion cephv1.CephVersionSpec, hostNetwork bool, ownerRef metav1.OwnerReference) *CephNFSController {
 	return &CephNFSController{
+		clusterInfo: clusterInfo,
 		context:     context,
 		rookImage:   rookImage,
 		cephVersion: cephVersion,
@@ -79,7 +82,7 @@ func (c *CephNFSController) StartWatch(namespace string, stopCh chan struct{}) e
 
 func (c *CephNFSController) onAdd(obj interface{}) {
 	nfs := obj.(*cephv1.CephNFS).DeepCopy()
-	if !cephv1.VersionAtLeast(c.cephVersion.Name, cephv1.Nautilus) {
+	if !c.clusterInfo.CephVersion.IsAtLeastNautilus() {
 		logger.Errorf("Ceph NFS is only supported with Nautilus or newer. CRD %s will be ignored.", nfs.Name)
 		return
 	}
@@ -93,7 +96,7 @@ func (c *CephNFSController) onAdd(obj interface{}) {
 func (c *CephNFSController) onUpdate(oldObj, newObj interface{}) {
 	oldNFS := oldObj.(*cephv1.CephNFS).DeepCopy()
 	newNFS := newObj.(*cephv1.CephNFS).DeepCopy()
-	if !cephv1.VersionAtLeast(c.cephVersion.Name, cephv1.Nautilus) {
+	if !c.clusterInfo.CephVersion.IsAtLeastNautilus() {
 		logger.Errorf("Ceph NFS is only supported with Nautilus or newer. CRD %s will be ignored.", newNFS.Name)
 		return
 	}
@@ -120,7 +123,7 @@ func (c *CephNFSController) onUpdate(oldObj, newObj interface{}) {
 
 func (c *CephNFSController) onDelete(obj interface{}) {
 	nfs := obj.(*cephv1.CephNFS).DeepCopy()
-	if !cephv1.VersionAtLeast(c.cephVersion.Name, cephv1.Nautilus) {
+	if !c.clusterInfo.CephVersion.IsAtLeastNautilus() {
 		logger.Errorf("Ceph NFS is only supported with Nautilus or newer. CRD %s cleanup will be ignored.", nfs.Name)
 		return
 	}

@@ -177,7 +177,7 @@ func (c *ClusterController) onK8sNodeAdd(obj interface{}) {
 
 		if valid, _ := k8sutil.ValidNode(*newNode, cluster.Spec.Placement.All()); valid == true {
 			logger.Debugf("Adding %s to cluster %s", newNode.Labels[apis.LabelHostname], cluster.Namespace)
-			err := cluster.createInstance(c.rookImage)
+			err := cluster.createInstance(c.rookImage, cluster.Info.CephVersion)
 			if err != nil {
 				logger.Errorf("Failed to update cluster in namespace %s. Was not able to add %s. %+v", cluster.Namespace, newNode.Labels[apis.LabelHostname], err)
 			}
@@ -238,15 +238,15 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		logger.Warningf("mon count is even (given: %d), should be uneven, continuing", cluster.Spec.Mon.Count)
 	}
 
-	cluster.Spec.CephVersion.Name, err = cluster.detectCephMajorVersion(cluster.Spec.CephVersion.Image, 15*time.Minute)
+	cephVersion, err := cluster.detectCephVersion(cluster.Spec.CephVersion.Image, 15*time.Minute)
 	if err != nil {
 		logger.Errorf("unknown ceph major version. %+v", err)
 		return
 	}
 
 	if !cluster.Spec.CephVersion.AllowUnsupported {
-		if !versionSupported(cluster.Spec.CephVersion.Name) {
-			logger.Errorf("unsupported ceph version detected: %s. allowUnsupported must be set to true to run with this version.", cluster.Spec.CephVersion.Name)
+		if !cephVersion.Supported() {
+			logger.Errorf("unsupported ceph version detected: %s. allowUnsupported must be set to true to run with this version.", cephVersion)
 			return
 		}
 	}
@@ -258,7 +258,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 			return false, nil
 		}
 
-		err := cluster.createInstance(c.rookImage)
+		err := cluster.createInstance(c.rookImage, *cephVersion)
 		if err != nil {
 			logger.Errorf("failed to create cluster in namespace %s. %+v", cluster.Namespace, err)
 			return false, nil
@@ -298,7 +298,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	fileController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start nfs ganesha CRD watcher
-	ganeshaController := nfs.NewCephNFSController(c.context, c.rookImage, cluster.Spec.CephVersion, cluster.Spec.Network.HostNetwork, cluster.ownerRef)
+	ganeshaController := nfs.NewCephNFSController(cluster.Info, c.context, c.rookImage, cluster.Spec.CephVersion, cluster.Spec.Network.HostNetwork, cluster.ownerRef)
 	ganeshaController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start mon health checker
@@ -352,7 +352,7 @@ func (c *ClusterController) onK8sNodeUpdate(oldObj, newObj interface{}) {
 	for _, cluster := range c.clusterMap {
 		if valid, _ := k8sutil.ValidNode(*newNode, cephv1.GetOSDPlacement(cluster.Spec.Placement)); valid == true {
 			logger.Debugf("Adding %s to cluster %s", newNode.Labels[apis.LabelHostname], cluster.Namespace)
-			err := cluster.createInstance(c.rookImage)
+			err := cluster.createInstance(c.rookImage, cluster.Info.CephVersion)
 			if err != nil {
 				logger.Errorf("Failed adding the updated node %s to cluster in namespace %s. %+v", newNode.Labels[apis.LabelHostname], cluster.Namespace, err)
 				continue
@@ -429,15 +429,14 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 	// if the image changed, we need to detect the new image version
 	if oldClust.Spec.CephVersion.Image != newClust.Spec.CephVersion.Image {
 		logger.Infof("the ceph version changed. detecting the new image version...")
-		version, err := cluster.detectCephMajorVersion(newClust.Spec.CephVersion.Image, 15*time.Minute)
+		version, err := cluster.detectCephVersion(newClust.Spec.CephVersion.Image, 15*time.Minute)
 		if err != nil {
 			logger.Errorf("unknown ceph major version. %+v", err)
 			return
 		}
-		newClust.Spec.CephVersion.Name = version
+		cluster.Info.CephVersion = *version
 	} else {
-		logger.Infof("ceph version is still %s on image %s", cluster.Spec.CephVersion.Name, cluster.Spec.CephVersion.Image)
-		newClust.Spec.CephVersion.Name = cluster.Spec.CephVersion.Name
+		logger.Infof("ceph version is still %s on image %s", &cluster.Info.CephVersion, cluster.Spec.CephVersion.Image)
 	}
 
 	logger.Debugf("old cluster: %+v", oldClust.Spec)
@@ -471,7 +470,7 @@ func (c *ClusterController) handleUpdate(crdName string, cluster *cluster) (bool
 		return false, nil
 	}
 
-	if err := cluster.createInstance(c.rookImage); err != nil {
+	if err := cluster.createInstance(c.rookImage, cluster.Info.CephVersion); err != nil {
 		logger.Errorf("failed to update cluster in namespace %s. %+v", cluster.Namespace, err)
 		return false, nil
 	}
