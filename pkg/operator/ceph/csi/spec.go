@@ -17,6 +17,7 @@ limitations under the License.
 package csi
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -87,43 +88,43 @@ func SetCSINamespace(namespace string) {
 func ValidateCSIParam() error {
 	if EnableRBD {
 		if len(CSIParam.RBDPluginImage) == 0 {
-			return fmt.Errorf("missing csi rbd plugin image")
+			return errors.New("missing csi rbd plugin image")
 		}
 		if len(CSIParam.RegistrarImage) == 0 {
-			return fmt.Errorf("missing csi registrar image")
+			return errors.New("missing csi registrar image")
 		}
 		if len(CSIParam.ProvisionerImage) == 0 {
-			return fmt.Errorf("missing csi provisioner image")
+			return errors.New("missing csi provisioner image")
 		}
 		if len(CSIParam.AttacherImage) == 0 {
-			return fmt.Errorf("missing csi attacher image")
+			return errors.New("missing csi attacher image")
 		}
 		if len(RBDPluginTemplatePath) == 0 {
-			return fmt.Errorf("missing rbd plugin template path")
+			return errors.New("missing rbd plugin template path")
 		}
 		if len(RBDProvisionerTemplatePath) == 0 {
-			return fmt.Errorf("missing rbd provisioner template path")
+			return errors.New("missing rbd provisioner template path")
 		}
 		if len(RBDAttacherTemplatePath) == 0 {
-			return fmt.Errorf("missing rbd attacher template path")
+			return errors.New("missing rbd attacher template path")
 		}
 	}
 
 	if EnableCephFS {
 		if len(CSIParam.CephFSPluginImage) == 0 {
-			return fmt.Errorf("missing csi cephfs plugin image")
+			return errors.New("missing csi cephfs plugin image")
 		}
 		if len(CSIParam.RegistrarImage) == 0 {
-			return fmt.Errorf("missing csi registrar image")
+			return errors.New("missing csi registrar image")
 		}
 		if len(CSIParam.ProvisionerImage) == 0 {
-			return fmt.Errorf("missing csi provisioner image")
+			return errors.New("missing csi provisioner image")
 		}
 		if len(CephFSPluginTemplatePath) == 0 {
 			return fmt.Errorf("missing cephfs plugin template path")
 		}
 		if len(CephFSProvisionerTemplatePath) == 0 {
-			return fmt.Errorf("missing ceph provisioner template path")
+			return errors.New("missing ceph provisioner template path")
 		}
 	}
 	return nil
