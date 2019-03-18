@@ -117,7 +117,7 @@ Below are the settings available, both at the cluster and individual node level,
   - `^s`: Selects all devices that start with `s`
   - `^[^r]`: Selects all devices that do *not* start with `r`
 - `devices`: A list of individual device names belonging to this node to include in the storage cluster.
-  - `name`: The name of the device (e.g., `sda`).
+  - `name`: The name of the device (e.g., `sda`), or full udev path (e.g. `/dev/disk/by-id/ata-ST4000DM004-XXXX` - this will not change after reboots).
   - `config`: Device-specific config settings. See the [config settings](#osd-configuration-settings) below.
 - `directories`:  A list of directory paths that will be included in the storage cluster. Note that using two directories on the same physical device can cause a negative performance impact.
   - `path`: The path on disk of the directory (e.g., `/rook/storage-dir`).
@@ -244,7 +244,7 @@ spec:
     - name: "172.17.4.201"
       devices:             # specific devices to use for storage can be specified for each node
       - name: "sdb"
-      - name: "sdc"
+      - name: "/dev/disk/by-id/ata-ST4000DM004-XXXX" # both device name and explicit udev links are supported
       config:         # configuration can be specified at the node level which overrides the cluster level config
         storeType: bluestore
     - name: "172.17.4.301"

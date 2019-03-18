@@ -220,6 +220,15 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 				} else if device.Name == desiredDevice.Name {
 					logger.Infof("%s found in the desired devices", device.Name)
 					matched = true
+				} else if strings.HasPrefix(desiredDevice.Name, "/dev/") {
+					devLinks := strings.Split(device.DevLinks, " ")
+					for _, link := range devLinks {
+						if link == desiredDevice.Name {
+							logger.Infof("%s found in the desired devices (matched by link: %s)", device.Name, link)
+							matched = true
+							break
+						}
+					}
 				}
 				matchedDevice = desiredDevice
 				if matched {

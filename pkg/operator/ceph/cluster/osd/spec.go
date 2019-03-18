@@ -449,7 +449,11 @@ func (c *Cluster) provisionOSDContainer(devices []rookalpha.Device, selection ro
 				logger.Infof("%s osds requested on device %s (node %s)", count, device.Name, nodeName)
 				countSuffix = ":" + count
 			}
-			deviceNames[i] = device.Name + countSuffix
+			deviceId := device.Name
+			if device.FullPath != "" {
+				deviceId = device.FullPath
+			}
+			deviceNames[i] = deviceId + countSuffix
 		}
 		envVars = append(envVars, dataDevicesEnvVar(strings.Join(deviceNames, ",")))
 		devMountNeeded = true

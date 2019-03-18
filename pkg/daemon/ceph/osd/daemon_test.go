@@ -199,10 +199,10 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 
 	context := &clusterd.Context{Executor: executor}
 	context.Devices = []*sys.LocalDisk{
-		{Name: "sda"},
+		{Name: "sda", DevLinks: "/dev/disk/by-id/sda-0x0000 /dev/disk/by-path/pci-0000:00:17.0-ata-1"},
 		{Name: "sdb"},
 		{Name: "sdc"},
-		{Name: "sdd"},
+		{Name: "sdd", DevLinks: "/dev/disk/by-id/sdd-0x0000 /dev/disk/by-path/pci-0000:00:18.0-ata-1"},
 		{Name: "nvme01"},
 		{Name: "rda"},
 		{Name: "rdb"},
@@ -249,6 +249,12 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	assert.Equal(t, -1, mapping.Entries["rda"].Data)
 	assert.Equal(t, -1, mapping.Entries["rdb"].Data)
 	assert.Equal(t, -1, mapping.Entries["nvme01"].Data)
+
+	// select a device by explicit link
+	mapping, err = getAvailableDevices(context, []DesiredDevice{{Name: "/dev/disk/by-id/sdd-0x0000"}}, "")
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(mapping.Entries))
+	assert.Equal(t, -1, mapping.Entries["sdd"].Data)
 }
 
 func TestGetRemovedDevices(t *testing.T) {
