@@ -1,6 +1,7 @@
 ---
 name: Feature request
 about: Suggest an idea/feature for this project
+labels: feature
 ---
 <!-- **Are you in the right place?**
 1. For issues or feature requests, please create an issue in this repository.
