@@ -65,10 +65,58 @@ configuration parameters.
 
 ### Work with out-of-band CSI drivers deployment
 
-If CSI drivers are already successfully deployed, Rook should help monitor the Storage Classes used by the CSI drivers, ensuring mon addresses, Pools, Filesystems referenced by the Storage Classes up-to-date.
+Rook generally has more information about the state of the cluster than the
+static settings in the Storage Class and is more up-to-date than the system's
+administrators. When so configured, Rook could additionally manage the
+configuration of CSI not directly managed by Rook.
+
 
 ### Rook initiated CSI drivers deployment
 
-If Rook is instructed to deploy CSI drivers and other external controllers, Rook Operator should create all the driver and daemon deployments as well.
+With the addition of CSI 1.0 support in Kubernetes 1.13 Rook should become a
+fully-featured method of deploying Ceph-CSI aiming to minimize extra steps
+needed to use CSI targeting the Rook managed Ceph cluster(s). Initially, this
+would be an opt-in feature that requires Kubernetes 1.13. Supporting CSI
+versions earlier than 1.0 will be a non-goal.
 
-The probe based CSI driver discovery feature is currently in alpha in Kubernetes 1.11. If the feature is not turned on, CSI driver registratar will not be able to annotate the node, the external attacher will thus fail to attach the volume. The feature is expected to be in beta in Kubernetes 1.12. Before then, Rook Operator has to annotate the node if necessary.
+Opting in to CSI should be simple and require very few changes from the
+currently documented approach for deploying Rook. Configuring Rook to use CSI
+should require changing only the default mechanism for interacting with the
+storage classes. The standard deployment should include the needed RBAC files
+for managing storage with Ceph-CSI. Rook should package and/or source all other
+needed configuration files/templates. All other configuration must be defaulted
+to reasonable values and only require changing if the user requires it.
+
+The following are plans to converge the user experience when choosing to use
+CSI rather than the flex volume method:
+
+#### Ceph-CSI Requirements
+
+To manage CSI with Rook the following requirements are placed on the
+ceph-csi project:
+* Configuration parameters currently set in the Storage Class will be
+  configurable via secrets:
+  * Mons (done)
+  * Admin Id
+  * User Id
+* The key "blockpool" will serve as an alias to "pool"
+
+To additionally minimize the required parameters in a Storage Class
+it may require changes to create CSI instance secrets; secrets
+that are associated with CSI outside of the storage class (see https://github.com/ceph/ceph-csi/pull/224).
+If this change is made nearly no parameters will be directly required in the
+storage class.
+
+#### Rook Requirements
+
+To manage CSI with Rook the following requirements are place on Rook:
+* Rook deployments must include all the needed RBAC rules to set up CSI
+* Rook deploys all additional CSI components required to provision
+  and mount a volume
+* Rook must be able to dynamically update the secrets used to configure
+  Ceph-CSI, including but not limited to the mons list.
+* Users should not be required to deploy Rook differently when using
+  CSI versus flex except minimal steps to opt in to CSI
+* When provisioning Ceph-CSI Rook must uniquely identify the
+  driver/provisioner name so that multiple CSI drivers or multiple Rook
+  instances within a (Kubernetes) cluster will not collide
