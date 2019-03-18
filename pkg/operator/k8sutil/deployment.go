@@ -68,7 +68,7 @@ func WaitForDeploymentImage(clientset kubernetes.Interface, namespace, label, co
 
 		if matches == len(deployments.Items) && matches > 0 {
 			logger.Infof("all %d %s deployments are on image %s", matches, label, desiredImage)
-			break
+			return nil
 		}
 
 		if len(deployments.Items) == 0 {
@@ -78,7 +78,7 @@ func WaitForDeploymentImage(clientset kubernetes.Interface, namespace, label, co
 		}
 		time.Sleep(time.Duration(sleepTime) * time.Second)
 	}
-	return nil
+	return fmt.Errorf("failed to wait for image %s in label %s", desiredImage, label)
 }
 
 // UpdateDeploymentAndWait updates a deployment and waits until it is running to return. It will
