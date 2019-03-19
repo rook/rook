@@ -43,8 +43,8 @@ const (
 	luminousTestImage = "ceph/ceph:v12"
 	// test with the latest mimic build
 	mimicTestImage = "ceph/ceph:v13"
-	// test with the latest master build until nautilus is released
-	nautilusTestImage = "ceph/daemon-base:latest-master"
+	// test with the latest nautilus build
+	nautilusTestImage = "ceph/ceph:v14.2.0-20190319"
 	helmChartName     = "local/rook-ceph"
 	helmDeployName    = "rook-ceph"
 )
