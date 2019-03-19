@@ -3,13 +3,7 @@ title: Shared File System CRD
 weight: 3000
 indent: true
 ---
-{% assign url = page.url | split: '/' %}
-{% assign currentVersion = url[3] %}
-{% if currentVersion != 'master' %}
-{% assign branchName = currentVersion | replace: 'v', '' | prepend: 'release-' %}
-{% else %}
-{% assign branchName = currentVersion %}
-{% endif %}
+
 # Ceph Shared File System CRD
 
 Rook allows creation and customization of shared file systems through the custom resource definitions (CRDs). The following settings are available

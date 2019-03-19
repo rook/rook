@@ -3,13 +3,7 @@ title: Block Storage
 weight: 2100
 indent: true
 ---
-{% assign url = page.url | split: '/' %}
-{% assign currentVersion = url[3] %}
-{% if currentVersion != 'master' %}
-{% assign branchName = currentVersion | replace: 'v', '' | prepend: 'release-' %}
-{% else %}
-{% assign branchName = currentVersion %}
-{% endif %}
+
 # Block Storage
 
 Block storage allows you to mount storage to a single pod. This example shows how to build a simple, multi-tier web application on Kubernetes using persistent volumes enabled by Rook.
