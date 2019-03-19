@@ -73,10 +73,7 @@ const (
 )
 
 func CSIEnabled() bool {
-	if EnableRBD || EnableCephFS {
-		return true
-	}
-	return false
+	return EnableRBD || EnableCephFS
 }
 
 func SetCSINamespace(namespace string) {
