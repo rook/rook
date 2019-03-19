@@ -34,10 +34,6 @@ spec:
           name: rook-config
         - mountPath: /etc/ceph
           name: default-config-dir
-        - mountPath: /etc/ceph-csi/rbd
-          name: csi-rbd-config
-        - mountPath: /etc/ceph-csi/cephfs
-          name: csi-cephfs-config
         env:
         - name: ROOK_CURRENT_NAMESPACE_ONLY
           value: "true"
@@ -78,9 +74,3 @@ spec:
         emptyDir: {}
       - name: default-config-dir
         emptyDir: {}
-      - name: csi-rbd-config
-        configMap:
-          name: csi-rbd-config
-      - name: csi-cephfs-config
-        configMap:
-          name: csi-cephfs-config
