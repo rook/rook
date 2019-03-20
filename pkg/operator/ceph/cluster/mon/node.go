@@ -103,6 +103,63 @@ func (c *Cluster) getNodesWithMons(nodes *v1.NodeList) (*util.Set, error) {
 	return nodesInUse, nil
 }
 
+// Get the number of mons that the operator should be starting
+func (c *Cluster) getTargetMonCount() (int, string, error) {
+
+	// Get the full list of k8s nodes
+	nodeOptions := metav1.ListOptions{}
+	nodeOptions.TypeMeta.Kind = "Node"
+	nodes, err := c.context.Clientset.CoreV1().Nodes().List(nodeOptions)
+	if err != nil {
+		return 0, "", fmt.Errorf("failed to get nodes. %+v", err)
+	}
+
+	// Get the nodes where it is possible to place mons
+	availableNodes := []v1.Node{}
+	for _, node := range nodes.Items {
+		valid, err := k8sutil.ValidNode(node, cephv1.GetMonPlacement(c.spec.Placement))
+		if err != nil {
+			logger.Warning("failed to validate node %s %v", node.Name, err)
+		} else if valid {
+			availableNodes = append(availableNodes, node)
+		}
+	}
+
+	target, msg := calcTargetMonCount(len(availableNodes), c.spec.Mon)
+	return target, msg, nil
+}
+
+func calcTargetMonCount(nodes int, spec cephv1.MonSpec) (int, string) {
+	minTarget := spec.Count
+	preferredTarget := spec.PreferredCount
+
+	if preferredTarget <= minTarget {
+		msg := fmt.Sprintf("targeting the mon count %d", minTarget)
+		return minTarget, msg
+	}
+	if nodes >= preferredTarget {
+		msg := fmt.Sprintf("targeting the preferred mon count %d since there are %d available nodes", preferredTarget, nodes)
+		return preferredTarget, msg
+	}
+	if spec.AllowMultiplePerNode {
+		msg := fmt.Sprintf("targeting the preferred mon count %d even if not that many nodes since multiple mons are allowed per node", preferredTarget)
+		return preferredTarget, msg
+	}
+	if nodes <= minTarget {
+		msg := fmt.Sprintf("targeting the min mon count %d since there are only %d available nodes", minTarget, nodes)
+		return minTarget, msg
+	}
+
+	// There are between minTarget and preferredTarget nodes. Find an odd number for mons closest to the number of nodes.
+	intermediate := nodes
+	if intermediate%2 == 0 {
+		// Decrease to an odd number if there are an even number of nodes
+		intermediate--
+	}
+	msg := fmt.Sprintf("targeting the calculated mon count %d since there are %d available nodes", intermediate, nodes)
+	return intermediate, msg
+}
+
 // Look up the immutable node name from the hostname label
 func getNodeNameFromHostname(nodes *v1.NodeList, hostname string) (string, bool) {
 	for _, node := range nodes.Items {

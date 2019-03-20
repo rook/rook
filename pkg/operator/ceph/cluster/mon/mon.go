@@ -176,13 +176,19 @@ func (c *Cluster) Start(clusterInfo *cephconfig.ClusterInfo, rookVersion string,
 		return nil, fmt.Errorf("failed to initialize ceph cluster info. %+v", err)
 	}
 
+	targetCount, msg, err := c.getTargetMonCount()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get target mon count. %+v", err)
+	}
+	logger.Infof(msg)
+
 	// create the mons for a new cluster or ensure mons are running in an existing cluster
-	return c.clusterInfo, c.startMons()
+	return c.clusterInfo, c.startMons(targetCount)
 }
 
-func (c *Cluster) startMons() error {
+func (c *Cluster) startMons(targetCount int) error {
 	// init the mon config
-	existingCount, mons := c.initMonConfig(c.spec.Mon.Count)
+	existingCount, mons := c.initMonConfig(targetCount)
 
 	// Assign the mons to nodes
 	if err := c.assignMons(mons); err != nil {
@@ -191,15 +197,15 @@ func (c *Cluster) startMons() error {
 
 	if existingCount < len(mons) {
 		// Start the new mons one at a time
-		for i := existingCount; i < c.spec.Mon.Count; i++ {
-			if err := c.ensureMonsRunning(mons, i, true); err != nil {
+		for i := existingCount; i < targetCount; i++ {
+			if err := c.ensureMonsRunning(mons, i, targetCount, true); err != nil {
 				return err
 			}
 		}
 	} else {
 		// Ensure all the expected mon deployments exist, but don't require full quorum to continue
 		lastMonIndex := len(mons) - 1
-		if err := c.ensureMonsRunning(mons, lastMonIndex, false); err != nil {
+		if err := c.ensureMonsRunning(mons, lastMonIndex, targetCount, false); err != nil {
 			return err
 		}
 	}
@@ -213,7 +219,7 @@ func (c *Cluster) startMons() error {
 //    to add a mon until we have reached the desired number of mons.
 // 2. To check that the majority of existing mons are in quorum. It is ok if not all mons are in quorum. (requireAllInQuorum = false)
 //    This is needed when the operator is restarted and all mons may not be up or in quorum.
-func (c *Cluster) ensureMonsRunning(mons []*monConfig, i int, requireAllInQuorum bool) error {
+func (c *Cluster) ensureMonsRunning(mons []*monConfig, i, targetCount int, requireAllInQuorum bool) error {
 	if requireAllInQuorum {
 		logger.Infof("creating mon %s", mons[i].DaemonName)
 	} else {
@@ -224,7 +230,7 @@ func (c *Cluster) ensureMonsRunning(mons []*monConfig, i int, requireAllInQuorum
 	// If we are adding a new mon, we expect one more than currently exist.
 	// If we haven't created all the desired mons already, we will be adding a new one with this iteration
 	expectedMonCount := len(c.clusterInfo.Monitors)
-	if expectedMonCount < c.spec.Mon.Count {
+	if expectedMonCount < targetCount {
 		expectedMonCount++
 	}
 

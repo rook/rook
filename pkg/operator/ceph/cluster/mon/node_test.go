@@ -298,3 +298,55 @@ func TestGetNodeInfoFromNode(t *testing.T) {
 
 	assert.Equal(t, "1.1.1.1", info.Address)
 }
+
+func TestTargetMonCount(t *testing.T) {
+	// only a single node and min 1
+	spec := cephv1.MonSpec{Count: 1, PreferredCount: 0, AllowMultiplePerNode: false}
+	nodes := 1
+	target, msg := calcTargetMonCount(nodes, spec)
+	assert.Equal(t, 1, target)
+	logger.Infof(msg)
+
+	// preferred 3 mons, but only one node available
+	spec.PreferredCount = 3
+	target, msg = calcTargetMonCount(nodes, spec)
+	assert.Equal(t, 1, target)
+	logger.Infof(msg)
+
+	// preferred 3 mons, and 3 nodes available
+	nodes = 3
+	target, msg = calcTargetMonCount(nodes, spec)
+	assert.Equal(t, 3, target)
+	logger.Infof(msg)
+
+	// get an intermediate odd number since we have several options between the min and the node count
+	nodes = 4
+	spec.Count = 1
+	spec.PreferredCount = 5
+	target, msg = calcTargetMonCount(nodes, spec)
+	assert.Equal(t, 3, target)
+	logger.Infof(msg)
+	nodes = 5
+	spec.PreferredCount = 6
+	target, msg = calcTargetMonCount(nodes, spec)
+	assert.Equal(t, 5, target)
+	logger.Infof(msg)
+	nodes = 6
+	spec.PreferredCount = 7
+	target, msg = calcTargetMonCount(nodes, spec)
+	assert.Equal(t, 5, target)
+	logger.Infof(msg)
+	nodes = 7
+	spec.PreferredCount = 7
+	target, msg = calcTargetMonCount(nodes, spec)
+	assert.Equal(t, 7, target)
+	logger.Infof(msg)
+
+	// multiple allowed per node, so we always returned preferred
+	nodes = 1
+	spec.PreferredCount = 7
+	spec.AllowMultiplePerNode = true
+	target, msg = calcTargetMonCount(nodes, spec)
+	assert.Equal(t, 7, target)
+	logger.Infof(msg)
+}
