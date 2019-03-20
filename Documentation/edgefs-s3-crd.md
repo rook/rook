@@ -113,17 +113,17 @@ Now cluster is setup, services can be now created.
 4. Create S3 services objects for tenants
 
 ```
-efscli service create s3 s3Cola
-efscli service serve s3Cola Hawaii/Cola
-efscli service create s3 s3Pepsi
-efscli service serve s3Pepsi Hawaii/Pepsi/bk1
+efscli service create s3 s3-cola
+efscli service serve s3-cola Hawaii/Cola
+efscli service create s3 s3-pepsi
+efscli service serve s3-pepsi Hawaii/Pepsi/bk1
 ```
 
 In case of s3type set to `s3`, do not forget to configure default domain name:
 
 ```
-efscli service config s3Cola X-Domain cola.com
-efscli service config s3Pepsi X-Domain pepsi.com
+efscli service config s3-cola X-Domain cola.com
+efscli service config s3-pepsi X-Domain pepsi.com
 ```
 
 5. Create S3 CRDs
@@ -132,7 +132,7 @@ efscli service config s3Pepsi X-Domain pepsi.com
 apiVersion: edgefs.rook.io/v1alpha1
 kind: S3
 metadata:
-  name: s3Cola
+  name: s3-cola
   namespace: rook-edgefs
 spec:
   instances: 1
@@ -142,7 +142,7 @@ spec:
 apiVersion: edgefs.rook.io/v1alpha1
 kind: S3
 metadata:
-  name: s3Pepsi
+  name: s3-pepsi
   namespace: rook-edgefs
 spec:
   instances: 1
