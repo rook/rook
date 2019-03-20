@@ -164,6 +164,7 @@ func (c *NFSController) makeDeployment(svcname, namespace, rookImage string, nfs
 			HostIPC:       true,
 			HostNetwork:   c.hostNetwork,
 			NodeSelector:  map[string]string{namespace: "cluster"},
+			ServiceAccountName: "rook-edgefs-cluster",
 		},
 	}
 	if c.hostNetwork {
