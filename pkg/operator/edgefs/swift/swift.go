@@ -14,11 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package s3x for the Edgefs manager.
-package s3x
+// Package SWIFT for the Edgefs manager.
+package swift
 
 import (
 	"fmt"
+	"strings"
 
 	edgefsv1alpha1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -30,35 +31,35 @@ import (
 )
 
 const (
-	appName = "rook-edgefs-s3x"
+	appName = "rook-edgefs-swift"
 
 	/* Volumes definitions */
+	defaultSWIFTImage = "edgefs/edgefs-restapi"
 	sslCertVolumeName = "ssl-cert-volume"
 	sslMountPath      = "/opt/nedge/etc/ssl/"
 	dataVolumeName    = "edgefs-datadir"
 	stateVolumeFolder = ".state"
 	etcVolumeFolder   = ".etc"
-	defaultPort       = 4000
-	defaultSecurePort = 4443
+	defaultPort       = 9981
+	defaultSecurePort = 443
 )
 
-// Start the rgw manager
-func (c *S3XController) CreateService(s edgefsv1alpha1.S3X, ownerRefs []metav1.OwnerReference) error {
+// Start the SWIFT manager
+func (c *SWIFTController) CreateService(s edgefsv1alpha1.SWIFT, ownerRefs []metav1.OwnerReference) error {
 	return c.CreateOrUpdate(s, false, ownerRefs)
 }
 
-func (c *S3XController) UpdateService(s edgefsv1alpha1.S3X, ownerRefs []metav1.OwnerReference) error {
+func (c *SWIFTController) UpdateService(s edgefsv1alpha1.SWIFT, ownerRefs []metav1.OwnerReference) error {
 	return c.CreateOrUpdate(s, true, ownerRefs)
 }
 
-// Start the s3x instance
-func (c *S3XController) CreateOrUpdate(s edgefsv1alpha1.S3X, update bool, ownerRefs []metav1.OwnerReference) error {
-	logger.Infof("starting update=%v service=%s", update, s.Name)
+// Start the swift instance
+func (c *SWIFTController) CreateOrUpdate(s edgefsv1alpha1.SWIFT, update bool, ownerRefs []metav1.OwnerReference) error {
+	logger.Debugf("starting update=%v service=%s", update, s.Name)
 
-	logger.Infof("S3X Base image is %s", c.rookImage)
-	// validate S3X service settings
+	// validate SWIFT service settings
 	if err := validateService(c.context, s); err != nil {
-		return fmt.Errorf("invalid S3X service %s arguments. %+v", s.Name, err)
+		return fmt.Errorf("invalid SWIFT service %s arguments. %+v", s.Name, err)
 	}
 
 	//check http settings
@@ -70,18 +71,31 @@ func (c *S3XController) CreateOrUpdate(s edgefsv1alpha1.S3X, update bool, ownerR
 		s.Spec.SecurePort = defaultSecurePort
 	}
 
-	// check if S3X service already exists
+	// all rest APIs coming from edgefs-restapi image, that
+	// includes mgmt, s3, s3s and swift
+	imageArgs := "swift"
+	rookImage := defaultSWIFTImage
+
+	var rookImageVer string
+	rookImageComponents := strings.Split(rookImage, ":")
+	if len(rookImageComponents) == 2 {
+		rookImageVer = rookImageComponents[1]
+	} else {
+		rookImageVer = "latest"
+	}
+
+	// check if SWIFT service already exists
 	exists, err := serviceExists(c.context, s)
 	if err == nil && exists {
 		if !update {
-			logger.Infof("S3X service %s exists in namespace %s", s.Name, s.Namespace)
+			logger.Infof("SWIFT service %s exists in namespace %s", s.Name, s.Namespace)
 			return nil
 		}
-		logger.Infof("S3X service %s exists in namespace %s. checking for updates", s.Name, s.Namespace)
+		logger.Infof("SWIFT service %s exists in namespace %s. checking for updates", s.Name, s.Namespace)
 	}
 
 	// start the deployment
-	deployment := c.makeDeployment(s.Name, s.Namespace, c.rookImage, s.Spec)
+	deployment := c.makeDeployment(s.Name, s.Namespace, rookImage+":"+rookImageVer, imageArgs, s.Spec)
 	if _, err := c.context.Clientset.Apps().Deployments(s.Namespace).Create(deployment); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create %s deployment. %+v", appName, err)
@@ -91,21 +105,21 @@ func (c *S3XController) CreateOrUpdate(s edgefsv1alpha1.S3X, update bool, ownerR
 		logger.Infof("%s deployment started", appName)
 	}
 
-	// create the s3x service
-	service := c.makeS3XService(instanceName(s.Name), s.Name, s.Namespace, s.Spec)
+	// create the swift service
+	service := c.makeSWIFTService(instanceName(s.Name), s.Name, s.Namespace, s.Spec)
 	if _, err := c.context.Clientset.CoreV1().Services(s.Namespace).Create(service); err != nil {
 		if !errors.IsAlreadyExists(err) {
-			return fmt.Errorf("failed to create s3x service. %+v", err)
+			return fmt.Errorf("failed to create swift service. %+v", err)
 		}
-		logger.Infof("s3x service %s already exists", service)
+		logger.Infof("swift service %s already exists", service)
 	} else {
-		logger.Infof("s3x service %s started", service)
+		logger.Infof("swift service %s started", service)
 	}
 
 	return nil
 }
 
-func (c *S3XController) makeS3XService(name, svcname, namespace string, s3xSpec edgefsv1alpha1.S3XSpec) *v1.Service {
+func (c *SWIFTController) makeSWIFTService(name, svcname, namespace string, swiftSpec edgefsv1alpha1.SWIFTSpec) *v1.Service {
 	labels := getLabels(name, svcname, namespace)
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -118,8 +132,8 @@ func (c *S3XController) makeS3XService(name, svcname, namespace string, s3xSpec 
 			Type:     v1.ServiceTypeNodePort,
 			Ports: []v1.ServicePort{
 				{Name: "grpc", Port: 49000, Protocol: v1.ProtocolTCP},
-				{Name: "port", Port: int32(s3xSpec.Port), Protocol: v1.ProtocolTCP},
-				{Name: "secure-port", Port: int32(s3xSpec.SecurePort), Protocol: v1.ProtocolTCP},
+				{Name: "port", Port: int32(swiftSpec.Port), Protocol: v1.ProtocolTCP},
+				{Name: "secure-port", Port: int32(swiftSpec.SecurePort), Protocol: v1.ProtocolTCP},
 			},
 		},
 	}
@@ -128,18 +142,18 @@ func (c *S3XController) makeS3XService(name, svcname, namespace string, s3xSpec 
 	return svc
 }
 
-func (c *S3XController) makeDeployment(svcname, namespace, rookImage string, s3xSpec edgefsv1alpha1.S3XSpec) *apps.Deployment {
+func (c *SWIFTController) makeDeployment(svcname, namespace, rookImage, imageArgs string, swiftSpec edgefsv1alpha1.SWIFTSpec) *apps.Deployment {
 
 	name := instanceName(svcname)
 	volumes := []v1.Volume{}
 
 	// add ssl certificate volume if defined
-	if len(s3xSpec.SSLCertificateRef) > 0 {
+	if len(swiftSpec.SSLCertificateRef) > 0 {
 		volumes = append(volumes, v1.Volume{
 			Name: sslCertVolumeName,
 			VolumeSource: v1.VolumeSource{
 				Secret: &v1.SecretVolumeSource{
-					SecretName: s3xSpec.SSLCertificateRef,
+					SecretName: swiftSpec.SSLCertificateRef,
 					Items: []v1.KeyToPath{
 						{
 							Key:  "sslkey",
@@ -183,7 +197,7 @@ func (c *S3XController) makeDeployment(svcname, namespace, rookImage string, s3x
 			Labels: getLabels(name, svcname, namespace),
 		},
 		Spec: v1.PodSpec{
-			Containers:    []v1.Container{c.s3xContainer(svcname, name, rookImage, s3xSpec)},
+			Containers:    []v1.Container{c.swiftContainer(svcname, name, rookImage, imageArgs, swiftSpec)},
 			RestartPolicy: v1.RestartPolicyAlways,
 			Volumes:       volumes,
 			HostIPC:       true,
@@ -195,8 +209,8 @@ func (c *S3XController) makeDeployment(svcname, namespace, rookImage string, s3x
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 
-	// apply current S3X CRD options to pod's specification
-	s3xSpec.Placement.ApplyToPodSpec(&podSpec.Spec)
+	// apply current SWIFT CRD options to pod's specification
+	swiftSpec.Placement.ApplyToPodSpec(&podSpec.Spec)
 
 	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -208,14 +222,14 @@ func (c *S3XController) makeDeployment(svcname, namespace, rookImage string, s3x
 				MatchLabels: podSpec.Labels,
 			},
 			Template: podSpec,
-			Replicas: &s3xSpec.Instances,
+			Replicas: &swiftSpec.Instances,
 		},
 	}
 	k8sutil.SetOwnerRef(c.context.Clientset, namespace, &d.ObjectMeta, &c.ownerRef)
 	return d
 }
 
-func (c *S3XController) s3xContainer(svcname, name, containerImage string, s3xSpec edgefsv1alpha1.S3XSpec) v1.Container {
+func (c *SWIFTController) swiftContainer(svcname, name, containerImage, args string, swiftSpec edgefsv1alpha1.SWIFTSpec) v1.Container {
 
 	runAsUser := int64(0)
 	readOnlyRootFilesystem := false
@@ -240,7 +254,7 @@ func (c *S3XController) s3xContainer(svcname, name, containerImage string, s3xSp
 		},
 	}
 
-	if len(s3xSpec.SSLCertificateRef) > 0 {
+	if len(swiftSpec.SSLCertificateRef) > 0 {
 		volumeMounts = append(volumeMounts, v1.VolumeMount{Name: sslCertVolumeName, MountPath: sslMountPath})
 	}
 
@@ -248,7 +262,7 @@ func (c *S3XController) s3xContainer(svcname, name, containerImage string, s3xSp
 		Name:            name,
 		Image:           containerImage,
 		ImagePullPolicy: v1.PullAlways,
-		Args:            []string{"s3x"},
+		Args:            []string{args},
 		Env: []v1.EnvVar{
 			{
 				Name:  "CCOW_LOG_LEVEL",
@@ -259,6 +273,10 @@ func (c *S3XController) s3xContainer(svcname, name, containerImage string, s3xSp
 				Value: svcname,
 			},
 			{
+				Name:  "DEBUG",
+				Value: "alert,error,info",
+			},
+			{
 				Name: "HOST_HOSTNAME",
 				ValueFrom: &v1.EnvVarSource{
 					FieldRef: &v1.ObjectFieldSelector{
@@ -267,56 +285,56 @@ func (c *S3XController) s3xContainer(svcname, name, containerImage string, s3xSp
 				},
 			},
 			{
-				Name:  "EFSS3X_HTTP_PORT",
-				Value: fmt.Sprint(s3xSpec.Port),
+				Name:  "EFSSWIFT_HTTP_PORT",
+				Value: fmt.Sprint(swiftSpec.Port),
 			},
 			{
-				Name:  "EFSS3X_HTTPS_PORT",
-				Value: fmt.Sprint(s3xSpec.SecurePort),
+				Name:  "EFSSWIFT_HTTPS_PORT",
+				Value: fmt.Sprint(swiftSpec.SecurePort),
 			},
 		},
 		SecurityContext: securityContext,
-		Resources:       s3xSpec.Resources,
+		Resources:       swiftSpec.Resources,
 		Ports: []v1.ContainerPort{
 			{Name: "grpc", ContainerPort: 49000, Protocol: v1.ProtocolTCP},
-			{Name: "port", ContainerPort: int32(s3xSpec.Port), Protocol: v1.ProtocolTCP},
-			{Name: "secure-port", ContainerPort: int32(s3xSpec.SecurePort), Protocol: v1.ProtocolTCP},
+			{Name: "port", ContainerPort: int32(swiftSpec.Port), Protocol: v1.ProtocolTCP},
+			{Name: "secure-port", ContainerPort: int32(swiftSpec.SecurePort), Protocol: v1.ProtocolTCP},
 		},
 		VolumeMounts: volumeMounts,
 	}
 }
 
-// Delete S3X service and possibly some artifacts.
-func (c *S3XController) DeleteService(s edgefsv1alpha1.S3X) error {
+// Delete SWIFT service and possibly some artifacts.
+func (c *SWIFTController) DeleteService(s edgefsv1alpha1.SWIFT) error {
 	// check if service  exists
 	exists, err := serviceExists(c.context, s)
 	if err != nil {
-		return fmt.Errorf("failed to detect if there is a S3X service to delete. %+v", err)
+		return fmt.Errorf("failed to detect if there is a SWIFT service to delete. %+v", err)
 	}
 	if !exists {
-		logger.Infof("S3X service %s does not exist in namespace %s", s.Name, s.Namespace)
+		logger.Infof("SWIFT service %s does not exist in namespace %s", s.Name, s.Namespace)
 		return nil
 	}
 
-	logger.Infof("Deleting S3X service %s from namespace %s", s.Name, s.Namespace)
+	logger.Infof("Deleting SWIFT service %s from namespace %s", s.Name, s.Namespace)
 
 	var gracePeriod int64
 	propagation := metav1.DeletePropagationForeground
 	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
 
-	// Delete the s3x service
+	// Delete the swift service
 	err = c.context.Clientset.CoreV1().Services(s.Namespace).Delete(instanceName(s.Name), options)
 	if err != nil && !errors.IsNotFound(err) {
-		logger.Warningf("failed to delete S3X service. %+v", err)
+		logger.Warningf("failed to delete SWIFT service. %+v", err)
 	}
 
-	// Make a best effort to delete the S3X pods
+	// Make a best effort to delete the SWIFT pods
 	err = k8sutil.DeleteDeployment(c.context.Clientset, s.Namespace, instanceName(s.Name))
 	if err != nil {
 		logger.Warningf(err.Error())
 	}
 
-	logger.Infof("Completed deleting S3X service %s", s.Name)
+	logger.Infof("Completed deleting SWIFT service %s", s.Name)
 	return nil
 }
 
@@ -325,12 +343,12 @@ func getLabels(name, svcname, namespace string) map[string]string {
 		k8sutil.AppAttr:     appName,
 		k8sutil.ClusterAttr: namespace,
 		"edgefs_svcname":    svcname,
-		"edgefs_svctype":    "s3x",
+		"edgefs_svctype":    "swift",
 	}
 }
 
-// Validate the S3X arguments
-func validateService(context *clusterd.Context, s edgefsv1alpha1.S3X) error {
+// Validate the SWIFT arguments
+func validateService(context *clusterd.Context, s edgefsv1alpha1.SWIFT) error {
 	if s.Name == "" {
 		return fmt.Errorf("missing name")
 	}
@@ -345,8 +363,8 @@ func instanceName(svcname string) string {
 	return fmt.Sprintf("%s-%s", appName, svcname)
 }
 
-// Check if the S3X service exists
-func serviceExists(context *clusterd.Context, s edgefsv1alpha1.S3X) (bool, error) {
+// Check if the SWIFT service exists
+func serviceExists(context *clusterd.Context, s edgefsv1alpha1.SWIFT) (bool, error) {
 	_, err := context.Clientset.Apps().Deployments(s.Namespace).Get(instanceName(s.Name), metav1.GetOptions{})
 	if err == nil {
 		// the deployment was found

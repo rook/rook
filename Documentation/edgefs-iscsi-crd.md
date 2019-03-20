@@ -60,9 +60,7 @@ spec:
 
 For more detailed instructions please refer to [EdgeFS Wiki](https://github.com/Nexenta/edgefs/wiki).
 
-Simple procedure to get things initialized and configured:
-
-## Setting up FlexHash and Site root object
+Below is an exampmle procedure to get things initialized and configured.
 
 Before new local namespace (or local site) can be used, it has to be initialized with FlexHash and special purpose root object.
 
@@ -114,11 +112,11 @@ Now cluster is setup, services can be now created.
 4. Create iSCSI Target services objects for tenants
 
 ```
-efscli service create iscsi iscCola
-efscli service serve iscCola Hawaii/Cola/bk1/lun1 X-volsize=10G,ccow-chunkmap-chunk-size=16384
-efscli service serve iscCola Hawaii/Cola/bk1/lun2 X-volsize=20G,ccow-chunkmap-chunk-size=131072
-efscli service create iscsi iscPepsi
-efscli service serve iscPepsi Hawaii/Pepsi/bk1/lun1 X-volsize=20G
+efscli service create iscsi isc-cola
+efscli service serve isc-cola Hawaii/Cola/bk1/lun1 X-volsize=10G,ccow-chunkmap-chunk-size=16384
+efscli service serve isc-cola Hawaii/Cola/bk1/lun2 X-volsize=20G,ccow-chunkmap-chunk-size=131072
+efscli service create iscsi isc-pepsi
+efscli service serve isc-pepsi Hawaii/Pepsi/bk1/lun1 X-volsize=20G
 ```
 
 5. Create ISCSI CRDs

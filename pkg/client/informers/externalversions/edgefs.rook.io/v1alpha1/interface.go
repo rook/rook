@@ -36,6 +36,8 @@ type Interface interface {
 	S3s() S3Informer
 	// S3Xs returns a S3XInformer.
 	S3Xs() S3XInformer
+	// SWIFTs returns a SWIFTInformer.
+	SWIFTs() SWIFTInformer
 }
 
 type version struct {
@@ -77,4 +79,9 @@ func (v *version) S3s() S3Informer {
 // S3Xs returns a S3XInformer.
 func (v *version) S3Xs() S3XInformer {
 	return &s3XInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// SWIFTs returns a SWIFTInformer.
+func (v *version) SWIFTs() SWIFTInformer {
+	return &sWIFTInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

@@ -52,6 +52,10 @@ func (c *FakeEdgefsV1alpha1) S3Xs(namespace string) v1alpha1.S3XInterface {
 	return &FakeS3Xs{c, namespace}
 }
 
+func (c *FakeEdgefsV1alpha1) SWIFTs(namespace string) v1alpha1.SWIFTInterface {
+	return &FakeSWIFTs{c, namespace}
+}
+
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
 func (c *FakeEdgefsV1alpha1) RESTClient() rest.Interface {

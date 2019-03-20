@@ -41,7 +41,7 @@ const (
 	stateVolumeFolder = ".state"
 	etcVolumeFolder   = ".etc"
 	defaultPort       = 9982
-	defaultSecurePort = 8443
+	defaultSecurePort = 9443
 )
 
 // Start the S3 manager

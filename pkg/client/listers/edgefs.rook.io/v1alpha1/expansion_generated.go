@@ -65,3 +65,11 @@ type S3XListerExpansion interface{}
 // S3XNamespaceListerExpansion allows custom methods to be added to
 // S3XNamespaceLister.
 type S3XNamespaceListerExpansion interface{}
+
+// SWIFTListerExpansion allows custom methods to be added to
+// SWIFTLister.
+type SWIFTListerExpansion interface{}
+
+// SWIFTNamespaceListerExpansion allows custom methods to be added to
+// SWIFTNamespaceLister.
+type SWIFTNamespaceListerExpansion interface{}
