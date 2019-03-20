@@ -35,6 +35,9 @@ metadata:
 spec:
   strategy:
     type: Recreate
+  selector:
+    matchLabels:
+      app: wordpress   
   template:
     metadata:
       labels:
