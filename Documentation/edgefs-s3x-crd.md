@@ -115,10 +115,10 @@ Now cluster is setup, services can be now created.
 4. Create Edge-X S3 services objects for tenants
 
 ```
-efscli service create s3x s3xCola
-efscli service serve s3xCola Hawaii/Cola
-efscli service create s3x s3xPepsi
-efscli service serve s3xPepsi Hawaii/Pepsi/bk1
+efscli service create s3x s3x-cola
+efscli service serve s3x-cola Hawaii/Cola
+efscli service create s3x s3x-pepsi
+efscli service serve s3x-pepsi Hawaii/Pepsi/bk1
 ```
 
 5. Create S3X CRDs
@@ -127,7 +127,7 @@ efscli service serve s3xPepsi Hawaii/Pepsi/bk1
 apiVersion: edgefs.rook.io/v1alpha1
 kind: S3X
 metadata:
-  name: s3xCola
+  name: s3x-cola
   namespace: rook-edgefs
 spec:
   instances: 1
@@ -137,7 +137,7 @@ spec:
 apiVersion: edgefs.rook.io/v1alpha1
 kind: S3X
 metadata:
-  name: s3xPepsi
+  name: s3x-pepsi
   namespace: rook-edgefs
 spec:
   instances: 1

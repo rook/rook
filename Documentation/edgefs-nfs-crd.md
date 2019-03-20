@@ -108,10 +108,10 @@ Now cluster is setup, services can be now created and attached to CSI provisione
 4. Create NFS service objects for tenants
 
 ```
-efscli service create nfs nfsCola
-efscli service serve nfsCola Hawaii/Cola/bk1
-efscli service create nfs nfsPepsi
-efscli service serve nfsPepsi Hawaii/Pepsi/bk1
+efscli service create nfs nfs-cola
+efscli service serve nfs-cola Hawaii/Cola/bk1
+efscli service create nfs nfs-pepsi
+efscli service serve nfs-pepsi Hawaii/Pepsi/bk1
 ```
 
 5. Create NFS CRDs
@@ -120,7 +120,7 @@ efscli service serve nfsPepsi Hawaii/Pepsi/bk1
 apiVersion: edgefs.rook.io/v1alpha1
 kind: NFS
 metadata:
-  name: nfsCola
+  name: nfs-cola
   namespace: rook-edgefs
 spec:
   instances: 1
@@ -130,7 +130,7 @@ spec:
 apiVersion: edgefs.rook.io/v1alpha1
 kind: NFS
 metadata:
-  name: nfsPepsi
+  name: nfs-pepsi
   namespace: rook-edgefs
 spec:
   instances: 1
