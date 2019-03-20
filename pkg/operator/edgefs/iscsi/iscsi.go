@@ -34,6 +34,7 @@ const (
 	appName = "rook-edgefs-iscsi"
 
 	/* Volumes definitions */
+	serviceAccountName  = "rook-edgefs-cluster"
 	defaultTargetName   = "iqn.2018-11.edgefs.io"
 	defaultTargetParams = "{}"
 	dataVolumeName      = "edgefs-datadir"
@@ -155,12 +156,13 @@ func (c *ISCSIController) makeDeployment(svcname, namespace, rookImage string, i
 			Labels: getLabels(name, svcname, namespace),
 		},
 		Spec: v1.PodSpec{
-			Containers:    []v1.Container{c.iscsiContainer(svcname, name, rookImage, iscsiSpec)},
-			RestartPolicy: v1.RestartPolicyAlways,
-			Volumes:       volumes,
-			HostIPC:       true,
-			HostNetwork:   c.hostNetwork,
-			NodeSelector:  map[string]string{namespace: "cluster"},
+			Containers:         []v1.Container{c.iscsiContainer(svcname, name, rookImage, iscsiSpec)},
+			RestartPolicy:      v1.RestartPolicyAlways,
+			Volumes:            volumes,
+			HostIPC:            true,
+			HostNetwork:        c.hostNetwork,
+			NodeSelector:       map[string]string{namespace: "cluster"},
+			ServiceAccountName: serviceAccountName,
 		},
 	}
 	if c.hostNetwork {

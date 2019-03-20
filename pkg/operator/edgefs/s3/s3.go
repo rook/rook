@@ -34,14 +34,15 @@ const (
 	appName = "rook-edgefs-s3"
 
 	/* Volumes definitions */
-	defaultS3Image    = "edgefs/edgefs-restapi"
-	sslCertVolumeName = "ssl-cert-volume"
-	sslMountPath      = "/opt/nedge/etc/ssl/"
-	dataVolumeName    = "edgefs-datadir"
-	stateVolumeFolder = ".state"
-	etcVolumeFolder   = ".etc"
-	defaultPort       = 9982
-	defaultSecurePort = 9443
+	serviceAccountName = "rook-edgefs-cluster"
+	defaultS3Image     = "edgefs/edgefs-restapi"
+	sslCertVolumeName  = "ssl-cert-volume"
+	sslMountPath       = "/opt/nedge/etc/ssl/"
+	dataVolumeName     = "edgefs-datadir"
+	stateVolumeFolder  = ".state"
+	etcVolumeFolder    = ".etc"
+	defaultPort        = 9982
+	defaultSecurePort  = 9443
 )
 
 // Start the S3 manager
@@ -209,12 +210,13 @@ func (c *S3Controller) makeDeployment(svcname, namespace, rookImage, imageArgs s
 			Labels: getLabels(name, svcname, namespace),
 		},
 		Spec: v1.PodSpec{
-			Containers:    []v1.Container{c.s3Container(svcname, name, rookImage, imageArgs, s3Spec)},
-			RestartPolicy: v1.RestartPolicyAlways,
-			Volumes:       volumes,
-			HostIPC:       true,
-			HostNetwork:   c.hostNetwork,
-			NodeSelector:  map[string]string{namespace: "cluster"},
+			Containers:         []v1.Container{c.s3Container(svcname, name, rookImage, imageArgs, s3Spec)},
+			RestartPolicy:      v1.RestartPolicyAlways,
+			Volumes:            volumes,
+			HostIPC:            true,
+			HostNetwork:        c.hostNetwork,
+			NodeSelector:       map[string]string{namespace: "cluster"},
+			ServiceAccountName: serviceAccountName,
 		},
 	}
 	if c.hostNetwork {

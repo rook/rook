@@ -34,14 +34,15 @@ const (
 	appName = "rook-edgefs-swift"
 
 	/* Volumes definitions */
-	defaultSWIFTImage = "edgefs/edgefs-restapi"
-	sslCertVolumeName = "ssl-cert-volume"
-	sslMountPath      = "/opt/nedge/etc/ssl/"
-	dataVolumeName    = "edgefs-datadir"
-	stateVolumeFolder = ".state"
-	etcVolumeFolder   = ".etc"
-	defaultPort       = 9981
-	defaultSecurePort = 443
+	serviceAccountName = "rook-edgefs-cluster"
+	defaultSWIFTImage  = "edgefs/edgefs-restapi"
+	sslCertVolumeName  = "ssl-cert-volume"
+	sslMountPath       = "/opt/nedge/etc/ssl/"
+	dataVolumeName     = "edgefs-datadir"
+	stateVolumeFolder  = ".state"
+	etcVolumeFolder    = ".etc"
+	defaultPort        = 9981
+	defaultSecurePort  = 443
 )
 
 // Start the SWIFT manager
@@ -197,12 +198,13 @@ func (c *SWIFTController) makeDeployment(svcname, namespace, rookImage, imageArg
 			Labels: getLabels(name, svcname, namespace),
 		},
 		Spec: v1.PodSpec{
-			Containers:    []v1.Container{c.swiftContainer(svcname, name, rookImage, imageArgs, swiftSpec)},
-			RestartPolicy: v1.RestartPolicyAlways,
-			Volumes:       volumes,
-			HostIPC:       true,
-			HostNetwork:   c.hostNetwork,
-			NodeSelector:  map[string]string{namespace: "cluster"},
+			Containers:         []v1.Container{c.swiftContainer(svcname, name, rookImage, imageArgs, swiftSpec)},
+			RestartPolicy:      v1.RestartPolicyAlways,
+			Volumes:            volumes,
+			HostIPC:            true,
+			HostNetwork:        c.hostNetwork,
+			NodeSelector:       map[string]string{namespace: "cluster"},
+			ServiceAccountName: serviceAccountName,
 		},
 	}
 	if c.hostNetwork {
