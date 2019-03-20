@@ -33,6 +33,9 @@ metadata:
   labels:
     app: wordpress
 spec:
+  selector:
+    matchLabels:
+      app: wordpress
   strategy:
     type: Recreate
   template:
