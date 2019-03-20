@@ -77,7 +77,7 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	blockName := "block-claim-upgrade"
 	podName := "test-pod-upgrade"
 	logger.Infof("Initializing block before the upgrade")
-	setupBlockLite(s.helper, s.k8sh, s.Suite, s.namespace, poolName, storageClassName, blockName, podName)
+	setupBlockLite(s.helper, s.k8sh, s.Suite, s.namespace, poolName, storageClassName, blockName, podName, s.op.installer.CephVersion)
 	createPodWithBlock(s.helper, s.k8sh, s.Suite, s.namespace, blockName, podName)
 	defer blockTestDataCleanUp(s.helper, s.k8sh, s.namespace, poolName, storageClassName, blockName, podName)
 

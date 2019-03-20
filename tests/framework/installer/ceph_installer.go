@@ -63,7 +63,7 @@ type CephInstaller struct {
 	helmHelper       *utils.HelmHelper
 	k8sVersion       string
 	changeHostnames  bool
-	cephVersion      cephv1.CephVersionSpec
+	CephVersion      cephv1.CephVersionSpec
 	T                func() *testing.T
 }
 
@@ -321,8 +321,7 @@ func (h *CephInstaller) InstallRookOnK8sWithHostPathAndDevices(namespace, storeT
 	// Create rook cluster
 	err = h.CreateK8sRookClusterWithHostPathAndDevices(namespace, onamespace, storeType,
 		useDevices, cephv1.MonSpec{Count: mon.Count, AllowMultiplePerNode: mon.AllowMultiplePerNode}, startWithAllNodes,
-		rbdMirrorWorkers,
-		h.cephVersion)
+		rbdMirrorWorkers, h.CephVersion)
 	if err != nil {
 		logger.Errorf("Rook cluster %s not installed, error -> %v", namespace, err)
 		return false, err
@@ -483,7 +482,7 @@ func NewCephInstaller(t func() *testing.T, clientset *kubernetes.Clientset, rook
 		k8shelper:       k8shelp,
 		helmHelper:      utils.NewHelmHelper(Env.Helm),
 		k8sVersion:      version.String(),
-		cephVersion:     cephVersion,
+		CephVersion:     cephVersion,
 		changeHostnames: rookVersion != Version0_9 && k8shelp.VersionAtLeast("v1.13.0"),
 		T:               t,
 	}
