@@ -64,24 +64,6 @@ func ListImages(context *clusterd.Context, clusterName, poolName string) ([]Ceph
 	return images, nil
 }
 
-func getImageInfo(context *clusterd.Context, clusterName, name, poolName string) (*CephBlockImage, error) {
-	imageSpec := getImageSpec(name, poolName)
-	args := []string{"info", imageSpec}
-	buf, err := ExecuteRBDCommand(context, clusterName, args)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get image %s info: %+v", imageSpec, err)
-	}
-
-	var image CephBlockImage
-	if err = json.Unmarshal(buf, &image); err != nil {
-		return nil, fmt.Errorf("unmarshal failed: %+v. raw buffer response: %s", err, string(buf))
-	}
-
-	image.Name = image.InfoName
-
-	return &image, nil
-}
-
 // CreateImage creates a block storage image.
 // If dataPoolName is not empty, the image will use poolName as the metadata pool and the dataPoolname for data.
 func CreateImage(context *clusterd.Context, clusterName, name, poolName, dataPoolName string, size uint64) (*CephBlockImage, error) {
@@ -116,13 +98,7 @@ func CreateImage(context *clusterd.Context, clusterName, name, poolName, dataPoo
 		}
 	}
 
-	// now that the image is created, retrieve it
-	image, err := getImageInfo(context, clusterName, name, poolName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get image %s info after successfully creating it: %v", name, err)
-	}
-
-	return image, nil
+	return &CephBlockImage{Name: name, Size: size}, nil
 }
 
 func DeleteImage(context *clusterd.Context, clusterName, name, poolName string) error {

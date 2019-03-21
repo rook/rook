@@ -70,7 +70,7 @@ func (suite *SmokeSuite) SetupSuite() {
 	useDevices := true
 	mons := 3
 	rbdMirrorWorkers := 1
-	suite.op, suite.k8sh = StartTestCluster(suite.T, suite.namespace, "bluestore", false, useDevices, mons, rbdMirrorWorkers, installer.VersionMaster, installer.MimicVersion)
+	suite.op, suite.k8sh = StartTestCluster(suite.T, suite.namespace, "bluestore", false, useDevices, mons, rbdMirrorWorkers, installer.VersionMaster, installer.NautilusVersion)
 	suite.helper = clients.CreateTestClient(suite.k8sh, suite.op.installer.Manifests)
 }
 

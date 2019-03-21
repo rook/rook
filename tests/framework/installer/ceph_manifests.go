@@ -37,6 +37,7 @@ type CephManifests interface {
 	GetBlockPoolStorageClassAndPvcDef(namespace string, poolName string, storageClassName string, reclaimPolicy string, blockName string, accessMode string) string
 	GetBlockPoolStorageClass(namespace string, poolName string, storageClassName string, reclaimPolicy string) string
 	GetFilesystem(namepace, name string, activeCount int) string
+	GetNFS(namepace, name, pool string, daemonCount int) string
 	GetObjectStore(namespace, name string, replicaCount, port int) string
 	GetObjectStoreUser(namespace, name string, displayName string, store string) string
 }
@@ -167,6 +168,22 @@ spec:
     - name: Age
       type: date
       JSONPath: .metadata.creationTimestamp
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: cephnfses.ceph.rook.io
+spec:
+  group: ceph.rook.io
+  names:
+    kind: CephNFS
+    listKind: CephNFSList
+    plural: cephnfses
+    singular: cephnfs
+    shortNames:
+    - nfs
+  scope: Namespaced
+  version: v1
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -1107,6 +1124,21 @@ spec:
   metadataServer:
     activeCount: ` + strconv.Itoa(activeCount) + `
     activeStandby: true`
+}
+
+// GetFilesystem returns the manifest to create a Rook Ceph NFS resource with the given config.
+func (m *CephManifestsMaster) GetNFS(namespace, name, pool string, count int) string {
+	return `apiVersion: ceph.rook.io/v1
+kind: CephNFS
+metadata:
+  name: ` + name + `
+  namespace: ` + namespace + `
+spec:
+  rados:
+    pool: ` + pool + `
+    namespace: nfs-ns
+  server:
+    active: ` + strconv.Itoa(count)
 }
 
 func (m *CephManifestsMaster) GetObjectStore(namespace, name string, replicaCount, port int) string {

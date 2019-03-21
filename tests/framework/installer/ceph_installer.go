@@ -43,13 +43,16 @@ const (
 	luminousTestImage = "ceph/ceph:v12"
 	// test with the latest mimic build
 	mimicTestImage = "ceph/ceph:v13"
-	helmChartName  = "local/rook-ceph"
-	helmDeployName = "rook-ceph"
+	// test with the latest nautilus build
+	nautilusTestImage = "ceph/ceph:v14.2.0-20190319"
+	helmChartName     = "local/rook-ceph"
+	helmDeployName    = "rook-ceph"
 )
 
 var (
 	LuminousVersion = cephv1.CephVersionSpec{Image: luminousTestImage}
 	MimicVersion    = cephv1.CephVersionSpec{Image: mimicTestImage}
+	NautilusVersion = cephv1.CephVersionSpec{Image: nautilusTestImage, AllowUnsupported: true}
 )
 
 // CephInstaller wraps installing and uninstalling rook on a platform
@@ -60,7 +63,7 @@ type CephInstaller struct {
 	helmHelper       *utils.HelmHelper
 	k8sVersion       string
 	changeHostnames  bool
-	cephVersion      cephv1.CephVersionSpec
+	CephVersion      cephv1.CephVersionSpec
 	T                func() *testing.T
 }
 
@@ -318,8 +321,7 @@ func (h *CephInstaller) InstallRookOnK8sWithHostPathAndDevices(namespace, storeT
 	// Create rook cluster
 	err = h.CreateK8sRookClusterWithHostPathAndDevices(namespace, onamespace, storeType,
 		useDevices, cephv1.MonSpec{Count: mon.Count, AllowMultiplePerNode: mon.AllowMultiplePerNode}, startWithAllNodes,
-		rbdMirrorWorkers,
-		h.cephVersion)
+		rbdMirrorWorkers, h.CephVersion)
 	if err != nil {
 		logger.Errorf("Rook cluster %s not installed, error -> %v", namespace, err)
 		return false, err
@@ -480,7 +482,7 @@ func NewCephInstaller(t func() *testing.T, clientset *kubernetes.Clientset, rook
 		k8shelper:       k8shelp,
 		helmHelper:      utils.NewHelmHelper(Env.Helm),
 		k8sVersion:      version.String(),
-		cephVersion:     cephVersion,
+		CephVersion:     cephVersion,
 		changeHostnames: rookVersion != Version0_9 && k8shelp.VersionAtLeast("v1.13.0"),
 		T:               t,
 	}

@@ -97,7 +97,6 @@ func TestCreateImage(t *testing.T) {
 	assert.True(t, createCalled)
 	assert.Equal(t, "image1", image.Name)
 	assert.Equal(t, uint64(sizeMB), image.Size)
-	assert.Equal(t, 2, image.Format)
 	createCalled = false
 
 	// (1 MB + 1 byte) --> 2 MB

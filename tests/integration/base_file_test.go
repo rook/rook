@@ -43,9 +43,21 @@ func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.S
 	createFilesystemConsumerPod(helper, k8sh, s, namespace, filesystemName)
 	err := writeAndReadToFilesystem(helper, k8sh, s, namespace, filePodName, "test_file")
 	require.Nil(s.T(), err)
+
+	testNFSDaemons(helper, k8sh, s, namespace, filesystemName)
+
 	downscaleMetadataServers(helper, k8sh, s, namespace, filesystemName)
 	cleanupFilesystemConsumer(helper, k8sh, s, namespace, filesystemName, filePodName)
 	cleanupFilesystem(helper, k8sh, s, namespace, filesystemName)
+}
+
+func testNFSDaemons(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, filesystemName string) {
+	name := "my-nfs"
+	err := helper.NFSClient.Create(namespace, name, filesystemName+"-data0", 2)
+	require.Nil(s.T(), err)
+
+	err = helper.NFSClient.Delete(namespace, name)
+	assert.Nil(s.T(), err)
 }
 
 func createFilesystemConsumerPod(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, filesystemName string) {

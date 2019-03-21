@@ -102,8 +102,8 @@ func (mrc *MultiClusterDeploySuite) TestInstallingMultipleRookClusters() {
 
 // Test Block Store Creation on multiple rook clusters
 func (mrc *MultiClusterDeploySuite) TestBlockStoreOnMultipleRookCluster() {
-	runBlockE2ETestLite(mrc.testClient, mrc.k8sh, mrc.Suite, mrc.namespace1)
-	runBlockE2ETestLite(mrc.testClient, mrc.k8sh, mrc.Suite, mrc.namespace2)
+	runBlockE2ETestLite(mrc.testClient, mrc.k8sh, mrc.Suite, mrc.namespace1, mrc.op.installer.CephVersion)
+	runBlockE2ETestLite(mrc.testClient, mrc.k8sh, mrc.Suite, mrc.namespace2, mrc.op.installer.CephVersion)
 }
 
 // Test Filesystem Creation on multiple rook clusters

@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"time"
 
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
@@ -178,7 +179,7 @@ func restartOSDPods(k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
 	assert.Nil(s.T(), err)
 }
 
-func runBlockE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, clusterNamespace string) {
+func runBlockE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, clusterNamespace string, version cephv1.CephVersionSpec) {
 	logger.Infof("Block Storage End to End Integration Test - create storageclass,pool and pvc")
 	logger.Infof("Running on Rook Cluster %s", clusterNamespace)
 	poolName := "rookpool"
@@ -186,12 +187,12 @@ func runBlockE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s su
 	blockName := "test-block-claim-lite"
 	podName := "test-pod-lite"
 	defer blockTestDataCleanUp(helper, k8sh, clusterNamespace, poolName, storageClassName, blockName, podName)
-	initBlockCount := setupBlockLite(helper, k8sh, s, clusterNamespace, poolName, storageClassName, blockName, podName)
+	initBlockCount := setupBlockLite(helper, k8sh, s, clusterNamespace, poolName, storageClassName, blockName, podName, version)
 	deleteBlockLite(helper, k8sh, s, clusterNamespace, poolName, storageClassName, blockName, podName, initBlockCount)
 }
 
 func setupBlockLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite,
-	clusterNamespace, poolName, storageClassName, blockName, podName string) int {
+	clusterNamespace, poolName, storageClassName, blockName, podName string, version cephv1.CephVersionSpec) int {
 
 	// Check initial number of blocks
 	initialBlocks, err := helper.BlockClient.List(clusterNamespace)
@@ -206,11 +207,15 @@ func setupBlockLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.S
 	require.True(s.T(), k8sh.WaitUntilPVCIsBound(defaultNamespace, blockName))
 
 	// Make sure new block is created
-	b, _ := helper.BlockClient.List(clusterNamespace)
-	assert.Equal(s.T(), initBlockCount+1, len(b), "Make sure new block image is created")
-	poolExists, err := helper.PoolClient.CephPoolExists(clusterNamespace, poolName)
-	assert.Nil(s.T(), err)
-	assert.True(s.T(), poolExists)
+	b, err := helper.BlockClient.List(clusterNamespace)
+	if version != installer.LuminousVersion {
+		assert.Nil(s.T(), err)
+		assert.Equal(s.T(), initBlockCount+1, len(b), "Make sure new block image is created")
+		poolExists, err := helper.PoolClient.CephPoolExists(clusterNamespace, poolName)
+		assert.Nil(s.T(), err)
+		assert.True(s.T(), poolExists)
+	}
+
 	return initBlockCount
 }
 
