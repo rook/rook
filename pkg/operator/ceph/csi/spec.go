@@ -53,7 +53,7 @@ var (
 
 const (
 	KubeMinMajor = "1"
-	KubeMinMinor = "13"
+	KubeMinMinor = "12"
 
 	// image names
 	DefaultRBDPluginImage    = "quay.io/cephcsi/rbdplugin:v1.0.0"
