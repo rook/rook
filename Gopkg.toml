@@ -104,3 +104,7 @@ ignored = [
 [[override]]
   name = "bitbucket.org/ww/goautoneg"
   source = "github.com/rancher/goautoneg"
+
+[[constraint]]
+  name = "sigs.k8s.io/controller-runtime"
+  version = "0.1.10"

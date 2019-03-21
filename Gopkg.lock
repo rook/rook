@@ -35,6 +35,14 @@
   revision = "de5bf2ad457846296e2031421a34e2568e304e35"
 
 [[projects]]
+  digest = "1:464aef731a5f82ded547c62e249a2e9ec59fbbc9ddab53cda7b9857852630a61"
+  name = "github.com/appscode/jsonpatch"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "7c0e3b262f30165a8ec3d0b4c6059fd92703bfb2"
+  version = "1.0.0"
+
+[[projects]]
   digest = "1:8404a965fb2ea6fb9f8b23d738b7abbc4e167483a5289e1bd02520f91651a866"
   name = "github.com/aws/aws-sdk-go"
   packages = [
@@ -217,6 +225,22 @@
   pruneopts = "UT"
   revision = "6ed8d5f64cd79a498d1f3fab5880cc376ce41bbe"
   version = "v1.41.0"
+
+[[projects]]
+  digest = "1:edd2fa4578eb086265db78a9201d15e76b298dfd0d5c379da83e9c61712cf6df"
+  name = "github.com/go-logr/logr"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "9fb12b3b21c5415d16ac18dc5cd42c1cfdd40c4e"
+  version = "v0.1.0"
+
+[[projects]]
+  digest = "1:d81dfed1aa731d8e4a45d87154ec15ef18da2aa80fa9a2f95bec38577a244a99"
+  name = "github.com/go-logr/zapr"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "03f06a783fbb7dfaf3f629c7825480e43a7105e6"
+  version = "v0.1.1"
 
 [[projects]]
   digest = "1:953a2628e4c5c72856b53f5470ed5e071c55eccf943d798d42908102af2a610f"
@@ -652,6 +676,37 @@
   revision = "4edbb8916da8fcfd66e5824e6e5e9c9130cc8b44"
 
 [[projects]]
+  digest = "1:3c1a69cdae3501bf75e76d0d86dc6f2b0a7421bc205c0cb7b96b19eed464a34d"
+  name = "go.uber.org/atomic"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "1ea20fb1cbb1cc08cbd0d913a96dead89aa18289"
+  version = "v1.3.2"
+
+[[projects]]
+  digest = "1:60bf2a5e347af463c42ed31a493d817f8a72f102543060ed992754e689805d1a"
+  name = "go.uber.org/multierr"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "3c4937480c32f4c13a875a1829af76c98ca3d40a"
+  version = "v1.1.0"
+
+[[projects]]
+  digest = "1:c52caf7bd44f92e54627a31b85baf06a68333a196b3d8d241480a774733dcf8b"
+  name = "go.uber.org/zap"
+  packages = [
+    ".",
+    "buffer",
+    "internal/bufferpool",
+    "internal/color",
+    "internal/exit",
+    "zapcore",
+  ]
+  pruneopts = "UT"
+  revision = "ff33455a0e382e8a81d14dd7c922020b6b5e7982"
+  version = "v1.9.1"
+
+[[projects]]
   branch = "master"
   digest = "1:b06f45abbe7431aec373695c6cf9770a051fa4ac81ad31b3fa73ddf3bb76bb27"
   name = "golang.org/x/crypto"
@@ -1065,11 +1120,12 @@
   version = "kubernetes-1.12.0"
 
 [[projects]]
-  digest = "1:1b756ead87f036cff87cbeeeebc91101e69a7b6ba1589bd974957be242a8f3f3"
+  digest = "1:fba35a0320fd1945f4b55553061c8cf076d75adcc078964914b3550bc3797aaf"
   name = "k8s.io/client-go"
   packages = [
     "discovery",
     "discovery/fake",
+    "dynamic",
     "informers",
     "informers/admissionregistration",
     "informers/admissionregistration/v1alpha1",
@@ -1213,6 +1269,7 @@
     "plugin/pkg/client/auth/exec",
     "rest",
     "rest/watch",
+    "restmapper",
     "testing",
     "tools/auth",
     "tools/cache",
@@ -1389,6 +1446,39 @@
   pruneopts = "UT"
   revision = "8a16e7dd8fb6d97d1331b0c79a16722f934b00b1"
 
+[[projects]]
+  digest = "1:fb5af7b88dc6aa6761ef9edd71293e05137b5d92f0d1965cb621b18314d96ee7"
+  name = "sigs.k8s.io/controller-runtime"
+  packages = [
+    "pkg/cache",
+    "pkg/cache/internal",
+    "pkg/client",
+    "pkg/client/apiutil",
+    "pkg/client/config",
+    "pkg/internal/recorder",
+    "pkg/leaderelection",
+    "pkg/manager",
+    "pkg/metrics",
+    "pkg/patch",
+    "pkg/recorder",
+    "pkg/runtime/inject",
+    "pkg/runtime/log",
+    "pkg/runtime/signals",
+    "pkg/webhook",
+    "pkg/webhook/admission",
+    "pkg/webhook/admission/builder",
+    "pkg/webhook/admission/types",
+    "pkg/webhook/internal/cert",
+    "pkg/webhook/internal/cert/generator",
+    "pkg/webhook/internal/cert/writer",
+    "pkg/webhook/internal/cert/writer/atomic",
+    "pkg/webhook/internal/metrics",
+    "pkg/webhook/types",
+  ]
+  pruneopts = "UT"
+  revision = "12d98582e72927b6cd0123e2b4e819f9341ce62c"
+  version = "v0.1.10"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
@@ -1414,6 +1504,8 @@
     "github.com/stretchr/testify/require",
     "github.com/stretchr/testify/suite",
     "github.com/yanniszark/go-nodetool/nodetool",
+    "k8s.io/api/admission/v1beta1",
+    "k8s.io/api/admissionregistration/v1beta1",
     "k8s.io/api/apps/v1",
     "k8s.io/api/apps/v1beta1",
     "k8s.io/api/batch/v1",
@@ -1435,6 +1527,7 @@
     "k8s.io/apimachinery/pkg/types",
     "k8s.io/apimachinery/pkg/util/intstr",
     "k8s.io/apimachinery/pkg/util/runtime",
+    "k8s.io/apimachinery/pkg/util/sets",
     "k8s.io/apimachinery/pkg/util/strategicpatch",
     "k8s.io/apimachinery/pkg/util/validation",
     "k8s.io/apimachinery/pkg/util/wait",
@@ -1468,6 +1561,15 @@
     "k8s.io/kubernetes/pkg/util/version",
     "k8s.io/kubernetes/pkg/volume/flexvolume",
     "k8s.io/kubernetes/pkg/volume/util",
+    "sigs.k8s.io/controller-runtime/pkg/client",
+    "sigs.k8s.io/controller-runtime/pkg/client/config",
+    "sigs.k8s.io/controller-runtime/pkg/manager",
+    "sigs.k8s.io/controller-runtime/pkg/runtime/inject",
+    "sigs.k8s.io/controller-runtime/pkg/runtime/signals",
+    "sigs.k8s.io/controller-runtime/pkg/webhook",
+    "sigs.k8s.io/controller-runtime/pkg/webhook/admission",
+    "sigs.k8s.io/controller-runtime/pkg/webhook/admission/builder",
+    "sigs.k8s.io/controller-runtime/pkg/webhook/admission/types",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1
