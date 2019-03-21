@@ -32,6 +32,7 @@ type ClusterDeploymentConfig struct {
 type DevicesConfig struct {
 	Rtrd          RTDevices
 	Rtlfs         RtlfsDevices
+	Zone          int
 	IsGatewayNode bool
 }
 

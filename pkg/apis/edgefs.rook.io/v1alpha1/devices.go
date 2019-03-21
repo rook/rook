@@ -70,6 +70,7 @@ type CcowdNetwork struct {
 }
 
 type CcowdConf struct {
+	Zone      int          `json:"zone,omitempty"`
 	Network   CcowdNetwork `json:"network"`
 	Transport []string     `json:"transport"`
 }

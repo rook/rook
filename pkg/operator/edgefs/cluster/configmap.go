@@ -87,11 +87,16 @@ func (c *cluster) createClusterConfigMap(nodes []rookalpha.Node, deploymentConfi
 			rtDevices = make([]edgefsv1alpha1.RTDevice, 0)
 			rtlfsDevices = make([]edgefsv1alpha1.RtlfsDevice, 0)
 		}
+		// Set failureDomain to 2 if current node's zone > 0
+		failureDomain := 1
+		if devConfig.Zone > 0 {
+			failureDomain = 2
+		}
 
 		nodeConfig := edgefsv1alpha1.SetupNode{
 			Ccow: edgefsv1alpha1.CcowConf{
 				Tenant: edgefsv1alpha1.CcowTenant{
-					FailureDomain: 1,
+					FailureDomain: failureDomain,
 				},
 				Network: edgefsv1alpha1.CcowNetwork{
 					BrokerInterfaces: brokerIfName,
@@ -99,6 +104,7 @@ func (c *cluster) createClusterConfigMap(nodes []rookalpha.Node, deploymentConfi
 				},
 			},
 			Ccowd: edgefsv1alpha1.CcowdConf{
+				Zone: devConfig.Zone,
 				Network: edgefsv1alpha1.CcowdNetwork{
 					ServerInterfaces: serverIfName,
 					ServerUnixSocket: "/opt/nedge/var/run/sock/ccowd.sock",

@@ -46,6 +46,7 @@ const (
 	UseAllSSDKey          = "useAllSSD"
 	RtPlevelOverrideKey   = "rtPLevelOverride"
 	SyncKey               = "sync"
+	ZoneKey               = "zone"
 )
 
 type StoreConfig struct {
@@ -69,6 +70,8 @@ type StoreConfig struct {
 	RtPLevelOverride int `json:"rtPLevelOverride,omitempty"`
 	// sync cluster option [0:3]
 	Sync int `json:"sync"`
+	// apply edgefs cluster zones id to whole cluster or node if zone value > 0
+	Zone int `json:"zone,omitempty"`
 }
 
 func DefaultStoreConfig() StoreConfig {
@@ -82,6 +85,7 @@ func DefaultStoreConfig() StoreConfig {
 		UseAllSSD:          false,
 		RtPLevelOverride:   0,
 		Sync:               1,
+		Zone:               0,
 	}
 }
 
@@ -136,7 +140,13 @@ func ToStoreConfig(config map[string]string) StoreConfig {
 			} else {
 				logger.Warningf("Incorrect 'sync' value %d ignored", value)
 			}
+		case ZoneKey:
+			value := convertToIntIgnoreErr(v)
+			if value > 0 {
+				storeConfig.Zone = value
+			}
 		}
+
 	}
 
 	return storeConfig

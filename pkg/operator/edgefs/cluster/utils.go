@@ -93,6 +93,7 @@ func (c *cluster) createDeploymentConfig(nodes []rookalpha.Node, resurrect bool)
 	//Fill deploymentConfig devices struct
 	for _, node := range nodes {
 		n := c.resolveNode(node.Name)
+		storeConfig := config.ToStoreConfig(n.Config)
 
 		if n == nil {
 			return deploymentConfig, fmt.Errorf("node %s did not resolve to start target", node.Name)
@@ -101,6 +102,9 @@ func (c *cluster) createDeploymentConfig(nodes []rookalpha.Node, resurrect bool)
 		devicesConfig := edgefsv1alpha1.DevicesConfig{}
 		devicesConfig.Rtrd.Devices = make([]edgefsv1alpha1.RTDevice, 0)
 		devicesConfig.Rtlfs.Devices = make([]edgefsv1alpha1.RtlfsDevice, 0)
+
+		// Apply Node's zone value
+		devicesConfig.Zone = storeConfig.Zone
 
 		// If node labeled as gateway then return empty devices and skip RTDevices detection
 		if c.isGatewayLabeledNode(c.context.Clientset, node.Name) {
@@ -132,7 +136,6 @@ func (c *cluster) createDeploymentConfig(nodes []rookalpha.Node, resurrect bool)
 			}
 		}
 
-		storeConfig := config.ToStoreConfig(n.Config)
 		rtDevices, err := target.GetRTDevices(availDisks, &storeConfig)
 		if err != nil {
 			logger.Warningf("Can't get rtDevices for node %s due %v", n.Name, err)
@@ -144,6 +147,10 @@ func (c *cluster) createDeploymentConfig(nodes []rookalpha.Node, resurrect bool)
 		deploymentConfig.DevConfig[node.Name] = devicesConfig
 	}
 
+	err := ValidateZones(&deploymentConfig)
+	if err != nil {
+		return deploymentConfig, err
+	}
 	// Add Directories to deploymentConfig
 	clusterStorageConfig := config.ToStoreConfig(c.Spec.Storage.Config)
 	deploymentConfig.Directories = target.GetRtlfsDevices(c.Spec.Storage.Directories, &clusterStorageConfig)
@@ -194,6 +201,22 @@ func (c *cluster) createDeploymentConfig(nodes []rookalpha.Node, resurrect bool)
 	}
 
 	return deploymentConfig, nil
+}
+
+// Validates all nodes in cluster that each one has valid zone number or all of them has zone == 0
+func ValidateZones(deploymentConfig *edgefsv1alpha1.ClusterDeploymentConfig) error {
+	validZonesFound := 0
+	for _, nodeDevConfig := range deploymentConfig.DevConfig {
+		if nodeDevConfig.Zone > 0 {
+			validZonesFound = validZonesFound + 1
+		}
+	}
+
+	if validZonesFound > 0 && len(deploymentConfig.DevConfig) != validZonesFound {
+		return fmt.Errorf("Valid Zone number must be propagated to all nodes")
+	}
+
+	return nil
 }
 
 func (c *cluster) resolveNode(nodeName string) *rookalpha.Node {
