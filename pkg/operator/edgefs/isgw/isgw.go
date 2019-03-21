@@ -220,7 +220,13 @@ func (c *ISGWController) makeDeployment(svcname, namespace, rookImage string, is
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec: apps.DeploymentSpec{Template: podSpec, Replicas: &instancesCount},
+		Spec: apps.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: podSpec.Labels,
+			},
+			Template: podSpec,
+			Replicas: &instancesCount,
+		},
 	}
 	k8sutil.SetOwnerRef(c.context.Clientset, namespace, &d.ObjectMeta, &c.ownerRef)
 	return d
