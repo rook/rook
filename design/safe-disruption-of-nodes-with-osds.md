@@ -28,3 +28,6 @@ External agents should only bring down one failure domain at once.
 
 After a disrupted node is brought back up, the agent could check the next nodes that have the same `ceph.rook.io/tenant-clusters`
 
+## Why not use PodDisruptionBudget?
+
+PodDisruptionBudget cannot work on the node level because it is not aware of node disruption. Since there can be multiple osds per node, disruption is not tied to a number of OSD pods. Ex: It is ok to have 5 osds down on one node (as all data will be replicated on the same node/failure-domain), but not ok to have 2 down accross nodes.
