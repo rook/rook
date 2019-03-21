@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"strings"
 
+	"k8s.io/apimachinery/pkg/util/validation"
+
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -278,4 +280,64 @@ func NodeIsInRookNodeList(targetNodeName string, rookNodes []rookalpha.Node) boo
 		}
 	}
 	return false
+}
+
+// AddNodeAffinity will return v1.NodeAffinity or error
+func AddNodeAffinity(nodeAffinity string) (*v1.NodeAffinity, error) {
+	newNodeAffinity := &v1.NodeAffinity{
+		RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+			NodeSelectorTerms: []v1.NodeSelectorTerm{
+				{},
+			},
+		},
+	}
+	nodeLabels := strings.Split(nodeAffinity, ";")
+	// For each label in 'nodeLabels', retrieve (key,value) pair and create nodeAffinity
+	// '=' separates key from values
+	// ',' separates values
+	for _, nodeLabel := range nodeLabels {
+		// If tmpNodeLabel is an array of length > 1
+		// [0] is Key and [1] is comma separated values
+		tmpNodeLabel := strings.Split(nodeLabel, "=")
+		if len(tmpNodeLabel) > 1 {
+			nodeLabelKey := strings.Trim(tmpNodeLabel[0], " ")
+			tmpNodeLabelValue := tmpNodeLabel[1]
+			nodeLabelValues := strings.Split(tmpNodeLabelValue, ",")
+			if nodeLabelKey != "" && len(nodeLabelValues) > 0 {
+				err := validation.IsQualifiedName(nodeLabelKey)
+				if err != nil {
+					return nil, fmt.Errorf("invalid label key: %s err: %v", nodeLabelKey, err)
+				}
+				for _, nodeLabelValue := range nodeLabelValues {
+					nodeLabelValue = strings.Trim(nodeLabelValue, " ")
+					err := validation.IsValidLabelValue(nodeLabelValue)
+					if err != nil {
+						return nil, fmt.Errorf("invalid label value: %s err: %v", nodeLabelValue, err)
+					}
+				}
+				matchExpression := v1.NodeSelectorRequirement{
+					Key:      nodeLabelKey,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   nodeLabelValues,
+				}
+				newNodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions =
+					append(newNodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions, matchExpression)
+			}
+		} else {
+			nodeLabelKey := strings.Trim(tmpNodeLabel[0], " ")
+			if nodeLabelKey != "" {
+				err := validation.IsQualifiedName(nodeLabelKey)
+				if err != nil {
+					return nil, fmt.Errorf("invalid label key: %s err: %v", nodeLabelKey, err)
+				}
+				matchExpression := v1.NodeSelectorRequirement{
+					Key:      nodeLabelKey,
+					Operator: v1.NodeSelectorOpExists,
+				}
+				newNodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions =
+					append(newNodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions, matchExpression)
+			}
+		}
+	}
+	return newNodeAffinity, nil
 }

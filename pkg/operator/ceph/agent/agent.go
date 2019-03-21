@@ -25,9 +25,9 @@ import (
 	"strings"
 
 	"github.com/coreos/pkg/capnslog"
-	"github.com/rook/rook/pkg/operator/k8sutil"
+	k8sutil "github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	kserrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -41,6 +41,7 @@ const (
 	flexvolumeDefaultDirPath       = "/usr/libexec/kubernetes/kubelet-plugins/volume/exec/"
 	agentDaemonsetTolerationEnv    = "AGENT_TOLERATION"
 	agentDaemonsetTolerationKeyEnv = "AGENT_TOLERATION_KEY"
+	agentDaemonsetNodeAffinityEnv  = "AGENT_NODE_AFFINITY"
 	AgentMountSecurityModeEnv      = "AGENT_MOUNT_SECURITY_MODE"
 	RookEnableSelinuxRelabelingEnv = "ROOK_ENABLE_SELINUX_RELABELING"
 	RookEnableFSGroupEnv           = "ROOK_ENABLE_FSGROUP"
@@ -237,6 +238,19 @@ func (a *Agent) createAgentDaemonSet(namespace, agentImage, serviceAccount strin
 				Operator: v1.TolerationOpExists,
 				Key:      os.Getenv(agentDaemonsetTolerationKeyEnv),
 			},
+		}
+	}
+
+	// Add NodeAffinity if any
+	nodeAffinity := os.Getenv(agentDaemonsetNodeAffinityEnv)
+	if nodeAffinity != "" {
+		v1NodeAffinity, err := k8sutil.AddNodeAffinity(nodeAffinity)
+		if err != nil {
+			logger.Errorf("failed to create NodeAffinity. %+v", err)
+		} else {
+			ds.Spec.Template.Spec.Affinity = &v1.Affinity{
+				NodeAffinity: v1NodeAffinity,
+			}
 		}
 	}
 
