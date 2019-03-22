@@ -8,6 +8,7 @@ indent: true
 
 - [Using KVM/QEMU and Kubespray](#using-kvmqemu-and-kubespray)
 - [Using VirtualBox and k8s-vagrant-multi-node](#using-virtualbox-and-k8s-vagrant-multi-node)
+- [Using Vagrant and libvirt](#using-vagrant-on-linux-with-libvirt)
 
 ## Using KVM/QEMU and Kubespray
 
@@ -214,3 +215,7 @@ To change the amount of workers to bring up and their resources, be sure to chec
 Just set or export the variables as you need on the script, e.g., either `NODE_COUNT=5 ./tests/scripts/k8s-vagrant-multi-node.sh up`, or `export NODE_COUNT=5` and then `./tests/scripts/k8s-vagrant-multi-node.sh up`.
 
 For more information or if you are experiencing issues, please create an issue at [GitHub galexrt/k8s-vagrant-multi-node](https://github.com/galexrt/k8s-vagrant-multi-node).
+
+## Using Vagrant on Linux with libvirt
+
+See https://github.com/noahdesu/kubensis.
