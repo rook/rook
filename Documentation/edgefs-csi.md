@@ -58,7 +58,7 @@ For each driver type (NFS/ISCSI) we have already prepared configuration files ex
 Secret file configuration options example:
 ```
 # EdgeFS k8s cluster options
-k8sEdgefsNamespace: rook-edgefs          # edgefs cluster namespace
+k8sEdgefsNamespaces: ["rook-edgefs"]          # edgefs cluster namespace
 k8sEdgefsMgmtPrefix: rook-edgefs-mgr     # edgefs cluster management prefix
 
 # EdgeFS csi operations options
@@ -75,7 +75,7 @@ Options for NFS and ISCSI configuration files
 
 | `Name`                | `Description`           | `Default value` | `Required` | `Type` |
 |---------------------|-----------------------|---------------|----------|------|
-| k8sEdgefsNamespace  | Rook EdgeFS cluster namespace | rook-edgefs | true | both |
+| k8sEdgefsNamespaces | Array of Kubernetes cluster's namespaces for EdgeFS service discovery | rook-edgefs | true | both |
 | k8sEdgefsMgmtPrefix | Rook EdgeFS cluster mgmt service prefix | rook-edgefs-mgr | true | both |
 | username            | EdgeFS gRPC API server privileged user | "admin" | true | both |
 | password            | EdgeFS gRPC API server password | "admin" | true | both |
@@ -89,7 +89,7 @@ Options for NFS and ISCSI configuration files
 | fsType              | New volume's filesystem type  | ext4, ext3, xfs  | ext4 | ISCSI only |
 | forceVolumeDeletion | Automatically deletes EdgeFS volume after usage | false | false | both|
 
-By using `k8sEdgefsNamespace` and `k8sEdgefsMgmtPrefix` parameters, driver is capable of detecting ClusterIPs and Endpoint IPs to provision and attach volumes.
+By using `k8sEdgefsNamespaces` and `k8sEdgefsMgmtPrefix` parameters, driver is capable of detecting ClusterIPs and Endpoint IPs to provision and attach volumes.
 
 ## Apply EdgeFS CSI NFS driver configuration
 
@@ -130,7 +130,7 @@ Read more on how to create PersistentVolume specification for pre-provisioned vo
 To test creation and mount pre-provisioned volume to pod execute example
 
 #### Note:
-Make sure that `volumeHandle: cltest/test/bk1` in nginx.yaml already exist on EdgeFS cluster and served via any Edgefs NFS service
+Make sure that `volumeHandle: segment:service@cluster/tenant/bucket` in nginx.yaml already exist on EdgeFS cluster and served via any Edgefs NFS service. Any volumeHandle's parameters may be omitted and will be substituted via CSI configuration file parameters.
 
 Examples:
 ```
@@ -156,6 +156,8 @@ metadata:
   name: edgefs-nfs-csi-storageclass
 provisioner: io.edgefs.csi.nfs
 parameters:
+  segment: rook-edgefs
+  service: nfs01
   tenant: ten1
   encryption: true
 ```
@@ -164,6 +166,8 @@ parameters:
 
 | `Name`      | `Description`           | `Allowed values`            | `Default value` |
 |-----------|-----------------------|---------------------------|---------------|
+| segment   | Edgefs cluster namespace for current StorageClass or PV. |       | rook-edgefs |
+| service   | Edgefs cluster service if not defined in secret |       |  |
 | cluster   | Edgefs cluster namespace if not defined in secret |       |  |
 | tenant    | Edgefs tenant  namespace if not defined in secret |       |  |
 | chunksize | Chunk size for actual volume, in bytes | should be power of two | 16384 bytes |
@@ -222,7 +226,7 @@ Read more on how to create PersistentVolume specification for pre-provisioned vo
 To test creation and mount pre-provisioned volume to pod execute example
 
 #### Note:
-Make sure that volumeHandle: cltest/test/bk1/lun1 in nginx.yaml already exist on EdgeFS cluster and served via any Edgefs ISCSI service
+Make sure that `volumeHandle: segment:service@cluster/tenant/bucket/lun` in nginx.yaml already exist on EdgeFS cluster and served via any Edgefs ISCSI service. Any volumeHandle's parameters may be omitted and will be substituted via CSI configuration file parameters.
 
 Examples:
 ```
@@ -250,6 +254,8 @@ metadata:
   name: edgefs-iscsi-csi-storageclass
 provisioner: io.edgefs.csi.nfs
 parameters:
+  segment: rook-edgefs
+  service: iscsi01
   cluster: cltest
   tenant: test
   bucket: bk1
@@ -260,6 +266,8 @@ parameters:
 
 | `Name`      | `Description`           | `Allowed values`      | `Default value` |
 |-----------|-----------------------|---------------------------|---------------|
+| segment   | Edgefs cluster namespace for specific StorageClass or PV.|       | rook-edgefs |
+| service   | Edgefs cluster service if not defined in secret |       |  |
 | cluster   | Edgefs cluster namespace if not defined in secret |       |  |
 | tenant    | Edgefs tenant  namespace if not defined in secret |       |  |
 | bucket    | Edgefs bucket namespace if not defined in secret |       |  |
