@@ -92,7 +92,7 @@ func (c *ObjectStoreController) StartWatch(namespace string, stopCh chan struct{
 }
 
 func (c *ObjectStoreController) onAdd(obj interface{}) {
-	if c.clusterSpec.ExternalCeph {
+	if c.clusterSpec.External.Enable {
 		logger.Warningf("Creating object stores for an external ceph cluster is not supported")
 		return
 	}
@@ -110,7 +110,7 @@ func (c *ObjectStoreController) onAdd(obj interface{}) {
 }
 
 func (c *ObjectStoreController) onUpdate(oldObj, newObj interface{}) {
-	if c.clusterSpec.ExternalCeph {
+	if c.clusterSpec.External.Enable {
 		logger.Warningf("Updating object stores for an external ceph cluster is not supported")
 		return
 	}
@@ -155,7 +155,7 @@ func (c *ObjectStoreController) createOrUpdateStore(objectstore *cephv1.CephObje
 }
 
 func (c *ObjectStoreController) onDelete(obj interface{}) {
-	if c.clusterSpec.ExternalCeph {
+	if c.clusterSpec.External.Enable {
 		logger.Warningf("Deleting object stores for an external ceph cluster is not supported")
 		return
 	}

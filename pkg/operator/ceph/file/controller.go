@@ -93,7 +93,7 @@ func (c *FilesystemController) StartWatch(namespace string, stopCh chan struct{}
 }
 
 func (c *FilesystemController) onAdd(obj interface{}) {
-	if c.clusterSpec.ExternalCeph {
+	if c.clusterSpec.External.Enable {
 		logger.Warningf("Creating filesystems for an external ceph cluster is not supported")
 		return
 	}
@@ -114,7 +114,7 @@ func (c *FilesystemController) onAdd(obj interface{}) {
 }
 
 func (c *FilesystemController) onUpdate(oldObj, newObj interface{}) {
-	if c.clusterSpec.ExternalCeph {
+	if c.clusterSpec.External.Enable {
 		logger.Warningf("Updating filesystems for an external ceph cluster is not supported")
 		return
 	}
@@ -174,7 +174,7 @@ func (c *FilesystemController) ParentClusterChanged(cluster cephv1.ClusterSpec, 
 }
 
 func (c *FilesystemController) onDelete(obj interface{}) {
-	if c.clusterSpec.ExternalCeph {
+	if c.clusterSpec.External.Enable {
 		logger.Warningf("Deleting filesystems for an external ceph cluster is not supported")
 		return
 	}

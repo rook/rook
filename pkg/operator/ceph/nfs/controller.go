@@ -84,7 +84,7 @@ func (c *CephNFSController) StartWatch(namespace string, stopCh chan struct{}) e
 }
 
 func (c *CephNFSController) onAdd(obj interface{}) {
-	if c.clusterSpec.ExternalCeph {
+	if c.clusterSpec.External.Enable {
 		logger.Warningf("Creating NFS configuration for an external ceph cluster is not supported")
 		return
 	}
@@ -105,7 +105,7 @@ func (c *CephNFSController) onAdd(obj interface{}) {
 }
 
 func (c *CephNFSController) onUpdate(oldObj, newObj interface{}) {
-	if c.clusterSpec.ExternalCeph {
+	if c.clusterSpec.External.Enable {
 		logger.Warningf("Updating NFS configuration for an external ceph cluster is not supported")
 		return
 	}
@@ -141,7 +141,7 @@ func (c *CephNFSController) onUpdate(oldObj, newObj interface{}) {
 }
 
 func (c *CephNFSController) onDelete(obj interface{}) {
-	if c.clusterSpec.ExternalCeph {
+	if c.clusterSpec.External.Enable {
 		logger.Warningf("Deleting NFS configuration for an external ceph cluster is not supported")
 		return
 	}

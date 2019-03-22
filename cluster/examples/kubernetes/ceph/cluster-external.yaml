@@ -17,6 +17,7 @@ metadata:
   namespace: rook-ceph
 spec:
   # before creating this CR, please make sure you've read this: **LINK TO DOC**
-  external: true
+  external:
+    enable: true
   cephVersion:
     image: ceph/ceph:v14.2.2-20190722 # MUST match external cluster version

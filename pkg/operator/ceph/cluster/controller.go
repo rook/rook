@@ -236,7 +236,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 
 	// notify the callback that a cluster crd is being added
 	if c.addClusterCallback != nil {
-		if err := c.addClusterCallback(cluster.Spec.ExternalCeph); err != nil {
+		if err := c.addClusterCallback(cluster.Spec.External.Enable); err != nil {
 			logger.Errorf("%+v", err)
 		}
 	}
@@ -335,7 +335,7 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 		return
 	}
 
-	if !cluster.Spec.ExternalCeph {
+	if !cluster.Spec.External.Enable {
 		if err := c.configureLocalCephCluster(clusterObj.Namespace, clusterObj.Name, cluster, clusterObj); err != nil {
 			logger.Errorf("failed to configure local ceph cluster. %+v", err)
 			return
@@ -371,7 +371,7 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 	healthChecker := mon.NewHealthChecker(cluster.mons, cluster.Spec)
 	go healthChecker.Check(cluster.stopCh)
 
-	if !cluster.Spec.ExternalCeph {
+	if !cluster.Spec.External.Enable {
 		// Start the osd health checker only if running OSDs in the local ceph cluster
 		osdChecker := osd.NewMonitor(c.context, cluster.Namespace)
 		go osdChecker.Start(cluster.stopCh)

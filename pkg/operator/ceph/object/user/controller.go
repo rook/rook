@@ -85,7 +85,7 @@ func (c *ObjectStoreUserController) StartWatch(stopCh chan struct{}) error {
 }
 
 func (c *ObjectStoreUserController) onAdd(obj interface{}) {
-	if c.clusterSpec.ExternalCeph {
+	if c.clusterSpec.External.Enable {
 		logger.Warningf("Creating object store users for an external ceph cluster is not supported")
 		return
 	}
@@ -102,7 +102,7 @@ func (c *ObjectStoreUserController) onAdd(obj interface{}) {
 }
 
 func (c *ObjectStoreUserController) onUpdate(oldObj, newObj interface{}) {
-	if c.clusterSpec.ExternalCeph {
+	if c.clusterSpec.External.Enable {
 		logger.Warningf("Updating object store users for an external ceph cluster is not supported")
 		return
 	}
@@ -111,7 +111,7 @@ func (c *ObjectStoreUserController) onUpdate(oldObj, newObj interface{}) {
 }
 
 func (c *ObjectStoreUserController) onDelete(obj interface{}) {
-	if c.clusterSpec.ExternalCeph {
+	if c.clusterSpec.External.Enable {
 		logger.Warningf("Deleting object store users for an external ceph cluster is not supported")
 		return
 	}

@@ -230,7 +230,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 	}
 
 	// This gets triggered on CR update so let's not run that (mon/mgr/osd daemons)
-	if !spec.ExternalCeph {
+	if !spec.External.Enable {
 		// Start the mon pods
 		clusterInfo, err := c.mons.Start(c.Info, rookImage, cephVersion, *c.Spec)
 		if err != nil {
