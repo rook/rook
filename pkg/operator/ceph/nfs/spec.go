@@ -58,7 +58,7 @@ func (c *CephNFSController) createCephNFSService(nfs cephv1.CephNFS, cfg daemonC
 		},
 	}
 	k8sutil.SetOwnerRef(&svc.ObjectMeta, &c.ownerRef)
-	if c.hostNetwork {
+	if c.clusterSpec.Network.HostNetwork {
 		svc.Spec.ClusterIP = v1.ClusterIPNone
 	}
 
@@ -110,9 +110,9 @@ func (c *CephNFSController) makeDeployment(nfs cephv1.CephNFS, cfg daemonConfig)
 			nfsConfigVol,
 			dbusVol,
 		},
-		HostNetwork: c.hostNetwork,
+		HostNetwork: c.clusterSpec.Network.HostNetwork,
 	}
-	if c.hostNetwork {
+	if c.clusterSpec.Network.HostNetwork {
 		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 	nfs.Spec.Server.Placement.ApplyToPodSpec(&podSpec)
@@ -155,7 +155,7 @@ func (c *CephNFSController) connectionConfigInitContainer(nfs cephv1.CephNFS) v1
 			keyring.VolumeMount().Admin(),
 		},
 		Env: append(
-			opspec.DaemonEnvVars(c.cephVersion.Image),
+			opspec.DaemonEnvVars(c.clusterSpec.CephVersion.Image),
 		),
 		Resources: nfs.Spec.Server.Resources,
 	}
@@ -175,7 +175,7 @@ func (c *CephNFSController) daemonContainer(nfs cephv1.CephNFS, cfg daemonConfig
 			"-F",           // foreground
 			"-L", "STDERR", // log to stderr
 		},
-		Image: c.cephVersion.Image,
+		Image: c.clusterSpec.CephVersion.Image,
 		VolumeMounts: []v1.VolumeMount{
 			cephConfigMount,
 			keyring.VolumeMount().Admin(),
@@ -183,7 +183,7 @@ func (c *CephNFSController) daemonContainer(nfs cephv1.CephNFS, cfg daemonConfig
 			dbusMount,
 		},
 		Env: append(
-			opspec.DaemonEnvVars(c.cephVersion.Image),
+			opspec.DaemonEnvVars(c.clusterSpec.CephVersion.Image),
 		),
 		Resources: nfs.Spec.Server.Resources,
 	}
@@ -202,13 +202,13 @@ func (c *CephNFSController) dbusContainer(nfs cephv1.CephNFS) v1.Container {
 			"--nopidfile", // don't write a pid file
 			// some dbus-daemon versions have flag --nosyslog to send logs to sterr; not ceph upstream image
 		},
-		Image: c.cephVersion.Image,
+		Image: c.clusterSpec.CephVersion.Image,
 		VolumeMounts: []v1.VolumeMount{
 			dbusMount,
 		},
 		Env: append(
 			// do not need access to Ceph env vars b/c not a Ceph daemon
-			k8sutil.ClusterDaemonEnvVars(c.cephVersion.Image),
+			k8sutil.ClusterDaemonEnvVars(c.clusterSpec.CephVersion.Image),
 		),
 		Resources: nfs.Spec.Server.Resources,
 	}

@@ -28,7 +28,7 @@ import (
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
@@ -52,17 +52,19 @@ var ObjectStoreUserResource = opkit.CustomResource{
 
 // ObjectStoreUserController represents a controller object for object store user custom resources
 type ObjectStoreUserController struct {
-	context   *clusterd.Context
-	ownerRef  metav1.OwnerReference
-	namespace string
+	context     *clusterd.Context
+	ownerRef    metav1.OwnerReference
+	clusterSpec *cephv1.ClusterSpec
+	namespace   string
 }
 
 // NewObjectStoreUserController create controller for watching object store user custom resources created
-func NewObjectStoreUserController(context *clusterd.Context, namespace string, ownerRef metav1.OwnerReference) *ObjectStoreUserController {
+func NewObjectStoreUserController(context *clusterd.Context, clusterSpec *cephv1.ClusterSpec, namespace string, ownerRef metav1.OwnerReference) *ObjectStoreUserController {
 	return &ObjectStoreUserController{
-		context:   context,
-		ownerRef:  ownerRef,
-		namespace: namespace,
+		context:     context,
+		ownerRef:    ownerRef,
+		clusterSpec: clusterSpec,
+		namespace:   namespace,
 	}
 }
 
@@ -83,6 +85,11 @@ func (c *ObjectStoreUserController) StartWatch(stopCh chan struct{}) error {
 }
 
 func (c *ObjectStoreUserController) onAdd(obj interface{}) {
+	if c.clusterSpec.ExternalCeph {
+		logger.Warningf("Creating object store users for an external ceph cluster is not supported")
+		return
+	}
+
 	user, err := getObjectStoreUserObject(obj)
 	if err != nil {
 		logger.Errorf("failed to get objectstoreuser object: %+v", err)
@@ -95,10 +102,20 @@ func (c *ObjectStoreUserController) onAdd(obj interface{}) {
 }
 
 func (c *ObjectStoreUserController) onUpdate(oldObj, newObj interface{}) {
+	if c.clusterSpec.ExternalCeph {
+		logger.Warningf("Updating object store users for an external ceph cluster is not supported")
+		return
+	}
+
 	// TODO: Add update code here after features are added which require updates.
 }
 
 func (c *ObjectStoreUserController) onDelete(obj interface{}) {
+	if c.clusterSpec.ExternalCeph {
+		logger.Warningf("Deleting object store users for an external ceph cluster is not supported")
+		return
+	}
+
 	user, err := getObjectStoreUserObject(obj)
 	if err != nil {
 		logger.Errorf("failed to get objectstoreuser object: %+v", err)

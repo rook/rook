@@ -68,9 +68,9 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) v1.PodTemplateSpec 
 			opspec.DaemonVolumes(c.DataPathMap, rgwConfig.ResourceName),
 			c.mimeTypesVolume(),
 		),
-		HostNetwork: c.hostNetwork,
+		HostNetwork: c.clusterSpec.Network.HostNetwork,
 	}
-	if c.hostNetwork {
+	if c.clusterSpec.Network.HostNetwork {
 		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 
@@ -106,7 +106,7 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 	// start the rgw daemon in the foreground
 	container := v1.Container{
 		Name:  "rgw",
-		Image: c.cephVersion.Image,
+		Image: c.clusterSpec.CephVersion.Image,
 		Command: []string{
 			"radosgw",
 		},
@@ -123,7 +123,7 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 			opspec.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName),
 			c.mimeTypesVolumeMount(),
 		),
-		Env:       opspec.DaemonEnvVars(c.cephVersion.Image),
+		Env:       opspec.DaemonEnvVars(c.clusterSpec.CephVersion.Image),
 		Resources: c.store.Spec.Gateway.Resources,
 		LivenessProbe: &v1.Probe{
 			Handler: v1.Handler{
@@ -160,7 +160,7 @@ func (c *clusterConfig) startService() (string, error) {
 		},
 	}
 	k8sutil.SetOwnerRefs(&svc.ObjectMeta, c.ownerRefs)
-	if c.hostNetwork {
+	if c.clusterSpec.Network.HostNetwork {
 		svc.Spec.ClusterIP = v1.ClusterIPNone
 	}
 

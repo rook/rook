@@ -1,0 +1,22 @@
+#################################################################################################################
+# Define the settings for the rook-ceph-external cluster with common settings for a production cluster.
+
+# For example, if Rook is not managing any existing cluster in the 'rook-ceph' namespace do:
+#   kubectl create -f common.yaml
+#   kubectl create -f operator.yaml
+#   kubectl create -f cluster-external.yaml
+
+# If there is already a cluster managed by Rook in 'rook-ceph' then do:
+#   kubectl create -f common-external.yaml
+#   kubectl create -f cluster-external.yaml
+#################################################################################################################
+apiVersion: ceph.rook.io/v1
+kind: CephCluster
+metadata:
+  name: rook-ceph
+  namespace: rook-ceph
+spec:
+  # before creating this CR, please make sure you've read this: **LINK TO DOC**
+  external: true
+  cephVersion:
+    image: ceph/ceph:v14.2.2-20190722 # MUST match external cluster version

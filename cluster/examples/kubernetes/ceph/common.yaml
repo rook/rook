@@ -64,7 +64,7 @@ spec:
                   type: boolean
                 count:
                   maximum: 9
-                  minimum: 1
+                  minimum: 0
                   type: integer
                 preferredCount:
                   maximum: 9

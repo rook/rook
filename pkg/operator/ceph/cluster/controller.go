@@ -89,12 +89,12 @@ type ClusterController struct {
 	devicesInUse       bool
 	rookImage          string
 	clusterMap         map[string]*cluster
-	addClusterCallback func() error
+	addClusterCallback func(bool) error
 	csiConfigMutex     *sync.Mutex
 }
 
 // NewClusterController create controller for watching cluster custom resources created
-func NewClusterController(context *clusterd.Context, rookImage string, volumeAttachment attachment.Attachment, addClusterCallback func() error) *ClusterController {
+func NewClusterController(context *clusterd.Context, rookImage string, volumeAttachment attachment.Attachment, addClusterCallback func(bool) error) *ClusterController {
 	return &ClusterController{
 		context:            context,
 		volumeAttachment:   volumeAttachment,
@@ -217,16 +217,15 @@ func (c *ClusterController) onK8sNodeAdd(obj interface{}) {
 }
 
 func (c *ClusterController) onAdd(obj interface{}) {
-	// notify the callback that a cluster crd is being added
-	if c.addClusterCallback != nil {
-		if err := c.addClusterCallback(); err != nil {
-			logger.Errorf("%+v", err)
-		}
-	}
-
 	clusterObj, err := getClusterObject(obj)
 	if err != nil {
 		logger.Errorf("failed to get cluster object: %+v", err)
+		return
+	}
+
+	if existing, ok := c.clusterMap[clusterObj.Namespace]; ok {
+		logger.Errorf("Failed to add cluster crd %s in namespace %s. Cluster crd %s already exists in this namespace. Only one cluster crd per namespace is supported.",
+			clusterObj.Name, clusterObj.Namespace, existing.crdName)
 		return
 	}
 
@@ -235,20 +234,40 @@ func (c *ClusterController) onAdd(obj interface{}) {
 
 	logger.Infof("starting cluster in namespace %s", cluster.Namespace)
 
+	// notify the callback that a cluster crd is being added
+	if c.addClusterCallback != nil {
+		if err := c.addClusterCallback(cluster.Spec.ExternalCeph); err != nil {
+			logger.Errorf("%+v", err)
+		}
+	}
+
+	c.initializeCluster(cluster, clusterObj)
+
+}
+
+func (c *ClusterController) configureExternalCephCluster(namespace, name string, cluster *cluster) error {
+	return nil
+}
+
+func (c *ClusterController) configureLocalCephCluster(namespace, name string, cluster *cluster, clusterObj *cephv1.CephCluster) error {
 	if c.devicesInUse && cluster.Spec.Storage.AnyUseAllDevices() {
 		c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1.ClusterStateError, "using all devices in more than one namespace is not supported")
-		return
+		return fmt.Errorf("using all devices in more than one namespace is not supported")
 	}
 
 	if cluster.Spec.Storage.AnyUseAllDevices() {
 		c.devicesInUse = true
 	}
 
-	c.initializeCluster(cluster, clusterObj)
+	return nil
 }
 
 func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *cephv1.CephCluster) {
 	cluster.Spec = &clusterObj.Spec
+	if cluster.Spec.Mon.Count == 0 {
+		logger.Warningf("mon count should be at least 1, will use default value of %d", mon.DefaultMonCount)
+		cluster.Spec.Mon.Count = mon.DefaultMonCount
+	}
 	if cluster.Spec.Mon.Count%2 == 0 {
 		logger.Warningf("mon count is even (given: %d), should be uneven, continuing", cluster.Spec.Mon.Count)
 	}
@@ -257,7 +276,18 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 	failedMessage := ""
 	state := cephv1.ClusterStateError
 
-	err := wait.Poll(clusterCreateInterval, clusterCreateTimeout,
+	// Try to load clusterInfo early so we can compare the running version with the one from the spec image
+	var err error
+	cluster.Info, _, _, err = mon.LoadClusterInfo(c.context, cluster.Namespace)
+	if err == nil {
+		// Let's write connection info (ceph config file and keyring) to the operator for health checks
+		err = mon.WriteConnectionConfig(cluster.context, cluster.Info)
+		if err != nil {
+			return
+		}
+	}
+
+	err = wait.Poll(clusterCreateInterval, clusterCreateTimeout,
 		func() (bool, error) {
 			cephVersion, canRetry, err := c.detectAndValidateCephVersion(cluster, cluster.Spec.CephVersion.Image)
 			if err != nil {
@@ -291,44 +321,54 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 		return
 	}
 
+	if !cluster.Spec.ExternalCeph {
+		if err := c.configureLocalCephCluster(clusterObj.Namespace, clusterObj.Name, cluster, clusterObj); err != nil {
+			logger.Errorf("failed to configure local ceph cluster. %+v", err)
+			return
+		}
+	} else {
+		if err := c.configureExternalCephCluster(clusterObj.Namespace, clusterObj.Name, cluster); err != nil {
+			logger.Errorf("failed to configure external ceph cluster. %+v", err)
+			return
+		}
+	}
+
 	// Start pool CRD watcher
-	poolController := pool.NewPoolController(c.context, cluster.Namespace)
-	poolController.StartWatch(cluster.stopCh)
+	poolController := pool.NewPoolController(c.context, cluster.Spec)
+	poolController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start object store CRD watcher
-	objectStoreController := object.NewObjectStoreController(cluster.Info, c.context, cluster.Namespace, c.rookImage, cluster.Spec.CephVersion, cluster.Spec.Network.HostNetwork, cluster.ownerRef, cluster.Spec.DataDirHostPath)
-	objectStoreController.StartWatch(cluster.stopCh)
+	objectStoreController := object.NewObjectStoreController(cluster.Info, c.context, cluster.Namespace, c.rookImage, cluster.Spec, cluster.ownerRef, cluster.Spec.DataDirHostPath)
+	objectStoreController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start object store user CRD watcher
-	objectStoreUserController := objectuser.NewObjectStoreUserController(c.context, cluster.Namespace, cluster.ownerRef)
+	objectStoreUserController := objectuser.NewObjectStoreUserController(c.context, cluster.Spec, cluster.Namespace, cluster.ownerRef)
 	objectStoreUserController.StartWatch(cluster.stopCh)
 
 	// Start file system CRD watcher
-	fileController := file.NewFilesystemController(cluster.Info, c.context, cluster.Namespace, c.rookImage, cluster.Spec.CephVersion, cluster.Spec.Network.HostNetwork, cluster.ownerRef, cluster.Spec.DataDirHostPath)
-	fileController.StartWatch(cluster.stopCh)
+	fileController := file.NewFilesystemController(cluster.Info, c.context, cluster.Namespace, c.rookImage, cluster.Spec, cluster.ownerRef, cluster.Spec.DataDirHostPath)
+	fileController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start nfs ganesha CRD watcher
-	ganeshaController := nfs.NewCephNFSController(cluster.Info, c.context, cluster.Spec.DataDirHostPath, cluster.Namespace, c.rookImage, cluster.Spec.CephVersion, cluster.Spec.Network.HostNetwork, cluster.ownerRef)
-	ganeshaController.StartWatch(cluster.stopCh)
-
-	cluster.childControllers = []childController{
-		poolController, objectStoreController, objectStoreUserController, fileController, ganeshaController,
-	}
+	ganeshaController := nfs.NewCephNFSController(cluster.Info, c.context, cluster.Spec.DataDirHostPath, cluster.Namespace, c.rookImage, cluster.Spec, cluster.ownerRef)
+	ganeshaController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start mon health checker
-	healthChecker := mon.NewHealthChecker(cluster.mons)
+	healthChecker := mon.NewHealthChecker(cluster.mons, cluster.Spec)
 	go healthChecker.Check(cluster.stopCh)
 
-	// Start the osd health checker
-	osdChecker := osd.NewMonitor(c.context, cluster.Namespace)
-	go osdChecker.Start(cluster.stopCh)
+	if !cluster.Spec.ExternalCeph {
+		// Start the osd health checker only if running OSDs in the local ceph cluster
+		osdChecker := osd.NewMonitor(c.context, cluster.Namespace)
+		go osdChecker.Start(cluster.stopCh)
+	}
 
 	// Start the ceph status checker
 	cephChecker := newCephStatusChecker(c.context, cluster.Namespace, clusterObj.Name)
 	go cephChecker.checkCephStatus(cluster.stopCh)
 
 	// add the finalizer to the crd
-	err = c.addFinalizer(clusterObj)
+	err = c.addFinalizer(clusterObj.Namespace, clusterObj.Name)
 	if err != nil {
 		logger.Errorf("failed to add finalizer to cluster crd. %+v", err)
 	}
@@ -505,6 +545,7 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 	// Display success after upgrade
 	if versionChanged {
 		printOverallCephVersion(c.context, cluster.Namespace)
+		// TODO: Update all the crd controllers that there is a new version of the ceph image to deploy
 	}
 }
 
@@ -595,6 +636,12 @@ func (c *ClusterController) onDelete(obj interface{}) {
 		return
 	}
 
+	if existing, ok := c.clusterMap[clust.Namespace]; ok && existing.crdName != clust.Name {
+		logger.Errorf("Skipping deletion of cluster crd %s in namespace %s. Cluster crd %s already exists in this namespace. Only one cluster crd per namespace is supported.",
+			clust.Name, clust.Namespace, existing.crdName)
+		return
+	}
+
 	logger.Infof("delete event for cluster %s in namespace %s", clust.Name, clust.Namespace)
 
 	err = c.handleDelete(clust, time.Duration(clusterDeleteRetryInterval)*time.Second)
@@ -659,10 +706,10 @@ func (c *ClusterController) handleDelete(cluster *cephv1.CephCluster, retryInter
 // ************************************************************************************************
 // Finalizer functions
 // ************************************************************************************************
-func (c *ClusterController) addFinalizer(clust *cephv1.CephCluster) error {
+func (c *ClusterController) addFinalizer(namespace, name string) error {
 
 	// get the latest cluster object since we probably updated it before we got to this point (e.g. by updating its status)
-	clust, err := c.context.RookClientset.CephV1().CephClusters(clust.Namespace).Get(clust.Name, metav1.GetOptions{})
+	clust, err := c.context.RookClientset.CephV1().CephClusters(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}

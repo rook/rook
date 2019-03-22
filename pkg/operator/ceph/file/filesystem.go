@@ -50,8 +50,7 @@ func createFilesystem(
 	context *clusterd.Context,
 	fs cephv1.CephFilesystem,
 	rookVersion string,
-	cephVersion cephv1.CephVersionSpec,
-	hostNetwork bool,
+	clusterSpec *cephv1.ClusterSpec,
 	ownerRefs []metav1.OwnerReference,
 	dataDirHostPath string,
 ) error {
@@ -92,7 +91,7 @@ func createFilesystem(
 	}
 
 	logger.Infof("start running mdses for filesystem %s", fs.Name)
-	c := mds.NewCluster(clusterInfo, context, rookVersion, cephVersion, hostNetwork, fs, filesystem, ownerRefs, dataDirHostPath)
+	c := mds.NewCluster(clusterInfo, context, rookVersion, clusterSpec, fs, filesystem, ownerRefs, dataDirHostPath)
 	if err := c.Start(); err != nil {
 		return err
 	}

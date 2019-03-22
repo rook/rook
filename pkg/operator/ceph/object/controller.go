@@ -47,11 +47,10 @@ var ObjectStoreResource = opkit.CustomResource{
 // ObjectStoreController represents a controller object for object store custom resources
 type ObjectStoreController struct {
 	clusterInfo        *daemonconfig.ClusterInfo
+	clusterSpec        *cephv1.ClusterSpec
 	context            *clusterd.Context
 	namespace          string
 	rookImage          string
-	cephVersion        cephv1.CephVersionSpec
-	hostNetwork        bool
 	ownerRef           metav1.OwnerReference
 	dataDirHostPath    string
 	orchestrationMutex sync.Mutex
@@ -63,25 +62,23 @@ func NewObjectStoreController(
 	context *clusterd.Context,
 	namespace string,
 	rookImage string,
-	cephVersion cephv1.CephVersionSpec,
-	hostNetwork bool,
+	clusterSpec *cephv1.ClusterSpec,
 	ownerRef metav1.OwnerReference,
 	dataDirHostPath string,
 ) *ObjectStoreController {
 	return &ObjectStoreController{
 		clusterInfo:     clusterInfo,
+		clusterSpec:     clusterSpec,
 		context:         context,
 		namespace:       namespace,
 		rookImage:       rookImage,
-		cephVersion:     cephVersion,
-		hostNetwork:     hostNetwork,
 		ownerRef:        ownerRef,
 		dataDirHostPath: dataDirHostPath,
 	}
 }
 
 // StartWatch watches for instances of ObjectStore custom resources and acts on them
-func (c *ObjectStoreController) StartWatch(stopCh chan struct{}) error {
+func (c *ObjectStoreController) StartWatch(namespace string, stopCh chan struct{}) error {
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
 		UpdateFunc: c.onUpdate,
@@ -95,6 +92,11 @@ func (c *ObjectStoreController) StartWatch(stopCh chan struct{}) error {
 }
 
 func (c *ObjectStoreController) onAdd(obj interface{}) {
+	if c.clusterSpec.ExternalCeph {
+		logger.Warningf("Creating object stores for an external ceph cluster is not supported")
+		return
+	}
+
 	objectstore, err := getObjectStoreObject(obj)
 	if err != nil {
 		logger.Errorf("failed to get objectstore object: %+v", err)
@@ -108,6 +110,11 @@ func (c *ObjectStoreController) onAdd(obj interface{}) {
 }
 
 func (c *ObjectStoreController) onUpdate(oldObj, newObj interface{}) {
+	if c.clusterSpec.ExternalCeph {
+		logger.Warningf("Updating object stores for an external ceph cluster is not supported")
+		return
+	}
+
 	// if the object store spec is modified, update the object store
 	oldStore, err := getObjectStoreObject(oldObj)
 	if err != nil {
@@ -138,8 +145,7 @@ func (c *ObjectStoreController) createOrUpdateStore(objectstore *cephv1.CephObje
 		context:     c.context,
 		store:       *objectstore,
 		rookVersion: c.rookImage,
-		cephVersion: c.cephVersion,
-		hostNetwork: c.hostNetwork,
+		clusterSpec: c.clusterSpec,
 		ownerRefs:   c.storeOwners(objectstore),
 		DataPathMap: cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, objectstore.Name, c.clusterInfo.Name, c.dataDirHostPath),
 	}
@@ -149,6 +155,11 @@ func (c *ObjectStoreController) createOrUpdateStore(objectstore *cephv1.CephObje
 }
 
 func (c *ObjectStoreController) onDelete(obj interface{}) {
+	if c.clusterSpec.ExternalCeph {
+		logger.Warningf("Deleting object stores for an external ceph cluster is not supported")
+		return
+	}
+
 	objectstore, err := getObjectStoreObject(obj)
 	if err != nil {
 		logger.Errorf("failed to get objectstore object: %+v", err)
@@ -166,7 +177,7 @@ func (c *ObjectStoreController) onDelete(obj interface{}) {
 
 func (c *ObjectStoreController) ParentClusterChanged(cluster cephv1.ClusterSpec, clusterInfo *daemonconfig.ClusterInfo) {
 	c.clusterInfo = clusterInfo
-	if cluster.CephVersion.Image == c.cephVersion.Image {
+	if cluster.CephVersion.Image == c.clusterSpec.CephVersion.Image {
 		logger.Debugf("No need to update the object store after the parent cluster changed")
 		return
 	}
@@ -174,19 +185,19 @@ func (c *ObjectStoreController) ParentClusterChanged(cluster cephv1.ClusterSpec,
 	c.acquireOrchestrationLock()
 	defer c.releaseOrchestrationLock()
 
-	c.cephVersion = cluster.CephVersion
+	c.clusterSpec.CephVersion = cluster.CephVersion
 	objectStores, err := c.context.RookClientset.CephV1().CephObjectStores(c.namespace).List(metav1.ListOptions{})
 	if err != nil {
 		logger.Errorf("failed to retrieve object stores to update the ceph version. %+v", err)
 		return
 	}
 	for _, store := range objectStores.Items {
-		logger.Infof("updating the ceph version for object store %s to %s", store.Name, c.cephVersion.Image)
+		logger.Infof("updating the ceph version for object store %s to %s", store.Name, c.clusterSpec.CephVersion.Image)
 		c.createOrUpdateStore(&store)
 		if err != nil {
 			logger.Errorf("failed to update object store %s. %+v", store.Name, err)
 		} else {
-			logger.Infof("updated object store %s to ceph version %s", store.Name, c.cephVersion.Image)
+			logger.Infof("updated object store %s to ceph version %s", store.Name, c.clusterSpec.CephVersion.Image)
 		}
 	}
 }

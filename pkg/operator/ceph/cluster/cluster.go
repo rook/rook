@@ -53,6 +53,7 @@ type cluster struct {
 	context              *clusterd.Context
 	Namespace            string
 	Spec                 *cephv1.ClusterSpec
+	crdName              string
 	mons                 *mon.Cluster
 	initCompleted        bool
 	stopCh               chan struct{}
@@ -79,6 +80,7 @@ func newCluster(c *cephv1.CephCluster, context *clusterd.Context, csiMutex *sync
 		Namespace: c.Namespace,
 		Spec:      &c.Spec,
 		context:   context,
+		crdName:   c.Name,
 		stopCh:    make(chan struct{}),
 		ownerRef:  ownerRef,
 		mons:      mon.New(context, c.Namespace, c.Spec.DataDirHostPath, c.Spec.Network.HostNetwork, ownerRef, csiMutex),
@@ -227,52 +229,54 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 		return fmt.Errorf("failed to create override configmap %s. %+v", c.Namespace, err)
 	}
 
-	// Start the mon pods
-	clusterInfo, err := c.mons.Start(c.Info, rookImage, cephVersion, *c.Spec)
-	if err != nil {
-		return fmt.Errorf("failed to start the mons. %+v", err)
+	// This gets triggered on CR update so let's not run that (mon/mgr/osd daemons)
+	if !spec.ExternalCeph {
+		// Start the mon pods
+		clusterInfo, err := c.mons.Start(c.Info, rookImage, cephVersion, *c.Spec)
+		if err != nil {
+			return fmt.Errorf("failed to start the mons. %+v", err)
+		}
+		c.Info = clusterInfo // mons return the cluster's info
+
+		// The cluster Identity must be established at this point
+		if !c.Info.IsInitialized() {
+			return fmt.Errorf("the cluster identity was not established: %+v", c.Info)
+		}
+
+		mgrs := mgr.New(c.Info, c.context, c.Namespace, rookImage,
+			spec.CephVersion, cephv1.GetMgrPlacement(spec.Placement), cephv1.GetMgrAnnotations(c.Spec.Annotations),
+			spec.Network.HostNetwork, spec.Dashboard, spec.Monitoring, cephv1.GetMgrResources(spec.Resources), c.ownerRef, c.Spec.DataDirHostPath)
+		err = mgrs.Start()
+		if err != nil {
+			return fmt.Errorf("failed to start the ceph mgr. %+v", err)
+		}
+
+		// Start the OSDs
+		osds := osd.New(c.Info, c.context, c.Namespace, rookImage, spec.CephVersion, spec.Storage, spec.DataDirHostPath,
+			cephv1.GetOSDPlacement(spec.Placement), cephv1.GetOSDAnnotations(spec.Annotations), spec.Network.HostNetwork,
+			cephv1.GetOSDResources(spec.Resources), c.ownerRef)
+		err = osds.Start()
+		if err != nil {
+			return fmt.Errorf("failed to start the osds. %+v", err)
+		}
+
+		// Start the rbd mirroring daemon(s)
+		rbdmirror := rbd.New(c.Info, c.context, c.Namespace, rookImage, spec.CephVersion, cephv1.GetRBDMirrorPlacement(spec.Placement),
+			cephv1.GetRBDMirrorAnnotations(spec.Annotations), spec.Network.HostNetwork, spec.RBDMirroring,
+			cephv1.GetRBDMirrorResources(spec.Resources), c.ownerRef, c.Spec.DataDirHostPath)
+		err = rbdmirror.Start()
+		if err != nil {
+			return fmt.Errorf("failed to start the rbd mirrors. %+v", err)
+		}
+
+		logger.Infof("Done creating rook instance in namespace %s", c.Namespace)
+		c.initCompleted = true
+
+		// Notify the child controllers that the cluster spec might have changed
+		for _, child := range c.childControllers {
+			child.ParentClusterChanged(*c.Spec, clusterInfo)
+		}
 	}
-	c.Info = clusterInfo // mons return the cluster's info
-
-	// The cluster Identity must be established at this point
-	if !c.Info.IsInitialized() {
-		return fmt.Errorf("the cluster identity was not established: %+v", c.Info)
-	}
-
-	mgrs := mgr.New(c.Info, c.context, c.Namespace, rookImage,
-		spec.CephVersion, cephv1.GetMgrPlacement(spec.Placement), cephv1.GetMgrAnnotations(c.Spec.Annotations),
-		spec.Network.HostNetwork, spec.Dashboard, spec.Monitoring, cephv1.GetMgrResources(spec.Resources), c.ownerRef, c.Spec.DataDirHostPath)
-	err = mgrs.Start()
-	if err != nil {
-		return fmt.Errorf("failed to start the ceph mgr. %+v", err)
-	}
-
-	// Start the OSDs
-	osds := osd.New(c.Info, c.context, c.Namespace, rookImage, spec.CephVersion, spec.Storage, spec.DataDirHostPath,
-		cephv1.GetOSDPlacement(spec.Placement), cephv1.GetOSDAnnotations(spec.Annotations), spec.Network.HostNetwork,
-		cephv1.GetOSDResources(spec.Resources), c.ownerRef)
-	err = osds.Start()
-	if err != nil {
-		return fmt.Errorf("failed to start the osds. %+v", err)
-	}
-
-	// Start the rbd mirroring daemon(s)
-	rbdmirror := rbd.New(c.Info, c.context, c.Namespace, rookImage, spec.CephVersion, cephv1.GetRBDMirrorPlacement(spec.Placement),
-		cephv1.GetRBDMirrorAnnotations(spec.Annotations), spec.Network.HostNetwork, spec.RBDMirroring,
-		cephv1.GetRBDMirrorResources(spec.Resources), c.ownerRef, c.Spec.DataDirHostPath)
-	err = rbdmirror.Start()
-	if err != nil {
-		return fmt.Errorf("failed to start the rbd mirrors. %+v", err)
-	}
-
-	logger.Infof("Done creating rook instance in namespace %s", c.Namespace)
-	c.initCompleted = true
-
-	// Notify the child controllers that the cluster spec might have changed
-	for _, child := range c.childControllers {
-		child.ParentClusterChanged(*c.Spec, clusterInfo)
-	}
-
 	return nil
 }
 

@@ -80,6 +80,10 @@ type ClusterSpec struct {
 
 	// Prometheus based Monitoring settings
 	Monitoring MonitoringSpec `json:"monitoring,omitempty"`
+
+	// Whether the Ceph Cluster is running external to this Kubernetes cluster
+	// mon, mgr, osd, mds, and discover daemons will not be created for external clusters.
+	ExternalCeph bool `json:"external"`
 }
 
 // VersionSpec represents the settings for the Ceph version that Rook is orchestrating.

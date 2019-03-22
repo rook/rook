@@ -40,13 +40,15 @@ var (
 
 // HealthChecker aggregates the mon/cluster info needed to check the health of the monitors
 type HealthChecker struct {
-	monCluster *Cluster
+	monCluster  *Cluster
+	clusterSpec *cephv1.ClusterSpec
 }
 
 // NewHealthChecker creates a new HealthChecker object
-func NewHealthChecker(monCluster *Cluster) *HealthChecker {
+func NewHealthChecker(monCluster *Cluster, clusterSpec *cephv1.ClusterSpec) *HealthChecker {
 	return &HealthChecker{
-		monCluster: monCluster,
+		monCluster:  monCluster,
+		clusterSpec: clusterSpec,
 	}
 }
 

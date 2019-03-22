@@ -63,8 +63,7 @@ func TestDeploymentSpec(t *testing.T) {
 		"/var/lib/rook",
 		"rook-ceph-test-ns",
 		"rook/rook:testimage",
-		cephv1.CephVersionSpec{Image: "ceph/ceph:myceph"},
-		false,
+		&cephv1.ClusterSpec{CephVersion: cephv1.CephVersionSpec{Image: "ceph/ceph:testversion"}},
 		metav1.OwnerReference{},
 	)
 

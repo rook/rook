@@ -51,10 +51,10 @@ func (c *Cluster) makeDeployment(mdsConfig *mdsConfig) *apps.Deployment {
 			},
 			RestartPolicy: v1.RestartPolicyAlways,
 			Volumes:       opspec.DaemonVolumes(mdsConfig.DataPathMap, mdsConfig.ResourceName),
-			HostNetwork:   c.HostNetwork,
+			HostNetwork:   c.clusterSpec.Network.HostNetwork,
 		},
 	}
-	if c.HostNetwork {
+	if c.clusterSpec.Network.HostNetwork {
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 	c.fs.Spec.MetadataServer.Annotations.ApplyToObjectMeta(&podSpec.ObjectMeta)
@@ -111,10 +111,10 @@ func (c *Cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
 			"ceph-mds",
 		},
 		Args:         args,
-		Image:        c.cephVersion.Image,
+		Image:        c.clusterSpec.CephVersion.Image,
 		VolumeMounts: opspec.DaemonVolumeMounts(mdsConfig.DataPathMap, mdsConfig.ResourceName),
 		Env: append(
-			opspec.DaemonEnvVars(c.cephVersion.Image),
+			opspec.DaemonEnvVars(c.clusterSpec.CephVersion.Image),
 		),
 		Resources:       c.fs.Spec.MetadataServer.Resources,
 		Lifecycle:       opspec.PodLifeCycle(""),
