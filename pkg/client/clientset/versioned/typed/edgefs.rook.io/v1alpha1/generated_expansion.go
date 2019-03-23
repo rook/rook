@@ -29,3 +29,5 @@ type NFSExpansion interface{}
 type S3Expansion interface{}
 
 type S3XExpansion interface{}
+
+type SWIFTExpansion interface{}

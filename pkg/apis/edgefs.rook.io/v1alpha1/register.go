@@ -59,6 +59,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&NFSList{},
 		&S3{},
 		&S3List{},
+		&SWIFT{},
+		&SWIFTList{},
 		&S3X{},
 		&S3XList{},
 		&ISCSI{},

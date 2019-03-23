@@ -362,6 +362,10 @@ func (c *Cluster) uiContainer(name string, containerImage string) v1.Container {
 				Name:  "API_ENDPOINT",
 				Value: "http://0.0.0.0:8080",
 			},
+			{
+				Name:  "K8S_NAMESPACE",
+				Value: c.Namespace,
+			},
 		},
 		SecurityContext: securityContext,
 		Resources:       c.resources,
@@ -418,6 +422,10 @@ func (c *Cluster) mgmtContainer(name string, containerImage string) v1.Container
 			{
 				Name:  "DEBUG",
 				Value: "alert,error,info",
+			},
+			{
+				Name:  "K8S_NAMESPACE",
+				Value: c.Namespace,
 			},
 			{
 				Name: "HOST_HOSTNAME",
@@ -485,6 +493,10 @@ func (c *Cluster) mgrContainer(name string, containerImage string) v1.Container 
 			{
 				Name:  "CCOW_LOG_LEVEL",
 				Value: "5",
+			},
+			{
+				Name:  "K8S_NAMESPACE",
+				Value: c.Namespace,
 			},
 			{
 				Name: "HOST_HOSTNAME",

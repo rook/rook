@@ -35,6 +35,7 @@ const (
 	appName = "rook-edgefs-isgw"
 
 	/* ISGW definitions */
+	serviceAccountName      = "rook-edgefs-cluster"
 	defaultReplicationType  = "initial+continuous"
 	defaultDynamicFetchPort = 49678
 	defaultLocalIPAddr      = "0.0.0.0"
@@ -197,12 +198,13 @@ func (c *ISGWController) makeDeployment(svcname, namespace, rookImage string, is
 			Labels: getLabels(name, svcname, namespace),
 		},
 		Spec: v1.PodSpec{
-			Containers:    []v1.Container{c.isgwContainer(svcname, name, rookImage, isgwSpec)},
-			RestartPolicy: v1.RestartPolicyAlways,
-			Volumes:       volumes,
-			HostIPC:       true,
-			HostNetwork:   c.hostNetwork,
-			NodeSelector:  map[string]string{namespace: "cluster"},
+			Containers:         []v1.Container{c.isgwContainer(svcname, name, rookImage, isgwSpec)},
+			RestartPolicy:      v1.RestartPolicyAlways,
+			Volumes:            volumes,
+			HostIPC:            true,
+			HostNetwork:        c.hostNetwork,
+			NodeSelector:       map[string]string{namespace: "cluster"},
+			ServiceAccountName: serviceAccountName,
 		},
 	}
 	if c.hostNetwork {
@@ -218,7 +220,13 @@ func (c *ISGWController) makeDeployment(svcname, namespace, rookImage string, is
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec: apps.DeploymentSpec{Template: podSpec, Replicas: &instancesCount},
+		Spec: apps.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: podSpec.Labels,
+			},
+			Template: podSpec,
+			Replicas: &instancesCount,
+		},
 	}
 	k8sutil.SetOwnerRef(c.context.Clientset, namespace, &d.ObjectMeta, &c.ownerRef)
 	return d

@@ -33,6 +33,7 @@ import (
 	"github.com/rook/rook/pkg/operator/edgefs/nfs"
 	"github.com/rook/rook/pkg/operator/edgefs/s3"
 	"github.com/rook/rook/pkg/operator/edgefs/s3x"
+	"github.com/rook/rook/pkg/operator/edgefs/swift"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -193,6 +194,15 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		cluster.Spec.Resources,
 		cluster.ownerRef)
 	S3Controller.StartWatch(cluster.Namespace, cluster.stopCh)
+
+	// Start SWIFT service CRD watcher
+	SWIFTController := swift.NewSWIFTController(c.context, c.containerImage,
+		isHostNetworkDefined(cluster.Spec.Network),
+		cluster.Spec.DataDirHostPath, cluster.Spec.DataVolumeSize,
+		edgefsv1alpha1.GetTargetPlacement(cluster.Spec.Placement),
+		cluster.Spec.Resources,
+		cluster.ownerRef)
+	SWIFTController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start S3X service CRD watcher
 	S3XController := s3x.NewS3XController(c.context, c.containerImage,

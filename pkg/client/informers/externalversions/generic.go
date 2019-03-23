@@ -106,6 +106,8 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Edgefs().V1alpha1().S3s().Informer()}, nil
 	case edgefsrookiov1alpha1.SchemeGroupVersion.WithResource("s3xs"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Edgefs().V1alpha1().S3Xs().Informer()}, nil
+	case edgefsrookiov1alpha1.SchemeGroupVersion.WithResource("swifts"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Edgefs().V1alpha1().SWIFTs().Informer()}, nil
 
 		// Group=minio.rook.io, Version=v1alpha1
 	case miniorookiov1alpha1.SchemeGroupVersion.WithResource("objectstores"):

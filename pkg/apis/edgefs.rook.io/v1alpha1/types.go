@@ -156,6 +156,40 @@ type S3Spec struct {
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
+type SWIFT struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+	Spec              SWIFTSpec `json:"spec"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type SWIFTList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+	Items           []S3 `json:"items"`
+}
+
+// SWIFTSpec represent the spec of a swift service
+type SWIFTSpec struct {
+	// The affinity to place the SWIFT pods (default is to place on any available nodes in EdgeFS running namespace)
+	Placement rook.Placement `json:"placement"`
+	// Resources set resource requests and limits
+	Resources v1.ResourceRequirements `json:"resources,omitempty"`
+	// The number of pods in the S3 replicaset
+	Instances int32 `json:"instances"`
+	//S3 Http port (default value 9982)
+	Port uint `json:"port,omitempty"`
+	//S3 Https port (default value 9443)
+	SecurePort uint `json:"securePort,omitempty"`
+	// The name of the secret that stores the ssl certificate for secure s3 connections
+	SSLCertificateRef string `json:"sslCertificateRef,omitempty"`
+}
+
+// +genclient
+// +genclient:noStatus
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
 type S3X struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`

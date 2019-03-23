@@ -54,9 +54,7 @@ spec:
 
 For more detailed instructions please refer to [EdgeFS Wiki](https://github.com/Nexenta/edgefs/wiki).
 
-Simple procedure to get things initialized and configured:
-
-## Setting up FlexHash and Site root object
+Below is an exampmle procedure to get things initialized and configured.
 
 Before new local namespace (or local site) can be used, it has to be initialized with FlexHash and special purpose root object.
 

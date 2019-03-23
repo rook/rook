@@ -14,12 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package ISCSI for the Edgefs manager.
-package iscsi
+// Package SWIFT for the Edgefs manager.
+package swift
 
 import (
-	"encoding/json"
 	"fmt"
+	"strings"
 
 	edgefsv1alpha1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -31,53 +31,72 @@ import (
 )
 
 const (
-	appName = "rook-edgefs-iscsi"
+	appName = "rook-edgefs-swift"
 
 	/* Volumes definitions */
-	serviceAccountName  = "rook-edgefs-cluster"
-	defaultTargetName   = "iqn.2018-11.edgefs.io"
-	defaultTargetParams = "{}"
-	dataVolumeName      = "edgefs-datadir"
-	stateVolumeFolder   = ".state"
-	etcVolumeFolder     = ".etc"
-	defaultPort         = 3260
+	serviceAccountName = "rook-edgefs-cluster"
+	defaultSWIFTImage  = "edgefs/edgefs-restapi"
+	sslCertVolumeName  = "ssl-cert-volume"
+	sslMountPath       = "/opt/nedge/etc/ssl/"
+	dataVolumeName     = "edgefs-datadir"
+	stateVolumeFolder  = ".state"
+	etcVolumeFolder    = ".etc"
+	defaultPort        = 9981
+	defaultSecurePort  = 443
 )
 
-// Start the ISCSI manager
-func (c *ISCSIController) CreateService(s edgefsv1alpha1.ISCSI, ownerRefs []metav1.OwnerReference) error {
+// Start the SWIFT manager
+func (c *SWIFTController) CreateService(s edgefsv1alpha1.SWIFT, ownerRefs []metav1.OwnerReference) error {
 	return c.CreateOrUpdate(s, false, ownerRefs)
 }
 
-func (c *ISCSIController) UpdateService(s edgefsv1alpha1.ISCSI, ownerRefs []metav1.OwnerReference) error {
+func (c *SWIFTController) UpdateService(s edgefsv1alpha1.SWIFT, ownerRefs []metav1.OwnerReference) error {
 	return c.CreateOrUpdate(s, true, ownerRefs)
 }
 
-// Start the iscsi instance
-func (c *ISCSIController) CreateOrUpdate(s edgefsv1alpha1.ISCSI, update bool, ownerRefs []metav1.OwnerReference) error {
-	logger.Infof("starting update=%v service=%s", update, s.Name)
+// Start the swift instance
+func (c *SWIFTController) CreateOrUpdate(s edgefsv1alpha1.SWIFT, update bool, ownerRefs []metav1.OwnerReference) error {
+	logger.Debugf("starting update=%v service=%s", update, s.Name)
 
-	logger.Infof("ISCSI Base image is %s", c.rookImage)
-	// validate ISCSI service settings
+	// validate SWIFT service settings
 	if err := validateService(c.context, s); err != nil {
-		return fmt.Errorf("invalid ISCSI service %s arguments. %+v", s.Name, err)
+		return fmt.Errorf("invalid SWIFT service %s arguments. %+v", s.Name, err)
 	}
 
-	if len(s.Spec.TargetName) == 0 {
-		s.Spec.TargetName = defaultTargetName
+	//check http settings
+	if s.Spec.Port == 0 {
+		s.Spec.Port = defaultPort
 	}
 
-	// check if ISCSI service already exists
+	if s.Spec.SecurePort == 0 {
+		s.Spec.SecurePort = defaultSecurePort
+	}
+
+	// all rest APIs coming from edgefs-restapi image, that
+	// includes mgmt, s3, s3s and swift
+	imageArgs := "swift"
+	rookImage := defaultSWIFTImage
+
+	var rookImageVer string
+	rookImageComponents := strings.Split(rookImage, ":")
+	if len(rookImageComponents) == 2 {
+		rookImageVer = rookImageComponents[1]
+	} else {
+		rookImageVer = "latest"
+	}
+
+	// check if SWIFT service already exists
 	exists, err := serviceExists(c.context, s)
 	if err == nil && exists {
 		if !update {
-			logger.Infof("ISCSI service %s exists in namespace %s", s.Name, s.Namespace)
+			logger.Infof("SWIFT service %s exists in namespace %s", s.Name, s.Namespace)
 			return nil
 		}
-		logger.Infof("ISCSI service %s exists in namespace %s. checking for updates", s.Name, s.Namespace)
+		logger.Infof("SWIFT service %s exists in namespace %s. checking for updates", s.Name, s.Namespace)
 	}
 
 	// start the deployment
-	deployment := c.makeDeployment(s.Name, s.Namespace, c.rookImage, s.Spec)
+	deployment := c.makeDeployment(s.Name, s.Namespace, rookImage+":"+rookImageVer, imageArgs, s.Spec)
 	if _, err := c.context.Clientset.Apps().Deployments(s.Namespace).Create(deployment); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create %s deployment. %+v", appName, err)
@@ -87,21 +106,21 @@ func (c *ISCSIController) CreateOrUpdate(s edgefsv1alpha1.ISCSI, update bool, ow
 		logger.Infof("%s deployment started", appName)
 	}
 
-	// create the iscsi service
-	service := c.makeISCSIService(instanceName(s.Name), s.Name, s.Namespace, s.Spec)
+	// create the swift service
+	service := c.makeSWIFTService(instanceName(s.Name), s.Name, s.Namespace, s.Spec)
 	if _, err := c.context.Clientset.CoreV1().Services(s.Namespace).Create(service); err != nil {
 		if !errors.IsAlreadyExists(err) {
-			return fmt.Errorf("failed to create ISCSI service. %+v", err)
+			return fmt.Errorf("failed to create swift service. %+v", err)
 		}
-		logger.Infof("ISCSI service %s already exists", service)
+		logger.Infof("swift service %s already exists", service)
 	} else {
-		logger.Infof("ISCSI service %s started", service)
+		logger.Infof("swift service %s started", service)
 	}
 
 	return nil
 }
 
-func (c *ISCSIController) makeISCSIService(name, svcname, namespace string, iscsiSpec edgefsv1alpha1.ISCSISpec) *v1.Service {
+func (c *SWIFTController) makeSWIFTService(name, svcname, namespace string, swiftSpec edgefsv1alpha1.SWIFTSpec) *v1.Service {
 	labels := getLabels(name, svcname, namespace)
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -114,7 +133,8 @@ func (c *ISCSIController) makeISCSIService(name, svcname, namespace string, iscs
 			Type:     v1.ServiceTypeNodePort,
 			Ports: []v1.ServicePort{
 				{Name: "grpc", Port: 49000, Protocol: v1.ProtocolTCP},
-				{Name: "port", Port: defaultPort, Protocol: v1.ProtocolTCP},
+				{Name: "port", Port: int32(swiftSpec.Port), Protocol: v1.ProtocolTCP},
+				{Name: "secure-port", Port: int32(swiftSpec.SecurePort), Protocol: v1.ProtocolTCP},
 			},
 		},
 	}
@@ -123,10 +143,32 @@ func (c *ISCSIController) makeISCSIService(name, svcname, namespace string, iscs
 	return svc
 }
 
-func (c *ISCSIController) makeDeployment(svcname, namespace, rookImage string, iscsiSpec edgefsv1alpha1.ISCSISpec) *apps.Deployment {
+func (c *SWIFTController) makeDeployment(svcname, namespace, rookImage, imageArgs string, swiftSpec edgefsv1alpha1.SWIFTSpec) *apps.Deployment {
 
 	name := instanceName(svcname)
 	volumes := []v1.Volume{}
+
+	// add ssl certificate volume if defined
+	if len(swiftSpec.SSLCertificateRef) > 0 {
+		volumes = append(volumes, v1.Volume{
+			Name: sslCertVolumeName,
+			VolumeSource: v1.VolumeSource{
+				Secret: &v1.SecretVolumeSource{
+					SecretName: swiftSpec.SSLCertificateRef,
+					Items: []v1.KeyToPath{
+						{
+							Key:  "sslkey",
+							Path: "ssl.key",
+						},
+						{
+							Key:  "sslcert",
+							Path: "ssl.crt",
+						},
+					},
+				},
+			},
+		})
+	}
 
 	if c.dataVolumeSize.Value() > 0 {
 		// dataVolume case
@@ -156,7 +198,7 @@ func (c *ISCSIController) makeDeployment(svcname, namespace, rookImage string, i
 			Labels: getLabels(name, svcname, namespace),
 		},
 		Spec: v1.PodSpec{
-			Containers:         []v1.Container{c.iscsiContainer(svcname, name, rookImage, iscsiSpec)},
+			Containers:         []v1.Container{c.swiftContainer(svcname, name, rookImage, imageArgs, swiftSpec)},
 			RestartPolicy:      v1.RestartPolicyAlways,
 			Volumes:            volumes,
 			HostIPC:            true,
@@ -169,10 +211,9 @@ func (c *ISCSIController) makeDeployment(svcname, namespace, rookImage string, i
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 
-	// apply current ISCSI CRD options to pod's specification
-	iscsiSpec.Placement.ApplyToPodSpec(&podSpec.Spec)
+	// apply current SWIFT CRD options to pod's specification
+	swiftSpec.Placement.ApplyToPodSpec(&podSpec.Spec)
 
-	instancesCount := int32(1)
 	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -183,14 +224,14 @@ func (c *ISCSIController) makeDeployment(svcname, namespace, rookImage string, i
 				MatchLabels: podSpec.Labels,
 			},
 			Template: podSpec,
-			Replicas: &instancesCount,
+			Replicas: &swiftSpec.Instances,
 		},
 	}
 	k8sutil.SetOwnerRef(c.context.Clientset, namespace, &d.ObjectMeta, &c.ownerRef)
 	return d
 }
 
-func (c *ISCSIController) iscsiContainer(svcname, name, containerImage string, iscsiSpec edgefsv1alpha1.ISCSISpec) v1.Container {
+func (c *SWIFTController) swiftContainer(svcname, name, containerImage, args string, swiftSpec edgefsv1alpha1.SWIFTSpec) v1.Container {
 
 	runAsUser := int64(0)
 	readOnlyRootFilesystem := false
@@ -215,11 +256,15 @@ func (c *ISCSIController) iscsiContainer(svcname, name, containerImage string, i
 		},
 	}
 
+	if len(swiftSpec.SSLCertificateRef) > 0 {
+		volumeMounts = append(volumeMounts, v1.VolumeMount{Name: sslCertVolumeName, MountPath: sslMountPath})
+	}
+
 	return v1.Container{
 		Name:            name,
 		Image:           containerImage,
 		ImagePullPolicy: v1.PullAlways,
-		Args:            []string{"iscsi"},
+		Args:            []string{args},
 		Env: []v1.EnvVar{
 			{
 				Name:  "CCOW_LOG_LEVEL",
@@ -230,6 +275,10 @@ func (c *ISCSIController) iscsiContainer(svcname, name, containerImage string, i
 				Value: svcname,
 			},
 			{
+				Name:  "DEBUG",
+				Value: "alert,error,info",
+			},
+			{
 				Name: "HOST_HOSTNAME",
 				ValueFrom: &v1.EnvVarSource{
 					FieldRef: &v1.ObjectFieldSelector{
@@ -238,63 +287,56 @@ func (c *ISCSIController) iscsiContainer(svcname, name, containerImage string, i
 				},
 			},
 			{
-				Name: "KUBERNETES_NAMESPACE",
-				ValueFrom: &v1.EnvVarSource{
-					FieldRef: &v1.ObjectFieldSelector{
-						FieldPath: "metadata.namespace",
-					},
-				},
+				Name:  "EFSSWIFT_HTTP_PORT",
+				Value: fmt.Sprint(swiftSpec.Port),
 			},
 			{
-				Name:  "EFSISCSI_TARGET_NAME",
-				Value: iscsiSpec.TargetName,
-			},
-			{
-				Name:  "EFSISCSI_TARGET_PARAMS",
-				Value: getTargetParamsJSON(iscsiSpec.TargetParams),
+				Name:  "EFSSWIFT_HTTPS_PORT",
+				Value: fmt.Sprint(swiftSpec.SecurePort),
 			},
 		},
 		SecurityContext: securityContext,
-		Resources:       iscsiSpec.Resources,
+		Resources:       swiftSpec.Resources,
 		Ports: []v1.ContainerPort{
 			{Name: "grpc", ContainerPort: 49000, Protocol: v1.ProtocolTCP},
-			{Name: "port", ContainerPort: defaultPort, Protocol: v1.ProtocolTCP},
+			{Name: "port", ContainerPort: int32(swiftSpec.Port), Protocol: v1.ProtocolTCP},
+			{Name: "secure-port", ContainerPort: int32(swiftSpec.SecurePort), Protocol: v1.ProtocolTCP},
 		},
 		VolumeMounts: volumeMounts,
 	}
 }
 
-// Delete ISCSI service and possibly some artifacts.
-func (c *ISCSIController) DeleteService(s edgefsv1alpha1.ISCSI) error {
+// Delete SWIFT service and possibly some artifacts.
+func (c *SWIFTController) DeleteService(s edgefsv1alpha1.SWIFT) error {
 	// check if service  exists
 	exists, err := serviceExists(c.context, s)
 	if err != nil {
-		return fmt.Errorf("failed to detect if there is a ISCSI service to delete. %+v", err)
+		return fmt.Errorf("failed to detect if there is a SWIFT service to delete. %+v", err)
 	}
 	if !exists {
-		logger.Infof("ISCSI service %s does not exist in namespace %s", s.Name, s.Namespace)
+		logger.Infof("SWIFT service %s does not exist in namespace %s", s.Name, s.Namespace)
 		return nil
 	}
 
-	logger.Infof("Deleting ISCSI service %s from namespace %s", s.Name, s.Namespace)
+	logger.Infof("Deleting SWIFT service %s from namespace %s", s.Name, s.Namespace)
 
 	var gracePeriod int64
 	propagation := metav1.DeletePropagationForeground
 	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
 
-	// Delete the iscsi service
+	// Delete the swift service
 	err = c.context.Clientset.CoreV1().Services(s.Namespace).Delete(instanceName(s.Name), options)
 	if err != nil && !errors.IsNotFound(err) {
-		logger.Warningf("failed to delete ISCSI service. %+v", err)
+		logger.Warningf("failed to delete SWIFT service. %+v", err)
 	}
 
-	// Make a best effort to delete the ISCSI pods
+	// Make a best effort to delete the SWIFT pods
 	err = k8sutil.DeleteDeployment(c.context.Clientset, s.Namespace, instanceName(s.Name))
 	if err != nil {
 		logger.Warningf(err.Error())
 	}
 
-	logger.Infof("Completed deleting ISCSI service %s", s.Name)
+	logger.Infof("Completed deleting SWIFT service %s", s.Name)
 	return nil
 }
 
@@ -303,12 +345,12 @@ func getLabels(name, svcname, namespace string) map[string]string {
 		k8sutil.AppAttr:     appName,
 		k8sutil.ClusterAttr: namespace,
 		"edgefs_svcname":    svcname,
-		"edgefs_svctype":    "iscsi",
+		"edgefs_svctype":    "swift",
 	}
 }
 
-// Validate the ISCSI arguments
-func validateService(context *clusterd.Context, s edgefsv1alpha1.ISCSI) error {
+// Validate the SWIFT arguments
+func validateService(context *clusterd.Context, s edgefsv1alpha1.SWIFT) error {
 	if s.Name == "" {
 		return fmt.Errorf("missing name")
 	}
@@ -323,8 +365,8 @@ func instanceName(svcname string) string {
 	return fmt.Sprintf("%s-%s", appName, svcname)
 }
 
-// Check if the ISCSI service exists
-func serviceExists(context *clusterd.Context, s edgefsv1alpha1.ISCSI) (bool, error) {
+// Check if the SWIFT service exists
+func serviceExists(context *clusterd.Context, s edgefsv1alpha1.SWIFT) (bool, error) {
 	_, err := context.Clientset.Apps().Deployments(s.Namespace).Get(instanceName(s.Name), metav1.GetOptions{})
 	if err == nil {
 		// the deployment was found
@@ -336,35 +378,4 @@ func serviceExists(context *clusterd.Context, s edgefsv1alpha1.ISCSI) (bool, err
 
 	// not found
 	return false, nil
-}
-
-func getTargetParamsJSON(params edgefsv1alpha1.TargetParametersSpec) string {
-	result := make(map[string]uint)
-
-	if params.MaxRecvDataSegmentLength > 0 {
-		result["MaxRecvDataSegmentLength"] = params.MaxRecvDataSegmentLength
-	}
-
-	if params.DefaultTime2Retain > 0 {
-		result["DefaultTime2Retain"] = params.DefaultTime2Retain
-	}
-
-	if params.DefaultTime2Wait > 0 {
-		result["DefaultTime2Wait"] = params.DefaultTime2Wait
-	}
-
-	if params.FirstBurstLength > 0 {
-		result["FirstBurstLength"] = params.FirstBurstLength
-	}
-
-	if params.MaxBurstLength > 0 {
-		result["MaxBurstLength"] = params.MaxBurstLength
-	}
-
-	if params.MaxQueueCmd > 0 {
-		result["MaxQueueCmd"] = params.MaxQueueCmd
-	}
-
-	jsonString, _ := json.Marshal(result)
-	return string(jsonString)
 }

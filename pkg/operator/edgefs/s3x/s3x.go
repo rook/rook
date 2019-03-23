@@ -33,13 +33,14 @@ const (
 	appName = "rook-edgefs-s3x"
 
 	/* Volumes definitions */
-	sslCertVolumeName = "ssl-cert-volume"
-	sslMountPath      = "/opt/nedge/etc/ssl/"
-	dataVolumeName    = "edgefs-datadir"
-	stateVolumeFolder = ".state"
-	etcVolumeFolder   = ".etc"
-	defaultPort       = 3000
-	defaultSecurePort = 3001
+	serviceAccountName = "rook-edgefs-cluster"
+	sslCertVolumeName  = "ssl-cert-volume"
+	sslMountPath       = "/opt/nedge/etc/ssl/"
+	dataVolumeName     = "edgefs-datadir"
+	stateVolumeFolder  = ".state"
+	etcVolumeFolder    = ".etc"
+	defaultPort        = 4000
+	defaultSecurePort  = 4443
 )
 
 // Start the rgw manager
@@ -183,12 +184,13 @@ func (c *S3XController) makeDeployment(svcname, namespace, rookImage string, s3x
 			Labels: getLabels(name, svcname, namespace),
 		},
 		Spec: v1.PodSpec{
-			Containers:    []v1.Container{c.s3xContainer(svcname, name, rookImage, s3xSpec)},
-			RestartPolicy: v1.RestartPolicyAlways,
-			Volumes:       volumes,
-			HostIPC:       true,
-			HostNetwork:   c.hostNetwork,
-			NodeSelector:  map[string]string{namespace: "cluster"},
+			Containers:         []v1.Container{c.s3xContainer(svcname, name, rookImage, s3xSpec)},
+			RestartPolicy:      v1.RestartPolicyAlways,
+			Volumes:            volumes,
+			HostIPC:            true,
+			HostNetwork:        c.hostNetwork,
+			NodeSelector:       map[string]string{namespace: "cluster"},
+			ServiceAccountName: serviceAccountName,
 		},
 	}
 	if c.hostNetwork {

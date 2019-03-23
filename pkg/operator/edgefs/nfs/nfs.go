@@ -33,9 +33,10 @@ const (
 	appName = "rook-edgefs-nfs"
 
 	/* Volumes definitions */
-	dataVolumeName    = "edgefs-datadir"
-	stateVolumeFolder = ".state"
-	etcVolumeFolder   = ".etc"
+	serviceAccountName = "rook-edgefs-cluster"
+	dataVolumeName     = "edgefs-datadir"
+	stateVolumeFolder  = ".state"
+	etcVolumeFolder    = ".etc"
 )
 
 // Start the rgw manager
@@ -158,12 +159,13 @@ func (c *NFSController) makeDeployment(svcname, namespace, rookImage string, nfs
 			Labels: getLabels(name, svcname, namespace),
 		},
 		Spec: v1.PodSpec{
-			Containers:    []v1.Container{c.nfsContainer(svcname, name, rookImage, nfsSpec)},
-			RestartPolicy: v1.RestartPolicyAlways,
-			Volumes:       volumes,
-			HostIPC:       true,
-			HostNetwork:   c.hostNetwork,
-			NodeSelector:  map[string]string{namespace: "cluster"},
+			Containers:         []v1.Container{c.nfsContainer(svcname, name, rookImage, nfsSpec)},
+			RestartPolicy:      v1.RestartPolicyAlways,
+			Volumes:            volumes,
+			HostIPC:            true,
+			HostNetwork:        c.hostNetwork,
+			NodeSelector:       map[string]string{namespace: "cluster"},
+			ServiceAccountName: serviceAccountName,
 		},
 	}
 	if c.hostNetwork {

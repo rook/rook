@@ -33,6 +33,7 @@ type EdgefsV1alpha1Interface interface {
 	NFSsGetter
 	S3sGetter
 	S3XsGetter
+	SWIFTsGetter
 }
 
 // EdgefsV1alpha1Client is used to interact with features provided by the edgefs.rook.io group.
@@ -62,6 +63,10 @@ func (c *EdgefsV1alpha1Client) S3s(namespace string) S3Interface {
 
 func (c *EdgefsV1alpha1Client) S3Xs(namespace string) S3XInterface {
 	return newS3Xs(c, namespace)
+}
+
+func (c *EdgefsV1alpha1Client) SWIFTs(namespace string) SWIFTInterface {
+	return newSWIFTs(c, namespace)
 }
 
 // NewForConfig creates a new EdgefsV1alpha1Client for the given config.
