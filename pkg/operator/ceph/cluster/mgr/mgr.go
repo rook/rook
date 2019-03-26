@@ -141,18 +141,19 @@ func (c *Cluster) Start() error {
 				return fmt.Errorf("failed to update mgr deployment %s. %+v", resourceName, err)
 			}
 		}
-	}
 
-	if err := c.configureOrchestratorModules(); err != nil {
-		logger.Errorf("failed to enable orchestrator modules. %+v", err)
-	}
+		if err := c.configureOrchestratorModules(); err != nil {
+			logger.Errorf("failed to enable orchestrator modules. %+v", err)
+		}
 
-	if err := c.enablePrometheusModule(c.Namespace); err != nil {
-		logger.Errorf("failed to enable mgr prometheus module. %+v", err)
-	}
+		if err := c.enablePrometheusModule(c.Namespace); err != nil {
+			logger.Errorf("failed to enable mgr prometheus module. %+v", err)
+		}
 
-	if err := c.configureDashboard(c.dashboardPort()); err != nil {
-		logger.Errorf("failed to enable mgr dashboard. %+v", err)
+		if err := c.configureDashboard(mgrConfig); err != nil {
+			logger.Errorf("failed to enable mgr dashboard. %+v", err)
+		}
+
 	}
 
 	// create the metrics service
