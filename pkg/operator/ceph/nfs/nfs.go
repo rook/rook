@@ -36,7 +36,7 @@ const (
 	ganeshaRadosGraceCmd = "ganesha-rados-grace"
 )
 
-var updateDeploymentAndWait = k8sutil.UpdateDeploymentAndWait
+var updateDeploymentAndWait = opmon.UpdateCephDeploymentAndWait
 
 // Create the ganesha server
 func (c *CephNFSController) upCephNFS(n cephv1.CephNFS, oldActive int) error {
@@ -68,7 +68,7 @@ func (c *CephNFSController) upCephNFS(n cephv1.CephNFS, oldActive int) error {
 				return fmt.Errorf("failed to create ganesha deployment. %+v", err)
 			}
 			logger.Infof("ganesha deployment %s already exists. updating if needed", deployment.Name)
-			if _, err := updateDeploymentAndWait(c.context, deployment, n.Namespace); err != nil {
+			if err := updateDeploymentAndWait(c.context, deployment, n.Namespace, c.clusterInfo.Name, c.clusterInfo.CephVersion); err != nil {
 				return fmt.Errorf("failed to update ganesha deployment %s. %+v", deployment.Name, err)
 			}
 		} else {

@@ -28,6 +28,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	osdconfig "github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
@@ -40,7 +41,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-osd")
+var (
+	logger                  = capnslog.NewPackageLogger("github.com/rook/rook", "op-osd")
+	updateDeploymentAndWait = mon.UpdateCephDeploymentAndWait
+)
 
 const (
 	appName                             = "rook-ceph-osd"
@@ -191,9 +195,9 @@ func (c *Cluster) Start() error {
 	// The following block is used to apply any command(s) required by an upgrade
 	// The block below handles the upgrade from Mimic to Nautilus.
 	if c.clusterInfo.CephVersion.IsAtLeastNautilus() {
-		versions, err := client.GetCephVersions(c.context)
+		versions, err := client.GetAllCephDaemonVersions(c.context, c.clusterInfo.Name)
 		if err != nil {
-			logger.Warningf("failed to get ceph daemons versions. this likely means there are no osds yet. %+v", err)
+			logger.Warningf("failed to get ceph daemons versions; this likely means there are no osds yet. %+v", err)
 		} else {
 			// If length is one, this clearly indicates that all the osds are running the same version
 			logger.Infof("len of version.Osd is %d", len(versions.Osd))
@@ -321,7 +325,7 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 				continue
 			}
 			logger.Infof("deployment for osd %d already exists. updating if needed", osd.ID)
-			if _, err = k8sutil.UpdateDeploymentAndWait(c.context, dp, c.Namespace); err != nil {
+			if err = updateDeploymentAndWait(c.context, dp, c.Namespace, c.clusterInfo.Name, c.clusterInfo.CephVersion); err != nil {
 				config.addError(fmt.Sprintf("failed to update osd deployment %d. %+v", osd.ID, err))
 			}
 		}

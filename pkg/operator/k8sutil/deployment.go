@@ -21,8 +21,9 @@ import (
 	"time"
 
 	"github.com/rook/rook/pkg/clusterd"
-	"k8s.io/api/apps/v1"
+	"github.com/rook/rook/pkg/util"
 	apps "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -36,6 +37,7 @@ func GetDeploymentImage(clientset kubernetes.Interface, namespace, name, contain
 	return GetDeploymentSpecImage(clientset, *d, container, false)
 }
 
+// GetDeploymentSpecImage returns the image name from the spec
 func GetDeploymentSpecImage(clientset kubernetes.Interface, d apps.Deployment, container string, initContainer bool) (string, error) {
 	image, err := GetSpecContainerImage(d.Spec.Template.Spec, container, initContainer)
 	if err != nil {
@@ -47,10 +49,25 @@ func GetDeploymentSpecImage(clientset kubernetes.Interface, d apps.Deployment, c
 
 // UpdateDeploymentAndWait updates a deployment and waits until it is running to return. It will
 // error if the deployment does not exist to be updated or if it takes too long.
-func UpdateDeploymentAndWait(context *clusterd.Context, deployment *apps.Deployment, namespace string) (*v1.Deployment, error) {
+// This method has a generic callback function that each backend can rely on
+// It serves two purposes:
+//   1. verify that a resource can be stopped
+//   2. verify that we can continue the update procedure
+// Basically, we go one resource by one and check if we can stop and then if the ressource has been successfully updated
+// we check if we can go ahead and move to the next one.
+func UpdateDeploymentAndWait(context *clusterd.Context, deployment *apps.Deployment, namespace string, verifyCallback func(action string) error) (*v1.Deployment, error) {
 	original, err := context.Clientset.AppsV1().Deployments(namespace).Get(deployment.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get deployment %s. %+v", deployment.Name, err)
+	}
+
+	// Let's verify the deployment can be stopped
+	// retry for 5 times, every minute
+	err = util.Retry(5, 60*time.Second, func() error {
+		return verifyCallback("stop")
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to check if deployment %s can be updated: %+v", deployment.Name, err)
 	}
 
 	logger.Infof("updating deployment %s", deployment.Name)
@@ -73,9 +90,15 @@ func UpdateDeploymentAndWait(context *clusterd.Context, deployment *apps.Deploym
 		}
 		if d.Status.ObservedGeneration != original.Status.ObservedGeneration && d.Status.UpdatedReplicas > 0 && d.Status.ReadyReplicas > 0 {
 			logger.Infof("finished waiting for updated deployment %s", d.Name)
+
+			// Now we check if we can go to the next daemon
+			err = verifyCallback("continue")
+			if err != nil {
+				return nil, fmt.Errorf("failed to check if deployment %s can be updated: %+v", deployment.Name, err)
+			}
+
 			return d, nil
 		}
-
 		logger.Debugf("deployment %s status=%+v", d.Name, d.Status)
 		time.Sleep(time.Duration(sleepTime) * time.Second)
 	}

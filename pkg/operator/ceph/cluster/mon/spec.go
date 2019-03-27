@@ -21,9 +21,11 @@ import (
 	"os"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config"
-
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -212,4 +214,30 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 	}
 
 	return container
+}
+
+// UpdateCephDeploymentAndWait verifies a deployment can be stopped or continued
+func UpdateCephDeploymentAndWait(context *clusterd.Context, deployment *apps.Deployment, namespace, clusterName string, cephVersion cephver.CephVersion) error {
+	callback := func(action string) error {
+		logger.Infof("checking if we can %s the deployment %s", action, deployment.Name)
+
+		if action == "stop" {
+			err := client.OkToStop(context, namespace, deployment.Name, clusterName, cephVersion)
+			if err != nil {
+				return fmt.Errorf("failed to check if we can %s the deployment %s: %+v", action, deployment.Name, err)
+			}
+		}
+
+		if action == "continue" {
+			err := client.OkToContinue(context, namespace, deployment.Name)
+			if err != nil {
+				return fmt.Errorf("failed to check if we can %s the deployment %s: %+v", action, deployment.Name, err)
+			}
+		}
+
+		return nil
+	}
+
+	_, err := k8sutil.UpdateDeploymentAndWait(context, deployment, namespace, callback)
+	return err
 }

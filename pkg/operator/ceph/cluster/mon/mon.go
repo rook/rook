@@ -219,12 +219,12 @@ func (c *Cluster) startMons(targetCount int) error {
 
 	// Enable Ceph messenger 2 protocol on Nautilus
 	if c.clusterInfo.CephVersion.IsAtLeastNautilus() {
-		v, err := client.GetCephMonVersion(c.context)
+		v, err := client.GetCephMonVersion(c.context, c.clusterInfo.Name)
 		if err != nil {
 			return fmt.Errorf("failed to get ceph mon version. %+v", err)
 		}
 		if v.IsAtLeastNautilus() {
-			versions, err := client.GetCephVersions(c.context)
+			versions, err := client.GetAllCephDaemonVersions(c.context, c.clusterInfo.Name)
 			if err != nil {
 				return fmt.Errorf("failed to get ceph daemons versions. %+v", err)
 			}
@@ -518,9 +518,28 @@ func (c *Cluster) startDeployments(mons []*monConfig, requireAllInQuorum bool) e
 		if err != nil {
 			return fmt.Errorf("failed to create mon %s. %+v", mons[i].DaemonName, err)
 		}
+		// For the initial deployment (first creation) it's expected to not have all the monitors in quorum
+		// However, in an event of an update, it's crucial to proceed monitors by monitors
+		// At the end of the method we perform one last check where all the monitors must be in quorum
+		requireAllInQuorum := false
+		err = c.waitForMonsToJoin(mons, requireAllInQuorum)
+		if err != nil {
+			return fmt.Errorf("failed to check mon quorum %s. %+v", mons[i].DaemonName, err)
+		}
 	}
 
 	logger.Infof("mons created: %d", len(mons))
+	// Final verification that **all** mons are in quorum
+	// Do not proceed if one monitor is still syncing
+	// Only do this when monitors versions are different so we don't block the orchestration if a mon is down.
+	versions, err := client.GetAllCephDaemonVersions(c.context, c.clusterInfo.Name)
+	if err != nil {
+		logger.Warningf("failed to get ceph daemons versions; this likely means there is no cluster yet. %+v", err)
+	} else {
+		if len(versions.Mon) != 1 {
+			requireAllInQuorum = true
+		}
+	}
 	return c.waitForMonsToJoin(mons, requireAllInQuorum)
 }
 
@@ -596,9 +615,10 @@ func (c *Cluster) saveMonConfig() error {
 	return nil
 }
 
-var updateDeploymentAndWait = k8sutil.UpdateDeploymentAndWait
+var updateDeploymentAndWait = UpdateCephDeploymentAndWait
 
 func (c *Cluster) startMon(m *monConfig, hostname string) error {
+
 	d := c.makeDeployment(m, hostname)
 	logger.Debugf("Starting mon: %+v", d.Name)
 	_, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Create(d)
@@ -607,7 +627,7 @@ func (c *Cluster) startMon(m *monConfig, hostname string) error {
 			return fmt.Errorf("failed to create mon deployment %s. %+v", m.ResourceName, err)
 		}
 		logger.Infof("deployment for mon %s already exists. updating if needed", m.ResourceName)
-		if _, err := updateDeploymentAndWait(c.context, d, c.Namespace); err != nil {
+		if err := updateDeploymentAndWait(c.context, d, c.Namespace, c.clusterInfo.Name, c.clusterInfo.CephVersion); err != nil {
 			return fmt.Errorf("failed to update mon deployment %s. %+v", m.ResourceName, err)
 		}
 	}
@@ -620,7 +640,7 @@ func waitForQuorumWithMons(context *clusterd.Context, clusterName string, mons [
 
 	// wait for monitors to establish quorum
 	retryCount := 0
-	retryMax := 20
+	retryMax := 30
 	for {
 		retryCount++
 		if retryCount > retryMax {

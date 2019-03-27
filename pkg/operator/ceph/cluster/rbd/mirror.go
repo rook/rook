@@ -25,6 +25,7 @@ import (
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -87,7 +88,7 @@ func New(
 	}
 }
 
-var updateDeploymentAndWait = k8sutil.UpdateDeploymentAndWait
+var updateDeploymentAndWait = mon.UpdateCephDeploymentAndWait
 
 // Start begins the process of running rbd mirroring daemons.
 func (m *Mirroring) Start() error {
@@ -119,7 +120,7 @@ func (m *Mirroring) Start() error {
 				return fmt.Errorf("failed to create %s deployment. %+v", resourceName, err)
 			}
 			logger.Infof("deployment for rbd-mirror %s already exists. updating if needed", resourceName)
-			if _, err := updateDeploymentAndWait(m.context, d, m.Namespace); err != nil {
+			if err := updateDeploymentAndWait(m.context, d, m.Namespace, m.ClusterInfo.Name, m.ClusterInfo.CephVersion); err != nil {
 				// fail could be an issue updating label selector (immutable), so try del and recreate
 				logger.Debugf("updateDeploymentAndWait failed for rbd-mirror %s. Attempting del-and-recreate. %+v", resourceName, err)
 				err = m.context.Clientset.AppsV1().Deployments(m.Namespace).Delete(d.Name, &metav1.DeleteOptions{})

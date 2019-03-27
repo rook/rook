@@ -29,6 +29,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -106,7 +107,7 @@ func New(
 	}
 }
 
-var updateDeploymentAndWait = k8sutil.UpdateDeploymentAndWait
+var updateDeploymentAndWait = mon.UpdateCephDeploymentAndWait
 
 // Start begins the process of running a cluster of Ceph mgrs.
 func (c *Cluster) Start() error {
@@ -151,7 +152,7 @@ func (c *Cluster) Start() error {
 				return fmt.Errorf("failed to create mgr deployment %s. %+v", resourceName, err)
 			}
 			logger.Infof("deployment for mgr %s already exists. updating if needed", resourceName)
-			if _, err := updateDeploymentAndWait(c.context, d, c.Namespace); err != nil {
+			if err := updateDeploymentAndWait(c.context, d, c.Namespace, c.clusterInfo.Name, c.clusterInfo.CephVersion); err != nil {
 				return fmt.Errorf("failed to update mgr deployment %s. %+v", resourceName, err)
 			}
 		}
