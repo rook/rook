@@ -68,6 +68,7 @@ type Cluster struct {
 	hostNetworkSpec edgefsv1alpha1.NetworkSpec
 	dashboardSpec   edgefsv1alpha1.DashboardSpec
 	resources       v1.ResourceRequirements
+	resourceProfile string
 	ownerRef        metav1.OwnerReference
 }
 
@@ -81,6 +82,7 @@ func New(
 	hostNetworkSpec edgefsv1alpha1.NetworkSpec,
 	dashboardSpec edgefsv1alpha1.DashboardSpec,
 	resources v1.ResourceRequirements,
+	resourceProfile string,
 	ownerRef metav1.OwnerReference,
 ) *Cluster {
 
@@ -102,6 +104,7 @@ func New(
 		hostNetworkSpec: hostNetworkSpec,
 		dashboardSpec:   dashboardSpec,
 		resources:       resources,
+		resourceProfile: resourceProfile,
 		ownerRef:        ownerRef,
 	}
 }
@@ -359,8 +362,16 @@ func (c *Cluster) uiContainer(name string, containerImage string) v1.Container {
 		Args:            []string{},
 		Env: []v1.EnvVar{
 			{
+				Name: "MGR_POD_IP",
+				ValueFrom: &v1.EnvVarSource{
+					FieldRef: &v1.ObjectFieldSelector{
+						FieldPath: "status.podIP",
+					},
+				},
+			},
+			{
 				Name:  "API_ENDPOINT",
-				Value: "http://0.0.0.0:8080",
+				Value: "http://$(MGR_POD_IP):8080",
 			},
 			{
 				Name:  "K8S_NAMESPACE",
@@ -409,7 +420,7 @@ func (c *Cluster) mgmtContainer(name string, containerImage string) v1.Container
 		},
 	}
 
-	return v1.Container{
+	cont := v1.Container{
 		Name:            name,
 		Image:           containerImage,
 		ImagePullPolicy: v1.PullAlways,
@@ -457,6 +468,19 @@ func (c *Cluster) mgmtContainer(name string, containerImage string) v1.Container
 		},
 		VolumeMounts: volumeMounts,
 	}
+
+	if c.resourceProfile == "embedded" {
+		cont.Env = append(cont.Env, v1.EnvVar{
+			Name:  "CCOW_EMBEDDED",
+			Value: "1",
+		})
+		cont.Env = append(cont.Env, v1.EnvVar{
+			Name:  "JE_MALLOC_CONF",
+			Value: "tcache:false",
+		})
+	}
+
+	return cont
 }
 
 func (c *Cluster) mgrContainer(name string, containerImage string) v1.Container {
@@ -484,7 +508,7 @@ func (c *Cluster) mgrContainer(name string, containerImage string) v1.Container 
 		},
 	}
 
-	return v1.Container{
+	cont := v1.Container{
 		Name:            name,
 		Image:           containerImage,
 		ImagePullPolicy: v1.PullAlways,
@@ -518,6 +542,19 @@ func (c *Cluster) mgrContainer(name string, containerImage string) v1.Container 
 		},
 		VolumeMounts: volumeMounts,
 	}
+
+	if c.resourceProfile == "embedded" {
+		cont.Env = append(cont.Env, v1.EnvVar{
+			Name:  "CCOW_EMBEDDED",
+			Value: "1",
+		})
+		cont.Env = append(cont.Env, v1.EnvVar{
+			Name:  "JE_MALLOC_CONF",
+			Value: "tcache:false",
+		})
+	}
+
+	return cont
 }
 
 func (c *Cluster) getLabels() map[string]string {

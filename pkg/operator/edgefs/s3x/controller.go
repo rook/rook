@@ -59,6 +59,7 @@ type S3XController struct {
 	dataVolumeSize  resource.Quantity
 	placement       rookalpha.Placement
 	resources       v1.ResourceRequirements
+	resourceProfile string
 	ownerRef        metav1.OwnerReference
 }
 
@@ -70,6 +71,7 @@ func NewS3XController(
 	dataVolumeSize resource.Quantity,
 	placement rookalpha.Placement,
 	resources v1.ResourceRequirements,
+	resourceProfile string,
 	ownerRef metav1.OwnerReference,
 ) *S3XController {
 	return &S3XController{
@@ -80,6 +82,7 @@ func NewS3XController(
 		dataVolumeSize:  dataVolumeSize,
 		placement:       placement,
 		resources:       resources,
+		resourceProfile: resourceProfile,
 		ownerRef:        ownerRef,
 	}
 }

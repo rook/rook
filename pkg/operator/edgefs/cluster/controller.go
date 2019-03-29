@@ -183,6 +183,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		cluster.Spec.DataDirHostPath, cluster.Spec.DataVolumeSize,
 		edgefsv1alpha1.GetTargetPlacement(cluster.Spec.Placement),
 		cluster.Spec.Resources,
+		cluster.Spec.ResourceProfile,
 		cluster.ownerRef)
 	NFSController.StartWatch(cluster.Namespace, cluster.stopCh)
 
@@ -192,6 +193,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		cluster.Spec.DataDirHostPath, cluster.Spec.DataVolumeSize,
 		edgefsv1alpha1.GetTargetPlacement(cluster.Spec.Placement),
 		cluster.Spec.Resources,
+		cluster.Spec.ResourceProfile,
 		cluster.ownerRef)
 	S3Controller.StartWatch(cluster.Namespace, cluster.stopCh)
 
@@ -201,6 +203,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		cluster.Spec.DataDirHostPath, cluster.Spec.DataVolumeSize,
 		edgefsv1alpha1.GetTargetPlacement(cluster.Spec.Placement),
 		cluster.Spec.Resources,
+		cluster.Spec.ResourceProfile,
 		cluster.ownerRef)
 	SWIFTController.StartWatch(cluster.Namespace, cluster.stopCh)
 
@@ -210,6 +213,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		cluster.Spec.DataDirHostPath, cluster.Spec.DataVolumeSize,
 		edgefsv1alpha1.GetTargetPlacement(cluster.Spec.Placement),
 		cluster.Spec.Resources,
+		cluster.Spec.ResourceProfile,
 		cluster.ownerRef)
 	S3XController.StartWatch(cluster.Namespace, cluster.stopCh)
 
@@ -219,6 +223,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		cluster.Spec.DataDirHostPath, cluster.Spec.DataVolumeSize,
 		edgefsv1alpha1.GetTargetPlacement(cluster.Spec.Placement),
 		cluster.Spec.Resources,
+		cluster.Spec.ResourceProfile,
 		cluster.ownerRef)
 	ISCSIController.StartWatch(cluster.Namespace, cluster.stopCh)
 
@@ -228,6 +233,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		cluster.Spec.DataDirHostPath, cluster.Spec.DataVolumeSize,
 		edgefsv1alpha1.GetTargetPlacement(cluster.Spec.Placement),
 		cluster.Spec.Resources,
+		cluster.Spec.ResourceProfile,
 		cluster.ownerRef)
 	ISGWController.StartWatch(cluster.Namespace, cluster.stopCh)
 
@@ -338,6 +344,11 @@ func (c *ClusterController) handleDelete(clust *edgefsv1alpha1.Cluster, retryInt
 	cluster, ok := c.clusterMap[clust.Namespace]
 	if !ok {
 		return fmt.Errorf("Cannot delete cluster %s that does not exist", clust.Namespace)
+	}
+
+	// grace on misconfigured crd deletions
+	if cluster.targets == nil || cluster.targets.Storage.Nodes == nil {
+		return nil
 	}
 
 	for _, node := range cluster.targets.Storage.Nodes {

@@ -233,6 +233,7 @@ func (in *ClusterSpec) DeepCopyInto(out *ClusterSpec) {
 	out.Dashboard = in.Dashboard
 	in.Resources.DeepCopyInto(&out.Resources)
 	out.DataVolumeSize = in.DataVolumeSize.DeepCopy()
+	out.ChunkCacheSize = in.ChunkCacheSize.DeepCopy()
 	return
 }
 
@@ -378,6 +379,7 @@ func (in *ISCSISpec) DeepCopyInto(out *ISCSISpec) {
 	in.Placement.DeepCopyInto(&out.Placement)
 	in.Resources.DeepCopyInto(&out.Resources)
 	out.TargetParams = in.TargetParams
+	out.ChunkCacheSize = in.ChunkCacheSize.DeepCopy()
 	return
 }
 
@@ -456,6 +458,7 @@ func (in *ISGWSpec) DeepCopyInto(out *ISGWSpec) {
 	*out = *in
 	in.Placement.DeepCopyInto(&out.Placement)
 	in.Resources.DeepCopyInto(&out.Resources)
+	out.ChunkCacheSize = in.ChunkCacheSize.DeepCopy()
 	return
 }
 
@@ -534,6 +537,7 @@ func (in *NFSSpec) DeepCopyInto(out *NFSSpec) {
 	*out = *in
 	in.Placement.DeepCopyInto(&out.Placement)
 	in.Resources.DeepCopyInto(&out.Resources)
+	out.ChunkCacheSize = in.ChunkCacheSize.DeepCopy()
 	return
 }
 
@@ -702,6 +706,7 @@ func (in *S3Spec) DeepCopyInto(out *S3Spec) {
 	*out = *in
 	in.Placement.DeepCopyInto(&out.Placement)
 	in.Resources.DeepCopyInto(&out.Resources)
+	out.ChunkCacheSize = in.ChunkCacheSize.DeepCopy()
 	return
 }
 
@@ -780,6 +785,7 @@ func (in *S3XSpec) DeepCopyInto(out *S3XSpec) {
 	*out = *in
 	in.Placement.DeepCopyInto(&out.Placement)
 	in.Resources.DeepCopyInto(&out.Resources)
+	out.ChunkCacheSize = in.ChunkCacheSize.DeepCopy()
 	return
 }
 
@@ -858,6 +864,7 @@ func (in *SWIFTSpec) DeepCopyInto(out *SWIFTSpec) {
 	*out = *in
 	in.Placement.DeepCopyInto(&out.Placement)
 	in.Resources.DeepCopyInto(&out.Resources)
+	out.ChunkCacheSize = in.ChunkCacheSize.DeepCopy()
 	return
 }
 

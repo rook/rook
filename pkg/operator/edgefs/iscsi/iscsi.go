@@ -215,7 +215,7 @@ func (c *ISCSIController) iscsiContainer(svcname, name, containerImage string, i
 		},
 	}
 
-	return v1.Container{
+	cont := v1.Container{
 		Name:            name,
 		Image:           containerImage,
 		ImagePullPolicy: v1.PullAlways,
@@ -262,6 +262,12 @@ func (c *ISCSIController) iscsiContainer(svcname, name, containerImage string, i
 		},
 		VolumeMounts: volumeMounts,
 	}
+
+	cont.Env = append(cont.Env, edgefsv1alpha1.GetInitiatorEnvArr("iscsi",
+		c.resourceProfile == "embedded" || iscsiSpec.ResourceProfile == "embedded",
+		iscsiSpec.ChunkCacheSize, iscsiSpec.Resources)...)
+
+	return cont
 }
 
 // Delete ISCSI service and possibly some artifacts.

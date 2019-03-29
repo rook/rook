@@ -38,6 +38,8 @@ func GetConfigStoreName(nodeName string) string {
 const (
 	RtVerifyChidKey       = "rtVerifyChid"
 	MaxSizeGB             = "maxSizeGB"
+	MDReserved            = "mdReserved"
+	HDDReadAhead          = "hddReadAhead"
 	LmdbPageSizeKey       = "lmdbPageSize"
 	UseBcacheKey          = "useBCache"
 	UseBcacheWBKey        = "useBCacheWB"
@@ -54,6 +56,10 @@ type StoreConfig struct {
 	RtVerifyChid int `json:"rtVerifyChid,omitempty"`
 	// 4096, 8192, 16384 or 32768
 	LmdbPageSize int `json:"lmdbPageSize,omitempty"`
+	// in 10..99% of potential SSD partition
+	MDReserved int `json:"mdReserved,omitempty"`
+	// applies to data chunks on HDD partitions, in KBs
+	HDDReadAhead int `json:"hddReadAhead,omitempty"`
 	// rtlfs only, max size to use per directory, in bytes
 	MaxSize uint64 `json:"maxsize,omitempty"`
 	// enable use of bcache
@@ -78,6 +84,8 @@ func DefaultStoreConfig() StoreConfig {
 	return StoreConfig{
 		RtVerifyChid:       1,
 		LmdbPageSize:       16384,
+		MDReserved:         0,
+		HDDReadAhead:       0,
 		UseBCache:          false,
 		UseBCacheWB:        false,
 		UseMetadataMask:    "0xff",
@@ -106,6 +114,20 @@ func ToStoreConfig(config map[string]string) StoreConfig {
 				storeConfig.RtVerifyChid = value
 			} else {
 				logger.Warningf("Incorrect 'verifyChid' value %d ignored", value)
+			}
+		case MDReserved:
+			value := convertToIntIgnoreErr(v)
+			if value >= 10 && value <= 99 {
+				storeConfig.MDReserved = value
+			} else {
+				logger.Warningf("Incorrect 'mdReserved' value %d ignored", value)
+			}
+		case HDDReadAhead:
+			value := convertToIntIgnoreErr(v)
+			if value >= 0 {
+				storeConfig.HDDReadAhead = value
+			} else {
+				logger.Warningf("Incorrect 'hddReadAhead' value %d ignored", value)
 			}
 		case MaxSizeGB:
 			value := convertToUint64IgnoreErr(v)

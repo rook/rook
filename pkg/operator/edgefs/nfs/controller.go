@@ -59,6 +59,7 @@ type NFSController struct {
 	dataVolumeSize  resource.Quantity
 	placement       rookalpha.Placement
 	resources       v1.ResourceRequirements
+	resourceProfile string
 	ownerRef        metav1.OwnerReference
 }
 
@@ -70,6 +71,7 @@ func NewNFSController(
 	dataVolumeSize resource.Quantity,
 	placement rookalpha.Placement,
 	resources v1.ResourceRequirements,
+	resourceProfile string,
 	ownerRef metav1.OwnerReference,
 ) *NFSController {
 	return &NFSController{
@@ -80,6 +82,7 @@ func NewNFSController(
 		dataVolumeSize:  dataVolumeSize,
 		placement:       placement,
 		resources:       resources,
+		resourceProfile: resourceProfile,
 		ownerRef:        ownerRef,
 	}
 }

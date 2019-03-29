@@ -23,6 +23,8 @@ type RTDevice struct {
 	Name              string `json:"name,omitempty"`
 	Device            string `json:"device,omitempty"`
 	Psize             int    `json:"psize,omitempty"`
+	MDReserved        int    `json:"mdcache_reserved,omitempty"`
+	HDDReadAhead      int    `json:"hdd_readahead,omitempty"`
 	VerifyChid        int    `json:"verify_chid"`
 	Journal           string `json:"journal,omitempty"`
 	Metadata          string `json:"metadata,omitempty"`

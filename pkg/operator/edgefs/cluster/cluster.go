@@ -30,6 +30,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -133,7 +134,8 @@ func (c *cluster) createInstance(rookImage string) error {
 	//
 
 	c.targets = target.New(c.context, c.Namespace, "latest", c.Spec.ServiceAccount, c.Spec.Storage, c.Spec.DataDirHostPath, c.Spec.DataVolumeSize,
-		edgefsv1alpha1.GetTargetPlacement(c.Spec.Placement), c.Spec.Network, c.Spec.Resources, c.ownerRef, deploymentConfig)
+		edgefsv1alpha1.GetTargetPlacement(c.Spec.Placement), c.Spec.Network, c.Spec.Resources, c.Spec.ResourceProfile, c.Spec.ChunkCacheSize,
+		c.ownerRef, deploymentConfig)
 
 	err = c.targets.Start(rookImage, clusterNodes, dro)
 	if err != nil {
@@ -144,7 +146,7 @@ func (c *cluster) createInstance(rookImage string) error {
 	//
 	c.mgrs = mgr.New(c.context, c.Namespace, "latest", c.Spec.ServiceAccount, c.Spec.DataDirHostPath, c.Spec.DataVolumeSize,
 		edgefsv1alpha1.GetMgrPlacement(c.Spec.Placement), c.Spec.Network, c.Spec.Dashboard,
-		v1.ResourceRequirements{}, c.ownerRef)
+		v1.ResourceRequirements{}, c.Spec.ResourceProfile, c.ownerRef)
 	err = c.mgrs.Start(rookImage)
 	if err != nil {
 		return fmt.Errorf("failed to start the edgefs mgr. %+v", err)
@@ -171,6 +173,43 @@ func (c *cluster) prepareHostNodes(rookImage string, deploymentConfig edgefsv1al
 }
 
 func (c *cluster) validateClusterSpec() error {
+
+	if c.Spec.ResourceProfile != "" && c.Spec.ResourceProfile != "embedded" && c.Spec.ResourceProfile != "performance" {
+		return fmt.Errorf("Unrecognized resource profile '%s'", c.Spec.ResourceProfile)
+	}
+
+	rMemReq := c.Spec.Resources.Requests.Memory()
+	rMemLim := c.Spec.Resources.Limits.Memory()
+
+	// performance profile mins
+	memReq := "2048Mi"
+	memLim := "8192Mi"
+
+	// Auto adjust to embedded if not specifically asked and less then mins
+	if c.Spec.ResourceProfile == "" {
+		if !rMemReq.IsZero() && rMemReq.Cmp(resource.MustParse(memReq)) < 0 {
+			c.Spec.ResourceProfile = "embedded"
+			logger.Infof("adjusting target resourceProfile to embedded due to specified memReq %v less then %s", rMemReq, memReq)
+		}
+		if !rMemLim.IsZero() && rMemLim.Cmp(resource.MustParse(memLim)) < 0 {
+			c.Spec.ResourceProfile = "embedded"
+			logger.Infof("adjusting target resourceProfile to embedded due to specified memLim %v less then %s", rMemLim, memLim)
+		}
+	}
+
+	if c.Spec.ResourceProfile == "embedded" {
+		memReq = "256Mi"
+		memLim = "1024Mi"
+	}
+
+	if !rMemReq.IsZero() && rMemReq.Cmp(resource.MustParse(memReq)) < 0 {
+		return fmt.Errorf("memory resource request %v is less then minimally allowed %s", rMemReq, memReq)
+	}
+
+	if !rMemLim.IsZero() && rMemLim.Cmp(resource.MustParse(memLim)) < 0 {
+		return fmt.Errorf("memory resource limit %v is less then minimally allowed %s", rMemLim, memLim)
+	}
+
 	if len(c.Spec.DataDirHostPath) == 0 && c.Spec.DataVolumeSize.Value() == 0 {
 		return fmt.Errorf("DataDirHostPath or DataVolumeSize EdgeFS cluster's options not specified.")
 	}

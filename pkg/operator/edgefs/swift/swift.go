@@ -260,7 +260,7 @@ func (c *SWIFTController) swiftContainer(svcname, name, containerImage, args str
 		volumeMounts = append(volumeMounts, v1.VolumeMount{Name: sslCertVolumeName, MountPath: sslMountPath})
 	}
 
-	return v1.Container{
+	cont := v1.Container{
 		Name:            name,
 		Image:           containerImage,
 		ImagePullPolicy: v1.PullAlways,
@@ -304,6 +304,12 @@ func (c *SWIFTController) swiftContainer(svcname, name, containerImage, args str
 		},
 		VolumeMounts: volumeMounts,
 	}
+
+	cont.Env = append(cont.Env, edgefsv1alpha1.GetInitiatorEnvArr("swift",
+		c.resourceProfile == "embedded" || swiftSpec.ResourceProfile == "embedded",
+		swiftSpec.ChunkCacheSize, swiftSpec.Resources)...)
+
+	return cont
 }
 
 // Delete SWIFT service and possibly some artifacts.

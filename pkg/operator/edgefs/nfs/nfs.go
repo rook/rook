@@ -103,7 +103,7 @@ func (c *NFSController) makeNFSService(name, svcname, namespace string) *v1.Serv
 		},
 		Spec: v1.ServiceSpec{
 			Selector: labels,
-			Type:     v1.ServiceTypeNodePort,
+			Type:     v1.ServiceTypeClusterIP,
 			Ports: []v1.ServicePort{
 				{Name: "grpc", Port: 49000, Protocol: v1.ProtocolTCP},
 				{Name: "nfs-tcp", Port: 2049, Protocol: v1.ProtocolTCP},
@@ -204,7 +204,7 @@ func (c *NFSController) nfsContainer(svcname, name, containerImage string, nfsSp
 		},
 	}
 
-	return v1.Container{
+	cont := v1.Container{
 		Name:            name,
 		Image:           containerImage,
 		ImagePullPolicy: v1.PullAlways,
@@ -257,6 +257,19 @@ func (c *NFSController) nfsContainer(svcname, name, containerImage string, nfsSp
 			},
 		},
 	}
+
+	if nfsSpec.RelaxedDirUpdates {
+		cont.Env = append(cont.Env, v1.EnvVar{
+			Name:  "EFSNFS_RELAXED_DIR_UPDATES",
+			Value: "1",
+		})
+	}
+
+	cont.Env = append(cont.Env, edgefsv1alpha1.GetInitiatorEnvArr("nfs",
+		c.resourceProfile == "embedded" || nfsSpec.ResourceProfile == "embedded",
+		nfsSpec.ChunkCacheSize, nfsSpec.Resources)...)
+
+	return cont
 }
 
 // Delete NFS service and possibly some artifacts.

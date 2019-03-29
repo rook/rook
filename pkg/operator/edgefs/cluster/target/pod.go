@@ -224,7 +224,7 @@ func (c *Cluster) makeDaemonContainer(containerImage string, dro edgefsv1alpha1.
 		}
 	}
 
-	return v1.Container{
+	cont := v1.Container{
 		Name:            name,
 		Image:           containerImage,
 		ImagePullPolicy: v1.PullAlways,
@@ -247,6 +247,11 @@ func (c *Cluster) makeDaemonContainer(containerImage string, dro edgefsv1alpha1.
 		Resources:       c.resources,
 		VolumeMounts:    volumeMounts,
 	}
+
+	cont.Env = append(cont.Env, edgefsv1alpha1.GetInitiatorEnvArr("target",
+		c.resourceProfile == "embedded", c.chunkCacheSize, c.resources)...)
+
+	return cont
 }
 
 func (c *Cluster) configOverrideVolume() v1.Volume {

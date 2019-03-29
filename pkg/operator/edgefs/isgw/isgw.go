@@ -347,6 +347,11 @@ func (c *ISGWController) isgwContainer(svcname, name, containerImage string, isg
 	if direction == 1 || direction == 3 {
 		cont.Ports = append(cont.Ports, v1.ContainerPort{Name: "dfport", ContainerPort: int32(isgwSpec.DynamicFetchPort), Protocol: v1.ProtocolTCP})
 	}
+
+	cont.Env = append(cont.Env, edgefsv1alpha1.GetInitiatorEnvArr("isgw",
+		c.resourceProfile == "embedded" || isgwSpec.ResourceProfile == "embedded",
+		isgwSpec.ChunkCacheSize, isgwSpec.Resources)...)
+
 	return cont
 }
 
