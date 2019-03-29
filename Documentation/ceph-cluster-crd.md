@@ -134,8 +134,9 @@ The following storage selection settings are specific to Ceph and do not apply t
 - `walSizeMB`:  The size in MB of a bluestore write ahead log (WAL). Include quotes around the size.
 - `journalSizeMB`:  The size in MB of a filestore journal. Include quotes around the size.
 - `osdsPerDevice`**: The number of OSDs to create on each device. High performance devices such as NVMe can handle running multiple OSDs. If desired, this can be overridden for each node and each device.
+- `encryptedDevice`**: Encrypt OSD volumes using dmcrypt ("true" or "false"). By default this option is disabled.
 
-** **NOTE:** Depending on the Ceph image running in your cluster, OSDs will be configured differently. Newer images will configure OSDs with `ceph-volume`, which provides support for `osdsPerDevice` as well as other features that will be exposed in future Rook releases. OSDs created prior to Rook v0.9 or with older images of Luminous and Mimic are not created with `ceph-volume` and thus would not support the same features. For `ceph-volume`, the following images are supported:
+** **NOTE:** Depending on the Ceph image running in your cluster, OSDs will be configured differently. Newer images will configure OSDs with `ceph-volume`, which provides support for `osdsPerDevice`, `encryptedDevice`, as well as other features that will be exposed in future Rook releases. OSDs created prior to Rook v0.9 or with older images of Luminous and Mimic are not created with `ceph-volume` and thus would not support the same features. For `ceph-volume`, the following images are supported:
 - Luminous 12.2.10 or newer
 - Mimic 13.2.3 or newer
 - Nautilus
