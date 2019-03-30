@@ -246,7 +246,21 @@ func (c *ClusterController) onAdd(obj interface{}) {
 }
 
 func (c *ClusterController) configureExternalCephCluster(namespace, name string, cluster *cluster) error {
-	return nil
+	c.updateClusterStatus(namespace, name, cephv1.ClusterStateConnecting, "")
+
+	// loop until we find the secret necessary to connect to the external cluster
+	for {
+		var err error
+		cluster.Info, _, _, err = mon.LoadClusterInfo(c.context, namespace)
+		if err != nil {
+			logger.Warningf("waiting for the connection info to the external cluster. %+v", err)
+			time.Sleep(10 * time.Second)
+			continue
+		}
+		logger.Infof("Found the cluster info to connect to the external cluster. mons=%+v", cluster.Info.Monitors)
+		c.updateClusterStatus(namespace, name, cephv1.ClusterStateConnected, "")
+		return nil
+	}
 }
 
 func (c *ClusterController) configureLocalCephCluster(namespace, name string, cluster *cluster, clusterObj *cephv1.CephCluster) error {

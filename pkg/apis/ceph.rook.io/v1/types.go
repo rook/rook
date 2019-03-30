@@ -140,10 +140,12 @@ type CephHealthMessage struct {
 type ClusterState string
 
 const (
-	ClusterStateCreating ClusterState = "Creating"
-	ClusterStateCreated  ClusterState = "Created"
-	ClusterStateUpdating ClusterState = "Updating"
-	ClusterStateError    ClusterState = "Error"
+	ClusterStateCreating   ClusterState = "Creating"
+	ClusterStateCreated    ClusterState = "Created"
+	ClusterStateUpdating   ClusterState = "Updating"
+	ClusterStateConnecting ClusterState = "Connecting"
+	ClusterStateConnected  ClusterState = "Connected"
+	ClusterStateError      ClusterState = "Error"
 )
 
 type MonSpec struct {
