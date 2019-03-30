@@ -272,7 +272,7 @@ func (c *S3Controller) s3Container(svcname, name, containerImage, args string, s
 		volumeMounts = append(volumeMounts, v1.VolumeMount{Name: sslCertVolumeName, MountPath: sslMountPath})
 	}
 
-	return v1.Container{
+	cont := v1.Container{
 		Name:            name,
 		Image:           containerImage,
 		ImagePullPolicy: v1.PullAlways,
@@ -316,6 +316,12 @@ func (c *S3Controller) s3Container(svcname, name, containerImage, args string, s
 		},
 		VolumeMounts: volumeMounts,
 	}
+
+	cont.Env = append(cont.Env, edgefsv1alpha1.GetInitiatorEnvArr("s3",
+		c.resourceProfile == "embedded" || s3Spec.ResourceProfile == "embedded",
+		s3Spec.ChunkCacheSize, s3Spec.Resources)...)
+
+	return cont
 }
 
 // Delete S3 service and possibly some artifacts.

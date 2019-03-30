@@ -20,6 +20,7 @@ metadata:
 spec:
   instances: 3
   #s3type: s3s
+  #chunkCacheSize: 1Gi
   placement:
   #  nodeAffinity:
   #    requiredDuringSchedulingIgnoredDuringExecution:
@@ -34,6 +35,7 @@ spec:
   #    operator: Exists
   #  podAffinity:
   #  podAntiAffinity:
+  #resourceProfile: embedded
   resources:
   #  limits:
   #    cpu: "500m"
@@ -51,8 +53,10 @@ spec:
 - `sslCertificateRef`: If the certificate is not specified, SSL will use default crt and key files. If specified, this is the name of the Kubernetes secret that contains the SSL certificate to be used for secure connections. Please see [secret YAML file example](/cluster/examples/kubernetes/edgefs/sslKeyCertificate.yaml) on how to setup Kuberenetes secret. Notice that base64 encoding is required.
 - `port`: The port on which the S3 pods and the S3 service will be listening (not encrypted). Default port is 9982 for `s3` and 9983 for `s3s`.
 - `securePort`: The secure port on which S3 pods will be listening. If not defined then default SSL certificates will be used. Default port is 8443 for `s3` and 8444 for `s3s`.
+- `chunkCacheSize`: Limit amount of memory allocated for dynamic chunk cache. By default S3 pod uses up to 75% of available memory as chunk caching area. This option can influence this allocation strategy.
 - `instances`: The number of active S3 service instances. For load balancing we recommend to use nginx and the like solutions.
 - `placement`: The S3 pods can be given standard Kubernetes placement restrictions with `nodeAffinity`, `tolerations`, `podAffinity`, and `podAntiAffinity` similar to placement defined for daemons configured by the [cluster CRD](/cluster/examples/kubernetes/edgefs/cluster.yaml).
+- `resourceProfile`: S3 pod resource utilization profile (Memory and CPU). Can be `embedded` or `performance` (default). In case of `performance` an S3 pod trying to increase amount of internal I/O resources that results in higher performance at the cost of additional memory allocation and more CPU load. In `embedded` profile case, S3 pod gives preference to preserving memory over I/O and limiting chunk cache (see `chunkCacheSize` option). The `performance` profile is the default unless cluster wide `embedded` option is defined.
 - `resources`: Set resource requests/limits for the S3 pods, see [Resource Requirements/Limits](edgefs-cluster-crd.md#resource-requirementslimits).
 
 ### Setting up EdgeFS namespace and tenant

@@ -119,7 +119,11 @@ ata-ST1000NX0423_W470P9XJ   | BB287F0C6747B1E59A85872B2C7F39B3 | /dev/sdd | ONLI
 ata-ST1000NX0423_W470NQ7A   | B2BB69729BC3EB9ECE5F0DCB3DB4D0D6 | /dev/sde | UNAVAILABLE
 ```
 
-Now your verification procedure can be initiated. The tool is accessible via `efscli device check` command. It provides an interactive user interface for device validation and recovery. Before getting started, a user needs to define a scratch area location. It will be used as a temporary store for environments being compacted or recovered. The scratch area can be defined in terms of data path within filesystem, a path to a raw disk (or its partition) in the /dev/ folder or raw disk/partition ID. User has to make sure the filesystem can provide enough free space to keep data from single _plevel_. The same requirement is for raw disk/partition size: at least 600GB, 1TB is recommended. A user can define the scratch area path in $(NEDGE_HOME)/etc/ccow/rt-rd.json as follow:
+Use `efscli device detach ata-ST1000NX0423_W470NQ7A` for detaching a disk. It will be marked a faulted and won't be attached at the next ccow-daemon restart. Also, the preserved detached state can be cleared by a command `nezap --disk=diskID --restore-metaloc`.
+
+Once detached, related HDD/SSD partitions can be inspected/fixed by means of `efscli device check` command or zapped. When maintenance is done, the VDEV(s) can become operational again by invoking a command `efscli device attach`.
+
+Assuming that your disk is detached and your verification procedure can be initiated. The tool is accessible via `efscli device check` command. It provides an interactive user interface for device validation and recovery. Before getting started, a user needs to define a scratch area location. It will be used as a temporary store for environments being compacted or recovered. The scratch area can be defined in terms of data path within filesystem, a path to a raw disk (or its partition) in the /dev/ folder or raw disk/partition ID. User has to make sure the filesystem can provide enough free space to keep data from single _plevel_. The same requirement is for raw disk/partition size: at least 600GB, 1TB is recommended. A user can define the scratch area path in $(NEDGE_HOME)/etc/ccow/rt-rd.json as follow:
 
 ```json
 {

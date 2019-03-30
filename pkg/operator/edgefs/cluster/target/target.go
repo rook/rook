@@ -59,6 +59,8 @@ type Cluster struct {
 	HostNetworkSpec  edgefsv1alpha1.NetworkSpec
 	Privileged       bool
 	resources        v1.ResourceRequirements
+	resourceProfile  string
+	chunkCacheSize   resource.Quantity
 	ownerRef         metav1.OwnerReference
 	serviceAccount   string
 	deploymentConfig edgefsv1alpha1.ClusterDeploymentConfig
@@ -76,6 +78,8 @@ func New(
 	placement rookalpha.Placement,
 	hostNetworkSpec edgefsv1alpha1.NetworkSpec,
 	resources v1.ResourceRequirements,
+	resourceProfile string,
+	chunkCacheSize resource.Quantity,
 	ownerRef metav1.OwnerReference,
 	deploymentConfig edgefsv1alpha1.ClusterDeploymentConfig,
 ) *Cluster {
@@ -97,6 +101,8 @@ func New(
 		HostNetworkSpec:  hostNetworkSpec,
 		Privileged:       (isHostNetworkDefined(hostNetworkSpec) || os.Getenv("ROOK_HOSTPATH_REQUIRES_PRIVILEGED") == "true"),
 		resources:        resources,
+		resourceProfile:  resourceProfile,
+		chunkCacheSize:   chunkCacheSize,
 		ownerRef:         ownerRef,
 		deploymentConfig: deploymentConfig,
 	}

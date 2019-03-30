@@ -59,6 +59,7 @@ type ISCSIController struct {
 	dataVolumeSize  resource.Quantity
 	placement       rookalpha.Placement
 	resources       v1.ResourceRequirements
+	resourceProfile string
 	ownerRef        metav1.OwnerReference
 }
 
@@ -70,6 +71,7 @@ func NewISCSIController(
 	dataVolumeSize resource.Quantity,
 	placement rookalpha.Placement,
 	resources v1.ResourceRequirements,
+	resourceProfile string,
 	ownerRef metav1.OwnerReference,
 ) *ISCSIController {
 	return &ISCSIController{
@@ -80,6 +82,7 @@ func NewISCSIController(
 		dataVolumeSize:  dataVolumeSize,
 		placement:       placement,
 		resources:       resources,
+		resourceProfile: resourceProfile,
 		ownerRef:        ownerRef,
 	}
 }

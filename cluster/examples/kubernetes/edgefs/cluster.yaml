@@ -144,6 +144,8 @@ spec:
   #  - path: /mnt/disks/ssd2
     useAllDevices: true
   #  config:
+  #    mdReserved: "30"            # allocate only 30% of offloaded SSD/NVMe slice for Metadata, the rest keep for BCache
+  #    hddReadAhead: "2048"        # speed up reads of 2MB+ chunks of HDD (offload use case)
   #    rtVerifyChid: "0"           # may improve CPU utilization
   #    lmdbPageSize: "32768"       # larger value can improve stream operations
   #    useMetadataOffload: "true"  # enable use of SSD device as metadata offload

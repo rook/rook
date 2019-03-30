@@ -59,6 +59,7 @@ type ISGWController struct {
 	dataVolumeSize  resource.Quantity
 	placement       rookalpha.Placement
 	resources       v1.ResourceRequirements
+	resourceProfile string
 	ownerRef        metav1.OwnerReference
 }
 
@@ -70,6 +71,7 @@ func NewISGWController(
 	dataVolumeSize resource.Quantity,
 	placement rookalpha.Placement,
 	resources v1.ResourceRequirements,
+	resourceProfile string,
 	ownerRef metav1.OwnerReference,
 ) *ISGWController {
 	return &ISGWController{
@@ -80,6 +82,7 @@ func NewISGWController(
 		dataVolumeSize:  dataVolumeSize,
 		placement:       placement,
 		resources:       resources,
+		resourceProfile: resourceProfile,
 		ownerRef:        ownerRef,
 	}
 }

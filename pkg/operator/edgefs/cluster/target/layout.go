@@ -116,11 +116,12 @@ func GetRTDevices(nodeDisks []sys.LocalDisk, storeConfig *config.StoreConfig) (r
 				continue
 			}
 			rtdev := edgefsv1alpha1.RTDevice{
-				Name:       getIdDevLinkName(devices[i].DevLinks),
-				Device:     "/dev/" + devices[i].Name,
-				Psize:      storeConfig.LmdbPageSize,
-				VerifyChid: storeConfig.RtVerifyChid,
-				Sync:       storeConfig.Sync,
+				Name:         getIdDevLinkName(devices[i].DevLinks),
+				Device:       "/dev/" + devices[i].Name,
+				Psize:        storeConfig.LmdbPageSize,
+				VerifyChid:   storeConfig.RtVerifyChid,
+				HDDReadAhead: storeConfig.HDDReadAhead,
+				Sync:         storeConfig.Sync,
 			}
 			if storeConfig.RtPLevelOverride != 0 {
 				rtdev.PlevelOverride = storeConfig.RtPLevelOverride
@@ -159,6 +160,7 @@ func GetRTDevices(nodeDisks []sys.LocalDisk, storeConfig *config.StoreConfig) (r
 				Device:            "/dev/" + hdds_divided[i][j].Name,
 				Psize:             storeConfig.LmdbPageSize,
 				VerifyChid:        storeConfig.RtVerifyChid,
+				HDDReadAhead:      storeConfig.HDDReadAhead,
 				BcacheWritearound: (map[bool]int{true: 0, false: 1})[storeConfig.UseBCacheWB],
 				Journal:           getIdDevLinkName(ssds[i].DevLinks),
 				Metadata:          getIdDevLinkName(ssds[i].DevLinks) + "," + storeConfig.UseMetadataMask,

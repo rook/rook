@@ -59,6 +59,7 @@ type SWIFTController struct {
 	dataVolumeSize  resource.Quantity
 	placement       rookalpha.Placement
 	resources       v1.ResourceRequirements
+	resourceProfile string
 	ownerRef        metav1.OwnerReference
 }
 
@@ -70,6 +71,7 @@ func NewSWIFTController(
 	dataVolumeSize resource.Quantity,
 	placement rookalpha.Placement,
 	resources v1.ResourceRequirements,
+	resourceProfile string,
 	ownerRef metav1.OwnerReference,
 ) *SWIFTController {
 	return &SWIFTController{
@@ -80,6 +82,7 @@ func NewSWIFTController(
 		dataVolumeSize:  dataVolumeSize,
 		placement:       placement,
 		resources:       resources,
+		resourceProfile: resourceProfile,
 		ownerRef:        ownerRef,
 	}
 }

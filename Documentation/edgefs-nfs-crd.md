@@ -19,6 +19,8 @@ metadata:
   namespace: rook-edgefs
 spec:
   instances: 3
+  #relaxedDirUpdates: true
+  #chunkCacheSize: 1Gi
   placement:
   #  nodeAffinity:
   #    requiredDuringSchedulingIgnoredDuringExecution:
@@ -33,6 +35,7 @@ spec:
   #    operator: Exists
   #  podAffinity:
   #  podAntiAffinity:
+  #resourceProfile: embedded
   resources:
   #  limits:
   #    cpu: "500m"
@@ -47,7 +50,10 @@ spec:
 - `name`: The name of the NFS system to create, which must match existing EdgeFS service.
 - `namespace`: The namespace of the Rook cluster where the NFS service is created.
 - `instances`: The number of active NFS service instances. EdgeFS NFS service is Multi-Head capable, such so that multiple PODs can mount same tenant's buckets via different endpoints. [EdgeFS CSI provisioner](edgefs-csi.md) orchestrates distribution and load balancing across NFS service instances in round-robin or random policy ways.
+- `relaxedDirUpdates`: If set to `true` then it will significantly improve performance of directory operations by defering updates, guaranteeing eventual directory consistency. This option is recommended when a bucket exported via single NFS instance and it is not a destination for ISGW Link synchronization.
+- `chunkCacheSize`: Limit amount of memory allocated for dynamic chunk cache. By default NFS pod uses up to 75% of available memory as chunk caching area. This option can influence this allocation strategy.
 - `placement`: The NFS PODs can be given standard Kubernetes placement restrictions with `nodeAffinity`, `tolerations`, `podAffinity`, and `podAntiAffinity` similar to placement defined for daemons configured by the [cluster CRD](/cluster/examples/kubernetes/edgefs/cluster.yaml).
+- `resourceProfile`: NFS pod resource utilization profile (Memory and CPU). Can be `embedded` or `performance` (default). In case of `performance` an NFS pod trying to increase amount of internal I/O resources that results in higher performance at the cost of additional memory allocation and more CPU load. In `embedded` profile case, NFS pod gives preference to preserving memory over I/O and limiting chunk cache (see `chunkCacheSize` option). The `performance` profile is the default unless cluster wide `embedded` option is defined.
 - `resources`: Set resource requests/limits for the NFS Pod(s), see [Resource Requirements/Limits](edgefs-cluster-crd.md#resource-requirementslimits).
 
 ### Setting up EdgeFS namespace and tenant

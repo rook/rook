@@ -67,6 +67,8 @@ type ClusterSpec struct {
 	DevicesResurrectMode string            `json:"devicesResurrectMode,omitempty"`
 	EdgefsImageName      string            `json:"edgefsImageName,omitempty"`
 	SkipHostPrepare      bool              `json:"skipHostPrepare,omitempty"`
+	ResourceProfile      string            `json:"resourceProfile,omitempty"`
+	ChunkCacheSize       resource.Quantity `json:"chunkCacheSize,omitempty"`
 }
 
 type DashboardSpec struct {
@@ -113,7 +115,10 @@ type NFSSpec struct {
 	// Resources set resource requests and limits
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`
 	// The number of pods in the NFS replicaset
-	Instances int32 `json:"instances"`
+	Instances         int32             `json:"instances"`
+	RelaxedDirUpdates bool              `json:"relaxedDirUpdates,omitempty"`
+	ResourceProfile   string            `json:"resourceProfile,omitempty"`
+	ChunkCacheSize    resource.Quantity `json:"chunkCacheSize,omitempty"`
 }
 
 // +genclient
@@ -149,7 +154,9 @@ type S3Spec struct {
 	// The name of the secret that stores the ssl certificate for secure s3 connections
 	SSLCertificateRef string `json:"sslCertificateRef,omitempty"`
 	// S3 type: s3 (bucket as url, default), s3s (bucket as DNS subdomain), s3g (new, experimental)
-	S3Type string `json:"s3type,omitempty"`
+	S3Type          string            `json:"s3type,omitempty"`
+	ResourceProfile string            `json:"resourceProfile,omitempty"`
+	ChunkCacheSize  resource.Quantity `json:"chunkCacheSize,omitempty"`
 }
 
 // +genclient
@@ -183,7 +190,9 @@ type SWIFTSpec struct {
 	//S3 Https port (default value 9443)
 	SecurePort uint `json:"securePort,omitempty"`
 	// The name of the secret that stores the ssl certificate for secure s3 connections
-	SSLCertificateRef string `json:"sslCertificateRef,omitempty"`
+	SSLCertificateRef string            `json:"sslCertificateRef,omitempty"`
+	ResourceProfile   string            `json:"resourceProfile,omitempty"`
+	ChunkCacheSize    resource.Quantity `json:"chunkCacheSize,omitempty"`
 }
 
 // +genclient
@@ -217,7 +226,9 @@ type S3XSpec struct {
 	//S3X Https port (default value 3001)
 	SecurePort uint `json:"securePort,omitempty"`
 	// The name of the secret that stores the ssl certificate for secure s3x connections
-	SSLCertificateRef string `json:"sslCertificateRef,omitempty"`
+	SSLCertificateRef string            `json:"sslCertificateRef,omitempty"`
+	ResourceProfile   string            `json:"resourceProfile,omitempty"`
+	ChunkCacheSize    resource.Quantity `json:"chunkCacheSize,omitempty"`
 }
 
 // +genclient
@@ -249,7 +260,9 @@ type ISCSISpec struct {
 	//IISCSI Http port (default value 3000)
 	TargetName string `json:"targetName,omitempty"`
 	//specific ISCSI target parameters
-	TargetParams TargetParametersSpec `json:"targetParams"`
+	TargetParams    TargetParametersSpec `json:"targetParams"`
+	ResourceProfile string               `json:"resourceProfile,omitempty"`
+	ChunkCacheSize  resource.Quantity    `json:"chunkCacheSize,omitempty"`
 }
 
 type TargetParametersSpec struct {
@@ -300,5 +313,7 @@ type ISGWSpec struct {
 	// ISGW Endpoint local address (default value 0.0.0.0:14000)
 	LocalAddr string `json:"localAddr,omitempty"`
 	// ISGW Encrypted Tunnel flag
-	UseEncryptedTunnel bool `json:"useEncryptedTunnel,omitempty"`
+	UseEncryptedTunnel bool              `json:"useEncryptedTunnel,omitempty"`
+	ResourceProfile    string            `json:"resourceProfile,omitempty"`
+	ChunkCacheSize     resource.Quantity `json:"chunkCacheSize,omitempty"`
 }

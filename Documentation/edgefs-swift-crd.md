@@ -19,6 +19,7 @@ metadata:
   namespace: rook-edgefs
 spec:
   instances: 3
+  #chunkCacheSize: 1Gi
   placement:
   #  nodeAffinity:
   #    requiredDuringSchedulingIgnoredDuringExecution:
@@ -33,6 +34,7 @@ spec:
   #    operator: Exists
   #  podAffinity:
   #  podAntiAffinity:
+  #resourceProfile: embedded
   resources:
   #  limits:
   #    cpu: "500m"
@@ -50,7 +52,9 @@ spec:
 - `port`: The port on which the SWIFT pods and the SWIFT service will be listening (not encrypted). Default port is 9981.
 - `securePort`: The secure port on which SWIFT pods will be listening. If not defined then default SSL certificates will be used. Default port is 443.
 - `instances`: The number of active SWIFT service instances. For load balancing we recommend to use nginx and the like solutions.
+- `chunkCacheSize`: Limit amount of memory allocated for dynamic chunk cache. By default SWIFT pod uses up to 75% of available memory as chunk caching area. This option can influence this allocation strategy.
 - `placement`: The SWIFT pods can be given standard Kubernetes placement restrictions with `nodeAffinity`, `tolerations`, `podAffinity`, and `podAntiAffinity` similar to placement defined for daemons configured by the [cluster CRD](/cluster/examples/kubernetes/edgefs/cluster.yaml).
+- `resourceProfile`: SWIFT pod resource utilization profile (Memory and CPU). Can be `embedded` or `performance` (default). In case of `performance` an SWIFT pod trying to increase amount of internal I/O resources that results in higher performance at the cost of additional memory allocation and more CPU load. In `embedded` profile case, SWIFT pod gives preference to preserving memory over I/O and limiting chunk cache (see `chunkCacheSize` option). The `performance` profile is the default unless cluster wide `embedded` option is defined.
 - `resources`: Set resource requests/limits for the SWIFT pods, see [Resource Requirements/Limits](edgefs-cluster-crd.md#resource-requirementslimits).
 
 ### Setting up EdgeFS namespace and tenant

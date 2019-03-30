@@ -246,7 +246,7 @@ func (c *S3XController) s3xContainer(svcname, name, containerImage string, s3xSp
 		volumeMounts = append(volumeMounts, v1.VolumeMount{Name: sslCertVolumeName, MountPath: sslMountPath})
 	}
 
-	return v1.Container{
+	cont := v1.Container{
 		Name:            name,
 		Image:           containerImage,
 		ImagePullPolicy: v1.PullAlways,
@@ -286,6 +286,12 @@ func (c *S3XController) s3xContainer(svcname, name, containerImage string, s3xSp
 		},
 		VolumeMounts: volumeMounts,
 	}
+
+	cont.Env = append(cont.Env, edgefsv1alpha1.GetInitiatorEnvArr("s3x",
+		c.resourceProfile == "embedded" || s3xSpec.ResourceProfile == "embedded",
+		s3xSpec.ChunkCacheSize, s3xSpec.Resources)...)
+
+	return cont
 }
 
 // Delete S3X service and possibly some artifacts.
