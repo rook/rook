@@ -137,7 +137,7 @@ server cluster. If one of the active Ganesha server pods goes down, k8s brings
 up a replacement ganesha server pod with the same configuration and IP address.
 The NFS server cluster can be scaled up or down by updating the
 number of the active Ganesha servers in the CRD (using `kubectl edit` or
-modifying the original CRD and running `kubectly apply -f <CRD yaml file>`).
+modifying the original CRD and running `kubectl apply -f <CRD yaml file>`).
 
 ### Per-node config files
 After loading the basic ganesha config from inside the container, the node
