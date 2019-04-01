@@ -64,7 +64,7 @@ func (hc *HealthChecker) Check(stopCh chan struct{}) {
 			logger.Debugf("checking health of mons")
 			err := hc.monCluster.checkHealth()
 			if err != nil {
-				logger.Infof("failed to check mon health. %+v", err)
+				logger.Warningf("failed to check mon health. %+v", err)
 			}
 		}
 	}
@@ -76,14 +76,6 @@ func (c *Cluster) checkHealth() error {
 
 	logger.Debugf("Checking health for mons in cluster. %s", c.clusterInfo.Name)
 
-	// Use a local mon count in case the user updates the crd in another goroutine.
-	// We need to complete a health check with a consistent value.
-	desiredMonCount, msg, err := c.getTargetMonCount()
-	if err != nil {
-		return fmt.Errorf("failed to get target mon count. %+v", err)
-	}
-	logger.Debugf(msg)
-
 	// connect to the mons
 	// get the status and check for quorum
 	status, err := client.GetMonStatus(c.context, c.clusterInfo.Name, true)
@@ -91,6 +83,17 @@ func (c *Cluster) checkHealth() error {
 		return fmt.Errorf("failed to get mon status. %+v", err)
 	}
 	logger.Debugf("Mon status: %+v", status)
+	if c.spec.ExternalCeph {
+		return c.handleExternalMonStatus(status)
+	}
+
+	// Use a local mon count in case the user updates the crd in another goroutine.
+	// We need to complete a health check with a consistent value.
+	desiredMonCount, msg, err := c.getTargetMonCount()
+	if err != nil {
+		return fmt.Errorf("failed to get target mon count. %+v", err)
+	}
+	logger.Debugf(msg)
 
 	// Source of truth of which mons should exist is our *clusterInfo*
 	monsNotFound := map[string]interface{}{}
@@ -460,4 +463,8 @@ func (c *Cluster) findInvalidMonitorPlacement(desiredMonCount int) (*NodeUsage, 
 	logger.Debugf("rebalance: no mon placement violations or fixes available")
 
 	return nil, nil
+}
+
+func (c *Cluster) handleExternalMonStatus(status client.MonStatusResponse) error {
+	return nil
 }
