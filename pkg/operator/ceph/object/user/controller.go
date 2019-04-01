@@ -191,9 +191,9 @@ func deleteUser(context *clusterd.Context, u *cephv1.CephObjectStoreUser) error 
 		}
 	}
 
-	err = context.Clientset.CoreV1().Secrets(u.Namespace).Delete("rook-ceph-object-user-"+u.Name, &metav1.DeleteOptions{})
+	err = context.Clientset.CoreV1().Secrets(u.Namespace).Delete(fmt.Sprintf("rook-ceph-object-user-%s-%s", u.Spec.Store, u.Name), &metav1.DeleteOptions{})
 	if err != nil {
-		logger.Warningf("failed to delete user %s secret. %+v", u.Name, err)
+		logger.Warningf("failed to delete user %s secret. %+v", fmt.Sprintf("rook-ceph-object-user-%s-%s", u.Spec.Store, u.Name), err)
 	}
 
 	logger.Infof("user %s deleted successfully", u.Name)

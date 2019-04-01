@@ -56,13 +56,20 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	logger.Infof("Step 1 : Create Object Store User")
 	cosuErr := helper.ObjectUserClient.Create(namespace, userid, userdisplayname, storeName)
 	require.Nil(s.T(), cosuErr)
-	logger.Infof("Waiting 5 seconds to ensure user was created")
-	time.Sleep(5 * time.Second)
-	require.True(s.T(), helper.ObjectUserClient.UserSecretExists(namespace, userid, storeName), "make sure user secret was created")
+	logger.Infof("Waiting 10 seconds to ensure user was created")
+	time.Sleep(10 * time.Second)
 	userInfo, gosuErr := helper.ObjectUserClient.GetUser(namespace, storeName, userid)
 	require.Nil(s.T(), gosuErr)
 	require.Equal(s.T(), userid, userInfo.UserID)
 	require.Equal(s.T(), userdisplayname, *userInfo.DisplayName)
+	logger.Infof("Checking to see if the user secret has been created")
+	i := 0
+	for i = 0; i < 4 && helper.ObjectUserClient.UserSecretExists(namespace, storeName, userid) == false; i++ {
+		logger.Infof("(%d) secret check sleeping for 5 seconds ...", i)
+		time.Sleep(5 * time.Second)
+	}
+	assert.True(s.T(), helper.ObjectUserClient.UserSecretExists(namespace, storeName, userid))
+
 	logger.Infof("Object store user created successfully")
 
 	/* TODO: We need bucket management tests.
@@ -123,6 +130,13 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	dosuErr := helper.ObjectUserClient.Delete(namespace, userid)
 	require.Nil(s.T(), dosuErr)
 	logger.Infof("Object store user deleted successfully")
+	logger.Infof("Checking to see if the user secret has been deleted")
+	i = 0
+	for i = 0; i < 4 && helper.ObjectUserClient.UserSecretExists(namespace, storeName, userid) == true; i++ {
+		logger.Infof("(%d) secret check sleeping for 5 seconds ...", i)
+		time.Sleep(5 * time.Second)
+	}
+	assert.False(s.T(), helper.ObjectUserClient.UserSecretExists(namespace, storeName, userid))
 
 	logger.Infof("Check that MGRs are not in a crashloop")
 	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-ceph-mgr", namespace, 1, "Running"))
