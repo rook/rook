@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package k8sutil
 
 import (
@@ -129,4 +130,17 @@ func GetDeployments(clientset kubernetes.Interface, namespace, labelSelector str
 		return nil, fmt.Errorf("failed to list deployments with labelSelector %s: %v", labelSelector, err)
 	}
 	return deployments, nil
+}
+
+// DeleteDeployment makes a best effort at deleting a deployment and its pods, then waits for them to be deleted
+func DeleteDeployment(clientset kubernetes.Interface, namespace, name string) error {
+	logger.Debugf("removing %s deployment if it exists", name)
+	deleteAction := func(options *metav1.DeleteOptions) error {
+		return clientset.Apps().Deployments(namespace).Delete(name, options)
+	}
+	getAction := func() error {
+		_, err := clientset.Apps().Deployments(namespace).Get(name, metav1.GetOptions{})
+		return err
+	}
+	return deleteResourceAndWait(namespace, name, "deployment", deleteAction, getAction)
 }

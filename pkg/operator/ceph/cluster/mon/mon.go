@@ -66,16 +66,20 @@ const (
 	DefaultMonCount = 3
 	// MaxMonCount Maximum allowed mon count for a cluster
 	MaxMonCount = 9
-	// Msgr2port is the listening port of the messenger v2 protocol
-	Msgr2port int32 = 3300
+
+	// DefaultMsgr1Port is the default port Ceph mons use to communicate amongst themselves prior
+	// to Ceph Nautilus.
+	DefaultMsgr1Port int32 = 6789
+	// DefaultMsgr2Port is the listening port of the messenger v2 protocol introduced in Ceph
+	// Nautilus. In Nautilus and a few Ceph releases after, Ceph can use both v1 and v2 protocols.
+	DefaultMsgr2Port int32 = 3300
+
 	// minimum amount of memory in MB to run the pod
 	cephMonPodMinimumMemory uint64 = 1024
 )
 
 var (
 	logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mon")
-	// DefaultPort is the default port Ceph mons use to communicate amongst themselves.
-	DefaultPort int32 = 6789
 )
 
 // Cluster represents the Rook and environment configuration settings needed to set up Ceph mons.
@@ -317,7 +321,7 @@ func (c *Cluster) newMonConfig(monID int) *monConfig {
 	return &monConfig{
 		ResourceName: resourceName(daemonName),
 		DaemonName:   daemonName,
-		Port:         DefaultPort,
+		Port:         DefaultMsgr1Port,
 		DataPathMap: config.NewStatefulDaemonDataPathMap(
 			c.dataDirHostPath, dataDirRelativeHostPath(daemonName), config.MonType, daemonName),
 	}

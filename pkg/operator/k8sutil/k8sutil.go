@@ -21,8 +21,11 @@ import (
 	"crypto/md5"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/coreos/pkg/capnslog"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/kubernetes/pkg/util/version"
@@ -84,4 +87,44 @@ func TruncateNodeName(format, nodeName string) string {
 		nodeName = hashed
 	}
 	return fmt.Sprintf(format, nodeName)
+}
+
+// deleteResourceAndWait will delete a resource, then wait for it to be purged from the system
+func deleteResourceAndWait(namespace, name, resourceType string,
+	deleteAction func(*metav1.DeleteOptions) error,
+	getAction func() error,
+) error {
+	var gracePeriod int64
+	propagation := metav1.DeletePropagationForeground
+	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
+
+	// Delete the resource if it exists
+	logger.Infof("removing %s %s if it exists", resourceType, name)
+	err := deleteAction(options)
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			return fmt.Errorf("failed to delete %s. %+v", name, err)
+		}
+		return nil
+	}
+	logger.Infof("Removed %s %s", resourceType, name)
+
+	// wait for the resource to be deleted
+	sleepTime := 2 * time.Second
+	for i := 0; i < 30; i++ {
+		// check for the existence of the resource
+		err = getAction()
+		if err != nil {
+			if errors.IsNotFound(err) {
+				logger.Infof("confirmed %s does not exist", name)
+				return nil
+			}
+			return fmt.Errorf("failed to get %s. %+v", name, err)
+		}
+
+		logger.Infof("%s still found. waiting...", name)
+		time.Sleep(sleepTime)
+	}
+
+	return fmt.Errorf("gave up waiting for %s pods to be terminated", name)
 }

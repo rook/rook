@@ -22,14 +22,13 @@ import (
 
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func (c *Cluster) createService(mon *monConfig) (string, error) {
 	labels := c.getLabels(mon.DaemonName)
-	s := &v1.Service{
+	svcDef := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   mon.ResourceName,
 			Labels: labels,
@@ -37,38 +36,34 @@ func (c *Cluster) createService(mon *monConfig) (string, error) {
 		Spec: v1.ServiceSpec{
 			Ports: []v1.ServicePort{
 				{
-					Name:       mon.ResourceName,
-					Port:       mon.Port,
-					TargetPort: intstr.FromInt(int(mon.Port)),
+					Name: "msgr1",
+					Port: mon.Port,
+					// --public-bind-addr=IP with no IP:port has the mon listen on port 6789
+					// regardless of what port the mon advertises (--public-addr) to the outside.
+					TargetPort: intstr.FromInt(int(DefaultMsgr1Port)),
 					Protocol:   v1.ProtocolTCP,
 				},
 			},
 			Selector: labels,
 		},
 	}
-	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &s.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &svcDef.ObjectMeta, &c.ownerRef)
 	if c.HostNetwork {
-		s.Spec.ClusterIP = v1.ClusterIPNone
+		svcDef.Spec.ClusterIP = v1.ClusterIPNone
 	}
 
 	// If deploying Nautilus or newer we need a new port for the monitor service
 	if c.clusterInfo.CephVersion.IsAtLeastNautilus() {
-		addServicePort(s, "msgr2", Msgr2port)
+		addServicePort(svcDef, "msgr2", DefaultMsgr2Port)
 	}
 
-	s, err := c.context.Clientset.CoreV1().Services(c.Namespace).Create(s)
+	s, err := k8sutil.CreateOrUpdateService(c.context.Clientset, c.Namespace, svcDef)
 	if err != nil {
-		if !errors.IsAlreadyExists(err) {
-			return "", fmt.Errorf("failed to create mon service. %+v", err)
-		}
-		s, err = c.context.Clientset.CoreV1().Services(c.Namespace).Get(mon.ResourceName, metav1.GetOptions{})
-		if err != nil {
-			return "", fmt.Errorf("failed to get mon %s service ip. %+v", mon.ResourceName, err)
-		}
+		return "", fmt.Errorf("failed to create service for mon %s. %+v", mon.DaemonName, err)
 	}
 
 	if s == nil {
-		logger.Warningf("service ip not found for mon %s. this better be a test", mon.ResourceName)
+		logger.Errorf("service ip not found for mon %s. if this is not a unit test, this is an error", mon.ResourceName)
 		return "", nil
 	}
 
@@ -76,7 +71,7 @@ func (c *Cluster) createService(mon *monConfig) (string, error) {
 	// however it's interesting to show that monitors can be addressed via 2 different ports
 	// in the end the service has msgr1 and msgr2 ports configured so it's not entirely wrong
 	if c.clusterInfo.CephVersion.IsAtLeastNautilus() {
-		logger.Infof("mon %s endpoint are [v2:%s:%s,v1:%s:%d]", mon.DaemonName, s.Spec.ClusterIP, strconv.Itoa(int(Msgr2port)), s.Spec.ClusterIP, mon.Port)
+		logger.Infof("mon %s endpoint are [v2:%s:%s,v1:%s:%d]", mon.DaemonName, s.Spec.ClusterIP, strconv.Itoa(int(DefaultMsgr2Port)), s.Spec.ClusterIP, mon.Port)
 	} else {
 		logger.Infof("mon %s endpoint is %s:%d", mon.DaemonName, s.Spec.ClusterIP, mon.Port)
 	}

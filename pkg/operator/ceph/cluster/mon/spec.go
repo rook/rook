@@ -164,7 +164,11 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 		Args: append(
 			opspec.DaemonFlags(c.clusterInfo, monConfig.DaemonName),
 			"--foreground",
+			// If the mon is already in the monmap, when the port is left off of --public-addr,
+			// it will still advertise on the previous port b/c monmap is saved to mon database.
 			config.NewFlag("public-addr", monConfig.PublicIP),
+			// Opposite of the above, --public-bind-addr will *not* still advertise on the previous
+			// port, which makes sense because this is the pod IP, which changes with every new pod.
 			config.NewFlag("public-bind-addr", opspec.ContainerEnvVarReference(podIPEnvVar)),
 		),
 		Image:           c.spec.CephVersion.Image,

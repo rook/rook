@@ -23,13 +23,11 @@ import (
 	"os"
 	"path"
 	"strings"
-	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
@@ -220,83 +218,6 @@ func GetPodLog(clientset kubernetes.Interface, namespace string, labelSelector s
 	return "", fmt.Errorf("did not find any pods with label %s", labelSelector)
 }
 
-// DeleteDeployment makes a best effort at deleting a deployment and its pods, then waits for them to be deleted
-func DeleteDeployment(clientset kubernetes.Interface, namespace, name string) error {
-	logger.Debugf("removing %s deployment if it exists", name)
-	deleteAction := func(options *metav1.DeleteOptions) error {
-		return clientset.Apps().Deployments(namespace).Delete(name, options)
-	}
-	getAction := func() error {
-		_, err := clientset.Apps().Deployments(namespace).Get(name, metav1.GetOptions{})
-		return err
-	}
-	return deleteResourceAndWait(namespace, name, "deployment", deleteAction, getAction)
-}
-
-// DeleteReplicaSet makes a best effort at deleting a deployment and its pods, then waits for them to be deleted
-func DeleteReplicaSet(clientset kubernetes.Interface, namespace, name string) error {
-	deleteAction := func(options *metav1.DeleteOptions) error {
-		return clientset.Apps().ReplicaSets(namespace).Delete(name, options)
-	}
-	getAction := func() error {
-		_, err := clientset.Apps().ReplicaSets(namespace).Get(name, metav1.GetOptions{})
-		return err
-	}
-	return deleteResourceAndWait(namespace, name, "replicaset", deleteAction, getAction)
-}
-
-// DeleteDaemonset makes a best effort at deleting a daemonset and its pods, then waits for them to be deleted
-func DeleteDaemonset(clientset kubernetes.Interface, namespace, name string) error {
-	logger.Infof("removing %s daemonset if it exists", name)
-	deleteAction := func(options *metav1.DeleteOptions) error {
-		return clientset.Apps().DaemonSets(namespace).Delete(name, options)
-	}
-	getAction := func() error {
-		_, err := clientset.Apps().DaemonSets(namespace).Get(name, metav1.GetOptions{})
-		return err
-	}
-	return deleteResourceAndWait(namespace, name, "daemonset", deleteAction, getAction)
-}
-
-// deleteResourceAndWait will delete a resource, then wait for it to be purged from the system
-func deleteResourceAndWait(namespace, name, resourceType string,
-	deleteAction func(*metav1.DeleteOptions) error,
-	getAction func() error) error {
-
-	var gracePeriod int64
-	propagation := metav1.DeletePropagationForeground
-	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
-
-	// Delete the resource if it exists
-	err := deleteAction(options)
-	if err != nil {
-		if !errors.IsNotFound(err) {
-			return fmt.Errorf("failed to delete %s. %+v", name, err)
-		}
-		return nil
-	}
-	logger.Infof("Removed %s %s", resourceType, name)
-
-	// wait for the resource to be deleted
-	sleepTime := 2 * time.Second
-	for i := 0; i < 30; i++ {
-		// check for the existence of the resource
-		err = getAction()
-		if err != nil {
-			if errors.IsNotFound(err) {
-				logger.Infof("confirmed %s does not exist", name)
-				return nil
-			}
-			return fmt.Errorf("failed to get %s. %+v", name, err)
-		}
-
-		logger.Infof("%s still found. waiting...", name)
-		time.Sleep(sleepTime)
-	}
-
-	return fmt.Errorf("gave up waiting for %s pods to be terminated", name)
-}
-
 // ClusterDaemonEnvVars Environment variables used by storage cluster daemon
 func ClusterDaemonEnvVars(image string) []v1.EnvVar {
 	return []v1.EnvVar{
@@ -321,9 +242,4 @@ func ClusterDaemonEnvVars(image string) []v1.EnvVar {
 		// Kubernetes will set this variable to 0 or equal to limits.cpu if set
 		{Name: "POD_CPU_REQUEST", ValueFrom: &v1.EnvVarSource{ResourceFieldRef: &v1.ResourceFieldSelector{Resource: "requests.cpu"}}},
 	}
-}
-
-// CephVersionName is the name of the ceph version
-func CephVersionName(version string) v1.EnvVar {
-	return v1.EnvVar{Name: "ROOK_CEPH_VERSION_NAME", Value: version}
 }
