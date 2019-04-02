@@ -57,12 +57,13 @@ var ObjectStoreResourceRookLegacy = opkit.CustomResource{
 
 // ObjectStoreController represents a controller object for object store custom resources
 type ObjectStoreController struct {
-	clusterInfo *daemonconfig.ClusterInfo
-	context     *clusterd.Context
-	rookImage   string
-	cephVersion cephv1.CephVersionSpec
-	hostNetwork bool
-	ownerRef    metav1.OwnerReference
+	clusterInfo     *daemonconfig.ClusterInfo
+	context         *clusterd.Context
+	rookImage       string
+	cephVersion     cephv1.CephVersionSpec
+	hostNetwork     bool
+	ownerRef        metav1.OwnerReference
+	dataDirHostPath string
 }
 
 // NewObjectStoreController create controller for watching object store custom resources created
@@ -73,14 +74,16 @@ func NewObjectStoreController(
 	cephVersion cephv1.CephVersionSpec,
 	hostNetwork bool,
 	ownerRef metav1.OwnerReference,
+	dataDirHostPath string,
 ) *ObjectStoreController {
 	return &ObjectStoreController{
-		clusterInfo: clusterInfo,
-		context:     context,
-		rookImage:   rookImage,
-		cephVersion: cephVersion,
-		hostNetwork: hostNetwork,
-		ownerRef:    ownerRef,
+		clusterInfo:     clusterInfo,
+		context:         context,
+		rookImage:       rookImage,
+		cephVersion:     cephVersion,
+		hostNetwork:     hostNetwork,
+		ownerRef:        ownerRef,
+		dataDirHostPath: dataDirHostPath,
 	}
 }
 
@@ -125,7 +128,7 @@ func (c *ObjectStoreController) onAdd(obj interface{}) {
 		cephVersion: c.cephVersion,
 		hostNetwork: c.hostNetwork,
 		ownerRefs:   c.storeOwners(objectstore),
-		DataPathMap: cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, objectstore.Name),
+		DataPathMap: cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, objectstore.Name, c.clusterInfo.Name, c.dataDirHostPath),
 	}
 	if err = cfg.createStore(); err != nil {
 		logger.Errorf("failed to create object store %s. %+v", objectstore.Name, err)
@@ -166,7 +169,7 @@ func (c *ObjectStoreController) onUpdate(oldObj, newObj interface{}) {
 		c.cephVersion,
 		c.hostNetwork,
 		c.storeOwners(newStore),
-		cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, newStore.Name),
+		cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, newStore.Name, c.clusterInfo.Name, c.dataDirHostPath),
 	}
 	if err = cfg.updateStore(); err != nil {
 		logger.Errorf("failed to create (modify) object store %s. %+v", newStore.Name, err)

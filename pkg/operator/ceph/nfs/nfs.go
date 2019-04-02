@@ -27,7 +27,7 @@ import (
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	batch "k8s.io/api/batch/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -163,7 +163,7 @@ func (c *CephNFSController) runGaneshaRadosGraceJob(n cephv1.CephNFS, name, acti
 							VolumeMounts: opspec.RookVolumeMounts(),
 						},
 					},
-					Volumes:       opspec.PodVolumes(""),
+					Volumes:       opspec.PodVolumes("", ""),
 					RestartPolicy: v1.RestartPolicyOnFailure,
 				},
 			},

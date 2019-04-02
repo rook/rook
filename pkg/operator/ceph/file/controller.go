@@ -57,12 +57,13 @@ var filesystemResourceRookLegacy = opkit.CustomResource{
 
 // FilesystemController represents a controller for filesystem custom resources
 type FilesystemController struct {
-	clusterInfo *cephconfig.ClusterInfo
-	context     *clusterd.Context
-	rookVersion string
-	cephVersion cephv1.CephVersionSpec
-	hostNetwork bool
-	ownerRef    metav1.OwnerReference
+	clusterInfo     *cephconfig.ClusterInfo
+	context         *clusterd.Context
+	rookVersion     string
+	cephVersion     cephv1.CephVersionSpec
+	hostNetwork     bool
+	ownerRef        metav1.OwnerReference
+	dataDirHostPath string
 }
 
 // NewFilesystemController create controller for watching filesystem custom resources created
@@ -73,14 +74,16 @@ func NewFilesystemController(
 	cephVersion cephv1.CephVersionSpec,
 	hostNetwork bool,
 	ownerRef metav1.OwnerReference,
+	dataDirHostPath string,
 ) *FilesystemController {
 	return &FilesystemController{
-		clusterInfo: clusterInfo,
-		context:     context,
-		rookVersion: rookVersion,
-		cephVersion: cephVersion,
-		hostNetwork: hostNetwork,
-		ownerRef:    ownerRef,
+		clusterInfo:     clusterInfo,
+		context:         context,
+		rookVersion:     rookVersion,
+		cephVersion:     cephVersion,
+		hostNetwork:     hostNetwork,
+		ownerRef:        ownerRef,
+		dataDirHostPath: dataDirHostPath,
 	}
 }
 
@@ -117,7 +120,7 @@ func (c *FilesystemController) onAdd(obj interface{}) {
 		return
 	}
 
-	err = createFilesystem(c.clusterInfo, c.context, *filesystem, c.rookVersion, c.cephVersion, c.hostNetwork, c.filesystemOwners(filesystem))
+	err = createFilesystem(c.clusterInfo, c.context, *filesystem, c.rookVersion, c.cephVersion, c.hostNetwork, c.filesystemOwners(filesystem), c.dataDirHostPath)
 	if err != nil {
 		logger.Errorf("failed to create filesystem %s: %+v", filesystem.Name, err)
 	}
@@ -149,7 +152,7 @@ func (c *FilesystemController) onUpdate(oldObj, newObj interface{}) {
 
 	// if the filesystem is modified, allow the filesystem to be created if it wasn't already
 	logger.Infof("updating filesystem %s", newFS.Name)
-	err = createFilesystem(c.clusterInfo, c.context, *newFS, c.rookVersion, c.cephVersion, c.hostNetwork, c.filesystemOwners(newFS))
+	err = createFilesystem(c.clusterInfo, c.context, *newFS, c.rookVersion, c.cephVersion, c.hostNetwork, c.filesystemOwners(newFS), c.dataDirHostPath)
 	if err != nil {
 		logger.Errorf("failed to create (modify) filesystem %s: %+v", newFS.Name, err)
 	}

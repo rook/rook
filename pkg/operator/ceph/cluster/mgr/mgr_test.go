@@ -31,7 +31,7 @@ import (
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	apps "k8s.io/api/apps/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -64,6 +64,7 @@ func TestStartMGR(t *testing.T) {
 		cephv1.DashboardSpec{Enabled: true},
 		v1.ResourceRequirements{},
 		metav1.OwnerReference{},
+		"/var/lib/rook/",
 	)
 	defer os.RemoveAll(c.dataDir)
 

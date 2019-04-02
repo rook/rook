@@ -97,7 +97,7 @@ func (c *CephNFSController) makeDeployment(n cephv1.CephNFS, name, configName st
 		Containers:     []v1.Container{c.daemonContainer(n, name, binariesMount)},
 		RestartPolicy:  v1.RestartPolicyAlways,
 		Volumes: append(
-			opspec.PodVolumes(""),
+			opspec.PodVolumes("", ""),
 			configVolume,
 			binariesVolume,
 		),

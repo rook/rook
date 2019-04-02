@@ -51,14 +51,15 @@ const (
 
 // Cluster represents a Ceph mds cluster.
 type Cluster struct {
-	clusterInfo *cephconfig.ClusterInfo
-	context     *clusterd.Context
-	rookVersion string
-	cephVersion cephv1.CephVersionSpec
-	HostNetwork bool
-	fs          cephv1.CephFilesystem
-	fsID        string
-	ownerRefs   []metav1.OwnerReference
+	clusterInfo     *cephconfig.ClusterInfo
+	context         *clusterd.Context
+	rookVersion     string
+	cephVersion     cephv1.CephVersionSpec
+	HostNetwork     bool
+	fs              cephv1.CephFilesystem
+	fsID            string
+	ownerRefs       []metav1.OwnerReference
+	dataDirHostPath string
 }
 
 type mdsConfig struct {
@@ -77,16 +78,18 @@ func NewCluster(
 	fs cephv1.CephFilesystem,
 	fsdetails *client.CephFilesystemDetails,
 	ownerRefs []metav1.OwnerReference,
+	dataDirHostPath string,
 ) *Cluster {
 	return &Cluster{
-		clusterInfo: clusterInfo,
-		context:     context,
-		rookVersion: rookVersion,
-		cephVersion: cephVersion,
-		HostNetwork: hostNetwork,
-		fs:          fs,
-		fsID:        strconv.Itoa(fsdetails.ID),
-		ownerRefs:   ownerRefs,
+		clusterInfo:     clusterInfo,
+		context:         context,
+		rookVersion:     rookVersion,
+		cephVersion:     cephVersion,
+		HostNetwork:     hostNetwork,
+		fs:              fs,
+		fsID:            strconv.Itoa(fsdetails.ID),
+		ownerRefs:       ownerRefs,
+		dataDirHostPath: dataDirHostPath,
 	}
 }
 
@@ -128,7 +131,7 @@ func (c *Cluster) Start() error {
 		mdsConfig := &mdsConfig{
 			ResourceName: resourceName,
 			DaemonID:     daemonName,
-			DataPathMap:  config.NewStatelessDaemonDataPathMap(config.MdsType, daemonName),
+			DataPathMap:  config.NewStatelessDaemonDataPathMap(config.MdsType, daemonName, c.fs.Namespace, c.dataDirHostPath),
 		}
 
 		// start the deployment

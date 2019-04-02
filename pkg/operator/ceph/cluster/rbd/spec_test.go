@@ -53,11 +53,12 @@ func TestPodSpec(t *testing.T) {
 			},
 		},
 		metav1.OwnerReference{},
+		"/var/lib/rook/",
 	)
 	daemonConf := daemonConfig{
 		DaemonID:     "a",
 		ResourceName: "rook-ceph-rbd-mirror-a",
-		DataPathMap:  config.NewDatalessDaemonDataPathMap(),
+		DataPathMap:  config.NewDatalessDaemonDataPathMap("rook-ceph", "/var/lib/rook"),
 	}
 
 	d := c.makeDeployment(&daemonConf)

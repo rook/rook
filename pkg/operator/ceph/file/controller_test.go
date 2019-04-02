@@ -29,7 +29,7 @@ import (
 
 	testop "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -87,7 +87,7 @@ func TestMigrateFilesystemObject(t *testing.T) {
 	}
 	clusterInfo := &cephconfig.ClusterInfo{FSID: "myfsid"}
 
-	controller := NewFilesystemController(clusterInfo, context, "", cephv1.CephVersionSpec{}, false, metav1.OwnerReference{})
+	controller := NewFilesystemController(clusterInfo, context, "", cephv1.CephVersionSpec{}, false, metav1.OwnerReference{}, "/var/lib/rook/")
 
 	// convert the legacy filesystem object in memory and assert that a migration is needed
 	convertedFilesystem, migrationNeeded, err := getFilesystemObject(legacyFilesystem)

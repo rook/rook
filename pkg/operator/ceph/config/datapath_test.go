@@ -24,44 +24,54 @@ import (
 
 func TestNewStatefulDaemonDataPathMap(t *testing.T) {
 	// mon
-	d := NewStatefulDaemonDataPathMap("/var/lib/rook", "/mon-a/data", MonType, "a")
+	d := NewStatefulDaemonDataPathMap("/var/lib/rook", "/mon-a/data", MonType, "a", "rook-ceph")
 	assert.Equal(t, &DataPathMap{
 		PersistData:      true,
 		HostDataDir:      "/var/lib/rook/mon-a/data",
 		ContainerDataDir: "/var/lib/ceph/mon/ceph-a",
+		ContainerLogDir:  "/var/log/ceph",
+		HostLogDir:       "/var/lib/rook/rook-ceph/log",
 	}, d)
 
 	// osd
-	d = NewStatefulDaemonDataPathMap("/var/lib/rook/", "osd0/", OsdType, "0")
+	d = NewStatefulDaemonDataPathMap("/var/lib/rook/", "osd0/", OsdType, "0", "rook-ceph")
 	assert.Equal(t, &DataPathMap{
 		PersistData:      true,
 		HostDataDir:      "/var/lib/rook/osd0",
 		ContainerDataDir: "/var/lib/ceph/osd/ceph-0",
+		ContainerLogDir:  "/var/log/ceph",
+		HostLogDir:       "/var/lib/rook/rook-ceph/log",
 	}, d)
 }
 
 func TestNewStatelessDaemonDataPathMap(t *testing.T) {
 	// mgr
-	d := NewStatelessDaemonDataPathMap(MgrType, "a")
+	d := NewStatelessDaemonDataPathMap(MgrType, "a", "rook-ceph", "/var/lib/rook")
 	assert.Equal(t, &DataPathMap{
 		PersistData:      false,
 		HostDataDir:      "",
 		ContainerDataDir: "/var/lib/ceph/mgr/ceph-a",
+		ContainerLogDir:  "/var/log/ceph",
+		HostLogDir:       "/var/lib/rook/rook-ceph/log",
 	}, d)
 
 	// mds
-	d = NewStatelessDaemonDataPathMap(MdsType, "myfs.a")
+	d = NewStatelessDaemonDataPathMap(MdsType, "myfs.a", "rook-ceph", "/var/lib/rook")
 	assert.Equal(t, &DataPathMap{
 		PersistData:      false,
 		HostDataDir:      "",
 		ContainerDataDir: "/var/lib/ceph/mds/ceph-myfs.a",
+		ContainerLogDir:  "/var/log/ceph",
+		HostLogDir:       "/var/lib/rook/rook-ceph/log",
 	}, d)
 
 	// rgw
-	d = NewStatelessDaemonDataPathMap(RgwType, "objstore")
+	d = NewStatelessDaemonDataPathMap(RgwType, "objstore", "rook-ceph", "/var/lib/rook")
 	assert.Equal(t, &DataPathMap{
 		PersistData:      false,
 		HostDataDir:      "",
 		ContainerDataDir: "/var/lib/ceph/rgw/ceph-objstore",
+		ContainerLogDir:  "/var/log/ceph",
+		HostLogDir:       "/var/lib/rook/rook-ceph/log",
 	}, d)
 }

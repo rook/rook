@@ -66,7 +66,7 @@ func testGenMonConfig(monID string) *monConfig {
 		PublicIP:     fmt.Sprintf("2.4.6.%d", index+1),
 		// dataDirHostPath assumed to be /var/lib/rook
 		DataPathMap: config.NewStatefulDaemonDataPathMap(
-			"/var/lib/rook", dataDirRelativeHostPath(monID), config.MonType, monID),
+			"/var/lib/rook", dataDirRelativeHostPath(monID), config.MonType, monID, "rook-ceph"),
 	}
 }
 

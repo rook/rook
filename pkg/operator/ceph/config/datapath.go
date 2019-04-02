@@ -38,6 +38,12 @@ type DataPathMap struct {
 	// ContainerDataDir should be set to the path in the container where the specific daemon's data
 	// is stored.
 	ContainerDataDir string
+
+	// HostLogDir represents Ceph's logging directory on the host
+	HostLogDir string
+
+	// ContainerLogDir represents Ceph's logging directory
+	ContainerLogDir string
 }
 
 // NewStatefulDaemonDataPathMap returns a new DataPathMap for a daemon which requires a persistent
@@ -47,35 +53,42 @@ type DataPathMap struct {
 // which may include data from other daemons.
 func NewStatefulDaemonDataPathMap(
 	dataDirHostPath, daemonDataDirHostRelativePath string,
-	daemonType DaemonType, daemonID string,
+	daemonType DaemonType, daemonID, namespace string,
 ) *DataPathMap {
 	return &DataPathMap{
 		PersistData:      true,
 		HostDataDir:      path.Join(dataDirHostPath, daemonDataDirHostRelativePath),
 		NoData:           false,
 		ContainerDataDir: cephDataDir(daemonType, daemonID),
+		HostLogDir:       path.Join(dataDirHostPath, namespace, "log"),
+		ContainerLogDir:  VarLogCephDir,
 	}
 }
 
 // NewStatelessDaemonDataPathMap returns a new DataPathMap for a daemon which does not persist data
 // to the host (mgrs, mdses, rgws)
 func NewStatelessDaemonDataPathMap(
-	daemonType DaemonType, daemonID string,
+	daemonType DaemonType, daemonID, namespace, dataDirHostPath string,
 ) *DataPathMap {
 	return &DataPathMap{
 		PersistData:      false,
 		HostDataDir:      "",
 		NoData:           false,
 		ContainerDataDir: cephDataDir(daemonType, daemonID),
+		HostLogDir:       path.Join(dataDirHostPath, namespace, "log"),
+		ContainerLogDir:  VarLogCephDir,
 	}
 }
 
-func NewDatalessDaemonDataPathMap() *DataPathMap {
+// NewDatalessDaemonDataPathMap returns a new DataPathMap for a daemon which does not utilize a data dir in the container as the mon, mgr, osd, mds, and rgw daemons do
+func NewDatalessDaemonDataPathMap(namespace, dataDirHostPath string) *DataPathMap {
 	return &DataPathMap{
 		PersistData:      false,
 		HostDataDir:      "",
 		NoData:           true,
 		ContainerDataDir: "",
+		HostLogDir:       path.Join(dataDirHostPath, namespace, "log"),
+		ContainerLogDir:  VarLogCephDir,
 	}
 }
 

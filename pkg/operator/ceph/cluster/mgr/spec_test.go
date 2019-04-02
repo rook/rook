@@ -54,13 +54,14 @@ func TestPodSpec(t *testing.T) {
 			},
 		},
 		metav1.OwnerReference{},
+		"/var/lib/rook/",
 	)
 
 	mgrTestConfig := mgrConfig{
 		DaemonID:      "a",
 		ResourceName:  "rook-ceph-mgr-a",
 		DashboardPort: 1234,
-		DataPathMap:   config.NewStatelessDaemonDataPathMap(config.MgrType, "a"),
+		DataPathMap:   config.NewStatelessDaemonDataPathMap(config.MgrType, "a", "rook-ceph", "/var/lib/rook/"),
 	}
 
 	d := c.makeDeployment(&mgrTestConfig)
@@ -91,6 +92,7 @@ func TestServiceSpec(t *testing.T) {
 		cephv1.DashboardSpec{},
 		v1.ResourceRequirements{},
 		metav1.OwnerReference{},
+		"/var/lib/rook/",
 	)
 
 	s := c.makeMetricsService("rook-mgr")
@@ -112,13 +114,14 @@ func TestHostNetwork(t *testing.T) {
 		cephv1.DashboardSpec{},
 		v1.ResourceRequirements{},
 		metav1.OwnerReference{},
+		"/var/lib/rook/",
 	)
 
 	mgrTestConfig := mgrConfig{
 		DaemonID:      "a",
 		ResourceName:  "mgr-a",
 		DashboardPort: 1234,
-		DataPathMap:   config.NewStatelessDaemonDataPathMap(config.MgrType, "a"),
+		DataPathMap:   config.NewStatelessDaemonDataPathMap(config.MgrType, "a", "rook-ceph", "/var/lib/rook/"),
 	}
 
 	d := c.makeDeployment(&mgrTestConfig)

@@ -45,7 +45,7 @@ func TestPodSpecs(t *testing.T) {
 	}
 	info := testop.CreateConfigDir(1)
 	info.CephVersion = cephver.Mimic
-	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "default")
+	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "default", "rook-ceph", "/var/lib/rook/")
 
 	c := &clusterConfig{
 		clusterInfo: info,
@@ -77,7 +77,7 @@ func TestSSLPodSpec(t *testing.T) {
 	}
 	info := testop.CreateConfigDir(1)
 	info.CephVersion = cephver.Mimic
-	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "default")
+	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "default", "rook-ceph", "/var/lib/rook/")
 	store.Spec.Gateway.SSLCertificateRef = "mycert"
 	store.Spec.Gateway.SecurePort = 443
 
