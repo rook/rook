@@ -77,6 +77,13 @@ func (ct *ContainersTester) AssertArgsContainCephRequirements() {
 	}
 }
 
+// RequireAdditionalEnvVars adds a list of environment variable names to the list of required
+// variables for a single unit test (it does not persist between different tests).
+// Usage: myPodTemplateSpecTester.Spec().Containers().RequireAdditionalEnvVars("I_AM", "REQUIRED")
+func (*ContainersTester) RequireAdditionalEnvVars(varNames ...string) {
+	requiredEnvVars = append(requiredEnvVars, varNames...)
+}
+
 // AssertEnvVarsContainCephRequirements asserts that all Ceph containers under test have the
 // environment variables required for all Ceph containers.
 func (ct *ContainersTester) AssertEnvVarsContainCephRequirements() {

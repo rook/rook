@@ -70,6 +70,7 @@ func TestPodSpec(t *testing.T) {
 		config.MgrType, "a", appName, "ns")
 
 	podTemplate := cephtest.NewPodTemplateSpecTester(t, &d.Spec.Template)
+	podTemplate.Spec().Containers().RequireAdditionalEnvVars("TEST")
 	podTemplate.RunFullSuite(config.MgrType, "a", appName, "ns", "ceph/ceph:myceph",
 		"200", "100", "500", "250" /* resources */)
 
