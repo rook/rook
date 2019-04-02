@@ -107,7 +107,7 @@ func DaemonVolumeMounts(dataPaths *config.DataPathMap, keyringResourceName strin
 // DaemonFlags returns the command line flags used by all Ceph daemons.
 func DaemonFlags(cluster *cephconfig.ClusterInfo, daemonID string) []string {
 	return append(
-		config.DefaultFlags(cluster.FSID, keyring.VolumeMount().KeyringFilePath()),
+		config.DefaultFlags(cluster.FSID, keyring.VolumeMount().KeyringFilePath(), cluster.CephVersion),
 		config.NewFlag("id", daemonID),
 	)
 
@@ -115,7 +115,7 @@ func DaemonFlags(cluster *cephconfig.ClusterInfo, daemonID string) []string {
 
 // AdminFlags returns the command line flags used for Ceph commands requiring admin authentication.
 func AdminFlags(cluster *cephconfig.ClusterInfo) []string {
-	return config.DefaultFlags(cluster.FSID, keyring.VolumeMount().AdminKeyringFilePath())
+	return config.DefaultFlags(cluster.FSID, keyring.VolumeMount().AdminKeyringFilePath(), cluster.CephVersion)
 }
 
 // ContainerEnvVarReference returns a reference to a Kubernetes container env var of the given name

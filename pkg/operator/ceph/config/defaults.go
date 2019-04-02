@@ -17,36 +17,18 @@ limitations under the License.
 // Package config provides default configurations which Rook will set in Ceph clusters.
 package config
 
-import (
-	"bytes"
-	"fmt"
-)
+import "github.com/rook/rook/pkg/operator/ceph/version"
 
 // DefaultFlags returns the default configuration flags Rook will set on the command line for all
 // calls to Ceph daemons and tools. Values specified here will not be able to be overridden using
 // the mon's central KV store, and that is (and should be) by intent.
-func DefaultFlags(fsid, mountedKeyringPath string) []string {
-	return defaultFlagConfigs(fsid, mountedKeyringPath).GlobalFlags()
+func DefaultFlags(fsid, mountedKeyringPath string, cephVersion version.CephVersion) []string {
+	return defaultFlagConfigs(fsid, mountedKeyringPath, cephVersion).GlobalFlags()
 }
 
-// DefaultFlagsAsConfigFile is the same as DefaultFlags except that it returns the ceph.conf file
-// text which corresponds to the flags. In some versions of Ceph and for some Daemons, the default
-// flags are not accepted in flag form.
-func DefaultFlagsAsConfigFile(fsid, mountedKeyringPath string) (string, error) {
-	c := defaultFlagConfigs(fsid, mountedKeyringPath)
-	f, err := c.IniFile()
-	if err != nil {
-		return "", fmt.Errorf("failed to generate text for default flags compatible with ceph.conf. %v", err)
-	}
-	b := new(bytes.Buffer)
-	if _, err := f.WriteTo(b); err != nil {
-		return "", fmt.Errorf("failed to generate text for default flags compatible with ceph.conf. %v", err)
-	}
-	return b.String(), nil
-}
-
-func defaultFlagConfigs(fsid, mountedKeyringPath string) *Config {
+func defaultFlagConfigs(fsid, mountedKeyringPath string, cephVersion version.CephVersion) *Config {
 	c := NewConfig()
+
 	c.Section("global").
 		// fsid unnecessary but is a safety to make sure daemons can only connect to their cluster
 		Set("fsid", fsid).
@@ -57,6 +39,17 @@ func defaultFlagConfigs(fsid, mountedKeyringPath string) *Config {
 		Set("mon-cluster-log-to-stderr", "true").
 		Set("log-stderr-prefix", "debug ")
 		// ^ differentiate debug text from audit text, and the space after 'debug' is critical
+
+	// As of Nautilus 14.2.1 at least
+	// These new flags control Ceph's daemon logging behaviour to files
+	// By default we set them to False so no logs get written on file
+	// However they can be actived at any time via the centralized config store
+	if cephVersion.IsAtLeast(version.CephVersion{Major: 14, Minor: 2, Extra: 1}) {
+		c.Section("global").
+			Set("default-log-to-file", "false").
+			Set("default-mon-cluster-log-to-file", "false")
+	}
+
 	m := StoredMonHostEnvVarReferences()
 	c.Merge(m)
 	return c
@@ -65,15 +58,24 @@ func defaultFlagConfigs(fsid, mountedKeyringPath string) *Config {
 // DefaultCentralizedConfigs returns the default configuration options Rook will set in Ceph's
 // centralized config store. If the version of Ceph does not support the centralized config store,
 // these will be set in a shared config file instead.
-func DefaultCentralizedConfigs() *Config {
+func DefaultCentralizedConfigs(cephVersion version.CephVersion) *Config {
 	c := NewConfig()
 	c.Section("global").
+		Set("mon allow pool delete", "true")
+
+	// Everything before Nautilus 14.2.1
+	// Prior to Nautilus 14.2.1 certain log flags were not present
+	// so in order to not log anything on files we must set the following flags to null
+	// Since Nautilus 14.2.1 introduced both 'default-log-to-file' and 'default-mon-cluster-log-to-file' (see above defaultFlagConfigs)
+	// these are not needed
+	if !cephVersion.IsAtLeast(version.CephVersion{Major: 14, Minor: 2, Extra: 1}) {
 		// Set the default log files to empty so they don't bloat containers. Can be changed in
 		// Mimic+ by users if needed.
-		Set("log file", "").
-		Set("mon cluster log file", "").
-		//
-		Set("mon allow pool delete", "true")
+		c.Section("global").
+			Set("log file", "").
+			Set("mon cluster log file", "")
+	}
+
 	return c
 }
 

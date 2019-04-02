@@ -29,6 +29,7 @@ import (
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
+	"github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
 	batch "k8s.io/api/batch/v1"
@@ -163,6 +164,10 @@ func (c *Cluster) makeDeployment(nodeName string, selection rookalpha.Selection,
 		commonArgs = append(commonArgs, fmt.Sprintf("--osd-journal=%s", osd.Journal))
 	}
 
+	if c.clusterInfo.CephVersion.IsAtLeast(version.CephVersion{Major: 14, Minor: 2, Extra: 1}) {
+		commonArgs = append(commonArgs, "--default-log-to-file", "false")
+	}
+
 	// Add the volume to the spec and the mount to the daemon container
 	copyBinariesVolume, copyBinariesContainer := c.getCopyBinariesContainer()
 	volumes = append(volumes, copyBinariesVolume)
@@ -205,6 +210,10 @@ func (c *Cluster) makeDeployment(nodeName string, selection rookalpha.Selection,
 			if !c.resources.Limits.Memory().IsZero() {
 				args = append(args, "--osd-memory-target", strconv.Itoa(int(c.resources.Limits.Memory().Value())))
 			}
+		}
+
+		if c.clusterInfo.CephVersion.IsAtLeast(version.CephVersion{Major: 14, Minor: 2, Extra: 1}) {
+			args = append(args, "--default-log-to-file", "false")
 		}
 
 	} else {

@@ -30,6 +30,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephconfig")
@@ -211,14 +212,12 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, ru
 
 	cephLogLevel := logLevelToCephLogLevel(context.LogLevel)
 
-	return &CephConfig{
+	conf := &CephConfig{
 		GlobalConfig: &GlobalConfig{
 			FSID:                   cluster.FSID,
 			RunDir:                 runDir,
 			MonMembers:             strings.Join(monMembers, " "),
 			MonHost:                strings.Join(monHosts, ","),
-			LogFile:                "/dev/stderr",
-			MonClusterLogFile:      "/dev/stderr",
 			PublicAddr:             context.NetworkInfo.PublicAddr,
 			PublicNetwork:          context.NetworkInfo.PublicNetwork,
 			ClusterAddr:            context.NetworkInfo.ClusterAddr,
@@ -245,6 +244,17 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, ru
 			FatalSignalHandlers:    "false",
 		},
 	}
+
+	// Everything before 14.2.1
+	// These new flags control Ceph's daemon logging behaviour to files
+	// By default we set them to False so no logs get written on file
+	// However they can be actived at any time via the centralized config store
+	if !cluster.CephVersion.IsAtLeast(cephver.CephVersion{Major: 14, Minor: 2, Extra: 1}) {
+		conf.LogFile = "/dev/stderr"
+		conf.MonClusterLogFile = "/dev/stderr"
+	}
+
+	return conf
 }
 
 // create a config file with global settings configured, and return an ini file
