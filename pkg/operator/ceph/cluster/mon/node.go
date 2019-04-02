@@ -38,23 +38,14 @@ func (c *Cluster) getMonNodes() ([]v1.Node, error) {
 	// if all nodes already have mons and the user has given the mon.count, add all nodes to be available
 	if c.spec.Mon.AllowMultiplePerNode && len(availableNodes) == 0 {
 		logger.Infof("All nodes are running mons. Adding all %d nodes to the availability.", len(nodes.Items))
-		for _, node := range nodes.Items {
-			valid, err := k8sutil.ValidNode(node, cephv1.GetMonPlacement(c.spec.Placement))
-			if err != nil {
-				logger.Warning("failed to validate node %s %v", node.Name, err)
-			} else if valid {
-				availableNodes = append(availableNodes, node)
-			}
-		}
+		availableNodes = c.getValidNodes(nodes.Items)
 	}
 
 	return availableNodes, nil
 }
 
 func (c *Cluster) getAvailableMonNodes() ([]v1.Node, *v1.NodeList, error) {
-	nodeOptions := metav1.ListOptions{}
-	nodeOptions.TypeMeta.Kind = "Node"
-	nodes, err := c.context.Clientset.CoreV1().Nodes().List(nodeOptions)
+	nodes, err := c.getFullNodeList()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -83,6 +74,18 @@ func (c *Cluster) getAvailableMonNodes() ([]v1.Node, *v1.NodeList, error) {
 	return availableNodes, nodes, nil
 }
 
+func (c *Cluster) getValidNodes(nodes []v1.Node) (validNodes []v1.Node) {
+	for _, node := range nodes {
+		valid, err := k8sutil.ValidNode(node, cephv1.GetMonPlacement(c.spec.Placement))
+		if err != nil {
+			logger.Warning("failed to validate node %s %v", node.Name, err)
+		} else if valid {
+			validNodes = append(validNodes, node)
+		}
+	}
+	return
+}
+
 func (c *Cluster) getNodesWithMons(nodes *v1.NodeList) (*util.Set, error) {
 	// get the mon pods and their node affinity
 	options := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", appName)}
@@ -103,27 +106,20 @@ func (c *Cluster) getNodesWithMons(nodes *v1.NodeList) (*util.Set, error) {
 	return nodesInUse, nil
 }
 
-// Get the number of mons that the operator should be starting
-func (c *Cluster) getTargetMonCount() (int, string, error) {
-
-	// Get the full list of k8s nodes
+func (c *Cluster) getFullNodeList() (*v1.NodeList, error) {
 	nodeOptions := metav1.ListOptions{}
 	nodeOptions.TypeMeta.Kind = "Node"
-	nodes, err := c.context.Clientset.CoreV1().Nodes().List(nodeOptions)
+	return c.context.Clientset.CoreV1().Nodes().List(nodeOptions)
+}
+
+// Get the number of mons that the operator should be starting
+func (c *Cluster) getTargetMonCount() (int, string, error) {
+	nodes, err := c.getFullNodeList()
 	if err != nil {
 		return 0, "", fmt.Errorf("failed to get nodes. %+v", err)
 	}
 
-	// Get the nodes where it is possible to place mons
-	availableNodes := []v1.Node{}
-	for _, node := range nodes.Items {
-		valid, err := k8sutil.ValidNode(node, cephv1.GetMonPlacement(c.spec.Placement))
-		if err != nil {
-			logger.Warning("failed to validate node %s %v", node.Name, err)
-		} else if valid {
-			availableNodes = append(availableNodes, node)
-		}
-	}
+	availableNodes := c.getValidNodes(nodes.Items)
 
 	target, msg := calcTargetMonCount(len(availableNodes), c.spec.Mon)
 	return target, msg, nil

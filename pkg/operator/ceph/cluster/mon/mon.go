@@ -176,6 +176,16 @@ func (c *Cluster) Start(clusterInfo *cephconfig.ClusterInfo, rookVersion string,
 		return nil, fmt.Errorf("failed to initialize ceph cluster info. %+v", err)
 	}
 
+	nodeList, err := c.getFullNodeList()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get node list. %+v", err)
+	}
+	validNodes := c.getValidNodes(nodeList.Items)
+	nodeCount := len(validNodes)
+	if !c.spec.Mon.AllowMultiplePerNode && c.spec.Mon.Count > nodeCount {
+		return nil, fmt.Errorf("the desired mon count is %d while the number of available nodes is %d despite allowMultiplePerNode is %t", c.spec.Mon.Count, nodeCount, c.spec.Mon.AllowMultiplePerNode)
+	}
+
 	targetCount, msg, err := c.getTargetMonCount()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get target mon count. %+v", err)
