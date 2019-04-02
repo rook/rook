@@ -29,6 +29,7 @@ import (
 	cephbeta "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
+	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/file"
@@ -141,6 +142,25 @@ func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) e
 		},
 	)
 	go nodeController.Run(stopCh)
+
+	// watch for updates to the device discovery configmap
+	operatorNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
+	_, deviceCMController := cache.NewInformer(
+		cache.NewFilteredListWatchFromClient(c.context.Clientset.CoreV1().RESTClient(),
+			"configmaps", operatorNamespace, func(options *metav1.ListOptions) {
+				options.LabelSelector = fmt.Sprintf("%s=%s", k8sutil.AppAttr, discoverDaemon.AppName)
+			},
+		),
+		&v1.ConfigMap{},
+		0,
+		cache.ResourceEventHandlerFuncs{
+			AddFunc:    nil,
+			UpdateFunc: c.onDeviceCMUpdate,
+			DeleteFunc: nil,
+		},
+	)
+
+	go deviceCMController.Run(stopCh)
 
 	// watch for events on all legacy types too
 	c.watchLegacyClusters(namespace, stopCh, resourceHandlerFuncs)
@@ -486,6 +506,29 @@ func (c *ClusterController) handleUpdate(crdName string, cluster *cluster) (bool
 
 	logger.Infof("succeeded updating cluster in namespace %s", cluster.Namespace)
 	return true, nil
+}
+
+func (c *ClusterController) onDeviceCMUpdate(oldObj, newObj interface{}) {
+	_, ok := oldObj.(*v1.ConfigMap)
+	if !ok {
+		logger.Warningf("Expected ConfigMap but handler received %#v", oldObj)
+		return
+	}
+
+	_, ok = newObj.(*v1.ConfigMap)
+	if !ok {
+		logger.Warningf("Expected ConfigMap but handler received %#v", newObj)
+		return
+	}
+
+	for _, cluster := range c.clusterMap {
+		logger.Infof("Running orchestration for namespace %s after device change", cluster.Namespace)
+		err := cluster.createInstance(c.rookImage, cluster.Info.CephVersion)
+		if err != nil {
+			logger.Errorf("Failed orchestration after device change in namesapce %s. %+v", cluster.Namespace, err)
+			continue
+		}
+	}
 }
 
 // ************************************************************************************************
