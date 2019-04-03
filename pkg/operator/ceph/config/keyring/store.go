@@ -69,7 +69,16 @@ func (k *SecretStore) GenerateKey(resourceName, user string, access []string) (s
 	// get-or-create-key for the user account
 	key, err := client.AuthGetOrCreateKey(k.context, k.namespace, user, access)
 	if err != nil {
-		return "", fmt.Errorf("failed to get or create auth key for %s. %+v", user, err)
+		logger.Infof("Error getting or creating key for %s. "+
+			"Attempting to update capabilities in case the user already exists. %+v", user, err)
+		uErr := client.AuthUpdateCaps(k.context, k.namespace, user, access)
+		if uErr != nil {
+			return "", fmt.Errorf("failed to get, create, or update auth key for %s. %+v", user, err)
+		}
+		key, uErr = client.AuthGetKey(k.context, k.namespace, user)
+		if uErr != nil {
+			return "", fmt.Errorf("failed to get key after updating existing auth capabilities for %s. %+v", user, err)
+		}
 	}
 	return key, nil
 }
