@@ -50,20 +50,30 @@ func (c *clusterConfig) startDeployment() (*apps.Deployment, error) {
 	k8sutil.SetOwnerRefs(c.context.Clientset, c.store.Namespace, &d.ObjectMeta, c.ownerRefs)
 
 	logger.Debugf("starting rgw deployment: %+v", d)
-	deployment, err := c.context.Clientset.Apps().Deployments(c.store.Namespace).Create(d)
-	if err != nil {
-		if !errors.IsAlreadyExists(err) {
-			return nil, fmt.Errorf("failed to create rgw deployment %s: %+v", c.instanceName(), err)
-		}
-		logger.Infof("deployment for rgw %s already exists. updating if needed", c.instanceName())
-		// There may be a *lot* of rgws, and they are stateless, so don't bother waiting until the
-		// entire deployment is updated to move on.
-		deployment, err = c.context.Clientset.Apps().Deployments(c.store.Namespace).Update(d)
-		if err != nil {
-			return nil, fmt.Errorf("failed to update rgw deployment %s. %+v", c.instanceName(), err)
+	deployment, err := c.context.Clientset.Apps().Deployments(c.store.Namespace).Get(d.Name, metav1.GetOptions{})
+	if err != nil && !errors.IsNotFound(err) {
+		return nil, fmt.Errorf("failed to see if rgw deployment %s already exists. %+v", d.Name, err)
+	} else if err == nil {
+		// deployment exists
+		var uErr error
+		deployment, uErr = c.context.Clientset.Apps().Deployments(c.store.Namespace).Update(d)
+		if uErr != nil {
+			// may fail to update when labels have changed on the deployment and thus the label selector
+			// in this case we can try to delete the deployment and recreate
+			dErr := c.context.Clientset.Apps().Deployments(c.store.Namespace).Delete(d.Name, &metav1.DeleteOptions{})
+			if dErr != nil {
+				return nil, fmt.Errorf("failed to delete existing rgw deployment %s as part of update attempt. %+v", d.Name, dErr)
+			}
+		} else {
+			return deployment, uErr
 		}
 	}
-	return deployment, nil
+	// err != nil && isNotFound  or  err == nil && update failed, causing earlier dep to be deleted
+	deployment, err = c.context.Clientset.Apps().Deployments(c.store.Namespace).Create(d)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create rgw deployment %s: %+v", c.instanceName(), err)
+	}
+	return deployment, err
 }
 
 func (c *clusterConfig) startDaemonset() (*apps.DaemonSet, error) {

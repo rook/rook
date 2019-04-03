@@ -62,7 +62,7 @@ func (c *clusterConfig) createOrUpdate(update bool) error {
 	if err == nil && exists {
 		if !update {
 			logger.Infof("object store %s exists in namespace %s", c.store.Name, c.store.Namespace)
-			return c.startRGWPods(false)
+			return c.startRGWPods(update)
 		}
 		logger.Infof("object store %s exists in namespace %s. checking for updates", c.store.Name, c.store.Namespace)
 	}
