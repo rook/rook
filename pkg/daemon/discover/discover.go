@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"reflect"
 	"syscall"
 	"time"
 
@@ -74,6 +75,31 @@ func Run(context *clusterd.Context, probeInterval time.Duration) error {
 	}
 }
 
+func deviceListsEqual(a, b string) (bool, error) {
+	var d0 []sys.LocalDisk
+	var d1 []sys.LocalDisk
+
+	err := json.Unmarshal([]byte(a), &d0)
+	if err != nil {
+		return false, fmt.Errorf("Cannot unmarshal devices: %v", err)
+	}
+
+	err = json.Unmarshal([]byte(b), &d1)
+	if err != nil {
+		return false, fmt.Errorf("Cannot unmarshal devices: %v", err)
+	}
+
+	for i := range d0 {
+		d0[i].UUID = ""
+	}
+
+	for i := range d1 {
+		d1[i].UUID = ""
+	}
+
+	return reflect.DeepEqual(d0, d1), nil
+}
+
 func updateDeviceCM(context *clusterd.Context) error {
 	logger.Infof("updating device configmap")
 	devices, err := probeDevices(context)
@@ -120,7 +146,11 @@ func updateDeviceCM(context *clusterd.Context) error {
 		}
 		lastDevice = deviceStr
 	}
-	if deviceStr != lastDevice {
+	devicesEqual, err := deviceListsEqual(deviceStr, lastDevice)
+	if err != nil {
+		return fmt.Errorf("failed to compare device lists: %v", err)
+	}
+	if !devicesEqual {
 		data := make(map[string]string, 1)
 		data[LocalDiskCMData] = deviceStr
 		cm.Data = data
