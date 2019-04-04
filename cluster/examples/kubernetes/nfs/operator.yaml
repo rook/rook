@@ -95,6 +95,7 @@ spec:
       containers:
       - name: rook-nfs-operator
         image: rook/nfs:master
+        imagePullPolicy: IfNotPresent
         args: ["nfs", "operator"]
         env:
         - name: POD_NAME

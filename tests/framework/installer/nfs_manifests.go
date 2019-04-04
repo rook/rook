@@ -185,7 +185,7 @@ kind: PersistentVolumeClaim
 metadata:
   name: nfs-pv-claim
 spec:
-  storageClassName: nfs-share
+  storageClassName: nfs-ns-nfs-share
   accessModes:
     - ReadWriteMany
   resources:
@@ -197,7 +197,7 @@ kind: PersistentVolumeClaim
 metadata:
   name: nfs-pv-claim-bigger
 spec:
-  storageClassName: nfs-share1
+  storageClassName: nfs-ns-nfs-share1
   accessModes:
     - ReadWriteMany
   resources:
@@ -306,12 +306,14 @@ spec:
   replicas: ` + strconv.Itoa(count) + `
   exports:
   - name: nfs-share
+    createStorageClass: true
     server:
       accessMode: ReadWrite
       squash: "none"
     persistentVolumeClaim:
       claimName: test-claim
   - name: nfs-share1
+    createStorageClass: true
     server:
       accessMode: ReadWrite
       squash: "none"

@@ -70,6 +70,9 @@ type ExportsSpec struct {
 	// The NFS server configuration
 	Server ServerSpec `json:"server,omitempty"`
 
+	// Configuration to create storageclass for nfs share
+	CreateStorageClass bool `json:"createStorageClass,omitempty"`
+
 	// PVC from which the NFS daemon gets storage for sharing
 	PersistentVolumeClaim v1.PersistentVolumeClaimVolumeSource `json:"persistentVolumeClaim,omitempty"`
 }

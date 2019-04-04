@@ -156,24 +156,26 @@ func createServicePorts() []v1.ServicePort {
 
 func (c *Controller) createStorageClass(nfsServer *nfsServer) error {
 	for _, export := range nfsServer.spec.Exports {
-		nfsStorageClass := &storage.StorageClass{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: export.Name,
-				Annotations: map[string]string{
-					"rook.io/nfs-path": "/" + export.PersistentVolumeClaim.ClaimName,
+		if export.CreateStorageClass {
+			nfsStorageClass := &storage.StorageClass{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            nfsServer.name + "-" + export.Name,
+					OwnerReferences: []metav1.OwnerReference{nfsServer.ownerRef},
+					Labels:          createAppLabels(nfsServer),
 				},
-				OwnerReferences: []metav1.OwnerReference{nfsServer.ownerRef},
-				Labels:          createAppLabels(nfsServer),
-			},
-			Provisioner: "rook.io/" + nfsServer.name,
-		}
-		if _, err := c.context.Clientset.StorageV1().StorageClasses().Create(nfsStorageClass); err != nil {
-			if !errors.IsAlreadyExists(err) {
-				return err
+				Provisioner: "rook.io/" + nfsServer.name,
+				Parameters:  map[string]string{"claimPath": "/" + export.PersistentVolumeClaim.ClaimName},
 			}
-			logger.Infof("storage class %s already exists", nfsStorageClass.GetName())
+			if _, err := c.context.Clientset.StorageV1().StorageClasses().Create(nfsStorageClass); err != nil {
+				if !errors.IsAlreadyExists(err) {
+					return err
+				}
+				logger.Infof("storage class %s already exists", nfsStorageClass.GetName())
+			} else {
+				logger.Infof("storage class %s created", nfsStorageClass.GetName())
+			}
 		} else {
-			logger.Infof("storage class %s created", nfsStorageClass.GetName())
+			logger.Infof("default storage class creation disabled for share: %v", export.Name)
 		}
 	}
 	return nil

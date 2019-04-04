@@ -18,8 +18,10 @@ package nfs
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/kubernetes-sigs/sig-storage-lib-external-provisioner/controller"
+	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	storage "k8s.io/api/storage/v1"
 	"k8s.io/client-go/kubernetes"
@@ -33,18 +35,14 @@ type nfsProvisioner struct {
 	server string
 }
 
-const (
-	claimPath = "rook.io/nfs-path"
-)
-
 var _ controller.Provisioner = &nfsProvisioner{}
 
 // NewNFSProvisioner returns an instance of nfsProvisioner
-func NewNFSProvisioner(clientset kubernetes.Interface, server string) nfsProvisioner {
-	return nfsProvisioner{clientset, server}
+func NewNFSProvisioner(clientset kubernetes.Interface, server string) *nfsProvisioner {
+	return &nfsProvisioner{clientset, server}
 }
 
-func (p nfsProvisioner) Provision(options controller.VolumeOptions) (*v1.PersistentVolume, error) {
+func (p *nfsProvisioner) Provision(options controller.VolumeOptions) (*v1.PersistentVolume, error) {
 	logger.Infof("nfs provisioner: VolumeOptions %v", options)
 
 	// Get the storage class for this volume.
@@ -55,6 +53,11 @@ func (p nfsProvisioner) Provision(options controller.VolumeOptions) (*v1.Persist
 
 	if options.PVC.Spec.Selector != nil {
 		return nil, fmt.Errorf("claim Selector is not supported")
+	}
+
+	claimPath, present := storageClass.Parameters["claimPath"]
+	if !present {
+		return nil, errors.Errorf("NFS share Path not found in the storageclass: %v", storageClass.GetName())
 	}
 
 	pv := &v1.PersistentVolume{
@@ -71,22 +74,21 @@ func (p nfsProvisioner) Provision(options controller.VolumeOptions) (*v1.Persist
 			PersistentVolumeSource: v1.PersistentVolumeSource{
 				NFS: &v1.NFSVolumeSource{
 					Server:   p.server,
-					Path:     storageClass.GetAnnotations()[claimPath],
+					Path:     strings.TrimSpace(claimPath),
 					ReadOnly: false,
 				},
 			},
 		},
 	}
-
 	return pv, nil
 }
 
-func (p nfsProvisioner) Delete(volume *v1.PersistentVolume) error {
+func (p *nfsProvisioner) Delete(volume *v1.PersistentVolume) error {
 	return nil
 }
 
 // getClassForPV returns StorageClass
-func (p nfsProvisioner) getClassForPV(pv *v1.PersistentVolume) (*storage.StorageClass, error) {
+func (p *nfsProvisioner) getClassForPV(pv *v1.PersistentVolume) (*storage.StorageClass, error) {
 	if p.client == nil {
 		return nil, fmt.Errorf("Cannot get kube client")
 	}
@@ -102,7 +104,7 @@ func (p nfsProvisioner) getClassForPV(pv *v1.PersistentVolume) (*storage.Storage
 }
 
 // getClassForPVC returns StorageClass
-func (p nfsProvisioner) getClassForPVC(pvc *v1.PersistentVolumeClaim) (*storage.StorageClass, error) {
+func (p *nfsProvisioner) getClassForPVC(pvc *v1.PersistentVolumeClaim) (*storage.StorageClass, error) {
 	if p.client == nil {
 		return nil, fmt.Errorf("Cannot get kube client")
 	}

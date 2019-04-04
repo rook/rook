@@ -87,7 +87,8 @@ spec:
   serviceAccountName: rook-nfs
   replicas: 1
   exports:
-  - name: nfs-share
+  - name: share1
+    createStorageClass: true
     server:
       accessMode: ReadWrite
       squash: "none"

@@ -92,7 +92,7 @@ func TestOnAdd(t *testing.T) {
 	namespace := "rook-nfs-test"
 	nfsserver := &nfsv1alpha1.NFSServer{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "nfs-server-X",
+			Name:      appName,
 			Namespace: namespace,
 		},
 		Spec: nfsv1alpha1.NFSServerSpec{
