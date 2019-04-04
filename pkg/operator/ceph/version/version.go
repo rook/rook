@@ -17,9 +17,14 @@ const (
 )
 
 var (
+	// Luminous Ceph version
 	Luminous = CephVersion{12, 0, 0}
-	Mimic    = CephVersion{13, 0, 0}
+	// Mimic Ceph version
+	Mimic = CephVersion{13, 0, 0}
+	// Nautilus Ceph version
 	Nautilus = CephVersion{14, 0, 0}
+	// Octopus Ceph version
+	Octopus = CephVersion{15, 0, 0}
 
 	// supportedVersions are production-ready versions that rook supports
 	supportedVersions   = []CephVersion{Luminous, Mimic}
@@ -36,8 +41,11 @@ func (v *CephVersion) String() string {
 		v.Major, v.Minor, v.Extra, v.ReleaseName())
 }
 
+// ReleaseName is the name of the Ceph release
 func (v *CephVersion) ReleaseName() string {
 	switch v.Major {
+	case Octopus.Major:
+		return "octopus"
 	case Nautilus.Major:
 		return "nautilus"
 	case Mimic.Major:
@@ -107,6 +115,11 @@ func (v *CephVersion) IsAtLeast(other CephVersion) bool {
 		return false
 	}
 	return true
+}
+
+// IsAtLeastOctopus check that the Ceph version is at least Octopus
+func (v *CephVersion) IsAtLeastOctopus() bool {
+	return v.IsAtLeast(Octopus)
 }
 
 func (v *CephVersion) IsAtLeastNautilus() bool {
