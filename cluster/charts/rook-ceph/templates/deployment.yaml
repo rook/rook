@@ -60,7 +60,7 @@ spec:
 {{- if .Values.discover }}
 {{- if .Values.discover.toleration }}
         - name: DISCOVER_TOLERATION
-          value: {{ .Values.agent.toleration }}
+          value: {{ .Values.discover.toleration }}
 {{- end }}
 {{- if .Values.discover.tolerationKey }}
         - name: DISCOVER_TOLERATION_KEY
