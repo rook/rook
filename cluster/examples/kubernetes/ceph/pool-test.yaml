@@ -1,13 +1,13 @@
 #################################################################################################################
-# Create an object store user for access to the s3 endpoint.
-#  kubectl create -f object-user.yaml
+# Create a Ceph pool with settings a test environment. Only a single OSD is required.
+#  kubectl create -f pool-test.yaml
 #################################################################################################################
 
 apiVersion: ceph.rook.io/v1
-kind: CephObjectStoreUser
+kind: CephBlockPool
 metadata:
-  name: my-user
+  name: replicapool
   namespace: rook-ceph
 spec:
-  store: my-store
-  displayName: "my display name"
+  replicated:
+    size: 1

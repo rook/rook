@@ -36,7 +36,7 @@ kubectl --namespace kube-system patch deploy/tiller-deploy -p '{"spec": {"templa
 The Ceph Operator helm chart will install the basic components necessary to create a storage platform for your Kubernetes cluster.
 After the helm chart is installed, you will need to [create a Rook cluster](ceph-quickstart.md#create-a-rook-cluster).
 
-The `helm install` command deploys rook on the Kubernetes cluster in the default configuration. The [configuration](#configuration) section lists the parameters that can be configured during installation. It is recommended that the rook operator be installed into the `rook-ceph-system` namespace (you will install your clusters into separate namespaces).
+The `helm install` command deploys rook on the Kubernetes cluster in the default configuration. The [configuration](#configuration) section lists the parameters that can be configured during installation. It is recommended that the rook operator be installed into the `rook-ceph` namespace (you will install your clusters into separate namespaces).
 
 Rook currently publishes builds of the Ceph operator to the `stable`, `beta`, `alpha`, and `master` channels.
 
@@ -45,7 +45,7 @@ The stable channel is the most recent release of Rook that is considered stable 
 
 ```console
 helm repo add rook-stable https://charts.rook.io/stable
-helm install --namespace rook-ceph-system rook-stable/rook-ceph
+helm install --namespace rook-ceph rook-stable/rook-ceph
 ```
 
 ### Beta
@@ -53,7 +53,7 @@ The beta channel is the most recent release of Rook that is considered nearly st
 
 ```console
 helm repo add rook-beta https://charts.rook.io/beta
-helm install --namespace rook-ceph-system rook-beta/rook-ceph
+helm install --namespace rook-ceph rook-beta/rook-ceph
 ```
 
 ### Alpha
@@ -61,7 +61,7 @@ The alpha channel is the most recent release of Rook that is considered ready fo
 
 ```console
 helm repo add rook-alpha https://charts.rook.io/alpha
-helm install --namespace rook-ceph-system rook-alpha/rook-ceph
+helm install --namespace rook-ceph rook-alpha/rook-ceph
 ```
 
 ### Master
@@ -71,12 +71,12 @@ To install the helm chart from master, you will need to pass the specific versio
 ```console
 helm repo add rook-master https://charts.rook.io/master
 helm search rook-ceph
-helm install --namespace rook-ceph-system rook-master/rook-ceph --version <version>
+helm install --namespace rook-ceph rook-master/rook-ceph --version <version>
 ```
 
 For example:
 ```
-helm install --namespace rook-ceph-system rook-master/rook-ceph --version v0.7.0-278.gcbd9726
+helm install --namespace rook-ceph rook-master/rook-ceph --version v0.7.0-278.gcbd9726
 ```
 
 ### Development Build
@@ -86,7 +86,7 @@ To deploy from a local build from your development environment:
 1. Install the helm chart
 ```console
 cd cluster/charts/rook-ceph
-helm install --namespace rook-ceph-system --name rook-ceph .
+helm install --namespace rook-ceph --name rook-ceph .
 ```
 
 ## Uninstalling the Chart
@@ -135,14 +135,14 @@ You can pass the settings with helm command line parameters. Specify each parame
 `--set key=value[,key=value]` argument to `helm install`. For example, the following command will install rook where RBAC is not enabled.
 
 ```console
-$ helm install --namespace rook-ceph-system --name rook-ceph rook-stable/rook-ceph --set rbacEnable=false
+$ helm install --namespace rook-ceph --name rook-ceph rook-stable/rook-ceph --set rbacEnable=false
 ```
 
 ### Settings File
 Alternatively, a yaml file that specifies the values for the above parameters (`values.yaml`) can be provided while installing the chart.
 
 ```console
-$ helm install --namespace rook-ceph-system --name rook-ceph rook-stable/rook-ceph -f values.yaml
+$ helm install --namespace rook-ceph --name rook-ceph rook-stable/rook-ceph -f values.yaml
 ```
 
 Here are the sample settings to get you started.

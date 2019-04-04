@@ -276,17 +276,6 @@ rules:
   - apps
   resources:
   - daemonsets
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - delete
-- apiGroups:
-  - apps
-  resources:
-  - daemonsets
   - statefulsets
   verbs:
   - get
@@ -295,7 +284,6 @@ rules:
   - create
   - update
   - delete
-
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
@@ -602,7 +590,7 @@ subjects:
 roleRef:
   kind: ClusterRole
   name: rbd-csi-nodeplugin
-  apiGroup: rbac.authorization.k8s.io          
+  apiGroup: rbac.authorization.k8s.io
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -649,7 +637,7 @@ rules:
   - apiGroups: ["apiextensions.k8s.io"]
     resources: ["customresourcedefinitions"]
     verbs: ["create"]
-    
+
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
@@ -703,7 +691,7 @@ subjects:
 roleRef:
   kind: ClusterRole
   name: cephfs-csi-nodeplugin
-  apiGroup: rbac.authorization.k8s.io          
+  apiGroup: rbac.authorization.k8s.io
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -734,7 +722,7 @@ rules:
   - apiGroups: [""]
     resources: ["configmaps"]
     verbs: ["get", "list", "create", "delete"]
-    
+
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1

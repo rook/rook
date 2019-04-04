@@ -1,16 +1,58 @@
 #################################################################################################################
-# The deployment for the rook operator
-# Contains the common settings for most Kubernetes deployments.
+# Create the rook operator and necessary security context constraints for running
+# Rook in an OpenShift cluster.
 # For example, to create the rook-ceph cluster:
-#   kubectl create -f common.yaml
-#   kubectl create -f operator.yaml
-#   kubectl create -f cluster.yaml
-#
-# Also see other operator sample files for variations of operator.yaml:
-# - operator-openshift.yaml: Common settings for running in OpenShift
-# - operator-with-csi.yaml: Enable the ceph-csi driver
+#   oc create -f common.yaml
+#   oc create -f operator-openshift.yaml
+#   oc create -f cluster.yaml
 #################################################################################################################
 
+kind: SecurityContextConstraints
+# older versions of openshift have "apiVersion: v1"
+apiVersion: security.openshift.io/v1
+metadata:
+  name: rook-ceph
+allowPrivilegedContainer: true
+allowHostNetwork: true
+allowHostDirVolumePlugin: true
+priority:
+allowedCapabilities: []
+allowHostPorts: true
+allowHostPID: true
+allowHostIPC: true
+readOnlyRootFilesystem: false
+requiredDropCapabilities: []
+defaultAddCapabilities: []
+runAsUser:
+  type: RunAsAny
+seLinuxContext:
+  type: MustRunAs
+fsGroup:
+  type: MustRunAs
+supplementalGroups:
+  type: RunAsAny
+allowedFlexVolumes:
+  - driver: "ceph.rook.io/rook"
+  - driver: "ceph.rook.io/rook-ceph"
+volumes:
+  - configMap
+  - downwardAPI
+  - emptyDir
+  - flexVolume
+  - hostPath
+  - persistentVolumeClaim
+  - projected
+  - secret
+users:
+  # A user needs to be added for each rook service account.
+  # This assumes running in the default sample "rook-ceph" namespace.
+  # If other namespaces or service accounts are configured, they need to be updated here.
+  - system:serviceaccount:rook-ceph:rook-ceph-system
+  - system:serviceaccount:rook-ceph:default
+  - system:serviceaccount:rook-ceph:rook-ceph-mgr
+  - system:serviceaccount:rook-ceph:rook-ceph-osd
+---
+# The deployment for the rook operator
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -40,8 +82,6 @@ spec:
         - mountPath: /etc/ceph
           name: default-config-dir
         env:
-        # If the operator should only watch for cluster CRDs in the same namespace, set this to "true".
-        # If this is not set to true, the operator will watch for cluster CRDs in all namespaces.
         - name: ROOK_CURRENT_NAMESPACE_ONLY
           value: "true"
         # To disable RBAC, uncomment the following:
@@ -100,7 +140,7 @@ spec:
         # This is necessary to workaround the anyuid issues when running on OpenShift.
         # For more details see https://github.com/rook/rook/issues/1314#issuecomment-355799641
         - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
-          value: "false"
+          value: "true"
         # In some situations SELinux relabelling breaks (times out) on large filesystems, and doesn't work with cephfs ReadWriteMany volumes (last relabel wins).
         # Disable it here if you have similar issues.
         # For more details see https://github.com/rook/rook/issues/2417

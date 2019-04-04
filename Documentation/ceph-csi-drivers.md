@@ -28,9 +28,9 @@ cluster.
 ### Create RBAC used by CSI drivers in the same namespace as Rook Ceph Operator
 
 ```console
-#check if rook-ceph-system namespace is already created, if not create it
+#check if rook-ceph namespace is already created, if not create it
 kubectl get ns
-kubectl create namespace rook-ceph-system
+kubectl create namespace rook-ceph
 # create rbac. Since rook operator is not permitted to create rbac rules,
 these rules have to be created outside of operator
 kubectl apply -f cluster/examples/kubernetes/ceph/csi/rbac/rbd/
@@ -40,9 +40,9 @@ kubectl apply -f cluster/examples/kubernetes/ceph/csi/rbac/cephfs/
 ### Create CSI driver deployment templates and persist them in configmaps
 
 ```console
-kubectl create configmap csi-cephfs-config -n rook-ceph-system --from-file=cluster/examples/kubernetes/ceph/csi/template/cephfs
+kubectl create configmap csi-cephfs-config -n rook-ceph --from-file=cluster/examples/kubernetes/ceph/csi/template/cephfs
 
-kubectl create configmap csi-rbd-config -n rook-ceph-system --from-file=cluster/examples/kubernetes/ceph/csi/template/rbd
+kubectl create configmap csi-rbd-config -n rook-ceph --from-file=cluster/examples/kubernetes/ceph/csi/template/rbd
 ```
 
 ### Start Rook Ceph Operator
@@ -54,7 +54,7 @@ kubectl apply -f cluster/examples/kubernetes/ceph/operator-with-csi.yaml
 ### Verify CSI drivers and Operator are up and running
 
 ```bash
-# kubectl get all -n rook-ceph-system
+# kubectl get all -n rook-ceph
 NAME                                     READY     STATUS    RESTARTS   AGE
 pod/csi-cephfsplugin-h5spd               2/2       Running   0          1d
 pod/csi-cephfsplugin-provisioner-0       2/2       Running   0          1d

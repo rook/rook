@@ -6,8 +6,7 @@ indent: true
 
 # Cleaning up a Cluster
 If you want to tear down the cluster and bring up a new one, be aware of the following resources that will need to be cleaned up:
-- `rook-ceph-system` namespace: The Rook operator and agent created by `operator.yaml`
-- `rook-ceph` namespace: The Rook storage cluster created by `cluster.yaml` (the cluster CRD)
+- `rook-ceph` namespace: The Rook operator and cluster created by `operator.yaml` and `cluster.yaml` (the cluster CRD)
 - `/var/lib/rook`: Path on each host in the cluster where configuration is cached by the ceph mons and osds
 
 Note that if you changed the default namespaces or paths in the sample yaml files, you will need to adjust these namespaces and paths throughout these instructions.

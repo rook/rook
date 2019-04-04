@@ -97,8 +97,8 @@ To get you started, here's a quick rundown for the ceph example from the [quicks
 First, we'll create the secret for our registry as described [here](https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod):
 
 ```bash
-# for namespace rook-ceph-system (operator)
-kubectl -n rook-ceph-system create secret docker-registry my-registry-secret --docker-server=DOCKER_REGISTRY_SERVER --docker-username=DOCKER_USER --docker-password=DOCKER_PASSWORD --docker-email=DOCKER_EMAIL
+# for namespace rook-ceph
+kubectl -n rook-ceph create secret docker-registry my-registry-secret --docker-server=DOCKER_REGISTRY_SERVER --docker-username=DOCKER_USER --docker-password=DOCKER_PASSWORD --docker-email=DOCKER_EMAIL
 
 # and for namespace rook-ceph (cluster)
 kubectl -n rook-ceph create secret docker-registry my-registry-secret --docker-server=DOCKER_REGISTRY_SERVER --docker-username=DOCKER_USER --docker-password=DOCKER_PASSWORD --docker-email=DOCKER_EMAIL
@@ -112,7 +112,7 @@ imagePullSecrets:
 ```
 
 The service accounts are:
-* `rook-ceph-system` (namespace: `rook-ceph-system`): Will affect all pods created by the rook operator in the `rook-ceph-system` namespace.
+* `rook-ceph-system` (namespace: `rook-ceph`): Will affect all pods created by the rook operator in the `rook-ceph` namespace.
 * `default` (namespace: `rook-ceph`): Will affect most pods in the `rook-ceph` namespace.
 * `rook-ceph-mgr` (namespace: `rook-ceph`): Will affect the MGR pods in the `rook-ceph` namespace.
 * `rook-ceph-osd` (namespace: `rook-ceph`): Will affect the OSD pods in the `rook-ceph` namespace.

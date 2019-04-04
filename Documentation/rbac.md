@@ -111,7 +111,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: rook-ceph-system
-  namespace: rook-ceph-system
+  namespace: rook-ceph
 ```
 
 Save these definitions to one or multiple yaml files and create them by executing `kubectl apply -f <nameOfYourFile>.yaml`

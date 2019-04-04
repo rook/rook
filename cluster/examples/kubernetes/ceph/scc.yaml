@@ -8,7 +8,7 @@ allowHostNetwork: true
 allowHostDirVolumePlugin: true
 priority:
 allowedCapabilities: []
-allowHostPorts: false
+allowHostPorts: true
 allowHostPID: true
 allowHostIPC: true
 readOnlyRootFilesystem: false
@@ -36,9 +36,9 @@ volumes:
   - secret
 users:
   # A user needs to be added for each rook service account.
-  # This assumes running in the default sample "rook-ceph" and "rook-ceph-system" namespaces.
+  # This assumes running in the default sample "rook-ceph" namespace.
   # If other namespaces or service accounts are configured, they need to be updated here.
-  - system:serviceaccount:rook-ceph-system:rook-ceph-system
+  - system:serviceaccount:rook-ceph:rook-ceph-system
   - system:serviceaccount:rook-ceph:default
   - system:serviceaccount:rook-ceph:rook-ceph-mgr
   - system:serviceaccount:rook-ceph:rook-ceph-osd

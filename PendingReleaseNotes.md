@@ -29,6 +29,13 @@
 
 ### Ceph
 
+- The example operator and CRD yaml files have been refactored to simplify configuration. See the [examples help topic](Documentation/ceph-examples.md) for more details.
+   - The common resources are now factored into `common.yaml` from `operator.yaml` and `cluster.yaml`.
+   - `common.yaml`: Creates the namespace, RBAC, CRD definitions, and other common operator and cluster resources
+   - `operator.yaml`: Only contains the operator deployment
+   - `cluster.yaml`: Only contains the cluster CRD
+   - Multiple examples of the operator and CRDs are provided for common usage of the operator and CRDs.
+   - By default, a single namespace (`rook-ceph`) is configured instead of two namespaces (`rook-ceph-system` and `rook-ceph`). New and upgraded clusters can still be configured with the operator and cluster in two separate namespaces.
 - Rook will no longer create a directory-based osd in the `dataDirHostPath` if no directories or
   devices are specified or if there are no disks on the host.
 - Containers in `mon`, `mgr`, `mds`, `rgw`, and `rbd-mirror` pods have been removed and/or changed names.

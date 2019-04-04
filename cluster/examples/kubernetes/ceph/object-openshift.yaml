@@ -1,7 +1,7 @@
 #################################################################################################################
-# Create an object store with settings for replication in a production environment. A minimum of 3 hosts with
-# OSDs are required in this example.
-#  kubectl create -f object.yaml
+# Create an object store with settings specific for OpenShift. A minimum of 3 OSDs are required in this example
+# for the replication since the failureDomain is host.
+#  oc create -f object-openshift.yaml
 #################################################################################################################
 
 apiVersion: ceph.rook.io/v1
@@ -27,7 +27,7 @@ spec:
     # A reference to the secret in the rook namespace where the ssl certificate is stored
     sslCertificateRef:
     # The port that RGW pods will listen on (http)
-    port: 80
+    port: 8080
     # The port that RGW pods will listen on (https). An ssl certificate is required.
     securePort:
     # The number of pods in the rgw deployment (ignored if allNodes=true)

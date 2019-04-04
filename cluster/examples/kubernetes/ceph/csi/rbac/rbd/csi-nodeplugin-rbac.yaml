@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: rook-csi-rbd-plugin-sa
-  namespace: rook-ceph-system
+  namespace: rook-ceph
 
 ---
 kind: ClusterRole
@@ -34,8 +34,8 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: rook-csi-rbd-plugin-sa
-    namespace: rook-ceph-system
+    namespace: rook-ceph
 roleRef:
   kind: ClusterRole
   name: rbd-csi-nodeplugin
-  apiGroup: rbac.authorization.k8s.io          
+  apiGroup: rbac.authorization.k8s.io

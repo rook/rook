@@ -16,6 +16,20 @@ subjects:
 - kind: ServiceAccount
   name: rook-ceph-system
   namespace: {{ .Release.Namespace }}
+---
+# Allow the ceph mgr to access cluster-wide resources necessary for the mgr modules
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr-cluster
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-mgr-cluster
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-mgr
+  namespace: {{ .Release.Namespace }}
 {{- if .Values.pspEnable }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1

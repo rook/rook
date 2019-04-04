@@ -93,7 +93,7 @@ spec:
     activeStandby: true
 ```
 
-(These definitions can also be found in the [`ec-filesystem.yaml`](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/ec-filesystem.yaml) file)
+(These definitions can also be found in the [`filesystem-ec.yaml`](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/filesystem-ec.yaml) file)
 
 
 ## File System Settings
