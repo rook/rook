@@ -167,7 +167,7 @@ func (c *FilesystemController) onDelete(obj interface{}) {
 		return
 	}
 
-	err = deleteFilesystem(c.context, *filesystem)
+	err = deleteFilesystem(c.context, c.clusterInfo.CephVersion, *filesystem)
 	if err != nil {
 		logger.Errorf("failed to delete filesystem %s: %+v", filesystem.Name, err)
 	}

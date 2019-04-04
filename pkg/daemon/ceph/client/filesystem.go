@@ -309,6 +309,18 @@ func FailMDS(context *clusterd.Context, clusterName string, gid int) error {
 	return nil
 }
 
+// FailFilesystem efficiently brings down the filesystem by marking the filesystem as down
+// and failing the MDSes using a single Ceph command. This works only from nautilus version
+// of Ceph onwards.
+func FailFilesystem(context *clusterd.Context, clusterName, fsName string) error {
+	args := []string{"fs", "fail", fsName}
+	_, err := ExecuteCephCommand(context, clusterName, args)
+	if err != nil {
+		return fmt.Errorf("failed to fail filesystem %s: %+v", fsName, err)
+	}
+	return nil
+}
+
 // RemoveFilesystem performs software configuration steps to remove a Ceph filesystem and its
 // backing pools.
 func RemoveFilesystem(context *clusterd.Context, clusterName, fsName string) error {

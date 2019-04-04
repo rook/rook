@@ -100,9 +100,9 @@ func createFilesystem(
 }
 
 // deleteFileSystem deletes the filesystem and the metadata servers
-func deleteFilesystem(context *clusterd.Context, fs cephv1.CephFilesystem) error {
+func deleteFilesystem(context *clusterd.Context, cephVersion cephver.CephVersion, fs cephv1.CephFilesystem) error {
 	// The most important part of deletion is that the filesystem gets removed from Ceph
-	if err := downFilesystem(context, fs.Namespace, fs.Name); err != nil {
+	if err := downFilesystem(context, cephVersion, fs.Namespace, fs.Name); err != nil {
 		// If the fs isn't deleted from Ceph, leave the daemons so it can still be used.
 		return fmt.Errorf("failed to down filesystem %s: %+v", fs.Name, err)
 	}
@@ -219,8 +219,18 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, cephVersion c
 }
 
 // downFilesystem marks the filesystem as down and the MDS' as failed
-func downFilesystem(context *clusterd.Context, clusterName, filesystemName string) error {
+func downFilesystem(context *clusterd.Context, cephVersion cephver.CephVersion, clusterName, filesystemName string) error {
 	logger.Infof("Downing filesystem %s", filesystemName)
+
+	// From Ceph nautilus onwards, a single Ceph command marks the filesystem as down and
+	// MDSes as failed
+	if cephVersion.IsAtLeastNautilus() {
+		if err := client.FailFilesystem(context, clusterName, filesystemName); err != nil {
+			return err
+		}
+		logger.Infof("Downed filesystem %s", filesystemName)
+		return nil
+	}
 
 	// mark the cephFS instance as cluster_down before removing
 	if err := client.MarkFilesystemAsDown(context, clusterName, filesystemName); err != nil {
