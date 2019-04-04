@@ -220,7 +220,7 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, cephVersion c
 
 // downFilesystem marks the filesystem as down and the MDS' as failed
 func downFilesystem(context *clusterd.Context, clusterName, filesystemName string) error {
-	logger.Infof("Removing filesystem %s", filesystemName)
+	logger.Infof("Downing filesystem %s", filesystemName)
 
 	// mark the cephFS instance as cluster_down before removing
 	if err := client.MarkFilesystemAsDown(context, clusterName, filesystemName); err != nil {
@@ -238,6 +238,6 @@ func downFilesystem(context *clusterd.Context, clusterName, filesystemName strin
 		}
 	}
 
-	logger.Infof("Removed filesystem %s", filesystemName)
+	logger.Infof("Downed filesystem %s", filesystemName)
 	return nil
 }
