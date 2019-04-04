@@ -18,12 +18,15 @@ package mgr
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
+	rookcephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	rookversion "github.com/rook/rook/pkg/version"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -145,8 +148,11 @@ func (c *Cluster) makeSetServerAddrInitContainer(mgrConfig *mgrConfig, mgrModule
 			keyring.VolumeMount().Admin(),
 		),
 		Env: append(
-			opspec.DaemonEnvVars(c.cephVersion.Image),
-			k8sutil.PodIPEnvVar(podIPEnvVar),
+			append(
+				opspec.DaemonEnvVars(c.cephVersion.Image),
+				k8sutil.PodIPEnvVar(podIPEnvVar),
+			),
+			c.cephMgrOrchestratorModuleEnvs()...,
 		),
 		Resources: c.resources,
 	}
@@ -182,7 +188,10 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 				Protocol:      v1.ProtocolTCP,
 			},
 		},
-		Env:       opspec.DaemonEnvVars(c.cephVersion.Image),
+		Env: append(
+			opspec.DaemonEnvVars(c.cephVersion.Image),
+			c.cephMgrOrchestratorModuleEnvs()...,
+		),
 		Resources: c.resources,
 	}
 	return container
@@ -242,4 +251,15 @@ func (c *Cluster) getPodLabels(daemonName string) map[string]string {
 	// leave "instance" key for legacy usage
 	labels["instance"] = daemonName
 	return labels
+}
+
+func (c *Cluster) cephMgrOrchestratorModuleEnvs() []v1.EnvVar {
+	operatorNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
+	envVars := []v1.EnvVar{
+		{Name: "ROOK_OPERATOR_NAMESPACE", Value: operatorNamespace},
+		{Name: "ROOK_CEPH_CLUSTER_CRD_VERSION", Value: rookcephv1.Version},
+		{Name: "ROOK_VERSION", Value: rookversion.Version},
+		{Name: "ROOK_CEPH_CLUSTER_CRD_NAME", Value: c.clusterInfo.Name},
+	}
+	return envVars
 }
