@@ -185,10 +185,11 @@ func createClusterAccessSecret(clientset kubernetes.Interface, namespace string,
 
 	// store the secrets for internal usage of the rook pods
 	secrets := map[string][]byte{
-		clusterSecretName: []byte(clusterInfo.Name),
-		fsidSecretName:    []byte(clusterInfo.FSID),
-		monSecretName:     []byte(clusterInfo.MonitorSecret),
-		adminSecretName:   []byte(clusterInfo.AdminSecret),
+		clusterSecretName:  []byte(clusterInfo.Name),
+		fsidSecretName:     []byte(clusterInfo.FSID),
+		monSecretName:      []byte(clusterInfo.MonitorSecret),
+		adminSecretName:    []byte(clusterInfo.AdminSecret),
+		adminKeySecretName: []byte(clusterInfo.AdminSecret),
 	}
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{

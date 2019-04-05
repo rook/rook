@@ -53,14 +53,16 @@ const (
 	// MappingKey is the name of the mapping for the mon->node and node->port
 	MappingKey = "mapping"
 
-	appName           = "rook-ceph-mon"
-	monNodeAttr       = "mon_node"
-	monClusterAttr    = "mon_cluster"
-	tprName           = "mon.rook.io"
-	fsidSecretName    = "fsid"
-	monSecretName     = "mon-secret"
-	adminSecretName   = "admin"
-	clusterSecretName = "cluster-name"
+	appName         = "rook-ceph-mon"
+	monNodeAttr     = "mon_node"
+	monClusterAttr  = "mon_cluster"
+	tprName         = "mon.rook.io"
+	fsidSecretName  = "fsid"
+	monSecretName   = "mon-secret"
+	adminSecretName = "admin-secret"
+	// use admin as key in the secret
+	adminKeySecretName = "admin"
+	clusterSecretName  = "cluster-name"
 
 	// DefaultMonCount Default mon count for a cluster
 	DefaultMonCount = 3

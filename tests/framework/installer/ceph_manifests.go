@@ -1023,7 +1023,7 @@ spec:
         valueFrom:
           secretKeyRef:
             name: rook-ceph-mon
-            key: admin
+            key: admin-secret
     securityContext:
       privileged: true
     volumeMounts:
