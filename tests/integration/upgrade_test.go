@@ -22,6 +22,7 @@ import (
 
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	optest "github.com/rook/rook/pkg/operator/test"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
@@ -126,7 +127,7 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	require.Nil(s.T(), err)
 
 	// wait for the osd pods to be updated
-	err = k8sutil.WaitForDeploymentImage(s.k8sh.Clientset, s.namespace, "app=rook-ceph-osd", opspec.ConfigInitContainerName, true, "rook/ceph:master")
+	err = optest.WaitForDeploymentImage(s.k8sh.Clientset, s.namespace, "app=rook-ceph-osd", opspec.ConfigInitContainerName, true, "rook/ceph:master")
 	require.Nil(s.T(), err)
 
 	err = s.k8sh.WaitForLabeledPodsToRun("app=rook-ceph-osd", s.namespace)

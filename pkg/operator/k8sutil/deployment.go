@@ -45,43 +45,6 @@ func GetDeploymentSpecImage(clientset kubernetes.Interface, d apps.Deployment, c
 	return image, nil
 }
 
-func WaitForDeploymentImage(clientset kubernetes.Interface, namespace, label, container string, initContainer bool, desiredImage string) error {
-
-	sleepTime := 3
-	attempts := 30
-	for i := 0; i < attempts; i++ {
-		deployments, err := clientset.Apps().Deployments(namespace).List(metav1.ListOptions{LabelSelector: label})
-		if err != nil {
-			return fmt.Errorf("failed to list deployments with label %s. %v", label, err)
-		}
-
-		matches := 0
-		for _, d := range deployments.Items {
-			image, err := GetDeploymentSpecImage(clientset, d, container, initContainer)
-			if err != nil {
-				logger.Infof("failed to get image for deployment %s. %+v", d.Name, err)
-				continue
-			}
-			if image == desiredImage {
-				matches++
-			}
-		}
-
-		if matches == len(deployments.Items) && matches > 0 {
-			logger.Infof("all %d %s deployments are on image %s", matches, label, desiredImage)
-			return nil
-		}
-
-		if len(deployments.Items) == 0 {
-			logger.Infof("waiting for at least one deployment to start to see the version")
-		} else {
-			logger.Infof("%d/%d %s deployments match image %s", matches, len(deployments.Items), label, desiredImage)
-		}
-		time.Sleep(time.Duration(sleepTime) * time.Second)
-	}
-	return fmt.Errorf("failed to wait for image %s in label %s", desiredImage, label)
-}
-
 // UpdateDeploymentAndWait updates a deployment and waits until it is running to return. It will
 // error if the deployment does not exist to be updated or if it takes too long.
 func UpdateDeploymentAndWait(context *clusterd.Context, deployment *apps.Deployment, namespace string) (*v1.Deployment, error) {
