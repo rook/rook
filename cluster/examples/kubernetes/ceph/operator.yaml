@@ -86,6 +86,9 @@ spec:
         # The logging level for the operator: INFO | DEBUG
         - name: ROOK_LOG_LEVEL
           value: "INFO"
+        # The interval to check the health of the ceph cluster and update the status in the custom resource.
+        - name: ROOK_CEPH_STATUS_CHECK_INTERVAL
+          value: "60s"
         # The interval to check if every mon is in the quorum.
         - name: ROOK_MON_HEALTHCHECK_INTERVAL
           value: "45s"
