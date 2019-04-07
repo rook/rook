@@ -27,8 +27,8 @@ var (
 	Octopus = CephVersion{15, 0, 0}
 
 	// supportedVersions are production-ready versions that rook supports
-	supportedVersions   = []CephVersion{Luminous, Mimic}
-	unsupportedVersions = []CephVersion{Nautilus}
+	supportedVersions   = []CephVersion{Luminous, Mimic, Nautilus}
+	unsupportedVersions = []CephVersion{Octopus}
 	// allVersions includes all supportedVersions as well as unreleased versions that are being tested with rook
 	allVersions = append(supportedVersions, unsupportedVersions...)
 
