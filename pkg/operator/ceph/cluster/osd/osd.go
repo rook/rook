@@ -28,6 +28,7 @@ import (
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	osdconfig "github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/discover"
@@ -58,6 +59,7 @@ const (
 
 // Cluster keeps track of the OSDs
 type Cluster struct {
+	clusterInfo     *cephconfig.ClusterInfo
 	context         *clusterd.Context
 	Namespace       string
 	placement       rookalpha.Placement
@@ -75,6 +77,7 @@ type Cluster struct {
 
 // New creates an instance of the OSD manager
 func New(
+	clusterInfo *cephconfig.ClusterInfo,
 	context *clusterd.Context,
 	namespace string,
 	rookVersion string,
@@ -88,6 +91,7 @@ func New(
 ) *Cluster {
 
 	return &Cluster{
+		clusterInfo:     clusterInfo,
 		context:         context,
 		Namespace:       namespace,
 		placement:       placement,
