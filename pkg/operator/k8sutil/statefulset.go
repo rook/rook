@@ -47,20 +47,6 @@ func makeHeadlessSvc(name, namespace string, label map[string]string, clientset 
 	return svc, nil
 }
 
-// create a apps.daemonset
-func CreateDaemonSet(name, namespace string, clientset kubernetes.Interface, ds *apps.DaemonSet) error {
-	_, err := clientset.Apps().DaemonSets(namespace).Create(ds)
-	if err != nil {
-		if k8serrors.IsAlreadyExists(err) {
-			_, err = clientset.Apps().DaemonSets(namespace).Update(ds)
-		}
-		if err != nil {
-			return fmt.Errorf("failed to start %s daemonset: %v\n%v", name, err, ds)
-		}
-	}
-	return err
-}
-
 // create a apps.statefulset and a headless svc
 func CreateStatefulSet(name, namespace, appName string, clientset kubernetes.Interface, ss *apps.StatefulSet) (*corev1.Service, error) {
 	label := ss.GetLabels()

@@ -38,6 +38,7 @@ import (
 )
 
 func TestCheckHealth(t *testing.T) {
+
 	var deploymentsUpdated *[]*apps.Deployment
 	updateDeploymentAndWait, deploymentsUpdated = testopk8s.UpdateDeploymentAndWaitStub()
 
@@ -64,7 +65,7 @@ func TestCheckHealth(t *testing.T) {
 		Name:    "node0",
 		Address: "",
 	}
-	c.mapping.Port["node0"] = DefaultPort
+	c.mapping.Port["node0"] = DefaultMsgr1Port
 	c.maxMonID = 4
 
 	err := c.checkHealth()
@@ -117,7 +118,7 @@ func TestCheckHealthNotFound(t *testing.T) {
 	c.mapping.Node["b"] = &NodeInfo{
 		Name: "node0",
 	}
-	c.mapping.Port["node0"] = DefaultPort
+	c.mapping.Port["node0"] = DefaultMsgr1Port
 	c.maxMonID = 4
 
 	c.saveMonConfig()

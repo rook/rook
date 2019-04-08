@@ -324,7 +324,7 @@ func (c *Cluster) removeMon(daemonName string) error {
 		delete(c.mapping.Node, daemonName)
 		// if node->port "mapping" has been created, decrease or delete it
 		if port, ok := c.mapping.Port[nodeName]; ok {
-			if port == DefaultPort {
+			if port == DefaultMsgr1Port {
 				delete(c.mapping.Port, nodeName)
 			}
 			// don't clean up if a node port is higher than the default port, other

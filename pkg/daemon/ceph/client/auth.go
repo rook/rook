@@ -59,7 +59,6 @@ func AuthGetKey(context *clusterd.Context, clusterName, name string) (string, er
 
 // AuthGetOrCreateKey gets or creates the key for the given user.
 func AuthGetOrCreateKey(context *clusterd.Context, clusterName, name string, caps []string) (string, error) {
-
 	args := append([]string{"auth", "get-or-create-key", name}, caps...)
 	buf, err := ExecuteCephCommand(context, clusterName, args)
 	if err != nil {
@@ -67,6 +66,16 @@ func AuthGetOrCreateKey(context *clusterd.Context, clusterName, name string, cap
 	}
 
 	return parseAuthKey(buf)
+}
+
+// AuthUpdateCaps updates the capabilities for the given user.
+func AuthUpdateCaps(context *clusterd.Context, clusterName, name string, caps []string) error {
+	args := append([]string{"auth", "caps", name}, caps...)
+	_, err := ExecuteCephCommand(context, clusterName, args)
+	if err != nil {
+		return fmt.Errorf("failed to update caps for %s. %+v", name, err)
+	}
+	return err
 }
 
 // AuthDelete will delete the given user.

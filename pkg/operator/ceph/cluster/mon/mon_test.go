@@ -62,7 +62,7 @@ func testGenMonConfig(monID string) *monConfig {
 	return &monConfig{
 		ResourceName: "rook-ceph-" + moniker, // rook-ceph-mon-A or rook-ceph-mon#
 		DaemonName:   monID,                  // A or mon#
-		Port:         DefaultPort,
+		Port:         DefaultMsgr1Port,
 		PublicIP:     fmt.Sprintf("2.4.6.%d", index+1),
 		// dataDirHostPath assumed to be /var/lib/rook
 		DataPathMap: config.NewStatefulDaemonDataPathMap(
@@ -142,6 +142,7 @@ func TestResourceName(t *testing.T) {
 }
 
 func TestStartMonPods(t *testing.T) {
+
 	namespace := "ns"
 	context := newTestStartCluster(namespace)
 	c := newCluster(context, namespace, false, true, v1.ResourceRequirements{})
@@ -160,6 +161,7 @@ func TestStartMonPods(t *testing.T) {
 }
 
 func TestOperatorRestart(t *testing.T) {
+
 	namespace := "ns"
 	context := newTestStartCluster(namespace)
 	c := newCluster(context, namespace, false, true, v1.ResourceRequirements{})
@@ -184,6 +186,7 @@ func TestOperatorRestart(t *testing.T) {
 
 // safety check that if hostNetwork is used no changes occur on an operator restart
 func TestOperatorRestartHostNetwork(t *testing.T) {
+
 	namespace := "ns"
 	context := newTestStartCluster(namespace)
 
