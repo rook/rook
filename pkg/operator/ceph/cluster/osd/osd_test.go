@@ -79,7 +79,7 @@ func createNode(nodeName string, condition v1.NodeConditionType, clientset *fake
 		Status: v1.NodeStatus{
 			Conditions: []v1.NodeCondition{
 				{
-					Type: condition,
+					Type: condition, Status: v1.ConditionTrue,
 				},
 			},
 		},
