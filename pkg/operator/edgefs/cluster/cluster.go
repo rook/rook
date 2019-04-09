@@ -224,6 +224,10 @@ func (c *cluster) validateClusterSpec() error {
 		return fmt.Errorf("Directories option specified as well as Devices. Remove Directories or Devices option from cluster specification")
 	}
 
+	if c.Spec.TrlogProcessingInterval > 0 && (60%c.Spec.TrlogProcessingInterval) != 0 {
+		return fmt.Errorf("Incorrect trlogProcessingInterval specified")
+	}
+
 	logger.Info("Validate cluster spec")
 	return nil
 }

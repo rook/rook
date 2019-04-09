@@ -135,7 +135,9 @@ spec:
   #network: # cluster level networking configuration aka "host network"
   #  serverIfName: "enp2s0f0"
   #  brokerIfName: "enp2s0f0"
-  #skipHostPrepare: false
+  #skipHostPrepare: true
+  #trlogProcessingInterval: 2      # set transaction log processing interval to 2s to speed up ISGW Link delivery
+  #trlogKeepDays: 2                # keep up to 2 days of transaction log interval batches to reduce local storage overhead
   storage: # cluster level storage configuration and selection
     useAllNodes: true
   #  directories:
