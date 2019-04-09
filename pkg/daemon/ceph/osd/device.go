@@ -501,7 +501,10 @@ func WriteConfigFile(context *clusterd.Context, cluster *cephconfig.ClusterInfo,
 }
 
 func writeConfigFile(cfg *osdConfig, context *clusterd.Context, cluster *cephconfig.ClusterInfo, location string) error {
-	cephConfig := cephconfig.CreateDefaultCephConfig(context, cluster, cfg.rootPath)
+	cephConfig, err := cephconfig.CreateDefaultCephConfig(context, cluster, cfg.rootPath)
+	if err != nil {
+		return fmt.Errorf("failed to create default ceph config. %+v", err)
+	}
 	if isBluestore(cfg) {
 		cephConfig.GlobalConfig.OsdObjectStore = config.Bluestore
 	} else {

@@ -54,13 +54,19 @@ func TestCreateDefaultCephConfig(t *testing.T) {
 		},
 	}
 
-	cephConfig := CreateDefaultCephConfig(context, clusterInfo, "/var/lib/rook1")
+	cephConfig, err := CreateDefaultCephConfig(context, clusterInfo, "/var/lib/rook1")
+	if err != nil {
+		t.Fatalf("failed to create default ceph config. %+v", err)
+	}
 	verifyConfig(t, cephConfig, clusterInfo, 0)
 
 	// now use DEBUG level logging
 	context.LogLevel = capnslog.DEBUG
 
-	cephConfig = CreateDefaultCephConfig(context, clusterInfo, "/var/lib/rook1")
+	cephConfig, err = CreateDefaultCephConfig(context, clusterInfo, "/var/lib/rook1")
+	if err != nil {
+		t.Fatalf("failed to create default ceph config. %+v", err)
+	}
 	verifyConfig(t, cephConfig, clusterInfo, 10)
 
 	// verify the network info config

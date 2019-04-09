@@ -137,6 +137,7 @@ func (c *Cluster) makeDeployment(nodeName string, selection rookalpha.Selection,
 	configEnvVars := append(c.getConfigEnvVars(storeConfig, dataDir, nodeName, location), []v1.EnvVar{
 		tiniEnvVar,
 		{Name: "ROOK_OSD_ID", Value: osdID},
+		{Name: "ROOK_CEPH_VERSION", Value: c.clusterInfo.CephVersion.CephVersionFormatted()},
 	}...)
 
 	if !osd.IsDirectory {

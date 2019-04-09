@@ -183,7 +183,17 @@ func getQualifiedUser(user string) string {
 }
 
 // CreateDefaultCephConfig creates a default ceph config file.
-func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, runDir string) *CephConfig {
+func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, runDir string) (*CephConfig, error) {
+
+	cephVersionEnv := os.Getenv("ROOK_CEPH_VERSION")
+	if cephVersionEnv != "" {
+		v, err := cephver.ExtractCephVersion(cephVersionEnv)
+		if err != nil {
+			return nil, fmt.Errorf("failed to extract ceph version. %+v", err)
+		}
+		cluster.CephVersion = *v
+	}
+
 	// extract a list of just the monitor names, which will populate the "mon initial members"
 	// global config field
 	monMembers := make([]string, len(cluster.Monitors))
@@ -254,7 +264,7 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, ru
 		conf.MonClusterLogFile = "/dev/stderr"
 	}
 
-	return conf
+	return conf, nil
 }
 
 // create a config file with global settings configured, and return an ini file
@@ -266,7 +276,11 @@ func createGlobalConfigFileSection(context *clusterd.Context, cluster *ClusterIn
 		// use the user config since it was provided
 		ceph = userConfig
 	} else {
-		ceph = CreateDefaultCephConfig(context, cluster, runDir)
+		var err error
+		ceph, err = CreateDefaultCephConfig(context, cluster, runDir)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create default ceph config. %+v", err)
+		}
 	}
 
 	configFile := ini.Empty()
