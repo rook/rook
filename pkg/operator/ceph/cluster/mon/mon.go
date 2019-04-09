@@ -162,11 +162,6 @@ func (c *Cluster) Start(clusterInfo *cephconfig.ClusterInfo, rookVersion string,
 	c.rookVersion = rookVersion
 	c.spec = spec
 
-	// fail if we were instructed to deploy more than one mon on the same machine with host networking
-	if c.HostNetwork && c.spec.Mon.AllowMultiplePerNode && c.spec.Mon.Count > 1 {
-		return nil, fmt.Errorf("refusing to deploy %d monitors on the same host since hostNetwork is %v and allowMultiplePerNode is %v. Only one monitor per node is allowed", c.spec.Mon.Count, c.HostNetwork, c.spec.Mon.AllowMultiplePerNode)
-	}
-
 	// Validate pod's memory if specified
 	err := opspec.CheckPodMemory(cephv1.GetMonResources(c.spec.Resources), cephMonPodMinimumMemory)
 	if err != nil {
@@ -321,7 +316,7 @@ func (c *Cluster) newMonConfig(monID int) *monConfig {
 	return &monConfig{
 		ResourceName: resourceName(daemonName),
 		DaemonName:   daemonName,
-		Port:         DefaultMsgr1Port,
+		Port:         DefaultMsgr1Port + int32(monID),
 		DataPathMap: config.NewStatefulDaemonDataPathMap(
 			c.dataDirHostPath, dataDirRelativeHostPath(daemonName), config.MonType, daemonName),
 	}
