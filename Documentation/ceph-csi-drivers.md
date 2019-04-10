@@ -37,14 +37,6 @@ kubectl apply -f cluster/examples/kubernetes/ceph/csi/rbac/rbd/
 kubectl apply -f cluster/examples/kubernetes/ceph/csi/rbac/cephfs/
 ```
 
-### Create CSI driver deployment templates and persist them in configmaps
-
-```console
-kubectl create configmap csi-cephfs-config -n rook-ceph --from-file=cluster/examples/kubernetes/ceph/csi/template/cephfs
-
-kubectl create configmap csi-rbd-config -n rook-ceph --from-file=cluster/examples/kubernetes/ceph/csi/template/rbd
-```
-
 ### Start Rook Ceph Operator
 
 ```console
