@@ -61,14 +61,16 @@ type ClusterSpec struct {
 	// Resources set resource requests and limits
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`
 	// The path on the host where config and data can be persisted.
-	DataDirHostPath      string            `json:"dataDirHostPath,omitempty"`
-	ServiceAccount       string            `json:"serviceAccount,omitempty"`
-	DataVolumeSize       resource.Quantity `json:"dataVolumeSize,omitempty"`
-	DevicesResurrectMode string            `json:"devicesResurrectMode,omitempty"`
-	EdgefsImageName      string            `json:"edgefsImageName,omitempty"`
-	SkipHostPrepare      bool              `json:"skipHostPrepare,omitempty"`
-	ResourceProfile      string            `json:"resourceProfile,omitempty"`
-	ChunkCacheSize       resource.Quantity `json:"chunkCacheSize,omitempty"`
+	DataDirHostPath         string            `json:"dataDirHostPath,omitempty"`
+	ServiceAccount          string            `json:"serviceAccount,omitempty"`
+	DataVolumeSize          resource.Quantity `json:"dataVolumeSize,omitempty"`
+	DevicesResurrectMode    string            `json:"devicesResurrectMode,omitempty"`
+	EdgefsImageName         string            `json:"edgefsImageName,omitempty"`
+	SkipHostPrepare         bool              `json:"skipHostPrepare,omitempty"`
+	ResourceProfile         string            `json:"resourceProfile,omitempty"`
+	ChunkCacheSize          resource.Quantity `json:"chunkCacheSize,omitempty"`
+	TrlogProcessingInterval int               `json:"trlogProcessingInterval,omitempty"`
+	TrlogKeepDays           int               `json:"trlogKeepDays,omitempty"`
 }
 
 type DashboardSpec struct {

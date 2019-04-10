@@ -29,8 +29,10 @@ import (
 )
 
 const (
-	defaultServerIfName = "eth0"
-	defaultBrokerIfName = "eth0"
+	defaultServerIfName            = "eth0"
+	defaultBrokerIfName            = "eth0"
+	defaultTrlogProcessingInterval = 10
+	defaultTrlogKeepDays           = 7
 )
 
 // As we relying on StatefulSet, we want to build global ConfigMap shared
@@ -95,6 +97,9 @@ func (c *cluster) createClusterConfigMap(nodes []rookalpha.Node, deploymentConfi
 
 		nodeConfig := edgefsv1alpha1.SetupNode{
 			Ccow: edgefsv1alpha1.CcowConf{
+				Trlog: edgefsv1alpha1.CcowTrlog{
+					Interval: defaultTrlogProcessingInterval,
+				},
 				Tenant: edgefsv1alpha1.CcowTenant{
 					FailureDomain: failureDomain,
 				},
@@ -104,6 +109,9 @@ func (c *cluster) createClusterConfigMap(nodes []rookalpha.Node, deploymentConfi
 				},
 			},
 			Ccowd: edgefsv1alpha1.CcowdConf{
+				BgConfig: edgefsv1alpha1.CcowdBgConfig{
+					TrlogDeleteAfterHours: defaultTrlogKeepDays * 24,
+				},
 				Zone: devConfig.Zone,
 				Network: edgefsv1alpha1.CcowdNetwork{
 					ServerInterfaces: serverIfName,
@@ -124,6 +132,14 @@ func (c *cluster) createClusterConfigMap(nodes []rookalpha.Node, deploymentConfi
 			RtlfsAutodetect: rtlfsAutoDetectPath,
 			ClusterNodes:    dnsRecords,
 			NodeType:        nodeType,
+		}
+
+		if c.Spec.TrlogProcessingInterval > 0 {
+			nodeConfig.Ccow.Trlog.Interval = c.Spec.TrlogProcessingInterval
+		}
+
+		if c.Spec.TrlogKeepDays > 0 {
+			nodeConfig.Ccowd.BgConfig.TrlogDeleteAfterHours = c.Spec.TrlogKeepDays * 24
 		}
 
 		cm[node.Name] = nodeConfig

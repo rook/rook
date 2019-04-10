@@ -60,7 +60,13 @@ type CcowNetwork struct {
 	ServerIP4addr    string `json:"server_ip4addr,omitempty"`
 }
 
+type CcowTrlog struct {
+	Interval   int `json:"interval,omitempty"`
+	Quarantine int `json:"quarantine,omitempty"`
+}
+
 type CcowConf struct {
+	Trlog   CcowTrlog   `json:"trlog,omitempty"`
 	Tenant  CcowTenant  `json:"tenant"`
 	Network CcowNetwork `json:"network"`
 }
@@ -71,10 +77,15 @@ type CcowdNetwork struct {
 	ServerIP4addr    string `json:"server_ip4addr,omitempty"`
 }
 
+type CcowdBgConfig struct {
+	TrlogDeleteAfterHours int `json:"trlog_delete_after_hours,omitempty"`
+}
+
 type CcowdConf struct {
-	Zone      int          `json:"zone,omitempty"`
-	Network   CcowdNetwork `json:"network"`
-	Transport []string     `json:"transport"`
+	BgConfig  CcowdBgConfig `json:"repdev_bg_config,omitempty"`
+	Zone      int           `json:"zone,omitempty"`
+	Network   CcowdNetwork  `json:"network"`
+	Transport []string      `json:"transport"`
 }
 
 type AuditdConf struct {
