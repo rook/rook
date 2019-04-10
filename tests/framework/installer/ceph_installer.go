@@ -52,7 +52,7 @@ const (
 var (
 	LuminousVersion = cephv1.CephVersionSpec{Image: luminousTestImage}
 	MimicVersion    = cephv1.CephVersionSpec{Image: mimicTestImage}
-	NautilusVersion = cephv1.CephVersionSpec{Image: nautilusTestImage, AllowUnsupported: true}
+	NautilusVersion = cephv1.CephVersionSpec{Image: nautilusTestImage}
 )
 
 // CephInstaller wraps installing and uninstalling rook on a platform

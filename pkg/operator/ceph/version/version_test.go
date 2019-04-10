@@ -2,8 +2,9 @@ package version
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestToString(t *testing.T) {
@@ -116,12 +117,19 @@ func TestVersionAtLeast(t *testing.T) {
 	assert.True(t, Luminous.IsAtLeast(Luminous))
 	assert.False(t, Luminous.IsAtLeast(Mimic))
 	assert.False(t, Luminous.IsAtLeast(Nautilus))
+	assert.False(t, Luminous.IsAtLeast(Octopus))
 	assert.True(t, Mimic.IsAtLeast(Luminous))
 	assert.True(t, Mimic.IsAtLeast(Mimic))
 	assert.False(t, Mimic.IsAtLeast(Nautilus))
+	assert.False(t, Mimic.IsAtLeast(Octopus))
 	assert.True(t, Nautilus.IsAtLeast(Luminous))
 	assert.True(t, Nautilus.IsAtLeast(Mimic))
 	assert.True(t, Nautilus.IsAtLeast(Nautilus))
+	assert.False(t, Nautilus.IsAtLeast(Octopus))
+	assert.True(t, Octopus.IsAtLeast(Luminous))
+	assert.True(t, Octopus.IsAtLeast(Mimic))
+	assert.True(t, Octopus.IsAtLeast(Nautilus))
+	assert.True(t, Octopus.IsAtLeast(Octopus))
 
 	assert.True(t, (&CephVersion{1, 0, 0}).IsAtLeast(CephVersion{0, 0, 0}))
 	assert.False(t, (&CephVersion{0, 0, 0}).IsAtLeast(CephVersion{1, 0, 0}))
@@ -133,10 +141,14 @@ func TestVersionAtLeast(t *testing.T) {
 }
 
 func TestVersionAtLeastX(t *testing.T) {
+	assert.True(t, Octopus.IsAtLeastOctopus())
+	assert.True(t, Octopus.IsAtLeastNautilus())
+	assert.True(t, Octopus.IsAtLeastMimic())
 	assert.True(t, Nautilus.IsAtLeastNautilus())
 	assert.True(t, Nautilus.IsAtLeastMimic())
 	assert.True(t, Mimic.IsAtLeastMimic())
 	assert.False(t, Luminous.IsAtLeastMimic())
 	assert.False(t, Luminous.IsAtLeastNautilus())
 	assert.False(t, Mimic.IsAtLeastNautilus())
+	assert.False(t, Nautilus.IsAtLeastOctopus())
 }
