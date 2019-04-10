@@ -2,7 +2,7 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: csi-cephfs
-provisioner: csi-cephfsplugin
+provisioner: cephfs.csi.ceph.com
 parameters:
   # Comma separated list of Ceph monitors
   # if using FQDN, make sure csi plugin's dns policy is appropriate.  

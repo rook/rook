@@ -3,7 +3,7 @@ apiVersion: snapshot.storage.k8s.io/v1alpha1
 kind: VolumeSnapshotClass
 metadata:
   name: csi-rbdplugin-snapclass
-snapshotter: csi-rbdplugin
+snapshotter: rbd.csi.ceph.com
 parameters:
   pool: rbd
   monitors: mon1:port,mon2:port,...

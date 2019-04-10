@@ -17,43 +17,6 @@ limitations under the License.
 package installer
 
 const (
-	rbdAttacherTemplate = `
-    kind: StatefulSet
-    apiVersion: apps/v1beta2
-    metadata:
-      name: csi-rbdplugin-attacher
-      namespace: {{ .Namespace }}  
-    spec:
-      serviceName: csi-rbdplugin-attacher
-      replicas: 1
-      selector:
-        matchLabels:
-          app: csi-rbdplugin-attacher  
-      template:
-        metadata:
-          labels:
-            app: csi-rbdplugin-attacher
-        spec:
-          serviceAccount: rook-csi-rbd-attacher-sa
-          containers:
-            - name: csi-rbdplugin-attacher
-              image: {{ .AttacherImage }}
-              args:
-                - "--v=5"
-                - "--csi-address=$(ADDRESS)"
-              env:
-                - name: ADDRESS
-                  value: /var/lib/kubelet/plugins/csi-rbdplugin/csi.sock
-              imagePullPolicy: "IfNotPresent"
-              volumeMounts:
-                - name: socket-dir
-                  mountPath: /var/lib/kubelet/plugins/csi-rbdplugin
-          volumes:
-            - name: socket-dir
-              hostPath:
-                path: /var/lib/kubelet/plugins/csi-rbdplugin
-                type: DirectoryOrCreate
-`
 	rbdProvisionerTemplate = `
     kind: StatefulSet
     apiVersion: apps/v1beta2
@@ -65,7 +28,7 @@ const (
       replicas: 1
       selector:
         matchLabels:
-         app: csi-rbdplugin-provisioner  
+         app: csi-rbdplugin-provisioner
       template:
         metadata:
           labels:
@@ -80,11 +43,24 @@ const (
                 - "--v=5"
               env:
                 - name: ADDRESS
-                  value: /var/lib/kubelet/plugins/csi-rbdplugin/csi-provisioner.sock
+                  value: unix:///csi/csi-provisioner.sock
               imagePullPolicy: "IfNotPresent"
               volumeMounts:
                 - name: socket-dir
-                  mountPath: /var/lib/kubelet/plugins/csi-rbdplugin
+                  mountPath: /csi
+            - name: csi-rbdplugin-attacher
+              image: {{ .AttacherImage }}
+              args:
+                - "--v=5"
+                - "--csi-address=$(ADDRESS)"
+              env:
+                - name: ADDRESS
+                  value: /csi/csi-provisioner.sock
+              imagePullPolicy: "IfNotPresent"
+              volumeMounts:
+                - name: socket-dir
+                  mountPath: /csi
+
             - name: csi-snapshotter
               image:  {{ .SnapshotterImage }}
               args:
@@ -93,13 +69,13 @@ const (
                 - "--v=5"
               env:
                 - name: ADDRESS
-                  value: /var/lib/kubelet/plugins/csi-rbdplugin/csi-provisioner.sock
+                  value: unix:///csi/csi-provisioner.sock
               imagePullPolicy: Always
               securityContext:
                 privileged: true
               volumeMounts:
                 - name: socket-dir
-                  mountPath: /var/lib/kubelet/plugins/csi-rbdplugin              
+                  mountPath: /csi
             - name: csi-rbdplugin
               securityContext:
                 privileged: true
@@ -110,12 +86,12 @@ const (
                 - "--nodeid=$(NODE_ID)"
                 - "--endpoint=$(CSI_ENDPOINT)"
                 - "--v=5"
-                - "--drivername=csi-rbdplugin"
+                - "--drivername=rbd.csi.ceph.com"
                 - "--containerized=true"
                 - "--metadatastorage=k8s_configmap"
               env:
                 - name: HOST_ROOTFS
-                  value: "/rootfs" 
+                  value: "/rootfs"
                 - name: NODE_ID
                   valueFrom:
                     fieldRef:
@@ -125,15 +101,15 @@ const (
                     fieldRef:
                       fieldPath: metadata.namespace
                 - name: CSI_ENDPOINT
-                  value: unix://var/lib/kubelet/plugins/csi-rbdplugin/csi-provisioner.sock
+                  value: unix:///csi/csi-provisioner.sock
               imagePullPolicy: "IfNotPresent"
               volumeMounts:
                 - name: socket-dir
-                  mountPath: /var/lib/kubelet/plugins/csi-rbdplugin
+                  mountPath: /csi
                 - mountPath: /dev
                   name: host-dev
                 - mountPath: /rootfs
-                  name: host-rootfs            
+                  name: host-rootfs
                 - mountPath: /sys
                   name: host-sys
                 - mountPath: /lib/modules
@@ -145,16 +121,16 @@ const (
                 path: /dev
             - name: host-rootfs
               hostPath:
-                path: /            
+                path: /
             - name: host-sys
               hostPath:
                 path: /sys
             - name: lib-modules
               hostPath:
-                path: /lib/modules              
+                path: /lib/modules
             - name: socket-dir
               hostPath:
-                path: /var/lib/kubelet/plugins/csi-rbdplugin
+                path: /var/lib/kubelet/plugins/rbd.csi.ceph.com
                 type: DirectoryOrCreate
 `
 	rbdPluginTemplate = `
@@ -162,7 +138,7 @@ const (
     apiVersion: apps/v1beta2
     metadata:
       name: csi-rbdplugin
-      namespace: {{ .Namespace }}  
+      namespace: {{ .Namespace }}
     spec:
       selector:
         matchLabels:
@@ -174,21 +150,21 @@ const (
         spec:
           serviceAccount: rook-csi-rbd-plugin-sa
           hostNetwork: true
-          hostPID: true      
+          hostPID: true
           # to use e.g. Rook orchestrated cluster, and mons' FQDN is
           # resolved through k8s service, set dns policy to cluster first
-          dnsPolicy: ClusterFirstWithHostNet      
+          dnsPolicy: ClusterFirstWithHostNet
           containers:
             - name: driver-registrar
               image: {{ .RegistrarImage }}
               args:
                 - "--v=5"
                 - "--csi-address=/csi/csi.sock"
-                - "--kubelet-registration-path=/var/lib/kubelet/plugins/csi-rbdplugin/csi.sock"
+                - "--kubelet-registration-path=/var/lib/kubelet/plugins/rbd.csi.ceph.com/csi.sock"
               lifecycle:
                 preStop:
                   exec:
-                      command: ["/bin/sh", "-c", "rm -rf /registration/csi-rbdplugin /registration/csi-rbdplugin-reg.sock"]          
+                      command: ["/bin/sh", "-c", "rm -rf /registration/csi-rbdplugin /registration/csi-rbdplugin-reg.sock"]
               env:
                 - name: KUBE_NODE_NAME
                   valueFrom:
@@ -210,12 +186,12 @@ const (
                 - "--nodeid=$(NODE_ID)"
                 - "--endpoint=$(CSI_ENDPOINT)"
                 - "--v=5"
-                - "--drivername=csi-rbdplugin"
+                - "--drivername=rbd.csi.ceph.com"
                 - "--containerized=true"
                 - "--metadatastorage=k8s_configmap"
               env:
                 - name: HOST_ROOTFS
-                  value: "/rootfs" 
+                  value: "/rootfs"
                 - name: NODE_ID
                   valueFrom:
                     fieldRef:
@@ -225,11 +201,11 @@ const (
                     fieldRef:
                       fieldPath: metadata.namespace
                 - name: CSI_ENDPOINT
-                  value: unix://var/lib/kubelet/plugins_registry/csi-rbdplugin/csi.sock
+                  value: unix:///csi/csi.sock
               imagePullPolicy: "IfNotPresent"
               volumeMounts:
                 - name: plugin-dir
-                  mountPath: /var/lib/kubelet/plugins_registry/csi-rbdplugin
+                  mountPath: /csi
                 - name: pods-mount-dir
                   mountPath: /var/lib/kubelet/pods
                   mountPropagation: "Bidirectional"
@@ -239,7 +215,7 @@ const (
                 - mountPath: /dev
                   name: host-dev
                 - mountPath: /rootfs
-                  name: host-rootfs            
+                  name: host-rootfs
                 - mountPath: /sys
                   name: host-sys
                 - mountPath: /lib/modules
@@ -248,10 +224,10 @@ const (
           volumes:
             - name: plugin-dir
               hostPath:
-                path: /var/lib/kubelet/plugins/csi-rbdplugin
+                path: /var/lib/kubelet/plugins/rbd.csi.ceph.com
                 type: DirectoryOrCreate
             - name: plugin-mount-dir
-              hostPath: 
+              hostPath:
                 path: /var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/
                 type: DirectoryOrCreate
             - name: registration-dir
@@ -267,7 +243,7 @@ const (
                 path: /dev
             - name: host-rootfs
               hostPath:
-                path: /            
+                path: /
             - name: host-sys
               hostPath:
                 path: /sys
@@ -280,13 +256,13 @@ const (
     apiVersion: apps/v1beta2
     metadata:
       name: csi-cephfsplugin-provisioner
-      namespace: {{ .Namespace }}  
+      namespace: {{ .Namespace }}
     spec:
       serviceName: "csi-cephfsplugin-provisioner"
       replicas: 1
       selector:
         matchLabels:
-         app: csi-cephfsplugin-provisioner      
+         app: csi-cephfsplugin-provisioner
       template:
         metadata:
           labels:
@@ -301,11 +277,11 @@ const (
                 - "--v=5"
               env:
                 - name: ADDRESS
-                  value: /var/lib/kubelet/plugins/csi-cephfsplugin/csi-provisioner.sock
+                  value: unix:///csi/csi-provisioner.sock
               imagePullPolicy: "IfNotPresent"
               volumeMounts:
                 - name: socket-dir
-                  mountPath: /var/lib/kubelet/plugins/csi-cephfsplugin
+                  mountPath: /csi
             - name: csi-cephfsplugin
               securityContext:
                 privileged: true
@@ -316,7 +292,7 @@ const (
                 - "--nodeid=$(NODE_ID)"
                 - "--endpoint=$(CSI_ENDPOINT)"
                 - "--v=5"
-                - "--drivername=csi-cephfsplugin"
+                - "--drivername=cephfs.csi.ceph.com"
                 - "--metadatastorage=k8s_configmap"
               env:
                 - name: NODE_ID
@@ -328,22 +304,22 @@ const (
                     fieldRef:
                       fieldPath: metadata.namespace
                 - name: CSI_ENDPOINT
-                  value: unix://var/lib/kubelet/plugins/csi-cephfsplugin/csi-provisioner.sock
+                  value: unix:///csi/csi-provisioner.sock
               imagePullPolicy: "IfNotPresent"
               volumeMounts:
                 - name: socket-dir
-                  mountPath: /var/lib/kubelet/plugins/csi-cephfsplugin            
+                  mountPath: /csi
                 - name: host-sys
                   mountPath: /sys
                 - name: lib-modules
                   mountPath: /lib/modules
                   readOnly: true
                 - name: host-dev
-                  mountPath: /dev              
+                  mountPath: /dev
           volumes:
             - name: socket-dir
               hostPath:
-                path: /var/lib/kubelet/plugins/csi-cephfsplugin
+                path: /var/lib/kubelet/plugins/cephfs.csi.ceph.com
                 type: DirectoryOrCreate
             - name: host-sys
               hostPath:
@@ -360,7 +336,7 @@ const (
     apiVersion: apps/v1beta2
     metadata:
       name: csi-cephfsplugin
-      namespace: {{ .Namespace }}  
+      namespace: {{ .Namespace }}
     spec:
       selector:
         matchLabels:
@@ -374,18 +350,18 @@ const (
           hostNetwork: true
           # to use e.g. Rook orchestrated cluster, and mons' FQDN is
           # resolved through k8s service, set dns policy to cluster first
-          dnsPolicy: ClusterFirstWithHostNet      
+          dnsPolicy: ClusterFirstWithHostNet
           containers:
             - name: driver-registrar
               image: {{ .RegistrarImage }}
               args:
                 - "--v=5"
                 - "--csi-address=/csi/csi.sock"
-                - "--kubelet-registration-path=/var/lib/kubelet/plugins/csi-cephfsplugin/csi.sock"
+                - "--kubelet-registration-path=/var/lib/kubelet/plugins/cephfs.csi.ceph.com/csi.sock"
               lifecycle:
                 preStop:
                   exec:
-                      command: ["/bin/sh", "-c", "rm -rf /registration/csi-cephfsplugin /registration/csi-cephfsplugin-reg.sock"]          
+                      command: ["/bin/sh", "-c", "rm -rf /registration/csi-cephfsplugin /registration/csi-cephfsplugin-reg.sock"]
               env:
                 - name: KUBE_NODE_NAME
                   valueFrom:
@@ -407,7 +383,7 @@ const (
                 - "--nodeid=$(NODE_ID)"
                 - "--endpoint=$(CSI_ENDPOINT)"
                 - "--v=5"
-                - "--drivername=csi-cephfsplugin"
+                - "--drivername=cephfs.csi.ceph.com"
                 - "--metadatastorage=k8s_configmap"
               env:
                 - name: NODE_ID
@@ -419,11 +395,11 @@ const (
                     fieldRef:
                       fieldPath: metadata.namespace
                 - name: CSI_ENDPOINT
-                  value: unix://var/lib/kubelet/plugins/csi-cephfsplugin/csi.sock
+                  value: unix:///csi/csi.sock
               imagePullPolicy: "IfNotPresent"
               volumeMounts:
                 - name: plugin-dir
-                  mountPath: /var/lib/kubelet/plugins/csi-cephfsplugin
+                  mountPath: /csi
                 - name: csi-plugins-dir
                   mountPath: /var/lib/kubelet/plugins/kubernetes.io/csi
                   mountPropagation: "Bidirectional"
@@ -440,7 +416,7 @@ const (
           volumes:
             - name: plugin-dir
               hostPath:
-                path: /var/lib/kubelet/plugins/csi-cephfsplugin/
+                path: /var/lib/kubelet/plugins/cephfs.csi.ceph.com/
                 type: DirectoryOrCreate
             - name: csi-plugins-dir
               hostPath:

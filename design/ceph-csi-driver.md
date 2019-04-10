@@ -36,9 +36,8 @@ Starting Kubernetes CSI driver brings up an [external-provisioner](https://githu
 
 For example, deploying a CephFS CSI driver consists of the following steps:
 1. Creating a [RBAC for external provisioner](https://github.com/ceph/ceph-csi/blob/master/deploy/cephfs/kubernetes/csi-provisioner-rbac.yaml) and the [provisioner itself](https://github.com/ceph/ceph-csi/blob/master/deploy/cephfs/kubernetes/csi-cephfsplugin-provisioner.yaml).
-2. Creating a [RBAC for external attacher](https://github.com/ceph/ceph-csi/blob/master/deploy/cephfs/kubernetes/csi-attacher-rbac.yaml) and [attacher itself](https://github.com/ceph/ceph-csi/blob/master/deploy/cephfs/kubernetes/csi-attacher-rbac.yaml).
-3. Creating [RBAC for CSI driver](https://github.com/ceph/ceph-csi/blob/master/deploy/cephfs/kubernetes/csi-nodeplugin-rbac.yaml) and [driver DaemonSet](https://github.com/ceph/ceph-csi/blob/master/deploy/cephfs/kubernetes/csi-cephfsplugin.yaml)
-4. Creating Storage Classes for CSI provisioners.
+2. Creating [RBAC for CSI driver](https://github.com/ceph/ceph-csi/blob/master/deploy/cephfs/kubernetes/csi-nodeplugin-rbac.yaml) and [driver DaemonSet](https://github.com/ceph/ceph-csi/blob/master/deploy/cephfs/kubernetes/csi-cephfsplugin.yaml)
+3. Creating Storage Classes for CSI provisioners.
 
 ## Integration Plan
 

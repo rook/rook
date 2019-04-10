@@ -59,15 +59,13 @@ NAME                                     READY     STATUS    RESTARTS   AGE
 pod/csi-cephfsplugin-h5spd               2/2       Running   0          1d
 pod/csi-cephfsplugin-provisioner-0       2/2       Running   0          1d
 pod/csi-rbdplugin-4l6zg                  2/2       Running   2          1d
-pod/csi-rbdplugin-attacher-0             1/1       Running   0          1d
-pod/csi-rbdplugin-provisioner-0          2/2       Running   2          1d
+pod/csi-rbdplugin-provisioner-0          4/4       Running   2          1d
 pod/rook-ceph-agent-zlm84                1/1       Running   0          1d
 pod/rook-ceph-operator-c84954957-jdzk6   1/1       Running   0          1d
 pod/rook-discover-66hjp                  1/1       Running   0          1d
 
 NAME                                   TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)    AGE
 service/csi-cephfsplugin-provisioner   ClusterIP   10.0.0.107   <none>        1234/TCP   1d
-service/csi-rbdplugin-attacher         ClusterIP   10.0.0.109   <none>        1234/TCP   1d
 service/csi-rbdplugin-provisioner      ClusterIP   10.0.0.56    <none>        1234/TCP   1d
 
 NAME                              DESIRED   CURRENT   READY     UP-TO-DATE   AVAILABLE   NODE SELECTOR   AGE
@@ -84,7 +82,6 @@ replicaset.apps/rook-ceph-operator-c84954957   1         1         1         1d
 
 NAME                                            DESIRED   CURRENT   AGE
 statefulset.apps/csi-cephfsplugin-provisioner   1         1         1d
-statefulset.apps/csi-rbdplugin-attacher         1         1         1d
 statefulset.apps/csi-rbdplugin-provisioner      1         1         1d
 ```
 

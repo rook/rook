@@ -499,7 +499,6 @@ metadata:
   name: csi-rbd-config
   namespace: ` + namespace + `
 data:
-  csi-rbdplugin-attacher.yaml: |-` + rbdAttacherTemplate + `
   csi-rbdplugin-provisioner.yaml: |-` + rbdProvisionerTemplate + `
   csi-rbdplugin.yaml: |-` + rbdPluginTemplate + `
 ---
@@ -511,44 +510,6 @@ metadata:
 data:
   csi-cephfsplugin-provisioner.yaml: |` + cephfsProvisionerTemplate + `
   csi-cephfsplugin.yaml: |` + cephfsPluginTemplate + `
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: rook-csi-rbd-attacher-sa
-  namespace: ` + namespace + `
----
-kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: rbd-external-attacher-runner
-rules:
-  - apiGroups: [""]
-    resources: ["events"]
-    verbs: ["get", "list", "watch", "update"]
-  - apiGroups: [""]
-    resources: ["persistentvolumes"]
-    verbs: ["get", "list", "watch", "update"]
-  - apiGroups: [""]
-    resources: ["nodes"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: ["storage.k8s.io"]
-    resources: ["volumeattachments"]
-    verbs: ["get", "list", "watch", "update"]
-
----
-kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: rbd-csi-attacher-role
-subjects:
-  - kind: ServiceAccount
-    name: rook-csi-rbd-attacher-sa
-    namespace: ` + namespace + `
-roleRef:
-  kind: ClusterRole
-  name: rbd-external-attacher-runner
-  apiGroup: rbac.authorization.k8s.io
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -609,7 +570,7 @@ rules:
     verbs: ["get", "list"]
   - apiGroups: [""]
     resources: ["persistentvolumes"]
-    verbs: ["get", "list", "watch", "create", "delete"]
+    verbs: ["get", "list", "watch", "create", "delete", "update"]
   - apiGroups: [""]
     resources: ["persistentvolumeclaims"]
     verbs: ["get", "list", "watch", "update"]
@@ -637,6 +598,12 @@ rules:
   - apiGroups: ["apiextensions.k8s.io"]
     resources: ["customresourcedefinitions"]
     verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments"]
+    verbs: ["get", "list", "watch", "update"]
 
 ---
 kind: ClusterRoleBinding
@@ -709,7 +676,7 @@ rules:
     verbs: ["get", "list"]
   - apiGroups: [""]
     resources: ["persistentvolumes"]
-    verbs: ["get", "list", "watch", "create", "delete"]
+    verbs: ["get", "list", "watch", "create", "delete", "update"]
   - apiGroups: [""]
     resources: ["persistentvolumeclaims"]
     verbs: ["get", "list", "watch", "update"]

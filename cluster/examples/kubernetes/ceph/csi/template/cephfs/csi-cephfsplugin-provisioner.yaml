@@ -23,22 +23,22 @@ spec:
             - "--v=5"
           env:
             - name: ADDRESS
-              value: /var/lib/kubelet/plugins/csi-cephfsplugin/csi-provisioner.sock
+              value: unix:///csi/csi-provisioner.sock
           imagePullPolicy: "IfNotPresent"
           volumeMounts:
             - name: socket-dir
-              mountPath: /var/lib/kubelet/plugins/csi-cephfsplugin
+              mountPath: /csi
         - name: csi-cephfsplugin
           securityContext:
             privileged: true
             capabilities:
               add: ["SYS_ADMIN"]
           image: {{ .CephFSPluginImage }}
-          args :
+          args:
             - "--nodeid=$(NODE_ID)"
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--v=5"
-            - "--drivername=csi-cephfsplugin"
+            - "--drivername=cephfs.csi.ceph.com"
             - "--metadatastorage=k8s_configmap"
           env:
             - name: NODE_ID
@@ -50,11 +50,11 @@ spec:
                 fieldRef:
                   fieldPath: metadata.namespace
             - name: CSI_ENDPOINT
-              value: unix://var/lib/kubelet/plugins/csi-cephfsplugin/csi-provisioner.sock
+              value: unix:///csi/csi-provisioner.sock
           imagePullPolicy: "IfNotPresent"
           volumeMounts:
             - name: socket-dir
-              mountPath: /var/lib/kubelet/plugins/csi-cephfsplugin            
+              mountPath: /csi
             - name: host-sys
               mountPath: /sys
             - name: lib-modules
@@ -65,7 +65,7 @@ spec:
       volumes:
         - name: socket-dir
           hostPath:
-            path: /var/lib/kubelet/plugins/csi-cephfsplugin
+            path: /var/lib/kubelet/plugins/cephfs.csi.ceph.com
             type: DirectoryOrCreate
         - name: host-sys
           hostPath:
