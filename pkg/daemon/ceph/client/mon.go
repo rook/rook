@@ -67,16 +67,6 @@ func GetMonStatus(context *clusterd.Context, clusterName string, debug bool) (Mo
 	return resp, nil
 }
 
-// MonStats is a subset of fields on the response from the mon command "status".  These fields
-// are focused on monitor stats.
-type MonStats struct {
-	Health struct {
-		Status string                  `json:"status"`
-		Checks map[string]CheckMessage `json:"checks"`
-	} `json:"health"`
-	Quorum []int `json:"quorum"`
-}
-
 type MonTimeStatus struct {
 	Skew   map[string]MonTimeSkewStatus `json:"time_skew_status"`
 	Checks struct {
@@ -90,23 +80,6 @@ type MonTimeSkewStatus struct {
 	Skew    json.Number `json:"skew"`
 	Latency json.Number `json:"latency"`
 	Health  string      `json:"health"`
-}
-
-func GetMonStats(context *clusterd.Context, clusterName string) (*MonStats, error) {
-	// note this is another call to the mon command "status", but we'll be marshalling it into
-	// a type with a different subset of fields, scoped to monitor stats
-	args := []string{"status"}
-	buf, err := ExecuteCephCommand(context, clusterName, args)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get status: %+v", err)
-	}
-
-	var monStats MonStats
-	if err := json.Unmarshal(buf, &monStats); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal status response: %+v", err)
-	}
-
-	return &monStats, nil
 }
 
 func GetMonTimeStatus(context *clusterd.Context, clusterName string) (*MonTimeStatus, error) {

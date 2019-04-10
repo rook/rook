@@ -146,6 +146,10 @@ spec:
       type: string
       description: Current State
       JSONPath: .status.state
+    - name: Health
+      type: string
+      description: Ceph Health
+      JSONPath: .status.ceph.health
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -727,6 +731,8 @@ spec:
         env:
         - name: ROOK_LOG_LEVEL
           value: INFO
+        - name: ROOK_CEPH_STATUS_CHECK_INTERVAL
+          value: "5s"
         - name: ROOK_MON_HEALTHCHECK_INTERVAL
           value: "10s"
         - name: ROOK_MON_OUT_TIMEOUT

@@ -29,6 +29,9 @@ nodeSelector:
 # Tolerations for the rook-ceph-operator to allow it to run on nodes with particular taints
 tolerations: []
 
+# Interval at which to get the ceph status and update the cluster custom resource status
+cephStatusCheckInterval: "60s"
+
 mon:
   healthCheckInterval: "45s"
   monOutTimeout: "300s"

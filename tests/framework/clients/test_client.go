@@ -59,7 +59,7 @@ func CreateTestClient(k8sHelper *utils.K8sHelper, manifests installer.CephManife
 // Status returns rook status details
 func (c TestClient) Status(namespace string) (client.CephStatus, error) {
 	context := c.k8sh.MakeContext()
-	status, err := client.Status(context, namespace)
+	status, err := client.Status(context, namespace, false)
 	if err != nil {
 		return client.CephStatus{}, fmt.Errorf("failed to get status: %+v", err)
 	}

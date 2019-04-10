@@ -98,8 +98,22 @@ type DashboardSpec struct {
 }
 
 type ClusterStatus struct {
-	State   ClusterState `json:"state,omitempty"`
-	Message string       `json:"message,omitempty"`
+	State      ClusterState `json:"state,omitempty"`
+	Message    string       `json:"message,omitempty"`
+	CephStatus *CephStatus  `json:"ceph,omitempty"`
+}
+
+type CephStatus struct {
+	Health         string                       `json:"health,omitempty"`
+	Details        map[string]CephHealthMessage `json:"details,omitempty"`
+	LastChecked    string                       `json:"lastChecked,omitempty"`
+	LastChanged    string                       `json:"lastChanged,omitempty"`
+	PreviousHealth string                       `json:"previousHealth,omitempty"`
+}
+
+type CephHealthMessage struct {
+	Severity string `json:"severity"`
+	Message  string `json:"message"`
 }
 
 type ClusterState string

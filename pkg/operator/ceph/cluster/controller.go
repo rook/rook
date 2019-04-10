@@ -309,6 +309,10 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	osdChecker := osd.NewMonitor(c.context, cluster.Namespace)
 	go osdChecker.Start(cluster.stopCh)
 
+	// Start the ceph status checker
+	cephChecker := newCephStatusChecker(c.context, cluster.Namespace, clusterObj.Name)
+	go cephChecker.checkCephStatus(cluster.stopCh)
+
 	// add the finalizer to the crd
 	err = c.addFinalizer(clusterObj)
 	if err != nil {
@@ -396,7 +400,7 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 		return
 	}
 
-	logger.Infof("update event for cluster %s", newClust.Namespace)
+	logger.Debugf("update event for cluster %s", newClust.Namespace)
 
 	// Check if the cluster is being deleted. This code path is called when a finalizer is specified in the crd.
 	// When a cluster is requested for deletion, K8s will only set the deletion timestamp if there are any finalizers in the list.
@@ -420,7 +424,7 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 
 	changed, _ := clusterChanged(oldClust.Spec, newClust.Spec, cluster)
 	if !changed {
-		logger.Infof("update event for cluster %s is not supported", newClust.Namespace)
+		logger.Debugf("update event for cluster %s is not supported", newClust.Namespace)
 		return
 	}
 
@@ -659,7 +663,10 @@ func (c *ClusterController) removeFinalizer(obj interface{}) {
 	logger.Warningf("giving up from removing the %s cluster finalizer", fname)
 }
 
+// updateClusterStatus updates the status of the cluster custom resource, whether it is being updated or is completed
 func (c *ClusterController) updateClusterStatus(namespace, name string, state cephv1.ClusterState, message string) error {
+	logger.Infof("CephCluster %s status: %s", namespace, state)
+
 	// get the most recent cluster CRD object
 	cluster, err := c.context.RookClientset.CephV1().CephClusters(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
@@ -667,9 +674,11 @@ func (c *ClusterController) updateClusterStatus(namespace, name string, state ce
 	}
 
 	// update the status on the retrieved cluster object
-	cluster.Status = cephv1.ClusterStatus{State: state, Message: message}
-	if _, err := c.context.RookClientset.CephV1().CephClusters(cluster.Namespace).Update(cluster); err != nil {
-		return fmt.Errorf("failed to update cluster %s status: %+v", cluster.Namespace, err)
+	// do not overwrite the ceph status that is updated in a separate goroutine
+	cluster.Status.State = state
+	cluster.Status.Message = message
+	if _, err := c.context.RookClientset.CephV1().CephClusters(namespace).Update(cluster); err != nil {
+		return fmt.Errorf("failed to update cluster %s status: %+v", namespace, err)
 	}
 
 	return nil

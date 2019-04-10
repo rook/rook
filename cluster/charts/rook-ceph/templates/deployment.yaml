@@ -89,6 +89,10 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
+{{- if .Values.cephStatusCheckInterval }}
+        - name: ROOK_CEPH_STATUS_CHECK_INTERVAL
+          value: {{ .Values.cephStatusCheckInterval }}
+{{- end }}
 {{- if .Values.mon }}
 {{- if .Values.mon.healthCheckInterval }}
         - name: ROOK_MON_HEALTHCHECK_INTERVAL

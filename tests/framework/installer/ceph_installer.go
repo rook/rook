@@ -31,6 +31,7 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/tests/framework/utils"
+	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -360,6 +361,9 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, name
 			// When the test has failed, it's sometimes useful to have pod descriptions to check
 			// that pods are configured as expected.
 			h.k8shelper.PrintPodDescribeForNamespace(namespace)
+		} else {
+			// if the test passed, check that the ceph status is HEALTH_OK before we tear the cluster down
+			h.checkCephHealthStatus(namespace)
 		}
 
 		roles := h.Manifests.GetClusterRoles(namespace, systemNamespace)
@@ -435,6 +439,33 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, name
 	if h.changeHostnames {
 		// revert the hostname labels for the test
 		h.k8shelper.RestoreHostnames()
+	}
+}
+
+func (h *CephInstaller) checkCephHealthStatus(namespace string) {
+	clusterResource, err := h.k8shelper.RookClientset.CephV1().CephClusters(namespace).Get(namespace, metav1.GetOptions{})
+	assert.Nil(h.T(), err)
+	assert.Equal(h.T(), "Created", string(clusterResource.Status.State))
+
+	// Depending on the tests, the health may be fluctuating with different components being started or stopped.
+	// If needed, give it a few seconds to settle and check the status again.
+	if clusterResource.Status.CephStatus.Health != "HEALTH_OK" {
+		time.Sleep(10 * time.Second)
+		clusterResource, err = h.k8shelper.RookClientset.CephV1().CephClusters(namespace).Get(namespace, metav1.GetOptions{})
+		assert.Nil(h.T(), err)
+	}
+
+	// The health status is not stable enough for the integration tests to rely on.
+	// We should enable this check if we can get the ceph status to be stable despite all the changing configurations performed by rook.
+	//assert.Equal(h.T(), "HEALTH_OK", clusterResource.Status.CephStatus.Health)
+	assert.NotEqual(h.T(), "", clusterResource.Status.CephStatus.LastChecked)
+
+	// Print the details if the health is not ok
+	if clusterResource.Status.CephStatus.Health != "HEALTH_OK" {
+		logger.Errorf("Ceph health status: %s", clusterResource.Status.CephStatus.Health)
+		for name, message := range clusterResource.Status.CephStatus.Details {
+			logger.Errorf("Ceph health message: %s. %s: %s", name, message.Severity, message.Message)
+		}
 	}
 }
 

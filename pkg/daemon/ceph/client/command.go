@@ -88,6 +88,11 @@ func ExecuteCephCommand(context *clusterd.Context, clusterName string, args []st
 	return executeCephCommandWithOutputFile(context, clusterName, false, args)
 }
 
+// ExecuteCephCommandDebug executes the 'ceph' command with debug output
+func ExecuteCephCommandDebug(context *clusterd.Context, clusterName string, debug bool, args []string) ([]byte, error) {
+	return executeCephCommandWithOutputFile(context, clusterName, debug, args)
+}
+
 // ExecuteCephCommandPlain executes the 'ceph' command and returns stdout in PLAIN format instead of JSON
 func ExecuteCephCommandPlain(context *clusterd.Context, clusterName string, args []string) ([]byte, error) {
 	command, args := FinalizeCephCommandArgs(CephTool, args, context.ConfigDir, clusterName)
