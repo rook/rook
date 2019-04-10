@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# the latest mimic release is the base image
+# see Makefile for the BASEIMAGE definition
 FROM BASEIMAGE
 
 ARG ARCH
