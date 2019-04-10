@@ -243,3 +243,20 @@ func TestClusterDirsDevsInherit(t *testing.T) {
 	assert.Equal(t, []Directory{{Path: "/rook/datadir4"}}, node.Directories)
 	assert.Equal(t, []Device{{Name: "device4"}}, node.Devices)
 }
+
+func TestStorageScopeSpec_NodeWithNameExists(t *testing.T) {
+	spec := &StorageScopeSpec{
+		Nodes: []Node{},
+	}
+
+	assert.False(t, spec.NodeWithNameExists("node0"))
+
+	spec.Nodes = []Node{
+		{Name: "node0-hostname"},
+		{Name: "node1"},
+		{Name: "node2"}}
+	assert.True(t, spec.NodeWithNameExists("node0-hostname"))
+	assert.False(t, spec.NodeWithNameExists("node0"))
+	assert.True(t, spec.NodeWithNameExists("node1"))
+	assert.True(t, spec.NodeWithNameExists("node2"))
+}

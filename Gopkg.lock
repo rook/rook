@@ -1464,6 +1464,7 @@
     "k8s.io/kubernetes/pkg/apis/storage/v1/util",
     "k8s.io/kubernetes/pkg/controller/endpoint",
     "k8s.io/kubernetes/pkg/kubelet/apis",
+    "k8s.io/kubernetes/pkg/scheduler/algorithm",
     "k8s.io/kubernetes/pkg/util/mount",
     "k8s.io/kubernetes/pkg/util/version",
     "k8s.io/kubernetes/pkg/volume/flexvolume",

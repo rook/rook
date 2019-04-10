@@ -43,6 +43,10 @@
   `/etc/ceph` or `/var/lib/ceph` and as close to Ceph's default path as possible regardless of the
   `dataDirHostPath` setting.
 - The `rbd-mirror` pod labels now read `rbd-mirror` instead of `rbdmirror` for consistency.
+- The operator will no longer remove osds from specified nodes when the node is tainted with
+  [automatic Kubernetes taints](https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/#taint-based-evictions)
+  Osds can still be removed by more explicit methods. See the "Node Settings" section of the
+  [Ceph Cluster CRD documentation](Documentation/ceph-cluster-crd.md#node-settings) for full details.
 
 ## Known Issues
 
