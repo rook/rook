@@ -32,17 +32,10 @@ cluster.
 kubectl get ns
 kubectl create namespace rook-ceph
 # create rbac. Since rook operator is not permitted to create rbac rules,
-these rules have to be created outside of operator
+# these rules have to be created outside of operator
+kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
 kubectl apply -f cluster/examples/kubernetes/ceph/csi/rbac/rbd/
 kubectl apply -f cluster/examples/kubernetes/ceph/csi/rbac/cephfs/
-```
-
-### Create CSI driver deployment templates and persist them in configmaps
-
-```console
-kubectl create configmap csi-cephfs-config -n rook-ceph --from-file=cluster/examples/kubernetes/ceph/csi/template/cephfs
-
-kubectl create configmap csi-rbd-config -n rook-ceph --from-file=cluster/examples/kubernetes/ceph/csi/template/rbd
 ```
 
 ### Start Rook Ceph Operator
