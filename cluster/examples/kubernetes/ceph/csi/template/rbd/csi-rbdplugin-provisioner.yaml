@@ -8,7 +8,7 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-     app: csi-rbdplugin-provisioner  
+     app: csi-rbdplugin-provisioner
   template:
     metadata:
       labels:
@@ -28,6 +28,18 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
+        - name: csi-rbdplugin-attacher
+          image: {{ .AttacherImage }}
+          args:
+            - "--v=5"
+            - "--csi-address=$(ADDRESS)"
+          env:
+            - name: ADDRESS
+              value: /csi/csi-provisioner.sock
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
         - name: csi-snapshotter
           image:  {{ .SnapshotterImage }}
           args:
@@ -36,7 +48,7 @@ spec:
             - "--v=5"
           env:
             - name: ADDRESS
-              value: unix://csi/csi-provisioner.sock
+              value: unix:///csi/csi-provisioner.sock
           imagePullPolicy: Always
           securityContext:
             privileged: true
@@ -58,7 +70,7 @@ spec:
             - "--metadatastorage=k8s_configmap"
           env:
             - name: HOST_ROOTFS
-              value: "/rootfs" 
+              value: "/rootfs"
             - name: NODE_ID
               valueFrom:
                 fieldRef:
@@ -76,7 +88,7 @@ spec:
             - mountPath: /dev
               name: host-dev
             - mountPath: /rootfs
-              name: host-rootfs            
+              name: host-rootfs
             - mountPath: /sys
               name: host-sys
             - mountPath: /lib/modules
@@ -88,13 +100,13 @@ spec:
             path: /dev
         - name: host-rootfs
           hostPath:
-            path: /            
+            path: /
         - name: host-sys
           hostPath:
             path: /sys
         - name: lib-modules
           hostPath:
-            path: /lib/modules              
+            path: /lib/modules
         - name: socket-dir
           hostPath:
             path: /var/lib/kubelet/plugins/rbd.csi.ceph.com

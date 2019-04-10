@@ -17,43 +17,6 @@ limitations under the License.
 package installer
 
 const (
-	rbdAttacherTemplate = `
-    kind: StatefulSet
-    apiVersion: apps/v1beta2
-    metadata:
-      name: csi-rbdplugin-attacher
-      namespace: {{ .Namespace }}  
-    spec:
-      serviceName: csi-rbdplugin-attacher
-      replicas: 1
-      selector:
-        matchLabels:
-          app: csi-rbdplugin-attacher  
-      template:
-        metadata:
-          labels:
-            app: csi-rbdplugin-attacher
-        spec:
-          serviceAccount: rook-csi-rbd-attacher-sa
-          containers:
-            - name: csi-rbdplugin-attacher
-              image: {{ .AttacherImage }}
-              args:
-                - "--v=5"
-                - "--csi-address=$(ADDRESS)"
-              env:
-                - name: ADDRESS
-                  value: unix:///csi/csi.sock
-              imagePullPolicy: "IfNotPresent"
-              volumeMounts:
-                - name: socket-dir
-                  mountPath: /csi
-          volumes:
-            - name: socket-dir
-              hostPath:
-                path: /var/lib/kubelet/plugins/rbd.csi.ceph.com
-                type: DirectoryOrCreate
-`
 	rbdProvisionerTemplate = `
     kind: StatefulSet
     apiVersion: apps/v1beta2
@@ -65,7 +28,7 @@ const (
       replicas: 1
       selector:
         matchLabels:
-         app: csi-rbdplugin-provisioner  
+         app: csi-rbdplugin-provisioner
       template:
         metadata:
           labels:
@@ -85,6 +48,19 @@ const (
               volumeMounts:
                 - name: socket-dir
                   mountPath: /csi
+            - name: csi-rbdplugin-attacher
+              image: {{ .AttacherImage }}
+              args:
+                - "--v=5"
+                - "--csi-address=$(ADDRESS)"
+              env:
+                - name: ADDRESS
+                  value: /csi/csi-provisioner.sock
+              imagePullPolicy: "IfNotPresent"
+              volumeMounts:
+                - name: socket-dir
+                  mountPath: /csi
+
             - name: csi-snapshotter
               image:  {{ .SnapshotterImage }}
               args:
@@ -115,7 +91,7 @@ const (
                 - "--metadatastorage=k8s_configmap"
               env:
                 - name: HOST_ROOTFS
-                  value: "/rootfs" 
+                  value: "/rootfs"
                 - name: NODE_ID
                   valueFrom:
                     fieldRef:
@@ -133,7 +109,7 @@ const (
                 - mountPath: /dev
                   name: host-dev
                 - mountPath: /rootfs
-                  name: host-rootfs            
+                  name: host-rootfs
                 - mountPath: /sys
                   name: host-sys
                 - mountPath: /lib/modules
@@ -145,13 +121,13 @@ const (
                 path: /dev
             - name: host-rootfs
               hostPath:
-                path: /            
+                path: /
             - name: host-sys
               hostPath:
                 path: /sys
             - name: lib-modules
               hostPath:
-                path: /lib/modules              
+                path: /lib/modules
             - name: socket-dir
               hostPath:
                 path: /var/lib/kubelet/plugins/rbd.csi.ceph.com
@@ -162,7 +138,7 @@ const (
     apiVersion: apps/v1beta2
     metadata:
       name: csi-rbdplugin
-      namespace: {{ .Namespace }}  
+      namespace: {{ .Namespace }}
     spec:
       selector:
         matchLabels:
@@ -174,10 +150,10 @@ const (
         spec:
           serviceAccount: rook-csi-rbd-plugin-sa
           hostNetwork: true
-          hostPID: true      
+          hostPID: true
           # to use e.g. Rook orchestrated cluster, and mons' FQDN is
           # resolved through k8s service, set dns policy to cluster first
-          dnsPolicy: ClusterFirstWithHostNet      
+          dnsPolicy: ClusterFirstWithHostNet
           containers:
             - name: driver-registrar
               image: {{ .RegistrarImage }}
@@ -188,7 +164,7 @@ const (
               lifecycle:
                 preStop:
                   exec:
-                      command: ["/bin/sh", "-c", "rm -rf /registration/csi-rbdplugin /registration/csi-rbdplugin-reg.sock"]          
+                      command: ["/bin/sh", "-c", "rm -rf /registration/csi-rbdplugin /registration/csi-rbdplugin-reg.sock"]
               env:
                 - name: KUBE_NODE_NAME
                   valueFrom:
@@ -215,7 +191,7 @@ const (
                 - "--metadatastorage=k8s_configmap"
               env:
                 - name: HOST_ROOTFS
-                  value: "/rootfs" 
+                  value: "/rootfs"
                 - name: NODE_ID
                   valueFrom:
                     fieldRef:
@@ -239,7 +215,7 @@ const (
                 - mountPath: /dev
                   name: host-dev
                 - mountPath: /rootfs
-                  name: host-rootfs            
+                  name: host-rootfs
                 - mountPath: /sys
                   name: host-sys
                 - mountPath: /lib/modules
@@ -251,7 +227,7 @@ const (
                 path: /var/lib/kubelet/plugins/rbd.csi.ceph.com
                 type: DirectoryOrCreate
             - name: plugin-mount-dir
-              hostPath: 
+              hostPath:
                 path: /var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/
                 type: DirectoryOrCreate
             - name: registration-dir
@@ -267,7 +243,7 @@ const (
                 path: /dev
             - name: host-rootfs
               hostPath:
-                path: /            
+                path: /
             - name: host-sys
               hostPath:
                 path: /sys
@@ -280,13 +256,13 @@ const (
     apiVersion: apps/v1beta2
     metadata:
       name: csi-cephfsplugin-provisioner
-      namespace: {{ .Namespace }}  
+      namespace: {{ .Namespace }}
     spec:
       serviceName: "csi-cephfsplugin-provisioner"
       replicas: 1
       selector:
         matchLabels:
-         app: csi-cephfsplugin-provisioner      
+         app: csi-cephfsplugin-provisioner
       template:
         metadata:
           labels:
@@ -339,7 +315,7 @@ const (
                   mountPath: /lib/modules
                   readOnly: true
                 - name: host-dev
-                  mountPath: /dev              
+                  mountPath: /dev
           volumes:
             - name: socket-dir
               hostPath:
@@ -360,7 +336,7 @@ const (
     apiVersion: apps/v1beta2
     metadata:
       name: csi-cephfsplugin
-      namespace: {{ .Namespace }}  
+      namespace: {{ .Namespace }}
     spec:
       selector:
         matchLabels:
@@ -374,7 +350,7 @@ const (
           hostNetwork: true
           # to use e.g. Rook orchestrated cluster, and mons' FQDN is
           # resolved through k8s service, set dns policy to cluster first
-          dnsPolicy: ClusterFirstWithHostNet      
+          dnsPolicy: ClusterFirstWithHostNet
           containers:
             - name: driver-registrar
               image: {{ .RegistrarImage }}
@@ -385,7 +361,7 @@ const (
               lifecycle:
                 preStop:
                   exec:
-                      command: ["/bin/sh", "-c", "rm -rf /registration/csi-cephfsplugin /registration/csi-cephfsplugin-reg.sock"]          
+                      command: ["/bin/sh", "-c", "rm -rf /registration/csi-cephfsplugin /registration/csi-cephfsplugin-reg.sock"]
               env:
                 - name: KUBE_NODE_NAME
                   valueFrom:

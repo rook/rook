@@ -56,7 +56,6 @@ func init() {
 	// csi deployment templates
 	operatorCmd.Flags().StringVar(&csi.RBDPluginTemplatePath, "csi-rbd-plugin-template-path", csi.DefaultRBDPluginTemplatePath, "path to ceph-csi rbd plugin template")
 	operatorCmd.Flags().StringVar(&csi.RBDProvisionerTemplatePath, "csi-rbd-provisioner-template-path", csi.DefaultRBDProvisionerTemplatePath, "path to ceph-csi rbd provisioner template")
-	operatorCmd.Flags().StringVar(&csi.RBDAttacherTemplatePath, "csi-rbd-attacher-template-path", csi.DefaultRBDAttacherTemplatePath, "path to ceph-csi rbd attacher template")
 
 	operatorCmd.Flags().StringVar(&csi.CephFSPluginTemplatePath, "csi-cephfs-plugin-template-path", csi.DefaultCephFSPluginTemplatePath, "path to ceph-csi cephfs plugin template")
 	operatorCmd.Flags().StringVar(&csi.CephFSProvisionerTemplatePath, "csi-cephfs-provisioner-template-path", csi.DefaultCephFSProvisionerTemplatePath, "path to ceph-csi cephfs provisioner template")

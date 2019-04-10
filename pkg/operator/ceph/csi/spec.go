@@ -46,7 +46,6 @@ var (
 	// template paths
 	RBDPluginTemplatePath      string
 	RBDProvisionerTemplatePath string
-	RBDAttacherTemplatePath    string
 
 	CephFSPluginTemplatePath      string
 	CephFSProvisionerTemplatePath string
@@ -67,7 +66,6 @@ const (
 	// template
 	DefaultRBDPluginTemplatePath         = "/etc/ceph-csi/rbd/csi-rbdplugin.yaml"
 	DefaultRBDProvisionerTemplatePath    = "/etc/ceph-csi/rbd/csi-rbdplugin-provisioner.yaml"
-	DefaultRBDAttacherTemplatePath       = "/etc/ceph-csi/rbd/csi-rbdplugin-attacher.yaml"
 	DefaultCephFSPluginTemplatePath      = "/etc/ceph-csi/cephfs/csi-cephfsplugin.yaml"
 	DefaultCephFSProvisionerTemplatePath = "/etc/ceph-csi/cephfs/csi-cephfsplugin-provisioner.yaml"
 
@@ -105,9 +103,6 @@ func ValidateCSIParam() error {
 		if len(RBDProvisionerTemplatePath) == 0 {
 			return errors.New("missing rbd provisioner template path")
 		}
-		if len(RBDAttacherTemplatePath) == 0 {
-			return errors.New("missing rbd attacher template path")
-		}
 	}
 
 	if EnableCephFS {
@@ -132,9 +127,9 @@ func ValidateCSIParam() error {
 
 func StartCSIDrivers(namespace string, clientset kubernetes.Interface) error {
 	var (
-		err                                            error
-		rbdPlugin, cephfsPlugin                        *apps.DaemonSet
-		rbdProvisioner, rbdAttacher, cephfsProvisioner *apps.StatefulSet
+		err                               error
+		rbdPlugin, cephfsPlugin           *apps.DaemonSet
+		rbdProvisioner, cephfsProvisioner *apps.StatefulSet
 	)
 
 	if EnableRBD {
@@ -145,10 +140,6 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface) error {
 		rbdProvisioner, err = templateToStatefulSet("rbd-provisioner", RBDProvisionerTemplatePath)
 		if err != nil {
 			return fmt.Errorf("failed to load rbd provisioner template: %v", err)
-		}
-		rbdAttacher, err = templateToStatefulSet("rbd-attacher", RBDAttacherTemplatePath)
-		if err != nil {
-			return fmt.Errorf("failed to load rbd attacher template: %v", err)
 		}
 	}
 	if EnableCephFS {
@@ -174,12 +165,6 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface) error {
 			return fmt.Errorf("failed to start rbd provisioner statefulset: %v\n%v", err, rbdProvisioner)
 		}
 
-	}
-	if rbdAttacher != nil {
-		_, err = k8sutil.CreateStatefulSet("csi rbd attacher", namespace, "csi-rbdplugin-attacher", clientset, rbdAttacher)
-		if err != nil {
-			return fmt.Errorf("failed to start rbd attacher statefulset: %v\n%v", err, rbdAttacher)
-		}
 	}
 
 	if cephfsPlugin != nil {
