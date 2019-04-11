@@ -119,7 +119,7 @@ func (h *EdgefsInstaller) UninstallEdgefs(systemNamespace, namespace string) {
 	checkError(h.T(), err, fmt.Sprintf("cannot remove cluster %s", namespace))
 
 	crdCheckerFunc := func() error {
-		_, err := h.k8shelper.RookClientset.EdgefsV1alpha1().Clusters(namespace).Get(namespace, metav1.GetOptions{})
+		_, err := h.k8shelper.RookClientset.EdgefsV1beta1().Clusters(namespace).Get(namespace, metav1.GetOptions{})
 		return err
 	}
 
