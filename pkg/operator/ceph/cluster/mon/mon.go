@@ -176,16 +176,6 @@ func (c *Cluster) Start(clusterInfo *cephconfig.ClusterInfo, rookVersion string,
 		return nil, fmt.Errorf("failed to initialize ceph cluster info. %+v", err)
 	}
 
-	nodeList, err := c.getFullNodeList()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get node list. %+v", err)
-	}
-	validNodes := c.getValidNodes(nodeList.Items)
-	nodeCount := len(validNodes)
-	if !c.spec.Mon.AllowMultiplePerNode && c.spec.Mon.Count > nodeCount {
-		return nil, fmt.Errorf("the desired mon count is %d while the number of available nodes is %d despite allowMultiplePerNode is %t", c.spec.Mon.Count, nodeCount, c.spec.Mon.AllowMultiplePerNode)
-	}
-
 	targetCount, msg, err := c.getTargetMonCount()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get target mon count. %+v", err)
@@ -370,6 +360,12 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 		return fmt.Errorf("failed to get available nodes for mons. %+v", err)
 	}
 
+	nodeCount := len(availableNodes)
+	monCount := len(mons)
+	if !c.spec.Mon.AllowMultiplePerNode && monCount > nodeCount {
+		return fmt.Errorf("the desired mon count is %d while the available node count is %d despite allowMultiplePerNode is %t", monCount, nodeCount, c.spec.Mon.AllowMultiplePerNode)
+	}
+
 	nodeIndex := 0
 	for _, m := range mons {
 		if _, ok := c.mapping.Node[m.DaemonName]; ok {
@@ -378,12 +374,12 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 		}
 
 		// if we need to place a new mon and don't have any more nodes available, we fail to add the mon
-		if len(availableNodes) == 0 {
+		if nodeCount == 0 {
 			return fmt.Errorf("no nodes available for mon placement")
 		}
 
 		// pick one of the available nodes where the mon will be assigned
-		node := availableNodes[nodeIndex%len(availableNodes)]
+		node := availableNodes[nodeIndex%nodeCount]
 		logger.Debugf("mon %s assigned to node %s", m.DaemonName, node.Name)
 		nodeInfo, err := getNodeInfoFromNode(node)
 		if err != nil {
