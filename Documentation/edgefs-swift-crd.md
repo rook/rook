@@ -12,7 +12,7 @@ The following settings are available for customization of SWIFT services.
 ## Sample
 
 ```yaml
-apiVersion: edgefs.rook.io/v1alpha1
+apiVersion: edgefs.rook.io/v1beta1
 kind: SWIFT
 metadata:
   name: swift01
@@ -126,7 +126,7 @@ efscli service serve swift-pepsi Hawaii
 5. Create SWIFT CRDs
 
 ```yaml
-apiVersion: edgefs.rook.io/v1alpha1
+apiVersion: edgefs.rook.io/v1beta1
 kind: SWIFT
 metadata:
   name: swiftCola
@@ -136,7 +136,7 @@ spec:
 ```
 
 ```yaml
-apiVersion: edgefs.rook.io/v1alpha1
+apiVersion: edgefs.rook.io/v1beta1
 kind: SWIFT
 metadata:
   name: swiftPepsi
