@@ -61,6 +61,7 @@ func (m *Mirroring) makeDeployment(daemonConfig *daemonConfig) *apps.Deployment 
 			Replicas: &replicas,
 		},
 	}
+	k8sutil.AddRookVersionLabelToDeployment(d)
 	k8sutil.SetOwnerRef(m.context.Clientset, m.Namespace, &d.ObjectMeta, &m.ownerRef)
 	return d
 }

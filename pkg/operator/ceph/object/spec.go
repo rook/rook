@@ -47,6 +47,7 @@ func (c *clusterConfig) startDeployment() (*apps.Deployment, error) {
 			},
 		},
 	}
+	k8sutil.AddRookVersionLabelToDeployment(d)
 	k8sutil.SetOwnerRefs(c.context.Clientset, c.store.Namespace, &d.ObjectMeta, c.ownerRefs)
 
 	logger.Debugf("starting rgw deployment: %+v", d)
@@ -93,6 +94,7 @@ func (c *clusterConfig) startDaemonset() (*apps.DaemonSet, error) {
 			Template: c.makeRGWPodSpec(),
 		},
 	}
+	k8sutil.AddRookVersionLabelToDaemonSet(d)
 	k8sutil.SetOwnerRefs(c.context.Clientset, c.store.Namespace, &d.ObjectMeta, c.ownerRefs)
 
 	logger.Debugf("starting rgw daemonset: %+v", d)

@@ -19,6 +19,7 @@ package k8sutil
 import (
 	"fmt"
 
+	"k8s.io/api/apps/v1"
 	apps "k8s.io/api/apps/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -49,4 +50,16 @@ func DeleteDaemonset(clientset kubernetes.Interface, namespace, name string) err
 		return err
 	}
 	return deleteResourceAndWait(namespace, name, "daemonset", deleteAction, getAction)
+}
+
+// AddRookVersionLabelToDaemonSet adds or updates a label reporting the Rook version which last
+// modified a DaemonSet.
+func AddRookVersionLabelToDaemonSet(d *v1.DaemonSet) {
+	if d == nil {
+		return
+	}
+	if d.Labels == nil {
+		d.Labels = map[string]string{}
+	}
+	addRookVersionLabel(d.Labels)
 }

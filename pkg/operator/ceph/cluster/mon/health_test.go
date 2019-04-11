@@ -71,13 +71,11 @@ func TestCheckHealth(t *testing.T) {
 	err := c.checkHealth()
 	assert.Nil(t, err)
 	logger.Infof("mons after checkHealth: %v", c.clusterInfo.Monitors)
-	// No updates in unit tests w/ workaround
-	assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
+	assert.ElementsMatch(t, []string{"rook-ceph-mon-a", "rook-ceph-mon-f"}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
 	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 
 	err = c.failoverMon("f")
 	assert.Nil(t, err)
-	// No updates in unit tests w/ workaround
 	assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
 	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 
@@ -377,7 +375,7 @@ func TestAddRemoveMons(t *testing.T) {
 	}
 	c := New(context, "ns", "", false, metav1.OwnerReference{})
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 5, AllowMultiplePerNode: true}, "myversion")
-	c.maxMonID = 0
+	c.maxMonID = 0 // "a" is max mon id
 	c.waitForStart = false
 	defer os.RemoveAll(c.context.ConfigDir)
 
@@ -385,8 +383,13 @@ func TestAddRemoveMons(t *testing.T) {
 	err := c.checkHealth()
 	assert.Nil(t, err)
 	assert.Equal(t, 5, len(c.clusterInfo.Monitors), fmt.Sprintf("mons: %v", c.clusterInfo.Monitors))
-	// No updates in unit tests w/ workaround
-	assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
+	assert.ElementsMatch(t, []string{
+		// b is created first, no updates
+		"rook-ceph-mon-b",                    // b updated when c created
+		"rook-ceph-mon-b", "rook-ceph-mon-c", // b and c updated when d created
+		"rook-ceph-mon-b", "rook-ceph-mon-c", "rook-ceph-mon-d", // etc.
+		"rook-ceph-mon-b", "rook-ceph-mon-c", "rook-ceph-mon-d", "rook-ceph-mon-e"},
+		testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
 	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 
 	// reducing the mon count to 3 will reduce the mon count once each time we call checkHealth
