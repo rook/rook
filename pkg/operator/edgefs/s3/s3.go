@@ -1,11 +1,11 @@
 /*
-Copyright 2016 The Rook Authors. All rights reserved.
+Copyright 2019 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-	http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"strings"
 
-	edgefsv1alpha1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1alpha1"
+	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
@@ -46,16 +46,16 @@ const (
 )
 
 // Start the S3 manager
-func (c *S3Controller) CreateService(s edgefsv1alpha1.S3, ownerRefs []metav1.OwnerReference) error {
+func (c *S3Controller) CreateService(s edgefsv1beta1.S3, ownerRefs []metav1.OwnerReference) error {
 	return c.CreateOrUpdate(s, false, ownerRefs)
 }
 
-func (c *S3Controller) UpdateService(s edgefsv1alpha1.S3, ownerRefs []metav1.OwnerReference) error {
+func (c *S3Controller) UpdateService(s edgefsv1beta1.S3, ownerRefs []metav1.OwnerReference) error {
 	return c.CreateOrUpdate(s, true, ownerRefs)
 }
 
 // Start the s3 instance
-func (c *S3Controller) CreateOrUpdate(s edgefsv1alpha1.S3, update bool, ownerRefs []metav1.OwnerReference) error {
+func (c *S3Controller) CreateOrUpdate(s edgefsv1beta1.S3, update bool, ownerRefs []metav1.OwnerReference) error {
 	logger.Debugf("starting update=%v service=%s", update, s.Name)
 
 	// validate S3 service settings
@@ -132,7 +132,7 @@ func (c *S3Controller) CreateOrUpdate(s edgefsv1alpha1.S3, update bool, ownerRef
 	return nil
 }
 
-func (c *S3Controller) makeS3Service(name, svcname, namespace string, s3Spec edgefsv1alpha1.S3Spec) *v1.Service {
+func (c *S3Controller) makeS3Service(name, svcname, namespace string, s3Spec edgefsv1beta1.S3Spec) *v1.Service {
 	labels := getLabels(name, svcname, namespace)
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -155,7 +155,7 @@ func (c *S3Controller) makeS3Service(name, svcname, namespace string, s3Spec edg
 	return svc
 }
 
-func (c *S3Controller) makeDeployment(svcname, namespace, rookImage, imageArgs string, s3Spec edgefsv1alpha1.S3Spec) *apps.Deployment {
+func (c *S3Controller) makeDeployment(svcname, namespace, rookImage, imageArgs string, s3Spec edgefsv1beta1.S3Spec) *apps.Deployment {
 
 	name := instanceName(svcname)
 	volumes := []v1.Volume{}
@@ -245,7 +245,7 @@ func (c *S3Controller) makeDeployment(svcname, namespace, rookImage, imageArgs s
 	return d
 }
 
-func (c *S3Controller) s3Container(svcname, name, containerImage, args string, s3Spec edgefsv1alpha1.S3Spec) v1.Container {
+func (c *S3Controller) s3Container(svcname, name, containerImage, args string, s3Spec edgefsv1beta1.S3Spec) v1.Container {
 
 	runAsUser := int64(0)
 	readOnlyRootFilesystem := false
@@ -319,7 +319,7 @@ func (c *S3Controller) s3Container(svcname, name, containerImage, args string, s
 		VolumeMounts: volumeMounts,
 	}
 
-	cont.Env = append(cont.Env, edgefsv1alpha1.GetInitiatorEnvArr("s3",
+	cont.Env = append(cont.Env, edgefsv1beta1.GetInitiatorEnvArr("s3",
 		c.resourceProfile == "embedded" || s3Spec.ResourceProfile == "embedded",
 		s3Spec.ChunkCacheSize, s3Spec.Resources)...)
 
@@ -327,7 +327,7 @@ func (c *S3Controller) s3Container(svcname, name, containerImage, args string, s
 }
 
 // Delete S3 service and possibly some artifacts.
-func (c *S3Controller) DeleteService(s edgefsv1alpha1.S3) error {
+func (c *S3Controller) DeleteService(s edgefsv1beta1.S3) error {
 	// check if service  exists
 	exists, err := serviceExists(c.context, s)
 	if err != nil {
@@ -370,7 +370,7 @@ func getLabels(name, svcname, namespace string) map[string]string {
 }
 
 // Validate the S3 arguments
-func validateService(context *clusterd.Context, s edgefsv1alpha1.S3) error {
+func validateService(context *clusterd.Context, s edgefsv1beta1.S3) error {
 	if s.Name == "" {
 		return fmt.Errorf("missing name")
 	}
@@ -386,7 +386,7 @@ func instanceName(svcname string) string {
 }
 
 // Check if the S3 service exists
-func serviceExists(context *clusterd.Context, s edgefsv1alpha1.S3) (bool, error) {
+func serviceExists(context *clusterd.Context, s edgefsv1beta1.S3) (bool, error) {
 	_, err := context.Clientset.AppsV1().Deployments(s.Namespace).Get(instanceName(s.Name), metav1.GetOptions{})
 	if err == nil {
 		// the deployment was found

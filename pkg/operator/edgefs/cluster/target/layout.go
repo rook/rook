@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-	http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,7 +21,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	edgefsv1alpha1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1alpha1"
+	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/operator/edgefs/cluster/target/config"
 	"github.com/rook/rook/pkg/util/sys"
@@ -46,8 +46,8 @@ func getIdDevLinkName(dls string) (dl string) {
 	return dl
 }
 
-func GetRTDevices(nodeDisks []sys.LocalDisk, storeConfig *config.StoreConfig) (rtDevices []edgefsv1alpha1.RTDevice, err error) {
-	rtDevices = make([]edgefsv1alpha1.RTDevice, 0)
+func GetRTDevices(nodeDisks []sys.LocalDisk, storeConfig *config.StoreConfig) (rtDevices []edgefsv1beta1.RTDevice, err error) {
+	rtDevices = make([]edgefsv1beta1.RTDevice, 0)
 	if storeConfig == nil {
 		return rtDevices, fmt.Errorf("no pointer to StoreConfig provided")
 	}
@@ -88,7 +88,7 @@ func GetRTDevices(nodeDisks []sys.LocalDisk, storeConfig *config.StoreConfig) (r
 			if devices[i].Rotational {
 				continue
 			}
-			rtdev := edgefsv1alpha1.RTDevice{
+			rtdev := edgefsv1beta1.RTDevice{
 				Name:       getIdDevLinkName(devices[i].DevLinks),
 				Device:     "/dev/" + devices[i].Name,
 				Psize:      storeConfig.LmdbPageSize,
@@ -115,7 +115,7 @@ func GetRTDevices(nodeDisks []sys.LocalDisk, storeConfig *config.StoreConfig) (r
 			if !devices[i].Rotational {
 				continue
 			}
-			rtdev := edgefsv1alpha1.RTDevice{
+			rtdev := edgefsv1beta1.RTDevice{
 				Name:         getIdDevLinkName(devices[i].DevLinks),
 				Device:       "/dev/" + devices[i].Name,
 				Psize:        storeConfig.LmdbPageSize,
@@ -155,7 +155,7 @@ func GetRTDevices(nodeDisks []sys.LocalDisk, storeConfig *config.StoreConfig) (r
 
 	for i := range hdds_divided {
 		for j := range hdds_divided[i] {
-			rtdev := edgefsv1alpha1.RTDevice{
+			rtdev := edgefsv1beta1.RTDevice{
 				Name:              getIdDevLinkName(hdds_divided[i][j].DevLinks),
 				Device:            "/dev/" + hdds_divided[i][j].Name,
 				Psize:             storeConfig.LmdbPageSize,
@@ -184,10 +184,10 @@ func GetRTDevices(nodeDisks []sys.LocalDisk, storeConfig *config.StoreConfig) (r
 	return rtDevices, nil
 }
 
-func GetRtlfsDevices(directories []rookalpha.Directory, storeConfig *config.StoreConfig) []edgefsv1alpha1.RtlfsDevice {
-	rtlfsDevices := make([]edgefsv1alpha1.RtlfsDevice, 0)
+func GetRtlfsDevices(directories []rookalpha.Directory, storeConfig *config.StoreConfig) []edgefsv1beta1.RtlfsDevice {
+	rtlfsDevices := make([]edgefsv1beta1.RtlfsDevice, 0)
 	for _, dir := range directories {
-		rtlfsDevice := edgefsv1alpha1.RtlfsDevice{
+		rtlfsDevice := edgefsv1beta1.RtlfsDevice{
 			Name:            filepath.Base(dir.Path),
 			Path:            dir.Path,
 			CheckMountpoint: 0,

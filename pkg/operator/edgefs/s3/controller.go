@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Rook Authors. All rights reserved.
+Copyright 2019 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	opkit "github.com/rook/operator-kit"
-	edgefsv1alpha1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1alpha1"
+	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"k8s.io/api/core/v1"
@@ -44,10 +44,10 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "edgefs-op-s3")
 var S3Resource = opkit.CustomResource{
 	Name:    customResourceName,
 	Plural:  customResourceNamePlural,
-	Group:   edgefsv1alpha1.CustomResourceGroup,
-	Version: edgefsv1alpha1.Version,
+	Group:   edgefsv1beta1.CustomResourceGroup,
+	Version: edgefsv1beta1.Version,
 	Scope:   apiextensionsv1beta1.NamespaceScoped,
-	Kind:    reflect.TypeOf(edgefsv1alpha1.S3{}).Name(),
+	Kind:    reflect.TypeOf(edgefsv1beta1.S3{}).Name(),
 }
 
 // S3Controller represents a controller object for s3 custom resources
@@ -98,8 +98,8 @@ func (c *S3Controller) StartWatch(namespace string, stopCh chan struct{}) error 
 	}
 
 	logger.Infof("start watching s3 resources in namespace %s", namespace)
-	watcher := opkit.NewWatcher(S3Resource, namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1alpha1().RESTClient())
-	go watcher.Watch(&edgefsv1alpha1.S3{}, stopCh)
+	watcher := opkit.NewWatcher(S3Resource, namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1beta1().RESTClient())
+	go watcher.Watch(&edgefsv1beta1.S3{}, stopCh)
 
 	return nil
 }
@@ -151,7 +151,7 @@ func (c *S3Controller) onDelete(obj interface{}) {
 	}
 }
 
-func (c *S3Controller) serviceOwners(service *edgefsv1alpha1.S3) []metav1.OwnerReference {
+func (c *S3Controller) serviceOwners(service *edgefsv1beta1.S3) []metav1.OwnerReference {
 	// Only set the cluster crd as the owner of the S3 resources.
 	// If the S3 crd is deleted, the operator will explicitly remove the S3 resources.
 	// If the S3 crd still exists when the cluster crd is deleted, this will make sure the S3
@@ -159,13 +159,13 @@ func (c *S3Controller) serviceOwners(service *edgefsv1alpha1.S3) []metav1.OwnerR
 	return []metav1.OwnerReference{c.ownerRef}
 }
 
-func serviceChanged(oldService, newService edgefsv1alpha1.S3Spec) bool {
+func serviceChanged(oldService, newService edgefsv1beta1.S3Spec) bool {
 	return false
 }
 
-func getS3Object(obj interface{}) (s3 *edgefsv1alpha1.S3, err error) {
+func getS3Object(obj interface{}) (s3 *edgefsv1beta1.S3, err error) {
 	var ok bool
-	s3, ok = obj.(*edgefsv1alpha1.S3)
+	s3, ok = obj.(*edgefsv1beta1.S3)
 	if ok {
 		// the s3 object is of the latest type, simply return it
 		return s3.DeepCopy(), nil

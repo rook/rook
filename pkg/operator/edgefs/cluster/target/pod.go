@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-	http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,7 +17,7 @@ limitations under the License.
 package target
 
 import (
-	edgefsv1alpha1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1alpha1"
+	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/operator/edgefs/cluster/target/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	appsv1 "k8s.io/api/apps/v1"
@@ -151,7 +151,7 @@ func (c *Cluster) makeAuditdContainer(containerImage string) v1.Container {
 	}
 }
 
-func (c *Cluster) makeDaemonContainer(containerImage string, dro edgefsv1alpha1.DevicesResurrectOptions, isInitContainer bool) v1.Container {
+func (c *Cluster) makeDaemonContainer(containerImage string, dro edgefsv1beta1.DevicesResurrectOptions, isInitContainer bool) v1.Container {
 
 	privileged := c.deploymentConfig.NeedPrivileges
 	runAsUser := int64(0)
@@ -196,9 +196,9 @@ func (c *Cluster) makeDaemonContainer(containerImage string, dro edgefsv1alpha1.
 	// get cluster wide sync option, and apply for deploymentConfig
 	clusterStorageConfig := config.ToStoreConfig(c.Storage.Config)
 
-	if c.deploymentConfig.DeploymentType == edgefsv1alpha1.DeploymentAutoRtlfs {
+	if c.deploymentConfig.DeploymentType == edgefsv1beta1.DeploymentAutoRtlfs {
 		volumeMounts = append(volumeMounts, v1.VolumeMount{Name: dataVolumeName, MountPath: "/data"})
-	} else if c.deploymentConfig.DeploymentType == edgefsv1alpha1.DeploymentRtlfs {
+	} else if c.deploymentConfig.DeploymentType == edgefsv1beta1.DeploymentRtlfs {
 		rtlfsDevices := GetRtlfsDevices(c.Storage.Directories, &clusterStorageConfig)
 		for _, device := range rtlfsDevices {
 			volumeMounts = append(volumeMounts, v1.VolumeMount{Name: device.Name, MountPath: device.Path})
@@ -248,7 +248,7 @@ func (c *Cluster) makeDaemonContainer(containerImage string, dro edgefsv1alpha1.
 		VolumeMounts:    volumeMounts,
 	}
 
-	cont.Env = append(cont.Env, edgefsv1alpha1.GetInitiatorEnvArr("target",
+	cont.Env = append(cont.Env, edgefsv1beta1.GetInitiatorEnvArr("target",
 		c.resourceProfile == "embedded", c.chunkCacheSize, c.resources)...)
 
 	return cont
@@ -260,14 +260,14 @@ func (c *Cluster) configOverrideVolume() v1.Volume {
 	return v1.Volume{Name: configVolumeName, VolumeSource: v1.VolumeSource{ConfigMap: cmSource}}
 }
 
-func isHostNetworkDefined(hostNetworkSpec edgefsv1alpha1.NetworkSpec) bool {
+func isHostNetworkDefined(hostNetworkSpec edgefsv1beta1.NetworkSpec) bool {
 	if len(hostNetworkSpec.ServerIfName) > 0 || len(hostNetworkSpec.ServerIfName) > 0 {
 		return true
 	}
 	return false
 }
 
-func (c *Cluster) createPodSpec(rookImage string, dro edgefsv1alpha1.DevicesResurrectOptions) v1.PodSpec {
+func (c *Cluster) createPodSpec(rookImage string, dro edgefsv1beta1.DevicesResurrectOptions) v1.PodSpec {
 	terminationGracePeriodSeconds := int64(60)
 
 	DNSPolicy := v1.DNSClusterFirst
@@ -325,7 +325,7 @@ func (c *Cluster) createPodSpec(rookImage string, dro edgefsv1alpha1.DevicesResu
 		})
 	}
 
-	if c.deploymentConfig.DeploymentType == edgefsv1alpha1.DeploymentRtlfs {
+	if c.deploymentConfig.DeploymentType == edgefsv1beta1.DeploymentRtlfs {
 		// RTLFS with specified folders
 		for _, folder := range c.deploymentConfig.Directories {
 			volumes = append(volumes, v1.Volume{
@@ -395,7 +395,7 @@ func (c *Cluster) createPodSpec(rookImage string, dro edgefsv1alpha1.DevicesResu
 	}
 }
 
-func (c *Cluster) makeStatefulSet(replicas int32, rookImage string, dro edgefsv1alpha1.DevicesResurrectOptions) (*appsv1.StatefulSet, error) {
+func (c *Cluster) makeStatefulSet(replicas int32, rookImage string, dro edgefsv1beta1.DevicesResurrectOptions) (*appsv1.StatefulSet, error) {
 	statefulSet := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      appName,

@@ -21,7 +21,7 @@ import (
 	"strings"
 	"time"
 
-	edgefsv1alpha1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1alpha1"
+	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/operator/discover"
 	"github.com/rook/rook/pkg/operator/edgefs/cluster/target"
@@ -40,8 +40,8 @@ const (
 	nodeTypeLabelFmt = "%s-nodetype"
 )
 
-func ParseDevicesResurrectMode(resurrectMode string) edgefsv1alpha1.DevicesResurrectOptions {
-	drm := edgefsv1alpha1.DevicesResurrectOptions{}
+func ParseDevicesResurrectMode(resurrectMode string) edgefsv1beta1.DevicesResurrectOptions {
+	drm := edgefsv1beta1.DevicesResurrectOptions{}
 	if len(resurrectMode) == 0 {
 		return drm
 	}
@@ -82,14 +82,14 @@ func (c *cluster) getClusterNodes() ([]rookalpha.Node, error) {
 			c.Spec.Storage.Nodes = append(c.Spec.Storage.Nodes, storageNode)
 		}
 	}
-	validNodes := k8sutil.GetValidNodes(c.Spec.Storage.Nodes, c.context.Clientset, edgefsv1alpha1.GetTargetPlacement(c.Spec.Placement))
+	validNodes := k8sutil.GetValidNodes(c.Spec.Storage.Nodes, c.context.Clientset, edgefsv1beta1.GetTargetPlacement(c.Spec.Placement))
 	c.Spec.Storage.Nodes = validNodes
 	return validNodes, nil
 }
 
-func (c *cluster) createDeploymentConfig(nodes []rookalpha.Node, resurrect bool) (edgefsv1alpha1.ClusterDeploymentConfig, error) {
+func (c *cluster) createDeploymentConfig(nodes []rookalpha.Node, resurrect bool) (edgefsv1beta1.ClusterDeploymentConfig, error) {
 
-	deploymentConfig := edgefsv1alpha1.ClusterDeploymentConfig{DevConfig: make(map[string]edgefsv1alpha1.DevicesConfig, 0)}
+	deploymentConfig := edgefsv1beta1.ClusterDeploymentConfig{DevConfig: make(map[string]edgefsv1beta1.DevicesConfig, 0)}
 	//Fill deploymentConfig devices struct
 	for _, node := range nodes {
 		n := c.resolveNode(node.Name)
@@ -99,9 +99,9 @@ func (c *cluster) createDeploymentConfig(nodes []rookalpha.Node, resurrect bool)
 			return deploymentConfig, fmt.Errorf("node %s did not resolve to start target", node.Name)
 		}
 
-		devicesConfig := edgefsv1alpha1.DevicesConfig{}
-		devicesConfig.Rtrd.Devices = make([]edgefsv1alpha1.RTDevice, 0)
-		devicesConfig.Rtlfs.Devices = make([]edgefsv1alpha1.RtlfsDevice, 0)
+		devicesConfig := edgefsv1beta1.DevicesConfig{}
+		devicesConfig.Rtrd.Devices = make([]edgefsv1beta1.RTDevice, 0)
+		devicesConfig.Rtlfs.Devices = make([]edgefsv1beta1.RtlfsDevice, 0)
 
 		// Apply Node's zone value
 		devicesConfig.Zone = storeConfig.Zone
@@ -139,7 +139,7 @@ func (c *cluster) createDeploymentConfig(nodes []rookalpha.Node, resurrect bool)
 		rtDevices, err := target.GetRTDevices(availDisks, &storeConfig)
 		if err != nil {
 			logger.Warningf("Can't get rtDevices for node %s due %v", n.Name, err)
-			rtDevices = make([]edgefsv1alpha1.RTDevice, 0)
+			rtDevices = make([]edgefsv1beta1.RTDevice, 0)
 		}
 
 		devicesConfig.Rtrd.Devices = rtDevices
@@ -156,7 +156,7 @@ func (c *cluster) createDeploymentConfig(nodes []rookalpha.Node, resurrect bool)
 	deploymentConfig.Directories = target.GetRtlfsDevices(c.Spec.Storage.Directories, &clusterStorageConfig)
 
 	if len(c.Spec.Storage.Directories) > 0 && (len(c.Spec.DataDirHostPath) > 0 || c.Spec.DataVolumeSize.Value() != 0) {
-		deploymentConfig.DeploymentType = edgefsv1alpha1.DeploymentRtlfs
+		deploymentConfig.DeploymentType = edgefsv1beta1.DeploymentRtlfs
 		deploymentConfig.TransportKey = "rtlfs"
 
 		// Check directories devices count on all nodes
@@ -185,11 +185,11 @@ func (c *cluster) createDeploymentConfig(nodes []rookalpha.Node, resurrect bool)
 			return deploymentConfig, fmt.Errorf("Disk devices should be more then 3 on all nodes summary")
 		}
 
-		deploymentConfig.DeploymentType = edgefsv1alpha1.DeploymentRtrd
+		deploymentConfig.DeploymentType = edgefsv1beta1.DeploymentRtrd
 		deploymentConfig.TransportKey = "rtrd"
 		deploymentConfig.NeedPrivileges = true
 	} else if len(c.Spec.DataDirHostPath) == 0 || c.Spec.DataVolumeSize.Value() == 0 {
-		deploymentConfig.DeploymentType = edgefsv1alpha1.DeploymentAutoRtlfs
+		deploymentConfig.DeploymentType = edgefsv1beta1.DeploymentAutoRtlfs
 		deploymentConfig.TransportKey = "rtlfs"
 	} else {
 		return deploymentConfig, fmt.Errorf("Unknown deployment type! Cluster spec:\n %+v", c)
@@ -204,7 +204,7 @@ func (c *cluster) createDeploymentConfig(nodes []rookalpha.Node, resurrect bool)
 }
 
 // Validates all nodes in cluster that each one has valid zone number or all of them has zone == 0
-func ValidateZones(deploymentConfig *edgefsv1alpha1.ClusterDeploymentConfig) error {
+func ValidateZones(deploymentConfig *edgefsv1beta1.ClusterDeploymentConfig) error {
 	validZonesFound := 0
 	for _, nodeDevConfig := range deploymentConfig.DevConfig {
 		if nodeDevConfig.Zone > 0 {
