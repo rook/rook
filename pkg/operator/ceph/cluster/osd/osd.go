@@ -64,7 +64,8 @@ type Cluster struct {
 	Keyring         string
 	rookVersion     string
 	cephVersion     cephv1.CephVersionSpec
-	Storage         rookalpha.StorageScopeSpec
+	DesiredStorage  rookalpha.StorageScopeSpec // user-defined storage scope spec
+	ValidStorage    rookalpha.StorageScopeSpec // valid subset of `Storage`, computed at runtime
 	dataDirHostPath string
 	HostNetwork     bool
 	resources       v1.ResourceRequirements
@@ -92,7 +93,7 @@ func New(
 		placement:       placement,
 		rookVersion:     rookVersion,
 		cephVersion:     cephVersion,
-		Storage:         storageSpec,
+		DesiredStorage:  storageSpec,
 		dataDirHostPath: dataDirHostPath,
 		HostNetwork:     hostNetwork,
 		resources:       resources,
@@ -132,7 +133,7 @@ func (c *Cluster) Start() error {
 
 	logger.Infof("start running osds in namespace %s", c.Namespace)
 
-	if c.Storage.UseAllNodes == false && len(c.Storage.Nodes) == 0 {
+	if c.DesiredStorage.UseAllNodes == false && len(c.DesiredStorage.Nodes) == 0 {
 		logger.Warningf("useAllNodes is set to false and no nodes are specified, no OSD pods are going to be created")
 	}
 
@@ -146,9 +147,9 @@ func (c *Cluster) Start() error {
 		}
 	}()
 
-	if c.Storage.UseAllNodes {
+	if c.DesiredStorage.UseAllNodes {
 		// resolve all storage nodes
-		c.Storage.Nodes = nil
+		c.DesiredStorage.Nodes = nil
 		rookSystemNS := os.Getenv(k8sutil.PodNamespaceEnvVar)
 		allNodeDevices, err := discover.ListDevices(c.context, rookSystemNS, "" /* all nodes */)
 		if err != nil {
@@ -170,18 +171,22 @@ func (c *Cluster) Start() error {
 			storageNode := rookalpha.Node{
 				Name: hostname,
 			}
-			c.Storage.Nodes = append(c.Storage.Nodes, storageNode)
+			c.DesiredStorage.Nodes = append(c.DesiredStorage.Nodes, storageNode)
 		}
-		logger.Debugf("storage nodes: %+v", c.Storage.Nodes)
+		logger.Debugf("storage nodes: %+v", c.DesiredStorage.Nodes)
 	}
-	validNodes := k8sutil.GetValidNodes(c.Storage.Nodes, c.context.Clientset, c.placement)
+	// generally speaking, this finds nodes which are capable of running new osds
+	validNodes := k8sutil.GetValidNodes(c.DesiredStorage.Nodes, c.context.Clientset, c.placement)
+
 	// no valid node is ready to run an osd
 	if len(validNodes) == 0 {
-		logger.Warningf("no valid node available to run an osd in namespace %s", c.Namespace)
+		logger.Warningf("no valid node available to run an osd in namespace %s. "+
+			"Rook will not create any new OSD nodes and will skip checking for removed nodes since "+
+			"removing all OSD nodes without destroying the Rook cluster is unlikely to be intentional", c.Namespace)
 		return nil
 	}
-	logger.Infof("%d of the %d storage nodes are valid", len(validNodes), len(c.Storage.Nodes))
-	c.Storage.Nodes = validNodes
+	logger.Infof("%d of the %d storage nodes are valid", len(validNodes), len(c.DesiredStorage.Nodes))
+	c.ValidStorage.Nodes = validNodes
 
 	// start the jobs to provision the OSD devices and directories
 	config := newProvisionConfig()
@@ -212,7 +217,7 @@ func (c *Cluster) startProvisioning(config *provisionConfig) {
 	}
 
 	// start with nodes currently in the storage spec
-	for _, node := range c.Storage.Nodes {
+	for _, node := range c.ValidStorage.Nodes {
 		// fully resolve the storage config and resources for this node
 		n := c.resolveNode(node.Name)
 		if n == nil {
@@ -411,6 +416,8 @@ func (c *Cluster) cleanupRemovedNode(config *provisionConfig, nodeName, crushNam
 	}
 }
 
+// discover nodes which currently have osds scheduled on them. Return a mapping of
+// node names -> a list of osd deployments on the node
 func (c *Cluster) discoverStorageNodes() (map[string][]*apps.Deployment, error) {
 
 	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", appName)}
@@ -512,7 +519,7 @@ func getIDFromDeployment(deployment *apps.Deployment) int {
 
 func (c *Cluster) resolveNode(nodeName string) *rookalpha.Node {
 	// fully resolve the storage config and resources for this node
-	rookNode := c.Storage.ResolveNode(nodeName)
+	rookNode := c.DesiredStorage.ResolveNode(nodeName)
 	if rookNode == nil {
 		return nil
 	}

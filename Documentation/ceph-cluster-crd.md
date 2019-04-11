@@ -78,11 +78,6 @@ For more details on the mons and when to choose a number other than `3`, see the
   - `config`: Config settings applied to all OSDs on the node unless overridden by `devices` or `directories`. See the [config settings](#osd-configuration-settings) below.
   - [storage selection settings](#storage-selection-settings)
 
-#### Node Updates
-Nodes can be added and removed over time by updating the Cluster CRD, for example with `kubectl -n rook-ceph edit cephcluster rook-ceph`.
-This will bring up your default text editor and allow you to add and remove storage nodes from the cluster.
-This feature is only available when `useAllNodes` has been set to `false`.
-
 ### Mon Settings
 
 - `count`: Set the number of mons to be started. The number should be odd and between `1` and `9`. If not specified the default is set to `3` and `allowMultiplePerNode` is also set to `true`.
@@ -106,6 +101,28 @@ If a node does not specify any configuration then it will inherit the cluster le
 - `name`: The name of the node, which should match its `kubernetes.io/hostname` label.
 - `config`: Config settings applied to all OSDs on the node unless overridden by `devices` or `directories`. See the [config settings](#osd-configuration-settings) below.
 - [storage selection settings](#storage-selection-settings)
+
+When `useAllNodes` is set to `true`, Rook attempts to make Ceph cluster management as hands-off as
+possible while still maintaining reasonable data safety. If a usable node comes online, Rook will
+begin to use it automatically. To maintain a balance between hands-off usability and data safety,
+Nodes are removed From Ceph as OSD hosts only (1) if the node is deleted from Kubernetes itself or
+(2) if the node has its taints or affinities modified in such a way that the node is no longer
+usable by Rook. Any changes to taints or affinities, intentional or unintentional, may affect the
+data reliability of the Ceph cluster. In order to help protect against this somewhat, deletion of
+nodes by taint or affinity modifications must be "confirmed" by deleting the Rook-Ceph operator pod
+and allowing the operator deployment to restart the pod.
+
+For production clusters, we recommend that `useAllNodes` is set to `false` to prevent the Ceph
+cluster from suffering reduced data reliability unintentionally due to a user mistake. When
+`useAllNodes` is set to `false`, Rook relies on the user to be explicit about when nodes are added
+to or removed from the Ceph cluster. Nodes are only added to the Ceph cluster if the node is added
+to the Ceph cluster resource. Similarly, nodes are only removed if the node is removed from the Ceph
+cluster resource.
+
+#### Node Updates
+Nodes can be added and removed over time by updating the Cluster CRD, for example with `kubectl -n rook-ceph edit cephcluster rook-ceph`.
+This will bring up your default text editor and allow you to add and remove storage nodes from the cluster.
+This feature is only available when `useAllNodes` has been set to `false`.
 
 ### Storage Selection Settings
 Below are the settings available, both at the cluster and individual node level, for selecting which storage resources will be included in the cluster.

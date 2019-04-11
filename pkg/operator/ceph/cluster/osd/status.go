@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
 
 const (
@@ -197,14 +198,14 @@ func (c *Cluster) completeOSDsForAllNodes(config *provisionConfig, configOSDs bo
 					w.Stop()
 					<-time.After(5 * time.Second)
 					leftNodes := 0
-					leftRemaingNodes := util.NewSet()
-					leftNodes, leftRemaingNodes, completed, statuses, err = c.checkNodesCompleted(selector, config, configOSDs)
+					leftRemainingNodes := util.NewSet()
+					leftNodes, leftRemainingNodes, completed, statuses, err = c.checkNodesCompleted(selector, config, configOSDs)
 					if err == nil {
 						if completed {
 							logger.Infof("additional %d/%d node(s) completed osd provisioning", leftNodes, originalNodes)
 							return true
 						}
-						remainingNodes = leftRemaingNodes
+						remainingNodes = leftRemainingNodes
 					} else {
 						logger.Warningf("failed to list orchestration configmap, status: %v", err)
 					}
@@ -278,25 +279,71 @@ func (c *Cluster) findRemovedNodes() (map[string][]*apps.Deployment, error) {
 	// first discover the storage nodes that are still running
 	discoveredNodes, err := c.discoverStorageNodes()
 	if err != nil {
-		return nil, fmt.Errorf("failed to discover storage nodes: %+v", err)
+		return nil, fmt.Errorf("aborting search for removed nodes. failed to discover storage nodes. %+v", err)
+	}
+
+	// c.ValidStorage.Nodes currently in the cluster `c` is only the subset of the user-defined
+	// nodes which are currently valid, and we want a list which can include nodes that are cordoned
+	// for maintenance or have automatic Kubernetes well-known taints added.
+	k8sNodes, err := k8sutil.GetKubernetesNodesMatchingRookNodes(c.DesiredStorage.Nodes, c.context.Clientset)
+	if err != nil {
+		return nil, fmt.Errorf("aborting search for removed nodes. failed to list nodes from Kubernetes. %+v", err)
+	}
+	nodeMap := map[string]v1.Node{}
+	for _, n := range k8sNodes {
+		hostname := n.Labels[apis.LabelHostname]
+		nodeMap[hostname] = n
 	}
 
 	for existingNode, osdDeployments := range discoveredNodes {
-		found := false
-		for _, declaredNode := range c.Storage.Nodes {
-			// discovered storage node still exists in the current storage spec, move on to next discovered node
-			if existingNode == declaredNode.Name {
-				found = true
-				break
-			}
+		var nodeRef *v1.Node
+		if n, ok := nodeMap[existingNode]; !ok {
+			nodeRef = nil
+		} else {
+			nodeRef = &n
 		}
-
-		if !found {
-			// the discovered storage node was not found in the current storage spec, add it to the removed nodes set
-			logger.Infof("adding node %s to the removed nodes list", existingNode)
+		reason := ""
+		if c.nodeRemovedByUser(existingNode, nodeRef) {
+			logger.Infof("adding node %s to the removed nodes list. %s", existingNode, reason)
 			removedNodes[existingNode] = osdDeployments
 		}
 	}
 
 	return removedNodes, nil
+}
+
+// sample of conditions where we cannot determine if the user wants to remove a node as an osd host:
+//  - if the node is not schedulable, it may be cordoned for maintenance
+//  - if the node is not ready, it could be down temporarily
+func (c *Cluster) nodeRemovedByUser(nodeName string, k8sNode *v1.Node) bool {
+	if c.DesiredStorage.UseAllNodes == false {
+		// for maximum Ceph data safety, when useAllNodes == false, the *only* way to get Rook to
+		// remove a node is by explicit removal from the cluster resource
+		if !c.DesiredStorage.NodeWithNameExists(nodeName) {
+			logger.Debugf("node removed by user. node %s was removed from the cluster definition", nodeName)
+			return true
+		}
+	}
+	if c.DesiredStorage.UseAllNodes == true {
+		// node nil means that the node does not exist in or has been deleted from kubernetes
+		if k8sNode == nil {
+			logger.Debugf("node removed by user. node %s does not exist in Kubernetes", nodeName)
+			return true
+		}
+
+		// without deleting a node from Kubernetes, taints and affinities are the provided
+		// method for users to remove nodes from the cluster when useAllNodes == true
+		ignoreWellKnownTaints := true
+		placeable, err := k8sutil.NodeMeetsPlacementTerms(*k8sNode, c.placement, ignoreWellKnownTaints)
+		if err != nil {
+			logger.Errorf("assuming node is not removed to err on the side of caution."+
+				" failed to determine if node %s meets Rook's placement terms. %+v", nodeName, err)
+			return false
+		}
+		if !placeable {
+			logger.Debugf("node removed by user. node %s has had taints or affinities modified.", nodeName)
+			return true
+		}
+	}
+	return false
 }

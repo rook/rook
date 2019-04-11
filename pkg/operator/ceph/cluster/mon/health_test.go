@@ -222,7 +222,7 @@ func TestCheckHealthTwoMonsOneNode(t *testing.T) {
 		Status: v1.NodeStatus{
 			Conditions: []v1.NodeCondition{
 				{
-					Type: v1.NodeReady,
+					Type: v1.NodeReady, Status: v1.ConditionTrue,
 				},
 			},
 			Addresses: []v1.NodeAddress{
@@ -310,7 +310,7 @@ func TestCheckMonsValid(t *testing.T) {
 			Status: v1.NodeStatus{
 				Conditions: []v1.NodeCondition{
 					{
-						Type: v1.NodeReady,
+						Type: v1.NodeReady, Status: v1.ConditionTrue,
 					},
 				},
 				Addresses: []v1.NodeAddress{

@@ -78,7 +78,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 
 	devMountNeeded := deviceName != "" || allDevices
 
-	n := c.Storage.ResolveNode(storageSpec.Nodes[0].Name)
+	n := c.DesiredStorage.ResolveNode(storageSpec.Nodes[0].Name)
 	if len(devices) == 0 && len(dataDir) == 0 {
 		return
 	}
@@ -159,7 +159,7 @@ func TestStorageSpecDevicesAndDirectories(t *testing.T) {
 	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", cephv1.CephVersionSpec{},
 		storageSpec, "/var/lib/rook", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
-	n := c.Storage.ResolveNode(storageSpec.Nodes[0].Name)
+	n := c.DesiredStorage.ResolveNode(storageSpec.Nodes[0].Name)
 	osd := OSDInfo{
 		ID:          0,
 		IsDirectory: true,
@@ -248,11 +248,11 @@ func TestStorageSpecConfig(t *testing.T) {
 	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", cephv1.CephVersionSpec{},
 		storageSpec, "", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
-	n := c.Storage.ResolveNode(storageSpec.Nodes[0].Name)
+	n := c.DesiredStorage.ResolveNode(storageSpec.Nodes[0].Name)
 	storeConfig := config.ToStoreConfig(storageSpec.Nodes[0].Config)
 	metadataDevice := config.MetadataDevice(storageSpec.Nodes[0].Config)
 
-	job, err := c.makeJob(n.Name, n.Devices, n.Selection, c.Storage.Nodes[0].Resources, storeConfig, metadataDevice, n.Location)
+	job, err := c.makeJob(n.Name, n.Devices, n.Selection, c.DesiredStorage.Nodes[0].Resources, storeConfig, metadataDevice, n.Location)
 	assert.NotNil(t, job)
 	assert.Nil(t, err)
 	assert.Equal(t, "rook-ceph-osd-prepare-node1", job.ObjectMeta.Name)
@@ -300,7 +300,7 @@ func TestHostNetwork(t *testing.T) {
 	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "myversion", cephv1.CephVersionSpec{},
 		storageSpec, "", rookalpha.Placement{}, true, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
-	n := c.Storage.ResolveNode(storageSpec.Nodes[0].Name)
+	n := c.DesiredStorage.ResolveNode(storageSpec.Nodes[0].Name)
 	osd := OSDInfo{
 		ID: 0,
 	}
