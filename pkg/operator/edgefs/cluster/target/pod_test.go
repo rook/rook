@@ -65,8 +65,8 @@ func TestStorageSpecConfig(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
 	deploymentConfig := edgefsv1alpha1.ClusterDeploymentConfig{}
 	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", "",
-		storageSpec, "", *resource.NewQuantity(100000.0, resource.BinarySI), rookalpha.Annotations{},
-		rookalpha.Placement{}, edgefsv1alpha1.NetworkSpec{}, v1.ResourceRequirements{}, "", *resource.NewQuantity(0.0, resource.BinarySI),
+		storageSpec, "", *resource.NewQuantity(100000.0, resource.BinarySI),
+		rookalpha.Annotations{}, rookalpha.Placement{}, edgefsv1beta1.NetworkSpec{}, v1.ResourceRequirements{}, "", *resource.NewQuantity(0.0, resource.BinarySI),
 		metav1.OwnerReference{}, deploymentConfig)
 
 	n := c.Storage.ResolveNode(storageSpec.Nodes[0].Name)

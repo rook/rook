@@ -46,8 +46,8 @@ func TestStartMGR(t *testing.T) {
 		ConfigDir: configDir,
 		Clientset: testop.New(3)}
 	volSize := resource.NewQuantity(100000.0, resource.BinarySI)
-	c := New(context, "ns", "myversion", "", "", *volSize, rookalpha.Annotations{}, rookalpha.Placement{}, edgefsv1alpha1.NetworkSpec{},
-		edgefsv1alpha1.DashboardSpec{}, v1.ResourceRequirements{}, "", metav1.OwnerReference{})
+	c := New(context, "ns", "myversion", "", "", *volSize, rookalpha.Annotations{}, rookalpha.Placement{}, edgefsv1beta1.NetworkSpec{},
+		edgefsv1beta1.DashboardSpec{}, v1.ResourceRequirements{}, "", metav1.OwnerReference{})
 
 	// start a basic service
 	err := c.Start("edgefs")
@@ -72,8 +72,8 @@ func validateStart(t *testing.T, c *Cluster) {
 
 func TestPodSpec(t *testing.T) {
 	volSize := resource.NewQuantity(100000.0, resource.BinarySI)
-	c := New(&clusterd.Context{Clientset: testop.New(1)}, "ns", "rook/rook:myversion", "", "", *volSize, rookalpha.Annotations{},
-		rookalpha.Placement{}, edgefsv1alpha1.NetworkSpec{}, edgefsv1alpha1.DashboardSpec{}, v1.ResourceRequirements{
+	c := New(&clusterd.Context{Clientset: testop.New(1)}, "ns", "rook/rook:myversion", "", "", *volSize, rookalpha.Annotations{}, rookalpha.Placement{},
+		edgefsv1beta1.NetworkSpec{}, edgefsv1beta1.DashboardSpec{}, v1.ResourceRequirements{
 			Limits: v1.ResourceList{
 				v1.ResourceCPU: *resource.NewQuantity(100.0, resource.BinarySI),
 			},
@@ -115,7 +115,8 @@ func TestPodSpec(t *testing.T) {
 func TestServiceSpec(t *testing.T) {
 	volSize := resource.NewQuantity(100000.0, resource.BinarySI)
 	c := New(&clusterd.Context{}, "ns", "myversion", "", "", *volSize, rookalpha.Annotations{}, rookalpha.Placement{},
-		edgefsv1alpha1.NetworkSpec{}, edgefsv1alpha1.DashboardSpec{}, v1.ResourceRequirements{}, "", metav1.OwnerReference{})
+		edgefsv1beta1.NetworkSpec{}, edgefsv1beta1.DashboardSpec{}, v1.ResourceRequirements{},
+		"", metav1.OwnerReference{})
 
 	s := c.makeMgrService("rook-edgefs-mgr")
 	assert.NotNil(t, s)
@@ -126,7 +127,8 @@ func TestServiceSpec(t *testing.T) {
 func TestHostNetwork(t *testing.T) {
 	volSize := resource.NewQuantity(100000.0, resource.BinarySI)
 	c := New(&clusterd.Context{Clientset: testop.New(1)}, "ns", "myversion", "", "", *volSize, rookalpha.Annotations{}, rookalpha.Placement{},
-		edgefsv1alpha1.NetworkSpec{ServerIfName: "eth0"}, edgefsv1alpha1.DashboardSpec{}, v1.ResourceRequirements{}, "", metav1.OwnerReference{})
+		edgefsv1beta1.NetworkSpec{ServerIfName: "eth0"}, edgefsv1beta1.DashboardSpec{}, v1.ResourceRequirements{},
+		"", metav1.OwnerReference{})
 
 	d := c.makeDeployment("mgr-a", "a", "edgefs", 1)
 	assert.NotNil(t, d)

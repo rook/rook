@@ -134,8 +134,8 @@ func (c *cluster) createInstance(rookImage string) error {
 	//
 
 	c.targets = target.New(c.context, c.Namespace, "latest", c.Spec.ServiceAccount, c.Spec.Storage, c.Spec.DataDirHostPath, c.Spec.DataVolumeSize,
-		edgefsv1alpha1.GetTargetAnnotations(c.Spec.Annotations), edgefsv1alpha1.GetTargetPlacement(c.Spec.Placement), c.Spec.Network, c.Spec.Resources,
-		c.Spec.ResourceProfile, c.Spec.ChunkCacheSize, c.ownerRef, deploymentConfig)
+		edgefsv1beta1.GetTargetAnnotations(c.Spec.Annotations), edgefsv1beta1.GetTargetPlacement(c.Spec.Placement), c.Spec.Network,
+		c.Spec.Resources, c.Spec.ResourceProfile, c.Spec.ChunkCacheSize, c.ownerRef, deploymentConfig)
 
 	err = c.targets.Start(rookImage, clusterNodes, dro)
 	if err != nil {
@@ -146,7 +146,7 @@ func (c *cluster) createInstance(rookImage string) error {
 	// Create and start EdgeFS manager Deployment (gRPC proxy, Prometheus metrics)
 	//
 	c.mgrs = mgr.New(c.context, c.Namespace, "latest", c.Spec.ServiceAccount, c.Spec.DataDirHostPath, c.Spec.DataVolumeSize,
-		edgefsv1alpha1.GetMgrAnnotations(c.Spec.Annotations), edgefsv1alpha1.GetMgrPlacement(c.Spec.Placement), c.Spec.Network, c.Spec.Dashboard,
+		edgefsv1beta1.GetMgrAnnotations(c.Spec.Annotations), edgefsv1beta1.GetMgrPlacement(c.Spec.Placement), c.Spec.Network, c.Spec.Dashboard,
 		v1.ResourceRequirements{}, c.Spec.ResourceProfile, c.ownerRef)
 	err = c.mgrs.Start(rookImage)
 	if err != nil {
@@ -159,8 +159,8 @@ func (c *cluster) createInstance(rookImage string) error {
 
 func (c *cluster) prepareHostNodes(rookImage string, deploymentConfig edgefsv1alpha1.ClusterDeploymentConfig) error {
 
-	prep := prepare.New(c.context, c.Namespace, "latest", c.Spec.ServiceAccount, edgefsv1alpha1.GetPrepareAnnotations(c.Spec.Annotations),
-		edgefsv1alpha1.GetTargetPlacement(c.Spec.Placement), v1.ResourceRequirements{}, c.ownerRef)
+	prep := prepare.New(c.context, c.Namespace, "latest", c.Spec.ServiceAccount,
+		edgefsv1beta1.GetPrepareAnnotations(c.Spec.Annotations), edgefsv1beta1.GetPreparePlacement(c.Spec.Placement), v1.ResourceRequirements{}, c.ownerRef)
 
 	for nodeName, devicesConfig := range deploymentConfig.DevConfig {
 

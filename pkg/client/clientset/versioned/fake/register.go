@@ -23,7 +23,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	cockroachdbv1alpha1 "github.com/rook/rook/pkg/apis/cockroachdb.rook.io/v1alpha1"
-	edgefsv1alpha1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1alpha1"
+	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
 	miniov1alpha1 "github.com/rook/rook/pkg/apis/minio.rook.io/v1alpha1"
 	nfsv1alpha1 "github.com/rook/rook/pkg/apis/nfs.rook.io/v1alpha1"
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
@@ -42,7 +42,7 @@ var localSchemeBuilder = runtime.SchemeBuilder{
 	cephv1beta1.AddToScheme,
 	cephv1.AddToScheme,
 	cockroachdbv1alpha1.AddToScheme,
-	edgefsv1alpha1.AddToScheme,
+	edgefsv1beta1.AddToScheme,
 	miniov1alpha1.AddToScheme,
 	nfsv1alpha1.AddToScheme,
 	rookv1alpha2.AddToScheme,
