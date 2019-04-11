@@ -1,4 +1,4 @@
-apiVersion: edgefs.rook.io/v1alpha1
+apiVersion: edgefs.rook.io/v1beta1
 kind: ISGW
 metadata:
   name: isgw01          # Inter-Segment Gateway service name

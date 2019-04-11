@@ -119,7 +119,7 @@ subjects:
   name: rook-edgefs-cluster
   namespace: rook-edgefs
 ---
-apiVersion: edgefs.rook.io/v1alpha1
+apiVersion: edgefs.rook.io/v1beta1
 kind: Cluster
 metadata:
   name: rook-edgefs
