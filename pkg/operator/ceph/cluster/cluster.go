@@ -58,6 +58,7 @@ type cluster struct {
 	orchestrationNeeded  bool
 	orchMux              sync.Mutex
 	childControllers     []childController
+	Name                 string
 }
 
 // ChildController is implemented by CRs that are owned by the CephCluster
@@ -79,6 +80,7 @@ func newCluster(c *cephv1.CephCluster, context *clusterd.Context) *cluster {
 		stopCh:    make(chan struct{}),
 		ownerRef:  ownerRef,
 		mons:      mon.New(context, c.Namespace, c.Spec.DataDirHostPath, c.Spec.Network.HostNetwork, ownerRef),
+		Name:      c.Name,
 	}
 }
 
@@ -157,9 +159,17 @@ func (c *cluster) createInstance(rookImage string, cephVersion cephver.CephVersi
 		}
 		// Use a DeepCopy of the spec to avoid using an inconsistent data-set
 		spec := c.Spec.DeepCopy()
-
+		err = c.updateClusterStatus(cephv1.ClusterStateCreating, c.Namespace, "")
+		if err != nil {
+			logger.Errorf("failed to update cluster status in namespace %s: %+v", c.Namespace, err)
+		}
 		err = c.doOrchestration(rookImage, cephVersion, spec)
-
+		if err == nil {
+			err = c.updateClusterStatus(cephv1.ClusterStateCreated, c.Namespace, "")
+			if err != nil {
+				logger.Errorf("failed to update cluster status in namespace %s: %+v", c.Namespace, err)
+			}
+		}
 		c.unsetOrchestrationStatus()
 	}
 
@@ -339,4 +349,20 @@ func (c *cluster) checkSetOrchestrationStatus() bool {
 	}
 
 	return false
+}
+
+func (c *cluster) updateClusterStatus(state cephv1.ClusterState, namespace string, message string) error {
+	// get the most recent cluster CRD object
+	cluster, err := c.context.RookClientset.CephV1().CephClusters(namespace).Get(c.Name, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get cluster from namespace %s prior to updating its status: %+v", c.Namespace, err)
+	}
+
+	// update the status on the retrieved cluster object
+	cluster.Status = cephv1.ClusterStatus{State: state, Message: message}
+	if _, err := c.context.RookClientset.CephV1().CephClusters(cluster.Namespace).Update(cluster); err != nil {
+		return fmt.Errorf("failed to update cluster %s status: %+v", cluster.Namespace, err)
+	}
+
+	return nil
 }
