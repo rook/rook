@@ -28,9 +28,6 @@ cluster.
 ### Create RBAC used by CSI drivers in the same namespace as Rook Ceph Operator
 
 ```console
-#check if rook-ceph namespace is already created, if not create it
-kubectl get ns
-kubectl create namespace rook-ceph
 # create rbac. Since rook operator is not permitted to create rbac rules,
 # these rules have to be created outside of operator
 kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
