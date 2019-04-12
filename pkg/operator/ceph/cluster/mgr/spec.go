@@ -94,6 +94,7 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
 		podSpec.ObjectMeta.Annotations = prometheusAnnotations
 		d.ObjectMeta.Annotations = prometheusAnnotations
 	}
+	opspec.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, d)
 	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &d.ObjectMeta, &c.ownerRef)
 	return d
 }
