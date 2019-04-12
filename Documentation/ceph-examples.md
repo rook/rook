@@ -34,6 +34,8 @@ After the common resources are created, the next step is to create the Operator 
    - `oc create -f operator-openshift.yaml`
 - `operator-with-csi.yaml`: Includes configuration for testing ceph-csi while the integration is still in progress. See the [CSI Drivers](ceph-csi-drivers.md) topic for more details.
    - `kubectl create -f operator-with-csi.yaml`
+- `operator-openshift-with-csi.yaml`: Includes configuration for testing ceph-csi in an OpenShift environment
+   - `oc create -f operator-openshift-with-csi.yaml`
 
 Settings for the operator are configured through environment variables on the operator deployment. The individual settings are documented in `operator.yaml`.
 
