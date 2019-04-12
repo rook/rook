@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
+	rookversion "github.com/rook/rook/pkg/version"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation"
@@ -50,6 +51,10 @@ const (
 	PodNamespaceEnvVar = "POD_NAMESPACE"
 	// NodeNameEnvVar is the env variable for getting the node via downward api
 	NodeNameEnvVar = "NODE_NAME"
+
+	// RookVersionLabelKey is the key used for reporting the Rook version which last created or
+	// modified a resource.
+	RookVersionLabelKey = "rook-version"
 )
 
 // GetK8SVersion gets the version of the running K8S cluster
@@ -127,4 +132,12 @@ func deleteResourceAndWait(namespace, name, resourceType string,
 	}
 
 	return fmt.Errorf("gave up waiting for %s pods to be terminated", name)
+}
+
+// Add the rook version to the labels. This should *not* be used on pod specifications, because this
+// will result in the deployment/daemonset/ect. recreating all of its pods even if an update
+// wouldn't otherwise be required. Upgrading unnecessarily increases risk for loss of data
+// reliability, even if only briefly.
+func addRookVersionLabel(labels map[string]string) {
+	labels[RookVersionLabelKey] = rookversion.Version
 }

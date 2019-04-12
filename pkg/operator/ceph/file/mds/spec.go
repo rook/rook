@@ -77,6 +77,7 @@ func (c *Cluster) makeDeployment(mdsConfig *mdsConfig) *apps.Deployment {
 			},
 		},
 	}
+	k8sutil.AddRookVersionLabelToDeployment(d)
 	k8sutil.SetOwnerRefs(c.context.Clientset, c.fs.Namespace, &d.ObjectMeta, c.ownerRefs)
 	return d
 }

@@ -146,3 +146,15 @@ func WaitForDeploymentImage(clientset kubernetes.Interface, namespace, label, co
 	}
 	return fmt.Errorf("failed to wait for image %s in label %s", desiredImage, label)
 }
+
+// AddRookVersionLabelToDeployment adds or updates a label reporting the Rook version which last
+// modified a deployment.
+func AddRookVersionLabelToDeployment(d *v1.Deployment) {
+	if d == nil {
+		return
+	}
+	if d.Labels == nil {
+		d.Labels = map[string]string{}
+	}
+	addRookVersionLabel(d.Labels)
+}

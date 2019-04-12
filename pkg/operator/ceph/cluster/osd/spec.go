@@ -72,6 +72,7 @@ func (c *Cluster) makeJob(nodeName string, devices []rookalpha.Device,
 			Template: *podSpec,
 		},
 	}
+	k8sutil.AddRookVersionLabelToJob(job)
 	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &job.ObjectMeta, &c.ownerRef)
 	return job, nil
 }
@@ -296,6 +297,7 @@ func (c *Cluster) makeDeployment(nodeName string, selection rookalpha.Selection,
 			Replicas: &replicaCount,
 		},
 	}
+	k8sutil.AddRookVersionLabelToDeployment(deployment)
 	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &deployment.ObjectMeta, &c.ownerRef)
 	c.placement.ApplyToPodSpec(&deployment.Spec.Template.Spec)
 	return deployment, nil

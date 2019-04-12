@@ -108,6 +108,7 @@ func (c *cluster) detectCephVersion(image string, timeout time.Duration) (*cephv
 			},
 		},
 	}
+	k8sutil.AddRookVersionLabelToJob(job)
 	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &job.ObjectMeta, &c.ownerRef)
 
 	// run the job to detect the version

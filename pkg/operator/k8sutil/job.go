@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"time"
 
+	"k8s.io/api/batch/v1"
 	batch "k8s.io/api/batch/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -106,4 +107,16 @@ func DeleteBatchJob(clientset kubernetes.Interface, namespace, name string, wait
 
 	logger.Warningf("gave up waiting for batch job %s to be deleted", name)
 	return nil
+}
+
+// AddRookVersionLabelToJob adds or updates a label reporting the Rook version which last
+// modified a Job.
+func AddRookVersionLabelToJob(j *v1.Job) {
+	if j == nil {
+		return
+	}
+	if j.Labels == nil {
+		j.Labels = map[string]string{}
+	}
+	addRookVersionLabel(j.Labels)
 }

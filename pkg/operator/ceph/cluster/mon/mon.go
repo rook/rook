@@ -488,20 +488,11 @@ func (c *Cluster) startMon(m *monConfig, hostname string) error {
 	_, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Create(d)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
-			return fmt.Errorf("failed to create mon %s. %+v", m.ResourceName, err)
+			return fmt.Errorf("failed to create mon deployment %s. %+v", m.ResourceName, err)
 		}
-		logger.Debugf("deployment for mon %s already exists. updating if needed", m.ResourceName)
-		p, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Get(d.Name, metav1.GetOptions{})
-		if err != nil {
-			return fmt.Errorf("failed to update mon deployment %s. failed to inspect preexisting deployment. %+v", d.Name, err)
-		}
-		// Workaround for #2331 targeted for Rook v0.9: only update the deployment if the Rook init
-		// image or Ceph image has changed.
-		if p.Spec.Template.Spec.Containers[0].Image != d.Spec.Template.Spec.Containers[0].Image ||
-			p.Spec.Template.Spec.InitContainers[0].Image != d.Spec.Template.Spec.InitContainers[0].Image {
-			if _, err := updateDeploymentAndWait(c.context, d, c.Namespace); err != nil {
-				return fmt.Errorf("failed to update mon deployment %s. %+v", m.ResourceName, err)
-			}
+		logger.Infof("deployment for mon %s already exists. updating if needed", m.ResourceName)
+		if _, err := updateDeploymentAndWait(c.context, d, c.Namespace); err != nil {
+			return fmt.Errorf("failed to update mon deployment %s. %+v", m.ResourceName, err)
 		}
 	}
 

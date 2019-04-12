@@ -56,6 +56,7 @@ func (c *Cluster) makeDeployment(monConfig *monConfig, hostname string) *apps.De
 			Labels:    c.getLabels(monConfig.DaemonName),
 		},
 	}
+	k8sutil.AddRookVersionLabelToDeployment(d)
 	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &d.ObjectMeta, &c.ownerRef)
 
 	pod := c.makeMonPod(monConfig, hostname)
