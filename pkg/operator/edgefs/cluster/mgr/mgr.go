@@ -457,6 +457,10 @@ func (c *Cluster) mgmtContainer(name string, containerImage string) v1.Container
 					},
 				},
 			},
+			{
+				Name:  "EFSROOK_CRD_API",
+				Value: fmt.Sprintf("%s/%s", edgefsv1beta1.CustomResourceGroup, edgefsv1beta1.Version),
+			},
 		},
 		SecurityContext: securityContext,
 		Resources:       c.resources,

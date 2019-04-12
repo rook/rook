@@ -79,7 +79,7 @@ To initialize system and prepare logical definitions, login to the toolbox as sh
 
 ```
 kubectl get po --all-namespaces | grep edgefs-mgr
-kubectl exec -it -n rook-edgefs rook-edgefs-mgr-6cb9598469-czr7p -- env COLUMNS=$COLUMNS LINES=$LINES TERM=linux toolbox
+kubectl exec -it -n rook-edgefs rook-edgefs-mgr-6cb9597469-czr7p -- env COLUMNS=$COLUMNS LINES=$LINES TERM=linux toolbox
 ```
 
 Assumption at this point is that nodes are all configured and can be seen via the following command:

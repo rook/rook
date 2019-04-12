@@ -24,6 +24,9 @@ rules:
 - apiGroups: [""]
   resources: ["pods"]
   verbs: [ "get", "list" ]
+- apiGroups: ["extensions"]
+  resources: ["deployments/scale"]
+  verbs: [ "get", "update" ]
 ---
 # Allow the operator to create resources in this cluster's namespace
 kind: RoleBinding
@@ -125,7 +128,7 @@ metadata:
   name: rook-edgefs
   namespace: rook-edgefs
 spec:
-  edgefsImageName: edgefs/edgefs:latest   # specify version here, i.e. edgefs/edgefs:1.0.0 etc
+  edgefsImageName: edgefs/edgefs:1.1.0   # specify version here, i.e. edgefs/edgefs:1.1.0 etc
   serviceAccount: rook-edgefs-cluster
   dataDirHostPath: /var/lib/edgefs
   #dataVolumeSize: 10Gi
