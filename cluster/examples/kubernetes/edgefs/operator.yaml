@@ -215,7 +215,7 @@ subjects:
   namespace: rook-edgefs-system
 ---
 # The deployment for the rook operator
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: rook-edgefs-operator
@@ -224,6 +224,9 @@ metadata:
     operator: rook
     storage-backend: edgefs
 spec:
+  selector:
+    matchLabels:
+      app: rook-edgefs-operator
   replicas: 1
   template:
     metadata:

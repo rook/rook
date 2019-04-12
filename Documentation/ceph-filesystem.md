@@ -71,25 +71,23 @@ As an example, we will start the kube-registry pod with the shared file system a
 Save the following spec as `kube-registry.yaml`:
 
 ```yaml
-apiVersion: v1
-kind: ReplicationController
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: kube-registry-v0
+  name: kube-registry
   namespace: kube-system
   labels:
     k8s-app: kube-registry
-    version: v0
     kubernetes.io/cluster-service: "true"
 spec:
   replicas: 3
   selector:
-    k8s-app: kube-registry
-    version: v0
+    matchLabels:
+      k8s-app: kube-registry
   template:
     metadata:
       labels:
         k8s-app: kube-registry
-        version: v0
         kubernetes.io/cluster-service: "true"
     spec:
       containers:

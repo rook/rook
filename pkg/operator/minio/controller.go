@@ -274,11 +274,11 @@ func (c *Controller) makeMinioStatefulSet(name, namespace string, spec miniov1al
 		},
 	}
 	k8sutil.SetOwnerRef(c.context.Clientset, namespace, &sts.ObjectMeta, &ownerRef)
-	sts, err = c.context.Clientset.Apps().StatefulSets(namespace).Create(sts)
+	sts, err = c.context.Clientset.AppsV1().StatefulSets(namespace).Create(sts)
 	if err != nil && !k8serrors.IsAlreadyExists(err) {
 		return nil, fmt.Errorf("failed to create minio statefulset. %+v", err)
 	}
-	sts, err = c.context.Clientset.Apps().StatefulSets(namespace).Update(sts)
+	sts, err = c.context.Clientset.AppsV1().StatefulSets(namespace).Update(sts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update minio statefulset. %+v", err)
 	}

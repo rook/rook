@@ -60,7 +60,7 @@ func (c *CephNFSController) upCephNFS(n cephv1.CephNFS, oldActive int) error {
 
 		// start the deployment
 		deployment := c.makeDeployment(n, name, configName)
-		_, err = c.context.Clientset.Apps().Deployments(n.Namespace).Create(deployment)
+		_, err = c.context.Clientset.AppsV1().Deployments(n.Namespace).Create(deployment)
 		if err != nil {
 			if !errors.IsAlreadyExists(err) {
 				return fmt.Errorf("failed to create ganesha deployment. %+v", err)

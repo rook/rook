@@ -32,7 +32,12 @@ metadata:
   name: wordpress
   labels:
     app: wordpress
+    tier: frontend
 spec:
+  selector:
+    matchLabels:
+      app: wordpress
+      tier: frontend
   strategy:
     type: Recreate
   template:

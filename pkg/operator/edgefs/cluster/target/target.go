@@ -125,7 +125,7 @@ func (c *Cluster) Start(rookImage string, nodes []rookalpha.Node, dro edgefsv1al
 	}
 
 	statefulSet, _ := c.makeStatefulSet(int32(len(nodes)), rookImage, dro)
-	if _, err := c.context.Clientset.AppsV1beta1().StatefulSets(c.Namespace).Create(statefulSet); err != nil {
+	if _, err := c.context.Clientset.AppsV1().StatefulSets(c.Namespace).Create(statefulSet); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return err
 		}

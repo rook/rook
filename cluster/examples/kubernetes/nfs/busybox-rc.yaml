@@ -1,16 +1,21 @@
-apiVersion: v1
-kind: ReplicationController
+apiVersion: apps/v1
+kind: Deployment
 metadata:
+  labels:
+    app: nfs-demo
+    role: busybox
   name: nfs-busybox
 spec:
   replicas: 2
   selector:
-    name: nfs-busybox
+    matchLabels:
+      app: nfs-demo
+      role: busybox
   template:
     metadata:
       labels:
-        name: nfs-busybox
         app: nfs-demo
+        role: busybox
     spec:
       containers:
       - image: busybox

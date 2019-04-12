@@ -29,7 +29,7 @@ import (
 
 // GetDeploymentImage returns the version of the image running in the pod spec for the desired container
 func GetDeploymentImage(clientset kubernetes.Interface, namespace, name, container string) (string, error) {
-	d, err := clientset.Apps().Deployments(namespace).Get(name, metav1.GetOptions{})
+	d, err := clientset.AppsV1().Deployments(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		return "", fmt.Errorf("failed to find deployment %s. %v", name, err)
 	}
@@ -48,13 +48,13 @@ func GetDeploymentSpecImage(clientset kubernetes.Interface, d apps.Deployment, c
 // UpdateDeploymentAndWait updates a deployment and waits until it is running to return. It will
 // error if the deployment does not exist to be updated or if it takes too long.
 func UpdateDeploymentAndWait(context *clusterd.Context, deployment *apps.Deployment, namespace string) (*v1.Deployment, error) {
-	original, err := context.Clientset.Apps().Deployments(namespace).Get(deployment.Name, metav1.GetOptions{})
+	original, err := context.Clientset.AppsV1().Deployments(namespace).Get(deployment.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get deployment %s. %+v", deployment.Name, err)
 	}
 
 	logger.Infof("updating deployment %s", deployment.Name)
-	if _, err := context.Clientset.Apps().Deployments(namespace).Update(deployment); err != nil {
+	if _, err := context.Clientset.AppsV1().Deployments(namespace).Update(deployment); err != nil {
 		return nil, fmt.Errorf("failed to update deployment %s. %+v", deployment.Name, err)
 	}
 
@@ -67,7 +67,7 @@ func UpdateDeploymentAndWait(context *clusterd.Context, deployment *apps.Deploym
 	}
 	for i := 0; i < attempts; i++ {
 		// check for the status of the deployment
-		d, err := context.Clientset.Apps().Deployments(namespace).Get(deployment.Name, metav1.GetOptions{})
+		d, err := context.Clientset.AppsV1().Deployments(namespace).Get(deployment.Name, metav1.GetOptions{})
 		if err != nil {
 			return nil, fmt.Errorf("failed to get deployment %s. %+v", deployment.Name, err)
 		}
@@ -88,7 +88,7 @@ func UpdateDeploymentAndWait(context *clusterd.Context, deployment *apps.Deploym
 // more: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
 func GetDeployments(clientset kubernetes.Interface, namespace, labelSelector string) (*apps.DeploymentList, error) {
 	listOptions := metav1.ListOptions{LabelSelector: labelSelector}
-	deployments, err := clientset.Apps().Deployments(namespace).List(listOptions)
+	deployments, err := clientset.AppsV1().Deployments(namespace).List(listOptions)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list deployments with labelSelector %s: %v", labelSelector, err)
 	}
@@ -99,10 +99,10 @@ func GetDeployments(clientset kubernetes.Interface, namespace, labelSelector str
 func DeleteDeployment(clientset kubernetes.Interface, namespace, name string) error {
 	logger.Debugf("removing %s deployment if it exists", name)
 	deleteAction := func(options *metav1.DeleteOptions) error {
-		return clientset.Apps().Deployments(namespace).Delete(name, options)
+		return clientset.AppsV1().Deployments(namespace).Delete(name, options)
 	}
 	getAction := func() error {
-		_, err := clientset.Apps().Deployments(namespace).Get(name, metav1.GetOptions{})
+		_, err := clientset.AppsV1().Deployments(namespace).Get(name, metav1.GetOptions{})
 		return err
 	}
 	return deleteResourceAndWait(namespace, name, "deployment", deleteAction, getAction)
@@ -115,7 +115,7 @@ func WaitForDeploymentImage(clientset kubernetes.Interface, namespace, label, co
 	sleepTime := 3
 	attempts := 120
 	for i := 0; i < attempts; i++ {
-		deployments, err := clientset.Apps().Deployments(namespace).List(metav1.ListOptions{LabelSelector: label})
+		deployments, err := clientset.AppsV1().Deployments(namespace).List(metav1.ListOptions{LabelSelector: label})
 		if err != nil {
 			return fmt.Errorf("failed to list deployments with label %s. %v", label, err)
 		}

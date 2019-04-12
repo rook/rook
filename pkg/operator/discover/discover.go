@@ -170,13 +170,13 @@ func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage, securityAcc
 		}
 	}
 
-	_, err := d.clientset.Apps().DaemonSets(namespace).Create(ds)
+	_, err := d.clientset.AppsV1().DaemonSets(namespace).Create(ds)
 	if err != nil {
 		if !kserrors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create rook-discover daemon set. %+v", err)
 		}
 		logger.Infof("rook-discover daemonset already exists, updating ...")
-		_, err = d.clientset.Apps().DaemonSets(namespace).Update(ds)
+		_, err = d.clientset.AppsV1().DaemonSets(namespace).Update(ds)
 		if err != nil {
 			return fmt.Errorf("failed to update rook-discover daemon set. %+v", err)
 		}

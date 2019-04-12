@@ -240,13 +240,13 @@ func (a *Agent) createAgentDaemonSet(namespace, agentImage, serviceAccount strin
 		}
 	}
 
-	_, err = a.clientset.Apps().DaemonSets(namespace).Create(ds)
+	_, err = a.clientset.AppsV1().DaemonSets(namespace).Create(ds)
 	if err != nil {
 		if !kserrors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create rook-ceph-agent daemon set. %+v", err)
 		}
 		logger.Infof("rook-ceph-agent daemonset already exists, updating ...")
-		_, err = a.clientset.Apps().DaemonSets(namespace).Update(ds)
+		_, err = a.clientset.AppsV1().DaemonSets(namespace).Update(ds)
 		if err != nil {
 			return fmt.Errorf("failed to update rook-ceph-agent daemon set. %+v", err)
 		}

@@ -79,21 +79,21 @@ spec:
 ```
 The table explains each parameter
 
-| Parameter                                 | Description                              | Default                       |
-|-------------------------------------------|------------------------------------------|-------------------------------|
-| `replicas`                                | The no. of NFS daemon to start           | `1`                           |
-| `exports`                                 | Parameters for creating an export        | <none>                        |
-| `exports.name`                            | Name of the volume being shared          | <none>                        |
-| `exports.server`                          | NFS server configuration                 | <none>                        |
-| `exports.server.accessMode`               | Volume access modes(Reading and Writing) for the share          | `ReadOnly` |
-| `exports.server.squash`                   | This prevents root users connected remotely from having root privileges  | `root` |
-| `exports.server.allowedClients`           | Access configuration for clients that can consume the NFS volume         | <none> |
-| `exports.server.allowedClients.name`      | Name of the host/hosts                                                   | <none> |
-| `exports.server.allowedClients.clients`   | The host or network to which export is being shared.(could be hostname, ip address, netgroup, CIDR network address, or all) | <none> |
-| `exports.server.allowedClients.accessMode` | Reading and Writing permissions for the client*                         | `ReadOnly` |
-| `exports.server.allowedClients.squash`    | Squash option for the client*                                          | `root`     |
-| `exports.persistentVolumeClaim`      | Claim to get volume(Volume could come from hostPath, cephFS, cephRBD, googlePD, EBS etc. and these volumes will be exposed by NFS server ). | <none> |
-| `exports.persistentVolumeClaim.claimName` | Name of the PVC                                         | <none>    |
+| Parameter                                  | Description                                                                                                                                 | Default    |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `replicas`                                 | The no. of NFS daemon to start                                                                                                              | `1`        |
+| `exports`                                  | Parameters for creating an export                                                                                                           | <none>     |
+| `exports.name`                             | Name of the volume being shared                                                                                                             | <none>     |
+| `exports.server`                           | NFS server configuration                                                                                                                    | <none>     |
+| `exports.server.accessMode`                | Volume access modes(Reading and Writing) for the share                                                                                      | `ReadOnly` |
+| `exports.server.squash`                    | This prevents root users connected remotely from having root privileges                                                                     | `root`     |
+| `exports.server.allowedClients`            | Access configuration for clients that can consume the NFS volume                                                                            | <none>     |
+| `exports.server.allowedClients.name`       | Name of the host/hosts                                                                                                                      | <none>     |
+| `exports.server.allowedClients.clients`    | The host or network to which export is being shared.(could be hostname, ip address, netgroup, CIDR network address, or all)                 | <none>     |
+| `exports.server.allowedClients.accessMode` | Reading and Writing permissions for the client*                                                                                             | `ReadOnly` |
+| `exports.server.allowedClients.squash`     | Squash option for the client*                                                                                                               | `root`     |
+| `exports.persistentVolumeClaim`            | Claim to get volume(Volume could come from hostPath, cephFS, cephRBD, googlePD, EBS etc. and these volumes will be exposed by NFS server ). | <none>     |
+| `exports.persistentVolumeClaim.claimName`  | Name of the PVC                                                                                                                             | <none>     |
 
 *note: if `exports.server.accessMode` and `exports.server.squash` options are mentioned, `exports.server.allowedClients.accessMode` and `exports.server.allowedClients.squash` are overridden respectively.
 
@@ -261,7 +261,7 @@ spec:
     requests:
       storage: 1Gi
 ---
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: web-server

@@ -27,10 +27,10 @@ import (
 
 // CreateDaemonSet creates
 func CreateDaemonSet(name, namespace string, clientset kubernetes.Interface, ds *apps.DaemonSet) error {
-	_, err := clientset.Apps().DaemonSets(namespace).Create(ds)
+	_, err := clientset.AppsV1().DaemonSets(namespace).Create(ds)
 	if err != nil {
 		if k8serrors.IsAlreadyExists(err) {
-			_, err = clientset.Apps().DaemonSets(namespace).Update(ds)
+			_, err = clientset.AppsV1().DaemonSets(namespace).Update(ds)
 		}
 		if err != nil {
 			return fmt.Errorf("failed to start %s daemonset: %v\n%v", name, err, ds)
@@ -42,10 +42,10 @@ func CreateDaemonSet(name, namespace string, clientset kubernetes.Interface, ds 
 // DeleteDaemonset makes a best effort at deleting a daemonset and its pods, then waits for them to be deleted
 func DeleteDaemonset(clientset kubernetes.Interface, namespace, name string) error {
 	deleteAction := func(options *metav1.DeleteOptions) error {
-		return clientset.Apps().DaemonSets(namespace).Delete(name, options)
+		return clientset.AppsV1().DaemonSets(namespace).Delete(name, options)
 	}
 	getAction := func() error {
-		_, err := clientset.Apps().DaemonSets(namespace).Get(name, metav1.GetOptions{})
+		_, err := clientset.AppsV1().DaemonSets(namespace).Get(name, metav1.GetOptions{})
 		return err
 	}
 	return deleteResourceAndWait(namespace, name, "daemonset", deleteAction, getAction)

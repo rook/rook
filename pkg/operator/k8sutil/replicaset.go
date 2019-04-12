@@ -24,10 +24,10 @@ import (
 // DeleteReplicaSet makes a best effort at deleting a deployment and its pods, then waits for them to be deleted
 func DeleteReplicaSet(clientset kubernetes.Interface, namespace, name string) error {
 	deleteAction := func(options *metav1.DeleteOptions) error {
-		return clientset.Apps().ReplicaSets(namespace).Delete(name, options)
+		return clientset.AppsV1().ReplicaSets(namespace).Delete(name, options)
 	}
 	getAction := func() error {
-		_, err := clientset.Apps().ReplicaSets(namespace).Get(name, metav1.GetOptions{})
+		_, err := clientset.AppsV1().ReplicaSets(namespace).Get(name, metav1.GetOptions{})
 		return err
 	}
 	return deleteResourceAndWait(namespace, name, "replicaset", deleteAction, getAction)

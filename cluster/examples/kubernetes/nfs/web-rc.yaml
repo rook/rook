@@ -1,16 +1,21 @@
-apiVersion: v1
-kind: ReplicationController
+apiVersion: apps/v1
+kind: Deployment
 metadata:
+  labels:
+    app: nfs-demo
+    role: web-frontend
   name: nfs-web
 spec:
   replicas: 2
   selector:
-    role: web-frontend
+    matchLabels:
+      app: nfs-demo
+      role: web-frontend
   template:
     metadata:
       labels:
-        role: web-frontend
         app: nfs-demo
+        role: web-frontend
     spec:
       containers:
       - name: web

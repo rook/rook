@@ -104,12 +104,17 @@ subjects:
   name: rook-nfs-operator
   namespace: ` + namespace + `
 ---
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: rook-nfs-operator
   namespace: ` + namespace + `
+  labels:
+    app: rook-nfs-operator
 spec:
+  selector:
+    matchLabels:
+      app: rook-nfs-operator
   replicas: 1
   template:
     metadata:

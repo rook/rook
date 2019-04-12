@@ -99,7 +99,7 @@ func (m *Mirroring) Start() error {
 
 		// Start the deployment
 		d := m.makeDeployment(daemonConf)
-		if _, err := m.context.Clientset.Apps().Deployments(m.Namespace).Create(d); err != nil {
+		if _, err := m.context.Clientset.AppsV1().Deployments(m.Namespace).Create(d); err != nil {
 			if !errors.IsAlreadyExists(err) {
 				return fmt.Errorf("failed to create %s deployment. %+v", resourceName, err)
 			}
@@ -107,11 +107,11 @@ func (m *Mirroring) Start() error {
 			if _, err := updateDeploymentAndWait(m.context, d, m.Namespace); err != nil {
 				// fail could be an issue updating label selector (immutable), so try del and recreate
 				logger.Debugf("updateDeploymentAndWait failed for rbd-mirror %s. Attempting del-and-recreate. %+v", resourceName, err)
-				err = m.context.Clientset.Apps().Deployments(m.Namespace).Delete(d.Name, &metav1.DeleteOptions{})
+				err = m.context.Clientset.AppsV1().Deployments(m.Namespace).Delete(d.Name, &metav1.DeleteOptions{})
 				if err != nil {
 					return fmt.Errorf("failed to delete rbd-mirror %s during del-and-recreate update attempt. %+v", resourceName, err)
 				}
-				if _, err := m.context.Clientset.Apps().Deployments(m.Namespace).Create(d); err != nil {
+				if _, err := m.context.Clientset.AppsV1().Deployments(m.Namespace).Create(d); err != nil {
 					return fmt.Errorf("failed to recreate rbd-mirror deployment %s during del-and-recreate update attempt. %+v", resourceName, err)
 				}
 			}
@@ -131,7 +131,7 @@ func (m *Mirroring) Start() error {
 
 func (m *Mirroring) removeExtraMirrors() error {
 	opts := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", appName)}
-	d, err := m.context.Clientset.Apps().Deployments(m.Namespace).List(opts)
+	d, err := m.context.Clientset.AppsV1().Deployments(m.Namespace).List(opts)
 	if err != nil {
 		return fmt.Errorf("failed to get mirrors. %+v", err)
 	}
@@ -157,7 +157,7 @@ func (m *Mirroring) removeExtraMirrors() error {
 			var gracePeriod int64
 			propagation := metav1.DeletePropagationForeground
 			deleteOpts := metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
-			if err = m.context.Clientset.Apps().Deployments(m.Namespace).Delete(deploy.Name, &deleteOpts); err != nil {
+			if err = m.context.Clientset.AppsV1().Deployments(m.Namespace).Delete(deploy.Name, &deleteOpts); err != nil {
 				logger.Warningf("failed to delete rbd-mirror %s. %+v", daemonName, err)
 			}
 

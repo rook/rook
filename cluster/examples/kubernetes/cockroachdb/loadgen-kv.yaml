@@ -1,9 +1,14 @@
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: example
+  name: loadgen
   namespace: rook-cockroachdb
+  labels:
+    app: loadgen
 spec:
+  selector:
+    matchLabels:
+      app: loadgen
   replicas: 1
   template:
     metadata:

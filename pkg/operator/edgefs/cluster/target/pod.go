@@ -20,7 +20,7 @@ import (
 	edgefsv1alpha1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/operator/edgefs/cluster/target/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	appsv1beta1 "k8s.io/api/apps/v1beta1"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -395,17 +395,19 @@ func (c *Cluster) createPodSpec(rookImage string, dro edgefsv1alpha1.DevicesResu
 	}
 }
 
-func (c *Cluster) makeStatefulSet(replicas int32, rookImage string, dro edgefsv1alpha1.DevicesResurrectOptions) (*appsv1beta1.StatefulSet, error) {
-
-	statefulSet := &appsv1beta1.StatefulSet{
+func (c *Cluster) makeStatefulSet(replicas int32, rookImage string, dro edgefsv1alpha1.DevicesResurrectOptions) (*appsv1.StatefulSet, error) {
+	statefulSet := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      appName,
 			Namespace: c.Namespace,
 			Labels:    c.createAppLabels(),
 		},
-		Spec: appsv1beta1.StatefulSetSpec{
+		Spec: appsv1.StatefulSetSpec{
 			ServiceName: appName,
-			Replicas:    &replicas,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: c.createAppLabels(),
+			},
+			Replicas: &replicas,
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: c.Namespace,
@@ -413,9 +415,9 @@ func (c *Cluster) makeStatefulSet(replicas int32, rookImage string, dro edgefsv1
 				},
 				Spec: c.createPodSpec(rookImage, dro),
 			},
-			PodManagementPolicy: appsv1beta1.ParallelPodManagement,
-			UpdateStrategy: appsv1beta1.StatefulSetUpdateStrategy{
-				Type: appsv1beta1.RollingUpdateStatefulSetStrategyType,
+			PodManagementPolicy: appsv1.ParallelPodManagement,
+			UpdateStrategy: appsv1.StatefulSetUpdateStrategy{
+				Type: appsv1.RollingUpdateStatefulSetStrategyType,
 			},
 		},
 	}

@@ -16,7 +16,7 @@ Also Dynamic Provision Filesystem is a concept that has already been done in htt
 To consume a filesystem, the experience is the following:
 
 ```yaml
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: mysql
@@ -70,7 +70,7 @@ spec:
 To consume it, the pod manifest is shown as follows:
 
 ```yaml
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: mysql

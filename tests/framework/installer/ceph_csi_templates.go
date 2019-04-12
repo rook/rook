@@ -19,7 +19,7 @@ package installer
 const (
 	rbdProvisionerTemplate = `
     kind: StatefulSet
-    apiVersion: apps/v1beta2
+    apiVersion: apps/v1
     metadata:
       name: csi-rbdplugin-provisioner
       namespace: {{ .Namespace }}
@@ -135,7 +135,7 @@ const (
 `
 	rbdPluginTemplate = `
     kind: DaemonSet
-    apiVersion: apps/v1beta2
+    apiVersion: apps/v1
     metadata:
       name: csi-rbdplugin
       namespace: {{ .Namespace }}
@@ -253,7 +253,7 @@ const (
     `
 	cephfsProvisionerTemplate = `
     kind: StatefulSet
-    apiVersion: apps/v1beta2
+    apiVersion: apps/v1
     metadata:
       name: csi-cephfsplugin-provisioner
       namespace: {{ .Namespace }}
@@ -333,7 +333,7 @@ const (
 `
 	cephfsPluginTemplate = `
     kind: DaemonSet
-    apiVersion: apps/v1beta2
+    apiVersion: apps/v1
     metadata:
       name: csi-cephfsplugin
       namespace: {{ .Namespace }}
