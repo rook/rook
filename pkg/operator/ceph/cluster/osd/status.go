@@ -25,8 +25,8 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
 	apps "k8s.io/api/apps/v1"
-	"k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
@@ -66,7 +66,7 @@ func (c *Cluster) updateNodeStatus(node string, status OrchestrationStatus) erro
 
 func UpdateNodeStatus(kv *k8sutil.ConfigMapKVStore, node string, status OrchestrationStatus) error {
 	labels := map[string]string{
-		k8sutil.AppAttr:        appName,
+		k8sutil.AppAttr:        AppName,
 		orchestrationStatusKey: provisioningLabelKey,
 		nodeLabelKey:           node,
 	}
@@ -162,7 +162,7 @@ func (c *Cluster) checkNodesCompleted(selector string, config *provisionConfig, 
 
 func (c *Cluster) completeOSDsForAllNodes(config *provisionConfig, configOSDs bool, timeoutMinutes int) bool {
 	selector := fmt.Sprintf("%s=%s,%s=%s",
-		k8sutil.AppAttr, appName,
+		k8sutil.AppAttr, AppName,
 		orchestrationStatusKey, provisioningLabelKey,
 	)
 
@@ -277,7 +277,7 @@ func (c *Cluster) findRemovedNodes() (map[string][]*apps.Deployment, error) {
 	removedNodes := map[string][]*apps.Deployment{}
 
 	// first discover the storage nodes that are still running
-	discoveredNodes, err := c.discoverStorageNodes()
+	discoveredNodes, err := DiscoverStorageNodes(c.context, c.Namespace)
 	if err != nil {
 		return nil, fmt.Errorf("aborting search for removed nodes. failed to discover storage nodes. %+v", err)
 	}

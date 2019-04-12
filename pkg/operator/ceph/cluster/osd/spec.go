@@ -255,7 +255,7 @@ func (c *Cluster) makeDeployment(nodeName string, selection rookalpha.Selection,
 			Name:      fmt.Sprintf(osdAppNameFmt, osd.ID),
 			Namespace: c.Namespace,
 			Labels: map[string]string{
-				k8sutil.AppAttr:     appName,
+				k8sutil.AppAttr:     AppName,
 				k8sutil.ClusterAttr: c.Namespace,
 				osdLabelKey:         fmt.Sprintf("%d", osd.ID),
 			},
@@ -263,7 +263,7 @@ func (c *Cluster) makeDeployment(nodeName string, selection rookalpha.Selection,
 		Spec: apps.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					k8sutil.AppAttr:     appName,
+					k8sutil.AppAttr:     AppName,
 					k8sutil.ClusterAttr: c.Namespace,
 					osdLabelKey:         fmt.Sprintf("%d", osd.ID),
 				},
@@ -273,9 +273,9 @@ func (c *Cluster) makeDeployment(nodeName string, selection rookalpha.Selection,
 			},
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: appName,
+					Name: AppName,
 					Labels: map[string]string{
-						k8sutil.AppAttr:     appName,
+						k8sutil.AppAttr:     AppName,
 						k8sutil.ClusterAttr: c.Namespace,
 						osdLabelKey:         fmt.Sprintf("%d", osd.ID),
 					},
@@ -390,7 +390,7 @@ func (c *Cluster) provisionPodTemplateSpec(devices []rookalpha.Device, selection
 	c.placement.ApplyToPodSpec(&podSpec)
 
 	podMeta := metav1.ObjectMeta{
-		Name: appName,
+		Name: AppName,
 		Labels: map[string]string{
 			k8sutil.AppAttr:     prepareAppName,
 			k8sutil.ClusterAttr: c.Namespace,
