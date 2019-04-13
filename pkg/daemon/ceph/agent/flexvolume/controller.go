@@ -42,6 +42,8 @@ import (
 const (
 	// ClusterNamespaceKey key for cluster namespace option.
 	ClusterNamespaceKey = "clusterNamespace"
+	// ClusterNameKey key for cluster name option (deprecated).
+	ClusterNameKey = "clusterName"
 	// StorageClassKey key for storage class name option.
 	StorageClassKey = "storageClass"
 	// PoolKey key for pool name option.
