@@ -53,12 +53,17 @@ pspEnable: true
 ## Rook Agent configuration
 ## toleration: NoSchedule, PreferNoSchedule or NoExecute
 ## tolerationKey: Set this to the specific key of the taint to tolerate
+## tolerations: Array of tolerations in YAML format which will be added to agent deployment
 ## nodeAffinity: Set to labels of the node to match
 ## flexVolumeDirPath: The path where the Rook agent discovers the flex volume plugins
 ## libModulesDirPath: The path where the Rook agent can find kernel modules
 # agent:
 #   toleration: NoSchedule
 #   tolerationKey: key
+#   tolerations:
+#   - key: key
+#     operator: Exists
+#     effect: NoSchedule
 #   nodeAffinity: key1=value1,value2; key2=value3
 #   mountSecurityMode: Any
 ## For information on FlexVolume path, please refer to https://rook.io/docs/rook/master/flexvolume.html
@@ -69,10 +74,15 @@ pspEnable: true
 ## Rook Discover configuration
 ## toleration: NoSchedule, PreferNoSchedule or NoExecute
 ## tolerationKey: Set this to the specific key of the taint to tolerate
+## tolerations: Array of tolerations in YAML format which will be added to agent deployment
 ## nodeAffinity: Set to labels of the node to match
 # discover:
 #   toleration: NoSchedule
 #   tolerationKey: key
+#   tolerations:
+#   - key: key
+#     operator: Exists
+#     effect: NoSchedule
 #   nodeAffinity: key1=value1,value2; key2=value3
 
 # In some situations SELinux relabelling breaks (times out) on large filesystems, and doesn't work with cephfs ReadWriteMany volumes (last relabel wins).

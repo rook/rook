@@ -107,8 +107,10 @@ The following tables lists the configurable parameters of the rook-operator char
 | `agent.mountSecurityMode`    | Mount Security Mode for the agent.                                                                      | `Any`                                                  |
 | `agent.toleration`           | Toleration for the agent pods                                                                           | <none>                                                 |
 | `agent.tolerationKey`        | The specific key of the taint to tolerate                                                               | <none>                                                 |
+| `agent.tolerations`          | Array of tolerations in YAML format which will be added to agent deployment                             | <none>                                                 |
 | `discover.toleration`        | Toleration for the discover pods                                                                        | <none>                                                 |
 | `discover.tolerationKey`     | The specific key of the taint to tolerate                                                               | <none>                                                 |
+| `discover.tolerations`       | Array of tolerations in YAML format which will be added to discover deployment                          | <none>                                                 |
 | `mon.healthCheckInterval`    | The frequency for the operator to check the mon health                                                  | `45s`                                                  |
 | `mon.monOutTimeout`          | The time to wait before failing over an unhealthy mon                                                   | `600s`                                                 |
 

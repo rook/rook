@@ -54,6 +54,15 @@ spec:
         # (Optional) Rook Agent toleration key. Set this to the key of the taint you want to tolerate
         # - name: AGENT_TOLERATION_KEY
         #   value: "<KeyOfTheTaintToTolerate>"
+        # (Optional) Rook Agent tolerations list. Put here list of taints you want to tolerate in YAML format.
+        # - name: AGENT_TOLERATIONS
+        #   value: |
+        #     - effect: NoSchedule
+        #       key: node-role.kubernetes.io/controlplane
+        #       operator: Exists
+        #     - effect: NoExecute
+        #       key: node-role.kubernetes.io/etcd
+        #       operator: Exists
         # (Optional) Rook Agent NodeAffinity.
         # - name: AGENT_NODE_AFFINITY
         #   value: "role=storage-node; storage=rook,ceph"
@@ -80,6 +89,15 @@ spec:
         # (Optional) Rook Discover toleration key. Set this to the key of the taint you want to tolerate
         # - name: DISCOVER_TOLERATION_KEY
         #   value: "<KeyOfTheTaintToTolerate>"
+        # (Optional) Rook Discover tolerations list. Put here list of taints you want to tolerate in YAML format.
+        # - name: DISCOVER_TOLERATIONS
+        #   value: |
+        #     - effect: NoSchedule
+        #       key: node-role.kubernetes.io/controlplane
+        #       operator: Exists
+        #     - effect: NoExecute
+        #       key: node-role.kubernetes.io/etcd
+        #       operator: Exists
         # (Optional) Discover Agent NodeAffinity.
         # - name: DISCOVER_AGENT_NODE_AFFINITY
         #   value: "role=storage-node; storage=rook, ceph"
