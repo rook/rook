@@ -50,7 +50,7 @@ func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID string, cephArg
 
 	// activate the osd with ceph-volume
 	storeFlag := "--" + osdType
-	if err := context.Executor.ExecuteCommand(false, "", "ceph-volume", "lvm", "activate", "--no-systemd", storeFlag, osdID, osdUUID); err != nil {
+	if err := context.Executor.ExecuteCommand(false, "", "stdbuf", "-oL", "ceph-volume", "lvm", "activate", "--no-systemd", storeFlag, osdID, osdUUID); err != nil {
 		return fmt.Errorf("failed to activate osd. %+v", err)
 	}
 

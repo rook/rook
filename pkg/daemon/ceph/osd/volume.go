@@ -69,7 +69,10 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 		storeFlag = "--filestore"
 	}
 
-	baseArgs := []string{"lvm", "batch", "--prepare", storeFlag, "--yes"}
+	// Use stdbuf to capture the python output buffer such that we can write to the pod log as the logging happens
+	// instead of using the default buffering that will log everything after ceph-volume exits
+	baseCommand := "stdbuf"
+	baseArgs := []string{"-oL", cephVolumeCmd, "lvm", "batch", "--prepare", storeFlag, "--yes"}
 	if a.storeConfig.EncryptedDevice {
 		baseArgs = append(baseArgs, encryptedFlag)
 	}
@@ -105,7 +108,7 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 					sanitizeOSDsPerDevice(device.Config.OSDsPerDevice),
 				}...)
 
-				if err := context.Executor.ExecuteCommand(false, "", cephVolumeCmd, immediateExecuteArgs...); err != nil {
+				if err := context.Executor.ExecuteCommand(false, "", baseCommand, immediateExecuteArgs...); err != nil {
 					return fmt.Errorf("failed ceph-volume. %+v", err)
 				}
 
@@ -116,7 +119,8 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 	}
 
 	if configured > 0 {
-		if err := context.Executor.ExecuteCommand(false, "", cephVolumeCmd, batchArgs...); err != nil {
+		// Run "stdbuf -oL ceph-volume" so we can get more frequent updates in the container logs
+		if err := context.Executor.ExecuteCommand(false, "", baseCommand, batchArgs...); err != nil {
 			return fmt.Errorf("failed ceph-volume. %+v", err)
 		}
 	}
