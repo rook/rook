@@ -363,6 +363,8 @@ Please submit an issue at: [Issues](https://github.com/Nexenta/edgefs-csi/issues
 
 - Show termination message in case driver failed to run:
 
+  <!-- {% raw %} -->
   ```bash
   kubectl get pod edgefs-iscsi-csi-controller-0 -o go-template="{{range .status.containerStatuses}}{{.lastState.terminated.message}}{{end}}"
   ```
+  <!-- {% endraw %} -->
