@@ -30,7 +30,6 @@ cluster.
 ```console
 # create rbac. Since rook operator is not permitted to create rbac rules,
 # these rules have to be created outside of operator
-kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
 kubectl apply -f cluster/examples/kubernetes/ceph/csi/rbac/rbd/
 kubectl apply -f cluster/examples/kubernetes/ceph/csi/rbac/cephfs/
 ```
@@ -333,9 +332,9 @@ if you have tested snapshot, delete snapshotclass, snapshot and pvc-restore
 created to test snapshot feature
 
 ```console
-kubectl delete -f cluster/examples/kubernetes/ceph/csi/example/rbd/snapshotclass.yaml
-kubectl delete -f cluster/examples/kubernetes/ceph/csi/example/rbd/snapshot.yaml
 kubectl delete -f cluster/examples/kubernetes/ceph/csi/example/rbd/pvc-restore.yaml
+kubectl delete -f cluster/examples/kubernetes/ceph/csi/example/rbd/snapshot.yaml
+kubectl delete -f cluster/examples/kubernetes/ceph/csi/example/rbd/snapshotclass.yaml
 ```
 
 ```console
