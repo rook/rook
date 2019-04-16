@@ -39,16 +39,17 @@ import (
 )
 
 const (
-	dataDirsEnvVarName          = "ROOK_DATA_DIRECTORIES"
-	osdStoreEnvVarName          = "ROOK_OSD_STORE"
-	osdDatabaseSizeEnvVarName   = "ROOK_OSD_DATABASE_SIZE"
-	osdWalSizeEnvVarName        = "ROOK_OSD_WAL_SIZE"
-	osdJournalSizeEnvVarName    = "ROOK_OSD_JOURNAL_SIZE"
-	osdsPerDeviceEnvVarName     = "ROOK_OSDS_PER_DEVICE"
-	encryptedDeviceEnvVarName   = "ROOK_ENCRYPTED_DEVICE"
-	osdMetadataDeviceEnvVarName = "ROOK_METADATA_DEVICE"
-	rookBinariesMountPath       = "/rook"
-	rookBinariesVolumeName      = "rook-binaries"
+	dataDirsEnvVarName                  = "ROOK_DATA_DIRECTORIES"
+	osdStoreEnvVarName                  = "ROOK_OSD_STORE"
+	osdDatabaseSizeEnvVarName           = "ROOK_OSD_DATABASE_SIZE"
+	osdWalSizeEnvVarName                = "ROOK_OSD_WAL_SIZE"
+	osdJournalSizeEnvVarName            = "ROOK_OSD_JOURNAL_SIZE"
+	osdsPerDeviceEnvVarName             = "ROOK_OSDS_PER_DEVICE"
+	encryptedDeviceEnvVarName           = "ROOK_ENCRYPTED_DEVICE"
+	osdMetadataDeviceEnvVarName         = "ROOK_METADATA_DEVICE"
+	rookBinariesMountPath               = "/rook"
+	rookBinariesVolumeName              = "rook-binaries"
+	osdMemoryTargetSafetyFactor float32 = 0.8
 )
 
 func (c *Cluster) makeJob(nodeName string, devices []rookalpha.Device,
@@ -156,8 +157,10 @@ func (c *Cluster) makeDeployment(nodeName string, selection rookalpha.Selection,
 
 	// Set osd memory target to the best appropriate value
 	if !osd.IsFileStore {
-		if !c.resources.Limits.Memory().IsZero() {
-			commonArgs = append(commonArgs, "--osd-memory-target", strconv.Itoa(int(c.resources.Limits.Memory().Value())))
+		// As of Nautilus Ceph auto-tunes its osd_memory_target on the fly so we don't need to force it
+		if !c.clusterInfo.CephVersion.IsAtLeastNautilus() && !c.resources.Limits.Memory().IsZero() {
+			osdMemoryTargetValue := float32(c.resources.Limits.Memory().Value()) * osdMemoryTargetSafetyFactor
+			commonArgs = append(commonArgs, fmt.Sprintf("--osd-memory-target=%f", osdMemoryTargetValue))
 		}
 	}
 
@@ -208,8 +211,10 @@ func (c *Cluster) makeDeployment(nodeName string, selection rookalpha.Selection,
 
 		// Set osd memory target to the best appropriate value
 		if !osd.IsFileStore {
-			if !c.resources.Limits.Memory().IsZero() {
-				args = append(args, "--osd-memory-target", strconv.Itoa(int(c.resources.Limits.Memory().Value())))
+			// As of Nautilus Ceph auto-tunes its osd_memory_target on the fly so we don't need to force it
+			if !c.clusterInfo.CephVersion.IsAtLeastNautilus() && !c.resources.Limits.Memory().IsZero() {
+				osdMemoryTargetValue := float32(c.resources.Limits.Memory().Value()) * osdMemoryTargetSafetyFactor
+				commonArgs = append(commonArgs, fmt.Sprintf("--osd-memory-target=%f", osdMemoryTargetValue))
 			}
 		}
 
