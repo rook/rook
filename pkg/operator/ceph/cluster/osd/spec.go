@@ -217,6 +217,17 @@ func (c *Cluster) makeDeployment(nodeName string, selection rookalpha.Selection,
 			args = append(args, "--default-log-to-file", "false")
 		}
 
+		// mount /run/udev in the container so ceph-volume (via `lvs`)
+		// can access the udev database
+		volumes = append(volumes, v1.Volume{
+			Name: "run-udev",
+			VolumeSource: v1.VolumeSource{
+				HostPath: &v1.HostPathVolumeSource{Path: "/run/udev"}}})
+
+		volumeMounts = append(volumeMounts, v1.VolumeMount{
+			Name:      "run-udev",
+			MountPath: "/run/udev"})
+
 	} else {
 		// other osds can launch the osd daemon directly
 		command = []string{"ceph-osd"}
