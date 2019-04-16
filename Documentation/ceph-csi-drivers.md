@@ -30,7 +30,6 @@ cluster.
 ```console
 # create rbac. Since rook operator is not permitted to create rbac rules,
 # these rules have to be created outside of operator
-kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
 kubectl apply -f cluster/examples/kubernetes/ceph/csi/rbac/rbd/
 kubectl apply -f cluster/examples/kubernetes/ceph/csi/rbac/cephfs/
 ```
