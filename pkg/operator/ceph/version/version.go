@@ -6,6 +6,7 @@ import (
 	"strconv"
 )
 
+// CephVersion represents the Ceph version format
 type CephVersion struct {
 	Major int
 	Minor int
@@ -41,6 +42,12 @@ func (v *CephVersion) String() string {
 		v.Major, v.Minor, v.Extra, v.ReleaseName())
 }
 
+// CephVersionFormatted returns the Ceph version in a human readable format
+func (v *CephVersion) CephVersionFormatted() string {
+	return fmt.Sprintf("ceph version %d.%d.%d %s",
+		v.Major, v.Minor, v.Extra, v.ReleaseName())
+}
+
 // ReleaseName is the name of the Ceph release
 func (v *CephVersion) ReleaseName() string {
 	switch v.Major {
@@ -57,6 +64,7 @@ func (v *CephVersion) ReleaseName() string {
 	}
 }
 
+// ExtractCephVersion extracts the major, minor and extra digit of a Ceph release
 func ExtractCephVersion(src string) (*CephVersion, error) {
 	m := versionPattern.FindStringSubmatch(src)
 	if m == nil {
@@ -81,6 +89,7 @@ func ExtractCephVersion(src string) (*CephVersion, error) {
 	return &CephVersion{major, minor, extra}, nil
 }
 
+// Supported checks if a given release is supported
 func (v *CephVersion) Supported() bool {
 	for _, sv := range supportedVersions {
 		if v.isRelease(sv) {
@@ -94,26 +103,31 @@ func (v *CephVersion) isRelease(other CephVersion) bool {
 	return v.Major == other.Major
 }
 
+// IsLuminous checks if the Ceph version if Luminous
 func (v *CephVersion) IsLuminous() bool {
 	return v.isRelease(Luminous)
 }
 
+// IsAtLeast checks a given Ceph version is at least a given one
 func (v *CephVersion) IsAtLeast(other CephVersion) bool {
 	if v.Major > other.Major {
 		return true
 	} else if v.Major < other.Major {
 		return false
 	}
+	// If we arrive here then v.Major == other.Major
 	if v.Minor > other.Minor {
 		return true
 	} else if v.Minor < other.Minor {
 		return false
 	}
+	// If we arrive here then v.Minor == other.Minor
 	if v.Extra > other.Extra {
 		return true
 	} else if v.Extra < other.Extra {
 		return false
 	}
+	// If we arrive here then both versions are identical
 	return true
 }
 
@@ -122,10 +136,12 @@ func (v *CephVersion) IsAtLeastOctopus() bool {
 	return v.IsAtLeast(Octopus)
 }
 
+// IsAtLeastNautilus check that the Ceph version is at least Nautilus
 func (v *CephVersion) IsAtLeastNautilus() bool {
 	return v.IsAtLeast(Nautilus)
 }
 
+// IsAtLeastMimic check that the Ceph version is at least Mimic
 func (v *CephVersion) IsAtLeastMimic() bool {
 	return v.IsAtLeast(Mimic)
 }

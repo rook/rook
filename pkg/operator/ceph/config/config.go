@@ -50,16 +50,23 @@ const (
 	// RgwType defines the rgw DaemonType
 	RgwType DaemonType = "rgw"
 
+	// RbdMirrorType defines the rbd-mirror DaemonType
 	RbdMirrorType DaemonType = "rbd-mirror"
 )
 
-// VarLibCephDir is simply "/var/lib/ceph". It is made overwriteable only for unit tests where it
-// may be needed to send data intended for /var/lib/ceph to a temporary test dir.
-var VarLibCephDir = "/var/lib/ceph"
+var (
+	// VarLibCephDir is simply "/var/lib/ceph". It is made overwriteable only for unit tests where it
+	// may be needed to send data intended for /var/lib/ceph to a temporary test dir.
+	VarLibCephDir = "/var/lib/ceph"
 
-// EtcCephDir is simply "/etc/ceph". It is made overwriteable only for unit tests where it
-// may be needed to send data intended for /etc/ceph to a temporary test dir.
-var EtcCephDir = "/etc/ceph"
+	// EtcCephDir is simply "/etc/ceph". It is made overwriteable only for unit tests where it
+	// may be needed to send data intended for /etc/ceph to a temporary test dir.
+	EtcCephDir = "/etc/ceph"
+
+	// VarLogCephDir defines Ceph logging directory. It is made overwriteable only for unit tests where it
+	// may be needed to send data intended for /var/log/ceph to a temporary test dir.
+	VarLogCephDir = "/var/log/ceph"
+)
 
 // Config is a Ceph config struct containing zero or more Ceph config sections.
 type Config struct {

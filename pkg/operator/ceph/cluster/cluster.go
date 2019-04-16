@@ -196,14 +196,14 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 
 	mgrs := mgr.New(c.Info, c.context, c.Namespace, rookImage,
 		spec.CephVersion, cephv1.GetMgrPlacement(spec.Placement), spec.Network.HostNetwork,
-		spec.Dashboard, cephv1.GetMgrResources(spec.Resources), c.ownerRef)
+		spec.Dashboard, cephv1.GetMgrResources(spec.Resources), c.ownerRef, c.Spec.DataDirHostPath)
 	err = mgrs.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the ceph mgr. %+v", err)
 	}
 
 	// Start the OSDs
-	osds := osd.New(c.context, c.Namespace, rookImage, spec.CephVersion, spec.Storage, spec.DataDirHostPath,
+	osds := osd.New(c.Info, c.context, c.Namespace, rookImage, spec.CephVersion, spec.Storage, spec.DataDirHostPath,
 		cephv1.GetOSDPlacement(spec.Placement), spec.Network.HostNetwork, cephv1.GetOSDResources(spec.Resources), c.ownerRef)
 	err = osds.Start()
 	if err != nil {
@@ -212,7 +212,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 
 	// Start the rbd mirroring daemon(s)
 	rbdmirror := rbd.New(c.Info, c.context, c.Namespace, rookImage, spec.CephVersion, cephv1.GetRBDMirrorPlacement(spec.Placement),
-		spec.Network.HostNetwork, spec.RBDMirroring, cephv1.GetRBDMirrorResources(spec.Resources), c.ownerRef)
+		spec.Network.HostNetwork, spec.RBDMirroring, cephv1.GetRBDMirrorResources(spec.Resources), c.ownerRef, c.Spec.DataDirHostPath)
 	err = rbdmirror.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the rbd mirrors. %+v", err)

@@ -21,6 +21,7 @@ If after trying the suggestions found on this page and the problem is not resolv
 - [Rook Agent modprobe exec format error](#rook-agent-modprobe-exec-format-error)
 - [Rook Agent rbd module missing error](#rook-agent-rbd-module-missing-error)
 - [Using multiple shared filesystem (CephFS) is attempted on a kernel version older than 4.7](#using-multiple-shared-filesystem-cephfs-is-attempted-on-a-kernel-version-older-than-47)
+- [Activate log to file for a particular Ceph daemon](#activate-ceph-log-on-file)
 
 # Troubleshooting Techniques
 There are two main categories of information you will need to investigate issues in the cluster:
@@ -518,3 +519,27 @@ The only solution to this problem is to upgrade your kernel to `4.7` or higher.
 This is due to a mount flag added in the kernel version `4.7` which allows to chose the filesystem by name.
 
 For additional info on the kernel version requirement for multiple shared filesystems (CephFS), see [Filesystem - Kernel version requirement](ceph-filesystem.md#kernel-version-requirement).
+
+# Activate log to file for a particular Ceph daemon
+
+They are cases where looking at Kubernetes logs is not enough for diverse reasons, but just to name a few:
+
+* not everyone is familiar for Kubernetes logging and expects to find logs in traditional directories
+* logs get eaten (buffer limit from the log engine) and thus not requestable from Kubernetes
+
+So for each daemon, `dataDirHostPath` is used to store logs, if logging is activated.
+Rook will bindmount `dataDirHostPath` for every pod.
+As of Ceph Nautilus 14.2.1, it is possible to enable logging for a particular daemon on the fly.
+Let's say you want to enable logging for `mon.a`, but only for this daemon.
+Using the toolbox or from inside the operator run:
+
+```
+ceph config daemon mon.a log_to_file true
+```
+
+This will activate logging on the filesystem, you will be able to find logs in `dataDirHostPath/$NAMESPACE/log`, so typically this would mean `/var/lib/rook/rook-ceph/log`.
+You don't need to restart the pod, the effect will be immediate.
+
+To disable the logging on file, simply set `log_to_file` to `false`.
+
+For Ceph Luminous/Mimic releases, `mon_cluster_log_file` and `cluster_log_file` can be set to `/var/log/ceph/XXXX` in the config override ConfigMap to enable logging. See the (Advanced Documentation)[Documentation/advanced-configuration.md#kubernetes] for information about how to use the config override ConfigMap.

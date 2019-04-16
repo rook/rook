@@ -30,6 +30,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephconfig")
@@ -182,7 +183,17 @@ func getQualifiedUser(user string) string {
 }
 
 // CreateDefaultCephConfig creates a default ceph config file.
-func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, runDir string) *CephConfig {
+func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, runDir string) (*CephConfig, error) {
+
+	cephVersionEnv := os.Getenv("ROOK_CEPH_VERSION")
+	if cephVersionEnv != "" {
+		v, err := cephver.ExtractCephVersion(cephVersionEnv)
+		if err != nil {
+			return nil, fmt.Errorf("failed to extract ceph version. %+v", err)
+		}
+		cluster.CephVersion = *v
+	}
+
 	// extract a list of just the monitor names, which will populate the "mon initial members"
 	// global config field
 	monMembers := make([]string, len(cluster.Monitors))
@@ -211,14 +222,12 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, ru
 
 	cephLogLevel := logLevelToCephLogLevel(context.LogLevel)
 
-	return &CephConfig{
+	conf := &CephConfig{
 		GlobalConfig: &GlobalConfig{
 			FSID:                   cluster.FSID,
 			RunDir:                 runDir,
 			MonMembers:             strings.Join(monMembers, " "),
 			MonHost:                strings.Join(monHosts, ","),
-			LogFile:                "/dev/stderr",
-			MonClusterLogFile:      "/dev/stderr",
 			PublicAddr:             context.NetworkInfo.PublicAddr,
 			PublicNetwork:          context.NetworkInfo.PublicNetwork,
 			ClusterAddr:            context.NetworkInfo.ClusterAddr,
@@ -245,6 +254,17 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, ru
 			FatalSignalHandlers:    "false",
 		},
 	}
+
+	// Everything before 14.2.1
+	// These new flags control Ceph's daemon logging behaviour to files
+	// By default we set them to False so no logs get written on file
+	// However they can be actived at any time via the centralized config store
+	if !cluster.CephVersion.IsAtLeast(cephver.CephVersion{Major: 14, Minor: 2, Extra: 1}) {
+		conf.LogFile = "/dev/stderr"
+		conf.MonClusterLogFile = "/dev/stderr"
+	}
+
+	return conf, nil
 }
 
 // create a config file with global settings configured, and return an ini file
@@ -256,7 +276,11 @@ func createGlobalConfigFileSection(context *clusterd.Context, cluster *ClusterIn
 		// use the user config since it was provided
 		ceph = userConfig
 	} else {
-		ceph = CreateDefaultCephConfig(context, cluster, runDir)
+		var err error
+		ceph, err = CreateDefaultCephConfig(context, cluster, runDir)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create default ceph config. %+v", err)
+		}
 	}
 
 	configFile := ini.Empty()

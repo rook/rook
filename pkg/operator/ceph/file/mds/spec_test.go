@@ -70,11 +70,12 @@ func testDeploymentObject(hostNetwork bool) *apps.Deployment {
 		fs,
 		&client.CephFilesystemDetails{ID: 15},
 		[]metav1.OwnerReference{{}},
+		"/var/lib/rook/",
 	)
 	mdsTestConfig := &mdsConfig{
 		DaemonID:     "myfs-a",
 		ResourceName: "rook-ceph-mds-myfs-a",
-		DataPathMap:  config.NewStatelessDaemonDataPathMap(config.MdsType, "myfs-a"),
+		DataPathMap:  config.NewStatelessDaemonDataPathMap(config.MdsType, "myfs-a", "rook-ceph", "/var/lib/rook/"),
 	}
 	return c.makeDeployment(mdsTestConfig)
 }

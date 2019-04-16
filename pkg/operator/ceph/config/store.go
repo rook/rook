@@ -69,7 +69,7 @@ func GetStore(context *clusterd.Context, namespace string, ownerRef *metav1.Owne
 
 // CreateOrUpdate creates or updates the stored Ceph config based on the cluster info.
 func (s *Store) CreateOrUpdate(clusterInfo *cephconfig.ClusterInfo) error {
-	c := DefaultCentralizedConfigs()
+	c := DefaultCentralizedConfigs(clusterInfo.CephVersion)
 
 	// DefaultLegacyConfigs need to be added to the Ceph config file until the integration tests can be
 	// made to override these options for the Ceph clusters it creates.

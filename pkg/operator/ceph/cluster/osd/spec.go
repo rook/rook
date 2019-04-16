@@ -29,6 +29,7 @@ import (
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
+	"github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
 	batch "k8s.io/api/batch/v1"
@@ -83,7 +84,7 @@ func (c *Cluster) makeDeployment(nodeName string, selection rookalpha.Selection,
 	replicaCount := int32(1)
 	volumeMounts := opspec.CephVolumeMounts()
 	configVolumeMounts := opspec.RookVolumeMounts()
-	volumes := opspec.PodVolumes(c.dataDirHostPath)
+	volumes := opspec.PodVolumes(c.dataDirHostPath, c.Namespace)
 
 	var dataDir string
 	if osd.IsDirectory {
@@ -136,6 +137,7 @@ func (c *Cluster) makeDeployment(nodeName string, selection rookalpha.Selection,
 	configEnvVars := append(c.getConfigEnvVars(storeConfig, dataDir, nodeName, location), []v1.EnvVar{
 		tiniEnvVar,
 		{Name: "ROOK_OSD_ID", Value: osdID},
+		{Name: "ROOK_CEPH_VERSION", Value: c.clusterInfo.CephVersion.CephVersionFormatted()},
 	}...)
 
 	if !osd.IsDirectory {
@@ -161,6 +163,10 @@ func (c *Cluster) makeDeployment(nodeName string, selection rookalpha.Selection,
 
 	if osd.IsFileStore {
 		commonArgs = append(commonArgs, fmt.Sprintf("--osd-journal=%s", osd.Journal))
+	}
+
+	if c.clusterInfo.CephVersion.IsAtLeast(version.CephVersion{Major: 14, Minor: 2, Extra: 1}) {
+		commonArgs = append(commonArgs, "--default-log-to-file", "false")
 	}
 
 	// Add the volume to the spec and the mount to the daemon container
@@ -205,6 +211,10 @@ func (c *Cluster) makeDeployment(nodeName string, selection rookalpha.Selection,
 			if !c.resources.Limits.Memory().IsZero() {
 				args = append(args, "--osd-memory-target", strconv.Itoa(int(c.resources.Limits.Memory().Value())))
 			}
+		}
+
+		if c.clusterInfo.CephVersion.IsAtLeast(version.CephVersion{Major: 14, Minor: 2, Extra: 1}) {
+			args = append(args, "--default-log-to-file", "false")
 		}
 
 	} else {
@@ -324,7 +334,7 @@ func (c *Cluster) provisionPodTemplateSpec(devices []rookalpha.Device, selection
 
 	copyBinariesVolume, copyBinariesContainer := c.getCopyBinariesContainer()
 
-	volumes := append(opspec.PodVolumes(c.dataDirHostPath), copyBinariesVolume)
+	volumes := append(opspec.PodVolumes(c.dataDirHostPath, c.Namespace), copyBinariesVolume)
 
 	// by default, don't define any volume config unless it is required
 	if len(devices) > 0 || selection.DeviceFilter != "" || selection.GetUseAllDevices() || metadataDevice != "" {

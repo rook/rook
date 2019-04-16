@@ -301,7 +301,7 @@ func (c *Cluster) initMonConfig(size int) (int, []*monConfig) {
 			DaemonName:   monitor.Name,
 			Port:         cephutil.GetPortFromEndpoint(monitor.Endpoint),
 			DataPathMap: config.NewStatefulDaemonDataPathMap(
-				c.dataDirHostPath, dataDirRelativeHostPath(monitor.Name), config.MonType, monitor.Name),
+				c.dataDirHostPath, dataDirRelativeHostPath(monitor.Name), config.MonType, monitor.Name, c.Namespace),
 		})
 	}
 
@@ -323,7 +323,7 @@ func (c *Cluster) newMonConfig(monID int) *monConfig {
 		DaemonName:   daemonName,
 		Port:         DefaultMsgr1Port,
 		DataPathMap: config.NewStatefulDaemonDataPathMap(
-			c.dataDirHostPath, dataDirRelativeHostPath(daemonName), config.MonType, daemonName),
+			c.dataDirHostPath, dataDirRelativeHostPath(daemonName), config.MonType, daemonName, c.Namespace),
 	}
 }
 

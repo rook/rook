@@ -19,6 +19,7 @@ package spec
 
 import (
 	"fmt"
+	"path"
 
 	"github.com/coreos/pkg/capnslog"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
@@ -33,12 +34,13 @@ const (
 	// ConfigInitContainerName is the name which is given to the config initialization container
 	// in all Ceph pods.
 	ConfigInitContainerName = "config-init"
+	logVolumeName           = "rook-ceph-log"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "ceph-spec")
 
 // PodVolumes fills in the volumes parameter with the common list of Kubernetes volumes for use in Ceph pods.
-func PodVolumes(dataDirHostPath string) []v1.Volume {
+func PodVolumes(dataDirHostPath, namespace string) []v1.Volume {
 	dataDirSource := v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}
 	if dataDirHostPath != "" {
 		dataDirSource = v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: dataDirHostPath}}
@@ -47,6 +49,7 @@ func PodVolumes(dataDirHostPath string) []v1.Volume {
 		{Name: k8sutil.DataDirVolume, VolumeSource: dataDirSource},
 		cephconfig.DefaultConfigVolume(),
 		k8sutil.ConfigOverrideVolume(),
+		StoredLogVolume(path.Join(dataDirHostPath, "log", namespace)),
 	}
 }
 
@@ -55,6 +58,7 @@ func CephVolumeMounts() []v1.VolumeMount {
 	return []v1.VolumeMount{
 		{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
 		cephconfig.DefaultConfigMount(),
+		StoredLogVolumeMount(),
 		// Rook doesn't run in ceph containers, so it doesn't need the config override mounted
 	}
 }
@@ -72,6 +76,7 @@ func DaemonVolumes(dataPaths *config.DataPathMap, keyringResourceName string) []
 	vols := []v1.Volume{
 		config.StoredFileVolume(),
 		keyring.Volume().Resource(keyringResourceName),
+		StoredLogVolume(dataPaths.HostLogDir),
 	}
 	if dataPaths.NoData {
 		return vols
@@ -89,6 +94,7 @@ func DaemonVolumeMounts(dataPaths *config.DataPathMap, keyringResourceName strin
 	mounts := []v1.VolumeMount{
 		config.StoredFileVolumeMount(),
 		keyring.VolumeMount().Resource(keyringResourceName),
+		StoredLogVolumeMount(),
 	}
 	if dataPaths.NoData {
 		return mounts
@@ -101,7 +107,7 @@ func DaemonVolumeMounts(dataPaths *config.DataPathMap, keyringResourceName strin
 // DaemonFlags returns the command line flags used by all Ceph daemons.
 func DaemonFlags(cluster *cephconfig.ClusterInfo, daemonID string) []string {
 	return append(
-		config.DefaultFlags(cluster.FSID, keyring.VolumeMount().KeyringFilePath()),
+		config.DefaultFlags(cluster.FSID, keyring.VolumeMount().KeyringFilePath(), cluster.CephVersion),
 		config.NewFlag("id", daemonID),
 	)
 
@@ -109,7 +115,7 @@ func DaemonFlags(cluster *cephconfig.ClusterInfo, daemonID string) []string {
 
 // AdminFlags returns the command line flags used for Ceph commands requiring admin authentication.
 func AdminFlags(cluster *cephconfig.ClusterInfo) []string {
-	return config.DefaultFlags(cluster.FSID, keyring.VolumeMount().AdminKeyringFilePath())
+	return config.DefaultFlags(cluster.FSID, keyring.VolumeMount().AdminKeyringFilePath(), cluster.CephVersion)
 }
 
 // ContainerEnvVarReference returns a reference to a Kubernetes container env var of the given name
@@ -176,4 +182,23 @@ func CheckPodMemory(resources v1.ResourceRequirements, cephPodMinimumMemory uint
 	}
 
 	return nil
+}
+
+// StoredLogVolume returns a pod volume sourced from the stored log files.
+func StoredLogVolume(HostLogDir string) v1.Volume {
+	return v1.Volume{
+		Name: logVolumeName,
+		VolumeSource: v1.VolumeSource{
+			HostPath: &v1.HostPathVolumeSource{Path: HostLogDir},
+		},
+	}
+}
+
+// StoredLogVolumeMount returns a pod volume sourced from the stored log files.
+func StoredLogVolumeMount() v1.VolumeMount {
+	return v1.VolumeMount{
+		Name:      logVolumeName,
+		ReadOnly:  false,
+		MountPath: config.VarLogCephDir,
+	}
 }
