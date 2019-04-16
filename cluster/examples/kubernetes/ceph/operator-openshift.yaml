@@ -102,8 +102,8 @@ spec:
         # - name: AGENT_MOUNT_SECURITY_MODE
         #   value: "Any"
         # Set the path where the Rook agent can find the flex volumes
-        # - name: FLEXVOLUME_DIR_PATH
-        #  value: "<PathToFlexVolumes>"
+        - name: FLEXVOLUME_DIR_PATH
+          value: "/etc/kubernetes/kubelet-plugins/volume/exec"
         # Set the path where kernel modules can be found
         # - name: LIB_MODULES_DIR_PATH
         #  value: "<PathToLibModules>"
