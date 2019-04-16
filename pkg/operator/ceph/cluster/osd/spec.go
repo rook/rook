@@ -35,7 +35,6 @@ import (
 	batch "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
 
 const (
@@ -59,7 +58,7 @@ func (c *Cluster) makeJob(nodeName string, devices []rookalpha.Device,
 	if err != nil {
 		return nil, err
 	}
-	podSpec.Spec.NodeSelector = map[string]string{apis.LabelHostname: nodeName}
+	podSpec.Spec.NodeSelector = map[string]string{v1.LabelHostname: nodeName}
 
 	job := &batch.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -286,7 +285,7 @@ func (c *Cluster) makeDeployment(nodeName string, selection rookalpha.Selection,
 					},
 				},
 				Spec: v1.PodSpec{
-					NodeSelector:       map[string]string{apis.LabelHostname: nodeName},
+					NodeSelector:       map[string]string{v1.LabelHostname: nodeName},
 					RestartPolicy:      v1.RestartPolicyAlways,
 					ServiceAccountName: serviceAccountName,
 					HostNetwork:        c.HostNetwork,

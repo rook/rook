@@ -71,7 +71,7 @@ func createCephCSISecret(helper *clients.TestClient, k8sh *utils.K8sHelper, s su
 	monStr := strings.Split(mon.MonMap.Mons[0].Address, "/")[0]
 	require.True(s.T(), len(monStr) > 0, "invalid mon addr")
 
-	_, err = k8sh.Clientset.Core().Secrets(namespace).Create(&v1.Secret{
+	_, err = k8sh.Clientset.CoreV1().Secrets(namespace).Create(&v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      csiSecretName,
 			Namespace: namespace,

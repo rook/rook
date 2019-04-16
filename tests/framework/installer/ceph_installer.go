@@ -36,7 +36,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
 
 const (
@@ -269,7 +268,7 @@ func (h *CephInstaller) GetNodeHostnames() ([]string, error) {
 	}
 	var names []string
 	for _, node := range nodes.Items {
-		names = append(names, node.Labels[apis.LabelHostname])
+		names = append(names, node.Labels[v1.LabelHostname])
 	}
 
 	return names, nil

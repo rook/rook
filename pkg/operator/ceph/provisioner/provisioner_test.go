@@ -24,7 +24,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kubernetes-sigs/sig-storage-lib-external-provisioner/controller"
 	"github.com/rook/rook/pkg/clusterd"
 	cephtest "github.com/rook/rook/pkg/daemon/ceph/test"
 	"github.com/rook/rook/pkg/operator/test"
@@ -35,6 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/sig-storage-lib-external-provisioner/controller"
 )
 
 func TestProvisionImage(t *testing.T) {

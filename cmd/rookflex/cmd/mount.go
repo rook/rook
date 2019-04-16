@@ -28,7 +28,6 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/util/version"
 	k8smount "k8s.io/kubernetes/pkg/util/mount"
-	"k8s.io/kubernetes/pkg/volume/util"
 )
 
 const (
@@ -281,7 +280,7 @@ func mountCephFS(client *rpc.Client, opts *flexvolume.AttachOptions) error {
 			err = mounter.Interface.Mount(devicePath, opts.MountDir, cephFS, options)
 			if err != nil {
 				// cleanup upon failure
-				util.UnmountPath(opts.MountDir, mounter.Interface)
+				k8smount.CleanupMountPoint(opts.MountDir, mounter.Interface, false)
 				return fmt.Errorf("failed to mount filesystem %s to %s with monitor %s and options %v: %+v", opts.FsName, opts.MountDir, devicePath, options, err)
 			}
 			return nil

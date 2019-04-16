@@ -47,7 +47,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
 
 const (
@@ -186,7 +185,7 @@ func (c *ClusterController) onK8sNodeAdd(obj interface{}) {
 	}
 
 	if k8sutil.GetNodeSchedulable(*newNode) == false {
-		logger.Debugf("Skipping cluster update. Added node %s is unschedulable", newNode.Labels[apis.LabelHostname])
+		logger.Debugf("Skipping cluster update. Added node %s is unschedulable", newNode.Labels[v1.LabelHostname])
 		return
 	}
 
@@ -201,16 +200,16 @@ func (c *ClusterController) onK8sNodeAdd(obj interface{}) {
 		}
 
 		if valid, _ := k8sutil.ValidNode(*newNode, cluster.Spec.Placement.All()); valid == true {
-			logger.Debugf("Adding %s to cluster %s", newNode.Labels[apis.LabelHostname], cluster.Namespace)
+			logger.Debugf("Adding %s to cluster %s", newNode.Labels[v1.LabelHostname], cluster.Namespace)
 			err := cluster.createInstance(c.rookImage, cluster.Info.CephVersion)
 			if err != nil {
-				logger.Errorf("Failed to update cluster in namespace %s. Was not able to add %s. %+v", cluster.Namespace, newNode.Labels[apis.LabelHostname], err)
+				logger.Errorf("Failed to update cluster in namespace %s. Was not able to add %s. %+v", cluster.Namespace, newNode.Labels[v1.LabelHostname], err)
 			}
 		} else {
-			logger.Infof("Could not add host %s . It is not valid", newNode.Labels[apis.LabelHostname])
+			logger.Infof("Could not add host %s . It is not valid", newNode.Labels[v1.LabelHostname])
 			continue
 		}
-		logger.Infof("Added %s to cluster %s", newNode.Labels[apis.LabelHostname], cluster.Namespace)
+		logger.Infof("Added %s to cluster %s", newNode.Labels[v1.LabelHostname], cluster.Namespace)
 	}
 }
 
@@ -375,11 +374,11 @@ func (c *ClusterController) onK8sNodeUpdate(oldObj, newObj interface{}) {
 
 	// Checking for NoSchedule added to storage node
 	if oldNodeSchedulable == false && newNodeSchedulable == false {
-		logger.Debugf("Skipping cluster update. Updated node %s was and is still unschedulable", newNode.Labels[apis.LabelHostname])
+		logger.Debugf("Skipping cluster update. Updated node %s was and is still unschedulable", newNode.Labels[v1.LabelHostname])
 		return
 	}
 	if oldNodeSchedulable == true && newNodeSchedulable == true {
-		logger.Debugf("Skipping cluster update. Updated node %s was and it is still schedulable", oldNode.Labels[apis.LabelHostname])
+		logger.Debugf("Skipping cluster update. Updated node %s was and it is still schedulable", oldNode.Labels[v1.LabelHostname])
 		return
 	}
 	// Checking for nodes where NoSchedule-Taint got removed
@@ -390,17 +389,17 @@ func (c *ClusterController) onK8sNodeUpdate(oldObj, newObj interface{}) {
 			continue
 		}
 		if valid, _ := k8sutil.ValidNode(*newNode, cephv1.GetOSDPlacement(cluster.Spec.Placement)); valid == true {
-			logger.Debugf("Adding %s to cluster %s", newNode.Labels[apis.LabelHostname], cluster.Namespace)
+			logger.Debugf("Adding %s to cluster %s", newNode.Labels[v1.LabelHostname], cluster.Namespace)
 			err := cluster.createInstance(c.rookImage, cluster.Info.CephVersion)
 			if err != nil {
-				logger.Errorf("Failed adding the updated node %s to cluster in namespace %s. %+v", newNode.Labels[apis.LabelHostname], cluster.Namespace, err)
+				logger.Errorf("Failed adding the updated node %s to cluster in namespace %s. %+v", newNode.Labels[v1.LabelHostname], cluster.Namespace, err)
 				continue
 			}
 		} else {
-			logger.Infof("Updated node %s is not valid and could not get added to cluster in namespace %s.", newNode.Labels[apis.LabelHostname], cluster.Namespace)
+			logger.Infof("Updated node %s is not valid and could not get added to cluster in namespace %s.", newNode.Labels[v1.LabelHostname], cluster.Namespace)
 			continue
 		}
-		logger.Infof("Added updated node %s to cluster %s", newNode.Labels[apis.LabelHostname], cluster.Namespace)
+		logger.Infof("Added updated node %s to cluster %s", newNode.Labels[v1.LabelHostname], cluster.Namespace)
 	}
 }
 
@@ -454,14 +453,14 @@ func (c *ClusterController) getTenantClusters(node *v1.Node) []*cluster {
 	// list osd deployments for all namespaces
 	for namespace, clusterObj := range c.clusterMap {
 		listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", osd.AppName)}
-		osdDeployments, err := c.context.Clientset.Apps().Deployments(namespace).List(listOpts)
+		osdDeployments, err := c.context.Clientset.AppsV1().Deployments(namespace).List(listOpts)
 		if err != nil {
 			logger.Errorf("Failed to get deployments, %v", err)
 		}
 		for _, osdDeployment := range osdDeployments.Items {
 			osdPodSpec := osdDeployment.Spec.Template.Spec
 			// get the node name from the node selector
-			nodeName, ok := osdPodSpec.NodeSelector[apis.LabelHostname]
+			nodeName, ok := osdPodSpec.NodeSelector[v1.LabelHostname]
 			if !ok || nodeName == "" {
 				logger.Errorf("osd deployment %s doesn't have a node name on its node selector: %+v", osdDeployment.Name, osdPodSpec.NodeSelector)
 			} else if nodeName == node.ObjectMeta.Name {

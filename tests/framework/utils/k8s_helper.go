@@ -41,7 +41,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	storagev1util "k8s.io/kubernetes/pkg/apis/storage/v1/util"
-	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
 
 // K8sHelper is a helper for common kubectl commads
@@ -1375,10 +1374,10 @@ func (k8sh *K8sHelper) ChangeHostnames() error {
 		return err
 	}
 	for _, node := range nodes.Items {
-		hostname := node.Labels[apis.LabelHostname]
+		hostname := node.Labels[v1.LabelHostname]
 		if !strings.HasPrefix(hostname, hostnameTestPrefix) {
-			node.Labels[apis.LabelHostname] = hostnameTestPrefix + hostname
-			logger.Infof("changed hostname of node %s to %s", node.Name, node.Labels[apis.LabelHostname])
+			node.Labels[v1.LabelHostname] = hostnameTestPrefix + hostname
+			logger.Infof("changed hostname of node %s to %s", node.Name, node.Labels[v1.LabelHostname])
 			_, err := k8sh.Clientset.CoreV1().Nodes().Update(&node)
 			if err != nil {
 				return err
@@ -1396,10 +1395,10 @@ func (k8sh *K8sHelper) RestoreHostnames() ([]string, error) {
 		return nil, err
 	}
 	for _, node := range nodes.Items {
-		hostname := node.Labels[apis.LabelHostname]
+		hostname := node.Labels[v1.LabelHostname]
 		if strings.HasPrefix(hostname, hostnameTestPrefix) {
-			node.Labels[apis.LabelHostname] = hostname[len(hostnameTestPrefix):]
-			logger.Infof("restoring hostname of node %s to %s", node.Name, node.Labels[apis.LabelHostname])
+			node.Labels[v1.LabelHostname] = hostname[len(hostnameTestPrefix):]
+			logger.Infof("restoring hostname of node %s to %s", node.Name, node.Labels[v1.LabelHostname])
 			_, err := k8sh.Clientset.CoreV1().Nodes().Update(&node)
 			if err != nil {
 				return nil, err

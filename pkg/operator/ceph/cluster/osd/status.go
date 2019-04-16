@@ -30,7 +30,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
 
 const (
@@ -291,7 +290,7 @@ func (c *Cluster) findRemovedNodes() (map[string][]*apps.Deployment, error) {
 	}
 	nodeMap := map[string]v1.Node{}
 	for _, n := range k8sNodes {
-		hostname := n.Labels[apis.LabelHostname]
+		hostname := n.Labels[v1.LabelHostname]
 		nodeMap[hostname] = n
 	}
 
