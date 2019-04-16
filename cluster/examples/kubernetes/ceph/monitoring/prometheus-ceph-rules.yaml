@@ -1,0 +1,138 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    prometheus: rook-prometheus
+    role: alert-rules
+  name: prometheus-ceph-rules
+  namespace: rook-ceph
+spec:
+  groups:
+  - name: ceph.rules
+    rules:
+    - expr: |
+        kube_node_status_condition{condition="Ready",job="kube-state-metrics",status="true"} * on (node) group_right() max(label_replace(ceph_disk_occupation{job="rook-ceph-mgr"},"node","$1","exported_instance","(.*)")) by (node) == 0
+      record: cluster:ceph_node_down:join_kube
+  - name: quorum-alert.rules
+    rules:
+    - alert: CephMonQuorumAtRisk
+      annotations:
+        description: Storage cluster quorum is low. Contact Support.
+        message: Storage quorum at risk
+        severity_level: error
+        storage_type: ceph
+      expr: |
+        count(ceph_mon_quorum_status == 1) <= ((count(ceph_mon_metadata) % 2) + 1)
+      for: 15m
+      labels:
+        severity: critical
+  - name: ceph-node-alert.rules
+    rules:
+    - alert: CephNodeDown
+      annotations:
+        description: Storage node {{ $labels.node }} went down. Please check the node
+          immediately.
+        message: Storage node {{ $labels.node }} went down
+        severity_level: error
+        storage_type: ceph
+      expr: |
+        cluster:ceph_node_down:join_kube
+      for: 30s
+      labels:
+        severity: critical
+  - name: osd-alert.rules
+    rules:
+    - alert: CephOSDDiskNotResponding
+      annotations:
+        description: Disk device {{ $labels.device }} not responding, on host {{ $labels.host
+          }}.
+        message: Disk not responding
+        severity_level: error
+        storage_type: ceph
+      expr: |
+        label_replace((ceph_osd_in == 1 and ceph_osd_up == 0),"disk","$1","ceph_daemon","osd.(.*)") + on(ceph_daemon) group_left(host, device) label_replace(ceph_disk_occupation,"host","$1","exported_instance","(.*)")
+      for: 1m
+      labels:
+        severity: critical
+    - alert: CephOSDDiskUnavailable
+      annotations:
+        description: Disk device {{ $labels.device }} not accessible on host {{ $labels.host
+          }}.
+        message: Disk not accessible
+        severity_level: error
+        storage_type: ceph
+      expr: |
+        label_replace((ceph_osd_in == 0 and ceph_osd_up == 0),"disk","$1","ceph_daemon","osd.(.*)") + on(ceph_daemon) group_left(host, device) label_replace(ceph_disk_occupation,"host","$1","exported_instance","(.*)")
+      for: 1m
+      labels:
+        severity: critical
+    - alert: CephDataRecoveryTakingTooLong
+      annotations:
+        description: Data recovery has been active for more than 2h. Contact Support.
+        message: Data recovery is slow
+        severity_level: warning
+        storage_type: ceph
+      expr: |
+        ceph_pg_undersized > 0
+      for: 2h
+      labels:
+        severity: warning
+    - alert: CephPGRepairTakingTooLong
+      annotations:
+        description: Self heal operations taking too long. Contact Support.
+        message: Self heal problems detected
+        severity_level: warning
+        storage_type: ceph
+      expr: |
+        ceph_pg_inconsistent > 0
+      for: 1h
+      labels:
+        severity: warning
+  - name: cluster-state-alert.rules
+    rules:
+    - alert: CephClusterErrorState
+      annotations:
+        description: Storage cluster is in error state for more than 10m.
+        message: Storage cluster is in error state
+        severity_level: error
+        storage_type: ceph
+      expr: |
+        ceph_health_status{job="rook-ceph-mgr"} > 1
+      for: 10m
+      labels:
+        severity: critical
+    - alert: CephClusterWarningState
+      annotations:
+        description: Storage cluster is in warning state for more than 10m.
+        message: Storage cluster is in degraded state
+        severity_level: warning
+        storage_type: ceph
+      expr: |
+        ceph_health_status{job="rook-ceph-mgr"} == 1
+      for: 10m
+      labels:
+        severity: warning
+  - name: cluster-utilization-alert.rules
+    rules:
+    - alert: CephClusterNearFull
+      annotations:
+        description: Storage cluster utilization has crossed 85%.
+        message: Storage cluster is nearing full. Expansion is required.
+        severity_level: warning
+        storage_type: ceph
+      expr: |
+        sum(ceph_osd_stat_bytes_used) / sum(ceph_osd_stat_bytes) > 0.85
+      for: 5m
+      labels:
+        severity: warning
+    - alert: CephClusterCriticallyFull
+      annotations:
+        description: Storage cluster utilization has crossed 95%.
+        message: Storage cluster is critically full and needs immediate expansion
+        severity_level: error
+        storage_type: ceph
+      expr: |
+        sum(ceph_osd_stat_bytes_used) / sum(ceph_osd_stat_bytes) > 0.95
+      for: 5m
+      labels:
+        severity: critical
