@@ -119,7 +119,7 @@ func (c *FakeCephBlockPools) DeleteCollection(options *v1.DeleteOptions, listOpt
 // Patch applies the patch and returns the patched cephBlockPool.
 func (c *FakeCephBlockPools) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *cephrookiov1.CephBlockPool, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(cephblockpoolsResource, c.ns, name, data, subresources...), &cephrookiov1.CephBlockPool{})
+		Invokes(testing.NewPatchSubresourceAction(cephblockpoolsResource, c.ns, name, pt, data, subresources...), &cephrookiov1.CephBlockPool{})
 
 	if obj == nil {
 		return nil, err

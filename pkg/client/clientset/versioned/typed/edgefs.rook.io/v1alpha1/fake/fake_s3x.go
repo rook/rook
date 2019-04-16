@@ -119,7 +119,7 @@ func (c *FakeS3Xs) DeleteCollection(options *v1.DeleteOptions, listOptions v1.Li
 // Patch applies the patch and returns the patched s3X.
 func (c *FakeS3Xs) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.S3X, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(s3xsResource, c.ns, name, data, subresources...), &v1alpha1.S3X{})
+		Invokes(testing.NewPatchSubresourceAction(s3xsResource, c.ns, name, pt, data, subresources...), &v1alpha1.S3X{})
 
 	if obj == nil {
 		return nil, err

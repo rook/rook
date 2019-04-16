@@ -119,7 +119,7 @@ func (c *FakeCephObjectStoreUsers) DeleteCollection(options *v1.DeleteOptions, l
 // Patch applies the patch and returns the patched cephObjectStoreUser.
 func (c *FakeCephObjectStoreUsers) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *cephrookiov1.CephObjectStoreUser, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(cephobjectstoreusersResource, c.ns, name, data, subresources...), &cephrookiov1.CephObjectStoreUser{})
+		Invokes(testing.NewPatchSubresourceAction(cephobjectstoreusersResource, c.ns, name, pt, data, subresources...), &cephrookiov1.CephObjectStoreUser{})
 
 	if obj == nil {
 		return nil, err

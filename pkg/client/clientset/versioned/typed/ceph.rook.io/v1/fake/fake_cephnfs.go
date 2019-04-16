@@ -119,7 +119,7 @@ func (c *FakeCephNFSs) DeleteCollection(options *v1.DeleteOptions, listOptions v
 // Patch applies the patch and returns the patched cephNFS.
 func (c *FakeCephNFSs) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *cephrookiov1.CephNFS, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(cephnfssResource, c.ns, name, data, subresources...), &cephrookiov1.CephNFS{})
+		Invokes(testing.NewPatchSubresourceAction(cephnfssResource, c.ns, name, pt, data, subresources...), &cephrookiov1.CephNFS{})
 
 	if obj == nil {
 		return nil, err

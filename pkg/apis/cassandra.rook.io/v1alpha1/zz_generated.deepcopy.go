@@ -215,6 +215,13 @@ func (in *RackSpec) DeepCopyInto(out *RackSpec) {
 		**out = **in
 	}
 	in.Storage.DeepCopyInto(&out.Storage)
+	if in.Annotations != nil {
+		in, out := &in.Annotations, &out.Annotations
+		*out = make(v1alpha2.Annotations, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	if in.Placement != nil {
 		in, out := &in.Placement, &out.Placement
 		*out = new(v1alpha2.Placement)

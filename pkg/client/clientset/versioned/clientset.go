@@ -35,27 +35,13 @@ import (
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
 	CassandraV1alpha1() cassandrav1alpha1.CassandraV1alpha1Interface
-	// Deprecated: please explicitly pick a version if possible.
-	Cassandra() cassandrav1alpha1.CassandraV1alpha1Interface
 	CephV1beta1() cephv1beta1.CephV1beta1Interface
 	CephV1() cephv1.CephV1Interface
-	// Deprecated: please explicitly pick a version if possible.
-	Ceph() cephv1.CephV1Interface
 	CockroachdbV1alpha1() cockroachdbv1alpha1.CockroachdbV1alpha1Interface
-	// Deprecated: please explicitly pick a version if possible.
-	Cockroachdb() cockroachdbv1alpha1.CockroachdbV1alpha1Interface
 	EdgefsV1alpha1() edgefsv1alpha1.EdgefsV1alpha1Interface
-	// Deprecated: please explicitly pick a version if possible.
-	Edgefs() edgefsv1alpha1.EdgefsV1alpha1Interface
 	MinioV1alpha1() miniov1alpha1.MinioV1alpha1Interface
-	// Deprecated: please explicitly pick a version if possible.
-	Minio() miniov1alpha1.MinioV1alpha1Interface
 	NfsV1alpha1() nfsv1alpha1.NfsV1alpha1Interface
-	// Deprecated: please explicitly pick a version if possible.
-	Nfs() nfsv1alpha1.NfsV1alpha1Interface
 	RookV1alpha2() rookv1alpha2.RookV1alpha2Interface
-	// Deprecated: please explicitly pick a version if possible.
-	Rook() rookv1alpha2.RookV1alpha2Interface
 }
 
 // Clientset contains the clients for groups. Each group has exactly one
@@ -77,12 +63,6 @@ func (c *Clientset) CassandraV1alpha1() cassandrav1alpha1.CassandraV1alpha1Inter
 	return c.cassandraV1alpha1
 }
 
-// Deprecated: Cassandra retrieves the default version of CassandraClient.
-// Please explicitly pick a version.
-func (c *Clientset) Cassandra() cassandrav1alpha1.CassandraV1alpha1Interface {
-	return c.cassandraV1alpha1
-}
-
 // CephV1beta1 retrieves the CephV1beta1Client
 func (c *Clientset) CephV1beta1() cephv1beta1.CephV1beta1Interface {
 	return c.cephV1beta1
@@ -93,20 +73,8 @@ func (c *Clientset) CephV1() cephv1.CephV1Interface {
 	return c.cephV1
 }
 
-// Deprecated: Ceph retrieves the default version of CephClient.
-// Please explicitly pick a version.
-func (c *Clientset) Ceph() cephv1.CephV1Interface {
-	return c.cephV1
-}
-
 // CockroachdbV1alpha1 retrieves the CockroachdbV1alpha1Client
 func (c *Clientset) CockroachdbV1alpha1() cockroachdbv1alpha1.CockroachdbV1alpha1Interface {
-	return c.cockroachdbV1alpha1
-}
-
-// Deprecated: Cockroachdb retrieves the default version of CockroachdbClient.
-// Please explicitly pick a version.
-func (c *Clientset) Cockroachdb() cockroachdbv1alpha1.CockroachdbV1alpha1Interface {
 	return c.cockroachdbV1alpha1
 }
 
@@ -115,20 +83,8 @@ func (c *Clientset) EdgefsV1alpha1() edgefsv1alpha1.EdgefsV1alpha1Interface {
 	return c.edgefsV1alpha1
 }
 
-// Deprecated: Edgefs retrieves the default version of EdgefsClient.
-// Please explicitly pick a version.
-func (c *Clientset) Edgefs() edgefsv1alpha1.EdgefsV1alpha1Interface {
-	return c.edgefsV1alpha1
-}
-
 // MinioV1alpha1 retrieves the MinioV1alpha1Client
 func (c *Clientset) MinioV1alpha1() miniov1alpha1.MinioV1alpha1Interface {
-	return c.minioV1alpha1
-}
-
-// Deprecated: Minio retrieves the default version of MinioClient.
-// Please explicitly pick a version.
-func (c *Clientset) Minio() miniov1alpha1.MinioV1alpha1Interface {
 	return c.minioV1alpha1
 }
 
@@ -137,20 +93,8 @@ func (c *Clientset) NfsV1alpha1() nfsv1alpha1.NfsV1alpha1Interface {
 	return c.nfsV1alpha1
 }
 
-// Deprecated: Nfs retrieves the default version of NfsClient.
-// Please explicitly pick a version.
-func (c *Clientset) Nfs() nfsv1alpha1.NfsV1alpha1Interface {
-	return c.nfsV1alpha1
-}
-
 // RookV1alpha2 retrieves the RookV1alpha2Client
 func (c *Clientset) RookV1alpha2() rookv1alpha2.RookV1alpha2Interface {
-	return c.rookV1alpha2
-}
-
-// Deprecated: Rook retrieves the default version of RookClient.
-// Please explicitly pick a version.
-func (c *Clientset) Rook() rookv1alpha2.RookV1alpha2Interface {
 	return c.rookV1alpha2
 }
 

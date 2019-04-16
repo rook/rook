@@ -119,7 +119,7 @@ func (c *FakeS3s) DeleteCollection(options *v1.DeleteOptions, listOptions v1.Lis
 // Patch applies the patch and returns the patched s3.
 func (c *FakeS3s) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.S3, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(s3sResource, c.ns, name, data, subresources...), &v1alpha1.S3{})
+		Invokes(testing.NewPatchSubresourceAction(s3sResource, c.ns, name, pt, data, subresources...), &v1alpha1.S3{})
 
 	if obj == nil {
 		return nil, err
