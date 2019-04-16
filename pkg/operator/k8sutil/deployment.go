@@ -76,7 +76,7 @@ func UpdateDeploymentAndWait(context *clusterd.Context, deployment *apps.Deploym
 			return d, nil
 		}
 
-		logger.Debugf("deployment %s status=%v", d.Name, d.Status)
+		logger.Debugf("deployment %s status=%+v", d.Name, d.Status)
 		time.Sleep(time.Duration(sleepTime) * time.Second)
 	}
 

@@ -137,25 +137,30 @@ func (c *Cluster) Start() error {
 		// start the deployment
 		d := c.makeDeployment(mdsConfig)
 		logger.Debugf("starting mds: %+v", d)
-		createdDeployment, err := c.context.Clientset.AppsV1().Deployments(c.fs.Namespace).Create(d)
-		if err != nil {
-			if !errors.IsAlreadyExists(err) {
-				return fmt.Errorf("failed to create mds deployment %s: %+v", mdsConfig.ResourceName, err)
+		createdDeployment, createErr := c.context.Clientset.AppsV1().Deployments(c.fs.Namespace).Create(d)
+		if createErr != nil {
+			if !errors.IsAlreadyExists(createErr) {
+				return fmt.Errorf("failed to create mds deployment %s: %+v", mdsConfig.ResourceName, createErr)
 			}
 			logger.Infof("deployment for mds %s already exists. updating if needed", mdsConfig.ResourceName)
-			// TODO: need to prepare for upgrade here each time. Also, before a given deployment is
-			// terminated, I think we should somehow make sure that it isn't running the single
-			// active daemon. If it is, then we should have another daemon take over as active. @Jan?
-			if createdDeployment, err = UpdateDeploymentAndWait(c.context, d, c.fs.Namespace); err != nil {
-				return fmt.Errorf("failed to update mds deployment %s. %+v", mdsConfig.ResourceName, err)
+			createdDeployment, err = c.context.Clientset.AppsV1().Deployments(c.fs.Namespace).Get(d.Name, metav1.GetOptions{})
+			if err != nil {
+				return fmt.Errorf("failed to get existing mds deployment %s for update: %+v", d.Name, err)
 			}
 		}
-		desiredDeployments[d.GetName()] = true // add deployment name to improvised set
-
 		// create unique key for each mds saved to k8s secret
 		if err := c.generateKeyring(mdsConfig, createdDeployment.UID); err != nil {
 			return fmt.Errorf("failed to generate keyring for %s. %+v", resourceName, err)
 		}
+		// keyring must be generated before update-and-wait since no keyring will prevent the
+		// deployment from reaching ready state
+		if createErr != nil && errors.IsAlreadyExists(createErr) {
+			if _, err = UpdateDeploymentAndWait(c.context, d, c.fs.Namespace); err != nil {
+				return fmt.Errorf("failed to update mds deployment %s. %+v", d.Name, err)
+			}
+		}
+		desiredDeployments[d.GetName()] = true // add deployment name to improvised set
+
 	}
 
 	if err := c.scaleDownDeployments(replicas, desiredDeployments); err != nil {
