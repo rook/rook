@@ -1,0 +1,12 @@
+pull_request_rules:
+  - name: automatic merge
+    conditions:
+      - label!=DNM
+      - '#approved-reviews-by>=2'
+      - 'continuous-integration/jenkins/pr-head'
+      - 'DCO'
+    actions:
+      merge:
+        strict: false
+      dismiss_reviews: {}
+      delete_head_branch: {}
