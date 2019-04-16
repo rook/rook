@@ -37,6 +37,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/file"
 	"github.com/rook/rook/pkg/operator/ceph/nfs"
 	"github.com/rook/rook/pkg/operator/ceph/object"
+	"github.com/rook/rook/pkg/operator/ceph/object/bucket"
 	objectuser "github.com/rook/rook/pkg/operator/ceph/object/user"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
@@ -66,7 +67,7 @@ const (
 const (
 	// DefaultClusterName states the default name of the rook-cluster if not provided.
 	DefaultClusterName         = "rook-ceph"
-	clusterDeleteRetryInterval = 2 //seconds
+	clusterDeleteRetryInterval = 2 // seconds
 	clusterDeleteMaxRetries    = 15
 	disableHotplugEnv          = "ROOK_DISABLE_DEVICE_HOTPLUG"
 )
@@ -422,6 +423,15 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 	// Start object store user CRD watcher
 	objectStoreUserController := objectuser.NewObjectStoreUserController(c.context, cluster.Spec, cluster.Namespace, cluster.ownerRef)
 	objectStoreUserController.StartWatch(cluster.stopCh)
+
+	// Start the object bucket provisioner
+	bucketProvisioner := bucket.NewProvisioner(c.context, cluster.Namespace)
+	bucketController, err := bucket.NewBucketController(c.context.KubeConfig, bucketProvisioner)
+	if err != nil {
+		logger.Errorf("Bucket provisioner failed to start. %+v", err)
+	} else {
+		go bucketController.Run(cluster.stopCh)
+	}
 
 	// Start file system CRD watcher
 	fileController := file.NewFilesystemController(cluster.Info, c.context, cluster.Namespace, c.rookImage, cluster.Spec, cluster.ownerRef, cluster.Spec.DataDirHostPath)

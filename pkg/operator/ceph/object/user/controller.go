@@ -140,7 +140,7 @@ func (c *ObjectStoreUserController) createUser(context *clusterd.Context, u *cep
 	if err := ValidateUser(context, u); err != nil {
 		return fmt.Errorf("invalid user %s arguments. %+v", u.Name, err)
 	}
-	//Set DisplayName to match Name if DisplayName is not set
+	// Set DisplayName to match Name if DisplayName is not set
 	displayName := u.Spec.DisplayName
 	if len(displayName) == 0 {
 		displayName = u.Name

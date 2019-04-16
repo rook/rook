@@ -25,21 +25,21 @@ import (
 
 // Context holds the context for the object store.
 type Context struct {
-	context     *clusterd.Context
+	Context     *clusterd.Context
 	Name        string
 	ClusterName string
 }
 
 // NewContext creates a new object store context.
 func NewContext(context *clusterd.Context, name, clusterName string) *Context {
-	return &Context{context: context, Name: name, ClusterName: clusterName}
+	return &Context{Context: context, Name: name, ClusterName: clusterName}
 }
 
 func runAdminCommandNoRealm(c *Context, args ...string) (string, error) {
-	command, args := client.FinalizeCephCommandArgs("radosgw-admin", args, c.context.ConfigDir, c.ClusterName)
+	command, args := client.FinalizeCephCommandArgs("radosgw-admin", args, c.Context.ConfigDir, c.ClusterName)
 
 	// start the rgw admin command
-	output, err := c.context.Executor.ExecuteCommandWithOutput(false, "", command, args...)
+	output, err := c.Context.Executor.ExecuteCommandWithOutput(false, "", command, args...)
 	if err != nil {
 		return "", fmt.Errorf("failed to run radosgw-admin: %+v", err)
 	}

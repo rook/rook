@@ -386,6 +386,69 @@ spec:
   version: v1alpha2
 # OLM: END CEPH VOLUME POOL CRD
 ---
+# OLM: BEGIN OBJECTBUCKET CRD
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: objectbuckets.objectbucket.io
+spec:
+  group: objectbucket.io
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+  names:
+    kind: ObjectBucket
+    listKind: ObjectBucketList
+    plural: objectbuckets
+    singular: objectbucket
+    shortNames:
+      - ob
+      - obs
+  scope: Cluster
+  subresources:
+    status: {}
+# OLM: END OBJECTBUCKET CRD
+---
+# OLM: BEGIN OBJECTBUCKETCLAIM CRD
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: objectbucketclaims.objectbucket.io
+spec:
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+  group: objectbucket.io
+  names:
+    kind: ObjectBucketClaim
+    listKind: ObjectBucketClaimList
+    plural: objectbucketclaims
+    singular: objectbucketclaim
+    shortNames:
+      - obc
+      - obcs
+  scope: Namespaced
+  subresources:
+    status: {}
+# OLM: END OBJECTBUCKETCLAIM CRD
+---
+# OLM: BEGIN OBJECTBUCKET ROLEBINDING
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-object-bucket
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-object-bucket
+subjects:
+  - kind: ServiceAccount
+    name: rook-ceph-system
+    namespace: rook-ceph
+# OLM: END OBJECTBUCKET ROLEBINDING
+---
 # OLM: BEGIN OPERATOR ROLE
 # The cluster role for managing all the cluster-specific resources in a namespace
 apiVersion: rbac.authorization.k8s.io/v1beta1
@@ -602,6 +665,37 @@ rules:
   - list
   - get
   - watch
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-object-bucket
+  labels:
+    operator: rook
+    storage-backend: ceph
+    rbac.ceph.rook.io/aggregate-to-rook-ceph-mgr-cluster: "true"
+rules:
+- apiGroups:
+  - ""
+  verbs:
+  - "*"
+  resources:
+  - secrets
+  - configmaps
+- apiGroups:
+    - storage.k8s.io
+  resources:
+    - storageclasses
+  verbs:
+    - get
+    - list
+    - watch
+- apiGroups:
+  - "objectbucket.io"
+  verbs:
+  - "*"
+  resources:
+  - "*"
 ---
 # OLM: END OPERATOR ROLE
 # OLM: BEGIN SERVICE ACCOUNT SYSTEM

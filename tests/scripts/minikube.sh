@@ -133,11 +133,7 @@ fi
 case "${1:-}" in
   up)
     echo "starting minikube with kubeadm bootstrapper"
-    minikube start --memory="${MEMORY}" -b kubeadm
-
-    # or start a specific version of K8s
-    #minikube start --memory="${MEMORY}" -b kubeadm --kubernetes-version "v1.15.1"
-
+    minikube start --memory="${MEMORY}" -b kubeadm --vm-driver="${VM_DRIVER}"
     wait_for_ssh
     # create a link so the default dataDirHostPath will work for this environment
     minikube ssh "sudo mkdir -p /mnt/${DISK}/${PWD}; sudo mkdir -p $(dirname $PWD); sudo ln -s /mnt/${DISK}/${PWD} $(dirname $PWD)/"

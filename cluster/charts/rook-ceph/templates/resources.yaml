@@ -354,3 +354,47 @@ spec:
   scope: Namespaced
   version: v1alpha2
 ---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: objectbuckets.objectbucket.io
+spec:
+  group: objectbucket.io
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+  names:
+    kind: ObjectBucket
+    listKind: ObjectBucketList
+    plural: objectbuckets
+    singular: objectbucket
+    shortNames:
+      - ob
+      - obs
+  scope: Cluster
+  subresources:
+    status: {}
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: objectbucketclaims.objectbucket.io
+spec:
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+  group: objectbucket.io
+  names:
+    kind: ObjectBucketClaim
+    listKind: ObjectBucketClaimList
+    plural: objectbucketclaims
+    singular: objectbucketclaim
+    shortNames:
+      - obc
+      - obcs
+  scope: Namespaced
+  subresources:
+    status: {}
+---

@@ -217,13 +217,13 @@ func deletePools(context *Context, lastStore bool) error {
 
 	for _, pool := range pools {
 		name := poolName(context.Name, pool)
-		if err := ceph.DeletePool(context.context, context.ClusterName, name); err != nil {
+		if err := ceph.DeletePool(context.Context, context.ClusterName, name); err != nil {
 			logger.Warningf("failed to delete pool %s. %+v", name, err)
 		}
 	}
 
 	// Delete erasure code profile if any
-	erasureCodes, err := ceph.ListErasureCodeProfiles(context.context, context.ClusterName)
+	erasureCodes, err := ceph.ListErasureCodeProfiles(context.Context, context.ClusterName)
 	if err != nil {
 		return fmt.Errorf("failed to list erasure code profiles for cluster %s: %+v", context.ClusterName, err)
 	}
@@ -231,7 +231,7 @@ func deletePools(context *Context, lastStore bool) error {
 	objectStoreErasureCode := ceph.GetErasureCodeProfileForPool(context.Name)
 	for i := range erasureCodes {
 		if erasureCodes[i] == objectStoreErasureCode {
-			if err := ceph.DeleteErasureCodeProfile(context.context, context.ClusterName, objectStoreErasureCode); err != nil {
+			if err := ceph.DeleteErasureCodeProfile(context.Context, context.ClusterName, objectStoreErasureCode); err != nil {
 				return fmt.Errorf("failed to delete erasure code profile %s for object store %s: %+v", objectStoreErasureCode, context.Name, err)
 			}
 			break
@@ -259,7 +259,7 @@ func createSimilarPools(context *Context, pools []string, poolSpec model.Pool) e
 	isECPool := cephConfig.ErasureCodeProfile != ""
 	if isECPool {
 		// create a new erasure code profile for the new pool
-		if err := ceph.CreateErasureCodeProfile(context.context, context.ClusterName, poolSpec.ErasureCodedConfig, cephConfig.ErasureCodeProfile,
+		if err := ceph.CreateErasureCodeProfile(context.Context, context.ClusterName, poolSpec.ErasureCodedConfig, cephConfig.ErasureCodeProfile,
 			poolSpec.FailureDomain, poolSpec.CrushRoot, poolSpec.DeviceClass); err != nil {
 			return fmt.Errorf("failed to create erasure code profile for object store %s: %+v", context.Name, err)
 		}
@@ -268,7 +268,7 @@ func createSimilarPools(context *Context, pools []string, poolSpec model.Pool) e
 	for _, pool := range pools {
 		// create the pool if it doesn't exist yet
 		name := poolName(context.Name, pool)
-		if _, err := ceph.GetPoolDetails(context.context, context.ClusterName, name); err != nil {
+		if _, err := ceph.GetPoolDetails(context.Context, context.ClusterName, name); err != nil {
 			cephConfig.Name = name
 			// If the ceph config has an EC profile, an EC pool must be created. Otherwise, it's necessary
 			// to create a replicated pool.
@@ -276,9 +276,9 @@ func createSimilarPools(context *Context, pools []string, poolSpec model.Pool) e
 			if isECPool {
 				// An EC pool backing an object store does not need to enable EC overwrites, so the pool is
 				// created with that property disabled to avoid unnecessary performance impact.
-				err = ceph.CreateECPoolForApp(context.context, context.ClusterName, cephConfig, AppName, false /* enableECOverwrite */, poolSpec.ErasureCodedConfig)
+				err = ceph.CreateECPoolForApp(context.Context, context.ClusterName, cephConfig, AppName, false /* enableECOverwrite */, poolSpec.ErasureCodedConfig)
 			} else {
-				err = ceph.CreateReplicatedPoolForApp(context.context, context.ClusterName, cephConfig, AppName)
+				err = ceph.CreateReplicatedPoolForApp(context.Context, context.ClusterName, cephConfig, AppName)
 			}
 			if err != nil {
 				return fmt.Errorf("failed to create pool %s for object store %s", name, context.Name)

@@ -33,7 +33,7 @@ After the common resources are created, the next step is to create the Operator 
 - `operator-openshift.yaml`: Includes all of the operator settings for running a basic Rook cluster in an OpenShift environment. You will also want to review the [OpenShift Prerequisites](openshift.md) to confirm the settings.
    - `oc create -f operator-openshift.yaml`
 
-Settings for the operator are configured through environment variables on the operator deployment. The individual settings are documented in `operator.yaml`.
+Settings for the operator are configured through environment variables on the operator deployment. The individual settings are documented in [`operator.yaml`](/cluster/examples/kubernetes/ceph/operator.yaml).
 
 ## Cluster CRD
 Now that your operator is running, let's create your Ceph storage cluster:
@@ -90,3 +90,10 @@ See the [Object Store CRD](ceph-object-store-crd.md) topic for more details on t
 
 ### Object Storage User
 - `object-user.yaml`: Creates a simple object storage user and generates credentials for the S3 API
+
+### Object Storage Buckets
+- The Ceph operator also runs an object store bucket provisioner which can grant access to existing buckets or dynamically provision new buckets.
+- [`ObjectBucketClaim yaml (retain)`](/cluster/examples/kubernetes/ceph/object-bucket-claim-retain.yaml) Creates a request for a new bucket by referencing a StorageClass which saves the bucket when the initiating OBC is deleted.
+- [`ObjectBucketClaim yaml (delete)`](/cluster/examples/kubernetes/ceph/object-bucket-claim-delete.yaml) Creates a request for a new bucket by referencing a StorageClass which deletes the bucket when the initiating OBC is deleted.
+- [`StorageClass Bucket yaml (retain)`](/cluster/examples/kubernetes/ceph/storageclass-bucket-retain.yaml) Creates a new StorageClass which defines the Ceph Object Store, a region, and retains the bucket after the initiating OBC is deleted. Typically only admins can create Storage Classes.
+- [`StorageClass Bucket yaml (delete)`](/cluster/examples/kubernetes/ceph/storageclass-bucket-delete.yaml) Creates a new StorageClass which defines the Ceph Object Store, a region, and deletes the bucket after the initiating OBC is deleted. Typically only admins can create Storage Classes.

@@ -19,7 +19,7 @@ package object
 import (
 	"encoding/json"
 	"fmt"
-
+	"strconv"
 	"strings"
 )
 
@@ -86,12 +86,13 @@ func decodeUser(data string) (*ObjectUser, int, error) {
 func GetUser(c *Context, id string) (*ObjectUser, int, error) {
 	logger.Infof("Getting user: %s", id)
 
+	// note: err is set for non-existent user but result output is also empty
 	result, err := runAdminCommand(c, "user", "info", "--uid", id)
-	if err != nil {
-		return nil, RGWErrorUnknown, fmt.Errorf("failed to get users: %+v", err)
+	if len(result) == 0 {
+		return nil, RGWErrorNotFound, fmt.Errorf("warn: user not found")
 	}
-	if result == "could not fetch user info: no user info saved" {
-		return nil, RGWErrorNotFound, fmt.Errorf("user not found")
+	if err != nil {
+		return nil, RGWErrorUnknown, fmt.Errorf("radosgw-admin command err: %+v", err)
 	}
 	return decodeUser(result)
 }
@@ -161,16 +162,64 @@ func UpdateUser(c *Context, user ObjectUser) (*ObjectUser, int, error) {
 }
 
 // DeleteUser deletes the user with the given ID.
-func DeleteUser(c *Context, id string) (string, int, error) {
+func DeleteUser(c *Context, id string, opts ...string) (string, int, error) {
 	logger.Infof("Deleting user: %s", id)
-	result, err := runAdminCommand(c, "user", "rm", "--uid", id)
+	args := []string{"user", "rm", "--uid", id}
+	if opts != nil {
+		args = append(args, opts...)
+	}
+	result, err := runAdminCommand(c, args...)
 	if err != nil {
 		return "", RGWErrorUnknown, fmt.Errorf("failed to delete user: %+v", err)
 	}
-
 	if result == "unable to remove user, user does not exist" {
-		return "", RGWErrorNotFound, fmt.Errorf("failed to delete user: %+v", err)
+		return "", RGWErrorNotFound, fmt.Errorf("user %q does not exist so cannot delete: %+v", id, err)
 	}
 
+	return result, RGWErrorNone, nil
+}
+
+func SetQuotaUserBucketMax(c *Context, id string, max int) (string, int, error) {
+	logger.Infof("Setting user %q max buckets to %d", id, max)
+	args := []string{"--quota-scope", "user", "--max-buckets", strconv.Itoa(max)}
+	result, errCode, err := setUserQuota(c, id, args)
+	if errCode != RGWErrorNone {
+		err = fmt.Errorf("failed setting bucket max: %+v", err)
+	}
+	return result, errCode, err
+}
+
+func setUserQuota(c *Context, id string, args []string) (string, int, error) {
+	args = append([]string{"quota", "set", "--uid", id}, args...)
+	result, err := runAdminCommand(c, args...)
+	if err != nil {
+		err = fmt.Errorf("failed to set max buckets for user: %+v", err)
+	}
+	return result, RGWErrorNone, err
+}
+
+func LinkUser(c *Context, id, bucket string) (string, int, error) {
+	logger.Infof("Linking (user: %s) (bucket: %s)", id, bucket)
+	args := []string{"bucket", "link", "--uid", id, "--bucket", bucket}
+	result, err := runAdminCommand(c, args...)
+	if err != nil {
+		return "", RGWErrorUnknown, err
+	}
+	if strings.Contains(result, "bucket entry point user mismatch") {
+		return "", RGWErrorNotFound, err
+	}
+	return result, RGWErrorNone, nil
+}
+
+func UnlinkUser(c *Context, id, bucket string) (string, int, error) {
+	logger.Info("Unlinking (user: %s) (bucket: %s)", id, bucket)
+	args := []string{"bucket", "unlink", "--uid", id, "--bucket", bucket}
+	result, err := runAdminCommand(c, args...)
+	if err != nil {
+		return "", RGWErrorUnknown, err
+	}
+	if strings.Contains(result, "bucket entry point user mismatch") {
+		return "", RGWErrorNotFound, err
+	}
 	return result, RGWErrorNone, nil
 }
