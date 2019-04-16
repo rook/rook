@@ -174,6 +174,10 @@ func (c *ClusterController) onK8sNodeAdd(obj interface{}) {
 			logger.Debugf("Skipping -> Do not use all Nodes")
 			continue
 		}
+		if cluster.Info == nil {
+			logger.Info("Cluster %s is not ready. Skipping orchestration.", cluster.Namespace)
+			continue
+		}
 
 		if valid, _ := k8sutil.ValidNode(*newNode, cluster.Spec.Placement.All()); valid == true {
 			logger.Debugf("Adding %s to cluster %s", newNode.Labels[apis.LabelHostname], cluster.Namespace)
@@ -354,6 +358,10 @@ func (c *ClusterController) onK8sNodeUpdate(oldObj, newObj interface{}) {
 	}
 
 	for _, cluster := range c.clusterMap {
+		if cluster.Info == nil {
+			logger.Info("Cluster %s is not ready. Skipping orchestration.", cluster.Namespace)
+			continue
+		}
 		if valid, _ := k8sutil.ValidNode(*newNode, cephv1.GetOSDPlacement(cluster.Spec.Placement)); valid == true {
 			logger.Debugf("Adding %s to cluster %s", newNode.Labels[apis.LabelHostname], cluster.Namespace)
 			err := cluster.createInstance(c.rookImage, cluster.Info.CephVersion)
