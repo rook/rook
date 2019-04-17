@@ -1,4 +1,4 @@
-![logo](Documentation/media/logo.png?raw=true "Rook")
+<img alt="Rook" src="Documentation/media/logo.svg" width="50%" height="50%">
 
 [![Build Status](https://jenkins.rook.io/buildStatus/icon?job=rook/rook/master)](https://jenkins.rook.io/blue/organizations/jenkins/rook%2Frook/activity)
 [![GitHub release](https://img.shields.io/github/release/rook/rook/all.svg?style=flat-square)](https://github.com/rook/rook/releases)
