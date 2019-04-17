@@ -105,3 +105,28 @@ testa2   centos_host13-home
 	assert.Equal(t, "ext2", devices[0].Filesystem)
 
 }
+
+func TestMatchUdevMonitorFiltering(t *testing.T) {
+	// f <- matching function as configured
+	f := func(text string) bool {
+		take, err := matchUdevEvent(text, []string{"(?i)add", "(?i)remove"}, []string{"(?i)dm-[0-9]+"})
+		assert.NoError(t, err)
+		return take
+	}
+
+	// add events are emitted
+	take := f("KERNEL[1008.734088] add      /devices/pci0000:00/0000:00:07.0/virtio5/block/vdc (block)")
+	assert.True(t, take)
+
+	// remove events are emitted
+	take = f("KERNEL[1104.287884] remove   /devices/pci0000:00/0000:00:07.0/virtio5/block/vdc (block)")
+	assert.True(t, take)
+
+	// change events are ignored
+	take = f("KERNEL[1136.069071] change   /devices/pci0000:00/0000:00:02.0/virtio0/block/vda/vda1 (block)")
+	assert.False(t, take)
+
+	// add events that match device mapper events are ignored
+	take = f("KERNEL[1042.464238] add      /devices/virtual/block/dm-1 (block)")
+	assert.False(t, take)
+}
