@@ -16,6 +16,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -46,6 +47,9 @@ type NFSServerList struct {
 
 // NFSSpec represents the spec of NFS daemon
 type NFSServerSpec struct {
+	// The annotations-related configuration to add/set on each Pod related object.
+	Annotations rookalpha.Annotations `json:"annotations,omitempty"`
+
 	// Replicas of the NFS daemon
 	Replicas int `json:"replicas,omitempty"`
 
@@ -67,7 +71,6 @@ type ExportsSpec struct {
 
 // ServerSpec represents the spec for configuring the NFS server
 type ServerSpec struct {
-
 	// Reading and Writing permissions on the export
 	// Valid values are "ReadOnly", "ReadWrite" and "none"
 	AccessMode string `json:"accessMode,omitempty"`

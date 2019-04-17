@@ -51,6 +51,7 @@ const (
 type Cluster struct {
 	context          *clusterd.Context
 	Namespace        string
+	annotations      rookalpha.Annotations
 	placement        rookalpha.Placement
 	Version          string
 	Storage          rookalpha.StorageScopeSpec
@@ -75,6 +76,7 @@ func New(
 	storageSpec rookalpha.StorageScopeSpec,
 	dataDirHostPath string,
 	dataVolumeSize resource.Quantity,
+	annotations rookalpha.Annotations,
 	placement rookalpha.Placement,
 	hostNetworkSpec edgefsv1alpha1.NetworkSpec,
 	resources v1.ResourceRequirements,
@@ -93,6 +95,7 @@ func New(
 		context:          context,
 		Namespace:        namespace,
 		serviceAccount:   serviceAccount,
+		annotations:      annotations,
 		placement:        placement,
 		Version:          version,
 		Storage:          storageSpec,

@@ -46,8 +46,8 @@ const (
 	defaultRestPort           = 8080
 	defaultRestSPort          = 4443
 	defaultMetricsPort        = 8881
-	defaultUiPort             = 3000
-	defaultUiSPort            = 3443
+	defaultUIPort             = 3000
+	defaultUISPort            = 3443
 
 	/* Volumes definitions */
 	dataVolumeName    = "edgefs-datadir"
@@ -63,6 +63,7 @@ type Cluster struct {
 	Replicas        int
 	dataDirHostPath string
 	dataVolumeSize  resource.Quantity
+	annotations     rookalpha.Annotations
 	placement       rookalpha.Placement
 	context         *clusterd.Context
 	hostNetworkSpec edgefsv1alpha1.NetworkSpec
@@ -78,6 +79,7 @@ func New(
 	serviceAccount string,
 	dataDirHostPath string,
 	dataVolumeSize resource.Quantity,
+	annotations rookalpha.Annotations,
 	placement rookalpha.Placement,
 	hostNetworkSpec edgefsv1alpha1.NetworkSpec,
 	dashboardSpec edgefsv1alpha1.DashboardSpec,
@@ -96,6 +98,7 @@ func New(
 		context:         context,
 		Namespace:       namespace,
 		serviceAccount:  serviceAccount,
+		annotations:     annotations,
 		placement:       placement,
 		Version:         version,
 		Replicas:        1,
@@ -155,7 +158,7 @@ func (c *Cluster) Start(rookImage string) error {
 	}
 
 	// create the ui/dashboard service
-	uiService := c.makeUiService(uiSvcName)
+	uiService := c.makeUIService(uiSvcName)
 	if _, err := c.context.Clientset.CoreV1().Services(c.Namespace).Create(uiService); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create ui service. %+v", err)
@@ -228,7 +231,7 @@ func (c *Cluster) makeRestapiService(name string) *v1.Service {
 	return svc
 }
 
-func (c *Cluster) makeUiService(name string) *v1.Service {
+func (c *Cluster) makeUIService(name string) *v1.Service {
 	labels := c.getLabels()
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -242,12 +245,12 @@ func (c *Cluster) makeUiService(name string) *v1.Service {
 			Ports: []v1.ServicePort{
 				{
 					Name:     "http-ui",
-					Port:     int32(defaultUiPort),
+					Port:     int32(defaultUIPort),
 					Protocol: v1.ProtocolTCP,
 				},
 				{
 					Name:     "https-ui",
-					Port:     int32(defaultUiSPort),
+					Port:     int32(defaultUISPort),
 					Protocol: v1.ProtocolTCP,
 				},
 			},
@@ -310,8 +313,6 @@ func (c *Cluster) makeDeployment(name, clusterName, rookImage string, replicas i
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   name,
 			Labels: c.getDaemonLabels(clusterName),
-			Annotations: map[string]string{"prometheus.io/scrape": "true",
-				"prometheus.io/port": strconv.Itoa(defaultMetricsPort)},
 		},
 		Spec: v1.PodSpec{
 			ServiceAccountName: c.serviceAccount,
@@ -326,6 +327,15 @@ func (c *Cluster) makeDeployment(name, clusterName, rookImage string, replicas i
 	}
 	if isHostNetworkDefined(c.hostNetworkSpec) {
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
+	}
+	// Add the prometheus.io scrape annoations by default when no annotations have been given.
+	if len(c.annotations) == 0 {
+		podSpec.ObjectMeta.Annotations = map[string]string{
+			"prometheus.io/scrape": "true",
+			"prometheus.io/port":   strconv.Itoa(defaultMetricsPort),
+		}
+	} else {
+		c.annotations.ApplyToObjectMeta(&podSpec.ObjectMeta)
 	}
 	c.placement.ApplyToPodSpec(&podSpec.Spec)
 
@@ -343,6 +353,7 @@ func (c *Cluster) makeDeployment(name, clusterName, rookImage string, replicas i
 		},
 	}
 	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &d.ObjectMeta, &c.ownerRef)
+	c.annotations.ApplyToObjectMeta(&d.ObjectMeta)
 	return d
 }
 
@@ -383,12 +394,12 @@ func (c *Cluster) uiContainer(name string, containerImage string) v1.Container {
 		Ports: []v1.ContainerPort{
 			{
 				Name:          "http-ui",
-				ContainerPort: int32(defaultUiPort),
+				ContainerPort: int32(defaultUIPort),
 				Protocol:      v1.ProtocolTCP,
 			},
 			{
 				Name:          "https-ui",
-				ContainerPort: int32(defaultUiSPort),
+				ContainerPort: int32(defaultUISPort),
 				Protocol:      v1.ProtocolTCP,
 			},
 		},

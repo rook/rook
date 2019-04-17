@@ -27,3 +27,10 @@ spec:
   #  requests:
   #    cpu: "2"
   #    memory: "4Gi"
+  # A key value list of annotations
+  annotations:
+  #  all:
+  #    key: value
+  #  mgr:
+  #  prepare:
+  #  target:

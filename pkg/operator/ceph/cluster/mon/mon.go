@@ -432,9 +432,8 @@ func (c *Cluster) waitForMonsToJoin(mons []*monConfig, requireAllInQuorum bool) 
 func (c *Cluster) saveMonConfig() error {
 	configMap := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        EndpointConfigMapName,
-			Namespace:   c.Namespace,
-			Annotations: map[string]string{},
+			Name:      EndpointConfigMapName,
+			Namespace: c.Namespace,
 		},
 	}
 	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &configMap.ObjectMeta, &c.ownerRef)

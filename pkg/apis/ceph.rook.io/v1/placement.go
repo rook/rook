@@ -19,29 +19,22 @@ import (
 	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 )
 
-const (
-	PlacementKeyMgr       = "mgr"
-	PlacementKeyMon       = "mon"
-	PlacementKeyOSD       = "osd"
-	PlacementKeyRBDMirror = "rbdmirror"
-)
-
 // GetMgrPlacement returns the placement for the MGR service
 func GetMgrPlacement(p rook.PlacementSpec) rook.Placement {
-	return p.All().Merge(p[PlacementKeyMgr])
+	return p.All().Merge(p[KeyMgr])
 }
 
 // GetMonPlacement returns the placement for the MON service
 func GetMonPlacement(p rook.PlacementSpec) rook.Placement {
-	return p.All().Merge(p[PlacementKeyMon])
+	return p.All().Merge(p[KeyMon])
 }
 
 // GetOSDPlacement returns the placement for the OSD service
 func GetOSDPlacement(p rook.PlacementSpec) rook.Placement {
-	return p.All().Merge(p[PlacementKeyOSD])
+	return p.All().Merge(p[KeyOSD])
 }
 
 // GetRBDMirrorPlacement returns the placement for the RBD mirrors
 func GetRBDMirrorPlacement(p rook.PlacementSpec) rook.Placement {
-	return p.All().Merge(p[PlacementKeyRBDMirror])
+	return p.All().Merge(p[KeyRBDMirror])
 }

@@ -22,6 +22,13 @@ spec:
   dataDirHostPath: /data
   storage:
     useAllNodes: true
+  # A key/value list of annotations
+  annotations:
+  #  all:
+  #    key: value
+  #  prepare:
+  #  mgr:
+  #  target:
 ```
 
 or if you have raw block devices provisioned, it can dynamically detect, format and utilize all raw devices on all nodes with simple CRD as below:
@@ -39,6 +46,13 @@ spec:
   storage:
     useAllNodes: true
     useAllDevices: true
+  # A key/value list of annotations
+  annotations:
+  #  all:
+  #    key: value
+  #  prepare:
+  #  mgr:
+  #  target:
 ```
 
 In addition to the CRD, you will also need to create a namespace, role, and role binding as seen in the [common cluster resources](#common-cluster-resources) below.

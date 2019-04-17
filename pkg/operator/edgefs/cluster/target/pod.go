@@ -442,6 +442,8 @@ func (c *Cluster) makeStatefulSet(replicas int32, rookImage string, dro edgefsv1
 	}
 
 	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &statefulSet.ObjectMeta, &c.ownerRef)
+	c.annotations.ApplyToObjectMeta(&statefulSet.ObjectMeta)
+	c.annotations.ApplyToObjectMeta(&statefulSet.Spec.Template.ObjectMeta)
 	c.placement.ApplyToPodSpec(&statefulSet.Spec.Template.Spec)
 
 	return statefulSet, nil

@@ -67,7 +67,7 @@ type Selection struct {
 	VolumeClaimTemplates []v1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`
 }
 
-type PlacementSpec map[string]Placement
+type PlacementSpec map[KeyType]Placement
 
 type Placement struct {
 	NodeAffinity    *v1.NodeAffinity    `json:"nodeAffinity,omitempty"`
@@ -119,3 +119,10 @@ type VolumeList struct {
 	metav1.ListMeta `json:"metadata"`
 	Items           []Volume `json:"items"`
 }
+
+// KeyType
+type KeyType string
+
+type AnnotationsSpec map[KeyType]Annotations
+
+type Annotations map[string]string

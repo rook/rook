@@ -85,6 +85,7 @@ func (c *CephNFSController) makeDeployment(n cephv1.CephNFS, name, configName st
 			Namespace: n.Namespace,
 		},
 	}
+	n.Spec.Server.Annotations.ApplyToObjectMeta(&deployment.ObjectMeta)
 	k8sutil.SetOwnerRef(c.context.Clientset, n.Namespace, &deployment.ObjectMeta, &c.ownerRef)
 	configMapSource := &v1.ConfigMapVolumeSource{
 		LocalObjectReference: v1.LocalObjectReference{Name: configName},
@@ -110,12 +111,12 @@ func (c *CephNFSController) makeDeployment(n cephv1.CephNFS, name, configName st
 
 	podTemplateSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        instanceName(n, name),
-			Labels:      getLabels(n, name),
-			Annotations: map[string]string{},
+			Name:   instanceName(n, name),
+			Labels: getLabels(n, name),
 		},
 		Spec: podSpec,
 	}
+	n.Spec.Server.Annotations.ApplyToObjectMeta(&podTemplateSpec.ObjectMeta)
 
 	// Multiple replicas of the nfs service would be handled by creating a service and a new deployment for each one, rather than increasing the pod count here
 	replicas := int32(1)

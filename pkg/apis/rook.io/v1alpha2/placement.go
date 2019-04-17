@@ -19,12 +19,8 @@ import (
 	"k8s.io/api/core/v1"
 )
 
-const (
-	PlacementKeyAll = "all"
-)
-
 func (p PlacementSpec) All() Placement {
-	return p[PlacementKeyAll]
+	return p[KeyAll]
 }
 
 // ApplyToPodSpec adds placement to a pod spec

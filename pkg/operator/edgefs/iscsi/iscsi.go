@@ -169,6 +169,7 @@ func (c *ISCSIController) makeDeployment(svcname, namespace, rookImage string, i
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 
+	iscsiSpec.Annotations.ApplyToObjectMeta(&podSpec.ObjectMeta)
 	// apply current ISCSI CRD options to pod's specification
 	iscsiSpec.Placement.ApplyToPodSpec(&podSpec.Spec)
 
@@ -187,6 +188,8 @@ func (c *ISCSIController) makeDeployment(svcname, namespace, rookImage string, i
 		},
 	}
 	k8sutil.SetOwnerRef(c.context.Clientset, namespace, &d.ObjectMeta, &c.ownerRef)
+	iscsiSpec.Annotations.ApplyToObjectMeta(&d.ObjectMeta)
+
 	return d
 }
 

@@ -41,6 +41,9 @@ spec:
   #  requests:
   #    cpu: "500m"
   #    memory: "1024Mi"
+  # A key/value list of annotations
+  annotations:
+  #  key: value
 ```
 
 ### Metadata
@@ -56,6 +59,7 @@ spec:
   - `MaxBurstLength`: Value in range 512..16777215. Default is 1048576.
   - `MaxQueueCmd`: Value in range 1..128. Default is 64.
 - `chunkCacheSize`: Limit amount of memory allocated for dynamic chunk cache. By default iSCSI pod uses up to 75% of available memory as chunk caching area. This option can influence this allocation strategy.
+- `annotations`: Key value pair list of annotations to add.
 - `placement`: The iSCSI pods can be given standard Kubernetes placement restrictions with `nodeAffinity`, `tolerations`, `podAffinity`, and `podAntiAffinity` similar to placement defined for daemons configured by the [cluster CRD](/cluster/examples/kubernetes/edgefs/cluster.yaml).
 - `resourceProfile`: iSCSI pod resource utilization profile (Memory and CPU). Can be `embedded` or `performance` (default). In case of `performance` an iSCSI pod trying to increase amount of internal I/O resources that results in higher performance at the cost of additional memory allocation and more CPU load. In `embedded` profile case, iSCSI pod gives preference to preserving memory over I/O and limiting chunk cache (see `chunkCacheSize` option). The `performance` profile is the default unless cluster wide `embedded` option is defined.
 - `resources`: Set resource requests/limits for the iSCSI pods, see [Resource Requirements/Limits](edgefs-cluster-crd.md#resource-requirementslimits).

@@ -57,6 +57,7 @@ func (c *Cluster) makeDeployment(monConfig *monConfig, hostname string) *apps.De
 		},
 	}
 	k8sutil.AddRookVersionLabelToDeployment(d)
+	cephv1.GetMonAnnotations(c.spec.Annotations).ApplyToObjectMeta(&d.ObjectMeta)
 	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &d.ObjectMeta, &c.ownerRef)
 
 	pod := c.makeMonPod(monConfig, hostname)
@@ -109,13 +110,13 @@ func (c *Cluster) makeMonPod(monConfig *monConfig, hostname string) *v1.Pod {
 
 	pod := &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        monConfig.ResourceName,
-			Namespace:   c.Namespace,
-			Labels:      c.getLabels(monConfig.DaemonName),
-			Annotations: map[string]string{},
+			Name:      monConfig.ResourceName,
+			Namespace: c.Namespace,
+			Labels:    c.getLabels(monConfig.DaemonName),
 		},
 		Spec: podSpec,
 	}
+	cephv1.GetMonAnnotations(c.spec.Annotations).ApplyToObjectMeta(&pod.ObjectMeta)
 
 	return pod
 }

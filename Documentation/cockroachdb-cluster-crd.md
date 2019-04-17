@@ -38,6 +38,9 @@ spec:
   secure: false
   cachePercent: 25
   maxSQLMemoryPercent: 25
+  # A key/value list of annotations
+  annotations:
+  #  key: value
 ```
 
 ## Cluster Settings
@@ -49,6 +52,7 @@ The settings below are specific to CockroachDB database clusters:
 * `secure`: `true` to create a secure cluster installation using certificates and encryption. `false` to create an insecure installation (strongly discouraged for production usage).  Currently, only insecure is supported.
 * `cachePercent`: The total size used for caches, expressed as a percentage of total physical memory.
 * `maxSQLMemoryPercent`: The maximum memory capacity available to store temporary data for SQL clients, expressed as a percentage of total physical memory.
+* `annotations`: Key value pair list of annotations to add.
 
 ### Storage Scope
 

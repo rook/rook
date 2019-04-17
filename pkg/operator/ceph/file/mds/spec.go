@@ -40,9 +40,8 @@ const (
 func (c *Cluster) makeDeployment(mdsConfig *mdsConfig) *apps.Deployment {
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        mdsConfig.ResourceName,
-			Labels:      c.podLabels(mdsConfig),
-			Annotations: map[string]string{},
+			Name:   mdsConfig.ResourceName,
+			Labels: c.podLabels(mdsConfig),
 		},
 		Spec: v1.PodSpec{
 			InitContainers: []v1.Container{},
@@ -57,6 +56,7 @@ func (c *Cluster) makeDeployment(mdsConfig *mdsConfig) *apps.Deployment {
 	if c.HostNetwork {
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
+	c.fs.Spec.MetadataServer.Annotations.ApplyToObjectMeta(&podSpec.ObjectMeta)
 	c.fs.Spec.MetadataServer.Placement.ApplyToPodSpec(&podSpec.Spec)
 
 	replicas := int32(1)
@@ -78,6 +78,7 @@ func (c *Cluster) makeDeployment(mdsConfig *mdsConfig) *apps.Deployment {
 		},
 	}
 	k8sutil.AddRookVersionLabelToDeployment(d)
+	c.fs.Spec.MetadataServer.Annotations.ApplyToObjectMeta(&d.ObjectMeta)
 	k8sutil.SetOwnerRefs(c.context.Clientset, c.fs.Namespace, &d.ObjectMeta, c.ownerRefs)
 	return d
 }

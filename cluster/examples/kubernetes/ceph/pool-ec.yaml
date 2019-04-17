@@ -17,3 +17,6 @@ spec:
   erasureCoded:
     dataChunks: 2
     codingChunks: 1
+  # A key/value list of annotations
+  annotations:
+  #  key: value

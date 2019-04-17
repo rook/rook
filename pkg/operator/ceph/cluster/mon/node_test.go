@@ -138,8 +138,8 @@ func TestNodeAffinity(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 3, len(nodes))
 
-	c.spec.Placement = map[string]rookalpha.Placement{}
-	c.spec.Placement["mon"] = rookalpha.Placement{NodeAffinity: &v1.NodeAffinity{
+	c.spec.Placement = map[rookalpha.KeyType]rookalpha.Placement{}
+	c.spec.Placement[cephv1.KeyMon] = rookalpha.Placement{NodeAffinity: &v1.NodeAffinity{
 		RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
 			NodeSelectorTerms: []v1.NodeSelectorTerm{
 				{

@@ -49,9 +49,10 @@ func (m *Mirroring) makeDeployment(daemonConfig *daemonConfig) *apps.Deployment 
 	replicas := int32(1)
 	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      daemonConfig.ResourceName,
-			Namespace: m.Namespace,
-			Labels:    opspec.PodLabels(appName, m.Namespace, string(config.RbdMirrorType), daemonConfig.DaemonID),
+			Name:        daemonConfig.ResourceName,
+			Namespace:   m.Namespace,
+			Annotations: m.annotations,
+			Labels:      opspec.PodLabels(appName, m.Namespace, string(config.RbdMirrorType), daemonConfig.DaemonID),
 		},
 		Spec: apps.DeploymentSpec{
 			Selector: &metav1.LabelSelector{

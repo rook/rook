@@ -43,6 +43,7 @@ type Mirroring struct {
 	ClusterInfo     *cephconfig.ClusterInfo
 	Namespace       string
 	placement       rookalpha.Placement
+	annotations     rookalpha.Annotations
 	context         *clusterd.Context
 	resources       v1.ResourceRequirements
 	ownerRef        metav1.OwnerReference
@@ -60,6 +61,7 @@ func New(
 	namespace, rookVersion string,
 	cephVersion cephv1.CephVersionSpec,
 	placement rookalpha.Placement,
+	annotations rookalpha.Annotations,
 	hostNetwork bool,
 	spec cephv1.RBDMirroringSpec,
 	resources v1.ResourceRequirements,
@@ -71,6 +73,7 @@ func New(
 		context:         context,
 		Namespace:       namespace,
 		placement:       placement,
+		annotations:     annotations,
 		rookVersion:     rookVersion,
 		cephVersion:     cephVersion,
 		spec:            spec,

@@ -34,3 +34,6 @@ spec:
   secure: false
   cachePercent: 25
   maxSQLMemoryPercent: 25
+  # A key/value list of annotations
+  annotations:
+  #  key: value
