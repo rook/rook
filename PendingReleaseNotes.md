@@ -26,6 +26,7 @@
 - Orchestration is automatically triggered when addition or removal of storage
   devices is detected. This should remove the requirement of restarting the
   operator to detect new devices.
+- Rook will now set `noout` on the CephClusters that have osd Nodes tainted `NoSchedule`
 
 ## Breaking Changes
 

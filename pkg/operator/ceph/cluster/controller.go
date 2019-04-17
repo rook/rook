@@ -29,6 +29,7 @@ import (
 	cephbeta "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
@@ -366,16 +367,22 @@ func (c *ClusterController) onK8sNodeUpdate(oldObj, newObj interface{}) {
 		return
 	}
 
-	if k8sutil.GetNodeSchedulable(*newNode) == false {
-		logger.Debugf("Skipping cluster update. Updated node %s is unschedulable", newNode.Labels[apis.LabelHostname])
+	// set or unset noout depending on whether nodes are schedulable.
+	c.reconcileNodeMaintenance(newNode)
+
+	newNodeSchedulable := k8sutil.GetNodeSchedulable(*newNode)
+	oldNodeSchedulable := k8sutil.GetNodeSchedulable(*oldNode)
+
+	// Checking for NoSchedule added to storage node
+	if oldNodeSchedulable == false && newNodeSchedulable == false {
+		logger.Debugf("Skipping cluster update. Updated node %s was and is still unschedulable", newNode.Labels[apis.LabelHostname])
 		return
 	}
-
-	// Checking for nodes where NoSchedule-Taint got removed
-	if k8sutil.GetNodeSchedulable(*oldNode) == true {
+	if oldNodeSchedulable == true && newNodeSchedulable == true {
 		logger.Debugf("Skipping cluster update. Updated node %s was and it is still schedulable", oldNode.Labels[apis.LabelHostname])
 		return
 	}
+	// Checking for nodes where NoSchedule-Taint got removed
 
 	for _, cluster := range c.clusterMap {
 		if cluster.Info == nil {
@@ -395,6 +402,77 @@ func (c *ClusterController) onK8sNodeUpdate(oldObj, newObj interface{}) {
 		}
 		logger.Infof("Added updated node %s to cluster %s", newNode.Labels[apis.LabelHostname], cluster.Namespace)
 	}
+}
+
+// set or unset noout depending on whether nodes are schedulable.
+func (c *ClusterController) reconcileNodeMaintenance(updatedNode *v1.Node) {
+	clusters := c.getTenantClusters(updatedNode)
+
+	for _, cluster := range clusters {
+		if cluster.Info.IsInitialized() {
+			nodes, err := osd.GetAllStorageNodes(cluster.context, cluster.Namespace)
+			if err != nil {
+				logger.Errorf("Error getting all storage nodes for cluster: %v", err)
+			}
+			allSchedulable := true
+			for _, node := range nodes {
+				if !k8sutil.GetNodeSchedulable(node) {
+					allSchedulable = false
+					break
+				}
+			}
+			osdDump, err := client.GetOSDDump(c.context, cluster.Info.Name)
+			if err != nil {
+				logger.Errorf("failed to get the noout value: %+v", err)
+			}
+			nooutFlagSet := osdDump.IsFlagSet("noout")
+			if allSchedulable {
+				if nooutFlagSet {
+					logger.Infof("Unsetting noout because no storage nodes are in maintenance")
+					client.UnsetNoOut(c.context, cluster.Info.Name)
+				} else {
+					logger.Debugf("No storage nodes are in maintenance. Noout already unset.")
+				}
+			} else {
+				if !nooutFlagSet {
+					logger.Infof("Setting noout because a storage node is in maintenance")
+					client.SetNoOut(c.context, cluster.Info.Name)
+				} else {
+					logger.Debugf("A storage node is in maintenance. Noout already set.")
+				}
+			}
+		} else {
+			logger.Errorf("The cluster's info is uninitialized")
+		}
+	}
+
+}
+
+// makes a list of all clusters that have osds on the node
+func (c *ClusterController) getTenantClusters(node *v1.Node) []*cluster {
+	var clusters []*cluster
+	// list osd deployments for all namespaces
+	for namespace, clusterObj := range c.clusterMap {
+		listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", osd.AppName)}
+		osdDeployments, err := c.context.Clientset.Apps().Deployments(namespace).List(listOpts)
+		if err != nil {
+			logger.Errorf("Failed to get deployments, %v", err)
+		}
+		for _, osdDeployment := range osdDeployments.Items {
+			osdPodSpec := osdDeployment.Spec.Template.Spec
+			// get the node name from the node selector
+			nodeName, ok := osdPodSpec.NodeSelector[apis.LabelHostname]
+			if !ok || nodeName == "" {
+				logger.Errorf("osd deployment %s doesn't have a node name on its node selector: %+v", osdDeployment.Name, osdPodSpec.NodeSelector)
+			} else if nodeName == node.ObjectMeta.Name {
+				clusters = append(clusters, clusterObj)
+				break
+			}
+
+		}
+	}
+	return clusters
+
 }
 
 func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {

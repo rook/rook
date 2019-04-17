@@ -154,7 +154,7 @@ func TestAddRemoveNode(t *testing.T) {
 	// simulate the OSD pod having been created
 	osdPod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{
 		Name:   "osdPod",
-		Labels: map[string]string{k8sutil.AppAttr: appName}}}
+		Labels: map[string]string{k8sutil.AppAttr: AppName}}}
 	c.context.Clientset.CoreV1().Pods(c.Namespace).Create(osdPod)
 
 	// mock the ceph calls that will be called during remove node
@@ -274,7 +274,7 @@ func TestDiscoverOSDs(t *testing.T) {
 	clientset := fake.NewSimpleClientset(d1, d2, d3)
 	c.context.Clientset = clientset
 
-	discovered, err := c.discoverStorageNodes()
+	discovered, err := DiscoverStorageNodes(c.context, c.Namespace)
 	require.Nil(t, err)
 	assert.Equal(t, 2, len(discovered))
 
