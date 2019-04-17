@@ -391,6 +391,7 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, name
 		"cephobjectstores.ceph.rook.io",
 		"cephobjectstoreusers.ceph.rook.io",
 		"cephfilesystems.ceph.rook.io",
+		"cephnfses.ceph.rook.io",
 		"volumes.rook.io")
 	checkError(h.T(), err, "cannot delete CRDs")
 
