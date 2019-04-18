@@ -58,10 +58,6 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	require.Nil(s.T(), cosuErr)
 	logger.Infof("Waiting 10 seconds to ensure user was created")
 	time.Sleep(10 * time.Second)
-	userInfo, gosuErr := helper.ObjectUserClient.GetUser(namespace, storeName, userid)
-	require.Nil(s.T(), gosuErr)
-	require.Equal(s.T(), userid, userInfo.UserID)
-	require.Equal(s.T(), userdisplayname, *userInfo.DisplayName)
 	logger.Infof("Checking to see if the user secret has been created")
 	i := 0
 	for i = 0; i < 4 && helper.ObjectUserClient.UserSecretExists(namespace, storeName, userid) == false; i++ {
@@ -69,8 +65,12 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 		time.Sleep(5 * time.Second)
 	}
 	assert.True(s.T(), helper.ObjectUserClient.UserSecretExists(namespace, storeName, userid))
+	userInfo, gosuErr := helper.ObjectUserClient.GetUser(namespace, storeName, userid)
+	assert.Nil(s.T(), gosuErr)
+	assert.Equal(s.T(), userid, userInfo.UserID)
+	assert.Equal(s.T(), userdisplayname, *userInfo.DisplayName)
 
-	logger.Infof("Object store user created successfully")
+	logger.Infof("Done creating object store user")
 
 	/* TODO: We need bucket management tests.
 
@@ -144,8 +144,8 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 
 	logger.Infof("Delete Object Store")
 	dobsErr := helper.ObjectClient.Delete(namespace, storeName)
-	require.Nil(s.T(), dobsErr)
-	logger.Infof("Object store deleted successfully")
+	assert.Nil(s.T(), dobsErr)
+	logger.Infof("Done deleting object store")
 }
 
 // Test Object StoreCreation on Rook that was installed via helm

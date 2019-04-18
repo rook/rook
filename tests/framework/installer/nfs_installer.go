@@ -199,8 +199,8 @@ func (h *NFSInstaller) UninstallNFSServer(systemNamespace, namespace string) {
 // GatherAllNFSServerLogs gathers all NFS Server logs
 func (h *NFSInstaller) GatherAllNFSServerLogs(systemNamespace, namespace, testName string) {
 	logger.Infof("Gathering all logs from NFSServer %s", namespace)
-	h.k8shelper.GetRookLogs("rook-nfs-operator", Env.HostType, systemNamespace, testName)
-	h.k8shelper.GetRookLogs("rook-nfs", Env.HostType, namespace, testName)
+	h.k8shelper.GetLogs("rook-nfs-operator", Env.HostType, systemNamespace, testName)
+	h.k8shelper.GetLogs("rook-nfs", Env.HostType, namespace, testName)
 }
 
 // GetNFSServerClusterIP gets the nfs server cluster ip on which it serves

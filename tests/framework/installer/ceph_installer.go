@@ -309,7 +309,7 @@ func (h *CephInstaller) InstallRookOnK8sWithHostPathAndDevices(namespace, storeT
 	}
 	if !h.k8shelper.IsPodInExpectedState("rook-ceph-operator", onamespace, "Running") {
 		logger.Error("rook-ceph-operator is not running")
-		h.k8shelper.GetRookLogs("rook-ceph-operator", Env.HostType, onamespace, "test-setup")
+		h.k8shelper.GetLogs("rook-ceph-operator", Env.HostType, onamespace, "test-setup")
 		logger.Error("rook-ceph-operator is not Running, abort!")
 		return false, err
 	}
@@ -391,6 +391,7 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, name
 		"cephobjectstores.ceph.rook.io",
 		"cephobjectstoreusers.ceph.rook.io",
 		"cephfilesystems.ceph.rook.io",
+		"cephnfses.ceph.rook.io",
 		"volumes.rook.io")
 	checkError(h.T(), err, "cannot delete CRDs")
 
@@ -485,20 +486,21 @@ func (h *CephInstaller) cleanupDir(node, dir string) error {
 
 func (h *CephInstaller) GatherAllRookLogs(namespace, systemNamespace string, testName string) {
 	logger.Infof("Gathering all logs from Rook Cluster %s", namespace)
-	h.k8shelper.GetRookLogs("rook-ceph-operator", Env.HostType, systemNamespace, testName)
-	h.k8shelper.GetRookLogs("rook-ceph-agent", Env.HostType, systemNamespace, testName)
-	h.k8shelper.GetRookLogs("rook-discover", Env.HostType, systemNamespace, testName)
-	h.k8shelper.GetRookLogs("rook-ceph-mgr", Env.HostType, namespace, testName)
-	h.k8shelper.GetRookLogs("rook-ceph-mon", Env.HostType, namespace, testName)
-	h.k8shelper.GetRookLogs("rook-ceph-osd", Env.HostType, namespace, testName)
-	h.k8shelper.GetRookLogs("rook-ceph-osd-prepare", Env.HostType, namespace, testName)
-	h.k8shelper.GetRookLogs("rook-ceph-rgw", Env.HostType, namespace, testName)
-	h.k8shelper.GetRookLogs("rook-ceph-mds", Env.HostType, namespace, testName)
-	h.k8shelper.GetRookContainerLogs("rook-ceph-mgr", Env.HostType, namespace, testName, opspec.ConfigInitContainerName)
-	h.k8shelper.GetRookContainerLogs("rook-ceph-mon", Env.HostType, namespace, testName, opspec.ConfigInitContainerName)
-	h.k8shelper.GetRookContainerLogs("rook-ceph-osd", Env.HostType, namespace, testName, opspec.ConfigInitContainerName)
-	h.k8shelper.GetRookContainerLogs("rook-ceph-rgw", Env.HostType, namespace, testName, opspec.ConfigInitContainerName)
-	h.k8shelper.GetRookContainerLogs("rook-ceph-mds", Env.HostType, namespace, testName, opspec.ConfigInitContainerName)
+	h.k8shelper.GetPreviousLogs("rook-ceph-operator", Env.HostType, systemNamespace, testName)
+	h.k8shelper.GetLogs("rook-ceph-operator", Env.HostType, systemNamespace, testName)
+	h.k8shelper.GetLogs("rook-ceph-agent", Env.HostType, systemNamespace, testName)
+	h.k8shelper.GetLogs("rook-discover", Env.HostType, systemNamespace, testName)
+	h.k8shelper.GetLogs("rook-ceph-mgr", Env.HostType, namespace, testName)
+	h.k8shelper.GetLogs("rook-ceph-mon", Env.HostType, namespace, testName)
+	h.k8shelper.GetLogs("rook-ceph-osd", Env.HostType, namespace, testName)
+	h.k8shelper.GetLogs("rook-ceph-osd-prepare", Env.HostType, namespace, testName)
+	h.k8shelper.GetLogs("rook-ceph-rgw", Env.HostType, namespace, testName)
+	h.k8shelper.GetLogs("rook-ceph-mds", Env.HostType, namespace, testName)
+	h.k8shelper.GetContainerLogs("rook-ceph-mgr", Env.HostType, namespace, testName, opspec.ConfigInitContainerName)
+	h.k8shelper.GetContainerLogs("rook-ceph-mon", Env.HostType, namespace, testName, opspec.ConfigInitContainerName)
+	h.k8shelper.GetContainerLogs("rook-ceph-osd", Env.HostType, namespace, testName, opspec.ConfigInitContainerName)
+	h.k8shelper.GetContainerLogs("rook-ceph-rgw", Env.HostType, namespace, testName, opspec.ConfigInitContainerName)
+	h.k8shelper.GetContainerLogs("rook-ceph-mds", Env.HostType, namespace, testName, opspec.ConfigInitContainerName)
 }
 
 // NewCephInstaller creates new instance of CephInstaller
