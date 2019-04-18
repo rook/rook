@@ -9,9 +9,12 @@ indent: true
 Here is a guide on how to use Rook to deploy ceph-csi drivers on a Kubernetes
 cluster.
 
-- [Enable CSI drivers](#csi-drivers-enablement)
-- [Test RBD CSI driver](#Test-RBD-CSI-Driver)
-- [Test CephFS CSI driver](#Test-CephFs-CSI-Driver)
+- [Prerequisites](##Prerequisites)
+- [Overview](##Overview)
+- [Namespace and CRD Creation](##Namespace-and-CRD-creation)
+- [Deploying the Operator](##Rook-Ceph-Operator-with-CSI)
+- [Configuring the Ceph cluster](##Configure-and-deploy-the-Ceph-Cluster)
+- [Finalize Settings and Create a StorageClass](Create-Secrets-Object-and-Configure-a-Storageclass)
 
 ## Prerequisites
 
@@ -20,30 +23,76 @@ cluster.
    [kubelet](https://kubernetes.io/docs/reference/command-line-tools-reference/kubelet/)
    and your [API
    server](https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/)
-3. An up and running Rook instance (see [Rook - Ceph quickstart
-   guide](https://github.com/rook/rook/blob/master/Documentation/ceph-quickstart.md))
 
-## CSI Drivers Enablement
+## Cluster and CSI Plugin Deployment Overview
 
-### Create RBAC used by CSI drivers in the same namespace as Rook Ceph Operator
+*NOTE*
+The following examples assume you've cloned the [rook](https://github.com/rook/rook) repo and you're working from its root directory. 
+This example is primarily focused on the use of the Ceph RBD Plugin only.
+
+The actual deployment of the Ceph Cluster and the CSI Plugins are fairly straight forward.  This guide will walk through the steps
+using the included example manifests.
+
+
+Rook provides an Operator that will not only deploy a Ceph cluster on your Kubernetes deployment, but it will also deploy the Ceph CSI
+plugins as well.  There are basically just four steps to the actual deployment:
+1. Create our rook-ceph Namespaces and ceph CRD
+2. Deploy the Rook ceph operator-with-csi
+3. Provide Cluster configuration for the Operator
+4. Finalize the deployment and create a StorageClass to associate with the Ceph CSI Plugin
+
+## Namespace and CRD creation
+
+The example common manifest is typically fine for most deployments, it creates a `rook-ceph` Namespace for the Cluster and CSI Plugins
+and also sets up our CRDS to deploy the Ceph Cluster and CSI Plugins:
 
 ```console
-# create rbac. Since rook operator is not permitted to create rbac rules,
-# these rules have to be created outside of operator
+kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
+```
+
+We also need to set up our rbac rules, again you can use the example provided, note in our example we're not deploying the CephFS plugin,
+if you wish to add include that you'll need to add the example cephfs rbac rules as well:
+Ceate rbac. Since rook operator is not permitted to create rbac rules, these rules have to be created outside of operator.  In our example
+we're not deploying the cephfs plugin, if you wish to deploy the cephfs plugin as well youll need to add the example rbac rules for cephfs
+as well.
+
+```console
 kubectl apply -f cluster/examples/kubernetes/ceph/csi/rbac/rbd/
+```
+
+If you're deploying CephFS, don't forget 
+```console
 kubectl apply -f cluster/examples/kubernetes/ceph/csi/rbac/cephfs/
 ```
 
-### Start Rook Ceph Operator
+## Rook Ceph Operator with CSI
+
+The Ceph with CSI Operator will deploy our Ceph cluster as well as the Ceph CSI Plugins.  You may wish to modify the manifest if for
+example you want to enable only the RBD plugin (disable the CephFS plugin).  Otherwise, again the example is fine for most deployments:
 
 ```console
-kubectl apply -f cluster/examples/kubernetes/ceph/operator-with-csi.yaml
+kubectl create -f cluster/examples/kubernetes/ceph/operator-with-csi.yaml
 ```
 
-### Verify CSI drivers and Operator are up and running
+## Configure and deploy the Ceph Cluster
 
-```bash
-# kubectl get all -n rook-ceph
+The cluster manifest provides the ability to specify things like raw block devices on each node to use, ceph version to deploy, mon count etc.
+For example, if you have unused raw disks attached to each node as `/dev/sdg`, modify the `cluster.yaml` file deviceFilter parameter to specify
+you want to use that device.  Otherwise, using the example manifest unmodified, your OSDs will be created using loop devices which is fine for
+a quick test.
+
+```console
+kubectl create -f cluster/examples/kubernetes/ceph/cluster.yaml
+```
+
+The creation and deployment of the Ceph cluster will take some time.  Some key steps to watch for are the creation of mons-a, b and c and the
+creation of your OSD pods.  You can watch the output of `kubectl get all -n rook-ceph` to see how things are progressing and to ensure that
+everything is completed.
+
+Here's an example of the output you should expect from the get all command referenced above:
+
+```console
+kubectl get all -n rook-ceph
 NAME                                       READY   STATUS      RESTARTS   AGE
 pod/csi-cephfsplugin-nd5tv                 2/2     Running     1          4m5s
 pod/csi-cephfsplugin-provisioner-0         2/2     Running     0          4m5s
@@ -104,115 +153,30 @@ statefulset.apps/csi-cephfsplugin-provisioner   1/1     4m5s
 statefulset.apps/csi-rbdplugin-provisioner      1/1     4m5s
 ```
 
-Once the plugin is successfully deployed, test it by running the following example.
+Once you have your osd pods running and your DESIRED/CURRENT counts match up, you should be ready to create a storage class.
+
+## Create Secrets Object and Configure a Storageclass
+
+The final step is to create a storage pool on the cluster and a kubernetes storageclass.  You'll need a few things to set this up:
+1. The ceph toolbox pod deployed on your cluster (`kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml`)
+2. CLUSTER-IP of the ceph-mon services (avaialble via the output of `kubectl get all -n rook-ceph`)
+3. A Kubernetes Secrets object that includes base64 encoded passwords for Ceph users `admin` and `kubernetes`
+
+
+
+To make this a bit easier, we include and example script.  This script when executed will deploy the toolbox, create the storage pool,
+gather the retrieve the base64 encoded passwords from the cluster, create a secrets file and finally configure and deploy a storageclass.
+Alternatively you can use the example storageclass file (`cluster/examples/kubernetes/ceph/csi/example/rbd/storageclass.yaml`) and edit it
+yourself.
+
+Feel free to copy the example script `cluster/examples/kubernetes/ceph/csi/example/rbd/configure-storageclass.bash` and modify if needed to
+create a storageclass.  Or you can use the example manifests and modify them on your own with the appropriate information.  In particular
+you'll need the secret key for the `admin` and `kubernetes` accounts on your ceph cluster, and the cluster IPs for your ceph-mons.
+
+If you choose to use the script, assuming you have a default of 3 ceph-mons and the ceph toolbox has been deployed you should be able to 
+simply run the script with no arguments to configure and create your storageclass.
 
 # Test RBD CSI Driver
-
-## Create RBD StorageClass
-
-This
-[storageclass](../cluster/examples/kubernetes/ceph/csi/example/rbd/storageclass.yaml)
-expects a pool named `rbd` in your Ceph cluster. You can create this pool using
-[rook pool
-CRD](https://github.com/rook/rook/blob/master/Documentation/ceph-pool-crd.md).
-
-Please update `monitors` to reflect the Ceph monitors.
-
-```console
-kubectl create -f cluster/examples/kubernetes/ceph/csi/example/rbd/storegeclass.yaml
-```
-
-## Create RBD Secret
-
-Create a Secret that matches `adminid` or `userid` specified in the
-[storageclass](../cluster/examples/kubernetes/ceph/csi/example/rbd/storageclass.yaml).
-
-Find a Ceph operator pod (in the following example, the pod is
-`rook-ceph-operator-7464bd774c-scb5c`) and create a Ceph user for that pool called
-`kubernetes`:
-
-```bash
-kubectl exec -ti -n rook-ceph rook-ceph-operator-7464bd774c-scb5c -- bash -c "ceph -c /var/lib/rook/rook-ceph/rook-ceph.config auth get-or-create-key client.kubernetes mon \"allow profile rbd\" osd \"profile rbd pool=rbd\""
-```
-
-Then create a Secret using admin and `kubernetes` keyrings:
-
-In [secret](../cluster/examples/kubernetes/ceph/csi/example/rbd/secret.yaml),
-you need your Ceph admin/user password encoded in base64.
-
-Run `ceph auth ls` in your rook ceph operator pod, to encode the key of your
-admin/user run `echo -n KEY|base64`
-and replace `BASE64-ENCODED-PASSWORD` by your encoded key.
-
-```bash
-kubectl exec -ti -n rook-ceph rook-ceph-operator-6c49994c4f-pwqcx /bin/sh
-sh-4.2# ceph auth ls
-installed auth entries:
-
-osd.0
-	key: AQA3pa1cN/fODBAAc/jIm5IQDClm+dmekSmSlg==
-	caps: [mgr] allow profile osd
-	caps: [mon] allow profile osd
-	caps: [osd] allow *
-osd.1
-	key: AQBXpa1cTjuYNRAAkohlInoYAa6A3odTRDhnAg==
-	caps: [mgr] allow profile osd
-	caps: [mon] allow profile osd
-	caps: [osd] allow *
-osd.2
-	key: AQB4pa1cvJidLRAALZyAtuOwArO8JZfy7Y5pFg==
-	caps: [mgr] allow profile osd
-	caps: [mon] allow profile osd
-	caps: [osd] allow *
-osd.3
-	key: AQCcpa1cFFQRHRAALBYhqO3m0FRA9pxTOFT2eQ==
-	caps: [mgr] allow profile osd
-	caps: [mon] allow profile osd
-	caps: [osd] allow *
-client.admin
-	key: AQD0pK1cqcBDCBAAdXNXfgAambPz5qWpsq0Mmw==
-	auid: 0
-	caps: [mds] allow *
-	caps: [mgr] allow *
-	caps: [mon] allow *
-	caps: [osd] allow *
-client.bootstrap-mds
-	key: AQD6pK1crJyZCxAA1UTGwtyFv3YYFcBmhWHyoQ==
-	caps: [mon] allow profile bootstrap-mds
-client.bootstrap-mgr
-	key: AQD6pK1c2KaZCxAATWi/I3i0/XEesSipy/HeIA==
-	caps: [mon] allow profile bootstrap-mgr
-client.bootstrap-osd
-	key: AQD6pK1cwa+ZCxAA7XKXRyLQpaHZ+lRXeUk8xQ==
-	caps: [mon] allow profile bootstrap-osd
-client.bootstrap-rbd
-	key: AQD6pK1cULmZCxAA4++Ch/iRKa52297/rbHP+w==
-	caps: [mon] allow profile bootstrap-rbd
-client.bootstrap-rgw
-	key: AQD6pK1cbMKZCxAAGKj5HaMoEl41LHqEafcfPA==
-	caps: [mon] allow profile bootstrap-rgw
-mgr.a
-	key: AQAZpa1chl+DAhAAYyolLBrkht+0sH0HljkFIg==
-	caps: [mds] allow *
-	caps: [mon] allow *
-	caps: [osd] allow *
-
-#encode admin/user key
-sh-4.2# echo -n AQD0pK1cqcBDCBAAdXNXfgAambPz5qWpsq0Mmw==|base64
-QVFEMHBLMWNxY0JEQ0JBQWRYTlhmZ0FhbWJQejVxV3BzcTBNbXc9PQ==
-#or
-sh-4.2# ceph auth get-key client.admin|base64
-QVFEMHBLMWNxY0JEQ0JBQWRYTlhmZ0FhbWJQejVxV3BzcTBNbXc9PQ==
-```
-
-```console
-kubectl create -f cluster/examples/kubernetes/ceph/csi/example/rbd/secret.yaml
-```
-
-## Create RBD PersistentVolumeClaim
-
-Make sure your `storageClassName` is the name of the StorageClass previously
-defined in storageclass.yaml
 
 ```console
 kubectl create -f cluster/examples/kubernetes/ceph/csi/example/rbd/pvc.yaml
@@ -239,7 +203,7 @@ When running `rbd list block --pool [yourpool]` in one of your Ceph pods you
 should see the created PVC:
 
 ```bash
-# rbd list block --pool rbd
+rbd list block --pool rbd
 pvc-c20495c0d5de11e8
 ```
 
