@@ -9,7 +9,7 @@ indent: true
 Here is a guide on how to use Rook to deploy ceph-csi drivers on a Kubernetes
 cluster.
 
-- [Enable CSI drivers](#csi-drivers-enablement)
+- [Enable CSI drivers](#CSI-Plugin-Deployment-and-Configuration)
 - [Test RBD CSI driver](#Test-RBD-CSI-Driver)
 - [Test CephFS CSI driver](#Test-CephFs-CSI-Driver)
 
@@ -20,10 +20,11 @@ cluster.
    [kubelet](https://kubernetes.io/docs/reference/command-line-tools-reference/kubelet/)
    and your [API
    server](https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/)
-3. An up and running Rook instance (see [Rook - Ceph quickstart
-   guide](https://github.com/rook/rook/blob/master/Documentation/ceph-quickstart.md))
 
-## CSI Drivers Enablement
+## CSI Plugin Deployment and Configuration 
+
+*NOTE*
+The following examples assume you've cloned the [rook](https://github.com/rook/rook) repo and you're working from its root directory. 
 
 ### Create RBAC used by CSI drivers in the same namespace as Rook Ceph Operator
 
@@ -34,16 +35,17 @@ kubectl apply -f cluster/examples/kubernetes/ceph/csi/rbac/rbd/
 kubectl apply -f cluster/examples/kubernetes/ceph/csi/rbac/cephfs/
 ```
 
-### Start Rook Ceph Operator
-
+### Deploy your Ceph Cluster and the CSI plugin
 ```console
-kubectl apply -f cluster/examples/kubernetes/ceph/operator-with-csi.yaml
+kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
+kubectl create -f cluster/examples/kubernetes/ceph/operator-with-csi.yaml
+kubectl create -f cluster/examples/kubernetes/ceph/cluster.yaml
 ```
 
 ### Verify CSI drivers and Operator are up and running
 
-```bash
-# kubectl get all -n rook-ceph
+```console
+kubectl get all -n rook-ceph
 NAME                                       READY   STATUS      RESTARTS   AGE
 pod/csi-cephfsplugin-nd5tv                 2/2     Running     1          4m5s
 pod/csi-cephfsplugin-provisioner-0         2/2     Running     0          4m5s
@@ -104,110 +106,131 @@ statefulset.apps/csi-cephfsplugin-provisioner   1/1     4m5s
 statefulset.apps/csi-rbdplugin-provisioner      1/1     4m5s
 ```
 
-Once the plugin is successfully deployed, test it by running the following example.
+### Deploy the Ceph toolbox
+
+```console
+kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
+```
+
 
 # Test RBD CSI Driver
 
+## Create a CephBlockPool for our storage class to provision PVs from
+
+```bash
+<< EOF | kubectl create -f -
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: rbd
+  namespace: rook-ceph
+spec:
+  failureDomain: host
+  replicated:
+    size: 3
+EOF
+```
+
+## Create a Secrets object (plugin will access our Ceph cluster via this secrets file)
+
+We need credential for two users on the Ceph Cluster; *admin* and *kubernetes*.  We can obtain these from the Operator
+pod using the ceph toolbox. 
+
+*NOTE* 
+You may need to create the kubernetes account on the cluster first, you can run the following to issue a get_or_create,
+if the account already exists this will just fetch it without making any modifications to its settings:
+
+```bash
+(pod=$(kubectl get pod -n rook-ceph -l app=rook-ceph-operator -o jsonpath="{.items[0].metadata.name}"); kubectl exec -ti -n rook-ceph ${pod} -- bash -c "ceph -c /var/lib/rook/rook-ceph/rook-ceph.config auth get-or-create-key client.kubernetes mon \"allow profile rbd\" osd \"profile rbd pool=rbd\"")
+```
+
+Now that we've ensured that we have our required accounts on the Ceph Cluster, we need to obtain the base64 encoded passwords to log in to these accounts and use them to create our Secrets:
+
+```bash
+admin_key=$(pod=$(kubectl get pod -n rook-ceph -l app=rook-ceph-operator -o jsonpath="{.items[0].metadata.name}"); kubectl exec -ti -n rook-ceph ${pod} -- bash -c "ceph auth get-key client.admin -c /var/lib/rook/rook-ceph/rook-ceph.config | base64")
+
+kubernetes_key=$(pod=$(kubectl get pod -n rook-ceph -l app=rook-ceph-operator -o jsonpath="{.items[0].metadata.name}"); kubectl exec -ti -n rook-ceph ${pod} -- bash -c "ceph auth get-key client.kubernetes -c /var/lib/rook/rook-ceph/rook-ceph.config | base64")
+```
+
+```bash
+<< EOF | kubectl create -f -
+apiVersion: v1
+kind: Secret
+metadata:
+  name: csi-rbd-secret
+  namespace: default
+data:
+  # Key value corresponds to a user name defined in Ceph cluster
+  admin: ${admin_key}
+  # Key value corresponds to a user name defined in Ceph cluster
+  kubernetes: ${kubernetes_key}
+  # if monValueFromSecret is set to "monitors", uncomment the
+  # following and set the mon there
+  #monitors: BASE64-ENCODED-Comma-Delimited-Mons
+EOF
+```
+
 ## Create RBD StorageClass
 
-This
-[storageclass](../cluster/examples/kubernetes/ceph/csi/example/rbd/storageclass.yaml)
-expects a pool named `rbd` in your Ceph cluster. You can create this pool using
-[rook pool
-CRD](https://github.com/rook/rook/blob/master/Documentation/ceph-pool-crd.md).
+Create a `storageclass` be sure to update the `monitors` entry to reflect the IP of your
+monitors, and also your base64 encoded Admin and Kubernetes user passwords.
 
-Please update `monitors` to reflect the Ceph monitors.
+Copy the example storageclass file `cluster/examples/kubernetes/ceph/csi/example/rbd/storageclass.yaml` to your own file named `my-storageclass.yaml`, obtain the Cluster IPs for the mons from the `kubectl get all -n rook-ceph` output above
 
-```console
-kubectl create -f cluster/examples/kubernetes/ceph/csi/example/rbd/storegeclass.yaml
-```
-
-## Create RBD Secret
-
-Create a Secret that matches `adminid` or `userid` specified in the
-[storageclass](../cluster/examples/kubernetes/ceph/csi/example/rbd/storageclass.yaml).
-
-Find a Ceph operator pod (in the following example, the pod is
-`rook-ceph-operator-7464bd774c-scb5c`) and create a Ceph user for that pool called
-`kubernetes`:
+Replace the example monitor entries `monitors: mon1:port,mon2:port,...` with the ClusterIP:Port info from the get all ouput; for example
 
 ```bash
-kubectl exec -ti -n rook-ceph rook-ceph-operator-7464bd774c-scb5c -- bash -c "ceph -c /var/lib/rook/rook-ceph/rook-ceph.config auth get-or-create-key client.kubernetes mon \"allow profile rbd\" osd \"profile rbd pool=rbd\""
+................
+service/rook-ceph-mon-a                ClusterIP   10.108.83.214    <none>        6789/TCP   6m4s
+service/rook-ceph-mon-b                ClusterIP   10.104.64.44     <none>        6789/TCP   5m56s
+service/rook-ceph-mon-c                ClusterIP   10.103.170.196   <none>        6789/TCP   5m45s
+................
 ```
 
-Then create a Secret using admin and `kubernetes` keyrings:
+Would be `monitors: 10.108.83.214:6789,10.104.64.44:6789,10.103.170.196:6789`
 
-In [secret](../cluster/examples/kubernetes/ceph/csi/example/rbd/secret.yaml),
-you need your Ceph admin/user password encoded in base64.
+Our example would result in a storageclass.yaml file that looks like the one below:
 
-Run `ceph auth ls` in your rook ceph operator pod, to encode the key of your
-admin/user run `echo -n KEY|base64`
-and replace `BASE64-ENCODED-PASSWORD` by your encoded key.
+```yaml 
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+   name: csi-rbd
+provisioner: rbd.csi.ceph.com
+parameters:
+    # Comma separated list of Ceph monitors
+    # if using FQDN, make sure csi plugin's dns policy is appropriate.
+	monitors: 10.108.83.214:6789,10.104.64.44:6789,10.103.170.196:6789  
 
-```bash
-kubectl exec -ti -n rook-ceph rook-ceph-operator-6c49994c4f-pwqcx /bin/sh
-sh-4.2# ceph auth ls
-installed auth entries:
+    # if "monitors" parameter is not set, driver to get monitors from same
+    # secret as admin/user credentials. "monValueFromSecret" provides the
+    # key in the secret whose value is the mons
+    #monValueFromSecret: "monitors"
+    
+    # Ceph pool into which the RBD image shall be created
+    pool: rbd
 
-osd.0
-	key: AQA3pa1cN/fODBAAc/jIm5IQDClm+dmekSmSlg==
-	caps: [mgr] allow profile osd
-	caps: [mon] allow profile osd
-	caps: [osd] allow *
-osd.1
-	key: AQBXpa1cTjuYNRAAkohlInoYAa6A3odTRDhnAg==
-	caps: [mgr] allow profile osd
-	caps: [mon] allow profile osd
-	caps: [osd] allow *
-osd.2
-	key: AQB4pa1cvJidLRAALZyAtuOwArO8JZfy7Y5pFg==
-	caps: [mgr] allow profile osd
-	caps: [mon] allow profile osd
-	caps: [osd] allow *
-osd.3
-	key: AQCcpa1cFFQRHRAALBYhqO3m0FRA9pxTOFT2eQ==
-	caps: [mgr] allow profile osd
-	caps: [mon] allow profile osd
-	caps: [osd] allow *
-client.admin
-	key: AQD0pK1cqcBDCBAAdXNXfgAambPz5qWpsq0Mmw==
-	auid: 0
-	caps: [mds] allow *
-	caps: [mgr] allow *
-	caps: [mon] allow *
-	caps: [osd] allow *
-client.bootstrap-mds
-	key: AQD6pK1crJyZCxAA1UTGwtyFv3YYFcBmhWHyoQ==
-	caps: [mon] allow profile bootstrap-mds
-client.bootstrap-mgr
-	key: AQD6pK1c2KaZCxAATWi/I3i0/XEesSipy/HeIA==
-	caps: [mon] allow profile bootstrap-mgr
-client.bootstrap-osd
-	key: AQD6pK1cwa+ZCxAA7XKXRyLQpaHZ+lRXeUk8xQ==
-	caps: [mon] allow profile bootstrap-osd
-client.bootstrap-rbd
-	key: AQD6pK1cULmZCxAA4++Ch/iRKa52297/rbHP+w==
-	caps: [mon] allow profile bootstrap-rbd
-client.bootstrap-rgw
-	key: AQD6pK1cbMKZCxAAGKj5HaMoEl41LHqEafcfPA==
-	caps: [mon] allow profile bootstrap-rgw
-mgr.a
-	key: AQAZpa1chl+DAhAAYyolLBrkht+0sH0HljkFIg==
-	caps: [mds] allow *
-	caps: [mon] allow *
-	caps: [osd] allow *
+    # RBD image format. Defaults to "2".
+    imageFormat: "2"
 
-#encode admin/user key
-sh-4.2# echo -n AQD0pK1cqcBDCBAAdXNXfgAambPz5qWpsq0Mmw==|base64
-QVFEMHBLMWNxY0JEQ0JBQWRYTlhmZ0FhbWJQejVxV3BzcTBNbXc9PQ==
-#or
-sh-4.2# ceph auth get-key client.admin|base64
-QVFEMHBLMWNxY0JEQ0JBQWRYTlhmZ0FhbWJQejVxV3BzcTBNbXc9PQ==
+    # RBD image features. Available for imageFormat: "2". CSI RBD currently supports only `layering` feature.
+    imageFeatures: layering
+    
+    # The secrets have to contain Ceph admin credentials.
+    csi.storage.k8s.io/provisioner-secret-name: csi-rbd-secret
+    csi.storage.k8s.io/provisioner-secret-namespace: default
+    csi.storage.k8s.io/node-publish-secret-name: csi-rbd-secret
+    csi.storage.k8s.io/node-publish-secret-namespace: default
+
+    # Ceph users for operating RBD
+    adminid: admin
+    userid: kubernetes
+    # uncomment the following to use rbd-nbd as mounter on supported nodes
+    #mounter: rbd-nbd
+reclaimPolicy: Delete
 ```
 
-```console
-kubectl create -f cluster/examples/kubernetes/ceph/csi/example/rbd/secret.yaml
-```
+`kubectl create -f my-storageclass.yaml`
 
 ## Create RBD PersistentVolumeClaim
 
