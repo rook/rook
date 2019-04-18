@@ -119,7 +119,7 @@ func (c *FakeNFSServers) DeleteCollection(options *v1.DeleteOptions, listOptions
 // Patch applies the patch and returns the patched nFSServer.
 func (c *FakeNFSServers) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.NFSServer, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(nfsserversResource, c.ns, name, data, subresources...), &v1alpha1.NFSServer{})
+		Invokes(testing.NewPatchSubresourceAction(nfsserversResource, c.ns, name, pt, data, subresources...), &v1alpha1.NFSServer{})
 
 	if obj == nil {
 		return nil, err

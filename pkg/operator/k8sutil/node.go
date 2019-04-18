@@ -26,7 +26,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
-	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
 
 // ValidNode returns true if the node (1) is schedulable, (2) meets Rook's placement terms, and
@@ -78,7 +77,7 @@ func GetValidNodes(rookNodes []rookalpha.Node, clientset kubernetes.Interface, p
 // Typically these will be the same name, but sometimes they are not such as when nodes have a longer
 // dns name, but the hostname is short.
 func GetNodeNameFromHostname(clientset kubernetes.Interface, hostName string) (string, error) {
-	options := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", apis.LabelHostname, hostName)}
+	options := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", v1.LabelHostname, hostName)}
 	nodes, err := clientset.CoreV1().Nodes().List(options)
 	if err != nil {
 		return hostName, err
@@ -101,7 +100,7 @@ func GetNodeHostNames(clientset kubernetes.Interface) (map[string]string, error)
 
 	nodeMap := map[string]string{}
 	for _, node := range nodes.Items {
-		nodeMap[node.Name] = node.Labels[apis.LabelHostname]
+		nodeMap[node.Name] = node.Labels[v1.LabelHostname]
 	}
 	return nodeMap, nil
 }
@@ -117,7 +116,7 @@ func GetNodeSchedulable(node v1.Node) bool {
 	}
 	for i := range node.Spec.Taints {
 		if node.Spec.Taints[i].Effect == "NoSchedule" {
-			logger.Debugf("Node %s is unschedulable", node.Labels[apis.LabelHostname])
+			logger.Debugf("Node %s is unschedulable", node.Labels[v1.LabelHostname])
 			return false
 		}
 	}
@@ -201,7 +200,7 @@ func rookNodeMatchesKubernetesNode(rookNode rookalpha.Node, kubernetesNode v1.No
 }
 
 func normalizeHostname(kubernetesNode v1.Node) string {
-	hostname := kubernetesNode.Labels[apis.LabelHostname]
+	hostname := kubernetesNode.Labels[v1.LabelHostname]
 	if len(hostname) == 0 {
 		// fall back to the node name if the hostname label is not set
 		hostname = kubernetesNode.Name

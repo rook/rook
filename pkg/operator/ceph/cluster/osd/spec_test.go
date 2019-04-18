@@ -34,7 +34,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
-	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
 
 func TestPodContainer(t *testing.T) {
@@ -98,7 +97,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, c.Namespace, deployment.Namespace)
 	assert.Equal(t, serviceAccountName, deployment.Spec.Template.Spec.ServiceAccountName)
 	assert.Equal(t, int32(1), *(deployment.Spec.Replicas))
-	assert.Equal(t, "node1", deployment.Spec.Template.Spec.NodeSelector[apis.LabelHostname])
+	assert.Equal(t, "node1", deployment.Spec.Template.Spec.NodeSelector[v1.LabelHostname])
 	assert.Equal(t, v1.RestartPolicyAlways, deployment.Spec.Template.Spec.RestartPolicy)
 	if devMountNeeded && len(dataDir) > 0 {
 		assert.Equal(t, 6, len(deployment.Spec.Template.Spec.Volumes))

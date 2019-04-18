@@ -18,7 +18,7 @@ package k8sutil
 
 import (
 	v1 "k8s.io/api/core/v1"
-	scheduler "k8s.io/kubernetes/pkg/scheduler/algorithm"
+	scheduler "k8s.io/kubernetes/pkg/scheduler/api"
 )
 
 // WellKnownTaints is a list of well-known taint keys in the Kubernetes code base. Kubernetes may

@@ -24,7 +24,6 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume"
 	"github.com/spf13/cobra"
 	k8smount "k8s.io/kubernetes/pkg/util/mount"
-	"k8s.io/kubernetes/pkg/volume/util"
 )
 
 var (
@@ -91,7 +90,7 @@ func handleUnmount(cmd *cobra.Command, args []string) error {
 		func() error {
 
 			// Unmount pod mount dir
-			if err := util.UnmountPath(opts.MountDir, mounter.Interface); err != nil {
+			if err := k8smount.CleanupMountPoint(opts.MountDir, mounter.Interface, false); err != nil {
 				return fmt.Errorf("failed to unmount volume at %s: %+v", opts.MountDir, err)
 			}
 
@@ -105,7 +104,7 @@ func handleUnmount(cmd *cobra.Command, args []string) error {
 			// If safeToDetach is true, then all attachment on this node has been removed
 			// Unmount global mount dir
 			if safeToDetach {
-				if err := util.UnmountPath(globalVolumeMountPath, mounter.Interface); err != nil {
+				if err := k8smount.CleanupMountPoint(globalVolumeMountPath, mounter.Interface, false); err != nil {
 					return fmt.Errorf("failed to unmount volume at %s: %+v", opts.MountDir, err)
 				}
 			}
@@ -138,7 +137,7 @@ func unmountCephFS(client *rpc.Client, mounter *k8smount.SafeFormatAndMount, mou
 		client,
 		func() error {
 			// Unmount pod mount dir
-			if err := util.UnmountPath(mountDir, mounter.Interface); err != nil {
+			if err := k8smount.CleanupMountPoint(mountDir, mounter.Interface, false); err != nil {
 				return fmt.Errorf("failed to unmount cephfs volume at %s: %+v", mountDir, err)
 			}
 			return nil

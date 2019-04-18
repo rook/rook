@@ -84,7 +84,7 @@ func createFilesystemMountCephCredentials(helper *clients.TestClient, k8sh *util
 	logger.Info("Created Ceph credentials")
 	require.Nil(s.T(), err)
 	// Save Ceph credentials to Kubernetes
-	_, err = k8sh.Clientset.Core().Secrets(namespace).Create(&v1.Secret{
+	_, err = k8sh.Clientset.CoreV1().Secrets(namespace).Create(&v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fileMountSecret,
 			Namespace: namespace,

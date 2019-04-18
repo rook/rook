@@ -58,41 +58,50 @@ ignored = [
 # as they are versioned together.
 #
 
-[[override]]
+[[constraint]]
   name = "k8s.io/kubernetes"
-  version = "=v1.12.0"
+  version = "=v1.14.0"
 
-[[override]]
+[[constraint]]
   name = "k8s.io/kube-controller-manager"
-  version = "kubernetes-1.12.0"
+  version = "kubernetes-1.14.0"
 
-[[override]]
+[[constraint]]
   name = "k8s.io/api"
-  version = "kubernetes-1.12.0"
+  version = "kubernetes-1.14.0"
 
-[[override]]
+[[constraint]]
   name = "k8s.io/apiserver"
-  version = "kubernetes-1.12.0"
+  version = "kubernetes-1.14.0"
 
-[[override]]
+[[constraint]]
   name = "k8s.io/apiextensions-apiserver"
-  version = "kubernetes-1.12.0"
+  version = "kubernetes-1.14.0"
 
-[[override]]
+[[constraint]]
   name = "k8s.io/apimachinery"
-  version = "kubernetes-1.12.0"
+  version = "kubernetes-1.14.0"
 
-[[override]]
+[[constraint]]
   name = "k8s.io/code-generator"
-  version = "kubernetes-1.12.0"
+  version = "kubernetes-1.14.0"
 
-[[override]]
+[[constraint]]
   name = "k8s.io/client-go"
-  version = "v9.0.0"
+  version = "v11.0.0"
+
+[[constraint]]
+  name = "sigs.k8s.io/sig-storage-lib-external-provisioner"
+  branch = "release-1.14"
+
+# Kubernetes 1.14 dependencies on random package versions:
+[[override]]
+  name = "github.com/evanphx/json-patch"
+  revision = "5858425f75500d40c52783dce87d085a483ce135"
 
 [[override]]
-  name = "github.com/kubernetes-sigs/sig-storage-lib-external-provisioner"
-  version = "v1.0.0"
+  name = "sigs.k8s.io/structured-merge-diff"
+  revision = "e85c7b244fd2cc57bb829d73a061f93a441e63ce"
 
 # kubernetes requires an older version of docker distribution
 [[override]]

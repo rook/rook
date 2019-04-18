@@ -119,7 +119,7 @@ func (c *FakeCephFilesystems) DeleteCollection(options *v1.DeleteOptions, listOp
 // Patch applies the patch and returns the patched cephFilesystem.
 func (c *FakeCephFilesystems) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *cephrookiov1.CephFilesystem, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(cephfilesystemsResource, c.ns, name, data, subresources...), &cephrookiov1.CephFilesystem{})
+		Invokes(testing.NewPatchSubresourceAction(cephfilesystemsResource, c.ns, name, pt, data, subresources...), &cephrookiov1.CephFilesystem{})
 
 	if obj == nil {
 		return nil, err

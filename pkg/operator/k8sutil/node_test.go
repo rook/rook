@@ -26,8 +26,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
-	"k8s.io/kubernetes/pkg/kubelet/apis"
-	scheduler "k8s.io/kubernetes/pkg/scheduler/algorithm"
+	scheduler "k8s.io/kubernetes/pkg/scheduler/api"
 )
 
 func createNode(nodeName string, condition v1.NodeConditionType, clientset *fake.Clientset) error {
@@ -259,10 +258,10 @@ func TestRookNodesMatchingKubernetesNodes(t *testing.T) {
 		return *n
 	}
 	n0 := getNode("node0")
-	n0.Labels = map[string]string{apis.LabelHostname: "node0-hostname"}
+	n0.Labels = map[string]string{v1.LabelHostname: "node0-hostname"}
 	n1 := getNode("node1")
 	n2 := getNode("node2")
-	n2.Labels = map[string]string{apis.LabelHostname: "node2"}
+	n2.Labels = map[string]string{v1.LabelHostname: "node2"}
 	k8sNodes := []v1.Node{n0, n1, n2}
 
 	// no rook nodes specified for input

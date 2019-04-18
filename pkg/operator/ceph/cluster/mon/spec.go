@@ -27,7 +27,6 @@ import (
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
 
 const (
@@ -93,7 +92,7 @@ func (c *Cluster) makeMonPod(monConfig *monConfig, hostname string) *v1.Pod {
 			c.makeMonDaemonContainer(monConfig),
 		},
 		RestartPolicy: v1.RestartPolicyAlways,
-		NodeSelector:  map[string]string{apis.LabelHostname: hostname},
+		NodeSelector:  map[string]string{v1.LabelHostname: hostname},
 		Volumes:       opspec.DaemonVolumes(monConfig.DataPathMap, keyringStoreName),
 		HostNetwork:   c.HostNetwork,
 	}

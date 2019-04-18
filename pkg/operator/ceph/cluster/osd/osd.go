@@ -39,7 +39,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-osd")
@@ -438,7 +437,7 @@ func DiscoverStorageNodes(context *clusterd.Context, namespace string) (map[stri
 		osdPodSpec := osdDeployment.Spec.Template.Spec
 
 		// get the node name from the node selector
-		nodeName, ok := osdPodSpec.NodeSelector[apis.LabelHostname]
+		nodeName, ok := osdPodSpec.NodeSelector[v1.LabelHostname]
 		if !ok || nodeName == "" {
 			return nil, fmt.Errorf("osd deployment %s doesn't have a node name on its node selector: %+v", osdDeployment.Name, osdPodSpec.NodeSelector)
 		}
@@ -467,7 +466,7 @@ func GetAllStorageNodes(context *clusterd.Context, namespace string) ([]v1.Node,
 
 	//get the node list
 	listOpts := metav1.ListOptions{LabelSelector: labelSelector}
-	nodeList, err := context.Clientset.Core().Nodes().List(listOpts)
+	nodeList, err := context.Clientset.CoreV1().Nodes().List(listOpts)
 	return nodeList.Items, err
 }
 

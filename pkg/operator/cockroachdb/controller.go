@@ -41,7 +41,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
 
 const (
@@ -384,7 +383,7 @@ func createPodSpec(cluster *cluster, containerImage string, httpPort, grpcPort i
 									},
 								},
 							},
-							TopologyKey: apis.LabelHostname,
+							TopologyKey: v1.LabelHostname,
 						},
 					},
 				},

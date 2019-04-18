@@ -24,7 +24,6 @@ import (
 	"github.com/rook/rook/pkg/util"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
 
 // getMonNodes detects the nodes that are available for new mons to start.
@@ -92,7 +91,7 @@ func (c *Cluster) getNodesWithMons(nodes *v1.NodeList) (*util.Set, error) {
 	}
 	nodesInUse := util.NewSet()
 	for _, pod := range pods.Items {
-		hostname := pod.Spec.NodeSelector[apis.LabelHostname]
+		hostname := pod.Spec.NodeSelector[v1.LabelHostname]
 		logger.Debugf("mon pod on node %s", hostname)
 		name, ok := getNodeNameFromHostname(nodes, hostname)
 		if !ok {
@@ -163,7 +162,7 @@ func calcTargetMonCount(nodes int, spec cephv1.MonSpec) (int, string) {
 // Look up the immutable node name from the hostname label
 func getNodeNameFromHostname(nodes *v1.NodeList, hostname string) (string, bool) {
 	for _, node := range nodes.Items {
-		if node.Labels[apis.LabelHostname] == hostname {
+		if node.Labels[v1.LabelHostname] == hostname {
 			return node.Name, true
 		}
 		if node.Name == hostname {
@@ -176,7 +175,7 @@ func getNodeNameFromHostname(nodes *v1.NodeList, hostname string) (string, bool)
 func getNodeInfoFromNode(n v1.Node) (*NodeInfo, error) {
 	nr := &NodeInfo{
 		Name:     n.Name,
-		Hostname: n.Labels[apis.LabelHostname],
+		Hostname: n.Labels[v1.LabelHostname],
 	}
 
 	for _, ip := range n.Status.Addresses {

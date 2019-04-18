@@ -34,7 +34,6 @@ import (
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
 
 func TestCheckHealth(t *testing.T) {
@@ -266,7 +265,7 @@ func TestCheckHealthTwoMonsOneNode(t *testing.T) {
 	for _, d := range dlist.Items {
 		// both mons should always be on the same node as in this test due to the order
 		// the mons are processed in the loop
-		if (d.Name == "rook-ceph-mon-a" && d.Spec.Template.Spec.NodeSelector[apis.LabelHostname] == "node1") || (d.Name != "rook-ceph-mon-c" && d.Spec.Template.Spec.NodeSelector[apis.LabelHostname] == "node2") {
+		if (d.Name == "rook-ceph-mon-a" && d.Spec.Template.Spec.NodeSelector[v1.LabelHostname] == "node1") || (d.Name != "rook-ceph-mon-c" && d.Spec.Template.Spec.NodeSelector[v1.LabelHostname] == "node2") {
 			assert.Fail(t, fmt.Sprintf("mon %s shouldn't exist", d.Name))
 		}
 	}

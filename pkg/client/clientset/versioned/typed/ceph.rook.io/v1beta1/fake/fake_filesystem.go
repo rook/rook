@@ -119,7 +119,7 @@ func (c *FakeFilesystems) DeleteCollection(options *v1.DeleteOptions, listOption
 // Patch applies the patch and returns the patched filesystem.
 func (c *FakeFilesystems) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1beta1.Filesystem, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(filesystemsResource, c.ns, name, data, subresources...), &v1beta1.Filesystem{})
+		Invokes(testing.NewPatchSubresourceAction(filesystemsResource, c.ns, name, pt, data, subresources...), &v1beta1.Filesystem{})
 
 	if obj == nil {
 		return nil, err
