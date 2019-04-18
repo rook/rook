@@ -63,6 +63,10 @@ spec:
   serviceMonitorSelector:
     matchLabels:
       team: rook
+  ruleSelector:
+    matchLabels:
+      role: alert-rules
+      prometheus: rook-prometheus
   resources:
     requests:
       memory: 400Mi

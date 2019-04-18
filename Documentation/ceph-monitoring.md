@@ -80,6 +80,13 @@ Below the `Execute` button, ensure the `Graph` tab is selected and you should no
 You can find Prometheus Consoles here: https://github.com/ceph/cephmetrics/tree/master/dashboards/current.
 A guide to how you can write your own Prometheus consoles can be found on the official Prometheus site here: https://prometheus.io/docs/visualization/consoles/.
 
+## Prometheus Alerts
+To enable Prometheus based alerting for Ceph, run the following commands:  
+```
+cd cluster/examples/kubernetes/ceph/monitoring
+kubectl create -f prometheus-ceph-rules.yaml
+```
+
 ## Grafana Dashboards
 The dashboards have been created by [@galexrt](https://github.com/galexrt). For feedback on the dashboards please reach out to him on the [Rook.io Slack](https://slack.rook.io).
 
