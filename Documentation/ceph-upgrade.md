@@ -150,6 +150,8 @@ kubectl -n $ROOK_NAMESPACE get pod -o jsonpath='{range .items[*]}{.metadata.name
 
 Rook 1.0 also introduces the `rook-version` label to Ceph controller resources. For various
 resource controllers, a summary of the resource controllers can be gained with the commands below.
+These will report the requested, updated, and currently available replicas for various Rook-Ceph
+resources in addition to the version of Rook for resources managed by the updated Rook-Ceph operator.
 ```sh
 kubectl -n $ROOK_NAMESPACE get deployments -o jsonpath='{range .items[*]}{.metadata.name}{"  \treq/upd/avl: "}{.spec.replicas}{"/"}{.status.updatedReplicas}{"/"}{.status.readyReplicas}{"  \trook-version="}{.metadata.labels.rook-version}{"\n"}{end}'
 
