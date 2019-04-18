@@ -477,11 +477,6 @@ func (c *Cluster) saveMonConfig() error {
 var updateDeploymentAndWait = k8sutil.UpdateDeploymentAndWait
 
 func (c *Cluster) startMon(m *monConfig, hostname string) error {
-	// If we determine the legacy replicaset exists, delete it so we can start the new deployment in its place
-	if err := k8sutil.DeleteReplicaSet(c.context.Clientset, c.Namespace, m.ResourceName); err != nil {
-		logger.Errorf("failed to delete legacy mon replicaset. %+v", err)
-	}
-
 	d := c.makeDeployment(m, hostname)
 	logger.Debugf("Starting mon: %+v", d.Name)
 	_, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Create(d)
