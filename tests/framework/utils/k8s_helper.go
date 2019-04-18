@@ -1419,13 +1419,23 @@ func (k8sh *K8sHelper) IsRookInstalled(namespace string) bool {
 	return false
 }
 
-// GetRookLogs captures logs from specified rook pod and writes it to specified file
-func (k8sh *K8sHelper) GetRookLogs(podAppName string, hostType string, namespace string, testName string) {
-	k8sh.GetRookContainerLogs(podAppName, hostType, namespace, testName, "")
+// GetPreviousLogs captures logs from the previous run of the container if it exists
+func (k8sh *K8sHelper) GetPreviousLogs(podAppName string, hostType string, namespace string, testName string) {
+	k8sh.getContainerLogs(podAppName, hostType, namespace, testName, "", true)
 }
 
-func (k8sh *K8sHelper) GetRookContainerLogs(podAppName, hostType, namespace, testName, containerName string) {
-	logOpts := &v1.PodLogOptions{}
+// GetLogs captures logs from specified rook pod and writes it to specified file
+func (k8sh *K8sHelper) GetLogs(podAppName string, hostType string, namespace string, testName string) {
+	k8sh.getContainerLogs(podAppName, hostType, namespace, testName, "", false)
+}
+
+// GetLogs captures logs from a specific container in a pod
+func (k8sh *K8sHelper) GetContainerLogs(podAppName, hostType, namespace, testName, containerName string) {
+	k8sh.getContainerLogs(podAppName, hostType, namespace, testName, containerName, false)
+}
+
+func (k8sh *K8sHelper) getContainerLogs(podAppName, hostType, namespace, testName, containerName string, previousLog bool) {
+	logOpts := &v1.PodLogOptions{Previous: previousLog}
 	if containerName != "" {
 		logOpts.Container = containerName
 	}

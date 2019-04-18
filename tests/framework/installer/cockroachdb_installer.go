@@ -151,6 +151,6 @@ func (h *CockroachDBInstaller) UninstallCockroachDB(systemNamespace, namespace s
 
 func (h *CockroachDBInstaller) GatherAllCockroachDBLogs(systemNamespace, namespace, testName string) {
 	logger.Infof("Gathering all logs from cockroachdb cluster %s", namespace)
-	h.k8shelper.GetRookLogs("rook-cockroachdb-operator", Env.HostType, systemNamespace, testName)
-	h.k8shelper.GetRookLogs("rook-cockroachdb", Env.HostType, namespace, testName)
+	h.k8shelper.GetLogs("rook-cockroachdb-operator", Env.HostType, systemNamespace, testName)
+	h.k8shelper.GetLogs("rook-cockroachdb", Env.HostType, namespace, testName)
 }

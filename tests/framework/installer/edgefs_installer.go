@@ -153,6 +153,6 @@ func (h *EdgefsInstaller) UninstallEdgefs(systemNamespace, namespace string) {
 
 func (h *EdgefsInstaller) GatherAllEdgefsLogs(systemNamespace, namespace, testName string) {
 	logger.Infof("Gathering all logs from edgefs cluster %s", namespace)
-	h.k8shelper.GetRookLogs("rook-edgefs-operator", Env.HostType, systemNamespace, testName)
-	h.k8shelper.GetRookLogs("rook-edgefs", Env.HostType, namespace, testName)
+	h.k8shelper.GetLogs("rook-edgefs-operator", Env.HostType, systemNamespace, testName)
+	h.k8shelper.GetLogs("rook-edgefs", Env.HostType, namespace, testName)
 }
