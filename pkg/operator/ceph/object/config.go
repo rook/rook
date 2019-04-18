@@ -35,10 +35,12 @@ caps mon = "allow rw"
 caps osd = "allow rwx"
 `
 
-	certVolumeName = "rook-ceph-rgw-cert"
-	certDir        = "/etc/ceph/private"
-	certKeyName    = "cert"
-	certFilename   = "rgw-cert.pem"
+	certSecretVolumeName = "rook-ceph-rgw-cert-secrets"
+	certSecretDir        = "/certs"
+	certVolumeName       = "rook-ceph-rgw-cert"
+	certDir              = "/etc/ceph/private"
+	certKeyName          = "cert"
+	certFilename         = "rgw-cert.pem"
 )
 
 // TODO: these should be set in the mon's central kv store for mimic+

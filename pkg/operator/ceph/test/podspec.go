@@ -86,10 +86,15 @@ func (ps *PodSpecTester) AssertVolumesMeetCephRequirements(
 				// mons and osds MUST be host path
 				assert.NotNil(ps.t, v.VolumeSource.HostPath,
 					string(daemonType)+" daemon should be host path:", v)
-			case config.MgrType, config.MdsType, config.RgwType:
-				// mgrs, mdses, and rgws MUST be host path
+			case config.MgrType, config.MdsType:
+				// mgrs and mdses MUST be host path
 				assert.NotNil(ps.t, v.VolumeSource.EmptyDir,
 					string(daemonType)+" daemon should be empty dir:", v)
+			case config.RgwType:
+				// rgws use host path and empty dir when a certificate ref is given
+				if v.VolumeSource.EmptyDir == nil && v.VolumeSource.HostPath == nil {
+					assert.Fail(ps.t, string(daemonType)+" daemon should have empty dir and host path:", v)
+				}
 			}
 		case "rook-ceph-config":
 			assert.Equal(ps.t, "rook-ceph-config", v.VolumeSource.ConfigMap.LocalObjectReference.Name,

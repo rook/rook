@@ -18,6 +18,7 @@ package object
 
 import (
 	"fmt"
+	"path"
 
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
@@ -121,7 +122,6 @@ func (c *clusterConfig) startDaemonset() (*apps.DaemonSet, error) {
 
 func (c *clusterConfig) makeRGWPodSpec() v1.PodTemplateSpec {
 	podSpec := v1.PodSpec{
-		InitContainers: []v1.Container{},
 		Containers: []v1.Container{
 			c.makeDaemonContainer(),
 		},
@@ -140,15 +140,81 @@ func (c *clusterConfig) makeRGWPodSpec() v1.PodTemplateSpec {
 	if c.store.Spec.Gateway.SSLCertificateRef != "" {
 		// Keep the SSL secret as secure as possible in the container. Give only user read perms.
 		userReadOnly := int32(0400)
-		certVol := v1.Volume{
-			Name: certVolumeName,
-			VolumeSource: v1.VolumeSource{
-				Secret: &v1.SecretVolumeSource{
-					SecretName: c.store.Spec.Gateway.SSLCertificateRef,
-					Items: []v1.KeyToPath{
-						{Key: certKeyName, Path: certFilename, Mode: &userReadOnly},
-					}}}}
-		podSpec.Volumes = append(podSpec.Volumes, certVol)
+
+		var secretCertVols []v1.Volume
+		// When the certificate is in PEM format it can be directly mounted
+		if c.sslCertIsPem {
+			secretCertVols = []v1.Volume{
+				{
+					Name: certVolumeName,
+					VolumeSource: v1.VolumeSource{
+						Secret: &v1.SecretVolumeSource{
+							SecretName: c.store.Spec.Gateway.SSLCertificateRef,
+							Items: []v1.KeyToPath{
+								{
+									Key:  certKeyName,
+									Path: certFilename,
+									Mode: &userReadOnly,
+								},
+							},
+						},
+					},
+				},
+			}
+		} else {
+			secretCertVols = []v1.Volume{
+				{
+					Name: certSecretVolumeName,
+					VolumeSource: v1.VolumeSource{
+						Secret: &v1.SecretVolumeSource{
+							SecretName:  c.store.Spec.Gateway.SSLCertificateRef,
+							DefaultMode: &userReadOnly,
+						},
+					},
+				},
+				{
+					Name: certVolumeName,
+					VolumeSource: v1.VolumeSource{
+						EmptyDir: &v1.EmptyDirVolumeSource{
+							// We don't want a cert on disk, only in memory
+							Medium: v1.StorageMediumMemory,
+						},
+					},
+				},
+			}
+			tlsCertPath := path.Join(certSecretDir, "tls.crt")
+			tlsKeyPath := path.Join(certSecretDir, "tls.key")
+			tlsCAPath := path.Join(certSecretDir, "ca.crt")
+
+			tlsCertPemPath := path.Join(certDir, certFilename)
+
+			podSpec.InitContainers = []v1.Container{
+				{
+					Name: "rook-ceph-rgw-cert-pemer",
+					Command: []string{
+						"/bin/bash",
+						"-c",
+						`set -e
+if [ -f ` + tlsCAPath + ` ]; then
+	cat ` + tlsCAPath + ` > ` + tlsCertPemPath + `
+fi
+cat ` + tlsCertPath + ` >> ` + tlsCertPemPath + `
+cat ` + tlsKeyPath + ` >> ` + tlsCertPemPath,
+					},
+					VolumeMounts: []v1.VolumeMount{
+						{
+							Name:      certSecretVolumeName,
+							MountPath: certSecretDir,
+						},
+						{
+							Name:      certVolumeName,
+							MountPath: certDir,
+						},
+					},
+				},
+			}
+		}
+		podSpec.Volumes = append(podSpec.Volumes, secretCertVols...)
 	}
 	c.store.Spec.Gateway.Placement.ApplyToPodSpec(&podSpec)
 

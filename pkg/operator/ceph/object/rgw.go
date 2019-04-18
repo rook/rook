@@ -26,20 +26,22 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
 type clusterConfig struct {
-	clusterInfo *cephconfig.ClusterInfo
-	context     *clusterd.Context
-	store       cephv1.CephObjectStore
-	rookVersion string
-	cephVersion cephv1.CephVersionSpec
-	hostNetwork bool
-	ownerRefs   []metav1.OwnerReference
-	DataPathMap *config.DataPathMap
+	clusterInfo  *cephconfig.ClusterInfo
+	context      *clusterd.Context
+	store        cephv1.CephObjectStore
+	rookVersion  string
+	cephVersion  cephv1.CephVersionSpec
+	hostNetwork  bool
+	ownerRefs    []metav1.OwnerReference
+	DataPathMap  *config.DataPathMap
+	sslCertIsPem bool
 }
 
 // Start the rgw manager
@@ -55,6 +57,10 @@ func (c *clusterConfig) createOrUpdate(update bool) error {
 	// validate the object store settings
 	if err := validateStore(c.context, c.store); err != nil {
 		return fmt.Errorf("invalid object store %s arguments. %+v", c.store.Name, err)
+	}
+
+	if err := c.checkSSLCertForPEM(); err != nil {
+		return fmt.Errorf("failed to check SSL certificate ref for PEM. %+v", err)
 	}
 
 	// check if the object store already exists
@@ -240,5 +246,30 @@ func validateStore(context *clusterd.Context, s cephv1.CephObjectStore) error {
 		return fmt.Errorf("invalid data pool spec. %+v", err)
 	}
 
+	return nil
+}
+
+func (c *clusterConfig) checkSSLCertForPEM() error {
+	if c.store.Spec.Gateway.SSLCertificateRef != "" {
+		secret, err := c.context.Clientset.CoreV1().Secrets(c.store.Namespace).Get(c.store.Spec.Gateway.SSLCertificateRef, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+
+		if secret.Type == v1.SecretTypeTLS {
+			c.sslCertIsPem = false
+			return nil
+		}
+
+		// It can happen that the type is "lost" when using certain "sync secrets" programs
+		// Just match based on the v1.SecretTypeTLS key names
+		_, okCrt := secret.Data["tls.crt"]
+		_, okKey := secret.Data["tls.crt"]
+		if okCrt && okKey {
+			c.sslCertIsPem = false
+			return nil
+		}
+		c.sslCertIsPem = true
+	}
 	return nil
 }

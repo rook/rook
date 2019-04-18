@@ -162,14 +162,14 @@ func (c *ObjectStoreController) onUpdate(oldObj, newObj interface{}) {
 
 	logger.Infof("applying object store %s changes", newStore.Name)
 	cfg := clusterConfig{
-		c.clusterInfo,
-		c.context,
-		*newStore,
-		c.rookImage,
-		c.cephVersion,
-		c.hostNetwork,
-		c.storeOwners(newStore),
-		cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, newStore.Name, c.clusterInfo.Name, c.dataDirHostPath),
+		clusterInfo: c.clusterInfo,
+		context:     c.context,
+		store:       *newStore,
+		rookVersion: c.rookImage,
+		cephVersion: c.cephVersion,
+		hostNetwork: c.hostNetwork,
+		ownerRefs:   c.storeOwners(newStore),
+		DataPathMap: cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, newStore.Name, c.clusterInfo.Name, c.dataDirHostPath),
 	}
 	if err = cfg.updateStore(); err != nil {
 		logger.Errorf("failed to create (modify) object store %s. %+v", newStore.Name, err)

@@ -52,7 +52,16 @@ func TestStartRGW(t *testing.T) {
 	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "my-fs", "rook-ceph", "/var/lib/rook/")
 
 	// start a basic cluster
-	c := &clusterConfig{info, context, store, version, cephv1.CephVersionSpec{}, false, []metav1.OwnerReference{}, data}
+	c := &clusterConfig{
+		clusterInfo: info,
+		context:     context,
+		store:       store,
+		rookVersion: version,
+		cephVersion: cephv1.CephVersionSpec{},
+		hostNetwork: false,
+		ownerRefs:   []metav1.OwnerReference{},
+		DataPathMap: data,
+	}
 	err := c.createStore()
 	assert.Nil(t, err)
 
@@ -116,7 +125,16 @@ func TestCreateObjectStore(t *testing.T) {
 	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "my-fs", "rook-ceph", "/var/lib/rook/")
 
 	// create the pools
-	c := &clusterConfig{info, context, store, "1.2.3.4", cephv1.CephVersionSpec{}, false, []metav1.OwnerReference{}, data}
+	c := &clusterConfig{
+		clusterInfo: info,
+		context:     context,
+		store:       store,
+		rookVersion: "1.2.3.4",
+		cephVersion: cephv1.CephVersionSpec{},
+		hostNetwork: false,
+		ownerRefs:   []metav1.OwnerReference{},
+		DataPathMap: data,
+	}
 	err := c.createStore()
 	assert.Nil(t, err)
 }
