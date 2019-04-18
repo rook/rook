@@ -332,7 +332,6 @@ rules:
   resources:
   - deployments
   - daemonsets
-  - replicasets
   verbs:
   - get
   - list
