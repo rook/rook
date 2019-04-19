@@ -428,7 +428,8 @@ cephosd: configuring osd devices: {"Entries":{"sdb":{"Data":-1,"Metadata":null},
 ## Solution
 After you have either updated the CRD with the correct settings, or you have cleaned the partitions or file system from your devices,
 you can trigger the operator to analyze the devices again by restarting the operator. Each time the operator starts, it
-will ensure all the desired devices are configured.
+will ensure all the desired devices are configured. The operator does automatically deploy OSDs in most scenarios, but an operator restart
+will cover any scenarios that the operator doesn't detect automatically.
 
 ```
 # Restart the operator to ensure devices are configured. A new pod will automatically be started when the current operator pod is deleted.
@@ -542,4 +543,4 @@ You don't need to restart the pod, the effect will be immediate.
 
 To disable the logging on file, simply set `log_to_file` to `false`.
 
-For Ceph Luminous/Mimic releases, `mon_cluster_log_file` and `cluster_log_file` can be set to `/var/log/ceph/XXXX` in the config override ConfigMap to enable logging. See the (Advanced Documentation)[Documentation/advanced-configuration.md#kubernetes] for information about how to use the config override ConfigMap.
+For Ceph Luminous/Mimic releases, `mon_cluster_log_file` and `cluster_log_file` can be set to `/var/log/ceph/XXXX` in the config override ConfigMap to enable logging. See the (Advanced Documentation)[advanced-configuration.md#custom-cephconf-settings] for information about how to use the config override ConfigMap.

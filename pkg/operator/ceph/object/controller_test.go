@@ -92,7 +92,7 @@ func TestMigrateObjectStoreObject(t *testing.T) {
 		RookClientset: rookfake.NewSimpleClientset(legacyObjectStore),
 	}
 	info := testop.CreateConfigDir(1)
-	controller := NewObjectStoreController(info, context, "", cephv1.CephVersionSpec{}, false, metav1.OwnerReference{}, "/var/lib/rook/")
+	controller := NewObjectStoreController(info, context, legacyObjectStore.Namespace, "", cephv1.CephVersionSpec{}, false, metav1.OwnerReference{}, "/var/lib/rook/")
 
 	// convert the legacy objectstore object in memory and assert that a migration is needed
 	convertedObjectStore, migrationNeeded, err := getObjectStoreObject(legacyObjectStore)

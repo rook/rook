@@ -220,7 +220,7 @@ func TestMigratePoolObject(t *testing.T) {
 		Clientset:     clientset,
 		RookClientset: rookfake.NewSimpleClientset(legacyPool),
 	}
-	controller := NewPoolController(context)
+	controller := NewPoolController(context, legacyPool.Namespace)
 
 	// convert the legacy pool object in memory and assert that a migration is needed
 	convertedPool, migrationNeeded, err := getPoolObject(legacyPool)

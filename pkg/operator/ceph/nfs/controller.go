@@ -19,6 +19,7 @@ package nfs
 
 import (
 	"reflect"
+	"sync"
 
 	"github.com/coreos/pkg/capnslog"
 	opkit "github.com/rook/operator-kit"
@@ -44,19 +45,22 @@ var CephNFSResource = opkit.CustomResource{
 
 // NFSCephNFSController represents a controller for NFS custom resources
 type CephNFSController struct {
-	clusterInfo *cephconfig.ClusterInfo
-	context     *clusterd.Context
-	rookImage   string
-	cephVersion cephv1.CephVersionSpec
-	hostNetwork bool
-	ownerRef    metav1.OwnerReference
+	clusterInfo        *cephconfig.ClusterInfo
+	context            *clusterd.Context
+	namespace          string
+	rookImage          string
+	cephVersion        cephv1.CephVersionSpec
+	hostNetwork        bool
+	ownerRef           metav1.OwnerReference
+	orchestrationMutex sync.Mutex
 }
 
 // NewNFSCephNFSController create controller for watching NFS custom resources created
-func NewCephNFSController(clusterInfo *cephconfig.ClusterInfo, context *clusterd.Context, rookImage string, cephVersion cephv1.CephVersionSpec, hostNetwork bool, ownerRef metav1.OwnerReference) *CephNFSController {
+func NewCephNFSController(clusterInfo *cephconfig.ClusterInfo, context *clusterd.Context, namespace, rookImage string, cephVersion cephv1.CephVersionSpec, hostNetwork bool, ownerRef metav1.OwnerReference) *CephNFSController {
 	return &CephNFSController{
 		clusterInfo: clusterInfo,
 		context:     context,
+		namespace:   namespace,
 		rookImage:   rookImage,
 		cephVersion: cephVersion,
 		hostNetwork: hostNetwork,
@@ -65,7 +69,7 @@ func NewCephNFSController(clusterInfo *cephconfig.ClusterInfo, context *clusterd
 }
 
 // StartWatch watches for instances of CephNFS custom resources and acts on them
-func (c *CephNFSController) StartWatch(namespace string, stopCh chan struct{}) error {
+func (c *CephNFSController) StartWatch(stopCh chan struct{}) error {
 
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
@@ -73,8 +77,8 @@ func (c *CephNFSController) StartWatch(namespace string, stopCh chan struct{}) e
 		DeleteFunc: c.onDelete,
 	}
 
-	logger.Infof("start watching ceph nfs resource in namespace %s", namespace)
-	watcher := opkit.NewWatcher(CephNFSResource, namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1().RESTClient())
+	logger.Infof("start watching ceph nfs resource in namespace %s", c.namespace)
+	watcher := opkit.NewWatcher(CephNFSResource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1().RESTClient())
 	go watcher.Watch(&cephv1.CephNFS{}, stopCh)
 
 	return nil
@@ -86,6 +90,9 @@ func (c *CephNFSController) onAdd(obj interface{}) {
 		logger.Errorf("Ceph NFS is only supported with Nautilus or newer. CRD %s will be ignored.", nfs.Name)
 		return
 	}
+
+	c.acquireOrchestrationLock()
+	defer c.releaseOrchestrationLock()
 
 	err := c.upCephNFS(*nfs, 0)
 	if err != nil {
@@ -105,6 +112,9 @@ func (c *CephNFSController) onUpdate(oldObj, newObj interface{}) {
 		logger.Debugf("nfs ganesha %s not updated", newNFS.Name)
 		return
 	}
+
+	c.acquireOrchestrationLock()
+	defer c.releaseOrchestrationLock()
 
 	logger.Infof("Updating the ganesha server from %d to %d active count", oldNFS.Spec.Server.Active, newNFS.Spec.Server.Active)
 	if oldNFS.Spec.Server.Active < newNFS.Spec.Server.Active {
@@ -128,9 +138,39 @@ func (c *CephNFSController) onDelete(obj interface{}) {
 		return
 	}
 
+	c.acquireOrchestrationLock()
+	defer c.releaseOrchestrationLock()
+
 	err := c.downCephNFS(*nfs, 0)
 	if err != nil {
 		logger.Errorf("failed to delete file system %s. %+v", nfs.Name, err)
+	}
+}
+
+func (c *CephNFSController) ParentClusterChanged(cluster cephv1.ClusterSpec, clusterInfo *cephconfig.ClusterInfo) {
+	c.clusterInfo = clusterInfo
+	if cluster.CephVersion.Image == c.cephVersion.Image || !c.clusterInfo.CephVersion.IsAtLeastNautilus() {
+		logger.Debugf("No need to update the nfs daemons after the parent cluster changed")
+		return
+	}
+
+	c.acquireOrchestrationLock()
+	defer c.releaseOrchestrationLock()
+
+	c.cephVersion = cluster.CephVersion
+	nfses, err := c.context.RookClientset.CephV1().CephNFSes(c.namespace).List(metav1.ListOptions{})
+	if err != nil {
+		logger.Errorf("failed to retrieve NFSes to update the ceph version. %+v", err)
+		return
+	}
+	for _, nfs := range nfses.Items {
+		logger.Infof("updating the ceph version for nfs %s to %s", nfs.Name, c.cephVersion.Image)
+		err := c.upCephNFS(nfs, 0)
+		if err != nil {
+			logger.Errorf("failed to update nfs %s. %+v", nfs.Name, err)
+		} else {
+			logger.Infof("updated nfs %s to ceph version %s", nfs.Name, c.cephVersion.Image)
+		}
 	}
 }
 
@@ -139,4 +179,15 @@ func nfsChanged(oldNFS, newNFS cephv1.NFSGaneshaSpec) bool {
 		return true
 	}
 	return false
+}
+
+func (c *CephNFSController) acquireOrchestrationLock() {
+	logger.Debugf("Acquiring lock for nfs orchestration")
+	c.orchestrationMutex.Lock()
+	logger.Debugf("Acquired lock for nfs orchestration")
+}
+
+func (c *CephNFSController) releaseOrchestrationLock() {
+	c.orchestrationMutex.Unlock()
+	logger.Debugf("Released lock for nfs orchestration")
 }

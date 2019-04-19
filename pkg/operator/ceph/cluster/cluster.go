@@ -57,6 +57,13 @@ type cluster struct {
 	orchestrationRunning bool
 	orchestrationNeeded  bool
 	orchMux              sync.Mutex
+	childControllers     []childController
+}
+
+// ChildController is implemented by CRs that are owned by the CephCluster
+type childController interface {
+	// ParentClusterChanged is called when the CephCluster CR is updated, for example for a newer ceph version
+	ParentClusterChanged(cluster cephv1.ClusterSpec, clusterInfo *cephconfig.ClusterInfo)
 }
 
 func newCluster(c *cephv1.CephCluster, context *clusterd.Context) *cluster {
@@ -222,6 +229,11 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 
 	logger.Infof("Done creating rook instance in namespace %s", c.Namespace)
 
+	// Notify the child controllers that the cluster spec might have changed
+	for _, child := range c.childControllers {
+		child.ParentClusterChanged(*c.Spec, clusterInfo)
+	}
+
 	return nil
 }
 
@@ -293,7 +305,7 @@ func clusterChanged(oldCluster, newCluster cephv1.ClusterSpec, clusterRef *clust
 	// any change in the crd will trigger an orchestration
 	if !reflect.DeepEqual(oldCluster, newCluster) {
 		diff := cmp.Diff(oldCluster, newCluster)
-		logger.Infof("The Cluster CRD has changed. diff=%s", diff)
+		logger.Infof("The Cluster CR has changed. diff=%s", diff)
 		return true, diff
 	}
 

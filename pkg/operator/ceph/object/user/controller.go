@@ -25,6 +25,7 @@ import (
 	opkit "github.com/rook/operator-kit"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/api/core/v1"
@@ -51,20 +52,22 @@ var ObjectStoreUserResource = opkit.CustomResource{
 
 // ObjectStoreUserController represents a controller object for object store user custom resources
 type ObjectStoreUserController struct {
-	context  *clusterd.Context
-	ownerRef metav1.OwnerReference
+	context   *clusterd.Context
+	ownerRef  metav1.OwnerReference
+	namespace string
 }
 
 // NewObjectStoreUserController create controller for watching object store user custom resources created
-func NewObjectStoreUserController(context *clusterd.Context, ownerRef metav1.OwnerReference) *ObjectStoreUserController {
+func NewObjectStoreUserController(context *clusterd.Context, namespace string, ownerRef metav1.OwnerReference) *ObjectStoreUserController {
 	return &ObjectStoreUserController{
-		context:  context,
-		ownerRef: ownerRef,
+		context:   context,
+		ownerRef:  ownerRef,
+		namespace: namespace,
 	}
 }
 
 // StartWatch watches for instances of ObjectStoreUser custom resources and acts on them
-func (c *ObjectStoreUserController) StartWatch(namespace string, stopCh chan struct{}) error {
+func (c *ObjectStoreUserController) StartWatch(stopCh chan struct{}) error {
 
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
@@ -72,8 +75,8 @@ func (c *ObjectStoreUserController) StartWatch(namespace string, stopCh chan str
 		DeleteFunc: c.onDelete,
 	}
 
-	logger.Infof("start watching object store user resources in namespace %s", namespace)
-	watcher := opkit.NewWatcher(ObjectStoreUserResource, namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1().RESTClient())
+	logger.Infof("start watching object store user resources in namespace %s", c.namespace)
+	watcher := opkit.NewWatcher(ObjectStoreUserResource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1().RESTClient())
 	go watcher.Watch(&cephv1.CephObjectStoreUser{}, stopCh)
 
 	return nil
@@ -105,6 +108,10 @@ func (c *ObjectStoreUserController) onDelete(obj interface{}) {
 	if err = deleteUser(c.context, user); err != nil {
 		logger.Errorf("failed to delete object store user %s. %+v", user.Name, err)
 	}
+}
+
+func (c *ObjectStoreUserController) ParentClusterChanged(cluster cephv1.ClusterSpec, clusterInfo *cephconfig.ClusterInfo) {
+	logger.Debugf("No need to update object store users after the parent cluster changed")
 }
 
 func (c *ObjectStoreUserController) storeUserOwners(store *cephv1.CephObjectStoreUser) []metav1.OwnerReference {
