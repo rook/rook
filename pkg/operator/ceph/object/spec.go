@@ -49,6 +49,7 @@ func (c *clusterConfig) startDeployment() (*apps.Deployment, error) {
 	}
 	k8sutil.AddRookVersionLabelToDeployment(d)
 	c.store.Spec.Gateway.Annotations.ApplyToObjectMeta(&d.ObjectMeta)
+	opspec.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, d)
 	k8sutil.SetOwnerRefs(c.context.Clientset, c.store.Namespace, &d.ObjectMeta, c.ownerRefs)
 
 	logger.Debugf("starting rgw deployment: %+v", d)
@@ -96,6 +97,7 @@ func (c *clusterConfig) startDaemonset() (*apps.DaemonSet, error) {
 		},
 	}
 	k8sutil.AddRookVersionLabelToDaemonSet(d)
+	opspec.AddCephVersionLabelToDaemonSet(c.clusterInfo.CephVersion, d)
 	k8sutil.SetOwnerRefs(c.context.Clientset, c.store.Namespace, &d.ObjectMeta, c.ownerRefs)
 
 	logger.Debugf("starting rgw daemonset: %+v", d)
