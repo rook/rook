@@ -30,7 +30,7 @@ type CephV1Interface interface {
 	CephBlockPoolsGetter
 	CephClustersGetter
 	CephFilesystemsGetter
-	CephNFSsGetter
+	CephNFSesGetter
 	CephObjectStoresGetter
 	CephObjectStoreUsersGetter
 }
@@ -52,8 +52,8 @@ func (c *CephV1Client) CephFilesystems(namespace string) CephFilesystemInterface
 	return newCephFilesystems(c, namespace)
 }
 
-func (c *CephV1Client) CephNFSs(namespace string) CephNFSInterface {
-	return newCephNFSs(c, namespace)
+func (c *CephV1Client) CephNFSes(namespace string) CephNFSInterface {
+	return newCephNFSes(c, namespace)
 }
 
 func (c *CephV1Client) CephObjectStores(namespace string) CephObjectStoreInterface {

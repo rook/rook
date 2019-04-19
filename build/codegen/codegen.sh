@@ -42,3 +42,13 @@ find "${scriptdir}/../../pkg/client" -name "clientset_generated.go" -exec \
     $SED 's/return \&Clientset{fakePtr, \&fakediscovery.FakeDiscovery{Fake: \&fakePtr}}/cs.discovery = \&fakediscovery.FakeDiscovery{Fake: \&cs.Fake}\
 	return cs/g' {} +
 find "${scriptdir}/../../pkg/client" -name "clientset_generated.go.bak" -delete
+
+# Code generation does not respect the plural version of the CRD name unless it simply appends "s".
+# In this case the plural for cephnfs should be cephnfses.
+find "${scriptdir}/../../pkg/client" -name "*.go" -exec \
+    $SED 's/cephnfss/cephnfses/g' {} +
+find "${scriptdir}/../../pkg/client" -name "*.go" -exec \
+    $SED 's/CephNFSs/CephNFSes/g' {} +
+find "${scriptdir}/../../pkg/client" -name "*.go" -exec \
+    $SED 's/cephNFSs/cephNFSes/g' {} +
+find "${scriptdir}/../../pkg/client" -name "*.go.bak" -delete

@@ -32,7 +32,7 @@ import (
 )
 
 // CephNFSInformer provides access to a shared informer and lister for
-// CephNFSs.
+// CephNFSes.
 type CephNFSInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() v1.CephNFSLister
@@ -61,13 +61,13 @@ func NewFilteredCephNFSInformer(client versioned.Interface, namespace string, re
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CephV1().CephNFSs(namespace).List(options)
+				return client.CephV1().CephNFSes(namespace).List(options)
 			},
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CephV1().CephNFSs(namespace).Watch(options)
+				return client.CephV1().CephNFSes(namespace).Watch(options)
 			},
 		},
 		&cephrookiov1.CephNFS{},
