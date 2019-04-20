@@ -24,6 +24,7 @@ If you are using `dataDirHostPath` to persist rook data on kubernetes hosts, mak
 If you're feeling lucky, a simple Rook cluster can be created with the following kubectl commands. For the more detailed install, skip to the next section to [deploy the Rook operator](#deploy-the-rook-operator).
 ```
 cd cluster/examples/kubernetes/ceph
+kubectl create -f common.yaml
 kubectl create -f operator.yaml
 kubectl create -f cluster.yaml
 ```
