@@ -39,7 +39,7 @@ cd cluster/examples/kubernetes/ceph
 kubectl create -f operator.yaml
 
 # verify the rook-ceph-operator, rook-ceph-agent, and rook-discover pods are in the `Running` state before proceeding
-kubectl -n rook-ceph-system get pod
+kubectl -n rook-ceph get pod
 ```
 
 You can also deploy the operator with the [Rook Helm Chart](helm-operator.md).
