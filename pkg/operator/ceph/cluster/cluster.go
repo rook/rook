@@ -57,6 +57,7 @@ type cluster struct {
 	orchestrationRunning bool
 	orchestrationNeeded  bool
 	orchMux              sync.Mutex
+	status               cephv1.ClusterStatus
 }
 
 func newCluster(c *cephv1.CephCluster, context *clusterd.Context) *cluster {
@@ -220,8 +221,9 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 		return fmt.Errorf("failed to start the rbd mirrors. %+v", err)
 	}
 
-	logger.Infof("Done creating rook instance in namespace %s", c.Namespace)
-
+	msg := "Done creating or updating ceph cluster in namespace %s"
+	c.status.Message = fmt.Sprintf(msg, c.Namespace)
+	logger.Infof(msg, c.Namespace)
 	return nil
 }
 

@@ -101,9 +101,11 @@ type DashboardSpec struct {
 }
 
 type ClusterStatus struct {
-	State      ClusterState `json:"state,omitempty"`
-	Message    string       `json:"message,omitempty"`
-	CephStatus *CephStatus  `json:"ceph,omitempty"`
+	State          ClusterState `json:"state,omitempty"`
+	Message        string       `json:"message,omitempty"`
+	CephName       string       `json:"cephName,omitempty"`
+	LastUpdateTime string       `json:"lastUpdateTime,omitempty"`
+	CephStatus     *CephStatus  `json:"ceph,omitempty"`
 }
 
 type CephStatus struct {

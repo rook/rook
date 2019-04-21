@@ -47,6 +47,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
 
 const (
@@ -234,12 +235,14 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	cluster := newCluster(clusterObj, c.context)
 	c.clusterMap[cluster.Namespace] = cluster
 
-	logger.Infof("starting cluster in namespace %s", cluster.Namespace)
+	info := fmt.Sprintf("starting cluster in namespace %s", cluster.Namespace)
+	cluster.status.Message = info
+	logger.Infof(info)
 
 	if c.devicesInUse && cluster.Spec.Storage.AnyUseAllDevices() {
 		message := "using all devices in more than one namespace not supported"
 		logger.Error(message)
-		if err := c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1.ClusterStateError, message); err != nil {
+		if err := c.updateClusterStatus(cluster, clusterObj.Name, cephv1.ClusterStateError, message); err != nil {
 			logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
 		}
 		return
@@ -268,6 +271,8 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		return
 	}
 
+	cluster.status.CephName = version
+
 	if !cluster.Spec.CephVersion.AllowUnsupported {
 		if !cephVersion.Supported() {
 			logger.Errorf("unsupported ceph version detected: %s. allowUnsupported must be set to true to run with this version.", cephVersion)
@@ -277,19 +282,21 @@ func (c *ClusterController) onAdd(obj interface{}) {
 
 	// Start the Rook cluster components. Retry several times in case of failure.
 	err = wait.Poll(clusterCreateInterval, clusterCreateTimeout, func() (bool, error) {
-		if err := c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1.ClusterStateCreating, ""); err != nil {
+		if err := c.updateClusterStatus(cluster, clusterObj.Name, cephv1.ClusterStateCreating, ""); err != nil {
 			logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
 			return false, nil
 		}
 
 		err := cluster.createInstance(c.rookImage, *cephVersion)
 		if err != nil {
-			logger.Errorf("failed to create cluster in namespace %s. %+v", cluster.Namespace, err)
+			errMsg := "failed to create cluster in namespace %s. %+v"
+			cluster.status.Message = fmt.Sprintf(errMsg, cluster.Namespace, err)
+			logger.Errorf(errMsg, cluster.Namespace, err)
 			return false, nil
 		}
 
 		// cluster is created, update the cluster CRD status now
-		if err := c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1.ClusterStateCreated, ""); err != nil {
+		if err := c.updateClusterStatus(cluster, clusterObj.Name, cephv1.ClusterStateCreated, ""); err != nil {
 			logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
 			return false, nil
 		}
@@ -299,7 +306,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	if err != nil {
 		message := fmt.Sprintf("giving up creating cluster in namespace %s after %s", cluster.Namespace, clusterCreateTimeout)
 		logger.Error(message)
-		if err := c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1.ClusterStateError, message); err != nil {
+		if err := c.updateClusterStatus(cluster, clusterObj.Name, cephv1.ClusterStateError, message); err != nil {
 			logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
 		}
 		return
@@ -392,7 +399,9 @@ func (c *ClusterController) onK8sNodeUpdate(oldObj, newObj interface{}) {
 			logger.Debugf("Adding %s to cluster %s", newNode.Labels[v1.LabelHostname], cluster.Namespace)
 			err := cluster.createInstance(c.rookImage, cluster.Info.CephVersion)
 			if err != nil {
-				logger.Errorf("Failed adding the updated node %s to cluster in namespace %s. %+v", newNode.Labels[v1.LabelHostname], cluster.Namespace, err)
+				errMsg := "Failed adding the updated node %s to cluster in namespace %s. %+v"
+				cluster.status.Message = fmt.Sprintf(errMsg, newNode.Labels[apis.LabelHostname], err)
+				logger.Errorf(errMsg, newNode.Labels[apis.LabelHostname], cluster.Namespace, err)
 				continue
 			}
 		} else {
@@ -560,13 +569,14 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 		return
 	}
 
+	cluster.status.Message = "updating cluster..."
 	err = wait.Poll(updateClusterInterval, updateClusterTimeout, func() (bool, error) {
 		return c.handleUpdate(newClust.Name, cluster)
 	})
 	if err != nil {
 		message := fmt.Sprintf("giving up trying to update cluster in namespace %s after %s", cluster.Namespace, updateClusterTimeout)
 		logger.Error(message)
-		if err := c.updateClusterStatus(newClust.Namespace, newClust.Name, cephv1.ClusterStateError, message); err != nil {
+		if err := c.updateClusterStatus(cluster, newClust.Name, cephv1.ClusterStateError, message); err != nil {
 			logger.Errorf("failed to update cluster status in namespace %s: %+v", newClust.Namespace, err)
 		}
 		return
@@ -574,17 +584,19 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 }
 
 func (c *ClusterController) handleUpdate(crdName string, cluster *cluster) (bool, error) {
-	if err := c.updateClusterStatus(cluster.Namespace, crdName, cephv1.ClusterStateUpdating, ""); err != nil {
+	if err := c.updateClusterStatus(cluster, crdName, cephv1.ClusterStateUpdating, ""); err != nil {
 		logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
 		return false, nil
 	}
 
 	if err := cluster.createInstance(c.rookImage, cluster.Info.CephVersion); err != nil {
-		logger.Errorf("failed to update cluster in namespace %s. %+v", cluster.Namespace, err)
+		errMsg := "failed to update cluster in namespace %s. %+v"
+		cluster.status.Message = fmt.Sprintf(errMsg, cluster.Namespace, err)
+		logger.Errorf(errMsg, cluster.Namespace, err)
 		return false, nil
 	}
 
-	if err := c.updateClusterStatus(cluster.Namespace, crdName, cephv1.ClusterStateCreated, ""); err != nil {
+	if err := c.updateClusterStatus(cluster, crdName, cephv1.ClusterStateCreated, ""); err != nil {
 		logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
 		return false, nil
 	}
@@ -792,23 +804,25 @@ func (c *ClusterController) removeFinalizer(obj interface{}) {
 }
 
 // updateClusterStatus updates the status of the cluster custom resource, whether it is being updated or is completed
-func (c *ClusterController) updateClusterStatus(namespace, name string, state cephv1.ClusterState, message string) error {
+func (c *ClusterController) updateClusterStatus(cluster *cluster, name string, state cephv1.ClusterState, message string) error {
 	logger.Infof("CephCluster %s status: %s", namespace, state)
 
 	// get the most recent cluster CRD object
-	cluster, err := c.context.RookClientset.CephV1().CephClusters(namespace).Get(name, metav1.GetOptions{})
+	clusterObj, err := c.context.RookClientset.CephV1().CephClusters(cluster.Namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to get cluster from namespace %s prior to updating its status: %+v", namespace, err)
+		return fmt.Errorf("failed to get cluster from namespace %s prior to updating its status: %+v", cluster.namespace, err)
 	}
 
 	// update the status on the retrieved cluster object
 	// do not overwrite the ceph status that is updated in a separate goroutine
-	cluster.Status.State = state
-	cluster.Status.Message = message
-	if _, err := c.context.RookClientset.CephV1().CephClusters(namespace).Update(cluster); err != nil {
-		return fmt.Errorf("failed to update cluster %s status: %+v", namespace, err)
-	}
+	clusterObj.Status.State = state
+	clusterObj.Status.Message = message
+	clusterObj.Status.CephName = cluster.status.CephName
+	clusterObj.Status.LastUpdateTime = time.Now().Format(time.RFC3339)
 
+	if _, err := c.context.RookClientset.CephV1().CephClusters(clusterObj.Namespace).Update(clusterObj); err != nil {
+		return fmt.Errorf("failed to update cluster %s status: %+v", clusterObj.Namespace, err)
+	}
 	return nil
 }
 
