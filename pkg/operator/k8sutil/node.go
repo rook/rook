@@ -114,8 +114,25 @@ func GetNodeSchedulable(node v1.Node) bool {
 	if node.Spec.Unschedulable {
 		return false
 	}
-	for i := range node.Spec.Taints {
-		if node.Spec.Taints[i].Effect == "NoSchedule" {
+
+	for _, taint := range node.Spec.Taints {
+		if taint.Effect == "NoSchedule" {
+			logger.Debugf("Node %s is unschedulable", node.Labels[v1.LabelHostname])
+			return false
+		}
+	}
+	return true
+}
+
+// IsNodeMaintenance returns true iff the node is tainted with key="rook.io/maintenance" with the NoSchedule effect
+func IsNodeMaintenance(node v1.Node) bool {
+	// some unit tests set this to quickly emulate an unschedulable node; if this is set to true,
+	// we can shortcut deeper inspection for schedulability.
+	if node.Spec.Unschedulable {
+		return false
+	}
+	for _, taint := range node.Spec.Taints {
+		if taint.Effect == "NoSchedule" && taint.Key == "rook.io/maintenance" {
 			logger.Debugf("Node %s is unschedulable", node.Labels[v1.LabelHostname])
 			return false
 		}

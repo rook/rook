@@ -415,7 +415,7 @@ func (c *ClusterController) reconcileNodeMaintenance(updatedNode *v1.Node) {
 			}
 			allSchedulable := true
 			for _, node := range nodes {
-				if !k8sutil.GetNodeSchedulable(node) {
+				if !k8sutil.IsNodeMaintenance(node) {
 					allSchedulable = false
 					break
 				}
