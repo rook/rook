@@ -70,7 +70,7 @@ metadata:
 spec:
   cephVersion:
     # For the latest ceph images, see https://hub.docker.com/r/ceph/ceph/tags
-    image: ceph/ceph:v13.2.5-20190319
+    image: ceph/ceph:v14.2.0-20190410
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
