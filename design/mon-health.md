@@ -54,7 +54,7 @@ These two intervals can be configured as parameters to the rook [operator pod](/
 - name: ROOK_MON_HEALTHCHECK_INTERVAL
     value: "45s"
 - name: ROOK_MON_OUT_TIMEOUT
-    value: "300s"
+    value: "600s"
 ```
 
 ### Example Failover

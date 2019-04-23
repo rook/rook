@@ -125,7 +125,7 @@ The following tables lists the configurable parameters of the rook-operator char
 | `discover.toleration`        | Toleration for the discover pods                                                                        | <none>                                                 |
 | `discover.tolerationKey`     | The specific key of the taint to tolerate                                                               | <none>                                                 |
 | `mon.healthCheckInterval`    | The frequency for the operator to check the mon health                                                  | `45s`                                                  |
-| `mon.monOutTimeout`          | The time to wait before failing over an unhealthy mon                                                   | `300s`                                                 |
+| `mon.monOutTimeout`          | The time to wait before failing over an unhealthy mon                                                   | `600s`                                                 |
 
 &ast; For information on what to set `agent.flexVolumeDirPath` to, please refer to the [Rook flexvolume documentation](flexvolume.md)
 &ast; `agent.mounts` should have this format `mountname1=/host/path:/container/path,mountname2=/host/path2:/container/path2`
