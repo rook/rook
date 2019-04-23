@@ -59,7 +59,7 @@ func (n *NFSOperation) Create(namespace, name, pool string, daemonCount int) err
 func (n *NFSOperation) Delete(namespace, name string) error {
 	options := &metav1.DeleteOptions{}
 	logger.Infof("Deleting nfs %s in namespace %s", name, namespace)
-	err := n.k8sh.RookClientset.CephV1().CephNFSs(namespace).Delete(name, options)
+	err := n.k8sh.RookClientset.CephV1().CephNFSes(namespace).Delete(name, options)
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}

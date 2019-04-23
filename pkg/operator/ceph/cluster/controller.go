@@ -306,24 +306,28 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	}
 
 	// Start pool CRD watcher
-	poolController := pool.NewPoolController(c.context)
-	poolController.StartWatch(cluster.Namespace, cluster.stopCh)
+	poolController := pool.NewPoolController(c.context, cluster.Namespace)
+	poolController.StartWatch(cluster.stopCh)
 
 	// Start object store CRD watcher
-	objectStoreController := object.NewObjectStoreController(cluster.Info, c.context, c.rookImage, cluster.Spec.CephVersion, cluster.Spec.Network.HostNetwork, cluster.ownerRef, cluster.Spec.DataDirHostPath)
-	objectStoreController.StartWatch(cluster.Namespace, cluster.stopCh)
+	objectStoreController := object.NewObjectStoreController(cluster.Info, c.context, cluster.Namespace, c.rookImage, cluster.Spec.CephVersion, cluster.Spec.Network.HostNetwork, cluster.ownerRef, cluster.Spec.DataDirHostPath)
+	objectStoreController.StartWatch(cluster.stopCh)
 
 	// Start object store user CRD watcher
-	objectStoreUserController := objectuser.NewObjectStoreUserController(c.context, cluster.ownerRef)
-	objectStoreUserController.StartWatch(cluster.Namespace, cluster.stopCh)
+	objectStoreUserController := objectuser.NewObjectStoreUserController(c.context, cluster.Namespace, cluster.ownerRef)
+	objectStoreUserController.StartWatch(cluster.stopCh)
 
 	// Start file system CRD watcher
-	fileController := file.NewFilesystemController(cluster.Info, c.context, c.rookImage, cluster.Spec.CephVersion, cluster.Spec.Network.HostNetwork, cluster.ownerRef, cluster.Spec.DataDirHostPath)
-	fileController.StartWatch(cluster.Namespace, cluster.stopCh)
+	fileController := file.NewFilesystemController(cluster.Info, c.context, cluster.Namespace, c.rookImage, cluster.Spec.CephVersion, cluster.Spec.Network.HostNetwork, cluster.ownerRef, cluster.Spec.DataDirHostPath)
+	fileController.StartWatch(cluster.stopCh)
 
 	// Start nfs ganesha CRD watcher
-	ganeshaController := nfs.NewCephNFSController(cluster.Info, c.context, c.rookImage, cluster.Spec.CephVersion, cluster.Spec.Network.HostNetwork, cluster.ownerRef)
-	ganeshaController.StartWatch(cluster.Namespace, cluster.stopCh)
+	ganeshaController := nfs.NewCephNFSController(cluster.Info, c.context, cluster.Namespace, c.rookImage, cluster.Spec.CephVersion, cluster.Spec.Network.HostNetwork, cluster.ownerRef)
+	ganeshaController.StartWatch(cluster.stopCh)
+
+	cluster.childControllers = []childController{
+		poolController, objectStoreController, objectStoreUserController, fileController, ganeshaController,
+	}
 
 	// Start mon health checker
 	healthChecker := mon.NewHealthChecker(cluster.mons)

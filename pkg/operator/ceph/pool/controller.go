@@ -27,6 +27,7 @@ import (
 	cephbeta "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/clusterd"
 	ceph "github.com/rook/rook/pkg/daemon/ceph/client"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/daemon/ceph/model"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -63,18 +64,20 @@ var PoolResourceRookLegacy = opkit.CustomResource{
 
 // PoolController represents a controller object for pool custom resources
 type PoolController struct {
-	context *clusterd.Context
+	context   *clusterd.Context
+	namespace string
 }
 
 // NewPoolController create controller for watching pool custom resources created
-func NewPoolController(context *clusterd.Context) *PoolController {
+func NewPoolController(context *clusterd.Context, namespace string) *PoolController {
 	return &PoolController{
-		context: context,
+		context:   context,
+		namespace: namespace,
 	}
 }
 
 // Watch watches for instances of Pool custom resources and acts on them
-func (c *PoolController) StartWatch(namespace string, stopCh chan struct{}) error {
+func (c *PoolController) StartWatch(stopCh chan struct{}) error {
 
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
@@ -82,12 +85,12 @@ func (c *PoolController) StartWatch(namespace string, stopCh chan struct{}) erro
 		DeleteFunc: c.onDelete,
 	}
 
-	logger.Infof("start watching pool resources in namespace %s", namespace)
-	watcher := opkit.NewWatcher(PoolResource, namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1().RESTClient())
+	logger.Infof("start watching pool resources in namespace %s", c.namespace)
+	watcher := opkit.NewWatcher(PoolResource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1().RESTClient())
 	go watcher.Watch(&cephv1.CephBlockPool{}, stopCh)
 
 	// watch for events on all legacy types too
-	c.watchLegacyPools(namespace, stopCh, resourceHandlerFuncs)
+	c.watchLegacyPools(c.namespace, stopCh, resourceHandlerFuncs)
 
 	return nil
 }
@@ -149,6 +152,10 @@ func (c *PoolController) onUpdate(oldObj, newObj interface{}) {
 	if err := createPool(c.context, pool); err != nil {
 		logger.Errorf("failed to create (modify) pool %s. %+v", pool.ObjectMeta.Name, err)
 	}
+}
+
+func (c *PoolController) ParentClusterChanged(cluster cephv1.ClusterSpec, clusterInfo *cephconfig.ClusterInfo) {
+	logger.Debugf("No need to update the pool after the parent cluster changed")
 }
 
 func poolChanged(old, new cephv1.PoolSpec) bool {

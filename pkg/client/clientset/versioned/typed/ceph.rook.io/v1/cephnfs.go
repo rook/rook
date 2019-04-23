@@ -29,10 +29,10 @@ import (
 	rest "k8s.io/client-go/rest"
 )
 
-// CephNFSsGetter has a method to return a CephNFSInterface.
+// CephNFSesGetter has a method to return a CephNFSInterface.
 // A group's client should implement this interface.
-type CephNFSsGetter interface {
-	CephNFSs(namespace string) CephNFSInterface
+type CephNFSesGetter interface {
+	CephNFSes(namespace string) CephNFSInterface
 }
 
 // CephNFSInterface has methods to work with CephNFS resources.
@@ -48,26 +48,26 @@ type CephNFSInterface interface {
 	CephNFSExpansion
 }
 
-// cephNFSs implements CephNFSInterface
-type cephNFSs struct {
+// cephNFSes implements CephNFSInterface
+type cephNFSes struct {
 	client rest.Interface
 	ns     string
 }
 
-// newCephNFSs returns a CephNFSs
-func newCephNFSs(c *CephV1Client, namespace string) *cephNFSs {
-	return &cephNFSs{
+// newCephNFSes returns a CephNFSes
+func newCephNFSes(c *CephV1Client, namespace string) *cephNFSes {
+	return &cephNFSes{
 		client: c.RESTClient(),
 		ns:     namespace,
 	}
 }
 
 // Get takes name of the cephNFS, and returns the corresponding cephNFS object, and an error if there is any.
-func (c *cephNFSs) Get(name string, options metav1.GetOptions) (result *v1.CephNFS, err error) {
+func (c *cephNFSes) Get(name string, options metav1.GetOptions) (result *v1.CephNFS, err error) {
 	result = &v1.CephNFS{}
 	err = c.client.Get().
 		Namespace(c.ns).
-		Resource("cephnfss").
+		Resource("cephnfses").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
 		Do().
@@ -75,8 +75,8 @@ func (c *cephNFSs) Get(name string, options metav1.GetOptions) (result *v1.CephN
 	return
 }
 
-// List takes label and field selectors, and returns the list of CephNFSs that match those selectors.
-func (c *cephNFSs) List(opts metav1.ListOptions) (result *v1.CephNFSList, err error) {
+// List takes label and field selectors, and returns the list of CephNFSes that match those selectors.
+func (c *cephNFSes) List(opts metav1.ListOptions) (result *v1.CephNFSList, err error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -84,7 +84,7 @@ func (c *cephNFSs) List(opts metav1.ListOptions) (result *v1.CephNFSList, err er
 	result = &v1.CephNFSList{}
 	err = c.client.Get().
 		Namespace(c.ns).
-		Resource("cephnfss").
+		Resource("cephnfses").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
 		Do().
@@ -92,8 +92,8 @@ func (c *cephNFSs) List(opts metav1.ListOptions) (result *v1.CephNFSList, err er
 	return
 }
 
-// Watch returns a watch.Interface that watches the requested cephNFSs.
-func (c *cephNFSs) Watch(opts metav1.ListOptions) (watch.Interface, error) {
+// Watch returns a watch.Interface that watches the requested cephNFSes.
+func (c *cephNFSes) Watch(opts metav1.ListOptions) (watch.Interface, error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -101,18 +101,18 @@ func (c *cephNFSs) Watch(opts metav1.ListOptions) (watch.Interface, error) {
 	opts.Watch = true
 	return c.client.Get().
 		Namespace(c.ns).
-		Resource("cephnfss").
+		Resource("cephnfses").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
 		Watch()
 }
 
 // Create takes the representation of a cephNFS and creates it.  Returns the server's representation of the cephNFS, and an error, if there is any.
-func (c *cephNFSs) Create(cephNFS *v1.CephNFS) (result *v1.CephNFS, err error) {
+func (c *cephNFSes) Create(cephNFS *v1.CephNFS) (result *v1.CephNFS, err error) {
 	result = &v1.CephNFS{}
 	err = c.client.Post().
 		Namespace(c.ns).
-		Resource("cephnfss").
+		Resource("cephnfses").
 		Body(cephNFS).
 		Do().
 		Into(result)
@@ -120,11 +120,11 @@ func (c *cephNFSs) Create(cephNFS *v1.CephNFS) (result *v1.CephNFS, err error) {
 }
 
 // Update takes the representation of a cephNFS and updates it. Returns the server's representation of the cephNFS, and an error, if there is any.
-func (c *cephNFSs) Update(cephNFS *v1.CephNFS) (result *v1.CephNFS, err error) {
+func (c *cephNFSes) Update(cephNFS *v1.CephNFS) (result *v1.CephNFS, err error) {
 	result = &v1.CephNFS{}
 	err = c.client.Put().
 		Namespace(c.ns).
-		Resource("cephnfss").
+		Resource("cephnfses").
 		Name(cephNFS.Name).
 		Body(cephNFS).
 		Do().
@@ -133,10 +133,10 @@ func (c *cephNFSs) Update(cephNFS *v1.CephNFS) (result *v1.CephNFS, err error) {
 }
 
 // Delete takes name of the cephNFS and deletes it. Returns an error if one occurs.
-func (c *cephNFSs) Delete(name string, options *metav1.DeleteOptions) error {
+func (c *cephNFSes) Delete(name string, options *metav1.DeleteOptions) error {
 	return c.client.Delete().
 		Namespace(c.ns).
-		Resource("cephnfss").
+		Resource("cephnfses").
 		Name(name).
 		Body(options).
 		Do().
@@ -144,14 +144,14 @@ func (c *cephNFSs) Delete(name string, options *metav1.DeleteOptions) error {
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *cephNFSs) DeleteCollection(options *metav1.DeleteOptions, listOptions metav1.ListOptions) error {
+func (c *cephNFSes) DeleteCollection(options *metav1.DeleteOptions, listOptions metav1.ListOptions) error {
 	var timeout time.Duration
 	if listOptions.TimeoutSeconds != nil {
 		timeout = time.Duration(*listOptions.TimeoutSeconds) * time.Second
 	}
 	return c.client.Delete().
 		Namespace(c.ns).
-		Resource("cephnfss").
+		Resource("cephnfses").
 		VersionedParams(&listOptions, scheme.ParameterCodec).
 		Timeout(timeout).
 		Body(options).
@@ -160,11 +160,11 @@ func (c *cephNFSs) DeleteCollection(options *metav1.DeleteOptions, listOptions m
 }
 
 // Patch applies the patch and returns the patched cephNFS.
-func (c *cephNFSs) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.CephNFS, err error) {
+func (c *cephNFSes) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.CephNFS, err error) {
 	result = &v1.CephNFS{}
 	err = c.client.Patch(pt).
 		Namespace(c.ns).
-		Resource("cephnfss").
+		Resource("cephnfses").
 		SubResource(subresources...).
 		Name(name).
 		Body(data).

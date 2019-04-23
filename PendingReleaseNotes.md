@@ -13,6 +13,11 @@
 ### Ceph
 
 - Ceph Nautilus (`v14`) is now supported by Rook and is the default version deployed by the examples.
+- An operator restart is no longer needed to apply changes to the cluster in the following scenarios:
+   - When a node is added to the cluster, OSDs will be automatically configured if needed.
+   - When a device is attached to a storage node, OSDs will be automatically configured if needed.
+   - Any change to the CephCluster CR will trigger updates to the cluster.
+   - Upgrading the Ceph version will update all Ceph daemons (in v0.9, mds and rgw daemons were skipped)
 - Ceph status is surfaced in the CephCluster CR and periodically updated by the operator (default is 60s). The interval can be configured with the `ROOK_CEPH_STATUS_CHECK_INTERVAL` env var.
 - A `CephNFS` CRD will start NFS daemon(s) for exporting CephFS volumes or RGW buckets. See the [NFS documentation](Documentation/ceph-nfs-crd.md).
 - Selinux labeling for mounts can now be toggled with the [ROOK_ENABLE_SELINUX_RELABELING](https://github.com/rook/rook/issues/2417) environment variable.
