@@ -113,6 +113,9 @@ spec:
         # For more details see https://github.com/rook/rook/issues/2254
         - name: ROOK_ENABLE_FSGROUP
           value: "true"
+        # Disable automatic orchestration when new devices are discovered
+        - name: ROOK_DISABLE_DEVICE_HOTPLUG
+          value: "false"
         # The name of the node to pass with the downward API
         - name: NODE_NAME
           valueFrom:

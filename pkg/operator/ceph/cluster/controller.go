@@ -63,6 +63,7 @@ const (
 	DefaultClusterName         = "rook-ceph"
 	clusterDeleteRetryInterval = 2 //seconds
 	clusterDeleteMaxRetries    = 15
+	disableHotplugEnv          = "ROOK_DISABLE_DEVICE_HOTPLUG"
 )
 
 var (
@@ -143,24 +144,29 @@ func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) e
 	)
 	go nodeController.Run(stopCh)
 
-	// watch for updates to the device discovery configmap
-	operatorNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
-	_, deviceCMController := cache.NewInformer(
-		cache.NewFilteredListWatchFromClient(c.context.Clientset.CoreV1().RESTClient(),
-			"configmaps", operatorNamespace, func(options *metav1.ListOptions) {
-				options.LabelSelector = fmt.Sprintf("%s=%s", k8sutil.AppAttr, discoverDaemon.AppName)
+	if disableVal := os.Getenv(disableHotplugEnv); disableVal != "true" {
+		// watch for updates to the device discovery configmap
+		logger.Infof("Enabling hotplug orchestration: %s=%s", disableHotplugEnv, disableVal)
+		operatorNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
+		_, deviceCMController := cache.NewInformer(
+			cache.NewFilteredListWatchFromClient(c.context.Clientset.CoreV1().RESTClient(),
+				"configmaps", operatorNamespace, func(options *metav1.ListOptions) {
+					options.LabelSelector = fmt.Sprintf("%s=%s", k8sutil.AppAttr, discoverDaemon.AppName)
+				},
+			),
+			&v1.ConfigMap{},
+			0,
+			cache.ResourceEventHandlerFuncs{
+				AddFunc:    nil,
+				UpdateFunc: c.onDeviceCMUpdate,
+				DeleteFunc: nil,
 			},
-		),
-		&v1.ConfigMap{},
-		0,
-		cache.ResourceEventHandlerFuncs{
-			AddFunc:    nil,
-			UpdateFunc: c.onDeviceCMUpdate,
-			DeleteFunc: nil,
-		},
-	)
+		)
 
-	go deviceCMController.Run(stopCh)
+		go deviceCMController.Run(stopCh)
+	} else {
+		logger.Infof("Disabling hotplug orchestration via %s", disableHotplugEnv)
+	}
 
 	// watch for events on all legacy types too
 	c.watchLegacyClusters(namespace, stopCh, resourceHandlerFuncs)
