@@ -167,7 +167,9 @@ func udevBlockMonitor(c chan string, period time.Duration) {
 	// return any add or remove events, but none that match device mapper
 	// events. string matching is case-insensitve
 	events := make(chan string)
-	go rawUdevBlockMonitor(events, []string{"(?i)add", "(?i)remove"}, []string{"(?i)dm-[0-9]+"})
+	go rawUdevBlockMonitor(events,
+		[]string{"(?i)add", "(?i)remove"},
+		[]string{"(?i)dm-[0-9]+", "(?i)rbd[0-9]+"})
 
 	for {
 		event, ok := <-events
