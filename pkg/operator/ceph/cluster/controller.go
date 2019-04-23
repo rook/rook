@@ -600,17 +600,19 @@ func (c *ClusterController) handleUpdate(crdName string, cluster *cluster) (bool
 }
 
 func (c *ClusterController) onDeviceCMUpdate(oldObj, newObj interface{}) {
-	_, ok := oldObj.(*v1.ConfigMap)
+	oldCm, ok := oldObj.(*v1.ConfigMap)
 	if !ok {
 		logger.Warningf("Expected ConfigMap but handler received %#v", oldObj)
 		return
 	}
+	logger.Debugf("onDeviceCMUpdate old device cm: %+v", oldCm)
 
-	_, ok = newObj.(*v1.ConfigMap)
+	newCm, ok := newObj.(*v1.ConfigMap)
 	if !ok {
 		logger.Warningf("Expected ConfigMap but handler received %#v", newObj)
 		return
 	}
+	logger.Debugf("onDeviceCMUpdate new device cm: %+v", newCm)
 
 	for _, cluster := range c.clusterMap {
 		logger.Infof("Running orchestration for namespace %s after device change", cluster.Namespace)
