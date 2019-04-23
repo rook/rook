@@ -33,7 +33,7 @@ var (
 	// HealthCheckInterval is the interval to check if the mons are in quorum
 	HealthCheckInterval = 45 * time.Second
 	// MonOutTimeout is the duration to wait before removing/failover to a new mon pod
-	MonOutTimeout = 300 * time.Second
+	MonOutTimeout = 600 * time.Second
 )
 
 // HealthChecker aggregates the mon/cluster info needed to check the health of the monitors
