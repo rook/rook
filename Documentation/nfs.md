@@ -61,7 +61,69 @@ kind: Namespace
 metadata:
   name:  rook-nfs
 ---
-# A default StorageClass must be present
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: nfs-client-provisioner-runner
+rules:
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "update", "patch"]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: run-nfs-client-provisioner
+subjects:
+  - kind: ServiceAccount
+    name: rook-nfs
+    namespace: rook-nfs
+roleRef:
+  kind: ClusterRole
+  name: nfs-client-provisioner-runner
+  apiGroup: rbac.authorization.k8s.io
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: leader-locking-nfs-client-provisioner
+  namespace: rook-nfs
+rules:
+  - apiGroups: [""]
+    resources: ["endpoints"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: leader-locking-nfs-client-provisioner
+  namespace: rook-nfs
+subjects:
+  - kind: ServiceAccount
+    name: rook-nfs
+    # replace with namespace where provisioner is deployed
+    namespace: rook-nfs
+roleRef:
+  kind: Role
+  name: leader-locking-nfs-client-provisioner
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-nfs
+  namespace: rook-nfs
+---
+# A default storageclass must be present
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -80,15 +142,20 @@ metadata:
   name: rook-nfs
   namespace: rook-nfs
 spec:
+  serviceAccountName: rook-nfs
   replicas: 1
   exports:
-  - name: nfs-share
+  - name: share1
+    createStorageClass: true
     server:
       accessMode: ReadWrite
       squash: "none"
     # A Persistent Volume Claim must be created before creating NFS CRD instance.
     persistentVolumeClaim:
       claimName: nfs-default-claim
+  # A key/value list of annotations
+  annotations:
+  #  key: value
 ```
 
 With the `nfs.yaml` file saved, now create the NFS server as shown:
@@ -278,6 +345,64 @@ After the NFS server pod is running, follow the same instructions from the previ
 * Replace the `/<Claim name>` value in the PV definition in the [Accessing the Export](nfs.md#accessing-the-export) section with the `claimName` that was configured in the `nfs-ceph.yaml`. In this case it will be `nfs-ceph-claim` and will look like `path: "/nfs-ceph-claim"`.
 
 After that, follow the rest of the instructions in the [Accessing the Export](nfs.md#accessing-the-export) section and then the [Consuming the Export](nfs.md#consuming-the-export) section to consume the NFS volume.
+
+## Dynamic provisioning with NFS
+With PR https://github.com/rook/rook/pull/2758 rook starts supporting dynamic provisioning with NFS. This example will be showing how dynamic provisioning feature can be used for nfs.
+
+Once the NFS Operator and an instance of NFSServer is deployed. A storageclass with below example can be created.
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  labels:
+    app: rook-nfs
+  name: rook-nfs-share1
+parameters:
+  claimPath: /<Claim name>
+provisioner: rook.io/<NFSServer Name>
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+```
+and can be used for provisioning volumes using PVC similar to example given below.
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rook-nfs-pv-claim
+spec:
+  storageClassName: "rook-nfs-share1"
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Mi
+```
+
+There is an option for automatically creating a storageclass for nfs which creates a storageclass for each export along with the nfs-server instance. The name of the storage class is generated in <NFSServer_Name>-<Export_name>. This option can be enabled by making `exports[].createStorageClass` field to true. For example:
+```yaml
+apiVersion: nfs.rook.io/v1alpha1
+kind: NFSServer
+metadata:
+  name: rook-nfs
+  namespace: rook-nfs
+spec:
+  serviceAccountName: rook-nfs
+  replicas: 1
+  exports:
+  - name: share1
+    createStorageClass: true
+    server:
+      accessMode: ReadWrite
+      squash: "none"
+    # A Persistent Volume Claim must be created before creating NFS CRD instance.
+    persistentVolumeClaim:
+      claimName: nfs-default-claim
+  # A key/value list of annotations
+  annotations:
+  #  key: value
+```
 
 ## Teardown
 
