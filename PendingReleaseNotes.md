@@ -31,7 +31,6 @@
 - Orchestration is automatically triggered when addition or removal of storage
   devices is detected. This should remove the requirement of restarting the
   operator to detect new devices.
-- Rook will now set `noout` on the CephClusters that have osd Nodes tainted `NoSchedule`
 - `rook-version` and `ceph-version` labels are now applied to Ceph daemon Deployments, DaemonSets,
   Jobs, and StatefulSets. These identify the Rook version which last modified the resource and the
   Ceph version which Rook has detected in the pod(s) being run by the resource.
