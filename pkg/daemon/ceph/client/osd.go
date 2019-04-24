@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/rook/rook/pkg/clusterd"
 )
@@ -64,18 +63,6 @@ type OSDDump struct {
 		Up  json.Number `json:"up"`
 		In  json.Number `json:"in"`
 	} `json:"osds"`
-	Flags string `json:"flags"`
-}
-
-// IsFlagSet checks if an OSD flag is set
-func (dump *OSDDump) IsFlagSet(checkFlag string) bool {
-	flags := strings.Split(dump.Flags, ",")
-	for _, flag := range flags {
-		if flag == checkFlag {
-			return true
-		}
-	}
-	return false
 }
 
 // StatusByID returns status and inCluster states for given OSD id
@@ -191,26 +178,6 @@ func EnableScrubbing(context *clusterd.Context, clusterName string) (string, err
 	}
 
 	return string(buf), nil
-}
-
-// SetNoOut sets the osd flag `noout`
-func SetNoOut(context *clusterd.Context, clusterName string) error {
-	args := []string{"osd", "set", "noout"}
-	_, err := ExecuteCephCommand(context, clusterName, args)
-	if err != nil {
-		return fmt.Errorf("failed to set noout: %+v", err)
-	}
-	return nil
-}
-
-// UnsetNoOut unsets the osd flag `noout`
-func UnsetNoOut(context *clusterd.Context, clusterName string) error {
-	args := []string{"osd", "unset", "noout"}
-	_, err := ExecuteCephCommand(context, clusterName, args)
-	if err != nil {
-		return fmt.Errorf("failed to unset noout: %+v", err)
-	}
-	return nil
 }
 
 func (usage *OSDUsage) ByID(osdID int) *OSDNodeUsage {

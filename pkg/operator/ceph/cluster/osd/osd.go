@@ -44,8 +44,7 @@ import (
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-osd")
 
 const (
-	//AppName is the label-value to the app key for osds
-	AppName                             = "rook-ceph-osd"
+	appName                             = "rook-ceph-osd"
 	prepareAppName                      = "rook-ceph-osd-prepare"
 	prepareAppNameFmt                   = "rook-ceph-osd-prepare-%s"
 	legacyAppNameFmt                    = "rook-ceph-osd-id-%d"
@@ -422,13 +421,12 @@ func (c *Cluster) cleanupRemovedNode(config *provisionConfig, nodeName, crushNam
 	}
 }
 
-// DiscoverStorageNodes discovers nodes which currently have osds scheduled on them
-// by a cluster (only one cluster per namespace is possible).
-// Returns a mapping of node names -> a list of osd deployments on the node
-func DiscoverStorageNodes(context *clusterd.Context, namespace string) (map[string][]*apps.Deployment, error) {
+// discover nodes which currently have osds scheduled on them. Return a mapping of
+// node names -> a list of osd deployments on the node
+func (c *Cluster) discoverStorageNodes() (map[string][]*apps.Deployment, error) {
 
-	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", AppName)}
-	osdDeployments, err := context.Clientset.AppsV1().Deployments(namespace).List(listOpts)
+	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", appName)}
+	osdDeployments, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).List(listOpts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list osd deployment: %+v", err)
 	}
@@ -452,22 +450,6 @@ func DiscoverStorageNodes(context *clusterd.Context, namespace string) (map[stri
 	}
 
 	return discoveredNodes, nil
-}
-
-// GetAllStorageNodes returns an array of v1.Node objs this cluster has osds on
-func GetAllStorageNodes(context *clusterd.Context, namespace string) ([]v1.Node, error) {
-	// Generate the LabelSelector
-	discoveredNodes, err := DiscoverStorageNodes(context, namespace)
-	nodeNameList := make([]string, 0, 3)
-	for nodeName := range discoveredNodes {
-		nodeNameList = append(nodeNameList, nodeName)
-	}
-	labelSelector := fmt.Sprintf("kubernetes.io/hostname in (%v)", strings.Join(nodeNameList, ", "))
-
-	//get the node list
-	listOpts := metav1.ListOptions{LabelSelector: labelSelector}
-	nodeList, err := context.Clientset.CoreV1().Nodes().List(listOpts)
-	return nodeList.Items, err
 }
 
 func (c *Cluster) isSafeToRemoveNode(nodeName string, osdDeployments []*apps.Deployment) error {

@@ -25,7 +25,6 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
 	apps "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -65,7 +64,7 @@ func (c *Cluster) updateNodeStatus(node string, status OrchestrationStatus) erro
 
 func UpdateNodeStatus(kv *k8sutil.ConfigMapKVStore, node string, status OrchestrationStatus) error {
 	labels := map[string]string{
-		k8sutil.AppAttr:        AppName,
+		k8sutil.AppAttr:        appName,
 		orchestrationStatusKey: provisioningLabelKey,
 		nodeLabelKey:           node,
 	}
@@ -123,7 +122,7 @@ func (c *Cluster) completeProvisionSkipOSDStart(config *provisionConfig) bool {
 	return c.completeOSDsForAllNodes(config, false, completeProvisionSkipOSDTimeout)
 }
 
-func (c *Cluster) checkNodesCompleted(selector string, config *provisionConfig, configOSDs bool) (int, *util.Set, bool, *corev1.ConfigMapList, error) {
+func (c *Cluster) checkNodesCompleted(selector string, config *provisionConfig, configOSDs bool) (int, *util.Set, bool, *v1.ConfigMapList, error) {
 	opts := metav1.ListOptions{
 		LabelSelector: selector,
 		Watch:         false,
@@ -161,7 +160,7 @@ func (c *Cluster) checkNodesCompleted(selector string, config *provisionConfig, 
 
 func (c *Cluster) completeOSDsForAllNodes(config *provisionConfig, configOSDs bool, timeoutMinutes int) bool {
 	selector := fmt.Sprintf("%s=%s,%s=%s",
-		k8sutil.AppAttr, AppName,
+		k8sutil.AppAttr, appName,
 		orchestrationStatusKey, provisioningLabelKey,
 	)
 
@@ -276,7 +275,7 @@ func (c *Cluster) findRemovedNodes() (map[string][]*apps.Deployment, error) {
 	removedNodes := map[string][]*apps.Deployment{}
 
 	// first discover the storage nodes that are still running
-	discoveredNodes, err := DiscoverStorageNodes(c.context, c.Namespace)
+	discoveredNodes, err := c.discoverStorageNodes()
 	if err != nil {
 		return nil, fmt.Errorf("aborting search for removed nodes. failed to discover storage nodes. %+v", err)
 	}

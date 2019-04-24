@@ -112,8 +112,8 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, "rook-data", deployment.Spec.Template.Spec.Volumes[0].Name)
 	assert.Equal(t, "ceph-default-config-dir", deployment.Spec.Template.Spec.Volumes[1].Name)
 
-	assert.Equal(t, AppName, deployment.Spec.Template.ObjectMeta.Name)
-	assert.Equal(t, AppName, deployment.Spec.Template.ObjectMeta.Labels["app"])
+	assert.Equal(t, appName, deployment.Spec.Template.ObjectMeta.Name)
+	assert.Equal(t, appName, deployment.Spec.Template.ObjectMeta.Labels["app"])
 	assert.Equal(t, c.Namespace, deployment.Spec.Template.ObjectMeta.Labels["rook_cluster"])
 	assert.Equal(t, 0, len(deployment.Spec.Template.ObjectMeta.Annotations))
 
