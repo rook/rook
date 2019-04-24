@@ -73,6 +73,7 @@ type ClusterSpec struct {
 	ChunkCacheSize          resource.Quantity `json:"chunkCacheSize,omitempty"`
 	TrlogProcessingInterval int               `json:"trlogProcessingInterval,omitempty"`
 	TrlogKeepDays           int               `json:"trlogKeepDays,omitempty"`
+	MaxContainerCapacity    resource.Quantity `json:"maxContainerCapacity,omitempty"`
 }
 
 type DashboardSpec struct {

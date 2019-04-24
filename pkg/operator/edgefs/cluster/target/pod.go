@@ -17,6 +17,7 @@ limitations under the License.
 package target
 
 import (
+	"fmt"
 	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/operator/edgefs/cluster/target/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -151,7 +152,7 @@ func (c *Cluster) makeAuditdContainer(containerImage string) v1.Container {
 	}
 }
 
-func (c *Cluster) makeDaemonContainer(containerImage string, dro edgefsv1beta1.DevicesResurrectOptions, isInitContainer bool) v1.Container {
+func (c *Cluster) makeDaemonContainer(containerImage string, dro edgefsv1beta1.DevicesResurrectOptions, isInitContainer bool, containerSlaveIndex int) v1.Container {
 
 	privileged := c.deploymentConfig.NeedPrivileges
 	runAsUser := int64(0)
@@ -165,6 +166,12 @@ func (c *Cluster) makeDaemonContainer(containerImage string, dro edgefsv1beta1.D
 		},
 	}
 
+	etcVolumeFolderVar := etcVolumeFolder
+	stateVolumeFolderVar := stateVolumeFolder
+	if containerSlaveIndex > 0 {
+		etcVolumeFolderVar = fmt.Sprintf("%s-%d", etcVolumeFolder, containerSlaveIndex)
+		stateVolumeFolderVar = fmt.Sprintf("%s-%d", stateVolumeFolder, containerSlaveIndex)
+	}
 	volumeMounts := []v1.VolumeMount{
 		{
 			Name:      "devices",
@@ -184,13 +191,35 @@ func (c *Cluster) makeDaemonContainer(containerImage string, dro edgefsv1beta1.D
 		{
 			Name:      dataVolumeName,
 			MountPath: "/opt/nedge/etc",
-			SubPath:   etcVolumeFolder,
+			SubPath:   etcVolumeFolderVar,
 		},
 		{
 			Name:      dataVolumeName,
 			MountPath: "/opt/nedge/var/run",
-			SubPath:   stateVolumeFolder,
+			SubPath:   stateVolumeFolderVar,
 		},
+	}
+	if containerSlaveIndex > 0 {
+		volumeMounts = append(volumeMounts, []v1.VolumeMount{
+			{
+				Name:      dataVolumeName,
+				MountPath: "/opt/nedge/var/run/corosync",
+				SubPath:   stateVolumeFolder + "/corosync", // has to be off master daemon
+			},
+			{
+				Name:      dataVolumeName,
+				MountPath: "/opt/nedge/var/run/auditd",
+				SubPath:   stateVolumeFolder + "/auditd", // has to be off master daemon
+			},
+			{
+				Name:      dataVolumeName,
+				MountPath: "/opt/nedge/etc.target",
+				SubPath:   etcVolumeFolder,
+			},
+			{
+				Name:      configVolumeName,
+				MountPath: "/opt/nedge/etc/config",
+			}}...)
 	}
 
 	// get cluster wide sync option, and apply for deploymentConfig
@@ -213,15 +242,21 @@ func (c *Cluster) makeDaemonContainer(containerImage string, dro edgefsv1beta1.D
 			args = []string{"toolbox", "nezap --do-as-i-say"}
 
 			// zap mode is InitContainer, it needs to mount config
-			volumeMounts = append(volumeMounts, v1.VolumeMount{
-				Name:      configVolumeName,
-				MountPath: "/opt/nedge/etc/config",
-			})
+			if containerSlaveIndex == 0 {
+				volumeMounts = append(volumeMounts, v1.VolumeMount{
+					Name:      configVolumeName,
+					MountPath: "/opt/nedge/etc/config",
+				})
+			}
 		}
 	} else {
 		if dro.NeedToWait {
 			args = []string{"wait"}
 		}
+	}
+
+	if containerSlaveIndex > 0 {
+		name = fmt.Sprintf("%s-%d", name, containerSlaveIndex)
 	}
 
 	cont := v1.Container{
@@ -233,6 +268,10 @@ func (c *Cluster) makeDaemonContainer(containerImage string, dro edgefsv1beta1.D
 			{
 				Name:  "CCOW_LOG_LEVEL",
 				Value: "5",
+			},
+			{
+				Name:  "DAEMON_INDEX",
+				Value: strconv.Itoa(containerSlaveIndex),
 			},
 			{
 				Name: "HOST_HOSTNAME",
@@ -343,21 +382,40 @@ func (c *Cluster) createPodSpec(rookImage string, dro edgefsv1beta1.DevicesResur
 	}
 
 	var containers []v1.Container
-	var initContainers []v1.Container
+	initContainers := make([]v1.Container, 0)
 	if dro.NeedToZap {
 		// To execute "zap" functions (devices or directories) we
 		// create InitContainer to ensure it completes fully.
-		initContainers = []v1.Container{
-			c.makeDaemonContainer(rookImage, dro, true),
-		}
+		initContainers = append(initContainers, c.makeDaemonContainer(rookImage, dro, true, 0))
 	}
 
 	volumes = append(volumes, c.configOverrideVolume())
 
 	containers = []v1.Container{
-		c.makeDaemonContainer(rookImage, dro, false),
+		c.makeDaemonContainer(rookImage, dro, false, 0),
 		c.makeCorosyncContainer(rookImage),
 		c.makeAuditdContainer(rookImage),
+	}
+
+	if len(c.deploymentConfig.DevConfig) > 0 {
+		// Get first element of DevConfigMap map, because container lenght MUST be identical fot EACH node in EdgeFS cluster
+		for _, devConfig := range c.deploymentConfig.DevConfig {
+			// Skip GW, it has no rtrd or rtrdslaves
+			if devConfig.IsGatewayNode {
+				continue
+			}
+			if len(devConfig.RtrdSlaves) > 0 {
+				for i := range devConfig.RtrdSlaves {
+					if dro.NeedToZap {
+						initContainers = append(initContainers, c.makeDaemonContainer(rookImage, dro, true, i+1))
+					}
+					containers = append(containers, c.makeDaemonContainer(rookImage, dro, false, i+1))
+				}
+			}
+
+			// No need to iterate over the all keys
+			break
+		}
 	}
 
 	return v1.PodSpec{
@@ -390,6 +448,7 @@ func (c *Cluster) createPodSpec(rookImage string, dro edgefsv1beta1.DevicesResur
 		TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
 		DNSPolicy:                     DNSPolicy,
 		HostIPC:                       true,
+		HostPID:                       true,
 		HostNetwork:                   isHostNetworkDefined(c.HostNetworkSpec),
 		Volumes:                       volumes,
 	}

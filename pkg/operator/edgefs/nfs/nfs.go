@@ -127,7 +127,6 @@ func (c *NFSController) makeNFSService(name, svcname, namespace string) *v1.Serv
 }
 
 func (c *NFSController) makeDeployment(svcname, namespace, rookImage string, nfsSpec edgefsv1beta1.NFSSpec) *apps.Deployment {
-
 	name := instanceName(svcname)
 	volumes := []v1.Volume{}
 
@@ -195,7 +194,6 @@ func (c *NFSController) makeDeployment(svcname, namespace, rookImage string, nfs
 }
 
 func (c *NFSController) nfsContainer(svcname, name, containerImage string, nfsSpec edgefsv1beta1.NFSSpec) v1.Container {
-
 	runAsUser := int64(0)
 	readOnlyRootFilesystem := false
 	securityContext := &v1.SecurityContext{

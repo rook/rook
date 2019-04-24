@@ -285,6 +285,7 @@ func (in *ClusterSpec) DeepCopyInto(out *ClusterSpec) {
 	in.Resources.DeepCopyInto(&out.Resources)
 	out.DataVolumeSize = in.DataVolumeSize.DeepCopy()
 	out.ChunkCacheSize = in.ChunkCacheSize.DeepCopy()
+	out.MaxContainerCapacity = in.MaxContainerCapacity.DeepCopy()
 	return
 }
 
@@ -334,6 +335,13 @@ func (in *DashboardSpec) DeepCopy() *DashboardSpec {
 func (in *DevicesConfig) DeepCopyInto(out *DevicesConfig) {
 	*out = *in
 	in.Rtrd.DeepCopyInto(&out.Rtrd)
+	if in.RtrdSlaves != nil {
+		in, out := &in.RtrdSlaves, &out.RtrdSlaves
+		*out = make([]RTDevices, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	in.Rtlfs.DeepCopyInto(&out.Rtlfs)
 	return
 }
@@ -976,6 +984,13 @@ func (in *SetupNode) DeepCopyInto(out *SetupNode) {
 		copy(*out, *in)
 	}
 	in.Rtrd.DeepCopyInto(&out.Rtrd)
+	if in.RtrdSlaves != nil {
+		in, out := &in.RtrdSlaves, &out.RtrdSlaves
+		*out = make([]RTDevices, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	in.Rtlfs.DeepCopyInto(&out.Rtlfs)
 	return
 }

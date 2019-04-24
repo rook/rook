@@ -130,7 +130,6 @@ func (c *S3XController) makeS3XService(name, svcname, namespace string, s3xSpec 
 }
 
 func (c *S3XController) makeDeployment(svcname, namespace, rookImage string, s3xSpec edgefsv1beta1.S3XSpec) *apps.Deployment {
-
 	name := instanceName(svcname)
 	volumes := []v1.Volume{}
 
@@ -220,7 +219,6 @@ func (c *S3XController) makeDeployment(svcname, namespace, rookImage string, s3x
 }
 
 func (c *S3XController) s3xContainer(svcname, name, containerImage string, s3xSpec edgefsv1beta1.S3XSpec) v1.Container {
-
 	runAsUser := int64(0)
 	readOnlyRootFilesystem := false
 	securityContext := &v1.SecurityContext{

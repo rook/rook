@@ -156,7 +156,6 @@ func (c *S3Controller) makeS3Service(name, svcname, namespace string, s3Spec edg
 }
 
 func (c *S3Controller) makeDeployment(svcname, namespace, rookImage, imageArgs string, s3Spec edgefsv1beta1.S3Spec) *apps.Deployment {
-
 	name := instanceName(svcname)
 	volumes := []v1.Volume{}
 
@@ -246,7 +245,6 @@ func (c *S3Controller) makeDeployment(svcname, namespace, rookImage, imageArgs s
 }
 
 func (c *S3Controller) s3Container(svcname, name, containerImage, args string, s3Spec edgefsv1beta1.S3Spec) v1.Container {
-
 	runAsUser := int64(0)
 	readOnlyRootFilesystem := false
 	securityContext := &v1.SecurityContext{

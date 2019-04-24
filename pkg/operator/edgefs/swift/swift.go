@@ -144,7 +144,6 @@ func (c *SWIFTController) makeSWIFTService(name, svcname, namespace string, swif
 }
 
 func (c *SWIFTController) makeDeployment(svcname, namespace, rookImage, imageArgs string, swiftSpec edgefsv1beta1.SWIFTSpec) *apps.Deployment {
-
 	name := instanceName(svcname)
 	volumes := []v1.Volume{}
 
@@ -232,7 +231,6 @@ func (c *SWIFTController) makeDeployment(svcname, namespace, rookImage, imageArg
 }
 
 func (c *SWIFTController) swiftContainer(svcname, name, containerImage, args string, swiftSpec edgefsv1beta1.SWIFTSpec) v1.Container {
-
 	runAsUser := int64(0)
 	readOnlyRootFilesystem := false
 	securityContext := &v1.SecurityContext{

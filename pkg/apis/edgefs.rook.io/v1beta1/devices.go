@@ -100,6 +100,7 @@ type SetupNode struct {
 	RtlfsAutodetect string       `json:"rtlfs_autodetect,omitempty"`
 	ClusterNodes    []string     `json:"cluster_nodes,omitempty"`
 	Rtrd            RTDevices    `json:"rtrd"`
+	RtrdSlaves      []RTDevices  `json:"rtrdslaves"`
 	Rtlfs           RtlfsDevices `json:"rtlfs"`
 	NodeType        string       `json:"nodeType"`
 }

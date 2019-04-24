@@ -65,7 +65,6 @@ func ParseDevicesResurrectMode(resurrectMode string) edgefsv1beta1.DevicesResurr
 }
 
 func (c *cluster) getClusterNodes() ([]rookalpha.Node, error) {
-
 	if c.Spec.Storage.UseAllNodes {
 		c.Spec.Storage.Nodes = nil
 		// Resolve all storage nodes
@@ -88,7 +87,6 @@ func (c *cluster) getClusterNodes() ([]rookalpha.Node, error) {
 }
 
 func (c *cluster) createDeploymentConfig(nodes []rookalpha.Node, resurrect bool) (edgefsv1beta1.ClusterDeploymentConfig, error) {
-
 	deploymentConfig := edgefsv1beta1.ClusterDeploymentConfig{DevConfig: make(map[string]edgefsv1beta1.DevicesConfig, 0)}
 	//Fill deploymentConfig devices struct
 	for _, node := range nodes {
@@ -136,18 +134,28 @@ func (c *cluster) createDeploymentConfig(nodes []rookalpha.Node, resurrect bool)
 			}
 		}
 
-		rtDevices, err := target.GetRTDevices(availDisks, &storeConfig)
+		rtDevices, err := target.GetContainersRTDevices(n.Name, c.Spec.MaxContainerCapacity.Value(), availDisks, &storeConfig)
 		if err != nil {
 			logger.Warningf("Can't get rtDevices for node %s due %v", n.Name, err)
-			rtDevices = make([]edgefsv1beta1.RTDevice, 0)
+			rtDevices = make([]edgefsv1beta1.RTDevices, 1)
 		}
 
-		devicesConfig.Rtrd.Devices = rtDevices
+		devicesConfig.Rtrd.Devices = rtDevices[0].Devices
+		// append to RtrdSlaves in case of additional containers
+		if len(rtDevices) > 1 {
+			devicesConfig.RtrdSlaves = make([]edgefsv1beta1.RTDevices, len(rtDevices)-1)
+			devicesConfig.RtrdSlaves = rtDevices[1:]
+		}
 		devicesConfig.Rtlfs.Devices = target.GetRtlfsDevices(c.Spec.Storage.Directories, &storeConfig)
 		deploymentConfig.DevConfig[node.Name] = devicesConfig
 	}
 
-	err := ValidateZones(&deploymentConfig)
+	err := ValidateSlaveContainers(&deploymentConfig)
+	if err != nil {
+		return deploymentConfig, err
+	}
+
+	err = ValidateZones(&deploymentConfig)
 	if err != nil {
 		return deploymentConfig, err
 	}
@@ -201,6 +209,30 @@ func (c *cluster) createDeploymentConfig(nodes []rookalpha.Node, resurrect bool)
 	}
 
 	return deploymentConfig, nil
+}
+
+// Validates containers count for each deployment node, container's count MUST be equal for for each node
+func ValidateSlaveContainers(deploymentConfig *edgefsv1beta1.ClusterDeploymentConfig) error {
+
+	isFirstNode := true
+	prevNodeContainersCount := 0
+	nodeContainersCount := 0
+	for nodeName, nodeDevConfig := range deploymentConfig.DevConfig {
+		// Skip GW node
+		if nodeDevConfig.IsGatewayNode {
+			continue
+		}
+
+		nodeContainersCount = len(nodeDevConfig.RtrdSlaves)
+		if isFirstNode {
+			prevNodeContainersCount = nodeContainersCount
+			isFirstNode = false
+		}
+		if nodeContainersCount != prevNodeContainersCount {
+			return fmt.Errorf("Node [%s] has different containers count %d then others nodes %d", nodeName, nodeContainersCount, prevNodeContainersCount)
+		}
+	}
+	return nil
 }
 
 // Validates all nodes in cluster that each one has valid zone number or all of them has zone == 0

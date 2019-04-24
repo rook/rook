@@ -67,6 +67,7 @@ func (c *cluster) createClusterConfigMap(nodes []rookalpha.Node, deploymentConfi
 	for _, node := range nodes {
 		devConfig := deploymentConfig.DevConfig[node.Name]
 		rtDevices := devConfig.Rtrd.Devices
+		rtSlaveDevices := devConfig.RtrdSlaves
 		rtlfsDevices := devConfig.Rtlfs.Devices
 
 		rtlfsAutoDetectPath := ""
@@ -87,6 +88,7 @@ func (c *cluster) createClusterConfigMap(nodes []rookalpha.Node, deploymentConfi
 			// guarnatee that cluster can be reconfigured, but at least we do try.
 
 			rtDevices = make([]edgefsv1beta1.RTDevice, 0)
+			rtSlaveDevices = make([]edgefsv1beta1.RTDevices, 0)
 			rtlfsDevices = make([]edgefsv1beta1.RtlfsDevice, 0)
 		}
 		// Set failureDomain to 2 if current node's zone > 0
@@ -125,6 +127,7 @@ func (c *cluster) createClusterConfigMap(nodes []rookalpha.Node, deploymentConfi
 			Rtrd: edgefsv1beta1.RTDevices{
 				Devices: rtDevices,
 			},
+			RtrdSlaves: rtSlaveDevices,
 			Rtlfs: edgefsv1beta1.RtlfsDevices{
 				Devices: rtlfsDevices,
 			},

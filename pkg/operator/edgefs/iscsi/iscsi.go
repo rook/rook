@@ -124,7 +124,6 @@ func (c *ISCSIController) makeISCSIService(name, svcname, namespace string, iscs
 }
 
 func (c *ISCSIController) makeDeployment(svcname, namespace, rookImage string, iscsiSpec edgefsv1beta1.ISCSISpec) *apps.Deployment {
-
 	name := instanceName(svcname)
 	volumes := []v1.Volume{}
 
@@ -194,7 +193,6 @@ func (c *ISCSIController) makeDeployment(svcname, namespace, rookImage string, i
 }
 
 func (c *ISCSIController) iscsiContainer(svcname, name, containerImage string, iscsiSpec edgefsv1beta1.ISCSISpec) v1.Container {
-
 	runAsUser := int64(0)
 	readOnlyRootFilesystem := false
 	securityContext := &v1.SecurityContext{

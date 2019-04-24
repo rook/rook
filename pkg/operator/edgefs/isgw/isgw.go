@@ -166,7 +166,6 @@ func (c *ISGWController) makeISGWService(name, svcname, namespace string, isgwSp
 }
 
 func (c *ISGWController) makeDeployment(svcname, namespace, rookImage string, isgwSpec edgefsv1beta1.ISGWSpec) *apps.Deployment {
-
 	name := instanceName(svcname)
 	volumes := []v1.Volume{}
 
@@ -233,7 +232,6 @@ func (c *ISGWController) makeDeployment(svcname, namespace, rookImage string, is
 }
 
 func (c *ISGWController) isgwContainer(svcname, name, containerImage string, isgwSpec edgefsv1beta1.ISGWSpec) v1.Container {
-
 	runAsUser := int64(0)
 	readOnlyRootFilesystem := false
 	securityContext := &v1.SecurityContext{

@@ -24,19 +24,19 @@ Upgrades from Alpha to Beta not supported. However, please see migration procedu
 EdgeFS Operator provides a way of preserving data on disks or directories while moving to a
 new version (like Alpha to Beta transitioning) or reconfiguring (like full re-start).
 
-Example of migration from v1alpha1 to v1beta1:
+Example of migration from `v1alpha1` to `v1beta1`:
 
-1. Delete all EdgeFS services in Kubernetes e.g. `kubectl delete -f s3.yaml`
-2. Delete EdgeFS cluster e.g. `kubectl delete -f cluster.yaml`
-3. Delete EdgeFS operator e.g. `kubectl delete -f operator.yaml`
+1. Delete all EdgeFS services in Kubernetes, e.g., `kubectl delete -f s3.yaml`
+2. Delete EdgeFS cluster, e.g., `kubectl delete -f cluster.yaml`
+3. Delete EdgeFS operator, e.g., `kubectl delete -f operator.yaml`
 4. Edit operator.yaml to transition to a new version. This has to be done for each CustomResourceDefinition in the file.
-5. Create EdgeFS operator e.g. `kubectl create -f operator.yaml`
-6. Edit cluster.yaml to transition to a new version. I.e. edgefs.rook.io/v1alpha1 to edgefs.rook.io/v1beta1.
+5. Create EdgeFS operator, e.g., `kubectl create -f operator.yaml`
+6. Edit cluster.yaml to transition to a new version. I.e. `edgefs.rook.io/v1alpha1` to `edgefs.rook.io/v1beta1`.
 7. If you using devices, edit cluster.yaml and enable devicesResurrectMode "restore". This will preserve old cluster data.
-8. Create EdgeFS cluster e.g. `kubectl create -f cluster.yaml`
-9. Login to mgr container and check system status e.g. `efscli system status`
-10. Edit EdgeFS services CRD files to transition to a new version. I.e. edgefs.rook.io/v1alpha1 to edgefs.rook.io/v1beta1.
-11. Deploy services CRDs e.g. `kubectl create -f s3.yaml`
+8. Create EdgeFS cluster, e.g., `kubectl create -f cluster.yaml`
+9. Login to mgr container and check system status, e.g., `efscli system status`
+10. Edit EdgeFS services CRD files to transition to a new version. I.e. `edgefs.rook.io/v1alpha1` to `edgefs.rook.io/v1beta1`.
+11. Deploy services CRDs, e.g., `kubectl create -f s3.yaml`
 
 ## EdgeFS Rolling Upgrade
 This feature is coming soon in 1.1 release. Stay tuned!
