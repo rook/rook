@@ -33,6 +33,7 @@ rules:
   - get
   - watch
   - create
+  - update
 - apiGroups:
   - apps
   resources:
@@ -40,6 +41,7 @@ rules:
   verbs:
   - get
   - create
+  - update
 - apiGroups:
   - minio.rook.io
   resources:
