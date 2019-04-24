@@ -104,9 +104,14 @@ func TestStartSecureDashboard(t *testing.T) {
 		}
 		return exitCodeResponse, false
 	}
+	mgrConfig := &mgrConfig{
+		DaemonID:      "a",
+		ResourceName:  "mgr",
+		DashboardPort: dashboardPortHTTP,
+	}
 
 	dashboardInitWaitTime = 0
-	err := c.configureDashboard(dashboardPortHTTP)
+	err := c.configureDashboard(mgrConfig)
 	assert.Nil(t, err)
 	// the dashboard is enabled, then disabled and enabled again to restart
 	// it with the cert, and another restart when setting the dashboard port
@@ -120,7 +125,7 @@ func TestStartSecureDashboard(t *testing.T) {
 
 	// disable the dashboard
 	c.dashboard.Enabled = false
-	err = c.configureDashboard(dashboardPortHTTP)
+	err = c.configureDashboard(mgrConfig)
 	assert.Nil(t, err)
 	assert.Equal(t, 3, enables)
 	assert.Equal(t, 3, disables)

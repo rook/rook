@@ -34,11 +34,6 @@ func MgrDisableModule(context *clusterd.Context, clusterName, name string) error
 	return enableModule(context, clusterName, name, false, "disable")
 }
 
-// MgrSetAllConfig applies a setting for all mgr daemons
-func MgrSetAllConfig(context *clusterd.Context, clusterName string, cephVersion cephver.CephVersion, key, val string) (bool, error) {
-	return MgrSetConfig(context, clusterName, "", cephVersion, key, val, false)
-}
-
 // MgrSetConfig applies a setting for a single mgr daemon
 func MgrSetConfig(context *clusterd.Context, clusterName, mgrName string, cephVersion cephver.CephVersion, key, val string, force bool) (bool, error) {
 	var getArgs, setArgs []string
