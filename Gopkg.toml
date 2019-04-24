@@ -92,7 +92,7 @@ ignored = [
 
 [[constraint]]
   name = "sigs.k8s.io/sig-storage-lib-external-provisioner"
-  branch = "release-1.14"
+  version = "v3.1.0"
 
 # Kubernetes 1.14 dependencies on random package versions:
 [[override]]
@@ -113,3 +113,15 @@ ignored = [
 [[override]]
   name = "bitbucket.org/ww/goautoneg"
   source = "github.com/rancher/goautoneg"
+
+[[override]]
+  name = "k8s.io/apiextensions-apiserver"
+  version = "kubernetes-1.14.0"
+
+[[override]]
+  name = "k8s.io/apimachinery"
+  version = "kubernetes-1.14.0"
+
+[[override]]
+  name = "k8s.io/client-go"
+  version = "v11.0.0"

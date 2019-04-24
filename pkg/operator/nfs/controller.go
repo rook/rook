@@ -394,7 +394,7 @@ func (c *Controller) createNfsPodSpec(nfsServer *nfsServer, service *v1.Service)
 	return nfsPodSpec
 }
 
-func (c *Controller) createNfsStatefulSet(nfsServer *nfsServer, replicas int32) error {
+func (c *Controller) createNfsStatefulSet(nfsServer *nfsServer, replicas int32, service *v1.Service) error {
 	appsClient := c.context.Clientset.AppsV1()
 
 	nfsPodSpec := c.createNfsPodSpec(nfsServer, service)

@@ -22,12 +22,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/kubernetes-sigs/sig-storage-lib-external-provisioner/controller"
 	"github.com/rook/rook/cmd/rook/rook"
 	"github.com/rook/rook/pkg/operator/nfs"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"sigs.k8s.io/sig-storage-lib-external-provisioner/controller"
 )
 
 var serverCmd = &cobra.Command{

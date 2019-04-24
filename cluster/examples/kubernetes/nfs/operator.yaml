@@ -23,7 +23,7 @@ metadata:
   name: rook-nfs-operator
 rules:
 - apiGroups:
-  - "*"
+  - ""
   resources:
   - namespaces
   - configmaps
@@ -53,6 +53,13 @@ rules:
   - "*"
   verbs:
   - "*"
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - storageclasses
+  verbs:
+  - get
+  - create
 ---
 apiVersion: v1
 kind: ServiceAccount
