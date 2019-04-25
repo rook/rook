@@ -168,9 +168,14 @@ func (s *Store) createOrUpdateMonHostSecrets(clusterInfo *cephconfig.ClusterInfo
 		msgr2Endpoint := net.JoinHostPort(monIP, monPorts[0])
 		msgr1Endpoint := net.JoinHostPort(monIP, monPorts[1])
 
-		if clusterInfo.CephVersion.IsAtLeastNautilus() {
+		// That's likely a fresh deployment
+		if clusterInfo.CephVersion.IsAtLeastNautilus() && currentMonPort == 6789 {
 			hosts[i] = "[v2:" + msgr2Endpoint + ",v1:" + msgr1Endpoint + "]"
+		} else if clusterInfo.CephVersion.IsAtLeastNautilus() && currentMonPort != 6789 {
+			// That's likely an upgrade from a Rook 0.9.x Mimic deployment
+			hosts[i] = "v1:" + msgr1Endpoint
 		} else {
+			// That's before Nautilus
 			hosts[i] = msgr1Endpoint
 		}
 
