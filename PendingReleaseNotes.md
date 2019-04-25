@@ -6,9 +6,10 @@
 
 ### Minio Object Stores
 
-    - Now have an additional label named `objectstore` with the name of the Object Store, to allow better selection for Services.
-    - Use `Readiness` and `Liveness` probes.
-    - Updated automatically on Object Store CRD changes.
+- Now have an additional label named `objectstore` with the name of the Object Store, to allow better selection for Services.
+- Use `Readiness` and `Liveness` probes.
+- Updated automatically on Object Store CRD changes.
+- Updated Minio image to `RELEASE.2019-04-23T23-50-36Z` tag.
 
 ### Ceph
 
