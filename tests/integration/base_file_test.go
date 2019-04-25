@@ -39,7 +39,7 @@ func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.S
 	logger.Infof("Running on Rook Cluster %s", namespace)
 	logger.Infof("File Storage End To End Integration Test - create, mount, write to, read from, and unmount")
 
-	createFilesystem(helper, k8sh, s, namespace, filesystemName)
+	createFilesystem(helper, k8sh, s, namespace, filesystemName, 2)
 	createFilesystemConsumerPod(helper, k8sh, s, namespace, filesystemName)
 	err := writeAndReadToFilesystem(helper, k8sh, s, namespace, filePodName, "test_file")
 	require.Nil(s.T(), err)
@@ -113,13 +113,13 @@ func cleanupFilesystem(helper *clients.TestClient, k8sh *utils.K8sHelper, s suit
 func runFileE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, filesystemName string) {
 	logger.Infof("File Storage End to End Integration Test - create Filesystem and make sure mds pod is running")
 	logger.Infof("Running on Rook Cluster %s", namespace)
-	createFilesystem(helper, k8sh, s, namespace, filesystemName)
+	createFilesystem(helper, k8sh, s, namespace, filesystemName, 1)
 	cleanupFilesystem(helper, k8sh, s, namespace, filesystemName)
 }
 
-func createFilesystem(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace, filesystemName string) {
+func createFilesystem(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace, filesystemName string, metadataServers int) {
 	logger.Infof("Create file System")
-	fscErr := helper.FSClient.Create(filesystemName, namespace)
+	fscErr := helper.FSClient.Create(filesystemName, namespace, metadataServers)
 	require.Nil(s.T(), fscErr)
 	logger.Infof("File system %s created", filesystemName)
 

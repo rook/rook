@@ -20,7 +20,7 @@ import (
 	"testing"
 	"time"
 
-	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
+	"github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
@@ -28,6 +28,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // ************************************************
@@ -83,7 +84,7 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 
 	logger.Infof("Initializing file before the upgrade")
 	filesystemName := "upgrade-test-fs"
-	createFilesystem(s.helper, s.k8sh, s.Suite, s.namespace, filesystemName)
+	createFilesystem(s.helper, s.k8sh, s.Suite, s.namespace, filesystemName, 1)
 	createFilesystemConsumerPod(s.helper, s.k8sh, s.Suite, s.namespace, filesystemName)
 	defer func() {
 		cleanupFilesystemConsumer(s.helper, s.k8sh, s.Suite, s.namespace, filesystemName, filePodName)
@@ -125,8 +126,20 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	err = s.k8sh.WaitForLabeledPodsToRun("app=rook-ceph-mon", s.namespace)
 	require.Nil(s.T(), err)
 
-	// wait for the osd pods to be updated
-	err = k8sutil.WaitForDeploymentImage(s.k8sh.Clientset, s.namespace, "app=rook-ceph-osd", opspec.ConfigInitContainerName, true, "rook/ceph:master")
+	// wait for the mgr pod to be updated
+	err = s.k8sh.WaitForDeploymentLabel(s.namespace, "rook-ceph-mgr-a", "rook-version", "v0.9.0-")
+	require.Nil(s.T(), err)
+
+	// wait for the osd pod to be updated
+	err = s.k8sh.WaitForDeploymentLabel(s.namespace, "rook-ceph-osd-0", "rook-version", "v0.9.0-")
+	require.Nil(s.T(), err)
+
+	// wait for the mds pods to be updated
+	err = s.k8sh.WaitForDeploymentLabel(s.namespace, "rook-ceph-mds-"+filesystemName+"-b", "rook-version", "v0.9.0-")
+	require.Nil(s.T(), err)
+
+	// wait for the rgw pods to be updated
+	err = s.k8sh.WaitForDeploymentLabel(s.namespace, "rook-ceph-rgw-"+objectStoreName, "rook-version", "v0.9.0-")
 	require.Nil(s.T(), err)
 
 	err = s.k8sh.WaitForLabeledPodsToRun("app=rook-ceph-osd", s.namespace)
@@ -147,6 +160,38 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	assert.Nil(s.T(), s.k8sh.ReadFromPodRetry("", podName, preFilename, message, 5))
 	assert.Nil(s.T(), s.k8sh.WriteToPodRetry("", podName, postFilename, message, 5))
 	assert.Nil(s.T(), s.k8sh.ReadFromPodRetry("", podName, postFilename, message, 5))
+
+	s.upgradeCephVersion(filesystemName, objectStoreName)
+}
+
+func (s *UpgradeSuite) upgradeCephVersion(filesystemName, objectStoreName string) {
+	// Go ahead and update the ceph version to Nautilus
+	// Assume we're already running the latest rook version that supports Nautilus
+	logger.Infof("upgrading the cluster from mimic to nautilus")
+	cluster, err := s.k8sh.RookClientset.CephV1().CephClusters(s.namespace).Get(s.namespace, metav1.GetOptions{})
+	assert.Nil(s.T(), err)
+	cluster.Spec.CephVersion.Image = installer.NautilusVersion.Image
+	_, err = s.k8sh.RookClientset.CephV1().CephClusters(s.namespace).Update(cluster)
+	assert.Nil(s.T(), err)
+	logger.Infof("done updating the CR to nautilus")
+
+	// Confirm that the upgrade was successful
+	// wait for a mon pod to be updated
+	expectedVersion := "14.2.1"
+	err = s.k8sh.WaitForDeploymentLabel(s.namespace, "rook-ceph-mon-a", spec.CephVersionLabelKey, expectedVersion)
+	require.Nil(s.T(), err)
+
+	// wait for an osd pod to be updated
+	err = s.k8sh.WaitForDeploymentLabel(s.namespace, "rook-ceph-osd-0", spec.CephVersionLabelKey, expectedVersion)
+	require.Nil(s.T(), err)
+
+	// wait for an mds pod to be updated
+	err = s.k8sh.WaitForDeploymentLabel(s.namespace, "rook-ceph-mds-"+filesystemName+"-a", spec.CephVersionLabelKey, expectedVersion)
+	require.Nil(s.T(), err)
+
+	// wait for an rgw pod to be updated
+	err = s.k8sh.WaitForDeploymentLabel(s.namespace, "rook-ceph-rgw-"+objectStoreName, spec.CephVersionLabelKey, expectedVersion)
+	require.Nil(s.T(), err)
 }
 
 // Update the clusterroles that have been modified in master from the previous release

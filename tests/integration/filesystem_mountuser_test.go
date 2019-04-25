@@ -42,7 +42,7 @@ func runFileMountUserE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, 
 	logger.Infof("Running on Rook Cluster %s", namespace)
 	logger.Infof("File Storage MountUser/MountSecret End To End Integration Test - create, mount, write to, read from, and unmount")
 
-	createFilesystem(helper, k8sh, s, namespace, filesystemName)
+	createFilesystem(helper, k8sh, s, namespace, filesystemName, 1)
 	createFilesystemMountCephCredentials(helper, k8sh, s, namespace, filesystemName)
 	createFilesystemMountUserConsumerPod(helper, k8sh, s, namespace, filesystemName)
 	err := writeAndReadToFilesystem(helper, k8sh, s, namespace, fileMountUserPodName, "canttouchthis")

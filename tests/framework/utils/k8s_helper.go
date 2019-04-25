@@ -363,6 +363,30 @@ func (k8sh *K8sHelper) DeleteResource(args ...string) error {
 	return k8sh.DeleteResourceAndWait(true, args...)
 }
 
+// WaitForDeploymentLabel
+func (k8sh *K8sHelper) WaitForDeploymentLabel(namespace, name, key, desiredValue string) error {
+
+	sleepTime := 5
+	attempts := 30
+	for i := 0; i < attempts; i++ {
+		deployment, err := k8sh.Clientset.AppsV1().Deployments(namespace).Get(name, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to get deployment %s. %+v", name, err)
+		}
+
+		// It's a match if the desired label is a substring of the actual label
+		actualValue, ok := deployment.Labels[key]
+		if ok && strings.Contains(actualValue, desiredValue) {
+			logger.Infof("found deployment %s with label %s (actual=%s)", name, desiredValue, actualValue)
+			return nil
+		}
+
+		logger.Infof("waiting for deployment %s to have label %s=%s (current=%s)", name, key, desiredValue, actualValue)
+		time.Sleep(time.Duration(sleepTime) * time.Second)
+	}
+	return fmt.Errorf("failed to wait for deployment %s with label %s=%s", name, key, desiredValue)
+}
+
 // WaitForCustomResourceDeletion waits for the CRD deletion
 func (k8sh *K8sHelper) WaitForCustomResourceDeletion(namespace string, checkerFunc func() error) error {
 
