@@ -40,7 +40,7 @@ The following settings are available for customization of ISGW services.
 ## Sample
 
 ```yaml
-apiVersion: edgefs.rook.io/v1alpha1
+apiVersion: edgefs.rook.io/v1beta1
 kind: ISGW
 metadata:
   name: isgw01                               # Inter-Segment Gateway service name
@@ -133,7 +133,7 @@ Verify that HW (or better say emulated in this case) configuration look normal a
 efscli system init
 ```
 
-At this point new dynamically discovered configuration checkpoint will be created at $NEDGE_HOME/var/run/flexhash-checkpoint.json
+At this point new dynamically discovered configuration checkpoint will be created at `$NEDGE_HOME/var/run/flexhash-checkpoint.json`.
 This will also create system "root" object, holding Site's Namespace. Namespace may consist of more then single region.
 
 2. Create new local namespace (or we also call it "Region" or "Segment")
@@ -180,7 +180,7 @@ Because we creating bi-directional link, on the secondary site we would need to 
 5. Create ISGW Link CRDs on both EdgeFS sites
 
 ```yaml
-apiVersion: edgefs.rook.io/v1alpha1
+apiVersion: edgefs.rook.io/v1beta1
 kind: ISGW
 metadata:
   name: hawaii
@@ -192,7 +192,7 @@ spec:
 ```
 
 ```yaml
-apiVersion: edgefs.rook.io/v1alpha1
+apiVersion: edgefs.rook.io/v1beta1
 kind: ISGW
 metadata:
   name: hawaii

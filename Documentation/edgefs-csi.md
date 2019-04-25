@@ -85,7 +85,7 @@ Options for NFS and ISCSI configuration files
 | serviceFilter       | Comma delimited list of allowed service names for filtering |  "" means all services allowed | false | both |
 | serviceBalancerPolicy | Service selection policy [`minexportspolicy`, `randomservicepolicy`] | `minexportspolicy` |false | both |
 | chunksize           | Chunk size for actual volume, in bytes | 16384, should be power of two | false | both |
-| blocksize           | Chunk size for actual volume, in bytes | 4096, should be power of two | false | iSCSI only |
+| blocksize           | Block size for actual volume, in bytes | 4096, should be power of two | false | iSCSI only |
 | fsType              | New volume's filesystem type  | ext4, ext3, xfs  | ext4 | ISCSI only |
 | forceVolumeDeletion | Automatically deletes EdgeFS volume after usage | false | false | both|
 
@@ -171,7 +171,7 @@ parameters:
 | cluster   | Edgefs cluster namespace if not defined in secret |       |  |
 | tenant    | Edgefs tenant  namespace if not defined in secret |       |  |
 | chunksize | Chunk size for actual volume, in bytes | should be power of two | 16384 bytes |
-| blocksize | Chunk size for actual volume, in bytes | should be power of two | 4096 bytes |
+| blocksize | Block size for actual volume, in bytes | should be power of two | 4096 bytes |
 | acl       | Volume acl restrictions |                                       | all |
 | ec        | Enables ccow erasure coding for volume | true, false, 0, 1 | false |
 | ecmode    | Set ccow erasure mode data mode (If 'ec' option enabled) | "3:1:xor", "2:2:rs", 4:2:rs" ,"6:2:rs", "9:3:rs" | 6:2:rs |

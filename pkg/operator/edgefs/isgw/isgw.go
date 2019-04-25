@@ -1,11 +1,11 @@
 /*
-Copyright 2016 The Rook Authors. All rights reserved.
+Copyright 2019 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-	http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,7 +22,7 @@ import (
 	"net"
 	"strconv"
 
-	edgefsv1alpha1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1alpha1"
+	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
@@ -47,16 +47,16 @@ const (
 )
 
 // Start the ISGW manager
-func (c *ISGWController) CreateService(s edgefsv1alpha1.ISGW, ownerRefs []metav1.OwnerReference) error {
+func (c *ISGWController) CreateService(s edgefsv1beta1.ISGW, ownerRefs []metav1.OwnerReference) error {
 	return c.CreateOrUpdate(s, false, ownerRefs)
 }
 
-func (c *ISGWController) UpdateService(s edgefsv1alpha1.ISGW, ownerRefs []metav1.OwnerReference) error {
+func (c *ISGWController) UpdateService(s edgefsv1beta1.ISGW, ownerRefs []metav1.OwnerReference) error {
 	return c.CreateOrUpdate(s, true, ownerRefs)
 }
 
 // Start the isgw instance
-func (c *ISGWController) CreateOrUpdate(s edgefsv1alpha1.ISGW, update bool, ownerRefs []metav1.OwnerReference) error {
+func (c *ISGWController) CreateOrUpdate(s edgefsv1beta1.ISGW, update bool, ownerRefs []metav1.OwnerReference) error {
 	logger.Infof("starting update=%v service=%s", update, s.Name)
 
 	logger.Infof("ISGW Base image is %s", c.rookImage)
@@ -112,7 +112,7 @@ func (c *ISGWController) CreateOrUpdate(s edgefsv1alpha1.ISGW, update bool, owne
 	return nil
 }
 
-func getDirection(isgwSpec edgefsv1alpha1.ISGWSpec) int {
+func getDirection(isgwSpec edgefsv1beta1.ISGWSpec) int {
 	direction := 0
 	if isgwSpec.Direction == "send" {
 		direction = 1
@@ -124,7 +124,7 @@ func getDirection(isgwSpec edgefsv1alpha1.ISGWSpec) int {
 	return direction
 }
 
-func (c *ISGWController) makeISGWService(name, svcname, namespace string, isgwSpec edgefsv1alpha1.ISGWSpec) *v1.Service {
+func (c *ISGWController) makeISGWService(name, svcname, namespace string, isgwSpec edgefsv1beta1.ISGWSpec) *v1.Service {
 	direction := getDirection(isgwSpec)
 	labels := getLabels(name, svcname, namespace)
 	svc := &v1.Service{
@@ -165,8 +165,7 @@ func (c *ISGWController) makeISGWService(name, svcname, namespace string, isgwSp
 	return svc
 }
 
-func (c *ISGWController) makeDeployment(svcname, namespace, rookImage string, isgwSpec edgefsv1alpha1.ISGWSpec) *apps.Deployment {
-
+func (c *ISGWController) makeDeployment(svcname, namespace, rookImage string, isgwSpec edgefsv1beta1.ISGWSpec) *apps.Deployment {
 	name := instanceName(svcname)
 	volumes := []v1.Volume{}
 
@@ -232,8 +231,7 @@ func (c *ISGWController) makeDeployment(svcname, namespace, rookImage string, is
 	return d
 }
 
-func (c *ISGWController) isgwContainer(svcname, name, containerImage string, isgwSpec edgefsv1alpha1.ISGWSpec) v1.Container {
-
+func (c *ISGWController) isgwContainer(svcname, name, containerImage string, isgwSpec edgefsv1beta1.ISGWSpec) v1.Container {
 	runAsUser := int64(0)
 	readOnlyRootFilesystem := false
 	securityContext := &v1.SecurityContext{
@@ -348,7 +346,7 @@ func (c *ISGWController) isgwContainer(svcname, name, containerImage string, isg
 		cont.Ports = append(cont.Ports, v1.ContainerPort{Name: "dfport", ContainerPort: int32(isgwSpec.DynamicFetchPort), Protocol: v1.ProtocolTCP})
 	}
 
-	cont.Env = append(cont.Env, edgefsv1alpha1.GetInitiatorEnvArr("isgw",
+	cont.Env = append(cont.Env, edgefsv1beta1.GetInitiatorEnvArr("isgw",
 		c.resourceProfile == "embedded" || isgwSpec.ResourceProfile == "embedded",
 		isgwSpec.ChunkCacheSize, isgwSpec.Resources)...)
 
@@ -356,7 +354,7 @@ func (c *ISGWController) isgwContainer(svcname, name, containerImage string, isg
 }
 
 // Delete ISGW service and possibly some artifacts.
-func (c *ISGWController) DeleteService(s edgefsv1alpha1.ISGW) error {
+func (c *ISGWController) DeleteService(s edgefsv1beta1.ISGW) error {
 	// check if service  exists
 	exists, err := serviceExists(c.context, s)
 	if err != nil {
@@ -399,7 +397,7 @@ func getLabels(name, svcname, namespace string) map[string]string {
 }
 
 // Validate the ISGW arguments
-func validateService(context *clusterd.Context, s edgefsv1alpha1.ISGW) error {
+func validateService(context *clusterd.Context, s edgefsv1beta1.ISGW) error {
 	if s.Name == "" {
 		return fmt.Errorf("missing name")
 	}
@@ -415,7 +413,7 @@ func instanceName(svcname string) string {
 }
 
 // Check if the ISGW service exists
-func serviceExists(context *clusterd.Context, s edgefsv1alpha1.ISGW) (bool, error) {
+func serviceExists(context *clusterd.Context, s edgefsv1beta1.ISGW) (bool, error) {
 	_, err := context.Clientset.AppsV1().Deployments(s.Namespace).Get(instanceName(s.Name), metav1.GetOptions{})
 	if err == nil {
 		// the deployment was found

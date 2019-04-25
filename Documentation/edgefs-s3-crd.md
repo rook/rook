@@ -12,7 +12,7 @@ The following settings are available for customization of S3 services.
 ## Sample
 
 ```yaml
-apiVersion: edgefs.rook.io/v1alpha1
+apiVersion: edgefs.rook.io/v1beta1
 kind: S3
 metadata:
   name: s301
@@ -79,7 +79,7 @@ To initialize system and prepare logical definitions, login to the toolbox as sh
 
 ```
 kubectl get po --all-namespaces | grep edgefs-mgr
-kubectl exec -it -n rook-edgefs rook-edgefs-mgr-6cb9598469-czr7p -- env COLUMNS=$COLUMNS LINES=$LINES TERM=linux toolbox
+kubectl exec -it -n rook-edgefs rook-edgefs-mgr-6cb9597469-czr7p -- env COLUMNS=$COLUMNS LINES=$LINES TERM=linux toolbox
 ```
 
 Assumption at this point is that nodes are all configured and can be seen via the following command:
@@ -135,7 +135,7 @@ efscli service config s3-pepsi X-Domain pepsi.com
 5. Create S3 CRDs
 
 ```yaml
-apiVersion: edgefs.rook.io/v1alpha1
+apiVersion: edgefs.rook.io/v1beta1
 kind: S3
 metadata:
   name: s3-cola
@@ -145,7 +145,7 @@ spec:
 ```
 
 ```yaml
-apiVersion: edgefs.rook.io/v1alpha1
+apiVersion: edgefs.rook.io/v1beta1
 kind: S3
 metadata:
   name: s3-pepsi

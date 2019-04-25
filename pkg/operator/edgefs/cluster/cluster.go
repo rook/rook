@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-	http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,7 +21,7 @@ import (
 	"reflect"
 	"sort"
 
-	edgefsv1alpha1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1alpha1"
+	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/edgefs/cluster/mgr"
@@ -51,14 +51,14 @@ const (
 type cluster struct {
 	context   *clusterd.Context
 	Namespace string
-	Spec      edgefsv1alpha1.ClusterSpec
+	Spec      edgefsv1beta1.ClusterSpec
 	ownerRef  metav1.OwnerReference
 	targets   *target.Cluster
 	mgrs      *mgr.Cluster
 	stopCh    chan struct{}
 }
 
-func newCluster(c *edgefsv1alpha1.Cluster, context *clusterd.Context) *cluster {
+func newCluster(c *edgefsv1beta1.Cluster, context *clusterd.Context) *cluster {
 
 	return &cluster{
 		context:   context,
@@ -134,8 +134,8 @@ func (c *cluster) createInstance(rookImage string) error {
 	//
 
 	c.targets = target.New(c.context, c.Namespace, "latest", c.Spec.ServiceAccount, c.Spec.Storage, c.Spec.DataDirHostPath, c.Spec.DataVolumeSize,
-		edgefsv1alpha1.GetTargetAnnotations(c.Spec.Annotations), edgefsv1alpha1.GetTargetPlacement(c.Spec.Placement), c.Spec.Network, c.Spec.Resources,
-		c.Spec.ResourceProfile, c.Spec.ChunkCacheSize, c.ownerRef, deploymentConfig)
+		edgefsv1beta1.GetTargetAnnotations(c.Spec.Annotations), edgefsv1beta1.GetTargetPlacement(c.Spec.Placement), c.Spec.Network,
+		c.Spec.Resources, c.Spec.ResourceProfile, c.Spec.ChunkCacheSize, c.ownerRef, deploymentConfig)
 
 	err = c.targets.Start(rookImage, clusterNodes, dro)
 	if err != nil {
@@ -146,7 +146,7 @@ func (c *cluster) createInstance(rookImage string) error {
 	// Create and start EdgeFS manager Deployment (gRPC proxy, Prometheus metrics)
 	//
 	c.mgrs = mgr.New(c.context, c.Namespace, "latest", c.Spec.ServiceAccount, c.Spec.DataDirHostPath, c.Spec.DataVolumeSize,
-		edgefsv1alpha1.GetMgrAnnotations(c.Spec.Annotations), edgefsv1alpha1.GetMgrPlacement(c.Spec.Placement), c.Spec.Network, c.Spec.Dashboard,
+		edgefsv1beta1.GetMgrAnnotations(c.Spec.Annotations), edgefsv1beta1.GetMgrPlacement(c.Spec.Placement), c.Spec.Network, c.Spec.Dashboard,
 		v1.ResourceRequirements{}, c.Spec.ResourceProfile, c.ownerRef)
 	err = c.mgrs.Start(rookImage)
 	if err != nil {
@@ -157,10 +157,10 @@ func (c *cluster) createInstance(rookImage string) error {
 	return nil
 }
 
-func (c *cluster) prepareHostNodes(rookImage string, deploymentConfig edgefsv1alpha1.ClusterDeploymentConfig) error {
+func (c *cluster) prepareHostNodes(rookImage string, deploymentConfig edgefsv1beta1.ClusterDeploymentConfig) error {
 
-	prep := prepare.New(c.context, c.Namespace, "latest", c.Spec.ServiceAccount, edgefsv1alpha1.GetPrepareAnnotations(c.Spec.Annotations),
-		edgefsv1alpha1.GetTargetPlacement(c.Spec.Placement), v1.ResourceRequirements{}, c.ownerRef)
+	prep := prepare.New(c.context, c.Namespace, "latest", c.Spec.ServiceAccount,
+		edgefsv1beta1.GetPrepareAnnotations(c.Spec.Annotations), edgefsv1beta1.GetPreparePlacement(c.Spec.Placement), v1.ResourceRequirements{}, c.ownerRef)
 
 	for nodeName, devicesConfig := range deploymentConfig.DevConfig {
 
@@ -233,7 +233,7 @@ func (c *cluster) validateClusterSpec() error {
 	return nil
 }
 
-func clusterChanged(oldCluster, newCluster edgefsv1alpha1.ClusterSpec) bool {
+func clusterChanged(oldCluster, newCluster edgefsv1beta1.ClusterSpec) bool {
 	changeFound := false
 	oldStorage := oldCluster.Storage
 	newStorage := newCluster.Storage

@@ -1,11 +1,11 @@
 /*
-Copyright 2016 The Rook Authors. All rights reserved.
+Copyright 2019 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-	http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,7 +20,7 @@ package s3x
 import (
 	"fmt"
 
-	edgefsv1alpha1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1alpha1"
+	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
@@ -44,16 +44,16 @@ const (
 )
 
 // Start the rgw manager
-func (c *S3XController) CreateService(s edgefsv1alpha1.S3X, ownerRefs []metav1.OwnerReference) error {
+func (c *S3XController) CreateService(s edgefsv1beta1.S3X, ownerRefs []metav1.OwnerReference) error {
 	return c.CreateOrUpdate(s, false, ownerRefs)
 }
 
-func (c *S3XController) UpdateService(s edgefsv1alpha1.S3X, ownerRefs []metav1.OwnerReference) error {
+func (c *S3XController) UpdateService(s edgefsv1beta1.S3X, ownerRefs []metav1.OwnerReference) error {
 	return c.CreateOrUpdate(s, true, ownerRefs)
 }
 
 // Start the s3x instance
-func (c *S3XController) CreateOrUpdate(s edgefsv1alpha1.S3X, update bool, ownerRefs []metav1.OwnerReference) error {
+func (c *S3XController) CreateOrUpdate(s edgefsv1beta1.S3X, update bool, ownerRefs []metav1.OwnerReference) error {
 	logger.Infof("starting update=%v service=%s", update, s.Name)
 
 	logger.Infof("S3X Base image is %s", c.rookImage)
@@ -106,7 +106,7 @@ func (c *S3XController) CreateOrUpdate(s edgefsv1alpha1.S3X, update bool, ownerR
 	return nil
 }
 
-func (c *S3XController) makeS3XService(name, svcname, namespace string, s3xSpec edgefsv1alpha1.S3XSpec) *v1.Service {
+func (c *S3XController) makeS3XService(name, svcname, namespace string, s3xSpec edgefsv1beta1.S3XSpec) *v1.Service {
 	labels := getLabels(name, svcname, namespace)
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -129,8 +129,7 @@ func (c *S3XController) makeS3XService(name, svcname, namespace string, s3xSpec 
 	return svc
 }
 
-func (c *S3XController) makeDeployment(svcname, namespace, rookImage string, s3xSpec edgefsv1alpha1.S3XSpec) *apps.Deployment {
-
+func (c *S3XController) makeDeployment(svcname, namespace, rookImage string, s3xSpec edgefsv1beta1.S3XSpec) *apps.Deployment {
 	name := instanceName(svcname)
 	volumes := []v1.Volume{}
 
@@ -219,8 +218,7 @@ func (c *S3XController) makeDeployment(svcname, namespace, rookImage string, s3x
 	return d
 }
 
-func (c *S3XController) s3xContainer(svcname, name, containerImage string, s3xSpec edgefsv1alpha1.S3XSpec) v1.Container {
-
+func (c *S3XController) s3xContainer(svcname, name, containerImage string, s3xSpec edgefsv1beta1.S3XSpec) v1.Container {
 	runAsUser := int64(0)
 	readOnlyRootFilesystem := false
 	securityContext := &v1.SecurityContext{
@@ -289,7 +287,7 @@ func (c *S3XController) s3xContainer(svcname, name, containerImage string, s3xSp
 		VolumeMounts: volumeMounts,
 	}
 
-	cont.Env = append(cont.Env, edgefsv1alpha1.GetInitiatorEnvArr("s3x",
+	cont.Env = append(cont.Env, edgefsv1beta1.GetInitiatorEnvArr("s3x",
 		c.resourceProfile == "embedded" || s3xSpec.ResourceProfile == "embedded",
 		s3xSpec.ChunkCacheSize, s3xSpec.Resources)...)
 
@@ -297,7 +295,7 @@ func (c *S3XController) s3xContainer(svcname, name, containerImage string, s3xSp
 }
 
 // Delete S3X service and possibly some artifacts.
-func (c *S3XController) DeleteService(s edgefsv1alpha1.S3X) error {
+func (c *S3XController) DeleteService(s edgefsv1beta1.S3X) error {
 	// check if service  exists
 	exists, err := serviceExists(c.context, s)
 	if err != nil {
@@ -340,7 +338,7 @@ func getLabels(name, svcname, namespace string) map[string]string {
 }
 
 // Validate the S3X arguments
-func validateService(context *clusterd.Context, s edgefsv1alpha1.S3X) error {
+func validateService(context *clusterd.Context, s edgefsv1beta1.S3X) error {
 	if s.Name == "" {
 		return fmt.Errorf("missing name")
 	}
@@ -356,7 +354,7 @@ func instanceName(svcname string) string {
 }
 
 // Check if the S3X service exists
-func serviceExists(context *clusterd.Context, s edgefsv1alpha1.S3X) (bool, error) {
+func serviceExists(context *clusterd.Context, s edgefsv1beta1.S3X) (bool, error) {
 	_, err := context.Clientset.AppsV1().Deployments(s.Namespace).Get(instanceName(s.Name), metav1.GetOptions{})
 	if err == nil {
 		// the deployment was found

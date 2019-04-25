@@ -1,11 +1,11 @@
 /*
-Copyright 2016 The Rook Authors. All rights reserved.
+Copyright 2019 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-	http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -24,7 +24,7 @@ import (
 	"strings"
 
 	"github.com/coreos/pkg/capnslog"
-	edgefsv1alpha1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1alpha1"
+	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -66,8 +66,8 @@ type Cluster struct {
 	annotations     rookalpha.Annotations
 	placement       rookalpha.Placement
 	context         *clusterd.Context
-	hostNetworkSpec edgefsv1alpha1.NetworkSpec
-	dashboardSpec   edgefsv1alpha1.DashboardSpec
+	hostNetworkSpec edgefsv1beta1.NetworkSpec
+	dashboardSpec   edgefsv1beta1.DashboardSpec
 	resources       v1.ResourceRequirements
 	resourceProfile string
 	ownerRef        metav1.OwnerReference
@@ -81,8 +81,8 @@ func New(
 	dataVolumeSize resource.Quantity,
 	annotations rookalpha.Annotations,
 	placement rookalpha.Placement,
-	hostNetworkSpec edgefsv1alpha1.NetworkSpec,
-	dashboardSpec edgefsv1alpha1.DashboardSpec,
+	hostNetworkSpec edgefsv1beta1.NetworkSpec,
+	dashboardSpec edgefsv1beta1.DashboardSpec,
 	resources v1.ResourceRequirements,
 	resourceProfile string,
 	ownerRef metav1.OwnerReference,
@@ -112,7 +112,7 @@ func New(
 	}
 }
 
-func isHostNetworkDefined(hostNetworkSpec edgefsv1alpha1.NetworkSpec) bool {
+func isHostNetworkDefined(hostNetworkSpec edgefsv1beta1.NetworkSpec) bool {
 	if len(hostNetworkSpec.ServerIfName) > 0 || len(hostNetworkSpec.ServerIfName) > 0 {
 		return true
 	}
@@ -456,6 +456,10 @@ func (c *Cluster) mgmtContainer(name string, containerImage string) v1.Container
 						FieldPath: "spec.nodeName",
 					},
 				},
+			},
+			{
+				Name:  "EFSROOK_CRD_API",
+				Value: fmt.Sprintf("%s/%s", edgefsv1beta1.CustomResourceGroup, edgefsv1beta1.Version),
 			},
 		},
 		SecurityContext: securityContext,
