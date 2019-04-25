@@ -27,7 +27,7 @@ metadata:
 spec:
   replicas: 1
   exports:
-  - name: nfs-share
+  - name: share1
     server:
       accessMode: ReadWrite
       squash: "none"

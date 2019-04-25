@@ -163,7 +163,7 @@ NFS_Core_Param
 	container := ss.Spec.Template.Spec.Containers[0]
 	assert.Equal(t, 2, len(container.VolumeMounts))
 
-	expectedVolumeMounts := []v1.VolumeMount{{Name: "test-claim", MountPath: "/test-claim"}, {Name: nfsserver.GetName(), MountPath: "/nfs-ganesha/config"}}
+	expectedVolumeMounts := []v1.VolumeMount{{Name: "export-test", MountPath: "/test-claim"}, {Name: nfsserver.GetName(), MountPath: "/nfs-ganesha/config"}}
 	assert.Equal(t, expectedVolumeMounts, container.VolumeMounts)
 }
 

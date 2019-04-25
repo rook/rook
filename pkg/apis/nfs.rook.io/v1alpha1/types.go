@@ -45,18 +45,13 @@ type NFSServerList struct {
 	Items           []NFSServer `json:"items"`
 }
 
-// NFSSpec represents the spec of NFS daemon
+// NFSServerSpec represents the spec of NFS daemon
 type NFSServerSpec struct {
 	// The annotations-related configuration to add/set on each Pod related object.
 	Annotations rookalpha.Annotations `json:"annotations,omitempty"`
 
 	// Replicas of the NFS daemon
 	Replicas int `json:"replicas,omitempty"`
-
-	// ServiceAccountName is the name of the ServiceAccount to use to run this nfs server pod.
-	// More info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
-	// +optional
-	ServiceAccountName string `json:"serviceAccountName,omitempty" protobuf:"bytes,8,opt,name=serviceAccountName"`
 
 	// The parameters to configure the NFS export
 	Exports []ExportsSpec `json:"exports,omitempty"`
@@ -69,9 +64,6 @@ type ExportsSpec struct {
 
 	// The NFS server configuration
 	Server ServerSpec `json:"server,omitempty"`
-
-	// Configuration to create storageclass for nfs share
-	CreateStorageClass bool `json:"createStorageClass,omitempty"`
 
 	// PVC from which the NFS daemon gets storage for sharing
 	PersistentVolumeClaim v1.PersistentVolumeClaimVolumeSource `json:"persistentVolumeClaim,omitempty"`

@@ -18,9 +18,9 @@ package nfs
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/pkg/errors"
+	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
 	v1 "k8s.io/api/core/v1"
 	storage "k8s.io/api/storage/v1"
 	"k8s.io/client-go/kubernetes"
@@ -31,15 +31,15 @@ import (
 )
 
 type nfsProvisioner struct {
-	client kubernetes.Interface
-	server string
+	client     kubernetes.Interface
+	rookClient rookclient.Interface
 }
 
 var _ controller.Provisioner = &nfsProvisioner{}
 
 // NewNFSProvisioner returns an instance of nfsProvisioner
-func NewNFSProvisioner(clientset kubernetes.Interface, server string) *nfsProvisioner {
-	return &nfsProvisioner{clientset, server}
+func NewNFSProvisioner(clientset kubernetes.Interface, rookClientset rookclient.Interface) *nfsProvisioner {
+	return &nfsProvisioner{clientset, rookClientset}
 }
 
 func (p *nfsProvisioner) Provision(options controller.VolumeOptions) (*v1.PersistentVolume, error) {
@@ -55,11 +55,25 @@ func (p *nfsProvisioner) Provision(options controller.VolumeOptions) (*v1.Persis
 		return nil, fmt.Errorf("claim Selector is not supported")
 	}
 
-	claimPath, present := storageClass.Parameters["claimPath"]
+	nfsServerName, present := storageClass.Parameters["nfsServerName"]
 	if !present {
 		return nil, errors.Errorf("NFS share Path not found in the storageclass: %v", storageClass.GetName())
 	}
 
+	nfsNamespace, present := storageClass.Parameters["nfsServerNamespace"]
+	if !present {
+		return nil, errors.Errorf("NFS share Path not found in the storageclass: %v", storageClass.GetName())
+	}
+
+	exportName, present := storageClass.Parameters["exportName"]
+	if !present {
+		return nil, errors.Errorf("NFS share Path not found in the storageclass: %v", storageClass.GetName())
+	}
+
+	nfsVolumeSource, err := p.getNFSVolumeSource(nfsServerName, nfsNamespace, exportName)
+	if err != nil {
+		return nil, err
+	}
 	pv := &v1.PersistentVolume{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: options.PVName,
@@ -72,11 +86,7 @@ func (p *nfsProvisioner) Provision(options controller.VolumeOptions) (*v1.Persis
 				v1.ResourceName(v1.ResourceStorage): options.PVC.Spec.Resources.Requests[v1.ResourceName(v1.ResourceStorage)],
 			},
 			PersistentVolumeSource: v1.PersistentVolumeSource{
-				NFS: &v1.NFSVolumeSource{
-					Server:   p.server,
-					Path:     strings.TrimSpace(claimPath),
-					ReadOnly: false,
-				},
+				NFS: nfsVolumeSource,
 			},
 		},
 	}
@@ -117,4 +127,26 @@ func (p *nfsProvisioner) getClassForPVC(pvc *v1.PersistentVolumeClaim) (*storage
 		return nil, err
 	}
 	return class, nil
+}
+
+// getNFSVolumeSource returns the nfs source configuration for the pv
+func (p *nfsProvisioner) getNFSVolumeSource(nfsServerName, namespace, exportName string) (*v1.NFSVolumeSource, error) {
+	nfsServer, err := p.rookClient.NfsV1alpha1().NFSServers(namespace).Get(nfsServerName, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	nfsService, err := p.client.CoreV1().Services(namespace).Get(nfsServerName, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	for _, export := range nfsServer.Spec.Exports {
+		if export.Name == exportName {
+			return &v1.NFSVolumeSource{
+				ReadOnly: false,
+				Server:   nfsService.Spec.ClusterIP,
+				Path:     "/" + export.PersistentVolumeClaim.ClaimName,
+			}, nil
+		}
+	}
+	return nil, errors.Errorf("exportName not Found")
 }

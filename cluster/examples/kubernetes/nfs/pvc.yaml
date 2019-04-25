@@ -1,11 +1,12 @@
+---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: rook-nfs-pv-claim
 spec:
+  storageClassName: "rook-nfs-share1"
   accessModes:
     - ReadWriteMany
-  storageClassName: ""
   resources:
     requests:
       storage: 1Mi

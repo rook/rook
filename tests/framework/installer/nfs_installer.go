@@ -132,7 +132,7 @@ func (h *NFSInstaller) CreateNFSServer(namespace string, count int, storageClass
 func (h *NFSInstaller) CreateNFSServerVolume(namespace string) error {
 	logger.Info("creating volume from nfs server in namespace %s", namespace)
 
-	nfsServerPVC := h.manifests.GetNFSServerPVC()
+	nfsServerPVC := h.manifests.GetNFSServerPVC(namespace)
 
 	logger.Info("creating nfs server pvc")
 	if _, err := h.k8shelper.KubectlWithStdin(nfsServerPVC, createFromStdinArgs...); err != nil {

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#Portions of this file came from https://github.com/kubernetes-incubator/external-storage/blob/master/nfs/deploy/docker/Dockerfile, which uses the same license.
+#Portions of this file came from https://github.com/mitcdh/docker-nfs-ganesha/blob/master/Dockerfile, which uses the same license.
 
 FROM NFS_BASEIMAGE
 # Build ganesha from source, installing deps and removing them in one line.
