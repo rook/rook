@@ -210,7 +210,26 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, ru
 
 		monPorts := [2]string{strconv.Itoa(int(Msgr2port)), strconv.Itoa(int(currentMonPort))}
 		msgr1Endpoint := net.JoinHostPort(monIP, monPorts[1])
-		monHosts[i] = msgr1Endpoint
+
+		// Mimic daemons like OSD won't be able to parse this, so only the operator should get this config
+		// they will fail with
+		// 		unable to parse addrs in 'v1:10.104.92.199:6790,v1:10.110.137.107:6790,v1:10.102.38.86:6790'
+		// 		server name not found: v1:10.104.92.199:6790 (Name or service not known)
+		// 		2019-04-25 10:31:08.614 7f5971aae1c0 -1 monclient: get_monmap_and_config cannot identify monitors to contact
+		// 		2019-04-25 10:31:08.614 7f5971aae1c0 -1 monclient: get_monmap_and_config cannot identify monitors to contact
+		// 		failed to fetch mon config (--no-mon-config to skip)
+		// The operator always fails this test since it does not have the env var 'ROOK_CEPH_VERSION'
+		podName := os.Getenv("POD_NAME")
+		if cluster.CephVersion.IsAtLeastNautilus() {
+			monHosts[i] = "v1:" + msgr1Endpoint
+		} else if podName != "" && strings.Contains(podName, "operator") {
+			// This is an operator and its version is always based on Nautilus
+			// so it knows how to parse both msgr1 and msgr2 syntax
+			monHosts[i] = "v1:" + msgr1Endpoint
+		} else {
+			// This is not the operator, it's an OSD and its Ceph version is before Nautilus
+			monHosts[i] = msgr1Endpoint
+		}
 		i++
 	}
 
