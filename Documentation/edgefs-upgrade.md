@@ -32,7 +32,7 @@ Example of migration from `v1alpha1` to `v1beta1`:
 4. Edit operator.yaml to transition to a new version. This has to be done for each CustomResourceDefinition in the file.
 5. Create EdgeFS operator, e.g., `kubectl create -f operator.yaml`
 6. Edit cluster.yaml to transition to a new version. I.e. `edgefs.rook.io/v1alpha1` to `edgefs.rook.io/v1beta1`.
-7. If you using devices, edit cluster.yaml and enable devicesResurrectMode "restore". This will preserve old cluster data.
+7. If you using devices, edit cluster.yaml and enable devicesResurrectMode "restore" and delete in-use discovery configmaps. This will preserve old cluster data.
 8. Create EdgeFS cluster, e.g., `kubectl create -f cluster.yaml`
 9. Login to mgr container and check system status, e.g., `efscli system status`
 10. Edit EdgeFS services CRD files to transition to a new version. I.e. `edgefs.rook.io/v1alpha1` to `edgefs.rook.io/v1beta1`.
