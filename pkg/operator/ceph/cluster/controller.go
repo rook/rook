@@ -567,6 +567,10 @@ func (c *ClusterController) onDeviceCMUpdate(oldObj, newObj interface{}) {
 	}
 
 	for _, cluster := range c.clusterMap {
+		if cluster.Info == nil {
+			logger.Info("Cluster %s is not ready. Skipping orchestration on device change", cluster.Namespace)
+			continue
+		}
 		logger.Infof("Running orchestration for namespace %s after device change", cluster.Namespace)
 		err := cluster.createInstance(c.rookImage, cluster.Info.CephVersion)
 		if err != nil {
