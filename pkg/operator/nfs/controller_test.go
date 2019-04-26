@@ -25,10 +25,12 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
+
+const appName = "nfs-server-X"
 
 func TestValidateNFSServerSpec(t *testing.T) {
 
@@ -90,7 +92,7 @@ func TestOnAdd(t *testing.T) {
 	namespace := "rook-nfs-test"
 	nfsserver := &nfsv1alpha1.NFSServer{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "nfs-server-X",
+			Name:      appName,
 			Namespace: namespace,
 		},
 		Spec: nfsv1alpha1.NFSServerSpec{
@@ -122,13 +124,13 @@ func TestOnAdd(t *testing.T) {
 	controller.onAdd(nfsserver)
 
 	// verify client service
-	clientService, err := clientset.CoreV1().Services(namespace).Get(appName, metav1.GetOptions{})
+	clientService, err := clientset.CoreV1().Services(namespace).Get(nfsserver.GetName(), metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.NotNil(t, clientService)
 	assert.Equal(t, v1.ServiceTypeClusterIP, clientService.Spec.Type)
 
 	// verify nfs-ganesha config in the configmap
-	configMap, err := clientset.CoreV1().ConfigMaps(namespace).Get(nfsConfigMapName, metav1.GetOptions{})
+	configMap, err := clientset.CoreV1().ConfigMaps(namespace).Get(nfsserver.GetName(), metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.NotNil(t, configMap)
 	nfsGaneshaConfig := `
@@ -149,7 +151,7 @@ NFS_Core_Param
 {
 	fsid_device = true;
 }`
-	assert.Equal(t, nfsGaneshaConfig, configMap.Data[nfsConfigMapName])
+	assert.Equal(t, nfsGaneshaConfig, configMap.Data[nfsserver.GetName()])
 
 	// verify stateful set
 	ss, err := clientset.AppsV1().StatefulSets(namespace).Get(appName, metav1.GetOptions{})
@@ -161,7 +163,7 @@ NFS_Core_Param
 	container := ss.Spec.Template.Spec.Containers[0]
 	assert.Equal(t, 2, len(container.VolumeMounts))
 
-	expectedVolumeMounts := []v1.VolumeMount{{Name: "test-claim", MountPath: "/test-claim"}, {Name: "nfs-ganesha-config", MountPath: "/nfs-ganesha/config"}}
+	expectedVolumeMounts := []v1.VolumeMount{{Name: "export-test", MountPath: "/test-claim"}, {Name: nfsserver.GetName(), MountPath: "/nfs-ganesha/config"}}
 	assert.Equal(t, expectedVolumeMounts, container.VolumeMounts)
 }
 

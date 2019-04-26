@@ -17,7 +17,7 @@ package v1alpha1
 
 import (
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -45,7 +45,7 @@ type NFSServerList struct {
 	Items           []NFSServer `json:"items"`
 }
 
-// NFSSpec represents the spec of NFS daemon
+// NFSServerSpec represents the spec of NFS daemon
 type NFSServerSpec struct {
 	// The annotations-related configuration to add/set on each Pod related object.
 	Annotations rookalpha.Annotations `json:"annotations,omitempty"`

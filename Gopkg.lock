@@ -439,6 +439,14 @@
   version = "v1.2"
 
 [[projects]]
+  digest = "1:cf31692c14422fa27c83a05292eb5cbe0fb2775972e8f1f8446a71549bd8980b"
+  name = "github.com/pkg/errors"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "ba968bfe8b2f7e042a574c888954fccecfa385b4"
+  version = "v0.8.1"
+
+[[projects]]
   digest = "1:0028cb19b2e4c3112225cd871870f2d9cf49b9b4276531f03438a88e94be86fe"
   name = "github.com/pmezard/go-difflib"
   packages = ["difflib"]
@@ -1318,7 +1326,6 @@
   revision = "21c4ce38f2a793ec01e925ddc31216500183b773"
 
 [[projects]]
-  branch = "release-1.14"
   digest = "1:a2147c72c6ac436c7cbd3ffaefb3a8ca26264dd60fed5aec22cf4ed6d6c42690"
   name = "sigs.k8s.io/sig-storage-lib-external-provisioner"
   packages = [
@@ -1328,6 +1335,7 @@
   ]
   pruneopts = "UT"
   revision = "3eea7193b4c5c034f885913c03105178e9e23a4f"
+  version = "v3.1.0"
 
 [[projects]]
   digest = "1:fef5992ddf85e9ccad899b11338339858936a10fbce96b9d5c43767669d95398"
@@ -1367,6 +1375,7 @@
     "github.com/google/uuid",
     "github.com/icrowley/fake",
     "github.com/jbw976/go-ps",
+    "github.com/pkg/errors",
     "github.com/rook/operator-kit",
     "github.com/spf13/cobra",
     "github.com/spf13/pflag",

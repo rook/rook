@@ -36,6 +36,8 @@ var (
 
 func init() {
 	Cmd.AddCommand(operatorCmd)
+	Cmd.AddCommand(provisonerCmd)
+	Cmd.AddCommand(serverCmd)
 }
 
 func createContext() *clusterd.Context {

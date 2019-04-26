@@ -113,12 +113,12 @@ func (h *NFSInstaller) CreateNFSServer(namespace string, count int, storageClass
 		return fmt.Errorf("Failed to create nfs server: %+v ", err)
 	}
 
-	if err := h.k8shelper.WaitForPodCount("app=rook-nfs", namespace, 1); err != nil {
+	if err := h.k8shelper.WaitForPodCount("app="+namespace, namespace, 1); err != nil {
 		logger.Errorf("nfs server pods in namespace %s not found", namespace)
 		return err
 	}
 
-	err := h.k8shelper.WaitForLabeledPodsToRun("app=rook-nfs", namespace)
+	err := h.k8shelper.WaitForLabeledPodsToRun("app="+namespace, namespace)
 	if err != nil {
 		logger.Errorf("nfs server pods in namespace %s are not running", namespace)
 		return err
@@ -132,17 +132,7 @@ func (h *NFSInstaller) CreateNFSServer(namespace string, count int, storageClass
 func (h *NFSInstaller) CreateNFSServerVolume(namespace string) error {
 	logger.Info("creating volume from nfs server in namespace %s", namespace)
 
-	clusterIP, err := h.GetNFSServerClusterIP(namespace)
-	if err != nil {
-		return err
-	}
-	nfsServerPV := h.manifests.GetNFSServerPV(namespace, clusterIP)
-	nfsServerPVC := h.manifests.GetNFSServerPVC()
-
-	logger.Info("creating nfs server pv")
-	if _, err := h.k8shelper.KubectlWithStdin(nfsServerPV, createFromStdinArgs...); err != nil {
-		return err
-	}
+	nfsServerPVC := h.manifests.GetNFSServerPVC(namespace)
 
 	logger.Info("creating nfs server pvc")
 	if _, err := h.k8shelper.KubectlWithStdin(nfsServerPVC, createFromStdinArgs...); err != nil {
@@ -193,6 +183,8 @@ func (h *NFSInstaller) UninstallNFSServer(systemNamespace, namespace string) {
 	checkError(h.T(), err, "cannot uninstall hostpath provisioner")
 
 	h.k8shelper.Clientset.RbacV1beta1().ClusterRoleBindings().Delete("anon-user-access", nil)
+	h.k8shelper.Clientset.RbacV1beta1().ClusterRoleBindings().Delete("run-nfs-client-provisioner", nil)
+	h.k8shelper.Clientset.RbacV1beta1().ClusterRoles().Delete("nfs-client-provisioner-runner", nil)
 	logger.Infof("done removing the operator from namespace %s", systemNamespace)
 }
 
@@ -201,16 +193,4 @@ func (h *NFSInstaller) GatherAllNFSServerLogs(systemNamespace, namespace, testNa
 	logger.Infof("Gathering all logs from NFSServer %s", namespace)
 	h.k8shelper.GetLogs("rook-nfs-operator", Env.HostType, systemNamespace, testName)
 	h.k8shelper.GetLogs("rook-nfs", Env.HostType, namespace, testName)
-}
-
-// GetNFSServerClusterIP gets the nfs server cluster ip on which it serves
-func (h *NFSInstaller) GetNFSServerClusterIP(namespace string) (string, error) {
-	clusterIP := ""
-	service, err := h.k8shelper.GetService("rook-nfs", namespace)
-	if err != nil {
-		logger.Errorf("nfs server service in namespace %s is not active", namespace)
-		return clusterIP, err
-	}
-	clusterIP = service.Spec.ClusterIP
-	return clusterIP, nil
 }

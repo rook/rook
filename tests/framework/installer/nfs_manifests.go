@@ -43,10 +43,10 @@ spec:
 
 // GetNFSServerOperator returns the NFSServer operator definition
 func (i *NFSManifests) GetNFSServerOperator(namespace string) string {
-	return `kind: Namespace
-apiVersion: v1
+	return `apiVersion: v1
+kind: Namespace
 metadata:
-  name: ` + namespace + `
+  name:  ` + namespace + `
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
@@ -54,12 +54,13 @@ metadata:
   name: rook-nfs-operator
 rules:
 - apiGroups:
-  - ""
+  - "*"
   resources:
   - namespaces
   - configmaps
   - pods
   - services
+  - storageclasses
   verbs:
   - get
   - watch
@@ -124,8 +125,96 @@ spec:
       serviceAccountName: rook-nfs-operator
       containers:
       - name: rook-nfs-operator
+        imagePullPolicy: IfNotPresent
         image: rook/nfs:master
         args: ["nfs", "operator"]
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-nfs-provisioner-runner
+rules:
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["services", "endpoints"]
+    verbs: ["get"]
+  - apiGroups: ["extensions"]
+    resources: ["podsecuritypolicies"]
+    resourceNames: ["nfs-provisioner"]
+    verbs: ["use"]
+  - apiGroups: [""]
+    resources: ["endpoints"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups:
+    - nfs.rook.io
+    resources:
+    - "*"
+    verbs:
+    - "*"
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: run-nfs-provisioner
+subjects:
+  - kind: ServiceAccount
+    name: rook-nfs-provisioner
+     # replace with namespace where provisioner is deployed
+    namespace: ` + namespace + `
+roleRef:
+  kind: ClusterRole
+  name: rook-nfs-provisioner-runner
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-nfs-provisioner
+  namespace: ` + namespace + `
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: rook-nfs-provisioner
+  namespace: ` + namespace + `
+spec:
+  selector:
+    matchLabels:
+      app: rook-nfs-provisioner
+  replicas: 1
+  strategy:
+    type: Recreate 
+  template:
+    metadata:
+      labels:
+        app: rook-nfs-provisioner
+    spec:
+      serviceAccount: rook-nfs-provisioner
+      containers:
+      - name: rook-nfs-provisioner
+        image: rook/nfs:master
+        imagePullPolicy: IfNotPresent
+        args: ["nfs", "provisioner","--provisioner=rook.io/nfs-provisioner"]
         env:
         - name: POD_NAME
           valueFrom:
@@ -177,13 +266,43 @@ spec:
 }
 
 // GetNFSServerPVC returns NFSServer PVC definition
-func (i *NFSManifests) GetNFSServerPVC() string {
-	return `apiVersion: v1
+func (i *NFSManifests) GetNFSServerPVC(namespace string) string {
+	return `
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  labels:
+    app: rook-nfs
+  name: nfs-ns-nfs-share
+parameters:
+  exportName: nfs-share
+  nfsServerName: ` + namespace + `
+  nfsServerNamespace: ` + namespace + `
+provisioner: rook.io/nfs-provisioner
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  labels:
+    app: rook-nfs
+  name: nfs-ns-nfs-share1
+parameters:
+  exportName: nfs-share1
+  nfsServerName: ` + namespace + `
+  nfsServerNamespace: ` + namespace + `
+provisioner: rook.io/nfs-provisioner
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+---
+apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: nfs-pv-claim
 spec:
-  storageClassName: nfs-sc
+  storageClassName: nfs-ns-nfs-share
   accessModes:
     - ReadWriteMany
   resources:
@@ -195,7 +314,7 @@ kind: PersistentVolumeClaim
 metadata:
   name: nfs-pv-claim-bigger
 spec:
-  storageClassName: nfs-sc
+  storageClassName: nfs-ns-nfs-share1
   accessModes:
     - ReadWriteMany
   resources:
@@ -206,7 +325,8 @@ spec:
 
 // GetNFSServer returns NFSServer CRD instance definition
 func (i *NFSManifests) GetNFSServer(namespace string, count int, storageClassName string) string {
-	return `apiVersion: v1
+	return `
+apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: test-claim
@@ -238,6 +358,7 @@ metadata:
   name: ` + namespace + `
   namespace: ` + namespace + `
 spec:
+  serviceAccountName: ` + namespace + `
   replicas: ` + strconv.Itoa(count) + `
   exports:
   - name: nfs-share

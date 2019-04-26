@@ -105,7 +105,7 @@ func (suite *NfsSuite) TestNfsServerInstallation() {
 		"1 rook-nfs-operator must be in Running state")
 
 	// verify nfs server instances are running OK
-	assert.True(suite.T(), suite.k8shelper.CheckPodCountAndState("rook-nfs", suite.namespace, suite.instanceCount, "Running"),
+	assert.True(suite.T(), suite.k8shelper.CheckPodCountAndState(suite.namespace, suite.namespace, suite.instanceCount, "Running"),
 		fmt.Sprintf("%d rook-nfs pods must be in Running state", suite.instanceCount))
 
 	// verify bigger export is running OK

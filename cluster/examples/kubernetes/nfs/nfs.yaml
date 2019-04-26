@@ -22,9 +22,10 @@ metadata:
   name: rook-nfs
   namespace: rook-nfs
 spec:
+  serviceAccountName: rook-nfs
   replicas: 1
   exports:
-  - name: nfs-share
+  - name: share1
     server:
       accessMode: ReadWrite
       squash: "none"
