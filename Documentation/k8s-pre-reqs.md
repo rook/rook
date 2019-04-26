@@ -13,7 +13,8 @@ Kubernetes v1.10 or higher is supported by Rook.
 
 ## Privileges and RBAC
 
-Rook requires privileges to manage the storage in your cluster. See the details [here](rbac.md) for setting up RBAC.
+Rook requires privileges to manage the storage in your cluster. See the details [here](psp.md) for
+setting up Rook in a Kubernetes cluster with Pod Security Policies enabled.
 
 ## Flexvolume Configuration
 

@@ -1,40 +1,20 @@
 ---
-title: RBAC Security
+title: Ceph cluster Pod Security Policies
 weight: 1400
 indent: true
 ---
 
-# RBAC Security
+# Using Rook-Ceph with Pod Security Policies (PSPs)
 
-## Cluster Role
-
-**NOTE** This is only needed when you are not already `cluster-admin` in your Kubernetes cluster!
-
-Creating the Rook operator requires privileges for setting up RBAC. To launch the operator you need to have created your user certificate that is bound to ClusterRole `cluster-admin`.
-
-One simple way to achieve it is to assign your certificate with the `system:masters` group:
-
-```
--subj "/CN=admin/O=system:masters"
-```
-
-`system:masters` is a special group that is bound to `cluster-admin` ClusterRole, but it can't be easily revoked so be careful with taking that route in a production setting.
-Binding individual certificate to ClusterRole `cluster-admin` is revocable by deleting the ClusterRoleBinding.
-
-## RBAC for PodSecurityPolicies
-
-If you have activated the [PodSecurityPolicy Admission Controller](https://kubernetes.io/docs/admin/admission-controllers/#podsecuritypolicy) and thus are
-using [PodSecurityPolicies](https://kubernetes.io/docs/concepts/policy/pod-security-policy/), you will require additional `(Cluster)RoleBindings`
-for the different `ServiceAccounts` Rook uses to start the Rook Storage Pods.
-
-**Note**: You do not have to perform these steps if you do not have the `PodSecurityPolicy` Admission Controller activated!
+See the [Rook overall PSP document](./psp.md) before continuing on here with Ceph specifics.
 
 ##### PodSecurityPolicy
 
-You need one `PodSecurityPolicy` that allows privileged `Pod` execution. Here is an example:
+You need at least one `PodSecurityPolicy` that allows privileged `Pod` execution. Here is an example
+that is reasonably pared down for Ceph, though more work to minimize permissions can be done:
 
 ```yaml
-apiVersion: apps/v1
+apiVersion: policy/v1beta1
 kind: PodSecurityPolicy
 metadata:
   name: privileged
@@ -49,19 +29,26 @@ spec:
   supplementalGroups:
     rule: RunAsAny
   volumes:
-  - '*'
-  allowedCapabilities:
-  - '*'
+    - 'configMap'
+    - 'emptyDir'
+    - 'projected'
+    - 'secret'
+    - 'downwardAPI'
+    - 'hostPath'
+    - 'flexVolume'
   hostPID: true
-  hostIPC: true
+  # hostNetwork is required for using host networking
   hostNetwork: false
 ```
 
-**Hint**: Allowing `hostNetwork` usage is required when using `hostNetwork: true` in the Cluster `CustomResourceDefinition`!
-You are then also required to allow the usage of `hostPorts` in the `PodSecurityPolicy`. The given port range is a minimal
-working recommendation for a Rook Ceph cluster:
+**Hint**: Allowing `hostNetwork` usage is required when using `hostNetwork: true` in the Cluster
+Resource Definition! You are then also required to allow the usage of `hostPorts` in the
+`PodSecurityPolicy`. The given port range is a minimal working recommendation for a Rook Ceph cluster:
  ```yaml
    hostPorts:
+     # Ceph msgr2 port
+     - min: 3300
+       max: 3300
      # Ceph ports
      - min: 6789
        max: 7300
@@ -80,10 +67,10 @@ with privileged rights. Here are the definitions:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: privileged-psp-user
+  name: psp:rook
 rules:
 - apiGroups:
-  - apps
+  - policy
   resources:
   - podsecuritypolicies
   resourceNames:
@@ -107,7 +94,7 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: privileged-psp-user
+  name: psp:rook
 subjects:
 - kind: ServiceAccount
   name: rook-ceph-system
@@ -134,7 +121,7 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: privileged-psp-user
+  name: psp:rook
 subjects:
 - kind: ServiceAccount
   name: default
@@ -149,9 +136,25 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: privileged-psp-user
+  name: psp:rook
 subjects:
 - kind: ServiceAccount
   name: rook-ceph-osd
   namespace: rook-ceph
+---
+# Allow the rook-ceph-mgr serviceAccount to use the privileged PSP
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: rook-ceph-mgr-psp
+  namespace: rook-ceph
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: psp:rook
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-mgr
+  namespace: rook-ceph
+
 ```
