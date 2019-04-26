@@ -543,6 +543,29 @@ func (c *ClusterController) onDeviceCMUpdate(oldObj, newObj interface{}) {
 	}
 	logger.Debugf("onDeviceCMUpdate new device cm: %+v", newCm)
 
+	oldDevStr, ok := oldCm.Data[discoverDaemon.LocalDiskCMData]
+	if !ok {
+		logger.Warningf("unexpected configmap data")
+		return
+	}
+
+	newDevStr, ok := newCm.Data[discoverDaemon.LocalDiskCMData]
+	if !ok {
+		logger.Warningf("unexpected configmap data")
+		return
+	}
+
+	devicesEqual, err := discoverDaemon.DeviceListsEqual(oldDevStr, newDevStr)
+	if err != nil {
+		logger.Warningf("failed to compare device lists: %v", err)
+		return
+	}
+
+	if devicesEqual {
+		logger.Infof("device lists are equal. skipping orchestration")
+		return
+	}
+
 	for _, cluster := range c.clusterMap {
 		logger.Infof("Running orchestration for namespace %s after device change", cluster.Namespace)
 		err := cluster.createInstance(c.rookImage, cluster.Info.CephVersion)
