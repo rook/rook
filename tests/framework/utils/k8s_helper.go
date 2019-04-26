@@ -1450,9 +1450,14 @@ func (k8sh *K8sHelper) getContainerLogs(podAppName, hostType, namespace, testNam
 		logger.Infof("no logs found for pod %s in namespace %s", podAppName, namespace)
 	}
 
+	previousTag := ""
+	if previousLog {
+		previousTag = "_previous"
+	}
+
 	for _, pod := range podList.Items {
 		podName := pod.Name
-		logger.Infof("getting logs for pod : %v", podName)
+		logger.Infof("getting logs for pod : %v %s", podName, previousTag)
 		res := k8sh.Clientset.CoreV1().Pods(namespace).GetLogs(podName, logOpts).Do()
 		rawData, err := res.Raw()
 		if err != nil {
@@ -1472,7 +1477,7 @@ func (k8sh *K8sHelper) getContainerLogs(podAppName, hostType, namespace, testNam
 		if containerName != "" {
 			logSuffix = "_" + containerName
 		}
-		fileName := fmt.Sprintf("%s_%s_%s_%s%s_%d.log", testName, hostType, podName, namespace, logSuffix, time.Now().Unix())
+		fileName := fmt.Sprintf("%s_%s_%s_%s%s%s_%d.log", testName, hostType, podName, namespace, logSuffix, previousTag, time.Now().Unix())
 		fpath = path.Join(fpath, fileName)
 		file, err := os.Create(fpath)
 		if err != nil {
