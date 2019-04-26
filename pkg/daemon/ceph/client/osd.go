@@ -148,38 +148,6 @@ func OSDRemove(context *clusterd.Context, clusterName string, osdID int) (string
 	return string(buf), err
 }
 
-func DisableScrubbing(context *clusterd.Context, clusterName string) (string, error) {
-	args := []string{"osd", "set", "noscrub"}
-	buf, err := ExecuteCephCommand(context, clusterName, args)
-	if err != nil {
-		return string(buf), fmt.Errorf("failed to set noscrub: %+v", err)
-	}
-
-	args = []string{"osd", "set", "nodeep-scrub"}
-	buf, err = ExecuteCephCommand(context, clusterName, args)
-	if err != nil {
-		return string(buf), fmt.Errorf("failed to set nodeep-scrub: %+v", err)
-	}
-
-	return string(buf), nil
-}
-
-func EnableScrubbing(context *clusterd.Context, clusterName string) (string, error) {
-	args := []string{"osd", "unset", "noscrub"}
-	buf, err := ExecuteCephCommand(context, clusterName, args)
-	if err != nil {
-		return string(buf), fmt.Errorf("failed to unset noscrub: %+v", err)
-	}
-
-	args = []string{"osd", "unset", "nodeep-scrub"}
-	buf, err = ExecuteCephCommand(context, clusterName, args)
-	if err != nil {
-		return string(buf), fmt.Errorf("failed to unset nodeep-scrub: %+v", err)
-	}
-
-	return string(buf), nil
-}
-
 func (usage *OSDUsage) ByID(osdID int) *OSDNodeUsage {
 	for i := range usage.OSDNodes {
 		if usage.OSDNodes[i].ID == osdID {

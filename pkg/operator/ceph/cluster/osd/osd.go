@@ -142,16 +142,6 @@ func (c *Cluster) Start() error {
 		logger.Warningf("useAllNodes is set to false and no nodes are specified, no OSD pods are going to be created")
 	}
 
-	// disable scrubbing during orchestration and ensure it gets enabled again afterwards
-	if o, err := client.DisableScrubbing(c.context, c.Namespace); err != nil {
-		logger.Warningf("failed to disable scrubbing: %+v. %s", err, o)
-	}
-	defer func() {
-		if o, err := client.EnableScrubbing(c.context, c.Namespace); err != nil {
-			logger.Warningf("failed to enable scrubbing: %+v. %s", err, o)
-		}
-	}()
-
 	if c.DesiredStorage.UseAllNodes {
 		// resolve all storage nodes
 		c.DesiredStorage.Nodes = nil
