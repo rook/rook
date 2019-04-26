@@ -135,7 +135,7 @@ func (c *Cluster) makeSetServerAddrInitContainer(mgrConfig *mgrConfig, mgrModule
 	} else {
 		cfgSetArgs = append(cfgSetArgs, fmt.Sprintf("mgr.%s", mgrConfig.DaemonID))
 	}
-	cfgPath := fmt.Sprintf("mgr/%s/server_addr", mgrModule)
+	cfgPath := fmt.Sprintf("mgr/%s/%s/server_addr", mgrModule, mgrConfig.DaemonID)
 	cfgSetArgs = append(cfgSetArgs, cfgPath, opspec.ContainerEnvVarReference(podIPEnvVar))
 	if c.clusterInfo.CephVersion.IsAtLeastNautilus() {
 		cfgSetArgs = append(cfgSetArgs, "--force")
