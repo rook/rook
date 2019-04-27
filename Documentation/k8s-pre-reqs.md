@@ -33,6 +33,18 @@ Normally, on Linux, kernel modules can be found in `/lib/modules`. However, ther
 
 On certain distributions it may be necessary to mount additional directories into the agent container. That is what the environment variable `AGENT_MOUNTS` is for. Also see the documentation in [helm-operator](helm-operator.md) on the parameter `agent.mounts`. The format of the variable content should be `mountname1=/host/path1:/container/path1,mountname2=/host/path2:/container/path2`.
 
+## LVM package
+
+Some Linux distributions do not ship with the `lvm2` package. This package is required on all storage nodes in your k8s cluster. Please install it using your Linux distribution's package manager; for example:
+
+```Bash
+# Centos
+sudo yum install -y lvm2
+
+# Ubuntu
+sudo apt-get install -y lvm2
+```
+
 ## Bootstrapping Kubernetes
 
 Rook will run wherever Kubernetes is running. Here are some simple environments to help you get started with Rook.
