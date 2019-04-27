@@ -69,8 +69,8 @@ func (c *ISGWController) CreateOrUpdate(s edgefsv1beta1.ISGW, update bool, owner
 		s.Spec.ReplicationType = defaultReplicationType
 	}
 
-	if s.Spec.DynamicFetchPort == 0 {
-		s.Spec.DynamicFetchPort = defaultDynamicFetchPort
+	if s.Spec.DynamicFetchAddr == "" {
+		s.Spec.DynamicFetchAddr = "-"
 	}
 
 	if s.Spec.LocalAddr == "" {
@@ -157,8 +157,15 @@ func (c *ISGWController) makeISGWService(name, svcname, namespace string, isgwSp
 			svc.Spec.ExternalIPs = []string{laddr}
 		}
 	}
-	if direction == 1 || direction == 3 {
-		svc.Spec.Ports = append(svc.Spec.Ports, v1.ServicePort{Name: "dfport", Port: int32(isgwSpec.DynamicFetchPort), Protocol: v1.ProtocolTCP})
+	if (direction == 1 || direction == 3) && isgwSpec.DynamicFetchAddr != "-" {
+		_, port, err := net.SplitHostPort(isgwSpec.DynamicFetchAddr)
+		if err != nil {
+			logger.Errorf("wrong dynamicFetchAddr format")
+			return svc
+		}
+		lport, _ := strconv.Atoi(port)
+
+		svc.Spec.Ports = append(svc.Spec.Ports, v1.ServicePort{Name: "dfport", Port: int32(lport), Protocol: v1.ProtocolTCP})
 	}
 
 	k8sutil.SetOwnerRef(c.context.Clientset, namespace, &svc.ObjectMeta, &c.ownerRef)
@@ -309,8 +316,8 @@ func (c *ISGWController) isgwContainer(svcname, name, containerImage string, isg
 				Value: isgwSpec.LocalAddr,
 			},
 			{
-				Name:  "EFSISGW_DYNAMIC_FETCH_PORT",
-				Value: strconv.Itoa(int(isgwSpec.DynamicFetchPort)),
+				Name:  "EFSISGW_DYNAMIC_FETCH_ADDR",
+				Value: isgwSpec.DynamicFetchAddr,
 			},
 			{
 				Name:  "EFSISGW_REPLICATION_TYPE",
@@ -342,8 +349,14 @@ func (c *ISGWController) isgwContainer(svcname, name, containerImage string, isg
 		lport, _ := strconv.Atoi(port)
 		cont.Ports = append(cont.Ports, v1.ContainerPort{Name: "lport", ContainerPort: int32(lport), Protocol: v1.ProtocolTCP})
 	}
-	if direction == 1 || direction == 3 {
-		cont.Ports = append(cont.Ports, v1.ContainerPort{Name: "dfport", ContainerPort: int32(isgwSpec.DynamicFetchPort), Protocol: v1.ProtocolTCP})
+	if (direction == 1 || direction == 3) && isgwSpec.DynamicFetchAddr != "-" {
+		_, port, err := net.SplitHostPort(isgwSpec.DynamicFetchAddr)
+		if err != nil {
+			logger.Errorf("wrong dynamicFetchAddr format")
+			return cont
+		}
+		lport, _ := strconv.Atoi(port)
+		cont.Ports = append(cont.Ports, v1.ContainerPort{Name: "dfport", ContainerPort: int32(lport), Protocol: v1.ProtocolTCP})
 	}
 
 	cont.Env = append(cont.Env, edgefsv1beta1.GetInitiatorEnvArr("isgw",
