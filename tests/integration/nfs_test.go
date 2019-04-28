@@ -110,16 +110,16 @@ func (suite *NfsSuite) TestNfsServerInstallation() {
 	// verify bigger export is running OK
 	assert.True(suite.T(), true, suite.k8shelper.WaitUntilPVCIsBound("default", "nfs-pv-claim-bigger"))
 
-	podList, err := suite.rwClient.CreateWriteClient("nfs-pv-claim-bigger")
+	podList, err := suite.nfsClient.CreateReadWriteClient("read-write-test", "nfs-pv-claim-bigger")
 	require.NoError(suite.T(), err)
 	assert.True(suite.T(), true, suite.checkReadData(podList))
-	suite.rwClient.Delete()
+	suite.nfsClient.Delete("nfs-pv-claim-bigger")
 
 	// verify another smaller export is running OK
 	assert.True(suite.T(), true, suite.k8shelper.WaitUntilPVCIsBound("default", "nfs-pv-claim"))
 
 	defer suite.nfsClient.Delete("read-write-test")
-	podList, err := suite.nfsClient.CreateReadWriteClient("read-write-test", "nfs-pv-claim")
+	podList, err = suite.nfsClient.CreateReadWriteClient("read-write-test", "nfs-pv-claim")
 	require.NoError(suite.T(), err)
 	assert.True(suite.T(), true, suite.checkReadData(podList))
 }

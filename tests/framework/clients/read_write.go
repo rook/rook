@@ -58,7 +58,7 @@ func (f *NfsClientOperation) CreateReadOnlyClient(name, volName string) ([]strin
 	logger.Infof("createh the filesystem via replication controller")
 	readerSpec := getReadOnlyReplicationController(name, volName)
 
-	if _, err := f.k8sh.ResourceOperation("create", readerSpec); err != nil {
+	if err := f.k8sh.ResourceOperation("create", readerSpec); err != nil {
 		return nil, err
 	}
 
@@ -74,7 +74,7 @@ func (f *NfsClientOperation) CreateReadOnlyClient(name, volName string) ([]strin
 }
 
 // Delete Function to delete a nfs consuming pod in rook
-func (f *NfsClientOperation) Delete(name string) (string, error) {
+func (f *NfsClientOperation) Delete(name string) error {
 	return f.k8sh.DeleteResource("rc", name)
 }
 

@@ -29,11 +29,13 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 )
 
+const appName = "nfs-server-X"
+
 func TestOnAddComplexServer(t *testing.T) {
 	namespace := "rook-nfs-test"
 	nfsserver := &nfsv1alpha1.NFSServer{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "nfs-server-X",
+			Name:      appName,
 			Namespace: namespace,
 		},
 		Spec: nfsv1alpha1.NFSServerSpec{
@@ -117,9 +119,9 @@ NFS_Core_Param
 	fsid_device = true;
 }`
 	volMounts := []v1.VolumeMount{
-		{Name: "test-claim1", MountPath: "/test-claim1"},
-		{Name: "test-claim2", MountPath: "/test-claim2"},
-		{Name: "nfs-ganesha-config", MountPath: "/nfs-ganesha/config"},
+		{Name: "export-test1", MountPath: "/test-claim1"},
+		{Name: "export-test2", MountPath: "/test-claim2"},
+		{Name: appName, MountPath: "/nfs-ganesha/config"},
 	}
 	onAdd(t, namespace, nfsserver, nfsGaneshaConfig, volMounts)
 }
@@ -135,7 +137,7 @@ func TestOnAddSimpleServer(t *testing.T) {
 			Replicas: 1,
 			Exports: []nfsv1alpha1.ExportsSpec{
 				{
-					Name: "export-test",
+					Name: "test-claim",
 					Server: nfsv1alpha1.ServerSpec{
 						AccessMode: "ReadWrite",
 						Squash:     "none",
@@ -166,7 +168,7 @@ NFS_Core_Param
 {
 	fsid_device = true;
 }`
-	volMounts := []v1.VolumeMount{{Name: "test-claim", MountPath: "/test-claim"}, {Name: "nfs-ganesha-config", MountPath: "/nfs-ganesha/config"}}
+	volMounts := []v1.VolumeMount{{Name: "test-claim", MountPath: "/test-claim"}, {Name: appName, MountPath: "/nfs-ganesha/config"}}
 	onAdd(t, namespace, nfsserver, nfsGaneshaConfig, volMounts)
 
 }
@@ -181,24 +183,24 @@ func onAdd(t *testing.T, namespace string, nfsServer *nfsv1alpha1.NFSServer, exp
 	// in a background thread, simulate the pods running (fake statefulsets don't automatically do that)
 	go simulatePodsRunning(clientset, namespace, nfsServer.Spec.Replicas)
 
-	// call onAdd given the specified nfsserver
+	// call onAdd given the specified nfsServer
 	controller.onAdd(nfsServer)
 
 	// verify client service
-	clientService, err := clientset.CoreV1().Services(namespace).Get(nfsserver.GetName(), metav1.GetOptions{})
+	clientService, err := clientset.CoreV1().Services(namespace).Get(nfsServer.GetName(), metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.NotNil(t, clientService)
 	assert.Equal(t, v1.ServiceTypeClusterIP, clientService.Spec.Type)
 
 	// verify nfs-ganesha config in the configmap
-	configMap, err := clientset.CoreV1().ConfigMaps(namespace).Get(nfsserver.GetName(), metav1.GetOptions{})
+	configMap, err := clientset.CoreV1().ConfigMaps(namespace).Get(nfsServer.GetName(), metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.NotNil(t, configMap)
 
-	assert.Equal(t, expectedConfig, configMap.Data[nfsConfigMapName])
+	assert.Equal(t, expectedConfig, configMap.Data[nfsServer.GetName()])
 
 	// verify stateful set
-	ss, err := clientset.AppsV1().StatefulSets(namespace).Get(appName, metav1.GetOptions{})
+	ss, err := clientset.AppsV1().StatefulSets(namespace).Get(nfsServer.GetName(), metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.NotNil(t, ss)
 	assert.Equal(t, int32(1), *ss.Spec.Replicas)
