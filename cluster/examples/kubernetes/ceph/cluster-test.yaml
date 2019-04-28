@@ -1,0 +1,47 @@
+#################################################################################################################
+# Define the settings for the rook-ceph cluster with settings that should only be used in a test environment.
+# A single filestore OSD will be created in the dataDirHostPath.
+# For example, to create the cluster:
+#   kubectl create -f common.yaml
+#   kubectl create -f operator.yaml
+#   kubectl create -f cluster-test.yaml
+#################################################################################################################
+
+apiVersion: ceph.rook.io/v1
+kind: CephCluster
+metadata:
+  name: rook-ceph
+  namespace: rook-ceph
+spec:
+  cephVersion:
+    image: ceph/ceph:v14.2.0-20190410
+    allowUnsupported: true
+  dataDirHostPath: /var/lib/rook
+  mon:
+    count: 1
+    allowMultiplePerNode: true
+  dashboard:
+    enabled: true
+  network:
+    hostNetwork: false
+  rbdMirroring:
+    workers: 0
+  storage:
+    useAllNodes: true
+    useAllDevices: false
+    deviceFilter:
+    config:
+      databaseSizeMB: "1024" # this value can be removed for environments with normal sized disks (100 GB or larger)
+      journalSizeMB: "1024"  # this value can be removed for environments with normal sized disks (20 GB or larger)
+      osdsPerDevice: "1" # this value can be overridden at the node or device level
+    directories:
+    - path: /var/lib/rook
+#    nodes:
+#    - name: "minikube"
+#      directories:
+#      - path: "/data/rook-dir"
+#      devices:
+#      - name: "sdb"
+#      - name: "nvme01" # multiple osds can be created on high performance devices
+#        config:
+#          osdsPerDevice: "5"

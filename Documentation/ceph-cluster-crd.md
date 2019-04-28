@@ -1,6 +1,6 @@
 ---
 title: Cluster CRD
-weight: 26
+weight: 2600
 indent: true
 ---
 
@@ -11,7 +11,8 @@ Rook allows creation and customization of storage clusters through the custom re
 
 To get you started, here is a simple example of a CRD to configure a Ceph cluster with all nodes and all devices. More examples are included [later in this doc](#samples).
 
-**NOTE** In addition to your CephCluster object, you need to create RBAC rules for the namespace you are going to create the CephCluster in, see [Common Cluster Resources](#common-cluster-resources) section below.
+**NOTE** In addition to your CephCluster object, you need to create the namespace, service accounts, and RBAC rules for the namespace you are going to create the CephCluster in.
+These resources are defined in the example `common.yaml`.
 
 ```yaml
 apiVersion: ceph.rook.io/v1
@@ -22,7 +23,7 @@ metadata:
 spec:
   cephVersion:
     # see the "Cluster Settings" section below for more details on which image of ceph to run
-    image: ceph/ceph:v13.2.2-20181023
+    image: ceph/ceph:v14.2.0-20190410
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -58,6 +59,8 @@ If this value is empty, each pod will get an ephemeral directory to store their 
 - `dashboard`: Settings for the Ceph dashboard. To view the dashboard in your browser see the [dashboard guide](ceph-dashboard.md).
   - `enabled`: Whether to enable the dashboard to view cluster status
   - `urlPrefix`: Allows to serve the dashboard under a subpath (useful when you are accessing the dashboard via a reverse proxy)
+  - `port`: Allows to change the default port where the dashboard is served
+  - `ssl`: Whether to serve the dashboard via SSL, ignored on Ceph versions older than `13.2.2`
 - `network`: The network settings for the cluster
   - `hostNetwork`: uses network of the hosts instead of using the SDN below the containers.
 - `mon`: contains mon related options [mon settings](#mon-settings)
@@ -65,6 +68,7 @@ For more details on the mons and when to choose a number other than `3`, see the
 - `rbdMirroring`: The settings for rbd mirror daemon(s). Configuring which pools or images to be mirrored must be completed in the rook toolbox by running the
 [rbd mirror](http://docs.ceph.com/docs/mimic/rbd/rbd-mirroring/) command.
   - `workers`: The number of rbd daemons to perform the rbd mirroring between clusters.
+- `annotations`: [annotations configuration settings](#annotations-configuration-settings)
 - `placement`: [placement configuration settings](#placement-configuration-settings)
 - `resources`: [resources configuration settings](#cluster-wide-resources-configuration-settings)
 - `storage`: Storage selection and configuration that will be used across the cluster.  Note that these settings can be overridden for specific nodes.
@@ -75,22 +79,21 @@ For more details on the mons and when to choose a number other than `3`, see the
   - `config`: Config settings applied to all OSDs on the node unless overridden by `devices` or `directories`. See the [config settings](#osd-configuration-settings) below.
   - [storage selection settings](#storage-selection-settings)
 
-#### Node Updates
-Nodes can be added and removed over time by updating the Cluster CRD, for example with `kubectl -n rook-ceph edit cephcluster rook-ceph`.
-This will bring up your default text editor and allow you to add and remove storage nodes from the cluster.
-This feature is only available when `useAllNodes` has been set to `false`.
-
 ### Mon Settings
 
-- `count`: set the number of mons to be started. The number should be odd and between `1` and `9`. If not specified the default is set to `3` and `allowMultiplePerNode` is also set to `true`.
-- `allowMultiplePerNode`: enable (`true`) or disable (`false`) the placement of multiple mons on one node. Default is `false`.
+- `count`: Set the number of mons to be started. The number should be odd and between `1` and `9`. If not specified the default is set to `3` and `allowMultiplePerNode` is also set to `true`.
+- `preferredCount`: If you want to increase the number of mons when the number of nodes increases, set the `preferredCount` to be larger than the `count`. For example, if your cluster
+starts with three nodes, but might grow to more than five nodes, you might want five mons running after the other nodes come online. In this case, set `count: 3` and `preferredCount: 5`.
+When the operator sees the new nodes come online, the number of mons will increase to the preferred count. If the number of nodes decreases below the `preferredCount`, the operator will
+reduce the number of mons back to `count`. If `allowMultiplePerNode: true` (for testing scenarios), the number of mons will always use `preferredCount` if set.
+- `allowMultiplePerNode`: Enable (`true`) or disable (`false`) the placement of multiple mons on one node. Default is `false`.
 
 If these settings are changed in the CRD the operator will update the number of mons during a periodic check of the mon health, which by default is every 45 seconds.
 
 To change the defaults that the operator uses to determine the mon health and whether to failover a mon, the following environment variables can be changed in [operator.yaml](https://github.com/rook/rook/blob/master/cluster/examples/kubernetes/ceph/operator.yaml). The intervals should be small enough that you have confidence the mons will maintain quorum, while also being
 log enough to ignore network blips where mons are failed over too often.
 - `ROOK_MON_HEALTHCHECK_INTERVAL`: The frequency with which to check if mons are in quorum (default is 45 seconds)
-- `ROOK_MON_OUT_TIMEOUT`: The interval to wait before marking a mon as "out" and starting a new mon to replace it in the quroum (default is 5 minutes)
+- `ROOK_MON_OUT_TIMEOUT`: The interval to wait before marking a mon as "out" and starting a new mon to replace it in the quroum (default is 600 seconds)
 
 ### Node Settings
 In addition to the cluster level settings specified above, each individual node can also specify configuration to override the cluster level settings and defaults.
@@ -99,6 +102,28 @@ If a node does not specify any configuration then it will inherit the cluster le
 - `name`: The name of the node, which should match its `kubernetes.io/hostname` label.
 - `config`: Config settings applied to all OSDs on the node unless overridden by `devices` or `directories`. See the [config settings](#osd-configuration-settings) below.
 - [storage selection settings](#storage-selection-settings)
+
+When `useAllNodes` is set to `true`, Rook attempts to make Ceph cluster management as hands-off as
+possible while still maintaining reasonable data safety. If a usable node comes online, Rook will
+begin to use it automatically. To maintain a balance between hands-off usability and data safety,
+Nodes are removed From Ceph as OSD hosts only (1) if the node is deleted from Kubernetes itself or
+(2) if the node has its taints or affinities modified in such a way that the node is no longer
+usable by Rook. Any changes to taints or affinities, intentional or unintentional, may affect the
+data reliability of the Ceph cluster. In order to help protect against this somewhat, deletion of
+nodes by taint or affinity modifications must be "confirmed" by deleting the Rook-Ceph operator pod
+and allowing the operator deployment to restart the pod.
+
+For production clusters, we recommend that `useAllNodes` is set to `false` to prevent the Ceph
+cluster from suffering reduced data reliability unintentionally due to a user mistake. When
+`useAllNodes` is set to `false`, Rook relies on the user to be explicit about when nodes are added
+to or removed from the Ceph cluster. Nodes are only added to the Ceph cluster if the node is added
+to the Ceph cluster resource. Similarly, nodes are only removed if the node is removed from the Ceph
+cluster resource.
+
+#### Node Updates
+Nodes can be added and removed over time by updating the Cluster CRD, for example with `kubectl -n rook-ceph edit cephcluster rook-ceph`.
+This will bring up your default text editor and allow you to add and remove storage nodes from the cluster.
+This feature is only available when `useAllNodes` has been set to `false`.
 
 ### Storage Selection Settings
 Below are the settings available, both at the cluster and individual node level, for selecting which storage resources will be included in the cluster.
@@ -116,7 +141,7 @@ Below are the settings available, both at the cluster and individual node level,
 - `directories`:  A list of directory paths that will be included in the storage cluster. Note that using two directories on the same physical device can cause a negative performance impact.
   - `path`: The path on disk of the directory (e.g., `/rook/storage-dir`).
   - `config`: Directory-specific config settings. See the [config settings](#osd-configuration-settings) below.
-- `location`: Location information about the cluster to help with data placement, such as region or data center.  This is directly fed into the underlying Ceph CRUSH map.  More information on CRUSH maps can be found in the [ceph docs](http://docs.ceph.com/docs/master/rados/operations/crush-map/).
+- `location`: Location information about the cluster to help with data placement, such as region or data center.  This is directly fed into the underlying Ceph CRUSH map. The type of this field is `string`. For example, to add datacenter location information, set this field to `rack=rack1`.  More information on CRUSH maps can be found in the [ceph docs](http://docs.ceph.com/docs/master/rados/operations/crush-map/).
 
 
 ### OSD Configuration Settings
@@ -128,14 +153,28 @@ The following storage selection settings are specific to Ceph and do not apply t
 - `walSizeMB`:  The size in MB of a bluestore write ahead log (WAL). Include quotes around the size.
 - `journalSizeMB`:  The size in MB of a filestore journal. Include quotes around the size.
 - `osdsPerDevice`**: The number of OSDs to create on each device. High performance devices such as NVMe can handle running multiple OSDs. If desired, this can be overridden for each node and each device.
+- `encryptedDevice`**: Encrypt OSD volumes using dmcrypt ("true" or "false"). By default this option is disabled. See http://docs.ceph.com/docs/nautilus/ceph-volume/lvm/encryption/ for more information on encryption in Ceph.
 
-** **NOTE:** Depending on the Ceph image running in your cluster, OSDs will be configured differently. Newer images will configure OSDs with `ceph-volume`, which provides support for `osdsPerDevice` as well as other features that will be exposed in future Rook releases. OSDs created prior to Rook v0.9 or with older images of Luminous and Mimic are not created with `ceph-volume` and thus would not support the same features. For `ceph-volume`, the following images are supported:
+** **NOTE:** Depending on the Ceph image running in your cluster, OSDs will be configured differently. Newer images will configure OSDs with `ceph-volume`, which provides support for `osdsPerDevice`, `encryptedDevice`, as well as other features that will be exposed in future Rook releases. OSDs created prior to Rook v0.9 or with older images of Luminous and Mimic are not created with `ceph-volume` and thus would not support the same features. For `ceph-volume`, the following images are supported:
 - Luminous 12.2.10 or newer
 - Mimic 13.2.3 or newer
 - Nautilus
 
+### Annotations Configuration Settings
+Annotations can be specified so that the Rook components will have those annotations added to them.
+
+You can set annotations for Rook components through the a list of key value pairs:
+
+- `all`: Set annotations for all components.
+- `mgr`: Set annotations for MGRs.
+- `mon`: Set annotations for Mons.
+- `osd`: Set annotations for OSDs.
+- `rbdmirror`: Set annotations for RBD Mirrors.
+
+When other keys are set, `all` will be merged together with the specific component.
+
 ### Placement Configuration Settings
-Placement configuration for the cluster services. It includes the following keys: `mgr`, `mon`, `osd` and `all`. Each service will have its placement configuration generated by merging the generic configuration under `all` with the most specific one (which will override any attributes).
+Placement configuration for the cluster services. It includes the following keys: `mgr`, `mon`, `osd`, `rbdmirror` and `all`. Each service will have its placement configuration generated by merging the generic configuration under `all` with the most specific one (which will override any attributes).
 
 A Placement configuration is specified (according to the kubernetes PodSpec) as:
 
@@ -148,15 +187,18 @@ The `mon` pod does not allow `Pod` affinity or anti-affinity.
 This is because of the mons having built-in anti-affinity with each other through the operator. The operator chooses which nodes are to run a mon on. Each mon is then tied to a node with a node selector using a hostname.
 See the [mon design doc](https://github.com/rook/rook/blob/master/design/mon-health.md) for more details on the mon failover design.
 
-### Cluster-wide Resources Configuration Settings
-Resources should be specified so that the rook components are handled after [Kubernetes Pod Quality of Service classes](https://kubernetes.io/docs/tasks/configure-pod-container/quality-service-pod/).
-This allows to keep rook components running when for example a node runs out of memory and the rook components are not killed depending on their Quality of Service class.
+The Rook Ceph operator creates a Job called `rook-ceph-detect-version` to detect the full Ceph version used by the given `cephVersion.image`. The placement from the `mon` section is used for the Job.
 
-You can set resource requests/limits for rook components through the [Resource Requirements/Limits](#resource-requirementslimits) structure in the following keys:
+### Cluster-wide Resources Configuration Settings
+Resources should be specified so that the Rook components are handled after [Kubernetes Pod Quality of Service classes](https://kubernetes.io/docs/tasks/configure-pod-container/quality-service-pod/).
+This allows to keep Rook components running when for example a node runs out of memory and the Rook components are not killed depending on their Quality of Service class.
+
+You can set resource requests/limits for Rook components through the [Resource Requirements/Limits](#resource-requirementslimits) structure in the following keys:
 
 - `mgr`: Set resource requests/limits for MGRs.
 - `mon`: Set resource requests/limits for Mons.
 - `osd`: Set resource requests/limits for OSDs.
+- `rbdmirror`: Set resource requests/limits for RBD Mirrors.
 
 ### Resource Requirements/Limits
 For more information on resource requests/limits see the official Kubernetes documentation: [Kubernetes - Managing Compute Resources for Containers](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#resource-requests-and-limits-of-pod-and-container)
@@ -180,7 +222,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v13.2.2-20181023
+    image: ceph/ceph:v14.2.0-20190410
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -212,7 +254,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v13.2.2-20181023
+    image: ceph/ceph:v14.2.0-20190410
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -255,7 +297,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v13.2.2-20181023
+    image: ceph/ceph:v14.2.0-20190410
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -292,7 +334,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v13.2.2-20181023
+    image: ceph/ceph:v14.2.0-20190410
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -324,8 +366,8 @@ spec:
       tolerations:
 ```
 
-### Resource requests/Limits
-To control how many resources the rook components can request/use, you can set requests and limits in Kubernetes for them.
+### Resource Requests/Limits
+To control how many resources the Rook components can request/use, you can set requests and limits in Kubernetes for them.
 You can override these requests/limits for OSDs per node when using `useAllNodes: false` in the `node` item in the `nodes` list.
 
 **WARNING** Before setting resource requests/limits, please take a look at the Ceph documentation for recommendations for each component: [Ceph - Hardware Recommendations](http://docs.ceph.com/docs/master/start/hardware-recommendations/).
@@ -338,7 +380,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v13.2.2-20181023
+    image: ceph/ceph:v14.2.0-20190410
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -361,159 +403,67 @@ spec:
           memory: "4096Mi"
 ```
 
-## Common Cluster Resources
-Each Ceph cluster must be created in a namespace and also give access to the Rook operator to manage the cluster in the namespace. Creating the namespace and these controls must be added to each of the examples previously shown.
+### Custom Location Information On Node Level
+For each individual node a `location` can be configured. The provided information is fed directly into the CRUSH map of Ceph. More information on CRUSH maps can be found in the [ceph docs](http://docs.ceph.com/docs/master/rados/operations/crush-map/).
+
+**HINT** When setting this prior to `CephCluster` creation, these settings take immediate effect. However, applying this to an already deployed `CephCluster` requires to remove each node from the cluster first and then re-add it with new configuration to take effect. Do this node by node to keep your data safe! You can check the result with `ceph osd tree` from the [Rook Toolbox](ceph-toolbox.md) in your setup. The OSD tree should display your location hierarchy for the nodes you already re-added.
+
+This example assumes you have 3 unique racks in your datacenter and want to use them as failure domain
 
 ```yaml
-apiVersion: v1
-kind: Namespace
+apiVersion: ceph.rook.io/v1
+kind: CephCluster
 metadata:
   name: rook-ceph
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: rook-ceph-osd
   namespace: rook-ceph
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: rook-ceph-mgr
-  namespace: rook-ceph
----
-kind: Role
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-osd
-  namespace: rook-ceph
-rules:
-- apiGroups: [""]
-  resources: ["configmaps"]
-  verbs: [ "get", "list", "watch", "create", "update", "delete" ]
----
-# Aspects of ceph-mgr that require access to the system namespace
-kind: Role
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-mgr-system
-  namespace: rook-ceph
-rules:
-- apiGroups:
-  - ""
-  resources:
-  - configmaps
-  verbs:
-  - get
-  - list
-  - watch
----
-# Aspects of ceph-mgr that operate within the cluster's namespace
-kind: Role
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-mgr
-  namespace: rook-ceph
-rules:
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  - services
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - batch
-  resources:
-  - jobs
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - delete
-- apiGroups:
-  - ceph.rook.io
-  resources:
-  - "*"
-  verbs:
-  - "*"
----
-# Allow the operator to create resources in this cluster's namespace
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-cluster-mgmt
-  namespace: rook-ceph
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: rook-ceph-cluster-mgmt
-subjects:
-- kind: ServiceAccount
-  name: rook-ceph-system
-  namespace: rook-ceph-system
----
-# Allow the osd pods in this namespace to work with configmaps
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-osd
-  namespace: rook-ceph
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: rook-ceph-osd
-subjects:
-- kind: ServiceAccount
-  name: rook-ceph-osd
-  namespace: rook-ceph
----
-# Allow the ceph mgr to access the cluster-specific resources necessary for the mgr modules
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-mgr
-  namespace: rook-ceph
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: rook-ceph-mgr
-subjects:
-- kind: ServiceAccount
-  name: rook-ceph-mgr
-  namespace: rook-ceph
----
-# Allow the ceph mgr to access the rook system resources necessary for the mgr modules
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-mgr-system
-  namespace: rook-ceph-system
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: rook-ceph-mgr-system
-subjects:
-- kind: ServiceAccount
-  name: rook-ceph-mgr
-  namespace: rook-ceph
----
-# Allow the ceph mgr to access cluster-wide resources necessary for the mgr modules
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-mgr-cluster
-  namespace: rook-ceph
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: rook-ceph-mgr-cluster
-subjects:
-- kind: ServiceAccount
-  name: rook-ceph-mgr
-  namespace: rook-ceph
+spec:
+  cephVersion:
+    image: ceph/ceph:v14.2.0-20190410
+  dataDirHostPath: /var/lib/rook
+  mon:
+    count: 3
+    allowMultiplePerNode: true
+  dashboard:
+    enabled: true
+  # cluster level storage configuration and selection
+  storage:
+    useAllNodes: false
+    useAllDevices: false
+    deviceFilter:
+    location:
+    config:
+      databaseSizeMB: "1024"
+      journalSizeMB: "1024"
+    nodes:
+    - name: "node1"
+      location: rack=rack1   # a location can be specified for every node and will be added to the CRUSH map
+      devices:
+      - name: "sdb"
+      - name: "sdc"
+    - name: "node2"
+      location: rack=rack2   # a location can be specified for every node and will be added to the CRUSH map
+      devices:
+      - name: "sdb"
+      - name: "sdc"
+    - name: "node3"
+      location: rack=rack3   # a location can be specified for every node and will be added to the CRUSH map
+      devices:
+      - name: "sdb"
+      - name: "sdc"
 ```
+
+To utilize the `location` as a `failureDomain`, specify the corresponding option in your [CephBlockPool](ceph-pool-crd.md)
+
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: replicapool
+  namespace: rook-ceph
+spec:
+  failureDomain: rack        # this uses the location setting from the CephCluster
+  replicated:
+    size: 3
+```
+
+This configuration will split replication of your volumes across unique racks in your datacenter setup.

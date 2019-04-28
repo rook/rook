@@ -17,18 +17,16 @@ limitations under the License.
 package mon
 
 import (
-	"fmt"
-	"net"
 	"os"
-	"path"
 
-	mondaemon "github.com/rook/rook/pkg/daemon/ceph/mon"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/operator/ceph/config"
+
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
+	apps "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
 
 const (
@@ -49,26 +47,32 @@ func (c *Cluster) getLabels(daemonName string) map[string]string {
 	return labels
 }
 
-func (c *Cluster) makeDeployment(monConfig *monConfig, hostname string) *extensions.Deployment {
-	d := &extensions.Deployment{
+func (c *Cluster) makeDeployment(monConfig *monConfig, hostname string) *apps.Deployment {
+	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      monConfig.ResourceName,
 			Namespace: c.Namespace,
 			Labels:    c.getLabels(monConfig.DaemonName),
 		},
 	}
+	k8sutil.AddRookVersionLabelToDeployment(d)
+	cephv1.GetMonAnnotations(c.spec.Annotations).ApplyToObjectMeta(&d.ObjectMeta)
+	opspec.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, d)
 	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &d.ObjectMeta, &c.ownerRef)
 
 	pod := c.makeMonPod(monConfig, hostname)
 	replicaCount := int32(1)
-	d.Spec = extensions.DeploymentSpec{
+	d.Spec = apps.DeploymentSpec{
+		Selector: &metav1.LabelSelector{
+			MatchLabels: c.getLabels(monConfig.DaemonName),
+		},
 		Template: v1.PodTemplateSpec{
 			ObjectMeta: pod.ObjectMeta,
 			Spec:       pod.Spec,
 		},
 		Replicas: &replicaCount,
-		Strategy: extensions.DeploymentStrategy{
-			Type: extensions.RecreateDeploymentStrategyType,
+		Strategy: apps.DeploymentStrategy{
+			Type: apps.RecreateDeploymentStrategyType,
 		},
 	}
 
@@ -80,38 +84,39 @@ func (c *Cluster) makeDeployment(monConfig *monConfig, hostname string) *extensi
  */
 
 func (c *Cluster) makeMonPod(monConfig *monConfig, hostname string) *v1.Pod {
+	logger.Debug("monConfig: %+v", monConfig)
 	podSpec := v1.PodSpec{
 		InitContainers: []v1.Container{
-			// Config file init performed by Rook
-			c.makeConfigInitContainer(monConfig),
-			// mon filesystem init performed by mon daemon
 			c.makeMonFSInitContainer(monConfig),
 		},
 		Containers: []v1.Container{
 			c.makeMonDaemonContainer(monConfig),
 		},
 		RestartPolicy: v1.RestartPolicyAlways,
-		NodeSelector:  map[string]string{apis.LabelHostname: hostname},
-		Volumes:       opspec.PodVolumes(c.dataDirHostPath),
+		NodeSelector:  map[string]string{v1.LabelHostname: hostname},
+		Volumes:       opspec.DaemonVolumes(monConfig.DataPathMap, keyringStoreName),
 		HostNetwork:   c.HostNetwork,
 	}
 	if c.HostNetwork {
 		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
-	c.placement.ApplyToPodSpec(&podSpec)
+
+	// apply the pod placement if specified in the crd
 	// remove Pod (anti-)affinity because we have our own placement logic
-	c.placement.PodAffinity = nil
-	c.placement.PodAntiAffinity = nil
+	p := cephv1.GetMonPlacement(c.spec.Placement)
+	p.PodAffinity = nil
+	p.PodAntiAffinity = nil
+	p.ApplyToPodSpec(&podSpec)
 
 	pod := &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        monConfig.ResourceName,
-			Namespace:   c.Namespace,
-			Labels:      c.getLabels(monConfig.DaemonName),
-			Annotations: map[string]string{},
+			Name:      monConfig.ResourceName,
+			Namespace: c.Namespace,
+			Labels:    c.getLabels(monConfig.DaemonName),
 		},
 		Spec: podSpec,
 	}
+	cephv1.GetMonAnnotations(c.spec.Annotations).ApplyToObjectMeta(&pod.ObjectMeta)
 
 	return pod
 }
@@ -129,93 +134,47 @@ func podSecurityContext() *v1.SecurityContext {
 	return &v1.SecurityContext{Privileged: &privileged}
 }
 
-func (c *Cluster) makeConfigInitContainer(monConfig *monConfig) v1.Container {
-	return v1.Container{
-		Name: opspec.ConfigInitContainerName,
-		Args: []string{
-			"ceph",
-			mondaemon.InitCommand,
-			fmt.Sprintf("--config-dir=%s", k8sutil.DataDir),
-			fmt.Sprintf("--name=%s", monConfig.DaemonName),
-			fmt.Sprintf("--port=%d", monConfig.Port),
-			fmt.Sprintf("--fsid=%s", c.clusterInfo.FSID),
-		},
-		Image: k8sutil.MakeRookImage(c.rookVersion),
-		Env: []v1.EnvVar{
-			k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
-			{Name: k8sutil.PublicIPEnvVar, Value: monConfig.PublicIP},
-			ClusterNameEnvVar(c.Namespace),
-			EndpointEnvVar(),
-			SecretEnvVar(),
-			AdminSecretEnvVar(),
-			k8sutil.ConfigOverrideEnvVar(),
-		},
-		VolumeMounts:    opspec.RookVolumeMounts(),
-		SecurityContext: podSecurityContext(),
-		Resources:       c.resources,
-	}
-}
-
-func (c *Cluster) monmapFilePath(monConfig *monConfig) string {
-	return path.Join(
-		mondaemon.GetMonRunDirPath(c.context.ConfigDir, monConfig.DaemonName),
-		monmapFile,
-	)
-}
-
-// args needed for all ceph-mon calls
-func (c *Cluster) cephMonCommonArgs(monConfig *monConfig) []string {
-	return []string{
-		"--name", fmt.Sprintf("mon.%s", monConfig.DaemonName),
-		"--mon-data", mondaemon.GetMonDataDirPath(c.context.ConfigDir, monConfig.DaemonName),
-	}
-}
-
 func (c *Cluster) makeMonFSInitContainer(monConfig *monConfig) v1.Container {
 	return v1.Container{
-		Name: "mon-fs-init",
+		Name: "init-mon-fs",
 		Command: []string{
 			cephMonCommand,
 		},
 		Args: append(
-			[]string{
-				"--mkfs",
-			},
-			c.cephMonCommonArgs(monConfig)...,
+			opspec.DaemonFlags(c.clusterInfo, monConfig.DaemonName),
+			// needed so we can generate an initial monmap
+			// otherwise the mkfs will say: "0  no local addrs match monmap"
+			config.NewFlag("public-addr", monConfig.PublicIP),
+			"--mkfs",
 		),
-		Image:           c.cephVersion.Image,
-		VolumeMounts:    opspec.CephVolumeMounts(),
+		Image:           c.spec.CephVersion.Image,
+		VolumeMounts:    opspec.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),
 		SecurityContext: podSecurityContext(),
 		// filesystem creation does not require ports to be exposed
-		Resources: c.resources,
+		Env:       opspec.DaemonEnvVars(c.spec.CephVersion.Image),
+		Resources: cephv1.GetMonResources(c.spec.Resources),
 	}
 }
 
 func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
-	return v1.Container{
-		// The operator has set up the mon's service already, so the IP that the mon should
-		// broadcast as its own (--public-addr) is known. But the pod's IP, which the mon should
-		// bind to (--public-bind-addr) isn't known until runtime. 3 solutions were considered for
-		// resolving this issue:
-		// 1. Rook in config init sets "public_bind_addr" in the Ceph config file
-		//    - Chosen solution, but is not as transparent to inspection as using commandline arg
-		// 2. Use bash to do variable substitution with the pod IP env var; but bash is a poor PID1
-		// 3. Use tini to do var substitution as above; but tini doesn't exist in the ceph images.
+	podIPEnvVar := "ROOK_POD_IP"
+	container := v1.Container{
 		Name: "mon",
 		Command: []string{
 			cephMonCommand,
 		},
 		Args: append(
-			[]string{
-				"--foreground",
-				"--public-addr", joinHostPort(monConfig.PublicIP, monConfig.Port),
-				// --public-bind-addr is set in the config file at init time
-				// do not add the '--cluster/--conf/--keyring' flags; rook wants their default values
-			},
-			c.cephMonCommonArgs(monConfig)...,
+			opspec.DaemonFlags(c.clusterInfo, monConfig.DaemonName),
+			"--foreground",
+			// If the mon is already in the monmap, when the port is left off of --public-addr,
+			// it will still advertise on the previous port b/c monmap is saved to mon database.
+			config.NewFlag("public-addr", monConfig.PublicIP),
+			// Opposite of the above, --public-bind-addr will *not* still advertise on the previous
+			// port, which makes sense because this is the pod IP, which changes with every new pod.
+			config.NewFlag("public-bind-addr", opspec.ContainerEnvVarReference(podIPEnvVar)),
 		),
-		Image:           c.cephVersion.Image,
-		VolumeMounts:    opspec.CephVolumeMounts(),
+		Image:           c.spec.CephVersion.Image,
+		VolumeMounts:    opspec.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),
 		SecurityContext: podSecurityContext(),
 		Ports: []v1.ContainerPort{
 			{
@@ -224,11 +183,17 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 				Protocol:      v1.ProtocolTCP,
 			},
 		},
-		Env:       k8sutil.ClusterDaemonEnvVars(),
-		Resources: c.resources,
+		Env: append(
+			opspec.DaemonEnvVars(c.spec.CephVersion.Image),
+			k8sutil.PodIPEnvVar(podIPEnvVar),
+		),
+		Resources: cephv1.GetMonResources(c.spec.Resources),
 	}
-}
 
-func joinHostPort(host string, port int32) string {
-	return net.JoinHostPort(host, fmt.Sprintf("%d", port))
+	// If deploying Nautilus and newer we need a new port of the monitor container
+	if c.clusterInfo.CephVersion.IsAtLeastNautilus() {
+		addContainerPort(container, "msgr2", 3300)
+	}
+
+	return container
 }

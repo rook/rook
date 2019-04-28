@@ -27,7 +27,7 @@ import (
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	batch "k8s.io/api/batch/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -36,15 +36,18 @@ const (
 	ganeshaRadosGraceCmd = "ganesha-rados-grace"
 )
 
+var updateDeploymentAndWait = k8sutil.UpdateDeploymentAndWait
+
 // Create the ganesha server
-func (c *CephNFSController) createCephNFS(n cephv1.CephNFS) error {
+func (c *CephNFSController) upCephNFS(n cephv1.CephNFS, oldActive int) error {
 	if err := validateGanesha(c.context, n); err != nil {
 		return err
 	}
 
-	logger.Infof("start running ceph nfs %s", n.Name)
+	logger.Infof("Starting cephNFS %s(%d-%d)", n.Name, oldActive,
+		n.Spec.Server.Active-1)
 
-	for i := 0; i < n.Spec.Server.Active; i++ {
+	for i := oldActive; i < n.Spec.Server.Active; i++ {
 		name := k8sutil.IndexToName(i)
 
 		configName, err := c.generateConfig(n, name)
@@ -59,12 +62,15 @@ func (c *CephNFSController) createCephNFS(n cephv1.CephNFS) error {
 
 		// start the deployment
 		deployment := c.makeDeployment(n, name, configName)
-		_, err = c.context.Clientset.ExtensionsV1beta1().Deployments(n.Namespace).Create(deployment)
+		_, err = c.context.Clientset.AppsV1().Deployments(n.Namespace).Create(deployment)
 		if err != nil {
 			if !errors.IsAlreadyExists(err) {
 				return fmt.Errorf("failed to create ganesha deployment. %+v", err)
 			}
-			logger.Infof("ganesha deployment %s already exists", deployment.Name)
+			logger.Infof("ganesha deployment %s already exists. updating if needed", deployment.Name)
+			if _, err := updateDeploymentAndWait(c.context, deployment, n.Namespace); err != nil {
+				return fmt.Errorf("failed to update ganesha deployment %s. %+v", deployment.Name, err)
+			}
 		} else {
 			logger.Infof("ganesha deployment %s started", deployment.Name)
 		}
@@ -75,9 +81,7 @@ func (c *CephNFSController) createCephNFS(n cephv1.CephNFS) error {
 			return fmt.Errorf("failed to create ganesha service. %+v", err)
 		}
 
-		if err = c.addServerToDatabase(n, name); err != nil {
-			logger.Warningf("Failed to add ganesha server %s to database. It may already be added. %+v", name, err)
-		}
+		c.addServerToDatabase(n, name)
 	}
 
 	return nil
@@ -96,22 +100,20 @@ func (c *CephNFSController) addRADOSConfigFile(n cephv1.CephNFS, name string) er
 	return c.context.Executor.ExecuteCommand(false, "", "rados", "--pool", n.Spec.RADOS.Pool, "--namespace", n.Spec.RADOS.Namespace, "create", config)
 }
 
-func (c *CephNFSController) addServerToDatabase(n cephv1.CephNFS, name string) error {
+func (c *CephNFSController) addServerToDatabase(n cephv1.CephNFS, name string) {
 	logger.Infof("Adding ganesha %s to grace db", name)
 
 	if err := c.runGaneshaRadosGraceJob(n, name, "add", 10*time.Minute); err != nil {
 		logger.Errorf("failed to add %s to grace db. %+v", name, err)
 	}
-	return nil
 }
 
-func (c *CephNFSController) removeServerFromDatabase(n cephv1.CephNFS, name string) error {
+func (c *CephNFSController) removeServerFromDatabase(n cephv1.CephNFS, name string) {
 	logger.Infof("Removing ganesha %s from grace db", name)
 
 	if err := c.runGaneshaRadosGraceJob(n, name, "remove", 10*time.Minute); err != nil {
 		logger.Errorf("failed to remmove %s from grace db. %+v", name, err)
 	}
-	return nil
 }
 
 func (c *CephNFSController) runGaneshaRadosGraceJob(n cephv1.CephNFS, name, action string, timeout time.Duration) error {
@@ -162,7 +164,7 @@ func (c *CephNFSController) runGaneshaRadosGraceJob(n cephv1.CephNFS, name, acti
 							VolumeMounts: opspec.RookVolumeMounts(),
 						},
 					},
-					Volumes:       opspec.PodVolumes(""),
+					Volumes:       opspec.PodVolumes("", ""),
 					RestartPolicy: v1.RestartPolicyOnFailure,
 				},
 			},
@@ -213,14 +215,12 @@ func (c *CephNFSController) generateConfig(n cephv1.CephNFS, name string) (strin
 }
 
 // Delete the ganesha server
-func (c *CephNFSController) deleteGanesha(n cephv1.CephNFS) error {
-	for i := 0; i < n.Spec.Server.Active; i++ {
+func (c *CephNFSController) downCephNFS(n cephv1.CephNFS, newActive int) error {
+	for i := n.Spec.Server.Active - 1; i >= newActive; i-- {
 		name := k8sutil.IndexToName(i)
 
 		// Remove from grace db
-		if err := c.removeServerFromDatabase(n, name); err != nil {
-			logger.Warningf("failed to remove server %s from grace db. %+v", name, err)
-		}
+		c.removeServerFromDatabase(n, name)
 
 		// Delete the mds deployment
 		k8sutil.DeleteDeployment(c.context.Clientset, n.Namespace, instanceName(n, name))

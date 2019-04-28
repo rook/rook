@@ -24,9 +24,9 @@ import (
 
 	"github.com/rook/rook/cmd/rook/rook"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	mondaemon "github.com/rook/rook/pkg/daemon/ceph/mon"
 	osddaemon "github.com/rook/rook/pkg/daemon/ceph/osd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	osdcfg "github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -36,34 +36,28 @@ import (
 )
 
 var osdCmd = &cobra.Command{
-	Use:    "osd",
-	Short:  "Provisions and runs the osd daemon",
-	Hidden: true,
+	Use:   "osd",
+	Short: "Provisions and runs the osd daemon",
 }
 var osdConfigCmd = &cobra.Command{
-	Use:    "init",
-	Short:  "Updates ceph.conf for the osd",
-	Hidden: true,
+	Use:   "init",
+	Short: "Updates ceph.conf for the osd",
 }
 var copyBinariesCmd = &cobra.Command{
-	Use:    "copybins",
-	Short:  "Copies rook binaries for use by a ceph container",
-	Hidden: true,
+	Use:   "copybins",
+	Short: "Copies rook binaries for use by a ceph container",
 }
 var provisionCmd = &cobra.Command{
-	Use:    "provision",
-	Short:  "Generates osd config and prepares an osd for runtime",
-	Hidden: true,
+	Use:   "provision",
+	Short: "Generates osd config and prepares an osd for runtime",
 }
 var filestoreDeviceCmd = &cobra.Command{
-	Use:    "filestore-device",
-	Short:  "Runs the ceph daemon for a filestore device",
-	Hidden: true,
+	Use:   "filestore-device",
+	Short: "Runs the ceph daemon for a filestore device",
 }
 var osdStartCmd = &cobra.Command{
-	Use:    "start",
-	Short:  "Starts the osd daemon", // OSDs that were provisioned by ceph-volume
-	Hidden: true,
+	Use:   "start",
+	Short: "Starts the osd daemon", // OSDs that were provisioned by ceph-volume
 }
 var (
 	osdDataDeviceFilter string
@@ -107,11 +101,11 @@ func addOSDFlags(command *cobra.Command) {
 	osdStartCmd.Flags().StringVar(&osdStoreType, "osd-store-type", "", "whether the osd is bluestore or filestore")
 
 	// add the subcommands to the parent osd command
-	osdCmd.AddCommand(osdConfigCmd)
-	osdCmd.AddCommand(copyBinariesCmd)
-	osdCmd.AddCommand(provisionCmd)
-	osdCmd.AddCommand(filestoreDeviceCmd)
-	osdCmd.AddCommand(osdStartCmd)
+	osdCmd.AddCommand(osdConfigCmd,
+		copyBinariesCmd,
+		provisionCmd,
+		filestoreDeviceCmd,
+		osdStartCmd)
 }
 
 func addOSDConfigFlags(command *cobra.Command) {
@@ -251,7 +245,7 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 		}
 
 		dataDevices = []osddaemon.DesiredDevice{
-			{Name: osdDataDeviceFilter, IsFilter: true},
+			{Name: osdDataDeviceFilter, IsFilter: true, OSDsPerDevice: cfg.storeConfig.OSDsPerDevice},
 		}
 	} else {
 		var err error
@@ -273,7 +267,7 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 
 	locArgs, err := client.FormatLocation(cfg.location, cfg.nodeName)
 	if err != nil {
-		rook.TerminateFatal(fmt.Errorf("invalid location. %+v\n", err))
+		rook.TerminateFatal(fmt.Errorf("invalid location. %+v", err))
 	}
 	crushLocation := strings.Join(locArgs, " ")
 
@@ -302,7 +296,7 @@ func commonOSDInit(cmd *cobra.Command) {
 	rook.SetLogLevel()
 	rook.LogStartupInfo(cmd.Flags())
 
-	clusterInfo.Monitors = mondaemon.ParseMonEndpoints(cfg.monEndpoints)
+	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
 }
 
 // Parse the devices, which are comma separated. A colon indicates a non-default number of osds per device.

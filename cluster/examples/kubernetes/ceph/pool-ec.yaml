@@ -1,0 +1,22 @@
+#################################################################################################################
+# Create a Ceph pool with settings for erasure coding. A minimum of 3 OSDs are required in this example.
+#  kubectl create -f pool-ec.yaml
+#################################################################################################################
+
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: ec-pool
+  namespace: rook-ceph
+spec:
+  # The failure domain will spread the replicas of the data across different failure zones
+  failureDomain: osd
+  # For an erasure-coded pool, comment out the replicated size above and uncomment the following settings.
+  # Make sure you have enough OSDs to support the replica size or sum of the erasure coding and data chunks.
+  # This is the minimal example that requires only 3 OSDs.
+  erasureCoded:
+    dataChunks: 2
+    codingChunks: 1
+  # A key/value list of annotations
+  annotations:
+  #  key: value

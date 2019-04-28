@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/rook/rook/pkg/clusterd"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
@@ -108,6 +109,17 @@ func GetFilesystem(context *clusterd.Context, clusterName string, fsName string)
 	return &fs, nil
 }
 
+// AllowStandbyReplay gets detailed status information about a Ceph filesystem.
+func AllowStandbyReplay(context *clusterd.Context, clusterName string, fsName string, allowStandbyReplay bool) error {
+	args := []string{"fs", "set", fsName, "allow_standby_replay", strconv.FormatBool(allowStandbyReplay)}
+	_, err := ExecuteCephCommand(context, clusterName, args)
+	if err != nil {
+		return fmt.Errorf("failed to set allow_standby_replay to filesystem %s: %+v", fsName, err)
+	}
+
+	return nil
+}
+
 // CreateFilesystem performs software configuration steps for Ceph to provide a new filesystem.
 func CreateFilesystem(context *clusterd.Context, clusterName, name, metadataPool string, dataPools []string) error {
 	if len(dataPools) == 0 {
@@ -158,12 +170,10 @@ func IsMultiFSEnabled() bool {
 }
 
 // SetNumMDSRanks sets the number of mds ranks (max_mds) for a Ceph filesystem.
-func SetNumMDSRanks(context *clusterd.Context, clusterName, fsName string, activeMDSCount int32) error {
+func SetNumMDSRanks(context *clusterd.Context, cephVersion cephver.CephVersion, clusterName, fsName string, activeMDSCount int32) error {
 	// Noted sections 1 and 2 are necessary for reducing max_mds in Luminous.
 	//   See more:   [1] http://docs.ceph.com/docs/luminous/cephfs/upgrading/
 	//               [2] https://tracker.ceph.com/issues/23172
-	// TODO: These two sections SHOULD be conditionally skipped if this function can be informed that
-	//   the version of Ceph mdses currently running is >=13.0.0
 
 	// * Noted section 1 - See note at top of function
 	fsAtStart, errAtStart := GetFilesystem(context, clusterName, fsName)
@@ -175,6 +185,10 @@ func SetNumMDSRanks(context *clusterd.Context, clusterName, fsName string, activ
 	if _, err := ExecuteCephCommand(context, clusterName, args); err != nil {
 		return fmt.Errorf("failed to set filesystem %s num mds ranks (max_mds) to %d: %v",
 			fsName, activeMDSCount, err)
+	}
+
+	if cephVersion.IsAtLeastMimic() {
+		return nil
 	}
 
 	// ** Noted section 2 - See note at top of function
@@ -203,7 +217,7 @@ if Ceph version is Luminous (12.y.z) and num active mdses (max_mds) was lowered,
 	// Ceph only allows mdses to be deactivated in reverse order starting with the highest rank
 	for gid := int(len(fs.MDSMap.In)) - 1; gid >= int(activeMDSCount); gid-- {
 		if err := deactivateMdsWithRetry(context, gid, clusterName, fsName); err != nil {
-			logger.Warningf("in mimic+ this error means nothing. in luminous this is non-ideal but not necessarily critical: %v", err)
+			logger.Warningf("in luminous this is non-ideal but not necessarily critical: %v", err)
 		}
 	}
 	// ** End of noted section 2
@@ -291,6 +305,18 @@ func FailMDS(context *clusterd.Context, clusterName string, gid int) error {
 	_, err := ExecuteCephCommand(context, clusterName, args)
 	if err != nil {
 		return fmt.Errorf("failed to fail mds %d: %+v", gid, err)
+	}
+	return nil
+}
+
+// FailFilesystem efficiently brings down the filesystem by marking the filesystem as down
+// and failing the MDSes using a single Ceph command. This works only from nautilus version
+// of Ceph onwards.
+func FailFilesystem(context *clusterd.Context, clusterName, fsName string) error {
+	args := []string{"fs", "fail", fsName}
+	_, err := ExecuteCephCommand(context, clusterName, args)
+	if err != nil {
+		return fmt.Errorf("failed to fail filesystem %s: %+v", fsName, err)
 	}
 	return nil
 }

@@ -34,8 +34,8 @@ install() {
         # shellcheck disable=SC2021
         dist=$(echo "${dist}" | tr "[A-Z]" "[a-z]")
         mkdir -p "${temp}"
-        wget "https://storage.googleapis.com/kubernetes-helm/helm-v2.6.0-${dist}-${arch}.tar.gz" -O "${temp}/helm-v2.6.0-${dist}-${arch}.tar.gz"
-        tar -C "${temp}" -zxvf "${temp}/helm-v2.6.0-${dist}-${arch}.tar.gz"
+        wget "https://storage.googleapis.com/kubernetes-helm/helm-v2.13.1-${dist}-${arch}.tar.gz" -O "${temp}/helm.tar.gz"
+        tar -C "${temp}" -zxvf "${temp}/helm.tar.gz"
         HELM="${temp}/${dist}-${arch}/helm"
     fi
 

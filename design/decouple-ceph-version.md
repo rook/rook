@@ -30,7 +30,7 @@ The full image name is an important part of the version. This allows the contain
 In this example, the Rook version is `rook/ceph:v0.8.1`.
 
 ```yaml
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: rook-ceph-operator

@@ -1,6 +1,6 @@
 ---
 title: Shared File System
-weight: 23
+weight: 2300
 indent: true
 ---
 
@@ -71,37 +71,39 @@ As an example, we will start the kube-registry pod with the shared file system a
 Save the following spec as `kube-registry.yaml`:
 
 ```yaml
-apiVersion: v1
-kind: ReplicationController
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: kube-registry-v0
+  name: kube-registry
   namespace: kube-system
   labels:
     k8s-app: kube-registry
-    version: v0
     kubernetes.io/cluster-service: "true"
 spec:
   replicas: 3
   selector:
-    k8s-app: kube-registry
-    version: v0
+    matchLabels:
+      k8s-app: kube-registry
   template:
     metadata:
       labels:
         k8s-app: kube-registry
-        version: v0
         kubernetes.io/cluster-service: "true"
     spec:
       containers:
       - name: registry
         image: registry:2
+        imagePullPolicy: Always
         resources:
           limits:
             cpu: 100m
             memory: 100Mi
         env:
+        # Configuration reference: https://docs.docker.com/registry/configuration/
         - name: REGISTRY_HTTP_ADDR
           value: :5000
+        - name: REGISTRY_HTTP_SECRET
+          value: "Ple4seCh4ngeThisN0tAVerySecretV4lue"
         - name: REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY
           value: /var/lib/registry
         volumeMounts:
@@ -111,6 +113,14 @@ spec:
         - containerPort: 5000
           name: registry
           protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /
+            port: registry
+        readinessProbe:
+          httpGet:
+            path: /
+            port: registry
       volumes:
       - name: image-store
         flexVolume:

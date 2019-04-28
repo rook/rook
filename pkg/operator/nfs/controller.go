@@ -27,8 +27,8 @@ import (
 	nfsv1alpha1 "github.com/rook/rook/pkg/apis/nfs.rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"k8s.io/api/apps/v1beta1"
-	"k8s.io/api/core/v1"
+	appsv1 "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/core/v1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -40,11 +40,10 @@ import (
 const (
 	customResourceName       = "nfsserver"
 	customResourceNamePlural = "nfsservers"
-	appName                  = "rook-nfs"
-	nfsConfigMapName         = "nfs-ganesha-config"
-	nfsConfigMapPath         = "/nfs-ganesha/config"
+	NFSConfigMapPath         = "/nfs-ganesha/config"
 	nfsPort                  = 2049
 	rpcPort                  = 111
+	noneMode                 = "none"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "nfs-operator")
@@ -98,7 +97,7 @@ type nfsServer struct {
 
 func newNfsServer(c *nfsv1alpha1.NFSServer, context *clusterd.Context) *nfsServer {
 	return &nfsServer{
-		name:      appName,
+		name:      c.Name,
 		context:   context,
 		namespace: c.Namespace,
 		spec:      c.Spec,
@@ -117,9 +116,25 @@ func nfsOwnerRef(namespace, nfsServerID string) metav1.OwnerReference {
 	}
 }
 
-func createAppLabels() map[string]string {
+func getServerConfig(exports []nfsv1alpha1.ExportsSpec) map[string]map[string]string {
+	claimConfigOpt := make(map[string]map[string]string)
+	configOpt := make(map[string]string)
+
+	for _, export := range exports {
+		claimName := export.PersistentVolumeClaim.ClaimName
+		if claimName != "" {
+			configOpt["accessMode"] = export.Server.AccessMode
+			configOpt["squash"] = export.Server.Squash
+			claimConfigOpt[claimName] = configOpt
+		}
+	}
+
+	return claimConfigOpt
+}
+
+func createAppLabels(nfsServer *nfsServer) map[string]string {
 	return map[string]string{
-		k8sutil.AppAttr: appName,
+		k8sutil.AppAttr: nfsServer.name,
 	}
 }
 
@@ -138,32 +153,33 @@ func createServicePorts() []v1.ServicePort {
 	}
 }
 
-func (c *Controller) createNFSService(nfsServer *nfsServer) error {
+func (c *Controller) createNFSService(nfsServer *nfsServer) (*v1.Service, error) {
 	// This service is meant to be used by clients to access NFS.
 	nfsService := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            nfsServer.name,
 			Namespace:       nfsServer.namespace,
 			OwnerReferences: []metav1.OwnerReference{nfsServer.ownerRef},
-			Labels:          createAppLabels(),
+			Labels:          createAppLabels(nfsServer),
 		},
 		Spec: v1.ServiceSpec{
-			Selector: createAppLabels(),
+			Selector: createAppLabels(nfsServer),
 			Type:     v1.ServiceTypeClusterIP,
 			Ports:    createServicePorts(),
 		},
 	}
 
-	if _, err := c.context.Clientset.CoreV1().Services(nfsServer.namespace).Create(nfsService); err != nil {
+	svc, err := c.context.Clientset.CoreV1().Services(nfsServer.namespace).Create(nfsService)
+	if err != nil {
 		if !errors.IsAlreadyExists(err) {
-			return err
+			return nil, err
 		}
 		logger.Infof("nfs service %s already exists in namespace %s", nfsService.Name, nfsService.Namespace)
 	} else {
 		logger.Infof("nfs service %s started in namespace %s", nfsService.Name, nfsService.Namespace)
 	}
 
-	return nil
+	return svc, nil
 }
 
 func createCephNFSExport(id int, path string, serverConfig nfsv1alpha1.ServerSpec) string {
@@ -263,13 +279,13 @@ func (c *Controller) createNFSConfigMap(nfsServer *nfsServer) error {
 
 	configMap := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            nfsConfigMapName,
+			Name:            nfsServer.name,
 			Namespace:       nfsServer.namespace,
 			OwnerReferences: []metav1.OwnerReference{nfsServer.ownerRef},
-			Labels:          createAppLabels(),
+			Labels:          createAppLabels(nfsServer),
 		},
 		Data: map[string]string{
-			nfsConfigMapName: nfsGaneshaConfig,
+			nfsServer.name: nfsGaneshaConfig,
 		},
 	}
 	_, err := c.context.Clientset.CoreV1().ConfigMaps(nfsServer.namespace).Create(configMap)
@@ -280,25 +296,23 @@ func (c *Controller) createNFSConfigMap(nfsServer *nfsServer) error {
 	return nil
 }
 
-func getPVCNameList(spec *nfsv1alpha1.NFSServerSpec) []string {
-	exports := spec.Exports
-	pvcNameList := make([]string, 0)
-	for _, export := range exports {
+func getPVCMount(spec *nfsv1alpha1.NFSServerSpec) map[string]string {
+	pvcMounts := map[string]string{}
+	for _, export := range spec.Exports {
 		claimName := export.PersistentVolumeClaim.ClaimName
 		if claimName != "" {
-			pvcNameList = append(pvcNameList, claimName)
+			pvcMounts[export.Name] = export.PersistentVolumeClaim.ClaimName
 		}
 	}
-
-	return pvcNameList
+	return pvcMounts
 }
 
-func createPVCSpecList(spec *nfsv1alpha1.NFSServerSpec) []v1.Volume {
+func createPVCSpecList(nfsServer *nfsServer) []v1.Volume {
 	pvcSpecList := make([]v1.Volume, 0)
-	pvcNameList := getPVCNameList(spec)
-	for _, claimName := range pvcNameList {
+	pvcNameList := getPVCMount(&nfsServer.spec)
+	for shareName, claimName := range pvcNameList {
 		pvcSpecList = append(pvcSpecList, v1.Volume{
-			Name: claimName,
+			Name: shareName,
 			VolumeSource: v1.VolumeSource{
 				PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{
 					ClaimName: claimName,
@@ -310,14 +324,14 @@ func createPVCSpecList(spec *nfsv1alpha1.NFSServerSpec) []v1.Volume {
 	configMapSrc := &v1.ConfigMapVolumeSource{
 		Items: []v1.KeyToPath{
 			{
-				Key:  nfsConfigMapName,
-				Path: nfsConfigMapName,
+				Key:  nfsServer.name,
+				Path: nfsServer.name,
 			},
 		},
 	}
-	configMapSrc.Name = nfsConfigMapName
+	configMapSrc.Name = nfsServer.name
 	configMapVol := v1.Volume{
-		Name: nfsConfigMapName,
+		Name: nfsServer.name,
 		VolumeSource: v1.VolumeSource{
 			ConfigMap: configMapSrc,
 		},
@@ -327,38 +341,39 @@ func createPVCSpecList(spec *nfsv1alpha1.NFSServerSpec) []v1.Volume {
 	return pvcSpecList
 }
 
-func createVolumeMountList(spec *nfsv1alpha1.NFSServerSpec) []v1.VolumeMount {
+func createVolumeMountList(nfsServer *nfsServer) []v1.VolumeMount {
 	volumeMountList := make([]v1.VolumeMount, 0)
-	pvcNameList := getPVCNameList(spec)
-	for _, claimName := range pvcNameList {
+	pvcMount := getPVCMount(&nfsServer.spec)
+	for shareName, claimName := range pvcMount {
 		volumeMountList = append(volumeMountList, v1.VolumeMount{
-			Name:      claimName,
+			Name:      shareName,
 			MountPath: "/" + claimName,
 		})
 	}
 
 	configMapVolMount := v1.VolumeMount{
-		Name:      nfsConfigMapName,
-		MountPath: nfsConfigMapPath,
+		Name:      nfsServer.name,
+		MountPath: NFSConfigMapPath,
 	}
 	volumeMountList = append(volumeMountList, configMapVolMount)
 
 	return volumeMountList
 }
 
-func (c *Controller) createNfsPodSpec(nfsServer *nfsServer) v1.PodTemplateSpec {
+func (c *Controller) createNfsPodSpec(nfsServer *nfsServer, service *v1.Service) v1.PodTemplateSpec {
 	nfsPodSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      nfsServer.name,
 			Namespace: nfsServer.namespace,
-			Labels:    createAppLabels(),
+			Labels:    createAppLabels(nfsServer),
 		},
 		Spec: v1.PodSpec{
 			Containers: []v1.Container{
 				{
-					Name:    nfsServer.name,
-					Image:   c.containerImage,
-					Command: []string{"/start.sh"},
+					ImagePullPolicy: "IfNotPresent",
+					Name:            nfsServer.name,
+					Image:           c.containerImage,
+					Args:            []string{"nfs", "server", "--ganeshaConfigPath=" + NFSConfigMapPath + "/" + nfsServer.name},
 					Ports: []v1.ContainerPort{
 						{
 							Name:          "nfs-port",
@@ -369,7 +384,7 @@ func (c *Controller) createNfsPodSpec(nfsServer *nfsServer) v1.PodTemplateSpec {
 							ContainerPort: int32(rpcPort),
 						},
 					},
-					VolumeMounts: createVolumeMountList(&nfsServer.spec),
+					VolumeMounts: createVolumeMountList(nfsServer),
 					SecurityContext: &v1.SecurityContext{
 						Capabilities: &v1.Capabilities{
 							Add: []v1.Capability{
@@ -380,34 +395,36 @@ func (c *Controller) createNfsPodSpec(nfsServer *nfsServer) v1.PodTemplateSpec {
 					},
 				},
 			},
-			Volumes: createPVCSpecList(&nfsServer.spec),
+			Volumes: createPVCSpecList(nfsServer),
 		},
 	}
 
 	return nfsPodSpec
 }
 
-func (c *Controller) createNfsStatefulSet(nfsServer *nfsServer, replicas int32) error {
-	appsClient := c.context.Clientset.AppsV1beta1()
+func (c *Controller) createNfsStatefulSet(nfsServer *nfsServer, replicas int32, service *v1.Service) error {
+	appsClient := c.context.Clientset.AppsV1()
 
-	nfsPodSpec := c.createNfsPodSpec(nfsServer)
+	nfsPodSpec := c.createNfsPodSpec(nfsServer, service)
 
-	statefulSet := v1beta1.StatefulSet{
+	statefulSet := appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            nfsServer.name,
 			Namespace:       nfsServer.namespace,
-			Labels:          createAppLabels(),
+			Labels:          createAppLabels(nfsServer),
 			OwnerReferences: []metav1.OwnerReference{nfsServer.ownerRef},
 		},
-		Spec: v1beta1.StatefulSetSpec{
+		Spec: appsv1.StatefulSetSpec{
 			Replicas: &replicas,
 			Selector: &metav1.LabelSelector{
-				MatchLabels: createAppLabels(),
+				MatchLabels: createAppLabels(nfsServer),
 			},
 			Template:    nfsPodSpec,
 			ServiceName: nfsServer.name,
 		},
 	}
+	nfsServer.spec.Annotations.ApplyToObjectMeta(&statefulSet.Spec.Template.ObjectMeta)
+	nfsServer.spec.Annotations.ApplyToObjectMeta(&statefulSet.ObjectMeta)
 
 	if _, err := appsClient.StatefulSets(nfsServer.namespace).Create(&statefulSet); err != nil {
 		if !errors.IsAlreadyExists(err) {
@@ -435,7 +452,8 @@ func (c *Controller) onAdd(obj interface{}) {
 	}
 
 	logger.Infof("creating nfs server service in namespace %s", nfsServer.namespace)
-	if err := c.createNFSService(nfsServer); err != nil {
+	svc, err := c.createNFSService(nfsServer)
+	if err != nil {
 		logger.Errorf("Unable to create NFS service %+v", err)
 	}
 
@@ -445,7 +463,7 @@ func (c *Controller) onAdd(obj interface{}) {
 	}
 
 	logger.Infof("creating nfs server stateful set in namespace %s", nfsServer.namespace)
-	if err := c.createNfsStatefulSet(nfsServer, int32(nfsServer.spec.Replicas)); err != nil {
+	if err := c.createNfsStatefulSet(nfsServer, int32(nfsServer.spec.Replicas), svc); err != nil {
 		logger.Errorf("Unable to create NFS stateful set %+v", err)
 	}
 }
@@ -506,7 +524,7 @@ func validateAccessMode(mode string) error {
 	switch s.ToLower(mode) {
 	case "readonly":
 	case "readwrite":
-	case "none":
+	case noneMode:
 	default:
 		return fmt.Errorf("Invalid value (%s) for accessMode, valid values are (ReadOnly, ReadWrite, none)", mode)
 	}
@@ -515,10 +533,10 @@ func validateAccessMode(mode string) error {
 
 func validateSquashMode(mode string) error {
 	switch s.ToLower(mode) {
-	case "none":
 	case "rootid":
 	case "root":
 	case "all":
+	case noneMode:
 	default:
 		return fmt.Errorf("Invalid value (%s) for squash, valid values are (none, rootId, root, all)", mode)
 	}

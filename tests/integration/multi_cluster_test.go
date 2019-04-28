@@ -76,14 +76,12 @@ func (mrc *MultiClusterDeploySuite) createPools() {
 	// create a test pool in each cluster so that we get some PGs
 	poolName := "multi-cluster-pool1"
 	logger.Infof("Creating pool %s", poolName)
-	result, err := mrc.testClient.PoolClient.Create(poolName, mrc.namespace1, 1)
-	checkOrderedSubstrings(mrc.T(), result, poolName, "created")
+	err := mrc.testClient.PoolClient.Create(poolName, mrc.namespace1, 1)
 	require.Nil(mrc.T(), err)
 
 	poolName = "multi-cluster-pool2"
 	logger.Infof("Creating pool %s", poolName)
-	result, err = mrc.testClient.PoolClient.Create(poolName, mrc.namespace2, 1)
-	checkOrderedSubstrings(mrc.T(), result, poolName, "created")
+	err = mrc.testClient.PoolClient.Create(poolName, mrc.namespace2, 1)
 	require.Nil(mrc.T(), err)
 }
 
@@ -104,8 +102,8 @@ func (mrc *MultiClusterDeploySuite) TestInstallingMultipleRookClusters() {
 
 // Test Block Store Creation on multiple rook clusters
 func (mrc *MultiClusterDeploySuite) TestBlockStoreOnMultipleRookCluster() {
-	runBlockE2ETestLite(mrc.testClient, mrc.k8sh, mrc.Suite, mrc.namespace1)
-	runBlockE2ETestLite(mrc.testClient, mrc.k8sh, mrc.Suite, mrc.namespace2)
+	runBlockE2ETestLite(mrc.testClient, mrc.k8sh, mrc.Suite, mrc.namespace1, mrc.op.installer.CephVersion)
+	runBlockE2ETestLite(mrc.testClient, mrc.k8sh, mrc.Suite, mrc.namespace2, mrc.op.installer.CephVersion)
 }
 
 // Test Filesystem Creation on multiple rook clusters
@@ -135,7 +133,7 @@ func NewMCTestOperations(t func() *testing.T, namespace1 string, namespace2 stri
 
 	kh, err := utils.CreateK8sHelper(t)
 	require.NoError(t(), err)
-	i := installer.NewCephInstaller(t, kh.Clientset, installer.VersionMaster, installer.LuminousVersion)
+	i := installer.NewCephInstaller(t, kh.Clientset, false, installer.VersionMaster, installer.LuminousVersion)
 
 	op := &MCTestOperations{i, kh, t, namespace1, namespace2, installer.SystemNamespace(namespace1)}
 	op.Setup()
@@ -179,12 +177,11 @@ func (o MCTestOperations) Teardown() {
 			o.T().FailNow()
 		}
 	}()
-	if o.T().Failed() {
-		o.installer.GatherAllRookLogs(o.namespace1, o.systemNamespace, o.T().Name())
-		o.installer.GatherAllRookLogs(o.namespace2, o.systemNamespace, o.T().Name())
-	}
 
-	o.installer.UninstallRookFromMultipleNS(false, installer.SystemNamespace(o.namespace1), o.namespace1, o.namespace2)
+	o.installer.GatherAllRookLogs(o.namespace1, o.systemNamespace, o.T().Name())
+	o.installer.GatherAllRookLogs(o.namespace2, o.systemNamespace, o.T().Name())
+
+	o.installer.UninstallRookFromMultipleNS(installer.SystemNamespace(o.namespace1), o.namespace1, o.namespace2)
 }
 
 func (o MCTestOperations) startCluster(namespace, store string, errCh chan error) {

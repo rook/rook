@@ -18,6 +18,7 @@ package controller
 
 import (
 	"fmt"
+
 	cassandrav1alpha1 "github.com/rook/rook/pkg/apis/cassandra.rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/operator/cassandra/constants"
 	"github.com/rook/rook/pkg/operator/cassandra/controller/util"
@@ -29,7 +30,6 @@ import (
 // It doesn't post the result to the API Server yet.
 // That will be done at the end of the sync loop.
 func (cc *ClusterController) updateStatus(c *cassandrav1alpha1.Cluster) error {
-
 	clusterStatus := cassandrav1alpha1.ClusterStatus{
 		Racks: map[string]*cassandrav1alpha1.RackStatus{},
 	}
@@ -91,7 +91,6 @@ func (cc *ClusterController) updateStatus(c *cassandrav1alpha1.Cluster) error {
 // SyncCluster checks the Status and performs reconciliation for
 // the given Cassandra Cluster.
 func (cc *ClusterController) syncCluster(c *cassandrav1alpha1.Cluster) error {
-
 	// Check if any rack isn't created
 	for _, rack := range c.Spec.Datacenter.Racks {
 		// For each rack, check if a status entry exists
@@ -144,8 +143,9 @@ func (cc *ClusterController) syncCluster(c *cassandrav1alpha1.Cluster) error {
 
 // createRack creates a new Cassandra Rack with 0 Members.
 func (cc *ClusterController) createRack(r cassandrav1alpha1.RackSpec, c *cassandrav1alpha1.Cluster) error {
-
 	sts := util.StatefulSetForRack(r, c, cc.rookImage)
+	c.Spec.Annotations.Merge(r.Annotations).ApplyToObjectMeta(&sts.Spec.Template.ObjectMeta)
+	c.Spec.Annotations.Merge(r.Annotations).ApplyToObjectMeta(&sts.ObjectMeta)
 	existingStatefulset, err := cc.statefulSetLister.StatefulSets(sts.Namespace).Get(sts.Name)
 	if err == nil {
 		return util.VerifyOwner(existingStatefulset, c)
@@ -175,7 +175,6 @@ func (cc *ClusterController) createRack(r cassandrav1alpha1.RackSpec, c *cassand
 // scaleUpRack handles scaling up for an existing Cassandra Rack.
 // Calling this action implies all members of the Rack are Ready.
 func (cc *ClusterController) scaleUpRack(r cassandrav1alpha1.RackSpec, c *cassandrav1alpha1.Cluster) error {
-
 	sts, err := cc.statefulSetLister.StatefulSets(c.Namespace).Get(util.StatefulSetNameForRack(r, c))
 	if err != nil {
 		return fmt.Errorf("error trying to scale rack %s in namespace %s, underlying StatefulSet not found", r.Name, c.Namespace)
@@ -201,7 +200,6 @@ func (cc *ClusterController) scaleUpRack(r cassandrav1alpha1.RackSpec, c *cassan
 // scaleDownRack handles scaling down for an existing Cassandra Rack.
 // Calling this action implies all members of the Rack are Ready.
 func (cc *ClusterController) scaleDownRack(r cassandrav1alpha1.RackSpec, c *cassandrav1alpha1.Cluster) error {
-
 	logger.Infof("Scaling down rack %s", r.Name)
 
 	// Get the current actual number of Members

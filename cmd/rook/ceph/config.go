@@ -21,7 +21,7 @@ import (
 
 	"github.com/rook/rook/cmd/rook/rook"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
-	mondaemon "github.com/rook/rook/pkg/daemon/ceph/mon"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
@@ -35,9 +35,8 @@ key = %s
 )
 
 var configCmd = &cobra.Command{
-	Use:    "config-init",
-	Short:  "Generates basic ceph config",
-	Hidden: true,
+	Use:   "config-init",
+	Short: "Generates basic ceph config",
 }
 
 var (
@@ -70,7 +69,7 @@ func initConfig(cmd *cobra.Command, args []string) error {
 
 	rook.LogStartupInfo(configCmd.Flags())
 
-	clusterInfo.Monitors = mondaemon.ParseMonEndpoints(cfg.monEndpoints)
+	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
 	clusterInfo.Name = "ceph"
 	context := createContext()
 
@@ -89,7 +88,7 @@ func initConfig(cmd *cobra.Command, args []string) error {
 
 	err = cephconfig.WriteKeyring(keyringPath, configKeyring, keyringEval)
 	if err != nil {
-		return fmt.Errorf("failed to create keyring: %+v", err)
+		return fmt.Errorf("failed to create keyring: %+v\n", err)
 	}
 	if err != nil {
 		rook.TerminateFatal(err)

@@ -31,7 +31,7 @@ import (
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	appsv1beta1 "k8s.io/api/apps/v1beta1"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
@@ -41,7 +41,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
 
 const (
@@ -86,18 +85,20 @@ func NewClusterController(context *clusterd.Context, containerImage string) *Clu
 }
 
 type cluster struct {
-	context   *clusterd.Context
-	namespace string
-	spec      cockroachdbv1alpha1.ClusterSpec
-	ownerRef  metav1.OwnerReference
+	context     *clusterd.Context
+	namespace   string
+	spec        cockroachdbv1alpha1.ClusterSpec
+	annotations rookv1alpha2.Annotations
+	ownerRef    metav1.OwnerReference
 }
 
 func newCluster(c *cockroachdbv1alpha1.Cluster, context *clusterd.Context) *cluster {
 	return &cluster{
-		context:   context,
-		namespace: c.Namespace,
-		spec:      c.Spec,
-		ownerRef:  clusterOwnerRef(c.Namespace, string(c.UID)),
+		context:     context,
+		namespace:   c.Namespace,
+		spec:        c.Spec,
+		annotations: c.Spec.Annotations,
+		ownerRef:    clusterOwnerRef(c.Namespace, string(c.UID)),
 	}
 }
 
@@ -312,14 +313,17 @@ func (c *ClusterController) createStatefulSet(cluster *cluster) error {
 		return err
 	}
 
-	statefulSet := &appsv1beta1.StatefulSet{
+	statefulSet := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      appName,
 			Namespace: cluster.namespace,
 		},
-		Spec: appsv1beta1.StatefulSetSpec{
+		Spec: appsv1.StatefulSetSpec{
 			ServiceName: appName,
-			Replicas:    &replicas,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: createAppLabels(),
+			},
+			Replicas: &replicas,
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: cluster.namespace,
@@ -327,16 +331,18 @@ func (c *ClusterController) createStatefulSet(cluster *cluster) error {
 				},
 				Spec: createPodSpec(cluster, c.containerImage, httpPort, grpcPort),
 			},
-			PodManagementPolicy: appsv1beta1.ParallelPodManagement,
-			UpdateStrategy: appsv1beta1.StatefulSetUpdateStrategy{
-				Type: appsv1beta1.RollingUpdateStatefulSetStrategyType,
+			PodManagementPolicy: appsv1.ParallelPodManagement,
+			UpdateStrategy: appsv1.StatefulSetUpdateStrategy{
+				Type: appsv1.RollingUpdateStatefulSetStrategyType,
 			},
 			VolumeClaimTemplates: cluster.spec.Storage.VolumeClaimTemplates,
 		},
 	}
+	cluster.annotations.ApplyToObjectMeta(&statefulSet.Spec.Template.ObjectMeta)
+	cluster.annotations.ApplyToObjectMeta(&statefulSet.ObjectMeta)
 	k8sutil.SetOwnerRef(c.context.Clientset, cluster.namespace, &statefulSet.ObjectMeta, &cluster.ownerRef)
 
-	if _, err := c.context.Clientset.AppsV1beta1().StatefulSets(cluster.namespace).Create(statefulSet); err != nil {
+	if _, err := c.context.Clientset.AppsV1().StatefulSets(cluster.namespace).Create(statefulSet); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return err
 		}
@@ -377,7 +383,7 @@ func createPodSpec(cluster *cluster, containerImage string, httpPort, grpcPort i
 									},
 								},
 							},
-							TopologyKey: apis.LabelHostname,
+							TopologyKey: v1.LabelHostname,
 						},
 					},
 				},

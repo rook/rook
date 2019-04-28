@@ -9,6 +9,19 @@ kind: ClusterRole
 metadata:
   name: prometheus
   namespace: rook-ceph
+aggregationRule:
+  clusterRoleSelectors:
+  - matchLabels:
+      rbac.ceph.rook.io/aggregate-to-prometheus: "true"
+rules: []
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: prometheus-rules
+  namespace: rook-ceph
+  labels:
+    rbac.ceph.rook.io/aggregate-to-prometheus: "true"
 rules:
 - apiGroups: [""]
   resources:
@@ -50,6 +63,10 @@ spec:
   serviceMonitorSelector:
     matchLabels:
       team: rook
+  ruleSelector:
+    matchLabels:
+      role: alert-rules
+      prometheus: rook-prometheus
   resources:
     requests:
       memory: 400Mi

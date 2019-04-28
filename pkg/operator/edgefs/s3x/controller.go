@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Rook Authors. All rights reserved.
+Copyright 2019 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	opkit "github.com/rook/operator-kit"
-	edgefsv1alpha1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1alpha1"
+	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"k8s.io/api/core/v1"
@@ -44,10 +44,10 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "edgefs-op-s3x")
 var S3XResource = opkit.CustomResource{
 	Name:    customResourceName,
 	Plural:  customResourceNamePlural,
-	Group:   edgefsv1alpha1.CustomResourceGroup,
-	Version: edgefsv1alpha1.Version,
+	Group:   edgefsv1beta1.CustomResourceGroup,
+	Version: edgefsv1beta1.Version,
 	Scope:   apiextensionsv1beta1.NamespaceScoped,
-	Kind:    reflect.TypeOf(edgefsv1alpha1.S3X{}).Name(),
+	Kind:    reflect.TypeOf(edgefsv1beta1.S3X{}).Name(),
 }
 
 // S3XController represents a controller object for s3x custom resources
@@ -57,8 +57,10 @@ type S3XController struct {
 	hostNetwork     bool
 	dataDirHostPath string
 	dataVolumeSize  resource.Quantity
+	annotations     rookalpha.Annotations
 	placement       rookalpha.Placement
 	resources       v1.ResourceRequirements
+	resourceProfile string
 	ownerRef        metav1.OwnerReference
 }
 
@@ -70,6 +72,7 @@ func NewS3XController(
 	dataVolumeSize resource.Quantity,
 	placement rookalpha.Placement,
 	resources v1.ResourceRequirements,
+	resourceProfile string,
 	ownerRef metav1.OwnerReference,
 ) *S3XController {
 	return &S3XController{
@@ -80,6 +83,7 @@ func NewS3XController(
 		dataVolumeSize:  dataVolumeSize,
 		placement:       placement,
 		resources:       resources,
+		resourceProfile: resourceProfile,
 		ownerRef:        ownerRef,
 	}
 }
@@ -94,8 +98,8 @@ func (c *S3XController) StartWatch(namespace string, stopCh chan struct{}) error
 	}
 
 	logger.Infof("start watching s3x resources in namespace %s", namespace)
-	watcher := opkit.NewWatcher(S3XResource, namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1alpha1().RESTClient())
-	go watcher.Watch(&edgefsv1alpha1.S3X{}, stopCh)
+	watcher := opkit.NewWatcher(S3XResource, namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1beta1().RESTClient())
+	go watcher.Watch(&edgefsv1beta1.S3X{}, stopCh)
 
 	return nil
 }
@@ -147,7 +151,7 @@ func (c *S3XController) onDelete(obj interface{}) {
 	}
 }
 
-func (c *S3XController) serviceOwners(service *edgefsv1alpha1.S3X) []metav1.OwnerReference {
+func (c *S3XController) serviceOwners(service *edgefsv1beta1.S3X) []metav1.OwnerReference {
 	// Only set the cluster crd as the owner of the S3X resources.
 	// If the S3X crd is deleted, the operator will explicitly remove the S3X resources.
 	// If the S3X crd still exists when the cluster crd is deleted, this will make sure the S3X
@@ -155,13 +159,13 @@ func (c *S3XController) serviceOwners(service *edgefsv1alpha1.S3X) []metav1.Owne
 	return []metav1.OwnerReference{c.ownerRef}
 }
 
-func serviceChanged(oldService, newService edgefsv1alpha1.S3XSpec) bool {
+func serviceChanged(oldService, newService edgefsv1beta1.S3XSpec) bool {
 	return false
 }
 
-func getS3XObject(obj interface{}) (s3x *edgefsv1alpha1.S3X, err error) {
+func getS3XObject(obj interface{}) (s3x *edgefsv1beta1.S3X, err error) {
 	var ok bool
-	s3x, ok = obj.(*edgefsv1alpha1.S3X)
+	s3x, ok = obj.(*edgefsv1beta1.S3X)
 	if ok {
 		// the s3x object is of the latest type, simply return it
 		return s3x.DeepCopy(), nil

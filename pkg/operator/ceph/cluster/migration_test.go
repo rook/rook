@@ -165,16 +165,16 @@ func TestConvertLegacyCluster(t *testing.T) {
 			},
 			Network: rookv1alpha2.NetworkSpec{HostNetwork: true},
 			Placement: rookv1alpha2.PlacementSpec{
-				rookv1alpha2.PlacementKeyAll: rookv1alpha2.Placement{Tolerations: []v1.Toleration{{Key: "storage-node", Operator: v1.TolerationOpExists}}},
-				cephv1.PlacementKeyMon: rookv1alpha2.Placement{
+				rookv1alpha2.KeyAll: rookv1alpha2.Placement{Tolerations: []v1.Toleration{{Key: "storage-node", Operator: v1.TolerationOpExists}}},
+				cephv1.KeyMon: rookv1alpha2.Placement{
 					PodAntiAffinity: &v1.PodAntiAffinity{
 						RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
 							{LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"label": "value"}}},
 						},
 					},
 				},
-				cephv1.PlacementKeyMgr: rookv1alpha2.Placement{},
-				cephv1.PlacementKeyOSD: rookv1alpha2.Placement{},
+				cephv1.KeyMgr: rookv1alpha2.Placement{},
+				cephv1.KeyOSD: rookv1alpha2.Placement{},
 			},
 			Resources: rookv1alpha2.ResourceSpec{
 				cephv1.ResourcesKeyOSD: v1.ResourceRequirements{Limits: v1.ResourceList{v1.ResourceMemory: resource.MustParse("250Mi")}},
@@ -251,16 +251,16 @@ func TestConvertLegacyCluster(t *testing.T) {
 			},
 			Network: rookv1alpha2.NetworkSpec{HostNetwork: true},
 			Placement: rookv1alpha2.PlacementSpec{
-				rookv1alpha2.PlacementKeyAll: rookv1alpha2.Placement{Tolerations: []v1.Toleration{{Key: "storage-node", Operator: v1.TolerationOpExists}}},
-				cephv1.PlacementKeyMon: rookv1alpha2.Placement{
+				rookv1alpha2.KeyAll: rookv1alpha2.Placement{Tolerations: []v1.Toleration{{Key: "storage-node", Operator: v1.TolerationOpExists}}},
+				cephv1.KeyMon: rookv1alpha2.Placement{
 					PodAntiAffinity: &v1.PodAntiAffinity{
 						RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
 							{LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"label": "value"}}},
 						},
 					},
 				},
-				cephv1.PlacementKeyMgr: rookv1alpha2.Placement{},
-				cephv1.PlacementKeyOSD: rookv1alpha2.Placement{},
+				cephv1.KeyMgr: rookv1alpha2.Placement{},
+				cephv1.KeyOSD: rookv1alpha2.Placement{},
 			},
 			Resources: rookv1alpha2.ResourceSpec{
 				cephv1.ResourcesKeyOSD: v1.ResourceRequirements{Limits: v1.ResourceList{v1.ResourceMemory: resource.MustParse("250Mi")}},

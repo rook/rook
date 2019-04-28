@@ -1,6 +1,6 @@
 ---
 title: Prerequisites
-weight: 10
+weight: 1000
 ---
 
 # Prerequisites
@@ -13,12 +13,17 @@ Kubernetes v1.10 or higher is supported by Rook.
 
 ## Privileges and RBAC
 
-Rook requires privileges to manage the storage in your cluster. See the details [here](rbac.md) for setting up RBAC.
+Rook requires privileges to manage the storage in your cluster. See the details [here](psp.md) for
+setting up Rook in a Kubernetes cluster with Pod Security Policies enabled.
 
 ## Flexvolume Configuration
 
 The Rook agent requires setup as a Flex volume plugin to manage the storage attachments in your cluster.
 See the [Flex Volume Configuration](flexvolume.md) topic to configure your Kubernetes deployment to load the Rook volume plugin.
+
+## Kernel with RBD module
+
+Rook Ceph requires a Linux kernel built with the RBD module. Many distributions of Linux have this module but some don't, e.g. the GKE Container-Optimised OS (COS) does not have RBD. You can test your Kubernetes nodes by running `modprobe rbd`. If it says 'not found', you may have to [rebuild your kernel](https://rook.io/docs/rook/master/common-issues.html#rook-agent-rbd-module-missing-error) or choose a different Linux distribution.
 
 ## Kernel modules directory configuration
 
@@ -93,8 +98,8 @@ To get you started, here's a quick rundown for the ceph example from the [quicks
 First, we'll create the secret for our registry as described [here](https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod):
 
 ```bash
-# for namespace rook-ceph-system (operator)
-kubectl -n rook-ceph-system create secret docker-registry my-registry-secret --docker-server=DOCKER_REGISTRY_SERVER --docker-username=DOCKER_USER --docker-password=DOCKER_PASSWORD --docker-email=DOCKER_EMAIL
+# for namespace rook-ceph
+kubectl -n rook-ceph create secret docker-registry my-registry-secret --docker-server=DOCKER_REGISTRY_SERVER --docker-username=DOCKER_USER --docker-password=DOCKER_PASSWORD --docker-email=DOCKER_EMAIL
 
 # and for namespace rook-ceph (cluster)
 kubectl -n rook-ceph create secret docker-registry my-registry-secret --docker-server=DOCKER_REGISTRY_SERVER --docker-username=DOCKER_USER --docker-password=DOCKER_PASSWORD --docker-email=DOCKER_EMAIL
@@ -108,7 +113,7 @@ imagePullSecrets:
 ```
 
 The service accounts are:
-* `rook-ceph-system` (namespace: `rook-ceph-system`): Will affect all pods created by the rook operator in the `rook-ceph-system` namespace.
+* `rook-ceph-system` (namespace: `rook-ceph`): Will affect all pods created by the rook operator in the `rook-ceph` namespace.
 * `default` (namespace: `rook-ceph`): Will affect most pods in the `rook-ceph` namespace.
 * `rook-ceph-mgr` (namespace: `rook-ceph`): Will affect the MGR pods in the `rook-ceph` namespace.
 * `rook-ceph-osd` (namespace: `rook-ceph`): Will affect the OSD pods in the `rook-ceph` namespace.

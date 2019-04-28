@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"time"
 
+	"k8s.io/api/batch/v1"
 	batch "k8s.io/api/batch/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,7 +31,7 @@ import (
 
 func RunReplaceableJob(clientset kubernetes.Interface, job *batch.Job) error {
 	// check if the job was already created and what its status is
-	existingJob, err := clientset.Batch().Jobs(job.Namespace).Get(job.Name, metav1.GetOptions{})
+	existingJob, err := clientset.BatchV1().Jobs(job.Namespace).Get(job.Name, metav1.GetOptions{})
 	if err != nil && !errors.IsNotFound(err) {
 		logger.Warningf("failed to detect job %s. %+v", job.Name, err)
 	} else if err == nil {
@@ -48,7 +49,7 @@ func RunReplaceableJob(clientset kubernetes.Interface, job *batch.Job) error {
 		}
 	}
 
-	_, err = clientset.Batch().Jobs(job.Namespace).Create(job)
+	_, err = clientset.BatchV1().Jobs(job.Namespace).Create(job)
 	return err
 }
 
@@ -57,7 +58,7 @@ func RunReplaceableJob(clientset kubernetes.Interface, job *batch.Job) error {
 func WaitForJobCompletion(clientset kubernetes.Interface, job *batch.Job, timeout time.Duration) error {
 	logger.Infof("waiting for job %s to complete...", job.Name)
 	return wait.Poll(5*time.Second, timeout, func() (bool, error) {
-		job, err := clientset.Batch().Jobs(job.Namespace).Get(job.Name, metav1.GetOptions{})
+		job, err := clientset.BatchV1().Jobs(job.Namespace).Get(job.Name, metav1.GetOptions{})
 		if err != nil {
 			return false, fmt.Errorf("failed to detect job %s. %+v", job.Name, err)
 		}
@@ -83,7 +84,7 @@ func DeleteBatchJob(clientset kubernetes.Interface, namespace, name string, wait
 	gracePeriod := int64(0)
 	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
 
-	if err := clientset.Batch().Jobs(namespace).Delete(name, options); err != nil {
+	if err := clientset.BatchV1().Jobs(namespace).Delete(name, options); err != nil {
 		return fmt.Errorf("failed to remove previous provisioning job for node %s. %+v", name, err)
 	}
 
@@ -94,7 +95,7 @@ func DeleteBatchJob(clientset kubernetes.Interface, namespace, name string, wait
 	retries := 20
 	sleepInterval := 2 * time.Second
 	for i := 0; i < retries; i++ {
-		_, err := clientset.Batch().Jobs(namespace).Get(name, metav1.GetOptions{})
+		_, err := clientset.BatchV1().Jobs(namespace).Get(name, metav1.GetOptions{})
 		if err != nil && errors.IsNotFound(err) {
 			logger.Infof("batch job %s deleted", name)
 			return nil
@@ -106,4 +107,16 @@ func DeleteBatchJob(clientset kubernetes.Interface, namespace, name string, wait
 
 	logger.Warningf("gave up waiting for batch job %s to be deleted", name)
 	return nil
+}
+
+// AddRookVersionLabelToJob adds or updates a label reporting the Rook version which last
+// modified a Job.
+func AddRookVersionLabelToJob(j *v1.Job) {
+	if j == nil {
+		return
+	}
+	if j.Labels == nil {
+		j.Labels = map[string]string{}
+	}
+	addRookVersionLabel(j.Labels)
 }

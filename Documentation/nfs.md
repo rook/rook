@@ -1,6 +1,6 @@
 ---
 title: Network File System (NFS)
-weight: 8
+weight: 800
 indent: true
 ---
 
@@ -32,8 +32,9 @@ You can check if the operator is up and running with:
 ```console
 kubectl -n rook-nfs-system get pod
 
-NAME                                READY     STATUS    RESTARTS   AGE
-rook-nfs-operator-b8d6d955d-cdq2v   1/1       Running   0          1m
+NAME                                    READY   STATUS    RESTARTS   AGE
+rook-nfs-operator-879f5bf8b-gnwht       1/1     Running   0          29m
+rook-nfs-provisioner-65f4874c8f-kkz6b   1/1     Running   0          29m
 ```
 
 ## Create and Initialize NFS Server
@@ -61,7 +62,7 @@ kind: Namespace
 metadata:
   name:  rook-nfs
 ---
-# A default StorageClass must be present
+# A default storageclass must be present
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -80,15 +81,19 @@ metadata:
   name: rook-nfs
   namespace: rook-nfs
 spec:
+  serviceAccountName: rook-nfs
   replicas: 1
   exports:
-  - name: nfs-share
+  - name: share1
     server:
       accessMode: ReadWrite
       squash: "none"
     # A Persistent Volume Claim must be created before creating NFS CRD instance.
     persistentVolumeClaim:
       claimName: nfs-default-claim
+  # A key/value list of annotations
+  annotations:
+  #  key: value
 ```
 
 With the `nfs.yaml` file saved, now create the NFS server as shown:
@@ -118,54 +123,33 @@ rook-nfs-0   1/1       Running   0          2m
 If the NFS server pod is in the `Running` state, then we have successfully created an exported NFS share that clients can start to access over the network.
 
 ### Accessing the Export
+With PR https://github.com/rook/rook/pull/2758 rook starts supporting dynamic provisioning with NFS. This example will be showing how dynamic provisioning feature can be used for nfs.
 
-To access the export from another pod, you must first manually create a `PersistentVolume` with the connection information.
-This experience is a bit cumbersome, but will be improved in the future with dynamic provisioning support.
-First, find the current IP address of your NFS server pod using the following command:
-
-```console
-kubectl -n rook-nfs get service -l app=rook-nfs -o jsonpath='{.items[0].spec.clusterIP}'
-```
-
-Copy this IP address and insert it into the following content in place of the `<Cluster IP>` placeholder.
-Then also replace the `/<Claim name>` value with the `claimName` that was configured in the `nfs.yaml`.
-In this case, it will be `nfs-default-claim` and it will look like `path: "/nfs-default-claim"`.
-Finally, save the updated content to a file called `pv.yaml`.
+Once the NFS Operator and an instance of NFSServer is deployed. A storageclass similar to below example has to be created to dynamically provisioning volumes.
 
 ```yaml
-apiVersion: v1
-kind: PersistentVolume
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
 metadata:
-  name: rook-nfs-pv
-  namespace: rook-nfs
-spec:
-  capacity:
-    storage: 1Mi
-  accessModes:
-    - ReadWriteMany
-  nfs:
-    # FIXME: replace <Cluster IP> with the current IP of the NFS server pod.
-    # Run the below command to get the current IP address:
-    # kubectl -n rook-nfs get service -l app=rook-nfs -o jsonpath='{.items[0].spec.clusterIP}'
-    server: <Cluster IP>
-    path: "/<Claim name>"
+  labels:
+    app: rook-nfs
+  name: rook-nfs-share1
+parameters:
+  exportName: share1
+  nfsServerName: rook-nfs
+  nfsServerNamespace: rook-nfs
+provisioner: rook.io/nfs-provisioner
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
 ```
 
-With the `pv.yaml` file saved, we can create the PV object:
+#### Note: The storageclass need to have the following 3 parameters passed. 
+1. `exportName`: It tells the provisioner which export to use for provisioning the volumes.
+2. `nfsServerName`: It is the name of the NFSServer instance.
+3. `nfsServerNamespace`: It namespace where the NFSServer instance is running.
 
-```console
-kubectl create -f pv.yaml
-```
 
-### Consuming the Export
-
-Now we can consume the PV that we just created by creating an example web server app that uses a `PersistentVolumeClaim` to claim the exported volume.
-There are 2 pods that comprise this example:
-
-1. A web server pod that will read and display the contents of the NFS share
-1. A writer pod that will write random data to the NFS share so the website will continually update
-
-First, save the PVC definition in a file called `pvc.yaml`:
+Once the above storageclass has been created create a PV claim referencing the storageclass as shown in the example given below.
 
 ```yaml
 apiVersion: v1
@@ -173,48 +157,12 @@ kind: PersistentVolumeClaim
 metadata:
   name: rook-nfs-pv-claim
 spec:
+  storageClassName: "rook-nfs-share1"
   accessModes:
     - ReadWriteMany
-  storageClassName: ""
   resources:
     requests:
       storage: 1Mi
-```
-
-Then create the PVC:
-
-```console
-kubectl create -f pvc.yaml
-```
-
-Start both the busybox pod (writer) and the web server from the `cluster/examples/kubernetes/nfs` folder:
-
-```console
-kubectl create -f busybox-rc.yaml
-kubectl create -f web-rc.yaml
-```
-
-Let's confirm that the expected busybox writer pods and web server pods are **all** up and in the `Running` state:
-
-```console
-kubectl get pod -l app=nfs-demo
-```
-
-In order to be able to reach the web server over the network, let's create a service for it:
-
-```console
-kubectl create -f web-service.yaml
-```
-
-We can then use the busybox writer pod we launched before to check that nginx is serving the data appropriately.
-In the below 1-liner command, we use `kubectl exec` to run a command in the busybox writer pod that uses `wget` to retrieve the web page that the web server pod is hosting.  As the busybox writer pod continues to write a new timestamp, we should see the returned output also update every ~10 seconds or so.
-
-```console
-> echo; kubectl exec $(kubectl get pod -l name=nfs-busybox -o jsonpath='{.items[0].metadata.name}') -- wget -qO- http://$(kubectl get services nfs-web -o jsonpath='{.spec.clusterIP}'); echo
-
-Thu Oct 22 19:28:55 UTC 2015
-nfs-busybox-w3s4t
-
 ```
 
 ## Rook Ceph volume example
@@ -273,11 +221,7 @@ Create the NFS server instance that you saved in `nfs-ceph.yaml`:
 kubectl create -f nfs-ceph.yaml
 ```
 
-After the NFS server pod is running, follow the same instructions from the previous example to access and consume the NFS share, with the following exception:
-
-* Replace the `/<Claim name>` value in the PV definition in the [Accessing the Export](nfs.md#accessing-the-export) section with the `claimName` that was configured in the `nfs-ceph.yaml`. In this case it will be `nfs-ceph-claim` and will look like `path: "/nfs-ceph-claim"`.
-
-After that, follow the rest of the instructions in the [Accessing the Export](nfs.md#accessing-the-export) section and then the [Consuming the Export](nfs.md#consuming-the-export) section to consume the NFS volume.
+After the NFS server pod is running, follow the same instructions from the previous example to access and consume the NFS share.
 
 ## Teardown
 

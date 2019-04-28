@@ -29,21 +29,19 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
-	mondaemon "github.com/rook/rook/pkg/daemon/ceph/mon"
+	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
+	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
+	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/util"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
-
-var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mon")
 
 const (
 	// EndpointConfigMapName is the name of the configmap with mon endpoints
@@ -68,31 +66,41 @@ const (
 	DefaultMonCount = 3
 	// MaxMonCount Maximum allowed mon count for a cluster
 	MaxMonCount = 9
+
+	// DefaultMsgr1Port is the default port Ceph mons use to communicate amongst themselves prior
+	// to Ceph Nautilus.
+	DefaultMsgr1Port int32 = 6789
+	// DefaultMsgr2Port is the listening port of the messenger v2 protocol introduced in Ceph
+	// Nautilus. In Nautilus and a few Ceph releases after, Ceph can use both v1 and v2 protocols.
+	DefaultMsgr2Port int32 = 3300
+
+	// minimum amount of memory in MB to run the pod
+	cephMonPodMinimumMemory uint64 = 1024
+)
+
+var (
+	logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mon")
 )
 
 // Cluster represents the Rook and environment configuration settings needed to set up Ceph mons.
 type Cluster struct {
-	context              *clusterd.Context
-	Namespace            string
-	Keyring              string
-	rookVersion          string
-	cephVersion          cephv1.CephVersionSpec
-	Count                int
-	AllowMultiplePerNode bool
-	MonCountMutex        sync.Mutex
-	Port                 int32
-	clusterInfo          *cephconfig.ClusterInfo
-	placement            rookalpha.Placement
-	maxMonID             int
-	waitForStart         bool
-	dataDirHostPath      string
-	monPodRetryInterval  time.Duration
-	monPodTimeout        time.Duration
-	monTimeoutList       map[string]time.Time
-	HostNetwork          bool
-	mapping              *Mapping
-	resources            v1.ResourceRequirements
-	ownerRef             metav1.OwnerReference
+	clusterInfo         *cephconfig.ClusterInfo
+	context             *clusterd.Context
+	spec                cephv1.ClusterSpec
+	Namespace           string
+	Keyring             string
+	rookVersion         string
+	orchestrationMutex  sync.Mutex
+	Port                int32
+	HostNetwork         bool
+	maxMonID            int
+	waitForStart        bool
+	dataDirHostPath     string
+	monPodRetryInterval time.Duration
+	monPodTimeout       time.Duration
+	monTimeoutList      map[string]time.Time
+	mapping             *Mapping
+	ownerRef            metav1.OwnerReference
 }
 
 // monConfig for a single monitor
@@ -105,6 +113,9 @@ type monConfig struct {
 	PublicIP string
 	// Port is the port on which the mon will listen for connections
 	Port int32
+	// DataPathMap is the mapping relationship between mon data stored on the host and mon data
+	// stored in containers.
+	DataPathMap *config.DataPathMap
 }
 
 // Mapping is mon node and port mapping
@@ -121,93 +132,163 @@ type NodeInfo struct {
 }
 
 // New creates an instance of a mon cluster
-func New(context *clusterd.Context, namespace, dataDirHostPath, rookVersion string, cephVersion cephv1.CephVersionSpec, mon cephv1.MonSpec,
-	placement rookalpha.Placement, hostNetwork bool, resources v1.ResourceRequirements, ownerRef metav1.OwnerReference) *Cluster {
+func New(context *clusterd.Context, namespace, dataDirHostPath string, hostNetwork bool, ownerRef metav1.OwnerReference) *Cluster {
 	return &Cluster{
-		context:              context,
-		placement:            placement,
-		dataDirHostPath:      dataDirHostPath,
-		Namespace:            namespace,
-		rookVersion:          rookVersion,
-		cephVersion:          cephVersion,
-		Count:                mon.Count,
-		AllowMultiplePerNode: mon.AllowMultiplePerNode,
-		maxMonID:             -1,
-		waitForStart:         true,
-		monPodRetryInterval:  6 * time.Second,
-		monPodTimeout:        5 * time.Minute,
-		monTimeoutList:       map[string]time.Time{},
-		HostNetwork:          hostNetwork,
+		context:             context,
+		dataDirHostPath:     dataDirHostPath,
+		Namespace:           namespace,
+		maxMonID:            -1,
+		waitForStart:        true,
+		monPodRetryInterval: 6 * time.Second,
+		monPodTimeout:       5 * time.Minute,
+		monTimeoutList:      map[string]time.Time{},
+		HostNetwork:         hostNetwork,
 		mapping: &Mapping{
 			Node: map[string]*NodeInfo{},
 			Port: map[string]int32{},
 		},
-		resources: resources,
-		ownerRef:  ownerRef,
+		ownerRef: ownerRef,
 	}
 }
 
 // Start begins the process of running a cluster of Ceph mons.
-func (c *Cluster) Start() error {
-	logger.Infof("start running mons")
+func (c *Cluster) Start(clusterInfo *cephconfig.ClusterInfo, rookVersion string, cephVersion cephver.CephVersion, spec cephv1.ClusterSpec) (*cephconfig.ClusterInfo, error) {
 
-	if err := c.initClusterInfo(); err != nil {
-		return fmt.Errorf("failed to initialize ceph cluster info. %+v", err)
+	// Only one goroutine can orchestrate the mons at a time
+	c.acquireOrchestrationLock()
+	defer c.releaseOrchestrationLock()
+
+	c.clusterInfo = clusterInfo
+	c.rookVersion = rookVersion
+	c.spec = spec
+
+	// fail if we were instructed to deploy more than one mon on the same machine with host networking
+	if c.HostNetwork && c.spec.Mon.AllowMultiplePerNode && c.spec.Mon.Count > 1 {
+		return nil, fmt.Errorf("refusing to deploy %d monitors on the same host since hostNetwork is %v and allowMultiplePerNode is %v. Only one monitor per node is allowed", c.spec.Mon.Count, c.HostNetwork, c.spec.Mon.AllowMultiplePerNode)
 	}
 
+	// Validate pod's memory if specified
+	err := opspec.CheckPodMemory(cephv1.GetMonResources(c.spec.Resources), cephMonPodMinimumMemory)
+	if err != nil {
+		return nil, fmt.Errorf("%v", err)
+	}
+
+	logger.Infof("start running mons")
+
+	logger.Debugf("establishing ceph cluster info")
+	if err := c.initClusterInfo(cephVersion); err != nil {
+		return nil, fmt.Errorf("failed to initialize ceph cluster info. %+v", err)
+	}
+
+	targetCount, msg, err := c.getTargetMonCount()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get target mon count. %+v", err)
+	}
+	logger.Infof(msg)
+
 	// create the mons for a new cluster or ensure mons are running in an existing cluster
-	return c.startMons()
+	return c.clusterInfo, c.startMons(targetCount)
 }
 
-func (c *Cluster) startMons() error {
-	// init the mons config
-	mons := c.initMonConfig(c.Count)
+func (c *Cluster) startMons(targetCount int) error {
+	// init the mon config
+	existingCount, mons := c.initMonConfig(targetCount)
 
-	// Assign the pods to nodes
+	// Assign the mons to nodes
 	if err := c.assignMons(mons); err != nil {
 		return fmt.Errorf("failed to assign pods to mons. %+v", err)
 	}
 
-	// Start one monitor at a time
-	for i := 0; i < c.Count; i++ {
-		logger.Infof("ensuring mon %s (%s) is started", mons[i].ResourceName, mons[i].DaemonName)
-		endIndex := len(c.clusterInfo.Monitors)
-		if endIndex < c.Count {
-			endIndex++
+	if existingCount < len(mons) {
+		// Start the new mons one at a time
+		for i := existingCount; i < targetCount; i++ {
+			if err := c.ensureMonsRunning(mons, i, targetCount, true); err != nil {
+				return err
+			}
 		}
-		logger.Infof("looping to start mons. i=%d, endIndex=%d, c.Size=%d", i, endIndex, c.Count)
-
-		// Init the mon IPs
-		if err := c.initMonIPs(mons[0:endIndex]); err != nil {
-			return fmt.Errorf("failed to init mon services. %+v", err)
-		}
-
-		// save the mon config after we have "initiated the IPs"
-		if err := c.saveMonConfig(); err != nil {
-			return fmt.Errorf("failed to save mons. %+v", err)
-		}
-
-		// make sure we have the connection info generated so connections can happen
-		if err := writeConnectionConfig(c.context, c.clusterInfo); err != nil {
+	} else {
+		// Ensure all the expected mon deployments exist, but don't require full quorum to continue
+		lastMonIndex := len(mons) - 1
+		if err := c.ensureMonsRunning(mons, lastMonIndex, targetCount, false); err != nil {
 			return err
-		}
-
-		// Start the deployment
-		if err := c.startDeployments(mons[0:endIndex], i); err != nil {
-			return fmt.Errorf("failed to start mon pods. %+v", err)
 		}
 	}
 
-	logger.Debugf("mon endpoints used are: %s", mondaemon.FlattenMonEndpoints(c.clusterInfo.Monitors))
+	// Enable Ceph messenger 2 protocol on Nautilus
+	if c.clusterInfo.CephVersion.IsAtLeastNautilus() {
+		v, err := client.GetCephMonVersion(c.context)
+		if err != nil {
+			return fmt.Errorf("failed to get ceph mon version. %+v", err)
+		}
+		if v.IsAtLeastNautilus() {
+			versions, err := client.GetCephVersions(c.context)
+			if err != nil {
+				return fmt.Errorf("failed to get ceph daemons versions. %+v", err)
+			}
+			if len(versions.Mon) == 1 {
+				// If length is one, this clearly indicates that all the mons are running the same version
+				// We are doing this because 'ceph version' might return the Ceph version that a majority of mons has but not all of them
+				// so instead of trying to active msgr2 when mons are not ready, we activate it when we believe that's the right time
+				client.EnableMessenger2(c.context)
+			}
+		}
+	}
+
+	logger.Debugf("mon endpoints used are: %s", FlattenMonEndpoints(c.clusterInfo.Monitors))
+	return nil
+}
+
+// ensureMonsRunning is called in two scenarios:
+// 1. To create a new mon and wait for it to join quorum (requireAllInQuorum = true). This method will be called multiple times
+//    to add a mon until we have reached the desired number of mons.
+// 2. To check that the majority of existing mons are in quorum. It is ok if not all mons are in quorum. (requireAllInQuorum = false)
+//    This is needed when the operator is restarted and all mons may not be up or in quorum.
+func (c *Cluster) ensureMonsRunning(mons []*monConfig, i, targetCount int, requireAllInQuorum bool) error {
+	if requireAllInQuorum {
+		logger.Infof("creating mon %s", mons[i].DaemonName)
+	} else {
+		logger.Info("checking for basic quorum with existing mons")
+	}
+
+	// Calculate how many mons we expected to exist after this method is completed.
+	// If we are adding a new mon, we expect one more than currently exist.
+	// If we haven't created all the desired mons already, we will be adding a new one with this iteration
+	expectedMonCount := len(c.clusterInfo.Monitors)
+	if expectedMonCount < targetCount {
+		expectedMonCount++
+	}
+
+	// Init the mon IPs
+	if err := c.initMonIPs(mons[0:expectedMonCount]); err != nil {
+		return fmt.Errorf("failed to init mon services. %+v", err)
+	}
+
+	// save the mon config after we have "initiated the IPs"
+	if err := c.saveMonConfig(); err != nil {
+		return fmt.Errorf("failed to save mons. %+v", err)
+	}
+
+	// make sure we have the connection info generated so connections can happen
+	if err := writeConnectionConfig(c.context, c.clusterInfo); err != nil {
+		return err
+	}
+
+	// Start the deployment
+	if err := c.startDeployments(mons[0:expectedMonCount], requireAllInQuorum); err != nil {
+		return fmt.Errorf("failed to start mon pods. %+v", err)
+	}
+
 	return nil
 }
 
 // initClusterInfo retrieves the ceph cluster info if it already exists.
 // If a new cluster, create new keys.
-func (c *Cluster) initClusterInfo() error {
+func (c *Cluster) initClusterInfo(cephVersion cephver.CephVersion) error {
 	var err error
 	// get the cluster info from secret
 	c.clusterInfo, c.maxMonID, c.mapping, err = CreateOrLoadClusterInfo(c.context, c.Namespace, &c.ownerRef)
+	c.clusterInfo.CephVersion = cephVersion
+
 	if err != nil {
 		return fmt.Errorf("failed to get cluster info. %+v", err)
 	}
@@ -217,29 +298,53 @@ func (c *Cluster) initClusterInfo() error {
 		return fmt.Errorf("failed to save mons. %+v", err)
 	}
 
+	k := keyring.GetSecretStore(c.context, c.Namespace, &c.ownerRef)
+	// store the keyring which all mons share
+	if err := k.CreateOrUpdate(keyringStoreName, c.genMonSharedKeyring()); err != nil {
+		return fmt.Errorf("failed to save mon keyring secret. %+v", err)
+	}
+	// also store the admin keyring for other daemons that might need it during init
+	if err := k.Admin().CreateOrUpdate(c.clusterInfo); err != nil {
+		return fmt.Errorf("failed to save admin keyring secret. %+v", err)
+	}
+
 	return nil
 }
 
-func (c *Cluster) initMonConfig(size int) []*monConfig {
+func (c *Cluster) initMonConfig(size int) (int, []*monConfig) {
 	mons := []*monConfig{}
 
 	// initialize the mon pod info for mons that have been previously created
 	for _, monitor := range c.clusterInfo.Monitors {
-		mons = append(mons, &monConfig{ResourceName: resourceName(monitor.Name), DaemonName: monitor.Name, Port: getPortFromEndpoint(monitor.Endpoint)})
+		mons = append(mons, &monConfig{
+			ResourceName: resourceName(monitor.Name),
+			DaemonName:   monitor.Name,
+			Port:         cephutil.GetPortFromEndpoint(monitor.Endpoint),
+			DataPathMap: config.NewStatefulDaemonDataPathMap(
+				c.dataDirHostPath, dataDirRelativeHostPath(monitor.Name), config.MonType, monitor.Name, c.Namespace),
+		})
 	}
 
 	// initialize mon info if we don't have enough mons (at first startup)
+	existingCount := len(c.clusterInfo.Monitors)
 	for i := len(c.clusterInfo.Monitors); i < size; i++ {
 		c.maxMonID++
-		mons = append(mons, newMonConfig(c.maxMonID))
+		mons = append(mons, c.newMonConfig(c.maxMonID))
 	}
 
-	return mons
+	return existingCount, mons
 }
 
-func newMonConfig(monID int) *monConfig {
+func (c *Cluster) newMonConfig(monID int) *monConfig {
 	daemonName := k8sutil.IndexToName(monID)
-	return &monConfig{ResourceName: resourceName(daemonName), DaemonName: daemonName, Port: int32(mondaemon.DefaultPort)}
+
+	return &monConfig{
+		ResourceName: resourceName(daemonName),
+		DaemonName:   daemonName,
+		Port:         DefaultMsgr1Port,
+		DataPathMap: config.NewStatefulDaemonDataPathMap(
+			c.dataDirHostPath, dataDirRelativeHostPath(daemonName), config.MonType, daemonName, c.Namespace),
+	}
 }
 
 // resourceName ensures the mon name has the rook-ceph-mon prefix
@@ -272,50 +377,6 @@ func (c *Cluster) initMonIPs(mons []*monConfig) error {
 	return nil
 }
 
-func (c *Cluster) createService(mon *monConfig) (string, error) {
-	labels := c.getLabels(mon.DaemonName)
-	s := &v1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   mon.ResourceName,
-			Labels: labels,
-		},
-		Spec: v1.ServiceSpec{
-			Ports: []v1.ServicePort{
-				{
-					Name:       mon.ResourceName,
-					Port:       mon.Port,
-					TargetPort: intstr.FromInt(int(mon.Port)),
-					Protocol:   v1.ProtocolTCP,
-				},
-			},
-			Selector: labels,
-		},
-	}
-	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &s.ObjectMeta, &c.ownerRef)
-	if c.HostNetwork {
-		s.Spec.ClusterIP = v1.ClusterIPNone
-	}
-
-	s, err := c.context.Clientset.CoreV1().Services(c.Namespace).Create(s)
-	if err != nil {
-		if !errors.IsAlreadyExists(err) {
-			return "", fmt.Errorf("failed to create mon service. %+v", err)
-		}
-		s, err = c.context.Clientset.CoreV1().Services(c.Namespace).Get(mon.ResourceName, metav1.GetOptions{})
-		if err != nil {
-			return "", fmt.Errorf("failed to get mon %s service ip. %+v", mon.ResourceName, err)
-		}
-	}
-
-	if s == nil {
-		logger.Warningf("service ip not found for mon %s. this better be a test", mon.ResourceName)
-		return "", nil
-	}
-
-	logger.Infof("mon %s running at %s:%d", mon.DaemonName, s.Spec.ClusterIP, mon.Port)
-	return s.Spec.ClusterIP, nil
-}
-
 func (c *Cluster) assignMons(mons []*monConfig) error {
 	// schedule the mons on different nodes if we have enough nodes to be unique
 	availableNodes, err := c.getMonNodes()
@@ -342,15 +403,6 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 		if err != nil {
 			return fmt.Errorf("couldn't get node info from node %s. %+v", node.Name, err)
 		}
-		// when hostNetwork is used check if we need to increase the port of the node
-		if c.HostNetwork {
-			if _, ok := c.mapping.Port[node.Name]; ok {
-				// when the node was already chosen increase port by 1 and set
-				// assignment and that the node was chosen
-				m.Port = c.mapping.Port[node.Name] + int32(1)
-			}
-			c.mapping.Port[node.Name] = m.Port
-		}
 		c.mapping.Node[m.DaemonName] = nodeInfo
 		nodeIndex++
 	}
@@ -359,26 +411,7 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 	return nil
 }
 
-func getNodeInfoFromNode(n v1.Node) (*NodeInfo, error) {
-	nr := &NodeInfo{
-		Name:     n.Name,
-		Hostname: n.Labels[apis.LabelHostname],
-	}
-
-	for _, ip := range n.Status.Addresses {
-		if ip.Type == v1.NodeExternalIP || ip.Type == v1.NodeInternalIP {
-			logger.Debugf("using IP %s for node %s", ip.Address, n.Name)
-			nr.Address = ip.Address
-			break
-		}
-	}
-	if nr.Address == "" {
-		return nil, fmt.Errorf("couldn't get IP of node %s", nr.Name)
-	}
-	return nr, nil
-}
-
-func (c *Cluster) startDeployments(mons []*monConfig, index int) error {
+func (c *Cluster) startDeployments(mons []*monConfig, requireAllInQuorum bool) error {
 	if len(mons) == 0 {
 		return fmt.Errorf("cannot start 0 mons")
 	}
@@ -393,10 +426,10 @@ func (c *Cluster) startDeployments(mons []*monConfig, index int) error {
 	}
 
 	logger.Infof("mons created: %d", len(mons))
-	return c.waitForMonsToJoin(mons)
+	return c.waitForMonsToJoin(mons, requireAllInQuorum)
 }
 
-func (c *Cluster) waitForMonsToJoin(mons []*monConfig) error {
+func (c *Cluster) waitForMonsToJoin(mons []*monConfig, requireAllInQuorum bool) error {
 	if !c.waitForStart {
 		return nil
 	}
@@ -407,7 +440,8 @@ func (c *Cluster) waitForMonsToJoin(mons []*monConfig) error {
 	}
 
 	// wait for the monitors to join quorum
-	err := waitForQuorumWithMons(c.context, c.clusterInfo.Name, starting)
+	sleepTime := 5
+	err := waitForQuorumWithMons(c.context, c.clusterInfo.Name, starting, sleepTime, requireAllInQuorum)
 	if err != nil {
 		return fmt.Errorf("failed to wait for mon quorum. %+v", err)
 	}
@@ -418,9 +452,8 @@ func (c *Cluster) waitForMonsToJoin(mons []*monConfig) error {
 func (c *Cluster) saveMonConfig() error {
 	configMap := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        EndpointConfigMapName,
-			Namespace:   c.Namespace,
-			Annotations: map[string]string{},
+			Name:      EndpointConfigMapName,
+			Namespace: c.Namespace,
 		},
 	}
 	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &configMap.ObjectMeta, &c.ownerRef)
@@ -431,7 +464,7 @@ func (c *Cluster) saveMonConfig() error {
 	}
 
 	configMap.Data = map[string]string{
-		EndpointDataKey: mondaemon.FlattenMonEndpoints(c.clusterInfo.Monitors),
+		EndpointDataKey: FlattenMonEndpoints(c.clusterInfo.Monitors),
 		MaxMonIDKey:     strconv.Itoa(c.maxMonID),
 		MappingKey:      string(monMapping),
 	}
@@ -449,6 +482,10 @@ func (c *Cluster) saveMonConfig() error {
 
 	logger.Infof("saved mon endpoints to config map %+v", configMap.Data)
 
+	// Every time the mon config is updated, must also update the global config so that all daemons
+	// have the most updated version if they restart.
+	config.GetStore(c.context, c.Namespace, &c.ownerRef).CreateOrUpdate(c.clusterInfo)
+
 	// write the latest config to the config dir
 	if err := writeConnectionConfig(c.context, c.clusterInfo); err != nil {
 		return fmt.Errorf("failed to write connection config for new mons. %+v", err)
@@ -457,135 +494,31 @@ func (c *Cluster) saveMonConfig() error {
 	return nil
 }
 
-// getMonNodes detects the nodes that are available for new mons to start.
-func (c *Cluster) getMonNodes() ([]v1.Node, error) {
-	availableNodes, nodes, err := c.getAvailableMonNodes()
-	if err != nil {
-		return nil, err
-	}
-	logger.Infof("Found %d running nodes without mons", len(availableNodes))
-
-	// if all nodes already have mons and the user has given the mon.count, add all nodes to be available
-	if c.AllowMultiplePerNode && len(availableNodes) == 0 {
-		logger.Infof("All nodes are running mons. Adding all %d nodes to the availability.", len(nodes.Items))
-		for _, node := range nodes.Items {
-			valid, err := k8sutil.ValidNode(node, c.placement)
-			if err != nil {
-				logger.Warning("failed to validate node %s %v", node.Name, err)
-			} else if valid {
-				availableNodes = append(availableNodes, node)
-			}
-		}
-	}
-
-	return availableNodes, nil
-}
-
-func (c *Cluster) getAvailableMonNodes() ([]v1.Node, *v1.NodeList, error) {
-	nodeOptions := metav1.ListOptions{}
-	nodeOptions.TypeMeta.Kind = "Node"
-	nodes, err := c.context.Clientset.CoreV1().Nodes().List(nodeOptions)
-	if err != nil {
-		return nil, nil, err
-	}
-	logger.Debugf("there are %d nodes available for %d mons", len(nodes.Items), len(c.clusterInfo.Monitors))
-
-	// get the nodes that have mons assigned
-	nodesInUse, err := c.getNodesWithMons(nodes)
-	if err != nil {
-		logger.Warningf("could not get nodes with mons. %+v", err)
-		nodesInUse = util.NewSet()
-	}
-
-	// choose nodes for the new mons that don't have mons currently
-	availableNodes := []v1.Node{}
-	for _, node := range nodes.Items {
-		if !nodesInUse.Contains(node.Name) {
-			valid, err := k8sutil.ValidNode(node, c.placement)
-			if err != nil {
-				logger.Warning("failed to validate node %s %v", node.Name, err)
-			} else if valid {
-				availableNodes = append(availableNodes, node)
-			}
-		}
-	}
-
-	return availableNodes, nodes, nil
-}
-
-func (c *Cluster) getNodesWithMons(nodes *v1.NodeList) (*util.Set, error) {
-	// get the mon pods and their node affinity
-	options := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", appName)}
-	pods, err := c.context.Clientset.CoreV1().Pods(c.Namespace).List(options)
-	if err != nil {
-		return nil, err
-	}
-	nodesInUse := util.NewSet()
-	for _, pod := range pods.Items {
-		hostname := pod.Spec.NodeSelector[apis.LabelHostname]
-		logger.Debugf("mon pod on node %s", hostname)
-		name, ok := getNodeNameFromHostname(nodes, hostname)
-		if !ok {
-			logger.Errorf("mon %s on hostname %s not found in node list", pod.Name, hostname)
-		}
-		nodesInUse.Add(name)
-	}
-	return nodesInUse, nil
-}
-
-// Look up the immutable node name from the hostname label
-func getNodeNameFromHostname(nodes *v1.NodeList, hostname string) (string, bool) {
-	for _, node := range nodes.Items {
-		if node.Labels[apis.LabelHostname] == hostname {
-			return node.Name, true
-		}
-		if node.Name == hostname {
-			return node.Name, true
-		}
-	}
-	return "", false
-}
-
 var updateDeploymentAndWait = k8sutil.UpdateDeploymentAndWait
 
 func (c *Cluster) startMon(m *monConfig, hostname string) error {
-	// If we determine the legacy replicaset exists, delete it so we can start the new deployment in its place
-	if err := k8sutil.DeleteReplicaSet(c.context.Clientset, c.Namespace, m.ResourceName); err != nil {
-		logger.Errorf("failed to delete legacy mon replicaset. %+v", err)
-	}
-
 	d := c.makeDeployment(m, hostname)
 	logger.Debugf("Starting mon: %+v", d.Name)
-	_, err := c.context.Clientset.Extensions().Deployments(c.Namespace).Create(d)
+	_, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Create(d)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
-			return fmt.Errorf("failed to create mon %s. %+v", m.ResourceName, err)
+			return fmt.Errorf("failed to create mon deployment %s. %+v", m.ResourceName, err)
 		}
-		logger.Debugf("deployment for mon %s already exists. updating if needed", m.ResourceName)
-		p, err := c.context.Clientset.Extensions().Deployments(c.Namespace).Get(d.Name, metav1.GetOptions{})
-		if err != nil {
-			return fmt.Errorf("failed to update mon deployment %s. failed to inspect preexisting deployment. %+v", d.Name, err)
-		}
-		// Workaround for #2331 targeted for Rook v0.9: only update the deployment if the Rook init
-		// image or Ceph image has changed.
-		if p.Spec.Template.Spec.Containers[0].Image != d.Spec.Template.Spec.Containers[0].Image ||
-			p.Spec.Template.Spec.InitContainers[0].Image != d.Spec.Template.Spec.InitContainers[0].Image {
-			if err := updateDeploymentAndWait(c.context, d, c.Namespace); err != nil {
-				return fmt.Errorf("failed to update mon deployment %s. %+v", m.ResourceName, err)
-			}
+		logger.Infof("deployment for mon %s already exists. updating if needed", m.ResourceName)
+		if _, err := updateDeploymentAndWait(c.context, d, c.Namespace); err != nil {
+			return fmt.Errorf("failed to update mon deployment %s. %+v", m.ResourceName, err)
 		}
 	}
 
 	return nil
 }
 
-func waitForQuorumWithMons(context *clusterd.Context, clusterName string, mons []string) error {
+func waitForQuorumWithMons(context *clusterd.Context, clusterName string, mons []string, sleepTime int, requireAllInQuorum bool) error {
 	logger.Infof("waiting for mon quorum with %v", mons)
 
 	// wait for monitors to establish quorum
 	retryCount := 0
 	retryMax := 20
-	sleepTime := 5
 	for {
 		retryCount++
 		if retryCount > retryMax {
@@ -598,13 +531,24 @@ func waitForQuorumWithMons(context *clusterd.Context, clusterName string, mons [
 		}
 
 		// wait for the mon pods to be running
-		running, err := k8sutil.PodsRunningWithLabel(context.Clientset, clusterName, "app="+appName)
-		if err != nil {
-			logger.Infof("failed to query mon pod status, trying again. %+v", err)
-			continue
+		allPodsRunning := true
+		var runningMonNames []string
+		for _, m := range mons {
+			running, err := k8sutil.PodsRunningWithLabel(context.Clientset, clusterName, fmt.Sprintf("app=%s,mon=%s", appName, m))
+			if err != nil {
+				logger.Infof("failed to query mon pod status, trying again. %+v", err)
+				continue
+			}
+			if running > 0 {
+				runningMonNames = append(runningMonNames, m)
+			} else {
+				allPodsRunning = false
+				logger.Infof("mon %s is not yet running", m)
+			}
 		}
-		if running != len(mons) {
-			logger.Infof("%d/%d mon pods are running. waiting for pods to start", running, len(mons))
+
+		logger.Infof("mons running: %v", runningMonNames)
+		if !allPodsRunning && requireAllInQuorum {
 			continue
 		}
 
@@ -616,49 +560,75 @@ func waitForQuorumWithMons(context *clusterd.Context, clusterName string, mons [
 			continue
 		}
 
+		if !requireAllInQuorum {
+			logQuorumMembers(monStatusResp)
+			break
+		}
+
 		// check if each of the initial monitors is in quorum
 		allInQuorum := true
 		for _, name := range mons {
-			// first get the initial monitors corresponding mon map entry
-			var monMapEntry *client.MonMapEntry
-			for i := range monStatusResp.MonMap.Mons {
-				if name == monStatusResp.MonMap.Mons[i].Name {
-					monMapEntry = &monStatusResp.MonMap.Mons[i]
-					break
-				}
-			}
-
-			if monMapEntry == nil {
-				// found an initial monitor that is not in the mon map, bail out of this retry
-				logger.Warningf("failed to find initial monitor %s in mon map", name)
-				allInQuorum = false
-				break
-			}
-
-			// using the current initial monitor's mon map entry, check to see if it's in the quorum list
-			// (a list of monitor rank values)
-			inQuorumList := false
-			for _, q := range monStatusResp.Quorum {
-				if monMapEntry.Rank == q {
-					inQuorumList = true
-					break
-				}
-			}
-
-			if !inQuorumList {
+			if !monFoundInQuorum(name, monStatusResp) {
 				// found an initial monitor that is not in quorum, bail out of this retry
-				logger.Warningf("initial monitor %s is not in quorum list", name)
+				logger.Warningf("monitor %s is not in quorum list", name)
 				allInQuorum = false
 				break
 			}
 		}
 
 		if allInQuorum {
-			logger.Debugf("all initial monitors are in quorum")
+			logQuorumMembers(monStatusResp)
 			break
 		}
 	}
 
-	logger.Infof("Ceph monitors formed quorum")
 	return nil
+}
+
+func logQuorumMembers(monStatusResp client.MonStatusResponse) {
+	var monsInQuorum []string
+	for _, m := range monStatusResp.MonMap.Mons {
+		if monFoundInQuorum(m.Name, monStatusResp) {
+			monsInQuorum = append(monsInQuorum, m.Name)
+		}
+	}
+	logger.Infof("Monitors in quorum: %v", monsInQuorum)
+}
+
+func monFoundInQuorum(name string, monStatusResp client.MonStatusResponse) bool {
+	// first get the initial monitors corresponding mon map entry
+	var monMapEntry *client.MonMapEntry
+	for i := range monStatusResp.MonMap.Mons {
+		if name == monStatusResp.MonMap.Mons[i].Name {
+			monMapEntry = &monStatusResp.MonMap.Mons[i]
+			break
+		}
+	}
+
+	if monMapEntry == nil {
+		// found an initial monitor that is not in the mon map, bail out of this retry
+		logger.Warningf("failed to find initial monitor %s in mon map", name)
+		return false
+	}
+
+	// using the current initial monitor's mon map entry, check to see if it's in the quorum list
+	// (a list of monitor rank values)
+	for _, q := range monStatusResp.Quorum {
+		if monMapEntry.Rank == q {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (c *Cluster) acquireOrchestrationLock() {
+	logger.Debugf("Acquiring lock for mon orchestration")
+	c.orchestrationMutex.Lock()
+	logger.Debugf("Acquired lock for mon orchestration")
+}
+
+func (c *Cluster) releaseOrchestrationLock() {
+	c.orchestrationMutex.Unlock()
+	logger.Debugf("Released lock for mon orchestration")
 }

@@ -1,11 +1,11 @@
 /*
-Copyright 2016 The Rook Authors. All rights reserved.
+Copyright 2019 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-	http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,16 +19,17 @@ package mgr
 
 import (
 	"fmt"
+	"net"
 	"strconv"
 	"strings"
 
 	"github.com/coreos/pkg/capnslog"
-	edgefsv1alpha1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1alpha1"
+	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	apps "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,11 +39,15 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "edgefs-op-mgr")
 
 const (
 	appName                   = "rook-edgefs-mgr"
+	restapiSvcName            = "rook-edgefs-restapi"
+	uiSvcName                 = "rook-edgefs-ui"
 	defaultServiceAccountName = "rook-edgefs-cluster"
 	defaultGrpcPort           = 6789
 	defaultRestPort           = 8080
 	defaultRestSPort          = 4443
 	defaultMetricsPort        = 8881
+	defaultUIPort             = 3000
+	defaultUISPort            = 3443
 
 	/* Volumes definitions */
 	dataVolumeName    = "edgefs-datadir"
@@ -58,10 +63,13 @@ type Cluster struct {
 	Replicas        int
 	dataDirHostPath string
 	dataVolumeSize  resource.Quantity
+	annotations     rookalpha.Annotations
 	placement       rookalpha.Placement
 	context         *clusterd.Context
-	HostNetworkSpec edgefsv1alpha1.NetworkSpec
+	hostNetworkSpec edgefsv1beta1.NetworkSpec
+	dashboardSpec   edgefsv1beta1.DashboardSpec
 	resources       v1.ResourceRequirements
+	resourceProfile string
 	ownerRef        metav1.OwnerReference
 }
 
@@ -71,8 +79,12 @@ func New(
 	serviceAccount string,
 	dataDirHostPath string,
 	dataVolumeSize resource.Quantity,
-	placement rookalpha.Placement, HostNetworkSpec edgefsv1alpha1.NetworkSpec,
+	annotations rookalpha.Annotations,
+	placement rookalpha.Placement,
+	hostNetworkSpec edgefsv1beta1.NetworkSpec,
+	dashboardSpec edgefsv1beta1.DashboardSpec,
 	resources v1.ResourceRequirements,
+	resourceProfile string,
 	ownerRef metav1.OwnerReference,
 ) *Cluster {
 
@@ -86,18 +98,21 @@ func New(
 		context:         context,
 		Namespace:       namespace,
 		serviceAccount:  serviceAccount,
+		annotations:     annotations,
 		placement:       placement,
 		Version:         version,
 		Replicas:        1,
 		dataDirHostPath: dataDirHostPath,
 		dataVolumeSize:  dataVolumeSize,
-		HostNetworkSpec: HostNetworkSpec,
+		hostNetworkSpec: hostNetworkSpec,
+		dashboardSpec:   dashboardSpec,
 		resources:       resources,
+		resourceProfile: resourceProfile,
 		ownerRef:        ownerRef,
 	}
 }
 
-func isHostNetworkDefined(hostNetworkSpec edgefsv1alpha1.NetworkSpec) bool {
+func isHostNetworkDefined(hostNetworkSpec edgefsv1beta1.NetworkSpec) bool {
 	if len(hostNetworkSpec.ServerIfName) > 0 || len(hostNetworkSpec.ServerIfName) > 0 {
 		return true
 	}
@@ -111,7 +126,7 @@ func (c *Cluster) Start(rookImage string) error {
 	logger.Infof("Mgr Image is %s", rookImage)
 	// start the deployment
 	deployment := c.makeDeployment(appName, c.Namespace, rookImage, 1)
-	if _, err := c.context.Clientset.ExtensionsV1beta1().Deployments(c.Namespace).Create(deployment); err != nil {
+	if _, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Create(deployment); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create %s deployment. %+v", appName, err)
 		}
@@ -121,14 +136,36 @@ func (c *Cluster) Start(rookImage string) error {
 	}
 
 	// create the mgr service
-	service := c.makeMgrService(appName)
-	if _, err := c.context.Clientset.CoreV1().Services(c.Namespace).Create(service); err != nil {
+	mgrService := c.makeMgrService(appName)
+	if _, err := c.context.Clientset.CoreV1().Services(c.Namespace).Create(mgrService); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create mgr service. %+v", err)
 		}
-		logger.Infof("mgr mgr service already exists")
+		logger.Infof("mgr service already exists")
 	} else {
-		logger.Infof("mgr mgr service started")
+		logger.Infof("mgr service started")
+	}
+
+	// create the restapi service
+	restapiService := c.makeRestapiService(restapiSvcName)
+	if _, err := c.context.Clientset.CoreV1().Services(c.Namespace).Create(restapiService); err != nil {
+		if !errors.IsAlreadyExists(err) {
+			return fmt.Errorf("failed to create restapi service. %+v", err)
+		}
+		logger.Infof("restapi service already exists")
+	} else {
+		logger.Infof("restapi service started")
+	}
+
+	// create the ui/dashboard service
+	uiService := c.makeUIService(uiSvcName)
+	if _, err := c.context.Clientset.CoreV1().Services(c.Namespace).Create(uiService); err != nil {
+		if !errors.IsAlreadyExists(err) {
+			return fmt.Errorf("failed to create ui service. %+v", err)
+		}
+		logger.Infof("ui service already exists")
+	} else {
+		logger.Infof("ui service started")
 	}
 
 	return nil
@@ -151,18 +188,38 @@ func (c *Cluster) makeMgrService(name string) *v1.Service {
 					Port:     int32(defaultGrpcPort),
 					Protocol: v1.ProtocolTCP,
 				},
+			},
+		},
+	}
+
+	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &svc.ObjectMeta, &c.ownerRef)
+	return svc
+}
+
+func (c *Cluster) makeRestapiService(name string) *v1.Service {
+	labels := c.getLabels()
+	svc := &v1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: c.Namespace,
+			Labels:    labels,
+		},
+		Spec: v1.ServiceSpec{
+			Selector: labels,
+			Type:     v1.ServiceTypeClusterIP,
+			Ports: []v1.ServicePort{
 				{
 					Name:     "http-metrics",
 					Port:     int32(defaultMetricsPort),
 					Protocol: v1.ProtocolTCP,
 				},
 				{
-					Name:     "http-mgmt",
+					Name:     "http-restapi",
 					Port:     int32(defaultRestPort),
 					Protocol: v1.ProtocolTCP,
 				},
 				{
-					Name:     "https-mgmt",
+					Name:     "https-restapi",
 					Port:     int32(defaultRestSPort),
 					Protocol: v1.ProtocolTCP,
 				},
@@ -174,7 +231,53 @@ func (c *Cluster) makeMgrService(name string) *v1.Service {
 	return svc
 }
 
-func (c *Cluster) makeDeployment(name, clusterName, rookImage string, replicas int32) *extensions.Deployment {
+func (c *Cluster) makeUIService(name string) *v1.Service {
+	labels := c.getLabels()
+	svc := &v1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: c.Namespace,
+			Labels:    labels,
+		},
+		Spec: v1.ServiceSpec{
+			Selector: labels,
+			Type:     v1.ServiceTypeNodePort,
+			Ports: []v1.ServicePort{
+				{
+					Name:     "http-ui",
+					Port:     int32(defaultUIPort),
+					Protocol: v1.ProtocolTCP,
+				},
+				{
+					Name:     "https-ui",
+					Port:     int32(defaultUISPort),
+					Protocol: v1.ProtocolTCP,
+				},
+			},
+		},
+	}
+
+	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &svc.ObjectMeta, &c.ownerRef)
+
+	if c.dashboardSpec.LocalAddr != "" {
+		ip := net.ParseIP(c.dashboardSpec.LocalAddr)
+		if ip == nil {
+			logger.Errorf("wrong dashboard localAddr format")
+			return svc
+		}
+
+		if !ip.IsUnspecified() {
+			logger.Infof("Cluster dashboard assigned with externalIP=%s", c.dashboardSpec.LocalAddr)
+			svc.Spec.ExternalIPs = []string{c.dashboardSpec.LocalAddr}
+		} else {
+			logger.Errorf("Cluster dashboard externalIP cannot be assigned to %s", c.dashboardSpec.LocalAddr)
+		}
+	}
+
+	return svc
+}
+
+func (c *Cluster) makeDeployment(name, clusterName, rookImage string, replicas int32) *apps.Deployment {
 
 	volumes := []v1.Volume{}
 	if c.dataVolumeSize.Value() > 0 {
@@ -210,33 +313,97 @@ func (c *Cluster) makeDeployment(name, clusterName, rookImage string, replicas i
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   name,
 			Labels: c.getDaemonLabels(clusterName),
-			Annotations: map[string]string{"prometheus.io/scrape": "true",
-				"prometheus.io/port": strconv.Itoa(defaultMetricsPort)},
 		},
 		Spec: v1.PodSpec{
 			ServiceAccountName: c.serviceAccount,
-			Containers:         []v1.Container{c.mgmtContainer(name, "edgefs/edgefs-restapi:"+rookImageVer), c.mgrContainer("grpc", rookImage)},
-			RestartPolicy:      v1.RestartPolicyAlways,
-			Volumes:            volumes,
-			HostIPC:            true,
-			HostNetwork:        isHostNetworkDefined(c.HostNetworkSpec),
-			NodeSelector:       map[string]string{c.Namespace: "cluster"},
+			Containers: []v1.Container{c.mgmtContainer(name, "edgefs/edgefs-restapi:"+rookImageVer),
+				c.mgrContainer("grpc", rookImage), c.uiContainer("ui", "edgefs/edgefs-ui:"+rookImageVer)},
+			RestartPolicy: v1.RestartPolicyAlways,
+			Volumes:       volumes,
+			HostIPC:       true,
+			HostNetwork:   isHostNetworkDefined(c.hostNetworkSpec),
+			NodeSelector:  map[string]string{c.Namespace: "cluster"},
 		},
 	}
-	if isHostNetworkDefined(c.HostNetworkSpec) {
+	if isHostNetworkDefined(c.hostNetworkSpec) {
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
+	}
+	// Add the prometheus.io scrape annoations by default when no annotations have been given.
+	if len(c.annotations) == 0 {
+		podSpec.ObjectMeta.Annotations = map[string]string{
+			"prometheus.io/scrape": "true",
+			"prometheus.io/port":   strconv.Itoa(defaultMetricsPort),
+		}
+	} else {
+		c.annotations.ApplyToObjectMeta(&podSpec.ObjectMeta)
 	}
 	c.placement.ApplyToPodSpec(&podSpec.Spec)
 
-	d := &extensions.Deployment{
+	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: c.Namespace,
 		},
-		Spec: extensions.DeploymentSpec{Template: podSpec, Replicas: &replicas},
+		Spec: apps.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: podSpec.Labels,
+			},
+			Template: podSpec,
+			Replicas: &replicas,
+		},
 	}
 	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &d.ObjectMeta, &c.ownerRef)
+	c.annotations.ApplyToObjectMeta(&d.ObjectMeta)
 	return d
+}
+
+func (c *Cluster) uiContainer(name string, containerImage string) v1.Container {
+
+	runAsUser := int64(0)
+	readOnlyRootFilesystem := false
+	securityContext := &v1.SecurityContext{
+		RunAsUser:              &runAsUser,
+		ReadOnlyRootFilesystem: &readOnlyRootFilesystem,
+	}
+
+	return v1.Container{
+		Name:            name,
+		Image:           containerImage,
+		ImagePullPolicy: v1.PullAlways,
+		Args:            []string{},
+		Env: []v1.EnvVar{
+			{
+				Name: "MGR_POD_IP",
+				ValueFrom: &v1.EnvVarSource{
+					FieldRef: &v1.ObjectFieldSelector{
+						FieldPath: "status.podIP",
+					},
+				},
+			},
+			{
+				Name:  "API_ENDPOINT",
+				Value: "http://$(MGR_POD_IP):8080",
+			},
+			{
+				Name:  "K8S_NAMESPACE",
+				Value: c.Namespace,
+			},
+		},
+		SecurityContext: securityContext,
+		Resources:       c.resources,
+		Ports: []v1.ContainerPort{
+			{
+				Name:          "http-ui",
+				ContainerPort: int32(defaultUIPort),
+				Protocol:      v1.ProtocolTCP,
+			},
+			{
+				Name:          "https-ui",
+				ContainerPort: int32(defaultUISPort),
+				Protocol:      v1.ProtocolTCP,
+			},
+		},
+	}
 }
 
 func (c *Cluster) mgmtContainer(name string, containerImage string) v1.Container {
@@ -264,7 +431,7 @@ func (c *Cluster) mgmtContainer(name string, containerImage string) v1.Container
 		},
 	}
 
-	return v1.Container{
+	cont := v1.Container{
 		Name:            name,
 		Image:           containerImage,
 		ImagePullPolicy: v1.PullAlways,
@@ -279,12 +446,20 @@ func (c *Cluster) mgmtContainer(name string, containerImage string) v1.Container
 				Value: "alert,error,info",
 			},
 			{
+				Name:  "K8S_NAMESPACE",
+				Value: c.Namespace,
+			},
+			{
 				Name: "HOST_HOSTNAME",
 				ValueFrom: &v1.EnvVarSource{
 					FieldRef: &v1.ObjectFieldSelector{
 						FieldPath: "spec.nodeName",
 					},
 				},
+			},
+			{
+				Name:  "EFSROOK_CRD_API",
+				Value: fmt.Sprintf("%s/%s", edgefsv1beta1.CustomResourceGroup, edgefsv1beta1.Version),
 			},
 		},
 		SecurityContext: securityContext,
@@ -308,6 +483,19 @@ func (c *Cluster) mgmtContainer(name string, containerImage string) v1.Container
 		},
 		VolumeMounts: volumeMounts,
 	}
+
+	if c.resourceProfile == "embedded" {
+		cont.Env = append(cont.Env, v1.EnvVar{
+			Name:  "CCOW_EMBEDDED",
+			Value: "1",
+		})
+		cont.Env = append(cont.Env, v1.EnvVar{
+			Name:  "JE_MALLOC_CONF",
+			Value: "tcache:false",
+		})
+	}
+
+	return cont
 }
 
 func (c *Cluster) mgrContainer(name string, containerImage string) v1.Container {
@@ -335,7 +523,7 @@ func (c *Cluster) mgrContainer(name string, containerImage string) v1.Container 
 		},
 	}
 
-	return v1.Container{
+	cont := v1.Container{
 		Name:            name,
 		Image:           containerImage,
 		ImagePullPolicy: v1.PullAlways,
@@ -344,6 +532,10 @@ func (c *Cluster) mgrContainer(name string, containerImage string) v1.Container 
 			{
 				Name:  "CCOW_LOG_LEVEL",
 				Value: "5",
+			},
+			{
+				Name:  "K8S_NAMESPACE",
+				Value: c.Namespace,
 			},
 			{
 				Name: "HOST_HOSTNAME",
@@ -365,6 +557,19 @@ func (c *Cluster) mgrContainer(name string, containerImage string) v1.Container 
 		},
 		VolumeMounts: volumeMounts,
 	}
+
+	if c.resourceProfile == "embedded" {
+		cont.Env = append(cont.Env, v1.EnvVar{
+			Name:  "CCOW_EMBEDDED",
+			Value: "1",
+		})
+		cont.Env = append(cont.Env, v1.EnvVar{
+			Name:  "JE_MALLOC_CONF",
+			Value: "tcache:false",
+		})
+	}
+
+	return cont
 }
 
 func (c *Cluster) getLabels() map[string]string {

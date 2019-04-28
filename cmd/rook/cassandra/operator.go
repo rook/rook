@@ -18,6 +18,8 @@ package cassandra
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/rook/rook/cmd/rook/rook"
 	rookinformers "github.com/rook/rook/pkg/client/informers/externalversions"
 	"github.com/rook/rook/pkg/operator/cassandra/constants"
@@ -29,7 +31,6 @@ import (
 	"k8s.io/apiserver/pkg/server"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/informers/internalinterfaces"
-	"time"
 )
 
 const resyncPeriod = time.Second * 30
@@ -53,7 +54,7 @@ func startOperator(cmd *cobra.Command, args []string) error {
 
 	kubeClient, _, rookClient, err := rook.GetClientset()
 	if err != nil {
-		rook.TerminateFatal(fmt.Errorf("failed to get k8s clients. %+v", err))
+		rook.TerminateFatal(fmt.Errorf("failed to get k8s clients. %+v\n", err))
 	}
 
 	logger.Infof("starting cassandra operator")

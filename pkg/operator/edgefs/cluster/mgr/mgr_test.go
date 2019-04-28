@@ -1,11 +1,11 @@
 /*
-Copyright 2016 The Rook Authors. All rights reserved.
+Copyright 2019 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-	http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,7 +21,7 @@ import (
 	"strconv"
 	"testing"
 
-	edgefsv1alpha1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1alpha1"
+	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	testop "github.com/rook/rook/pkg/operator/test"
@@ -46,7 +46,8 @@ func TestStartMGR(t *testing.T) {
 		ConfigDir: configDir,
 		Clientset: testop.New(3)}
 	volSize := resource.NewQuantity(100000.0, resource.BinarySI)
-	c := New(context, "ns", "myversion", "", "", *volSize, rookalpha.Placement{}, edgefsv1alpha1.NetworkSpec{}, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(context, "ns", "myversion", "", "", *volSize, rookalpha.Annotations{}, rookalpha.Placement{}, edgefsv1beta1.NetworkSpec{},
+		edgefsv1beta1.DashboardSpec{}, v1.ResourceRequirements{}, "", metav1.OwnerReference{})
 
 	// start a basic service
 	err := c.Start("edgefs")
@@ -62,7 +63,7 @@ func TestStartMGR(t *testing.T) {
 
 func validateStart(t *testing.T, c *Cluster) {
 
-	_, err := c.context.Clientset.ExtensionsV1beta1().Deployments(c.Namespace).Get("rook-edgefs-mgr", metav1.GetOptions{})
+	_, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Get("rook-edgefs-mgr", metav1.GetOptions{})
 	assert.Nil(t, err)
 
 	_, err = c.context.Clientset.CoreV1().Services(c.Namespace).Get("rook-edgefs-mgr", metav1.GetOptions{})
@@ -71,14 +72,15 @@ func validateStart(t *testing.T, c *Cluster) {
 
 func TestPodSpec(t *testing.T) {
 	volSize := resource.NewQuantity(100000.0, resource.BinarySI)
-	c := New(&clusterd.Context{Clientset: testop.New(1)}, "ns", "rook/rook:myversion", "", "", *volSize, rookalpha.Placement{}, edgefsv1alpha1.NetworkSpec{}, v1.ResourceRequirements{
-		Limits: v1.ResourceList{
-			v1.ResourceCPU: *resource.NewQuantity(100.0, resource.BinarySI),
-		},
-		Requests: v1.ResourceList{
-			v1.ResourceMemory: *resource.NewQuantity(1337.0, resource.BinarySI),
-		},
-	}, metav1.OwnerReference{})
+	c := New(&clusterd.Context{Clientset: testop.New(1)}, "ns", "rook/rook:myversion", "", "", *volSize, rookalpha.Annotations{}, rookalpha.Placement{},
+		edgefsv1beta1.NetworkSpec{}, edgefsv1beta1.DashboardSpec{}, v1.ResourceRequirements{
+			Limits: v1.ResourceList{
+				v1.ResourceCPU: *resource.NewQuantity(100.0, resource.BinarySI),
+			},
+			Requests: v1.ResourceList{
+				v1.ResourceMemory: *resource.NewQuantity(1337.0, resource.BinarySI),
+			},
+		}, "", metav1.OwnerReference{})
 
 	d := c.makeDeployment("mgr-a", "rook-edgefs", "edgefs", 1)
 	assert.NotNil(t, d)
@@ -112,17 +114,21 @@ func TestPodSpec(t *testing.T) {
 
 func TestServiceSpec(t *testing.T) {
 	volSize := resource.NewQuantity(100000.0, resource.BinarySI)
-	c := New(&clusterd.Context{}, "ns", "myversion", "", "", *volSize, rookalpha.Placement{}, edgefsv1alpha1.NetworkSpec{}, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(&clusterd.Context{}, "ns", "myversion", "", "", *volSize, rookalpha.Annotations{}, rookalpha.Placement{},
+		edgefsv1beta1.NetworkSpec{}, edgefsv1beta1.DashboardSpec{}, v1.ResourceRequirements{},
+		"", metav1.OwnerReference{})
 
 	s := c.makeMgrService("rook-edgefs-mgr")
 	assert.NotNil(t, s)
 	assert.Equal(t, "rook-edgefs-mgr", s.Name)
-	assert.Equal(t, 4, len(s.Spec.Ports))
+	assert.Equal(t, 1, len(s.Spec.Ports))
 }
 
 func TestHostNetwork(t *testing.T) {
 	volSize := resource.NewQuantity(100000.0, resource.BinarySI)
-	c := New(&clusterd.Context{Clientset: testop.New(1)}, "ns", "myversion", "", "", *volSize, rookalpha.Placement{}, edgefsv1alpha1.NetworkSpec{ServerIfName: "eth0"}, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(&clusterd.Context{Clientset: testop.New(1)}, "ns", "myversion", "", "", *volSize, rookalpha.Annotations{}, rookalpha.Placement{},
+		edgefsv1beta1.NetworkSpec{ServerIfName: "eth0"}, edgefsv1beta1.DashboardSpec{}, v1.ResourceRequirements{},
+		"", metav1.OwnerReference{})
 
 	d := c.makeDeployment("mgr-a", "a", "edgefs", 1)
 	assert.NotNil(t, d)

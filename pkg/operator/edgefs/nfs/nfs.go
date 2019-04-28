@@ -1,11 +1,11 @@
 /*
-Copyright 2016 The Rook Authors. All rights reserved.
+Copyright 2019 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-	http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,11 +20,11 @@ package nfs
 import (
 	"fmt"
 
-	edgefsv1alpha1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1alpha1"
+	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	apps "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -33,22 +33,23 @@ const (
 	appName = "rook-edgefs-nfs"
 
 	/* Volumes definitions */
-	dataVolumeName    = "edgefs-datadir"
-	stateVolumeFolder = ".state"
-	etcVolumeFolder   = ".etc"
+	serviceAccountName = "rook-edgefs-cluster"
+	dataVolumeName     = "edgefs-datadir"
+	stateVolumeFolder  = ".state"
+	etcVolumeFolder    = ".etc"
 )
 
 // Start the rgw manager
-func (c *NFSController) CreateService(s edgefsv1alpha1.NFS, ownerRefs []metav1.OwnerReference) error {
+func (c *NFSController) CreateService(s edgefsv1beta1.NFS, ownerRefs []metav1.OwnerReference) error {
 	return c.CreateOrUpdate(s, false, ownerRefs)
 }
 
-func (c *NFSController) UpdateService(s edgefsv1alpha1.NFS, ownerRefs []metav1.OwnerReference) error {
+func (c *NFSController) UpdateService(s edgefsv1beta1.NFS, ownerRefs []metav1.OwnerReference) error {
 	return c.CreateOrUpdate(s, true, ownerRefs)
 }
 
 // Start the nfs instance
-func (c *NFSController) CreateOrUpdate(s edgefsv1alpha1.NFS, update bool, ownerRefs []metav1.OwnerReference) error {
+func (c *NFSController) CreateOrUpdate(s edgefsv1beta1.NFS, update bool, ownerRefs []metav1.OwnerReference) error {
 	logger.Infof("starting update=%v service=%s", update, s.Name)
 
 	logger.Infof("NFS Base image is %s", c.rookImage)
@@ -69,7 +70,7 @@ func (c *NFSController) CreateOrUpdate(s edgefsv1alpha1.NFS, update bool, ownerR
 
 	// start the deployment
 	deployment := c.makeDeployment(s.Name, s.Namespace, c.rookImage, s.Spec)
-	if _, err := c.context.Clientset.ExtensionsV1beta1().Deployments(s.Namespace).Create(deployment); err != nil {
+	if _, err := c.context.Clientset.AppsV1().Deployments(s.Namespace).Create(deployment); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create %s deployment. %+v", appName, err)
 		}
@@ -102,7 +103,7 @@ func (c *NFSController) makeNFSService(name, svcname, namespace string) *v1.Serv
 		},
 		Spec: v1.ServiceSpec{
 			Selector: labels,
-			Type:     v1.ServiceTypeNodePort,
+			Type:     v1.ServiceTypeClusterIP,
 			Ports: []v1.ServicePort{
 				{Name: "grpc", Port: 49000, Protocol: v1.ProtocolTCP},
 				{Name: "nfs-tcp", Port: 2049, Protocol: v1.ProtocolTCP},
@@ -125,8 +126,7 @@ func (c *NFSController) makeNFSService(name, svcname, namespace string) *v1.Serv
 	return svc
 }
 
-func (c *NFSController) makeDeployment(svcname, namespace, rookImage string, nfsSpec edgefsv1alpha1.NFSSpec) *extensions.Deployment {
-
+func (c *NFSController) makeDeployment(svcname, namespace, rookImage string, nfsSpec edgefsv1beta1.NFSSpec) *apps.Deployment {
 	name := instanceName(svcname)
 	volumes := []v1.Volume{}
 
@@ -158,34 +158,42 @@ func (c *NFSController) makeDeployment(svcname, namespace, rookImage string, nfs
 			Labels: getLabels(name, svcname, namespace),
 		},
 		Spec: v1.PodSpec{
-			Containers:    []v1.Container{c.nfsContainer(svcname, name, rookImage, nfsSpec)},
-			RestartPolicy: v1.RestartPolicyAlways,
-			Volumes:       volumes,
-			HostIPC:       true,
-			HostNetwork:   c.hostNetwork,
-			NodeSelector:  map[string]string{namespace: "cluster"},
+			Containers:         []v1.Container{c.nfsContainer(svcname, name, rookImage, nfsSpec)},
+			RestartPolicy:      v1.RestartPolicyAlways,
+			Volumes:            volumes,
+			HostIPC:            true,
+			HostNetwork:        c.hostNetwork,
+			NodeSelector:       map[string]string{namespace: "cluster"},
+			ServiceAccountName: serviceAccountName,
 		},
 	}
 	if c.hostNetwork {
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
+	nfsSpec.Annotations.ApplyToObjectMeta(&podSpec.ObjectMeta)
 
 	// apply current NFS CRD options to pod's specification
 	nfsSpec.Placement.ApplyToPodSpec(&podSpec.Spec)
 
-	d := &extensions.Deployment{
+	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec: extensions.DeploymentSpec{Template: podSpec, Replicas: &nfsSpec.Instances},
+		Spec: apps.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: podSpec.Labels,
+			},
+			Template: podSpec,
+			Replicas: &nfsSpec.Instances,
+		},
 	}
 	k8sutil.SetOwnerRef(c.context.Clientset, namespace, &d.ObjectMeta, &c.ownerRef)
+	nfsSpec.Annotations.ApplyToObjectMeta(&d.ObjectMeta)
 	return d
 }
 
-func (c *NFSController) nfsContainer(svcname, name, containerImage string, nfsSpec edgefsv1alpha1.NFSSpec) v1.Container {
-
+func (c *NFSController) nfsContainer(svcname, name, containerImage string, nfsSpec edgefsv1beta1.NFSSpec) v1.Container {
 	runAsUser := int64(0)
 	readOnlyRootFilesystem := false
 	securityContext := &v1.SecurityContext{
@@ -196,7 +204,7 @@ func (c *NFSController) nfsContainer(svcname, name, containerImage string, nfsSp
 		},
 	}
 
-	return v1.Container{
+	cont := v1.Container{
 		Name:            name,
 		Image:           containerImage,
 		ImagePullPolicy: v1.PullAlways,
@@ -249,10 +257,23 @@ func (c *NFSController) nfsContainer(svcname, name, containerImage string, nfsSp
 			},
 		},
 	}
+
+	if nfsSpec.RelaxedDirUpdates {
+		cont.Env = append(cont.Env, v1.EnvVar{
+			Name:  "EFSNFS_RELAXED_DIR_UPDATES",
+			Value: "1",
+		})
+	}
+
+	cont.Env = append(cont.Env, edgefsv1beta1.GetInitiatorEnvArr("nfs",
+		c.resourceProfile == "embedded" || nfsSpec.ResourceProfile == "embedded",
+		nfsSpec.ChunkCacheSize, nfsSpec.Resources)...)
+
+	return cont
 }
 
 // Delete NFS service and possibly some artifacts.
-func (c *NFSController) DeleteService(s edgefsv1alpha1.NFS) error {
+func (c *NFSController) DeleteService(s edgefsv1beta1.NFS) error {
 	// check if service  exists
 	exists, err := serviceExists(c.context, s)
 	if err != nil {
@@ -295,7 +316,7 @@ func getLabels(name, svcname, namespace string) map[string]string {
 }
 
 // Validate the NFS arguments
-func validateService(context *clusterd.Context, s edgefsv1alpha1.NFS) error {
+func validateService(context *clusterd.Context, s edgefsv1beta1.NFS) error {
 	if s.Name == "" {
 		return fmt.Errorf("missing name")
 	}
@@ -311,8 +332,8 @@ func instanceName(svcname string) string {
 }
 
 // Check if the NFS service exists
-func serviceExists(context *clusterd.Context, s edgefsv1alpha1.NFS) (bool, error) {
-	_, err := context.Clientset.ExtensionsV1beta1().Deployments(s.Namespace).Get(instanceName(s.Name), metav1.GetOptions{})
+func serviceExists(context *clusterd.Context, s edgefsv1beta1.NFS) (bool, error) {
+	_, err := context.Clientset.AppsV1().Deployments(s.Namespace).Get(instanceName(s.Name), metav1.GetOptions{})
 	if err == nil {
 		// the deployment was found
 		return true, nil

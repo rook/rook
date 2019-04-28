@@ -1,0 +1,17 @@
+# edgefs-iscsi-csi-driver config file to create k8s secret
+#
+# $ kubectl create secret generic edgefs-iscsi-csi-driver-config --from-file=./edgefs-iscsi-csi-driver-config.yaml
+#
+
+#Edgefs k8s cluster options
+k8sEdgefsNamespaces: ["rook-edgefs"] #element 0 is a default edgefs cluster namespace, add more when needed
+k8sEdgefsMgmtPrefix: rook-edgefs-mgr #edgefs cluster management prefix
+
+#Edgefs csi operatins options
+cluster: cltest #substitution edgefs cluster name for csi operations
+tenant: test    #substitution edgefs tenant name for csi operations
+bucket: bk1     #substitution edgefs bucket name for csi operations
+
+# Edgefs connnection options
+username: admin #edgefs k8s cluster grpc connection username
+password: admin #edgefs k8s cluster  grpc connection password

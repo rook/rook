@@ -56,6 +56,9 @@ type ObjectStoreSpec struct {
 	// A spec for available storage in the cluster and how it should be used
 	Storage rook.StorageScopeSpec `json:"scope,omitempty"`
 
+	// The annotations to add/set on each Pod related object.
+	Annotations rook.Annotations `json:"annotations,omitempty"`
+
 	// The placement-related configuration to pass to kubernetes (affinity, node selector,
 	// tolerations).
 	Placement rook.PlacementSpec `json:"placement,omitempty"`

@@ -32,6 +32,7 @@ var (
 type TestClient struct {
 	BlockClient      *BlockOperation
 	FSClient         *FilesystemOperation
+	NFSClient        *NFSOperation
 	ObjectClient     *ObjectOperation
 	ObjectUserClient *ObjectUserOperation
 	PoolClient       *PoolOperation
@@ -47,6 +48,7 @@ func CreateTestClient(k8sHelper *utils.K8sHelper, manifests installer.CephManife
 	return &TestClient{
 		CreateBlockOperation(k8sHelper, manifests),
 		CreateFilesystemOperation(k8sHelper, manifests),
+		CreateNFSOperation(k8sHelper, manifests),
 		CreateObjectOperation(k8sHelper, manifests),
 		CreateObjectUserOperation(k8sHelper, manifests),
 		CreatePoolOperation(k8sHelper, manifests),
@@ -57,7 +59,7 @@ func CreateTestClient(k8sHelper *utils.K8sHelper, manifests installer.CephManife
 // Status returns rook status details
 func (c TestClient) Status(namespace string) (client.CephStatus, error) {
 	context := c.k8sh.MakeContext()
-	status, err := client.Status(context, namespace)
+	status, err := client.Status(context, namespace, false)
 	if err != nil {
 		return client.CephStatus{}, fmt.Errorf("failed to get status: %+v", err)
 	}

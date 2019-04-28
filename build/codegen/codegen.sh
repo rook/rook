@@ -23,7 +23,7 @@ cd "${scriptdir}/../../vendor/k8s.io/code-generator" && ./generate-groups.sh \
     all \
     github.com/rook/rook/pkg/client \
     github.com/rook/rook/pkg/apis \
-    "rook.io:v1alpha2 ceph.rook.io:v1beta1,v1 cockroachdb.rook.io:v1alpha1 minio.rook.io:v1alpha1 nfs.rook.io:v1alpha1 cassandra.rook.io:v1alpha1 edgefs.rook.io:v1alpha1"
+    "rook.io:v1alpha2 ceph.rook.io:v1beta1,v1 cockroachdb.rook.io:v1alpha1 minio.rook.io:v1alpha1 nfs.rook.io:v1alpha1 cassandra.rook.io:v1alpha1 edgefs.rook.io:v1beta1"
 # this seems busted in the release-1.8 branch
 #  --go-header-file ${SCRIPT_ROOT}/build/codegen/header.txt
 
@@ -42,3 +42,13 @@ find "${scriptdir}/../../pkg/client" -name "clientset_generated.go" -exec \
     $SED 's/return \&Clientset{fakePtr, \&fakediscovery.FakeDiscovery{Fake: \&fakePtr}}/cs.discovery = \&fakediscovery.FakeDiscovery{Fake: \&cs.Fake}\
 	return cs/g' {} +
 find "${scriptdir}/../../pkg/client" -name "clientset_generated.go.bak" -delete
+
+# Code generation does not respect the plural version of the CRD name unless it simply appends "s".
+# In this case the plural for cephnfs should be cephnfses.
+find "${scriptdir}/../../pkg/client" -name "*.go" -exec \
+    $SED 's/cephnfss/cephnfses/g' {} +
+find "${scriptdir}/../../pkg/client" -name "*.go" -exec \
+    $SED 's/CephNFSs/CephNFSes/g' {} +
+find "${scriptdir}/../../pkg/client" -name "*.go" -exec \
+    $SED 's/cephNFSs/cephNFSes/g' {} +
+find "${scriptdir}/../../pkg/client" -name "*.go.bak" -delete

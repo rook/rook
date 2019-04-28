@@ -119,7 +119,7 @@ func (c *FakeCephClusters) DeleteCollection(options *v1.DeleteOptions, listOptio
 // Patch applies the patch and returns the patched cephCluster.
 func (c *FakeCephClusters) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *cephrookiov1.CephCluster, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(cephclustersResource, c.ns, name, data, subresources...), &cephrookiov1.CephCluster{})
+		Invokes(testing.NewPatchSubresourceAction(cephclustersResource, c.ns, name, pt, data, subresources...), &cephrookiov1.CephCluster{})
 
 	if obj == nil {
 		return nil, err

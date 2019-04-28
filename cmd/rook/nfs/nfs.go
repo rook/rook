@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package nfs
 
 import (
@@ -25,9 +26,8 @@ import (
 )
 
 var Cmd = &cobra.Command{
-	Use:    "nfs",
-	Short:  "Main command for NFS operator and daemons.",
-	Hidden: true,
+	Use:   "nfs",
+	Short: "Main command for NFS operator and daemons.",
 }
 
 var (
@@ -36,6 +36,8 @@ var (
 
 func init() {
 	Cmd.AddCommand(operatorCmd)
+	Cmd.AddCommand(provisonerCmd)
+	Cmd.AddCommand(serverCmd)
 }
 
 func createContext() *clusterd.Context {

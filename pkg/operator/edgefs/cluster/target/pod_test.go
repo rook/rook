@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-	http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,7 +19,7 @@ package target
 import (
 	"testing"
 
-	edgefsv1alpha1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1alpha1"
+	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/edgefs/cluster/target/config"
@@ -63,10 +63,11 @@ func TestStorageSpecConfig(t *testing.T) {
 	}
 
 	clientset := fake.NewSimpleClientset()
-	deploymentConfig := edgefsv1alpha1.ClusterDeploymentConfig{}
+	deploymentConfig := edgefsv1beta1.ClusterDeploymentConfig{}
 	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", "",
 		storageSpec, "", *resource.NewQuantity(100000.0, resource.BinarySI),
-		rookalpha.Placement{}, edgefsv1alpha1.NetworkSpec{}, v1.ResourceRequirements{}, metav1.OwnerReference{}, deploymentConfig)
+		rookalpha.Annotations{}, rookalpha.Placement{}, edgefsv1beta1.NetworkSpec{}, v1.ResourceRequirements{}, "", *resource.NewQuantity(0.0, resource.BinarySI),
+		metav1.OwnerReference{}, deploymentConfig)
 
 	n := c.Storage.ResolveNode(storageSpec.Nodes[0].Name)
 	storeConfig := config.ToStoreConfig(storageSpec.Nodes[0].Config)
@@ -82,9 +83,9 @@ func TestStorageSpecConfig(t *testing.T) {
 
 	//check default config options
 	assert.Equal(t, storeConfig.RtVerifyChid, 1)
-	assert.Equal(t, storeConfig.LmdbPageSize, 16348)
+	assert.Equal(t, storeConfig.LmdbPageSize, 16384)
 	assert.Equal(t, storeConfig.UseMetadataMask, "0xff")
-	assert.Equal(t, storeConfig.RtrdPLevelOverride, 0)
+	assert.Equal(t, storeConfig.RtPLevelOverride, 0)
 	assert.Equal(t, storeConfig.Sync, 1)
 
 	logger.Infof("Node Config is %+v", n.Config)

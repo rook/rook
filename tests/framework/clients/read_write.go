@@ -38,7 +38,7 @@ func (f *NfsClientOperation) CreateReadWriteClient(name string, volName string) 
 	logger.Infof("creating the filesystem via replication controller")
 	writerSpec := getReadWriteReplicationController(name, volName)
 
-	if _, err := f.k8sh.ResourceOperation("create", writerSpec); err != nil {
+	if err := f.k8sh.ResourceOperation("create", writerSpec); err != nil {
 		return nil, err
 	}
 
@@ -92,7 +92,6 @@ func (f *NfsClientOperation) Read(name string) (string, error) {
 
 	}
 	return result, nil
-
 }
 
 func getReadWriteReplicationController(name string, volName string) string {

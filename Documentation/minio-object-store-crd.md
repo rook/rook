@@ -1,6 +1,6 @@
 ---
 title: Minio Object Store CRD
-weight: 70
+weight: 7000
 ---
 
 # Minio Object Store CRD
@@ -49,6 +49,9 @@ spec:
     name: minio-my-store-access-keys
     namespace: rook-minio
   clusterDomain:
+  # A key/value list of annotations
+  annotations:
+  #  key: value
 ```
 
 ## Cluster Settings
@@ -57,9 +60,10 @@ spec:
 
 The settings below are specific to Minio object stores:
 
+* `scope`: See [Storage Scope](#storage-scope).
 * `credentials`: This accepts the `name` and `namespace` strings of an existing Secret to specify the access credentials for the object store.
-* `storageAmount`: The size of the volume that will be mounted at the data directory.
 * `clusterDomain`: The local cluster domain for this cluster. This should be set if an alternative cluster domain is in use.  If not set, then the default of cluster.local will be assumed.  This field is needed to workaround https://github.com/minio/minio/issues/6775, and is expected to be removed in the future.
+* `annotations`: Key value pair list of annotations to add.
 
 ### Storage Scope
 

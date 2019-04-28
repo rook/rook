@@ -89,6 +89,13 @@ func (in *ObjectStoreList) DeepCopyObject() runtime.Object {
 func (in *ObjectStoreSpec) DeepCopyInto(out *ObjectStoreSpec) {
 	*out = *in
 	in.Storage.DeepCopyInto(&out.Storage)
+	if in.Annotations != nil {
+		in, out := &in.Annotations, &out.Annotations
+		*out = make(v1alpha2.Annotations, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	if in.Placement != nil {
 		in, out := &in.Placement, &out.Placement
 		*out = make(v1alpha2.PlacementSpec, len(*in))

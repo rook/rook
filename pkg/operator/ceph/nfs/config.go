@@ -84,6 +84,7 @@ RADOS_KV {
 RADOS_URLS {
 	ceph_conf = '` + cephConfigPath + `';
 	userid = ` + userID + `;
+	watch_url = '` + url + `';
 }
 
 %url	` + url + `

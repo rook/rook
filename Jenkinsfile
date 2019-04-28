@@ -2,9 +2,7 @@
 
 pipeline {
    parameters {
-         booleanParam(defaultValue: true, description: 'Execute pipeline?', name: 'shouldBuild')
-         booleanParam(defaultValue: false, description: 'Run Only Smoke Test', name: 'smokeOnly')
-
+         booleanParam(defaultValue: false, description: 'Skip Integration Tests?', name: 'skipIntegrationTests')
       }
     agent { label 'ec2-stateful' }
 
@@ -57,10 +55,30 @@ pipeline {
             }
         }
 
-       stage('Integration Tests') {
+        stage('Publish if Master') {
             when {
                 expression {
-                    return env.shouldBuild != "false" && env.shouldTest != "false"
+                    return env.BRANCH_NAME == "master"
+                }
+            }
+            environment {
+                DOCKER = credentials('rook-docker-hub')
+                AWS = credentials('rook-jenkins-aws')
+                GIT = credentials('rook-github')
+            }
+            steps {
+                sh 'docker login -u="${DOCKER_USR}" -p="${DOCKER_PSW}"'
+                sh 'build/run make -j\$(nproc) -C build/release build BRANCH_NAME=${BRANCH_NAME} GIT_API_TOKEN=${GIT_PSW}'
+                sh 'build/run make -j\$(nproc) -C build/release publish BRANCH_NAME=${BRANCH_NAME} AWS_ACCESS_KEY_ID=${AWS_USR} AWS_SECRET_ACCESS_KEY=${AWS_PSW} GIT_API_TOKEN=${GIT_PSW}'
+                // automatically promote the master builds
+                sh 'build/run make -j\$(nproc) -C build/release promote BRANCH_NAME=master CHANNEL=master AWS_ACCESS_KEY_ID=${AWS_USR} AWS_SECRET_ACCESS_KEY=${AWS_PSW}'
+            }
+        }
+
+        stage('Integration Tests') {
+            when {
+                expression {
+                    return env.shouldBuild != "false" && env.shouldTest != "false" && !params.skipIntegrationTests
                 }
             }
             steps{
@@ -68,10 +86,11 @@ pipeline {
                 stash name: 'repo-amd64',includes: 'ceph-amd64.tar,cockroachdb-amd64.tar,cassandra-amd64.tar,nfs-amd64.tar,build/common.sh,_output/tests/linux_amd64/,_output/charts/,tests/scripts/'
                 script{
                     def data = [
-                        "aws_1.10.x": "v1.10.11",
-                        "aws_1.11.x": "v1.11.5",
-                        "aws_1.12.x": "v1.12.3",
-                        "gce_1.13.x": "v1.13.1"
+                        "aws_1.10.x": "v1.10.12",
+                        "aws_1.11.x": "v1.11.8",
+                        "aws_1.12.x": "v1.12.6",
+                        "aws_1.13.x": "v1.13.4",
+                        "aws_1.14.x": "v1.14.1"
                     ]
                     testruns = [:]
                     for (kv in mapToList(data)) {
@@ -91,10 +110,11 @@ pipeline {
                 }
             }
         }
-        stage('Publish') {
+
+        stage('Publish if Release') {
             when {
                 expression {
-                    return env.shouldBuild != "false" && env.shouldTest != "false"
+                    return env.BRANCH_NAME.contains("release-")
                 }
             }
             environment {
@@ -106,7 +126,6 @@ pipeline {
                 sh 'docker login -u="${DOCKER_USR}" -p="${DOCKER_PSW}"'
                 sh 'build/run make -j\$(nproc) -C build/release build BRANCH_NAME=${BRANCH_NAME} GIT_API_TOKEN=${GIT_PSW}'
                 sh 'build/run make -j\$(nproc) -C build/release publish BRANCH_NAME=${BRANCH_NAME} AWS_ACCESS_KEY_ID=${AWS_USR} AWS_SECRET_ACCESS_KEY=${AWS_PSW} GIT_API_TOKEN=${GIT_PSW}'
-                sh '[ "${BRANCH_NAME}" != "master" ] || build/run make -j\$(nproc) -C build/release promote BRANCH_NAME=master CHANNEL=master AWS_ACCESS_KEY_ID=${AWS_USR} AWS_SECRET_ACCESS_KEY=${AWS_PSW}'
             }
         }
     }
@@ -205,7 +224,7 @@ def notifySlack(String buildStatus) {
     // Override default values based on build status
     if (buildStatus != 'SUCCESS') {
         // Send notifications to channel on non success builds only
-        if (env.BRANCH_NAME == "master" || env.BRANCH_NAME.contains("release")){
+        if (env.BRANCH_NAME == "master" || env.BRANCH_NAME.contains("release-")){
             slackSend (color: colorCode, message: summary)
         }
     }

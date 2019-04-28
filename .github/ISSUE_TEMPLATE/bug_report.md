@@ -1,6 +1,7 @@
 ---
 name: Bug report
 about: Create a report to help us improve
+labels: bug
 ---
 <!-- **Are you in the right place?**
 1. For issues or feature requests, please create an issue in this repository.

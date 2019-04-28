@@ -1,6 +1,6 @@
 ---
 title: NFS CRD
-weight: 31
+weight: 3100
 indent: true
 ---
 
@@ -32,6 +32,9 @@ spec:
   server:
     # the number of active NFS servers
     active: 2
+    # A key/value list of annotations
+    annotations:
+    #  key: value
     # where to run the NFS server
     placement:
     #  nodeAffinity:
@@ -61,8 +64,8 @@ spec:
 
 ### RADOS Settings
 
-- `pool`: The pool where ganesha recovery backend and supplimental configuration objects will be stored
-- `namespace`: The namespace in `pool` where ganesha recovery backend and supplimental configuration objects will be stored
+- `pool`: The pool where ganesha recovery backend and supplemental configuration objects will be stored
+- `namespace`: The namespace in `pool` where ganesha recovery backend and supplemental configuration objects will be stored
 
 ## EXPORT Block Configuration
 
@@ -75,3 +78,16 @@ Each daemon will have a stock configuration with no exports defined, and that in
 The pool and namespace are configured via the spec's RADOS block. The nodeid is a value automatically assigned internally by rook. Nodeids start with "a" and go through "z", at which point they become two letters ("aa" to "az").
 
 When a server is started, it will create the included object if it does not already exist. It is possible to prepopulate the included objects prior to starting the server. The format for these objects is documented in the [NFS Ganesha](https://github.com/nfs-ganesha/nfs-ganesha/wiki) project.
+
+## Scaling the active server count
+
+It is possible to scale the size of the cluster up or down by modifying
+the spec.server.active field. Scaling the cluster size up can be done at
+will. Once the new server comes up, clients can be assigned to it
+immediately.
+
+The CRD always eliminates the highest index servers first, in reverse
+order from how they were started. Scaling down the cluster requires that
+clients be migrated from servers that will be eliminated to others. That
+process is currently a manual one and should be performed before
+reducing the size of the cluster.

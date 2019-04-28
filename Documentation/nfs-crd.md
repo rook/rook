@@ -1,6 +1,6 @@
 ---
 title: NFS Server CRD
-weight: 80
+weight: 8000
 ---
 
 # NFS Server CRD
@@ -32,27 +32,31 @@ spec:
       squash: none
     persistentVolumeClaim:
       claimName: googlePD-claim
+  # A key/value list of annotations
+  annotations:
+  #  key: value
 ```
 
 ## Settings
 
 The table below explains in detail each configuration option that is available in the NFS CRD.
 
-| Parameter                                 | Description                              | Default                       |
-|-------------------------------------------|------------------------------------------|-------------------------------|
-| `replicas`                                | The number of NFS daemon to start        | `1`                           |
-| `exports`                                 | Parameters for creating an export        | `<empty>`                      |
-| `exports.name`                            | Name of the volume being shared          | `<empty>`                      |
-| `exports.server`                          | NFS server configuration                 | `<empty>`                      |
-| `exports.server.accessMode` | Volume access modes (Reading and Writing) for the share (Valid options are `ReadOnly`, `ReadWrite` and `none`) | `ReadWrite` |
-| `exports.server.squash` | This prevents root users connected remotely from having root privileges (valid options are `none`, `rootId`, `root` and `all`) | `none` |
-| `exports.server.allowedClients`           | Access configuration for clients that can consume the NFS volume         | `<empty>` |
-| `exports.server.allowedClients.name`      | Name of the host/hosts                                                   | `<empty>` |
-| `exports.server.allowedClients.clients`   | The host or network to which the export is being shared. Valid entries for this field are host names, IP addresses, netgroups, and CIDR network addresses. | `<empty>` |
-| `exports.server.allowedClients.accessMode` | Reading and Writing permissions for the client* (valid options are same as `exports.server.accessMode`) | `ReadWrite` |
-| `exports.server.allowedClients.squash`    | Squash option for the client* (valid options are same as `exports.server.squash`)    | `none`     |
-| `exports.persistentVolumeClaim`      | The PVC that will serve as the backing volume to be exported by the NFS server. Any PVC is allowed, such as host paths, CephFS, Ceph RBD, Google PD, Amazon EBS, etc.. | `<empty>` |
-| `exports.persistentVolumeClaim.claimName` | Name of the PVC                                         | `<empty>`    |
+| Parameter                                  | Description                                                                                                                                                            | Default     |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| `replicas`                                 | The number of NFS daemon to start                                                                                                                                      | `1`         |
+| `annotations`                              | Key value pair list of annotations to add.                                                                                                                             | `[]`        |
+| `exports`                                  | Parameters for creating an export                                                                                                                                      | `<empty>`   |
+| `exports.name`                             | Name of the volume being shared                                                                                                                                        | `<empty>`   |
+| `exports.server`                           | NFS server configuration                                                                                                                                               | `<empty>`   |
+| `exports.server.accessMode`                | Volume access modes (Reading and Writing) for the share (Valid options are `ReadOnly`, `ReadWrite` and `none`)                                                         | `ReadWrite` |
+| `exports.server.squash`                    | This prevents root users connected remotely from having root privileges (valid options are `none`, `rootId`, `root` and `all`)                                         | `none`      |
+| `exports.server.allowedClients`            | Access configuration for clients that can consume the NFS volume                                                                                                       | `<empty>`   |
+| `exports.server.allowedClients.name`       | Name of the host/hosts                                                                                                                                                 | `<empty>`   |
+| `exports.server.allowedClients.clients`    | The host or network to which the export is being shared. Valid entries for this field are host names, IP addresses, netgroups, and CIDR network addresses.             | `<empty>`   |
+| `exports.server.allowedClients.accessMode` | Reading and Writing permissions for the client* (valid options are same as `exports.server.accessMode`)                                                                | `ReadWrite` |
+| `exports.server.allowedClients.squash`     | Squash option for the client* (valid options are same as `exports.server.squash`)                                                                                      | `none`      |
+| `exports.persistentVolumeClaim`            | The PVC that will serve as the backing volume to be exported by the NFS server. Any PVC is allowed, such as host paths, CephFS, Ceph RBD, Google PD, Amazon EBS, etc.. | `<empty>`   |
+| `exports.persistentVolumeClaim.claimName`  | Name of the PVC                                                                                                                                                        | `<empty>`   |
 
 *note: if `exports.server.allowedClients.accessMode` and `exports.server.allowedClients.squash` options are specified, `exports.server.accessMode` and `exports.server.squash` are overridden respectively.
 

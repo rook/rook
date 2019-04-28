@@ -21,21 +21,23 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
-	"strconv"
-	"strings"
+	"sync"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/rbd"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	batch "k8s.io/api/batch/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -44,30 +46,59 @@ const (
 	detectVersionName = "rook-ceph-detect-version"
 )
 
-var (
-	// supportedVersions are production-ready versions that rook supports
-	supportedVersions = []string{cephv1.Luminous, cephv1.Mimic}
-	// allVersions includes all supportedVersions as well as unreleased versions that are being tested with rook
-	allVersions = append(supportedVersions, cephv1.Nautilus)
-)
-
 type cluster struct {
-	context   *clusterd.Context
-	Namespace string
-	Spec      *cephv1.ClusterSpec
-	mons      *mon.Cluster
-	stopCh    chan struct{}
-	ownerRef  metav1.OwnerReference
+	Info                 *cephconfig.ClusterInfo
+	context              *clusterd.Context
+	Namespace            string
+	Spec                 *cephv1.ClusterSpec
+	mons                 *mon.Cluster
+	stopCh               chan struct{}
+	ownerRef             metav1.OwnerReference
+	orchestrationRunning bool
+	orchestrationNeeded  bool
+	orchMux              sync.Mutex
+	childControllers     []childController
+}
+
+// ChildController is implemented by CRs that are owned by the CephCluster
+type childController interface {
+	// ParentClusterChanged is called when the CephCluster CR is updated, for example for a newer ceph version
+	ParentClusterChanged(cluster cephv1.ClusterSpec, clusterInfo *cephconfig.ClusterInfo)
 }
 
 func newCluster(c *cephv1.CephCluster, context *clusterd.Context) *cluster {
-	return &cluster{Namespace: c.Namespace, Spec: &c.Spec, context: context,
-		stopCh:   make(chan struct{}),
-		ownerRef: ClusterOwnerRef(c.Namespace, string(c.UID))}
+	ownerRef := ClusterOwnerRef(c.Namespace, string(c.UID))
+	return &cluster{
+		// at this phase of the cluster creation process, the identity components of the cluster are
+		// not yet established. we reserve this struct which is filled in as soon as the cluster's
+		// identity can be established.
+		Info:      nil,
+		Namespace: c.Namespace,
+		Spec:      &c.Spec,
+		context:   context,
+		stopCh:    make(chan struct{}),
+		ownerRef:  ownerRef,
+		mons:      mon.New(context, c.Namespace, c.Spec.DataDirHostPath, c.Spec.Network.HostNetwork, ownerRef),
+	}
 }
 
-func (c *cluster) detectCephMajorVersion(image string, timeout time.Duration) (string, error) {
+func (c *cluster) detectCephVersion(image string, timeout time.Duration) (*cephver.CephVersion, error) {
 	// get the major ceph version by running "ceph --version" in the ceph image
+	podSpec := v1.PodSpec{
+		Containers: []v1.Container{
+			{
+				Command: []string{"ceph"},
+				Args:    []string{"--version"},
+				Name:    "version",
+				Image:   image,
+			},
+		},
+		RestartPolicy: v1.RestartPolicyOnFailure,
+	}
+
+	// apply "mon" placement
+	cephv1.GetMonPlacement(c.Spec.Placement).ApplyToPodSpec(&podSpec)
+
 	job := &batch.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      detectVersionName,
@@ -80,39 +111,30 @@ func (c *cluster) detectCephMajorVersion(image string, timeout time.Duration) (s
 						"job": detectVersionName,
 					},
 				},
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{
-						{
-							Command: []string{"ceph"},
-							Args:    []string{"--version"},
-							Name:    "version",
-							Image:   image,
-						},
-					},
-					RestartPolicy: v1.RestartPolicyOnFailure,
-				},
+				Spec: podSpec,
 			},
 		},
 	}
+	k8sutil.AddRookVersionLabelToJob(job)
 	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &job.ObjectMeta, &c.ownerRef)
 
 	// run the job to detect the version
 	if err := k8sutil.RunReplaceableJob(c.context.Clientset, job); err != nil {
-		return "", fmt.Errorf("failed to start version job. %+v", err)
+		return nil, fmt.Errorf("failed to start version job. %+v", err)
 	}
 
 	if err := k8sutil.WaitForJobCompletion(c.context.Clientset, job, timeout); err != nil {
-		return "", fmt.Errorf("failed to complete version job. %+v", err)
+		return nil, fmt.Errorf("failed to complete version job. %+v", err)
 	}
 
 	log, err := k8sutil.GetPodLog(c.context.Clientset, c.Namespace, "job="+detectVersionName)
 	if err != nil {
-		return "", fmt.Errorf("failed to get version job log to detect version. %+v", err)
+		return nil, fmt.Errorf("failed to get version job log to detect version. %+v", err)
 	}
 
-	version, err := extractCephVersion(log)
+	version, err := cephver.ExtractCephVersion(log)
 	if err != nil {
-		return "", fmt.Errorf("failed to extract ceph version. %+v", err)
+		return nil, fmt.Errorf("failed to extract ceph version. %+v", err)
 	}
 
 	// delete the job since we're done with it
@@ -122,8 +144,29 @@ func (c *cluster) detectCephMajorVersion(image string, timeout time.Duration) (s
 	return version, nil
 }
 
-func (c *cluster) createInstance(rookImage string) error {
+func (c *cluster) createInstance(rookImage string, cephVersion cephver.CephVersion) error {
+	var err error
+	c.setOrchestrationNeeded()
 
+	// execute an orchestration until
+	// there are no more unapplied changes to the cluster definition and
+	// while no other goroutine is already running a cluster update
+	for c.checkSetOrchestrationStatus() == true {
+		if err != nil {
+			logger.Errorf("There was an orchestration error, but there is another orchestration pending; proceeding with next orchestration run (which may succeed). %+v", err)
+		}
+		// Use a DeepCopy of the spec to avoid using an inconsistent data-set
+		spec := c.Spec.DeepCopy()
+
+		err = c.doOrchestration(rookImage, cephVersion, spec)
+
+		c.unsetOrchestrationStatus()
+	}
+
+	return err
+}
+
+func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVersion, spec *cephv1.ClusterSpec) error {
 	// Create a configmap for overriding ceph config settings
 	// These settings should only be modified by a user after they are initialized
 	placeholderConfig := map[string]string{
@@ -136,18 +179,21 @@ func (c *cluster) createInstance(rookImage string) error {
 		Data: placeholderConfig,
 	}
 	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &cm.ObjectMeta, &c.ownerRef)
-
 	_, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(cm)
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return fmt.Errorf("failed to create override configmap %s. %+v", c.Namespace, err)
 	}
 
 	// Start the mon pods
-	c.mons = mon.New(c.context, c.Namespace, c.Spec.DataDirHostPath, rookImage, c.Spec.CephVersion, c.Spec.Mon, cephv1.GetMonPlacement(c.Spec.Placement),
-		c.Spec.Network.HostNetwork, cephv1.GetMonResources(c.Spec.Resources), c.ownerRef)
-	err = c.mons.Start()
+	clusterInfo, err := c.mons.Start(c.Info, rookImage, cephVersion, *c.Spec)
 	if err != nil {
 		return fmt.Errorf("failed to start the mons. %+v", err)
+	}
+	c.Info = clusterInfo // mons return the cluster's info
+
+	// The cluster Identity must be established at this point
+	if !c.Info.IsInitialized() {
+		return fmt.Errorf("the cluster identity was not established: %+v", c.Info)
 	}
 
 	err = c.createInitialCrushMap()
@@ -155,30 +201,39 @@ func (c *cluster) createInstance(rookImage string) error {
 		return fmt.Errorf("failed to create initial crushmap: %+v", err)
 	}
 
-	mgrs := mgr.New(c.context, c.Namespace, rookImage, c.Spec.CephVersion, cephv1.GetMgrPlacement(c.Spec.Placement),
-		c.Spec.Network.HostNetwork, c.Spec.Dashboard, cephv1.GetMgrResources(c.Spec.Resources), c.ownerRef)
+	mgrs := mgr.New(c.Info, c.context, c.Namespace, rookImage,
+		spec.CephVersion, cephv1.GetMgrPlacement(spec.Placement), cephv1.GetMgrAnnotations(c.Spec.Annotations),
+		spec.Network.HostNetwork, spec.Dashboard, cephv1.GetMgrResources(spec.Resources), c.ownerRef, c.Spec.DataDirHostPath)
 	err = mgrs.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the ceph mgr. %+v", err)
 	}
 
 	// Start the OSDs
-	osds := osd.New(c.context, c.Namespace, rookImage, c.Spec.CephVersion, c.Spec.Storage, c.Spec.DataDirHostPath,
-		cephv1.GetOSDPlacement(c.Spec.Placement), c.Spec.Network.HostNetwork, cephv1.GetOSDResources(c.Spec.Resources), c.ownerRef)
+	osds := osd.New(c.Info, c.context, c.Namespace, rookImage, spec.CephVersion, spec.Storage, spec.DataDirHostPath,
+		cephv1.GetOSDPlacement(spec.Placement), cephv1.GetOSDAnnotations(spec.Annotations), spec.Network.HostNetwork,
+		cephv1.GetOSDResources(spec.Resources), c.ownerRef)
 	err = osds.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the osds. %+v", err)
 	}
 
 	// Start the rbd mirroring daemon(s)
-	rbdmirror := rbd.New(c.context, c.Namespace, rookImage, c.Spec.CephVersion, cephv1.GetRBDMirrorPlacement(c.Spec.Placement),
-		c.Spec.Network.HostNetwork, c.Spec.RBDMirroring, cephv1.GetRBDMirrorResources(c.Spec.Resources), c.ownerRef)
+	rbdmirror := rbd.New(c.Info, c.context, c.Namespace, rookImage, spec.CephVersion, cephv1.GetRBDMirrorPlacement(spec.Placement),
+		cephv1.GetRBDMirrorAnnotations(spec.Annotations), spec.Network.HostNetwork, spec.RBDMirroring,
+		cephv1.GetRBDMirrorResources(spec.Resources), c.ownerRef, c.Spec.DataDirHostPath)
 	err = rbdmirror.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the rbd mirrors. %+v", err)
 	}
 
 	logger.Infof("Done creating rook instance in namespace %s", c.Namespace)
+
+	// Notify the child controllers that the cluster spec might have changed
+	for _, child := range c.childControllers {
+		child.ParentClusterChanged(*c.Spec, clusterInfo)
+	}
+
 	return nil
 }
 
@@ -241,95 +296,47 @@ func (c *cluster) createInitialCrushMap() error {
 	return nil
 }
 
-func clusterChanged(oldCluster, newCluster cephv1.ClusterSpec, clusterRef *cluster) bool {
-	changeFound := false
-	oldStorage := oldCluster.Storage
-	newStorage := newCluster.Storage
+func clusterChanged(oldCluster, newCluster cephv1.ClusterSpec, clusterRef *cluster) (bool, string) {
 
 	// sort the nodes by name then compare to see if there are changes
-	sort.Sort(rookv1alpha2.NodesByName(oldStorage.Nodes))
-	sort.Sort(rookv1alpha2.NodesByName(newStorage.Nodes))
-	if !reflect.DeepEqual(oldStorage.Nodes, newStorage.Nodes) {
-		logger.Infof("The list of nodes has changed")
-		changeFound = true
+	sort.Sort(rookv1alpha2.NodesByName(oldCluster.Storage.Nodes))
+	sort.Sort(rookv1alpha2.NodesByName(newCluster.Storage.Nodes))
+
+	// any change in the crd will trigger an orchestration
+	if !reflect.DeepEqual(oldCluster, newCluster) {
+		diff := cmp.Diff(oldCluster, newCluster)
+		logger.Infof("The Cluster CR has changed. diff=%s", diff)
+		return true, diff
 	}
 
-	if oldCluster.Dashboard.Enabled != newCluster.Dashboard.Enabled {
-		logger.Infof("dashboard enabled has changed from %t to %t", oldCluster.Dashboard.Enabled, newCluster.Dashboard.Enabled)
-		changeFound = true
-	}
-	if oldCluster.Dashboard.UrlPrefix != newCluster.Dashboard.UrlPrefix {
-		logger.Infof("dashboard url prefix has changed from \"%s\" to \"%s\"", oldCluster.Dashboard.UrlPrefix, newCluster.Dashboard.UrlPrefix)
-		changeFound = true
-	}
-
-	if oldCluster.Dashboard.Port != newCluster.Dashboard.Port {
-		logger.Infof("dashboard port has changed from \"%d\" to \"%d\"", oldCluster.Dashboard.Port, newCluster.Dashboard.Port)
-		changeFound = true
-	}
-
-	if (oldCluster.Dashboard.SSL == nil && newCluster.Dashboard.SSL != nil) ||
-		(oldCluster.Dashboard.SSL != nil && newCluster.Dashboard.SSL == nil) ||
-		(oldCluster.Dashboard.SSL != nil && newCluster.Dashboard.SSL != nil &&
-			*oldCluster.Dashboard.SSL != *newCluster.Dashboard.SSL) {
-		oldSSL := "<default>"
-		if oldCluster.Dashboard.SSL != nil {
-			oldSSL = strconv.FormatBool(*oldCluster.Dashboard.SSL)
-		}
-		newSSL := "<default>"
-		if newCluster.Dashboard.SSL != nil {
-			newSSL = strconv.FormatBool(*newCluster.Dashboard.SSL)
-		}
-		logger.Infof("dashboard ssl option has changed from \"%s\" to \"%s\"", oldSSL, newSSL)
-		changeFound = true
-	}
-
-	if oldCluster.Mon.Count != newCluster.Mon.Count {
-		logger.Infof("number of mons have changed from %d to %d. The health check will update the mons...", oldCluster.Mon.Count, newCluster.Mon.Count)
-		clusterRef.mons.MonCountMutex.Lock()
-		clusterRef.mons.Count = newCluster.Mon.Count
-		clusterRef.mons.MonCountMutex.Unlock()
-	}
-
-	if oldCluster.Mon.AllowMultiplePerNode != newCluster.Mon.AllowMultiplePerNode {
-		logger.Infof("allow multiple mons per node changed from %t to %t. The health check will update the mons...", oldCluster.Mon.AllowMultiplePerNode, newCluster.Mon.AllowMultiplePerNode)
-		clusterRef.mons.MonCountMutex.Lock()
-		clusterRef.mons.AllowMultiplePerNode = newCluster.Mon.AllowMultiplePerNode
-		clusterRef.mons.MonCountMutex.Unlock()
-	}
-
-	if oldCluster.RBDMirroring.Workers != newCluster.RBDMirroring.Workers {
-		logger.Infof("rbd mirrors changed from %d to %d", oldCluster.RBDMirroring.Workers, newCluster.RBDMirroring.Workers)
-		changeFound = true
-	}
-
-	if oldCluster.CephVersion.AllowUnsupported != newCluster.CephVersion.AllowUnsupported {
-		logger.Infof("ceph version allowUnsupported has changed from %t to %t", oldCluster.CephVersion.AllowUnsupported, newCluster.CephVersion.AllowUnsupported)
-		changeFound = true
-	}
-
-	if oldCluster.CephVersion.Image != newCluster.CephVersion.Image {
-		logger.Infof("ceph version changing from %s to %s", oldCluster.CephVersion.Image, newCluster.CephVersion.Image)
-		changeFound = true
-	}
-
-	return changeFound
+	return false, ""
 }
 
-func extractCephVersion(version string) (string, error) {
-	for _, v := range allVersions {
-		if strings.Contains(version, v) {
-			return v, nil
-		}
-	}
-	return "", fmt.Errorf("failed to parse version from: %s", version)
+func (c *cluster) setOrchestrationNeeded() {
+	c.orchMux.Lock()
+	c.orchestrationNeeded = true
+	c.orchMux.Unlock()
 }
 
-func versionSupported(version string) bool {
-	for _, v := range supportedVersions {
-		if v == version {
-			return true
-		}
+// unsetOrchestrationStatus resets the orchestrationRunning-flag
+func (c *cluster) unsetOrchestrationStatus() {
+	c.orchMux.Lock()
+	defer c.orchMux.Unlock()
+	c.orchestrationRunning = false
+}
+
+// checkSetOrchestrationStatus is responsible to do orchestration as long as there is a request needed
+func (c *cluster) checkSetOrchestrationStatus() bool {
+	c.orchMux.Lock()
+	defer c.orchMux.Unlock()
+	// check if there is an orchestration needed currently
+	if c.orchestrationNeeded == true && c.orchestrationRunning == false {
+		// there is an orchestration needed
+		// allow to enter the orchestration-loop
+		c.orchestrationNeeded = false
+		c.orchestrationRunning = true
+		return true
 	}
+
 	return false
 }

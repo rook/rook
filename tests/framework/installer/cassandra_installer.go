@@ -18,10 +18,11 @@ package installer
 
 import (
 	"fmt"
+	"testing"
+
 	cassandrav1alpha1 "github.com/rook/rook/pkg/apis/cassandra.rook.io/v1alpha1"
 	"github.com/rook/rook/tests/framework/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"testing"
 )
 
 const (
@@ -121,7 +122,7 @@ func (ci *CassandraInstaller) DeleteCassandraCluster(namespace string) {
 
 	// Delete Cassandra Cluster
 	logger.Infof("Uninstalling Cassandra from namespace %s", namespace)
-	_, err := ci.k8sHelper.DeleteResourceAndWait(true, "-n", namespace, cassandraCRD, namespace)
+	err := ci.k8sHelper.DeleteResourceAndWait(true, "-n", namespace, cassandraCRD, namespace)
 	checkError(ci.T(), err, fmt.Sprintf("cannot remove cluster %s", namespace))
 
 	crdCheckerFunc := func() error {
@@ -132,7 +133,7 @@ func (ci *CassandraInstaller) DeleteCassandraCluster(namespace string) {
 
 	// Delete Namespace
 	logger.Infof("Deleting Cassandra Cluster namespace %s", namespace)
-	_, err = ci.k8sHelper.DeleteResourceAndWait(true, "namespace", namespace)
+	err = ci.k8sHelper.DeleteResourceAndWait(true, "namespace", namespace)
 	checkError(ci.T(), err, fmt.Sprintf("cannot delete namespace %s", namespace))
 }
 
@@ -163,6 +164,6 @@ func (ci *CassandraInstaller) UninstallCassandra(systemNamespace string, namespa
 func (ci *CassandraInstaller) GatherAllCassandraLogs(systemNamespace, namespace, testName string) {
 
 	logger.Infof("Gathering all logs from Cassandra Cluster %s", namespace)
-	ci.k8sHelper.GetRookLogs("rook-cassandra-operator", Env.HostType, systemNamespace, testName)
-	ci.k8sHelper.GetRookLogs("rook-cassandra", Env.HostType, namespace, testName)
+	ci.k8sHelper.GetLogs("rook-cassandra-operator", Env.HostType, systemNamespace, testName)
+	ci.k8sHelper.GetLogs("rook-cassandra", Env.HostType, namespace, testName)
 }

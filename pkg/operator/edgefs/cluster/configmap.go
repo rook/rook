@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-	http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,7 +19,7 @@ package cluster
 import (
 	"encoding/json"
 
-	edgefsv1alpha1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1alpha1"
+	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/operator/edgefs/cluster/target"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -29,16 +29,18 @@ import (
 )
 
 const (
-	defaultServerIfName = "eth0"
-	defaultBrokerIfName = "eth0"
+	defaultServerIfName            = "eth0"
+	defaultBrokerIfName            = "eth0"
+	defaultTrlogProcessingInterval = 10
+	defaultTrlogKeepDays           = 7
 )
 
 // As we relying on StatefulSet, we want to build global ConfigMap shared
 // to all the nodes in the cluster. This way configuration is simplified and
 // available to all subcomponents at any point it time.
-func (c *cluster) createClusterConfigMap(nodes []rookalpha.Node, deploymentConfig edgefsv1alpha1.ClusterDeploymentConfig, resurrect bool) error {
+func (c *cluster) createClusterConfigMap(nodes []rookalpha.Node, deploymentConfig edgefsv1beta1.ClusterDeploymentConfig, resurrect bool) error {
 
-	cm := make(map[string]edgefsv1alpha1.SetupNode)
+	cm := make(map[string]edgefsv1beta1.SetupNode)
 
 	dnsRecords := make([]string, len(nodes))
 	for i := 0; i < len(nodes); i++ {
@@ -65,10 +67,11 @@ func (c *cluster) createClusterConfigMap(nodes []rookalpha.Node, deploymentConfi
 	for _, node := range nodes {
 		devConfig := deploymentConfig.DevConfig[node.Name]
 		rtDevices := devConfig.Rtrd.Devices
+		rtSlaveDevices := devConfig.RtrdSlaves
 		rtlfsDevices := devConfig.Rtlfs.Devices
 
 		rtlfsAutoDetectPath := ""
-		if deploymentConfig.DeploymentType == edgefsv1alpha1.DeploymentAutoRtlfs &&
+		if deploymentConfig.DeploymentType == edgefsv1beta1.DeploymentAutoRtlfs &&
 			!devConfig.IsGatewayNode {
 			rtlfsAutoDetectPath = "/data"
 		}
@@ -84,40 +87,62 @@ func (c *cluster) createClusterConfigMap(nodes []rookalpha.Node, deploymentConfi
 			// same as before. Resurrection is "best effort" feature, we cannot
 			// guarnatee that cluster can be reconfigured, but at least we do try.
 
-			rtDevices = make([]edgefsv1alpha1.RTDevice, 0)
-			rtlfsDevices = make([]edgefsv1alpha1.RtlfsDevice, 0)
+			rtDevices = make([]edgefsv1beta1.RTDevice, 0)
+			rtSlaveDevices = make([]edgefsv1beta1.RTDevices, 0)
+			rtlfsDevices = make([]edgefsv1beta1.RtlfsDevice, 0)
+		}
+		// Set failureDomain to 2 if current node's zone > 0
+		failureDomain := 1
+		if devConfig.Zone > 0 {
+			failureDomain = 2
 		}
 
-		nodeConfig := edgefsv1alpha1.SetupNode{
-			Ccow: edgefsv1alpha1.CcowConf{
-				Tenant: edgefsv1alpha1.CcowTenant{
-					FailureDomain: 1,
+		nodeConfig := edgefsv1beta1.SetupNode{
+			Ccow: edgefsv1beta1.CcowConf{
+				Trlog: edgefsv1beta1.CcowTrlog{
+					Interval: defaultTrlogProcessingInterval,
 				},
-				Network: edgefsv1alpha1.CcowNetwork{
+				Tenant: edgefsv1beta1.CcowTenant{
+					FailureDomain: failureDomain,
+				},
+				Network: edgefsv1beta1.CcowNetwork{
 					BrokerInterfaces: brokerIfName,
 					ServerUnixSocket: "/opt/nedge/var/run/sock/ccowd.sock",
 				},
 			},
-			Ccowd: edgefsv1alpha1.CcowdConf{
-				Network: edgefsv1alpha1.CcowdNetwork{
+			Ccowd: edgefsv1beta1.CcowdConf{
+				BgConfig: edgefsv1beta1.CcowdBgConfig{
+					TrlogDeleteAfterHours: defaultTrlogKeepDays * 24,
+				},
+				Zone: devConfig.Zone,
+				Network: edgefsv1beta1.CcowdNetwork{
 					ServerInterfaces: serverIfName,
 					ServerUnixSocket: "/opt/nedge/var/run/sock/ccowd.sock",
 				},
 				Transport: []string{deploymentConfig.TransportKey},
 			},
-			Auditd: edgefsv1alpha1.AuditdConf{
+			Auditd: edgefsv1beta1.AuditdConf{
 				IsAggregator: 0,
 			},
-			Rtrd: edgefsv1alpha1.RTDevices{
+			Rtrd: edgefsv1beta1.RTDevices{
 				Devices: rtDevices,
 			},
-			Rtlfs: edgefsv1alpha1.RtlfsDevices{
+			RtrdSlaves: rtSlaveDevices,
+			Rtlfs: edgefsv1beta1.RtlfsDevices{
 				Devices: rtlfsDevices,
 			},
 			Ipv4Autodetect:  1,
 			RtlfsAutodetect: rtlfsAutoDetectPath,
 			ClusterNodes:    dnsRecords,
 			NodeType:        nodeType,
+		}
+
+		if c.Spec.TrlogProcessingInterval > 0 {
+			nodeConfig.Ccow.Trlog.Interval = c.Spec.TrlogProcessingInterval
+		}
+
+		if c.Spec.TrlogKeepDays > 0 {
+			nodeConfig.Ccowd.BgConfig.TrlogDeleteAfterHours = c.Spec.TrlogKeepDays * 24
 		}
 
 		cm[node.Name] = nodeConfig

@@ -34,7 +34,7 @@ reread the configuration.
 
 This allows the NFS-Ganesha server cluster to be scalable and highly available.
 
-### Prerequisities
+### Prerequisites
 
 - A running rook Ceph filesystem or object store, whose namespaces will be
   exported by the NFS-Ganesha server cluster.
@@ -134,10 +134,10 @@ When the  nfs-ganesha.yaml is created the following will happen:
 
 The ganesha server pods constitute an active-active high availability NFS
 server cluster. If one of the active Ganesha server pods goes down, k8s brings
-up a replacment ganesha server pod with the same configuration and IP address.
+up a replacement ganesha server pod with the same configuration and IP address.
 The NFS server cluster can be scaled up or down by updating the
 number of the active Ganesha servers in the CRD (using `kubectl edit` or
-modifying the original CRD and running `kubectly apply -f <CRD yaml file>`).
+modifying the original CRD and running `kubectl apply -f <CRD yaml file>`).
 
 ### Per-node config files
 After loading the basic ganesha config from inside the container, the node

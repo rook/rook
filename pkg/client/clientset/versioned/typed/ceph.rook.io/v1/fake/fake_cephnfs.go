@@ -28,20 +28,20 @@ import (
 	testing "k8s.io/client-go/testing"
 )
 
-// FakeCephNFSs implements CephNFSInterface
-type FakeCephNFSs struct {
+// FakeCephNFSes implements CephNFSInterface
+type FakeCephNFSes struct {
 	Fake *FakeCephV1
 	ns   string
 }
 
-var cephnfssResource = schema.GroupVersionResource{Group: "ceph.rook.io", Version: "v1", Resource: "cephnfss"}
+var cephnfsesResource = schema.GroupVersionResource{Group: "ceph.rook.io", Version: "v1", Resource: "cephnfses"}
 
-var cephnfssKind = schema.GroupVersionKind{Group: "ceph.rook.io", Version: "v1", Kind: "CephNFS"}
+var cephnfsesKind = schema.GroupVersionKind{Group: "ceph.rook.io", Version: "v1", Kind: "CephNFS"}
 
 // Get takes name of the cephNFS, and returns the corresponding cephNFS object, and an error if there is any.
-func (c *FakeCephNFSs) Get(name string, options v1.GetOptions) (result *cephrookiov1.CephNFS, err error) {
+func (c *FakeCephNFSes) Get(name string, options v1.GetOptions) (result *cephrookiov1.CephNFS, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(cephnfssResource, c.ns, name), &cephrookiov1.CephNFS{})
+		Invokes(testing.NewGetAction(cephnfsesResource, c.ns, name), &cephrookiov1.CephNFS{})
 
 	if obj == nil {
 		return nil, err
@@ -49,10 +49,10 @@ func (c *FakeCephNFSs) Get(name string, options v1.GetOptions) (result *cephrook
 	return obj.(*cephrookiov1.CephNFS), err
 }
 
-// List takes label and field selectors, and returns the list of CephNFSs that match those selectors.
-func (c *FakeCephNFSs) List(opts v1.ListOptions) (result *cephrookiov1.CephNFSList, err error) {
+// List takes label and field selectors, and returns the list of CephNFSes that match those selectors.
+func (c *FakeCephNFSes) List(opts v1.ListOptions) (result *cephrookiov1.CephNFSList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(cephnfssResource, cephnfssKind, c.ns, opts), &cephrookiov1.CephNFSList{})
+		Invokes(testing.NewListAction(cephnfsesResource, cephnfsesKind, c.ns, opts), &cephrookiov1.CephNFSList{})
 
 	if obj == nil {
 		return nil, err
@@ -71,17 +71,17 @@ func (c *FakeCephNFSs) List(opts v1.ListOptions) (result *cephrookiov1.CephNFSLi
 	return list, err
 }
 
-// Watch returns a watch.Interface that watches the requested cephNFSs.
-func (c *FakeCephNFSs) Watch(opts v1.ListOptions) (watch.Interface, error) {
+// Watch returns a watch.Interface that watches the requested cephNFSes.
+func (c *FakeCephNFSes) Watch(opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(cephnfssResource, c.ns, opts))
+		InvokesWatch(testing.NewWatchAction(cephnfsesResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a cephNFS and creates it.  Returns the server's representation of the cephNFS, and an error, if there is any.
-func (c *FakeCephNFSs) Create(cephNFS *cephrookiov1.CephNFS) (result *cephrookiov1.CephNFS, err error) {
+func (c *FakeCephNFSes) Create(cephNFS *cephrookiov1.CephNFS) (result *cephrookiov1.CephNFS, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(cephnfssResource, c.ns, cephNFS), &cephrookiov1.CephNFS{})
+		Invokes(testing.NewCreateAction(cephnfsesResource, c.ns, cephNFS), &cephrookiov1.CephNFS{})
 
 	if obj == nil {
 		return nil, err
@@ -90,9 +90,9 @@ func (c *FakeCephNFSs) Create(cephNFS *cephrookiov1.CephNFS) (result *cephrookio
 }
 
 // Update takes the representation of a cephNFS and updates it. Returns the server's representation of the cephNFS, and an error, if there is any.
-func (c *FakeCephNFSs) Update(cephNFS *cephrookiov1.CephNFS) (result *cephrookiov1.CephNFS, err error) {
+func (c *FakeCephNFSes) Update(cephNFS *cephrookiov1.CephNFS) (result *cephrookiov1.CephNFS, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(cephnfssResource, c.ns, cephNFS), &cephrookiov1.CephNFS{})
+		Invokes(testing.NewUpdateAction(cephnfsesResource, c.ns, cephNFS), &cephrookiov1.CephNFS{})
 
 	if obj == nil {
 		return nil, err
@@ -101,25 +101,25 @@ func (c *FakeCephNFSs) Update(cephNFS *cephrookiov1.CephNFS) (result *cephrookio
 }
 
 // Delete takes name of the cephNFS and deletes it. Returns an error if one occurs.
-func (c *FakeCephNFSs) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeCephNFSes) Delete(name string, options *v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(cephnfssResource, c.ns, name), &cephrookiov1.CephNFS{})
+		Invokes(testing.NewDeleteAction(cephnfsesResource, c.ns, name), &cephrookiov1.CephNFS{})
 
 	return err
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeCephNFSs) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(cephnfssResource, c.ns, listOptions)
+func (c *FakeCephNFSes) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
+	action := testing.NewDeleteCollectionAction(cephnfsesResource, c.ns, listOptions)
 
 	_, err := c.Fake.Invokes(action, &cephrookiov1.CephNFSList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched cephNFS.
-func (c *FakeCephNFSs) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *cephrookiov1.CephNFS, err error) {
+func (c *FakeCephNFSes) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *cephrookiov1.CephNFS, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(cephnfssResource, c.ns, name, data, subresources...), &cephrookiov1.CephNFS{})
+		Invokes(testing.NewPatchSubresourceAction(cephnfsesResource, c.ns, name, pt, data, subresources...), &cephrookiov1.CephNFS{})
 
 	if obj == nil {
 		return nil, err

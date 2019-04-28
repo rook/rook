@@ -19,14 +19,18 @@ package config
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/go-ini/ini"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephconfig")
@@ -38,6 +42,8 @@ const (
 	DefaultConfigFile = "ceph.conf"
 	// DefaultKeyringFile is the default name of the file where Ceph stores its keyring info
 	DefaultKeyringFile = "keyring"
+	// Msgr2port is the listening port of the messenger v2 protocol
+	Msgr2port = 3300
 )
 
 // GlobalConfig represents the [global] sections of Ceph's config file.
@@ -124,11 +130,7 @@ func GenerateAdminConnectionConfigWithSettings(context *clusterd.Context, cluste
 }
 
 // GenerateConfigFile generates and writes a config file to disk.
-func GenerateConfigFile(context *clusterd.Context,
-	cluster *ClusterInfo,
-	pathRoot, user, keyringPath string,
-	globalConfig *CephConfig,
-	clientSettings map[string]string) (string, error) {
+func GenerateConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoot, user, keyringPath string, globalConfig *CephConfig, clientSettings map[string]string) (string, error) {
 
 	// create the config directory
 	if err := os.MkdirAll(pathRoot, 0744); err != nil {
@@ -181,7 +183,17 @@ func getQualifiedUser(user string) string {
 }
 
 // CreateDefaultCephConfig creates a default ceph config file.
-func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, runDir string) *CephConfig {
+func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, runDir string) (*CephConfig, error) {
+
+	cephVersionEnv := os.Getenv("ROOK_CEPH_VERSION")
+	if cephVersionEnv != "" {
+		v, err := cephver.ExtractCephVersion(cephVersionEnv)
+		if err != nil {
+			return nil, fmt.Errorf("failed to extract ceph version. %+v", err)
+		}
+		cluster.CephVersion = *v
+	}
+
 	// extract a list of just the monitor names, which will populate the "mon initial members"
 	// global config field
 	monMembers := make([]string, len(cluster.Monitors))
@@ -189,20 +201,46 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, ru
 	i := 0
 	for _, monitor := range cluster.Monitors {
 		monMembers[i] = monitor.Name
-		monHosts[i] = monitor.Endpoint
+		monIP := cephutil.GetIPFromEndpoint(monitor.Endpoint)
+
+		// This tries to detect the current port if the mon already exists
+		// This basically handles the transtion between monitors running on 6790 to msgr2
+		// So whatever the previous monitor port was we keep it
+		currentMonPort := cephutil.GetPortFromEndpoint(monitor.Endpoint)
+
+		monPorts := [2]string{strconv.Itoa(int(Msgr2port)), strconv.Itoa(int(currentMonPort))}
+		msgr1Endpoint := net.JoinHostPort(monIP, monPorts[1])
+
+		// Mimic daemons like OSD won't be able to parse this, so only the operator should get this config
+		// they will fail with
+		// 		unable to parse addrs in 'v1:10.104.92.199:6790,v1:10.110.137.107:6790,v1:10.102.38.86:6790'
+		// 		server name not found: v1:10.104.92.199:6790 (Name or service not known)
+		// 		2019-04-25 10:31:08.614 7f5971aae1c0 -1 monclient: get_monmap_and_config cannot identify monitors to contact
+		// 		2019-04-25 10:31:08.614 7f5971aae1c0 -1 monclient: get_monmap_and_config cannot identify monitors to contact
+		// 		failed to fetch mon config (--no-mon-config to skip)
+		// The operator always fails this test since it does not have the env var 'ROOK_CEPH_VERSION'
+		podName := os.Getenv("POD_NAME")
+		if cluster.CephVersion.IsAtLeastNautilus() {
+			monHosts[i] = "v1:" + msgr1Endpoint
+		} else if podName != "" && strings.Contains(podName, "operator") {
+			// This is an operator and its version is always based on Nautilus
+			// so it knows how to parse both msgr1 and msgr2 syntax
+			monHosts[i] = "v1:" + msgr1Endpoint
+		} else {
+			// This is not the operator, it's an OSD and its Ceph version is before Nautilus
+			monHosts[i] = msgr1Endpoint
+		}
 		i++
 	}
 
 	cephLogLevel := logLevelToCephLogLevel(context.LogLevel)
 
-	return &CephConfig{
+	conf := &CephConfig{
 		GlobalConfig: &GlobalConfig{
 			FSID:                   cluster.FSID,
 			RunDir:                 runDir,
 			MonMembers:             strings.Join(monMembers, " "),
 			MonHost:                strings.Join(monHosts, ","),
-			LogFile:                "/dev/stderr",
-			MonClusterLogFile:      "/dev/stderr",
 			PublicAddr:             context.NetworkInfo.PublicAddr,
 			PublicNetwork:          context.NetworkInfo.PublicNetwork,
 			ClusterAddr:            context.NetworkInfo.ClusterAddr,
@@ -229,6 +267,17 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, ru
 			FatalSignalHandlers:    "false",
 		},
 	}
+
+	// Everything before 14.2.1
+	// These new flags control Ceph's daemon logging behaviour to files
+	// By default we set them to False so no logs get written on file
+	// However they can be actived at any time via the centralized config store
+	if !cluster.CephVersion.IsAtLeast(cephver.CephVersion{Major: 14, Minor: 2, Extra: 1}) {
+		conf.LogFile = "/dev/stderr"
+		conf.MonClusterLogFile = "/dev/stderr"
+	}
+
+	return conf, nil
 }
 
 // create a config file with global settings configured, and return an ini file
@@ -240,7 +289,11 @@ func createGlobalConfigFileSection(context *clusterd.Context, cluster *ClusterIn
 		// use the user config since it was provided
 		ceph = userConfig
 	} else {
-		ceph = CreateDefaultCephConfig(context, cluster, runDir)
+		var err error
+		ceph, err = CreateDefaultCephConfig(context, cluster, runDir)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create default ceph config. %+v", err)
+		}
 	}
 
 	configFile := ini.Empty()

@@ -1,11 +1,11 @@
 /*
-Copyright 2016 The Rook Authors. All rights reserved.
+Copyright 2019 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-	http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,12 +19,13 @@ package s3
 
 import (
 	"fmt"
+	"strings"
 
-	edgefsv1alpha1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1alpha1"
+	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	apps "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -33,29 +34,30 @@ const (
 	appName = "rook-edgefs-s3"
 
 	/* Volumes definitions */
-	sslCertVolumeName = "ssl-cert-volume"
-	sslMountPath      = "/opt/nedge/etc/ssl/"
-	dataVolumeName    = "edgefs-datadir"
-	stateVolumeFolder = ".state"
-	etcVolumeFolder   = ".etc"
-	defaultPort       = 9982
-	defaultSecurePort = 8443
+	serviceAccountName = "rook-edgefs-cluster"
+	defaultS3Image     = "edgefs/edgefs-restapi"
+	sslCertVolumeName  = "ssl-cert-volume"
+	sslMountPath       = "/opt/nedge/etc/ssl/"
+	dataVolumeName     = "edgefs-datadir"
+	stateVolumeFolder  = ".state"
+	etcVolumeFolder    = ".etc"
+	defaultPort        = 9982
+	defaultSecurePort  = 9443
 )
 
 // Start the S3 manager
-func (c *S3Controller) CreateService(s edgefsv1alpha1.S3, ownerRefs []metav1.OwnerReference) error {
+func (c *S3Controller) CreateService(s edgefsv1beta1.S3, ownerRefs []metav1.OwnerReference) error {
 	return c.CreateOrUpdate(s, false, ownerRefs)
 }
 
-func (c *S3Controller) UpdateService(s edgefsv1alpha1.S3, ownerRefs []metav1.OwnerReference) error {
+func (c *S3Controller) UpdateService(s edgefsv1beta1.S3, ownerRefs []metav1.OwnerReference) error {
 	return c.CreateOrUpdate(s, true, ownerRefs)
 }
 
 // Start the s3 instance
-func (c *S3Controller) CreateOrUpdate(s edgefsv1alpha1.S3, update bool, ownerRefs []metav1.OwnerReference) error {
-	logger.Infof("starting update=%v service=%s", update, s.Name)
+func (c *S3Controller) CreateOrUpdate(s edgefsv1beta1.S3, update bool, ownerRefs []metav1.OwnerReference) error {
+	logger.Debugf("starting update=%v service=%s", update, s.Name)
 
-	logger.Infof("S3 Base image is %s", c.rookImage)
 	// validate S3 service settings
 	if err := validateService(c.context, s); err != nil {
 		return fmt.Errorf("invalid S3 service %s arguments. %+v", s.Name, err)
@@ -70,6 +72,31 @@ func (c *S3Controller) CreateOrUpdate(s edgefsv1alpha1.S3, update bool, ownerRef
 		s.Spec.SecurePort = defaultSecurePort
 	}
 
+	imageArgs := "s3"
+	var rookImage string
+	if s.Spec.S3Type == "" {
+		rookImage = defaultS3Image
+	} else if s.Spec.S3Type == "s3" || s.Spec.S3Type == "s3s" {
+		// all rest APIs coming from edgefs-restapi image, that
+		// includes mgmt, s3, s3s and swift
+		rookImage = defaultS3Image
+		imageArgs = s.Spec.S3Type
+	} else if s.Spec.S3Type == "s3g" {
+		// built-in s3 version, limited and experimental coming
+		// as a part of core edgefs image
+		rookImage = c.rookImage
+	} else {
+		return fmt.Errorf("invalid S3 service type %s", s.Spec.S3Type)
+	}
+
+	var rookImageVer string
+	rookImageComponents := strings.Split(rookImage, ":")
+	if len(rookImageComponents) == 2 {
+		rookImageVer = rookImageComponents[1]
+	} else {
+		rookImageVer = "latest"
+	}
+
 	// check if S3 service already exists
 	exists, err := serviceExists(c.context, s)
 	if err == nil && exists {
@@ -81,8 +108,8 @@ func (c *S3Controller) CreateOrUpdate(s edgefsv1alpha1.S3, update bool, ownerRef
 	}
 
 	// start the deployment
-	deployment := c.makeDeployment(s.Name, s.Namespace, c.rookImage, s.Spec)
-	if _, err := c.context.Clientset.ExtensionsV1beta1().Deployments(s.Namespace).Create(deployment); err != nil {
+	deployment := c.makeDeployment(s.Name, s.Namespace, rookImage+":"+rookImageVer, imageArgs, s.Spec)
+	if _, err := c.context.Clientset.AppsV1().Deployments(s.Namespace).Create(deployment); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create %s deployment. %+v", appName, err)
 		}
@@ -105,7 +132,7 @@ func (c *S3Controller) CreateOrUpdate(s edgefsv1alpha1.S3, update bool, ownerRef
 	return nil
 }
 
-func (c *S3Controller) makeS3Service(name, svcname, namespace string, s3Spec edgefsv1alpha1.S3Spec) *v1.Service {
+func (c *S3Controller) makeS3Service(name, svcname, namespace string, s3Spec edgefsv1beta1.S3Spec) *v1.Service {
 	labels := getLabels(name, svcname, namespace)
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -128,8 +155,7 @@ func (c *S3Controller) makeS3Service(name, svcname, namespace string, s3Spec edg
 	return svc
 }
 
-func (c *S3Controller) makeDeployment(svcname, namespace, rookImage string, s3Spec edgefsv1alpha1.S3Spec) *extensions.Deployment {
-
+func (c *S3Controller) makeDeployment(svcname, namespace, rookImage, imageArgs string, s3Spec edgefsv1beta1.S3Spec) *apps.Deployment {
 	name := instanceName(svcname)
 	volumes := []v1.Volume{}
 
@@ -183,12 +209,13 @@ func (c *S3Controller) makeDeployment(svcname, namespace, rookImage string, s3Sp
 			Labels: getLabels(name, svcname, namespace),
 		},
 		Spec: v1.PodSpec{
-			Containers:    []v1.Container{c.s3Container(svcname, name, rookImage, s3Spec)},
-			RestartPolicy: v1.RestartPolicyAlways,
-			Volumes:       volumes,
-			HostIPC:       true,
-			HostNetwork:   c.hostNetwork,
-			NodeSelector:  map[string]string{namespace: "cluster"},
+			Containers:         []v1.Container{c.s3Container(svcname, name, rookImage, imageArgs, s3Spec)},
+			RestartPolicy:      v1.RestartPolicyAlways,
+			Volumes:            volumes,
+			HostIPC:            true,
+			HostNetwork:        c.hostNetwork,
+			NodeSelector:       map[string]string{namespace: "cluster"},
+			ServiceAccountName: serviceAccountName,
 		},
 	}
 	if c.hostNetwork {
@@ -197,20 +224,27 @@ func (c *S3Controller) makeDeployment(svcname, namespace, rookImage string, s3Sp
 
 	// apply current S3 CRD options to pod's specification
 	s3Spec.Placement.ApplyToPodSpec(&podSpec.Spec)
+	s3Spec.Annotations.ApplyToObjectMeta(&podSpec.ObjectMeta)
 
-	d := &extensions.Deployment{
+	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec: extensions.DeploymentSpec{Template: podSpec, Replicas: &s3Spec.Instances},
+		Spec: apps.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: podSpec.Labels,
+			},
+			Template: podSpec,
+			Replicas: &s3Spec.Instances,
+		},
 	}
 	k8sutil.SetOwnerRef(c.context.Clientset, namespace, &d.ObjectMeta, &c.ownerRef)
+	s3Spec.Annotations.ApplyToObjectMeta(&d.ObjectMeta)
 	return d
 }
 
-func (c *S3Controller) s3Container(svcname, name, containerImage string, s3Spec edgefsv1alpha1.S3Spec) v1.Container {
-
+func (c *S3Controller) s3Container(svcname, name, containerImage, args string, s3Spec edgefsv1beta1.S3Spec) v1.Container {
 	runAsUser := int64(0)
 	readOnlyRootFilesystem := false
 	securityContext := &v1.SecurityContext{
@@ -238,11 +272,11 @@ func (c *S3Controller) s3Container(svcname, name, containerImage string, s3Spec 
 		volumeMounts = append(volumeMounts, v1.VolumeMount{Name: sslCertVolumeName, MountPath: sslMountPath})
 	}
 
-	return v1.Container{
+	cont := v1.Container{
 		Name:            name,
 		Image:           containerImage,
 		ImagePullPolicy: v1.PullAlways,
-		Args:            []string{"s3"},
+		Args:            []string{args},
 		Env: []v1.EnvVar{
 			{
 				Name:  "CCOW_LOG_LEVEL",
@@ -251,6 +285,10 @@ func (c *S3Controller) s3Container(svcname, name, containerImage string, s3Spec 
 			{
 				Name:  "CCOW_SVCNAME",
 				Value: svcname,
+			},
+			{
+				Name:  "DEBUG",
+				Value: "alert,error,info",
 			},
 			{
 				Name: "HOST_HOSTNAME",
@@ -278,10 +316,16 @@ func (c *S3Controller) s3Container(svcname, name, containerImage string, s3Spec 
 		},
 		VolumeMounts: volumeMounts,
 	}
+
+	cont.Env = append(cont.Env, edgefsv1beta1.GetInitiatorEnvArr("s3",
+		c.resourceProfile == "embedded" || s3Spec.ResourceProfile == "embedded",
+		s3Spec.ChunkCacheSize, s3Spec.Resources)...)
+
+	return cont
 }
 
 // Delete S3 service and possibly some artifacts.
-func (c *S3Controller) DeleteService(s edgefsv1alpha1.S3) error {
+func (c *S3Controller) DeleteService(s edgefsv1beta1.S3) error {
 	// check if service  exists
 	exists, err := serviceExists(c.context, s)
 	if err != nil {
@@ -324,7 +368,7 @@ func getLabels(name, svcname, namespace string) map[string]string {
 }
 
 // Validate the S3 arguments
-func validateService(context *clusterd.Context, s edgefsv1alpha1.S3) error {
+func validateService(context *clusterd.Context, s edgefsv1beta1.S3) error {
 	if s.Name == "" {
 		return fmt.Errorf("missing name")
 	}
@@ -340,8 +384,8 @@ func instanceName(svcname string) string {
 }
 
 // Check if the S3 service exists
-func serviceExists(context *clusterd.Context, s edgefsv1alpha1.S3) (bool, error) {
-	_, err := context.Clientset.ExtensionsV1beta1().Deployments(s.Namespace).Get(instanceName(s.Name), metav1.GetOptions{})
+func serviceExists(context *clusterd.Context, s edgefsv1beta1.S3) (bool, error) {
+	_, err := context.Clientset.AppsV1().Deployments(s.Namespace).Get(instanceName(s.Name), metav1.GetOptions{})
 	if err == nil {
 		// the deployment was found
 		return true, nil

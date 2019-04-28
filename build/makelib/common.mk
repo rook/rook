@@ -16,6 +16,7 @@
 .SUFFIXES:
 
 SHELL := /bin/bash
+SHA256CMD := shasum -a 256
 
 ifeq ($(origin PLATFORM), undefined)
 ifeq ($(origin GOOS), undefined)
@@ -91,7 +92,10 @@ endif
 
 # a registry that is scoped to the current build tree on this host
 ifeq ($(origin BUILD_REGISTRY), undefined)
-BUILD_REGISTRY := build-$(shell echo $(HOSTNAME)-$(ROOT_DIR) | shasum -a 256 | cut -c1-8)
+BUILD_REGISTRY := build-$(shell echo $(HOSTNAME)-$(ROOT_DIR) | $(SHA256CMD) | cut -c1-8)
+endif
+ifeq ($(BUILD_REGISTRY),build-)
+$(error Failed to get unique ID for host+dir. Check that '$(SHA256CMD)' functions or override SHA256CMD)
 endif
 
 # Select which images (backends) to make; default to all possible images

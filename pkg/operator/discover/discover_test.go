@@ -50,7 +50,7 @@ func TestStartDiscoveryDaemonset(t *testing.T) {
 	assert.Nil(t, err)
 
 	// check daemonset parameters
-	agentDS, err := clientset.Extensions().DaemonSets(namespace).Get("rook-discover", metav1.GetOptions{})
+	agentDS, err := clientset.AppsV1().DaemonSets(namespace).Get("rook-discover", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, namespace, agentDS.Namespace)
 	assert.Equal(t, "rook-discover", agentDS.Name)
@@ -116,29 +116,4 @@ func TestGetAvailableDevices(t *testing.T) {
 	devices, err = GetAvailableDevices(context, nodeName, ns, d, "^sd.", false)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(devices))
-
-	err = FreeDevices(context, nodeName, ns)
-	assert.Nil(t, err)
-	// all devices freed
-	devices, err = GetAvailableDevices(context, nodeName, ns, nil, "^sd.", false)
-	assert.Nil(t, err)
-	assert.Equal(t, 4, len(devices))
-	// devices should be in use now, 2nd try gets the same list
-	devices, err = GetAvailableDevices(context, nodeName, ns, nil, "^sd.", false)
-	assert.Nil(t, err)
-	assert.Equal(t, 4, len(devices))
-
-	err = FreeDevices(context, nodeName, ns)
-	assert.Nil(t, err)
-
-	devices, err = GetAvailableDevices(context, nodeName, ns, nil, "", true)
-	assert.Nil(t, err)
-	assert.Equal(t, 5, len(devices))
-	// devices should be in use now, 2nd try gets the same list
-	devices, err = GetAvailableDevices(context, nodeName, ns, nil, "", true)
-	assert.Nil(t, err)
-	assert.Equal(t, 5, len(devices))
-
-	err = FreeDevices(context, nodeName, ns)
-	assert.Nil(t, err)
 }

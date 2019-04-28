@@ -30,8 +30,8 @@ import (
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/sys"
+	apps "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
 	kserrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -73,13 +73,18 @@ func (d *Discover) Start(namespace, discoverImage, securityAccount string) error
 
 func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage, securityAccount string) error {
 	privileged := true
-	ds := &extensions.DaemonSet{
+	ds := &apps.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: discoverDaemonsetName,
 		},
-		Spec: extensions.DaemonSetSpec{
-			UpdateStrategy: extensions.DaemonSetUpdateStrategy{
-				Type: extensions.RollingUpdateDaemonSetStrategyType,
+		Spec: apps.DaemonSetSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": discoverDaemonsetName,
+				},
+			},
+			UpdateStrategy: apps.DaemonSetUpdateStrategy{
+				Type: apps.RollingUpdateDaemonSetStrategyType,
 			},
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
@@ -165,13 +170,13 @@ func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage, securityAcc
 		}
 	}
 
-	_, err := d.clientset.Extensions().DaemonSets(namespace).Create(ds)
+	_, err := d.clientset.AppsV1().DaemonSets(namespace).Create(ds)
 	if err != nil {
 		if !kserrors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create rook-discover daemon set. %+v", err)
 		}
 		logger.Infof("rook-discover daemonset already exists, updating ...")
-		_, err = d.clientset.Extensions().DaemonSets(namespace).Update(ds)
+		_, err = d.clientset.AppsV1().DaemonSets(namespace).Update(ds)
 		if err != nil {
 			return fmt.Errorf("failed to update rook-discover daemon set. %+v", err)
 		}
@@ -291,44 +296,6 @@ func ListDevicesInUse(context *clusterd.Context, namespace, nodeName string) ([]
 	}
 	logger.Debugf("devices in use %+v", devices)
 	return devices, nil
-}
-
-// FreeDevices frees up devices used by a cluster on a node.
-func FreeDevices(context *clusterd.Context, nodeName, clusterName string) error {
-	if len(nodeName) == 0 || len(clusterName) == 0 {
-		return nil
-	}
-	namespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
-	cmName := k8sutil.TruncateNodeName(fmt.Sprintf(deviceInUseCMName, clusterName, "%s"), nodeName)
-	// delete configmap
-	err := context.Clientset.CoreV1().ConfigMaps(namespace).Delete(cmName, &metav1.DeleteOptions{})
-	if err != nil && !kserrors.IsNotFound(err) {
-		return fmt.Errorf("failed to delete configmap %s/%s. %+v", namespace, cmName, err)
-	}
-
-	return nil
-}
-
-// FreeDevicesByCluster frees devices on all nodes that are used by the cluster
-func FreeDevicesByCluster(context *clusterd.Context, clusterName string) error {
-	logger.Infof("freeing devices used by cluster %s", clusterName)
-	namespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
-	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", deviceInUseClusterAttr, clusterName)}
-	cms, err := context.Clientset.CoreV1().ConfigMaps(namespace).List(listOpts)
-	if err != nil {
-		return fmt.Errorf("failed to list device in use configmaps for cluster %s: %+v", clusterName, err)
-	}
-
-	for _, cm := range cms.Items {
-		// delete configmap
-		cmName := cm.Name
-		err := context.Clientset.CoreV1().ConfigMaps(namespace).Delete(cmName, &metav1.DeleteOptions{})
-		logger.Infof("deleting configmap %s: %+v", cmName, err)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // GetAvailableDevices conducts outer join using input filters with free devices that a node has. It marks the devices from join result as in-use.

@@ -1,6 +1,6 @@
 ---
 title: Object Store CRD
-weight: 28
+weight: 2800
 indent: true
 ---
 
@@ -37,6 +37,9 @@ spec:
     securePort:
     instances: 1
     allNodes: false
+    # A key/value list of annotations
+    annotations:
+    #  key: value
     placement:
     #  nodeAffinity:
     #    requiredDuringSchedulingIgnoredDuringExecution:
@@ -84,5 +87,21 @@ The gateway settings correspond to the RGW daemon settings.
 - `securePort`: The secure port on which RGW pods will be listening. An SSL certificate must be specified.
 - `instances`: The number of pods that will be started to load balance this object store. Ignored if `allNodes` is true.
 - `allNodes`: Whether RGW pods should be started on all nodes. If true, a daemonset is created. If false, `instances` must be set.
+- `annotations`: Key value pair list of annotations to add.
 - `placement`: The Kubernetes placement settings to determine where the RGW pods should be started in the cluster.
 - `resources`: Set resource requests/limits for the Gateway Pod(s), see [Resource Requirements/Limits](ceph-cluster-crd.md#resource-requirementslimits).
+
+## Runtime settings
+
+### MIME types
+
+Rook provides a default `mime.types` file for each Ceph object store. This file is stored in a
+Kubernetes ConfigMap with the name `rook-ceph-rgw-<STORE-NAME>-mime-types`. For most users, the
+default file should suffice, however, the option is available to users to edit the `mime.types`
+file in the ConfigMap as they desire. Users may have their own special file types, and particularly
+security conscious users may wish to pare down the file to reduce the possibility of a file type
+execution attack.
+
+Rook will not overwrite an existing `mime.types` ConfigMap so that user modifications will not be
+destroyed. If the object store is destroyed and recreated, the ConfigMap will also be destroyed and
+created anew.

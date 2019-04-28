@@ -110,7 +110,7 @@ func formatDevice(context *clusterd.Context, config *osdConfig, forceFormat bool
 	}
 
 	// check if partitions belong to rook
-	ownPartitions, devFS, err := sys.CheckIfDeviceAvailable(context.Executor, dataDetails.Device)
+	_, ownPartitions, devFS, err := sys.CheckIfDeviceAvailable(context.Executor, dataDetails.Device)
 	if err != nil {
 		return nil, fmt.Errorf("failed to format device. %+v", err)
 	}
@@ -139,7 +139,7 @@ func formatDevice(context *clusterd.Context, config *osdConfig, forceFormat bool
 	if !dangerousToFormat || forceFormat {
 		devPartInfo, err = partitionOSD(context, config)
 		if err != nil {
-			return nil, fmt.Errorf("failed to partion device %s. %v", dataDetails.Device, err)
+			return nil, fmt.Errorf("failed to partion device %s. %+v", dataDetails.Device, err)
 		}
 	}
 
@@ -170,7 +170,7 @@ func partitionMetadata(context *clusterd.Context, info *config.MetadataDeviceInf
 	}
 
 	// check one last time to make sure it's OK for us to format this metadata device
-	ownPartitions, fs, err := sys.CheckIfDeviceAvailable(context.Executor, info.Device)
+	_, ownPartitions, fs, err := sys.CheckIfDeviceAvailable(context.Executor, info.Device)
 	if err != nil {
 		return fmt.Errorf("failed to get metadata device %s info: %+v", info.Device, err)
 	} else if fs != "" || !ownPartitions {
@@ -501,7 +501,10 @@ func WriteConfigFile(context *clusterd.Context, cluster *cephconfig.ClusterInfo,
 }
 
 func writeConfigFile(cfg *osdConfig, context *clusterd.Context, cluster *cephconfig.ClusterInfo, location string) error {
-	cephConfig := cephconfig.CreateDefaultCephConfig(context, cluster, cfg.rootPath)
+	cephConfig, err := cephconfig.CreateDefaultCephConfig(context, cluster, cfg.rootPath)
+	if err != nil {
+		return fmt.Errorf("failed to create default ceph config. %+v", err)
+	}
 	if isBluestore(cfg) {
 		cephConfig.GlobalConfig.OsdObjectStore = config.Bluestore
 	} else {

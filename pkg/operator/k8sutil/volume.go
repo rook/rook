@@ -20,10 +20,10 @@ package k8sutil
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/validation"
 )
 
 const (
@@ -34,15 +34,39 @@ const (
 func PathToVolumeName(path string) string {
 	// kubernetes volume names must match this regex: [a-z0-9]([-a-z0-9]*[a-z0-9])?
 
-	// first replace all filepath separators with hyphens
-	volumeName := strings.Replace(path, string(filepath.Separator), "-", -1)
-
-	// convert underscores to hyphens
-	volumeName = strings.Replace(volumeName, "_", "-", -1)
+	sanitized := make([]rune, 0, len(path))
+	for _, c := range path {
+		switch {
+		case '0' <= c && c <= '9':
+			fallthrough
+		case 'a' <= c && c <= 'z':
+			sanitized = append(sanitized, c)
+			continue
+		case 'A' <= c && c <= 'Z':
+			// convert upper to lower case
+			sanitized = append(sanitized, c+('a'-'A'))
+		default:
+			// convert any non alphanum char to a hyphen
+			sanitized = append(sanitized, '-')
+		}
+	}
+	volumeName := string(sanitized)
 
 	// trim any leading/trailing hyphens
 	volumeName = strings.TrimPrefix(volumeName, "-")
 	volumeName = strings.TrimSuffix(volumeName, "-")
+
+	if len(volumeName) > validation.DNS1123LabelMaxLength {
+		// keep an equal sample of the original name from both the beginning and from the end,
+		// and add some characters from a hash of the full name to help prevent name collisions.
+		// Make room for 3 hyphens in the middle (~ellipsis) and 1 hyphen to separate the hash.
+		hashLength := 8
+		sampleLength := int((validation.DNS1123LabelMaxLength - hashLength - 3 - 1) / 2)
+		first := volumeName[0:sampleLength]
+		last := volumeName[len(volumeName)-sampleLength:]
+		hash := Hash(volumeName)
+		volumeName = fmt.Sprintf("%s---%s-%s", first, last, hash[0:hashLength])
+	}
 
 	return volumeName
 }

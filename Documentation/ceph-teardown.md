@@ -1,13 +1,12 @@
 ---
 title: Cleanup
-weight: 39
+weight: 3900
 indent: true
 ---
 
 # Cleaning up a Cluster
 If you want to tear down the cluster and bring up a new one, be aware of the following resources that will need to be cleaned up:
-- `rook-ceph-system` namespace: The Rook operator and agent created by `operator.yaml`
-- `rook-ceph` namespace: The Rook storage cluster created by `cluster.yaml` (the cluster CRD)
+- `rook-ceph` namespace: The Rook operator and cluster created by `operator.yaml` and `cluster.yaml` (the cluster CRD)
 - `/var/lib/rook`: Path on each host in the cluster where configuration is cached by the ceph mons and osds
 
 Note that if you changed the default namespaces or paths in the sample yaml files, you will need to adjust these namespaces and paths throughout these instructions.
@@ -58,6 +57,21 @@ Connect to each machine and delete `/var/lib/rook`, or the path specified by the
 In the future this step will not be necessary when we build on the K8s local storage feature.
 
 If you modified the demo settings, additional cleanup is up to you for devices, host paths, etc.
+
+Disks on nodes used by Rook for osds can be reset to a usable state with the following methods:
+```sh
+#!/usr/bin/env bash
+DISK="/dev/sdb"
+# Zap the disk to a fresh, usable state (zap-all is important, b/c MBR has to be clean)
+# You will have to run this step for all disks.
+sgdisk --zap-all $DISK
+
+# These steps only have to be run once on each node
+# If rook sets up osds using ceph-volume, teardown leaves some devices mapped that lock the disks.
+ls /dev/mapper/ceph-* | xargs -I% -- dmsetup remove %
+# ceph-volume setup can leave ceph-<UUID> directories in /dev (unnecessary clutter)
+rm -rf /dev/ceph-*
+```
 
 ## Troubleshooting
 If the cleanup instructions are not executed in the order above, or you otherwise have difficulty cleaning up the cluster, here are a few things to try.

@@ -1,11 +1,11 @@
 /*
-Copyright 2016 The Rook Authors. All rights reserved.
+Copyright 2019 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-	http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -23,7 +23,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	opkit "github.com/rook/operator-kit"
-	edgefsv1alpha1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1alpha1"
+	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"k8s.io/api/core/v1"
@@ -44,10 +44,10 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "edgefs-op-nfs")
 var NFSResource = opkit.CustomResource{
 	Name:    customResourceName,
 	Plural:  customResourceNamePlural,
-	Group:   edgefsv1alpha1.CustomResourceGroup,
-	Version: edgefsv1alpha1.Version,
+	Group:   edgefsv1beta1.CustomResourceGroup,
+	Version: edgefsv1beta1.Version,
 	Scope:   apiextensionsv1beta1.NamespaceScoped,
-	Kind:    reflect.TypeOf(edgefsv1alpha1.NFS{}).Name(),
+	Kind:    reflect.TypeOf(edgefsv1beta1.NFS{}).Name(),
 }
 
 // NFSController represents a controller object for nfs custom resources
@@ -57,8 +57,10 @@ type NFSController struct {
 	hostNetwork     bool
 	dataDirHostPath string
 	dataVolumeSize  resource.Quantity
+	annotations     rookalpha.Annotations
 	placement       rookalpha.Placement
 	resources       v1.ResourceRequirements
+	resourceProfile string
 	ownerRef        metav1.OwnerReference
 }
 
@@ -70,6 +72,7 @@ func NewNFSController(
 	dataVolumeSize resource.Quantity,
 	placement rookalpha.Placement,
 	resources v1.ResourceRequirements,
+	resourceProfile string,
 	ownerRef metav1.OwnerReference,
 ) *NFSController {
 	return &NFSController{
@@ -80,6 +83,7 @@ func NewNFSController(
 		dataVolumeSize:  dataVolumeSize,
 		placement:       placement,
 		resources:       resources,
+		resourceProfile: resourceProfile,
 		ownerRef:        ownerRef,
 	}
 }
@@ -94,8 +98,8 @@ func (c *NFSController) StartWatch(namespace string, stopCh chan struct{}) error
 	}
 
 	logger.Infof("start watching nfs resources in namespace %s", namespace)
-	watcher := opkit.NewWatcher(NFSResource, namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1alpha1().RESTClient())
-	go watcher.Watch(&edgefsv1alpha1.NFS{}, stopCh)
+	watcher := opkit.NewWatcher(NFSResource, namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1beta1().RESTClient())
+	go watcher.Watch(&edgefsv1beta1.NFS{}, stopCh)
 
 	return nil
 }
@@ -147,7 +151,7 @@ func (c *NFSController) onDelete(obj interface{}) {
 	}
 }
 
-func (c *NFSController) serviceOwners(service *edgefsv1alpha1.NFS) []metav1.OwnerReference {
+func (c *NFSController) serviceOwners(service *edgefsv1beta1.NFS) []metav1.OwnerReference {
 	// Only set the cluster crd as the owner of the NFS resources.
 	// If the NFS crd is deleted, the operator will explicitly remove the NFS resources.
 	// If the NFS crd still exists when the cluster crd is deleted, this will make sure the NFS
@@ -155,13 +159,13 @@ func (c *NFSController) serviceOwners(service *edgefsv1alpha1.NFS) []metav1.Owne
 	return []metav1.OwnerReference{c.ownerRef}
 }
 
-func serviceChanged(oldService, newService edgefsv1alpha1.NFSSpec) bool {
+func serviceChanged(oldService, newService edgefsv1beta1.NFSSpec) bool {
 	return false
 }
 
-func getNFSObject(obj interface{}) (nfs *edgefsv1alpha1.NFS, err error) {
+func getNFSObject(obj interface{}) (nfs *edgefsv1beta1.NFS, err error) {
 	var ok bool
-	nfs, ok = obj.(*edgefsv1alpha1.NFS)
+	nfs, ok = obj.(*edgefsv1beta1.NFS)
 	if ok {
 		// the nfs object is of the latest type, simply return it
 		return nfs.DeepCopy(), nil

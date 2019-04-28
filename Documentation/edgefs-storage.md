@@ -1,6 +1,6 @@
 ---
 title: EdgeFS Storage
-weight: 40
+weight: 4000
 ---
 
 # EdgeFS Storage

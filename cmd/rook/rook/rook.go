@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package rook
 
 import (
@@ -38,8 +39,7 @@ const (
 )
 
 var RootCmd = &cobra.Command{
-	Use:    "rook",
-	Hidden: true,
+	Use: "rook",
 }
 
 var (
@@ -64,6 +64,7 @@ func init() {
 	flags.SetFlagsFromEnv(RootCmd.PersistentFlags(), RookEnvVarPrefix)
 }
 
+// SetLogLevel set log level based on provided log option.
 func SetLogLevel() {
 	// parse given log level string then set up corresponding global logging level
 	ll, err := capnslog.ParseLevel(logLevelRaw)
@@ -74,16 +75,16 @@ func SetLogLevel() {
 	capnslog.SetGlobalLogLevel(Cfg.LogLevel)
 }
 
+// LogStartupInfo log the version number, arguments, and all final flag values (environment variable overrides have already been taken into account)
 func LogStartupInfo(cmdFlags *pflag.FlagSet) {
-	// log the version number, arguments, and all final flag values (environment variable overrides
-	// have already been taken into account)
+
 	flagValues := flags.GetFlagsAndValues(cmdFlags, "secret|keyring")
 	logger.Infof("starting Rook %s with arguments '%s'", version.Version, strings.Join(os.Args, " "))
 	logger.Infof("flag values: %s", strings.Join(flagValues, ", "))
 }
 
+// GetClientset create the k8s client
 func GetClientset() (kubernetes.Interface, apiextensionsclient.Interface, rookclient.Interface, error) {
-	// create the k8s client
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to get k8s config. %+v", err)
@@ -104,6 +105,7 @@ func GetClientset() (kubernetes.Interface, apiextensionsclient.Interface, rookcl
 	return clientset, apiExtClientset, rookClientset, nil
 }
 
+// TerminateFatal terminates the process with an exit code of 1 and writes the given reason to stderr and // the termination log file.
 func TerminateFatal(reason error) {
 	fmt.Fprintln(os.Stderr, reason)
 

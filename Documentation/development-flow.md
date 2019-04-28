@@ -1,6 +1,6 @@
 ---
 title: Contributing
-weight: 120
+weight: 12000
 ---
 
 # Contributing
@@ -33,11 +33,41 @@ cd $GOPATH/src/github.com/rook
 
 # Clone your fork, where <user> is your GitHub account name
 git clone https://github.com/<user>/rook.git
-
 cd rook
+```
 
-# build rook
+### Build
+
+```bash
+# build all rook storage providers
 make
+
+# build a single storage provider, where the IMAGES can be a subdirectory of the "images" folder:
+# "cassandra", "ceph", "cockroachdb", "edgefs", "minio", or "nfs"
+make IMAGES="cassandra" build
+
+# multiple storage providers can also be built
+make IMAGES="cassandra ceph" build
+```
+
+### Development Settings
+
+To provide consistent whitespace and other formatting in your `go` and other source files, it is recommended you apply
+the following settings in your IDE:
+- Format with the `goreturns` tool
+- Trim trailing whitespace
+
+For example, in VS Code this translates to the following settings:
+
+```json
+{
+    "editor.formatOnSave": true,
+    "go.buildOnSave": "package",
+    "go.formatTool": "goreturns",
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    "files.trimFinalNewlines": true,
+}
 ```
 
 ### Add Upstream Remote

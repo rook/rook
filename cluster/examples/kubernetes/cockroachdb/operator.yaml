@@ -32,18 +32,9 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - configmaps
-  verbs:
-  - create
-- apiGroups:
-  - ""
-  resources:
   - services
   verbs:
-  - get
-  - list
   - create
-  - update
 - apiGroups:
   - apps
   resources:
@@ -83,12 +74,17 @@ subjects:
   name: rook-cockroachdb-operator
   namespace: rook-cockroachdb-system
 ---
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: rook-cockroachdb-operator
   namespace: rook-cockroachdb-system
+  labels:
+    app: rook-cockroachdb-operator
 spec:
+  selector:
+    matchLabels:
+      app: rook-cockroachdb-operator
   replicas: 1
   template:
     metadata:

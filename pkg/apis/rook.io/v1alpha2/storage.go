@@ -109,6 +109,16 @@ func (s *StorageScopeSpec) resolveNodeConfig(node *Node) {
 	}
 }
 
+// NodeWithNameExists returns true if the storage spec defines a node with the given name.
+func (s *StorageScopeSpec) NodeWithNameExists(name string) bool {
+	for _, n := range s.Nodes {
+		if name == n.Name {
+			return true
+		}
+	}
+	return false
+}
+
 // GetUseAllDevices return if all devices should be used.
 func (s *Selection) GetUseAllDevices() bool {
 	return s.UseAllDevices != nil && *(s.UseAllDevices)

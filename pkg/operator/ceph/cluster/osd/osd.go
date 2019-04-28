@@ -28,41 +28,46 @@ import (
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	osdconfig "github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
+	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/discover"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/display"
+	apps "k8s.io/api/apps/v1"
 	batch "k8s.io/api/batch/v1"
-	"k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-osd")
 
 const (
-	appName                      = "rook-ceph-osd"
-	prepareAppName               = "rook-ceph-osd-prepare"
-	prepareAppNameFmt            = "rook-ceph-osd-prepare-%s"
-	legacyAppNameFmt             = "rook-ceph-osd-id-%d"
-	osdAppNameFmt                = "rook-ceph-osd-%d"
-	osdLabelKey                  = "ceph-osd-id"
-	clusterAvailableSpaceReserve = 0.05
-	serviceAccountName           = "rook-ceph-osd"
-	unknownID                    = -1
+	appName                             = "rook-ceph-osd"
+	prepareAppName                      = "rook-ceph-osd-prepare"
+	prepareAppNameFmt                   = "rook-ceph-osd-prepare-%s"
+	legacyAppNameFmt                    = "rook-ceph-osd-id-%d"
+	osdAppNameFmt                       = "rook-ceph-osd-%d"
+	osdLabelKey                         = "ceph-osd-id"
+	clusterAvailableSpaceReserve        = 0.05
+	serviceAccountName                  = "rook-ceph-osd"
+	unknownID                           = -1
+	cephOsdPodMinimumMemory      uint64 = 4096 // minimum amount of memory in MB to run the pod
 )
 
 // Cluster keeps track of the OSDs
 type Cluster struct {
+	clusterInfo     *cephconfig.ClusterInfo
 	context         *clusterd.Context
 	Namespace       string
 	placement       rookalpha.Placement
+	annotations     rookalpha.Annotations
 	Keyring         string
 	rookVersion     string
 	cephVersion     cephv1.CephVersionSpec
-	Storage         rookalpha.StorageScopeSpec
+	DesiredStorage  rookalpha.StorageScopeSpec // user-defined storage scope spec
+	ValidStorage    rookalpha.StorageScopeSpec // valid subset of `Storage`, computed at runtime
 	dataDirHostPath string
 	HostNetwork     bool
 	resources       v1.ResourceRequirements
@@ -72,6 +77,7 @@ type Cluster struct {
 
 // New creates an instance of the OSD manager
 func New(
+	clusterInfo *cephconfig.ClusterInfo,
 	context *clusterd.Context,
 	namespace string,
 	rookVersion string,
@@ -79,18 +85,20 @@ func New(
 	storageSpec rookalpha.StorageScopeSpec,
 	dataDirHostPath string,
 	placement rookalpha.Placement,
+	annotations rookalpha.Annotations,
 	hostNetwork bool,
 	resources v1.ResourceRequirements,
 	ownerRef metav1.OwnerReference,
 ) *Cluster {
-
 	return &Cluster{
+		clusterInfo:     clusterInfo,
 		context:         context,
 		Namespace:       namespace,
 		placement:       placement,
+		annotations:     annotations,
 		rookVersion:     rookVersion,
 		cephVersion:     cephVersion,
-		Storage:         storageSpec,
+		DesiredStorage:  storageSpec,
 		dataDirHostPath: dataDirHostPath,
 		HostNetwork:     hostNetwork,
 		resources:       resources,
@@ -121,25 +129,22 @@ type OrchestrationStatus struct {
 
 // Start the osd management
 func (c *Cluster) Start() error {
+	// Validate pod's memory if specified
+	// This is valid for both Filestore and Bluestore
+	err := opspec.CheckPodMemory(c.resources, cephOsdPodMinimumMemory)
+	if err != nil {
+		return fmt.Errorf("%v", err)
+	}
+
 	logger.Infof("start running osds in namespace %s", c.Namespace)
 
-	if c.Storage.UseAllNodes == false && len(c.Storage.Nodes) == 0 {
+	if c.DesiredStorage.UseAllNodes == false && len(c.DesiredStorage.Nodes) == 0 {
 		logger.Warningf("useAllNodes is set to false and no nodes are specified, no OSD pods are going to be created")
 	}
 
-	// disable scrubbing during orchestration and ensure it gets enabled again afterwards
-	if o, err := client.DisableScrubbing(c.context, c.Namespace); err != nil {
-		logger.Warningf("failed to disable scrubbing: %+v. %s", err, o)
-	}
-	defer func() {
-		if o, err := client.EnableScrubbing(c.context, c.Namespace); err != nil {
-			logger.Warningf("failed to enable scrubbing: %+v. %s", err, o)
-		}
-	}()
-
-	if c.Storage.UseAllNodes {
+	if c.DesiredStorage.UseAllNodes {
 		// resolve all storage nodes
-		c.Storage.Nodes = nil
+		c.DesiredStorage.Nodes = nil
 		rookSystemNS := os.Getenv(k8sutil.PodNamespaceEnvVar)
 		allNodeDevices, err := discover.ListDevices(c.context, rookSystemNS, "" /* all nodes */)
 		if err != nil {
@@ -161,26 +166,25 @@ func (c *Cluster) Start() error {
 			storageNode := rookalpha.Node{
 				Name: hostname,
 			}
-			c.Storage.Nodes = append(c.Storage.Nodes, storageNode)
+			c.DesiredStorage.Nodes = append(c.DesiredStorage.Nodes, storageNode)
 		}
-		logger.Debugf("storage nodes: %+v", c.Storage.Nodes)
+		logger.Debugf("storage nodes: %+v", c.DesiredStorage.Nodes)
 	}
-	validNodes := k8sutil.GetValidNodes(c.Storage.Nodes, c.context.Clientset, c.placement)
+	// generally speaking, this finds nodes which are capable of running new osds
+	validNodes := k8sutil.GetValidNodes(c.DesiredStorage.Nodes, c.context.Clientset, c.placement)
+
 	// no valid node is ready to run an osd
 	if len(validNodes) == 0 {
-		logger.Warningf("no valid node available to run an osd in namespace %s", c.Namespace)
+		logger.Warningf("no valid node available to run an osd in namespace %s. "+
+			"Rook will not create any new OSD nodes and will skip checking for removed nodes since "+
+			"removing all OSD nodes without destroying the Rook cluster is unlikely to be intentional", c.Namespace)
 		return nil
 	}
-	logger.Infof("%d of the %d storage nodes are valid", len(validNodes), len(c.Storage.Nodes))
-	c.Storage.Nodes = validNodes
-
-	// orchestrate individual nodes, starting with any that are still ongoing (in the case that we
-	// are resuming a previous orchestration attempt)
-	config := newProvisionConfig()
-	logger.Infof("checking if orchestration is still in progress")
-	c.completeProvisionSkipOSDStart(config)
+	logger.Infof("%d of the %d storage nodes are valid", len(validNodes), len(c.DesiredStorage.Nodes))
+	c.ValidStorage.Nodes = validNodes
 
 	// start the jobs to provision the OSD devices and directories
+	config := newProvisionConfig()
 	logger.Infof("start provisioning the osds on nodes, if needed")
 	c.startProvisioning(config)
 
@@ -202,10 +206,13 @@ func (c *Cluster) Start() error {
 }
 
 func (c *Cluster) startProvisioning(config *provisionConfig) {
-	config.devicesToUse = make(map[string][]rookalpha.Device)
+	if len(c.dataDirHostPath) == 0 {
+		logger.Warningf("skipping osd provisioning where no dataDirHostPath is set")
+		return
+	}
 
 	// start with nodes currently in the storage spec
-	for _, node := range c.Storage.Nodes {
+	for _, node := range c.ValidStorage.Nodes {
 		// fully resolve the storage config and resources for this node
 		n := c.resolveNode(node.Name)
 		if n == nil {
@@ -224,23 +231,11 @@ func (c *Cluster) startProvisioning(config *provisionConfig) {
 			config.addError("failed to set orchestration starting status for node %s: %+v", n.Name, err)
 			continue
 		}
-		config.devicesToUse[n.Name] = n.Devices
-		availDev, deviceErr := discover.GetAvailableDevices(c.context, n.Name, c.Namespace, n.Devices, n.Selection.DeviceFilter, n.Selection.GetUseAllDevices())
-		if deviceErr != nil {
-			logger.Warningf("failed to get devices for node %s cluster %s: %v", n.Name, c.Namespace, deviceErr)
-		} else {
-			config.devicesToUse[n.Name] = availDev
-			logger.Infof("avail devices for node %s: %+v", n.Name, availDev)
-		}
-		if len(availDev) == 0 && len(c.dataDirHostPath) == 0 {
-			config.addError("empty volumes for node %s", n.Name)
-			continue
-		}
 
 		// create the job that prepares osds on the node
 		storeConfig := osdconfig.ToStoreConfig(n.Config)
 		metadataDevice := osdconfig.MetadataDevice(n.Config)
-		job, err := c.makeJob(n.Name, config.devicesToUse[n.Name], n.Selection, n.Resources, storeConfig, metadataDevice, n.Location)
+		job, err := c.makeJob(n.Name, n.Devices, n.Selection, n.Resources, storeConfig, metadataDevice, n.Location)
 		if err != nil {
 			message := fmt.Sprintf("failed to create prepare job node %s: %v", n.Name, err)
 			config.addError(message)
@@ -252,8 +247,9 @@ func (c *Cluster) startProvisioning(config *provisionConfig) {
 		}
 
 		if !c.runJob(job, n.Name, config, "provision") {
-			if err = discover.FreeDevices(c.context, n.Name, c.Namespace); err != nil {
-				logger.Warningf("failed to free devices: %s", err)
+			status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: fmt.Sprintf("failed to start osd provisioning on node %s", n.Name)}
+			if err := c.updateNodeStatus(n.Name, status); err != nil {
+				config.addError("failed to update node %s status. %+v", n.Name, err)
 			}
 		}
 	}
@@ -293,45 +289,28 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 	// start osds
 	for _, osd := range osds {
 		logger.Debugf("start osd %v", osd)
-		dp, err := c.makeDeployment(n.Name, config.devicesToUse[n.Name], n.Selection, n.Resources, storeConfig, metadataDevice, n.Location, osd)
+		dp, err := c.makeDeployment(n.Name, n.Selection, n.Resources, storeConfig, metadataDevice, n.Location, osd)
 		if err != nil {
-			errMsg := fmt.Sprintf("nil deployment for node %s: %v", n.Name, err)
+			errMsg := fmt.Sprintf("failed to create deployment for node %s: %v", n.Name, err)
 			config.addError(errMsg)
-			err = discover.FreeDevices(c.context, n.Name, c.Namespace)
-			if err != nil {
-				logger.Warningf("failed to free devices: %s", err)
-			}
 			continue
 		}
 
-		if err = c.deleteDeploymentWithLegacyName(osd.ID); err != nil {
-			logger.Warningf("failed to delete legacy osd deployment. %+v", err)
-		}
-
-		_, err = c.context.Clientset.Extensions().Deployments(c.Namespace).Create(dp)
+		_, err = c.context.Clientset.AppsV1().Deployments(c.Namespace).Create(dp)
 		if err != nil {
 			if !errors.IsAlreadyExists(err) {
 				// we failed to create job, update the orchestration status for this node
 				logger.Warningf("failed to create osd deployment for node %s, osd %v: %+v", n.Name, osd, err)
-				err = discover.FreeDevices(c.context, n.Name, c.Namespace)
-				if err != nil {
-					logger.Warningf("failed to free devices: %s", err)
-				}
 				continue
 			}
 			logger.Infof("deployment for osd %d already exists. updating if needed", osd.ID)
-			if err = k8sutil.UpdateDeploymentAndWait(c.context, dp, c.Namespace); err != nil {
+			if _, err = k8sutil.UpdateDeploymentAndWait(c.context, dp, c.Namespace); err != nil {
 				config.addError(fmt.Sprintf("failed to update osd deployment %d. %+v", osd.ID, err))
 			}
 		}
 
 		logger.Infof("started deployment for osd %d (dir=%t, type=%s)", osd.ID, osd.IsDirectory, storeConfig.StoreType)
 	}
-}
-
-func (c *Cluster) deleteDeploymentWithLegacyName(osdID int) error {
-	legacyName := fmt.Sprintf(legacyAppNameFmt, osdID)
-	return k8sutil.DeleteDeployment(c.context.Clientset, c.Namespace, legacyName)
 }
 
 func (c *Cluster) handleRemovedNodes(config *provisionConfig) {
@@ -432,25 +411,27 @@ func (c *Cluster) cleanupRemovedNode(config *provisionConfig, nodeName, crushNam
 	}
 }
 
-func (c *Cluster) discoverStorageNodes() (map[string][]*extensions.Deployment, error) {
+// discover nodes which currently have osds scheduled on them. Return a mapping of
+// node names -> a list of osd deployments on the node
+func (c *Cluster) discoverStorageNodes() (map[string][]*apps.Deployment, error) {
 
 	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", appName)}
-	osdDeployments, err := c.context.Clientset.Extensions().Deployments(c.Namespace).List(listOpts)
+	osdDeployments, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).List(listOpts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list osd deployment: %+v", err)
 	}
-	discoveredNodes := map[string][]*extensions.Deployment{}
+	discoveredNodes := map[string][]*apps.Deployment{}
 	for _, osdDeployment := range osdDeployments.Items {
 		osdPodSpec := osdDeployment.Spec.Template.Spec
 
 		// get the node name from the node selector
-		nodeName, ok := osdPodSpec.NodeSelector[apis.LabelHostname]
+		nodeName, ok := osdPodSpec.NodeSelector[v1.LabelHostname]
 		if !ok || nodeName == "" {
 			return nil, fmt.Errorf("osd deployment %s doesn't have a node name on its node selector: %+v", osdDeployment.Name, osdPodSpec.NodeSelector)
 		}
 
 		if _, ok := discoveredNodes[nodeName]; !ok {
-			discoveredNodes[nodeName] = []*extensions.Deployment{}
+			discoveredNodes[nodeName] = []*apps.Deployment{}
 		}
 
 		logger.Debugf("adding osd %s to node %s", osdDeployment.Name, nodeName)
@@ -461,7 +442,7 @@ func (c *Cluster) discoverStorageNodes() (map[string][]*extensions.Deployment, e
 	return discoveredNodes, nil
 }
 
-func (c *Cluster) isSafeToRemoveNode(nodeName string, osdDeployments []*extensions.Deployment) error {
+func (c *Cluster) isSafeToRemoveNode(nodeName string, osdDeployments []*apps.Deployment) error {
 	if err := client.IsClusterClean(c.context, c.Namespace); err != nil {
 		// the cluster isn't clean, it's not safe to remove this node
 		return err
@@ -518,7 +499,7 @@ func (c *Cluster) isSafeToRemoveNode(nodeName string, osdDeployments []*extensio
 	return nil
 }
 
-func getIDFromDeployment(deployment *extensions.Deployment) int {
+func getIDFromDeployment(deployment *apps.Deployment) int {
 	if idstr, ok := deployment.Labels[osdLabelKey]; ok {
 		id, err := strconv.Atoi(idstr)
 		if err != nil {
@@ -533,22 +514,11 @@ func getIDFromDeployment(deployment *extensions.Deployment) int {
 
 func (c *Cluster) resolveNode(nodeName string) *rookalpha.Node {
 	// fully resolve the storage config and resources for this node
-	rookNode := c.Storage.ResolveNode(nodeName)
+	rookNode := c.DesiredStorage.ResolveNode(nodeName)
 	if rookNode == nil {
 		return nil
 	}
 	rookNode.Resources = k8sutil.MergeResourceRequirements(rookNode.Resources, c.resources)
-
-	// ensure no invalid dirs are specified
-	var validDirs []rookalpha.Directory
-	for _, dir := range rookNode.Directories {
-		if dir.Path == k8sutil.DataDir || dir.Path == c.dataDirHostPath {
-			logger.Warningf("skipping directory %s that would conflict with the dataDirHostPath", dir.Path)
-			continue
-		}
-		validDirs = append(validDirs, dir)
-	}
-	rookNode.Directories = validDirs
 
 	return rookNode
 }

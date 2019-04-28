@@ -29,9 +29,8 @@ import (
 )
 
 var agentCmd = &cobra.Command{
-	Use:    "agent",
-	Short:  "Runs the rook ceph agent",
-	Hidden: true,
+	Use:   "agent",
+	Short: "Runs the rook ceph agent",
 }
 
 func init() {

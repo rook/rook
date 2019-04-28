@@ -77,7 +77,7 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	blockName := "block-claim-upgrade"
 	podName := "test-pod-upgrade"
 	logger.Infof("Initializing block before the upgrade")
-	setupBlockLite(s.helper, s.k8sh, s.Suite, s.namespace, poolName, storageClassName, blockName, podName)
+	setupBlockLite(s.helper, s.k8sh, s.Suite, s.namespace, poolName, storageClassName, blockName, podName, s.op.installer.CephVersion)
 	createPodWithBlock(s.helper, s.k8sh, s.Suite, s.namespace, blockName, podName)
 	defer blockTestDataCleanUp(s.helper, s.k8sh, s.namespace, poolName, storageClassName, blockName, podName)
 
@@ -107,6 +107,10 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	assert.Nil(s.T(), s.k8sh.WriteToPod(s.namespace, filePodName, preFilename, message))
 	assert.Nil(s.T(), s.k8sh.ReadFromPod(s.namespace, filePodName, preFilename, message))
 
+	// Update to the next version of cluster roles before the operator is restarted
+	err = s.updateClusterRoles()
+	require.Nil(s.T(), err)
+
 	// Upgrade to master
 	require.Nil(s.T(), s.k8sh.SetDeploymentVersion(systemNamespace, operatorContainer, operatorContainer, installer.VersionMaster))
 
@@ -115,9 +119,8 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), "rook/ceph:"+installer.VersionMaster, version)
 
-	// wait for the mon pods to be running
-	err = k8sutil.WaitForDeploymentImage(s.k8sh.Clientset, s.namespace, "app=rook-ceph-mon", opspec.ConfigInitContainerName, true, "rook/ceph:master")
-	require.Nil(s.T(), err)
+	// wait for the mon pods to be running. we can no longer check a version in the pod spec, so we just wait a bit.
+	time.Sleep(15 * time.Second)
 
 	err = s.k8sh.WaitForLabeledPodsToRun("app=rook-ceph-mon", s.namespace)
 	require.Nil(s.T(), err)
@@ -144,4 +147,213 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	assert.Nil(s.T(), s.k8sh.ReadFromPodRetry("", podName, preFilename, message, 5))
 	assert.Nil(s.T(), s.k8sh.WriteToPodRetry("", podName, postFilename, message, 5))
 	assert.Nil(s.T(), s.k8sh.ReadFromPodRetry("", podName, postFilename, message, 5))
+}
+
+// Update the clusterroles that have been modified in master from the previous release
+func (s *UpgradeSuite) updateClusterRoles() error {
+	systemNamespace := installer.SystemNamespace(s.namespace)
+
+	if err := s.k8sh.DeleteResource("ClusterRole", "rook-ceph-global"); err != nil {
+		return err
+	}
+	if err := s.k8sh.DeleteResource("ClusterRole", "rook-ceph-cluster-mgmt"); err != nil {
+		return err
+	}
+	if err := s.k8sh.DeleteResource("-n", systemNamespace, "Role", "rook-ceph-system"); err != nil {
+		return err
+	}
+	if err := s.k8sh.DeleteResource("-n", s.namespace, "Role", "rook-ceph-mgr-system"); err != nil {
+		return err
+	}
+	if err := s.k8sh.DeleteResource("-n", systemNamespace, "RoleBinding", "rook-ceph-mgr-system"); err != nil {
+		return err
+	}
+	if err := s.k8sh.DeleteResource("-n", s.namespace, "RoleBinding", "rook-ceph-mgr-cluster"); err != nil {
+		return err
+	}
+
+	newResources := `
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: rook-ceph-global
+  labels:
+    operator: rook
+    storage-backend: ceph
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - nodes
+  - nodes/proxy
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - events
+  - persistentvolumes
+  - persistentvolumeclaims
+  - endpoints
+  verbs:
+  - get
+  - list
+  - watch
+  - patch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - storageclasses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - ceph.rook.io
+  resources:
+  - "*"
+  verbs:
+  - "*"
+- apiGroups:
+  - rook.io
+  resources:
+  - "*"
+  verbs:
+  - "*"
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: rook-ceph-cluster-mgmt
+  labels:
+    operator: rook
+    storage-backend: ceph
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  - pods
+  - pods/log
+  - services
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - patch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  - daemonsets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+metadata:
+  name: rook-ceph-system
+  namespace: ` + systemNamespace + `
+  labels:
+    operator: rook
+    storage-backend: ceph
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - configmaps
+  - services
+  verbs:
+  - get
+  - list
+  - watch
+  - patch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - apps
+  resources:
+  - daemonsets
+  - statefulsets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr-system
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+---
+# Allow the ceph mgr to access the rook system resources necessary for the mgr modules
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr-system
+  namespace: ` + systemNamespace + `
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-mgr-system
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-mgr
+  namespace: rook-ceph
+---
+# Allow the ceph mgr to access cluster-wide resources necessary for the mgr modules
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr-cluster
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-mgr-cluster
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-mgr
+  namespace: rook-ceph
+`
+	logger.Infof("creating the new resources that have been added since 0.9")
+	return s.k8sh.ResourceOperation("create", newResources)
 }

@@ -18,9 +18,11 @@ package clients
 
 import (
 	"fmt"
-	"github.com/rook/rook/pkg/daemon/ceph/rgw"
+
+	rgw "github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
+	"strings"
 )
 
 // ObjectUserOperation is wrapper for k8s rook object user operations
@@ -47,8 +49,12 @@ func (o *ObjectUserOperation) GetUser(namespace string, store string, userid str
 
 // UserSecretExists Function to check that user secret was created
 func (o *ObjectUserOperation) UserSecretExists(namespace string, store string, userid string) bool {
-	_, err := o.k8sh.GetResource("-n", namespace, "secrets", "-l", "rook_object_store="+store, "-l", "user="+userid)
-	if err == nil {
+	message, err := o.k8sh.GetResource("-n", namespace, "secrets", "-l", "rook_object_store="+store, "-l", "user="+userid)
+	//GetResource(blah) returns success if blah is or is not found.
+	//err = success and found_sec not "No resources found." means it was found
+	//err = success and found_sec contains "No resources found." means it was not found
+	//err != success is an other error
+	if err == nil && !strings.Contains(message, "No resources found.") {
 		logger.Infof("Object User Secret Exists")
 		return true
 	}
@@ -60,7 +66,7 @@ func (o *ObjectUserOperation) UserSecretExists(namespace string, store string, u
 func (o *ObjectUserOperation) Create(namespace string, userid string, displayName string, store string) error {
 
 	logger.Infof("creating the object store user via CRD")
-	if _, err := o.k8sh.ResourceOperation("create", o.manifests.GetObjectStoreUser(namespace, userid, displayName, store)); err != nil {
+	if err := o.k8sh.ResourceOperation("create", o.manifests.GetObjectStoreUser(namespace, userid, displayName, store)); err != nil {
 		return err
 	}
 	return nil
@@ -69,7 +75,7 @@ func (o *ObjectUserOperation) Create(namespace string, userid string, displayNam
 func (o *ObjectUserOperation) Delete(namespace string, userid string) error {
 
 	logger.Infof("Deleting the object store user via CRD")
-	if _, err := o.k8sh.DeleteResource("-n", namespace, "ObjectStoreUser", userid); err != nil {
+	if err := o.k8sh.DeleteResource("-n", namespace, "CephObjectStoreUser", userid); err != nil {
 		return err
 	}
 	return nil

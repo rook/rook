@@ -1,4 +1,4 @@
-apiVersion: edgefs.rook.io/v1alpha1
+apiVersion: edgefs.rook.io/v1beta1
 kind: S3X
 metadata:
   name: s3x01
@@ -27,3 +27,10 @@ spec:
   #  requests:
   #    cpu: "2"
   #    memory: "4Gi"
+  # A key value list of annotations
+  annotations:
+  #  all:
+  #    key: value
+  #  mgr:
+  #  prepare:
+  #  target:

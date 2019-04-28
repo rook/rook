@@ -66,10 +66,7 @@ rules:
   resources:
   - services
   verbs:
-  - get
-  - list
   - create
-  - update
 - apiGroups:
   - apps
   resources:
@@ -109,12 +106,17 @@ subjects:
   name: rook-cockroachdb-operator
   namespace: ` + namespace + `
 ---
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: rook-cockroachdb-operator
   namespace: ` + namespace + `
+  labels:
+    app: rook-cockroachdb-operator
 spec:
+  selector:
+    matchLabels:
+      app: rook-cockroachdb-operator
   replicas: 1
   template:
     metadata:

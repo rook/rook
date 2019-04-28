@@ -123,9 +123,9 @@ type PgStateEntry struct {
 	Count     int    `json:"count"`
 }
 
-func Status(context *clusterd.Context, clusterName string) (CephStatus, error) {
+func Status(context *clusterd.Context, clusterName string, debug bool) (CephStatus, error) {
 	args := []string{"status"}
-	buf, err := ExecuteCephCommand(context, clusterName, args)
+	buf, err := ExecuteCephCommandDebug(context, clusterName, debug, args)
 	if err != nil {
 		return CephStatus{}, fmt.Errorf("failed to get status: %+v", err)
 	}
@@ -141,7 +141,7 @@ func Status(context *clusterd.Context, clusterName string) (CephStatus, error) {
 // IsClusterClean returns a value indicating if the cluster is fully clean yet (i.e., all placement
 // groups are in the active+clean state).
 func IsClusterClean(context *clusterd.Context, clusterName string) error {
-	status, err := Status(context, clusterName)
+	status, err := Status(context, clusterName, false)
 	if err != nil {
 		return err
 	}

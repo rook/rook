@@ -1,0 +1,55 @@
+# This YAML file contains nginx & Edgfefs NFS CSI driver objects,
+# which are necessary to run nginx with edgefs nfs csi driver.
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: edgefs-nfs-csi-pv
+  labels:
+    name: edgefs-nfs-csi-pv
+spec:
+  accessModes:
+  - ReadWriteMany
+  capacity:
+    storage: 1Gi
+  csi:
+    driver: io.edgefs.csi.nfs
+    volumeHandle: cltest/test/pvc-0f49393d-2fbb-11e9-aeb6-002590ebe9b4
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: edgefs-nfs-csi-pvc
+spec:
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+  selector:
+    matchExpressions:
+    - key: name
+      operator: In
+      values: ["edgefs-nfs-csi-pv"]
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+spec:
+  containers:
+  - image: maersk/nginx
+    imagePullPolicy: Always
+    name: nginx
+    ports:
+    - containerPort: 80
+      protocol: TCP
+    volumeMounts:
+      - mountPath: /var/www
+        name: edgefs-nfs-csi-volume
+  volumes:
+  - name: edgefs-nfs-csi-volume
+    persistentVolumeClaim:
+      claimName: edgefs-nfs-csi-pvc
+

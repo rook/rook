@@ -7,6 +7,20 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+aggregationRule:
+  clusterRoleSelectors:
+  - matchLabels:
+      rbac.rook.ceph.io/aggregate-to-rook-ceph-cluster-mgmt: "true"
+rules: []
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: rook-ceph-cluster-mgmt-rules
+  labels:
+    operator: rook
+    storage-backend: ceph
+    rbac.rook.ceph.io/aggregate-to-rook-ceph-cluster-mgmt: "true"
 rules:
 - apiGroups:
   - ""
@@ -25,11 +39,10 @@ rules:
   - update
   - delete
 - apiGroups:
-  - extensions
+  - apps
   resources:
   - deployments
   - daemonsets
-  - replicasets
   verbs:
   - get
   - list
@@ -46,6 +59,20 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+aggregationRule:
+  clusterRoleSelectors:
+  - matchLabels:
+      rbac.ceph.rook.io/aggregate-to-rook-ceph-global: "true"
+rules: []
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: rook-ceph-global-rules
+  labels:
+    operator: rook
+    storage-backend: ceph
+    rbac.ceph.rook.io/aggregate-to-rook-ceph-global: "true"
 rules:
 - apiGroups:
   - ""
@@ -66,6 +93,7 @@ rules:
   # PVs and PVCs are managed by the Rook provisioner
   - persistentvolumes
   - persistentvolumeclaims
+  - endpoints
   verbs:
   - get
   - list
@@ -114,6 +142,20 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+aggregationRule:
+  clusterRoleSelectors:
+  - matchLabels:
+      rbac.ceph.rook.io/aggregate-to-rook-ceph-mgr-cluster: "true"
+rules: []
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr-cluster-rules
+  labels:
+    operator: rook
+    storage-backend: ceph
+    rbac.ceph.rook.io/aggregate-to-rook-ceph-mgr-cluster: "true"
 rules:
 - apiGroups:
   - ""
@@ -121,6 +163,33 @@ rules:
   - configmaps
   - nodes
   - nodes/proxy
+  verbs:
+  - get
+  - list
+  - watch
+---
+# Aspects of ceph-mgr that require access to the system namespace
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr-system
+aggregationRule:
+  clusterRoleSelectors:
+  - matchLabels:
+      rbac.ceph.rook.io/aggregate-to-rook-ceph-mgr-system: "true"
+rules: []
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr-system-rules
+  labels:
+    rbac.ceph.rook.io/aggregate-to-rook-ceph-mgr-system: "true"
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
   verbs:
   - get
   - list
@@ -134,6 +203,20 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+aggregationRule:
+  clusterRoleSelectors:
+  - matchLabels:
+      rbac.ceph.rook.io/aggregate-to-rook-ceph-agent-mount: "true"
+rules: []
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: rook-ceph-agent-mount-rules
+  labels:
+    operator: rook
+    storage-backend: ceph
+    rbac.ceph.rook.io/aggregate-to-rook-ceph-agent-mount: "true"
 rules:
 - apiGroups:
   - ""
@@ -152,9 +235,24 @@ metadata:
     operator: rook
     storage-backend: ceph
     chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
+aggregationRule:
+  clusterRoleSelectors:
+  - matchLabels:
+      rbac.ceph.rook.io/aggregate-to-rook-ceph-system-psp-user: "true"
+rules: []
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: rook-ceph-system-psp-user-rules
+  labels:
+    operator: rook
+    storage-backend: ceph
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
+    rbac.ceph.rook.io/aggregate-to-rook-ceph-system-psp-user: "true"
 rules:
 - apiGroups:
-  - extensions
+  - apps
   resources:
   - podsecuritypolicies
   resourceNames:

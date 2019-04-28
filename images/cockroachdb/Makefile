@@ -28,7 +28,7 @@ do.build:
 	@echo === docker build $(COCKROACHDB_IMAGE)
 	@cp Dockerfile $(TEMP)
 	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rook $(TEMP)
-	@docker build $(BUILD_ARGS) \
+	@$(DOCKERCMD) build $(BUILD_ARGS) \
 		-t $(COCKROACHDB_IMAGE) \
 		$(TEMP)
 	@rm -fr $(TEMP)

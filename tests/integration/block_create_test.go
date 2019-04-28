@@ -74,8 +74,7 @@ func (s *BlockCreateSuite) TestCreatePVCWhenNoStorageClassExists() {
 	reclaimPolicy := "Delete"
 	defer s.tearDownTest(claimName, poolName, storageClassName, reclaimPolicy, "ReadWriteOnce")
 
-	result, err := s.testClient.BlockClient.CreatePvc(claimName, storageClassName, "ReadWriteOnce")
-	checkOrderedSubstrings(s.T(), result, "persistentvolumeclaim", claimName, "created")
+	err := s.testClient.BlockClient.CreatePvc(claimName, storageClassName, "ReadWriteOnce")
 	require.NoError(s.T(), err)
 
 	// check status of PVC
@@ -107,22 +106,19 @@ func (s *BlockCreateSuite) TestCreateSamePVCTwice() {
 	s.testClient.BlockClient.List(s.namespace)
 
 	logger.Infof("create pool and storageclass")
-	result0, err0 := s.testClient.PoolClient.Create(poolName, s.namespace, 1)
-	checkOrderedSubstrings(s.T(), result0, poolName, "created")
-	require.NoError(s.T(), err0)
+	err := s.testClient.PoolClient.Create(poolName, s.namespace, 1)
+	require.NoError(s.T(), err)
 
-	result1, err1 := s.testClient.BlockClient.CreateStorageClass(poolName, storageClassName, reclaimPolicy, s.namespace, true)
-	checkOrderedSubstrings(s.T(), result1, storageClassName, "created")
-	require.NoError(s.T(), err1)
+	err = s.testClient.BlockClient.CreateStorageClass(poolName, storageClassName, reclaimPolicy, s.namespace, true)
+	require.NoError(s.T(), err)
 
 	logger.Infof("make sure storageclass is created")
-	err := s.kh.IsStorageClassPresent("rook-ceph-block")
+	err = s.kh.IsStorageClassPresent("rook-ceph-block")
 	require.Nil(s.T(), err)
 
 	logger.Infof("create pvc")
-	result2, err2 := s.testClient.BlockClient.CreatePvc(claimName, storageClassName, "ReadWriteOnce")
-	checkOrderedSubstrings(s.T(), result2, claimName, "created")
-	require.NoError(s.T(), err2)
+	err = s.testClient.BlockClient.CreatePvc(claimName, storageClassName, "ReadWriteOnce")
+	require.NoError(s.T(), err)
 
 	logger.Infof("check status of PVC")
 	require.True(s.T(), s.kh.WaitUntilPVCIsBound(defaultNamespace, claimName))
@@ -131,9 +127,9 @@ func (s *BlockCreateSuite) TestCreateSamePVCTwice() {
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), s.initBlockCount+1, len(b1), "Make sure new block image is created")
 
-	logger.Infof("Create same pvc again")
-	_, err3 := s.testClient.BlockClient.CreatePvc(claimName, storageClassName, "ReadWriteOnce")
-	checkOrderedSubstrings(s.T(), err3.Error(), claimName, "already exists")
+	logger.Infof("Create same pvc again and expect an error")
+	err = s.testClient.BlockClient.CreatePvc(claimName, storageClassName, "ReadWriteOnce")
+	assert.NotNil(s.T(), err)
 
 	logger.Infof("check status of PVC")
 	require.True(s.T(), s.kh.WaitUntilPVCIsBound(defaultNamespace, claimName))
@@ -155,14 +151,14 @@ func (s *BlockCreateSuite) TestBlockStorageMountUnMountForStatefulSets() {
 	logger.Infof("Test case when block persistent volumes are scaled up and down along with StatefulSet")
 	logger.Info("Step 1: Create pool and storageClass")
 
-	_, cbErr := s.testClient.PoolClient.CreateStorageClass(s.namespace, poolName, storageClassName, reclaimPolicy)
-	assert.Nil(s.T(), cbErr)
+	err := s.testClient.PoolClient.CreateStorageClass(s.namespace, poolName, storageClassName, reclaimPolicy)
+	assert.Nil(s.T(), err)
 	logger.Info("Step 2 : Deploy statefulSet with 1X replication")
 	service, statefulset := getBlockStatefulSetAndServiceDefinition(defaultNamespace, statefulSetName, statefulPodsName, storageClassName)
-	_, err1 := s.kh.Clientset.CoreV1().Services(defaultNamespace).Create(service)
-	_, err2 := s.kh.Clientset.AppsV1beta1().StatefulSets(defaultNamespace).Create(statefulset)
-	assert.Nil(s.T(), err1)
-	assert.Nil(s.T(), err2)
+	_, err = s.kh.Clientset.CoreV1().Services(defaultNamespace).Create(service)
+	assert.Nil(s.T(), err)
+	_, err = s.kh.Clientset.AppsV1().StatefulSets(defaultNamespace).Create(statefulset)
+	assert.Nil(s.T(), err)
 	require.True(s.T(), s.kh.CheckPodCountAndState(statefulSetName, defaultNamespace, 1, "Running"))
 	require.True(s.T(), s.kh.CheckPvcCountAndStatus(statefulSetName, defaultNamespace, 1, "Bound"))
 
@@ -181,12 +177,12 @@ func (s *BlockCreateSuite) TestBlockStorageMountUnMountForStatefulSets() {
 	logger.Info("Step 5 : Delete statefulSet")
 	delOpts := metav1.DeleteOptions{}
 	listOpts := metav1.ListOptions{LabelSelector: "app=" + statefulSetName}
-	err1 = s.kh.Clientset.CoreV1().Services(defaultNamespace).Delete(statefulSetName, &delOpts)
-	err2 = s.kh.Clientset.AppsV1beta1().StatefulSets(defaultNamespace).Delete(statefulPodsName, &delOpts)
-	err3 := s.kh.Clientset.CoreV1().Pods(defaultNamespace).DeleteCollection(&delOpts, listOpts)
-	assert.Nil(s.T(), err1)
-	assert.Nil(s.T(), err2)
-	assert.Nil(s.T(), err3)
+	err = s.kh.Clientset.CoreV1().Services(defaultNamespace).Delete(statefulSetName, &delOpts)
+	assert.Nil(s.T(), err)
+	err = s.kh.Clientset.AppsV1().StatefulSets(defaultNamespace).Delete(statefulPodsName, &delOpts)
+	assert.Nil(s.T(), err)
+	err = s.kh.Clientset.CoreV1().Pods(defaultNamespace).DeleteCollection(&delOpts, listOpts)
+	assert.Nil(s.T(), err)
 	require.True(s.T(), s.kh.WaitUntilPodWithLabelDeleted(fmt.Sprintf("app=%s", statefulSetName), defaultNamespace))
 	require.True(s.T(), s.kh.CheckPvcCountAndStatus(statefulSetName, defaultNamespace, 2, "Bound"))
 }
@@ -196,7 +192,7 @@ func (s *BlockCreateSuite) statefulSetDataCleanup(namespace, poolName, storageCl
 	listOpts := metav1.ListOptions{LabelSelector: "app=" + statefulSetName}
 	// Delete stateful set
 	s.kh.Clientset.CoreV1().Services(namespace).Delete(statefulSetName, &delOpts)
-	s.kh.Clientset.AppsV1beta1().StatefulSets(defaultNamespace).Delete(statefulPodsName, &delOpts)
+	s.kh.Clientset.AppsV1().StatefulSets(defaultNamespace).Delete(statefulPodsName, &delOpts)
 	s.kh.Clientset.CoreV1().Pods(defaultNamespace).DeleteCollection(&delOpts, listOpts)
 	// Delete all PVCs
 	s.kh.DeletePvcWithLabel(defaultNamespace, statefulSetName)
@@ -223,21 +219,18 @@ func (s *BlockCreateSuite) CheckCreatingPVC(pvcName, pvcAccessMode string) {
 	defer s.tearDownTest(claimName, poolName, storageClassName, reclaimPolicy, pvcAccessMode)
 
 	// create pool and storageclass
-	result0, err0 := s.testClient.PoolClient.Create(poolName, s.namespace, 1)
-	checkOrderedSubstrings(s.T(), result0, poolName, "created")
-	require.NoError(s.T(), err0)
-	result1, err1 := s.testClient.BlockClient.CreateStorageClass(poolName, storageClassName, reclaimPolicy, s.namespace, true)
-	checkOrderedSubstrings(s.T(), result1, storageClassName, "created")
-	require.NoError(s.T(), err1)
+	err := s.testClient.PoolClient.Create(poolName, s.namespace, 1)
+	require.NoError(s.T(), err)
+	err = s.testClient.BlockClient.CreateStorageClass(poolName, storageClassName, reclaimPolicy, s.namespace, true)
+	require.NoError(s.T(), err)
 
 	// make sure storageclass is created
-	err := s.kh.IsStorageClassPresent(storageClassName)
+	err = s.kh.IsStorageClassPresent(storageClassName)
 	require.Nil(s.T(), err)
 
 	// create pvc
-	result2, err2 := s.testClient.BlockClient.CreatePvc(claimName, storageClassName, pvcAccessMode)
-	checkOrderedSubstrings(s.T(), result2, claimName, "created")
-	require.NoError(s.T(), err2)
+	err = s.testClient.BlockClient.CreatePvc(claimName, storageClassName, pvcAccessMode)
+	require.NoError(s.T(), err)
 
 	// check status of PVC
 	require.True(s.T(), s.kh.WaitUntilPVCIsBound(defaultNamespace, claimName))

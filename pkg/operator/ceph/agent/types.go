@@ -19,7 +19,7 @@ package agent
 
 import (
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/kubernetes/pkg/apis/componentconfig"
+	componentconfig "k8s.io/kube-controller-manager/config/v1alpha1"
 )
 
 // Agent reference to be deployed

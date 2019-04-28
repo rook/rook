@@ -110,7 +110,7 @@ func TestOnAdd(t *testing.T) {
 	assert.Equal(t, minioPort, svc.Spec.Ports[0].Port)
 
 	// verify stateful set
-	ss, err := clientset.AppsV1beta2().StatefulSets(namespace).Get(appName, metav1.GetOptions{})
+	ss, err := clientset.AppsV1().StatefulSets(namespace).Get(appName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.NotNil(t, ss)
 	assert.Equal(t, int32(6), *ss.Spec.Replicas)
@@ -148,6 +148,10 @@ func TestSpecVerification(t *testing.T) {
 			Namespace: namespace,
 		},
 		Spec: miniov.ObjectStoreSpec{
+			Annotations: map[string]string{
+				"test123": "this is a test",
+				"rook.io": "this is a test",
+			},
 			Storage: rookalpha.StorageScopeSpec{
 				NodeCount: 6,
 				Selection: rookalpha.Selection{

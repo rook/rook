@@ -25,12 +25,12 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
-// CephNFSLister helps list CephNFSs.
+// CephNFSLister helps list CephNFSes.
 type CephNFSLister interface {
-	// List lists all CephNFSs in the indexer.
+	// List lists all CephNFSes in the indexer.
 	List(selector labels.Selector) (ret []*v1.CephNFS, err error)
-	// CephNFSs returns an object that can list and get CephNFSs.
-	CephNFSs(namespace string) CephNFSNamespaceLister
+	// CephNFSes returns an object that can list and get CephNFSes.
+	CephNFSes(namespace string) CephNFSNamespaceLister
 	CephNFSListerExpansion
 }
 
@@ -44,7 +44,7 @@ func NewCephNFSLister(indexer cache.Indexer) CephNFSLister {
 	return &cephNFSLister{indexer: indexer}
 }
 
-// List lists all CephNFSs in the indexer.
+// List lists all CephNFSes in the indexer.
 func (s *cephNFSLister) List(selector labels.Selector) (ret []*v1.CephNFS, err error) {
 	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
 		ret = append(ret, m.(*v1.CephNFS))
@@ -52,14 +52,14 @@ func (s *cephNFSLister) List(selector labels.Selector) (ret []*v1.CephNFS, err e
 	return ret, err
 }
 
-// CephNFSs returns an object that can list and get CephNFSs.
-func (s *cephNFSLister) CephNFSs(namespace string) CephNFSNamespaceLister {
+// CephNFSes returns an object that can list and get CephNFSes.
+func (s *cephNFSLister) CephNFSes(namespace string) CephNFSNamespaceLister {
 	return cephNFSNamespaceLister{indexer: s.indexer, namespace: namespace}
 }
 
-// CephNFSNamespaceLister helps list and get CephNFSs.
+// CephNFSNamespaceLister helps list and get CephNFSes.
 type CephNFSNamespaceLister interface {
-	// List lists all CephNFSs in the indexer for a given namespace.
+	// List lists all CephNFSes in the indexer for a given namespace.
 	List(selector labels.Selector) (ret []*v1.CephNFS, err error)
 	// Get retrieves the CephNFS from the indexer for a given namespace and name.
 	Get(name string) (*v1.CephNFS, error)
@@ -73,7 +73,7 @@ type cephNFSNamespaceLister struct {
 	namespace string
 }
 
-// List lists all CephNFSs in the indexer for a given namespace.
+// List lists all CephNFSes in the indexer for a given namespace.
 func (s cephNFSNamespaceLister) List(selector labels.Selector) (ret []*v1.CephNFS, err error) {
 	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
 		ret = append(ret, m.(*v1.CephNFS))

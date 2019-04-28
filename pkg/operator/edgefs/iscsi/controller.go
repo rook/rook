@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Rook Authors. All rights reserved.
+Copyright 2019 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	opkit "github.com/rook/operator-kit"
-	edgefsv1alpha1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1alpha1"
+	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"k8s.io/api/core/v1"
@@ -44,10 +44,10 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "edgefs-op-iscsi"
 var ISCSIResource = opkit.CustomResource{
 	Name:    customResourceName,
 	Plural:  customResourceNamePlural,
-	Group:   edgefsv1alpha1.CustomResourceGroup,
-	Version: edgefsv1alpha1.Version,
+	Group:   edgefsv1beta1.CustomResourceGroup,
+	Version: edgefsv1beta1.Version,
 	Scope:   apiextensionsv1beta1.NamespaceScoped,
-	Kind:    reflect.TypeOf(edgefsv1alpha1.ISCSI{}).Name(),
+	Kind:    reflect.TypeOf(edgefsv1beta1.ISCSI{}).Name(),
 }
 
 // ISCSIController represents a controller object for iscsi custom resources
@@ -58,7 +58,9 @@ type ISCSIController struct {
 	dataDirHostPath string
 	dataVolumeSize  resource.Quantity
 	placement       rookalpha.Placement
+	annotations     rookalpha.Annotations
 	resources       v1.ResourceRequirements
+	resourceProfile string
 	ownerRef        metav1.OwnerReference
 }
 
@@ -70,6 +72,7 @@ func NewISCSIController(
 	dataVolumeSize resource.Quantity,
 	placement rookalpha.Placement,
 	resources v1.ResourceRequirements,
+	resourceProfile string,
 	ownerRef metav1.OwnerReference,
 ) *ISCSIController {
 	return &ISCSIController{
@@ -80,6 +83,7 @@ func NewISCSIController(
 		dataVolumeSize:  dataVolumeSize,
 		placement:       placement,
 		resources:       resources,
+		resourceProfile: resourceProfile,
 		ownerRef:        ownerRef,
 	}
 }
@@ -94,8 +98,8 @@ func (c *ISCSIController) StartWatch(namespace string, stopCh chan struct{}) err
 	}
 
 	logger.Infof("start watching iscsi resources in namespace %s", namespace)
-	watcher := opkit.NewWatcher(ISCSIResource, namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1alpha1().RESTClient())
-	go watcher.Watch(&edgefsv1alpha1.ISCSI{}, stopCh)
+	watcher := opkit.NewWatcher(ISCSIResource, namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1beta1().RESTClient())
+	go watcher.Watch(&edgefsv1beta1.ISCSI{}, stopCh)
 
 	return nil
 }
@@ -147,7 +151,7 @@ func (c *ISCSIController) onDelete(obj interface{}) {
 	}
 }
 
-func (c *ISCSIController) serviceOwners(service *edgefsv1alpha1.ISCSI) []metav1.OwnerReference {
+func (c *ISCSIController) serviceOwners(service *edgefsv1beta1.ISCSI) []metav1.OwnerReference {
 	// Only set the cluster crd as the owner of the ISCSI resources.
 	// If the ISCSI crd is deleted, the operator will explicitly remove the ISCSI resources.
 	// If the ISCSI crd still exists when the cluster crd is deleted, this will make sure the ISCSI
@@ -155,13 +159,13 @@ func (c *ISCSIController) serviceOwners(service *edgefsv1alpha1.ISCSI) []metav1.
 	return []metav1.OwnerReference{c.ownerRef}
 }
 
-func serviceChanged(oldService, newService edgefsv1alpha1.ISCSISpec) bool {
+func serviceChanged(oldService, newService edgefsv1beta1.ISCSISpec) bool {
 	return false
 }
 
-func getISCSIObject(obj interface{}) (iscsi *edgefsv1alpha1.ISCSI, err error) {
+func getISCSIObject(obj interface{}) (iscsi *edgefsv1beta1.ISCSI, err error) {
 	var ok bool
-	iscsi, ok = obj.(*edgefsv1alpha1.ISCSI)
+	iscsi, ok = obj.(*edgefsv1beta1.ISCSI)
 	if ok {
 		// the iscsi object is of the latest type, simply return it
 		return iscsi.DeepCopy(), nil

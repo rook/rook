@@ -1,6 +1,6 @@
 ---
 title: CockroachDB
-weight: 5
+weight: 500
 indent: true
 ---
 

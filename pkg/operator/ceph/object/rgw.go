@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package rgw for the Ceph object store.
+// Package object for the Ceph object store.
 package object
 
 import (
@@ -22,43 +22,36 @@ import (
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
-	rgwdaemon "github.com/rook/rook/pkg/daemon/ceph/rgw"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
-const (
-	appName        = "rook-ceph-rgw"
-	keyringName    = "keyring"
-	certVolumeName = "rook-rgw-cert"
-	certMountPath  = "/etc/rook/private"
-	certKeyName    = "cert"
-	certFilename   = "rgw-cert.pem"
-)
-
-type config struct {
+type clusterConfig struct {
+	clusterInfo *cephconfig.ClusterInfo
 	context     *clusterd.Context
 	store       cephv1.CephObjectStore
 	rookVersion string
 	cephVersion cephv1.CephVersionSpec
 	hostNetwork bool
 	ownerRefs   []metav1.OwnerReference
+	DataPathMap *config.DataPathMap
 }
 
 // Start the rgw manager
-func (c *config) createStore() error {
+func (c *clusterConfig) createStore() error {
 	return c.createOrUpdate(false)
 }
 
-func (c *config) updateStore() error {
+func (c *clusterConfig) updateStore() error {
 	return c.createOrUpdate(true)
 }
 
-func (c *config) createOrUpdate(update bool) error {
+func (c *clusterConfig) createOrUpdate(update bool) error {
 	// validate the object store settings
 	if err := validateStore(c.context, c.store); err != nil {
 		return fmt.Errorf("invalid object store %s arguments. %+v", c.store.Name, err)
@@ -69,16 +62,12 @@ func (c *config) createOrUpdate(update bool) error {
 	if err == nil && exists {
 		if !update {
 			logger.Infof("object store %s exists in namespace %s", c.store.Name, c.store.Namespace)
-			return c.startRGWPods(false)
+			return c.startRGWPods(update)
 		}
 		logger.Infof("object store %s exists in namespace %s. checking for updates", c.store.Name, c.store.Namespace)
 	}
 
 	logger.Infof("creating object store %s in namespace %s", c.store.Name, c.store.Namespace)
-	err = c.createKeyring()
-	if err != nil {
-		return fmt.Errorf("failed to create rgw keyring. %+v", err)
-	}
 
 	// start the service
 	serviceIP, err := c.startService()
@@ -87,8 +76,8 @@ func (c *config) createOrUpdate(update bool) error {
 	}
 
 	// create the ceph artifacts for the object store
-	objContext := rgwdaemon.NewContext(c.context, c.store.Name, c.store.Namespace)
-	err = rgwdaemon.CreateObjectStore(objContext, *c.store.Spec.MetadataPool.ToModel(""), *c.store.Spec.DataPool.ToModel(""), serviceIP, c.store.Spec.Gateway.Port)
+	objContext := NewContext(c.context, c.store.Name, c.store.Namespace)
+	err = createObjectStore(objContext, *c.store.Spec.MetadataPool.ToModel(""), *c.store.Spec.DataPool.ToModel(""), serviceIP, c.store.Spec.Gateway.Port)
 	if err != nil {
 		return fmt.Errorf("failed to create pools. %+v", err)
 	}
@@ -101,7 +90,7 @@ func (c *config) createOrUpdate(update bool) error {
 	return nil
 }
 
-func (c *config) startRGWPods(update bool) error {
+func (c *clusterConfig) startRGWPods(update bool) error {
 
 	// if intended to update, remove the old pods so they can be created with the new spec settings
 	if update {
@@ -116,15 +105,49 @@ func (c *config) startRGWPods(update bool) error {
 	}
 
 	// start the deployment or daemonset
+	var uid types.UID
+	var controllerType string
 	if c.store.Spec.Gateway.AllNodes {
-		return c.startDaemonset()
+		daemonSet, err := c.startDaemonset()
+		if err != nil {
+			return err
+		}
+		uid = daemonSet.UID
+		controllerType = "daemonset"
+	} else {
+		deployment, err := c.startDeployment()
+		if err != nil {
+			return err
+		}
+		uid = deployment.UID
+		controllerType = "deployment"
 	}
-	return c.startDeployment()
+
+	resourceControllerOwnerRef := &metav1.OwnerReference{
+		UID:        uid,
+		APIVersion: "v1",
+		Kind:       controllerType,
+		Name:       c.instanceName(),
+	}
+
+	// Generate the keyring after starting the replication controller so that the keyring may use
+	// the controller as its owner reference; the keyring is deleted with the controller
+	err := c.generateKeyring(resourceControllerOwnerRef)
+	if err != nil {
+		return fmt.Errorf("failed to create rgw keyring. %+v", err)
+	}
+
+	// Generate the mime.types file after the rep. controller as well for the same reason as keyring
+	if err := c.generateMimeTypes(resourceControllerOwnerRef); err != nil {
+		return fmt.Errorf("failed to generate the rgw mime.types config. %+v", err)
+	}
+
+	return nil
 }
 
 // Delete the object store.
 // WARNING: This is a very destructive action that deletes all metadata and data pools.
-func (c *config) deleteStore() error {
+func (c *clusterConfig) deleteStore() error {
 	// check if the object store  exists
 	exists, err := c.storeExists()
 	if err != nil {
@@ -164,8 +187,8 @@ func (c *config) deleteStore() error {
 	}
 
 	// Delete the realm and pools
-	objContext := rgwdaemon.NewContext(c.context, c.store.Name, c.store.Namespace)
-	err = rgwdaemon.DeleteObjectStore(objContext)
+	objContext := NewContext(c.context, c.store.Name, c.store.Namespace)
+	err = deleteRealmAndPools(objContext)
 	if err != nil {
 		return fmt.Errorf("failed to delete the realm and pools. %+v", err)
 	}
@@ -175,8 +198,8 @@ func (c *config) deleteStore() error {
 }
 
 // Check if the object store exists depending on either the deployment or the daemonset
-func (c *config) storeExists() (bool, error) {
-	_, err := c.context.Clientset.ExtensionsV1beta1().Deployments(c.store.Namespace).Get(c.instanceName(), metav1.GetOptions{})
+func (c *clusterConfig) storeExists() (bool, error) {
+	_, err := c.context.Clientset.AppsV1().Deployments(c.store.Namespace).Get(c.instanceName(), metav1.GetOptions{})
 	if err == nil {
 		// the deployment was found
 		return true, nil
@@ -185,7 +208,7 @@ func (c *config) storeExists() (bool, error) {
 		return false, err
 	}
 
-	_, err = c.context.Clientset.ExtensionsV1beta1().DaemonSets(c.store.Namespace).Get(c.instanceName(), metav1.GetOptions{})
+	_, err = c.context.Clientset.AppsV1().DaemonSets(c.store.Namespace).Get(c.instanceName(), metav1.GetOptions{})
 	if err == nil {
 		//  the daemonset was found
 		return true, nil
@@ -198,60 +221,8 @@ func (c *config) storeExists() (bool, error) {
 	return false, nil
 }
 
-func (c *config) createKeyring() error {
-	_, err := c.context.Clientset.CoreV1().Secrets(c.store.Namespace).Get(c.instanceName(), metav1.GetOptions{})
-	if err == nil {
-		logger.Infof("the rgw keyring was already generated")
-		return nil
-	}
-	if !errors.IsNotFound(err) {
-		return fmt.Errorf("failed to get rgw secrets. %+v", err)
-	}
-
-	// create the keyring
-	logger.Infof("generating rgw keyring")
-	keyring, err := c.createRGWKeyring()
-	if err != nil {
-		return fmt.Errorf("failed to create keyring. %+v", err)
-	}
-
-	// store the secrets
-	secrets := map[string]string{
-		keyringName: keyring,
-	}
-	secret := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      c.instanceName(),
-			Namespace: c.store.Namespace,
-		},
-		StringData: secrets,
-		Type:       k8sutil.RookType,
-	}
-	k8sutil.SetOwnerRefs(c.context.Clientset, c.store.Namespace, &secret.ObjectMeta, c.ownerRefs)
-	_, err = c.context.Clientset.CoreV1().Secrets(c.store.Namespace).Create(secret)
-	if err != nil {
-		return fmt.Errorf("failed to save rgw secrets. %+v", err)
-	}
-
-	return nil
-}
-
-func (c *config) instanceName() string {
-	return fmt.Sprintf("%s-%s", appName, c.store.Name)
-}
-
-// create a keyring for the rgw client with a limited set of privileges
-func (c *config) createRGWKeyring() (string, error) {
-	username := "client.radosgw.gateway"
-	access := []string{"osd", "allow rwx", "mon", "allow rw"}
-
-	// get-or-create-key for the user account
-	key, err := client.AuthGetOrCreateKey(c.context, c.store.Namespace, username, access)
-	if err != nil {
-		return "", fmt.Errorf("failed to get or create auth key for %store. %+v", username, err)
-	}
-
-	return key, err
+func (c *clusterConfig) instanceName() string {
+	return fmt.Sprintf("%s-%s", AppName, c.store.Name)
 }
 
 // Validate the object store arguments

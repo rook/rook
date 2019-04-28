@@ -1,6 +1,6 @@
 ---
 title: Custom Resources
-weight: 9
+weight: 900
 indent: true
 ---
 

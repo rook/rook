@@ -26,21 +26,58 @@ import (
 	"testing"
 	"time"
 
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/k8sutil"
+
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
-	mondaemon "github.com/rook/rook/pkg/daemon/ceph/mon"
 	cephtest "github.com/rook/rook/pkg/daemon/ceph/test"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// generate a standard mon config from a mon id w/ default port and IP 2.4.6.{1,2,3,...}
+// support mon ID as new ["a", "b", etc.] form or as legacy ["mon0", "mon1", etc.] form
+func testGenMonConfig(monID string) *monConfig {
+	var moniker string
+	var index int
+	var err error
+	if strings.HasPrefix(monID, "mon") { // is legacy mon name
+		moniker = monID                                                 // keep legacy "mon#" name
+		index, err = strconv.Atoi(strings.Replace(monID, "mon", "", 1)) // get # off end of mon#
+	} else {
+		moniker = "mon-" + monID
+		index, err = k8sutil.NameToIndex(monID)
+	}
+	if err != nil {
+		panic(err)
+	}
+	return &monConfig{
+		ResourceName: "rook-ceph-" + moniker, // rook-ceph-mon-A or rook-ceph-mon#
+		DaemonName:   monID,                  // A or mon#
+		Port:         DefaultMsgr1Port,
+		PublicIP:     fmt.Sprintf("2.4.6.%d", index+1),
+		// dataDirHostPath assumed to be /var/lib/rook
+		DataPathMap: config.NewStatefulDaemonDataPathMap(
+			"/var/lib/rook", dataDirRelativeHostPath(monID), config.MonType, monID, "rook-ceph"),
+	}
+}
+
 func newTestStartCluster(namespace string) *clusterd.Context {
+	monResponse := func() (string, error) {
+		return clienttest.MonInQuorumResponseMany(3), nil
+	}
+	return newTestStartClusterWithQuorumResponse(namespace, monResponse)
+}
+
+func newTestStartClusterWithQuorumResponse(namespace string, monResponse func() (string, error)) *clusterd.Context {
 	clientset := test.New(3)
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
@@ -53,7 +90,7 @@ func newTestStartCluster(namespace string) *clusterd.Context {
 		},
 		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
 			// mock quorum health check because a second `Start()` triggers a health check
-			return clienttest.MonInQuorumResponseMany(3), nil
+			return monResponse()
 		},
 	}
 	return &clusterd.Context{
@@ -63,26 +100,39 @@ func newTestStartCluster(namespace string) *clusterd.Context {
 	}
 }
 
-func newCluster(context *clusterd.Context, namespace string, hostNetwork bool, resources v1.ResourceRequirements) *Cluster {
+func newCluster(context *clusterd.Context, namespace string, hostNetwork bool, allowMultiplePerNode bool, resources v1.ResourceRequirements) *Cluster {
 	return &Cluster{
-		HostNetwork:          hostNetwork,
-		context:              context,
-		Namespace:            namespace,
-		rookVersion:          "myversion",
-		Count:                3,
-		AllowMultiplePerNode: true,
-		maxMonID:             -1,
-		waitForStart:         false,
-		monPodRetryInterval:  10 * time.Millisecond,
-		monPodTimeout:        1 * time.Second,
-		monTimeoutList:       map[string]time.Time{},
+		clusterInfo: nil,
+		HostNetwork: hostNetwork,
+		context:     context,
+		Namespace:   namespace,
+		rookVersion: "myversion",
+		spec: cephv1.ClusterSpec{
+			Mon: cephv1.MonSpec{
+				Count:                3,
+				AllowMultiplePerNode: allowMultiplePerNode,
+			},
+			Resources: map[string]v1.ResourceRequirements{"mon": resources},
+		},
+		maxMonID:            -1,
+		waitForStart:        false,
+		monPodRetryInterval: 10 * time.Millisecond,
+		monPodTimeout:       1 * time.Second,
+		monTimeoutList:      map[string]time.Time{},
 		mapping: &Mapping{
 			Node: map[string]*NodeInfo{},
 			Port: map[string]int32{},
 		},
-		resources: resources,
-		ownerRef:  metav1.OwnerReference{},
+		ownerRef: metav1.OwnerReference{},
 	}
+}
+
+// setCommonMonProperties is a convenience helper for setting common test properties
+func setCommonMonProperties(c *Cluster, currentMons int, mon cephv1.MonSpec, rookVersion string) {
+	c.clusterInfo = test.CreateConfigDir(currentMons)
+	c.spec.Mon.Count = mon.Count
+	c.spec.Mon.AllowMultiplePerNode = mon.AllowMultiplePerNode
+	c.rookVersion = rookVersion
 }
 
 func TestResourceName(t *testing.T) {
@@ -92,62 +142,72 @@ func TestResourceName(t *testing.T) {
 }
 
 func TestStartMonPods(t *testing.T) {
+
 	namespace := "ns"
 	context := newTestStartCluster(namespace)
-	c := newCluster(context, namespace, false, v1.ResourceRequirements{})
+	c := newCluster(context, namespace, false, true, v1.ResourceRequirements{})
 
 	// start a basic cluster
-	err := c.Start()
+	_, err := c.Start(c.clusterInfo, c.rookVersion, cephver.Mimic, c.spec)
 	assert.Nil(t, err)
 
 	validateStart(t, c)
 
 	// starting again should be a no-op, but still results in an error
-	err = c.Start()
+	_, err = c.Start(c.clusterInfo, c.rookVersion, cephver.Mimic, c.spec)
 	assert.Nil(t, err)
 
 	validateStart(t, c)
 }
 
 func TestOperatorRestart(t *testing.T) {
+
 	namespace := "ns"
 	context := newTestStartCluster(namespace)
-	c := newCluster(context, namespace, false, v1.ResourceRequirements{})
+	c := newCluster(context, namespace, false, true, v1.ResourceRequirements{})
 	c.clusterInfo = test.CreateConfigDir(1)
 
 	// start a basic cluster
-	err := c.Start()
+	info, err := c.Start(c.clusterInfo, c.rookVersion, cephver.Mimic, c.spec)
 	assert.Nil(t, err)
+	assert.True(t, info.IsInitialized())
 
 	validateStart(t, c)
 
-	c = newCluster(context, namespace, false, v1.ResourceRequirements{})
+	c = newCluster(context, namespace, false, true, v1.ResourceRequirements{})
 
 	// starting again should be a no-op, but will not result in an error
-	err = c.Start()
+	info, err = c.Start(c.clusterInfo, c.rookVersion, cephver.Mimic, c.spec)
 	assert.Nil(t, err)
+	assert.True(t, info.IsInitialized())
 
 	validateStart(t, c)
 }
 
 // safety check that if hostNetwork is used no changes occur on an operator restart
 func TestOperatorRestartHostNetwork(t *testing.T) {
+
 	namespace := "ns"
 	context := newTestStartCluster(namespace)
-	c := newCluster(context, namespace, false, v1.ResourceRequirements{})
+
+	// cluster without host networking
+	c := newCluster(context, namespace, false, false, v1.ResourceRequirements{})
 	c.clusterInfo = test.CreateConfigDir(1)
 
 	// start a basic cluster
-	err := c.Start()
+	info, err := c.Start(c.clusterInfo, c.rookVersion, cephver.Mimic, c.spec)
 	assert.Nil(t, err)
+	assert.True(t, info.IsInitialized())
 
 	validateStart(t, c)
 
-	c = newCluster(context, namespace, true, v1.ResourceRequirements{})
+	// cluster with host networking
+	c = newCluster(context, namespace, true, false, v1.ResourceRequirements{})
 
 	// starting again should be a no-op, but still results in an error
-	err = c.Start()
+	info, err = c.Start(c.clusterInfo, c.rookVersion, cephver.Mimic, c.spec)
 	assert.Nil(t, err)
+	assert.True(t, info.IsInitialized(), info)
 
 	validateStart(t, c)
 }
@@ -155,10 +215,10 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 func validateStart(t *testing.T, c *Cluster) {
 	s, err := c.context.Clientset.CoreV1().Secrets(c.Namespace).Get(appName, metav1.GetOptions{})
 	assert.Nil(t, err) // there shouldn't be an error due the secret existing
-	assert.Equal(t, 4, len(s.StringData))
+	assert.Equal(t, 4, len(s.Data))
 
 	// there is only one pod created. the other two won't be created since the first one doesn't start
-	_, err = c.context.Clientset.Extensions().Deployments(c.Namespace).Get("rook-ceph-mon-a", metav1.GetOptions{})
+	_, err = c.context.Clientset.AppsV1().Deployments(c.Namespace).Get("rook-ceph-mon-a", metav1.GetOptions{})
 	assert.Nil(t, err)
 }
 
@@ -166,10 +226,8 @@ func TestSaveMonEndpoints(t *testing.T) {
 	clientset := test.New(1)
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
-	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: configDir}, "ns", "", "myversion", cephv1.CephVersionSpec{},
-		cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, rookalpha.Placement{}, false,
-		v1.ResourceRequirements{}, metav1.OwnerReference{})
-	c.clusterInfo = test.CreateConfigDir(1)
+	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: configDir}, "ns", "", false, metav1.OwnerReference{})
+	setCommonMonProperties(c, 1, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 
 	// create the initial config map
 	err := c.saveMonConfig()
@@ -238,243 +296,46 @@ func TestNameToIndex(t *testing.T) {
 	assert.Equal(t, 123, id)
 }
 
-func TestAvailableMonNodes(t *testing.T) {
-	clientset := test.New(1)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", cephv1.CephVersionSpec{},
-		cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, rookalpha.Placement{},
-		false, v1.ResourceRequirements{}, metav1.OwnerReference{})
-	c.clusterInfo = test.CreateConfigDir(0)
-	nodes, err := c.getMonNodes()
+func TestWaitForQuorum(t *testing.T) {
+	namespace := "ns"
+	quorumChecks := 0
+	quorumResponse := func() (string, error) {
+		mons := map[string]*cephconfig.MonInfo{
+			"a": {},
+		}
+		quorumChecks++
+		if quorumChecks == 1 {
+			// return an error the first time while we're waiting for the mon to join quorum
+			return "", fmt.Errorf("test error")
+		}
+		// a successful response indicates that we have quorum, even if we didn't check which specific mons were in quorum
+		return clienttest.MonInQuorumResponseFromMons(mons), nil
+	}
+	context := newTestStartClusterWithQuorumResponse(namespace, quorumResponse)
+	requireAllInQuorum := false
+	expectedMons := []string{"a"}
+	err := waitForQuorumWithMons(context, namespace, expectedMons, 0, requireAllInQuorum)
 	assert.Nil(t, err)
-	assert.Equal(t, 1, len(nodes))
-
-	// set node to not ready
-	conditions := v1.NodeCondition{Type: v1.NodeOutOfDisk}
-	nodes[0].Status = v1.NodeStatus{Conditions: []v1.NodeCondition{conditions}}
-	clientset.CoreV1().Nodes().Update(&nodes[0])
-
-	// when the node is not ready there should be no nodes returned and an error
-	emptyNodes, err := c.getMonNodes()
-	assert.Nil(t, err)
-	assert.Equal(t, 0, len(emptyNodes))
-
-	// even if AllowMultiplePerNode is true there should be no node returned
-	c.AllowMultiplePerNode = true
-	emptyNodes, err = c.getMonNodes()
-	assert.Nil(t, err)
-	assert.Equal(t, 0, len(emptyNodes))
 }
 
-func TestAvailableNodesInUse(t *testing.T) {
-	clientset := test.New(3)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", cephv1.CephVersionSpec{},
-		cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, rookalpha.Placement{},
-		false, v1.ResourceRequirements{}, metav1.OwnerReference{})
-	c.clusterInfo = test.CreateConfigDir(0)
+func TestMonFoundInQuorum(t *testing.T) {
+	response := client.MonStatusResponse{}
 
-	// all three nodes are available by default
-	nodes, err := c.getMonNodes()
-	assert.Nil(t, err)
-	assert.Equal(t, 3, len(nodes))
-
-	// start pods on two of the nodes so that only one node will be available
-	for i := 0; i < 2; i++ {
-		pod := c.makeMonPod(&monConfig{ResourceName: fmt.Sprintf("rook-ceph-mon%d", i)}, nodes[i].Name)
-		_, err = clientset.CoreV1().Pods(c.Namespace).Create(pod)
-		assert.Nil(t, err)
+	// "a" is in quorum
+	response.Quorum = []int{0}
+	response.MonMap.Mons = []client.MonMapEntry{
+		{Name: "a", Rank: 0},
+		{Name: "b", Rank: 1},
+		{Name: "c", Rank: 2},
 	}
-	reducedNodes, err := c.getMonNodes()
-	assert.Nil(t, err)
-	assert.Equal(t, 1, len(reducedNodes))
-	assert.Equal(t, nodes[2].Name, reducedNodes[0].Name)
+	assert.True(t, monFoundInQuorum("a", response))
+	assert.False(t, monFoundInQuorum("b", response))
+	assert.False(t, monFoundInQuorum("c", response))
 
-	// start pods on the remaining node. We expect no nodes to be available for placement
-	// since there is no way to place a mon on an unused node.
-	pod := c.makeMonPod(&monConfig{ResourceName: "rook-ceph-mon2"}, nodes[2].Name)
-	_, err = clientset.CoreV1().Pods(c.Namespace).Create(pod)
-	assert.Nil(t, err)
-	nodes, err = c.getMonNodes()
-	// no mon nodes is no error, just an empty nodes list
-	assert.Nil(t, err)
-	assert.Equal(t, 3, len(nodes))
-
-	// no nodes should be returned when AllowMultiplePerNode is false
-	c.AllowMultiplePerNode = false
-	nodes, err = c.getMonNodes()
-	// no mon nodes is no error, just an empty nodes list
-	assert.Nil(t, err)
-	assert.Equal(t, 0, len(nodes))
-}
-
-func TestTaintedNodes(t *testing.T) {
-	clientset := test.New(3)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", cephv1.CephVersionSpec{},
-		cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, rookalpha.Placement{},
-		false, v1.ResourceRequirements{}, metav1.OwnerReference{})
-	c.clusterInfo = test.CreateConfigDir(0)
-
-	nodes, err := c.getMonNodes()
-	assert.Nil(t, err)
-	assert.Equal(t, 3, len(nodes))
-
-	// mark a node as unschedulable
-	nodes[0].Spec.Unschedulable = true
-	clientset.CoreV1().Nodes().Update(&nodes[0])
-	nodesSchedulable, err := c.getMonNodes()
-	assert.Nil(t, err)
-	assert.Equal(t, 2, len(nodesSchedulable))
-	nodes[0].Spec.Unschedulable = false
-
-	// taint nodes so they will not be schedulable for new pods
-	nodes[0].Spec.Taints = []v1.Taint{
-		{Effect: v1.TaintEffectNoSchedule},
-	}
-	nodes[1].Spec.Taints = []v1.Taint{
-		{Effect: v1.TaintEffectPreferNoSchedule},
-	}
-	clientset.CoreV1().Nodes().Update(&nodes[0])
-	clientset.CoreV1().Nodes().Update(&nodes[1])
-	clientset.CoreV1().Nodes().Update(&nodes[2])
-	cleanNodes, err := c.getMonNodes()
-	assert.Nil(t, err)
-	assert.Equal(t, 1, len(cleanNodes))
-	assert.Equal(t, nodes[2].Name, cleanNodes[0].Name)
-}
-
-func TestNodeAffinity(t *testing.T) {
-	clientset := test.New(3)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", cephv1.CephVersionSpec{},
-		cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, rookalpha.Placement{},
-		false, v1.ResourceRequirements{}, metav1.OwnerReference{})
-	c.clusterInfo = test.CreateConfigDir(0)
-
-	nodes, err := c.getMonNodes()
-	assert.Nil(t, err)
-	assert.Equal(t, 3, len(nodes))
-
-	c.placement.NodeAffinity = &v1.NodeAffinity{
-		RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
-			NodeSelectorTerms: []v1.NodeSelectorTerm{
-				{
-					MatchExpressions: []v1.NodeSelectorRequirement{
-						{
-							Key:      "label",
-							Operator: v1.NodeSelectorOpIn,
-							Values:   []string{"bar", "baz"},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	// label nodes so node0 will not be schedulable for new pods
-	nodes[0].Labels = map[string]string{"label": "foo"}
-	nodes[1].Labels = map[string]string{"label": "bar"}
-	nodes[2].Labels = map[string]string{"label": "baz"}
-	clientset.CoreV1().Nodes().Update(&nodes[0])
-	clientset.CoreV1().Nodes().Update(&nodes[1])
-	clientset.CoreV1().Nodes().Update(&nodes[2])
-	cleanNodes, err := c.getMonNodes()
-
-	assert.Nil(t, err)
-	assert.Equal(t, 2, len(cleanNodes))
-	assert.Equal(t, nodes[1].Name, cleanNodes[0].Name)
-	assert.Equal(t, nodes[2].Name, cleanNodes[1].Name)
-}
-
-func TestHostNetwork(t *testing.T) {
-	clientset := test.New(3)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", cephv1.CephVersionSpec{},
-		cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, rookalpha.Placement{},
-		false, v1.ResourceRequirements{}, metav1.OwnerReference{})
-	c.clusterInfo = test.CreateConfigDir(0)
-
-	c.HostNetwork = true
-
-	nodes, err := c.getMonNodes()
-	assert.Nil(t, err)
-	assert.Equal(t, 3, len(nodes))
-
-	pod := c.makeMonPod(&monConfig{ResourceName: "rook-ceph-mon2"}, nodes[2].Name)
-	assert.NotNil(t, pod)
-
-	assert.Equal(t, true, pod.Spec.HostNetwork)
-	assert.Equal(t, v1.DNSClusterFirstWithHostNet, pod.Spec.DNSPolicy)
-}
-
-func TestGetNodeInfoFromNode(t *testing.T) {
-	clientset := test.New(1)
-	node, err := clientset.CoreV1().Nodes().Get("node0", metav1.GetOptions{})
-	assert.Nil(t, err)
-	assert.NotNil(t, node)
-
-	node.Status = v1.NodeStatus{}
-	node.Status.Addresses = []v1.NodeAddress{
-		{
-			Type:    v1.NodeExternalIP,
-			Address: "1.1.1.1",
-		},
-	}
-
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", cephv1.CephVersionSpec{},
-		cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, rookalpha.Placement{},
-		true, v1.ResourceRequirements{}, metav1.OwnerReference{})
-	c.clusterInfo = test.CreateConfigDir(0)
-
-	var info *NodeInfo
-	info, err = getNodeInfoFromNode(*node)
-	assert.Nil(t, err)
-
-	assert.Equal(t, "1.1.1.1", info.Address)
-}
-
-func TestHostNetworkPortIncrease(t *testing.T) {
-	clientset := test.New(1)
-	node, err := clientset.CoreV1().Nodes().Get("node0", metav1.GetOptions{})
-	assert.Nil(t, err)
-	assert.NotNil(t, node)
-
-	node.Status = v1.NodeStatus{}
-	node.Status.Addresses = []v1.NodeAddress{
-		{
-			Type:    v1.NodeExternalIP,
-			Address: "1.1.1.1",
-		},
-	}
-
-	configDir, _ := ioutil.TempDir("", "")
-	defer os.RemoveAll(configDir)
-	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: configDir},
-		"ns", "", "myversion", cephv1.CephVersionSpec{}, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true},
-		rookalpha.Placement{}, true, v1.ResourceRequirements{}, metav1.OwnerReference{})
-	c.clusterInfo = test.CreateConfigDir(0)
-
-	mons := []*monConfig{
-		{
-			ResourceName: "rook-ceph-mon-a",
-			DaemonName:   "a",
-			Port:         mondaemon.DefaultPort,
-		},
-		{
-			ResourceName: "rook-ceph-mon-b",
-			DaemonName:   "b",
-			Port:         mondaemon.DefaultPort,
-		},
-	}
-	c.maxMonID = 1
-
-	err = c.assignMons(mons)
-	assert.Nil(t, err)
-
-	err = c.initMonIPs(mons)
-	assert.Nil(t, err)
-
-	assert.Equal(t, node.Name, c.mapping.Node["a"].Name)
-	assert.Equal(t, node.Name, c.mapping.Node["b"].Name)
-
-	sEndpoint := strings.Split(c.clusterInfo.Monitors["a"].Endpoint, ":")
-	assert.Equal(t, strconv.Itoa(mondaemon.DefaultPort), sEndpoint[1])
-	sEndpoint = strings.Split(c.clusterInfo.Monitors["b"].Endpoint, ":")
-	assert.Equal(t, strconv.Itoa(mondaemon.DefaultPort+1), sEndpoint[1])
+	// b and c also in quorum, but not d
+	response.Quorum = []int{0, 1, 2}
+	assert.True(t, monFoundInQuorum("a", response))
+	assert.True(t, monFoundInQuorum("b", response))
+	assert.True(t, monFoundInQuorum("c", response))
+	assert.False(t, monFoundInQuorum("d", response))
 }

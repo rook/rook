@@ -1,8 +1,15 @@
 ---
 title: Ceph Storage
-weight: 3
+weight: 300
 indent: true
 ---
+{% assign url = page.url | split: '/' %}
+{% assign currentVersion = url[3] %}
+{% if currentVersion != 'master' %}
+{% assign branchName = currentVersion | replace: 'v', '' | prepend: 'release-' %}
+{% else %}
+{% assign branchName = currentVersion %}
+{% endif %}
 
 # Ceph Storage Quickstart
 
@@ -21,9 +28,10 @@ If you are using `dataDirHostPath` to persist rook data on kubernetes hosts, mak
 
 ## TL;DR
 
-If you're feeling lucky, a simple Rook cluster can be created with the following kubectl commands. For the more detailed install, skip to the next section to [deploy the Rook operator](#deploy-the-rook-operator).
+If you're feeling lucky, a simple Rook cluster can be created with the following kubectl commands and [example yaml files](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph). For the more detailed install, skip to the next section to [deploy the Rook operator](#deploy-the-rook-operator).
 ```
 cd cluster/examples/kubernetes/ceph
+kubectl create -f common.yaml
 kubectl create -f operator.yaml
 kubectl create -f cluster.yaml
 ```
@@ -32,186 +40,28 @@ After the cluster is running, you can create [block, object, or file](#storage) 
 
 ## Deploy the Rook Operator
 
-The first step is to deploy the Rook system components, which include the Rook agent running on each node in your cluster as well as Rook operator pod.
+The first step is to deploy the Rook system components, which include the Rook agent running on each node in your cluster as well as Rook operator pod. Check that you are using the [example yaml files](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph) that correspond to your release of Rook. For more options, see the [examples documentation](ceph-examples.md).
 
 ```bash
 cd cluster/examples/kubernetes/ceph
+kubectl create -f common.yaml
 kubectl create -f operator.yaml
 
 # verify the rook-ceph-operator, rook-ceph-agent, and rook-discover pods are in the `Running` state before proceeding
-kubectl -n rook-ceph-system get pod
+kubectl -n rook-ceph get pod
 ```
 
 You can also deploy the operator with the [Rook Helm Chart](helm-operator.md).
 
-## Create a Rook Cluster
+## Create a Rook Ceph Cluster
 
-Now that the Rook operator, agent, and discover pods are running, we can create the Rook cluster. For the cluster to survive reboots,
+Now that the Rook operator, agent, and discover pods are running, we can create the Rook Ceph cluster. For the cluster to survive reboots,
 make sure you set the `dataDirHostPath` property that is valid for your hosts. For more settings, see the documentation on [configuring the cluster](ceph-cluster-crd.md).
 
 
 Save the cluster spec as `cluster.yaml`:
 
 ```yaml
-#################################################################################
-# This example first defines some necessary namespace and RBAC security objects.
-# The actual Ceph Cluster CRD example can be found at the bottom of this example.
-#################################################################################
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: rook-ceph
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: rook-ceph-osd
-  namespace: rook-ceph
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: rook-ceph-mgr
-  namespace: rook-ceph
----
-kind: Role
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-osd
-  namespace: rook-ceph
-rules:
-- apiGroups: [""]
-  resources: ["configmaps"]
-  verbs: [ "get", "list", "watch", "create", "update", "delete" ]
----
-# Aspects of ceph-mgr that require access to the system namespace
-kind: Role
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-mgr-system
-  namespace: rook-ceph
-rules:
-- apiGroups:
-  - ""
-  resources:
-  - configmaps
-  verbs:
-  - get
-  - list
-  - watch
----
-# Aspects of ceph-mgr that operate within the cluster's namespace
-kind: Role
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-mgr
-  namespace: rook-ceph
-rules:
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  - services
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - batch
-  resources:
-  - jobs
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - delete
-- apiGroups:
-  - ceph.rook.io
-  resources:
-  - "*"
-  verbs:
-  - "*"
----
-# Allow the operator to create resources in this cluster's namespace
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-cluster-mgmt
-  namespace: rook-ceph
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: rook-ceph-cluster-mgmt
-subjects:
-- kind: ServiceAccount
-  name: rook-ceph-system
-  namespace: rook-ceph-system
----
-# Allow the osd pods in this namespace to work with configmaps
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-osd
-  namespace: rook-ceph
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: rook-ceph-osd
-subjects:
-- kind: ServiceAccount
-  name: rook-ceph-osd
-  namespace: rook-ceph
----
-# Allow the ceph mgr to access the cluster-specific resources necessary for the mgr modules
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-mgr
-  namespace: rook-ceph
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: rook-ceph-mgr
-subjects:
-- kind: ServiceAccount
-  name: rook-ceph-mgr
-  namespace: rook-ceph
----
-# Allow the ceph mgr to access the rook system resources necessary for the mgr modules
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-mgr-system
-  namespace: rook-ceph-system
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: rook-ceph-mgr-system
-subjects:
-- kind: ServiceAccount
-  name: rook-ceph-mgr
-  namespace: rook-ceph
----
-# Allow the ceph mgr to access cluster-wide resources necessary for the mgr modules
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-mgr-cluster
-  namespace: rook-ceph
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: rook-ceph-mgr-cluster
-subjects:
-- kind: ServiceAccount
-  name: rook-ceph-mgr
-  namespace: rook-ceph
----
-#################################################################################
-# The Ceph Cluster CRD example
-#################################################################################
 apiVersion: ceph.rook.io/v1
 kind: CephCluster
 metadata:
@@ -220,19 +70,16 @@ metadata:
 spec:
   cephVersion:
     # For the latest ceph images, see https://hub.docker.com/r/ceph/ceph/tags
-    image: ceph/ceph:v13.2.2-20181023
+    image: ceph/ceph:v14.2.0-20190410
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
-    allowMultiplePerNode: true
+    allowMultiplePerNode: false
   dashboard:
     enabled: true
   storage:
     useAllNodes: true
-    useAllDevices: false
-    config:
-      databaseSizeMB: "1024"
-      journalSizeMB: "1024"
+    useAllDevices: true
 ```
 
 Create the cluster:
@@ -241,19 +88,23 @@ Create the cluster:
 kubectl create -f cluster.yaml
 ```
 
-Use `kubectl` to list pods in the `rook` namespace. You should be able to see the following pods once they are all running.
+Use `kubectl` to list pods in the `rook-ceph` namespace. You should be able to see the following pods once they are all running.
 The number of osd pods will depend on the number of nodes in the cluster and the number of devices and directories configured.
 
 ```bash
 $ kubectl -n rook-ceph get pod
-NAME                                   READY     STATUS      RESTARTS   AGE
-rook-ceph-mgr-a-9c44495df-ln9sq        1/1       Running     0          1m
-rook-ceph-mon-a-69fb9c78cd-58szd       1/1       Running     0          2m
-rook-ceph-mon-b-cf4ddc49c-c756f        1/1       Running     0          2m
-rook-ceph-mon-c-5b467747f4-8cbmv       1/1       Running     0          2m
-rook-ceph-osd-0-f6549956d-6z294        1/1       Running     0          1m
-rook-ceph-osd-1-5b96b56684-r7zsp       1/1       Running     0          1m
-rook-ceph-osd-prepare-mynode-ftt57     0/1       Completed   0          1m
+NAME                                   READY   STATUS      RESTARTS   AGE
+rook-ceph-agent-4zkg8                  1/1     Running     0          140s
+rook-ceph-mgr-a-d9dcf5748-5s9ft        1/1     Running     0          77s
+rook-ceph-mon-a-7d8f675889-nw5pl       1/1     Running     0          105s
+rook-ceph-mon-b-856fdd5cb9-5h2qk       1/1     Running     0          94s
+rook-ceph-mon-c-57545897fc-j576h       1/1     Running     0          85s
+rook-ceph-operator-6c49994c4f-9csfz    1/1     Running     0          141s
+rook-ceph-osd-0-7cbbbf749f-j8fsd       1/1     Running     0          25s
+rook-ceph-osd-1-7f67f9646d-44p7v       1/1     Running     0          25s
+rook-ceph-osd-2-6cd4b776ff-v4d68       1/1     Running     0          25s
+rook-ceph-osd-prepare-minikube-vx2rz   0/2     Completed   0          60s
+rook-discover-dhkb8                    1/1     Running     0          140s
 ```
 
 # Storage

@@ -1,6 +1,6 @@
 ---
 title: Block Storage
-weight: 21
+weight: 2100
 indent: true
 ---
 {% assign url = page.url | split: '/' %}
@@ -57,6 +57,8 @@ Create the storage class.
 ```bash
 kubectl create -f storageclass.yaml
 ```
+
+**NOTE** As [specified by Kubernetes](https://v1-13.docs.kubernetes.io/docs/concepts/storage/persistent-volumes/#retain), when using the `Retain` reclaim policy, the ceph RBD images that back up `PersistentVolume`s will continue to exist even after the PV is deleted, and have to be cleaned up manually using `rbd rm`.
 
 ## Consume the storage: Wordpress sample
 
@@ -164,4 +166,4 @@ parameters:
   fstype: xfs
 ```
 
-(These definitions can also be found in the [`ec-storageclass.yaml`](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/cluster.yaml) file)
+(These definitions can also be found in the [`storageclass-ec.yaml`](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/cluster.yaml) file)

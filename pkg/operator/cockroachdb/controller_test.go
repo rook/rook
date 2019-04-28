@@ -201,7 +201,7 @@ func TestOnAdd(t *testing.T) {
 	assert.Equal(t, int32(1), pdb.Spec.MaxUnavailable.IntVal)
 
 	// verify stateful set
-	ss, err := clientset.AppsV1beta1().StatefulSets(namespace).Get(appName, metav1.GetOptions{})
+	ss, err := clientset.AppsV1().StatefulSets(namespace).Get(appName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.NotNil(t, ss)
 	assert.Equal(t, int32(5), *ss.Spec.Replicas)

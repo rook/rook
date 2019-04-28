@@ -72,6 +72,9 @@ metadata:
 spec:
   version: 3.11.1
   mode: cassandra
+  # A key/value list of annotations
+  annotations:
+  #  key: value
   datacenter:
     name: us-east-1
     racks:
@@ -92,4 +95,3 @@ spec:
           limits:
             cpu: 1
             memory: 2Gi
-

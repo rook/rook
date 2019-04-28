@@ -69,14 +69,17 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 		storeFlag = "--filestore"
 	}
 
-	baseArgs := []string{"lvm", "batch", "--prepare", storeFlag, "--yes"}
+	// Use stdbuf to capture the python output buffer such that we can write to the pod log as the logging happens
+	// instead of using the default buffering that will log everything after ceph-volume exits
+	baseCommand := "stdbuf"
+	baseArgs := []string{"-oL", cephVolumeCmd, "lvm", "batch", "--prepare", storeFlag, "--yes"}
 	if a.storeConfig.EncryptedDevice {
 		baseArgs = append(baseArgs, encryptedFlag)
 	}
 
 	batchArgs := append(baseArgs, []string{
 		osdsPerDeviceFlag,
-		strconv.Itoa(a.storeConfig.OSDsPerDevice),
+		sanitizeOSDsPerDevice(a.storeConfig.OSDsPerDevice),
 	}...)
 
 	// ceph-volume is soon implementing a parameter to specify the "fast devices", which correspond to the "metadataDevice" from the
@@ -102,10 +105,10 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 				immediateExecuteArgs := append(baseArgs, []string{
 					deviceArg,
 					osdsPerDeviceFlag,
-					strconv.Itoa(device.Config.OSDsPerDevice),
+					sanitizeOSDsPerDevice(device.Config.OSDsPerDevice),
 				}...)
 
-				if err := context.Executor.ExecuteCommand(false, "", cephVolumeCmd, immediateExecuteArgs...); err != nil {
+				if err := context.Executor.ExecuteCommand(false, "", baseCommand, immediateExecuteArgs...); err != nil {
 					return fmt.Errorf("failed ceph-volume. %+v", err)
 				}
 
@@ -116,13 +119,22 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 	}
 
 	if configured > 0 {
-		if err := context.Executor.ExecuteCommand(false, "", cephVolumeCmd, batchArgs...); err != nil {
+		// Run "stdbuf -oL ceph-volume" so we can get more frequent updates in the container logs
+		if err := context.Executor.ExecuteCommand(false, "", baseCommand, batchArgs...); err != nil {
 			return fmt.Errorf("failed ceph-volume. %+v", err)
 		}
 	}
 
 	return nil
 }
+
+func sanitizeOSDsPerDevice(count int) string {
+	if count < 1 {
+		count = 1
+	}
+	return strconv.Itoa(count)
+}
+
 func getCephVolumeSupported(context *clusterd.Context) (bool, error) {
 	_, err := context.Executor.ExecuteCommandWithOutput(false, "", cephVolumeCmd, "lvm", "batch", "--prepare")
 	if err != nil {

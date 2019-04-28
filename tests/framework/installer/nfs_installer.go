@@ -113,12 +113,12 @@ func (h *NFSInstaller) CreateNFSServer(namespace string, count int, storageClass
 		return fmt.Errorf("Failed to create nfs server: %+v ", err)
 	}
 
-	if err := h.k8shelper.WaitForPodCount("app=rook-nfs", namespace, 1); err != nil {
+	if err := h.k8shelper.WaitForPodCount("app="+namespace, namespace, 1); err != nil {
 		logger.Errorf("nfs server pods in namespace %s not found", namespace)
 		return err
 	}
 
-	err := h.k8shelper.WaitForLabeledPodsToRun("app=rook-nfs", namespace)
+	err := h.k8shelper.WaitForLabeledPodsToRun("app="+namespace, namespace)
 	if err != nil {
 		logger.Errorf("nfs server pods in namespace %s are not running", namespace)
 		return err
@@ -132,17 +132,7 @@ func (h *NFSInstaller) CreateNFSServer(namespace string, count int, storageClass
 func (h *NFSInstaller) CreateNFSServerVolume(namespace string) error {
 	logger.Info("creating volume from nfs server in namespace %s", namespace)
 
-	clusterIP, err := h.GetNFSServerClusterIP(namespace)
-	if err != nil {
-		return err
-	}
-	nfsServerPV := h.manifests.GetNFSServerPV(namespace, clusterIP)
-	nfsServerPVC := h.manifests.GetNFSServerPVC()
-
-	logger.Info("creating nfs server pv")
-	if _, err := h.k8shelper.KubectlWithStdin(nfsServerPV, createFromStdinArgs...); err != nil {
-		return err
-	}
+	nfsServerPVC := h.manifests.GetNFSServerPVC(namespace)
 
 	logger.Info("creating nfs server pvc")
 	if _, err := h.k8shelper.KubectlWithStdin(nfsServerPVC, createFromStdinArgs...); err != nil {
@@ -156,13 +146,19 @@ func (h *NFSInstaller) CreateNFSServerVolume(namespace string) error {
 func (h *NFSInstaller) UninstallNFSServer(systemNamespace, namespace string) {
 	logger.Infof("uninstalling nfsserver from namespace %s", namespace)
 
-	_, err := h.k8shelper.DeleteResource("pvc", "nfs-pv-claim")
-	checkError(h.T(), err, fmt.Sprintf("cannot remove nfs pvc"))
+	err := h.k8shelper.DeleteResource("pvc", "nfs-pv-claim")
+	checkError(h.T(), err, fmt.Sprintf("cannot remove nfs pvc : nfs-pv-claim"))
 
-	_, err = h.k8shelper.DeleteResource("pv", "nfs-pv")
-	checkError(h.T(), err, fmt.Sprintf("cannot remove nfs pv"))
+	err = h.k8shelper.DeleteResource("pvc", "nfs-pv-claim-bigger")
+	checkError(h.T(), err, fmt.Sprintf("cannot remove nfs pvc : nfs-pv-claim-bigger"))
 
-	_, err = h.k8shelper.DeleteResource("-n", namespace, "nfsservers.nfs.rook.io", namespace)
+	err = h.k8shelper.DeleteResource("pv", "nfs-pv")
+	checkError(h.T(), err, fmt.Sprintf("cannot remove nfs pv : nfs-pv"))
+
+	err = h.k8shelper.DeleteResource("pv", "nfs-pv1")
+	checkError(h.T(), err, fmt.Sprintf("cannot remove nfs pv : nfs-pv1"))
+
+	err = h.k8shelper.DeleteResource("-n", namespace, "nfsservers.nfs.rook.io", namespace)
 	checkError(h.T(), err, fmt.Sprintf("cannot remove nfsserver %s", namespace))
 
 	crdCheckerFunc := func() error {
@@ -172,11 +168,11 @@ func (h *NFSInstaller) UninstallNFSServer(systemNamespace, namespace string) {
 	err = h.k8shelper.WaitForCustomResourceDeletion(namespace, crdCheckerFunc)
 	checkError(h.T(), err, fmt.Sprintf("failed to wait for crd %s deletion", namespace))
 
-	_, err = h.k8shelper.DeleteResource("namespace", namespace)
+	err = h.k8shelper.DeleteResource("namespace", namespace)
 	checkError(h.T(), err, fmt.Sprintf("cannot delete namespace %s", namespace))
 
 	logger.Infof("removing the operator from namespace %s", systemNamespace)
-	_, err = h.k8shelper.DeleteResource("crd", "nfsservers.nfs.rook.io")
+	err = h.k8shelper.DeleteResource("crd", "nfsservers.nfs.rook.io")
 	checkError(h.T(), err, "cannot delete CRDs")
 
 	nfsOperator := h.manifests.GetNFSServerOperator(systemNamespace)
@@ -187,24 +183,14 @@ func (h *NFSInstaller) UninstallNFSServer(systemNamespace, namespace string) {
 	checkError(h.T(), err, "cannot uninstall hostpath provisioner")
 
 	h.k8shelper.Clientset.RbacV1beta1().ClusterRoleBindings().Delete("anon-user-access", nil)
+	h.k8shelper.Clientset.RbacV1beta1().ClusterRoleBindings().Delete("run-nfs-client-provisioner", nil)
+	h.k8shelper.Clientset.RbacV1beta1().ClusterRoles().Delete("nfs-client-provisioner-runner", nil)
 	logger.Infof("done removing the operator from namespace %s", systemNamespace)
 }
 
 // GatherAllNFSServerLogs gathers all NFS Server logs
 func (h *NFSInstaller) GatherAllNFSServerLogs(systemNamespace, namespace, testName string) {
 	logger.Infof("Gathering all logs from NFSServer %s", namespace)
-	h.k8shelper.GetRookLogs("rook-nfs-operator", Env.HostType, systemNamespace, testName)
-	h.k8shelper.GetRookLogs("rook-nfs", Env.HostType, namespace, testName)
-}
-
-// GetNFSServerClusterIP gets the nfs server cluster ip on which it serves
-func (h *NFSInstaller) GetNFSServerClusterIP(namespace string) (string, error) {
-	clusterIP := ""
-	service, err := h.k8shelper.GetService("rook-nfs", namespace)
-	if err != nil {
-		logger.Errorf("nfs server service in namespace %s is not active", namespace)
-		return clusterIP, err
-	}
-	clusterIP = service.Spec.ClusterIP
-	return clusterIP, nil
+	h.k8shelper.GetLogs("rook-nfs-operator", Env.HostType, systemNamespace, testName)
+	h.k8shelper.GetLogs("rook-nfs", Env.HostType, namespace, testName)
 }

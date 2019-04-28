@@ -26,6 +26,7 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/go-ini/ini"
 	"github.com/rook/rook/pkg/clusterd"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -39,9 +40,8 @@ func TestCreateDefaultCephConfig(t *testing.T) {
 			"node0": {Name: "mon0", Endpoint: "10.0.0.1:6789"},
 			"node1": {Name: "mon1", Endpoint: "10.0.0.2:6789"},
 		},
+		CephVersion: cephver.Mimic,
 	}
-
-	monMembers := "mon0 mon1"
 
 	// start with INFO level logging
 	context := &clusterd.Context{
@@ -54,14 +54,20 @@ func TestCreateDefaultCephConfig(t *testing.T) {
 		},
 	}
 
-	cephConfig := CreateDefaultCephConfig(context, clusterInfo, "/var/lib/rook1")
-	verifyConfig(t, cephConfig, monMembers, 0)
+	cephConfig, err := CreateDefaultCephConfig(context, clusterInfo, "/var/lib/rook1")
+	if err != nil {
+		t.Fatalf("failed to create default ceph config. %+v", err)
+	}
+	verifyConfig(t, cephConfig, clusterInfo, 0)
 
 	// now use DEBUG level logging
 	context.LogLevel = capnslog.DEBUG
 
-	cephConfig = CreateDefaultCephConfig(context, clusterInfo, "/var/lib/rook1")
-	verifyConfig(t, cephConfig, monMembers, 10)
+	cephConfig, err = CreateDefaultCephConfig(context, clusterInfo, "/var/lib/rook1")
+	if err != nil {
+		t.Fatalf("failed to create default ceph config. %+v", err)
+	}
+	verifyConfig(t, cephConfig, clusterInfo, 10)
 
 	// verify the network info config
 	assert.Equal(t, "10.1.1.1", cephConfig.PublicAddr)
@@ -100,6 +106,7 @@ debug bluestore = 1234`
 		Monitors: map[string]*MonInfo{
 			"node0": {Name: "mon0", Endpoint: "10.0.0.1:6789"},
 		},
+		CephVersion: cephver.Mimic,
 	}
 
 	// generate the config file to disk now
@@ -116,18 +123,39 @@ debug bluestore = 1234`
 	verifyConfigValue(t, actualConf, "global", "debug bluestore", "1234")
 }
 
-func verifyConfig(t *testing.T, cephConfig *CephConfig, expectedMonMembers string, loggingLevel int) {
-
-	for _, expectedMon := range strings.Split(expectedMonMembers, " ") {
+func verifyConfig(t *testing.T, cephConfig *CephConfig, cluster *ClusterInfo, loggingLevel int) {
+	monMembers := make([]string, len(cluster.Monitors))
+	i := 0
+	for _, expectedMon := range cluster.Monitors {
 		contained := false
+		monMembers[i] = expectedMon.Name
 		for _, actualMon := range strings.Split(cephConfig.MonMembers, " ") {
+			if expectedMon.Name == actualMon {
+				contained = true
+				break
+			}
+		}
+
+		assert.True(t, contained)
+	}
+
+	// Testing mon_host
+	expectedMons := "10.0.0.1:6789,10.0.0.2:6789"
+
+	if cluster.CephVersion.IsAtLeastNautilus() {
+		expectedMons = "[v2:10.0.0.1:3300,v1:10.0.0.1:6789],[v2:10.0.0.2:3300,v1:10.0.0.2:6789]"
+	}
+
+	for _, expectedMon := range strings.Split(expectedMons, ",") {
+		contained := false
+		for _, actualMon := range strings.Split(cephConfig.MonHost, ",") {
 			if expectedMon == actualMon {
 				contained = true
 				break
 			}
 		}
 
-		assert.True(t, contained, "expectedMons: %+v, actualMons: %+v", expectedMonMembers, cephConfig.MonMembers)
+		assert.True(t, contained, "expectedMons: %+v, actualMons: %+v", expectedMons, cephConfig.MonHost)
 	}
 
 	assert.Equal(t, loggingLevel, cephConfig.DebugLogDefaultLevel)

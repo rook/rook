@@ -1,6 +1,6 @@
 ---
 title: Helm Charts
-weight: 100
+weight: 10000
 ---
 
 # Helm Charts

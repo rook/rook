@@ -119,7 +119,7 @@ func (c *FakePools) DeleteCollection(options *v1.DeleteOptions, listOptions v1.L
 // Patch applies the patch and returns the patched pool.
 func (c *FakePools) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1beta1.Pool, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(poolsResource, c.ns, name, data, subresources...), &v1beta1.Pool{})
+		Invokes(testing.NewPatchSubresourceAction(poolsResource, c.ns, name, pt, data, subresources...), &v1beta1.Pool{})
 
 	if obj == nil {
 		return nil, err

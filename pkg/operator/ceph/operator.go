@@ -30,15 +30,16 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
 	"github.com/rook/rook/pkg/operator/ceph/agent"
 	"github.com/rook/rook/pkg/operator/ceph/cluster"
+	"github.com/rook/rook/pkg/operator/ceph/csi"
 	"github.com/rook/rook/pkg/operator/ceph/file"
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/ceph/object/user"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
 	"github.com/rook/rook/pkg/operator/ceph/provisioner"
-	"github.com/rook/rook/pkg/operator/ceph/provisioner/controller"
 	"github.com/rook/rook/pkg/operator/discover"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/api/core/v1"
+	"sigs.k8s.io/sig-storage-lib-external-provisioner/controller"
 )
 
 // volume provisioner constant
@@ -100,14 +101,34 @@ func (o *Operator) Run() error {
 		return fmt.Errorf("Error starting device discovery daemonset: %v", err)
 	}
 
-	signalChan := make(chan os.Signal, 1)
-	stopChan := make(chan struct{})
-	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
-
 	serverVersion, err := o.context.Clientset.Discovery().ServerVersion()
 	if err != nil {
 		return fmt.Errorf("Error getting server version: %v", err)
 	}
+
+	if serverVersion.Major >= csi.KubeMinMajor && serverVersion.Minor >= csi.KubeMinMinor && csi.CSIEnabled() {
+		logger.Infof("Ceph CSI driver is enabled, validate csi param")
+		if err = csi.ValidateCSIParam(); err != nil {
+			logger.Warningf("invalid csi params: %v", err)
+			if csi.ExitOnError {
+				return err
+			}
+		} else {
+			csi.SetCSINamespace(namespace)
+			if err = csi.StartCSIDrivers(namespace, o.context.Clientset); err != nil {
+				logger.Warningf("failed to start Ceph csi drivers: %v", err)
+				if csi.ExitOnError {
+					return err
+				}
+			} else {
+				logger.Infof("successfully started Ceph csi drivers")
+			}
+		}
+	}
+
+	signalChan := make(chan os.Signal, 1)
+	stopChan := make(chan struct{})
+	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 
 	// Run volume provisioner for each of the supported configurations
 	for name, vendor := range provisionerConfigs {
@@ -122,8 +143,17 @@ func (o *Operator) Run() error {
 		logger.Infof("rook-provisioner %s started using %s flex vendor dir", name, vendor)
 	}
 
+	var namespaceToWatch string
+	if os.Getenv("ROOK_CURRENT_NAMESPACE_ONLY") == "true" {
+		logger.Infof("Watching the current namespace for a cluster CRD")
+		namespaceToWatch = namespace
+	} else {
+		logger.Infof("Watching all namespaces for cluster CRDs")
+		namespaceToWatch = v1.NamespaceAll
+	}
+
 	// watch for changes to the rook clusters
-	o.clusterController.StartWatch(v1.NamespaceAll, stopChan)
+	o.clusterController.StartWatch(namespaceToWatch, stopChan)
 
 	for {
 		select {

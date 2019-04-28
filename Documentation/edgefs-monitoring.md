@@ -1,10 +1,10 @@
 ---
-title: Monitoring
-weight: 48
+title: EdgeFS Monitoring
+weight: 4800
 indent: true
 ---
 
-# Monitoring
+# EdgeFS Monitoring
 
 Each Rook EdgeFS cluster has some built in metrics collectors/exporters for monitoring with [Prometheus](https://prometheus.io/).
 If you do not have Prometheus running, follow the steps below to enable monitoring of Rook. If your cluster already

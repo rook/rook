@@ -23,20 +23,21 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
-	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
 
 func TestPodContainer(t *testing.T) {
-	cluster := &Cluster{Namespace: "myosd", rookVersion: "23"}
+	cluster := &Cluster{Namespace: "myosd", rookVersion: "23", cephVersion: cephv1.CephVersionSpec{}}
 	c, err := cluster.provisionPodTemplateSpec([]rookalpha.Device{}, rookalpha.Selection{}, v1.ResourceRequirements{}, config.StoreConfig{}, "", "node", "", v1.RestartPolicyAlways)
 	assert.NotNil(t, c)
 	assert.Nil(t, err)
@@ -73,12 +74,15 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 
 	clientset := fake.NewSimpleClientset()
 	cephVersion := cephv1.CephVersionSpec{Image: "ceph/ceph:v12.2.8"}
-	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", cephVersion,
-		storageSpec, dataDir, rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	clusterInfo := &cephconfig.ClusterInfo{
+		CephVersion: cephver.Nautilus,
+	}
+	c := New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", cephVersion,
+		storageSpec, dataDir, rookalpha.Placement{}, rookalpha.Annotations{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	devMountNeeded := deviceName != "" || allDevices
 
-	n := c.Storage.ResolveNode(storageSpec.Nodes[0].Name)
+	n := c.DesiredStorage.ResolveNode(storageSpec.Nodes[0].Name)
 	if len(devices) == 0 && len(dataDir) == 0 {
 		return
 	}
@@ -86,20 +90,20 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 		ID: 0,
 	}
 
-	deployment, err := c.makeDeployment(n.Name, devices, n.Selection, v1.ResourceRequirements{}, config.StoreConfig{}, "", n.Location, osd)
+	deployment, err := c.makeDeployment(n.Name, n.Selection, v1.ResourceRequirements{}, config.StoreConfig{}, "", n.Location, osd)
 	assert.Nil(t, err)
 	assert.NotNil(t, deployment)
 	assert.Equal(t, "rook-ceph-osd-0", deployment.Name)
 	assert.Equal(t, c.Namespace, deployment.Namespace)
 	assert.Equal(t, serviceAccountName, deployment.Spec.Template.Spec.ServiceAccountName)
 	assert.Equal(t, int32(1), *(deployment.Spec.Replicas))
-	assert.Equal(t, "node1", deployment.Spec.Template.Spec.NodeSelector[apis.LabelHostname])
+	assert.Equal(t, "node1", deployment.Spec.Template.Spec.NodeSelector[v1.LabelHostname])
 	assert.Equal(t, v1.RestartPolicyAlways, deployment.Spec.Template.Spec.RestartPolicy)
 	if devMountNeeded && len(dataDir) > 0 {
-		assert.Equal(t, 5, len(deployment.Spec.Template.Spec.Volumes))
+		assert.Equal(t, 6, len(deployment.Spec.Template.Spec.Volumes))
 	}
 	if devMountNeeded && len(dataDir) == 0 {
-		assert.Equal(t, 5, len(deployment.Spec.Template.Spec.Volumes))
+		assert.Equal(t, 6, len(deployment.Spec.Template.Spec.Volumes))
 	}
 	if !devMountNeeded && len(dataDir) > 0 {
 		assert.Equal(t, 2, len(deployment.Spec.Template.Spec.Volumes))
@@ -117,12 +121,12 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	initCont := deployment.Spec.Template.Spec.InitContainers[0]
 	assert.Equal(t, "rook/rook:myversion", initCont.Image)
 	assert.Equal(t, "config-init", initCont.Name)
-	assert.Equal(t, 3, len(initCont.VolumeMounts))
+	assert.Equal(t, 4, len(initCont.VolumeMounts))
 
 	assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Containers))
 	cont := deployment.Spec.Template.Spec.Containers[0]
 	assert.Equal(t, cephVersion.Image, cont.Image)
-	assert.Equal(t, 4, len(cont.VolumeMounts))
+	assert.Equal(t, 5, len(cont.VolumeMounts))
 	assert.Equal(t, "ceph-osd", cont.Command[0])
 }
 
@@ -156,35 +160,40 @@ func TestStorageSpecDevicesAndDirectories(t *testing.T) {
 	}
 
 	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", cephv1.CephVersionSpec{},
-		storageSpec, "/var/lib/rook", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	clusterInfo := &cephconfig.ClusterInfo{
+		CephVersion: cephver.Nautilus,
+	}
+	c := New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", cephv1.CephVersionSpec{},
+		storageSpec, "/var/lib/rook", rookalpha.Placement{}, rookalpha.Annotations{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
-	n := c.Storage.ResolveNode(storageSpec.Nodes[0].Name)
+	n := c.DesiredStorage.ResolveNode(storageSpec.Nodes[0].Name)
 	osd := OSDInfo{
 		ID:          0,
 		IsDirectory: true,
 		DataPath:    "/my/root/path/osd1",
 	}
-	deployment, err := c.makeDeployment(n.Name, n.Devices, n.Selection, v1.ResourceRequirements{}, config.StoreConfig{}, "", n.Location, osd)
+	deployment, err := c.makeDeployment(n.Name, n.Selection, v1.ResourceRequirements{}, config.StoreConfig{}, "", n.Location, osd)
 	assert.NotNil(t, deployment)
 	assert.Nil(t, err)
 	// pod spec should have a volume for the given dir in the main container and the init container
 	podSpec := deployment.Spec.Template.Spec
-	assert.Equal(t, 5, len(podSpec.Volumes))
+	assert.Equal(t, 6, len(podSpec.Volumes))
 	require.Equal(t, 1, len(podSpec.Containers))
 	cont := podSpec.Containers[0]
-	assert.Equal(t, 4, len(cont.VolumeMounts))
+	assert.Equal(t, 5, len(cont.VolumeMounts))
 	assert.Equal(t, "/var/lib/rook", cont.VolumeMounts[0].MountPath)
 	assert.Equal(t, "/etc/ceph", cont.VolumeMounts[1].MountPath)
-	assert.Equal(t, "/my/root/path", cont.VolumeMounts[2].MountPath)
+	assert.Equal(t, "/var/log/ceph", cont.VolumeMounts[2].MountPath)
+	assert.Equal(t, "/my/root/path", cont.VolumeMounts[3].MountPath)
 
 	require.Equal(t, 2, len(podSpec.InitContainers))
 	initCont := podSpec.InitContainers[0]
-	assert.Equal(t, 4, len(initCont.VolumeMounts))
+	assert.Equal(t, 5, len(initCont.VolumeMounts))
 	assert.Equal(t, "/var/lib/rook", initCont.VolumeMounts[0].MountPath)
 	assert.Equal(t, "/etc/ceph", initCont.VolumeMounts[1].MountPath)
-	assert.Equal(t, "/etc/rook/config", initCont.VolumeMounts[2].MountPath)
-	assert.Equal(t, "/my/root/path", initCont.VolumeMounts[3].MountPath)
+	assert.Equal(t, "/var/log/ceph", initCont.VolumeMounts[2].MountPath)
+	assert.Equal(t, "/etc/rook/config", initCont.VolumeMounts[3].MountPath)
+	assert.Equal(t, "/my/root/path", initCont.VolumeMounts[4].MountPath)
 
 	// the default osd created on a node will be under /var/lib/rook, which won't need an extra mount
 	osd = OSDInfo{
@@ -192,26 +201,27 @@ func TestStorageSpecDevicesAndDirectories(t *testing.T) {
 		IsDirectory: true,
 		DataPath:    "/var/lib/rook/osd1",
 	}
-	deployment, err = c.makeDeployment(n.Name, n.Devices, n.Selection, v1.ResourceRequirements{}, config.StoreConfig{}, "", n.Location, osd)
+	deployment, err = c.makeDeployment(n.Name, n.Selection, v1.ResourceRequirements{}, config.StoreConfig{}, "", n.Location, osd)
 	assert.NotNil(t, deployment)
 	assert.Nil(t, err)
 	// pod spec should have a volume for the given dir in the main container and the init container
 	podSpec = deployment.Spec.Template.Spec
-	assert.Equal(t, 4, len(podSpec.Volumes))
+	assert.Equal(t, 5, len(podSpec.Volumes))
 	require.Equal(t, 1, len(podSpec.Containers))
 	cont = podSpec.Containers[0]
-	require.Equal(t, 3, len(cont.VolumeMounts))
+	require.Equal(t, 4, len(cont.VolumeMounts))
 	assert.Equal(t, "/var/lib/rook", cont.VolumeMounts[0].MountPath)
 	assert.Equal(t, "/etc/ceph", cont.VolumeMounts[1].MountPath)
 
-	assert.Equal(t, (7 + len(k8sutil.ClusterDaemonEnvVars())), len(cont.Env))
+	assert.Equal(t, (7 + len(k8sutil.ClusterDaemonEnvVars(c.cephVersion.Image))), len(cont.Env))
 
 	require.Equal(t, 2, len(podSpec.InitContainers))
 	initCont = podSpec.InitContainers[0]
-	require.Equal(t, 3, len(initCont.VolumeMounts))
+	require.Equal(t, 4, len(initCont.VolumeMounts))
 	assert.Equal(t, "/var/lib/rook", initCont.VolumeMounts[0].MountPath)
 	assert.Equal(t, "/etc/ceph", initCont.VolumeMounts[1].MountPath)
-	assert.Equal(t, "/etc/rook/config", initCont.VolumeMounts[2].MountPath)
+	assert.Equal(t, "/var/log/ceph", initCont.VolumeMounts[2].MountPath)
+	assert.Equal(t, "/etc/rook/config", initCont.VolumeMounts[3].MountPath)
 }
 
 func TestStorageSpecConfig(t *testing.T) {
@@ -232,10 +242,12 @@ func TestStorageSpecConfig(t *testing.T) {
 				},
 				Resources: v1.ResourceRequirements{
 					Limits: v1.ResourceList{
-						v1.ResourceCPU: *resource.NewQuantity(100.0, resource.BinarySI),
+						v1.ResourceCPU:    *resource.NewQuantity(1024.0, resource.BinarySI),
+						v1.ResourceMemory: *resource.NewQuantity(4096.0, resource.BinarySI),
 					},
 					Requests: v1.ResourceList{
-						v1.ResourceMemory: *resource.NewQuantity(1337.0, resource.BinarySI),
+						v1.ResourceCPU:    *resource.NewQuantity(500.0, resource.BinarySI),
+						v1.ResourceMemory: *resource.NewQuantity(2048.0, resource.BinarySI),
 					},
 				},
 			},
@@ -243,14 +255,17 @@ func TestStorageSpecConfig(t *testing.T) {
 	}
 
 	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", cephv1.CephVersionSpec{},
-		storageSpec, "", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	clusterInfo := &cephconfig.ClusterInfo{
+		CephVersion: cephver.Nautilus,
+	}
+	c := New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", cephv1.CephVersionSpec{},
+		storageSpec, "", rookalpha.Placement{}, rookalpha.Annotations{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
-	n := c.Storage.ResolveNode(storageSpec.Nodes[0].Name)
+	n := c.DesiredStorage.ResolveNode(storageSpec.Nodes[0].Name)
 	storeConfig := config.ToStoreConfig(storageSpec.Nodes[0].Config)
 	metadataDevice := config.MetadataDevice(storageSpec.Nodes[0].Config)
 
-	job, err := c.makeJob(n.Name, n.Devices, n.Selection, c.Storage.Nodes[0].Resources, storeConfig, metadataDevice, n.Location)
+	job, err := c.makeJob(n.Name, n.Devices, n.Selection, c.DesiredStorage.Nodes[0].Resources, storeConfig, metadataDevice, n.Location)
 	assert.NotNil(t, job)
 	assert.Nil(t, err)
 	assert.Equal(t, "rook-ceph-osd-prepare-node1", job.ObjectMeta.Name)
@@ -266,8 +281,10 @@ func TestStorageSpecConfig(t *testing.T) {
 	verifyEnvVar(t, container.Env, "ROOK_LOCATION", "rack=foo", true)
 	verifyEnvVar(t, container.Env, "ROOK_METADATA_DEVICE", "nvme093", true)
 
-	assert.Equal(t, "100", container.Resources.Limits.Cpu().String())
-	assert.Equal(t, "1337", container.Resources.Requests.Memory().String())
+	assert.Equal(t, "1Ki", container.Resources.Limits.Cpu().String(), "limit cpu is: %s", container.Resources.Limits.Cpu().String())
+	assert.Equal(t, "500", container.Resources.Requests.Cpu().String())
+	assert.Equal(t, "4Ki", container.Resources.Limits.Memory().String())
+	assert.Equal(t, "2Ki", container.Resources.Requests.Memory().String())
 
 	// verify that osd config can be discovered from the container and matches the original config from the spec
 	discoveredConfig := getConfigFromContainer(container)
@@ -293,14 +310,17 @@ func TestHostNetwork(t *testing.T) {
 	}
 
 	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "myversion", cephv1.CephVersionSpec{},
-		storageSpec, "", rookalpha.Placement{}, true, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	clusterInfo := &cephconfig.ClusterInfo{
+		CephVersion: cephver.Nautilus,
+	}
+	c := New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "myversion", cephv1.CephVersionSpec{},
+		storageSpec, "", rookalpha.Placement{}, rookalpha.Annotations{}, true, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
-	n := c.Storage.ResolveNode(storageSpec.Nodes[0].Name)
+	n := c.DesiredStorage.ResolveNode(storageSpec.Nodes[0].Name)
 	osd := OSDInfo{
 		ID: 0,
 	}
-	r, err := c.makeDeployment(n.Name, n.Devices, n.Selection, v1.ResourceRequirements{}, config.StoreConfig{}, "", n.Location, osd)
+	r, err := c.makeDeployment(n.Name, n.Selection, v1.ResourceRequirements{}, config.StoreConfig{}, "", n.Location, osd)
 	assert.NotNil(t, r)
 	assert.Nil(t, err)
 

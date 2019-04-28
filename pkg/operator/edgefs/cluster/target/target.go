@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-	http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,7 +20,7 @@ import (
 	"os"
 
 	"github.com/coreos/pkg/capnslog"
-	edgefsv1alpha1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1alpha1"
+	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"k8s.io/api/core/v1"
@@ -51,17 +51,20 @@ const (
 type Cluster struct {
 	context          *clusterd.Context
 	Namespace        string
+	annotations      rookalpha.Annotations
 	placement        rookalpha.Placement
 	Version          string
 	Storage          rookalpha.StorageScopeSpec
 	dataDirHostPath  string
 	dataVolumeSize   resource.Quantity
-	HostNetworkSpec  edgefsv1alpha1.NetworkSpec
+	HostNetworkSpec  edgefsv1beta1.NetworkSpec
 	Privileged       bool
 	resources        v1.ResourceRequirements
+	resourceProfile  string
+	chunkCacheSize   resource.Quantity
 	ownerRef         metav1.OwnerReference
 	serviceAccount   string
-	deploymentConfig edgefsv1alpha1.ClusterDeploymentConfig
+	deploymentConfig edgefsv1beta1.ClusterDeploymentConfig
 }
 
 // New creates an instance of the Target manager
@@ -73,11 +76,14 @@ func New(
 	storageSpec rookalpha.StorageScopeSpec,
 	dataDirHostPath string,
 	dataVolumeSize resource.Quantity,
+	annotations rookalpha.Annotations,
 	placement rookalpha.Placement,
-	hostNetworkSpec edgefsv1alpha1.NetworkSpec,
+	hostNetworkSpec edgefsv1beta1.NetworkSpec,
 	resources v1.ResourceRequirements,
+	resourceProfile string,
+	chunkCacheSize resource.Quantity,
 	ownerRef metav1.OwnerReference,
-	deploymentConfig edgefsv1alpha1.ClusterDeploymentConfig,
+	deploymentConfig edgefsv1beta1.ClusterDeploymentConfig,
 ) *Cluster {
 
 	if serviceAccount == "" {
@@ -89,6 +95,7 @@ func New(
 		context:          context,
 		Namespace:        namespace,
 		serviceAccount:   serviceAccount,
+		annotations:      annotations,
 		placement:        placement,
 		Version:          version,
 		Storage:          storageSpec,
@@ -97,13 +104,15 @@ func New(
 		HostNetworkSpec:  hostNetworkSpec,
 		Privileged:       (isHostNetworkDefined(hostNetworkSpec) || os.Getenv("ROOK_HOSTPATH_REQUIRES_PRIVILEGED") == "true"),
 		resources:        resources,
+		resourceProfile:  resourceProfile,
+		chunkCacheSize:   chunkCacheSize,
 		ownerRef:         ownerRef,
 		deploymentConfig: deploymentConfig,
 	}
 }
 
 // Start the target management
-func (c *Cluster) Start(rookImage string, nodes []rookalpha.Node, dro edgefsv1alpha1.DevicesResurrectOptions) (err error) {
+func (c *Cluster) Start(rookImage string, nodes []rookalpha.Node, dro edgefsv1beta1.DevicesResurrectOptions) (err error) {
 	logger.Infof("start running targets in namespace %s", c.Namespace)
 
 	logger.Infof("Target Image is %s", rookImage)
@@ -119,7 +128,7 @@ func (c *Cluster) Start(rookImage string, nodes []rookalpha.Node, dro edgefsv1al
 	}
 
 	statefulSet, _ := c.makeStatefulSet(int32(len(nodes)), rookImage, dro)
-	if _, err := c.context.Clientset.AppsV1beta1().StatefulSets(c.Namespace).Create(statefulSet); err != nil {
+	if _, err := c.context.Clientset.AppsV1().StatefulSets(c.Namespace).Create(statefulSet); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return err
 		}

@@ -16,7 +16,7 @@ limitations under the License.
 package v1
 
 import (
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
@@ -54,6 +54,9 @@ type ClusterSpec struct {
 	// A spec for available storage in the cluster and how it should be used
 	Storage rook.StorageScopeSpec `json:"storage,omitempty"`
 
+	// The annotations-related configuration to add/set on each Pod related object.
+	Annotations rook.AnnotationsSpec `json:"annotations,omitempty"`
+
 	// The placement-related configuration to pass to kubernetes (affinity, node selector, tolerations).
 	Placement rook.PlacementSpec `json:"placement,omitempty"`
 
@@ -81,9 +84,6 @@ type CephVersionSpec struct {
 	// Image is the container image used to launch the ceph daemons, such as ceph/ceph:v12.2.7 or ceph/ceph:v13.2.1
 	Image string `json:"image,omitempty"`
 
-	// The name of the major release of Ceph: luminous, mimic, or nautilus
-	Name string `json:"name,omitempty"`
-
 	// Whether to allow unsupported versions (do not set to true in production)
 	AllowUnsupported bool `json:"allowUnsupported,omitempty"`
 }
@@ -101,8 +101,22 @@ type DashboardSpec struct {
 }
 
 type ClusterStatus struct {
-	State   ClusterState `json:"state,omitempty"`
-	Message string       `json:"message,omitempty"`
+	State      ClusterState `json:"state,omitempty"`
+	Message    string       `json:"message,omitempty"`
+	CephStatus *CephStatus  `json:"ceph,omitempty"`
+}
+
+type CephStatus struct {
+	Health         string                       `json:"health,omitempty"`
+	Details        map[string]CephHealthMessage `json:"details,omitempty"`
+	LastChecked    string                       `json:"lastChecked,omitempty"`
+	LastChanged    string                       `json:"lastChanged,omitempty"`
+	PreviousHealth string                       `json:"previousHealth,omitempty"`
+}
+
+type CephHealthMessage struct {
+	Severity string `json:"severity"`
+	Message  string `json:"message"`
 }
 
 type ClusterState string
@@ -116,6 +130,7 @@ const (
 
 type MonSpec struct {
 	Count                int  `json:"count"`
+	PreferredCount       int  `json:"preferredCount"`
 	AllowMultiplePerNode bool `json:"allowMultiplePerNode"`
 }
 
@@ -215,6 +230,9 @@ type MetadataServerSpec struct {
 	// The affinity to place the mds pods (default is to place on all available node) with a daemonset
 	Placement rook.Placement `json:"placement"`
 
+	// The annotations-related configuration to add/set on each Pod related object.
+	Annotations rook.Annotations `json:"annotations,omitempty"`
+
 	// The resource requirements for the rgw pods
 	Resources v1.ResourceRequirements `json:"resources"`
 }
@@ -294,6 +312,9 @@ type GatewaySpec struct {
 	// The affinity to place the rgw pods (default is to place on any available node)
 	Placement rook.Placement `json:"placement"`
 
+	// The annotations-related configuration to add/set on each Pod related object.
+	Annotations rook.Annotations `json:"annotations,omitempty"`
+
 	// The resource requirements for the rgw pods
 	Resources v1.ResourceRequirements `json:"resources"`
 }
@@ -337,6 +358,9 @@ type GaneshaServerSpec struct {
 
 	// The affinity to place the ganesha pods
 	Placement rook.Placement `json:"placement"`
+
+	// The annotations-related configuration to add/set on each Pod related object.
+	Annotations rook.Annotations `json:"annotations,omitempty"`
 
 	// Resources set resource requests and limits
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`

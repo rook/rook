@@ -1,6 +1,6 @@
 ---
 title: Dashboard
-weight: 24
+weight: 2400
 indent: true
 ---
 
@@ -46,7 +46,7 @@ After you connect to the dashboard you will need to login for secure access. Roo
 `admin` and generates a secret called `rook-ceph-dashboard-admin-password` in the namespace where rook is running.
 To retrieve the generated password, you can run the following:
 ```
-kubectl -n rook-ceph get secret rook-ceph-dashboard-password -o yaml | grep "password:" | awk '{print $2}' | base64 --decode
+kubectl -n rook-ceph get secret rook-ceph-dashboard-password -o jsonpath="{['data']['password']}" | base64 --decode && echo
 ```
 
 ## Configure the Dashboard
@@ -83,6 +83,8 @@ There are several ways to expose a service that will depend on the environment y
 You can use an [Ingress Controller](https://kubernetes.io/docs/concepts/services-networking/ingress/) or [other methods](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types) for exposing services such as
 NodePort, LoadBalancer, or ExternalIPs.
 
+### Node Port
+
 The simplest way to expose the service in minikube or similar environment is using the NodePort to open a port on the
 VM that can be accessed by the host. To create a service with the NodePort, save this yaml as `dashboard-external-https.yaml`.
 (For Luminous you will need to set the `port` and `targetPort` to 7000 and connect via `http`.)
@@ -111,10 +113,10 @@ spec:
 
 Now create the service:
 ```bash
-$ kubectl create -f dashboard-external.yaml
+$ kubectl create -f dashboard-external-https.yaml
 ```
 
-You will see the new service `rook-ceph-mgr-dashboard-external` created:
+You will see the new service `rook-ceph-mgr-dashboard-external-https` created:
 ```bash
 $ kubectl -n rook-ceph get service
 NAME                                    TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE
@@ -126,3 +128,64 @@ rook-ceph-mgr-dashboard-external-https  NodePort    10.101.209.6     <none>     
 In this example, port `31176` will be opened to expose port `8443` from the ceph-mgr pod. Find the ip address
 of the VM. If using minikube, you can run `minikube ip` to find the ip address.
 Now you can enter the URL in your browser such as `https://192.168.99.110:31176` and the dashboard will appear.
+
+### Ingress Controller
+
+If you have a cluster with an [nginx Ingress Controller](https://kubernetes.github.io/ingress-nginx/)
+and a Certificate Manager (e.g. [cert-manager](https://cert-manager.readthedocs.io/)) then you can create an
+Ingress like the one below. This example achieves four things:
+
+1. Exposes the dashboard on the Internet (using an reverse proxy)
+2. Issues an valid TLS Certificate for the specified domain name (using [ACME](https://en.wikipedia.org/wiki/Automated_Certificate_Management_Environment))
+3. Tells the reverse proxy that the dashboard itself uses HTTPS
+4. Tells the reverse proxy that the dashboard itself does not have a valid certificate (it is self-signed)
+
+```yaml
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: rook-ceph-mgr-dashboard
+  namespace: rook-ceph
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    kubernetes.io/tls-acme: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    nginx.ingress.kubernetes.io/server-snippet: |
+      proxy_ssl_verify off;
+spec:
+  tls:
+   - hosts:
+     - rook-ceph.example.com
+     secretName: rook-ceph.example.com
+  rules:
+  - host: rook-ceph.example.com
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: rook-ceph-mgr-dashboard
+          servicePort: https-dashboard
+```
+
+Customise the Ingress resource to match your cluster. Replace the example domain name `rook-ceph.example.com`
+with a domain name that will resolve to your Ingress Controller (creating the DNS entry if required).
+
+Now create the Ingress:
+```bash
+$ kubectl create -f dashboard-ingress-https.yaml
+```
+
+You will see the new Ingress `rook-ceph-mgr-dashboard` created:
+```bash
+$ kubectl -n rook-ceph get ingress
+NAME                      HOSTS                      ADDRESS   PORTS     AGE
+rook-ceph-mgr-dashboard   rook-ceph.example.com      80, 443   5m
+```
+
+And the new Secret for the TLS certificate:
+```bash
+$ kubectl -n rook-ceph get secret rook-ceph.example.com
+NAME                       TYPE                DATA      AGE
+rook-ceph.example.com      kubernetes.io/tls   2         4m
+```
+You can now browse to `https://rook-ceph.example.com/` to log into the dashboard.

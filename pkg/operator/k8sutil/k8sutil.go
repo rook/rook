@@ -21,11 +21,15 @@ import (
 	"crypto/md5"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/coreos/pkg/capnslog"
+	rookversion "github.com/rook/rook/pkg/version"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation"
+	"k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/kubernetes/pkg/util/version"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-k8sutil")
@@ -47,6 +51,10 @@ const (
 	PodNamespaceEnvVar = "POD_NAMESPACE"
 	// NodeNameEnvVar is the env variable for getting the node via downward api
 	NodeNameEnvVar = "NODE_NAME"
+
+	// RookVersionLabelKey is the key used for reporting the Rook version which last created or
+	// modified a resource.
+	RookVersionLabelKey = "rook-version"
 )
 
 // GetK8SVersion gets the version of the running K8S cluster
@@ -84,4 +92,52 @@ func TruncateNodeName(format, nodeName string) string {
 		nodeName = hashed
 	}
 	return fmt.Sprintf(format, nodeName)
+}
+
+// deleteResourceAndWait will delete a resource, then wait for it to be purged from the system
+func deleteResourceAndWait(namespace, name, resourceType string,
+	deleteAction func(*metav1.DeleteOptions) error,
+	getAction func() error,
+) error {
+	var gracePeriod int64
+	propagation := metav1.DeletePropagationForeground
+	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
+
+	// Delete the resource if it exists
+	logger.Infof("removing %s %s if it exists", resourceType, name)
+	err := deleteAction(options)
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			return fmt.Errorf("failed to delete %s. %+v", name, err)
+		}
+		return nil
+	}
+	logger.Infof("Removed %s %s", resourceType, name)
+
+	// wait for the resource to be deleted
+	sleepTime := 2 * time.Second
+	for i := 0; i < 30; i++ {
+		// check for the existence of the resource
+		err = getAction()
+		if err != nil {
+			if errors.IsNotFound(err) {
+				logger.Infof("confirmed %s does not exist", name)
+				return nil
+			}
+			return fmt.Errorf("failed to get %s. %+v", name, err)
+		}
+
+		logger.Infof("%s still found. waiting...", name)
+		time.Sleep(sleepTime)
+	}
+
+	return fmt.Errorf("gave up waiting for %s pods to be terminated", name)
+}
+
+// Add the rook version to the labels. This should *not* be used on pod specifications, because this
+// will result in the deployment/daemonset/ect. recreating all of its pods even if an update
+// wouldn't otherwise be required. Upgrading unnecessarily increases risk for loss of data
+// reliability, even if only briefly.
+func addRookVersionLabel(labels map[string]string) {
+	labels[RookVersionLabelKey] = rookversion.Version
 }

@@ -19,7 +19,7 @@ include ../image.mk
 
 CEPH_IMAGE = $(BUILD_REGISTRY)/ceph-$(GOARCH)
 
-CEPH_VERSION = v13.2.2-20181023
+CEPH_VERSION = v14.2.0-20190319
 BASEIMAGE = ceph/ceph-$(GOARCH):$(CEPH_VERSION)
 
 TEMP := $(shell mktemp -d)
@@ -33,8 +33,9 @@ do.build:
 	@cp toolbox.sh $(TEMP)
 	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rook $(TEMP)
 	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rookflex $(TEMP)
+	@cp -r ../../cluster/examples/kubernetes/ceph/csi/template $(TEMP)/ceph-csi
 	@cd $(TEMP) && $(SED_CMD) 's|BASEIMAGE|$(BASEIMAGE)|g' Dockerfile
-	@docker build $(BUILD_ARGS) \
+	@$(DOCKERCMD) build $(BUILD_ARGS) \
 		--build-arg ARCH=$(GOARCH) \
 		--build-arg TINI_VERSION=$(TINI_VERSION) \
 		-t $(CEPH_IMAGE) \

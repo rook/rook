@@ -25,7 +25,6 @@ import (
 	"syscall"
 	"time"
 
-	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/api/core/v1"
@@ -35,14 +34,14 @@ import (
 
 const (
 	dashboardModuleName            = "dashboard"
-	dashboardPortHttps             = 8443
-	dashboardPortHttp              = 7000
+	dashboardPortHTTPS             = 8443
+	dashboardPortHTTP              = 7000
 	dashboardUsername              = "admin"
 	dashboardPasswordName          = "rook-ceph-dashboard-password"
 	passwordLength                 = 10
 	passwordKeyName                = "password"
 	certAlreadyConfiguredErrorCode = 5
-	invalidArgErrorCode            = 22
+	invalidArgErrorCode            = int(syscall.EINVAL)
 )
 
 var (
@@ -53,13 +52,13 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-func (c *Cluster) configureDashboard(port int) error {
+func (c *Cluster) configureDashboard(m *mgrConfig) error {
 	// enable or disable the dashboard module
-	if err := c.toggleDashboardModule(port); err != nil {
+	if err := c.toggleDashboardModule(m); err != nil {
 		return err
 	}
 
-	dashboardService := c.makeDashboardService(appName, port)
+	dashboardService := c.makeDashboardService(appName, m.DashboardPort)
 	if c.dashboard.Enabled {
 		// expose the dashboard service
 		if _, err := c.context.Clientset.CoreV1().Services(c.Namespace).Create(dashboardService); err != nil {
@@ -71,9 +70,9 @@ func (c *Cluster) configureDashboard(port int) error {
 			if err != nil {
 				return fmt.Errorf("failed to get dashboard service. %+v", err)
 			}
-			if original.Spec.Ports[0].Port != int32(port) {
+			if original.Spec.Ports[0].Port != int32(m.DashboardPort) {
 				logger.Infof("dashboard port changed. updating service")
-				original.Spec.Ports[0].Port = int32(port)
+				original.Spec.Ports[0].Port = int32(m.DashboardPort)
 				if _, err := c.context.Clientset.CoreV1().Services(c.Namespace).Update(original); err != nil {
 					return fmt.Errorf("failed to update dashboard mgr service. %+v", err)
 				}
@@ -93,7 +92,7 @@ func (c *Cluster) configureDashboard(port int) error {
 }
 
 // Ceph docs about the dashboard module: http://docs.ceph.com/docs/luminous/mgr/dashboard/
-func (c *Cluster) toggleDashboardModule(dashboardPort int) error {
+func (c *Cluster) toggleDashboardModule(m *mgrConfig) error {
 	if c.dashboard.Enabled {
 		if err := client.MgrEnableModule(c.context, c.Namespace, dashboardModuleName, true); err != nil {
 			return fmt.Errorf("failed to enable mgr dashboard module. %+v", err)
@@ -103,7 +102,7 @@ func (c *Cluster) toggleDashboardModule(dashboardPort int) error {
 			return fmt.Errorf("failed to initialize dashboard. %+v", err)
 		}
 
-		if err := c.configureDashboardModule(dashboardPort); err != nil {
+		if err := c.configureDashboardModule(m); err != nil {
 			return fmt.Errorf("failed to configure mgr dashboard module. %+v", err)
 		}
 	} else {
@@ -114,16 +113,16 @@ func (c *Cluster) toggleDashboardModule(dashboardPort int) error {
 	return nil
 }
 
-func (c *Cluster) configureDashboardModule(dashboardPort int) error {
+func (c *Cluster) configureDashboardModule(m *mgrConfig) error {
 	// url prefix
-	hasChanged, err := client.MgrSetAllConfig(c.context, c.Namespace, c.cephVersion.Name, "mgr/dashboard/url_prefix", c.dashboard.UrlPrefix)
+	hasChanged, err := client.MgrSetConfig(c.context, c.Namespace, m.DaemonID, c.clusterInfo.CephVersion, "mgr/dashboard/url_prefix", c.dashboard.UrlPrefix, false)
 	if err != nil {
 		return err
 	}
 
 	// server port
-	port := strconv.Itoa(dashboardPort)
-	changed, err := client.MgrSetAllConfig(c.context, c.Namespace, c.cephVersion.Name, "mgr/dashboard/server_port", port)
+	port := strconv.Itoa(m.DashboardPort)
+	changed, err := client.MgrSetConfig(c.context, c.Namespace, m.DaemonID, c.clusterInfo.CephVersion, "mgr/dashboard/server_port", port, false)
 	if err != nil {
 		return err
 	}
@@ -136,7 +135,7 @@ func (c *Cluster) configureDashboardModule(dashboardPort int) error {
 	} else {
 		ssl = strconv.FormatBool(*c.dashboard.SSL)
 	}
-	changed, err = client.MgrSetAllConfig(c.context, c.Namespace, c.cephVersion.Name, "mgr/dashboard/ssl", ssl)
+	changed, err = client.MgrSetConfig(c.context, c.Namespace, m.DaemonID, c.clusterInfo.CephVersion, "mgr/dashboard/ssl", ssl, false)
 	if err != nil {
 		return err
 	}
@@ -150,7 +149,7 @@ func (c *Cluster) configureDashboardModule(dashboardPort int) error {
 }
 
 func (c *Cluster) initializeSecureDashboard() error {
-	if c.cephVersion.Name == cephv1.Luminous || c.cephVersion.Name == "" {
+	if c.clusterInfo.CephVersion.IsLuminous() {
 		logger.Infof("skipping cert and user configuration on luminous")
 		return nil
 	}
@@ -220,8 +219,11 @@ func getExitCode(err error) (int, bool) {
 func (c *Cluster) setLoginCredentials(password string) error {
 	// Set the login credentials. Write the command/args to the debug log so we don't write the password by default to the log.
 	logger.Infof("Running command: ceph dashboard set-login-credentials admin *******")
-	args := []string{"dashboard", "set-login-credentials", dashboardUsername, password}
-	_, err := client.ExecuteCephCommandDebugLog(c.context, c.Namespace, args)
+	// retry a few times in the case that the mgr module is not ready to accept commands
+	_, err := client.ExecuteCephCommandWithRetry(func() ([]byte, error) {
+		args := []string{"dashboard", "set-login-credentials", dashboardUsername, password}
+		return client.ExecuteCephCommandDebugLog(c.context, c.Namespace, args)
+	}, c.exitCode, 5, invalidArgErrorCode, dashboardInitWaitTime)
 	if err != nil {
 		return fmt.Errorf("failed to set login creds on mgr. %+v", err)
 	}

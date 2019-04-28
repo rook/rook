@@ -19,6 +19,10 @@ package test
 import (
 	"fmt"
 	"strings"
+	"testing"
+
+	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -65,4 +69,25 @@ func VerifyPodLabels(appName, namespace, daemonType, daemonID string, labels map
 	errB := checkLabel("ceph_daemon_id", daemonID, labels)
 	errC := checkLabel(daemonType, daemonID, labels)
 	return combineErrors(errA, errB, errC)
+}
+
+// AssertLabelsContainCephRequirements asserts that the the labels under test contain the labels
+// which all Ceph pods should have. This can be used with labels for Kubernetes Deployments,
+// DaemonSets, etc.
+func AssertLabelsContainCephRequirements(
+	t *testing.T, labels map[string]string,
+	daemonType config.DaemonType, daemonID, appName, namespace string,
+) {
+	resourceLabels := []string{}
+	for k, v := range labels {
+		resourceLabels = append(resourceLabels, fmt.Sprintf("%s=%s", k, v))
+	}
+	expectedLabels := []string{
+		"app=" + appName,
+		"ceph_daemon_id=" + daemonID,
+		string(daemonType) + "=" + daemonID,
+		"rook_cluster" + "=" + namespace,
+	}
+	assert.Subset(t, resourceLabels, expectedLabels,
+		"labels on resource do not match Ceph requirements", labels)
 }

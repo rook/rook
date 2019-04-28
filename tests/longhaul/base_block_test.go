@@ -22,9 +22,9 @@ func createStorageClassAndPool(t func() *testing.T, testClient *clients.TestClie
 	// Create storage class
 	if err := kh.IsStorageClassPresent(storageClassName); err != nil {
 		logger.Infof("Install pool and storage class for rook block")
-		_, err := testClient.PoolClient.Create(poolName, namespace, 3)
+		err := testClient.PoolClient.Create(poolName, namespace, 3)
 		require.NoError(t(), err)
-		_, err = testClient.BlockClient.CreateStorageClass(poolName, storageClassName, "Delete", namespace, false)
+		err = testClient.BlockClient.CreateStorageClass(poolName, storageClassName, "Delete", namespace, false)
 		require.NoError(t(), err)
 
 		// make sure storageclass is created
@@ -145,7 +145,7 @@ func StartLoadTestCluster(t func() *testing.T, namespace string) (LoadTestCluste
 	kh, err := utils.CreateK8sHelper(t)
 	require.NoError(t(), err)
 
-	i := installer.NewCephInstaller(t, kh.Clientset, installer.VersionMaster, cephv1.CephVersionSpec{Image: "ceph/ceph:v12.2.7", Name: "luminous"})
+	i := installer.NewCephInstaller(t, kh.Clientset, false, installer.VersionMaster, cephv1.CephVersionSpec{Image: "ceph/ceph:v12.2.7"})
 
 	op := LoadTestCluster{i, kh, nil, t, namespace}
 	op.Setup()
@@ -157,7 +157,7 @@ func (o LoadTestCluster) Setup() {
 
 	if !o.kh.IsRookInstalled(o.namespace) {
 		isRookInstalled, err := o.installer.InstallRookOnK8sWithHostPathAndDevices(o.namespace, "bluestore",
-			false, true, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true},
+			true, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true},
 			true, /* startWithAllNodes */
 			1 /*rbd mirror workers*/)
 		require.NoError(o.T(), err)
@@ -207,7 +207,7 @@ spec:
     requests:
       storage: 20Gi
 ---
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{.appName}}
@@ -216,6 +216,9 @@ metadata:
 spec:
   strategy:
     type: Recreate
+  selector:
+    matchLabels:
+      app: {{.appLabel}}
   template:
     metadata:
       labels:

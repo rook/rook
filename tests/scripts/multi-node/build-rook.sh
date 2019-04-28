@@ -35,7 +35,7 @@ function purge_rook_pods {
   kubectl delete -n rook-ceph cluster rook-ceph || true
   kubectl delete -n rook-ceph cephcluster rook-ceph || true
   kubectl delete crd cephclusters.ceph.rook.io cephblockpools.ceph.rook.io cephobjectstores.ceph.rook.io cephobjectstoreusers.ceph.rook.io cephfilesystems.ceph.rook.io volumes.rook.io || true
-  kubectl delete -n rook-ceph-system daemonset rook-ceph-agent || true
+  kubectl delete -n rook-ceph daemonset rook-ceph-agent || true
   kubectl delete -f operator.yaml || true
   kubectl delete clusterroles rook-ceph-agent || true
   kubectl delete clusterrolebindings rook-ceph-agent || true

@@ -50,7 +50,7 @@ func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID string, cephArg
 
 	// activate the osd with ceph-volume
 	storeFlag := "--" + osdType
-	if err := context.Executor.ExecuteCommand(false, "", "ceph-volume", "lvm", "activate", "--no-systemd", storeFlag, osdID, osdUUID); err != nil {
+	if err := context.Executor.ExecuteCommand(false, "", "stdbuf", "-oL", "ceph-volume", "lvm", "activate", "--no-systemd", storeFlag, osdID, osdUUID); err != nil {
 		return fmt.Errorf("failed to activate osd. %+v", err)
 	}
 
@@ -88,7 +88,10 @@ func Provision(context *clusterd.Context, agent *OsdAgent) error {
 	}
 
 	// set the crush location in the osd config file
-	cephConfig := cephconfig.CreateDefaultCephConfig(context, agent.cluster, path.Join(context.ConfigDir, agent.cluster.Name))
+	cephConfig, err := cephconfig.CreateDefaultCephConfig(context, agent.cluster, path.Join(context.ConfigDir, agent.cluster.Name))
+	if err != nil {
+		return fmt.Errorf("failed to create default ceph config. %+v", err)
+	}
 	cephConfig.GlobalConfig.CrushLocation = agent.location
 
 	// write the latest config to the config dir
@@ -142,7 +145,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent) error {
 	logger.Infof("configuring osd dirs: %+v", dirs)
 	dirOSDs, err := agent.configureDirs(context, dirs)
 	if err != nil {
-		return fmt.Errorf("failed to configure dirs %v. %+v", dirs, err)
+		return fmt.Errorf("failed to configure dirs %+v. %+v", dirs, err)
 	}
 
 	// now we can start removing OSDs from devices and directories
@@ -161,7 +164,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent) error {
 		return fmt.Errorf("failed to save osd dir map. %+v", err)
 	}
 
-	logger.Infof("device osds:%v\ndir osds: %v", deviceOSDs, dirOSDs)
+	logger.Infof("device osds:%+v\ndir osds: %+v", deviceOSDs, dirOSDs)
 	osds := append(deviceOSDs, dirOSDs...)
 
 	// orchestration is completed, update the status
@@ -186,7 +189,7 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 		if device.Type == sys.PartType {
 			continue
 		}
-		ownPartitions, fs, err := sys.CheckIfDeviceAvailable(context.Executor, device.Name)
+		partCount, ownPartitions, fs, err := sys.CheckIfDeviceAvailable(context.Executor, device.Name)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get device %s info. %+v", device.Name, err)
 		}
@@ -197,12 +200,13 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 			continue
 		}
 
+		var deviceInfo *DeviceOsdIDEntry
 		if metadataDevice != "" && metadataDevice == device.Name {
 			// current device is desired as the metadata device
-			available.Entries[device.Name] = &DeviceOsdIDEntry{Data: unassignedOSDID, Metadata: []int{}, LegacyPartitionsFound: ownPartitions}
+			deviceInfo = &DeviceOsdIDEntry{Data: unassignedOSDID, Metadata: []int{}}
 		} else if len(desiredDevices) == 1 && desiredDevices[0].Name == "all" {
 			// user has specified all devices, use the current one for data
-			available.Entries[device.Name] = &DeviceOsdIDEntry{Data: unassignedOSDID, LegacyPartitionsFound: ownPartitions}
+			deviceInfo = &DeviceOsdIDEntry{Data: unassignedOSDID}
 		} else if len(desiredDevices) > 0 {
 			var matched bool
 			var err error
@@ -211,8 +215,13 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 				if desiredDevice.IsFilter {
 					// the desired devices is a regular expression
 					matched, err = regexp.Match(desiredDevice.Name, []byte(device.Name))
-				}
-				if device.Name == desiredDevice.Name {
+					if err != nil {
+						logger.Errorf("regex failed on device %s and filter %s. %+v", device.Name, desiredDevice.Name, err)
+						continue
+					}
+					logger.Infof("device %s matches device filter %s: %t", device.Name, desiredDevice.Name, matched)
+				} else if device.Name == desiredDevice.Name {
+					logger.Infof("%s found in the desired devices", device.Name)
 					matched = true
 				}
 				matchedDevice = desiredDevice
@@ -223,12 +232,19 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 
 			if err == nil && matched {
 				// the current device matches the user specifies filter/list, use it for data
-				available.Entries[device.Name] = &DeviceOsdIDEntry{Data: unassignedOSDID, Config: matchedDevice}
+				deviceInfo = &DeviceOsdIDEntry{Data: unassignedOSDID, Config: matchedDevice}
 			} else {
 				logger.Infof("skipping device %s that does not match the device filter/list (%v). %+v", device.Name, desiredDevices, err)
 			}
 		} else {
 			logger.Infof("skipping device %s until the admin specifies it can be used by an osd", device.Name)
+		}
+
+		if deviceInfo != nil {
+			if partCount > 0 {
+				deviceInfo.LegacyPartitionsFound = ownPartitions
+			}
+			available.Entries[device.Name] = deviceInfo
 		}
 	}
 
@@ -250,10 +266,10 @@ func getDataDirs(context *clusterd.Context, kv *k8sutil.ConfigMapKVStore, desire
 		dirList = strings.Split(desiredDirs, ",")
 	}
 
-	if len(dirList) == 0 && !devicesSpecified {
-		// user has not specified any dirs or any devices, give them the default dir at least
-		dirList = append(dirList, context.ConfigDir)
-	}
+	// when user has not specified any dirs or any devices, legacy behavior was to give them the
+	// default dir. no longer automatically create this fallback osd. the legacy conditional is
+	// still important for determining when the fallback osd may be deleted.
+	noDirsOrDevicesSpecified := len(dirList) == 0 && !devicesSpecified
 
 	removedDirs = make(map[string]int)
 
@@ -263,7 +279,7 @@ func getDataDirs(context *clusterd.Context, kv *k8sutil.ConfigMapKVStore, desire
 		addDirsToDirMap(dirList, &dirMap)
 
 		// determine which dirs are still active, which should be removed, then return them
-		activeDirs, removedDirs := getActiveAndRemovedDirs(dirList, dirMap)
+		activeDirs, removedDirs := getActiveAndRemovedDirs(dirList, dirMap, context.ConfigDir, noDirsOrDevicesSpecified)
 		return activeDirs, removedDirs, nil
 	}
 
@@ -324,12 +340,21 @@ func getRemovedDevices(agent *OsdAgent) (*config.PerfScheme, *DeviceOsdMapping, 
 	return removedDevicesScheme, removedDevicesMapping, nil
 }
 
-func getActiveAndRemovedDirs(currentDirList []string, savedDirMap map[string]int) (activeDirs, removedDirs map[string]int) {
+func getActiveAndRemovedDirs(
+	currentDirList []string, savedDirMap map[string]int, configDir string, noDirsOrDevicesSpecified bool,
+) (activeDirs, removedDirs map[string]int) {
 	activeDirs = map[string]int{}
 	removedDirs = map[string]int{}
 
 	for savedDir, id := range savedDirMap {
 		foundSavedDir := false
+
+		// If a legacy 'fallback' osd and no dirs/devices are yet specified, keep it to preserve
+		// legacy behavior for migrated clusters.
+		if savedDir == configDir && noDirsOrDevicesSpecified {
+			foundSavedDir = true
+		}
+
 		for _, dir := range currentDirList {
 			if dir == savedDir {
 				foundSavedDir = true

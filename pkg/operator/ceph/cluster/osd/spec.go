@@ -29,25 +29,26 @@ import (
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
+	"github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	apps "k8s.io/api/apps/v1"
 	batch "k8s.io/api/batch/v1"
-	"k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
 
 const (
-	dataDirsEnvVarName          = "ROOK_DATA_DIRECTORIES"
-	osdStoreEnvVarName          = "ROOK_OSD_STORE"
-	osdDatabaseSizeEnvVarName   = "ROOK_OSD_DATABASE_SIZE"
-	osdWalSizeEnvVarName        = "ROOK_OSD_WAL_SIZE"
-	osdJournalSizeEnvVarName    = "ROOK_OSD_JOURNAL_SIZE"
-	osdsPerDeviceEnvVarName     = "ROOK_OSDS_PER_DEVICE"
-	encryptedDeviceEnvVarName   = "ROOK_ENCRYPTED_DEVICE"
-	osdMetadataDeviceEnvVarName = "ROOK_METADATA_DEVICE"
-	rookBinariesMountPath       = "/rook"
-	rookBinariesVolumeName      = "rook-binaries"
+	dataDirsEnvVarName                  = "ROOK_DATA_DIRECTORIES"
+	osdStoreEnvVarName                  = "ROOK_OSD_STORE"
+	osdDatabaseSizeEnvVarName           = "ROOK_OSD_DATABASE_SIZE"
+	osdWalSizeEnvVarName                = "ROOK_OSD_WAL_SIZE"
+	osdJournalSizeEnvVarName            = "ROOK_OSD_JOURNAL_SIZE"
+	osdsPerDeviceEnvVarName             = "ROOK_OSDS_PER_DEVICE"
+	encryptedDeviceEnvVarName           = "ROOK_ENCRYPTED_DEVICE"
+	osdMetadataDeviceEnvVarName         = "ROOK_METADATA_DEVICE"
+	rookBinariesMountPath               = "/rook"
+	rookBinariesVolumeName              = "rook-binaries"
+	osdMemoryTargetSafetyFactor float32 = 0.8
 )
 
 func (c *Cluster) makeJob(nodeName string, devices []rookalpha.Device,
@@ -57,7 +58,7 @@ func (c *Cluster) makeJob(nodeName string, devices []rookalpha.Device,
 	if err != nil {
 		return nil, err
 	}
-	podSpec.Spec.NodeSelector = map[string]string{apis.LabelHostname: nodeName}
+	podSpec.Spec.NodeSelector = map[string]string{v1.LabelHostname: nodeName}
 
 	job := &batch.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -72,17 +73,19 @@ func (c *Cluster) makeJob(nodeName string, devices []rookalpha.Device,
 			Template: *podSpec,
 		},
 	}
+	k8sutil.AddRookVersionLabelToJob(job)
+	opspec.AddCephVersionLabelToJob(c.clusterInfo.CephVersion, job)
 	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &job.ObjectMeta, &c.ownerRef)
 	return job, nil
 }
 
-func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, selection rookalpha.Selection, resources v1.ResourceRequirements,
-	storeConfig config.StoreConfig, metadataDevice, location string, osd OSDInfo) (*extensions.Deployment, error) {
+func (c *Cluster) makeDeployment(nodeName string, selection rookalpha.Selection, resources v1.ResourceRequirements,
+	storeConfig config.StoreConfig, metadataDevice, location string, osd OSDInfo) (*apps.Deployment, error) {
 
 	replicaCount := int32(1)
 	volumeMounts := opspec.CephVolumeMounts()
 	configVolumeMounts := opspec.RookVolumeMounts()
-	volumes := opspec.PodVolumes(c.dataDirHostPath)
+	volumes := opspec.PodVolumes(c.dataDirHostPath, c.Namespace)
 
 	var dataDir string
 	if osd.IsDirectory {
@@ -126,7 +129,7 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 		k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
 		tiniEnvVar,
 	}
-	envVars = append(envVars, k8sutil.ClusterDaemonEnvVars()...)
+	envVars = append(envVars, k8sutil.ClusterDaemonEnvVars(c.cephVersion.Image)...)
 	envVars = append(envVars, []v1.EnvVar{
 		{Name: "ROOK_OSD_UUID", Value: osd.UUID},
 		{Name: "ROOK_OSD_ID", Value: osdID},
@@ -135,6 +138,7 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 	configEnvVars := append(c.getConfigEnvVars(storeConfig, dataDir, nodeName, location), []v1.EnvVar{
 		tiniEnvVar,
 		{Name: "ROOK_OSD_ID", Value: osdID},
+		{Name: "ROOK_CEPH_VERSION", Value: c.clusterInfo.CephVersion.CephVersionFormatted()},
 	}...)
 
 	if !osd.IsDirectory {
@@ -150,8 +154,22 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 		"--cluster", osd.Cluster,
 		"--osd-uuid", osd.UUID,
 	}
+
+	// Set osd memory target to the best appropriate value
+	if !osd.IsFileStore {
+		// As of Nautilus Ceph auto-tunes its osd_memory_target on the fly so we don't need to force it
+		if !c.clusterInfo.CephVersion.IsAtLeastNautilus() && !c.resources.Limits.Memory().IsZero() {
+			osdMemoryTargetValue := float32(c.resources.Limits.Memory().Value()) * osdMemoryTargetSafetyFactor
+			commonArgs = append(commonArgs, fmt.Sprintf("--osd-memory-target=%f", osdMemoryTargetValue))
+		}
+	}
+
 	if osd.IsFileStore {
 		commonArgs = append(commonArgs, fmt.Sprintf("--osd-journal=%s", osd.Journal))
+	}
+
+	if c.clusterInfo.CephVersion.IsAtLeast(version.CephVersion{Major: 14, Minor: 2, Extra: 1}) {
+		commonArgs = append(commonArgs, "--default-log-to-file", "false")
 	}
 
 	// Add the volume to the spec and the mount to the daemon container
@@ -190,6 +208,31 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 			"--conf", osd.Config,
 			"--cluster", "ceph",
 		}
+
+		// Set osd memory target to the best appropriate value
+		if !osd.IsFileStore {
+			// As of Nautilus Ceph auto-tunes its osd_memory_target on the fly so we don't need to force it
+			if !c.clusterInfo.CephVersion.IsAtLeastNautilus() && !c.resources.Limits.Memory().IsZero() {
+				osdMemoryTargetValue := float32(c.resources.Limits.Memory().Value()) * osdMemoryTargetSafetyFactor
+				commonArgs = append(commonArgs, fmt.Sprintf("--osd-memory-target=%f", osdMemoryTargetValue))
+			}
+		}
+
+		if c.clusterInfo.CephVersion.IsAtLeast(version.CephVersion{Major: 14, Minor: 2, Extra: 1}) {
+			args = append(args, "--default-log-to-file", "false")
+		}
+
+		// mount /run/udev in the container so ceph-volume (via `lvs`)
+		// can access the udev database
+		volumes = append(volumes, v1.Volume{
+			Name: "run-udev",
+			VolumeSource: v1.VolumeSource{
+				HostPath: &v1.HostPathVolumeSource{Path: "/run/udev"}}})
+
+		volumeMounts = append(volumeMounts, v1.VolumeMount{
+			Name:      "run-udev",
+			MountPath: "/run/udev"})
+
 	} else {
 		// other osds can launch the osd daemon directly
 		command = []string{"ceph-osd"}
@@ -205,11 +248,14 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 		ReadOnlyRootFilesystem: &readOnlyRootFilesystem,
 	}
 
+	// needed for luksOpen synchronization when devices are encrypted
+	hostIPC := storeConfig.EncryptedDevice
+
 	DNSPolicy := v1.DNSClusterFirst
 	if c.HostNetwork {
 		DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
-	deployment := &extensions.Deployment{
+	deployment := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf(osdAppNameFmt, osd.ID),
 			Namespace: c.Namespace,
@@ -219,9 +265,16 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 				osdLabelKey:         fmt.Sprintf("%d", osd.ID),
 			},
 		},
-		Spec: extensions.DeploymentSpec{
-			Strategy: extensions.DeploymentStrategy{
-				Type: extensions.RecreateDeploymentStrategyType,
+		Spec: apps.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					k8sutil.AppAttr:     appName,
+					k8sutil.ClusterAttr: c.Namespace,
+					osdLabelKey:         fmt.Sprintf("%d", osd.ID),
+				},
+			},
+			Strategy: apps.DeploymentStrategy{
+				Type: apps.RecreateDeploymentStrategyType,
 			},
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
@@ -231,14 +284,14 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 						k8sutil.ClusterAttr: c.Namespace,
 						osdLabelKey:         fmt.Sprintf("%d", osd.ID),
 					},
-					Annotations: map[string]string{},
 				},
 				Spec: v1.PodSpec{
-					NodeSelector:       map[string]string{apis.LabelHostname: nodeName},
+					NodeSelector:       map[string]string{v1.LabelHostname: nodeName},
 					RestartPolicy:      v1.RestartPolicyAlways,
 					ServiceAccountName: serviceAccountName,
 					HostNetwork:        c.HostNetwork,
 					HostPID:            true,
+					HostIPC:            hostIPC,
 					DNSPolicy:          DNSPolicy,
 					InitContainers: []v1.Container{
 						{
@@ -269,6 +322,11 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 			Replicas: &replicaCount,
 		},
 	}
+	k8sutil.AddRookVersionLabelToDeployment(deployment)
+	c.annotations.ApplyToObjectMeta(&deployment.ObjectMeta)
+	c.annotations.ApplyToObjectMeta(&deployment.Spec.Template.ObjectMeta)
+	opspec.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, deployment)
+	opspec.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, deployment)
 	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &deployment.ObjectMeta, &c.ownerRef)
 	c.placement.ApplyToPodSpec(&deployment.Spec.Template.Spec)
 	return deployment, nil
@@ -295,7 +353,7 @@ func (c *Cluster) provisionPodTemplateSpec(devices []rookalpha.Device, selection
 
 	copyBinariesVolume, copyBinariesContainer := c.getCopyBinariesContainer()
 
-	volumes := append(opspec.PodVolumes(c.dataDirHostPath), copyBinariesVolume)
+	volumes := append(opspec.PodVolumes(c.dataDirHostPath, c.Namespace), copyBinariesVolume)
 
 	// by default, don't define any volume config unless it is required
 	if len(devices) > 0 || selection.DeviceFilter != "" || selection.GetUseAllDevices() || metadataDevice != "" {
@@ -308,6 +366,10 @@ func (c *Cluster) provisionPodTemplateSpec(devices []rookalpha.Device, selection
 
 	// add each OSD directory as another host path volume source
 	for _, d := range selection.Directories {
+		if c.skipVolumeForDirectory(d.Path) {
+			// the dataDirHostPath has already been added as a volume
+			continue
+		}
 		dirVolume := v1.Volume{
 			Name:         k8sutil.PathToVolumeName(d.Path),
 			VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: d.Path}},
@@ -334,16 +396,24 @@ func (c *Cluster) provisionPodTemplateSpec(devices []rookalpha.Device, selection
 	}
 	c.placement.ApplyToPodSpec(&podSpec)
 
-	return &v1.PodTemplateSpec{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: appName,
-			Labels: map[string]string{
-				k8sutil.AppAttr:     prepareAppName,
-				k8sutil.ClusterAttr: c.Namespace,
-			},
-			Annotations: map[string]string{},
+	podMeta := metav1.ObjectMeta{
+		Name: appName,
+		Labels: map[string]string{
+			k8sutil.AppAttr:     prepareAppName,
+			k8sutil.ClusterAttr: c.Namespace,
 		},
-		Spec: podSpec,
+		Annotations: map[string]string{},
+	}
+
+	c.annotations.ApplyToObjectMeta(&podMeta)
+
+	// ceph-volume --dmcrypt uses cryptsetup that synchronizes with udev on
+	// host through semaphore
+	podSpec.HostIPC = storeConfig.EncryptedDevice
+
+	return &v1.PodTemplateSpec{
+		ObjectMeta: podMeta,
+		Spec:       podSpec,
 	}, nil
 }
 
@@ -445,6 +515,10 @@ func (c *Cluster) provisionOSDContainer(devices []rookalpha.Device, selection ro
 		for i := range selection.Directories {
 			dpath := selection.Directories[i].Path
 			dirPaths[i] = dpath
+			if c.skipVolumeForDirectory(dpath) {
+				// the dataDirHostPath has already been added as a volume mount
+				continue
+			}
 			volumeMounts = append(volumeMounts, v1.VolumeMount{Name: k8sutil.PathToVolumeName(dpath), MountPath: dpath})
 		}
 
@@ -476,6 +550,12 @@ func (c *Cluster) provisionOSDContainer(devices []rookalpha.Device, selection ro
 		},
 		Resources: resources,
 	}
+}
+
+func (c *Cluster) skipVolumeForDirectory(path string) bool {
+	// If attempting to add both a directory at /var/lib/rook, we need to skip the volume and volume mount
+	// since the dataDirHostPath is always mounting at /var/lib/rook
+	return path == k8sutil.DataDir
 }
 
 func nodeNameEnvVar(name string) v1.EnvVar {

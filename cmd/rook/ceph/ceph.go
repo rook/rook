@@ -28,10 +28,10 @@ import (
 	"github.com/rook/rook/pkg/util/flags"
 )
 
+// Cmd is the main command for operator and daemons.
 var Cmd = &cobra.Command{
-	Use:    "ceph",
-	Short:  "Main command for Ceph operator and daemons.",
-	Hidden: true,
+	Use:   "ceph",
+	Short: "Main command for Ceph operator and daemons.",
 }
 
 var (
@@ -55,19 +55,11 @@ type config struct {
 }
 
 func init() {
-	AddCommands(Cmd)
-}
-
-func AddCommands(command *cobra.Command) {
-	command.AddCommand(operatorCmd)
-	command.AddCommand(agentCmd)
-	command.AddCommand(monCmd)
-	command.AddCommand(osdCmd)
-	command.AddCommand(mgrCmd)
-	command.AddCommand(rgwCmd)
-	command.AddCommand(mdsCmd)
-	command.AddCommand(configCmd)
-	command.AddCommand(nfsCmd)
+	Cmd.AddCommand(operatorCmd,
+		agentCmd,
+		osdCmd,
+		configCmd,
+		nfsCmd)
 }
 
 func createContext() *clusterd.Context {

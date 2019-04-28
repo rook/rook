@@ -23,13 +23,12 @@ import (
 	"os"
 	"path"
 	"strings"
-	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 const (
@@ -70,7 +69,8 @@ func ConfigOverrideEnvVar() v1.EnvVar {
 	return v1.EnvVar{Name: "ROOK_CEPH_CONFIG_OVERRIDE", Value: path.Join(configMountDir, overrideFilename)}
 }
 
-// PodIPEnvVar private ip env var
+// PodIPEnvVar returns an env var such that the pod's ip will be mapped to the given property (env
+// var) name within the container.
 func PodIPEnvVar(property string) v1.EnvVar {
 	return v1.EnvVar{Name: property, ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "status.podIP"}}}
 }
@@ -218,88 +218,28 @@ func GetPodLog(clientset kubernetes.Interface, namespace string, labelSelector s
 	return "", fmt.Errorf("did not find any pods with label %s", labelSelector)
 }
 
-// DeleteDeployment makes a best effort at deleting a deployment and its pods, then waits for them to be deleted
-func DeleteDeployment(clientset kubernetes.Interface, namespace, name string) error {
-	logger.Debugf("removing %s deployment if it exists", name)
-	deleteAction := func(options *metav1.DeleteOptions) error {
-		return clientset.ExtensionsV1beta1().Deployments(namespace).Delete(name, options)
-	}
-	getAction := func() error {
-		_, err := clientset.ExtensionsV1beta1().Deployments(namespace).Get(name, metav1.GetOptions{})
-		return err
-	}
-	return deleteResourceAndWait(namespace, name, "deployment", deleteAction, getAction)
-}
-
-// DeleteReplicaSet makes a best effort at deleting a deployment and its pods, then waits for them to be deleted
-func DeleteReplicaSet(clientset kubernetes.Interface, namespace, name string) error {
-	deleteAction := func(options *metav1.DeleteOptions) error {
-		return clientset.ExtensionsV1beta1().ReplicaSets(namespace).Delete(name, options)
-	}
-	getAction := func() error {
-		_, err := clientset.ExtensionsV1beta1().ReplicaSets(namespace).Get(name, metav1.GetOptions{})
-		return err
-	}
-	return deleteResourceAndWait(namespace, name, "replicaset", deleteAction, getAction)
-}
-
-// DeleteDaemonset makes a best effort at deleting a daemonset and its pods, then waits for them to be deleted
-func DeleteDaemonset(clientset kubernetes.Interface, namespace, name string) error {
-	logger.Infof("removing %s daemonset if it exists", name)
-	deleteAction := func(options *metav1.DeleteOptions) error {
-		return clientset.ExtensionsV1beta1().DaemonSets(namespace).Delete(name, options)
-	}
-	getAction := func() error {
-		_, err := clientset.ExtensionsV1beta1().DaemonSets(namespace).Get(name, metav1.GetOptions{})
-		return err
-	}
-	return deleteResourceAndWait(namespace, name, "daemonset", deleteAction, getAction)
-}
-
-// deleteResourceAndWait will delete a resource, then wait for it to be purged from the system
-func deleteResourceAndWait(namespace, name, resourceType string,
-	deleteAction func(*metav1.DeleteOptions) error,
-	getAction func() error) error {
-
-	var gracePeriod int64
-	propagation := metav1.DeletePropagationForeground
-	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
-
-	// Delete the resource if it exists
-	err := deleteAction(options)
-	if err != nil {
-		if !errors.IsNotFound(err) {
-			return fmt.Errorf("failed to delete %s. %+v", name, err)
-		}
-		return nil
-	}
-	logger.Infof("Removed %s %s", resourceType, name)
-
-	// wait for the resource to be deleted
-	sleepTime := 2 * time.Second
-	for i := 0; i < 30; i++ {
-		// check for the existence of the resource
-		err = getAction()
-		if err != nil {
-			if errors.IsNotFound(err) {
-				logger.Infof("confirmed %s does not exist", name)
-				return nil
-			}
-			return fmt.Errorf("failed to get %s. %+v", name, err)
-		}
-
-		logger.Infof("%s still found. waiting...", name)
-		time.Sleep(sleepTime)
-	}
-
-	return fmt.Errorf("gave up waiting for %s pods to be terminated", name)
-}
-
-// Environment variables used by storage cluster daemons
-func ClusterDaemonEnvVars() []v1.EnvVar {
+// ClusterDaemonEnvVars Environment variables used by storage cluster daemon
+func ClusterDaemonEnvVars(image string) []v1.EnvVar {
 	return []v1.EnvVar{
+		{Name: "CONTAINER_IMAGE", Value: image},
 		{Name: "POD_NAME", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.name"}}},
 		{Name: "POD_NAMESPACE", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.namespace"}}},
 		{Name: "NODE_NAME", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "spec.nodeName"}}},
+
+		// If limits.memory is not set in the pod definition, Kubernetes will populate that value with the total memory available on the host
+		// If a user sets 0, all available memory on the host will be used
+		{Name: "POD_MEMORY_LIMIT", ValueFrom: &v1.EnvVarSource{ResourceFieldRef: &v1.ResourceFieldSelector{Resource: "limits.memory"}}}, // Bytes
+
+		// If requests.memory is not set in the pod definition, Kubernetes will use the formula "requests.memory = limits.memory" during pods's scheduling
+		// Kubernetes will set this variable to 0 or equal to limits.memory if set
+		{Name: "POD_MEMORY_REQUEST", ValueFrom: &v1.EnvVarSource{ResourceFieldRef: &v1.ResourceFieldSelector{Resource: "requests.memory"}}}, // Bytes
+
+		// If limits.cpu is not set in the pod definition, Kubernetes will set this variable to number of CPUs available on the host
+		// If a user sets 0, all CPUs will be used
+		{Name: "POD_CPU_LIMIT", ValueFrom: &v1.EnvVarSource{ResourceFieldRef: &v1.ResourceFieldSelector{Resource: "limits.cpu", Divisor: resource.MustParse("1")}}},
+
+		// If request.cpu is not set in the pod definition, Kubernetes will use the formula "requests.cpu = limits.cpu" during pods's scheduling
+		// Kubernetes will set this variable to 0 or equal to limits.cpu if set
+		{Name: "POD_CPU_REQUEST", ValueFrom: &v1.EnvVarSource{ResourceFieldRef: &v1.ResourceFieldSelector{Resource: "requests.cpu"}}},
 	}
 }

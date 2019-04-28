@@ -20,10 +20,10 @@ import (
 	"fmt"
 	"time"
 
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
-	mondaemon "github.com/rook/rook/pkg/daemon/ceph/mon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,7 +33,7 @@ var (
 	// HealthCheckInterval is the interval to check if the mons are in quorum
 	HealthCheckInterval = 45 * time.Second
 	// MonOutTimeout is the duration to wait before removing/failover to a new mon pod
-	MonOutTimeout = 300 * time.Second
+	MonOutTimeout = 600 * time.Second
 )
 
 // HealthChecker aggregates the mon/cluster info needed to check the health of the monitors
@@ -67,14 +67,18 @@ func (hc *HealthChecker) Check(stopCh chan struct{}) {
 }
 
 func (c *Cluster) checkHealth() error {
-	logger.Debugf("Checking health for mons (desired=%d). %+v", c.Count, c.clusterInfo)
+	c.acquireOrchestrationLock()
+	defer c.releaseOrchestrationLock()
+
+	logger.Debugf("Checking health for mons in cluster. %s", c.clusterInfo.Name)
 
 	// Use a local mon count in case the user updates the crd in another goroutine.
 	// We need to complete a health check with a consistent value.
-	c.MonCountMutex.Lock()
-	desiredMonCount := c.Count
-	allowMultiplePerNode := c.AllowMultiplePerNode
-	c.MonCountMutex.Unlock()
+	desiredMonCount, msg, err := c.getTargetMonCount()
+	if err != nil {
+		return fmt.Errorf("failed to get target mon count. %+v", err)
+	}
+	logger.Debugf(msg)
 
 	// connect to the mons
 	// get the status and check for quorum
@@ -135,7 +139,7 @@ func (c *Cluster) checkHealth() error {
 			// when the timeout for the mon has been reached, continue to the
 			// normal failover/delete mon pod part of the code
 			if time.Since(c.monTimeoutList[mon.Name]) <= MonOutTimeout {
-				logger.Warningf("mon %s not found in quorum, still in mon out timeout", mon.Name)
+				logger.Warningf("mon %s not found in quorum, waiting for timeout before failover", mon.Name)
 				continue
 			}
 
@@ -155,7 +159,7 @@ func (c *Cluster) checkHealth() error {
 		return nil
 	}
 
-	if !allowMultiplePerNode {
+	if !c.spec.Mon.AllowMultiplePerNode {
 		// check if there are more than two mons running on the same node, failover one mon in that case
 		done, err := c.checkMonsOnSameNode(desiredMonCount)
 		if done || err != nil {
@@ -171,7 +175,7 @@ func (c *Cluster) checkHealth() error {
 	// create/start new mons when there are fewer mons than the desired count in the CRD
 	if len(status.MonMap.Mons) < desiredMonCount {
 		logger.Infof("adding mons. currently %d mons are in quorum and the desired count is %d.", len(status.MonMap.Mons), desiredMonCount)
-		return c.startMons()
+		return c.startMons(desiredMonCount)
 	}
 
 	// remove extra mons if the desired count has decreased in the CRD and all the mons are currently healthy
@@ -222,7 +226,7 @@ func (c *Cluster) checkMonsOnValidNodes() (bool, error) {
 			return true, err
 		}
 		// check if node the mon is on is still valid
-		valid, err := k8sutil.ValidNode(*node, c.placement)
+		valid, err := k8sutil.ValidNode(*node, cephv1.GetMonPlacement(c.spec.Placement))
 		if err != nil {
 			logger.Warning("failed to validate node %s %v", node.Name, err)
 		} else if !valid {
@@ -254,7 +258,7 @@ func (c *Cluster) failoverMon(name string) error {
 	logger.Infof("Failing over monitor %s", name)
 
 	// Start a new monitor
-	m := newMonConfig(c.maxMonID + 1)
+	m := c.newMonConfig(c.maxMonID + 1)
 	logger.Infof("starting new mon: %+v", m)
 
 	// Create the service endpoint
@@ -282,7 +286,7 @@ func (c *Cluster) failoverMon(name string) error {
 	c.clusterInfo.Monitors[m.DaemonName] = cephconfig.NewMonInfo(m.DaemonName, m.PublicIP, m.Port)
 
 	// Start the deployment
-	if err = c.startDeployments(mConf, len(mConf)-1); err != nil {
+	if err = c.startDeployments(mConf, true); err != nil {
 		return fmt.Errorf("failed to start new mon %s. %+v", m.DaemonName, err)
 	}
 
@@ -301,7 +305,7 @@ func (c *Cluster) removeMon(daemonName string) error {
 	var gracePeriod int64
 	propagation := metav1.DeletePropagationForeground
 	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
-	if err := c.context.Clientset.Extensions().Deployments(c.Namespace).Delete(resourceName, options); err != nil {
+	if err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Delete(resourceName, options); err != nil {
 		if errors.IsNotFound(err) {
 			logger.Infof("dead mon %s was already gone", resourceName)
 		} else {
@@ -320,7 +324,7 @@ func (c *Cluster) removeMon(daemonName string) error {
 		delete(c.mapping.Node, daemonName)
 		// if node->port "mapping" has been created, decrease or delete it
 		if port, ok := c.mapping.Port[nodeName]; ok {
-			if port == mondaemon.DefaultPort {
+			if port == DefaultMsgr1Port {
 				delete(c.mapping.Port, nodeName)
 			}
 			// don't clean up if a node port is higher than the default port, other

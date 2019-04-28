@@ -19,8 +19,8 @@ package mgr
 
 import (
 	"fmt"
+	"time"
 
-	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 )
 
@@ -29,9 +29,13 @@ const (
 	rookModuleName         = "rook"
 )
 
+var (
+	orchestratorInitWaitTime = 5 * time.Second
+)
+
 // Ceph docs about the orchestrator modules: http://docs.ceph.com/docs/master/mgr/orchestrator_cli/
 func (c *Cluster) configureOrchestratorModules() error {
-	if !cephv1.VersionAtLeast(c.cephVersion.Name, cephv1.Nautilus) {
+	if !c.clusterInfo.CephVersion.IsAtLeastNautilus() {
 		logger.Infof("skipping enabling orchestrator modules on releases older than nautilus")
 		return nil
 	}
@@ -42,8 +46,14 @@ func (c *Cluster) configureOrchestratorModules() error {
 	if err := client.MgrEnableModule(c.context, c.Namespace, rookModuleName, true); err != nil {
 		return fmt.Errorf("failed to enable mgr rook module. %+v", err)
 	}
-	if _, err := client.ExecuteCephCommand(c.context, c.Namespace, []string{"orchestrator", "set", "backend", "rook"}); err != nil {
+	// retry a few times in the case that the mgr module is not ready to accept commands
+	_, err := client.ExecuteCephCommandWithRetry(func() ([]byte, error) {
+		args := []string{"orchestrator", "set", "backend", "rook"}
+		return client.ExecuteCephCommand(c.context, c.Namespace, args)
+	}, c.exitCode, 5, invalidArgErrorCode, orchestratorInitWaitTime)
+	if err != nil {
 		return fmt.Errorf("failed to set rook as the orchestrator backend. %+v", err)
+
 	}
 
 	return nil

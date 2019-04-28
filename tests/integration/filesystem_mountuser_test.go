@@ -55,13 +55,13 @@ func runFileMountUserE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, 
 
 func createFilesystemMountCephCredentials(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, filesystemName string) {
 	// Create agent binding for access to Secrets
-	_, err := k8sh.ResourceOperation("apply", getFilesystemAgentMountSecretsBinding(namespace))
+	err := k8sh.ResourceOperation("apply", getFilesystemAgentMountSecretsBinding(namespace))
 	require.Nil(s.T(), err)
 	// Mount CephFS in toolbox and create /foo directory on it
 	logger.Info("Creating /foo directory on CephFS")
 	_, err = k8sh.Exec(namespace, "rook-ceph-tools", "mkdir", []string{"-p", utils.TestMountPath})
 	require.Nil(s.T(), err)
-	_, err = k8sh.Exec(namespace, "rook-ceph-tools", "bash", []string{"-c", fmt.Sprintf("mount -t ceph -o mds_namespace=%s,name=admin,secret=$(grep key /etc/ceph/keyring | awk '{print $3}') $(grep mon_host /etc/ceph/ceph.conf | awk '{print $3}'):/ %s", filesystemName, utils.TestMountPath)})
+	_, err = k8sh.ExecWithRetry(3, namespace, "rook-ceph-tools", "bash", []string{"-c", fmt.Sprintf("mount -t ceph -o mds_namespace=%s,name=admin,secret=$(grep key /etc/ceph/keyring | awk '{print $3}') $(grep mon_host /etc/ceph/ceph.conf | awk '{print $3}'):/ %s", filesystemName, utils.TestMountPath)})
 	require.Nil(s.T(), err)
 	_, err = k8sh.Exec(namespace, "rook-ceph-tools", "mkdir", []string{"-p", fmt.Sprintf("%s/foo", utils.TestMountPath)})
 	require.Nil(s.T(), err)
@@ -84,7 +84,7 @@ func createFilesystemMountCephCredentials(helper *clients.TestClient, k8sh *util
 	logger.Info("Created Ceph credentials")
 	require.Nil(s.T(), err)
 	// Save Ceph credentials to Kubernetes
-	_, err = k8sh.Clientset.Core().Secrets(namespace).Create(&v1.Secret{
+	_, err = k8sh.Clientset.CoreV1().Secrets(namespace).Create(&v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fileMountSecret,
 			Namespace: namespace,

@@ -22,10 +22,11 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -43,15 +44,19 @@ func TestRBDMirror(t *testing.T) {
 		return "", nil
 	}
 
-	c := New(&clusterd.Context{Clientset: clientset, Executor: executor},
+	c := New(
+		&cephconfig.ClusterInfo{FSID: "myfsid"},
+		&clusterd.Context{Clientset: clientset, Executor: executor},
 		"ns",
 		"rook/rook:myversion",
 		cephv1.CephVersionSpec{Image: "ceph/ceph:myceph"},
 		rookalpha.Placement{},
+		rookalpha.Annotations{},
 		false,
 		cephv1.RBDMirroringSpec{Workers: 2},
 		v1.ResourceRequirements{},
 		metav1.OwnerReference{},
+		"/var/lib/rook/",
 	)
 
 	err := c.Start()
@@ -61,7 +66,7 @@ func TestRBDMirror(t *testing.T) {
 	assert.False(t, keysCreated[fullDaemonName("c")])
 
 	opts := metav1.ListOptions{}
-	d, err := clientset.ExtensionsV1beta1().Deployments(c.Namespace).List(opts)
+	d, err := clientset.AppsV1().Deployments(c.Namespace).List(opts)
 	assert.Equal(t, 2, len(d.Items))
 	for _, de := range d.Items {
 		daemonName := de.Name[len(de.Name)-1:]

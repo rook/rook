@@ -17,14 +17,11 @@ limitations under the License.
 package integration
 
 import (
-	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -73,12 +70,16 @@ func (suite *SmokeSuite) SetupSuite() {
 	useDevices := true
 	mons := 3
 	rbdMirrorWorkers := 1
-	suite.op, suite.k8sh = StartTestCluster(suite.T, suite.namespace, "bluestore", false, useDevices, mons, rbdMirrorWorkers, installer.VersionMaster, installer.MimicVersion)
+	suite.op, suite.k8sh = StartTestCluster(suite.T, suite.namespace, "bluestore", false, useDevices, mons, rbdMirrorWorkers, installer.VersionMaster, installer.NautilusVersion)
 	suite.helper = clients.CreateTestClient(suite.k8sh, suite.op.installer.Manifests)
 }
 
 func (suite *SmokeSuite) TearDownSuite() {
 	suite.op.Teardown()
+}
+
+func (suite *SmokeSuite) TestBlockCSI_SmokeTest() {
+	runCephCSIE2ETest(suite.helper, suite.k8sh, suite.Suite, suite.namespace)
 }
 
 func (suite *SmokeSuite) TestBlockStorage_SmokeTest() {
@@ -100,20 +101,4 @@ func (suite *SmokeSuite) TestObjectStorage_SmokeTest() {
 // Test to make sure all rook components are installed and Running
 func (suite *SmokeSuite) TestRookClusterInstallation_SmokeTest() {
 	checkIfRookClusterIsInstalled(suite.Suite, suite.k8sh, installer.SystemNamespace(suite.namespace), suite.namespace, 3)
-}
-
-func checkOrderedSubstrings(t *testing.T, input string, substrings ...string) {
-	if len(input) == 0 {
-		// Nothing to compare. An error was likely returned, which should be checked elsewhere.
-		return
-	}
-	original := input
-	for i, substring := range substrings {
-		if !strings.Contains(input, substring) {
-			assert.Fail(t, fmt.Sprintf("missing substring %d. original=%s", i, original))
-			return
-		}
-		index := strings.Index(input, substring)
-		input = input[index+len(substring):]
-	}
 }

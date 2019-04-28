@@ -1,0 +1,9 @@
+apiVersion: snapshot.storage.k8s.io/v1alpha1
+kind: VolumeSnapshot
+metadata:
+  name: snap1
+spec:
+  snapshotClassName: edgefs-iscsi-csi-snapshot-class
+  source:
+    name: edgefs-iscsi-csi-pvc
+    kind: PersistentVolumeClaim

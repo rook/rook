@@ -90,11 +90,10 @@ func TestGetDataDirs(t *testing.T) {
 	assert.Equal(t, 0, len(dirMap))
 	assert.Equal(t, 0, len(removedDirMap))
 
-	// user has no devices specified, should return default dir
+	// user has no devices specified, should NO LONGER return default dir
 	dirMap, removedDirMap, err = getDataDirs(context, kv, "", false, nodeName)
 	assert.Nil(t, err)
-	assert.Equal(t, 1, len(dirMap))
-	assert.Equal(t, unassignedOSDID, dirMap[context.ConfigDir])
+	assert.Equal(t, 0, len(dirMap))
 	assert.Equal(t, 0, len(removedDirMap))
 
 	// user has no devices specified but does specify dirs, those should be returned

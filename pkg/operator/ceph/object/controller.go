@@ -14,18 +14,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package rgw to manage a rook object store.
 package object
 
 import (
 	"fmt"
 	"reflect"
+	"sync"
 
 	"github.com/coreos/pkg/capnslog"
 	opkit "github.com/rook/operator-kit"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephbeta "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/clusterd"
+	daemonconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -56,26 +58,42 @@ var ObjectStoreResourceRookLegacy = opkit.CustomResource{
 
 // ObjectStoreController represents a controller object for object store custom resources
 type ObjectStoreController struct {
-	context     *clusterd.Context
-	rookImage   string
-	cephVersion cephv1.CephVersionSpec
-	hostNetwork bool
-	ownerRef    metav1.OwnerReference
+	clusterInfo        *daemonconfig.ClusterInfo
+	context            *clusterd.Context
+	namespace          string
+	rookImage          string
+	cephVersion        cephv1.CephVersionSpec
+	hostNetwork        bool
+	ownerRef           metav1.OwnerReference
+	dataDirHostPath    string
+	orchestrationMutex sync.Mutex
 }
 
 // NewObjectStoreController create controller for watching object store custom resources created
-func NewObjectStoreController(context *clusterd.Context, rookImage string, cephVersion cephv1.CephVersionSpec, hostNetwork bool, ownerRef metav1.OwnerReference) *ObjectStoreController {
+func NewObjectStoreController(
+	clusterInfo *daemonconfig.ClusterInfo,
+	context *clusterd.Context,
+	namespace string,
+	rookImage string,
+	cephVersion cephv1.CephVersionSpec,
+	hostNetwork bool,
+	ownerRef metav1.OwnerReference,
+	dataDirHostPath string,
+) *ObjectStoreController {
 	return &ObjectStoreController{
-		context:     context,
-		rookImage:   rookImage,
-		cephVersion: cephVersion,
-		hostNetwork: hostNetwork,
-		ownerRef:    ownerRef,
+		clusterInfo:     clusterInfo,
+		context:         context,
+		namespace:       namespace,
+		rookImage:       rookImage,
+		cephVersion:     cephVersion,
+		hostNetwork:     hostNetwork,
+		ownerRef:        ownerRef,
+		dataDirHostPath: dataDirHostPath,
 	}
 }
 
 // StartWatch watches for instances of ObjectStore custom resources and acts on them
-func (c *ObjectStoreController) StartWatch(namespace string, stopCh chan struct{}) error {
+func (c *ObjectStoreController) StartWatch(stopCh chan struct{}) error {
 
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
@@ -83,12 +101,12 @@ func (c *ObjectStoreController) StartWatch(namespace string, stopCh chan struct{
 		DeleteFunc: c.onDelete,
 	}
 
-	logger.Infof("start watching object store resources in namespace %s", namespace)
-	watcher := opkit.NewWatcher(ObjectStoreResource, namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1().RESTClient())
+	logger.Infof("start watching object store resources in namespace %s", c.namespace)
+	watcher := opkit.NewWatcher(ObjectStoreResource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1().RESTClient())
 	go watcher.Watch(&cephv1.CephObjectStore{}, stopCh)
 
 	// watch for events on all legacy types too
-	c.watchLegacyObjectStores(namespace, stopCh, resourceHandlerFuncs)
+	c.watchLegacyObjectStores(c.namespace, stopCh, resourceHandlerFuncs)
 
 	return nil
 }
@@ -107,10 +125,10 @@ func (c *ObjectStoreController) onAdd(obj interface{}) {
 		return
 	}
 
-	cfg := config{c.context, *objectstore, c.rookImage, c.cephVersion, c.hostNetwork, c.storeOwners(objectstore)}
-	if err = cfg.createStore(); err != nil {
-		logger.Errorf("failed to create object store %s. %+v", objectstore.Name, err)
-	}
+	c.acquireOrchestrationLock()
+	defer c.releaseOrchestrationLock()
+
+	c.createOrUpdateStore(true, objectstore)
 }
 
 func (c *ObjectStoreController) onUpdate(oldObj, newObj interface{}) {
@@ -138,10 +156,31 @@ func (c *ObjectStoreController) onUpdate(oldObj, newObj interface{}) {
 		return
 	}
 
-	logger.Infof("applying object store %s changes", newStore.Name)
-	cfg := config{c.context, *newStore, c.rookImage, c.cephVersion, c.hostNetwork, c.storeOwners(newStore)}
-	if err = cfg.updateStore(); err != nil {
-		logger.Errorf("failed to create (modify) object store %s. %+v", newStore.Name, err)
+	c.acquireOrchestrationLock()
+	defer c.releaseOrchestrationLock()
+
+	c.createOrUpdateStore(true, newStore)
+}
+
+func (c *ObjectStoreController) createOrUpdateStore(update bool, objectstore *cephv1.CephObjectStore) {
+	action := "create"
+	if update {
+		action = "update"
+	}
+
+	logger.Infof("%s object store %s", action, objectstore.Name)
+	cfg := clusterConfig{
+		clusterInfo: c.clusterInfo,
+		context:     c.context,
+		store:       *objectstore,
+		rookVersion: c.rookImage,
+		cephVersion: c.cephVersion,
+		hostNetwork: c.hostNetwork,
+		ownerRefs:   c.storeOwners(objectstore),
+		DataPathMap: cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, objectstore.Name, c.clusterInfo.Name, c.dataDirHostPath),
+	}
+	if err := cfg.createOrUpdate(update); err != nil {
+		logger.Errorf("failed to %s object store %s. %+v", action, objectstore.Name, err)
 	}
 }
 
@@ -157,9 +196,39 @@ func (c *ObjectStoreController) onDelete(obj interface{}) {
 		return
 	}
 
-	cfg := config{context: c.context, store: *objectstore}
+	c.acquireOrchestrationLock()
+	defer c.releaseOrchestrationLock()
+
+	cfg := clusterConfig{context: c.context, store: *objectstore}
 	if err = cfg.deleteStore(); err != nil {
 		logger.Errorf("failed to delete object store %s. %+v", objectstore.Name, err)
+	}
+}
+
+func (c *ObjectStoreController) ParentClusterChanged(cluster cephv1.ClusterSpec, clusterInfo *daemonconfig.ClusterInfo) {
+	c.clusterInfo = clusterInfo
+	if cluster.CephVersion.Image == c.cephVersion.Image {
+		logger.Debugf("No need to update the object store after the parent cluster changed")
+		return
+	}
+
+	c.acquireOrchestrationLock()
+	defer c.releaseOrchestrationLock()
+
+	c.cephVersion = cluster.CephVersion
+	objectStores, err := c.context.RookClientset.CephV1().CephObjectStores(c.namespace).List(metav1.ListOptions{})
+	if err != nil {
+		logger.Errorf("failed to retrieve object stores to update the ceph version. %+v", err)
+		return
+	}
+	for _, store := range objectStores.Items {
+		logger.Infof("updating the ceph version for object store %s to %s", store.Name, c.cephVersion.Image)
+		c.createOrUpdateStore(true, &store)
+		if err != nil {
+			logger.Errorf("failed to update object store %s. %+v", store.Name, err)
+		} else {
+			logger.Infof("updated object store %s to ceph version %s", store.Name, c.cephVersion.Image)
+		}
 	}
 }
 
@@ -293,4 +362,15 @@ func convertRookLegacyObjectStore(legacyObjectStore *cephbeta.ObjectStore) *ceph
 	}
 
 	return objectStore
+}
+
+func (c *ObjectStoreController) acquireOrchestrationLock() {
+	logger.Debugf("Acquiring lock for object store orchestration")
+	c.orchestrationMutex.Lock()
+	logger.Debugf("Acquired lock for object store orchestration")
+}
+
+func (c *ObjectStoreController) releaseOrchestrationLock() {
+	c.orchestrationMutex.Unlock()
+	logger.Debugf("Released lock for object store orchestration")
 }

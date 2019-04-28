@@ -1,10 +1,13 @@
-apiVersion: edgefs.rook.io/v1alpha1
+apiVersion: edgefs.rook.io/v1beta1
 kind: S3
 metadata:
   name: s301
   namespace: rook-edgefs
 spec:
   instances: 1
+  #s3type: s3s                    # s3 (default) for path style, s3s for buckets as DNS style
+  #port: 4500                     # HTTP port (default is 9982 or 9983 for s3s)
+  #securePort: 4501               # HTTPS port (default is 8443 or 8444 for s3s)
   #sslCertificateRef: ssl-secret
   #placement:
   #  nodeAffinity:
@@ -27,3 +30,11 @@ spec:
   #  requests:
   #    cpu: "2"
   #    memory: "4Gi"
+  # A key value list of annotations
+  # A key value list of annotations
+  annotations:
+  #  all:
+  #    key: value
+  #  mgr:
+  #  prepare:
+  #  target:

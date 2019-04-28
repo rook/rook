@@ -1,0 +1,76 @@
+#################################################################################################################
+# The deployment for the rook operator that enables the ceph-csi driver for beta testing.
+# For example, to create the rook-ceph cluster:
+#   kubectl create -f common.yaml
+#   kubectl create -f operator-with-csi.yaml
+#   kubectl create -f cluster.yaml
+#################################################################################################################
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rook-ceph-operator
+  namespace: rook-ceph
+  labels:
+    operator: rook
+    storage-backend: ceph
+spec:
+  selector:
+    matchLabels:
+      app: rook-ceph-operator
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: rook-ceph-operator
+    spec:
+      serviceAccountName: rook-ceph-system
+      containers:
+      - name: rook-ceph-operator
+        image: rook/ceph:master
+        args: ["ceph", "operator"]
+        volumeMounts:
+        - mountPath: /var/lib/rook
+          name: rook-config
+        - mountPath: /etc/ceph
+          name: default-config-dir
+        env:
+        - name: ROOK_CURRENT_NAMESPACE_ONLY
+          value: "true"
+        # CSI enablement
+        - name: ROOK_CSI_ENABLE_CEPHFS
+          value: "true"
+        - name: ROOK_CSI_CEPHFS_IMAGE
+          value: "quay.io/cephcsi/cephfsplugin:v1.0.0"
+        - name: ROOK_CSI_ENABLE_RBD
+          value: "true"
+        - name: ROOK_CSI_RBD_IMAGE
+          value: "quay.io/cephcsi/rbdplugin:v1.0.0"
+        - name: ROOK_CSI_REGISTRAR_IMAGE
+          value: "quay.io/k8scsi/csi-node-driver-registrar:v1.0.2"
+        - name: ROOK_CSI_PROVISIONER_IMAGE
+          value: "quay.io/k8scsi/csi-provisioner:v1.0.1"
+        - name: ROOK_CSI_SNAPSHOTTER_IMAGE
+          value: "quay.io/k8scsi/csi-snapshotter:v1.0.1"
+        - name: ROOK_CSI_ATTACHER_IMAGE
+          value: "quay.io/k8scsi/csi-attacher:v1.0.1"
+        # The name of the node to pass with the downward API
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        # The pod name to pass with the downward API
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        # The pod namespace to pass with the downward API
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+      volumes:
+      - name: rook-config
+        emptyDir: {}
+      - name: default-config-dir
+        emptyDir: {}

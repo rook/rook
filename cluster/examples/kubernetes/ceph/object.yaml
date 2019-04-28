@@ -1,24 +1,25 @@
+#################################################################################################################
+# Create an object store with settings for replication in a production environment. A minimum of 3 hosts with
+# OSDs are required in this example.
+#  kubectl create -f object.yaml
+#################################################################################################################
+
 apiVersion: ceph.rook.io/v1
 kind: CephObjectStore
 metadata:
   name: my-store
   namespace: rook-ceph
 spec:
-  # The pool spec used to create the metadata pools
+  # The pool spec used to create the metadata pools. Must use replication.
   metadataPool:
     failureDomain: host
     replicated:
-      # Increase the replication size if you have more than one osd
-      size: 1
-  # The pool spec used to create the data pool
+      size: 3
+  # The pool spec used to create the data pool. Can use replication or erasure coding.
   dataPool:
-    failureDomain: osd
+    failureDomain: host
     replicated:
-      size: 1
-    # If you have at least three osds, erasure coding can be specified
-    # erasureCoded:
-    #   dataChunks: 2
-    #   codingChunks: 1
+      size: 3
   # The gaeteway service configuration
   gateway:
     # type of the gateway (s3)
@@ -48,6 +49,9 @@ spec:
     #    operator: Exists
     #  podAffinity:
     #  podAntiAffinity:
+    # A key/value list of annotations
+    annotations:
+    #  key: value
     resources:
     # The requests and limits set here, allow the object store gateway Pod(s) to use half of one CPU core and 1 gigabyte of memory
     #  limits:

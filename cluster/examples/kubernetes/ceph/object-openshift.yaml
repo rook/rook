@@ -1,0 +1,62 @@
+#################################################################################################################
+# Create an object store with settings specific for OpenShift. A minimum of 3 OSDs are required in this example
+# for the replication since the failureDomain is host.
+#  oc create -f object-openshift.yaml
+#################################################################################################################
+
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
+metadata:
+  name: my-store
+  namespace: rook-ceph
+spec:
+  # The pool spec used to create the metadata pools. Must use replication.
+  metadataPool:
+    failureDomain: host
+    replicated:
+      size: 3
+  # The pool spec used to create the data pool. Can use replication or erasure coding.
+  dataPool:
+    failureDomain: host
+    replicated:
+      size: 3
+  # The gaeteway service configuration
+  gateway:
+    # type of the gateway (s3)
+    type: s3
+    # A reference to the secret in the rook namespace where the ssl certificate is stored
+    sslCertificateRef:
+    # The port that RGW pods will listen on (http)
+    port: 8080
+    # The port that RGW pods will listen on (https). An ssl certificate is required.
+    securePort:
+    # The number of pods in the rgw deployment (ignored if allNodes=true)
+    instances: 1
+    # Whether the rgw pods should be deployed on all nodes as a daemonset
+    allNodes: false
+    # The affinity rules to apply to the rgw deployment or daemonset.
+    placement:
+    #  nodeAffinity:
+    #    requiredDuringSchedulingIgnoredDuringExecution:
+    #      nodeSelectorTerms:
+    #      - matchExpressions:
+    #        - key: role
+    #          operator: In
+    #          values:
+    #          - rgw-node
+    #  tolerations:
+    #  - key: rgw-node
+    #    operator: Exists
+    #  podAffinity:
+    #  podAntiAffinity:
+    # A key/value list of annotations
+    annotations:
+    #  key: value
+    resources:
+    # The requests and limits set here, allow the object store gateway Pod(s) to use half of one CPU core and 1 gigabyte of memory
+    #  limits:
+    #    cpu: "500m"
+    #    memory: "1024Mi"
+    #  requests:
+    #    cpu: "500m"
+    #    memory: "1024Mi"

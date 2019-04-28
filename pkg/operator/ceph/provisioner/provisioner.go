@@ -26,10 +26,10 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume"
 	ceph "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster"
-	"github.com/rook/rook/pkg/operator/ceph/provisioner/controller"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/sig-storage-lib-external-provisioner/controller"
 )
 
 const (
@@ -169,8 +169,17 @@ func (p *RookVolumeProvisioner) Delete(volume *v1.PersistentVolume) error {
 		return fmt.Errorf("Failed to delete rook block image %s: %v", volume.Name, "PersistentVolume has no image defined for the FlexVolume")
 	}
 	name := volume.Spec.PersistentVolumeSource.FlexVolume.Options[flexvolume.ImageKey]
-	clusterns := volume.Spec.PersistentVolumeSource.FlexVolume.Options[flexvolume.ClusterNamespaceKey]
 	pool := volume.Spec.PersistentVolumeSource.FlexVolume.Options[flexvolume.PoolKey]
+	var clusterns string
+	if _, ok := volume.Spec.PersistentVolumeSource.FlexVolume.Options[flexvolume.ClusterNamespaceKey]; ok {
+		clusterns = volume.Spec.PersistentVolumeSource.FlexVolume.Options[flexvolume.ClusterNamespaceKey]
+	} else if _, ok := volume.Spec.PersistentVolumeSource.FlexVolume.Options[flexvolume.ClusterNameKey]; ok {
+		// Fallback to `clusterName` as it was used in Rook version earlier v0.8
+		clusterns = volume.Spec.PersistentVolumeSource.FlexVolume.Options[flexvolume.ClusterNameKey]
+	}
+	if clusterns == "" {
+		return fmt.Errorf("Failed to delete rook block image %s/%s: no clusterNamespace or (deprecated) clusterName option given", pool, volume.Name)
+	}
 	err := ceph.DeleteImage(p.context, clusterns, name, pool)
 	if err != nil {
 		return fmt.Errorf("Failed to delete rook block image %s/%s: %v", pool, volume.Name, err)

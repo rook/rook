@@ -43,7 +43,7 @@ func CreateObjectOperation(k8sh *utils.K8sHelper, manifests installer.CephManife
 func (o *ObjectOperation) Create(namespace, storeName string, replicaCount int32) error {
 
 	logger.Infof("creating the object store via CRD")
-	if _, err := o.k8sh.ResourceOperation("create", o.manifests.GetObjectStore(namespace, storeName, int(replicaCount), rgwPort)); err != nil {
+	if err := o.k8sh.ResourceOperation("create", o.manifests.GetObjectStore(namespace, storeName, int(replicaCount), rgwPort)); err != nil {
 		return err
 	}
 
@@ -60,7 +60,7 @@ func (o *ObjectOperation) Create(namespace, storeName string, replicaCount int32
 func (o *ObjectOperation) Delete(namespace, storeName string) error {
 
 	logger.Infof("Deleting the object store via CRD")
-	if _, err := o.k8sh.DeleteResource("-n", namespace, "CephObjectStore", storeName); err != nil {
+	if err := o.k8sh.DeleteResource("-n", namespace, "CephObjectStore", storeName); err != nil {
 		return err
 	}
 

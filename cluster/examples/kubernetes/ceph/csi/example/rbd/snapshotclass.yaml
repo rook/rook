@@ -1,0 +1,11 @@
+---
+apiVersion: snapshot.storage.k8s.io/v1alpha1
+kind: VolumeSnapshotClass
+metadata:
+  name: csi-rbdplugin-snapclass
+snapshotter: rbd.csi.ceph.com
+parameters:
+  pool: rbd
+  monitors: mon1:port,mon2:port,...
+  csi.storage.k8s.io/snapshotter-secret-name: csi-rbd-secret
+  csi.storage.k8s.io/snapshotter-secret-namespace: default

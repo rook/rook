@@ -29,20 +29,22 @@ import (
 	cephbeta "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
-
+	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/file"
 	"github.com/rook/rook/pkg/operator/ceph/nfs"
 	"github.com/rook/rook/pkg/operator/ceph/object"
-	"github.com/rook/rook/pkg/operator/ceph/object/user"
+	objectuser "github.com/rook/rook/pkg/operator/ceph/object/user"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
-	"github.com/rook/rook/pkg/operator/discover"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	v1 "k8s.io/api/core/v1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -60,6 +62,7 @@ const (
 	DefaultClusterName         = "rook-ceph"
 	clusterDeleteRetryInterval = 2 //seconds
 	clusterDeleteMaxRetries    = 15
+	disableHotplugEnv          = "ROOK_DISABLE_DEVICE_HOTPLUG"
 )
 
 var (
@@ -117,6 +120,53 @@ func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) e
 	watcher := opkit.NewWatcher(ClusterResource, namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1().RESTClient())
 	go watcher.Watch(&cephv1.CephCluster{}, stopCh)
 
+	// watch for events on new/updated K8s nodes, too
+
+	lwNodes := &cache.ListWatch{
+		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
+			return c.context.Clientset.CoreV1().Nodes().List(options)
+		},
+		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+			return c.context.Clientset.CoreV1().Nodes().Watch(options)
+		},
+	}
+
+	_, nodeController := cache.NewInformer(
+		lwNodes,
+		&v1.Node{},
+		0,
+		cache.ResourceEventHandlerFuncs{
+			AddFunc:    c.onK8sNodeAdd,
+			UpdateFunc: c.onK8sNodeUpdate,
+			DeleteFunc: nil,
+		},
+	)
+	go nodeController.Run(stopCh)
+
+	if disableVal := os.Getenv(disableHotplugEnv); disableVal != "true" {
+		// watch for updates to the device discovery configmap
+		logger.Infof("Enabling hotplug orchestration: %s=%s", disableHotplugEnv, disableVal)
+		operatorNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
+		_, deviceCMController := cache.NewInformer(
+			cache.NewFilteredListWatchFromClient(c.context.Clientset.CoreV1().RESTClient(),
+				"configmaps", operatorNamespace, func(options *metav1.ListOptions) {
+					options.LabelSelector = fmt.Sprintf("%s=%s", k8sutil.AppAttr, discoverDaemon.AppName)
+				},
+			),
+			&v1.ConfigMap{},
+			0,
+			cache.ResourceEventHandlerFuncs{
+				AddFunc:    nil,
+				UpdateFunc: c.onDeviceCMUpdate,
+				DeleteFunc: nil,
+			},
+		)
+
+		go deviceCMController.Run(stopCh)
+	} else {
+		logger.Infof("Disabling hotplug orchestration via %s", disableHotplugEnv)
+	}
+
 	// watch for events on all legacy types too
 	c.watchLegacyClusters(namespace, stopCh, resourceHandlerFuncs)
 
@@ -133,6 +183,41 @@ func (c *ClusterController) StopWatch() {
 // ************************************************************************************************
 // Add event functions
 // ************************************************************************************************
+func (c *ClusterController) onK8sNodeAdd(obj interface{}) {
+	newNode, ok := obj.(*v1.Node)
+	if !ok {
+		logger.Warningf("Expected NodeList but handler received %#v", obj)
+	}
+
+	if k8sutil.GetNodeSchedulable(*newNode) == false {
+		logger.Debugf("Skipping cluster update. Added node %s is unschedulable", newNode.Labels[v1.LabelHostname])
+		return
+	}
+
+	for _, cluster := range c.clusterMap {
+		if cluster.Spec.Storage.UseAllNodes == false {
+			logger.Debugf("Skipping -> Do not use all Nodes")
+			continue
+		}
+		if cluster.Info == nil {
+			logger.Info("Cluster %s is not ready. Skipping orchestration.", cluster.Namespace)
+			continue
+		}
+
+		if valid, _ := k8sutil.ValidNode(*newNode, cluster.Spec.Placement.All()); valid == true {
+			logger.Debugf("Adding %s to cluster %s", newNode.Labels[v1.LabelHostname], cluster.Namespace)
+			err := cluster.createInstance(c.rookImage, cluster.Info.CephVersion)
+			if err != nil {
+				logger.Errorf("Failed to update cluster in namespace %s. Was not able to add %s. %+v", cluster.Namespace, newNode.Labels[v1.LabelHostname], err)
+			}
+		} else {
+			logger.Infof("Could not add host %s . It is not valid", newNode.Labels[v1.LabelHostname])
+			continue
+		}
+		logger.Infof("Added %s to cluster %s", newNode.Labels[v1.LabelHostname], cluster.Namespace)
+	}
+}
+
 func (c *ClusterController) onAdd(obj interface{}) {
 	clusterObj, migrationNeeded, err := getClusterObject(obj)
 	if err != nil {
@@ -182,15 +267,15 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		logger.Warningf("mon count is even (given: %d), should be uneven, continuing", cluster.Spec.Mon.Count)
 	}
 
-	cluster.Spec.CephVersion.Name, err = cluster.detectCephMajorVersion(cluster.Spec.CephVersion.Image, 15*time.Minute)
+	cephVersion, err := cluster.detectCephVersion(cluster.Spec.CephVersion.Image, 15*time.Minute)
 	if err != nil {
 		logger.Errorf("unknown ceph major version. %+v", err)
 		return
 	}
 
 	if !cluster.Spec.CephVersion.AllowUnsupported {
-		if !versionSupported(cluster.Spec.CephVersion.Name) {
-			logger.Errorf("unsupported ceph version detected: %s. allowUnsupported must be set to true to run with this version.", cluster.Spec.CephVersion.Name)
+		if !cephVersion.Supported() {
+			logger.Errorf("unsupported ceph version detected: %s. allowUnsupported must be set to true to run with this version.", cephVersion)
 			return
 		}
 	}
@@ -202,7 +287,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 			return false, nil
 		}
 
-		err := cluster.createInstance(c.rookImage)
+		err := cluster.createInstance(c.rookImage, *cephVersion)
 		if err != nil {
 			logger.Errorf("failed to create cluster in namespace %s. %+v", cluster.Namespace, err)
 			return false, nil
@@ -226,24 +311,28 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	}
 
 	// Start pool CRD watcher
-	poolController := pool.NewPoolController(c.context)
-	poolController.StartWatch(cluster.Namespace, cluster.stopCh)
+	poolController := pool.NewPoolController(c.context, cluster.Namespace)
+	poolController.StartWatch(cluster.stopCh)
 
 	// Start object store CRD watcher
-	objectStoreController := object.NewObjectStoreController(c.context, c.rookImage, cluster.Spec.CephVersion, cluster.Spec.Network.HostNetwork, cluster.ownerRef)
-	objectStoreController.StartWatch(cluster.Namespace, cluster.stopCh)
+	objectStoreController := object.NewObjectStoreController(cluster.Info, c.context, cluster.Namespace, c.rookImage, cluster.Spec.CephVersion, cluster.Spec.Network.HostNetwork, cluster.ownerRef, cluster.Spec.DataDirHostPath)
+	objectStoreController.StartWatch(cluster.stopCh)
 
 	// Start object store user CRD watcher
-	objectStoreUserController := objectuser.NewObjectStoreUserController(c.context, cluster.ownerRef)
-	objectStoreUserController.StartWatch(cluster.Namespace, cluster.stopCh)
+	objectStoreUserController := objectuser.NewObjectStoreUserController(c.context, cluster.Namespace, cluster.ownerRef)
+	objectStoreUserController.StartWatch(cluster.stopCh)
 
 	// Start file system CRD watcher
-	fileController := file.NewFilesystemController(c.context, c.rookImage, cluster.Spec.CephVersion, cluster.Spec.Network.HostNetwork, cluster.ownerRef)
-	fileController.StartWatch(cluster.Namespace, cluster.stopCh)
+	fileController := file.NewFilesystemController(cluster.Info, c.context, cluster.Namespace, c.rookImage, cluster.Spec.CephVersion, cluster.Spec.Network.HostNetwork, cluster.ownerRef, cluster.Spec.DataDirHostPath)
+	fileController.StartWatch(cluster.stopCh)
 
 	// Start nfs ganesha CRD watcher
-	ganeshaController := nfs.NewCephNFSController(c.context, c.rookImage, cluster.Spec.CephVersion, cluster.Spec.Network.HostNetwork, cluster.ownerRef)
-	ganeshaController.StartWatch(cluster.Namespace, cluster.stopCh)
+	ganeshaController := nfs.NewCephNFSController(cluster.Info, c.context, cluster.Namespace, c.rookImage, cluster.Spec.CephVersion, cluster.Spec.Network.HostNetwork, cluster.ownerRef)
+	ganeshaController.StartWatch(cluster.stopCh)
+
+	cluster.childControllers = []childController{
+		poolController, objectStoreController, objectStoreUserController, fileController, ganeshaController,
+	}
 
 	// Start mon health checker
 	healthChecker := mon.NewHealthChecker(cluster.mons)
@@ -252,6 +341,10 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	// Start the osd health checker
 	osdChecker := osd.NewMonitor(c.context, cluster.Namespace)
 	go osdChecker.Start(cluster.stopCh)
+
+	// Start the ceph status checker
+	cephChecker := newCephStatusChecker(c.context, cluster.Namespace, clusterObj.Name)
+	go cephChecker.checkCephStatus(cluster.stopCh)
 
 	// add the finalizer to the crd
 	err = c.addFinalizer(clusterObj)
@@ -263,6 +356,59 @@ func (c *ClusterController) onAdd(obj interface{}) {
 // ************************************************************************************************
 // Update event functions
 // ************************************************************************************************
+func (c *ClusterController) onK8sNodeUpdate(oldObj, newObj interface{}) {
+	// skip forced resyncs
+	if reflect.DeepEqual(oldObj, newObj) {
+		return
+	}
+
+	// Checking for nodes where NoSchedule-Taint got removed
+	newNode, ok := newObj.(*v1.Node)
+	if !ok {
+		logger.Warningf("Expected Node but handler received %#v", newObj)
+		return
+	}
+
+	oldNode, ok := oldObj.(*v1.Node)
+	if !ok {
+		logger.Warningf("Expected Node but handler received %#v", oldObj)
+		return
+	}
+
+	// set or unset noout depending on whether nodes are schedulable.
+	newNodeSchedulable := k8sutil.GetNodeSchedulable(*newNode)
+	oldNodeSchedulable := k8sutil.GetNodeSchedulable(*oldNode)
+
+	// Checking for NoSchedule added to storage node
+	if oldNodeSchedulable == false && newNodeSchedulable == false {
+		logger.Debugf("Skipping cluster update. Updated node %s was and is still unschedulable", newNode.Labels[v1.LabelHostname])
+		return
+	}
+	if oldNodeSchedulable == true && newNodeSchedulable == true {
+		logger.Debugf("Skipping cluster update. Updated node %s was and it is still schedulable", oldNode.Labels[v1.LabelHostname])
+		return
+	}
+
+	for _, cluster := range c.clusterMap {
+		if cluster.Info == nil {
+			logger.Info("Cluster %s is not ready. Skipping orchestration.", cluster.Namespace)
+			continue
+		}
+		if valid, _ := k8sutil.ValidNode(*newNode, cephv1.GetOSDPlacement(cluster.Spec.Placement)); valid == true {
+			logger.Debugf("Adding %s to cluster %s", newNode.Labels[v1.LabelHostname], cluster.Namespace)
+			err := cluster.createInstance(c.rookImage, cluster.Info.CephVersion)
+			if err != nil {
+				logger.Errorf("Failed adding the updated node %s to cluster in namespace %s. %+v", newNode.Labels[v1.LabelHostname], cluster.Namespace, err)
+				continue
+			}
+		} else {
+			logger.Infof("Updated node %s is not valid and could not get added to cluster in namespace %s.", newNode.Labels[v1.LabelHostname], cluster.Namespace)
+			continue
+		}
+		logger.Infof("Added updated node %s to cluster %s", newNode.Labels[v1.LabelHostname], cluster.Namespace)
+	}
+}
+
 func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 	oldClust, _, err := getClusterObject(oldObj)
 	if err != nil {
@@ -294,7 +440,7 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 		return
 	}
 
-	logger.Infof("update event for cluster %s", newClust.Namespace)
+	logger.Debugf("update event for cluster %s", newClust.Namespace)
 
 	// Check if the cluster is being deleted. This code path is called when a finalizer is specified in the crd.
 	// When a cluster is requested for deletion, K8s will only set the deletion timestamp if there are any finalizers in the list.
@@ -316,8 +462,9 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 		return
 	}
 
-	if !clusterChanged(oldClust.Spec, newClust.Spec, cluster) {
-		logger.Infof("update event for cluster %s is not supported", newClust.Namespace)
+	changed, _ := clusterChanged(oldClust.Spec, newClust.Spec, cluster)
+	if !changed {
+		logger.Debugf("update event for cluster %s is not supported", newClust.Namespace)
 		return
 	}
 
@@ -326,15 +473,14 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 	// if the image changed, we need to detect the new image version
 	if oldClust.Spec.CephVersion.Image != newClust.Spec.CephVersion.Image {
 		logger.Infof("the ceph version changed. detecting the new image version...")
-		version, err := cluster.detectCephMajorVersion(newClust.Spec.CephVersion.Image, 15*time.Minute)
+		version, err := cluster.detectCephVersion(newClust.Spec.CephVersion.Image, 15*time.Minute)
 		if err != nil {
 			logger.Errorf("unknown ceph major version. %+v", err)
 			return
 		}
-		newClust.Spec.CephVersion.Name = version
+		cluster.Info.CephVersion = *version
 	} else {
-		logger.Infof("ceph version is still %s on image %s", cluster.Spec.CephVersion.Name, cluster.Spec.CephVersion.Image)
-		newClust.Spec.CephVersion.Name = cluster.Spec.CephVersion.Name
+		logger.Infof("ceph version is still %s on image %s", &cluster.Info.CephVersion, cluster.Spec.CephVersion.Image)
 	}
 
 	logger.Debugf("old cluster: %+v", oldClust.Spec)
@@ -368,7 +514,7 @@ func (c *ClusterController) handleUpdate(crdName string, cluster *cluster) (bool
 		return false, nil
 	}
 
-	if err := cluster.createInstance(c.rookImage); err != nil {
+	if err := cluster.createInstance(c.rookImage, cluster.Info.CephVersion); err != nil {
 		logger.Errorf("failed to update cluster in namespace %s. %+v", cluster.Namespace, err)
 		return false, nil
 	}
@@ -380,6 +526,58 @@ func (c *ClusterController) handleUpdate(crdName string, cluster *cluster) (bool
 
 	logger.Infof("succeeded updating cluster in namespace %s", cluster.Namespace)
 	return true, nil
+}
+
+func (c *ClusterController) onDeviceCMUpdate(oldObj, newObj interface{}) {
+	oldCm, ok := oldObj.(*v1.ConfigMap)
+	if !ok {
+		logger.Warningf("Expected ConfigMap but handler received %#v", oldObj)
+		return
+	}
+	logger.Debugf("onDeviceCMUpdate old device cm: %+v", oldCm)
+
+	newCm, ok := newObj.(*v1.ConfigMap)
+	if !ok {
+		logger.Warningf("Expected ConfigMap but handler received %#v", newObj)
+		return
+	}
+	logger.Debugf("onDeviceCMUpdate new device cm: %+v", newCm)
+
+	oldDevStr, ok := oldCm.Data[discoverDaemon.LocalDiskCMData]
+	if !ok {
+		logger.Warningf("unexpected configmap data")
+		return
+	}
+
+	newDevStr, ok := newCm.Data[discoverDaemon.LocalDiskCMData]
+	if !ok {
+		logger.Warningf("unexpected configmap data")
+		return
+	}
+
+	devicesEqual, err := discoverDaemon.DeviceListsEqual(oldDevStr, newDevStr)
+	if err != nil {
+		logger.Warningf("failed to compare device lists: %v", err)
+		return
+	}
+
+	if devicesEqual {
+		logger.Infof("device lists are equal. skipping orchestration")
+		return
+	}
+
+	for _, cluster := range c.clusterMap {
+		if cluster.Info == nil {
+			logger.Info("Cluster %s is not ready. Skipping orchestration on device change", cluster.Namespace)
+			continue
+		}
+		logger.Infof("Running orchestration for namespace %s after device change", cluster.Namespace)
+		err := cluster.createInstance(c.rookImage, cluster.Info.CephVersion)
+		if err != nil {
+			logger.Errorf("Failed orchestration after device change in namesapce %s. %+v", cluster.Namespace, err)
+			continue
+		}
+	}
 }
 
 // ************************************************************************************************
@@ -412,7 +610,6 @@ func (c *ClusterController) onDelete(obj interface{}) {
 	if clust.Spec.Storage.AnyUseAllDevices() {
 		c.devicesInUse = false
 	}
-	discover.FreeDevicesByCluster(c.context, clust.Namespace)
 }
 
 func (c *ClusterController) handleDelete(cluster *cephv1.CephCluster, retryInterval time.Duration) error {
@@ -558,7 +755,10 @@ func (c *ClusterController) removeFinalizer(obj interface{}) {
 	logger.Warningf("giving up from removing the %s cluster finalizer", fname)
 }
 
+// updateClusterStatus updates the status of the cluster custom resource, whether it is being updated or is completed
 func (c *ClusterController) updateClusterStatus(namespace, name string, state cephv1.ClusterState, message string) error {
+	logger.Infof("CephCluster %s status: %s", namespace, state)
+
 	// get the most recent cluster CRD object
 	cluster, err := c.context.RookClientset.CephV1().CephClusters(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
@@ -566,9 +766,11 @@ func (c *ClusterController) updateClusterStatus(namespace, name string, state ce
 	}
 
 	// update the status on the retrieved cluster object
-	cluster.Status = cephv1.ClusterStatus{State: state, Message: message}
-	if _, err := c.context.RookClientset.CephV1().CephClusters(cluster.Namespace).Update(cluster); err != nil {
-		return fmt.Errorf("failed to update cluster %s status: %+v", cluster.Namespace, err)
+	// do not overwrite the ceph status that is updated in a separate goroutine
+	cluster.Status.State = state
+	cluster.Status.Message = message
+	if _, err := c.context.RookClientset.CephV1().CephClusters(namespace).Update(cluster); err != nil {
+		return fmt.Errorf("failed to update cluster %s status: %+v", namespace, err)
 	}
 
 	return nil

@@ -1,0 +1,56 @@
+#################################################################################################################
+# Create a filesystem with settings for erasure-coding instead of replication. A minimum of three nodes with OSDs
+# are required in this example since the default failureDomain is host.
+#  kubectl create -f filesystem-ec.yaml
+#################################################################################################################
+
+apiVersion: ceph.rook.io/v1
+kind: CephFilesystem
+metadata:
+  name: myfs-ec
+  namespace: rook-ceph
+spec:
+  # The metadata pool spec
+  metadataPool:
+    replicated:
+      # You need at least three OSDs on different nodes for this config to work
+      size: 3
+  # The list of data pool specs
+  dataPools:
+    # You need at least three `bluestore` OSDs on different nodes for this config to work
+    - erasureCoded:
+        dataChunks: 2
+        codingChunks: 1
+  # The metadata service (mds) configuration
+  metadataServer:
+    # The number of active MDS instances
+    activeCount: 1
+    # Whether each active MDS instance will have an active standby with a warm metadata cache for faster failover.
+    # If false, standbys will be available, but will not have a warm cache.
+    activeStandby: true
+    # The affinity rules to apply to the mds deployment
+    placement:
+    #  nodeAffinity:
+    #    requiredDuringSchedulingIgnoredDuringExecution:
+    #      nodeSelectorTerms:
+    #      - matchExpressions:
+    #        - key: role
+    #          operator: In
+    #          values:
+    #          - mds-node
+    #  tolerations:
+    #  - key: mds-node
+    #    operator: Exists
+    #  podAffinity:
+    #  podAntiAffinity:
+    # A key/value list of annotations
+    annotations:
+    #  key: value
+    resources:
+    # The requests and limits set here, allow the filesystem MDS Pod(s) to use half of one CPU core and 1 gigabyte of memory
+    #  limits:
+    #    cpu: "500m"
+    #    memory: "1024Mi"
+    #  requests:
+    #    cpu: "500m"
+    #    memory: "1024Mi"

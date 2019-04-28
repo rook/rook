@@ -92,9 +92,7 @@ func (suite *NfsSuite) Teardown() {
 	if suite.T().Failed() {
 		installer.GatherCRDObjectDebuggingInfo(suite.k8shelper, suite.systemNamespace)
 		installer.GatherCRDObjectDebuggingInfo(suite.k8shelper, suite.namespace)
-		suite.installer.GatherAllNFSServerLogs(suite.systemNamespace, suite.namespace, suite.T().Name())
 	}
-
 	suite.installer.UninstallNFSServer(suite.systemNamespace, suite.namespace)
 }
 
@@ -106,10 +104,18 @@ func (suite *NfsSuite) TestNfsServerInstallation() {
 		"1 rook-nfs-operator must be in Running state")
 
 	// verify nfs server instances are running OK
-	assert.True(suite.T(), suite.k8shelper.CheckPodCountAndState("rook-nfs", suite.namespace, suite.instanceCount, "Running"),
+	assert.True(suite.T(), suite.k8shelper.CheckPodCountAndState(suite.namespace, suite.namespace, suite.instanceCount, "Running"),
 		fmt.Sprintf("%d rook-nfs pods must be in Running state", suite.instanceCount))
 
-	// verify nfs server storage
+	// verify bigger export is running OK
+	assert.True(suite.T(), true, suite.k8shelper.WaitUntilPVCIsBound("default", "nfs-pv-claim-bigger"))
+
+	podList, err := suite.rwClient.CreateWriteClient("nfs-pv-claim-bigger")
+	require.NoError(suite.T(), err)
+	assert.True(suite.T(), true, suite.checkReadData(podList))
+	suite.rwClient.Delete()
+
+	// verify another smaller export is running OK
 	assert.True(suite.T(), true, suite.k8shelper.WaitUntilPVCIsBound("default", "nfs-pv-claim"))
 
 	defer suite.nfsClient.Delete("read-write-test")

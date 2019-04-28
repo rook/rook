@@ -11,7 +11,7 @@
 #
 # More info on PSP ordering : https://kubernetes.io/docs/concepts/policy/pod-security-policy/#policy-order
 
-apiVersion: extensions/v1beta1
+apiVersion: policy/v1beta1
 kind: PodSecurityPolicy
 metadata:
   name: 00-rook-ceph-operator

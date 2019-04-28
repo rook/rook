@@ -1,0 +1,38 @@
+apiVersion: edgefs.rook.io/v1beta1
+kind: SWIFT
+metadata:
+  name: swift01
+  namespace: rook-edgefs
+spec:
+  instances: 1
+  #port: 4500                     # HTTP port (default is 9981)
+  #securePort: 4501               # HTTPS port (default is 443)
+  #sslCertificateRef: ssl-secret
+  #placement:
+  #  nodeAffinity:
+  #    requiredDuringSchedulingIgnoredDuringExecution:
+  #      nodeSelectorTerms:
+  #      - matchExpressions:
+  #        - key: rook-edgefs-nodetype
+  #          operator: In
+  #          values:
+  #          - gateway
+  #  tolerations:
+  #  - key: rook-edgefs-nodetype
+  #    operator: Exists
+  #  podAffinity:
+  #  podAntiAffinity:
+  #resources:
+  #  limits:
+  #    cpu: "2"
+  #    memory: "4Gi"
+  #  requests:
+  #    cpu: "2"
+  #    memory: "4Gi"
+  # A key value list of annotations
+  annotations:
+  #  all:
+  #    key: value
+  #  mgr:
+  #  prepare:
+  #  target:

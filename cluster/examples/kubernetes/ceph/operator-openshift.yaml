@@ -1,0 +1,175 @@
+#################################################################################################################
+# Create the rook operator and necessary security context constraints for running
+# Rook in an OpenShift cluster.
+# For example, to create the rook-ceph cluster:
+#   oc create -f common.yaml
+#   oc create -f operator-openshift.yaml
+#   oc create -f cluster.yaml
+#################################################################################################################
+
+kind: SecurityContextConstraints
+# older versions of openshift have "apiVersion: v1"
+apiVersion: security.openshift.io/v1
+metadata:
+  name: rook-ceph
+allowPrivilegedContainer: true
+allowHostNetwork: true
+allowHostDirVolumePlugin: true
+priority:
+allowedCapabilities: []
+allowHostPorts: true
+allowHostPID: true
+allowHostIPC: true
+readOnlyRootFilesystem: false
+requiredDropCapabilities: []
+defaultAddCapabilities: []
+runAsUser:
+  type: RunAsAny
+seLinuxContext:
+  type: MustRunAs
+fsGroup:
+  type: MustRunAs
+supplementalGroups:
+  type: RunAsAny
+allowedFlexVolumes:
+  - driver: "ceph.rook.io/rook"
+  - driver: "ceph.rook.io/rook-ceph"
+volumes:
+  - configMap
+  - downwardAPI
+  - emptyDir
+  - flexVolume
+  - hostPath
+  - persistentVolumeClaim
+  - projected
+  - secret
+users:
+  # A user needs to be added for each rook service account.
+  # This assumes running in the default sample "rook-ceph" namespace.
+  # If other namespaces or service accounts are configured, they need to be updated here.
+  - system:serviceaccount:rook-ceph:rook-ceph-system
+  - system:serviceaccount:rook-ceph:default
+  - system:serviceaccount:rook-ceph:rook-ceph-mgr
+  - system:serviceaccount:rook-ceph:rook-ceph-osd
+---
+# The deployment for the rook operator
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rook-ceph-operator
+  namespace: rook-ceph
+  labels:
+    operator: rook
+    storage-backend: ceph
+spec:
+  selector:
+    matchLabels:
+      app: rook-ceph-operator
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: rook-ceph-operator
+    spec:
+      serviceAccountName: rook-ceph-system
+      containers:
+      - name: rook-ceph-operator
+        image: rook/ceph:master
+        args: ["ceph", "operator"]
+        volumeMounts:
+        - mountPath: /var/lib/rook
+          name: rook-config
+        - mountPath: /etc/ceph
+          name: default-config-dir
+        env:
+        - name: ROOK_CURRENT_NAMESPACE_ONLY
+          value: "true"
+        # To disable RBAC, uncomment the following:
+        # - name: RBAC_ENABLED
+        #  value: "false"
+        # Rook Agent toleration. Will tolerate all taints with all keys.
+        # Choose between NoSchedule, PreferNoSchedule and NoExecute:
+        # - name: AGENT_TOLERATION
+        #   value: "NoSchedule"
+        # (Optional) Rook Agent toleration key. Set this to the key of the taint you want to tolerate
+        # - name: AGENT_TOLERATION_KEY
+        #   value: "<KeyOfTheTaintToTolerate>"
+        # (Optional) Rook Agent mount security mode. Can by `Any` or `Restricted`.
+        # `Any` uses Ceph admin credentials by default/fallback.
+        # For using `Restricted` you must have a Ceph secret in each namespace storage should be consumed from and
+        # set `mountUser` to the Ceph user, `mountSecret` to the Kubernetes secret name.
+        # to the namespace in which the `mountSecret` Kubernetes secret namespace.
+        # - name: AGENT_MOUNT_SECURITY_MODE
+        #   value: "Any"
+        # Set the path where the Rook agent can find the flex volumes
+        - name: FLEXVOLUME_DIR_PATH
+          value: "/etc/kubernetes/kubelet-plugins/volume/exec"
+        # Set the path where kernel modules can be found
+        # - name: LIB_MODULES_DIR_PATH
+        #  value: "<PathToLibModules>"
+        # Mount any extra directories into the agent container
+        # - name: AGENT_MOUNTS
+        #  value: "somemount=/host/path:/container/path,someothermount=/host/path2:/container/path2"
+        # Rook Discover toleration. Will tolerate all taints with all keys.
+        # Choose between NoSchedule, PreferNoSchedule and NoExecute:
+        # - name: DISCOVER_TOLERATION
+        #   value: "NoSchedule"
+        # (Optional) Rook Discover toleration key. Set this to the key of the taint you want to tolerate
+        # - name: DISCOVER_TOLERATION_KEY
+        #  value: "<KeyOfTheTaintToTolerate>"
+        # Allow rook to create multiple file systems. Note: This is considered
+        # an experimental feature in Ceph as described at
+        # http://docs.ceph.com/docs/master/cephfs/experimental-features/#multiple-filesystems-within-a-ceph-cluster
+        # which might cause mons to crash as seen in https://github.com/rook/rook/issues/1027
+        - name: ROOK_ALLOW_MULTIPLE_FILESYSTEMS
+          value: "false"
+        # The logging level for the operator: INFO | DEBUG
+        - name: ROOK_LOG_LEVEL
+          value: "INFO"
+        # The interval to check if every mon is in the quorum.
+        - name: ROOK_MON_HEALTHCHECK_INTERVAL
+          value: "45s"
+        # The duration to wait before trying to failover or remove/replace the
+        # current mon with a new mon (useful for compensating flapping network).
+        - name: ROOK_MON_OUT_TIMEOUT
+          value: "600s"
+        # The duration between discovering devices in the rook-discover daemonset.
+        - name: ROOK_DISCOVER_DEVICES_INTERVAL
+          value: "60m"
+        # Whether to start pods as privileged that mount a host path, which includes the Ceph mon and osd pods.
+        # This is necessary to workaround the anyuid issues when running on OpenShift.
+        # For more details see https://github.com/rook/rook/issues/1314#issuecomment-355799641
+        - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
+          value: "true"
+        # In some situations SELinux relabelling breaks (times out) on large filesystems, and doesn't work with cephfs ReadWriteMany volumes (last relabel wins).
+        # Disable it here if you have similar issues.
+        # For more details see https://github.com/rook/rook/issues/2417
+        - name: ROOK_ENABLE_SELINUX_RELABELING
+          value: "true"
+        # In large volumes it will take some time to chown all the files. Disable it here if you have performance issues.
+        # For more details see https://github.com/rook/rook/issues/2254
+        - name: ROOK_ENABLE_FSGROUP
+          value: "true"
+        # Disable automatic orchestration when new devices are discovered
+        - name: ROOK_DISABLE_DEVICE_HOTPLUG
+          value: "false"
+        # The name of the node to pass with the downward API
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        # The pod name to pass with the downward API
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        # The pod namespace to pass with the downward API
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+      volumes:
+      - name: rook-config
+        emptyDir: {}
+      - name: default-config-dir
+        emptyDir: {}

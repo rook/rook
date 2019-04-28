@@ -14,33 +14,30 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package rbd for mirroring
 package rbd
 
 import (
-	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
+	"github.com/rook/rook/pkg/operator/ceph/config"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
+	apps "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (m *Mirroring) makeDeployment(resourceName, daemonName string) *extensions.Deployment {
+func (m *Mirroring) makeDeployment(daemonConfig *daemonConfig) *apps.Deployment {
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   resourceName,
-			Labels: opspec.PodLabels(appName, m.Namespace, "rbdmirror", daemonName),
+			Name:   daemonConfig.ResourceName,
+			Labels: opspec.PodLabels(appName, m.Namespace, string(config.RbdMirrorType), daemonConfig.DaemonID),
 		},
 		Spec: v1.PodSpec{
-			InitContainers: []v1.Container{
-				m.makeConfigInitContainer(resourceName, daemonName),
-			},
+			InitContainers: []v1.Container{},
 			Containers: []v1.Container{
-				m.makeMirroringDaemonContainer(daemonName),
+				m.makeMirroringDaemonContainer(daemonConfig),
 			},
 			RestartPolicy: v1.RestartPolicyAlways,
-			Volumes:       opspec.PodVolumes(""),
+			Volumes:       opspec.DaemonVolumes(daemonConfig.DataPathMap, daemonConfig.ResourceName),
 			HostNetwork:   m.hostNetwork,
 		},
 	}
@@ -50,58 +47,41 @@ func (m *Mirroring) makeDeployment(resourceName, daemonName string) *extensions.
 	m.placement.ApplyToPodSpec(&podSpec.Spec)
 
 	replicas := int32(1)
-	d := &extensions.Deployment{
+	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      resourceName,
-			Namespace: m.Namespace,
+			Name:        daemonConfig.ResourceName,
+			Namespace:   m.Namespace,
+			Annotations: m.annotations,
+			Labels:      opspec.PodLabels(appName, m.Namespace, string(config.RbdMirrorType), daemonConfig.DaemonID),
 		},
-		Spec: extensions.DeploymentSpec{Template: podSpec, Replicas: &replicas},
+		Spec: apps.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: podSpec.Labels,
+			},
+			Template: podSpec,
+			Replicas: &replicas,
+		},
 	}
+	k8sutil.AddRookVersionLabelToDeployment(d)
+	opspec.AddCephVersionLabelToDeployment(m.ClusterInfo.CephVersion, d)
 	k8sutil.SetOwnerRef(m.context.Clientset, m.Namespace, &d.ObjectMeta, &m.ownerRef)
 	return d
 }
 
-func (m *Mirroring) makeConfigInitContainer(resourceName, daemonName string) v1.Container {
-	return v1.Container{
-		Name: opspec.ConfigInitContainerName,
-		Args: []string{
-			"ceph",
-			"config-init",
-		},
-		Image: k8sutil.MakeRookImage(m.rookVersion),
-		Env: []v1.EnvVar{
-			{Name: "ROOK_USERNAME", Value: fullDaemonName(daemonName)},
-			{Name: "ROOK_KEYRING",
-				ValueFrom: &v1.EnvVarSource{
-					SecretKeyRef: &v1.SecretKeySelector{
-						LocalObjectReference: v1.LocalObjectReference{Name: resourceName},
-						Key:                  opspec.KeyringSecretKeyName,
-					}}},
-			k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
-			k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
-			opmon.EndpointEnvVar(),
-			k8sutil.ConfigOverrideEnvVar(),
-		},
-		VolumeMounts: opspec.RookVolumeMounts(),
-		Resources:    m.resources,
-	}
-}
-
-func (m *Mirroring) makeMirroringDaemonContainer(daemonName string) v1.Container {
+func (m *Mirroring) makeMirroringDaemonContainer(daemonConfig *daemonConfig) v1.Container {
 	container := v1.Container{
-		Name: "rbdmirror",
+		Name: "rbd-mirror",
 		Command: []string{
 			"rbd-mirror",
 		},
-		Args: []string{
+		Args: append(
+			opspec.DaemonFlags(m.ClusterInfo, daemonConfig.DaemonID),
 			"--foreground",
-			"-n", fullDaemonName(daemonName),
-			"--conf", "/etc/ceph/ceph.conf",
-			"--keyring", "/etc/ceph/keyring",
-		},
+			"--name="+fullDaemonName(daemonConfig.DaemonID),
+		),
 		Image:        m.cephVersion.Image,
-		VolumeMounts: opspec.CephVolumeMounts(),
-		Env:          k8sutil.ClusterDaemonEnvVars(),
+		VolumeMounts: opspec.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName),
+		Env:          opspec.DaemonEnvVars(m.cephVersion.Image),
 		Resources:    m.resources,
 	}
 	return container

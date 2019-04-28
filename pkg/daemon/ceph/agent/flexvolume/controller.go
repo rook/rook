@@ -42,6 +42,8 @@ import (
 const (
 	// ClusterNamespaceKey key for cluster namespace option.
 	ClusterNamespaceKey = "clusterNamespace"
+	// ClusterNameKey key for cluster name option (deprecated).
+	ClusterNameKey = "clusterName"
 	// StorageClassKey key for storage class name option.
 	StorageClassKey = "storageClass"
 	// PoolKey key for pool name option.
@@ -274,7 +276,7 @@ func (c *Controller) Log(message LogMessage, _ *struct{} /* void reply */) error
 }
 
 func (c *Controller) parseClusterNamespace(storageClassName string) (string, error) {
-	sc, err := c.context.Clientset.Storage().StorageClasses().Get(storageClassName, metav1.GetOptions{})
+	sc, err := c.context.Clientset.StorageV1().StorageClasses().Get(storageClassName, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -397,7 +399,7 @@ func (c *Controller) GetClientAccessInfo(args []string, clientAccessInfo *Client
 	}
 
 	if clientAccessInfo.SecretKey != "" {
-		secret, err := c.context.Clientset.Core().Secrets(podNamespace).Get(clientAccessInfo.SecretKey, metav1.GetOptions{})
+		secret, err := c.context.Clientset.CoreV1().Secrets(podNamespace).Get(clientAccessInfo.SecretKey, metav1.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("unable to get mount secret %s from pod namespace %s. %+v", clientAccessInfo.SecretKey, podNamespace, err)
 		}

@@ -1,19 +1,24 @@
+#################################################################################################################
+# Create a filesystem with settings with replication enabled for a production environment.
+# A minimum of 3 OSDs on different nodes are required in this example.
+#  kubectl create -f filesystem.yaml
+#################################################################################################################
+
 apiVersion: ceph.rook.io/v1
 kind: CephFilesystem
 metadata:
   name: myfs
   namespace: rook-ceph
 spec:
-  # The metadata pool spec
+  # The metadata pool spec. Must use replication.
   metadataPool:
     replicated:
-      # Increase the replication size if you have more than one osd
-      size: 1
-  # The list of data pool specs
+      size: 3
+  # The list of data pool specs. Can use replication or erasure coding.
   dataPools:
-    - failureDomain: osd
+    - failureDomain: host
       replicated:
-        size: 1
+        size: 3
   # The metadata service (mds) configuration
   metadataServer:
     # The number of active MDS instances
@@ -36,6 +41,9 @@ spec:
     #    operator: Exists
     #  podAffinity:
     #  podAntiAffinity:
+    # A key/value list of annotations
+    annotations:
+    #  key: value
     resources:
     # The requests and limits set here, allow the filesystem MDS Pod(s) to use half of one CPU core and 1 gigabyte of memory
     #  limits:

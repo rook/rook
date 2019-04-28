@@ -1,5 +1,5 @@
 
-# Gopkg.toml 
+# Gopkg.toml
 #
 # Add constraints for packages that are a direct dependency
 # of this project (i.e. they are imported by golang source code)
@@ -54,37 +54,54 @@ ignored = [
     unused-packages = false
 
 #
-# Kubernetes projects below should all be updated as a set 
+# Kubernetes projects below should all be updated as a set
 # as they are versioned together.
 #
 
-[[override]]
+[[constraint]]
   name = "k8s.io/kubernetes"
-  version = "=v1.11.3"
+  version = "=v1.14.0"
 
-[[override]]
+[[constraint]]
+  name = "k8s.io/kube-controller-manager"
+  version = "kubernetes-1.14.0"
+
+[[constraint]]
   name = "k8s.io/api"
-  version = "kubernetes-1.11.3"
+  version = "kubernetes-1.14.0"
 
-[[override]]
+[[constraint]]
   name = "k8s.io/apiserver"
-  version = "kubernetes-1.11.3"
+  version = "kubernetes-1.14.0"
 
-[[override]]
+[[constraint]]
   name = "k8s.io/apiextensions-apiserver"
-  version = "kubernetes-1.11.3"
+  version = "kubernetes-1.14.0"
 
-[[override]]
+[[constraint]]
   name = "k8s.io/apimachinery"
-  version = "kubernetes-1.11.3"
+  version = "kubernetes-1.14.0"
 
-[[override]]
+[[constraint]]
   name = "k8s.io/code-generator"
-  version = "kubernetes-1.11.3"
+  version = "kubernetes-1.14.0"
+
+[[constraint]]
+  name = "k8s.io/client-go"
+  version = "v11.0.0"
+
+[[constraint]]
+  name = "sigs.k8s.io/sig-storage-lib-external-provisioner"
+  version = "v3.1.0"
+
+# Kubernetes 1.14 dependencies on random package versions:
+[[override]]
+  name = "github.com/evanphx/json-patch"
+  revision = "5858425f75500d40c52783dce87d085a483ce135"
 
 [[override]]
-  name = "k8s.io/client-go"
-  version = "v8.0.0"
+  name = "sigs.k8s.io/structured-merge-diff"
+  revision = "e85c7b244fd2cc57bb829d73a061f93a441e63ce"
 
 # kubernetes requires an older version of docker distribution
 [[override]]
@@ -96,3 +113,15 @@ ignored = [
 [[override]]
   name = "bitbucket.org/ww/goautoneg"
   source = "github.com/rancher/goautoneg"
+
+[[override]]
+  name = "k8s.io/apiextensions-apiserver"
+  version = "kubernetes-1.14.0"
+
+[[override]]
+  name = "k8s.io/apimachinery"
+  version = "kubernetes-1.14.0"
+
+[[override]]
+  name = "k8s.io/client-go"
+  version = "v11.0.0"

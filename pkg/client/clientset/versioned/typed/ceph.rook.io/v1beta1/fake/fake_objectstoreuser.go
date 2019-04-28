@@ -119,7 +119,7 @@ func (c *FakeObjectStoreUsers) DeleteCollection(options *v1.DeleteOptions, listO
 // Patch applies the patch and returns the patched objectStoreUser.
 func (c *FakeObjectStoreUsers) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1beta1.ObjectStoreUser, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(objectstoreusersResource, c.ns, name, data, subresources...), &v1beta1.ObjectStoreUser{})
+		Invokes(testing.NewPatchSubresourceAction(objectstoreusersResource, c.ns, name, pt, data, subresources...), &v1beta1.ObjectStoreUser{})
 
 	if obj == nil {
 		return nil, err

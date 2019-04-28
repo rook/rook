@@ -25,8 +25,8 @@ import (
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
+	apps "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -76,15 +76,16 @@ func (c *CephNFSController) createCephNFSService(n cephv1.CephNFS, name string) 
 	return nil
 }
 
-func (c *CephNFSController) makeDeployment(n cephv1.CephNFS, name, configName string) *extensions.Deployment {
+func (c *CephNFSController) makeDeployment(n cephv1.CephNFS, name, configName string) *apps.Deployment {
 	binariesEnvVar, binariesVolume, binariesMount := k8sutil.BinariesMountInfo()
 
-	deployment := &extensions.Deployment{
+	deployment := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      instanceName(n, name),
 			Namespace: n.Namespace,
 		},
 	}
+	n.Spec.Server.Annotations.ApplyToObjectMeta(&deployment.ObjectMeta)
 	k8sutil.SetOwnerRef(c.context.Clientset, n.Namespace, &deployment.ObjectMeta, &c.ownerRef)
 	configMapSource := &v1.ConfigMapVolumeSource{
 		LocalObjectReference: v1.LocalObjectReference{Name: configName},
@@ -97,7 +98,7 @@ func (c *CephNFSController) makeDeployment(n cephv1.CephNFS, name, configName st
 		Containers:     []v1.Container{c.daemonContainer(n, name, binariesMount)},
 		RestartPolicy:  v1.RestartPolicyAlways,
 		Volumes: append(
-			opspec.PodVolumes(""),
+			opspec.PodVolumes("", ""),
 			configVolume,
 			binariesVolume,
 		),
@@ -110,16 +111,22 @@ func (c *CephNFSController) makeDeployment(n cephv1.CephNFS, name, configName st
 
 	podTemplateSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        instanceName(n, name),
-			Labels:      getLabels(n, name),
-			Annotations: map[string]string{},
+			Name:   instanceName(n, name),
+			Labels: getLabels(n, name),
 		},
 		Spec: podSpec,
 	}
+	n.Spec.Server.Annotations.ApplyToObjectMeta(&podTemplateSpec.ObjectMeta)
 
 	// Multiple replicas of the nfs service would be handled by creating a service and a new deployment for each one, rather than increasing the pod count here
 	replicas := int32(1)
-	deployment.Spec = extensions.DeploymentSpec{Template: podTemplateSpec, Replicas: &replicas}
+	deployment.Spec = apps.DeploymentSpec{
+		Selector: &metav1.LabelSelector{
+			MatchLabels: getLabels(n, name),
+		},
+		Template: podTemplateSpec,
+		Replicas: &replicas,
+	}
 	return deployment
 }
 
@@ -170,8 +177,9 @@ func (c *CephNFSController) daemonContainer(n cephv1.CephNFS, name string, binar
 			binariesMount,
 		),
 		Env: append(
-			k8sutil.ClusterDaemonEnvVars(),
-			v1.EnvVar{Name: "ROOK_CEPH_NFS_NAME", Value: name}),
+			k8sutil.ClusterDaemonEnvVars(c.cephVersion.Image),
+			v1.EnvVar{Name: "ROOK_CEPH_NFS_NAME", Value: name},
+		),
 		Resources: n.Spec.Server.Resources,
 	}
 }

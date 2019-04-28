@@ -25,7 +25,8 @@ import (
 	opkit "github.com/rook/operator-kit"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	cephrgw "github.com/rook/rook/pkg/daemon/ceph/rgw"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/api/core/v1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
@@ -34,12 +35,12 @@ import (
 )
 
 const (
-	AppName = "rook-ceph-rgw"
+	appName = object.AppName
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-object")
 
-// ObjectStoreResource represents the object store user custom resource
+// ObjectStoreUserResource represents the object store user custom resource
 var ObjectStoreUserResource = opkit.CustomResource{
 	Name:    "cephobjectstoreuser",
 	Plural:  "cephobjectstoreusers",
@@ -51,20 +52,22 @@ var ObjectStoreUserResource = opkit.CustomResource{
 
 // ObjectStoreUserController represents a controller object for object store user custom resources
 type ObjectStoreUserController struct {
-	context  *clusterd.Context
-	ownerRef metav1.OwnerReference
+	context   *clusterd.Context
+	ownerRef  metav1.OwnerReference
+	namespace string
 }
 
 // NewObjectStoreUserController create controller for watching object store user custom resources created
-func NewObjectStoreUserController(context *clusterd.Context, ownerRef metav1.OwnerReference) *ObjectStoreUserController {
+func NewObjectStoreUserController(context *clusterd.Context, namespace string, ownerRef metav1.OwnerReference) *ObjectStoreUserController {
 	return &ObjectStoreUserController{
-		context:  context,
-		ownerRef: ownerRef,
+		context:   context,
+		ownerRef:  ownerRef,
+		namespace: namespace,
 	}
 }
 
 // StartWatch watches for instances of ObjectStoreUser custom resources and acts on them
-func (c *ObjectStoreUserController) StartWatch(namespace string, stopCh chan struct{}) error {
+func (c *ObjectStoreUserController) StartWatch(stopCh chan struct{}) error {
 
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
@@ -72,8 +75,8 @@ func (c *ObjectStoreUserController) StartWatch(namespace string, stopCh chan str
 		DeleteFunc: c.onDelete,
 	}
 
-	logger.Infof("start watching object store user resources in namespace %s", namespace)
-	watcher := opkit.NewWatcher(ObjectStoreUserResource, namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1().RESTClient())
+	logger.Infof("start watching object store user resources in namespace %s", c.namespace)
+	watcher := opkit.NewWatcher(ObjectStoreUserResource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1().RESTClient())
 	go watcher.Watch(&cephv1.CephObjectStoreUser{}, stopCh)
 
 	return nil
@@ -105,6 +108,10 @@ func (c *ObjectStoreUserController) onDelete(obj interface{}) {
 	if err = deleteUser(c.context, user); err != nil {
 		logger.Errorf("failed to delete object store user %s. %+v", user.Name, err)
 	}
+}
+
+func (c *ObjectStoreUserController) ParentClusterChanged(cluster cephv1.ClusterSpec, clusterInfo *cephconfig.ClusterInfo) {
+	logger.Debugf("No need to update object store users after the parent cluster changed")
 }
 
 func (c *ObjectStoreUserController) storeUserOwners(store *cephv1.CephObjectStoreUser) []metav1.OwnerReference {
@@ -139,13 +146,13 @@ func (c *ObjectStoreUserController) createUser(context *clusterd.Context, u *cep
 
 	// create the user
 	logger.Infof("creating user %s in namespace %s", u.Name, u.Namespace)
-	userConfig := cephrgw.ObjectUser{
+	userConfig := object.ObjectUser{
 		UserID:      u.Name,
 		DisplayName: &displayName,
 	}
-	objContext := cephrgw.NewContext(context, u.Spec.Store, u.Namespace)
+	objContext := object.NewContext(context, u.Spec.Store, u.Namespace)
 
-	user, rgwerr, err := cephrgw.CreateUser(objContext, userConfig)
+	user, rgwerr, err := object.CreateUser(objContext, userConfig)
 	if err != nil {
 		return fmt.Errorf("failed to create user %s. RadosGW returned error %d: %+v", u.Name, rgwerr, err)
 	}
@@ -160,7 +167,7 @@ func (c *ObjectStoreUserController) createUser(context *clusterd.Context, u *cep
 			Name:      fmt.Sprintf("rook-ceph-object-user-%s-%s", u.Spec.Store, u.Name),
 			Namespace: u.Namespace,
 			Labels: map[string]string{
-				"app":               AppName,
+				"app":               appName,
 				"user":              u.Name,
 				"rook_cluster":      u.Namespace,
 				"rook_object_store": u.Spec.Store,
@@ -181,8 +188,8 @@ func (c *ObjectStoreUserController) createUser(context *clusterd.Context, u *cep
 
 // Delete the user
 func deleteUser(context *clusterd.Context, u *cephv1.CephObjectStoreUser) error {
-	objContext := cephrgw.NewContext(context, u.Spec.Store, u.Namespace)
-	_, rgwerr, err := cephrgw.DeleteUser(objContext, u.Name)
+	objContext := object.NewContext(context, u.Spec.Store, u.Namespace)
+	_, rgwerr, err := object.DeleteUser(objContext, u.Name)
 	if err != nil {
 		if rgwerr == 3 {
 			logger.Infof("user %s does not exist in store %s", u.Name, u.Spec.Store)
@@ -191,16 +198,16 @@ func deleteUser(context *clusterd.Context, u *cephv1.CephObjectStoreUser) error 
 		}
 	}
 
-	err = context.Clientset.CoreV1().Secrets(u.Namespace).Delete("rook-ceph-object-user-"+u.Name, &metav1.DeleteOptions{})
+	err = context.Clientset.CoreV1().Secrets(u.Namespace).Delete(fmt.Sprintf("rook-ceph-object-user-%s-%s", u.Spec.Store, u.Name), &metav1.DeleteOptions{})
 	if err != nil {
-		logger.Warningf("failed to delete user %s secret. %+v", u.Name, err)
+		logger.Warningf("failed to delete user %s secret. %+v", fmt.Sprintf("rook-ceph-object-user-%s-%s", u.Spec.Store, u.Name), err)
 	}
 
 	logger.Infof("user %s deleted successfully", u.Name)
 	return nil
 }
 
-// Validate the user arguments
+// ValidateUser validates the user arguments
 func ValidateUser(context *clusterd.Context, u *cephv1.CephObjectStoreUser) error {
 	if u.Name == "" {
 		return fmt.Errorf("missing name")

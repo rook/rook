@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"time"
 
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
@@ -28,7 +29,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"k8s.io/api/apps/v1beta1"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -56,10 +57,10 @@ func runBlockE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.
 	initBlockImages, _ := helper.BlockClient.List(namespace)
 
 	logger.Infof("step 1: Create block storage")
-	_, cbErr := helper.PoolClient.CreateStorageClassAndPvc(namespace, poolName, storageClassName, "Delete", blockName, "ReadWriteOnce")
+	cbErr := helper.PoolClient.CreateStorageClassAndPvc(namespace, poolName, storageClassName, "Delete", blockName, "ReadWriteOnce")
 	require.Nil(s.T(), cbErr)
 	require.True(s.T(), retryBlockImageCountCheck(helper, len(initBlockImages), 1, namespace), "Make sure a new block is created")
-	_, cbErr = helper.PoolClient.CreateStorageClassAndPvc(namespace, poolNameRetained, storageClassNameRetained, "Retain", blockNameRetained, "ReadWriteOnce")
+	cbErr = helper.PoolClient.CreateStorageClassAndPvc(namespace, poolNameRetained, storageClassNameRetained, "Retain", blockNameRetained, "ReadWriteOnce")
 	require.Nil(s.T(), cbErr)
 	require.True(s.T(), retryBlockImageCountCheck(helper, len(initBlockImages), 2, namespace), "Make sure another new block is created")
 	logger.Infof("Block Storage created successfully")
@@ -98,15 +99,15 @@ func runBlockE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.
 	logger.Infof("Block Storage successfully fenced")
 
 	logger.Infof("step 8: Delete fenced pod")
-	_, unmtErr := k8sh.DeletePod(k8sutil.DefaultNamespace, otherPod)
+	unmtErr := k8sh.DeletePod(k8sutil.DefaultNamespace, otherPod)
 	require.Nil(s.T(), unmtErr)
 	require.True(s.T(), k8sh.IsPodTerminated(otherPod, defaultNamespace), "make sure block-test2 pod is terminated")
 	logger.Infof("Fenced pod deleted successfully")
 
 	logger.Infof("step 9: Unmount block storage")
-	_, unmtErr = k8sh.DeletePod(k8sutil.DefaultNamespace, podName)
+	unmtErr = k8sh.DeletePod(k8sutil.DefaultNamespace, podName)
 	require.Nil(s.T(), unmtErr)
-	_, unmtErr = k8sh.DeletePod(k8sutil.DefaultNamespace, podNameWithPVRetained)
+	unmtErr = k8sh.DeletePod(k8sutil.DefaultNamespace, podNameWithPVRetained)
 	require.Nil(s.T(), unmtErr)
 	require.True(s.T(), k8sh.IsVolumeResourceAbsent(installer.SystemNamespace(namespace), crdName), fmt.Sprintf("make sure Volume %s is deleted", crdName))
 	require.True(s.T(), k8sh.IsVolumeResourceAbsent(installer.SystemNamespace(namespace), crdNameRetained), fmt.Sprintf("make sure Volume %s is deleted", crdNameRetained))
@@ -178,7 +179,7 @@ func restartOSDPods(k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
 	assert.Nil(s.T(), err)
 }
 
-func runBlockE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, clusterNamespace string) {
+func runBlockE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, clusterNamespace string, version cephv1.CephVersionSpec) {
 	logger.Infof("Block Storage End to End Integration Test - create storageclass,pool and pvc")
 	logger.Infof("Running on Rook Cluster %s", clusterNamespace)
 	poolName := "rookpool"
@@ -186,12 +187,12 @@ func runBlockE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s su
 	blockName := "test-block-claim-lite"
 	podName := "test-pod-lite"
 	defer blockTestDataCleanUp(helper, k8sh, clusterNamespace, poolName, storageClassName, blockName, podName)
-	initBlockCount := setupBlockLite(helper, k8sh, s, clusterNamespace, poolName, storageClassName, blockName, podName)
+	initBlockCount := setupBlockLite(helper, k8sh, s, clusterNamespace, poolName, storageClassName, blockName, podName, version)
 	deleteBlockLite(helper, k8sh, s, clusterNamespace, poolName, storageClassName, blockName, podName, initBlockCount)
 }
 
 func setupBlockLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite,
-	clusterNamespace, poolName, storageClassName, blockName, podName string) int {
+	clusterNamespace, poolName, storageClassName, blockName, podName string, version cephv1.CephVersionSpec) int {
 
 	// Check initial number of blocks
 	initialBlocks, err := helper.BlockClient.List(clusterNamespace)
@@ -200,18 +201,21 @@ func setupBlockLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.S
 
 	logger.Infof("step : Create Pool,StorageClass and PVC")
 
-	res1, err := helper.PoolClient.CreateStorageClassAndPvc(clusterNamespace, poolName, storageClassName, "Delete", blockName, "ReadWriteOnce")
-	checkOrderedSubstrings(s.T(), res1, poolName, "created", storageClassName, "created", blockName, "created")
+	err = helper.PoolClient.CreateStorageClassAndPvc(clusterNamespace, poolName, storageClassName, "Delete", blockName, "ReadWriteOnce")
 	require.NoError(s.T(), err)
 
 	require.True(s.T(), k8sh.WaitUntilPVCIsBound(defaultNamespace, blockName))
 
 	// Make sure new block is created
-	b, _ := helper.BlockClient.List(clusterNamespace)
-	assert.Equal(s.T(), initBlockCount+1, len(b), "Make sure new block image is created")
-	poolExists, err := helper.PoolClient.CephPoolExists(clusterNamespace, poolName)
-	assert.Nil(s.T(), err)
-	assert.True(s.T(), poolExists)
+	b, err := helper.BlockClient.List(clusterNamespace)
+	if version != installer.LuminousVersion {
+		assert.Nil(s.T(), err)
+		assert.Equal(s.T(), initBlockCount+1, len(b), "Make sure new block image is created")
+		poolExists, err := helper.PoolClient.CephPoolExists(clusterNamespace, poolName)
+		assert.Nil(s.T(), err)
+		assert.True(s.T(), poolExists)
+	}
+
 	return initBlockCount
 }
 
@@ -326,7 +330,7 @@ spec:
       restartPolicy: Never`
 }
 
-func getBlockStatefulSetAndServiceDefinition(namespace, statefulsetName, podName, StorageClassName string) (*v1.Service, *v1beta1.StatefulSet) {
+func getBlockStatefulSetAndServiceDefinition(namespace, statefulsetName, podName, StorageClassName string) (*v1.Service, *appsv1.StatefulSet) {
 	service := &v1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -355,23 +359,28 @@ func getBlockStatefulSetAndServiceDefinition(namespace, statefulsetName, podName
 
 	var replica int32 = 1
 
-	statefulSet := &v1beta1.StatefulSet{
+	labels := map[string]string{
+		"app": statefulsetName,
+	}
+
+	statefulSet := &appsv1.StatefulSet{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1beta1",
+			APIVersion: "apps/v1",
 			Kind:       "StatefulSet",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      podName,
 			Namespace: namespace,
 		},
-		Spec: v1beta1.StatefulSetSpec{
+		Spec: appsv1.StatefulSetSpec{
 			ServiceName: statefulsetName,
-			Replicas:    &replica,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: labels,
+			},
+			Replicas: &replica,
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						"app": statefulsetName,
-					},
+					Labels: labels,
 				},
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{

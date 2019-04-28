@@ -19,13 +19,14 @@ package integration
 import (
 	"errors"
 
-	rgwdaemon "github.com/rook/rook/pkg/daemon/ceph/rgw"
+	"time"
+
+	rgw "github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"time"
 )
 
 var (
@@ -55,14 +56,21 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	logger.Infof("Step 1 : Create Object Store User")
 	cosuErr := helper.ObjectUserClient.Create(namespace, userid, userdisplayname, storeName)
 	require.Nil(s.T(), cosuErr)
-	logger.Infof("Waiting 5 seconds to ensure user was created")
-	time.Sleep(5 * time.Second)
-	require.True(s.T(), helper.ObjectUserClient.UserSecretExists(namespace, userid, storeName), "make sure user secret was created")
+	logger.Infof("Waiting 10 seconds to ensure user was created")
+	time.Sleep(10 * time.Second)
+	logger.Infof("Checking to see if the user secret has been created")
+	i := 0
+	for i = 0; i < 4 && helper.ObjectUserClient.UserSecretExists(namespace, storeName, userid) == false; i++ {
+		logger.Infof("(%d) secret check sleeping for 5 seconds ...", i)
+		time.Sleep(5 * time.Second)
+	}
+	assert.True(s.T(), helper.ObjectUserClient.UserSecretExists(namespace, storeName, userid))
 	userInfo, gosuErr := helper.ObjectUserClient.GetUser(namespace, storeName, userid)
-	require.Nil(s.T(), gosuErr)
-	require.Equal(s.T(), userid, userInfo.UserID)
-	require.Equal(s.T(), userdisplayname, *userInfo.DisplayName)
-	logger.Infof("Object store user created successfully")
+	assert.Nil(s.T(), gosuErr)
+	assert.Equal(s.T(), userid, userInfo.UserID)
+	assert.Equal(s.T(), userdisplayname, *userInfo.DisplayName)
+
+	logger.Infof("Done creating object store user")
 
 	/* TODO: We need bucket management tests.
 
@@ -122,6 +130,13 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	dosuErr := helper.ObjectUserClient.Delete(namespace, userid)
 	require.Nil(s.T(), dosuErr)
 	logger.Infof("Object store user deleted successfully")
+	logger.Infof("Checking to see if the user secret has been deleted")
+	i = 0
+	for i = 0; i < 4 && helper.ObjectUserClient.UserSecretExists(namespace, storeName, userid) == true; i++ {
+		logger.Infof("(%d) secret check sleeping for 5 seconds ...", i)
+		time.Sleep(5 * time.Second)
+	}
+	assert.False(s.T(), helper.ObjectUserClient.UserSecretExists(namespace, storeName, userid))
 
 	logger.Infof("Check that MGRs are not in a crashloop")
 	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-ceph-mgr", namespace, 1, "Running"))
@@ -129,8 +144,8 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 
 	logger.Infof("Delete Object Store")
 	dobsErr := helper.ObjectClient.Delete(namespace, storeName)
-	require.Nil(s.T(), dobsErr)
-	logger.Infof("Object store deleted successfully")
+	assert.Nil(s.T(), dobsErr)
+	logger.Infof("Done deleting object store")
 }
 
 // Test Object StoreCreation on Rook that was installed via helm
@@ -167,17 +182,17 @@ func objectTestDataCleanUp(helper *clients.TestClient, k8sh *utils.K8sHelper, na
 	helper.ObjectClient.DeleteUser(storeName, userid)*/
 }
 
-func getBucket(bucketname string, bucketList []rgwdaemon.ObjectBucket) (rgwdaemon.ObjectBucket, error) {
+func getBucket(bucketname string, bucketList []rgw.ObjectBucket) (rgw.ObjectBucket, error) {
 	for _, bucket := range bucketList {
 		if bucket.Name == bucketname {
 			return bucket, nil
 		}
 	}
 
-	return rgwdaemon.ObjectBucket{}, errors.New("Bucket not found")
+	return rgw.ObjectBucket{}, errors.New("Bucket not found")
 }
 
-func getBucketSizeAndObjects(bucketname string, bucketList []rgwdaemon.ObjectBucket) (uint64, uint64, error) {
+func getBucketSizeAndObjects(bucketname string, bucketList []rgw.ObjectBucket) (uint64, uint64, error) {
 	bkt, err := getBucket(bucketname, bucketList)
 	if err != nil {
 		return 0, 0, errors.New("Bucket not found")

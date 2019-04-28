@@ -24,7 +24,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -128,7 +128,7 @@ func TestOnAddSimpleServer(t *testing.T) {
 	namespace := "rook-nfs-test"
 	nfsserver := &nfsv1alpha1.NFSServer{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "nfs-server-X",
+			Name:      appName,
 			Namespace: namespace,
 		},
 		Spec: nfsv1alpha1.NFSServerSpec{
@@ -185,20 +185,20 @@ func onAdd(t *testing.T, namespace string, nfsServer *nfsv1alpha1.NFSServer, exp
 	controller.onAdd(nfsServer)
 
 	// verify client service
-	clientService, err := clientset.CoreV1().Services(namespace).Get(appName, metav1.GetOptions{})
+	clientService, err := clientset.CoreV1().Services(namespace).Get(nfsserver.GetName(), metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.NotNil(t, clientService)
 	assert.Equal(t, v1.ServiceTypeClusterIP, clientService.Spec.Type)
 
 	// verify nfs-ganesha config in the configmap
-	configMap, err := clientset.CoreV1().ConfigMaps(namespace).Get(nfsConfigMapName, metav1.GetOptions{})
+	configMap, err := clientset.CoreV1().ConfigMaps(namespace).Get(nfsserver.GetName(), metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.NotNil(t, configMap)
 
 	assert.Equal(t, expectedConfig, configMap.Data[nfsConfigMapName])
 
 	// verify stateful set
-	ss, err := clientset.AppsV1beta1().StatefulSets(namespace).Get(appName, metav1.GetOptions{})
+	ss, err := clientset.AppsV1().StatefulSets(namespace).Get(appName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.NotNil(t, ss)
 	assert.Equal(t, int32(1), *ss.Spec.Replicas)

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# the latest mimic release is the base image
+# see Makefile for the BASEIMAGE definition
 FROM BASEIMAGE
 
 ARG ARCH
@@ -23,6 +23,7 @@ RUN curl --fail -sSL -o /tini https://github.com/krallin/tini/releases/download/
     chmod +x /tini
 
 COPY rook rookflex toolbox.sh /usr/local/bin/
+COPY ceph-csi /etc/ceph-csi
 
 ENTRYPOINT ["/tini", "--", "/usr/local/bin/rook"]
 CMD [""]
