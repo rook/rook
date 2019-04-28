@@ -7,7 +7,7 @@ At a high level the release workflow is as follows:
 1. Jenkins CI will build, publish and test every commit from master
 2. Integration testing happens on a build that is a candidate for release.
 3. If all goes well we tag the release and create a new release branch if needed.
-4. Depending on the stability and feedback from the field, we might promote the build to beta and stable channels.
+4. Each release build will be promoted to the release channel.
 
 Jenkins has all the jobs to do the release -- there is no need to perform any of the release tasks on a build/dev machine.
 

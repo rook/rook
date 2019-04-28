@@ -21,7 +21,7 @@ include ../makelib/helm.mk
 # Options
 
 CHANNEL ?= master
-ifeq ($(filter master alpha beta stable,$(CHANNEL)),)
+ifeq ($(filter master release,$(CHANNEL)),)
 $(error invalid channel $(CHANNEL))
 endif
 
@@ -131,7 +131,7 @@ HELM_TEMP := $(shell mktemp -d)
 HELM_URL := $(HELM_BASE_URL)/$(CHANNEL)
 
 promote.helm: $(HELM)
-#	copy existing charts to a temp dir, the combine with new charts, reindex, and upload
+#	copy existing charts to a temp dir, then combine with new charts, reindex, and upload
 	@$(S3_SYNC) s3://$(HELM_S3_BUCKET)/$(CHANNEL) $(HELM_TEMP)
 	@$(S3_SYNC) s3://$(S3_BUCKET)/build/$(BRANCH_NAME)/$(VERSION)/charts $(HELM_TEMP)
 	@$(HELM) repo index --url $(HELM_URL) $(HELM_TEMP)
@@ -205,7 +205,7 @@ help:
 	@echo '    VERSION      Sets the release version.'
 	@echo '    BRANCH_NAME  Name of the branch we're releasing from.'
 	@echo '    CHANNEL      Sets the release channel. Can be set to master,'
-	@echo '                 alpha, beta, or stable. Default is not set.'
+	@echo '                 or release. Default is not set.'
 	@echo '    PLATFORMS    The supported platforms to build when running.'
 	@echo '                 the build.all target. The default is'
 	@echo '                 all supported platforms'

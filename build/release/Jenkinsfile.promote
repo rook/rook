@@ -9,8 +9,8 @@ pipeline {
     }
 
     parameters {
-        string(name: 'version', defaultValue: '', description: 'The version you are releasing, for example, v0.5.0')
-        string(name: 'channel', defaultValue: 'alpha', description: 'The channel, for example, alpha.')
+        string(name: 'version', defaultValue: '', description: 'The version you are releasing, for example, v1.0.0')
+        string(name: 'channel', defaultValue: 'release', description: 'Only the release channel is supported.')
     }
 
     stages {
