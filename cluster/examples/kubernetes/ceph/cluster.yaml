@@ -32,6 +32,10 @@ spec:
   mon:
     count: 3
     allowMultiplePerNode: false
+  # set the amount of mgrs to be started, the maximum number of mgr.count is 2
+  mgr:
+    count: 2
+    allowMultiplePerNode: false
   # enable the ceph dashboard for viewing cluster status
   dashboard:
     enabled: true

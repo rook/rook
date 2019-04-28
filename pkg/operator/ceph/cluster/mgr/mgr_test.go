@@ -62,6 +62,8 @@ func TestStartMGR(t *testing.T) {
 		rookalpha.Placement{},
 		rookalpha.Annotations{},
 		false,
+		1,
+		false,
 		cephv1.DashboardSpec{Enabled: true},
 		v1.ResourceRequirements{},
 		metav1.OwnerReference{},

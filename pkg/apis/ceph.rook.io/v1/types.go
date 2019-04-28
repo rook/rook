@@ -72,6 +72,9 @@ type ClusterSpec struct {
 	// A spec for mon related options
 	Mon MonSpec `json:"mon"`
 
+	// A spec for mgr related options
+	Mgr MgrSpec `json:"mgr"`
+
 	// A spec for rbd mirroring
 	RBDMirroring RBDMirroringSpec `json:"rbdMirroring"`
 
@@ -129,6 +132,12 @@ const (
 )
 
 type MonSpec struct {
+	Count                int  `json:"count"`
+	PreferredCount       int  `json:"preferredCount"`
+	AllowMultiplePerNode bool `json:"allowMultiplePerNode"`
+}
+
+type MgrSpec struct {
 	Count                int  `json:"count"`
 	PreferredCount       int  `json:"preferredCount"`
 	AllowMultiplePerNode bool `json:"allowMultiplePerNode"`

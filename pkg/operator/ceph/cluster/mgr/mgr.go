@@ -47,21 +47,22 @@ const (
 
 // Cluster represents the Rook and environment configuration settings needed to set up Ceph mgrs.
 type Cluster struct {
-	clusterInfo     *cephconfig.ClusterInfo
-	Namespace       string
-	Replicas        int
-	placement       rookalpha.Placement
-	annotations     rookalpha.Annotations
-	context         *clusterd.Context
-	dataDir         string
-	HostNetwork     bool
-	resources       v1.ResourceRequirements
-	ownerRef        metav1.OwnerReference
-	dashboard       cephv1.DashboardSpec
-	cephVersion     cephv1.CephVersionSpec
-	rookVersion     string
-	exitCode        func(err error) (int, bool)
-	dataDirHostPath string
+	clusterInfo          *cephconfig.ClusterInfo
+	Namespace            string
+	Replicas             int
+	allowMultiplePerNode bool
+	placement            rookalpha.Placement
+	annotations          rookalpha.Annotations
+	context              *clusterd.Context
+	dataDir              string
+	HostNetwork          bool
+	resources            v1.ResourceRequirements
+	ownerRef             metav1.OwnerReference
+	dashboard            cephv1.DashboardSpec
+	cephVersion          cephv1.CephVersionSpec
+	rookVersion          string
+	exitCode             func(err error) (int, bool)
+	dataDirHostPath      string
 }
 
 // New creates an instance of the mgr
@@ -73,26 +74,29 @@ func New(
 	placement rookalpha.Placement,
 	annotations rookalpha.Annotations,
 	hostNetwork bool,
+	mgrCount int,
+	mgrAllowMultiplePerNode bool,
 	dashboard cephv1.DashboardSpec,
 	resources v1.ResourceRequirements,
 	ownerRef metav1.OwnerReference,
 	dataDirHostPath string,
 ) *Cluster {
 	return &Cluster{
-		clusterInfo:     clusterInfo,
-		context:         context,
-		Namespace:       namespace,
-		placement:       placement,
-		rookVersion:     rookVersion,
-		cephVersion:     cephVersion,
-		Replicas:        1,
-		dataDir:         k8sutil.DataDir,
-		dashboard:       dashboard,
-		HostNetwork:     hostNetwork,
-		resources:       resources,
-		ownerRef:        ownerRef,
-		exitCode:        getExitCode,
-		dataDirHostPath: dataDirHostPath,
+		clusterInfo:          clusterInfo,
+		context:              context,
+		Namespace:            namespace,
+		placement:            placement,
+		rookVersion:          rookVersion,
+		cephVersion:          cephVersion,
+		Replicas:             mgrCount,
+		allowMultiplePerNode: mgrAllowMultiplePerNode,
+		dataDir:              k8sutil.DataDir,
+		dashboard:            dashboard,
+		HostNetwork:          hostNetwork,
+		resources:            resources,
+		ownerRef:             ownerRef,
+		exitCode:             getExitCode,
+		dataDirHostPath:      dataDirHostPath,
 	}
 }
 
@@ -104,6 +108,11 @@ func (c *Cluster) Start() error {
 	err := opspec.CheckPodMemory(c.resources, cephMgrPodMinimumMemory)
 	if err != nil {
 		return fmt.Errorf("%v", err)
+	}
+
+	// fail if we were instructed to deploy more than one mgr on the same machine with host networking
+	if c.HostNetwork && c.allowMultiplePerNode && c.Replicas > 1 {
+		return fmt.Errorf("refusing to deploy %d managers on the same host since hostNetwork is %v and allowMultiplePerNode is %v. Only one manager per node is allowed", c.Replicas, c.HostNetwork, c.allowMultiplePerNode)
 	}
 
 	logger.Infof("start running mgr")

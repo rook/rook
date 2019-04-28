@@ -43,6 +43,8 @@ func TestPodSpec(t *testing.T) {
 		rookalpha.Placement{},
 		rookalpha.Annotations{},
 		false,
+		1,
+		false,
 		cephv1.DashboardSpec{},
 		v1.ResourceRequirements{
 			Limits: v1.ResourceList{
@@ -91,6 +93,8 @@ func TestServiceSpec(t *testing.T) {
 		rookalpha.Placement{},
 		rookalpha.Annotations{},
 		false,
+		1,
+		false,
 		cephv1.DashboardSpec{},
 		v1.ResourceRequirements{},
 		metav1.OwnerReference{},
@@ -114,6 +118,8 @@ func TestHostNetwork(t *testing.T) {
 		rookalpha.Placement{},
 		rookalpha.Annotations{},
 		true,
+		1,
+		false,
 		cephv1.DashboardSpec{},
 		v1.ResourceRequirements{},
 		metav1.OwnerReference{},
