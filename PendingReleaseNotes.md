@@ -35,6 +35,7 @@
 - `rook-version` and `ceph-version` labels are now applied to Ceph daemon Deployments, DaemonSets,
   Jobs, and StatefulSets. These identify the Rook version which last modified the resource and the
   Ceph version which Rook has detected in the pod(s) being run by the resource.
+- OSDs provisioned by `ceph-volume` now supports `metadataDevice` and `databaseSizeMB` options.
 
 ## Breaking Changes
 
