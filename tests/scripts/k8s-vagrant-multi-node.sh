@@ -13,7 +13,7 @@ function init() {
         # checkout latest tag of the repo initially after clone
         git -C "${REPO_DIR}" checkout "$(git describe --tags `git rev-list --tags --max-count=1`)"
     else
-        git -C "${REPO_DIR}" pull || { echo "git pull failed with exit code $?. continuing as the repo is already there ..." }
+        git -C "${REPO_DIR}" pull || { echo "git pull failed with exit code $?. continuing as the repo is already there ..."; }
     fi
 }
 
