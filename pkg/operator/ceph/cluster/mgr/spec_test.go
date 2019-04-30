@@ -25,6 +25,7 @@ import (
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	cephtest "github.com/rook/rook/pkg/operator/ceph/test"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	optest "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -132,4 +133,68 @@ func TestHostNetwork(t *testing.T) {
 
 	assert.Equal(t, true, d.Spec.Template.Spec.HostNetwork)
 	assert.Equal(t, v1.DNSClusterFirstWithHostNet, d.Spec.Template.Spec.DNSPolicy)
+}
+
+func TestHttpBindFix(t *testing.T) {
+	clusterInfo := &cephconfig.ClusterInfo{FSID: "myfsid"}
+	c := New(
+		clusterInfo,
+		&clusterd.Context{Clientset: optest.New(1)},
+		"ns",
+		"myversion",
+		cephv1.CephVersionSpec{},
+		rookalpha.Placement{},
+		rookalpha.Annotations{},
+		true,
+		cephv1.DashboardSpec{},
+		v1.ResourceRequirements{},
+		metav1.OwnerReference{},
+		"/var/lib/rook/",
+	)
+
+	mgrTestConfig := mgrConfig{
+		DaemonID:      "a",
+		ResourceName:  "mgr-a",
+		DashboardPort: 1234,
+		DataPathMap:   config.NewStatelessDaemonDataPathMap(config.MgrType, "a", "rook-ceph", "/var/lib/rook/"),
+	}
+
+	vers := []struct {
+		hasFix bool
+		ver    cephver.CephVersion
+	}{
+		// versions before the fix was introduced
+		{hasFix: false, ver: cephver.CephVersion{Major: 11, Minor: 2, Extra: 1}},
+		{hasFix: false, ver: cephver.CephVersion{Major: 12, Minor: 2, Extra: 11}},
+		{hasFix: false, ver: cephver.CephVersion{Major: 13, Minor: 2, Extra: 5}},
+		{hasFix: false, ver: cephver.CephVersion{Major: 14, Minor: 1, Extra: 0}},
+
+		// versions when the fix was introduced
+		{hasFix: true, ver: cephver.CephVersion{Major: 12, Minor: 2, Extra: 12}},
+		{hasFix: true, ver: cephver.CephVersion{Major: 13, Minor: 2, Extra: 6}},
+		{hasFix: true, ver: cephver.CephVersion{Major: 14, Minor: 1, Extra: 1}},
+
+		// versions after the fix
+		{hasFix: true, ver: cephver.CephVersion{Major: 12, Minor: 2, Extra: 13}},
+		{hasFix: true, ver: cephver.CephVersion{Major: 13, Minor: 2, Extra: 7}},
+		{hasFix: true, ver: cephver.CephVersion{Major: 14, Minor: 1, Extra: 2}},
+		{hasFix: true, ver: cephver.CephVersion{Major: 15, Minor: 2, Extra: 0}},
+	}
+
+	for _, test := range vers {
+		c.clusterInfo.CephVersion = test.ver
+
+		expectedInitContainers := 0
+		if c.clusterInfo.CephVersion.IsLuminous() {
+			expectedInitContainers += 1
+		}
+		if !test.hasFix {
+			expectedInitContainers += 2
+		}
+
+		d := c.makeDeployment(&mgrTestConfig)
+		assert.NotNil(t, d)
+		assert.Equal(t, expectedInitContainers,
+			len(d.Spec.Template.Spec.InitContainers))
+	}
 }
