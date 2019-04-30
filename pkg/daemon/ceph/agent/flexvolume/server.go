@@ -28,8 +28,6 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/apimachinery/pkg/util/version"
-
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -43,7 +41,6 @@ const (
 	flexvolumeDriverFileName = "rookflex"
 	flexMountPath            = "/flexmnt/%s~%s"
 	usrBinDir                = "/usr/local/bin/"
-	serverVersionV180        = "v1.8.0"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "flexvolume")
@@ -102,12 +99,6 @@ func (s *FlexvolumeServer) Start(driverVendor, driverName string) error {
 	go rpc.Accept(listener)
 
 	logger.Infof("Listening on unix socket for Kubernetes volume attach commands: %s", unixSocketFile)
-
-	// flexvolume driver was installed OK.  If running on pre 1.8 Kubernetes, then remind the user
-	// to restart the Kubelet. We do this last so that it's the last message in the log, making it
-	// harder for the user to miss.
-	checkIfKubeletRestartRequired(s.context)
-
 	return nil
 }
 
@@ -130,19 +121,9 @@ func (s *FlexvolumeServer) StopAll() {
 
 // RookDriverName return the Kubernetes version appropriate Rook driver name
 func RookDriverName(context *clusterd.Context) (string, error) {
-	kubeVersion, err := k8sutil.GetK8SVersion(context.Clientset)
-	if err != nil {
-		return "", fmt.Errorf("Error getting server version: %v", err)
-	}
-	// K8s 1.7 returns an error when trying to run multiple drivers under the same rook.io provider,
-	// so we will fall back to the rook driver name in that case.
-	if kubeVersion.AtLeast(version.MustParseSemantic(serverVersionV180)) {
-		// the driver name needs to be the same as the namespace so that we can support multiple namespaces
-		// without the drivers conflicting with each other
-		return os.Getenv(k8sutil.PodNamespaceEnvVar), nil
-	}
-	// fall back to the rook driver name where multiple system namespaces are not supported
-	return FlexDriverName, nil
+	// the driver name needs to be the same as the namespace so that we can support multiple namespaces
+	// without the drivers conflicting with each other
+	return os.Getenv(k8sutil.PodNamespaceEnvVar), nil
 }
 
 // TouchFlexDrivers causes k8s to reload the flex volumes. Needed periodically due to a k8s race condition with flex driver loading.
@@ -208,15 +189,6 @@ func copyFile(src, dest string) error {
 		return fmt.Errorf("error copying file from %s to %s: %v", src, dest, err)
 	}
 	return destFile.Sync()
-}
-
-func checkIfKubeletRestartRequired(context *clusterd.Context) {
-	kubeVersion, err := k8sutil.GetK8SVersion(context.Clientset)
-	if err != nil || kubeVersion.LessThan(version.MustParseSemantic(serverVersionV180)) {
-		logger.Warning("NOTE: The Kubelet must be restarted on this node since this pod appears to " +
-			"be running on a Kubernetes version prior to 1.8. More details can be found in the Rook docs at " +
-			"https://rook.io/docs/rook/master/common-issues.html#kubelet-restart")
-	}
 }
 
 // Gets the flex driver info (vendor, driver name) from a given path where the flex driver exists.
