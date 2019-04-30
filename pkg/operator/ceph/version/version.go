@@ -103,9 +103,14 @@ func (v *CephVersion) isRelease(other CephVersion) bool {
 	return v.Major == other.Major
 }
 
-// IsLuminous checks if the Ceph version if Luminous
+// IsLuminous checks if the Ceph version is Luminous
 func (v *CephVersion) IsLuminous() bool {
 	return v.isRelease(Luminous)
+}
+
+// IsMimic checks if the Ceph version is Mimic
+func (v *CephVersion) IsMimic() bool {
+	return v.isRelease(Mimic)
 }
 
 // IsAtLeast checks a given Ceph version is at least a given one

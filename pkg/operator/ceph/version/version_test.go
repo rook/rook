@@ -117,6 +117,12 @@ func TestIsReleaseX(t *testing.T) {
 	assert.True(t, Luminous.IsLuminous())
 	assert.False(t, Mimic.IsLuminous())
 	assert.False(t, Nautilus.IsLuminous())
+	assert.False(t, Octopus.IsLuminous())
+
+	assert.False(t, Luminous.IsMimic())
+	assert.True(t, Mimic.IsMimic())
+	assert.False(t, Nautilus.IsMimic())
+	assert.False(t, Octopus.IsMimic())
 }
 
 func TestVersionAtLeast(t *testing.T) {
