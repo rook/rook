@@ -18,12 +18,15 @@ limitations under the License.
 package flexvolume
 
 import (
+	"encoding/json"
 	"io/ioutil"
 	"os"
 	"path"
 	"testing"
 
+	"github.com/rook/rook/pkg/operator/ceph/agent"
 	"github.com/stretchr/testify/assert"
+	"k8s.io/kubernetes/pkg/volume/flexvolume"
 )
 
 func TestConfigureFlexVolume(t *testing.T) {
@@ -35,10 +38,22 @@ func TestConfigureFlexVolume(t *testing.T) {
 	driverName := "rook"
 	os.Setenv("POD_NAMESPACE", driverName)
 	defer os.Setenv("POD_NAMESPACE", "")
+	os.Setenv(agent.RookEnableSelinuxRelabelingEnv, "false")
+	defer os.Setenv(agent.RookEnableSelinuxRelabelingEnv, "")
+	os.Setenv(agent.RookEnableFSGroupEnv, "false")
+	defer os.Setenv(agent.RookEnableFSGroupEnv, "")
 	err := configureFlexVolume(driverFile, driverDir, driverName)
 	assert.Nil(t, err)
 	_, err = os.Stat(path.Join(driverDir, "rook"))
 	assert.False(t, os.IsNotExist(err))
+
+	// verify the non-default settings
+	settings := LoadFlexSettings(driverDir)
+	var status flexvolume.DriverStatus
+	err = json.Unmarshal(settings, &status)
+	assert.Nil(t, err)
+	assert.False(t, status.Capabilities.FSGroup)
+	assert.False(t, status.Capabilities.SELinuxRelabel)
 }
 
 func TestGetFlexDriverInfo(t *testing.T) {

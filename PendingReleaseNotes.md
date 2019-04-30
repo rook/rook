@@ -36,6 +36,7 @@
   Jobs, and StatefulSets. These identify the Rook version which last modified the resource and the
   Ceph version which Rook has detected in the pod(s) being run by the resource.
 - OSDs provisioned by `ceph-volume` now supports `metadataDevice` and `databaseSizeMB` options.
+- The flex driver can be configured to properly disable SELinux relabeling and FSGroup with the settings in operator.yaml.
 
 ## Breaking Changes
 

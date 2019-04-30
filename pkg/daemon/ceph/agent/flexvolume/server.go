@@ -18,21 +18,24 @@ limitations under the License.
 package flexvolume
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/rpc"
 	"os"
 	"path"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
-	"k8s.io/apimachinery/pkg/util/version"
-
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/operator/ceph/agent"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"k8s.io/kubernetes/pkg/volume/flexvolume"
 )
 
 const (
@@ -43,7 +46,7 @@ const (
 	flexvolumeDriverFileName = "rookflex"
 	flexMountPath            = "/flexmnt/%s~%s"
 	usrBinDir                = "/usr/local/bin/"
-	serverVersionV180        = "v1.8.0"
+	settingsFilename         = "flex.config"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "flexvolume")
@@ -102,12 +105,6 @@ func (s *FlexvolumeServer) Start(driverVendor, driverName string) error {
 	go rpc.Accept(listener)
 
 	logger.Infof("Listening on unix socket for Kubernetes volume attach commands: %s", unixSocketFile)
-
-	// flexvolume driver was installed OK.  If running on pre 1.8 Kubernetes, then remind the user
-	// to restart the Kubelet. We do this last so that it's the last message in the log, making it
-	// harder for the user to miss.
-	checkIfKubeletRestartRequired(s.context)
-
 	return nil
 }
 
@@ -130,19 +127,9 @@ func (s *FlexvolumeServer) StopAll() {
 
 // RookDriverName return the Kubernetes version appropriate Rook driver name
 func RookDriverName(context *clusterd.Context) (string, error) {
-	kubeVersion, err := k8sutil.GetK8SVersion(context.Clientset)
-	if err != nil {
-		return "", fmt.Errorf("Error getting server version: %v", err)
-	}
-	// K8s 1.7 returns an error when trying to run multiple drivers under the same rook.io provider,
-	// so we will fall back to the rook driver name in that case.
-	if kubeVersion.AtLeast(version.MustParseSemantic(serverVersionV180)) {
-		// the driver name needs to be the same as the namespace so that we can support multiple namespaces
-		// without the drivers conflicting with each other
-		return os.Getenv(k8sutil.PodNamespaceEnvVar), nil
-	}
-	// fall back to the rook driver name where multiple system namespaces are not supported
-	return FlexDriverName, nil
+	// the driver name needs to be the same as the namespace so that we can support multiple namespaces
+	// without the drivers conflicting with each other
+	return os.Getenv(k8sutil.PodNamespaceEnvVar), nil
 }
 
 // TouchFlexDrivers causes k8s to reload the flex volumes. Needed periodically due to a k8s race condition with flex driver loading.
@@ -155,6 +142,49 @@ func TouchFlexDrivers(vendor, driverName string) {
 	if err != nil {
 		logger.Warningf("failed to touch file %s", filename)
 	}
+}
+
+// Encode the flex settings in json
+func generateFlexSettings(enableSELinuxRelabeling, enableFSGroup bool) ([]byte, error) {
+	status := flexvolume.DriverStatus{
+		Status: flexvolume.StatusSuccess,
+		Capabilities: &flexvolume.DriverCapabilities{
+			Attach: false,
+			// Required for any mount performed on a host running selinux
+			SELinuxRelabel: enableSELinuxRelabeling,
+			FSGroup:        enableFSGroup,
+		},
+	}
+	result, err := json.Marshal(status)
+	if err != nil {
+		return nil, fmt.Errorf("Invalid flex settings. %+v", err)
+	}
+	return result, nil
+}
+
+// The flex settings must be loaded from a file next to the flex driver since there is context
+// that can be used other than the directory where the flex driver is running.
+// This method cannot write to stdout since it is running in the context of the kubelet
+// which only expects the json settings to be output.
+func LoadFlexSettings(directory string) []byte {
+	// Load the settings from the expected config file, ensure they are valid settings, then return them in
+	// a json string to the caller
+	var status flexvolume.DriverStatus
+	if output, err := ioutil.ReadFile(path.Join(directory, settingsFilename)); err == nil {
+		if err := json.Unmarshal(output, &status); err == nil {
+			if output, err = json.Marshal(status); err == nil {
+				return output
+			}
+		}
+	}
+
+	// If there is an error loading settings, set the defaults
+	settings, err := generateFlexSettings(true, true)
+	if err != nil {
+		// Never expect this to happen since we'll validate settings in the build
+		return nil
+	}
+	return settings
 }
 
 func configureFlexVolume(driverFile, driverDir, driverName string) error {
@@ -187,6 +217,28 @@ func configureFlexVolume(driverFile, driverDir, driverName string) error {
 		return fmt.Errorf("failed to rename %s to %s: %+v", destFile, finalDestFile, err)
 	}
 
+	// Write the flex configuration
+	enableSELinuxRelabeling, err := strconv.ParseBool(os.Getenv(agent.RookEnableSelinuxRelabelingEnv))
+	if err != nil {
+		logger.Errorf("invalid value for disabling SELinux relabeling. %+v", err)
+		enableSELinuxRelabeling = true
+	}
+	enableFSGroup, err := strconv.ParseBool(os.Getenv(agent.RookEnableFSGroupEnv))
+	if err != nil {
+		logger.Errorf("invalid value for disabling fs group. %+v", err)
+		enableFSGroup = true
+	}
+	settings, err := generateFlexSettings(enableSELinuxRelabeling, enableFSGroup)
+	if err != nil {
+		logger.Errorf("invalid flex settings. %+v", err)
+	} else {
+		if err := ioutil.WriteFile(path.Join(driverDir, settingsFilename), settings, 0644); err != nil {
+			logger.Errorf("failed to write settings file %s. %+v", settingsFilename, err)
+		} else {
+			logger.Debugf("flex settings: %s", string(settings))
+		}
+	}
+
 	return nil
 }
 
@@ -208,15 +260,6 @@ func copyFile(src, dest string) error {
 		return fmt.Errorf("error copying file from %s to %s: %v", src, dest, err)
 	}
 	return destFile.Sync()
-}
-
-func checkIfKubeletRestartRequired(context *clusterd.Context) {
-	kubeVersion, err := k8sutil.GetK8SVersion(context.Clientset)
-	if err != nil || kubeVersion.LessThan(version.MustParseSemantic(serverVersionV180)) {
-		logger.Warning("NOTE: The Kubelet must be restarted on this node since this pod appears to " +
-			"be running on a Kubernetes version prior to 1.8. More details can be found in the Rook docs at " +
-			"https://rook.io/docs/rook/master/common-issues.html#kubelet-restart")
-	}
 }
 
 // Gets the flex driver info (vendor, driver name) from a given path where the flex driver exists.
