@@ -19,8 +19,6 @@ package integration
 import (
 	"errors"
 
-	"time"
-
 	rgw "github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/utils"
@@ -53,7 +51,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	require.Nil(s.T(), cobsErr)
 	logger.Infof("Object store created successfully")
 
-	logger.Infof("Step 1 : Create Object Store User")
+	/*logger.Infof("Step 1 : Create Object Store User")
 	cosuErr := helper.ObjectUserClient.Create(namespace, userid, userdisplayname, storeName)
 	require.Nil(s.T(), cosuErr)
 	logger.Infof("Waiting 10 seconds to ensure user was created")
@@ -70,7 +68,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	assert.Equal(s.T(), userid, userInfo.UserID)
 	assert.Equal(s.T(), userdisplayname, *userInfo.DisplayName)
 
-	logger.Infof("Done creating object store user")
+	logger.Infof("Done creating object store user")*/
 
 	/* TODO: We need bucket management tests.
 
@@ -126,7 +124,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 
 	*/ // End of object operation tests
 
-	logger.Infof("Step 2 : Test Deleting User")
+	/*logger.Infof("Step 2 : Test Deleting User")
 	dosuErr := helper.ObjectUserClient.Delete(namespace, userid)
 	require.Nil(s.T(), dosuErr)
 	logger.Infof("Object store user deleted successfully")
@@ -136,7 +134,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 		logger.Infof("(%d) secret check sleeping for 5 seconds ...", i)
 		time.Sleep(5 * time.Second)
 	}
-	assert.False(s.T(), helper.ObjectUserClient.UserSecretExists(namespace, storeName, userid))
+	assert.False(s.T(), helper.ObjectUserClient.UserSecretExists(namespace, storeName, userid))*/
 
 	logger.Infof("Check that MGRs are not in a crashloop")
 	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-ceph-mgr", namespace, 1, "Running"))

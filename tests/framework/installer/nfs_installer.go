@@ -130,7 +130,7 @@ func (h *NFSInstaller) CreateNFSServer(namespace string, count int, storageClass
 
 // CreateNFSServerVolume creates NFS export PV and PVC
 func (h *NFSInstaller) CreateNFSServerVolume(namespace string) error {
-	logger.Info("creating volume from nfs server in namespace %s", namespace)
+	logger.Infof("creating volume from nfs server in namespace %s", namespace)
 
 	nfsServerPVC := h.manifests.GetNFSServerPVC(namespace)
 
