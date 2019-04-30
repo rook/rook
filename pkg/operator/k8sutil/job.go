@@ -29,14 +29,15 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-func RunReplaceableJob(clientset kubernetes.Interface, job *batch.Job) error {
+func RunReplaceableJob(clientset kubernetes.Interface, job *batch.Job, deleteIfFound bool) error {
 	// check if the job was already created and what its status is
 	existingJob, err := clientset.BatchV1().Jobs(job.Namespace).Get(job.Name, metav1.GetOptions{})
 	if err != nil && !errors.IsNotFound(err) {
 		logger.Warningf("failed to detect job %s. %+v", job.Name, err)
 	} else if err == nil {
-		// if the job is still running, allow it to continue to completion
-		if existingJob.Status.Active > 0 {
+		// if the job is still running, and the caller has not asked for deletion,
+		// allow it to continue to completion
+		if existingJob.Status.Active > 0 && !deleteIfFound {
 			logger.Infof("Found previous job %s. Status=%+v", job.Name, existingJob.Status)
 			return nil
 		}
