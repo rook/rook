@@ -79,7 +79,7 @@ If this value is empty, each pod will get an ephemeral directory to store their 
 - `devicesResurrectMode`: When enabled, this mode attempts to recreate cluster based on previous CRD definition. If this flag set to one of the parameters, then operator will only adjust networking. Often used when clean up of old devices is needed. Only applicable when used with `dataDirHostPath`.
   - `restore`: Attempt to restart and restore previously enabled cluster CRD.
   - `restoreZap`: Attempt to re-initialize previously selected `devices` prior to restore. By default cluster assumes that selected devices have no logical partitions and considered empty.
-  - `restoreZapWait`: Attempt to cleanup previously selected `devices` and wait for cluster delete. This is useful when clean up of old devices is needed.
+  - `restoreZapWait`: Attempt to cleanup previously selected `devices` and wait for cluster delete. This is useful when clean up of old devices is needed. Additional containers count should be specified if cluster was originally created with a total per-node capacity that exceeding `maxContainerCapacity` option, e.g., `devicesResurrectMode: "restoreZapWait: 2"`.
 - `serviceAccount`: The service account under which the EdgeFS pods will run that will give access to ConfigMaps in the cluster's namespace. If not set, the default of `rook-edgefs-cluster` will be used.
 - `chunkCacheSize`: Limit amount of memory allocated for dynamic chunk cache. By default Target pod uses up to 75% of available memory as chunk caching area. This option can influence this allocation strategy.
 - `placement`: [placement configuration settings](#placement-configuration-settings)

@@ -41,4 +41,5 @@ type DevicesResurrectOptions struct {
 	NeedToResurrect bool
 	NeedToZap       bool
 	NeedToWait      bool
+	SlaveContainers int
 }

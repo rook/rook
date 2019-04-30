@@ -18,6 +18,7 @@ package cluster
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -40,12 +41,23 @@ const (
 	nodeTypeLabelFmt = "%s-nodetype"
 )
 
+// ParseDevicesResurrectMode parse resurrect options string. String format "restore|restorezap|restorezapwait:<SlaveContainersCount>":
 func ParseDevicesResurrectMode(resurrectMode string) edgefsv1beta1.DevicesResurrectOptions {
 	drm := edgefsv1beta1.DevicesResurrectOptions{}
 	if len(resurrectMode) == 0 {
 		return drm
 	}
-	resurrectModeToLower := strings.ToLower(strings.TrimSpace(resurrectMode))
+
+	resurrectModeParts := strings.Split(resurrectMode, ":")
+	if len(resurrectModeParts) > 1 {
+		cntCount, err := strconv.Atoi(strings.TrimSpace(resurrectModeParts[1]))
+		if err == nil {
+			drm.SlaveContainers = cntCount
+		}
+	}
+
+	resurrectModeToLower := strings.ToLower(strings.TrimSpace(resurrectModeParts[0]))
+
 	switch resurrectModeToLower {
 	case "restore":
 		drm.NeedToResurrect = true
@@ -88,7 +100,7 @@ func (c *cluster) getClusterNodes() ([]rookalpha.Node, error) {
 
 func (c *cluster) createDeploymentConfig(nodes []rookalpha.Node, resurrect bool) (edgefsv1beta1.ClusterDeploymentConfig, error) {
 	deploymentConfig := edgefsv1beta1.ClusterDeploymentConfig{DevConfig: make(map[string]edgefsv1beta1.DevicesConfig, 0)}
-	//Fill deploymentConfig devices struct
+	// Fill deploymentConfig devices struct
 	for _, node := range nodes {
 		n := c.resolveNode(node.Name)
 		storeConfig := config.ToStoreConfig(n.Config)
@@ -139,12 +151,13 @@ func (c *cluster) createDeploymentConfig(nodes []rookalpha.Node, resurrect bool)
 			logger.Warningf("Can't get rtDevices for node %s due %v", n.Name, err)
 			rtDevices = make([]edgefsv1beta1.RTDevices, 1)
 		}
-
-		devicesConfig.Rtrd.Devices = rtDevices[0].Devices
-		// append to RtrdSlaves in case of additional containers
-		if len(rtDevices) > 1 {
-			devicesConfig.RtrdSlaves = make([]edgefsv1beta1.RTDevices, len(rtDevices)-1)
-			devicesConfig.RtrdSlaves = rtDevices[1:]
+		if len(rtDevices) > 0 {
+			devicesConfig.Rtrd.Devices = rtDevices[0].Devices
+			// append to RtrdSlaves in case of additional containers
+			if len(rtDevices) > 1 {
+				devicesConfig.RtrdSlaves = make([]edgefsv1beta1.RTDevices, len(rtDevices)-1)
+				devicesConfig.RtrdSlaves = rtDevices[1:]
+			}
 		}
 		devicesConfig.Rtlfs.Devices = target.GetRtlfsDevices(c.Spec.Storage.Directories, &storeConfig)
 		deploymentConfig.DevConfig[node.Name] = devicesConfig
@@ -211,7 +224,7 @@ func (c *cluster) createDeploymentConfig(nodes []rookalpha.Node, resurrect bool)
 	return deploymentConfig, nil
 }
 
-// Validates containers count for each deployment node, container's count MUST be equal for for each node
+// ValidateSlaveContainers validates containers count for each deployment node, container's count MUST be equal for for each node
 func ValidateSlaveContainers(deploymentConfig *edgefsv1beta1.ClusterDeploymentConfig) error {
 
 	isFirstNode := true
@@ -235,7 +248,7 @@ func ValidateSlaveContainers(deploymentConfig *edgefsv1beta1.ClusterDeploymentCo
 	return nil
 }
 
-// Validates all nodes in cluster that each one has valid zone number or all of them has zone == 0
+// ValidateZones validates all nodes in cluster that each one has valid zone number or all of them has zone == 0
 func ValidateZones(deploymentConfig *edgefsv1beta1.ClusterDeploymentConfig) error {
 	validZonesFound := 0
 	for _, nodeDevConfig := range deploymentConfig.DevConfig {

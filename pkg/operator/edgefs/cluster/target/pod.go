@@ -404,8 +404,16 @@ func (c *Cluster) createPodSpec(rookImage string, dro edgefsv1beta1.DevicesResur
 			if devConfig.IsGatewayNode {
 				continue
 			}
+
+			rtrdContainersCount := 0
 			if len(devConfig.RtrdSlaves) > 0 {
-				for i := range devConfig.RtrdSlaves {
+				rtrdContainersCount = len(devConfig.RtrdSlaves)
+			} else {
+				rtrdContainersCount = dro.SlaveContainers
+			}
+
+			if rtrdContainersCount > 0 {
+				for i := 0; i < rtrdContainersCount; i++ {
 					if dro.NeedToZap {
 						initContainers = append(initContainers, c.makeDaemonContainer(rookImage, dro, true, i+1))
 					}
