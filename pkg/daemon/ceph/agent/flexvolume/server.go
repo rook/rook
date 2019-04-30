@@ -18,19 +18,24 @@ limitations under the License.
 package flexvolume
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/rpc"
 	"os"
 	"path"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/operator/ceph/agent"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"k8s.io/kubernetes/pkg/volume/flexvolume"
 )
 
 const (
@@ -41,6 +46,7 @@ const (
 	flexvolumeDriverFileName = "rookflex"
 	flexMountPath            = "/flexmnt/%s~%s"
 	usrBinDir                = "/usr/local/bin/"
+	settingsFilename         = "flex.config"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "flexvolume")
@@ -138,6 +144,49 @@ func TouchFlexDrivers(vendor, driverName string) {
 	}
 }
 
+// Encode the flex settings in json
+func generateFlexSettings(enableSELinuxRelabeling, enableFSGroup bool) ([]byte, error) {
+	status := flexvolume.DriverStatus{
+		Status: flexvolume.StatusSuccess,
+		Capabilities: &flexvolume.DriverCapabilities{
+			Attach: false,
+			// Required for any mount performed on a host running selinux
+			SELinuxRelabel: enableSELinuxRelabeling,
+			FSGroup:        enableFSGroup,
+		},
+	}
+	result, err := json.Marshal(status)
+	if err != nil {
+		return nil, fmt.Errorf("Invalid flex settings. %+v", err)
+	}
+	return result, nil
+}
+
+// The flex settings must be loaded from a file next to the flex driver since there is context
+// that can be used other than the directory where the flex driver is running.
+// This method cannot write to stdout since it is running in the context of the kubelet
+// which only expects the json settings to be output.
+func LoadFlexSettings(directory string) []byte {
+	// Load the settings from the expected config file, ensure they are valid settings, then return them in
+	// a json string to the caller
+	var status flexvolume.DriverStatus
+	if output, err := ioutil.ReadFile(path.Join(directory, settingsFilename)); err == nil {
+		if err := json.Unmarshal(output, &status); err == nil {
+			if output, err = json.Marshal(status); err == nil {
+				return output
+			}
+		}
+	}
+
+	// If there is an error loading settings, set the defaults
+	settings, err := generateFlexSettings(true, true)
+	if err != nil {
+		// Never expect this to happen since we'll validate settings in the build
+		return nil
+	}
+	return settings
+}
+
 func configureFlexVolume(driverFile, driverDir, driverName string) error {
 	// copying flex volume
 	if _, err := os.Stat(driverDir); os.IsNotExist(err) {
@@ -166,6 +215,28 @@ func configureFlexVolume(driverFile, driverDir, driverName string) error {
 
 	if err := os.Rename(destFile, finalDestFile); err != nil {
 		return fmt.Errorf("failed to rename %s to %s: %+v", destFile, finalDestFile, err)
+	}
+
+	// Write the flex configuration
+	enableSELinuxRelabeling, err := strconv.ParseBool(os.Getenv(agent.RookEnableSelinuxRelabelingEnv))
+	if err != nil {
+		logger.Errorf("invalid value for disabling SELinux relabeling. %+v", err)
+		enableSELinuxRelabeling = true
+	}
+	enableFSGroup, err := strconv.ParseBool(os.Getenv(agent.RookEnableFSGroupEnv))
+	if err != nil {
+		logger.Errorf("invalid value for disabling fs group. %+v", err)
+		enableFSGroup = true
+	}
+	settings, err := generateFlexSettings(enableSELinuxRelabeling, enableFSGroup)
+	if err != nil {
+		logger.Errorf("invalid flex settings. %+v", err)
+	} else {
+		if err := ioutil.WriteFile(path.Join(driverDir, settingsFilename), settings, 0644); err != nil {
+			logger.Errorf("failed to write settings file %s. %+v", settingsFilename, err)
+		} else {
+			logger.Debugf("flex settings: %s", string(settings))
+		}
 	}
 
 	return nil

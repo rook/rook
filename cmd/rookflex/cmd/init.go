@@ -17,13 +17,11 @@ limitations under the License.
 package cmd
 
 import (
-	"encoding/json"
 	"os"
-	"strconv"
+	"path/filepath"
 
-	"github.com/rook/rook/pkg/operator/ceph/agent"
+	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume"
 	"github.com/spf13/cobra"
-	"k8s.io/kubernetes/pkg/volume/flexvolume"
 )
 
 var (
@@ -39,28 +37,12 @@ func init() {
 }
 
 func initPlugin(cmd *cobra.Command, args []string) error {
-	rookEnableSelinuxRelabeling, err := strconv.ParseBool(os.Getenv(agent.RookEnableSelinuxRelabelingEnv))
+	executable, err := os.Executable()
 	if err != nil {
-		// Don't log any errors to stdout as this will break the init. Just default the value to true.
-		rookEnableSelinuxRelabeling = true
+		return err
 	}
-
-	rookEnableFSGroup, err := strconv.ParseBool(os.Getenv(agent.RookEnableFSGroupEnv))
-	if err != nil {
-		// Don't log any errors to stdout as this will break the init. Just default the value to true.
-		rookEnableFSGroup = true
-	}
-
-	status := flexvolume.DriverStatus{
-		Status: flexvolume.StatusSuccess,
-		Capabilities: &flexvolume.DriverCapabilities{
-			Attach: false,
-			// Required for any mount performed on a host running selinux
-			SELinuxRelabel: rookEnableSelinuxRelabeling,
-			FSGroup:        rookEnableFSGroup,
-		},
-	}
-	if err := json.NewEncoder(os.Stdout).Encode(&status); err != nil {
+	settings := flexvolume.LoadFlexSettings(filepath.Dir(executable))
+	if _, err := os.Stdout.WriteString(string(settings)); err != nil {
 		return err
 	}
 	os.Exit(0)
