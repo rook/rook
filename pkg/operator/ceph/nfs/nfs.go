@@ -173,7 +173,7 @@ func (c *CephNFSController) runGaneshaRadosGraceJob(n cephv1.CephNFS, name, acti
 	k8sutil.SetOwnerRef(c.context.Clientset, n.Namespace, &job.ObjectMeta, &c.ownerRef)
 
 	// run the job to detect the version
-	if err := k8sutil.RunReplaceableJob(c.context.Clientset, job); err != nil {
+	if err := k8sutil.RunReplaceableJob(c.context.Clientset, job, false); err != nil {
 		return fmt.Errorf("failed to start job %s. %+v", job.Name, err)
 	}
 

@@ -119,7 +119,7 @@ func (c *cluster) detectCephVersion(image string, timeout time.Duration) (*cephv
 	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &job.ObjectMeta, &c.ownerRef)
 
 	// run the job to detect the version
-	if err := k8sutil.RunReplaceableJob(c.context.Clientset, job); err != nil {
+	if err := k8sutil.RunReplaceableJob(c.context.Clientset, job, true); err != nil {
 		return nil, fmt.Errorf("failed to start version job. %+v", err)
 	}
 

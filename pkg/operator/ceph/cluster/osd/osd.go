@@ -242,7 +242,7 @@ func (c *Cluster) startProvisioning(config *provisionConfig) {
 }
 
 func (c *Cluster) runJob(job *batch.Job, nodeName string, config *provisionConfig, action string) bool {
-	if err := k8sutil.RunReplaceableJob(c.context.Clientset, job); err != nil {
+	if err := k8sutil.RunReplaceableJob(c.context.Clientset, job, false); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			// we failed to create job, update the orchestration status for this node
 			message := fmt.Sprintf("failed to create %s job for node %s. %+v", action, nodeName, err)
