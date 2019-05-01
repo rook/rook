@@ -315,6 +315,7 @@ metadata:
 spec:
   edgefsImageName: edgefs/edgefs:latest   # specify version here, i.e. edgefs/edgefs:1.0.0 etc
   serviceAccount: rook-edgefs-cluster
+  skipHostPrepare: true
   dataDirHostPath: /var/lib/edgefs
   storage: # cluster level storage configuration and selection
     useAllNodes: true
