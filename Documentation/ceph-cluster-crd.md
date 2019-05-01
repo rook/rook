@@ -71,7 +71,9 @@ For more details on the mons and when to choose a number other than `3`, see the
 - `resources`: [resources configuration settings](#cluster-wide-resources-configuration-settings)
 - `storage`: Storage selection and configuration that will be used across the cluster.  Note that these settings can be overridden for specific nodes.
   - `useAllNodes`: `true` or `false`, indicating if all nodes in the cluster should be used for storage according to the cluster level storage selection and configuration values.
-  If individual nodes are specified under the `nodes` field below, then `useAllNodes` must be set to `false`.
+  If individual nodes are specified under the `nodes` field, then `useAllNodes` must be set to `false`.
+  - `topologyAware`: `true` or `false`, indicating whether Rook will look for and use topology/failure domain labels on Kubernetes nodes (e.g. "region" or "zone") as part of the CRUSH location for OSDs.
+  Node labels must follow the formatting of the failure domain [well-known labels](https://kubernetes.io/docs/reference/kubernetes-api/labels-annotations-taints/).
   - `nodes`: Names of individual nodes in the cluster that should have their storage included in accordance with either the cluster level configuration specified above or any node specific overrides described in the next section below.
   `useAllNodes` must be set to `false` to use specific nodes and their config.
   See [node settings](#node-settings) below.

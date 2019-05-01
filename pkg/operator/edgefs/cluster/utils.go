@@ -93,7 +93,7 @@ func (c *cluster) getClusterNodes() ([]rookalpha.Node, error) {
 			c.Spec.Storage.Nodes = append(c.Spec.Storage.Nodes, storageNode)
 		}
 	}
-	validNodes := k8sutil.GetValidNodes(c.Spec.Storage.Nodes, c.context.Clientset, edgefsv1beta1.GetTargetPlacement(c.Spec.Placement))
+	validNodes := k8sutil.GetValidNodes(c.Spec.Storage, c.context.Clientset, edgefsv1beta1.GetTargetPlacement(c.Spec.Placement))
 	c.Spec.Storage.Nodes = validNodes
 	return validNodes, nil
 }

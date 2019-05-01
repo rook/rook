@@ -50,12 +50,14 @@ func TestValidNode(t *testing.T) {
 	nodeA := "nodeA"
 	nodeB := "nodeB"
 
-	nodes := []rookalpha.Node{
-		{
-			Name: nodeA,
-		},
-		{
-			Name: nodeB,
+	storage := rookalpha.StorageScopeSpec{
+		Nodes: []rookalpha.Node{
+			{
+				Name: nodeA,
+			},
+			{
+				Name: nodeB,
+			},
 		},
 	}
 	var placement rookalpha.Placement
@@ -66,7 +68,7 @@ func TestValidNode(t *testing.T) {
 	assert.Nil(t, nodeErr)
 	nodeErr = createNode(nodeB, v1.NodeNetworkUnavailable, clientset)
 	assert.Nil(t, nodeErr)
-	validNodes := GetValidNodes(nodes, clientset, placement)
+	validNodes := GetValidNodes(storage, clientset, placement)
 	assert.Equal(t, len(validNodes), 1)
 }
 
@@ -265,16 +267,18 @@ func TestRookNodesMatchingKubernetesNodes(t *testing.T) {
 	k8sNodes := []v1.Node{n0, n1, n2}
 
 	// no rook nodes specified for input
-	rookNodes := []rookalpha.Node{}
-	retNodes := RookNodesMatchingKubernetesNodes(rookNodes, k8sNodes)
+	rookStorage := rookalpha.StorageScopeSpec{
+		Nodes: []rookalpha.Node{},
+	}
+	retNodes := RookNodesMatchingKubernetesNodes(rookStorage, k8sNodes)
 	assert.Len(t, retNodes, 0)
 
 	// all rook nodes specified
-	rookNodes = []rookalpha.Node{
+	rookStorage.Nodes = []rookalpha.Node{
 		{Name: "node0"},
 		{Name: "node1"},
 		{Name: "node2"}}
-	retNodes = RookNodesMatchingKubernetesNodes(rookNodes, k8sNodes)
+	retNodes = RookNodesMatchingKubernetesNodes(rookStorage, k8sNodes)
 	assert.Len(t, retNodes, 3)
 	// this should return nodes named by hostname if that is available
 	assert.Contains(t, retNodes, rookalpha.Node{Name: "node0-hostname"})
@@ -282,18 +286,46 @@ func TestRookNodesMatchingKubernetesNodes(t *testing.T) {
 	assert.Contains(t, retNodes, rookalpha.Node{Name: "node2"})
 
 	// more rook nodes specified than exist
-	rookNodes = []rookalpha.Node{
+	rookStorage.Nodes = []rookalpha.Node{
 		{Name: "node0-hostname"},
 		{Name: "node2"},
 		{Name: "node5"}}
-	retNodes = RookNodesMatchingKubernetesNodes(rookNodes, k8sNodes)
+	retNodes = RookNodesMatchingKubernetesNodes(rookStorage, k8sNodes)
 	assert.Len(t, retNodes, 2)
 	assert.Contains(t, retNodes, rookalpha.Node{Name: "node0-hostname"})
 	assert.Contains(t, retNodes, rookalpha.Node{Name: "node2"})
 
 	// no k8s nodes specified
-	retNodes = RookNodesMatchingKubernetesNodes(rookNodes, []v1.Node{})
+	retNodes = RookNodesMatchingKubernetesNodes(rookStorage, []v1.Node{})
 	assert.Len(t, retNodes, 0)
+
+	// topology awareness
+	rookStorage.Nodes = []rookalpha.Node{
+		{Name: "node0"},
+		{Name: "node1"},
+		{Name: "node2"}}
+	rookStorage.TopologyAware = true
+
+	k8sNodes[0].ObjectMeta.Labels = map[string]string{
+		"failure-domain.beta.kubernetes.io/region": "region1",
+		"failure-domain.beta.kubernetes.io/zone":   "zone1",
+	}
+	k8sNodes[1].ObjectMeta.Labels = map[string]string{
+		"failure-domain.beta.kubernetes.io/region": "region1",
+		"failure-domain.beta.kubernetes.io/zone":   "zone2",
+		"foo":                                      "bar",
+	}
+	k8sNodes[2].ObjectMeta.Labels = map[string]string{}
+
+	retNodes = RookNodesMatchingKubernetesNodes(rookStorage, k8sNodes)
+	assert.Contains(t, retNodes[0].Location, "region=region1")
+	assert.Contains(t, retNodes[0].Location, "zone=zone1")
+	assert.Contains(t, retNodes[1].Location, "region=region1")
+	assert.Contains(t, retNodes[1].Location, "zone=zone2")
+	assert.NotContains(t, retNodes[1].Location, "foo=bar")
+	assert.NotContains(t, retNodes[2].Location, "region")
+	assert.NotContains(t, retNodes[2].Location, "zone")
+
 }
 
 func TestNodeIsInRookList(t *testing.T) {

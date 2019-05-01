@@ -157,7 +157,7 @@ func (c *Cluster) Start() error {
 		logger.Debugf("storage nodes: %+v", c.DesiredStorage.Nodes)
 	}
 	// generally speaking, this finds nodes which are capable of running new osds
-	validNodes := k8sutil.GetValidNodes(c.DesiredStorage.Nodes, c.context.Clientset, c.placement)
+	validNodes := k8sutil.GetValidNodes(c.DesiredStorage, c.context.Clientset, c.placement)
 
 	// no valid node is ready to run an osd
 	if len(validNodes) == 0 {
