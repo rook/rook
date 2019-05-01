@@ -85,7 +85,7 @@ func concatYaml(first, second string) string {
 
 // GatherCRDObjectDebuggingInfo gathers all the descriptions for pods, pvs and pvcs
 func GatherCRDObjectDebuggingInfo(k8shelper *utils.K8sHelper, namespace string) {
-	k8shelper.PrintPodDescribeForNamespace(namespace)
+	k8shelper.PrintPodStatusForNamespace(namespace)
 	k8shelper.PrintPVs(true /*detailed*/)
 	k8shelper.PrintPVCs(namespace, true /*detailed*/)
 	k8shelper.PrintStorageClasses(true /*detailed*/)

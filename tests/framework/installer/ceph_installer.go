@@ -357,9 +357,9 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, name
 	var err error
 	for _, namespace := range namespaces {
 		if h.T().Failed() {
-			// When the test has failed, it's sometimes useful to have pod descriptions to check
-			// that pods are configured as expected.
-			h.k8shelper.PrintPodDescribeForNamespace(namespace)
+			// When the test has failed, it's sometimes useful to have pod status to check
+			// that pods are running as expected.
+			h.k8shelper.PrintPodStatusForNamespace(namespace)
 		} else {
 			// if the test passed, check that the ceph status is HEALTH_OK before we tear the cluster down
 			h.checkCephHealthStatus(namespace)

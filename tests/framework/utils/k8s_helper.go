@@ -539,8 +539,8 @@ func (k8sh *K8sHelper) PrintPodStatus(namespace string) {
 	}
 }
 
-func (k8sh *K8sHelper) PrintPodDescribeForNamespace(namespace string) {
-	logger.Infof("printing pod describe for all pods in namespace %s", namespace)
+func (k8sh *K8sHelper) PrintPodStatusForNamespace(namespace string) {
+	logger.Infof("printing pod status in namespace %s", namespace)
 
 	pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(metav1.ListOptions{})
 	if err != nil {
@@ -549,10 +549,8 @@ func (k8sh *K8sHelper) PrintPodDescribeForNamespace(namespace string) {
 	}
 
 	for _, p := range pods.Items {
-		logger.Infof("pod %s in namespace %s: %+v", p.Name, namespace, p)
+		logger.Infof("pod %s status: %+v", p.Name, p.Status)
 	}
-
-	k8sh.PrintEventsForNamespace(namespace)
 }
 
 func (k8sh *K8sHelper) PrintPodDescribe(namespace string, args ...string) {
