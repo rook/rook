@@ -34,7 +34,7 @@ type CephErasureCodeProfile struct {
 
 func ListErasureCodeProfiles(context *clusterd.Context, clusterName string) ([]string, error) {
 	args := []string{"osd", "erasure-code-profile", "ls"}
-	buf, err := ExecuteCephCommand(context, clusterName, args)
+	buf, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
 		return nil, fmt.Errorf("failed to list erasure-code-profiles: %+v", err)
 	}
@@ -50,7 +50,7 @@ func ListErasureCodeProfiles(context *clusterd.Context, clusterName string) ([]s
 
 func GetErasureCodeProfileDetails(context *clusterd.Context, clusterName, name string) (CephErasureCodeProfile, error) {
 	args := []string{"osd", "erasure-code-profile", "get", name}
-	buf, err := ExecuteCephCommand(context, clusterName, args)
+	buf, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
 		return CephErasureCodeProfile{}, fmt.Errorf("failed to get erasure-code-profile for '%s': %+v", name, err)
 	}
@@ -87,7 +87,7 @@ func CreateErasureCodeProfile(context *clusterd.Context, clusterName string, con
 
 	args := []string{"osd", "erasure-code-profile", "set", name}
 	args = append(args, profilePairs...)
-	_, err = ExecuteCephCommand(context, clusterName, args)
+	_, err = NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
 		return fmt.Errorf("failed to set ec-profile. %+v", err)
 	}
@@ -98,7 +98,9 @@ func CreateErasureCodeProfile(context *clusterd.Context, clusterName string, con
 func DeleteErasureCodeProfile(context *clusterd.Context, clusterName string, erasureCodeProfile string) error {
 	args := []string{"osd", "erasure-code-profile", "rm", erasureCodeProfile}
 
-	buf, err := ExecuteCephCommandPlain(context, clusterName, args)
+	cmd := NewCephCommand(context, clusterName, args)
+	cmd.JsonOutput = false
+	buf, err := cmd.Run()
 	if err != nil {
 		return fmt.Errorf("failed to delete erasure-code-profile %s. Output: %s. Error: %+v", erasureCodeProfile, string(buf), err)
 	}

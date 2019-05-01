@@ -33,7 +33,7 @@ type PGDumpBrief struct {
 
 func GetPGDumpBrief(context *clusterd.Context, clusterName string) ([]PGDumpBrief, error) {
 	args := []string{"pg", "dump", "pgs_brief"}
-	buf, err := ExecuteCephCommand(context, clusterName, args)
+	buf, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get pg dump: %+v", err)
 	}

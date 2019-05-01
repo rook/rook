@@ -185,7 +185,7 @@ func (c *Cluster) createSelfSignedCert() (bool, error) {
 
 	// retry a few times in the case that the mgr module is not ready to accept commands
 	for i := 0; i < 5; i++ {
-		_, err := client.ExecuteCephCommand(c.context, c.Namespace, args)
+		_, err := client.NewCephCommand(c.context, c.Namespace, args).Run()
 		if err != nil {
 			exitCode, parsed := c.exitCode(err)
 			if parsed {
@@ -222,7 +222,9 @@ func (c *Cluster) setLoginCredentials(password string) error {
 	// retry a few times in the case that the mgr module is not ready to accept commands
 	_, err := client.ExecuteCephCommandWithRetry(func() ([]byte, error) {
 		args := []string{"dashboard", "set-login-credentials", dashboardUsername, password}
-		return client.ExecuteCephCommandDebugLog(c.context, c.Namespace, args)
+		cmd := client.NewCephCommand(c.context, c.Namespace, args)
+		cmd.Debug = true
+		return cmd.Run()
 	}, c.exitCode, 5, invalidArgErrorCode, dashboardInitWaitTime)
 	if err != nil {
 		return fmt.Errorf("failed to set login creds on mgr. %+v", err)
