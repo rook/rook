@@ -21,7 +21,7 @@ cluster.
    and your [API
    server](https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/)
 3. An up and running Rook instance (see [Rook - Ceph quickstart
-   guide](https://github.com/rook/rook/blob/master/Documentation/ceph-quickstart.md))
+   guide](https://github.com/rook/rook/blob/v1.0/Documentation/ceph-quickstart.md))
 
 ## CSI Drivers Enablement
 
@@ -114,7 +114,7 @@ This
 [storageclass](../cluster/examples/kubernetes/ceph/csi/example/rbd/storageclass.yaml)
 expects a pool named `rbd` in your Ceph cluster. You can create this pool using
 [rook pool
-CRD](https://github.com/rook/rook/blob/master/Documentation/ceph-pool-crd.md).
+CRD](https://github.com/rook/rook/blob/v1.0/Documentation/ceph-pool-crd.md).
 
 Please update `monitors` to reflect the Ceph monitors.
 
@@ -352,7 +352,7 @@ This
 [storageclass](../cluster/examples/kubernetes/ceph/csi/example/cephfs/storageclass.yaml)
 expect a pool named `cephfs_data` in your Ceph cluster. You can create this
 pool using [rook file-system
-CRD](https://github.com/rook/rook/blob/master/Documentation/ceph-filesystem-crd.md).
+CRD](https://github.com/rook/rook/blob/v1.0/Documentation/ceph-filesystem-crd.md).
 
 Please update `monitors` to reflect the Ceph monitors.
 

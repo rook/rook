@@ -229,7 +229,7 @@ go tool cover -html=coverage.out -o coverage.html
 
 #### Running the Integration Tests
 For instructions on how to execute the end to end smoke test suite,
-follow the [test instructions](https://github.com/rook/rook/blob/master/tests/README.md).
+follow the [test instructions](https://github.com/rook/rook/blob/release-1.0/tests/README.md).
 
 ### Commit History
 

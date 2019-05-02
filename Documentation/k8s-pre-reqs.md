@@ -23,7 +23,7 @@ See the [Flex Volume Configuration](flexvolume.md) topic to configure your Kuber
 
 ## Kernel with RBD module
 
-Rook Ceph requires a Linux kernel built with the RBD module. Many distributions of Linux have this module but some don't, e.g. the GKE Container-Optimised OS (COS) does not have RBD. You can test your Kubernetes nodes by running `modprobe rbd`. If it says 'not found', you may have to [rebuild your kernel](https://rook.io/docs/rook/master/common-issues.html#rook-agent-rbd-module-missing-error) or choose a different Linux distribution.
+Rook Ceph requires a Linux kernel built with the RBD module. Many distributions of Linux have this module but some don't, e.g. the GKE Container-Optimised OS (COS) does not have RBD. You can test your Kubernetes nodes by running `modprobe rbd`. If it says 'not found', you may have to [rebuild your kernel](https://rook.io/docs/rook/v1.0/common-issues.html#rook-agent-rbd-module-missing-error) or choose a different Linux distribution.
 
 ## Kernel modules directory configuration
 
@@ -130,8 +130,8 @@ The service accounts are:
 * `rook-ceph-mgr` (namespace: `rook-ceph`): Will affect the MGR pods in the `rook-ceph` namespace.
 * `rook-ceph-osd` (namespace: `rook-ceph`): Will affect the OSD pods in the `rook-ceph` namespace.
 
-You can do it either via e.g. `kubectl -n <namespace> edit serviceaccount default` or by modifying the [`operator.yaml`](https://github.com/rook/rook/blob/master/cluster/examples/kubernetes/ceph/operator.yaml)
-and [`cluster.yaml`](https://github.com/rook/rook/blob/master/cluster/examples/kubernetes/ceph/cluster.yaml) before deploying them.
+You can do it either via e.g. `kubectl -n <namespace> edit serviceaccount default` or by modifying the [`operator.yaml`](https://github.com/rook/rook/blob/release-1.0/cluster/examples/kubernetes/ceph/operator.yaml)
+and [`cluster.yaml`](https://github.com/rook/rook/blob/release-1.0/cluster/examples/kubernetes/ceph/cluster.yaml) before deploying them.
 
 Since it's the same procedure for all service accounts, here is just one example:
 

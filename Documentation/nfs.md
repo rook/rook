@@ -143,7 +143,7 @@ reclaimPolicy: Delete
 volumeBindingMode: Immediate
 ```
 
-#### Note: The storageclass need to have the following 3 parameters passed. 
+#### Note: The storageclass need to have the following 3 parameters passed.
 1. `exportName`: It tells the provisioner which export to use for provisioning the volumes.
 2. `nfsServerName`: It is the name of the NFSServer instance.
 3. `nfsServerNamespace`: It namespace where the NFSServer instance is running.
@@ -182,7 +182,7 @@ metadata:
 ---
 # A rook ceph cluster must be running
 # Create a rook ceph cluster using examples in rook/cluster/examples/kubernetes/ceph
-# Refer to https://rook.io/docs/rook/master/ceph-quickstart.html for a quick rook cluster setup
+# Refer to https://rook.io/docs/rook/v1.0/ceph-quickstart.html for a quick rook cluster setup
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:

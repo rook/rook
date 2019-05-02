@@ -107,7 +107,7 @@ The most commonly used read/write FlexVolume path on most systems is `/var/lib/k
 This path is commonly used for FlexVolume because `/var/lib/kubelet` is read write on most systems.
 
 ### Configuring the Rook operator
-You must provide the above found FlexVolume path when deploying the [rook-operator](https://github.com/rook/rook/blob/master/cluster/examples/kubernetes/ceph/operator.yaml) by setting the environment variable `FLEXVOLUME_DIR_PATH`.
+You must provide the above found FlexVolume path when deploying the [rook-operator](https://github.com/rook/rook/blob/release-1.0/cluster/examples/kubernetes/ceph/operator.yaml) by setting the environment variable `FLEXVOLUME_DIR_PATH`.
 For example:
 ```yaml
 env:

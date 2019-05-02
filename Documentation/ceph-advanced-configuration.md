@@ -551,7 +551,7 @@ Two changes are necessary to the configuration to enable this capability:
 
 ### Use hostNetwork in the rook ceph cluster configuration
 
-Enable the `hostNetwork` setting in the [Ceph Cluster CRD configuration](https://rook.io/docs/rook/master/ceph-cluster-crd.html#samples).
+Enable the `hostNetwork` setting in the [Ceph Cluster CRD configuration](https://rook.io/docs/rook/v1.0/ceph-cluster-crd.html#samples).
 For example,
 
 ```yaml
