@@ -226,6 +226,14 @@ func (c *NFSController) nfsContainer(svcname, name, containerImage string, nfsSp
 					},
 				},
 			},
+			{
+				Name: "K8S_NAMESPACE",
+				ValueFrom: &v1.EnvVarSource{
+					FieldRef: &v1.ObjectFieldSelector{
+						FieldPath: "metadata.namespace",
+					},
+				},
+			},
 		},
 		SecurityContext: securityContext,
 		Resources:       nfsSpec.Resources,

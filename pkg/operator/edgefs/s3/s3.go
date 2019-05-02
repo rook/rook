@@ -299,6 +299,14 @@ func (c *S3Controller) s3Container(svcname, name, containerImage, args string, s
 				},
 			},
 			{
+				Name: "K8S_NAMESPACE",
+				ValueFrom: &v1.EnvVarSource{
+					FieldRef: &v1.ObjectFieldSelector{
+						FieldPath: "metadata.namespace",
+					},
+				},
+			},
+			{
 				Name:  "EFSS3_HTTP_PORT",
 				Value: fmt.Sprint(s3Spec.Port),
 			},
