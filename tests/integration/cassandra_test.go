@@ -132,9 +132,9 @@ func (s *CassandraSuite) Teardown() {
 	if s.T().Failed() {
 		installer.GatherCRDObjectDebuggingInfo(s.k8sHelper, s.systemNamespace)
 		installer.GatherCRDObjectDebuggingInfo(s.k8sHelper, s.namespace)
+		s.installer.GatherAllCassandraLogs(s.systemNamespace, s.namespace, s.T().Name())
 	}
 
-	s.installer.GatherAllCassandraLogs(s.systemNamespace, s.namespace, s.T().Name())
 	s.installer.UninstallCassandra(s.systemNamespace, s.namespace)
 }
 

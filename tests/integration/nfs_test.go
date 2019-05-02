@@ -92,8 +92,8 @@ func (suite *NfsSuite) Teardown() {
 	if suite.T().Failed() {
 		installer.GatherCRDObjectDebuggingInfo(suite.k8shelper, suite.systemNamespace)
 		installer.GatherCRDObjectDebuggingInfo(suite.k8shelper, suite.namespace)
+		suite.installer.GatherAllNFSServerLogs(suite.systemNamespace, suite.namespace, suite.T().Name())
 	}
-	suite.installer.GatherAllNFSServerLogs(suite.systemNamespace, suite.namespace, suite.T().Name())
 	suite.installer.UninstallNFSServer(suite.systemNamespace, suite.namespace)
 }
 

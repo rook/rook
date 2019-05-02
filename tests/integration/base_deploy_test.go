@@ -140,6 +140,8 @@ func (op *TestCluster) SetInstallData(version string) {}
 
 // TearDownRook is a wrapper for tearDown after Suite
 func (op *TestCluster) Teardown() {
-	op.installer.GatherAllRookLogs(op.namespace, installer.SystemNamespace(op.namespace), op.installer.T().Name())
+	if op.installer.T().Failed() {
+		op.installer.GatherAllRookLogs(op.namespace, installer.SystemNamespace(op.namespace), op.installer.T().Name())
+	}
 	op.installer.UninstallRook(op.namespace)
 }
