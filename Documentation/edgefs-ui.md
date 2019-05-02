@@ -1,5 +1,5 @@
 ---
-title: EdgeFS User Interface
+title: User Interface
 weight: 4900
 indent: true
 ---

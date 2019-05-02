@@ -1,5 +1,5 @@
 ---
-title: EdgeFS iSCSI Target CRD
+title: iSCSI Target CRD
 weight: 4600
 indent: true
 ---

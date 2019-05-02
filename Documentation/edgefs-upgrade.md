@@ -1,5 +1,5 @@
 ---
-title: EdgeFS Upgrade
+title: Upgrade
 weight: 4920
 indent: true
 ---

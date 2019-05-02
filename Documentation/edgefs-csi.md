@@ -1,5 +1,5 @@
 ---
-title: EdgeFS CSI driver
+title: CSI driver
 weight: 4700
 indent: true
 ---
@@ -15,7 +15,7 @@ EdgeFS CSI plugins implement an interface between CSI enabled Container Orchestr
 ## Prerequisites
 
 - Ensure your kubernetes cluster version is 1.13+
-- Kubernetes cluster must allow privileged pods, this flag must be set for the API server and the kubelet  
+- Kubernetes cluster must allow privileged pods, this flag must be set for the API server and the kubelet
 ([instructions](https://github.com/kubernetes-csi/docs/blob/735f1ef4adfcb157afce47c64d750b71012c8151/book/src/Setup.md#enable-privileged-pods)):
   ```
   --allow-privileged=true

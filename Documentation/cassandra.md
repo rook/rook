@@ -1,6 +1,6 @@
 ---
 title: Cassandra
-weight: 700
+weight: 250
 indent: true
 ---
 
@@ -14,7 +14,7 @@ indent: true
 
 A Kubernetes cluster is necessary to run the Rook Cassandra operator.
 To make sure you have a Kubernetes cluster that is ready for `Rook`, you can [follow these instructions](k8s-pre-reqs.md) (the flexvolume plugin is not necessary for Cassandra)
- 
+
 ## Deploy Cassandra Operator
 
 First deploy the Rook Cassandra Operator using the following commands:
@@ -25,11 +25,11 @@ kubectl apply -f operator.yaml
 ```
 
 This will install the operator in namespace rook-cassandra-system. You can check if the operator is up and running with:
- 
+
  ```console
   kubectl -n rook-cassandra-system get pod
  ```
- 
+
 ## Create and Initialize a Cassandra/Scylla Cluster
 
 Now that the operator is running, we can create an instance of a Cassandra/Scylla cluster by creating an instance of the `clusters.cassandra.rook.io` resource.
@@ -95,12 +95,12 @@ kubectl edit clusters.cassandra.rook.io rook-cassandra
 ```
 * To scale up a rack, change the `Spec.Members` field of the rack to the desired value.
 * To add a new rack, append the `racks` list with a new rack. Remember to choose a different rack name for the new rack.
-* After editing and saving the yaml, check your cluster's Status and Events for information on what's happening:  
+* After editing and saving the yaml, check your cluster's Status and Events for information on what's happening:
 ```console
-kubectl -n rook-cassandra describe clusters.cassandra.rook.io rook-cassandra 
+kubectl -n rook-cassandra describe clusters.cassandra.rook.io rook-cassandra
 ```
 
- 
+
 ## Scale Down
 
 The operator supports scale down of a rack. To make the changes, you can use:
@@ -112,9 +112,9 @@ kubectl edit clusters.cassandra.rook.io rook-cassandra
 ```console
 kubectl -n rook-cassandra describe clusters.cassandra.rook.io rook-cassandra
 ```
-  
+
 ## Clean Up
- 
+
 To clean up all resources associated with this walk-through, you can run the commands below.
 
 **NOTE:** that this will destroy your database and delete all of its associated data.

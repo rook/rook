@@ -1,10 +1,10 @@
 ---
-title: Common Ceph Issues
-weight: 11400
+title: Ceph Common Issues
+weight: 10600
 indent: true
 ---
 
-# Common Issues
+# Ceph Common Issues
 
 Many of these problem cases are hard to summarize down to a short phrase that adequately describes the problem. Each problem will start with a bulleted list of symptoms. Keep in mind that all symptoms may not apply depending upon the configuration of the Rook. If the majority of the symptoms are seen there is a fair chance you are experiencing that problem.
 
@@ -12,7 +12,7 @@ If after trying the suggestions found on this page and the problem is not resolv
 
 ## Table of Contents
 - [Troubleshooting Techniques](#troubleshooting-techniques)
-- [Pod using Rook storage is not running](#pod-using-rook-storage-is-not-running)
+- [Pod using Rook storage is not running](#pod-using-ceph-storage-is-not-running)
 - [Cluster failing to service requests](#cluster-failing-to-service-requests)
 - [Monitors are the only pods running](#monitors-are-the-only-pods-running)
 - [OSD pods are failing to start](#osd-pods-are-failing-to-start)
@@ -21,11 +21,11 @@ If after trying the suggestions found on this page and the problem is not resolv
 - [Rook Agent modprobe exec format error](#rook-agent-modprobe-exec-format-error)
 - [Rook Agent rbd module missing error](#rook-agent-rbd-module-missing-error)
 - [Using multiple shared filesystem (CephFS) is attempted on a kernel version older than 4.7](#using-multiple-shared-filesystem-cephfs-is-attempted-on-a-kernel-version-older-than-47)
-- [Activate log to file for a particular Ceph daemon](#activate-ceph-log-on-file)
+- [Activate log to file for a particular Ceph daemon](#activate-log-to-file-for-a-particular-ceph-daemon)
 
 # Troubleshooting Techniques
 There are two main categories of information you will need to investigate issues in the cluster:
-1. Kubernetes status and logs documented [here](./common-issues.md)
+1. Kubernetes status and logs documented [here](common-issues.md)
 1. Ceph status
 
 ## Ceph Tools

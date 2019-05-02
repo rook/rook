@@ -1,5 +1,5 @@
 ---
-title: EdgeFS VDEV Management
+title: VDEV Management
 weight: 4910
 indent: true
 ---
