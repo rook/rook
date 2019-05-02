@@ -128,6 +128,10 @@ func (c *Cluster) Start() error {
 			return fmt.Errorf("failed to generate keyring for %s. %+v", resourceName, err)
 		}
 
+		if !c.needHttpBindFix() {
+			c.clearHttpBindFix(mgrConfig)
+		}
+
 		// start the deployment
 		d := c.makeDeployment(mgrConfig)
 		logger.Debugf("starting mgr deployment: %+v", d)
