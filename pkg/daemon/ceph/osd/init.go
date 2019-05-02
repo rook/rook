@@ -89,6 +89,11 @@ func copyBinary(sourceDir, targetDir, filename string) error {
 	targetPath := path.Join(targetDir, filename)
 	logger.Infof("copying %s to %s", sourcePath, targetPath)
 
+	// Check if the target path exists, and skip the copy if it does
+	if _, err := os.Stat(targetPath); err == nil {
+		return nil
+	}
+
 	sourceFile, err := os.Open(sourcePath)
 	if err != nil {
 		return err
