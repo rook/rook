@@ -1,5 +1,5 @@
 ---
-title: EdgeFS OpenStack/SWIFT CRD
+title: OpenStack/SWIFT CRD
 weight: 4550
 indent: true
 ---

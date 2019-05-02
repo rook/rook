@@ -1,5 +1,5 @@
 ---
-title: EdgeFS AWS S3 CRD
+title: AWS S3 CRD
 weight: 4500
 indent: true
 ---

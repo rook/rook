@@ -1,5 +1,5 @@
 ---
-title: EdgeFS ISGW Link CRD
+title: ISGW Link CRD
 weight: 4200
 indent: true
 ---

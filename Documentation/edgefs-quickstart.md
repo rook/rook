@@ -1,6 +1,6 @@
 ---
 title: EdgeFS Geo-Transparent Storage
-weight: 700
+weight: 550
 indent: true
 ---
 
