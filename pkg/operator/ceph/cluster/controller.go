@@ -195,8 +195,12 @@ func (c *ClusterController) onK8sNodeAdd(obj interface{}) {
 	}
 
 	for _, cluster := range c.clusterMap {
+		if k8sutil.NodeIsTolerable(*newNode, cephv1.GetOSDPlacement(cluster.Spec.Placement).Tolerations, false) == false {
+			logger.Debugf("Skipping -> Node is not tolerable for cluster %s", cluster.Namespace)
+			continue
+		}
 		if cluster.Spec.Storage.UseAllNodes == false {
-			logger.Debugf("Skipping -> Do not use all Nodes")
+			logger.Debugf("Skipping -> Do not use all Nodes in cluster %s", cluster.Namespace)
 			continue
 		}
 		if cluster.Info == nil {

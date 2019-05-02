@@ -114,12 +114,6 @@ func GetNodeSchedulable(node v1.Node) bool {
 	if node.Spec.Unschedulable {
 		return false
 	}
-	for i := range node.Spec.Taints {
-		if node.Spec.Taints[i].Effect == "NoSchedule" {
-			logger.Debugf("Node %s is unschedulable", node.Labels[v1.LabelHostname])
-			return false
-		}
-	}
 	return true
 }
 
