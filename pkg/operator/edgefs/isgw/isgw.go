@@ -296,7 +296,7 @@ func (c *ISGWController) isgwContainer(svcname, name, containerImage string, isg
 				},
 			},
 			{
-				Name: "KUBERNETES_NAMESPACE",
+				Name: "K8S_NAMESPACE",
 				ValueFrom: &v1.EnvVarSource{
 					FieldRef: &v1.ObjectFieldSelector{
 						FieldPath: "metadata.namespace",

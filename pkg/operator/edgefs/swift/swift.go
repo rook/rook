@@ -285,6 +285,14 @@ func (c *SWIFTController) swiftContainer(svcname, name, containerImage, args str
 				},
 			},
 			{
+				Name: "K8S_NAMESPACE",
+				ValueFrom: &v1.EnvVarSource{
+					FieldRef: &v1.ObjectFieldSelector{
+						FieldPath: "metadata.namespace",
+					},
+				},
+			},
+			{
 				Name:  "EFSSWIFT_HTTP_PORT",
 				Value: fmt.Sprint(swiftSpec.Port),
 			},

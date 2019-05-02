@@ -269,6 +269,14 @@ func (c *S3XController) s3xContainer(svcname, name, containerImage string, s3xSp
 				},
 			},
 			{
+				Name: "K8S_NAMESPACE",
+				ValueFrom: &v1.EnvVarSource{
+					FieldRef: &v1.ObjectFieldSelector{
+						FieldPath: "metadata.namespace",
+					},
+				},
+			},
+			{
 				Name:  "EFSS3X_HTTP_PORT",
 				Value: fmt.Sprint(s3xSpec.Port),
 			},

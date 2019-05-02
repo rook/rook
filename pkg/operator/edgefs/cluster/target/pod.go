@@ -146,6 +146,10 @@ func (c *Cluster) makeAuditdContainer(containerImage string) v1.Container {
 					},
 				},
 			},
+			{
+				Name:  "K8S_NAMESPACE",
+				Value: c.Namespace,
+			},
 		},
 		SecurityContext: securityContext,
 		VolumeMounts:    volumeMounts,
@@ -280,6 +284,10 @@ func (c *Cluster) makeDaemonContainer(containerImage string, dro edgefsv1beta1.D
 						FieldPath: "spec.nodeName",
 					},
 				},
+			},
+			{
+				Name:  "K8S_NAMESPACE",
+				Value: c.Namespace,
 			},
 		},
 		SecurityContext: securityContext,
