@@ -23,13 +23,14 @@ import (
 
 // ******************** MockExecutor ********************
 type MockExecutor struct {
-	MockExecuteCommand                   func(debug bool, actionName string, command string, arg ...string) error
-	MockStartExecuteCommand              func(debug bool, actionName string, command string, arg ...string) (*exec.Cmd, error)
-	MockExecuteCommandWithOutput         func(debug bool, actionName string, command string, arg ...string) (string, error)
-	MockExecuteCommandWithCombinedOutput func(debug bool, actionName string, command string, arg ...string) (string, error)
-	MockExecuteCommandWithOutputFile     func(debug bool, actionName string, command, outfileArg string, arg ...string) (string, error)
-	MockExecuteCommandWithTimeout        func(debug bool, timeout time.Duration, actionName string, command string, arg ...string) (string, error)
-	MockExecuteStat                      func(name string) (os.FileInfo, error)
+	MockExecuteCommand                      func(debug bool, actionName string, command string, arg ...string) error
+	MockStartExecuteCommand                 func(debug bool, actionName string, command string, arg ...string) (*exec.Cmd, error)
+	MockExecuteCommandWithOutput            func(debug bool, actionName string, command string, arg ...string) (string, error)
+	MockExecuteCommandWithCombinedOutput    func(debug bool, actionName string, command string, arg ...string) (string, error)
+	MockExecuteCommandWithOutputFile        func(debug bool, actionName string, command, outfileArg string, arg ...string) (string, error)
+	MockExecuteCommandWithOutputFileTimeout func(debug bool, timeout time.Duration, actionName string, command, outfileArg string, arg ...string) (string, error)
+	MockExecuteCommandWithTimeout           func(debug bool, timeout time.Duration, actionName string, command string, arg ...string) (string, error)
+	MockExecuteStat                         func(name string) (os.FileInfo, error)
 }
 
 func (e *MockExecutor) ExecuteCommand(debug bool, actionName string, command string, arg ...string) error {
@@ -77,6 +78,14 @@ func (e *MockExecutor) ExecuteCommandWithCombinedOutput(debug bool, actionName s
 func (e *MockExecutor) ExecuteCommandWithOutputFile(debug bool, actionName string, command, outfileArg string, arg ...string) (string, error) {
 	if e.MockExecuteCommandWithOutputFile != nil {
 		return e.MockExecuteCommandWithOutputFile(debug, actionName, command, outfileArg, arg...)
+	}
+
+	return "", nil
+}
+
+func (e *MockExecutor) ExecuteCommandWithOutputFileTimeout(debug bool, timeout time.Duration, actionName string, command, outfileArg string, arg ...string) (string, error) {
+	if e.MockExecuteCommandWithOutputFileTimeout != nil {
+		return e.MockExecuteCommandWithOutputFileTimeout(debug, timeout, actionName, command, outfileArg, arg...)
 	}
 
 	return "", nil
