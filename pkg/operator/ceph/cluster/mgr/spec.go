@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	rookcephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
@@ -51,26 +52,12 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
 		},
 	}
 
-	needHttpBindFix := true
-
-	// if luminous and >= 12.2.12
-	if c.clusterInfo.CephVersion.IsLuminous() &&
-		c.clusterInfo.CephVersion.IsAtLeast(cephver.CephVersion{Major: 12, Minor: 2, Extra: 12}) {
-		needHttpBindFix = false
-	}
-
-	// if mimic and >= 13.2.6
-	if c.clusterInfo.CephVersion.IsMimic() &&
-		c.clusterInfo.CephVersion.IsAtLeast(cephver.CephVersion{Major: 13, Minor: 2, Extra: 6}) {
-		needHttpBindFix = false
-	}
-
-	// if >= 14.1.1
-	if c.clusterInfo.CephVersion.IsAtLeast(cephver.CephVersion{Major: 14, Minor: 1, Extra: 1}) {
-		needHttpBindFix = false
-	}
-
-	if needHttpBindFix {
+	// if the fix is needed, then the following init containers are created
+	// which explicitly configure the server_addr Ceph configuration option to
+	// be equal to the pod's IP address. Note that when the fix is not needed,
+	// there is additional work done to clear fixes after upgrades. See
+	// clearHttpBindFix() method for more details.
+	if c.needHttpBindFix() {
 		podSpec.Spec.InitContainers = []v1.Container{
 			c.makeSetServerAddrInitContainer(mgrConfig, "dashboard"),
 			c.makeSetServerAddrInitContainer(mgrConfig, "prometheus"),
@@ -122,6 +109,57 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
 	opspec.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, d)
 	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &d.ObjectMeta, &c.ownerRef)
 	return d
+}
+
+func (c *Cluster) needHttpBindFix() bool {
+	needed := true
+
+	// if luminous and >= 12.2.12
+	if c.clusterInfo.CephVersion.IsLuminous() &&
+		c.clusterInfo.CephVersion.IsAtLeast(cephver.CephVersion{Major: 12, Minor: 2, Extra: 12}) {
+		needed = false
+	}
+
+	// if mimic and >= 13.2.6
+	if c.clusterInfo.CephVersion.IsMimic() &&
+		c.clusterInfo.CephVersion.IsAtLeast(cephver.CephVersion{Major: 13, Minor: 2, Extra: 6}) {
+		needed = false
+	}
+
+	// if >= 14.1.1
+	if c.clusterInfo.CephVersion.IsAtLeast(cephver.CephVersion{Major: 14, Minor: 1, Extra: 1}) {
+		needed = false
+	}
+
+	return needed
+}
+
+// if we do not need the http bind fix, then we need to be careful. if we are
+// upgrading from a cluster that had the fix applied, then the fix is no longer
+// needed, and furthermore, needs to be removed so that there is not a lingering
+// ceph configuration option that contains an old ip.  by clearing the option,
+// we let ceph bind to its default ANYADDR address.  However, since we don't
+// know which version of Ceph we are may be upgrading _from_ we need to (a)
+// always do this and (b) make sure that all forms of the configuration option
+// are removed (see the init container factory method). Once the minimum
+// supported version of Rook contains the fix, all of this can be removed.
+func (c *Cluster) clearHttpBindFix(mgrConfig *mgrConfig) {
+	for _, module := range []string{"dashboard", "prometheus"} {
+		// there are two forms of the configuration key that might exist which
+		// depends not on the current version, but on the version that may be
+		// the version being upgraded from.
+		for _, ver := range []cephver.CephVersion{cephver.Luminous, cephver.Mimic} {
+			changed, err := client.MgrSetConfig(c.context, c.Namespace, mgrConfig.DaemonID, ver,
+				fmt.Sprintf("mgr/%s/server_addr", module), "", false)
+			logger.Infof("clearing http bind fix mod=%s ver=%s changed=%t err=%+v", module, &ver, changed, err)
+
+			// this is for the format used in v1.0
+			// https://github.com/rook/rook/commit/11d318fb2f77a6ac9a8f2b9be42c826d3b4a93c3
+			changed, err = client.MgrSetConfig(c.context, c.Namespace, mgrConfig.DaemonID, ver,
+				fmt.Sprintf("mgr/%s/%s/server_addr", module, mgrConfig.DaemonID), "", false)
+			logger.Infof("clearing http bind fix mod=%s ver=%s changed=%t err=%+v", module, &ver, changed, err)
+		}
+	}
 }
 
 func (c *Cluster) makeCopyKeyringInitContainer(mgrConfig *mgrConfig) v1.Container {
