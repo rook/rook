@@ -39,7 +39,7 @@ const (
 	Kubectl = "kubectl"
 	// CrushTool is the name of the CLI tool for 'crushtool'
 	CrushTool             = "crushtool"
-	cmdExecuteTimeout     = 1 * time.Minute
+	CmdExecuteTimeout     = 1 * time.Minute
 	cephConnectionTimeout = "15" // in seconds
 )
 
@@ -169,7 +169,7 @@ func (c *CephToolCommand) RunWithTimeout(timeout time.Duration) ([]byte, error) 
 // configured its arguments. It is future work to integrate this case into the
 // generalization.
 func ExecuteRBDCommandWithTimeout(context *clusterd.Context, clusterName string, args []string) (string, error) {
-	output, err := context.Executor.ExecuteCommandWithTimeout(false, cmdExecuteTimeout, "", RBDTool, args...)
+	output, err := context.Executor.ExecuteCommandWithTimeout(false, CmdExecuteTimeout, "", RBDTool, args...)
 	return output, err
 }
 

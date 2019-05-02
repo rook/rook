@@ -18,6 +18,7 @@ limitations under the License.
 package mgr
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"os/exec"
@@ -185,7 +186,11 @@ func (c *Cluster) createSelfSignedCert() (bool, error) {
 
 	// retry a few times in the case that the mgr module is not ready to accept commands
 	for i := 0; i < 5; i++ {
-		_, err := client.NewCephCommand(c.context, c.Namespace, args).Run()
+		_, err := client.NewCephCommand(c.context, c.Namespace, args).RunWithTimeout(client.CmdExecuteTimeout)
+		if err == context.DeadlineExceeded {
+			logger.Infof("cert creation timed out. trying again..")
+			continue
+		}
 		if err != nil {
 			exitCode, parsed := c.exitCode(err)
 			if parsed {
