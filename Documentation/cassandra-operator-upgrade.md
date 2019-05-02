@@ -43,7 +43,7 @@ kubectl delete clusters.cassandra.rook.io $NAME -n $NAMESPACE
 # Assumes Operator is running in StatefulSet rook-cassandra-operator
 # in namespace rook-cassandra-system
 
-kubectl set image sts/rook-cassandra-operator rook-cassandra-operator=rook/cassandra:v0.9.x -n rook-cassandra-system
+kubectl set image sts/rook-cassandra-operator rook-cassandra-operator=rook/cassandra:v1.0.x -n rook-cassandra-system
 ```
 
 After patching, ensure that the operator pods are running successfully:

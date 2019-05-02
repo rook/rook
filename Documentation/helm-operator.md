@@ -61,7 +61,7 @@ helm install --namespace rook-ceph rook-master/rook-ceph --version <version>
 
 For example:
 ```
-helm install --namespace rook-ceph rook-master/rook-ceph --version v0.7.0-278.gcbd9726
+helm install --namespace rook-ceph rook-master/rook-ceph --version v0.9.0-563.g242e032
 ```
 
 ### Development Build
@@ -136,7 +136,7 @@ Here are the sample settings to get you started.
 image:
   prefix: rook
   repository: rook/ceph
-  tag: master
+  tag: v1.0.0
   pullPolicy: IfNotPresent
 
 resources:

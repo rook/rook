@@ -103,7 +103,7 @@ spec:
       serviceAccountName: rook-nfs-operator
       containers:
       - name: rook-nfs-operator
-        image: rook/nfs:master
+        image: rook/nfs:v1.0.0
         imagePullPolicy: IfNotPresent
         args: ["nfs", "operator"]
         env:
@@ -183,7 +183,7 @@ spec:
       app: rook-nfs-provisioner
   replicas: 1
   strategy:
-    type: Recreate 
+    type: Recreate
   template:
     metadata:
       labels:
@@ -192,7 +192,7 @@ spec:
       serviceAccount: rook-nfs-provisioner
       containers:
       - name: rook-nfs-provisioner
-        image: rook/nfs:master
+        image: rook/nfs:v1.0.0
         imagePullPolicy: IfNotPresent
         args: ["nfs", "provisioner","--provisioner=rook.io/nfs-provisioner"]
         env:
