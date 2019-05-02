@@ -177,10 +177,9 @@ func (o MCTestOperations) Teardown() {
 			o.T().FailNow()
 		}
 	}()
-	if o.T().Failed() {
-		o.installer.GatherAllRookLogs(o.namespace1, o.systemNamespace, o.T().Name())
-		o.installer.GatherAllRookLogs(o.namespace2, o.systemNamespace, o.T().Name())
-	}
+
+	o.installer.GatherAllRookLogs(o.namespace1, o.systemNamespace, o.T().Name())
+	o.installer.GatherAllRookLogs(o.namespace2, o.systemNamespace, o.T().Name())
 
 	o.installer.UninstallRookFromMultipleNS(installer.SystemNamespace(o.namespace1), o.namespace1, o.namespace2)
 }

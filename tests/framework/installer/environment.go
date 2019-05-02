@@ -32,6 +32,7 @@ type EnvironmentManifest struct {
 	LoadTime           int
 	LoadSize           string
 	EnableChaos        bool
+	Logs               string
 }
 
 var Env EnvironmentManifest
@@ -48,4 +49,5 @@ func init() {
 	flag.IntVar(&Env.LoadTime, "load_time", 1800, "number of seconds each thread perform operations for")
 	flag.StringVar(&Env.LoadSize, "load_size", "medium", "load size for each thread performing operations - small,medium or large.")
 	flag.BoolVar(&Env.EnableChaos, "enable_chaos", false, "used to determine if random pods in a namespace are to be killed during load test.")
+	flag.StringVar(&Env.Logs, "logs", "", "Gather rook logs, eg - all")
 }

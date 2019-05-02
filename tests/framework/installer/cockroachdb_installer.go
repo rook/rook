@@ -150,6 +150,12 @@ func (h *CockroachDBInstaller) UninstallCockroachDB(systemNamespace, namespace s
 }
 
 func (h *CockroachDBInstaller) GatherAllCockroachDBLogs(systemNamespace, namespace, testName string) {
+	if !h.T().Failed() && Env.Logs != "all" {
+		return
+	} else if h.T().Failed() {
+		GatherCRDObjectDebuggingInfo(h.k8shelper, systemNamespace)
+		GatherCRDObjectDebuggingInfo(h.k8shelper, namespace)
+	}
 	logger.Infof("Gathering all logs from cockroachdb cluster %s", namespace)
 	h.k8shelper.GetLogs("rook-cockroachdb-operator", Env.HostType, systemNamespace, testName)
 	h.k8shelper.GetLogs("rook-cockroachdb", Env.HostType, namespace, testName)

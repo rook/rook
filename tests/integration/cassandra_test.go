@@ -18,16 +18,17 @@ package integration
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+
 	cassandrav1alpha1 "github.com/rook/rook/pkg/apis/cassandra.rook.io/v1alpha1"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"strconv"
-	"strings"
-	"testing"
-	"time"
 )
 
 // ************************************************
@@ -128,13 +129,7 @@ func (s *CassandraSuite) TestCassandraClusterCreation() {
 // Teardown gathers logs and other helping info and then uninstalls
 // everything installed by the CassandraSuite
 func (s *CassandraSuite) Teardown() {
-
-	if s.T().Failed() {
-		installer.GatherCRDObjectDebuggingInfo(s.k8sHelper, s.systemNamespace)
-		installer.GatherCRDObjectDebuggingInfo(s.k8sHelper, s.namespace)
-		s.installer.GatherAllCassandraLogs(s.systemNamespace, s.namespace, s.T().Name())
-	}
-
+	s.installer.GatherAllCassandraLogs(s.systemNamespace, s.namespace, s.T().Name())
 	s.installer.UninstallCassandra(s.systemNamespace, s.namespace)
 }
 
