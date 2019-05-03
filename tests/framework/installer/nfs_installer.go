@@ -190,6 +190,12 @@ func (h *NFSInstaller) UninstallNFSServer(systemNamespace, namespace string) {
 
 // GatherAllNFSServerLogs gathers all NFS Server logs
 func (h *NFSInstaller) GatherAllNFSServerLogs(systemNamespace, namespace, testName string) {
+	if !h.T().Failed() && Env.Logs != "all" {
+		return
+	} else if h.T().Failed() {
+		GatherCRDObjectDebuggingInfo(h.k8shelper, systemNamespace)
+		GatherCRDObjectDebuggingInfo(h.k8shelper, namespace)
+	}
 	logger.Infof("Gathering all logs from NFSServer %s", namespace)
 	h.k8shelper.GetLogs("rook-nfs-operator", Env.HostType, systemNamespace, testName)
 	h.k8shelper.GetLogs("rook-nfs", Env.HostType, namespace, testName)

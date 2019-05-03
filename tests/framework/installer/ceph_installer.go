@@ -484,6 +484,9 @@ func (h *CephInstaller) cleanupDir(node, dir string) error {
 }
 
 func (h *CephInstaller) GatherAllRookLogs(namespace, systemNamespace string, testName string) {
+	if !h.T().Failed() && Env.Logs != "all" {
+		return
+	}
 	logger.Infof("Gathering all logs from Rook Cluster %s", namespace)
 	h.k8shelper.GetPreviousLogs("rook-ceph-operator", Env.HostType, systemNamespace, testName)
 	h.k8shelper.GetLogs("rook-ceph-operator", Env.HostType, systemNamespace, testName)

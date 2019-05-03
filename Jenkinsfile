@@ -30,6 +30,9 @@ pipeline {
                     if (body.contains("[smoke only]")) {
                           env.smokeOnly = "true"
                     }
+                    if (body.contains("[all logs]")) {
+                          env.getLogs = "all"
+                    }
                 }
             }
         }
@@ -163,7 +166,7 @@ def RunIntegrationTest(k, v) {
                                   export PATH="/tmp/rook-tests-scripts-helm/linux-amd64:$PATH" \
                                       KUBECONFIG=$HOME/admin.conf
                                   kubectl config view
-                                  _output/tests/linux_amd64/integration -test.v -test.timeout 1800s -test.run SmokeSuite --host_type '''+"${k}"+''' --helm /tmp/rook-tests-scripts-helm/linux-amd64/helm 2>&1 | tee _output/tests/integrationTests.log'''
+                                  _output/tests/linux_amd64/integration -test.v -test.timeout 1800s -test.run SmokeSuite --host_type '''+"${k}"+''' --logs '''+"${env.getLogs}"+''' --helm /tmp/rook-tests-scripts-helm/linux-amd64/helm 2>&1 | tee _output/tests/integrationTests.log'''
                         }
                         else {
                         echo "Running full regression"
@@ -172,7 +175,7 @@ def RunIntegrationTest(k, v) {
                               export PATH="/tmp/rook-tests-scripts-helm/linux-amd64:$PATH" \
                                   KUBECONFIG=$HOME/admin.conf
                               kubectl config view
-                              _output/tests/linux_amd64/integration -test.v -test.timeout 7200s --host_type '''+"${k}"+''' --helm /tmp/rook-tests-scripts-helm/linux-amd64/helm 2>&1 | tee _output/tests/integrationTests.log'''
+                              _output/tests/linux_amd64/integration -test.v -test.timeout 7200s --host_type '''+"${k}"+''' --logs '''+"${env.getLogs}"+''' --helm /tmp/rook-tests-scripts-helm/linux-amd64/helm 2>&1 | tee _output/tests/integrationTests.log'''
                          }
                     }
                     finally{

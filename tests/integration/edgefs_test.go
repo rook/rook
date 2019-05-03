@@ -83,10 +83,6 @@ func (suite *EdgefsSuite) Setup() {
 }
 
 func (suite *EdgefsSuite) Teardown() {
-	if suite.T().Failed() {
-		installer.GatherCRDObjectDebuggingInfo(suite.k8shelper, suite.systemNamespace)
-		installer.GatherCRDObjectDebuggingInfo(suite.k8shelper, suite.namespace)
-	}
 	suite.installer.GatherAllEdgefsLogs(suite.systemNamespace, suite.namespace, suite.T().Name())
 	suite.installer.UninstallEdgefs(suite.systemNamespace, suite.namespace)
 }
