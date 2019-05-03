@@ -38,8 +38,8 @@ install_helm() {
         echo "Installing helm..." >&2
         # shellcheck disable=SC2021
         mkdir -p "${temp}"
-	local helm_url="https://storage.googleapis.com/kubernetes-helm/helm-v2.13.1-${dist}-${arch}.tar.gz"
-	local helm_gz="${temp}/helm.tar.gz"
+        local helm_url="https://storage.googleapis.com/kubernetes-helm/helm-v2.13.1-${dist}-${arch}.tar.gz"
+        local helm_gz="${temp}/helm.tar.gz"
         wget "${helm_url}" -O ${helm_gz} >&2
         tar -C "${temp}" -zxvf ${helm_gz} >&2
         helm="${tmp_helm}"
