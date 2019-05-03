@@ -24,26 +24,28 @@ detectArch() {
     esac
 }
 
-# Set the global HELM variable to the helm command. Install helm to a temp 
-# location if it's not present.
+# Echo the name or path of the helm command. Install helm to a temp location
+# if it's not present.
 install_helm() {
-    HELM="helm"
+    local helm="helm"
     local dist="$(uname -s)"
     dist="$(echo "${dist}" | tr '[A-Z]' '[a-z]')"
     local tmp_helm="${temp}/${dist}-${arch}/helm"
 
     if [[ -f "${tmp_helm}" ]]; then # helm installed by this script
-        HELM="${tmp_helm}"
-    elif ! which ${HELM} &>/dev/null; then
-        echo "Installing helm..."
+        helm="${tmp_helm}"
+    elif ! which ${helm} &>/dev/null; then
+        echo "Installing helm..." >&2
         # shellcheck disable=SC2021
         mkdir -p "${temp}"
 	local helm_url="https://storage.googleapis.com/kubernetes-helm/helm-v2.13.1-${dist}-${arch}.tar.gz"
 	local helm_gz="${temp}/helm.tar.gz"
-        wget "${helm_url}" -O ${helm_gz}
-        tar -C "${temp}" -zxvf ${helm_gz}
-        HELM="${tmp_helm}"
+        wget "${helm_url}" -O ${helm_gz} >&2
+        tar -C "${temp}" -zxvf ${helm_gz} >&2
+        helm="${tmp_helm}"
     fi
+
+    echo "${helm}"
 }
 
 install() {
@@ -108,7 +110,8 @@ if [ -z "${arch}" ]; then
     detectArch
 fi
 
-install_helm
+HELM="$(install_helm)"
+echo "debug: HELM=$HELM"
 
 case "${1:-}" in
     up)
