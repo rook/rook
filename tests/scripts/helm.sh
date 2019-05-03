@@ -2,8 +2,6 @@
 
 scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 temp="/tmp/rook-tests-scripts-helm"
-
-HELM="helm"
 arch="${ARCH:-}"
 
 detectArch() {
@@ -26,19 +24,29 @@ detectArch() {
     esac
 }
 
-install() {
-    if ! helm_loc="$(type -p "helm")" || [[ -z ${helm_loc} ]]; then
-        # Download and unpack helm
-        local dist
-        dist="$(uname -s)"
-        # shellcheck disable=SC2021
-        dist=$(echo "${dist}" | tr "[A-Z]" "[a-z]")
-        mkdir -p "${temp}"
-        wget "https://storage.googleapis.com/kubernetes-helm/helm-v2.13.1-${dist}-${arch}.tar.gz" -O "${temp}/helm.tar.gz"
-        tar -C "${temp}" -zxvf "${temp}/helm.tar.gz"
-        HELM="${temp}/${dist}-${arch}/helm"
-    fi
+# Set the global HELM variable to the helm command. Install helm to a temp 
+# location if it's not present.
+install_helm() {
+    HELM="helm"
+    local dist="$(uname -s)"
+    dist="$(echo "${dist}" | tr '[A-Z]' '[a-z]')"
+    local tmp_helm="${temp}/${dist}-${arch}/helm"
 
+    if [[ -f "${tmp_helm}" ]]; then # helm installed by this script
+        HELM="${tmp_helm}"
+    elif ! which ${HELM} &>/dev/null; then
+        echo "Installing helm..."
+        # shellcheck disable=SC2021
+        mkdir -p "${temp}"
+	local helm_url="https://storage.googleapis.com/kubernetes-helm/helm-v2.13.1-${dist}-${arch}.tar.gz"
+	local helm_gz="${temp}/helm.tar.gz"
+        wget "${helm_url}" -O ${helm_gz}
+        tar -C "${temp}" -zxvf ${helm_gz}
+        HELM="${tmp_helm}"
+    fi
+}
+
+install() {
     # Init helm
     "${HELM}" init
 
@@ -76,20 +84,31 @@ install() {
 
     "${HELM}" repo add local http://127.0.0.1:8879
     "${HELM}" search rook-ceph
-
 }
 
+# Reset helm or reset & rm temp helm
 helm_reset() {
-    "${HELM}" reset
+    local do_rm="$1"
+
+    ${HELM} reset
     # shellcheck disable=SC2021
-    pgrep "${HELM}" | grep -v grep | awk '{print $2}'| xargs kill -9
-    rm -rf "${temp}"
+
+    kubectl -n kube-system delete sa tiller
+    kubectl delete clusterrolebinding tiller
+
+    local pid
+    pid="$(pgrep ${HELM})"
+    (( $? == 0 )) && kill -9 ${pid}
+
+    [[ -n "${do_rm}" ]] && rm -rf "${temp}"
 }
 
 
 if [ -z "${arch}" ]; then
     detectArch
 fi
+
+install_helm
 
 case "${1:-}" in
     up)
@@ -98,11 +117,15 @@ case "${1:-}" in
         cat _output/version | xargs "${scriptdir}/makeTestImages.sh" tag "${arch}" || true
         "${HELM}" repo add stable https://kubernetes-charts.storage.googleapis.com/
         ;;
-    clean)
+    reset)
         helm_reset
+        ;;
+    clean)
+        helm_reset "rm"
         ;;
     *)
         echo "usage:" >&2
-        echo "  $0 up" >&2
-        echo "  $0 clean" >&2
+        echo "  $0 up # bring up helm" >&2
+        echo "  $0 reset # reset helm" >&2
+        echo "  $0 clean # reset helm and rm tmp helm if present" >&2
 esac
