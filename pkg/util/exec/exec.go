@@ -18,6 +18,7 @@ package exec
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -35,6 +36,7 @@ type Executor interface {
 	ExecuteCommandWithOutput(debug bool, actionName string, command string, arg ...string) (string, error)
 	ExecuteCommandWithCombinedOutput(debug bool, actionName string, command string, arg ...string) (string, error)
 	ExecuteCommandWithOutputFile(debug bool, actionName, command, outfileArg string, arg ...string) (string, error)
+	ExecuteCommandWithOutputFileTimeout(debug bool, timeout time.Duration, actionName, command, outfileArg string, arg ...string) (string, error)
 	ExecuteCommandWithTimeout(debug bool, timeout time.Duration, actionName string, command string, arg ...string) (string, error)
 	ExecuteStat(name string) (os.FileInfo, error)
 }
@@ -133,6 +135,44 @@ func (*CommandExecutor) ExecuteCommandWithCombinedOutput(debug bool, actionName 
 	logCommand(debug, command, arg...)
 	cmd := exec.Command(command, arg...)
 	return runCommandWithOutput(actionName, cmd, true)
+}
+
+// Same as ExecuteCommandWithOutputFile but with a timeout limit.
+func (*CommandExecutor) ExecuteCommandWithOutputFileTimeout(debug bool, timeout time.Duration, actionName string,
+	command, outfileArg string, arg ...string) (string, error) {
+
+	outFile, err := ioutil.TempFile("", "")
+	if err != nil {
+		return "", fmt.Errorf("failed to open output file: %+v", err)
+	}
+	defer outFile.Close()
+	defer os.Remove(outFile.Name())
+
+	arg = append(arg, outfileArg, outFile.Name())
+	logCommand(debug, command, arg...)
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, command, arg...)
+	cmdOut, err := cmd.CombinedOutput()
+
+	// if there was anything that went to stdout/stderr then log it, even before
+	// we return an error
+	if string(cmdOut) != "" {
+		logger.Info(string(cmdOut))
+	}
+
+	if ctx.Err() == context.DeadlineExceeded {
+		return string(cmdOut), ctx.Err()
+	}
+
+	if err != nil {
+		return string(cmdOut), err
+	}
+
+	fileOut, err := ioutil.ReadAll(outFile)
+	return string(fileOut), err
 }
 
 func (*CommandExecutor) ExecuteCommandWithOutputFile(debug bool, actionName string, command, outfileArg string, arg ...string) (string, error) {

@@ -33,7 +33,7 @@ type CephUsage struct {
 
 func Usage(context *clusterd.Context, clusterName string) (*CephUsage, error) {
 	args := []string{"df", "detail"}
-	buf, err := ExecuteCephCommand(context, clusterName, args)
+	buf, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get usage: %+v", err)
 	}

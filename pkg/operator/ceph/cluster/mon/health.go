@@ -359,7 +359,7 @@ func (c *Cluster) removeMon(daemonName string) error {
 func removeMonitorFromQuorum(context *clusterd.Context, clusterName, name string) error {
 	logger.Debugf("removing monitor %s", name)
 	args := []string{"mon", "remove", name}
-	if _, err := client.ExecuteCephCommand(context, clusterName, args); err != nil {
+	if _, err := client.NewCephCommand(context, clusterName, args).Run(); err != nil {
 		return fmt.Errorf("mon %s remove failed: %+v", name, err)
 	}
 

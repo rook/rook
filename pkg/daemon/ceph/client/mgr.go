@@ -59,12 +59,12 @@ func MgrSetConfig(context *clusterd.Context, clusterName, mgrName string, cephVe
 
 	// Retrieve previous value to monitor changes
 	var prevVal string
-	buf, err := ExecuteCephCommand(context, clusterName, getArgs)
+	buf, err := NewCephCommand(context, clusterName, getArgs).Run()
 	if err == nil {
 		prevVal = strings.TrimSpace(string(buf))
 	}
 
-	if _, err := ExecuteCephCommand(context, clusterName, setArgs); err != nil {
+	if _, err := NewCephCommand(context, clusterName, setArgs).Run(); err != nil {
 		return false, fmt.Errorf("failed to set mgr config key %s to \"%s\": %+v", key, val, err)
 	}
 
@@ -77,7 +77,7 @@ func enableModule(context *clusterd.Context, clusterName, name string, force boo
 	if force {
 		args = append(args, "--force")
 	}
-	_, err := ExecuteCephCommand(context, clusterName, args)
+	_, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
 		return fmt.Errorf("failed to mgr module enable for %s: %+v", name, err)
 	}

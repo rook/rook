@@ -39,7 +39,7 @@ const (
 	Kubectl = "kubectl"
 	// CrushTool is the name of the CLI tool for 'crushtool'
 	CrushTool             = "crushtool"
-	cmdExecuteTimeout     = 1 * time.Minute
+	CmdExecuteTimeout     = 1 * time.Minute
 	cephConnectionTimeout = "15" // in seconds
 )
 
@@ -78,73 +78,99 @@ func FinalizeCephCommandArgs(command string, args []string, configDir, clusterNa
 	return command, append(args, configArgs...)
 }
 
-// ExecuteCephCommandDebugLog executes the 'ceph' command with 'debug' logs instead of 'info' logs
-func ExecuteCephCommandDebugLog(context *clusterd.Context, clusterName string, args []string) ([]byte, error) {
-	return executeCephCommandWithOutputFile(context, clusterName, true, args)
+type CephToolCommand struct {
+	context     *clusterd.Context
+	tool        string
+	clusterName string
+	args        []string
+	timeout     time.Duration
+	Debug       bool
+	JsonOutput  bool
+	OutputFile  bool
 }
 
-// ExecuteCephCommand executes the 'ceph' command
-func ExecuteCephCommand(context *clusterd.Context, clusterName string, args []string) ([]byte, error) {
-	return executeCephCommandWithOutputFile(context, clusterName, false, args)
-}
-
-// ExecuteCephCommandDebug executes the 'ceph' command with debug output
-func ExecuteCephCommandDebug(context *clusterd.Context, clusterName string, debug bool, args []string) ([]byte, error) {
-	return executeCephCommandWithOutputFile(context, clusterName, debug, args)
-}
-
-// ExecuteCephCommandPlain executes the 'ceph' command and returns stdout in PLAIN format instead of JSON
-func ExecuteCephCommandPlain(context *clusterd.Context, clusterName string, args []string) ([]byte, error) {
-	command, args := FinalizeCephCommandArgs(CephTool, args, context.ConfigDir, clusterName)
-	args = append(args, "--format", "plain")
-	return executeCommandWithOutputFile(context, false, command, args)
-}
-
-// ExecuteCephCommandPlainNoOutputFile executes the 'ceph' command and returns stdout in PLAIN format instead of JSON
-// with no output file, suppresses '--out-file' option
-func ExecuteCephCommandPlainNoOutputFile(context *clusterd.Context, clusterName string, args []string) ([]byte, error) {
-	command, args := FinalizeCephCommandArgs(CephTool, args, context.ConfigDir, clusterName)
-	args = append(args, "--format", "plain")
-	return executeCommand(context, command, args)
-}
-
-func executeCephCommandWithOutputFile(context *clusterd.Context, clusterName string, debug bool, args []string) ([]byte, error) {
-	command, args := FinalizeCephCommandArgs(CephTool, args, context.ConfigDir, clusterName)
-	args = append(args, "--format", "json")
-	return executeCommandWithOutputFile(context, debug, command, args)
-}
-
-// ExecuteRBDCommand executes the 'rbd' command
-func ExecuteRBDCommand(context *clusterd.Context, clusterName string, args []string) ([]byte, error) {
-	command, args := FinalizeCephCommandArgs(RBDTool, args, context.ConfigDir, clusterName)
-	args = append(args, "--format", "json")
-	return executeCommand(context, command, args)
-}
-
-// ExecuteRBDCommandNoFormat executes the 'rbd' command and returns stdout in PLAIN format
-func ExecuteRBDCommandNoFormat(context *clusterd.Context, clusterName string, args []string) ([]byte, error) {
-	command, args := FinalizeCephCommandArgs(RBDTool, args, context.ConfigDir, clusterName)
-	return executeCommand(context, command, args)
-}
-
-// ExecuteRBDCommandWithTimeout executes the 'rbd' command with a timeout of 1 minute
-func ExecuteRBDCommandWithTimeout(context *clusterd.Context, clusterName string, args []string) (string, error) {
-	output, err := context.Executor.ExecuteCommandWithTimeout(false, cmdExecuteTimeout, "", RBDTool, args...)
-	return output, err
-}
-
-func executeCommand(context *clusterd.Context, command string, args []string) ([]byte, error) {
-	output, err := context.Executor.ExecuteCommandWithOutput(false, "", command, args...)
-	return []byte(output), err
-}
-
-func executeCommandWithOutputFile(context *clusterd.Context, debug bool, command string, args []string) ([]byte, error) {
-	if command == Kubectl {
-		// Kubectl commands targeting the toolbox container generate a temp file in the wrong place, so we will instead capture the output from stdout for the tests
-		return executeCommand(context, command, args)
+func newCephToolCommand(tool string, context *clusterd.Context, clusterName string, args []string, debug bool) *CephToolCommand {
+	return &CephToolCommand{
+		context:     context,
+		tool:        tool,
+		clusterName: clusterName,
+		args:        args,
+		Debug:       debug,
+		JsonOutput:  true,
+		OutputFile:  true,
 	}
-	output, err := context.Executor.ExecuteCommandWithOutputFile(debug, "", command, "--out-file", args...)
+}
+
+func NewCephCommand(context *clusterd.Context, clusterName string, args []string) *CephToolCommand {
+	return newCephToolCommand(CephTool, context, clusterName, args, false)
+}
+
+func NewRBDCommand(context *clusterd.Context, clusterName string, args []string) *CephToolCommand {
+	cmd := newCephToolCommand(RBDTool, context, clusterName, args, false)
+	cmd.JsonOutput = false
+	cmd.OutputFile = false
+	return cmd
+}
+
+func (c *CephToolCommand) run() ([]byte, error) {
+	command, args := FinalizeCephCommandArgs(c.tool, c.args, c.context.ConfigDir, c.clusterName)
+	if c.JsonOutput {
+		args = append(args, "--format", "json")
+	} else {
+		// the `rbd` tool doesn't use special flag for plain format
+		if c.tool != RBDTool {
+			args = append(args, "--format", "plain")
+		}
+	}
+
+	var output string
+	var err error
+
+	if c.OutputFile {
+		if command == Kubectl {
+			// Kubectl commands targeting the toolbox container generate a temp
+			// file in the wrong place, so we will instead capture the output
+			// from stdout for the tests
+			if c.timeout == 0 {
+				output, err = c.context.Executor.ExecuteCommandWithOutput(c.Debug, "", command, args...)
+			} else {
+				output, err = c.context.Executor.ExecuteCommandWithTimeout(c.Debug, c.timeout, "", command, args...)
+			}
+		} else {
+			if c.timeout == 0 {
+				output, err = c.context.Executor.ExecuteCommandWithOutputFile(c.Debug, "", command, "--out-file", args...)
+			} else {
+				output, err = c.context.Executor.ExecuteCommandWithOutputFileTimeout(c.Debug, c.timeout, "", command, "--out-file", args...)
+			}
+		}
+	} else {
+		if c.timeout == 0 {
+			output, err = c.context.Executor.ExecuteCommandWithOutput(c.Debug, "", command, args...)
+		} else {
+			output, err = c.context.Executor.ExecuteCommandWithTimeout(c.Debug, c.timeout, "", command, args...)
+		}
+	}
+
 	return []byte(output), err
+}
+
+func (c *CephToolCommand) Run() ([]byte, error) {
+	c.timeout = 0
+	return c.run()
+}
+
+func (c *CephToolCommand) RunWithTimeout(timeout time.Duration) ([]byte, error) {
+	c.timeout = timeout
+	return c.run()
+}
+
+// ExecuteRBDCommandWithTimeout executes the 'rbd' command with a timeout of 1
+// minute. This method is left as a special case in which the caller has fully
+// configured its arguments. It is future work to integrate this case into the
+// generalization.
+func ExecuteRBDCommandWithTimeout(context *clusterd.Context, clusterName string, args []string) (string, error) {
+	output, err := context.Executor.ExecuteCommandWithTimeout(false, CmdExecuteTimeout, "", RBDTool, args...)
+	return output, err
 }
 
 func ExecuteCephCommandWithRetry(

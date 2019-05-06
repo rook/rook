@@ -571,7 +571,7 @@ func initializeOSD(config *osdConfig, context *clusterd.Context, cluster *cephco
 func createOSD(context *clusterd.Context, clusterName string, osdUUID uuid.UUID) (int, error) {
 	// TODO: "entity": "client.bootstrap-osd",
 	args := []string{"osd", "create", osdUUID.String()}
-	buf, err := client.ExecuteCephCommand(context, clusterName, args)
+	buf, err := client.NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
 		return 0, fmt.Errorf("failed to create osd %s: %+v", osdUUID, err)
 	}
@@ -589,7 +589,7 @@ func createOSD(context *clusterd.Context, clusterName string, osdUUID uuid.UUID)
 func getMonMap(context *clusterd.Context, clusterName string) ([]byte, error) {
 	// TODO: "entity": "client.bootstrap-osd",
 	args := []string{"mon", "getmap"}
-	buf, err := client.ExecuteCephCommand(context, clusterName, args)
+	buf, err := client.NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get mon map: %+v", err)
 	}
@@ -652,7 +652,7 @@ func addOSDToCrushMap(context *clusterd.Context, config *osdConfig, clusterName,
 		osdEntity, osdDataPath, totalBytes, weight, location)
 	args := []string{"osd", "crush", "create-or-move", strconv.Itoa(osdID), fmt.Sprintf("%.4f", weight)}
 	args = append(args, strings.Split(location, " ")...)
-	_, err = client.ExecuteCephCommand(context, clusterName, args)
+	_, err = client.NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
 		return fmt.Errorf("failed adding %s to crush map: %+v", osdEntity, err)
 	}

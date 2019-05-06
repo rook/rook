@@ -18,6 +18,7 @@ package mgr
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -93,6 +94,10 @@ func TestStartSecureDashboard(t *testing.T) {
 			return "", nil
 		},
 	}
+	executor.MockExecuteCommandWithOutputFileTimeout = func(debug bool, timeout time.Duration, actionName string, command, outfileArg string, arg ...string) (string, error) {
+		return executor.MockExecuteCommandWithOutputFile(debug, actionName, command, outfileArg, arg...)
+	}
+
 	clusterInfo := &cephconfig.ClusterInfo{
 		CephVersion: cephver.Mimic,
 	}
