@@ -36,7 +36,6 @@ install_helm() {
         helm="${tmp_helm}"
     elif ! which ${helm} &>/dev/null; then
         echo "Installing helm..." >&2
-        # shellcheck disable=SC2021
         mkdir -p "${temp}"
         local helm_url="https://storage.googleapis.com/kubernetes-helm/helm-v2.13.1-${dist}-${arch}.tar.gz"
         local helm_gz="${temp}/helm.tar.gz"
@@ -93,7 +92,6 @@ helm_reset() {
     local do_rm="$1"
 
     ${HELM} reset
-    # shellcheck disable=SC2021
 
     kubectl -n kube-system delete sa tiller
     kubectl delete clusterrolebinding tiller
@@ -116,7 +114,6 @@ echo "debug: HELM=$HELM"
 case "${1:-}" in
     up)
         install
-        # shellcheck disable=2002
         cat _output/version | xargs "${scriptdir}/makeTestImages.sh" tag "${arch}" || true
         "${HELM}" repo add stable https://kubernetes-charts.storage.googleapis.com/
         ;;
