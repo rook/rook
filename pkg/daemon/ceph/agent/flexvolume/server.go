@@ -150,6 +150,8 @@ func generateFlexSettings(enableSELinuxRelabeling, enableFSGroup bool) ([]byte, 
 		Status: flexvolume.StatusSuccess,
 		Capabilities: &flexvolume.DriverCapabilities{
 			Attach: false,
+			// Required for metrics
+			SupportsMetrics: true,
 			// Required for any mount performed on a host running selinux
 			SELinuxRelabel: enableSELinuxRelabeling,
 			FSGroup:        enableFSGroup,
