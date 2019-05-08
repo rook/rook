@@ -17,6 +17,7 @@ limitations under the License.
 package mon
 
 import (
+	"fmt"
 	"os"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -158,6 +159,15 @@ func (c *Cluster) makeMonFSInitContainer(monConfig *monConfig) v1.Container {
 
 func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 	podIPEnvVar := "ROOK_POD_IP"
+	publicAddr := monConfig.PublicIP
+	publicBindAddr := opspec.ContainerEnvVarReference(podIPEnvVar)
+	if c.HostNetwork && monConfig.Port != DefaultMsgr1Port {
+		logger.Warningf("Starting mon %s with host networking on a non-default port %d. The mon must be failed over before enabling msgr2.",
+			monConfig.DaemonName, monConfig.Port)
+		publicAddr = fmt.Sprintf("%s:%d", publicAddr, monConfig.Port)
+		publicBindAddr = fmt.Sprintf("%s:%d", publicBindAddr, monConfig.Port)
+	}
+
 	container := v1.Container{
 		Name: "mon",
 		Command: []string{
@@ -168,10 +178,10 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 			"--foreground",
 			// If the mon is already in the monmap, when the port is left off of --public-addr,
 			// it will still advertise on the previous port b/c monmap is saved to mon database.
-			config.NewFlag("public-addr", monConfig.PublicIP),
+			config.NewFlag("public-addr", publicAddr),
 			// Opposite of the above, --public-bind-addr will *not* still advertise on the previous
 			// port, which makes sense because this is the pod IP, which changes with every new pod.
-			config.NewFlag("public-bind-addr", opspec.ContainerEnvVarReference(podIPEnvVar)),
+			config.NewFlag("public-bind-addr", publicBindAddr),
 		),
 		Image:           c.spec.CephVersion.Image,
 		VolumeMounts:    opspec.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),
