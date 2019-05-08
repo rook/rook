@@ -282,6 +282,18 @@ const (
               volumeMounts:
                 - name: socket-dir
                   mountPath: /csi
+            - name: csi-attacher
+              image: {{ .AttacherImage }}
+              args:
+                - "--v=5"
+                - "--csi-address=$(ADDRESS)"
+              env:
+                - name: ADDRESS
+                  value: /csi/csi-provisioner.sock
+              imagePullPolicy: "IfNotPresent"
+              volumeMounts:
+                - name: socket-dir
+                  mountPath: /csi
             - name: csi-cephfsplugin
               securityContext:
                 privileged: true
