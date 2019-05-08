@@ -17,6 +17,7 @@ limitations under the License.
 package mon
 
 import (
+	"strings"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -271,11 +272,36 @@ func TestHostNetwork(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 3, len(nodes))
 
-	pod := c.makeMonPod(testGenMonConfig("c"), nodes[2].Name)
+	monConfig := testGenMonConfig("c")
+	pod := c.makeMonPod(monConfig, nodes[2].Name)
 	assert.NotNil(t, pod)
-
 	assert.Equal(t, true, pod.Spec.HostNetwork)
 	assert.Equal(t, v1.DNSClusterFirstWithHostNet, pod.Spec.DNSPolicy)
+	val, message := extractArgValue(pod.Spec.Containers[0].Args, "--public-addr")
+	assert.Equal(t, "2.4.6.3", val, message)
+	val, message = extractArgValue(pod.Spec.Containers[0].Args, "--public-bind-addr")
+	assert.Equal(t, "$(ROOK_POD_IP)", val, message)
+
+	monConfig.Port = 6790
+	pod = c.makeMonPod(monConfig, nodes[2].Name)
+	val, message = extractArgValue(pod.Spec.Containers[0].Args, "--public-addr")
+	assert.Equal(t, "2.4.6.3:6790", val, message)
+	val, message = extractArgValue(pod.Spec.Containers[0].Args, "--public-bind-addr")
+	assert.Equal(t, "$(ROOK_POD_IP):6790", val, message)
+	assert.NotNil(t, pod)
+}
+
+func extractArgValue(args []string, name string) (string, string) {
+	for _, arg := range args {
+		if strings.Contains(arg, name) {
+			vals := strings.Split(arg, "=")
+			if len(vals) != 2 {
+				return "", "cannot split arg: " + arg
+			}
+			return vals[1], "value: " + vals[1]
+		}
+	}
+	return "", "arg not found: " + name
 }
 
 func TestGetNodeInfoFromNode(t *testing.T) {
