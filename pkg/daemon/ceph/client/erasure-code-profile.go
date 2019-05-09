@@ -64,7 +64,7 @@ func GetErasureCodeProfileDetails(context *clusterd.Context, clusterName, name s
 	return ecProfileDetails, nil
 }
 
-func CreateErasureCodeProfile(context *clusterd.Context, clusterName string, config model.ErasureCodedPoolConfig, name, failureDomain, crushRoot string) error {
+func CreateErasureCodeProfile(context *clusterd.Context, clusterName string, config model.ErasureCodedPoolConfig, name, failureDomain, crushRoot, deviceClass string) error {
 	// look up the default profile so we can use the default plugin/technique
 	defaultProfile, err := GetErasureCodeProfileDetails(context, clusterName, "default")
 	if err != nil {
@@ -83,6 +83,9 @@ func CreateErasureCodeProfile(context *clusterd.Context, clusterName string, con
 	}
 	if crushRoot != "" {
 		profilePairs = append(profilePairs, fmt.Sprintf("crush-root=%s", crushRoot))
+	}
+	if deviceClass != "" {
+		profilePairs = append(profilePairs, fmt.Sprintf("crush-device-class=%s", deviceClass))
 	}
 
 	args := []string{"osd", "erasure-code-profile", "set", name}
@@ -114,6 +117,7 @@ func ModelPoolToCephPool(modelPool model.Pool) CephStoragePoolDetails {
 		Number:        modelPool.Number,
 		FailureDomain: modelPool.FailureDomain,
 		CrushRoot:     modelPool.CrushRoot,
+		DeviceClass:   modelPool.DeviceClass,
 	}
 
 	if modelPool.Type == model.Replicated {

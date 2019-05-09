@@ -27,6 +27,7 @@ spec:
   failureDomain: host
   replicated:
     size: 3
+  deviceClass: hdd
 ```
 
 ### Erasure Coded
@@ -46,6 +47,7 @@ spec:
   erasureCoded:
     dataChunks: 2
     codingChunks: 1
+  deviceClass: hdd
 ```
 
 High performance applications typically will not use erasure coding due to the performance overhead of creating and distributing the chunks in the cluster.
@@ -75,6 +77,7 @@ you would be able to tolerate the loss of two devices. Similarly for erasure cod
 <br>In case you added another location type to your nodes in the [Storage Selection Settings](ceph-cluster-crd.md#storage-selection-settings) (e.g. `rack`), you can also specify this type as your failure domain.
 <br>**NOTE:** Neither Rook nor Ceph will prevent the user from creating a cluster where data (or chunks) cannot be replicated safely;
 it is Ceph's design to delay checking for OSDs until a write request is made, and the write will hang if there are not sufficient OSDs to satisfy the request.
+- `deviceClass`: Sets up the CRUSH rule for the pool to distribute data only on the specified device class. If left empty or unspecified, the pool will use the cluster's default CRUSH root, which usually distributes data over all OSDs, regardless of their class.
 - `crushRoot`: The root in the crush map to be used by the pool. If left empty or unspecified, the default root will be used. Creating a crush hierarchy for the OSDs currently requires the Rook toolbox to run the Ceph tools described [here](http://docs.ceph.com/docs/master/rados/operations/crush-map/#modifying-the-crush-map).
 
 ### Erasure Coding

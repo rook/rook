@@ -253,6 +253,7 @@ func TestConvertLegacyPool(t *testing.T) {
 		Spec: cephbeta.PoolSpec{
 			FailureDomain: "fd202",
 			CrushRoot:     "root329",
+			DeviceClass:   "hdd",
 			Replicated:    cephbeta.ReplicatedSpec{Size: 5},
 			ErasureCoded: cephbeta.ErasureCodedSpec{
 				CodingChunks: 5,
@@ -270,6 +271,7 @@ func TestConvertLegacyPool(t *testing.T) {
 		Spec: cephv1.PoolSpec{
 			FailureDomain: "fd202",
 			CrushRoot:     "root329",
+			DeviceClass:   "hdd",
 			Replicated:    cephv1.ReplicatedSpec{Size: 5},
 			ErasureCoded: cephv1.ErasureCodedSpec{
 				CodingChunks: 5,
