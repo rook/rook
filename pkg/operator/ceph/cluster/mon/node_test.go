@@ -280,14 +280,13 @@ func TestHostNetwork(t *testing.T) {
 	val, message := extractArgValue(pod.Spec.Containers[0].Args, "--public-addr")
 	assert.Equal(t, "2.4.6.3", val, message)
 	val, message = extractArgValue(pod.Spec.Containers[0].Args, "--public-bind-addr")
-	assert.Equal(t, "$(ROOK_POD_IP)", val, message)
+	assert.Equal(t, "", val)
+	assert.Equal(t, "arg not found: --public-bind-addr", message)
 
 	monConfig.Port = 6790
 	pod = c.makeMonPod(monConfig, nodes[2].Name)
 	val, message = extractArgValue(pod.Spec.Containers[0].Args, "--public-addr")
 	assert.Equal(t, "2.4.6.3:6790", val, message)
-	val, message = extractArgValue(pod.Spec.Containers[0].Args, "--public-bind-addr")
-	assert.Equal(t, "$(ROOK_POD_IP):6790", val, message)
 	assert.NotNil(t, pod)
 }
 
