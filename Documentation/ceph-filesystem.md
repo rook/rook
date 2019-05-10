@@ -22,7 +22,7 @@ Please refer to [cephfs experimental features](http://docs.ceph.com/docs/master/
 
 ## Create the File System
 
-Create the file system by specifying the desired settings for the metadata pool, data pools, and metadata server in the `CephFilesystem` CRD. In this example we create the metadata pool with replication of three and a single data pool with erasure coding. For more options, see the documentation on [creating shared file systems](ceph-filesystem-crd.md).
+Create the file system by specifying the desired settings for the metadata pool, data pools, and metadata server in the `CephFilesystem` CRD. In this example we create the metadata pool with replication of three and a single data pool with replication of three. For more options, see the documentation on [creating shared file systems](ceph-filesystem-crd.md).
 
 Save this shared file system definition as `filesystem.yaml`:
 
