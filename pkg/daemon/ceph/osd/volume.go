@@ -121,13 +121,20 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 				batchArgs = append(batchArgs, deviceArg)
 				configured++
 			} else {
-				// execute ceph-volume immediately with the device-specific setting instead of batching up multiple devices together
 				immediateExecuteArgs := append(baseArgs, []string{
 					deviceArg,
 					osdsPerDeviceFlag,
 					sanitizeOSDsPerDevice(device.Config.OSDsPerDevice),
 				}...)
 
+				// Reporting
+				immediateReportArgs := append(immediateExecuteArgs, "--report")
+
+				if err := context.Executor.ExecuteCommand(false, "", baseCommand, immediateReportArgs...); err != nil {
+					return fmt.Errorf("failed ceph-volume report. %+v", err) // fail return here as validation provided by ceph-volume
+				}
+
+				// execute ceph-volume immediately with the device-specific setting instead of batching up multiple devices together
 				if err := context.Executor.ExecuteCommand(false, "", baseCommand, immediateExecuteArgs...); err != nil {
 					return fmt.Errorf("failed ceph-volume. %+v", err)
 				}
@@ -143,9 +150,14 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 		reportArgs := append(batchArgs, []string{
 			"--report",
 		}...)
-		// Run "stdbuf -oL ceph-volume" so we can get more frequent updates in the container logs
+
 		if err := context.Executor.ExecuteCommand(false, "", baseCommand, reportArgs...); err != nil {
 			return fmt.Errorf("failed ceph-volume report. %+v", err) // fail return here as validation provided by ceph-volume
+		}
+
+		// execute ceph-volume batching up multiple devices
+		if err := context.Executor.ExecuteCommand(false, "", baseCommand, batchArgs...); err != nil {
+			return fmt.Errorf("failed ceph-volume. %+v", err) // fail return here as validation provided by ceph-volume
 		}
 	}
 

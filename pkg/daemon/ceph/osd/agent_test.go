@@ -256,12 +256,12 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig config.StoreConfig,
 	if !legacyProvisioner {
 		if storeConfig.StoreType == config.Bluestore {
 			assert.Equal(t, 7, outputExecCount)
-			assert.Equal(t, 2, execCount)
+			assert.Equal(t, 3, execCount)
 		} else {
 			assert.Equal(t, 6, outputExecCount)
 			// filestore on a device has two more calls than bluestore because of the mount/unmount commands of the legacy sdx device
 			// where sdy is created as the new c-v osd
-			assert.Equal(t, 4, execCount)
+			assert.Equal(t, 5, execCount)
 		}
 	} else if storeConfig.StoreType == config.Bluestore {
 		assert.Equal(t, 12, outputExecCount) // Bluestore has 2 extra output exec calls to get device properties of each device to determine CRUSH weight
