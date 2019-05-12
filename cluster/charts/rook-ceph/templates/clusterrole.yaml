@@ -252,7 +252,7 @@ metadata:
     rbac.ceph.rook.io/aggregate-to-rook-ceph-system-psp-user: "true"
 rules:
 - apiGroups:
-  - apps
+  - policy
   resources:
   - podsecuritypolicies
   resourceNames:
