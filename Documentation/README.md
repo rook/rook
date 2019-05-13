@@ -11,7 +11,7 @@ We plan to continue adding support for other storage systems and environments ba
 
 ## Quick Start Guides
 
-Starting Rook in your cluster is as simple as two `kubectl` commands. See our [Quickstart](quickstart-toc.md) guide for the details on what you need to get going.
+Starting Rook in your cluster is as simple as a few `kubectl` commands. See our [Quickstart](quickstart-toc.md) guide for the details on what you need to get going.
 
 ## Storage Provider Designs
 
