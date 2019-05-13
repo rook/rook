@@ -17,6 +17,7 @@ limitations under the License.
 package mon
 
 import (
+	"fmt"
 	"os"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -158,6 +159,16 @@ func (c *Cluster) makeMonFSInitContainer(monConfig *monConfig) v1.Container {
 
 func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 	podIPEnvVar := "ROOK_POD_IP"
+	publicAddr := monConfig.PublicIP
+
+	// Handle the non-default port for host networking. If host networking is not being used,
+	// the service created elsewhere will handle the non-default port redirection to the default port inside the container.
+	if c.HostNetwork && monConfig.Port != DefaultMsgr1Port {
+		logger.Warningf("Starting mon %s with host networking on a non-default port %d. The mon must be failed over before enabling msgr2.",
+			monConfig.DaemonName, monConfig.Port)
+		publicAddr = fmt.Sprintf("%s:%d", publicAddr, monConfig.Port)
+	}
+
 	container := v1.Container{
 		Name: "mon",
 		Command: []string{
@@ -168,10 +179,7 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 			"--foreground",
 			// If the mon is already in the monmap, when the port is left off of --public-addr,
 			// it will still advertise on the previous port b/c monmap is saved to mon database.
-			config.NewFlag("public-addr", monConfig.PublicIP),
-			// Opposite of the above, --public-bind-addr will *not* still advertise on the previous
-			// port, which makes sense because this is the pod IP, which changes with every new pod.
-			config.NewFlag("public-bind-addr", opspec.ContainerEnvVarReference(podIPEnvVar)),
+			config.NewFlag("public-addr", publicAddr),
 		),
 		Image:           c.spec.CephVersion.Image,
 		VolumeMounts:    opspec.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),
@@ -188,6 +196,14 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 			k8sutil.PodIPEnvVar(podIPEnvVar),
 		),
 		Resources: cephv1.GetMonResources(c.spec.Resources),
+	}
+
+	// If host networking is enabled, we don't need a bind addr that is different from the public addr
+	if !c.HostNetwork {
+		// Opposite of the above, --public-bind-addr will *not* still advertise on the previous
+		// port, which makes sense because this is the pod IP, which changes with every new pod.
+		container.Args = append(container.Args,
+			config.NewFlag("public-bind-addr", opspec.ContainerEnvVarReference(podIPEnvVar)))
 	}
 
 	// If deploying Nautilus and newer we need a new port of the monitor container

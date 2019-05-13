@@ -259,6 +259,29 @@ At this point, your Rook operator should be running version `rook/ceph:v1.0.0`
 
 Verify the Ceph cluster's health using the [health verification section](#health-verification).
 
+### 6. Update the Mon Ports
+
+The port on which the mons are listening has changed in the 1.0 release in order to support the new
+msgr2 protocol in Nautilus. Previously, the mons were listening on port 6790 by default.
+In 1.0 now they are expected to be listening on port 6789. To ensure an uninterrupted
+upgrade to 1.0, the operator configures the existing mons to continue listening on port 6790.
+
+It is recommended that the mons be re-configured to listen on the new default port **before upgrading to Ceph Nautilus**;
+however, the steps outlined below will still work after an upgrade to Nautilus.
+Instead of changing the port, the recommended process is to failover the mons,
+which will create new mons on port 6789. While the operator will automate most of this process, there are
+several steps required to induce the operator to failover a mon.
+1. Cause the mon to fail by setting the replicas on the mon deployment to zero. For example, if your mon is named `mon-a`:
+   - `kubectl -n rook-ceph edit deploy rook-ceph-mon-a`
+1. Find the line with `replicas: 1` and change it to `replicas: 0`. Save the change and exit the editor.
+1. Wait for 5-10 minutes for the operator to fail over the mon. You will see messages in the operator log that the mon is down and will be failed over after a timeout.
+The length of the timeout is dependent on the setting `ROOK_MON_OUT_INTERVAL` in the Rook operator deployment (operator.yaml).
+1. After the timeout, a new mon will be started and the old mon deployment will be automatically removed.
+1. Confirm in the toolbox that all mons are in quorum: `ceph status`. Do not continue if they are not in quorum.
+1. Repeat steps 1-5 for each of the old mons
+
+Note that clients connected with the Rook flex driver will be automatically updated when the mons are failed over.
+No intervention is needed for the clients to find the new mons.
 
 ## Ceph Version Upgrades
 Rook 1.0 is the last Rook release which will support Ceph's Luminous (v12.x.x) version. Users are
@@ -312,3 +335,17 @@ kubectl -n $ROOK_NAMESPACE exec -it $TOOLS_POD -- ceph osd require-osd-release n
 
 #### 4. Verify the updated cluster
 Verify the Ceph cluster's health using the [health verification section](#health-verification).
+
+If you see a health warning about enabling msgr2, please see the section above on [Updating the Mon Ports](#6-update-the-mon-ports).
+```
+[root@minikube /]# ceph -s
+  cluster:
+    id:     b02807da-986a-40b0-ab7a-fa57582b1e4f
+    health: HEALTH_WARN
+            3 monitors have not enabled msgr2
+```
+
+Alternatively, this warning can suppressed if a temporary workaround is needed.
+```
+ceph config set global mon_warn_on_msgr2_not_enabled false
+```
