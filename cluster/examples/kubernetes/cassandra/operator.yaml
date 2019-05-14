@@ -186,7 +186,7 @@ subjects:
        serviceAccountName: rook-cassandra-operator
        containers:
        - name: rook-cassandra-operator
-         image: rook/cassandra:v1.0.0
+         image: rook/cassandra:v1.0.1
          imagePullPolicy: "Always"
          args: ["cassandra", "operator"]
          env:
@@ -198,5 +198,3 @@ subjects:
            valueFrom:
              fieldRef:
                fieldPath: metadata.namespace
-
-
