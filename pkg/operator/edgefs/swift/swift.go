@@ -78,7 +78,7 @@ func (c *SWIFTController) CreateOrUpdate(s edgefsv1beta1.SWIFT, update bool, own
 	rookImage := defaultSWIFTImage
 
 	var rookImageVer string
-	rookImageComponents := strings.Split(rookImage, ":")
+	rookImageComponents := strings.Split(c.rookImage, ":")
 	if len(rookImageComponents) == 2 {
 		rookImageVer = rookImageComponents[1]
 	} else {
