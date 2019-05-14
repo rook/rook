@@ -34,6 +34,17 @@ func AuthAdd(context *clusterd.Context, clusterName, name, keyringPath string, c
 	return nil
 }
 
+// AuthGetOrCreateNoKeyring will either get or create a user with the given capabilities.
+func AuthGetOrCreateNoKeyring(context *clusterd.Context, clusterName string, name string, caps []string) error {
+	args := append([]string{"auth", "get-or-create", name}, caps...)
+	_, err := ExecuteCephCommandPlainNoOutputFile(context, clusterName, args)
+	if err != nil {
+		return fmt.Errorf("failed to auth get-or-create for %s: %+v", name, err)
+	}
+
+	return nil
+}
+
 // AuthGetOrCreate will either get or create a user with the given capabilities.  The keyring for the
 // user will be written to the given keyring path.
 func AuthGetOrCreate(context *clusterd.Context, clusterName, name, keyringPath string, caps []string) error {

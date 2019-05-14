@@ -464,3 +464,30 @@ type DisruptionManagementSpec struct {
 	// Namespace to look for MDBs by the machineDisruptionBudgetController
 	MachineDisruptionBudgetNamespace string `json:"machineDisruptionBudgetNamespace,omitempty"`
 }
+
+// +genclient
+// +genclient:noStatus
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type CephClient struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+	Spec              ClientSpec `json:"spec"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type CephClientList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+	Items           []CephClient `json:"items"`
+}
+
+type ClientSpec struct {
+	Caps ClientCaps `json:"caps"`
+}
+
+type ClientCaps struct {
+	Mon string `json:"mon,omitempty"`
+	Osd string `json:"osd,omitempty"`
+	Mds string `josn:"mds,omitempty"`

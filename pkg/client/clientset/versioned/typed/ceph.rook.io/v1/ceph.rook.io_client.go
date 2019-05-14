@@ -28,6 +28,7 @@ import (
 type CephV1Interface interface {
 	RESTClient() rest.Interface
 	CephBlockPoolsGetter
+	CephClientsGetter
 	CephClustersGetter
 	CephFilesystemsGetter
 	CephNFSesGetter
@@ -42,6 +43,10 @@ type CephV1Client struct {
 
 func (c *CephV1Client) CephBlockPools(namespace string) CephBlockPoolInterface {
 	return newCephBlockPools(c, namespace)
+}
+
+func (c *CephV1Client) CephClients(namespace string) CephClientInterface {
+	return newCephClients(c, namespace)
 }
 
 func (c *CephV1Client) CephClusters(namespace string) CephClusterInterface {
