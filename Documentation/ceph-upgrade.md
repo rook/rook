@@ -212,7 +212,7 @@ to aid users in any manifest-related auditing they wish to do.
 ### 3. Update the Rook operator image
 The largest portion of the upgrade is triggered when the operator's image is updated to `v1.0.x`.
 ```sh
-kubectl -n $ROOK_SYSTEM_NAMESPACE set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.0.0
+kubectl -n $ROOK_SYSTEM_NAMESPACE set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.0.1
 ```
 
 Watch now in amazement as the Ceph mons, mgrs, OSDs, rbd-mirrors, mdses and rgws are terminated and
@@ -255,7 +255,7 @@ to proceed with the next step before the mdses and rgws are finished updating.
 ```
 
 ### 5. Verify the updated cluster
-At this point, your Rook operator should be running version `rook/ceph:v1.0.0`
+At this point, your Rook operator should be running version `rook/ceph:v1.0.1`
 
 Verify the Ceph cluster's health using the [health verification section](#health-verification).
 
