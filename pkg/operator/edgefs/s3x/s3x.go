@@ -19,6 +19,7 @@ package s3x
 
 import (
 	"fmt"
+	"strings"
 
 	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -35,6 +36,7 @@ const (
 	/* Volumes definitions */
 	serviceAccountName = "rook-edgefs-cluster"
 	sslCertVolumeName  = "ssl-cert-volume"
+	defaultS3Image     = "edgefs/edgefs-restapi"
 	sslMountPath       = "/opt/nedge/etc/ssl/"
 	dataVolumeName     = "edgefs-datadir"
 	stateVolumeFolder  = ".state"
@@ -177,13 +179,21 @@ func (c *S3XController) makeDeployment(svcname, namespace, rookImage string, s3x
 		})
 	}
 
+	var rookImageVer string
+	rookImageComponents := strings.Split(c.rookImage, ":")
+	if len(rookImageComponents) == 2 {
+		rookImageVer = rookImageComponents[1]
+	} else {
+		rookImageVer = "latest"
+	}
+
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   name,
 			Labels: getLabels(name, svcname, namespace),
 		},
 		Spec: v1.PodSpec{
-			Containers:         []v1.Container{c.s3xContainer(svcname, name, rookImage, s3xSpec)},
+			Containers:         []v1.Container{c.s3xContainer(svcname, name, rookImage, s3xSpec), c.s3ProxyContainer(svcname, "s3-proxy", defaultS3Image+":"+rookImageVer, "s3", s3xSpec)},
 			RestartPolicy:      v1.RestartPolicyAlways,
 			Volumes:            volumes,
 			HostIPC:            true,
@@ -296,6 +306,92 @@ func (c *S3XController) s3xContainer(svcname, name, containerImage string, s3xSp
 	}
 
 	cont.Env = append(cont.Env, edgefsv1beta1.GetInitiatorEnvArr("s3x",
+		c.resourceProfile == "embedded" || s3xSpec.ResourceProfile == "embedded",
+		s3xSpec.ChunkCacheSize, s3xSpec.Resources)...)
+
+	return cont
+}
+
+func (c *S3XController) s3ProxyContainer(svcname, name, containerImage, args string, s3xSpec edgefsv1beta1.S3XSpec) v1.Container {
+	runAsUser := int64(0)
+	readOnlyRootFilesystem := false
+	securityContext := &v1.SecurityContext{
+		RunAsUser:              &runAsUser,
+		ReadOnlyRootFilesystem: &readOnlyRootFilesystem,
+		Capabilities: &v1.Capabilities{
+			Add: []v1.Capability{"SYS_NICE", "SYS_RESOURCE", "IPC_LOCK"},
+		},
+	}
+
+	volumeMounts := []v1.VolumeMount{
+		{
+			Name:      dataVolumeName,
+			MountPath: "/opt/nedge/etc.target",
+			SubPath:   etcVolumeFolder,
+		},
+		{
+			Name:      dataVolumeName,
+			MountPath: "/opt/nedge/var/run",
+			SubPath:   stateVolumeFolder,
+		},
+	}
+
+	if len(s3xSpec.SSLCertificateRef) > 0 {
+		volumeMounts = append(volumeMounts, v1.VolumeMount{Name: sslCertVolumeName, MountPath: sslMountPath})
+	}
+
+	cont := v1.Container{
+		Name:            name,
+		Image:           containerImage,
+		ImagePullPolicy: v1.PullAlways,
+		Args:            []string{args},
+		Env: []v1.EnvVar{
+			{
+				Name:  "CCOW_LOG_LEVEL",
+				Value: "5",
+			},
+			{
+				Name:  "CCOW_SVCNAME",
+				Value: svcname,
+			},
+			{
+				Name:  "DEBUG",
+				Value: "alert,error,info",
+			},
+			{
+				Name: "HOST_HOSTNAME",
+				ValueFrom: &v1.EnvVarSource{
+					FieldRef: &v1.ObjectFieldSelector{
+						FieldPath: "spec.nodeName",
+					},
+				},
+			},
+			{
+				Name: "K8S_NAMESPACE",
+				ValueFrom: &v1.EnvVarSource{
+					FieldRef: &v1.ObjectFieldSelector{
+						FieldPath: "metadata.namespace",
+					},
+				},
+			},
+			{
+				Name:  "GW_PORT",
+				Value: "9982",
+			},
+			{
+				Name:  "GW_PORT_SSL",
+				Value: "9443",
+			},
+		},
+		SecurityContext: securityContext,
+		Resources:       s3xSpec.Resources,
+		Ports: []v1.ContainerPort{
+			{Name: "port", ContainerPort: 9982, Protocol: v1.ProtocolTCP},
+		},
+		VolumeMounts: volumeMounts,
+	}
+
+	cont.Env = append(cont.Env, edgefsv1beta1.GetInitiatorEnvArr("s3",
 		c.resourceProfile == "embedded" || s3xSpec.ResourceProfile == "embedded",
 		s3xSpec.ChunkCacheSize, s3xSpec.Resources)...)
 
