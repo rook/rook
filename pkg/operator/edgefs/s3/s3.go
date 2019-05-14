@@ -90,7 +90,7 @@ func (c *S3Controller) CreateOrUpdate(s edgefsv1beta1.S3, update bool, ownerRefs
 	}
 
 	var rookImageVer string
-	rookImageComponents := strings.Split(rookImage, ":")
+	rookImageComponents := strings.Split(c.rookImage, ":")
 	if len(rookImageComponents) == 2 {
 		rookImageVer = rookImageComponents[1]
 	} else {
