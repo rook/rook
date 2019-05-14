@@ -19,6 +19,7 @@ package k8sutil
 
 import (
 	"fmt"
+	"strings"
 
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	v1 "k8s.io/api/core/v1"
@@ -27,6 +28,11 @@ import (
 	"k8s.io/client-go/kubernetes"
 	helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
 )
+
+var validTopologyLabelKeys = []string{
+	"failure-domain.beta.kubernetes.io",
+	"failure-domain.kubernetes.io",
+}
 
 // ValidNode returns true if the node (1) is schedulable, (2) meets Rook's placement terms, and
 // (3) is ready. False otherwise.
@@ -52,8 +58,8 @@ func ValidNode(node v1.Node, placement rookalpha.Placement) (bool, error) {
 
 // GetValidNodes returns all nodes that (1) are not cordoned, (2) meet Rook's placement terms, and
 // (3) are ready.
-func GetValidNodes(rookNodes []rookalpha.Node, clientset kubernetes.Interface, placement rookalpha.Placement) []rookalpha.Node {
-	matchingK8sNodes, err := GetKubernetesNodesMatchingRookNodes(rookNodes, clientset)
+func GetValidNodes(rookStorage rookalpha.StorageScopeSpec, clientset kubernetes.Interface, placement rookalpha.Placement) []rookalpha.Node {
+	matchingK8sNodes, err := GetKubernetesNodesMatchingRookNodes(rookStorage.Nodes, clientset)
 	if err != nil {
 		// cannot list nodes, return empty nodes
 		logger.Errorf("failed to list nodes: %+v", err)
@@ -70,7 +76,7 @@ func GetValidNodes(rookNodes []rookalpha.Node, clientset kubernetes.Interface, p
 		}
 	}
 
-	return RookNodesMatchingKubernetesNodes(rookNodes, validK8sNodes)
+	return RookNodesMatchingKubernetesNodes(rookStorage, validK8sNodes)
 }
 
 // GetNodeNameFromHostname returns the name of the node resource looked up by the hostname label
@@ -224,17 +230,44 @@ func GetKubernetesNodesMatchingRookNodes(rookNodes []rookalpha.Node, clientset k
 
 // RookNodesMatchingKubernetesNodes returns only the given Rook nodes which have a corresponding
 // match in the list of Kubernetes nodes.
-func RookNodesMatchingKubernetesNodes(rookNodes []rookalpha.Node, kubernetesNodes []v1.Node) []rookalpha.Node {
+func RookNodesMatchingKubernetesNodes(rookStorage rookalpha.StorageScopeSpec, kubernetesNodes []v1.Node) []rookalpha.Node {
 	nodes := []rookalpha.Node{}
 	for _, kn := range kubernetesNodes {
-		for _, rn := range rookNodes {
+		for _, rn := range rookStorage.Nodes {
 			if rookNodeMatchesKubernetesNode(rn, kn) {
 				rn.Name = normalizeHostname(kn)
+
+				// modify the node Location if topology awareness enabled
+				if rookStorage.TopologyAware == true {
+					rn.Location = nodeTopologyLocation(kn, rn.Location)
+				}
+
 				nodes = append(nodes, rn)
 			}
 		}
 	}
 	return nodes
+}
+
+func nodeTopologyLocation(kubeNode v1.Node, location string) string {
+	nodeLabels := kubeNode.ObjectMeta.Labels
+	locations := []string{location}
+
+	// We're looking for node labels that match the following format:
+	// <validTopologyLabelKey>/<key>: <value>
+	// Where validTopologyLabelKey is an entry in the
+	// validTopologyLabelKeys list, key is a topology element (e.g. region,
+	// zone), and value is the name of the element (e.g. region1, zone2)
+	for label := range nodeLabels {
+		for _, key := range validTopologyLabelKeys {
+			if strings.Contains(label, key) {
+				keys := strings.Split(label, "/")
+				locations = append(locations, fmt.Sprintf("%s=%s", keys[1], nodeLabels[label]))
+			}
+		}
+	}
+
+	return strings.Join(locations, " ")
 }
 
 // NodeIsInRookNodeList will return true if the target node is found in a given list of Rook nodes.
