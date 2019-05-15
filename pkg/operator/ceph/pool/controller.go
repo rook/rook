@@ -229,6 +229,7 @@ func ModelToSpec(pool model.Pool) cephv1.PoolSpec {
 	return cephv1.PoolSpec{
 		FailureDomain: pool.FailureDomain,
 		CrushRoot:     pool.CrushRoot,
+		DeviceClass:   pool.DeviceClass,
 		Replicated:    cephv1.ReplicatedSpec{Size: pool.ReplicatedConfig.Size},
 		ErasureCoded:  cephv1.ErasureCodedSpec{CodingChunks: ec.CodingChunkCount, DataChunks: ec.DataChunkCount, Algorithm: ec.Algorithm},
 	}
@@ -362,6 +363,7 @@ func ConvertRookLegacyPoolSpec(legacySpec cephbeta.PoolSpec) cephv1.PoolSpec {
 	return cephv1.PoolSpec{
 		FailureDomain: legacySpec.FailureDomain,
 		CrushRoot:     legacySpec.CrushRoot,
+		DeviceClass:   legacySpec.DeviceClass,
 		Replicated: cephv1.ReplicatedSpec{
 			Size: legacySpec.Replicated.Size,
 		},

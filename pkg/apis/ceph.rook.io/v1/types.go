@@ -164,6 +164,9 @@ type PoolSpec struct {
 	// The root of the crush hierarchy utilized by the pool
 	CrushRoot string `json:"crushRoot"`
 
+	// The device class the OSD should set to (options are: hdd, ssd, or nvme)
+	DeviceClass string `json:"deviceClass"`
+
 	// The replication settings
 	Replicated ReplicatedSpec `json:"replicated"`
 

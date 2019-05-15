@@ -98,13 +98,17 @@ func TestCreateECPoolWithoutOverwrites(t *testing.T) {
 }
 
 func TestCreateReplicaPool(t *testing.T) {
-	testCreateReplicaPool(t, "", "")
+	testCreateReplicaPool(t, "", "", "")
 }
 func TestCreateReplicaPoolWithFailureDomain(t *testing.T) {
-	testCreateReplicaPool(t, "osd", "mycrushroot")
+	testCreateReplicaPool(t, "osd", "mycrushroot", "")
 }
 
-func testCreateReplicaPool(t *testing.T, failureDomain, crushRoot string) {
+func TestCreateReplicaPoolWithDeviceClass(t *testing.T) {
+	testCreateReplicaPool(t, "osd", "mycrushroot", "hdd")
+}
+
+func testCreateReplicaPool(t *testing.T, failureDomain, crushRoot, deviceClass string) {
 	crushRuleCreated := false
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Executor: executor}
@@ -132,7 +136,7 @@ func testCreateReplicaPool(t *testing.T, failureDomain, crushRoot string) {
 		if args[1] == "crush" {
 			crushRuleCreated = true
 			assert.Equal(t, "rule", args[2])
-			assert.Equal(t, "create-simple", args[3])
+			assert.Equal(t, "create-replicated", args[3])
 			assert.Equal(t, "mypool", args[4])
 			if crushRoot == "" {
 				assert.Equal(t, "default", args[5])
@@ -144,13 +148,27 @@ func testCreateReplicaPool(t *testing.T, failureDomain, crushRoot string) {
 			} else {
 				assert.Equal(t, failureDomain, args[6])
 			}
+			if deviceClass == "" {
+				assert.False(t, testIsStringInSlice("hdd", args))
+			} else {
+				assert.Equal(t, deviceClass, args[7])
+			}
 			return "", nil
 		}
 		return "", fmt.Errorf("unexpected ceph command '%v'", args)
 	}
 
-	p := CephStoragePoolDetails{Name: "mypool", Size: 12345, FailureDomain: failureDomain, CrushRoot: crushRoot}
+	p := CephStoragePoolDetails{Name: "mypool", Size: 12345, FailureDomain: failureDomain, CrushRoot: crushRoot, DeviceClass: deviceClass}
 	err := CreateReplicatedPoolForApp(context, "myns", p, "myapp")
 	assert.Nil(t, err)
 	assert.True(t, crushRuleCreated)
+}
+
+func testIsStringInSlice(a string, list []string) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
 }

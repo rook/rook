@@ -16,7 +16,7 @@ limitations under the License.
 package v1beta1
 
 import (
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
@@ -144,6 +144,9 @@ type PoolSpec struct {
 
 	// The root of the crush hierarchy utilized by the pool
 	CrushRoot string `json:"crushRoot"`
+
+	// The device class the OSD should set to (options are: hdd, ssd, or nvme)
+	DeviceClass string `json:"deviceClass"`
 
 	// The replication settings
 	Replicated ReplicatedSpec `json:"replicated"`
