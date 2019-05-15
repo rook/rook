@@ -18,6 +18,7 @@ limitations under the License.
 package cluster
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"reflect"
@@ -281,56 +282,42 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	}
 
 	// Start the Rook cluster components. Retry several times in case of failure.
-	validOrchestration := true
-	err = wait.Poll(clusterCreateInterval, clusterCreateTimeout, func() (bool, error) {
-		cephVersion, err := cluster.detectCephVersion(cluster.Spec.CephVersion.Image, 15*time.Minute)
-		if err != nil {
-			logger.Errorf("unknown ceph major version. %+v", err)
-			return false, nil
-		}
+	c.runHandler(clusterObj.Name, cluster, "create", c.handleAdd, clusterCreateTimeout, clusterCreateInterval)
 
-		if !cluster.Spec.CephVersion.AllowUnsupported {
-			if !cephVersion.Supported() {
-				err = fmt.Errorf("unsupported ceph version detected: %s. allowUnsupported must be set to true to run with this version", cephVersion)
-				logger.Errorf("%+v", err)
-				validOrchestration = false
-				// it may seem strange to log error and exit true but we don't want to retry if the version is not supported
-				return true, nil
-			}
-		}
+	return
+}
 
-		err = c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1.ClusterStateCreating, "")
-		if err != nil {
-			logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
-			return false, nil
-		}
+func (c *ClusterController) handleAdd(crdName string, cluster *cluster) bool {
+	cephVersion, err := cluster.detectCephVersion(cluster.Spec.CephVersion.Image, 15*time.Minute)
+	if err != nil {
+		logger.Errorf("unknown ceph major version. %+v", err)
+		return false
+	}
 
-		err = cluster.createInstance(c.rookImage, *cephVersion)
-		if err != nil {
-			logger.Errorf("failed to create cluster in namespace %s. %+v", cluster.Namespace, err)
-			return false, nil
+	if !cluster.Spec.CephVersion.AllowUnsupported {
+		if !cephVersion.Supported() {
+			err = fmt.Errorf("unsupported ceph version detected: %s. allowUnsupported must be set to true to run with this version", cephVersion)
+			logger.Errorf("%+v", err)
+			// it may seem strange to log error and exit true but we don't want to retry if the version is not supported
+			return true
 		}
+	}
 
-		// cluster is created, update the cluster CRD status now
-		err = c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1.ClusterStateCreated, "")
-		if err != nil {
-			logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
-			return false, nil
-		}
+	if err := c.updateClusterStatus(cluster.Namespace, crdName, cephv1.ClusterStateCreating, ""); err != nil {
+		logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
+		return false
+	}
 
-		return true, nil
-	})
+	err = cluster.createInstance(c.rookImage, *cephVersion)
+	if err != nil {
+		logger.Errorf("failed to create cluster in namespace %s. %+v", cluster.Namespace, err)
+		return false
+	}
 
-	if err != nil || !validOrchestration {
-		message := fmt.Sprintf("giving up creating cluster in namespace %s after %s", cluster.Namespace, clusterCreateTimeout)
-		if !validOrchestration {
-			message = fmt.Sprintf("giving up creating cluster in namespace %s", cluster.Namespace)
-		}
-		logger.Error(message)
-		if err := c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1.ClusterStateError, message); err != nil {
-			logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
-		}
-		return
+	// cluster is created, update the cluster CRD status now
+	if err = c.updateClusterStatus(cluster.Namespace, crdName, cephv1.ClusterStateCreated, ""); err != nil {
+		logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
+		return false
 	}
 
 	// Start pool CRD watcher
@@ -366,14 +353,16 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	go osdChecker.Start(cluster.stopCh)
 
 	// Start the ceph status checker
-	cephChecker := newCephStatusChecker(c.context, cluster.Namespace, clusterObj.Name)
+	cephChecker := newCephStatusChecker(c.context, cluster.Namespace, crdName)
 	go cephChecker.checkCephStatus(cluster.stopCh)
 
 	// add the finalizer to the crd
-	err = c.addFinalizer(clusterObj)
+	err = c.addFinalizer(crdName, cluster.Namespace)
 	if err != nil {
 		logger.Errorf("failed to add finalizer to cluster crd. %+v", err)
 	}
+
+	return true
 }
 
 // ************************************************************************************************
@@ -511,44 +500,29 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 
 	cluster.Spec = &newClust.Spec
 
-	// attempt to update the cluster.  note this is done outside of wait.Poll because that function
-	// will wait for the retry interval before trying for the first time.
-	done, _ := c.handleUpdate(newClust.Name, cluster)
-	if done {
-		return
-	}
+	c.runHandler(newClust.Name, cluster, "update", c.handleUpdate, updateClusterTimeout, updateClusterInterval)
 
-	err = wait.Poll(updateClusterInterval, updateClusterTimeout, func() (bool, error) {
-		return c.handleUpdate(newClust.Name, cluster)
-	})
-	if err != nil {
-		message := fmt.Sprintf("giving up trying to update cluster in namespace %s after %s", cluster.Namespace, updateClusterTimeout)
-		logger.Error(message)
-		if err := c.updateClusterStatus(newClust.Namespace, newClust.Name, cephv1.ClusterStateError, message); err != nil {
-			logger.Errorf("failed to update cluster status in namespace %s: %+v", newClust.Namespace, err)
-		}
-		return
-	}
+	return
 }
 
-func (c *ClusterController) handleUpdate(crdName string, cluster *cluster) (bool, error) {
+func (c *ClusterController) handleUpdate(crdName string, cluster *cluster) bool {
 	if err := c.updateClusterStatus(cluster.Namespace, crdName, cephv1.ClusterStateUpdating, ""); err != nil {
 		logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
-		return false, nil
+		return false
 	}
 
 	if err := cluster.createInstance(c.rookImage, cluster.Info.CephVersion); err != nil {
 		logger.Errorf("failed to update cluster in namespace %s. %+v", cluster.Namespace, err)
-		return false, nil
+		return false
 	}
 
 	if err := c.updateClusterStatus(cluster.Namespace, crdName, cephv1.ClusterStateCreated, ""); err != nil {
 		logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
-		return false, nil
+		return false
 	}
 
 	logger.Infof("succeeded updating cluster in namespace %s", cluster.Namespace)
-	return true, nil
+	return true
 }
 
 func (c *ClusterController) onDeviceCMUpdate(oldObj, newObj interface{}) {
@@ -621,6 +595,15 @@ func (c *ClusterController) onDelete(obj interface{}) {
 	}
 
 	logger.Infof("delete event for cluster %s in namespace %s", clust.Name, clust.Namespace)
+
+	// We cannot delete a cluster that is being orchestrated on. So cancel any
+	// running create/update handlers.
+	cluster, ok := c.clusterMap[clust.Namespace]
+	if !ok {
+		logger.Warningf("Cannot delete cluster %s that does not exist", cluster.Namespace)
+		return
+	}
+	checkCancelHandler(cluster)
 
 	err = c.handleDelete(clust, time.Duration(clusterDeleteRetryInterval)*time.Second)
 	if err != nil {
@@ -695,10 +678,10 @@ func isLegacyClusterObjectDeleted(obj interface{}) bool {
 // ************************************************************************************************
 // Finalizer functions
 // ************************************************************************************************
-func (c *ClusterController) addFinalizer(clust *cephv1.CephCluster) error {
+func (c *ClusterController) addFinalizer(name, namespace string) error {
 
 	// get the latest cluster object since we probably updated it before we got to this point (e.g. by updating its status)
-	clust, err := c.context.RookClientset.CephV1().CephClusters(clust.Namespace).Get(clust.Name, metav1.GetOptions{})
+	clust, err := c.context.RookClientset.CephV1().CephClusters(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -808,4 +791,75 @@ func ClusterOwnerRef(namespace, clusterID string) metav1.OwnerReference {
 		UID:                types.UID(clusterID),
 		BlockOwnerDeletion: &blockOwner,
 	}
+}
+
+// runHandler runs the given handler function on the cluster in a goroutine. If an already running handler is found, it will cancel the old handler before running the new one
+func (c *ClusterController) runHandler(crdName string, cluster *cluster, action string, handlerFn func(string, *cluster) bool, timeout, period time.Duration) {
+	logger.Debugf("starting %s handler for cluster in namespace %s", action, cluster.Namespace)
+
+	checkCancelHandler(cluster)
+
+	cluster.handlerCtx = newHandlerCtx(timeout)
+
+	// Start the handler using wait.PollImmediateInfinite in a goroutine.
+	// A timeout context is used to stop the handler after the time timeout.
+	// Using a timeout context allows the the wait channel to be closed when
+	// stopping the handler.
+	go wait.PollImmediateInfinite(period, func() (bool, error) {
+		select {
+		case <-cluster.handlerCtx.Done():
+			logger.Debugf("%s handler for cluster in namepsace %s is done", action, cluster.Namespace)
+			// If the context is finished, log any errors if needed and close the wait channel
+			if !cluster.handlerCtx.success {
+				var message string
+				if err := cluster.handlerCtx.Err(); err == context.Canceled {
+					message = fmt.Sprintf("canceled trying to %s cluster in namespace %s", action, cluster.Namespace)
+				} else {
+					message = fmt.Sprintf("giving up trying to %s cluster in namespace %s after %s", action, cluster.Namespace, timeout)
+				}
+				logger.Error(message)
+				if err := c.updateClusterStatus(cluster.Namespace, crdName, cephv1.ClusterStateError, message); err != nil {
+					logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
+				}
+			}
+			close(cluster.handlerCtx.wait)
+
+			// Returning true here to stop PollImmediateInfinite
+			return true, nil
+
+		default:
+			// Run handlerFn. If handlerFn finishes successfully, set the handlerCtx.success, close the wait channel and cancel the context.
+			logger.Debugf("running handlerFn for %s handler for cluster in namespace %s", action, cluster.Namespace)
+			if handlerFn(crdName, cluster) {
+				logger.Debugf("handlerFn for %s handler for cluster in namespace %s finished successfully", action, cluster.Namespace)
+
+				cluster.handlerCtx.success = true
+
+				close(cluster.handlerCtx.wait)
+				cluster.handlerCtx.cancel()
+				return true, nil
+			}
+		}
+		// Returning false here makes PollImmediateInfinite run the handler again after specified period
+		return false, nil
+	})
+
+	return
+}
+
+// checkCancelHandler will check for any running handlers for the given
+// cluster, and if found will cancel the handler and wait for it to finish
+// before returning
+func checkCancelHandler(cluster *cluster) {
+	if cluster.handlerCtx != nil {
+		select {
+		case <-cluster.handlerCtx.Done():
+			// previous handler is done.
+		default:
+			// cancel the old context to abort the previous handler and wait for it to finish
+			cluster.handlerCtx.cancel()
+			<-cluster.handlerCtx.wait
+		}
+	}
+	return
 }

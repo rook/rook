@@ -18,6 +18,7 @@ limitations under the License.
 package cluster
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"sort"
@@ -59,12 +60,44 @@ type cluster struct {
 	orchestrationNeeded  bool
 	orchMux              sync.Mutex
 	childControllers     []childController
+	handlerCtx           *handlerCtx
 }
 
 // ChildController is implemented by CRs that are owned by the CephCluster
 type childController interface {
 	// ParentClusterChanged is called when the CephCluster CR is updated, for example for a newer ceph version
 	ParentClusterChanged(cluster cephv1.ClusterSpec, clusterInfo *cephconfig.ClusterInfo)
+}
+
+// handlerCtx is the context used by the add and update handlers of a cluster.
+// This can be used to cancel any running handlers for a cluster
+type handlerCtx struct {
+	context.Context
+	cancel  context.CancelFunc
+	wait    chan struct{}
+	success bool
+}
+
+// newHandlerCtx returns a handlerCtx with the given timeout
+func newHandlerCtx(timeout time.Duration) *handlerCtx {
+	var (
+		ctx    context.Context
+		cancel context.CancelFunc
+	)
+
+	if timeout > 0 {
+		ctx, cancel = context.WithTimeout(context.Background(), timeout)
+	} else {
+		ctx, cancel = context.WithCancel(context.Background())
+	}
+	wait := make(chan struct{})
+
+	return &handlerCtx{
+		ctx,
+		cancel,
+		wait,
+		false,
+	}
 }
 
 func newCluster(c *cephv1.CephCluster, context *clusterd.Context) *cluster {
