@@ -50,9 +50,9 @@ EdgeFS CSI plugins implement an interface between CSI enabled Container Orchestr
 ## EdgeFS CSI drivers configuration
 For each driver type (NFS/ISCSI) we have already prepared configuration files examples, there are:
 
-[EdgeFS CSI NFS driver config](../cluster/examples/kubernetes/edgefs/csi/nfs/edgefs-nfs-csi-driver-config.yaml)
+[EdgeFS CSI NFS driver config](https://github.com/rook/rook/tree/master/cluster/examples/kubernetes/edgefs/csi/nfs/edgefs-nfs-csi-driver-config.yaml)
 
-[EdgeFS CSI ISCSI driver config](../cluster/examples/kubernetes/edgefs/csi/iscsi/edgefs-iscsi-csi-driver-config.yaml)
+[EdgeFS CSI ISCSI driver config](https://github.com/rook/rook/tree/master/cluster/examples/kubernetes/edgefs/csi/iscsi/edgefs-iscsi-csi-driver-config.yaml)
 
 
 Secret file configuration options example:
@@ -305,10 +305,10 @@ kubectl get volumesnapshotcontents.snapshot.storage.k8s.io
 
 ### To create volume's clone from existing snapshot you should:
 
-- Create snapshotter storage class [Example yaml](../csi/iscsi/examples/snapshots/snapshot-class.yaml)
+- Create snapshotter storage class [Example yaml](https://github.com/rook/rook/tree/master/cluster/examples/kubernetes/edgefs/csi/iscsi/examples/snapshots/snapshot-class.yaml)
 - Have an existing PVC based on EdgeFS ISCSI LUN
-- Take snapshot from volume [Example yaml](../csi/iscsi/examples/snapshots/create-snapshot.yaml)
-- Clone volume from existing snapshot [Example yaml](../csi/iscsi/examples/snapshots/nginx-snapshot-clone-volume.yaml)
+- Take snapshot from volume [Example yaml](https://github.com/rook/rook/tree/master/cluster/examples/kubernetes/edgefs/csi/iscsi/examples/snapshots/create-snapshot.yaml)
+- Clone volume from existing snapshot [Example yaml](https://github.com/rook/rook/tree/master/cluster/examples/kubernetes/edgefs/csi/iscsi/examples/snapshots/nginx-snapshot-clone-volume.yaml)
 
 
 ## Troubleshooting and log collection
