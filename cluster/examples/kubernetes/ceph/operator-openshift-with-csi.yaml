@@ -49,6 +49,7 @@ users:
   - system:serviceaccount:rook-ceph:default
   - system:serviceaccount:rook-ceph:rook-ceph-mgr
   - system:serviceaccount:rook-ceph:rook-ceph-osd
+---
 kind: SecurityContextConstraints
 # older versions of openshift have "apiVersion: v1"
 apiVersion: security.openshift.io/v1
