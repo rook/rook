@@ -22,12 +22,12 @@ import (
 	"github.com/google/uuid"
 )
 
-// CephManifestsV0_9 wraps rook yaml definitions
-type CephManifestsV0_9 struct {
+// CephManifestsV1_0 wraps rook yaml definitions
+type CephManifestsV1_0 struct {
 	imageTag string
 }
 
-func (m *CephManifestsV0_9) GetRookCRDs() string {
+func (m *CephManifestsV1_0) GetRookCRDs() string {
 	return `
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -105,6 +105,10 @@ spec:
       type: string
       description: Current State
       JSONPath: .status.state
+    - name: Health
+      type: string
+      description: Ceph Health
+      JSONPath: .status.ceph.health
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -127,6 +131,22 @@ spec:
     - name: Age
       type: date
       JSONPath: .metadata.creationTimestamp
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: cephnfses.ceph.rook.io
+spec:
+  group: ceph.rook.io
+  names:
+    kind: CephNFS
+    listKind: CephNFSList
+    plural: cephnfses
+    singular: cephnfs
+    shortNames:
+    - nfs
+  scope: Namespaced
+  version: v1
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -186,7 +206,7 @@ spec:
 }
 
 // GetRookOperator returns rook Operator manifest
-func (m *CephManifestsV0_9) GetRookOperator(namespace string) string {
+func (m *CephManifestsV1_0) GetRookOperator(namespace string) string {
 	return `kind: Namespace
 apiVersion: v1
 metadata:
@@ -206,6 +226,7 @@ rules:
   resources:
   - pods
   - configmaps
+  - services
   verbs:
   - get
   - list
@@ -215,9 +236,10 @@ rules:
   - update
   - delete
 - apiGroups:
-  - extensions
+  - apps
   resources:
   - daemonsets
+  - statefulsets
   verbs:
   - get
   - list
@@ -233,6 +255,20 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+aggregationRule:
+  clusterRoleSelectors:
+  - matchLabels:
+      rbac.ceph.rook.io/aggregate-to-rook-ceph-cluster-mgmt: "true"
+rules: []
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: rook-ceph-cluster-mgmt-rules
+  labels:
+    operator: rook
+    storage-backend: ceph
+    rbac.ceph.rook.io/aggregate-to-rook-ceph-cluster-mgmt: "true"
 rules:
 - apiGroups:
   - ""
@@ -251,11 +287,10 @@ rules:
   - update
   - delete
 - apiGroups:
-  - extensions
+  - apps
   resources:
   - deployments
   - daemonsets
-  - replicasets
   verbs:
   - get
   - list
@@ -271,6 +306,20 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+aggregationRule:
+  clusterRoleSelectors:
+  - matchLabels:
+      rbac.ceph.rook.io/aggregate-to-rook-ceph-global: "true"
+rules: []
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: rook-ceph-global-rules
+  labels:
+    operator: rook
+    storage-backend: ceph
+    rbac.ceph.rook.io/aggregate-to-rook-ceph-global: "true"
 rules:
 - apiGroups:
   - ""
@@ -288,6 +337,7 @@ rules:
   - events
   - persistentvolumes
   - persistentvolumeclaims
+  - endpoints
   verbs:
   - get
   - list
@@ -332,6 +382,18 @@ kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-ceph-mgr-cluster
+aggregationRule:
+  clusterRoleSelectors:
+  - matchLabels:
+      rbac.ceph.rook.io/aggregate-to-rook-ceph-mgr-cluster: "true"
+rules: []
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr-cluster-rules
+  labels:
+    rbac.ceph.rook.io/aggregate-to-rook-ceph-mgr-cluster: "true"
 rules:
 - apiGroups:
   - ""
@@ -352,6 +414,20 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+aggregationRule:
+  clusterRoleSelectors:
+  - matchLabels:
+      rbac.ceph.rook.io/aggregate-to-rook-ceph-agent-mount: "true"
+rules: []
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-agent-mount-rules
+  labels:
+    operator: rook
+    storage-backend: ceph
+    rbac.ceph.rook.io/aggregate-to-rook-ceph-agent-mount: "true"
 rules:
 - apiGroups:
   - ""
@@ -359,6 +435,35 @@ rules:
   - secrets
   verbs:
   - get
+---
+# Aspects of ceph-mgr that require access to the system namespace
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr-system
+  namespace: ` + namespace + `
+aggregationRule:
+  clusterRoleSelectors:
+  - matchLabels:
+      rbac.ceph.rook.io/aggregate-to-rook-ceph-mgr-system: "true"
+rules: []
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr-system-rules
+  namespace: ` + namespace + `
+  labels:
+    rbac.ceph.rook.io/aggregate-to-rook-ceph-mgr-system: "true"
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -403,7 +508,280 @@ subjects:
   name: rook-ceph-system
   namespace: ` + namespace + `
 ---
-apiVersion: apps/v1beta1
+# Allow the ceph mgr to access cluster-wide resources necessary for the mgr modules
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr-cluster
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-mgr-cluster
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-mgr
+  namespace: ` + namespace + `
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: csi-rbd-config
+  namespace: ` + namespace + `
+data:
+  csi-rbdplugin-provisioner.yaml: |-` + rbdProvisionerTemplate + `
+  csi-rbdplugin.yaml: |-` + rbdPluginTemplate + `
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: csi-cephfs-config
+  namespace: ` + namespace + `
+data:
+  csi-cephfsplugin-provisioner.yaml: |` + cephfsProvisionerTemplate + `
+  csi-cephfsplugin.yaml: |` + cephfsPluginTemplate + `
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-csi-rbd-plugin-sa
+  namespace: ` + namespace + `
+
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rbd-csi-nodeplugin
+aggregationRule:
+  clusterRoleSelectors:
+  - matchLabels:
+      rbac.ceph.rook.io/aggregate-to-rbd-csi-nodeplugin: "true"
+rules: []
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rbd-csi-nodeplugin-rules
+  labels:
+    rbac.ceph.rook.io/aggregate-to-rbd-csi-nodeplugin: "true"
+rules:
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "update"]
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list"]
+
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rbd-csi-nodeplugin
+subjects:
+  - kind: ServiceAccount
+    name: rook-csi-rbd-plugin-sa
+    namespace: ` + namespace + `
+roleRef:
+  kind: ClusterRole
+  name: rbd-csi-nodeplugin
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-csi-rbd-provisioner-sa
+  namespace: ` + namespace + `
+
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rbd-external-provisioner-runner
+aggregationRule:
+  clusterRoleSelectors:
+  - matchLabels:
+      rbac.ceph.rook.io/aggregate-to-rbd-external-provisioner-runner: "true"
+rules: []
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rbd-external-provisioner-runner-rules
+  labels:
+    rbac.ceph.rook.io/aggregate-to-rbd-external-provisioner-runner: "true"
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "create", "delete", "update"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["list", "watch", "create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["endpoints"]
+    verbs: ["get", "create", "update"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshots"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "create", "delete"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshotcontents"]
+    verbs: ["create", "get", "list", "watch", "update", "delete"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshotclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments"]
+    verbs: ["get", "list", "watch", "update"]
+
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rbd-csi-provisioner-role
+subjects:
+  - kind: ServiceAccount
+    name: rook-csi-rbd-provisioner-sa
+    namespace: ` + namespace + `
+roleRef:
+  kind: ClusterRole
+  name: rbd-external-provisioner-runner
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-csi-cephfs-plugin-sa
+  namespace: ` + namespace + `
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: cephfs-csi-nodeplugin
+aggregationRule:
+  clusterRoleSelectors:
+  - matchLabels:
+      rbac.ceph.rook.io/aggregate-to-cephfs-csi-nodeplugin: "true"
+rules: []
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: cephfs-csi-nodeplugin-rules
+  labels:
+    rbac.ceph.rook.io/aggregate-to-cephfs-csi-nodeplugin: "true"
+rules:
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "update"]
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list"]
+
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: cephfs-csi-nodeplugin
+subjects:
+  - kind: ServiceAccount
+    name: rook-csi-cephfs-plugin-sa
+    namespace: ` + namespace + `
+roleRef:
+  kind: ClusterRole
+  name: cephfs-csi-nodeplugin
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-csi-cephfs-provisioner-sa
+  namespace: ` + namespace + `
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: cephfs-external-provisioner-runner
+aggregationRule:
+  clusterRoleSelectors:
+  - matchLabels:
+      rbac.ceph.rook.io/aggregate-to-cephfs-external-provisioner-runner: "true"
+rules: []
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: cephfs-external-provisioner-runner-rules
+  labels:
+    rbac.ceph.rook.io/aggregate-to-cephfs-external-provisioner-runner: "true"
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "create", "delete", "update"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["list", "watch", "create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "create", "delete"]
+
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: cephfs-csi-provisioner-role
+subjects:
+  - kind: ServiceAccount
+    name: rook-csi-cephfs-provisioner-sa
+    namespace: ` + namespace + `
+roleRef:
+  kind: ClusterRole
+  name: cephfs-external-provisioner-runner
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: rook-ceph-operator
@@ -413,6 +791,9 @@ metadata:
     storage-backend: ceph
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: rook-ceph-operator
   template:
     metadata:
       labels:
@@ -426,6 +807,8 @@ spec:
         env:
         - name: ROOK_LOG_LEVEL
           value: INFO
+        - name: ROOK_CEPH_STATUS_CHECK_INTERVAL
+          value: "5s"
         - name: ROOK_MON_HEALTHCHECK_INTERVAL
           value: "10s"
         - name: ROOK_MON_OUT_TIMEOUT
@@ -441,11 +824,41 @@ spec:
         - name: POD_NAMESPACE
           valueFrom:
             fieldRef:
-              fieldPath: metadata.namespace`
+              fieldPath: metadata.namespace
+        # CSI enablement
+        - name: ROOK_CSI_ENABLE_CEPHFS
+          value: "true"
+        - name: ROOK_CSI_CEPHFS_IMAGE
+          value: "quay.io/cephcsi/cephfsplugin:v1.0.0"
+        - name: ROOK_CSI_ENABLE_RBD
+          value: "true"
+        - name: ROOK_CSI_RBD_IMAGE
+          value: "quay.io/cephcsi/rbdplugin:v1.0.0"
+        - name: ROOK_CSI_REGISTRAR_IMAGE
+          value: "quay.io/k8scsi/csi-node-driver-registrar:v1.0.2"
+        - name: ROOK_CSI_PROVISIONER_IMAGE
+          value: "quay.io/k8scsi/csi-provisioner:v1.0.1"
+        - name: ROOK_CSI_SNAPSHOTTER_IMAGE
+          value: "quay.io/k8scsi/csi-snapshotter:v1.0.1"
+        - name: ROOK_CSI_ATTACHER_IMAGE
+          value: "quay.io/k8scsi/csi-attacher:v1.0.1"
+        volumeMounts:
+        - mountPath: /etc/ceph-csi/rbd
+          name: csi-rbd-config
+        - mountPath: /etc/ceph-csi/cephfs
+          name: csi-cephfs-config
+      volumes:
+      - name: csi-rbd-config
+        configMap:
+          name: csi-rbd-config
+      - name: csi-cephfs-config
+        configMap:
+          name: csi-cephfs-config
+`
 }
 
 // GetClusterRoles returns rook-cluster manifest
-func (m *CephManifestsV0_9) GetClusterRoles(namespace, systemNamespace string) string {
+func (m *CephManifestsV1_0) GetClusterRoles(namespace, systemNamespace string) string {
 	return `apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -467,22 +880,6 @@ rules:
 - apiGroups: [""]
   resources: ["configmaps"]
   verbs: [ "get", "list", "watch", "create", "update", "delete" ]
----
-# Aspects of ceph-mgr that require access to the system namespace
-kind: Role
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-mgr-system
-  namespace: ` + namespace + `
-rules:
-- apiGroups:
-  - ""
-  resources:
-  - configmaps
-  verbs:
-  - get
-  - list
-  - watch
 ---
 # Aspects of ceph-mgr that operate within the cluster's namespace
 kind: Role
@@ -571,33 +968,17 @@ metadata:
   namespace: ` + systemNamespace + `
 roleRef:
   apiGroup: rbac.authorization.k8s.io
-  kind: Role
+  kind: ClusterRole
   name: rook-ceph-mgr-system
 subjects:
 - kind: ServiceAccount
   name: rook-ceph-mgr
   namespace: ` + namespace + `
----
-# Allow the ceph mgr to access cluster-wide resources necessary for the mgr modules
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-mgr-cluster
-  namespace: ` + namespace + `
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: rook-ceph-mgr-cluster
-subjects:
-- kind: ServiceAccount
-  name: rook-ceph-mgr
-  namespace: ` + namespace + `
----
 `
 }
 
 // GetRookCluster returns rook-cluster manifest
-func (m *CephManifestsV0_9) GetRookCluster(settings *ClusterSettings) string {
+func (m *CephManifestsV1_0) GetRookCluster(settings *ClusterSettings) string {
 	return `apiVersion: ceph.rook.io/v1
 kind: CephCluster
 metadata:
@@ -621,6 +1002,8 @@ spec:
   storage:
     useAllNodes: true
     useAllDevices: ` + strconv.FormatBool(settings.UseAllDevices) + `
+    directories:
+    - path: ` + settings.DataDirHostPath + /* simulate legacy fallback osd behavior so existing tests still work */ `
     deviceFilter:
     location:
     config:
@@ -630,7 +1013,7 @@ spec:
 }
 
 // GetRookToolBox returns rook-toolbox manifest
-func (m *CephManifestsV0_9) GetRookToolBox(namespace string) string {
+func (m *CephManifestsV1_0) GetRookToolBox(namespace string) string {
 	return `apiVersion: v1
 kind: Pod
 metadata:
@@ -681,7 +1064,7 @@ spec:
 }
 
 // GetCleanupPod gets a cleanup Pod manifest
-func (m *CephManifestsV0_9) GetCleanupPod(node, removalDir string) string {
+func (m *CephManifestsV1_0) GetCleanupPod(node, removalDir string) string {
 	return `apiVersion: batch/v1
 kind: Job
 metadata:
@@ -710,7 +1093,7 @@ spec:
                    path:  ` + removalDir
 }
 
-func (m *CephManifestsV0_9) GetBlockPoolDef(poolName string, namespace string, replicaSize string) string {
+func (m *CephManifestsV1_0) GetBlockPoolDef(poolName string, namespace string, replicaSize string) string {
 	return `apiVersion: ceph.rook.io/v1
 kind: CephBlockPool
 metadata:
@@ -721,7 +1104,7 @@ spec:
     size: ` + replicaSize
 }
 
-func (m *CephManifestsV0_9) GetBlockStorageClassDef(poolName string, storageClassName string, reclaimPolicy string, namespace string, varClusterName bool) string {
+func (m *CephManifestsV1_0) GetBlockStorageClassDef(poolName string, storageClassName string, reclaimPolicy string, namespace string, varClusterName bool) string {
 	namespaceParameter := "clusterNamespace"
 	if varClusterName {
 		namespaceParameter = "clusterName"
@@ -737,7 +1120,7 @@ parameters:
     ` + namespaceParameter + `: ` + namespace
 }
 
-func (m *CephManifestsV0_9) GetBlockPvcDef(claimName string, storageClassName string, accessModes string) string {
+func (m *CephManifestsV1_0) GetBlockPvcDef(claimName string, storageClassName string, accessModes string) string {
 	return `apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -752,17 +1135,17 @@ spec:
       storage: 1M`
 }
 
-func (m *CephManifestsV0_9) GetBlockPoolStorageClassAndPvcDef(namespace string, poolName string, storageClassName string, reclaimPolicy string, blockName string, accessMode string) string {
+func (m *CephManifestsV1_0) GetBlockPoolStorageClassAndPvcDef(namespace string, poolName string, storageClassName string, reclaimPolicy string, blockName string, accessMode string) string {
 	return concatYaml(m.GetBlockPoolDef(poolName, namespace, "1"),
 		concatYaml(m.GetBlockStorageClassDef(poolName, storageClassName, reclaimPolicy, namespace, false), m.GetBlockPvcDef(blockName, storageClassName, accessMode)))
 }
 
-func (m *CephManifestsV0_9) GetBlockPoolStorageClass(namespace string, poolName string, storageClassName string, reclaimPolicy string) string {
+func (m *CephManifestsV1_0) GetBlockPoolStorageClass(namespace string, poolName string, storageClassName string, reclaimPolicy string) string {
 	return concatYaml(m.GetBlockPoolDef(poolName, namespace, "1"), m.GetBlockStorageClassDef(poolName, storageClassName, reclaimPolicy, namespace, false))
 }
 
 // GetFilesystem returns the manifest to create a Rook filesystem resource with the given config.
-func (m *CephManifestsV0_9) GetFilesystem(namespace, name string, activeCount int) string {
+func (m *CephManifestsV1_0) GetFilesystem(namespace, name string, activeCount int) string {
 	return `apiVersion: ceph.rook.io/v1
 kind: CephFilesystem
 metadata:
@@ -780,11 +1163,22 @@ spec:
     activeStandby: true`
 }
 
-func (m *CephManifestsV0_9) GetNFS(namespace, name, pool string, count int) string {
-	panic("GetNFS not implemented")
+// GetFilesystem returns the manifest to create a Rook Ceph NFS resource with the given config.
+func (m *CephManifestsV1_0) GetNFS(namespace, name, pool string, count int) string {
+	return `apiVersion: ceph.rook.io/v1
+kind: CephNFS
+metadata:
+  name: ` + name + `
+  namespace: ` + namespace + `
+spec:
+  rados:
+    pool: ` + pool + `
+    namespace: nfs-ns
+  server:
+    active: ` + strconv.Itoa(count)
 }
 
-func (m *CephManifestsV0_9) GetObjectStore(namespace, name string, replicaCount, port int) string {
+func (m *CephManifestsV1_0) GetObjectStore(namespace, name string, replicaCount, port int) string {
 	return `apiVersion: ceph.rook.io/v1
 kind: CephObjectStore
 metadata:
@@ -807,7 +1201,7 @@ spec:
 `
 }
 
-func (m *CephManifestsV0_9) GetObjectStoreUser(namespace, name string, displayName string, store string) string {
+func (m *CephManifestsV1_0) GetObjectStoreUser(namespace, name string, displayName string, store string) string {
 	return `apiVersion: ceph.rook.io/v1
 kind: CephObjectStoreUser
 metadata:
