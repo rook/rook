@@ -6,6 +6,8 @@
 # If the operator needs to manage multiple clusters (in different namespaces), see the section below
 # for "cluster-specific resources". The resources below that section will need to be created for each namespace
 # where the operator needs to manage the cluster. The resources above that section do not be created again.
+#
+# Most of the sections are prefixed with a 'OLM' keyword which is used to build our CSV for an OLM (Operator Life Cycle manager)
 ###################################################################################################################
 
 # Namespace where the operator and other rook resources are created
@@ -14,6 +16,7 @@ kind: Namespace
 metadata:
   name: rook-ceph
 ---
+# OLM: BEGIN CEPH CRD
 # The CRD declarations
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -101,7 +104,9 @@ spec:
       type: string
       description: Ceph Health
       JSONPath: .status.ceph.health
+# OLM: END CEPH CRD
 ---
+# OLM: BEGIN CEPH FS CRD
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
@@ -123,7 +128,9 @@ spec:
     - name: Age
       type: date
       JSONPath: .metadata.creationTimestamp
+# OLM: END CEPH FS CRD
 ---
+# OLM: BEGIN CEPH NFS CRD
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
@@ -139,7 +146,9 @@ spec:
     - nfs
   scope: Namespaced
   version: v1
+# OLM: END CEPH NFS CRD
 ---
+# OLM: BEGIN CEPH OBJECT STORE CRD
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
@@ -153,7 +162,9 @@ spec:
     singular: cephobjectstore
   scope: Namespaced
   version: v1
+# OLM: END CEPH OBJECT STORE CRD
 ---
+# OLM: BEGIN CEPH OBJECT STORE USERS CRD
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
@@ -167,7 +178,9 @@ spec:
     singular: cephobjectstoreuser
   scope: Namespaced
   version: v1
+# OLM: END CEPH OBJECT STORE USERS CRD
 ---
+# OLM: BEGIN CEPH BLOCK POOL CRD
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
@@ -181,7 +194,9 @@ spec:
     singular: cephblockpool
   scope: Namespaced
   version: v1
+# OLM: END CEPH BLOCK POOL CRD
 ---
+# OLM: BEGIN CEPH VOLUME POOL CRD
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
@@ -197,7 +212,9 @@ spec:
     - rv
   scope: Namespaced
   version: v1alpha2
+# OLM: END CEPH VOLUME POOL CRD
 ---
+# OLM: BEGIN OPERATOR ROLE
 # The cluster role for managing all the cluster-specific resources in a namespace
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
@@ -404,6 +421,8 @@ rules:
   - list
   - watch
 ---
+# OLM: END OPERATOR ROLE
+# OLM: BEGIN SERVICE ACCOUNT SYSTEM
 # The rook system service account used by the operator, agent, and discovery pods
 apiVersion: v1
 kind: ServiceAccount
@@ -414,6 +433,8 @@ metadata:
     operator: rook
     storage-backend: ceph
 ---
+# OLM: END SERVICE ACCOUNT SYSTEM
+# OLM: BEGIN OPERATOR ROLEBINDING
 # Grant the operator, agent, and discovery agents access to resources in the namespace
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
@@ -450,17 +471,21 @@ subjects:
   name: rook-ceph-system
   namespace: rook-ceph
 ---
+# OLM: END OPERATOR ROLEBINDING
 #################################################################################################################
 # Beginning of cluster-specific resources. The example will assume the cluster will be created in the "rook-ceph"
 # namespace. If you want to create the cluster in a different namespace, you will need to modify these roles
 # and bindings accordingly.
 #################################################################################################################
 # Service account for the Ceph OSDs. Must exist and cannot be renamed.
+# OLM: BEGIN SERVICE ACCOUNT OSD
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: rook-ceph-osd
   namespace: rook-ceph
+# OLM: END SERVICE ACCOUNT OSD
+# OLM: BEGIN SERVICE ACCOUNT MGR
 ---
 # Service account for the Ceph Mgr. Must exist and cannot be renamed.
 apiVersion: v1
@@ -468,6 +493,8 @@ kind: ServiceAccount
 metadata:
   name: rook-ceph-mgr
   namespace: rook-ceph
+# OLM: END SERVICE ACCOUNT MGR
+# OLM: BEGIN CLUSTER ROLE
 ---
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1beta1
@@ -541,6 +568,9 @@ rules:
   - "*"
   verbs:
   - "*"
+# OLM: END CLUSTER ROLE
+#
+# OLM: BEGIN CLUSTER ROLEBINDING
 ---
   # Allow the operator to create resources in this cluster's namespace
 kind: RoleBinding
@@ -616,3 +646,4 @@ subjects:
   name: rook-ceph-mgr
   namespace: rook-ceph
 ---
+# OLM: END CLUSTER ROLEBINDING
