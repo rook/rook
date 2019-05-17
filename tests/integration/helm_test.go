@@ -65,7 +65,7 @@ func (hs *HelmSuite) SetupSuite() {
 	hs.namespace = "helm-ns"
 	mons := 1
 	rbdMirrorWorkers := 1
-	hs.op, hs.kh = StartTestCluster(hs.T, hs.namespace, "bluestore", true, false, mons, rbdMirrorWorkers, installer.VersionMaster, installer.MimicVersion)
+	hs.op, hs.kh = StartTestCluster(hs.T, hs.namespace, "bluestore", true, true, false, mons, rbdMirrorWorkers, installer.VersionMaster, installer.MimicVersion)
 	hs.helper = clients.CreateTestClient(hs.kh, hs.op.installer.Manifests)
 }
 

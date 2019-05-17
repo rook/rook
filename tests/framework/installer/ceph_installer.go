@@ -62,7 +62,9 @@ type CephInstaller struct {
 	hostPathToDelete string
 	helmHelper       *utils.HelmHelper
 	useHelm          bool
+	EnableCSI        bool
 	k8sVersion       string
+	rookVersion      string
 	changeHostnames  bool
 	CephVersion      cephv1.CephVersionSpec
 	T                func() *testing.T
@@ -127,13 +129,26 @@ func (h *CephInstaller) CreateCephOperator(namespace string) (err error) {
 		h.k8shelper.ChangeHostnames()
 	}
 
-	rookOperator := h.Manifests.GetRookOperator(namespace)
+	rookOperator := h.Manifests.GetRookOperator(namespace, h.EnableCSI)
 
 	_, err = h.k8shelper.KubectlWithStdin(rookOperator, createFromStdinArgs...)
 	if err != nil {
 		return fmt.Errorf("Failed to create rook-operator pod : %v ", err)
 	}
-
+	if h.EnableCSI {
+		csiTemplate := h.Manifests.GetCephCSI(namespace)
+		_, err = h.k8shelper.KubectlWithStdin(csiTemplate, createFromStdinArgs...)
+		if err != nil {
+			return fmt.Errorf("Failed to create cephcsi : %v ", err)
+		}
+	} else {
+		//create dummy configmap for csi-rbd-config and csi-cephfs-config
+		cm := &v1.ConfigMap{}
+		cm.Name = "csi-rbd-config"
+		h.k8shelper.Clientset.CoreV1().ConfigMaps(namespace).Create(cm)
+		cm.Name = "csi-cephfs-config"
+		h.k8shelper.Clientset.CoreV1().ConfigMaps(namespace).Create(cm)
+	}
 	logger.Infof("Rook Operator started")
 
 	return nil
@@ -275,8 +290,7 @@ func (h *CephInstaller) GetNodeHostnames() ([]string, error) {
 }
 
 // InstallRookOnK8sWithHostPathAndDevices installs rook on k8s
-func (h *CephInstaller) InstallRookOnK8sWithHostPathAndDevices(namespace, storeType string,
-	useDevices bool, mon cephv1.MonSpec, startWithAllNodes bool, rbdMirrorWorkers int) (bool, error) {
+func (h *CephInstaller) InstallRookOnK8sWithHostPathAndDevices(namespace, storeType string, useDevices bool, mon cephv1.MonSpec, startWithAllNodes bool, rbdMirrorWorkers int) (bool, error) {
 
 	var err error
 	// flag used for local debuggin purpose, when rook is pre-installed
@@ -400,7 +414,12 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, name
 	if h.useHelm {
 		err = h.helmHelper.DeleteLocalRookHelmChart(helmDeployName)
 	} else {
-		rookOperator := h.Manifests.GetRookOperator(systemNamespace)
+		if h.EnableCSI {
+			csiTemplate := h.Manifests.GetCephCSI(systemNamespace)
+			_, err = h.k8shelper.KubectlWithStdin(csiTemplate, deleteFromStdinArgs...)
+			checkError(h.T(), err, "cannot uninstall cephcsi")
+		}
+		rookOperator := h.Manifests.GetRookOperator(systemNamespace, h.EnableCSI)
 		_, err = h.k8shelper.KubectlWithStdin(rookOperator, deleteFromStdinArgs...)
 	}
 	checkError(h.T(), err, "cannot uninstall rook-operator")
@@ -419,20 +438,21 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, name
 	h.k8shelper.Clientset.RbacV1beta1().ClusterRoles().Delete("rook-ceph-global-rules", nil)
 	h.k8shelper.Clientset.RbacV1beta1().Roles(systemNamespace).Delete("rook-ceph-system", nil)
 
-	h.k8shelper.Clientset.RbacV1beta1().ClusterRoleBindings().Delete("rbd-csi-nodeplugin", nil)
-	h.k8shelper.Clientset.RbacV1beta1().ClusterRoles().Delete("rbd-csi-nodeplugin", nil)
-	h.k8shelper.Clientset.RbacV1beta1().ClusterRoles().Delete("rbd-csi-nodeplugin-rules", nil)
-	h.k8shelper.Clientset.RbacV1beta1().ClusterRoleBindings().Delete("rbd-csi-provisioner-role", nil)
-	h.k8shelper.Clientset.RbacV1beta1().ClusterRoles().Delete("rbd-external-provisioner-runner", nil)
-	h.k8shelper.Clientset.RbacV1beta1().ClusterRoles().Delete("rbd-external-provisioner-runner-rules", nil)
+	if h.EnableCSI {
+		h.k8shelper.Clientset.RbacV1beta1().ClusterRoleBindings().Delete("rbd-csi-nodeplugin", nil)
+		h.k8shelper.Clientset.RbacV1beta1().ClusterRoles().Delete("rbd-csi-nodeplugin", nil)
+		h.k8shelper.Clientset.RbacV1beta1().ClusterRoles().Delete("rbd-csi-nodeplugin-rules", nil)
+		h.k8shelper.Clientset.RbacV1beta1().ClusterRoleBindings().Delete("rbd-csi-provisioner-role", nil)
+		h.k8shelper.Clientset.RbacV1beta1().ClusterRoles().Delete("rbd-external-provisioner-runner", nil)
+		h.k8shelper.Clientset.RbacV1beta1().ClusterRoles().Delete("rbd-external-provisioner-runner-rules", nil)
 
-	h.k8shelper.Clientset.RbacV1beta1().ClusterRoleBindings().Delete("cephfs-csi-nodeplugin", nil)
-	h.k8shelper.Clientset.RbacV1beta1().ClusterRoles().Delete("cephfs-csi-nodeplugin", nil)
-	h.k8shelper.Clientset.RbacV1beta1().ClusterRoles().Delete("cephfs-csi-nodeplugin-rules", nil)
-	h.k8shelper.Clientset.RbacV1beta1().ClusterRoleBindings().Delete("cephfs-csi-provisioner-role", nil)
-	h.k8shelper.Clientset.RbacV1beta1().ClusterRoles().Delete("cephfs-external-provisioner-runner", nil)
-	h.k8shelper.Clientset.RbacV1beta1().ClusterRoles().Delete("cephfs-external-provisioner-runner-rules", nil)
-
+		h.k8shelper.Clientset.RbacV1beta1().ClusterRoleBindings().Delete("cephfs-csi-nodeplugin", nil)
+		h.k8shelper.Clientset.RbacV1beta1().ClusterRoles().Delete("cephfs-csi-nodeplugin", nil)
+		h.k8shelper.Clientset.RbacV1beta1().ClusterRoles().Delete("cephfs-csi-nodeplugin-rules", nil)
+		h.k8shelper.Clientset.RbacV1beta1().ClusterRoleBindings().Delete("cephfs-csi-provisioner-role", nil)
+		h.k8shelper.Clientset.RbacV1beta1().ClusterRoles().Delete("cephfs-external-provisioner-runner", nil)
+		h.k8shelper.Clientset.RbacV1beta1().ClusterRoles().Delete("cephfs-external-provisioner-runner-rules", nil)
+	}
 	h.k8shelper.Clientset.CoreV1().ConfigMaps(systemNamespace).Delete("csi-rbd-config", nil)
 	h.k8shelper.Clientset.CoreV1().ConfigMaps(systemNamespace).Delete("csi-cephfs-config", nil)
 
@@ -484,6 +504,10 @@ func (h *CephInstaller) checkCephHealthStatus(namespace string) {
 
 	// Depending on the tests, the health may be fluctuating with different components being started or stopped.
 	// If needed, give it a few seconds to settle and check the status again.
+
+	if clusterResource.Status.CephStatus == nil {
+		return
+	}
 	if clusterResource.Status.CephStatus.Health != "HEALTH_OK" {
 		time.Sleep(10 * time.Second)
 		clusterResource, err = h.k8shelper.RookClientset.CephV1().CephClusters(namespace).Get(namespace, metav1.GetOptions{})
@@ -555,6 +579,7 @@ func NewCephInstaller(t func() *testing.T, clientset *kubernetes.Clientset, useH
 		helmHelper:      utils.NewHelmHelper(Env.Helm),
 		useHelm:         useHelm,
 		k8sVersion:      version.String(),
+		rookVersion:     rookVersion,
 		CephVersion:     cephVersion,
 		changeHostnames: rookVersion != Version1_0 && k8shelp.VersionAtLeast("v1.13.0"),
 		T:               t,

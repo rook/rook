@@ -26,7 +26,8 @@ import (
 
 type CephManifests interface {
 	GetRookCRDs() string
-	GetRookOperator(namespace string) string
+	GetRookOperator(namespace string, enableCSI bool) string
+	GetCephCSI(namespace string) string
 	GetClusterRoles(namespace, systemNamespace string) string
 	GetRookCluster(settings *ClusterSettings) string
 	GetRookToolBox(namespace string) string
@@ -247,7 +248,7 @@ spec:
 }
 
 // GetRookOperator returns rook Operator manifest
-func (m *CephManifestsMaster) GetRookOperator(namespace string) string {
+func (m *CephManifestsMaster) GetRookOperator(namespace string, enableCSI bool) string {
 	return `kind: Namespace
 apiVersion: v1
 metadata:
@@ -563,6 +564,83 @@ subjects:
   name: rook-ceph-mgr
   namespace: ` + namespace + `
 ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rook-ceph-operator
+  namespace: ` + namespace + `
+  labels:
+    operator: rook
+    storage-backend: ceph
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rook-ceph-operator
+  template:
+    metadata:
+      labels:
+        app: rook-ceph-operator
+    spec:
+      serviceAccountName: rook-ceph-system
+      containers:
+      - name: rook-ceph-operator
+        image: rook/ceph:` + m.imageTag + `
+        args: ["ceph", "operator"]
+        env:
+        - name: ROOK_LOG_LEVEL
+          value: INFO
+        - name: ROOK_CEPH_STATUS_CHECK_INTERVAL
+          value: "5s"
+        - name: ROOK_MON_HEALTHCHECK_INTERVAL
+          value: "10s"
+        - name: ROOK_MON_OUT_TIMEOUT
+          value: "15s"
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        # CSI enablement
+        - name: ROOK_CSI_ENABLE_CEPHFS
+          value: "` + strconv.FormatBool(enableCSI) + `"
+        - name: ROOK_CSI_CEPH_IMAGE
+          value: "quay.io/cephcsi/cephcsi:canary"
+        - name: ROOK_CSI_ENABLE_RBD
+          value: "` + strconv.FormatBool(enableCSI) + `"
+        - name: ROOK_CSI_REGISTRAR_IMAGE
+          value: "quay.io/k8scsi/csi-node-driver-registrar:v1.1.0"
+        - name: ROOK_CSI_PROVISIONER_IMAGE
+          value: "quay.io/k8scsi/csi-provisioner:v1.2.1"
+        - name: ROOK_CSI_SNAPSHOTTER_IMAGE
+          value: "quay.io/k8scsi/csi-snapshotter:v1.1.0"
+        - name: ROOK_CSI_ATTACHER_IMAGE
+          value: "quay.io/k8scsi/csi-attacher:v1.1.1"
+        volumeMounts:
+        - mountPath: /etc/ceph-csi/rbd
+          name: csi-rbd-config
+        - mountPath: /etc/ceph-csi/cephfs
+          name: csi-cephfs-config
+      volumes:
+      - name: csi-rbd-config
+        configMap:
+          name: csi-rbd-config
+      - name: csi-cephfs-config
+        configMap:
+          name: csi-cephfs-config
+`
+}
+
+// GetCephCSI returns cephfs and rbd provisoner and node plugin templates
+func (m *CephManifestsMaster) GetCephCSI(namespace string) string {
+	return `
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -571,6 +649,7 @@ metadata:
 data:
   csi-rbdplugin-provisioner.yaml: |-` + rbdProvisionerTemplate + `
   csi-rbdplugin.yaml: |-` + rbdPluginTemplate + `
+
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -580,6 +659,7 @@ metadata:
 data:
   csi-cephfsplugin-provisioner.yaml: |` + cephfsProvisionerTemplate + `
   csi-cephfsplugin.yaml: |` + cephfsPluginTemplate + `
+
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -597,6 +677,7 @@ aggregationRule:
   - matchLabels:
       rbac.ceph.rook.io/aggregate-to-rbd-csi-nodeplugin: "true"
 rules: []
+
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
@@ -637,6 +718,7 @@ roleRef:
   kind: ClusterRole
   name: rbd-csi-nodeplugin
   apiGroup: rbac.authorization.k8s.io
+
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -654,6 +736,7 @@ aggregationRule:
   - matchLabels:
       rbac.ceph.rook.io/aggregate-to-rbd-external-provisioner-runner: "true"
 rules: []
+
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
@@ -709,6 +792,7 @@ roleRef:
   kind: ClusterRole
   name: rbd-external-provisioner-runner
   apiGroup: rbac.authorization.k8s.io
+
 ---
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
@@ -742,6 +826,7 @@ kind: ServiceAccount
 metadata:
   name: rook-csi-cephfs-plugin-sa
   namespace: ` + namespace + `
+
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
@@ -752,6 +837,7 @@ aggregationRule:
   - matchLabels:
       rbac.ceph.rook.io/aggregate-to-cephfs-csi-nodeplugin: "true"
 rules: []
+
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
@@ -789,12 +875,14 @@ roleRef:
   kind: ClusterRole
   name: cephfs-csi-nodeplugin
   apiGroup: rbac.authorization.k8s.io
+
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: rook-csi-cephfs-provisioner-sa
   namespace: ` + namespace + `
+
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
@@ -805,6 +893,7 @@ aggregationRule:
   - matchLabels:
       rbac.ceph.rook.io/aggregate-to-cephfs-external-provisioner-runner: "true"
 rules: []
+
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
@@ -875,78 +964,6 @@ roleRef:
   kind: Role
   name: cephfs-external-provisioner-cfg
   apiGroup: rbac.authorization.k8s.io
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: rook-ceph-operator
-  namespace: ` + namespace + `
-  labels:
-    operator: rook
-    storage-backend: ceph
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: rook-ceph-operator
-  template:
-    metadata:
-      labels:
-        app: rook-ceph-operator
-    spec:
-      serviceAccountName: rook-ceph-system
-      containers:
-      - name: rook-ceph-operator
-        image: rook/ceph:` + m.imageTag + `
-        args: ["ceph", "operator"]
-        env:
-        - name: ROOK_LOG_LEVEL
-          value: INFO
-        - name: ROOK_CEPH_STATUS_CHECK_INTERVAL
-          value: "5s"
-        - name: ROOK_MON_HEALTHCHECK_INTERVAL
-          value: "10s"
-        - name: ROOK_MON_OUT_TIMEOUT
-          value: "15s"
-        - name: NODE_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: spec.nodeName
-        - name: POD_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
-        - name: POD_NAMESPACE
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.namespace
-        # CSI enablement
-        - name: ROOK_CSI_ENABLE_CEPHFS
-          value: "true"
-        - name: ROOK_CSI_CEPH_IMAGE
-          value: "quay.io/cephcsi/cephcsi:canary"
-        - name: ROOK_CSI_ENABLE_RBD
-          value: "true"
-        - name: ROOK_CSI_REGISTRAR_IMAGE
-          value: "quay.io/k8scsi/csi-node-driver-registrar:v1.1.0"
-        - name: ROOK_CSI_PROVISIONER_IMAGE
-          value: "quay.io/k8scsi/csi-provisioner:v1.2.0"
-        - name: ROOK_CSI_SNAPSHOTTER_IMAGE
-          value: "quay.io/k8scsi/csi-snapshotter:v1.1.0"
-        - name: ROOK_CSI_ATTACHER_IMAGE
-          value: "quay.io/k8scsi/csi-attacher:v1.1.1"
-        volumeMounts:
-        - mountPath: /etc/ceph-csi/rbd
-          name: csi-rbd-config
-        - mountPath: /etc/ceph-csi/cephfs
-          name: csi-cephfs-config
-      volumes:
-      - name: csi-rbd-config
-        configMap:
-          name: csi-rbd-config
-      - name: csi-cephfs-config
-        configMap:
-          name: csi-cephfs-config
 `
 }
 

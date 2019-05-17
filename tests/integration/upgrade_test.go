@@ -60,7 +60,7 @@ func (s *UpgradeSuite) SetupSuite() {
 	useDevices := true
 	mons := 3
 	rbdMirrorWorkers := 0
-	s.op, s.k8sh = StartTestCluster(s.T, s.namespace, "bluestore", false, useDevices, mons, rbdMirrorWorkers, installer.Version1_0, installer.MimicVersion)
+	s.op, s.k8sh = StartTestCluster(s.T, s.namespace, "bluestore", true, false, useDevices, mons, rbdMirrorWorkers, installer.Version1_0, installer.MimicVersion)
 	s.helper = clients.CreateTestClient(s.k8sh, s.op.installer.Manifests)
 }
 
