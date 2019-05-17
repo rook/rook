@@ -123,14 +123,22 @@ function copy_images() {
 KUBE_VERSION=${KUBE_VERSION:-"v1.14.1"}
 MEMORY=${MEMORY:-"3000"}
 
+# use vda1 instead of sda1 when running with the libvirt driver
+VM_DRIVER=$(minikube config get vm-driver)
+if [[ "$VM_DRIVER" == "kvm2" ]]; then
+  DISK="vda1"
+else
+  DISK="sda1"
+fi
+
 case "${1:-}" in
   up)
     echo "starting minikube with kubeadm bootstrapper"
     minikube start --memory="${MEMORY}" -b kubeadm --kubernetes-version "${KUBE_VERSION}"
     wait_for_ssh
     # create a link so the default dataDirHostPath will work for this environment
-    minikube ssh "sudo mkdir -p /mnt/sda1/${PWD}; sudo mkdir -p $(dirname $PWD); sudo ln -s /mnt/sda1/${PWD} $(dirname $PWD)/"
-    minikube ssh "sudo mkdir /mnt/sda1/var/lib/rook;sudo ln -s /mnt/sda1/var/lib/rook /var/lib/rook"
+    minikube ssh "sudo mkdir -p /mnt/${DISK}/${PWD}; sudo mkdir -p $(dirname $PWD); sudo ln -s /mnt/${DISK}/${PWD} $(dirname $PWD)/"
+    minikube ssh "sudo mkdir -p /mnt/${DISK}/var/lib/rook;sudo ln -s /mnt/${DISK}/var/lib/rook /var/lib/rook"
     copy_images "$2"
     ;;
   down)
