@@ -69,6 +69,18 @@ export ROOK_SYSTEM_NAMESPACE="rook-ceph-system"
 export ROOK_NAMESPACE="rook-ceph"
 ```
 
+If your cluster does not use the `rook-ceph-system` and `rook-ceph` namespaces, you will need to
+replace all manifest references to these namespaces with references to those used by your cluster.
+We can use a few simple `sed` commands to do this for all manifests at once.
+```sh
+# Replace yaml file namespaces with sed (and make backups)
+sed -i.bak -e "s/namespace: rook-ceph-system/namespace: $ROOK_SYSTEM_NAMESPACE/g" *.yaml
+sed -i -e "s/namespace: rook-ceph/namespace: $ROOK_NAMESPACE/g" *.yaml
+# Reduce clutter by moving the backups we just created
+mkdir backups
+mv *.bak backups/
+```
+
 We should start up the new toolbox pod before moving on, and this can be our first test of the
 namespace environment variables.
 ```sh
@@ -211,18 +223,6 @@ Let's get started!
 have custom configuration options set in your old manifests, you will need to also alter those
 values in the v0.9 manifests. It may be notable that the `serviceAccount` property has been removed
 from the CephCluster CRD; default values will now be used.
-
-If your cluster does not use the `rook-ceph-system` and `rook-ceph` namespaces, you will need to
-replace all manifest references to these namespaces with references to those used by your cluster.
-We can use a few simple `sed` commands to do this for all manifests at once.
-```sh
-# Replace yaml file namespaces with sed (and make backups)
-sed -i.bak -e "s/namespace: rook-ceph-system/namespace: $ROOK_SYSTEM_NAMESPACE/g" *.yaml
-sed -i -e "s/namespace: rook-ceph/namespace: $ROOK_NAMESPACE/g" *.yaml
-# Reduce clutter by moving the backups we just created
-mkdir backups
-mv *.bak backups/
-```
 
 ### 2. Update modifed/added resources
 A number of custom resources have been modified and added in v0.9. To make updating these resources
