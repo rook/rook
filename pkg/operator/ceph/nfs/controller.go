@@ -43,10 +43,11 @@ var CephNFSResource = opkit.CustomResource{
 	Kind:    reflect.TypeOf(cephv1.CephNFS{}).Name(),
 }
 
-// NFSCephNFSController represents a controller for NFS custom resources
+// CephNFSController represents a controller for NFS custom resources
 type CephNFSController struct {
 	clusterInfo        *cephconfig.ClusterInfo
 	context            *clusterd.Context
+	dataDirHostPath    string
 	namespace          string
 	rookImage          string
 	cephVersion        cephv1.CephVersionSpec
@@ -55,16 +56,17 @@ type CephNFSController struct {
 	orchestrationMutex sync.Mutex
 }
 
-// NewNFSCephNFSController create controller for watching NFS custom resources created
-func NewCephNFSController(clusterInfo *cephconfig.ClusterInfo, context *clusterd.Context, namespace, rookImage string, cephVersion cephv1.CephVersionSpec, hostNetwork bool, ownerRef metav1.OwnerReference) *CephNFSController {
+// NewCephNFSController create controller for watching NFS custom resources created
+func NewCephNFSController(clusterInfo *cephconfig.ClusterInfo, context *clusterd.Context, dataDirHostPath, namespace, rookImage string, cephVersion cephv1.CephVersionSpec, hostNetwork bool, ownerRef metav1.OwnerReference) *CephNFSController {
 	return &CephNFSController{
-		clusterInfo: clusterInfo,
-		context:     context,
-		namespace:   namespace,
-		rookImage:   rookImage,
-		cephVersion: cephVersion,
-		hostNetwork: hostNetwork,
-		ownerRef:    ownerRef,
+		clusterInfo:     clusterInfo,
+		context:         context,
+		dataDirHostPath: dataDirHostPath,
+		namespace:       namespace,
+		rookImage:       rookImage,
+		cephVersion:     cephVersion,
+		hostNetwork:     hostNetwork,
+		ownerRef:        ownerRef,
 	}
 }
 
