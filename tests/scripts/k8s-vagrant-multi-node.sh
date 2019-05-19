@@ -11,7 +11,7 @@ function init() {
         mkdir -p "${REPO_DIR}"
         git clone https://github.com/galexrt/k8s-vagrant-multi-node.git "${REPO_DIR}"
         # checkout latest tag of the repo initially after clone
-        git -C "${REPO_DIR}" checkout "$(git describe --tags `git rev-list --tags --max-count=1`)"
+        git -C "${REPO_DIR}" checkout "$(git -C "${REPO_DIR}" describe --tags `git rev-list --tags --max-count=1`)"
     else
         git -C "${REPO_DIR}" pull || { echo "git pull failed with exit code $?. continuing as the repo is already there ..."; }
     fi
