@@ -73,9 +73,10 @@ type Device struct {
 
 // DesiredDevice keeps track of the desired settings for a device
 type DesiredDevice struct {
-	Name          string
-	OSDsPerDevice int
-	IsFilter      bool
+	Name           string
+	OSDsPerDevice  int
+	MetadataDevice string
+	IsFilter       bool
 }
 
 type DeviceOsdMapping struct {
