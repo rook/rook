@@ -48,4 +48,25 @@ func TestParseDesiredDevices(t *testing.T) {
 	result, err = parseDevices(devices)
 	assert.Nil(t, result)
 	assert.NotNil(t, err)
+
+	// metadataDevice and OSDsPerDevice
+	devices = "sdd:1:sdb,sde:1:sdb,sdf:1:sdc,sdg:1:sdc"
+	result, err = parseDevices(devices)
+	assert.Equal(t, "sdd", result[0].Name)
+	assert.Equal(t, "sde", result[1].Name)
+	assert.Equal(t, "sdf", result[2].Name)
+	assert.Equal(t, "sdg", result[3].Name)
+	assert.Equal(t, 1, result[0].OSDsPerDevice)
+	assert.Equal(t, 1, result[1].OSDsPerDevice)
+	assert.Equal(t, 1, result[2].OSDsPerDevice)
+	assert.Equal(t, 1, result[3].OSDsPerDevice)
+	assert.Equal(t, "sdb", result[0].MetadataDevice)
+	assert.Equal(t, "sdb", result[1].MetadataDevice)
+	assert.Equal(t, "sdc", result[2].MetadataDevice)
+	assert.Equal(t, "sdc", result[3].MetadataDevice)
+	assert.False(t, result[0].IsFilter)
+	assert.False(t, result[1].IsFilter)
+	assert.False(t, result[2].IsFilter)
+	assert.False(t, result[3].IsFilter)
+
 }

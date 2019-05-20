@@ -492,12 +492,17 @@ func (c *Cluster) provisionOSDContainer(devices []rookalpha.Device, selection ro
 	if len(devices) > 0 {
 		deviceNames := make([]string, len(devices))
 		for i, device := range devices {
-			countSuffix := ""
+			devSuffix := ""
+			count := "1"
 			if count, ok := device.Config[config.OSDsPerDeviceKey]; ok {
 				logger.Infof("%s osds requested on device %s (node %s)", count, device.Name, nodeName)
-				countSuffix = ":" + count
 			}
-			deviceNames[i] = device.Name + countSuffix
+			devSuffix += ":" + count
+			if md, ok := device.Config[config.MetadataDeviceKey]; ok {
+				logger.Infof("osd %s requested with metadataDevice %s (node %s)", device.Name, md, nodeName)
+				devSuffix += ":" + md
+			}
+			deviceNames[i] = device.Name + devSuffix
 		}
 		envVars = append(envVars, dataDevicesEnvVar(strings.Join(deviceNames, ",")))
 		devMountNeeded = true
