@@ -19,7 +19,7 @@ include ../image.mk
 
 CEPH_IMAGE = $(BUILD_REGISTRY)/ceph-$(GOARCH)
 
-CEPH_VERSION = v14.2.0-20190319
+CEPH_VERSION = v14.2.1-20190430
 BASEIMAGE = ceph/ceph-$(GOARCH):$(CEPH_VERSION)
 
 TEMP := $(shell mktemp -d)
