@@ -14,6 +14,8 @@
 
 ### YugabyteDB
 
+### Cassandra
+- Added [JMX Prometheus exporter](https://github.com/prometheus/jmx_exporter) support.
 
 ## Breaking Changes
 

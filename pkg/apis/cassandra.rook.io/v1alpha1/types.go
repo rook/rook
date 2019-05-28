@@ -95,6 +95,8 @@ type RackSpec struct {
 	Members int32 `json:"members"`
 	// User-provided ConfigMap applied to the specific statefulset.
 	ConfigMapName *string `json:"configMapName,omitempty"`
+	// User-provided ConfigMap for jmx prometheus exporter
+	JMXExporterConfigMapName *string `json:"jmxExporterConfigMapName,omitempty"`
 	// Storage describes the underlying storage that Cassandra will consume.
 	Storage rook.StorageScopeSpec `json:"storage"`
 	// The annotations-related configuration to add/set on each Pod related object.
