@@ -214,6 +214,11 @@ func (in *RackSpec) DeepCopyInto(out *RackSpec) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.JMXExporterConfigMapName != nil {
+		in, out := &in.JMXExporterConfigMapName, &out.JMXExporterConfigMapName
+		*out = new(string)
+		**out = **in
+	}
 	in.Storage.DeepCopyInto(&out.Storage)
 	if in.Annotations != nil {
 		in, out := &in.Annotations, &out.Annotations

@@ -85,6 +85,7 @@ In the Cassandra model, each cluster contains datacenters and each datacenter co
 * `name`: Name of the rack. Usually, a rack corresponds to an availability zone.
 * `members`: Number of Cassandra members for the specific rack. (In Cassandra documentation, they are called nodes. We don't call them nodes to avoid confusion as a Cassandra Node corresponds to a Kubernetes Pod, not a Kubernetes Node).
 * `storage`: Defines the volumes to use for each Cassandra member. Currently, only 1 volume is supported.
+* `jmxExporterConfigMapName`: Name of configmap that will be used for [jmx_exporter](https://github.com/prometheus/jmx_exporter). Exporter listens on port 9180. If the name not specified, the exporter will not be run. 
 * `resources`: Defines the CPU and RAM resources for the Cassandra Pods.
 * `annotations`: Key value pair list of annotations to add.
 * `placement`: Defines the placement of Cassandra Pods. Has the following subfields:
