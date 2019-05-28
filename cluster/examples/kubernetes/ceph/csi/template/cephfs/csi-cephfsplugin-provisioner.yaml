@@ -2,13 +2,13 @@ kind: StatefulSet
 apiVersion: apps/v1
 metadata:
   name: csi-cephfsplugin-provisioner
-  namespace: {{ .Namespace }}  
+  namespace: {{ .Namespace }}
 spec:
   serviceName: "csi-cephfsplugin-provisioner"
   replicas: 1
   selector:
     matchLabels:
-     app: csi-cephfsplugin-provisioner      
+     app: csi-cephfsplugin-provisioner
   template:
     metadata:
       labels:
@@ -16,6 +16,18 @@ spec:
     spec:
       serviceAccount: rook-csi-cephfs-provisioner-sa
       containers:
+        - name: csi-attacher
+          image: {{ .AttacherImage }}
+          args:
+            - "--v=5"
+            - "--csi-address=$(ADDRESS)"
+          env:
+            - name: ADDRESS
+              value: /csi/csi-provisioner.sock
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
         - name: csi-provisioner
           image: {{ .ProvisionerImage }}
           args:
@@ -61,7 +73,7 @@ spec:
               mountPath: /lib/modules
               readOnly: true
             - name: host-dev
-              mountPath: /dev              
+              mountPath: /dev
       volumes:
         - name: socket-dir
           hostPath:

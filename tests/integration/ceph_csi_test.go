@@ -47,11 +47,12 @@ func runCephCSIE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suit
 		createCephPools(helper, s, namespace)
 		createCSIStorageClass(k8sh, s, namespace)
 		createCSIRBDTestPod(k8sh, s, namespace)
+		createCSICephFSTestPod(k8sh, s, namespace)
 	}
 }
 
 func isCSIRunnig(k8sh *utils.K8sHelper, namespace string) bool {
-	return k8sh.IsPodWithLabelPresent("app=csi-rbdplugin", installer.SystemNamespace(namespace))
+	return k8sh.IsPodWithLabelPresent("app=csi-rbdplugin", installer.SystemNamespace(namespace)) && k8sh.IsPodWithLabelPresent("app=csi-cephfsplugin", installer.SystemNamespace(namespace))
 }
 
 func createCephCSISecret(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
@@ -91,7 +92,7 @@ func createCephPools(helper *clients.TestClient, s suite.Suite, namespace string
 	err := helper.PoolClient.Create(csiPoolRBD, namespace, 1)
 	require.Nil(s.T(), err)
 
-	err = helper.PoolClient.Create(csiPoolCephFS, namespace, 1)
+	err = helper.FSClient.Create(csiPoolCephFS, namespace)
 	require.Nil(s.T(), err)
 }
 
@@ -120,13 +121,12 @@ metadata:
 provisioner: cephfs.csi.ceph.com
 parameters:
     monValueFromSecret: "monitors"
-    pool: ` + csiPoolCephFS + `
+    provisionVolume: "true"
+    pool: ` + csiPoolCephFS + `-data0
     csi.storage.k8s.io/provisioner-secret-name: ` + csiSecretName + `
     csi.storage.k8s.io/provisioner-secret-namespace: ` + namespace + `
     csi.storage.k8s.io/node-stage-secret-name: ` + csiSecretName + `
     csi.storage.k8s.io/node-stage-secret-namespace: ` + namespace + `
-    adminid: admin
-    userid: admin
 `
 	err := k8sh.ResourceOperation("apply", rbdSC)
 	require.Nil(s.T(), err)
@@ -187,4 +187,58 @@ spec:
 	}
 
 	require.True(s.T(), isPodRunning, "csi rbd test pod fails to run")
+}
+
+func createCSICephFSTestPod(k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
+	pod := `
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cephfs-pvc-csi
+  namespace: ` + namespace + `
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: ` + csiSCCephFS + `
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ` + csiTestCephFSPodName + `
+  namespace: ` + namespace + `
+spec:
+  containers:
+  - name: ` + csiTestCephFSPodName + `
+    image: busybox
+    command:
+        - sh
+        - "-c"
+        - "touch /test/csi.test && sleep 3600"
+    imagePullPolicy: IfNotPresent
+    env:
+    volumeMounts:
+    - mountPath: /test
+      name: csivol
+  volumes:
+  - name: csivol
+    persistentVolumeClaim:
+       claimName: cephfs-pvc-csi
+       readOnly: false
+  restartPolicy: Never
+`
+	err := k8sh.ResourceOperation("create", pod)
+	require.Nil(s.T(), err)
+	isPodRunning := k8sh.IsPodRunning(csiTestCephFSPodName, namespace)
+	if !isPodRunning {
+		k8sh.PrintPodDescribe(namespace, csiTestCephFSPodName)
+		k8sh.PrintPodStatus(namespace)
+	} else {
+		// cleanup the pod and pv
+		err = k8sh.ResourceOperation("delete", pod)
+	}
+
+	require.True(s.T(), isPodRunning, "csi cephfs test pod fails to run")
 }

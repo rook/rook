@@ -46,7 +46,7 @@ kubectl apply -f cluster/examples/kubernetes/ceph/operator-with-csi.yaml
 # kubectl get all -n rook-ceph
 NAME                                       READY   STATUS      RESTARTS   AGE
 pod/csi-cephfsplugin-nd5tv                 2/2     Running     1          4m5s
-pod/csi-cephfsplugin-provisioner-0         2/2     Running     0          4m5s
+pod/csi-cephfsplugin-provisioner-0         3/3     Running     0          4m5s
 pod/csi-rbdplugin-provisioner-0            4/4     Running     1          4m5s
 pod/csi-rbdplugin-wr78j                    2/2     Running     1          4m5s
 pod/rook-ceph-agent-bf772                  1/1     Running     0          7m57s
