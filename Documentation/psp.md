@@ -3,6 +3,13 @@ title: Pod Security Policies
 weight: 1400
 indent: true
 ---
+{% assign url = page.url | split: '/' %}
+{% assign currentVersion = url[3] %}
+{% if currentVersion != 'master' %}
+{% assign branchName = currentVersion | replace: 'v', '' | prepend: 'release-' %}
+{% else %}
+{% assign branchName = currentVersion %}
+{% endif %}
 
 # Using Rook with Pod Security Policies
 
@@ -27,8 +34,9 @@ If you have activated the [PodSecurityPolicy Admission Controller](https://kuber
 using [PodSecurityPolicies](https://kubernetes.io/docs/concepts/policy/pod-security-policy/), you will require additional `(Cluster)RoleBindings`
 for the different `ServiceAccounts` Rook uses to start the Rook Storage Pods.
 
-Security policies will differ for different backends. See
-[Ceph's Pod Security Policy document](./ceph-psp.md) for an example of how this is done in practice.
+Security policies will differ for different backends. See Ceph's Pod Security Policies set up in its
+[common.yaml](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/common.yaml)
+for an example of how this is done in practice.
 
 **Note**: You do not have to perform these steps if you do not have the `PodSecurityPolicy` Admission Controller activated!
 
