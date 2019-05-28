@@ -99,7 +99,7 @@ $(error Failed to get unique ID for host+dir. Check that '$(SHA256CMD)' function
 endif
 
 # Select which images (backends) to make; default to all possible images
-IMAGES ?= ceph cockroachdb minio nfs cassandra edgefs
+IMAGES ?= ceph cockroachdb minio cassandra edgefs
 
 COMMA := ,
 SPACE :=
