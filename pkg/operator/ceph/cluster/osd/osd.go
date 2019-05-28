@@ -335,7 +335,7 @@ func (c *Cluster) handleRemovedNodes(config *provisionConfig) {
 				}
 			}
 
-			if err := removeOSD(c.context, c.Namespace, dp.Name, id); err != nil {
+			if err := c.removeOSD(dp.Name, id); err != nil {
 				config.addError("failed to remove osd %d. %+v", id, err)
 				errorOnCurrentNode = true
 				continue
