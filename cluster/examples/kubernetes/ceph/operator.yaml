@@ -46,7 +46,7 @@ spec:
           value: "true"
         # To disable RBAC, uncomment the following:
         # - name: RBAC_ENABLED
-        #  value: "false"
+        #   value: "false"
         # Rook Agent toleration. Will tolerate all taints with all keys.
         # Choose between NoSchedule, PreferNoSchedule and NoExecute:
         # - name: AGENT_TOLERATION
@@ -63,20 +63,20 @@ spec:
         #   value: "Any"
         # Set the path where the Rook agent can find the flex volumes
         # - name: FLEXVOLUME_DIR_PATH
-        #  value: "<PathToFlexVolumes>"
+        #   value: "<PathToFlexVolumes>"
         # Set the path where kernel modules can be found
         # - name: LIB_MODULES_DIR_PATH
-        #  value: "<PathToLibModules>"
+        #   value: "<PathToLibModules>"
         # Mount any extra directories into the agent container
         # - name: AGENT_MOUNTS
-        #  value: "somemount=/host/path:/container/path,someothermount=/host/path2:/container/path2"
+        #   value: "somemount=/host/path:/container/path,someothermount=/host/path2:/container/path2"
         # Rook Discover toleration. Will tolerate all taints with all keys.
         # Choose between NoSchedule, PreferNoSchedule and NoExecute:
         # - name: DISCOVER_TOLERATION
         #   value: "NoSchedule"
         # (Optional) Rook Discover toleration key. Set this to the key of the taint you want to tolerate
         # - name: DISCOVER_TOLERATION_KEY
-        #  value: "<KeyOfTheTaintToTolerate>"
+        #   value: "<KeyOfTheTaintToTolerate>"
         # Allow rook to create multiple file systems. Note: This is considered
         # an experimental feature in Ceph as described at
         # http://docs.ceph.com/docs/master/cephfs/experimental-features/#multiple-filesystems-within-a-ceph-cluster
