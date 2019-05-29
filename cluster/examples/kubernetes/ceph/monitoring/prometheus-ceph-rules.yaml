@@ -11,8 +11,49 @@ spec:
   - name: ceph.rules
     rules:
     - expr: |
-        kube_node_status_condition{condition="Ready",job="kube-state-metrics",status="true"} * on (node) group_right() max(label_replace(ceph_disk_occupation{job="rook-ceph-mgr"},"node","$1","exported_instance","(.*)")) by (node) == 0
+        kube_node_status_condition{condition="Ready",job="kube-state-metrics",status="true"} * on (node) group_right() max(label_replace(ceph_disk_occupation{job="rook-ceph-mgr"},"node","$1","exported_instance","(.*)")) by (node)
       record: cluster:ceph_node_down:join_kube
+    - expr: |
+        (sum((max(label_replace(ceph_disk_occupation{job="rook-ceph-mgr"},"node","$1","exported_instance","(.*)")) by (node)) * on (node) group_right() (label_replace(max by(pod_ip,node) (kube_pod_info{pod=~"node-exporter.*"}), "instance", "$1:9100", "pod_ip", "(.*)"))  * on (instance) group_right() (irate(node_disk_read_time_seconds_total[1m]) + irate(node_disk_write_time_seconds_total[1m]) /  (irate(node_disk_reads_completed_total[1m]) + irate(node_disk_writes_completed_total[1m]))>0)))
+      record: cluster:ceph_disk_latency:join_ceph_node_disk_irate1m
+  - name: ceph-mgr-status
+    rules:
+    - alert: CephMgrIsAbsent
+      annotations:
+        description: Ceph Manager has disappeared from Prometheus target discovery.
+        message: Storage metrics collector service not available anymore.
+        severity_level: warning
+        storage_type: ceph
+      expr: |
+        absent(up{job="rook-ceph-mgr"} == 1)
+      for: 5m
+      labels:
+        severity: warning
+    - alert: CephMgrIsMissingReplicas
+      annotations:
+        description: Ceph Manager is missing replicas.
+        message: Storage metrics collector service doesn't have required no of replicas.
+        severity_level: warning
+        storage_type: ceph
+      expr: |
+        sum(up{job="rook-ceph-mgr"}) < 1
+      for: 5m
+      labels:
+        severity: warning
+  - name: ceph-mds-status
+    rules:
+    - alert: CephMdsMissingReplicas
+      annotations:
+        description: Minimum required replicas for storage metadata service not available.
+          Might affect the working of storage cluster.
+        message: Insufficient replicas for storage metadata service.
+        severity_level: warning
+        storage_type: ceph
+      expr: |
+        sum(ceph_mds_metadata{job="rook-ceph-mgr"} == 1) < 2
+      for: 5m
+      labels:
+        severity: warning
   - name: quorum-alert.rules
     rules:
     - alert: CephMonQuorumAtRisk
@@ -22,10 +63,22 @@ spec:
         severity_level: error
         storage_type: ceph
       expr: |
-        count(ceph_mon_quorum_status == 1) <= ((count(ceph_mon_metadata) % 2) + 1)
+        count(ceph_mon_quorum_status{job="rook-ceph-mgr"} == 1) <= ((count(ceph_mon_metadata{job="rook-ceph-mgr"}) % 2) + 1)
       for: 15m
       labels:
         severity: critical
+    - alert: CephMonHighNumberOfLeaderChanges
+      annotations:
+        description: 'Ceph Monitor "{{ $labels.job }}": instance {{ $labels.instance
+          }} has seen {{ $value }} leader changes per minute recently.'
+        message: Storage Cluster has seen many leader changes recently.
+        severity_level: warning
+        storage_type: ceph
+      expr: |
+        rate(ceph_mon_num_elections{job="rook-ceph-mgr"}[5m]) * 60 > 0.95
+      for: 5m
+      labels:
+        severity: warning
   - name: ceph-node-alert.rules
     rules:
     - alert: CephNodeDown
@@ -36,7 +89,7 @@ spec:
         severity_level: error
         storage_type: ceph
       expr: |
-        cluster:ceph_node_down:join_kube
+        cluster:ceph_node_down:join_kube == 0
       for: 30s
       labels:
         severity: critical
@@ -109,6 +162,30 @@ spec:
         storage_type: ceph
       expr: |
         ceph_health_status{job="rook-ceph-mgr"} == 1
+      for: 10m
+      labels:
+        severity: warning
+    - alert: CephOSDVersionMismatch
+      annotations:
+        description: There are {{ $value }} different versions of Ceph OSD components
+          running.
+        message: There are multiple versions of storage services running.
+        severity_level: warning
+        storage_type: ceph
+      expr: |
+        count(count(ceph_osd_metadata{job="rook-ceph-mgr"}) by (ceph_version)) > 1
+      for: 10m
+      labels:
+        severity: warning
+    - alert: CephMonVersionMismatch
+      annotations:
+        description: There are {{ $value }} different versions of Ceph Mon components
+          running.
+        message: There are multiple versions of storage services running.
+        severity_level: warning
+        storage_type: ceph
+      expr: |
+        count(count(ceph_mon_metadata{job="rook-ceph-mgr"}) by (ceph_version)) > 1
       for: 10m
       labels:
         severity: warning
