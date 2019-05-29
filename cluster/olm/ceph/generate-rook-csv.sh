@@ -6,7 +6,6 @@ set -e
 ##################
 OLM_CATALOG_DIR=cluster/olm/ceph
 CSV_PATH="$OLM_CATALOG_DIR/deploy/olm-catalog"
-DEFAULT_CSV_FILE_NAME="${CSV_PATH}/ceph.csv.yaml"
 ASSEMBLE_FILE_COMMON="$OLM_CATALOG_DIR/assemble/metadata-common.yaml"
 ASSEMBLE_FILE_K8S="$OLM_CATALOG_DIR/assemble/metadata-k8s.yaml"
 ASSEMBLE_FILE_OCP="$OLM_CATALOG_DIR/assemble/metadata-openshift.yaml"
@@ -66,6 +65,7 @@ if [[ -z $3 ]]; then
 fi
 ROOK_OP_VERSION=$3
 
+DEFAULT_CSV_FILE_NAME="${CSV_PATH}/ceph/${VERSION}/ceph.v${VERSION}.clusterserviceversion.yaml"
 DESIRED_CSV_FILE_NAME="${CSV_PATH}/rook-ceph.v${VERSION}.clusterserviceversion.yaml"
 if [[ -f "$DESIRED_CSV_FILE_NAME" ]]; then
     echo "$DESIRED_CSV_FILE_NAME already exists, not doing anything."
