@@ -2,7 +2,7 @@ kind: DaemonSet
 apiVersion: apps/v1
 metadata:
   name: csi-rbdplugin
-  namespace: {{ .Namespace }}  
+  namespace: {{ .Namespace }}
 spec:
   selector:
     matchLabels:
@@ -14,10 +14,10 @@ spec:
     spec:
       serviceAccount: rook-csi-rbd-plugin-sa
       hostNetwork: true
-      hostPID: true      
+      hostPID: true
       # to use e.g. Rook orchestrated cluster, and mons' FQDN is
       # resolved through k8s service, set dns policy to cluster first
-      dnsPolicy: ClusterFirstWithHostNet      
+      dnsPolicy: ClusterFirstWithHostNet
       containers:
         - name: driver-registrar
           image: {{ .RegistrarImage }}
@@ -28,7 +28,7 @@ spec:
           lifecycle:
             preStop:
               exec:
-                  command: ["/bin/sh", "-c", "rm -rf /registration/csi-rbdplugin /registration/csi-rbdplugin-reg.sock"]          
+                  command: ["/bin/sh", "-c", "rm -rf /registration/csi-rbdplugin /registration/csi-rbdplugin-reg.sock"]
           env:
             - name: KUBE_NODE_NAME
               valueFrom:
@@ -55,7 +55,7 @@ spec:
             - "--metadatastorage=k8s_configmap"
           env:
             - name: HOST_ROOTFS
-              value: "/rootfs" 
+              value: "/rootfs"
             - name: NODE_ID
               valueFrom:
                 fieldRef:
@@ -79,7 +79,7 @@ spec:
             - mountPath: /dev
               name: host-dev
             - mountPath: /rootfs
-              name: host-rootfs            
+              name: host-rootfs
             - mountPath: /sys
               name: host-sys
             - mountPath: /lib/modules
@@ -91,7 +91,7 @@ spec:
             path: /var/lib/kubelet/plugins/rbd.csi.ceph.com
             type: DirectoryOrCreate
         - name: plugin-mount-dir
-          hostPath: 
+          hostPath:
             path: /var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/
             type: DirectoryOrCreate
         - name: registration-dir
@@ -107,7 +107,7 @@ spec:
             path: /dev
         - name: host-rootfs
           hostPath:
-            path: /            
+            path: /
         - name: host-sys
           hostPath:
             path: /sys

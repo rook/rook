@@ -2,13 +2,13 @@ kind: StatefulSet
 apiVersion: apps/v1
 metadata:
   name: csi-rbdplugin-attacher
-  namespace: {{ .Namespace }}  
+  namespace: {{ .Namespace }}
 spec:
   serviceName: csi-rbdplugin-attacher
   replicas: 1
   selector:
     matchLabels:
-      app: csi-rbdplugin-attacher  
+      app: csi-rbdplugin-attacher
   template:
     metadata:
       labels:
