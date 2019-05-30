@@ -33,10 +33,18 @@ If you're feeling lucky, a simple Rook cluster can be created with the following
 cd cluster/examples/kubernetes/ceph
 kubectl create -f common.yaml
 kubectl create -f operator.yaml
-kubectl create -f cluster.yaml
+kubectl create -f cluster-test.yaml
 ```
 
 After the cluster is running, you can create [block, object, or file](#storage) storage to be consumed by other applications in your cluster.
+
+### Production Environments
+
+For production environments it is required to have local storage devices attached to your nodes.
+In this walkthrough, the requirement of local storage devices is relaxed so you can get a cluster up and running
+as a "test" environment to experiment with Rook. A Ceph filestore OSD will be created in a `directory` instead
+of requiring a device. For production environments, you will want to follow the example in `cluster.yaml` instead of
+`cluster-test.yaml` in order to configure the devices instead of test directories. See the [Ceph examples](ceph-examples.md) for more details.
 
 ## Deploy the Rook Operator
 
@@ -59,7 +67,7 @@ Now that the Rook operator, agent, and discover pods are running, we can create 
 make sure you set the `dataDirHostPath` property that is valid for your hosts. For more settings, see the documentation on [configuring the cluster](ceph-cluster-crd.md).
 
 
-Save the cluster spec as `cluster.yaml`:
+Save the cluster spec as `cluster-test.yaml`:
 
 ```yaml
 apiVersion: ceph.rook.io/v1
@@ -74,22 +82,26 @@ spec:
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
-    allowMultiplePerNode: false
   dashboard:
     enabled: true
   storage:
     useAllNodes: true
-    useAllDevices: true
+    useAllDevices: false
+    # Important: Directories should only be used in pre-production environments
+    directories:
+    - path: /var/lib/rook
+
 ```
 
 Create the cluster:
 
 ```bash
-kubectl create -f cluster.yaml
+kubectl create -f cluster-test.yaml
 ```
 
 Use `kubectl` to list pods in the `rook-ceph` namespace. You should be able to see the following pods once they are all running.
 The number of osd pods will depend on the number of nodes in the cluster and the number of devices and directories configured.
+If you did not modify the `cluster-test.yaml` above, it is expected that one OSD will be created per node.
 
 ```bash
 $ kubectl -n rook-ceph get pod
@@ -100,12 +112,36 @@ rook-ceph-mon-a-7d8f675889-nw5pl       1/1     Running     0          105s
 rook-ceph-mon-b-856fdd5cb9-5h2qk       1/1     Running     0          94s
 rook-ceph-mon-c-57545897fc-j576h       1/1     Running     0          85s
 rook-ceph-operator-6c49994c4f-9csfz    1/1     Running     0          141s
-rook-ceph-osd-0-7cbbbf749f-j8fsd       1/1     Running     0          25s
-rook-ceph-osd-1-7f67f9646d-44p7v       1/1     Running     0          25s
+rook-ceph-osd-0-7cbbbf749f-j8fsd       1/1     Running     0          23s
+rook-ceph-osd-1-7f67f9646d-44p7v       1/1     Running     0          24s
 rook-ceph-osd-2-6cd4b776ff-v4d68       1/1     Running     0          25s
-rook-ceph-osd-prepare-minikube-vx2rz   0/2     Completed   0          60s
+rook-ceph-osd-prepare-node1-vx2rz      0/2     Completed   0          60s
+rook-ceph-osd-prepare-node2-ab3fd      0/2     Completed   0          60s
+rook-ceph-osd-prepare-node3-w4xyz      0/2     Completed   0          60s
 rook-discover-dhkb8                    1/1     Running     0          140s
 ```
+
+To verify that the cluster is in a healthy state, connect to the [Rook toolbox](ceph-toolbox.md) and run the
+`ceph status` command.
+- All mons should be in quorum
+- A mgr should be active
+- At least one OSD should be active
+- If the health is not `HEALTH_OK`, the warnings or errors should be investigated
+```
+$ ceph status
+  cluster:
+    id:     a0452c76-30d9-4c1a-a948-5d8405f19a7c
+    health: HEALTH_OK
+
+  services:
+    mon: 3 daemons, quorum a,b,c (age 3m)
+    mgr: a(active, since 2m)
+    osd: 3 osds: 3 up (since 1m), 3 in (since 1m)
+...
+```
+
+If the cluster is not healthy, please refer to the [Ceph common issues](ceph-common-issues.md) for more details and potential solutions.
+
 
 # Storage
 
