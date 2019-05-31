@@ -179,7 +179,7 @@ Targets:
     check              Runs unit tests.
     clean              Remove all files that are created by building.
     codegen            Run code generators.
-    csv                Generate a CSV file for OLM.
+    csv-ceph           Generate a CSV file for OLM.
     distclean          Remove all files that are created
                        by building or configuring.
     fmt                Check formatting of go sources.
