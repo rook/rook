@@ -22,6 +22,7 @@ import (
 
 	"github.com/rook/rook/pkg/clusterd"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
+	"github.com/rook/rook/pkg/util/sys"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -129,4 +130,222 @@ func TestMatchUdevMonitorFiltering(t *testing.T) {
 	// add events that match device mapper events are ignored
 	take = f("KERNEL[1042.464238] add      /devices/virtual/block/dm-1 (block)")
 	assert.False(t, take)
+}
+
+func TestDeviceListsEqual(t *testing.T) {
+	// empty lists are equal
+	assert.True(t, checkDeviceListsEqual(
+		[]sys.LocalDisk{},
+		[]sys.LocalDisk{},
+	))
+
+	// default constructed LocalDisks are equal
+	assert.True(t, checkDeviceListsEqual(
+		[]sys.LocalDisk{
+			{},
+		},
+		[]sys.LocalDisk{
+			{},
+		},
+	))
+
+	// a disk is removed
+	assert.False(t, checkDeviceListsEqual(
+		[]sys.LocalDisk{
+			{},
+		},
+		[]sys.LocalDisk{},
+	))
+
+	// a disk is added
+	assert.False(t, checkDeviceListsEqual(
+		[]sys.LocalDisk{},
+		[]sys.LocalDisk{
+			{},
+		},
+	))
+
+	// devices with usb keyword are ignored. the lists should be equal
+	assert.True(t, checkDeviceListsEqual(
+		[]sys.LocalDisk{
+			{
+				DevLinks: "xyzusbabc",
+			},
+		},
+		[]sys.LocalDisk{},
+	))
+
+	// devices with usb keyword are ignored. the lists should be equal
+	assert.True(t, checkDeviceListsEqual(
+		[]sys.LocalDisk{},
+		[]sys.LocalDisk{
+			{
+				DevLinks: "xyzusbabc",
+			},
+		},
+	))
+
+	// equal if uuid is equal
+	assert.True(t, checkDeviceListsEqual(
+		[]sys.LocalDisk{
+			{
+				UUID:   "u2",
+				Serial: "xxx",
+				Name:   "xxx",
+			},
+		},
+		[]sys.LocalDisk{
+			{
+				UUID:   "u2",
+				Serial: "s2",
+				Name:   "n2",
+			},
+		},
+	))
+
+	// equal if serial is equal
+	assert.True(t, checkDeviceListsEqual(
+		[]sys.LocalDisk{
+			{
+				UUID:   "xxx",
+				Serial: "s2",
+				Name:   "xxx",
+			},
+		},
+		[]sys.LocalDisk{
+			{
+				UUID:   "u2",
+				Serial: "s2",
+				Name:   "n2",
+			},
+		},
+	))
+
+	// equal if device name is equal
+	assert.True(t, checkDeviceListsEqual(
+		[]sys.LocalDisk{
+			{
+				UUID:   "xxx",
+				Serial: "xxx",
+				Name:   "n2",
+			},
+		},
+		[]sys.LocalDisk{
+			{
+				UUID:   "u2",
+				Serial: "s2",
+				Name:   "n2",
+			},
+		},
+	))
+
+	// otherwise, not equal
+	assert.False(t, checkDeviceListsEqual(
+		[]sys.LocalDisk{
+			{
+				UUID:   "xxx",
+				Serial: "xxx",
+				Name:   "xxx",
+			},
+		},
+		[]sys.LocalDisk{
+			{
+				UUID:   "u2",
+				Serial: "s2",
+				Name:   "n2",
+			},
+		},
+	))
+
+	// device equality ignores an empty serial
+	assert.False(t, checkDeviceListsEqual(
+		[]sys.LocalDisk{
+			{
+				UUID:   "xxx",
+				Serial: "",
+				Name:   "xxx",
+			},
+		},
+		[]sys.LocalDisk{
+			{
+				UUID:   "u2",
+				Serial: "",
+				Name:   "n2",
+			},
+		},
+	))
+
+	// devices are the same, but transition from non-empty to empty. in this
+	// case we consider the lists to be non-equal (i.e. of interest to storage
+	// providers).
+	assert.False(t, checkDeviceListsEqual(
+		[]sys.LocalDisk{
+			{
+				UUID:  "uuid",
+				Empty: false,
+			},
+		},
+		[]sys.LocalDisk{
+			{
+				UUID:  "uuid",
+				Empty: true,
+			},
+		},
+	))
+
+	// devices are the same, but transition from empty to non-empty (e.g. the
+	// dev is now in use). in this case we consider the lists to be equal (i.e.
+	// no interesting change).
+	assert.True(t, checkDeviceListsEqual(
+		[]sys.LocalDisk{
+			{
+				UUID:  "uuid",
+				Empty: true,
+			},
+		},
+		[]sys.LocalDisk{
+			{
+				UUID:  "uuid",
+				Empty: false,
+			},
+		},
+	))
+
+	// devices are the same, but the partition table is cleared. this would be
+	// of interest to storage providers!
+	assert.False(t, checkDeviceListsEqual(
+		[]sys.LocalDisk{
+			{
+				UUID: "uuid",
+				Partitions: []sys.Partition{
+					{},
+				},
+			},
+		},
+		[]sys.LocalDisk{
+			{
+				UUID:       "uuid",
+				Partitions: nil,
+			},
+		},
+	))
+
+	// devices are the same, but the partition table has been created. not so
+	// interesting.
+	assert.True(t, checkDeviceListsEqual(
+		[]sys.LocalDisk{
+			{
+				UUID:       "uuid",
+				Partitions: nil,
+			},
+		},
+		[]sys.LocalDisk{
+			{
+				UUID: "uuid",
+				Partitions: []sys.Partition{
+					{},
+				},
+			},
+		},
+	))
 }
