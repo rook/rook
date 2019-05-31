@@ -129,6 +129,35 @@ In this example, port `31176` will be opened to expose port `8443` from the ceph
 of the VM. If using minikube, you can run `minikube ip` to find the ip address.
 Now you can enter the URL in your browser such as `https://192.168.99.110:31176` and the dashboard will appear.
 
+### Load Balancer
+
+If you have a cluster on a cloud provider that supports load balancers,
+you can create a service that is provisioned with a public hostname.
+The yaml is the same as `dashboard-external-https.yaml` except for the following line:
+```yaml
+  type: LoadBalancer
+```
+
+Now create the service:
+```bash
+$ kubectl create -f dashboard-loadbalancer.yaml
+```
+
+You will see the new service `rook-ceph-mgr-dashboard-loadbalancer` created:
+```bash
+$ kubectl -n rook-ceph get service
+NAME                                     TYPE           CLUSTER-IP       EXTERNAL-IP                                                               PORT(S)             AGE
+rook-ceph-mgr                            ClusterIP      172.30.11.40     <none>                                                                    9283/TCP            4h
+rook-ceph-mgr-dashboard                  ClusterIP      172.30.203.185   <none>                                                                    8443/TCP            4h
+rook-ceph-mgr-dashboard-loadbalancer     LoadBalancer   172.30.27.242    a7f23e8e2839511e9b7a5122b08f2038-1251669398.us-east-1.elb.amazonaws.com   8443:32747/TCP      4h
+```
+
+Now you can enter the URL in your browser such as
+```
+https://a7f23e8e2839511e9b7a5122b08f2038-1251669398.us-east-1.elb.amazonaws.com:8443
+```
+and the dashboard will appear.
+
 ### Ingress Controller
 
 If you have a cluster with an [nginx Ingress Controller](https://kubernetes.github.io/ingress-nginx/)
