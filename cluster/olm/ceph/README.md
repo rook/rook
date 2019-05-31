@@ -1,6 +1,6 @@
 # Build Rook's CSV file
 
-Just run `make CSV_VERSION=1.0.0 csv` like this:
+Just run `make CSV_VERSION=1.0.0 csv-ceph` like this:
 
 ```bash
 $ make csv-ceph CSV_VERSION=1.0.1 CSV_PLATFORM=k8s ROOK_OP_VERSION=rook/ceph:v1.0.1
@@ -18,4 +18,4 @@ Your Rook CSV 1.0.1 file for k8s is ready at: cluster/olm/ceph/deploy/olm-catalo
 Push it to https://github.com/operator-framework/community-operators as well as the CRDs files from cluster/olm/ceph/deploy/crds and the package file cluster/olm/ceph/assemble/rook-ceph.package.yaml.
 ```
 
-Or for OpenShift use: `$ make CSV_VERSION=1.0.0 CSV_PLATFORM=ocp csv`.
+Or for OpenShift use: `$ make CSV_VERSION=1.0.0 CSV_PLATFORM=ocp csv-ceph`.
