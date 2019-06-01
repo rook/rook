@@ -67,7 +67,6 @@ spec:
             - "--v=5"
             - "--drivername=rbd.csi.ceph.com"
             - "--containerized=true"
-            - "--metadatastorage=k8s_configmap"
           env:
             - name: HOST_ROOTFS
               value: "/rootfs"
@@ -94,6 +93,8 @@ spec:
             - mountPath: /lib/modules
               name: lib-modules
               readOnly: true
+            - name: ceph-csi-config
+              mountPath: /etc/ceph-csi-config/
       volumes:
         - name: host-dev
           hostPath:
@@ -111,3 +112,7 @@ spec:
           hostPath:
             path: /var/lib/kubelet/plugins/rbd.csi.ceph.com
             type: DirectoryOrCreate
+        - name: ceph-csi-config
+          configMap:
+            name: ceph-csi-config
+
