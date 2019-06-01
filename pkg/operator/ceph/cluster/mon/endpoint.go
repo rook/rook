@@ -17,6 +17,7 @@ limitations under the License.
 package mon
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -48,4 +49,27 @@ func ParseMonEndpoints(input string) map[string]*cephconfig.MonInfo {
 		mons[parts[0]] = &cephconfig.MonInfo{Name: parts[0], Endpoint: parts[1]}
 	}
 	return mons
+}
+
+// FormatCsiClusterConfig returns a json-formatted string containing
+// the cluster-to-mon mapping required to configure ceph csi.
+func FormatCsiClusterConfig(
+	clusterKey string, mons map[string]*cephconfig.MonInfo) (string, error) {
+
+	type csiClusterConfig struct {
+		ClusterID string   `json:"clusterID"`
+		Monitors  []string `json:"monitors"`
+	}
+	cc := make([]csiClusterConfig, 1)
+	cc[0].ClusterID = clusterKey
+	cc[0].Monitors = []string{}
+	for _, m := range mons {
+		cc[0].Monitors = append(cc[0].Monitors, m.Endpoint)
+	}
+
+	ccJson, err := json.Marshal(cc)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal csi cluster config. %+v", err)
+	}
+	return string(ccJson), nil
 }
