@@ -15,6 +15,7 @@ If after trying the suggestions found on this page and the problem is not resolv
 - [Pod using Rook storage is not running](#pod-using-ceph-storage-is-not-running)
 - [Cluster failing to service requests](#cluster-failing-to-service-requests)
 - [Monitors are the only pods running](#monitors-are-the-only-pods-running)
+- [PVCs stay in pending state](#pvcs-stay-in-pending-state)
 - [OSD pods are failing to start](#osd-pods-are-failing-to-start)
 - [OSDs are not created on my devices](#osd-pods-are-not-created-on-my-devices)
 - [Node hangs after reboot](#node-hangs-after-reboot)
@@ -321,6 +322,71 @@ Then when the cluster CRD is applied to start a new cluster, the rook-operator s
 
 See the [Cleanup Guide](ceph-teardown.md) for more details.
 
+# PVCs stay in pending state
+
+## Symptoms
+- When you create a PVC based on a rook storage class, it stays pending indefinitely
+
+For the Wordpress example, you might see two PVCs in pending state.
+```
+$ kubectl get pvc
+NAME             STATUS    VOLUME   CAPACITY   ACCESS MODES   STORAGECLASS      AGE
+mysql-pv-claim   Pending                                      rook-ceph-block   8s
+wp-pv-claim      Pending                                      rook-ceph-block   16s
+```
+
+## Investigation
+There are two common causes for the PVCs staying in pending state:
+1. There are no OSDs in the cluster
+2. The operator is not running or is otherwise not responding to the request to create the block image
+
+### Confirm if there are OSDs
+
+To confirm if you have OSDs in your cluster, connect to the [Rook Toolbox](ceph-toolbox.md) and run the `ceph status` command.
+You should see that you have at least one OSD `up` and `in`. The minimum number of OSDs required depends on the
+`replicated.size` setting in the pool created for the storage class. In a "test" cluster, only one OSD is required
+(see `storageclass-test.yaml`). In the production storage class example (`storageclass.yaml`), three OSDs would be required.
+
+```
+$ ceph status
+  cluster:
+    id:     a0452c76-30d9-4c1a-a948-5d8405f19a7c
+    health: HEALTH_OK
+
+  services:
+    mon: 3 daemons, quorum a,b,c (age 11m)
+    mgr: a(active, since 10m)
+    osd: 1 osds: 1 up (since 46s), 1 in (since 109m)
+```
+
+### OSD Prepare Logs
+
+If you don't see the expected number of OSDs, let's investigate why they weren't created.
+On each node where Rook looks for OSDs to configure, you will see an "osd prepare" pod.
+
+```
+$ kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare
+NAME                                   READY   STATUS      RESTARTS   AGE
+rook-ceph-osd-prepare-minikube-9twvk   0/2     Completed   0          30m
+```
+
+See the section on [why OSDs are not getting created](#osd-pods-are-not-created-on-my-devices) to investigate the logs.
+
+### Operator unresponsiveness
+Lastly, if you have OSDs `up` and `in`, the next step is to confirm the operator is responding to the requests.
+Look in the Operator pod logs around the time when the PVC was created to confirm if the request is being raised.
+If the operator does not show requests to provision the block image, the operator may be stuck on some other operation.
+In this case, restart the operator pod to get things going again.
+
+## Solution
+If the "osd prepare" logs didn't give you enough clues about why the OSDs were not being created,
+please review your [cluster.yaml](eph-cluster-crd.html#storage-selection-settings) configuration.
+The common misconfigurations include:
+- If `useAllDevices: true`, Rook expects to find local devices attached to the nodes. If no devices are found, no OSDs will be created.
+- If `useAllDevices: false`, OSDs will only be created if `directories` or a `deviceFilter` are specified.
+- Only local devices attached to the nodes will be configurable by Rook. In other words, the devices must show up under `/dev`.
+   - The devices must not have any partitions or filesystems on them. Rook will only configure raw devices. Partitions are not yet supported.
+
 # OSD pods are failing to start
 
 ## Symptoms
@@ -371,8 +437,8 @@ The [Cluster CRD](ceph-cluster-crd.md#storage-selection-settings) has several wa
 
 Second, if Rook determines that a device is not available (has existing partitions or a formatted file system), Rook will skip consuming the devices.
 If Rook is not starting OSDs on the devices you expect, Rook may have skipped it for this reason. To see if a device was skipped, view the OSD preparation log
-on the node where the device was skipped.
-
+on the node where the device was skipped. Note that it is completely normal and expected for OSD prepare pod to be in the `completed` state.
+After the job is complete, Rook leaves the pod around in case the logs need to be investigated.
 ```
 # get the prepare pods in the cluster
 $ kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare
@@ -381,17 +447,22 @@ rook-ceph-osd-prepare-node1-fvmrp      0/1       Completed   0          18m
 rook-ceph-osd-prepare-node2-w9xv9      0/1       Completed   0          22m
 rook-ceph-osd-prepare-node3-7rgnv      0/1       Completed   0          22m
 
-# view the logs for the node of interest
-$ kubectl -n rook-ceph logs rook-ceph-osd-prepare-node1-fvmrp
+# view the logs for the node of interest in the "provision" container
+$ kubectl -n rook-ceph logs rook-ceph-osd-prepare-node1-fvmrp provision
 ```
 
-Towards the beginning of the log you will see messages such as the following:
+Here are some key lines to look for in the log:
 ```
-# message that the device sda was skipped
-cephosd: skipping device sda that is in use (not by rook)
+# A device will be skipped if Rook sees it has partitions or a filesystem
+2019-05-30 19:02:57.353171 W | cephosd: skipping device sda that is in use
 
-# message that the devices sdb and sdc are being configured
-cephosd: configuring osd devices: {"Entries":{"sdb":{"Data":-1,"Metadata":null},"sdc":{"Data":-1,"Metadata":null}}}
+# A device is going to be configured
+2019-05-30 19:02:57.535598 I | cephosd: device sdc to be configured by ceph-volume
+
+# For each device configured you will see a report printed to the log
+2019-05-30 19:02:59.844642 I |   Type            Path                                                    LV Size         % of device
+2019-05-30 19:02:59.844651 I | ----------------------------------------------------------------------------------------------------
+2019-05-30 19:02:59.844677 I |   [data]          /dev/sdc                                                7.00 GB         100%
 ```
 
 ## Solution
