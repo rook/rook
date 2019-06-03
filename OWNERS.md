@@ -25,6 +25,10 @@ Maintainers will be added according to the [process for adding a maintainer](GOV
 
 There are currently no emeritus maintainers.  This list will be updated according to the [process for removing a maintainer](GOVERNANCE.md#removing-a-maintainer) in the [governance](GOVERNANCE.md).
 
+## Code Owners
+
+Code owners, as described in the [change approval process](GOVERNANCE.md#change-approval) of the governance, can be found in [`CODE-OWNERS`](CODE-OWNERS) files.
+
 ## Friends of Rook
 
 This section lists people that are not currently maintainers but have demonstrated value to the community.
