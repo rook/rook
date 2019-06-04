@@ -108,7 +108,7 @@ func (m *Monitor) osdStatus() error {
 		} else {
 			logger.Debugf("osd.%d is healthy.", id)
 			if tracked {
-				logger.Debugf("osd.%d recovered, stopping tracking.", id)
+				logger.Infof("osd.%d recovered, stopping tracking.", id)
 				delete(m.lastStatus, id)
 			}
 		}
