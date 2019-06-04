@@ -1,0 +1,9 @@
+apiVersion: noobaa.rook.io/v1alpha1
+kind: NooBaaBackingStore
+metadata:
+  name: aws-obc
+  namespace: rook-noobaa
+spec:
+  type: obc
+  bucketName: aws-obc-backing-store
+  storageClassName: aws-obc-provisioner

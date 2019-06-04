@@ -1,0 +1,18 @@
+apiVersion: noobaa.rook.io/v1alpha1
+kind: NooBaaSystem
+metadata:
+  name: noobaa-system
+  namespace: rook-noobaa
+spec:
+
+  # Image is the container image to use for the deployment.
+  image: noobaa/noobaa-core:4.0.0
+
+  endpoints:
+    # Endpoints autoscale is used to define the HorizontalPodAutoscaler (HPA) settings for S3 endpoints.
+    # See https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale-walkthrough
+    # NooBaa endpoints are stateless components that consume CPU, memory, and network resources, and are designed to scale horizontally.
+    # The operator will define the metrics and thresholds for scaling.
+    autoscale:
+      minReplicas: 1
+      maxReplicas: 10

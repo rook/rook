@@ -1,0 +1,9 @@
+apiVersion: noobaa.rook.io/v1alpha1
+kind: NooBaaBackingStore
+metadata:
+  name: azure-blob
+  namespace: rook-noobaa
+spec:
+  type: azure-blob
+  bucketName: noobaa1-azure-blob-backing-store
+  credentialsSecretName: azure-blob-credentials-secret

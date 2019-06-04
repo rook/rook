@@ -1,0 +1,13 @@
+apiVersion: noobaa.rook.io/v1alpha1
+kind: NooBaaBucketClass
+metadata:
+  name: noobaa-default-class
+  namespace: rook-noobaa
+spec:
+  placementPolicy:
+    tiers:
+      - tier:
+          mirrors:
+            - mirror:
+                spread:
+                  - noobaa-aws-resource
