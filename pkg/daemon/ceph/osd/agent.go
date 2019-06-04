@@ -160,7 +160,7 @@ func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOs
 	if devices == nil || len(devices.Entries) == 0 {
 		logger.Infof("no more devices to configure")
 		if cvSupported {
-			return getCephVolumeOSDs(context, a.cluster.Name)
+			return getCephVolumeOSDs(context, a.cluster.Name, a.cluster.FSID)
 		}
 		return osds, nil
 	}
