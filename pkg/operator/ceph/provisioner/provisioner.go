@@ -18,7 +18,11 @@ limitations under the License.
 package provisioner
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
+	"os/exec"
+	"strconv"
 	"strings"
 
 	"github.com/coreos/pkg/capnslog"
@@ -29,6 +33,9 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/uuid"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog"
 	"sigs.k8s.io/sig-storage-lib-external-provisioner/controller"
 )
 
@@ -36,9 +43,22 @@ const (
 	attacherImageKey              = "attacherImage"
 	storageClassBetaAnnotationKey = "volume.beta.kubernetes.io/storage-class"
 	sizeMB                        = 1048576 // 1 MB
+	provisionCmd                  = "/usr/local/bin/cephfs_provisioner"
+	provisionerIDAnn              = "cephFSProvisionerIdentity"
+	cephShareAnn                  = "cephShare"
+	provisionerNameKey            = "PROVISIONER_NAME"
+	secretNamespaceKey            = "PROVISIONER_SECRET_NAMESPACE"
+	disableCephNamespaceIsolation = true
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-provisioner")
+
+type provisionOutput struct {
+	Path   string `json:"path"`
+	User   string `json:"user"`
+	Secret string `json:"auth"`
+	Mons   string `json:"mons"`
+}
 
 // RookVolumeProvisioner is used to provision Rook volumes on Kubernetes
 type RookVolumeProvisioner struct {
@@ -46,6 +66,16 @@ type RookVolumeProvisioner struct {
 
 	// The flex driver vendor dir to use
 	flexDriverVendor string
+}
+
+type cephFSProvisioner struct {
+	// Kubernetes Client. Use to retrieve Ceph admin secret
+	client   kubernetes.Interface
+	identity string
+	// Namespace secrets will be created in. If empty, secrets will be created in each PVC's namespace.
+	secretNamespace string
+	// enable PVC quota
+	enableQuota bool
 }
 
 type provisionerConfig struct {
@@ -68,6 +98,192 @@ func New(context *clusterd.Context, flexDriverVendor string) controller.Provisio
 		context:          context,
 		flexDriverVendor: flexDriverVendor,
 	}
+}
+
+// NewCephFSProvisioner creates cephfs provisioner
+func NewCephFSProvisioner(client kubernetes.Interface, id string, secretNamespace string, enableQuota bool) controller.Provisioner {
+	return &cephFSProvisioner{
+		client:          client,
+		identity:        id,
+		secretNamespace: secretNamespace,
+		enableQuota:     enableQuota,
+	}
+}
+
+var _ controller.Provisioner = &cephFSProvisioner{}
+
+func generateSecretName(user string) string {
+	return "ceph-" + user + "-secret"
+}
+
+func getClaimRefNamespace(pv *v1.PersistentVolume) string {
+	if pv.Spec.ClaimRef != nil {
+		return pv.Spec.ClaimRef.Namespace
+	}
+	return ""
+}
+
+// getSecretFromCephFSPersistentVolume gets secret reference from CephFS PersistentVolume.
+// It fallbacks to use ClaimRef.Namespace if SecretRef.Namespace is
+// empty. See https://github.com/kubernetes/kubernetes/pull/49502.
+func getSecretFromCephFSPersistentVolume(pv *v1.PersistentVolume) (*v1.SecretReference, error) {
+	source := &pv.Spec.PersistentVolumeSource
+	if source.CephFS == nil {
+		return nil, errors.New("pv.Spec.PersistentVolumeSource.CephFS is nil")
+	}
+	if source.CephFS.SecretRef == nil {
+		return nil, errors.New("pv.Spec.PersistentVolumeSource.CephFS.SecretRef is nil")
+	}
+	if len(source.CephFS.SecretRef.Namespace) > 0 {
+		return source.CephFS.SecretRef, nil
+	}
+	ns := getClaimRefNamespace(pv)
+	if len(ns) <= 0 {
+		return nil, errors.New("both pv.Spec.SecretRef.Namespace and pv.Spec.ClaimRef.Namespace are empty")
+	}
+	return &v1.SecretReference{
+		Name:      source.CephFS.SecretRef.Name,
+		Namespace: ns,
+	}, nil
+}
+
+// Provision creates a storage asset and returns a PV object representing it.
+func (p *cephFSProvisioner) Provision(options controller.VolumeOptions) (*v1.PersistentVolume, error) {
+	if options.PVC.Spec.Selector != nil {
+		return nil, fmt.Errorf("claim Selector is not supported")
+	}
+	//cluster, adminID, adminSecret, pvcRoot, mon, deterministicNames, err := p.parseParameters(options.Parameters)
+	//fsName, err := p.parseParameters(options.Parameters)
+	//if err != nil {
+	//        return nil, err
+	//}
+	var share, user string
+	var (
+		err error
+		mon []string
+	)
+	// create share name
+	share = fmt.Sprintf("kubernetes-dynamic-pvc-%s", options.PVName)
+	// create user id
+	user = fmt.Sprintf("kubernetes-dynamic-user-%s", uuid.NewUUID())
+
+	// provision share
+	// create cmd
+	args := []string{"-n", share, "-u", user}
+	if p.enableQuota {
+		capacity := options.PVC.Spec.Resources.Requests[v1.ResourceName(v1.ResourceStorage)]
+		requestBytes := strconv.FormatInt(capacity.Value(), 10)
+		args = append(args, "-s", requestBytes)
+	}
+	cmd := exec.Command(provisionCmd, args...)
+	//if deterministicNames {
+	//	cmd.Env = append(cmd.Env, "CEPH_VOLUME_GROUP="+options.PVC.Namespace)
+	//}
+	if disableCephNamespaceIsolation {
+		cmd.Env = append(cmd.Env, "CEPH_NAMESPACE_ISOLATION_DISABLED=true")
+	}
+	output, cmdErr := cmd.CombinedOutput()
+	if cmdErr != nil {
+		return nil, cmdErr
+	}
+	// validate output
+	res := &provisionOutput{}
+	json.Unmarshal([]byte(output), &res)
+	if res.User == "" || res.Secret == "" || res.Path == "" || res.Mons == "" {
+		return nil, fmt.Errorf("invalid provisioner output")
+	}
+	mon = append(mon, res.Mons)
+	nameSpace := p.secretNamespace
+	if nameSpace == "" {
+		// if empty, create secret in PVC's namespace
+		nameSpace = options.PVC.Namespace
+	}
+	secretName := generateSecretName(user)
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: nameSpace,
+			Name:      secretName,
+		},
+		Data: map[string][]byte{
+			"key": []byte(res.Secret),
+		},
+		Type: "Opaque",
+	}
+
+	_, err = p.client.CoreV1().Secrets(nameSpace).Create(secret)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create secret")
+	}
+	pv := &v1.PersistentVolume{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: options.PVName,
+			Annotations: map[string]string{
+				provisionerIDAnn: p.identity,
+				cephShareAnn:     share,
+			},
+		},
+		Spec: v1.PersistentVolumeSpec{
+			PersistentVolumeReclaimPolicy: options.PersistentVolumeReclaimPolicy,
+			AccessModes:                   options.PVC.Spec.AccessModes,
+			MountOptions:                  options.MountOptions,
+			Capacity: v1.ResourceList{
+				// Quotas are supported by the userspace client(ceph-fuse, libcephfs), or kernel client >= 4.17 but only on mimic clusters.
+				// In other cases capacity is meaningless here.
+				// If quota is enabled, provisioner will set ceph.quota.max_bytes on volume path.
+				v1.ResourceName(v1.ResourceStorage): options.PVC.Spec.Resources.Requests[v1.ResourceName(v1.ResourceStorage)],
+			},
+			PersistentVolumeSource: v1.PersistentVolumeSource{
+				CephFS: &v1.CephFSPersistentVolumeSource{
+					Monitors: mon,
+					Path:     res.Path[strings.Index(res.Path, "/"):],
+					SecretRef: &v1.SecretReference{
+						Name:      secretName,
+						Namespace: nameSpace,
+					},
+					User: user,
+				},
+			},
+		},
+	}
+	return pv, nil
+}
+
+func (p *cephFSProvisioner) Delete(volume *v1.PersistentVolume) error {
+	ann, ok := volume.Annotations[provisionerIDAnn]
+	if !ok {
+		return errors.New("identity annotation not found on PV")
+	}
+	if ann != p.identity {
+		return &controller.IgnoredError{Reason: "identity annotation on PV does not match ours"}
+	}
+	share, ok := volume.Annotations[cephShareAnn]
+	if !ok {
+		return errors.New("ceph share annotation not found on PV")
+	}
+	// delete CephFS
+	user := volume.Spec.PersistentVolumeSource.CephFS.User
+	// create cmd
+	cmd := exec.Command(provisionCmd, "-r", "-n", share, "-u", user)
+	if disableCephNamespaceIsolation {
+		cmd.Env = append(cmd.Env, "CEPH_NAMESPACE_ISOLATION_DISABLED=true")
+	}
+	output, cmdErr := cmd.CombinedOutput()
+	if cmdErr != nil {
+		klog.Errorf("failed to delete share %q for %q, err: %v, output: %v", share, user, cmdErr, string(output))
+		return cmdErr
+	}
+	// Remove dynamic user secret
+	secretRef, err := getSecretFromCephFSPersistentVolume(volume)
+	if err != nil {
+		klog.Errorf("failed to get secret references, err: %v", err)
+		return err
+	}
+	err = p.client.CoreV1().Secrets(secretRef.Namespace).Delete(secretRef.Name, &metav1.DeleteOptions{})
+	if err != nil {
+		klog.Errorf("Cephfs Provisioner: delete secret failed, err: %v", err)
+		return fmt.Errorf("failed to delete secret")
+	}
+	return nil
 }
 
 // Provision creates a storage asset and returns a PV object representing it.

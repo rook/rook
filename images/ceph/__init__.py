@@ -1,4 +1,4 @@
-# Copyright 2016 The Rook Authors. All rights reserved.
+# Copyright 2017 The Kubernetes Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,18 +12,3 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# see Makefile for the BASEIMAGE definition
-FROM BASEIMAGE
-
-ARG ARCH
-ARG TINI_VERSION
-
-# Run tini as PID 1 and avoid signal handling issues
-RUN curl --fail -sSL -o /tini https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-${ARCH} && \
-    chmod +x /tini
-COPY rook rookflex toolbox.sh __init__.py /usr/local/bin/
-COPY cephfs_provisioner.py /usr/local/bin/cephfs_provisioner
-COPY ceph-csi /etc/ceph-csi
-
-ENTRYPOINT ["/tini", "--", "/usr/local/bin/rook"]
-CMD [""]

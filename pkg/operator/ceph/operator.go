@@ -143,6 +143,27 @@ func (o *Operator) Run() error {
 		logger.Infof("rook-provisioner %s started using %s flex vendor dir", name, vendor)
 	}
 
+	// Run dynamically cephFS provisioner
+	CephFSprovisionerName := "rook.io/filesystem"
+	logger.Infof("cephfs-provisioner %s started", CephFSprovisionerName)
+	var (
+		secretNamespace = "rook-ceph"
+		enableQuota     = true
+	)
+	cephFSProvisioner := provisioner.NewCephFSProvisioner(o.context.Clientset, CephFSprovisionerName, secretNamespace, enableQuota)
+	pc := controller.NewProvisionController(
+		o.context.Clientset,
+		CephFSprovisionerName,
+		cephFSProvisioner,
+		serverVersion.GitVersion,
+	)
+	cephFSsignalChan := make(chan os.Signal, 1)
+	cephFSstopChan := make(chan struct{})
+	signal.Notify(cephFSsignalChan, syscall.SIGINT, syscall.SIGTERM)
+
+	go pc.Run(cephFSstopChan)
+	logger.Infof("rook cephfs provisioner %s", "rook.io/filesystem")
+
 	var namespaceToWatch string
 	if os.Getenv("ROOK_CURRENT_NAMESPACE_ONLY") == "true" {
 		logger.Infof("Watching the current namespace for a cluster CRD")
