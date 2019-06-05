@@ -10,6 +10,7 @@ an example usage
 ### Ceph
 
 - Rook can now be configured to read "region" and "zone" labels on Kubernetes nodes and use that information as part of the CRUSH location for the OSDs.
+- Rgw pods have liveness probe enabled
 
 ## Breaking Changes
 
