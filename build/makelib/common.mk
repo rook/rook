@@ -98,6 +98,10 @@ ifeq ($(BUILD_REGISTRY),build-)
 $(error Failed to get unique ID for host+dir. Check that '$(SHA256CMD)' functions or override SHA256CMD)
 endif
 
+# This is a neat little target that prints any variable value from the Makefile
+# Usage: make echo.IMAGES echo.PLATFORM
+echo.%: ; @echo $* = $($*)
+
 # Select which images (backends) to make; default to all possible images
 IMAGES ?= ceph cockroachdb minio nfs cassandra edgefs
 

@@ -20,10 +20,7 @@ import (
 	"fmt"
 
 	"github.com/rook/rook/cmd/rook/rook"
-	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/agent"
-	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
 )
@@ -43,23 +40,11 @@ func startAgent(cmd *cobra.Command, args []string) error {
 
 	rook.LogStartupInfo(agentCmd.Flags())
 
-	clientset, apiExtClientset, rookClientset, err := rook.GetClientset()
-	if err != nil {
-		rook.TerminateFatal(fmt.Errorf("failed to get k8s client. %+v", err))
-	}
-
 	logger.Infof("starting rook ceph agent")
-	context := &clusterd.Context{
-		Executor:              &exec.CommandExecutor{},
-		ConfigDir:             k8sutil.DataDir,
-		NetworkInfo:           clusterd.NetworkInfo{},
-		Clientset:             clientset,
-		APIExtensionClientset: apiExtClientset,
-		RookClientset:         rookClientset,
-	}
 
+	context := rook.NewContext()
 	agent := agent.New(context)
-	err = agent.Run()
+	err := agent.Run()
 	if err != nil {
 		rook.TerminateFatal(fmt.Errorf("failed to run rook ceph agent. %+v\n", err))
 	}

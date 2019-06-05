@@ -24,7 +24,6 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	osdconfig "github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
-	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/flags"
 )
 
@@ -63,14 +62,11 @@ func init() {
 }
 
 func createContext() *clusterd.Context {
-	executor := &exec.CommandExecutor{}
-	return &clusterd.Context{
-		Executor:           executor,
-		ConfigDir:          cfg.dataDir,
-		ConfigFileOverride: cfg.cephConfigOverride,
-		LogLevel:           rook.Cfg.LogLevel,
-		NetworkInfo:        cfg.NetworkInfo(),
-	}
+	context := rook.NewContext()
+	context.ConfigDir = cfg.dataDir
+	context.ConfigFileOverride = cfg.cephConfigOverride
+	context.NetworkInfo = cfg.NetworkInfo()
+	return context
 }
 
 func addCephFlags(command *cobra.Command) {

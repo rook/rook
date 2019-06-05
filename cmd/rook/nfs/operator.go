@@ -17,11 +17,7 @@ limitations under the License.
 package nfs
 
 import (
-	"fmt"
-
 	"github.com/rook/rook/cmd/rook/rook"
-	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/operator/k8sutil"
 	operator "github.com/rook/rook/pkg/operator/nfs"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
@@ -47,35 +43,12 @@ func startOperator(cmd *cobra.Command, args []string) error {
 	rook.SetLogLevel()
 	rook.LogStartupInfo(operatorCmd.Flags())
 
-	clientset, apiExtClientset, rookClientset, err := rook.GetClientset()
-	if err != nil {
-		rook.TerminateFatal(fmt.Errorf("failed to get k8s clients. %+v\n", err))
-	}
-
 	logger.Infof("starting NFS operator")
-	context := createContext()
-	context.NetworkInfo = clusterd.NetworkInfo{}
-	context.ConfigDir = k8sutil.DataDir
-	context.Clientset = clientset
-	context.APIExtensionClientset = apiExtClientset
-	context.RookClientset = rookClientset
-
-	// Using the current image version to deploy other rook pods
-	pod, err := k8sutil.GetRunningPod(clientset)
-	if err != nil {
-		rook.TerminateFatal(fmt.Errorf("failed to get pod. %+v\n", err))
-	}
-
-	rookImage, err := k8sutil.GetContainerImage(pod, containerName)
-	if err != nil {
-		rook.TerminateFatal(fmt.Errorf("failed to get container image. %+v\n", err))
-	}
-
+	context := rook.NewContext()
+	rookImage := rook.GetOperatorImage(context.Clientset, containerName)
 	op := operator.New(context, rookImage)
-	err = op.Run()
-	if err != nil {
-		rook.TerminateFatal(fmt.Errorf("failed to run operator. %+v\n", err))
-	}
+	err := op.Run()
+	rook.TerminateOnError(err, "failed to run operator")
 
 	return nil
 }

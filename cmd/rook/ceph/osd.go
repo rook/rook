@@ -198,20 +198,14 @@ func writeOSDConfig(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("osd id not specified")
 	}
 
-	clientset, _, _, err := rook.GetClientset()
-	if err != nil {
-		rook.TerminateFatal(fmt.Errorf("failed to init k8s client. %+v\n", err))
-	}
-
 	context := createContext()
-	context.Clientset = clientset
 	commonOSDInit(osdConfigCmd)
 	locArgs, err := client.FormatLocation(cfg.location, cfg.nodeName)
 	if err != nil {
 		rook.TerminateFatal(fmt.Errorf("invalid location %s. %+v\n", cfg.location, err))
 	}
 	crushLocation := strings.Join(locArgs, " ")
-	kv := k8sutil.NewConfigMapKVStore(clusterInfo.Name, clientset, metav1.OwnerReference{})
+	kv := k8sutil.NewConfigMapKVStore(clusterInfo.Name, context.Clientset, metav1.OwnerReference{})
 
 	if err := osddaemon.WriteConfigFile(context, &clusterInfo, kv, osdID, osdIsDevice, cfg.storeConfig, cfg.nodeName, crushLocation); err != nil {
 		rook.TerminateFatal(fmt.Errorf("failed to write osd config file. %+v", err))
@@ -255,14 +249,7 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	clientset, _, rookClientset, err := rook.GetClientset()
-	if err != nil {
-		rook.TerminateFatal(fmt.Errorf("failed to init k8s client. %+v\n", err))
-	}
-
 	context := createContext()
-	context.Clientset = clientset
-	context.RookClientset = rookClientset
 	commonOSDInit(provisionCmd)
 
 	locArgs, err := client.FormatLocation(cfg.location, cfg.nodeName)
@@ -273,7 +260,7 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 
 	forceFormat := false
 	ownerRef := cluster.ClusterOwnerRef(clusterInfo.Name, ownerRefID)
-	kv := k8sutil.NewConfigMapKVStore(clusterInfo.Name, clientset, ownerRef)
+	kv := k8sutil.NewConfigMapKVStore(clusterInfo.Name, context.Clientset, ownerRef)
 	agent := osddaemon.NewAgent(context, dataDevices, cfg.metadataDevice, cfg.directories, forceFormat,
 		crushLocation, cfg.storeConfig, &clusterInfo, cfg.nodeName, kv)
 

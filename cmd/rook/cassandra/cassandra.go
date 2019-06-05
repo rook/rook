@@ -18,10 +18,6 @@ package cassandra
 
 import (
 	"github.com/coreos/pkg/capnslog"
-	"github.com/rook/rook/cmd/rook/rook"
-	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/util/exec"
 	"github.com/spf13/cobra"
 )
 
@@ -37,13 +33,4 @@ var (
 
 func init() {
 	Cmd.AddCommand(operatorCmd, sidecarCmd)
-}
-
-func createContext() *clusterd.Context {
-	executor := &exec.CommandExecutor{}
-	return &clusterd.Context{
-		Executor:  executor,
-		ConfigDir: k8sutil.DataDir,
-		LogLevel:  rook.Cfg.LogLevel,
-	}
 }

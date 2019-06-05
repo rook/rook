@@ -18,11 +18,6 @@ package cockroachdb
 import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/spf13/cobra"
-
-	"github.com/rook/rook/cmd/rook/rook"
-	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/util/exec"
 )
 
 var Cmd = &cobra.Command{
@@ -37,13 +32,4 @@ var (
 
 func init() {
 	Cmd.AddCommand(operatorCmd)
-}
-
-func createContext() *clusterd.Context {
-	executor := &exec.CommandExecutor{}
-	return &clusterd.Context{
-		Executor:  executor,
-		ConfigDir: k8sutil.DataDir,
-		LogLevel:  rook.Cfg.LogLevel,
-	}
 }

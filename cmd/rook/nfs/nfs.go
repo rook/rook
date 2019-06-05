@@ -19,10 +19,6 @@ package nfs
 import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/spf13/cobra"
-
-	"github.com/rook/rook/cmd/rook/rook"
-	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/util/exec"
 )
 
 var Cmd = &cobra.Command{
@@ -38,12 +34,4 @@ func init() {
 	Cmd.AddCommand(operatorCmd)
 	Cmd.AddCommand(provisonerCmd)
 	Cmd.AddCommand(serverCmd)
-}
-
-func createContext() *clusterd.Context {
-	executor := &exec.CommandExecutor{}
-	return &clusterd.Context{
-		Executor: executor,
-		LogLevel: rook.Cfg.LogLevel,
-	}
 }
