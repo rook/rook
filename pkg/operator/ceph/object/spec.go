@@ -188,6 +188,15 @@ func (c *clusterConfig) makeDaemonContainer() v1.Container {
 		),
 		Env:       opspec.DaemonEnvVars(c.cephVersion.Image),
 		Resources: c.store.Spec.Gateway.Resources,
+		LivenessProbe: &v1.Probe{
+			Handler: v1.Handler{
+				HTTPGet: &v1.HTTPGetAction{
+					Path: "/",
+					Port: intstr.FromInt(int(c.store.Spec.Gateway.Port)),
+				},
+			},
+			InitialDelaySeconds: 10,
+		},
 	}
 
 	if c.store.Spec.Gateway.SSLCertificateRef != "" {
