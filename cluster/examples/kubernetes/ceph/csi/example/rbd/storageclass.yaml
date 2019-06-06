@@ -12,7 +12,7 @@ parameters:
     # secret as admin/user credentials. "monValueFromSecret" provides the
     # key in the secret whose value is the mons
     #monValueFromSecret: "monitors"
-    
+
     # Ceph pool into which the RBD image shall be created
     pool: rbd
 
@@ -21,7 +21,7 @@ parameters:
 
     # RBD image features. Available for imageFormat: "2". CSI RBD currently supports only `layering` feature.
     imageFeatures: layering
-    
+
     # The secrets have to contain Ceph admin credentials.
     csi.storage.k8s.io/provisioner-secret-name: csi-rbd-secret
     csi.storage.k8s.io/provisioner-secret-namespace: default

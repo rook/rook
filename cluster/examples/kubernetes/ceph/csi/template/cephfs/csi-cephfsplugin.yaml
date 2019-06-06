@@ -2,7 +2,7 @@ kind: DaemonSet
 apiVersion: apps/v1
 metadata:
   name: csi-cephfsplugin
-  namespace: {{ .Namespace }}  
+  namespace: {{ .Namespace }}
 spec:
   selector:
     matchLabels:
@@ -16,7 +16,7 @@ spec:
       hostNetwork: true
       # to use e.g. Rook orchestrated cluster, and mons' FQDN is
       # resolved through k8s service, set dns policy to cluster first
-      dnsPolicy: ClusterFirstWithHostNet      
+      dnsPolicy: ClusterFirstWithHostNet
       containers:
         - name: driver-registrar
           image: {{ .RegistrarImage }}
@@ -27,7 +27,7 @@ spec:
           lifecycle:
             preStop:
               exec:
-                  command: ["/bin/sh", "-c", "rm -rf /registration/csi-cephfsplugin /registration/csi-cephfsplugin-reg.sock"]          
+                  command: ["/bin/sh", "-c", "rm -rf /registration/csi-cephfsplugin /registration/csi-cephfsplugin-reg.sock"]
           env:
             - name: KUBE_NODE_NAME
               valueFrom:
