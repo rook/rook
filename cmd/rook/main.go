@@ -25,6 +25,7 @@ import (
 	"github.com/rook/rook/cmd/rook/minio"
 	"github.com/rook/rook/cmd/rook/nfs"
 	rook "github.com/rook/rook/cmd/rook/rook"
+	"github.com/rook/rook/cmd/rook/util"
 	"github.com/rook/rook/cmd/rook/version"
 )
 
@@ -39,10 +40,16 @@ func addCommands() {
 	rook.RootCmd.AddCommand(
 		version.VersionCmd,
 		discoverCmd,
+
+		// backend commands
 		ceph.Cmd,
 		cockroachdb.Cmd,
 		minio.Cmd,
 		edgefs.Cmd,
 		nfs.Cmd,
-		cassandra.Cmd)
+		cassandra.Cmd,
+
+		// util commands
+		util.CmdReporterCmd,
+		util.CopyBinsCmd)
 }
