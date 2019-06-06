@@ -41,11 +41,11 @@ spec:
         - name: ROOK_CSI_ENABLE_CEPHFS
           value: "true"
         - name: ROOK_CSI_CEPHFS_IMAGE
-          value: "quay.io/cephcsi/cephfsplugin:v1.0.0"
+          value: "quay.io/cephcsi/cephfsplugin:canary"
         - name: ROOK_CSI_ENABLE_RBD
           value: "true"
         - name: ROOK_CSI_RBD_IMAGE
-          value: "quay.io/cephcsi/rbdplugin:v1.0.0"
+          value: "quay.io/cephcsi/rbdplugin:canary"
         - name: ROOK_CSI_REGISTRAR_IMAGE
           value: "quay.io/k8scsi/csi-node-driver-registrar:v1.0.2"
         - name: ROOK_CSI_PROVISIONER_IMAGE
