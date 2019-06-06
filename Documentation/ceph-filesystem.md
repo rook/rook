@@ -139,6 +139,44 @@ After creating it with `kubectl create -f kube-registry.yaml`, you now have a do
 #### Kernel Version Requirement
 If the Rook cluster has more than one filesystem and the application pod is scheduled to a node with kernel version older than 4.7, inconsistent results may arise since kernels older than 4.7 do not support specifying filesystem namespaces.
 
+## Consume the Shared File System: K8s PVC
+
+In order to comsume shared file system by using PVC, you need create storageclass firstly. Here is the sample of storageclass:
+```
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: rook-ceph-fs
+provisioner: ceph.rook.io/filesystem
+```
+
+Check if storageclass created successfully:
+```
+kubectl get sc
+```
+
+you will get a storageclass named ```rook-ceph-fs```. Then, next step you can create a PVC with the storageclass created previously.
+```
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: cephfs-claim
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: rook-ceph-fs
+  resources:
+    requests:
+      storage: 1Gi
+```
+when PVC status shows ```BOUND```, you can mount it to Pod. for example:
+```
+  volumes:
+  - name: data
+    persistentVolumeClaim:
+      claimName: cephfs-claim
+```
+
 ## Consume the Shared File System: Toolbox
 
 Once you have pushed an image to the registry (see the [instructions](https://github.com/kubernetes/kubernetes/tree/release-1.9/cluster/addons/registry) to expose and use the kube-registry), verify that kube-registry is using the filesystem that was configured above by mounting the shared file system in the toolbox pod. See the [Direct Filesystem](direct-tools.md#shared-filesystem-tools) topic for more details.

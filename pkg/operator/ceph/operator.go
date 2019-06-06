@@ -144,7 +144,7 @@ func (o *Operator) Run() error {
 	}
 
 	// Run dynamically cephFS provisioner
-	CephFSprovisionerName := "rook.io/filesystem"
+	CephFSprovisionerName := "ceph.rook.io/filesystem"
 	logger.Infof("cephfs-provisioner %s started", CephFSprovisionerName)
 	var (
 		secretNamespace = "rook-ceph"
