@@ -23,6 +23,10 @@ import (
 )
 
 type PGDumpBrief struct {
+	PgStats []PgStats `json:"pg_stats"`
+}
+
+type PgStats struct {
 	ID              string `json:"pgid"`
 	State           string `json:"state"`
 	UpOsdIDs        []int  `json:"up"`
@@ -31,17 +35,28 @@ type PGDumpBrief struct {
 	ActingPrimaryID int    `json:"acting_primary"`
 }
 
-func GetPGDumpBrief(context *clusterd.Context, clusterName string) ([]PGDumpBrief, error) {
+func GetPGDumpBrief(context *clusterd.Context, clusterName string, isNautilusOrNewer bool) (*PGDumpBrief, error) {
+	var pgDump PGDumpBrief
+	var pgStats []PgStats
 	args := []string{"pg", "dump", "pgs_brief"}
 	buf, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get pg dump: %+v", err)
 	}
 
-	var pgDump []PGDumpBrief
+	if !isNautilusOrNewer {
+		if err := json.Unmarshal(buf, &pgStats); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal pg dump response: %+v", err)
+		}
+		pgDump = PGDumpBrief{
+			PgStats: pgStats,
+		}
+		return &pgDump, nil
+	}
+
 	if err := json.Unmarshal(buf, &pgDump); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal pg dump response: %+v", err)
 	}
 
-	return pgDump, nil
+	return &pgDump, nil
 }
