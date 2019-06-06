@@ -4,14 +4,10 @@ metadata:
    name: csi-rbd
 provisioner: rbd.csi.ceph.com
 parameters:
-    # Comma separated list of Ceph monitors
-    # if using FQDN, make sure csi plugin's dns policy is appropriate.
-    monitors: mon1:port,mon2:port,...
-
-    # if "monitors" parameter is not set, driver to get monitors from same
-    # secret as admin/user credentials. "monValueFromSecret" provides the
-    # key in the secret whose value is the mons
-    #monValueFromSecret: "monitors"
+    # Specify a string that identifies your cluster. Ceph CSI supports any
+    # unique string. When Ceph CSI is deployed by Rook use the Rook namespace,
+    # for example "rook-ceph".
+    clusterID: rook-ceph
 
     # Ceph pool into which the RBD image shall be created
     pool: rbd
