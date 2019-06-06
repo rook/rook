@@ -19,7 +19,6 @@ package osd
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/rook/rook/pkg/util/display"
 	"path"
 	"strconv"
 	"syscall"
@@ -27,6 +26,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
+	"github.com/rook/rook/pkg/util/display"
 	"github.com/rook/rook/pkg/util/exec"
 )
 
@@ -46,7 +46,7 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 	var err error
 	if len(devices.Entries) == 0 {
 		logger.Infof("no new devices to configure. returning devices already configured with ceph-volume.")
-		osds, err = getCephVolumeOSDs(context, a.cluster.Name)
+		osds, err = getCephVolumeOSDs(context, a.cluster.Name, a.cluster.FSID)
 		if err != nil {
 			logger.Infof("failed to get devices already provisioned by ceph-volume. %+v", err)
 		}
@@ -62,7 +62,7 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 		return nil, fmt.Errorf("failed to initialize devices. %+v", err)
 	}
 
-	osds, err = getCephVolumeOSDs(context, a.cluster.Name)
+	osds, err = getCephVolumeOSDs(context, a.cluster.Name, a.cluster.FSID)
 	return osds, err
 }
 
@@ -188,7 +188,8 @@ func getCephVolumeSupported(context *clusterd.Context) (bool, error) {
 	return true, nil
 }
 
-func getCephVolumeOSDs(context *clusterd.Context, clusterName string) ([]oposd.OSDInfo, error) {
+func getCephVolumeOSDs(context *clusterd.Context, clusterName string, cephfsid string) ([]oposd.OSDInfo, error) {
+
 	result, err := context.Executor.ExecuteCommandWithOutput(false, "", cephVolumeCmd, "lvm", "list", "--format", "json")
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve ceph-volume results. %+v", err)
@@ -211,10 +212,18 @@ func getCephVolumeOSDs(context *clusterd.Context, clusterName string) ([]oposd.O
 		var osdFSID string
 		isFilestore := false
 		for _, osd := range osdInfo {
+			if osd.Tags.ClusterFSID != cephfsid {
+				logger.Infof("skipping osd%d: %s running on a different ceph cluster: %s", id, osd.Tags.OSDFSID, osd.Tags.ClusterFSID)
+				continue
+			}
 			osdFSID = osd.Tags.OSDFSID
 			if osd.Type == "journal" {
 				isFilestore = true
 			}
+		}
+		if len(osdFSID) == 0 {
+			logger.Infof("Skipping osd%d as no instances are running on ceph cluster: %s", id, cephfsid)
+			continue
 		}
 		logger.Infof("osdInfo has %d elements. %+v", len(osdInfo), osdInfo)
 
@@ -245,6 +254,7 @@ type osdInfo struct {
 }
 
 type osdTags struct {
-	OSDFSID   string `json:"ceph.osd_fsid"`
-	Encrypted string `json:"ceph.encrypted"`
+	OSDFSID     string `json:"ceph.osd_fsid"`
+	Encrypted   string `json:"ceph.encrypted"`
+	ClusterFSID string `json:"ceph.cluster_fsid"`
 }
