@@ -53,6 +53,7 @@ type AttachOptions struct {
 	MountSecret      string `json:"mountSecret"`
 	RW               string `json:"kubernetes.io/readwrite"`
 	FsType           string `json:"kubernetes.io/fsType"`
+	FsGroup          string `json:"kubernetes.io/fsGroup"`
 	VolumeName       string `json:"kubernetes.io/pvOrVolumeName"` // only available on 1.7
 	Pod              string `json:"kubernetes.io/pod.name"`
 	PodID            string `json:"kubernetes.io/pod.uid"`
