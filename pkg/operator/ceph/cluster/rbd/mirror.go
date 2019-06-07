@@ -26,6 +26,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -36,6 +37,8 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "rbd-mirror")
 
 const (
 	appName = "rook-ceph-rbd-mirror"
+	// minimum amount of memory in MB to run the pod
+	cephRbdMirrorPodMinimumMemory uint64 = 512
 )
 
 // Mirroring represents the Rook and environment configuration settings needed to set up rbd mirroring.
@@ -88,6 +91,12 @@ var updateDeploymentAndWait = k8sutil.UpdateDeploymentAndWait
 
 // Start begins the process of running rbd mirroring daemons.
 func (m *Mirroring) Start() error {
+	// Validate pod's memory if specified
+	err := opspec.CheckPodMemory(m.resources, cephRbdMirrorPodMinimumMemory)
+	if err != nil {
+		return fmt.Errorf("%+v", err)
+	}
+
 	logger.Infof("configure rbd-mirroring with %d workers", m.spec.Workers)
 
 	for i := 0; i < m.spec.Workers; i++ {
@@ -127,7 +136,7 @@ func (m *Mirroring) Start() error {
 	}
 
 	// Remove extra rbd-mirror deployments if necessary
-	err := m.removeExtraMirrors()
+	err = m.removeExtraMirrors()
 	if err != nil {
 		logger.Errorf("failed to remove extra mirrors. %+v", err)
 	}

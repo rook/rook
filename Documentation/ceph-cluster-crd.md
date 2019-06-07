@@ -199,6 +199,16 @@ You can set resource requests/limits for Rook components through the [Resource R
 - `osd`: Set resource requests/limits for OSDs.
 - `rbdmirror`: Set resource requests/limits for RBD Mirrors.
 
+In order to provide the best possible experience running Ceph in containers, Rook internally enforces minimum memory limits if resource limits are passed.
+Basically, if a user configures a limit or request value that is too low Rook will refuse to run the pod(s).
+Here are the current minimum amounts of memory in MB to apply so that Rook will accept to run Ceph pods:
+
+- `mon`: 1024MB
+- `mgr`: 512MB
+- `osd`: 4096MB
+- `mds`: 4096MB
+- `rbdmirror`: 512MB
+
 ### Resource Requirements/Limits
 For more information on resource requests/limits see the official Kubernetes documentation: [Kubernetes - Managing Compute Resources for Containers](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#resource-requests-and-limits-of-pod-and-container)
 

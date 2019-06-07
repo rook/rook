@@ -24,8 +24,8 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"reflect"
 	"regexp"
+	"strings"
 	"syscall"
 	"time"
 
@@ -193,29 +193,89 @@ func udevBlockMonitor(c chan string, period time.Duration) {
 	}
 }
 
-func DeviceListsEqual(a, b string) (bool, error) {
-	var d0 []sys.LocalDisk
-	var d1 []sys.LocalDisk
+func ignoreDevice(dev sys.LocalDisk) bool {
+	return strings.Contains(strings.ToUpper(dev.DevLinks), "USB")
+}
 
-	err := json.Unmarshal([]byte(a), &d0)
+func checkMatchingDevice(checkDev sys.LocalDisk, devices []sys.LocalDisk) *sys.LocalDisk {
+	for i, dev := range devices {
+		if ignoreDevice(dev) {
+			continue
+		}
+		// check if devices should be considered the same. the uuid can be
+		// unstable, so we also use the reported serial and device name, which
+		// appear to be more stable.
+		if checkDev.UUID == dev.UUID {
+			return &devices[i]
+		}
+
+		// on virt-io devices in libvirt, the serial is reported as an empty
+		// string, so also account for that.
+		if checkDev.Serial == dev.Serial && checkDev.Serial != "" {
+			return &devices[i]
+		}
+
+		if checkDev.Name == dev.Name {
+			return &devices[i]
+		}
+	}
+	return nil
+}
+
+// note that the idea of equality here may not be intuitive. equality of device
+// sets refers to a state in which no change has been observed between the sets
+// of devices that would warrant changes to their consumption by storage
+// daemons. for example, if a device appears to have been wiped vs a device
+// appears to now be in use.
+func checkDeviceListsEqual(oldDevs, newDevs []sys.LocalDisk) bool {
+	for _, oldDev := range oldDevs {
+		if ignoreDevice(oldDev) {
+			continue
+		}
+		match := checkMatchingDevice(oldDev, newDevs)
+		if match == nil {
+			// device has been removed
+			return false
+		}
+		if !oldDev.Empty && match.Empty {
+			// device has changed from non-empty to empty
+			return false
+		}
+		if oldDev.Partitions != nil && match.Partitions == nil {
+			return false
+		}
+	}
+
+	for _, newDev := range newDevs {
+		if ignoreDevice(newDev) {
+			continue
+		}
+		match := checkMatchingDevice(newDev, oldDevs)
+		if match == nil {
+			// device has been added
+			return false
+		}
+		// the matching case is handled in the previous join
+	}
+
+	return true
+}
+
+func DeviceListsEqual(old, new string) (bool, error) {
+	var oldDevs []sys.LocalDisk
+	var newDevs []sys.LocalDisk
+
+	err := json.Unmarshal([]byte(old), &oldDevs)
 	if err != nil {
-		return false, fmt.Errorf("Cannot unmarshal devices: %v", err)
+		return false, fmt.Errorf("cannot unmarshal devices: %+v", err)
 	}
 
-	err = json.Unmarshal([]byte(b), &d1)
+	err = json.Unmarshal([]byte(new), &newDevs)
 	if err != nil {
-		return false, fmt.Errorf("Cannot unmarshal devices: %v", err)
+		return false, fmt.Errorf("cannot unmarshal devices: %+v", err)
 	}
 
-	for i := range d0 {
-		d0[i].UUID = ""
-	}
-
-	for i := range d1 {
-		d1[i].UUID = ""
-	}
-
-	return reflect.DeepEqual(d0, d1), nil
+	return checkDeviceListsEqual(oldDevs, newDevs), nil
 }
 
 func updateDeviceCM(context *clusterd.Context) error {
@@ -264,7 +324,7 @@ func updateDeviceCM(context *clusterd.Context) error {
 		}
 		lastDevice = deviceStr
 	}
-	devicesEqual, err := DeviceListsEqual(deviceStr, lastDevice)
+	devicesEqual, err := DeviceListsEqual(lastDevice, deviceStr)
 	if err != nil {
 		return fmt.Errorf("failed to compare device lists: %v", err)
 	}

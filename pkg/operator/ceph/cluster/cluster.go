@@ -39,6 +39,7 @@ import (
 	batch "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -304,8 +305,19 @@ func clusterChanged(oldCluster, newCluster cephv1.ClusterSpec, clusterRef *clust
 
 	// any change in the crd will trigger an orchestration
 	if !reflect.DeepEqual(oldCluster, newCluster) {
-		diff := cmp.Diff(oldCluster, newCluster)
-		logger.Infof("The Cluster CR has changed. diff=%s", diff)
+		diff := ""
+		func() {
+			defer func() {
+				if err := recover(); err != nil {
+					logger.Warningf("Encountered an issue getting cluster change differences: %v", err)
+				}
+			}()
+
+			// resource.Quantity has non-exportable fields, so we use its comparator method
+			resourceQtyComparer := cmp.Comparer(func(x, y resource.Quantity) bool { return x.Cmp(y) == 0 })
+			diff = cmp.Diff(oldCluster, newCluster, resourceQtyComparer)
+			logger.Infof("The Cluster CR has changed. diff=%s", diff)
+		}()
 		return true, diff
 	}
 
