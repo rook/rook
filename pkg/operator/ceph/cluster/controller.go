@@ -271,42 +271,52 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		logger.Warningf("mon count is even (given: %d), should be uneven, continuing", cluster.Spec.Mon.Count)
 	}
 
-	cephVersion, err := cluster.detectCephVersion(cluster.Spec.CephVersion.Image, 15*time.Minute)
-	if err != nil {
-		logger.Errorf("unknown ceph major version. %+v", err)
-		return
-	}
-
-	if !cluster.Spec.CephVersion.AllowUnsupported {
-		if !cephVersion.Supported() {
-			logger.Errorf("unsupported ceph version detected: %s. allowUnsupported must be set to true to run with this version.", cephVersion)
-			return
-		}
-	}
-
 	// Start the Rook cluster components. Retry several times in case of failure.
+	validOrchestration := true
 	err = wait.Poll(clusterCreateInterval, clusterCreateTimeout, func() (bool, error) {
-		if err := c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1.ClusterStateCreating, ""); err != nil {
+		cephVersion, err := cluster.detectCephVersion(cluster.Spec.CephVersion.Image, 15*time.Minute)
+		if err != nil {
+			logger.Errorf("unknown ceph major version. %+v", err)
+			return false, nil
+		}
+
+		if !cluster.Spec.CephVersion.AllowUnsupported {
+			if !cephVersion.Supported() {
+				err = fmt.Errorf("unsupported ceph version detected: %s. allowUnsupported must be set to true to run with this version", cephVersion)
+				logger.Errorf("%+v", err)
+				validOrchestration = false
+				// it may seem strange to log error and exit true but we don't want to retry if the version is not supported
+				return true, nil
+			}
+		}
+
+		err = c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1.ClusterStateCreating, "")
+		if err != nil {
 			logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
 			return false, nil
 		}
 
-		err := cluster.createInstance(c.rookImage, *cephVersion)
+		err = cluster.createInstance(c.rookImage, *cephVersion)
 		if err != nil {
 			logger.Errorf("failed to create cluster in namespace %s. %+v", cluster.Namespace, err)
 			return false, nil
 		}
 
 		// cluster is created, update the cluster CRD status now
-		if err := c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1.ClusterStateCreated, ""); err != nil {
+		err = c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1.ClusterStateCreated, "")
+		if err != nil {
 			logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
 			return false, nil
 		}
 
 		return true, nil
 	})
-	if err != nil {
+
+	if err != nil || !validOrchestration {
 		message := fmt.Sprintf("giving up creating cluster in namespace %s after %s", cluster.Namespace, clusterCreateTimeout)
+		if !validOrchestration {
+			message = fmt.Sprintf("giving up creating cluster in namespace %s", cluster.Namespace)
+		}
 		logger.Error(message)
 		if err := c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1.ClusterStateError, message); err != nil {
 			logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
