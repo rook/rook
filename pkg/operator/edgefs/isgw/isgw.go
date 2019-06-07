@@ -260,6 +260,13 @@ func (c *ISGWController) isgwContainer(svcname, name, containerImage string, isg
 		replication = 3
 	}
 
+	mdonly := 0
+	if isgwSpec.MetadataOnly == "versions" {
+		mdonly = 2
+	} else if isgwSpec.MetadataOnly == "all" {
+		mdonly = 1
+	}
+
 	volumeMounts := []v1.VolumeMount{
 		{
 			Name:      dataVolumeName,
@@ -329,7 +336,7 @@ func (c *ISGWController) isgwContainer(svcname, name, containerImage string, isg
 			},
 			{
 				Name:  "EFSISGW_METADATA_ONLY",
-				Value: (map[bool]string{true: "1", false: "0"})[isgwSpec.MetadataOnly],
+				Value: strconv.Itoa(mdonly),
 			},
 		},
 		SecurityContext: securityContext,

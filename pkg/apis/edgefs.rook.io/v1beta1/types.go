@@ -321,8 +321,8 @@ type ISGWSpec struct {
 	RemoteURL string `json:"remoteURL,omitempty"`
 	// ISGW Replication Type
 	ReplicationType string `json:"replicationType,omitempty"`
-	// ISGW Metadata Only flag
-	MetadataOnly bool `json:"metadataOnly,omitempty"`
+	// ISGW Metadata Only flag, all or versions
+	MetadataOnly string `json:"metadataOnly,omitempty"`
 	// ISGW Dynamic Fetch Addr (default is '-', means disabled)
 	DynamicFetchAddr string `json:"dynamicFetchAddr,omitempty"`
 	// ISGW Endpoint local address (default value 0.0.0.0:14000)
