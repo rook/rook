@@ -9,7 +9,7 @@ set -eux
 # 4. Parses out the Cluster IPs for the Ceph mons  and creates a csi-rbd storageclass
 ######################################
 
-<< EOF | kubectl create -f -
+cat<< EOF | kubectl create -f -
 apiVersion: ceph.rook.io/v1
 kind: CephBlockPool
 metadata:
@@ -29,7 +29,7 @@ admin_key=$(pod=$(kubectl get pod -n rook-ceph -l app=rook-ceph-operator  -o jso
 kubernetes_key=$(pod=$(kubectl get pod -n rook-ceph -l app=rook-ceph-operator  -o jsonpath="{.items[0].metadata.name}"); kubectl exec -ti -n rook-ceph ${pod} -- bash -c "ceph auth get-key client.kubernetes -c /var/lib/rook/rook-ceph/rook-ceph.config | base64")
 
 # Use the keys from above to create a secrets object on our Kubernetes cluster
-<< EOF | kubectl create -f -
+cat<< EOF | kubectl create -f -
 apiVersion: v1
 kind: Secret
 metadata:
@@ -65,7 +65,7 @@ do
 done
 
 #Create our csi-rbd storage class
-<< EOF | kubectl create -f -
+cat<< EOF | kubectl create -f -
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:

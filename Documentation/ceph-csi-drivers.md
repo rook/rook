@@ -10,11 +10,15 @@ Here is a guide on how to use Rook to deploy ceph-csi drivers on a Kubernetes
 cluster.
 
 - [Prerequisites](##Prerequisites)
-- [Overview](##Overview)
-- [Namespace and CRD Creation](##Namespace-and-CRD-creation)
-- [Deploying the Operator](##Rook-Ceph-Operator-with-CSI)
-- [Configuring the Ceph cluster](##Configure-and-deploy-the-Ceph-Cluster)
-- [Finalize Settings and Create a StorageClass](Create-Secrets-Object-and-Configure-a-Storageclass)
+- [Cluster and CSI Plugin Deployment Overview](##Cluster and CSI Plugin Deployment Overview)
+- [Namespace and CRD creation](##Namespace and CRD creation)
+- [Rook Ceph Operator with CSI](##Rook Ceph Operator with CSI)
+- [Configure and deploy the Ceph Cluster](##Configure and deploy the Ceph Cluster)
+- [Finalizing the deployment](##Create Secrets Object and Configure a Storageclass)
+- [Verify the deployment by creating an RBD PVC](##Verify RBD PVC has successfully been created)
+- [Create a demo pod that uses the PVC](##Create RBD demo Pod)
+- [Additional features](##Additional features)
+
 
 ## Prerequisites
 
@@ -77,7 +81,7 @@ kubectl create -f cluster/examples/kubernetes/ceph/operator-with-csi.yaml
 ## Configure and deploy the Ceph Cluster
 
 The cluster manifest provides the ability to specify things like raw block devices on each node to use, ceph version to deploy, mon count etc.
-For example, if you have unused raw disks attached to each node as `/dev/sdg`, modify the `cluster.yaml` file deviceFilter parameter to specify
+For example, if you have unused raw disks attached to each node as /dev/sdg, modify the cluster.yaml file deviceFilter parameter to specify
 you want to use that device.  Otherwise, using the example manifest unmodified, your OSDs will be created using loop devices which is fine for
 a quick test.
 
