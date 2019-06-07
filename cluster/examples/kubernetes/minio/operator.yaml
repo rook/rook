@@ -95,7 +95,7 @@ spec:
       serviceAccountName: rook-minio-operator
       containers:
       - name: rook-minio-operator
-        image: rook/minio:v1.0.1
+        image: rook/minio:v1.0.2
         args: ["minio", "operator"]
         env:
         - name: POD_NAME

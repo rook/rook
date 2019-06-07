@@ -186,7 +186,7 @@ subjects:
        serviceAccountName: rook-cassandra-operator
        containers:
        - name: rook-cassandra-operator
-         image: rook/cassandra:v1.0.1
+         image: rook/cassandra:v1.0.2
          imagePullPolicy: "Always"
          args: ["cassandra", "operator"]
          env:
