@@ -6,13 +6,10 @@ metadata:
 spec:
   direction: "send+receive"                  # I/O flow direction: send, receive or send-receive
   remoteURL: "ccow://192.168.1.43:14000"     # I/O flow with destination antoher EdgeFS cluster, pointing to ISGW endpoint service
-  #remoteURL: "file://volumeDir"             # I/O flow with destination as locally mounted POSIX directory
-  #remoteURL: "s3://mybucket.aws.com"        # I/O flow with destination as remote S3 bucket
-  #remoteURL: "s3://214.4.34.22:4567"        # I/O flow with destination as remote S3 compatible server
   #replicationType: "initial"                # Replication: initial, continuous, initial+continuous (default)
-  #metadataOnly: true                        # Replicate only metadata, thus enable on-demand fetch at destination (ccow protocol only)
+  #metadataOnly: all                         # Replicate only metadata (all or versions), thus enable on-demand fetch at destination (ccow protocol only)
   #useEncryptedTunnel: true                  # Enables usage of encrypted SSH tunnel (ccow protocol only)
-  #dynamicFetchPort: 49600                   # Override dynamic fetch service port (default 49678)
+  #dynamicFetchAddr: 192.168.1.44:49600      # Override dynamic fetch service host:port (default 49678)
   #localAddr: 0.0.0.0:10000                  # Override endpoint listening port (default 0.0.0.0:14000)
   #placement:
   #  nodeAffinity:
