@@ -33,15 +33,15 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-func removeOSD(context *clusterd.Context, namespace, deploymentName string, id int) error {
+func (c *Cluster) removeOSD(deploymentName string, id int) error {
 	// get a baseline for OSD usage so we can compare usage to it later on to know when migration has started
-	initialUsage, err := client.GetOSDUsage(context, namespace)
+	initialUsage, err := client.GetOSDUsage(c.context, c.Namespace)
 	if err != nil {
 		logger.Warningf("failed to get baseline OSD usage, but will still continue")
 	}
 
 	// first reweight the OSD to be 0.0, which will begin the data migration
-	o, err := client.CrushReweight(context, namespace, id, 0.0)
+	o, err := client.CrushReweight(c.context, c.Namespace, id, 0.0)
 	alreadyPurged := false
 	if err != nil {
 		// Special error handling for this initial step, to pick up
@@ -57,35 +57,35 @@ func removeOSD(context *clusterd.Context, namespace, deploymentName string, id i
 
 	if !alreadyPurged {
 		// mark the OSD as out
-		if err := markOSDOut(context, namespace, id); err != nil {
+		if err := markOSDOut(c.context, c.Namespace, id); err != nil {
 			return fmt.Errorf("failed to mark osd.%d out: %+v", id, err)
 		}
 
 		// wait for the OSDs data to be migrated
-		if err := waitForRebalance(context, namespace, id, initialUsage); err != nil {
+		if err := waitForRebalance(c.context, c.Namespace, id, initialUsage, c.clusterInfo.CephVersion.IsAtLeastNautilus()); err != nil {
 			return fmt.Errorf("failed to wait for cluster rebalancing after removing osd.%d: %+v", id, err)
 		}
 	}
 
 	// data is migrated off the osd, we can delete the deployment now
-	if err := k8sutil.DeleteDeployment(context.Clientset, namespace, deploymentName); err != nil {
+	if err := k8sutil.DeleteDeployment(c.context.Clientset, c.Namespace, deploymentName); err != nil {
 		return fmt.Errorf("failed to delete deployment %s: %+v", deploymentName, err)
 	}
 
 	// purge the OSD from the cluster
-	if err := purgeOSD(context, namespace, id); err != nil {
+	if err := purgeOSD(c.context, c.Namespace, id); err != nil {
 		return fmt.Errorf("failed to purge osd.%d from the cluster: %+v", id, err)
 	}
 
 	// delete any backups of the OSD filesystem
-	if err := deleteOSDFileSystem(context.Clientset, namespace, id); err != nil {
+	if err := deleteOSDFileSystem(c.context.Clientset, c.Namespace, id); err != nil {
 		logger.Warningf("failed to delete osd.%d filesystem, it may need to be cleaned up manually: %+v", id, err)
 	}
 
 	return nil
 }
 
-func waitForRebalance(context *clusterd.Context, namespace string, osdID int, initialUsage *client.OSDUsage) error {
+func waitForRebalance(context *clusterd.Context, namespace string, osdID int, initialUsage *client.OSDUsage, isNautilusOrNewer bool) error {
 	if initialUsage != nil {
 		// start a retry loop to wait for rebalancing to start
 		err := util.Retry(20, 5*time.Second, func() error {
@@ -156,27 +156,27 @@ func waitForRebalance(context *clusterd.Context, namespace string, osdID int, in
 	// wait until the cluster gets fully rebalanced again
 	err := util.Retry(3000, 15*time.Second, func() error {
 		// get a dump of all placement groups
-		pgDump, err := client.GetPGDumpBrief(context, namespace)
+		pgDump, err := client.GetPGDumpBrief(context, namespace, isNautilusOrNewer)
 		if err != nil {
 			return err
 		}
 
 		// ensure that the given OSD is no longer assigned to any placement groups
-		for _, pg := range pgDump {
-			if pg.UpPrimaryID == osdID {
-				return fmt.Errorf("osd.%d is still up primary for pg %s", osdID, pg.ID)
+		for _, pgStat := range pgDump.PgStats {
+			if pgStat.UpPrimaryID == osdID {
+				return fmt.Errorf("osd.%d is still up primary for pg %s", osdID, pgStat.ID)
 			}
-			if pg.ActingPrimaryID == osdID {
-				return fmt.Errorf("osd.%d is still acting primary for pg %s", osdID, pg.ID)
+			if pgStat.ActingPrimaryID == osdID {
+				return fmt.Errorf("osd.%d is still acting primary for pg %s", osdID, pgStat.ID)
 			}
-			for _, id := range pg.UpOsdIDs {
+			for _, id := range pgStat.UpOsdIDs {
 				if id == osdID {
-					return fmt.Errorf("osd.%d is still up for pg %s", osdID, pg.ID)
+					return fmt.Errorf("osd.%d is still up for pg %s", osdID, pgStat.ID)
 				}
 			}
-			for _, id := range pg.ActingOsdIDs {
+			for _, id := range pgStat.ActingOsdIDs {
 				if id == osdID {
-					return fmt.Errorf("osd.%d is still acting for pg %s", osdID, pg.ID)
+					return fmt.Errorf("osd.%d is still acting for pg %s", osdID, pgStat.ID)
 				}
 			}
 		}
