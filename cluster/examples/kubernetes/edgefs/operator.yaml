@@ -236,7 +236,7 @@ spec:
       serviceAccountName: rook-edgefs-system
       containers:
       - name: rook-edgefs-operator
-        image: rook/edgefs:v1.0.1
+        image: rook/edgefs:v1.0.2
         imagePullPolicy: "Always"
         args: ["edgefs", "operator"]
         env:
