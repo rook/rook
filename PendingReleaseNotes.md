@@ -11,6 +11,7 @@ an example usage
 
 - Rook can now be configured to read "region" and "zone" labels on Kubernetes nodes and use that information as part of the CRUSH location for the OSDs.
 - Rgw pods have liveness probe enabled
+- Rgw is now configured with the Beast backend as of the Nautilus release
 
 ## Breaking Changes
 

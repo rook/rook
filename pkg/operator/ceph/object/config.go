@@ -23,6 +23,7 @@ import (
 
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -41,6 +42,18 @@ caps osd = "allow rwx"
 	certFilename   = "rgw-cert.pem"
 )
 
+var (
+	rgwFrontendName = "civetweb"
+)
+
+func rgwFrontend(v cephver.CephVersion) string {
+	if v.IsAtLeastNautilus() {
+		rgwFrontendName = "beast"
+	}
+
+	return rgwFrontendName
+}
+
 // TODO: these should be set in the mon's central kv store for mimic+
 func (c *clusterConfig) defaultSettings() *cephconfig.Config {
 	s := cephconfig.NewConfig()
@@ -48,7 +61,7 @@ func (c *clusterConfig) defaultSettings() *cephconfig.Config {
 		Set("rgw log nonexistent bucket", "true").
 		Set("rgw intent log object name utc", "true").
 		Set("rgw enable usage log", "true").
-		Set("rgw frontends", fmt.Sprintf("civetweb port=%s", c.portString())).
+		Set("rgw frontends", fmt.Sprintf("%s port=%s", rgwFrontend(c.clusterInfo.CephVersion), c.portString())).
 		Set("rgw zone", c.store.Name).
 		Set("rgw zonegroup", c.store.Name)
 	return s
