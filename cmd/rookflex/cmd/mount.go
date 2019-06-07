@@ -22,7 +22,10 @@ import (
 	"fmt"
 	"net/rpc"
 	"os"
+	"path"
+	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume"
 	"github.com/spf13/cobra"
@@ -109,6 +112,7 @@ func handleMount(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	log(client, fmt.Sprintf("volume %s/%s has been attached and mounted", opts.BlockPool, opts.Image), false)
+	setFSGroup(client, opts)
 	return nil
 }
 
@@ -292,5 +296,63 @@ func mountCephFS(client *rpc.Client, opts *flexvolume.AttachOptions) error {
 		log(client, fmt.Sprintf("ceph filesystem %s has been attached and mounted", opts.FsName), false)
 	}
 
-	return err
+	setFSGroup(client, opts)
+	return nil
+}
+
+// setFSGroup will set the volume ownership to the fsGroup requested in the security context of the pod mounting the storage.
+// If no fsGroup is specified, does nothing.
+// If the operation fails, the error will be logged, but will not undo the mount.
+// Follows the pattern set by the k8s volume ownership as found in
+// https://github.com/kubernetes/kubernetes/blob/7f23a743e8c23ac6489340bbb34fa6f1d392db9d/pkg/volume/volume_linux.go#L38.
+func setFSGroup(client *rpc.Client, opts *flexvolume.AttachOptions) {
+	if opts.FsGroup == "" {
+		return
+	}
+
+	fsGroup, err := strconv.Atoi(opts.FsGroup)
+	if err != nil {
+		log(client, fmt.Sprintf("invalid fsgroup %s. %+v", opts.FsGroup, err), true)
+		return
+	}
+
+	path := path.Join(opts.MountDir, opts.Path)
+	info, err := os.Stat(path)
+	if err != nil {
+		log(client, fmt.Sprintf("fsgroup: failed to stat path %s. %+v", path, err), true)
+		return
+	}
+
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !ok {
+		log(client, "fsgroup: failed to get stat", true)
+		return
+	}
+
+	if stat == nil {
+		log(client, fmt.Sprintf("fsgroup: unexpected nil stat_t for path %s", path), true)
+		return
+	}
+
+	err = os.Chown(path, int(stat.Uid), fsGroup)
+	if err != nil {
+		log(client, fmt.Sprintf("fsgroup: chown failed on %v. %v", path, err), true)
+	}
+
+	rwMask := os.FileMode(0770)
+	roMask := os.FileMode(0550)
+	mask := rwMask
+	if opts.RW != "rw" {
+		mask = roMask
+	}
+
+	mask |= os.ModeSetgid
+
+	err = os.Chmod(path, mask)
+	if err != nil {
+		log(client, fmt.Sprintf("fsgroup: chmod failed on %s: %+v", path, err), true)
+		return
+	}
+
+	log(client, fmt.Sprintf("successfully set fsgroup to %d", fsGroup), false)
 }
