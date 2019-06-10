@@ -53,6 +53,7 @@ var S3Resource = opkit.CustomResource{
 // S3Controller represents a controller object for s3 custom resources
 type S3Controller struct {
 	context         *clusterd.Context
+	namespace       string
 	rookImage       string
 	hostNetwork     bool
 	dataDirHostPath string
@@ -66,7 +67,9 @@ type S3Controller struct {
 
 // NewS3Controller create controller for watching S3 custom resources created
 func NewS3Controller(
-	context *clusterd.Context, rookImage string,
+	context *clusterd.Context,
+	namespace string,
+	rookImage string,
 	hostNetwork bool,
 	dataDirHostPath string,
 	dataVolumeSize resource.Quantity,
@@ -77,6 +80,7 @@ func NewS3Controller(
 ) *S3Controller {
 	return &S3Controller{
 		context:         context,
+		namespace:       namespace,
 		rookImage:       rookImage,
 		hostNetwork:     hostNetwork,
 		dataDirHostPath: dataDirHostPath,
@@ -89,7 +93,7 @@ func NewS3Controller(
 }
 
 // StartWatch watches for instances of S3 custom resources and acts on them
-func (c *S3Controller) StartWatch(namespace string, stopCh chan struct{}) error {
+func (c *S3Controller) StartWatch(stopCh chan struct{}) error {
 
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
@@ -97,8 +101,8 @@ func (c *S3Controller) StartWatch(namespace string, stopCh chan struct{}) error 
 		DeleteFunc: c.onDelete,
 	}
 
-	logger.Infof("start watching s3 resources in namespace %s", namespace)
-	watcher := opkit.NewWatcher(S3Resource, namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1beta1().RESTClient())
+	logger.Infof("start watching s3 resources in namespace %s", c.namespace)
+	watcher := opkit.NewWatcher(S3Resource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1beta1().RESTClient())
 	go watcher.Watch(&edgefsv1beta1.S3{}, stopCh)
 
 	return nil
@@ -157,6 +161,31 @@ func (c *S3Controller) serviceOwners(service *edgefsv1beta1.S3) []metav1.OwnerRe
 	// If the S3 crd still exists when the cluster crd is deleted, this will make sure the S3
 	// resources are cleaned up.
 	return []metav1.OwnerReference{c.ownerRef}
+}
+
+func (c *S3Controller) ParentClusterChanged(cluster edgefsv1beta1.ClusterSpec) {
+	if c.rookImage == cluster.EdgefsImageName {
+		logger.Infof("No need to update the s3 service, the same images present")
+		return
+	}
+
+	// update controller options by updated cluster spec
+	c.rookImage = cluster.EdgefsImageName
+
+	s3s, err := c.context.RookClientset.EdgefsV1beta1().S3s(c.namespace).List(metav1.ListOptions{})
+	if err != nil {
+		logger.Errorf("failed to retrieve S3s to update the Edgefs version. %+v", err)
+		return
+	}
+	for _, s3 := range s3s.Items {
+		logger.Infof("updating the Edgefs version for s3 %s to %s", s3.Name, cluster.EdgefsImageName)
+		err := c.UpdateService(s3, nil)
+		if err != nil {
+			logger.Errorf("failed to update s3 service %s. %+v", s3.Name, err)
+		} else {
+			logger.Infof("updated s3 service %s to Edgefs version %s", s3.Name, cluster.EdgefsImageName)
+		}
+	}
 }
 
 func serviceChanged(oldService, newService edgefsv1beta1.S3Spec) bool {

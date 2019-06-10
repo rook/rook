@@ -18,6 +18,7 @@ package cluster
 
 import (
 	"encoding/json"
+	"fmt"
 
 	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
@@ -186,4 +187,69 @@ func (c *cluster) createClusterConfigMap(nodes []rookalpha.Node, deploymentConfi
 	}
 
 	return nil
+}
+
+func (c *cluster) retrieveDeploymentConfig(nodes []rookalpha.Node) (edgefsv1beta1.ClusterDeploymentConfig, error) {
+
+	deploymentConfig := edgefsv1beta1.ClusterDeploymentConfig{
+		DevConfig: make(map[string]edgefsv1beta1.DevicesConfig, 0),
+	}
+
+	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(configName, metav1.GetOptions{})
+	if err != nil {
+		return deploymentConfig, err
+	}
+
+	setup := map[string]edgefsv1beta1.SetupNode{}
+	if nesetup, ok := cm.Data["nesetup"]; ok {
+		err = json.Unmarshal([]byte(nesetup), &setup)
+		if err != nil {
+			logger.Errorf("invalid JSON in cluster configmap. %+v", err)
+		}
+
+		deploymentTypeAchived := false
+		for _, node := range nodes {
+			if nodeConfig, ok := setup[node.Name]; ok {
+				devicesConfig := edgefsv1beta1.DevicesConfig{}
+
+				devicesConfig.Rtlfs = nodeConfig.Rtlfs
+				devicesConfig.Rtrd = nodeConfig.Rtrd
+				devicesConfig.RtrdSlaves = nodeConfig.RtrdSlaves
+
+				devicesConfig.IsGatewayNode = false
+				if nodeConfig.NodeType == "gateway" {
+					devicesConfig.IsGatewayNode = true
+				}
+				devicesConfig.Zone = nodeConfig.Ccowd.Zone
+				deploymentConfig.DevConfig[node.Name] = devicesConfig
+
+				// we can't detect deployment type on gw node, move to next one
+				if !devicesConfig.IsGatewayNode && !deploymentTypeAchived {
+					if len(nodeConfig.Rtrd.Devices) > 0 {
+						deploymentConfig.DeploymentType = edgefsv1beta1.DeploymentRtrd
+						deploymentConfig.TransportKey = "rtrd"
+						deploymentConfig.NeedPrivileges = true
+					} else if len(nodeConfig.Rtlfs.Devices) > 0 {
+						deploymentConfig.DeploymentType = edgefsv1beta1.DeploymentRtlfs
+						deploymentConfig.TransportKey = "rtlfs"
+					} else if len(nodeConfig.RtlfsAutodetect) > 0 {
+						deploymentConfig.DeploymentType = edgefsv1beta1.DeploymentAutoRtlfs
+						deploymentConfig.TransportKey = "rtlfs"
+					}
+
+					// hostNetwork option specified
+					if nodeConfig.Ccowd.Network.ServerInterfaces != "eth0" {
+						deploymentConfig.NeedPrivileges = true
+					}
+					deploymentTypeAchived = true
+				}
+			}
+		}
+
+		if deploymentConfig.DeploymentType == "" || deploymentConfig.TransportKey == "" {
+			return deploymentConfig, fmt.Errorf("Can't retrieve DeploymentConfig from config map. Unknown DeploymentType or TransportKey values")
+		}
+	}
+
+	return deploymentConfig, nil
 }

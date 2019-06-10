@@ -33,19 +33,6 @@ const (
 	DefaultContainerMaxCapacity = "132Ti"
 )
 
-func ByteCountBinary(b uint64) string {
-	const unit = 1024
-	if b < unit {
-		return fmt.Sprintf("%d B", b)
-	}
-	div, exp := uint64(unit), 0
-	for n := b / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
-	return fmt.Sprintf("%.1f %ciB", float64(b)/float64(div), "KMGTPE"[exp])
-}
-
 // CreateQualifiedHeadlessServiceName creates a qualified name of the headless service for a given replica id and namespace,
 // e.g., edgefs-0.edgefs.rook-edgefs
 func CreateQualifiedHeadlessServiceName(replicaNum int, namespace string) string {
@@ -105,16 +92,9 @@ func GetContainers(maxContainerCapacity int64, devices []sys.LocalDisk, storeCon
 
 	// maps for already selected devices
 	selectedSsdsDevices := make([]bool, len(ssds))
-	for _, ssd := range ssds {
-		logger.Infof("Type: SSD, Name: %s, Size: %s", ssd.Name, ByteCountBinary(ssd.Size))
-	}
 	selectedHddsDevices := make([]bool, len(hdds))
-	for _, hdd := range hdds {
-		logger.Infof("Type: HDD, Name: %s, Size: %s", hdd.Name, ByteCountBinary(hdd.Size))
-	}
 
-	logger.Infof("MaxContainerCapacity: %s", ByteCountBinary(maxCap))
-	logger.Infof("TotalCapacity: %s", ByteCountBinary(totalCapacity))
+	logger.Infof("MaxContainerCapacity: %s, TotalCapacity: %s", edgefsv1beta1.ByteCountBinary(maxCap), edgefsv1beta1.ByteCountBinary(totalCapacity))
 
 	if totalCapacity == 0 {
 		return nil, fmt.Errorf("No available disks for container")
@@ -179,13 +159,13 @@ func GetContainersRTDevices(nodeName string, maxContainerCapacity int64, nodeDis
 		return rtDevices, nil
 	}
 
-	logger.Infof("[%s] available devices:", nodeName)
 	containers, err := GetContainers(maxContainerCapacity, nodeDisks, storeConfig)
 	if err != nil {
 		return nil, err
 	}
 
 	containersRtDevices := make([]edgefsv1beta1.RTDevices, len(containers))
+	logger.Infof("Node [%s] target's devices distribution:", nodeName)
 	for i, container := range containers {
 		rtDevices, err := getRTDevices(container, storeConfig)
 		if err != nil {

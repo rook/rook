@@ -250,3 +250,11 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
+        # Rook Discover toleration. Will tolerate all taints with all keys.
+        # Choose between NoSchedule, PreferNoSchedule and NoExecute:
+        # - name: DISCOVER_TOLERATION
+        #   value: "NoSchedule"
+        # (Optional) Rook Discover toleration key. Set this to the key of the taint you want to tolerate
+        # - name: DISCOVER_TOLERATION_KEY
+        #   value: "<KeyOfTheTaintToTolerate>"
+

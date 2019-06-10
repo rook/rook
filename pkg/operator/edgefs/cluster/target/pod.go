@@ -24,16 +24,12 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"strconv"
 )
 
 const (
 	dataDirsEnvVarName = "ROOK_DATA_DIRECTORIES"
-
-	udpTotemPortDefault = int32(5405)
-	udpTotemPortName    = "totem"
-	volumeNameDataDir   = "datadir"
+	volumeNameDataDir  = "datadir"
 
 	/* Volumes definitions */
 	configVolumeName  = "edgefs-configdir"
@@ -295,10 +291,46 @@ func (c *Cluster) makeDaemonContainer(containerImage string, dro edgefsv1beta1.D
 		VolumeMounts:    volumeMounts,
 	}
 
+	// Do not define Liveness and Reasiness probe for init container
+	if !isInitContainer {
+		cont.LivenessProbe = c.getLivenessProbe()
+		cont.ReadinessProbe = c.getReadinessProbe()
+	}
+
 	cont.Env = append(cont.Env, edgefsv1beta1.GetInitiatorEnvArr("target",
 		c.resourceProfile == "embedded", c.chunkCacheSize, c.resources)...)
 
 	return cont
+}
+
+func (c *Cluster) getReadinessProbe() *v1.Probe {
+	return &v1.Probe{
+		Handler: v1.Handler{
+			Exec: &v1.ExecAction{
+				Command: []string{"/opt/nedge/sbin/readiness.sh"},
+			},
+		},
+		InitialDelaySeconds: 20,
+		PeriodSeconds:       20,
+		TimeoutSeconds:      10,
+		SuccessThreshold:    1,
+		FailureThreshold:    6,
+	}
+}
+
+func (c *Cluster) getLivenessProbe() *v1.Probe {
+	return &v1.Probe{
+		Handler: v1.Handler{
+			Exec: &v1.ExecAction{
+				Command: []string{"/opt/nedge/sbin/liveness.sh"},
+			},
+		},
+		InitialDelaySeconds: 20,
+		PeriodSeconds:       20,
+		TimeoutSeconds:      10,
+		SuccessThreshold:    1,
+		FailureThreshold:    6,
+	}
 }
 
 func (c *Cluster) configOverrideVolume() v1.Volume {
@@ -522,18 +554,6 @@ func (c *Cluster) makeStatefulSet(replicas int32, rookImage string, dro edgefsv1
 	return statefulSet, nil
 }
 
-func (c *Cluster) makeHeadlessServicePorts(totemPort int32) []v1.ServicePort {
-	return []v1.ServicePort{
-		{
-			// The secondary port serves the UI as well as health and debug endpoints.
-			Name:       udpTotemPortName,
-			Port:       int32(totemPort),
-			Protocol:   v1.ProtocolUDP,
-			TargetPort: intstr.FromInt(int(totemPort)),
-		},
-	}
-}
-
 // This service only exists to create DNS entries for each pod in the stateful
 // set such that they can resolve each other's IP addresses. It does not
 // create a load-balanced ClusterIP and should not be used directly by clients
@@ -553,7 +573,6 @@ func (c *Cluster) makeHeadlessService() (*v1.Service, error) {
 			Selector:                 c.createAppLabels(),
 			PublishNotReadyAddresses: true,
 			ClusterIP:                "None",
-			Ports:                    c.makeHeadlessServicePorts(udpTotemPortDefault),
 		},
 	}
 	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &headlessService.ObjectMeta, &c.ownerRef)

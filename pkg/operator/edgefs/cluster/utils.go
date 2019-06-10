@@ -98,7 +98,7 @@ func (c *cluster) getClusterNodes() ([]rookalpha.Node, error) {
 	return validNodes, nil
 }
 
-func (c *cluster) createDeploymentConfig(nodes []rookalpha.Node, resurrect bool) (edgefsv1beta1.ClusterDeploymentConfig, error) {
+func (c *cluster) createDeploymentConfig(nodes []rookalpha.Node, dro edgefsv1beta1.DevicesResurrectOptions) (edgefsv1beta1.ClusterDeploymentConfig, error) {
 	deploymentConfig := edgefsv1beta1.ClusterDeploymentConfig{DevConfig: make(map[string]edgefsv1beta1.DevicesConfig, 0)}
 	// Fill deploymentConfig devices struct
 	for _, node := range nodes {
@@ -120,11 +120,29 @@ func (c *cluster) createDeploymentConfig(nodes []rookalpha.Node, resurrect bool)
 		if c.isGatewayLabeledNode(c.context.Clientset, node.Name) {
 			devicesConfig.IsGatewayNode = true
 			deploymentConfig.DevConfig[node.Name] = devicesConfig
+			logger.Infof("Skipping node [%s] devices as labeled as gateway node", node.Name)
+			continue
+		}
+
+		// Skip device detection in case of 'restore' option.
+		// If dro.NeedToResurrect is true then there is no cluster's config map available
+		if dro.NeedToResurrect {
+			logger.Infof("Skipping node [%s] devices due 'restore' option", node.Name)
+			devicesConfig.Rtlfs.Devices = target.GetRtlfsDevices(c.Spec.Storage.Directories, &storeConfig)
+			if dro.SlaveContainers > 0 {
+				devicesConfig.RtrdSlaves = make([]edgefsv1beta1.RTDevices, dro.SlaveContainers)
+			}
+			deploymentConfig.DevConfig[node.Name] = devicesConfig
 			continue
 		}
 
 		rookSystemNS := os.Getenv(k8sutil.PodNamespaceEnvVar)
 		nodeDevices, _ := discover.ListDevices(c.context, rookSystemNS, n.Name)
+
+		logger.Infof("[%s] available devices: ", n.Name)
+		for _, dev := range nodeDevices[n.Name] {
+			logger.Infof("\tName: %s, Size: %s, Type: %s, Rotational: %t, Empty: %t", dev.Name, edgefsv1beta1.ByteCountBinary(dev.Size), dev.Type, dev.Rotational, dev.Empty)
+		}
 
 		availDevs, deviceErr := discover.GetAvailableDevices(c.context, n.Name, c.Namespace,
 			n.Devices, n.Selection.DeviceFilter, n.Selection.GetUseAllDevices())
@@ -138,9 +156,15 @@ func (c *cluster) createDeploymentConfig(nodes []rookalpha.Node, resurrect bool)
 
 		// Selects Disks from availDevs and translate to RTDevices
 		availDisks := []sys.LocalDisk{}
+		logger.Infof("[%s] selected devices: ", n.Name)
 		for _, dev := range availDevs {
 			for _, disk := range nodeDevices[n.Name] {
 				if disk.Name == dev.Name {
+					diskType := "SSD"
+					if disk.Rotational {
+						diskType = "HDD"
+					}
+					logger.Infof("\tName: %s, Type: %s, Size: %s", disk.Name, diskType, edgefsv1beta1.ByteCountBinary(disk.Size))
 					availDisks = append(availDisks, disk)
 				}
 			}
@@ -195,14 +219,14 @@ func (c *cluster) createDeploymentConfig(nodes []rookalpha.Node, resurrect bool)
 				continue
 			}
 
-			if len(devCfg.Rtrd.Devices) == 0 && !resurrect {
+			if len(devCfg.Rtrd.Devices) == 0 && !dro.NeedToResurrect {
 				return deploymentConfig, fmt.Errorf("Node %s has no available devices", nodeName)
 			}
 			devicesCount += len(devCfg.Rtrd.Devices)
 		}
 
 		// Check new deployment devices count
-		if !resurrect && devicesCount < 3 {
+		if !dro.NeedToResurrect && devicesCount < 3 {
 			return deploymentConfig, fmt.Errorf("Disk devices should be more then 3 on all nodes summary")
 		}
 

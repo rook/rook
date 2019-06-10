@@ -114,6 +114,10 @@ func (c *S3Controller) CreateOrUpdate(s edgefsv1beta1.S3, update bool, ownerRefs
 			return fmt.Errorf("failed to create %s deployment. %+v", appName, err)
 		}
 		logger.Infof("%s deployment already exists", appName)
+		if _, err := c.context.Clientset.AppsV1().Deployments(s.Namespace).Update(deployment); err != nil {
+			return fmt.Errorf("failed to update %s deployment. %+v", appName, err)
+		}
+		logger.Infof("%s deployment updated", appName)
 	} else {
 		logger.Infof("%s deployment started", appName)
 	}

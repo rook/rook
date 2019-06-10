@@ -17,12 +17,15 @@ limitations under the License.
 package target
 
 import (
+	"fmt"
 	"os"
+	"time"
 
 	"github.com/coreos/pkg/capnslog"
 	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -133,8 +136,51 @@ func (c *Cluster) Start(rookImage string, nodes []rookalpha.Node, dro edgefsv1be
 			return err
 		}
 		logger.Infof("stateful set %s already exists in namespace %s", statefulSet.Name, statefulSet.Namespace)
+		logger.Infof("Trying to update statefulset %s", statefulSet.Name)
+
+		if _, err := UpdateStatefulsetAndWait(c.context, statefulSet, c.Namespace); err != nil {
+			logger.Errorf("failed to update statefulset %s. %+v", statefulSet.Name, err)
+			return err
+		}
 	} else {
 		logger.Infof("stateful set %s created in namespace %s", statefulSet.Name, statefulSet.Namespace)
 	}
 	return nil
+}
+
+// UpdateStatefulsetAndWait updates a statefulset and waits until it is running to return. It will
+// error if the statefulset does not exist to be updated or if it takes too long.
+func UpdateStatefulsetAndWait(context *clusterd.Context, sts *appsv1.StatefulSet, namespace string) (*appsv1.StatefulSet, error) {
+	original, err := context.Clientset.AppsV1().StatefulSets(namespace).Get(sts.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get statefulset %s. %+v", sts.Name, err)
+	}
+
+	_, err = context.Clientset.AppsV1().StatefulSets(namespace).Update(sts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update statefulset %s. %+v", sts.Name, err)
+	}
+	// wait for the statefulset to be restarted
+	sleepTime := 5
+	attempts := 24 * int(original.Status.Replicas) // 2 minutes per replica
+	for i := 0; i < attempts; i++ {
+		// check for the status of the statefulset
+		statefulset, err := context.Clientset.AppsV1().StatefulSets(namespace).Get(sts.Name, metav1.GetOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("failed to get statefulset %s. %+v", statefulset.Name, err)
+		}
+
+		logger.Infof("Statefulset %s update in progress... status=%+v", statefulset.Name, statefulset.Status)
+		//
+		if statefulset.Status.ObservedGeneration != original.Status.ObservedGeneration &&
+			statefulset.Status.UpdatedReplicas == original.Status.UpdatedReplicas &&
+			statefulset.Status.ReadyReplicas == original.Status.ReadyReplicas &&
+			statefulset.Status.CurrentReplicas == original.Status.CurrentReplicas {
+			logger.Infof("Statefulset '%s' update is done", statefulset.Name)
+			return statefulset, nil
+		}
+		time.Sleep(time.Duration(sleepTime) * time.Second)
+	}
+
+	return nil, fmt.Errorf("gave up waiting for statefulset %s to update", sts.Name)
 }
