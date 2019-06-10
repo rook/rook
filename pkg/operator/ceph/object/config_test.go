@@ -20,15 +20,21 @@ import (
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/stretchr/testify/assert"
 )
 
 func newConfig() *clusterConfig {
+	clusterInfo := &cephconfig.ClusterInfo{
+		CephVersion: cephver.Mimic,
+	}
 	return &clusterConfig{
 		store: cephv1.CephObjectStore{
 			Spec: cephv1.ObjectStoreSpec{
 				Gateway: cephv1.GatewaySpec{},
-			}}}
+			}},
+		clusterInfo: clusterInfo}
 }
 
 func TestPortString(t *testing.T) {
@@ -63,4 +69,20 @@ func TestPortString(t *testing.T) {
 	cfg.store.Spec.Gateway.SecurePort = 443
 	result = cfg.portString()
 	assert.Equal(t, "", result)
+}
+
+func TestFrontend(t *testing.T) {
+	cfg := newConfig()
+	cfg.clusterInfo.CephVersion = cephver.Mimic
+
+	result := rgwFrontend(cfg.clusterInfo.CephVersion)
+	assert.Equal(t, "civetweb", result)
+
+	cfg.clusterInfo.CephVersion = cephver.Nautilus
+	result = rgwFrontend(cfg.clusterInfo.CephVersion)
+	assert.Equal(t, "beast", result)
+
+	cfg.clusterInfo.CephVersion = cephver.Octopus
+	result = rgwFrontend(cfg.clusterInfo.CephVersion)
+	assert.Equal(t, "beast", result)
 }
