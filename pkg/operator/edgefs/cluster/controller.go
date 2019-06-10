@@ -322,8 +322,11 @@ func (c *ClusterController) handleUpdate(newClust *edgefsv1beta1.Cluster, cluste
 }
 
 func (c *ClusterController) onDelete(obj interface{}) {
-	clust := obj.(*edgefsv1beta1.Cluster).DeepCopy()
-
+	clust, ok := obj.(*edgefsv1beta1.Cluster)
+	if !ok {
+		return
+	}
+	clust = clust.DeepCopy()
 	logger.Infof("delete event for cluster %s in namespace %s", clust.Name, clust.Namespace)
 
 	err := c.handleDelete(clust, time.Duration(clusterDeleteRetryInterval)*time.Second)
