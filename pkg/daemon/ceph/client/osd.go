@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/rook/rook/pkg/clusterd"
 )
@@ -63,6 +64,38 @@ type OSDDump struct {
 		Up  json.Number `json:"up"`
 		In  json.Number `json:"in"`
 	} `json:"osds"`
+	Flags string `json:"flags"`
+}
+
+// IsFlagSet checks if an OSD flag is set
+func (dump *OSDDump) IsFlagSet(checkFlag string) bool {
+	flags := strings.Split(dump.Flags, ",")
+	for _, flag := range flags {
+		if flag == checkFlag {
+			return true
+		}
+	}
+	return false
+}
+
+// SetOSDFlag enables an osd flag
+func SetOSDFlag(context *clusterd.Context, clusterName string, flag string) error {
+	args := []string{"osd", "set", flag}
+	_, err := NewCephCommand(context, clusterName, args).Run()
+	if err != nil {
+		return fmt.Errorf("failed to set flag %s: %+v", flag, err)
+	}
+	return nil
+}
+
+// UnsetOSDFlag disables an osd flag
+func UnsetOSDFlag(context *clusterd.Context, clusterName string, flag string) error {
+	args := []string{"osd", "unset", flag}
+	_, err := NewCephCommand(context, clusterName, args).Run()
+	if err != nil {
+		return fmt.Errorf("failed to unset flag %s: %+v", flag, err)
+	}
+	return nil
 }
 
 // StatusByID returns status and inCluster states for given OSD id

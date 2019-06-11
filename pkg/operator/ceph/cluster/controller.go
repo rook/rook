@@ -29,6 +29,7 @@ import (
 	cephbeta "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
@@ -485,8 +486,10 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 	logger.Infof("update event for cluster %s is supported, orchestrating update now", newClust.Namespace)
 
 	// if the image changed, we need to detect the new image version
+	versionChanged := false
 	if oldClust.Spec.CephVersion.Image != newClust.Spec.CephVersion.Image {
 		logger.Infof("the ceph version changed. detecting the new image version...")
+		versionChanged = true
 		version, err := cluster.detectCephVersion(newClust.Spec.CephVersion.Image, 15*time.Minute)
 		if err != nil {
 			logger.Errorf("unknown ceph major version. %+v", err)
@@ -504,13 +507,13 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 
 	// attempt to update the cluster.  note this is done outside of wait.Poll because that function
 	// will wait for the retry interval before trying for the first time.
-	done, _ := c.handleUpdate(newClust.Name, cluster)
+	done, _ := c.handleUpdate(newClust.Name, cluster, versionChanged)
 	if done {
 		return
 	}
 
 	err = wait.Poll(updateClusterInterval, updateClusterTimeout, func() (bool, error) {
-		return c.handleUpdate(newClust.Name, cluster)
+		return c.handleUpdate(newClust.Name, cluster, versionChanged)
 	})
 	if err != nil {
 		message := fmt.Sprintf("giving up trying to update cluster in namespace %s after %s", cluster.Namespace, updateClusterTimeout)
@@ -522,7 +525,32 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 	}
 }
 
-func (c *ClusterController) handleUpdate(crdName string, cluster *cluster) (bool, error) {
+func (c *ClusterController) handleUpdate(crdName string, cluster *cluster, versionChanged bool) (bool, error) {
+	nooutFlagSet := false
+	norebalanceFlagSet := false
+	if versionChanged {
+		osdDump, err := client.GetOSDDump(c.context, cluster.Info.Name)
+		if err != nil {
+			logger.Errorf("failed to get osddump for cluster %s: %+v", cluster.Info.Name, err)
+			return false, nil
+		}
+
+		nooutFlagSet = osdDump.IsFlagSet("noout")
+		if !nooutFlagSet {
+			if err := client.SetOSDFlag(c.context, cluster.Info.Name, "noout"); err != nil {
+				logger.Errorf("failed to set noout flag for cluster %s: %+v", cluster.Info.Name, err)
+				return false, nil
+			}
+		}
+		norebalanceFlagSet = osdDump.IsFlagSet("norebalance")
+		if !norebalanceFlagSet {
+			if err := client.SetOSDFlag(c.context, cluster.Info.Name, "norebalance"); err != nil {
+				logger.Errorf("failed to set norebalance flag for cluster %s: %+v", cluster.Info.Name, err)
+				return false, nil
+			}
+		}
+	}
+
 	if err := c.updateClusterStatus(cluster.Namespace, crdName, cephv1.ClusterStateUpdating, ""); err != nil {
 		logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
 		return false, nil
@@ -538,6 +566,18 @@ func (c *ClusterController) handleUpdate(crdName string, cluster *cluster) (bool
 		return false, nil
 	}
 
+	if versionChanged {
+		if !nooutFlagSet {
+			if err := client.UnsetOSDFlag(c.context, cluster.Info.Name, "noout"); err != nil {
+				logger.Warningf("failed to unset noout flag for cluster %s: %+v", cluster.Info.Name, err)
+			}
+		}
+		if !norebalanceFlagSet {
+			if err := client.UnsetOSDFlag(c.context, cluster.Info.Name, "norebalance"); err != nil {
+				logger.Warningf("failed to unset norebalance flag for cluster %s: %+v", cluster.Info.Name, err)
+			}
+		}
+	}
 	logger.Infof("succeeded updating cluster in namespace %s", cluster.Namespace)
 	return true, nil
 }

@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/coreos/pkg/capnslog"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -174,10 +175,6 @@ func (c *Cluster) Start() error {
 	logger.Infof("start provisioning the osds on nodes, if needed")
 	c.startProvisioning(config)
 
-	// start the OSD pods, waiting for the provisioning to be completed
-	logger.Infof("start osds after provisioning is completed, if needed")
-	c.completeProvision(config)
-
 	// handle the removed nodes and rebalance the PGs
 	logger.Infof("checking if any nodes were removed")
 	c.handleRemovedNodes(config)
@@ -221,6 +218,7 @@ func (c *Cluster) startProvisioning(config *provisionConfig) {
 		// create the job that prepares osds on the node
 		storeConfig := osdconfig.ToStoreConfig(n.Config)
 		metadataDevice := osdconfig.MetadataDevice(n.Config)
+
 		job, err := c.makeJob(n.Name, n.Devices, n.Selection, n.Resources, storeConfig, metadataDevice, n.Location)
 		if err != nil {
 			message := fmt.Sprintf("failed to create prepare job node %s: %v", n.Name, err)
@@ -236,8 +234,26 @@ func (c *Cluster) startProvisioning(config *provisionConfig) {
 			status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: fmt.Sprintf("failed to start osd provisioning on node %s", n.Name)}
 			if err := c.updateNodeStatus(n.Name, status); err != nil {
 				config.addError("failed to update node %s status. %+v", n.Name, err)
+				continue
 			}
 		}
+
+		if err := k8sutil.WaitForJobCompletion(c.context.Clientset, job, 300*time.Second); err != nil {
+			config.addError("failed to complete provision job for node %s. %+v", n.Name, err)
+			continue
+		}
+
+		// start the OSD pods, waiting for the provisioning to be completed
+		logger.Infof("start osds on node %s after provisioning is completed, if needed", n.Name)
+		c.completeProvision(config, n.Name)
+
+		cleanCluster := client.IsClusterClean(c.context, c.Namespace)
+		for cleanCluster != nil {
+			logger.Warningf("waiting for all pgs to return to active+clean state")
+			time.Sleep(10 * time.Second)
+			cleanCluster = client.IsClusterClean(c.context, c.Namespace)
+		}
+
 	}
 }
 

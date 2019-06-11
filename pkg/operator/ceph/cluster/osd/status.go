@@ -114,12 +114,21 @@ func parseOrchestrationStatus(data map[string]string) *OrchestrationStatus {
 	return &status
 }
 
-func (c *Cluster) completeProvision(config *provisionConfig) bool {
-	return c.completeOSDsForAllNodes(config, true, completeProvisionTimeout)
+func (c *Cluster) completeProvision(config *provisionConfig, node string) bool {
+	selector := fmt.Sprintf("%s=%s,%s=%s,node=%s",
+		k8sutil.AppAttr, appName,
+		orchestrationStatusKey, provisioningLabelKey,
+		node,
+	)
+	return c.completeOSDsForNodes(config, selector, true, completeProvisionTimeout)
 }
 
 func (c *Cluster) completeProvisionSkipOSDStart(config *provisionConfig) bool {
-	return c.completeOSDsForAllNodes(config, false, completeProvisionSkipOSDTimeout)
+	selector := fmt.Sprintf("%s=%s,%s=%s",
+		k8sutil.AppAttr, appName,
+		orchestrationStatusKey, provisioningLabelKey,
+	)
+	return c.completeOSDsForNodes(config, selector, false, completeProvisionSkipOSDTimeout)
 }
 
 func (c *Cluster) checkNodesCompleted(selector string, config *provisionConfig, configOSDs bool) (int, *util.Set, bool, *v1.ConfigMapList, error) {
@@ -158,11 +167,7 @@ func (c *Cluster) checkNodesCompleted(selector string, config *provisionConfig, 
 	return originalNodes, remainingNodes, false, statuses, nil
 }
 
-func (c *Cluster) completeOSDsForAllNodes(config *provisionConfig, configOSDs bool, timeoutMinutes int) bool {
-	selector := fmt.Sprintf("%s=%s,%s=%s",
-		k8sutil.AppAttr, appName,
-		orchestrationStatusKey, provisioningLabelKey,
-	)
+func (c *Cluster) completeOSDsForNodes(config *provisionConfig, selector string, configOSDs bool, timeoutMinutes int) bool {
 
 	originalNodes, remainingNodes, completed, statuses, err := c.checkNodesCompleted(selector, config, configOSDs)
 	if err == nil && completed {
