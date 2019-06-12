@@ -219,12 +219,12 @@ func (c *ISGWController) makeDeployment(svcname, namespace, rookImage string, is
 			RestartPolicy:      v1.RestartPolicyAlways,
 			Volumes:            volumes,
 			HostIPC:            true,
-			HostNetwork:        c.hostNetwork,
+			HostNetwork:        edgefsv1beta1.IsHostNetworkDefined(c.NetworkSpec),
 			NodeSelector:       map[string]string{namespace: "cluster"},
 			ServiceAccountName: serviceAccountName,
 		},
 	}
-	if c.hostNetwork {
+	if edgefsv1beta1.IsHostNetworkDefined(c.NetworkSpec) {
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 

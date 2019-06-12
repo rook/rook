@@ -220,13 +220,17 @@ func (c *S3XController) makeDeployment(svcname, namespace, rookImage string, s3x
 			RestartPolicy:      v1.RestartPolicyAlways,
 			Volumes:            volumes,
 			HostIPC:            true,
-			HostNetwork:        c.hostNetwork,
+			HostNetwork:        edgefsv1beta1.IsHostNetworkDefined(c.NetworkSpec),
 			NodeSelector:       map[string]string{namespace: "cluster"},
 			ServiceAccountName: serviceAccountName,
 		},
 	}
-	if c.hostNetwork {
+	if edgefsv1beta1.IsHostNetworkDefined(c.NetworkSpec) {
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
+	}
+
+	if edgefsv1beta1.IsMultusNetworkDefined(c.NetworkSpec) {
+		edgefsv1beta1.ApplyMultus(c.NetworkSpec, &podSpec.ObjectMeta)
 	}
 
 	// apply current S3X CRD options to pod's specification

@@ -55,7 +55,7 @@ type Cluster struct {
 	Storage          rookalpha.StorageScopeSpec
 	dataDirHostPath  string
 	dataVolumeSize   resource.Quantity
-	HostNetworkSpec  edgefsv1beta1.NetworkSpec
+	NetworkSpec      edgefsv1beta1.NetworkSpec
 	Privileged       bool
 	resources        v1.ResourceRequirements
 	resourceProfile  string
@@ -77,7 +77,7 @@ func New(
 	dataVolumeSize resource.Quantity,
 	annotations rookalpha.Annotations,
 	placement rookalpha.Placement,
-	hostNetworkSpec edgefsv1beta1.NetworkSpec,
+	NetworkSpec edgefsv1beta1.NetworkSpec,
 	resources v1.ResourceRequirements,
 	resourceProfile string,
 	chunkCacheSize resource.Quantity,
@@ -101,8 +101,8 @@ func New(
 		Storage:          storageSpec,
 		dataDirHostPath:  dataDirHostPath,
 		dataVolumeSize:   dataVolumeSize,
-		HostNetworkSpec:  hostNetworkSpec,
-		Privileged:       (isHostNetworkDefined(hostNetworkSpec) || os.Getenv("ROOK_HOSTPATH_REQUIRES_PRIVILEGED") == "true"),
+		NetworkSpec:      NetworkSpec,
+		Privileged:       (edgefsv1beta1.IsHostNetworkDefined(NetworkSpec) || os.Getenv("ROOK_HOSTPATH_REQUIRES_PRIVILEGED") == "true"),
 		resources:        resources,
 		resourceProfile:  resourceProfile,
 		chunkCacheSize:   chunkCacheSize,
