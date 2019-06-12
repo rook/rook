@@ -218,3 +218,22 @@ NAME                       TYPE                DATA      AGE
 rook-ceph.example.com      kubernetes.io/tls   2         4m
 ```
 You can now browse to `https://rook-ceph.example.com/` to log into the dashboard.
+
+## Enabling Dashboard Object Gateway management
+
+Provided you have deployed the [Ceph Toolbox](ceph-toolbox.md), created an [Object Store](ceph-object.md) and a user, you can enable
+[Object Gateway management](http://docs.ceph.com/docs/master/mgr/dashboard/#enabling-the-object-gateway-management-frontend) by providing the user credentials to the dashboard:
+```
+# Access toolbox CLI:
+kubectl -n rook-ceph exec -it $(kubectl -n rook-ceph get pod -l "app=rook-ceph-tools" -o jsonpath='{.items[0].metadata.name}') bash
+
+# Enable system flag on the user:
+radosgw-admin user modify --uid=my-user --system
+
+# Provide the user credentials:
+ceph dashboard set-rgw-api-user-id my-user
+ceph dashboard set-rgw-api-access-key <access-key>
+ceph dashboard set-rgw-api-secret-key <secret-key>
+```
+
+Now you can access the *Object Gateway* menu items.
