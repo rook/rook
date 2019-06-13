@@ -1,0 +1,16 @@
+apiVersion: noobaa.rook.io/v1alpha1
+kind: NooBaaBucketClass
+metadata:
+  name: noobaa-cloud-mirror-class
+  namespace: rook-noobaa
+spec:
+  placementPolicy:
+    tiers:
+      - tier:
+          mirrors:
+            - mirror:
+                spread:
+                  - noobaa-ceph-resource
+            - mirror:
+                spread:
+                  - noobaa-aws-resource

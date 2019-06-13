@@ -1,0 +1,11 @@
+apiVersion: noobaa.rook.io/v1alpha1
+kind: NooBaaBackingStore
+metadata:
+  name: local-pv
+  namespace: rook-noobaa
+spec:
+  type: pvc
+  storageClassName: ceph-block-provisioner
+  count: 3
+  size: 30
+  sizeUnits: GB

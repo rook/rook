@@ -1,0 +1,10 @@
+apiVersion: noobaa.rook.io/v1alpha1
+kind: NooBaaBackingStore
+metadata:
+  name: aws-s3
+  namespace: rook-noobaa
+spec:
+  type: aws-s3
+  region: us-east-1
+  bucketName: noobaa1-aws-backing-store
+  credentialsSecretName: aws-credentials-secret

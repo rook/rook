@@ -1,0 +1,14 @@
+apiVersion: noobaa.rook.io/v1alpha1
+kind: NooBaaBackingStore
+metadata:
+  name: rgw
+  namespace: rook-noobaa
+spec:
+  type: s3-compatible
+  endpoint: s3.rook-ceph
+  bucketName: noobaa1-rgw-backing-store
+  credentialsSecretName: rgw-credentials-secret
+  options:
+    sslEnabled: false
+    s3ForcePathStyle: true
+    signatureVersion: v2

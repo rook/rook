@@ -1,0 +1,10 @@
+apiVersion: noobaa.rook.io/v1alpha1
+kind: NooBaaBackingStore
+metadata:
+  name: gcs
+  namespace: rook-noobaa
+spec:
+  type: google-cloud-storage
+  region: us-west1
+  bucketName: noobaa1-gcs-backing-store
+  credentialsSecretName: gcs-credentials-secret
