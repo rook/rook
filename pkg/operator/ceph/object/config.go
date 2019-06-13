@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"path"
 	"strconv"
+	"strings"
 
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
@@ -29,7 +30,7 @@ import (
 
 const (
 	keyringTemplate = `
-[client.radosgw.gateway]
+[%s]
 key = %s
 caps mon = "allow rw"
 caps osd = "allow rwx"
@@ -86,17 +87,22 @@ func (c *clusterConfig) portString() string {
 	return portString
 }
 
+func generateCephXUser(name string) string {
+	user := strings.TrimPrefix(name, AppName)
+	return "client" + strings.Replace(user, "-", ".", -1)
+}
+
 func (c *clusterConfig) generateKeyring(replicationControllerOwnerRef *metav1.OwnerReference) error {
-	user := "client.radosgw.gateway"
+	user := generateCephXUser(replicationControllerOwnerRef.Name)
 	/* TODO: this says `osd allow rwx` while template says `osd allow *`; which is correct? */
 	access := []string{"osd", "allow rwx", "mon", "allow rw"}
 	s := keyring.GetSecretStore(c.context, c.store.Namespace, replicationControllerOwnerRef)
 
-	key, err := s.GenerateKey(c.instanceName(), user, access)
+	key, err := s.GenerateKey(user, access)
 	if err != nil {
 		return err
 	}
 
-	keyring := fmt.Sprintf(keyringTemplate, key)
-	return s.CreateOrUpdate(c.instanceName(), keyring)
+	keyring := fmt.Sprintf(keyringTemplate, user, key)
+	return s.CreateOrUpdate(replicationControllerOwnerRef.Name, keyring)
 }

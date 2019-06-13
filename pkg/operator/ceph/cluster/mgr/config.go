@@ -62,7 +62,7 @@ func (c *Cluster) generateKeyring(m *mgrConfig) error {
 	/* TODO: can we change this ownerref to be the deployment or service? */
 	s := keyring.GetSecretStore(c.context, c.Namespace, &c.ownerRef)
 
-	key, err := s.GenerateKey(m.ResourceName, user, access)
+	key, err := s.GenerateKey(user, access)
 	if err != nil {
 		return err
 	}

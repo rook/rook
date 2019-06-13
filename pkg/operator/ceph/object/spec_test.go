@@ -17,6 +17,7 @@ limitations under the License.
 package object
 
 import (
+	"fmt"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -56,7 +57,12 @@ func TestPodSpecs(t *testing.T) {
 		DataPathMap: data,
 	}
 
-	s := c.makeRGWPodSpec()
+	resourceName := fmt.Sprintf("%s-%s", AppName, c.store.Name)
+	rgwConfig := &rgwConfig{
+		ResourceName: resourceName,
+	}
+
+	s := c.makeRGWPodSpec(rgwConfig)
 
 	podTemplate := cephtest.NewPodTemplateSpecTester(t, &s)
 	podTemplate.RunFullSuite(cephconfig.RgwType, "default", "rook-ceph-rgw", "mycluster", "ceph/ceph:myversion",
@@ -91,7 +97,11 @@ func TestSSLPodSpec(t *testing.T) {
 	}
 	c.hostNetwork = true
 
-	s := c.makeRGWPodSpec()
+	resourceName := fmt.Sprintf("%s-%s", AppName, c.store.Name)
+	rgwConfig := &rgwConfig{
+		ResourceName: resourceName,
+	}
+	s := c.makeRGWPodSpec(rgwConfig)
 
 	podTemplate := cephtest.NewPodTemplateSpecTester(t, &s)
 	podTemplate.RunFullSuite(cephconfig.RgwType, "default", "rook-ceph-rgw", "mycluster", "ceph/ceph:myversion",

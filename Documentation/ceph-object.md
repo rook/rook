@@ -42,7 +42,6 @@ spec:
     port: 80
     securePort:
     instances: 1
-    allNodes: false
 ```
 
 When the object store is created the Rook operator will create all the pools and other resources necessary to start the service. This may take a minute to complete.
