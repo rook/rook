@@ -12,6 +12,7 @@ an example usage
 - Rook can now be configured to read "region" and "zone" labels on Kubernetes nodes and use that information as part of the CRUSH location for the OSDs.
 - Rgw pods have liveness probe enabled
 - Rgw is now configured with the Beast backend as of the Nautilus release
+- OSD: newly updated cluster from 0.9 to 1.0.3 and thus Ceph Nautilus will have their OSDs allowing new features for Nautilus
 
 ## Breaking Changes
 
