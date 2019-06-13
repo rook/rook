@@ -52,20 +52,20 @@ func TestGenerateKey(t *testing.T) {
 
 	generateKey = "generatedsecretkey"
 	failGenerateKey = false
-	k, e := s.GenerateKey("testresource", "testuser", []string{"test", "access"})
+	k, e := s.GenerateKey("testuser", []string{"test", "access"})
 	assert.NoError(t, e)
 	assert.Equal(t, "generatedsecretkey", k)
 
 	generateKey = "differentsecretkey"
 	failGenerateKey = false
-	k, e = s.GenerateKey("testresource", "testuser", []string{"test", "access"})
+	k, e = s.GenerateKey("testuser", []string{"test", "access"})
 	assert.NoError(t, e)
 	assert.Equal(t, "differentsecretkey", k)
 
 	// make sure error on fail
 	generateKey = "failgeneratekey"
 	failGenerateKey = true
-	_, e = s.GenerateKey("newresource", "newuser", []string{"new", "access"})
+	_, e = s.GenerateKey("newuser", []string{"new", "access"})
 	assert.Error(t, e)
 }
 

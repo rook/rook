@@ -19,8 +19,8 @@ package k8sutil
 import (
 	"fmt"
 
-	"k8s.io/api/apps/v1"
 	apps "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/apps/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -62,4 +62,16 @@ func AddRookVersionLabelToDaemonSet(d *v1.DaemonSet) {
 		d.Labels = map[string]string{}
 	}
 	addRookVersionLabel(d.Labels)
+}
+
+// GetDaemonsets returns a list of daemonsets names labels matching a given selector
+// example of a label selector might be "app=rook-ceph-mon, mon!=b"
+// more: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+func GetDaemonsets(clientset kubernetes.Interface, namespace, labelSelector string) (*apps.DaemonSetList, error) {
+	listOptions := metav1.ListOptions{LabelSelector: labelSelector}
+	daemonsets, err := clientset.AppsV1().DaemonSets(namespace).List(listOptions)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list deployments with labelSelector %s: %v", labelSelector, err)
+	}
+	return daemonsets, nil
 }

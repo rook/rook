@@ -26,7 +26,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -65,7 +65,7 @@ func keyringSecretName(resourceName string) string {
 // GenerateKey generates a key for a Ceph user with the given access permissions. It returns the key
 // generated on success. Ceph will always return the most up-to-date key for a daemon, and the key
 // usually does not change.
-func (k *SecretStore) GenerateKey(resourceName, user string, access []string) (string, error) {
+func (k *SecretStore) GenerateKey(user string, access []string) (string, error) {
 	// get-or-create-key for the user account
 	key, err := client.AuthGetOrCreateKey(k.context, k.namespace, user, access)
 	if err != nil {
