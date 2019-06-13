@@ -27,6 +27,7 @@ import (
 // CephDaemonsVersions is a structure that can be used to parsed the output of the 'ceph versions' command
 type CephDaemonsVersions struct {
 	Mon     map[string]int `json:"mon,omitempty"`
+	Osd     map[string]int `json:"osd,omitempty"`
 	Mgr     map[string]int `json:"mgr,omitempty"`
 	Mds     map[string]int `json:"mds,omitempty"`
 	Overall map[string]int `json:"overall,omitempty"`
@@ -92,6 +93,17 @@ func EnableMessenger2(context *clusterd.Context) error {
 		return fmt.Errorf("failed to enable msgr2 protocol: %+v", err)
 	}
 	logger.Infof("successfully enabled msgr2 protocol")
+
+	return nil
+}
+
+// EnableNautilusOSD disallows pre-Nautilus OSDs and enables all new Nautilus-only functionality
+func EnableNautilusOSD(context *clusterd.Context) error {
+	_, err := context.Executor.ExecuteCommandWithOutput(false, "", "ceph", "osd", "require-osd-release", "nautilus")
+	if err != nil {
+		return fmt.Errorf("failed to disallow pre-nautilus osds and enable all new nautilus-only functionality: %+v", err)
+	}
+	logger.Infof("successfully disallowed pre-nautilus osds and enabled all new nautilus-only functionality")
 
 	return nil
 }
