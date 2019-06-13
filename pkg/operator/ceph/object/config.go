@@ -24,7 +24,6 @@ import (
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -96,16 +95,6 @@ func (c *clusterConfig) generateKeyring(replicationControllerOwnerRef *metav1.Ow
 	key, err := s.GenerateKey(c.instanceName(), user, access)
 	if err != nil {
 		return err
-	}
-
-	// Delete legacy key store for upgrade from Rook v0.9.x to v1.0.x
-	err = c.context.Clientset.CoreV1().Secrets(c.store.Namespace).Delete(c.instanceName(), &metav1.DeleteOptions{})
-	if err != nil {
-		if errors.IsNotFound(err) {
-			logger.Debugf("legacy rgw key %s is already removed", c.instanceName())
-		} else {
-			logger.Warningf("legacy rgw key %s could not be removed. %+v", c.instanceName(), err)
-		}
 	}
 
 	keyring := fmt.Sprintf(keyringTemplate, key)
