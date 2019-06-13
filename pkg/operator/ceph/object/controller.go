@@ -128,7 +128,7 @@ func (c *ObjectStoreController) onAdd(obj interface{}) {
 	c.acquireOrchestrationLock()
 	defer c.releaseOrchestrationLock()
 
-	c.createOrUpdateStore(true, objectstore)
+	c.createOrUpdateStore(objectstore)
 }
 
 func (c *ObjectStoreController) onUpdate(oldObj, newObj interface{}) {
@@ -159,16 +159,11 @@ func (c *ObjectStoreController) onUpdate(oldObj, newObj interface{}) {
 	c.acquireOrchestrationLock()
 	defer c.releaseOrchestrationLock()
 
-	c.createOrUpdateStore(true, newStore)
+	c.createOrUpdateStore(newStore)
 }
 
-func (c *ObjectStoreController) createOrUpdateStore(update bool, objectstore *cephv1.CephObjectStore) {
-	action := "create"
-	if update {
-		action = "update"
-	}
-
-	logger.Infof("%s object store %s", action, objectstore.Name)
+func (c *ObjectStoreController) createOrUpdateStore(objectstore *cephv1.CephObjectStore) {
+	logger.Infof("creating object store %s", objectstore.Name)
 	cfg := clusterConfig{
 		clusterInfo: c.clusterInfo,
 		context:     c.context,
@@ -179,8 +174,8 @@ func (c *ObjectStoreController) createOrUpdateStore(update bool, objectstore *ce
 		ownerRefs:   c.storeOwners(objectstore),
 		DataPathMap: cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, objectstore.Name, c.clusterInfo.Name, c.dataDirHostPath),
 	}
-	if err := cfg.createOrUpdate(update); err != nil {
-		logger.Errorf("failed to %s object store %s. %+v", action, objectstore.Name, err)
+	if err := cfg.createOrUpdate(); err != nil {
+		logger.Errorf("failed to create or update object store %s. %+v", objectstore.Name, err)
 	}
 }
 
@@ -223,7 +218,7 @@ func (c *ObjectStoreController) ParentClusterChanged(cluster cephv1.ClusterSpec,
 	}
 	for _, store := range objectStores.Items {
 		logger.Infof("updating the ceph version for object store %s to %s", store.Name, c.cephVersion.Image)
-		c.createOrUpdateStore(true, &store)
+		c.createOrUpdateStore(&store)
 		if err != nil {
 			logger.Errorf("failed to update object store %s. %+v", store.Name, err)
 		} else {
