@@ -20,6 +20,7 @@ import (
 	"math"
 	"testing"
 
+	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
 	v1 "k8s.io/api/core/v1"
@@ -27,30 +28,35 @@ import (
 )
 
 func TestPodVolumes(t *testing.T) {
-	if err := test.VolumeIsEmptyDir(k8sutil.DataDirVolume, PodVolumes("", "", false)); err != nil {
+	dataPathMap := opconfig.NewDatalessDaemonDataPathMap("rook-ceph", "/var/lib/rook")
+
+	if err := test.VolumeIsEmptyDir(k8sutil.DataDirVolume, PodVolumes(dataPathMap, "", false)); err != nil {
 		t.Errorf("PodVolumes(\"\") - data dir source is not EmptyDir: %s", err.Error())
 	}
-	if err := test.VolumeIsHostPath(k8sutil.DataDirVolume, "/dev/sdb", PodVolumes("/dev/sdb", "rook-ceph", false)); err != nil {
+	if err := test.VolumeIsHostPath(k8sutil.DataDirVolume, "/dev/sdb", PodVolumes(dataPathMap, "/dev/sdb", false)); err != nil {
 		t.Errorf("PodVolumes(\"/dev/sdb\") - data dir source is not HostPath: %s", err.Error())
 	}
 }
 
 func TestMountsMatchVolumes(t *testing.T) {
+
+	dataPathMap := opconfig.NewDatalessDaemonDataPathMap("rook-ceph", "/var/lib/rook")
+
 	volsMountsTestDef := test.VolumesAndMountsTestDefinition{
 		VolumesSpec: &test.VolumesSpec{
-			Moniker: "PodVolumes(\"/dev/sdc\")", Volumes: PodVolumes("/dev/sdc", "rook-ceph", false)},
+			Moniker: "PodVolumes(\"/dev/sdc\")", Volumes: PodVolumes(dataPathMap, "/dev/sdc", false)},
 		MountsSpecItems: []*test.MountsSpec{
-			{Moniker: "CephVolumeMounts(true)", Mounts: CephVolumeMounts(false)},
-			{Moniker: "RookVolumeMounts(true)", Mounts: RookVolumeMounts(false)}},
+			{Moniker: "CephVolumeMounts(true)", Mounts: CephVolumeMounts(dataPathMap, false)},
+			{Moniker: "RookVolumeMounts(true)", Mounts: RookVolumeMounts(dataPathMap, false)}},
 	}
 	volsMountsTestDef.TestMountsMatchVolumes(t)
 
 	volsMountsTestDef = test.VolumesAndMountsTestDefinition{
 		VolumesSpec: &test.VolumesSpec{
-			Moniker: "PodVolumes(\"/dev/sdc\")", Volumes: PodVolumes("/dev/sdc", "rook-ceph", true)},
+			Moniker: "PodVolumes(\"/dev/sdc\")", Volumes: PodVolumes(dataPathMap, "/dev/sdc", true)},
 		MountsSpecItems: []*test.MountsSpec{
-			{Moniker: "CephVolumeMounts(false)", Mounts: CephVolumeMounts(true)},
-			{Moniker: "RookVolumeMounts(false)", Mounts: RookVolumeMounts(true)}},
+			{Moniker: "CephVolumeMounts(false)", Mounts: CephVolumeMounts(dataPathMap, true)},
+			{Moniker: "RookVolumeMounts(false)", Mounts: RookVolumeMounts(dataPathMap, true)}},
 	}
 	volsMountsTestDef.TestMountsMatchVolumes(t)
 }

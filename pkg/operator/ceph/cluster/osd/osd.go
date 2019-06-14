@@ -165,7 +165,7 @@ type osdProperties struct {
 
 // Start the osd management
 func (c *Cluster) Start() error {
-	config := newProvisionConfig()
+	config := c.newProvisionConfig()
 
 	// Validate pod's memory if specified
 	// This is valid for both Filestore and Bluestore
@@ -291,7 +291,7 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig) {
 			continue
 		}
 
-		job, err := c.makeJob(osdProps)
+		job, err := c.makeJob(osdProps, config)
 		if err != nil {
 			message := fmt.Sprintf("failed to create prepare job for pvc %s: %v", osdProps.crushHostname, err)
 			config.addError(message)
@@ -386,7 +386,7 @@ func (c *Cluster) startProvisioningOverNodes(config *provisionConfig) {
 			storeConfig:    storeConfig,
 			metadataDevice: metadataDevice,
 		}
-		job, err := c.makeJob(osdProps)
+		job, err := c.makeJob(osdProps, config)
 		if err != nil {
 			message := fmt.Sprintf("failed to create prepare job node %s: %v", n.Name, err)
 			config.addError(message)
@@ -454,7 +454,7 @@ func (c *Cluster) startOSDDaemonsOnPVC(pvcName string, config *provisionConfig, 
 			continue
 		}
 
-		dp, err := c.makeDeployment(osdProps, osd)
+		dp, err := c.makeDeployment(osdProps, osd, config)
 		if err != nil {
 			errMsg := fmt.Sprintf("failed to create deployment for pvc %s: %v", osdProps.crushHostname, err)
 			config.addError(errMsg)
@@ -544,7 +544,7 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 			continue
 		}
 
-		dp, err := c.makeDeployment(osdProps, osd)
+		dp, err := c.makeDeployment(osdProps, osd, config)
 		if err != nil {
 			errMsg := fmt.Sprintf("failed to create deployment for node %s: %v", n.Name, err)
 			config.addError(errMsg)
@@ -672,7 +672,7 @@ func (c *Cluster) cleanupRemovedNode(config *provisionConfig, nodeName, crushNam
 		resources:     v1.ResourceRequirements{},
 		storeConfig:   osdconfig.StoreConfig{},
 	}
-	job, err := c.makeJob(osdProps)
+	job, err := c.makeJob(osdProps, config)
 	if err != nil {
 		message := fmt.Sprintf("failed to create prepare job node %s: %v", nodeName, err)
 		config.addError(message)

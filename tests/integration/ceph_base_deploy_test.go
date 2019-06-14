@@ -61,6 +61,8 @@ func checkIfRookClusterIsInstalled(s suite.Suite, k8sh *utils.K8sHelper, opNames
 		"Make sure there is at lest 1 rook-ceph-osd present in Running state")
 	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-ceph-mon", clusterNamespace, mons, "Running"),
 		fmt.Sprintf("Make sure there are %d rook-ceph-mon present in Running state", mons))
+	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-ceph-crashcollector", clusterNamespace, 1, "Running"),
+		"Make sure there is at lest 1 rook-ceph-crash present in Running state")
 }
 
 func checkIfRookClusterIsHealthy(s suite.Suite, testClient *clients.TestClient, clusterNamespace string) {

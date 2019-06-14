@@ -19,7 +19,9 @@ limitations under the License.
 // persisted to the host.
 package config
 
-import "path"
+import (
+	"path"
+)
 
 // A DataPathMap is a struct which contains information about where Ceph daemon data is stored in
 // containers and whether the data should be persisted to the host. If it is persisted to the host,
@@ -35,10 +37,12 @@ type DataPathMap struct {
 	// and data is not shared between container in a pod via empty dir.
 	ContainerDataDir string
 
-	// HostLogDir represents Ceph's logging directory on the host. If this is empty, logs are not
-	// persisted to the host. The log dir is always /var/log/ceph. If logs are not persisted to the
+	// HostLogAndCrashDir dir represents Ceph's logging and crash dump dir on the host.
+	// Logs are stored in the "log" subdir and crash dumps in the "crash" subdir of this directory.
+	// If this is empty logs are not persisted to the host.
+	// The log dir is always /var/log/ceph. If logs are not persisted to the
 	// host, logs are not shared between containers via empty dir or any other mechanism.
-	HostLogDir string
+	HostLogAndCrashDir string
 }
 
 // NewStatefulDaemonDataPathMap returns a new DataPathMap for a daemon which requires a persistent
@@ -51,9 +55,9 @@ func NewStatefulDaemonDataPathMap(
 	daemonType DaemonType, daemonID, namespace string,
 ) *DataPathMap {
 	return &DataPathMap{
-		HostDataDir:      path.Join(dataDirHostPath, daemonDataDirHostRelativePath),
-		ContainerDataDir: cephDataDir(daemonType, daemonID),
-		HostLogDir:       path.Join(dataDirHostPath, namespace, "log"),
+		HostDataDir:        path.Join(dataDirHostPath, daemonDataDirHostRelativePath),
+		ContainerDataDir:   cephDataDir(daemonType, daemonID),
+		HostLogAndCrashDir: path.Join(dataDirHostPath, namespace),
 	}
 }
 
@@ -63,9 +67,9 @@ func NewStatelessDaemonDataPathMap(
 	daemonType DaemonType, daemonID, namespace, dataDirHostPath string,
 ) *DataPathMap {
 	return &DataPathMap{
-		HostDataDir:      "",
-		ContainerDataDir: cephDataDir(daemonType, daemonID),
-		HostLogDir:       path.Join(dataDirHostPath, namespace, "log"),
+		HostDataDir:        "",
+		ContainerDataDir:   cephDataDir(daemonType, daemonID),
+		HostLogAndCrashDir: path.Join(dataDirHostPath, namespace),
 	}
 }
 
@@ -73,13 +77,33 @@ func NewStatelessDaemonDataPathMap(
 // dir in the container as the mon, mgr, osd, mds, and rgw daemons do.
 func NewDatalessDaemonDataPathMap(namespace, dataDirHostPath string) *DataPathMap {
 	return &DataPathMap{
-		HostDataDir:      "",
-		ContainerDataDir: "",
-		HostLogDir:       path.Join(dataDirHostPath, namespace, "log"),
+		HostDataDir:        dataDirHostPath,
+		ContainerDataDir:   "",
+		HostLogAndCrashDir: path.Join(dataDirHostPath, namespace),
 	}
 }
 
 func cephDataDir(daemonType DaemonType, daemonID string) string {
 	// daemons' default data dirs are: /var/lib/ceph/<daemon-type>/ceph-<daemon-id>
 	return path.Join(VarLibCephDir, string(daemonType), "ceph-"+daemonID)
+}
+
+// ContainerCrashDir returns the directory of the crash collector
+func (d *DataPathMap) ContainerCrashDir() string {
+	return VarLibCephCrashDir
+}
+
+// ContainerLogDir returns the directory of the Ceph logs
+func (d *DataPathMap) ContainerLogDir() string {
+	return VarLogCephDir
+}
+
+// HostLogDir returns the directory path on the host for Ceph logs
+func (d *DataPathMap) HostLogDir() string {
+	return path.Join(d.HostLogAndCrashDir, "log")
+}
+
+// HostCrashDir returns the directory path on the host for Ceph crashes
+func (d *DataPathMap) HostCrashDir() string {
+	return path.Join(d.HostLogAndCrashDir, "crash")
 }

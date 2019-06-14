@@ -26,6 +26,7 @@ import (
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
+	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -280,12 +281,17 @@ func TestDiscoverOSDs(t *testing.T) {
 		resources:     v1.ResourceRequirements{},
 		storeConfig:   config.StoreConfig{},
 	}
-	d1, err := c.makeDeployment(osdProp, osd1)
+
+	dataPathMap := &provisionConfig{
+		DataPathMap: opconfig.NewDatalessDaemonDataPathMap(c.Namespace, c.dataDirHostPath),
+	}
+
+	d1, err := c.makeDeployment(osdProp, osd1, dataPathMap)
 	assert.Nil(t, err)
 	assert.NotNil(t, d1)
 
 	osd2 := OSDInfo{ID: 101, IsDirectory: true, IsFileStore: true, DataPath: "/rook/path"}
-	d2, err := c.makeDeployment(osdProp, osd2)
+	d2, err := c.makeDeployment(osdProp, osd2, dataPathMap)
 	assert.Nil(t, err)
 	assert.NotNil(t, d2)
 
@@ -296,7 +302,7 @@ func TestDiscoverOSDs(t *testing.T) {
 		storeConfig:   config.StoreConfig{},
 	}
 	osd3 := OSDInfo{ID: 23, IsDirectory: true, IsFileStore: true, DataPath: "/rook/path"}
-	d3, err := c.makeDeployment(osdProp2, osd3)
+	d3, err := c.makeDeployment(osdProp2, osd3, dataPathMap)
 	assert.Nil(t, err)
 	assert.NotNil(t, d3)
 
@@ -384,13 +390,16 @@ func TestGetOSDInfo(t *testing.T) {
 		resources:     v1.ResourceRequirements{},
 		storeConfig:   config.StoreConfig{},
 	}
-	d1, _ := c.makeDeployment(osdProp, osd1)
+	dataPathMap := &provisionConfig{
+		DataPathMap: opconfig.NewDatalessDaemonDataPathMap(c.Namespace, c.dataDirHostPath),
+	}
+	d1, _ := c.makeDeployment(osdProp, osd1, dataPathMap)
 	osds1, _ := getOSDInfo(d1)
 	assert.Equal(t, 1, len(osds1))
 	assert.Equal(t, osd1.ID, osds1[0].ID)
 	assert.Equal(t, osd1.LVPath, osds1[0].LVPath)
 
-	d2, _ := c.makeDeployment(osdProp, osd2)
+	d2, _ := c.makeDeployment(osdProp, osd2, dataPathMap)
 	osds2, err := getOSDInfo(d2)
 	assert.Equal(t, 0, len(osds2))
 	assert.NotNil(t, err)

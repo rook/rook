@@ -69,9 +69,9 @@ func TestPodSpec(t *testing.T) {
 
 	// Deployment should have Ceph labels
 	cephtest.AssertLabelsContainCephRequirements(t, d.ObjectMeta.Labels,
-		config.RbdMirrorType, "a", appName, "ns")
+		config.RbdMirrorType, "a", AppName, "ns")
 
 	podTemplate := cephtest.NewPodTemplateSpecTester(t, &d.Spec.Template)
-	podTemplate.RunFullSuite(config.RbdMirrorType, "a", appName, "ns", "ceph/ceph:myceph",
+	podTemplate.RunFullSuite(config.RbdMirrorType, "a", AppName, "ns", "ceph/ceph:myceph",
 		"200", "100", "600", "300" /* resources */)
 }

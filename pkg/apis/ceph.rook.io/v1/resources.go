@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package v1
 
 import (
@@ -31,6 +32,8 @@ const (
 	ResourcesKeyPrepareOSD = "prepareosd"
 	// ResourcesKeyRBDMirror represents the name of resource in the CR for the rbdmirror
 	ResourcesKeyRBDMirror = "rbdmirror"
+	// ResourcesKeyCrashCollector represents the name of resource in the CR for the crash
+	ResourcesKeyCrashCollector = "crashcollector"
 )
 
 // GetMgrResources returns the placement for the MGR service
@@ -56,4 +59,9 @@ func GetPrepareOSDResources(p rook.ResourceSpec) v1.ResourceRequirements {
 // GetRBDMirrorResources returns the placement for the RBD Mirrors
 func GetRBDMirrorResources(p rook.ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyRBDMirror]
+}
+
+// GetCrashCollectorResources returns the placement for the crash daemon
+func GetCrashCollectorResources(p rook.ResourceSpec) v1.ResourceRequirements {
+	return p[ResourcesKeyCrashCollector]
 }
