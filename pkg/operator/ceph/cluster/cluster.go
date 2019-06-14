@@ -19,6 +19,7 @@ package cluster
 
 import (
 	"fmt"
+	"os"
 	"reflect"
 	"sort"
 	"sync"
@@ -32,6 +33,7 @@ import (
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/newosd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/rbd"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
@@ -208,6 +210,17 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 	err = mgrs.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the ceph mgr. %+v", err)
+	}
+
+	// TODO: this is only temporary until the new code path is complete enough to enable alongside
+	// the existing OSD code path
+	if os.Getenv("TEST_NEW_OSD_CODE_PATH") == "yes" {
+		// New OSD path
+		newosds := newosd.NewController(c.context, c.Namespace, spec, c.Info, rookImage, c.ownerRef)
+		err = newosds.Start()
+		if err != nil {
+			return fmt.Errorf("failed to test the new OSD path. %+v", err)
+		}
 	}
 
 	// Start the OSDs
