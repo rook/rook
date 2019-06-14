@@ -187,7 +187,11 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 }
 
 func (c *ClusterController) onDelete(obj interface{}) {
-	cluster := obj.(*cockroachdbv1alpha1.Cluster).DeepCopy()
+	cluster, ok := obj.(*cockroachdbv1alpha1.Cluster)
+	if !ok {
+		return
+	}
+	cluster = cluster.DeepCopy()
 	logger.Infof("cluster %s deleted from namespace %s", cluster.Name, cluster.Namespace)
 }
 

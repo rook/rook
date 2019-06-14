@@ -352,7 +352,11 @@ func (c *Controller) onUpdate(oldObj, newObj interface{}) {
 }
 
 func (c *Controller) onDelete(obj interface{}) {
-	objectstore := obj.(*miniov1alpha1.ObjectStore).DeepCopy()
+	objectstore, ok := obj.(*miniov1alpha1.ObjectStore)
+	if !ok {
+		return
+	}
+	objectstore = objectstore.DeepCopy()
 	logger.Infof("Delete Minio object store %s", objectstore.Name)
 
 	// Cleanup is handled by the owner references set in 'onAdd' and the k8s garbage collector.

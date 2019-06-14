@@ -436,7 +436,11 @@ func (c *Controller) onUpdate(oldObj, newObj interface{}) {
 }
 
 func (c *Controller) onDelete(obj interface{}) {
-	cluster := obj.(*nfsv1alpha1.NFSServer).DeepCopy()
+	cluster, ok := obj.(*nfsv1alpha1.NFSServer)
+	if !ok {
+		return
+	}
+	cluster = cluster.DeepCopy()
 	logger.Infof("cluster %s deleted from namespace %s", cluster.Name, cluster.Namespace)
 }
 
