@@ -13,6 +13,7 @@ an example usage
 - Rgw pods have liveness probe enabled
 - Rgw is now configured with the Beast backend as of the Nautilus release
 - OSD: newly updated cluster from 0.9 to 1.0.3 and thus Ceph Nautilus will have their OSDs allowing new features for Nautilus
+- Rgw instances have their own key and thus are properly reflected in the Ceph status
 
 ## Breaking Changes
 
@@ -23,5 +24,12 @@ an example usage
 ### <Storage Provider>
 
 ## Deprecations
+
+### Ceph
+
+- For rgw, when deploying an object store with `object.yaml`, using `allNodes` is not supported anymore, a transition path has been implemented in the code though.
+So if you were using `allNodes: true`, Rook will replace each daemonset with a deployment (one for one replacement) gradually.
+This operation will be triggered on an update or when a new version of the operator is deployed.
+Once complete, it is expected that you edit your object CR with `kubectl -n rook-ceph edit cephobjectstore.ceph.rook.io/my-store` and set `allNodes: false` and `instances` with the current number of rgw instances.
 
 ### <Storage Provider>

@@ -86,3 +86,8 @@ func TestFrontend(t *testing.T) {
 	result = rgwFrontend(cfg.clusterInfo.CephVersion)
 	assert.Equal(t, "beast", result)
 }
+
+func TestGenerateCephXUser(t *testing.T) {
+	fakeUser := generateCephXUser("rook-ceph-rgw-fake-store-fake-user")
+	assert.Equal(t, "client.fake.store.fake.user", fakeUser)
+}

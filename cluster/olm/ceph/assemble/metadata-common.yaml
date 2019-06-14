@@ -151,7 +151,6 @@ metadata:
               "port": 8080,
               "securePort": null,
               "instances": 1,
-              "allNodes": false,
               "placement": null,
               "annotations": null,
               "resources": null
