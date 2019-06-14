@@ -38,6 +38,7 @@
 - OSDs provisioned by `ceph-volume` now supports `metadataDevice` and `databaseSizeMB` options.
 - The flex driver can be configured to properly disable SELinux relabeling and FSGroup with the settings in operator.yaml.
 - Rgw is now configured with the Beast backend as of the Nautilus release
+- OSD: newly updated cluster from 0.9 to 1.0.3 and thus Ceph Nautilus will have their OSDs allowing new features for Nautilus
 
 ## Breaking Changes
 
