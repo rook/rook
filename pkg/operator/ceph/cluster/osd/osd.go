@@ -30,6 +30,7 @@ import (
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	osdconfig "github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/display"
 	apps "k8s.io/api/apps/v1"
@@ -185,6 +186,36 @@ func (c *Cluster) Start() error {
 	if len(config.errorMessages) > 0 {
 		return fmt.Errorf("%d failures encountered while running osds in namespace %s: %+v",
 			len(config.errorMessages), c.Namespace, strings.Join(config.errorMessages, "\n"))
+	}
+
+	// The following block is used to apply any command(s) required by an upgrade
+	// The block below handles the upgrade from Mimic to Nautilus.
+	if c.clusterInfo.CephVersion.IsAtLeastNautilus() {
+		versions, err := client.GetCephVersions(c.context)
+		if err != nil {
+			logger.Warningf("failed to get ceph daemons versions. this likely means there are no osds yet. %+v", err)
+		} else {
+			// If length is one, this clearly indicates that all the osds are running the same version
+			logger.Infof("len of version.Osd is %d", len(versions.Osd))
+			// If this is the first time we are creating a cluster length will be 0
+			// On an initial OSD boostrap, by the time we reach this code, the OSDs haven't registered yet
+			// Basically, this task is happening too quickly and OSD pods are not running yet.
+			// That's not an issue since it's an initial bootstrap and not an update.
+			if len(versions.Osd) == 1 {
+				for v := range versions.Osd {
+					logger.Infof("v is %s", v)
+					osdVersion, err := cephver.ExtractCephVersion(v)
+					if err != nil {
+						return fmt.Errorf("failed to extract ceph version. %+v", err)
+					}
+					logger.Infof("osdVersion is: %v", osdVersion)
+					// if the version of these OSDs is Nautilus then we run the command
+					if osdVersion.IsAtLeastNautilus() {
+						client.EnableNautilusOSD(c.context)
+					}
+				}
+			}
+		}
 	}
 
 	logger.Infof("completed running osds in namespace %s", c.Namespace)
