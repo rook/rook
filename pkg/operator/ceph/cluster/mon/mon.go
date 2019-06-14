@@ -62,6 +62,9 @@ const (
 	adminSecretName   = "admin-secret"
 	clusterSecretName = "cluster-name"
 
+	// configuration map for csi
+	csiConfigKey = "csi-cluster-config-json"
+
 	// DefaultMonCount Default mon count for a cluster
 	DefaultMonCount = 3
 	// MaxMonCount Maximum allowed mon count for a cluster
@@ -463,10 +466,17 @@ func (c *Cluster) saveMonConfig() error {
 		return fmt.Errorf("failed to marshal mon mapping. %+v", err)
 	}
 
+	csiConfigValue, err := FormatCsiClusterConfig(
+		c.Namespace, c.clusterInfo.Monitors)
+	if err != nil {
+		return fmt.Errorf("failed to format csi config: %+v", err)
+	}
+
 	configMap.Data = map[string]string{
 		EndpointDataKey: FlattenMonEndpoints(c.clusterInfo.Monitors),
 		MaxMonIDKey:     strconv.Itoa(c.maxMonID),
 		MappingKey:      string(monMapping),
+		csiConfigKey:    csiConfigValue,
 	}
 
 	if _, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(configMap); err != nil {

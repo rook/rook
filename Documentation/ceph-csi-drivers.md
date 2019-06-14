@@ -116,7 +116,12 @@ expects a pool named `rbd` in your Ceph cluster. You can create this pool using
 [rook pool
 CRD](https://github.com/rook/rook/blob/master/Documentation/ceph-pool-crd.md).
 
-Please update `monitors` to reflect the Ceph monitors.
+Update the value of the `clusterID` field to match the namespace that rook is
+running in. When Ceph CSI is deployed by Rook, the operator will automatically
+maintain a config map whose contents will match this key. By default this is
+"rook-ceph".
+
+Then create the storage class:
 
 ```console
 kubectl create -f cluster/examples/kubernetes/ceph/csi/example/rbd/storegeclass.yaml
