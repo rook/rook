@@ -109,7 +109,6 @@ if [ -z "${arch}" ]; then
 fi
 
 HELM="$(install_helm)"
-echo "debug: HELM=$HELM"
 
 case "${1:-}" in
     up)
