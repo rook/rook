@@ -81,11 +81,20 @@ You can find Prometheus Consoles here: https://github.com/ceph/cephmetrics/tree/
 A guide to how you can write your own Prometheus consoles can be found on the official Prometheus site here: https://prometheus.io/docs/visualization/consoles/.
 
 ## Prometheus Alerts
-To enable Prometheus based alerting for Ceph, run the following commands:  
+To enable prometheus alerts during cluster deployment, make following changes to `cluster.yaml`
+```YAML
+monitoring:
+  enabled: true
+  rulesNamespace: "rook-ceph"
 ```
+_Note: This expects prometheus to be pre-installed by the admin._
+
+To enable prometheus alerts after cluster is deployed, run the following commands:  
+```BASH
 cd cluster/examples/kubernetes/ceph/monitoring
-kubectl create -f prometheus-ceph-rules.yaml
+kubectl create -f prometheus-ceph-v<VERSION>-rules.yaml
 ```
+_where, VERSION is the version of ceph cluster to be monitored_
 
 ## Grafana Dashboards
 The dashboards have been created by [@galexrt](https://github.com/galexrt). For feedback on the dashboards please reach out to him on the [Rook.io Slack](https://slack.rook.io).

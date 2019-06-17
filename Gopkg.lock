@@ -113,6 +113,20 @@
   version = "v4"
 
 [[projects]]
+  digest = "1:32945438a670edb831120e35007cbb4ba17218e0c5fd52566ba7c56043ae0d96"
+  name = "github.com/coreos/prometheus-operator"
+  packages = [
+    "pkg/apis/monitoring",
+    "pkg/apis/monitoring/v1",
+    "pkg/client/versioned",
+    "pkg/client/versioned/scheme",
+    "pkg/client/versioned/typed/monitoring/v1",
+  ]
+  pruneopts = "UT"
+  revision = "18fbf558ab7f8809fd610a3dc50bf483508dc1bb"
+  version = "v0.30.1"
+
+[[projects]]
   digest = "1:86909a5b1e4522ad763f86327cfa65e51d7eb838d4adb3d6f68069fede181122"
   name = "github.com/corpix/uarand"
   packages = ["."]
@@ -1367,6 +1381,8 @@
     "github.com/aws/aws-sdk-go/aws/session",
     "github.com/aws/aws-sdk-go/service/s3",
     "github.com/coreos/pkg/capnslog",
+    "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1",
+    "github.com/coreos/prometheus-operator/pkg/client/versioned",
     "github.com/davecgh/go-spew/spew",
     "github.com/ghodss/yaml",
     "github.com/go-ini/ini",
@@ -1408,6 +1424,7 @@
     "k8s.io/apimachinery/pkg/util/validation",
     "k8s.io/apimachinery/pkg/util/version",
     "k8s.io/apimachinery/pkg/util/wait",
+    "k8s.io/apimachinery/pkg/util/yaml",
     "k8s.io/apimachinery/pkg/watch",
     "k8s.io/apiserver/pkg/server",
     "k8s.io/client-go/discovery",

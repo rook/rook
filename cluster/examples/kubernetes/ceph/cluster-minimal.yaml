@@ -24,5 +24,8 @@ spec:
     allowMultiplePerNode: false
   dashboard:
     enabled: true
+  monitoring:
+    enabled: false  # requires Prometheus to be pre-installed
+    rulesNamespace: rook-ceph
   network:
     hostNetwork: false

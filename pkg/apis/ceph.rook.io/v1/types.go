@@ -77,6 +77,9 @@ type ClusterSpec struct {
 
 	// Dashboard settings
 	Dashboard DashboardSpec `json:"dashboard,omitempty"`
+
+	// Prometheus based Monitoring settings
+	Monitoring MonitoringSpec `json:"monitoring,omitempty"`
 }
 
 // VersionSpec represents the settings for the Ceph version that Rook is orchestrating.
@@ -98,6 +101,17 @@ type DashboardSpec struct {
 	Port int `json:"port,omitempty"`
 	// Whether SSL should be used
 	SSL *bool `json:"ssl,omitempty"`
+}
+
+// MonitoringSpec represents the settings for Prometheus based Ceph monitoring
+type MonitoringSpec struct {
+	// Whether to create the prometheus rules for the ceph cluster. If true, the prometheus
+	// types must exist or the creation will fail.
+	Enabled bool `json:"enabled,omitempty"`
+
+	// The namespace where the prometheus rules and alerts should be created.
+	// If empty, the same namespace as the cluster will be used.
+	RulesNamespace string `json:"rulesNamespace,omitempty"`
 }
 
 type ClusterStatus struct {
