@@ -103,9 +103,13 @@ func TestClusterDelete(t *testing.T) {
 
 		},
 	}
+	callback := func() error {
+		logger.Infof("test success callback")
+		return nil
+	}
 
 	// create the cluster controller and tell it that the cluster has been deleted
-	controller := NewClusterController(context, "", volumeAttachmentController)
+	controller := NewClusterController(context, "", volumeAttachmentController, callback)
 	clusterToDelete := &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: clusterName}}
 	controller.handleDelete(clusterToDelete, time.Microsecond)
 
@@ -177,7 +181,10 @@ func TestRemoveFinalizer(t *testing.T) {
 		Clientset:     clientset,
 		RookClientset: rookfake.NewSimpleClientset(),
 	}
-	controller := NewClusterController(context, "", &attachment.MockAttachment{})
+	callback := func() error {
+		return fmt.Errorf("test failed callback")
+	}
+	controller := NewClusterController(context, "", &attachment.MockAttachment{}, callback)
 
 	// *****************************************
 	// start with a current version ceph cluster
