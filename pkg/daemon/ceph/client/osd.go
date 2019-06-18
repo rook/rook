@@ -65,6 +65,10 @@ type OSDDump struct {
 	} `json:"osds"`
 }
 
+type SafeToDestroyStatus struct {
+	SafeToDestroy []int `json:"safe_to_destroy"`
+}
+
 // StatusByID returns status and inCluster states for given OSD id
 func (dump *OSDDump) StatusByID(id int64) (int64, int64, error) {
 	for _, d := range dump.OSDs {
@@ -148,6 +152,24 @@ func OSDRemove(context *clusterd.Context, clusterName string, osdID int) (string
 	args := []string{"osd", "rm", strconv.Itoa(osdID)}
 	buf, err := NewCephCommand(context, clusterName, args).Run()
 	return string(buf), err
+}
+
+func OsdSafeToDestroy(context *clusterd.Context, clusterName string, osdID int) (bool, error) {
+	args := []string{"osd", "safe-to-destroy", strconv.Itoa(osdID)}
+	cmd := NewCephCommand(context, clusterName, args)
+	buf, err := cmd.Run()
+	if err != nil {
+		return false, fmt.Errorf("failed to get safe-to-destroy status: %+v", err)
+	}
+
+	var output SafeToDestroyStatus
+	if err := json.Unmarshal(buf, &output); err != nil {
+		return false, fmt.Errorf("failed to unmarshal safe-to-destroy response: %+v", err)
+	}
+	if len(output.SafeToDestroy) != 0 && output.SafeToDestroy[0] == osdID {
+		return true, nil
+	}
+	return false, nil
 }
 
 func (usage *OSDUsage) ByID(osdID int) *OSDNodeUsage {
