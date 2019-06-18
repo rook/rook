@@ -328,3 +328,18 @@ func TestHostNetwork(t *testing.T) {
 	assert.Equal(t, true, r.Spec.Template.Spec.HostNetwork)
 	assert.Equal(t, v1.DNSClusterFirstWithHostNet, r.Spec.Template.Spec.DNSPolicy)
 }
+
+func TestOsdOnSDNFlag(t *testing.T) {
+	hostnetwork := false
+	v := cephver.Mimic
+	args := osdOnSDNFlag(hostnetwork, v)
+	assert.Empty(t, args)
+
+	v = cephver.CephVersion{Major: 14, Minor: 2, Extra: 2}
+	args = osdOnSDNFlag(hostnetwork, v)
+	assert.NotEmpty(t, args)
+
+	v = cephver.Octopus
+	args = osdOnSDNFlag(hostnetwork, v)
+	assert.NotEmpty(t, args)
+}
