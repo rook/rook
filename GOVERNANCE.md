@@ -2,7 +2,7 @@
 
 This document defines governance policies for the Rook project.
 
-## Roles
+## Maintainer Roles
 
 Rook uses a two-tiered system of maintainer roles:
 
@@ -95,21 +95,22 @@ the maintainers per the voting process below.
 * In general continue to be willing to spend at least 25% of ones time working on Rook (~1.25
   business days per week).
 
-### Approving PRs
-
-PRs may be merged after receiving at least **1 approval from a maintainer** (either senior or standard)
-that is **not the author** of the PR, and preferably from a **different organization** than the PR author.
-As complexity of a PR increases, such as design changes or major PRs, the need for an approval from
-a different organization also increases.  This should be a judgement call from the maintainers,
-and it is expected that all maintainers act in good faith to seek approval from a different
-organization when appropriate.
-
 ### Github Project Administration
 
 Maintainers will be added to the Rook GitHub organization (if they are not already) and added to
 the GitHub Maintainers team.
 
 After 6 months, **senior** maintainers will be made an "owner" of the Rook GitHub organization.
+
+## Updating Change Approval Roles
+
+The full change approval process is described in the [contributing guide](CONTRIBUTING.md#change-approval).
+
+All new reviewers and approvers must be nominated by someone (anyone) opening a pull request that adds the nominated person’s name to the appropriate [`CODE-OWNERS`](CODE-OWNERS) files in the appropriate roles.
+Similarly, to remove a reviewer or approver, a pull request should be opened that removes their name from the appropriate [`CODE-OWNERS`](CODE-OWNERS) files.
+
+The maintainer team will approve this update in the standard voting and conflict resolution process.
+Note that new reviewer/approver nominations do not go through the standard pull request approval described in the [contributing guide](CONTRIBUTING.md#change-approval), only the maintainer team can approve updates of members to the change approval roles.
 
 ## Conflict resolution and voting
 
