@@ -1,0 +1,36 @@
+apiVersion: extensions/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: rook
+spec:
+  fsGroup:
+    rule: RunAsAny
+  privileged: true
+  runAsUser:
+    rule: RunAsAny
+  seLinux:
+    rule: RunAsAny
+  supplementalGroups:
+    rule: RunAsAny
+  volumes:
+    - 'configMap'
+    - 'emptyDir'
+    - 'projected'
+    - 'secret'
+    - 'downwardAPI'
+    - 'hostPath'
+    - 'flexVolume'
+  hostPID: true
+  hostNetwork: true
+  hostIPC: true
+  # The following section is only needed when hostNetwork: true
+  hostPorts:
+    # Ceph msgr2 port
+    - min: 3300
+      max: 3300
+    # Ceph msgr1 ports
+    - min: 6789
+      max: 7300
+    # Ceph MGR Prometheus Metrics
+    - min: 9283
+      max: 9283

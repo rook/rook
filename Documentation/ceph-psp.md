@@ -10,36 +10,7 @@ See the [Rook overall PSP document](./psp.md) before continuing on here with Cep
 
 ##### PodSecurityPolicy
 
-You need at least one `PodSecurityPolicy` that allows privileged `Pod` execution. Here is an example
-that is reasonably pared down for Ceph, though more work to minimize permissions can be done:
-
-```yaml
-apiVersion: policy/v1beta1
-kind: PodSecurityPolicy
-metadata:
-  name: privileged
-spec:
-  fsGroup:
-    rule: RunAsAny
-  privileged: true
-  runAsUser:
-    rule: RunAsAny
-  seLinux:
-    rule: RunAsAny
-  supplementalGroups:
-    rule: RunAsAny
-  volumes:
-    - 'configMap'
-    - 'emptyDir'
-    - 'projected'
-    - 'secret'
-    - 'downwardAPI'
-    - 'hostPath'
-    - 'flexVolume'
-  hostPID: true
-  # hostNetwork is required for using host networking
-  hostNetwork: false
-```
+You need at least one `PodSecurityPolicy` that allows privileged `Pod` execution. Please look at [https://github.com/rook/rook/cluster/examples/kubernetes/ceph/psp.yaml](psp.yaml) for a reasonably pared down for Ceph.
 
 **Hint**: Allowing `hostNetwork` usage is required when using `hostNetwork: true` in the Cluster
 Resource Definition! You are then also required to allow the usage of `hostPorts` in the
