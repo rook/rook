@@ -77,7 +77,7 @@ func TestMigrateClusterObject(t *testing.T) {
 		Clientset:     clientset,
 		RookClientset: rookfake.NewSimpleClientset(legacyCluster),
 	}
-	controller := NewClusterController(context, "", &attachment.MockAttachment{})
+	controller := NewClusterController(context, "", &attachment.MockAttachment{}, nil)
 
 	// convert the legacy cluster object in memory and assert that a migration is needed
 	convertedCluster, migrationNeeded, err := getClusterObject(legacyCluster)
@@ -105,7 +105,7 @@ func TestOnUpdateLegacyClusterMigration(t *testing.T) {
 		// in the API during an onUpdate event
 		RookClientset: rookfake.NewSimpleClientset(newLegacyCluster),
 	}
-	controller := NewClusterController(context, "", &attachment.MockAttachment{})
+	controller := NewClusterController(context, "", &attachment.MockAttachment{}, nil)
 
 	// call the onUpdate event with the old/new legacy cluster pair
 	controller.onUpdate(oldLegacyCluster, newLegacyCluster)
@@ -136,7 +136,7 @@ func TestOnUpdateLegacyClusterDeleted(t *testing.T) {
 		// in the API during an onUpdate event
 		RookClientset: rookfake.NewSimpleClientset(newLegacyCluster),
 	}
-	controller := NewClusterController(context, "", &attachment.MockAttachment{})
+	controller := NewClusterController(context, "", &attachment.MockAttachment{}, nil)
 
 	// call the onUpdate event with the old/new legacy cluster pair, since the object has a deletion timestamp and a finalizer, this
 	// onUpdate event is actually saying that the legacy cluster has been deleted (probably from a completed migration)

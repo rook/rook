@@ -91,20 +91,22 @@ var ClusterResourceRookLegacy = opkit.CustomResource{
 
 // ClusterController controls an instance of a Rook cluster
 type ClusterController struct {
-	context          *clusterd.Context
-	volumeAttachment attachment.Attachment
-	devicesInUse     bool
-	rookImage        string
-	clusterMap       map[string]*cluster
+	context            *clusterd.Context
+	volumeAttachment   attachment.Attachment
+	devicesInUse       bool
+	rookImage          string
+	clusterMap         map[string]*cluster
+	addClusterCallback func() error
 }
 
 // NewClusterController create controller for watching cluster custom resources created
-func NewClusterController(context *clusterd.Context, rookImage string, volumeAttachment attachment.Attachment) *ClusterController {
+func NewClusterController(context *clusterd.Context, rookImage string, volumeAttachment attachment.Attachment, addClusterCallback func() error) *ClusterController {
 	return &ClusterController{
-		context:          context,
-		volumeAttachment: volumeAttachment,
-		rookImage:        rookImage,
-		clusterMap:       make(map[string]*cluster),
+		context:            context,
+		volumeAttachment:   volumeAttachment,
+		rookImage:          rookImage,
+		clusterMap:         make(map[string]*cluster),
+		addClusterCallback: addClusterCallback,
 	}
 }
 
@@ -223,6 +225,13 @@ func (c *ClusterController) onK8sNodeAdd(obj interface{}) {
 }
 
 func (c *ClusterController) onAdd(obj interface{}) {
+	// notify the callback that a cluster crd is being added
+	if c.addClusterCallback != nil {
+		if err := c.addClusterCallback(); err != nil {
+			logger.Errorf("%+v", err)
+		}
+	}
+
 	clusterObj, migrationNeeded, err := getClusterObject(obj)
 	if err != nil {
 		logger.Errorf("failed to get cluster object: %+v", err)

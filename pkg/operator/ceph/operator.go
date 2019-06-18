@@ -64,22 +64,22 @@ type Operator struct {
 	securityAccount string
 	// The custom resource that is global to the kubernetes cluster.
 	// The cluster is global because you create multiple clusters in k8s
-	clusterController *cluster.ClusterController
+	clusterController     *cluster.ClusterController
+	delayedDaemonsStarted bool
 }
 
 // New creates an operator instance
 func New(context *clusterd.Context, volumeAttachmentWrapper attachment.Attachment, rookImage, securityAccount string) *Operator {
-	clusterController := cluster.NewClusterController(context, rookImage, volumeAttachmentWrapper)
-
 	schemes := []opkit.CustomResource{cluster.ClusterResource, pool.PoolResource, object.ObjectStoreResource, objectuser.ObjectStoreUserResource,
 		file.FilesystemResource, attachment.VolumeResource}
-	return &Operator{
-		context:           context,
-		clusterController: clusterController,
-		resources:         schemes,
-		rookImage:         rookImage,
-		securityAccount:   securityAccount,
+	o := &Operator{
+		context:         context,
+		resources:       schemes,
+		rookImage:       rookImage,
+		securityAccount: securityAccount,
 	}
+	o.clusterController = cluster.NewClusterController(context, rookImage, volumeAttachmentWrapper, o.startSystemDaemons)
+	return o
 }
 
 // Run the operator instance
@@ -90,12 +90,6 @@ func (o *Operator) Run() error {
 		return fmt.Errorf("Rook operator namespace is not provided. Expose it via downward API in the rook operator manifest file using environment variable %s", k8sutil.PodNamespaceEnvVar)
 	}
 
-	rookAgent := agent.New(o.context.Clientset)
-
-	if err := rookAgent.Start(namespace, o.rookImage, o.securityAccount); err != nil {
-		return fmt.Errorf("Error starting agent daemonset: %v", err)
-	}
-
 	rookDiscover := discover.New(o.context.Clientset)
 	if err := rookDiscover.Start(namespace, o.rookImage, o.securityAccount); err != nil {
 		return fmt.Errorf("Error starting device discovery daemonset: %v", err)
@@ -104,26 +98,6 @@ func (o *Operator) Run() error {
 	serverVersion, err := o.context.Clientset.Discovery().ServerVersion()
 	if err != nil {
 		return fmt.Errorf("Error getting server version: %v", err)
-	}
-
-	if serverVersion.Major >= csi.KubeMinMajor && serverVersion.Minor >= csi.KubeMinMinor && csi.CSIEnabled() {
-		logger.Infof("Ceph CSI driver is enabled, validate csi param")
-		if err = csi.ValidateCSIParam(); err != nil {
-			logger.Warningf("invalid csi params: %v", err)
-			if csi.ExitOnError {
-				return err
-			}
-		} else {
-			csi.SetCSINamespace(namespace)
-			if err = csi.StartCSIDrivers(namespace, o.context.Clientset); err != nil {
-				logger.Warningf("failed to start Ceph csi drivers: %v", err)
-				if csi.ExitOnError {
-					return err
-				}
-			} else {
-				logger.Infof("successfully started Ceph csi drivers")
-			}
-		}
 	}
 
 	signalChan := make(chan os.Signal, 1)
@@ -164,4 +138,48 @@ func (o *Operator) Run() error {
 			return nil
 		}
 	}
+}
+
+func (o *Operator) startSystemDaemons() error {
+	if o.delayedDaemonsStarted {
+		return nil
+	}
+
+	namespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
+	if namespace == "" {
+		return fmt.Errorf("Rook operator namespace is not provided. Expose it via downward API in the rook operator manifest file using environment variable %s", k8sutil.PodNamespaceEnvVar)
+	}
+
+	rookAgent := agent.New(o.context.Clientset)
+	if err := rookAgent.Start(namespace, o.rookImage, o.securityAccount); err != nil {
+		return fmt.Errorf("Error starting agent daemonset: %v", err)
+	}
+
+	serverVersion, err := o.context.Clientset.Discovery().ServerVersion()
+	if err != nil {
+		return fmt.Errorf("Error getting server version: %v", err)
+	}
+
+	if serverVersion.Major >= csi.KubeMinMajor && serverVersion.Minor >= csi.KubeMinMinor && csi.CSIEnabled() {
+		logger.Infof("Ceph CSI driver is enabled, validate csi param")
+		if err = csi.ValidateCSIParam(); err != nil {
+			logger.Warningf("invalid csi params: %v", err)
+			if csi.ExitOnError {
+				return err
+			}
+		} else {
+			csi.SetCSINamespace(namespace)
+			if err = csi.StartCSIDrivers(namespace, o.context.Clientset); err != nil {
+				logger.Warningf("failed to start Ceph csi drivers: %v", err)
+				if csi.ExitOnError {
+					return err
+				}
+			} else {
+				logger.Infof("successfully started Ceph csi drivers")
+			}
+		}
+	}
+
+	o.delayedDaemonsStarted = true
+	return nil
 }

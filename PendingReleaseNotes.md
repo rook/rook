@@ -14,6 +14,7 @@ an example usage
 - Rgw is now configured with the Beast backend as of the Nautilus release
 - OSD: newly updated cluster from 0.9 to 1.0.3 and thus Ceph Nautilus will have their OSDs allowing new features for Nautilus
 - Rgw instances have their own key and thus are properly reflected in the Ceph status
+- The Rook Agent pods are now started when the CephCluster is created rather than immediately when the operator is started.
 
 ## Breaking Changes
 
