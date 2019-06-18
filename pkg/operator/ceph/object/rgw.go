@@ -114,7 +114,7 @@ func (c *clusterConfig) startRGWPods() error {
 			DaemonID:     daemonName,
 		}
 
-		deployment := c.startDeployment(rgwConfig)
+		deployment := c.createDeployment(rgwConfig)
 		logger.Infof("object store %s deployment %s started", c.store.Name, deployment.Name)
 		createdDeployment, createErr := c.context.Clientset.AppsV1().Deployments(c.store.Namespace).Create(deployment)
 		if createErr != nil {

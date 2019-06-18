@@ -29,7 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func (c *clusterConfig) startDeployment(rgwConfig *rgwConfig) *apps.Deployment {
+func (c *clusterConfig) createDeployment(rgwConfig *rgwConfig) *apps.Deployment {
 	replicas := int32(1)
 	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
