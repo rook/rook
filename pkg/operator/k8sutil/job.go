@@ -29,6 +29,10 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+// RunReplaceableJob runs a Kubernetes job with the intention that the job can be replaced by
+// another call to this function with the same job name. For example, if a storage operator is
+// restarted/updated before the job can complete, the operator's next run of the job should replace
+// the previous job if deleteIfFound is set to true.
 func RunReplaceableJob(clientset kubernetes.Interface, job *batch.Job, deleteIfFound bool) error {
 	// check if the job was already created and what its status is
 	existingJob, err := clientset.BatchV1().Jobs(job.Namespace).Get(job.Name, metav1.GetOptions{})
@@ -80,6 +84,7 @@ func WaitForJobCompletion(clientset kubernetes.Interface, job *batch.Job, timeou
 	})
 }
 
+// DeleteBatchJob deletes a Kubernetes job.
 func DeleteBatchJob(clientset kubernetes.Interface, namespace, name string, wait bool) error {
 	propagation := metav1.DeletePropagationForeground
 	gracePeriod := int64(0)
