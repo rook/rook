@@ -236,3 +236,24 @@ func MdsActiveOrStandbyReplay(context *clusterd.Context, clusterName, fsName str
 
 	return fmt.Errorf("mds %s is %s, bad state", fsName, status.Fsmap.ByRank[mdsRank].Status)
 }
+
+// IsCephHealthy verifies Ceph is healthy, useful when performing an upgrade
+// check if it's a minor or major upgrade... too!
+func IsCephHealthy(context *clusterd.Context, clusterName string) bool {
+	cephStatus, err := Status(context, clusterName, false)
+	if err != nil {
+		logger.Errorf("failed to detect if Ceph is healthy. failed to get ceph status. %+v", err)
+		return false
+	}
+
+	return isCephHealthy(cephStatus)
+}
+
+func isCephHealthy(status CephStatus) bool {
+	s := status.Health.Status
+	if s == "HEALTH_WARN" || s == "HEALTH_OK" {
+		return true
+	}
+
+	return false
+}

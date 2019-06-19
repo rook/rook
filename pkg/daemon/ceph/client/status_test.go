@@ -118,3 +118,20 @@ func TestGetMDSRank(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 0, mdsRankFake)
 }
+
+func TestIsCephHealthy(t *testing.T) {
+	var statusFake CephStatus
+	json.Unmarshal(statusFakeRaw, &statusFake)
+
+	statusFake.Health.Status = "HEALTH_WARN"
+	s := isCephHealthy(statusFake)
+	assert.True(t, s)
+
+	statusFake.Health.Status = "HEALTH_OK"
+	s = isCephHealthy(statusFake)
+	assert.True(t, s)
+
+	statusFake.Health.Status = "HEALTH_ERR"
+	s = isCephHealthy(statusFake)
+	assert.False(t, s)
+}

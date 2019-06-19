@@ -29,6 +29,7 @@ import (
 	cephbeta "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
@@ -495,9 +496,11 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 	logger.Infof("update event for cluster %s is supported, orchestrating update now", newClust.Namespace)
 
 	// if the image changed, we need to detect the new image version
+	versionChanged := false
 	if oldClust.Spec.CephVersion.Image != newClust.Spec.CephVersion.Image {
 		logger.Infof("the ceph version changed. detecting the new image version...")
 		version, err := cluster.detectCephVersion(c.rookImage, newClust.Spec.CephVersion.Image, detectCephVersionTimeout)
+		versionChanged = true
 		if err != nil {
 			logger.Errorf("unknown ceph major version. %+v", err)
 			return
@@ -532,6 +535,16 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 	logger.Debugf("new cluster: %+v", newClust.Spec)
 
 	cluster.Spec = &newClust.Spec
+
+	// If the image version changed let's make sure we can safely upgrade
+	// check ceph's status, if not healthy we fail
+	if versionChanged {
+		cephStatus := client.IsCephHealthy(c.context, cluster.Namespace)
+		if !cephStatus {
+			logger.Errorf("ceph status in namespace %s is not healthy, refusing to upgrade. fix the cluster and re-edit the cluster CR to trigger a new orchestation update", cluster.Namespace)
+			return
+		}
+	}
 
 	// attempt to update the cluster.  note this is done outside of wait.Poll because that function
 	// will wait for the retry interval before trying for the first time.
