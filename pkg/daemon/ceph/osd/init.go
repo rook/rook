@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 
 	"path"
 	"path/filepath"
@@ -91,7 +92,12 @@ func copyBinary(sourceDir, targetDir, filename string) error {
 
 	// Check if the target path exists, and skip the copy if it does
 	if _, err := os.Stat(targetPath); err == nil {
-		return nil
+		// Check for binary on PATH
+		p, err := exec.LookPath(filename)
+		if err != nil {
+			return nil
+		}
+		sourcePath = path.Join(p, filename)
 	}
 
 	sourceFile, err := os.Open(sourcePath)
