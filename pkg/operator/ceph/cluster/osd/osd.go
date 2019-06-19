@@ -200,19 +200,16 @@ func (c *Cluster) Start() error {
 			logger.Warningf("failed to get ceph daemons versions; this likely means there are no osds yet. %+v", err)
 		} else {
 			// If length is one, this clearly indicates that all the osds are running the same version
-			logger.Infof("len of version.Osd is %d", len(versions.Osd))
 			// If this is the first time we are creating a cluster length will be 0
 			// On an initial OSD boostrap, by the time we reach this code, the OSDs haven't registered yet
 			// Basically, this task is happening too quickly and OSD pods are not running yet.
 			// That's not an issue since it's an initial bootstrap and not an update.
 			if len(versions.Osd) == 1 {
 				for v := range versions.Osd {
-					logger.Infof("v is %s", v)
 					osdVersion, err := cephver.ExtractCephVersion(v)
 					if err != nil {
 						return fmt.Errorf("failed to extract ceph version. %+v", err)
 					}
-					logger.Infof("osdVersion is: %v", osdVersion)
 					// if the version of these OSDs is Nautilus then we run the command
 					if osdVersion.IsAtLeastNautilus() {
 						client.EnableNautilusOSD(c.context)
