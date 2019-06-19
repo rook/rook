@@ -4,17 +4,11 @@ metadata:
   name: csi-cephfs
 provisioner: cephfs.csi.ceph.com
 parameters:
-  # Comma separated list of Ceph monitors
-  # if using FQDN, make sure csi plugin's dns policy is appropriate.  
-  monitors: mon1:port,mon2:port,...
+  # clusterID is the namespace where operator is deployed.
+  clusterID: rook-ceph
 
-  # For provisionVolume: "true":
-  #   A new volume will be created along with a new Ceph user.
-  #   Requires admin credentials (adminID, adminKey).
-  # For provisionVolume: "false":
-  #   It is assumed the volume already exists and the user is expected
-  #   to provide path to that volume (rootPath) and user credentials (userID, userKey).
-  provisionVolume: "true"
+  # CephFS filesystem name into which the volume shall be created
+  fsName: myfs
 
   # Ceph pool into which the volume shall be created
   # Required for provisionVolume: "true"
@@ -35,3 +29,5 @@ parameters:
   # or by setting the default mounter explicitly via --volumemounter command-line argument.
   # mounter: kernel
 reclaimPolicy: Delete
+mountOptions:
+  - noexec

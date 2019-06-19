@@ -44,13 +44,15 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: {{ .CephFSPluginImage }}
+          image: {{ .CSIPluginImage }}
           args:
             - "--nodeid=$(NODE_ID)"
+            - "--type=cephfs"
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--v=5"
             - "--drivername=cephfs.csi.ceph.com"
             - "--metadatastorage=k8s_configmap"
+            - "--mountcachedir=/mount-cache-dir"
           env:
             - name: NODE_ID
               valueFrom:
@@ -79,6 +81,10 @@ spec:
               readOnly: true
             - name: host-dev
               mountPath: /dev
+            - name: mount-cache-dir
+              mountPath: /mount-cache-dir
+            - name: ceph-csi-config
+              mountPath: /etc/ceph-csi-config/
       volumes:
         - name: plugin-dir
           hostPath:
@@ -105,3 +111,11 @@ spec:
         - name: host-dev
           hostPath:
             path: /dev
+        - name: mount-cache-dir
+          emptyDir: {}
+        - name: ceph-csi-config
+          configMap:
+            name: rook-ceph-mon-endpoints
+            items:
+              - key: csi-cluster-config-json
+                path: config.json

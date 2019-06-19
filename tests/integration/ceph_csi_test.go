@@ -17,10 +17,6 @@ limitations under the License.
 package integration
 
 import (
-	"encoding/json"
-	"strings"
-
-	monclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
@@ -52,7 +48,17 @@ func runCephCSIE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suit
 }
 
 func isCSIRunnig(k8sh *utils.K8sHelper, namespace string) bool {
-	return k8sh.IsPodWithLabelPresent("app=csi-rbdplugin", installer.SystemNamespace(namespace)) && k8sh.IsPodWithLabelPresent("app=csi-cephfsplugin", installer.SystemNamespace(namespace))
+	err := k8sh.WaitForLabeledPodsToRun("app=csi-rbdplugin", installer.SystemNamespace(namespace))
+	if err != nil {
+		logger.Errorf("rbd pods are not running,failed with error %+v", err)
+		return false
+	}
+	err = k8sh.WaitForLabeledPodsToRun("app=csi-cephfsplugin", installer.SystemNamespace(namespace))
+	if err != nil {
+		logger.Errorf("cephfs pods are not running,failed with error %+v", err)
+		return false
+	}
+	return true
 }
 
 func createCephCSISecret(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
@@ -60,17 +66,6 @@ func createCephCSISecret(helper *clients.TestClient, k8sh *utils.K8sHelper, s su
 	keyResult, err := k8sh.Exec(namespace, "rook-ceph-tools", "bash", commandArgs)
 	logger.Infof("Ceph get-key: %s", keyResult)
 	require.Nil(s.T(), err)
-	commandArgs = []string{"-c", "ceph mon_status"}
-	monResult, err := k8sh.Exec(namespace, "rook-ceph-tools", "bash", commandArgs)
-	logger.Infof("Ceph mon_status: %s", monResult)
-	require.Nil(s.T(), err)
-
-	var mon monclient.MonStatusResponse
-	err = json.Unmarshal([]byte(monResult), &mon)
-	require.Nil(s.T(), err)
-	require.True(s.T(), len(mon.MonMap.Mons) > 0, "no mon found")
-	monStr := strings.Split(mon.MonMap.Mons[0].Address, "/")[0]
-	require.True(s.T(), len(monStr) > 0, "invalid mon addr")
 
 	_, err = k8sh.Clientset.CoreV1().Secrets(namespace).Create(&v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -81,7 +76,6 @@ func createCephCSISecret(helper *clients.TestClient, k8sh *utils.K8sHelper, s su
 			"admin":    []byte(keyResult),
 			"adminID":  []byte("admin"),
 			"adminKey": []byte(keyResult),
-			"monitors": []byte(monStr),
 		},
 	})
 	require.Nil(s.T(), err)
@@ -104,8 +98,8 @@ metadata:
    name: ` + csiSCRBD + `
 provisioner: rbd.csi.ceph.com
 parameters:
-    monValueFromSecret: "monitors"
     pool: ` + csiPoolRBD + `
+    clusterID: ` + namespace + `
     csi.storage.k8s.io/provisioner-secret-name: ` + csiSecretName + `
     csi.storage.k8s.io/provisioner-secret-namespace: ` + namespace + `
     csi.storage.k8s.io/node-publish-secret-name: ` + csiSecretName + `
@@ -120,8 +114,8 @@ metadata:
    name: ` + csiSCCephFS + `
 provisioner: cephfs.csi.ceph.com
 parameters:
-    monValueFromSecret: "monitors"
-    provisionVolume: "true"
+    clusterID: ` + namespace + `
+    fsName: ` + csiPoolCephFS + `
     pool: ` + csiPoolCephFS + `-data0
     csi.storage.k8s.io/provisioner-secret-name: ` + csiSecretName + `
     csi.storage.k8s.io/provisioner-secret-namespace: ` + namespace + `

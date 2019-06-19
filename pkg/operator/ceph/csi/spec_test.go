@@ -31,12 +31,11 @@ func TestStartCSI(t *testing.T) {
 	CephFSProvisionerTemplatePath = "csi-cephfsplugin-provisioner.yaml"
 
 	CSIParam = Param{
-		RBDPluginImage:    "image",
-		CephFSPluginImage: "image",
-		RegistrarImage:    "image",
-		ProvisionerImage:  "image",
-		AttacherImage:     "image",
-		SnapshotterImage:  "image",
+		CSIPluginImage:   "image",
+		RegistrarImage:   "image",
+		ProvisionerImage: "image",
+		AttacherImage:    "image",
+		SnapshotterImage: "image",
 	}
 	clientset := test.New(3)
 	err := StartCSIDrivers("ns", clientset)
