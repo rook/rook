@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 
 	"path"
 	"path/filepath"
@@ -88,6 +89,13 @@ func copyBinary(sourceDir, targetDir, filename string) error {
 	sourcePath := path.Join(sourceDir, filename)
 	targetPath := path.Join(targetDir, filename)
 	logger.Infof("copying %s to %s", sourcePath, targetPath)
+
+	// Check if the source path exists, and look in PATH if it doesn't
+	if _, err := os.Stat(sourcePath); err != nil {
+		if sourcePath, err = exec.LookPath(filename); err != nil {
+			return err
+		}
+	}
 
 	// Check if the target path exists, and skip the copy if it does
 	if _, err := os.Stat(targetPath); err == nil {
