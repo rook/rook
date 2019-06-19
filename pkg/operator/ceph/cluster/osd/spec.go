@@ -631,8 +631,9 @@ func osdOnSDNFlag(hostnetwork bool, v cephver.CephVersion) []string {
 	// for more details: https://github.com/rook/rook/issues/3140
 	if !hostnetwork {
 		if v.IsAtLeast(cephver.CephVersion{Major: 14, Minor: 2, Extra: 2}) {
-			args = append(args, "--ms-learn-addr-from-peer", "false")
+			args = append(args, "--ms-learn-addr-from-peer=false")
 		}
 	}
+
 	return args
 }
