@@ -322,7 +322,7 @@ func (c *Controller) onAdd(obj interface{}) {
 	// Validate object store config.
 	err := validateObjectStoreSpec(objectstore.Spec)
 	if err != nil {
-		logger.Errorf("failed to validate object store config")
+		logger.Errorf("failed to validate object store config. %+v", err)
 		return
 	}
 
