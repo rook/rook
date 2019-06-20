@@ -28,6 +28,7 @@ an example usage
 - The cluster CRD option to allow multiple monitors to be scheduled on the same
   node---`spec.Mon.AllowMultiplePerNode`---is now active when a cluster is first
   created. Previously, it was ignored when a cluster was first installed.
+- Upgrades have drastically improved, Rook intelligently checks for each daemon state before and after upgrading. To learn more about the upgrade workflow see [Ceph Upgrades](Documentation/ceph-upgrade.md)
 
 ## Breaking Changes
 
