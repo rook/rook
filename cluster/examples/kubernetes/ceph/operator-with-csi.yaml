@@ -37,7 +37,9 @@ spec:
         env:
         - name: ROOK_CURRENT_NAMESPACE_ONLY
           value: "true"
-        # CSI enablement
+        - name: FLEXVOLUME_DIR_PATH
+          value: "/var/lib/kubelet/volumeplugins/"
+          # CSI enablement
         - name: ROOK_CSI_ENABLE_CEPHFS
           value: "true"
         - name: ROOK_CSI_CEPHFS_IMAGE
