@@ -22,6 +22,7 @@ package mon
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -35,6 +36,7 @@ import (
 	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
+	"github.com/rook/rook/pkg/operator/ceph/csi"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -62,9 +64,6 @@ const (
 	monSecretName     = "mon-secret"
 	adminSecretName   = "admin-secret"
 	clusterSecretName = "cluster-name"
-
-	// configuration map for csi
-	csiConfigKey = "csi-cluster-config-json"
 
 	// DefaultMonCount Default mon count for a cluster
 	DefaultMonCount = 3
@@ -594,7 +593,7 @@ func (c *Cluster) saveMonConfig() error {
 		EndpointDataKey: FlattenMonEndpoints(c.clusterInfo.Monitors),
 		MaxMonIDKey:     strconv.Itoa(c.maxMonID),
 		MappingKey:      string(monMapping),
-		csiConfigKey:    csiConfigValue,
+		csi.ConfigKey:   csiConfigValue,
 	}
 
 	if _, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(configMap); err != nil {
@@ -619,6 +618,46 @@ func (c *Cluster) saveMonConfig() error {
 		return fmt.Errorf("failed to write connection config for new mons. %+v", err)
 	}
 
+	if err := c.saveCsiClusterConfig(); err != nil {
+		return fmt.Errorf("failed to update csi cluster config: %+v", err)
+	}
+
+	return nil
+}
+
+func (c *Cluster) saveCsiClusterConfig() error {
+	if !csi.CSIEnabled() {
+		return nil
+	}
+	c.csiConfigMutex.Lock()
+	defer c.csiConfigMutex.Unlock()
+	// csi is deployed into the same namespace as the operator
+	csiNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
+	logger.Debug("Using %+v for CSI ConfigMap Namespace", csiNamespace)
+
+	// fetch current ConfigMap contents
+	configMap, err := c.context.Clientset.CoreV1().ConfigMaps(csiNamespace).Get(
+		csi.ConfigName, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to fetch current csi config map: %+v", err)
+	}
+
+	// update ConfigMap contents for current cluster
+	currData := configMap.Data[csi.ConfigKey]
+	if currData == "" {
+		currData = "[]"
+	}
+	newData, err := UpdateCsiClusterConfig(
+		currData, c.Namespace, c.clusterInfo.Monitors)
+	if err != nil {
+		return fmt.Errorf("failed to update csi config map data: %+v", err)
+	}
+	configMap.Data[csi.ConfigKey] = newData
+
+	// update ConfigMap with new contents
+	if _, err := c.context.Clientset.CoreV1().ConfigMaps(csiNamespace).Update(configMap); err != nil {
+		return fmt.Errorf("failed to update csi config map: %+v", err)
+	}
 	return nil
 }
 

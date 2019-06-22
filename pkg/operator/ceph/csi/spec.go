@@ -23,6 +23,9 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 
 	apps "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -48,6 +51,10 @@ var (
 
 	CephFSPluginTemplatePath      string
 	CephFSProvisionerTemplatePath string
+
+	// configuration map for csi
+	ConfigName = "rook-ceph-csi-config"
+	ConfigKey  = "csi-cluster-config-json"
 )
 
 const (
@@ -118,6 +125,10 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface) error {
 		rbdProvisioner, cephfsProvisioner *apps.StatefulSet
 	)
 
+	// create an empty config map. config map will be filled with data
+	// later when clusters have mons
+	CreateCsiConfigMap(namespace, clientset)
+
 	if EnableRBD {
 		rbdPlugin, err = templateToDaemonSet("rbdplugin", RBDPluginTemplatePath)
 		if err != nil {
@@ -165,6 +176,25 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface) error {
 			return fmt.Errorf("failed to start cephfs provisioner statefulset: %v\n%v", err, cephfsProvisioner)
 		}
 
+	}
+	return nil
+}
+
+func CreateCsiConfigMap(namespace string, clientset kubernetes.Interface) error {
+	configMap := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      ConfigName,
+			Namespace: namespace,
+		},
+	}
+	configMap.Data = map[string]string{
+		ConfigKey: "[]",
+	}
+
+	if _, err := clientset.CoreV1().ConfigMaps(namespace).Create(configMap); err != nil {
+		if !k8serrors.IsAlreadyExists(err) {
+			return err
+		}
 	}
 	return nil
 }
