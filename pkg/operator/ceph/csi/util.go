@@ -26,7 +26,7 @@ import (
 	apps "k8s.io/api/apps/v1"
 )
 
-func loadTemplate(name, templatePath string) (string, error) {
+func loadTemplate(name, templatePath string, p templateParam) (string, error) {
 	b, err := ioutil.ReadFile(templatePath)
 	if err != nil {
 		return "", err
@@ -34,13 +34,17 @@ func loadTemplate(name, templatePath string) (string, error) {
 	data := string(b)
 	var writer bytes.Buffer
 	t := template.New(name)
-	err = template.Must(t.Parse(data)).Execute(&writer, CSIParam)
+	t, err = t.Parse(data)
+	if err != nil {
+		return "", err
+	}
+	err = t.Execute(&writer, p)
 	return writer.String(), err
 }
 
-func templateToStatefulSet(name, templatePath string) (*apps.StatefulSet, error) {
+func templateToStatefulSet(name, templatePath string, p templateParam) (*apps.StatefulSet, error) {
 	var ss apps.StatefulSet
-	t, err := loadTemplate(name, templatePath)
+	t, err := loadTemplate(name, templatePath, p)
 	if err != nil {
 		return nil, err
 	}
@@ -52,9 +56,9 @@ func templateToStatefulSet(name, templatePath string) (*apps.StatefulSet, error)
 	return &ss, nil
 }
 
-func templateToDaemonSet(name, templatePath string) (*apps.DaemonSet, error) {
+func templateToDaemonSet(name, templatePath string, p templateParam) (*apps.DaemonSet, error) {
 	var ds apps.DaemonSet
-	t, err := loadTemplate(name, templatePath)
+	t, err := loadTemplate(name, templatePath, p)
 	if err != nil {
 		return nil, err
 	}
