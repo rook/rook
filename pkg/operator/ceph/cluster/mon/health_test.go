@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"sync"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -54,7 +55,7 @@ func TestCheckHealth(t *testing.T) {
 		ConfigDir: configDir,
 		Executor:  executor,
 	}
-	c := New(context, "ns", "", false, metav1.OwnerReference{})
+	c := New(context, "ns", "", false, metav1.OwnerReference{}, &sync.Mutex{})
 	setCommonMonProperties(c, 1, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 	logger.Infof("initial mons: %v", c.clusterInfo.Monitors)
 	c.waitForStart = false
@@ -104,7 +105,7 @@ func TestCheckHealthNotFound(t *testing.T) {
 		ConfigDir: configDir,
 		Executor:  executor,
 	}
-	c := New(context, "ns", "", false, metav1.OwnerReference{})
+	c := New(context, "ns", "", false, metav1.OwnerReference{}, &sync.Mutex{})
 	setCommonMonProperties(c, 2, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 	c.waitForStart = false
 	defer os.RemoveAll(c.context.ConfigDir)
@@ -177,7 +178,7 @@ func TestOverloadedZoneRebalances(t *testing.T) {
 		Executor:  executor,
 	}
 
-	cluster := New(context, "ns", "", false, metav1.OwnerReference{})
+	cluster := New(context, "ns", "", false, metav1.OwnerReference{}, &sync.Mutex{})
 	setCommonMonProperties(cluster, 2, cephv1.MonSpec{Count: 2, AllowMultiplePerNode: false}, "myversion")
 	cluster.waitForStart = false
 	defer os.RemoveAll(cluster.context.ConfigDir)
@@ -261,7 +262,7 @@ func TestCheckHealthTwoMonsOneNode(t *testing.T) {
 		Executor:  executor,
 	}
 
-	c := New(context, "ns", "", false, metav1.OwnerReference{})
+	c := New(context, "ns", "", false, metav1.OwnerReference{}, &sync.Mutex{})
 	setCommonMonProperties(c, 2, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 	c.waitForStart = false
 	defer os.RemoveAll(c.context.ConfigDir)
@@ -370,7 +371,7 @@ func TestCheckMonsValid(t *testing.T) {
 		ConfigDir: configDir,
 		Executor:  executor,
 	}
-	c := New(context, "ns", "", false, metav1.OwnerReference{})
+	c := New(context, "ns", "", false, metav1.OwnerReference{}, &sync.Mutex{})
 	setCommonMonProperties(c, 1, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 	c.waitForStart = false
 	defer os.RemoveAll(c.context.ConfigDir)
@@ -459,7 +460,7 @@ func TestAddRemoveMons(t *testing.T) {
 		ConfigDir: configDir,
 		Executor:  executor,
 	}
-	c := New(context, "ns", "", false, metav1.OwnerReference{})
+	c := New(context, "ns", "", false, metav1.OwnerReference{}, &sync.Mutex{})
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 5, AllowMultiplePerNode: true}, "myversion")
 	c.maxMonID = 0 // "a" is max mon id
 	c.waitForStart = false
