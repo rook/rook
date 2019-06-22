@@ -30,13 +30,17 @@ import (
 )
 
 type Param struct {
-	Namespace string
-
 	CSIPluginImage   string
 	RegistrarImage   string
 	ProvisionerImage string
 	AttacherImage    string
 	SnapshotterImage string
+}
+
+type templateParam struct {
+	Param
+	// non-global template only parameters
+	Namespace string
 }
 
 var (
@@ -77,10 +81,6 @@ const (
 
 func CSIEnabled() bool {
 	return EnableRBD || EnableCephFS
-}
-
-func SetCSINamespace(namespace string) {
-	CSIParam.Namespace = namespace
 }
 
 func ValidateCSIParam() error {
@@ -129,22 +129,27 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface) error {
 	// later when clusters have mons
 	CreateCsiConfigMap(namespace, clientset)
 
+	tp := templateParam{
+		Param:     CSIParam,
+		Namespace: namespace,
+	}
+
 	if EnableRBD {
-		rbdPlugin, err = templateToDaemonSet("rbdplugin", RBDPluginTemplatePath)
+		rbdPlugin, err = templateToDaemonSet("rbdplugin", RBDPluginTemplatePath, tp)
 		if err != nil {
 			return fmt.Errorf("failed to load rbd plugin template: %v", err)
 		}
-		rbdProvisioner, err = templateToStatefulSet("rbd-provisioner", RBDProvisionerTemplatePath)
+		rbdProvisioner, err = templateToStatefulSet("rbd-provisioner", RBDProvisionerTemplatePath, tp)
 		if err != nil {
 			return fmt.Errorf("failed to load rbd provisioner template: %v", err)
 		}
 	}
 	if EnableCephFS {
-		cephfsPlugin, err = templateToDaemonSet("cephfsplugin", CephFSPluginTemplatePath)
+		cephfsPlugin, err = templateToDaemonSet("cephfsplugin", CephFSPluginTemplatePath, tp)
 		if err != nil {
 			return fmt.Errorf("failed to load CephFS plugin template: %v", err)
 		}
-		cephfsProvisioner, err = templateToStatefulSet("cephfs-provisioner", CephFSProvisionerTemplatePath)
+		cephfsProvisioner, err = templateToStatefulSet("cephfs-provisioner", CephFSProvisionerTemplatePath, tp)
 		if err != nil {
 			return fmt.Errorf("failed to load CephFS provisioner template: %v", err)
 		}

@@ -184,7 +184,6 @@ func (o *Operator) startSystemDaemons() error {
 	if err = csi.ValidateCSIParam(); err != nil {
 		return fmt.Errorf("invalid csi params: %v", err)
 	}
-	csi.SetCSINamespace(namespace)
 	if err = csi.StartCSIDrivers(namespace, o.context.Clientset); err != nil {
 		return fmt.Errorf("failed to start Ceph csi drivers: %v", err)
 	}
