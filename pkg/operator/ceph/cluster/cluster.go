@@ -68,7 +68,7 @@ type childController interface {
 	ParentClusterChanged(cluster cephv1.ClusterSpec, clusterInfo *cephconfig.ClusterInfo)
 }
 
-func newCluster(c *cephv1.CephCluster, context *clusterd.Context) *cluster {
+func newCluster(c *cephv1.CephCluster, context *clusterd.Context, csiMutex *sync.Mutex) *cluster {
 	ownerRef := ClusterOwnerRef(c.Name, string(c.UID))
 	return &cluster{
 		// at this phase of the cluster creation process, the identity components of the cluster are
@@ -80,7 +80,7 @@ func newCluster(c *cephv1.CephCluster, context *clusterd.Context) *cluster {
 		context:   context,
 		stopCh:    make(chan struct{}),
 		ownerRef:  ownerRef,
-		mons:      mon.New(context, c.Namespace, c.Spec.DataDirHostPath, c.Spec.Network.HostNetwork, ownerRef),
+		mons:      mon.New(context, c.Namespace, c.Spec.DataDirHostPath, c.Spec.Network.HostNetwork, ownerRef, csiMutex),
 	}
 }
 

@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"sync"
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
@@ -89,6 +90,7 @@ type ClusterController struct {
 	rookImage          string
 	clusterMap         map[string]*cluster
 	addClusterCallback func() error
+	csiConfigMutex     *sync.Mutex
 }
 
 // NewClusterController create controller for watching cluster custom resources created
@@ -99,6 +101,7 @@ func NewClusterController(context *clusterd.Context, rookImage string, volumeAtt
 		rookImage:          rookImage,
 		clusterMap:         make(map[string]*cluster),
 		addClusterCallback: addClusterCallback,
+		csiConfigMutex:     &sync.Mutex{},
 	}
 }
 
@@ -227,7 +230,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		return
 	}
 
-	cluster := newCluster(clusterObj, c.context)
+	cluster := newCluster(clusterObj, c.context, c.csiConfigMutex)
 	c.clusterMap[cluster.Namespace] = cluster
 
 	logger.Infof("starting cluster in namespace %s", cluster.Namespace)

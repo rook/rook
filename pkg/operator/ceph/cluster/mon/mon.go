@@ -109,6 +109,7 @@ type Cluster struct {
 	monTimeoutList      map[string]time.Time
 	mapping             *Mapping
 	ownerRef            metav1.OwnerReference
+	csiConfigMutex      *sync.Mutex
 }
 
 // monConfig for a single monitor
@@ -140,7 +141,7 @@ type NodeInfo struct {
 }
 
 // New creates an instance of a mon cluster
-func New(context *clusterd.Context, namespace, dataDirHostPath string, hostNetwork bool, ownerRef metav1.OwnerReference) *Cluster {
+func New(context *clusterd.Context, namespace, dataDirHostPath string, hostNetwork bool, ownerRef metav1.OwnerReference, csiConfigMutex *sync.Mutex) *Cluster {
 	return &Cluster{
 		context:             context,
 		dataDirHostPath:     dataDirHostPath,
@@ -155,7 +156,8 @@ func New(context *clusterd.Context, namespace, dataDirHostPath string, hostNetwo
 			Node: map[string]*NodeInfo{},
 			Port: map[string]int32{},
 		},
-		ownerRef: ownerRef,
+		ownerRef:       ownerRef,
+		csiConfigMutex: csiConfigMutex,
 	}
 }
 
