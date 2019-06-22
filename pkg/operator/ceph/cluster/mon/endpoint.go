@@ -51,16 +51,19 @@ func ParseMonEndpoints(input string) map[string]*cephconfig.MonInfo {
 	return mons
 }
 
+type csiClusterConfigEntry struct {
+	ClusterID string   `json:"clusterID"`
+	Monitors  []string `json:"monitors"`
+}
+
+type csiClusterConfig []csiClusterConfigEntry
+
 // FormatCsiClusterConfig returns a json-formatted string containing
 // the cluster-to-mon mapping required to configure ceph csi.
 func FormatCsiClusterConfig(
 	clusterKey string, mons map[string]*cephconfig.MonInfo) (string, error) {
 
-	type csiClusterConfig struct {
-		ClusterID string   `json:"clusterID"`
-		Monitors  []string `json:"monitors"`
-	}
-	cc := make([]csiClusterConfig, 1)
+	cc := make(csiClusterConfig, 1)
 	cc[0].ClusterID = clusterKey
 	cc[0].Monitors = []string{}
 	for _, m := range mons {
@@ -72,4 +75,60 @@ func FormatCsiClusterConfig(
 		return "", fmt.Errorf("failed to marshal csi cluster config. %+v", err)
 	}
 	return string(ccJson), nil
+}
+
+func parseCsiClusterConfig(c string) (csiClusterConfig, error) {
+	var cc csiClusterConfig
+	err := json.Unmarshal([]byte(c), &cc)
+	if err != nil {
+		return cc, fmt.Errorf("failed to parse csi cluster config. %+v", err)
+	}
+	return cc, nil
+}
+
+func formatCsiClusterConfig(cc csiClusterConfig) (string, error) {
+	ccJson, err := json.Marshal(cc)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal csi cluster config. %+v", err)
+	}
+	return string(ccJson), nil
+}
+
+func monEndpoints(mons map[string]*cephconfig.MonInfo) []string {
+	endpoints := make([]string, 0)
+	for _, m := range mons {
+		endpoints = append(endpoints, m.Endpoint)
+	}
+	return endpoints
+}
+
+// UpdateCsiClusterConfig returns a json-formatted string containing
+// the cluster-to-mon mapping required to configure ceph csi.
+func UpdateCsiClusterConfig(
+	curr, clusterKey string, mons map[string]*cephconfig.MonInfo) (string, error) {
+
+	var (
+		cc     csiClusterConfig
+		centry csiClusterConfigEntry
+		found  bool
+	)
+	cc, err := parseCsiClusterConfig(curr)
+	if err != nil {
+		return "", err
+	}
+
+	for i, centry := range cc {
+		if centry.ClusterID == clusterKey {
+			centry.Monitors = monEndpoints(mons)
+			found = true
+			cc[i] = centry
+			break
+		}
+	}
+	if !found {
+		centry.ClusterID = clusterKey
+		centry.Monitors = monEndpoints(mons)
+		cc = append(cc, centry)
+	}
+	return formatCsiClusterConfig(cc)
 }
