@@ -39,8 +39,8 @@ type Param struct {
 var (
 	CSIParam Param
 
-	EnableRBD    = true
-	EnableCephFS = true
+	EnableRBD    = false
+	EnableCephFS = false
 
 	// template paths
 	RBDPluginTemplatePath      string
