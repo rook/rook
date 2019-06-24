@@ -253,12 +253,42 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 		var err error
 		cluster.Info, _, _, err = mon.LoadClusterInfo(c.context, namespace)
 		if err != nil {
-			logger.Warningf("waiting for the connection info to the external cluster. %+v", err)
+			logger.Warningf("waiting for the connection info of the external cluster. %+v", err)
 			time.Sleep(10 * time.Second)
 			continue
 		}
-		logger.Infof("Found the cluster info to connect to the external cluster. mons=%+v", cluster.Info.Monitors)
+		logger.Infof("found the cluster info to connect to the external cluster. mons=%+v", cluster.Info.Monitors)
+
+		// Let's write connection info (ceph config file and keyring) to the operator for health checks
+		err = mon.WriteConnectionConfig(cluster.context, cluster.Info)
+		if err != nil {
+			return fmt.Errorf("failed to write connection info %+v", err)
+		}
+
+		// Get Ceph monitors version on the external cluster
+		cephMonVersion, err := client.GetCephMonVersion(c.context, namespace)
+		if err != nil {
+			return fmt.Errorf("failed to get ceph mon version. %+v", err)
+		}
+
+		logger.Infof("detecting the image version provided for the external cluster...")
+		specCephVersionImage, err := cluster.detectCephVersion(c.rookImage, cluster.Spec.CephVersion.Image, detectCephVersionTimeout)
+		if err != nil {
+			return fmt.Errorf("unknown ceph major version. %+v", err)
+		}
+		specCephVersion := *specCephVersionImage
+
+		// Populate clusterInfo with the external cluster version
+		cluster.Info.CephVersion = *cephMonVersion
+
+		// Make sure the external cluster version and the ceph version in the provided image are identical
+		if !cephver.IsIdentical(specCephVersion, cluster.Info.CephVersion) {
+			return fmt.Errorf("wrong ceph version %s, external cluster version is %s, they must match", specCephVersion.String(), cephMonVersion.String())
+		}
+
+		// Everything went well so let's update the CR's status to "connected"
 		c.updateClusterStatus(namespace, name, cephv1.ClusterStateConnected, "")
+
 		return nil
 	}
 }
