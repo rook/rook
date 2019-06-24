@@ -13,11 +13,11 @@
 apiVersion: ceph.rook.io/v1
 kind: CephCluster
 metadata:
-  name: rook-ceph
-  namespace: rook-ceph
+  name: rook-ceph-external
+  namespace: rook-ceph-external
 spec:
-  # before creating this CR, please make sure you've read this: **LINK TO DOC**
   external:
     enable: true
+  dataDirHostPath: /var/lib/rook
   cephVersion:
     image: ceph/ceph:v14.2.2-20190722 # MUST match external cluster version
