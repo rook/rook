@@ -54,6 +54,11 @@ func NewHealthChecker(monCluster *Cluster, clusterSpec *cephv1.ClusterSpec) *Hea
 
 // Check periodically checks the health of the monitors
 func (hc *HealthChecker) Check(stopCh chan struct{}) {
+	// Populate spec with clusterSpec
+	if hc.clusterSpec.External.Enable {
+		hc.monCluster.spec = *hc.clusterSpec
+	}
+
 	for {
 		select {
 		case <-stopCh:
