@@ -106,7 +106,7 @@ func (c *Controller) makeMinioHeadlessService(name, namespace string, spec minio
 			ClusterIP: v1.ClusterIPNone,
 		},
 	}
-	k8sutil.SetOwnerRef(c.context.Clientset, namespace, &svc.ObjectMeta, &ownerRef)
+	k8sutil.SetOwnerRef(&svc.ObjectMeta, &ownerRef)
 
 	svc, err := c.context.Clientset.CoreV1().Services(namespace).Create(svc)
 	if err != nil && !k8serrors.IsAlreadyExists(err) {
@@ -296,7 +296,7 @@ func (c *Controller) makeMinioStatefulSet(name, namespace string, spec miniov1al
 		},
 	}
 	annotations.ApplyToObjectMeta(&sts.ObjectMeta)
-	k8sutil.SetOwnerRef(c.context.Clientset, namespace, &sts.ObjectMeta, &ownerRef)
+	k8sutil.SetOwnerRef(&sts.ObjectMeta, &ownerRef)
 	sts, err = c.context.Clientset.AppsV1().StatefulSets(namespace).Create(sts)
 	if err != nil && !k8serrors.IsAlreadyExists(err) {
 		return nil, fmt.Errorf("failed to create minio statefulset. %+v", err)

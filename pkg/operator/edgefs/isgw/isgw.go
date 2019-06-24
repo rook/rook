@@ -168,7 +168,7 @@ func (c *ISGWController) makeISGWService(name, svcname, namespace string, isgwSp
 		svc.Spec.Ports = append(svc.Spec.Ports, v1.ServicePort{Name: "dfport", Port: int32(lport), Protocol: v1.ProtocolTCP})
 	}
 
-	k8sutil.SetOwnerRef(c.context.Clientset, namespace, &svc.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&svc.ObjectMeta, &c.ownerRef)
 	return svc
 }
 
@@ -234,7 +234,7 @@ func (c *ISGWController) makeDeployment(svcname, namespace, rookImage string, is
 			Replicas: &instancesCount,
 		},
 	}
-	k8sutil.SetOwnerRef(c.context.Clientset, namespace, &d.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&d.ObjectMeta, &c.ownerRef)
 	return d
 }
 

@@ -197,7 +197,7 @@ func (s *Store) createOrUpdateMonHostSecrets(clusterInfo *cephconfig.ClusterInfo
 		Type: k8sutil.RookType,
 	}
 	clientset := s.context.Clientset
-	k8sutil.SetOwnerRef(clientset, s.namespace, &secret.ObjectMeta, s.ownerRef)
+	k8sutil.SetOwnerRef(&secret.ObjectMeta, s.ownerRef)
 
 	_, err := clientset.CoreV1().Secrets(s.namespace).Get(storeName, metav1.GetOptions{})
 	if err != nil {
