@@ -224,7 +224,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	}
 
 	if existing, ok := c.clusterMap[clusterObj.Namespace]; ok {
-		logger.Errorf("Failed to add cluster crd %s in namespace %s. Cluster crd %s already exists in this namespace. Only one cluster crd per namespace is supported.",
+		logger.Errorf("Failed to add cluster cr %s in namespace %s. Cluster cr %s already exists in this namespace. Only one cluster cr per namespace is supported.",
 			clusterObj.Name, clusterObj.Namespace, existing.crdName)
 		return
 	}
@@ -463,6 +463,12 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 
 	logger.Debugf("update event for cluster %s", newClust.Namespace)
 
+	if existing, ok := c.clusterMap[newClust.Namespace]; ok && existing.crdName != newClust.Name {
+		logger.Errorf("Skipping update of cluster cr %s in namespace %s. Cluster cr %s already exists in this namespace. Only one cluster cr per namespace is supported.",
+			newClust.Name, newClust.Namespace, existing.crdName)
+		return
+	}
+
 	// Check if the cluster is being deleted. This code path is called when a finalizer is specified in the crd.
 	// When a cluster is requested for deletion, K8s will only set the deletion timestamp if there are any finalizers in the list.
 	// K8s will only delete the crd and child resources when the finalizers have been removed from the crd.
@@ -656,7 +662,7 @@ func (c *ClusterController) onDelete(obj interface{}) {
 	}
 
 	if existing, ok := c.clusterMap[clust.Namespace]; ok && existing.crdName != clust.Name {
-		logger.Errorf("Skipping deletion of cluster crd %s in namespace %s. Cluster crd %s already exists in this namespace. Only one cluster crd per namespace is supported.",
+		logger.Errorf("Skipping deletion of cluster cr %s in namespace %s. Cluster cr %s already exists in this namespace. Only one cluster cr per namespace is supported.",
 			clust.Name, clust.Namespace, existing.crdName)
 		return
 	}
