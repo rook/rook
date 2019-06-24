@@ -57,7 +57,7 @@ func TestCheckHealth(t *testing.T) {
 	}
 	c := New(context, "ns", "", false, metav1.OwnerReference{}, &sync.Mutex{})
 	setCommonMonProperties(c, 1, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
-	logger.Infof("initial mons: %v", c.clusterInfo.Monitors)
+	logger.Infof("initial mons: %v", c.ClusterInfo.Monitors)
 	c.waitForStart = false
 	defer os.RemoveAll(c.context.ConfigDir)
 
@@ -70,7 +70,7 @@ func TestCheckHealth(t *testing.T) {
 
 	err := c.checkHealth()
 	assert.Nil(t, err)
-	logger.Infof("mons after checkHealth: %v", c.clusterInfo.Monitors)
+	logger.Infof("mons after checkHealth: %v", c.ClusterInfo.Monitors)
 	assert.ElementsMatch(t, []string{"rook-ceph-mon-a", "rook-ceph-mon-f"}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
 	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 
@@ -83,8 +83,8 @@ func TestCheckHealth(t *testing.T) {
 		"g",
 	}
 	for _, monName := range newMons {
-		_, ok := c.clusterInfo.Monitors[monName]
-		assert.True(t, ok, fmt.Sprintf("mon %s not found in monitor list. %v", monName, c.clusterInfo.Monitors))
+		_, ok := c.ClusterInfo.Monitors[monName]
+		assert.True(t, ok, fmt.Sprintf("mon %s not found in monitor list. %v", monName, c.ClusterInfo.Monitors))
 	}
 }
 
@@ -469,7 +469,7 @@ func TestAddRemoveMons(t *testing.T) {
 	// checking the health will increase the mons as desired all in one go
 	err := c.checkHealth()
 	assert.Nil(t, err)
-	assert.Equal(t, 5, len(c.clusterInfo.Monitors), fmt.Sprintf("mons: %v", c.clusterInfo.Monitors))
+	assert.Equal(t, 5, len(c.ClusterInfo.Monitors), fmt.Sprintf("mons: %v", c.ClusterInfo.Monitors))
 	assert.ElementsMatch(t, []string{
 		// b is created first, no updates
 		"rook-ceph-mon-b",                    // b updated when c created
@@ -480,39 +480,39 @@ func TestAddRemoveMons(t *testing.T) {
 	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 
 	// reducing the mon count to 3 will reduce the mon count once each time we call checkHealth
-	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(c.clusterInfo.Monitors)
+	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(c.ClusterInfo.Monitors)
 	c.spec.Mon.Count = 3
 	err = c.checkHealth()
 	assert.Nil(t, err)
-	assert.Equal(t, 4, len(c.clusterInfo.Monitors))
+	assert.Equal(t, 4, len(c.ClusterInfo.Monitors))
 	// No updates in unit tests w/ workaround
 	assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
 	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 
 	// after the second call we will be down to the expected count of 3
-	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(c.clusterInfo.Monitors)
+	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(c.ClusterInfo.Monitors)
 	err = c.checkHealth()
 	assert.Nil(t, err)
-	assert.Equal(t, 3, len(c.clusterInfo.Monitors))
+	assert.Equal(t, 3, len(c.ClusterInfo.Monitors))
 	// No updates in unit tests w/ workaround
 	assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
 	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 
 	// now attempt to reduce the mons down to quorum size 1
-	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(c.clusterInfo.Monitors)
+	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(c.ClusterInfo.Monitors)
 	c.spec.Mon.Count = 1
 	err = c.checkHealth()
 	assert.Nil(t, err)
-	assert.Equal(t, 2, len(c.clusterInfo.Monitors))
+	assert.Equal(t, 2, len(c.ClusterInfo.Monitors))
 	// No updates in unit tests w/ workaround
 	assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
 	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 
 	// cannot reduce from quorum size of 2 to 1
-	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(c.clusterInfo.Monitors)
+	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(c.ClusterInfo.Monitors)
 	err = c.checkHealth()
 	assert.Nil(t, err)
-	assert.Equal(t, 2, len(c.clusterInfo.Monitors))
+	assert.Equal(t, 2, len(c.ClusterInfo.Monitors))
 	// No updates in unit tests w/ workaround
 	assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
 	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)

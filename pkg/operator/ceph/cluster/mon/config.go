@@ -54,8 +54,8 @@ const (
 func (c *Cluster) genMonSharedKeyring() string {
 	return fmt.Sprintf(
 		keyringTemplate,
-		c.clusterInfo.MonitorSecret,
-		cephconfig.AdminKeyring(c.clusterInfo),
+		c.ClusterInfo.MonitorSecret,
+		cephconfig.AdminKeyring(c.ClusterInfo),
 	)
 }
 

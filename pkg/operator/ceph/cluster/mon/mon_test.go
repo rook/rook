@@ -103,7 +103,7 @@ func newTestStartClusterWithQuorumResponse(namespace string, monResponse func() 
 
 func newCluster(context *clusterd.Context, namespace string, hostNetwork bool, allowMultiplePerNode bool, resources v1.ResourceRequirements) *Cluster {
 	return &Cluster{
-		clusterInfo: nil,
+		ClusterInfo: nil,
 		HostNetwork: hostNetwork,
 		context:     context,
 		Namespace:   namespace,
@@ -130,7 +130,7 @@ func newCluster(context *clusterd.Context, namespace string, hostNetwork bool, a
 
 // setCommonMonProperties is a convenience helper for setting common test properties
 func setCommonMonProperties(c *Cluster, currentMons int, mon cephv1.MonSpec, rookVersion string) {
-	c.clusterInfo = test.CreateConfigDir(currentMons)
+	c.ClusterInfo = test.CreateConfigDir(currentMons)
 	c.spec.Mon.Count = mon.Count
 	c.spec.Mon.AllowMultiplePerNode = mon.AllowMultiplePerNode
 	c.rookVersion = rookVersion
@@ -149,13 +149,13 @@ func TestStartMonPods(t *testing.T) {
 	c := newCluster(context, namespace, false, true, v1.ResourceRequirements{})
 
 	// start a basic cluster
-	_, err := c.Start(c.clusterInfo, c.rookVersion, cephver.Mimic, c.spec)
+	_, err := c.Start(c.ClusterInfo, c.rookVersion, cephver.Mimic, c.spec)
 	assert.Nil(t, err)
 
 	validateStart(t, c)
 
 	// starting again should be a no-op, but still results in an error
-	_, err = c.Start(c.clusterInfo, c.rookVersion, cephver.Mimic, c.spec)
+	_, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Mimic, c.spec)
 	assert.Nil(t, err)
 
 	validateStart(t, c)
@@ -166,10 +166,10 @@ func TestOperatorRestart(t *testing.T) {
 	namespace := "ns"
 	context := newTestStartCluster(namespace)
 	c := newCluster(context, namespace, false, true, v1.ResourceRequirements{})
-	c.clusterInfo = test.CreateConfigDir(1)
+	c.ClusterInfo = test.CreateConfigDir(1)
 
 	// start a basic cluster
-	info, err := c.Start(c.clusterInfo, c.rookVersion, cephver.Mimic, c.spec)
+	info, err := c.Start(c.ClusterInfo, c.rookVersion, cephver.Mimic, c.spec)
 	assert.Nil(t, err)
 	assert.True(t, info.IsInitialized())
 
@@ -178,7 +178,7 @@ func TestOperatorRestart(t *testing.T) {
 	c = newCluster(context, namespace, false, true, v1.ResourceRequirements{})
 
 	// starting again should be a no-op, but will not result in an error
-	info, err = c.Start(c.clusterInfo, c.rookVersion, cephver.Mimic, c.spec)
+	info, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Mimic, c.spec)
 	assert.Nil(t, err)
 	assert.True(t, info.IsInitialized())
 
@@ -193,10 +193,10 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 
 	// cluster without host networking
 	c := newCluster(context, namespace, false, false, v1.ResourceRequirements{})
-	c.clusterInfo = test.CreateConfigDir(1)
+	c.ClusterInfo = test.CreateConfigDir(1)
 
 	// start a basic cluster
-	info, err := c.Start(c.clusterInfo, c.rookVersion, cephver.Mimic, c.spec)
+	info, err := c.Start(c.ClusterInfo, c.rookVersion, cephver.Mimic, c.spec)
 	assert.Nil(t, err)
 	assert.True(t, info.IsInitialized())
 
@@ -206,7 +206,7 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 	c = newCluster(context, namespace, true, false, v1.ResourceRequirements{})
 
 	// starting again should be a no-op, but still results in an error
-	info, err = c.Start(c.clusterInfo, c.rookVersion, cephver.Mimic, c.spec)
+	info, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Mimic, c.spec)
 	assert.Nil(t, err)
 	assert.True(t, info.IsInitialized(), info)
 
@@ -245,7 +245,7 @@ func TestSaveMonEndpoints(t *testing.T) {
 	assert.Equal(t, "-1", cm.Data[MaxMonIDKey])
 
 	// update the config map
-	c.clusterInfo.Monitors["a"].Endpoint = "2.3.4.5:6789"
+	c.ClusterInfo.Monitors["a"].Endpoint = "2.3.4.5:6789"
 	c.maxMonID = 2
 	c.mapping.Node["a"] = &NodeInfo{
 		Name:     "node0",
