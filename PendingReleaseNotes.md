@@ -39,6 +39,7 @@
 - The flex driver can be configured to properly disable SELinux relabeling and FSGroup with the settings in operator.yaml.
 - Rgw is now configured with the Beast backend as of the Nautilus release
 - OSD: newly updated cluster from 0.9 to 1.0.3 and thus Ceph Nautilus will have their OSDs allowing new features for Nautilus
+- Ceph CRUSH tunable are not enforced to "firefly" anymore, Ceph picks the right tunable for its own version, to read more about tunable [see the Ceph documentation](http://docs.ceph.com/docs/master/rados/operations/crush-map/#tunables)
 
 ## Breaking Changes
 
