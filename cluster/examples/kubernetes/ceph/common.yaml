@@ -70,8 +70,6 @@ spec:
                   maximum: 9
                   minimum: 0
                   type: integer
-              required:
-              - count
             network:
               properties:
                 hostNetwork:
@@ -103,7 +101,7 @@ spec:
                           encryptedDevice:
                             type: string
                             pattern: ^(true|false)$
-                      useAllDevices: 
+                      useAllDevices:
                         type: boolean
                       deviceFilter: {}
                       directories:
@@ -122,7 +120,7 @@ spec:
                       location: {}
                       resources: {}
                   type: array
-                useAllDevices: 
+                useAllDevices:
                   type: boolean
                 deviceFilter: {}
                 location: {}
@@ -133,7 +131,7 @@ spec:
                       path:
                         type: string
                 config: {}
-                topologyAware: 
+                topologyAware:
                   type: boolean
             monitoring:
               properties:

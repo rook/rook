@@ -70,7 +70,7 @@ type ClusterSpec struct {
 	DataDirHostPath string `json:"dataDirHostPath,omitempty"`
 
 	// A spec for mon related options
-	Mon MonSpec `json:"mon"`
+	Mon MonSpec `json:"mon,omitempty"`
 
 	// A spec for rbd mirroring
 	RBDMirroring RBDMirroringSpec `json:"rbdMirroring"`
@@ -149,9 +149,9 @@ const (
 )
 
 type MonSpec struct {
-	Count                int                       `json:"count"`
-	PreferredCount       int                       `json:"preferredCount"`
-	AllowMultiplePerNode bool                      `json:"allowMultiplePerNode"`
+	Count                int                       `json:"count,omitempty"`
+	PreferredCount       int                       `json:"preferredCount,omitempty"`
+	AllowMultiplePerNode bool                      `json:"allowMultiplePerNode,omitempty"`
 	VolumeClaimTemplate  *v1.PersistentVolumeClaim `json:"volumeClaimTemplate,omitempty"`
 }
 
