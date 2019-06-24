@@ -119,7 +119,7 @@ spec:
             type: DirectoryOrCreate
         - name: ceph-csi-config
           configMap:
-            name: rook-ceph-mon-endpoints
+            name: rook-ceph-csi-config
             items:
               - key: csi-cluster-config-json
                 path: config.json
