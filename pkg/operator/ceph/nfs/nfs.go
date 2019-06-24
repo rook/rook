@@ -170,7 +170,7 @@ func (c *CephNFSController) runGaneshaRadosGraceJob(n cephv1.CephNFS, name, acti
 			},
 		},
 	}
-	k8sutil.SetOwnerRef(c.context.Clientset, n.Namespace, &job.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&job.ObjectMeta, &c.ownerRef)
 
 	// run the job to detect the version
 	if err := k8sutil.RunReplaceableJob(c.context.Clientset, job, false); err != nil {

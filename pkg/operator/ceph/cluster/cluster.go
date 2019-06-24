@@ -117,7 +117,7 @@ func (c *cluster) detectCephVersion(image string, timeout time.Duration) (*cephv
 		},
 	}
 	k8sutil.AddRookVersionLabelToJob(job)
-	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &job.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&job.ObjectMeta, &c.ownerRef)
 
 	// run the job to detect the version
 	if err := k8sutil.RunReplaceableJob(c.context.Clientset, job, true); err != nil {
@@ -179,7 +179,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 		},
 		Data: placeholderConfig,
 	}
-	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &cm.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&cm.ObjectMeta, &c.ownerRef)
 	_, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(cm)
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return fmt.Errorf("failed to create override configmap %s. %+v", c.Namespace, err)
@@ -282,7 +282,7 @@ func (c *cluster) createInitialCrushMap() error {
 		},
 		Data: map[string]string{crushmapCreatedKey: "1"},
 	}
-	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &configMap.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&configMap.ObjectMeta, &c.ownerRef)
 
 	if !configMapExists {
 		if _, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(configMap); err != nil {

@@ -262,7 +262,7 @@ func (c *Cluster) getOrGenerateDashboardPassword() (string, error) {
 		Data: secrets,
 		Type: k8sutil.RookType,
 	}
-	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &secret.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&secret.ObjectMeta, &c.ownerRef)
 
 	_, err = c.context.Clientset.CoreV1().Secrets(c.Namespace).Create(secret)
 	if err != nil {

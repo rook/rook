@@ -119,7 +119,7 @@ func (c *ISCSIController) makeISCSIService(name, svcname, namespace string, iscs
 		},
 	}
 
-	k8sutil.SetOwnerRef(c.context.Clientset, namespace, &svc.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&svc.ObjectMeta, &c.ownerRef)
 	return svc
 }
 
@@ -186,7 +186,7 @@ func (c *ISCSIController) makeDeployment(svcname, namespace, rookImage string, i
 			Replicas: &instancesCount,
 		},
 	}
-	k8sutil.SetOwnerRef(c.context.Clientset, namespace, &d.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&d.ObjectMeta, &c.ownerRef)
 	iscsiSpec.Annotations.ApplyToObjectMeta(&d.ObjectMeta)
 
 	return d

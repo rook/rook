@@ -76,7 +76,7 @@ func (c *Cluster) makeJob(nodeName string, devices []rookalpha.Device,
 	}
 	k8sutil.AddRookVersionLabelToJob(job)
 	opspec.AddCephVersionLabelToJob(c.clusterInfo.CephVersion, job)
-	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &job.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&job.ObjectMeta, &c.ownerRef)
 	return job, nil
 }
 
@@ -332,7 +332,7 @@ func (c *Cluster) makeDeployment(nodeName string, selection rookalpha.Selection,
 	c.annotations.ApplyToObjectMeta(&deployment.Spec.Template.ObjectMeta)
 	opspec.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, deployment)
 	opspec.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, deployment)
-	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &deployment.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&deployment.ObjectMeta, &c.ownerRef)
 	c.placement.ApplyToPodSpec(&deployment.Spec.Template.Spec)
 	return deployment, nil
 }

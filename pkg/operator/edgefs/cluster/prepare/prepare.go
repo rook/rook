@@ -150,7 +150,7 @@ func (c *Cluster) makeJob(name, clusterName, rookImage string, nodeName string) 
 		},
 		Spec: batch.JobSpec{Template: podSpec},
 	}
-	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &ds.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&ds.ObjectMeta, &c.ownerRef)
 	return ds
 }
 

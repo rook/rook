@@ -90,7 +90,7 @@ func (c *cluster) createInstance(rookImage string) error {
 		},
 		Data: placeholderConfig,
 	}
-	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &cm.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&cm.ObjectMeta, &c.ownerRef)
 	_, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(cm)
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return fmt.Errorf("failed to create override configmap %s. %+v", c.Namespace, err)

@@ -18,7 +18,6 @@ limitations under the License.
 package k8sutil
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -26,9 +25,6 @@ import (
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes/fake"
-	k8stesting "k8s.io/client-go/testing"
 )
 
 func TestMergeResourceRequirements(t *testing.T) {
@@ -76,10 +72,6 @@ func TestMergeResourceRequirements(t *testing.T) {
 }
 
 func TestOwnerRefCheck(t *testing.T) {
-	skipSetOwnerRefEnv = false
-	testedSetOwnerRef = false
-
-	clientset := fake.NewSimpleClientset()
 	namespace := "ns"
 	resource := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -91,31 +83,7 @@ func TestOwnerRefCheck(t *testing.T) {
 	ownerRef := &metav1.OwnerReference{Name: "myref"}
 
 	// test that the ownerref is set
-	SetOwnerRef(clientset, namespace, &resource.ObjectMeta, ownerRef)
-	assert.True(t, testedSetOwnerRef)
-	assert.False(t, skipSetOwnerRefEnv)
+	SetOwnerRef(&resource.ObjectMeta, ownerRef)
 	require.Equal(t, 1, len(resource.OwnerReferences))
 	assert.Equal(t, ownerRef.Name, resource.OwnerReferences[0].Name)
-
-	// test that the ownerref configmap is already created
-	skipSetOwnerRefEnv = false
-	testedSetOwnerRef = false
-	resource.OwnerReferences = nil
-	SetOwnerRef(clientset, namespace, &resource.ObjectMeta, ownerRef)
-	assert.True(t, testedSetOwnerRef)
-	assert.False(t, skipSetOwnerRefEnv)
-	require.Equal(t, 1, len(resource.OwnerReferences))
-	assert.Equal(t, ownerRef.Name, resource.OwnerReferences[0].Name)
-
-	// test that the ownerref cannot be set
-	clientset.PrependReactor("create", "configmaps", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
-		return true, nil, fmt.Errorf("mock failed to create configmap")
-	})
-	skipSetOwnerRefEnv = false
-	testedSetOwnerRef = false
-	resource.OwnerReferences = nil
-	SetOwnerRef(clientset, namespace, &resource.ObjectMeta, ownerRef)
-	assert.True(t, testedSetOwnerRef)
-	assert.True(t, skipSetOwnerRefEnv)
-	require.Nil(t, resource.OwnerReferences)
 }

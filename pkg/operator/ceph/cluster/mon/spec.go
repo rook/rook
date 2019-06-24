@@ -59,7 +59,7 @@ func (c *Cluster) makeDeployment(monConfig *monConfig, hostname string) *apps.De
 	k8sutil.AddRookVersionLabelToDeployment(d)
 	cephv1.GetMonAnnotations(c.spec.Annotations).ApplyToObjectMeta(&d.ObjectMeta)
 	opspec.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, d)
-	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &d.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&d.ObjectMeta, &c.ownerRef)
 
 	pod := c.makeMonPod(monConfig, hostname)
 	replicaCount := int32(1)

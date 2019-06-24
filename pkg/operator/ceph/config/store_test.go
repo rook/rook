@@ -153,7 +153,7 @@ func createOverrideMap(t *testing.T,
 			Name: k8sutil.ConfigOverrideName,
 		},
 	}
-	k8sutil.SetOwnerRef(context.Clientset, namespace, &cm.ObjectMeta, ownerRef)
+	k8sutil.SetOwnerRef(&cm.ObjectMeta, ownerRef)
 	_, err := context.Clientset.CoreV1().ConfigMaps(namespace).Create(cm)
 	assert.NoError(t, err)
 }
@@ -167,7 +167,7 @@ func updateOverrideMap(t *testing.T, overrideText string,
 		},
 		Data: map[string]string{k8sutil.ConfigOverrideVal: overrideText},
 	}
-	k8sutil.SetOwnerRef(context.Clientset, namespace, &cm.ObjectMeta, ownerRef)
+	k8sutil.SetOwnerRef(&cm.ObjectMeta, ownerRef)
 	_, err := context.Clientset.CoreV1().ConfigMaps(namespace).Update(cm)
 	assert.NoError(t, err)
 }

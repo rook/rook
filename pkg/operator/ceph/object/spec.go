@@ -51,7 +51,7 @@ func (c *clusterConfig) startDeployment(rgwConfig *rgwConfig) (*apps.Deployment,
 	k8sutil.AddRookVersionLabelToDeployment(d)
 	c.store.Spec.Gateway.Annotations.ApplyToObjectMeta(&d.ObjectMeta)
 	opspec.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, d)
-	k8sutil.SetOwnerRefs(c.context.Clientset, c.store.Namespace, &d.ObjectMeta, c.ownerRefs)
+	k8sutil.SetOwnerRefs(&d.ObjectMeta, c.ownerRefs)
 
 	logger.Debugf("starting rgw deployment: %+v", d)
 	deployment, err := c.context.Clientset.AppsV1().Deployments(c.store.Namespace).Get(d.Name, metav1.GetOptions{})
@@ -181,7 +181,7 @@ func (c *clusterConfig) startService() (string, error) {
 			Selector: labels,
 		},
 	}
-	k8sutil.SetOwnerRefs(c.context.Clientset, c.store.Namespace, &svc.ObjectMeta, c.ownerRefs)
+	k8sutil.SetOwnerRefs(&svc.ObjectMeta, c.ownerRefs)
 	if c.hostNetwork {
 		svc.Spec.ClusterIP = v1.ClusterIPNone
 	}

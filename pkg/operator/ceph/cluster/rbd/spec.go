@@ -64,7 +64,7 @@ func (m *Mirroring) makeDeployment(daemonConfig *daemonConfig) *apps.Deployment 
 	}
 	k8sutil.AddRookVersionLabelToDeployment(d)
 	opspec.AddCephVersionLabelToDeployment(m.ClusterInfo.CephVersion, d)
-	k8sutil.SetOwnerRef(m.context.Clientset, m.Namespace, &d.ObjectMeta, &m.ownerRef)
+	k8sutil.SetOwnerRef(&d.ObjectMeta, &m.ownerRef)
 	return d
 }
 
