@@ -34,6 +34,8 @@ import (
 	fakeminiov1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/minio.rook.io/v1alpha1/fake"
 	nfsv1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/nfs.rook.io/v1alpha1"
 	fakenfsv1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/nfs.rook.io/v1alpha1/fake"
+	noobaav1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/noobaa.rook.io/v1alpha1"
+	fakenoobaav1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/noobaa.rook.io/v1alpha1/fake"
 	rookv1alpha2 "github.com/rook/rook/pkg/client/clientset/versioned/typed/rook.io/v1alpha2"
 	fakerookv1alpha2 "github.com/rook/rook/pkg/client/clientset/versioned/typed/rook.io/v1alpha2/fake"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -118,6 +120,11 @@ func (c *Clientset) MinioV1alpha1() miniov1alpha1.MinioV1alpha1Interface {
 // NfsV1alpha1 retrieves the NfsV1alpha1Client
 func (c *Clientset) NfsV1alpha1() nfsv1alpha1.NfsV1alpha1Interface {
 	return &fakenfsv1alpha1.FakeNfsV1alpha1{Fake: &c.Fake}
+}
+
+// NoobaaV1alpha1 retrieves the NoobaaV1alpha1Client
+func (c *Clientset) NoobaaV1alpha1() noobaav1alpha1.NoobaaV1alpha1Interface {
+	return &fakenoobaav1alpha1.FakeNoobaaV1alpha1{Fake: &c.Fake}
 }
 
 // RookV1alpha2 retrieves the RookV1alpha2Client

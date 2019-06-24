@@ -31,6 +31,7 @@ import (
 	internalinterfaces "github.com/rook/rook/pkg/client/informers/externalversions/internalinterfaces"
 	miniorookio "github.com/rook/rook/pkg/client/informers/externalversions/minio.rook.io"
 	nfsrookio "github.com/rook/rook/pkg/client/informers/externalversions/nfs.rook.io"
+	noobaarookio "github.com/rook/rook/pkg/client/informers/externalversions/noobaa.rook.io"
 	rookio "github.com/rook/rook/pkg/client/informers/externalversions/rook.io"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
@@ -184,6 +185,7 @@ type SharedInformerFactory interface {
 	Edgefs() edgefsrookio.Interface
 	Minio() miniorookio.Interface
 	Nfs() nfsrookio.Interface
+	Noobaa() noobaarookio.Interface
 	Rook() rookio.Interface
 }
 
@@ -209,6 +211,10 @@ func (f *sharedInformerFactory) Minio() miniorookio.Interface {
 
 func (f *sharedInformerFactory) Nfs() nfsrookio.Interface {
 	return nfsrookio.New(f, f.namespace, f.tweakListOptions)
+}
+
+func (f *sharedInformerFactory) Noobaa() noobaarookio.Interface {
+	return noobaarookio.New(f, f.namespace, f.tweakListOptions)
 }
 
 func (f *sharedInformerFactory) Rook() rookio.Interface {

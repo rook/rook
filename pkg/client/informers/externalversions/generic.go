@@ -28,6 +28,7 @@ import (
 	edgefsrookiov1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
 	miniorookiov1alpha1 "github.com/rook/rook/pkg/apis/minio.rook.io/v1alpha1"
 	nfsrookiov1alpha1 "github.com/rook/rook/pkg/apis/nfs.rook.io/v1alpha1"
+	noobaarookiov1alpha1 "github.com/rook/rook/pkg/apis/noobaa.rook.io/v1alpha1"
 	v1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
@@ -116,6 +117,14 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		// Group=nfs.rook.io, Version=v1alpha1
 	case nfsrookiov1alpha1.SchemeGroupVersion.WithResource("nfsservers"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Nfs().V1alpha1().NFSServers().Informer()}, nil
+
+		// Group=noobaa.rook.io, Version=v1alpha1
+	case noobaarookiov1alpha1.SchemeGroupVersion.WithResource("noobaabackingstores"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Noobaa().V1alpha1().NooBaaBackingStores().Informer()}, nil
+	case noobaarookiov1alpha1.SchemeGroupVersion.WithResource("noobaabucketclasses"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Noobaa().V1alpha1().NooBaaBucketClasses().Informer()}, nil
+	case noobaarookiov1alpha1.SchemeGroupVersion.WithResource("noobaasystems"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Noobaa().V1alpha1().NooBaaSystems().Informer()}, nil
 
 		// Group=rook.io, Version=v1alpha2
 	case v1alpha2.SchemeGroupVersion.WithResource("volumes"):

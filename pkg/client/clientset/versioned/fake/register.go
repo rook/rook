@@ -26,6 +26,7 @@ import (
 	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
 	miniov1alpha1 "github.com/rook/rook/pkg/apis/minio.rook.io/v1alpha1"
 	nfsv1alpha1 "github.com/rook/rook/pkg/apis/nfs.rook.io/v1alpha1"
+	noobaav1alpha1 "github.com/rook/rook/pkg/apis/noobaa.rook.io/v1alpha1"
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
@@ -45,6 +46,7 @@ var localSchemeBuilder = runtime.SchemeBuilder{
 	edgefsv1beta1.AddToScheme,
 	miniov1alpha1.AddToScheme,
 	nfsv1alpha1.AddToScheme,
+	noobaav1alpha1.AddToScheme,
 	rookv1alpha2.AddToScheme,
 }
 
