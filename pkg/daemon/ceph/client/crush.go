@@ -205,17 +205,6 @@ func GetCrushHostName(context *clusterd.Context, clusterName string, osdID int) 
 }
 
 func CreateDefaultCrushMap(context *clusterd.Context, clusterName string) (string, error) {
-	// first set crush tunables to a firefly profile in order to support older clients
-	// (e.g., hyperkube uses a firefly rbd tool)
-	crushTunablesProfile := "firefly"
-	logger.Infof("setting crush tunables to %s", crushTunablesProfile)
-	output, err := SetCrushTunables(context, clusterName, crushTunablesProfile)
-	if err != nil {
-		return output, fmt.Errorf("failed to set crush tunables to profile %s: %+v", crushTunablesProfile, err)
-	} else {
-		logger.Infof("succeeded setting crush tunables to profile %s: %s", crushTunablesProfile, output)
-	}
-
 	// create a temp file that we will use to write the default decompiled crush map to
 	decompiledMap, err := ioutil.TempFile("", "")
 	if err != nil {
@@ -240,7 +229,7 @@ func CreateDefaultCrushMap(context *clusterd.Context, clusterName string) (strin
 
 	// compile the crush map to an output file
 	args := []string{"-c", decompiledMap.Name(), "-o", compiledMap.Name()}
-	output, err = context.Executor.ExecuteCommandWithOutput(false, "", CrushTool, args...)
+	output, err := context.Executor.ExecuteCommandWithOutput(false, "", CrushTool, args...)
 	if err != nil {
 		return output, fmt.Errorf("failed to compile crushmap from %s: %+v", decompiledMap.Name(), err)
 	}
