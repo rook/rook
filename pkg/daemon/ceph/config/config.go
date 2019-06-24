@@ -43,7 +43,9 @@ const (
 	// DefaultKeyringFile is the default name of the file where Ceph stores its keyring info
 	DefaultKeyringFile = "keyring"
 	// Msgr2port is the listening port of the messenger v2 protocol
-	Msgr2port = 3300
+	Msgr2port   = 3300
+	msgr1Prefix = "v1:"
+	msgr2Prefix = "v2:"
 )
 
 // GlobalConfig represents the [global] sections of Ceph's config file.
@@ -225,7 +227,8 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, ru
 		} else if podName != "" && strings.Contains(podName, "operator") {
 			// This is an operator and its version is always based on Nautilus
 			// so it knows how to parse both msgr1 and msgr2 syntax
-			monHosts[i] = "v1:" + msgr1Endpoint
+			prefix := msgrPrefix(currentMonPort)
+			monHosts[i] = prefix + msgr1Endpoint
 		} else {
 			// This is not the operator, it's an OSD and its Ceph version is before Nautilus
 			monHosts[i] = msgr1Endpoint
@@ -338,4 +341,14 @@ func logLevelToCephLogLevel(logLevel capnslog.LogLevel) int {
 	}
 
 	return 0
+}
+
+func msgrPrefix(currentMonPort int32) string {
+	// Some installation might only be listening on v2, so let's set the prefix accordingly
+	if currentMonPort == Msgr2port {
+		return msgr2Prefix
+	}
+
+	return msgr1Prefix
+
 }
