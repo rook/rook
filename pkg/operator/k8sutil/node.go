@@ -36,13 +36,9 @@ var validTopologyLabelKeys = []string{
 	"failure-domain.kubernetes.io",
 }
 
-// ValidNode returns true if the node (1) is schedulable, (2) meets Rook's placement terms, and
-// (3) is ready. False otherwise.
-func ValidNode(node v1.Node, placement rookalpha.Placement) (bool, error) {
-	if !GetNodeSchedulable(node) {
-		return false, nil
-	}
-
+// ValidNodeNoSched returns true if the node (1) meets Rook's placement terms,
+// and (2) is ready. False otherwise.
+func ValidNodeNoSched(node v1.Node, placement rookalpha.Placement) (bool, error) {
 	p, err := NodeMeetsPlacementTerms(node, placement, false)
 	if err != nil {
 		return false, fmt.Errorf("failed to check if node meets Rook placement terms. %+v", err)
@@ -56,6 +52,16 @@ func ValidNode(node v1.Node, placement rookalpha.Placement) (bool, error) {
 	}
 
 	return true, nil
+}
+
+// ValidNode returns true if the node (1) is schedulable, (2) meets Rook's placement terms, and
+// (3) is ready. False otherwise.
+func ValidNode(node v1.Node, placement rookalpha.Placement) (bool, error) {
+	if !GetNodeSchedulable(node) {
+		return false, nil
+	}
+
+	return ValidNodeNoSched(node, placement)
 }
 
 // GetValidNodes returns all nodes that (1) are not cordoned, (2) meet Rook's placement terms, and
