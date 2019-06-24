@@ -367,6 +367,11 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 	ganeshaController := nfs.NewCephNFSController(cluster.Info, c.context, cluster.Spec.DataDirHostPath, cluster.Namespace, c.rookImage, cluster.Spec, cluster.ownerRef)
 	ganeshaController.StartWatch(cluster.Namespace, cluster.stopCh)
 
+	// Populate ClusterInfo
+	if cluster.Spec.External.Enable {
+		cluster.mons.ClusterInfo = cluster.Info
+	}
+
 	// Start mon health checker
 	healthChecker := mon.NewHealthChecker(cluster.mons, cluster.Spec)
 	go healthChecker.Check(cluster.stopCh)
