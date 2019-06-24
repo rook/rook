@@ -1,0 +1,117 @@
+###############################################################################
+#
+# rook-noobaa-operator deployment
+#
+# Usage:
+#
+# kubectl create -f cluster/examples/kubernetes/noobaa/noobaa-operator.yaml
+#
+###############################################################################
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rook-noobaa
+  labels:
+    app: rook-noobaa-operator
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: noobaa-operator-account
+  namespace: rook-noobaa
+  labels:
+    app: rook-noobaa-operator
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: noobaa-operator-role
+  labels:
+    app: rook-noobaa-operator
+rules:
+  # read-only
+  - apiGroups: [""]
+    resources: ["namespaces", "nodes"]
+    verbs:     ["get", "list", "watch"]
+  # core
+  - apiGroups: [""]
+    resources: ["pods", "services", "secrets", "configmaps", "serviceaccounts", "persistentvolumeclaims"]
+    verbs:     ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # apps
+  - apiGroups: ["apps"]
+    resources: ["deployment", "replicasets", "statefulsets", "daemonsets"]
+    verbs:     ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # rbac
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["roles", "rolebindings"]
+    verbs:     ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # crd
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs:     ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # noobaa
+  - apiGroups: ["noobaa.rook.io"]
+    resources: ["*"]
+    verbs:     ["*"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: noobaa-operator-role-binding
+  namespace: rook-noobaa
+  labels:
+    app: rook-noobaa-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: noobaa-operator-role
+subjects:
+  - kind: ServiceAccount
+    name: noobaa-operator-account
+    namespace: rook-noobaa
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: noobaa-operator-deploy
+  namespace: rook-noobaa
+  labels:
+    app: rook-noobaa-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rook-noobaa-operator
+  template:
+    metadata:
+      labels:
+        app: rook-noobaa-operator
+    spec:
+      serviceAccountName: noobaa-operator-account
+      containers:
+        - name: noobaa-operator
+          image: noobaa/noobaa-operator:master
+          imagePullPolicy: IfNotPresent
+          args:
+            - noobaa
+            - operator
+          resources:
+            limits:
+              cpu: "100m"
+              memory: "128Mi"
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: ROOK_LOG_LEVEL
+              value: DEBUG

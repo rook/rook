@@ -24,6 +24,7 @@ import (
 	"github.com/rook/rook/cmd/rook/edgefs"
 	"github.com/rook/rook/cmd/rook/minio"
 	"github.com/rook/rook/cmd/rook/nfs"
+	"github.com/rook/rook/cmd/rook/noobaa"
 	rook "github.com/rook/rook/cmd/rook/rook"
 	"github.com/rook/rook/cmd/rook/version"
 )
@@ -44,5 +45,7 @@ func addCommands() {
 		minio.Cmd,
 		edgefs.Cmd,
 		nfs.Cmd,
-		cassandra.Cmd)
+		cassandra.Cmd,
+		noobaa.Cmd,
+	)
 }

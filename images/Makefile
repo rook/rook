@@ -44,6 +44,9 @@ nfs.%:
 cassandra.%:
 	@$(MAKE) -C cassandra PLATFORM=$*
 
+noobaa.%:
+	@$(MAKE) -C noobaa PLATFORM=$*
+
 
 do.build.images.%: $(foreach i,$(IMAGES), $(i).%);
 

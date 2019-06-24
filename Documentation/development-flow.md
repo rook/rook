@@ -292,12 +292,14 @@ In order to support this external operator mode, rook detects if the operator is
 ### Building locally
 
 Building a single rook binary for all operators:
-
 ```
 make GO_STATIC_PACKAGES=github.com/rook/rook/cmd/rook go.build
 ```
 
-Note: the binary output location is `_output/bin/linux_amd64/rook` on linux, and `_output/bin/darwin_amd64/rook` on mac.
+The rook binary output location is:
+```
+ROOK=_output/bin/$(go env GOHOSTOS)_$(go env GOHOSTARCH)/rook
+```
 
 
 ### Running locally
@@ -309,7 +311,7 @@ The next sections describe the supported operators and their notes.
 ### CockroachDB:
 
 ```
-_output/bin/darwin_amd64/rook cockroachdb operator --operator-image cockroachdb/cockroach:v2.0.2
+$ROOK cockroachdb operator --operator-image cockroachdb/cockroach:v2.0.2
 ```
 
 - Set `--operator-image` to the base image of [cockroachdb Dockerfile](../images/cockroachdb/Dockerfile#L15)
@@ -318,7 +320,15 @@ _output/bin/darwin_amd64/rook cockroachdb operator --operator-image cockroachdb/
 ### Minio:
 
 ```
-_output/bin/darwin_amd64/rook minio operator --operator-image minio/minio:RELEASE.2019-04-23T23-50-36Z
+$ROOK minio operator --operator-image minio/minio:RELEASE.2019-04-23T23-50-36Z
 ```
 
 - Set `--operator-image` to the base image of [minio Dockerfile](../images/minio/Dockerfile#L15)
+
+### NooBaa:
+
+```
+$ROOK noobaa operator
+```
+
+- No need to set any flags.

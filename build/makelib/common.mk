@@ -103,7 +103,7 @@ endif
 echo.%: ; @echo $* = $($*)
 
 # Select which images (backends) to make; default to all possible images
-IMAGES ?= ceph cockroachdb minio nfs cassandra edgefs
+IMAGES ?= ceph cockroachdb minio nfs cassandra edgefs noobaa
 
 COMMA := ,
 SPACE :=

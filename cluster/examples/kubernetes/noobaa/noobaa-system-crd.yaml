@@ -1,14 +1,61 @@
+###############################################################################
+#
+# CRD: NooBaaSystem
+#
+# WAIT !!! No need to create this manually, the operator does it.
+#
+###############################################################################
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   name: noobaasystems.noobaa.rook.io
 spec:
+  scope: Namespaced
+  group: noobaa.rook.io
   names:
     kind: NooBaaSystem
     plural: noobaasystems
     singular: noobaasystem
     listKind: NooBaaSystemList
     shortNames: ["nb", "noobaa"]
-  scope: Namespaced
-  group: noobaa.rook.io
   version: v1alpha1
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+  # Support extra REST API subresources for this resource
+  subresources:
+    status: {} # enabled
+    # scale:
+    #   # specReplicasPath defines the JSONPath that corresponds to Scale.Spec.Replicas.
+    #   specReplicasPath: .spec.endpoints.replicas
+    #   # statusReplicasPath defines the JSONPath that corresponds to Scale.Status.Replicas.
+    #   statusReplicasPath: .status.endpoints.replicas
+    #   # labelSelectorPath defines the JSONPath that corresponds to Scale.Status.Selector.
+    #   labelSelectorPath: .status.endpoints.labelSelector
+  validation:
+    openAPIV3Schema:
+      properties:
+        apiVersion:
+          type: string
+        kind:
+          type: string
+        metadata:
+          type: object
+          required:
+            - name
+            - namespace
+          properties:
+            name:
+              type: string
+            namespace:
+              type: string
+        spec:
+          type: object
+          properties:
+            image:
+              type: string
+            # endpoints:
+            #   type: object
+        status:
+          type: object
