@@ -258,7 +258,7 @@ const (
                 path: /lib/modules
             - name: ceph-csi-config
               configMap:
-                name: rook-ceph-mon-endpoints
+                name: rook-ceph-csi-config
                 items:
                   - key: csi-cluster-config-json
                     path: config.json
@@ -362,7 +362,7 @@ const (
                 path: /dev
             - name: ceph-csi-config
               configMap:
-                name: rook-ceph-mon-endpoints
+                name: rook-ceph-csi-config
                 items:
                   - key: csi-cluster-config-json
                     path: config.json
@@ -486,7 +486,7 @@ const (
               emptyDir: {}
             - name: ceph-csi-config
               configMap:
-                name: rook-ceph-mon-endpoints
+                name: rook-ceph-csi-config
                 items:
                   - key: csi-cluster-config-json
                     path: config.json
