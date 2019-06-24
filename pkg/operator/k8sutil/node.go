@@ -37,7 +37,8 @@ var validTopologyLabelKeys = []string{
 }
 
 // ValidNodeNoSched returns true if the node (1) meets Rook's placement terms,
-// and (2) is ready. False otherwise.
+// and (2) is ready. Unlike ValidNode, this method will ignore the
+// Node.Spec.Unschedulable flag. False otherwise.
 func ValidNodeNoSched(node v1.Node, placement rookalpha.Placement) (bool, error) {
 	p, err := NodeMeetsPlacementTerms(node, placement, false)
 	if err != nil {

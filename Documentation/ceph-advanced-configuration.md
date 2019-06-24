@@ -19,6 +19,7 @@ storage cluster.
 - [OSD Dedicated Network](#osd-dedicated-network)
 - [Phantom OSD Removal](#phantom-osd-removal)
 - [Change Failure Domain](#change-failure-domain)
+- [Monitor placement](#monitor-placement)
 
 ## Prerequisites
 
@@ -658,3 +659,23 @@ crush_rule: replicapool_host_rule
 If the cluster's health was `HEALTH_OK` when we performed this change, immediately, the new rule is applied to the cluster transparently without service disruption.
 
 Exactly the same approach can be used to change from `host` back to `osd`.
+
+## Monitor placement
+
+Rook will try to schedule Ceph monitor pods on different physical nodes by
+default. When available, Rook will also consider failure domain information in
+the form of Kubernetes node labels when scheduling Ceph monitors.
+
+Currently Rook supports the node label
+`failure-domain.beta.kubernetes.io/zone=<zone>` which can be applied to a node
+to specify its failure domain using the command:
+
+```
+kubectl label node <node> failure-domain.beta.kubernetes.io/zone=<zone>
+```
+
+Rook uses failure domain labels by trying to schedule monitor pods on different
+failure domains. And all nodes without failure domain labels are treated as a single
+failure domain from a scheduling point of view. When placing multiple monitor
+pods within a single failure domain Rook will try to run the pods on different
+physical nodes.

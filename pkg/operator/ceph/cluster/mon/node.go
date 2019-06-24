@@ -21,85 +21,19 @@ import (
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/util"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// getMonNodes detects the nodes that are available for new mons to start.
-func (c *Cluster) getMonNodes() ([]v1.Node, error) {
-	availableNodes, nodes, err := c.getAvailableMonNodes()
-	if err != nil {
-		return nil, err
-	}
-	logger.Infof("Found %d running nodes without mons", len(availableNodes))
-
-	// if all nodes already have mons and the user has given the mon.count, add all nodes to be available
-	if c.spec.Mon.AllowMultiplePerNode && len(availableNodes) == 0 {
-		logger.Infof("All nodes are running mons. Adding all %d nodes to the availability.", len(nodes.Items))
-		for _, node := range nodes.Items {
-			valid, err := k8sutil.ValidNode(node, cephv1.GetMonPlacement(c.spec.Placement))
-			if err != nil {
-				logger.Warning("failed to validate node %s %v", node.Name, err)
-			} else if valid {
-				availableNodes = append(availableNodes, node)
-			}
-		}
-	}
-
-	return availableNodes, nil
-}
-
-func (c *Cluster) getAvailableMonNodes() ([]v1.Node, *v1.NodeList, error) {
-	nodeOptions := metav1.ListOptions{}
-	nodeOptions.TypeMeta.Kind = "Node"
-	nodes, err := c.context.Clientset.CoreV1().Nodes().List(nodeOptions)
-	if err != nil {
-		return nil, nil, err
-	}
-	logger.Debugf("there are %d nodes available for %d mons", len(nodes.Items), len(c.clusterInfo.Monitors))
-
-	// get the nodes that have mons assigned
-	nodesInUse, err := c.getNodesWithMons(nodes)
-	if err != nil {
-		logger.Warningf("could not get nodes with mons. %+v", err)
-		nodesInUse = util.NewSet()
-	}
-
-	// choose nodes for the new mons that don't have mons currently
-	availableNodes := []v1.Node{}
-	for _, node := range nodes.Items {
-		if !nodesInUse.Contains(node.Name) {
-			valid, err := k8sutil.ValidNode(node, cephv1.GetMonPlacement(c.spec.Placement))
-			if err != nil {
-				logger.Warning("failed to validate node %s %v", node.Name, err)
-			} else if valid {
-				availableNodes = append(availableNodes, node)
-			}
-		}
-	}
-
-	return availableNodes, nodes, nil
-}
-
-func (c *Cluster) getNodesWithMons(nodes *v1.NodeList) (*util.Set, error) {
-	// get the mon pods and their node affinity
-	options := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", appName)}
-	pods, err := c.context.Clientset.CoreV1().Pods(c.Namespace).List(options)
-	if err != nil {
-		return nil, err
-	}
-	nodesInUse := util.NewSet()
-	for _, pod := range pods.Items {
-		hostname := pod.Spec.NodeSelector[v1.LabelHostname]
-		logger.Debugf("mon pod on node %s", hostname)
-		name, ok := getNodeNameFromHostname(nodes, hostname)
-		if !ok {
-			logger.Errorf("mon %s on hostname %s not found in node list", pod.Name, hostname)
-		}
-		nodesInUse.Add(name)
-	}
-	return nodesInUse, nil
+// NodeUsage is a mapping between a Node and computed metadata about the node
+// that is used in monitor pod scheduling.
+type NodeUsage struct {
+	Node *v1.Node
+	// The number of monitor pods assigned to the node
+	MonCount int
+	// The node is available for scheduling monitor pods. This is equivalent to
+	// evaluating k8sutil.ValidNode(node, cephv1.GetMonPlacement(c.spec.Placement))
+	MonValid bool
 }
 
 // Get the number of mons that the operator should be starting
@@ -189,4 +123,77 @@ func getNodeInfoFromNode(n v1.Node) (*NodeInfo, error) {
 		return nil, fmt.Errorf("couldn't get IP of node %s", nr.Name)
 	}
 	return nr, nil
+}
+
+// Returns a hierarchical representation of the nodes in the cluster organized
+// by zone failure domain and annotated with the number of monitor pods assigned
+// to each node and if the node is valid for scheduling monitor pods. The
+// purpose of this structure is to provide a unified view of information
+// required for making monitor scheduling decisions.
+func (c *Cluster) getNodeMonUsage() ([][]NodeUsage, error) {
+	// get all k8s node objects
+	nodeOptions := metav1.ListOptions{}
+	nodeOptions.TypeMeta.Kind = "Node"
+	nodes, err := c.context.Clientset.CoreV1().Nodes().List(nodeOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	// get all pod objects labeled as a monitor
+	podOptions := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", appName)}
+	pods, err := c.context.Clientset.CoreV1().Pods(c.Namespace).List(podOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	// generate a list of nodes that includes the number of monitor pods
+	// assigned to each node. this is equivalent to:
+	//
+	//   SELECT Node, Count(*) FROM Nodes
+	//   JOIN Pods ON Nodes.Hostname == Pods.Hostname
+	//   GROUP BY Node
+	//
+	nodeUsages := []NodeUsage{}
+	for i, node := range nodes.Items {
+		valid, err := k8sutil.ValidNode(node, cephv1.GetMonPlacement(c.spec.Placement))
+		if err != nil {
+			logger.Warning("failed to validate node %s %v", node.Name, err)
+			continue
+		}
+		nodeUsage := NodeUsage{Node: &nodes.Items[i], MonCount: 0, MonValid: valid}
+		for _, pod := range pods.Items {
+			hostname := pod.Spec.NodeSelector[v1.LabelHostname]
+			if node.Name == hostname || node.Labels[v1.LabelHostname] == hostname {
+				nodeUsage.MonCount++
+			}
+		}
+		nodeUsages = append(nodeUsages, nodeUsage)
+	}
+
+	// generate a hierarchical representation of the nodes grouped by the name
+	// of the node's zone failure domain label. the zone label named "" is used
+	// for nodes without a zone annotation.
+	nodesByZone := make(map[string][]NodeUsage)
+	for _, nodeUsage := range nodeUsages {
+		zone, ok := nodeUsage.Node.Labels["failure-domain.beta.kubernetes.io/zone"]
+		if !ok {
+			zone = ""
+		}
+		nodesByZone[zone] = append(nodesByZone[zone], nodeUsage)
+	}
+
+	// compute the final form used for scheduling. this form is an array of
+	// nodes by zone, with non-labeled nodes appearing in the final zone. this
+	// organization reflects the preference made by the scheduler of using nodes
+	// with zone annotations before non-labeled nodes.
+	res := [][]NodeUsage{}
+	for zone, nodeUsage := range nodesByZone {
+		if zone == "" {
+			res = append(res, nodeUsage)
+		} else {
+			res = append([][]NodeUsage{nodeUsage}, res...)
+		}
+	}
+
+	return res, nil
 }

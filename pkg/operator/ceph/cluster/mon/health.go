@@ -25,8 +25,10 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	scheduler "k8s.io/kubernetes/pkg/scheduler/api"
 )
 
 var (
@@ -159,15 +161,9 @@ func (c *Cluster) checkHealth() error {
 		return nil
 	}
 
-	if !c.spec.Mon.AllowMultiplePerNode {
-		// check if there are more than two mons running on the same node, failover one mon in that case
-		done, err := c.checkMonsOnSameNode(desiredMonCount)
-		if done || err != nil {
-			return err
-		}
-	}
-
-	done, err := c.checkMonsOnValidNodes()
+	// find any mons that invalidate our placement policy, and if necessary,
+	// reschedule them to other nodes.
+	done, err := c.resolveInvalidMonitorPlacement(desiredMonCount)
 	if done || err != nil {
 		return err
 	}
@@ -189,54 +185,6 @@ func (c *Cluster) checkHealth() error {
 	}
 
 	return nil
-}
-
-func (c *Cluster) checkMonsOnSameNode(desiredMonCount int) (bool, error) {
-	nodesUsed := map[string]struct{}{}
-	for name, node := range c.mapping.Node {
-		// when the node is already in the list we have more than one mon on that node
-		if _, ok := nodesUsed[node.Name]; ok {
-			// get list of available nodes for mons
-			availableNodes, _, err := c.getAvailableMonNodes()
-			if err != nil {
-				return true, fmt.Errorf("failed to get available mon nodes. %+v", err)
-			}
-			// if there are enough nodes for one mon "that is too much" to be failovered,
-			// fail it over to an other node
-			if len(availableNodes) > 0 {
-				logger.Infof("rebalance: enough nodes available %d to failover mon %s", len(availableNodes), name)
-				c.failMon(len(c.clusterInfo.Monitors), desiredMonCount, name)
-			} else {
-				logger.Debugf("rebalance: not enough nodes available to failover mon %s", name)
-			}
-
-			// deal with one mon too much on a node at a time
-			return true, nil
-		}
-		nodesUsed[node.Name] = struct{}{}
-	}
-	return false, nil
-}
-
-func (c *Cluster) checkMonsOnValidNodes() (bool, error) {
-	for mon, nInfo := range c.mapping.Node {
-		// get node to use for validNode() func
-		node, err := c.context.Clientset.CoreV1().Nodes().Get(nInfo.Name, metav1.GetOptions{})
-		if err != nil {
-			return true, err
-		}
-		// check if node the mon is on is still valid
-		valid, err := k8sutil.ValidNode(*node, cephv1.GetMonPlacement(c.spec.Placement))
-		if err != nil {
-			logger.Warning("failed to validate node %s %v", node.Name, err)
-		} else if !valid {
-			logger.Warningf("node %s isn't valid anymore, failover mon %s", nInfo.Name, mon)
-			c.failoverMon(mon)
-			return true, nil
-		}
-		logger.Debugf("node %s with mon %s is still valid", nInfo.Name, mon)
-	}
-	return false, nil
 }
 
 // failMon compares the monCount against desiredMonCount
@@ -365,4 +313,134 @@ func removeMonitorFromQuorum(context *clusterd.Context, clusterName, name string
 
 	logger.Infof("removed monitor %s", name)
 	return nil
+}
+
+func (c *Cluster) resolveInvalidMonitorPlacement(desiredMonCount int) (bool, error) {
+	nodeChoice, err := c.findInvalidMonitorPlacement(desiredMonCount)
+	if err != nil {
+		return true, fmt.Errorf("failed to find invalid mon placement %+v", err)
+	}
+
+	// no violation found
+	if nodeChoice == nil {
+		return false, nil
+	}
+
+	for name, nodeInfo := range c.mapping.Node {
+		if nodeInfo.Name == nodeChoice.Node.Name {
+			logger.Infof("rebalance: rescheduling mon %s from node %s", name, nodeInfo.Name)
+			c.failMon(len(c.clusterInfo.Monitors), desiredMonCount, name)
+			return true, nil
+		}
+	}
+
+	logger.Warningf("rebalance: no mon pod found on node %s", nodeChoice.Node.Name)
+
+	return false, nil
+}
+
+func (c *Cluster) findInvalidMonitorPlacement(desiredMonCount int) (*NodeUsage, error) {
+	nodeZones, err := c.getNodeMonUsage()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get node monitor usage. %+v", err)
+	}
+
+	// compute two helpful global flags:
+	//  - does an empty zone exist
+	//  - does an empty node exist
+	emptyZone := false
+	emptyNode := false
+	for zi := range nodeZones {
+		monFoundInZone := false
+		for ni := range nodeZones[zi] {
+			nodeUsage := &nodeZones[zi][ni]
+			if nodeUsage.MonCount > 0 {
+				monFoundInZone = true
+			} else if nodeUsage.MonValid {
+				// only consider valid nodes since this flag determines if a mon
+				// may be scheduled on to a new node.
+				emptyNode = true
+			}
+		}
+		if !monFoundInZone {
+			emptyZone = true
+		}
+	}
+
+	logger.Debugf("rebalance: desired mon count: %d, empty zone found: %t, empty node found: %t",
+		desiredMonCount, emptyZone, emptyNode)
+
+	for zi := range nodeZones {
+		zoneMonCount := 0
+		var nodeChoice *NodeUsage
+
+		// for each node consider two cases: too many monitors are running on a
+		// node, or monitors are running on invalid nodes.
+		for ni := range nodeZones[zi] {
+			nodeUsage := &nodeZones[zi][ni]
+			zoneMonCount += nodeUsage.MonCount
+
+			// if this node has too many monitors, and an underused node exists,
+			// then consider moving the monitor. note that this check is
+			// independent of the setting `AllowMultiplePerNode` since we also
+			// want to avoid in general keeping multiple monitors on one node.
+			if nodeUsage.MonCount > 1 && emptyNode {
+				logger.Infof("rebalance: chose overloaded node %s with %d mons",
+					nodeUsage.Node.Name, nodeUsage.MonCount)
+				nodeChoice = nodeUsage
+				break
+			}
+
+			// check for mons on invalid nodes. but reschedule pod only when it
+			// is invalid for reasons other than schedulability which should not
+			// affect pods that are already scheduled.
+			if nodeUsage.MonCount > 0 && !nodeUsage.MonValid {
+				placement := cephv1.GetMonPlacement(c.spec.Placement)
+				placement.Tolerations = append(placement.Tolerations,
+					v1.Toleration{
+						Key:      scheduler.TaintNodeUnschedulable,
+						Effect:   "",
+						Operator: v1.TolerationOpExists,
+					})
+				valid, err := k8sutil.ValidNodeNoSched(*nodeUsage.Node, placement)
+				if err != nil {
+					logger.Warningf("rebalance: failed to validate node %s %+v",
+						nodeUsage.Node.Name, err)
+				} else if !valid {
+					logger.Infof("rebalance: chose invalid node %s",
+						nodeUsage.Node.Name)
+					nodeChoice = nodeUsage
+					break
+				}
+			}
+		}
+
+		// if we didn't already select a node with a monitor for rescheduling,
+		// then consider that a zone may be overloaded and can be rebalanced.
+		// this case occurs if the zone has more than 1 monitor, and some other
+		// zone exists without any monitors.
+		if nodeChoice == nil && zoneMonCount > 1 && emptyZone {
+			for ni := range nodeZones[zi] {
+				nodeUsage := &nodeZones[zi][ni]
+				if nodeUsage.MonCount > 0 {
+					// select the node with the most monitors assigned
+					if nodeChoice == nil || nodeUsage.MonCount > nodeChoice.MonCount {
+						nodeChoice = nodeUsage
+					}
+				}
+			}
+			if nodeChoice != nil {
+				logger.Infof("rebalance: chose node %s from overloaded zone",
+					nodeChoice.Node.Name)
+			}
+		}
+
+		if nodeChoice != nil {
+			return nodeChoice, nil
+		}
+	}
+
+	logger.Debugf("rebalance: no mon placement violations or fixes available")
+
+	return nil, nil
 }
