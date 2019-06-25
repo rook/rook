@@ -71,35 +71,18 @@ func startOperator(cmd *cobra.Command, args []string) error {
 
 	rook.LogStartupInfo(operatorCmd.Flags())
 
-	clientset, apiExtClientset, rookClientset, err := rook.GetClientset()
-	if err != nil {
-		rook.TerminateFatal(fmt.Errorf("failed to get k8s client. %+v\n", err))
-	}
-
 	logger.Infof("starting operator")
 	context := createContext()
 	context.NetworkInfo = clusterd.NetworkInfo{}
 	context.ConfigDir = k8sutil.DataDir
-	context.Clientset = clientset
-	context.APIExtensionClientset = apiExtClientset
-	context.RookClientset = rookClientset
 	volumeAttachment, err := attachment.New(context)
 	if err != nil {
 		rook.TerminateFatal(err)
 	}
 
-	// Using the current image version to deploy other rook pods
-	pod, err := k8sutil.GetRunningPod(clientset)
-	if err != nil {
-		rook.TerminateFatal(fmt.Errorf("failed to get pod. %+v\n", err))
-	}
-
-	rookImage, err := k8sutil.GetContainerImage(pod, containerName)
-	if err != nil {
-		rook.TerminateFatal(fmt.Errorf("failed to get container image. %+v\n", err))
-	}
-
-	op := operator.New(context, volumeAttachment, rookImage, pod.Spec.ServiceAccountName)
+	rookImage := rook.GetOperatorImage(context.Clientset, containerName)
+	serviceAccountName := rook.GetOperatorServiceAccount(context.Clientset)
+	op := operator.New(context, volumeAttachment, rookImage, serviceAccountName)
 	err = op.Run()
 	if err != nil {
 		rook.TerminateFatal(fmt.Errorf("failed to run operator. %+v\n", err))

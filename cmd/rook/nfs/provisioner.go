@@ -18,7 +18,6 @@ package nfs
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/rook/rook/cmd/rook/rook"
 	"github.com/rook/rook/pkg/operator/nfs"
@@ -53,10 +52,9 @@ func startProvisioner(cmd *cobra.Command, args []string) error {
 		return errors.New("--provisioner is a required parameter")
 	}
 
-	clientset, _, rookClientset, err := rook.GetClientset()
-	if err != nil {
-		rook.TerminateFatal(fmt.Errorf("failed to get k8s clients. %+v", err))
-	}
+	context := rook.NewContext()
+	clientset := context.Clientset
+	rookClientset := context.RookClientset
 
 	serverVersion, err := clientset.Discovery().ServerVersion()
 	if err != nil {

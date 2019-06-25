@@ -17,10 +17,7 @@ limitations under the License.
 package minio
 
 import (
-	"fmt"
-
 	"github.com/rook/rook/cmd/rook/rook"
-	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/minio"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
@@ -49,36 +46,12 @@ func startOperator(cmd *cobra.Command, args []string) error {
 
 	rook.LogStartupInfo(operatorCmd.Flags())
 
-	clientset, apiExtClientset, rookClientset, err := rook.GetClientset()
-	if err != nil {
-		rook.TerminateFatal(fmt.Errorf("failed to get k8s client. %+v", err))
-	}
-
 	logger.Infof("starting operator")
-	context := createContext()
-	context.Clientset = clientset
-	context.APIExtensionClientset = apiExtClientset
-	context.RookClientset = rookClientset
-	if err != nil {
-		rook.TerminateFatal(err)
-	}
-
-	// Using the current image version to deploy other rook pods
-	pod, err := k8sutil.GetRunningPod(clientset)
-	if err != nil {
-		rook.TerminateFatal(fmt.Errorf("failed to get pod. %+v\n", err))
-	}
-
-	rookImage, err := k8sutil.GetContainerImage(pod, containerName)
-	if err != nil {
-		rook.TerminateFatal(fmt.Errorf("failed to get container image. %+v\n", err))
-	}
-
+	context := rook.NewContext()
+	rookImage := rook.GetOperatorImage(context.Clientset, containerName)
 	op := minio.New(context, rookImage)
-	err = op.Run()
-	if err != nil {
-		rook.TerminateFatal(fmt.Errorf("failed to run operator. %+v\n", err))
-	}
+	err := op.Run()
+	rook.TerminateOnError(err, "failed to run operator")
 
 	return nil
 }

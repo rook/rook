@@ -22,10 +22,15 @@ import (
 	"github.com/rook/rook/pkg/util/sys"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
 
-// The context for loading or applying the configuration state of a service.
+// Context for loading or applying the configuration state of a service.
 type Context struct {
+
+	// The kubernetes config used for this context
+	KubeConfig *rest.Config
+
 	// Clientset is a connection to the core kubernetes API
 	Clientset kubernetes.Interface
 

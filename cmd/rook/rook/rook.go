@@ -22,15 +22,19 @@ import (
 	"strings"
 
 	"github.com/coreos/pkg/capnslog"
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
+	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/rook/rook/pkg/version"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	"k8s.io/apimachinery/pkg/util/uuid"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 const (
@@ -43,9 +47,11 @@ var RootCmd = &cobra.Command{
 }
 
 var (
-	logLevelRaw string
-	Cfg         = &Config{}
-	logger      = capnslog.NewPackageLogger("github.com/rook/rook", "rookcmd")
+	logLevelRaw        string
+	operatorImage      string
+	serviceAccountName string
+	Cfg                = &Config{}
+	logger             = capnslog.NewPackageLogger("github.com/rook/rook", "rookcmd")
 )
 
 type Config struct {
@@ -58,6 +64,8 @@ type Config struct {
 //  3) command line parameter
 func init() {
 	RootCmd.PersistentFlags().StringVar(&logLevelRaw, "log-level", "INFO", "logging level for logging/tracing output (valid values: CRITICAL,ERROR,WARNING,NOTICE,INFO,DEBUG,TRACE)")
+	RootCmd.PersistentFlags().StringVar(&operatorImage, "operator-image", "", "Override the image url that the operator uses. The default is read from the operator pod.")
+	RootCmd.PersistentFlags().StringVar(&serviceAccountName, "service-account", "", "Override the service account that the operator uses. The default is read from the operator pod.")
 
 	// load the environment variables
 	flags.SetFlagsFromEnv(RootCmd.Flags(), RookEnvVarPrefix)
@@ -83,29 +91,115 @@ func LogStartupInfo(cmdFlags *pflag.FlagSet) {
 	logger.Infof("flag values: %s", strings.Join(flagValues, ", "))
 }
 
-// GetClientset create the k8s client
-func GetClientset() (kubernetes.Interface, apiextensionsclient.Interface, rookclient.Interface, error) {
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to get k8s config. %+v", err)
+// NewContext create nad initializes a cluster context
+func NewContext() *clusterd.Context {
+	var err error
+
+	context := &clusterd.Context{
+		Executor:    &exec.CommandExecutor{},
+		NetworkInfo: clusterd.NetworkInfo{},
+		ConfigDir:   k8sutil.DataDir,
+		LogLevel:    Cfg.LogLevel,
 	}
 
-	clientset, err := kubernetes.NewForConfig(config)
+	// Try to read config from in-cluster env
+	context.KubeConfig, err = rest.InClusterConfig()
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to create k8s clientset. %+v", err)
+
+		// **Not** running inside a cluster - running the operator outside of the cluster.
+		// This mode is for developers running the operator on their dev machines
+		// for faster development, or to run operator cli tools manually to a remote cluster.
+		// We setup the API server config from default user file locations (most notably ~/.kube/config),
+		// and also change the executor to work remotely and run kubernetes jobs.
+		logger.Info("setting up the context to outside of the cluster")
+
+		// Try to read config from user config files
+		context.KubeConfig, err = clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+			clientcmd.NewDefaultClientConfigLoadingRules(),
+			&clientcmd.ConfigOverrides{}).ClientConfig()
+		TerminateOnError(err, "failed to get k8s config")
+
+		// When running outside, we need to setup an executor that runs the commands as kubernetes jobs.
+		// This allows the operator code to execute tools that are available in the operator image
+		// or just have to be run inside the cluster in order to talk to the pods and services directly.
+		context.Executor = &exec.TranslateCommandExecutor{
+			Executor: context.Executor,
+			Translator: func(
+				debug bool,
+				actionName string,
+				command string,
+				arg ...string,
+			) (string, []string) {
+				jobName := "rook-exec-job-" + string(uuid.NewUUID())
+				transCommand := "kubectl"
+				transArgs := append([]string{
+					"run", jobName,
+					"--image=" + operatorImage,
+					"--serviceaccount=" + serviceAccountName,
+					"--restart=Never",
+					"--attach",
+					"--rm",
+					"--quiet",
+					"--command", "--",
+					command}, arg...)
+				return transCommand, transArgs
+			},
+		}
 	}
-	apiExtClientset, err := apiextensionsclient.NewForConfig(config)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to create k8s API extension clientset. %+v", err)
-	}
-	rookClientset, err := rookclient.NewForConfig(config)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to create rook clientset. %+v", err)
-	}
-	return clientset, apiExtClientset, rookClientset, nil
+
+	context.Clientset, err = kubernetes.NewForConfig(context.KubeConfig)
+	TerminateOnError(err, "failed to create k8s clientset")
+
+	context.APIExtensionClientset, err = apiextensionsclient.NewForConfig(context.KubeConfig)
+	TerminateOnError(err, "failed to create k8s API extension clientset")
+
+	context.RookClientset, err = rookclient.NewForConfig(context.KubeConfig)
+	TerminateOnError(err, "failed to create rook clientset")
+
+	return context
 }
 
-// TerminateFatal terminates the process with an exit code of 1 and writes the given reason to stderr and // the termination log file.
+func GetOperatorImage(clientset kubernetes.Interface, containerName string) string {
+
+	// If provided as a flag then use that value
+	if operatorImage != "" {
+		return operatorImage
+	}
+
+	// Getting the info of the operator pod
+	pod, err := k8sutil.GetRunningPod(clientset)
+	TerminateOnError(err, "failed to get pod")
+
+	// Get the actual operator container image name
+	containerImage, err := k8sutil.GetContainerImage(pod, containerName)
+	TerminateOnError(err, "failed to get container image")
+
+	return containerImage
+}
+
+func GetOperatorServiceAccount(clientset kubernetes.Interface) string {
+
+	// If provided as a flag then use that value
+	if serviceAccountName != "" {
+		return serviceAccountName
+	}
+
+	// Getting the info of the operator pod
+	pod, err := k8sutil.GetRunningPod(clientset)
+	TerminateOnError(err, "failed to get pod")
+
+	return pod.Spec.ServiceAccountName
+}
+
+// TerminateOnError terminates if err is not nil
+func TerminateOnError(err error, msg string) {
+	if err != nil {
+		TerminateFatal(fmt.Errorf("%s: %+v", msg, err))
+	}
+}
+
+// TerminateFatal terminates the process with an exit code of 1
+// and writes the given reason to stderr and the termination log file.
 func TerminateFatal(reason error) {
 	fmt.Fprintln(os.Stderr, reason)
 

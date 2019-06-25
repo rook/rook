@@ -277,3 +277,48 @@ git push origin HEAD
 
 The last step is to open a PR with the base being the intended release branch.
 Once the PR is approved and merged, then your backported change will be available in the next release.
+
+
+## Debugging operators locally
+
+Operators are meant to be run inside a Kubernetes cluster. However, this makes it harder to use debugging tools and slows down the developer cycle of edit-build-test since testing requires to build a container image, push to the cluster, restart the pods, get logs, etc.
+
+A common operator developer practice is to run the operator locally on the developer machine in order to leverage the developer tools and comfort.
+
+In order to support this external operator mode, rook detects if the operator is running outside of the cluster (using standard cluster env) and changes the behavior as follows:
+- Connecting to Kubernetes API will load the config from the user `~/.kube/config`.
+- Instead of the default [CommandExecutor](../pkg/util/exec/exec.go) this mode uses a [TranslateCommandExecutor](../pkg/util/exec/translate_exec.go) that executes every command issued by the operator to run as a Kubernetes job inside the cluster, so that any tools that the operator needs from its image can be called. For example, in cockroachdb 
+
+### Building locally
+
+Building a single rook binary for all operators:
+
+```
+make GO_STATIC_PACKAGES=github.com/rook/rook/cmd/rook go.build
+```
+
+Note: the binary output location is `_output/bin/linux_amd64/rook` on linux, and `_output/bin/darwin_amd64/rook` on mac.
+
+
+### Running locally
+
+The command-line flag: `--operator-image <image>` should be used to allow running outside of a pod since some operators read the image from the pod. This is a pattern where the operator pod is based on the image of the actual storage provider image (currently used by ceph, edgefs, cockroachdb, minio). The image url should be passed manually (for now) to match the operator's Dockerfile `FROM` statement.
+
+The next sections describe the supported operators and their notes.
+
+### CockroachDB:
+
+```
+_output/bin/darwin_amd64/rook cockroachdb operator --operator-image cockroachdb/cockroach:v2.0.2
+```
+
+- Set `--operator-image` to the base image of [cockroachdb Dockerfile](../images/cockroachdb/Dockerfile#L15)
+- The execution of `/cockroach/cockroach init` in [initCluster()](../pkg/operator/cockroachdb/controller.go#L490) runs in a kubernetes job to complete the clusterization of its pods.
+
+### Minio:
+
+```
+_output/bin/darwin_amd64/rook minio operator --operator-image minio/minio:RELEASE.2019-04-23T23-50-36Z
+```
+
+- Set `--operator-image` to the base image of [minio Dockerfile](../images/minio/Dockerfile#L15)
