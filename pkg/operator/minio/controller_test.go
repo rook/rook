@@ -211,3 +211,17 @@ func TestMakeServerAddress(t *testing.T) {
 func TestGetPVCDataDir(t *testing.T) {
 	assert.Equal(t, "/data/rook-test123", getPVCDataDir("rook-test123"))
 }
+
+func TestValidateObjectStoreSpec(t *testing.T) {
+	// nodeCount < 4 err
+	storageSpec1 := miniov.ObjectStoreSpec{Storage: rookalpha.StorageScopeSpec{NodeCount: 1}}
+	assert.NotNil(t, validateObjectStoreSpec(storageSpec1))
+
+	// nodeCount > 4 && nodeCount % 2 == 0 err
+	storageSpec2 := miniov.ObjectStoreSpec{Storage: rookalpha.StorageScopeSpec{NodeCount: 5}}
+	assert.NotNil(t, validateObjectStoreSpec(storageSpec2))
+
+	// nodeCount >= 4 && nodeCount % 2 != 0 nil
+	storageSpec3 := miniov.ObjectStoreSpec{Storage: rookalpha.StorageScopeSpec{NodeCount: 6}}
+	assert.Nil(t, validateObjectStoreSpec(storageSpec3))
+}
