@@ -4,6 +4,9 @@ metadata:
   name: ceph-before-reboot-check
   namespace: rook-ceph
 spec:
+  selector:
+    matchLabels:
+      app: ceph-before-reboot-check
   template:
     metadata:
       labels:
