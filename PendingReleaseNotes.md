@@ -4,6 +4,8 @@
 
 ## Notable Features
 
+- OwnerReferences are created with the fully qualified `apiVersion` such that the references will work properly on OpenShift.
+
 ### Minio Object Stores
 
 - Now have an additional label named `objectstore` with the name of the Object Store, to allow better selection for Services.
