@@ -6,6 +6,9 @@ metadata:
 snapshotter: rbd.csi.ceph.com
 parameters:
   pool: rbd
-  monitors: mon1:port,mon2:port,...
+  # Specify a string that identifies your cluster. Ceph CSI supports any
+  # unique string. When Ceph CSI is deployed by Rook use the Rook namespace,
+  # for example "rook-ceph".
+  clusterID: rook-ceph
   csi.storage.k8s.io/snapshotter-secret-name: csi-rbd-secret
   csi.storage.k8s.io/snapshotter-secret-namespace: default

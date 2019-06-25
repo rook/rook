@@ -30,7 +30,7 @@ kind: DaemonSet
 apiVersion: apps/v1
 metadata:
   name: test-label
-  namespace: {{ .Namespace }}  
+  namespace: {{ .Namespace }}
 spec:
   selector:
     matchLabels:
@@ -45,16 +45,16 @@ spec:
         - name: registrar
           image: {{ .RegistrarImage }}
         - name: rbdplugin
-          image: {{ .RBDPluginImage }}
+          image: {{ .CSIPluginImage }}
         - name: cephfsplugin
-          image: {{ .CephFSPluginImage }}
+          image: {{ .CSIPluginImage }}
 `)
 	testSSTemplate = []byte(`
 kind: StatefulSet
 apiVersion: apps/v1
 metadata:
   name: test-label
-  namespace: {{ .Namespace }}  
+  namespace: {{ .Namespace }}
 spec:
   selector:
     matchLabels:
@@ -71,9 +71,9 @@ spec:
         - name: provisioner
           image: {{ .ProvisionerImage }}
         - name: rbdplugin
-          image: {{ .RBDPluginImage }}
+          image: {{ .CSIPluginImage }}
         - name: cephfsplugin
-          image: {{ .CephFSPluginImage }}
+          image: {{ .CSIPluginImage }}
 `)
 )
 

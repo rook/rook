@@ -29,12 +29,11 @@ import (
 type Param struct {
 	Namespace string
 
-	RBDPluginImage    string
-	CephFSPluginImage string
-	RegistrarImage    string
-	ProvisionerImage  string
-	AttacherImage     string
-	SnapshotterImage  string
+	CSIPluginImage   string
+	RegistrarImage   string
+	ProvisionerImage string
+	AttacherImage    string
+	SnapshotterImage string
 }
 
 var (
@@ -56,12 +55,11 @@ const (
 	KubeMinMinor = "13"
 
 	// image names
-	DefaultRBDPluginImage    = "quay.io/cephcsi/rbdplugin:v1.0.0"
-	DefaultCephFSPluginImage = "quay.io/cephcsi/cephfsplugin:v1.0.0"
-	DefaultRegistrarImage    = "quay.io/k8scsi/csi-node-driver-registrar:v1.0.2"
-	DefaultProvisionerImage  = "quay.io/k8scsi/csi-provisioner:v1.0.1"
-	DefaultAttacherImage     = "quay.io/k8scsi/csi-attacher:v1.0.1"
-	DefaultSnapshotterImage  = "quay.io/k8scsi/csi-snapshotter:v1.0.1"
+	DefaultCSIPluginImage   = "quay.io/cephcsi/cephcsi:canary"
+	DefaultRegistrarImage   = "quay.io/k8scsi/csi-node-driver-registrar:v1.1.0"
+	DefaultProvisionerImage = "quay.io/k8scsi/csi-provisioner:v1.2.0"
+	DefaultAttacherImage    = "quay.io/k8scsi/csi-attacher:v1.1.0"
+	DefaultSnapshotterImage = "quay.io/k8scsi/csi-snapshotter:v1.1.1"
 
 	// template
 	DefaultRBDPluginTemplatePath         = "/etc/ceph-csi/rbd/csi-rbdplugin.yaml"
@@ -81,19 +79,21 @@ func SetCSINamespace(namespace string) {
 }
 
 func ValidateCSIParam() error {
+
+	if len(CSIParam.CSIPluginImage) == 0 {
+		return errors.New("missing csi rbd plugin image")
+	}
+	if len(CSIParam.RegistrarImage) == 0 {
+		return errors.New("missing csi registrar image")
+	}
+	if len(CSIParam.ProvisionerImage) == 0 {
+		return errors.New("missing csi provisioner image")
+	}
+	if len(CSIParam.AttacherImage) == 0 {
+		return errors.New("missing csi attacher image")
+	}
+
 	if EnableRBD {
-		if len(CSIParam.RBDPluginImage) == 0 {
-			return errors.New("missing csi rbd plugin image")
-		}
-		if len(CSIParam.RegistrarImage) == 0 {
-			return errors.New("missing csi registrar image")
-		}
-		if len(CSIParam.ProvisionerImage) == 0 {
-			return errors.New("missing csi provisioner image")
-		}
-		if len(CSIParam.AttacherImage) == 0 {
-			return errors.New("missing csi attacher image")
-		}
 		if len(RBDPluginTemplatePath) == 0 {
 			return errors.New("missing rbd plugin template path")
 		}
@@ -103,15 +103,6 @@ func ValidateCSIParam() error {
 	}
 
 	if EnableCephFS {
-		if len(CSIParam.CephFSPluginImage) == 0 {
-			return errors.New("missing csi cephfs plugin image")
-		}
-		if len(CSIParam.RegistrarImage) == 0 {
-			return errors.New("missing csi registrar image")
-		}
-		if len(CSIParam.ProvisionerImage) == 0 {
-			return errors.New("missing csi provisioner image")
-		}
 		if len(CephFSPluginTemplatePath) == 0 {
 			return fmt.Errorf("missing cephfs plugin template path")
 		}

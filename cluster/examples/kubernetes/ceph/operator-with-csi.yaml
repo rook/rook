@@ -40,20 +40,18 @@ spec:
         # CSI enablement
         - name: ROOK_CSI_ENABLE_CEPHFS
           value: "true"
-        - name: ROOK_CSI_CEPHFS_IMAGE
-          value: "quay.io/cephcsi/cephfsplugin:canary"
+        - name: ROOK_CSI_CEPH_IMAGE
+          value: "quay.io/cephcsi/cephcsi:canary"
         - name: ROOK_CSI_ENABLE_RBD
           value: "true"
-        - name: ROOK_CSI_RBD_IMAGE
-          value: "quay.io/cephcsi/rbdplugin:canary"
         - name: ROOK_CSI_REGISTRAR_IMAGE
-          value: "quay.io/k8scsi/csi-node-driver-registrar:v1.0.2"
+          value: "quay.io/k8scsi/csi-node-driver-registrar:v1.1.0"
         - name: ROOK_CSI_PROVISIONER_IMAGE
-          value: "quay.io/k8scsi/csi-provisioner:v1.0.1"
+          value: "quay.io/k8scsi/csi-provisioner:v1.2.0"
         - name: ROOK_CSI_SNAPSHOTTER_IMAGE
-          value: "quay.io/k8scsi/csi-snapshotter:v1.0.1"
+          value: "quay.io/k8scsi/csi-snapshotter:v1.1.0"
         - name: ROOK_CSI_ATTACHER_IMAGE
-          value: "quay.io/k8scsi/csi-attacher:v1.0.1"
+          value: "quay.io/k8scsi/csi-attacher:v1.1.1"
         # The name of the node to pass with the downward API
         - name: NODE_NAME
           valueFrom:

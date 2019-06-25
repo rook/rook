@@ -81,11 +81,12 @@ const (
                 privileged: true
                 capabilities:
                   add: ["SYS_ADMIN"]
-              image: {{ .RBDPluginImage }}
+              image: {{ .CSIPluginImage }}
               args :
                 - "--nodeid=$(NODE_ID)"
                 - "--endpoint=$(CSI_ENDPOINT)"
                 - "--v=5"
+                - "--type=rbd"
                 - "--drivername=rbd.csi.ceph.com"
                 - "--containerized=true"
                 - "--metadatastorage=k8s_configmap"
@@ -181,11 +182,12 @@ const (
                 capabilities:
                   add: ["SYS_ADMIN"]
                 allowPrivilegeEscalation: true
-              image: {{ .RBDPluginImage }}
+              image: {{ .CSIPluginImage }}
               args :
                 - "--nodeid=$(NODE_ID)"
                 - "--endpoint=$(CSI_ENDPOINT)"
                 - "--v=5"
+                - "--type=rbd"
                 - "--drivername=rbd.csi.ceph.com"
                 - "--containerized=true"
                 - "--metadatastorage=k8s_configmap"
@@ -221,6 +223,8 @@ const (
                 - mountPath: /lib/modules
                   name: lib-modules
                   readOnly: true
+                - name: ceph-csi-config
+                  mountPath: /etc/ceph-csi-config/
           volumes:
             - name: plugin-dir
               hostPath:
@@ -250,6 +254,12 @@ const (
             - name: lib-modules
               hostPath:
                 path: /lib/modules
+            - name: ceph-csi-config
+              configMap:
+                name: rook-ceph-mon-endpoints
+                items:
+                  - key: csi-cluster-config-json
+                    path: config.json
     `
 	cephfsProvisionerTemplate = `
     kind: StatefulSet
@@ -299,11 +309,12 @@ const (
                 privileged: true
                 capabilities:
                   add: ["SYS_ADMIN"]
-              image: {{ .CephFSPluginImage }}
+              image: {{ .CSIPluginImage }}
               args :
                 - "--nodeid=$(NODE_ID)"
                 - "--endpoint=$(CSI_ENDPOINT)"
                 - "--v=5"
+                - "--type=cephfs"
                 - "--drivername=cephfs.csi.ceph.com"
                 - "--metadatastorage=k8s_configmap"
               env:
@@ -328,6 +339,9 @@ const (
                   readOnly: true
                 - name: host-dev
                   mountPath: /dev
+                - name: ceph-csi-config
+                  mountPath: /etc/ceph-csi-config/
+
           volumes:
             - name: socket-dir
               hostPath:
@@ -342,6 +356,12 @@ const (
             - name: host-dev
               hostPath:
                 path: /dev
+            - name: ceph-csi-config
+              configMap:
+                name: rook-ceph-mon-endpoints
+                items:
+                  - key: csi-cluster-config-json
+                    path: config.json
 `
 	cephfsPluginTemplate = `
     kind: DaemonSet
@@ -390,13 +410,15 @@ const (
                 capabilities:
                   add: ["SYS_ADMIN"]
                 allowPrivilegeEscalation: true
-              image: {{ .CephFSPluginImage }}
+              image: {{ .CSIPluginImage }}
               args :
                 - "--nodeid=$(NODE_ID)"
                 - "--endpoint=$(CSI_ENDPOINT)"
                 - "--v=5"
+                - "--type=cephfs"
                 - "--drivername=cephfs.csi.ceph.com"
                 - "--metadatastorage=k8s_configmap"
+                - "--mountcachedir=/mount-cache-dir"
               env:
                 - name: NODE_ID
                   valueFrom:
@@ -425,6 +447,11 @@ const (
                   readOnly: true
                 - name: host-dev
                   mountPath: /dev
+                - name: mount-cache-dir
+                  mountPath: /mount-cache-dir
+                - name: ceph-csi-config
+                  mountPath: /etc/ceph-csi-config/
+
           volumes:
             - name: plugin-dir
               hostPath:
@@ -451,5 +478,14 @@ const (
             - name: host-dev
               hostPath:
                 path: /dev
+            - name: mount-cache-dir
+              emptyDir: {}
+            - name: ceph-csi-config
+              configMap:
+                name: rook-ceph-mon-endpoints
+                items:
+                  - key: csi-cluster-config-json
+                    path: config.json
+
 `
 )

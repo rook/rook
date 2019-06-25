@@ -46,8 +46,7 @@ func init() {
 	operatorCmd.Flags().BoolVar(&csi.EnableRBD, "csi-enable-rbd", false, "enable ceph-csi rbd support")
 	operatorCmd.Flags().BoolVar(&csi.EnableCephFS, "csi-enable-cephfs", false, "enable ceph-csi cephfs support")
 	// csi images
-	operatorCmd.Flags().StringVar(&csi.CSIParam.RBDPluginImage, "csi-rbd-image", csi.DefaultRBDPluginImage, "ceph-csi rbd plugin image")
-	operatorCmd.Flags().StringVar(&csi.CSIParam.CephFSPluginImage, "csi-cephfs-image", csi.DefaultCephFSPluginImage, "ceph-csi cephfs plugin image")
+	operatorCmd.Flags().StringVar(&csi.CSIParam.CSIPluginImage, "csi-ceph-image", csi.DefaultCSIPluginImage, "ceph-csi plugin image")
 	operatorCmd.Flags().StringVar(&csi.CSIParam.RegistrarImage, "csi-registrar-image", csi.DefaultRegistrarImage, "csi registrar image")
 	operatorCmd.Flags().StringVar(&csi.CSIParam.ProvisionerImage, "csi-provisioner-image", csi.DefaultProvisionerImage, "csi provisioner image")
 	operatorCmd.Flags().StringVar(&csi.CSIParam.AttacherImage, "csi-attacher-image", csi.DefaultAttacherImage, "csi attacher image")

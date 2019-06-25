@@ -270,8 +270,12 @@ In short, as the documentation describes it:
 
 In [snapshotClass](cluster/examples/kubernetes/ceph/csi/example/rbd/snapshotclass.yaml),
 the `csi.storage.k8s.io/snapshotter-secret-name` parameter should reference the
-name of the secret created for the rbdplugin. The `monitors` are a comma
-separated list of your Ceph monitors and `pool` to reflect the Ceph pool name.
+name of the secret created for the rbdplugin and `pool` to reflect the Ceph pool name.
+
+Update the value of the `clusterID` field to match the namespace that rook is
+running in. When Ceph CSI is deployed by Rook, the operator will automatically
+maintain a config map whose contents will match this key. By default this is
+"rook-ceph".
 
 ```console
 kubectl create -f cluster/examples/kubernetes/ceph/csi/example/rbd/snapshotclass.yaml
@@ -359,7 +363,10 @@ expect a pool named `cephfs_data` in your Ceph cluster. You can create this
 pool using [rook file-system
 CRD](https://github.com/rook/rook/blob/master/Documentation/ceph-filesystem-crd.md).
 
-Please update `monitors` to reflect the Ceph monitors.
+Update `fsName` value with CephFilesystem pool name created.
+
+Update the value of the `clusterID` field to match the namespace that rook is
+running in.
 
 ```console
 kubectl create -f cluster/examples/kubernetes/ceph/csi/example/cephfs/storegeclass.yaml

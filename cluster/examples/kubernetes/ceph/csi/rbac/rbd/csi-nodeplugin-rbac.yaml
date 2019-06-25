@@ -23,6 +23,9 @@ metadata:
     rbac.ceph.rook.io/aggregate-to-rbd-csi-nodeplugin: "true"
 rules:
   - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
     resources: ["nodes"]
     verbs: ["get", "list", "update"]
   - apiGroups: [""]

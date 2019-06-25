@@ -45,11 +45,12 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: {{ .RBDPluginImage }}
+          image: {{ .CSIPluginImage }}
           args :
             - "--nodeid=$(NODE_ID)"
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--v=5"
+            - "--type=rbd"
             - "--drivername=rbd.csi.ceph.com"
             - "--containerized=true"
           env:
@@ -121,4 +122,3 @@ spec:
             items:
               - key: csi-cluster-config-json
                 path: config.json
-
