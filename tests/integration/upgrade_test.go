@@ -60,7 +60,7 @@ func (s *UpgradeSuite) SetupSuite() {
 	useDevices := true
 	mons := 3
 	rbdMirrorWorkers := 0
-	s.op, s.k8sh = StartTestCluster(s.T, s.namespace, "bluestore", false, useDevices, mons, rbdMirrorWorkers, installer.Version0_9, installer.MimicVersion)
+	s.op, s.k8sh = StartTestCluster(s.T, s.namespace, "bluestore", false, useDevices, mons, rbdMirrorWorkers, installer.Version1_0, installer.MimicVersion)
 	s.helper = clients.CreateTestClient(s.k8sh, s.op.installer.Manifests)
 }
 
@@ -98,7 +98,7 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	operatorContainer := "rook-ceph-operator"
 	version, err := k8sutil.GetDeploymentImage(s.k8sh.Clientset, systemNamespace, operatorContainer, operatorContainer)
 	assert.Nil(s.T(), err)
-	assert.Equal(s.T(), "rook/ceph:"+installer.Version0_9, version)
+	assert.Equal(s.T(), "rook/ceph:"+installer.Version1_0, version)
 
 	message := "my simple message"
 	preFilename := "pre-upgrade-file"
@@ -151,209 +151,6 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 
 // Update the clusterroles that have been modified in master from the previous release
 func (s *UpgradeSuite) updateClusterRoles() error {
-	systemNamespace := installer.SystemNamespace(s.namespace)
-
-	if err := s.k8sh.DeleteResource("ClusterRole", "rook-ceph-global"); err != nil {
-		return err
-	}
-	if err := s.k8sh.DeleteResource("ClusterRole", "rook-ceph-cluster-mgmt"); err != nil {
-		return err
-	}
-	if err := s.k8sh.DeleteResource("-n", systemNamespace, "Role", "rook-ceph-system"); err != nil {
-		return err
-	}
-	if err := s.k8sh.DeleteResource("-n", s.namespace, "Role", "rook-ceph-mgr-system"); err != nil {
-		return err
-	}
-	if err := s.k8sh.DeleteResource("-n", systemNamespace, "RoleBinding", "rook-ceph-mgr-system"); err != nil {
-		return err
-	}
-	if err := s.k8sh.DeleteResource("-n", s.namespace, "RoleBinding", "rook-ceph-mgr-cluster"); err != nil {
-		return err
-	}
-
-	newResources := `
-apiVersion: rbac.authorization.k8s.io/v1beta1
-kind: ClusterRole
-metadata:
-  name: rook-ceph-global
-  labels:
-    operator: rook
-    storage-backend: ceph
-rules:
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  - nodes
-  - nodes/proxy
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - events
-  - persistentvolumes
-  - persistentvolumeclaims
-  - endpoints
-  verbs:
-  - get
-  - list
-  - watch
-  - patch
-  - create
-  - update
-  - delete
-- apiGroups:
-  - storage.k8s.io
-  resources:
-  - storageclasses
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - batch
-  resources:
-  - jobs
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - delete
-- apiGroups:
-  - ceph.rook.io
-  resources:
-  - "*"
-  verbs:
-  - "*"
-- apiGroups:
-  - rook.io
-  resources:
-  - "*"
-  verbs:
-  - "*"
----
-apiVersion: rbac.authorization.k8s.io/v1beta1
-kind: ClusterRole
-metadata:
-  name: rook-ceph-cluster-mgmt
-  labels:
-    operator: rook
-    storage-backend: ceph
-rules:
-- apiGroups:
-  - ""
-  resources:
-  - secrets
-  - pods
-  - pods/log
-  - services
-  - configmaps
-  verbs:
-  - get
-  - list
-  - watch
-  - patch
-  - create
-  - update
-  - delete
-- apiGroups:
-  - apps
-  resources:
-  - deployments
-  - daemonsets
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - delete
----
-apiVersion: rbac.authorization.k8s.io/v1beta1
-kind: Role
-metadata:
-  name: rook-ceph-system
-  namespace: ` + systemNamespace + `
-  labels:
-    operator: rook
-    storage-backend: ceph
-rules:
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  - configmaps
-  - services
-  verbs:
-  - get
-  - list
-  - watch
-  - patch
-  - create
-  - update
-  - delete
-- apiGroups:
-  - apps
-  resources:
-  - daemonsets
-  - statefulsets
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - delete
----
-kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-mgr-system
-rules:
-- apiGroups:
-  - ""
-  resources:
-  - configmaps
-  verbs:
-  - get
-  - list
-  - watch
----
-# Allow the ceph mgr to access the rook system resources necessary for the mgr modules
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-mgr-system
-  namespace: ` + systemNamespace + `
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: rook-ceph-mgr-system
-subjects:
-- kind: ServiceAccount
-  name: rook-ceph-mgr
-  namespace: rook-ceph
----
-# Allow the ceph mgr to access cluster-wide resources necessary for the mgr modules
-kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-mgr-cluster
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: rook-ceph-mgr-cluster
-subjects:
-- kind: ServiceAccount
-  name: rook-ceph-mgr
-  namespace: rook-ceph
-`
-	logger.Infof("creating the new resources that have been added since 0.9")
-	return s.k8sh.ResourceOperation("create", newResources)
+	logger.Infof("Placeholder: create the new resources that have been added since 1.0")
+	return nil
 }
