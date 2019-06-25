@@ -6,6 +6,7 @@
 - Creation of storage pools through the custom resource definitions (CRDs) now allows users to optionally specify `deviceClass` property to enable
 distribution of the data only across the specified device class. See [Ceph Block Pool CRD](Documentation/ceph-pool-crd.md#ceph-block-pool-crd) for
 an example usage
+- OwnerReferences are created with the fully qualified `apiVersion` such that the references will work properly on OpenShift.
 
 ### Ceph
 
