@@ -24,9 +24,6 @@ parameters:
     csi.storage.k8s.io/node-publish-secret-name: csi-rbd-secret
     csi.storage.k8s.io/node-publish-secret-namespace: default
 
-    # Ceph users for operating RBD
-    adminid: admin
-    userid: kubernetes
     # uncomment the following to use rbd-nbd as mounter on supported nodes
     #mounter: rbd-nbd
 reclaimPolicy: Delete
