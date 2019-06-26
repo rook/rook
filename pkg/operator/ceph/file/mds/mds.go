@@ -156,7 +156,20 @@ func (c *Cluster) Start() error {
 		// keyring must be generated before update-and-wait since no keyring will prevent the
 		// deployment from reaching ready state
 		if createErr != nil && errors.IsAlreadyExists(createErr) {
-			if err = UpdateDeploymentAndWait(c.context, d, c.fs.Namespace, c.clusterInfo.Name, c.clusterInfo.CephVersion); err != nil {
+			// Always invoke ceph version before an upgrade so we are sure to be up-to-date
+			daemon := "mds"
+			var cephVersionToUse cephver.CephVersion
+			currentCephVersion, err := client.LeastUptodateDaemonVersion(c.context, c.clusterInfo.Name, daemon)
+			if err != nil {
+				logger.Warningf("failed to retrieve current ceph %s version. %+v", daemon, err)
+				logger.Debug("could not detect ceph version during update, this is likely an initial bootstrap, proceeding with c.clusterInfo.CephVersion")
+				cephVersionToUse = c.clusterInfo.CephVersion
+
+			} else {
+				logger.Debugf("current cluster version for mdss before upgrading is: %+v", currentCephVersion)
+				cephVersionToUse = currentCephVersion
+			}
+			if err = UpdateDeploymentAndWait(c.context, d, c.fs.Namespace, c.clusterInfo.Name, cephVersionToUse); err != nil {
 				return fmt.Errorf("failed to update mds deployment %s. %+v", d.Name, err)
 			}
 		}

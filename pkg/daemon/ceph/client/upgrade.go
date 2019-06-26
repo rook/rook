@@ -351,3 +351,61 @@ func stringInSlice(a string, list []string) bool {
 	}
 	return false
 }
+
+// LeastUptodateDaemonVersion returns the ceph version of the least updated daemon type
+// So if we invoke this method function with "mon", it will look for the least recent version
+// Assume the following:
+//
+// "mon": {
+//     "ceph version 13.2.5 (cbff874f9007f1869bfd3821b7e33b2a6ffd4988) mimic (stable)": 1,
+//     "ceph version 14.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) nautilus (stable)": 2
+// }
+//
+// In the case we will pick: "ceph version 13.2.5 (cbff874f9007f1869bfd3821b7e33b2a6ffd4988) mimic (stable)": 1,
+// And eventually return 13.2.5
+func LeastUptodateDaemonVersion(context *clusterd.Context, clusterName, daemonType string) (cephver.CephVersion, error) {
+	var r map[string]int
+	var vv cephver.CephVersion
+
+	// Always invoke ceph version before an upgrade so we are sure to be up-to-date
+	versions, err := GetAllCephDaemonVersions(context, clusterName)
+	if err != nil {
+		logger.Warningf("failed to get ceph daemons versions. %+v, this likely means there is no cluster yet.", err)
+	} else {
+		r, err = daemonMapEntry(versions, daemonType)
+		if err != nil {
+			return vv, fmt.Errorf("failed to find daemon map entry %+v", err)
+		}
+		for v := range r {
+			version, err := cephver.ExtractCephVersion(v)
+			if err != nil {
+				return vv, fmt.Errorf("failed to extract ceph version. %+v", err)
+			}
+			vv = *version
+			// break right after the first iteration
+			// the first one is always the least up-to-date
+			break
+		}
+	}
+
+	return vv, nil
+}
+
+func daemonMapEntry(versions *CephDaemonsVersions, daemonType string) (map[string]int, error) {
+	switch daemonType {
+	case "mon":
+		return versions.Mon, nil
+	case "mgr":
+		return versions.Mgr, nil
+	case "mds":
+		return versions.Mds, nil
+	case "osd":
+		return versions.Osd, nil
+	case "rgw":
+		return versions.Rgw, nil
+	case "mirror":
+		return versions.RbdMirror, nil
+	}
+
+	return nil, fmt.Errorf("invalid daemonType %s", daemonType)
+}

@@ -17,6 +17,7 @@ limitations under the License.
 package client
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 
@@ -179,4 +180,25 @@ func TestFindFSName(t *testing.T) {
 	assert.Equal(t, "myfs", fsName)
 	fsName = findFSName("rook-ceph-mds-my-super-fs-a", "rook-ceph")
 	assert.Equal(t, "my-super-fs", fsName)
+}
+
+func TestDaemonMapEntry(t *testing.T) {
+	dummyVersionsRaw := []byte(`
+	{
+		"mon": {
+			"ceph version 13.2.5 (cbff874f9007f1869bfd3821b7e33b2a6ffd4988) mimic (stable)": 1,
+			"ceph version 14.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) nautilus (stable)": 2
+		}
+	}`)
+
+	var dummyVersions CephDaemonsVersions
+	err := json.Unmarshal([]byte(dummyVersionsRaw), &dummyVersions)
+	assert.Nil(t, err)
+
+	m, err := daemonMapEntry(&dummyVersions, "mon")
+	assert.Nil(t, err)
+	assert.Equal(t, dummyVersions.Mon, m)
+
+	m, err = daemonMapEntry(&dummyVersions, "dummy")
+	assert.NotNil(t, err)
 }

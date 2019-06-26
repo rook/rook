@@ -627,7 +627,20 @@ func (c *Cluster) startMon(m *monConfig, hostname string) error {
 			return fmt.Errorf("failed to create mon deployment %s. %+v", m.ResourceName, err)
 		}
 		logger.Infof("deployment for mon %s already exists. updating if needed", m.ResourceName)
-		if err := updateDeploymentAndWait(c.context, d, c.Namespace, c.clusterInfo.Name, c.clusterInfo.CephVersion); err != nil {
+
+		// Always invoke ceph version before an upgrade so we are sure to be up-to-date
+		daemon := "mon"
+		var cephVersionToUse cephver.CephVersion
+		currentCephVersion, err := client.LeastUptodateDaemonVersion(c.context, c.clusterInfo.Name, daemon)
+		if err != nil {
+			logger.Warningf("failed to retrieve current ceph %s version. %+v", daemon, err)
+			logger.Debug("could not detect ceph version during update, this is likely an initial bootstrap, proceeding with c.clusterInfo.CephVersion")
+			cephVersionToUse = c.clusterInfo.CephVersion
+		} else {
+			logger.Debugf("current cluster version for monitors before upgrading is: %+v", currentCephVersion)
+			cephVersionToUse = currentCephVersion
+		}
+		if err := updateDeploymentAndWait(c.context, d, c.Namespace, c.clusterInfo.Name, cephVersionToUse); err != nil {
 			return fmt.Errorf("failed to update mon deployment %s. %+v", m.ResourceName, err)
 		}
 	}
