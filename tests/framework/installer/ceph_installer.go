@@ -365,6 +365,9 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, name
 			h.checkCephHealthStatus(namespace)
 		}
 
+		// Gather logs after status checks
+		h.GatherAllRookLogs(namespace, SystemNamespace(namespace), h.T().Name())
+
 		roles := h.Manifests.GetClusterRoles(namespace, systemNamespace)
 		_, err = h.k8shelper.KubectlWithStdin(roles, deleteFromStdinArgs...)
 
