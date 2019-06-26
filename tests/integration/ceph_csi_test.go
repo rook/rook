@@ -72,10 +72,11 @@ func createCephCSISecret(helper *clients.TestClient, k8sh *utils.K8sHelper, s su
 			Name:      csiSecretName,
 			Namespace: namespace,
 		},
-		Data: map[string][]byte{
-			"admin":    []byte(keyResult),
-			"adminID":  []byte("admin"),
-			"adminKey": []byte(keyResult),
+		StringData: map[string]string{
+			"userID":   "admin",
+			"userKey":  keyResult,
+			"adminID":  "admin",
+			"adminKey": keyResult,
 		},
 	})
 	require.Nil(s.T(), err)
