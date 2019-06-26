@@ -38,6 +38,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	objectuser "github.com/rook/rook/pkg/operator/ceph/object/user"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
@@ -564,6 +565,11 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 		}
 		return
 	}
+
+	// Display success after upgrade
+	if versionChanged {
+		printOverallCephVersion(c.context, cluster.Namespace)
+	}
 }
 
 func (c *ClusterController) handleUpdate(crdName string, cluster *cluster) (bool, error) {
@@ -842,5 +848,28 @@ func ClusterOwnerRef(namespace, clusterID string) metav1.OwnerReference {
 		Name:               namespace,
 		UID:                types.UID(clusterID),
 		BlockOwnerDeletion: &blockOwner,
+	}
+}
+
+func printOverallCephVersion(context *clusterd.Context, namespace string) {
+	versions, err := client.GetCephVersions(context, namespace)
+	if err != nil {
+		logger.Errorf("failed to get ceph daemons versions. %+v", err)
+		return
+	}
+
+	if len(versions.Overall) == 1 {
+		for v := range versions.Overall {
+			version, err := cephver.ExtractCephVersion(v)
+			if err != nil {
+				logger.Errorf("failed to extract ceph version. %+v", err)
+				return
+			}
+			vv := *version
+			logger.Infof("successfully upgraded cluster to version: %s", vv.String())
+		}
+	} else {
+		// This shouldn't happen, but let's log just in case
+		logger.Warningf("upgrade orchestration completed but somehow we still have more than one Ceph version running. %+v:", versions.Overall)
 	}
 }
