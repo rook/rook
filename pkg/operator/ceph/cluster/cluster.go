@@ -24,6 +24,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/rook/rook/pkg/operator/k8sutil/cmdreporter"
+
 	"github.com/google/go-cmp/cmp"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
@@ -36,7 +38,6 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/rbd"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	batch "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -83,63 +84,34 @@ func newCluster(c *cephv1.CephCluster, context *clusterd.Context) *cluster {
 	}
 }
 
-func (c *cluster) detectCephVersion(image string, timeout time.Duration) (*cephver.CephVersion, error) {
-	// get the major ceph version by running "ceph --version" in the ceph image
-	podSpec := v1.PodSpec{
-		Containers: []v1.Container{
-			{
-				Command: []string{"ceph"},
-				Args:    []string{"--version"},
-				Name:    "version",
-				Image:   image,
-			},
-		},
-		RestartPolicy: v1.RestartPolicyOnFailure,
-	}
-
-	// apply "mon" placement
-	cephv1.GetMonPlacement(c.Spec.Placement).ApplyToPodSpec(&podSpec)
-
-	job := &batch.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      detectVersionName,
-			Namespace: c.Namespace,
-		},
-		Spec: batch.JobSpec{
-			Template: v1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						"job": detectVersionName,
-					},
-				},
-				Spec: podSpec,
-			},
-		},
-	}
-	k8sutil.AddRookVersionLabelToJob(job)
-	k8sutil.SetOwnerRef(&job.ObjectMeta, &c.ownerRef)
-
-	// run the job to detect the version
-	if err := k8sutil.RunReplaceableJob(c.context.Clientset, job, true); err != nil {
-		return nil, fmt.Errorf("failed to start version job. %+v", err)
-	}
-
-	if err := k8sutil.WaitForJobCompletion(c.context.Clientset, job, timeout); err != nil {
-		return nil, fmt.Errorf("failed to complete version job. %+v", err)
-	}
-
-	log, err := k8sutil.GetPodLog(c.context.Clientset, c.Namespace, "job="+detectVersionName)
+func (c *cluster) detectCephVersion(rookImage, cephImage string, timeout time.Duration) (*cephver.CephVersion, error) {
+	versionReporter, err := cmdreporter.New(
+		c.context.Clientset, &c.ownerRef,
+		detectVersionName, detectVersionName, c.Namespace,
+		[]string{"ceph"}, []string{"--version"},
+		rookImage, cephImage,
+	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get version job log to detect version. %+v", err)
+		return nil, fmt.Errorf("failed to set up ceph version job. %+v", err)
 	}
 
-	version, err := cephver.ExtractCephVersion(log)
+	job := versionReporter.Job()
+	job.Spec.Template.Spec.ServiceAccountName = "rook-ceph-cmd-reporter"
+
+	stdout, stderr, retcode, err := versionReporter.Run(timeout)
+	if err != nil {
+		return nil, fmt.Errorf("failed to complete ceph version job. %+v", err)
+	}
+	if retcode != 0 {
+		return nil, fmt.Errorf(`ceph version job returned failure with retcode %d.
+  stdout: %s
+  stderr: %s`, retcode, stdout, stderr)
+	}
+
+	version, err := cephver.ExtractCephVersion(stdout)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract ceph version. %+v", err)
 	}
-
-	// delete the job since we're done with it
-	k8sutil.DeleteBatchJob(c.context.Clientset, c.Namespace, job.Name, false)
 
 	logger.Infof("Detected ceph image version: %s", version)
 	return version, nil

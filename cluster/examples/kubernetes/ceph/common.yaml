@@ -494,8 +494,16 @@ metadata:
   name: rook-ceph-mgr
   namespace: rook-ceph
 # OLM: END SERVICE ACCOUNT MGR
-# OLM: BEGIN CLUSTER ROLE
 ---
+# OLM: BEGIN CMD REPORTER SERVICE ACCOUNT
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-ceph-cmd-reporter
+  namespace: rook-ceph
+# OLM: END CMD REPORTER SERVICE ACCOUNT
+---
+# OLM: BEGIN CLUSTER ROLE
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
@@ -569,10 +577,30 @@ rules:
   verbs:
   - "*"
 # OLM: END CLUSTER ROLE
-#
-# OLM: BEGIN CLUSTER ROLEBINDING
 ---
-  # Allow the operator to create resources in this cluster's namespace
+# OLM: BEGIN CMD REPORTER ROLE
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-cmd-reporter
+  namespace: rook-ceph
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+# OLM: END CMD REPORTER ROLE
+---
+# OLM: BEGIN CLUSTER ROLEBINDING
+# Allow the operator to create resources in this cluster's namespace
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
@@ -645,5 +673,21 @@ subjects:
 - kind: ServiceAccount
   name: rook-ceph-mgr
   namespace: rook-ceph
----
 # OLM: END CLUSTER ROLEBINDING
+---
+# OLM: BEGIN CMD REPORTER ROLEBINDING
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-cmd-reporter
+  namespace: rook-ceph
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-ceph-cmd-reporter
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-cmd-reporter
+  namespace: rook-ceph
+# OLM: END CMD REPORTER ROLEBINDING
+---

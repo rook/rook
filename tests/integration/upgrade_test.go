@@ -152,5 +152,49 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 // Update the clusterroles that have been modified in master from the previous release
 func (s *UpgradeSuite) updateClusterRoles() error {
 	logger.Infof("Placeholder: create the new resources that have been added since 1.0")
-	return nil
+	namespace := s.namespace
+	newResources := `
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-ceph-cmd-reporter
+  namespace: ` + namespace + `
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-cmd-reporter
+  namespace: ` + namespace + `
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-cmd-reporter
+  namespace: ` + namespace + `
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-ceph-cmd-reporter
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-cmd-reporter
+  namespace: ` + namespace + `
+---
+`
+	logger.Infof("creating the new resources that have been added since 1.0")
+	return s.k8sh.ResourceOperation("create", newResources)
 }

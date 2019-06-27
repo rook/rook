@@ -76,4 +76,18 @@ subjects:
 - kind: ServiceAccount
   name: rook-ceph-mgr
   namespace: {{ .Release.Namespace }}
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-cmd-reporter
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-ceph-cmd-reporter
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-cmd-reporter
+  namespace: {{ .Release.Namespace }}
 {{- end }}
