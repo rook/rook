@@ -87,6 +87,8 @@ Settings can be specified at the global level to apply to the cluster as a whole
 
 ### Cluster Settings
 
+- `external`:
+  - `enable`: if `true`, the cluster will not be managed by Rook but via an external entity. This mode is intended to connect to an existing cluster. In this case, Rook will only consume the external cluster. However, Rook will be able to deploy various daemons in Kubernetes such as object gateways, mds and nfs. If this setting is enabled **all** the other options will be ignored except `cephVersion.image` and `dataDirHostPath`. See [external cluster configuration](#external-cluster).
 - `cephVersion`: The version information for launching the ceph daemons.
   - `image`: The image used for running the ceph daemons. For example, `ceph/ceph:v13.2.6-20190604` or `ceph/ceph:v14.2.2-20190722`.
   For the latest ceph images, see the [Ceph DockerHub](https://hub.docker.com/r/ceph/ceph/tags/).
@@ -646,3 +648,63 @@ spec:
           accessModes:
             - ReadWriteOnce
 ```
+
+### External cluster
+
+#### Pre-requisites
+
+In order to configure an external Ceph cluster with Rook, we need to inject some information in order to connect to that cluster.
+You can use the `cluster/examples/kubernetes/ceph/import-external-cluster.sh` script to achieve that.
+The script will look for the following populated environment variables:
+
+* `NAMESPACE`: the namespace where the configmap and secrets should be injected
+* `ROOK_EXTERNAL_FSID`: the fsid of the external Ceph cluster, it can be retrieved via the `ceph fsid` command
+* `ROOK_EXTERNAL_ADMIN_SECRET`: the external Ceph cluster admin secret key, it can be retrieved via the `ceph auth get-key client.admin` command
+* `ROOK_EXTERNAL_CEPH_MON_DATA`: is a common-separated list of running monitors IP address along with their ports, e.g: `a=172.17.0.4:6789,b=172.17.0.5:6789,c=172.17.0.6:6789`. You don't need to specify all the monitors, you can simply pass one and the Operator will discover the rest. The name of the monitor is the name that appears in the `ceph status` ouput.
+
+Example:
+
+```bash
+export NAMESPACE=rook-ceph-external
+export ROOK_EXTERNAL_FSID=3240b4aa-ddbc-42ee-98ba-4ea7b2a61514
+export ROOK_EXTERNAL_ADMIN_SECRET=AQC6Ylxdja+NDBAAB7qy9MEAr4VLLq4dCIvxtg==
+export ROOK_EXTERNAL_CEPH_MON_DATA=a=172.17.0.4:6789
+```
+
+Then you can simply execute the script like this:
+
+```bash
+bash cluster/examples/kubernetes/ceph/import-external-cluster.sh
+```
+
+#### CR example
+
+Assuming the above section has successfully completed, here is a CR example:
+
+```
+apiVersion: ceph.rook.io/v1
+kind: CephCluster
+metadata:
+  name: rook-ceph-external
+  namespace: rook-ceph-external
+spec:
+  external:
+    enable: true
+  dataDirHostPath: /var/lib/rook
+  cephVersion:
+    image: ceph/ceph:v14.2.2-20190722 # the image version **must** match the version of the external Ceph cluster
+```
+
+Choose the namespace carefully, if you have an existing cluster managed by Rook, you have likely already injected `common.yaml`.
+Additionnally, you now need to inject `common-external.yaml` too.
+
+You can now create it like this:
+
+```bash
+kubectl create -f cluster/examples/kubernetes/ceph/cluster-external.yaml
+```
+
+If the previous section has not been completed, the Rook Operator will still acknowledge the CR creation but will wait forever to receive connection information.
+
+**WARNING**
+If no cluster is managed by the current Rook Operator, you need to inject `common.yaml`, then modify `cluster-external.yaml` and specify `rook-ceph` as `namespace`.
