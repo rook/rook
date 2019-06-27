@@ -84,11 +84,6 @@ func (c *CephNFSController) StartWatch(namespace string, stopCh chan struct{}) e
 }
 
 func (c *CephNFSController) onAdd(obj interface{}) {
-	if c.clusterSpec.External.Enable {
-		logger.Warningf("Creating NFS configuration for an external ceph cluster is not supported")
-		return
-	}
-
 	nfs := obj.(*cephv1.CephNFS).DeepCopy()
 	if !c.clusterInfo.CephVersion.IsAtLeastNautilus() {
 		logger.Errorf("Ceph NFS is only supported with Nautilus or newer. CRD %s will be ignored.", nfs.Name)
@@ -105,11 +100,6 @@ func (c *CephNFSController) onAdd(obj interface{}) {
 }
 
 func (c *CephNFSController) onUpdate(oldObj, newObj interface{}) {
-	if c.clusterSpec.External.Enable {
-		logger.Warningf("Updating NFS configuration for an external ceph cluster is not supported")
-		return
-	}
-
 	oldNFS := oldObj.(*cephv1.CephNFS).DeepCopy()
 	newNFS := newObj.(*cephv1.CephNFS).DeepCopy()
 	if !c.clusterInfo.CephVersion.IsAtLeastNautilus() {
@@ -141,11 +131,6 @@ func (c *CephNFSController) onUpdate(oldObj, newObj interface{}) {
 }
 
 func (c *CephNFSController) onDelete(obj interface{}) {
-	if c.clusterSpec.External.Enable {
-		logger.Warningf("Deleting NFS configuration for an external ceph cluster is not supported")
-		return
-	}
-
 	nfs := obj.(*cephv1.CephNFS).DeepCopy()
 	if !c.clusterInfo.CephVersion.IsAtLeastNautilus() {
 		logger.Errorf("Ceph NFS is only supported with Nautilus or newer. CRD %s cleanup will be ignored.", nfs.Name)

@@ -80,11 +80,6 @@ func (c *PoolController) StartWatch(namespace string, stopCh chan struct{}) erro
 }
 
 func (c *PoolController) onAdd(obj interface{}) {
-	if c.clusterSpec.External.Enable {
-		logger.Warningf("Creating pools for an external ceph cluster is not supported")
-		return
-	}
-
 	pool, err := getPoolObject(obj)
 	if err != nil {
 		logger.Errorf("failed to get pool object: %+v", err)
@@ -98,11 +93,6 @@ func (c *PoolController) onAdd(obj interface{}) {
 }
 
 func (c *PoolController) onUpdate(oldObj, newObj interface{}) {
-	if c.clusterSpec.External.Enable {
-		logger.Warningf("Updating pools for an external ceph cluster is not supported")
-		return
-	}
-
 	oldPool, err := getPoolObject(oldObj)
 	if err != nil {
 		logger.Errorf("failed to get old pool object: %+v", err)
@@ -147,11 +137,6 @@ func poolChanged(old, new cephv1.PoolSpec) bool {
 }
 
 func (c *PoolController) onDelete(obj interface{}) {
-	if c.clusterSpec.External.Enable {
-		logger.Warningf("Deleting pools for an external ceph cluster is not supported")
-		return
-	}
-
 	pool, err := getPoolObject(obj)
 	if err != nil {
 		logger.Errorf("failed to get pool object: %+v", err)

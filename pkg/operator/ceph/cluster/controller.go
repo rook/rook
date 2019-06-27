@@ -33,6 +33,7 @@ import (
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
+	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/file"
 	"github.com/rook/rook/pkg/operator/ceph/nfs"
 	"github.com/rook/rook/pkg/operator/ceph/object"
@@ -259,6 +260,13 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 		}
 		logger.Infof("found the cluster info to connect to the external cluster. mons=%+v", cluster.Info.Monitors)
 
+		// Write the rook-ceph-config configmap (used by various daemons to apply config overrides)
+		// If we don't do this, daemons will never start, waiting forever for this configmap to be present
+		err = config.GetStore(cluster.context, namespace, &cluster.ownerRef).CreateOrUpdate(cluster.Info)
+		if err != nil {
+			return err
+		}
+
 		// Let's write connection info (ceph config file and keyring) to the operator for health checks
 		err = mon.WriteConnectionConfig(cluster.context, cluster.Info)
 		if err != nil {
@@ -285,6 +293,12 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 		if !cephver.IsIdentical(specCephVersion, cluster.Info.CephVersion) {
 			return fmt.Errorf("wrong ceph version %s, external cluster version is %s, they must match", specCephVersion.String(), cephMonVersion.String())
 		}
+
+		// The cluster Identity must be established at this point
+		if !cluster.Info.IsInitialized() {
+			return fmt.Errorf("the cluster identity was not established: %+v", cluster.Info)
+		}
+		logger.Info("cluster identity established.")
 
 		// Everything went well so let's update the CR's status to "connected"
 		c.updateClusterStatus(namespace, name, cephv1.ClusterStateConnected, "")

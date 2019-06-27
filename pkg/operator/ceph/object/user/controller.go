@@ -85,11 +85,6 @@ func (c *ObjectStoreUserController) StartWatch(stopCh chan struct{}) error {
 }
 
 func (c *ObjectStoreUserController) onAdd(obj interface{}) {
-	if c.clusterSpec.External.Enable {
-		logger.Warningf("Creating object store users for an external ceph cluster is not supported")
-		return
-	}
-
 	user, err := getObjectStoreUserObject(obj)
 	if err != nil {
 		logger.Errorf("failed to get objectstoreuser object: %+v", err)
@@ -102,20 +97,10 @@ func (c *ObjectStoreUserController) onAdd(obj interface{}) {
 }
 
 func (c *ObjectStoreUserController) onUpdate(oldObj, newObj interface{}) {
-	if c.clusterSpec.External.Enable {
-		logger.Warningf("Updating object store users for an external ceph cluster is not supported")
-		return
-	}
-
 	// TODO: Add update code here after features are added which require updates.
 }
 
 func (c *ObjectStoreUserController) onDelete(obj interface{}) {
-	if c.clusterSpec.External.Enable {
-		logger.Warningf("Deleting object store users for an external ceph cluster is not supported")
-		return
-	}
-
 	user, err := getObjectStoreUserObject(obj)
 	if err != nil {
 		logger.Errorf("failed to get objectstoreuser object: %+v", err)
