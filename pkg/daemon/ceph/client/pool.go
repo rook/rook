@@ -231,6 +231,11 @@ func CreateReplicatedPoolForApp(context *clusterd.Context, clusterName string, n
 		return err
 	}
 
+        // set min_pool size for the pool based on the size of the pool
+	if err = SetPoolProperty(context, clusterName, newPool.Name, "min_size", strconv.FormatUint(uint64(Ceil(newPool.Size -(newPool.Size/2)), 10)); err != nil {
+		return err
+	}
+
 	// ensure that the newly created pool gets an application tag
 	err = givePoolAppTag(context, clusterName, newPool.Name, appName)
 	if err != nil {
