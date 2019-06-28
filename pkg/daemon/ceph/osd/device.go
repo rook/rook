@@ -22,7 +22,6 @@ import (
 	"path"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"syscall"
 	"time"
 
@@ -559,11 +558,6 @@ func initializeOSD(config *osdConfig, context *clusterd.Context, cluster *cephco
 		}
 	}
 
-	// add the new OSD to the cluster crush map
-	if err := addOSDToCrushMap(context, config, cluster.Name, location); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -604,60 +598,6 @@ func addOSDAuth(context *clusterd.Context, clusterName string, osdID int, osdDat
 	caps := []string{"osd", "allow *", "mon", "allow profile osd"}
 
 	return client.AuthGetOrCreate(context, clusterName, osdEntity, getOSDKeyringPath(osdDataPath), caps)
-}
-
-// adds the given OSD to the crush map
-func addOSDToCrushMap(context *clusterd.Context, config *osdConfig, clusterName, location string) error {
-	osdID := config.id
-	osdDataPath := config.rootPath
-
-	var totalBytes uint64
-	var err error
-	if !isBluestoreDevice(config) {
-		// get the size of the volume containing the OSD data dir.  For filestore/bluestore directory
-		// or device, this will be a mounted filesystem, so we can use Statfs
-		totalBytes, err = getSizeForPath(osdDataPath)
-		if err != nil {
-			return err
-		}
-	} else {
-		// for bluestore devices, the data partition will be raw, so we can't use Statfs.  Get the
-		// full device properties of the data partition and then get the size from that.
-		dataPartDetails, err := getDataPartitionDetails(config)
-		if err != nil {
-			return fmt.Errorf("failed to get data partition details for osd %d (%s): %+v", osdID, osdDataPath, err)
-		}
-		dataPartPath := filepath.Join(diskByPartUUID, dataPartDetails.PartitionUUID)
-		devProps, err := sys.GetDevicePropertiesFromPath(dataPartPath, context.Executor)
-		if err != nil {
-			return fmt.Errorf("failed to get device properties for %s: %+v", dataPartPath, err)
-		}
-		if val, ok := devProps["SIZE"]; ok {
-			if size, err := strconv.ParseUint(val, 10, 64); err == nil {
-				totalBytes = size
-			}
-		}
-
-		if totalBytes == 0 {
-			return fmt.Errorf("failed to get size of %s: %+v.  Full properties: %+v", dataPartPath, err, devProps)
-		}
-	}
-
-	// weight is ratio of (size in KB) / (1 GB)
-	weight := float64(totalBytes/1024) / 1073741824.0
-	weight, _ = strconv.ParseFloat(fmt.Sprintf("%.4f", weight), 64)
-
-	osdEntity := fmt.Sprintf("osd.%d", osdID)
-	logger.Infof("adding %s (%s), bytes: %d, weight: %.4f, to crush map at '%s'",
-		osdEntity, osdDataPath, totalBytes, weight, location)
-	args := []string{"osd", "crush", "create-or-move", strconv.Itoa(osdID), fmt.Sprintf("%.4f", weight)}
-	args = append(args, strings.Split(location, " ")...)
-	_, err = client.NewCephCommand(context, clusterName, args).Run()
-	if err != nil {
-		return fmt.Errorf("failed adding %s to crush map: %+v", osdEntity, err)
-	}
-
-	return nil
 }
 
 func getBluestorePartitionPaths(cfg *osdConfig) (string, string, string, error) {
