@@ -105,8 +105,6 @@ parameters:
     csi.storage.k8s.io/provisioner-secret-namespace: ` + namespace + `
     csi.storage.k8s.io/node-publish-secret-name: ` + csiSecretName + `
     csi.storage.k8s.io/node-publish-secret-namespace: ` + namespace + `
-    adminid: admin
-    userid: admin
 `
 	cephFSSC := `
 apiVersion: storage.k8s.io/v1
