@@ -97,7 +97,7 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
    name: ` + csiSCRBD + `
-provisioner: rbd.csi.ceph.com
+provisioner: ` + installer.SystemNamespace(namespace) + `.rbd.csi.ceph.com
 parameters:
     pool: ` + csiPoolRBD + `
     clusterID: ` + namespace + `
@@ -111,7 +111,7 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
    name: ` + csiSCCephFS + `
-provisioner: cephfs.csi.ceph.com
+provisioner: ` + installer.SystemNamespace(namespace) + `.cephfs.csi.ceph.com
 parameters:
     clusterID: ` + namespace + `
     fsName: ` + csiPoolCephFS + `

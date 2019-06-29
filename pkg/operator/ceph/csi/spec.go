@@ -35,6 +35,7 @@ type Param struct {
 	ProvisionerImage string
 	AttacherImage    string
 	SnapshotterImage string
+	DriverNamePrefix string
 }
 
 type templateParam struct {
@@ -132,6 +133,11 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface) error {
 	tp := templateParam{
 		Param:     CSIParam,
 		Namespace: namespace,
+	}
+	// if the user didn't specify a custom DriverNamePrefix use
+	// the namespace (and a dot).
+	if tp.DriverNamePrefix == "" {
+		tp.DriverNamePrefix = fmt.Sprintf("%s.", namespace)
 	}
 
 	if EnableRBD {
