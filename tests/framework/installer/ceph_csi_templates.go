@@ -89,7 +89,7 @@ const (
                 - "--endpoint=$(CSI_ENDPOINT)"
                 - "--v=5"
                 - "--type=rbd"
-                - "--drivername=rbd.csi.ceph.com"
+                - "--drivername={{ .DriverNamePrefix }}rbd.csi.ceph.com"
                 - "--containerized=true"
                 - "--metadatastorage=k8s_configmap"
               env:
@@ -190,7 +190,7 @@ const (
                 - "--endpoint=$(CSI_ENDPOINT)"
                 - "--v=5"
                 - "--type=rbd"
-                - "--drivername=rbd.csi.ceph.com"
+                - "--drivername={{ .DriverNamePrefix }}rbd.csi.ceph.com"
                 - "--containerized=true"
                 - "--metadatastorage=k8s_configmap"
               env:
@@ -319,7 +319,7 @@ const (
                 - "--endpoint=$(CSI_ENDPOINT)"
                 - "--v=5"
                 - "--type=cephfs"
-                - "--drivername=cephfs.csi.ceph.com"
+                - "--drivername={{ .DriverNamePrefix }}cephfs.csi.ceph.com"
                 - "--metadatastorage=k8s_configmap"
               env:
                 - name: NODE_ID
@@ -420,7 +420,7 @@ const (
                 - "--endpoint=$(CSI_ENDPOINT)"
                 - "--v=5"
                 - "--type=cephfs"
-                - "--drivername=cephfs.csi.ceph.com"
+                - "--drivername={{ .DriverNamePrefix }}cephfs.csi.ceph.com"
                 - "--metadatastorage=k8s_configmap"
                 - "--mountcachedir=/mount-cache-dir"
               env:

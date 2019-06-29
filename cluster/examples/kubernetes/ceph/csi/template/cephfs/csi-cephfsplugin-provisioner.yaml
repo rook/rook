@@ -53,7 +53,7 @@ spec:
             - "--type=cephfs"
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--v=5"
-            - "--drivername=cephfs.csi.ceph.com"
+            - "--drivername={{ .DriverNamePrefix }}cephfs.csi.ceph.com"
             - "--metadatastorage=k8s_configmap"
           env:
             - name: NODE_ID
