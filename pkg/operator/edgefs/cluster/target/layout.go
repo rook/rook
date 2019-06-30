@@ -52,11 +52,13 @@ func CreateQualifiedHeadlessServiceName(replicaNum int, namespace string) string
 	return fmt.Sprintf("%s-%d.%s.%s", appName, replicaNum, appName, namespace)
 }
 
+// EdgeFS RT-RD driver needs SCSI-3, ATA, NVMe by-id link
 func getIdDevLinkName(dls string) (dl string) {
 	dlsArr := strings.Split(dls, " ")
 	for i := range dlsArr {
 		s := strings.Replace(dlsArr[i], "/dev/disk/by-id/", "", 1)
-		if strings.Contains(s, "/") || strings.Contains(s, "wwn-") {
+		// if result contains "/" then it is not by-id, so skip it
+		if strings.Contains(s, "/") || strings.Contains(s, "wwn-") || strings.Contains(s, "nvme-nvme.") || strings.Contains(s, "nvme-eui.") {
 			continue
 		}
 		dl = s
