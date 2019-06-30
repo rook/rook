@@ -46,7 +46,7 @@ type Node struct {
 
 type Device struct {
 	Name     string            `json:"name,omitempty"`
-	FullPath string            // TODO: FullPath to be supported for devices
+	FullPath string            `json:"fullpath,omitempty"`
 	Config   map[string]string `json:"config"`
 }
 
