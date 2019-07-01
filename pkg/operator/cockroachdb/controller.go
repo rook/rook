@@ -105,7 +105,7 @@ func newCluster(c *cockroachdbv1alpha1.Cluster, context *clusterd.Context) *clus
 func clusterOwnerRef(namespace, clusterID string) metav1.OwnerReference {
 	blockOwner := true
 	return metav1.OwnerReference{
-		APIVersion:         ClusterResource.Version,
+		APIVersion:         fmt.Sprintf("%s/%s", ClusterResource.Group, ClusterResource.Version),
 		Kind:               ClusterResource.Kind,
 		Name:               namespace,
 		UID:                types.UID(clusterID),
@@ -215,7 +215,7 @@ func (c *ClusterController) createClientService(cluster *cluster) error {
 			Ports:    createServicePorts(httpPort, grpcPort),
 		},
 	}
-	k8sutil.SetOwnerRef(c.context.Clientset, cluster.namespace, &clientService.ObjectMeta, &cluster.ownerRef)
+	k8sutil.SetOwnerRef(&clientService.ObjectMeta, &cluster.ownerRef)
 
 	if _, err := c.context.Clientset.CoreV1().Services(cluster.namespace).Create(clientService); err != nil {
 		if !errors.IsAlreadyExists(err) {
@@ -265,7 +265,7 @@ func (c *ClusterController) createReplicaService(cluster *cluster) error {
 			Ports:                    createServicePorts(httpPort, grpcPort),
 		},
 	}
-	k8sutil.SetOwnerRef(c.context.Clientset, cluster.namespace, &replicaService.ObjectMeta, &cluster.ownerRef)
+	k8sutil.SetOwnerRef(&replicaService.ObjectMeta, &cluster.ownerRef)
 
 	if _, err := c.context.Clientset.CoreV1().Services(cluster.namespace).Create(replicaService); err != nil {
 		if !errors.IsAlreadyExists(err) {
@@ -295,7 +295,7 @@ func (c *ClusterController) createPodDisruptionBudget(cluster *cluster) error {
 			MaxUnavailable: &maxUnavailable,
 		},
 	}
-	k8sutil.SetOwnerRef(c.context.Clientset, cluster.namespace, &pdb.ObjectMeta, &cluster.ownerRef)
+	k8sutil.SetOwnerRef(&pdb.ObjectMeta, &cluster.ownerRef)
 
 	if _, err := c.context.Clientset.PolicyV1beta1().PodDisruptionBudgets(cluster.namespace).Create(pdb); err != nil {
 		if !errors.IsAlreadyExists(err) {
@@ -344,7 +344,7 @@ func (c *ClusterController) createStatefulSet(cluster *cluster) error {
 	}
 	cluster.annotations.ApplyToObjectMeta(&statefulSet.Spec.Template.ObjectMeta)
 	cluster.annotations.ApplyToObjectMeta(&statefulSet.ObjectMeta)
-	k8sutil.SetOwnerRef(c.context.Clientset, cluster.namespace, &statefulSet.ObjectMeta, &cluster.ownerRef)
+	k8sutil.SetOwnerRef(&statefulSet.ObjectMeta, &cluster.ownerRef)
 
 	if _, err := c.context.Clientset.AppsV1().StatefulSets(cluster.namespace).Create(statefulSet); err != nil {
 		if !errors.IsAlreadyExists(err) {

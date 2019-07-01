@@ -198,7 +198,7 @@ func createClusterAccessSecret(clientset kubernetes.Interface, namespace string,
 		Data: secrets,
 		Type: k8sutil.RookType,
 	}
-	k8sutil.SetOwnerRef(clientset, namespace, &secret.ObjectMeta, ownerRef)
+	k8sutil.SetOwnerRef(&secret.ObjectMeta, ownerRef)
 
 	if _, err = clientset.CoreV1().Secrets(namespace).Create(secret); err != nil {
 		return fmt.Errorf("failed to save mon secrets. %+v", err)

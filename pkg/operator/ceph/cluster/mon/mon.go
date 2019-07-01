@@ -459,7 +459,7 @@ func (c *Cluster) saveMonConfig() error {
 			Namespace: c.Namespace,
 		},
 	}
-	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &configMap.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&configMap.ObjectMeta, &c.ownerRef)
 
 	monMapping, err := json.Marshal(c.mapping)
 	if err != nil {

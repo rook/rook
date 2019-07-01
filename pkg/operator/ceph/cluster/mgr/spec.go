@@ -108,7 +108,7 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
 		d.ObjectMeta.Annotations = prometheusAnnotations
 	}
 	opspec.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, d)
-	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &d.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&d.ObjectMeta, &c.ownerRef)
 	return d
 }
 
@@ -300,7 +300,7 @@ func (c *Cluster) makeMetricsService(name string) *v1.Service {
 		},
 	}
 
-	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &svc.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&svc.ObjectMeta, &c.ownerRef)
 	return svc
 }
 
@@ -324,7 +324,7 @@ func (c *Cluster) makeDashboardService(name string, port int) *v1.Service {
 			},
 		},
 	}
-	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &svc.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&svc.ObjectMeta, &c.ownerRef)
 	return svc
 }
 

@@ -166,7 +166,7 @@ func (c *cluster) createClusterConfigMap(nodes []rookalpha.Node, deploymentConfi
 		Data: dataMap,
 	}
 
-	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &configMap.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&configMap.ObjectMeta, &c.ownerRef)
 	if _, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(configMap); err != nil {
 		if errors.IsAlreadyExists(err) {
 			if _, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Update(configMap); err != nil {
