@@ -41,6 +41,8 @@ const (
               args:
                 - "--csi-address=$(ADDRESS)"
                 - "--v=5"
+                - "--timeout=60s"
+                - "--retry-interval-start=500ms"
               env:
                 - name: ADDRESS
                   value: unix:///csi/csi-provisioner.sock
@@ -65,8 +67,8 @@ const (
               image:  {{ .SnapshotterImage }}
               args:
                 - "--csi-address=$(ADDRESS)"
-                - "--connection-timeout=15s"
                 - "--v=5"
+                - "--timeout=60s"
               env:
                 - name: ADDRESS
                   value: unix:///csi/csi-provisioner.sock
@@ -285,6 +287,8 @@ const (
               args:
                 - "--csi-address=$(ADDRESS)"
                 - "--v=5"
+                - "--timeout=60s"
+                - "--retry-interval-start=500ms"
               env:
                 - name: ADDRESS
                   value: unix:///csi/csi-provisioner.sock

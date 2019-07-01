@@ -33,6 +33,8 @@ spec:
           args:
             - "--csi-address=$(ADDRESS)"
             - "--v=5"
+            - "--timeout=60s"
+            - "--retry-interval-start=500ms"
           env:
             - name: ADDRESS
               value: unix:///csi/csi-provisioner.sock
