@@ -56,6 +56,7 @@ type OsdAgent struct {
 	procMan        *proc.ProcManager
 	storeConfig    config.StoreConfig
 	kv             *k8sutil.ConfigMapKVStore
+	pvcBacked      bool
 	configCounter  int32
 	osdsCompleted  chan struct{}
 }
@@ -66,7 +67,7 @@ type device struct {
 }
 
 func NewAgent(context *clusterd.Context, devices []DesiredDevice, metadataDevice, directories string, forceFormat bool,
-	location string, storeConfig config.StoreConfig, cluster *cephconfig.ClusterInfo, nodeName string, kv *k8sutil.ConfigMapKVStore) *OsdAgent {
+	location string, storeConfig config.StoreConfig, cluster *cephconfig.ClusterInfo, nodeName string, kv *k8sutil.ConfigMapKVStore, pvcBacked bool) *OsdAgent {
 
 	return &OsdAgent{
 		devices:        devices,
@@ -78,6 +79,7 @@ func NewAgent(context *clusterd.Context, devices []DesiredDevice, metadataDevice
 		cluster:        cluster,
 		nodeName:       nodeName,
 		kv:             kv,
+		pvcBacked:      pvcBacked,
 		procMan:        proc.New(context.Executor),
 		osdProc:        make(map[int]*proc.MonitoredProc),
 	}
@@ -147,10 +149,17 @@ func (a *OsdAgent) removeDirs(context *clusterd.Context, removedDirs map[string]
 
 func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOsdMapping) ([]oposd.OSDInfo, error) {
 
-	cvSupported, err := getCephVolumeSupported(context)
-	if err != nil {
-		logger.Errorf("failed to detect if ceph-volume is available. %+v", err)
+	var cvSupported bool
+	var err error
+	if a.pvcBacked {
+		cvSupported = true //ceph-volume is always supported when OSD is backed by PVC
+	} else {
+		cvSupported, err = getCephVolumeSupported(context)
+		if err != nil {
+			logger.Errorf("failed to detect if ceph-volume is available. %+v", err)
+		}
 	}
+
 	if a.metadataDevice != "" {
 		// ceph-volume still is work in progress for accepting fast devices for the metadata
 		logger.Warningf("ceph-volume metadata support is experimental. osd provision might fail if vg on %s does not have enough space", a.metadataDevice)
@@ -160,7 +169,7 @@ func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOs
 	if devices == nil || len(devices.Entries) == 0 {
 		logger.Infof("no more devices to configure")
 		if cvSupported {
-			return getCephVolumeOSDs(context, a.cluster.Name, a.cluster.FSID)
+			return getCephVolumeOSDs(context, a.cluster.Name, a.cluster.FSID, "")
 		}
 		return osds, nil
 	}
