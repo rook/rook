@@ -24,6 +24,7 @@ import (
 	"github.com/rook/rook/pkg/util"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -187,4 +188,28 @@ func AddRookVersionLabelToObjectMeta(meta *metav1.ObjectMeta) {
 		meta.Labels = map[string]string{}
 	}
 	addRookVersionLabel(meta.Labels)
+}
+
+func AddLabelToDeployement(key, value string, d *v1.Deployment) {
+	if d == nil {
+		return
+	}
+	if d.Labels == nil {
+		d.Labels = map[string]string{}
+	}
+	addLabel(key, value, d.Labels)
+}
+
+func AddLabelToJob(key, value string, b *batchv1.Job) {
+	if b == nil {
+		return
+	}
+	if b.Labels == nil {
+		b.Labels = map[string]string{}
+	}
+	addLabel(key, value, b.Labels)
+}
+
+func addLabel(key, value string, labels map[string]string) {
+	labels[key] = value
 }

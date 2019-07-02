@@ -51,6 +51,7 @@ type config struct {
 	networkInfo        clusterd.NetworkInfo
 	monEndpoints       string
 	nodeName           string
+	pvcBacked          bool
 }
 
 func init() {

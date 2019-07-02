@@ -54,93 +54,104 @@ func DiscoverDevices(executor exec.Executor) ([]*sys.LocalDisk, error) {
 			// skip device
 			continue
 		}
-
-		diskProps, err := sys.GetDeviceProperties(d, executor)
-		if err != nil {
-			logger.Warningf("skipping device %s: %+v", d, err)
+		disk := PopulateDeviceInfo(d, executor)
+		if disk == nil {
 			continue
 		}
-
-		diskType, ok := diskProps["TYPE"]
-		if !ok || (diskType != sys.SSDType && diskType != sys.CryptType && diskType != sys.DiskType && diskType != sys.PartType && diskType != sys.LinearType) {
-			if !ok {
-				logger.Warningf("skipping device %s: diskType is empty", d)
-			} else {
-				logger.Warningf("skipping device %s: unsupported diskType %+s", d, diskType)
-			}
-			// unsupported disk type, just continue
-			continue
-		}
-
-		// get the UUID for disks
-		var diskUUID string
-		if diskType != sys.PartType {
-			diskUUID, err = sys.GetDiskUUID(d, executor)
-			if err != nil {
-				logger.Warningf("device %s has an unknown uuid. %+v", d, err)
-				continue
-			}
-		}
-
-		udevInfo, err := sys.GetUdevInfo(d, executor)
-		if err != nil {
-			logger.Warningf("failed to get udev info for device %s: %+v", d, err)
-			continue
-		}
-
-		disk := &sys.LocalDisk{Name: d, UUID: diskUUID}
-
-		if val, ok := diskProps["TYPE"]; ok {
-			disk.Type = val
-		}
-		if val, ok := diskProps["SIZE"]; ok {
-			if size, err := strconv.ParseUint(val, 10, 64); err == nil {
-				disk.Size = size
-			}
-		}
-		if val, ok := diskProps["ROTA"]; ok {
-			if rotates, err := strconv.ParseBool(val); err == nil {
-				disk.Rotational = rotates
-			}
-		}
-		if val, ok := diskProps["RO"]; ok {
-			if ro, err := strconv.ParseBool(val); err == nil {
-				disk.Readonly = ro
-			}
-		}
-		if val, ok := diskProps["PKNAME"]; ok {
-			disk.Parent = val
-		}
-
-		// parse udev info output
-		if val, ok := udevInfo["DEVLINKS"]; ok {
-			disk.DevLinks = val
-		}
-		if val, ok := udevInfo["ID_FS_TYPE"]; ok {
-			disk.Filesystem = val
-		}
-		if val, ok := udevInfo["ID_SERIAL"]; ok {
-			disk.Serial = val
-		}
-
-		if val, ok := udevInfo["ID_VENDOR"]; ok {
-			disk.Vendor = val
-		}
-
-		if val, ok := udevInfo["ID_MODEL"]; ok {
-			disk.Model = val
-		}
-
-		if val, ok := udevInfo["ID_WWN_WITH_EXTENSION"]; ok {
-			disk.WWNVendorExtension = val
-		}
-
-		if val, ok := udevInfo["ID_WWN"]; ok {
-			disk.WWN = val
-		}
-
+		disk = PopulateDeviceUdevInfo(d, executor, disk)
 		disks = append(disks, disk)
 	}
 
 	return disks, nil
+}
+
+func PopulateDeviceInfo(d string, executor exec.Executor) *sys.LocalDisk {
+	diskProps, err := sys.GetDeviceProperties(d, executor)
+	if err != nil {
+		logger.Warningf("skipping device %s: %+v", d, err)
+		return nil
+	}
+
+	diskType, ok := diskProps["TYPE"]
+	if !ok || (diskType != sys.SSDType && diskType != sys.CryptType && diskType != sys.DiskType && diskType != sys.PartType && diskType != sys.LinearType) {
+		if !ok {
+			logger.Warningf("skipping device %s: diskType is empty", d)
+		} else {
+			logger.Warningf("skipping device %s: unsupported diskType %+s", d, diskType)
+		}
+		// unsupported disk type, just continue
+		return nil
+	}
+
+	// get the UUID for disks
+	var diskUUID string
+	if diskType != sys.PartType {
+		diskUUID, err = sys.GetDiskUUID(d, executor)
+		if err != nil {
+			logger.Warningf("device %s has an unknown uuid. %+v", d, err)
+			return nil
+		}
+	}
+
+	disk := &sys.LocalDisk{Name: d, UUID: diskUUID}
+
+	if val, ok := diskProps["TYPE"]; ok {
+		disk.Type = val
+	}
+	if val, ok := diskProps["SIZE"]; ok {
+		if size, err := strconv.ParseUint(val, 10, 64); err == nil {
+			disk.Size = size
+		}
+	}
+	if val, ok := diskProps["ROTA"]; ok {
+		if rotates, err := strconv.ParseBool(val); err == nil {
+			disk.Rotational = rotates
+		}
+	}
+	if val, ok := diskProps["RO"]; ok {
+		if ro, err := strconv.ParseBool(val); err == nil {
+			disk.Readonly = ro
+		}
+	}
+	if val, ok := diskProps["PKNAME"]; ok {
+		disk.Parent = val
+	}
+
+	return disk
+}
+
+func PopulateDeviceUdevInfo(d string, executor exec.Executor, disk *sys.LocalDisk) *sys.LocalDisk {
+	udevInfo, err := sys.GetUdevInfo(d, executor)
+	if err != nil {
+		logger.Warningf("failed to get udev info for device %s: %+v", d, err)
+		return disk
+	}
+	// parse udev info output
+	if val, ok := udevInfo["DEVLINKS"]; ok {
+		disk.DevLinks = val
+	}
+	if val, ok := udevInfo["ID_FS_TYPE"]; ok {
+		disk.Filesystem = val
+	}
+	if val, ok := udevInfo["ID_SERIAL"]; ok {
+		disk.Serial = val
+	}
+
+	if val, ok := udevInfo["ID_VENDOR"]; ok {
+		disk.Vendor = val
+	}
+
+	if val, ok := udevInfo["ID_MODEL"]; ok {
+		disk.Model = val
+	}
+
+	if val, ok := udevInfo["ID_WWN_WITH_EXTENSION"]; ok {
+		disk.WWNVendorExtension = val
+	}
+
+	if val, ok := udevInfo["ID_WWN"]; ok {
+		disk.WWN = val
+	}
+
+	return disk
 }

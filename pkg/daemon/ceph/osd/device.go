@@ -111,7 +111,8 @@ func formatDevice(context *clusterd.Context, config *osdConfig, forceFormat bool
 	}
 
 	// check if partitions belong to rook
-	_, ownPartitions, devFS, err := sys.CheckIfDeviceAvailable(context.Executor, dataDetails.Device)
+	pvcBackedOSD := false
+	_, ownPartitions, devFS, err := sys.CheckIfDeviceAvailable(context.Executor, dataDetails.Device, pvcBackedOSD)
 	if err != nil {
 		return nil, fmt.Errorf("failed to format device. %+v", err)
 	}
@@ -171,7 +172,8 @@ func partitionMetadata(context *clusterd.Context, info *config.MetadataDeviceInf
 	}
 
 	// check one last time to make sure it's OK for us to format this metadata device
-	_, ownPartitions, fs, err := sys.CheckIfDeviceAvailable(context.Executor, info.Device)
+	pvcBackedOSD := false
+	_, ownPartitions, fs, err := sys.CheckIfDeviceAvailable(context.Executor, info.Device, pvcBackedOSD)
 	if err != nil {
 		return fmt.Errorf("failed to get metadata device %s info: %+v", info.Device, err)
 	} else if fs != "" || !ownPartitions {

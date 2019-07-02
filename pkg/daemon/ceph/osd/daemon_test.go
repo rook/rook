@@ -70,6 +70,8 @@ func TestRunDaemon(t *testing.T) {
 	agent, _, context := createTestAgent(t, "none", configDir, "node5375", &config.StoreConfig{StoreType: config.Bluestore})
 	agent.devices[0].IsFilter = true
 
+	agent.pvcBacked = false
+	logger.Infof("Agent %+v", agent)
 	err := Provision(context, agent)
 	assert.Nil(t, err)
 }
@@ -209,7 +211,8 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	}
 
 	// select all devices, including nvme01 for metadata
-	mapping, err := getAvailableDevices(context, []DesiredDevice{{Name: "all"}}, "nvme01")
+	pvcBackedOSD := false
+	mapping, err := getAvailableDevices(context, []DesiredDevice{{Name: "all"}}, "nvme01", pvcBackedOSD)
 	assert.Nil(t, err)
 	assert.Equal(t, 5, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["sda"].Data)
@@ -221,29 +224,29 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	assert.Equal(t, 0, len(mapping.Entries["nvme01"].Metadata))
 
 	// select no devices both using and not using a filter
-	mapping, err = getAvailableDevices(context, nil, "")
+	mapping, err = getAvailableDevices(context, nil, "", pvcBackedOSD)
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(mapping.Entries))
 
-	mapping, err = getAvailableDevices(context, nil, "")
+	mapping, err = getAvailableDevices(context, nil, "", pvcBackedOSD)
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(mapping.Entries))
 
 	// select the sd* devices
-	mapping, err = getAvailableDevices(context, []DesiredDevice{{Name: "^sd.$", IsFilter: true}}, "")
+	mapping, err = getAvailableDevices(context, []DesiredDevice{{Name: "^sd.$", IsFilter: true}}, "", pvcBackedOSD)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["sda"].Data)
 	assert.Equal(t, -1, mapping.Entries["sdd"].Data)
 
 	// select an exact device
-	mapping, err = getAvailableDevices(context, []DesiredDevice{{Name: "sdd"}}, "")
+	mapping, err = getAvailableDevices(context, []DesiredDevice{{Name: "sdd"}}, "", pvcBackedOSD)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["sdd"].Data)
 
 	// select all devices except those that have a prefix of "s"
-	mapping, err = getAvailableDevices(context, []DesiredDevice{{Name: "^[^s]", IsFilter: true}}, "")
+	mapping, err = getAvailableDevices(context, []DesiredDevice{{Name: "^[^s]", IsFilter: true}}, "", pvcBackedOSD)
 	assert.Nil(t, err)
 	assert.Equal(t, 3, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["rda"].Data)
