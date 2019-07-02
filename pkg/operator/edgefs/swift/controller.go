@@ -53,6 +53,7 @@ var SWIFTResource = opkit.CustomResource{
 // SWIFTController represents a controller object for swift custom resources
 type SWIFTController struct {
 	context         *clusterd.Context
+	namespace       string
 	rookImage       string
 	hostNetwork     bool
 	dataDirHostPath string
@@ -65,7 +66,9 @@ type SWIFTController struct {
 
 // NewSWIFTController create controller for watching SWIFT custom resources created
 func NewSWIFTController(
-	context *clusterd.Context, rookImage string,
+	context *clusterd.Context,
+	namespace string,
+	rookImage string,
 	hostNetwork bool,
 	dataDirHostPath string,
 	dataVolumeSize resource.Quantity,
@@ -76,6 +79,7 @@ func NewSWIFTController(
 ) *SWIFTController {
 	return &SWIFTController{
 		context:         context,
+		namespace:       namespace,
 		rookImage:       rookImage,
 		hostNetwork:     hostNetwork,
 		dataDirHostPath: dataDirHostPath,
@@ -88,7 +92,7 @@ func NewSWIFTController(
 }
 
 // StartWatch watches for instances of SWIFT custom resources and acts on them
-func (c *SWIFTController) StartWatch(namespace string, stopCh chan struct{}) error {
+func (c *SWIFTController) StartWatch(stopCh chan struct{}) error {
 
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
@@ -96,8 +100,8 @@ func (c *SWIFTController) StartWatch(namespace string, stopCh chan struct{}) err
 		DeleteFunc: c.onDelete,
 	}
 
-	logger.Infof("start watching swift resources in namespace %s", namespace)
-	watcher := opkit.NewWatcher(SWIFTResource, namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1beta1().RESTClient())
+	logger.Infof("start watching swift resources in namespace %s", c.namespace)
+	watcher := opkit.NewWatcher(SWIFTResource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1beta1().RESTClient())
 	go watcher.Watch(&edgefsv1beta1.SWIFT{}, stopCh)
 
 	return nil
@@ -156,6 +160,31 @@ func (c *SWIFTController) serviceOwners(service *edgefsv1beta1.SWIFT) []metav1.O
 	// If the SWIFT crd still exists when the cluster crd is deleted, this will make sure the SWIFT
 	// resources are cleaned up.
 	return []metav1.OwnerReference{c.ownerRef}
+}
+
+func (c *SWIFTController) ParentClusterChanged(cluster edgefsv1beta1.ClusterSpec) {
+	if c.rookImage == cluster.EdgefsImageName {
+		logger.Infof("No need to update the swift service, the same images present")
+		return
+	}
+
+	// update controller options by updated cluster spec
+	c.rookImage = cluster.EdgefsImageName
+
+	svcs, err := c.context.RookClientset.EdgefsV1beta1().SWIFTs(c.namespace).List(metav1.ListOptions{})
+	if err != nil {
+		logger.Errorf("failed to retrieve SWIFTs to update the Edgefs version. %+v", err)
+		return
+	}
+	for _, svc := range svcs.Items {
+		logger.Infof("updating the Edgefs version for swift service %s to %s", svc.Name, cluster.EdgefsImageName)
+		err := c.UpdateService(svc, nil)
+		if err != nil {
+			logger.Errorf("failed to update swift service %s. %+v", svc.Name, err)
+		} else {
+			logger.Infof("updated swift service %s to Edgefs version %s", svc.Name, cluster.EdgefsImageName)
+		}
+	}
 }
 
 func serviceChanged(oldService, newService edgefsv1beta1.SWIFTSpec) bool {

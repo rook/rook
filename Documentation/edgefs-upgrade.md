@@ -38,5 +38,56 @@ Example of migration from `v1alpha1` to `v1beta1`:
 10. Edit EdgeFS services CRD files to transition to a new version. I.e. `edgefs.rook.io/v1alpha1` to `edgefs.rook.io/v1beta1`.
 11. Deploy services CRDs, e.g., `kubectl create -f s3.yaml`
 
-## EdgeFS Rolling Upgrade
-This feature is coming soon in 1.1 release. Stay tuned!
+## EdgeFS Version Upgrade
+
+### EdgeFS images
+Official EddgeFS container images can be found on [Docker Hub](https://hub.docker.com/r/edgefs/edgefs/tags).
+
+```sh
+# Parameterize the environment
+export ROOK_SYSTEM_NAMESPACE="rook-edgefs-system"
+export CLUSTER_NAME="rook-edgefs"
+```
+
+The majority of the upgrade will be handled by the Rook operator. Begin the upgrade by changing the
+EdgeFS image field in the cluster CRD (`spec:edgefsImageName`).
+```sh
+NEW_EDGEFS_IMAGE='edgefs/edgefs:1.1.212'
+kubectl -n $CLUSTER_NAME patch Cluster $CLUSTER_NAME --type=merge \
+  -p "{\"spec\": {\"edgefsImageName\": \"$NEW_EDGEFS_IMAGE\"}}"
+```
+
+or via console editor fix `edgefsImageName` property
+
+```sh
+kubectl edit -n $CLUSTER_NAME Cluster $CLUSTER_NAME
+```
+
+and save results.
+
+#### 2. Wait for the pod updates to complete
+As with upgrading Rook, you must now wait for the upgrade to complete. Determining when the EdgeFS
+version has fully updated is rather simple.
+
+```sh
+kubectl -n $CLUSTER_NAME describe pods | grep "Image:" | sort | uniq
+# This cluster is not yet finished:
+#      Image:         edgefs/edgefs:1.1.50
+#      Image:         edgefs/edgefs:1.1.212
+#      Image:         edgefs/edgefs-restapi:1.1.212
+#      Image:         edgefs/edgefs-ui:1.1.212
+# This cluster is also finished(all versions are the same):
+#      Image:         edgefs/edgefs:1.1.212
+#      Image:         edgefs/edgefs-restapi:1.1.212
+#      Image:         edgefs/edgefs-ui:1.1.212
+```
+#### 3. Verify the updated cluster
+
+Access to  EdgeFS mgr pod and check EdgeFS system status
+
+```sh
+kubectl exec -it -n $CLUSTER_NAME rook-edgefs-mgr-xxxx-xxx -- toolbox
+efscli system status -v 1
+```
+
+

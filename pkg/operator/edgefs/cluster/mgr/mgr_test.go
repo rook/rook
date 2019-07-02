@@ -53,12 +53,6 @@ func TestStartMGR(t *testing.T) {
 	err := c.Start("edgefs")
 	assert.Nil(t, err)
 	validateStart(t, c)
-
-	// starting again with more replicas
-	c.Replicas = 3
-	err = c.Start("edgefs")
-	assert.Nil(t, err)
-	validateStart(t, c)
 }
 
 func validateStart(t *testing.T, c *Cluster) {

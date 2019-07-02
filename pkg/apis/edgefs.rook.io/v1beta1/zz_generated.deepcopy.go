@@ -927,7 +927,7 @@ func (in *SWIFTList) DeepCopyInto(out *SWIFTList) {
 	out.ListMeta = in.ListMeta
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
-		*out = make([]S3, len(*in))
+		*out = make([]SWIFT, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}

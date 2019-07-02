@@ -130,7 +130,10 @@ func (c *Cluster) Start(rookImage string) error {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create %s deployment. %+v", appName, err)
 		}
-		logger.Infof("%s deployment already exists", appName)
+		logger.Infof("deployment for mgr %s already exists. updating if needed", appName)
+		if _, err := k8sutil.UpdateDeploymentAndWait(c.context, deployment, c.Namespace); err != nil {
+			return fmt.Errorf("failed to update mgr deployment %s. %+v", appName, err)
+		}
 	} else {
 		logger.Infof("%s deployment started", appName)
 	}
@@ -277,6 +280,32 @@ func (c *Cluster) makeUIService(name string) *v1.Service {
 	return svc
 }
 
+// getModifiedRookImagePath takes current edgefs path to provide modified path to specific images
+// I.e in case of original edgefs path: edgefs/edgefs:1.1.215 then edgefs ui path should be
+// edgefs/edgefs-ui:1.1.215 and edgefs-restapi should be edgefs/edgefs-restapi:1.1.215
+// addon param is edgefs image suffix. To get restapi image path getModifiedRookImagePath(edgefsImage, "restapi")
+func getModifiedRookImagePath(originRookImage, addon string) string {
+	imageParts := strings.Split(originRookImage, "/")
+	latestImagePartIndex := len(imageParts) - 1
+	modifiedImageName := "edgefs"
+	modifiedImageTag := "latest"
+
+	latestImagePart := imageParts[latestImagePartIndex]
+	imageVersionParts := strings.Split(latestImagePart, ":")
+	if len(imageVersionParts) > 1 {
+		modifiedImageTag = imageVersionParts[1]
+	}
+
+	if len(addon) > 0 {
+		modifiedImageName = fmt.Sprintf("%s-%s", imageVersionParts[0], addon)
+	} else {
+		modifiedImageName = fmt.Sprintf("%s", imageVersionParts[0])
+	}
+
+	imageParts[latestImagePartIndex] = fmt.Sprintf("%s:%s", modifiedImageName, modifiedImageTag)
+	return strings.Join(imageParts, "/")
+}
+
 func (c *Cluster) makeDeployment(name, clusterName, rookImage string, replicas int32) *apps.Deployment {
 
 	volumes := []v1.Volume{}
@@ -302,13 +331,6 @@ func (c *Cluster) makeDeployment(name, clusterName, rookImage string, replicas i
 		})
 	}
 
-	var rookImageVer string
-	rookImageComponents := strings.Split(rookImage, ":")
-	if len(rookImageComponents) == 2 {
-		rookImageVer = rookImageComponents[1]
-	} else {
-		rookImageVer = "latest"
-	}
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   name,
@@ -316,8 +338,11 @@ func (c *Cluster) makeDeployment(name, clusterName, rookImage string, replicas i
 		},
 		Spec: v1.PodSpec{
 			ServiceAccountName: c.serviceAccount,
-			Containers: []v1.Container{c.mgmtContainer(name, "edgefs/edgefs-restapi:"+rookImageVer),
-				c.mgrContainer("grpc", rookImage), c.uiContainer("ui", "edgefs/edgefs-ui:"+rookImageVer)},
+			Containers: []v1.Container{
+				c.mgmtContainer(name, getModifiedRookImagePath(rookImage, "restapi")),
+				c.mgrContainer("grpc", rookImage),
+				c.uiContainer("ui", getModifiedRookImagePath(rookImage, "ui")),
+			},
 			RestartPolicy: v1.RestartPolicyAlways,
 			Volumes:       volumes,
 			HostIPC:       true,
@@ -325,6 +350,7 @@ func (c *Cluster) makeDeployment(name, clusterName, rookImage string, replicas i
 			NodeSelector:  map[string]string{c.Namespace: "cluster"},
 		},
 	}
+
 	if isHostNetworkDefined(c.hostNetworkSpec) {
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}

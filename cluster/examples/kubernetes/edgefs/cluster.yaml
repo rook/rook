@@ -128,7 +128,7 @@ metadata:
   name: rook-edgefs
   namespace: rook-edgefs
 spec:
-  edgefsImageName: edgefs/edgefs:1.1.8   # specify version here, i.e. edgefs/edgefs:1.1.0 etc
+  edgefsImageName: edgefs/edgefs:1.1.215   # specify version here, i.e. edgefs/edgefs:1.1.0 etc
   serviceAccount: rook-edgefs-cluster
   dataDirHostPath: /var/lib/edgefs
   #dataVolumeSize: 10Gi
@@ -180,9 +180,22 @@ spec:
   #    cpu: "2"
   #    memory: "4096Mi"
   # A key value list of annotations
-  annotations:
+  #annotations:
   #  all:
   #    key: value
   #  mgr:
   #  prepare:
   #  target:
+  #placement:
+  #  all:
+  #    nodeAffinity:
+  #      requiredDuringSchedulingIgnoredDuringExecution:
+  #        nodeSelectorTerms:
+  #        - matchExpressions:
+  #          - key: nodekey
+  #            operator: In
+  #            values:
+  #            - edgefs-target
+  #    tolerations:
+  #    - key: taintKey
+  #      operator: Exists

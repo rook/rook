@@ -183,7 +183,7 @@ type SWIFT struct {
 type SWIFTList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
-	Items           []S3 `json:"items"`
+	Items           []SWIFT `json:"items"`
 }
 
 // SWIFTSpec represent the spec of a swift service

@@ -53,6 +53,7 @@ var ISGWResource = opkit.CustomResource{
 // ISGWController represents a controller object for isgw custom resources
 type ISGWController struct {
 	context         *clusterd.Context
+	namespace       string
 	rookImage       string
 	hostNetwork     bool
 	dataDirHostPath string
@@ -66,7 +67,9 @@ type ISGWController struct {
 
 // NewISGWController create controller for watching ISGW custom resources created
 func NewISGWController(
-	context *clusterd.Context, rookImage string,
+	context *clusterd.Context,
+	namespace string,
+	rookImage string,
 	hostNetwork bool,
 	dataDirHostPath string,
 	dataVolumeSize resource.Quantity,
@@ -77,6 +80,7 @@ func NewISGWController(
 ) *ISGWController {
 	return &ISGWController{
 		context:         context,
+		namespace:       namespace,
 		rookImage:       rookImage,
 		hostNetwork:     hostNetwork,
 		dataDirHostPath: dataDirHostPath,
@@ -89,7 +93,7 @@ func NewISGWController(
 }
 
 // StartWatch watches for instances of ISGW custom resources and acts on them
-func (c *ISGWController) StartWatch(namespace string, stopCh chan struct{}) error {
+func (c *ISGWController) StartWatch(stopCh chan struct{}) error {
 
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
@@ -97,8 +101,8 @@ func (c *ISGWController) StartWatch(namespace string, stopCh chan struct{}) erro
 		DeleteFunc: c.onDelete,
 	}
 
-	logger.Infof("start watching isgw resources in namespace %s", namespace)
-	watcher := opkit.NewWatcher(ISGWResource, namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1beta1().RESTClient())
+	logger.Infof("start watching isgw resources in namespace %s", c.namespace)
+	watcher := opkit.NewWatcher(ISGWResource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1beta1().RESTClient())
 	go watcher.Watch(&edgefsv1beta1.ISGW{}, stopCh)
 
 	return nil
@@ -157,6 +161,31 @@ func (c *ISGWController) serviceOwners(service *edgefsv1beta1.ISGW) []metav1.Own
 	// If the ISGW crd still exists when the cluster crd is deleted, this will make sure the ISGW
 	// resources are cleaned up.
 	return []metav1.OwnerReference{c.ownerRef}
+}
+
+func (c *ISGWController) ParentClusterChanged(cluster edgefsv1beta1.ClusterSpec) {
+	if c.rookImage == cluster.EdgefsImageName {
+		logger.Infof("No need to update the isgw service, the same images present")
+		return
+	}
+
+	// update controller options by updated cluster spec
+	c.rookImage = cluster.EdgefsImageName
+
+	isgws, err := c.context.RookClientset.EdgefsV1beta1().ISGWs(c.namespace).List(metav1.ListOptions{})
+	if err != nil {
+		logger.Errorf("failed to retrieve ISGWs to update the Edgefs version. %+v", err)
+		return
+	}
+	for _, isgw := range isgws.Items {
+		logger.Infof("updating the Edgefs version for isgw service %s to %s", isgw.Name, cluster.EdgefsImageName)
+		err := c.UpdateService(isgw, nil)
+		if err != nil {
+			logger.Errorf("failed to update isgw service %s. %+v", isgw.Name, err)
+		} else {
+			logger.Infof("updated isgw service %s to Edgefs version %s", isgw.Name, cluster.EdgefsImageName)
+		}
+	}
 }
 
 func serviceChanged(oldService, newService edgefsv1beta1.ISGWSpec) bool {

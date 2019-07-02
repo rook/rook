@@ -53,6 +53,7 @@ var S3XResource = opkit.CustomResource{
 // S3XController represents a controller object for s3x custom resources
 type S3XController struct {
 	context         *clusterd.Context
+	namespace       string
 	rookImage       string
 	hostNetwork     bool
 	dataDirHostPath string
@@ -66,7 +67,9 @@ type S3XController struct {
 
 // NewS3XController create controller for watching S3X custom resources created
 func NewS3XController(
-	context *clusterd.Context, rookImage string,
+	context *clusterd.Context,
+	namespace string,
+	rookImage string,
 	hostNetwork bool,
 	dataDirHostPath string,
 	dataVolumeSize resource.Quantity,
@@ -77,6 +80,7 @@ func NewS3XController(
 ) *S3XController {
 	return &S3XController{
 		context:         context,
+		namespace:       namespace,
 		rookImage:       rookImage,
 		hostNetwork:     hostNetwork,
 		dataDirHostPath: dataDirHostPath,
@@ -89,7 +93,7 @@ func NewS3XController(
 }
 
 // StartWatch watches for instances of S3X custom resources and acts on them
-func (c *S3XController) StartWatch(namespace string, stopCh chan struct{}) error {
+func (c *S3XController) StartWatch(stopCh chan struct{}) error {
 
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
@@ -97,8 +101,8 @@ func (c *S3XController) StartWatch(namespace string, stopCh chan struct{}) error
 		DeleteFunc: c.onDelete,
 	}
 
-	logger.Infof("start watching s3x resources in namespace %s", namespace)
-	watcher := opkit.NewWatcher(S3XResource, namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1beta1().RESTClient())
+	logger.Infof("start watching s3x resources in namespace %s", c.namespace)
+	watcher := opkit.NewWatcher(S3XResource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1beta1().RESTClient())
 	go watcher.Watch(&edgefsv1beta1.S3X{}, stopCh)
 
 	return nil
@@ -157,6 +161,31 @@ func (c *S3XController) serviceOwners(service *edgefsv1beta1.S3X) []metav1.Owner
 	// If the S3X crd still exists when the cluster crd is deleted, this will make sure the S3X
 	// resources are cleaned up.
 	return []metav1.OwnerReference{c.ownerRef}
+}
+
+func (c *S3XController) ParentClusterChanged(cluster edgefsv1beta1.ClusterSpec) {
+	if c.rookImage == cluster.EdgefsImageName {
+		logger.Infof("No need to update the s3x service, the same images present")
+		return
+	}
+
+	// update controller options by updated cluster spec
+	c.rookImage = cluster.EdgefsImageName
+
+	s3xs, err := c.context.RookClientset.EdgefsV1beta1().S3Xs(c.namespace).List(metav1.ListOptions{})
+	if err != nil {
+		logger.Errorf("failed to retrieve S3Xs to update the Edgefs version. %+v", err)
+		return
+	}
+	for _, s3x := range s3xs.Items {
+		logger.Infof("updating the Edgefs version for s3x service %s to %s", s3x.Name, cluster.EdgefsImageName)
+		err := c.UpdateService(s3x, nil)
+		if err != nil {
+			logger.Errorf("failed to update s3x service %s. %+v", s3x.Name, err)
+		} else {
+			logger.Infof("updated s3x service %s to Edgefs version %s", s3x.Name, cluster.EdgefsImageName)
+		}
+	}
 }
 
 func serviceChanged(oldService, newService edgefsv1beta1.S3XSpec) bool {
