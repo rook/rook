@@ -270,6 +270,64 @@ func (c *Cluster) startProvisioning(config *provisionConfig) {
 			}
 		}
 	}
+
+	// Deploying test based on the storageclassDeviceSet
+	// Todo: Replace the below logic to deploy osd pods over pvcs
+	for setIndex, storageClassDeviceSet := range c.DesiredStorage.StorageClassDeviceSets {
+		for i, pvcTemplate := range storageClassDeviceSet.VolumeClaimTemplates {
+			pvcStorageClassDeviceSetPVCId := fmt.Sprintf("%s-%v-%v", storageClassDeviceSet.Name, setIndex, i)
+			pvcStorageClassDeviceSetPVCIdLabelSelector := fmt.Sprintf("rook.ceph.io/StorageClassDeviceSetPVCId=%s", pvcStorageClassDeviceSetPVCId)
+			pvcLables := map[string]string{
+				"rook.ceph.io/storageClassDeviceSet":      storageClassDeviceSet.Name,
+				"rook.ceph.io/storageClassDeviceSetIndex": fmt.Sprintf("%v", setIndex),
+				"rook.ceph.io/pvcIndex":                   fmt.Sprintf("%v", i),
+				"rook.ceph.io/StorageClassDeviceSetPVCId": pvcStorageClassDeviceSetPVCId,
+			}
+
+			// pvc naming format <storageClassDeviceSetName>-<SetNumber>-<PVCIndex>
+			pvcGenerateName := pvcStorageClassDeviceSetPVCId + "-"
+
+			// Add pvcTemplate name to pvc name. i.e <storageClassDeviceSetName>-<SetNumber>-<PVCIndex>-<pvcTemplateName>
+			if len(pvcTemplate.GetName()) != 0 {
+				pvcGenerateName = pvcGenerateName + pvcTemplate.GetName() + "-"
+			}
+
+			// Add user provided labels to pvcTemplates
+			for k, v := range pvcTemplate.GetLabels() {
+				pvcLables[k] = v
+			}
+
+			pvc := &v1.PersistentVolumeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: pvcGenerateName,
+					Labels:       pvcLables,
+					Annotations:  pvcTemplate.Annotations,
+				},
+				Spec: pvcTemplate.Spec,
+			}
+
+			// Setting up ownerRef
+			k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &pvc.ObjectMeta, &c.ownerRef)
+			// Check if the pvc already exist
+			availablePVCList, err := c.context.Clientset.CoreV1().
+				PersistentVolumeClaims(c.Namespace).
+				List(metav1.ListOptions{LabelSelector: pvcStorageClassDeviceSetPVCIdLabelSelector})
+			if err != nil {
+				config.addError("failed to list pvcs with labelSelector %s. %+v", pvcStorageClassDeviceSetPVCIdLabelSelector, err)
+			} else if len(availablePVCList.Items) > 0 {
+				logger.Warningf("pvc with labelSelector %s already present. Skipping creation for pvc %v", pvcStorageClassDeviceSetPVCIdLabelSelector, pvc)
+				continue
+			}
+			// Provisioning PVC
+			logger.Infof("creating pvc %v", pvc)
+			pvcCreated, err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).Create(pvc)
+			if err != nil {
+				config.addError("failed to create pvc %s, %v", pvc.Name, err)
+			} else {
+				logger.Infof("pvc %v created successfully", pvcCreated)
+			}
+		}
+	}
 }
 
 func (c *Cluster) runJob(job *batch.Job, nodeName string, config *provisionConfig, action string) bool {

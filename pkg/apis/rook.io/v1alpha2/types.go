@@ -16,7 +16,7 @@ limitations under the License.
 package v1alpha2
 
 import (
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -27,12 +27,13 @@ import (
 // ************************************************************************************
 
 type StorageScopeSpec struct {
-	Nodes         []Node            `json:"nodes,omitempty"`
-	UseAllNodes   bool              `json:"useAllNodes,omitempty"`
-	TopologyAware bool              `json:"topologyAware,omitempty"`
-	NodeCount     int               `json:"nodeCount,omitempty"`
-	Location      string            `json:"location,omitempty"`
-	Config        map[string]string `json:"config"`
+	Nodes                  []Node                  `json:"nodes,omitempty"`
+	UseAllNodes            bool                    `json:"useAllNodes,omitempty"`
+	TopologyAware          bool                    `json:"topologyAware,omitempty"`
+	NodeCount              int                     `json:"nodeCount,omitempty"`
+	Location               string                  `json:"location,omitempty"`
+	Config                 map[string]string       `json:"config"`
+	StorageClassDeviceSets []StorageClassDeviceSet `json:"storageClassDeviceSets,omitempty"`
 	Selection
 }
 
@@ -127,3 +128,12 @@ type KeyType string
 type AnnotationsSpec map[KeyType]Annotations
 
 type Annotations map[string]string
+
+type StorageClassDeviceSet struct {
+	Name                 string                     `json:"name"`                 // A unique identifier for the set
+	Count                int                        `json:"count"`                // Number of devices in this set
+	Resources            v1.ResourceRequirements    `json:"resources"`            // Requests/limits for the devices
+	Placement            Placement                  `json:"placement"`            // Placement constraints for the devices
+	Config               map[string]string          `json:"config"`               // Provider-specific device configuration
+	VolumeClaimTemplates []v1.PersistentVolumeClaim `json:"volumeClaimTemplates"` // List of PVC templates for the underlying storage devices
+}
