@@ -22,7 +22,6 @@ package mon
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -583,7 +582,7 @@ func (c *Cluster) saveMonConfig() error {
 		return fmt.Errorf("failed to marshal mon mapping. %+v", err)
 	}
 
-	csiConfigValue, err := FormatCsiClusterConfig(
+	csiConfigValue, err := csi.FormatCsiClusterConfig(
 		c.Namespace, c.clusterInfo.Monitors)
 	if err != nil {
 		return fmt.Errorf("failed to format csi config: %+v", err)
@@ -618,46 +617,10 @@ func (c *Cluster) saveMonConfig() error {
 		return fmt.Errorf("failed to write connection config for new mons. %+v", err)
 	}
 
-	if err := c.saveCsiClusterConfig(); err != nil {
+	if err := csi.SaveClusterConfig(c.context.Clientset, c.Namespace, c.clusterInfo, c.csiConfigMutex); err != nil {
 		return fmt.Errorf("failed to update csi cluster config: %+v", err)
 	}
 
-	return nil
-}
-
-func (c *Cluster) saveCsiClusterConfig() error {
-	if !csi.CSIEnabled() {
-		return nil
-	}
-	c.csiConfigMutex.Lock()
-	defer c.csiConfigMutex.Unlock()
-	// csi is deployed into the same namespace as the operator
-	csiNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
-	logger.Debug("Using %+v for CSI ConfigMap Namespace", csiNamespace)
-
-	// fetch current ConfigMap contents
-	configMap, err := c.context.Clientset.CoreV1().ConfigMaps(csiNamespace).Get(
-		csi.ConfigName, metav1.GetOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to fetch current csi config map: %+v", err)
-	}
-
-	// update ConfigMap contents for current cluster
-	currData := configMap.Data[csi.ConfigKey]
-	if currData == "" {
-		currData = "[]"
-	}
-	newData, err := UpdateCsiClusterConfig(
-		currData, c.Namespace, c.clusterInfo.Monitors)
-	if err != nil {
-		return fmt.Errorf("failed to update csi config map data: %+v", err)
-	}
-	configMap.Data[csi.ConfigKey] = newData
-
-	// update ConfigMap with new contents
-	if _, err := c.context.Clientset.CoreV1().ConfigMaps(csiNamespace).Update(configMap); err != nil {
-		return fmt.Errorf("failed to update csi config map: %+v", err)
-	}
 	return nil
 }
 
