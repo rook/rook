@@ -96,7 +96,7 @@ func (k *SecretStore) CreateOrUpdate(resourceName, keyring string) error {
 		},
 		Type: k8sutil.RookType,
 	}
-	k8sutil.SetOwnerRef(k.context.Clientset, k.namespace, &secret.ObjectMeta, k.ownerRef)
+	k8sutil.SetOwnerRef(&secret.ObjectMeta, k.ownerRef)
 
 	return k.createSecret(secret)
 }

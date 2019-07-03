@@ -75,7 +75,7 @@ func (kv *ConfigMapKVStore) SetValueWithLabels(storeName, key, value string, lab
 		if labels != nil {
 			cm.Labels = labels
 		}
-		SetOwnerRef(kv.clientset, kv.namespace, &cm.ObjectMeta, &kv.ownerRef)
+		SetOwnerRef(&cm.ObjectMeta, &kv.ownerRef)
 
 		_, err = kv.clientset.CoreV1().ConfigMaps(kv.namespace).Create(cm)
 		return err

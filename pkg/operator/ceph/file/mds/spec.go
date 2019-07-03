@@ -80,7 +80,7 @@ func (c *Cluster) makeDeployment(mdsConfig *mdsConfig) *apps.Deployment {
 	k8sutil.AddRookVersionLabelToDeployment(d)
 	c.fs.Spec.MetadataServer.Annotations.ApplyToObjectMeta(&d.ObjectMeta)
 	opspec.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, d)
-	k8sutil.SetOwnerRefs(c.context.Clientset, c.fs.Namespace, &d.ObjectMeta, c.ownerRefs)
+	k8sutil.SetOwnerRefs(&d.ObjectMeta, c.ownerRefs)
 	return d
 }
 

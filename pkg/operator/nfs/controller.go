@@ -108,7 +108,7 @@ func newNfsServer(c *nfsv1alpha1.NFSServer, context *clusterd.Context) *nfsServe
 func nfsOwnerRef(namespace, nfsServerID string) metav1.OwnerReference {
 	blockOwner := true
 	return metav1.OwnerReference{
-		APIVersion:         NFSResource.Version,
+		APIVersion:         fmt.Sprintf("%s/%s", NFSResource.Group, NFSResource.Version),
 		Kind:               NFSResource.Kind,
 		Name:               namespace,
 		UID:                types.UID(nfsServerID),

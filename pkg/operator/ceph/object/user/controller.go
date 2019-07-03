@@ -176,7 +176,7 @@ func (c *ObjectStoreUserController) createUser(context *clusterd.Context, u *cep
 		StringData: secrets,
 		Type:       k8sutil.RookType,
 	}
-	k8sutil.SetOwnerRef(context.Clientset, u.Namespace, &secret.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&secret.ObjectMeta, &c.ownerRef)
 
 	_, err = context.Clientset.CoreV1().Secrets(u.Namespace).Create(secret)
 	if err != nil {

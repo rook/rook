@@ -30,6 +30,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/ceph/version"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
 	batch "k8s.io/api/batch/v1"
@@ -75,7 +76,7 @@ func (c *Cluster) makeJob(nodeName string, devices []rookalpha.Device,
 	}
 	k8sutil.AddRookVersionLabelToJob(job)
 	opspec.AddCephVersionLabelToJob(c.clusterInfo.CephVersion, job)
-	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &job.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&job.ObjectMeta, &c.ownerRef)
 	return job, nil
 }
 
@@ -172,6 +173,8 @@ func (c *Cluster) makeDeployment(nodeName string, selection rookalpha.Selection,
 		commonArgs = append(commonArgs, "--default-log-to-file", "false")
 	}
 
+	commonArgs = append(commonArgs, osdOnSDNFlag(c.HostNetwork, c.clusterInfo.CephVersion)...)
+
 	// Add the volume to the spec and the mount to the daemon container
 	copyBinariesVolume, copyBinariesContainer := c.getCopyBinariesContainer()
 	volumes = append(volumes, copyBinariesVolume)
@@ -221,6 +224,8 @@ func (c *Cluster) makeDeployment(nodeName string, selection rookalpha.Selection,
 		if c.clusterInfo.CephVersion.IsAtLeast(version.CephVersion{Major: 14, Minor: 2, Extra: 1}) {
 			args = append(args, "--default-log-to-file", "false")
 		}
+
+		args = append(args, osdOnSDNFlag(c.HostNetwork, c.clusterInfo.CephVersion)...)
 
 		// mount /run/udev in the container so ceph-volume (via `lvs`)
 		// can access the udev database
@@ -327,7 +332,7 @@ func (c *Cluster) makeDeployment(nodeName string, selection rookalpha.Selection,
 	c.annotations.ApplyToObjectMeta(&deployment.Spec.Template.ObjectMeta)
 	opspec.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, deployment)
 	opspec.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, deployment)
-	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &deployment.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&deployment.ObjectMeta, &c.ownerRef)
 	c.placement.ApplyToPodSpec(&deployment.Spec.Template.Spec)
 	return deployment, nil
 }
@@ -618,4 +623,16 @@ func getConfigFromContainer(osdContainer v1.Container) map[string]string {
 	}
 
 	return cfg
+}
+
+func osdOnSDNFlag(hostnetwork bool, v cephver.CephVersion) []string {
+	var args []string
+	// OSD fails to find the right IP to bind to when running on SDN
+	// for more details: https://github.com/rook/rook/issues/3140
+	if !hostnetwork {
+		if v.IsAtLeast(cephver.CephVersion{Major: 14, Minor: 2, Extra: 2}) {
+			args = append(args, "--ms-learn-addr-from-peer", "false")
+		}
+	}
+	return args
 }
