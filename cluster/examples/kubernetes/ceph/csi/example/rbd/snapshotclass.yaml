@@ -5,7 +5,6 @@ metadata:
   name: csi-rbdplugin-snapclass
 snapshotter: rbd.csi.ceph.com
 parameters:
-  pool: rbd
   # Specify a string that identifies your cluster. Ceph CSI supports any
   # unique string. When Ceph CSI is deployed by Rook use the Rook namespace,
   # for example "rook-ceph".
