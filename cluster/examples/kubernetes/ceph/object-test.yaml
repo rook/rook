@@ -20,4 +20,3 @@ spec:
     port: 80
     securePort:
     instances: 1
-    allNodes: false

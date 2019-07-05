@@ -19,16 +19,17 @@ package object
 
 import (
 	"fmt"
+	"strings"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 )
 
 type clusterConfig struct {
@@ -41,6 +42,15 @@ type clusterConfig struct {
 	ownerRefs   []metav1.OwnerReference
 	DataPathMap *config.DataPathMap
 }
+
+type rgwConfig struct {
+	ResourceName string
+	DaemonID     string
+}
+
+const (
+	oldRgwKeyName = "client.radosgw.gateway"
+)
 
 // Start the rgw manager
 func (c *clusterConfig) createStore() error {
@@ -91,64 +101,145 @@ func (c *clusterConfig) createOrUpdate(update bool) error {
 }
 
 func (c *clusterConfig) startRGWPods(update bool) error {
-
-	// if intended to update, remove the old pods so they can be created with the new spec settings
-	if update {
-		err := k8sutil.DeleteDeployment(c.context.Clientset, c.store.Namespace, c.instanceName())
-		if err != nil {
-			logger.Warning(err.Error())
-		}
-		err = k8sutil.DeleteDaemonset(c.context.Clientset, c.store.Namespace, c.instanceName())
-		if err != nil {
-			logger.Warning(err.Error())
-		}
-	}
-
-	// start the deployment or daemonset
-	var uid types.UID
-	var controllerType string
+	// backward compatibility, triggered during updates
 	if c.store.Spec.Gateway.AllNodes {
-		daemonSet, err := c.startDaemonset()
+		// log we don't support that anymore
+		logger.Warningf(
+			"setting 'AllNodes' to %t is not supported anymore, please use 'instances' instead, removing old DaemonSets if any and replace them with Deployments in object store %s",
+			c.store.Spec.Gateway.AllNodes, c.store.Name)
+	}
+	if c.store.Spec.Gateway.Instances < 1 {
+		// Set the minimum of at least one instance
+		logger.Warningf("spec.gateway.instances must be set to at least 1")
+		c.store.Spec.Gateway.Instances = 1
+	}
+
+	// start a new deployment and scale up
+	desiredRgwInstances := int(c.store.Spec.Gateway.Instances)
+	for i := 0; i < desiredRgwInstances; i++ {
+		daemonLetterID := k8sutil.IndexToName(i)
+		// Each rgw is id'ed by <store_name>-<letterID>
+		daemonName := fmt.Sprintf("%s-%s", c.store.Name, daemonLetterID)
+		// resource name is rook-ceph-rgw-<store_name>-<daemon_name>
+		resourceName := fmt.Sprintf("%s-%s-%s", AppName, c.store.Name, daemonLetterID)
+
+		rgwConfig := &rgwConfig{
+			ResourceName: resourceName,
+			DaemonID:     daemonName,
+		}
+
+		deployment, err := c.startDeployment(rgwConfig)
 		if err != nil {
 			return err
 		}
-		uid = daemonSet.UID
-		controllerType = "daemonset"
-	} else {
-		deployment, err := c.startDeployment()
-		if err != nil {
-			return err
+
+		resourceControllerOwnerRef := &metav1.OwnerReference{
+			UID:        deployment.UID,
+			APIVersion: "v1",
+			Kind:       "deployment",
+			Name:       rgwConfig.ResourceName,
 		}
-		uid = deployment.UID
-		controllerType = "deployment"
+
+		// Generate the keyring after starting the replication controller so that the keyring may use
+		// the controller as its owner reference; the keyring is deleted with the controller
+		err = c.generateKeyring(resourceControllerOwnerRef)
+		if err != nil {
+			return fmt.Errorf("failed to create rgw keyring. %+v", err)
+		}
+
+		// Generate the mime.types file after the rep. controller as well for the same reason as keyring
+		if err := c.generateMimeTypes(resourceControllerOwnerRef); err != nil {
+			return fmt.Errorf("failed to generate the rgw mime.types config. %+v", err)
+		}
 	}
 
-	resourceControllerOwnerRef := &metav1.OwnerReference{
-		UID:        uid,
-		APIVersion: "v1",
-		Kind:       controllerType,
-		Name:       c.instanceName(),
-	}
-
-	// Generate the keyring after starting the replication controller so that the keyring may use
-	// the controller as its owner reference; the keyring is deleted with the controller
-	err := c.generateKeyring(resourceControllerOwnerRef)
+	// scale down scenario
+	deps, err := k8sutil.GetDeployments(c.context.Clientset, c.store.Namespace, c.storeLabelSelector())
 	if err != nil {
-		return fmt.Errorf("failed to create rgw keyring. %+v", err)
+		logger.Warning("could not get deployments for object store %s (matching label selector '%s'): %+v", c.store.Name, c.storeLabelSelector(), err)
 	}
 
-	// Generate the mime.types file after the rep. controller as well for the same reason as keyring
-	if err := c.generateMimeTypes(resourceControllerOwnerRef); err != nil {
-		return fmt.Errorf("failed to generate the rgw mime.types config. %+v", err)
+	currentRgwInstances := int(len(deps.Items))
+	if currentRgwInstances > desiredRgwInstances {
+		logger.Infof("found more rgw deployments %d than desired %d in object store %s, scaling down", currentRgwInstances, c.store.Spec.Gateway.Instances, c.store.Name)
+		diffCount := currentRgwInstances - desiredRgwInstances
+		for i := 0; i < diffCount; {
+			depIDToRemove := currentRgwInstances - 1
+			depNameToRemove := fmt.Sprintf("%s-%s-%s", AppName, c.store.Name, k8sutil.IndexToName(depIDToRemove))
+			if err := k8sutil.DeleteDeployment(c.context.Clientset, c.store.Namespace, depNameToRemove); err != nil {
+				logger.Warning("error during deletion of deployment %s resource: %+v", depNameToRemove, err)
+			}
+			currentRgwInstances = currentRgwInstances - 1
+			i++
+
+			// Delete the auth key
+			err = client.AuthDelete(c.context, c.store.Namespace, generateCephXUser(depNameToRemove))
+			if err != nil {
+				logger.Infof("failed to delete rgw key %s. %+v", depNameToRemove, err)
+			}
+		}
+		// verify scale down was successful
+		deps, err = k8sutil.GetDeployments(c.context.Clientset, c.store.Namespace, c.storeLabelSelector())
+		if err != nil {
+			logger.Warning("could not get deployments for object store %s (matching label selector '%s'): %+v", c.store.Name, c.storeLabelSelector(), err)
+		}
+		currentRgwInstances = len(deps.Items)
+		if currentRgwInstances == desiredRgwInstances {
+			logger.Infof("successfully scaled down rgw deployments to %d in object store %s", desiredRgwInstances, c.store.Name)
+		}
 	}
 
+	c.deleteLegacyDaemons()
 	return nil
+}
+
+// deleteLegacyDaemons removes legacy rgw components that might have existed in Rook v1.0
+func (c *clusterConfig) deleteLegacyDaemons() {
+	// Make a best effort to delete the rgw pods daemonsets
+	daemons, err := k8sutil.GetDaemonsets(c.context.Clientset, c.store.Namespace, c.storeLabelSelector())
+	if err != nil {
+		logger.Warningf("could not get deployments for object store %s (matching label selector '%s'): %+v", c.store.Name, c.storeLabelSelector(), err)
+	}
+	daemonsetNum := len(daemons.Items)
+	if daemonsetNum > 0 {
+		for _, d := range daemons.Items {
+			// Delete any existing daemonset
+			if err := k8sutil.DeleteDaemonset(c.context.Clientset, c.store.Namespace, d.Name); err != nil {
+				logger.Errorf("error during deletion of daemonset %s resource: %+v", d.Name, err)
+			}
+		}
+		// Delete legacy rgw key
+		err = client.AuthDelete(c.context, c.store.Namespace, oldRgwKeyName)
+		if err != nil {
+			logger.Infof("failed to delete legacy rgw key %s. %+v", oldRgwKeyName, err)
+		}
+	}
+
+	// legacy deployment detection
+	logger.Debugf("looking for legacy deployment in object store %s", c.store.Name)
+	deps, err := k8sutil.GetDeployments(c.context.Clientset, c.store.Namespace, c.storeLabelSelector())
+	if err != nil {
+		logger.Warning("could not get deployments for object store %s (matching label selector '%s'): %+v", c.store.Name, c.storeLabelSelector(), err)
+	}
+	for _, d := range deps.Items {
+		if d.Name == c.instanceName() {
+			logger.Infof("legacy deployment in object store %s found %s", c.store.Name, d.Name)
+			if err := k8sutil.DeleteDeployment(c.context.Clientset, c.store.Namespace, d.Name); err != nil {
+				logger.Warning("error during deletion of deployment %s resource: %+v", d.Name, err)
+			}
+			// Delete legacy rgw key
+			err = client.AuthDelete(c.context, c.store.Namespace, oldRgwKeyName)
+			if err != nil {
+				logger.Infof("failed to delete legacy rgw key %s. %+v", oldRgwKeyName, err)
+			}
+		}
+	}
 }
 
 // Delete the object store.
 // WARNING: This is a very destructive action that deletes all metadata and data pools.
 func (c *clusterConfig) deleteStore() error {
-	// check if the object store  exists
+	// check if the object store exists
 	exists, err := c.storeExists()
 	if err != nil {
 		return fmt.Errorf("failed to detect if there is an object store to delete. %+v", err)
@@ -170,20 +261,31 @@ func (c *clusterConfig) deleteStore() error {
 		logger.Warningf("failed to delete rgw service. %+v", err)
 	}
 
-	// Make a best effort to delete the rgw pods
-	err = k8sutil.DeleteDeployment(c.context.Clientset, c.store.Namespace, c.instanceName())
+	// Make a best effort to delete the rgw pods deployments
+	deps, err := k8sutil.GetDeployments(c.context.Clientset, c.store.Namespace, c.storeLabelSelector())
 	if err != nil {
-		logger.Warning(err.Error())
+		logger.Warning("could not get deployments for object store %s (matching label selector '%s'): %+v", c.store.Namespace, c.storeLabelSelector(), err)
 	}
-	err = k8sutil.DeleteDaemonset(c.context.Clientset, c.store.Namespace, c.instanceName())
-	if err != nil {
-		logger.Warning(err.Error())
+	for _, d := range deps.Items {
+		if err := k8sutil.DeleteDeployment(c.context.Clientset, c.store.Namespace, d.Name); err != nil {
+			logger.Warning("error during deletion of deployment %s resource: %+v", d.Name, err)
+		}
 	}
 
-	// Delete the rgw keyring
+	// Delete the rgw config map keyrings
 	err = c.context.Clientset.CoreV1().Secrets(c.store.Namespace).Delete(c.instanceName(), options)
 	if err != nil && !errors.IsNotFound(err) {
 		logger.Warningf("failed to delete rgw secret. %+v", err)
+	}
+
+	// Delete rgw CephX keys
+	for i := 0; i < int(c.store.Spec.Gateway.Instances); i++ {
+		daemonLetterID := k8sutil.IndexToName(i)
+		keyName := fmt.Sprintf("client.%s.%s", strings.Replace(c.store.Name, "-", ".", -1), daemonLetterID)
+		err = client.AuthDelete(c.context, c.store.Namespace, keyName)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Delete the realm and pools
@@ -199,8 +301,9 @@ func (c *clusterConfig) deleteStore() error {
 
 // Check if the object store exists depending on either the deployment or the daemonset
 func (c *clusterConfig) storeExists() (bool, error) {
-	_, err := c.context.Clientset.AppsV1().Deployments(c.store.Namespace).Get(c.instanceName(), metav1.GetOptions{})
-	if err == nil {
+	d, err := k8sutil.GetDeployments(c.context.Clientset, c.store.Namespace, c.storeLabelSelector())
+	// k8sutil.GetDeployments can return an empty list!
+	if err == nil && len(d.Items) != 0 {
 		// the deployment was found
 		return true, nil
 	}
@@ -208,8 +311,9 @@ func (c *clusterConfig) storeExists() (bool, error) {
 		return false, err
 	}
 
-	_, err = c.context.Clientset.AppsV1().DaemonSets(c.store.Namespace).Get(c.instanceName(), metav1.GetOptions{})
-	if err == nil {
+	dd, err := k8sutil.GetDaemonsets(c.context.Clientset, c.store.Namespace, c.storeLabelSelector())
+	// k8sutil.GetDaemonsets can return an empty list!
+	if err == nil && len(dd.Items) != 0 {
 		//  the daemonset was found
 		return true, nil
 	}
@@ -223,6 +327,10 @@ func (c *clusterConfig) storeExists() (bool, error) {
 
 func (c *clusterConfig) instanceName() string {
 	return fmt.Sprintf("%s-%s", AppName, c.store.Name)
+}
+
+func (c *clusterConfig) storeLabelSelector() string {
+	return fmt.Sprintf("rook_object_store=%s", c.store.Name)
 }
 
 // Validate the object store arguments

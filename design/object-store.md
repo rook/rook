@@ -34,7 +34,6 @@ spec:
     port: 80
     securePort: 443
     instances: 3
-    allNodes: false
 ```
 
 Now create the object store.
@@ -82,8 +81,7 @@ The gateway settings correspond to the RGW service.
 - `sslCertificateRef`: If specified, this is the name of the Kubernetes secret that contains the SSL certificate to be used for secure connections to the object store. The secret must be in the same namespace as the Rook cluster. Rook will look in the secret provided at the `cert` key name. The value of the `cert` key must be in the format expected by the [RGW service](http://docs.ceph.com/docs/master/install/install-ceph-gateway/#using-ssl-with-civetweb): "The server key, server certificate, and any other CA or intermediate certificates be supplied in one file. Each of these items must be in pem form." If the certificate is not specified, SSL will not be configured.
 - `port`: The service port where the RGW service will be listening (http)
 - `securePort`: The service port where the RGW service will be listening (https)
-- `instances`: The number of RGW pods that will be started for this object store (ignored if allNodes=true)
-- `allNodes`: Whether all nodes in the cluster should run RGW as a daemonset
+- `instances`: The number of RGW pods that will be started for this object store
 - `placement`: The rgw pods can be given standard Kubernetes placement restrictions with `nodeAffinity`, `tolerations`, `podAffinity`, and `podAntiAffinity` similar to placement defined for daemons configured by the [cluster CRD](/cluster/examples/kubernetes/ceph/cluster.yaml).
 
 The RGW service can be configured to listen on both http and https by specifying both `port` and `securePort`.
@@ -95,7 +93,6 @@ The RGW service can be configured to listen on both http and https by specifying
     port: 80
     securePort: 443
     instances: 1
-    allNodes: false
 ```
 
 ### Realms, Zone Groups, and Zones

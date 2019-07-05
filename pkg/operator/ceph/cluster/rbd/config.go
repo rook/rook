@@ -46,7 +46,7 @@ func (m *Mirroring) generateKeyring(daemonConfig *daemonConfig) error {
 	access := []string{"mon", "profile rbd-mirror", "osd", "profile rbd"}
 	s := keyring.GetSecretStore(m.context, m.Namespace, &m.ownerRef)
 
-	key, err := s.GenerateKey(daemonConfig.ResourceName, user, access)
+	key, err := s.GenerateKey(user, access)
 	if err != nil {
 		return err
 	}

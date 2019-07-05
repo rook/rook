@@ -27,7 +27,6 @@ import (
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -48,6 +47,7 @@ func TestStartRGW(t *testing.T) {
 	info := testop.CreateConfigDir(1)
 	context := &clusterd.Context{Clientset: clientset, Executor: executor, ConfigDir: configDir}
 	store := simpleStore()
+	store.Spec.Gateway.Instances = 1
 	version := "v1.1.0"
 	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "my-fs", "rook-ceph", "/var/lib/rook/")
 
@@ -56,32 +56,18 @@ func TestStartRGW(t *testing.T) {
 	err := c.createStore()
 	assert.Nil(t, err)
 
-	validateStart(t, c, clientset, false)
+	validateStart(t, c, clientset)
 
 	// starting again should update the pods with the new settings
-	c.store.Spec.Gateway.AllNodes = true
 	err = c.updateStore()
 	assert.Nil(t, err)
-
-	validateStart(t, c, clientset, true)
 }
 
-func validateStart(t *testing.T, c *clusterConfig, clientset *fake.Clientset, allNodes bool) {
-	if !allNodes {
-		r, err := clientset.AppsV1().Deployments(c.store.Namespace).Get(c.instanceName(), metav1.GetOptions{})
-		assert.Nil(t, err)
-		assert.Equal(t, c.instanceName(), r.Name)
-
-		_, err = clientset.AppsV1().DaemonSets(c.store.Namespace).Get(c.instanceName(), metav1.GetOptions{})
-		assert.True(t, errors.IsNotFound(err))
-	} else {
-		r, err := clientset.AppsV1().DaemonSets(c.store.Namespace).Get(c.instanceName(), metav1.GetOptions{})
-		assert.Nil(t, err)
-		assert.Equal(t, c.instanceName(), r.Name)
-
-		_, err = clientset.AppsV1().Deployments(c.store.Namespace).Get(c.instanceName(), metav1.GetOptions{})
-		assert.True(t, errors.IsNotFound(err))
-	}
+func validateStart(t *testing.T, c *clusterConfig, clientset *fake.Clientset) {
+	rgwName := c.instanceName() + "-a"
+	r, err := clientset.AppsV1().Deployments(c.store.Namespace).Get(rgwName, metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.Equal(t, rgwName, r.Name)
 
 	s, err := clientset.CoreV1().Services(c.store.Namespace).Get(c.instanceName(), metav1.GetOptions{})
 	assert.Nil(t, err)

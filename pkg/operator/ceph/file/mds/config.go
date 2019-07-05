@@ -46,7 +46,7 @@ func (c *Cluster) generateKeyring(m *mdsConfig, deploymentUID types.UID) error {
 	}
 	s := keyring.GetSecretStore(c.context, c.fs.Namespace, ownerRef)
 
-	key, err := s.GenerateKey(m.ResourceName, user, access)
+	key, err := s.GenerateKey(user, access)
 	if err != nil {
 		return err
 	}
