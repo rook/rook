@@ -89,7 +89,7 @@ metadata:
           },
           "spec": {
             "cephVersion": {
-              "image": "ceph/ceph:v14.2.1-20190430"
+              "image": "ceph/daemon-base:latest-nautilus-devel"
             },
             "dataDirHostPath": "/var/lib/rook",
             "mon": {
