@@ -12,7 +12,7 @@ parameters:
 
   # Ceph pool into which the volume shall be created
   # Required for provisionVolume: "true"
-  pool: cephfs_data
+  pool: myfs-data0
 
   # Root path of an existing CephFS volume
   # Required for provisionVolume: "false"
