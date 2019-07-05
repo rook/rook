@@ -120,6 +120,7 @@ Below are the settings available, both at the cluster and individual node level,
   - `^[^r]`: Selects all devices that do *not* start with `r`
 - `devices`: A list of individual device names belonging to this node to include in the storage cluster. Mixing of `devices` and `directories` on the same node isn't supported.
   - `name`: The name of the device (e.g., `sda`).
+  - `fullpath`: The full path to the device (e.g., `/dev/disk/by-id/scsi-35000c5008335c83f`). If specified then `name` can be omitted.
   - `config`: Device-specific config settings. See the [config settings](#target-configuration-settings) below.
 - `directories`:  A list of directory paths on the nodes that will be included in the storage cluster. Note that using two directories on the same physical device can cause a negative performance impact. Mixing of `devices` and `directories` on the same node isn't supported. Since EdgeFS is leveraging StatefulSet, directories can only be defined at cluster level.
   - `path`: The path on disk of the directory (e.g., `/rook/storage-dir`).
