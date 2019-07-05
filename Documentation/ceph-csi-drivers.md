@@ -350,7 +350,7 @@ kubectl delete -f cluster/examples/kubernetes/ceph/csi/example/rbd/storageclass.
 
 This
 [storageclass](../cluster/examples/kubernetes/ceph/csi/example/cephfs/storageclass.yaml)
-expect a pool named `cephfs_data` in your Ceph cluster. You can create this
+expect a pool named `myfs-data0` in your Ceph cluster. You can create this
 pool using [rook file-system
 CRD](https://github.com/rook/rook/blob/v1.0/Documentation/ceph-filesystem-crd.md).
 
