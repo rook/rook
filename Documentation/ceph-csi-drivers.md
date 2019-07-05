@@ -119,7 +119,7 @@ CRD](https://github.com/rook/rook/blob/v1.0/Documentation/ceph-pool-crd.md).
 Please update `monitors` to reflect the Ceph monitors.
 
 ```console
-kubectl create -f cluster/examples/kubernetes/ceph/csi/example/rbd/storegeclass.yaml
+kubectl create -f cluster/examples/kubernetes/ceph/csi/example/rbd/storageclass.yaml
 ```
 
 ## Create RBD Secret
@@ -357,7 +357,7 @@ CRD](https://github.com/rook/rook/blob/v1.0/Documentation/ceph-filesystem-crd.md
 Please update `monitors` to reflect the Ceph monitors.
 
 ```console
-kubectl create -f cluster/examples/kubernetes/ceph/csi/example/cephfs/storegeclass.yaml
+kubectl create -f cluster/examples/kubernetes/ceph/csi/example/cephfs/storageclass.yaml
 ```
 
 ## Create CephFS Secret
