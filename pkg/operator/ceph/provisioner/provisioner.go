@@ -100,8 +100,20 @@ func (p *RookVolumeProvisioner) Provision(options controller.VolumeOptions) (*v1
 		return nil, err
 	}
 
-	// since we can guarantee the size of the volume image generated have to be in `MB` boundary, so we can
-	// convert it to `MB` unit safely here
+	// the size of the PV needs to be at least as large as the size in the PVC
+	// or binding won't be successful. createVolume uses the requestBytes
+	// parameter as a target, and guarantees that the size created as at least
+	// that large. the adjusted value is placed in blockImage.Size and it is
+	// suitable to be converted into Mi.
+	//
+	// note that the rounding error that can occur if the original non-adjusted
+	// request is used in the original formulation here:
+	//
+	//    s := fmt.Sprintf("%dMi", blockImage.Size/sizeMB)
+	//    Size = 500M = 500,000,000 bytes
+	//    500M / 2**20 = 476
+	//    476Mi = 476 * 2**20 = 499122176 < 500M
+	//
 	s := fmt.Sprintf("%dMi", blockImage.Size/sizeMB)
 	quantity, err := resource.ParseQuantity(s)
 	if err != nil {
