@@ -124,7 +124,7 @@ maintain a config map whose contents will match this key. By default this is
 Then create the storage class:
 
 ```console
-kubectl create -f cluster/examples/kubernetes/ceph/csi/example/rbd/storegeclass.yaml
+kubectl create -f cluster/examples/kubernetes/ceph/csi/example/rbd/storageclass.yaml
 ```
 
 ## Create RBD Secret
@@ -370,7 +370,7 @@ Update the value of the `clusterID` field to match the namespace that rook is
 running in.
 
 ```console
-kubectl create -f cluster/examples/kubernetes/ceph/csi/example/cephfs/storegeclass.yaml
+kubectl create -f cluster/examples/kubernetes/ceph/csi/example/cephfs/storageclass.yaml
 ```
 
 ## Create CephFS Secret
