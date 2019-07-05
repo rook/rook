@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
@@ -312,6 +313,16 @@ func ListDevicesInUse(context *clusterd.Context, namespace, nodeName string) ([]
 	return devices, nil
 }
 
+func matchDeviceFullPath(devLinks, fullpath string) bool {
+	dlsArr := strings.Split(devLinks, " ")
+	for i := range dlsArr {
+		if dlsArr[i] == fullpath {
+			return true
+		}
+	}
+	return false
+}
+
 // GetAvailableDevices conducts outer join using input filters with free devices that a node has. It marks the devices from join result as in-use.
 func GetAvailableDevices(context *clusterd.Context, nodeName, clusterName string, devices []rookalpha.Device, filter string, useAllDevices bool) ([]rookalpha.Device, error) {
 	results := []rookalpha.Device{}
@@ -351,7 +362,13 @@ func GetAvailableDevices(context *clusterd.Context, nodeName, clusterName string
 	if len(devices) > 0 {
 		for i := range devices {
 			for j := range nodeDevices {
-				if devices[i].Name == nodeDevices[j].Name {
+				if devices[i].FullPath != "" && matchDeviceFullPath(nodeDevices[j].DevLinks, devices[i].FullPath) {
+					if devices[i].Name == "" {
+						devices[i].Name = nodeDevices[j].Name
+					}
+					results = append(results, devices[i])
+					claimedDevices = append(claimedDevices, nodeDevices[j])
+				} else if devices[i].Name == nodeDevices[j].Name {
 					results = append(results, devices[i])
 					claimedDevices = append(claimedDevices, nodeDevices[j])
 				}
