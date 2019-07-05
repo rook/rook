@@ -494,7 +494,28 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 		}
 		cluster.Info.CephVersion = *version
 	} else {
-		logger.Infof("ceph version is still %s on image %s", &cluster.Info.CephVersion, cluster.Spec.CephVersion.Image)
+		// At this point, clusterInfo might not be initialized
+		// If we have deployed a new operator and failed on allowUnsupported
+		// there is no way we can continue, even we set allowUnsupported to true clusterInfo is gone
+		// So we have to re-populate it
+		if !cluster.Info.IsInitialized() {
+			logger.Infof("cluster information are not initialized, populating them.")
+
+			cluster.Info, _, _, err = mon.LoadClusterInfo(c.context, cluster.Namespace)
+			if err != nil {
+				logger.Errorf("failed to load clusterInfo %+v", err)
+			}
+
+			// Re-setting cluster version too since LoadClusterInfo does not load it
+			version, err := cluster.detectCephVersion(newClust.Spec.CephVersion.Image, 15*time.Minute)
+			if err != nil {
+				logger.Errorf("unknown ceph major version. %+v", err)
+				return
+			}
+			cluster.Info.CephVersion = *version
+
+			logger.Infof("ceph version is still %s on image %s", &cluster.Info.CephVersion, cluster.Spec.CephVersion.Image)
+		}
 	}
 
 	logger.Debugf("old cluster: %+v", oldClust.Spec)
