@@ -42,6 +42,10 @@ spec:
         - name: AGENT_TOLERATION_KEY
           value: {{ .Values.agent.tolerationKey }}
 {{- end }}
+{{- if .Values.agent.nodeAffinity }}
+        - name: AGENT_NODE_AFFINITY
+          value: {{ .Values.agent.nodeAffinity }}
+{{- end }}
 {{- if .Values.agent.mountSecurityMode }}
         - name: AGENT_MOUNT_SECURITY_MODE
           value: {{ .Values.agent.mountSecurityMode }}
@@ -67,6 +71,10 @@ spec:
 {{- if .Values.discover.tolerationKey }}
         - name: DISCOVER_TOLERATION_KEY
           value: {{ .Values.discover.tolerationKey }}
+{{- end }}
+{{- if .Values.discover.nodeAffinity }}
+        - name: DISCOVER_AGENT_NODE_AFFINITY
+          value: {{ .Values.discover.nodeAffinity }}
 {{- end }}
 {{- end }}
 {{- if .Values.hostpathRequiresPrivileged }}

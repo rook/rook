@@ -95,6 +95,9 @@ spec:
         # (Optional) Rook Agent toleration key. Set this to the key of the taint you want to tolerate
         # - name: AGENT_TOLERATION_KEY
         #   value: "<KeyOfTheTaintToTolerate>"
+        # (Optional) Rook Agent NodeAffinity.
+        # - name: AGENT_NODE_AFFINITY
+        #   value: "role=storage-node; storage=rook,ceph"
         # (Optional) Rook Agent mount security mode. Can by `Any` or `Restricted`.
         # `Any` uses Ceph admin credentials by default/fallback.
         # For using `Restricted` you must have a Ceph secret in each namespace storage should be consumed from and
@@ -118,6 +121,9 @@ spec:
         # (Optional) Rook Discover toleration key. Set this to the key of the taint you want to tolerate
         # - name: DISCOVER_TOLERATION_KEY
         #  value: "<KeyOfTheTaintToTolerate>"
+        # (Optional) Discover Agent NodeAffinity.
+        # - name: DISCOVER_AGENT_NODE_AFFINITY
+        #   value: "role=storage-node; storage=rook, ceph"
         # Allow rook to create multiple file systems. Note: This is considered
         # an experimental feature in Ceph as described at
         # http://docs.ceph.com/docs/master/cephfs/experimental-features/#multiple-filesystems-within-a-ceph-cluster

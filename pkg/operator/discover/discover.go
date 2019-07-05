@@ -28,10 +28,10 @@ import (
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
-	"github.com/rook/rook/pkg/operator/k8sutil"
+	k8sutil "github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/sys"
 	apps "k8s.io/api/apps/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	kserrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -41,6 +41,7 @@ const (
 	discoverDaemonsetName             = "rook-discover"
 	discoverDaemonsetTolerationEnv    = "DISCOVER_TOLERATION"
 	discoverDaemonsetTolerationKeyEnv = "DISCOVER_TOLERATION_KEY"
+	discoverDaemonSetNodeAffinityEnv  = "DISCOVER_AGENT_NODE_AFFINITY"
 	deviceInUseCMName                 = "local-device-in-use-cluster-%s-node-%s"
 	deviceInUseAppName                = "rook-claimed-devices"
 	deviceInUseClusterAttr            = "rook.io/cluster"
@@ -167,6 +168,19 @@ func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage, securityAcc
 				Operator: v1.TolerationOpExists,
 				Key:      os.Getenv(discoverDaemonsetTolerationKeyEnv),
 			},
+		}
+	}
+
+	// Add NodeAffinity if any
+	nodeAffinity := os.Getenv(discoverDaemonSetNodeAffinityEnv)
+	if nodeAffinity != "" {
+		v1NodeAffinity, err := k8sutil.AddNodeAffinity(nodeAffinity)
+		if err != nil {
+			logger.Errorf("failed to create NodeAffinity. %+v", err)
+		} else {
+			ds.Spec.Template.Spec.Affinity = &v1.Affinity{
+				NodeAffinity: v1NodeAffinity,
+			}
 		}
 	}
 

@@ -18,6 +18,7 @@ limitations under the License.
 package k8sutil
 
 import (
+	"reflect"
 	"testing"
 
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
@@ -339,4 +340,80 @@ func TestNodeIsInRookList(t *testing.T) {
 		{Name: "node5"}}
 	assert.False(t, NodeIsInRookNodeList("node0", rookNodes))
 	assert.True(t, NodeIsInRookNodeList("node0-hostname", rookNodes))
+}
+
+func TestAddNodeAffinity(t *testing.T) {
+	type args struct {
+		nodeAffinity string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *v1.NodeAffinity
+		wantErr bool
+	}{
+		{
+			name: "AddNodeAffinity",
+			args: args{
+				nodeAffinity: "rook.io/ceph=true",
+			},
+			want: &v1.NodeAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+					NodeSelectorTerms: []v1.NodeSelectorTerm{
+						{
+							MatchExpressions: []v1.NodeSelectorRequirement{
+								{
+									Key:      "rook.io/ceph",
+									Operator: v1.NodeSelectorOpIn,
+									Values:   []string{"true"},
+								},
+							},
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "FailAddNodeAffinity",
+			args: args{
+				nodeAffinity: "rook.io/ceph,minio=true",
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "AddNodeAffinityWithKeyOnly",
+			args: args{
+				nodeAffinity: "rook.io/ceph",
+			},
+			want: &v1.NodeAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+					NodeSelectorTerms: []v1.NodeSelectorTerm{
+						{
+							MatchExpressions: []v1.NodeSelectorRequirement{
+								{
+									Key:      "rook.io/ceph",
+									Operator: v1.NodeSelectorOpExists,
+								},
+							},
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := AddNodeAffinity(tt.args.nodeAffinity)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("AddNodeAffinity() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("AddNodeAffinity() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }
