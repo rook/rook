@@ -1309,7 +1309,7 @@ parameters:
     ` + namespaceParameter + `: ` + namespace
 }
 
-func (m *CephManifestsV1_0) GetBlockPvcDef(claimName string, storageClassName string, accessModes string) string {
+func (m *CephManifestsV1_0) GetBlockPvcDef(claimName, storageClassName, accessModes, size string) string {
 	return `apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -1321,12 +1321,12 @@ spec:
     - ` + accessModes + `
   resources:
     requests:
-      storage: 1M`
+      storage: ` + size
 }
 
 func (m *CephManifestsV1_0) GetBlockPoolStorageClassAndPvcDef(namespace string, poolName string, storageClassName string, reclaimPolicy string, blockName string, accessMode string) string {
 	return concatYaml(m.GetBlockPoolDef(poolName, namespace, "1"),
-		concatYaml(m.GetBlockStorageClassDef(poolName, storageClassName, reclaimPolicy, namespace, false), m.GetBlockPvcDef(blockName, storageClassName, accessMode)))
+		concatYaml(m.GetBlockStorageClassDef(poolName, storageClassName, reclaimPolicy, namespace, false), m.GetBlockPvcDef(blockName, storageClassName, accessMode, "1M")))
 }
 
 func (m *CephManifestsV1_0) GetBlockPoolStorageClass(namespace string, poolName string, storageClassName string, reclaimPolicy string) string {

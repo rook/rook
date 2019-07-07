@@ -33,10 +33,11 @@ import (
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/version"
 )
 
 // Smoke Test for Block Storage - Test check the following operations on Block Storage in order
-// Create,Mount,Write,Read,Unmount and Delete.
+// Create,Mount,Write,Read,Expand,Unmount and Delete.
 func runBlockE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
 	podName := "block-test"
 	poolName := "replicapool"
@@ -90,6 +91,22 @@ func runBlockE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.
 	err = k8sh.ReadFromPod("", podName, filename, message)
 	require.Nil(s.T(), err)
 	logger.Infof("Read from  Block storage successfully")
+
+	v := version.MustParseSemantic(k8sh.GetK8sServerVersion())
+	if v.AtLeast(version.MustParseSemantic("1.14.0")) {
+		logger.Infof("additional step: Expand block storage")
+		// Expanding the image by applying new PVC specs
+		err = helper.BlockClient.CreatePvc(blockName, storageClassName, "ReadWriteOnce", "2M")
+		require.Nil(s.T(), err)
+		// Once the pod using the volume is terminated, the filesystem is expanded and the size of the PVC is increased.
+		err = k8sh.DeletePod(k8sutil.DefaultNamespace, podName)
+		require.Nil(s.T(), err)
+		_, err = helper.BlockClient.BlockMap(getBlockPodDefintion(podName, blockName, false))
+		require.Nil(s.T(), err)
+		require.True(s.T(), k8sh.IsPodRunning(podName, defaultNamespace), "Make sure new pod is running")
+		require.True(s.T(), k8sh.WaitUntilPVCIsExpanded(defaultNamespace, blockName, "2M"), "Make sure PVC is expanded")
+		logger.Infof("Block Storage successfully expanded")
+	}
 
 	logger.Infof("step 7: Mount same block storage on a different pod. Should not be allowed")
 	otherPod := "block-test2"

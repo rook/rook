@@ -168,6 +168,9 @@ parameters:
   fstype: xfs
 # Optional, default reclaimPolicy is "Delete". Other options are: "Retain", "Recycle" as documented in https://kubernetes.io/docs/concepts/storage/storage-classes/
 reclaimPolicy: Retain
+# Optional, if you want to add dynamic resize for PVC. Works for Kubernetes 1.14+
+# For now only ext3, ext4, xfs resize support provided, like in Kubernetes itself.
+allowVolumeExpansion: true
 ```
 
 Create the pool and storage class.
@@ -228,6 +231,8 @@ parameters:
   clusterNamespace: rook-ceph
   # Specify the filesystem type of the volume. If not specified, it will use `ext4`.
   fstype: xfs
+# Works for Kubernetes 1.14+
+allowVolumeExpansion: true
 ```
 
 

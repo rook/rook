@@ -81,7 +81,7 @@ func (s *BlockCreateSuite) TestCreatePVCWhenNoStorageClassExists() {
 	reclaimPolicy := "Delete"
 	defer s.tearDownTest(claimName, poolName, storageClassName, reclaimPolicy, "ReadWriteOnce")
 
-	err := s.testClient.BlockClient.CreatePvc(claimName, storageClassName, "ReadWriteOnce")
+	err := s.testClient.BlockClient.CreatePvc(claimName, storageClassName, "ReadWriteOnce", "1M")
 	require.NoError(s.T(), err)
 
 	// check status of PVC
@@ -161,7 +161,7 @@ func (s *BlockCreateSuite) statefulSetDataCleanup(namespace, poolName, storageCl
 }
 
 func (s *BlockCreateSuite) tearDownTest(claimName string, poolName string, storageClassName string, reclaimPolicy string, accessMode string) {
-	s.testClient.BlockClient.DeletePvc(claimName, storageClassName, accessMode)
+	s.testClient.BlockClient.DeletePvc(claimName, storageClassName, accessMode, "1M")
 	s.testClient.PoolClient.Delete(poolName, s.namespace)
 	s.testClient.BlockClient.DeleteStorageClass(poolName, storageClassName, reclaimPolicy, s.namespace)
 }
@@ -189,7 +189,7 @@ func (s *BlockCreateSuite) CheckCreatingPVC(pvcName, pvcAccessMode string) {
 	require.Nil(s.T(), err)
 
 	// create pvc
-	err = s.testClient.BlockClient.CreatePvc(claimName, storageClassName, pvcAccessMode)
+	err = s.testClient.BlockClient.CreatePvc(claimName, storageClassName, pvcAccessMode, "1M")
 	require.NoError(s.T(), err)
 
 	// check status of PVC

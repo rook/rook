@@ -124,7 +124,7 @@ func (p *PoolOperation) DeleteStorageClassAndPvc(namespace, poolName, storageCla
 }
 
 func (p *PoolOperation) DeletePvc(blockName, storageClassName, mode string) error {
-	err := p.k8sh.ResourceOperation("delete", p.manifests.GetBlockPvcDef(blockName, storageClassName, mode))
+	err := p.k8sh.ResourceOperation("delete", p.manifests.GetBlockPvcDef(blockName, storageClassName, mode, "1M"))
 	return err
 }
 

@@ -54,6 +54,7 @@ an example usage
 - The Ceph cluster custom resource now contains a `configOverrides` section where users can specify
   configuration changes to Ceph which Rook should apply.
 - Rook can now manage PodDisruptionBudgets for the following Daemons: OSD, Mon, RGW, MDS. OSD budgets are dynamically managed as documented in the [design](https://github.com/rook/rook/blob/master/design/ceph-managed-disruptionbudgets.md). This can be enabled with the `managePodBudgets` flag in the cluster CR. When this is enabled, drains on OSDs will be blocked by default and dynamically unblocked in a safe manner one failureDomain at a time. When a failure domain is draining, it will be marked as no out for a longer time than the default DOWN/OUT interval.
+- Flexvolume plugin now supports dynamic PVC expansion.
 
 ### YugabyteDB
 

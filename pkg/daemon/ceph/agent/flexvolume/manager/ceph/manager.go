@@ -161,6 +161,18 @@ func (vm *VolumeManager) Attach(image, pool, id, key, clusterNamespace string) (
 	}
 }
 
+func (vm *VolumeManager) Expand(image, pool, clusterNamespace string, size uint64) error {
+	monitors, keyring, err := getClusterInfo(vm.context, clusterNamespace)
+	if err != nil {
+		return fmt.Errorf("failed to resize volume %s/%s cluster %s. %+v", pool, image, clusterNamespace, err)
+	}
+	err = cephclient.ExpandImage(vm.context, clusterNamespace, image, pool, monitors, keyring, size)
+	if err != nil {
+		return fmt.Errorf("failed to resize volume %s/%s cluster %s. %+v", pool, image, clusterNamespace, err)
+	}
+	return nil
+}
+
 // Detach the volume
 func (vm *VolumeManager) Detach(image, pool, id, key, clusterNamespace string, force bool) error {
 	// check if the volume is attached
