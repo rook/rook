@@ -32,6 +32,8 @@ kind: StorageClass
 metadata:
    name: rook-ceph-block
 provisioner: ceph.rook.io/block
+# Works for Kubernetes 1.14+
+allowVolumeExpansion: true
 parameters:
   # If you want to use erasure coded pool with RBD, you need to create two pools (as seen above): one erasure coded and one replicated.
   # You need to specify the replicated pool here in the `blockPool` parameter, it is used for the metadata of the images.

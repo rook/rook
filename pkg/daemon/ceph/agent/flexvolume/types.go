@@ -28,6 +28,7 @@ type VolumeManager interface {
 	Init() error
 	Attach(image, pool, id, key, clusterName string) (string, error)
 	Detach(image, pool, id, key, clusterName string, force bool) error
+	Expand(image, pool, clusterName string, size uint64) error
 }
 
 type VolumeController interface {
@@ -58,6 +59,22 @@ type AttachOptions struct {
 	Pod              string `json:"kubernetes.io/pod.name"`
 	PodID            string `json:"kubernetes.io/pod.uid"`
 	PodNamespace     string `json:"kubernetes.io/pod.namespace"`
+}
+
+type ExpandOptions struct {
+	Pool             string `json:"pool"`
+	RW               string `json:"kubernetes.io/readwrite"`
+	ClusterNamespace string `json:"clusterNamespace"`
+	DataBlockPool    string `json:"dataBlockPool"`
+	Image            string `json:"image"`
+	FsType           string `json:"kubernetes.io/fsType"`
+	StorageClass     string `json:"storageClass"`
+	VolumeName       string `json:"kubernetes.io/pvOrVolumeName"`
+}
+
+type ExpandArgs struct {
+	ExpandOptions *ExpandOptions
+	Size          uint64
 }
 
 type LogMessage struct {

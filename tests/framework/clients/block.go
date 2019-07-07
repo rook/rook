@@ -64,16 +64,16 @@ func (b *BlockOperation) Create(manifest string, size int) (string, error) {
 
 }
 
-func (b *BlockOperation) CreatePvc(claimName, storageClassName, mode string) error {
-	return b.k8sClient.ResourceOperation("apply", b.manifests.GetBlockPvcDef(claimName, storageClassName, mode))
+func (b *BlockOperation) CreatePvc(claimName, storageClassName, mode, size string) error {
+	return b.k8sClient.ResourceOperation("apply", b.manifests.GetBlockPvcDef(claimName, storageClassName, mode, size))
 }
 
 func (b *BlockOperation) CreateStorageClass(poolName, storageClassName, reclaimPolicy, namespace string, varClusterName bool) error {
 	return b.k8sClient.ResourceOperation("apply", b.manifests.GetBlockStorageClassDef(poolName, storageClassName, reclaimPolicy, namespace, varClusterName))
 }
 
-func (b *BlockOperation) DeletePvc(claimName, storageClassName, mode string) error {
-	err := b.k8sClient.ResourceOperation("delete", b.manifests.GetBlockPvcDef(claimName, storageClassName, mode))
+func (b *BlockOperation) DeletePvc(claimName, storageClassName, mode, size string) error {
+	err := b.k8sClient.ResourceOperation("delete", b.manifests.GetBlockPvcDef(claimName, storageClassName, mode, size))
 	return err
 }
 
