@@ -137,81 +137,95 @@ func (c *Cluster) Start() error {
 
 	logger.Infof("start running osds in namespace %s", c.Namespace)
 
-	if c.DesiredStorage.UseAllNodes == false && len(c.DesiredStorage.Nodes) == 0 {
-		logger.Warningf("useAllNodes is set to false and no nodes are specified, no OSD pods are going to be created")
-	}
-
-	if c.DesiredStorage.UseAllNodes {
-		// Get the list of all nodes in the cluster. The placement settings will be applied below.
-		hostnameMap, err := k8sutil.GetNodeHostNames(c.context.Clientset)
-		if err != nil {
-			logger.Warningf("failed to get node hostnames: %v", err)
-			return err
-		}
-		c.DesiredStorage.Nodes = nil
-		for _, hostname := range hostnameMap {
-			storageNode := rookalpha.Node{
-				Name: hostname,
+	if len(c.DesiredStorage.StorageClassDeviceSets) > 0 {
+		for _, storageClassDeviceSets := range c.DesiredStorage.StorageClassDeviceSets {
+			if len(storageClassDeviceSets.VolumeClaimTemplates) == 0 {
+				logger.Warningf("No pvc templates found for storageClassDeviceSet: %s, skipping osd preparation for this storageClassDeviceSet", storageClassDeviceSets.Name)
+				continue
+			} else {
+				// start the jobs to provision the OSD devices and pvcs
+				config := newProvisionConfig()
+				logger.Infof("start provisioning the osds on PVC, if needed")
+				c.startStorageClassDeviceSetProvisioning(config)
 			}
-			c.DesiredStorage.Nodes = append(c.DesiredStorage.Nodes, storageNode)
 		}
-		logger.Debugf("storage nodes: %+v", c.DesiredStorage.Nodes)
-	}
-	// generally speaking, this finds nodes which are capable of running new osds
-	validNodes := k8sutil.GetValidNodes(c.DesiredStorage, c.context.Clientset, c.placement)
+	} else {
+		if c.DesiredStorage.UseAllNodes == false && len(c.DesiredStorage.Nodes) == 0 {
+			logger.Warningf("useAllNodes is set to false and no nodes are specified, no OSD pods are going to be created")
+		}
 
-	// no valid node is ready to run an osd
-	if len(validNodes) == 0 {
-		logger.Warningf("no valid node available to run an osd in namespace %s. "+
-			"Rook will not create any new OSD nodes and will skip checking for removed nodes since "+
-			"removing all OSD nodes without destroying the Rook cluster is unlikely to be intentional", c.Namespace)
-		return nil
-	}
-	logger.Infof("%d of the %d storage nodes are valid", len(validNodes), len(c.DesiredStorage.Nodes))
-	c.ValidStorage.Nodes = validNodes
+		if c.DesiredStorage.UseAllNodes {
+			// Get the list of all nodes in the cluster. The placement settings will be applied below.
+			hostnameMap, err := k8sutil.GetNodeHostNames(c.context.Clientset)
+			if err != nil {
+				logger.Warningf("failed to get node hostnames: %v", err)
+				return err
+			}
+			c.DesiredStorage.Nodes = nil
+			for _, hostname := range hostnameMap {
+				storageNode := rookalpha.Node{
+					Name: hostname,
+				}
+				c.DesiredStorage.Nodes = append(c.DesiredStorage.Nodes, storageNode)
+			}
+			logger.Debugf("storage nodes: %+v", c.DesiredStorage.Nodes)
+		}
+		// generally speaking, this finds nodes which are capable of running new osds
+		validNodes := k8sutil.GetValidNodes(c.DesiredStorage, c.context.Clientset, c.placement)
 
-	// start the jobs to provision the OSD devices and directories
-	config := newProvisionConfig()
-	logger.Infof("start provisioning the osds on nodes, if needed")
-	c.startProvisioning(config)
+		// no valid node is ready to run an osd
+		if len(validNodes) == 0 {
+			logger.Warningf("no valid node available to run an osd in namespace %s. "+
+				"Rook will not create any new OSD nodes and will skip checking for removed nodes since "+
+				"removing all OSD nodes without destroying the Rook cluster is unlikely to be intentional", c.Namespace)
+			return nil
+		}
+		logger.Infof("%d of the %d storage nodes are valid", len(validNodes), len(c.DesiredStorage.Nodes))
+		c.ValidStorage.Nodes = validNodes
 
-	// start the OSD pods, waiting for the provisioning to be completed
-	logger.Infof("start osds after provisioning is completed, if needed")
-	c.completeProvision(config)
+		// start the jobs to provision the OSD devices and directories
+		config := newProvisionConfig()
+		logger.Infof("start provisioning the osds on nodes, if needed")
+		c.startProvisioning(config)
 
-	// handle the removed nodes and rebalance the PGs
-	logger.Infof("checking if any nodes were removed")
-	c.handleRemovedNodes(config)
+		// start the OSD pods, waiting for the provisioning to be completed
+		logger.Infof("start osds after provisioning is completed, if needed")
+		c.completeProvision(config)
 
-	if len(config.errorMessages) > 0 {
-		return fmt.Errorf("%d failures encountered while running osds in namespace %s: %+v",
-			len(config.errorMessages), c.Namespace, strings.Join(config.errorMessages, "\n"))
-	}
+		// handle the removed nodes and rebalance the PGs
+		logger.Infof("checking if any nodes were removed")
+		c.handleRemovedNodes(config)
 
-	// The following block is used to apply any command(s) required by an upgrade
-	// The block below handles the upgrade from Mimic to Nautilus.
-	if c.clusterInfo.CephVersion.IsAtLeastNautilus() {
-		versions, err := client.GetCephVersions(c.context)
-		if err != nil {
-			logger.Warningf("failed to get ceph daemons versions. this likely means there are no osds yet. %+v", err)
-		} else {
-			// If length is one, this clearly indicates that all the osds are running the same version
-			logger.Infof("len of version.Osd is %d", len(versions.Osd))
-			// If this is the first time we are creating a cluster length will be 0
-			// On an initial OSD boostrap, by the time we reach this code, the OSDs haven't registered yet
-			// Basically, this task is happening too quickly and OSD pods are not running yet.
-			// That's not an issue since it's an initial bootstrap and not an update.
-			if len(versions.Osd) == 1 {
-				for v := range versions.Osd {
-					logger.Infof("v is %s", v)
-					osdVersion, err := cephver.ExtractCephVersion(v)
-					if err != nil {
-						return fmt.Errorf("failed to extract ceph version. %+v", err)
-					}
-					logger.Infof("osdVersion is: %v", osdVersion)
-					// if the version of these OSDs is Nautilus then we run the command
-					if osdVersion.IsAtLeastNautilus() {
-						client.EnableNautilusOSD(c.context)
+		if len(config.errorMessages) > 0 {
+			return fmt.Errorf("%d failures encountered while running osds in namespace %s: %+v",
+				len(config.errorMessages), c.Namespace, strings.Join(config.errorMessages, "\n"))
+		}
+
+		// The following block is used to apply any command(s) required by an upgrade
+		// The block below handles the upgrade from Mimic to Nautilus.
+		if c.clusterInfo.CephVersion.IsAtLeastNautilus() {
+			versions, err := client.GetCephVersions(c.context)
+			if err != nil {
+				logger.Warningf("failed to get ceph daemons versions. this likely means there are no osds yet. %+v", err)
+			} else {
+				// If length is one, this clearly indicates that all the osds are running the same version
+				logger.Infof("len of version.Osd is %d", len(versions.Osd))
+				// If this is the first time we are creating a cluster length will be 0
+				// On an initial OSD boostrap, by the time we reach this code, the OSDs haven't registered yet
+				// Basically, this task is happening too quickly and OSD pods are not running yet.
+				// That's not an issue since it's an initial bootstrap and not an update.
+				if len(versions.Osd) == 1 {
+					for v := range versions.Osd {
+						logger.Infof("v is %s", v)
+						osdVersion, err := cephver.ExtractCephVersion(v)
+						if err != nil {
+							return fmt.Errorf("failed to extract ceph version. %+v", err)
+						}
+						logger.Infof("osdVersion is: %v", osdVersion)
+						// if the version of these OSDs is Nautilus then we run the command
+						if osdVersion.IsAtLeastNautilus() {
+							client.EnableNautilusOSD(c.context)
+						}
 					}
 				}
 			}
@@ -267,64 +281,6 @@ func (c *Cluster) startProvisioning(config *provisionConfig) {
 			status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: fmt.Sprintf("failed to start osd provisioning on node %s", n.Name)}
 			if err := c.updateNodeStatus(n.Name, status); err != nil {
 				config.addError("failed to update node %s status. %+v", n.Name, err)
-			}
-		}
-	}
-
-	// Deploying test based on the storageclassDeviceSet
-	// Todo: Replace the below logic to deploy osd pods over pvcs
-	for setIndex, storageClassDeviceSet := range c.DesiredStorage.StorageClassDeviceSets {
-		for i, pvcTemplate := range storageClassDeviceSet.VolumeClaimTemplates {
-			pvcStorageClassDeviceSetPVCId := fmt.Sprintf("%s-%v-%v", storageClassDeviceSet.Name, setIndex, i)
-			pvcStorageClassDeviceSetPVCIdLabelSelector := fmt.Sprintf("rook.ceph.io/StorageClassDeviceSetPVCId=%s", pvcStorageClassDeviceSetPVCId)
-			pvcLables := map[string]string{
-				"rook.ceph.io/storageClassDeviceSet":      storageClassDeviceSet.Name,
-				"rook.ceph.io/storageClassDeviceSetIndex": fmt.Sprintf("%v", setIndex),
-				"rook.ceph.io/pvcIndex":                   fmt.Sprintf("%v", i),
-				"rook.ceph.io/StorageClassDeviceSetPVCId": pvcStorageClassDeviceSetPVCId,
-			}
-
-			// pvc naming format <storageClassDeviceSetName>-<SetNumber>-<PVCIndex>
-			pvcGenerateName := pvcStorageClassDeviceSetPVCId + "-"
-
-			// Add pvcTemplate name to pvc name. i.e <storageClassDeviceSetName>-<SetNumber>-<PVCIndex>-<pvcTemplateName>
-			if len(pvcTemplate.GetName()) != 0 {
-				pvcGenerateName = pvcGenerateName + pvcTemplate.GetName() + "-"
-			}
-
-			// Add user provided labels to pvcTemplates
-			for k, v := range pvcTemplate.GetLabels() {
-				pvcLables[k] = v
-			}
-
-			pvc := &v1.PersistentVolumeClaim{
-				ObjectMeta: metav1.ObjectMeta{
-					GenerateName: pvcGenerateName,
-					Labels:       pvcLables,
-					Annotations:  pvcTemplate.Annotations,
-				},
-				Spec: pvcTemplate.Spec,
-			}
-
-			// Setting up ownerRef
-			k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &pvc.ObjectMeta, &c.ownerRef)
-			// Check if the pvc already exist
-			availablePVCList, err := c.context.Clientset.CoreV1().
-				PersistentVolumeClaims(c.Namespace).
-				List(metav1.ListOptions{LabelSelector: pvcStorageClassDeviceSetPVCIdLabelSelector})
-			if err != nil {
-				config.addError("failed to list pvcs with labelSelector %s. %+v", pvcStorageClassDeviceSetPVCIdLabelSelector, err)
-			} else if len(availablePVCList.Items) > 0 {
-				logger.Warningf("pvc with labelSelector %s already present. Skipping creation for pvc %v", pvcStorageClassDeviceSetPVCIdLabelSelector, pvc)
-				continue
-			}
-			// Provisioning PVC
-			logger.Infof("creating pvc %v", pvc)
-			pvcCreated, err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).Create(pvc)
-			if err != nil {
-				config.addError("failed to create pvc %s, %v", pvc.Name, err)
-			} else {
-				logger.Infof("pvc %v created successfully", pvcCreated)
 			}
 		}
 	}
@@ -596,4 +552,49 @@ func (c *Cluster) resolveNode(nodeName string) *rookalpha.Node {
 	rookNode.Resources = k8sutil.MergeResourceRequirements(rookNode.Resources, c.resources)
 
 	return rookNode
+}
+
+func (c *Cluster) startStorageClassDeviceSetProvisioning(config *provisionConfig) {
+	for _, storageClassDeviceSet := range c.DesiredStorage.StorageClassDeviceSets {
+		for setIndex := 0; setIndex < storageClassDeviceSet.Count; setIndex++ {
+			pvcs, err := c.createStorageClassDeviceSetPVC(storageClassDeviceSet, setIndex)
+			if err != nil {
+				config.addError("%+v", err)
+				config.addError("OSD creation for storageClassDeviceSet %v failed for count %v", storageClassDeviceSet.Name, setIndex)
+				continue
+			}
+			osdPod := makeBusyboxPod(storageClassDeviceSet.Name+"-pods", c.Namespace, pvcs)
+			_, err = c.context.Clientset.CoreV1().Pods(c.Namespace).Create(&osdPod)
+			if err != nil {
+				config.addError("failed to create osd for storageClassDeviceSet %s of set %v, err %+v", storageClassDeviceSet.Name, setIndex, err)
+				continue
+			}
+			logger.Infof("successfully provisioned osd for storageClassDeviceSet %s of set %v", storageClassDeviceSet.Name, setIndex)
+		}
+	}
+}
+
+func (c *Cluster) createStorageClassDeviceSetPVC(storageClassDeviceSet rookalpha.StorageClassDeviceSet, setIndex int) ([]v1.PersistentVolumeClaim, error) {
+	deployedPVCs := []v1.PersistentVolumeClaim{}
+	for i, pvcTemplate := range storageClassDeviceSet.VolumeClaimTemplates {
+		pvcStorageClassDeviceSetPVCId, pvcStorageClassDeviceSetPVCIdLabelSelector := makeStorageClassDeviceSetPVCID(storageClassDeviceSet.Name, setIndex, i)
+		pvc := makeStorageClassDeviceSetPVC(storageClassDeviceSet.Name, pvcStorageClassDeviceSetPVCId, i, setIndex, pvcTemplate)
+		// Check if a PVC already exists with same StorageClassDeviceSet label
+		presentPVCs, err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).List(metav1.ListOptions{LabelSelector: pvcStorageClassDeviceSetPVCIdLabelSelector})
+		if err != nil {
+			return nil, fmt.Errorf("failed to create pvc %v for storageClassDeviceSet %v, err %+v", pvc.GetGenerateName(), storageClassDeviceSet.Name, err)
+		}
+		if len(presentPVCs.Items) == 0 { // No PVC found, creating a new one
+			deployedPVC, err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).Create(pvc)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create pvc %v for storageClassDeviceSet %v, err %+v", pvc.GetGenerateName(), storageClassDeviceSet.Name, err)
+			}
+			deployedPVCs = append(deployedPVCs, *deployedPVC)
+		} else if len(presentPVCs.Items) == 1 { // The PVC is already present.
+			deployedPVCs = append(deployedPVCs, presentPVCs.Items...)
+		} else { // More than one PVC exists with same labelSelector
+			return nil, fmt.Errorf("more than one PVCs exists with label %v, pvcs %+v", pvcStorageClassDeviceSetPVCIdLabelSelector, presentPVCs)
+		}
+	}
+	return deployedPVCs, nil
 }
