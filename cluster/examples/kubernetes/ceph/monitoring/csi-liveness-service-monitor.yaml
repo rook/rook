@@ -1,0 +1,19 @@
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: csi-liveness
+  namespace: rook-ceph
+  labels:
+    team: rook 
+spec:
+  namespaceSelector:
+    matchNames:
+      - default
+  selector:
+    matchLabels:
+      app: csi-liveness
+  endpoints:
+  - port: http-metrics1
+    path: /metrics
+    interval: 5s

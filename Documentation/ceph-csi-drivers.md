@@ -1,3 +1,4 @@
+
 ---
 title: Ceph CSI
 weight: 3200
@@ -26,6 +27,7 @@ Since this feature is still in [alpha
 stage](https://kubernetes.io/blog/2018/10/09/introducing-volume-snapshot-alpha-for-kubernetes/)
 (k8s 1.12+), make sure to enable the `VolumeSnapshotDataSource` feature gate on
 your Kubernetes cluster API server.
+
 
 ```
 --feature-gates=VolumeSnapshotDataSource=true
@@ -119,3 +121,16 @@ kubectl delete -f cluster/examples/kubernetes/ceph/csi/example/rbd/pvc-restore.y
 kubectl delete -f cluster/examples/kubernetes/ceph/csi/example/rbd/snapshot.yaml
 kubectl delete -f cluster/examples/kubernetes/ceph/csi/example/rbd/snapshotclass.yaml
 ```
+
+#### Liveness Sidecar
+All CSI pods are deployed with a sidecar container that provides a prometheus metric for tracking if the CSI plugin is alive and runnning.
+These metrics are meant to be collected by prometheus but can be acceses through a GET request to a specific node ip. 
+for example `curl -X get http://[pod ip]:[liveness-port][liveness-path]  2>/dev/null | grep csi`
+the expected output should be
+```bash
+[root@worker2 /]# curl -X GET http://10.109.65.142:8080/metrics 2>/dev/null | grep csi
+# HELP csi_liveness Liveness Probe
+# TYPE csi_liveness gauge
+csi_liveness 1
+```
+Check the [monitoring doc](https://github.com/rook/rook.github.io/blob/master/docs/rook/master/ceph-monitoring.md) to see how to integrate CSI liveness into ceph monitoring.
