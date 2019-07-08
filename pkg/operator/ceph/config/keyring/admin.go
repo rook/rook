@@ -29,7 +29,6 @@ const (
 	adminKeyringTemplate = `
 [client.admin]
 	key = %s
-	auid = 0
 	caps mds = "allow *"
 	caps mon = "allow *"
 	caps osd = "allow *"
