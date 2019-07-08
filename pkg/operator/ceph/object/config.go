@@ -61,28 +61,46 @@ func (c *clusterConfig) defaultSettings() *cephconfig.Config {
 		Set("rgw log nonexistent bucket", "true").
 		Set("rgw intent log object name utc", "true").
 		Set("rgw enable usage log", "true").
-		Set("rgw frontends", fmt.Sprintf("%s port=%s", rgwFrontend(c.clusterInfo.CephVersion), c.portString())).
+		Set("rgw frontends", fmt.Sprintf("%s %s", rgwFrontend(c.clusterInfo.CephVersion), c.portString(c.clusterInfo.CephVersion))).
 		Set("rgw zone", c.store.Name).
 		Set("rgw zonegroup", c.store.Name)
 	return s
 }
 
-func (c *clusterConfig) portString() string {
+func (c *clusterConfig) portString(v cephver.CephVersion) string {
 	var portString string
+
 	port := c.store.Spec.Gateway.Port
 	if port != 0 {
-		portString = strconv.Itoa(int(port))
+		portString = fmt.Sprintf("port=%s", strconv.Itoa(int(port)))
 	}
 	if c.store.Spec.Gateway.SecurePort != 0 && c.store.Spec.Gateway.SSLCertificateRef != "" {
-		var separator string
-		if port != 0 {
-			separator = "+"
-		}
 		certPath := path.Join(certDir, certFilename)
-		// with ssl enabled, the port number must end with the letter s.
-		// e.g., "443s ssl_certificate=/etc/ceph/private/keyandcert.pem"
-		portString = fmt.Sprintf("%s%s%ds ssl_certificate=%s",
-			portString, separator, c.store.Spec.Gateway.SecurePort, certPath)
+		// This is the beast backend
+		// Config is: http://docs.ceph.com/docs/master/radosgw/frontends/#id3
+		if v.IsAtLeastNautilus() {
+			if port != 0 {
+				portString = fmt.Sprintf("%s ssl_port=%d ssl_certificate=%s",
+					portString, c.store.Spec.Gateway.SecurePort, certPath)
+			} else {
+				portString = fmt.Sprintf("ssl_port=%d ssl_certificate=%s",
+					c.store.Spec.Gateway.SecurePort, certPath)
+			}
+		} else {
+			// This is civetweb config
+			// Config is http://docs.ceph.com/docs/master/radosgw/frontends/#id5
+			var separator string
+			if port != 0 {
+				separator = "+"
+			} else {
+				// This means there is only one port and it's a secured one
+				portString = "port="
+			}
+			// with ssl enabled, the port number must end with the letter s.
+			// e.g., "443s ssl_certificate=/etc/ceph/private/keyandcert.pem"
+			portString = fmt.Sprintf("%s%s%ds ssl_certificate=%s",
+				portString, separator, c.store.Spec.Gateway.SecurePort, certPath)
+		}
 	}
 	return portString
 }
