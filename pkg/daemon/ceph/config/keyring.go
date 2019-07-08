@@ -30,14 +30,13 @@ const (
 	// AdminKeyringTemplate is a string template of Ceph keyring settings which allow connection
 	// as admin. The key value must be filled in by the admin auth key for the cluster.
 	AdminKeyringTemplate = `
-	[client.admin]
-		key = %s
-		auid = 0
-		caps mds = "allow *"
-		caps mon = "allow *"
-		caps osd = "allow *"
-		caps mgr = "allow *"
-	`
+[client.admin]
+	key = %s
+	caps mds = "allow *"
+	caps mon = "allow *"
+	caps osd = "allow *"
+	caps mgr = "allow *"
+`
 )
 
 // AdminKeyring returns the filled-out admin keyring
