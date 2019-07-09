@@ -8,6 +8,7 @@ distribution of the data only across the specified device class. See [Ceph Block
 an example usage
 - Added K8s 1.15 to the test matrix and removed K8s 1.10 from the test matrix.
 - OwnerReferences are created with the fully qualified `apiVersion` such that the references will work properly on OpenShift.
+- Linear disk device can now be used for Ceph OSDs.
 
 ### Ceph
 

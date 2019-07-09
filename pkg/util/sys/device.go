@@ -26,13 +26,14 @@ import (
 )
 
 const (
-	DiskType  = "disk"
-	SSDType   = "ssd"
-	PartType  = "part"
-	CryptType = "crypt"
-	LVMType   = "lvm"
-	sgdisk    = "sgdisk"
-	mountCmd  = "mount"
+	DiskType   = "disk"
+	SSDType    = "ssd"
+	PartType   = "part"
+	CryptType  = "crypt"
+	LVMType    = "lvm"
+	LinearType = "linear"
+	sgdisk     = "sgdisk"
+	mountCmd   = "mount"
 )
 
 type Partition struct {
