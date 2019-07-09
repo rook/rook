@@ -23,6 +23,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"k8s.io/apimachinery/pkg/api/errors"
 )
 
 const (
@@ -113,9 +114,14 @@ func (m *Monitor) handleOSDMarkedOut(outOSDid int) error {
 	if safeToDestroyOSD {
 		logger.Infof("osd.%d is 'safe-to-destroy'", outOSDid)
 		label := fmt.Sprintf("ceph-osd-id=%d", outOSDid)
-		dp, _ := k8sutil.GetDeployments(m.context.Clientset, m.clusterName, label)
-
-		if dp.Items != nil {
+		dp, err := k8sutil.GetDeployments(m.context.Clientset, m.clusterName, label)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				return nil
+			}
+			return fmt.Errorf("failed to get osd deployment of osd id %d: %+v", outOSDid, err)
+		}
+		if len(dp.Items) != 0 {
 			if err := k8sutil.DeleteDeployment(m.context.Clientset, dp.Items[0].Namespace, dp.Items[0].Name); err != nil {
 				return fmt.Errorf("failed to delete osd deployment %s: %+v", dp.Items[0].Name, err)
 			}
