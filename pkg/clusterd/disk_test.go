@@ -19,44 +19,8 @@ import (
 	"testing"
 
 	exectest "github.com/rook/rook/pkg/util/exec/test"
-	"github.com/rook/rook/pkg/util/sys"
 	"github.com/stretchr/testify/assert"
 )
-
-func TestAvailableDisks(t *testing.T) {
-
-	// no disks discovered for a node is an error
-	disks := GetAvailableDevices([]*sys.LocalDisk{})
-	assert.Equal(t, 0, len(disks))
-
-	// no available disks because of the formatting
-	d1 := &sys.LocalDisk{Name: "sda", UUID: "myuuid1", Size: 123, Rotational: true, Readonly: false, Filesystem: "btrfs", Type: sys.DiskType, HasChildren: true}
-	disks = GetAvailableDevices([]*sys.LocalDisk{d1})
-	assert.Equal(t, 0, len(disks))
-
-	// multiple available disks
-	d2 := &sys.LocalDisk{Name: "sdb", UUID: "myuuid2", Size: 123, Rotational: true, Readonly: false, Type: sys.DiskType, HasChildren: true}
-	d3 := &sys.LocalDisk{Name: "sdc", UUID: "myuuid3", Size: 123, Rotational: true, Readonly: false, Type: sys.DiskType, HasChildren: true}
-	disks = GetAvailableDevices([]*sys.LocalDisk{d1, d2, d3})
-
-	assert.Equal(t, 2, len(disks))
-	assert.Equal(t, "sdb", disks[0])
-	assert.Equal(t, "sdc", disks[1])
-
-	// partitions don't result in more available devices
-	d4 := &sys.LocalDisk{Name: "sdb1", UUID: "myuuid4", Size: 123, Rotational: true, Readonly: false, Type: sys.PartType, HasChildren: true}
-	d5 := &sys.LocalDisk{Name: "sdb2", UUID: "myuuid5", Size: 123, Rotational: true, Readonly: false, Type: sys.PartType, HasChildren: true}
-	disks = GetAvailableDevices([]*sys.LocalDisk{d1, d2, d3, d4, d5})
-	assert.Equal(t, 2, len(disks))
-	assert.Equal(t, "sdb", disks[0])
-	assert.Equal(t, "sdc", disks[1])
-
-	// Crypt disk type results in available disk
-	d6 := &sys.LocalDisk{Name: "sdd", UUID: "myuuid2", Size: 123, Rotational: true, Readonly: false, Type: sys.CryptType, HasChildren: true}
-	disks = GetAvailableDevices([]*sys.LocalDisk{d6})
-	assert.Equal(t, 1, len(disks))
-
-}
 
 func TestDiscoverDevices(t *testing.T) {
 	executor := &exectest.MockExecutor{

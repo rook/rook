@@ -30,20 +30,6 @@ var (
 	isRBD  = regexp.MustCompile("^rbd[0-9]+p?[0-9]{0,}$")
 )
 
-func GetAvailableDevices(devices []*sys.LocalDisk) []string {
-
-	var available []string
-	for _, device := range devices {
-		logger.Debugf("Evaluating device %+v", device)
-		if GetDeviceEmpty(device) {
-			logger.Debugf("Available device: %s", device.Name)
-			available = append(available, device.Name)
-		}
-	}
-
-	return available
-}
-
 // check whether a device is completely empty
 func GetDeviceEmpty(device *sys.LocalDisk) bool {
 	return device.Parent == "" && (device.Type == sys.DiskType || device.Type == sys.SSDType || device.Type == sys.CryptType || device.Type == sys.LVMType) && len(device.Partitions) == 0 && device.Filesystem == ""
