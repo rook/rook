@@ -156,6 +156,10 @@ func SaveClusterConfig(
 	defer l.Unlock()
 	// csi is deployed into the same namespace as the operator
 	csiNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
+	if csiNamespace == "" {
+		return fmt.Errorf("namespace value missing (for %+v)",
+			k8sutil.PodNamespaceEnvVar)
+	}
 	logger.Debug("Using %+v for CSI ConfigMap Namespace", csiNamespace)
 
 	// fetch current ConfigMap contents
