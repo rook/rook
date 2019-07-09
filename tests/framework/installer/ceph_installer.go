@@ -93,7 +93,7 @@ func (h *CephInstaller) CreateCephCRDs() error {
 		}
 
 		// ensure all the cluster CRDs are removed
-		if err = h.k8shelper.PurgeClusters(); err != nil {
+		if err = h.purgeClusters(); err != nil {
 			logger.Warningf("could not purge cluster crds. %+v", err)
 		}
 
@@ -448,6 +448,30 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, name
 		// revert the hostname labels for the test
 		h.k8shelper.RestoreHostnames()
 	}
+}
+
+func (h *CephInstaller) purgeClusters() error {
+	// get all namespaces
+	namespaces, err := h.k8shelper.Clientset.CoreV1().Namespaces().List(metav1.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get namespaces. %+v", err)
+	}
+
+	// look for the clusters in all namespaces
+	for _, n := range namespaces.Items {
+		namespace := n.Name
+		logger.Infof("looking in namespace %s for clusters to purge", namespace)
+		clusters, err := h.k8shelper.RookClientset.CephV1().CephClusters(namespace).List(metav1.ListOptions{})
+		if err != nil {
+			logger.Warningf("failed to get clusters in namespace %s. %+v", namespace, err)
+			continue
+		}
+		if len(clusters.Items) > 0 {
+			logger.Warningf("FOUND UNEXPECTED CLUSTER IN NAMESPACE %s. Removing...", namespace)
+			h.UninstallRook(namespace)
+		}
+	}
+	return nil
 }
 
 func (h *CephInstaller) checkCephHealthStatus(namespace string) {

@@ -43,6 +43,7 @@
 - OSD: newly updated cluster from 0.9 to 1.0.3 and thus Ceph Nautilus will have their OSDs allowing new features for Nautilus
 - Ceph CRUSH tunable are not enforced to "firefly" anymore, Ceph picks the right tunable for its own version, to read more about tunable [see the Ceph documentation](http://docs.ceph.com/docs/master/rados/operations/crush-map/#tunables)
 - Rgw instances have their own key and thus are properly reflected in the Ceph status
+- Rook does not create an initial CRUSH map anymore and let Ceph do it normally
 
 ## Breaking Changes
 

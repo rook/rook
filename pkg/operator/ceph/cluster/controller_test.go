@@ -17,7 +17,6 @@ limitations under the License.
 package cluster
 
 import (
-	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -31,33 +30,9 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
-	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-func TestCreateInitialCrushMap(t *testing.T) {
-	clientset := testop.New(3)
-	executor := &exectest.MockExecutor{}
-	context := &clusterd.Context{Clientset: clientset, Executor: executor}
-	c := newCluster(&cephv1.CephCluster{}, context)
-	c.Namespace = "rook294"
-
-	// create the initial crush map and verify that a configmap value was created that says the crush map was created
-	err := c.createInitialCrushMap()
-	assert.Nil(t, err)
-	cm, err := clientset.CoreV1().ConfigMaps(c.Namespace).Get(crushConfigMapName, metav1.GetOptions{})
-	assert.Nil(t, err)
-	assert.NotNil(t, cm)
-	assert.Equal(t, "1", cm.Data[crushmapCreatedKey])
-
-	// the crushmap should NOT get created again
-	executor.MockExecuteCommandWithOutputFile = func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
-		return "", fmt.Errorf("crushmap was already created, we shouldn't be calling this again")
-	}
-	err = c.createInitialCrushMap()
-	assert.Nil(t, err)
-}
 
 func TestClusterDelete(t *testing.T) {
 	nodeName := "node841"
