@@ -28,7 +28,6 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
@@ -197,11 +196,6 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 		return fmt.Errorf("the cluster identity was not established: %+v", c.Info)
 	}
 
-	err = c.createInitialCrushMap()
-	if err != nil {
-		return fmt.Errorf("failed to create initial crushmap: %+v", err)
-	}
-
 	mgrs := mgr.New(c.Info, c.context, c.Namespace, rookImage,
 		spec.CephVersion, cephv1.GetMgrPlacement(spec.Placement), cephv1.GetMgrAnnotations(c.Spec.Annotations),
 		spec.Network.HostNetwork, spec.Dashboard, spec.Monitoring, cephv1.GetMgrResources(spec.Resources), c.ownerRef, c.Spec.DataDirHostPath)
@@ -233,65 +227,6 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 	// Notify the child controllers that the cluster spec might have changed
 	for _, child := range c.childControllers {
 		child.ParentClusterChanged(*c.Spec, clusterInfo)
-	}
-
-	return nil
-}
-
-func (c *cluster) createInitialCrushMap() error {
-	configMapExists := false
-	createCrushMap := false
-
-	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(crushConfigMapName, metav1.GetOptions{})
-	if err != nil {
-		if !errors.IsNotFound(err) {
-			return err
-		}
-
-		// crush config map was not found, meaning we haven't created the initial crush map
-		createCrushMap = true
-	} else {
-		// crush config map was found, look in it to verify we've created the initial crush map
-		configMapExists = true
-		val, ok := cm.Data[crushmapCreatedKey]
-		if !ok {
-			createCrushMap = true
-		} else if val != "1" {
-			createCrushMap = true
-		}
-	}
-
-	if !createCrushMap {
-		// no need to create the crushmap, bail out
-		return nil
-	}
-
-	logger.Info("creating initial crushmap")
-	out, err := client.CreateDefaultCrushMap(c.context, c.Namespace)
-	if err != nil {
-		return fmt.Errorf("failed to create initial crushmap: %+v. output: %s", err, out)
-	}
-
-	logger.Info("created initial crushmap")
-
-	// save the fact that we've created the initial crushmap to a configmap
-	configMap := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      crushConfigMapName,
-			Namespace: c.Namespace,
-		},
-		Data: map[string]string{crushmapCreatedKey: "1"},
-	}
-	k8sutil.SetOwnerRef(&configMap.ObjectMeta, &c.ownerRef)
-
-	if !configMapExists {
-		if _, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(configMap); err != nil {
-			return fmt.Errorf("failed to create configmap %s: %+v", crushConfigMapName, err)
-		}
-	} else {
-		if _, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Update(configMap); err != nil {
-			return fmt.Errorf("failed to update configmap %s: %+v", crushConfigMapName, err)
-		}
 	}
 
 	return nil
