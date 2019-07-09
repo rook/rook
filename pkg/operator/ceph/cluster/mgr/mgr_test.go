@@ -63,6 +63,7 @@ func TestStartMGR(t *testing.T) {
 		rookalpha.Annotations{},
 		false,
 		cephv1.DashboardSpec{Enabled: true},
+		cephv1.MonitoringSpec{Enabled: true, RulesNamespace: ""},
 		v1.ResourceRequirements{},
 		metav1.OwnerReference{},
 		"/var/lib/rook/",

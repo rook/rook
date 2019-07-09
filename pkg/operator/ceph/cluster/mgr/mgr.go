@@ -19,6 +19,9 @@ package mgr
 
 import (
 	"fmt"
+	"path"
+	"strconv"
+	"strings"
 
 	"github.com/coreos/pkg/capnslog"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -36,11 +39,15 @@ import (
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mgr")
 
+var prometheusRuleName = "prometheus-ceph-vVERSION-rules"
+
 const (
 	appName              = "rook-ceph-mgr"
 	serviceAccountName   = "rook-ceph-mgr"
 	prometheusModuleName = "prometheus"
 	metricsPort          = 9283
+	monitoringPath       = "/etc/ceph-monitoring/"
+	serviceMonitorFile   = "service-monitor.yaml"
 	// minimum amount of memory in MB to run the pod
 	cephMgrPodMinimumMemory uint64 = 512
 )
@@ -58,6 +65,7 @@ type Cluster struct {
 	resources       v1.ResourceRequirements
 	ownerRef        metav1.OwnerReference
 	dashboard       cephv1.DashboardSpec
+	monitoringSpec  cephv1.MonitoringSpec
 	cephVersion     cephv1.CephVersionSpec
 	rookVersion     string
 	exitCode        func(err error) (int, bool)
@@ -74,6 +82,7 @@ func New(
 	annotations rookalpha.Annotations,
 	hostNetwork bool,
 	dashboard cephv1.DashboardSpec,
+	monitoringSpec cephv1.MonitoringSpec,
 	resources v1.ResourceRequirements,
 	ownerRef metav1.OwnerReference,
 	dataDirHostPath string,
@@ -88,6 +97,7 @@ func New(
 		Replicas:        1,
 		dataDir:         k8sutil.DataDir,
 		dashboard:       dashboard,
+		monitoringSpec:  monitoringSpec,
 		HostNetwork:     hostNetwork,
 		resources:       resources,
 		ownerRef:        ownerRef,
@@ -171,6 +181,32 @@ func (c *Cluster) Start() error {
 		logger.Infof("mgr metrics service started")
 	}
 
+	// enable monitoring if `monitoring: enabled: true`
+	if c.monitoringSpec.Enabled {
+		if c.clusterInfo.CephVersion.IsAtLeastNautilus() {
+			logger.Infof("starting monitoring deployment")
+			// servicemonitor takes some metadata from the service for easy mapping
+			if err := c.enableServiceMonitor(service); err != nil {
+				logger.Errorf("failed to enable service monitor. %+v", err)
+			} else {
+				logger.Infof("servicemonitor enabled")
+			}
+			// namespace in which the prometheusRule should be deployed
+			// if left empty, it will be deployed in current namespace
+			namespace := c.monitoringSpec.RulesNamespace
+			if namespace == "" {
+				namespace = c.Namespace
+			}
+			if err := c.deployPrometheusRule(prometheusRuleName, namespace); err != nil {
+				logger.Errorf("failed to deploy prometheusule. %+v", err)
+			} else {
+				logger.Infof("prometheusRule deployed")
+			}
+			logger.Debugf("ended monitoring deployment")
+		} else {
+			logger.Debugf("monitoring not supported for ceph versions <v%v", c.clusterInfo.CephVersion.Major)
+		}
+	}
 	return nil
 }
 
@@ -178,6 +214,43 @@ func (c *Cluster) Start() error {
 func (c *Cluster) enablePrometheusModule(clusterName string) error {
 	if err := client.MgrEnableModule(c.context, clusterName, prometheusModuleName, true); err != nil {
 		return fmt.Errorf("failed to enable mgr prometheus module. %+v", err)
+	}
+	return nil
+}
+
+// add a servicemonitor that allows prometheus to scrape from the monitoring endpoint of the cluster
+func (c *Cluster) enableServiceMonitor(service *v1.Service) error {
+	name := service.GetName()
+	namespace := service.GetNamespace()
+	serviceMonitor, err := k8sutil.GetServiceMonitor(path.Join(monitoringPath, serviceMonitorFile))
+	if err != nil {
+		return fmt.Errorf("service monitor could not be enabled. %+v", err)
+	}
+	serviceMonitor.SetName(name)
+	serviceMonitor.SetNamespace(namespace)
+	k8sutil.SetOwnerRef(&serviceMonitor.ObjectMeta, &c.ownerRef)
+	if _, err := k8sutil.CreateOrUpdateServiceMonitor(serviceMonitor); err != nil {
+		return fmt.Errorf("service monitor could not be enabled. %+v", err)
+	}
+	return nil
+}
+
+// deploy prometheusRule that adds alerting and/or recording rules to the cluster
+func (c *Cluster) deployPrometheusRule(name, namespace string) error {
+	version := strconv.Itoa(c.clusterInfo.CephVersion.Major)
+	name = strings.Replace(name, "VERSION", version, 1)
+	prometheusRuleFile := name + ".yaml"
+	prometheusRuleFile = path.Join(monitoringPath, prometheusRuleFile)
+	prometheusRule, err := k8sutil.GetPrometheusRule(prometheusRuleFile)
+	if err != nil {
+		return fmt.Errorf("prometheus rule could not be deployed. %+v", err)
+	}
+	prometheusRule.SetName(name)
+	prometheusRule.SetNamespace(namespace)
+	owners := append(prometheusRule.GetOwnerReferences(), c.ownerRef)
+	k8sutil.SetOwnerRefs(&prometheusRule.ObjectMeta, owners)
+	if _, err := k8sutil.CreateOrUpdatePrometheusRule(prometheusRule); err != nil {
+		return fmt.Errorf("prometheus rule could not be deployed. %+v", err)
 	}
 	return nil
 }
