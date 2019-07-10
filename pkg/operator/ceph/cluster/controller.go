@@ -852,7 +852,7 @@ func ClusterOwnerRef(namespace, clusterID string) metav1.OwnerReference {
 }
 
 func printOverallCephVersion(context *clusterd.Context, namespace string) {
-	versions, err := client.GetCephVersions(context, namespace)
+	versions, err := client.GetAllCephDaemonVersions(context, namespace)
 	if err != nil {
 		logger.Errorf("failed to get ceph daemons versions. %+v", err)
 		return

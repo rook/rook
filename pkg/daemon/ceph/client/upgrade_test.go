@@ -202,3 +202,81 @@ func TestDaemonMapEntry(t *testing.T) {
 	m, err = daemonMapEntry(&dummyVersions, "dummy")
 	assert.NotNil(t, err)
 }
+
+func TestBuildHostListFromTree(t *testing.T) {
+	dummyOsdTreeRaw := []byte(`
+	{
+		"nodes": [
+		  {
+			"id": -3,
+			"name": "r1",
+			"type": "rack",
+			"type_id": 3,
+			"children": [
+			  -4
+			]
+		  },
+		  {
+			"id": -4,
+			"name": "ceph-nano-oooooo",
+			"type": "host",
+			"type_id": 1,
+			"pool_weights": {},
+			"children": [
+			  0
+			]
+		  },
+		  {
+			"id": 0,
+			"name": "osd.0",
+			"type": "osd",
+			"type_id": 0,
+			"crush_weight": 0.009796,
+			"depth": 2,
+			"pool_weights": {},
+			"exists": 1,
+			"status": "up",
+			"reweight": 1,
+			"primary_affinity": 1
+		  },
+		  {
+			"id": -1,
+			"name": "default",
+			"type": "root",
+			"type_id": 10,
+			"children": [
+			  -2
+			]
+		  },
+		  {
+			"id": -2,
+			"name": "ceph-nano-nau-faa32aebf00b",
+			"type": "host",
+			"type_id": 1,
+			"pool_weights": {},
+			"children": []
+		  }
+		],
+		"stray": [
+		  {
+			"id": 1,
+			"name": "osd.1",
+			"type": "osd",
+			"type_id": 0,
+			"crush_weight": 0,
+			"depth": 0,
+			"exists": 1,
+			"status": "down",
+			"reweight": 0,
+			"primary_affinity": 1
+		  }
+		]
+	  }`)
+
+	var dummyTree OsdTree
+	err := json.Unmarshal([]byte(dummyOsdTreeRaw), &dummyTree)
+	assert.Nil(t, err)
+
+	osdHosts := buildHostListFromTree(dummyTree)
+	assert.Equal(t, 2, len(osdHosts.Nodes))
+}

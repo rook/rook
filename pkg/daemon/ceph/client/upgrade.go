@@ -202,17 +202,8 @@ func OkToStop(context *clusterd.Context, namespace, deployment, clusterName stri
 		}
 	// Trying to handle the case where a **single** osd is deployed and an upgrade is called
 	case "osd":
-		// if len(versions.Osd) > 1, this means we have different Ceph versions osd(s)
-		// This is fine, we can run the upgrade checks
-		if len(versions.Osd) == 1 {
-			// now trying to parse and find how many osds are presents
-			// if we have less than 3 osds we skip the check and do best-effort
-			for _, osdCount := range versions.Osd {
-				if osdCount < 3 {
-					logger.Infof("the cluster has less than 3 OSDs, not performing upgrade check, running in best-effort")
-					return nil
-				}
-			}
+		if osdDoNothing(context, namespace) {
+			return nil
 		}
 	}
 	// we don't implement any checks for mon, rgw and rbdmirror since:
@@ -238,7 +229,10 @@ func OkToContinue(context *clusterd.Context, namespace, deployment string) error
 	// the mon case is handled directly in the deployment where the mon checks for quorum
 	switch daemonName {
 	case "osd":
-		err := okToContinueOSDDaemon(context, namespace)
+		if osdDoNothing(context, namespace) {
+			return nil
+		}
+		err = okToContinueOSDDaemon(context, namespace)
 		if err != nil {
 			return fmt.Errorf("failed to check if %s was ok to continue. %+v", deployment, err)
 		}
@@ -408,4 +402,87 @@ func daemonMapEntry(versions *CephDaemonsVersions, daemonType string) (map[strin
 	}
 
 	return nil, fmt.Errorf("invalid daemonType %s", daemonType)
+}
+
+func allOSDsSameHost(context *clusterd.Context, clusterName string) (bool, error) {
+	tree, err := HostTree(context, clusterName)
+	if err != nil {
+		return false, fmt.Errorf("failed to get the osd tree %+v", err)
+	}
+
+	osds, err := OsdListNum(context, clusterName)
+	if err != nil {
+		return false, fmt.Errorf("failed to get the osd list %+v", err)
+	}
+
+	hostOsdTree := buildHostListFromTree(tree)
+	hostOsdNodes := len(hostOsdTree.Nodes)
+	if hostOsdNodes == 0 {
+		return false, fmt.Errorf("no host in crush map yet?")
+	}
+
+	// If the number of OSD node is 1, chances are this is simple setup with all OSDs on it
+	if hostOsdNodes == 1 {
+		// number of OSDs on that host
+		hostOsdNum := len(hostOsdTree.Nodes[0].Children)
+		// we take the total number of OSDs and remove the OSDs that are out of the CRUSH map
+		osdUp := len(osds) - len(tree.Stray)
+		// If the number of children of that host (basically OSDs) is equal to the total number of OSDs
+		// We can assume that all OSDs are running on the same machine
+		if hostOsdNum == osdUp {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+func buildHostListFromTree(tree OsdTree) OsdTree {
+	var osdList OsdTree
+
+	for _, t := range tree.Nodes {
+		if t.Type == "host" {
+			osdList.Nodes = append(osdList.Nodes, t)
+		}
+	}
+
+	return osdList
+}
+
+// osdDoNothing determines wether we should perfom upgrade pre-check and post-checks for the OSD daemon
+// it checks for various cluster info like number of OSD and their placement
+// it returns 'true' if we need to do nothing and false and we should pre-check/post-check
+func osdDoNothing(context *clusterd.Context, clusterName string) bool {
+	versions, err := GetAllCephDaemonVersions(context, clusterName)
+	if err != nil {
+		logger.Warningf("failed to get ceph daemons versions. %+v, this likely means there is no cluster yet.", err)
+		return true
+	}
+
+	if len(versions.Osd) == 1 {
+		// now trying to parse and find how many osds are presents
+		// if we have less than 3 osds we skip the check and do best-effort
+		for _, osdCount := range versions.Osd {
+			if osdCount < 3 {
+				logger.Warningf("the cluster has less than 3 OSDs, not performing upgrade check, running in best-effort")
+				return true
+			}
+		}
+
+		// aio means all in one
+		aio, err := allOSDsSameHost(context, clusterName)
+		if err != nil {
+			// That's tricky, we are about to perform an update so it's difficult to break the update for this
+			// let's consider this is not a problem but log what happened
+			logger.Warningf("not able to determine if all OSDs are running on the same host, not performing upgrade check, running in best-effort")
+			return true
+		}
+
+		if aio {
+			logger.Warningf("it looks like all OSDs are running on the same host, not performing upgrade check, running in best-effort")
+			return true
+		}
+	}
+
+	return false
 }
