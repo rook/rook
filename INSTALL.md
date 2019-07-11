@@ -142,17 +142,26 @@ To prune the number of cached images run `make prune`. There are two options tha
 - `PRUNE_KEEP` - the minimum number of cached images to keep in the cache. Default is 24 images.
 
 ## CI workflow and options
+
 Every PR and every merge to master triggers the CI process in [Jenkins](http://jenkins.rook.io).
-The Jenkins CI will build, run unit tests, run integration tests and Publish artifacts- On every commit to PR and master.
+On every commit to PR and master the Jenkins CI will build, run unit tests, and run integration tests.
+If the build is for master or a release, the build will also be published.
 If any of the CI stages fail, then the process is aborted and no artifacts are published.
-On every successful build Artifacts are pushed to a [s3 bucket](https://release.rook.io/). On every successful master build,
-images are uploaded to docker hub in addition.
+On every successful build Artifacts are pushed to an [s3 bucket](https://release.rook.io/). On every successful master build,
+images are pushed to [dockerhub.com](https://cloud.docker.com/u/rook/repository/list).
 
-During Integration tests phase, all End to End Integration tests under [/tests/integration](/tests/integration) are run.
-It may take a while to run all Integration tests. Based on nature of the PR, it may not be required to run full regression
-Or users may want to skip build all together for trivial changes like documentation changes. Based on the PR body text,Jenkins will skip the build or skip some tests
+During the integration tests phase, all tests under [/tests/integration](/tests/integration) are run.
+It may take a while to run all Integration tests. Based on the changes in the PR, it may not be required to run the full CI.
+For faster CI options, add the following tags somewhere in the body of the main PR message.
 
-1. [skip ci] - if this text is found in the body of PR, then Jenkins will skip the build process and accept the commit
-2. [smoke only] - if this text is found in the body of PR, then Jenkins will only run Smoke Test during integration test phase
+### [skip ci]
 
-The above flags work only on PRs,The full regression is run on every merge to master.
+Jenkins will skip the build process completely if `[skip ci]` is found in the PR message.
+This option **should** be used when updating documentation, yaml, or other files that
+do not change runtime code. If your PR is marked as WIP and will not be ready for some time to run integration tests,
+this tag should also be added, then removed later when the CI should be triggered.
+
+This option should **not** be used if there are any changes to `.go` files, CI scripts, etc.
+
+In case there are known CI failures that are blocking a merge, project maintainers can add this flag
+to unblock the CI and merge the PR. This should be used with extreme care so regressions are not introduced.

@@ -13,3 +13,4 @@ Resolves #
 - [ ] Upgrade from previous release is tested and upgrade user guide is updated, if necessary.
 - [ ] Code generation (`make codegen`) has been run to update object specifications, if necessary.
 - [ ] Comments have been added or updated based on the standards set in [CONTRIBUTING.md](../CONTRIBUTING.md#comments)
+- [ ] Add the flag for skipping the CI if this PR does not require a build. See [here](/INSTALL.md#skip-ci) for more details.
