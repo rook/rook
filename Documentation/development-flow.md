@@ -256,6 +256,8 @@ After the PR is open, you can make changes simply by pushing new commits. Your P
 
 ### Backport a Fix to a Release Branch
 
+#### Manual flow
+
 The flow for getting a fix into a release branch is to first make the commit to master following the process outlined above.
 After the commit is in master, you'll need to cherry-pick the commit to the intended release branch.
 You can do this by first creating a local branch that is based off the release branch, for example:
@@ -275,9 +277,17 @@ Now go ahead and push to your origin:
 git push origin HEAD
 ```
 
-The last step is to open a PR with the base being the intended release branch.
-Once the PR is approved and merged, then your backported change will be available in the next release.
+#### Automated flow
 
+You will find a script at `contrib/backport_to_stable_branch.sh` at the root of the Rook repository.
+Execute it and it will do the necessary things and will push the backport branch.
+Then go on the Rook Github web page and create your pull request.
+
+#### Create the backport pull request
+
+The last step is to open a PR with the base being the intended release branch.
+If you don't know how to do this, [read Github documentation on changing the base branch range](https://help.github.com/en/articles/creating-a-pull-request#changing-the-branch-range-and-destination-repository).
+Once the PR is approved and merged, then your backported change will be available in the next release.
 
 ## Debugging operators locally
 
@@ -287,7 +297,7 @@ A common operator developer practice is to run the operator locally on the devel
 
 In order to support this external operator mode, rook detects if the operator is running outside of the cluster (using standard cluster env) and changes the behavior as follows:
 - Connecting to Kubernetes API will load the config from the user `~/.kube/config`.
-- Instead of the default [CommandExecutor](../pkg/util/exec/exec.go) this mode uses a [TranslateCommandExecutor](../pkg/util/exec/translate_exec.go) that executes every command issued by the operator to run as a Kubernetes job inside the cluster, so that any tools that the operator needs from its image can be called. For example, in cockroachdb 
+- Instead of the default [CommandExecutor](../pkg/util/exec/exec.go) this mode uses a [TranslateCommandExecutor](../pkg/util/exec/translate_exec.go) that executes every command issued by the operator to run as a Kubernetes job inside the cluster, so that any tools that the operator needs from its image can be called. For example, in cockroachdb
 
 ### Building locally
 
