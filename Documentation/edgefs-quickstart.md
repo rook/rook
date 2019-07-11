@@ -83,7 +83,7 @@ Create the cluster:
 kubectl create -f cluster.yaml
 ```
 
-Use `kubectl` to list pods in the `rook` namespace. You should be able to see the following pods once they are all running.
+Use `kubectl` to list pods in the `rook-edgefs` namespace. You should be able to see the following pods once they are all running.
 The number of target pods will depend on the number of nodes in the cluster and the number of devices and directories configured.
 
 ```bash
