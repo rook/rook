@@ -18,11 +18,22 @@ labels: bug
 **How to reproduce it (minimal and precise):**
 <!-- Please let us know any circumstances for reproduction of your bug. -->
 
+**File(s) to submit**:
+
+* Cluster CR (custom ressource), typically called `cluster.yaml`, if necessary
+* Operator's logs, if necessary
+* Crashing pod(s) logs, if necessary
+
+ To get logs, use `kubectl -n <namespace> logs <pod name>`
+When pasting logs, always surround them with backticks or use the `insert code` button from the Github UI.
+Read [Github documentation if you need help](https://help.github.com/en/articles/creating-and-highlighting-code-blocks).
+
 **Environment**:
 * OS (e.g. from /etc/os-release):
 * Kernel (e.g. `uname -a`):
 * Cloud provider or hardware configuration:
 * Rook version (use `rook version` inside of a Rook Pod):
+* Storage backend version (e.g. for ceph do `ceph -v`):
 * Kubernetes version (use `kubectl version`):
 * Kubernetes cluster type (e.g. Tectonic, GKE, OpenShift):
 * Storage backend status (e.g. for Ceph use `ceph health` in the [Rook Ceph toolbox](https://rook.io/docs/rook/master/ceph-toolbox.html)):
