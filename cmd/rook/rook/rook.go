@@ -91,7 +91,7 @@ func LogStartupInfo(cmdFlags *pflag.FlagSet) {
 	logger.Infof("flag values: %s", strings.Join(flagValues, ", "))
 }
 
-// NewContext create nad initializes a cluster context
+// NewContext creates and initializes a cluster context
 func NewContext() *clusterd.Context {
 	var err error
 

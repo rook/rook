@@ -283,7 +283,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	// Start the Rook cluster components. Retry several times in case of failure.
 	validOrchestration := true
 	err = wait.Poll(clusterCreateInterval, clusterCreateTimeout, func() (bool, error) {
-		cephVersion, err := cluster.detectCephVersion(cluster.Spec.CephVersion.Image, 15*time.Minute)
+		cephVersion, err := cluster.detectCephVersion(c.rookImage, cluster.Spec.CephVersion.Image, 15*time.Minute)
 		if err != nil {
 			logger.Errorf("unknown ceph major version. %+v", err)
 			return false, nil
@@ -496,7 +496,7 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 	// if the image changed, we need to detect the new image version
 	if oldClust.Spec.CephVersion.Image != newClust.Spec.CephVersion.Image {
 		logger.Infof("the ceph version changed. detecting the new image version...")
-		version, err := cluster.detectCephVersion(newClust.Spec.CephVersion.Image, 15*time.Minute)
+		version, err := cluster.detectCephVersion(c.rookImage, newClust.Spec.CephVersion.Image, 15*time.Minute)
 		if err != nil {
 			logger.Errorf("unknown ceph major version. %+v", err)
 			return
