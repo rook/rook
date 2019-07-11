@@ -147,7 +147,7 @@ Now that the user connection variables were set above, we can proceed to perform
 Create a bucket in the object store
 
    ```bash
-   s3cmd mb --no-ssl --host=${AWS_HOST} --host-bucket=  s3://rookbucket
+   s3cmd mb --no-ssl --host=${AWS_HOST} --region=":default-placement" --host-bucket="" s3://rookbucket
    ```
 
 List buckets in the object store
