@@ -20,6 +20,7 @@ package k8sutil
 import (
 	"crypto/md5"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -138,6 +139,30 @@ func deleteResourceAndWait(namespace, name, resourceType string,
 // will result in the deployment/daemonset/ect. recreating all of its pods even if an update
 // wouldn't otherwise be required. Upgrading unnecessarily increases risk for loss of data
 // reliability, even if only briefly.
+//
+// Note that the label may not match the version string exactly, since some characters used
+// in version strings are illegal in pod labels.
 func addRookVersionLabel(labels map[string]string) {
-	labels[RookVersionLabelKey] = rookversion.Version
+	label := rookversion.Version
+	labels[RookVersionLabelKey] = validateLabelValue(label)
+}
+
+// validateLabelValue replaces any invalid characters
+// in the input string with a replacement character,
+// and enforces other limitations for k8s label values.
+//
+// See https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#syntax-and-character-set
+func validateLabelValue(value string) string {
+	repl := "-"
+	maxlen := 63
+	re := regexp.MustCompile("[^a-z0-9A-Z._-]")
+	// restrict label value to valid character set
+	sanitized := re.ReplaceAllLiteralString(value, repl)
+	// ensure value begins and ends with a valid character
+	sanitized = strings.TrimRight(strings.TrimLeft(sanitized, ".-_"), ".-_")
+	// limit length
+	if len(sanitized) > maxlen {
+		sanitized = sanitized[:maxlen]
+	}
+	return sanitized
 }

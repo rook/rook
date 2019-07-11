@@ -51,3 +51,18 @@ func TestTruncateNodeName(t *testing.T) {
 		assert.Equal(t, result, TruncateNodeName(params[0], params[1]))
 	}
 }
+
+func TestValidateLabelValue(t *testing.T) {
+	// The key is the result, and the value is the input.
+	tests := map[string]string{
+		"":                        "",
+		"1.0":                     "1.0",
+		"1.0.0-git1697.ga265cdfd": "1.0.0+git1697.ga265cdfd",
+		"this-entry-is-more-than-63-characters-long-so-it-will-be-trunca": "this-entry-is-more-than-63-characters-long-so-it-will-be-truncated",
+		"1": ".1.",
+	}
+
+	for result, input := range tests {
+		assert.Equal(t, result, validateLabelValue(input))
+	}
+}
