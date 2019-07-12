@@ -143,8 +143,8 @@ func deleteResourceAndWait(namespace, name, resourceType string,
 // Note that the label may not match the version string exactly, since some characters used
 // in version strings are illegal in pod labels.
 func addRookVersionLabel(labels map[string]string) {
-	label := rookversion.Version
-	labels[RookVersionLabelKey] = validateLabelValue(label)
+	value := validateLabelValue(rookversion.Version)
+	labels[RookVersionLabelKey] = value
 }
 
 // validateLabelValue replaces any invalid characters
@@ -154,7 +154,7 @@ func addRookVersionLabel(labels map[string]string) {
 // See https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#syntax-and-character-set
 func validateLabelValue(value string) string {
 	repl := "-"
-	maxlen := 63
+	maxlen := validation.LabelValueMaxLength
 	re := regexp.MustCompile("[^a-z0-9A-Z._-]")
 	// restrict label value to valid character set
 	sanitized := re.ReplaceAllLiteralString(value, repl)
