@@ -20,6 +20,10 @@ package objectuser
 import (
 	"fmt"
 	"reflect"
+	"time"
+
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/coreos/pkg/capnslog"
 	opkit "github.com/rook/operator-kit"
@@ -153,6 +157,44 @@ func (c *ObjectStoreUserController) createUser(context *clusterd.Context, u *cep
 		DisplayName: &displayName,
 	}
 	objContext := object.NewContext(context, u.Spec.Store, u.Namespace)
+
+	err := wait.Poll(time.Second*15, time.Minute*5, func() (ok bool, err error) {
+		// check if CephObjectStore CR is created
+		logger.Infof("waiting for CephObjectStore %s to be created", u.Spec.Store)
+		_, err = context.RookClientset.CephV1().CephObjectStores(u.Namespace).Get(u.Spec.Store, metav1.GetOptions{})
+		// wait only if objectStore is not found. return on any other error
+		if err != nil {
+			if errors.IsNotFound(err) {
+				return false, nil
+			}
+			logger.Errorf("CephObjectStore %s could not be found. %+v", u.Spec.Store, err)
+			return true, err
+		}
+		// check if ObjectStore is initialized
+		// rook does this by starting the RGW pod(s)
+		selector := fmt.Sprintf("%s=%s,%s=%s",
+			"rgw", u.Spec.Store,
+			k8sutil.AppAttr, appName,
+		)
+		logger.Infof("waiting for CephObjectStore %s to be initialized", u.Spec.Store)
+		pods, err := context.Clientset.CoreV1().Pods(u.Namespace).List(metav1.ListOptions{LabelSelector: selector, FieldSelector: "status.phase=Running"})
+		if err != nil {
+			if errors.IsNotFound(err) {
+				return false, nil
+			}
+			logger.Errorf("CephObjectStore %s may not be initialized. %+v", u.Spec.Store, err)
+			return true, err
+		}
+		// check if atleast one pod is running
+		if pods != nil {
+			logger.Infof("CephObjectStore %s has been created successfully", u.Spec.Store)
+			return true, nil
+		}
+		return false, nil
+	})
+	if err != nil {
+		logger.Errorf("timed out while waiting for objectstore %s to be ready. %+v", u.Spec.Store, err)
+	}
 
 	user, rgwerr, err := object.CreateUser(objContext, userConfig)
 	if err != nil {
