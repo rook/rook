@@ -80,6 +80,7 @@ func (c *CephNFSController) makeDeployment(nfs cephv1.CephNFS, cfg daemonConfig)
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      instanceName(nfs, cfg.ID),
 			Namespace: nfs.Namespace,
+			Labels:    getLabels(nfs, cfg.ID),
 		},
 	}
 	k8sutil.AddRookVersionLabelToDeployment(deployment)
