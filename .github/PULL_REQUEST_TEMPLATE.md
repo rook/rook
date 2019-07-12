@@ -8,7 +8,11 @@ Thank you for contributing to Rook! -->
 Resolves #
 
 **Checklist:**
+
+- [ ] Reviewed the developer guide on [Submitting a Pull Request](https://rook.io/docs/rook/v1.0/development-flow.html#submitting-a-pull-request)
 - [ ] Documentation has been updated, if necessary.
+- [ ] Unit tests have been added, if necessary.
+- [ ] Integration tests have been added, if necessary.
 - [ ] Pending release notes updated with breaking and/or notable changes, if necessary.
 - [ ] Upgrade from previous release is tested and upgrade user guide is updated, if necessary.
 - [ ] Code generation (`make codegen`) has been run to update object specifications, if necessary.
