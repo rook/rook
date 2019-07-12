@@ -433,6 +433,14 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, name
 	h.k8shelper.Clientset.RbacV1beta1().ClusterRoles().Delete("cephfs-external-provisioner-runner", nil)
 	h.k8shelper.Clientset.RbacV1beta1().ClusterRoles().Delete("cephfs-external-provisioner-runner-rules", nil)
 
+	h.k8shelper.Clientset.PolicyV1beta1().PodSecurityPolicies().Delete("rook-privileged", nil)
+	h.k8shelper.Clientset.RbacV1beta1().ClusterRoles().Delete("psp:rook", nil)
+	h.k8shelper.Clientset.RbacV1beta1().ClusterRoleBindings().Delete("rook-ceph-system-psp", nil)
+	h.k8shelper.Clientset.RbacV1beta1().ClusterRoleBindings().Delete("rook-csi-rbd-provisioner-sa-psp", nil)
+	h.k8shelper.Clientset.RbacV1beta1().ClusterRoleBindings().Delete("rook-csi-rbd-plugin-sa-psp", nil)
+	h.k8shelper.Clientset.RbacV1beta1().ClusterRoleBindings().Delete("rook-csi-cephfs-provisioner-sa-psp", nil)
+	h.k8shelper.Clientset.RbacV1beta1().ClusterRoleBindings().Delete("rook-csi-cephfs-plugin-sa-psp", nil)
+
 	h.k8shelper.Clientset.CoreV1().ConfigMaps(systemNamespace).Delete("csi-rbd-config", nil)
 	h.k8shelper.Clientset.CoreV1().ConfigMaps(systemNamespace).Delete("csi-cephfs-config", nil)
 
