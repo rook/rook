@@ -274,8 +274,9 @@ Verify the Ceph cluster's health using the [health verification section](#health
 
 
 # Ceph Version Upgrades
-Rook 1.0 is the last Rook release which will support Ceph's Luminous (v12.x.x) version. Users are
-advised to upgrade to Mimic (v13.x.x) or Nautilus (v14.x.x) now.
+Rook 1.0 was the last Rook release which will support Ceph's Luminous (v12.x.x) version. Users are
+required to upgrade to Mimic (v13.2.4 or newer) or Nautilus (v14.2.x) now. Rook 1.1 will only run with
+Mimic or newer, though running with Octopus requires the `allowUnsupported: true` flag.
 
 **IMPORTANT: This section only applies to clusters running Rook 1.0 or newer**
 

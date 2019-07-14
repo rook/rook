@@ -109,11 +109,7 @@ func (s *Store) CreateOrUpdate(clusterInfo *cephconfig.ClusterInfo) error {
 
 	/*
 		TODO:
-		if Luminous {
-			store config file in config map as above
-		} else if Mimic + {
 			set config values with `ceph config assimilage-conf t` after at least one mon is active
-		}
 	*/
 
 	return nil

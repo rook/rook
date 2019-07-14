@@ -92,7 +92,7 @@ func (s *BlockMountUnMountSuite) SetupSuite() {
 	useDevices := true
 	mons := 1
 	rbdMirrorWorkers := 1
-	s.op, s.kh = StartTestCluster(s.T, s.namespace, "filestore", useHelm, useDevices, mons, rbdMirrorWorkers, installer.VersionMaster, installer.LuminousVersion)
+	s.op, s.kh = StartTestCluster(s.T, s.namespace, "filestore", useHelm, useDevices, mons, rbdMirrorWorkers, installer.VersionMaster, installer.NautilusVersion)
 	s.testClient = clients.CreateTestClient(s.kh, s.op.installer.Manifests)
 	s.bc = s.testClient.BlockClient
 }

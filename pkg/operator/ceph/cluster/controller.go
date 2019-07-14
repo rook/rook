@@ -259,22 +259,19 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	}
 
 	// Start the Rook cluster components. Retry several times in case of failure.
-	validOrchestration := true
-	err = wait.Poll(clusterCreateInterval, clusterCreateTimeout, func() (bool, error) {
-		cephVersion, err := cluster.detectCephVersion(c.rookImage, cluster.Spec.CephVersion.Image, detectCephVersionTimeout)
-		if err != nil {
-			logger.Errorf("unknown ceph major version. %+v", err)
-			return false, nil
-		}
+	failedMessage := ""
+	state := cephv1.ClusterStateError
 
-		if !cluster.Spec.CephVersion.AllowUnsupported {
-			if !cephVersion.Supported() {
-				err = fmt.Errorf("unsupported ceph version detected: %s. allowUnsupported must be set to true to run with this version", cephVersion)
-				logger.Errorf("%+v", err)
-				validOrchestration = false
-				// it may seem strange to log error and exit true but we don't want to retry if the version is not supported
+	err = wait.Poll(clusterCreateInterval, clusterCreateTimeout, func() (bool, error) {
+		cephVersion, canRetry, err := c.detectAndValidateCephVersion(cluster, cluster.Spec.CephVersion.Image)
+		if err != nil {
+			failedMessage = fmt.Sprintf("failed the ceph version check. %+v", err)
+			logger.Errorf(failedMessage)
+			if !canRetry {
+				// it may seem strange to exit true but we don't want to retry if the version is not supported
 				return true, nil
 			}
+			return false, nil
 		}
 
 		// This tries to determine if the operator was restarted and we loss the state
@@ -327,15 +324,15 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		// cluster is created, update the cluster CRD status now
 		c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1.ClusterStateCreated, "")
 
+		state = cephv1.ClusterStateCreated
+		failedMessage = ""
 		return true, nil
 	})
 
-	if err != nil || !validOrchestration {
-		message := fmt.Sprintf("giving up creating cluster in namespace %s after %s", cluster.Namespace, clusterCreateTimeout)
-		if !validOrchestration {
-			message = fmt.Sprintf("giving up creating cluster in namespace %s", cluster.Namespace)
-		}
-		c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1.ClusterStateError, message)
+	c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, state, failedMessage)
+
+	if state == cephv1.ClusterStateError {
+		// the cluster could not be initialized
 		return
 	}
 
@@ -480,40 +477,30 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 
 	logger.Infof("update event for cluster %s is supported, orchestrating update now", newClust.Namespace)
 
+	// At this point, clusterInfo might not be initialized
+	// If we have deployed a new operator and failed on allowUnsupported
+	// there is no way we can continue, even we set allowUnsupported to true clusterInfo is gone
+	// So we have to re-populate it
+	detectVersion := false
+	if !cluster.Info.IsInitialized() {
+		logger.Infof("cluster information are not initialized, populating them.")
+		detectVersion = true
+		cluster.Info, _, _, err = mon.LoadClusterInfo(c.context, cluster.Namespace)
+		if err != nil {
+			logger.Errorf("failed to load clusterInfo %+v", err)
+		}
+	}
+
 	// if the image changed, we need to detect the new image version
 	versionChanged := false
 	if oldClust.Spec.CephVersion.Image != newClust.Spec.CephVersion.Image {
-		logger.Infof("the ceph version changed. detecting the new image version...")
-		version, err := cluster.detectCephVersion(c.rookImage, newClust.Spec.CephVersion.Image, detectCephVersionTimeout)
-		versionChanged = true
+		logger.Infof("the ceph version changed")
+		version, _, err := c.detectAndValidateCephVersion(cluster, newClust.Spec.CephVersion.Image)
 		if err != nil {
 			logger.Errorf("unknown ceph major version. %+v", err)
 			return
 		}
 		cluster.Info.CephVersion = *version
-	} else {
-		// At this point, clusterInfo might not be initialized
-		// If we have deployed a new operator and failed on allowUnsupported
-		// there is no way we can continue, even we set allowUnsupported to true clusterInfo is gone
-		// So we have to re-populate it
-		if !cluster.Info.IsInitialized() {
-			logger.Infof("cluster information are not initialized, populating them.")
-
-			cluster.Info, _, _, err = mon.LoadClusterInfo(c.context, cluster.Namespace)
-			if err != nil {
-				logger.Errorf("failed to load clusterInfo %+v", err)
-			}
-
-			// Re-setting cluster version too since LoadClusterInfo does not load it
-			version, err := cluster.detectCephVersion(c.rookImage, newClust.Spec.CephVersion.Image, detectCephVersionTimeout)
-			if err != nil {
-				logger.Errorf("unknown ceph major version. %+v", err)
-				return
-			}
-			cluster.Info.CephVersion = *version
-
-			logger.Infof("ceph version is still %s on image %s", &cluster.Info.CephVersion, cluster.Spec.CephVersion.Image)
-		}
 	}
 
 	logger.Debugf("old cluster: %+v", oldClust.Spec)
@@ -570,6 +557,17 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 	if versionChanged {
 		printOverallCephVersion(c.context, cluster.Namespace)
 	}
+}
+
+func (c *ClusterController) detectAndValidateCephVersion(cluster *cluster, image string) (*cephver.CephVersion, bool, error) {
+	version, err := cluster.detectCephVersion(c.rookImage, image, detectCephVersionTimeout)
+	if err != nil {
+		return nil, true, err
+	}
+	if err := cluster.validateCephVersion(version); err != nil {
+		return nil, false, err
+	}
+	return version, false, nil
 }
 
 func (c *ClusterController) handleUpdate(crdName string, cluster *cluster) (bool, error) {
@@ -796,7 +794,7 @@ func (c *ClusterController) updateClusterStatus(namespace, name string, state ce
 	// get the most recent cluster CRD object
 	cluster, err := c.context.RookClientset.CephV1().CephClusters(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
-		logger.Errorf("failed to get cluster from namespace %s prior to updating its status: %+v", namespace, err)
+		logger.Errorf("failed to get cluster from namespace %s prior to updating its status to %s. %+v", namespace, state, err)
 	}
 
 	// update the status on the retrieved cluster object

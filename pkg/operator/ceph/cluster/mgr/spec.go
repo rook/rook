@@ -75,12 +75,6 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
 	}
 	c.annotations.ApplyToObjectMeta(&podSpec.ObjectMeta)
 	c.placement.ApplyToPodSpec(&podSpec.Spec)
-	if c.clusterInfo.CephVersion.IsLuminous() {
-		// prepend the keyring-copy workaround for luminous clusters
-		podSpec.Spec.InitContainers = append(
-			[]v1.Container{c.makeCopyKeyringInitContainer(mgrConfig)},
-			podSpec.Spec.InitContainers...)
-	}
 
 	replicas := int32(1)
 	if len(c.annotations) == 0 {
@@ -116,12 +110,6 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
 func (c *Cluster) needHttpBindFix() bool {
 	needed := true
 
-	// if luminous and >= 12.2.12
-	if c.clusterInfo.CephVersion.IsLuminous() &&
-		c.clusterInfo.CephVersion.IsAtLeast(cephver.CephVersion{Major: 12, Minor: 2, Extra: 12}) {
-		needed = false
-	}
-
 	// if mimic and >= 13.2.6
 	if c.clusterInfo.CephVersion.IsMimic() &&
 		c.clusterInfo.CephVersion.IsAtLeast(cephver.CephVersion{Major: 13, Minor: 2, Extra: 6}) {
@@ -150,7 +138,7 @@ func (c *Cluster) clearHttpBindFix(mgrConfig *mgrConfig) {
 		// there are two forms of the configuration key that might exist which
 		// depends not on the current version, but on the version that may be
 		// the version being upgraded from.
-		for _, ver := range []cephver.CephVersion{cephver.Luminous, cephver.Mimic} {
+		for _, ver := range []cephver.CephVersion{cephver.Mimic} {
 			changed, err := client.MgrSetConfig(c.context, c.Namespace, mgrConfig.DaemonID, ver,
 				fmt.Sprintf("mgr/%s/server_addr", module), "", false)
 			logger.Infof("clearing http bind fix mod=%s ver=%s changed=%t err=%+v", module, &ver, changed, err)
@@ -195,11 +183,7 @@ func (c *Cluster) makeSetServerAddrInitContainer(mgrConfig *mgrConfig, mgrModule
 	//  N: config     set mgr.a mgr/<mod>/server_addr $(ROOK_CEPH_<MOD>_SERVER_ADDR) --force
 	podIPEnvVar := "ROOK_POD_IP"
 	cfgSetArgs := []string{"config", "set"}
-	if c.clusterInfo.CephVersion.IsLuminous() {
-		cfgSetArgs[0] = "config-key"
-	} else {
-		cfgSetArgs = append(cfgSetArgs, fmt.Sprintf("mgr.%s", mgrConfig.DaemonID))
-	}
+	cfgSetArgs = append(cfgSetArgs, fmt.Sprintf("mgr.%s", mgrConfig.DaemonID))
 	cfgPath := fmt.Sprintf("mgr/%s/%s/server_addr", mgrModule, mgrConfig.DaemonID)
 	cfgSetArgs = append(cfgSetArgs, cfgPath, opspec.ContainerEnvVarReference(podIPEnvVar))
 	if c.clusterInfo.CephVersion.IsAtLeastNautilus() {

@@ -54,7 +54,7 @@ High performance applications typically will not use erasure coding due to the p
 
 When creating an erasure-coded pool, it is highly recommended to create the pool when you have **bluestore OSDs** in your cluster
 (see the [OSD configuration settings](ceph-cluster-crd.md#osd-configuration-settings). Filestore OSDs have
-[limitations](http://docs.ceph.com/docs/luminous/rados/operations/erasure-code/#erasure-coding-with-overwrites) that are unsafe and lower performance.
+[limitations](http://docs.ceph.com/docs/master/rados/operations/erasure-code/#erasure-coding-with-overwrites) that are unsafe and lower performance.
 
 ## Pool Settings
 

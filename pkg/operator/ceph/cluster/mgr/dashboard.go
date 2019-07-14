@@ -92,7 +92,7 @@ func (c *Cluster) configureDashboard(m *mgrConfig) error {
 	return nil
 }
 
-// Ceph docs about the dashboard module: http://docs.ceph.com/docs/luminous/mgr/dashboard/
+// Ceph docs about the dashboard module: http://docs.ceph.com/docs/nautilus/mgr/dashboard/
 func (c *Cluster) toggleDashboardModule(m *mgrConfig) error {
 	if c.dashboard.Enabled {
 		if err := client.MgrEnableModule(c.context, c.Namespace, dashboardModuleName, true); err != nil {
@@ -150,11 +150,6 @@ func (c *Cluster) configureDashboardModule(m *mgrConfig) error {
 }
 
 func (c *Cluster) initializeSecureDashboard() error {
-	if c.clusterInfo.CephVersion.IsLuminous() {
-		logger.Infof("skipping cert and user configuration on luminous")
-		return nil
-	}
-
 	// we need to wait a short period after enabling the module before we can call the `ceph dashboard` commands.
 	time.Sleep(dashboardInitWaitTime)
 
