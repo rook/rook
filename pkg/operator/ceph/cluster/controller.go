@@ -244,15 +244,6 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		c.devicesInUse = true
 	}
 
-	if cluster.Spec.Mon.Count <= 0 {
-		logger.Warningf("mon count is 0 or less, should be at least 1, will use default value of %d", mon.DefaultMonCount)
-		cluster.Spec.Mon.Count = mon.DefaultMonCount
-		cluster.Spec.Mon.AllowMultiplePerNode = true
-	}
-	if cluster.Spec.Mon.Count > mon.MaxMonCount {
-		logger.Warningf("mon count is bigger than %d (given: %d), not supported, changing to %d", mon.MaxMonCount, cluster.Spec.Mon.Count, mon.MaxMonCount)
-		cluster.Spec.Mon.Count = mon.MaxMonCount
-	}
 	if cluster.Spec.Mon.Count%2 == 0 {
 		logger.Warningf("mon count is even (given: %d), should be uneven, continuing", cluster.Spec.Mon.Count)
 	}
