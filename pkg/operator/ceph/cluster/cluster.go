@@ -84,13 +84,15 @@ func newCluster(c *cephv1.CephCluster, context *clusterd.Context, csiMutex *sync
 	}
 }
 
+// detectCephVersion loads the ceph version from the image and checks that it meets the version requirements to
+// run in the cluster
 func (c *cluster) detectCephVersion(rookImage, cephImage string, timeout time.Duration) (*cephver.CephVersion, error) {
+	logger.Infof("detecting the ceph image version for image %s...", cephImage)
 	versionReporter, err := cmdreporter.New(
 		c.context.Clientset, &c.ownerRef,
 		detectVersionName, detectVersionName, c.Namespace,
 		[]string{"ceph"}, []string{"--version"},
-		rookImage, cephImage,
-	)
+		rookImage, cephImage)
 	if err != nil {
 		return nil, fmt.Errorf("failed to set up ceph version job. %+v", err)
 	}
@@ -112,9 +114,25 @@ func (c *cluster) detectCephVersion(rookImage, cephImage string, timeout time.Du
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract ceph version. %+v", err)
 	}
-
 	logger.Infof("Detected ceph image version: %s", version)
 	return version, nil
+}
+
+func (c *cluster) validateCephVersion(version *cephver.CephVersion) error {
+	if !version.IsAtLeast(cephver.Minimum) {
+		return fmt.Errorf("the version does not meet the minimum version: %s", cephver.Minimum.String())
+	}
+
+	if !version.Supported() {
+		logger.Warningf("unsupported ceph version detected: %s.", version)
+		if c.Spec.CephVersion.AllowUnsupported {
+			return nil
+		}
+
+		return fmt.Errorf("allowUnsupported must be set to true to run with this version: %v", version)
+	}
+
+	return nil
 }
 
 func (c *cluster) createInstance(rookImage string, cephVersion cephver.CephVersion) error {

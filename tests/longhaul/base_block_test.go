@@ -145,7 +145,7 @@ func StartLoadTestCluster(t func() *testing.T, namespace string) (LoadTestCluste
 	kh, err := utils.CreateK8sHelper(t)
 	require.NoError(t(), err)
 
-	i := installer.NewCephInstaller(t, kh.Clientset, false, installer.VersionMaster, cephv1.CephVersionSpec{Image: "ceph/ceph:v12.2.7"})
+	i := installer.NewCephInstaller(t, kh.Clientset, false, installer.VersionMaster, cephv1.CephVersionSpec{Image: "ceph/ceph:v14.2.2-20190722"})
 
 	op := LoadTestCluster{i, kh, nil, t, namespace}
 	op.Setup()

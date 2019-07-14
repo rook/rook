@@ -175,12 +175,10 @@ func TestHttpBindFix(t *testing.T) {
 		{hasFix: false, ver: cephver.CephVersion{Major: 14, Minor: 1, Extra: 0}},
 
 		// versions when the fix was introduced
-		{hasFix: true, ver: cephver.CephVersion{Major: 12, Minor: 2, Extra: 12}},
 		{hasFix: true, ver: cephver.CephVersion{Major: 13, Minor: 2, Extra: 6}},
 		{hasFix: true, ver: cephver.CephVersion{Major: 14, Minor: 1, Extra: 1}},
 
 		// versions after the fix
-		{hasFix: true, ver: cephver.CephVersion{Major: 12, Minor: 2, Extra: 13}},
 		{hasFix: true, ver: cephver.CephVersion{Major: 13, Minor: 2, Extra: 7}},
 		{hasFix: true, ver: cephver.CephVersion{Major: 14, Minor: 1, Extra: 2}},
 		{hasFix: true, ver: cephver.CephVersion{Major: 15, Minor: 2, Extra: 0}},
@@ -190,9 +188,6 @@ func TestHttpBindFix(t *testing.T) {
 		c.clusterInfo.CephVersion = test.ver
 
 		expectedInitContainers := 0
-		if c.clusterInfo.CephVersion.IsLuminous() {
-			expectedInitContainers += 1
-		}
 		if !test.hasFix {
 			expectedInitContainers += 2
 		}

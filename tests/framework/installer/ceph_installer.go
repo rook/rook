@@ -38,8 +38,6 @@ import (
 )
 
 const (
-	// test with the latest luminous build
-	luminousTestImage = "ceph/ceph:v12"
 	// test with the latest mimic build
 	mimicTestImage = "ceph/ceph:v13"
 	// test with the latest nautilus build
@@ -49,7 +47,6 @@ const (
 )
 
 var (
-	LuminousVersion = cephv1.CephVersionSpec{Image: luminousTestImage}
 	MimicVersion    = cephv1.CephVersionSpec{Image: mimicTestImage}
 	NautilusVersion = cephv1.CephVersionSpec{Image: nautilusTestImage}
 )
@@ -182,7 +179,7 @@ func (h *CephInstaller) CreateK8sRookCluster(namespace, systemNamespace string, 
 	return h.CreateK8sRookClusterWithHostPathAndDevices(namespace, systemNamespace, storeType, false,
 		cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, true, /* startWithAllNodes */
 		1, /* rbd workers */
-		LuminousVersion)
+		NautilusVersion)
 }
 
 // CreateK8sRookCluster creates rook cluster via kubectl

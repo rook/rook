@@ -60,7 +60,7 @@ func (s *BlockCreateSuite) SetupSuite() {
 	s.namespace = "block-k8s-ns"
 	mons := 1
 	rbdMirrorWorkers := 1
-	s.op, s.kh = StartTestCluster(s.T, s.namespace, "bluestore", false, false, mons, rbdMirrorWorkers, installer.VersionMaster, installer.MimicVersion)
+	s.op, s.kh = StartTestCluster(s.T, s.namespace, "bluestore", false, false, mons, rbdMirrorWorkers, installer.VersionMaster, installer.NautilusVersion)
 	s.testClient = clients.CreateTestClient(s.kh, s.op.installer.Manifests)
 	initialBlocks, err := s.testClient.BlockClient.List(s.namespace)
 	assert.Nil(s.T(), err)
