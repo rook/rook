@@ -244,6 +244,11 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		c.devicesInUse = true
 	}
 
+	c.initializeCluster(cluster, clusterObj)
+}
+
+func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *cephv1.CephCluster) {
+	cluster.Spec = &clusterObj.Spec
 	if cluster.Spec.Mon.Count%2 == 0 {
 		logger.Warningf("mon count is even (given: %d), should be uneven, continuing", cluster.Spec.Mon.Count)
 	}
@@ -262,7 +267,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	failedMessage := ""
 	state := cephv1.ClusterStateError
 
-	err = wait.Poll(clusterCreateInterval, clusterCreateTimeout, func() (bool, error) {
+	err := wait.Poll(clusterCreateInterval, clusterCreateTimeout, func() (bool, error) {
 		cephVersion, canRetry, err := c.detectAndValidateCephVersion(cluster, cluster.Spec.CephVersion.Image)
 		if err != nil {
 			failedMessage = fmt.Sprintf("failed the ceph version check. %+v", err)
@@ -469,6 +474,14 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 		return
 	}
 
+	// If the cluster was never initialized during the OnAdd() method due to ao failure, we must
+	// treat the cluster as if it was just created.
+	if !cluster.initialized() {
+		logger.Infof("Update event for uninitialized cluster %s. Initializing...", newClust.Namespace)
+		c.initializeCluster(cluster, newClust)
+		return
+	}
+
 	changed, _ := clusterChanged(oldClust.Spec, newClust.Spec, cluster)
 	if !changed {
 		logger.Debugf("update event for cluster %s is not supported", newClust.Namespace)
@@ -476,20 +489,6 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 	}
 
 	logger.Infof("update event for cluster %s is supported, orchestrating update now", newClust.Namespace)
-
-	// At this point, clusterInfo might not be initialized
-	// If we have deployed a new operator and failed on allowUnsupported
-	// there is no way we can continue, even we set allowUnsupported to true clusterInfo is gone
-	// So we have to re-populate it
-	detectVersion := false
-	if !cluster.Info.IsInitialized() {
-		logger.Infof("cluster information are not initialized, populating them.")
-		detectVersion = true
-		cluster.Info, _, _, err = mon.LoadClusterInfo(c.context, cluster.Namespace)
-		if err != nil {
-			logger.Errorf("failed to load clusterInfo %+v", err)
-		}
-	}
 
 	// if the image changed, we need to detect the new image version
 	versionChanged := false
@@ -549,7 +548,7 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 	})
 	if err != nil {
 		c.updateClusterStatus(newClust.Namespace, newClust.Name, cephv1.ClusterStateError,
-			fmt.Sprintf("giving up trying to update cluster in namespace %s after %s", cluster.Namespace, updateClusterTimeout))
+			fmt.Sprintf("giving up trying to update cluster in namespace %s after %s. %+v", cluster.Namespace, updateClusterTimeout, err))
 		return
 	}
 

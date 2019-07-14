@@ -54,6 +54,7 @@ type cluster struct {
 	Namespace            string
 	Spec                 *cephv1.ClusterSpec
 	mons                 *mon.Cluster
+	initCompleted        bool
 	stopCh               chan struct{}
 	ownerRef             metav1.OwnerReference
 	orchestrationRunning bool
@@ -135,6 +136,11 @@ func (c *cluster) validateCephVersion(version *cephver.CephVersion) error {
 	return nil
 }
 
+// initialized checks if the cluster has ever completed a successful orchestration since the operator has started
+func (c *cluster) initialized() bool {
+	return c.initCompleted
+}
+
 func (c *cluster) createInstance(rookImage string, cephVersion cephver.CephVersion) error {
 	var err error
 	c.setOrchestrationNeeded()
@@ -214,6 +220,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 	}
 
 	logger.Infof("Done creating rook instance in namespace %s", c.Namespace)
+	c.initCompleted = true
 
 	// Notify the child controllers that the cluster spec might have changed
 	for _, child := range c.childControllers {
