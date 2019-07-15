@@ -21,13 +21,9 @@ import (
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	cephbeta "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
-	rookfake "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/clusterd"
-	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -187,99 +183,12 @@ func TestDeletePool(t *testing.T) {
 
 func TestGetPoolObject(t *testing.T) {
 	// get a current version pool object, should return with no error and no migration needed
-	pool, migrationNeeded, err := getPoolObject(&cephv1.CephBlockPool{})
+	pool, err := getPoolObject(&cephv1.CephBlockPool{})
 	assert.NotNil(t, pool)
-	assert.False(t, migrationNeeded)
-	assert.Nil(t, err)
-
-	// get a legacy version pool object, should return with no error and yes migration needed
-	pool, migrationNeeded, err = getPoolObject(&cephbeta.Pool{})
-	assert.NotNil(t, pool)
-	assert.True(t, migrationNeeded)
 	assert.Nil(t, err)
 
 	// try to get an object that isn't a pool, should return with an error
-	pool, migrationNeeded, err = getPoolObject(&map[string]string{})
+	pool, err = getPoolObject(&map[string]string{})
 	assert.Nil(t, pool)
-	assert.False(t, migrationNeeded)
 	assert.NotNil(t, err)
-}
-
-func TestMigratePoolObject(t *testing.T) {
-	// create a legacy pool that will get migrated
-	legacyPool := &cephbeta.Pool{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "legacy-pool-861",
-			Namespace: "rook-267",
-		},
-	}
-
-	// create fake core and rook clientsets and a pool controller
-	clientset := testop.New(3)
-	context := &clusterd.Context{
-		Clientset:     clientset,
-		RookClientset: rookfake.NewSimpleClientset(legacyPool),
-	}
-	controller := NewPoolController(context, legacyPool.Namespace)
-
-	// convert the legacy pool object in memory and assert that a migration is needed
-	convertedPool, migrationNeeded, err := getPoolObject(legacyPool)
-	assert.NotNil(t, convertedPool)
-	assert.True(t, migrationNeeded)
-	assert.Nil(t, err)
-
-	// perform the migration of the converted legacy pool
-	err = controller.migratePoolObject(convertedPool, legacyPool)
-	assert.Nil(t, err)
-
-	// assert that a current pool object was created via the migration
-	migratedPool, err := context.RookClientset.CephV1().CephBlockPools(legacyPool.Namespace).Get(
-		legacyPool.Name, metav1.GetOptions{})
-	assert.NotNil(t, migratedPool)
-	assert.Nil(t, err)
-
-	// assert that the legacy pool object was deleted
-	_, err = context.RookClientset.CephV1beta1().Pools(legacyPool.Namespace).Get(legacyPool.Name, metav1.GetOptions{})
-	assert.NotNil(t, err)
-	assert.True(t, errors.IsNotFound(err))
-}
-
-func TestConvertLegacyPool(t *testing.T) {
-	legacyPool := cephbeta.Pool{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "legacy-pool-383",
-			Namespace: "rook-215",
-		},
-		Spec: cephbeta.PoolSpec{
-			FailureDomain: "fd202",
-			CrushRoot:     "root329",
-			DeviceClass:   "hdd",
-			Replicated:    cephbeta.ReplicatedSpec{Size: 5},
-			ErasureCoded: cephbeta.ErasureCodedSpec{
-				CodingChunks: 5,
-				DataChunks:   10,
-				Algorithm:    "ec-algorithm-367",
-			},
-		},
-	}
-
-	expectedPool := cephv1.CephBlockPool{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "legacy-pool-383",
-			Namespace: "rook-215",
-		},
-		Spec: cephv1.PoolSpec{
-			FailureDomain: "fd202",
-			CrushRoot:     "root329",
-			DeviceClass:   "hdd",
-			Replicated:    cephv1.ReplicatedSpec{Size: 5},
-			ErasureCoded: cephv1.ErasureCodedSpec{
-				CodingChunks: 5,
-				DataChunks:   10,
-				Algorithm:    "ec-algorithm-367",
-			},
-		},
-	}
-
-	assert.Equal(t, expectedPool, *convertRookLegacyPool(&legacyPool))
 }

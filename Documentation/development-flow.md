@@ -104,8 +104,7 @@ rook
 ├── pkg
 │   ├── apis
 │   │   ├── ceph.rook.io          # ceph specific specs for cluster, file, object
-│   │   │   ├── v1alpha1
-│   │   │   └── v1beta1
+│   │   │   ├── v1
 │   │   ├── cockroachdb.rook.io   # cockroachdb specific specs
 │   │   │   └── v1alpha1
 │   │   ├── minio.rook.io         # minio specific specs for cluster, object
@@ -113,7 +112,6 @@ rook
 │   │   ├── nfs.rook.io           # nfs server specific specs
 │   │   │   └── v1alpha1
 │   │   └── rook.io               # rook.io API group of common types
-│   │       ├── v1alpha1
 │   │       └── v1alpha2
 │   ├── client                    # auto-generated strongly typed client code to access Rook APIs
 │   ├── clusterd
@@ -287,7 +285,7 @@ A common operator developer practice is to run the operator locally on the devel
 
 In order to support this external operator mode, rook detects if the operator is running outside of the cluster (using standard cluster env) and changes the behavior as follows:
 - Connecting to Kubernetes API will load the config from the user `~/.kube/config`.
-- Instead of the default [CommandExecutor](../pkg/util/exec/exec.go) this mode uses a [TranslateCommandExecutor](../pkg/util/exec/translate_exec.go) that executes every command issued by the operator to run as a Kubernetes job inside the cluster, so that any tools that the operator needs from its image can be called. For example, in cockroachdb 
+- Instead of the default [CommandExecutor](../pkg/util/exec/exec.go) this mode uses a [TranslateCommandExecutor](../pkg/util/exec/translate_exec.go) that executes every command issued by the operator to run as a Kubernetes job inside the cluster, so that any tools that the operator needs from its image can be called. For example, in cockroachdb
 
 ### Building locally
 
