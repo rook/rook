@@ -95,7 +95,8 @@ function copy_images() {
     if [[ "$1" == "" || "$1" == "ceph" ]]; then
       echo "copying ceph images"
       copy_image_to_cluster "${BUILD_REGISTRY}/ceph-amd64" rook/ceph:master
-      copy_image_to_cluster ceph/ceph:v13 ceph/ceph:v13
+      # uncomment to push the nautilus image when needed
+      #copy_image_to_cluster ceph/ceph:v14 ceph/ceph:v14
     fi
 
     if [[ "$1" == "" || "$1" == "cockroachdb" ]]; then
