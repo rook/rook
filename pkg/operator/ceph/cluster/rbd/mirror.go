@@ -124,7 +124,7 @@ func (m *Mirroring) Start() error {
 			logger.Infof("deployment for rbd-mirror %s already exists. updating if needed", resourceName)
 
 			// Always invoke ceph version before an upgrade so we are sure to be up-to-date
-			daemon := "mirror"
+			daemon := string(config.RbdMirrorType)
 			var cephVersionToUse cephver.CephVersion
 			currentCephVersion, err := client.LeastUptodateDaemonVersion(m.context, m.ClusterInfo.Name, daemon)
 			if err != nil {
@@ -136,7 +136,7 @@ func (m *Mirroring) Start() error {
 				logger.Debugf("current cluster version for rbd mirrors before upgrading is: %+v", currentCephVersion)
 				cephVersionToUse = currentCephVersion
 			}
-			if err := updateDeploymentAndWait(m.context, d, m.Namespace, m.ClusterInfo.Name, cephVersionToUse); err != nil {
+			if err := updateDeploymentAndWait(m.context, d, m.Namespace, daemon, daemonConf.DaemonID, cephVersionToUse); err != nil {
 				// fail could be an issue updating label selector (immutable), so try del and recreate
 				logger.Debugf("updateDeploymentAndWait failed for rbd-mirror %s. Attempting del-and-recreate. %+v", resourceName, err)
 				err = m.context.Clientset.AppsV1().Deployments(m.Namespace).Delete(d.Name, &metav1.DeleteOptions{})

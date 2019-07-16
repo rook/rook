@@ -30,6 +30,7 @@ import (
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	osdconfig "github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
+	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -323,7 +324,7 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 			}
 			logger.Infof("deployment for osd %d already exists. updating if needed", osd.ID)
 			// Always invoke ceph version before an upgrade so we are sure to be up-to-date
-			daemon := "osd"
+			daemon := string(opconfig.OsdType)
 			var cephVersionToUse cephver.CephVersion
 			currentCephVersion, err := client.LeastUptodateDaemonVersion(c.context, c.clusterInfo.Name, daemon)
 			if err != nil {
@@ -334,7 +335,7 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 				logger.Debugf("current cluster version for osds before upgrading is: %+v", currentCephVersion)
 				cephVersionToUse = currentCephVersion
 			}
-			if err = updateDeploymentAndWait(c.context, dp, c.Namespace, c.clusterInfo.Name, cephVersionToUse); err != nil {
+			if err = updateDeploymentAndWait(c.context, dp, c.Namespace, daemon, strconv.Itoa(osd.ID), cephVersionToUse); err != nil {
 				config.addError(fmt.Sprintf("failed to update osd deployment %d. %+v", osd.ID, err))
 			}
 		}

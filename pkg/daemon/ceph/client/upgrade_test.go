@@ -36,7 +36,7 @@ func TestGetCephMonVersionString(t *testing.T) {
 	context := &clusterd.Context{Executor: executor}
 
 	_, err := getCephMonVersionString(context, "rook-ceph")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 }
 
 func TestGetCephMonVersionsString(t *testing.T) {
@@ -51,21 +51,6 @@ func TestGetCephMonVersionsString(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func TestGetCephDaemonVersionString(t *testing.T) {
-	executor := &exectest.MockExecutor{}
-	deployment := "rook-ceph-mds-a"
-	executor.MockExecuteCommandWithOutput = func(debug bool, name string, command string, args ...string) (string, error) {
-		assert.Equal(t, "tell", args[0])
-		assert.Equal(t, "mds.a", args[1])
-		assert.Equal(t, "version", args[2])
-		return "", nil
-	}
-	context := &clusterd.Context{Executor: executor}
-
-	_, err := getCephDaemonVersionString(context, deployment, "rook-ceph")
-	assert.Nil(t, err)
-}
-
 func TestEnableMessenger2(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	executor.MockExecuteCommandWithOutput = func(debug bool, name string, command string, args ...string) (string, error) {
@@ -76,7 +61,7 @@ func TestEnableMessenger2(t *testing.T) {
 	context := &clusterd.Context{Executor: executor}
 
 	err := EnableMessenger2(context)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 }
 
 func TestEnableNautilusOSD(t *testing.T) {
@@ -89,15 +74,15 @@ func TestEnableNautilusOSD(t *testing.T) {
 	context := &clusterd.Context{Executor: executor}
 
 	err := EnableNautilusOSD(context)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 }
 
 func TestOkToStopDaemon(t *testing.T) {
+	// First test
 	executor := &exectest.MockExecutor{}
 	executor.MockExecuteCommandWithOutput = func(debug bool, name string, command string, args ...string) (string, error) {
 		switch {
-		case args[0] == "create" && args[1] == "mon" && args[2] == "a":
-			assert.Equal(t, 2, len(args))
+		case args[0] == "mon" && args[1] == "ok-to-stop" && args[2] == "a":
 			return "", nil
 		}
 		return "", fmt.Errorf("unexpected ceph command '%v'", args)
@@ -105,62 +90,42 @@ func TestOkToStopDaemon(t *testing.T) {
 	context := &clusterd.Context{Executor: executor}
 
 	deployment := "rook-ceph-mon-a"
-	err := okToStopDaemon(context, deployment, "rook-ceph")
-	assert.Nil(t, err)
+	err := okToStopDaemon(context, deployment, "rook-ceph", "mon", "a")
+	assert.NoError(t, err)
+
+	// Second test
+	executor.MockExecuteCommandWithOutput = func(debug bool, name string, command string, args ...string) (string, error) {
+		assert.Equal(t, "mgr", args[0])
+		assert.Equal(t, "ok-to-stop", args[1])
+		assert.Equal(t, "a", args[2])
+		return "", nil
+	}
+	context = &clusterd.Context{Executor: executor}
 
 	deployment = "rook-ceph-mgr-a"
-	err = okToStopDaemon(context, deployment, "rook-ceph")
-	assert.Nil(t, err)
+	err = okToStopDaemon(context, deployment, "rook-ceph", "mgr", "a")
+	assert.NoError(t, err)
+
+	// Third test
+	executor.MockExecuteCommandWithOutput = func(debug bool, name string, command string, args ...string) (string, error) {
+		assert.Equal(t, "dummy", args[0])
+		assert.Equal(t, "ok-to-stop", args[1])
+		assert.Equal(t, "a", args[2])
+		return "", nil
+	}
+	context = &clusterd.Context{Executor: executor}
 
 	deployment = "rook-ceph-dummy-a"
-	err = okToStopDaemon(context, deployment, "rook-ceph")
-	assert.Nil(t, err)
-}
-
-func TestFindDaemonName(t *testing.T) {
-	n, err := findDaemonName("rook-ceph-mon-a")
-	assert.Nil(t, err)
-	assert.Equal(t, "mon", n)
-	n, err = findDaemonName("rook-ceph-osd-0")
-	assert.Nil(t, err)
-	assert.Equal(t, "osd", n)
-	n, err = findDaemonName("rook-ceph-rgw-my-store-a")
-	assert.Nil(t, err)
-	assert.Equal(t, "rgw", n)
-	n, err = findDaemonName("rook-ceph-mds-myfs-a")
-	assert.Nil(t, err)
-	assert.Equal(t, "mds", n)
-	n, err = findDaemonName("rook-ceph-mgr-a")
-	assert.Nil(t, err)
-	assert.Equal(t, "mgr", n)
-	n, err = findDaemonName("rook-ceph-rbd-mirror-a")
-	assert.Nil(t, err)
-	assert.Equal(t, "rbd-mirror", n)
-	_, err = findDaemonName("rook-ceph-unknown-a")
-	assert.NotNil(t, err)
-}
-
-func TestFindDaemonID(t *testing.T) {
-	id := findDaemonID("rook-ceph-mon-a")
-	assert.Equal(t, "a", id)
-	id = findDaemonID("rook-ceph-osd-0")
-	assert.Equal(t, "0", id)
-	id = findDaemonID("rook-ceph-rgw-my-super-store-a")
-	assert.Equal(t, "a", id)
-	id = findDaemonID("rook-ceph-mds-my-wonderful-fs-a")
-	assert.Equal(t, "a", id)
-	id = findDaemonID("rook-ceph-mgr-a")
-	assert.Equal(t, "a", id)
-	id = findDaemonID("rook.ceph.mgr.a")
-	assert.NotEqual(t, "a", id)
+	err = okToStopDaemon(context, deployment, "rook-ceph", "dummy", "a")
+	assert.NoError(t, err)
 }
 
 func TestOkToContinue(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Executor: executor}
 
-	err := OkToContinue(context, "rook-ceph", "rook-ceph-mon-a") // mon is not checked on ok-to-continue so nil is expected
-	assert.Nil(t, err)
+	err := OkToContinue(context, "rook-ceph", "rook-ceph-mon-a", "mon", "a") // mon is not checked on ok-to-continue so nil is expected
+	assert.NoError(t, err)
 }
 
 func TestOkToStop(t *testing.T) {
@@ -168,18 +133,18 @@ func TestOkToStop(t *testing.T) {
 	context := &clusterd.Context{Executor: executor}
 	v := cephver.Nautilus
 
-	err := OkToStop(context, "rook-ceph", "rook-ceph-mon-a", "rook-ceph", v)
-	assert.Nil(t, err)
+	err := OkToStop(context, "rook-ceph", "rook-ceph-mon-a", "mon", "a", v)
+	assert.NoError(t, err)
 
-	err = OkToStop(context, "rook-ceph", "rook-ceph-mds-a", "rook-ceph", v)
-	assert.Nil(t, err)
+	err = OkToStop(context, "rook-ceph", "rook-ceph-mds-a", "mds", "a", v)
+	assert.NoError(t, err)
 }
 
 func TestFindFSName(t *testing.T) {
-	fsName := findFSName("rook-ceph-mds-myfs-a", "rook-ceph")
-	assert.Equal(t, "myfs", fsName)
-	fsName = findFSName("rook-ceph-mds-my-super-fs-a", "rook-ceph")
-	assert.Equal(t, "my-super-fs", fsName)
+	fsName := findFSName("rook-ceph-mds-myfs-a", "rook-ceph", "a")
+	assert.Equal(t, "myfs-a", fsName)
+	fsName = findFSName("rook-ceph-mds-my-super-fs-a", "rook-ceph", "a")
+	assert.Equal(t, "my-super-fs-a", fsName)
 }
 
 func TestDaemonMapEntry(t *testing.T) {
@@ -193,14 +158,14 @@ func TestDaemonMapEntry(t *testing.T) {
 
 	var dummyVersions CephDaemonsVersions
 	err := json.Unmarshal([]byte(dummyVersionsRaw), &dummyVersions)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	m, err := daemonMapEntry(&dummyVersions, "mon")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, dummyVersions.Mon, m)
 
 	m, err = daemonMapEntry(&dummyVersions, "dummy")
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 }
 
 func TestBuildHostListFromTree(t *testing.T) {
@@ -275,8 +240,25 @@ func TestBuildHostListFromTree(t *testing.T) {
 
 	var dummyTree OsdTree
 	err := json.Unmarshal([]byte(dummyOsdTreeRaw), &dummyTree)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
-	osdHosts := buildHostListFromTree(dummyTree)
+	osdHosts, err := buildHostListFromTree(dummyTree)
+	assert.NoError(t, err)
 	assert.Equal(t, 2, len(osdHosts.Nodes))
+
+	dummyEmptyOsdTreeRaw := []byte(`{}`)
+	var dummyEmptyTree OsdTree
+	err = json.Unmarshal([]byte(dummyEmptyOsdTreeRaw), &dummyEmptyTree)
+	assert.NoError(t, err)
+
+	_, err = buildHostListFromTree(dummyEmptyTree)
+	assert.Error(t, err)
+
+	dummyEmptyNodeOsdTreeRaw := []byte(`{"nodes": []}`)
+	var dummyEmptyNodeTree OsdTree
+	err = json.Unmarshal([]byte(dummyEmptyNodeOsdTreeRaw), &dummyEmptyNodeTree)
+	assert.NoError(t, err)
+
+	_, err = buildHostListFromTree(dummyEmptyNodeTree)
+	assert.NoError(t, err)
 }

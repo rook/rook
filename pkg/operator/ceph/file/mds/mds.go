@@ -157,7 +157,7 @@ func (c *Cluster) Start() error {
 		// deployment from reaching ready state
 		if createErr != nil && errors.IsAlreadyExists(createErr) {
 			// Always invoke ceph version before an upgrade so we are sure to be up-to-date
-			daemon := "mds"
+			daemon := string(config.MdsType)
 			var cephVersionToUse cephver.CephVersion
 			currentCephVersion, err := client.LeastUptodateDaemonVersion(c.context, c.clusterInfo.Name, daemon)
 			if err != nil {
@@ -169,7 +169,7 @@ func (c *Cluster) Start() error {
 				logger.Debugf("current cluster version for mdss before upgrading is: %+v", currentCephVersion)
 				cephVersionToUse = currentCephVersion
 			}
-			if err = UpdateDeploymentAndWait(c.context, d, c.fs.Namespace, c.clusterInfo.Name, cephVersionToUse); err != nil {
+			if err = UpdateDeploymentAndWait(c.context, d, c.fs.Namespace, daemon, daemonLetterID, cephVersionToUse); err != nil {
 				return fmt.Errorf("failed to update mds deployment %s. %+v", d.Name, err)
 			}
 		}

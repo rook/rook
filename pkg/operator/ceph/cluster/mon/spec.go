@@ -217,19 +217,19 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 }
 
 // UpdateCephDeploymentAndWait verifies a deployment can be stopped or continued
-func UpdateCephDeploymentAndWait(context *clusterd.Context, deployment *apps.Deployment, namespace, clusterName string, cephVersion cephver.CephVersion) error {
+func UpdateCephDeploymentAndWait(context *clusterd.Context, deployment *apps.Deployment, namespace, daemonType, daemonName string, cephVersion cephver.CephVersion) error {
 	callback := func(action string) error {
 		logger.Infof("checking if we can %s the deployment %s", action, deployment.Name)
 
 		if action == "stop" {
-			err := client.OkToStop(context, namespace, deployment.Name, clusterName, cephVersion)
+			err := client.OkToStop(context, namespace, deployment.Name, daemonType, daemonName, cephVersion)
 			if err != nil {
 				return fmt.Errorf("failed to check if we can %s the deployment %s: %+v", action, deployment.Name, err)
 			}
 		}
 
 		if action == "continue" {
-			err := client.OkToContinue(context, namespace, deployment.Name)
+			err := client.OkToContinue(context, namespace, deployment.Name, daemonType, daemonName)
 			if err != nil {
 				return fmt.Errorf("failed to check if we can %s the deployment %s: %+v", action, deployment.Name, err)
 			}

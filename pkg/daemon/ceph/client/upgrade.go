@@ -18,7 +18,6 @@ package client
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -71,46 +70,11 @@ func getAllCephDaemonVersionsString(context *clusterd.Context, clusterName strin
 	return output, nil
 }
 
-func getCephDaemonVersionString(context *clusterd.Context, deployment, clusterName string) (string, error) {
-	daemonName, err := findDaemonName(deployment)
-	if err != nil {
-		return "", fmt.Errorf("%+v", err)
-	}
-	daemonID := findDaemonID(deployment)
-	daemon := daemonName + "." + daemonID
-
-	args := []string{"tell", daemon, "version"}
-	command, args := FinalizeCephCommandArgs("ceph", args, context.ConfigDir, clusterName)
-	output, err := context.Executor.ExecuteCommandWithOutput(false, "", command, args...)
-	if err != nil {
-		return "", fmt.Errorf("failed to run ceph tell. %+v", err)
-	}
-	logger.Debug(output)
-
-	return output, nil
-}
-
 // GetCephMonVersion reports the Ceph version of all the monitors, or at least a majority with quorum
 func GetCephMonVersion(context *clusterd.Context, clusterName string) (*cephver.CephVersion, error) {
 	output, err := getCephMonVersionString(context, clusterName)
 	if err != nil {
 		return nil, err
-	}
-	logger.Debug(output)
-
-	v, err := cephver.ExtractCephVersion(output)
-	if err != nil {
-		return nil, fmt.Errorf("failed to extract ceph version. %+v", err)
-	}
-
-	return v, nil
-}
-
-// GetCephDaemonVersion reports the Ceph version of a particular daemon
-func GetCephDaemonVersion(context *clusterd.Context, deployment, clusterName string) (*cephver.CephVersion, error) {
-	output, err := getCephDaemonVersionString(context, deployment, clusterName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to run ceph tell. %+v", err)
 	}
 	logger.Debug(output)
 
@@ -161,27 +125,21 @@ func EnableNautilusOSD(context *clusterd.Context) error {
 }
 
 // OkToStop determines if it's ok to stop an upgrade
-func OkToStop(context *clusterd.Context, namespace, deployment, clusterName string, cephVersion cephver.CephVersion) error {
-	daemonName, err := findDaemonName(deployment)
-	if err != nil {
-		logger.Warningf("%+v", err)
-		return nil
-	}
-
+func OkToStop(context *clusterd.Context, namespace, deployment, daemonType, daemonName string, cephVersion cephver.CephVersion) error {
 	// The ok-to-stop command for mon and mds landed on 14.2.1
 	// so we return nil if that Ceph version is not satisfied
 	if !cephVersion.IsAtLeast(cephver.CephVersion{Major: 14, Minor: 2, Extra: 1}) {
-		if daemonName != "osd" {
+		if daemonType != "osd" {
 			return nil
 		}
 	}
 
-	versions, err := GetAllCephDaemonVersions(context, clusterName)
+	versions, err := GetAllCephDaemonVersions(context, namespace)
 	if err != nil {
 		return fmt.Errorf("failed to get ceph daemons versions. %+v", err)
 	}
 
-	switch daemonName {
+	switch daemonType {
 	// Trying to handle the case where a **single** mon is deployed and an upgrade is called
 	case "mon":
 		// if len(versions.Mon) > 1, this means we have different Ceph versions for some monitor(s).
@@ -210,7 +168,7 @@ func OkToStop(context *clusterd.Context, namespace, deployment, clusterName stri
 	//  - mon: the is done in the monitor code since it ensures all the mons are always in quorum before continuing
 	//  - rgw: the pod spec has a liveness probe so if the pod successfully start
 	//  - rbdmirror: you can chain as many as you want like mdss but there is no ok-to-stop logic yet
-	err = okToStopDaemon(context, deployment, clusterName)
+	err = okToStopDaemon(context, deployment, namespace, daemonType, daemonName)
 	if err != nil {
 		return fmt.Errorf("failed to check if %s was ok to stop. %+v", deployment, err)
 	}
@@ -219,25 +177,19 @@ func OkToStop(context *clusterd.Context, namespace, deployment, clusterName stri
 }
 
 // OkToContinue determines if it's ok to continue an upgrade
-func OkToContinue(context *clusterd.Context, namespace, deployment string) error {
-	daemonName, err := findDaemonName(deployment)
-	if err != nil {
-		logger.Warningf("%+v", err)
-		return nil
-	}
-
+func OkToContinue(context *clusterd.Context, namespace, deployment, daemonType, daemonName string) error {
 	// the mon case is handled directly in the deployment where the mon checks for quorum
-	switch daemonName {
+	switch daemonType {
 	case "osd":
 		if osdDoNothing(context, namespace) {
 			return nil
 		}
-		err = okToContinueOSDDaemon(context, namespace)
+		err := okToContinueOSDDaemon(context, namespace)
 		if err != nil {
 			return fmt.Errorf("failed to check if %s was ok to continue. %+v", deployment, err)
 		}
 	case "mds":
-		err := okToContinueMDSDaemon(context, namespace, deployment)
+		err := okToContinueMDSDaemon(context, namespace, deployment, daemonType, daemonName)
 		if err != nil {
 			return fmt.Errorf("failed to check if %s was ok to continue. %+v", deployment, err)
 		}
@@ -246,16 +198,9 @@ func OkToContinue(context *clusterd.Context, namespace, deployment string) error
 	return nil
 }
 
-func okToStopDaemon(context *clusterd.Context, deployment, clusterName string) error {
-	daemonID := findDaemonID(deployment)
-	daemonName, err := findDaemonName(deployment)
-	if err != nil {
-		logger.Warningf("%+v", err)
-		return nil
-	}
-
-	if !stringInSlice(daemonName, daemonNoCheck) {
-		args := []string{daemonName, "ok-to-stop", daemonID}
+func okToStopDaemon(context *clusterd.Context, deployment, clusterName, daemonType, daemonName string) error {
+	if !stringInSlice(daemonType, daemonNoCheck) {
+		args := []string{daemonType, "ok-to-stop", daemonName}
 		command, args := FinalizeCephCommandArgs("ceph", args, context.ConfigDir, clusterName)
 
 		output, err := context.Executor.ExecuteCommandWithOutput(false, "", command, args...)
@@ -265,6 +210,9 @@ func okToStopDaemon(context *clusterd.Context, deployment, clusterName string) e
 		logger.Debugf("deployment %s is ok to be updated. %s", deployment, output)
 	}
 
+	// At this point, we can't tell if the daemon is unknown or if
+	// but it's not a problem since perhaps it has no "ok-to-stop" call
+	// It's fine to return nil here
 	logger.Debugf("deployment %s is ok to be updated.", deployment)
 
 	return nil
@@ -286,55 +234,16 @@ func okToContinueOSDDaemon(context *clusterd.Context, namespace string) error {
 
 // okToContinueMDSDaemon determines whether it's fine to go to the next mds during an upgrade
 // mostly a placeholder function for the future but since we have standby mds this shouldn't be needed
-func okToContinueMDSDaemon(context *clusterd.Context, namespace, deployment string) error {
+func okToContinueMDSDaemon(context *clusterd.Context, namespace, deployment, daemonType, daemonName string) error {
 	// wait for the MDS to be active again or in standby-replay
 	err := util.Retry(10, 15*time.Second, func() error {
-		return MdsActiveOrStandbyReplay(context, namespace, findFSName(deployment, namespace))
+		return MdsActiveOrStandbyReplay(context, namespace, findFSName(deployment, namespace, daemonName))
 	})
 	if err != nil {
 		return err
 	}
 
 	return nil
-}
-
-func findFSName(deployment, namespace string) string {
-	mdsID := findDaemonID(deployment)
-	fsNameTrimSuffix := strings.TrimSuffix(deployment, "-"+mdsID)
-	return strings.TrimPrefix(fsNameTrimSuffix, namespace+"-mds-")
-}
-
-func findDaemonID(deployment string) string {
-	daemonTrimPrefixSplit := strings.Split(deployment, "-")
-	return daemonTrimPrefixSplit[len(daemonTrimPrefixSplit)-1]
-}
-
-func findDaemonName(deployment string) (string, error) {
-	err := errors.New("could not find daemon name, is this a new daemon?")
-
-	if strings.Contains(deployment, "mds") {
-		return "mds", nil
-	}
-	if strings.Contains(deployment, "rgw") {
-		return "rgw", nil
-	}
-	if strings.Contains(deployment, "mon") {
-		return "mon", nil
-	}
-	if strings.Contains(deployment, "osd") {
-		return "osd", nil
-	}
-	if strings.Contains(deployment, "mgr") {
-		return "mgr", nil
-	}
-	if strings.Contains(deployment, "nfs") {
-		return "nfs", nil
-	}
-	if strings.Contains(deployment, "rbd-mirror") {
-		return "rbd-mirror", nil
-	}
-
-	return "", fmt.Errorf("%+v from deployment %s", err, deployment)
 }
 
 func stringInSlice(a string, list []string) bool {
@@ -385,6 +294,10 @@ func LeastUptodateDaemonVersion(context *clusterd.Context, clusterName, daemonTy
 	return vv, nil
 }
 
+func findFSName(deployment, namespace, mdsName string) string {
+	return strings.TrimPrefix(deployment, namespace+"-mds-")
+}
+
 func daemonMapEntry(versions *CephDaemonsVersions, daemonType string) (map[string]int, error) {
 	switch daemonType {
 	case "mon":
@@ -415,7 +328,11 @@ func allOSDsSameHost(context *clusterd.Context, clusterName string) (bool, error
 		return false, fmt.Errorf("failed to get the osd list %+v", err)
 	}
 
-	hostOsdTree := buildHostListFromTree(tree)
+	hostOsdTree, err := buildHostListFromTree(tree)
+	if err != nil {
+		return false, fmt.Errorf("failed to build osd tree. %+v", err)
+	}
+
 	hostOsdNodes := len(hostOsdTree.Nodes)
 	if hostOsdNodes == 0 {
 		return false, fmt.Errorf("no host in crush map yet?")
@@ -437,8 +354,12 @@ func allOSDsSameHost(context *clusterd.Context, clusterName string) (bool, error
 	return false, nil
 }
 
-func buildHostListFromTree(tree OsdTree) OsdTree {
+func buildHostListFromTree(tree OsdTree) (OsdTree, error) {
 	var osdList OsdTree
+
+	if tree.Nodes == nil {
+		return osdList, fmt.Errorf("osd tree not populated, missing 'nodes' field")
+	}
 
 	for _, t := range tree.Nodes {
 		if t.Type == "host" {
@@ -446,7 +367,7 @@ func buildHostListFromTree(tree OsdTree) OsdTree {
 		}
 	}
 
-	return osdList
+	return osdList, nil
 }
 
 // osdDoNothing determines wether we should perfom upgrade pre-check and post-checks for the OSD daemon
@@ -468,20 +389,20 @@ func osdDoNothing(context *clusterd.Context, clusterName string) bool {
 				return true
 			}
 		}
+	}
 
-		// aio means all in one
-		aio, err := allOSDsSameHost(context, clusterName)
-		if err != nil {
-			// That's tricky, we are about to perform an update so it's difficult to break the update for this
-			// let's consider this is not a problem but log what happened
-			logger.Warningf("not able to determine if all OSDs are running on the same host, not performing upgrade check, running in best-effort")
-			return true
-		}
+	// aio means all in one
+	aio, err := allOSDsSameHost(context, clusterName)
+	if err != nil {
+		// That's tricky, we are about to perform an update so it's difficult to break the update for this
+		// let's consider this is not a problem but log what happened
+		logger.Warningf("not able to determine if all OSDs are running on the same host, not performing upgrade check, running in best-effort")
+		return true
+	}
 
-		if aio {
-			logger.Warningf("it looks like all OSDs are running on the same host, not performing upgrade check, running in best-effort")
-			return true
-		}
+	if aio {
+		logger.Warningf("it looks like all OSDs are running on the same host, not performing upgrade check, running in best-effort")
+		return true
 	}
 
 	return false

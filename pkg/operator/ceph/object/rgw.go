@@ -146,7 +146,7 @@ func (c *clusterConfig) startRGWPods() error {
 		// Generate the mime.types file after the rep. controller as well for the same reason as keyring
 		if createErr != nil && errors.IsAlreadyExists(createErr) {
 			// Always invoke ceph version before an upgrade so we are sure to be up-to-date
-			daemon := "rgw"
+			daemon := string(config.RgwType)
 			var cephVersionToUse cephver.CephVersion
 			currentCephVersion, err := client.LeastUptodateDaemonVersion(c.context, c.clusterInfo.Name, daemon)
 			if err != nil {
@@ -158,7 +158,7 @@ func (c *clusterConfig) startRGWPods() error {
 				logger.Debugf("current cluster version for rgws before upgrading is: %+v", currentCephVersion)
 				cephVersionToUse = currentCephVersion
 			}
-			if err := updateDeploymentAndWait(c.context, deployment, c.store.Namespace, c.clusterInfo.Name, cephVersionToUse); err != nil {
+			if err := updateDeploymentAndWait(c.context, deployment, c.store.Namespace, daemon, daemonLetterID, cephVersionToUse); err != nil {
 				return fmt.Errorf("failed to update object store %s deployment %s. %+v", c.store.Name, deployment.Name, err)
 			}
 		}
