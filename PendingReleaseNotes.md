@@ -22,6 +22,12 @@ an example usage
 - `NodeAffinity` can be applied to `rook-ceph-agent DaemonSet` with `AGENT_NODE_AFFINITY` environment variable.
 - `NodeAffinity` can be applied to `rook-discover DaemonSet` with `DISCOVER_AGENT_NODE_AFFINITY` environment variable.
 - Rook does not create an initial CRUSH map anymore and let Ceph do it normally
+- Ceph monitor placement will now take failure zones into account [see the
+  documentation](Documentation/ceph-advanced-configuration.md#monitor-placement)
+  for more information.
+- The cluster CRD option to allow multiple monitors to be scheduled on the same
+  node---`spec.Mon.AllowMultiplePerNode`---is now active when a cluster is first
+  created. Previously, it was ignored when a cluster was first installed.
 
 ## Breaking Changes
 

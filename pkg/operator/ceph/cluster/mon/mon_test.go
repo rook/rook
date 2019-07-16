@@ -339,3 +339,168 @@ func TestMonFoundInQuorum(t *testing.T) {
 	assert.True(t, monFoundInQuorum("c", response))
 	assert.False(t, monFoundInQuorum("d", response))
 }
+
+// no node choice can be made when there are no nodes
+func TestScheduleMonitorEmpty(t *testing.T) {
+	nodeZones := [][]NodeUsage{}
+	mon := &monConfig{DaemonName: "a"}
+	// no zones
+	assert.Nil(t, scheduleMonitor(mon, nodeZones))
+	// 1 zone no mons
+	nodeZones = append(nodeZones, []NodeUsage{})
+	assert.Nil(t, scheduleMonitor(mon, nodeZones))
+	// 2 zones no mons
+	nodeZones = append(nodeZones, []NodeUsage{})
+	assert.Nil(t, scheduleMonitor(mon, nodeZones))
+}
+
+// only valid nodes should be chosen
+func TestScheduleMonitorInvalidNodes(t *testing.T) {
+	// 1 zone with 1 invalid empty node
+	nodeZones := [][]NodeUsage{
+		{
+			NodeUsage{Node: &v1.Node{}, MonCount: 0, MonValid: false},
+		},
+	}
+	mon := &monConfig{DaemonName: "a"}
+	assert.Nil(t, scheduleMonitor(mon, nodeZones))
+
+	// 1 zone with 2 invalid empty node
+	nodeZones = [][]NodeUsage{
+		{
+			NodeUsage{Node: &v1.Node{}, MonCount: 0, MonValid: false},
+			NodeUsage{Node: &v1.Node{}, MonCount: 0, MonValid: false},
+		},
+	}
+	assert.Nil(t, scheduleMonitor(mon, nodeZones))
+
+	// 2 zone with 2 invalid empty node each
+	nodeZones = [][]NodeUsage{
+		{
+			NodeUsage{Node: &v1.Node{}, MonCount: 0, MonValid: false},
+			NodeUsage{Node: &v1.Node{}, MonCount: 0, MonValid: false},
+		},
+		{
+			NodeUsage{Node: &v1.Node{}, MonCount: 0, MonValid: false},
+			NodeUsage{Node: &v1.Node{}, MonCount: 0, MonValid: false},
+		},
+	}
+	assert.Nil(t, scheduleMonitor(mon, nodeZones))
+}
+
+func TestScheduleMonitor(t *testing.T) {
+	// 1 zone, 1 valid, empty node -> only one choice
+	nodeZones := [][]NodeUsage{
+		{
+			NodeUsage{Node: &v1.Node{}, MonCount: 0, MonValid: true},
+		},
+	}
+	mon := &monConfig{DaemonName: "a"}
+	assert.Equal(t, &nodeZones[0][0], scheduleMonitor(mon, nodeZones))
+
+	// still the only choice even if not empty
+	nodeZones = [][]NodeUsage{
+		{
+			NodeUsage{Node: &v1.Node{}, MonCount: 10, MonValid: true},
+		},
+	}
+	assert.Equal(t, &nodeZones[0][0], scheduleMonitor(mon, nodeZones))
+
+	// scheduler prefers the node with the least number of mons
+	nodeZones = [][]NodeUsage{
+		{
+			NodeUsage{Node: &v1.Node{}, MonCount: 10, MonValid: true},
+			NodeUsage{Node: &v1.Node{}, MonCount: 2, MonValid: true},
+			NodeUsage{Node: &v1.Node{}, MonCount: 5, MonValid: true},
+		},
+	}
+	assert.Equal(t, &nodeZones[0][1], scheduleMonitor(mon, nodeZones))
+
+	// the scheduler prefers nodes with the least number of mons, not zones with
+	// the leads number of mons (zero mons is a special case: tested below...)
+	nodeZones = [][]NodeUsage{
+		// 24 mons
+		{
+			NodeUsage{Node: &v1.Node{}, MonCount: 10, MonValid: true},
+			NodeUsage{Node: &v1.Node{}, MonCount: 4, MonValid: true},
+			NodeUsage{Node: &v1.Node{}, MonCount: 10, MonValid: true},
+		},
+		// 10 mons
+		{
+			NodeUsage{Node: &v1.Node{}, MonCount: 5, MonValid: true},
+			NodeUsage{Node: &v1.Node{}, MonCount: 5, MonValid: true},
+		},
+	}
+	// choose the node with 4 mons
+	assert.Equal(t, &nodeZones[0][1], scheduleMonitor(mon, nodeZones))
+
+	// same as before, the target mon is in the second zone
+	nodeZones = [][]NodeUsage{
+		// 6 mons
+		{
+			NodeUsage{Node: &v1.Node{}, MonCount: 2, MonValid: true},
+			NodeUsage{Node: &v1.Node{}, MonCount: 2, MonValid: true},
+			NodeUsage{Node: &v1.Node{}, MonCount: 2, MonValid: true},
+		},
+		// 10 mons
+		{
+			NodeUsage{Node: &v1.Node{}, MonCount: 1, MonValid: true},
+			NodeUsage{Node: &v1.Node{}, MonCount: 9, MonValid: true},
+		},
+	}
+	// choose the node with 1 mon
+	assert.Equal(t, &nodeZones[1][0], scheduleMonitor(mon, nodeZones))
+
+	// prefers a zone with zero mons to spread across failure domains
+	nodeZones = [][]NodeUsage{
+		// 0 mons
+		{
+			NodeUsage{Node: &v1.Node{}, MonCount: 0, MonValid: true},
+			NodeUsage{Node: &v1.Node{}, MonCount: 0, MonValid: true},
+			NodeUsage{Node: &v1.Node{}, MonCount: 0, MonValid: true},
+		},
+		// 1 mons
+		{
+			NodeUsage{Node: &v1.Node{}, MonCount: 0, MonValid: true},
+			NodeUsage{Node: &v1.Node{}, MonCount: 1, MonValid: true},
+		},
+	}
+	// choose the zone with zero mons
+	assert.Equal(t, &nodeZones[0][0], scheduleMonitor(mon, nodeZones))
+
+	// same as before, different zone
+	nodeZones = [][]NodeUsage{
+		// 0 mons
+		{
+			NodeUsage{Node: &v1.Node{}, MonCount: 0, MonValid: true},
+			NodeUsage{Node: &v1.Node{}, MonCount: 1, MonValid: true},
+			NodeUsage{Node: &v1.Node{}, MonCount: 0, MonValid: true},
+		},
+		// 1 mons
+		{
+			NodeUsage{Node: &v1.Node{}, MonCount: 0, MonValid: true},
+			NodeUsage{Node: &v1.Node{}, MonCount: 0, MonValid: true},
+		},
+	}
+	// choose the zone with zero mons
+	assert.Equal(t, &nodeZones[1][0], scheduleMonitor(mon, nodeZones))
+
+	// invalid nodes aren't schedulable, but if they have mons, that factors
+	// into the decision. in this case it means the zone isn't really empty
+	nodeZones = [][]NodeUsage{
+		// 0 mons
+		{
+			NodeUsage{Node: &v1.Node{}, MonCount: 0, MonValid: true},
+			// invalid node, but has a mon -> zone is not empty
+			NodeUsage{Node: &v1.Node{}, MonCount: 1, MonValid: false},
+			NodeUsage{Node: &v1.Node{}, MonCount: 0, MonValid: true},
+		},
+		// 1 mons
+		{
+			NodeUsage{Node: &v1.Node{}, MonCount: 0, MonValid: true},
+			NodeUsage{Node: &v1.Node{}, MonCount: 0, MonValid: true},
+		},
+	}
+	// choose the zone with zero mons
+	assert.Equal(t, &nodeZones[1][0], scheduleMonitor(mon, nodeZones))
+}

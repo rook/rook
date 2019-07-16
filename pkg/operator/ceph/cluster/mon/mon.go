@@ -380,37 +380,129 @@ func (c *Cluster) initMonIPs(mons []*monConfig) error {
 	return nil
 }
 
-func (c *Cluster) assignMons(mons []*monConfig) error {
-	// schedule the mons on different nodes if we have enough nodes to be unique
-	availableNodes, err := c.getMonNodes()
-	if err != nil {
-		return fmt.Errorf("failed to get available nodes for mons. %+v", err)
+// find a suitable node for this monitor. first look for a fault zone that has
+// no monitors. only after the nodes with zone labels are considered are the
+// unlabeled nodes considered. reasonsing: without more information, _at worst_
+// the unlabled nodes are actually in the set of labeled zones, and at best,
+// they are in distinct zones.
+func scheduleMonitor(mon *monConfig, nodeZones [][]NodeUsage) *NodeUsage {
+	// the node choice for this monitor
+	var nodeChoice *NodeUsage
+
+	// for each zone, in order of preference. unlabeled nodes are last, by
+	// construction; see Cluster.getNodeMonusage().
+	for zi := range nodeZones {
+		// number of monitors in the zone
+		zoneMonCount := 0
+
+		// preferential node choice from this zone for a new mon
+		var zoneNodeChoice *NodeUsage
+
+		// for each node in this zone
+		for ni := range nodeZones[zi] {
+			nodeUsage := &nodeZones[zi][ni]
+
+			// skip invalid nodes. but update the mon count first since
+			// invalid nodes could still have an assigned mon pod.
+			zoneMonCount += nodeUsage.MonCount
+			if !nodeUsage.MonValid {
+				logger.Infof("schedmon: skip invalid node %s for mon scheduling",
+					nodeUsage.Node.Name)
+				continue
+			}
+
+			// make a "best" choice from this zone. in this case that is the
+			// node with the least amount of monitors.
+			if zoneNodeChoice == nil || nodeUsage.MonCount < zoneNodeChoice.MonCount {
+				logger.Infof("schedmon: considering node %s with mon count %d",
+					nodeUsage.Node.Name, nodeUsage.MonCount)
+				zoneNodeChoice = nodeUsage
+			}
+		}
+
+		// We identified _a_ valid node in the zone. should we choose it?
+		if zoneNodeChoice != nil {
+			if zoneMonCount == 0 {
+				// this zone has no monitors, which implies that
+				// zoneNodeChoice will be a node without any monitors
+				// currently assigned. choose this node.
+				logger.Infof("schedmon: considering node %s from empty zone",
+					zoneNodeChoice.Node.Name)
+				nodeChoice = zoneNodeChoice
+				break
+			} else {
+				// this zone already has a monitor in it. but keep the
+				// choice as a backup; we may find that all zones already
+				// have a monitor and still need to make an assignment.
+				if nodeChoice == nil || zoneNodeChoice.MonCount < nodeChoice.MonCount {
+					logger.Infof("schedmon: considering node %s with mon count %d",
+						zoneNodeChoice.Node.Name, zoneNodeChoice.MonCount)
+					nodeChoice = zoneNodeChoice
+				}
+			}
+		}
 	}
 
-	nodeIndex := 0
-	for _, m := range mons {
-		if _, ok := c.mapping.Node[m.DaemonName]; ok {
-			logger.Debugf("mon %s already assigned to a node, no need to assign", m.DaemonName)
+	if nodeChoice != nil {
+		logger.Infof("schedmon: scheduling mon %s on node %s",
+			mon.DaemonName, nodeChoice.Node.Name)
+	} else {
+		logger.Infof("schedmon: no suitable node found for mon %s",
+			mon.DaemonName)
+	}
+
+	return nodeChoice
+}
+
+func (c *Cluster) assignMons(mons []*monConfig) error {
+
+	// retrieve the set of cluster nodes and their monitor usage info
+	nodeZones, err := c.getNodeMonUsage()
+	if err != nil {
+		return fmt.Errorf("failed to get node monitor usage. %+v", err)
+	}
+
+	// ensure all monitors have a node assignment. note that this isn't
+	// necessarily optimal: it does not try to move existing monitors which is
+	// handled by the periodic monitor health checks.
+	for _, mon := range mons {
+
+		// monitor is already assigned to a node. nothing to do
+		if _, ok := c.mapping.Node[mon.DaemonName]; ok {
+			logger.Infof("assignmon: mon %s already assigned to a node", mon.DaemonName)
 			continue
 		}
 
-		// if we need to place a new mon and don't have any more nodes available, we fail to add the mon
-		if len(availableNodes) == 0 {
-			return fmt.Errorf("no nodes available for mon placement")
+		nodeChoice := scheduleMonitor(mon, nodeZones)
+
+		if nodeChoice == nil {
+			return fmt.Errorf("assignmon: no valid nodes available for mon placement")
 		}
 
-		// pick one of the available nodes where the mon will be assigned
-		node := availableNodes[nodeIndex%len(availableNodes)]
-		logger.Debugf("mon %s assigned to node %s", m.DaemonName, node.Name)
-		nodeInfo, err := getNodeInfoFromNode(node)
-		if err != nil {
-			return fmt.Errorf("couldn't get node info from node %s. %+v", node.Name, err)
+		// note that we do not need to worry about a false negative here (i.e. a
+		// node exists that _would_ pass this check) due to the search landing in a
+		// local minima because if a node had existed with a mon count of zero,
+		// scheduleMonitor would have chosen it over any node with a positive
+		// mon count.
+		if nodeChoice.MonCount > 0 && !c.spec.Mon.AllowMultiplePerNode {
+			return fmt.Errorf("assignmon: no empty nodes available for mon placement")
 		}
-		c.mapping.Node[m.DaemonName] = nodeInfo
-		nodeIndex++
+
+		// make this decision visible when scheduling the next monitor
+		nodeChoice.MonCount++
+
+		logger.Infof("assignmon: mon %s assigned to node %s", mon.DaemonName, nodeChoice.Node.Name)
+
+		nodeInfo, err := getNodeInfoFromNode(*nodeChoice.Node)
+		if err != nil {
+			return fmt.Errorf("couldn't get node info from node %s. %+v",
+				nodeChoice.Node.Name, err)
+		}
+
+		c.mapping.Node[mon.DaemonName] = nodeInfo
 	}
 
-	logger.Debug("mons have been assigned to nodes")
+	logger.Debug("assignmons: mons have been assigned to nodes")
 	return nil
 }
 

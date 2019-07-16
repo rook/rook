@@ -143,6 +143,91 @@ func TestCheckHealthNotFound(t *testing.T) {
 	}
 }
 
+func TestOverloadedZoneRebalances(t *testing.T) {
+	clientset := test.New(3)
+
+	// build a cluster with 3 nodes. two of the nodes are in the same AZ the
+	// third node is in a separate AZ.
+	for i := 0; i < 3; i++ {
+		nodeName := fmt.Sprintf("node%d", i)
+		node, err := clientset.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.NotNil(t, node)
+
+		// zone0: node0, node1
+		// zone1: node2
+		var zoneName string
+		if i < 2 {
+			zoneName = "zone0"
+		} else {
+			zoneName = "zone1"
+		}
+
+		node.Labels = map[string]string{"failure-domain.beta.kubernetes.io/zone": zoneName}
+		clientset.CoreV1().Nodes().Update(node)
+	}
+
+	executor := &exectest.MockExecutor{}
+
+	configDir, _ := ioutil.TempDir("", "")
+	defer os.RemoveAll(configDir)
+	context := &clusterd.Context{
+		Clientset: clientset,
+		ConfigDir: configDir,
+		Executor:  executor,
+	}
+
+	cluster := New(context, "ns", "", false, metav1.OwnerReference{})
+	setCommonMonProperties(cluster, 2, cephv1.MonSpec{Count: 2, AllowMultiplePerNode: false}, "myversion")
+	cluster.waitForStart = false
+	defer os.RemoveAll(cluster.context.ConfigDir)
+
+	// add mon mappings
+	cluster.mapping.Node["a"] = &NodeInfo{
+		Name:     "node0",
+		Hostname: "mynode0",
+		Address:  "0.0.0.0",
+	}
+	cluster.mapping.Node["b"] = &NodeInfo{
+		Name:     "node1",
+		Hostname: "mynode1",
+		Address:  "0.0.0.0",
+	}
+	cluster.maxMonID = 1
+	cluster.saveMonConfig()
+
+	monNames := []string{"a", "b"}
+	nodeNames := []string{"node0", "node1"}
+	for i := 0; i < len(monNames); i++ {
+		monConfig := testGenMonConfig(monNames[i])
+		nodeName := nodeNames[i]
+
+		d := cluster.makeDeployment(monConfig, nodeName)
+		_, err := clientset.AppsV1().Deployments(cluster.Namespace).Create(d)
+		assert.Nil(t, err)
+
+		po := cluster.makeMonPod(monConfig, nodeName)
+		_, err = clientset.CoreV1().Pods(cluster.Namespace).Create(po)
+		assert.Nil(t, err)
+	}
+
+	assert.NotContains(t, cluster.mapping.Node, "c")
+	assert.Equal(t, "node0", cluster.mapping.Node["a"].Name)
+	assert.Equal(t, "node1", cluster.mapping.Node["b"].Name)
+	assert.Equal(t, "mynode0", cluster.mapping.Node["a"].Hostname)
+	assert.Equal(t, "mynode1", cluster.mapping.Node["b"].Hostname)
+
+	_, err := cluster.resolveInvalidMonitorPlacement(2)
+	assert.Nil(t, err)
+
+	// mon.a was chosen from the overloaded zone 0, and a new monitor to take
+	// its place, mon.c was created on a node in zone 1 that had no monitors.
+	assert.NotContains(t, cluster.mapping.Node, "a")
+	assert.Equal(t, "node1", cluster.mapping.Node["b"].Name)
+	assert.Equal(t, "node2", cluster.mapping.Node["c"].Name)
+	assert.Equal(t, "mynode1", cluster.mapping.Node["b"].Hostname)
+}
+
 func TestCheckHealthTwoMonsOneNode(t *testing.T) {
 	executorNextMons := false
 	executor := &exectest.MockExecutor{
@@ -207,7 +292,7 @@ func TestCheckHealthTwoMonsOneNode(t *testing.T) {
 	}
 
 	// initial health check should already see that there is more than one mon on one node (node0)
-	_, err := c.checkMonsOnSameNode(3)
+	_, err := c.resolveInvalidMonitorPlacement(3)
 	assert.Nil(t, err)
 	assert.Equal(t, "node0", c.mapping.Node["a"].Name)
 	assert.Equal(t, "node0", c.mapping.Node["b"].Name)
@@ -233,7 +318,7 @@ func TestCheckHealthTwoMonsOneNode(t *testing.T) {
 	n.Name = "node2"
 	clientset.CoreV1().Nodes().Create(n)
 
-	_, err = c.checkMonsOnSameNode(3)
+	_, err = c.resolveInvalidMonitorPlacement(3)
 	assert.Nil(t, err)
 
 	// check that mon c exists
@@ -255,7 +340,7 @@ func TestCheckHealthTwoMonsOneNode(t *testing.T) {
 
 	// enable different ceph mon map output
 	executorNextMons = true
-	_, err = c.checkMonsOnSameNode(3)
+	_, err = c.resolveInvalidMonitorPlacement(3)
 	assert.Nil(t, err)
 
 	// check that nothing has changed
@@ -322,15 +407,17 @@ func TestCheckMonsValid(t *testing.T) {
 		clientset.CoreV1().Nodes().Create(n)
 	}
 
-	_, err := c.checkMonsOnValidNodes()
+	_, err := c.resolveInvalidMonitorPlacement(3)
 	assert.Nil(t, err)
 	assert.Equal(t, "node0", c.mapping.Node["a"].Name)
 	assert.Equal(t, "node1", c.mapping.Node["b"].Name)
 
-	// set node1 unschedulable and check that mon2 gets failovered to be mon3 to node2
+	// set node0 to contain the not ready status condition, and check that mon.a
+	// is failovered to be mon.c on node2. note that validity here doesn't include the
+	// unscheduable flag (for mons already placed on a node).
 	node0, err := c.context.Clientset.CoreV1().Nodes().Get("node0", metav1.GetOptions{})
 	assert.Nil(t, err)
-	node0.Spec.Unschedulable = true
+	node0.Status.Conditions[0].Status = v1.ConditionFalse
 	_, err = c.context.Clientset.CoreV1().Nodes().Update(node0)
 	assert.Nil(t, err)
 
@@ -342,7 +429,7 @@ func TestCheckMonsValid(t *testing.T) {
 		assert.Nil(t, err)
 	}
 
-	_, err = c.checkMonsOnValidNodes()
+	_, err = c.resolveInvalidMonitorPlacement(3)
 	assert.Nil(t, err)
 
 	assert.Len(t, c.mapping.Node, 2)
