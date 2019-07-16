@@ -79,6 +79,7 @@ func TestPodSpec(t *testing.T) {
 		"ROOK_CEPH_CLUSTER_CRD_NAME")
 	podTemplate.RunFullSuite(config.MgrType, "a", appName, "ns", "ceph/ceph:myceph",
 		"200", "100", "500", "250" /* resources */)
+	assert.Equal(t, 2, len(d.Spec.Template.Annotations))
 
 }
 

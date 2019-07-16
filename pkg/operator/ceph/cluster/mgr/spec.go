@@ -81,6 +81,13 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
 	}
 
 	replicas := int32(1)
+	if len(c.annotations) == 0 {
+		prometheusAnnotations := map[string]string{
+			"prometheus.io/scrape": "true",
+			"prometheus.io/port":   strconv.Itoa(metricsPort),
+		}
+		podSpec.ObjectMeta.Annotations = prometheusAnnotations
+	}
 	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      mgrConfig.ResourceName,
@@ -99,14 +106,6 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
 		},
 	}
 	k8sutil.AddRookVersionLabelToDeployment(d)
-	if len(c.annotations) == 0 {
-		prometheusAnnotations := map[string]string{
-			"prometheus.io/scrape": "true",
-			"prometheus.io/port":   strconv.Itoa(metricsPort),
-		}
-		podSpec.ObjectMeta.Annotations = prometheusAnnotations
-		d.ObjectMeta.Annotations = prometheusAnnotations
-	}
 	opspec.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, d)
 	k8sutil.SetOwnerRef(&d.ObjectMeta, &c.ownerRef)
 	return d
