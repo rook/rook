@@ -272,7 +272,7 @@ func (c *Cluster) ensureMonsRunning(mons []*monConfig, i, targetCount int, requi
 	}
 
 	// make sure we have the connection info generated so connections can happen
-	if err := writeConnectionConfig(c.context, c.clusterInfo); err != nil {
+	if err := WriteConnectionConfig(c.context, c.clusterInfo); err != nil {
 		return err
 	}
 
@@ -608,7 +608,7 @@ func (c *Cluster) saveMonConfig() error {
 	config.GetStore(c.context, c.Namespace, &c.ownerRef).CreateOrUpdate(c.clusterInfo)
 
 	// write the latest config to the config dir
-	if err := writeConnectionConfig(c.context, c.clusterInfo); err != nil {
+	if err := WriteConnectionConfig(c.context, c.clusterInfo); err != nil {
 		return fmt.Errorf("failed to write connection config for new mons. %+v", err)
 	}
 

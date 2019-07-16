@@ -1,3 +1,19 @@
+/*
+Copyright 2019 The Rook Authors. All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package version
 
 import (
@@ -163,4 +179,25 @@ func TestVersionAtLeastX(t *testing.T) {
 	assert.False(t, Luminous.IsAtLeastNautilus())
 	assert.False(t, Mimic.IsAtLeastNautilus())
 	assert.False(t, Nautilus.IsAtLeastOctopus())
+}
+
+func TestIsIdentical(t *testing.T) {
+	assert.True(t, IsIdentical(CephVersion{14, 2, 2}, CephVersion{14, 2, 2}))
+	assert.False(t, IsIdentical(CephVersion{14, 2, 2}, CephVersion{15, 2, 2}))
+}
+
+func TestIsSuperior(t *testing.T) {
+	assert.False(t, IsSuperior(CephVersion{14, 2, 2}, CephVersion{14, 2, 2}))
+	assert.False(t, IsSuperior(CephVersion{14, 2, 2}, CephVersion{15, 2, 2}))
+	assert.True(t, IsSuperior(CephVersion{15, 2, 2}, CephVersion{14, 2, 2}))
+	assert.True(t, IsSuperior(CephVersion{15, 2, 2}, CephVersion{15, 1, 3}))
+	assert.True(t, IsSuperior(CephVersion{15, 2, 2}, CephVersion{15, 2, 1}))
+}
+
+func TestIsInferior(t *testing.T) {
+	assert.False(t, IsInferior(CephVersion{14, 2, 2}, CephVersion{14, 2, 2}))
+	assert.False(t, IsInferior(CephVersion{15, 2, 2}, CephVersion{14, 2, 2}))
+	assert.True(t, IsInferior(CephVersion{14, 2, 2}, CephVersion{15, 2, 2}))
+	assert.True(t, IsInferior(CephVersion{15, 1, 3}, CephVersion{15, 2, 2}))
+	assert.True(t, IsInferior(CephVersion{15, 2, 1}, CephVersion{15, 2, 2}))
 }
