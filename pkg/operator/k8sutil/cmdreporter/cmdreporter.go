@@ -140,7 +140,7 @@ func (cr *CmdReporter) Job() *batch.Job {
 func (cr *CmdReporter) Run(timeout time.Duration) (stdout, stderr string, retcode int, retErr error) {
 	jobName := cr.job.Name
 	namespace := cr.job.Namespace
-	errMsg := fmt.Sprintf("failed to run CmdReporter %s successfully.", jobName)
+	errMsg := fmt.Sprintf("failed to run CmdReporter %s successfully", jobName)
 
 	// the configmap MUST be deleted, because we will wait on its presence to determine when the
 	// job is done running
@@ -150,7 +150,7 @@ func (cr *CmdReporter) Run(timeout time.Duration) (stdout, stderr string, retcod
 	// configmap's name will be the same as the app
 	err := k8sutil.DeleteConfigMap(cr.clientset, jobName, namespace, delOpts)
 	if err != nil {
-		return "", "", -1, fmt.Errorf("%s. failed to delete existing results ConfigMap %s. %+v", errMsg, jobName, retErr)
+		return "", "", -1, fmt.Errorf("%s. failed to delete existing results ConfigMap %s. %+v", errMsg, jobName, err)
 	}
 
 	if err := k8sutil.RunReplaceableJob(cr.clientset, cr.job, true); err != nil {
