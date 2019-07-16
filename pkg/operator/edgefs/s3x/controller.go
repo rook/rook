@@ -22,6 +22,7 @@ import (
 	"reflect"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/google/go-cmp/cmp"
 	opkit "github.com/rook/operator-kit"
 	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
@@ -189,6 +190,26 @@ func (c *S3XController) ParentClusterChanged(cluster edgefsv1beta1.ClusterSpec) 
 }
 
 func serviceChanged(oldService, newService edgefsv1beta1.S3XSpec) bool {
+	var diff string
+	if !reflect.DeepEqual(oldService, newService) {
+		func() {
+			defer func() {
+				if err := recover(); err != nil {
+					logger.Warningf("Encountered an issue getting S3X service change differences: %v", err)
+				}
+			}()
+
+			// resource.Quantity has non-exportable fields, so we use its comparator method
+			resourceQtyComparer := cmp.Comparer(func(x, y resource.Quantity) bool { return x.Cmp(y) == 0 })
+			diff = cmp.Diff(oldService, newService, resourceQtyComparer)
+			logger.Infof("The S3X Service has changed. diff=%s", diff)
+		}()
+	}
+
+	if len(diff) > 0 {
+		return true
+	}
+
 	return false
 }
 

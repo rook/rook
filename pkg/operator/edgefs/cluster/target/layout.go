@@ -30,6 +30,7 @@ import (
 )
 
 const (
+	// DefaultContainerMaxCapacity - max allowed container disks capacity, if exeeded then new new container will be added
 	DefaultContainerMaxCapacity = "132Ti"
 )
 
@@ -167,17 +168,12 @@ func GetContainersRTDevices(nodeName string, maxContainerCapacity int64, nodeDis
 	}
 
 	containersRtDevices := make([]edgefsv1beta1.RTDevices, len(containers))
-	logger.Infof("Node [%s] target's devices distribution:", nodeName)
 	for i, container := range containers {
 		rtDevices, err := getRTDevices(container, storeConfig)
 		if err != nil {
 			return nil, err
 		}
 
-		// Just for debugging
-		for _, rt := range rtDevices {
-			logger.Infof("[%s] Container[%d] Device: %s, Name: %s, Journal: %s", nodeName, i, rt.Device, rt.Name, rt.Journal)
-		}
 		containersRtDevices[i].Devices = rtDevices
 	}
 	return containersRtDevices, nil

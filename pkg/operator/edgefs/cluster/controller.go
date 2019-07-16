@@ -286,8 +286,8 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 	}
 
 	logger.Infof("update event for cluster %s is supported, orchestrating update now", newCluster.Namespace)
-	logger.Infof("old cluster: %+v", oldCluster.Spec)
-	logger.Infof("new cluster: %+v", newCluster.Spec)
+	logger.Debugf("old cluster: %+v", oldCluster.Spec)
+	logger.Debugf("new cluster: %+v", newCluster.Spec)
 
 	cluster, ok := c.clusterMap[newCluster.Namespace]
 	if !ok {
@@ -375,9 +375,7 @@ func (c *ClusterController) handleDelete(clust *edgefsv1beta1.Cluster, retryInte
 	}
 
 	for _, node := range cluster.targets.Storage.Nodes {
-		k := cluster.Namespace
-		err := cluster.RemoveLabelOffNode(cluster.context.Clientset, node.Name, []string{k})
-		logger.Infof("removed label %s from %s: %+v", k, node.Name, err)
+		cluster.UnlabelTargetNode(node.Name)
 	}
 
 	// delete associated node labels
