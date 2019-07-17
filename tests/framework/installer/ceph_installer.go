@@ -213,6 +213,10 @@ func (h *CephInstaller) CreateK8sRookClusterWithHostPathAndDevices(namespace, sy
 		}
 	}
 
+	sleepSec := 10
+	logger.Infof("Sleeping %ds to give ETCD time to settle...", sleepSec)
+	time.Sleep(time.Duration(sleepSec) * time.Second)
+
 	logger.Infof("Starting Rook Cluster with yaml")
 	settings := &ClusterSettings{namespace, storeType, dataDirHostPath, useAllDevices, mon.Count, rbdMirrorWorkers, cephVersion}
 	rookCluster := h.Manifests.GetRookCluster(settings)
