@@ -119,38 +119,38 @@ func (c *cluster) createInstance(rookImage string, isClusterUpdate bool) error {
 	}
 
 	dro := ParseDevicesResurrectMode(c.Spec.DevicesResurrectMode)
-	logger.Infof("DevicesResurrect mode: '%s' options %+v", c.Spec.DevicesResurrectMode, dro)
+	logger.Infof("DevicesResurrect options: %+v", dro)
 
-	// In case of Cluster update we need to retrieve cluster config from cluster ConfigMap
-	var deploymentConfig edgefsv1beta1.ClusterDeploymentConfig
+	// Retrive existing cluster config from Kubernetes ConfigMap
+	existingConfig, err := c.retrieveDeploymentConfig()
+	if err != nil {
+		return fmt.Errorf("failed to retrive DeploymentConfig for cluster %s. %s", c.Namespace, err)
+	}
 
-	if isClusterUpdate {
+	clusterReconfiguration, err := c.createClusterReconfigurationSpec(existingConfig, clusterNodes, dro)
+	if err != nil {
+		return fmt.Errorf("failed to create Reconfiguration specification for cluster %s. %s", c.Namespace, err)
+	}
 
-		// do not allow DeploymentConfig recover in case of restore option is set. Because there is no devices information in config map
-		if dro.NeedToResurrect {
-			logger.Warningf("Cluster %s targets upgrade not allowed due `restore` option in devicesResurrectMode", c.Namespace)
-		} else {
+	logger.Debugf("Recovered ClusterConfig: %s", ToJSON(existingConfig))
+	c.PrintDeploymentConfig(&clusterReconfiguration.DeploymentConfig)
 
-			deploymentConfig, err = c.retrieveDeploymentConfig(clusterNodes)
-			if err != nil {
-				logger.Errorf("Failed to retrieve deploymentConfig %+v", err)
-				return err
-			}
+	// Unlabel nodes
+	for _, nodeName := range clusterReconfiguration.ClusterNodesToDelete {
+		//c.UnlabelNode(node)
+		logger.Infof("Unlabeling host `%s` as [%s] cluster's target node", nodeName, c.Namespace)
+		c.UnlabelTargetNode(nodeName)
+	}
 
-			logger.Debugf("Recovered deploymentConfig: %+v", deploymentConfig)
-		}
+	for _, nodeName := range clusterReconfiguration.ClusterNodesToAdd {
+		//c.LabelNode(node)
+		logger.Infof("Labeling host `%s` as [%s] cluster's target node", nodeName, c.Namespace)
+		c.LabelTargetNode(nodeName)
+	}
 
-	} else {
-		deploymentConfig, err = c.createDeploymentConfig(clusterNodes, dro)
-		if err != nil {
-			logger.Errorf("Failed to create deploymentConfig %+v", err)
-			return err
-		}
-
-		if err := c.createClusterConfigMap(clusterNodes, deploymentConfig, dro.NeedToResurrect); err != nil {
-			logger.Errorf("Failed to create/update Edgefs cluster configuration: %+v", err)
-			return err
-		}
+	if err := c.createClusterConfigMap(clusterReconfiguration.DeploymentConfig, dro.NeedToResurrect); err != nil {
+		logger.Errorf("Failed to create/update Edgefs cluster configuration: %+v", err)
+		return err
 	}
 
 	//
@@ -159,7 +159,7 @@ func (c *cluster) createInstance(rookImage string, isClusterUpdate bool) error {
 	//
 
 	if c.Spec.SkipHostPrepare == false && dro.NeedToResurrect == false {
-		err = c.prepareHostNodes(rookImage, deploymentConfig)
+		err = c.prepareHostNodes(rookImage, clusterReconfiguration.DeploymentConfig)
 		if err != nil {
 			logger.Errorf("Failed to create preparation jobs. %+v", err)
 		}
@@ -167,17 +167,22 @@ func (c *cluster) createInstance(rookImage string, isClusterUpdate bool) error {
 		logger.Infof("EdgeFS node preparation will be skipped due skipHostPrepare=true or resurrect cluster option")
 	}
 
+	if err := c.createClusterConfigMap(clusterReconfiguration.DeploymentConfig, dro.NeedToResurrect); err != nil {
+		logger.Errorf("Failed to create/update Edgefs cluster configuration: %+v", err)
+		return err
+	}
+
 	//
 	// Create and start EdgeFS Targets StatefulSet
 	//
 
-	// Do not update targets when its clusterUpdate and restore option set.
+	// Do not update targets when clusterUpdate and restore option set.
 	// Because we can't recover information from 'restored' cluster's config map and deploymentConfig is incorrect
 	// Rest of deployments should be updated as is
 	if !(isClusterUpdate && dro.NeedToResurrect) {
 		c.targets = target.New(c.context, c.Namespace, "latest", c.Spec.ServiceAccount, c.Spec.Storage, c.Spec.DataDirHostPath, c.Spec.DataVolumeSize,
 			edgefsv1beta1.GetTargetAnnotations(c.Spec.Annotations), edgefsv1beta1.GetTargetPlacement(c.Spec.Placement), c.Spec.Network,
-			c.Spec.Resources, c.Spec.ResourceProfile, c.Spec.ChunkCacheSize, c.ownerRef, deploymentConfig)
+			c.Spec.Resources, c.Spec.ResourceProfile, c.Spec.ChunkCacheSize, c.ownerRef, clusterReconfiguration.DeploymentConfig)
 
 		err = c.targets.Start(rookImage, clusterNodes, dro)
 		if err != nil {
@@ -191,6 +196,7 @@ func (c *cluster) createInstance(rookImage string, isClusterUpdate bool) error {
 	c.mgrs = mgr.New(c.context, c.Namespace, "latest", c.Spec.ServiceAccount, c.Spec.DataDirHostPath, c.Spec.DataVolumeSize,
 		edgefsv1beta1.GetMgrAnnotations(c.Spec.Annotations), edgefsv1beta1.GetMgrPlacement(c.Spec.Placement), c.Spec.Network, c.Spec.Dashboard,
 		v1.ResourceRequirements{}, c.Spec.ResourceProfile, c.ownerRef)
+
 	err = c.mgrs.Start(rookImage)
 	if err != nil {
 		return fmt.Errorf("failed to start the edgefs mgr. %+v", err)
@@ -261,11 +267,11 @@ func (c *cluster) validateClusterSpec() error {
 	}
 
 	if len(c.Spec.DataDirHostPath) == 0 && c.Spec.DataVolumeSize.Value() == 0 {
-		return fmt.Errorf("DataDirHostPath or DataVolumeSize EdgeFS cluster's options not specified.")
+		return fmt.Errorf("DataDirHostPath or DataVolumeSize EdgeFS cluster's options not specified")
 	}
 
 	if len(c.Spec.DataDirHostPath) > 0 && c.Spec.DataVolumeSize.Value() != 0 {
-		return fmt.Errorf("Both deployment options DataDirHostPath and DataVolumeSize are specified. Should be only one deployment option in cluster specification.")
+		return fmt.Errorf("Both deployment options DataDirHostPath and DataVolumeSize are specified. Should be only one deployment option in cluster specification")
 	}
 
 	if len(c.Spec.Storage.Directories) > 0 &&

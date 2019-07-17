@@ -90,4 +90,30 @@ kubectl exec -it -n $CLUSTER_NAME rook-edgefs-mgr-xxxx-xxx -- toolbox
 efscli system status -v 1
 ```
 
+## EdgeFS Nodes update
+Nodes can be added and removed over time by updating the Cluster CRD, for example with `kubectl edit Cluster -n rook-edgefs`.
+This will bring up your default text editor and allow you to add and remove storage nodes from the cluster.
+This feature is only available when `useAllNodes` has been set to `false` and `resurrect` mode is not used.
 
+### 1. Add node example
+#### a. Edit Cluster CRD `kubectl edit Cluster -n rook-edgefs`
+
+#### b. Add new node section with desired configuration in storage section of Cluster CRD
+
+Currently we adding new node `node3072ub16` with two drives `sdb` and `sdc` on it.
+
+```yaml
+    - config: null
+      devices:
+      - FullPath: ""
+        config: null
+        name: sdb
+      - FullPath: ""
+        config: null
+        name: sdc
+      name: node3072ub16
+      resources: {}
+```
+#### c. Save CRD and operator will update all target nodes and related pods of the EdgeFS cluster.
+
+#### d. Login to EdgeFS mgr toolbox and adjust FlexHash table to a new configuration using `efscli system fhtable` command.

@@ -18,13 +18,14 @@ package target
 
 import (
 	"fmt"
+	"strconv"
+
 	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/operator/edgefs/cluster/target/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"strconv"
 )
 
 const (
@@ -95,6 +96,10 @@ func (c *Cluster) makeCorosyncContainer(containerImage string) v1.Container {
 						FieldPath: "spec.nodeName",
 					},
 				},
+			},
+			{
+				Name:  "K8S_NAMESPACE",
+				Value: c.Namespace,
 			},
 		},
 	}
@@ -406,7 +411,7 @@ func (c *Cluster) createPodSpec(rookImage string, dro edgefsv1beta1.DevicesResur
 
 	if c.deploymentConfig.DeploymentType == edgefsv1beta1.DeploymentRtlfs {
 		// RTLFS with specified folders
-		for _, folder := range c.deploymentConfig.Directories {
+		for _, folder := range c.deploymentConfig.GetRtlfsDevices() {
 			volumes = append(volumes, v1.Volume{
 				Name: folder.Name,
 				VolumeSource: v1.VolumeSource{

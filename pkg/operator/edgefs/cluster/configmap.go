@@ -18,10 +18,8 @@ package cluster
 
 import (
 	"encoding/json"
-	"fmt"
 
 	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/operator/edgefs/cluster/target"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/api/core/v1"
@@ -39,12 +37,12 @@ const (
 // As we relying on StatefulSet, we want to build global ConfigMap shared
 // to all the nodes in the cluster. This way configuration is simplified and
 // available to all subcomponents at any point it time.
-func (c *cluster) createClusterConfigMap(nodes []rookalpha.Node, deploymentConfig edgefsv1beta1.ClusterDeploymentConfig, resurrect bool) error {
+func (c *cluster) createClusterConfigMap(deploymentConfig edgefsv1beta1.ClusterDeploymentConfig, resurrect bool) error {
 
 	cm := make(map[string]edgefsv1beta1.SetupNode)
 
-	dnsRecords := make([]string, len(nodes))
-	for i := 0; i < len(nodes); i++ {
+	dnsRecords := make([]string, len(deploymentConfig.DevConfig))
+	for i := 0; i < len(deploymentConfig.DevConfig); i++ {
 		dnsRecords[i] = target.CreateQualifiedHeadlessServiceName(i, c.Namespace)
 	}
 
@@ -65,8 +63,8 @@ func (c *cluster) createClusterConfigMap(nodes []rookalpha.Node, deploymentConfi
 	}
 
 	// Fully resolve the storage config and resources for all nodes
-	for _, node := range nodes {
-		devConfig := deploymentConfig.DevConfig[node.Name]
+	for nodeName := range deploymentConfig.DevConfig {
+		devConfig := deploymentConfig.DevConfig[nodeName]
 		rtDevices := devConfig.Rtrd.Devices
 		rtSlaveDevices := devConfig.RtrdSlaves
 		rtlfsDevices := devConfig.Rtlfs.Devices
@@ -146,9 +144,9 @@ func (c *cluster) createClusterConfigMap(nodes []rookalpha.Node, deploymentConfi
 			nodeConfig.Ccowd.BgConfig.TrlogDeleteAfterHours = c.Spec.TrlogKeepDays * 24
 		}
 
-		cm[node.Name] = nodeConfig
+		cm[nodeName] = nodeConfig
 
-		logger.Debugf("Resolved Node %s = %+v", node.Name, cm[node.Name])
+		logger.Debugf("Resolved Node %s = %+v", nodeName, cm[nodeName])
 	}
 
 	nesetupJson, err := json.Marshal(&cm)
@@ -178,78 +176,5 @@ func (c *cluster) createClusterConfigMap(nodes []rookalpha.Node, deploymentConfi
 		}
 	}
 
-	// Success. Do the labeling so that StatefulSet scheduler will
-	// select the right nodes.
-	for _, node := range nodes {
-		k := c.Namespace
-		err = c.AddLabelsToNode(c.context.Clientset, node.Name, map[string]string{k: "cluster"})
-		logger.Debugf("added label %s from %s: %+v", k, node.Name, err)
-	}
-
 	return nil
-}
-
-func (c *cluster) retrieveDeploymentConfig(nodes []rookalpha.Node) (edgefsv1beta1.ClusterDeploymentConfig, error) {
-
-	deploymentConfig := edgefsv1beta1.ClusterDeploymentConfig{
-		DevConfig: make(map[string]edgefsv1beta1.DevicesConfig, 0),
-	}
-
-	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(configName, metav1.GetOptions{})
-	if err != nil {
-		return deploymentConfig, err
-	}
-
-	setup := map[string]edgefsv1beta1.SetupNode{}
-	if nesetup, ok := cm.Data["nesetup"]; ok {
-		err = json.Unmarshal([]byte(nesetup), &setup)
-		if err != nil {
-			logger.Errorf("invalid JSON in cluster configmap. %+v", err)
-		}
-
-		deploymentTypeAchived := false
-		for _, node := range nodes {
-			if nodeConfig, ok := setup[node.Name]; ok {
-				devicesConfig := edgefsv1beta1.DevicesConfig{}
-
-				devicesConfig.Rtlfs = nodeConfig.Rtlfs
-				devicesConfig.Rtrd = nodeConfig.Rtrd
-				devicesConfig.RtrdSlaves = nodeConfig.RtrdSlaves
-
-				devicesConfig.IsGatewayNode = false
-				if nodeConfig.NodeType == "gateway" {
-					devicesConfig.IsGatewayNode = true
-				}
-				devicesConfig.Zone = nodeConfig.Ccowd.Zone
-				deploymentConfig.DevConfig[node.Name] = devicesConfig
-
-				// we can't detect deployment type on gw node, move to next one
-				if !devicesConfig.IsGatewayNode && !deploymentTypeAchived {
-					if len(nodeConfig.Rtrd.Devices) > 0 {
-						deploymentConfig.DeploymentType = edgefsv1beta1.DeploymentRtrd
-						deploymentConfig.TransportKey = "rtrd"
-						deploymentConfig.NeedPrivileges = true
-					} else if len(nodeConfig.Rtlfs.Devices) > 0 {
-						deploymentConfig.DeploymentType = edgefsv1beta1.DeploymentRtlfs
-						deploymentConfig.TransportKey = "rtlfs"
-					} else if len(nodeConfig.RtlfsAutodetect) > 0 {
-						deploymentConfig.DeploymentType = edgefsv1beta1.DeploymentAutoRtlfs
-						deploymentConfig.TransportKey = "rtlfs"
-					}
-
-					// hostNetwork option specified
-					if nodeConfig.Ccowd.Network.ServerInterfaces != "eth0" {
-						deploymentConfig.NeedPrivileges = true
-					}
-					deploymentTypeAchived = true
-				}
-			}
-		}
-
-		if deploymentConfig.DeploymentType == "" || deploymentConfig.TransportKey == "" {
-			return deploymentConfig, fmt.Errorf("Can't retrieve DeploymentConfig from config map. Unknown DeploymentType or TransportKey values")
-		}
-	}
-
-	return deploymentConfig, nil
 }

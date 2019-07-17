@@ -43,7 +43,7 @@ func TestStorageSpecConfig(t *testing.T) {
 				Name:     "node1",
 				Location: "zone1",
 				Config: map[string]string{
-					"rtTransport":        "rtrd",
+					"rtTransport":        edgefsv1beta1.DeploymentRtrd,
 					"useAllSSD":          "true",
 					"useMetadataOffload": "false",
 				},

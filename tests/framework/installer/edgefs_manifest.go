@@ -173,7 +173,7 @@ spec:
       serviceAccountName: rook-edgefs-system
       containers:
       - name: rook-edgefs-operator
-        image: edgefs/edgefs-operator:v1beta1 #JUST FOR TRANSITION TO Beta1. MUST BE CHANGED TO rook/edgefs:master after merge
+        image: rook/edgefs:master
         imagePullPolicy: "Always"
         args: ["edgefs", "operator"]
         env:
