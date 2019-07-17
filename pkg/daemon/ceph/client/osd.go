@@ -69,6 +69,40 @@ type SafeToDestroyStatus struct {
 	SafeToDestroy []int `json:"safe_to_destroy"`
 }
 
+// OsdTree represents the CRUSH hierarchy
+type OsdTree struct {
+	Nodes []struct {
+		ID          int    `json:"id"`
+		Name        string `json:"name"`
+		Type        string `json:"type"`
+		TypeID      int    `json:"type_id"`
+		Children    []int  `json:"children,omitempty"`
+		PoolWeights struct {
+		} `json:"pool_weights,omitempty"`
+		CrushWeight     float64 `json:"crush_weight,omitempty"`
+		Depth           int     `json:"depth,omitempty"`
+		Exists          int     `json:"exists,omitempty"`
+		Status          string  `json:"status,omitempty"`
+		Reweight        float64 `json:"reweight,omitempty"`
+		PrimaryAffinity float64 `json:"primary_affinity,omitempty"`
+	} `json:"nodes"`
+	Stray []struct {
+		ID              int     `json:"id"`
+		Name            string  `json:"name"`
+		Type            string  `json:"type"`
+		TypeID          int     `json:"type_id"`
+		CrushWeight     float64 `json:"crush_weight"`
+		Depth           int     `json:"depth"`
+		Exists          int     `json:"exists"`
+		Status          string  `json:"status"`
+		Reweight        float64 `json:"reweight"`
+		PrimaryAffinity float64 `json:"primary_affinity"`
+	} `json:"stray"`
+}
+
+// OsdList returns the list of OSD by their IDs
+type OsdList []int
+
 // StatusByID returns status and inCluster states for given OSD id
 func (dump *OSDDump) StatusByID(id int64) (int64, int64, error) {
 	for _, d := range dump.OSDs {
@@ -180,4 +214,40 @@ func (usage *OSDUsage) ByID(osdID int) *OSDNodeUsage {
 	}
 
 	return nil
+}
+
+// HostTree returns the osd tree
+func HostTree(context *clusterd.Context, clusterName string) (OsdTree, error) {
+	var output OsdTree
+
+	args := []string{"osd", "tree"}
+	buf, err := NewCephCommand(context, clusterName, args).Run()
+	if err != nil {
+		return output, fmt.Errorf("failed to get osd tree: %+v", err)
+	}
+
+	err = json.Unmarshal(buf, &output)
+	if err != nil {
+		return output, fmt.Errorf("failed to unmarshal 'osd tree' response: %+v", err)
+	}
+
+	return output, nil
+}
+
+// OsdListNum returns the list of OSDs
+func OsdListNum(context *clusterd.Context, clusterName string) (OsdList, error) {
+	var output OsdList
+
+	args := []string{"osd", "ls"}
+	buf, err := NewCephCommand(context, clusterName, args).Run()
+	if err != nil {
+		return output, fmt.Errorf("failed to get osd list: %+v", err)
+	}
+
+	err = json.Unmarshal(buf, &output)
+	if err != nil {
+		return output, fmt.Errorf("failed to unmarshal 'osd ls' response: %+v", err)
+	}
+
+	return output, nil
 }

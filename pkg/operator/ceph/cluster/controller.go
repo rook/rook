@@ -29,6 +29,7 @@ import (
 	cephbeta "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
@@ -37,6 +38,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	objectuser "github.com/rook/rook/pkg/operator/ceph/object/user"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
@@ -281,6 +283,16 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		logger.Warningf("mon count is even (given: %d), should be uneven, continuing", cluster.Spec.Mon.Count)
 	}
 
+	// Try to load clusterInfo early so we can compare the running version with the one from the spec image
+	cluster.Info, _, _, err = mon.LoadClusterInfo(c.context, cluster.Namespace)
+	if err == nil {
+		// Let's write connection info (ceph config file and keyring) to the operator for health checks
+		err = mon.WriteConnectionConfig(cluster.context, cluster.Info)
+		if err != nil {
+			return
+		}
+	}
+
 	// Start the Rook cluster components. Retry several times in case of failure.
 	validOrchestration := true
 	err = wait.Poll(clusterCreateInterval, clusterCreateTimeout, func() (bool, error) {
@@ -297,6 +309,45 @@ func (c *ClusterController) onAdd(obj interface{}) {
 				validOrchestration = false
 				// it may seem strange to log error and exit true but we don't want to retry if the version is not supported
 				return true, nil
+			}
+		}
+
+		// This tries to determine if the operator was restarted and we loss the state
+		// If the cluster was unhealthy and someone injected a new image version, an upgrade was triggered but failed because the cluster is not healthy
+		// Then after this, if the operator gets restarted we are not able to fail if the cluster is not healthy, the following tries to determine the
+		// state we are in and if we should upgrade or not
+		//
+		// If not initialized, this is likely a new cluster so there is nothing to do
+		if cluster.Info.IsInitialized() {
+			imageVersion := *cephVersion
+
+			// Get cluster running versions
+			versions, err := client.GetAllCephDaemonVersions(c.context, cluster.Namespace)
+			if err != nil {
+				logger.Errorf("failed to get ceph daemons versions. %+v", err)
+				return false, err
+			}
+
+			runningVersions := *versions
+			updateOrNot, err := diffImageSpecAndClusterRunningVersion(imageVersion, runningVersions)
+			if err != nil {
+				logger.Errorf("failed to determine if we should upgrade or not. %+v", err)
+				// we shouldn't block the orchestration if we can't determine the version of the image spec, we proceed anyway in best effort
+				// we won't be able to check if there is an update or not and what to do, so we don't check the cluster status either
+				// will happen if someone uses ceph/daemon:latest-master for instance
+				validOrchestration = false
+				return true, nil
+			}
+
+			if updateOrNot {
+				// If the image version changed let's make sure we can safely upgrade
+				// check ceph's status, if not healthy we fail
+				cephStatus := client.IsCephHealthy(c.context, cluster.Namespace)
+				if !cephStatus {
+					logger.Errorf("ceph status in namespace %s is not healthy, refusing to upgrade. fix the cluster and re-edit the cluster CR to trigger a new orchestation update", cluster.Namespace)
+					validOrchestration = false
+					return true, nil
+				}
 			}
 		}
 
@@ -495,9 +546,11 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 	logger.Infof("update event for cluster %s is supported, orchestrating update now", newClust.Namespace)
 
 	// if the image changed, we need to detect the new image version
+	versionChanged := false
 	if oldClust.Spec.CephVersion.Image != newClust.Spec.CephVersion.Image {
 		logger.Infof("the ceph version changed. detecting the new image version...")
 		version, err := cluster.detectCephVersion(c.rookImage, newClust.Spec.CephVersion.Image, detectCephVersionTimeout)
+		versionChanged = true
 		if err != nil {
 			logger.Errorf("unknown ceph major version. %+v", err)
 			return
@@ -533,6 +586,35 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 
 	cluster.Spec = &newClust.Spec
 
+	// Get cluster running versions
+	versions, err := client.GetAllCephDaemonVersions(c.context, cluster.Namespace)
+	if err != nil {
+		logger.Errorf("failed to get ceph daemons versions. %+v", err)
+		return
+	}
+	runningVersions := *versions
+
+	// If the image version changed let's make sure we can safely upgrade
+	if versionChanged {
+		updateOrNot, err := diffImageSpecAndClusterRunningVersion(cluster.Info.CephVersion, runningVersions)
+		if err != nil {
+			logger.Errorf("failed to determine if we should upgrade or not. %+v", err)
+			return
+		}
+
+		if updateOrNot {
+			// If the image version changed let's make sure we can safely upgrade
+			// check ceph's status, if not healthy we fail
+			cephStatus := client.IsCephHealthy(c.context, cluster.Namespace)
+			if !cephStatus {
+				logger.Errorf("ceph status in namespace %s is not healthy, refusing to upgrade. fix the cluster and re-edit the cluster CR to trigger a new orchestation update", cluster.Namespace)
+				return
+			}
+		}
+	} else {
+		logger.Infof("ceph daemons running versions are: %+v", runningVersions)
+	}
+
 	// attempt to update the cluster.  note this is done outside of wait.Poll because that function
 	// will wait for the retry interval before trying for the first time.
 	done, _ := c.handleUpdate(newClust.Name, cluster)
@@ -550,6 +632,11 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 			logger.Errorf("failed to update cluster status in namespace %s: %+v", newClust.Namespace, err)
 		}
 		return
+	}
+
+	// Display success after upgrade
+	if versionChanged {
+		printOverallCephVersion(c.context, cluster.Namespace)
 	}
 }
 
@@ -829,5 +916,28 @@ func ClusterOwnerRef(namespace, clusterID string) metav1.OwnerReference {
 		Name:               namespace,
 		UID:                types.UID(clusterID),
 		BlockOwnerDeletion: &blockOwner,
+	}
+}
+
+func printOverallCephVersion(context *clusterd.Context, namespace string) {
+	versions, err := client.GetAllCephDaemonVersions(context, namespace)
+	if err != nil {
+		logger.Errorf("failed to get ceph daemons versions. %+v", err)
+		return
+	}
+
+	if len(versions.Overall) == 1 {
+		for v := range versions.Overall {
+			version, err := cephver.ExtractCephVersion(v)
+			if err != nil {
+				logger.Errorf("failed to extract ceph version. %+v", err)
+				return
+			}
+			vv := *version
+			logger.Infof("successfully upgraded cluster to version: %s", vv.String())
+		}
+	} else {
+		// This shouldn't happen, but let's log just in case
+		logger.Warningf("upgrade orchestration completed but somehow we still have more than one Ceph version running. %+v:", versions.Overall)
 	}
 }

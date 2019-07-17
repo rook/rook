@@ -30,6 +30,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
@@ -258,4 +259,48 @@ func (c *cluster) checkSetOrchestrationStatus() bool {
 	}
 
 	return false
+}
+
+// This function compare the Ceph spec image and the cluster running version
+// It returns false if the image is different and true if identical
+func diffImageSpecAndClusterRunningVersion(imageSpecVersion cephver.CephVersion, runningVersions client.CephDaemonsVersions) (bool, error) {
+	numberOfCephVersions := len(runningVersions.Overall)
+	if numberOfCephVersions == 0 {
+		// let's return immediatly
+		return false, fmt.Errorf("no 'overall' section in the ceph versions. %+v", runningVersions.Overall)
+	}
+
+	if numberOfCephVersions > 1 {
+		// let's return immediatly
+		logger.Warningf("it looks like we have more than one ceph version running. triggering upgrade. %+v:", runningVersions.Overall)
+		return true, nil
+	}
+
+	if numberOfCephVersions == 1 {
+		for v := range runningVersions.Overall {
+			version, err := cephver.ExtractCephVersion(v)
+			if err != nil {
+				logger.Errorf("failed to extract ceph version. %+v", err)
+				return false, err
+			}
+			clusterRunningVersion := *version
+
+			// If this is the same version
+			if cephver.IsIdentical(clusterRunningVersion, imageSpecVersion) {
+				logger.Debugf("both cluster and image spec versions are identical, doing nothing %s", imageSpecVersion.String())
+				return false, nil
+			}
+
+			if cephver.IsSuperior(imageSpecVersion, clusterRunningVersion) {
+				logger.Infof("image spec version %s is higher than the running cluster version %s, upgrading", imageSpecVersion.String(), clusterRunningVersion.String())
+				return true, nil
+			}
+
+			if cephver.IsInferior(imageSpecVersion, clusterRunningVersion) {
+				return true, fmt.Errorf("image spec version %s is lower than the running cluster version %s, downgrading is not supported", imageSpecVersion.String(), clusterRunningVersion.String())
+			}
+		}
+	}
+
+	return false, nil
 }

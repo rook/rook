@@ -1,3 +1,19 @@
+/*
+Copyright 2019 The Rook Authors. All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package version
 
 import (
@@ -149,4 +165,59 @@ func (v *CephVersion) IsAtLeastNautilus() bool {
 // IsAtLeastMimic check that the Ceph version is at least Mimic
 func (v *CephVersion) IsAtLeastMimic() bool {
 	return v.IsAtLeast(Mimic)
+}
+
+// IsIdentical checks if Ceph versions are identical
+func IsIdentical(a, b CephVersion) bool {
+	if a.Major == b.Major {
+		if a.Minor == b.Minor {
+			if a.Extra == b.Extra {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// IsSuperior checks if a given version if superior to another one
+func IsSuperior(a, b CephVersion) bool {
+	if a.Major > b.Major {
+		return true
+	}
+	if a.Major == b.Major {
+		if a.Minor > b.Minor {
+			return true
+		}
+	}
+	if a.Major == b.Major {
+		if a.Minor == b.Minor {
+			if a.Extra > b.Extra {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// IsInferior checks if a given version if inferior to another one
+func IsInferior(a, b CephVersion) bool {
+	if a.Major < b.Major {
+		return true
+	}
+	if a.Major == b.Major {
+		if a.Minor < b.Minor {
+			return true
+		}
+	}
+	if a.Major == b.Major {
+		if a.Minor == b.Minor {
+			if a.Extra < b.Extra {
+				return true
+			}
+		}
+	}
+
+	return false
 }

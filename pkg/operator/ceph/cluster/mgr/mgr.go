@@ -29,8 +29,10 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -106,7 +108,7 @@ func New(
 	}
 }
 
-var updateDeploymentAndWait = k8sutil.UpdateDeploymentAndWait
+var updateDeploymentAndWait = mon.UpdateCephDeploymentAndWait
 
 // Start begins the process of running a cluster of Ceph mgrs.
 func (c *Cluster) Start() error {
@@ -151,7 +153,19 @@ func (c *Cluster) Start() error {
 				return fmt.Errorf("failed to create mgr deployment %s. %+v", resourceName, err)
 			}
 			logger.Infof("deployment for mgr %s already exists. updating if needed", resourceName)
-			if _, err := updateDeploymentAndWait(c.context, d, c.Namespace); err != nil {
+			// Always invoke ceph version before an upgrade so we are sure to be up-to-date
+			daemon := string(config.MgrType)
+			var cephVersionToUse cephver.CephVersion
+			currentCephVersion, err := client.LeastUptodateDaemonVersion(c.context, c.clusterInfo.Name, daemon)
+			if err != nil {
+				logger.Warningf("failed to retrieve current ceph %s version. %+v", daemon, err)
+				logger.Debug("could not detect ceph version during update, this is likely an initial bootstrap, proceeding with c.clusterInfo.CephVersion")
+				cephVersionToUse = c.clusterInfo.CephVersion
+			} else {
+				logger.Debugf("current cluster version for mgrs before upgrading is: %+v", currentCephVersion)
+				cephVersionToUse = currentCephVersion
+			}
+			if err := updateDeploymentAndWait(c.context, d, c.Namespace, daemon, mgrConfig.DaemonID, cephVersionToUse); err != nil {
 				return fmt.Errorf("failed to update mgr deployment %s. %+v", resourceName, err)
 			}
 		}

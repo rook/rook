@@ -25,8 +25,10 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,29 +54,12 @@ const (
 	oldRgwKeyName = "client.radosgw.gateway"
 )
 
-// Start the rgw manager
-func (c *clusterConfig) createStore() error {
-	return c.createOrUpdate(false)
-}
+var updateDeploymentAndWait = mon.UpdateCephDeploymentAndWait
 
-func (c *clusterConfig) updateStore() error {
-	return c.createOrUpdate(true)
-}
-
-func (c *clusterConfig) createOrUpdate(update bool) error {
+func (c *clusterConfig) createOrUpdate() error {
 	// validate the object store settings
 	if err := validateStore(c.context, c.store); err != nil {
 		return fmt.Errorf("invalid object store %s arguments. %+v", c.store.Name, err)
-	}
-
-	// check if the object store already exists
-	exists, err := c.storeExists()
-	if err == nil && exists {
-		if !update {
-			logger.Infof("object store %s exists in namespace %s", c.store.Name, c.store.Namespace)
-			return c.startRGWPods(update)
-		}
-		logger.Infof("object store %s exists in namespace %s. checking for updates", c.store.Name, c.store.Namespace)
 	}
 
 	logger.Infof("creating object store %s in namespace %s", c.store.Name, c.store.Namespace)
@@ -92,7 +77,7 @@ func (c *clusterConfig) createOrUpdate(update bool) error {
 		return fmt.Errorf("failed to create pools. %+v", err)
 	}
 
-	if err := c.startRGWPods(update); err != nil {
+	if err := c.startRGWPods(); err != nil {
 		return fmt.Errorf("failed to start pods. %+v", err)
 	}
 
@@ -100,7 +85,7 @@ func (c *clusterConfig) createOrUpdate(update bool) error {
 	return nil
 }
 
-func (c *clusterConfig) startRGWPods(update bool) error {
+func (c *clusterConfig) startRGWPods() error {
 	// backward compatibility, triggered during updates
 	if c.store.Spec.Gateway.AllNodes {
 		// log we don't support that anymore
@@ -117,6 +102,8 @@ func (c *clusterConfig) startRGWPods(update bool) error {
 	// start a new deployment and scale up
 	desiredRgwInstances := int(c.store.Spec.Gateway.Instances)
 	for i := 0; i < desiredRgwInstances; i++ {
+		var err error
+
 		daemonLetterID := k8sutil.IndexToName(i)
 		// Each rgw is id'ed by <store_name>-<letterID>
 		daemonName := fmt.Sprintf("%s-%s", c.store.Name, daemonLetterID)
@@ -128,13 +115,22 @@ func (c *clusterConfig) startRGWPods(update bool) error {
 			DaemonID:     daemonName,
 		}
 
-		deployment, err := c.startDeployment(rgwConfig)
-		if err != nil {
-			return err
+		deployment := c.createDeployment(rgwConfig)
+		logger.Infof("object store %s deployment %s started", c.store.Name, deployment.Name)
+		createdDeployment, createErr := c.context.Clientset.AppsV1().Deployments(c.store.Namespace).Create(deployment)
+		if createErr != nil {
+			if !errors.IsAlreadyExists(createErr) {
+				return fmt.Errorf("failed to create rgw deployment. %+v", createErr)
+			}
+			logger.Infof("object store %s deployment %s already exists. updating if needed", c.store.Name, deployment.Name)
+			createdDeployment, err = c.context.Clientset.AppsV1().Deployments(c.store.Namespace).Get(deployment.Name, metav1.GetOptions{})
+			if err != nil {
+				return fmt.Errorf("failed to get existing rgw deployment %s for update: %+v", deployment.Name, err)
+			}
 		}
 
 		resourceControllerOwnerRef := &metav1.OwnerReference{
-			UID:        deployment.UID,
+			UID:        createdDeployment.UID,
 			APIVersion: "v1",
 			Kind:       "deployment",
 			Name:       rgwConfig.ResourceName,
@@ -148,6 +144,25 @@ func (c *clusterConfig) startRGWPods(update bool) error {
 		}
 
 		// Generate the mime.types file after the rep. controller as well for the same reason as keyring
+		if createErr != nil && errors.IsAlreadyExists(createErr) {
+			// Always invoke ceph version before an upgrade so we are sure to be up-to-date
+			daemon := string(config.RgwType)
+			var cephVersionToUse cephver.CephVersion
+			currentCephVersion, err := client.LeastUptodateDaemonVersion(c.context, c.clusterInfo.Name, daemon)
+			if err != nil {
+				logger.Warningf("failed to retrieve current ceph %s version. %+v", daemon, err)
+				logger.Debug("could not detect ceph version during update, this is likely an initial bootstrap, proceeding with c.clusterInfo.CephVersion")
+				cephVersionToUse = c.clusterInfo.CephVersion
+
+			} else {
+				logger.Debugf("current cluster version for rgws before upgrading is: %+v", currentCephVersion)
+				cephVersionToUse = currentCephVersion
+			}
+			if err := updateDeploymentAndWait(c.context, deployment, c.store.Namespace, daemon, daemonLetterID, cephVersionToUse); err != nil {
+				return fmt.Errorf("failed to update object store %s deployment %s. %+v", c.store.Name, deployment.Name, err)
+			}
+		}
+
 		if err := c.generateMimeTypes(resourceControllerOwnerRef); err != nil {
 			return fmt.Errorf("failed to generate the rgw mime.types config. %+v", err)
 		}
@@ -239,16 +254,6 @@ func (c *clusterConfig) deleteLegacyDaemons() {
 // Delete the object store.
 // WARNING: This is a very destructive action that deletes all metadata and data pools.
 func (c *clusterConfig) deleteStore() error {
-	// check if the object store exists
-	exists, err := c.storeExists()
-	if err != nil {
-		return fmt.Errorf("failed to detect if there is an object store to delete. %+v", err)
-	}
-	if !exists {
-		logger.Infof("Object store %s does not exist in namespace %s", c.store.Name, c.store.Namespace)
-		return nil
-	}
-
 	logger.Infof("Deleting object store %s from namespace %s", c.store.Name, c.store.Namespace)
 
 	var gracePeriod int64
@@ -256,7 +261,7 @@ func (c *clusterConfig) deleteStore() error {
 	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
 
 	// Delete the rgw service
-	err = c.context.Clientset.CoreV1().Services(c.store.Namespace).Delete(c.instanceName(), options)
+	err := c.context.Clientset.CoreV1().Services(c.store.Namespace).Delete(c.instanceName(), options)
 	if err != nil && !errors.IsNotFound(err) {
 		logger.Warningf("failed to delete rgw service. %+v", err)
 	}
@@ -297,32 +302,6 @@ func (c *clusterConfig) deleteStore() error {
 
 	logger.Infof("Completed deleting object store %s", c.store.Name)
 	return nil
-}
-
-// Check if the object store exists depending on either the deployment or the daemonset
-func (c *clusterConfig) storeExists() (bool, error) {
-	d, err := k8sutil.GetDeployments(c.context.Clientset, c.store.Namespace, c.storeLabelSelector())
-	// k8sutil.GetDeployments can return an empty list!
-	if err == nil && len(d.Items) != 0 {
-		// the deployment was found
-		return true, nil
-	}
-	if err != nil && !errors.IsNotFound(err) {
-		return false, err
-	}
-
-	dd, err := k8sutil.GetDaemonsets(c.context.Clientset, c.store.Namespace, c.storeLabelSelector())
-	// k8sutil.GetDaemonsets can return an empty list!
-	if err == nil && len(dd.Items) != 0 {
-		//  the daemonset was found
-		return true, nil
-	}
-	if err != nil && !errors.IsNotFound(err) {
-		return false, err
-	}
-
-	// neither one was found
-	return false, nil
 }
 
 func (c *clusterConfig) instanceName() string {

@@ -52,6 +52,7 @@ type CephStatus struct {
 	} `json:"osdmap"`
 	PgMap  PgMap  `json:"pgmap"`
 	MgrMap MgrMap `json:"mgrmap"`
+	Fsmap  Fsmap  `json:"fsmap"`
 }
 
 type HealthStatus struct {
@@ -123,6 +124,23 @@ type PgStateEntry struct {
 	Count     int    `json:"count"`
 }
 
+// Fsmap is a struct representing the filesystem map
+type Fsmap struct {
+	Epoch  int `json:"epoch"`
+	ID     int `json:"id"`
+	Up     int `json:"up"`
+	In     int `json:"in"`
+	Max    int `json:"max"`
+	ByRank []struct {
+		FilesystemID int    `json:"filesystem_id"`
+		Rank         int    `json:"rank"`
+		Name         string `json:"name"`
+		Status       string `json:"status"`
+		Gid          int    `json:"gid"`
+	} `json:"by_rank"`
+	UpStandby int `json:"up:standby"`
+}
+
 func Status(context *clusterd.Context, clusterName string, debug bool) (CephStatus, error) {
 	args := []string{"status"}
 	cmd := NewCephCommand(context, clusterName, args)
@@ -170,4 +188,72 @@ func isClusterClean(status CephStatus) error {
 	}
 
 	return fmt.Errorf("cluster is not fully clean. PGs: %+v", status.PgMap.PgsByState)
+}
+
+// getMDSRank returns the rank of a given MDS
+func getMDSRank(status CephStatus, clusterName, fsName string) (int, error) {
+	// dummy rank
+	mdsRank := -1000
+	for r := range status.Fsmap.ByRank {
+		if status.Fsmap.ByRank[r].Name == fsName {
+			mdsRank = r
+		}
+	}
+	// if the mds is not shown in the map one reason might be because it's in standby
+	// if not in standby there is something else going wron
+	if mdsRank < 0 && status.Fsmap.UpStandby < 1 {
+		// it might seem strange to log an error since this could be a warning too
+		// it is a warning until we reach the timeout, this should give enough time to the mds to transtion its state
+		// after the timeout we consider that the mds might be gone or the timeout was not long enough...
+		return mdsRank, fmt.Errorf("mds %s not found in fsmap, this likely means mdss are transitioning between active and standby states", fsName)
+	}
+
+	return mdsRank, nil
+}
+
+// MdsActiveOrStandbyReplay returns wether a given MDS is active or in standby
+func MdsActiveOrStandbyReplay(context *clusterd.Context, clusterName, fsName string) error {
+	status, err := Status(context, clusterName, false)
+	if err != nil {
+		return fmt.Errorf("failed to get ceph status. %+v", err)
+	}
+
+	mdsRank, err := getMDSRank(status, clusterName, fsName)
+	if err != nil {
+		return fmt.Errorf("%+v", err)
+	}
+
+	// this MDS is in standby so let's return immediatly
+	if mdsRank < 0 {
+		logger.Infof("mds %s is in standby, nothing to check", fsName)
+		return nil
+	}
+
+	if status.Fsmap.ByRank[mdsRank].Status == "up:active" || status.Fsmap.ByRank[mdsRank].Status == "up:standby-replay" || status.Fsmap.ByRank[mdsRank].Status == "up:standby" {
+		logger.Infof("mds %s is %s", fsName, status.Fsmap.ByRank[mdsRank].Status)
+		return nil
+	}
+
+	return fmt.Errorf("mds %s is %s, bad state", fsName, status.Fsmap.ByRank[mdsRank].Status)
+}
+
+// IsCephHealthy verifies Ceph is healthy, useful when performing an upgrade
+// check if it's a minor or major upgrade... too!
+func IsCephHealthy(context *clusterd.Context, clusterName string) bool {
+	cephStatus, err := Status(context, clusterName, false)
+	if err != nil {
+		logger.Errorf("failed to detect if Ceph is healthy. failed to get ceph status. %+v", err)
+		return false
+	}
+
+	return isCephHealthy(cephStatus)
+}
+
+func isCephHealthy(status CephStatus) bool {
+	s := status.Health.Status
+	if s == "HEALTH_WARN" || s == "HEALTH_OK" {
+		return true
+	}
+
+	return false
 }

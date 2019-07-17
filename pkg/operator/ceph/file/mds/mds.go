@@ -27,6 +27,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
@@ -94,7 +95,7 @@ func NewCluster(
 }
 
 // UpdateDeploymentAndWait can be overridden for unit tests. Do not alter this for runtime operation.
-var UpdateDeploymentAndWait = k8sutil.UpdateDeploymentAndWait
+var UpdateDeploymentAndWait = mon.UpdateCephDeploymentAndWait
 
 // Start starts or updates a Ceph mds cluster in Kubernetes.
 func (c *Cluster) Start() error {
@@ -155,7 +156,20 @@ func (c *Cluster) Start() error {
 		// keyring must be generated before update-and-wait since no keyring will prevent the
 		// deployment from reaching ready state
 		if createErr != nil && errors.IsAlreadyExists(createErr) {
-			if _, err = UpdateDeploymentAndWait(c.context, d, c.fs.Namespace); err != nil {
+			// Always invoke ceph version before an upgrade so we are sure to be up-to-date
+			daemon := string(config.MdsType)
+			var cephVersionToUse cephver.CephVersion
+			currentCephVersion, err := client.LeastUptodateDaemonVersion(c.context, c.clusterInfo.Name, daemon)
+			if err != nil {
+				logger.Warningf("failed to retrieve current ceph %s version. %+v", daemon, err)
+				logger.Debug("could not detect ceph version during update, this is likely an initial bootstrap, proceeding with c.clusterInfo.CephVersion")
+				cephVersionToUse = c.clusterInfo.CephVersion
+
+			} else {
+				logger.Debugf("current cluster version for mdss before upgrading is: %+v", currentCephVersion)
+				cephVersionToUse = currentCephVersion
+			}
+			if err = UpdateDeploymentAndWait(c.context, d, c.fs.Namespace, daemon, daemonLetterID, cephVersionToUse); err != nil {
 				return fmt.Errorf("failed to update mds deployment %s. %+v", d.Name, err)
 			}
 		}

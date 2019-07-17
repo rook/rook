@@ -2,8 +2,8 @@ package test
 
 import (
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/operator/ceph/version"
 	apps "k8s.io/api/apps/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // UpdateDeploymentAndWaitStub returns a stub replacement for the UpdateDeploymentAndWait function
@@ -15,13 +15,13 @@ import (
 // returns a pointer to this slice which the calling func may use to verify the expected contents of
 // deploymentsUpdated based on expected behavior.
 func UpdateDeploymentAndWaitStub() (
-	stubFunc func(context *clusterd.Context, deployment *apps.Deployment, namespace string) (*apps.Deployment, error),
+	stubFunc func(context *clusterd.Context, deployment *apps.Deployment, namespace, daemonType, daemonName string, cephVersion version.CephVersion) error,
 	deploymentsUpdated *[]*apps.Deployment,
 ) {
 	deploymentsUpdated = &[]*apps.Deployment{}
-	stubFunc = func(context *clusterd.Context, deployment *apps.Deployment, namespace string) (*apps.Deployment, error) {
+	stubFunc = func(context *clusterd.Context, deployment *apps.Deployment, namespace, daemonType, daemonName string, cephVersion version.CephVersion) error {
 		*deploymentsUpdated = append(*deploymentsUpdated, deployment)
-		return &apps.Deployment{ObjectMeta: metav1.ObjectMeta{UID: "stub-deployment-uid"}}, nil
+		return nil
 	}
 	return stubFunc, deploymentsUpdated
 }

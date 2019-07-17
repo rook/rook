@@ -131,7 +131,13 @@ func (c *Cluster) Start(rookImage string) error {
 			return fmt.Errorf("failed to create %s deployment. %+v", appName, err)
 		}
 		logger.Infof("deployment for mgr %s already exists. updating if needed", appName)
-		if _, err := k8sutil.UpdateDeploymentAndWait(c.context, deployment, c.Namespace); err != nil {
+
+		// placeholder for a verify callback
+		// see comments on k8sutil.UpdateDeploymentAndWait's definition to understand its purpose
+		callback := func(action string) error {
+			return nil
+		}
+		if _, err := k8sutil.UpdateDeploymentAndWait(c.context, deployment, c.Namespace, callback); err != nil {
 			return fmt.Errorf("failed to update mgr deployment %s. %+v", appName, err)
 		}
 	} else {

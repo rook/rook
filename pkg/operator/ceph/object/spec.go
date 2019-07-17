@@ -29,7 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func (c *clusterConfig) startDeployment(rgwConfig *rgwConfig) (*apps.Deployment, error) {
+func (c *clusterConfig) createDeployment(rgwConfig *rgwConfig) *apps.Deployment {
 	replicas := int32(1)
 	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -53,31 +53,7 @@ func (c *clusterConfig) startDeployment(rgwConfig *rgwConfig) (*apps.Deployment,
 	opspec.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, d)
 	k8sutil.SetOwnerRefs(&d.ObjectMeta, c.ownerRefs)
 
-	logger.Debugf("starting rgw deployment: %+v", d)
-	deployment, err := c.context.Clientset.AppsV1().Deployments(c.store.Namespace).Get(d.Name, metav1.GetOptions{})
-	if err != nil && !errors.IsNotFound(err) {
-		return nil, fmt.Errorf("failed to see if rgw deployment %s already exists. %+v", d.Name, err)
-	} else if err == nil {
-		// deployment exists
-		var uErr error
-		deployment, uErr = c.context.Clientset.AppsV1().Deployments(c.store.Namespace).Update(d)
-		if uErr != nil {
-			// may fail to update when labels have changed on the deployment and thus the label selector
-			// in this case we can try to delete the deployment and recreate
-			dErr := c.context.Clientset.AppsV1().Deployments(c.store.Namespace).Delete(d.Name, &metav1.DeleteOptions{})
-			if dErr != nil {
-				return nil, fmt.Errorf("failed to delete existing rgw deployment %s as part of update attempt. %+v", d.Name, dErr)
-			}
-		} else {
-			return deployment, uErr
-		}
-	}
-	// err != nil && isNotFound  or  err == nil && update failed, causing earlier dep to be deleted
-	deployment, err = c.context.Clientset.AppsV1().Deployments(c.store.Namespace).Create(d)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create rgw deployment %s: %+v", c.instanceName(), err)
-	}
-	return deployment, err
+	return d
 }
 
 func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) v1.PodTemplateSpec {

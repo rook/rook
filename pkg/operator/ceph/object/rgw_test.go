@@ -53,14 +53,10 @@ func TestStartRGW(t *testing.T) {
 
 	// start a basic cluster
 	c := &clusterConfig{info, context, store, version, cephv1.CephVersionSpec{}, false, []metav1.OwnerReference{}, data}
-	err := c.createStore()
+	err := c.startRGWPods()
 	assert.Nil(t, err)
 
 	validateStart(t, c, clientset)
-
-	// starting again should update the pods with the new settings
-	err = c.updateStore()
-	assert.Nil(t, err)
 }
 
 func validateStart(t *testing.T, c *clusterConfig, clientset *fake.Clientset) {
@@ -68,10 +64,6 @@ func validateStart(t *testing.T, c *clusterConfig, clientset *fake.Clientset) {
 	r, err := clientset.AppsV1().Deployments(c.store.Namespace).Get(rgwName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, rgwName, r.Name)
-
-	s, err := clientset.CoreV1().Services(c.store.Namespace).Get(c.instanceName(), metav1.GetOptions{})
-	assert.Nil(t, err)
-	assert.Equal(t, c.instanceName(), s.Name)
 }
 
 func TestCreateObjectStore(t *testing.T) {
@@ -103,7 +95,7 @@ func TestCreateObjectStore(t *testing.T) {
 
 	// create the pools
 	c := &clusterConfig{info, context, store, "1.2.3.4", cephv1.CephVersionSpec{}, false, []metav1.OwnerReference{}, data}
-	err := c.createStore()
+	err := c.createOrUpdate()
 	assert.Nil(t, err)
 }
 
