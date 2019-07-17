@@ -26,7 +26,6 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	opkit "github.com/rook/operator-kit"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	cephbeta "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
@@ -69,9 +68,8 @@ const (
 )
 
 var (
-	logger                  = capnslog.NewPackageLogger("github.com/rook/rook", "op-cluster")
-	finalizerName           = fmt.Sprintf("%s.%s", ClusterResource.Name, ClusterResource.Group)
-	finalizerNameRookLegacy = fmt.Sprintf("%s.%s", ClusterResourceRookLegacy.Name, ClusterResourceRookLegacy.Group)
+	logger        = capnslog.NewPackageLogger("github.com/rook/rook", "op-cluster")
+	finalizerName = fmt.Sprintf("%s.%s", ClusterResource.Name, ClusterResource.Group)
 )
 
 var ClusterResource = opkit.CustomResource{
@@ -81,15 +79,6 @@ var ClusterResource = opkit.CustomResource{
 	Version: cephv1.Version,
 	Scope:   apiextensionsv1beta1.NamespaceScoped,
 	Kind:    reflect.TypeOf(cephv1.CephCluster{}).Name(),
-}
-
-var ClusterResourceRookLegacy = opkit.CustomResource{
-	Name:    "cluster",
-	Plural:  "clusters",
-	Group:   cephbeta.CustomResourceGroup,
-	Version: cephbeta.Version,
-	Scope:   apiextensionsv1beta1.NamespaceScoped,
-	Kind:    reflect.TypeOf(cephbeta.Cluster{}).Name(),
 }
 
 // ClusterController controls an instance of a Rook cluster
@@ -172,9 +161,6 @@ func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) e
 		logger.Infof("Disabling hotplug orchestration via %s", disableHotplugEnv)
 	}
 
-	// watch for events on all legacy types too
-	c.watchLegacyClusters(namespace, stopCh, resourceHandlerFuncs)
-
 	return nil
 }
 
@@ -235,20 +221,9 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		}
 	}
 
-	clusterObj, migrationNeeded, err := getClusterObject(obj)
+	clusterObj, err := getClusterObject(obj)
 	if err != nil {
 		logger.Errorf("failed to get cluster object: %+v", err)
-		return
-	}
-
-	if migrationNeeded {
-		err = c.migrateClusterObject(clusterObj, obj)
-		if err != nil {
-			logger.Errorf("failed to migrate legacy cluster %s in namespace %s: %+v", clusterObj.Name, clusterObj.Namespace, err)
-		}
-
-		// no matter the outcome of the migration, bail out now. if it was successful, then we'll be getting
-		// another event for the migrated object and we'll just handle it there.
 		return
 	}
 
@@ -485,33 +460,14 @@ func (c *ClusterController) onK8sNodeUpdate(oldObj, newObj interface{}) {
 }
 
 func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
-	oldClust, _, err := getClusterObject(oldObj)
+	oldClust, err := getClusterObject(oldObj)
 	if err != nil {
 		logger.Errorf("failed to get old cluster object: %+v", err)
 		return
 	}
-	newClust, migrationNeeded, err := getClusterObject(newObj)
+	newClust, err := getClusterObject(newObj)
 	if err != nil {
 		logger.Errorf("failed to get new cluster object: %+v", err)
-		return
-	}
-
-	if migrationNeeded {
-		logger.Infof("update event for legacy cluster %s", newClust.Namespace)
-
-		if isLegacyClusterObjectDeleted(newObj) {
-			// the legacy cluster object has been requested to be deleted but the finalizer is preventing
-			// that.  Let's remove the finalizer and allow the deletion of the legacy object to proceed.
-			c.removeFinalizer(newObj)
-			return
-		}
-
-		if err = c.migrateClusterObject(newClust, newObj); err != nil {
-			logger.Errorf("failed to migrate legacy cluster %s in namespace %s: %+v", newClust.Name, newClust.Namespace, err)
-		}
-
-		// no matter the outcome of the migration, bail out now. if it was successful, then we'll be getting
-		// another event for the migrated object and we'll just handle it there.
 		return
 	}
 
@@ -716,16 +672,9 @@ func (c *ClusterController) onDeviceCMUpdate(oldObj, newObj interface{}) {
 // Delete event functions
 // ************************************************************************************************
 func (c *ClusterController) onDelete(obj interface{}) {
-	clust, migrationNeeded, err := getClusterObject(obj)
+	clust, err := getClusterObject(obj)
 	if err != nil {
 		logger.Errorf("failed to get cluster object: %+v", err)
-		return
-	}
-
-	if migrationNeeded {
-		// ignore deletion of a legacy cluster as it should have been migrated to an object of the current type
-		// and tracked now with that object.
-		logger.Infof("ignoring deletion of legacy cluster %s in namespace %s", clust.Name, clust.Namespace)
 		return
 	}
 
@@ -790,17 +739,6 @@ func (c *ClusterController) handleDelete(cluster *cephv1.CephCluster, retryInter
 	return nil
 }
 
-func isLegacyClusterObjectDeleted(obj interface{}) bool {
-	// if the object is a legacy cluster type and the deletion timestamp on the legacy cluster object is set,
-	// it has been requested to be deleted
-	if clusterLegacy, ok := obj.(*cephbeta.Cluster); ok {
-		return clusterLegacy.DeletionTimestamp != nil
-	}
-
-	// not a legacy type
-	return false
-}
-
 // ************************************************************************************************
 // Finalizer functions
 // ************************************************************************************************
@@ -841,9 +779,6 @@ func (c *ClusterController) removeFinalizer(obj interface{}) {
 	if cl, ok := obj.(*cephv1.CephCluster); ok {
 		fname = finalizerName
 		objectMeta = &cl.ObjectMeta
-	} else if cl, ok := obj.(*cephbeta.Cluster); ok {
-		fname = finalizerNameRookLegacy
-		objectMeta = &cl.ObjectMeta
 	} else {
 		logger.Warningf("cannot remove finalizer from object that is not a cluster: %+v", obj)
 		return
@@ -870,9 +805,6 @@ func (c *ClusterController) removeFinalizer(obj interface{}) {
 		var err error
 		if cluster, ok := obj.(*cephv1.CephCluster); ok {
 			_, err = c.context.RookClientset.CephV1().CephClusters(cluster.Namespace).Update(cluster)
-		} else {
-			clusterLegacy := obj.(*cephbeta.Cluster)
-			_, err = c.context.RookClientset.CephV1beta1().Clusters(clusterLegacy.Namespace).Update(clusterLegacy)
 		}
 
 		if err != nil {

@@ -104,8 +104,7 @@ rook
 ├── pkg
 │   ├── apis
 │   │   ├── ceph.rook.io          # ceph specific specs for cluster, file, object
-│   │   │   ├── v1alpha1
-│   │   │   └── v1beta1
+│   │   │   ├── v1
 │   │   ├── cockroachdb.rook.io   # cockroachdb specific specs
 │   │   │   └── v1alpha1
 │   │   ├── minio.rook.io         # minio specific specs for cluster, object
@@ -113,7 +112,6 @@ rook
 │   │   ├── nfs.rook.io           # nfs server specific specs
 │   │   │   └── v1alpha1
 │   │   └── rook.io               # rook.io API group of common types
-│   │       ├── v1alpha1
 │   │       └── v1alpha2
 │   ├── client                    # auto-generated strongly typed client code to access Rook APIs
 │   ├── clusterd

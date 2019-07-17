@@ -23,7 +23,6 @@ import (
 	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	cephbeta "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	rookfake "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/clusterd"
@@ -186,29 +185,4 @@ func TestRemoveFinalizer(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, cluster)
 	assert.Len(t, cluster.Finalizers, 0)
-
-	// ****************************************
-	// now try with with a legacy rook cluster
-	// ****************************************
-	legacyRookCluster := &cephbeta.Cluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "cluster-6842",
-			Namespace:  "namespace-9523",
-			Finalizers: []string{finalizerNameRookLegacy},
-		},
-	}
-
-	// create the cluster initially so it exists in the k8s api
-	legacyRookCluster, err = context.RookClientset.CephV1beta1().Clusters(legacyRookCluster.Namespace).Create(legacyRookCluster)
-	assert.NoError(t, err)
-	assert.Len(t, legacyRookCluster.Finalizers, 1)
-
-	// remove the finalizer from the cluster object
-	controller.removeFinalizer(legacyRookCluster)
-
-	// verify the finalizer was removed
-	legacyRookCluster, err = context.RookClientset.CephV1beta1().Clusters(legacyRookCluster.Namespace).Get(legacyRookCluster.Name, metav1.GetOptions{})
-	assert.NoError(t, err)
-	assert.NotNil(t, legacyRookCluster)
-	assert.Len(t, legacyRookCluster.Finalizers, 0)
 }
