@@ -45,6 +45,10 @@ type EdgefsSuite struct {
 }
 
 func TestEdgefsSuite(t *testing.T) {
+	if installer.SkipTestSuite(installer.EdgeFSTestSuite) {
+		t.Skip()
+	}
+
 	s := new(EdgefsSuite)
 	defer func(s *EdgefsSuite) {
 		HandlePanics(recover(), s, s.T)

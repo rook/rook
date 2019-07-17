@@ -60,6 +60,10 @@ import (
 // The error is "the server does not allow this method on the requested resource (post cephclusters.ceph.rook.io)".
 // Everything appears to have been cleaned up successfully in this test, so it is still unclear what is causing the issue between tests.
 func TestBlockMountUnMountSuite(t *testing.T) {
+	if installer.SkipTestSuite(installer.CephTestSuite) {
+		t.Skip()
+	}
+
 	s := new(BlockMountUnMountSuite)
 	defer func(s *BlockMountUnMountSuite) {
 		HandlePanics(recover(), s.op, s.T)

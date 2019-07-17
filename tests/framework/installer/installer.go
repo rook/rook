@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/coreos/pkg/capnslog"
@@ -33,6 +34,12 @@ const (
 	VersionMaster = "master"
 	// Version tag for Rook v0.9
 	Version1_0 = "v1.0.1"
+	// test suite names
+	CassandraTestSuite   = "cassandra"
+	CephTestSuite        = "ceph"
+	CockroachDBTestSuite = "cockroachdb"
+	EdgeFSTestSuite      = "edgefs"
+	NFSTestSuite         = "nfs"
 )
 
 var (
@@ -51,6 +58,21 @@ var (
 type TestSuite interface {
 	Setup()
 	Teardown()
+}
+
+func SkipTestSuite(name string) bool {
+	testsToRun := os.Getenv("STORAGE_PROVIDER_TESTS")
+	if testsToRun == "" {
+		// run all test suites
+		return false
+	}
+	if strings.EqualFold(testsToRun, name) {
+		// this suite was requested
+		return false
+	}
+
+	logger.Infof("skipping test suite since only %s should be tested rather than %s", testsToRun, name)
+	return true
 }
 
 func init() {

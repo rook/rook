@@ -40,6 +40,10 @@ import (
 //   - 25% cache, 25% maxSQLMemory
 // ************************************************
 func TestCockroachDBSuite(t *testing.T) {
+	if installer.SkipTestSuite(installer.CockroachDBTestSuite) {
+		t.Skip()
+	}
+
 	s := new(CockroachDBSuite)
 	defer func(s *CockroachDBSuite) {
 		HandlePanics(recover(), s, s.T)

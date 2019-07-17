@@ -45,6 +45,10 @@ import (
 // - Create the object store via the CRD
 // *************************************************************
 func TestMultiClusterDeploySuite(t *testing.T) {
+	if installer.SkipTestSuite(installer.CephTestSuite) {
+		t.Skip()
+	}
+
 	s := new(MultiClusterDeploySuite)
 	defer func(s *MultiClusterDeploySuite) {
 		HandlePanics(recover(), s.op, s.T)
