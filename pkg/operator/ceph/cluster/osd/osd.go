@@ -401,37 +401,6 @@ func (c *Cluster) handleRemovedNodes(config *provisionConfig) {
 }
 
 func (c *Cluster) cleanupRemovedNode(config *provisionConfig, nodeName, crushName string) {
-	// update the orchestration status of this removed node to the starting state
-	if err := c.updateNodeStatus(nodeName, OrchestrationStatus{Status: OrchestrationStatusStarting}); err != nil {
-		config.addError("failed to set orchestration starting status for removed node %s: %+v", nodeName, err)
-		return
-	}
-
-	// trigger orchestration on the removed node by telling it not to use any storage at all.  note that the directories are still passed in
-	// so that the pod will be able to mount them and migrate data from them.
-	job, err := c.makeJob(nodeName, []rookalpha.Device{}, rookalpha.Selection{DeviceFilter: "none"},
-		v1.ResourceRequirements{}, osdconfig.StoreConfig{}, "", "")
-	if err != nil {
-		message := fmt.Sprintf("failed to create prepare job node %s: %v", nodeName, err)
-		config.addError(message)
-		status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: message}
-		if err := c.updateNodeStatus(nodeName, status); err != nil {
-			config.addError("failed to update node %s status. %+v", nodeName, err)
-		}
-		return
-	}
-
-	if !c.runJob(job, nodeName, config, "remove") {
-		status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: fmt.Sprintf("failed to cleanup osd config on node %s", nodeName)}
-		if err := c.updateNodeStatus(nodeName, status); err != nil {
-			config.addError("failed to update node %s status. %+v", nodeName, err)
-		}
-		return
-	}
-
-	logger.Infof("waiting for removal cleanup on node %s", nodeName)
-	c.completeProvisionSkipOSDStart(config)
-	logger.Infof("done waiting for removal cleanup on node %s", nodeName)
 
 	// after the batch job is finished, clean up all the resources related to the node
 	if crushName != "" {
