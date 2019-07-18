@@ -45,7 +45,11 @@ var (
 // Object
 // - Create the object store via the CRD
 // ***************************************************
-func TestHelmSuite(t *testing.T) {
+func TestCephHelmSuite(t *testing.T) {
+	if installer.SkipTestSuite(installer.CephTestSuite) {
+		t.Skip()
+	}
+
 	s := new(HelmSuite)
 	defer func(s *HelmSuite) {
 		HandlePanics(recover(), s.op, s.T)

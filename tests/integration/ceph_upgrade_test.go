@@ -39,7 +39,11 @@ import (
 // Monitors
 // - One mon in the cluster
 // ************************************************
-func TestUpgradeSuite(t *testing.T) {
+func TestCephUpgradeSuite(t *testing.T) {
+	if installer.SkipTestSuite(installer.CephTestSuite) {
+		t.Skip()
+	}
+
 	s := new(UpgradeSuite)
 	defer func(s *UpgradeSuite) {
 		HandlePanics(recover(), s.op, s.T)

@@ -59,7 +59,11 @@ import (
 // There is an issue on k8s 1.7 where the CRD controller will frequently fail to create a cluster after this suite is run.
 // The error is "the server does not allow this method on the requested resource (post cephclusters.ceph.rook.io)".
 // Everything appears to have been cleaned up successfully in this test, so it is still unclear what is causing the issue between tests.
-func TestBlockMountUnMountSuite(t *testing.T) {
+func TestCephBlockMountUnMountSuite(t *testing.T) {
+	if installer.SkipTestSuite(installer.CephTestSuite) {
+		t.Skip()
+	}
+
 	s := new(BlockMountUnMountSuite)
 	defer func(s *BlockMountUnMountSuite) {
 		HandlePanics(recover(), s.op, s.T)

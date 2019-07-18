@@ -165,3 +165,21 @@ This option should **not** be used if there are any changes to `.go` files, CI s
 
 In case there are known CI failures that are blocking a merge, project maintainers can add this flag
 to unblock the CI and merge the PR. This should be used with extreme care so regressions are not introduced.
+
+### [test storage-provider]
+
+Jenkins will only run the tests for an individual storage provider if specified. There is a keyword for each
+storage provider that has integration tests:
+- `[test cassandra]`
+- `[test ceph]`
+- `[test cockroachdb]`
+- `[test edgefs]`
+- `[test nfs]`
+
+Since the majority of effort for a PR generally focuses on a single storage provider it will save time
+in the CI if you only trigger the tests for your provider. If this key phrase is not found in the PR,
+all tests will be executed.
+
+These options should **not** be used if there are any changes to code which is shared with other
+storage providers. If there is any risk of affecting another storage provider, all tests should
+be executed in the CI.

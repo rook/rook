@@ -32,7 +32,11 @@ import (
 
 // Test K8s Block Image Creation Scenarios. These tests work when platform is set to Kubernetes
 
-func TestBlockCreateSuite(t *testing.T) {
+func TestCephBlockCreateSuite(t *testing.T) {
+	if installer.SkipTestSuite(installer.CephTestSuite) {
+		t.Skip()
+	}
+
 	s := new(BlockCreateSuite)
 	defer func(s *BlockCreateSuite) {
 		HandlePanics(recover(), s.op, s.T)

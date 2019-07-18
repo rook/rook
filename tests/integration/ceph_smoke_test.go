@@ -49,7 +49,11 @@ import (
 // - Create/delete users
 // - PUT/GET objects
 // ************************************************
-func TestSmokeSuite(t *testing.T) {
+func TestCephSmokeSuite(t *testing.T) {
+	if installer.SkipTestSuite(installer.CephTestSuite) {
+		t.Skip()
+	}
+
 	s := new(SmokeSuite)
 	defer func(s *SmokeSuite) {
 		HandlePanics(recover(), s.op, s.T)

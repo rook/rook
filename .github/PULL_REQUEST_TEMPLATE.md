@@ -9,12 +9,12 @@ Resolves #
 
 **Checklist:**
 
-- [ ] Reviewed the developer guide on [Submitting a Pull Request](https://rook.io/docs/rook/v1.0/development-flow.html#submitting-a-pull-request)
+- [ ] Reviewed the developer guide on [Submitting a Pull Request](https://rook.io/docs/rook/master/development-flow.html#submitting-a-pull-request)
 - [ ] Documentation has been updated, if necessary.
 - [ ] Unit tests have been added, if necessary.
 - [ ] Integration tests have been added, if necessary.
 - [ ] Pending release notes updated with breaking and/or notable changes, if necessary.
 - [ ] Upgrade from previous release is tested and upgrade user guide is updated, if necessary.
 - [ ] Code generation (`make codegen`) has been run to update object specifications, if necessary.
-- [ ] Comments have been added or updated based on the standards set in [CONTRIBUTING.md](../CONTRIBUTING.md#comments)
-- [ ] Add the flag for skipping the CI if this PR does not require a build. See [here](/INSTALL.md#skip-ci) for more details.
+- [ ] Comments have been added or updated based on the standards set in [CONTRIBUTING.md](https://github.com/rook/rook/blob/master/CONTRIBUTING.md#comments)
+- [ ] Add the flag for skipping the CI if this PR does not require a build. See [here](https://github.com/rook/rook/blob/master/INSTALL.md#skip-ci) for more details.

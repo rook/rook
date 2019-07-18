@@ -52,6 +52,10 @@ type CassandraSuite struct {
 
 // TestCassandraSuite initiates the CassandraSuite
 func TestCassandraSuite(t *testing.T) {
+	if installer.SkipTestSuite(installer.CassandraTestSuite) {
+		t.Skip()
+	}
+
 	s := new(CassandraSuite)
 	defer func(s *CassandraSuite) {
 		r := recover()
