@@ -198,6 +198,21 @@ subjects:
   name: rook-ceph-cmd-reporter
   namespace: ` + namespace + `
 ---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: rook-ceph-cmd-reporter-psp
+  namespace: ` + namespace + `
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: psp:rook
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-cmd-reporter
+  namespace: ` + namespace + `
+
+---
 `
 	logger.Infof("creating the new resources that have been added since 1.0")
 	return s.k8sh.ResourceOperation("create", newResources)

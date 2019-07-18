@@ -780,7 +780,154 @@ roleRef:
   kind: ClusterRole
   name: cephfs-external-provisioner-runner
   apiGroup: rbac.authorization.k8s.io
+
 ---
+
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: rook-privileged
+spec:
+  privileged: true
+  allowedCapabilities:
+    # required by CSI
+    - SYS_ADMIN
+  # fsGroup - the flexVolume agent has fsGroup capabilities and could potentially be any group
+  fsGroup:
+    rule: RunAsAny
+  # runAsUser, supplementalGroups - Rook needs to run some pods as root
+  # Ceph pods could be run as the Ceph user, but that user isn't always known ahead of time
+  runAsUser:
+    rule: RunAsAny
+  supplementalGroups:
+    rule: RunAsAny
+  # seLinux - seLinux context is unknown ahead of time; set if this is well-known
+  seLinux:
+    rule: RunAsAny
+  volumes:
+    # recommended minimum set
+    - configMap
+    - downwardAPI
+    - emptyDir
+    - persistentVolumeClaim
+    - secret
+    - projected
+    # required for Rook
+    - hostPath
+    - flexVolume
+  # allowedHostPaths can be set to Rook's known host volume mount points when they are fully-known
+  # directory-based OSDs make this hard to nail down
+  # allowedHostPaths:
+  #   - /run/udev      # for OSD prep
+  #   - /dev           # for OSD prep
+  #   - /var/lib/rook  # or whatever the dataDirHostPath value is set to
+  # Ceph requires host IPC for setting up encrypted devices
+  hostIPC: true
+  # Ceph OSDs need to share the same PID namespace
+  hostPID: true
+  # hostNetwork can be set to 'false' if host networking isn't used
+  hostNetwork: true
+  hostPorts:
+    # Ceph messenger protocol v1
+    - min: 6789
+      max: 6790 # <- support old default port
+    # Ceph messenger protocol v2
+    - min: 3300
+      max: 3300
+    # Ceph RADOS ports for OSDs, MDSes
+    - min: 6800
+      max: 7300
+    # # Ceph dashboard port HTTP (not recommended)
+    # - min: 7000
+    #   max: 7000
+    # Ceph dashboard port HTTPS
+    - min: 8443
+      max: 8443
+    # Ceph mgr Prometheus Metrics
+    - min: 9283
+      max: 9283
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: 'psp:rook'
+rules:
+  - apiGroups:
+      - policy
+    resources:
+      - podsecuritypolicies
+    resourceNames:
+      - rook-privileged
+    verbs:
+      - use
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: rook-ceph-system-psp
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: 'psp:rook'
+subjects:
+  - kind: ServiceAccount
+    name: rook-ceph-system
+    namespace: ` + namespace + `
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: rook-csi-rbd-provisioner-sa-psp
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: 'psp:rook'
+subjects:
+  - kind: ServiceAccount
+    name: rook-csi-rbd-provisioner-sa
+    namespace: ` + namespace + `
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: rook-csi-rbd-plugin-sa-psp
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: 'psp:rook'
+subjects:
+  - kind: ServiceAccount
+    name: rook-csi-rbd-plugin-sa
+    namespace: ` + namespace + `
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: rook-csi-cephfs-provisioner-sa-psp
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: 'psp:rook'
+subjects:
+  - kind: ServiceAccount
+    name: rook-csi-cephfs-provisioner-sa
+    namespace: ` + namespace + `
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: rook-csi-cephfs-plugin-sa-psp
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: 'psp:rook'
+subjects:
+  - kind: ServiceAccount
+    name: rook-csi-cephfs-plugin-sa
+    namespace: ` + namespace + `
+
+---
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -970,6 +1117,48 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: rook-ceph-mgr-system
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-mgr
+  namespace: ` + namespace + `
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: rook-ceph-default-psp
+  namespace: ` + namespace + `
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: psp:rook
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: ` + namespace + `
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: rook-ceph-osd-psp
+  namespace: ` + namespace + `
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: psp:rook
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-osd
+  namespace: ` + namespace + `
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: rook-ceph-mgr-psp
+  namespace: ` + namespace + `
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: psp:rook
 subjects:
 - kind: ServiceAccount
   name: rook-ceph-mgr
