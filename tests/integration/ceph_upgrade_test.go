@@ -39,7 +39,7 @@ import (
 // Monitors
 // - One mon in the cluster
 // ************************************************
-func TestUpgradeSuite(t *testing.T) {
+func TestCephUpgradeSuite(t *testing.T) {
 	if installer.SkipTestSuite(installer.CephTestSuite) {
 		t.Skip()
 	}

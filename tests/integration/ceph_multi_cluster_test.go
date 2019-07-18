@@ -44,7 +44,7 @@ import (
 // Object
 // - Create the object store via the CRD
 // *************************************************************
-func TestMultiClusterDeploySuite(t *testing.T) {
+func TestCephMultiClusterDeploySuite(t *testing.T) {
 	if installer.SkipTestSuite(installer.CephTestSuite) {
 		t.Skip()
 	}

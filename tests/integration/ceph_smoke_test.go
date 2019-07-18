@@ -49,7 +49,7 @@ import (
 // - Create/delete users
 // - PUT/GET objects
 // ************************************************
-func TestSmokeSuite(t *testing.T) {
+func TestCephSmokeSuite(t *testing.T) {
 	if installer.SkipTestSuite(installer.CephTestSuite) {
 		t.Skip()
 	}
