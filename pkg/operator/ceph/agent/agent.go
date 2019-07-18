@@ -41,6 +41,7 @@ const (
 	flexvolumeDefaultDirPath       = "/usr/libexec/kubernetes/kubelet-plugins/volume/exec/"
 	agentDaemonsetTolerationEnv    = "AGENT_TOLERATION"
 	agentDaemonsetTolerationKeyEnv = "AGENT_TOLERATION_KEY"
+	agentDaemonsetTolerationsEnv   = "AGENT_TOLERATIONS"
 	agentDaemonsetNodeAffinityEnv  = "AGENT_NODE_AFFINITY"
 	AgentMountSecurityModeEnv      = "AGENT_MOUNT_SECURITY_MODE"
 	RookEnableSelinuxRelabelingEnv = "ROOK_ENABLE_SELINUX_RELABELING"
@@ -240,6 +241,13 @@ func (a *Agent) createAgentDaemonSet(namespace, agentImage, serviceAccount strin
 			},
 		}
 	}
+
+	tolerationsRaw := os.Getenv(agentDaemonsetTolerationsEnv)
+	tolerations, err := k8sutil.YamlToTolerations(tolerationsRaw)
+	if err != nil {
+		logger.Warningf("failed to parse %s. %+v", tolerationsRaw, err)
+	}
+	ds.Spec.Template.Spec.Tolerations = append(ds.Spec.Template.Spec.Tolerations, tolerations...)
 
 	// Add NodeAffinity if any
 	nodeAffinity := os.Getenv(agentDaemonsetNodeAffinityEnv)

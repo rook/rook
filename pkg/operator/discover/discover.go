@@ -42,6 +42,7 @@ const (
 	discoverDaemonsetName             = "rook-discover"
 	discoverDaemonsetTolerationEnv    = "DISCOVER_TOLERATION"
 	discoverDaemonsetTolerationKeyEnv = "DISCOVER_TOLERATION_KEY"
+	discoverDaemonsetTolerationsEnv   = "DISCOVER_TOLERATIONS"
 	discoverDaemonSetNodeAffinityEnv  = "DISCOVER_AGENT_NODE_AFFINITY"
 	deviceInUseCMName                 = "local-device-in-use-cluster-%s-node-%s"
 	deviceInUseAppName                = "rook-claimed-devices"
@@ -172,6 +173,13 @@ func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage, securityAcc
 		}
 	}
 
+	tolerationsRaw := os.Getenv(discoverDaemonsetTolerationsEnv)
+	tolerations, err := k8sutil.YamlToTolerations(tolerationsRaw)
+	if err != nil {
+		logger.Warningf("failed to parse %s. %+v", tolerationsRaw, err)
+	}
+	ds.Spec.Template.Spec.Tolerations = append(ds.Spec.Template.Spec.Tolerations, tolerations...)
+
 	// Add NodeAffinity if any
 	nodeAffinity := os.Getenv(discoverDaemonSetNodeAffinityEnv)
 	if nodeAffinity != "" {
@@ -185,7 +193,7 @@ func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage, securityAcc
 		}
 	}
 
-	_, err := d.clientset.AppsV1().DaemonSets(namespace).Create(ds)
+	_, err = d.clientset.AppsV1().DaemonSets(namespace).Create(ds)
 	if err != nil {
 		if !kserrors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create rook-discover daemon set. %+v", err)

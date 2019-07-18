@@ -42,6 +42,10 @@ spec:
         - name: AGENT_TOLERATION_KEY
           value: {{ .Values.agent.tolerationKey }}
 {{- end }}
+{{- if .Values.agent.tolerations }}
+        - name: AGENT_TOLERATIONS
+          value: {{ toYaml .Values.agent.tolerations | quote }}
+{{- end }}
 {{- if .Values.agent.nodeAffinity }}
         - name: AGENT_NODE_AFFINITY
           value: {{ .Values.agent.nodeAffinity }}
@@ -71,6 +75,10 @@ spec:
 {{- if .Values.discover.tolerationKey }}
         - name: DISCOVER_TOLERATION_KEY
           value: {{ .Values.discover.tolerationKey }}
+{{- end }}
+{{- if .Values.discover.tolerations }}
+        - name: DISCOVER_TOLERATIONS
+          value: {{ toYaml .Values.discover.tolerations | quote }}
 {{- end }}
 {{- if .Values.discover.nodeAffinity }}
         - name: DISCOVER_AGENT_NODE_AFFINITY
