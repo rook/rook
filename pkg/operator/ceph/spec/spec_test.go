@@ -19,8 +19,10 @@ package spec
 import (
 	"testing"
 
+	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestPodVolumes(t *testing.T) {
@@ -41,4 +43,12 @@ func TestMountsMatchVolumes(t *testing.T) {
 			{Moniker: "RookVolumeMounts()", Mounts: RookVolumeMounts()}},
 	}
 	volsMountsTestDef.TestMountsMatchVolumes(t)
+}
+
+func TestGenerateLifeCycleCmd(t *testing.T) {
+	cmd := generateLifeCycleCmd("")
+	assert.Equal(t, config.ContainerPostStartCmd, cmd)
+
+	cmd = generateLifeCycleCmd("foo")
+	assert.Equal(t, append(config.ContainerPostStartCmd, "foo"), cmd)
 }

@@ -274,6 +274,7 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 			},
 			InitialDelaySeconds: 60,
 		},
+		Lifecycle: opspec.PodLifeCycle(""),
 	}
 	return container
 }

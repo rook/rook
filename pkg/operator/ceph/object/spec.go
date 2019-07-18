@@ -102,7 +102,6 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) v1.PodTemplateSpec 
 }
 
 func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
-
 	// start the rgw daemon in the foreground
 	container := v1.Container{
 		Name:  "rgw",
@@ -134,6 +133,7 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 			},
 			InitialDelaySeconds: 10,
 		},
+		Lifecycle: opspec.PodLifeCycle(""),
 	}
 
 	if c.store.Spec.Gateway.SSLCertificateRef != "" {

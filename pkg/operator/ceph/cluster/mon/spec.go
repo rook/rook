@@ -233,6 +233,7 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 			k8sutil.PodIPEnvVar(podIPEnvVar),
 		),
 		Resources: cephv1.GetMonResources(c.spec.Resources),
+		Lifecycle: opspec.PodLifeCycle(""),
 	}
 
 	// If host networking is enabled, we don't need a bind addr that is different from the public addr

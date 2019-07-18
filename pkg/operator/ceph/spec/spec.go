@@ -212,3 +212,26 @@ func StoredLogVolumeMount() v1.VolumeMount {
 		MountPath: config.VarLogCephDir,
 	}
 }
+
+func generateLifeCycleCmd(dataDirHostPath string) []string {
+	cmd := config.ContainerPostStartCmd
+
+	if dataDirHostPath != "" {
+		cmd = append(cmd, dataDirHostPath)
+	}
+
+	return cmd
+}
+
+// PodLifeCycle returns a pod lifecycle resource to execute actions before a pod starts
+func PodLifeCycle(dataDirHostPath string) *v1.Lifecycle {
+	cmd := generateLifeCycleCmd(dataDirHostPath)
+
+	return &v1.Lifecycle{
+		PostStart: &v1.Handler{
+			Exec: &v1.ExecAction{
+				Command: cmd,
+			},
+		},
+	}
+}
