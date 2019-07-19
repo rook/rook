@@ -173,6 +173,7 @@ func (c *Cluster) Start() error {
 		return nil
 	}
 	logger.Infof("%d of the %d storage nodes are valid", len(validNodes), len(c.DesiredStorage.Nodes))
+	c.ValidStorage = *c.DesiredStorage.DeepCopy()
 	c.ValidStorage.Nodes = validNodes
 
 	// start the jobs to provision the OSD devices and directories
@@ -544,7 +545,7 @@ func getIDFromDeployment(deployment *apps.Deployment) int {
 
 func (c *Cluster) resolveNode(nodeName string) *rookalpha.Node {
 	// fully resolve the storage config and resources for this node
-	rookNode := c.DesiredStorage.ResolveNode(nodeName)
+	rookNode := c.ValidStorage.ResolveNode(nodeName)
 	if rookNode == nil {
 		return nil
 	}
