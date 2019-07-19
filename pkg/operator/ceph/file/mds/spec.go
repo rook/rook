@@ -117,6 +117,7 @@ func (c *Cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
 			opspec.DaemonEnvVars(c.cephVersion.Image),
 		),
 		Resources: c.fs.Spec.MetadataServer.Resources,
+		Lifecycle: opspec.PodLifeCycle(""),
 	}
 
 	return container

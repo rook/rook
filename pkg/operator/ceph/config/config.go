@@ -52,6 +52,12 @@ const (
 
 	// RbdMirrorType defines the rbd-mirror DaemonType
 	RbdMirrorType DaemonType = "rbd-mirror"
+
+	// CephUser is the Linux Ceph username
+	CephUser = "ceph"
+
+	// CephGroup is the Linux Ceph groupname
+	CephGroup = "ceph"
 )
 
 var (
@@ -66,6 +72,13 @@ var (
 	// VarLogCephDir defines Ceph logging directory. It is made overwriteable only for unit tests where it
 	// may be needed to send data intended for /var/log/ceph to a temporary test dir.
 	VarLogCephDir = "/var/log/ceph"
+
+	// chownUserGroup represents ceph:ceph
+	chownUserGroup = CephUser + ":" + CephGroup
+
+	// ContainerPostStartCmd is the command we run before starting any Ceph daemon
+	// It makes sure Ceph directories are owned by 'ceph'
+	ContainerPostStartCmd = []string{"chown", "--recursive", "--verbose", chownUserGroup, VarLogCephDir}
 )
 
 // Config is a Ceph config struct containing zero or more Ceph config sections.

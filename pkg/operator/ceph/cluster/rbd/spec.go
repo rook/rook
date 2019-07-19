@@ -83,6 +83,7 @@ func (m *Mirroring) makeMirroringDaemonContainer(daemonConfig *daemonConfig) v1.
 		VolumeMounts: opspec.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName),
 		Env:          opspec.DaemonEnvVars(m.cephVersion.Image),
 		Resources:    m.resources,
+		Lifecycle:    opspec.PodLifeCycle(""),
 	}
 	return container
 }

@@ -210,6 +210,11 @@ func (c *Cluster) makeDeployment(nodeName string, selection rookalpha.Selection,
 			"--osd-uuid", osd.UUID,
 			"--conf", osd.Config,
 			"--cluster", "ceph",
+			"--setuser", "ceph",
+			"--setgroup", "ceph",
+			// Set '--setuser-match-path' so that existing directory owned by root won't affect the daemon startup.
+			// For existing data store owned by root, the daemon will continue to run as root
+			"--setuser-match-path", osd.DataPath,
 		}
 
 		// Set osd memory target to the best appropriate value
@@ -260,6 +265,7 @@ func (c *Cluster) makeDeployment(nodeName string, selection rookalpha.Selection,
 	if c.HostNetwork {
 		DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
+
 	deployment := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf(osdAppNameFmt, osd.ID),
@@ -319,6 +325,7 @@ func (c *Cluster) makeDeployment(nodeName string, selection rookalpha.Selection,
 							Env:             envVars,
 							Resources:       resources,
 							SecurityContext: securityContext,
+							Lifecycle:       opspec.PodLifeCycle(osd.DataPath),
 						},
 					},
 					Volumes: volumes,

@@ -109,13 +109,23 @@ func DaemonFlags(cluster *cephconfig.ClusterInfo, daemonID string) []string {
 	return append(
 		config.DefaultFlags(cluster.FSID, keyring.VolumeMount().KeyringFilePath(), cluster.CephVersion),
 		config.NewFlag("id", daemonID),
+		// Ceph daemons in Rook will run as 'ceph' instead of 'root'
+		// If we run on a version of Ceph does not these flags it will simply ignore them
+		//run ceph daemon process under the 'ceph' user
+		config.NewFlag("setuser", "ceph"),
+		// run ceph daemon process under the 'ceph' group
+		config.NewFlag("setgroup", "ceph"),
 	)
 
 }
 
 // AdminFlags returns the command line flags used for Ceph commands requiring admin authentication.
 func AdminFlags(cluster *cephconfig.ClusterInfo) []string {
-	return config.DefaultFlags(cluster.FSID, keyring.VolumeMount().AdminKeyringFilePath(), cluster.CephVersion)
+	return append(
+		config.DefaultFlags(cluster.FSID, keyring.VolumeMount().AdminKeyringFilePath(), cluster.CephVersion),
+		config.NewFlag("setuser", "ceph"),
+		config.NewFlag("setgroup", "ceph"),
+	)
 }
 
 // ContainerEnvVarReference returns a reference to a Kubernetes container env var of the given name
@@ -200,5 +210,28 @@ func StoredLogVolumeMount() v1.VolumeMount {
 		Name:      logVolumeName,
 		ReadOnly:  false,
 		MountPath: config.VarLogCephDir,
+	}
+}
+
+func generateLifeCycleCmd(dataDirHostPath string) []string {
+	cmd := config.ContainerPostStartCmd
+
+	if dataDirHostPath != "" {
+		cmd = append(cmd, dataDirHostPath)
+	}
+
+	return cmd
+}
+
+// PodLifeCycle returns a pod lifecycle resource to execute actions before a pod starts
+func PodLifeCycle(dataDirHostPath string) *v1.Lifecycle {
+	cmd := generateLifeCycleCmd(dataDirHostPath)
+
+	return &v1.Lifecycle{
+		PostStart: &v1.Handler{
+			Exec: &v1.ExecAction{
+				Command: cmd,
+			},
+		},
 	}
 }
