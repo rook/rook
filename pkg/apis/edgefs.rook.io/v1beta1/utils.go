@@ -17,6 +17,7 @@ package v1beta1
 
 import (
 	"fmt"
+	"strings"
 )
 
 func ByteCountBinary(b uint64) string {
@@ -30,4 +31,30 @@ func ByteCountBinary(b uint64) string {
 		exp++
 	}
 	return fmt.Sprintf("%.1f %ciB", float64(b)/float64(div), "KMGTPE"[exp])
+}
+
+// GetModifiedRookImagePath takes current edgefs path to provide modified path to specific images
+// I.e in case of original edgefs path: edgefs/edgefs:1.2.25 then edgefs ui path should be
+// edgefs/edgefs-ui:1.2.25 and edgefs-restapi should be edgefs/edgefs-restapi:1.2.25
+// addon param is edgefs image suffix. To get restapi image path getModifiedRookImagePath(edgefsImage, "restapi")
+func GetModifiedRookImagePath(originRookImage, addon string) string {
+	imageParts := strings.Split(originRookImage, "/")
+	latestImagePartIndex := len(imageParts) - 1
+	modifiedImageName := "edgefs"
+	modifiedImageTag := "latest"
+
+	latestImagePart := imageParts[latestImagePartIndex]
+	imageVersionParts := strings.Split(latestImagePart, ":")
+	if len(imageVersionParts) > 1 {
+		modifiedImageTag = imageVersionParts[1]
+	}
+
+	if len(addon) > 0 {
+		modifiedImageName = fmt.Sprintf("%s-%s", imageVersionParts[0], addon)
+	} else {
+		modifiedImageName = fmt.Sprintf("%s", imageVersionParts[0])
+	}
+
+	imageParts[latestImagePartIndex] = fmt.Sprintf("%s:%s", modifiedImageName, modifiedImageTag)
+	return strings.Join(imageParts, "/")
 }

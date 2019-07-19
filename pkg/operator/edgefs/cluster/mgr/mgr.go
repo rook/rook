@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"net"
 	"strconv"
-	"strings"
 
 	"github.com/coreos/pkg/capnslog"
 	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
@@ -286,32 +285,6 @@ func (c *Cluster) makeUIService(name string) *v1.Service {
 	return svc
 }
 
-// getModifiedRookImagePath takes current edgefs path to provide modified path to specific images
-// I.e in case of original edgefs path: edgefs/edgefs:1.1.215 then edgefs ui path should be
-// edgefs/edgefs-ui:1.1.215 and edgefs-restapi should be edgefs/edgefs-restapi:1.1.215
-// addon param is edgefs image suffix. To get restapi image path getModifiedRookImagePath(edgefsImage, "restapi")
-func getModifiedRookImagePath(originRookImage, addon string) string {
-	imageParts := strings.Split(originRookImage, "/")
-	latestImagePartIndex := len(imageParts) - 1
-	modifiedImageName := "edgefs"
-	modifiedImageTag := "latest"
-
-	latestImagePart := imageParts[latestImagePartIndex]
-	imageVersionParts := strings.Split(latestImagePart, ":")
-	if len(imageVersionParts) > 1 {
-		modifiedImageTag = imageVersionParts[1]
-	}
-
-	if len(addon) > 0 {
-		modifiedImageName = fmt.Sprintf("%s-%s", imageVersionParts[0], addon)
-	} else {
-		modifiedImageName = fmt.Sprintf("%s", imageVersionParts[0])
-	}
-
-	imageParts[latestImagePartIndex] = fmt.Sprintf("%s:%s", modifiedImageName, modifiedImageTag)
-	return strings.Join(imageParts, "/")
-}
-
 func (c *Cluster) makeDeployment(name, clusterName, rookImage string, replicas int32) *apps.Deployment {
 
 	volumes := []v1.Volume{}
@@ -345,9 +318,9 @@ func (c *Cluster) makeDeployment(name, clusterName, rookImage string, replicas i
 		Spec: v1.PodSpec{
 			ServiceAccountName: c.serviceAccount,
 			Containers: []v1.Container{
-				c.mgmtContainer(name, getModifiedRookImagePath(rookImage, "restapi")),
+				c.mgmtContainer(name, edgefsv1beta1.GetModifiedRookImagePath(rookImage, "restapi")),
 				c.mgrContainer("grpc", rookImage),
-				c.uiContainer("ui", getModifiedRookImagePath(rookImage, "ui")),
+				c.uiContainer("ui", edgefsv1beta1.GetModifiedRookImagePath(rookImage, "ui")),
 			},
 			RestartPolicy: v1.RestartPolicyAlways,
 			Volumes:       volumes,
