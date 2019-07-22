@@ -176,14 +176,7 @@ func (h *CephInstaller) CreateK8sRookToolbox(namespace string) (err error) {
 	return nil
 }
 
-func (h *CephInstaller) CreateK8sRookCluster(namespace, systemNamespace string, storeType string) (err error) {
-	return h.CreateK8sRookClusterWithHostPathAndDevices(namespace, systemNamespace, storeType, false,
-		cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, true, /* startWithAllNodes */
-		1, /* rbd workers */
-		NautilusVersion)
-}
-
-// CreateK8sRookCluster creates rook cluster via kubectl
+// CreateK8sRookClusterWithHostPathAndDevices creates rook cluster via kubectl
 func (h *CephInstaller) CreateK8sRookClusterWithHostPathAndDevices(namespace, systemNamespace, storeType string,
 	useAllDevices bool, mon cephv1.MonSpec, startWithAllNodes bool, rbdMirrorWorkers int, cephVersion cephv1.CephVersionSpec) error {
 
@@ -312,15 +305,6 @@ func (h *CephInstaller) InstallRookOnK8sWithHostPathAndDevices(namespace, storeT
 		h.k8shelper.GetLogsFromNamespace(onamespace, "test-setup", Env.HostType)
 		logger.Error("rook-ceph-operator is not Running, abort!")
 		return false, err
-	}
-
-	if forceUseDevices {
-		logger.Infof("Forcing the use of devices")
-		useDevices = true
-	} else if useDevices {
-		// This check only looks at the local machine for devices. If you want to force using devices,
-		// set the forceUseDevices flag
-		useDevices = IsAdditionalDeviceAvailableOnCluster()
 	}
 
 	// Create rook cluster

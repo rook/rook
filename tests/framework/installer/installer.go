@@ -30,8 +30,8 @@ import (
 const (
 	// Version tag for the latest manifests
 	VersionMaster = "master"
-	// Version tag for Rook v0.9
-	Version1_0 = "v1.0.1"
+	// Version tag for Rook v1.0
+	Version1_0 = "v1.0.6"
 	// test suite names
 	CassandraTestSuite   = "cassandra"
 	CephTestSuite        = "ceph"
@@ -44,7 +44,6 @@ const (
 var (
 	// ** Variables that might need to be changed depending on the dev environment. The init function below will modify some of them automatically. **
 	baseTestDir       string
-	forceUseDevices   = false
 	createBaseTestDir = true
 	// ** end of Variables to modify
 	logger              = capnslog.NewPackageLogger("github.com/rook/rook", "installer")
