@@ -41,6 +41,8 @@ pipeline {
                         env.testProvider = "edgefs"
                     } else if (body.contains("[test nfs]")) {
                         env.testProvider = "nfs"
+                    } else {
+                        env.testProvider = ""
                     }
                     echo ("integration test provider: ${env.testProvider}")
                 }
