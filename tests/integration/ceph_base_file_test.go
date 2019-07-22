@@ -18,7 +18,10 @@ package integration
 
 import (
 	"fmt"
+	"strings"
+	"time"
 
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
@@ -163,6 +166,7 @@ func getFilesystemTestPod(podName, namespace, filesystemName, driverName string,
         mountUser: ` + fileMountUser + `
         mountSecret: ` + fileMountSecret
 	}
+	// Bash's sleep signal handling: http://mywiki.wooledge.org/SignalTrap#When_is_the_signal_handled.3F
 	return `apiVersion: v1
 kind: Pod
 metadata:
@@ -171,11 +175,19 @@ metadata:
 spec:
   containers:
   - name: ` + podName + `
-    image: busybox
+    image: krallin/ubuntu-tini
     command:
-        - sh
+        - "/usr/local/bin/tini"
+        - "--"
+        - "bash"
         - "-c"
-        - "sleep 300"
+        - |
+          pid=
+          trap 'exit 0' SIGTERM
+          trap '[[ $pid ]] && kill "$pid"' EXIT
+          sleep 1800 & pid=$!
+          wait $pid
+          pid=
     imagePullPolicy: IfNotPresent
     env:
     volumeMounts:
@@ -188,9 +200,8 @@ spec:
       fsType: ceph
       options:
         fsName: ` + filesystemName + `
-        clusterNamespace: ` + namespace +
-		mountUserInsert + `
-  restartPolicy: Never
+        clusterNamespace: ` + namespace + mountUserInsert + `
+  restartPolicy: Always
 `
 }
 
@@ -263,4 +274,25 @@ subjects:
   name: rook-ceph-system
   namespace: ` + namespace + `
 `
+}
+
+func waitForFilesystemActive(k8sh *utils.K8sHelper, namespace, filesystemName string) error {
+	cmd := cephclient.NewCephCommand(k8sh.MakeContext(), namespace, []string{"fs", "status", filesystemName})
+	var stat []byte
+	var err error
+	logger.Infof("waiting for filesystem %q to be active", filesystemName)
+	for i := 0; i < utils.RetryLoop; i++ {
+		stat, err := cmd.Run()
+		if err != nil {
+			logger.Warningf("failed to get filesystem %q status. %+v", filesystemName, err)
+		}
+		// as long as at least one mds is active, it's okay
+		if strings.Contains(string(stat), "active") {
+			logger.Infof("done waiting for filesystem %q to be active", filesystemName)
+			return nil
+		}
+		logger.Infof("waiting for filesystem %q to be active", filesystemName)
+		time.Sleep(utils.RetryInterval * time.Second)
+	}
+	return fmt.Errorf("gave up waiting to get filesystem %q status [err: %+v] Status returned:\n%s", filesystemName, err, string(stat))
 }

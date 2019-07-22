@@ -1670,6 +1670,11 @@ subjects:
 
 // GetRookCluster returns rook-cluster manifest
 func (m *CephManifestsMaster) GetRookCluster(settings *ClusterSettings) string {
+	store := "# storeType not specified; Rook will use default store types"
+	if settings.StoreType != "" {
+		store = `storeType: "` + settings.StoreType + `"`
+	}
+
 	return `apiVersion: ceph.rook.io/v1
 kind: CephCluster
 metadata:
@@ -1697,7 +1702,7 @@ spec:
     - path: ` + settings.DataDirHostPath + /* simulate legacy fallback osd behavior so existing tests still work */ `
     deviceFilter:
     config:
-      storeType: "` + settings.StoreType + `"
+      ` + store + `
       databaseSizeMB: "1024"
       journalSizeMB: "1024"
   mgr:
