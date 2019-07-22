@@ -17,14 +17,8 @@ include ../image.mk
 # ====================================================================================
 # Image Build Options
 
-ifeq ($(GOARCH),amd64)
-CEPH_VERSION = latest-nautilus-devel
-BASEIMAGE = ceph/daemon-base:$(CEPH_VERSION)
-else
-CEPH_VERSION = v14.2.1-20190430
+CEPH_VERSION = v14.2.2-20190722
 BASEIMAGE = ceph/ceph-$(GOARCH):$(CEPH_VERSION)
-endif
-
 CEPH_IMAGE = $(BUILD_REGISTRY)/ceph-$(GOARCH)
 
 TEMP := $(shell mktemp -d)
