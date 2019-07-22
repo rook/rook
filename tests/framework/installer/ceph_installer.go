@@ -44,7 +44,7 @@ const (
 	// test with the latest mimic build
 	mimicTestImage = "ceph/ceph:v13"
 	// test with the latest nautilus build
-	nautilusTestImage = "ceph/daemon-base:latest-nautilus-devel"
+	nautilusTestImage = "ceph/ceph:v14.2.2-20190722"
 	helmChartName     = "local/rook-ceph"
 	helmDeployName    = "rook-ceph"
 )
