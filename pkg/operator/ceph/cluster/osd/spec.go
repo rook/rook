@@ -565,7 +565,7 @@ func (c *Cluster) provisionOSDContainer(devices []rookalpha.Device, selection ro
 }
 
 func (c *Cluster) skipVolumeForDirectory(path string) bool {
-	// If attempting to add both a directory at /var/lib/rook, we need to skip the volume and volume mount
+	// If attempting to add a directory at /var/lib/rook, we need to skip the volume and volume mount
 	// since the dataDirHostPath is always mounting at /var/lib/rook
 	return path == k8sutil.DataDir
 }
