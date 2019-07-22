@@ -55,7 +55,8 @@ const (
 	// MappingKey is the name of the mapping for the mon->node and node->port
 	MappingKey = "mapping"
 
-	appName           = "rook-ceph-mon"
+	// AppName is the name of the secret storing cluster mon.admin key, fsid and name
+	AppName           = "rook-ceph-mon"
 	monNodeAttr       = "mon_node"
 	monClusterAttr    = "mon_cluster"
 	tprName           = "mon.rook.io"
@@ -358,10 +359,10 @@ func (c *Cluster) newMonConfig(monID int) *monConfig {
 
 // resourceName ensures the mon name has the rook-ceph-mon prefix
 func resourceName(name string) string {
-	if strings.HasPrefix(name, appName) {
+	if strings.HasPrefix(name, AppName) {
 		return name
 	}
-	return fmt.Sprintf("%s-%s", appName, name)
+	return fmt.Sprintf("%s-%s", AppName, name)
 }
 
 func (c *Cluster) initMonIPs(mons []*monConfig) error {
@@ -731,7 +732,7 @@ func waitForQuorumWithMons(context *clusterd.Context, clusterName string, mons [
 		allPodsRunning := true
 		var runningMonNames []string
 		for _, m := range mons {
-			running, err := k8sutil.PodsRunningWithLabel(context.Clientset, clusterName, fmt.Sprintf("app=%s,mon=%s", appName, m))
+			running, err := k8sutil.PodsRunningWithLabel(context.Clientset, clusterName, fmt.Sprintf("app=%s,mon=%s", AppName, m))
 			if err != nil {
 				logger.Infof("failed to query mon pod status, trying again. %+v", err)
 				continue

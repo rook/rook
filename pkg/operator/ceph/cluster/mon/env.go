@@ -31,12 +31,12 @@ func EndpointEnvVar() v1.EnvVar {
 
 // SecretEnvVar is the mon secret environment var
 func SecretEnvVar() v1.EnvVar {
-	ref := &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: appName}, Key: monSecretName}
+	ref := &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: AppName}, Key: monSecretName}
 	return v1.EnvVar{Name: "ROOK_MON_SECRET", ValueFrom: &v1.EnvVarSource{SecretKeyRef: ref}}
 }
 
 // AdminSecretEnvVar is the admin secret environment var
 func AdminSecretEnvVar() v1.EnvVar {
-	ref := &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: appName}, Key: adminSecretName}
+	ref := &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: AppName}, Key: adminSecretName}
 	return v1.EnvVar{Name: "ROOK_ADMIN_SECRET", ValueFrom: &v1.EnvVarSource{SecretKeyRef: ref}}
 }

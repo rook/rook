@@ -84,7 +84,7 @@ func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerR
 		Port: map[string]int32{},
 	}
 
-	secrets, err := context.Clientset.CoreV1().Secrets(namespace).Get(appName, metav1.GetOptions{})
+	secrets, err := context.Clientset.CoreV1().Secrets(namespace).Get(AppName, metav1.GetOptions{})
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			return nil, maxMonID, monMapping, fmt.Errorf("failed to get mon secrets. %+v", err)
@@ -216,7 +216,7 @@ func createClusterAccessSecret(clientset kubernetes.Interface, namespace string,
 	}
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      appName,
+			Name:      AppName,
 			Namespace: namespace,
 		},
 		Data: secrets,

@@ -42,14 +42,14 @@ func monInQuorum(monitor client.MonMapEntry, quorum []int) bool {
 
 // convert the mon name to the numeric mon ID
 func fullNameToIndex(name string) (int, error) {
-	prefix := appName + "-"
+	prefix := AppName + "-"
 	if strings.Index(name, prefix) != -1 && len(prefix) < len(name) {
 		return k8sutil.NameToIndex(name[len(prefix)+1:])
 	}
 
 	// attempt to parse the legacy mon name
-	legacyPrefix := appName
-	if strings.Index(name, legacyPrefix) == -1 || len(name) < len(appName) {
+	legacyPrefix := AppName
+	if strings.Index(name, legacyPrefix) == -1 || len(name) < len(AppName) {
 		return -1, fmt.Errorf("unexpected mon name")
 	}
 	id, err := strconv.Atoi(name[len(legacyPrefix):])

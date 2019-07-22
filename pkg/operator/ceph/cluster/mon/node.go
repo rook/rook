@@ -95,7 +95,7 @@ func (c *Cluster) getAvailableMonNodes() ([]v1.Node, *v1.NodeList, error) {
 
 func (c *Cluster) getNodesWithMons(nodes *v1.NodeList) (*util.Set, error) {
 	// get the mon pods and their node affinity
-	options := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", appName)}
+	options := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", AppName)}
 	pods, err := c.context.Clientset.CoreV1().Pods(c.Namespace).List(options)
 	if err != nil {
 		return nil, err
@@ -217,7 +217,7 @@ func (c *Cluster) getNodeMonUsage() ([][]NodeUsage, error) {
 	}
 
 	// get all pod objects labeled as a monitor
-	podOptions := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", appName)}
+	podOptions := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", AppName)}
 	pods, err := c.context.Clientset.CoreV1().Pods(c.Namespace).List(podOptions)
 	if err != nil {
 		return nil, err

@@ -36,7 +36,8 @@ import (
 )
 
 const (
-	storeName = "rook-ceph-config"
+	// StoreName is the name of the configmap containing ceph configuration options
+	StoreName = "rook-ceph-config"
 
 	configVolumeName = "rook-ceph-config"
 
@@ -97,7 +98,7 @@ func (s *Store) CreateOrUpdate(clusterInfo *cephconfig.ClusterInfo) error {
 	txt := b.String()
 
 	// Store the config in a configmap
-	if err := s.configMapStore.SetValue(storeName, confFileName, txt); err != nil {
+	if err := s.configMapStore.SetValue(StoreName, confFileName, txt); err != nil {
 		return fmt.Errorf("failed to store the Ceph config file. failed to store config to configmap. %+v", err)
 	}
 	logger.Debugf("Generated and stored config file:\n%s", txt)
@@ -183,7 +184,7 @@ func (s *Store) createOrUpdateMonHostSecrets(clusterInfo *cephconfig.ClusterInfo
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			// the config's secret store has the same name as the configmap store for consistency
-			Name:      storeName,
+			Name:      StoreName,
 			Namespace: s.namespace,
 		},
 		StringData: map[string]string{
@@ -195,7 +196,7 @@ func (s *Store) createOrUpdateMonHostSecrets(clusterInfo *cephconfig.ClusterInfo
 	clientset := s.context.Clientset
 	k8sutil.SetOwnerRef(&secret.ObjectMeta, s.ownerRef)
 
-	_, err := clientset.CoreV1().Secrets(s.namespace).Get(storeName, metav1.GetOptions{})
+	_, err := clientset.CoreV1().Secrets(s.namespace).Get(StoreName, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			logger.Debugf("creating config secret %+v", secret)
@@ -203,7 +204,7 @@ func (s *Store) createOrUpdateMonHostSecrets(clusterInfo *cephconfig.ClusterInfo
 				return fmt.Errorf("failed to create config secret %+v. %+v", secret, err)
 			}
 		}
-		return fmt.Errorf("failed to get config secret %s. %+v", storeName, err)
+		return fmt.Errorf("failed to get config secret %s. %+v", StoreName, err)
 	}
 
 	logger.Debugf("updating config secret %+v", secret)
@@ -231,7 +232,7 @@ func StoredFileVolume() v1.Volume {
 		Name: configVolumeName,
 		VolumeSource: v1.VolumeSource{
 			ConfigMap: &v1.ConfigMapVolumeSource{LocalObjectReference: v1.LocalObjectReference{
-				Name: storeName},
+				Name: StoreName},
 				Items: []v1.KeyToPath{
 					{Key: confFileName, Path: confFileName, Mode: &mode},
 				}}}}
@@ -242,7 +243,7 @@ func StoredFileVolume() v1.Volume {
 func StoredFileVolumeMount() v1.VolumeMount {
 	// configmap's "ceph.conf" to "/etc/ceph/ceph.conf"
 	return v1.VolumeMount{
-		Name:      storeName,
+		Name:      StoreName,
 		ReadOnly:  true, // should be no reason to write to the config in pods, so enforce this
 		MountPath: "/etc/ceph",
 	}
@@ -255,12 +256,12 @@ func StoredMonHostEnvVars() []v1.EnvVar {
 		{Name: "ROOK_CEPH_MON_HOST",
 			ValueFrom: &v1.EnvVarSource{
 				SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{
-					Name: storeName},
+					Name: StoreName},
 					Key: monHostKey}}},
 		{Name: "ROOK_CEPH_MON_INITIAL_MEMBERS",
 			ValueFrom: &v1.EnvVarSource{
 				SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{
-					Name: storeName},
+					Name: StoreName},
 					Key: monInitialMembersKey}}},
 	}
 }

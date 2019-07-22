@@ -77,10 +77,10 @@ func testPodSpec(t *testing.T, monID string, pvc bool) {
 
 	// Deployment should have Ceph labels
 	cephtest.AssertLabelsContainCephRequirements(t, d.ObjectMeta.Labels,
-		config.MonType, monID, appName, "ns")
+		config.MonType, monID, AppName, "ns")
 
 	podTemplate := cephtest.NewPodTemplateSpecTester(t, &d.Spec.Template)
-	podTemplate.RunFullSuite(config.MonType, monID, appName, "ns", "ceph/ceph:myceph",
+	podTemplate.RunFullSuite(config.MonType, monID, AppName, "ns", "ceph/ceph:myceph",
 		"200", "100", "1337", "500" /* resources */)
 }
 

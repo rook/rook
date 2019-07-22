@@ -43,11 +43,13 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -721,8 +723,17 @@ func (c *ClusterController) onDelete(obj interface{}) {
 		close(cluster.stopCh)
 		delete(c.clusterMap, clust.Namespace)
 	}
-	if clust.Spec.Storage.AnyUseAllDevices() {
-		c.devicesInUse = false
+	// Only valid when the cluster is not external
+	if !clust.Spec.External.Enable {
+		if clust.Spec.Storage.AnyUseAllDevices() {
+			c.devicesInUse = false
+		}
+	} else {
+		err := purgeExternalCluster(c.context.Clientset, clust.Namespace)
+		if err != nil {
+			logger.Errorf("failed to purge external cluster ressources. %+v", err)
+		}
+		return
 	}
 }
 
@@ -767,6 +778,34 @@ func (c *ClusterController) handleDelete(cluster *cephv1.CephCluster, retryInter
 		logger.Infof("waiting for volume attachments in cluster %s to be cleaned up. Retrying in %s.",
 			cluster.Namespace, retryInterval)
 		<-time.After(retryInterval)
+	}
+
+	return nil
+}
+
+func purgeExternalCluster(clientset kubernetes.Interface, namespace string) error {
+	// purge the mon endpoint config map
+	err := clientset.CoreV1().ConfigMaps(namespace).Delete(mon.EndpointConfigMapName, &metav1.DeleteOptions{})
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+
+	// purge the config flag overrides
+	err = clientset.CoreV1().ConfigMaps(namespace).Delete(config.StoreName, &metav1.DeleteOptions{})
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+
+	// purge config override configmap?
+	err = clientset.CoreV1().ConfigMaps(namespace).Delete(k8sutil.ConfigOverrideName, &metav1.DeleteOptions{})
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+
+	// Now delete secret
+	err = clientset.CoreV1().Secrets(namespace).Delete(mon.AppName, &metav1.DeleteOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to delete secret %+v. %+v", mon.AppName, err)
 	}
 
 	return nil
