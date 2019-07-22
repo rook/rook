@@ -158,9 +158,10 @@ func (c *Cluster) makeChownDataDirInitContainer(monConfig *monConfig) v1.Contain
 			"ceph:ceph",
 			monConfig.DataPathMap.ContainerDataDir,
 		},
-		Image:        c.spec.CephVersion.Image,
-		VolumeMounts: opspec.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),
-		Resources:    cephv1.GetMonResources(c.spec.Resources),
+		Image:           c.spec.CephVersion.Image,
+		VolumeMounts:    opspec.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),
+		Resources:       cephv1.GetMonResources(c.spec.Resources),
+		SecurityContext: podSecurityContext(),
 	}
 	return container
 }
