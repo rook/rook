@@ -61,3 +61,19 @@ func UpdateService(
 	serviceDefinition.ResourceVersion = existing.ResourceVersion
 	return clientset.CoreV1().Services(namespace).Update(serviceDefinition)
 }
+
+// ParseServiceType parses a string and returns a*v1.ServiceType. If the ServiceType is invalid,
+// this should be considered an error.
+func ParseServiceType(serviceString string) v1.ServiceType {
+	switch serviceString {
+	case "ClusterIP":
+		return v1.ServiceTypeClusterIP
+	case "ExternalName":
+		return v1.ServiceTypeExternalName
+	case "NodePort":
+		return v1.ServiceTypeNodePort
+	case "LoadBalancer":
+		return v1.ServiceTypeLoadBalancer
+	}
+	return v1.ServiceType("")
+}

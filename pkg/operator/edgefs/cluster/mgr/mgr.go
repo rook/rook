@@ -253,7 +253,7 @@ func (c *Cluster) makeUIService(name string) *v1.Service {
 		},
 		Spec: v1.ServiceSpec{
 			Selector: labels,
-			Type:     v1.ServiceTypeNodePort,
+			Type:     v1.ServiceTypeClusterIP,
 			Ports: []v1.ServicePort{
 				{
 					Name:     "http-ui",

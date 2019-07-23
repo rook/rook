@@ -6,6 +6,9 @@ metadata:
 spec:
   instances: 1
   #s3type: s3s                    # s3 (default) for path style, s3s for buckets as DNS style
+  #serviceType: NodePort          # define ServiceType (default ClusterIP)
+  #externalPort: 30303            # define NodePort for HTTP port (default auto)
+  #secureExternalPort: 30443      # define NodePort for HTTPS port (default auto)
   #port: 4500                     # HTTP port (default is 9982 or 9983 for s3s)
   #securePort: 4501               # HTTPS port (default is 8443 or 8444 for s3s)
   #sslCertificateRef: ssl-secret
