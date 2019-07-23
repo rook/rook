@@ -62,7 +62,8 @@ type TestSuite interface {
 
 func SkipTestSuite(name string) bool {
 	testsToRun := os.Getenv("STORAGE_PROVIDER_TESTS")
-	if testsToRun == "" {
+	// jenkins passes "null" if the env var is not set.
+	if testsToRun == "" || testsToRun == "null" {
 		// run all test suites
 		return false
 	}
