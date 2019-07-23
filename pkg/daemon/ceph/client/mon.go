@@ -65,7 +65,6 @@ func GetMonStatus(context *clusterd.Context, clusterName string, debug bool) (Mo
 		return MonStatusResponse{}, fmt.Errorf("unmarshal failed: %+v.  raw buffer response: %s", err, buf)
 	}
 
-	logger.Debugf("MON STATUS: %+v", resp)
 	return resp, nil
 }
 
