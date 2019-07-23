@@ -203,8 +203,9 @@ func (s *Store) createOrUpdateMonHostSecrets(clusterInfo *cephconfig.ClusterInfo
 			if _, err := clientset.CoreV1().Secrets(s.namespace).Create(secret); err != nil {
 				return fmt.Errorf("failed to create config secret %+v. %+v", secret, err)
 			}
+		} else {
+			return fmt.Errorf("failed to get config secret %s. %+v", StoreName, err)
 		}
-		return fmt.Errorf("failed to get config secret %s. %+v", StoreName, err)
 	}
 
 	logger.Debugf("updating config secret %+v", secret)
