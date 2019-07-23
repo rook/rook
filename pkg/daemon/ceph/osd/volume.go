@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"path"
 	"strconv"
+	"strings"
 	"syscall"
 
 	"github.com/rook/rook/pkg/clusterd"
@@ -210,6 +211,7 @@ func getCephVolumeOSDs(context *clusterd.Context, clusterName string, cephfsid s
 			continue
 		}
 		var osdFSID string
+		var osdDevice string
 		isFilestore := false
 		for _, osd := range osdInfo {
 			if osd.Tags.ClusterFSID != cephfsid {
@@ -220,6 +222,8 @@ func getCephVolumeOSDs(context *clusterd.Context, clusterName string, cephfsid s
 			if osd.Type == "journal" {
 				isFilestore = true
 			}
+			osdDevice = strings.Replace(osd.Devices[0], "/", "", 1)
+			osdDevice = strings.Replace(osdDevice, "/", "_", -1)
 		}
 		if len(osdFSID) == 0 {
 			logger.Infof("Skipping osd%d as no instances are running on ceph cluster: %s", id, cephfsid)
@@ -237,6 +241,7 @@ func getCephVolumeOSDs(context *clusterd.Context, clusterName string, cephfsid s
 			UUID:                osdFSID,
 			CephVolumeInitiated: true,
 			IsFileStore:         isFilestore,
+			Device:              osdDevice,
 		}
 		osds = append(osds, osd)
 	}
@@ -250,7 +255,8 @@ type osdInfo struct {
 	Path string  `json:"path"`
 	Tags osdTags `json:"tags"`
 	// "data" or "journal" for filestore and "block" for bluestore
-	Type string `json:"type"`
+	Type    string   `json:"type"`
+	Devices []string `json:"devices"`
 }
 
 type osdTags struct {

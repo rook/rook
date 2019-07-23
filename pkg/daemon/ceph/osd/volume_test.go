@@ -256,6 +256,7 @@ func TestParseCephVolumeResult(t *testing.T) {
 	assert.Nil(t, err)
 	require.NotNil(t, osds)
 	assert.Equal(t, 2, len(osds))
+	assert.Equal(t, osds[0].Device, "dev_sdb")
 }
 
 func TestCephVolumeResultMultiClusterSingleOSD(t *testing.T) {
@@ -277,6 +278,7 @@ func TestCephVolumeResultMultiClusterSingleOSD(t *testing.T) {
 	require.NotNil(t, osds)
 	assert.Equal(t, 1, len(osds))
 	assert.Equal(t, osds[0].UUID, "dbe407e0-c1cb-495e-b30a-02e01de6c8ae")
+	assert.Equal(t, osds[0].Device, "dev_sdb")
 }
 
 func TestCephVolumeResultMultiClusterMultiOSD(t *testing.T) {
@@ -298,6 +300,7 @@ func TestCephVolumeResultMultiClusterMultiOSD(t *testing.T) {
 	require.NotNil(t, osds)
 	assert.Equal(t, 1, len(osds))
 	assert.Equal(t, osds[0].UUID, "dbe407e0-c1cb-495e-b30a-02e01de6c8ae")
+	assert.Equal(t, osds[0].Device, "dev_sdb")
 }
 
 func TestSanitizeOSDsPerDevice(t *testing.T) {

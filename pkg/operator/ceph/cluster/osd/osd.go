@@ -54,6 +54,7 @@ const (
 	legacyAppNameFmt                    = "rook-ceph-osd-id-%d"
 	osdAppNameFmt                       = "rook-ceph-osd-%d"
 	osdLabelKey                         = "ceph-osd-id"
+	osdDeviceLabelKey                   = "ceph-osd-device"
 	clusterAvailableSpaceReserve        = 0.05
 	serviceAccountName                  = "rook-ceph-osd"
 	unknownID                           = -1
@@ -123,6 +124,7 @@ type OSDInfo struct {
 	IsDirectory         bool   `json:"is-directory"`
 	DevicePartUUID      string `json:"device-part-uuid"`
 	CephVolumeInitiated bool   `json:"ceph-volume-initiated"`
+	Device              string `json:"device"`
 }
 
 type OrchestrationStatus struct {
