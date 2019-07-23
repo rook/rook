@@ -249,6 +249,12 @@ func (c *ClusterController) onAdd(obj interface{}) {
 }
 
 func (c *ClusterController) configureExternalCephCluster(namespace, name string, cluster *cluster) error {
+	// Make sure the spec contains all the information we need
+	err := validateExternalClusterSpec(cluster)
+	if err != nil {
+		return fmt.Errorf("failed to validate external cluster specs. %+v", err)
+	}
+
 	c.updateClusterStatus(namespace, name, cephv1.ClusterStateConnecting, "")
 
 	// loop until we find the secret necessary to connect to the external cluster
@@ -942,4 +948,15 @@ func printOverallCephVersion(context *clusterd.Context, namespace string) {
 		// This shouldn't happen, but let's log just in case
 		logger.Warningf("upgrade orchestration completed but somehow we still have more than one Ceph version running. %+v:", versions.Overall)
 	}
+}
+
+func validateExternalClusterSpec(cluster *cluster) error {
+	if cluster.Spec.DataDirHostPath == "" {
+		return fmt.Errorf("dataDirHostPath must be specified")
+	}
+	if cluster.Spec.CephVersion.Image == "" {
+		return fmt.Errorf("spec image must be specified")
+	}
+
+	return nil
 }

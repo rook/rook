@@ -186,3 +186,17 @@ func TestRemoveFinalizer(t *testing.T) {
 	assert.NotNil(t, cluster)
 	assert.Len(t, cluster.Finalizers, 0)
 }
+
+func TestValidateExternalClusterSpec(t *testing.T) {
+	c := &cluster{Spec: &cephv1.ClusterSpec{}, mons: &mon.Cluster{}}
+	err := validateExternalClusterSpec(c)
+	assert.Error(t, err)
+
+	c.Spec.DataDirHostPath = "path"
+	err = validateExternalClusterSpec(c)
+	assert.Error(t, err)
+
+	c.Spec.CephVersion.Image = "ceph/ceph:v14.2.2-20190722"
+	err = validateExternalClusterSpec(c)
+	assert.NoError(t, err)
+}
