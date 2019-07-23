@@ -131,7 +131,9 @@ func (c *Cluster) makeMonPod(monConfig *monConfig, hostname string) *v1.Pod {
  */
 
 // Init and daemon containers require the same context, so we call it 'pod' context
-func podSecurityContext() *v1.SecurityContext {
+
+// PodSecurityContext detects if the pod needs privileges to run
+func PodSecurityContext() *v1.SecurityContext {
 	privileged := false
 	if os.Getenv("ROOK_HOSTPATH_REQUIRES_PRIVILEGED") == "true" {
 		privileged = true
@@ -161,7 +163,7 @@ func (c *Cluster) makeChownDataDirInitContainer(monConfig *monConfig) v1.Contain
 		Image:           c.spec.CephVersion.Image,
 		VolumeMounts:    opspec.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),
 		Resources:       cephv1.GetMonResources(c.spec.Resources),
-		SecurityContext: podSecurityContext(),
+		SecurityContext: PodSecurityContext(),
 	}
 	return container
 }
@@ -181,7 +183,7 @@ func (c *Cluster) makeMonFSInitContainer(monConfig *monConfig) v1.Container {
 		),
 		Image:           c.spec.CephVersion.Image,
 		VolumeMounts:    opspec.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),
-		SecurityContext: podSecurityContext(),
+		SecurityContext: PodSecurityContext(),
 		// filesystem creation does not require ports to be exposed
 		Env:       opspec.DaemonEnvVars(c.spec.CephVersion.Image),
 		Resources: cephv1.GetMonResources(c.spec.Resources),
@@ -221,7 +223,7 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 		),
 		Image:           c.spec.CephVersion.Image,
 		VolumeMounts:    opspec.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),
-		SecurityContext: podSecurityContext(),
+		SecurityContext: PodSecurityContext(),
 		Ports: []v1.ContainerPort{
 			{
 				Name:          "client",
