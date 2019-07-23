@@ -21,6 +21,7 @@ import (
 	"strconv"
 
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -116,8 +117,9 @@ func (c *Cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
 		Env: append(
 			opspec.DaemonEnvVars(c.cephVersion.Image),
 		),
-		Resources: c.fs.Spec.MetadataServer.Resources,
-		Lifecycle: opspec.PodLifeCycle(""),
+		Resources:       c.fs.Spec.MetadataServer.Resources,
+		Lifecycle:       opspec.PodLifeCycle(""),
+		SecurityContext: mon.PodSecurityContext(),
 	}
 
 	return container

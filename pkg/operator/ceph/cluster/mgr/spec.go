@@ -24,6 +24,7 @@ import (
 
 	rookcephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
@@ -274,7 +275,8 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 			},
 			InitialDelaySeconds: 60,
 		},
-		Lifecycle: opspec.PodLifeCycle(""),
+		Lifecycle:       opspec.PodLifeCycle(""),
+		SecurityContext: mon.PodSecurityContext(),
 	}
 	return container
 }
