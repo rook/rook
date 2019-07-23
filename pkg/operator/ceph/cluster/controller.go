@@ -195,7 +195,7 @@ func (c *ClusterController) onK8sNodeAdd(obj interface{}) {
 			continue
 		}
 		if cluster.Info == nil {
-			logger.Info("Cluster %s is not ready. Skipping orchestration.", cluster.Namespace)
+			logger.Infof("Cluster %s is not ready. Skipping orchestration.", cluster.Namespace)
 			continue
 		}
 
