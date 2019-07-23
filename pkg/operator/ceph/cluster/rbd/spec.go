@@ -17,6 +17,7 @@ limitations under the License.
 package rbd
 
 import (
+	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -79,11 +80,12 @@ func (m *Mirroring) makeMirroringDaemonContainer(daemonConfig *daemonConfig) v1.
 			"--foreground",
 			"--name="+fullDaemonName(daemonConfig.DaemonID),
 		),
-		Image:        m.cephVersion.Image,
-		VolumeMounts: opspec.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName),
-		Env:          opspec.DaemonEnvVars(m.cephVersion.Image),
-		Resources:    m.resources,
-		Lifecycle:    opspec.PodLifeCycle(""),
+		Image:           m.cephVersion.Image,
+		VolumeMounts:    opspec.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName),
+		Env:             opspec.DaemonEnvVars(m.cephVersion.Image),
+		Resources:       m.resources,
+		Lifecycle:       opspec.PodLifeCycle(""),
+		SecurityContext: mon.PodSecurityContext(),
 	}
 	return container
 }
