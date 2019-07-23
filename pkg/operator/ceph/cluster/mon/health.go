@@ -24,6 +24,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -519,5 +520,134 @@ func (c *Cluster) findInvalidMonitorPlacement(desiredMonCount int) (*NodeUsage, 
 }
 
 func (c *Cluster) handleExternalMonStatus(status client.MonStatusResponse) error {
+
+	changed, err := c.addOrRemoveExternalMonitor(status)
+	if err != nil {
+		return fmt.Errorf("failed to add or remove external mon. %+v", err)
+	}
+
+	// let's save the monitor's config if anything happened
+	if changed {
+		if err := c.saveMonConfig(); err != nil {
+			return fmt.Errorf("failed to save mon config after adding/removing external mon. %+v", err)
+		}
+	}
+
 	return nil
+}
+
+func (c *Cluster) addOrRemoveExternalMonitor(status client.MonStatusResponse) (bool, error) {
+	// func addOrRemoveExternalMonitor(status client.MonStatusResponse) (bool, error) {
+	var changed bool
+	// Populate a map with the current monitor from ClusterInfo
+	monsNotFound := map[string]interface{}{}
+	for _, mon := range c.ClusterInfo.Monitors {
+		monsNotFound[mon.Name] = struct{}{}
+	}
+
+	// Iterate over the mons first and compare it with ClusterInfo
+	for _, mon := range status.MonMap.Mons {
+		inQuorum := monInQuorum(mon, status.Quorum)
+		// if the mon is not in clusterInfo
+		if _, ok := monsNotFound[mon.Name]; !ok {
+			// If the mon is part of the quorum
+			if inQuorum {
+				// let's add it to ClusterInfo
+				// Always pick the v1 endpoint, that's the easier thing to do since some people might not have activated msgr2
+				// We must run on at least Nautilus so we are 100% certain that will have a field mon.PublicAddrs.Addrvec with 'v1' in it
+				var endpoint string
+				for i := range mon.PublicAddrs.Addrvec {
+					if mon.PublicAddrs.Addrvec[i].Type == "v1" {
+						endpoint = mon.PublicAddrs.Addrvec[i].Addr
+					}
+				}
+				// find IP and Port of that Mon
+				monIP := cephutil.GetIPFromEndpoint(endpoint)
+				monPort := cephutil.GetPortFromEndpoint(endpoint)
+				logger.Infof("new external mon %s found: %s, adding it", mon.Name, endpoint)
+				c.ClusterInfo.Monitors[mon.Name] = cephconfig.NewMonInfo(mon.Name, monIP, monPort)
+				changed = true
+			}
+			logger.Debugf("mon %s is not in quorum and not in ClusterInfo", mon.Name)
+		} else {
+			// mon is in ClusterInfo
+			logger.Debugf("mon %s is in ClusterInfo, let's test if it's in quorum", mon.Name)
+			if !inQuorum {
+				// this mon was in clusterInfo but not part of the quorum anymore
+				// let's remove it from ClusterInfo
+				logger.Infof("monitor %s is not part of the external cluster monitor quorum, removing it", mon.Name)
+				delete(c.ClusterInfo.Monitors, mon.Name)
+				changed = true
+			}
+		}
+		logger.Debugf("everything is fine mon %s in the clusterInfo and its quorum status is %v", mon.Name, inQuorum)
+	}
+
+	// Let's do a new iteration, over ClusterInfo this time to catch mon that might have disappeared
+	for _, mon := range c.ClusterInfo.Monitors {
+		// if the mon does not exist in the monmap
+		monInMonMap := isMonInMonMap(mon.Name, status.MonMap.Mons)
+		if !monInMonMap {
+			// mon is in clusterInfo but not part of the quorum removing it
+			logger.Infof("monitor %s disappeared from the external cluster monitor map, removing it", mon.Name)
+			delete(c.ClusterInfo.Monitors, mon.Name)
+			changed = true
+		} else {
+			// it's in the mon map but is it part of the quorum?
+			logger.Debug("need to check is the mon not in ClusterInfo is part of a quorum or not")
+			monInQuorum := isMonInQuorum(mon.Name, status.MonMap.Mons, status.Quorum)
+			if !monInQuorum {
+				logger.Infof("external mon %s in the mon map but not in quorum, removing it", mon.Name)
+				delete(c.ClusterInfo.Monitors, mon.Name)
+				changed = true
+			}
+		}
+		logger.Debugf("mon %s endpoint is %s", mon.Name, mon.Endpoint)
+	}
+
+	logger.Debugf("ClusterInfo.Monitors is %+v", c.ClusterInfo.Monitors)
+	return changed, nil
+}
+
+func isMonInMonMap(monToTest string, Mons []client.MonMapEntry) bool {
+	for _, m := range Mons {
+		if m.Name == monToTest {
+			logger.Debugf("mon %s is in the monmap!", monToTest)
+			return true
+		}
+	}
+
+	return false
+}
+
+func isMonInQuorum(monToTest string, Mons []client.MonMapEntry, quorum []int) bool {
+	monRank := getMonRank(monToTest, Mons)
+	if monRank == -1 {
+		// this is an error, we can't find the rank
+		// so we just return false and the mon will get deleted
+		logger.Debugf("mon %s rank is %d", monToTest, monRank)
+		return false
+	}
+
+	for _, rank := range quorum {
+		logger.Debugf("rank is %d, monRank is %d", rank, monRank)
+		if rank == monRank {
+			logger.Debugf("mon %s is part of the quorum", monToTest)
+			return true
+		}
+	}
+
+	logger.Debugf("could not find the rank %d for %s", monRank, monToTest)
+	return false
+}
+
+func getMonRank(monToTest string, Mons []client.MonMapEntry) int {
+	for _, m := range Mons {
+		if m.Name == monToTest {
+			logger.Debugf("mon rank is %d", m.Rank)
+			return m.Rank
+		}
+	}
+
+	return -1
 }
