@@ -133,6 +133,52 @@ func (c *cluster) validateCephVersion(version *cephver.CephVersion) error {
 		return fmt.Errorf("allowUnsupported must be set to true to run with this version: %v", version)
 	}
 
+	// The following tries to determine if the operator can proceed with an upgrade
+	// If the cluster was unhealthy and someone injected a new image version, an upgrade was triggered but failed because the cluster is not healthy
+	// Then after this, if the operator gets restarted we are not able to fail if the cluster is not healthy, the following tries to determine the
+	// state we are in and if we should upgrade or not
+
+	// Try to load clusterInfo so we can compare the running version with the one from the spec image
+	clusterInfo, _, _, err := mon.LoadClusterInfo(c.context, c.Namespace)
+	if err == nil {
+		// Write connection info (ceph config file and keyring) for ceph commands
+		err = mon.WriteConnectionConfig(c.context, clusterInfo)
+		if err != nil {
+			logger.Errorf("failed to write config. Attempting to continue. %+v", err)
+		}
+	}
+
+	if !clusterInfo.IsInitialized() {
+		// If not initialized, this is likely a new cluster so there is nothing to do
+		return nil
+	}
+
+	// Get cluster running versions
+	versions, err := client.GetAllCephDaemonVersions(c.context, c.Namespace)
+	if err != nil {
+		logger.Errorf("failed to get ceph daemons versions. %+v", err)
+		return nil
+	}
+
+	runningVersions := *versions
+	differentImages, err := diffImageSpecAndClusterRunningVersion(*version, runningVersions)
+	if err != nil {
+		logger.Errorf("failed to determine if we should upgrade or not. %+v", err)
+		// we shouldn't block the orchestration if we can't determine the version of the image spec, we proceed anyway in best effort
+		// we won't be able to check if there is an update or not and what to do, so we don't check the cluster status either
+		// will happen if someone uses ceph/daemon:latest-master for instance
+		return nil
+	}
+
+	if differentImages {
+		// If the image version changed let's make sure we can safely upgrade
+		// check ceph's status, if not healthy we fail
+		cephHealthy := client.IsCephHealthy(c.context, c.Namespace)
+		if !cephHealthy {
+			return fmt.Errorf("ceph status in namespace %s is not healthy, refusing to upgrade. fix the cluster and re-edit the cluster CR to trigger a new orchestation update", c.Namespace)
+		}
+	}
+
 	return nil
 }
 
