@@ -253,86 +253,36 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 		logger.Warningf("mon count is even (given: %d), should be uneven, continuing", cluster.Spec.Mon.Count)
 	}
 
-	// Try to load clusterInfo early so we can compare the running version with the one from the spec image
-	cluster.Info, _, _, err = mon.LoadClusterInfo(c.context, cluster.Namespace)
-	if err == nil {
-		// Let's write connection info (ceph config file and keyring) to the operator for health checks
-		err = mon.WriteConnectionConfig(cluster.context, cluster.Info)
-		if err != nil {
-			return
-		}
-	}
-
 	// Start the Rook cluster components. Retry several times in case of failure.
 	failedMessage := ""
 	state := cephv1.ClusterStateError
 
-	err := wait.Poll(clusterCreateInterval, clusterCreateTimeout, func() (bool, error) {
-		cephVersion, canRetry, err := c.detectAndValidateCephVersion(cluster, cluster.Spec.CephVersion.Image)
-		if err != nil {
-			failedMessage = fmt.Sprintf("failed the ceph version check. %+v", err)
-			logger.Errorf(failedMessage)
-			if !canRetry {
-				// it may seem strange to exit true but we don't want to retry if the version is not supported
-				return true, nil
-			}
-			return false, nil
-		}
-
-		// This tries to determine if the operator was restarted and we loss the state
-		// If the cluster was unhealthy and someone injected a new image version, an upgrade was triggered but failed because the cluster is not healthy
-		// Then after this, if the operator gets restarted we are not able to fail if the cluster is not healthy, the following tries to determine the
-		// state we are in and if we should upgrade or not
-		//
-		// If not initialized, this is likely a new cluster so there is nothing to do
-		if cluster.Info.IsInitialized() {
-			imageVersion := *cephVersion
-
-			// Get cluster running versions
-			versions, err := client.GetAllCephDaemonVersions(c.context, cluster.Namespace)
+	err := wait.Poll(clusterCreateInterval, clusterCreateTimeout,
+		func() (bool, error) {
+			cephVersion, canRetry, err := c.detectAndValidateCephVersion(cluster, cluster.Spec.CephVersion.Image)
 			if err != nil {
-				logger.Errorf("failed to get ceph daemons versions. %+v", err)
-				return false, err
-			}
-
-			runningVersions := *versions
-			updateOrNot, err := diffImageSpecAndClusterRunningVersion(imageVersion, runningVersions)
-			if err != nil {
-				logger.Errorf("failed to determine if we should upgrade or not. %+v", err)
-				// we shouldn't block the orchestration if we can't determine the version of the image spec, we proceed anyway in best effort
-				// we won't be able to check if there is an update or not and what to do, so we don't check the cluster status either
-				// will happen if someone uses ceph/daemon:latest-master for instance
-				validOrchestration = false
-				return true, nil
-			}
-
-			if updateOrNot {
-				// If the image version changed let's make sure we can safely upgrade
-				// check ceph's status, if not healthy we fail
-				cephStatus := client.IsCephHealthy(c.context, cluster.Namespace)
-				if !cephStatus {
-					logger.Errorf("ceph status in namespace %s is not healthy, refusing to upgrade. fix the cluster and re-edit the cluster CR to trigger a new orchestration update", cluster.Namespace)
-					validOrchestration = false
+				failedMessage = fmt.Sprintf("failed the ceph version check. %+v", err)
+				logger.Errorf(failedMessage)
+				if !canRetry {
+					// it may seem strange to exit true but we don't want to retry if the version is not supported
 					return true, nil
 				}
+				return false, nil
 			}
-		}
 
-		c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1.ClusterStateCreating, "")
+			c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1.ClusterStateCreating, "")
 
-		err = cluster.createInstance(c.rookImage, *cephVersion)
-		if err != nil {
-			logger.Errorf("failed to create cluster in namespace %s. %+v", cluster.Namespace, err)
-			return false, nil
-		}
+			err = cluster.createInstance(c.rookImage, *cephVersion)
+			if err != nil {
+				failedMessage = fmt.Sprintf("failed to create cluster in namespace %s. %+v", cluster.Namespace, err)
+				logger.Errorf(failedMessage)
+				return false, nil
+			}
 
-		// cluster is created, update the cluster CRD status now
-		c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1.ClusterStateCreated, "")
-
-		state = cephv1.ClusterStateCreated
-		failedMessage = ""
-		return true, nil
-	})
+			state = cephv1.ClusterStateCreated
+			failedMessage = ""
+			return true, nil
+		})
 
 	c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, state, failedMessage)
 
@@ -474,7 +424,7 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 		return
 	}
 
-	// If the cluster was never initialized during the OnAdd() method due to ao failure, we must
+	// If the cluster was never initialized during the OnAdd() method due to a failure, we must
 	// treat the cluster as if it was just created.
 	if !cluster.initialized() {
 		logger.Infof("Update event for uninitialized cluster %s. Initializing...", newClust.Namespace)

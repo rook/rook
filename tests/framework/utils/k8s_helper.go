@@ -1440,7 +1440,7 @@ func (k8sh *K8sHelper) createTestLogFile(platformName, name, namespace, testName
 			return nil, err
 		}
 	}
-	fileName := fmt.Sprintf("%s_%s_%s%s_%d.log", testName, platformName, name, suffix, time.Now().Unix())
+	fileName := fmt.Sprintf("%s_%s_%s_%s%s_%d.log", testName, platformName, namespace, name, suffix, time.Now().Unix())
 	filePath := path.Join(logDir, fileName)
 	file, err := os.Create(filePath)
 	if err != nil {
@@ -1472,9 +1472,9 @@ func (k8sh *K8sHelper) getPodLogs(pod v1.Pod, platformName, namespace, testName 
 }
 
 func writeHeader(file *os.File, message string) {
-	file.WriteString("-----------------------------------------\n")
+	file.WriteString("\n-----------------------------------------\n")
 	file.WriteString(message)
-	file.WriteString("-----------------------------------------\n")
+	file.WriteString("\n-----------------------------------------\n")
 }
 
 func (k8sh *K8sHelper) appendContainerLogs(file *os.File, pod v1.Pod, containerName string, previousLog, initContainer bool) {
