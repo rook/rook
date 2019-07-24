@@ -10,6 +10,7 @@ an example usage
 - OwnerReferences are created with the fully qualified `apiVersion` such that the references will work properly on OpenShift.
 - Linear disk device can now be used for Ceph OSDs.
 - The integration tests can be triggered for specific storage providers rather than always running all tests. See the [dev guide](INSTALL.md#test-storage-provider) for more details.
+- Provisioning will fail if the user specifies a `metadataDevice` but that device is not used as a metadata device by Ceph.
 
 ### Ceph
 
