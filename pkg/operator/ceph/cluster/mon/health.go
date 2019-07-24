@@ -355,11 +355,6 @@ func (c *Cluster) removeMon(daemonName string) error {
 		return fmt.Errorf("failed to save mon config after failing over mon %s. %+v", daemonName, err)
 	}
 
-	// make sure to rewrite the config so NO new connections are made to the removed mon
-	if err := WriteConnectionConfig(c.context, c.ClusterInfo); err != nil {
-		return fmt.Errorf("failed to write connection config after failing over mon %s. %+v", daemonName, err)
-	}
-
 	return nil
 }
 
