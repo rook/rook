@@ -74,7 +74,7 @@ spec:
               mountPath: /var/lib/kubelet/pods
               mountPropagation: "Bidirectional"
             - name: plugin-mount-dir
-              mountPath: /var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/
+              mountPath: /var/lib/kubelet/plugins
               mountPropagation: "Bidirectional"
             - mountPath: /dev
               name: host-dev
@@ -94,8 +94,8 @@ spec:
             type: DirectoryOrCreate
         - name: plugin-mount-dir
           hostPath:
-            path: /var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/
-            type: DirectoryOrCreate
+            path: /var/lib/kubelet/plugins
+            type: Directory
         - name: registration-dir
           hostPath:
             path: /var/lib/kubelet/plugins_registry/

@@ -214,7 +214,7 @@ const (
                   mountPath: /var/lib/kubelet/pods
                   mountPropagation: "Bidirectional"
                 - name: plugin-mount-dir
-                  mountPath: /var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/
+                  mountPath: /var/lib/kubelet/plugins
                   mountPropagation: "Bidirectional"
                 - mountPath: /dev
                   name: host-dev
@@ -234,8 +234,8 @@ const (
                 type: DirectoryOrCreate
             - name: plugin-mount-dir
               hostPath:
-                path: /var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/
-                type: DirectoryOrCreate
+                path: /var/lib/kubelet/plugins
+                type: Directory
             - name: registration-dir
               hostPath:
                 path: /var/lib/kubelet/plugins_registry/
@@ -439,7 +439,7 @@ const (
                 - name: plugin-dir
                   mountPath: /csi
                 - name: csi-plugins-dir
-                  mountPath: /var/lib/kubelet/plugins/kubernetes.io/csi
+                  mountPath: /var/lib/kubelet/plugins
                   mountPropagation: "Bidirectional"
                 - name: pods-mount-dir
                   mountPath: /var/lib/kubelet/pods
@@ -463,8 +463,8 @@ const (
                 type: DirectoryOrCreate
             - name: csi-plugins-dir
               hostPath:
-                path: /var/lib/kubelet/plugins/kubernetes.io/csi
-                type: DirectoryOrCreate
+                path: /var/lib/kubelet/plugins
+                type: Directory
             - name: registration-dir
               hostPath:
                 path: /var/lib/kubelet/plugins_registry/
