@@ -103,8 +103,8 @@ parameters:
     clusterID: ` + namespace + `
     csi.storage.k8s.io/provisioner-secret-name: ` + csiSecretName + `
     csi.storage.k8s.io/provisioner-secret-namespace: ` + namespace + `
-    csi.storage.k8s.io/node-publish-secret-name: ` + csiSecretName + `
-    csi.storage.k8s.io/node-publish-secret-namespace: ` + namespace + `
+    csi.storage.k8s.io/node-stage-secret-name: ` + csiSecretName + `
+    csi.storage.k8s.io/node-stage-secret-namespace: ` + namespace + `
 `
 	cephFSSC := `
 apiVersion: storage.k8s.io/v1
