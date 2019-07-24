@@ -128,7 +128,9 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 				}...)
 
 				// Reporting
-				immediateReportArgs := append(immediateExecuteArgs, "--report")
+				immediateReportArgs := append(immediateExecuteArgs, []string{
+					"--report",
+				}...)
 
 				if err := context.Executor.ExecuteCommand(false, "", baseCommand, immediateReportArgs...); err != nil {
 					return fmt.Errorf("failed ceph-volume report. %+v", err) // fail return here as validation provided by ceph-volume
@@ -153,6 +155,27 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 
 		if err := context.Executor.ExecuteCommand(false, "", baseCommand, reportArgs...); err != nil {
 			return fmt.Errorf("failed ceph-volume report. %+v", err) // fail return here as validation provided by ceph-volume
+		}
+
+		reportArgs = append(reportArgs, []string{
+			"--format",
+			"json",
+		}...)
+
+		cvOut, err := context.Executor.ExecuteCommandWithOutput(false, "", baseCommand, reportArgs...)
+		if err != nil {
+			return fmt.Errorf("failed ceph-volume json report. %+v", err) // fail return here as validation provided by ceph-volume
+		}
+
+		logger.Debugf("ceph-volume report: %+v", cvOut)
+
+		var cvReport cephVolReport
+		if err = json.Unmarshal([]byte(cvOut), &cvReport); err != nil {
+			return fmt.Errorf("failed to unmarshal ceph-volume report json. %+v", err)
+		}
+
+		if path.Join("/dev", a.metadataDevice) != cvReport.Vg.Devices {
+			return fmt.Errorf("ceph-volume did not use the expected metadataDevice [%s]", a.metadataDevice)
 		}
 
 		// execute ceph-volume batching up multiple devices
@@ -257,4 +280,13 @@ type osdTags struct {
 	OSDFSID     string `json:"ceph.osd_fsid"`
 	Encrypted   string `json:"ceph.encrypted"`
 	ClusterFSID string `json:"ceph.cluster_fsid"`
+}
+
+type cephVolReport struct {
+	Changed bool      `json:"changed"`
+	Vg      cephVolVg `json:"vg"`
+}
+
+type cephVolVg struct {
+	Devices string `json:"devices"`
 }
