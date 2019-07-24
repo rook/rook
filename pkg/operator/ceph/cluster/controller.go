@@ -233,11 +233,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	logger.Infof("starting cluster in namespace %s", cluster.Namespace)
 
 	if c.devicesInUse && cluster.Spec.Storage.AnyUseAllDevices() {
-		message := "using all devices in more than one namespace not supported"
-		logger.Error(message)
-		if err := c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1.ClusterStateError, message); err != nil {
-			logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
-		}
+		c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1.ClusterStateError, "using all devices in more than one namespace is not supported")
 		return
 	}
 
@@ -326,11 +322,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 			}
 		}
 
-		err = c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1.ClusterStateCreating, "")
-		if err != nil {
-			logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
-			return false, nil
-		}
+		c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1.ClusterStateCreating, "")
 
 		err = cluster.createInstance(c.rookImage, *cephVersion)
 		if err != nil {
@@ -339,11 +331,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		}
 
 		// cluster is created, update the cluster CRD status now
-		err = c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1.ClusterStateCreated, "")
-		if err != nil {
-			logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
-			return false, nil
-		}
+		c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1.ClusterStateCreated, "")
 
 		return true, nil
 	})
@@ -353,10 +341,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		if !validOrchestration {
 			message = fmt.Sprintf("giving up creating cluster in namespace %s", cluster.Namespace)
 		}
-		logger.Error(message)
-		if err := c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1.ClusterStateError, message); err != nil {
-			logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
-		}
+		c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1.ClusterStateError, message)
 		return
 	}
 
@@ -582,11 +567,8 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 		return c.handleUpdate(newClust.Name, cluster)
 	})
 	if err != nil {
-		message := fmt.Sprintf("giving up trying to update cluster in namespace %s after %s", cluster.Namespace, updateClusterTimeout)
-		logger.Error(message)
-		if err := c.updateClusterStatus(newClust.Namespace, newClust.Name, cephv1.ClusterStateError, message); err != nil {
-			logger.Errorf("failed to update cluster status in namespace %s: %+v", newClust.Namespace, err)
-		}
+		c.updateClusterStatus(newClust.Namespace, newClust.Name, cephv1.ClusterStateError,
+			fmt.Sprintf("giving up trying to update cluster in namespace %s after %s", cluster.Namespace, updateClusterTimeout))
 		return
 	}
 
@@ -597,20 +579,14 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 }
 
 func (c *ClusterController) handleUpdate(crdName string, cluster *cluster) (bool, error) {
-	if err := c.updateClusterStatus(cluster.Namespace, crdName, cephv1.ClusterStateUpdating, ""); err != nil {
-		logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
-		return false, nil
-	}
+	c.updateClusterStatus(cluster.Namespace, crdName, cephv1.ClusterStateUpdating, "")
 
 	if err := cluster.createInstance(c.rookImage, cluster.Info.CephVersion); err != nil {
 		logger.Errorf("failed to update cluster in namespace %s. %+v", cluster.Namespace, err)
 		return false, nil
 	}
 
-	if err := c.updateClusterStatus(cluster.Namespace, crdName, cephv1.ClusterStateCreated, ""); err != nil {
-		logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
-		return false, nil
-	}
+	c.updateClusterStatus(cluster.Namespace, crdName, cephv1.ClusterStateCreated, "")
 
 	logger.Infof("succeeded updating cluster in namespace %s", cluster.Namespace)
 	return true, nil
@@ -820,13 +796,13 @@ func (c *ClusterController) removeFinalizer(obj interface{}) {
 }
 
 // updateClusterStatus updates the status of the cluster custom resource, whether it is being updated or is completed
-func (c *ClusterController) updateClusterStatus(namespace, name string, state cephv1.ClusterState, message string) error {
-	logger.Infof("CephCluster %s status: %s", namespace, state)
+func (c *ClusterController) updateClusterStatus(namespace, name string, state cephv1.ClusterState, message string) {
+	logger.Infof("CephCluster %s status: %s. %s", namespace, state, message)
 
 	// get the most recent cluster CRD object
 	cluster, err := c.context.RookClientset.CephV1().CephClusters(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to get cluster from namespace %s prior to updating its status: %+v", namespace, err)
+		logger.Errorf("failed to get cluster from namespace %s prior to updating its status: %+v", namespace, err)
 	}
 
 	// update the status on the retrieved cluster object
@@ -834,10 +810,8 @@ func (c *ClusterController) updateClusterStatus(namespace, name string, state ce
 	cluster.Status.State = state
 	cluster.Status.Message = message
 	if _, err := c.context.RookClientset.CephV1().CephClusters(namespace).Update(cluster); err != nil {
-		return fmt.Errorf("failed to update cluster %s status: %+v", namespace, err)
+		logger.Errorf("failed to update cluster %s status: %+v", namespace, err)
 	}
-
-	return nil
 }
 
 func ClusterOwnerRef(namespace, clusterID string) metav1.OwnerReference {
