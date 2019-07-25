@@ -14,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package nfs to manage a NFS Ganesha server
 package nfs
 
 import (
@@ -149,6 +148,8 @@ func (c *CephNFSController) onDelete(obj interface{}) {
 	}
 }
 
+// ParentClusterChanged performs the steps needed to update the NFS cluster when the parent Ceph
+// cluster has changed.
 func (c *CephNFSController) ParentClusterChanged(cluster cephv1.ClusterSpec, clusterInfo *cephconfig.ClusterInfo) {
 	c.clusterInfo = clusterInfo
 	if cluster.CephVersion.Image == c.cephVersion.Image || !c.clusterInfo.CephVersion.IsAtLeastNautilus() {

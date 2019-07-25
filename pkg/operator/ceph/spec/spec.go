@@ -71,32 +71,48 @@ func RookVolumeMounts() []v1.VolumeMount {
 	)
 }
 
-// DaemonVolumes returns the pod volumes used by all Ceph daemons.
+// DaemonVolumes returns the pod volumes used by all Ceph daemons. If keyring resource name is
+// empty, there will be no keyring volume created from a secret.
 func DaemonVolumes(dataPaths *config.DataPathMap, keyringResourceName string) []v1.Volume {
 	vols := []v1.Volume{
 		config.StoredFileVolume(),
-		keyring.Volume().Resource(keyringResourceName),
-		StoredLogVolume(dataPaths.HostLogDir),
 	}
-	if dataPaths.NoData {
+	if keyringResourceName != "" {
+		vols = append(vols, keyring.Volume().Resource(keyringResourceName))
+	}
+	if dataPaths.HostLogDir != "" {
+		// logs are not persisted to host
+		vols = append(vols, StoredLogVolume(dataPaths.HostLogDir))
+	}
+	if dataPaths.ContainerDataDir == "" {
+		// no data is stored in container, and therefore no data can be persisted to host
 		return vols
 	}
+	// when data is not persisted to host, the data may still be shared between init/run containers
 	src := v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}
-	if dataPaths.PersistData {
+	if dataPaths.HostDataDir != "" {
+		// data is persisted to host
 		src = v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: dataPaths.HostDataDir}}
 	}
 	return append(vols, v1.Volume{Name: "ceph-daemon-data", VolumeSource: src})
 }
 
 // DaemonVolumeMounts returns volume mounts which correspond to the DaemonVolumes. These
-// volume mounts are shared by most all Ceph daemon containers, both init and standard.
+// volume mounts are shared by most all Ceph daemon containers, both init and standard. If keyring
+// resource name is empty, there will be no keyring mounted in the container.
 func DaemonVolumeMounts(dataPaths *config.DataPathMap, keyringResourceName string) []v1.VolumeMount {
 	mounts := []v1.VolumeMount{
 		config.StoredFileVolumeMount(),
-		keyring.VolumeMount().Resource(keyringResourceName),
-		StoredLogVolumeMount(),
 	}
-	if dataPaths.NoData {
+	if keyringResourceName != "" {
+		mounts = append(mounts, keyring.VolumeMount().Resource(keyringResourceName))
+	}
+	if dataPaths.HostLogDir != "" {
+		// logs are not persisted to host, so no mount is needed
+		mounts = append(mounts, StoredLogVolumeMount())
+	}
+	if dataPaths.ContainerDataDir == "" {
+		// no data is stored in container, so there are no more mounts
 		return mounts
 	}
 	return append(mounts,

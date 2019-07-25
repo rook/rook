@@ -163,24 +163,12 @@ func (ct *ContainersTester) AssertCephImagesMatch(image string) {
 	}
 }
 
-// AssertResourceSpec asserts that the container under test's resource limits/requests match the
-// given (in string format) resource limits/requests.
-func (ct *ContainersTester) AssertResourceSpec(cpuResourceLimit, cpuResourceRequest, memoryResourceLimit, memoryResourceRequest string) {
-	for _, c := range ct.containers {
-		assert.Equal(ct.t, cpuResourceLimit, c.Resources.Limits.Cpu().String())
-		assert.Equal(ct.t, cpuResourceRequest, c.Resources.Requests.Cpu().String())
-		assert.Equal(ct.t, memoryResourceLimit, c.Resources.Limits.Memory().String())
-		assert.Equal(ct.t, memoryResourceRequest, c.Resources.Requests.Memory().String())
-	}
-}
-
 // RunFullSuite runs all assertion tests for the Containers under test.
 func (ct *ContainersTester) RunFullSuite(cephImage, cpuResourceLimit, cpuResourceRequest, memoryResourceLimit, memoryResourceRequest string) {
 	ct.AssertEnvVarsContainCephRequirements()
 	ct.AssertArgReferencesMatchEnvVars()
 	ct.AssertArgsContainCephRequirements()
 	ct.AssertCephImagesMatch(cephImage)
-	ct.AssertResourceSpec(cpuResourceLimit, cpuResourceRequest, memoryResourceLimit, memoryResourceRequest)
 }
 
 func isCephCommand(command []string) bool {

@@ -57,8 +57,7 @@ func init() {
 	Cmd.AddCommand(operatorCmd,
 		agentCmd,
 		osdCmd,
-		configCmd,
-		nfsCmd)
+		configCmd)
 }
 
 func createContext() *clusterd.Context {
