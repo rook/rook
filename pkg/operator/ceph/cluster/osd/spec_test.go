@@ -44,9 +44,7 @@ func TestPodContainer(t *testing.T) {
 	assert.Equal(t, 2, len(c.Spec.Containers))
 	container := c.Spec.Containers[0]
 	logger.Infof("container: %+v", container)
-	assert.Equal(t, "ceph", container.Args[0])
-	assert.Equal(t, "osd", container.Args[1])
-	assert.Equal(t, "copybins", container.Args[2])
+	assert.Equal(t, "copy-binaries", container.Args[0])
 	container = c.Spec.Containers[1]
 	assert.Equal(t, "/rook/tini", container.Command[0])
 	assert.Equal(t, "--", container.Args[0])
@@ -271,7 +269,6 @@ func TestStorageSpecConfig(t *testing.T) {
 	assert.Equal(t, "rook-ceph-osd-prepare-node1", job.ObjectMeta.Name)
 	container := job.Spec.Template.Spec.Containers[0]
 	assert.NotNil(t, container)
-	verifyEnvVar(t, container.Env, "ROOK_PATH", "/rook", true)
 	container = job.Spec.Template.Spec.Containers[1]
 	assert.NotNil(t, container)
 	verifyEnvVar(t, container.Env, "ROOK_OSD_STORE", "bluestore", true)
