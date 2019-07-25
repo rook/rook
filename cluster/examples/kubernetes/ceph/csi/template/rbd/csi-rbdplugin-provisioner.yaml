@@ -98,6 +98,8 @@ spec:
               readOnly: true
             - name: ceph-csi-config
               mountPath: /etc/ceph-csi-config/
+            - name: keys-tmp-dir
+              mountPath: /tmp/csi/keys
       volumes:
         - name: host-dev
           hostPath:
@@ -121,3 +123,7 @@ spec:
             items:
               - key: csi-cluster-config-json
                 path: config.json
+        - name: keys-tmp-dir
+          emptyDir: {
+            medium: "Memory"
+          }
