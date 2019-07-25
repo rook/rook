@@ -25,25 +25,20 @@ import "path"
 // containers and whether the data should be persisted to the host. If it is persisted to the host,
 // directory on the host where the specific daemon's data is stored is given.
 type DataPathMap struct {
-	// PersistData is true if the daemon's data should be persisted to the host.
-	PersistData bool
-
-	// If PersistData is true, HostDataDIr should be set to the path on the host where the specific
-	// daemon's data is stored.
+	// HostDataDir should be set to the path on the host where the specific daemon's data is stored.
+	// If this is empty, the daemon does not persist data to the host, but data may still be shared
+	// between containers in a pod via an empty dir.
 	HostDataDir string
 
-	// If NoData is true, the daemon has no data to store.
-	NoData bool
-
 	// ContainerDataDir should be set to the path in the container where the specific daemon's data
-	// is stored.
+	// is stored. If this is empty, the daemon does not store data at all, even in the container,
+	// and data is not shared between container in a pod via empty dir.
 	ContainerDataDir string
 
-	// HostLogDir represents Ceph's logging directory on the host
+	// HostLogDir represents Ceph's logging directory on the host. If this is empty, logs are not
+	// persisted to the host. The log dir is always /var/log/ceph. If logs are not persisted to the
+	// host, logs are not shared between containers via empty dir or any other mechanism.
 	HostLogDir string
-
-	// ContainerLogDir represents Ceph's logging directory
-	ContainerLogDir string
 }
 
 // NewStatefulDaemonDataPathMap returns a new DataPathMap for a daemon which requires a persistent
@@ -56,12 +51,9 @@ func NewStatefulDaemonDataPathMap(
 	daemonType DaemonType, daemonID, namespace string,
 ) *DataPathMap {
 	return &DataPathMap{
-		PersistData:      true,
 		HostDataDir:      path.Join(dataDirHostPath, daemonDataDirHostRelativePath),
-		NoData:           false,
 		ContainerDataDir: cephDataDir(daemonType, daemonID),
 		HostLogDir:       path.Join(dataDirHostPath, namespace, "log"),
-		ContainerLogDir:  VarLogCephDir,
 	}
 }
 
@@ -71,24 +63,19 @@ func NewStatelessDaemonDataPathMap(
 	daemonType DaemonType, daemonID, namespace, dataDirHostPath string,
 ) *DataPathMap {
 	return &DataPathMap{
-		PersistData:      false,
 		HostDataDir:      "",
-		NoData:           false,
 		ContainerDataDir: cephDataDir(daemonType, daemonID),
 		HostLogDir:       path.Join(dataDirHostPath, namespace, "log"),
-		ContainerLogDir:  VarLogCephDir,
 	}
 }
 
-// NewDatalessDaemonDataPathMap returns a new DataPathMap for a daemon which does not utilize a data dir in the container as the mon, mgr, osd, mds, and rgw daemons do
+// NewDatalessDaemonDataPathMap returns a new DataPathMap for a daemon which does not utilize a data
+// dir in the container as the mon, mgr, osd, mds, and rgw daemons do.
 func NewDatalessDaemonDataPathMap(namespace, dataDirHostPath string) *DataPathMap {
 	return &DataPathMap{
-		PersistData:      false,
 		HostDataDir:      "",
-		NoData:           true,
 		ContainerDataDir: "",
 		HostLogDir:       path.Join(dataDirHostPath, namespace, "log"),
-		ContainerLogDir:  VarLogCephDir,
 	}
 }
 

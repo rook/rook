@@ -103,23 +103,6 @@ func (ps *PodSpecTester) AssertVolumesMeetCephRequirements(
 		"required volumes don't exist in pod spec's volume list:", ps.spec.Volumes)
 }
 
-// AssertVolumesAndMountsMatch asserts that all of the volume mounts in the pod spec under test's
-// containers have a volume which sources them. It also asserts that each volume is used at least
-// once by any of the mounts in containers.
-func (ps *PodSpecTester) AssertVolumesAndMountsMatch() {
-	pod := optest.VolumesAndMountsTestDefinition{
-		VolumesSpec:     &optest.VolumesSpec{Moniker: "volumes", Volumes: ps.spec.Volumes},
-		MountsSpecItems: []*optest.MountsSpec{},
-	}
-	for _, c := range allContainers(ps.spec) {
-		pod.MountsSpecItems = append(
-			pod.MountsSpecItems,
-			&optest.MountsSpec{Moniker: "mounts of container " + c.Name, Mounts: c.VolumeMounts},
-		)
-	}
-	pod.TestMountsMatchVolumes(ps.t)
-}
-
 // AssertRestartPolicyAlways asserts that the pod spec is set to always restart on failure.
 func (ps *PodSpecTester) AssertRestartPolicyAlways() {
 	assert.Equal(ps.t, v1.RestartPolicyAlways, ps.spec.RestartPolicy)
@@ -130,7 +113,15 @@ func (ps *PodSpecTester) RunFullSuite(
 	daemonType config.DaemonType,
 	resourceName, cephImage, cpuResourceLimit, cpuResourceRequest, memoryResourceLimit, memoryResourceRequest string,
 ) {
-	ps.AssertVolumesAndMountsMatch()
+	resourceExpectations := optest.ResourceLimitExpectations{
+		CPUResourceLimit:      cpuResourceLimit,
+		MemoryResourceLimit:   memoryResourceLimit,
+		CPUResourceRequest:    cpuResourceRequest,
+		MemoryResourceRequest: memoryResourceRequest,
+	}
+	ops := optest.NewPodSpecTester(ps.t, ps.spec)
+	ops.RunFullSuite(resourceExpectations)
+
 	ps.AssertVolumesMeetCephRequirements(daemonType, resourceName)
 	ps.AssertRestartPolicyAlways()
 	ps.Containers().RunFullSuite(cephImage, cpuResourceLimit, cpuResourceRequest, memoryResourceLimit, memoryResourceRequest)

@@ -18,81 +18,74 @@ package ceph
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
 
 	"github.com/rook/rook/cmd/rook/rook"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
-	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/util"
-	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
-)
-
-const (
-	configKeyringTemplate = `
-[%s]
-key = %s
-`
 )
 
 var configCmd = &cobra.Command{
 	Use:   "config-init",
-	Short: "Generates basic ceph config",
+	Short: "Generates basic Ceph config",
+	Long: `Generate the most basic Ceph config for connecting non-Ceph daemons to a Ceph
+cluster (e.g., nfs-ganesha). Effectively what this means is that it generates
+'/etc/ceph/ceph.conf' with 'mon_host' populated and a keyring path (given via
+commandline flag) associated with the user given via commandline flag.
+'mon_host' is determined by the 'ROOK_CEPH_MON_HOST' env var present in other
+Ceph daemon pods, and the keyring is expected to be mounted into the container
+with a Kubernetes pod volume+mount.`,
 }
 
 var (
-	configKeyring  string
-	configUsername string
+	keyring  string
+	username string
 )
 
 func init() {
-	configCmd.Flags().StringVar(&configKeyring, "keyring", "", "the daemon keyring")
-	configCmd.Flags().StringVar(&configUsername, "username", "", "the daemon username")
-	addCephFlags(configCmd)
+	configCmd.Flags().StringVar(&keyring, "keyring", "", "path to the keyring file")
+	configCmd.MarkFlagRequired("keyring")
 
-	flags.SetFlagsFromEnv(configCmd.Flags(), rook.RookEnvVarPrefix)
+	configCmd.Flags().StringVar(&username, "username", "", "the daemon username")
+	configCmd.MarkFlagRequired("username")
 
 	configCmd.RunE = initConfig
 }
 
 func initConfig(cmd *cobra.Command, args []string) error {
-	required := []string{
-		"username", "keyring", "mon-endpoints"}
-	if err := flags.VerifyRequiredFlags(configCmd, required); err != nil {
-		return err
-	}
-
-	if err := verifyRenamedFlags(configCmd); err != nil {
-		return err
-	}
-
 	rook.SetLogLevel()
 
 	rook.LogStartupInfo(configCmd.Flags())
 
-	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
-	clusterInfo.Name = "ceph"
-	context := createContext()
+	if keyring == "" {
+		rook.TerminateFatal(fmt.Errorf("keyring is empty string"))
+	}
+	if username == "" {
+		rook.TerminateFatal(fmt.Errorf("username is empty string"))
+	}
 
-	keyringPath := "/etc/ceph/keyring"
-	_, err := cephconfig.GenerateConfigFile(context, &clusterInfo, "/etc/ceph", configUsername, keyringPath, nil, nil)
+	monHost := os.Getenv("ROOK_CEPH_MON_HOST")
+	if monHost == "" {
+		rook.TerminateFatal(fmt.Errorf("ROOK_CEPH_MON_HOST is not set or is empty string"))
+	}
+
+	cfg := `
+[global]
+mon_host = ` + monHost + `
+
+[` + username + `]
+keyring = ` + keyring + `
+`
+
+	var fileMode os.FileMode = 0444 // read-only
+	err := ioutil.WriteFile(cephconfig.DefaultConfigFilePath(), []byte(cfg), fileMode)
 	if err != nil {
-		return fmt.Errorf("failed to create config file: %+v", err)
+		rook.TerminateFatal(fmt.Errorf("failed to write config file. %+v", err))
 	}
 
 	util.WriteFileToLog(logger, cephconfig.DefaultConfigFilePath())
-
-	keyringEval := func(key string) string {
-		r := fmt.Sprintf(configKeyringTemplate, configUsername, key)
-		return r
-	}
-
-	err = cephconfig.WriteKeyring(keyringPath, configKeyring, keyringEval)
-	if err != nil {
-		return fmt.Errorf("failed to create keyring: %+v\n", err)
-	}
-	if err != nil {
-		rook.TerminateFatal(err)
-	}
 
 	return nil
 }
