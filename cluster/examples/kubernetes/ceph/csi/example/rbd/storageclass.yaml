@@ -21,8 +21,8 @@ parameters:
     # The secrets have to contain Ceph admin credentials.
     csi.storage.k8s.io/provisioner-secret-name: csi-rbd-secret
     csi.storage.k8s.io/provisioner-secret-namespace: default
-    csi.storage.k8s.io/node-publish-secret-name: csi-rbd-secret
-    csi.storage.k8s.io/node-publish-secret-namespace: default
+    csi.storage.k8s.io/node-stage-secret-name: csi-rbd-secret
+    csi.storage.k8s.io/node-stage-secret-namespace: default
 
     # uncomment the following to use rbd-nbd as mounter on supported nodes
     #mounter: rbd-nbd
