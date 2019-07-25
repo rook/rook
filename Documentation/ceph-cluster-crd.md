@@ -31,7 +31,7 @@ metadata:
 spec:
   cephVersion:
     # see the "Cluster Settings" section below for more details on which image of ceph to run
-    image: ceph/ceph:v14.2.1-20190430
+    image: ceph/ceph:v14.2.2-20190722
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -88,7 +88,7 @@ Settings can be specified at the global level to apply to the cluster as a whole
 ### Cluster Settings
 
 - `cephVersion`: The version information for launching the ceph daemons.
-  - `image`: The image used for running the ceph daemons. For example, `ceph/ceph:v13.2.6-20190604` or `ceph/ceph:v14.2.1-20190430`.
+  - `image`: The image used for running the ceph daemons. For example, `ceph/ceph:v13.2.6-20190604` or `ceph/ceph:v14.2.2-20190722`.
   For the latest ceph images, see the [Ceph DockerHub](https://hub.docker.com/r/ceph/ceph/tags/).
   To ensure a consistent version of the image is running across all nodes in the cluster, it is recommended to use a very specific image version.
   Tags also exist that would give the latest version, but they are only recommended for test environments. For example, the tag `v14` will be updated each time a new nautilus build is released.
@@ -298,7 +298,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v14.2.1-20190430
+    image: ceph/ceph:v14.2.2-20190722
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -330,7 +330,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v14.2.1-20190430
+    image: ceph/ceph:v14.2.2-20190722
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -373,7 +373,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v14.2.1-20190430
+    image: ceph/ceph:v14.2.2-20190722
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -410,7 +410,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v14.2.1-20190430
+    image: ceph/ceph:v14.2.2-20190722
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -456,7 +456,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v14.2.1-20190430
+    image: ceph/ceph:v14.2.2-20190722
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -494,7 +494,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v14.2.1-20190430
+    image: ceph/ceph:v14.2.2-20190722
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -558,7 +558,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v14.2.1-20190430
+    image: ceph/ceph:v14.2.2-20190722
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -605,7 +605,7 @@ spec:
           requests:
             storage: 10Gi
   cephVersion:
-    image: ceph/ceph:v14.2.1-20190430
+    image: ceph/ceph:v14.2.2-20190722
     allowUnsupported: false
   dashboard:
     enabled: true
