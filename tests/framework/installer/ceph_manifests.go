@@ -88,6 +88,7 @@ spec:
       properties:
         spec:
           properties:
+            annotations: {}
             cephVersion:
               properties:
                 allowUnsupported:
@@ -103,6 +104,12 @@ spec:
                   type: boolean
                 urlPrefix:
                   type: string
+                port:
+                  type: integer
+                  minimum: 0
+                  maximum: 65535
+                ssl:
+                  type: boolean
             dataDirHostPath:
               pattern: ^/(\S+)
               type: string
@@ -114,6 +121,10 @@ spec:
                   maximum: 9
                   minimum: 1
                   type: integer
+                preferredCount:
+                  maximum: 9
+                  minimum: 0
+                  type: integer
               required:
               - count
             network:
@@ -122,12 +133,116 @@ spec:
                   type: boolean
             storage:
               properties:
-                nodes:
-                  items: {}
-                  type: array
-                useAllDevices: {}
                 useAllNodes:
                   type: boolean
+                nodes:
+                  items:
+                    properties:
+                      name:
+                        type: string
+                      config:
+                        properties:
+                          metadataDevice:
+                            type: string
+                          storeType:
+                            type: string
+                            pattern: ^(filestore|bluestore)$
+                          databaseSizeMB:
+                            type: string
+                          walSizeMB:
+                            type: string
+                          journalSizeMB:
+                            type: string
+                          osdsPerDevice:
+                            type: string
+                          encryptedDevice:
+                            type: string
+                            pattern: ^(true|false)$
+                      useAllDevices: 
+                        type: boolean
+                      deviceFilter:
+                        type: string
+                        nullable: true
+                      directories:
+                        type: array
+                        items:
+                          properties:
+                            path:
+                              type: string
+                      devices:
+                        type: array
+                        items:
+                          properties:
+                            name:
+                              type: string
+                            config:
+                              nullable: true
+                              properties:
+                                metadataDevice:
+                                  type: string
+                                storeType:
+                                  type: string
+                                  pattern: ^(filestore|bluestore)$
+                                databaseSizeMB:
+                                  type: string
+                                walSizeMB:
+                                  type: string
+                                journalSizeMB:
+                                  type: string
+                                osdsPerDevice:
+                                  type: string
+                                encryptedDevice:
+                                  type: string
+                                  pattern: ^(true|false)$
+                      location: 
+                        type: string
+                        nullable: true
+                  type: array
+                useAllDevices: 
+                  type: boolean
+                deviceFilter:
+                  type: string
+                  nullable: true
+                location: {}
+                directories:
+                  type: array
+                  items:
+                    properties:
+                      path:
+                        type: string
+                config:
+                  nullable: true
+                  properties:
+                    metadataDevice:
+                      type: string
+                    storeType:
+                      type: string
+                      pattern: ^(filestore|bluestore)$
+                    databaseSizeMB:
+                      type: string
+                    walSizeMB:
+                      type: string
+                    journalSizeMB:
+                      type: string
+                    osdsPerDevice:
+                      type: string
+                    encryptedDevice:
+                      type: string
+                      pattern: ^(true|false)$
+                topologyAware: 
+                  type: boolean
+            monitoring:
+              properties:
+                enabled:
+                  type: boolean
+                rulesNamespace:
+                  type: string
+            rbdMirroring:
+              properties:
+                workers:
+                  type: integer
+            placement: {}
+            resources: {}
           required:
           - mon
   additionalPrinterColumns:
@@ -164,6 +279,50 @@ spec:
     singular: cephfilesystem
   scope: Namespaced
   version: v1
+  validation:
+    openAPIV3Schema:
+      properties:
+        spec:
+          properties:
+            metadataServer:
+              properties:
+                activeCount:
+                  type: integer
+                activeStandby:
+                  type: boolean
+                annotations: {}
+                placement: {}
+                resources: {}
+            metadataPool:
+              properties:
+                failureDomain:
+                  type: string
+                replicated:
+                  properties:
+                    size:
+                      type: integer
+                erasureCoded:
+                  properties:
+                    dataChunks:
+                      type: integer
+                    codingChunks:
+                      type: integer
+            dataPools:
+              type: array
+              items:
+                properties:
+                  failureDomain:
+                    type: string
+                  replicated:
+                    properties:
+                      size:
+                        type: integer
+                  erasureCoded:
+                    properties:
+                      dataChunks:
+                        type: integer
+                      codingChunks:
+                        type: integer
   additionalPrinterColumns:
     - name: MdsCount
       type: string
@@ -188,6 +347,24 @@ spec:
     - nfs
   scope: Namespaced
   version: v1
+  validation:
+    openAPIV3Schema:
+      properties:
+        spec:
+          properties:
+            rados:
+              properties:
+                pool:
+                  type: string
+                namespace:
+                  type: string
+            server:
+              properties:
+                active:
+                  type: integer
+                annotations: {}
+                placement: {}
+                resources: {}
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -202,6 +379,54 @@ spec:
     singular: cephobjectstore
   scope: Namespaced
   version: v1
+  validation:
+    openAPIV3Schema:
+      properties:
+        spec:
+          properties:
+            gateway:
+              properties:
+                type:
+                  type: string
+                sslCertificateRef:
+                  type: string
+                port:
+                  type: integer
+                securePort:
+                  type: integer
+                instances:
+                  type: integer
+                annotations: {}
+                placement: {}
+                resources: {}
+            metadataPool:
+              properties:
+                failureDomain:
+                  type: string
+                replicated:
+                  properties:
+                    size:
+                      type: integer
+                erasureCoded:
+                  properties:
+                    dataChunks:
+                      type: integer
+                    codingChunks:
+                      type: integer
+            dataPool:
+              properties:
+                failureDomain:
+                  type: string
+                replicated:
+                  properties:
+                    size:
+                      type: integer
+                erasureCoded:
+                  properties:
+                    dataChunks:
+                      type: integer
+                    codingChunks:
+                      type: integer
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
