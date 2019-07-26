@@ -17,9 +17,11 @@ limitations under the License.
 package integration
 
 import (
+	"testing"
+
 	"github.com/rook/rook/tests/framework/clients"
-	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	v1 "k8s.io/api/core/v1"
@@ -36,29 +38,25 @@ const (
 	csiTestCephFSPodName = "csi-test-cephfs"
 )
 
-func runCephCSIE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
-	if isCSIRunnig(k8sh, namespace) {
-		logger.Info("test Ceph CSI driver")
-		createCephCSISecret(helper, k8sh, s, namespace)
-		createCephPools(helper, s, namespace)
-		createCSIStorageClass(k8sh, s, namespace)
-		createCSIRBDTestPod(k8sh, s, namespace)
-		createCSICephFSTestPod(k8sh, s, namespace)
-	}
-}
+func runCephCSIE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, t *testing.T, namespace string) {
 
-func isCSIRunnig(k8sh *utils.K8sHelper, namespace string) bool {
-	err := k8sh.WaitForLabeledPodsToRun("app=csi-rbdplugin", installer.SystemNamespace(namespace))
-	if err != nil {
-		logger.Errorf("rbd pods are not running,failed with error %+v", err)
-		return false
+	if !k8sh.VersionAtLeast("v1.13.0") {
+		logger.Info("Skiping csi tests as kube version is less than 1.13.0")
+		t.Skip()
 	}
-	err = k8sh.WaitForLabeledPodsToRun("app=csi-cephfsplugin", installer.SystemNamespace(namespace))
-	if err != nil {
-		logger.Errorf("cephfs pods are not running,failed with error %+v", err)
-		return false
-	}
-	return true
+
+	logger.Info("test Ceph CSI driver")
+	createCephCSISecret(helper, k8sh, s, namespace)
+	createCephPools(helper, s, namespace)
+	createCSIStorageClass(k8sh, s, namespace)
+	createAndDeleteCSIRBDTestPod(k8sh, s, namespace)
+	createAndDeleteCSICephFSTestPod(k8sh, s, namespace)
+
+	//cleanup resources created
+	deleteCephCSISecret(k8sh, namespace)
+	deleteCephPools(helper, namespace)
+	deleteCSIStorageClass(k8sh, namespace)
+
 }
 
 func createCephCSISecret(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
@@ -83,12 +81,35 @@ func createCephCSISecret(helper *clients.TestClient, k8sh *utils.K8sHelper, s su
 	logger.Info("Created Ceph CSI Secret")
 }
 
+func deleteCephCSISecret(k8sh *utils.K8sHelper, namespace string) {
+	err := k8sh.Clientset.CoreV1().Secrets(namespace).Delete(csiSecretName, &metav1.DeleteOptions{})
+	if err != nil {
+		logger.Errorf("failed to delete ceph-csi %s with error %v", csiSecretName, err)
+		return
+	}
+	logger.Info("Deleted Ceph CSI Secret")
+}
+
 func createCephPools(helper *clients.TestClient, s suite.Suite, namespace string) {
 	err := helper.PoolClient.Create(csiPoolRBD, namespace, 1)
 	require.Nil(s.T(), err)
 
 	err = helper.FSClient.Create(csiPoolCephFS, namespace)
 	require.Nil(s.T(), err)
+}
+
+func deleteCephPools(helper *clients.TestClient, namespace string) {
+	err := helper.PoolClient.Delete(csiPoolRBD, namespace)
+	if err != nil {
+		logger.Errorf("failed to delete rbd pool %s with error %v", csiPoolRBD, err)
+	}
+
+	err = helper.FSClient.Delete(csiPoolCephFS, namespace)
+	if err != nil {
+		logger.Errorf("failed to delete cephfs pool %s with error %v", csiPoolCephFS, err)
+		return
+	}
+	logger.Info("Deleted Ceph Pools")
 }
 
 func createCSIStorageClass(k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
@@ -128,7 +149,20 @@ parameters:
 	require.Nil(s.T(), err)
 }
 
-func createCSIRBDTestPod(k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
+func deleteCSIStorageClass(k8sh *utils.K8sHelper, namespace string) {
+	err := k8sh.Clientset.StorageV1().StorageClasses().Delete(csiSCRBD, &metav1.DeleteOptions{})
+	if err != nil {
+		logger.Errorf("failed to delete rbd storage class %s with error %v", csiSCRBD, err)
+	}
+	err = k8sh.Clientset.StorageV1().StorageClasses().Delete(csiSCCephFS, &metav1.DeleteOptions{})
+	if err != nil {
+		logger.Errorf("failed to delete cephfs storage class %s with error %v", csiSCCephFS, err)
+		return
+	}
+	logger.Info("Deleted rbd and cephfs storageclass")
+}
+
+func createAndDeleteCSIRBDTestPod(k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
 	pod := `
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -174,15 +208,14 @@ spec:
 	if !isPodRunning {
 		k8sh.PrintPodDescribe(namespace, csiTestRBDPodName)
 		k8sh.PrintPodStatus(namespace)
-	} else {
-		// cleanup the pod and pv
-		err = k8sh.ResourceOperation("delete", pod)
 	}
-
-	require.True(s.T(), isPodRunning, "csi rbd test pod fails to run")
+	// cleanup the pod and pvc
+	err = k8sh.ResourceOperation("delete", pod)
+	assert.NoError(s.T(), err)
+	assert.True(s.T(), isPodRunning, "csi rbd test pod fails to run")
 }
 
-func createCSICephFSTestPod(k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
+func createAndDeleteCSICephFSTestPod(k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
 	pod := `
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -228,10 +261,9 @@ spec:
 	if !isPodRunning {
 		k8sh.PrintPodDescribe(namespace, csiTestCephFSPodName)
 		k8sh.PrintPodStatus(namespace)
-	} else {
-		// cleanup the pod and pv
-		err = k8sh.ResourceOperation("delete", pod)
 	}
-
-	require.True(s.T(), isPodRunning, "csi cephfs test pod fails to run")
+	// cleanup the pod and pvc
+	err = k8sh.ResourceOperation("delete", pod)
+	assert.NoError(s.T(), err)
+	assert.True(s.T(), isPodRunning, "csi cephfs test pod fails to run")
 }
