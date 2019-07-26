@@ -125,7 +125,9 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface) error {
 
 	// create an empty config map. config map will be filled with data
 	// later when clusters have mons
-	CreateCsiConfigMap(namespace, clientset)
+	if err := CreateCsiConfigMap(namespace, clientset); err != nil {
+		return fmt.Errorf("failed creating csi config map. %+v", err)
+	}
 
 	tp := templateParam{
 		Param:     CSIParam,
