@@ -43,6 +43,7 @@ const (
 	etcVolumeFolder    = ".etc"
 	defaultPort        = 9982
 	defaultSecurePort  = 9443
+	defaultServiceType = "ClusterIP"
 )
 
 // Start the S3 manager
@@ -70,6 +71,10 @@ func (c *S3Controller) CreateOrUpdate(s edgefsv1beta1.S3, update bool, ownerRefs
 
 	if s.Spec.SecurePort == 0 {
 		s.Spec.SecurePort = defaultSecurePort
+	}
+
+	if s.Spec.ServiceType == "" {
+		s.Spec.ServiceType = defaultServiceType
 	}
 
 	imageArgs := "s3"
@@ -138,6 +143,16 @@ func (c *S3Controller) CreateOrUpdate(s edgefsv1beta1.S3, update bool, ownerRefs
 
 func (c *S3Controller) makeS3Service(name, svcname, namespace string, s3Spec edgefsv1beta1.S3Spec) *v1.Service {
 	labels := getLabels(name, svcname, namespace)
+	httpPort := v1.ServicePort{Name: "port", Port: int32(s3Spec.Port), Protocol: v1.ProtocolTCP}
+	httpsPort := v1.ServicePort{Name: "secure-port", Port: int32(s3Spec.SecurePort), Protocol: v1.ProtocolTCP}
+
+	if s3Spec.ExternalPort != 0 {
+		httpPort.NodePort = int32(s3Spec.ExternalPort)
+	}
+	if s3Spec.SecureExternalPort != 0 {
+		httpsPort.NodePort = int32(s3Spec.SecureExternalPort)
+	}
+
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -146,11 +161,11 @@ func (c *S3Controller) makeS3Service(name, svcname, namespace string, s3Spec edg
 		},
 		Spec: v1.ServiceSpec{
 			Selector: labels,
-			Type:     v1.ServiceTypeNodePort,
+			Type:     k8sutil.ParseServiceType(s3Spec.ServiceType),
 			Ports: []v1.ServicePort{
 				{Name: "grpc", Port: 49000, Protocol: v1.ProtocolTCP},
-				{Name: "port", Port: int32(s3Spec.Port), Protocol: v1.ProtocolTCP},
-				{Name: "secure-port", Port: int32(s3Spec.SecurePort), Protocol: v1.ProtocolTCP},
+				httpPort,
+				httpsPort,
 			},
 		},
 	}
