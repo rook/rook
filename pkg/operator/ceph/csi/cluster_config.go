@@ -98,7 +98,8 @@ func UpdateCsiClusterConfig(
 	)
 	cc, err := parseCsiClusterConfig(curr)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf(
+			"failed to parse current csi cluster config. %+v", err)
 	}
 
 	for i, centry := range cc {
@@ -132,7 +133,9 @@ func CreateCsiConfigMap(namespace string, clientset kubernetes.Interface) error 
 
 	if _, err := clientset.CoreV1().ConfigMaps(namespace).Create(configMap); err != nil {
 		if !k8serrors.IsAlreadyExists(err) {
-			return err
+			return fmt.Errorf(
+				"failed to create initial csi config map %v (in %v). %+v",
+				configMap.Name, namespace, err)
 		}
 	}
 	return nil

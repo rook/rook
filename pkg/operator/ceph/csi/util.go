@@ -18,6 +18,7 @@ package csi
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"text/template"
 
@@ -36,7 +37,7 @@ func loadTemplate(name, templatePath string, p templateParam) (string, error) {
 	t := template.New(name)
 	t, err = t.Parse(data)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to parse template %v. %+v", name, err)
 	}
 	err = t.Execute(&writer, p)
 	return writer.String(), err
