@@ -47,6 +47,9 @@ Now that your operator is running, let's create your Ceph storage cluster:
 
 See the [Cluster CRD](ceph-cluster-crd.md) topic for more details on the settings.
 
+Monitors may be configured to run on PVC storage. Details on [how to set this up
+and some minor restrctions are described here](ceph-cluster-crd.md#mon-settings).
+
 ## Setting up consumable storage
 
 Now we are ready to setup [block](https://ceph.com/ceph-storage/block-storage/), [shared filesystem](https://ceph.com/ceph-storage/file-system/) or [object storage](https://ceph.com/ceph-storage/object-storage/) in the rook ceph cluster. These kinds of storage are respectively referred to as CephBlockPool, CephFilesystem and CephObjectStore in the spec files.

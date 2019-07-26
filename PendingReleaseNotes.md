@@ -33,6 +33,8 @@ an example usage
 - Upgrades have drastically improved, Rook intelligently checks for each daemon state before and after upgrading. To learn more about the upgrade workflow see [Ceph Upgrades](Documentation/ceph-upgrade.md)
 - Rook Operator now supports 2 new environmental variables: `AGENT_TOLERATIONS` and `DISCOVER_TOLERATIONS`. Each accept list of tolerations for agent and discover pods accordingly.
 - Ceph daemons now run under 'ceph' user and not 'root' anymore (monitor or osd store already owned by 'root' will keep running under 'root')
+- Ceph monitors have initial support for running on PVC storage. See docs on
+  [monitor settings for more detail](Documentation/ceph-cluster-crd.md#mon-settings).
 
 ## Breaking Changes
 
