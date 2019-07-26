@@ -315,7 +315,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 				// check ceph's status, if not healthy we fail
 				cephStatus := client.IsCephHealthy(c.context, cluster.Namespace)
 				if !cephStatus {
-					logger.Errorf("ceph status in namespace %s is not healthy, refusing to upgrade. fix the cluster and re-edit the cluster CR to trigger a new orchestation update", cluster.Namespace)
+					logger.Errorf("ceph status in namespace %s is not healthy, refusing to upgrade. fix the cluster and re-edit the cluster CR to trigger a new orchestration update", cluster.Namespace)
 					validOrchestration = false
 					return true, nil
 				}
@@ -638,7 +638,7 @@ func (c *ClusterController) onDeviceCMUpdate(oldObj, newObj interface{}) {
 		logger.Infof("Running orchestration for namespace %s after device change", cluster.Namespace)
 		err := cluster.createInstance(c.rookImage, cluster.Info.CephVersion)
 		if err != nil {
-			logger.Errorf("Failed orchestration after device change in namesapce %s. %+v", cluster.Namespace, err)
+			logger.Errorf("Failed orchestration after device change in namespace %s. %+v", cluster.Namespace, err)
 			continue
 		}
 	}
