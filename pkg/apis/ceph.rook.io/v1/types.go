@@ -143,9 +143,10 @@ const (
 )
 
 type MonSpec struct {
-	Count                int  `json:"count"`
-	PreferredCount       int  `json:"preferredCount"`
-	AllowMultiplePerNode bool `json:"allowMultiplePerNode"`
+	Count                int                       `json:"count"`
+	PreferredCount       int                       `json:"preferredCount"`
+	AllowMultiplePerNode bool                      `json:"allowMultiplePerNode"`
+	VolumeClaimTemplate  *v1.PersistentVolumeClaim `json:"volumeClaimTemplate,omitempty"`
 }
 
 type RBDMirroringSpec struct {

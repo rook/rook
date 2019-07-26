@@ -1,0 +1,25 @@
+#
+# Hi, it looks like you just had a conflict merging #3341. Please integrate the
+# `mon.volumeClaimTemplate` configuration and associated comment below, and
+# remove this note. Thanks :)
+#
+apiVersion: ceph.rook.io/v1
+kind: CephCluster
+metadata:
+  name: rook-ceph
+  namespace: rook-ceph
+spec:
+  dataDirHostPath: /var/lib/rook
+  mon:
+    # A volume claim template can be specified in which case new monitors (and
+    # monitors created during fail over) will construct a PVC based on the
+    # template for the monitor's primary storage. Changes to the template do not
+    # affect existing monitors. Log data is stored on the HostPath under
+    # dataDirHostPath. If no storage requirement is specified, a default storage
+    # size appropriate for monitor data will be used.
+    volumeClaimTemplate:
+      spec:
+        storageClassName: local-storage
+        resources:
+          requests:
+            storage: 10Gi

@@ -88,6 +88,15 @@ starts with three nodes, but might grow to more than five nodes, you might want 
 When the operator sees the new nodes come online, the number of mons will increase to the preferred count. If the number of nodes decreases below the `preferredCount`, the operator will
 reduce the number of mons back to `count`. If `allowMultiplePerNode: true` (for testing scenarios), the number of mons will always use `preferredCount` if set.
 - `allowMultiplePerNode`: Enable (`true`) or disable (`false`) the placement of multiple mons on one node. Default is `false`.
+- `volumeClaimTemplate`: A `PersistentVolumeSpec` used by Rook to create PVCs
+  for monitor storage. This field is optional, and when not provided, HostPath
+  volume mounts are used.  The current set of fields from template that are used
+  are `storageClassName` and the `storage` resource request and limit. The
+  default storage size request for new PVCs is `10Gi`. Ensure that associated
+  storage class is configured to use `volumeBindingMode: WaitForFirstConsumer`.
+  This setting only applies to new monitors that are created when the requested
+  number of monitors increases, or when a monitor fails and is recreated. An
+  [example CRD configuration is provided below](#using-pvc-storage-for-monitors).
 
 If these settings are changed in the CRD the operator will update the number of mons during a periodic check of the mon health, which by default is every 45 seconds.
 
@@ -478,3 +487,41 @@ spec:
 ```
 
 This configuration will split replication of your volumes across unique racks in your datacenter setup.
+
+### Using PVC storage for monitors
+
+In the CRD specification below three monitors are created each using a 10Gi PVC
+created by Rook using the `fast-disks` storage class.
+
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephCluster
+metadata:
+  name: rook-ceph
+  namespace: rook-ceph
+spec:
+  cephVersion:
+    image: ceph/ceph:v14.2.1-20190430
+  dataDirHostPath: /var/lib/rook
+  mon:
+    count: 3
+    allowMultiplePerNode: false
+    volumeClaimTemplate:
+      spec:
+        storageClassName: fast-disks
+        resources:
+          requests:
+            storage: 10Gi
+  dashboard:
+    enabled: true
+  storage:
+    useAllNodes: true
+    useAllDevices: true
+    deviceFilter:
+    location:
+    config:
+      metadataDevice:
+      databaseSizeMB: "1024" # this value can be removed for environments with normal sized disks (100 GB or larger)
+      journalSizeMB: "1024"  # this value can be removed for environments with normal sized disks (20 GB or larger)
+      osdsPerDevice: "1"
+```
