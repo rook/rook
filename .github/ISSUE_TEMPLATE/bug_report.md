@@ -20,7 +20,7 @@ labels: bug
 
 **File(s) to submit**:
 
-* Cluster CR (custom ressource), typically called `cluster.yaml`, if necessary
+* Cluster CR (custom resource), typically called `cluster.yaml`, if necessary
 * Operator's logs, if necessary
 * Crashing pod(s) logs, if necessary
 
