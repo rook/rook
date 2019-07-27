@@ -69,7 +69,7 @@ type childController interface {
 }
 
 func newCluster(c *cephv1.CephCluster, context *clusterd.Context) *cluster {
-	ownerRef := ClusterOwnerRef(c.Namespace, string(c.UID))
+	ownerRef := ClusterOwnerRef(c.Name, string(c.UID))
 	return &cluster{
 		// at this phase of the cluster creation process, the identity components of the cluster are
 		// not yet established. we reserve this struct which is filled in as soon as the cluster's
