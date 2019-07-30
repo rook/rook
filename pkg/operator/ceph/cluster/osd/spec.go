@@ -352,11 +352,12 @@ func (c *Cluster) getCopyBinariesContainer() (v1.Volume, *v1.Container) {
 	mount := v1.VolumeMount{Name: rookBinariesVolumeName, MountPath: rookBinariesMountPath}
 
 	return volume, &v1.Container{
-		Args:         []string{"ceph", "osd", "copybins"},
+		Args: []string{
+			"copy-binaries",
+			"--copy-to-dir", rookBinariesMountPath},
 		Name:         "copy-bins",
 		Image:        k8sutil.MakeRookImage(c.rookVersion),
 		VolumeMounts: []v1.VolumeMount{mount},
-		Env:          []v1.EnvVar{{Name: "ROOK_PATH", Value: rookBinariesMountPath}},
 	}
 }
 
