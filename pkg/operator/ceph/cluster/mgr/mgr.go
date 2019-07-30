@@ -243,6 +243,8 @@ func (c *Cluster) enableServiceMonitor(service *v1.Service) error {
 	serviceMonitor.SetName(name)
 	serviceMonitor.SetNamespace(namespace)
 	k8sutil.SetOwnerRef(&serviceMonitor.ObjectMeta, &c.ownerRef)
+	serviceMonitor.Spec.NamespaceSelector.MatchNames = []string{namespace}
+	serviceMonitor.Spec.Selector.MatchLabels = service.GetLabels()
 	if _, err := k8sutil.CreateOrUpdateServiceMonitor(serviceMonitor); err != nil {
 		return fmt.Errorf("service monitor could not be enabled. %+v", err)
 	}

@@ -30,6 +30,7 @@ an example usage
 - The cluster CRD option to allow multiple monitors to be scheduled on the same
   node---`spec.Mon.AllowMultiplePerNode`---is now active when a cluster is first
   created. Previously, it was ignored when a cluster was first installed.
+- The Cluster CRD now provides option to enable prometheus based monitoring, provided that prometheus is pre-installed.
 - Upgrades have drastically improved, Rook intelligently checks for each daemon state before and after upgrading. To learn more about the upgrade workflow see [Ceph Upgrades](Documentation/ceph-upgrade.md)
 - Rook Operator now supports 2 new environmental variables: `AGENT_TOLERATIONS` and `DISCOVER_TOLERATIONS`. Each accept list of tolerations for agent and discover pods accordingly.
 - Ceph daemons now run under 'ceph' user and not 'root' anymore (monitor or osd store already owned by 'root' will keep running under 'root')
