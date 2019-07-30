@@ -43,10 +43,6 @@ var osdConfigCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Updates ceph.conf for the osd",
 }
-var copyBinariesCmd = &cobra.Command{
-	Use:   "copybins",
-	Short: "Copies rook binaries for use by a ceph container",
-}
 var provisionCmd = &cobra.Command{
 	Use:   "provision",
 	Short: "Generates osd config and prepares an osd for runtime",
@@ -88,9 +84,6 @@ func addOSDFlags(command *cobra.Command) {
 	osdConfigCmd.Flags().IntVar(&osdID, "osd-id", -1, "osd id for which to generate config")
 	osdConfigCmd.Flags().BoolVar(&osdIsDevice, "is-device", false, "whether the osd is a device")
 
-	// flag for copying the rook binaries for use by a ceph container
-	copyBinariesCmd.Flags().StringVar(&copyBinariesPath, "path", "", "Copy the rook binaries to this path for use by a ceph container")
-
 	// flags for running filestore on a device
 	filestoreDeviceCmd.Flags().StringVar(&mountSourcePath, "source-path", "", "the source path of the device to mount")
 	filestoreDeviceCmd.Flags().StringVar(&mountPath, "mount-path", "", "the path where the device should be mounted")
@@ -102,7 +95,6 @@ func addOSDFlags(command *cobra.Command) {
 
 	// add the subcommands to the parent osd command
 	osdCmd.AddCommand(osdConfigCmd,
-		copyBinariesCmd,
 		provisionCmd,
 		filestoreDeviceCmd,
 		osdStartCmd)
@@ -127,13 +119,11 @@ func init() {
 	addCephFlags(osdCmd)
 	flags.SetFlagsFromEnv(osdCmd.Flags(), rook.RookEnvVarPrefix)
 	flags.SetFlagsFromEnv(osdConfigCmd.Flags(), rook.RookEnvVarPrefix)
-	flags.SetFlagsFromEnv(copyBinariesCmd.Flags(), rook.RookEnvVarPrefix)
 	flags.SetFlagsFromEnv(provisionCmd.Flags(), rook.RookEnvVarPrefix)
 	flags.SetFlagsFromEnv(filestoreDeviceCmd.Flags(), rook.RookEnvVarPrefix)
 	flags.SetFlagsFromEnv(osdStartCmd.Flags(), rook.RookEnvVarPrefix)
 
 	osdConfigCmd.RunE = writeOSDConfig
-	copyBinariesCmd.RunE = copyRookBinaries
 	provisionCmd.RunE = prepareOSD
 	filestoreDeviceCmd.RunE = runFilestoreDeviceOSD
 	osdStartCmd.RunE = startOSD
@@ -211,14 +201,6 @@ func writeOSDConfig(cmd *cobra.Command, args []string) error {
 		rook.TerminateFatal(fmt.Errorf("failed to write osd config file. %+v", err))
 	}
 
-	return nil
-}
-
-func copyRookBinaries(cmd *cobra.Command, args []string) error {
-	if err := flags.VerifyRequiredFlags(copyBinariesCmd, []string{"path"}); err != nil {
-		return err
-	}
-	copyBinaries(copyBinariesPath)
 	return nil
 }
 
@@ -310,14 +292,4 @@ func parseDevices(devices string) ([]osddaemon.DesiredDevice, error) {
 
 	logger.Infof("desired devices to configure osds: %+v", result)
 	return result, nil
-}
-
-func copyBinaries(path string) {
-	if path != "" {
-		if err := osddaemon.CopyBinariesForDaemon(path); err != nil {
-			logger.Errorf("failed to copy rook binaries for daemon container. %+v", err)
-		} else {
-			logger.Infof("successfully copied rook binaries")
-		}
-	}
 }
