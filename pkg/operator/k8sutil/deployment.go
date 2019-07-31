@@ -53,7 +53,7 @@ func GetDeploymentSpecImage(clientset kubernetes.Interface, d apps.Deployment, c
 // It serves two purposes:
 //   1. verify that a resource can be stopped
 //   2. verify that we can continue the update procedure
-// Basically, we go one resource by one and check if we can stop and then if the ressource has been successfully updated
+// Basically, we go one resource by one and check if we can stop and then if the resource has been successfully updated
 // we check if we can go ahead and move to the next one.
 func UpdateDeploymentAndWait(context *clusterd.Context, deployment *apps.Deployment, namespace string, verifyCallback func(action string) error) (*v1.Deployment, error) {
 	original, err := context.Clientset.AppsV1().Deployments(namespace).Get(deployment.Name, metav1.GetOptions{})
