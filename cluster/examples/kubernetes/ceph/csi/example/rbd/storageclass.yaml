@@ -5,8 +5,8 @@ metadata:
 provisioner: rbd.csi.ceph.com
 parameters:
     # Specify a string that identifies your cluster. Ceph CSI supports any
-    # unique string. When Ceph CSI is deployed by Rook use the Rook namespace,
-    # for example "rook-ceph".
+    # unique string. When Ceph CSI is deployed by Rook use the namespace of
+    # the Ceph cluster, for example "rook-ceph".
     clusterID: rook-ceph
 
     # Ceph pool into which the RBD image shall be created
