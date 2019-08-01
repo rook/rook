@@ -100,6 +100,7 @@ The following tables lists the configurable parameters of the rook-operator char
 | `logLevel`                   | Global log level                                                                                        | `INFO`                                                 |
 | `nodeSelector`               | Kubernetes `nodeSelector` to add to the Deployment.                                                     | <none>                                                 |
 | `tolerations`                | List of Kubernetes `tolerations` to add to the Deployment.                                              | `[]`                                                   |
+| `currentNamespaceOnly`   | Whether the operator should watch cluster CRD in its own namespace or not                               | `false`                                                 |
 | `hostpathRequiresPrivileged` | Runs Ceph Pods as privileged to be able to write to `hostPath`s in OpenShift with SELinux restrictions. | `false`                                                |
 | `agent.flexVolumeDirPath`    | Path where the Rook agent discovers the flex volume plugins (*)                                         | `/usr/libexec/kubernetes/kubelet-plugins/volume/exec/` |
 | `agent.libModulesDirPath`    | Path where the Rook agent should look for kernel modules (*)                                            | `/lib/modules`                                         |
