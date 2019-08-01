@@ -363,7 +363,22 @@ func (c *Cluster) findInvalidMonitorPlacement(desiredMonCount int) (*NodeUsage, 
 			}
 		}
 		if !monFoundInZone {
-			emptyZone = true
+			// emptyZone is used below to imply that an empty zone exists AND
+			// that zone contains a valid node (i.e. a node that new pods can be
+			// assigned). this check enforces that assumption by checking that
+			// the zone contains at least one valid node.
+			validNodeInZone := false
+			for _, nodeUsage := range nodeZones[zi] {
+				if nodeUsage.MonValid {
+					validNodeInZone = true
+					break
+				}
+			}
+			if validNodeInZone {
+				emptyZone = true
+			}
+			logger.Debugf("rebalance: empty zone found. validNodeInZone: %t, emptyZone %t",
+				validNodeInZone, emptyZone)
 		}
 	}
 
