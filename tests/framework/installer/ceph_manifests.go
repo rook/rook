@@ -197,6 +197,7 @@ spec:
                       location: 
                         type: string
                         nullable: true
+                      resources: {}
                   type: array
                 useAllDevices: 
                   type: boolean
