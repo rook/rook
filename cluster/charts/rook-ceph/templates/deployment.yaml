@@ -105,6 +105,10 @@ spec:
         - name: ROOK_CSI_ENABLE_CEPHFS
           value: {{ .Values.enableCsiCephfsDriver }}
 {{- end }}
+{{- if .Values.enableFlexDriver }}
+        - name: ROOK_ENABLE_FLEX_DRIVER
+          value: {{ .Values.enableFlexDriver }}
+{{- end }}
 
         - name: NODE_NAME
           valueFrom:
