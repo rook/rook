@@ -626,7 +626,7 @@ func (c *ClusterController) onDeviceCMUpdate(oldObj, newObj interface{}) {
 	}
 
 	if devicesEqual {
-		logger.Infof("device lists are equal. skipping orchestration")
+		logger.Debugf("device lists are equal. skipping orchestration")
 		return
 	}
 
