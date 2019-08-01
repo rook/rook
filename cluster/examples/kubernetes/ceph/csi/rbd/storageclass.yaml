@@ -11,16 +11,15 @@ spec:
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-   name: csi-rbd
+   name: rook-ceph-block
 provisioner: rbd.csi.ceph.com
 parameters:
-    # Specify a string that identifies your cluster. Ceph CSI supports any
-    # unique string. When Ceph CSI is deployed by Rook use the Rook namespace,
-    # for example "rook-ceph".
+    # clusterID is the namespace where the rook cluster is running
+    # If you change this namespace, also change the namespace below where the secret namespaces are defined
     clusterID: rook-ceph
 
     # Ceph pool into which the RBD image shall be created
-    pool: rbd
+    pool: replicapool
 
     # RBD image format. Defaults to "2".
     imageFormat: "2"
@@ -28,12 +27,13 @@ parameters:
     # RBD image features. Available for imageFormat: "2". CSI RBD currently supports only `layering` feature.
     imageFeatures: layering
 
-    # The secrets have to contain Ceph admin credentials.
-    csi.storage.k8s.io/provisioner-secret-name: csi-rbd-secret
-    csi.storage.k8s.io/provisioner-secret-namespace: default
-    csi.storage.k8s.io/node-stage-secret-name: csi-rbd-secret
-    csi.storage.k8s.io/node-stage-secret-namespace: default
+    # The secrets contain Ceph admin credentials. These are generated automatically by the operator
+    # in the same namespace as the cluster.
+    csi.storage.k8s.io/provisioner-secret-name: rook-ceph-csi
+    csi.storage.k8s.io/provisioner-secret-namespace: rook-ceph
+    csi.storage.k8s.io/node-stage-secret-name: rook-ceph-csi
+    csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph
 
-    # uncomment the following to use rbd-nbd as mounter on supported nodes
-    #mounter: rbd-nbd
+# uncomment the following to use rbd-nbd as mounter on supported nodes
+#mounter: rbd-nbd
 reclaimPolicy: Delete

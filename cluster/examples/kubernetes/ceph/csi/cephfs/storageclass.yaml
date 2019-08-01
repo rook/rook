@@ -18,11 +18,12 @@ parameters:
   # Required for provisionVolume: "false"
   # rootPath: /absolute/path
 
-  # The secrets have to contain user and/or Ceph admin credentials.
-  csi.storage.k8s.io/provisioner-secret-name: csi-cephfs-secret
-  csi.storage.k8s.io/provisioner-secret-namespace: default
-  csi.storage.k8s.io/node-stage-secret-name: csi-cephfs-secret
-  csi.storage.k8s.io/node-stage-secret-namespace: default
+  # The secrets contain Ceph admin credentials. These are generated automatically by the operator
+  # in the same namespace as the cluster.
+  csi.storage.k8s.io/provisioner-secret-name: rook-ceph-csi
+  csi.storage.k8s.io/provisioner-secret-namespace: rook-ceph
+  csi.storage.k8s.io/node-stage-secret-name: rook-ceph-csi
+  csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph
 
   # (optional) The driver can use either ceph-fuse (fuse) or ceph kernel client (kernel)
   # If omitted, default volume mounter will be used - this is determined by probing for ceph-fuse
