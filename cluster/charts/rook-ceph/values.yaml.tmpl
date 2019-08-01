@@ -50,6 +50,11 @@ rbacEnable: true
 ##
 pspEnable: true
 
+## Settings for whether to enable the drivers or other daemons if they are not needed
+enableCsiRbdDriver: true
+enableCsiCephfsDriver: true
+
+
 ## Rook Agent configuration
 ## toleration: NoSchedule, PreferNoSchedule or NoExecute
 ## tolerationKey: Set this to the specific key of the taint to tolerate

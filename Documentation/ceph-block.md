@@ -23,7 +23,9 @@ This guide assumes you have created a Rook cluster as explained in the main [Qui
 Before Rook can start provisioning storage, a StorageClass and its storage pool need to be created. This is needed for Kubernetes to interoperate with Rook for provisioning persistent volumes. For more options on pools, see the documentation on [creating storage pools](ceph-pool-crd.md).
 
 **NOTE** This example requires you to have **at least 3 OSDs each on a different node**.
-This is because the `replicated.size: 3` will require at least 3 OSDs and as [`failureDomain` setting](ceph-pool-crd.md#spec) to `host` (default), each OSD needs to be on a different nodes.
+This is because the `replicated.size: 3` will require at least 3 OSDs and as [`failureDomain` setting](ceph-pool-crd.md#spec) to `host` (default), each OSD needs to be on a different node.
+
+**NOTE** This example uses the CSI driver, which is the preferred driver going forward for K8s 1.13 and newer. Examples are found in the [CSI RBD](https://github.com/rook/rook/tree/{{ branchName }}/cluster/examples/kubernetes/ceph/csi/rbd) directory. For an example of a storage class using the flex driver (required for K8s 1.12 or earlier), see the [Flex Driver](#flex-driver) section below, which has examples in the [flex](https://github.com/rook/rook/tree/{{ branchName }}/cluster/examples/kubernetes/ceph/flex) directory.
 
 Save this storage class definition as `storageclass.yaml`:
 
@@ -42,20 +44,24 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
    name: rook-ceph-block
-provisioner: ceph.rook.io/block
+provisioner: rbd.csi.ceph.com
 parameters:
-  blockPool: replicapool
-  # The value of "clusterNamespace" MUST be the same as the one in which your rook cluster exist
-  clusterNamespace: rook-ceph
-  # Specify the filesystem type of the volume. If not specified, it will use `ext4`.
-  fstype: xfs
-# Optional, default reclaimPolicy is "Delete". Other options are: "Retain", "Recycle" as documented in https://kubernetes.io/docs/concepts/storage/storage-classes/
-reclaimPolicy: Retain
+    # clusterID is the namespace where the rook cluster is running
+    clusterID: rook-ceph
+    # Ceph pool into which the RBD image shall be created
+    pool: replicapool
+    # The secrets contain Ceph admin credentials.
+    csi.storage.k8s.io/provisioner-secret-name: rook-ceph-csi
+    csi.storage.k8s.io/provisioner-secret-namespace: rook-ceph
+    csi.storage.k8s.io/node-stage-secret-name: rook-ceph-csi
+    csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph
+# Delete the rbd volume when a PVC is deleted
+reclaimPolicy: Delete
 ```
 
 Create the storage class.
 ```bash
-kubectl create -f storageclass.yaml
+kubectl create -f cluster/examples/kubernetes/ceph/csi/rbd/storageclass.yaml
 ```
 
 **NOTE** As [specified by Kubernetes](https://v1-13.docs.kubernetes.io/docs/concepts/storage/persistent-volumes/#retain), when using the `Retain` reclaim policy, the ceph RBD images that back up `PersistentVolume`s will continue to exist even after the PV is deleted, and have to be cleaned up manually using `rbd rm`.
@@ -114,6 +120,44 @@ kubectl delete -n rook-ceph cephblockpools.ceph.rook.io replicapool
 kubectl delete storageclass rook-ceph-block
 ```
 
+## Flex Driver
+
+To create a volume based on the flex driver instead of the CSI driver, see the following example of a storage class.
+The pool definition is the same as for the CSI driver.
+
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: replicapool
+  namespace: rook-ceph
+spec:
+  failureDomain: host
+  replicated:
+    size: 3
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+   name: rook-ceph-block
+provisioner: ceph.rook.io/block
+parameters:
+  blockPool: replicapool
+  # The value of "clusterNamespace" MUST be the same as the one in which your rook cluster exist
+  clusterNamespace: rook-ceph
+  # Specify the filesystem type of the volume. If not specified, it will use `ext4`.
+  fstype: xfs
+# Optional, default reclaimPolicy is "Delete". Other options are: "Retain", "Recycle" as documented in https://kubernetes.io/docs/concepts/storage/storage-classes/
+reclaimPolicy: Retain
+```
+
+Create the pool and storage class.
+```bash
+kubectl create -f cluster/examples/kubernetes/ceph/flex/storageclass.yaml
+```
+
+Continue with the example above for the [wordpress application](#consume-the-storage-wordpress-sample).
+
 ## Advanced Example: Erasure Coded Block Storage
 
 If you want to use erasure coded pool with RBD, your OSDs must use `bluestore` as their `storeType`.
@@ -166,4 +210,5 @@ parameters:
   fstype: xfs
 ```
 
-(These definitions can also be found in the [`storageclass-ec.yaml`](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/cluster.yaml) file)
+
+(These definitions can also be found in the [`storageclass-ec.yaml`](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/flex/storage-class-ec.yaml) file)
