@@ -197,21 +197,13 @@ spec:
         # Disable automatic orchestration when new devices are discovered
         - name: ROOK_DISABLE_DEVICE_HOTPLUG
           value: "false"
-        # CSI enablement
+        # Enable the CSI driver.
+        # To run the non-default version of the CSI driver, see the override-able image properties in operator.yaml
         - name: ROOK_CSI_ENABLE_CEPHFS
           value: "true"
-        - name: ROOK_CSI_CEPH_IMAGE
-          value: "quay.io/cephcsi/cephcsi:canary"
         - name: ROOK_CSI_ENABLE_RBD
           value: "true"
-        - name: ROOK_CSI_REGISTRAR_IMAGE
-          value: "quay.io/k8scsi/csi-node-driver-registrar:v1.1.0"
-        - name: ROOK_CSI_PROVISIONER_IMAGE
-          value: "quay.io/k8scsi/csi-provisioner:v1.2.0"
-        - name: ROOK_CSI_SNAPSHOTTER_IMAGE
-          value: "quay.io/k8scsi/csi-snapshotter:v1.1.0"
-        - name: ROOK_CSI_ATTACHER_IMAGE
-          value: "quay.io/k8scsi/csi-attacher:v1.1.1"
+
         - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
           value: "true"
         # The name of the node to pass with the downward API
