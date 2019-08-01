@@ -262,14 +262,14 @@ func (c *cluster) validateDeploymentConfig(deploymentConfig edgefsv1beta1.Cluste
 			}
 
 			if len(devCfg.Rtrd.Devices) == 0 && !dro.NeedToResurrect {
-				return fmt.Errorf("Node %s has no available devices", nodeName)
+				return fmt.Errorf("Node %s has no devices to deploy", nodeName)
 			}
 			devicesCount += devCfg.GetRtrdDeviceCount()
 		}
 
 		// Check new deployment devices count
 		if !dro.NeedToResurrect && devicesCount < 3 {
-			return fmt.Errorf("Disk devices should be more then 3 on all nodes summary")
+			return fmt.Errorf("At least 3 empty disks required for Edgefs cluster. Those disks should be distributed over all nodes specified for [%s] EdgeFS cluster. Currently there are `%d` nodes cluster and `%d` disks only", c.Namespace, len(deploymentConfig.DevConfig), devicesCount)
 		}
 	}
 	return nil
