@@ -61,7 +61,7 @@ type ClusterSpec struct {
 	Placement rook.PlacementSpec `json:"placement,omitempty"`
 
 	// Network related configuration
-	Network rook.NetworkSpec `json:"network,omitempty"`
+	Network NetworkSpec `json:"network,omitempty"`
 
 	// Resources set resource requests and limits
 	Resources rook.ResourceSpec `json:"resources,omitempty"`
@@ -393,4 +393,19 @@ type GaneshaServerSpec struct {
 
 	// Resources set resource requests and limits
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`
+}
+
+type NetworkSpec struct {
+	metav1.TypeMeta `json:",inline"`
+
+	// HostNetwork to enable host network
+	HostNetwork bool `json:"hostNetwork"`
+
+	// Set of named ports that can be configured for this resource
+	Ports []PortSpec `json:"ports,omitempty"`
+}
+
+type PortSpec struct {
+	Name string `json:"name,omitempty"`
+	Port int32  `json:"port,omitempty"`
 }
