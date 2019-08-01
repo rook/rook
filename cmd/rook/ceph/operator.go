@@ -43,8 +43,9 @@ func init() {
 	operatorCmd.Flags().DurationVar(&mon.HealthCheckInterval, "mon-healthcheck-interval", mon.HealthCheckInterval, "mon health check interval (duration)")
 	operatorCmd.Flags().DurationVar(&mon.MonOutTimeout, "mon-out-timeout", mon.MonOutTimeout, "mon out timeout (duration)")
 
-	operatorCmd.Flags().BoolVar(&csi.EnableRBD, "csi-enable-rbd", false, "enable ceph-csi rbd support")
-	operatorCmd.Flags().BoolVar(&csi.EnableCephFS, "csi-enable-cephfs", false, "enable ceph-csi cephfs support")
+	operatorCmd.Flags().BoolVar(&csi.EnableRBD, "csi-enable-rbd", true, "enable ceph-csi rbd support")
+	operatorCmd.Flags().BoolVar(&csi.EnableCephFS, "csi-enable-cephfs", true, "enable ceph-csi cephfs support")
+
 	// csi images
 	operatorCmd.Flags().StringVar(&csi.CSIParam.CSIPluginImage, "csi-ceph-image", csi.DefaultCSIPluginImage, "ceph-csi plugin image")
 	operatorCmd.Flags().StringVar(&csi.CSIParam.RegistrarImage, "csi-registrar-image", csi.DefaultRegistrarImage, "csi registrar image")
