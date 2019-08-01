@@ -66,8 +66,6 @@ const (
 	DefaultRBDProvisionerTemplatePath    = "/etc/ceph-csi/rbd/csi-rbdplugin-provisioner.yaml"
 	DefaultCephFSPluginTemplatePath      = "/etc/ceph-csi/cephfs/csi-cephfsplugin.yaml"
 	DefaultCephFSProvisionerTemplatePath = "/etc/ceph-csi/cephfs/csi-cephfsplugin-provisioner.yaml"
-
-	ExitOnError = false // don't exit if CSI fails to deploy. Switch to true when flexdriver is disabled
 )
 
 func CSIEnabled() bool {
