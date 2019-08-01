@@ -120,6 +120,18 @@ spec:
     singular: cephfilesystem
   scope: Namespaced
   version: v1
+  validation:
+    openAPIV3Schema:
+      properties:
+        spec:
+          properties:
+            metadataServer:
+              properties:
+                activeCount:
+                  type: integer
+                  minimum: 1
+                activeStandby:
+                  type: boolean
   additionalPrinterColumns:
     - name: MdsCount
       type: string
