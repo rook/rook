@@ -24,8 +24,12 @@ The remainder of this topic is on the snapshotting feature of the RBD driver.
 
 Since this feature is still in [alpha
 stage](https://kubernetes.io/blog/2018/10/09/introducing-volume-snapshot-alpha-for-kubernetes/)
-(k8s 1.12+), make sure to enable `VolumeSnapshotDataSource` feature gate in
-your Kubernetes cluster.
+(k8s 1.12+), make sure to enable the `VolumeSnapshotDataSource` feature gate on
+your Kubernetes cluster API server.
+
+```
+--feature-gates=VolumeSnapshotDataSource=true
+```
 
 ### SnapshotClass
 

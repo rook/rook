@@ -48,11 +48,11 @@ and some minor restrctions are described here](ceph-cluster-crd.md#mon-settings)
 
 ## Setting up consumable storage
 
-Now we are ready to setup [block](https://ceph.com/ceph-storage/block-storage/), [shared filesystem](https://ceph.com/ceph-storage/file-system/) or [object storage](https://ceph.com/ceph-storage/object-storage/) in the rook ceph cluster. These kinds of storage are respectively referred to as CephBlockPool, CephFilesystem and CephObjectStore in the spec files.
+Now we are ready to setup [block](https://ceph.com/ceph-storage/block-storage/), [shared filesystem](https://ceph.com/ceph-storage/file-system/) or [object storage](https://ceph.com/ceph-storage/object-storage/) in the Rook Ceph cluster. These kinds of storage are respectively referred to as CephBlockPool, CephFilesystem and CephObjectStore in the spec files.
 
 ### Block Devices
 
-Ceph can provide raw block device volumes to pods. Each example below sets up a storage class which can then be used to provision a block device in kubernetes pods. The storage class is defined with [a pool](http://docs.ceph.com/docs/nautilus/rados/operations/pools/) which defines the level of data redundancy in ceph:
+Ceph can provide raw block device volumes to pods. Each example below sets up a storage class which can then be used to provision a block device in kubernetes pods. The storage class is defined with a [pool](http://docs.ceph.com/docs/nautilus/rados/operations/pools/) which defines the level of data redundancy in Ceph:
 
 - `storageclass.yaml`: This example illustrates replication of 3 for production scenarios and requires at least three nodes. Your data is replicated on three different kubernetes worker nodes and intermittent or long-lasting single node failures will not result in data unavailability or loss.
 - `storageclass-ec.yaml`: Configures erasure coding for data durability rather than replication. [Ceph's erasure coding](http://docs.ceph.com/docs/nautilus/rados/operations/erasure-code/) is more efficient than replication so you can get high reliability without the 3x replication cost of the preceding example (but at the cost of higher computational encoding and decoding costs on the worker nodes). Erasure coding requires at least three nodes. See the [Erasure coding](ceph-pool-crd.md#erasure-coded) documentation for more details. **Note: Erasure coding is only available with the flex driver. Support from the CSI driver is coming soon.**
@@ -89,4 +89,4 @@ Object storage contains multiple pools that can be configured for different scen
 See the [Object Store CRD](ceph-object-store-crd.md) topic for more details on the settings.
 
 ### Object Storage User
-- `object-user.yaml`: Creates a simple object storage user and generates creds for the S3 API
+- `object-user.yaml`: Creates a simple object storage user and generates credentials for the S3 API
