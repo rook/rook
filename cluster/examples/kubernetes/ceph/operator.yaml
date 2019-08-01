@@ -145,6 +145,11 @@ spec:
         - name: ROOK_ENABLE_FLEX_DRIVER
           value: "true"
 
+        # Whether to start the discovery daemon to watch for raw storage devices on nodes in the cluster.
+        # This daemon does not need to run if you are only going to create your OSDs based on StorageClassDeviceSets with PVCs.
+        - name: ROOK_ENABLE_DISCOVERY_DAEMON
+          value: "true"
+
         # Enable the default version of the CSI driver. To start another version of the CSI driver, see image properties below.
         - name: ROOK_CSI_ENABLE_CEPHFS
           value: "true"

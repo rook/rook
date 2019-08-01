@@ -56,8 +56,12 @@ var provisionerConfigs = map[string]string{
 	provisionerNameLegacy: flexvolume.FlexvolumeVendorLegacy,
 }
 
-// Whether to enable the flex driver
-var EnableFlexDriver = true
+var (
+	// Whether to enable the flex driver. If true, the rook-ceph-agent daemonset will be started.
+	EnableFlexDriver = true
+	// Whether to enable the daemon for device discovery. If true, the rook-ceph-discover daemonset will be started.
+	EnableDiscoveryDaemon = true
+)
 
 // Operator type for managing storage
 type Operator struct {
@@ -93,14 +97,16 @@ func (o *Operator) Run() error {
 		return fmt.Errorf("Rook operator namespace is not provided. Expose it via downward API in the rook operator manifest file using environment variable %s", k8sutil.PodNamespaceEnvVar)
 	}
 
-	rookDiscover := discover.New(o.context.Clientset)
-	if err := rookDiscover.Start(namespace, o.rookImage, o.securityAccount); err != nil {
-		return fmt.Errorf("Error starting device discovery daemonset: %v", err)
+	if EnableDiscoveryDaemon {
+		rookDiscover := discover.New(o.context.Clientset)
+		if err := rookDiscover.Start(namespace, o.rookImage, o.securityAccount); err != nil {
+			return fmt.Errorf("error starting device discovery daemonset. %+v", err)
+		}
 	}
 
 	serverVersion, err := o.context.Clientset.Discovery().ServerVersion()
 	if err != nil {
-		return fmt.Errorf("Error getting server version: %v", err)
+		return fmt.Errorf("error getting server version. %+v", err)
 	}
 
 	signalChan := make(chan os.Signal, 1)

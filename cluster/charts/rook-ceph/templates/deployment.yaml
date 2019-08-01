@@ -99,15 +99,19 @@ spec:
 {{- end }}
 {{- if .Values.enableCsiRbdDriver }}
         - name: ROOK_CSI_ENABLE_RBD
-          value: {{ .Values.enableCsiRbdDriver }}
+          value: "{{ .Values.enableCsiRbdDriver }}"
 {{- end }}
 {{- if .Values.enableCsiCephfsDriver }}
         - name: ROOK_CSI_ENABLE_CEPHFS
-          value: {{ .Values.enableCsiCephfsDriver }}
+          value: "{{ .Values.enableCsiCephfsDriver }}"
 {{- end }}
 {{- if .Values.enableFlexDriver }}
         - name: ROOK_ENABLE_FLEX_DRIVER
-          value: {{ .Values.enableFlexDriver }}
+          value: "{{ .Values.enableFlexDriver }}"
+{{- end }}
+{{- if .Values.enableDiscoveryDaemon }}
+        - name: ROOK_ENABLE_DISCOVERY_DAEMON
+          value: "{{ .Values.enableDiscoveryDaemon }}"
 {{- end }}
 
         - name: NODE_NAME

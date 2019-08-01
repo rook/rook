@@ -6,8 +6,8 @@
 #   oc create -f operator-openshift.yaml
 #   oc create -f cluster.yaml
 #################################################################################################################
+# scc for the Rook and Ceph daemons
 kind: SecurityContextConstraints
-# older versions of openshift have "apiVersion: v1"
 apiVersion: security.openshift.io/v1
 metadata:
   name: rook-ceph
@@ -51,8 +51,8 @@ users:
   - system:serviceaccount:rook-ceph:rook-ceph-mgr
   - system:serviceaccount:rook-ceph:rook-ceph-osd
 ---
+# scc for the CSI driver
 kind: SecurityContextConstraints
-# older versions of openshift have "apiVersion: v1"
 apiVersion: security.openshift.io/v1
 metadata:
   name: rook-ceph-csi
@@ -197,6 +197,17 @@ spec:
         # Disable automatic orchestration when new devices are discovered
         - name: ROOK_DISABLE_DEVICE_HOTPLUG
           value: "false"
+
+       # Whether to enable the flex driver. By default it is enabled and is fully supported, but will be deprecated in some future release
+        # in favor of the CSI driver.
+        - name: ROOK_ENABLE_FLEX_DRIVER
+          value: "true"
+
+        # Whether to start the discovery daemon to watch for raw storage devices on nodes in the cluster.
+        # This daemon does not need to run if you are only going to create your OSDs based on StorageClassDeviceSets with PVCs.
+        - name: ROOK_ENABLE_DISCOVERY_DAEMON
+          value: "true"
+
         # Enable the CSI driver.
         # To run the non-default version of the CSI driver, see the override-able image properties in operator.yaml
         - name: ROOK_CSI_ENABLE_CEPHFS

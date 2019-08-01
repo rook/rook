@@ -1,5 +1,5 @@
+# scc for the Rook and Ceph daemons
 kind: SecurityContextConstraints
-# older versions of openshift have "apiVersion: v1"
 apiVersion: security.openshift.io/v1
 metadata:
   name: rook-ceph
@@ -42,3 +42,41 @@ users:
   - system:serviceaccount:rook-ceph:default
   - system:serviceaccount:rook-ceph:rook-ceph-mgr
   - system:serviceaccount:rook-ceph:rook-ceph-osd
+---
+# scc for the CSI driver
+kind: SecurityContextConstraints
+apiVersion: security.openshift.io/v1
+metadata:
+  name: rook-ceph-csi
+allowPrivilegedContainer: true
+allowHostNetwork: true
+allowHostDirVolumePlugin: true
+priority:
+allowedCapabilities: ['*']
+allowHostPorts: true
+allowHostPID: true
+allowHostIPC: true
+readOnlyRootFilesystem: false
+requiredDropCapabilities: []
+defaultAddCapabilities: []
+runAsUser:
+  type: RunAsAny
+seLinuxContext:
+  type: RunAsAny
+fsGroup:
+  type: RunAsAny
+supplementalGroups:
+  type: RunAsAny
+allowedFlexVolumes:
+  - driver: "ceph.rook.io/rook"
+  - driver: "ceph.rook.io/rook-ceph"
+volumes: ['*']
+users:
+  # A user needs to be added for each rook service account.
+  # This assumes running in the default sample "rook-ceph" namespace.
+  # If other namespaces or service accounts are configured, they need to be updated here.
+  - system:serviceaccount:rook-ceph:rook-csi-rbd-plugin-sa
+  - system:serviceaccount:rook-ceph:rook-csi-rbd-provisioner-sa
+  - system:serviceaccount:rook-ceph:rook-csi-rbd-attacher-sa
+  - system:serviceaccount:rook-ceph:rook-csi-cephfs-plugin-sa
+  - system:serviceaccount:rook-ceph:rook-csi-cephfs-provisioner-sa
