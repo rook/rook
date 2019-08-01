@@ -44,6 +44,7 @@ func init() {
 	operatorCmd.Flags().DurationVar(&mon.MonOutTimeout, "mon-out-timeout", mon.MonOutTimeout, "mon out timeout (duration)")
 
 	operatorCmd.Flags().BoolVar(&operator.EnableFlexDriver, "enable-flex-driver", true, "enable the rook flex driver")
+	operatorCmd.Flags().BoolVar(&operator.EnableDiscoveryDaemon, "enable-discovery-daemon", true, "enable the rook discovery daemon")
 
 	operatorCmd.Flags().BoolVar(&csi.EnableRBD, "csi-enable-rbd", true, "enable ceph-csi rbd support")
 	operatorCmd.Flags().BoolVar(&csi.EnableCephFS, "csi-enable-cephfs", true, "enable ceph-csi cephfs support")
