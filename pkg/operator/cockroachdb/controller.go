@@ -32,7 +32,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -551,7 +551,7 @@ func createServicePorts(httpPort, grpcPort int32) []v1.ServicePort {
 	}
 }
 
-func getPortsFromSpec(networkSpec rookv1alpha2.NetworkSpec) (httpPort, grpcPort int32, err error) {
+func getPortsFromSpec(networkSpec cockroachdbv1alpha1.NetworkSpec) (httpPort, grpcPort int32, err error) {
 	for _, p := range networkSpec.Ports {
 		switch p.Name {
 		case httpPortName:
