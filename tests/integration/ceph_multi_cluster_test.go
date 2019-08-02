@@ -182,22 +182,19 @@ func (o MCTestOperations) Teardown() {
 		}
 	}()
 
-	o.installer.GatherAllRookLogs(o.namespace1, o.systemNamespace, o.T().Name())
-	o.installer.GatherAllRookLogs(o.namespace2, o.systemNamespace, o.T().Name())
-
-	o.installer.UninstallRookFromMultipleNS(installer.SystemNamespace(o.namespace1), o.namespace1, o.namespace2)
+	o.installer.UninstallRookFromMultipleNS(true, installer.SystemNamespace(o.namespace1), o.namespace1, o.namespace2)
 }
 
 func (o MCTestOperations) startCluster(namespace, store string, errCh chan error) {
 	logger.Infof("starting cluster %s", namespace)
 	if err := o.installer.CreateK8sRookCluster(namespace, o.systemNamespace, store); err != nil {
-		o.installer.GatherAllRookLogs(namespace, o.systemNamespace, o.T().Name())
+		o.installer.GatherAllRookLogs(o.T().Name(), namespace, o.systemNamespace)
 		errCh <- fmt.Errorf("failed to create cluster %s. %+v", namespace, err)
 		return
 	}
 
 	if err := o.installer.CreateK8sRookToolbox(namespace); err != nil {
-		o.installer.GatherAllRookLogs(namespace, o.systemNamespace, o.T().Name())
+		o.installer.GatherAllRookLogs(o.T().Name(), namespace, o.systemNamespace)
 		errCh <- fmt.Errorf("failed to create toolbox for %s. %+v", namespace, err)
 		return
 	}
