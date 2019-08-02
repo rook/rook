@@ -92,6 +92,7 @@ const (
                 - "--drivername=rbd.csi.ceph.com"
                 - "--containerized=true"
                 - "--metadatastorage=k8s_configmap"
+                - "--pidlimit=-1"
               env:
                 - name: HOST_ROOTFS
                   value: "/rootfs"
@@ -321,6 +322,7 @@ const (
                 - "--type=cephfs"
                 - "--drivername=cephfs.csi.ceph.com"
                 - "--metadatastorage=k8s_configmap"
+                - "--pidlimit=-1"
               env:
                 - name: NODE_ID
                   valueFrom:
