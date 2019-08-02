@@ -55,6 +55,7 @@ spec:
             - "--v=5"
             - "--drivername=cephfs.csi.ceph.com"
             - "--metadatastorage=k8s_configmap"
+            - "--pidlimit=-1"
           env:
             - name: NODE_ID
               valueFrom:
