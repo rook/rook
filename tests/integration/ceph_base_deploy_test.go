@@ -100,7 +100,9 @@ type TestCluster struct {
 }
 
 // StartTestCluster creates new instance of TestCluster struct
-func StartTestCluster(t func() *testing.T, namespace, storeType string, useHelm, useDevices bool, mons, rbdMirrorWorkers int, rookVersion string, cephVersion cephv1.CephVersionSpec) (*TestCluster, *utils.K8sHelper) {
+func StartTestCluster(t func() *testing.T, namespace, storeType string, useHelm, useDevices bool, mons,
+	rbdMirrorWorkers int, rookVersion string, cephVersion cephv1.CephVersionSpec) (*TestCluster, *utils.K8sHelper) {
+
 	kh, err := utils.CreateK8sHelper(t)
 	require.NoError(t(), err)
 
@@ -127,7 +129,7 @@ func (op *TestCluster) Setup() {
 	if !isRookInstalled || err != nil {
 		logger.Errorf("Rook was not installed successfully: %v", err)
 		if !op.installer.T().Failed() {
-			op.installer.GatherAllRookLogs(op.namespace, installer.SystemNamespace(op.namespace), op.installer.T().Name())
+			op.installer.GatherAllRookLogs(op.installer.T().Name(), op.namespace, installer.SystemNamespace(op.namespace))
 		}
 		op.T().Fail()
 		op.Teardown()
@@ -140,5 +142,5 @@ func (op *TestCluster) SetInstallData(version string) {}
 
 // TearDownRook is a wrapper for tearDown after Suite
 func (op *TestCluster) Teardown() {
-	op.installer.UninstallRook(op.namespace)
+	op.installer.UninstallRook(op.namespace, true)
 }

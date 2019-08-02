@@ -510,8 +510,8 @@ func (k8sh *K8sHelper) PrintPodStatus(namespace string) {
 	}
 }
 
-func (k8sh *K8sHelper) PrintPodDescribeForNamespace(namespace string) {
-	logger.Infof("printing pod describe for all pods in namespace %s", namespace)
+func (k8sh *K8sHelper) GetPodDescribeFromNamespace(namespace, testName, platformName string) {
+	logger.Infof("Gathering pod describe for all pods in namespace %s", namespace)
 
 	pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(metav1.ListOptions{})
 	if err != nil {
@@ -519,21 +519,43 @@ func (k8sh *K8sHelper) PrintPodDescribeForNamespace(namespace string) {
 		return
 	}
 
-	for _, p := range pods.Items {
-		logger.Infof("pod %s in namespace %s: %+v", p.Name, namespace, p)
+	file, err := k8sh.createTestLogFile(platformName, "podDescribe", namespace, testName, "")
+	if err != nil {
+		return
 	}
+	defer file.Close()
 
-	k8sh.PrintEventsForNamespace(namespace)
+	for _, p := range pods.Items {
+		k8sh.appendPodDescribe(file, namespace, p.Name)
+	}
+}
+
+func (k8sh *K8sHelper) appendPodDescribe(file *os.File, namespace, name string) {
+	description := k8sh.getPodDescribe(namespace, name)
+	if description == "" {
+		return
+	}
+	writeHeader(file, fmt.Sprintf("Pod: %s\n", name))
+	file.WriteString(description)
+	file.WriteString("\n")
 }
 
 func (k8sh *K8sHelper) PrintPodDescribe(namespace string, args ...string) {
+	description := k8sh.getPodDescribe(namespace, args...)
+	if description == "" {
+		return
+	}
+	logger.Infof("POD Description:\n%s", description)
+}
+
+func (k8sh *K8sHelper) getPodDescribe(namespace string, args ...string) string {
 	args = append([]string{"describe", "pod", "-n", namespace}, args...)
 	description, err := k8sh.Kubectl(args...)
 	if err != nil {
 		logger.Errorf("failed to describe pod. %v %+v", args, err)
-	} else {
-		logger.Infof("pod description:\n%s\n", description)
+		return ""
 	}
+	return description
 }
 
 func (k8sh *K8sHelper) PrintEventsForNamespace(namespace string) {
@@ -1389,74 +1411,91 @@ func (k8sh *K8sHelper) IsRookInstalled(namespace string) bool {
 	return false
 }
 
-// GetPreviousLogs captures logs from the previous run of the container if it exists
-func (k8sh *K8sHelper) GetPreviousLogs(podAppName string, hostType string, namespace string, testName string) {
-	k8sh.getContainerLogs(podAppName, hostType, namespace, testName, "", true)
+// GetLogsFromNamespace collects logs for all containers in all pods in the namespace
+func (k8sh *K8sHelper) GetLogsFromNamespace(namespace, testName, platformName string) {
+	logger.Infof("Gathering logs for all pods in namespace %s", namespace)
+
+	pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(metav1.ListOptions{})
+	if err != nil {
+		logger.Errorf("failed to list pods in namespace %s. %+v", namespace, err)
+		return
+	}
+
+	for _, p := range pods.Items {
+		k8sh.getPodLogs(p, platformName, namespace, testName, false)
+		if strings.Contains("operator", p.Name) {
+			// get the previous logs for the operator
+			k8sh.getPodLogs(p, platformName, namespace, testName, true)
+		}
+	}
 }
 
-// GetLogs captures logs from specified rook pod and writes it to specified file
-func (k8sh *K8sHelper) GetLogs(podAppName string, hostType string, namespace string, testName string) {
-	k8sh.getContainerLogs(podAppName, hostType, namespace, testName, "", false)
+func (k8sh *K8sHelper) createTestLogFile(platformName, name, namespace, testName, suffix string) (*os.File, error) {
+	dir, _ := os.Getwd()
+	logDir := path.Join(dir, "_output/tests/")
+	if _, err := os.Stat(logDir); os.IsNotExist(err) {
+		err := os.MkdirAll(logDir, 0777)
+		if err != nil {
+			logger.Errorf("Cannot get logs files dir for app : %v in namespace %v, err: %v", name, namespace, err)
+			return nil, err
+		}
+	}
+	fileName := fmt.Sprintf("%s_%s_%s%s_%d.log", testName, platformName, name, suffix, time.Now().Unix())
+	filePath := path.Join(logDir, fileName)
+	file, err := os.Create(filePath)
+	if err != nil {
+		logger.Errorf("Cannot create file %s. %v", filePath, err)
+		return nil, err
+	}
+
+	logger.Debugf("created log file: %s", filePath)
+	return file, nil
 }
 
-// GetLogs captures logs from a specific container in a pod
-func (k8sh *K8sHelper) GetContainerLogs(podAppName, hostType, namespace, testName, containerName string) {
-	k8sh.getContainerLogs(podAppName, hostType, namespace, testName, containerName, false)
+func (k8sh *K8sHelper) getPodLogs(pod v1.Pod, platformName, namespace, testName string, previousLog bool) {
+	suffix := ""
+	if previousLog {
+		suffix = "_previous"
+	}
+	file, err := k8sh.createTestLogFile(platformName, pod.Name, namespace, testName, suffix)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+
+	for _, container := range pod.Spec.InitContainers {
+		k8sh.appendContainerLogs(file, pod, container.Name, previousLog, true)
+	}
+	for _, container := range pod.Spec.Containers {
+		k8sh.appendContainerLogs(file, pod, container.Name, previousLog, false)
+	}
 }
 
-func (k8sh *K8sHelper) getContainerLogs(podAppName, hostType, namespace, testName, containerName string, previousLog bool) {
+func writeHeader(file *os.File, message string) {
+	file.WriteString("-----------------------------------------\n")
+	file.WriteString(message)
+	file.WriteString("-----------------------------------------\n")
+}
+
+func (k8sh *K8sHelper) appendContainerLogs(file *os.File, pod v1.Pod, containerName string, previousLog, initContainer bool) {
+	message := fmt.Sprintf("CONTAINER: %s", containerName)
+	if initContainer {
+		message = "INIT " + message
+	}
+	writeHeader(file, message)
+
 	logOpts := &v1.PodLogOptions{Previous: previousLog}
 	if containerName != "" {
 		logOpts.Container = containerName
 	}
-	listOpts := metav1.ListOptions{LabelSelector: "app=" + podAppName}
-
-	podList, err := k8sh.Clientset.CoreV1().Pods(namespace).List(listOpts)
+	res := k8sh.Clientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, logOpts).Do()
+	rawData, err := res.Raw()
 	if err != nil {
-		logger.Errorf("Cannot get logs for app : %v in namespace %v, err: %v", podAppName, namespace, err)
+		logger.Errorf("Cannot get logs for pod %s and container %s. %v", pod.Name, containerName, err)
 		return
 	}
-
-	if len(podList.Items) == 0 {
-		logger.Infof("no logs found for pod %s in namespace %s", podAppName, namespace)
-	}
-
-	for _, pod := range podList.Items {
-		podName := pod.Name
-		logger.Infof("getting logs for pod : %v", podName)
-		res := k8sh.Clientset.CoreV1().Pods(namespace).GetLogs(podName, logOpts).Do()
-		rawData, err := res.Raw()
-		if err != nil {
-			logger.Errorf("Cannot get logs for app : %v in namespace %v, err: %v", podName, namespace, err)
-			continue
-		}
-		dir, _ := os.Getwd()
-		fpath := path.Join(dir, "_output/tests/")
-		if _, err := os.Stat(fpath); os.IsNotExist(err) {
-			err := os.MkdirAll(fpath, 0777)
-			if err != nil {
-				logger.Errorf("Cannot get logs files dir for app : %v in namespace %v, err: %v", podName, namespace, err)
-				continue
-			}
-		}
-		logSuffix := ""
-		if containerName != "" {
-			logSuffix = "_" + containerName
-		}
-		fileName := fmt.Sprintf("%s_%s_%s_%s%s_%d.log", testName, hostType, podName, namespace, logSuffix, time.Now().Unix())
-		fpath = path.Join(fpath, fileName)
-		file, err := os.Create(fpath)
-		if err != nil {
-			logger.Errorf("Cannot get logs files for app : %v in namespace %v, err: %v", podName, namespace, err)
-			continue
-		}
-
-		defer file.Close()
-		_, err = file.Write(rawData)
-		if err != nil {
-			logger.Errorf("Errors while writing logs for : %v to file, err : %v", podName, err)
-			continue
-		}
+	if _, err := file.Write(rawData); err != nil {
+		logger.Errorf("Errors while writing logs for pod %s and container %s. %v", pod.Name, containerName, err)
 	}
 }
 

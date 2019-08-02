@@ -24,7 +24,6 @@ import (
 	"testing"
 
 	"github.com/coreos/pkg/capnslog"
-	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/api/errors"
 )
@@ -104,12 +103,4 @@ func concatYaml(first, second string) string {
 	return first + `
 ---
 ` + second
-}
-
-// GatherCRDObjectDebuggingInfo gathers all the descriptions for pods, pvs and pvcs
-func GatherCRDObjectDebuggingInfo(k8shelper *utils.K8sHelper, namespace string) {
-	k8shelper.PrintPodDescribeForNamespace(namespace)
-	k8shelper.PrintPVs(true /*detailed*/)
-	k8shelper.PrintPVCs(namespace, true /*detailed*/)
-	k8shelper.PrintStorageClasses(true /*detailed*/)
 }
