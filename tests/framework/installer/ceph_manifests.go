@@ -1085,6 +1085,9 @@ rules:
 - apiGroups: [""]
   resources: ["configmaps"]
   verbs: [ "get", "list", "watch", "create", "update", "delete" ]
+- apiGroups: ["ceph.rook.io"]
+  resources: ["cephclusters", "cephclusters/finalizers"]
+  verbs: [ "get", "list", "create", "update", "delete" ]
 ---
 # Aspects of ceph-mgr that operate within the cluster's namespace
 kind: Role
