@@ -513,6 +513,9 @@ rules:
 - apiGroups: [""]
   resources: ["configmaps"]
   verbs: [ "get", "list", "watch", "create", "update", "delete" ]
+- apiGroups: ["ceph.rook.io"]
+  resources: ["cephclusters", "cephclusters/finalizers"]
+  verbs: ["*"]
 ---
 # Aspects of ceph-mgr that require access to the system namespace
 kind: ClusterRole
