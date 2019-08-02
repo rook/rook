@@ -29,7 +29,6 @@ import (
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -308,7 +307,7 @@ func (h *CephInstaller) InstallRookOnK8sWithHostPathAndDevices(namespace, storeT
 	}
 	if !h.k8shelper.IsPodInExpectedState("rook-ceph-operator", onamespace, "Running") {
 		logger.Error("rook-ceph-operator is not running")
-		h.k8shelper.GetLogs("rook-ceph-operator", Env.HostType, onamespace, "test-setup")
+		h.k8shelper.GetLogsFromNamespace(onamespace, "test-setup", Env.HostType)
 		logger.Error("rook-ceph-operator is not Running, abort!")
 		return false, err
 	}
@@ -342,31 +341,28 @@ func (h *CephInstaller) InstallRookOnK8sWithHostPathAndDevices(namespace, storeT
 }
 
 // UninstallRookFromK8s uninstalls rook from k8s
-func (h *CephInstaller) UninstallRook(namespace string) {
-	h.UninstallRookFromMultipleNS(SystemNamespace(namespace), namespace)
+func (h *CephInstaller) UninstallRook(namespace string, gatherLogs bool) {
+	h.UninstallRookFromMultipleNS(gatherLogs, SystemNamespace(namespace), namespace)
 }
 
 // UninstallRookFromK8s uninstalls rook from multiple namespaces in k8s
-func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, namespaces ...string) {
+func (h *CephInstaller) UninstallRookFromMultipleNS(gatherLogs bool, systemNamespace string, namespaces ...string) {
 	// flag used for local debugging purpose, when rook is pre-installed
 	if Env.SkipInstallRook {
 		return
+	}
+	if gatherLogs {
+		// Gather logs after status checks
+		h.GatherAllRookLogs(h.T().Name(), append([]string{systemNamespace}, namespaces...)...)
 	}
 
 	logger.Infof("Uninstalling Rook")
 	var err error
 	for _, namespace := range namespaces {
-		if h.T().Failed() {
-			// When the test has failed, it's sometimes useful to have pod descriptions to check
-			// that pods are configured as expected.
-			h.k8shelper.PrintPodDescribeForNamespace(namespace)
-		} else {
+		if !h.T().Failed() {
 			// if the test passed, check that the ceph status is HEALTH_OK before we tear the cluster down
 			h.checkCephHealthStatus(namespace)
 		}
-
-		// Gather logs after status checks
-		h.GatherAllRookLogs(namespace, SystemNamespace(namespace), h.T().Name())
 
 		roles := h.Manifests.GetClusterRoles(namespace, systemNamespace)
 		_, err = h.k8shelper.KubectlWithStdin(roles, deleteFromStdinArgs...)
@@ -479,7 +475,7 @@ func (h *CephInstaller) purgeClusters() error {
 		}
 		if len(clusters.Items) > 0 {
 			logger.Warningf("FOUND UNEXPECTED CLUSTER IN NAMESPACE %s. Removing...", namespace)
-			h.UninstallRook(namespace)
+			h.UninstallRook(namespace, false)
 		}
 	}
 	return nil
@@ -518,26 +514,15 @@ func (h *CephInstaller) cleanupDir(node, dir string) error {
 	return err
 }
 
-func (h *CephInstaller) GatherAllRookLogs(namespace, systemNamespace string, testName string) {
+func (h *CephInstaller) GatherAllRookLogs(testName string, namespaces ...string) {
 	if !h.T().Failed() && Env.Logs != "all" {
 		return
 	}
-	logger.Infof("Gathering all logs from Rook Cluster %s", namespace)
-	h.k8shelper.GetPreviousLogs("rook-ceph-operator", Env.HostType, systemNamespace, testName)
-	h.k8shelper.GetLogs("rook-ceph-operator", Env.HostType, systemNamespace, testName)
-	h.k8shelper.GetLogs("rook-ceph-agent", Env.HostType, systemNamespace, testName)
-	h.k8shelper.GetLogs("rook-discover", Env.HostType, systemNamespace, testName)
-	h.k8shelper.GetLogs("rook-ceph-mgr", Env.HostType, namespace, testName)
-	h.k8shelper.GetLogs("rook-ceph-mon", Env.HostType, namespace, testName)
-	h.k8shelper.GetLogs("rook-ceph-osd", Env.HostType, namespace, testName)
-	h.k8shelper.GetLogs("rook-ceph-osd-prepare", Env.HostType, namespace, testName)
-	h.k8shelper.GetLogs("rook-ceph-rgw", Env.HostType, namespace, testName)
-	h.k8shelper.GetLogs("rook-ceph-mds", Env.HostType, namespace, testName)
-	h.k8shelper.GetContainerLogs("rook-ceph-mgr", Env.HostType, namespace, testName, opspec.ConfigInitContainerName)
-	h.k8shelper.GetContainerLogs("rook-ceph-mon", Env.HostType, namespace, testName, opspec.ConfigInitContainerName)
-	h.k8shelper.GetContainerLogs("rook-ceph-osd", Env.HostType, namespace, testName, opspec.ConfigInitContainerName)
-	h.k8shelper.GetContainerLogs("rook-ceph-rgw", Env.HostType, namespace, testName, opspec.ConfigInitContainerName)
-	h.k8shelper.GetContainerLogs("rook-ceph-mds", Env.HostType, namespace, testName, opspec.ConfigInitContainerName)
+	logger.Infof("gathering all logs from the test")
+	for _, namespace := range namespaces {
+		h.k8shelper.GetLogsFromNamespace(namespace, testName, Env.HostType)
+		h.k8shelper.GetPodDescribeFromNamespace(namespace, testName, Env.HostType)
+	}
 }
 
 // NewCephInstaller creates new instance of CephInstaller

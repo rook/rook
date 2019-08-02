@@ -164,11 +164,8 @@ func (ci *CassandraInstaller) UninstallCassandra(systemNamespace string, namespa
 func (ci *CassandraInstaller) GatherAllCassandraLogs(systemNamespace, namespace, testName string) {
 	if !ci.T().Failed() && Env.Logs != "all" {
 		return
-	} else if ci.T().Failed() {
-		GatherCRDObjectDebuggingInfo(ci.k8sHelper, systemNamespace)
-		GatherCRDObjectDebuggingInfo(ci.k8sHelper, namespace)
 	}
 	logger.Infof("Gathering all logs from Cassandra Cluster %s", namespace)
-	ci.k8sHelper.GetLogs("rook-cassandra-operator", Env.HostType, systemNamespace, testName)
-	ci.k8sHelper.GetLogs("rook-cassandra", Env.HostType, namespace, testName)
+	ci.k8sHelper.GetLogsFromNamespace(systemNamespace, testName, Env.HostType)
+	ci.k8sHelper.GetLogsFromNamespace(namespace, testName, Env.HostType)
 }

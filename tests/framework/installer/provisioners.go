@@ -61,7 +61,7 @@ func InstallHostPathProvisioner(k8shelper *utils.K8sHelper) error {
 	err = k8shelper.WaitForLabeledPodsToRun("k8s-app=hostpath-provisioner", "kube-system")
 	if err != nil {
 		logger.Errorf("hostpath provisioner pod is not running: %+v", err)
-		k8shelper.PrintPodDescribeForNamespace("kube-system")
+		k8shelper.GetPodDescribeFromNamespace("kube-system", "hostPathProvisioner", Env.HostType)
 		k8shelper.PrintStorageClasses(true /*detailed*/)
 		return err
 	}
