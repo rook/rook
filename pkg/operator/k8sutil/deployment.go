@@ -181,3 +181,10 @@ func AddRookVersionLabelToDeployment(d *v1.Deployment) {
 	}
 	addRookVersionLabel(d.Labels)
 }
+
+func AddRookVersionLabelToObjectMeta(meta *metav1.ObjectMeta) {
+	if meta.Labels == nil {
+		meta.Labels = map[string]string{}
+	}
+	addRookVersionLabel(meta.Labels)
+}

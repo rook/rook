@@ -22,6 +22,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/version"
 	apps "k8s.io/api/apps/v1"
 	batch "k8s.io/api/batch/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -75,4 +76,11 @@ func AddCephVersionLabelToJob(cephVersion version.CephVersion, j *batch.Job) {
 		j.Labels = map[string]string{}
 	}
 	addCephVersionLabel(cephVersion, j.Labels)
+}
+
+func AddCephVersionLabelToObjectMeta(cephVersion version.CephVersion, meta *metav1.ObjectMeta) {
+	if meta.Labels == nil {
+		meta.Labels = map[string]string{}
+	}
+	addCephVersionLabel(cephVersion, meta.Labels)
 }
