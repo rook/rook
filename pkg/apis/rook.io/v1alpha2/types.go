@@ -87,6 +87,15 @@ type NetworkSpec struct {
 
 	// Set of named ports that can be configured for this resource
 	Ports []PortSpec `json:"ports,omitempty"`
+
+	// LoadBalancerService ensures that the Ceph `mon` service is exposed externally.
+	// Currently only respected by the Ceph backend.
+	LoadBalancerService bool `json:"loadBalancerService,omitempty"`
+
+	// LoadBalancerIP to support assignment of load balancer IP by cloud provider
+	// to Ceph `mon` service. Only applied if `loadBalancerService` is enabled.
+	// Currently only respected by the Ceph backend.
+	LoadBalancerIP string `json:"loadBalancerIP,omitempty"`
 }
 
 type PortSpec struct {

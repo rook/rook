@@ -73,7 +73,9 @@ storage:
 		},
 		DataDirHostPath: "/var/lib/rook",
 		Network: rookalpha.NetworkSpec{
-			HostNetwork: true,
+			HostNetwork:         true,
+			LoadBalancerService: false,
+			LoadBalancerIP:      "",
 		},
 		Storage: rookalpha.StorageScopeSpec{
 			UseAllNodes: false,

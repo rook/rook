@@ -61,6 +61,8 @@ If this value is empty, each pod will get an ephemeral directory to store their 
   - `ssl`: Whether to serve the dashboard via SSL, ignored on Ceph versions older than `13.2.2`
 - `network`: The network settings for the cluster
   - `hostNetwork`: uses network of the hosts instead of using the SDN below the containers.
+  - `loadBalancerService`: Turns the `rook-ceph-mon` service into a Kubernetes `LoadBalancer` service. By default, `rook-ceph-mon` launches as a ClusterIP service. Boolean.
+  - `loadBalancerIP`: Assigns a `LoadBalancerIP` to the `rook-ceph-mon` `LoadBalancer` service. Is ignored if `loadBalancerService` is not enabled. 
 - `mon`: contains mon related options [mon settings](#mon-settings)
 For more details on the mons and when to choose a number other than `3`, see the [mon health design doc](https://github.com/rook/rook/blob/master/design/mon-health.md).
 - `rbdMirroring`: The settings for rbd mirror daemon(s). Configuring which pools or images to be mirrored must be completed in the rook toolbox by running the

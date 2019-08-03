@@ -52,6 +52,18 @@ func (c *Cluster) createService(mon *monConfig) (string, error) {
 		svcDef.Spec.ClusterIP = v1.ClusterIPNone
 	}
 
+	// allows operators the ability to expose their rook-ceph mons externally
+	// by supplying their own `loadBalancerIP`. Since this field can only be used
+	// with `type` LoadBalancer, we automatically convert the service definition to use
+	// `LoadBalancer` instead of `ClusterIP` (the default)
+	if c.spec.Network.LoadBalancerService {
+		svcDef.Spec.Type = v1.ServiceTypeLoadBalancer
+
+		if len(c.spec.Network.LoadBalancerIP) > 0 {
+			svcDef.Spec.LoadBalancerIP = c.spec.Network.LoadBalancerIP
+		}
+	}
+
 	// If deploying Nautilus or newer we need a new port for the monitor service
 	if c.clusterInfo.CephVersion.IsAtLeastNautilus() {
 		addServicePort(svcDef, "msgr2", DefaultMsgr2Port)
