@@ -82,8 +82,13 @@ func (ps *PodSpecTester) AssertVolumesMeetCephRequirements(
 		switch v.Name {
 		case "ceph-daemon-data":
 			switch daemonType {
-			case config.MonType, config.OsdType:
-				// mons and osds MUST be host path
+			case config.MonType:
+				// mons may be host path or pvc
+				assert.True(ps.t,
+					v.VolumeSource.HostPath != nil || v.VolumeSource.PersistentVolumeClaim != nil,
+					string(daemonType)+" daemon should be host path or pvc:", v)
+			case config.OsdType:
+				// osds MUST be host path
 				assert.NotNil(ps.t, v.VolumeSource.HostPath,
 					string(daemonType)+" daemon should be host path:", v)
 			case config.MgrType, config.MdsType, config.RgwType:
