@@ -78,6 +78,9 @@ type Placement struct {
 
 type ResourceSpec map[string]v1.ResourceRequirements
 
+// PriorityClassNamesSpec is a map of priority class names to be assigned to components
+type PriorityClassNamesSpec map[KeyType]string
+
 // NetworkSpec represents cluster network settings
 type NetworkSpec struct {
 	// Provider is what provides network connectivity to the cluster e.g. "host" or "multus"

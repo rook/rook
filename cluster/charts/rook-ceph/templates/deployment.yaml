@@ -50,6 +50,10 @@ spec:
         - name: AGENT_NODE_AFFINITY
           value: {{ .Values.agent.nodeAffinity }}
 {{- end }}
+{{- if .Values.agent.priorityClassName }}
+        - name: AGENT_PRIORITY_CLASS_NAME
+          value: {{ .Values.agent.priorityClassName }}
+{{- end }}
 {{- if .Values.agent.mountSecurityMode }}
         - name: AGENT_MOUNT_SECURITY_MODE
           value: {{ .Values.agent.mountSecurityMode }}
@@ -79,6 +83,10 @@ spec:
 {{- if .Values.discover.tolerations }}
         - name: DISCOVER_TOLERATIONS
           value: {{ toYaml .Values.discover.tolerations | quote }}
+{{- end }}
+{{- if .Values.discover.priorityClassName }}
+        - name: DISCOVER_PRIORITY_CLASS_NAME
+          value: {{ .Values.discover.priorityClassName }}
 {{- end }}
 {{- if .Values.discover.nodeAffinity }}
         - name: DISCOVER_AGENT_NODE_AFFINITY

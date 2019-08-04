@@ -53,6 +53,7 @@ type Mirroring struct {
 	annotations       rookalpha.Annotations
 	context           *clusterd.Context
 	resources         v1.ResourceRequirements
+	priorityClassName string
 	ownerRef          metav1.OwnerReference
 	spec              cephv1.RBDMirroringSpec
 	cephVersion       cephv1.CephVersionSpec
@@ -74,6 +75,7 @@ func New(
 	network cephv1.NetworkSpec,
 	spec cephv1.RBDMirroringSpec,
 	resources v1.ResourceRequirements,
+	priorityClassName string,
 	ownerRef metav1.OwnerReference,
 	dataDirHostPath string,
 	isUpgrade bool,
@@ -90,6 +92,7 @@ func New(
 		spec:              spec,
 		Network:           network,
 		resources:         resources,
+		priorityClassName: priorityClassName,
 		ownerRef:          ownerRef,
 		dataDirHostPath:   dataDirHostPath,
 		isUpgrade:         isUpgrade,

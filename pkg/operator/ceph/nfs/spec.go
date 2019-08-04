@@ -110,7 +110,8 @@ func (c *CephNFSController) makeDeployment(nfs cephv1.CephNFS, cfg daemonConfig)
 			nfsConfigVol,
 			dbusVol,
 		},
-		HostNetwork: c.clusterSpec.Network.IsHost(),
+		HostNetwork:       c.clusterSpec.Network.IsHost(),
+		PriorityClassName: nfs.Spec.Server.PriorityClassName,
 	}
 	if c.clusterSpec.Network.IsHost() {
 		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet

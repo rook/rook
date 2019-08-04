@@ -34,18 +34,19 @@ import (
 )
 
 const (
-	agentDaemonsetName             = "rook-ceph-agent"
-	flexvolumePathDirEnv           = "FLEXVOLUME_DIR_PATH"
-	libModulesPathDirEnv           = "LIB_MODULES_DIR_PATH"
-	agentMountsEnv                 = "AGENT_MOUNTS"
-	flexvolumeDefaultDirPath       = "/usr/libexec/kubernetes/kubelet-plugins/volume/exec/"
-	agentDaemonsetTolerationEnv    = "AGENT_TOLERATION"
-	agentDaemonsetTolerationKeyEnv = "AGENT_TOLERATION_KEY"
-	agentDaemonsetTolerationsEnv   = "AGENT_TOLERATIONS"
-	agentDaemonsetNodeAffinityEnv  = "AGENT_NODE_AFFINITY"
-	AgentMountSecurityModeEnv      = "AGENT_MOUNT_SECURITY_MODE"
-	RookEnableSelinuxRelabelingEnv = "ROOK_ENABLE_SELINUX_RELABELING"
-	RookEnableFSGroupEnv           = "ROOK_ENABLE_FSGROUP"
+	agentDaemonsetName                 = "rook-ceph-agent"
+	flexvolumePathDirEnv               = "FLEXVOLUME_DIR_PATH"
+	libModulesPathDirEnv               = "LIB_MODULES_DIR_PATH"
+	agentMountsEnv                     = "AGENT_MOUNTS"
+	flexvolumeDefaultDirPath           = "/usr/libexec/kubernetes/kubelet-plugins/volume/exec/"
+	agentDaemonsetPriorityClassNameEnv = "AGENT_PRIORITY_CLASS_NAME"
+	agentDaemonsetTolerationEnv        = "AGENT_TOLERATION"
+	agentDaemonsetTolerationKeyEnv     = "AGENT_TOLERATION_KEY"
+	agentDaemonsetTolerationsEnv       = "AGENT_TOLERATIONS"
+	agentDaemonsetNodeAffinityEnv      = "AGENT_NODE_AFFINITY"
+	AgentMountSecurityModeEnv          = "AGENT_MOUNT_SECURITY_MODE"
+	RookEnableSelinuxRelabelingEnv     = "ROOK_ENABLE_SELINUX_RELABELING"
+	RookEnableFSGroupEnv               = "ROOK_ENABLE_FSGROUP"
 
 	// MountSecurityModeAny "any" security mode for the agent for mount action
 	MountSecurityModeAny = "Any"
@@ -195,7 +196,8 @@ func (a *Agent) createAgentDaemonSet(namespace, agentImage, serviceAccount strin
 							},
 						},
 					},
-					HostNetwork: true,
+					HostNetwork:       true,
+					PriorityClassName: os.Getenv(agentDaemonsetPriorityClassNameEnv),
 				},
 			},
 		},

@@ -38,6 +38,9 @@ func TestStartAgentDaemonset(t *testing.T) {
 	os.Setenv(k8sutil.PodNameEnvVar, "rook-operator")
 	defer os.Unsetenv(k8sutil.PodNameEnvVar)
 
+	os.Setenv(agentDaemonsetPriorityClassNameEnv, "my-priority-class")
+	defer os.Unsetenv(agentDaemonsetPriorityClassNameEnv)
+
 	pod := v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "rook-operator",
@@ -66,6 +69,7 @@ func TestStartAgentDaemonset(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, namespace, agentDS.Namespace)
 	assert.Equal(t, "rook-ceph-agent", agentDS.Name)
+	assert.Equal(t, "my-priority-class", agentDS.Spec.Template.Spec.PriorityClassName)
 	assert.Equal(t, "mysa", agentDS.Spec.Template.Spec.ServiceAccountName)
 	assert.True(t, *agentDS.Spec.Template.Spec.Containers[0].SecurityContext.Privileged)
 	volumes := agentDS.Spec.Template.Spec.Volumes

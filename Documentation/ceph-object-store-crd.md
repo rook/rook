@@ -94,6 +94,7 @@ The gateway settings correspond to the RGW daemon settings.
 * `annotations`: Key value pair list of annotations to add.
 * `placement`: The Kubernetes placement settings to determine where the RGW pods should be started in the cluster.
 * `resources`: Set resource requests/limits for the Gateway Pod(s), see [Resource Requirements/Limits](ceph-cluster-crd.md#resource-requirementslimits).
+* `priorityClassName`: Set priority class name for the Gateway Pod(s)
 
 ## Runtime settings
 

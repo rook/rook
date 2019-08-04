@@ -68,6 +68,7 @@ func TestStartMGR(t *testing.T) {
 		cephv1.MonitoringSpec{Enabled: true, RulesNamespace: ""},
 		cephv1.MgrSpec{},
 		v1.ResourceRequirements{},
+		"my-priority-class",
 		metav1.OwnerReference{},
 		"/var/lib/rook/",
 		false,
@@ -111,6 +112,7 @@ func validateStart(t *testing.T, c *Cluster) {
 		d, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Get(fmt.Sprintf("rook-ceph-mgr-%s", daemonName), metav1.GetOptions{})
 		assert.Nil(t, err)
 		assert.Equal(t, map[string]string{"my": "annotation"}, d.Spec.Template.Annotations)
+		assert.Equal(t, "my-priority-class", d.Spec.Template.Spec.PriorityClassName)
 	}
 
 	_, err := c.context.Clientset.CoreV1().Services(c.Namespace).Get("rook-ceph-mgr", metav1.GetOptions{})

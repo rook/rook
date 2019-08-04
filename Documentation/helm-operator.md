@@ -111,6 +111,7 @@ The following tables lists the configurable parameters of the rook-operator char
 | `hostpathRequiresPrivileged`    | Runs Ceph Pods as privileged to be able to write to `hostPath`s in OpenShift with SELinux restrictions. | `false`                                                |
 | `mon.healthCheckInterval`       | The frequency for the operator to check the mon health                                                  | `45s`                                                  |
 | `mon.monOutTimeout`             | The time to wait before failing over an unhealthy mon                                                   | `600s`                                                 |
+| `discover.priorityClassName`    | The priority class name to add to the discover pods                                                     | <none>                                                 |
 | `discover.toleration`           | Toleration for the discover pods                                                                        | <none>                                                 |
 | `discover.tolerationKey`        | The specific key of the taint to tolerate                                                               | <none>                                                 |
 | `discover.tolerations`          | Array of tolerations in YAML format which will be added to discover deployment                          | <none>                                                 |
@@ -136,6 +137,7 @@ The following tables lists the configurable parameters of the rook-operator char
 | `agent.libModulesDirPath`       | Path where the Rook agent should look for kernel modules (*)                                            | `/lib/modules`                                         |
 | `agent.mounts`                  | Additional paths to be mounted in the agent container (**)                                              | <none>                                                 |
 | `agent.mountSecurityMode`       | Mount Security Mode for the agent.                                                                      | `Any`                                                  |
+| `agent.priorityClassName`       | The priority class name to add to the agent pods                                                        | <none>                                                 |
 | `agent.toleration`              | Toleration for the agent pods                                                                           | <none>                                                 |
 | `agent.tolerationKey`           | The specific key of the taint to tolerate                                                               | <none>                                                 |
 | `agent.tolerations`             | Array of tolerations in YAML format which will be added to agent deployment                             | <none>                                                 |

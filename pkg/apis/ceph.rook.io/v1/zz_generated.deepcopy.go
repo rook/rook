@@ -479,6 +479,13 @@ func (in *ClusterSpec) DeepCopyInto(out *ClusterSpec) {
 			(*out)[key] = *val.DeepCopy()
 		}
 	}
+	if in.PriorityClassNames != nil {
+		in, out := &in.PriorityClassNames, &out.PriorityClassNames
+		*out = make(v1alpha2.PriorityClassNamesSpec, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	out.DisruptionManagement = in.DisruptionManagement
 	in.Mon.DeepCopyInto(&out.Mon)
 	out.RBDMirroring = in.RBDMirroring

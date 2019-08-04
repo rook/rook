@@ -64,3 +64,4 @@ spec:
     #  requests:
     #    cpu: "500m"
     #    memory: "1024Mi"
+    # priorityClassName: my-priority-class

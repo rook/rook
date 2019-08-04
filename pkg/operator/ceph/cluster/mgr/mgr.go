@@ -69,6 +69,7 @@ type Cluster struct {
 	dataDir           string
 	Network           cephv1.NetworkSpec
 	resources         v1.ResourceRequirements
+	priorityClassName string
 	ownerRef          metav1.OwnerReference
 	dashboard         cephv1.DashboardSpec
 	monitoringSpec    cephv1.MonitoringSpec
@@ -95,6 +96,7 @@ func New(
 	monitoringSpec cephv1.MonitoringSpec,
 	mgrSpec cephv1.MgrSpec,
 	resources v1.ResourceRequirements,
+	priorityClassName string,
 	ownerRef metav1.OwnerReference,
 	dataDirHostPath string,
 	isUpgrade bool,
@@ -115,6 +117,7 @@ func New(
 		mgrSpec:           mgrSpec,
 		Network:           network,
 		resources:         resources,
+		priorityClassName: priorityClassName,
 		ownerRef:          ownerRef,
 		exitCode:          getExitCode,
 		dataDirHostPath:   dataDirHostPath,

@@ -62,6 +62,9 @@ spec:
         #     - effect: NoExecute
         #       key: node-role.kubernetes.io/etcd
         #       operator: Exists
+        # (Optional) Rook Agent priority class name to set on the pod(s)
+        # - name: AGENT_PRIORITY_CLASS_NAME
+        #   value: "<PriorityClassName>"
         # (Optional) Rook Agent NodeAffinity.
         # - name: AGENT_NODE_AFFINITY
         #   value: "role=storage-node; storage=rook,ceph"
@@ -97,6 +100,9 @@ spec:
         #     - effect: NoExecute
         #       key: node-role.kubernetes.io/etcd
         #       operator: Exists
+        # (Optional) Rook Discover priority class name to set on the pod(s)
+        # - name: DISCOVER_PRIORITY_CLASS_NAME
+        #   value: "<PriorityClassName>"
         # (Optional) Discover Agent NodeAffinity.
         # - name: DISCOVER_AGENT_NODE_AFFINITY
         #   value: "role=storage-node; storage=rook, ceph"
