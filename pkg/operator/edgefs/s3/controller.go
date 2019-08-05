@@ -56,7 +56,7 @@ type S3Controller struct {
 	context          *clusterd.Context
 	namespace        string
 	rookImage        string
-	NetworkSpec      edgefsv1beta1.NetworkSpec
+	NetworkSpec      rookalpha.NetworkSpec
 	dataDirHostPath  string
 	dataVolumeSize   resource.Quantity
 	annotations      rookalpha.Annotations
@@ -72,7 +72,7 @@ func NewS3Controller(
 	context *clusterd.Context,
 	namespace string,
 	rookImage string,
-	NetworkSpec edgefsv1beta1.NetworkSpec,
+	NetworkSpec rookalpha.NetworkSpec,
 	dataDirHostPath string,
 	dataVolumeSize resource.Quantity,
 	placement rookalpha.Placement,

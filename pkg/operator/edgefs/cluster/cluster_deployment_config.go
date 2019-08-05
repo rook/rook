@@ -112,7 +112,7 @@ func (c *cluster) needPrivelege(deploymentType string) bool {
 
 	needPriveleges := false
 	// Set privileges==true in case of HostNetwork
-	if len(c.Spec.Network.ServerIfName) > 0 || len(c.Spec.Network.BrokerIfName) > 0 {
+	if c.Spec.Network.IsHost() {
 		needPriveleges = true
 	}
 

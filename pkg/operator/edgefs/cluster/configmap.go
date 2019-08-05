@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 
 	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
+	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/operator/edgefs/cluster/target"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
@@ -48,44 +49,33 @@ func (c *cluster) createClusterConfigMap(deploymentConfig edgefsv1beta1.ClusterD
 
 	serverIfName := defaultServerIfName
 	brokerIfName := defaultBrokerIfName
-	if edgefsv1beta1.IsHostNetworkDefined(c.Spec.Network) {
-		if len(c.Spec.Network.ServerIfName) > 0 && len(c.Spec.Network.BrokerIfName) > 0 {
-			serverIfName = c.Spec.Network.ServerIfName
-			brokerIfName = c.Spec.Network.BrokerIfName
-		} else if len(c.Spec.Network.ServerIfName) > 0 {
-			serverIfName = c.Spec.Network.ServerIfName
-			brokerIfName = c.Spec.Network.ServerIfName
-		} else if len(c.Spec.Network.BrokerIfName) > 0 {
-			serverIfName = c.Spec.Network.BrokerIfName
-			brokerIfName = c.Spec.Network.BrokerIfName
-		} else {
-			serverSelector, serverDefined := c.Spec.Network.Selectors["server"]
-			brokerSelector, brokerDefined := c.Spec.Network.Selectors["broker"]
-
-			if serverDefined && brokerDefined {
-				serverIfName = string(serverSelector)
-				brokerIfName = string(brokerSelector)
-			} else if serverDefined {
-				serverIfName = string(serverSelector)
-				brokerIfName = string(serverSelector)
-			} else if brokerDefined {
-				serverIfName = string(brokerSelector)
-				brokerIfName = string(brokerSelector)
-			}
-		}
-	} else if edgefsv1beta1.IsMultusNetworkDefined(c.Spec.Network) {
+	if c.Spec.Network.IsHost() {
 		serverSelector, serverDefined := c.Spec.Network.Selectors["server"]
 		brokerSelector, brokerDefined := c.Spec.Network.Selectors["broker"]
 
 		if serverDefined && brokerDefined {
-			serverIfName = edgefsv1beta1.GetMultusIfName(serverSelector)
-			brokerIfName = edgefsv1beta1.GetMultusIfName(brokerSelector)
+			serverIfName = string(serverSelector)
+			brokerIfName = string(brokerSelector)
 		} else if serverDefined {
-			serverIfName = edgefsv1beta1.GetMultusIfName(serverSelector)
-			brokerIfName = edgefsv1beta1.GetMultusIfName(serverSelector)
+			serverIfName = string(serverSelector)
+			brokerIfName = string(serverSelector)
 		} else if brokerDefined {
-			serverIfName = edgefsv1beta1.GetMultusIfName(brokerSelector)
-			brokerIfName = edgefsv1beta1.GetMultusIfName(brokerSelector)
+			serverIfName = string(brokerSelector)
+			brokerIfName = string(brokerSelector)
+		}
+	} else if c.Spec.Network.IsMultus() {
+		serverSelector, serverDefined := c.Spec.Network.Selectors["server"]
+		brokerSelector, brokerDefined := c.Spec.Network.Selectors["broker"]
+
+		if serverDefined && brokerDefined {
+			serverIfName = rookalpha.GetMultusIfName(serverSelector)
+			brokerIfName = rookalpha.GetMultusIfName(brokerSelector)
+		} else if serverDefined {
+			serverIfName = rookalpha.GetMultusIfName(serverSelector)
+			brokerIfName = rookalpha.GetMultusIfName(serverSelector)
+		} else if brokerDefined {
+			serverIfName = rookalpha.GetMultusIfName(brokerSelector)
+			brokerIfName = rookalpha.GetMultusIfName(brokerSelector)
 		}
 	}
 

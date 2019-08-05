@@ -16,8 +16,6 @@ limitations under the License.
 package v1beta1
 
 import (
-	"strings"
-
 	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -60,7 +58,7 @@ type ClusterSpec struct {
 	Annotations rook.AnnotationsSpec `json:"annotations,omitempty"`
 	// The placement-related configuration to pass to kubernetes (affinity, node selector, tolerations).
 	Placement rook.PlacementSpec `json:"placement,omitempty"`
-	Network   NetworkSpec        `json:"network,omitempty"`
+	Network   rook.NetworkSpec   `json:"network,omitempty"`
 	Dashboard DashboardSpec      `json:"dashboard,omitempty"`
 	// Resources set resource requests and limits
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`
@@ -81,61 +79,6 @@ type ClusterSpec struct {
 
 type DashboardSpec struct {
 	LocalAddr string `json:"localAddr"`
-}
-
-type NetworkSelector string
-
-type NetworkSpec struct {
-	Provider     string                     `json:"provider"`
-	ServerIfName string                     `json:"serverIfName"`
-	BrokerIfName string                     `json:"brokerIfName"`
-	Selectors    map[string]NetworkSelector `json:"selectors"`
-}
-
-func IsHostNetworkDefined(networkSpec NetworkSpec) bool {
-	// backward compat
-	if len(networkSpec.Provider) == 0 && len(networkSpec.ServerIfName) > 0 {
-		return true
-	}
-	if len(networkSpec.Provider) > 0 && networkSpec.Provider == "host" && len(networkSpec.ServerIfName) > 0 {
-		return true
-	}
-	return false
-}
-
-func IsMultusNetworkDefined(networkSpec NetworkSpec) bool {
-	return !IsHostNetworkDefined(networkSpec) && networkSpec.Provider == "multus"
-}
-
-func GetMultusIfName(multusSelector NetworkSelector) string {
-	nameAtInterface := string(multusSelector)
-	var ifName string
-	multusNameComponents := strings.Split(nameAtInterface, "@")
-	if len(multusNameComponents) == 2 {
-		ifName = multusNameComponents[1]
-	} else {
-		ifName = "net1"
-	}
-	return ifName
-}
-
-func ApplyMultus(networkSpec NetworkSpec, objectMeta *metav1.ObjectMeta) {
-	v := make([]string, 0, 2)
-	if serverSelector, exist := networkSpec.Selectors["server"]; exist {
-		v = append(v, string(serverSelector))
-	}
-	if brokerSelector, exist := networkSpec.Selectors["broker"]; exist {
-		brokerSelectorStr := string(brokerSelector)
-
-		// no duplicated selection annotation
-		if len(v) == 0 || v[0] != brokerSelectorStr {
-			v = append(v, brokerSelectorStr)
-		}
-	}
-	t := rook.Annotations{
-		"k8s.v1.cni.cncf.io/networks": strings.Join(v, ", "),
-	}
-	t.ApplyToObjectMeta(objectMeta)
 }
 
 type ClusterState string

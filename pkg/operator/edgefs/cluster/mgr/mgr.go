@@ -66,7 +66,7 @@ type Cluster struct {
 	annotations      rookalpha.Annotations
 	placement        rookalpha.Placement
 	context          *clusterd.Context
-	NetworkSpec      edgefsv1beta1.NetworkSpec
+	NetworkSpec      rookalpha.NetworkSpec
 	dashboardSpec    edgefsv1beta1.DashboardSpec
 	resources        v1.ResourceRequirements
 	resourceProfile  string
@@ -82,7 +82,7 @@ func New(
 	dataVolumeSize resource.Quantity,
 	annotations rookalpha.Annotations,
 	placement rookalpha.Placement,
-	NetworkSpec edgefsv1beta1.NetworkSpec,
+	NetworkSpec rookalpha.NetworkSpec,
 	dashboardSpec edgefsv1beta1.DashboardSpec,
 	resources v1.ResourceRequirements,
 	resourceProfile string,
@@ -330,21 +330,23 @@ func (c *Cluster) makeDeployment(name, clusterName, rookImage string, replicas i
 			RestartPolicy: v1.RestartPolicyAlways,
 			Volumes:       volumes,
 			HostIPC:       true,
-			HostNetwork:   edgefsv1beta1.IsHostNetworkDefined(c.NetworkSpec),
+			HostNetwork:   c.NetworkSpec.IsHost(),
 			NodeSelector:  map[string]string{c.Namespace: "cluster"},
 		},
 	}
-	if edgefsv1beta1.IsHostNetworkDefined(c.NetworkSpec) {
-		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
-	}
+
 	// Add the prometheus.io scrape annoations by default
 	podSpec.ObjectMeta.Annotations = map[string]string{
 		"prometheus.io/scrape": "true",
 		"prometheus.io/port":   strconv.Itoa(defaultMetricsPort),
 	}
-	if edgefsv1beta1.IsMultusNetworkDefined(c.NetworkSpec) {
-		edgefsv1beta1.ApplyMultus(c.NetworkSpec, &podSpec.ObjectMeta)
+
+	if c.NetworkSpec.IsHost() {
+		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
+	} else if c.NetworkSpec.IsMultus() {
+		rookalpha.ApplyMultus(c.NetworkSpec, &podSpec.ObjectMeta)
 	}
+
 	c.annotations.ApplyToObjectMeta(&podSpec.ObjectMeta)
 	c.placement.ApplyToPodSpec(&podSpec.Spec)
 

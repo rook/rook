@@ -56,7 +56,7 @@ type SWIFTController struct {
 	context          *clusterd.Context
 	namespace        string
 	rookImage        string
-	NetworkSpec      edgefsv1beta1.NetworkSpec
+	NetworkSpec      rookalpha.NetworkSpec
 	dataDirHostPath  string
 	dataVolumeSize   resource.Quantity
 	placement        rookalpha.Placement
@@ -71,7 +71,7 @@ func NewSWIFTController(
 	context *clusterd.Context,
 	namespace string,
 	rookImage string,
-	NetworkSpec edgefsv1beta1.NetworkSpec,
+	NetworkSpec rookalpha.NetworkSpec,
 	dataDirHostPath string,
 	dataVolumeSize resource.Quantity,
 	placement rookalpha.Placement,

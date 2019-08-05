@@ -26,7 +26,7 @@ import (
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -55,7 +55,7 @@ type Cluster struct {
 	Storage          rookalpha.StorageScopeSpec
 	dataDirHostPath  string
 	dataVolumeSize   resource.Quantity
-	NetworkSpec      edgefsv1beta1.NetworkSpec
+	NetworkSpec      rookalpha.NetworkSpec
 	Privileged       bool
 	resources        v1.ResourceRequirements
 	resourceProfile  string
@@ -77,7 +77,7 @@ func New(
 	dataVolumeSize resource.Quantity,
 	annotations rookalpha.Annotations,
 	placement rookalpha.Placement,
-	NetworkSpec edgefsv1beta1.NetworkSpec,
+	NetworkSpec rookalpha.NetworkSpec,
 	resources v1.ResourceRequirements,
 	resourceProfile string,
 	chunkCacheSize resource.Quantity,
@@ -102,7 +102,7 @@ func New(
 		dataDirHostPath:  dataDirHostPath,
 		dataVolumeSize:   dataVolumeSize,
 		NetworkSpec:      NetworkSpec,
-		Privileged:       (edgefsv1beta1.IsHostNetworkDefined(NetworkSpec) || os.Getenv("ROOK_HOSTPATH_REQUIRES_PRIVILEGED") == "true"),
+		Privileged:       (NetworkSpec.IsHost() || os.Getenv("ROOK_HOSTPATH_REQUIRES_PRIVILEGED") == "true"),
 		resources:        resources,
 		resourceProfile:  resourceProfile,
 		chunkCacheSize:   chunkCacheSize,

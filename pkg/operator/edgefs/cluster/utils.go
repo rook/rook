@@ -180,7 +180,7 @@ func (c *cluster) retrieveDeploymentConfig() (edgefsv1beta1.ClusterDeploymentCon
 	}
 
 	// Set privileges==true in case of HostNetwork
-	if edgefsv1beta1.IsHostNetworkDefined(c.Spec.Network) {
+	if c.Spec.Network.IsHost() {
 		deploymentConfig.NeedPrivileges = true
 	}
 

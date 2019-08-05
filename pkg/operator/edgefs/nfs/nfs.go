@@ -21,10 +21,11 @@ import (
 	"fmt"
 
 	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
+	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -171,17 +172,16 @@ func (c *NFSController) makeDeployment(svcname, namespace, rookImage string, nfs
 			RestartPolicy:      v1.RestartPolicyAlways,
 			Volumes:            volumes,
 			HostIPC:            true,
-			HostNetwork:        edgefsv1beta1.IsHostNetworkDefined(c.NetworkSpec),
+			HostNetwork:        c.NetworkSpec.IsHost(),
 			NodeSelector:       map[string]string{namespace: "cluster"},
 			ServiceAccountName: serviceAccountName,
 		},
 	}
-	if edgefsv1beta1.IsHostNetworkDefined(c.NetworkSpec) {
-		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
-	}
 
-	if edgefsv1beta1.IsMultusNetworkDefined(c.NetworkSpec) {
-		edgefsv1beta1.ApplyMultus(c.NetworkSpec, &podSpec.ObjectMeta)
+	if c.NetworkSpec.IsHost() {
+		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
+	} else if c.NetworkSpec.IsMultus() {
+		rookalpha.ApplyMultus(c.NetworkSpec, &podSpec.ObjectMeta)
 	}
 	nfsSpec.Annotations.ApplyToObjectMeta(&podSpec.ObjectMeta)
 
