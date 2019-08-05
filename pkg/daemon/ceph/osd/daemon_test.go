@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/rook/rook/pkg/clusterd"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/rook/rook/pkg/util/sys"
@@ -66,6 +67,10 @@ func TestRunDaemon(t *testing.T) {
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
 	os.MkdirAll(configDir, 0755)
+
+	defBkp := cephconfig.DefaultConfigDir
+	cephconfig.DefaultConfigDir = configDir
+	defer func() { cephconfig.DefaultConfigDir = defBkp }()
 
 	agent, _, context := createTestAgent(t, "none", configDir, "node5375", &config.StoreConfig{StoreType: config.Bluestore})
 	agent.devices[0].IsFilter = true

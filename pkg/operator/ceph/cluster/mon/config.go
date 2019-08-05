@@ -123,7 +123,7 @@ func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerR
 // WriteConnectionConfig save monitor connection config to disk
 func WriteConnectionConfig(context *clusterd.Context, clusterInfo *cephconfig.ClusterInfo) error {
 	// write the latest config to the config dir
-	if err := cephconfig.GenerateAdminConnectionConfig(context, clusterInfo); err != nil {
+	if _, err := cephconfig.GenerateAdminConnectionConfig(context, clusterInfo); err != nil {
 		return fmt.Errorf("failed to write connection config. %+v", err)
 	}
 

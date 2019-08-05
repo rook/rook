@@ -84,19 +84,9 @@ func TestGenerateConfigFile(t *testing.T) {
 	}
 	defer os.RemoveAll(configDir)
 
-	// set up a config file override (in the config dir so it also gets cleaned up)
-	configFileOverride := filepath.Join(configDir, "override.conf")
-	overrideContents := `[global]
-debug bluestore = 1234`
-	err = ioutil.WriteFile(configFileOverride, []byte(overrideContents), 0644)
-	if err != nil {
-		t.Fatalf("failed to create config file override at '%s': %+v", configFileOverride, err)
-	}
-
 	// create mocked cluster context and info
 	context := &clusterd.Context{
-		ConfigDir:          configDir,
-		ConfigFileOverride: configFileOverride,
+		ConfigDir: configDir,
 	}
 	clusterInfo := &ClusterInfo{
 		FSID:          "myfsid",
@@ -118,9 +108,6 @@ debug bluestore = 1234`
 	actualConf, err := ini.Load(configFilePath)
 	assert.Nil(t, err)
 	verifyConfigValue(t, actualConf, "global", "fsid", clusterInfo.FSID)
-
-	// verify the content of the config file override successfully overwrote the default generated config
-	verifyConfigValue(t, actualConf, "global", "debug bluestore", "1234")
 }
 
 func verifyConfig(t *testing.T, cephConfig *CephConfig, cluster *ClusterInfo, loggingLevel int) {

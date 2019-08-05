@@ -18,6 +18,7 @@ package osd
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
 	"regexp"
@@ -105,8 +106,23 @@ func Provision(context *clusterd.Context, agent *OsdAgent) error {
 	cephConfig.GlobalConfig.CrushLocation = agent.location
 
 	// write the latest config to the config dir
-	if err := cephconfig.GenerateAdminConnectionConfigWithSettings(context, agent.cluster, cephConfig); err != nil {
+	confFilePath, err := cephconfig.GenerateAdminConnectionConfigWithSettings(context, agent.cluster, cephConfig)
+	if err != nil {
 		return fmt.Errorf("failed to write connection config. %+v", err)
+	}
+	src, err := ioutil.ReadFile(confFilePath)
+	if err != nil {
+		return fmt.Errorf("failed to copy connection config to /etc/ceph. failed to read the connection config. %+v", err)
+	}
+	err = ioutil.WriteFile(cephconfig.DefaultConfigFilePath(), src, 0444)
+	if err != nil {
+		return fmt.Errorf("failed to copy connection config to /etc/ceph. failed to write %s. %+v", cephconfig.DefaultConfigFilePath(), err)
+	}
+	dst, err := ioutil.ReadFile(cephconfig.DefaultConfigFilePath())
+	if err == nil {
+		logger.Debugf("config file @ %s: %s", cephconfig.DefaultConfigFilePath(), dst)
+	} else {
+		logger.Warningf("wrote and copied config file but failed to read it back from %s for logging. %+v", cephconfig.DefaultConfigFilePath(), err)
 	}
 
 	logger.Infof("discovering hardware")

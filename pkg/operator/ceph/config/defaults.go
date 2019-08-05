@@ -17,51 +17,54 @@ limitations under the License.
 // Package config provides default configurations which Rook will set in Ceph clusters.
 package config
 
-import "github.com/rook/rook/pkg/operator/ceph/version"
+import (
+	rookceph "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/operator/ceph/version"
+)
 
 // DefaultFlags returns the default configuration flags Rook will set on the command line for all
 // calls to Ceph daemons and tools. Values specified here will not be able to be overridden using
 // the mon's central KV store, and that is (and should be) by intent.
 func DefaultFlags(fsid, mountedKeyringPath string, cephVersion version.CephVersion) []string {
-	return defaultFlagConfigs(fsid, mountedKeyringPath, cephVersion).GlobalFlags()
-}
-
-func defaultFlagConfigs(fsid, mountedKeyringPath string, cephVersion version.CephVersion) *Config {
-	c := NewConfig()
-
-	c.Section("global").
+	flags := []string{
 		// fsid unnecessary but is a safety to make sure daemons can only connect to their cluster
-		Set("fsid", fsid).
-		Set("keyring", mountedKeyringPath).
+		NewFlag("fsid", fsid),
+		NewFlag("keyring", mountedKeyringPath),
 		// For containers, we're expected to log everything to stderr
-		Set("log-to-stderr", "true").
-		Set("err-to-stderr", "true").
-		Set("mon-cluster-log-to-stderr", "true").
-		Set("log-stderr-prefix", "debug ")
-		// ^ differentiate debug text from audit text, and the space after 'debug' is critical
-
-	// As of Nautilus 14.2.1 at least
-	// These new flags control Ceph's daemon logging behaviour to files
-	// By default we set them to False so no logs get written on file
-	// However they can be actived at any time via the centralized config store
-	if cephVersion.IsAtLeast(version.CephVersion{Major: 14, Minor: 2, Extra: 1}) {
-		c.Section("global").
-			Set("default-log-to-file", "false").
-			Set("default-mon-cluster-log-to-file", "false")
+		NewFlag("log-to-stderr", "true"),
+		NewFlag("err-to-stderr", "true"),
+		NewFlag("mon-cluster-log-to-stderr", "true"),
+		// differentiate debug text from audit text, and the space after 'debug' is critical
+		NewFlag("log-stderr-prefix", "debug "),
 	}
 
-	m := StoredMonHostEnvVarReferences()
-	c.Merge(m)
-	return c
+	// As of Nautilus 14.2.1 at least
+	// These new flags control Ceph's daemon logging behavior to files
+	// By default we set them to False so no logs get written on file
+	// However they can be activated at any time via the centralized config store
+	if cephVersion.IsAtLeast(version.CephVersion{Major: 14, Minor: 2, Extra: 1}) {
+		flags = append(flags, []string{
+			NewFlag("default-log-to-file", "false"),
+			NewFlag("default-mon-cluster-log-to-file", "false"),
+		}...)
+	}
+
+	flags = append(flags, StoredMonHostEnvVarFlags()...)
+
+	return flags
+}
+
+// makes it possible to be slightly less verbose to create a ConfigOverride here
+func configOverride(who, option, value string) rookceph.ConfigOverride {
+	return rookceph.ConfigOverride{Who: who, Option: option, Value: value}
 }
 
 // DefaultCentralizedConfigs returns the default configuration options Rook will set in Ceph's
-// centralized config store. If the version of Ceph does not support the centralized config store,
-// these will be set in a shared config file instead.
-func DefaultCentralizedConfigs(cephVersion version.CephVersion) *Config {
-	c := NewConfig()
-	c.Section("global").
-		Set("mon allow pool delete", "true")
+// centralized config store.
+func DefaultCentralizedConfigs(cephVersion version.CephVersion) rookceph.ConfigOverridesSpec {
+	overrides := []rookceph.ConfigOverride{
+		configOverride("global", "mon allow pool delete", "true"),
+	}
 
 	// Everything before Nautilus 14.2.1
 	// Prior to Nautilus 14.2.1 certain log flags were not present
@@ -71,33 +74,29 @@ func DefaultCentralizedConfigs(cephVersion version.CephVersion) *Config {
 	if !cephVersion.IsAtLeast(version.CephVersion{Major: 14, Minor: 2, Extra: 1}) {
 		// Set the default log files to empty so they don't bloat containers. Can be changed in
 		// Mimic+ by users if needed.
-		c.Section("global").
-			Set("log file", "").
-			Set("mon cluster log file", "")
+		overrides = append(overrides, []rookceph.ConfigOverride{
+			configOverride("global", "log file", ""),
+			configOverride("global", "mon cluster log file", ""),
+		}...)
 	}
 
-	return c
+	return overrides
 }
 
 // DefaultLegacyConfigs need to be added to the Ceph config file until the integration tests can be
 // made to override these options for the Ceph clusters it creates.
-func DefaultLegacyConfigs() *Config {
-	c := NewConfig()
-	c.Section("global").
-		Set("mon max pg per osd", "1000").
+func DefaultLegacyConfigs() rookceph.ConfigOverridesSpec {
+	overrides := []rookceph.ConfigOverride{
+		configOverride("global", "mon max pg per osd", "1000"),
 		//
-		Set("osd pg bits", "11").
-		Set("osd pgp bits", "11").
-		Set("osd pool default size", "1").
-		Set("osd pool default min size", "1").
-		Set("osd pool default pg num", "100").
-		Set("osd pool default pgp num", "100").
+		// TODO: remove these; if we need for integration tests, set in integration test spec
+		configOverride("global", "osd pool default size", "1"),
+		configOverride("global", "osd pool default min size", "1"),
+		configOverride("global", "osd pool default pg num", "100"),
+		configOverride("global", "osd pool default pgp num", "100"),
 		//
-		Set("rbd_default_features", "3"). // TODO: still needed?
-		// Setting fatal signal handlers to true (the default) will print a lot of extra information
-		// from daemons when they encounter a failures, but it is VERY verbose. When the mon kv
-		// store is available, it will probably be best to set this to false by default if it is
-		// unset, but leave it set to true if the user has specified it as true during runtime.
-		Set("fatal signal handlers", "false")
-	return c
+		// TODO: drop this when FlexVolume is no longer supported
+		configOverride("global", "rbd_default_features", "3"),
+	}
+	return overrides
 }

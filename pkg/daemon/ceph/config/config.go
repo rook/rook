@@ -36,16 +36,22 @@ import (
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephconfig")
 
 const (
-	// DefaultConfigDir is the default dir where Ceph stores its configs
-	DefaultConfigDir = "/etc/ceph"
-	// DefaultConfigFile is the default name of the file where Ceph stores its configs
-	DefaultConfigFile = "ceph.conf"
 	// DefaultKeyringFile is the default name of the file where Ceph stores its keyring info
 	DefaultKeyringFile = "keyring"
 	// Msgr2port is the listening port of the messenger v2 protocol
 	Msgr2port   = 3300
 	msgr1Prefix = "v1:"
 	msgr2Prefix = "v2:"
+)
+
+var (
+	// DefaultConfigDir is the default dir where Ceph stores its configs. Can be overridden for unit
+	// tests.
+	DefaultConfigDir = "/etc/ceph"
+
+	// DefaultConfigFile is the default name of the file where Ceph stores its configs. Can be
+	// overridden for unit tests.
+	DefaultConfigFile = "ceph.conf"
 )
 
 // GlobalConfig represents the [global] sections of Ceph's config file.
@@ -109,26 +115,27 @@ func GetConfFilePath(root, clusterName string) string {
 
 // GenerateAdminConnectionConfig calls GenerateAdminConnectionConfigWithSettings with no settings
 // overridden.
-func GenerateAdminConnectionConfig(context *clusterd.Context, cluster *ClusterInfo) error {
+func GenerateAdminConnectionConfig(context *clusterd.Context, cluster *ClusterInfo) (string, error) {
 	return GenerateAdminConnectionConfigWithSettings(context, cluster, nil)
 }
 
 // GenerateAdminConnectionConfigWithSettings generates a Ceph config and keyring which will allow
 // the daemon to connect as an admin. Default config file settings can be overridden by specifying
 // some subset of settings.
-func GenerateAdminConnectionConfigWithSettings(context *clusterd.Context, cluster *ClusterInfo, settings *CephConfig) error {
+func GenerateAdminConnectionConfigWithSettings(context *clusterd.Context, cluster *ClusterInfo, settings *CephConfig) (string, error) {
 	root := path.Join(context.ConfigDir, cluster.Name)
 	keyringPath := path.Join(root, fmt.Sprintf("%s.keyring", client.AdminUsername))
 	err := writeKeyring(AdminKeyring(cluster), keyringPath)
 	if err != nil {
-		return fmt.Errorf("failed to write keyring to %s. %+v", root, err)
+		return "", fmt.Errorf("failed to write keyring to %s. %+v", root, err)
 	}
 
-	if _, err = GenerateConfigFile(context, cluster, root, client.AdminUsername, keyringPath, settings, nil); err != nil {
-		return fmt.Errorf("failed to write config to %s. %+v", root, err)
+	filePath, err := GenerateConfigFile(context, cluster, root, client.AdminUsername, keyringPath, settings, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to write config to %s. %+v", root, err)
 	}
 	logger.Infof("generated admin config in %s", root)
-	return nil
+	return filePath, nil
 }
 
 // GenerateConfigFile generates and writes a config file to disk.
@@ -149,27 +156,11 @@ func GenerateConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoo
 		return "", fmt.Errorf("failed to add admin client config section, %+v", err)
 	}
 
-	// if there's a config file override path given, process the given config file
-	if context.ConfigFileOverride != "" {
-		err := configFile.Append(context.ConfigFileOverride)
-		if err != nil {
-			// log the config file override failure as a warning, but proceed without it
-			logger.Warningf("failed to add config file override from '%s': %+v", context.ConfigFileOverride, err)
-		}
-	}
-
 	// write the entire config to disk
 	filePath := GetConfFilePath(pathRoot, cluster.Name)
 	logger.Infof("writing config file %s", filePath)
 	if err := configFile.SaveTo(filePath); err != nil {
 		return "", fmt.Errorf("failed to save config file %s. %+v", filePath, err)
-	}
-
-	// copy the config to /etc/ceph/ceph.conf
-	defaultPath := DefaultConfigFilePath()
-	logger.Infof("copying config to %s", defaultPath)
-	if err := configFile.SaveTo(defaultPath); err != nil {
-		logger.Warningf("failed to save config file %s. %+v", defaultPath, err)
 	}
 
 	return filePath, nil

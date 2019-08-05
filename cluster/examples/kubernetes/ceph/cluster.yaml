@@ -143,3 +143,15 @@ spec:
 #        storeType: filestore
 #    - name: "172.17.4.301"
 #      deviceFilter: "^sd."
+  # Override Ceph configs. These can be overridden by the user at runtime using the Ceph CLI, and
+  # Rook will set them back to the values set here when the operator restarts.
+  configOverrides:
+    - who: global
+      option: debug ms
+      value: "1/5"
+    - who: osd.0
+      option: debug_osd
+      value: "10"
+    - who: mon.a
+      option: debug-mon
+      value: "10"
