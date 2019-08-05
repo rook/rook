@@ -118,6 +118,8 @@ const (
                 - mountPath: /lib/modules
                   name: lib-modules
                   readOnly: true
+                - name: ceph-csi-config
+                  mountPath: /etc/ceph-csi-config/
           volumes:
             - name: host-dev
               hostPath:
@@ -135,6 +137,12 @@ const (
               hostPath:
                 path: /var/lib/kubelet/plugins/rbd.csi.ceph.com
                 type: DirectoryOrCreate
+            - name: ceph-csi-config
+              configMap:
+                name: rook-ceph-csi-config
+                items:
+                  - key: csi-cluster-config-json
+                    path: config.json
 `
 	rbdPluginTemplate = `
     kind: DaemonSet
