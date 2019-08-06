@@ -128,7 +128,7 @@ metadata:
   name: rook-edgefs
   namespace: rook-edgefs
 spec:
-  edgefsImageName: edgefs/edgefs:1.2.31  # specify version here, i.e. edgefs/edgefs:1.1.0 etc
+  edgefsImageName: edgefs/edgefs:1.2.43  # specify version here, i.e. edgefs/edgefs:1.1.0 etc
   serviceAccount: rook-edgefs-cluster
   dataDirHostPath: /var/lib/edgefs
   #dataVolumeSize: 10Gi
@@ -139,6 +139,7 @@ spec:
   #  serverIfName: "enp2s0f0"
   #  brokerIfName: "enp2s0f0"
   #skipHostPrepare: true
+  #maxContainerCapacity: 132Ti
   #trlogProcessingInterval: 2      # set transaction log processing interval to 2s to speed up ISGW Link delivery
   #trlogKeepDays: 2                # keep up to 2 days of transaction log interval batches to reduce local storage overhead
   storage: # cluster level storage configuration and selection
