@@ -37,12 +37,13 @@ import (
 var cephConfigDir = "/var/lib/ceph"
 
 const (
-	osdsPerDeviceFlag   = "--osds-per-device"
-	encryptedFlag       = "--dmcrypt"
-	databaseSizeFlag    = "--block-db-size"
-	cephVolumeCmd       = "ceph-volume"
-	cephVolumeMinDBSize = 1024 // 1GB
-	lvmConfPath         = "/etc/lvm/lvm.conf"
+	osdsPerDeviceFlag    = "--osds-per-device"
+	crushDeviceClassFlag = "--crush-device-class"
+	encryptedFlag        = "--dmcrypt"
+	databaseSizeFlag     = "--block-db-size"
+	cephVolumeCmd        = "ceph-volume"
+	cephVolumeMinDBSize  = 1024 // 1GB
+	lvmConfPath          = "/etc/lvm/lvm.conf"
 )
 
 func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *DeviceOsdMapping) ([]oposd.OSDInfo, error) {
@@ -190,10 +191,12 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 		if device.Data == -1 {
 			logger.Infof("configuring new device %s", name)
 			deviceArg := path.Join("/dev", name)
+
 			deviceOSDCount := osdsPerDeviceCount
 			if device.Config.OSDsPerDevice > 1 {
 				deviceOSDCount = sanitizeOSDsPerDevice(device.Config.OSDsPerDevice)
 			}
+
 			if a.metadataDevice != "" || device.Config.MetadataDevice != "" {
 				// When mixed hdd/ssd devices are given, ceph-volume configures db lv on the ssd.
 				// the device will be configured as a batch at the end of the method
@@ -215,12 +218,25 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 						deviceArg,
 					}
 				}
+				if device.Config.DeviceClass != "" {
+					metadataDevices[md] = append(metadataDevices[md], []string{
+						crushDeviceClassFlag,
+						device.Config.DeviceClass,
+					}...)
+				}
 			} else {
 				immediateExecuteArgs := append(baseArgs, []string{
 					osdsPerDeviceFlag,
 					deviceOSDCount,
 					deviceArg,
 				}...)
+
+				if device.Config.DeviceClass != "" {
+					immediateExecuteArgs = append(immediateExecuteArgs, []string{
+						crushDeviceClassFlag,
+						device.Config.DeviceClass,
+					}...)
+				}
 
 				// Reporting
 				immediateReportArgs := append(immediateExecuteArgs, []string{

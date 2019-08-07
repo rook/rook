@@ -44,6 +44,7 @@ const (
 	OSDsPerDeviceKey   = "osdsPerDevice"
 	EncryptedDeviceKey = "encryptedDevice"
 	MetadataDeviceKey  = "metadataDevice"
+	DeviceClassKey     = "deviceClass"
 )
 
 type StoreConfig struct {
@@ -53,6 +54,7 @@ type StoreConfig struct {
 	JournalSizeMB   int    `json:"journalSizeMB,omitempty"`
 	OSDsPerDevice   int    `json:"osdsPerDevice,omitempty"`
 	EncryptedDevice bool   `json:"encryptedDevice,omitempty"`
+	DeviceClass     string `json:"deviceClass,omitempty"`
 }
 
 func ToStoreConfig(config map[string]string) StoreConfig {
@@ -71,6 +73,8 @@ func ToStoreConfig(config map[string]string) StoreConfig {
 			storeConfig.OSDsPerDevice = convertToIntIgnoreErr(v)
 		case EncryptedDeviceKey:
 			storeConfig.EncryptedDevice = (v == "true")
+		case DeviceClassKey:
+			storeConfig.DeviceClass = v
 		}
 	}
 
