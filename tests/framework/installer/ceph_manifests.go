@@ -564,24 +564,6 @@ subjects:
   namespace: ` + namespace + `
 ---
 apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: csi-rbd-config
-  namespace: ` + namespace + `
-data:
-  csi-rbdplugin-provisioner.yaml: |-` + rbdProvisionerTemplate + `
-  csi-rbdplugin.yaml: |-` + rbdPluginTemplate + `
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: csi-cephfs-config
-  namespace: ` + namespace + `
-data:
-  csi-cephfsplugin-provisioner.yaml: |` + cephfsProvisionerTemplate + `
-  csi-cephfsplugin.yaml: |` + cephfsPluginTemplate + `
----
-apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: rook-csi-rbd-plugin-sa
@@ -1067,33 +1049,10 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        # CSI enablement
         - name: ROOK_CSI_ENABLE_CEPHFS
           value: "true"
-        - name: ROOK_CSI_CEPH_IMAGE
-          value: "quay.io/cephcsi/cephcsi:canary"
         - name: ROOK_CSI_ENABLE_RBD
           value: "true"
-        - name: ROOK_CSI_REGISTRAR_IMAGE
-          value: "quay.io/k8scsi/csi-node-driver-registrar:v1.1.0"
-        - name: ROOK_CSI_PROVISIONER_IMAGE
-          value: "quay.io/k8scsi/csi-provisioner:v1.2.0"
-        - name: ROOK_CSI_SNAPSHOTTER_IMAGE
-          value: "quay.io/k8scsi/csi-snapshotter:v1.1.0"
-        - name: ROOK_CSI_ATTACHER_IMAGE
-          value: "quay.io/k8scsi/csi-attacher:v1.1.1"
-        volumeMounts:
-        - mountPath: /etc/ceph-csi/rbd
-          name: csi-rbd-config
-        - mountPath: /etc/ceph-csi/cephfs
-          name: csi-cephfs-config
-      volumes:
-      - name: csi-rbd-config
-        configMap:
-          name: csi-rbd-config
-      - name: csi-cephfs-config
-        configMap:
-          name: csi-cephfs-config
 `
 }
 

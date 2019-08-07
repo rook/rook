@@ -9,11 +9,11 @@ If you want to tear down the cluster and bring up a new one, be aware of the fol
 - `rook-ceph` namespace: The Rook operator and cluster created by `operator.yaml` and `cluster.yaml` (the cluster CRD)
 - `/var/lib/rook`: Path on each host in the cluster where configuration is cached by the ceph mons and osds
 
-Note that if you changed the default namespaces or paths in the sample yaml files, you will need to adjust these namespaces and paths throughout these instructions.
+Note that if you changed the default namespaces or paths such as `dataDirHostPath` in the sample yaml files, you will need to adjust these namespaces and paths throughout these instructions.
 
 If you see issues tearing down the cluster, see the [Troubleshooting](#troubleshooting) section below.
 
-If you are tearing down a cluster frequently for development purposes, it is instead recommended to use an environment such as Minikube that can easily be restarted without worrying about any of these steps.
+If you are tearing down a cluster frequently for development purposes, it is instead recommended to use an environment such as Minikube that can easily be reset without worrying about any of these steps.
 
 ## Delete the Block and File artifacts
 First you will need to clean up the resources created on top of the Rook cluster.
@@ -24,7 +24,8 @@ kubectl delete -f ../wordpress.yaml
 kubectl delete -f ../mysql.yaml
 kubectl delete -n rook-ceph cephblockpool replicapool
 kubectl delete storageclass rook-ceph-block
-kubectl delete -f kube-registry.yaml
+kubectl delete -f csi/cephfs/kube-registry.yaml
+kubectl delete storageclass rook-cephfs
 ```
 
 ## Delete the CephCluster CRD

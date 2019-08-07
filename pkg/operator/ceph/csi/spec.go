@@ -58,16 +58,14 @@ const (
 	DefaultCSIPluginImage   = "quay.io/cephcsi/cephcsi:canary"
 	DefaultRegistrarImage   = "quay.io/k8scsi/csi-node-driver-registrar:v1.1.0"
 	DefaultProvisionerImage = "quay.io/k8scsi/csi-provisioner:v1.2.0"
-	DefaultAttacherImage    = "quay.io/k8scsi/csi-attacher:v1.1.0"
-	DefaultSnapshotterImage = "quay.io/k8scsi/csi-snapshotter:v1.1.1"
+	DefaultAttacherImage    = "quay.io/k8scsi/csi-attacher:v1.1.1"
+	DefaultSnapshotterImage = "quay.io/k8scsi/csi-snapshotter:v1.1.0"
 
 	// template
 	DefaultRBDPluginTemplatePath         = "/etc/ceph-csi/rbd/csi-rbdplugin.yaml"
 	DefaultRBDProvisionerTemplatePath    = "/etc/ceph-csi/rbd/csi-rbdplugin-provisioner.yaml"
 	DefaultCephFSPluginTemplatePath      = "/etc/ceph-csi/cephfs/csi-cephfsplugin.yaml"
 	DefaultCephFSProvisionerTemplatePath = "/etc/ceph-csi/cephfs/csi-cephfsplugin-provisioner.yaml"
-
-	ExitOnError = false // don't exit if CSI fails to deploy. Switch to true when flexdriver is disabled
 )
 
 func CSIEnabled() bool {
