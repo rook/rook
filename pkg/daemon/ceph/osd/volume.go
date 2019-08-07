@@ -38,13 +38,14 @@ import (
 var cephConfigDir = "/var/lib/ceph"
 
 const (
-	osdsPerDeviceFlag   = "--osds-per-device"
-	encryptedFlag       = "--dmcrypt"
-	databaseSizeFlag    = "--block-db-size"
-	dbDeviceFlag        = "--db-devices"
-	cephVolumeCmd       = "ceph-volume"
-	cephVolumeMinDBSize = 1024 // 1GB
-	lvmConfPath         = "/etc/lvm/lvm.conf"
+	osdsPerDeviceFlag    = "--osds-per-device"
+	crushDeviceClassFlag = "--crush-device-class"
+	encryptedFlag        = "--dmcrypt"
+	databaseSizeFlag     = "--block-db-size"
+	dbDeviceFlag         = "--db-devices"
+	cephVolumeCmd        = "ceph-volume"
+	cephVolumeMinDBSize  = 1024 // 1GB
+	lvmConfPath          = "/etc/lvm/lvm.conf"
 )
 
 func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *DeviceOsdMapping) ([]oposd.OSDInfo, error) {
@@ -179,10 +180,12 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 		if device.Data == -1 {
 			logger.Infof("configuring new device %s", name)
 			deviceArg := path.Join("/dev", name)
+
 			deviceOSDCount := osdsPerDeviceCount
 			if device.Config.OSDsPerDevice > 1 {
 				deviceOSDCount = sanitizeOSDsPerDevice(device.Config.OSDsPerDevice)
 			}
+
 			if a.metadataDevice != "" || device.Config.MetadataDevice != "" {
 				// When mixed hdd/ssd devices are given, ceph-volume configures db lv on the ssd.
 				// the device will be configured as a batch at the end of the method
@@ -200,6 +203,9 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 				} else {
 					metadataDevices[md] = make(map[string]string)
 					metadataDevices[md]["osdsperdevice"] = deviceOSDCount
+					if device.Config.DeviceClass != "" {
+						metadataDevices[md]["deviceclass"] = device.Config.DeviceClass
+					}
 					metadataDevices[md]["devices"] = deviceArg
 				}
 				deviceDBSizeMB := getDatabaseSize(a.storeConfig.DatabaseSizeMB, device.Config.DatabaseSizeMB)
@@ -218,13 +224,19 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 						}
 					}
 				}
-
 			} else {
 				immediateExecuteArgs := append(baseArgs, []string{
 					osdsPerDeviceFlag,
 					deviceOSDCount,
 					deviceArg,
 				}...)
+
+				if device.Config.DeviceClass != "" {
+					immediateExecuteArgs = append(immediateExecuteArgs, []string{
+						crushDeviceClassFlag,
+						device.Config.DeviceClass,
+					}...)
+				}
 
 				// Reporting
 				immediateReportArgs := append(immediateExecuteArgs, []string{
@@ -251,19 +263,26 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 
 	for md, conf := range metadataDevices {
 
+		mdArgs := batchArgs
 		if _, ok := conf["osdsperdevice"]; ok {
-			batchArgs = append(batchArgs, []string{
+			mdArgs = append(mdArgs, []string{
 				osdsPerDeviceFlag,
 				conf["osdsperdevice"],
 			}...)
 		}
+		if _, ok := conf["deviceclass"]; ok {
+			mdArgs = append(mdArgs, []string{
+				crushDeviceClassFlag,
+				conf["deviceclass"],
+			}...)
+		}
 		if _, ok := conf["databasesizemb"]; ok {
-			batchArgs = append(batchArgs, []string{
+			mdArgs = append(mdArgs, []string{
 				databaseSizeFlag,
 				conf["databasesizemb"],
 			}...)
 		}
-		mdArgs := append(batchArgs, strings.Split(conf["devices"], " ")...)
+		mdArgs = append(mdArgs, strings.Split(conf["devices"], " ")...)
 
 		if a.cluster.CephVersion.IsAtLeast(cephver.CephVersion{Major: 14, Minor: 2, Extra: 1}) {
 			mdArgs = append(mdArgs, []string{

@@ -559,6 +559,12 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 			} else {
 				devSuffix += ":"
 			}
+			if deviceClass, ok := device.Config[config.DeviceClassKey]; ok {
+				logger.Infof("osd %s requested with deviceClass %s (node %s)", device.Name, deviceClass, osdProps.crushHostname)
+				devSuffix += ":" + deviceClass
+			} else {
+				devSuffix += ":"
+			}
 			if md, ok := device.Config[config.MetadataDeviceKey]; ok {
 				logger.Infof("osd %s requested with metadataDevice %s (node %s)", device.Name, md, osdProps.crushHostname)
 				devSuffix += ":" + md
