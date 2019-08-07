@@ -238,11 +238,11 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 
 	for md, devs := range metadataDevices {
 
-		batchArgs = append(batchArgs, path.Join("/dev", md))
-		batchArgs = append(batchArgs, devs...)
+		mdArgs := append(batchArgs, path.Join("/dev", md))
+		mdArgs = append(mdArgs, devs...)
 
 		// Reporting
-		reportArgs := append(batchArgs, []string{
+		reportArgs := append(mdArgs, []string{
 			"--report",
 		}...)
 
@@ -267,12 +267,12 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 			return fmt.Errorf("failed to unmarshal ceph-volume report json. %+v", err)
 		}
 
-		if path.Join("/dev", a.metadataDevice) != cvReport.Vg.Devices {
-			return fmt.Errorf("ceph-volume did not use the expected metadataDevice [%s]", a.metadataDevice)
+		if path.Join("/dev", md) != cvReport.Vg.Devices {
+			return fmt.Errorf("ceph-volume did not use the expected metadataDevice [%s]", md)
 		}
 
 		// execute ceph-volume batching up multiple devices
-		if err := context.Executor.ExecuteCommand(false, "", baseCommand, batchArgs...); err != nil {
+		if err := context.Executor.ExecuteCommand(false, "", baseCommand, mdArgs...); err != nil {
 			return fmt.Errorf("failed ceph-volume. %+v", err) // fail return here as validation provided by ceph-volume
 		}
 	}
