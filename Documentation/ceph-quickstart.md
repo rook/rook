@@ -48,14 +48,14 @@ of requiring a device. For production environments, you will want to follow the 
 
 ## Deploy the Rook Operator
 
-The first step is to deploy the Rook system components, which include the Rook agent running on each node in your cluster as well as Rook operator pod. Check that you are using the [example yaml files](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph) that correspond to your release of Rook. For more options, see the [examples documentation](ceph-examples.md).
+The first step is to deploy the Rook operator. Check that you are using the [example yaml files](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph) that correspond to your release of Rook. For more options, see the [examples documentation](ceph-examples.md).
 
 ```bash
 cd cluster/examples/kubernetes/ceph
 kubectl create -f common.yaml
 kubectl create -f operator.yaml
 
-# verify the rook-ceph-operator, rook-ceph-agent, and rook-discover pods are in the `Running` state before proceeding
+# verify the rook-ceph-operator is in the `Running` state before proceeding
 kubectl -n rook-ceph get pod
 ```
 
@@ -63,9 +63,8 @@ You can also deploy the operator with the [Rook Helm Chart](helm-operator.md).
 
 ## Create a Rook Ceph Cluster
 
-Now that the Rook operator, agent, and discover pods are running, we can create the Rook Ceph cluster. For the cluster to survive reboots,
+Now that the Rook operator is running we can create the Ceph cluster. For the cluster to survive reboots,
 make sure you set the `dataDirHostPath` property that is valid for your hosts. For more settings, see the documentation on [configuring the cluster](ceph-cluster-crd.md).
-
 
 Save the cluster spec as `cluster-test.yaml`:
 
@@ -102,6 +101,7 @@ kubectl create -f cluster-test.yaml
 Use `kubectl` to list pods in the `rook-ceph` namespace. You should be able to see the following pods once they are all running.
 The number of osd pods will depend on the number of nodes in the cluster and the number of devices and directories configured.
 If you did not modify the `cluster-test.yaml` above, it is expected that one OSD will be created per node.
+The `rook-ceph-agent` and `rook-discover` pods are also optional depending on your settings.
 
 ```bash
 $ kubectl -n rook-ceph get pod

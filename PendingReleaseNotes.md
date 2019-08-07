@@ -15,6 +15,10 @@ an example usage
 
 ### Ceph
 
+- The Ceph CSI driver is enabled by default and preferred over the flex driver
+   - The flex driver can be disabled in operator.yaml by setting ROOK_ENABLE_FLEX_DRIVER=false
+   - The CSI drivers can be disabled by setting ROOK_CSI_ENABLE_CEPHFS=false and ROOK_CSI_ENABLE_RBD=false
+- The device discovery daemon can be disabled in operator.yaml by setting ROOK_ENABLE_DISCOVERY_DAEMON=false
 - Rook can now be configured to read "region" and "zone" labels on Kubernetes nodes and use that information as part of the CRUSH location for the OSDs.
 - Rgw pods have liveness probe enabled
 - Rgw is now configured with the Beast backend as of the Nautilus release
@@ -40,7 +44,9 @@ an example usage
 
 ## Breaking Changes
 
-### <Storage Provider>
+### Ceph
+- The CSI driver is enabled by default. Documentation has been changed significantly for block and filesystem to use the CSI driver instead of flex.
+While the flex driver is still supported, it is anticipated to be deprecated soon.
 
 ## Known Issues
 

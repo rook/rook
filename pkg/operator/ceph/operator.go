@@ -56,6 +56,13 @@ var provisionerConfigs = map[string]string{
 	provisionerNameLegacy: flexvolume.FlexvolumeVendorLegacy,
 }
 
+var (
+	// Whether to enable the flex driver. If true, the rook-ceph-agent daemonset will be started.
+	EnableFlexDriver = true
+	// Whether to enable the daemon for device discovery. If true, the rook-ceph-discover daemonset will be started.
+	EnableDiscoveryDaemon = true
+)
+
 // Operator type for managing storage
 type Operator struct {
 	context         *clusterd.Context
@@ -90,14 +97,16 @@ func (o *Operator) Run() error {
 		return fmt.Errorf("Rook operator namespace is not provided. Expose it via downward API in the rook operator manifest file using environment variable %s", k8sutil.PodNamespaceEnvVar)
 	}
 
-	rookDiscover := discover.New(o.context.Clientset)
-	if err := rookDiscover.Start(namespace, o.rookImage, o.securityAccount); err != nil {
-		return fmt.Errorf("Error starting device discovery daemonset: %v", err)
+	if EnableDiscoveryDaemon {
+		rookDiscover := discover.New(o.context.Clientset)
+		if err := rookDiscover.Start(namespace, o.rookImage, o.securityAccount); err != nil {
+			return fmt.Errorf("error starting device discovery daemonset. %+v", err)
+		}
 	}
 
 	serverVersion, err := o.context.Clientset.Discovery().ServerVersion()
 	if err != nil {
-		return fmt.Errorf("Error getting server version: %v", err)
+		return fmt.Errorf("error getting server version. %+v", err)
 	}
 
 	signalChan := make(chan os.Signal, 1)
@@ -150,35 +159,36 @@ func (o *Operator) startSystemDaemons() error {
 		return fmt.Errorf("Rook operator namespace is not provided. Expose it via downward API in the rook operator manifest file using environment variable %s", k8sutil.PodNamespaceEnvVar)
 	}
 
-	rookAgent := agent.New(o.context.Clientset)
-	if err := rookAgent.Start(namespace, o.rookImage, o.securityAccount); err != nil {
-		return fmt.Errorf("Error starting agent daemonset: %v", err)
+	if EnableFlexDriver {
+		rookAgent := agent.New(o.context.Clientset)
+		if err := rookAgent.Start(namespace, o.rookImage, o.securityAccount); err != nil {
+			return fmt.Errorf("error starting agent daemonset: %v", err)
+		}
 	}
 
 	serverVersion, err := o.context.Clientset.Discovery().ServerVersion()
 	if err != nil {
-		return fmt.Errorf("Error getting server version: %v", err)
+		return fmt.Errorf("error getting server version: %v", err)
 	}
 
-	if serverVersion.Major >= csi.KubeMinMajor && serverVersion.Minor >= csi.KubeMinMinor && csi.CSIEnabled() {
-		logger.Infof("Ceph CSI driver is enabled, validate csi param")
-		if err = csi.ValidateCSIParam(); err != nil {
-			logger.Warningf("invalid csi params: %v", err)
-			if csi.ExitOnError {
-				return err
-			}
-		} else {
-			csi.SetCSINamespace(namespace)
-			if err = csi.StartCSIDrivers(namespace, o.context.Clientset); err != nil {
-				logger.Warningf("failed to start Ceph csi drivers: %v", err)
-				if csi.ExitOnError {
-					return err
-				}
-			} else {
-				logger.Infof("successfully started Ceph csi drivers")
-			}
-		}
+	if !csi.CSIEnabled() {
+		logger.Infof("CSI driver is not enabled")
+		return nil
 	}
+
+	if serverVersion.Major < csi.KubeMinMajor || serverVersion.Major == csi.KubeMinMajor && serverVersion.Minor < csi.KubeMinMinor {
+		logger.Infof("CSI driver is only supported in K8s 1.13 or newer. version=%s", serverVersion.String())
+		return nil
+	}
+
+	if err = csi.ValidateCSIParam(); err != nil {
+		return fmt.Errorf("invalid csi params: %v", err)
+	}
+	csi.SetCSINamespace(namespace)
+	if err = csi.StartCSIDrivers(namespace, o.context.Clientset); err != nil {
+		return fmt.Errorf("failed to start Ceph csi drivers: %v", err)
+	}
+	logger.Infof("successfully started Ceph CSI driver(s)")
 
 	o.delayedDaemonsStarted = true
 	return nil
