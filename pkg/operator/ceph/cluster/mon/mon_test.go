@@ -122,7 +122,6 @@ func newCluster(context *clusterd.Context, namespace string, network cephv1.Netw
 		monTimeoutList:      map[string]time.Time{},
 		mapping: &Mapping{
 			Node: map[string]*NodeInfo{},
-			Port: map[string]int32{},
 		},
 		ownerRef: metav1.OwnerReference{},
 	}
@@ -241,7 +240,7 @@ func TestSaveMonEndpoints(t *testing.T) {
 	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(EndpointConfigMapName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, "a=1.2.3.1:6789", cm.Data[EndpointDataKey])
-	assert.Equal(t, `{"node":{},"port":{}}`, cm.Data[MappingKey])
+	assert.Equal(t, `{"node":{}}`, cm.Data[MappingKey])
 	assert.Equal(t, "-1", cm.Data[MaxMonIDKey])
 
 	// update the config map
@@ -252,14 +251,13 @@ func TestSaveMonEndpoints(t *testing.T) {
 		Address:  "1.1.1.1",
 		Hostname: "myhost",
 	}
-	c.mapping.Port["node0"] = int32(12345)
 	err = c.saveMonConfig()
 	assert.Nil(t, err)
 
 	cm, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(EndpointConfigMapName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, "a=2.3.4.5:6789", cm.Data[EndpointDataKey])
-	assert.Equal(t, `{"node":{"a":{"Name":"node0","Hostname":"myhost","Address":"1.1.1.1"}},"port":{"node0":12345}}`, cm.Data[MappingKey])
+	assert.Equal(t, `{"node":{"a":{"Name":"node0","Hostname":"myhost","Address":"1.1.1.1"}}}`, cm.Data[MappingKey])
 	assert.Equal(t, "2", cm.Data[MaxMonIDKey])
 }
 
@@ -343,169 +341,4 @@ func TestMonFoundInQuorum(t *testing.T) {
 	assert.True(t, monFoundInQuorum("b", response))
 	assert.True(t, monFoundInQuorum("c", response))
 	assert.False(t, monFoundInQuorum("d", response))
-}
-
-// no node choice can be made when there are no nodes
-func TestScheduleMonitorEmpty(t *testing.T) {
-	nodeZones := [][]NodeUsage{}
-	mon := &monConfig{DaemonName: "a"}
-	// no zones
-	assert.Nil(t, scheduleMonitor(mon, nodeZones))
-	// 1 zone no mons
-	nodeZones = append(nodeZones, []NodeUsage{})
-	assert.Nil(t, scheduleMonitor(mon, nodeZones))
-	// 2 zones no mons
-	nodeZones = append(nodeZones, []NodeUsage{})
-	assert.Nil(t, scheduleMonitor(mon, nodeZones))
-}
-
-// only valid nodes should be chosen
-func TestScheduleMonitorInvalidNodes(t *testing.T) {
-	// 1 zone with 1 invalid empty node
-	nodeZones := [][]NodeUsage{
-		{
-			NodeUsage{Node: &v1.Node{}, MonCount: 0, MonValid: false},
-		},
-	}
-	mon := &monConfig{DaemonName: "a"}
-	assert.Nil(t, scheduleMonitor(mon, nodeZones))
-
-	// 1 zone with 2 invalid empty node
-	nodeZones = [][]NodeUsage{
-		{
-			NodeUsage{Node: &v1.Node{}, MonCount: 0, MonValid: false},
-			NodeUsage{Node: &v1.Node{}, MonCount: 0, MonValid: false},
-		},
-	}
-	assert.Nil(t, scheduleMonitor(mon, nodeZones))
-
-	// 2 zone with 2 invalid empty node each
-	nodeZones = [][]NodeUsage{
-		{
-			NodeUsage{Node: &v1.Node{}, MonCount: 0, MonValid: false},
-			NodeUsage{Node: &v1.Node{}, MonCount: 0, MonValid: false},
-		},
-		{
-			NodeUsage{Node: &v1.Node{}, MonCount: 0, MonValid: false},
-			NodeUsage{Node: &v1.Node{}, MonCount: 0, MonValid: false},
-		},
-	}
-	assert.Nil(t, scheduleMonitor(mon, nodeZones))
-}
-
-func TestScheduleMonitor(t *testing.T) {
-	// 1 zone, 1 valid, empty node -> only one choice
-	nodeZones := [][]NodeUsage{
-		{
-			NodeUsage{Node: &v1.Node{}, MonCount: 0, MonValid: true},
-		},
-	}
-	mon := &monConfig{DaemonName: "a"}
-	assert.Equal(t, &nodeZones[0][0], scheduleMonitor(mon, nodeZones))
-
-	// still the only choice even if not empty
-	nodeZones = [][]NodeUsage{
-		{
-			NodeUsage{Node: &v1.Node{}, MonCount: 10, MonValid: true},
-		},
-	}
-	assert.Equal(t, &nodeZones[0][0], scheduleMonitor(mon, nodeZones))
-
-	// scheduler prefers the node with the least number of mons
-	nodeZones = [][]NodeUsage{
-		{
-			NodeUsage{Node: &v1.Node{}, MonCount: 10, MonValid: true},
-			NodeUsage{Node: &v1.Node{}, MonCount: 2, MonValid: true},
-			NodeUsage{Node: &v1.Node{}, MonCount: 5, MonValid: true},
-		},
-	}
-	assert.Equal(t, &nodeZones[0][1], scheduleMonitor(mon, nodeZones))
-
-	// the scheduler prefers nodes with the least number of mons, not zones with
-	// the leads number of mons (zero mons is a special case: tested below...)
-	nodeZones = [][]NodeUsage{
-		// 24 mons
-		{
-			NodeUsage{Node: &v1.Node{}, MonCount: 10, MonValid: true},
-			NodeUsage{Node: &v1.Node{}, MonCount: 4, MonValid: true},
-			NodeUsage{Node: &v1.Node{}, MonCount: 10, MonValid: true},
-		},
-		// 10 mons
-		{
-			NodeUsage{Node: &v1.Node{}, MonCount: 5, MonValid: true},
-			NodeUsage{Node: &v1.Node{}, MonCount: 5, MonValid: true},
-		},
-	}
-	// choose the node with 4 mons
-	assert.Equal(t, &nodeZones[0][1], scheduleMonitor(mon, nodeZones))
-
-	// same as before, the target mon is in the second zone
-	nodeZones = [][]NodeUsage{
-		// 6 mons
-		{
-			NodeUsage{Node: &v1.Node{}, MonCount: 2, MonValid: true},
-			NodeUsage{Node: &v1.Node{}, MonCount: 2, MonValid: true},
-			NodeUsage{Node: &v1.Node{}, MonCount: 2, MonValid: true},
-		},
-		// 10 mons
-		{
-			NodeUsage{Node: &v1.Node{}, MonCount: 1, MonValid: true},
-			NodeUsage{Node: &v1.Node{}, MonCount: 9, MonValid: true},
-		},
-	}
-	// choose the node with 1 mon
-	assert.Equal(t, &nodeZones[1][0], scheduleMonitor(mon, nodeZones))
-
-	// prefers a zone with zero mons to spread across failure domains
-	nodeZones = [][]NodeUsage{
-		// 0 mons
-		{
-			NodeUsage{Node: &v1.Node{}, MonCount: 0, MonValid: true},
-			NodeUsage{Node: &v1.Node{}, MonCount: 0, MonValid: true},
-			NodeUsage{Node: &v1.Node{}, MonCount: 0, MonValid: true},
-		},
-		// 1 mons
-		{
-			NodeUsage{Node: &v1.Node{}, MonCount: 0, MonValid: true},
-			NodeUsage{Node: &v1.Node{}, MonCount: 1, MonValid: true},
-		},
-	}
-	// choose the zone with zero mons
-	assert.Equal(t, &nodeZones[0][0], scheduleMonitor(mon, nodeZones))
-
-	// same as before, different zone
-	nodeZones = [][]NodeUsage{
-		// 0 mons
-		{
-			NodeUsage{Node: &v1.Node{}, MonCount: 0, MonValid: true},
-			NodeUsage{Node: &v1.Node{}, MonCount: 1, MonValid: true},
-			NodeUsage{Node: &v1.Node{}, MonCount: 0, MonValid: true},
-		},
-		// 1 mons
-		{
-			NodeUsage{Node: &v1.Node{}, MonCount: 0, MonValid: true},
-			NodeUsage{Node: &v1.Node{}, MonCount: 0, MonValid: true},
-		},
-	}
-	// choose the zone with zero mons
-	assert.Equal(t, &nodeZones[1][0], scheduleMonitor(mon, nodeZones))
-
-	// invalid nodes aren't schedulable, but if they have mons, that factors
-	// into the decision. in this case it means the zone isn't really empty
-	nodeZones = [][]NodeUsage{
-		// 0 mons
-		{
-			NodeUsage{Node: &v1.Node{}, MonCount: 0, MonValid: true},
-			// invalid node, but has a mon -> zone is not empty
-			NodeUsage{Node: &v1.Node{}, MonCount: 1, MonValid: false},
-			NodeUsage{Node: &v1.Node{}, MonCount: 0, MonValid: true},
-		},
-		// 1 mons
-		{
-			NodeUsage{Node: &v1.Node{}, MonCount: 0, MonValid: true},
-			NodeUsage{Node: &v1.Node{}, MonCount: 0, MonValid: true},
-		},
-	}
-	// choose the zone with zero mons
-	assert.Equal(t, &nodeZones[1][0], scheduleMonitor(mon, nodeZones))
 }

@@ -81,7 +81,6 @@ func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerR
 	maxMonID := -1
 	monMapping := &Mapping{
 		Node: map[string]*NodeInfo{},
-		Port: map[string]int32{},
 	}
 
 	secrets, err := context.Clientset.CoreV1().Secrets(namespace).Get(AppName, metav1.GetOptions{})
@@ -137,7 +136,6 @@ func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string
 	maxMonID := -1
 	monMapping := &Mapping{
 		Node: map[string]*NodeInfo{},
-		Port: map[string]int32{},
 	}
 
 	cm, err := clientset.CoreV1().ConfigMaps(namespace).Get(EndpointConfigMapName, metav1.GetOptions{})

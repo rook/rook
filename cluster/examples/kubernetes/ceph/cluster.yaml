@@ -79,6 +79,10 @@ spec:
 #        operator: Exists
 # The above placement information can also be specified for mon, osd, and mgr components
 #    mon:
+# Monitor deployments may contain an anti-affinity rule for avoiding monitor
+# colocation on the same node. This is a required rule when host network is used
+# or when AllowMultiplePerNode is false. Otherwise this anti-affinity rule is a
+# preferred rule with weight: 50.
 #    osd:
 #    mgr:
   annotations:

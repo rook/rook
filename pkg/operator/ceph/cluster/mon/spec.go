@@ -22,6 +22,7 @@ import (
 	"path"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config"
@@ -52,7 +53,7 @@ func (c *Cluster) getLabels(daemonName string) map[string]string {
 	return labels
 }
 
-func (c *Cluster) makeDeployment(monConfig *monConfig, hostname string) *apps.Deployment {
+func (c *Cluster) makeDeployment(monConfig *monConfig) *apps.Deployment {
 	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      monConfig.ResourceName,
@@ -65,7 +66,7 @@ func (c *Cluster) makeDeployment(monConfig *monConfig, hostname string) *apps.De
 	opspec.AddCephVersionLabelToDeployment(c.ClusterInfo.CephVersion, d)
 	k8sutil.SetOwnerRef(&d.ObjectMeta, &c.ownerRef)
 
-	pod := c.makeMonPod(monConfig, hostname)
+	pod := c.makeMonPod(monConfig)
 	replicaCount := int32(1)
 	d.Spec = apps.DeploymentSpec{
 		Selector: &metav1.LabelSelector{
@@ -134,7 +135,49 @@ func (c *Cluster) makeDeploymentPVC(m *monConfig) (*v1.PersistentVolumeClaim, er
  * Pod spec
  */
 
-func (c *Cluster) makeMonPod(monConfig *monConfig, hostname string) *v1.Pod {
+func (c *Cluster) setPodPlacement(pod *v1.PodSpec, p rook.Placement, nodeSelector map[string]string) {
+	p.ApplyToPodSpec(pod)
+	pod.NodeSelector = nodeSelector
+
+	// when a node selector is being used, skip the affinity business below
+	if nodeSelector != nil {
+		return
+	}
+
+	// label selector for monitors used in anti-affinity rules
+	monAntiAffinity := v1.PodAffinityTerm{
+		LabelSelector: &metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				k8sutil.AppAttr: AppName,
+			},
+		},
+		TopologyKey: v1.LabelHostname,
+	}
+
+	// set monitor pod anti-affinity rules. when monitors should never be
+	// co-located (e.g. not AllowMultiplePerHost or HostNetworking) then the
+	// anti-affinity rule is made to be required during scheduling, otherwise it
+	// is merely a preferred policy.
+	//
+	// ApplyToPodSpec ensures that pod.Affinity is non-nil
+	if pod.Affinity.PodAntiAffinity == nil {
+		pod.Affinity.PodAntiAffinity = &v1.PodAntiAffinity{}
+	}
+	paa := pod.Affinity.PodAntiAffinity
+
+	if c.Network.IsHost() || !c.spec.Mon.AllowMultiplePerNode {
+		paa.RequiredDuringSchedulingIgnoredDuringExecution =
+			append(paa.RequiredDuringSchedulingIgnoredDuringExecution, monAntiAffinity)
+	} else {
+		paa.PreferredDuringSchedulingIgnoredDuringExecution =
+			append(paa.PreferredDuringSchedulingIgnoredDuringExecution, v1.WeightedPodAffinityTerm{
+				Weight:          50,
+				PodAffinityTerm: monAntiAffinity,
+			})
+	}
+}
+
+func (c *Cluster) makeMonPod(monConfig *monConfig) *v1.Pod {
 	logger.Debugf("monConfig: %+v", monConfig)
 	podSpec := v1.PodSpec{
 		InitContainers: []v1.Container{
@@ -145,20 +188,12 @@ func (c *Cluster) makeMonPod(monConfig *monConfig, hostname string) *v1.Pod {
 			c.makeMonDaemonContainer(monConfig),
 		},
 		RestartPolicy: v1.RestartPolicyAlways,
-		NodeSelector:  map[string]string{v1.LabelHostname: hostname},
 		Volumes:       opspec.DaemonVolumesBase(monConfig.DataPathMap, keyringStoreName),
 		HostNetwork:   c.Network.IsHost(),
 	}
 	if c.Network.IsHost() {
 		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
-
-	// apply the pod placement if specified in the crd
-	// remove Pod (anti-)affinity because we have our own placement logic
-	p := cephv1.GetMonPlacement(c.spec.Placement)
-	p.PodAffinity = nil
-	p.PodAntiAffinity = nil
-	p.ApplyToPodSpec(&podSpec)
 
 	pod := &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{

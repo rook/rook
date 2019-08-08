@@ -89,9 +89,52 @@ scheduling implementation in Rook. These restrictions will be removed or
 significantly relaxed once monitor scheduling is moved under control of Kubernetes
 itself (ongoing work).
 
-## Migration
+## Scheduling
 
-Monitor migration is currently not implemented. When nodes are decommissioned,
-for example, any monitors on the nodes are migrated using a fail over mechanism
-rather than also migrating the PVC. This support is currently being worked on in
-conjunction with the enhancements to scheduling.
+In previous versions of Rook the operator made explicit scheduling (placement)
+decisions when creating monitor deployments. These decisions were made by
+implementing a custom scheduling algorithm, and using the pod node selector to
+enforce the placement decision.  Unfortunately, schedulers are difficult to
+write correctly, and manage.  Furthermore, by maintaining a separate scheduler
+from Kubernetes global policies are difficult to achieve.
+
+Despite the benefits of using the Kubernetes scheduler, there are important use
+cases for using a node selector on a monitor deployment: pinning a monitor to a
+node when HostPath-based storage is used. In this case Rook must prevent k8s
+from moving a pod away from the node that contains its storage. The node
+selector is used to enforce this affinity. Unfortunately, node selector use is
+mutually exclusive with kubernetes scheduling---a pod cannot be scheduled by
+Kubernetes and then atomically have its affinity set to that placement decision.
+
+The workaround in Rook is to use a temporary _canary pod_ that is scheduled by
+Kubernetes, but whose placement is enforced by Rook.  The canary deployment is a
+deployment configured identically to a monitor deployment, except the container
+entrypoints have no side affects. The canary deployments are used to solve a
+fundamental bootstrapping issue: we want to avoid making explicit scheduling
+decisions in Rook, but in some configurations a node selector needs to be used
+to pin a monitor to a node.
+
+### Health checks
+
+Previous versions of Rook performed periodic health checks that included checks
+on monitor health as well as looking for scheduling violations. The health
+checks related to scheduling violations have been removed. Fundamentally a
+placement violation requires understanding or accessing the scheduling algorithm.
+
+The rescheduling or eviction aspects of Rook's scheduling caused more problems
+than it helped, so going with K8s scheduling is the right thing.  If/when K8s
+has eviction policies in the future we could then make use of it (e.g. with
+`*RequiredDuringExecution` variants of anti-affinity rules are available).
+
+### Target Monitor Count
+
+The CRD monitor count specifies a target minimum number of monitors to maintain.
+Additionally, a preferred count is available which will be the desired number of
+sufficient number of nodes are available. Unfortunately, this calculation
+relies on determining if monitor pods may be placed on a node, requiring
+knowledge of the scheduling policy and algorithm. The scenario to watch out for
+is an endless loop in which the health check is determining a bad placement but
+the k8s schedule thinks otherwise.
+
+**TODO**: one approach here may be to schedule the desired number of canary pods
+to check for capacity before proceeding through monitor orchestration.

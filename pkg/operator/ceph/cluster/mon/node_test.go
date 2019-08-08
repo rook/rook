@@ -32,110 +32,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestGetNodeMonUsageValidNode(t *testing.T) {
-	clientset := test.New(2)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", cephv1.NetworkSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
-	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
-
-	node, err := clientset.CoreV1().Nodes().Get("node0", metav1.GetOptions{})
-	assert.NoError(t, err)
-	assert.NotNil(t, node)
-	conditions := v1.NodeCondition{Type: v1.NodeOutOfDisk}
-	node.Status = v1.NodeStatus{Conditions: []v1.NodeCondition{conditions}}
-	clientset.CoreV1().Nodes().Update(node)
-
-	// nodes are reported with correct valid flag
-	nodeZones, err := c.getNodeMonUsage()
-	assert.NoError(t, err)
-	assert.False(t, nodeZones[0][0].MonValid)
-	assert.True(t, nodeZones[0][1].MonValid)
-}
-
-func TestGetNodeMonUsageMonCount(t *testing.T) {
-	clientset := test.New(2)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", cephv1.NetworkSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
-	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
-
-	// 3 mons on node0
-	node, err := clientset.CoreV1().Nodes().Get("node0", metav1.GetOptions{})
-	assert.NoError(t, err)
-	assert.NotNil(t, node)
-
-	monIDs := []string{"a", "b", "c"}
-	for i := 0; i < 3; i++ {
-		pod := c.makeMonPod(testGenMonConfig(monIDs[i]), node.Name)
-		_, err = clientset.CoreV1().Pods(c.Namespace).Create(pod)
-		assert.Nil(t, err)
-	}
-
-	// 2 mons on node1
-	node, err = clientset.CoreV1().Nodes().Get("node1", metav1.GetOptions{})
-	assert.NoError(t, err)
-	assert.NotNil(t, node)
-
-	monIDs = []string{"d", "e"}
-	for i := 0; i < 2; i++ {
-		pod := c.makeMonPod(testGenMonConfig(monIDs[i]), node.Name)
-		_, err = clientset.CoreV1().Pods(c.Namespace).Create(pod)
-		assert.Nil(t, err)
-	}
-
-	nodeZones, err := c.getNodeMonUsage()
-	assert.NoError(t, err)
-	assert.Equal(t, 1, len(nodeZones))
-	if nodeZones[0][0].Node.Name == "node0" {
-		assert.Equal(t, 3, nodeZones[0][0].MonCount)
-		assert.Equal(t, 2, nodeZones[0][1].MonCount)
-	} else {
-		assert.Equal(t, 2, nodeZones[0][1].MonCount)
-		assert.Equal(t, 3, nodeZones[0][0].MonCount)
-	}
-}
-
-func TestTaintedNodes(t *testing.T) {
-	clientset := test.New(4)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", cephv1.NetworkSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
-	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
-
-	// mark a node as unschedulable
-	node, err := clientset.CoreV1().Nodes().Get("node0", metav1.GetOptions{})
-	assert.NoError(t, err)
-	assert.NotNil(t, node)
-	node.Spec.Unschedulable = true
-	clientset.CoreV1().Nodes().Update(node)
-
-	// taint
-	node, err = clientset.CoreV1().Nodes().Get("node1", metav1.GetOptions{})
-	assert.NoError(t, err)
-	assert.NotNil(t, node)
-	node.Spec.Taints = []v1.Taint{
-		{Effect: v1.TaintEffectNoSchedule},
-	}
-	clientset.CoreV1().Nodes().Update(node)
-
-	// taint
-	node, err = clientset.CoreV1().Nodes().Get("node2", metav1.GetOptions{})
-	assert.NoError(t, err)
-	assert.NotNil(t, node)
-	node.Spec.Taints = []v1.Taint{
-		{Effect: v1.TaintEffectPreferNoSchedule},
-	}
-	clientset.CoreV1().Nodes().Update(node)
-
-	nodeZones, err := c.getNodeMonUsage()
-	assert.NoError(t, err)
-	assert.Equal(t, 1, len(nodeZones))
-	validCount := 0
-	for zi := range nodeZones {
-		for ni := range nodeZones[zi] {
-			if nodeZones[zi][ni].MonValid {
-				validCount++
-			}
-		}
-	}
-	assert.Equal(t, 1, validCount)
-}
-
 func TestNodeAffinity(t *testing.T) {
 	clientset := test.New(4)
 	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", cephv1.NetworkSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
@@ -160,30 +56,17 @@ func TestNodeAffinity(t *testing.T) {
 	}
 
 	// label nodes so they appear as not scheduable / invalid
-	node, err := clientset.CoreV1().Nodes().Get("node0", metav1.GetOptions{})
+	node, _ := clientset.CoreV1().Nodes().Get("node0", metav1.GetOptions{})
 	node.Labels = map[string]string{"label": "foo"}
 	clientset.CoreV1().Nodes().Update(node)
 
-	node, err = clientset.CoreV1().Nodes().Get("node1", metav1.GetOptions{})
+	node, _ = clientset.CoreV1().Nodes().Get("node1", metav1.GetOptions{})
 	node.Labels = map[string]string{"label": "bar"}
 	clientset.CoreV1().Nodes().Update(node)
 
-	node, err = clientset.CoreV1().Nodes().Get("node2", metav1.GetOptions{})
+	node, _ = clientset.CoreV1().Nodes().Get("node2", metav1.GetOptions{})
 	node.Labels = map[string]string{"label": "baz"}
 	clientset.CoreV1().Nodes().Update(node)
-
-	nodeZones, err := c.getNodeMonUsage()
-	assert.NoError(t, err)
-	assert.Equal(t, 1, len(nodeZones))
-	validCount := 0
-	for zi := range nodeZones {
-		for ni := range nodeZones[zi] {
-			if nodeZones[zi][ni].MonValid {
-				validCount++
-			}
-		}
-	}
-	assert.Equal(t, 2, validCount)
 }
 
 // this tests can 3 mons with hostnetworking on the same host is rejected
@@ -282,22 +165,8 @@ func TestHostNetwork(t *testing.T) {
 
 	c.Network.HostNetwork = true
 
-	nodes := []v1.Node{}
-	nodeZones, err := c.getNodeMonUsage()
-	assert.Nil(t, err)
-
-	for zi := range nodeZones {
-		for _, nodeUsage := range nodeZones[zi] {
-			if nodeUsage.MonCount == 0 || c.spec.Mon.AllowMultiplePerNode {
-				nodes = append(nodes, *nodeUsage.Node)
-			}
-		}
-	}
-
-	assert.Equal(t, 3, len(nodes))
-
 	monConfig := testGenMonConfig("c")
-	pod := c.makeMonPod(monConfig, nodes[2].Name)
+	pod := c.makeMonPod(monConfig)
 	assert.NotNil(t, pod)
 	assert.Equal(t, true, pod.Spec.HostNetwork)
 	assert.Equal(t, v1.DNSClusterFirstWithHostNet, pod.Spec.DNSPolicy)
@@ -308,7 +177,7 @@ func TestHostNetwork(t *testing.T) {
 	assert.Equal(t, "arg not found: --public-bind-addr", message)
 
 	monConfig.Port = 6790
-	pod = c.makeMonPod(monConfig, nodes[2].Name)
+	pod = c.makeMonPod(monConfig)
 	val, message = extractArgValue(pod.Spec.Containers[0].Args, "--public-addr")
 	assert.Equal(t, "2.4.6.3:6790", val, message)
 	assert.NotNil(t, pod)
@@ -398,135 +267,4 @@ func TestTargetMonCount(t *testing.T) {
 	target, msg = calcTargetMonCount(nodes, spec)
 	assert.Equal(t, 7, target)
 	logger.Infof(msg)
-}
-
-// mon node usage should return no zones if there are no nodes
-func TestGetNodeMonUsageNoNodes(t *testing.T) {
-	clientset := test.New(0)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", cephv1.NetworkSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
-	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
-
-	nodeZones, err := c.getNodeMonUsage()
-	assert.NoError(t, err)
-	assert.Equal(t, len(nodeZones), 0)
-}
-
-// all nodes without zone annotations are in the same zone
-func TestGetNodeMonUsageNoZoneLabels(t *testing.T) {
-	for i := 1; i < 5; i++ {
-		clientset := test.New(i)
-		c := New(&clusterd.Context{Clientset: clientset}, "ns", "", cephv1.NetworkSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
-		setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
-
-		nodeZones, err := c.getNodeMonUsage()
-		assert.NoError(t, err)
-		assert.Equal(t, len(nodeZones), 1)
-		assert.Equal(t, len(nodeZones[0]), i)
-	}
-}
-
-// nodes are partitioned into separate zones
-func TestGetNodeMonUsageZoneSpread(t *testing.T) {
-	clientset := test.New(5)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", cephv1.NetworkSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
-	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
-
-	// 1 node labeled -> 1 zone + the rest in the unlabeled zone
-	node, err := clientset.CoreV1().Nodes().Get("node0", metav1.GetOptions{})
-	assert.NoError(t, err)
-	assert.NotNil(t, node)
-	node.Labels = map[string]string{"failure-domain.beta.kubernetes.io/zone": "z0"}
-	clientset.CoreV1().Nodes().Update(node)
-
-	// the zones are unlabeled and sort order isn't guaranteed. so instead we
-	// assert on expected count of zones and collection of zone sizes.
-	zoneCounts := map[int]int{}
-
-	nodeZones, err := c.getNodeMonUsage()
-	assert.NoError(t, err)
-	assert.Equal(t, 2, len(nodeZones))
-	for _, zones := range nodeZones {
-		zoneSize := len(zones)
-		if _, ok := zoneCounts[zoneSize]; ok {
-			zoneCounts[zoneSize]++
-		} else {
-			zoneCounts[zoneSize] = 1
-		}
-	}
-	assert.Equal(t, map[int]int{1: 1, 4: 1}, zoneCounts)
-
-	// 2 nodes with same label, 3 unlabeled
-	node, err = clientset.CoreV1().Nodes().Get("node1", metav1.GetOptions{})
-	assert.NoError(t, err)
-	assert.NotNil(t, node)
-	node.Labels = map[string]string{"failure-domain.beta.kubernetes.io/zone": "z0"}
-	clientset.CoreV1().Nodes().Update(node)
-
-	// reset
-	zoneCounts = map[int]int{}
-
-	nodeZones, err = c.getNodeMonUsage()
-	assert.NoError(t, err)
-	assert.Equal(t, 2, len(nodeZones))
-	for _, zones := range nodeZones {
-		zoneSize := len(zones)
-		if _, ok := zoneCounts[zoneSize]; ok {
-			zoneCounts[zoneSize]++
-		} else {
-			zoneCounts[zoneSize] = 1
-		}
-	}
-	assert.Equal(t, map[int]int{2: 1, 3: 1}, zoneCounts)
-
-	// 2 nodes with same label, 2 with distinct labels, 1 unlabeled
-	node, err = clientset.CoreV1().Nodes().Get("node2", metav1.GetOptions{})
-	assert.NoError(t, err)
-	assert.NotNil(t, node)
-	node.Labels = map[string]string{"failure-domain.beta.kubernetes.io/zone": "z1"}
-	clientset.CoreV1().Nodes().Update(node)
-
-	node, err = clientset.CoreV1().Nodes().Get("node3", metav1.GetOptions{})
-	assert.NoError(t, err)
-	assert.NotNil(t, node)
-	node.Labels = map[string]string{"failure-domain.beta.kubernetes.io/zone": "z2"}
-	clientset.CoreV1().Nodes().Update(node)
-
-	// reset
-	zoneCounts = map[int]int{}
-
-	nodeZones, err = c.getNodeMonUsage()
-	assert.NoError(t, err)
-	assert.Equal(t, 4, len(nodeZones))
-	for _, zones := range nodeZones {
-		zoneSize := len(zones)
-		if _, ok := zoneCounts[zoneSize]; ok {
-			zoneCounts[zoneSize]++
-		} else {
-			zoneCounts[zoneSize] = 1
-		}
-	}
-	assert.Equal(t, map[int]int{2: 1, 1: 3}, zoneCounts)
-
-	// no unlabeled zones
-	node, err = clientset.CoreV1().Nodes().Get("node4", metav1.GetOptions{})
-	assert.NoError(t, err)
-	assert.NotNil(t, node)
-	node.Labels = map[string]string{"failure-domain.beta.kubernetes.io/zone": "z1"}
-	clientset.CoreV1().Nodes().Update(node)
-
-	// reset
-	zoneCounts = map[int]int{}
-
-	nodeZones, err = c.getNodeMonUsage()
-	assert.NoError(t, err)
-	assert.Equal(t, 3, len(nodeZones))
-	for _, zones := range nodeZones {
-		zoneSize := len(zones)
-		if _, ok := zoneCounts[zoneSize]; ok {
-			zoneCounts[zoneSize]++
-		} else {
-			zoneCounts[zoneSize] = 1
-		}
-	}
-	assert.Equal(t, map[int]int{2: 2, 1: 1}, zoneCounts)
 }

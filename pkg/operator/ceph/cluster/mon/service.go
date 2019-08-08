@@ -48,9 +48,6 @@ func (c *Cluster) createService(mon *monConfig) (string, error) {
 		},
 	}
 	k8sutil.SetOwnerRef(&svcDef.ObjectMeta, &c.ownerRef)
-	if c.Network.IsHost() {
-		svcDef.Spec.ClusterIP = v1.ClusterIPNone
-	}
 
 	// If deploying Nautilus or newer we need a new port for the monitor service
 	if c.ClusterInfo.CephVersion.IsAtLeastNautilus() {
