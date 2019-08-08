@@ -212,7 +212,7 @@ func (c *Cluster) Start() error {
 				namespace = c.Namespace
 			}
 			if err := c.deployPrometheusRule(prometheusRuleName, namespace); err != nil {
-				logger.Errorf("failed to deploy prometheusule. %+v", err)
+				logger.Errorf("failed to deploy prometheus rule. %+v", err)
 			} else {
 				logger.Infof("prometheusRule deployed")
 			}
