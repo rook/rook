@@ -420,6 +420,16 @@ rules:
   - get
   - list
   - watch
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+  - list
+  - get
+  - watch
 ---
 # OLM: END OPERATOR ROLE
 # OLM: BEGIN SERVICE ACCOUNT SYSTEM
