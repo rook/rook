@@ -35,6 +35,7 @@ const (
 	// in all Ceph pods.
 	ConfigInitContainerName = "config-init"
 	logVolumeName           = "rook-ceph-log"
+	volumeMountSubPath      = "data"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "ceph-spec")
@@ -155,6 +156,32 @@ func DaemonVolumeMounts(dataPaths *config.DataPathMap, keyringResourceName strin
 	return append(mounts,
 		v1.VolumeMount{Name: "ceph-daemon-data", MountPath: dataPaths.ContainerDataDir},
 	)
+}
+
+// see AddVolumeMountSubPath
+func addVolumeMountSubPathContainer(c *v1.Container, volumeMountName string) {
+	for i := range c.VolumeMounts {
+		v := &c.VolumeMounts[i]
+		if v.Name == volumeMountName {
+			v.SubPath = volumeMountSubPath
+		}
+	}
+}
+
+// AddVolumeMountSubPath updates each init and regular container of the podspec
+// such that each volume mount attached to a container is mounted under a
+// subpath in the source volume. This is important because some daemons may not
+// start if the volume mount directory is non-empty. When the volume is the root
+// of an ext4 file system, one may find a "lost+found" directory.
+func AddVolumeMountSubPath(podSpec *v1.PodSpec, volumeMountName string) {
+	for i := range podSpec.InitContainers {
+		c := &podSpec.InitContainers[i]
+		addVolumeMountSubPathContainer(c, volumeMountName)
+	}
+	for i := range podSpec.Containers {
+		c := &podSpec.Containers[i]
+		addVolumeMountSubPathContainer(c, volumeMountName)
+	}
 }
 
 // DaemonFlags returns the command line flags used by all Ceph daemons.
