@@ -846,3 +846,4 @@ subjects:
   name: rook-ceph-cmd-reporter
   namespace: rook-ceph
 # OLM: END CLUSTER POD SECURITY POLICY BINDINGS
+
