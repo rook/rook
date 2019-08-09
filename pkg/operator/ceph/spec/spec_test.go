@@ -17,12 +17,15 @@ limitations under the License.
 package spec
 
 import (
+	"math"
 	"testing"
 
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 func TestPodVolumes(t *testing.T) {
@@ -51,4 +54,44 @@ func TestGenerateLifeCycleCmd(t *testing.T) {
 
 	cmd = generateLifeCycleCmd("foo")
 	assert.Equal(t, append(config.ContainerPostStartCmd, "foo"), cmd)
+}
+
+func TestCheckPodMemory(t *testing.T) {
+	// This value is in MB
+	const PodMinimumMemory uint64 = 1024
+
+	// A value for the memory used in the tests
+	var memory_value = int64(PodMinimumMemory * 8 * uint64(math.Pow10(6)))
+
+	// Case 1: No memory limits, no memory requested
+	test_resource := v1.ResourceRequirements{}
+
+	if err := CheckPodMemory(test_resource, PodMinimumMemory); err != nil {
+		t.Errorf("Error case 1: %s", err.Error())
+	}
+
+	// Case 2: memory limit and memory requested
+	test_resource = v1.ResourceRequirements{
+		Limits: v1.ResourceList{
+			v1.ResourceMemory: *resource.NewQuantity(memory_value, resource.BinarySI),
+		},
+		Requests: v1.ResourceList{
+			v1.ResourceMemory: *resource.NewQuantity(memory_value, resource.BinarySI),
+		},
+	}
+
+	if err := CheckPodMemory(test_resource, PodMinimumMemory); err != nil {
+		t.Errorf("Error case 2: %s", err.Error())
+	}
+
+	// Only memory requested
+	test_resource = v1.ResourceRequirements{
+		Requests: v1.ResourceList{
+			v1.ResourceMemory: *resource.NewQuantity(memory_value, resource.BinarySI),
+		},
+	}
+
+	if err := CheckPodMemory(test_resource, PodMinimumMemory); err != nil {
+		t.Errorf("Error case 3: %s", err.Error())
+	}
 }

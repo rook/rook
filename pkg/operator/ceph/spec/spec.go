@@ -256,19 +256,21 @@ func CheckPodMemory(resources v1.ResourceRequirements, cephPodMinimumMemory uint
 		return nil
 	}
 
-	// This means LIMIT and REQUEST are either identical or different but still we use LIMIT as a reference
-	if uint64(podMemoryLimit.Value()) < display.MbTob(cephPodMinimumMemory) {
-		return fmt.Errorf(errorMessage, display.BToMb(uint64(podMemoryLimit.Value())), cephPodMinimumMemory)
-	}
+	if !podMemoryLimit.IsZero() {
+		// This means LIMIT and REQUEST are either identical or different but still we use LIMIT as a reference
+		if uint64(podMemoryLimit.Value()) < display.MbTob(cephPodMinimumMemory) {
+			return fmt.Errorf(errorMessage, display.BToMb(uint64(podMemoryLimit.Value())), cephPodMinimumMemory)
+		}
 
-	// This means LIMIT < REQUEST
-	// Kubernetes will refuse to schedule that pod however it's still valuable to indicate that user's input was incorrect
-	if uint64(podMemoryLimit.Value()) < uint64(podMemoryRequest.Value()) {
-		extraErrorLine := `\n
-		User has specified a pod memory limit %dmb below the pod memory request %dmb in the cluster CR.\n
-		Rook will create pods that are expected to fail to serve as a more apparent error indicator to the user.`
+		// This means LIMIT < REQUEST
+		// Kubernetes will refuse to schedule that pod however it's still valuable to indicate that user's input was incorrect
+		if uint64(podMemoryLimit.Value()) < uint64(podMemoryRequest.Value()) {
+			extraErrorLine := `\n
+			User has specified a pod memory limit %dmb below the pod memory request %dmb in the cluster CR.\n
+			Rook will create pods that are expected to fail to serve as a more apparent error indicator to the user.`
 
-		return fmt.Errorf(extraErrorLine, display.BToMb(uint64(podMemoryLimit.Value())), display.BToMb(uint64(podMemoryRequest.Value())))
+			return fmt.Errorf(extraErrorLine, display.BToMb(uint64(podMemoryLimit.Value())), display.BToMb(uint64(podMemoryRequest.Value())))
+		}
 	}
 
 	return nil
