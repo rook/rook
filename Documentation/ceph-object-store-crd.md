@@ -6,13 +6,17 @@ indent: true
 
 # Ceph Object Store CRD
 
-Rook allows creation and customization of object stores through the custom resource definitions (CRDs). The following settings are available
-for Ceph object stores.
+Rook allows creation and customization of object stores through the custom resource definitions (CRDs). The following settings are available for Ceph object stores.
 
 ## Sample
 
-**NOTE** This example requires you to have **at least 3 bluestore OSDs each on a different node**.
-This is because the below `erasureCoded` chunk settings require at least 3 bluestore OSDs and as [`failureDomain` setting](ceph-pool-crd.md#spec) to `host` (default), each OSD needs to be on a different nodes.
+### Erasure Coded
+
+Erasure coded pools require the OSDs to use `bluestore` for the configured [`storeType`](ceph-cluster-crd.md#osd-configuration-settings). Additionally, erasure coded pools can only be used with `dataPools`. The `metadataPool` must use a replicated pool.
+
+**NOTE:** This sample requires *at least 3 bluestore OSDs*, with each OSD located on a *different node*.
+
+The OSDs must be located on different nodes, because the [`failureDomain`](ceph-pool-crd.md#spec) is set to `host` and the `erasureCoded` chunk settings require at least 3 different OSDs (2 `dataChunks` + 1 `codingChunks`).
 
 ```yaml
 apiVersion: ceph.rook.io/v1
