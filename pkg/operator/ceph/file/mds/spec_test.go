@@ -22,7 +22,6 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
@@ -37,7 +36,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func testDeploymentObject(hostNetwork bool) *apps.Deployment {
+func testDeploymentObject(network cephv1.NetworkSpec) *apps.Deployment {
 	fs := cephv1.CephFilesystem{
 		ObjectMeta: metav1.ObjectMeta{Name: "myfs", Namespace: "ns"},
 		Spec: cephv1.FilesystemSpec{
@@ -68,9 +67,7 @@ func testDeploymentObject(hostNetwork bool) *apps.Deployment {
 		"rook/rook:myversion",
 		&cephv1.ClusterSpec{
 			CephVersion: cephv1.CephVersionSpec{Image: "ceph/ceph:testversion"},
-			Network: rookalpha.NetworkSpec{
-				HostNetwork: hostNetwork,
-			},
+			Network:     network,
 		},
 		fs,
 		&client.CephFilesystemDetails{ID: 15},
@@ -86,7 +83,7 @@ func testDeploymentObject(hostNetwork bool) *apps.Deployment {
 }
 
 func TestPodSpecs(t *testing.T) {
-	d := testDeploymentObject(false) // no host network
+	d := testDeploymentObject(cephv1.NetworkSpec{HostNetwork: false}) // no host network
 
 	assert.NotNil(t, d)
 	assert.Equal(t, v1.RestartPolicyAlways, d.Spec.Template.Spec.RestartPolicy)
@@ -101,7 +98,7 @@ func TestPodSpecs(t *testing.T) {
 }
 
 func TestHostNetwork(t *testing.T) {
-	d := testDeploymentObject(true) // host network
+	d := testDeploymentObject(cephv1.NetworkSpec{HostNetwork: true}) // host network
 
 	assert.Equal(t, true, d.Spec.Template.Spec.HostNetwork)
 	assert.Equal(t, v1.DNSClusterFirstWithHostNet, d.Spec.Template.Spec.DNSPolicy)

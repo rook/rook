@@ -48,7 +48,7 @@ func (c *Cluster) createService(mon *monConfig) (string, error) {
 		},
 	}
 	k8sutil.SetOwnerRef(&svcDef.ObjectMeta, &c.ownerRef)
-	if c.HostNetwork {
+	if c.Network.IsHost() {
 		svcDef.Spec.ClusterIP = v1.ClusterIPNone
 	}
 

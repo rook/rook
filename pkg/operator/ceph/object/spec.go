@@ -68,9 +68,9 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) v1.PodTemplateSpec 
 			opspec.DaemonVolumes(c.DataPathMap, rgwConfig.ResourceName),
 			c.mimeTypesVolume(),
 		),
-		HostNetwork: c.clusterSpec.Network.HostNetwork,
+		HostNetwork: c.clusterSpec.Network.IsHost(),
 	}
-	if c.clusterSpec.Network.HostNetwork {
+	if c.clusterSpec.Network.IsHost() {
 		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 
@@ -160,7 +160,7 @@ func (c *clusterConfig) startService() (string, error) {
 		},
 	}
 	k8sutil.SetOwnerRefs(&svc.ObjectMeta, c.ownerRefs)
-	if c.clusterSpec.Network.HostNetwork {
+	if c.clusterSpec.Network.IsHost() {
 		svc.Spec.ClusterIP = v1.ClusterIPNone
 	}
 

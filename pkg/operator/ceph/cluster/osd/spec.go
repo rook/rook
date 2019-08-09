@@ -25,6 +25,7 @@ import (
 	"strconv"
 	"strings"
 
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
@@ -197,7 +198,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 		commonArgs = append(commonArgs, "--default-log-to-file", "false")
 	}
 
-	commonArgs = append(commonArgs, osdOnSDNFlag(c.HostNetwork, c.clusterInfo.CephVersion)...)
+	commonArgs = append(commonArgs, osdOnSDNFlag(c.Network, c.clusterInfo.CephVersion)...)
 
 	// Add the volume to the spec and the mount to the daemon container
 	copyBinariesVolume, copyBinariesContainer := c.getCopyBinariesContainer()
@@ -278,7 +279,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 	hostIPC := osdProps.storeConfig.EncryptedDevice
 
 	DNSPolicy := v1.DNSClusterFirst
-	if c.HostNetwork {
+	if c.Network.IsHost() {
 		DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 
@@ -315,7 +316,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 				Spec: v1.PodSpec{
 					RestartPolicy:      v1.RestartPolicyAlways,
 					ServiceAccountName: serviceAccountName,
-					HostNetwork:        c.HostNetwork,
+					HostNetwork:        c.Network.IsHost(),
 					HostPID:            true,
 					HostIPC:            hostIPC,
 					DNSPolicy:          DNSPolicy,
@@ -431,9 +432,9 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 		},
 		RestartPolicy: restart,
 		Volumes:       volumes,
-		HostNetwork:   c.HostNetwork,
+		HostNetwork:   c.Network.IsHost(),
 	}
-	if c.HostNetwork {
+	if c.Network.IsHost() {
 		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 	if len(osdProps.pvc.ClaimName) == 0 {
@@ -733,11 +734,11 @@ func getConfigFromContainer(osdContainer v1.Container) map[string]string {
 	return cfg
 }
 
-func osdOnSDNFlag(hostnetwork bool, v cephver.CephVersion) []string {
+func osdOnSDNFlag(network cephv1.NetworkSpec, v cephver.CephVersion) []string {
 	var args []string
 	// OSD fails to find the right IP to bind to when running on SDN
 	// for more details: https://github.com/rook/rook/issues/3140
-	if !hostnetwork {
+	if !network.IsHost() {
 		if v.IsAtLeast(cephver.CephVersion{Major: 14, Minor: 2, Extra: 2}) {
 			args = append(args, "--ms-learn-addr-from-peer=false")
 		}

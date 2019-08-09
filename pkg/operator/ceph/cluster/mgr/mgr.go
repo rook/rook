@@ -63,7 +63,7 @@ type Cluster struct {
 	annotations     rookalpha.Annotations
 	context         *clusterd.Context
 	dataDir         string
-	HostNetwork     bool
+	Network         cephv1.NetworkSpec
 	resources       v1.ResourceRequirements
 	ownerRef        metav1.OwnerReference
 	dashboard       cephv1.DashboardSpec
@@ -82,7 +82,7 @@ func New(
 	cephVersion cephv1.CephVersionSpec,
 	placement rookalpha.Placement,
 	annotations rookalpha.Annotations,
-	hostNetwork bool,
+	network cephv1.NetworkSpec,
 	dashboard cephv1.DashboardSpec,
 	monitoringSpec cephv1.MonitoringSpec,
 	resources v1.ResourceRequirements,
@@ -100,7 +100,7 @@ func New(
 		dataDir:         k8sutil.DataDir,
 		dashboard:       dashboard,
 		monitoringSpec:  monitoringSpec,
-		HostNetwork:     hostNetwork,
+		Network:         network,
 		resources:       resources,
 		ownerRef:        ownerRef,
 		exitCode:        getExitCode,

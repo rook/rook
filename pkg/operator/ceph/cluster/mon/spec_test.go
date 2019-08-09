@@ -45,7 +45,7 @@ func testPodSpec(t *testing.T, monID string, pvc bool) {
 		&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook"},
 		"ns",
 		"/var/lib/rook",
-		false,
+		cephv1.NetworkSpec{},
 		metav1.OwnerReference{},
 		&sync.Mutex{},
 	)
@@ -90,7 +90,7 @@ func TestDeploymentPVCSpec(t *testing.T) {
 		&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook"},
 		"ns",
 		"/var/lib/rook",
-		false,
+		cephv1.NetworkSpec{},
 		metav1.OwnerReference{},
 		&sync.Mutex{},
 	)

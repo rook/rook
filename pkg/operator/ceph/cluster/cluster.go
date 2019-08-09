@@ -83,7 +83,7 @@ func newCluster(c *cephv1.CephCluster, context *clusterd.Context, csiMutex *sync
 		crdName:   c.Name,
 		stopCh:    make(chan struct{}),
 		ownerRef:  ownerRef,
-		mons:      mon.New(context, c.Namespace, c.Spec.DataDirHostPath, c.Spec.Network.HostNetwork, ownerRef, csiMutex),
+		mons:      mon.New(context, c.Namespace, c.Spec.DataDirHostPath, c.Spec.Network, ownerRef, csiMutex),
 	}
 }
 
@@ -244,7 +244,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 
 	mgrs := mgr.New(c.Info, c.context, c.Namespace, rookImage,
 		spec.CephVersion, cephv1.GetMgrPlacement(spec.Placement), cephv1.GetMgrAnnotations(c.Spec.Annotations),
-		spec.Network.HostNetwork, spec.Dashboard, spec.Monitoring, cephv1.GetMgrResources(spec.Resources), c.ownerRef, c.Spec.DataDirHostPath)
+		spec.Network, spec.Dashboard, spec.Monitoring, cephv1.GetMgrResources(spec.Resources), c.ownerRef, c.Spec.DataDirHostPath)
 	err = mgrs.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the ceph mgr. %+v", err)
@@ -252,7 +252,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 
 	// Start the OSDs
 	osds := osd.New(c.Info, c.context, c.Namespace, rookImage, spec.CephVersion, spec.Storage, spec.DataDirHostPath,
-		cephv1.GetOSDPlacement(spec.Placement), cephv1.GetOSDAnnotations(spec.Annotations), spec.Network.HostNetwork,
+		cephv1.GetOSDPlacement(spec.Placement), cephv1.GetOSDAnnotations(spec.Annotations), spec.Network,
 		cephv1.GetOSDResources(spec.Resources), c.ownerRef)
 	err = osds.Start()
 	if err != nil {
@@ -261,7 +261,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 
 	// Start the rbd mirroring daemon(s)
 	rbdmirror := rbd.New(c.Info, c.context, c.Namespace, rookImage, spec.CephVersion, cephv1.GetRBDMirrorPlacement(spec.Placement),
-		cephv1.GetRBDMirrorAnnotations(spec.Annotations), spec.Network.HostNetwork, spec.RBDMirroring,
+		cephv1.GetRBDMirrorAnnotations(spec.Annotations), spec.Network, spec.RBDMirroring,
 		cephv1.GetRBDMirrorResources(spec.Resources), c.ownerRef, c.Spec.DataDirHostPath)
 	err = rbdmirror.Start()
 	if err != nil {

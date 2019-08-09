@@ -395,17 +395,10 @@ type GaneshaServerSpec struct {
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`
 }
 
+// NetworkSpec for Ceph includes backward compatibility code
 type NetworkSpec struct {
-	metav1.TypeMeta `json:",inline"`
+	rook.NetworkSpec `json:",inline"`
 
 	// HostNetwork to enable host network
 	HostNetwork bool `json:"hostNetwork"`
-
-	// Set of named ports that can be configured for this resource
-	Ports []PortSpec `json:"ports,omitempty"`
-}
-
-type PortSpec struct {
-	Name string `json:"name,omitempty"`
-	Port int32  `json:"port,omitempty"`
 }

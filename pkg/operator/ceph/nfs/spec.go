@@ -58,7 +58,7 @@ func (c *CephNFSController) createCephNFSService(nfs cephv1.CephNFS, cfg daemonC
 		},
 	}
 	k8sutil.SetOwnerRef(&svc.ObjectMeta, &c.ownerRef)
-	if c.clusterSpec.Network.HostNetwork {
+	if c.clusterSpec.Network.IsHost() {
 		svc.Spec.ClusterIP = v1.ClusterIPNone
 	}
 
@@ -110,9 +110,9 @@ func (c *CephNFSController) makeDeployment(nfs cephv1.CephNFS, cfg daemonConfig)
 			nfsConfigVol,
 			dbusVol,
 		},
-		HostNetwork: c.clusterSpec.Network.HostNetwork,
+		HostNetwork: c.clusterSpec.Network.IsHost(),
 	}
-	if c.clusterSpec.Network.HostNetwork {
+	if c.clusterSpec.Network.IsHost() {
 		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 	nfs.Spec.Server.Placement.ApplyToPodSpec(&podSpec)

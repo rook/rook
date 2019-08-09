@@ -34,7 +34,7 @@ import (
 
 func TestGetNodeMonUsageValidNode(t *testing.T) {
 	clientset := test.New(2)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", false, metav1.OwnerReference{}, &sync.Mutex{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", cephv1.NetworkSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 
 	node, err := clientset.CoreV1().Nodes().Get("node0", metav1.GetOptions{})
@@ -53,7 +53,7 @@ func TestGetNodeMonUsageValidNode(t *testing.T) {
 
 func TestGetNodeMonUsageMonCount(t *testing.T) {
 	clientset := test.New(2)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", false, metav1.OwnerReference{}, &sync.Mutex{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", cephv1.NetworkSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 
 	// 3 mons on node0
@@ -94,7 +94,7 @@ func TestGetNodeMonUsageMonCount(t *testing.T) {
 
 func TestTaintedNodes(t *testing.T) {
 	clientset := test.New(4)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", false, metav1.OwnerReference{}, &sync.Mutex{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", cephv1.NetworkSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 
 	// mark a node as unschedulable
@@ -138,7 +138,7 @@ func TestTaintedNodes(t *testing.T) {
 
 func TestNodeAffinity(t *testing.T) {
 	clientset := test.New(4)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", false, metav1.OwnerReference{}, &sync.Mutex{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", cephv1.NetworkSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 
 	c.spec.Placement = map[rookalpha.KeyType]rookalpha.Placement{}
@@ -192,7 +192,7 @@ func TestHostNetworkSameNode(t *testing.T) {
 	context := newTestStartCluster(namespace)
 
 	// cluster host networking
-	c := newCluster(context, namespace, true, true, v1.ResourceRequirements{})
+	c := newCluster(context, namespace, cephv1.NetworkSpec{HostNetwork: true}, true, v1.ResourceRequirements{})
 	c.ClusterInfo = test.CreateConfigDir(1)
 
 	// start a basic cluster
@@ -211,7 +211,7 @@ func TestPodMemory(t *testing.T) {
 		},
 	}
 
-	c := newCluster(context, namespace, false, true, r)
+	c := newCluster(context, namespace, cephv1.NetworkSpec{}, true, r)
 	c.ClusterInfo = test.CreateConfigDir(1)
 	// start a basic cluster
 	_, err := c.Start(c.ClusterInfo, c.rookVersion, cephver.Mimic, c.spec)
@@ -227,7 +227,7 @@ func TestPodMemory(t *testing.T) {
 		},
 	}
 
-	c = newCluster(context, namespace, false, true, r)
+	c = newCluster(context, namespace, cephv1.NetworkSpec{}, true, r)
 	c.ClusterInfo = test.CreateConfigDir(1)
 	// start a basic cluster
 	_, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Mimic, c.spec)
@@ -243,7 +243,7 @@ func TestPodMemory(t *testing.T) {
 		},
 	}
 
-	c = newCluster(context, namespace, false, true, r)
+	c = newCluster(context, namespace, cephv1.NetworkSpec{}, true, r)
 	c.ClusterInfo = test.CreateConfigDir(1)
 	// start a basic cluster
 	_, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Mimic, c.spec)
@@ -259,7 +259,7 @@ func TestPodMemory(t *testing.T) {
 		},
 	}
 
-	c = newCluster(context, namespace, false, true, r)
+	c = newCluster(context, namespace, cephv1.NetworkSpec{}, true, r)
 	c.ClusterInfo = test.CreateConfigDir(1)
 	// start a basic cluster
 	_, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Mimic, c.spec)
@@ -267,7 +267,7 @@ func TestPodMemory(t *testing.T) {
 
 	// Test no resources were specified on the pod
 	r = v1.ResourceRequirements{}
-	c = newCluster(context, namespace, false, true, r)
+	c = newCluster(context, namespace, cephv1.NetworkSpec{}, true, r)
 	c.ClusterInfo = test.CreateConfigDir(1)
 	// start a basic cluster
 	_, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Mimic, c.spec)
@@ -277,10 +277,10 @@ func TestPodMemory(t *testing.T) {
 
 func TestHostNetwork(t *testing.T) {
 	clientset := test.New(3)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", false, metav1.OwnerReference{}, &sync.Mutex{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", cephv1.NetworkSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 
-	c.HostNetwork = true
+	c.Network.HostNetwork = true
 
 	nodes := []v1.Node{}
 	nodeZones, err := c.getNodeMonUsage()
@@ -403,7 +403,7 @@ func TestTargetMonCount(t *testing.T) {
 // mon node usage should return no zones if there are no nodes
 func TestGetNodeMonUsageNoNodes(t *testing.T) {
 	clientset := test.New(0)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", false, metav1.OwnerReference{}, &sync.Mutex{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", cephv1.NetworkSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 
 	nodeZones, err := c.getNodeMonUsage()
@@ -415,7 +415,7 @@ func TestGetNodeMonUsageNoNodes(t *testing.T) {
 func TestGetNodeMonUsageNoZoneLabels(t *testing.T) {
 	for i := 1; i < 5; i++ {
 		clientset := test.New(i)
-		c := New(&clusterd.Context{Clientset: clientset}, "ns", "", false, metav1.OwnerReference{}, &sync.Mutex{})
+		c := New(&clusterd.Context{Clientset: clientset}, "ns", "", cephv1.NetworkSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
 		setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 
 		nodeZones, err := c.getNodeMonUsage()
@@ -428,7 +428,7 @@ func TestGetNodeMonUsageNoZoneLabels(t *testing.T) {
 // nodes are partitioned into separate zones
 func TestGetNodeMonUsageZoneSpread(t *testing.T) {
 	clientset := test.New(5)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", false, metav1.OwnerReference{}, &sync.Mutex{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", cephv1.NetworkSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 
 	// 1 node labeled -> 1 zone + the rest in the unlabeled zone

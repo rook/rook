@@ -83,7 +83,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 		CephVersion: cephver.Nautilus,
 	}
 	c := New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", cephVersion,
-		storageSpec, dataDir, rookalpha.Placement{}, rookalpha.Annotations{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+		storageSpec, dataDir, rookalpha.Placement{}, rookalpha.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	devMountNeeded := deviceName != "" || allDevices
 
@@ -176,7 +176,7 @@ func TestStorageSpecDevicesAndDirectories(t *testing.T) {
 		CephVersion: cephver.Nautilus,
 	}
 	c := New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", cephv1.CephVersionSpec{},
-		storageSpec, "/var/lib/rook", rookalpha.Placement{}, rookalpha.Annotations{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+		storageSpec, "/var/lib/rook", rookalpha.Placement{}, rookalpha.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	n := c.DesiredStorage.ResolveNode(storageSpec.Nodes[0].Name)
 	osd := OSDInfo{
@@ -280,7 +280,7 @@ func TestStorageSpecConfig(t *testing.T) {
 		CephVersion: cephver.Nautilus,
 	}
 	c := New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", cephv1.CephVersionSpec{},
-		storageSpec, "", rookalpha.Placement{}, rookalpha.Annotations{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+		storageSpec, "", rookalpha.Placement{}, rookalpha.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	n := c.DesiredStorage.ResolveNode(storageSpec.Nodes[0].Name)
 	storeConfig := config.ToStoreConfig(storageSpec.Nodes[0].Config)
@@ -343,7 +343,7 @@ func TestHostNetwork(t *testing.T) {
 		CephVersion: cephver.Nautilus,
 	}
 	c := New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "myversion", cephv1.CephVersionSpec{},
-		storageSpec, "", rookalpha.Placement{}, rookalpha.Annotations{}, true, v1.ResourceRequirements{}, metav1.OwnerReference{})
+		storageSpec, "", rookalpha.Placement{}, rookalpha.Annotations{}, cephv1.NetworkSpec{HostNetwork: true}, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	n := c.DesiredStorage.ResolveNode(storageSpec.Nodes[0].Name)
 	osd := OSDInfo{
@@ -369,16 +369,16 @@ func TestHostNetwork(t *testing.T) {
 }
 
 func TestOsdOnSDNFlag(t *testing.T) {
-	hostnetwork := false
+	network := cephv1.NetworkSpec{}
 	v := cephver.Mimic
-	args := osdOnSDNFlag(hostnetwork, v)
+	args := osdOnSDNFlag(network, v)
 	assert.Empty(t, args)
 
 	v = cephver.CephVersion{Major: 14, Minor: 2, Extra: 2}
-	args = osdOnSDNFlag(hostnetwork, v)
+	args = osdOnSDNFlag(network, v)
 	assert.NotEmpty(t, args)
 
 	v = cephver.Octopus
-	args = osdOnSDNFlag(hostnetwork, v)
+	args = osdOnSDNFlag(network, v)
 	assert.NotEmpty(t, args)
 }

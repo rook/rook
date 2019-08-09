@@ -43,7 +43,7 @@ func TestPodSpec(t *testing.T) {
 		cephv1.CephVersionSpec{Image: "ceph/ceph:myceph"},
 		rookalpha.Placement{},
 		rookalpha.Annotations{},
-		false,
+		cephv1.NetworkSpec{},
 		cephv1.DashboardSpec{},
 		cephv1.MonitoringSpec{},
 		v1.ResourceRequirements{
@@ -93,7 +93,7 @@ func TestServiceSpec(t *testing.T) {
 		cephv1.CephVersionSpec{},
 		rookalpha.Placement{},
 		rookalpha.Annotations{},
-		false,
+		cephv1.NetworkSpec{},
 		cephv1.DashboardSpec{},
 		cephv1.MonitoringSpec{},
 		v1.ResourceRequirements{},
@@ -117,7 +117,7 @@ func TestHostNetwork(t *testing.T) {
 		cephv1.CephVersionSpec{},
 		rookalpha.Placement{},
 		rookalpha.Annotations{},
-		true,
+		cephv1.NetworkSpec{HostNetwork: true},
 		cephv1.DashboardSpec{},
 		cephv1.MonitoringSpec{},
 		v1.ResourceRequirements{},
@@ -135,7 +135,7 @@ func TestHostNetwork(t *testing.T) {
 	d := c.makeDeployment(&mgrTestConfig)
 	assert.NotNil(t, d)
 
-	assert.Equal(t, true, d.Spec.Template.Spec.HostNetwork)
+	assert.Equal(t, true, c.Network.IsHost())
 	assert.Equal(t, v1.DNSClusterFirstWithHostNet, d.Spec.Template.Spec.DNSPolicy)
 }
 
@@ -149,7 +149,7 @@ func TestHttpBindFix(t *testing.T) {
 		cephv1.CephVersionSpec{},
 		rookalpha.Placement{},
 		rookalpha.Annotations{},
-		true,
+		cephv1.NetworkSpec{},
 		cephv1.DashboardSpec{},
 		cephv1.MonitoringSpec{},
 		v1.ResourceRequirements{},
