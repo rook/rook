@@ -670,6 +670,7 @@ func (c *Cluster) startMon(m *monConfig, hostname string) error {
 	if pvcExists || (!deploymentExists && c.spec.Mon.VolumeClaimTemplate != nil) {
 		pvcName := m.ResourceName
 		d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, opspec.DaemonVolumesDataPVC(pvcName))
+		opspec.AddVolumeMountSubPath(&d.Spec.Template.Spec, "ceph-daemon-data")
 		logger.Debugf("adding pvc volume source %s to mon deployment %s", pvcName, d.Name)
 	} else {
 		d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, opspec.DaemonVolumesDataHostPath(m.DataPathMap)...)
