@@ -41,16 +41,16 @@ Edit `/etc/docker/daemon.json` to add insecure-registries:
 Clone it:
 
 ```bash
-git clone https://github.com/kubernetes-incubator/kubespray
+git clone https://github.com/kubernetes-sigs/kubespray/
 cd kubespray
 ```
 
 In order to successfully deploy Kubernetes with Kubespray, you must have this code: https://github.com/kubernetes-incubator/kubespray/pull/2153 and https://github.com/kubernetes-incubator/kubespray/pull/2271.
 
-Edit `inventory/group_vars/k8s-cluster.yml` with:
+Edit `inventory/sample/group_vars/k8s-cluster/k8s-cluster.yml` with:
 
 ```bash
-docker_options: {% raw %}"--insecure-registry=172.17.8.1:5000 --insecure-registry={{ kube_service_addresses }} --graph={{ docker_daemon_graph }}  {{ docker_log_opts }}"{% endraw %}
+docker_options: {% raw %}"--insecure-registry=172.17.8.1:5000 --insecure-registry={{ kube_service_addresses }} --data-root={{ docker_daemon_graph }} {{ docker_log_opts }}"{% endraw %}
 ```
 
 FYI: `172.17.8.1` is the libvirt bridge IP, so it's reachable from all your virtual machines.
