@@ -50,7 +50,6 @@ type BlockCreateSuite struct {
 	kh             *utils.K8sHelper
 	initBlockCount int
 	namespace      string
-	installer      *installer.CephInstaller
 	op             *TestCluster
 }
 
@@ -65,6 +64,10 @@ func (s *BlockCreateSuite) SetupSuite() {
 	initialBlocks, err := s.testClient.BlockClient.List(s.namespace)
 	assert.Nil(s.T(), err)
 	s.initBlockCount = len(initialBlocks)
+}
+
+func (s *BlockCreateSuite) AfterTest(suiteName, testName string) {
+	s.op.installer.CollectOperatorLog(suiteName, testName, installer.SystemNamespace(s.namespace))
 }
 
 // Test case when persistentvolumeclaim is created for a storage class that doesn't exist

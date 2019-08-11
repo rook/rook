@@ -1411,6 +1411,16 @@ func (k8sh *K8sHelper) IsRookInstalled(namespace string) bool {
 	return false
 }
 
+// CollectPodLogsFromLabel collects logs for pods with the given label
+func (k8sh *K8sHelper) CollectPodLogsFromLabel(podLabel, namespace, testName, platformName string) {
+	pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(metav1.ListOptions{LabelSelector: podLabel})
+	if err != nil {
+		logger.Errorf("failed to list pods in namespace %s. %+v", namespace, err)
+		return
+	}
+	k8sh.getPodsLogs(pods, namespace, testName, platformName)
+}
+
 // GetLogsFromNamespace collects logs for all containers in all pods in the namespace
 func (k8sh *K8sHelper) GetLogsFromNamespace(namespace, testName, platformName string) {
 	logger.Infof("Gathering logs for all pods in namespace %s", namespace)
@@ -1420,10 +1430,13 @@ func (k8sh *K8sHelper) GetLogsFromNamespace(namespace, testName, platformName st
 		logger.Errorf("failed to list pods in namespace %s. %+v", namespace, err)
 		return
 	}
+	k8sh.getPodsLogs(pods, namespace, testName, platformName)
+}
 
+func (k8sh *K8sHelper) getPodsLogs(pods *v1.PodList, namespace, testName, platformName string) {
 	for _, p := range pods.Items {
 		k8sh.getPodLogs(p, platformName, namespace, testName, false)
-		if strings.Contains("operator", p.Name) {
+		if strings.Contains(p.Name, "operator") {
 			// get the previous logs for the operator
 			k8sh.getPodLogs(p, platformName, namespace, testName, true)
 		}

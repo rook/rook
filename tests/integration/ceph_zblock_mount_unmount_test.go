@@ -97,6 +97,10 @@ func (s *BlockMountUnMountSuite) SetupSuite() {
 	s.bc = s.testClient.BlockClient
 }
 
+func (s *BlockMountUnMountSuite) AfterTest(suiteName, testName string) {
+	s.op.installer.CollectOperatorLog(suiteName, testName, installer.SystemNamespace(s.namespace))
+}
+
 func (s *BlockMountUnMountSuite) setupPVCs() {
 	logger.Infof("creating the test PVCs")
 	poolNameRWO := "block-pool-rwo"

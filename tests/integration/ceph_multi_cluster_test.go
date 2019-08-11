@@ -76,6 +76,10 @@ func (mrc *MultiClusterDeploySuite) SetupSuite() {
 	mrc.createPools()
 }
 
+func (mrc *MultiClusterDeploySuite) AfterTest(suiteName, testName string) {
+	mrc.op.installer.CollectOperatorLog(suiteName, testName, mrc.op.systemNamespace)
+}
+
 func (mrc *MultiClusterDeploySuite) createPools() {
 	// create a test pool in each cluster so that we get some PGs
 	poolName := "multi-cluster-pool1"
