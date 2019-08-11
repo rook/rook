@@ -44,6 +44,7 @@ const (
 	nautilusTestImage = "ceph/ceph:v14.2.2-20190722"
 	helmChartName     = "local/rook-ceph"
 	helmDeployName    = "rook-ceph"
+	cephOperatorLabel = "app=rook-ceph-operator"
 )
 
 var (
@@ -509,6 +510,14 @@ func (h *CephInstaller) cleanupDir(node, dir string) error {
 	resources := h.Manifests.GetCleanupPod(node, dir)
 	_, err := h.k8shelper.KubectlWithStdin(resources, createFromStdinArgs...)
 	return err
+}
+
+func (h *CephInstaller) CollectOperatorLog(suiteName, testName, namespace string) {
+	if !h.T().Failed() && Env.Logs != "all" {
+		return
+	}
+	name := fmt.Sprintf("%s_%s", suiteName, testName)
+	h.k8shelper.CollectPodLogsFromLabel(cephOperatorLabel, namespace, name, Env.HostType)
 }
 
 func (h *CephInstaller) GatherAllRookLogs(testName string, namespaces ...string) {

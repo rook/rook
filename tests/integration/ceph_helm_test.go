@@ -77,6 +77,10 @@ func (hs *HelmSuite) TearDownSuite() {
 	hs.op.Teardown()
 }
 
+func (hs *HelmSuite) AfterTest(suiteName, testName string) {
+	hs.op.installer.CollectOperatorLog(suiteName, testName, installer.SystemNamespace(hs.namespace))
+}
+
 // Test to make sure all rook components are installed and Running
 func (hs *HelmSuite) TestRookInstallViaHelm() {
 	checkIfRookClusterIsInstalled(hs.Suite, hs.kh, hs.namespace, hs.namespace, 1)
