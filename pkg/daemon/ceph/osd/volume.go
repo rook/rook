@@ -164,10 +164,8 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 		baseArgs = append(baseArgs, encryptedFlag)
 	}
 
-	batchArgs := append(baseArgs, []string{
-		osdsPerDeviceFlag,
-		sanitizeOSDsPerDevice(a.storeConfig.OSDsPerDevice),
-	}...)
+	osdsPerDeviceCount := sanitizeOSDsPerDevice(a.storeConfig.OSDsPerDevice)
+	batchArgs := baseArgs
 
 	if a.storeConfig.StoreType == config.Bluestore && a.storeConfig.DatabaseSizeMB > 0 {
 		if a.storeConfig.DatabaseSizeMB < cephVolumeMinDBSize {
@@ -192,6 +190,10 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 		if device.Data == -1 {
 			logger.Infof("configuring new device %s", name)
 			deviceArg := path.Join("/dev", name)
+			deviceOSDCount := osdsPerDeviceCount
+			if device.Config.OSDsPerDevice > 1 {
+				deviceOSDCount = sanitizeOSDsPerDevice(device.Config.OSDsPerDevice)
+			}
 			if a.metadataDevice != "" || device.Config.MetadataDevice != "" {
 				// When mixed hdd/ssd devices are given, ceph-volume configures db lv on the ssd.
 				// the device will be configured as a batch at the end of the method
@@ -202,14 +204,22 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 				logger.Infof("using %s as metadataDevice for device %s and let ceph-volume lvm batch decide how to create volumes", md, deviceArg)
 				if _, ok := metadataDevices[md]; ok {
 					metadataDevices[md] = append(metadataDevices[md], deviceArg)
+					// Fail when two devices using the same metadata device have different values for osdsPerDevice
+					if deviceOSDCount != metadataDevices[md][1] {
+						return fmt.Errorf("metadataDevice (%s) has more than 1 osdsPerDevice value set: %s != %s", md, deviceOSDCount, metadataDevices[md][1])
+					}
 				} else {
-					metadataDevices[md] = []string{deviceArg}
+					metadataDevices[md] = []string{
+						osdsPerDeviceFlag,
+						deviceOSDCount,
+						deviceArg,
+					}
 				}
 			} else {
 				immediateExecuteArgs := append(baseArgs, []string{
-					deviceArg,
 					osdsPerDeviceFlag,
-					sanitizeOSDsPerDevice(device.Config.OSDsPerDevice),
+					deviceOSDCount,
+					deviceArg,
 				}...)
 
 				// Reporting
