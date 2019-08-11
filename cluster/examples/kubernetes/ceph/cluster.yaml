@@ -99,12 +99,8 @@ spec:
 #    mon:
 #    osd:
   storage: # cluster level storage configuration and selection
-    persistentVolumeClaim:
-    - claimName: "example-pvc"
-    - claimName: "example-pvc1"
-    - claimName: "example-pvc4"
-    useAllNodes: false
-    useAllDevices: false
+    useAllNodes: true
+    useAllDevices: true
     deviceFilter:
     location:
     config:
