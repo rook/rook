@@ -426,12 +426,10 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 
 	// Start the object bucket provisioner
 	bucketProvisioner := bucket.NewProvisioner(c.context, cluster.Namespace)
-	bucketController, err := bucket.NewBucketController(c.context.KubeConfig, bucketProvisioner)
-	if err != nil {
-		logger.Errorf("Bucket provisioner failed to start. %+v", err)
-	} else {
-		go bucketController.Run(cluster.stopCh)
-	}
+	// note: the error return below is ignored and is expected to be removed from the
+	//   bucket library's `NewProvisioner` function
+	bucketController, _ := bucket.NewBucketController(c.context.KubeConfig, bucketProvisioner)
+	go bucketController.Run(cluster.stopCh)
 
 	// Start file system CRD watcher
 	fileController := file.NewFilesystemController(cluster.Info, c.context, cluster.Namespace, c.rookImage, cluster.Spec, cluster.ownerRef, cluster.Spec.DataDirHostPath)

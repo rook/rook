@@ -75,12 +75,13 @@ func GetBucketStats(c *Context, bucketName string) (*ObjectBucketStats, bool, er
 		"bucket",
 		"stats",
 		"--bucket", bucketName)
-	if err != nil {
-		return nil, false, fmt.Errorf("failed to get bucket stats: %+v", err)
-	}
 
-	if strings.Contains(result, "could not get bucket info") {
-		return nil, true, fmt.Errorf("not found")
+	if err != nil {
+		if strings.Contains(err.Error(), "No such file or directory") {
+			return nil, true, fmt.Errorf("not found")
+		} else {
+			return nil, false, fmt.Errorf("failed to get bucket stats: %+v", err)
+		}
 	}
 
 	var rgwStats rgwBucketStats

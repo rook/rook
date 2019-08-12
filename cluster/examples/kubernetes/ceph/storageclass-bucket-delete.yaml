@@ -7,7 +7,7 @@ provisioner: ceph.rook.io/bucket
 # when its OBC is deleted.
 reclaimPolicy: Delete
 parameters:
-  objectStoreName: my-store # port 80 assumed
+  objectStoreName: my-store
   objectStoreNamespace: rook-ceph
   region: us-east-1
   # To accomodate brownfield cases reference the existing bucket name here instead

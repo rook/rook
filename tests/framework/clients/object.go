@@ -24,7 +24,7 @@ import (
 	"github.com/rook/rook/tests/framework/utils"
 )
 
-const rgwPort = 53390
+const rgwPort = 80
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook/tests", "clients")
 
@@ -68,4 +68,14 @@ func (o *ObjectOperation) Delete(namespace, storeName string) error {
 		return fmt.Errorf("rgw did not stop via crd")
 	}
 	return nil
+}
+
+// Need to improve the below function for better error handling
+func (o *ObjectOperation) GetEndPointUrl(namespace string, storeName string) (string, error) {
+	args := []string{"get", "svc", "-n", namespace, "-l", fmt.Sprintf("rgw=%s", storeName), "-o", "jsonpath={.items[*].spec.clusterIP}"}
+	EndPointUrl, err := o.k8sh.Kubectl(args...)
+	if err != nil {
+		return "", fmt.Errorf("Unable to find rgw end point-- %s", err)
+	}
+	return fmt.Sprintf("%s:%d", EndPointUrl, rgwPort), nil
 }
