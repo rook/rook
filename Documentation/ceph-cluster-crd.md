@@ -100,10 +100,9 @@ reduce the number of mons back to `count`. If `allowMultiplePerNode: true` (for 
 
 If these settings are changed in the CRD the operator will update the number of mons during a periodic check of the mon health, which by default is every 45 seconds.
 
-To change the defaults that the operator uses to determine the mon health and whether to failover a mon, the following environment variables can be changed in [operator.yaml](https://github.com/rook/rook/blob/master/cluster/examples/kubernetes/ceph/operator.yaml). The intervals should be small enough that you have confidence the mons will maintain quorum, while also being
-log enough to ignore network blips where mons are failed over too often.
+To change the defaults that the operator uses to determine the mon health and whether to failover a mon, the following environment variables can be changed in [operator.yaml](https://github.com/rook/rook/blob/master/cluster/examples/kubernetes/ceph/operator.yaml). The intervals should be small enough that you have confidence the mons will maintain quorum, while also being long enough to ignore network blips where mons are failed over too often.
 - `ROOK_MON_HEALTHCHECK_INTERVAL`: The frequency with which to check if mons are in quorum (default is 45 seconds)
-- `ROOK_MON_OUT_TIMEOUT`: The interval to wait before marking a mon as "out" and starting a new mon to replace it in the quroum (default is 600 seconds)
+- `ROOK_MON_OUT_TIMEOUT`: The interval to wait before marking a mon as "out" and starting a new mon to replace it in the quorum (default is 600 seconds)
 
 ### Node Settings
 In addition to the cluster level settings specified above, each individual node can also specify configuration to override the cluster level settings and defaults.
@@ -116,7 +115,7 @@ If a node does not specify any configuration then it will inherit the cluster le
 When `useAllNodes` is set to `true`, Rook attempts to make Ceph cluster management as hands-off as
 possible while still maintaining reasonable data safety. If a usable node comes online, Rook will
 begin to use it automatically. To maintain a balance between hands-off usability and data safety,
-Nodes are removed From Ceph as OSD hosts only (1) if the node is deleted from Kubernetes itself or
+Nodes are removed from Ceph as OSD hosts only (1) if the node is deleted from Kubernetes itself or
 (2) if the node has its taints or affinities modified in such a way that the node is no longer
 usable by Rook. Any changes to taints or affinities, intentional or unintentional, may affect the
 data reliability of the Ceph cluster. In order to help protect against this somewhat, deletion of
@@ -146,12 +145,12 @@ Below are the settings available, both at the cluster and individual node level,
   - `^s`: Selects all devices that start with `s`
   - `^[^r]`: Selects all devices that do *not* start with `r`
 - `devices`: A list of individual device names belonging to this node to include in the storage cluster.
-  - `name`: The name of the device (e.g., `sda`).
-  - `config`: Device-specific config settings. See the [config settings](#osd-configuration-settings) below.
+  - `name`: The name of the device (e.g., `sda`)
+  - `config`: Device-specific config settings. See the [config settings](#osd-configuration-settings) below
 - `directories`:  A list of directory paths that will be included in the storage cluster. Note that using two directories on the same physical device can cause a negative performance impact.
-  - `path`: The path on disk of the directory (e.g., `/rook/storage-dir`).
-  - `config`: Directory-specific config settings. See the [config settings](#osd-configuration-settings) below.
-- `location`: Location information about the cluster to help with data placement, such as region or data center.  This is directly fed into the underlying Ceph CRUSH map. The type of this field is `string`. For example, to add datacenter location information, set this field to `rack=rack1`.  More information on CRUSH maps can be found in the [ceph docs](http://docs.ceph.com/docs/master/rados/operations/crush-map/).
+  - `path`: The path on disk of the directory (e.g., `/rook/storage-dir`)
+  - `config`: Directory-specific config settings. See the [config settings](#osd-configuration-settings) below
+- `location`: Location information about the cluster to help with data placement, such as region or data center.  This is directly fed into the underlying Ceph CRUSH map. The type of this field is `string`. For example, to add data center location information, set this field to `rack=rack1`.  More information on CRUSH maps can be found in the [ceph docs](http://docs.ceph.com/docs/master/rados/operations/crush-map/)
 
 
 ### OSD Configuration Settings
@@ -175,11 +174,11 @@ Annotations can be specified so that the Rook components will have those annotat
 
 You can set annotations for Rook components through the a list of key value pairs:
 
-- `all`: Set annotations for all components.
-- `mgr`: Set annotations for MGRs.
-- `mon`: Set annotations for Mons.
-- `osd`: Set annotations for OSDs.
-- `rbdmirror`: Set annotations for RBD Mirrors.
+- `all`: Set annotations for all components
+- `mgr`: Set annotations for MGRs
+- `mon`: Set annotations for mons
+- `osd`: Set annotations for OSDs
+- `rbdmirror`: Set annotations for RBD Mirrors
 
 When other keys are set, `all` will be merged together with the specific component.
 
@@ -193,9 +192,8 @@ A Placement configuration is specified (according to the kubernetes PodSpec) as:
 - `podAntiAffinity`: kubernetes [PodAntiAffinity](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#inter-pod-affinity-and-anti-affinity-beta-feature)
 - `tolerations`: list of kubernetes [Toleration](https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/)
 
-The `mon` pod does not allow `Pod` affinity or anti-affinity.
-This is because of the mons having built-in anti-affinity with each other through the operator. The operator chooses which nodes are to run a mon on. Each mon is then tied to a node with a node selector using a hostname.
-See the [mon design doc](https://github.com/rook/rook/blob/master/design/mon-health.md) for more details on the mon failover design.
+The `mon` pod does not allow `Pod` affinity or anti-affinity. Instead, `mon`s have built-in anti-affinity with each other through the operator. The operator determines which nodes should run a `mon`. Each `mon` is then tied to a node with a node selector using a hostname.
+See the [mon design doc](https://github.com/rook/rook/blob/master/design/mon-health.md) for more details on the `mon` failover design.
 
 The Rook Ceph operator creates a Job called `rook-ceph-detect-version` to detect the full Ceph version used by the given `cephVersion.image`. The placement from the `mon` section is used for the Job.
 
@@ -205,14 +203,14 @@ This allows to keep Rook components running when for example a node runs out of 
 
 You can set resource requests/limits for Rook components through the [Resource Requirements/Limits](#resource-requirementslimits) structure in the following keys:
 
-- `mgr`: Set resource requests/limits for MGRs.
-- `mon`: Set resource requests/limits for Mons.
-- `osd`: Set resource requests/limits for OSDs.
-- `rbdmirror`: Set resource requests/limits for RBD Mirrors.
+- `mgr`: Set resource requests/limits for MGRs
+- `mon`: Set resource requests/limits for mons
+- `osd`: Set resource requests/limits for OSDs
+- `rbdmirror`: Set resource requests/limits for RBD Mirrors
 
 In order to provide the best possible experience running Ceph in containers, Rook internally enforces minimum memory limits if resource limits are passed.
-Basically, if a user configures a limit or request value that is too low Rook will refuse to run the pod(s).
-Here are the current minimum amounts of memory in MB to apply so that Rook will accept to run Ceph pods:
+If a user configures a limit or request value that is too low, Rook will refuse to run the pod(s).
+Here are the current minimum amounts of memory in MB to apply so that Rook will agree to run Ceph pods:
 
 - `mon`: 1024MB
 - `mgr`: 512MB
@@ -306,7 +304,7 @@ spec:
 ```
 
 ### Storage Configuration: Cluster wide Directories
-This example is based up on the [Storage Configuration: Specific devices](#storage-configuration-specific-devices).
+This example is based on the [Storage Configuration: Specific devices](#storage-configuration-specific-devices).
 Individual nodes can override the cluster wide specified directories list.
 
 ```yaml
@@ -426,9 +424,9 @@ spec:
 ### Custom Location Information On Node Level
 For each individual node a `location` can be configured. The provided information is fed directly into the CRUSH map of Ceph. More information on CRUSH maps can be found in the [ceph docs](http://docs.ceph.com/docs/master/rados/operations/crush-map/).
 
-**HINT** When setting this prior to `CephCluster` creation, these settings take immediate effect. However, applying this to an already deployed `CephCluster` requires to remove each node from the cluster first and then re-add it with new configuration to take effect. Do this node by node to keep your data safe! You can check the result with `ceph osd tree` from the [Rook Toolbox](ceph-toolbox.md) in your setup. The OSD tree should display your location hierarchy for the nodes you already re-added.
+**HINT** When setting this prior to `CephCluster` creation, these settings take immediate effect. However, applying this to an already deployed `CephCluster` requires removing each node from the cluster first and then re-adding it with new configuration to take effect. Do this node by node to keep your data safe! Check the result with `ceph osd tree` from the [Rook Toolbox](ceph-toolbox.md). The OSD tree should display the location hierarchy for the nodes that already have been re-added.
 
-This example assumes you have 3 unique racks in your datacenter and want to use them as failure domain
+This example assumes that there are 3 unique racks (`rack1`, `rack2`, `rack3`) in a data center to use as failure domains.
 
 ```yaml
 apiVersion: ceph.rook.io/v1
@@ -472,7 +470,7 @@ spec:
       - name: "sdc"
 ```
 
-To utilize the `location` as a `failureDomain`, specify the corresponding option in your [CephBlockPool](ceph-pool-crd.md)
+To utilize the `location` as a `failureDomain`, specify the corresponding option in the [CephBlockPool](ceph-pool-crd.md)
 
 ```yaml
 apiVersion: ceph.rook.io/v1
@@ -486,7 +484,8 @@ spec:
     size: 3
 ```
 
-This configuration will split replication of your volumes across unique racks in your datacenter setup.
+This configuration will split the replication of volumes across unique
+racks in the data center setup.
 
 ### Using PVC storage for monitors
 
@@ -525,3 +524,4 @@ spec:
       journalSizeMB: "1024"  # this value can be removed for environments with normal sized disks (20 GB or larger)
       osdsPerDevice: "1"
 ```
+
