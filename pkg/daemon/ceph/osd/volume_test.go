@@ -252,7 +252,7 @@ func TestParseCephVolumeResult(t *testing.T) {
 	}
 
 	context := &clusterd.Context{Executor: executor}
-	osds, err := getCephVolumeOSDs(context, "rook", "4bfe8b72-5e69-4330-b6c0-4d914db8ab89")
+	osds, err := getCephVolumeOSDs(context, "rook", "4bfe8b72-5e69-4330-b6c0-4d914db8ab89", "")
 	assert.Nil(t, err)
 	require.NotNil(t, osds)
 	assert.Equal(t, 2, len(osds))
@@ -272,7 +272,7 @@ func TestCephVolumeResultMultiClusterSingleOSD(t *testing.T) {
 	}
 
 	context := &clusterd.Context{Executor: executor}
-	osds, err := getCephVolumeOSDs(context, "rook", "451267e6-883f-4936-8dff-080d781c67d5")
+	osds, err := getCephVolumeOSDs(context, "rook", "451267e6-883f-4936-8dff-080d781c67d5", "")
 	assert.Nil(t, err)
 	require.NotNil(t, osds)
 	assert.Equal(t, 1, len(osds))
@@ -293,7 +293,7 @@ func TestCephVolumeResultMultiClusterMultiOSD(t *testing.T) {
 	}
 
 	context := &clusterd.Context{Executor: executor}
-	osds, err := getCephVolumeOSDs(context, "rook", "451267e6-883f-4936-8dff-080d781c67d5")
+	osds, err := getCephVolumeOSDs(context, "rook", "451267e6-883f-4936-8dff-080d781c67d5", "")
 	assert.Nil(t, err)
 	require.NotNil(t, osds)
 	assert.Equal(t, 1, len(osds))

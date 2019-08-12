@@ -1,8 +1,14 @@
-#
-# Hi, it looks like you just had a conflict merging #3341. Please integrate the
-# `mon.volumeClaimTemplate` configuration and associated comment below, and
-# remove this note. Thanks :)
-#
+#################################################################################################################
+# Define the settings for the rook-ceph cluster with common settings for a production cluster.
+# All nodes with available raw devices will be used for the Ceph cluster. At least three nodes are required
+# in this example. See the documentation for more details on storage settings available.
+
+# For example, to create the cluster:
+#   kubectl create -f common.yaml
+#   kubectl create -f operator.yaml
+#   kubectl create -f cluster-on-pvc.yaml
+#################################################################################################################
+
 apiVersion: ceph.rook.io/v1
 kind: CephCluster
 metadata:
@@ -11,6 +17,8 @@ metadata:
 spec:
   dataDirHostPath: /var/lib/rook
   mon:
+    count: 3
+    allowMultiplePerNode: false
     # A volume claim template can be specified in which case new monitors (and
     # monitors created during fail over) will construct a PVC based on the
     # template for the monitor's primary storage. Changes to the template do not
@@ -23,3 +31,45 @@ spec:
         resources:
           requests:
             storage: 10Gi
+  cephVersion:
+    image: ceph/ceph:v14.2.1-20190430
+    allowUnsupported: false
+  dashboard:
+    enabled: true
+  network:
+    hostNetwork: false
+  storage:
+    storageClassDeviceSets:
+    - name: set1
+      count: 3
+      resources:
+      #   limits:
+      #     cpu: "500m"
+      #     memory: "4Gi"
+      #   requests:
+      #     cpu: "500m"
+      #     memory: "4Gi"
+      # placement:
+      #   podAntiAffinity:
+      #     preferredDuringSchedulingIgnoredDuringExecution:
+      #     - weight: 100
+      #       podAffinityTerm:
+      #         labelSelector:
+      #           matchExpressions:
+      #           - key: "rook.io/cluster"
+      #             operator: In
+      #             values:
+      #               - cluster1
+      #           topologyKey: "failure-domain.beta.kubernetes.io/zone"
+      volumeClaimTemplates:
+      - metadata:
+          name: data
+        spec:
+          resources:
+            requests:
+              storage: 10Gi
+          # IMPORTANT: Change the storage class depending on your environment (e.g. local-storage, gp2)
+          storageClassName: generic
+          volumeMode: Block
+          accessModes:
+            - ReadWriteOnce

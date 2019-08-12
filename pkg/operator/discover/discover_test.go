@@ -29,7 +29,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -69,7 +69,7 @@ func TestStartDiscoveryDaemonset(t *testing.T) {
 
 func TestGetAvailableDevices(t *testing.T) {
 	clientset := test.New(3)
-
+	pvcBackedOSD := false
 	ns := "rook-system"
 	nodeName := "node123"
 	os.Setenv(k8sutil.PodNamespaceEnvVar, ns)
@@ -109,11 +109,11 @@ func TestGetAvailableDevices(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(nodeDevices))
 
-	devices, err := GetAvailableDevices(context, nodeName, ns, d, "^sd.", false)
+	devices, err := GetAvailableDevices(context, nodeName, ns, d, "^sd.", pvcBackedOSD)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(devices))
 	// devices should be in use now, 2nd try gets the same list
-	devices, err = GetAvailableDevices(context, nodeName, ns, d, "^sd.", false)
+	devices, err = GetAvailableDevices(context, nodeName, ns, d, "^sd.", pvcBackedOSD)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(devices))
 }
