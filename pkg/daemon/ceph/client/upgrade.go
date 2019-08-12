@@ -237,7 +237,7 @@ func okToContinueOSDDaemon(context *clusterd.Context, namespace string) error {
 func okToContinueMDSDaemon(context *clusterd.Context, namespace, deployment, daemonType, daemonName string) error {
 	// wait for the MDS to be active again or in standby-replay
 	err := util.Retry(10, 15*time.Second, func() error {
-		return MdsActiveOrStandbyReplay(context, namespace, findFSName(deployment, namespace, daemonName))
+		return MdsActiveOrStandbyReplay(context, namespace, findFSName(deployment))
 	})
 	if err != nil {
 		return err
@@ -294,8 +294,8 @@ func LeastUptodateDaemonVersion(context *clusterd.Context, clusterName, daemonTy
 	return vv, nil
 }
 
-func findFSName(deployment, namespace, mdsName string) string {
-	return strings.TrimPrefix(deployment, namespace+"-mds-")
+func findFSName(deployment string) string {
+	return strings.TrimPrefix(deployment, "rook-ceph-mds-")
 }
 
 func daemonMapEntry(versions *CephDaemonsVersions, daemonType string) (map[string]int, error) {
