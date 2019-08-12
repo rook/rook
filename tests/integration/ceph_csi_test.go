@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/rook/rook/tests/framework/clients"
+	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
