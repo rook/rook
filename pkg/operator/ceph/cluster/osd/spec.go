@@ -47,23 +47,35 @@ const (
 	osdsPerDeviceEnvVarName             = "ROOK_OSDS_PER_DEVICE"
 	encryptedDeviceEnvVarName           = "ROOK_ENCRYPTED_DEVICE"
 	osdMetadataDeviceEnvVarName         = "ROOK_METADATA_DEVICE"
+	pvcBackedOSDVarName                 = "ROOK_PVC_BACKED_OSD"
 	rookBinariesMountPath               = "/rook"
 	rookBinariesVolumeName              = "rook-binaries"
+	blockPVCMapperInitContainer         = "blkdevmapper"
 	osdMemoryTargetSafetyFactor float32 = 0.8
+	CephDeviceSetLabelKey               = "ceph.rook.io/DeviceSet"
+	CephSetIndexLabelKey                = "ceph.rook.io/setIndex"
+	CephDeviceSetPVCIDLabelKey          = "ceph.rook.io/DeviceSetPVCId"
+	OSDOverPVCLabelKey                  = "ceph.rook.io/pvc"
 )
 
-func (c *Cluster) makeJob(nodeName string, devices []rookalpha.Device,
-	selection rookalpha.Selection, resources v1.ResourceRequirements, storeConfig config.StoreConfig, metadataDevice, location string) (*batch.Job, error) {
+func (c *Cluster) makeJob(osdProps osdProperties) (*batch.Job, error) {
 
-	podSpec, err := c.provisionPodTemplateSpec(devices, selection, resources, storeConfig, metadataDevice, nodeName, location, v1.RestartPolicyOnFailure)
+	podSpec, err := c.provisionPodTemplateSpec(osdProps, v1.RestartPolicyOnFailure)
 	if err != nil {
 		return nil, err
 	}
-	podSpec.Spec.NodeSelector = map[string]string{v1.LabelHostname: nodeName}
+
+	if osdProps.pvc.ClaimName == "" {
+		podSpec.Spec.NodeSelector = map[string]string{v1.LabelHostname: osdProps.crushHostname}
+	} else {
+		podSpec.Spec.InitContainers = []v1.Container{
+			c.getPVCInitContainer(osdProps.pvc),
+		}
+	}
 
 	job := &batch.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      k8sutil.TruncateNodeName(prepareAppNameFmt, nodeName),
+			Name:      k8sutil.TruncateNodeName(prepareAppNameFmt, osdProps.crushHostname),
 			Namespace: c.Namespace,
 			Labels: map[string]string{
 				k8sutil.AppAttr:     prepareAppName,
@@ -74,14 +86,18 @@ func (c *Cluster) makeJob(nodeName string, devices []rookalpha.Device,
 			Template: *podSpec,
 		},
 	}
+
+	if len(osdProps.pvc.ClaimName) > 0 {
+		k8sutil.AddLabelToJob(OSDOverPVCLabelKey, osdProps.pvc.ClaimName, job)
+	}
+
 	k8sutil.AddRookVersionLabelToJob(job)
 	opspec.AddCephVersionLabelToJob(c.clusterInfo.CephVersion, job)
 	k8sutil.SetOwnerRef(&job.ObjectMeta, &c.ownerRef)
 	return job, nil
 }
 
-func (c *Cluster) makeDeployment(nodeName string, selection rookalpha.Selection, resources v1.ResourceRequirements,
-	storeConfig config.StoreConfig, metadataDevice, location string, osd OSDInfo) (*apps.Deployment, error) {
+func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Deployment, error) {
 
 	replicaCount := int32(1)
 	volumeMounts := opspec.CephVolumeMounts()
@@ -113,6 +129,11 @@ func (c *Cluster) makeDeployment(nodeName string, selection rookalpha.Selection,
 		volumeMounts = append(volumeMounts, devMount)
 	}
 
+	if osdProps.pvc.ClaimName != "" {
+		// Create volume config for PVCs
+		volumes = append(volumes, getPVCOSDVolumes(&osdProps)...)
+	}
+
 	if len(volumes) == 0 {
 		return nil, fmt.Errorf("empty volumes")
 	}
@@ -125,7 +146,7 @@ func (c *Cluster) makeDeployment(nodeName string, selection rookalpha.Selection,
 	osdID := strconv.Itoa(osd.ID)
 	tiniEnvVar := v1.EnvVar{Name: "TINI_SUBREAPER", Value: ""}
 	envVars := []v1.EnvVar{
-		nodeNameEnvVar(nodeName),
+		nodeNameEnvVar(osdProps.crushHostname),
 		k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
 		k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
 		tiniEnvVar,
@@ -136,7 +157,7 @@ func (c *Cluster) makeDeployment(nodeName string, selection rookalpha.Selection,
 		{Name: "ROOK_OSD_ID", Value: osdID},
 		{Name: "ROOK_OSD_STORE_TYPE", Value: storeType},
 	}...)
-	configEnvVars := append(c.getConfigEnvVars(storeConfig, dataDir, nodeName, location), []v1.EnvVar{
+	configEnvVars := append(c.getConfigEnvVars(osdProps.storeConfig, dataDir, osdProps.crushHostname, osdProps.location), []v1.EnvVar{
 		tiniEnvVar,
 		{Name: "ROOK_OSD_ID", Value: osdID},
 		{Name: "ROOK_CEPH_VERSION", Value: c.clusterInfo.CephVersion.CephVersionFormatted()},
@@ -249,6 +270,11 @@ func (c *Cluster) makeDeployment(nodeName string, selection rookalpha.Selection,
 		args = commonArgs
 	}
 
+	if osdProps.pvc.ClaimName != "" {
+		volumeMounts = append(volumeMounts, getPvcOSDBridgeMount(osdProps.pvc.ClaimName))
+		envVars = append(envVars, pvcBackedOSDEnvVar("true"))
+	}
+
 	privileged := true
 	runAsUser := int64(0)
 	readOnlyRootFilesystem := false
@@ -259,7 +285,7 @@ func (c *Cluster) makeDeployment(nodeName string, selection rookalpha.Selection,
 	}
 
 	// needed for luksOpen synchronization when devices are encrypted
-	hostIPC := storeConfig.EncryptedDevice
+	hostIPC := osdProps.storeConfig.EncryptedDevice
 
 	DNSPolicy := v1.DNSClusterFirst
 	if c.HostNetwork {
@@ -297,7 +323,6 @@ func (c *Cluster) makeDeployment(nodeName string, selection rookalpha.Selection,
 					},
 				},
 				Spec: v1.PodSpec{
-					NodeSelector:       map[string]string{v1.LabelHostname: nodeName},
 					RestartPolicy:      v1.RestartPolicyAlways,
 					ServiceAccountName: serviceAccountName,
 					HostNetwork:        c.HostNetwork,
@@ -323,7 +348,7 @@ func (c *Cluster) makeDeployment(nodeName string, selection rookalpha.Selection,
 							Image:           c.cephVersion.Image,
 							VolumeMounts:    volumeMounts,
 							Env:             envVars,
-							Resources:       resources,
+							Resources:       osdProps.resources,
 							SecurityContext: securityContext,
 							Lifecycle:       opspec.PodLifeCycle(osd.DataPath),
 						},
@@ -333,6 +358,12 @@ func (c *Cluster) makeDeployment(nodeName string, selection rookalpha.Selection,
 			},
 			Replicas: &replicaCount,
 		},
+	}
+	if osdProps.pvc.ClaimName == "" {
+		deployment.Spec.Template.Spec.NodeSelector = map[string]string{v1.LabelHostname: osdProps.crushHostname}
+	} else {
+		deployment.Spec.Template.Spec.InitContainers = append(deployment.Spec.Template.Spec.InitContainers, c.getPVCInitContainer(osdProps.pvc))
+		k8sutil.AddLabelToDeployement(OSDOverPVCLabelKey, osdProps.pvc.ClaimName, deployment)
 	}
 	k8sutil.AddRookVersionLabelToDeployment(deployment)
 	c.annotations.ApplyToObjectMeta(&deployment.ObjectMeta)
@@ -361,15 +392,14 @@ func (c *Cluster) getCopyBinariesContainer() (v1.Volume, *v1.Container) {
 	}
 }
 
-func (c *Cluster) provisionPodTemplateSpec(devices []rookalpha.Device, selection rookalpha.Selection, resources v1.ResourceRequirements,
-	storeConfig config.StoreConfig, metadataDevice, nodeName, location string, restart v1.RestartPolicy) (*v1.PodTemplateSpec, error) {
+func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.RestartPolicy) (*v1.PodTemplateSpec, error) {
 
 	copyBinariesVolume, copyBinariesContainer := c.getCopyBinariesContainer()
 
 	volumes := append(opspec.PodVolumes(c.dataDirHostPath, c.Namespace), copyBinariesVolume)
 
 	// by default, don't define any volume config unless it is required
-	if len(devices) > 0 || selection.DeviceFilter != "" || selection.GetUseAllDevices() || metadataDevice != "" {
+	if len(osdProps.devices) > 0 || osdProps.selection.DeviceFilter != "" || osdProps.selection.GetUseAllDevices() || osdProps.metadataDevice != "" {
 		// create volume config for the data dir and /dev so the pod can access devices on the host
 		devVolume := v1.Volume{Name: "devices", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/dev"}}}
 		volumes = append(volumes, devVolume)
@@ -377,8 +407,13 @@ func (c *Cluster) provisionPodTemplateSpec(devices []rookalpha.Device, selection
 		volumes = append(volumes, udevVolume)
 	}
 
+	if osdProps.pvc.ClaimName != "" {
+		// Create volume config for PVCs
+		volumes = append(volumes, getPVCOSDVolumes(&osdProps)...)
+	}
+
 	// add each OSD directory as another host path volume source
-	for _, d := range selection.Directories {
+	for _, d := range osdProps.selection.Directories {
 		if c.skipVolumeForDirectory(d.Path) {
 			// the dataDirHostPath has already been added as a volume
 			continue
@@ -398,7 +433,7 @@ func (c *Cluster) provisionPodTemplateSpec(devices []rookalpha.Device, selection
 		ServiceAccountName: serviceAccountName,
 		Containers: []v1.Container{
 			*copyBinariesContainer,
-			c.provisionOSDContainer(devices, selection, resources, storeConfig, metadataDevice, nodeName, location, copyBinariesContainer.VolumeMounts[0]),
+			c.provisionOSDContainer(osdProps, copyBinariesContainer.VolumeMounts[0]),
 		},
 		RestartPolicy: restart,
 		Volumes:       volumes,
@@ -422,12 +457,36 @@ func (c *Cluster) provisionPodTemplateSpec(devices []rookalpha.Device, selection
 
 	// ceph-volume --dmcrypt uses cryptsetup that synchronizes with udev on
 	// host through semaphore
-	podSpec.HostIPC = storeConfig.EncryptedDevice
+	podSpec.HostIPC = osdProps.storeConfig.EncryptedDevice
 
 	return &v1.PodTemplateSpec{
 		ObjectMeta: podMeta,
 		Spec:       podSpec,
 	}, nil
+}
+
+// Currently we can't mount a block mode pv directly to a priviliged container
+// So we mount it to a non priviliged init container and then copy it to a common directory mounted inside init container
+// and the privileged provision container.
+func (c *Cluster) getPVCInitContainer(pvc v1.PersistentVolumeClaimVolumeSource) v1.Container {
+	return v1.Container{
+		Name:  blockPVCMapperInitContainer,
+		Image: c.cephVersion.Image,
+		Args:  []string{"cp", "-a", fmt.Sprintf("/%s", pvc.ClaimName), fmt.Sprintf("/mnt/%s", pvc.ClaimName)},
+		VolumeDevices: []v1.VolumeDevice{
+			{
+				Name:       pvc.ClaimName,
+				DevicePath: fmt.Sprintf("/%s", pvc.ClaimName),
+			},
+		},
+		VolumeMounts: []v1.VolumeMount{
+			{
+				MountPath: "/mnt",
+				Name:      fmt.Sprintf("%s-bridge", pvc.ClaimName),
+			},
+		},
+		SecurityContext: opmon.PodSecurityContext(),
+	}
 }
 
 func (c *Cluster) getConfigEnvVars(storeConfig config.StoreConfig, dataDir, nodeName, location string) []v1.EnvVar {
@@ -481,41 +540,40 @@ func (c *Cluster) getConfigEnvVars(storeConfig config.StoreConfig, dataDir, node
 	return envVars
 }
 
-func (c *Cluster) provisionOSDContainer(devices []rookalpha.Device, selection rookalpha.Selection, resources v1.ResourceRequirements,
-	storeConfig config.StoreConfig, metadataDevice, nodeName, location string, copyBinariesMount v1.VolumeMount) v1.Container {
+func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMount v1.VolumeMount) v1.Container {
 
-	envVars := c.getConfigEnvVars(storeConfig, k8sutil.DataDir, nodeName, location)
+	envVars := c.getConfigEnvVars(osdProps.storeConfig, k8sutil.DataDir, osdProps.crushHostname, osdProps.location)
 	devMountNeeded := false
 	privileged := false
 
 	// only 1 of device list, device filter and use all devices can be specified.  We prioritize in that order.
-	if len(devices) > 0 {
-		deviceNames := make([]string, len(devices))
-		for i, device := range devices {
+	if len(osdProps.devices) > 0 {
+		deviceNames := make([]string, len(osdProps.devices))
+		for i, device := range osdProps.devices {
 			devSuffix := ""
 			count := "1"
 			if count, ok := device.Config[config.OSDsPerDeviceKey]; ok {
-				logger.Infof("%s osds requested on device %s (node %s)", count, device.Name, nodeName)
+				logger.Infof("%s osds requested on device %s (node %s)", count, device.Name, osdProps.crushHostname)
 			}
 			devSuffix += ":" + count
 			if md, ok := device.Config[config.MetadataDeviceKey]; ok {
-				logger.Infof("osd %s requested with metadataDevice %s (node %s)", device.Name, md, nodeName)
+				logger.Infof("osd %s requested with metadataDevice %s (node %s)", device.Name, md, osdProps.crushHostname)
 				devSuffix += ":" + md
 			}
 			deviceNames[i] = device.Name + devSuffix
 		}
 		envVars = append(envVars, dataDevicesEnvVar(strings.Join(deviceNames, ",")))
 		devMountNeeded = true
-	} else if selection.DeviceFilter != "" {
-		envVars = append(envVars, deviceFilterEnvVar(selection.DeviceFilter))
+	} else if osdProps.selection.DeviceFilter != "" {
+		envVars = append(envVars, deviceFilterEnvVar(osdProps.selection.DeviceFilter))
 		devMountNeeded = true
-	} else if selection.GetUseAllDevices() {
+	} else if osdProps.selection.GetUseAllDevices() {
 		envVars = append(envVars, deviceFilterEnvVar("all"))
 		devMountNeeded = true
 	}
 
-	if metadataDevice != "" {
-		envVars = append(envVars, metadataDeviceEnvVar(metadataDevice))
+	if osdProps.metadataDevice != "" {
+		envVars = append(envVars, metadataDeviceEnvVar(osdProps.metadataDevice))
 		devMountNeeded = true
 	}
 
@@ -527,11 +585,17 @@ func (c *Cluster) provisionOSDContainer(devices []rookalpha.Device, selection ro
 		volumeMounts = append(volumeMounts, udevMount)
 	}
 
-	if len(selection.Directories) > 0 {
+	if osdProps.pvc.ClaimName != "" {
+		volumeMounts = append(volumeMounts, getPvcOSDBridgeMount(osdProps.pvc.ClaimName))
+		envVars = append(envVars, dataDevicesEnvVar(strings.Join([]string{fmt.Sprintf("/mnt/%s", osdProps.pvc.ClaimName)}, ",")))
+		envVars = append(envVars, pvcBackedOSDEnvVar("true"))
+	}
+
+	if len(osdProps.selection.Directories) > 0 {
 		// for each directory the user has specified, create a volume mount and pass it to the pod via cmd line arg
-		dirPaths := make([]string, len(selection.Directories))
-		for i := range selection.Directories {
-			dpath := selection.Directories[i].Path
+		dirPaths := make([]string, len(osdProps.selection.Directories))
+		for i := range osdProps.selection.Directories {
+			dpath := osdProps.selection.Directories[i].Path
 			dirPaths[i] = dpath
 			if c.skipVolumeForDirectory(dpath) {
 				// the dataDirHostPath has already been added as a volume mount
@@ -540,20 +604,20 @@ func (c *Cluster) provisionOSDContainer(devices []rookalpha.Device, selection ro
 			volumeMounts = append(volumeMounts, v1.VolumeMount{Name: k8sutil.PathToVolumeName(dpath), MountPath: dpath})
 		}
 
-		if !IsRemovingNode(selection.DeviceFilter) {
+		if !IsRemovingNode(osdProps.selection.DeviceFilter) {
 			envVars = append(envVars, dataDirectoriesEnvVar(strings.Join(dirPaths, ",")))
 		}
 	}
 
 	// elevate to be privileged if it is going to mount devices or if running in a restricted environment such as openshift
-	if devMountNeeded || os.Getenv("ROOK_HOSTPATH_REQUIRES_PRIVILEGED") == "true" {
+	if devMountNeeded || os.Getenv("ROOK_HOSTPATH_REQUIRES_PRIVILEGED") == "true" || osdProps.pvc.ClaimName != "" {
 		privileged = true
 	}
 	runAsUser := int64(0)
 	runAsNonRoot := false
 	readOnlyRootFilesystem := false
 
-	return v1.Container{
+	osdProvisionContainer := v1.Container{
 		Command:      []string{path.Join(rookBinariesMountPath, "tini")},
 		Args:         []string{"--", path.Join(rookBinariesMountPath, "rook"), "ceph", "osd", "provision"},
 		Name:         "provision",
@@ -566,14 +630,42 @@ func (c *Cluster) provisionOSDContainer(devices []rookalpha.Device, selection ro
 			RunAsNonRoot:           &runAsNonRoot,
 			ReadOnlyRootFilesystem: &readOnlyRootFilesystem,
 		},
-		Resources: resources,
+		Resources: osdProps.resources,
 	}
+
+	return osdProvisionContainer
+}
+
+func getPvcOSDBridgeMount(claimName string) v1.VolumeMount {
+	return v1.VolumeMount{Name: fmt.Sprintf("%s-bridge", claimName), MountPath: "/mnt"}
 }
 
 func (c *Cluster) skipVolumeForDirectory(path string) bool {
 	// If attempting to add a directory at /var/lib/rook, we need to skip the volume and volume mount
 	// since the dataDirHostPath is always mounting at /var/lib/rook
 	return path == k8sutil.DataDir
+}
+
+func getPVCOSDVolumes(osdProps *osdProperties) []v1.Volume {
+	return []v1.Volume{
+		{
+			Name: osdProps.crushHostname,
+			VolumeSource: v1.VolumeSource{
+				PersistentVolumeClaim: &osdProps.pvc,
+			},
+		},
+		{
+			// We need a bridge mount which is basically a common volume mount between the non priviliged init container
+			// and the privileged provision container or osd daemon container
+			// The reason for this is mentioned in the comment for getPVCInitContainer() method
+			Name: fmt.Sprintf("%s-bridge", osdProps.pvc.ClaimName),
+			VolumeSource: v1.VolumeSource{
+				EmptyDir: &v1.EmptyDirVolumeSource{
+					Medium: "Memory",
+				},
+			},
+		},
+	}
 }
 
 func nodeNameEnvVar(name string) v1.EnvVar {
@@ -594,6 +686,10 @@ func metadataDeviceEnvVar(metadataDevice string) v1.EnvVar {
 
 func dataDirectoriesEnvVar(dataDirectories string) v1.EnvVar {
 	return v1.EnvVar{Name: dataDirsEnvVarName, Value: dataDirectories}
+}
+
+func pvcBackedOSDEnvVar(pvcBacked string) v1.EnvVar {
+	return v1.EnvVar{Name: pvcBackedOSDVarName, Value: pvcBacked}
 }
 
 func getDirectoriesFromContainer(osdContainer v1.Container) []rookalpha.Directory {
@@ -649,4 +745,17 @@ func osdOnSDNFlag(hostnetwork bool, v cephver.CephVersion) []string {
 	}
 
 	return args
+}
+
+func makeStorageClassDeviceSetPVCID(storageClassDeviceSetName string, setIndex, pvcIndex int) (pvcId, pvcLabelSelector string) {
+	pvcStorageClassDeviceSetPVCId := fmt.Sprintf("%s-%v", storageClassDeviceSetName, setIndex)
+	return pvcStorageClassDeviceSetPVCId, fmt.Sprintf("%s=%s", CephDeviceSetPVCIDLabelKey, pvcStorageClassDeviceSetPVCId)
+}
+
+func makeStorageClassDeviceSetPVCLabel(storageClassDeviceSetName, pvcStorageClassDeviceSetPVCId string, pvcIndex, setIndex int) map[string]string {
+	return map[string]string{
+		CephDeviceSetLabelKey:      storageClassDeviceSetName,
+		CephSetIndexLabelKey:       fmt.Sprintf("%v", setIndex),
+		CephDeviceSetPVCIDLabelKey: pvcStorageClassDeviceSetPVCId,
+	}
 }

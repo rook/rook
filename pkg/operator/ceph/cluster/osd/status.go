@@ -58,7 +58,7 @@ func (c *provisionConfig) addError(message string, args ...interface{}) {
 	c.errorMessages = append(c.errorMessages, fmt.Sprintf(message, args...))
 }
 
-func (c *Cluster) updateNodeStatus(node string, status OrchestrationStatus) error {
+func (c *Cluster) updateOSDStatus(node string, status OrchestrationStatus) error {
 	return UpdateNodeStatus(c.kv, node, status)
 }
 
@@ -85,7 +85,7 @@ func UpdateNodeStatus(kv *k8sutil.ConfigMapKVStore, node string, status Orchestr
 func (c *Cluster) handleOrchestrationFailure(config *provisionConfig, nodeName, message string) {
 	config.addError(message)
 	status := OrchestrationStatus{Status: OrchestrationStatusFailed, Message: message}
-	if err := c.updateNodeStatus(nodeName, status); err != nil {
+	if err := c.updateOSDStatus(nodeName, status); err != nil {
 		config.addError("failed to update status for node %s. %+v", nodeName, err)
 	}
 }
@@ -253,10 +253,15 @@ func (c *Cluster) handleStatusConfigMapStatus(nodeName string, config *provision
 	logger.Infof("osd orchestration status for node %s is %s", nodeName, status.Status)
 	if status.Status == OrchestrationStatusCompleted {
 		if configOSDs {
-			c.startOSDDaemonsOnNode(nodeName, config, configMap, status)
+			if status.PvcBackedOSD {
+				c.startOSDDaemonsOnPVC(nodeName, config, configMap, status)
+			} else {
+				c.startOSDDaemonsOnNode(nodeName, config, configMap, status)
+			}
+			// remove the status configmap that indicated the progress
+			c.kv.ClearStore(fmt.Sprintf(orchestrationStatusMapName, nodeName))
 		}
-		// remove the status configmap that indicated the progress
-		c.kv.ClearStore(fmt.Sprintf(orchestrationStatusMapName, nodeName))
+
 		return true
 	}
 

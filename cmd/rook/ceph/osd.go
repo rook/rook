@@ -66,6 +66,7 @@ var (
 	osdStringID         string
 	osdUUID             string
 	osdIsDevice         bool
+	pvcBackedOSD        bool
 )
 
 func addOSDFlags(command *cobra.Command) {
@@ -79,6 +80,7 @@ func addOSDFlags(command *cobra.Command) {
 	provisionCmd.Flags().StringVar(&cfg.metadataDevice, "metadata-device", "", "device to use for metadata (e.g. a high performance SSD/NVMe device)")
 	provisionCmd.Flags().BoolVar(&cfg.forceFormat, "force-format", false,
 		"true to force the format of any specified devices, even if they already have a filesystem.  BE CAREFUL!")
+	provisionCmd.Flags().BoolVar(&cfg.pvcBacked, "pvc-backed-osd", false, "true to specify a block mode pvc is backing the OSD")
 
 	// flags for generating the osd config
 	osdConfigCmd.Flags().IntVar(&osdID, "osd-id", -1, "osd id for which to generate config")
@@ -92,6 +94,7 @@ func addOSDFlags(command *cobra.Command) {
 	osdStartCmd.Flags().StringVar(&osdStringID, "osd-id", "", "the osd ID")
 	osdStartCmd.Flags().StringVar(&osdUUID, "osd-uuid", "", "the osd UUID")
 	osdStartCmd.Flags().StringVar(&osdStoreType, "osd-store-type", "", "whether the osd is bluestore or filestore")
+	osdStartCmd.Flags().BoolVar(&pvcBackedOSD, "pvc-backed-osd", false, "Whether the OSD backing store in PVC or not")
 
 	// add the subcommands to the parent osd command
 	osdCmd.AddCommand(osdConfigCmd,
@@ -139,7 +142,7 @@ func startOSD(cmd *cobra.Command, args []string) error {
 	commonOSDInit(osdStartCmd)
 
 	context := createContext()
-	err := osddaemon.StartOSD(context, osdStoreType, osdStringID, osdUUID, args)
+	err := osddaemon.StartOSD(context, osdStoreType, osdStringID, osdUUID, pvcBackedOSD, args)
 	if err != nil {
 		rook.TerminateFatal(err)
 	}
@@ -244,14 +247,15 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 	ownerRef := cluster.ClusterOwnerRef(clusterInfo.Name, ownerRefID)
 	kv := k8sutil.NewConfigMapKVStore(clusterInfo.Name, context.Clientset, ownerRef)
 	agent := osddaemon.NewAgent(context, dataDevices, cfg.metadataDevice, cfg.directories, forceFormat,
-		crushLocation, cfg.storeConfig, &clusterInfo, cfg.nodeName, kv)
+		crushLocation, cfg.storeConfig, &clusterInfo, cfg.nodeName, kv, cfg.pvcBacked)
 
 	err = osddaemon.Provision(context, agent)
 	if err != nil {
 		// something failed in the OSD orchestration, update the status map with failure details
 		status := oposd.OrchestrationStatus{
-			Status:  oposd.OrchestrationStatusFailed,
-			Message: err.Error(),
+			Status:       oposd.OrchestrationStatusFailed,
+			Message:      err.Error(),
+			PvcBackedOSD: cfg.pvcBacked,
 		}
 		oposd.UpdateNodeStatus(kv, cfg.nodeName, status)
 

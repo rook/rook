@@ -41,6 +41,7 @@ an example usage
 - Ceph daemons now run under 'ceph' user and not 'root' anymore (monitor or osd store already owned by 'root' will keep running under 'root')
 - Ceph monitors have initial support for running on PVC storage. See docs on
   [monitor settings for more detail](Documentation/ceph-cluster-crd.md#mon-settings).
+- Ceph OSDs can be created by using StorageClassDeviceSet. See docs on [Storage Class Device Sets](Documentation/ceph-cluster-crd.md#storage-class-device-sets).
 
 ## Breaking Changes
 
