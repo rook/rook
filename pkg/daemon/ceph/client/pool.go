@@ -248,11 +248,9 @@ func createReplicationCrushRule(context *clusterd.Context, clusterName string, n
 	}
 
 	// set the crush root to the default if not already specified
-	var crushRoot string
+	crushRoot := "default"
 	if newPool.CrushRoot != "" {
 		crushRoot = newPool.CrushRoot
-	} else {
-		crushRoot = "default"
 	}
 	args := []string{"osd", "crush", "rule", "create-replicated", ruleName, crushRoot, failureDomain}
 
