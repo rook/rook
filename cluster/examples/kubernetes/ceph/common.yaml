@@ -735,9 +735,12 @@ spec:
   # allowedHostPaths can be set to Rook's known host volume mount points when they are fully-known
   # directory-based OSDs make this hard to nail down
   # allowedHostPaths:
-  #   - /run/udev      # for OSD prep
-  #   - /dev           # for OSD prep
-  #   - /var/lib/rook  # or whatever the dataDirHostPath value is set to
+  #   - pathPrefix: "/run/udev"  # for OSD prep
+  #     readOnly: false
+  #   - pathPrefix: "/dev"  # for OSD prep
+  #     readOnly: false
+  #   - pathPrefix: "/var/lib/rook"  # or whatever the dataDirHostPath value is set to
+  #     readOnly: false
   # Ceph requires host IPC for setting up encrypted devices
   hostIPC: true
   # Ceph OSDs need to share the same PID namespace
