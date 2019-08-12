@@ -128,6 +128,45 @@ spec:
     - name: Age
       type: date
       JSONPath: .metadata.creationTimestamp
+  validation:
+    openAPIV3Schema:
+      properties:
+        spec:
+          properties:
+            metadataPools:
+              properties:
+                replicated:
+                  properties:
+                    size:
+                      maximum: 10
+                      minimum: 0
+                      type: integer
+                erasureCoded:
+                  properties:
+                    dataChunks:
+                      maximum: 10
+                      minimun: 2
+                      type: integer
+                    codingChunks:
+                      maximum: 10
+                      minimum: 1
+                      type: integer
+            dataPools:
+              properties:
+                replicated:
+                  properties:
+                    size:
+                      maximum: 10
+                      minimum: 0
+                      type: integer
+            metadataServer:
+              properties:
+                activeCount:
+                  minimum: 1
+                  maximum: 10
+                  type: integer
+                activeStandby:
+                  type: boolean
 # OLM: END CEPH FS CRD
 ---
 # OLM: BEGIN CEPH NFS CRD
@@ -146,6 +185,15 @@ spec:
     - nfs
   scope: Namespaced
   version: v1
+    validation:
+    openAPIV3Schema:
+      properties:
+        spec:
+          properties:
+            server:
+              properties:
+                active: 3
+                type: integer
 # OLM: END CEPH NFS CRD
 ---
 # OLM: BEGIN CEPH OBJECT STORE CRD
@@ -194,6 +242,31 @@ spec:
     singular: cephblockpool
   scope: Namespaced
   version: v1
+  validation:
+    openAPIV3Schema:
+      properties:
+        spec:
+          properties:
+            replicated:
+              properties:
+                size:
+                  maximum: 10
+                  minimum: 0
+                  type: integer
+            erasureCoded:
+              properties:
+                dataChunks:
+                  properties:
+                    size:
+                      maximum: 10
+                      minimum: 0
+                      type: integer
+                codingChunks:
+                  properties:
+                    size:
+                      maximum: 10
+                      minimum: 0
+                      type: integer
 # OLM: END CEPH BLOCK POOL CRD
 ---
 # OLM: BEGIN CEPH VOLUME POOL CRD
