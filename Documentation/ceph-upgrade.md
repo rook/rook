@@ -272,8 +272,7 @@ Instead of changing the port, the recommended process is to failover the mons,
 which will create new mons on port 6789. While the operator will automate most of this process, there are
 several steps required to induce the operator to failover a mon.
 1. Cause the mon to fail by setting the replicas on the mon deployment to zero. For example, if your mon is named `mon-a`:
-   - `kubectl -n rook-ceph edit deploy rook-ceph-mon-a`
-1. Find the line with `replicas: 1` and change it to `replicas: 0`. Save the change and exit the editor.
+   - `kubectl -n $ROOK_NAMESPACE scale deploy rook-ceph-mon-a --replicas=0`
 1. Wait for 5-10 minutes for the operator to fail over the mon. You will see messages in the operator log that the mon is down and will be failed over after a timeout.
 The length of the timeout is dependent on the setting `ROOK_MON_OUT_INTERVAL` in the Rook operator deployment (operator.yaml).
 1. After the timeout, a new mon will be started and the old mon deployment will be automatically removed.
