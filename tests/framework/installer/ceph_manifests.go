@@ -443,6 +443,16 @@ rules:
   - get
   - list
   - watch
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+  - list
+  - get
+  - watch
 ---
 # Aspects of Rook Ceph Agent that require access to secrets
 apiVersion: rbac.authorization.k8s.io/v1beta1

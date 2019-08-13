@@ -167,6 +167,16 @@ rules:
   - get
   - list
   - watch
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+  - list
+  - get
+  - watch
 ---
 # Aspects of ceph-mgr that require access to the system namespace
 kind: ClusterRole
