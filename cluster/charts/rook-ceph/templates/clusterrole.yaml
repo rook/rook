@@ -224,6 +224,7 @@ rules:
   - secrets
   verbs:
   - get
+{{- end }}
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
@@ -403,7 +404,7 @@ rules: []
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
 metadata:
-  name: rook-ceph-system-psp-user-rules
+  name: 'psp:rook'
   labels:
     operator: rook
     storage-backend: ceph
@@ -418,5 +419,4 @@ rules:
   - 00-rook-ceph-operator
   verbs:
   - use
-{{- end }}
 {{- end }}
