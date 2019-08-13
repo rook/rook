@@ -178,13 +178,15 @@ func (o *Operator) startSystemDaemons() error {
 
 	if serverVersion.Major < csi.KubeMinMajor || serverVersion.Major == csi.KubeMinMajor && serverVersion.Minor < csi.KubeMinMinor {
 		logger.Infof("CSI driver is only supported in K8s 1.13 or newer. version=%s", serverVersion.String())
+		// disable csi control variables to disable other csi functions
+		csi.EnableRBD = false
+		csi.EnableCephFS = false
 		return nil
 	}
 
 	if err = csi.ValidateCSIParam(); err != nil {
 		return fmt.Errorf("invalid csi params: %v", err)
 	}
-	csi.SetCSINamespace(namespace)
 	if err = csi.StartCSIDrivers(namespace, o.context.Clientset); err != nil {
 		return fmt.Errorf("failed to start Ceph csi drivers: %v", err)
 	}

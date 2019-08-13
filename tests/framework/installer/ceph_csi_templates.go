@@ -89,7 +89,7 @@ const (
                 - "--endpoint=$(CSI_ENDPOINT)"
                 - "--v=5"
                 - "--type=rbd"
-                - "--drivername=rbd.csi.ceph.com"
+                - "--drivername={{ .DriverNamePrefix }}rbd.csi.ceph.com"
                 - "--containerized=true"
                 - "--metadatastorage=k8s_configmap"
               env:
@@ -118,6 +118,10 @@ const (
                 - mountPath: /lib/modules
                   name: lib-modules
                   readOnly: true
+                - name: ceph-csi-config
+                  mountPath: /etc/ceph-csi-config/
+                - name: keys-tmp-dir
+                  mountPath: /tmp/csi/keys
           volumes:
             - name: host-dev
               hostPath:
@@ -135,6 +139,16 @@ const (
               hostPath:
                 path: /var/lib/kubelet/plugins/rbd.csi.ceph.com
                 type: DirectoryOrCreate
+            - name: ceph-csi-config
+              configMap:
+                name: rook-ceph-csi-config
+                items:
+                  - key: csi-cluster-config-json
+                    path: config.json
+            - name: keys-tmp-dir
+              emptyDir: {
+                medium: "Memory"
+              }
 `
 	rbdPluginTemplate = `
     kind: DaemonSet
@@ -190,7 +204,7 @@ const (
                 - "--endpoint=$(CSI_ENDPOINT)"
                 - "--v=5"
                 - "--type=rbd"
-                - "--drivername=rbd.csi.ceph.com"
+                - "--drivername={{ .DriverNamePrefix }}rbd.csi.ceph.com"
                 - "--containerized=true"
                 - "--metadatastorage=k8s_configmap"
               env:
@@ -227,6 +241,8 @@ const (
                   readOnly: true
                 - name: ceph-csi-config
                   mountPath: /etc/ceph-csi-config/
+                - name: keys-tmp-dir
+                  mountPath: /tmp/csi/keys
           volumes:
             - name: plugin-dir
               hostPath:
@@ -258,10 +274,14 @@ const (
                 path: /lib/modules
             - name: ceph-csi-config
               configMap:
-                name: rook-ceph-mon-endpoints
+                name: rook-ceph-csi-config
                 items:
                   - key: csi-cluster-config-json
                     path: config.json
+            - name: keys-tmp-dir
+              emptyDir: {
+                medium: "Memory"
+              }
     `
 	cephfsProvisionerTemplate = `
     kind: StatefulSet
@@ -319,7 +339,7 @@ const (
                 - "--endpoint=$(CSI_ENDPOINT)"
                 - "--v=5"
                 - "--type=cephfs"
-                - "--drivername=cephfs.csi.ceph.com"
+                - "--drivername={{ .DriverNamePrefix }}cephfs.csi.ceph.com"
                 - "--metadatastorage=k8s_configmap"
               env:
                 - name: NODE_ID
@@ -345,7 +365,8 @@ const (
                   mountPath: /dev
                 - name: ceph-csi-config
                   mountPath: /etc/ceph-csi-config/
-
+                - name: keys-tmp-dir
+                  mountPath: /tmp/csi/keys
           volumes:
             - name: socket-dir
               hostPath:
@@ -362,10 +383,14 @@ const (
                 path: /dev
             - name: ceph-csi-config
               configMap:
-                name: rook-ceph-mon-endpoints
+                name: rook-ceph-csi-config
                 items:
                   - key: csi-cluster-config-json
                     path: config.json
+            - name: keys-tmp-dir
+              emptyDir: {
+                medium: "Memory"
+              }
 `
 	cephfsPluginTemplate = `
     kind: DaemonSet
@@ -420,7 +445,7 @@ const (
                 - "--endpoint=$(CSI_ENDPOINT)"
                 - "--v=5"
                 - "--type=cephfs"
-                - "--drivername=cephfs.csi.ceph.com"
+                - "--drivername={{ .DriverNamePrefix }}cephfs.csi.ceph.com"
                 - "--metadatastorage=k8s_configmap"
                 - "--mountcachedir=/mount-cache-dir"
               env:
@@ -455,7 +480,8 @@ const (
                   mountPath: /mount-cache-dir
                 - name: ceph-csi-config
                   mountPath: /etc/ceph-csi-config/
-
+                - name: keys-tmp-dir
+                  mountPath: /tmp/csi/keys
           volumes:
             - name: plugin-dir
               hostPath:
@@ -486,10 +512,14 @@ const (
               emptyDir: {}
             - name: ceph-csi-config
               configMap:
-                name: rook-ceph-mon-endpoints
+                name: rook-ceph-csi-config
                 items:
                   - key: csi-cluster-config-json
                     path: config.json
+            - name: keys-tmp-dir
+              emptyDir: {
+                medium: "Memory"
+              }
 
 `
 )

@@ -53,7 +53,7 @@ spec:
             - "--type=cephfs"
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--v=5"
-            - "--drivername=cephfs.csi.ceph.com"
+            - "--drivername={{ .DriverNamePrefix }}cephfs.csi.ceph.com"
             - "--metadatastorage=k8s_configmap"
           env:
             - name: NODE_ID
@@ -97,7 +97,7 @@ spec:
             path: /dev
         - name: ceph-csi-config
           configMap:
-            name: rook-ceph-mon-endpoints
+            name: rook-ceph-csi-config
             items:
               - key: csi-cluster-config-json
                 path: config.json

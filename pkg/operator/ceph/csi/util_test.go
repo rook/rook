@@ -88,7 +88,11 @@ func TestDaemonSetTemplate(t *testing.T) {
 	err = tmp.Close()
 	assert.Nil(t, err)
 
-	_, err = templateToDaemonSet("test-ds", tmp.Name())
+	tp := templateParam{
+		Param:     CSIParam,
+		Namespace: "foo",
+	}
+	_, err = templateToDaemonSet("test-ds", tmp.Name(), tp)
 	assert.Nil(t, err)
 }
 
@@ -103,6 +107,10 @@ func TestStatefulSetTemplate(t *testing.T) {
 	err = tmp.Close()
 	assert.Nil(t, err)
 
-	_, err = templateToStatefulSet("test-ss", tmp.Name())
+	tp := templateParam{
+		Param:     CSIParam,
+		Namespace: "foo",
+	}
+	_, err = templateToStatefulSet("test-ss", tmp.Name(), tp)
 	assert.Nil(t, err)
 }

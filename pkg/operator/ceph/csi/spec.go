@@ -27,20 +27,25 @@ import (
 )
 
 type Param struct {
-	Namespace string
-
 	CSIPluginImage   string
 	RegistrarImage   string
 	ProvisionerImage string
 	AttacherImage    string
 	SnapshotterImage string
+	DriverNamePrefix string
+}
+
+type templateParam struct {
+	Param
+	// non-global template only parameters
+	Namespace string
 }
 
 var (
 	CSIParam Param
 
-	EnableRBD    = true
-	EnableCephFS = true
+	EnableRBD    = false
+	EnableCephFS = false
 
 	// template paths
 	RBDPluginTemplatePath      string
@@ -48,6 +53,10 @@ var (
 
 	CephFSPluginTemplatePath      string
 	CephFSProvisionerTemplatePath string
+
+	// configuration map for csi
+	ConfigName = "rook-ceph-csi-config"
+	ConfigKey  = "csi-cluster-config-json"
 )
 
 const (
@@ -70,10 +79,6 @@ const (
 
 func CSIEnabled() bool {
 	return EnableRBD || EnableCephFS
-}
-
-func SetCSINamespace(namespace string) {
-	CSIParam.Namespace = namespace
 }
 
 func ValidateCSIParam() error {
@@ -118,22 +123,38 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface) error {
 		rbdProvisioner, cephfsProvisioner *apps.StatefulSet
 	)
 
+	// create an empty config map. config map will be filled with data
+	// later when clusters have mons
+	if err := CreateCsiConfigMap(namespace, clientset); err != nil {
+		return fmt.Errorf("failed creating csi config map. %+v", err)
+	}
+
+	tp := templateParam{
+		Param:     CSIParam,
+		Namespace: namespace,
+	}
+	// if the user didn't specify a custom DriverNamePrefix use
+	// the namespace (and a dot).
+	if tp.DriverNamePrefix == "" {
+		tp.DriverNamePrefix = fmt.Sprintf("%s.", namespace)
+	}
+
 	if EnableRBD {
-		rbdPlugin, err = templateToDaemonSet("rbdplugin", RBDPluginTemplatePath)
+		rbdPlugin, err = templateToDaemonSet("rbdplugin", RBDPluginTemplatePath, tp)
 		if err != nil {
 			return fmt.Errorf("failed to load rbd plugin template: %v", err)
 		}
-		rbdProvisioner, err = templateToStatefulSet("rbd-provisioner", RBDProvisionerTemplatePath)
+		rbdProvisioner, err = templateToStatefulSet("rbd-provisioner", RBDProvisionerTemplatePath, tp)
 		if err != nil {
 			return fmt.Errorf("failed to load rbd provisioner template: %v", err)
 		}
 	}
 	if EnableCephFS {
-		cephfsPlugin, err = templateToDaemonSet("cephfsplugin", CephFSPluginTemplatePath)
+		cephfsPlugin, err = templateToDaemonSet("cephfsplugin", CephFSPluginTemplatePath, tp)
 		if err != nil {
 			return fmt.Errorf("failed to load CephFS plugin template: %v", err)
 		}
-		cephfsProvisioner, err = templateToStatefulSet("cephfs-provisioner", CephFSProvisionerTemplatePath)
+		cephfsProvisioner, err = templateToStatefulSet("cephfs-provisioner", CephFSProvisionerTemplatePath, tp)
 		if err != nil {
 			return fmt.Errorf("failed to load CephFS provisioner template: %v", err)
 		}
