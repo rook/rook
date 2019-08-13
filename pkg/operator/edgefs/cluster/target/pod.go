@@ -296,7 +296,7 @@ func (c *Cluster) makeDaemonContainer(containerImage string, dro edgefsv1beta1.D
 		VolumeMounts:    volumeMounts,
 	}
 
-	// Do not define Liveness and Reasiness probe for init container
+	// Do not define Liveness and Readiness probe for init container
 	if !isInitContainer {
 		cont.LivenessProbe = c.getLivenessProbe()
 		cont.ReadinessProbe = c.getReadinessProbe()
@@ -443,7 +443,7 @@ func (c *Cluster) createPodSpec(rookImage string, dro edgefsv1beta1.DevicesResur
 	}
 
 	if len(c.deploymentConfig.DevConfig) > 0 {
-		// Get first element of DevConfigMap map, because container lenght MUST be identical fot EACH node in EdgeFS cluster
+		// Get first element of DevConfigMap map, because container length MUST be identical for EACH node in EdgeFS cluster
 		for _, devConfig := range c.deploymentConfig.DevConfig {
 			// Skip GW, it has no rtrd or rtrdslaves
 			if devConfig.IsGatewayNode {
