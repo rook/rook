@@ -203,7 +203,7 @@ spec:
        readOnly: false
   restartPolicy: Never
 `
-	err := k8sh.ResourceOperation("create", pod)
+	err := k8sh.ResourceOperation("apply", pod)
 	require.Nil(s.T(), err)
 	isPodRunning := k8sh.IsPodRunning(csiTestRBDPodName, namespace)
 	if !isPodRunning {
@@ -256,7 +256,7 @@ spec:
        readOnly: false
   restartPolicy: Never
 `
-	err := k8sh.ResourceOperation("create", pod)
+	err := k8sh.ResourceOperation("apply", pod)
 	require.Nil(s.T(), err)
 	isPodRunning := k8sh.IsPodRunning(csiTestCephFSPodName, namespace)
 	if !isPodRunning {

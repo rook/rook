@@ -41,7 +41,7 @@ func createPVCAndMountMysqlPod(t func() *testing.T, kh *utils.K8sHelper, storage
 	if _, err := kh.GetPVCStatus(defaultNamespace, pvcName); err != nil {
 		logger.Infof("Create PVC")
 
-		mySqlPodOperation(kh, storageClassName, appName, appLabel, pvcName, "create")
+		mySqlPodOperation(kh, storageClassName, appName, appLabel, pvcName, "apply")
 
 		// Wait till mysql pod is up
 		require.True(t(), kh.IsPodInExpectedState(appLabel, "", "Running"))

@@ -40,7 +40,7 @@ func CreatePoolOperation(k8sh *utils.K8sHelper, manifests installer.CephManifest
 }
 
 func (p *PoolOperation) Create(name, namespace string, replicas int) error {
-	return p.createOrUpdatePool(name, namespace, "create", replicas)
+	return p.createOrUpdatePool(name, namespace, "apply", replicas)
 }
 
 func (p *PoolOperation) Delete(name string, namespace string) error {
@@ -110,7 +110,7 @@ func (p *PoolOperation) CephPoolExists(namespace, name string) (bool, error) {
 }
 
 func (p *PoolOperation) CreateStorageClassAndPvc(namespace, poolName, storageClassName, reclaimPolicy, blockName, mode string) error {
-	return p.k8sh.ResourceOperation("create", p.manifests.GetBlockPoolStorageClassAndPvcDef(namespace, poolName, storageClassName, reclaimPolicy, blockName, mode))
+	return p.k8sh.ResourceOperation("apply", p.manifests.GetBlockPoolStorageClassAndPvcDef(namespace, poolName, storageClassName, reclaimPolicy, blockName, mode))
 }
 
 func (p *PoolOperation) DeleteStorageClass(namespace, poolName, storageClassName, reclaimPolicy string) error {
@@ -129,5 +129,5 @@ func (p *PoolOperation) DeletePvc(blockName, storageClassName, mode string) erro
 }
 
 func (p *PoolOperation) CreateStorageClass(namespace, poolName, storageClassName, reclaimPolicy string) error {
-	return p.k8sh.ResourceOperation("create", p.manifests.GetBlockPoolStorageClass(namespace, poolName, storageClassName, reclaimPolicy))
+	return p.k8sh.ResourceOperation("apply", p.manifests.GetBlockPoolStorageClass(namespace, poolName, storageClassName, reclaimPolicy))
 }
