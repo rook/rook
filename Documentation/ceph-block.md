@@ -12,22 +12,23 @@ indent: true
 {% endif %}
 # Block Storage
 
-Block storage allows you to mount storage to a single pod. This example shows how to build a simple, multi-tier web application on Kubernetes using persistent volumes enabled by Rook.
+Block storage allows a single pod to mount storage. This guide shows how to create a simple, multi-tier web application on Kubernetes using persistent volumes enabled by Rook.
 
 ## Prerequisites
 
-This guide assumes you have created a Rook cluster as explained in the main [Quickstart](ceph-quickstart.md) guide.
+This guide assumes a Rook cluster as explained in the [Quickstart](ceph-quickstart.md).
 
 ## Provision Storage
 
-Before Rook can start provisioning storage, a StorageClass and its storage pool need to be created. This is needed for Kubernetes to interoperate with Rook for provisioning persistent volumes. For more options on pools, see the documentation on [creating storage pools](ceph-pool-crd.md).
+Before Rook can provision storage, a [`StorageClass`](https://kubernetes.io/docs/concepts/storage/storage-classes) and [`CephBlockPool`](ceph-pool-crd.md) need to be created. This will allow Kubernetes to interoperate with Rook when provisioning persistent volumes.
 
-**NOTE** This example requires you to have **at least 3 OSDs each on a different node**.
-This is because the `replicated.size: 3` will require at least 3 OSDs and as [`failureDomain` setting](ceph-pool-crd.md#spec) to `host` (default), each OSD needs to be on a different node.
+**NOTE:** This sample requires *at least 1 OSD per node*, with each OSD located on *3 different nodes*.
+
+Each OSD must be located on a different node, because the [`failureDomain`](ceph-pool-crd.md#spec) is set to `host` and the `replicated.size` is set to `3`.
 
 **NOTE** This example uses the CSI driver, which is the preferred driver going forward for K8s 1.13 and newer. Examples are found in the [CSI RBD](https://github.com/rook/rook/tree/{{ branchName }}/cluster/examples/kubernetes/ceph/csi/rbd) directory. For an example of a storage class using the flex driver (required for K8s 1.12 or earlier), see the [Flex Driver](#flex-driver) section below, which has examples in the [flex](https://github.com/rook/rook/tree/{{ branchName }}/cluster/examples/kubernetes/ceph/flex) directory.
 
-Save this storage class definition as `storageclass.yaml`:
+Save this `StorageClass` definition as `storageclass.yaml`:
 
 ```yaml
 apiVersion: ceph.rook.io/v1
@@ -64,7 +65,7 @@ Create the storage class.
 kubectl create -f cluster/examples/kubernetes/ceph/csi/rbd/storageclass.yaml
 ```
 
-**NOTE** As [specified by Kubernetes](https://v1-13.docs.kubernetes.io/docs/concepts/storage/persistent-volumes/#retain), when using the `Retain` reclaim policy, the ceph RBD images that back up `PersistentVolume`s will continue to exist even after the PV is deleted, and have to be cleaned up manually using `rbd rm`.
+**NOTE** As [specified by Kubernetes](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#retain), when using the `Retain` reclaim policy, any Ceph RBD image that is backed by a `PersistentVolume` will continue to exist even after the `PersistentVolume` has been deleted. These Ceph RBD images will need to be cleaned up manually using `rbd rm`.
 
 ## Consume the storage: Wordpress sample
 
@@ -167,8 +168,9 @@ To be able to use an erasure coded pool you need to create two pools (as seen be
 The replicated pool must be specified as the `blockPool` parameter. It is used for the metadata of the RBD images.
 The erasure coded pool must be set as the `dataBlockPool` parameter below. It is used for the data of the RBD images.
 
-**NOTE** This example requires you to have **at least 3 bluestore OSDs each on a different node**.
-This is because the below `erasureCoded` chunk settings require at least 3 bluestore OSDs and as [`failureDomain` setting](ceph-pool-crd.md#spec) to `host` (default), each OSD needs to be on a different nodes.
+**NOTE:** This example requires *at least 3 bluestore OSDs*, with each OSD located on a *different node*.
+
+The OSDs must be located on different nodes, because the [`failureDomain`](ceph-pool-crd.md#spec) is set to `host` and the `erasureCoded` chunk settings require at least 3 different OSDs (2 `dataChunks` + 1 `codingChunks`).
 
 ```yaml
 apiVersion: ceph.rook.io/v1
