@@ -35,6 +35,7 @@ import (
 	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
+	"github.com/rook/rook/pkg/operator/ceph/csi"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -62,9 +63,6 @@ const (
 	monSecretName     = "mon-secret"
 	adminSecretName   = "admin-secret"
 	clusterSecretName = "cluster-name"
-
-	// configuration map for csi
-	csiConfigKey = "csi-cluster-config-json"
 
 	// DefaultMonCount Default mon count for a cluster
 	DefaultMonCount = 3
@@ -109,6 +107,7 @@ type Cluster struct {
 	monTimeoutList      map[string]time.Time
 	mapping             *Mapping
 	ownerRef            metav1.OwnerReference
+	csiConfigMutex      *sync.Mutex
 }
 
 // monConfig for a single monitor
@@ -140,7 +139,7 @@ type NodeInfo struct {
 }
 
 // New creates an instance of a mon cluster
-func New(context *clusterd.Context, namespace, dataDirHostPath string, hostNetwork bool, ownerRef metav1.OwnerReference) *Cluster {
+func New(context *clusterd.Context, namespace, dataDirHostPath string, hostNetwork bool, ownerRef metav1.OwnerReference, csiConfigMutex *sync.Mutex) *Cluster {
 	return &Cluster{
 		context:             context,
 		dataDirHostPath:     dataDirHostPath,
@@ -155,7 +154,8 @@ func New(context *clusterd.Context, namespace, dataDirHostPath string, hostNetwo
 			Node: map[string]*NodeInfo{},
 			Port: map[string]int32{},
 		},
-		ownerRef: ownerRef,
+		ownerRef:       ownerRef,
+		csiConfigMutex: csiConfigMutex,
 	}
 }
 
@@ -582,7 +582,7 @@ func (c *Cluster) saveMonConfig() error {
 		return fmt.Errorf("failed to marshal mon mapping. %+v", err)
 	}
 
-	csiConfigValue, err := FormatCsiClusterConfig(
+	csiConfigValue, err := csi.FormatCsiClusterConfig(
 		c.Namespace, c.clusterInfo.Monitors)
 	if err != nil {
 		return fmt.Errorf("failed to format csi config: %+v", err)
@@ -592,7 +592,7 @@ func (c *Cluster) saveMonConfig() error {
 		EndpointDataKey: FlattenMonEndpoints(c.clusterInfo.Monitors),
 		MaxMonIDKey:     strconv.Itoa(c.maxMonID),
 		MappingKey:      string(monMapping),
-		csiConfigKey:    csiConfigValue,
+		csi.ConfigKey:   csiConfigValue,
 	}
 
 	if _, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(configMap); err != nil {
@@ -615,6 +615,10 @@ func (c *Cluster) saveMonConfig() error {
 	// write the latest config to the config dir
 	if err := WriteConnectionConfig(c.context, c.clusterInfo); err != nil {
 		return fmt.Errorf("failed to write connection config for new mons. %+v", err)
+	}
+
+	if err := csi.SaveClusterConfig(c.context.Clientset, c.Namespace, c.clusterInfo, c.csiConfigMutex); err != nil {
+		return fmt.Errorf("failed to update csi cluster config: %+v", err)
 	}
 
 	return nil

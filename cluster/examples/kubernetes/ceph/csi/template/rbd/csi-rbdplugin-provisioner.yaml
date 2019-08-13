@@ -68,7 +68,7 @@ spec:
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--v=5"
             - "--type=rbd"
-            - "--drivername=rbd.csi.ceph.com"
+            - "--drivername={{ .DriverNamePrefix }}rbd.csi.ceph.com"
             - "--containerized=true"
           env:
             - name: HOST_ROOTFS
@@ -119,7 +119,7 @@ spec:
             type: DirectoryOrCreate
         - name: ceph-csi-config
           configMap:
-            name: rook-ceph-mon-endpoints
+            name: rook-ceph-csi-config
             items:
               - key: csi-cluster-config-json
                 path: config.json

@@ -48,6 +48,7 @@ func init() {
 
 	operatorCmd.Flags().BoolVar(&csi.EnableRBD, "csi-enable-rbd", true, "enable ceph-csi rbd support")
 	operatorCmd.Flags().BoolVar(&csi.EnableCephFS, "csi-enable-cephfs", true, "enable ceph-csi cephfs support")
+	operatorCmd.Flags().StringVar(&csi.CSIParam.DriverNamePrefix, "csi-driver-name-prefix", "", "custom csi driver name prefix")
 
 	// csi images
 	operatorCmd.Flags().StringVar(&csi.CSIParam.CSIPluginImage, "csi-ceph-image", csi.DefaultCSIPluginImage, "ceph-csi plugin image")

@@ -17,6 +17,7 @@ limitations under the License.
 package mon
 
 import (
+	"sync"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -46,6 +47,7 @@ func testPodSpec(t *testing.T, monID string, pvc bool) {
 		"/var/lib/rook",
 		false,
 		metav1.OwnerReference{},
+		&sync.Mutex{},
 	)
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "rook/rook:myversion")
 	c.spec.CephVersion = cephv1.CephVersionSpec{Image: "ceph/ceph:myceph"}
@@ -90,6 +92,7 @@ func TestDeploymentPVCSpec(t *testing.T) {
 		"/var/lib/rook",
 		false,
 		metav1.OwnerReference{},
+		&sync.Mutex{},
 	)
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "rook/rook:myversion")
 	c.spec.CephVersion = cephv1.CephVersionSpec{Image: "ceph/ceph:myceph"}
