@@ -29,19 +29,8 @@ func getClusterObject(obj interface{}) (cluster *cephv1.CephCluster, err error) 
 	if ok {
 		// the cluster object is of the latest type, simply return it
 		cluster = cluster.DeepCopy()
-		setClusterDefaults(cluster)
 		return cluster, nil
 	}
 
 	return nil, fmt.Errorf("not a known cluster object: %+v", obj)
-}
-
-func setClusterDefaults(cluster *cephv1.CephCluster) {
-	// The ceph version image should be set in the CRD.
-	// If/when the v1beta1 CRD is converted to v1, we could set this permanently during the conversion instead of
-	// setting this default in memory every time we run the operator.
-	if cluster.Spec.CephVersion.Image == "" {
-		logger.Infof("setting default luminous image: %s", cephv1.DefaultLuminousImage)
-		cluster.Spec.CephVersion.Image = cephv1.DefaultLuminousImage
-	}
 }

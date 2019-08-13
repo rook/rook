@@ -15,6 +15,7 @@ an example usage
 
 ### Ceph
 
+- The minimum version supported by Rook is now Ceph Mimic v13.2.4.
 - The Ceph CSI driver is enabled by default and preferred over the flex driver
    - The flex driver can be disabled in operator.yaml by setting ROOK_ENABLE_FLEX_DRIVER=false
    - The CSI drivers can be disabled by setting ROOK_CSI_ENABLE_CEPHFS=false and ROOK_CSI_ENABLE_RBD=false
@@ -46,6 +47,8 @@ an example usage
 ## Breaking Changes
 
 ### Ceph
+
+- The minimum version supported by Rook is Ceph Mimic v13.2.4. Before upgrading to v1.1 it is required to update the version of Ceph to at least this version.
 - The CSI driver is enabled by default. Documentation has been changed significantly for block and filesystem to use the CSI driver instead of flex.
 While the flex driver is still supported, it is anticipated to be deprecated soon.
 

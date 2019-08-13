@@ -94,9 +94,6 @@ spec:
                   type: boolean
                 image:
                   type: string
-                name:
-                  pattern: ^(luminous|mimic|nautilus)$
-                  type: string
             dashboard:
               properties:
                 enabled:

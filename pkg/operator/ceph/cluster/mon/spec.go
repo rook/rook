@@ -135,7 +135,7 @@ func (c *Cluster) makeDeploymentPVC(m *monConfig) (*v1.PersistentVolumeClaim, er
  */
 
 func (c *Cluster) makeMonPod(monConfig *monConfig, hostname string) *v1.Pod {
-	logger.Debug("monConfig: %+v", monConfig)
+	logger.Debugf("monConfig: %+v", monConfig)
 	podSpec := v1.PodSpec{
 		InitContainers: []v1.Container{
 			c.makeChownInitContainer(monConfig),

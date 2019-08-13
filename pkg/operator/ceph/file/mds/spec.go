@@ -100,7 +100,6 @@ func (c *Cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
 	}
 
 	// Set mds cache memory limit to the best appropriate value
-	// This is new in Luminous so there is no need to check for a Ceph version
 	if !c.fs.Spec.MetadataServer.Resources.Limits.Memory().IsZero() {
 		mdsCacheMemoryLimit := float64(c.fs.Spec.MetadataServer.Resources.Limits.Memory().Value()) * mdsCacheMemoryLimitFactor
 		args = append(args, config.NewFlag("mds-cache-memory-limit", strconv.Itoa(int(mdsCacheMemoryLimit))))

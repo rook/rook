@@ -171,8 +171,8 @@ func IsMultiFSEnabled() bool {
 
 // SetNumMDSRanks sets the number of mds ranks (max_mds) for a Ceph filesystem.
 func SetNumMDSRanks(context *clusterd.Context, cephVersion cephver.CephVersion, clusterName, fsName string, activeMDSCount int32) error {
-	// Noted sections 1 and 2 are necessary for reducing max_mds in Luminous.
-	//   See more:   [1] http://docs.ceph.com/docs/luminous/cephfs/upgrading/
+	// Noted sections 1 and 2 are necessary for reducing max_mds.
+	//   See more:   [1] http://docs.ceph.com/docs/nautilus/cephfs/upgrading/
 	//               [2] https://tracker.ceph.com/issues/23172
 
 	// * Noted section 1 - See note at top of function
@@ -195,7 +195,7 @@ func SetNumMDSRanks(context *clusterd.Context, cephVersion cephver.CephVersion, 
 	// Now check the error to see if we can even determine whether we should reduce or not
 	if errAtStart != nil {
 		return fmt.Errorf(`failed to get filesystem %s info needed to ensure mds rank can be changed correctly,
-if Ceph version is Luminous (12.y.z) and num active mdses (max_mds) was lowered, USER should deactivate extra active mdses manually: %v`,
+if num active mdses (max_mds) was lowered, USER should deactivate extra active mdses manually: %+v`,
 			fsName, errAtStart)
 	}
 	if int(activeMDSCount) > fsAtStart.MDSMap.MaxMDS {

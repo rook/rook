@@ -45,10 +45,7 @@ type mgrConfig struct {
 
 func (c *Cluster) dashboardPort() int {
 	if c.dashboard.Port == 0 {
-		// select default ports
-		if c.clusterInfo.CephVersion.IsLuminous() {
-			return dashboardPortHTTP
-		}
+		// select default port
 		return dashboardPortHTTPS
 	}
 	// crd validates port >= 0

@@ -54,6 +54,7 @@ type cluster struct {
 	Namespace            string
 	Spec                 *cephv1.ClusterSpec
 	mons                 *mon.Cluster
+	initCompleted        bool
 	stopCh               chan struct{}
 	ownerRef             metav1.OwnerReference
 	orchestrationRunning bool
@@ -84,13 +85,15 @@ func newCluster(c *cephv1.CephCluster, context *clusterd.Context, csiMutex *sync
 	}
 }
 
+// detectCephVersion loads the ceph version from the image and checks that it meets the version requirements to
+// run in the cluster
 func (c *cluster) detectCephVersion(rookImage, cephImage string, timeout time.Duration) (*cephver.CephVersion, error) {
+	logger.Infof("detecting the ceph image version for image %s...", cephImage)
 	versionReporter, err := cmdreporter.New(
 		c.context.Clientset, &c.ownerRef,
 		detectVersionName, detectVersionName, c.Namespace,
 		[]string{"ceph"}, []string{"--version"},
-		rookImage, cephImage,
-	)
+		rookImage, cephImage)
 	if err != nil {
 		return nil, fmt.Errorf("failed to set up ceph version job. %+v", err)
 	}
@@ -112,9 +115,76 @@ func (c *cluster) detectCephVersion(rookImage, cephImage string, timeout time.Du
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract ceph version. %+v", err)
 	}
-
 	logger.Infof("Detected ceph image version: %s", version)
 	return version, nil
+}
+
+func (c *cluster) validateCephVersion(version *cephver.CephVersion) error {
+	if !version.IsAtLeast(cephver.Minimum) {
+		return fmt.Errorf("the version does not meet the minimum version: %s", cephver.Minimum.String())
+	}
+
+	if !version.Supported() {
+		logger.Warningf("unsupported ceph version detected: %s.", version)
+		if c.Spec.CephVersion.AllowUnsupported {
+			return nil
+		}
+
+		return fmt.Errorf("allowUnsupported must be set to true to run with this version: %v", version)
+	}
+
+	// The following tries to determine if the operator can proceed with an upgrade
+	// If the cluster was unhealthy and someone injected a new image version, an upgrade was triggered but failed because the cluster is not healthy
+	// Then after this, if the operator gets restarted we are not able to fail if the cluster is not healthy, the following tries to determine the
+	// state we are in and if we should upgrade or not
+
+	// Try to load clusterInfo so we can compare the running version with the one from the spec image
+	clusterInfo, _, _, err := mon.LoadClusterInfo(c.context, c.Namespace)
+	if err == nil {
+		// Write connection info (ceph config file and keyring) for ceph commands
+		err = mon.WriteConnectionConfig(c.context, clusterInfo)
+		if err != nil {
+			logger.Errorf("failed to write config. Attempting to continue. %+v", err)
+		}
+	}
+
+	if !clusterInfo.IsInitialized() {
+		// If not initialized, this is likely a new cluster so there is nothing to do
+		return nil
+	}
+
+	// Get cluster running versions
+	versions, err := client.GetAllCephDaemonVersions(c.context, c.Namespace)
+	if err != nil {
+		logger.Errorf("failed to get ceph daemons versions. %+v", err)
+		return nil
+	}
+
+	runningVersions := *versions
+	differentImages, err := diffImageSpecAndClusterRunningVersion(*version, runningVersions)
+	if err != nil {
+		logger.Errorf("failed to determine if we should upgrade or not. %+v", err)
+		// we shouldn't block the orchestration if we can't determine the version of the image spec, we proceed anyway in best effort
+		// we won't be able to check if there is an update or not and what to do, so we don't check the cluster status either
+		// will happen if someone uses ceph/daemon:latest-master for instance
+		return nil
+	}
+
+	if differentImages {
+		// If the image version changed let's make sure we can safely upgrade
+		// check ceph's status, if not healthy we fail
+		cephHealthy := client.IsCephHealthy(c.context, c.Namespace)
+		if !cephHealthy {
+			return fmt.Errorf("ceph status in namespace %s is not healthy, refusing to upgrade. fix the cluster and re-edit the cluster CR to trigger a new orchestation update", c.Namespace)
+		}
+	}
+
+	return nil
+}
+
+// initialized checks if the cluster has ever completed a successful orchestration since the operator has started
+func (c *cluster) initialized() bool {
+	return c.initCompleted
 }
 
 func (c *cluster) createInstance(rookImage string, cephVersion cephver.CephVersion) error {
@@ -196,6 +266,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 	}
 
 	logger.Infof("Done creating rook instance in namespace %s", c.Namespace)
+	c.initCompleted = true
 
 	// Notify the child controllers that the cluster spec might have changed
 	for _, child := range c.childControllers {
