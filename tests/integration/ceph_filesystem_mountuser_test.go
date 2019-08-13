@@ -98,7 +98,7 @@ func createFilesystemMountCephCredentials(helper *clients.TestClient, k8sh *util
 }
 
 func createFilesystemMountUserConsumerPod(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, filesystemName string) {
-	mtfsErr := podWithFilesystem(k8sh, s, fileMountUserPodName, namespace, filesystemName, "create", getFilesystemMountUserTestPod)
+	mtfsErr := podWithFilesystem(k8sh, s, fileMountUserPodName, namespace, filesystemName, "apply", getFilesystemMountUserTestPod)
 	require.Nil(s.T(), mtfsErr)
 	filePodRunning := k8sh.IsPodRunning(fileMountUserPodName, namespace)
 	if !filePodRunning {

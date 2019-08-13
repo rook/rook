@@ -18,11 +18,11 @@ package clients
 
 import (
 	"fmt"
+	"strings"
 
 	rgw "github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
-	"strings"
 )
 
 // ObjectUserOperation is wrapper for k8s rook object user operations
@@ -66,7 +66,7 @@ func (o *ObjectUserOperation) UserSecretExists(namespace string, store string, u
 func (o *ObjectUserOperation) Create(namespace string, userid string, displayName string, store string) error {
 
 	logger.Infof("creating the object store user via CRD")
-	if err := o.k8sh.ResourceOperation("create", o.manifests.GetObjectStoreUser(namespace, userid, displayName, store)); err != nil {
+	if err := o.k8sh.ResourceOperation("apply", o.manifests.GetObjectStoreUser(namespace, userid, displayName, store)); err != nil {
 		return err
 	}
 	return nil
