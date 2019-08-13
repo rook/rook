@@ -78,6 +78,10 @@ func (suite *SmokeSuite) SetupSuite() {
 	suite.helper = clients.CreateTestClient(suite.k8sh, suite.op.installer.Manifests)
 }
 
+func (suite *SmokeSuite) AfterTest(suiteName, testName string) {
+	suite.op.installer.CollectOperatorLog(suiteName, testName, installer.SystemNamespace(suite.namespace))
+}
+
 func (suite *SmokeSuite) TearDownSuite() {
 	suite.op.Teardown()
 }

@@ -38,18 +38,16 @@ import (
 )
 
 const (
-	// test with the latest luminous build
-	luminousTestImage = "ceph/ceph:v12"
 	// test with the latest mimic build
 	mimicTestImage = "ceph/ceph:v13"
 	// test with the latest nautilus build
 	nautilusTestImage = "ceph/ceph:v14.2.2-20190722"
 	helmChartName     = "local/rook-ceph"
 	helmDeployName    = "rook-ceph"
+	cephOperatorLabel = "app=rook-ceph-operator"
 )
 
 var (
-	LuminousVersion = cephv1.CephVersionSpec{Image: luminousTestImage}
 	MimicVersion    = cephv1.CephVersionSpec{Image: mimicTestImage}
 	NautilusVersion = cephv1.CephVersionSpec{Image: nautilusTestImage}
 )
@@ -182,7 +180,7 @@ func (h *CephInstaller) CreateK8sRookCluster(namespace, systemNamespace string, 
 	return h.CreateK8sRookClusterWithHostPathAndDevices(namespace, systemNamespace, storeType, false,
 		cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, true, /* startWithAllNodes */
 		1, /* rbd workers */
-		LuminousVersion)
+		NautilusVersion)
 }
 
 // CreateK8sRookCluster creates rook cluster via kubectl
@@ -512,6 +510,14 @@ func (h *CephInstaller) cleanupDir(node, dir string) error {
 	resources := h.Manifests.GetCleanupPod(node, dir)
 	_, err := h.k8shelper.KubectlWithStdin(resources, createFromStdinArgs...)
 	return err
+}
+
+func (h *CephInstaller) CollectOperatorLog(suiteName, testName, namespace string) {
+	if !h.T().Failed() && Env.Logs != "all" {
+		return
+	}
+	name := fmt.Sprintf("%s_%s", suiteName, testName)
+	h.k8shelper.CollectPodLogsFromLabel(cephOperatorLabel, namespace, name, Env.HostType)
 }
 
 func (h *CephInstaller) GatherAllRookLogs(testName string, namespaces ...string) {

@@ -18,7 +18,6 @@ package integration
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -86,12 +85,6 @@ func (s *CassandraSuite) SetupSuite() {
 
 	s.installer = installer.NewCassandraInstaller(s.k8sHelper, s.T)
 
-	skip, err := shouldSkip(s.k8sHelper)
-	assert.Nil(s.T(), err)
-	if skip {
-		return
-	}
-
 	if err = s.installer.InstallCassandra(s.systemNamespace, s.namespace, s.instanceCount, cassandrav1alpha1.ClusterModeCassandra); err != nil {
 		logger.Errorf("Cassandra was not installed successfully: %s", err.Error())
 		s.T().Fail()
@@ -111,13 +104,6 @@ func (s *CassandraSuite) TeardownSuite() {
 
 // TestCassandraClusterCreation tests the creation of a Cassandra cluster.
 func (s *CassandraSuite) TestCassandraClusterCreation() {
-
-	skip, err := shouldSkip(s.k8sHelper)
-	assert.Nil(s.T(), err)
-	if skip {
-		return
-	}
-
 	s.CheckClusterHealth()
 }
 
@@ -140,7 +126,6 @@ func (s *CassandraSuite) Teardown() {
 // CheckClusterHealth checks if all Pods in the cluster are ready
 // and CQL is working.
 func (s *CassandraSuite) CheckClusterHealth() {
-
 	// Verify that cassandra-operator is running
 	logger.Infof("Verifying that all expected pods in cassandra cluster %s are running", s.namespace)
 	assert.True(s.T(), s.k8sHelper.CheckPodCountAndState("rook-cassandra-operator", s.systemNamespace, 1, "Running"), "rook-cassandra-operator must be in Running state")
@@ -175,9 +160,8 @@ SELECT key,value FROM map WHERE key='test_key';`,
 		podIP,
 	}
 
-	var result string
-
 	time.Sleep(30 * time.Second)
+	var result string
 	for inc := 0; inc < utils.RetryLoop; inc++ {
 		result, err = s.k8sHelper.Exec(s.namespace, podName, command, commandArgs)
 		logger.Infof("cassandra cql command exited, err: %v. result: %s", err, result)
@@ -191,21 +175,4 @@ SELECT key,value FROM map WHERE key='test_key';`,
 	assert.NoError(s.T(), err)
 	assert.True(s.T(), strings.Contains(result, "test_key"))
 	assert.True(s.T(), strings.Contains(result, "test_value"))
-
-}
-
-func shouldSkip(k8sHelper *utils.K8sHelper) (bool, error) {
-
-	v, err := k8sHelper.Clientset.ServerVersion()
-	if err != nil {
-		return false, err
-	}
-	if v.Major != "1" {
-		return true, nil
-	}
-	minor, _ := strconv.Atoi(v.Minor)
-	if minor < 9 {
-		return true, nil
-	}
-	return false, nil
 }
