@@ -63,7 +63,7 @@ func (s *BlockLongHaulSuiteWithFencing) SetupSuite() {
 		logger.Infof("Creating PVC and mounting it to pod with readOnly set to false")
 		err = s.testClient.BlockClient.CreatePvc("block-pv-one", "rook-ceph-block", "ReadWriteOnce")
 		require.Nil(s.T(), err)
-		mountUnmountPVCOnPod(s.kh, "block-rw", "block-pv-one", "false", "create")
+		mountUnmountPVCOnPod(s.kh, "block-rw", "block-pv-one", "false", "apply")
 		require.True(s.T(), s.kh.IsPodRunning("block-rw", defaultNamespace))
 
 		filename := "longhaul"
@@ -87,7 +87,7 @@ func (s *BlockLongHaulSuiteWithFencing) TestBlockWithFencingLonghaulRun() {
 
 func blockVolumeFencingOperations(s *BlockLongHaulSuiteWithFencing, wg *sync.WaitGroup, podName string, pvcName string) {
 	defer wg.Done()
-	mountUnmountPVCOnPod(s.kh, podName, pvcName, "true", "create")
+	mountUnmountPVCOnPod(s.kh, podName, pvcName, "true", "apply")
 	require.True(s.T(), s.kh.IsPodRunning(podName, defaultNamespace))
 	message := "this is long running test"
 	require.Nil(s.T(), s.kh.ReadFromPod("default", podName, "longhaul", message))
