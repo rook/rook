@@ -17,8 +17,10 @@ limitations under the License.
 package osd
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"path"
 	"strconv"
 	"strings"
@@ -40,6 +42,7 @@ const (
 	databaseSizeFlag    = "--block-db-size"
 	cephVolumeCmd       = "ceph-volume"
 	cephVolumeMinDBSize = 1024 // 1GB
+	lvmConfPath         = "/etc/lvm/lvm.conf"
 )
 
 func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *DeviceOsdMapping) ([]oposd.OSDInfo, error) {
@@ -127,27 +130,23 @@ func getLVPath(op string) string {
 }
 
 func updateLVMConfig(context *clusterd.Context) error {
-	testArgs := []string{"-oL", "sed", "-i", "-e", "s#udev_sync = 1#udev_sync = 0#", "/etc/lvm/lvm.conf"}
-	if err := context.Executor.ExecuteCommand(false, "", "stdbuf", testArgs...); err != nil {
-		return fmt.Errorf("failed ceph-volume. %+v", err) // fail return here as validation provided by ceph-volume
-	}
-	testArgs = []string{"-oL", "sed", "-i", "-e", "s#udev_rules = 1#udev_rules = 0#", "/etc/lvm/lvm.conf"}
-	if err := context.Executor.ExecuteCommand(false, "", "stdbuf", testArgs...); err != nil {
-		return fmt.Errorf("failed ceph-volume. %+v", err) // fail return here as validation provided by ceph-volume
-	}
-	testArgs = []string{"-oL", "sed", "-i", "-e", "s#use_lvmetad = 1#use_lvmetad = 0#", "/etc/lvm/lvm.conf"}
-	if err := context.Executor.ExecuteCommand(false, "", "stdbuf", testArgs...); err != nil {
-		return fmt.Errorf("failed ceph-volume. %+v", err) // fail return here as validation provided by ceph-volume
-	}
-	testArgs = []string{"-oL", "sed", "-i", "-e", "s#scan = \\[ \"/dev\" \\]#scan = [ \"/dev\", \"/mnt\" ]#", "/etc/lvm/lvm.conf"}
-	if err := context.Executor.ExecuteCommand(false, "", "stdbuf", testArgs...); err != nil {
-		return fmt.Errorf("failed ceph-volume. %+v", err) // fail return here as validation provided by ceph-volume
-	}
-	testArgs = []string{"-oL", "sed", "-i", "-e", "0,/# filter =.*/{s%# filter =.*% filter = [ \"a|^/mnt/.*| r|.*/|\" ]%}", "/etc/lvm/lvm.conf"}
-	if err := context.Executor.ExecuteCommand(false, "", "stdbuf", testArgs...); err != nil {
-		return fmt.Errorf("failed ceph-volume. %+v", err) // fail return here as validation provided by ceph-volume
+
+	input, err := ioutil.ReadFile(lvmConfPath)
+	if err != nil {
+		return fmt.Errorf("failed to read lvm config file. %+v", err)
 	}
 
+	output := bytes.Replace(input, []byte("udev_sync = 1"), []byte("udev_sync = 0"), 1)
+	output = bytes.Replace(output, []byte("udev_rules = 1"), []byte("udev_rules = 0"), 1)
+	output = bytes.Replace(output, []byte("use_lvmetad = 1"), []byte("use_lvmetad = 0"), 1)
+	output = bytes.Replace(output, []byte(`scan = [ "/dev" ]`), []byte(`scan = [ "/dev", "/mnt" ]`), 1)
+	output = bytes.Replace(output, []byte(`# filter = [ "a|.*/|" ]`), []byte(`filter = [ "a|^/mnt/.*| r|.*/|" ]`), 1)
+
+	if err = ioutil.WriteFile(lvmConfPath, output, 0644); err != nil {
+		return fmt.Errorf("failed to update lvm config file. %+v", err)
+	}
+
+	logger.Info("Successfully updated lvm config file")
 	return nil
 }
 
