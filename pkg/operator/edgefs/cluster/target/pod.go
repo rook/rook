@@ -81,6 +81,10 @@ func (c *Cluster) makeCorosyncContainer(containerImage string) v1.Container {
 		},
 	}
 
+	if c.useHostLocalTime {
+		volumeMounts = append(volumeMounts, edgefsv1beta1.GetHostLocalTimeVolumeMount())
+	}
+
 	return v1.Container{
 		Name:            "corosync",
 		Image:           containerImage,
@@ -127,6 +131,10 @@ func (c *Cluster) makeAuditdContainer(containerImage string) v1.Container {
 			MountPath: "/opt/nedge/var/run",
 			SubPath:   stateVolumeFolder,
 		},
+	}
+
+	if c.useHostLocalTime {
+		volumeMounts = append(volumeMounts, edgefsv1beta1.GetHostLocalTimeVolumeMount())
 	}
 
 	return v1.Container{
@@ -204,6 +212,11 @@ func (c *Cluster) makeDaemonContainer(containerImage string, dro edgefsv1beta1.D
 			SubPath:   stateVolumeFolderVar,
 		},
 	}
+
+	if c.useHostLocalTime {
+		volumeMounts = append(volumeMounts, edgefsv1beta1.GetHostLocalTimeVolumeMount())
+	}
+
 	if containerSlaveIndex > 0 {
 		volumeMounts = append(volumeMounts, []v1.VolumeMount{
 			{
@@ -384,6 +397,10 @@ func (c *Cluster) createPodSpec(rookImage string, dro edgefsv1beta1.DevicesResur
 				},
 			},
 		},
+	}
+
+	if c.useHostLocalTime {
+		volumes = append(volumes, edgefsv1beta1.GetHostLocalTimeVolume())
 	}
 
 	hostPathDirectoryOrCreate := v1.HostPathDirectoryOrCreate

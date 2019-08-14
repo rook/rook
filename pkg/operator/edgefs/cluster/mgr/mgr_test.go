@@ -47,7 +47,7 @@ func TestStartMGR(t *testing.T) {
 		Clientset: testop.New(3)}
 	volSize := resource.NewQuantity(100000.0, resource.BinarySI)
 	c := New(context, "ns", "myversion", "", "", *volSize, rookalpha.Annotations{}, rookalpha.Placement{}, edgefsv1beta1.NetworkSpec{},
-		edgefsv1beta1.DashboardSpec{}, v1.ResourceRequirements{}, "", metav1.OwnerReference{})
+		edgefsv1beta1.DashboardSpec{}, v1.ResourceRequirements{}, "", metav1.OwnerReference{}, false)
 
 	// start a basic service
 	err := c.Start("edgefs")
@@ -74,7 +74,7 @@ func TestPodSpec(t *testing.T) {
 			Requests: v1.ResourceList{
 				v1.ResourceMemory: *resource.NewQuantity(1337.0, resource.BinarySI),
 			},
-		}, "", metav1.OwnerReference{})
+		}, "", metav1.OwnerReference{}, false)
 
 	d := c.makeDeployment("mgr-a", "rook-edgefs", "edgefs", 1)
 	assert.NotNil(t, d)
@@ -110,7 +110,7 @@ func TestServiceSpec(t *testing.T) {
 	volSize := resource.NewQuantity(100000.0, resource.BinarySI)
 	c := New(&clusterd.Context{}, "ns", "myversion", "", "", *volSize, rookalpha.Annotations{}, rookalpha.Placement{},
 		edgefsv1beta1.NetworkSpec{}, edgefsv1beta1.DashboardSpec{}, v1.ResourceRequirements{},
-		"", metav1.OwnerReference{})
+		"", metav1.OwnerReference{}, false)
 
 	s := c.makeMgrService("rook-edgefs-mgr")
 	assert.NotNil(t, s)
@@ -122,7 +122,7 @@ func TestHostNetwork(t *testing.T) {
 	volSize := resource.NewQuantity(100000.0, resource.BinarySI)
 	c := New(&clusterd.Context{Clientset: testop.New(1)}, "ns", "myversion", "", "", *volSize, rookalpha.Annotations{}, rookalpha.Placement{},
 		edgefsv1beta1.NetworkSpec{ServerIfName: "eth0"}, edgefsv1beta1.DashboardSpec{}, v1.ResourceRequirements{},
-		"", metav1.OwnerReference{})
+		"", metav1.OwnerReference{}, false)
 
 	d := c.makeDeployment("mgr-a", "a", "edgefs", 1)
 	assert.NotNil(t, d)

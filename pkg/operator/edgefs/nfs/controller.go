@@ -53,17 +53,18 @@ var NFSResource = opkit.CustomResource{
 
 // NFSController represents a controller object for nfs custom resources
 type NFSController struct {
-	context         *clusterd.Context
-	namespace       string
-	rookImage       string
-	hostNetwork     bool
-	dataDirHostPath string
-	dataVolumeSize  resource.Quantity
-	annotations     rookalpha.Annotations
-	placement       rookalpha.Placement
-	resources       v1.ResourceRequirements
-	resourceProfile string
-	ownerRef        metav1.OwnerReference
+	context          *clusterd.Context
+	namespace        string
+	rookImage        string
+	hostNetwork      bool
+	dataDirHostPath  string
+	dataVolumeSize   resource.Quantity
+	annotations      rookalpha.Annotations
+	placement        rookalpha.Placement
+	resources        v1.ResourceRequirements
+	resourceProfile  string
+	ownerRef         metav1.OwnerReference
+	useHostLocalTime bool
 }
 
 // NewNFSController create controller for watching nfs custom resources created
@@ -78,18 +79,20 @@ func NewNFSController(
 	resources v1.ResourceRequirements,
 	resourceProfile string,
 	ownerRef metav1.OwnerReference,
+	useHostLocalTime bool,
 ) *NFSController {
 	return &NFSController{
-		context:         context,
-		namespace:       namespace,
-		rookImage:       rookImage,
-		hostNetwork:     hostNetwork,
-		dataDirHostPath: dataDirHostPath,
-		dataVolumeSize:  dataVolumeSize,
-		placement:       placement,
-		resources:       resources,
-		resourceProfile: resourceProfile,
-		ownerRef:        ownerRef,
+		context:          context,
+		namespace:        namespace,
+		rookImage:        rookImage,
+		hostNetwork:      hostNetwork,
+		dataDirHostPath:  dataDirHostPath,
+		dataVolumeSize:   dataVolumeSize,
+		placement:        placement,
+		resources:        resources,
+		resourceProfile:  resourceProfile,
+		ownerRef:         ownerRef,
+		useHostLocalTime: useHostLocalTime,
 	}
 }
 

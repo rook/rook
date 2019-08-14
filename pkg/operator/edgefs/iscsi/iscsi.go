@@ -131,6 +131,10 @@ func (c *ISCSIController) makeDeployment(svcname, namespace, rookImage string, i
 	name := instanceName(svcname)
 	volumes := []v1.Volume{}
 
+	if c.useHostLocalTime {
+		volumes = append(volumes, edgefsv1beta1.GetHostLocalTimeVolume())
+	}
+
 	if c.dataVolumeSize.Value() > 0 {
 		// dataVolume case
 		volumes = append(volumes, v1.Volume{
@@ -218,6 +222,10 @@ func (c *ISCSIController) iscsiContainer(svcname, name, containerImage string, i
 			MountPath: "/opt/nedge/var/run",
 			SubPath:   stateVolumeFolder,
 		},
+	}
+
+	if c.useHostLocalTime {
+		volumeMounts = append(volumeMounts, edgefsv1beta1.GetHostLocalTimeVolumeMount())
 	}
 
 	cont := v1.Container{

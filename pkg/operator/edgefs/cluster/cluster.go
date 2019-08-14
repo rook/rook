@@ -186,7 +186,7 @@ func (c *cluster) createInstance(rookImage string, isClusterUpdate bool) error {
 	if !(isClusterUpdate && dro.NeedToResurrect) {
 		c.targets = target.New(c.context, c.Namespace, "latest", c.Spec.ServiceAccount, c.Spec.Storage, c.Spec.DataDirHostPath, c.Spec.DataVolumeSize,
 			edgefsv1beta1.GetTargetAnnotations(c.Spec.Annotations), edgefsv1beta1.GetTargetPlacement(c.Spec.Placement), c.Spec.Network,
-			c.Spec.Resources, c.Spec.ResourceProfile, c.Spec.ChunkCacheSize, c.ownerRef, clusterReconfiguration.DeploymentConfig)
+			c.Spec.Resources, c.Spec.ResourceProfile, c.Spec.ChunkCacheSize, c.ownerRef, clusterReconfiguration.DeploymentConfig, c.Spec.UseHostLocalTime)
 
 		err = c.targets.Start(rookImage, clusterNodes, dro)
 		if err != nil {
@@ -199,7 +199,7 @@ func (c *cluster) createInstance(rookImage string, isClusterUpdate bool) error {
 	//
 	c.mgrs = mgr.New(c.context, c.Namespace, "latest", c.Spec.ServiceAccount, c.Spec.DataDirHostPath, c.Spec.DataVolumeSize,
 		edgefsv1beta1.GetMgrAnnotations(c.Spec.Annotations), edgefsv1beta1.GetMgrPlacement(c.Spec.Placement), c.Spec.Network, c.Spec.Dashboard,
-		v1.ResourceRequirements{}, c.Spec.ResourceProfile, c.ownerRef)
+		v1.ResourceRequirements{}, c.Spec.ResourceProfile, c.ownerRef, c.Spec.UseHostLocalTime)
 
 	err = c.mgrs.Start(rookImage)
 	if err != nil {
