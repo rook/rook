@@ -30,6 +30,7 @@ Once the Prometheus operator is in the `Running` state, proceed to the next sect
 With the Prometheus operator running, we can create a service monitor that will watch the Rook cluster and collect metrics regularly.
 From the root of your locally cloned Rook repo, go the monitoring directory:
 ```bash
+git clone https://github.com/rook/rook
 cd cluster/examples/kubernetes/ceph/monitoring
 ```
 
@@ -91,6 +92,7 @@ _Note: This expects prometheus to be pre-installed by the admin._
 
 To enable prometheus alerts after cluster is deployed, run the following commands:  
 ```BASH
+git clone https://github.com/rook/rook
 cd cluster/examples/kubernetes/ceph/monitoring
 kubectl create -f prometheus-ceph-v<VERSION>-rules.yaml
 ```
