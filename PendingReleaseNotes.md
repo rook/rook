@@ -12,6 +12,7 @@ an example usage
 - The integration tests can be triggered for specific storage providers rather than always running all tests. See the [dev guide](INSTALL.md#test-storage-provider) for more details.
 - Provisioning will fail if the user specifies a `metadataDevice` but that device is not used as a metadata device by Ceph.
 - Allow `metadataDevice` to be set per OSD device in the device specific `config` section.
+- [YugabyteDB](https://www.yugabyte.com/) is now supported by Rook with a new operator. You can deploy, configure and manage instances of this high-performance distributed SQL database. Create an instance of the new `ybcluster.yugabytedb.rook.io` custom resource to easily deploy a cluster of YugabyteDB Database. Checkout its [user guide](Documentation/yugabytedb.md) to get started with YugabyteDB.
 
 ### Ceph
 
@@ -44,6 +45,12 @@ an example usage
   [monitor settings for more detail](Documentation/ceph-cluster-crd.md#mon-settings).
 - Ceph OSDs can be created by using StorageClassDeviceSet. See docs on [Storage Class Device Sets](Documentation/ceph-cluster-crd.md#storage-class-device-sets).
 - Rook can now connect to an external cluster, for more info about external cluster [read the design](https://github.com/rook/rook/blob/master/design/ceph-external-cluster.md) as well as the documentation [Ceph External cluster](Documentation/ceph-cluster-crd.md#external-cluster)
+
+### YugabyteDB
+
+- Rook now supports YugabyteDB as storage provider. YugaByteDB is a high-performance, cloud-native distributed SQL database which can tolerate disk, node, zone and region failures automatically. You can find more information about YugabyteDB [here](https://docs.yugabyte.com/latest/introduction/)
+- Newly added Rook operator for YugabyteDB lets you easily create a YugabyteDB cluster.
+- Please follow Rook YugabyteDB operator [quickstart guide](Documentation/yugabytedb.md) to create a simple YugabyteDB cluster.
 
 ## Breaking Changes
 

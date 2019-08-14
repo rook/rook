@@ -75,6 +75,7 @@ Cassandra      | [Cassandra](http://cassandra.apache.org/) is a highly available
 EdgeFS         | [EdgeFS](http://edgefs.io) is high-performance and fault-tolerant object storage system with Geo-Transparent data access to file, block or object.                                                                                                                                                                     | edgefs.rook.io/v1beta1       | Beta
 Minio          | [Minio](https://www.minio.io/) is a high performance distributed object storage server, designed for large-scale private cloud infrastructure.                                                                                                                                                                         | minio.rook.io/v1alpha1       | Alpha
 NFS            | [Network File System (NFS)](https://github.com/nfs-ganesha/nfs-ganesha/wiki) allows remote hosts to mount file systems over a network and interact with those file systems as though they are mounted locally.                                                                                                         | nfs.rook.io/v1alpha1         | Alpha
+YugabyteDB     | [YugabyteDB](https://docs.yugabyte.com/latest/introduction/) is a high-performance, cloud-native distributed SQL database which can tolerate disk, node, zone and region failures automatically.                                                                                                                         | yugabytedb.rook.io/v1alpha1  | Alpha
 
 ### Official Releases
 
