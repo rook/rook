@@ -86,7 +86,8 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: rook-cephfs
-provisioner: cephfs.csi.ceph.com
+# Change "rook-ceph" provisioner prefix to match the operator namespace if needed
+provisioner: rook-ceph.cephfs.csi.ceph.com
 parameters:
   # clusterID is the namespace where operator is deployed.
   clusterID: rook-ceph
@@ -111,6 +112,11 @@ parameters:
 
 reclaimPolicy: Delete
 ```
+
+If you've deployed the Rook operator in a namespace other than "rook-ceph"
+as is common change the prefix in the provisioner to match the namespace
+you used. For example, if the Rook operator is running in "rook-op" the
+provisioner value should be "rook-op.rbd.csi.ceph.com".
 
 Create the storage class.
 ```bash
