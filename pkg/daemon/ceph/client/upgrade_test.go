@@ -141,9 +141,9 @@ func TestOkToStop(t *testing.T) {
 }
 
 func TestFindFSName(t *testing.T) {
-	fsName := findFSName("rook-ceph-mds-myfs-a", "rook-ceph", "a")
+	fsName := findFSName("rook-ceph-mds-myfs-a")
 	assert.Equal(t, "myfs-a", fsName)
-	fsName = findFSName("rook-ceph-mds-my-super-fs-a", "rook-ceph", "a")
+	fsName = findFSName("rook-ceph-mds-my-super-fs-a")
 	assert.Equal(t, "my-super-fs-a", fsName)
 }
 

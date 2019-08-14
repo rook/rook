@@ -34,7 +34,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/sys"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -344,6 +344,7 @@ func updateDeviceCM(context *clusterd.Context) error {
 func probeDevices(context *clusterd.Context) ([]sys.LocalDisk, error) {
 	devices := make([]sys.LocalDisk, 0)
 	localDevices, err := clusterd.DiscoverDevices(context.Executor)
+	logger.Infof("localdevices - %+v", localDevices)
 	if err != nil {
 		return devices, fmt.Errorf("failed initial hardware discovery. %+v", err)
 	}

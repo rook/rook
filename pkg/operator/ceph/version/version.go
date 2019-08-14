@@ -34,8 +34,8 @@ const (
 )
 
 var (
-	// Luminous Ceph version
-	Luminous = CephVersion{12, 0, 0}
+	// Minimum supported version is 13.2.4 where ceph-volume is supported
+	Minimum = CephVersion{13, 2, 4}
 	// Mimic Ceph version
 	Mimic = CephVersion{13, 0, 0}
 	// Nautilus Ceph version
@@ -44,7 +44,7 @@ var (
 	Octopus = CephVersion{15, 0, 0}
 
 	// supportedVersions are production-ready versions that rook supports
-	supportedVersions   = []CephVersion{Luminous, Mimic, Nautilus}
+	supportedVersions   = []CephVersion{Mimic, Nautilus}
 	unsupportedVersions = []CephVersion{Octopus}
 	// allVersions includes all supportedVersions as well as unreleased versions that are being tested with rook
 	allVersions = append(supportedVersions, unsupportedVersions...)
@@ -73,8 +73,6 @@ func (v *CephVersion) ReleaseName() string {
 		return "nautilus"
 	case Mimic.Major:
 		return "mimic"
-	case Luminous.Major:
-		return "luminous"
 	default:
 		return unknownVersionString
 	}
@@ -117,11 +115,6 @@ func (v *CephVersion) Supported() bool {
 
 func (v *CephVersion) isRelease(other CephVersion) bool {
 	return v.Major == other.Major
-}
-
-// IsLuminous checks if the Ceph version is Luminous
-func (v *CephVersion) IsLuminous() bool {
-	return v.isRelease(Luminous)
 }
 
 // IsMimic checks if the Ceph version is Mimic

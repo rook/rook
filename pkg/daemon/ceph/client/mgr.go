@@ -38,23 +38,14 @@ func MgrDisableModule(context *clusterd.Context, clusterName, name string) error
 func MgrSetConfig(context *clusterd.Context, clusterName, mgrName string, cephVersion cephver.CephVersion, key, val string, force bool) (bool, error) {
 	var getArgs, setArgs []string
 	mgrID := fmt.Sprintf("mgr.%s", mgrName)
-	if cephVersion.IsLuminous() {
-		getArgs = append(getArgs, "config-key", "get", key)
-		if val == "" {
-			setArgs = append(setArgs, "config-key", "del", key)
-		} else {
-			setArgs = append(setArgs, "config-key", "set", key, val)
-		}
+	getArgs = append(getArgs, "config", "get", mgrID, key)
+	if val == "" {
+		setArgs = append(setArgs, "config", "rm", mgrID, key)
 	} else {
-		getArgs = append(getArgs, "config", "get", mgrID, key)
-		if val == "" {
-			setArgs = append(setArgs, "config", "rm", mgrID, key)
-		} else {
-			setArgs = append(setArgs, "config", "set", mgrID, key, val)
-		}
-		if force && cephVersion.IsAtLeastNautilus() {
-			setArgs = append(setArgs, "--force")
-		}
+		setArgs = append(setArgs, "config", "set", mgrID, key, val)
+	}
+	if force && cephVersion.IsAtLeastNautilus() {
+		setArgs = append(setArgs, "--force")
 	}
 
 	// Retrieve previous value to monitor changes

@@ -76,6 +76,10 @@ func (mrc *MultiClusterDeploySuite) SetupSuite() {
 	mrc.createPools()
 }
 
+func (mrc *MultiClusterDeploySuite) AfterTest(suiteName, testName string) {
+	mrc.op.installer.CollectOperatorLog(suiteName, testName, mrc.op.systemNamespace)
+}
+
 func (mrc *MultiClusterDeploySuite) createPools() {
 	// create a test pool in each cluster so that we get some PGs
 	poolName := "multi-cluster-pool1"
@@ -137,7 +141,7 @@ func NewMCTestOperations(t func() *testing.T, namespace1 string, namespace2 stri
 
 	kh, err := utils.CreateK8sHelper(t)
 	require.NoError(t(), err)
-	i := installer.NewCephInstaller(t, kh.Clientset, false, installer.VersionMaster, installer.LuminousVersion)
+	i := installer.NewCephInstaller(t, kh.Clientset, false, installer.VersionMaster, installer.NautilusVersion)
 
 	op := &MCTestOperations{i, kh, t, namespace1, namespace2, installer.SystemNamespace(namespace1)}
 	op.Setup()
@@ -182,22 +186,19 @@ func (o MCTestOperations) Teardown() {
 		}
 	}()
 
-	o.installer.GatherAllRookLogs(o.namespace1, o.systemNamespace, o.T().Name())
-	o.installer.GatherAllRookLogs(o.namespace2, o.systemNamespace, o.T().Name())
-
-	o.installer.UninstallRookFromMultipleNS(installer.SystemNamespace(o.namespace1), o.namespace1, o.namespace2)
+	o.installer.UninstallRookFromMultipleNS(true, installer.SystemNamespace(o.namespace1), o.namespace1, o.namespace2)
 }
 
 func (o MCTestOperations) startCluster(namespace, store string, errCh chan error) {
 	logger.Infof("starting cluster %s", namespace)
 	if err := o.installer.CreateK8sRookCluster(namespace, o.systemNamespace, store); err != nil {
-		o.installer.GatherAllRookLogs(namespace, o.systemNamespace, o.T().Name())
+		o.installer.GatherAllRookLogs(o.T().Name(), namespace, o.systemNamespace)
 		errCh <- fmt.Errorf("failed to create cluster %s. %+v", namespace, err)
 		return
 	}
 
 	if err := o.installer.CreateK8sRookToolbox(namespace); err != nil {
-		o.installer.GatherAllRookLogs(namespace, o.systemNamespace, o.T().Name())
+		o.installer.GatherAllRookLogs(o.T().Name(), namespace, o.systemNamespace)
 		errCh <- fmt.Errorf("failed to create toolbox for %s. %+v", namespace, err)
 		return
 	}

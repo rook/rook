@@ -16,7 +16,7 @@ limitations under the License.
 package v1alpha2
 
 import (
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -34,6 +34,8 @@ type StorageScopeSpec struct {
 	Location      string            `json:"location,omitempty"`
 	Config        map[string]string `json:"config"`
 	Selection
+	VolumeSources          []VolumeSource          `json:"volumeSources,omitempty"`
+	StorageClassDeviceSets []StorageClassDeviceSet `json:"storageClassDeviceSets"`
 }
 
 type Node struct {
@@ -127,3 +129,20 @@ type KeyType string
 type AnnotationsSpec map[KeyType]Annotations
 
 type Annotations map[string]string
+
+type StorageClassDeviceSet struct {
+	Name                 string                     `json:"name,omitempty"`                 // A unique identifier for the set
+	Count                int                        `json:"count,omitemity"`                // Number of devices in this set
+	Resources            v1.ResourceRequirements    `json:"resources,omitempty"`            // Requests/limits for the devices
+	Placement            Placement                  `json:"placement,omitempty"`            // Placement constraints for the devices
+	Config               map[string]string          `json:"config,omitempty"`               // Provider-specific device configuration
+	VolumeClaimTemplates []v1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"` // List of PVC templates for the underlying storage devices
+}
+
+type VolumeSource struct {
+	Name                        string                               `json:"name,omitempty"`
+	PersistentVolumeClaimSource v1.PersistentVolumeClaimVolumeSource `json:"persistentVolumeClaimSource,omitempty"`
+	Resources                   v1.ResourceRequirements              `json:"resources,omitempty"`
+	Placement                   Placement                            `json:"placement,omitempty"`
+	Config                      map[string]string                    `json:"config,omitempty"`
+}

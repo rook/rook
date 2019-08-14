@@ -35,6 +35,7 @@ const (
 	// in all Ceph pods.
 	ConfigInitContainerName = "config-init"
 	logVolumeName           = "rook-ceph-log"
+	volumeMountSubPath      = "data"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "ceph-spec")
@@ -71,37 +72,116 @@ func RookVolumeMounts() []v1.VolumeMount {
 	)
 }
 
-// DaemonVolumes returns the pod volumes used by all Ceph daemons.
-func DaemonVolumes(dataPaths *config.DataPathMap, keyringResourceName string) []v1.Volume {
+// DaemonVolumesBase returns the common / static set of volumes.
+func DaemonVolumesBase(dataPaths *config.DataPathMap, keyringResourceName string) []v1.Volume {
 	vols := []v1.Volume{
 		config.StoredFileVolume(),
-		keyring.Volume().Resource(keyringResourceName),
-		StoredLogVolume(dataPaths.HostLogDir),
 	}
-	if dataPaths.NoData {
+	if keyringResourceName != "" {
+		vols = append(vols, keyring.Volume().Resource(keyringResourceName))
+	}
+	if dataPaths.HostLogDir != "" {
+		// logs are not persisted to host
+		vols = append(vols, StoredLogVolume(dataPaths.HostLogDir))
+	}
+	return vols
+}
+
+// DaemonVolumesDataPVC returns a PVC volume source for daemon container data.
+func DaemonVolumesDataPVC(pvcName string) v1.Volume {
+	return v1.Volume{
+		Name: "ceph-daemon-data",
+		VolumeSource: v1.VolumeSource{
+			PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{
+				ClaimName: pvcName,
+			},
+		},
+	}
+}
+
+// DaemonVolumesDataHostPath returns HostPath volume source for daemon container
+// data.
+func DaemonVolumesDataHostPath(dataPaths *config.DataPathMap) []v1.Volume {
+	vols := []v1.Volume{}
+	if dataPaths.ContainerDataDir == "" {
+		// no data is stored in container, and therefore no data can be persisted to host
 		return vols
 	}
+	// when data is not persisted to host, the data may still be shared between init/run containers
 	src := v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}
-	if dataPaths.PersistData {
+	if dataPaths.HostDataDir != "" {
+		// data is persisted to host
 		src = v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: dataPaths.HostDataDir}}
 	}
 	return append(vols, v1.Volume{Name: "ceph-daemon-data", VolumeSource: src})
 }
 
+// DaemonVolumesContainsPVC returns true if a volume exists with a volume source
+// configured with a persistent volume claim.
+func DaemonVolumesContainsPVC(volumes []v1.Volume) bool {
+	for _, volume := range volumes {
+		if volume.VolumeSource.PersistentVolumeClaim != nil {
+			return true
+		}
+	}
+	return false
+}
+
+// DaemonVolumes returns the pod volumes used by all Ceph daemons. If keyring resource name is
+// empty, there will be no keyring volume created from a secret.
+func DaemonVolumes(dataPaths *config.DataPathMap, keyringResourceName string) []v1.Volume {
+	vols := DaemonVolumesBase(dataPaths, keyringResourceName)
+	vols = append(vols, DaemonVolumesDataHostPath(dataPaths)...)
+	return vols
+}
+
 // DaemonVolumeMounts returns volume mounts which correspond to the DaemonVolumes. These
-// volume mounts are shared by most all Ceph daemon containers, both init and standard.
+// volume mounts are shared by most all Ceph daemon containers, both init and standard. If keyring
+// resource name is empty, there will be no keyring mounted in the container.
 func DaemonVolumeMounts(dataPaths *config.DataPathMap, keyringResourceName string) []v1.VolumeMount {
 	mounts := []v1.VolumeMount{
 		config.StoredFileVolumeMount(),
-		keyring.VolumeMount().Resource(keyringResourceName),
-		StoredLogVolumeMount(),
 	}
-	if dataPaths.NoData {
+	if keyringResourceName != "" {
+		mounts = append(mounts, keyring.VolumeMount().Resource(keyringResourceName))
+	}
+	if dataPaths.HostLogDir != "" {
+		// logs are not persisted to host, so no mount is needed
+		mounts = append(mounts, StoredLogVolumeMount())
+	}
+	if dataPaths.ContainerDataDir == "" {
+		// no data is stored in container, so there are no more mounts
 		return mounts
 	}
 	return append(mounts,
 		v1.VolumeMount{Name: "ceph-daemon-data", MountPath: dataPaths.ContainerDataDir},
 	)
+}
+
+// see AddVolumeMountSubPath
+func addVolumeMountSubPathContainer(c *v1.Container, volumeMountName string) {
+	for i := range c.VolumeMounts {
+		v := &c.VolumeMounts[i]
+		if v.Name == volumeMountName {
+			v.SubPath = volumeMountSubPath
+		}
+	}
+}
+
+// AddVolumeMountSubPath updates each init and regular container of the podspec
+// such that each volume mount attached to a container is mounted under a
+// subpath in the source volume. This is important because some daemons may not
+// start if the volume mount directory is non-empty. When the volume is the root
+// of an ext4 file system, one may find a "lost+found" directory.
+func AddVolumeMountSubPath(podSpec *v1.PodSpec, volumeMountName string) {
+	for i := range podSpec.InitContainers {
+		c := &podSpec.InitContainers[i]
+		addVolumeMountSubPathContainer(c, volumeMountName)
+	}
+	for i := range podSpec.Containers {
+		c := &podSpec.Containers[i]
+		addVolumeMountSubPathContainer(c, volumeMountName)
+	}
 }
 
 // DaemonFlags returns the command line flags used by all Ceph daemons.
@@ -176,19 +256,21 @@ func CheckPodMemory(resources v1.ResourceRequirements, cephPodMinimumMemory uint
 		return nil
 	}
 
-	// This means LIMIT and REQUEST are either identical or different but still we use LIMIT as a reference
-	if uint64(podMemoryLimit.Value()) < display.MbTob(cephPodMinimumMemory) {
-		return fmt.Errorf(errorMessage, display.BToMb(uint64(podMemoryLimit.Value())), cephPodMinimumMemory)
-	}
+	if !podMemoryLimit.IsZero() {
+		// This means LIMIT and REQUEST are either identical or different but still we use LIMIT as a reference
+		if uint64(podMemoryLimit.Value()) < display.MbTob(cephPodMinimumMemory) {
+			return fmt.Errorf(errorMessage, display.BToMb(uint64(podMemoryLimit.Value())), cephPodMinimumMemory)
+		}
 
-	// This means LIMIT < REQUEST
-	// Kubernetes will refuse to schedule that pod however it's still valuable to indicate that user's input was incorrect
-	if uint64(podMemoryLimit.Value()) < uint64(podMemoryRequest.Value()) {
-		extraErrorLine := `\n
-		User has specified a pod memory limit %dmb below the pod memory request %dmb in the cluster CR.\n
-		Rook will create pods that are expected to fail to serve as a more apparent error indicator to the user.`
+		// This means LIMIT < REQUEST
+		// Kubernetes will refuse to schedule that pod however it's still valuable to indicate that user's input was incorrect
+		if uint64(podMemoryLimit.Value()) < uint64(podMemoryRequest.Value()) {
+			extraErrorLine := `\n
+			User has specified a pod memory limit %dmb below the pod memory request %dmb in the cluster CR.\n
+			Rook will create pods that are expected to fail to serve as a more apparent error indicator to the user.`
 
-		return fmt.Errorf(extraErrorLine, display.BToMb(uint64(podMemoryLimit.Value())), display.BToMb(uint64(podMemoryRequest.Value())))
+			return fmt.Errorf(extraErrorLine, display.BToMb(uint64(podMemoryLimit.Value())), display.BToMb(uint64(podMemoryRequest.Value())))
+		}
 	}
 
 	return nil

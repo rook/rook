@@ -274,8 +274,9 @@ Verify the Ceph cluster's health using the [health verification section](#health
 
 
 # Ceph Version Upgrades
-Rook 1.0 is the last Rook release which will support Ceph's Luminous (v12.x.x) version. Users are
-advised to upgrade to Mimic (v13.x.x) or Nautilus (v14.x.x) now.
+Rook 1.0 was the last Rook release which will support Ceph's Luminous (v12.x.x) version. Users are
+required to upgrade to Mimic (v13.2.4 or newer) or Nautilus (v14.2.x) now. Rook 1.1 will only run with
+Mimic or newer, though running with Octopus requires the `allowUnsupported: true` flag.
 
 **IMPORTANT: This section only applies to clusters running Rook 1.0 or newer**
 
@@ -300,7 +301,7 @@ These images are tagged in a few ways:
 The majority of the upgrade will be handled by the Rook operator. Begin the upgrade by changing the
 Ceph image field in the cluster CRD (`spec:cephVersion:image`).
 ```sh
-NEW_CEPH_IMAGE='ceph/ceph:v14.2.1-20190430'
+NEW_CEPH_IMAGE='ceph/ceph:v14.2.2-20190722'
 CLUSTER_NAME="$ROOK_NAMESPACE"  # change if your cluster name is not the Rook namespace
 kubectl -n $ROOK_NAMESPACE patch CephCluster $CLUSTER_NAME --type=merge \
   -p "{\"spec\": {\"cephVersion\": {\"image\": \"$NEW_CEPH_IMAGE\"}}}"
@@ -313,9 +314,9 @@ version has fully updated is rather simple.
 watch kubectl -n $ROOK_NAMESPACE describe pods | grep "Image:.*ceph/ceph" | sort | uniq
 # This cluster is not yet finished:
 #      Image:         ceph/ceph:v13.2.2-20181023
-#      Image:         ceph/ceph:v14.2.1-20190430
+#      Image:         ceph/ceph:v14.2.2-20190722
 # This cluster is also finished:
-#      Image:         ceph/ceph:v14.2.1-20190430
+#      Image:         ceph/ceph:v14.2.2-20190722
 ```
 
 ### 3. Enable Nautilus features

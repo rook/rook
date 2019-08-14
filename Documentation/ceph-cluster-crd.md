@@ -6,10 +6,18 @@ indent: true
 
 # Ceph Cluster CRD
 Rook allows creation and customization of storage clusters through the custom resource definitions (CRDs).
+There are two different modes to create your cluster, depending on whether storage can be dynamically provisioned on which to base the Ceph cluster.
 
-## Sample
+1. Specify host paths and raw devices
+2. Specify the storage class Rook should use to consume storage via PVCs
 
-To get you started, here is a simple example of a CRD to configure a Ceph cluster with all nodes and all devices. More examples are included [later in this doc](#samples).
+Following is an example for each of these approaches.
+
+
+## Host-based Cluster
+
+To get you started, here is a simple example of a CRD to configure a Ceph cluster with all nodes and all devices. Next example is where Mons and OSDs are backed by PVCs.
+More examples are included [later in this doc](#samples).
 
 **NOTE** In addition to your CephCluster object, you need to create the namespace, service accounts, and RBAC rules for the namespace you are going to create the CephCluster in.
 These resources are defined in the example `common.yaml`.
@@ -23,7 +31,7 @@ metadata:
 spec:
   cephVersion:
     # see the "Cluster Settings" section below for more details on which image of ceph to run
-    image: ceph/ceph:v14.2.1-20190430
+    image: ceph/ceph:v14.2.2-20190722
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -31,6 +39,42 @@ spec:
   storage:
     useAllNodes: true
     useAllDevices: true
+```
+
+## PVC-based Cluster
+
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephCluster
+metadata:
+  name: rook-ceph
+  namespace: rook-ceph
+spec:
+  dataDirHostPath: /var/lib/rook
+  mon:
+    count: 3
+    volumeClaimTemplate:
+      spec:
+        storageClassName: local-storage
+        resources:
+          requests:
+            storage: 10Gi
+  storage:
+   storageClassDeviceSets:
+    - name: set1
+      count: 3
+      volumeClaimTemplates:
+      - metadata:
+          name: data
+        spec:
+          resources:
+            requests:
+              storage: 10Gi
+          # IMPORTANT: Change the storage class depending on your environment (e.g. local-storage, gp2)
+          storageClassName: local-storage
+          volumeMode: Block
+          accessModes:
+            - ReadWriteOnce
 ```
 
 ## Settings
@@ -44,12 +88,12 @@ Settings can be specified at the global level to apply to the cluster as a whole
 ### Cluster Settings
 
 - `cephVersion`: The version information for launching the ceph daemons.
-  - `image`: The image used for running the ceph daemons. For example, `ceph/ceph:v12.2.9-20181026` or `ceph/ceph:v13.2.2-20181023`.
+  - `image`: The image used for running the ceph daemons. For example, `ceph/ceph:v13.2.6-20190604` or `ceph/ceph:v14.2.2-20190722`.
   For the latest ceph images, see the [Ceph DockerHub](https://hub.docker.com/r/ceph/ceph/tags/).
   To ensure a consistent version of the image is running across all nodes in the cluster, it is recommended to use a very specific image version.
-  Tags also exist that would give the latest version, but they are only recommended for test environments. For example, the tag `v13` will be updated each time a new mimic build is released.
-  Using the `v13` or similar tag is not recommended in production because it may lead to inconsistent versions of the image running across different nodes in the cluster.
-  - `allowUnsupported`: If `true`, allow an unsupported major version of the Ceph release. Currently only `luminous` and `mimic` are supported, so `nautilus` would require this to be set to `true`. Should be set to `false` in production.
+  Tags also exist that would give the latest version, but they are only recommended for test environments. For example, the tag `v14` will be updated each time a new nautilus build is released.
+  Using the `v14` or similar tag is not recommended in production because it may lead to inconsistent versions of the image running across different nodes in the cluster.
+  - `allowUnsupported`: If `true`, allow an unsupported major version of the Ceph release. Currently `mimic` and `nautilus` are supported, so `octopus` would require this to be set to `true`. Should be set to `false` in production.
 - `dataDirHostPath`: The path on the host ([hostPath](https://kubernetes.io/docs/concepts/storage/volumes/#hostpath)) where config and data should be stored for each of the services. If the directory does not exist, it will be created. Because this directory persists on the host, it will remain after pods are deleted.
   - On **Minikube** environments, use `/data/rook`. Minikube boots into a tmpfs but it provides some [directories](https://github.com/kubernetes/minikube/blob/master/docs/persistent_volumes.md) where files can be persisted across reboots. Using one of these directories will ensure that Rook's data and configuration files are persisted and that enough storage space is available.
   - **WARNING**: For test scenarios, if you delete a cluster and start a new cluster on the same hosts, the path used by `dataDirHostPath` must be deleted. Otherwise, stale keys and other config will remain from the previous cluster and the new mons will fail to start.
@@ -79,6 +123,7 @@ For more details on the mons and when to choose a number other than `3`, see the
   See [node settings](#node-settings) below.
   - `config`: Config settings applied to all OSDs on the node unless overridden by `devices` or `directories`. See the [config settings](#osd-configuration-settings) below.
   - [storage selection settings](#storage-selection-settings)
+  - [Storage Class Device Sets](#storage-class-device-sets)
 
 ### Mon Settings
 
@@ -88,13 +133,21 @@ starts with three nodes, but might grow to more than five nodes, you might want 
 When the operator sees the new nodes come online, the number of mons will increase to the preferred count. If the number of nodes decreases below the `preferredCount`, the operator will
 reduce the number of mons back to `count`. If `allowMultiplePerNode: true` (for testing scenarios), the number of mons will always use `preferredCount` if set.
 - `allowMultiplePerNode`: Enable (`true`) or disable (`false`) the placement of multiple mons on one node. Default is `false`.
+- `volumeClaimTemplate`: A `PersistentVolumeSpec` used by Rook to create PVCs
+  for monitor storage. This field is optional, and when not provided, HostPath
+  volume mounts are used.  The current set of fields from template that are used
+  are `storageClassName` and the `storage` resource request and limit. The
+  default storage size request for new PVCs is `10Gi`. Ensure that associated
+  storage class is configured to use `volumeBindingMode: WaitForFirstConsumer`.
+  This setting only applies to new monitors that are created when the requested
+  number of monitors increases, or when a monitor fails and is recreated. An
+  [example CRD configuration is provided below](#using-pvc-storage-for-monitors).
 
 If these settings are changed in the CRD the operator will update the number of mons during a periodic check of the mon health, which by default is every 45 seconds.
 
-To change the defaults that the operator uses to determine the mon health and whether to failover a mon, the following environment variables can be changed in [operator.yaml](https://github.com/rook/rook/blob/master/cluster/examples/kubernetes/ceph/operator.yaml). The intervals should be small enough that you have confidence the mons will maintain quorum, while also being
-log enough to ignore network blips where mons are failed over too often.
+To change the defaults that the operator uses to determine the mon health and whether to failover a mon, the following environment variables can be changed in [operator.yaml](https://github.com/rook/rook/blob/master/cluster/examples/kubernetes/ceph/operator.yaml). The intervals should be small enough that you have confidence the mons will maintain quorum, while also being long enough to ignore network blips where mons are failed over too often.
 - `ROOK_MON_HEALTHCHECK_INTERVAL`: The frequency with which to check if mons are in quorum (default is 45 seconds)
-- `ROOK_MON_OUT_TIMEOUT`: The interval to wait before marking a mon as "out" and starting a new mon to replace it in the quroum (default is 600 seconds)
+- `ROOK_MON_OUT_TIMEOUT`: The interval to wait before marking a mon as "out" and starting a new mon to replace it in the quorum (default is 600 seconds)
 
 ### Node Settings
 In addition to the cluster level settings specified above, each individual node can also specify configuration to override the cluster level settings and defaults.
@@ -107,7 +160,7 @@ If a node does not specify any configuration then it will inherit the cluster le
 When `useAllNodes` is set to `true`, Rook attempts to make Ceph cluster management as hands-off as
 possible while still maintaining reasonable data safety. If a usable node comes online, Rook will
 begin to use it automatically. To maintain a balance between hands-off usability and data safety,
-Nodes are removed From Ceph as OSD hosts only (1) if the node is deleted from Kubernetes itself or
+Nodes are removed from Ceph as OSD hosts only (1) if the node is deleted from Kubernetes itself or
 (2) if the node has its taints or affinities modified in such a way that the node is no longer
 usable by Rook. Any changes to taints or affinities, intentional or unintentional, may affect the
 data reliability of the Ceph cluster. In order to help protect against this somewhat, deletion of
@@ -137,18 +190,31 @@ Below are the settings available, both at the cluster and individual node level,
   - `^s`: Selects all devices that start with `s`
   - `^[^r]`: Selects all devices that do *not* start with `r`
 - `devices`: A list of individual device names belonging to this node to include in the storage cluster.
-  - `name`: The name of the device (e.g., `sda`).
-  - `config`: Device-specific config settings. See the [config settings](#osd-configuration-settings) below.
+  - `name`: The name of the device (e.g., `sda`)
+  - `config`: Device-specific config settings. See the [config settings](#osd-configuration-settings) below
 - `directories`:  A list of directory paths that will be included in the storage cluster. Note that using two directories on the same physical device can cause a negative performance impact.
-  - `path`: The path on disk of the directory (e.g., `/rook/storage-dir`).
-  - `config`: Directory-specific config settings. See the [config settings](#osd-configuration-settings) below.
-- `location`: Location information about the cluster to help with data placement, such as region or data center.  This is directly fed into the underlying Ceph CRUSH map. The type of this field is `string`. For example, to add datacenter location information, set this field to `rack=rack1`.  More information on CRUSH maps can be found in the [ceph docs](http://docs.ceph.com/docs/master/rados/operations/crush-map/).
+  - `path`: The path on disk of the directory (e.g., `/rook/storage-dir`)
+  - `config`: Directory-specific config settings. See the [config settings](#osd-configuration-settings) below
+- `location`: Location information about the cluster to help with data placement, such as region or data center.  This is directly fed into the underlying Ceph CRUSH map. The type of this field is `string`. For example, to add data center location information, set this field to `rack=rack1`.  More information on CRUSH maps can be found in the [ceph docs](http://docs.ceph.com/docs/master/rados/operations/crush-map/)
+- `storageClassDeviceSets`: Explained in [Storage Class Device Sets](#storage-class-device-sets)
 
+### Storage Class Device Sets
+The following are the settings for Storage Class Device Sets which can be configured to create OSDs that are backed by block mode PVs.
+
+- `name`: A name for the set.
+- `count`: The number of devices in the set.
+- `resources`: The CPU and RAM requests/limits for the devices.(Optional)
+- `placement`: The placement criteria for the devices. Default is no placement criteria.(Optional)
+- `volumeClaimTemplates`: A list of PVC templates to use for provisioning the underlying storage devices.
+  - `resources.requests.storage`: The desired capacity for the underlying storage devices.
+  - `storageClassName`: The StorageClass to provision PVCs from. Default would be to use the cluster-default StorageClass.
+  - `volumeMode`: The volume mode to be set for the PVC. Which should be Block
+  - `accessModes`: The access mode for the PVC to be bound by OSD.
 
 ### OSD Configuration Settings
 The following storage selection settings are specific to Ceph and do not apply to other backends. All variables are key-value pairs represented as strings.
 
-- `metadataDevice`: Name of a device to use for the metadata of OSDs on each node.  Performance can be improved by using a low latency device (such as SSD or NVMe) as the metadata device, while other spinning platter (HDD) devices on a node are used to store data.
+- `metadataDevice`: Name of a device to use for the metadata of OSDs on each node.  Performance can be improved by using a low latency device (such as SSD or NVMe) as the metadata device, while other spinning platter (HDD) devices on a node are used to store data. Provisioning will fail if the user specifies a `metadataDevice` but that device is not used as a metadata device by Ceph. Notably, `ceph-volume` will not use a device of the same device class (HDD, SSD, NVMe) as OSD devices for metadata, resulting in this failure.
 - `storeType`: `filestore` or `bluestore`, the underlying storage format to use for each OSD. The default is set dynamically to `bluestore` for devices, while `filestore` is the default for directories. Set this store type explicitly to override the default. Warning: Bluestore is **not** recommended for directories in production. Bluestore does not purge data from the directory and over time will grow without the ability to compact or shrink.
 - `databaseSizeMB`:  The size in MB of a bluestore database. Include quotes around the size.
 - `walSizeMB`:  The size in MB of a bluestore write ahead log (WAL). Include quotes around the size.
@@ -166,11 +232,11 @@ Annotations can be specified so that the Rook components will have those annotat
 
 You can set annotations for Rook components through the a list of key value pairs:
 
-- `all`: Set annotations for all components.
-- `mgr`: Set annotations for MGRs.
-- `mon`: Set annotations for Mons.
-- `osd`: Set annotations for OSDs.
-- `rbdmirror`: Set annotations for RBD Mirrors.
+- `all`: Set annotations for all components
+- `mgr`: Set annotations for MGRs
+- `mon`: Set annotations for mons
+- `osd`: Set annotations for OSDs
+- `rbdmirror`: Set annotations for RBD Mirrors
 
 When other keys are set, `all` will be merged together with the specific component.
 
@@ -184,9 +250,8 @@ A Placement configuration is specified (according to the kubernetes PodSpec) as:
 - `podAntiAffinity`: kubernetes [PodAntiAffinity](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#inter-pod-affinity-and-anti-affinity-beta-feature)
 - `tolerations`: list of kubernetes [Toleration](https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/)
 
-The `mon` pod does not allow `Pod` affinity or anti-affinity.
-This is because of the mons having built-in anti-affinity with each other through the operator. The operator chooses which nodes are to run a mon on. Each mon is then tied to a node with a node selector using a hostname.
-See the [mon design doc](https://github.com/rook/rook/blob/master/design/mon-health.md) for more details on the mon failover design.
+The `mon` pod does not allow `Pod` affinity or anti-affinity. Instead, `mon`s have built-in anti-affinity with each other through the operator. The operator determines which nodes should run a `mon`. Each `mon` is then tied to a node with a node selector using a hostname.
+See the [mon design doc](https://github.com/rook/rook/blob/master/design/mon-health.md) for more details on the `mon` failover design.
 
 The Rook Ceph operator creates a Job called `rook-ceph-detect-version` to detect the full Ceph version used by the given `cephVersion.image`. The placement from the `mon` section is used for the Job.
 
@@ -196,14 +261,14 @@ This allows to keep Rook components running when for example a node runs out of 
 
 You can set resource requests/limits for Rook components through the [Resource Requirements/Limits](#resource-requirementslimits) structure in the following keys:
 
-- `mgr`: Set resource requests/limits for MGRs.
-- `mon`: Set resource requests/limits for Mons.
-- `osd`: Set resource requests/limits for OSDs.
-- `rbdmirror`: Set resource requests/limits for RBD Mirrors.
+- `mgr`: Set resource requests/limits for MGRs
+- `mon`: Set resource requests/limits for mons
+- `osd`: Set resource requests/limits for OSDs
+- `rbdmirror`: Set resource requests/limits for RBD Mirrors
 
 In order to provide the best possible experience running Ceph in containers, Rook internally enforces minimum memory limits if resource limits are passed.
-Basically, if a user configures a limit or request value that is too low Rook will refuse to run the pod(s).
-Here are the current minimum amounts of memory in MB to apply so that Rook will accept to run Ceph pods:
+If a user configures a limit or request value that is too low, Rook will refuse to run the pod(s).
+Here are the current minimum amounts of memory in MB to apply so that Rook will agree to run Ceph pods:
 
 - `mon`: 1024MB
 - `mgr`: 512MB
@@ -233,7 +298,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v14.2.1-20190430
+    image: ceph/ceph:v14.2.2-20190722
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -265,7 +330,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v14.2.1-20190430
+    image: ceph/ceph:v14.2.2-20190722
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -297,7 +362,7 @@ spec:
 ```
 
 ### Storage Configuration: Cluster wide Directories
-This example is based up on the [Storage Configuration: Specific devices](#storage-configuration-specific-devices).
+This example is based on the [Storage Configuration: Specific devices](#storage-configuration-specific-devices).
 Individual nodes can override the cluster wide specified directories list.
 
 ```yaml
@@ -308,7 +373,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v14.2.1-20190430
+    image: ceph/ceph:v14.2.2-20190722
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -345,7 +410,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v14.2.1-20190430
+    image: ceph/ceph:v14.2.2-20190722
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -391,7 +456,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v14.2.1-20190430
+    image: ceph/ceph:v14.2.2-20190722
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -417,9 +482,9 @@ spec:
 ### Custom Location Information On Node Level
 For each individual node a `location` can be configured. The provided information is fed directly into the CRUSH map of Ceph. More information on CRUSH maps can be found in the [ceph docs](http://docs.ceph.com/docs/master/rados/operations/crush-map/).
 
-**HINT** When setting this prior to `CephCluster` creation, these settings take immediate effect. However, applying this to an already deployed `CephCluster` requires to remove each node from the cluster first and then re-add it with new configuration to take effect. Do this node by node to keep your data safe! You can check the result with `ceph osd tree` from the [Rook Toolbox](ceph-toolbox.md) in your setup. The OSD tree should display your location hierarchy for the nodes you already re-added.
+**HINT** When setting this prior to `CephCluster` creation, these settings take immediate effect. However, applying this to an already deployed `CephCluster` requires removing each node from the cluster first and then re-adding it with new configuration to take effect. Do this node by node to keep your data safe! Check the result with `ceph osd tree` from the [Rook Toolbox](ceph-toolbox.md). The OSD tree should display the location hierarchy for the nodes that already have been re-added.
 
-This example assumes you have 3 unique racks in your datacenter and want to use them as failure domain
+This example assumes that there are 3 unique racks (`rack1`, `rack2`, `rack3`) in a data center to use as failure domains.
 
 ```yaml
 apiVersion: ceph.rook.io/v1
@@ -429,7 +494,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v14.2.1-20190430
+    image: ceph/ceph:v14.2.2-20190722
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -463,7 +528,7 @@ spec:
       - name: "sdc"
 ```
 
-To utilize the `location` as a `failureDomain`, specify the corresponding option in your [CephBlockPool](ceph-pool-crd.md)
+To utilize the `location` as a `failureDomain`, specify the corresponding option in the [CephBlockPool](ceph-pool-crd.md)
 
 ```yaml
 apiVersion: ceph.rook.io/v1
@@ -477,4 +542,107 @@ spec:
     size: 3
 ```
 
-This configuration will split replication of your volumes across unique racks in your datacenter setup.
+This configuration will split the replication of volumes across unique
+racks in the data center setup.
+
+### Using PVC storage for monitors
+
+In the CRD specification below three monitors are created each using a 10Gi PVC
+created by Rook using the `local-storage` storage class.
+
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephCluster
+metadata:
+  name: rook-ceph
+  namespace: rook-ceph
+spec:
+  cephVersion:
+    image: ceph/ceph:v14.2.2-20190722
+  dataDirHostPath: /var/lib/rook
+  mon:
+    count: 3
+    allowMultiplePerNode: false
+    volumeClaimTemplate:
+      spec:
+        storageClassName: local-storage
+        resources:
+          requests:
+            storage: 10Gi
+  dashboard:
+    enabled: true
+  storage:
+    useAllNodes: true
+    useAllDevices: true
+    deviceFilter:
+    location:
+    config:
+      metadataDevice:
+      databaseSizeMB: "1024" # this value can be removed for environments with normal sized disks (100 GB or larger)
+      journalSizeMB: "1024"  # this value can be removed for environments with normal sized disks (20 GB or larger)
+      osdsPerDevice: "1"
+```
+
+### Using StorageClassDeviceSets
+
+In the CRD specification below, 3 OSDs (having specific placement and resource values) and 3 mons with each using a 10Gi PVC, are created by Rook using the `local-storage` storage class.
+
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephCluster
+metadata:
+  name: rook-ceph
+  namespace: rook-ceph
+spec:
+  dataDirHostPath: /var/lib/rook
+  mon:
+    count: 3
+    allowMultiplePerNode: false
+    volumeClaimTemplate:
+      spec:
+        storageClassName: local-storage
+        resources:
+          requests:
+            storage: 10Gi
+  cephVersion:
+    image: ceph/ceph:v14.2.2-20190722
+    allowUnsupported: false
+  dashboard:
+    enabled: true
+  network:
+    hostNetwork: false
+  storage:
+    storageClassDeviceSets:
+    - name: set1
+      count: 3
+      resources:
+        limits:
+          cpu: "500m"
+          memory: "4Gi"
+        requests:
+          cpu: "500m"
+          memory: "4Gi"
+      placement:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: "rook.io/cluster"
+                  operator: In
+                  values:
+                    - cluster1
+                topologyKey: "failure-domain.beta.kubernetes.io/zone"
+      volumeClaimTemplates:
+      - metadata:
+          name: data
+        spec:
+          resources:
+            requests:
+              storage: 10Gi
+          storageClassName: local-storage
+          volumeMode: Block
+          accessModes:
+            - ReadWriteOnce
+```

@@ -247,6 +247,8 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig config.StoreConfig,
 		"sdx": {Data: -1},
 		"sdy": {Data: -1},
 	}}
+
+	agent.pvcBacked = false
 	_, err = agent.configureDevices(context, devices)
 	assert.Nil(t, err)
 
@@ -398,7 +400,7 @@ func createTestAgent(t *testing.T, devices, configDir, nodeName string, storeCon
 	cluster := &cephconfig.ClusterInfo{Name: "myclust"}
 	context := &clusterd.Context{ConfigDir: configDir, Executor: executor, Clientset: testop.New(1)}
 	agent := NewAgent(context, desiredDevices, "", "", forceFormat, location, *storeConfig,
-		cluster, nodeName, mockKVStore())
+		cluster, nodeName, mockKVStore(), false)
 
 	return agent, executor, context
 }
@@ -465,7 +467,8 @@ func TestGetPartitionPerfScheme(t *testing.T) {
 	}
 	context.Executor = executor
 
-	devices, err := getAvailableDevices(context, []DesiredDevice{{Name: "sda"}, {Name: "sdb"}}, "sdc")
+	pvcBackedOSD := false
+	devices, err := getAvailableDevices(context, []DesiredDevice{{Name: "sda"}, {Name: "sdb"}}, "sdc", pvcBackedOSD)
 	assert.Nil(t, err)
 	scheme, _, err := a.getPartitionPerfScheme(context, devices, false)
 	assert.Nil(t, err)
@@ -542,7 +545,8 @@ func TestGetPartitionSchemeDiskInUse(t *testing.T) {
 
 	// get the partition scheme based on the available devices.  Since sda is already in use, the partition
 	// scheme returned should reflect that.
-	devices, err := getAvailableDevices(context, []DesiredDevice{{Name: "sda"}}, "")
+	pvcBackedOSD := false
+	devices, err := getAvailableDevices(context, []DesiredDevice{{Name: "sda"}}, "", pvcBackedOSD)
 	scheme, _, err := a.getPartitionPerfScheme(context, devices, false)
 	assert.Nil(t, err)
 
@@ -610,7 +614,8 @@ func TestGetPartitionSchemeDiskNameChanged(t *testing.T) {
 
 	// get the current partition scheme.  This should notice that the device names changed and update the
 	// partition scheme to have the latest device names
-	devices, err := getAvailableDevices(context, []DesiredDevice{{Name: "sda-changed"}}, "nvme01")
+	pvcBackedOSD := false
+	devices, err := getAvailableDevices(context, []DesiredDevice{{Name: "sda-changed"}}, "nvme01", pvcBackedOSD)
 	scheme, _, err := a.getPartitionPerfScheme(context, devices, false)
 	assert.Nil(t, err)
 	require.NotNil(t, scheme)
