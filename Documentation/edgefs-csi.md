@@ -95,6 +95,7 @@ By using `k8sEdgefsNamespaces` and `k8sEdgefsMgmtPrefix` parameters, driver is c
 
 Check configuration options and create kubernetes secret for Edgefs CSI NFS plugin
 ```
+git clone https://github.com/rook/rook
 cd cluster/examples/kubernetes/edgefs/csi/nfs
 kubectl create secret generic edgefs-nfs-csi-driver-config --from-file=./edgefs-nfs-csi-driver-config.yaml
 ```
@@ -134,6 +135,7 @@ Make sure that `volumeHandle: segment:service@cluster/tenant/bucket` in nginx.ya
 
 Examples:
 ```
+git clone https://github.com/rook/rook
 cd cluster/examples/kubernetes/edgefs/csi/nfs/examples
 kubectl apply -f ./preprovisioned-edgefs-volume-nginx.yaml
 ```
@@ -182,6 +184,7 @@ Options are case sensitive and should be in lower case
 
 Example:
 ```
+git clone https://github.com/rook/rook
 cd cluster/examples/kubernetes/edgefs/csi/nfs/examples
 kubectl apply -f ./dynamic-nginx.yaml
 ```
@@ -191,6 +194,7 @@ kubectl apply -f ./dynamic-nginx.yaml
 
 Check configuration options and create kubernetes secret for Edgefs CSI ISCSI plugin
 ```
+git clone https://github.com/rook/rook
 cd cluster/examples/kubernetes/edgefs/csi/iscsi
 kubectl create secret generic edgefs-iscsi-csi-driver-config --from-file=./edgefs-iscsi-csi-driver-config.yaml
 ```
@@ -199,6 +203,7 @@ kubectl create secret generic edgefs-iscsi-csi-driver-config --from-file=./edgef
 
 After secret is created successfully, deploy EdgeFS CSI plugin, provisioner, attacher and snapshotter using the following command
 ```
+git clone https://github.com/rook/rook
 cd cluster/examples/kubernetes/edgefs/csi/iscsi
 kubectl apply -f edgefs-iscsi-csi-driver.yaml
 ```
@@ -230,6 +235,7 @@ Make sure that `volumeHandle: segment:service@cluster/tenant/bucket/lun` in ngin
 
 Examples:
 ```
+git clone https://github.com/rook/rook
 cd cluster/examples/kubernetes/edgefs/csi/iscsi/examples
 kubectl apply -f ./preprovisioned-edgefs-volume-nginx.yaml
 ```
@@ -284,6 +290,7 @@ Options are case sensitive and should be in lower case
 
 Example:
 ```
+git clone https://github.com/rook/rook
 cd cluster/examples/kubernetes/edgefs/csi/nfs/examples
 kubectl apply -f ./dynamic-nginx.yaml
 ```
