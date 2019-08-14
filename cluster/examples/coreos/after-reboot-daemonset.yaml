@@ -18,7 +18,7 @@ spec:
         effect: NoSchedule
       containers:
       - name: ceph-after-reboot-check
-        image: rook/ceph:v1.0.4
+        image: rook/ceph:v1.0.5
         imagePullPolicy: IfNotPresent
         command: ["/scripts/status-check.sh"]
         env:
