@@ -112,7 +112,7 @@ type DashboardSpec struct {
 	// The dashboard webserver port
 	Port int `json:"port,omitempty"`
 	// Whether SSL should be used
-	SSL *bool `json:"ssl,omitempty"`
+	SSL bool `json:"ssl,omitempty"`
 }
 
 // MonitoringSpec represents the settings for Prometheus based Ceph monitoring
