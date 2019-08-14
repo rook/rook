@@ -84,12 +84,12 @@ func NewClusterController(context *clusterd.Context, containerImage string) *Clu
 	}
 }
 
-func ClusterOwnerRef(namespace, clusterID string) metav1.OwnerReference {
+func ClusterOwnerRef(clusterName, clusterID string) metav1.OwnerReference {
 	blockOwner := true
 	return metav1.OwnerReference{
 		APIVersion:         fmt.Sprintf("%s/%s", ClusterResource.Group, ClusterResource.Version),
 		Kind:               ClusterResource.Kind,
-		Name:               namespace,
+		Name:               clusterName,
 		UID:                types.UID(clusterID),
 		BlockOwnerDeletion: &blockOwner,
 	}

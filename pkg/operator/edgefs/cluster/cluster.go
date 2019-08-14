@@ -65,7 +65,7 @@ func newCluster(c *edgefsv1beta1.Cluster, context *clusterd.Context) *cluster {
 		Namespace: c.Namespace,
 		Spec:      c.Spec,
 		stopCh:    make(chan struct{}),
-		ownerRef:  ClusterOwnerRef(c.Namespace, string(c.UID)),
+		ownerRef:  ClusterOwnerRef(c.Name, string(c.UID)),
 	}
 }
 
