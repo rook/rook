@@ -26,6 +26,7 @@ import (
 	miniov1alpha1 "github.com/rook/rook/pkg/apis/minio.rook.io/v1alpha1"
 	nfsv1alpha1 "github.com/rook/rook/pkg/apis/nfs.rook.io/v1alpha1"
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	yugabytedbv1alpha1 "github.com/rook/rook/pkg/apis/yugabytedb.rook.io/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -44,6 +45,7 @@ var localSchemeBuilder = runtime.SchemeBuilder{
 	miniov1alpha1.AddToScheme,
 	nfsv1alpha1.AddToScheme,
 	rookv1alpha2.AddToScheme,
+	yugabytedbv1alpha1.AddToScheme,
 }
 
 // AddToScheme adds all types of this clientset into the given scheme. This allows composition
