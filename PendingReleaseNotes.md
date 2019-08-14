@@ -10,9 +10,16 @@ an example usage
 - OwnerReferences are created with the fully qualified `apiVersion` such that the references will work properly on OpenShift.
 - Linear disk device can now be used for Ceph OSDs.
 - The integration tests can be triggered for specific storage providers rather than always running all tests. See the [dev guide](INSTALL.md#test-storage-provider) for more details.
+- Provisioning will fail if the user specifies a `metadataDevice` but that device is not used as a metadata device by Ceph.
+- Allow `metadataDevice` to be set per OSD device in the device specific `config` section.
 
 ### Ceph
 
+- The minimum version supported by Rook is now Ceph Mimic v13.2.4.
+- The Ceph CSI driver is enabled by default and preferred over the flex driver
+   - The flex driver can be disabled in operator.yaml by setting ROOK_ENABLE_FLEX_DRIVER=false
+   - The CSI drivers can be disabled by setting ROOK_CSI_ENABLE_CEPHFS=false and ROOK_CSI_ENABLE_RBD=false
+- The device discovery daemon can be disabled in operator.yaml by setting ROOK_ENABLE_DISCOVERY_DAEMON=false
 - Rook can now be configured to read "region" and "zone" labels on Kubernetes nodes and use that information as part of the CRUSH location for the OSDs.
 - Rgw pods have liveness probe enabled
 - Rgw is now configured with the Beast backend as of the Nautilus release
@@ -29,13 +36,21 @@ an example usage
 - The cluster CRD option to allow multiple monitors to be scheduled on the same
   node---`spec.Mon.AllowMultiplePerNode`---is now active when a cluster is first
   created. Previously, it was ignored when a cluster was first installed.
+- The Cluster CRD now provides option to enable prometheus based monitoring, provided that prometheus is pre-installed.
 - Upgrades have drastically improved, Rook intelligently checks for each daemon state before and after upgrading. To learn more about the upgrade workflow see [Ceph Upgrades](Documentation/ceph-upgrade.md)
 - Rook Operator now supports 2 new environmental variables: `AGENT_TOLERATIONS` and `DISCOVER_TOLERATIONS`. Each accept list of tolerations for agent and discover pods accordingly.
 - Ceph daemons now run under 'ceph' user and not 'root' anymore (monitor or osd store already owned by 'root' will keep running under 'root')
+- Ceph monitors have initial support for running on PVC storage. See docs on
+  [monitor settings for more detail](Documentation/ceph-cluster-crd.md#mon-settings).
+- Ceph OSDs can be created by using StorageClassDeviceSet. See docs on [Storage Class Device Sets](Documentation/ceph-cluster-crd.md#storage-class-device-sets).
 
 ## Breaking Changes
 
-### <Storage Provider>
+### Ceph
+
+- The minimum version supported by Rook is Ceph Mimic v13.2.4. Before upgrading to v1.1 it is required to update the version of Ceph to at least this version.
+- The CSI driver is enabled by default. Documentation has been changed significantly for block and filesystem to use the CSI driver instead of flex.
+While the flex driver is still supported, it is anticipated to be deprecated soon.
 
 ## Known Issues
 

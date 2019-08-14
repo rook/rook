@@ -38,7 +38,7 @@ func (f *ReadWriteOperation) CreateWriteClient(volName string) ([]string, error)
 	logger.Infof("creating the filesystem via replication controller")
 	writerSpec := getDeployment(volName)
 
-	if err := f.k8sh.ResourceOperation("create", writerSpec); err != nil {
+	if err := f.k8sh.ResourceOperation("apply", writerSpec); err != nil {
 		return nil, err
 	}
 

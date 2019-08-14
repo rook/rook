@@ -39,13 +39,23 @@ var (
 )
 
 // StartOSD starts an OSD on a device that was provisioned by ceph-volume
-func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID string, cephArgs []string) error {
+func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID string, pvcBackedOSD bool, cephArgs []string) error {
 
 	// ensure the config mount point exists
 	configDir := fmt.Sprintf("/var/lib/ceph/osd/ceph-%s", osdID)
 	err := os.Mkdir(configDir, 0755)
 	if err != nil {
 		logger.Errorf("failed to create config dir %s. %+v", configDir, err)
+	}
+
+	if pvcBackedOSD {
+		if err := updateLVMConfig(context); err != nil {
+			return fmt.Errorf("sed failure, %+v", err) // fail return here as validation provided by ceph-volume
+		}
+
+		context.Executor.ExecuteCommand(false, "", "/sbin/vgchange", "-an")
+
+		context.Executor.ExecuteCommand(false, "", "/sbin/vgchange", "-ay")
 	}
 
 	// activate the osd with ceph-volume
@@ -100,16 +110,25 @@ func Provision(context *clusterd.Context, agent *OsdAgent) error {
 	}
 
 	logger.Infof("discovering hardware")
-	rawDevices, err := clusterd.DiscoverDevices(context.Executor)
-	if err != nil {
-		return fmt.Errorf("failed initial hardware discovery. %+v", err)
+	var rawDevices []*sys.LocalDisk
+	if agent.pvcBacked {
+		if len(agent.devices) > 1 {
+			return fmt.Errorf("more than one desired device found in case of PVC backed OSDs. we expect exactly one device")
+		}
+		rawDevices = append(rawDevices, clusterd.PopulateDeviceInfo(agent.devices[0].Name, context.Executor))
+	} else {
+		rawDevices, err = clusterd.DiscoverDevices(context.Executor)
+		if err != nil {
+			return fmt.Errorf("failed initial hardware discovery. %+v", err)
+		}
 	}
+
 	context.Devices = rawDevices
 
 	logger.Infof("creating and starting the osds")
 
 	// determine the set of devices that can/should be used for OSDs.
-	devices, err := getAvailableDevices(context, agent.devices, agent.metadataDevice)
+	devices, err := getAvailableDevices(context, agent.devices, agent.metadataDevice, agent.pvcBacked)
 	if err != nil {
 		return fmt.Errorf("failed to get available devices. %+v", err)
 	}
@@ -121,7 +140,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent) error {
 	}
 
 	// orchestration is about to start, update the status
-	status = oposd.OrchestrationStatus{Status: oposd.OrchestrationStatusOrchestrating}
+	status = oposd.OrchestrationStatus{Status: oposd.OrchestrationStatusOrchestrating, PvcBackedOSD: agent.pvcBacked}
 	if err := oposd.UpdateNodeStatus(agent.kv, agent.nodeName, status); err != nil {
 		return err
 	}
@@ -168,7 +187,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent) error {
 	osds := append(deviceOSDs, dirOSDs...)
 
 	// orchestration is completed, update the status
-	status = oposd.OrchestrationStatus{OSDs: osds, Status: oposd.OrchestrationStatusCompleted}
+	status = oposd.OrchestrationStatus{OSDs: osds, Status: oposd.OrchestrationStatusCompleted, PvcBackedOSD: agent.pvcBacked}
 	if err := oposd.UpdateNodeStatus(agent.kv, agent.nodeName, status); err != nil {
 		return err
 	}
@@ -176,7 +195,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent) error {
 	return nil
 }
 
-func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevice, metadataDevice string) (*DeviceOsdMapping, error) {
+func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevice, metadataDevice string, pvcBacked bool) (*DeviceOsdMapping, error) {
 
 	available := &DeviceOsdMapping{Entries: map[string]*DeviceOsdIDEntry{}}
 
@@ -189,7 +208,7 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 		if device.Type == sys.PartType {
 			continue
 		}
-		partCount, ownPartitions, fs, err := sys.CheckIfDeviceAvailable(context.Executor, device.Name)
+		partCount, ownPartitions, fs, err := sys.CheckIfDeviceAvailable(context.Executor, device.Name, pvcBacked)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get device %s info. %+v", device.Name, err)
 		}

@@ -77,7 +77,7 @@ func ParseDevicesResurrectMode(resurrectMode string) edgefsv1beta1.DevicesResurr
 func ToJSON(obj interface{}) string {
 	bytes, err := json.Marshal(obj)
 	if err != nil {
-		logger.Errorf("JSON convertation failed: %+v", err)
+		logger.Errorf("JSON conversion failed: %+v", err)
 		return ""
 	}
 

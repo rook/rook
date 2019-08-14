@@ -35,9 +35,11 @@ import (
 	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
+	"github.com/rook/rook/pkg/operator/ceph/csi"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -62,9 +64,6 @@ const (
 	adminSecretName   = "admin-secret"
 	clusterSecretName = "cluster-name"
 
-	// configuration map for csi
-	csiConfigKey = "csi-cluster-config-json"
-
 	// DefaultMonCount Default mon count for a cluster
 	DefaultMonCount = 3
 	// MaxMonCount Maximum allowed mon count for a cluster
@@ -79,6 +78,10 @@ const (
 
 	// minimum amount of memory in MB to run the pod
 	cephMonPodMinimumMemory uint64 = 1024
+
+	// default storage request size for ceph monitor pvc
+	// https://docs.ceph.com/docs/master/start/hardware-recommendations/#monitors-and-managers-ceph-mon-and-ceph-mgr
+	cephMonDefaultStorageRequest = "10Gi"
 )
 
 var (
@@ -104,6 +107,7 @@ type Cluster struct {
 	monTimeoutList      map[string]time.Time
 	mapping             *Mapping
 	ownerRef            metav1.OwnerReference
+	csiConfigMutex      *sync.Mutex
 }
 
 // monConfig for a single monitor
@@ -135,7 +139,7 @@ type NodeInfo struct {
 }
 
 // New creates an instance of a mon cluster
-func New(context *clusterd.Context, namespace, dataDirHostPath string, hostNetwork bool, ownerRef metav1.OwnerReference) *Cluster {
+func New(context *clusterd.Context, namespace, dataDirHostPath string, hostNetwork bool, ownerRef metav1.OwnerReference, csiConfigMutex *sync.Mutex) *Cluster {
 	return &Cluster{
 		context:             context,
 		dataDirHostPath:     dataDirHostPath,
@@ -150,7 +154,8 @@ func New(context *clusterd.Context, namespace, dataDirHostPath string, hostNetwo
 			Node: map[string]*NodeInfo{},
 			Port: map[string]int32{},
 		},
-		ownerRef: ownerRef,
+		ownerRef:       ownerRef,
+		csiConfigMutex: csiConfigMutex,
 	}
 }
 
@@ -577,7 +582,7 @@ func (c *Cluster) saveMonConfig() error {
 		return fmt.Errorf("failed to marshal mon mapping. %+v", err)
 	}
 
-	csiConfigValue, err := FormatCsiClusterConfig(
+	csiConfigValue, err := csi.FormatCsiClusterConfig(
 		c.Namespace, c.clusterInfo.Monitors)
 	if err != nil {
 		return fmt.Errorf("failed to format csi config: %+v", err)
@@ -587,7 +592,7 @@ func (c *Cluster) saveMonConfig() error {
 		EndpointDataKey: FlattenMonEndpoints(c.clusterInfo.Monitors),
 		MaxMonIDKey:     strconv.Itoa(c.maxMonID),
 		MappingKey:      string(monMapping),
-		csiConfigKey:    csiConfigValue,
+		csi.ConfigKey:   csiConfigValue,
 	}
 
 	if _, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(configMap); err != nil {
@@ -612,37 +617,93 @@ func (c *Cluster) saveMonConfig() error {
 		return fmt.Errorf("failed to write connection config for new mons. %+v", err)
 	}
 
+	if err := csi.SaveClusterConfig(c.context.Clientset, c.Namespace, c.clusterInfo, c.csiConfigMutex); err != nil {
+		return fmt.Errorf("failed to update csi cluster config: %+v", err)
+	}
+
 	return nil
 }
 
 var updateDeploymentAndWait = UpdateCephDeploymentAndWait
 
+func (c *Cluster) updateMon(m *monConfig, d *apps.Deployment) error {
+	logger.Infof("deployment for mon %s already exists. updating if needed",
+		d.Name)
+
+	daemonType := string(config.MonType)
+	var cephVersionToUse cephver.CephVersion
+	currentCephVersion, err := client.LeastUptodateDaemonVersion(c.context, c.clusterInfo.Name, daemonType)
+	if err != nil {
+		logger.Warningf("failed to retrieve current ceph %s version. %+v", daemonType, err)
+		logger.Debug("could not detect ceph version during update, this is likely an initial bootstrap, proceeding with c.clusterInfo.CephVersion")
+		cephVersionToUse = c.clusterInfo.CephVersion
+	} else {
+		logger.Debugf("current cluster version for monitors before upgrading is: %+v", currentCephVersion)
+		cephVersionToUse = currentCephVersion
+	}
+
+	err = updateDeploymentAndWait(c.context, d, c.Namespace, daemonType, m.DaemonName, cephVersionToUse)
+	if err != nil {
+		return fmt.Errorf("failed to update mon deployment %s. %+v", m.ResourceName, err)
+	}
+
+	return nil
+}
+
 func (c *Cluster) startMon(m *monConfig, hostname string) error {
 
+	// check if the monitor deployment already exists. if the deployment does
+	// exist, also determine if it using pvc storage.
+	pvcExists := false
+	deploymentExists := false
 	d := c.makeDeployment(m, hostname)
-	logger.Debugf("Starting mon: %+v", d.Name)
-	_, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Create(d)
-	if err != nil {
-		if !errors.IsAlreadyExists(err) {
-			return fmt.Errorf("failed to create mon deployment %s. %+v", m.ResourceName, err)
-		}
-		logger.Infof("deployment for mon %s already exists. updating if needed", m.ResourceName)
+	existingDeployment, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Get(d.Name, metav1.GetOptions{})
+	if err == nil {
+		deploymentExists = true
+		pvcExists = opspec.DaemonVolumesContainsPVC(existingDeployment.Spec.Template.Spec.Volumes)
+	} else if !errors.IsNotFound(err) {
+		return fmt.Errorf("failed to get mon deployment %s. %+v", d.Name, err)
+	}
 
-		// Always invoke ceph version before an upgrade so we are sure to be up-to-date
-		daemonType := string(config.MonType)
-		var cephVersionToUse cephver.CephVersion
-		currentCephVersion, err := client.LeastUptodateDaemonVersion(c.context, c.clusterInfo.Name, daemonType)
+	// persistent storage is not altered after the deployment is created. this
+	// means we need to be careful when updating the deployment to avoid new
+	// changes to the crd to change an existing pod's persistent storage. the
+	// deployment spec created above does not specify persistent storage. here
+	// we add in PVC or HostPath storage based on an existing deployment OR on
+	// the current state of the CRD.
+	if pvcExists || (!deploymentExists && c.spec.Mon.VolumeClaimTemplate != nil) {
+		pvcName := m.ResourceName
+		d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, opspec.DaemonVolumesDataPVC(pvcName))
+		opspec.AddVolumeMountSubPath(&d.Spec.Template.Spec, "ceph-daemon-data")
+		logger.Debugf("adding pvc volume source %s to mon deployment %s", pvcName, d.Name)
+	} else {
+		d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, opspec.DaemonVolumesDataHostPath(m.DataPathMap)...)
+		logger.Debugf("adding host path volume source to mon deployment %s", d.Name)
+	}
+
+	if deploymentExists {
+		return c.updateMon(m, d)
+	}
+
+	if c.spec.Mon.VolumeClaimTemplate != nil {
+		pvc, err := c.makeDeploymentPVC(m)
 		if err != nil {
-			logger.Warningf("failed to retrieve current ceph %s version. %+v", daemonType, err)
-			logger.Debug("could not detect ceph version during update, this is likely an initial bootstrap, proceeding with c.clusterInfo.CephVersion")
-			cephVersionToUse = c.clusterInfo.CephVersion
-		} else {
-			logger.Debugf("current cluster version for monitors before upgrading is: %+v", currentCephVersion)
-			cephVersionToUse = currentCephVersion
+			return fmt.Errorf("failed to make mon %s pvc. %+v", d.Name, err)
 		}
-		if err := updateDeploymentAndWait(c.context, d, c.Namespace, daemonType, m.DaemonName, cephVersionToUse); err != nil {
-			return fmt.Errorf("failed to update mon deployment %s. %+v", m.ResourceName, err)
+		_, err = c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).Create(pvc)
+		if err != nil {
+			if errors.IsAlreadyExists(err) {
+				logger.Debugf("cannot create mon %s pvc %s: already exists.", d.Name, pvc.Name)
+			} else {
+				return fmt.Errorf("failed to create mon %s pvc %s. %+v", d.Name, pvc.Name, err)
+			}
 		}
+	}
+
+	logger.Debugf("Starting mon: %+v", d.Name)
+	_, err = c.context.Clientset.AppsV1().Deployments(c.Namespace).Create(d)
+	if err != nil {
+		return fmt.Errorf("failed to create mon deployment %s. %+v", d.Name, err)
 	}
 
 	return nil

@@ -197,7 +197,7 @@ func TestAddRemoveNode(t *testing.T) {
 				return `{"stats":{"total_bytes":0,"total_used_bytes":0,"total_avail_bytes":3072}}`, nil
 			}
 			if args[0] == "pg" && args[1] == "dump" {
-				return `[]`, nil
+				return `{}`, nil
 			}
 			if args[0] == "auth" && args[1] == "del" {
 				assert.Equal(t, "osd.1", args[2])
@@ -257,17 +257,29 @@ func TestDiscoverOSDs(t *testing.T) {
 	node2 := "n2"
 
 	osd1 := OSDInfo{ID: 0, IsDirectory: true, IsFileStore: true, DataPath: "/rook/path"}
-	d1, err := c.makeDeployment(node1, rookalpha.Selection{}, v1.ResourceRequirements{}, config.StoreConfig{}, "", "", osd1)
+	osdProp := osdProperties{
+		crushHostname: node1,
+		selection:     rookalpha.Selection{},
+		resources:     v1.ResourceRequirements{},
+		storeConfig:   config.StoreConfig{},
+	}
+	d1, err := c.makeDeployment(osdProp, osd1)
 	assert.Nil(t, err)
 	assert.NotNil(t, d1)
 
 	osd2 := OSDInfo{ID: 101, IsDirectory: true, IsFileStore: true, DataPath: "/rook/path"}
-	d2, err := c.makeDeployment(node1, rookalpha.Selection{}, v1.ResourceRequirements{}, config.StoreConfig{}, "", "", osd2)
+	d2, err := c.makeDeployment(osdProp, osd2)
 	assert.Nil(t, err)
 	assert.NotNil(t, d2)
 
+	osdProp2 := osdProperties{
+		crushHostname: node2,
+		selection:     rookalpha.Selection{},
+		resources:     v1.ResourceRequirements{},
+		storeConfig:   config.StoreConfig{},
+	}
 	osd3 := OSDInfo{ID: 23, IsDirectory: true, IsFileStore: true, DataPath: "/rook/path"}
-	d3, err := c.makeDeployment(node2, rookalpha.Selection{}, v1.ResourceRequirements{}, config.StoreConfig{}, "", "", osd3)
+	d3, err := c.makeDeployment(osdProp2, osd3)
 	assert.Nil(t, err)
 	assert.NotNil(t, d3)
 

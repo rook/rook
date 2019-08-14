@@ -2,7 +2,7 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: csi-cephfs
-provisioner: cephfs.csi.ceph.com
+provisioner: rook-ceph.cephfs.csi.ceph.com
 parameters:
   # clusterID is the namespace where operator is deployed.
   clusterID: rook-ceph
@@ -18,11 +18,12 @@ parameters:
   # Required for provisionVolume: "false"
   # rootPath: /absolute/path
 
-  # The secrets have to contain user and/or Ceph admin credentials.
-  csi.storage.k8s.io/provisioner-secret-name: csi-cephfs-secret
-  csi.storage.k8s.io/provisioner-secret-namespace: default
-  csi.storage.k8s.io/node-stage-secret-name: csi-cephfs-secret
-  csi.storage.k8s.io/node-stage-secret-namespace: default
+  # The secrets contain Ceph admin credentials. These are generated automatically by the operator
+  # in the same namespace as the cluster.
+  csi.storage.k8s.io/provisioner-secret-name: rook-ceph-csi
+  csi.storage.k8s.io/provisioner-secret-namespace: rook-ceph
+  csi.storage.k8s.io/node-stage-secret-name: rook-ceph-csi
+  csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph
 
   # (optional) The driver can use either ceph-fuse (fuse) or ceph kernel client (kernel)
   # If omitted, default volume mounter will be used - this is determined by probing for ceph-fuse
@@ -30,4 +31,5 @@ parameters:
   # mounter: kernel
 reclaimPolicy: Delete
 mountOptions:
-  - noexec
+  # uncomment the following line for debugging
+  #- debug

@@ -69,12 +69,16 @@ func (hs *HelmSuite) SetupSuite() {
 	hs.namespace = "helm-ns"
 	mons := 1
 	rbdMirrorWorkers := 1
-	hs.op, hs.kh = StartTestCluster(hs.T, hs.namespace, "bluestore", true, false, mons, rbdMirrorWorkers, installer.VersionMaster, installer.MimicVersion)
+	hs.op, hs.kh = StartTestCluster(hs.T, hs.namespace, "bluestore", true, false, mons, rbdMirrorWorkers, installer.VersionMaster, installer.NautilusVersion)
 	hs.helper = clients.CreateTestClient(hs.kh, hs.op.installer.Manifests)
 }
 
 func (hs *HelmSuite) TearDownSuite() {
 	hs.op.Teardown()
+}
+
+func (hs *HelmSuite) AfterTest(suiteName, testName string) {
+	hs.op.installer.CollectOperatorLog(suiteName, testName, installer.SystemNamespace(hs.namespace))
 }
 
 // Test to make sure all rook components are installed and Running

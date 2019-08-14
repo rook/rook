@@ -24,7 +24,6 @@ import (
 	"testing"
 
 	"github.com/coreos/pkg/capnslog"
-	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/api/errors"
 )
@@ -49,7 +48,7 @@ var (
 	createBaseTestDir = true
 	// ** end of Variables to modify
 	logger              = capnslog.NewPackageLogger("github.com/rook/rook", "installer")
-	createArgs          = []string{"create", "-f"}
+	createArgs          = []string{"apply", "-f"}
 	createFromStdinArgs = append(createArgs, "-")
 	deleteArgs          = []string{"delete", "-f"}
 	deleteFromStdinArgs = append(deleteArgs, "-")
@@ -62,7 +61,8 @@ type TestSuite interface {
 
 func SkipTestSuite(name string) bool {
 	testsToRun := os.Getenv("STORAGE_PROVIDER_TESTS")
-	if testsToRun == "" {
+	// jenkins passes "null" if the env var is not set.
+	if testsToRun == "" || testsToRun == "null" {
 		// run all test suites
 		return false
 	}
@@ -103,12 +103,4 @@ func concatYaml(first, second string) string {
 	return first + `
 ---
 ` + second
-}
-
-// GatherCRDObjectDebuggingInfo gathers all the descriptions for pods, pvs and pvcs
-func GatherCRDObjectDebuggingInfo(k8shelper *utils.K8sHelper, namespace string) {
-	k8shelper.PrintPodDescribeForNamespace(namespace)
-	k8shelper.PrintPVs(true /*detailed*/)
-	k8shelper.PrintPVCs(namespace, true /*detailed*/)
-	k8shelper.PrintStorageClasses(true /*detailed*/)
 }

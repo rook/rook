@@ -13,12 +13,12 @@ indent: true
 
 # Ceph Examples
 
-Configuration for Rook and Ceph can be configured in multiple ways to provide block devices, shared file system volumes or object storage in a kubernetes namespace. We have provided several examples to simplify storage setup, but remember there are many tunables and you will need to decide what settings work for your use case and environment. 
+Configuration for Rook and Ceph can be configured in multiple ways to provide block devices, shared file system volumes or object storage in a kubernetes namespace. We have provided several examples to simplify storage setup, but remember there are many tunables and you will need to decide what settings work for your use case and environment.
 
 See the **[example yaml files](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph)** folder for all the rook/ceph setup example spec files.
 
 ## Common Resources
-The first step to deploy Rook is to create the common resources. The configuration for these resources will be the same for most deployments. The [common.yaml](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/common.yaml) sets these resources up. 
+The first step to deploy Rook is to create the common resources. The configuration for these resources will be the same for most deployments. The [common.yaml](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/common.yaml) sets these resources up.
 ```
 kubectl create -f common.yaml
 ```
@@ -32,10 +32,6 @@ After the common resources are created, the next step is to create the Operator 
    - `kubectl create -f operator.yaml`
 - `operator-openshift.yaml`: Includes all of the operator settings for running a basic Rook cluster in an OpenShift environment. You will also want to review the [OpenShift Prerequisites](openshift.md) to confirm the settings.
    - `oc create -f operator-openshift.yaml`
-- `operator-with-csi.yaml`: Includes configuration for testing ceph-csi while the integration is still in progress. See the [CSI Drivers](ceph-csi-drivers.md) topic for more details.
-   - `kubectl create -f operator-with-csi.yaml`
-- `operator-openshift-with-csi.yaml`: Includes configuration for testing ceph-csi in an OpenShift environment
-   - `oc create -f operator-openshift-with-csi.yaml`
 
 Settings for the operator are configured through environment variables on the operator deployment. The individual settings are documented in `operator.yaml`.
 
@@ -47,17 +43,24 @@ Now that your operator is running, let's create your Ceph storage cluster:
 
 See the [Cluster CRD](ceph-cluster-crd.md) topic for more details on the settings.
 
+Monitors may be configured to run on PVC storage. Details on [how to set this up
+and some minor restrctions are described here](ceph-cluster-crd.md#mon-settings).
+
 ## Setting up consumable storage
 
-Now we are ready to setup [block](https://ceph.com/ceph-storage/block-storage/), [shared filesystem](https://ceph.com/ceph-storage/file-system/) or [object storage](https://ceph.com/ceph-storage/object-storage/) in the rook ceph cluster. These kinds of storage are respectively referred to as CephBlockPool, CephFilesystem and CephObjectStore in the spec files.
+Now we are ready to setup [block](https://ceph.com/ceph-storage/block-storage/), [shared filesystem](https://ceph.com/ceph-storage/file-system/) or [object storage](https://ceph.com/ceph-storage/object-storage/) in the Rook Ceph cluster. These kinds of storage are respectively referred to as CephBlockPool, CephFilesystem and CephObjectStore in the spec files.
 
 ### Block Devices
 
-Ceph can provide raw block device volumes to pods. Each example below sets up a storage class which can then be used to provision a block device in kubernetes pods. The storage class is defined with [a pool](http://docs.ceph.com/docs/nautilus/rados/operations/pools/) which defines the level of data redundancy in ceph:
+Ceph can provide raw block device volumes to pods. Each example below sets up a storage class which can then be used to provision a block device in kubernetes pods. The storage class is defined with [a pool](http://docs.ceph.com/docs/master/rados/operations/pools/) which defines the level of data redundancy in Ceph:
 
 - `storageclass.yaml`: This example illustrates replication of 3 for production scenarios and requires at least three nodes. Your data is replicated on three different kubernetes worker nodes and intermittent or long-lasting single node failures will not result in data unavailability or loss.
-- `storageclass-ec.yaml`: Configures erasure coding for data durability rather than replication. [Ceph's erasure coding](http://docs.ceph.com/docs/nautilus/rados/operations/erasure-code/) is more efficient than replication so you can get high reliability without the 3x replication cost of the preceding example (but at the cost of higher computational encoding and decoding costs on the worker nodes). Erasure coding requires at least three nodes. See the [Erasure coding](ceph-pool-crd.md#erasure-coded) documentation for more details. 
+- `storageclass-ec.yaml`: Configures erasure coding for data durability rather than replication. [Ceph's erasure coding](http://docs.ceph.com/docs/master/rados/operations/erasure-code/) is more efficient than replication so you can get high reliability without the 3x replication cost of the preceding example (but at the cost of higher computational encoding and decoding costs on the worker nodes). Erasure coding requires at least three nodes. See the [Erasure coding](ceph-pool-crd.md#erasure-coded) documentation for more details. **Note: Erasure coding is only available with the flex driver. Support from the CSI driver is coming soon.**
 - `storageclass-test.yaml`: Replication of 1 for test scenarios and it requires only a single node. Do not use this for applications that store valuable data or have high-availability storage requirements, since a single node failure can result in data loss.
+
+The storage classes are found in different sub-directories depending on the driver:
+- `csi/rbd`: The CSI driver for block devices. This is the preferred driver going forward.
+- `flex`: The flex driver will be deprecated in a future release to be determined.
 
 See the [Ceph Pool CRD](ceph-pool-crd.md) topic for more details on the settings.
 
@@ -68,6 +71,8 @@ File storage contains multiple pools that can be configured for different scenar
 - `filesystem.yaml`: Replication of 3 for production scenarios. Requires at least three nodes.
 - `filesystem-ec.yaml`: Erasure coding for production scenarios. Requires at least three nodes.
 - `filesystem-test.yaml`: Replication of 1 for test scenarios. Requires only a single node.
+
+Dynamic provisioning is possible with the CSI driver. The storage class for shared file systems is found in the `csi/cephfs` directory.
 
 See the [Shared File System CRD](ceph-filesystem-crd.md) topic for more details on the settings.
 
@@ -84,4 +89,4 @@ Object storage contains multiple pools that can be configured for different scen
 See the [Object Store CRD](ceph-object-store-crd.md) topic for more details on the settings.
 
 ### Object Storage User
-- `object-user.yaml`: Creates a simple object storage user and generates creds for the S3 API
+- `object-user.yaml`: Creates a simple object storage user and generates credentials for the S3 API

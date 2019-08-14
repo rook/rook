@@ -10,15 +10,17 @@ Object storage exposes an S3 API to the storage cluster for applications to put 
 
 ## Prerequisites
 
-This guide assumes you have created a Rook cluster as explained in the main [Kubernetes guide](ceph-quickstart.md)
+This guide assumes a Rook cluster as explained in the [Quickstart](ceph-quickstart.md).
 
 ## Create an Object Store
 
-**NOTE** This example requires you to have **at least 3 bluestore OSDs each on a different node**.
-This is because the below `erasureCoded` chunk settings require at least 3 bluestore OSDs and as [`failureDomain` setting](ceph-pool-crd.md#spec) to `host` (default), each OSD needs to be on a different nodes.
+The below sample will create a `CephObjectStore` that starts the RGW service in the cluster with an S3 API.
 
-Now we will create the object store, which starts the RGW service in the cluster with the S3 API.
-Specify your desired settings for the object store in the `object.yaml`. For more details on the settings see the [Object Store CRD](ceph-object-store-crd.md).
+**NOTE:** This sample requires *at least 3 bluestore OSDs*, with each OSD located on a *different node*.
+
+The OSDs must be located on different nodes, because the [`failureDomain`](ceph-pool-crd.md#spec) is set to `host` and the `erasureCoded` chunk settings require at least 3 different OSDs (2 `dataChunks` + 1 `codingChunks`).
+
+See the [Object Store CRD](ceph-object-store-crd.md#object-store-settings), for more detail on the settings availabe for a `CephObjectStore`. 
 
 ```yaml
 apiVersion: ceph.rook.io/v1
@@ -44,7 +46,8 @@ spec:
     instances: 1
 ```
 
-When the object store is created the Rook operator will create all the pools and other resources necessary to start the service. This may take a minute to complete.
+After the `CephObjectStore` is created, the Rook operator will then create all the pools and other resources necessary to start the service. This may take a minute to complete.
+
 ```bash
 # Create the object store
 kubectl create -f object.yaml
@@ -55,8 +58,9 @@ kubectl -n rook-ceph get pod -l app=rook-ceph-rgw
 
 ## Create a User
 
-Next we will create the object store user, which calls the RGW service in the cluster with the S3 API.
-Specify your desired settings for the object store user in the `object-user.yaml`. For more details on the settings see the [Object Store User CRD](ceph-object-store-user-crd.md).
+Next, create a `CephObjectStoreUser`, which will be used to connect to the RGW service in the cluster using the S3 API.
+
+See the [Object Store User CRD](ceph-object-store-user-crd.md) for more detail on the settings available for a `CephObjectStoreUser`.
 
 ```yaml
 apiVersion: ceph.rook.io/v1
@@ -69,7 +73,7 @@ spec:
   displayName: "my display name"
 ```
 
-When the object store user is created the Rook operator will create the RGW user on the object store specified, and store the Access Key and Secret Key in a kubernetes secret in the same namespace as the object store user.
+When the `CephObjectStoreUser` is created, the Rook operator will then create the RGW user on the specified `CephObjectStore` and store the Access Key and Secret Key in a kubernetes secret in the same namespace as the `CephObjectStoreUser`.
 
 ```bash
 # Create the object store user
@@ -104,13 +108,13 @@ kubectl -n rook-ceph get secret rook-ceph-object-user-my-store-my-user -o yaml |
 
 ## Consume the Object Storage
 
-Use an S3 compatible client to create a bucket in the object store.
+Use an S3 compatible client to create a bucket in the `CephObjectStore`.
 
-This section will allow you to test connecting to the object store and uploading and downloading from it. Run the following commands after you have connected to the [Rook toolbox](ceph-toolbox.md).
+This section will allow you to test connecting to the `CephObjectStore` and uploading and downloading from it. Run the following commands after you have connected to the [Rook toolbox](ceph-toolbox.md).
 
 ### Install s3cmd
 
-To test the object store we will install the `s3cmd` tool into the toobox pod.
+To test the `CephObjectStore` we will install the `s3cmd` tool into the toobox pod.
 ```bash
 yum --assumeyes install s3cmd
 ```
@@ -144,13 +148,13 @@ The access key and secret key can be retrieved as described in the section above
 
 Now that the user connection variables were set above, we can proceed to perform operations such as creating buckets.
 
-Create a bucket in the object store
+Create a bucket in the `CephObjectStore`
 
    ```bash
    s3cmd mb --no-ssl --host=${AWS_HOST} --region=":default-placement" --host-bucket="" s3://rookbucket
    ```
 
-List buckets in the object store
+List buckets in the `CephObjectStore`
 
    ```bash
    s3cmd ls --no-ssl --host=${AWS_HOST}
@@ -224,4 +228,4 @@ rook-ceph-rgw-my-store            ClusterIP   10.104.82.228    <none>        80/
 rook-ceph-rgw-my-store-external   NodePort    10.111.113.237   <none>        80:31536/TCP   39s
 ```
 
-Internally the rgw service is running on port `80`. The external port in this case is `31536`. Now you can access the object store from anywhere! All you need is the hostname for any machine in the cluster, the external port, and the user credentials.
+Internally the rgw service is running on port `80`. The external port in this case is `31536`. Now you can access the `CephObjectStore` from anywhere! All you need is the hostname for any machine in the cluster, the external port, and the user credentials.

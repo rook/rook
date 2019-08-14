@@ -61,7 +61,7 @@ func testNFSDaemons(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.S
 }
 
 func createFilesystemConsumerPod(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, filesystemName string) {
-	mtfsErr := podWithFilesystem(k8sh, s, filePodName, namespace, filesystemName, "create", getFilesystemTestPod)
+	mtfsErr := podWithFilesystem(k8sh, s, filePodName, namespace, filesystemName, "apply", getFilesystemTestPod)
 	require.Nil(s.T(), mtfsErr)
 	filePodRunning := k8sh.IsPodRunning(filePodName, namespace)
 	if !filePodRunning {

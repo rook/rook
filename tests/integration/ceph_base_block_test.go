@@ -208,13 +208,11 @@ func setupBlockLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.S
 
 	// Make sure new block is created
 	b, err := helper.BlockClient.List(clusterNamespace)
-	if version != installer.LuminousVersion {
-		assert.Nil(s.T(), err)
-		assert.Equal(s.T(), initBlockCount+1, len(b), "Make sure new block image is created")
-		poolExists, err := helper.PoolClient.CephPoolExists(clusterNamespace, poolName)
-		assert.Nil(s.T(), err)
-		assert.True(s.T(), poolExists)
-	}
+	assert.Nil(s.T(), err)
+	assert.Equal(s.T(), initBlockCount+1, len(b), "Make sure new block image is created")
+	poolExists, err := helper.PoolClient.CephPoolExists(clusterNamespace, poolName)
+	assert.Nil(s.T(), err)
+	assert.True(s.T(), poolExists)
 
 	return initBlockCount
 }

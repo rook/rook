@@ -144,7 +144,7 @@ func TestGetPartitions(t *testing.T) {
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, arg ...string) (string, error) {
 			run++
-			logger.Infof("run %d action %s", run, actionName)
+			logger.Infof("run %d action %s command %s", run, actionName, command)
 			switch {
 			case run == 1:
 				return `NAME="sdc" SIZE="100000" TYPE="disk" PKNAME=""`, nil

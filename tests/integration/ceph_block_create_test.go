@@ -50,7 +50,6 @@ type BlockCreateSuite struct {
 	kh             *utils.K8sHelper
 	initBlockCount int
 	namespace      string
-	installer      *installer.CephInstaller
 	op             *TestCluster
 }
 
@@ -60,11 +59,15 @@ func (s *BlockCreateSuite) SetupSuite() {
 	s.namespace = "block-k8s-ns"
 	mons := 1
 	rbdMirrorWorkers := 1
-	s.op, s.kh = StartTestCluster(s.T, s.namespace, "bluestore", false, false, mons, rbdMirrorWorkers, installer.VersionMaster, installer.MimicVersion)
+	s.op, s.kh = StartTestCluster(s.T, s.namespace, "bluestore", false, false, mons, rbdMirrorWorkers, installer.VersionMaster, installer.NautilusVersion)
 	s.testClient = clients.CreateTestClient(s.kh, s.op.installer.Manifests)
 	initialBlocks, err := s.testClient.BlockClient.List(s.namespace)
 	assert.Nil(s.T(), err)
 	s.initBlockCount = len(initialBlocks)
+}
+
+func (s *BlockCreateSuite) AfterTest(suiteName, testName string) {
+	s.op.installer.CollectOperatorLog(suiteName, testName, installer.SystemNamespace(s.namespace))
 }
 
 // Test case when persistentvolumeclaim is created for a storage class that doesn't exist
@@ -95,53 +98,6 @@ func (s *BlockCreateSuite) TestCreatingPVCWithVariousAccessModes() {
 	s.CheckCreatingPVC("rwo", "ReadWriteOnce")
 	s.CheckCreatingPVC("rwx", "ReadWriteMany")
 	s.CheckCreatingPVC("rox", "ReadOnlyMany")
-}
-
-// Test case when persistentvolumeclaim is created for a valid storage class twice
-func (s *BlockCreateSuite) TestCreateSamePVCTwice() {
-	logger.Infof("Test creating PVC(create block images) twice")
-	claimName := "test-twice-claim"
-	poolName := "test-twice-pool"
-	storageClassName := "rook-ceph-block"
-	reclaimPolicy := "Delete"
-	defer s.tearDownTest(claimName, poolName, storageClassName, reclaimPolicy, "ReadWriteOnce")
-	status, _ := s.kh.GetPVCStatus(defaultNamespace, claimName)
-	logger.Infof("PVC %s status: %s", claimName, status)
-	s.testClient.BlockClient.List(s.namespace)
-
-	logger.Infof("create pool and storageclass")
-	err := s.testClient.PoolClient.Create(poolName, s.namespace, 1)
-	require.NoError(s.T(), err)
-
-	err = s.testClient.BlockClient.CreateStorageClass(poolName, storageClassName, reclaimPolicy, s.namespace, true)
-	require.NoError(s.T(), err)
-
-	logger.Infof("make sure storageclass is created")
-	err = s.kh.IsStorageClassPresent("rook-ceph-block")
-	require.Nil(s.T(), err)
-
-	logger.Infof("create pvc")
-	err = s.testClient.BlockClient.CreatePvc(claimName, storageClassName, "ReadWriteOnce")
-	require.NoError(s.T(), err)
-
-	logger.Infof("check status of PVC")
-	require.True(s.T(), s.kh.WaitUntilPVCIsBound(defaultNamespace, claimName))
-
-	b1, err := s.testClient.BlockClient.List(s.namespace)
-	assert.Nil(s.T(), err)
-	assert.Equal(s.T(), s.initBlockCount+1, len(b1), "Make sure new block image is created")
-
-	logger.Infof("Create same pvc again and expect an error")
-	err = s.testClient.BlockClient.CreatePvc(claimName, storageClassName, "ReadWriteOnce")
-	assert.NotNil(s.T(), err)
-
-	logger.Infof("check status of PVC")
-	require.True(s.T(), s.kh.WaitUntilPVCIsBound(defaultNamespace, claimName))
-
-	logger.Infof("check block image count")
-	b2, _ := s.testClient.BlockClient.List(s.namespace)
-	assert.Equal(s.T(), len(b1), len(b2), "Make sure new block image is created")
-
 }
 
 func (s *BlockCreateSuite) TestBlockStorageMountUnMountForStatefulSets() {

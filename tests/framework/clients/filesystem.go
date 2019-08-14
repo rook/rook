@@ -41,7 +41,7 @@ func CreateFilesystemOperation(k8sh *utils.K8sHelper, manifests installer.CephMa
 // Create creates a filesystem in Rook
 func (f *FilesystemOperation) Create(name, namespace string) error {
 	logger.Infof("creating the filesystem via CRD")
-	if err := f.k8sh.ResourceOperation("create", f.manifests.GetFilesystem(namespace, name, 2)); err != nil {
+	if err := f.k8sh.ResourceOperation("apply", f.manifests.GetFilesystem(namespace, name, 2)); err != nil {
 		return err
 	}
 

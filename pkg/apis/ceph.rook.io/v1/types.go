@@ -84,7 +84,7 @@ type ClusterSpec struct {
 
 // VersionSpec represents the settings for the Ceph version that Rook is orchestrating.
 type CephVersionSpec struct {
-	// Image is the container image used to launch the ceph daemons, such as ceph/ceph:v12.2.7 or ceph/ceph:v13.2.1
+	// Image is the container image used to launch the ceph daemons, such as ceph/ceph:v13.2.6 or ceph/ceph:v14.2.2
 	Image string `json:"image,omitempty"`
 
 	// Whether to allow unsupported versions (do not set to true in production)
@@ -143,9 +143,10 @@ const (
 )
 
 type MonSpec struct {
-	Count                int  `json:"count"`
-	PreferredCount       int  `json:"preferredCount"`
-	AllowMultiplePerNode bool `json:"allowMultiplePerNode"`
+	Count                int                       `json:"count"`
+	PreferredCount       int                       `json:"preferredCount"`
+	AllowMultiplePerNode bool                      `json:"allowMultiplePerNode"`
+	VolumeClaimTemplate  *v1.PersistentVolumeClaim `json:"volumeClaimTemplate,omitempty"`
 }
 
 type RBDMirroringSpec struct {

@@ -41,7 +41,7 @@ func createPVCAndMountMysqlPod(t func() *testing.T, kh *utils.K8sHelper, storage
 	if _, err := kh.GetPVCStatus(defaultNamespace, pvcName); err != nil {
 		logger.Infof("Create PVC")
 
-		mySqlPodOperation(kh, storageClassName, appName, appLabel, pvcName, "create")
+		mySqlPodOperation(kh, storageClassName, appName, appLabel, pvcName, "apply")
 
 		// Wait till mysql pod is up
 		require.True(t(), kh.IsPodInExpectedState(appLabel, "", "Running"))
@@ -145,7 +145,7 @@ func StartLoadTestCluster(t func() *testing.T, namespace string) (LoadTestCluste
 	kh, err := utils.CreateK8sHelper(t)
 	require.NoError(t(), err)
 
-	i := installer.NewCephInstaller(t, kh.Clientset, false, installer.VersionMaster, cephv1.CephVersionSpec{Image: "ceph/ceph:v12.2.7"})
+	i := installer.NewCephInstaller(t, kh.Clientset, false, installer.VersionMaster, cephv1.CephVersionSpec{Image: "ceph/ceph:v14.2.2-20190722"})
 
 	op := LoadTestCluster{i, kh, nil, t, namespace}
 	op.Setup()
