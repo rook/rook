@@ -19,8 +19,10 @@ package test
 import (
 	"fmt"
 	"strings"
+	"testing"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/stretchr/testify/assert"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "ceph-op-testlib")
@@ -67,4 +69,19 @@ func ArgumentsMatchExpected(actualArgs []string, expectedArgs [][]string) error 
 		return fmt.Errorf("The actual arguments have additional args specified: %s", remainingArgs)
 	}
 	return nil
+}
+
+// AssertLabelsContainRookRequirements asserts that the the labels under test contain the labels
+// which all Rook pods should have. This can be used with labels for Kubernetes Deployments,
+// DaemonSets, etc.
+func AssertLabelsContainRookRequirements(t *testing.T, labels map[string]string, appName string) {
+	resourceLabels := []string{}
+	for k, v := range labels {
+		resourceLabels = append(resourceLabels, fmt.Sprintf("%s=%s", k, v))
+	}
+	expectedLabels := []string{
+		"app=" + appName,
+	}
+	assert.Subset(t, resourceLabels, expectedLabels,
+		"labels on resource do not match Rook requirements", labels)
 }

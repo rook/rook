@@ -43,10 +43,6 @@ var osdConfigCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Updates ceph.conf for the osd",
 }
-var copyBinariesCmd = &cobra.Command{
-	Use:   "copybins",
-	Short: "Copies rook binaries for use by a ceph container",
-}
 var provisionCmd = &cobra.Command{
 	Use:   "provision",
 	Short: "Generates osd config and prepares an osd for runtime",
@@ -70,6 +66,7 @@ var (
 	osdStringID         string
 	osdUUID             string
 	osdIsDevice         bool
+	pvcBackedOSD        bool
 )
 
 func addOSDFlags(command *cobra.Command) {
@@ -83,13 +80,11 @@ func addOSDFlags(command *cobra.Command) {
 	provisionCmd.Flags().StringVar(&cfg.metadataDevice, "metadata-device", "", "device to use for metadata (e.g. a high performance SSD/NVMe device)")
 	provisionCmd.Flags().BoolVar(&cfg.forceFormat, "force-format", false,
 		"true to force the format of any specified devices, even if they already have a filesystem.  BE CAREFUL!")
+	provisionCmd.Flags().BoolVar(&cfg.pvcBacked, "pvc-backed-osd", false, "true to specify a block mode pvc is backing the OSD")
 
 	// flags for generating the osd config
 	osdConfigCmd.Flags().IntVar(&osdID, "osd-id", -1, "osd id for which to generate config")
 	osdConfigCmd.Flags().BoolVar(&osdIsDevice, "is-device", false, "whether the osd is a device")
-
-	// flag for copying the rook binaries for use by a ceph container
-	copyBinariesCmd.Flags().StringVar(&copyBinariesPath, "path", "", "Copy the rook binaries to this path for use by a ceph container")
 
 	// flags for running filestore on a device
 	filestoreDeviceCmd.Flags().StringVar(&mountSourcePath, "source-path", "", "the source path of the device to mount")
@@ -99,10 +94,10 @@ func addOSDFlags(command *cobra.Command) {
 	osdStartCmd.Flags().StringVar(&osdStringID, "osd-id", "", "the osd ID")
 	osdStartCmd.Flags().StringVar(&osdUUID, "osd-uuid", "", "the osd UUID")
 	osdStartCmd.Flags().StringVar(&osdStoreType, "osd-store-type", "", "whether the osd is bluestore or filestore")
+	osdStartCmd.Flags().BoolVar(&pvcBackedOSD, "pvc-backed-osd", false, "Whether the OSD backing store in PVC or not")
 
 	// add the subcommands to the parent osd command
 	osdCmd.AddCommand(osdConfigCmd,
-		copyBinariesCmd,
 		provisionCmd,
 		filestoreDeviceCmd,
 		osdStartCmd)
@@ -127,13 +122,11 @@ func init() {
 	addCephFlags(osdCmd)
 	flags.SetFlagsFromEnv(osdCmd.Flags(), rook.RookEnvVarPrefix)
 	flags.SetFlagsFromEnv(osdConfigCmd.Flags(), rook.RookEnvVarPrefix)
-	flags.SetFlagsFromEnv(copyBinariesCmd.Flags(), rook.RookEnvVarPrefix)
 	flags.SetFlagsFromEnv(provisionCmd.Flags(), rook.RookEnvVarPrefix)
 	flags.SetFlagsFromEnv(filestoreDeviceCmd.Flags(), rook.RookEnvVarPrefix)
 	flags.SetFlagsFromEnv(osdStartCmd.Flags(), rook.RookEnvVarPrefix)
 
 	osdConfigCmd.RunE = writeOSDConfig
-	copyBinariesCmd.RunE = copyRookBinaries
 	provisionCmd.RunE = prepareOSD
 	filestoreDeviceCmd.RunE = runFilestoreDeviceOSD
 	osdStartCmd.RunE = startOSD
@@ -149,7 +142,7 @@ func startOSD(cmd *cobra.Command, args []string) error {
 	commonOSDInit(osdStartCmd)
 
 	context := createContext()
-	err := osddaemon.StartOSD(context, osdStoreType, osdStringID, osdUUID, args)
+	err := osddaemon.StartOSD(context, osdStoreType, osdStringID, osdUUID, pvcBackedOSD, args)
 	if err != nil {
 		rook.TerminateFatal(err)
 	}
@@ -214,14 +207,6 @@ func writeOSDConfig(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func copyRookBinaries(cmd *cobra.Command, args []string) error {
-	if err := flags.VerifyRequiredFlags(copyBinariesCmd, []string{"path"}); err != nil {
-		return err
-	}
-	copyBinaries(copyBinariesPath)
-	return nil
-}
-
 // Provision a device or directory for an OSD
 func prepareOSD(cmd *cobra.Command, args []string) error {
 	if err := verifyConfigFlags(provisionCmd); err != nil {
@@ -262,14 +247,15 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 	ownerRef := cluster.ClusterOwnerRef(clusterInfo.Name, ownerRefID)
 	kv := k8sutil.NewConfigMapKVStore(clusterInfo.Name, context.Clientset, ownerRef)
 	agent := osddaemon.NewAgent(context, dataDevices, cfg.metadataDevice, cfg.directories, forceFormat,
-		crushLocation, cfg.storeConfig, &clusterInfo, cfg.nodeName, kv)
+		crushLocation, cfg.storeConfig, &clusterInfo, cfg.nodeName, kv, cfg.pvcBacked)
 
 	err = osddaemon.Provision(context, agent)
 	if err != nil {
 		// something failed in the OSD orchestration, update the status map with failure details
 		status := oposd.OrchestrationStatus{
-			Status:  oposd.OrchestrationStatusFailed,
-			Message: err.Error(),
+			Status:       oposd.OrchestrationStatusFailed,
+			Message:      err.Error(),
+			PvcBackedOSD: cfg.pvcBacked,
 		}
 		oposd.UpdateNodeStatus(kv, cfg.nodeName, status)
 
@@ -286,9 +272,12 @@ func commonOSDInit(cmd *cobra.Command) {
 	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
 }
 
-// Parse the devices, which are comma separated. A colon indicates a non-default number of osds per device.
+// Parse the devices, which are comma separated. A colon indicates a non-default number of osds per device
+// or a non collocated metadata device.
 // For example, one osd will be created on each of sda and sdb, with 5 osds on the nvme01 device.
-//   sda,sdb,nvme01:5
+//   sda:1,sdb:1,nvme01:5
+// For example, 3 osds will use sdb SSD for db and 3 osds will use sdc SSD for db.
+//   sdd:1:sdb,sde:1:sdb,sdf:1:sdb,sdg:1:sdc,sdh:1:sdc,sdi:1:sdc
 func parseDevices(devices string) ([]osddaemon.DesiredDevice, error) {
 	var result []osddaemon.DesiredDevice
 	parsed := strings.Split(devices, ",")
@@ -305,19 +294,12 @@ func parseDevices(devices string) ([]osddaemon.DesiredDevice, error) {
 			}
 			d.OSDsPerDevice = count
 		}
+		if len(parts) > 2 {
+			d.MetadataDevice = parts[2]
+		}
 		result = append(result, d)
 	}
 
 	logger.Infof("desired devices to configure osds: %+v", result)
 	return result, nil
-}
-
-func copyBinaries(path string) {
-	if path != "" {
-		if err := osddaemon.CopyBinariesForDaemon(path); err != nil {
-			logger.Errorf("failed to copy rook binaries for daemon container. %+v", err)
-		} else {
-			logger.Infof("successfully copied rook binaries")
-		}
-	}
 }

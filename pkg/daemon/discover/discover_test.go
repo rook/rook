@@ -78,7 +78,7 @@ func TestProbeDevices(t *testing.T) {
 			output = "testa"
 		case "lsblk /dev/testa":
 			output = `SIZE="249510756352" ROTA="1" RO="0" TYPE="disk" PKNAME=""`
-		case "get filesystem type for testa":
+		case "get filesystem type for /dev/testa":
 			output = udevOutput
 		case "get parent for device testa":
 			output = `       testa
@@ -88,7 +88,7 @@ testa2   centos_host13-root
 testa2   centos_host13-swap
 testa2   centos_host13-home
 `
-		case "get disk testa uuid":
+		case "get disk /dev/testa uuid":
 			output = sgdiskOutput
 
 		case "get disk testa fs serial":

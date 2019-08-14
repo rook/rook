@@ -215,5 +215,5 @@ subjects:
 ---
 `
 	logger.Infof("creating the new resources that have been added since 1.0")
-	return s.k8sh.ResourceOperation("create", newResources)
+	return s.k8sh.ResourceOperation("apply", newResources)
 }

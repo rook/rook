@@ -78,12 +78,16 @@ func (suite *SmokeSuite) SetupSuite() {
 	suite.helper = clients.CreateTestClient(suite.k8sh, suite.op.installer.Manifests)
 }
 
+func (suite *SmokeSuite) AfterTest(suiteName, testName string) {
+	suite.op.installer.CollectOperatorLog(suiteName, testName, installer.SystemNamespace(suite.namespace))
+}
+
 func (suite *SmokeSuite) TearDownSuite() {
 	suite.op.Teardown()
 }
 
 func (suite *SmokeSuite) TestBlockCSI_SmokeTest() {
-	runCephCSIE2ETest(suite.helper, suite.k8sh, suite.Suite, suite.namespace)
+	runCephCSIE2ETest(suite.helper, suite.k8sh, suite.Suite, suite.op.T(), suite.namespace)
 }
 
 func (suite *SmokeSuite) TestBlockStorage_SmokeTest() {

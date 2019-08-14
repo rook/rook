@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	optest "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -78,12 +79,13 @@ func AssertLabelsContainCephRequirements(
 	t *testing.T, labels map[string]string,
 	daemonType config.DaemonType, daemonID, appName, namespace string,
 ) {
+	optest.AssertLabelsContainRookRequirements(t, labels, appName)
+
 	resourceLabels := []string{}
 	for k, v := range labels {
 		resourceLabels = append(resourceLabels, fmt.Sprintf("%s=%s", k, v))
 	}
 	expectedLabels := []string{
-		"app=" + appName,
 		"ceph_daemon_id=" + daemonID,
 		string(daemonType) + "=" + daemonID,
 		"rook_cluster" + "=" + namespace,

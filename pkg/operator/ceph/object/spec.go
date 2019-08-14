@@ -19,6 +19,7 @@ package object
 import (
 	"fmt"
 
+	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -133,7 +134,8 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 			},
 			InitialDelaySeconds: 10,
 		},
-		Lifecycle: opspec.PodLifeCycle(""),
+		Lifecycle:       opspec.PodLifeCycle(""),
+		SecurityContext: mon.PodSecurityContext(),
 	}
 
 	if c.store.Spec.Gateway.SSLCertificateRef != "" {

@@ -54,7 +54,7 @@ func CreateBlockOperation(k8shelp *utils.K8sHelper, manifests installer.CephMani
 // size - not user for k8s implementation since its descried on the pvc yaml definition
 // Output - k8s create pvc operation output and/or error
 func (b *BlockOperation) Create(manifest string, size int) (string, error) {
-	args := []string{"create", "-f", "-"}
+	args := []string{"apply", "-f", "-"}
 	result, err := b.k8sClient.KubectlWithStdin(manifest, args...)
 	if err != nil {
 		return "", fmt.Errorf("Unable to create block -- : %s", err)
@@ -65,11 +65,11 @@ func (b *BlockOperation) Create(manifest string, size int) (string, error) {
 }
 
 func (b *BlockOperation) CreatePvc(claimName, storageClassName, mode string) error {
-	return b.k8sClient.ResourceOperation("create", b.manifests.GetBlockPvcDef(claimName, storageClassName, mode))
+	return b.k8sClient.ResourceOperation("apply", b.manifests.GetBlockPvcDef(claimName, storageClassName, mode))
 }
 
 func (b *BlockOperation) CreateStorageClass(poolName, storageClassName, reclaimPolicy, namespace string, varClusterName bool) error {
-	return b.k8sClient.ResourceOperation("create", b.manifests.GetBlockStorageClassDef(poolName, storageClassName, reclaimPolicy, namespace, varClusterName))
+	return b.k8sClient.ResourceOperation("apply", b.manifests.GetBlockStorageClassDef(poolName, storageClassName, reclaimPolicy, namespace, varClusterName))
 }
 
 func (b *BlockOperation) DeletePvc(claimName, storageClassName, mode string) error {
@@ -139,7 +139,7 @@ func (b *BlockOperation) DeleteBlockImage(image BlockImage, namespace string) er
 // manifest - Pod definition  - pod should be defined to use a pvc that was created earlier
 // Output  - k8s create pod operation output and/or error
 func (b *BlockOperation) BlockMap(manifest string) (string, error) {
-	args := []string{"create", "-f", "-"}
+	args := []string{"apply", "-f", "-"}
 	result, err := b.k8sClient.KubectlWithStdin(manifest, args...)
 	if err != nil {
 		return "", fmt.Errorf("Unable to map block -- : %s", err)

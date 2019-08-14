@@ -14,19 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package nfs for NFS ganesha
+// Package nfs manages NFS ganesha servers for Ceph
 package nfs
 
 import (
 	"fmt"
-	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
-	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
+	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	batch "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,6 +37,12 @@ const (
 
 var updateDeploymentAndWait = opmon.UpdateCephDeploymentAndWait
 
+type daemonConfig struct {
+	ID              string              // letter ID of daemon (e.g., a, b, c, ...)
+	ConfigConfigMap string              // name of configmap holding config
+	DataPathMap     *config.DataPathMap // location to store data in container
+}
+
 // Create the ganesha server
 func (c *CephNFSController) upCephNFS(n cephv1.CephNFS, oldActive int) error {
 	if err := validateGanesha(c.context, n); err != nil {
@@ -48,20 +53,30 @@ func (c *CephNFSController) upCephNFS(n cephv1.CephNFS, oldActive int) error {
 		n.Spec.Server.Active-1)
 
 	for i := oldActive; i < n.Spec.Server.Active; i++ {
-		name := k8sutil.IndexToName(i)
+		id := k8sutil.IndexToName(i)
 
-		configName, err := c.generateConfig(n, name)
+		configName, err := c.generateConfig(n, id)
 		if err != nil {
 			return fmt.Errorf("failed to create config. %+v", err)
 		}
 
-		err = c.addRADOSConfigFile(n, name)
+		err = c.addRADOSConfigFile(n, id)
 		if err != nil {
 			return fmt.Errorf("failed to create RADOS config object. %+v", err)
 		}
 
+		cfg := daemonConfig{
+			ID:              id,
+			ConfigConfigMap: configName,
+			DataPathMap: &config.DataPathMap{
+				HostDataDir:      "",                          // nfs daemon does not store data on host, ...
+				ContainerDataDir: cephconfig.DefaultConfigDir, // does share data in containers using emptyDir, ...
+				HostLogDir:       "",                          // and does not log to /var/log/ceph dir
+			},
+		}
+
 		// start the deployment
-		deployment := c.makeDeployment(n, name, configName)
+		deployment := c.makeDeployment(n, cfg)
 		_, err = c.context.Clientset.AppsV1().Deployments(n.Namespace).Create(deployment)
 		if err != nil {
 			if !errors.IsAlreadyExists(err) {
@@ -69,7 +84,7 @@ func (c *CephNFSController) upCephNFS(n cephv1.CephNFS, oldActive int) error {
 			}
 			logger.Infof("ganesha deployment %s already exists. updating if needed", deployment.Name)
 			// We don't invoke ceph versions here since nfs do not show up in the service map (yet?)
-			if err := updateDeploymentAndWait(c.context, deployment, n.Namespace, "nfs", name, c.clusterInfo.CephVersion); err != nil {
+			if err := updateDeploymentAndWait(c.context, deployment, n.Namespace, "nfs", id, c.clusterInfo.CephVersion); err != nil {
 				return fmt.Errorf("failed to update ganesha deployment %s. %+v", deployment.Name, err)
 			}
 		} else {
@@ -77,12 +92,12 @@ func (c *CephNFSController) upCephNFS(n cephv1.CephNFS, oldActive int) error {
 		}
 
 		// create a service
-		err = c.createCephNFSService(n, name)
+		err = c.createCephNFSService(n, cfg)
 		if err != nil {
 			return fmt.Errorf("failed to create ganesha service. %+v", err)
 		}
 
-		c.addServerToDatabase(n, name)
+		c.addServerToDatabase(n, id)
 	}
 
 	return nil
@@ -101,93 +116,26 @@ func (c *CephNFSController) addRADOSConfigFile(n cephv1.CephNFS, name string) er
 	return c.context.Executor.ExecuteCommand(false, "", "rados", "--pool", n.Spec.RADOS.Pool, "--namespace", n.Spec.RADOS.Namespace, "create", config)
 }
 
-func (c *CephNFSController) addServerToDatabase(n cephv1.CephNFS, name string) {
+func (c *CephNFSController) addServerToDatabase(nfs cephv1.CephNFS, name string) {
 	logger.Infof("Adding ganesha %s to grace db", name)
 
-	if err := c.runGaneshaRadosGraceJob(n, name, "add", 10*time.Minute); err != nil {
+	if err := c.runGaneshaRadosGrace(nfs, name, "add"); err != nil {
 		logger.Errorf("failed to add %s to grace db. %+v", name, err)
 	}
 }
 
-func (c *CephNFSController) removeServerFromDatabase(n cephv1.CephNFS, name string) {
+func (c *CephNFSController) removeServerFromDatabase(nfs cephv1.CephNFS, name string) {
 	logger.Infof("Removing ganesha %s from grace db", name)
 
-	if err := c.runGaneshaRadosGraceJob(n, name, "remove", 10*time.Minute); err != nil {
-		logger.Errorf("failed to remmove %s from grace db. %+v", name, err)
+	if err := c.runGaneshaRadosGrace(nfs, name, "remove"); err != nil {
+		logger.Errorf("failed to remove %s from grace db. %+v", name, err)
 	}
 }
 
-func (c *CephNFSController) runGaneshaRadosGraceJob(n cephv1.CephNFS, name, action string, timeout time.Duration) error {
-	nodeID := getNFSNodeID(n, name)
-	args := []string{"--pool", n.Spec.RADOS.Pool, "--ns", n.Spec.RADOS.Namespace, action, nodeID}
-
-	// FIX: After the operator is based on the nautilus image, we can execute the command directly instead of running a job
-	//return c.context.Executor.ExecuteCommand(false, "", ganeshaRadosGraceCmd, args...)
-
-	job := &batch.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "rook-ceph-nfs-ganesha-rados-grace",
-			Namespace: n.Namespace,
-		},
-		Spec: batch.JobSpec{
-			Template: v1.PodTemplateSpec{
-				Spec: v1.PodSpec{
-					InitContainers: []v1.Container{
-						{
-							Name: opspec.ConfigInitContainerName,
-							Args: []string{
-								"ceph",
-								"config-init",
-							},
-							Image: k8sutil.MakeRookImage(c.rookImage),
-							Env: []v1.EnvVar{
-								{Name: "ROOK_USERNAME", Value: "client.admin"},
-								{Name: "ROOK_KEYRING",
-									ValueFrom: &v1.EnvVarSource{
-										SecretKeyRef: &v1.SecretKeySelector{
-											LocalObjectReference: v1.LocalObjectReference{Name: "rook-ceph-mon"},
-											Key:                  "admin-secret",
-										}}},
-								k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
-								k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
-								opmon.EndpointEnvVar(),
-								k8sutil.ConfigOverrideEnvVar(),
-							},
-							VolumeMounts: opspec.RookVolumeMounts(),
-						},
-					},
-					Containers: []v1.Container{
-						{
-							Command:      []string{ganeshaRadosGraceCmd},
-							Args:         args,
-							Name:         ganeshaRadosGraceCmd,
-							Image:        c.cephVersion.Image,
-							VolumeMounts: opspec.RookVolumeMounts(),
-						},
-					},
-					Volumes:       opspec.PodVolumes("", ""),
-					RestartPolicy: v1.RestartPolicyOnFailure,
-				},
-			},
-		},
-	}
-	k8sutil.SetOwnerRef(&job.ObjectMeta, &c.ownerRef)
-
-	// run the job to detect the version
-	if err := k8sutil.RunReplaceableJob(c.context.Clientset, job, false); err != nil {
-		return fmt.Errorf("failed to start job %s. %+v", job.Name, err)
-	}
-
-	if err := k8sutil.WaitForJobCompletion(c.context.Clientset, job, timeout); err != nil {
-		return fmt.Errorf("failed to complete job %s. %+v", job.Name, err)
-	}
-
-	if err := k8sutil.DeleteBatchJob(c.context.Clientset, n.Namespace, job.Name, false); err != nil {
-		return fmt.Errorf("failed to delete job %s. %+v", job.Name, err)
-	}
-
-	logger.Infof("successfully completed job %s", job.Name)
-	return nil
+func (c *CephNFSController) runGaneshaRadosGrace(nfs cephv1.CephNFS, name, action string) error {
+	nodeID := getNFSNodeID(nfs, name)
+	args := []string{"--pool", nfs.Spec.RADOS.Pool, "--ns", nfs.Spec.RADOS.Namespace, action, nodeID}
+	return c.context.Executor.ExecuteCommand(false, "", ganeshaRadosGraceCmd, args...)
 }
 
 func (c *CephNFSController) generateConfig(n cephv1.CephNFS, name string) (string, error) {

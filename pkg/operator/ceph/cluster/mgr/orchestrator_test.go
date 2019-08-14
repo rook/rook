@@ -57,17 +57,9 @@ func TestOrchestratorModules(t *testing.T) {
 
 	c := &Cluster{clusterInfo: clusterInfo, context: context}
 
-	// the modules are skipped on luminous
-	c.clusterInfo.CephVersion = cephver.Luminous
-	err := c.configureOrchestratorModules()
-	assert.Nil(t, err)
-	assert.False(t, orchestratorModuleEnabled)
-	assert.False(t, rookModuleEnabled)
-	assert.False(t, rookBackendSet)
-
 	// the modules are skipped on mimic
 	c.clusterInfo.CephVersion = cephver.Mimic
-	err = c.configureOrchestratorModules()
+	err := c.configureOrchestratorModules()
 	assert.Nil(t, err)
 	assert.False(t, orchestratorModuleEnabled)
 	assert.False(t, rookModuleEnabled)

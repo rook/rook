@@ -23,6 +23,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -214,7 +215,11 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 
 func validateStart(t *testing.T, c *Cluster) {
 	s, err := c.context.Clientset.CoreV1().Secrets(c.Namespace).Get(appName, metav1.GetOptions{})
-	assert.Nil(t, err) // there shouldn't be an error due the secret existing
+	assert.NoError(t, err) // there shouldn't be an error due the secret existing
+	assert.Equal(t, 4, len(s.Data))
+
+	s, err = c.context.Clientset.CoreV1().Secrets(c.Namespace).Get("rook-ceph-csi", metav1.GetOptions{})
+	assert.NoError(t, err) // there shouldn't be an error due the secret existing
 	assert.Equal(t, 4, len(s.Data))
 
 	// there is only one pod created. the other two won't be created since the first one doesn't start
@@ -226,7 +231,7 @@ func TestSaveMonEndpoints(t *testing.T) {
 	clientset := test.New(1)
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
-	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: configDir}, "ns", "", false, metav1.OwnerReference{})
+	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: configDir}, "ns", "", false, metav1.OwnerReference{}, &sync.Mutex{})
 	setCommonMonProperties(c, 1, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 
 	// create the initial config map

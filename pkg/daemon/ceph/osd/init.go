@@ -18,9 +18,6 @@ package osd
 
 import (
 	"fmt"
-	"io"
-	"os"
-	"os/exec"
 
 	"path"
 	"path/filepath"
@@ -73,49 +70,4 @@ func createOSDBootstrapKeyring(context *clusterd.Context, clusterName, rootDir s
 	}
 
 	return cephconfig.CreateKeyring(context, clusterName, username, keyringPath, access, keyringEval)
-}
-
-// CopyBinariesForDaemon copies the "tini" and "rook" binaries to a shared volume at the target path.
-// This is necessary for the filestore on a device scenario when rook needs to mount a directory
-// in the same container as the ceph process so it can be unmounted upon exit.
-func CopyBinariesForDaemon(target string) error {
-	if err := copyBinary("/usr/local/bin", target, "rook"); err != nil {
-		return err
-	}
-	return copyBinary("/", target, "tini")
-}
-
-func copyBinary(sourceDir, targetDir, filename string) error {
-	sourcePath := path.Join(sourceDir, filename)
-	targetPath := path.Join(targetDir, filename)
-	logger.Infof("copying %s to %s", sourcePath, targetPath)
-
-	// Check if the source path exists, and look in PATH if it doesn't
-	if _, err := os.Stat(sourcePath); err != nil {
-		if sourcePath, err = exec.LookPath(filename); err != nil {
-			return err
-		}
-	}
-
-	// Check if the target path exists, and skip the copy if it does
-	if _, err := os.Stat(targetPath); err == nil {
-		return nil
-	}
-
-	sourceFile, err := os.Open(sourcePath)
-	if err != nil {
-		return err
-	}
-	defer sourceFile.Close()
-
-	destinationFile, err := os.Create(targetPath)
-	if err != nil {
-		return err
-	}
-	defer destinationFile.Close()
-	if _, err := io.Copy(destinationFile, sourceFile); err != nil {
-		return err
-	}
-
-	return os.Chmod(targetPath, 0755)
 }

@@ -14,15 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package cluster to manage a Ceph cluster.
+// Package cluster to manage Kubernetes storage.
 package cluster
 
 import (
 	"encoding/json"
 	"testing"
 
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
+	testop "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -107,4 +110,47 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 	m, err = diffImageSpecAndClusterRunningVersion(fakeImageVersion, dummyRunningVersions5)
 	assert.NoError(t, err)
 	assert.False(t, m)
+}
+
+func TestMinVersion(t *testing.T) {
+	c := testSpec()
+	c.Spec.CephVersion.AllowUnsupported = true
+
+	// All versions less than 13.2.4 are invalid
+	v := &cephver.CephVersion{Major: 12, Minor: 2, Extra: 10}
+	assert.Error(t, c.validateCephVersion(v))
+	v = &cephver.CephVersion{Major: 13, Minor: 2, Extra: 3}
+	assert.Error(t, c.validateCephVersion(v))
+
+	// All versions at least 13.2.4 are valid
+	v = &cephver.CephVersion{Major: 13, Minor: 2, Extra: 4}
+	assert.NoError(t, c.validateCephVersion(v))
+	v = &cephver.CephVersion{Major: 14}
+	assert.NoError(t, c.validateCephVersion(v))
+	v = &cephver.CephVersion{Major: 15}
+	assert.NoError(t, c.validateCephVersion(v))
+}
+
+func TestSupportedVersion(t *testing.T) {
+	c := testSpec()
+
+	// Supported versions are valid
+	v := &cephver.CephVersion{Major: 14, Minor: 2, Extra: 0}
+	assert.NoError(t, c.validateCephVersion(v))
+
+	// Unsupported versions are not valid
+	v = &cephver.CephVersion{Major: 15, Minor: 2, Extra: 0}
+	assert.Error(t, c.validateCephVersion(v))
+
+	// Unsupported versions are now valid
+	c.Spec.CephVersion.AllowUnsupported = true
+	assert.NoError(t, c.validateCephVersion(v))
+}
+
+func testSpec() cluster {
+	clientset := testop.New(1)
+	context := &clusterd.Context{
+		Clientset: clientset,
+	}
+	return cluster{Spec: &cephv1.ClusterSpec{}, context: context}
 }
