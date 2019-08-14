@@ -70,6 +70,7 @@ spec:
             - "--type=rbd"
             - "--drivername={{ .DriverNamePrefix }}rbd.csi.ceph.com"
             - "--containerized=true"
+            - "--pidlimit=-1"
           env:
             - name: HOST_ROOTFS
               value: "/rootfs"
