@@ -39,6 +39,7 @@ const (
 	CockroachDBTestSuite = "cockroachdb"
 	EdgeFSTestSuite      = "edgefs"
 	NFSTestSuite         = "nfs"
+	YugabyteDBTestSuite  = "yugabytedb"
 )
 
 var (

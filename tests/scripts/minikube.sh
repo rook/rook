@@ -117,6 +117,11 @@ function copy_images() {
         echo "copying nfs image"
         copy_image_to_cluster "${BUILD_REGISTRY}/nfs-amd64" rook/nfs:master
     fi
+
+    if [[ "$1" == "" || "$1" == "yugabytedb" ]]; then
+      echo "copying yugabytedb image"
+      copy_image_to_cluster "${BUILD_REGISTRY}/yugabytedb-amd64" rook/yugabytedb:master
+    fi
 }
 
 # configure minikube
@@ -185,11 +190,11 @@ case "${1:-}" in
     ;;
   *)
     echo "usage:" >&2
-    echo "  $0 up [ceph | cockroachdb | cassandra | minio | nfs]" >&2
+    echo "  $0 up [ceph | cockroachdb | cassandra | minio | nfs | yugabytedb]" >&2
     echo "  $0 down" >&2
     echo "  $0 clean" >&2
     echo "  $0 ssh" >&2
-    echo "  $0 update [ceph | cockroachdb | cassandra | minio | nfs]" >&2
+    echo "  $0 update [ceph | cockroachdb | cassandra | minio | nfs | yugabytedb]" >&2
     echo "  $0 restart <pod-name-regex> (the pod name is a regex to match e.g. restart ^rook-ceph-osd)" >&2
     echo "  $0 wordpress" >&2
     echo "  $0 cockroachdb-loadgen" >&2
