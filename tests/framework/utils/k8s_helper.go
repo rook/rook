@@ -105,7 +105,11 @@ func (k8sh *K8sHelper) MakeContext() *clusterd.Context {
 }
 
 func (k8sh *K8sHelper) GetDockerImage(image string) error {
-	return k8sh.executor.ExecuteCommand(false, "", "docker", "pull", image)
+	dockercmd := os.Getenv("DOCKERCMD")
+	if dockercmd == "" {
+		dockercmd = "docker"
+	}
+	return k8sh.executor.ExecuteCommand(false, "", dockercmd, "pull", image)
 }
 
 // SetDeploymentVersion sets the container version on the deployment. It is assumed to be the rook/ceph image.
