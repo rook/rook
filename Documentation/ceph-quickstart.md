@@ -30,6 +30,7 @@ If you are using `dataDirHostPath` to persist rook data on kubernetes hosts, mak
 
 If you're feeling lucky, a simple Rook cluster can be created with the following kubectl commands and [example yaml files](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph). For the more detailed install, skip to the next section to [deploy the Rook operator](#deploy-the-rook-operator).
 ```
+git clone https://github.com/rook/rook
 cd cluster/examples/kubernetes/ceph
 kubectl create -f common.yaml
 kubectl create -f operator.yaml
@@ -51,6 +52,7 @@ of requiring a device. For production environments, you will want to follow the 
 The first step is to deploy the Rook system components, which include the Rook agent running on each node in your cluster as well as Rook operator pod. Check that you are using the [example yaml files](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph) that correspond to your release of Rook. For more options, see the [examples documentation](ceph-examples.md).
 
 ```bash
+git clone https://github.com/rook/rook
 cd cluster/examples/kubernetes/ceph
 kubectl create -f common.yaml
 kubectl create -f operator.yaml
