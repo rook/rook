@@ -12,16 +12,17 @@ indent: true
 {% endif %}
 # Ceph Shared File System CRD
 
-Rook allows creation and customization of shared file systems through the custom resource definitions (CRDs). The following settings are available
-for Ceph file systems.
+Rook allows creation and customization of shared file systems through the custom resource definitions (CRDs). The following settings are available for Ceph file systems.
 
 ## Samples
 
 ### Replicated
 
-**NOTE** This example requires you to have **at least 3 OSDs each on a different node**.
-This is because the `replicated.size: 3` (in both defined Pools) will require at least 3 OSDs and as [`failureDomain` setting](ceph-pool-crd.md#spec) to `host` (default), each OSD needs to be on a different nodes.
-In case you added another location type to your nodes in the [Storage Selection Settings](ceph-cluster-crd.md#storage-selection-settings) (e.g. `rack`), you can also specify this type as your failure domain.
+**NOTE:** This sample requires *at least 1 OSD per node*, with each OSD located on *3 different nodes*.
+
+Each OSD must be located on a different node, because both of the defined pools set the [`failureDomain`](ceph-pool-crd.md#spec) to `host` and the `replicated.size` to `3`.
+
+The `failureDomain` can also be set to another location type (e.g. `rack`), if it has been added as a `location` in the [Storage Selection Settings](ceph-cluster-crd.md#storage-selection-settings).
 
 ```yaml
 apiVersion: ceph.rook.io/v1
@@ -71,11 +72,11 @@ spec:
 
 ### Erasure Coded
 
-If you want to use erasure coded pool with filesystem, your OSDs must use `bluestore` as their `storeType`.
-Additionally erasure coded can only be used as a data pool and not as a metadata pool. The metadata pool must still be a replicated pool.
+Erasure coded pools require the OSDs to use `bluestore` for the configured [`storeType`](ceph-cluster-crd.md#osd-configuration-settings). Additionally, erasure coded pools can only be used with `dataPools`. The `metadataPool` must use a replicated pool.
 
-The sample below requires that you have at least 3 `bluestore` OSDs on different nodes.
-For erasure coded to make sense, you need **at least three OSDs for the below `dataPools` config** to work.
+**NOTE:** This sample requires *at least 3 bluestore OSDs*, with each OSD located on a *different node*.
+
+The OSDs must be located on different nodes, because the [`failureDomain`](ceph-pool-crd.md#spec) will be set to `host` by default, and the `erasureCoded` chunk settings require at least 3 different OSDs (2 `dataChunks` + 1 `codingChunks`).
 
 ```yaml
 apiVersion: ceph.rook.io/v1

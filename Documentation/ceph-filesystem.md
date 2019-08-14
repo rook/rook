@@ -3,6 +3,13 @@ title: Shared File System
 weight: 2300
 indent: true
 ---
+{% assign url = page.url | split: '/' %}
+{% assign currentVersion = url[3] %}
+{% if currentVersion != 'master' %}
+{% assign branchName = currentVersion | replace: 'v', '' | prepend: 'release-' %}
+{% else %}
+{% assign branchName = currentVersion %}
+{% endif %}
 
 # Shared File System
 
@@ -65,12 +72,69 @@ $ ceph status
     mds: myfs-1/1/1 up {[myfs:0]=mzw58b=up:active}, 1 up:standby-replay
 ```
 
+## Provision Storage
+
+Before Rook can start provisioning storage, a StorageClass needs to be created based on the filesystem. This is needed for Kubernetes to interoperate
+with the CSI driver to create persistent volumes.
+
+**NOTE** This example uses the CSI driver, which is the preferred driver going forward for K8s 1.13 and newer. Examples are found in the [CSI CephFS](https://github.com/rook/rook/tree/{{ branchName }}/cluster/examples/kubernetes/ceph/csi/cephfs) directory. For an example of a volume using the flex driver (required for K8s 1.12 and earlier), see the [Flex Driver](#flex-driver) section below.
+
+Save this storage class definition as `storageclass.yaml`:
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: rook-cephfs
+provisioner: cephfs.csi.ceph.com
+parameters:
+  # clusterID is the namespace where operator is deployed.
+  clusterID: rook-ceph
+
+  # CephFS filesystem name into which the volume shall be created
+  fsName: myfs
+
+  # Ceph pool into which the volume shall be created
+  # Required for provisionVolume: "true"
+  pool: myfs-data0
+
+  # Root path of an existing CephFS volume
+  # Required for provisionVolume: "false"
+  # rootPath: /absolute/path
+
+  # The secrets contain Ceph admin credentials. These are generated automatically by the operator
+  # in the same namespace as the cluster.
+  csi.storage.k8s.io/provisioner-secret-name: rook-ceph-csi
+  csi.storage.k8s.io/provisioner-secret-namespace: rook-ceph
+  csi.storage.k8s.io/node-stage-secret-name: rook-ceph-csi
+  csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph
+
+reclaimPolicy: Delete
+```
+
+Create the storage class.
+```bash
+kubectl create -f cluster/examples/kubernetes/ceph/csi/cephfs/storageclass.yaml
+```
+
 ## Consume the Shared File System: K8s Registry Sample
 
 As an example, we will start the kube-registry pod with the shared file system as the backing store.
 Save the following spec as `kube-registry.yaml`:
 
 ```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cephfs-pvc
+spec:
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: csi-cephfs
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -123,18 +187,17 @@ spec:
             port: registry
       volumes:
       - name: image-store
-        flexVolume:
-          driver: ceph.rook.io/rook
-          fsType: ceph
-          options:
-            fsName: myfs # name of the filesystem specified in the filesystem CRD.
-            clusterNamespace: rook-ceph # namespace where the Rook cluster is deployed
-            # by default the path is /, but you can override and mount a specific path of the filesystem by using the path attribute
-            # the path must exist on the filesystem, otherwise mounting the filesystem at that path will fail
-            # path: /some/path/inside/cephfs
+        persistentVolumeClaim:
+          claimName: cephfs-pvc
+          readOnly: false
 ```
 
-After creating it with `kubectl create -f kube-registry.yaml`, you now have a docker registry which is HA with persistent storage.
+Create the Kube registry deployment:
+```bash
+kubectl create -f cluster/examples/kubernetes/ceph/csi/cephfs/kube-registry.yaml
+```
+
+You now have a docker registry which is HA with persistent storage.
 
 #### Kernel Version Requirement
 If the Rook cluster has more than one filesystem and the application pod is scheduled to a node with kernel version older than 4.7, inconsistent results may arise since kernels older than 4.7 do not support specifying filesystem namespaces.
@@ -154,6 +217,12 @@ To delete the filesystem components and backing data, delete the Filesystem CRD.
 ```
 kubectl -n rook-ceph delete cephfilesystem myfs
 ```
+
+## Flex Driver
+
+To create a volume based on the flex driver instead of the CSI driver, see the [kube-registry.yaml](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/flex/kube-registry.yaml) example manifest or refer to the complete flow in the Rook v1.0 [Shared File System](https://rook.io/docs/rook/v1.0/ceph-filesystem.html) documentation.
+
+
 ### Advanced Example: Erasure Coded Filesystem
 
 The Ceph filesystem example can be found here: [Ceph Shared File System - Samples - Erasure Coded](ceph-filesystem-crd.md#erasure-coded).

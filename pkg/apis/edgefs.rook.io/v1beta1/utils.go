@@ -34,8 +34,8 @@ func ByteCountBinary(b uint64) string {
 }
 
 // GetModifiedRookImagePath takes current edgefs path to provide modified path to specific images
-// I.e in case of original edgefs path: edgefs/edgefs:1.2.25 then edgefs ui path should be
-// edgefs/edgefs-ui:1.2.25 and edgefs-restapi should be edgefs/edgefs-restapi:1.2.25
+// I.e in case of original edgefs path: edgefs/edgefs:1.2.31 then edgefs ui path should be
+// edgefs/edgefs-ui:1.2.25 and edgefs-restapi should be edgefs/edgefs-restapi:1.2.31
 // addon param is edgefs image suffix. To get restapi image path getModifiedRookImagePath(edgefsImage, "restapi")
 func GetModifiedRookImagePath(originRookImage, addon string) string {
 	imageParts := strings.Split(originRookImage, "/")

@@ -24,6 +24,7 @@ import (
 	"github.com/rook/rook/pkg/util"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -53,7 +54,7 @@ func GetDeploymentSpecImage(clientset kubernetes.Interface, d apps.Deployment, c
 // It serves two purposes:
 //   1. verify that a resource can be stopped
 //   2. verify that we can continue the update procedure
-// Basically, we go one resource by one and check if we can stop and then if the ressource has been successfully updated
+// Basically, we go one resource by one and check if we can stop and then if the resource has been successfully updated
 // we check if we can go ahead and move to the next one.
 func UpdateDeploymentAndWait(context *clusterd.Context, deployment *apps.Deployment, namespace string, verifyCallback func(action string) error) (*v1.Deployment, error) {
 	original, err := context.Clientset.AppsV1().Deployments(namespace).Get(deployment.Name, metav1.GetOptions{})
@@ -180,4 +181,35 @@ func AddRookVersionLabelToDeployment(d *v1.Deployment) {
 		d.Labels = map[string]string{}
 	}
 	addRookVersionLabel(d.Labels)
+}
+
+func AddRookVersionLabelToObjectMeta(meta *metav1.ObjectMeta) {
+	if meta.Labels == nil {
+		meta.Labels = map[string]string{}
+	}
+	addRookVersionLabel(meta.Labels)
+}
+
+func AddLabelToDeployement(key, value string, d *v1.Deployment) {
+	if d == nil {
+		return
+	}
+	if d.Labels == nil {
+		d.Labels = map[string]string{}
+	}
+	addLabel(key, value, d.Labels)
+}
+
+func AddLabelToJob(key, value string, b *batchv1.Job) {
+	if b == nil {
+		return
+	}
+	if b.Labels == nil {
+		b.Labels = map[string]string{}
+	}
+	addLabel(key, value, b.Labels)
+}
+
+func addLabel(key, value string, labels map[string]string) {
+	labels[key] = value
 }

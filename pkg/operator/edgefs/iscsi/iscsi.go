@@ -115,7 +115,7 @@ func (c *ISCSIController) makeISCSIService(name, svcname, namespace string, iscs
 		},
 		Spec: v1.ServiceSpec{
 			Selector: labels,
-			Type:     v1.ServiceTypeNodePort,
+			Type:     v1.ServiceTypeClusterIP,
 			Ports: []v1.ServicePort{
 				{Name: "grpc", Port: 49000, Protocol: v1.ProtocolTCP},
 				{Name: "port", Port: defaultPort, Protocol: v1.ProtocolTCP},

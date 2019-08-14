@@ -117,7 +117,7 @@ NAME="sda3" SIZE="20" TYPE="part" PKNAME="sda"`
 			assert.Equal(t, "lsblk /dev/sda", name)
 			output = ""
 		case 5:
-			assert.Equal(t, "get filesystem type for sda", name)
+			assert.Equal(t, "get filesystem type for /dev/sda", name)
 			output = ""
 		}
 		outputExecCount++

@@ -22,12 +22,10 @@ This is the default setting in the example manifests.
       enabled: true
 ```
 
-The Rook operator will enable the ceph-mgr dashboard module. A K8s service will be created to expose that port inside the cluster. The ports enabled by Rook will depend
-on the version of Ceph that is running:
-- Luminous: Port 7000 on http
-- Mimic and newer: Port 8443 on https
+The Rook operator will enable the ceph-mgr dashboard module. A K8s service will be created to expose that port inside the cluster. Rook will
+enable port 8443 for https access.
 
-This example shows that port 8443 was configured for Mimic or newer.
+This example shows that port 8443 was configured.
 ```bash
 kubectl -n rook-ceph get service
 NAME                         TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE
@@ -71,8 +69,7 @@ The following dashboard configuration settings are supported:
 
 * `ssl` The dashboard may be served without SSL (useful for when you deploy the
   dashboard behind a proxy already served using SSL) by setting the `ssl` option
-  to be false. Note that the ssl setting will be ignored in Luminous as well as
-  Mimic 13.2.2 or older where it is not supported
+  to be false.
 
 ## Viewing the Dashboard External to the Cluster
 
@@ -87,7 +84,6 @@ NodePort, LoadBalancer, or ExternalIPs.
 
 The simplest way to expose the service in minikube or similar environment is using the NodePort to open a port on the
 VM that can be accessed by the host. To create a service with the NodePort, save this yaml as `dashboard-external-https.yaml`.
-(For Luminous you will need to set the `port` and `targetPort` to 7000 and connect via `http`.)
 
 ```yaml
 apiVersion: v1

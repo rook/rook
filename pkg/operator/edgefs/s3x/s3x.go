@@ -43,6 +43,7 @@ const (
 	etcVolumeFolder    = ".etc"
 	defaultPort        = 4000
 	defaultSecurePort  = 4443
+	defaultServiceType = "ClusterIP"
 )
 
 // Start the rgw manager
@@ -71,6 +72,10 @@ func (c *S3XController) CreateOrUpdate(s edgefsv1beta1.S3X, update bool, ownerRe
 
 	if s.Spec.SecurePort == 0 {
 		s.Spec.SecurePort = defaultSecurePort
+	}
+
+	if s.Spec.ServiceType == "" {
+		s.Spec.ServiceType = defaultServiceType
 	}
 
 	// check if S3X service already exists
@@ -114,6 +119,16 @@ func (c *S3XController) CreateOrUpdate(s edgefsv1beta1.S3X, update bool, ownerRe
 
 func (c *S3XController) makeS3XService(name, svcname, namespace string, s3xSpec edgefsv1beta1.S3XSpec) *v1.Service {
 	labels := getLabels(name, svcname, namespace)
+	httpPort := v1.ServicePort{Name: "port", Port: int32(s3xSpec.Port), Protocol: v1.ProtocolTCP}
+	httpsPort := v1.ServicePort{Name: "secure-port", Port: int32(s3xSpec.SecurePort), Protocol: v1.ProtocolTCP}
+
+	if s3xSpec.ExternalPort != 0 {
+		httpPort.NodePort = int32(s3xSpec.ExternalPort)
+	}
+	if s3xSpec.SecureExternalPort != 0 {
+		httpsPort.NodePort = int32(s3xSpec.SecureExternalPort)
+	}
+
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -122,11 +137,11 @@ func (c *S3XController) makeS3XService(name, svcname, namespace string, s3xSpec 
 		},
 		Spec: v1.ServiceSpec{
 			Selector: labels,
-			Type:     v1.ServiceTypeNodePort,
+			Type:     k8sutil.ParseServiceType(s3xSpec.ServiceType),
 			Ports: []v1.ServicePort{
 				{Name: "grpc", Port: 49000, Protocol: v1.ProtocolTCP},
-				{Name: "port", Port: int32(s3xSpec.Port), Protocol: v1.ProtocolTCP},
-				{Name: "secure-port", Port: int32(s3xSpec.SecurePort), Protocol: v1.ProtocolTCP},
+				httpPort,
+				httpsPort,
 			},
 		},
 	}

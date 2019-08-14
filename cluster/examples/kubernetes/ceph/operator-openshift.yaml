@@ -6,9 +6,8 @@
 #   oc create -f operator-openshift.yaml
 #   oc create -f cluster.yaml
 #################################################################################################################
-
+# scc for the Rook and Ceph daemons
 kind: SecurityContextConstraints
-# older versions of openshift have "apiVersion: v1"
 apiVersion: security.openshift.io/v1
 metadata:
   name: rook-ceph
@@ -51,6 +50,44 @@ users:
   - system:serviceaccount:rook-ceph:default
   - system:serviceaccount:rook-ceph:rook-ceph-mgr
   - system:serviceaccount:rook-ceph:rook-ceph-osd
+---
+# scc for the CSI driver
+kind: SecurityContextConstraints
+apiVersion: security.openshift.io/v1
+metadata:
+  name: rook-ceph-csi
+allowPrivilegedContainer: true
+allowHostNetwork: true
+allowHostDirVolumePlugin: true
+priority:
+allowedCapabilities: ['*']
+allowHostPorts: true
+allowHostPID: true
+allowHostIPC: true
+readOnlyRootFilesystem: false
+requiredDropCapabilities: []
+defaultAddCapabilities: []
+runAsUser:
+  type: RunAsAny
+seLinuxContext:
+  type: RunAsAny
+fsGroup:
+  type: RunAsAny
+supplementalGroups:
+  type: RunAsAny
+allowedFlexVolumes:
+  - driver: "ceph.rook.io/rook"
+  - driver: "ceph.rook.io/rook-ceph"
+volumes: ['*']
+users:
+  # A user needs to be added for each rook service account.
+  # This assumes running in the default sample "rook-ceph" namespace.
+  # If other namespaces or service accounts are configured, they need to be updated here.
+  - system:serviceaccount:rook-ceph:rook-csi-rbd-plugin-sa
+  - system:serviceaccount:rook-ceph:rook-csi-rbd-provisioner-sa
+  - system:serviceaccount:rook-ceph:rook-csi-rbd-attacher-sa
+  - system:serviceaccount:rook-ceph:rook-csi-cephfs-plugin-sa
+  - system:serviceaccount:rook-ceph:rook-csi-cephfs-provisioner-sa
 ---
 # The deployment for the rook operator
 # OLM: BEGIN OPERATOR DEPLOYMENT
@@ -160,6 +197,26 @@ spec:
         # Disable automatic orchestration when new devices are discovered
         - name: ROOK_DISABLE_DEVICE_HOTPLUG
           value: "false"
+
+       # Whether to enable the flex driver. By default it is enabled and is fully supported, but will be deprecated in some future release
+        # in favor of the CSI driver.
+        - name: ROOK_ENABLE_FLEX_DRIVER
+          value: "true"
+
+        # Whether to start the discovery daemon to watch for raw storage devices on nodes in the cluster.
+        # This daemon does not need to run if you are only going to create your OSDs based on StorageClassDeviceSets with PVCs.
+        - name: ROOK_ENABLE_DISCOVERY_DAEMON
+          value: "true"
+
+        # Enable the CSI driver.
+        # To run the non-default version of the CSI driver, see the override-able image properties in operator.yaml
+        - name: ROOK_CSI_ENABLE_CEPHFS
+          value: "true"
+        - name: ROOK_CSI_ENABLE_RBD
+          value: "true"
+
+        - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
+          value: "true"
         # The name of the node to pass with the downward API
         - name: NODE_NAME
           valueFrom:

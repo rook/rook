@@ -50,7 +50,7 @@ spec:
             - "--type=cephfs"
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--v=5"
-            - "--drivername=cephfs.csi.ceph.com"
+            - "--drivername={{ .DriverNamePrefix }}cephfs.csi.ceph.com"
             - "--metadatastorage=k8s_configmap"
             - "--mountcachedir=/mount-cache-dir"
           env:
@@ -69,7 +69,7 @@ spec:
             - name: plugin-dir
               mountPath: /csi
             - name: csi-plugins-dir
-              mountPath: /var/lib/kubelet/plugins/kubernetes.io/csi
+              mountPath: /var/lib/kubelet/plugins
               mountPropagation: "Bidirectional"
             - name: pods-mount-dir
               mountPath: /var/lib/kubelet/pods
@@ -85,6 +85,8 @@ spec:
               mountPath: /mount-cache-dir
             - name: ceph-csi-config
               mountPath: /etc/ceph-csi-config/
+            - name: keys-tmp-dir
+              mountPath: /tmp/csi/keys
       volumes:
         - name: plugin-dir
           hostPath:
@@ -92,8 +94,8 @@ spec:
             type: DirectoryOrCreate
         - name: csi-plugins-dir
           hostPath:
-            path: /var/lib/kubelet/plugins/kubernetes.io/csi
-            type: DirectoryOrCreate
+            path: /var/lib/kubelet/plugins
+            type: Directory
         - name: registration-dir
           hostPath:
             path: /var/lib/kubelet/plugins_registry/
@@ -115,7 +117,11 @@ spec:
           emptyDir: {}
         - name: ceph-csi-config
           configMap:
-            name: rook-ceph-mon-endpoints
+            name: rook-ceph-csi-config
             items:
               - key: csi-cluster-config-json
                 path: config.json
+        - name: keys-tmp-dir
+          emptyDir: {
+            medium: "Memory"
+          }

@@ -14,18 +14,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package nfs for NFS ganesha
 package nfs
 
 import (
 	"fmt"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 )
 
 const (
-	cephConfigPath = "/etc/ceph/ceph.conf"
-	userID         = "admin"
+	userID = "admin"
 )
 
 func getNFSNodeID(n cephv1.CephNFS, name string) string {
@@ -74,7 +73,7 @@ NFSv4 {
 }
 
 RADOS_KV {
-	ceph_conf = '` + cephConfigPath + `';
+	ceph_conf = '` + cephconfig.DefaultConfigFilePath() + `';
 	userid = ` + userID + `;
 	nodeid = ` + nodeID + `;
 	pool = "` + n.Spec.RADOS.Pool + `";
@@ -82,7 +81,7 @@ RADOS_KV {
 }
 
 RADOS_URLS {
-	ceph_conf = '` + cephConfigPath + `';
+	ceph_conf = '` + cephconfig.DefaultConfigFilePath() + `';
 	userid = ` + userID + `;
 	watch_url = '` + url + `';
 }

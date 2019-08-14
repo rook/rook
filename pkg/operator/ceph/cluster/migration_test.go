@@ -34,11 +34,3 @@ func TestGetClusterObject(t *testing.T) {
 	assert.Nil(t, cluster)
 	assert.NotNil(t, err)
 }
-
-func TestDefaultClusterValues(t *testing.T) {
-	// the default ceph version should be set
-	cluster, err := getClusterObject(&cephv1.CephCluster{})
-	assert.NotNil(t, cluster)
-	assert.Nil(t, err)
-	assert.Equal(t, cephv1.DefaultLuminousImage, cluster.Spec.CephVersion.Image)
-}

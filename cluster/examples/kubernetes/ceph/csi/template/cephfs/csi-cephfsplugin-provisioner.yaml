@@ -53,8 +53,9 @@ spec:
             - "--type=cephfs"
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--v=5"
-            - "--drivername=cephfs.csi.ceph.com"
+            - "--drivername={{ .DriverNamePrefix }}cephfs.csi.ceph.com"
             - "--metadatastorage=k8s_configmap"
+            - "--pidlimit=-1"
           env:
             - name: NODE_ID
               valueFrom:
@@ -79,6 +80,8 @@ spec:
               mountPath: /dev
             - name: ceph-csi-config
               mountPath: /etc/ceph-csi-config/
+            - name: keys-tmp-dir
+              mountPath: /tmp/csi/keys
       volumes:
         - name: socket-dir
           hostPath:
@@ -95,7 +98,11 @@ spec:
             path: /dev
         - name: ceph-csi-config
           configMap:
-            name: rook-ceph-mon-endpoints
+            name: rook-ceph-csi-config
             items:
               - key: csi-cluster-config-json
                 path: config.json
+        - name: keys-tmp-dir
+          emptyDir: {
+            medium: "Memory"
+          }

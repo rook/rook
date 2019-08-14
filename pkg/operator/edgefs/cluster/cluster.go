@@ -67,7 +67,7 @@ func newCluster(c *edgefsv1beta1.Cluster, context *clusterd.Context) *cluster {
 		Namespace: c.Namespace,
 		Spec:      c.Spec,
 		stopCh:    make(chan struct{}),
-		ownerRef:  ClusterOwnerRef(c.Namespace, string(c.UID)),
+		ownerRef:  ClusterOwnerRef(c.Name, string(c.UID)),
 	}
 }
 
@@ -79,12 +79,12 @@ type childController interface {
 
 func (c *cluster) createInstance(rookImage string, isClusterUpdate bool) error {
 
-	logger.Debugf("Cluster spec: %+v", c.Spec)
+	logger.Debugf("Cluster [%s] spec: %+v", c.Namespace, c.Spec)
 	//
 	// Validate Cluster CRD
 	//
 	if err := c.validateClusterSpec(); err != nil {
-		logger.Errorf("invalid cluster spec: %+v", err)
+		logger.Errorf("Invalid cluster [%s] spec. Error: %+v", c.Namespace, err)
 		return err
 	}
 	// Create a configmap for overriding edgefs config settings
@@ -104,18 +104,18 @@ func (c *cluster) createInstance(rookImage string, isClusterUpdate bool) error {
 		if errors.IsAlreadyExists(err) {
 			// Cluster already exists, do not do anything
 			if !isClusterUpdate {
-				logger.Infof("Cluster %s already exists. Skipping creation...", c.Namespace)
+				logger.Infof("Cluster [%s] already exists. Skipping creation...", c.Namespace)
 				return nil
 			}
 			// in case of update just skip checking
 		} else {
-			return fmt.Errorf("failed to create override configmap %s. %+v", c.Namespace, err)
+			return fmt.Errorf("Failed to create override configmap %s. %+v", c.Namespace, err)
 		}
 	}
 
 	clusterNodes, err := c.getClusterNodes()
 	if err != nil {
-		return fmt.Errorf("failed to get nodes for cluster %s. %s", c.Namespace, err)
+		return fmt.Errorf("Failed to get nodes for cluster [%s]. Error: %s", c.Namespace, err)
 	}
 
 	dro := ParseDevicesResurrectMode(c.Spec.DevicesResurrectMode)
@@ -124,12 +124,16 @@ func (c *cluster) createInstance(rookImage string, isClusterUpdate bool) error {
 	// Retrive existing cluster config from Kubernetes ConfigMap
 	existingConfig, err := c.retrieveDeploymentConfig()
 	if err != nil {
-		return fmt.Errorf("failed to retrive DeploymentConfig for cluster %s. %s", c.Namespace, err)
+		return fmt.Errorf("Failed to retrive DeploymentConfig for cluster [%s]. Error: %s", c.Namespace, err)
 	}
 
 	clusterReconfiguration, err := c.createClusterReconfigurationSpec(existingConfig, clusterNodes, dro)
 	if err != nil {
-		return fmt.Errorf("failed to create Reconfiguration specification for cluster %s. %s", c.Namespace, err)
+		if isClusterUpdate {
+			return fmt.Errorf("Failed to update [%s] EdgeFS cluster configuration. Error: %s", c.Namespace, err)
+		} else {
+			return fmt.Errorf("Failed to create [%s] EdgeFS cluster configuration. Error: %s", c.Namespace, err)
+		}
 	}
 
 	logger.Debugf("Recovered ClusterConfig: %s", ToJSON(existingConfig))
@@ -149,7 +153,7 @@ func (c *cluster) createInstance(rookImage string, isClusterUpdate bool) error {
 	}
 
 	if err := c.createClusterConfigMap(clusterReconfiguration.DeploymentConfig, dro.NeedToResurrect); err != nil {
-		logger.Errorf("Failed to create/update Edgefs cluster configuration: %+v", err)
+		logger.Errorf("Failed to create/update Edgefs [%s] cluster configuration: %+v", c.Namespace, err)
 		return err
 	}
 
@@ -161,14 +165,14 @@ func (c *cluster) createInstance(rookImage string, isClusterUpdate bool) error {
 	if c.Spec.SkipHostPrepare == false && dro.NeedToResurrect == false {
 		err = c.prepareHostNodes(rookImage, clusterReconfiguration.DeploymentConfig)
 		if err != nil {
-			logger.Errorf("Failed to create preparation jobs. %+v", err)
+			logger.Errorf("Failed to create [%s] cluster preparation jobs. %+v", c.Namespace, err)
 		}
 	} else {
 		logger.Infof("EdgeFS node preparation will be skipped due skipHostPrepare=true or resurrect cluster option")
 	}
 
 	if err := c.createClusterConfigMap(clusterReconfiguration.DeploymentConfig, dro.NeedToResurrect); err != nil {
-		logger.Errorf("Failed to create/update Edgefs cluster configuration: %+v", err)
+		logger.Errorf("Failed to create/update [%s] Edgefs cluster configuration: %+v", c.Namespace, err)
 		return err
 	}
 
@@ -186,7 +190,7 @@ func (c *cluster) createInstance(rookImage string, isClusterUpdate bool) error {
 
 		err = c.targets.Start(rookImage, clusterNodes, dro)
 		if err != nil {
-			return fmt.Errorf("failed to start the targets. %+v", err)
+			return fmt.Errorf("Failed to start the targets of [%s] cluster. %+v", c.Namespace, err)
 		}
 
 	}
@@ -199,10 +203,10 @@ func (c *cluster) createInstance(rookImage string, isClusterUpdate bool) error {
 
 	err = c.mgrs.Start(rookImage)
 	if err != nil {
-		return fmt.Errorf("failed to start the edgefs mgr. %+v", err)
+		return fmt.Errorf("failed to start the [%s] edgefs mgr. %+v", c.Namespace, err)
 	}
 
-	logger.Infof("Done creating rook instance in namespace %s", c.Namespace)
+	logger.Infof("Done creating [%s] Edgefs cluster instance", c.Namespace)
 
 	// Notify the child controllers that the cluster spec might have changed
 	for _, child := range c.childControllers {
@@ -284,7 +288,6 @@ func (c *cluster) validateClusterSpec() error {
 		return fmt.Errorf("Incorrect trlogProcessingInterval specified")
 	}
 
-	logger.Info("Validate cluster spec")
 	return nil
 }
 
