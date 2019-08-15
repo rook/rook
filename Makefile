@@ -159,9 +159,6 @@ distclean: go.distclean clean
 prune:
 	@$(MAKE) -C images prune
 
-generate-csv-ceph-template:
-	@cluster/olm/ceph/generate-rook-csv-templates.sh
-
 csv-ceph:
 	@cluster/olm/ceph/generate-rook-csv.sh $(CSV_VERSION) $(CSV_PLATFORM) $(ROOK_OP_VERSION)
 

@@ -3,6 +3,12 @@ set -e
 
 export OLM_SKIP_PKG_FILE_GEN="true"
 
+if [ -f "Dockerfile" ]; then
+    # if this is being executed from the images/ceph/ dir,
+    # back out to the source dir
+    cd ../../
+fi
+
 OLM_CATALOG_DIR=cluster/olm/ceph
 DEPLOY_DIR="$OLM_CATALOG_DIR/deploy"
 CRDS_DIR="$DEPLOY_DIR/crds"

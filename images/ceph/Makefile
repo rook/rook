@@ -26,7 +26,7 @@ TEMP := $(shell mktemp -d)
 # ====================================================================================
 # Build Rook
 
-do.build:
+do.build: generate-csv-ceph-templates
 	@echo === docker build $(CEPH_IMAGE)
 	@cp Dockerfile $(TEMP)
 	@cp toolbox.sh $(TEMP)
@@ -34,6 +34,7 @@ do.build:
 	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rookflex $(TEMP)
 	@cp -r ../../cluster/examples/kubernetes/ceph/csi/template $(TEMP)/ceph-csi
 	@cp -r ../../cluster/examples/kubernetes/ceph/monitoring $(TEMP)/ceph-monitoring
+	@cp -r ../../cluster/olm/ceph/templates $(TEMP)/ceph-csv-templates
 	@cd $(TEMP) && $(SED_CMD) 's|BASEIMAGE|$(BASEIMAGE)|g' Dockerfile
 	@$(DOCKERCMD) build $(BUILD_ARGS) \
 		--build-arg ARCH=$(GOARCH) \
@@ -41,3 +42,7 @@ do.build:
 		-t $(CEPH_IMAGE) \
 		$(TEMP)
 	@rm -fr $(TEMP)
+
+generate-csv-ceph-templates:
+	@../../cluster/olm/ceph/generate-rook-csv-templates.sh
+
