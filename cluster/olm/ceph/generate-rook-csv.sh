@@ -203,7 +203,9 @@ generate_service_account_yaml
 generate_crds_yaml
 generate_csv "$@"
 hack_csv
-generate_package
+if [ -z "${OLM_SKIP_PKG_FILE_GEN}" ]; then
+    generate_package
+fi
 apply_rook_op_img
 cleanup
 
