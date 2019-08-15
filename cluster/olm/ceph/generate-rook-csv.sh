@@ -76,7 +76,8 @@ fi
 # VARIABLES #
 #############
 YQ_CMD_DELETE=(yq delete -i)
-YQ_CMD_MERGE=(yq merge --inplace --overwrite --append)
+YQ_CMD_MERGE_OVERWRITE=(yq merge --inplace --overwrite --append)
+YQ_CMD_MERGE=(yq merge --inplace --append)
 YQ_CMD_WRITE=(yq write --inplace)
 OP_SDK_CMD=(operator-sdk olm-catalog gen-csv --csv-version)
 OPERATOR_YAML_FILE_K8S="cluster/examples/kubernetes/ceph/operator.yaml"
@@ -108,10 +109,10 @@ function generate_csv(){
     "${OP_SDK_CMD[@]}" "$VERSION"
     popd &> /dev/null
     mv "$DEFAULT_CSV_FILE_NAME" "$DESIRED_CSV_FILE_NAME"
-    "${YQ_CMD_MERGE[@]}" "$DESIRED_CSV_FILE_NAME" "$ASSEMBLE_FILE_COMMON"
+    "${YQ_CMD_MERGE_OVERWRITE[@]}" "$DESIRED_CSV_FILE_NAME" "$ASSEMBLE_FILE_COMMON"
 
     if [[ "$PLATFORM" == "k8s" ]]; then
-        "${YQ_CMD_MERGE[@]}" "$DESIRED_CSV_FILE_NAME" "$ASSEMBLE_FILE_K8S"
+        "${YQ_CMD_MERGE_OVERWRITE[@]}" "$DESIRED_CSV_FILE_NAME" "$ASSEMBLE_FILE_K8S"
         "${YQ_CMD_WRITE[@]}" "$DESIRED_CSV_FILE_NAME" metadata.name "rook-ceph.v${VERSION}"
         "${YQ_CMD_WRITE[@]}" "$DESIRED_CSV_FILE_NAME" spec.displayName "Rook-Ceph"
         "${YQ_CMD_WRITE[@]}" "$DESIRED_CSV_FILE_NAME" metadata.annotations.createdAt "$(date +"%Y-%m-%dT%H-%M-%SZ")"
