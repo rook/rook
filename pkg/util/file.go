@@ -48,3 +48,26 @@ func WriteFileToLog(logger *capnslog.PackageLogger, path string) {
 
 	logger.Infof("Config file %s:\n%s", path, string(contents))
 }
+
+// CreateTempFile creates a temporary file and writes
+// the given contents into the file.
+// The name of the file is returned by the function.
+// It is the callers responsibility to remove the file when no
+// longer needed.
+func CreateTempFile(contents string) (string, error) {
+	tmpfile, err := ioutil.TempFile("", "rook")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temporary file: %+v", err)
+	}
+	name := tmpfile.Name()
+	if _, err := tmpfile.WriteString(contents); err != nil {
+		_ = tmpfile.Close()
+		_ = os.Remove(name)
+		return "", fmt.Errorf("failed to write contents to temporary file: %+v", err)
+	}
+	if err = tmpfile.Close(); err != nil {
+		_ = os.Remove(name)
+		return "", fmt.Errorf("failed to sync write to temporary file: %+v", err)
+	}
+	return name, nil
+}

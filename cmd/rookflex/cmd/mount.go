@@ -28,6 +28,7 @@ import (
 	"syscall"
 
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume"
+	"github.com/rook/rook/pkg/util"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/util/version"
 	k8smount "k8s.io/kubernetes/pkg/util/mount"
@@ -235,9 +236,16 @@ func mountCephFS(client *rpc.Client, opts *flexvolume.AttachOptions) error {
 		}
 	}
 
+	// write secret key to temporary file
+	secretfile, err := util.CreateTempFile(clientAccessInfo.SecretKey)
+	if err != nil {
+		return fmt.Errorf("failed to create temporary file: %+v", err)
+	}
+	defer os.Remove(secretfile)
+
 	options := []string{
 		fmt.Sprintf("name=%s", clientAccessInfo.UserName),
-		fmt.Sprintf("secret=%s", clientAccessInfo.SecretKey),
+		fmt.Sprintf("secretfile=%s", secretfile),
 	}
 
 	// Get kernel version
