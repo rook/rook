@@ -387,11 +387,10 @@ func (c *Cluster) startOSDDaemonsOnPVC(pvcName string, config *provisionConfig, 
 	logger.Infof("starting %d osd daemons on pvc %s", len(osds), pvcName)
 	conf := make(map[string]string)
 	storeConfig := osdconfig.ToStoreConfig(conf)
-	osdProps := osdProperties{
-		crushHostname: pvcName,
-		pvc: v1.PersistentVolumeClaimVolumeSource{
-			ClaimName: pvcName,
-		},
+	osdProps, err := c.getOSDPropsForPVC(pvcName)
+	if err != nil {
+		config.addError(fmt.Sprintf("%+v", err))
+		return
 	}
 
 	// start osds
@@ -710,4 +709,18 @@ func (c *Cluster) resolveNode(nodeName string) *rookalpha.Node {
 	rookNode.Resources = k8sutil.MergeResourceRequirements(rookNode.Resources, c.resources)
 
 	return rookNode
+}
+
+func (c *Cluster) getOSDPropsForPVC(pvcName string) (osdProperties, error) {
+	for _, volumeSource := range c.ValidStorage.VolumeSources {
+		if pvcName == volumeSource.PersistentVolumeClaimSource.ClaimName {
+			return osdProperties{
+				crushHostname: volumeSource.PersistentVolumeClaimSource.ClaimName,
+				pvc:           volumeSource.PersistentVolumeClaimSource,
+				resources:     volumeSource.Resources,
+				placement:     volumeSource.Placement,
+			}, nil
+		}
+	}
+	return osdProperties{}, fmt.Errorf("No valid VolumeSource found for pvc %s", pvcName)
 }

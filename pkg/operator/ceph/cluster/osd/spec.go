@@ -371,7 +371,11 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 	opspec.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, deployment)
 	opspec.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, deployment)
 	k8sutil.SetOwnerRef(&deployment.ObjectMeta, &c.ownerRef)
-	c.placement.ApplyToPodSpec(&deployment.Spec.Template.Spec)
+	if len(osdProps.pvc.ClaimName) == 0 {
+		c.placement.ApplyToPodSpec(&deployment.Spec.Template.Spec)
+	} else {
+		osdProps.placement.ApplyToPodSpec(&deployment.Spec.Template.Spec)
+	}
 	return deployment, nil
 }
 
@@ -442,7 +446,11 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 	if c.HostNetwork {
 		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
-	c.placement.ApplyToPodSpec(&podSpec)
+	if len(osdProps.pvc.ClaimName) == 0 {
+		c.placement.ApplyToPodSpec(&podSpec)
+	} else {
+		osdProps.placement.ApplyToPodSpec(&podSpec)
+	}
 
 	podMeta := metav1.ObjectMeta{
 		Name: appName,
