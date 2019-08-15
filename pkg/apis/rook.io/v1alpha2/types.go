@@ -132,7 +132,7 @@ type Annotations map[string]string
 
 type StorageClassDeviceSet struct {
 	Name                 string                     `json:"name,omitempty"`                 // A unique identifier for the set
-	Count                int                        `json:"count,omitemity"`                // Number of devices in this set
+	Count                int                        `json:"count,omitempty"`                // Number of devices in this set
 	Resources            v1.ResourceRequirements    `json:"resources,omitempty"`            // Requests/limits for the devices
 	Placement            Placement                  `json:"placement,omitempty"`            // Placement constraints for the devices
 	Config               map[string]string          `json:"config,omitempty"`               // Provider-specific device configuration
