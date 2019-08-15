@@ -53,16 +53,17 @@ var SWIFTResource = opkit.CustomResource{
 
 // SWIFTController represents a controller object for swift custom resources
 type SWIFTController struct {
-	context         *clusterd.Context
-	namespace       string
-	rookImage       string
-	hostNetwork     bool
-	dataDirHostPath string
-	dataVolumeSize  resource.Quantity
-	placement       rookalpha.Placement
-	resources       v1.ResourceRequirements
-	resourceProfile string
-	ownerRef        metav1.OwnerReference
+	context          *clusterd.Context
+	namespace        string
+	rookImage        string
+	hostNetwork      bool
+	dataDirHostPath  string
+	dataVolumeSize   resource.Quantity
+	placement        rookalpha.Placement
+	resources        v1.ResourceRequirements
+	resourceProfile  string
+	ownerRef         metav1.OwnerReference
+	useHostLocalTime bool
 }
 
 // NewSWIFTController create controller for watching SWIFT custom resources created
@@ -77,18 +78,20 @@ func NewSWIFTController(
 	resources v1.ResourceRequirements,
 	resourceProfile string,
 	ownerRef metav1.OwnerReference,
+	useHostLocalTime bool,
 ) *SWIFTController {
 	return &SWIFTController{
-		context:         context,
-		namespace:       namespace,
-		rookImage:       rookImage,
-		hostNetwork:     hostNetwork,
-		dataDirHostPath: dataDirHostPath,
-		dataVolumeSize:  dataVolumeSize,
-		placement:       placement,
-		resources:       resources,
-		resourceProfile: resourceProfile,
-		ownerRef:        ownerRef,
+		context:          context,
+		namespace:        namespace,
+		rookImage:        rookImage,
+		hostNetwork:      hostNetwork,
+		dataDirHostPath:  dataDirHostPath,
+		dataVolumeSize:   dataVolumeSize,
+		placement:        placement,
+		resources:        resources,
+		resourceProfile:  resourceProfile,
+		ownerRef:         ownerRef,
+		useHostLocalTime: useHostLocalTime,
 	}
 }
 

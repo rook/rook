@@ -63,6 +63,7 @@ type Cluster struct {
 	ownerRef         metav1.OwnerReference
 	serviceAccount   string
 	deploymentConfig edgefsv1beta1.ClusterDeploymentConfig
+	useHostLocalTime bool
 }
 
 // New creates an instance of the Target manager
@@ -82,6 +83,7 @@ func New(
 	chunkCacheSize resource.Quantity,
 	ownerRef metav1.OwnerReference,
 	deploymentConfig edgefsv1beta1.ClusterDeploymentConfig,
+	useHostLocalTime bool,
 ) *Cluster {
 
 	if serviceAccount == "" {
@@ -106,6 +108,7 @@ func New(
 		chunkCacheSize:   chunkCacheSize,
 		ownerRef:         ownerRef,
 		deploymentConfig: deploymentConfig,
+		useHostLocalTime: useHostLocalTime,
 	}
 }
 

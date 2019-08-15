@@ -178,6 +178,10 @@ func (c *S3Controller) makeDeployment(svcname, namespace, rookImage, imageArgs s
 	name := instanceName(svcname)
 	volumes := []v1.Volume{}
 
+	if c.useHostLocalTime {
+		volumes = append(volumes, edgefsv1beta1.GetHostLocalTimeVolume())
+	}
+
 	// add ssl certificate volume if defined
 	if len(s3Spec.SSLCertificateRef) > 0 {
 		volumes = append(volumes, v1.Volume{
@@ -285,6 +289,10 @@ func (c *S3Controller) s3Container(svcname, name, containerImage, args string, s
 			MountPath: "/opt/nedge/var/run",
 			SubPath:   stateVolumeFolder,
 		},
+	}
+
+	if c.useHostLocalTime {
+		volumeMounts = append(volumeMounts, edgefsv1beta1.GetHostLocalTimeVolumeMount())
 	}
 
 	if len(s3Spec.SSLCertificateRef) > 0 {

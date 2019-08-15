@@ -57,20 +57,21 @@ const (
 
 // Cluster is the edgefs mgr manager
 type Cluster struct {
-	Namespace       string
-	Version         string
-	serviceAccount  string
-	Replicas        int
-	dataDirHostPath string
-	dataVolumeSize  resource.Quantity
-	annotations     rookalpha.Annotations
-	placement       rookalpha.Placement
-	context         *clusterd.Context
-	hostNetworkSpec edgefsv1beta1.NetworkSpec
-	dashboardSpec   edgefsv1beta1.DashboardSpec
-	resources       v1.ResourceRequirements
-	resourceProfile string
-	ownerRef        metav1.OwnerReference
+	Namespace        string
+	Version          string
+	serviceAccount   string
+	Replicas         int
+	dataDirHostPath  string
+	dataVolumeSize   resource.Quantity
+	annotations      rookalpha.Annotations
+	placement        rookalpha.Placement
+	context          *clusterd.Context
+	hostNetworkSpec  edgefsv1beta1.NetworkSpec
+	dashboardSpec    edgefsv1beta1.DashboardSpec
+	resources        v1.ResourceRequirements
+	resourceProfile  string
+	ownerRef         metav1.OwnerReference
+	useHostLocalTime bool
 }
 
 // New creates an instance of the mgr
@@ -86,6 +87,7 @@ func New(
 	resources v1.ResourceRequirements,
 	resourceProfile string,
 	ownerRef metav1.OwnerReference,
+	useHostLocalTime bool,
 ) *Cluster {
 
 	if serviceAccount == "" {
@@ -95,20 +97,21 @@ func New(
 	}
 
 	return &Cluster{
-		context:         context,
-		Namespace:       namespace,
-		serviceAccount:  serviceAccount,
-		annotations:     annotations,
-		placement:       placement,
-		Version:         version,
-		Replicas:        1,
-		dataDirHostPath: dataDirHostPath,
-		dataVolumeSize:  dataVolumeSize,
-		hostNetworkSpec: hostNetworkSpec,
-		dashboardSpec:   dashboardSpec,
-		resources:       resources,
-		resourceProfile: resourceProfile,
-		ownerRef:        ownerRef,
+		context:          context,
+		Namespace:        namespace,
+		serviceAccount:   serviceAccount,
+		annotations:      annotations,
+		placement:        placement,
+		Version:          version,
+		Replicas:         1,
+		dataDirHostPath:  dataDirHostPath,
+		dataVolumeSize:   dataVolumeSize,
+		hostNetworkSpec:  hostNetworkSpec,
+		dashboardSpec:    dashboardSpec,
+		resources:        resources,
+		resourceProfile:  resourceProfile,
+		ownerRef:         ownerRef,
+		useHostLocalTime: useHostLocalTime,
 	}
 }
 
@@ -292,6 +295,11 @@ func (c *Cluster) makeUIService(name string) *v1.Service {
 func (c *Cluster) makeDeployment(name, clusterName, rookImage string, replicas int32) *apps.Deployment {
 
 	volumes := []v1.Volume{}
+
+	if c.useHostLocalTime {
+		volumes = append(volumes, edgefsv1beta1.GetHostLocalTimeVolume())
+	}
+
 	if c.dataVolumeSize.Value() > 0 {
 		// dataVolume case
 		volumes = append(volumes, v1.Volume{
@@ -375,6 +383,11 @@ func (c *Cluster) uiContainer(name string, containerImage string) v1.Container {
 		ReadOnlyRootFilesystem: &readOnlyRootFilesystem,
 	}
 
+	volumeMounts := []v1.VolumeMount{}
+	if c.useHostLocalTime {
+		volumeMounts = append(volumeMounts, edgefsv1beta1.GetHostLocalTimeVolumeMount())
+	}
+
 	return v1.Container{
 		Name:            name,
 		Image:           containerImage,
@@ -412,6 +425,7 @@ func (c *Cluster) uiContainer(name string, containerImage string) v1.Container {
 				Protocol:      v1.ProtocolTCP,
 			},
 		},
+		VolumeMounts: volumeMounts,
 	}
 }
 
@@ -438,6 +452,10 @@ func (c *Cluster) restApiContainer(name string, containerImage string) v1.Contai
 			MountPath: "/opt/nedge/var/run",
 			SubPath:   stateVolumeFolder,
 		},
+	}
+
+	if c.useHostLocalTime {
+		volumeMounts = append(volumeMounts, edgefsv1beta1.GetHostLocalTimeVolumeMount())
 	}
 
 	cont := v1.Container{
@@ -530,6 +548,10 @@ func (c *Cluster) grpcProxyContainer(name string, containerImage string) v1.Cont
 			MountPath: "/opt/nedge/var/run",
 			SubPath:   stateVolumeFolder,
 		},
+	}
+
+	if c.useHostLocalTime {
+		volumeMounts = append(volumeMounts, edgefsv1beta1.GetHostLocalTimeVolumeMount())
 	}
 
 	cont := v1.Container{

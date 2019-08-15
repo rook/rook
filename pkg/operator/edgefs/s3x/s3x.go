@@ -154,6 +154,10 @@ func (c *S3XController) makeDeployment(svcname, namespace, rookImage string, s3x
 	name := instanceName(svcname)
 	volumes := []v1.Volume{}
 
+	if c.useHostLocalTime {
+		volumes = append(volumes, edgefsv1beta1.GetHostLocalTimeVolume())
+	}
+
 	// add ssl certificate volume if defined
 	if len(s3xSpec.SSLCertificateRef) > 0 {
 		volumes = append(volumes, v1.Volume{
@@ -269,6 +273,10 @@ func (c *S3XController) s3xContainer(svcname, name, containerImage string, s3xSp
 			MountPath: "/opt/nedge/var/run",
 			SubPath:   stateVolumeFolder,
 		},
+	}
+
+	if c.useHostLocalTime {
+		volumeMounts = append(volumeMounts, edgefsv1beta1.GetHostLocalTimeVolumeMount())
 	}
 
 	if len(s3xSpec.SSLCertificateRef) > 0 {

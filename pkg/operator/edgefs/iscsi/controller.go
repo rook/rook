@@ -53,17 +53,18 @@ var ISCSIResource = opkit.CustomResource{
 
 // ISCSIController represents a controller object for iscsi custom resources
 type ISCSIController struct {
-	context         *clusterd.Context
-	namespace       string
-	rookImage       string
-	hostNetwork     bool
-	dataDirHostPath string
-	dataVolumeSize  resource.Quantity
-	placement       rookalpha.Placement
-	annotations     rookalpha.Annotations
-	resources       v1.ResourceRequirements
-	resourceProfile string
-	ownerRef        metav1.OwnerReference
+	context          *clusterd.Context
+	namespace        string
+	rookImage        string
+	hostNetwork      bool
+	dataDirHostPath  string
+	dataVolumeSize   resource.Quantity
+	placement        rookalpha.Placement
+	annotations      rookalpha.Annotations
+	resources        v1.ResourceRequirements
+	resourceProfile  string
+	ownerRef         metav1.OwnerReference
+	useHostLocalTime bool
 }
 
 // NewISCSIController create controller for watching ISCSI custom resources created
@@ -78,18 +79,20 @@ func NewISCSIController(
 	resources v1.ResourceRequirements,
 	resourceProfile string,
 	ownerRef metav1.OwnerReference,
+	useHostLocalTime bool,
 ) *ISCSIController {
 	return &ISCSIController{
-		context:         context,
-		namespace:       namespace,
-		rookImage:       rookImage,
-		hostNetwork:     hostNetwork,
-		dataDirHostPath: dataDirHostPath,
-		dataVolumeSize:  dataVolumeSize,
-		placement:       placement,
-		resources:       resources,
-		resourceProfile: resourceProfile,
-		ownerRef:        ownerRef,
+		context:          context,
+		namespace:        namespace,
+		rookImage:        rookImage,
+		hostNetwork:      hostNetwork,
+		dataDirHostPath:  dataDirHostPath,
+		dataVolumeSize:   dataVolumeSize,
+		placement:        placement,
+		resources:        resources,
+		resourceProfile:  resourceProfile,
+		ownerRef:         ownerRef,
+		useHostLocalTime: useHostLocalTime,
 	}
 }
 

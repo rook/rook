@@ -53,17 +53,18 @@ var S3Resource = opkit.CustomResource{
 
 // S3Controller represents a controller object for s3 custom resources
 type S3Controller struct {
-	context         *clusterd.Context
-	namespace       string
-	rookImage       string
-	hostNetwork     bool
-	dataDirHostPath string
-	dataVolumeSize  resource.Quantity
-	annotations     rookalpha.Annotations
-	placement       rookalpha.Placement
-	resources       v1.ResourceRequirements
-	resourceProfile string
-	ownerRef        metav1.OwnerReference
+	context          *clusterd.Context
+	namespace        string
+	rookImage        string
+	hostNetwork      bool
+	dataDirHostPath  string
+	dataVolumeSize   resource.Quantity
+	annotations      rookalpha.Annotations
+	placement        rookalpha.Placement
+	resources        v1.ResourceRequirements
+	resourceProfile  string
+	ownerRef         metav1.OwnerReference
+	useHostLocalTime bool
 }
 
 // NewS3Controller create controller for watching S3 custom resources created
@@ -78,18 +79,20 @@ func NewS3Controller(
 	resources v1.ResourceRequirements,
 	resourceProfile string,
 	ownerRef metav1.OwnerReference,
+	useHostLocalTime bool,
 ) *S3Controller {
 	return &S3Controller{
-		context:         context,
-		namespace:       namespace,
-		rookImage:       rookImage,
-		hostNetwork:     hostNetwork,
-		dataDirHostPath: dataDirHostPath,
-		dataVolumeSize:  dataVolumeSize,
-		placement:       placement,
-		resources:       resources,
-		resourceProfile: resourceProfile,
-		ownerRef:        ownerRef,
+		context:          context,
+		namespace:        namespace,
+		rookImage:        rookImage,
+		hostNetwork:      hostNetwork,
+		dataDirHostPath:  dataDirHostPath,
+		dataVolumeSize:   dataVolumeSize,
+		placement:        placement,
+		resources:        resources,
+		resourceProfile:  resourceProfile,
+		ownerRef:         ownerRef,
+		useHostLocalTime: useHostLocalTime,
 	}
 }
 

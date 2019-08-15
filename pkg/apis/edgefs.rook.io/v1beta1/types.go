@@ -74,6 +74,7 @@ type ClusterSpec struct {
 	TrlogProcessingInterval int               `json:"trlogProcessingInterval,omitempty"`
 	TrlogKeepDays           int               `json:"trlogKeepDays,omitempty"`
 	MaxContainerCapacity    resource.Quantity `json:"maxContainerCapacity,omitempty"`
+	UseHostLocalTime        bool              `json:"useHostLocalTime,omitempty"`
 }
 
 type DashboardSpec struct {

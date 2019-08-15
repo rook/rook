@@ -79,8 +79,7 @@ func NewClusterController(context *clusterd.Context, containerImage string) *Clu
 	return &ClusterController{
 		context:        context,
 		containerImage: containerImage,
-		//createInitRetryInterval: createInitRetryIntervalDefault,
-		clusterMap: make(map[string]*cluster),
+		clusterMap:     make(map[string]*cluster),
 	}
 }
 
@@ -173,7 +172,8 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		edgefsv1beta1.GetTargetPlacement(cluster.Spec.Placement),
 		cluster.Spec.Resources,
 		cluster.Spec.ResourceProfile,
-		cluster.ownerRef)
+		cluster.ownerRef,
+		cluster.Spec.UseHostLocalTime)
 	NFSController.StartWatch(cluster.stopCh)
 
 	// Start S3 service CRD watcher
@@ -185,7 +185,8 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		edgefsv1beta1.GetTargetPlacement(cluster.Spec.Placement),
 		cluster.Spec.Resources,
 		cluster.Spec.ResourceProfile,
-		cluster.ownerRef)
+		cluster.ownerRef,
+		cluster.Spec.UseHostLocalTime)
 	S3Controller.StartWatch(cluster.stopCh)
 
 	// Start SWIFT service CRD watcher
@@ -197,7 +198,8 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		edgefsv1beta1.GetTargetPlacement(cluster.Spec.Placement),
 		cluster.Spec.Resources,
 		cluster.Spec.ResourceProfile,
-		cluster.ownerRef)
+		cluster.ownerRef,
+		cluster.Spec.UseHostLocalTime)
 	SWIFTController.StartWatch(cluster.stopCh)
 
 	// Start S3X service CRD watcher
@@ -209,7 +211,8 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		edgefsv1beta1.GetTargetPlacement(cluster.Spec.Placement),
 		cluster.Spec.Resources,
 		cluster.Spec.ResourceProfile,
-		cluster.ownerRef)
+		cluster.ownerRef,
+		cluster.Spec.UseHostLocalTime)
 	S3XController.StartWatch(cluster.stopCh)
 
 	// Start ISCSI service CRD watcher
@@ -221,7 +224,8 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		edgefsv1beta1.GetTargetPlacement(cluster.Spec.Placement),
 		cluster.Spec.Resources,
 		cluster.Spec.ResourceProfile,
-		cluster.ownerRef)
+		cluster.ownerRef,
+		cluster.Spec.UseHostLocalTime)
 	ISCSIController.StartWatch(cluster.stopCh)
 
 	// Start ISGW service CRD watcher
@@ -233,7 +237,8 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		edgefsv1beta1.GetTargetPlacement(cluster.Spec.Placement),
 		cluster.Spec.Resources,
 		cluster.Spec.ResourceProfile,
-		cluster.ownerRef)
+		cluster.ownerRef,
+		cluster.Spec.UseHostLocalTime)
 	ISGWController.StartWatch(cluster.stopCh)
 
 	cluster.childControllers = []childController{

@@ -25,6 +25,9 @@ import (
 const (
 	ResourcesKeyMgr    = "mgr"
 	ResourcesKeyTarget = "target"
+
+	hostLocalTimeVolName = "host-local-time"
+	hostLocalTimePath    = "/etc/localtime"
 )
 
 // GetMgrResources returns the placement for the MGR service
@@ -113,4 +116,23 @@ func GetInitiatorEnvArr(svctype string, embedded bool, chunkCacheSize resource.Q
 	}
 
 	return retArr
+}
+
+func GetHostLocalTimeVolumeMount() v1.VolumeMount {
+	return v1.VolumeMount{
+		Name:      hostLocalTimeVolName,
+		MountPath: hostLocalTimePath,
+		ReadOnly:  true,
+	}
+}
+
+func GetHostLocalTimeVolume() v1.Volume {
+	return v1.Volume{
+		Name: hostLocalTimeVolName,
+		VolumeSource: v1.VolumeSource{
+			HostPath: &v1.HostPathVolumeSource{
+				Path: hostLocalTimePath,
+			},
+		},
+	}
 }
