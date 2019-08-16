@@ -243,7 +243,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 			// As of Nautilus Ceph auto-tunes its osd_memory_target on the fly so we don't need to force it
 			if !c.clusterInfo.CephVersion.IsAtLeastNautilus() && !c.resources.Limits.Memory().IsZero() {
 				osdMemoryTargetValue := float32(c.resources.Limits.Memory().Value()) * osdMemoryTargetSafetyFactor
-				commonArgs = append(commonArgs, fmt.Sprintf("--osd-memory-target=%f", osdMemoryTargetValue))
+				args = append(args, fmt.Sprintf("--osd-memory-target=%f", osdMemoryTargetValue))
 			}
 		}
 
