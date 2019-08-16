@@ -12,11 +12,13 @@ ASSEMBLE_FILE_OCP="$OLM_CATALOG_DIR/assemble/metadata-openshift.yaml"
 PACKAGE_FILE="$OLM_CATALOG_DIR/assemble/rook-ceph.package.yaml"
 SUPPORTED_PLATFORMS='k8s|ocp'
 
+operator_sdk="${OPERATOR_SDK:-operator-sdk}"
+
 ##########
 # CHECKS #
 ##########
-if ! command -v operator-sdk &>/dev/null; then
-    echo "operator-sdk is not installed"
+if [ ! command -v operator-sdk &>/dev/null ] && [ ! -f $operator_sdk ]; then
+    echo "operator-sdk is not installed $operator_sdk"
     echo "follow instructions here: https://github.com/operator-framework/operator-sdk/#quick-start"
     exit 1
 fi
@@ -79,7 +81,7 @@ YQ_CMD_DELETE=(yq delete -i)
 YQ_CMD_MERGE_OVERWRITE=(yq merge --inplace --overwrite --append)
 YQ_CMD_MERGE=(yq merge --inplace --append)
 YQ_CMD_WRITE=(yq write --inplace)
-OP_SDK_CMD=(operator-sdk olm-catalog gen-csv --csv-version)
+OP_SDK_CMD=($operator_sdk olm-catalog gen-csv --csv-version)
 OPERATOR_YAML_FILE_K8S="cluster/examples/kubernetes/ceph/operator.yaml"
 OPERATOR_YAML_FILE_OCP="cluster/examples/kubernetes/ceph/operator-openshift.yaml"
 COMMON_YAML_FILE="cluster/examples/kubernetes/ceph/common.yaml"

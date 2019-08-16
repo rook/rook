@@ -20,8 +20,24 @@ include ../image.mk
 CEPH_VERSION = v14.2.2-20190722
 BASEIMAGE = ceph/ceph-$(GOARCH):$(CEPH_VERSION)
 CEPH_IMAGE = $(BUILD_REGISTRY)/ceph-$(GOARCH)
+OPERATOR_SDK_VERSION = v0.10.0
 
 TEMP := $(shell mktemp -d)
+
+ifeq ($(HOST_PLATFORM),linux_amd64)
+OPERATOR_SDK_PLATFORM = x86_64-linux-gnu
+endif
+ifeq ($(PLATFORM),linux_arm64)
+# host os not supported
+endif
+ifeq ($(PLATFORM),darwin_amd64)
+OPERATOR_SDK_PLATFORM = x86_64-apple-darwin
+endif
+ifeq ($(PLATFORM),windows_amd64)
+# host os not supported
+endif
+
+OPERATOR_SDK := $(TOOLS_HOST_DIR)/operator-sdk-$(OPERATOR_SDK_VERSION) 
 
 # ====================================================================================
 # Build Rook
@@ -34,7 +50,12 @@ do.build: generate-csv-ceph-templates
 	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rookflex $(TEMP)
 	@cp -r ../../cluster/examples/kubernetes/ceph/csi/template $(TEMP)/ceph-csi
 	@cp -r ../../cluster/examples/kubernetes/ceph/monitoring $(TEMP)/ceph-monitoring
-	@cp -r ../../cluster/olm/ceph/templates $(TEMP)/ceph-csv-templates
+	# for the CSV templates, we ignore host platforms the operator-sdk doesn't support
+	@if [ ! "$(OPERATOR_SDK_PLATFORM)" = "" ]; then\
+		cp -r ../../cluster/olm/ceph/templates $(TEMP)/ceph-csv-templates;\
+	else\
+		mkdir $(TEMP)/ceph-csv-templates;\
+	fi
 	@cd $(TEMP) && $(SED_CMD) 's|BASEIMAGE|$(BASEIMAGE)|g' Dockerfile
 	@$(DOCKERCMD) build $(BUILD_ARGS) \
 		--build-arg ARCH=$(GOARCH) \
@@ -43,6 +64,14 @@ do.build: generate-csv-ceph-templates
 		$(TEMP)
 	@rm -fr $(TEMP)
 
-generate-csv-ceph-templates:
-	@../../cluster/olm/ceph/generate-rook-csv-templates.sh
+generate-csv-ceph-templates: $(OPERATOR_SDK)
+	@if [ ! "$(OPERATOR_SDK_PLATFORM)" = "" ]; then\
+		OPERATOR_SDK=$(OPERATOR_SDK) ../../cluster/olm/ceph/generate-rook-csv-templates.sh;\
+	fi
+
+$(OPERATOR_SDK):
+	@if [ ! "$(OPERATOR_SDK_PLATFORM)" = "" ]; then\
+		curl -JL https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk-$(OPERATOR_SDK_VERSION)-$(OPERATOR_SDK_PLATFORM) -o $(TOOLS_HOST_DIR)/operator-sdk-$(OPERATOR_SDK_VERSION);\
+		chmod +x $(OPERATOR_SDK);\
+        fi
 

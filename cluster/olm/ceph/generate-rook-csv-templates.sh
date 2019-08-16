@@ -26,7 +26,7 @@ function generate_template() {
     mv $TMP_CSV_GEN_FILE $csv_template_file
 
     # replace the placeholder with the templated value
-    sed -i "s/9999.9999.9999/{{.RookOperatorCsvVersion}}/g"  $csv_template_file
+    sed -i "s/9999.9999.9999/{{.RookOperatorCsvVersion}}/g" $csv_template_file
 }
 
 # start clean
