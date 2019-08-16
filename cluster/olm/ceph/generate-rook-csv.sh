@@ -13,6 +13,7 @@ PACKAGE_FILE="$OLM_CATALOG_DIR/assemble/rook-ceph.package.yaml"
 SUPPORTED_PLATFORMS='k8s|ocp'
 
 operator_sdk="${OPERATOR_SDK:-operator-sdk}"
+yq="${YQ_TOOL:-yq}"
 
 ##########
 # CHECKS #
@@ -23,7 +24,7 @@ if [ ! command -v operator-sdk &>/dev/null ] && [ ! -f $operator_sdk ]; then
     exit 1
 fi
 
-if ! command -v yq &>/dev/null; then
+if [ ! command -v yq &>/dev/null ] && [ ! -f $yq ]; then
     echo "yq is not installed"
     echo "follow instructions here: https://github.com/mikefarah/yq#install"
     exit 1
@@ -77,10 +78,10 @@ fi
 #############
 # VARIABLES #
 #############
-YQ_CMD_DELETE=(yq delete -i)
-YQ_CMD_MERGE_OVERWRITE=(yq merge --inplace --overwrite --append)
-YQ_CMD_MERGE=(yq merge --inplace --append)
-YQ_CMD_WRITE=(yq write --inplace)
+YQ_CMD_DELETE=($yq delete -i)
+YQ_CMD_MERGE_OVERWRITE=($yq merge --inplace --overwrite --append)
+YQ_CMD_MERGE=($yq merge --inplace --append)
+YQ_CMD_WRITE=($yq write --inplace)
 OP_SDK_CMD=($operator_sdk olm-catalog gen-csv --csv-version)
 OPERATOR_YAML_FILE_K8S="cluster/examples/kubernetes/ceph/operator.yaml"
 OPERATOR_YAML_FILE_OCP="cluster/examples/kubernetes/ceph/operator-openshift.yaml"
