@@ -138,15 +138,13 @@ func getMdsDeployments(context *clusterd.Context, namespace, fsName string) (*ap
 }
 
 func deleteMdsDeployment(context *clusterd.Context, namespace string, deployment *apps.Deployment) error {
-	errCount := 0
 	// Delete the mds deployment
 	logger.Infof("deleting mds deployment %s", deployment.Name)
 	var gracePeriod int64
 	propagation := metav1.DeletePropagationForeground
 	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
 	if err := context.Clientset.AppsV1().Deployments(namespace).Delete(deployment.GetName(), options); err != nil {
-		errCount++
-		logger.Errorf("failed to delete mds deployment %s: %+v", deployment.GetName(), err)
+		return fmt.Errorf("failed to delete mds deployment %s: %+v", deployment.GetName(), err)
 	}
 	return nil
 }
