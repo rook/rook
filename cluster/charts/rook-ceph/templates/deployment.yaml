@@ -28,7 +28,7 @@ spec:
         args: ["ceph", "operator"]
         env:
         - name: ROOK_CURRENT_NAMESPACE_ONLY
-          value: "true"
+          value: {{ .Values.currentNamespaceOnly | quote }}
 {{- if not .Values.rbacEnable }}
         - name: RBAC_ENABLED
           value: "false"
