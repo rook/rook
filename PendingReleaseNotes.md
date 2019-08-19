@@ -60,6 +60,7 @@ an example usage
 - The CSI driver is enabled by default. Documentation has been changed significantly for block and filesystem to use the CSI driver instead of flex.
 While the flex driver is still supported, it is anticipated to be deprecated soon.
 - The `Mon.PreferredCount` setting has been removed.
+- imagePullSecrets option added to helm-chart
 
 ## Known Issues
 
