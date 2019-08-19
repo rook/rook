@@ -167,7 +167,8 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 		configEnvVars = append(configEnvVars, v1.EnvVar{Name: "ROOK_IS_DEVICE", Value: "true"})
 	}
 
-	commonArgs := []string{
+	// default args when the ceph cluster isn't initialized
+	defaultArgs := []string{
 		"--foreground",
 		"--id", osdID,
 		"--conf", osd.Config,
@@ -176,6 +177,8 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 		"--cluster", osd.Cluster,
 		"--osd-uuid", osd.UUID,
 	}
+
+	var commonArgs []string
 
 	// Set osd memory target to the best appropriate value
 	if !osd.IsFileStore {
@@ -217,7 +220,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 			"--source-path", sourcePath,
 			"--mount-path", osd.DataPath,
 			"--"},
-			commonArgs...)
+			defaultArgs...)
 
 	} else if osd.CephVolumeInitiated {
 		// if the osd was provisioned by ceph-volume, we need to launch it with rook as the parent process
@@ -238,21 +241,6 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 			"--setuser-match-path", osd.DataPath,
 		}
 
-		// Set osd memory target to the best appropriate value
-		if !osd.IsFileStore {
-			// As of Nautilus Ceph auto-tunes its osd_memory_target on the fly so we don't need to force it
-			if !c.clusterInfo.CephVersion.IsAtLeastNautilus() && !c.resources.Limits.Memory().IsZero() {
-				osdMemoryTargetValue := float32(c.resources.Limits.Memory().Value()) * osdMemoryTargetSafetyFactor
-				commonArgs = append(commonArgs, fmt.Sprintf("--osd-memory-target=%f", osdMemoryTargetValue))
-			}
-		}
-
-		if c.clusterInfo.CephVersion.IsAtLeast(version.CephVersion{Major: 14, Minor: 2, Extra: 1}) {
-			args = append(args, "--default-log-to-file", "false")
-		}
-
-		args = append(args, osdOnSDNFlag(c.HostNetwork, c.clusterInfo.CephVersion)...)
-
 		// mount /run/udev in the container so ceph-volume (via `lvs`)
 		// can access the udev database
 		volumes = append(volumes, v1.Volume{
@@ -267,8 +255,10 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 	} else {
 		// other osds can launch the osd daemon directly
 		command = []string{"ceph-osd"}
-		args = commonArgs
+		args = defaultArgs
 	}
+
+	args = append(args, commonArgs...)
 
 	if osdProps.pvc.ClaimName != "" {
 		volumeMounts = append(volumeMounts, getPvcOSDBridgeMount(osdProps.pvc.ClaimName))
