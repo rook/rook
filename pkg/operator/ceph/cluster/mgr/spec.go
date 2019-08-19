@@ -37,6 +37,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
+const (
+	podIPEnvVar = "ROOK_POD_IP"
+)
+
 func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
@@ -181,7 +185,6 @@ func (c *Cluster) makeSetServerAddrInitContainer(mgrConfig *mgrConfig, mgrModule
 	//  L: config-key set       mgr/<mod>/server_addr $(ROOK_CEPH_<MOD>_SERVER_ADDR)
 	//  M: config     set mgr.a mgr/<mod>/server_addr $(ROOK_CEPH_<MOD>_SERVER_ADDR)
 	//  N: config     set mgr.a mgr/<mod>/server_addr $(ROOK_CEPH_<MOD>_SERVER_ADDR) --force
-	podIPEnvVar := "ROOK_POD_IP"
 	cfgSetArgs := []string{"config", "set"}
 	cfgSetArgs = append(cfgSetArgs, fmt.Sprintf("mgr.%s", mgrConfig.DaemonID))
 	cfgPath := fmt.Sprintf("mgr/%s/%s/server_addr", mgrModule, mgrConfig.DaemonID)
@@ -267,6 +270,15 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 		Lifecycle:       opspec.PodLifeCycle(""),
 		SecurityContext: mon.PodSecurityContext(),
 	}
+
+	// If host networking is enabled, we don't need a bind addr that is different from the public addr
+	if !c.HostNetwork {
+		// Opposite of the above, --public-bind-addr will *not* still advertise on the previous
+		// port, which makes sense because this is the pod IP, which changes with every new pod.
+		container.Args = append(container.Args,
+			config.NewFlag("public-addr", opspec.ContainerEnvVarReference(podIPEnvVar)))
+	}
+
 	return container
 }
 
@@ -333,6 +345,7 @@ func (c *Cluster) cephMgrOrchestratorModuleEnvs() []v1.EnvVar {
 		{Name: "ROOK_CEPH_CLUSTER_CRD_VERSION", Value: rookcephv1.Version},
 		{Name: "ROOK_VERSION", Value: rookversion.Version},
 		{Name: "ROOK_CEPH_CLUSTER_CRD_NAME", Value: c.clusterInfo.Name},
+		k8sutil.PodIPEnvVar(podIPEnvVar),
 	}
 	return envVars
 }
