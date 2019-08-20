@@ -27,9 +27,7 @@ TEMP := $(shell mktemp -d)
 
 ifeq ($(HOST_PLATFORM),linux_amd64)
 OPERATOR_SDK_PLATFORM = x86_64-linux-gnu
-endif
-ifeq ($(HOST_PLATFORM),darwin_amd64)
-OPERATOR_SDK_PLATFORM = x86_64-apple-darwin
+INCLUDE_CSV_TEMPLATES = true
 endif
 
 OPERATOR_SDK := $(TOOLS_HOST_DIR)/operator-sdk-$(OPERATOR_SDK_VERSION) 
@@ -46,8 +44,7 @@ do.build: generate-csv-ceph-templates
 	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rookflex $(TEMP)
 	@cp -r ../../cluster/examples/kubernetes/ceph/csi/template $(TEMP)/ceph-csi
 	@cp -r ../../cluster/examples/kubernetes/ceph/monitoring $(TEMP)/ceph-monitoring
-	# Copy temlated csv manifest only if operator-sdk is supported for the host platform.
-	@if [ ! "$(OPERATOR_SDK_PLATFORM)" = "" ]; then\
+	@if [ ! "$(INCLUDE_CSV_TEMPLATES)" = "" ]; then\
 		cp -r ../../cluster/olm/ceph/templates $(TEMP)/ceph-csv-templates;\
 	else\
 		mkdir $(TEMP)/ceph-csv-templates;\
@@ -61,18 +58,20 @@ do.build: generate-csv-ceph-templates
 	@rm -fr $(TEMP)
 
 generate-csv-ceph-templates: $(OPERATOR_SDK) $(YQ)
-	@if [ ! "$(OPERATOR_SDK_PLATFORM)" = "" ]; then\
+	@if [ ! "$(INCLUDE_CSV_TEMPLATES)" = "" ]; then\
 		OPERATOR_SDK=$(OPERATOR_SDK) YQ_TOOL=$(YQ) ../../cluster/olm/ceph/generate-rook-csv-templates.sh;\
 	fi
 
 $(YQ):
-	@echo === installing yq $(GOHOST)
-	@mkdir -p $(TOOLS_HOST_DIR)/tmp
-	@GOPATH=$(TOOLS_HOST_DIR)/tmp GOBIN=$(TOOLS_HOST_DIR) $(GOHOST) get gopkg.in/mikefarah/yq.v2
-	@rm -fr $(TOOLS_HOST_DIR)/tmp
+	@if [ ! "$(INCLUDE_CSV_TEMPLATES)" = "" ]; then\
+		echo === installing yq $(GOHOST);\
+		mkdir -p $(TOOLS_HOST_DIR)/tmp;\
+		GOPATH=$(TOOLS_HOST_DIR)/tmp GOBIN=$(TOOLS_HOST_DIR) $(GOHOST) get gopkg.in/mikefarah/yq.v2;\
+		rm -fr $(TOOLS_HOST_DIR)/tmp;\
+	fi
 
 $(OPERATOR_SDK):
-	@if [ ! "$(OPERATOR_SDK_PLATFORM)" = "" ]; then\
+	@if [ ! "$(INCLUDE_CSV_TEMPLATES)" = "" ]; then\
 		curl -JL https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk-$(OPERATOR_SDK_VERSION)-$(OPERATOR_SDK_PLATFORM) -o $(TOOLS_HOST_DIR)/operator-sdk-$(OPERATOR_SDK_VERSION);\
 		chmod +x $(OPERATOR_SDK);\
         fi
