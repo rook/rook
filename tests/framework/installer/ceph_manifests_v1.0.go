@@ -1413,3 +1413,11 @@ func (m *CephManifestsV1_0) GetBucketStorageClass(namespace string, storeName st
 func (m *CephManifestsV1_0) GetObc(claimName string, storageClassName string, objectBucketName string, varBucketName bool) string {
 	panic("upgrade test not supported for object bucket claim")
 }
+
+func (m *CephManifestsV1_0) GetClient(claimName string, namespace string) string {
+	panic("upgrade test not supported for client")
+}
+
+func (m *CephManifestsV1_0) UpdateClient(claimName string, namespace string) string {
+	panic("upgrade test not supported for client")
+}

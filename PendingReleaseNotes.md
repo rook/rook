@@ -25,6 +25,7 @@
   - rgw: [gateway settings](Documentation/ceph-object-store-crd.md#gateway-settings)
   - nfs: [samples](Documentation/ceph-nfs-crd.md#samples)
 - When the operator is upgraded, the mgr and osd (not running on PVC) won't be restarted if the Rook binary version changes
+- Rook is now able to create and manage Ceph clients [client crd](Documentation/ceph-client-crd.html).
 
 ### EdgeFS
 

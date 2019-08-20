@@ -35,7 +35,7 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
-	"github.com/rook/rook/pkg/operator/ceph/client"
+	cephclient "github.com/rook/rook/pkg/operator/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/config"
@@ -415,7 +415,7 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 	}
 
 	// Start client CRD watcher
-	clientController := client.NewClientController(c.context, cluster.Namespace)
+	clientController := cephclient.NewClientController(c.context, cluster.Namespace)
 	clientController.StartWatch(cluster.stopCh)
 
 	// Start pool CRD watcher

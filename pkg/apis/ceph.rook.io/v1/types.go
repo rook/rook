@@ -484,10 +484,6 @@ type CephClientList struct {
 }
 
 type ClientSpec struct {
-	Caps ClientCaps `json:"caps"`
+	Name string            `json:"name"`
+	Caps map[string]string `json:"caps"`
 }
-
-type ClientCaps struct {
-	Mon string `json:"mon,omitempty"`
-	Osd string `json:"osd,omitempty"`
-	Mds string `josn:"mds,omitempty"`

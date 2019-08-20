@@ -461,10 +461,4 @@ spec:
         spec:
           properties:
             caps:
-              properties:
-                mon:
-                  type: string
-                osd:
-                  type: string
-                mds:
-                  type: string
+              type: object

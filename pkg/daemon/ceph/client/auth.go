@@ -34,17 +34,6 @@ func AuthAdd(context *clusterd.Context, clusterName, name, keyringPath string, c
 	return nil
 }
 
-// AuthGetOrCreateNoKeyring will either get or create a user with the given capabilities.
-func AuthGetOrCreateNoKeyring(context *clusterd.Context, clusterName string, name string, caps []string) error {
-	args := append([]string{"auth", "get-or-create", name}, caps...)
-	_, err := ExecuteCephCommandPlainNoOutputFile(context, clusterName, args)
-	if err != nil {
-		return fmt.Errorf("failed to auth get-or-create for %s: %+v", name, err)
-	}
-
-	return nil
-}
-
 // AuthGetOrCreate will either get or create a user with the given capabilities.  The keyring for the
 // user will be written to the given keyring path.
 func AuthGetOrCreate(context *clusterd.Context, clusterName, name, keyringPath string, caps []string) error {
@@ -91,6 +80,37 @@ func AuthUpdateCaps(context *clusterd.Context, clusterName, name string, caps []
 		return fmt.Errorf("failed to update caps for %s. %+v", name, err)
 	}
 	return err
+}
+
+// AuthGetCaps gets the capabilities for the given user.
+func AuthGetCaps(context *clusterd.Context, clusterName, name string) (caps map[string]string, error error) {
+	args := append([]string{"auth", "get", name})
+	output, err := NewCephCommand(context, clusterName, args).Run()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get caps for %s. %+v", name, err)
+	}
+
+	var data []map[string]interface{}
+	err = json.Unmarshal(output, &data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal auth get response: %+v", err)
+	}
+	caps = make(map[string]string)
+
+	if data[0]["caps"].(map[string]interface{})["mon"] != nil {
+		caps["mon"] = data[0]["caps"].(map[string]interface{})["mon"].(string)
+	}
+	if data[0]["caps"].(map[string]interface{})["mds"] != nil {
+		caps["mds"] = data[0]["caps"].(map[string]interface{})["mds"].(string)
+	}
+	if data[0]["caps"].(map[string]interface{})["mgr"] != nil {
+		caps["mgr"] = data[0]["caps"].(map[string]interface{})["mgr"].(string)
+	}
+	if data[0]["caps"].(map[string]interface{})["osd"] != nil {
+		caps["osd"] = data[0]["caps"].(map[string]interface{})["osd"].(string)
+	}
+
+	return caps, err
 }
 
 // AuthDelete will delete the given user.

@@ -42,6 +42,8 @@ type CephManifests interface {
 	GetObjectStoreUser(namespace, name string, displayName string, store string) string
 	GetBucketStorageClass(namespace string, storeName string, storageClassName string, reclaimPolicy string, region string) string
 	GetObc(obcName string, storageClassName string, bucketName string, createBucket bool) string
+	GetClient(namespace string, name string) string
+	UpdateClient(namespace string, name string) string
 }
 
 type ClusterSettings struct {
@@ -513,7 +515,34 @@ spec:
       - obcs
   scope: Namespaced
   subresources:
-    status: {}`
+    status: {}
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: cephclients.ceph.rook.io
+spec:
+  group: ceph.rook.io
+  names:
+    kind: CephClient
+    listKind: CephClientList
+    plural: cephclients
+    singular: cephclient
+  scope: Namespaced
+  version: v1
+  validation:
+    openAPIV3Schema:
+      properties:
+        spec:
+          properties:
+            caps:
+              properties:
+                mon:
+                  type: string
+                osd:
+                  type: string
+                mds:
+                  type: string`
 }
 
 // GetRookOperator returns rook Operator manifest
@@ -1939,4 +1968,32 @@ metadata:
 spec:
   ` + bucketParameter + `: ` + objectBucketName + `
   storageClassName: ` + storageClassName
+}
+
+//GetClient returns the manifest to create client CRD
+func (m *CephManifestsMaster) GetClient(namespace string, claimName string) string {
+	return `apiVersion: ceph.rook.io/v1
+kind: CephClient
+metadata:
+  name: ` + claimName + `
+  namespace: ` + namespace + `
+spec:
+  caps:
+    mon: allow rwx
+    mgr: allow rwx
+    osd: allow rwx`
+}
+
+//UpdateClient returns the manifest to create client CRD
+func (m *CephManifestsMaster) UpdateClient(namespace string, claimName string) string {
+	return `apiVersion: ceph.rook.io/v1
+kind: CephClient
+metadata:
+  name: ` + claimName + `
+  namespace: ` + namespace + `
+spec:
+  caps:
+    mon: allow r
+    mgr: allow rw
+    osd: allow *`
 }
