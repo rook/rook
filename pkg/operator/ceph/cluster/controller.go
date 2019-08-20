@@ -372,7 +372,7 @@ func (c *ClusterController) onK8sNodeUpdate(oldObj, newObj interface{}) {
 
 	for _, cluster := range c.clusterMap {
 		if cluster.Info == nil {
-			logger.Info("Cluster %s is not ready. Skipping orchestration.", cluster.Namespace)
+			logger.Infof("Cluster %s is not ready. Skipping orchestration.", cluster.Namespace)
 			continue
 		}
 		if valid, _ := k8sutil.ValidNode(*newNode, cephv1.GetOSDPlacement(cluster.Spec.Placement)); valid == true {
