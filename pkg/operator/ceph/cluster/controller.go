@@ -265,57 +265,71 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 			logger.Warningf("waiting for the connection info of the external cluster. %+v", err)
 			time.Sleep(10 * time.Second)
 			continue
+		} else {
+			break
 		}
-		logger.Infof("found the cluster info to connect to the external cluster. mons=%+v", cluster.Info.Monitors)
-
-		// Write the rook-ceph-config configmap (used by various daemons to apply config overrides)
-		// If we don't do this, daemons will never start, waiting forever for this configmap to be present
-		err = config.GetStore(cluster.context, namespace, &cluster.ownerRef).CreateOrUpdate(cluster.Info)
-		if err != nil {
-			return err
-		}
-
-		// Let's write connection info (ceph config file and keyring) to the operator for health checks
-		err = mon.WriteConnectionConfig(cluster.context, cluster.Info)
-		if err != nil {
-			return fmt.Errorf("failed to write connection info %+v", err)
-		}
-
-		// Get Ceph monitors version on the external cluster
-		cephMonVersion, err := client.GetCephMonVersion(c.context, namespace)
-		if err != nil {
-			return fmt.Errorf("failed to get ceph mon version. %+v", err)
-		}
-
-		logger.Infof("detecting the image version provided for the external cluster...")
-		specCephVersionImage, err := cluster.detectCephVersion(c.rookImage, cluster.Spec.CephVersion.Image, detectCephVersionTimeout)
-		if err != nil {
-			return fmt.Errorf("unknown ceph major version. %+v", err)
-		}
-		specCephVersion := *specCephVersionImage
-
-		// Populate clusterInfo with the external cluster version
-		cluster.Info.CephVersion = *cephMonVersion
-
-		// Make sure the external cluster version and the ceph version in the provided image are identical
-		if !cephver.IsIdentical(specCephVersion, cluster.Info.CephVersion) {
-			return fmt.Errorf("wrong ceph version %s, external cluster version is %s, they must match", specCephVersion.String(), cephMonVersion.String())
-		}
-
-		// The cluster Identity must be established at this point
-		if !cluster.Info.IsInitialized() {
-			return fmt.Errorf("the cluster identity was not established: %+v", cluster.Info)
-		}
-		logger.Info("cluster identity established.")
-
-		// Everything went well so let's update the CR's status to "connected"
-		c.updateClusterStatus(namespace, name, cephv1.ClusterStateConnected, "")
-
-		return nil
 	}
+
+	logger.Infof("found the cluster info to connect to the external cluster. mons=%+v", cluster.Info.Monitors)
+
+	// Write the rook-ceph-config configmap (used by various daemons to apply config overrides)
+	// If we don't do this, daemons will never start, waiting forever for this configmap to be present
+	err = config.GetStore(cluster.context, namespace, &cluster.ownerRef).CreateOrUpdate(cluster.Info)
+	if err != nil {
+		return err
+	}
+
+	// Let's write connection info (ceph config file and keyring) to the operator for health checks
+	err = mon.WriteConnectionConfig(cluster.context, cluster.Info)
+	if err != nil {
+		return fmt.Errorf("failed to write connection info %+v", err)
+	}
+
+	// Get Ceph monitors version on the external cluster
+	cephMonVersion, err := client.GetCephMonVersion(c.context, namespace)
+	if err != nil {
+		return fmt.Errorf("failed to get ceph mon version. %+v", err)
+	}
+
+	logger.Infof("detecting the image version provided for the external cluster...")
+	specCephVersionImage, err := cluster.detectCephVersion(c.rookImage, cluster.Spec.CephVersion.Image, detectCephVersionTimeout)
+	if err != nil {
+		return fmt.Errorf("unknown ceph major version. %+v", err)
+	}
+	specCephVersion := *specCephVersionImage
+
+	// Populate clusterInfo with the external cluster version
+	cluster.Info.CephVersion = *cephMonVersion
+
+	// Make sure the external cluster version and the ceph version in the provided image are identical
+	if !cephver.IsIdentical(specCephVersion, cluster.Info.CephVersion) {
+		return fmt.Errorf("wrong ceph version %s, external cluster version is %s, they must match", specCephVersion.String(), cephMonVersion.String())
+	}
+
+	// The cluster Identity must be established at this point
+	if !cluster.Info.IsInitialized() {
+		return fmt.Errorf("the cluster identity was not established: %+v", cluster.Info)
+	}
+	logger.Info("cluster identity established.")
+
+	// Everything went well so let's update the CR's status to "connected"
+	c.updateClusterStatus(namespace, name, cephv1.ClusterStateConnected, "")
+
+	// Mark initialization has done
+	cluster.initCompleted = true
+
+	return nil
 }
 
 func (c *ClusterController) configureLocalCephCluster(namespace, name string, cluster *cluster, clusterObj *cephv1.CephCluster) error {
+	if cluster.Spec.Mon.Count == 0 {
+		logger.Warningf("mon count should be at least 1, will use default value of %d", mon.DefaultMonCount)
+		cluster.Spec.Mon.Count = mon.DefaultMonCount
+	}
+	if cluster.Spec.Mon.Count%2 == 0 {
+		logger.Warningf("mon count is even (given: %d), should be uneven, continuing", cluster.Spec.Mon.Count)
+	}
+
 	if c.devicesInUse && cluster.Spec.Storage.AnyUseAllDevices() {
 		c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1.ClusterStateError, "using all devices in more than one namespace is not supported")
 		return fmt.Errorf("using all devices in more than one namespace is not supported")
@@ -323,19 +337,6 @@ func (c *ClusterController) configureLocalCephCluster(namespace, name string, cl
 
 	if cluster.Spec.Storage.AnyUseAllDevices() {
 		c.devicesInUse = true
-	}
-
-	return nil
-}
-
-func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *cephv1.CephCluster) {
-	cluster.Spec = &clusterObj.Spec
-	if cluster.Spec.Mon.Count == 0 {
-		logger.Warningf("mon count should be at least 1, will use default value of %d", mon.DefaultMonCount)
-		cluster.Spec.Mon.Count = mon.DefaultMonCount
-	}
-	if cluster.Spec.Mon.Count%2 == 0 {
-		logger.Warningf("mon count is even (given: %d), should be uneven, continuing", cluster.Spec.Mon.Count)
 	}
 
 	// Start the Rook cluster components. Retry several times in case of failure.
@@ -349,7 +350,7 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 		// Let's write connection info (ceph config file and keyring) to the operator for health checks
 		err = mon.WriteConnectionConfig(cluster.context, cluster.Info)
 		if err != nil {
-			return
+			return err
 		}
 	}
 
@@ -384,8 +385,14 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 
 	if state == cephv1.ClusterStateError {
 		// the cluster could not be initialized
-		return
+		return fmt.Errorf("failed to initialized the cluster")
 	}
+
+	return nil
+}
+
+func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *cephv1.CephCluster) {
+	cluster.Spec = &clusterObj.Spec
 
 	if !cluster.Spec.External.Enable {
 		if err := c.configureLocalCephCluster(clusterObj.Namespace, clusterObj.Name, cluster, clusterObj); err != nil {
@@ -439,7 +446,7 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 	go cephChecker.checkCephStatus(cluster.stopCh)
 
 	// add the finalizer to the crd
-	err = c.addFinalizer(clusterObj.Namespace, clusterObj.Name)
+	err := c.addFinalizer(clusterObj.Namespace, clusterObj.Name)
 	if err != nil {
 		logger.Errorf("failed to add finalizer to cluster crd. %+v", err)
 	}
@@ -622,7 +629,6 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 	// Display success after upgrade
 	if versionChanged {
 		printOverallCephVersion(c.context, cluster.Namespace)
-		// TODO: Update all the crd controllers that there is a new version of the ceph image to deploy
 	}
 }
 
