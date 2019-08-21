@@ -291,6 +291,11 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 		return fmt.Errorf("failed to get ceph mon version. %+v", err)
 	}
 
+	// We only support Nautilus or newer
+	if !cephMonVersion.IsAtLeastNautilus() {
+		return fmt.Errorf("unsupported ceph version %s, need at least nautilus", cephMonVersion.String())
+	}
+
 	logger.Infof("detecting the image version provided for the external cluster...")
 	specCephVersionImage, err := cluster.detectCephVersion(c.rookImage, cluster.Spec.CephVersion.Image, detectCephVersionTimeout)
 	if err != nil {
