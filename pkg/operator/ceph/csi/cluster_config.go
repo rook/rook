@@ -163,7 +163,7 @@ func SaveClusterConfig(
 		return fmt.Errorf("namespace value missing (for %+v)",
 			k8sutil.PodNamespaceEnvVar)
 	}
-	logger.Debug("Using %+v for CSI ConfigMap Namespace", csiNamespace)
+	logger.Debugf("Using %+v for CSI ConfigMap Namespace", csiNamespace)
 
 	// fetch current ConfigMap contents
 	configMap, err := clientset.CoreV1().ConfigMaps(csiNamespace).Get(
