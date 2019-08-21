@@ -1,4 +1,3 @@
-
 ---
 title: Ceph CSI
 weight: 3200
@@ -124,7 +123,7 @@ kubectl delete -f cluster/examples/kubernetes/ceph/csi/example/rbd/snapshotclass
 
 #### Liveness Sidecar
 All CSI pods are deployed with a sidecar container that provides a prometheus metric for tracking if the CSI plugin is alive and runnning.
-These metrics are meant to be collected by prometheus but can be acceses through a GET request to a specific node ip. 
+These metrics are meant to be collected by prometheus but can be acceses through a GET request to a specific node ip.
 for example `curl -X get http://[pod ip]:[liveness-port][liveness-path]  2>/dev/null | grep csi`
 the expected output should be
 ```bash
