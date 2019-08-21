@@ -82,6 +82,26 @@ spec:
               mountPath: /etc/ceph-csi-config/
             - name: keys-tmp-dir
               mountPath: /tmp/csi/keys
+        - name: liveness-prometheus
+          image: {{ .CSIPluginImage }}
+          args:
+            - "--type=liveness"
+            - "--endpoint=$(CSI_ENDPOINT)"
+            - "--livenessport=8081"
+            - "--livenesspath=/metrics"
+            - "--polltime=60s"
+            - "--timeout=3s"
+          env:
+            - name: CSI_ENDPOINT
+              value: unix:///csi/csi.sock
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+          imagePullPolicy: "IfNotPresent"
       volumes:
         - name: socket-dir
           hostPath:
@@ -106,3 +126,19 @@ spec:
           emptyDir: {
             medium: "Memory"
           }
+---
+# This is a service to expose the liveness side car
+apiVersion: v1
+kind: Service
+metadata:
+  name: csi-liveness-cephfsplugin-provisioner
+  labels:
+    app: csi-liveness
+spec:
+  ports:
+    - name: http-metrics
+      port: 8080
+      protocol: TCP
+      targetPort: 8081
+  selector:
+    app: csi-cephfsplugin-provisioner

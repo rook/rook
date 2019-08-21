@@ -11,6 +11,7 @@ spec:
     metadata:
       labels:
         app: csi-rbdplugin
+        contains: liveness
     spec:
       serviceAccount: rook-csi-rbd-plugin-sa
       hostNetwork: true
@@ -89,6 +90,26 @@ spec:
               mountPath: /etc/ceph-csi-config/
             - name: keys-tmp-dir
               mountPath: /tmp/csi/keys
+        - name: liveness-prometheus
+          image: {{ .CSIPluginImage }}
+          args:
+            - "--type=liveness"
+            - "--endpoint=$(CSI_ENDPOINT)"
+            - "--livenessport=8080"
+            - "--livenesspath=/metrics"
+            - "--polltime=60s"
+            - "--timeout=3s"
+          env:
+            - name: CSI_ENDPOINT
+              value: unix:///csi/csi.sock
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          volumeMounts:
+            - name: plugin-dir
+              mountPath: /csi
+          imagePullPolicy: "IfNotPresent"
       volumes:
         - name: plugin-dir
           hostPath:
@@ -128,3 +149,19 @@ spec:
           emptyDir: {
             medium: "Memory"
           }
+---
+# This is a service to expose the liveness side car
+apiVersion: v1
+kind: Service
+metadata:
+  name: csi-liveness-rbdplugin
+  labels:
+    app: csi-liveness
+spec:
+  ports:
+    - name: http-metrics
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+  selector:
+    app: csi-rbdplugin

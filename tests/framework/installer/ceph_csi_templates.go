@@ -123,6 +123,26 @@ const (
                   mountPath: /etc/ceph-csi-config/
                 - name: keys-tmp-dir
                   mountPath: /tmp/csi/keys
+            - name: liveness-prometheus
+              image: {{ .CSIPluginImage }}
+              args:
+                - "--type=liveness"
+                - "--endpoint=$(CSI_ENDPOINT)"
+                - "--livenessport=8080"
+                - "--livenesspath=/metrics"
+                - "--polltime=60s"
+                - "--timeout=3s"
+              env:
+                - name: CSI_ENDPOINT
+                  value: unix:///csi/csi.sock
+                - name: POD_IP
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: status.podIP
+              volumeMounts:
+                - name: socket-dir
+                  mountPath: /csi
+              imagePullPolicy: "IfNotPresent"
           volumes:
             - name: host-dev
               hostPath:
@@ -244,6 +264,26 @@ const (
                   mountPath: /etc/ceph-csi-config/
                 - name: keys-tmp-dir
                   mountPath: /tmp/csi/keys
+            - name: liveness-prometheus
+              image: {{ .CSIPluginImage }}
+              args:
+                - "--type=liveness"
+                - "--endpoint=$(CSI_ENDPOINT)"
+                - "--livenessport=8080"
+                - "--livenesspath=/metrics"
+                - "--polltime=60s"
+                - "--timeout=3s"
+              env:
+                - name: CSI_ENDPOINT
+                  value: unix:///csi/csi.sock
+                - name: POD_IP
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: status.podIP
+              volumeMounts:
+                - name: plugin-dir
+                  mountPath: /csi
+              imagePullPolicy: "IfNotPresent"
           volumes:
             - name: plugin-dir
               hostPath:
@@ -369,6 +409,26 @@ const (
                   mountPath: /etc/ceph-csi-config/
                 - name: keys-tmp-dir
                   mountPath: /tmp/csi/keys
+            - name: liveness-prometheus
+              image: {{ .CSIPluginImage }}
+              args:
+                - "--type=liveness"
+                - "--endpoint=$(CSI_ENDPOINT)"
+                - "--livenessport=8081"
+                - "--livenesspath=/metrics"
+                - "--polltime=60s"
+                - "--timeout=3s"
+              env:
+                - name: CSI_ENDPOINT
+                  value: unix:///csi/csi.sock
+                - name: POD_IP
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: status.podIP
+              volumeMounts:
+                - name: socket-dir
+                  mountPath: /csi
+              imagePullPolicy: "IfNotPresent"
           volumes:
             - name: socket-dir
               hostPath:
@@ -484,6 +544,26 @@ const (
                   mountPath: /etc/ceph-csi-config/
                 - name: keys-tmp-dir
                   mountPath: /tmp/csi/keys
+            - name: liveness-prometheus
+              image: {{ .CSIPluginImage }}
+              args:
+                - "--type=liveness"
+                - "--endpoint=$(CSI_ENDPOINT)"
+                - "--livenessport=8081"
+                - "--livenesspath=/metrics"
+                - "--polltime=60s"
+                - "--timeout=3s"
+              env:
+                - name: CSI_ENDPOINT
+                  value: unix:///csi/csi.sock
+                - name: POD_IP
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: status.podIP
+              volumeMounts:
+                - name: plugin-dir
+                  mountPath: /csi
+              imagePullPolicy: "IfNotPresent"
           volumes:
             - name: plugin-dir
               hostPath:

@@ -125,3 +125,11 @@ Then the rest of the instructions in the [Prometheus Operator docs](https://gith
 ### Tectonic Bare Metal
 Tectonic strongly discourages the `tectonic-system` Prometheus instance to be used outside their intentions, so you need to create a new [Prometheus Operator](https://coreos.com/operators/prometheus/docs/latest/) yourself.
 After this you only need to create the service monitor as stated above.
+
+### CSI Liveness
+
+To integrate CSI Liveness into ceph monitoring we will need to deploy a service and service monitor.
+```bash
+kubectl create -f csi-liveness-service-monitor.yaml
+```
+This will create the service monitor to have promethues monitor CSI
