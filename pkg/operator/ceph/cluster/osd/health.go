@@ -27,8 +27,9 @@ import (
 )
 
 const (
-	upStatus = 1
-	inStatus = 1
+	upStatus  = 1
+	inStatus  = 1
+	graceTime = 60 * time.Minute
 )
 
 var (
@@ -122,8 +123,13 @@ func (m *Monitor) handleOSDMarkedOut(outOSDid int) error {
 			return fmt.Errorf("failed to get osd deployment of osd id %d: %+v", outOSDid, err)
 		}
 		if len(dp.Items) != 0 {
-			if err := k8sutil.DeleteDeployment(m.context.Clientset, dp.Items[0].Namespace, dp.Items[0].Name); err != nil {
-				return fmt.Errorf("failed to delete osd deployment %s: %+v", dp.Items[0].Name, err)
+			podCreationTimestamp := dp.Items[0].GetCreationTimestamp()
+			podDeletionTimeStamp := podCreationTimestamp.Add(graceTime)
+			currentTime := time.Now().UTC()
+			if podDeletionTimeStamp.Before(currentTime) {
+				if err := k8sutil.DeleteDeployment(m.context.Clientset, dp.Items[0].Namespace, dp.Items[0].Name); err != nil {
+					return fmt.Errorf("failed to delete osd deployment %s: %+v", dp.Items[0].Name, err)
+				}
 			}
 		}
 	}
