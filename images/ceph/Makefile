@@ -20,13 +20,23 @@ include ../image.mk
 CEPH_VERSION = v14.2.2-20190722
 BASEIMAGE = ceph/ceph-$(GOARCH):$(CEPH_VERSION)
 CEPH_IMAGE = $(BUILD_REGISTRY)/ceph-$(GOARCH)
+OPERATOR_SDK_VERSION = v0.10.0
+GOHOST := GOOS=$(GOHOSTOS) GOARCH=$(GOHOSTARCH) go
 
 TEMP := $(shell mktemp -d)
+
+ifeq ($(HOST_PLATFORM),linux_amd64)
+OPERATOR_SDK_PLATFORM = x86_64-linux-gnu
+INCLUDE_CSV_TEMPLATES = true
+endif
+
+OPERATOR_SDK := $(TOOLS_HOST_DIR)/operator-sdk-$(OPERATOR_SDK_VERSION) 
+YQ := $(TOOLS_HOST_DIR)/yq.v2
 
 # ====================================================================================
 # Build Rook
 
-do.build:
+do.build: generate-csv-ceph-templates
 	@echo === docker build $(CEPH_IMAGE)
 	@cp Dockerfile $(TEMP)
 	@cp toolbox.sh $(TEMP)
@@ -34,6 +44,11 @@ do.build:
 	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rookflex $(TEMP)
 	@cp -r ../../cluster/examples/kubernetes/ceph/csi/template $(TEMP)/ceph-csi
 	@cp -r ../../cluster/examples/kubernetes/ceph/monitoring $(TEMP)/ceph-monitoring
+	@if [ ! "$(INCLUDE_CSV_TEMPLATES)" = "" ]; then\
+		cp -r ../../cluster/olm/ceph/templates $(TEMP)/ceph-csv-templates;\
+	else\
+		mkdir $(TEMP)/ceph-csv-templates;\
+	fi
 	@cd $(TEMP) && $(SED_CMD) 's|BASEIMAGE|$(BASEIMAGE)|g' Dockerfile
 	@$(DOCKERCMD) build $(BUILD_ARGS) \
 		--build-arg ARCH=$(GOARCH) \
@@ -41,3 +56,23 @@ do.build:
 		-t $(CEPH_IMAGE) \
 		$(TEMP)
 	@rm -fr $(TEMP)
+
+generate-csv-ceph-templates: $(OPERATOR_SDK) $(YQ)
+	@if [ ! "$(INCLUDE_CSV_TEMPLATES)" = "" ]; then\
+		OPERATOR_SDK=$(OPERATOR_SDK) YQ_TOOL=$(YQ) ../../cluster/olm/ceph/generate-rook-csv-templates.sh;\
+	fi
+
+$(YQ):
+	@if [ ! "$(INCLUDE_CSV_TEMPLATES)" = "" ]; then\
+		echo === installing yq $(GOHOST);\
+		mkdir -p $(TOOLS_HOST_DIR)/tmp;\
+		GOPATH=$(TOOLS_HOST_DIR)/tmp GOBIN=$(TOOLS_HOST_DIR) $(GOHOST) get gopkg.in/mikefarah/yq.v2;\
+		rm -fr $(TOOLS_HOST_DIR)/tmp;\
+	fi
+
+$(OPERATOR_SDK):
+	@if [ ! "$(INCLUDE_CSV_TEMPLATES)" = "" ]; then\
+		curl -JL https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk-$(OPERATOR_SDK_VERSION)-$(OPERATOR_SDK_PLATFORM) -o $(TOOLS_HOST_DIR)/operator-sdk-$(OPERATOR_SDK_VERSION);\
+		chmod +x $(OPERATOR_SDK);\
+        fi
+

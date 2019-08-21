@@ -12,16 +12,19 @@ ASSEMBLE_FILE_OCP="$OLM_CATALOG_DIR/assemble/metadata-openshift.yaml"
 PACKAGE_FILE="$OLM_CATALOG_DIR/assemble/rook-ceph.package.yaml"
 SUPPORTED_PLATFORMS='k8s|ocp'
 
+operator_sdk="${OPERATOR_SDK:-operator-sdk}"
+yq="${YQ_TOOL:-yq}"
+
 ##########
 # CHECKS #
 ##########
-if ! command -v operator-sdk &>/dev/null; then
-    echo "operator-sdk is not installed"
+if [ ! command -v operator-sdk &>/dev/null ] && [ ! -f $operator_sdk ]; then
+    echo "operator-sdk is not installed $operator_sdk"
     echo "follow instructions here: https://github.com/operator-framework/operator-sdk/#quick-start"
     exit 1
 fi
 
-if ! command -v yq &>/dev/null; then
+if [ ! command -v yq &>/dev/null ] && [ ! -f $yq ]; then
     echo "yq is not installed"
     echo "follow instructions here: https://github.com/mikefarah/yq#install"
     exit 1
@@ -75,10 +78,11 @@ fi
 #############
 # VARIABLES #
 #############
-YQ_CMD_DELETE=(yq delete -i)
-YQ_CMD_MERGE=(yq merge --inplace --overwrite --append)
-YQ_CMD_WRITE=(yq write --inplace)
-OP_SDK_CMD=(operator-sdk olm-catalog gen-csv --csv-version)
+YQ_CMD_DELETE=($yq delete -i)
+YQ_CMD_MERGE_OVERWRITE=($yq merge --inplace --overwrite --append)
+YQ_CMD_MERGE=($yq merge --inplace --append)
+YQ_CMD_WRITE=($yq write --inplace)
+OP_SDK_CMD=($operator_sdk olm-catalog gen-csv --csv-version)
 OPERATOR_YAML_FILE_K8S="cluster/examples/kubernetes/ceph/operator.yaml"
 OPERATOR_YAML_FILE_OCP="cluster/examples/kubernetes/ceph/operator-openshift.yaml"
 COMMON_YAML_FILE="cluster/examples/kubernetes/ceph/common.yaml"
@@ -108,10 +112,10 @@ function generate_csv(){
     "${OP_SDK_CMD[@]}" "$VERSION"
     popd &> /dev/null
     mv "$DEFAULT_CSV_FILE_NAME" "$DESIRED_CSV_FILE_NAME"
-    "${YQ_CMD_MERGE[@]}" "$DESIRED_CSV_FILE_NAME" "$ASSEMBLE_FILE_COMMON"
+    "${YQ_CMD_MERGE_OVERWRITE[@]}" "$DESIRED_CSV_FILE_NAME" "$ASSEMBLE_FILE_COMMON"
 
     if [[ "$PLATFORM" == "k8s" ]]; then
-        "${YQ_CMD_MERGE[@]}" "$DESIRED_CSV_FILE_NAME" "$ASSEMBLE_FILE_K8S"
+        "${YQ_CMD_MERGE_OVERWRITE[@]}" "$DESIRED_CSV_FILE_NAME" "$ASSEMBLE_FILE_K8S"
         "${YQ_CMD_WRITE[@]}" "$DESIRED_CSV_FILE_NAME" metadata.name "rook-ceph.v${VERSION}"
         "${YQ_CMD_WRITE[@]}" "$DESIRED_CSV_FILE_NAME" spec.displayName "Rook-Ceph"
         "${YQ_CMD_WRITE[@]}" "$DESIRED_CSV_FILE_NAME" metadata.annotations.createdAt "$(date +"%Y-%m-%dT%H-%M-%SZ")"
@@ -202,7 +206,9 @@ generate_service_account_yaml
 generate_crds_yaml
 generate_csv "$@"
 hack_csv
-generate_package
+if [ -z "${OLM_SKIP_PKG_FILE_GEN}" ]; then
+    generate_package
+fi
 apply_rook_op_img
 cleanup
 
