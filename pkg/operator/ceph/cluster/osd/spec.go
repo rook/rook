@@ -549,11 +549,12 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 		deviceNames := make([]string, len(osdProps.devices))
 		for i, device := range osdProps.devices {
 			devSuffix := ""
-			count := "1"
 			if count, ok := device.Config[config.OSDsPerDeviceKey]; ok {
 				logger.Infof("%s osds requested on device %s (node %s)", count, device.Name, osdProps.crushHostname)
+				devSuffix += ":" + count
+			} else {
+				devSuffix += ":1"
 			}
-			devSuffix += ":" + count
 			if md, ok := device.Config[config.MetadataDeviceKey]; ok {
 				logger.Infof("osd %s requested with metadataDevice %s (node %s)", device.Name, md, osdProps.crushHostname)
 				devSuffix += ":" + md
