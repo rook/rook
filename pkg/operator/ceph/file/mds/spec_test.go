@@ -22,6 +22,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
@@ -65,8 +66,12 @@ func testDeploymentObject(hostNetwork bool) *apps.Deployment {
 		clusterInfo,
 		&clusterd.Context{Clientset: testop.New(1)},
 		"rook/rook:myversion",
-		cephv1.CephVersionSpec{Image: "ceph/ceph:testversion"},
-		hostNetwork,
+		&cephv1.ClusterSpec{
+			CephVersion: cephv1.CephVersionSpec{Image: "ceph/ceph:testversion"},
+			Network: rookalpha.NetworkSpec{
+				HostNetwork: hostNetwork,
+			},
+		},
 		fs,
 		&client.CephFilesystemDetails{ID: 15},
 		[]metav1.OwnerReference{{}},

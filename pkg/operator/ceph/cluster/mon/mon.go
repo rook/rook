@@ -55,7 +55,8 @@ const (
 	// MappingKey is the name of the mapping for the mon->node and node->port
 	MappingKey = "mapping"
 
-	appName           = "rook-ceph-mon"
+	// AppName is the name of the secret storing cluster mon.admin key, fsid and name
+	AppName           = "rook-ceph-mon"
 	monNodeAttr       = "mon_node"
 	monClusterAttr    = "mon_cluster"
 	tprName           = "mon.rook.io"
@@ -90,7 +91,7 @@ var (
 
 // Cluster represents the Rook and environment configuration settings needed to set up Ceph mons.
 type Cluster struct {
-	clusterInfo         *cephconfig.ClusterInfo
+	ClusterInfo         *cephconfig.ClusterInfo
 	context             *clusterd.Context
 	spec                cephv1.ClusterSpec
 	Namespace           string
@@ -166,7 +167,7 @@ func (c *Cluster) Start(clusterInfo *cephconfig.ClusterInfo, rookVersion string,
 	c.acquireOrchestrationLock()
 	defer c.releaseOrchestrationLock()
 
-	c.clusterInfo = clusterInfo
+	c.ClusterInfo = clusterInfo
 	c.rookVersion = rookVersion
 	c.spec = spec
 
@@ -195,7 +196,7 @@ func (c *Cluster) Start(clusterInfo *cephconfig.ClusterInfo, rookVersion string,
 	logger.Infof(msg)
 
 	// create the mons for a new cluster or ensure mons are running in an existing cluster
-	return c.clusterInfo, c.startMons(targetCount)
+	return c.ClusterInfo, c.startMons(targetCount)
 }
 
 func (c *Cluster) startMons(targetCount int) error {
@@ -223,13 +224,13 @@ func (c *Cluster) startMons(targetCount int) error {
 	}
 
 	// Enable Ceph messenger 2 protocol on Nautilus
-	if c.clusterInfo.CephVersion.IsAtLeastNautilus() {
-		v, err := client.GetCephMonVersion(c.context, c.clusterInfo.Name)
+	if c.ClusterInfo.CephVersion.IsAtLeastNautilus() {
+		v, err := client.GetCephMonVersion(c.context, c.ClusterInfo.Name)
 		if err != nil {
 			return fmt.Errorf("failed to get ceph mon version. %+v", err)
 		}
 		if v.IsAtLeastNautilus() {
-			versions, err := client.GetAllCephDaemonVersions(c.context, c.clusterInfo.Name)
+			versions, err := client.GetAllCephDaemonVersions(c.context, c.ClusterInfo.Name)
 			if err != nil {
 				return fmt.Errorf("failed to get ceph daemons versions. %+v", err)
 			}
@@ -242,7 +243,7 @@ func (c *Cluster) startMons(targetCount int) error {
 		}
 	}
 
-	logger.Debugf("mon endpoints used are: %s", FlattenMonEndpoints(c.clusterInfo.Monitors))
+	logger.Debugf("mon endpoints used are: %s", FlattenMonEndpoints(c.ClusterInfo.Monitors))
 	return nil
 }
 
@@ -261,7 +262,7 @@ func (c *Cluster) ensureMonsRunning(mons []*monConfig, i, targetCount int, requi
 	// Calculate how many mons we expected to exist after this method is completed.
 	// If we are adding a new mon, we expect one more than currently exist.
 	// If we haven't created all the desired mons already, we will be adding a new one with this iteration
-	expectedMonCount := len(c.clusterInfo.Monitors)
+	expectedMonCount := len(c.ClusterInfo.Monitors)
 	if expectedMonCount < targetCount {
 		expectedMonCount++
 	}
@@ -277,7 +278,7 @@ func (c *Cluster) ensureMonsRunning(mons []*monConfig, i, targetCount int, requi
 	}
 
 	// make sure we have the connection info generated so connections can happen
-	if err := WriteConnectionConfig(c.context, c.clusterInfo); err != nil {
+	if err := WriteConnectionConfig(c.context, c.ClusterInfo); err != nil {
 		return err
 	}
 
@@ -295,11 +296,12 @@ func (c *Cluster) initClusterInfo(cephVersion cephver.CephVersion) error {
 	var err error
 
 	// get the cluster info from secret
-	c.clusterInfo, c.maxMonID, c.mapping, err = CreateOrLoadClusterInfo(c.context, c.Namespace, &c.ownerRef)
+	c.ClusterInfo, c.maxMonID, c.mapping, err = CreateOrLoadClusterInfo(c.context, c.Namespace, &c.ownerRef)
+	c.ClusterInfo.CephVersion = cephVersion
+
 	if err != nil {
 		return fmt.Errorf("failed to get cluster info. %+v", err)
 	}
-	c.clusterInfo.CephVersion = cephVersion
 
 	// save cluster monitor config
 	if err = c.saveMonConfig(); err != nil {
@@ -312,7 +314,7 @@ func (c *Cluster) initClusterInfo(cephVersion cephver.CephVersion) error {
 		return fmt.Errorf("failed to save mon keyring secret. %+v", err)
 	}
 	// also store the admin keyring for other daemons that might need it during init
-	if err := k.Admin().CreateOrUpdate(c.clusterInfo); err != nil {
+	if err := k.Admin().CreateOrUpdate(c.ClusterInfo); err != nil {
 		return fmt.Errorf("failed to save admin keyring secret. %+v", err)
 	}
 
@@ -323,7 +325,7 @@ func (c *Cluster) initMonConfig(size int) (int, []*monConfig) {
 	mons := []*monConfig{}
 
 	// initialize the mon pod info for mons that have been previously created
-	for _, monitor := range c.clusterInfo.Monitors {
+	for _, monitor := range c.ClusterInfo.Monitors {
 		mons = append(mons, &monConfig{
 			ResourceName: resourceName(monitor.Name),
 			DaemonName:   monitor.Name,
@@ -334,8 +336,8 @@ func (c *Cluster) initMonConfig(size int) (int, []*monConfig) {
 	}
 
 	// initialize mon info if we don't have enough mons (at first startup)
-	existingCount := len(c.clusterInfo.Monitors)
-	for i := len(c.clusterInfo.Monitors); i < size; i++ {
+	existingCount := len(c.ClusterInfo.Monitors)
+	for i := len(c.ClusterInfo.Monitors); i < size; i++ {
 		c.maxMonID++
 		mons = append(mons, c.newMonConfig(c.maxMonID))
 	}
@@ -357,10 +359,10 @@ func (c *Cluster) newMonConfig(monID int) *monConfig {
 
 // resourceName ensures the mon name has the rook-ceph-mon prefix
 func resourceName(name string) string {
-	if strings.HasPrefix(name, appName) {
+	if strings.HasPrefix(name, AppName) {
 		return name
 	}
-	return fmt.Sprintf("%s-%s", appName, name)
+	return fmt.Sprintf("%s-%s", AppName, name)
 }
 
 func (c *Cluster) initMonIPs(mons []*monConfig) error {
@@ -379,7 +381,7 @@ func (c *Cluster) initMonIPs(mons []*monConfig) error {
 			}
 			m.PublicIP = serviceIP
 		}
-		c.clusterInfo.Monitors[m.DaemonName] = cephconfig.NewMonInfo(m.DaemonName, m.PublicIP, m.Port)
+		c.ClusterInfo.Monitors[m.DaemonName] = cephconfig.NewMonInfo(m.DaemonName, m.PublicIP, m.Port)
 	}
 
 	return nil
@@ -537,7 +539,7 @@ func (c *Cluster) startDeployments(mons []*monConfig, requireAllInQuorum bool) e
 	// Final verification that **all** mons are in quorum
 	// Do not proceed if one monitor is still syncing
 	// Only do this when monitors versions are different so we don't block the orchestration if a mon is down.
-	versions, err := client.GetAllCephDaemonVersions(c.context, c.clusterInfo.Name)
+	versions, err := client.GetAllCephDaemonVersions(c.context, c.ClusterInfo.Name)
 	if err != nil {
 		logger.Warningf("failed to get ceph daemons versions; this likely means there is no cluster yet. %+v", err)
 	} else {
@@ -560,7 +562,7 @@ func (c *Cluster) waitForMonsToJoin(mons []*monConfig, requireAllInQuorum bool) 
 
 	// wait for the monitors to join quorum
 	sleepTime := 5
-	err := waitForQuorumWithMons(c.context, c.clusterInfo.Name, starting, sleepTime, requireAllInQuorum)
+	err := waitForQuorumWithMons(c.context, c.ClusterInfo.Name, starting, sleepTime, requireAllInQuorum)
 	if err != nil {
 		return fmt.Errorf("failed to wait for mon quorum. %+v", err)
 	}
@@ -583,13 +585,13 @@ func (c *Cluster) saveMonConfig() error {
 	}
 
 	csiConfigValue, err := csi.FormatCsiClusterConfig(
-		c.Namespace, c.clusterInfo.Monitors)
+		c.Namespace, c.ClusterInfo.Monitors)
 	if err != nil {
 		return fmt.Errorf("failed to format csi config: %+v", err)
 	}
 
 	configMap.Data = map[string]string{
-		EndpointDataKey: FlattenMonEndpoints(c.clusterInfo.Monitors),
+		EndpointDataKey: FlattenMonEndpoints(c.ClusterInfo.Monitors),
 		MaxMonIDKey:     strconv.Itoa(c.maxMonID),
 		MappingKey:      string(monMapping),
 		csi.ConfigKey:   csiConfigValue,
@@ -610,14 +612,14 @@ func (c *Cluster) saveMonConfig() error {
 
 	// Every time the mon config is updated, must also update the global config so that all daemons
 	// have the most updated version if they restart.
-	config.GetStore(c.context, c.Namespace, &c.ownerRef).CreateOrUpdate(c.clusterInfo)
+	config.GetStore(c.context, c.Namespace, &c.ownerRef).CreateOrUpdate(c.ClusterInfo)
 
 	// write the latest config to the config dir
-	if err := WriteConnectionConfig(c.context, c.clusterInfo); err != nil {
+	if err := WriteConnectionConfig(c.context, c.ClusterInfo); err != nil {
 		return fmt.Errorf("failed to write connection config for new mons. %+v", err)
 	}
 
-	if err := csi.SaveClusterConfig(c.context.Clientset, c.Namespace, c.clusterInfo, c.csiConfigMutex); err != nil {
+	if err := csi.SaveClusterConfig(c.context.Clientset, c.Namespace, c.ClusterInfo, c.csiConfigMutex); err != nil {
 		return fmt.Errorf("failed to update csi cluster config: %+v", err)
 	}
 
@@ -632,11 +634,11 @@ func (c *Cluster) updateMon(m *monConfig, d *apps.Deployment) error {
 
 	daemonType := string(config.MonType)
 	var cephVersionToUse cephver.CephVersion
-	currentCephVersion, err := client.LeastUptodateDaemonVersion(c.context, c.clusterInfo.Name, daemonType)
+	currentCephVersion, err := client.LeastUptodateDaemonVersion(c.context, c.ClusterInfo.Name, daemonType)
 	if err != nil {
 		logger.Warningf("failed to retrieve current ceph %s version. %+v", daemonType, err)
 		logger.Debug("could not detect ceph version during update, this is likely an initial bootstrap, proceeding with c.clusterInfo.CephVersion")
-		cephVersionToUse = c.clusterInfo.CephVersion
+		cephVersionToUse = c.ClusterInfo.CephVersion
 	} else {
 		logger.Debugf("current cluster version for monitors before upgrading is: %+v", currentCephVersion)
 		cephVersionToUse = currentCephVersion
@@ -730,7 +732,7 @@ func waitForQuorumWithMons(context *clusterd.Context, clusterName string, mons [
 		allPodsRunning := true
 		var runningMonNames []string
 		for _, m := range mons {
-			running, err := k8sutil.PodsRunningWithLabel(context.Clientset, clusterName, fmt.Sprintf("app=%s,mon=%s", appName, m))
+			running, err := k8sutil.PodsRunningWithLabel(context.Clientset, clusterName, fmt.Sprintf("app=%s,mon=%s", AppName, m))
 			if err != nil {
 				logger.Infof("failed to query mon pod status, trying again. %+v", err)
 				continue

@@ -39,8 +39,7 @@ type clusterConfig struct {
 	context     *clusterd.Context
 	store       cephv1.CephObjectStore
 	rookVersion string
-	cephVersion cephv1.CephVersionSpec
-	hostNetwork bool
+	clusterSpec *cephv1.ClusterSpec
 	ownerRefs   []metav1.OwnerReference
 	DataPathMap *config.DataPathMap
 }

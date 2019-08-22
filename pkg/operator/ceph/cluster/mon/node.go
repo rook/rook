@@ -21,7 +21,8 @@ import (
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"k8s.io/api/core/v1"
+	"github.com/rook/rook/pkg/util"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -34,6 +35,82 @@ type NodeUsage struct {
 	// The node is available for scheduling monitor pods. This is equivalent to
 	// evaluating k8sutil.ValidNode(node, cephv1.GetMonPlacement(c.spec.Placement))
 	MonValid bool
+}
+
+// getMonNodes detects the nodes that are available for new mons to start.
+func (c *Cluster) getMonNodes() ([]v1.Node, error) {
+	availableNodes, nodes, err := c.getAvailableMonNodes()
+	if err != nil {
+		return nil, err
+	}
+	logger.Infof("Found %d running nodes without mons", len(availableNodes))
+
+	// if all nodes already have mons and the user has given the mon.count, add all nodes to be available
+	if c.spec.Mon.AllowMultiplePerNode && len(availableNodes) == 0 {
+		logger.Infof("All nodes are running mons. Adding all %d nodes to the availability.", len(nodes.Items))
+		for _, node := range nodes.Items {
+			valid, err := k8sutil.ValidNode(node, cephv1.GetMonPlacement(c.spec.Placement))
+			if err != nil {
+				logger.Warning("failed to validate node %s %v", node.Name, err)
+			} else if valid {
+				availableNodes = append(availableNodes, node)
+			}
+		}
+	}
+
+	return availableNodes, nil
+}
+
+func (c *Cluster) getAvailableMonNodes() ([]v1.Node, *v1.NodeList, error) {
+	nodeOptions := metav1.ListOptions{}
+	nodeOptions.TypeMeta.Kind = "Node"
+	nodes, err := c.context.Clientset.CoreV1().Nodes().List(nodeOptions)
+	if err != nil {
+		return nil, nil, err
+	}
+	logger.Debugf("there are %d nodes available for %d mons", len(nodes.Items), len(c.ClusterInfo.Monitors))
+
+	// get the nodes that have mons assigned
+	nodesInUse, err := c.getNodesWithMons(nodes)
+	if err != nil {
+		logger.Warningf("could not get nodes with mons. %+v", err)
+		nodesInUse = util.NewSet()
+	}
+
+	// choose nodes for the new mons that don't have mons currently
+	availableNodes := []v1.Node{}
+	for _, node := range nodes.Items {
+		if !nodesInUse.Contains(node.Name) {
+			valid, err := k8sutil.ValidNode(node, cephv1.GetMonPlacement(c.spec.Placement))
+			if err != nil {
+				logger.Warning("failed to validate node %s %v", node.Name, err)
+			} else if valid {
+				availableNodes = append(availableNodes, node)
+			}
+		}
+	}
+
+	return availableNodes, nodes, nil
+}
+
+func (c *Cluster) getNodesWithMons(nodes *v1.NodeList) (*util.Set, error) {
+	// get the mon pods and their node affinity
+	options := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", AppName)}
+	pods, err := c.context.Clientset.CoreV1().Pods(c.Namespace).List(options)
+	if err != nil {
+		return nil, err
+	}
+	nodesInUse := util.NewSet()
+	for _, pod := range pods.Items {
+		hostname := pod.Spec.NodeSelector[v1.LabelHostname]
+		logger.Debugf("mon pod on node %s", hostname)
+		name, ok := getNodeNameFromHostname(nodes, hostname)
+		if !ok {
+			logger.Errorf("mon %s on hostname %s not found in node list", pod.Name, hostname)
+		}
+		nodesInUse.Add(name)
+	}
+	return nodesInUse, nil
 }
 
 // Get the number of mons that the operator should be starting
@@ -140,7 +217,7 @@ func (c *Cluster) getNodeMonUsage() ([][]NodeUsage, error) {
 	}
 
 	// get all pod objects labeled as a monitor
-	podOptions := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", appName)}
+	podOptions := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", AppName)}
 	pods, err := c.context.Clientset.CoreV1().Pods(c.Namespace).List(podOptions)
 	if err != nil {
 		return nil, err

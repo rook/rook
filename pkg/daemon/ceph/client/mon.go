@@ -42,11 +42,21 @@ type MonStatusRequest struct {
 	Args   []string `json:"args"`
 }
 
-// represents an entry in the monitor map
+// MonMapEntry represents an entry in the monitor map
 type MonMapEntry struct {
-	Name    string `json:"name"`
-	Rank    int    `json:"rank"`
-	Address string `json:"addr"`
+	Name        string `json:"name"`
+	Rank        int    `json:"rank"`
+	Address     string `json:"addr"`
+	PublicAddrs struct {
+		Addrvec []AddrvecEntry `json:"addrvec"`
+	} `json:"public_addrs"`
+}
+
+// AddrvecEntry represents an entry type for a given messenger version
+type AddrvecEntry struct {
+	Type  string `json:"type"`
+	Addr  string `json:"addr"`
+	Nonce int    `json:"nonce"`
 }
 
 // GetMonStatus calls mon_status mon_command
@@ -65,7 +75,6 @@ func GetMonStatus(context *clusterd.Context, clusterName string, debug bool) (Mo
 		return MonStatusResponse{}, fmt.Errorf("unmarshal failed: %+v.  raw buffer response: %s", err, buf)
 	}
 
-	logger.Debugf("MON STATUS: %+v", resp)
 	return resp, nil
 }
 

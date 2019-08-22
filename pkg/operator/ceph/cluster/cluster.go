@@ -53,6 +53,7 @@ type cluster struct {
 	context              *clusterd.Context
 	Namespace            string
 	Spec                 *cephv1.ClusterSpec
+	crdName              string
 	mons                 *mon.Cluster
 	initCompleted        bool
 	stopCh               chan struct{}
@@ -79,6 +80,7 @@ func newCluster(c *cephv1.CephCluster, context *clusterd.Context, csiMutex *sync
 		Namespace: c.Namespace,
 		Spec:      &c.Spec,
 		context:   context,
+		crdName:   c.Name,
 		stopCh:    make(chan struct{}),
 		ownerRef:  ownerRef,
 		mons:      mon.New(context, c.Namespace, c.Spec.DataDirHostPath, c.Spec.Network.HostNetwork, ownerRef, csiMutex),
@@ -227,6 +229,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 		return fmt.Errorf("failed to create override configmap %s. %+v", c.Namespace, err)
 	}
 
+	// This gets triggered on CR update so let's not run that (mon/mgr/osd daemons)
 	// Start the mon pods
 	clusterInfo, err := c.mons.Start(c.Info, rookImage, cephVersion, *c.Spec)
 	if err != nil {

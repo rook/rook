@@ -70,7 +70,7 @@ type ClusterSpec struct {
 	DataDirHostPath string `json:"dataDirHostPath,omitempty"`
 
 	// A spec for mon related options
-	Mon MonSpec `json:"mon"`
+	Mon MonSpec `json:"mon,omitempty"`
 
 	// A spec for rbd mirroring
 	RBDMirroring RBDMirroringSpec `json:"rbdMirroring"`
@@ -80,6 +80,10 @@ type ClusterSpec struct {
 
 	// Prometheus based Monitoring settings
 	Monitoring MonitoringSpec `json:"monitoring,omitempty"`
+
+	// Whether the Ceph Cluster is running external to this Kubernetes cluster
+	// mon, mgr, osd, mds, and discover daemons will not be created for external clusters.
+	External ExternalSpec `json:"external"`
 }
 
 // VersionSpec represents the settings for the Ceph version that Rook is orchestrating.
@@ -136,17 +140,24 @@ type CephHealthMessage struct {
 type ClusterState string
 
 const (
-	ClusterStateCreating ClusterState = "Creating"
-	ClusterStateCreated  ClusterState = "Created"
-	ClusterStateUpdating ClusterState = "Updating"
-	ClusterStateError    ClusterState = "Error"
+	ClusterStateCreating   ClusterState = "Creating"
+	ClusterStateCreated    ClusterState = "Created"
+	ClusterStateUpdating   ClusterState = "Updating"
+	ClusterStateConnecting ClusterState = "Connecting"
+	ClusterStateConnected  ClusterState = "Connected"
+	ClusterStateError      ClusterState = "Error"
 )
 
 type MonSpec struct {
-	Count                int                       `json:"count"`
-	PreferredCount       int                       `json:"preferredCount"`
-	AllowMultiplePerNode bool                      `json:"allowMultiplePerNode"`
+	Count                int                       `json:"count,omitempty"`
+	PreferredCount       int                       `json:"preferredCount,omitempty"`
+	AllowMultiplePerNode bool                      `json:"allowMultiplePerNode,omitempty"`
 	VolumeClaimTemplate  *v1.PersistentVolumeClaim `json:"volumeClaimTemplate,omitempty"`
+}
+
+// ExternalSpec represents the options supported by an external cluster
+type ExternalSpec struct {
+	Enable bool `json:"enable"`
 }
 
 type RBDMirroringSpec struct {

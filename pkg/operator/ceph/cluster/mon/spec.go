@@ -46,7 +46,7 @@ const (
 func (c *Cluster) getLabels(daemonName string) map[string]string {
 	// Mons have a service for each mon, so the additional pod data is relevant for its services
 	// Use pod labels to keep "mon: id" for legacy
-	labels := opspec.PodLabels(appName, c.Namespace, "mon", daemonName)
+	labels := opspec.PodLabels(AppName, c.Namespace, "mon", daemonName)
 	// Add "mon_cluster: <namespace>" for legacy
 	labels[monClusterAttr] = c.Namespace
 	return labels
@@ -62,7 +62,7 @@ func (c *Cluster) makeDeployment(monConfig *monConfig, hostname string) *apps.De
 	}
 	k8sutil.AddRookVersionLabelToDeployment(d)
 	cephv1.GetMonAnnotations(c.spec.Annotations).ApplyToObjectMeta(&d.ObjectMeta)
-	opspec.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, d)
+	opspec.AddCephVersionLabelToDeployment(c.ClusterInfo.CephVersion, d)
 	k8sutil.SetOwnerRef(&d.ObjectMeta, &c.ownerRef)
 
 	pod := c.makeMonPod(monConfig, hostname)
@@ -104,7 +104,7 @@ func (c *Cluster) makeDeploymentPVC(m *monConfig) (*v1.PersistentVolumeClaim, er
 	}
 	k8sutil.AddRookVersionLabelToObjectMeta(&pvc.ObjectMeta)
 	cephv1.GetMonAnnotations(c.spec.Annotations).ApplyToObjectMeta(&pvc.ObjectMeta)
-	opspec.AddCephVersionLabelToObjectMeta(c.clusterInfo.CephVersion, &pvc.ObjectMeta)
+	opspec.AddCephVersionLabelToObjectMeta(c.ClusterInfo.CephVersion, &pvc.ObjectMeta)
 	k8sutil.SetOwnerRef(&pvc.ObjectMeta, &c.ownerRef)
 
 	// k8s uses limit as the resource request fallback
@@ -224,7 +224,7 @@ func (c *Cluster) makeMonFSInitContainer(monConfig *monConfig) v1.Container {
 			cephMonCommand,
 		},
 		Args: append(
-			opspec.DaemonFlags(c.clusterInfo, monConfig.DaemonName),
+			opspec.DaemonFlags(c.ClusterInfo, monConfig.DaemonName),
 			// needed so we can generate an initial monmap
 			// otherwise the mkfs will say: "0  no local addrs match monmap"
 			config.NewFlag("public-addr", monConfig.PublicIP),
@@ -257,7 +257,7 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 			cephMonCommand,
 		},
 		Args: append(
-			opspec.DaemonFlags(c.clusterInfo, monConfig.DaemonName),
+			opspec.DaemonFlags(c.ClusterInfo, monConfig.DaemonName),
 			"--foreground",
 			// If the mon is already in the monmap, when the port is left off of --public-addr,
 			// it will still advertise on the previous port b/c monmap is saved to mon database.
@@ -299,7 +299,7 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 	}
 
 	// If deploying Nautilus and newer we need a new port of the monitor container
-	if c.clusterInfo.CephVersion.IsAtLeastNautilus() {
+	if c.ClusterInfo.CephVersion.IsAtLeastNautilus() {
 		addContainerPort(container, "msgr2", 3300)
 	}
 

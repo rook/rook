@@ -78,7 +78,7 @@ func TestClusterDelete(t *testing.T) {
 
 		},
 	}
-	callback := func() error {
+	callback := func(external bool) error {
 		logger.Infof("test success callback")
 		return nil
 	}
@@ -156,7 +156,7 @@ func TestRemoveFinalizer(t *testing.T) {
 		Clientset:     clientset,
 		RookClientset: rookfake.NewSimpleClientset(),
 	}
-	callback := func() error {
+	callback := func(external bool) error {
 		return fmt.Errorf("test failed callback")
 	}
 	controller := NewClusterController(context, "", &attachment.MockAttachment{}, callback)
@@ -185,4 +185,18 @@ func TestRemoveFinalizer(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, cluster)
 	assert.Len(t, cluster.Finalizers, 0)
+}
+
+func TestValidateExternalClusterSpec(t *testing.T) {
+	c := &cluster{Spec: &cephv1.ClusterSpec{}, mons: &mon.Cluster{}}
+	err := validateExternalClusterSpec(c)
+	assert.Error(t, err)
+
+	c.Spec.DataDirHostPath = "path"
+	err = validateExternalClusterSpec(c)
+	assert.Error(t, err)
+
+	c.Spec.CephVersion.Image = "ceph/ceph:v14.2.2-20190722"
+	err = validateExternalClusterSpec(c)
+	assert.NoError(t, err)
 }

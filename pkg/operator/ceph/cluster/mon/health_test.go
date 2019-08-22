@@ -28,6 +28,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	testopk8s "github.com/rook/rook/pkg/operator/k8sutil/test"
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -57,7 +58,7 @@ func TestCheckHealth(t *testing.T) {
 	}
 	c := New(context, "ns", "", false, metav1.OwnerReference{}, &sync.Mutex{})
 	setCommonMonProperties(c, 1, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
-	logger.Infof("initial mons: %v", c.clusterInfo.Monitors)
+	logger.Infof("initial mons: %v", c.ClusterInfo.Monitors)
 	c.waitForStart = false
 	defer os.RemoveAll(c.context.ConfigDir)
 
@@ -70,7 +71,7 @@ func TestCheckHealth(t *testing.T) {
 
 	err := c.checkHealth()
 	assert.Nil(t, err)
-	logger.Infof("mons after checkHealth: %v", c.clusterInfo.Monitors)
+	logger.Infof("mons after checkHealth: %v", c.ClusterInfo.Monitors)
 	assert.ElementsMatch(t, []string{"rook-ceph-mon-a", "rook-ceph-mon-f"}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
 	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 
@@ -83,8 +84,8 @@ func TestCheckHealth(t *testing.T) {
 		"g",
 	}
 	for _, monName := range newMons {
-		_, ok := c.clusterInfo.Monitors[monName]
-		assert.True(t, ok, fmt.Sprintf("mon %s not found in monitor list. %v", monName, c.clusterInfo.Monitors))
+		_, ok := c.ClusterInfo.Monitors[monName]
+		assert.True(t, ok, fmt.Sprintf("mon %s not found in monitor list. %v", monName, c.ClusterInfo.Monitors))
 	}
 }
 
@@ -469,7 +470,7 @@ func TestAddRemoveMons(t *testing.T) {
 	// checking the health will increase the mons as desired all in one go
 	err := c.checkHealth()
 	assert.Nil(t, err)
-	assert.Equal(t, 5, len(c.clusterInfo.Monitors), fmt.Sprintf("mons: %v", c.clusterInfo.Monitors))
+	assert.Equal(t, 5, len(c.ClusterInfo.Monitors), fmt.Sprintf("mons: %v", c.ClusterInfo.Monitors))
 	assert.ElementsMatch(t, []string{
 		// b is created first, no updates
 		"rook-ceph-mon-b",                    // b updated when c created
@@ -480,40 +481,205 @@ func TestAddRemoveMons(t *testing.T) {
 	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 
 	// reducing the mon count to 3 will reduce the mon count once each time we call checkHealth
-	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(c.clusterInfo.Monitors)
+	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(c.ClusterInfo.Monitors)
 	c.spec.Mon.Count = 3
 	err = c.checkHealth()
 	assert.Nil(t, err)
-	assert.Equal(t, 4, len(c.clusterInfo.Monitors))
+	assert.Equal(t, 4, len(c.ClusterInfo.Monitors))
 	// No updates in unit tests w/ workaround
 	assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
 	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 
 	// after the second call we will be down to the expected count of 3
-	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(c.clusterInfo.Monitors)
+	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(c.ClusterInfo.Monitors)
 	err = c.checkHealth()
 	assert.Nil(t, err)
-	assert.Equal(t, 3, len(c.clusterInfo.Monitors))
+	assert.Equal(t, 3, len(c.ClusterInfo.Monitors))
 	// No updates in unit tests w/ workaround
 	assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
 	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 
 	// now attempt to reduce the mons down to quorum size 1
-	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(c.clusterInfo.Monitors)
+	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(c.ClusterInfo.Monitors)
 	c.spec.Mon.Count = 1
 	err = c.checkHealth()
 	assert.Nil(t, err)
-	assert.Equal(t, 2, len(c.clusterInfo.Monitors))
+	assert.Equal(t, 2, len(c.ClusterInfo.Monitors))
 	// No updates in unit tests w/ workaround
 	assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
 	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 
 	// cannot reduce from quorum size of 2 to 1
-	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(c.clusterInfo.Monitors)
+	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(c.ClusterInfo.Monitors)
 	err = c.checkHealth()
 	assert.Nil(t, err)
-	assert.Equal(t, 2, len(c.clusterInfo.Monitors))
+	assert.Equal(t, 2, len(c.ClusterInfo.Monitors))
 	// No updates in unit tests w/ workaround
 	assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
 	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
+}
+
+func TestAddOrRemoveExternalMonitor(t *testing.T) {
+	var changed bool
+	var err error
+
+	// populate fake monmap
+	fakeResp := client.MonStatusResponse{Quorum: []int{0}}
+	fakeAddrvecEntry := []client.AddrvecEntry{
+		{
+			Addr: "172.17.0.4:3300",
+		},
+	}
+	fakeResp.MonMap.Mons = []client.MonMapEntry{
+		{
+			Name: "a",
+		},
+	}
+	fakeResp.MonMap.Mons[0].PublicAddrs.Addrvec = fakeAddrvecEntry
+
+	// populate fake ClusterInfo
+	c := &Cluster{ClusterInfo: &cephconfig.ClusterInfo{}}
+	c.ClusterInfo = test.CreateConfigDir(1)
+
+	//
+	// TEST 1
+	//
+	// both clusterInfo and mon map are identical so nil is expected
+	changed, err = c.addOrRemoveExternalMonitor(fakeResp)
+	assert.NoError(t, err)
+	assert.False(t, changed)
+	assert.Equal(t, 1, len(c.ClusterInfo.Monitors))
+
+	//
+	// TEST 2
+	//
+	// Now let's test the case where mon disappeared from the external cluster
+	// ClusterInfo still has them but they are gone from the monmap.
+	// Thus they should be removed from ClusterInfo
+	c.ClusterInfo = test.CreateConfigDir(3)
+	changed, err = c.addOrRemoveExternalMonitor(fakeResp)
+	assert.NoError(t, err)
+	assert.True(t, changed)
+	// ClusterInfo should shrink to 1
+	assert.Equal(t, 1, len(c.ClusterInfo.Monitors))
+
+	//
+	// TEST 3
+	//
+	// Now let's add a new mon in the external cluster
+	// ClusterInfo should be updated with this new monitor
+	fakeResp.MonMap.Mons = []client.MonMapEntry{
+		{
+			Name: "a",
+		},
+		{
+			Name: "b",
+		},
+	}
+	fakeAddrvecEntry2 := []client.AddrvecEntry{
+		{
+			Addr: "172.17.0.5:3300",
+		},
+	}
+	fakeResp.MonMap.Mons[1].PublicAddrs.Addrvec = fakeAddrvecEntry2
+	c.ClusterInfo = test.CreateConfigDir(1)
+	changed, err = c.addOrRemoveExternalMonitor(fakeResp)
+	assert.NoError(t, err)
+	assert.True(t, changed)
+	// ClusterInfo should now have 2 monitors
+	assert.Equal(t, 2, len(c.ClusterInfo.Monitors))
+
+	//
+	// TEST 4
+	//
+	// Now let's test the case where the mon is in clusterInfo, part of the monmap but not in quorum!
+	c.ClusterInfo = test.CreateConfigDir(1)
+	fakeResp2 := client.MonStatusResponse{Quorum: []int{1}} // quorum is owned by the mon with the rank 1 and our mon rank is 0
+	fakeAddrvecEntry3 := []client.AddrvecEntry{
+		{
+			Addr: "172.17.0.4:3300",
+		},
+	}
+	fakeResp2.MonMap.Mons = []client.MonMapEntry{
+		{
+			Name: "a",
+			Rank: 0,
+		},
+	}
+	fakeResp2.MonMap.Mons[0].PublicAddrs.Addrvec = fakeAddrvecEntry3
+	changed, err = c.addOrRemoveExternalMonitor(fakeResp2)
+	assert.NoError(t, err)
+	assert.True(t, changed)
+	assert.Equal(t, 0, len(c.ClusterInfo.Monitors))
+
+}
+
+func TestIsMonInMonMapt(t *testing.T) {
+	fakeResp := client.MonStatusResponse{}
+	fakeResp.MonMap.Mons = []client.MonMapEntry{
+		{
+			Name: "a",
+		},
+		{
+			Name: "b",
+		},
+		{
+			Name: "c",
+		},
+	}
+
+	isIT := isMonInMonMap("a", fakeResp.MonMap.Mons)
+	assert.True(t, isIT)
+	isIT = isMonInMonMap("z", fakeResp.MonMap.Mons)
+	assert.False(t, isIT)
+}
+
+func TestGetMonRankt(t *testing.T) {
+	fakeResp := client.MonStatusResponse{}
+	fakeResp.MonMap.Mons = []client.MonMapEntry{
+		{
+			Name: "a",
+			Rank: 0,
+		},
+		{
+			Name: "b",
+			Rank: 1,
+		},
+		{
+			Name: "c",
+			Rank: 2,
+		},
+	}
+
+	isIT := getMonRank("a", fakeResp.MonMap.Mons)
+	assert.Equal(t, 0, isIT)
+	isIT = getMonRank("b", fakeResp.MonMap.Mons)
+	assert.Equal(t, 1, isIT)
+	isIT = getMonRank("z", fakeResp.MonMap.Mons)
+	assert.Equal(t, -1, isIT)
+}
+
+func TestIsMonInQuorum(t *testing.T) {
+	fakeResp := client.MonStatusResponse{Quorum: []int{0, 1}}
+	fakeResp.MonMap.Mons = []client.MonMapEntry{
+		{
+			Name: "a",
+			Rank: 0,
+		},
+		{
+			Name: "b",
+			Rank: 1,
+		},
+		{
+			Name: "c",
+			Rank: 2,
+		},
+	}
+
+	isIT := isMonInQuorum("a", fakeResp.MonMap.Mons, fakeResp.Quorum)
+	assert.True(t, isIT)
+	isIT = isMonInQuorum("c", fakeResp.MonMap.Mons, fakeResp.Quorum)
+	assert.False(t, isIT)
+	isIT = isMonInQuorum("z", fakeResp.MonMap.Mons, fakeResp.Quorum)
+	assert.False(t, isIT)
 }

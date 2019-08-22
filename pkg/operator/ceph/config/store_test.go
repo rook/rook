@@ -29,7 +29,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -46,14 +46,14 @@ func TestStore(t *testing.T) {
 	var previousConfigText = ""
 	var recentConfigText = ""
 	assertConfigStore := func(ci *cephconfig.ClusterInfo) {
-		c, e := clientset.CoreV1().ConfigMaps(ns).Get(storeName, metav1.GetOptions{})
+		c, e := clientset.CoreV1().ConfigMaps(ns).Get(StoreName, metav1.GetOptions{})
 		assert.NoError(t, e)
 
 		previousConfigText = recentConfigText
 		recentConfigText = c.Data[confFileName]
 		assert.NotEqual(t, "", recentConfigText)
 
-		sec, e := clientset.CoreV1().Secrets(ns).Get(storeName, metav1.GetOptions{})
+		sec, e := clientset.CoreV1().Secrets(ns).Get(StoreName, metav1.GetOptions{})
 		assert.NoError(t, e)
 		mh := strings.Split(sec.StringData["mon_host"], ",") // list of mon ip:port pairs in cluster
 		assert.Equal(t, len(ci.Monitors), len(mh))
@@ -188,7 +188,7 @@ func TestFileVolumeAndMount(t *testing.T) {
 	// Test that the configmapped file will make it into containers with the appropriate filename at
 	// the location where it is expected.
 	assert.Equal(t, v.Name, m.Name)
-	assert.Equal(t, storeName, v.VolumeSource.ConfigMap.LocalObjectReference.Name)
+	assert.Equal(t, StoreName, v.VolumeSource.ConfigMap.LocalObjectReference.Name)
 	assert.Equal(t, "/etc/ceph/ceph.conf", path.Join(m.MountPath, confFileName))
 }
 
@@ -213,8 +213,8 @@ func TestEnvVarsAndFlags(t *testing.T) {
 	assert.Contains(t, f, fmt.Sprintf("--mon-initial-members=$(%s)", mim))
 
 	// make sure the env vars are sourced from the right place
-	assert.Equal(t, storeName, v[0].ValueFrom.SecretKeyRef.LocalObjectReference.Name)
+	assert.Equal(t, StoreName, v[0].ValueFrom.SecretKeyRef.LocalObjectReference.Name)
 	assert.Equal(t, "mon_host", v[0].ValueFrom.SecretKeyRef.Key)
-	assert.Equal(t, storeName, v[1].ValueFrom.SecretKeyRef.LocalObjectReference.Name)
+	assert.Equal(t, StoreName, v[1].ValueFrom.SecretKeyRef.LocalObjectReference.Name)
 	assert.Equal(t, "mon_initial_members", v[1].ValueFrom.SecretKeyRef.Key)
 }

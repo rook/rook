@@ -19,7 +19,7 @@ package k8sutil
 import (
 	"fmt"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -50,7 +50,7 @@ func UpdateService(
 	clientset kubernetes.Interface, namespace string, serviceDefinition *v1.Service,
 ) (*v1.Service, error) {
 	name := serviceDefinition.Name
-	logger.Debug("updating service %s")
+	logger.Debugf("updating service %s", name)
 	existing, err := clientset.CoreV1().Services(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("could not get existing service %s in order to update. %+v", name, err)

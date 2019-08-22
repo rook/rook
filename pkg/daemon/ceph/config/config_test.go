@@ -178,3 +178,14 @@ func verifyConfigValue(t *testing.T, actualConf *ini.File, section, key, expecte
 	actualVal := k.Value()
 	assert.Equal(t, expectedVal, actualVal)
 }
+
+func TestOperatorEndpoint(t *testing.T) {
+	var fakeCurrentMonPort int32
+	fakeCurrentMonPort = 3300
+	prefix := msgrPrefix(fakeCurrentMonPort)
+	assert.Equal(t, "v2:", prefix)
+
+	fakeCurrentMonPort = 6789
+	prefix = msgrPrefix(fakeCurrentMonPort)
+	assert.Equal(t, "v1:", prefix)
+}

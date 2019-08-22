@@ -55,8 +55,7 @@ type Cluster struct {
 	clusterInfo     *cephconfig.ClusterInfo
 	context         *clusterd.Context
 	rookVersion     string
-	cephVersion     cephv1.CephVersionSpec
-	HostNetwork     bool
+	clusterSpec     *cephv1.ClusterSpec
 	fs              cephv1.CephFilesystem
 	fsID            string
 	ownerRefs       []metav1.OwnerReference
@@ -74,8 +73,7 @@ func NewCluster(
 	clusterInfo *cephconfig.ClusterInfo,
 	context *clusterd.Context,
 	rookVersion string,
-	cephVersion cephv1.CephVersionSpec,
-	hostNetwork bool,
+	clusterSpec *cephv1.ClusterSpec,
 	fs cephv1.CephFilesystem,
 	fsdetails *client.CephFilesystemDetails,
 	ownerRefs []metav1.OwnerReference,
@@ -85,8 +83,7 @@ func NewCluster(
 		clusterInfo:     clusterInfo,
 		context:         context,
 		rookVersion:     rookVersion,
-		cephVersion:     cephVersion,
-		HostNetwork:     hostNetwork,
+		clusterSpec:     clusterSpec,
 		fs:              fs,
 		fsID:            strconv.Itoa(fsdetails.ID),
 		ownerRefs:       ownerRefs,

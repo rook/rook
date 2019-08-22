@@ -28,7 +28,7 @@ import (
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
@@ -52,17 +52,19 @@ var ObjectStoreUserResource = opkit.CustomResource{
 
 // ObjectStoreUserController represents a controller object for object store user custom resources
 type ObjectStoreUserController struct {
-	context   *clusterd.Context
-	ownerRef  metav1.OwnerReference
-	namespace string
+	context     *clusterd.Context
+	ownerRef    metav1.OwnerReference
+	clusterSpec *cephv1.ClusterSpec
+	namespace   string
 }
 
 // NewObjectStoreUserController create controller for watching object store user custom resources created
-func NewObjectStoreUserController(context *clusterd.Context, namespace string, ownerRef metav1.OwnerReference) *ObjectStoreUserController {
+func NewObjectStoreUserController(context *clusterd.Context, clusterSpec *cephv1.ClusterSpec, namespace string, ownerRef metav1.OwnerReference) *ObjectStoreUserController {
 	return &ObjectStoreUserController{
-		context:   context,
-		ownerRef:  ownerRef,
-		namespace: namespace,
+		context:     context,
+		ownerRef:    ownerRef,
+		clusterSpec: clusterSpec,
+		namespace:   namespace,
 	}
 }
 
