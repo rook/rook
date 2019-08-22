@@ -2,7 +2,7 @@
 
 ## Goals
 
-- Handle and block node drains that would cause data unavailablity and loss.
+- Handle and block node drains that would cause data unavailability and loss.
 - Unblock drains dynamically so that a rolling upgrade is made possible.
 - Allow for rolling upgrade of nodes in automated kubernetes environments like [cluster-api](https://github.com/kubernetes-sigs/cluster-api)
 
