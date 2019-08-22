@@ -52,11 +52,23 @@ parameters:
     clusterID: rook-ceph
     # Ceph pool into which the RBD image shall be created
     pool: replicapool
+
+    # RBD image format. Defaults to "2".
+    imageFormat: "2"
+
+    # RBD image features. Available for imageFormat: "2". CSI RBD currently supports only `layering` feature.
+    imageFeatures: layering
+
     # The secrets contain Ceph admin credentials.
     csi.storage.k8s.io/provisioner-secret-name: rook-ceph-csi
     csi.storage.k8s.io/provisioner-secret-namespace: rook-ceph
     csi.storage.k8s.io/node-stage-secret-name: rook-ceph-csi
     csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph
+
+    # Specify the filesystem type of the volume. If not specified, csi-provisioner
+    # will set default as `ext4`.
+    csi.storage.k8s.io/fstype: xfs
+
 # Delete the rbd volume when a PVC is deleted
 reclaimPolicy: Delete
 ```
