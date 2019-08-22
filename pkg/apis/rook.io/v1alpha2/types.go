@@ -137,6 +137,7 @@ type StorageClassDeviceSet struct {
 	Placement            Placement                  `json:"placement,omitempty"`            // Placement constraints for the devices
 	Config               map[string]string          `json:"config,omitempty"`               // Provider-specific device configuration
 	VolumeClaimTemplates []v1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"` // List of PVC templates for the underlying storage devices
+	Portable             bool                       `json:"portable,omitempty"`             // OSD portablity across the hosts
 }
 
 type VolumeSource struct {
@@ -145,4 +146,5 @@ type VolumeSource struct {
 	Resources                   v1.ResourceRequirements              `json:"resources,omitempty"`
 	Placement                   Placement                            `json:"placement,omitempty"`
 	Config                      map[string]string                    `json:"config,omitempty"`
+	Portable                    bool                                 `json:"portable,omitempty"` // OSD portablity across the hosts
 }
