@@ -42,7 +42,17 @@ spec:
     #  - key: mds-node
     #    operator: Exists
     #  podAffinity:
-    #  podAntiAffinity:
+       podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - rook-ceph-mds
+            # topologyKey: failure-domain.beta.kubernetes.io/zone can be used to spread MDS across different AZ
+            # topologyKey: kubernetes.io/hostname will place MDS across different hosts
+            topologyKey: kubernetes.io/hostname
     # A key/value list of annotations
     annotations:
     #  key: value
