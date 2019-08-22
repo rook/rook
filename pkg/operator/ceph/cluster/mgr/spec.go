@@ -24,6 +24,7 @@ import (
 
 	rookcephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
@@ -32,6 +33,10 @@ import (
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+const (
+	podIPEnvVar = "ROOK_POD_IP"
 )
 
 func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
@@ -190,7 +195,6 @@ func (c *Cluster) makeSetServerAddrInitContainer(mgrConfig *mgrConfig, mgrModule
 	//  L: config-key set       mgr/<mod>/server_addr $(ROOK_CEPH_<MOD>_SERVER_ADDR)
 	//  M: config     set mgr.a mgr/<mod>/server_addr $(ROOK_CEPH_<MOD>_SERVER_ADDR)
 	//  N: config     set mgr.a mgr/<mod>/server_addr $(ROOK_CEPH_<MOD>_SERVER_ADDR) --force
-	podIPEnvVar := "ROOK_POD_IP"
 	cfgSetArgs := []string{"config", "set"}
 	if c.clusterInfo.CephVersion.IsLuminous() {
 		cfgSetArgs[0] = "config-key"
@@ -265,6 +269,15 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 		),
 		Resources: c.resources,
 	}
+
+	// If host networking is enabled, we don't need a bind addr that is different from the public addr
+	if !c.HostNetwork {
+		// Opposite of the above, --public-bind-addr will *not* still advertise on the previous
+		// port, which makes sense because this is the pod IP, which changes with every new pod.
+		container.Args = append(container.Args,
+			config.NewFlag("public-addr", opspec.ContainerEnvVarReference(podIPEnvVar)))
+	}
+
 	return container
 }
 
@@ -331,6 +344,7 @@ func (c *Cluster) cephMgrOrchestratorModuleEnvs() []v1.EnvVar {
 		{Name: "ROOK_CEPH_CLUSTER_CRD_VERSION", Value: rookcephv1.Version},
 		{Name: "ROOK_VERSION", Value: rookversion.Version},
 		{Name: "ROOK_CEPH_CLUSTER_CRD_NAME", Value: c.clusterInfo.Name},
+		k8sutil.PodIPEnvVar(podIPEnvVar),
 	}
 	return envVars
 }
