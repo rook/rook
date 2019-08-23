@@ -120,10 +120,6 @@ spec:
                   maximum: 9
                   minimum: 1
                   type: integer
-                preferredCount:
-                  maximum: 9
-                  minimum: 0
-                  type: integer
               required:
               - count
             network:

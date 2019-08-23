@@ -92,11 +92,8 @@ func (c *Cluster) checkHealth() error {
 
 	// Use a local mon count in case the user updates the crd in another goroutine.
 	// We need to complete a health check with a consistent value.
-	desiredMonCount, msg, err := c.getTargetMonCount()
-	if err != nil {
-		return fmt.Errorf("failed to get target mon count. %+v", err)
-	}
-	logger.Debugf(msg)
+	desiredMonCount := c.spec.Mon.Count
+	logger.Debugf("targeting the mon count %d", desiredMonCount)
 
 	// Source of truth of which mons should exist is our *clusterInfo*
 	monsNotFound := map[string]interface{}{}

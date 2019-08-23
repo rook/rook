@@ -130,10 +130,6 @@ For more details on the mons and when to choose a number other than `3`, see the
 ### Mon Settings
 
 - `count`: Set the number of mons to be started. The number should be odd and between `1` and `9`. If not specified the default is set to `3` and `allowMultiplePerNode` is also set to `true`.
-- `preferredCount`: If you want to increase the number of mons when the number of nodes increases, set the `preferredCount` to be larger than the `count`. For example, if your cluster
-starts with three nodes, but might grow to more than five nodes, you might want five mons running after the other nodes come online. In this case, set `count: 3` and `preferredCount: 5`.
-When the operator sees the new nodes come online, the number of mons will increase to the preferred count. If the number of nodes decreases below the `preferredCount`, the operator will
-reduce the number of mons back to `count`. If `allowMultiplePerNode: true` (for testing scenarios), the number of mons will always use `preferredCount` if set.
 - `allowMultiplePerNode`: Enable (`true`) or disable (`false`) the placement of multiple mons on one node. Default is `false`.
 - `volumeClaimTemplate`: A `PersistentVolumeSpec` used by Rook to create PVCs
   for monitor storage. This field is optional, and when not provided, HostPath

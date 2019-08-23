@@ -23,7 +23,6 @@ claim template that is used to generate PVCs for monitor database storage.
 ```go
 type MonSpec struct {
 	Count                int  `json:"count"`
-	PreferredCount       int  `json:"preferredCount"`
 	AllowMultiplePerNode bool `json:"allowMultiplePerNode"`
 	VolumeClaimTemplate  *v1.PersistentVolumeClaim
 }
@@ -128,6 +127,8 @@ has eviction policies in the future we could then make use of it (e.g. with
 
 ### Target Monitor Count
 
+The `PreferredCount` feature has been removed.
+
 The CRD monitor count specifies a target minimum number of monitors to maintain.
 Additionally, a preferred count is available which will be the desired number of
 sufficient number of nodes are available. Unfortunately, this calculation
@@ -135,6 +136,3 @@ relies on determining if monitor pods may be placed on a node, requiring
 knowledge of the scheduling policy and algorithm. The scenario to watch out for
 is an endless loop in which the health check is determining a bad placement but
 the k8s schedule thinks otherwise.
-
-**TODO**: one approach here may be to schedule the desired number of canary pods
-to check for capacity before proceeding through monitor orchestration.
