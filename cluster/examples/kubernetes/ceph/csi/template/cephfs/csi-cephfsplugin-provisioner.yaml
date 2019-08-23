@@ -105,7 +105,7 @@ spec:
       volumes:
         - name: socket-dir
           hostPath:
-            path: /var/lib/kubelet/plugins/cephfs.csi.ceph.com
+            path: /var/lib/kubelet/plugins/{{ .DriverNamePrefix }}cephfs.csi.ceph.com
             type: DirectoryOrCreate
         - name: host-sys
           hostPath:

@@ -25,7 +25,7 @@ spec:
           args:
             - "--v=5"
             - "--csi-address=/csi/csi.sock"
-            - "--kubelet-registration-path=/var/lib/kubelet/plugins/rbd.csi.ceph.com/csi.sock"
+            - "--kubelet-registration-path=/var/lib/kubelet/plugins/{{ .DriverNamePrefix }}rbd.csi.ceph.com/csi.sock"
           lifecycle:
             preStop:
               exec:
@@ -113,7 +113,7 @@ spec:
       volumes:
         - name: plugin-dir
           hostPath:
-            path: /var/lib/kubelet/plugins/rbd.csi.ceph.com
+            path: /var/lib/kubelet/plugins/{{ .DriverNamePrefix }}rbd.csi.ceph.com
             type: DirectoryOrCreate
         - name: plugin-mount-dir
           hostPath:
