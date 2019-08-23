@@ -1400,3 +1400,11 @@ spec:
   displayName: ` + displayName + `
   store: ` + store
 }
+
+func (m *CephManifestsV1_0) GetBucketStorageClass(namespace string, storeName string, storageClassName string, reclaimPolicy string, region string) string {
+	panic("upgrade test not supported for object bucket claim")
+}
+
+func (m *CephManifestsV1_0) GetObc(claimName string, storageClassName string, objectBucketName string, varBucketName bool) string {
+	panic("upgrade test not supported for object bucket claim")
+}

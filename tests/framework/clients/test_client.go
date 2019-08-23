@@ -36,6 +36,7 @@ type TestClient struct {
 	ObjectClient     *ObjectOperation
 	ObjectUserClient *ObjectUserOperation
 	PoolClient       *PoolOperation
+	BucketClient     *BucketOperation
 	k8sh             *utils.K8sHelper
 }
 
@@ -52,6 +53,7 @@ func CreateTestClient(k8sHelper *utils.K8sHelper, manifests installer.CephManife
 		CreateObjectOperation(k8sHelper, manifests),
 		CreateObjectUserOperation(k8sHelper, manifests),
 		CreatePoolOperation(k8sHelper, manifests),
+		CreateBucketOperation(k8sHelper, manifests),
 		k8sHelper,
 	}
 }

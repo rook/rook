@@ -40,6 +40,8 @@ type CephManifests interface {
 	GetNFS(namepace, name, pool string, daemonCount int) string
 	GetObjectStore(namespace, name string, replicaCount, port int) string
 	GetObjectStoreUser(namespace, name string, displayName string, store string) string
+	GetBucketStorageClass(namespace string, storeName string, storageClassName string, reclaimPolicy string, region string) string
+	GetObc(obcName string, storageClassName string, bucketName string, createBucket bool) string
 }
 
 type ClusterSettings struct {
@@ -422,7 +424,51 @@ spec:
     plural: volumes
     singular: volume
   scope: Namespaced
-  version: v1alpha2`
+  version: v1alpha2
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: objectbuckets.objectbucket.io
+spec:
+  group: objectbucket.io
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+  names:
+    kind: ObjectBucket
+    listKind: ObjectBucketList
+    plural: objectbuckets
+    singular: objectbucket
+    shortNames:
+      - ob
+      - obs
+  scope: Cluster
+  subresources:
+    status: {}
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: objectbucketclaims.objectbucket.io
+spec:
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+  group: objectbucket.io
+  names:
+    kind: ObjectBucketClaim
+    listKind: ObjectBucketClaimList
+    plural: objectbucketclaims
+    singular: objectbucketclaim
+    shortNames:
+      - obc
+      - obcs
+  scope: Namespaced
+  subresources:
+    status: {}`
 }
 
 // GetRookOperator returns rook Operator manifest
@@ -1242,6 +1288,50 @@ spec:
           value: "true"
         - name: ROOK_CSI_ENABLE_RBD
           value: "true"
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-object-bucket
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-object-bucket
+subjects:
+  - kind: ServiceAccount
+    name: rook-ceph-system
+    namespace: ` + namespace + `
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-object-bucket
+  labels:
+    operator: rook
+    storage-backend: ceph
+    rbac.ceph.rook.io/aggregate-to-rook-ceph-mgr-cluster: "true"
+rules:
+- apiGroups:
+  - ""
+  verbs:
+  - "*"
+  resources:
+  - secrets
+  - configmaps
+- apiGroups:
+    - storage.k8s.io
+  resources:
+    - storageclasses
+  verbs:
+    - get
+    - list
+    - watch
+- apiGroups:
+  - "objectbucket.io"
+  verbs:
+  - "*"
+  resources:
+  - "*"
 `
 }
 
@@ -1696,4 +1786,33 @@ metadata:
 spec:
   displayName: ` + displayName + `
   store: ` + store
+}
+
+//GetBucketStorageClass returns the manifest to create object bucket
+func (m *CephManifestsMaster) GetBucketStorageClass(storeNameSpace string, storeName string, storageClassName string, reclaimPolicy string, region string) string {
+	return `apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+   name: ` + storageClassName + `
+provisioner: ceph.rook.io/bucket
+reclaimPolicy: ` + reclaimPolicy + `
+parameters:
+    objectStoreName: ` + storeName + `
+    objectStoreNamespace: ` + storeNameSpace + `
+    region: ` + region
+}
+
+//GetObc returns the manifest to create object bucket claim
+func (m *CephManifestsMaster) GetObc(claimName string, storageClassName string, objectBucketName string, varBucketName bool) string {
+	bucketParameter := "generateBucketName"
+	if varBucketName {
+		bucketParameter = "bucketName"
+	}
+	return `apiVersion: objectbucket.io/v1alpha1
+kind: ObjectBucketClaim
+metadata:
+  name: ` + claimName + `
+spec:
+  ` + bucketParameter + `: ` + objectBucketName + `
+  storageClassName: ` + storageClassName
 }

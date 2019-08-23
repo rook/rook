@@ -113,7 +113,7 @@
   version = "v4"
 
 [[projects]]
-  digest = "1:32945438a670edb831120e35007cbb4ba17218e0c5fd52566ba7c56043ae0d96"
+  digest = "1:3ebeccd09713eef123e504ddaf58392f2aa4d50ae2939d4295ad8081befd6717"
   name = "github.com/coreos/prometheus-operator"
   packages = [
     "pkg/apis/monitoring",
@@ -123,8 +123,8 @@
     "pkg/client/versioned/typed/monitoring/v1",
   ]
   pruneopts = "UT"
-  revision = "18fbf558ab7f8809fd610a3dc50bf483508dc1bb"
-  version = "v0.30.1"
+  revision = "6efd4e5e12213021516c10b3ebd0699260ddd804"
+  version = "v0.31.1"
 
 [[projects]]
   digest = "1:86909a5b1e4522ad763f86327cfa65e51d7eb838d4adb3d6f68069fede181122"
@@ -193,6 +193,14 @@
   pruneopts = "UT"
   revision = "6ed8d5f64cd79a498d1f3fab5880cc376ce41bbe"
   version = "v1.41.0"
+
+[[projects]]
+  digest = "1:edd2fa4578eb086265db78a9201d15e76b298dfd0d5c379da83e9c61712cf6df"
+  name = "github.com/go-logr/logr"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "9fb12b3b21c5415d16ac18dc5cd42c1cfdd40c4e"
+  version = "v0.1.0"
 
 [[projects]]
   digest = "1:953a2628e4c5c72856b53f5470ed5e071c55eccf943d798d42908102af2a610f"
@@ -386,6 +394,28 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:80f31c6e81838463d5d7b05710cb4722bdb939a9c5c22e35b59282ca898a2296"
+  name = "github.com/kube-object-storage/lib-bucket-provisioner"
+  packages = [
+    "pkg/apis/objectbucket.io",
+    "pkg/apis/objectbucket.io/v1alpha1",
+    "pkg/client/clientset/versioned",
+    "pkg/client/clientset/versioned/scheme",
+    "pkg/client/clientset/versioned/typed/objectbucket.io/v1alpha1",
+    "pkg/client/informers/externalversions",
+    "pkg/client/informers/externalversions/internalinterfaces",
+    "pkg/client/informers/externalversions/objectbucket.io",
+    "pkg/client/informers/externalversions/objectbucket.io/v1alpha1",
+    "pkg/client/listers/objectbucket.io/v1alpha1",
+    "pkg/provisioner",
+    "pkg/provisioner/api",
+    "pkg/provisioner/api/errors",
+  ]
+  pruneopts = "UT"
+  revision = "5b3f4e3b90edc8c914edb04fb5dc0dfee5f9f0d4"
+
+[[projects]]
+  branch = "master"
   digest = "1:84a5a2b67486d5d67060ac393aa255d05d24ed5ee41daecd5635ec22657b6492"
   name = "github.com/mailru/easyjson"
   packages = [
@@ -515,11 +545,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:288027e71d1141c5dfa68ae0abf1ff120df4e1b427ff27dd54aa3357349fc4fb"
+  digest = "1:da278413b1e908bf462b4bc1caac1108c3f24522e27e446e2de584bc6e59cbcb"
   name = "github.com/rook/operator-kit"
   packages = ["."]
   pruneopts = "UT"
-  revision = "3a90049568e908f071d810b17fa3dfcf2b78b013"
+  revision = "e7b2e1264fff5f1dc9d506089af2399621b5a0c1"
 
 [[projects]]
   digest = "1:d707dbc1330c0ed177d4642d6ae102d5e2c847ebd0eb84562d0dc4f024531cfc"
@@ -1241,12 +1271,15 @@
   revision = "f8a0810f38afb8478882b3835a615aebfda39afa"
 
 [[projects]]
-  digest = "1:e2999bf1bb6eddc2a6aa03fe5e6629120a53088926520ca3b4765f77d7ff7eab"
+  digest = "1:ed455ccc8731bfd9299cbdaebd7a96da8097f5399f15ee4ec5d3ea3bcdff9f91"
   name = "k8s.io/klog"
-  packages = ["."]
+  packages = [
+    ".",
+    "klogr",
+  ]
   pruneopts = "UT"
-  revision = "a5bc97fbc634d635061f3146511332c7e313a55a"
-  version = "v0.1.0"
+  revision = "71442cd4037d612096940ceb0f3fec3f7fff66e0"
+  version = "v0.2.0"
 
 [[projects]]
   digest = "1:8cd43685b10cdb021157fe77fb8f7d3978df2e39e860ef4db8699268bc0d1e2e"
@@ -1340,6 +1373,7 @@
   revision = "21c4ce38f2a793ec01e925ddc31216500183b773"
 
 [[projects]]
+  branch = "release-1.14"
   digest = "1:a2147c72c6ac436c7cbd3ffaefb3a8ca26264dd60fed5aec22cf4ed6d6c42690"
   name = "sigs.k8s.io/sig-storage-lib-external-provisioner"
   packages = [
@@ -1349,7 +1383,6 @@
   ]
   pruneopts = "UT"
   revision = "3eea7193b4c5c034f885913c03105178e9e23a4f"
-  version = "v3.1.0"
 
 [[projects]]
   digest = "1:fef5992ddf85e9ccad899b11338339858936a10fbce96b9d5c43767669d95398"
@@ -1377,6 +1410,7 @@
   analyzer-version = 1
   input-imports = [
     "github.com/aws/aws-sdk-go/aws",
+    "github.com/aws/aws-sdk-go/aws/awserr",
     "github.com/aws/aws-sdk-go/aws/credentials",
     "github.com/aws/aws-sdk-go/aws/session",
     "github.com/aws/aws-sdk-go/service/s3",
@@ -1391,6 +1425,11 @@
     "github.com/google/uuid",
     "github.com/icrowley/fake",
     "github.com/jbw976/go-ps",
+    "github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1",
+    "github.com/kube-object-storage/lib-bucket-provisioner/pkg/client/clientset/versioned",
+    "github.com/kube-object-storage/lib-bucket-provisioner/pkg/provisioner",
+    "github.com/kube-object-storage/lib-bucket-provisioner/pkg/provisioner/api",
+    "github.com/kube-object-storage/lib-bucket-provisioner/pkg/provisioner/api/errors",
     "github.com/pkg/errors",
     "github.com/rook/operator-kit",
     "github.com/spf13/cobra",
@@ -1418,6 +1457,7 @@
     "k8s.io/apimachinery/pkg/selection",
     "k8s.io/apimachinery/pkg/types",
     "k8s.io/apimachinery/pkg/util/intstr",
+    "k8s.io/apimachinery/pkg/util/json",
     "k8s.io/apimachinery/pkg/util/runtime",
     "k8s.io/apimachinery/pkg/util/strategicpatch",
     "k8s.io/apimachinery/pkg/util/uuid",

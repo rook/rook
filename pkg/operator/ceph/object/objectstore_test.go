@@ -142,7 +142,7 @@ func deleteStore(t *testing.T, name string, existingStores string, expectedDelet
 	}
 	executor.MockExecuteCommandWithOutput = executorFunc
 	executor.MockExecuteCommandWithCombinedOutput = executorFunc
-	context := &Context{context: &clusterd.Context{Executor: executor}, Name: "myobj", ClusterName: "ns"}
+	context := &Context{Context: &clusterd.Context{Executor: executor}, Name: "myobj", ClusterName: "ns"}
 
 	// Delete an object store
 	err := deleteRealmAndPools(context)

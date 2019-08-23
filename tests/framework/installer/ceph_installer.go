@@ -388,7 +388,9 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(gatherLogs bool, systemNames
 		"cephobjectstoreusers.ceph.rook.io",
 		"cephfilesystems.ceph.rook.io",
 		"cephnfses.ceph.rook.io",
-		"volumes.rook.io")
+		"volumes.rook.io",
+		"objectbuckets.objectbucket.io",
+		"objectbucketclaims.objectbucket.io")
 	checkError(h.T(), err, "cannot delete CRDs")
 
 	if h.useHelm {
@@ -437,6 +439,9 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(gatherLogs bool, systemNames
 
 	h.k8shelper.Clientset.CoreV1().ConfigMaps(systemNamespace).Delete("csi-rbd-config", nil)
 	h.k8shelper.Clientset.CoreV1().ConfigMaps(systemNamespace).Delete("csi-cephfs-config", nil)
+
+	h.k8shelper.Clientset.RbacV1beta1().ClusterRoleBindings().Delete("rook-ceph-object-bucket", nil)
+	h.k8shelper.Clientset.RbacV1beta1().ClusterRoles().Delete("rook-ceph-object-bucket", nil)
 
 	logger.Infof("done removing the operator from namespace %s", systemNamespace)
 	logger.Infof("removing host data dir %s", h.hostPathToDelete)
