@@ -49,6 +49,7 @@ func (c *Cluster) prepareStorageClassDeviceSets(config *provisionConfig) []rooka
 					ClaimName: pvc.GetName(),
 					ReadOnly:  false,
 				},
+				Portable: storageClassDeviceSet.Portable,
 			})
 			logger.Infof("successfully provisioned osd for storageClassDeviceSet %s of set %v", storageClassDeviceSet.Name, i)
 		}

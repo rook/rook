@@ -57,6 +57,8 @@ const (
 	clusterAvailableSpaceReserve        = 0.05
 	serviceAccountName                  = "rook-ceph-osd"
 	unknownID                           = -1
+	portableKey                         = "portable"
+	failureDomainKey                    = "failure-domain"
 	cephOsdPodMinimumMemory      uint64 = 4096 // minimum amount of memory in MB to run the pod
 )
 
@@ -143,6 +145,7 @@ type osdProperties struct {
 	placement      rookalpha.Placement
 	metadataDevice string
 	location       string
+	portable       bool
 }
 
 // Start the osd management
@@ -233,6 +236,7 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig) {
 			pvc:           volume.PersistentVolumeClaimSource,
 			resources:     volume.Resources,
 			placement:     volume.Placement,
+			portable:      volume.Portable,
 		}
 
 		// update the orchestration status of this pvc to the starting state
@@ -719,6 +723,7 @@ func (c *Cluster) getOSDPropsForPVC(pvcName string) (osdProperties, error) {
 				pvc:           volumeSource.PersistentVolumeClaimSource,
 				resources:     volumeSource.Resources,
 				placement:     volumeSource.Placement,
+				portable:      volumeSource.Portable,
 			}, nil
 		}
 	}

@@ -103,6 +103,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 	volumeMounts := opspec.CephVolumeMounts()
 	configVolumeMounts := opspec.RookVolumeMounts()
 	volumes := opspec.PodVolumes(c.dataDirHostPath, c.Namespace)
+	failureDomainValue := osdProps.crushHostname
 
 	var dataDir string
 	if osd.IsDirectory {
@@ -286,11 +287,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf(osdAppNameFmt, osd.ID),
 			Namespace: c.Namespace,
-			Labels: map[string]string{
-				k8sutil.AppAttr:     appName,
-				k8sutil.ClusterAttr: c.Namespace,
-				osdLabelKey:         fmt.Sprintf("%d", osd.ID),
-			},
+			Labels:    c.getOSDLabels(osd.ID, failureDomainValue, osdProps.portable),
 		},
 		Spec: apps.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
@@ -305,12 +302,8 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 			},
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: appName,
-					Labels: map[string]string{
-						k8sutil.AppAttr:     appName,
-						k8sutil.ClusterAttr: c.Namespace,
-						osdLabelKey:         fmt.Sprintf("%d", osd.ID),
-					},
+					Name:   appName,
+					Labels: c.getOSDLabels(osd.ID, failureDomainValue, osdProps.portable),
 				},
 				Spec: v1.PodSpec{
 					RestartPolicy:      v1.RestartPolicyAlways,
@@ -756,5 +749,15 @@ func makeStorageClassDeviceSetPVCLabel(storageClassDeviceSetName, pvcStorageClas
 		CephDeviceSetLabelKey:      storageClassDeviceSetName,
 		CephSetIndexLabelKey:       fmt.Sprintf("%v", setIndex),
 		CephDeviceSetPVCIDLabelKey: pvcStorageClassDeviceSetPVCId,
+	}
+}
+
+func (c *Cluster) getOSDLabels(osdID int, failureDomainValue string, portable bool) map[string]string {
+	return map[string]string{
+		k8sutil.AppAttr:     appName,
+		k8sutil.ClusterAttr: c.Namespace,
+		osdLabelKey:         fmt.Sprintf("%d", osdID),
+		failureDomainKey:    failureDomainValue,
+		portableKey:         strconv.FormatBool(portable),
 	}
 }
