@@ -22,11 +22,11 @@ import (
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
-	opkit "github.com/rook/operator-kit"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
+	opkit "github.com/rook/rook/pkg/operator-kit"
 	opcluster "github.com/rook/rook/pkg/operator/ceph/cluster"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/apimachinery/pkg/runtime"

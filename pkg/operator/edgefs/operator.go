@@ -24,8 +24,8 @@ import (
 	"syscall"
 
 	"github.com/coreos/pkg/capnslog"
-	opkit "github.com/rook/operator-kit"
 	"github.com/rook/rook/pkg/clusterd"
+	opkit "github.com/rook/rook/pkg/operator-kit"
 	"github.com/rook/rook/pkg/operator/discover"
 	"github.com/rook/rook/pkg/operator/edgefs/cluster"
 	"github.com/rook/rook/pkg/operator/k8sutil"

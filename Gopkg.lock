@@ -412,7 +412,8 @@
     "pkg/provisioner/api/errors",
   ]
   pruneopts = "UT"
-  revision = "5b3f4e3b90edc8c914edb04fb5dc0dfee5f9f0d4"
+  revision = "a2a5b76832ebeb63aa76f14e36082617d5adb730"
+  source = "github.com/rohantmp/lib-bucket-provisioner"
 
 [[projects]]
   branch = "master"
@@ -542,14 +543,6 @@
   ]
   pruneopts = "UT"
   revision = "bf6a532e95b1f7a62adf0ab5050a5bb2237ad2f4"
-
-[[projects]]
-  branch = "master"
-  digest = "1:da278413b1e908bf462b4bc1caac1108c3f24522e27e446e2de584bc6e59cbcb"
-  name = "github.com/rook/operator-kit"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "e7b2e1264fff5f1dc9d506089af2399621b5a0c1"
 
 [[projects]]
   digest = "1:d707dbc1330c0ed177d4642d6ae102d5e2c847ebd0eb84562d0dc4f024531cfc"
@@ -850,23 +843,25 @@
     "storage/v1beta1",
   ]
   pruneopts = "UT"
-  revision = "40a48860b5abbba9aa891b02b32da429b08d96a0"
-  version = "kubernetes-1.14.0"
+  revision = "6e4e0e4f393bf5e8bbff570acd13217aa5a770cd"
+  version = "kubernetes-1.14.1"
 
 [[projects]]
-  digest = "1:5b60f7bda6ce2daa695784a4a4d366bc8b0ab1603fd144025d313b0dc7b9f5b1"
+  digest = "1:3a19e26a15beaf247387de7eb4e52797ce688bd0d507b4a46d5f0f8f0f49083e"
   name = "k8s.io/apiextensions-apiserver"
   packages = [
     "pkg/apis/apiextensions",
     "pkg/apis/apiextensions/v1beta1",
     "pkg/client/clientset/clientset",
+    "pkg/client/clientset/clientset/fake",
     "pkg/client/clientset/clientset/scheme",
     "pkg/client/clientset/clientset/typed/apiextensions/v1beta1",
+    "pkg/client/clientset/clientset/typed/apiextensions/v1beta1/fake",
     "pkg/features",
   ]
   pruneopts = "UT"
-  revision = "53c4693659ed354d76121458fb819202dd1635fa"
-  version = "kubernetes-1.14.0"
+  revision = "727a075fdec8319bf095330e344b3ccc668abc73"
+  version = "kubernetes-1.14.1"
 
 [[projects]]
   digest = "1:12e1193fca56eef2efa8e94239f96011a2ac8f60cba50f04da1babad5029de99"
@@ -924,8 +919,8 @@
     "third_party/forked/golang/reflect",
   ]
   pruneopts = "UT"
-  revision = "d7deff9243b165ee192f5551710ea4285dcfd615"
-  version = "kubernetes-1.14.0"
+  revision = "6a84e37a896db9780c75367af8d2ed2bb944022e"
+  version = "kubernetes-1.14.1"
 
 [[projects]]
   digest = "1:f1762b5ef39911603327ac0ac2f57e3adf005b268f9ae91c405e1d7749ae1bd0"
@@ -1012,8 +1007,8 @@
     "plugin/pkg/authorizer/webhook",
   ]
   pruneopts = "UT"
-  revision = "8b27c41bdbb11ff103caa673315e097bf0289171"
-  version = "kubernetes-1.14.0"
+  revision = "1ec86e4da56ce0573788fc12bb3a5530600c0e5d"
+  version = "kubernetes-1.14.1"
 
 [[projects]]
   digest = "1:f07252504bce93f28bb2ad35ed560707b066c8cf5ea11f11d6fa3984822ccd87"
@@ -1242,7 +1237,7 @@
   ]
   pruneopts = "T"
   revision = "50b561225d70b3eb79a1faafd3dfe7b1a62cbe73"
-  version = "kubernetes-1.14.0"
+  version = "kubernetes-1.14.1"
 
 [[projects]]
   branch = "master"
@@ -1286,8 +1281,8 @@
   name = "k8s.io/kube-controller-manager"
   packages = ["config/v1alpha1"]
   pruneopts = "UT"
-  revision = "97ed623e38350ab8a3cce36d6003ff9ab27f6669"
-  version = "kubernetes-1.14.0"
+  revision = "97e4e67125a687ca6d4310fec43015a96a37f116"
+  version = "kubernetes-1.14.1"
 
 [[projects]]
   digest = "1:e60662eae49be670de501df7393dc4bfa8c5a4fa9a88915dc14e61b461c0935b"
@@ -1349,8 +1344,8 @@
     "pkg/volume/util/volumepathhandler",
   ]
   pruneopts = "UT"
-  revision = "641856db18352033a0d96dbc99153fa3b27298e5"
-  version = "v1.14.0"
+  revision = "b7394102d6ef778017f2ca4046abbaa23b88c290"
+  version = "v1.14.1"
 
 [[projects]]
   branch = "master"
@@ -1431,7 +1426,6 @@
     "github.com/kube-object-storage/lib-bucket-provisioner/pkg/provisioner/api",
     "github.com/kube-object-storage/lib-bucket-provisioner/pkg/provisioner/api/errors",
     "github.com/pkg/errors",
-    "github.com/rook/operator-kit",
     "github.com/spf13/cobra",
     "github.com/spf13/pflag",
     "github.com/stretchr/testify/assert",
@@ -1446,6 +1440,7 @@
     "k8s.io/api/storage/v1beta1",
     "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1",
     "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset",
+    "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake",
     "k8s.io/apimachinery/pkg/api/errors",
     "k8s.io/apimachinery/pkg/api/resource",
     "k8s.io/apimachinery/pkg/apis/meta/v1",

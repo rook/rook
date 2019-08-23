@@ -23,10 +23,10 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/google/go-cmp/cmp"
-	opkit "github.com/rook/operator-kit"
 	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
+	opkit "github.com/rook/rook/pkg/operator-kit"
 	"k8s.io/api/core/v1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/resource"

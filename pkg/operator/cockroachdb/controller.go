@@ -26,10 +26,10 @@ import (
 	"strings"
 	"time"
 
-	opkit "github.com/rook/operator-kit"
 	cockroachdbv1alpha1 "github.com/rook/rook/pkg/apis/cockroachdb.rook.io/v1alpha1"
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
+	opkit "github.com/rook/rook/pkg/operator-kit"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"

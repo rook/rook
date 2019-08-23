@@ -22,10 +22,10 @@ import (
 	"reflect"
 
 	"github.com/coreos/pkg/capnslog"
-	opkit "github.com/rook/operator-kit"
 	miniov1alpha1 "github.com/rook/rook/pkg/apis/minio.rook.io/v1alpha1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
+	opkit "github.com/rook/rook/pkg/operator-kit"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"

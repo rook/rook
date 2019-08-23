@@ -24,10 +24,10 @@ import (
 	"syscall"
 
 	"github.com/coreos/pkg/capnslog"
-	opkit "github.com/rook/operator-kit"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
+	opkit "github.com/rook/rook/pkg/operator-kit"
 	"github.com/rook/rook/pkg/operator/ceph/agent"
 	"github.com/rook/rook/pkg/operator/ceph/cluster"
 	"github.com/rook/rook/pkg/operator/ceph/csi"

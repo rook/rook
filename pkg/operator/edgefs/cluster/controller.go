@@ -25,9 +25,9 @@ import (
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
-	opkit "github.com/rook/operator-kit"
 	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/clusterd"
+	opkit "github.com/rook/rook/pkg/operator-kit"
 	"github.com/rook/rook/pkg/operator/edgefs/iscsi"
 	"github.com/rook/rook/pkg/operator/edgefs/isgw"
 	"github.com/rook/rook/pkg/operator/edgefs/nfs"

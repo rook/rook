@@ -20,8 +20,8 @@ package attachment
 import (
 	"reflect"
 
-	opkit "github.com/rook/operator-kit"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	opkit "github.com/rook/rook/pkg/operator-kit"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 )
 

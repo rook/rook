@@ -22,10 +22,10 @@ import (
 	"sync"
 
 	"github.com/coreos/pkg/capnslog"
-	opkit "github.com/rook/operator-kit"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	daemonconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	opkit "github.com/rook/rook/pkg/operator-kit"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

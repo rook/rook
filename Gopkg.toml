@@ -60,31 +60,31 @@ ignored = [
 
 [[constraint]]
   name = "k8s.io/kubernetes"
-  version = "=v1.14.0"
+  version = "=v1.14.1"
 
 [[constraint]]
   name = "k8s.io/kube-controller-manager"
-  version = "kubernetes-1.14.0"
+  version = "kubernetes-1.14.1"
 
 [[constraint]]
   name = "k8s.io/api"
-  version = "kubernetes-1.14.0"
+  version = "kubernetes-1.14.1"
 
 [[constraint]]
   name = "k8s.io/apiserver"
-  version = "kubernetes-1.14.0"
+  version = "kubernetes-1.14.1"
 
 [[constraint]]
   name = "k8s.io/apiextensions-apiserver"
-  version = "kubernetes-1.14.0"
+  version = "kubernetes-1.14.1"
 
 [[constraint]]
   name = "k8s.io/apimachinery"
-  version = "kubernetes-1.14.0"
+  version = "kubernetes-1.14.1"
 
 [[constraint]]
   name = "k8s.io/code-generator"
-  version = "kubernetes-1.14.0"
+  version = "kubernetes-1.14.1"
 
 [[constraint]]
   name = "k8s.io/client-go"
@@ -116,7 +116,7 @@ ignored = [
 
 [[override]]
   name = "k8s.io/apimachinery"
-  version = "kubernetes-1.14.0"
+  version = "kubernetes-1.14.1"
 
 [[override]]
   name = "k8s.io/client-go"
@@ -126,3 +126,8 @@ ignored = [
 [[constraint]]
   branch = "master"
   name = "github.com/kube-object-storage/lib-bucket-provisioner"
+
+# workaround until fix is merged https://github.com/kube-object-storage/lib-bucket-provisioner/pull/136
+[[override]]
+  name = "github.com/kube-object-storage/lib-bucket-provisioner"
+  source = "github.com/rohantmp/lib-bucket-provisioner"
