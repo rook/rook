@@ -947,7 +947,7 @@ metadata:
   namespace: ` + namespace + `
 subjects:
   - kind: ServiceAccount
-    name: rbd-csi-provisioner
+    name: rook-csi-rbd-provisioner-sa
     namespace: ` + namespace + `
 roleRef:
   kind: Role
@@ -1086,7 +1086,7 @@ metadata:
   namespace: ` + namespace + `
 subjects:
   - kind: ServiceAccount
-    name: cephfs-csi-provisioner
+    name: rook-csi-cephfs-provisioner-sa
     namespace: ` + namespace + `
 roleRef:
   kind: Role
