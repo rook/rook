@@ -4,10 +4,10 @@
 
 At a high level the release workflow is as follows:
 
-1. Jenkins CI will build, publish and test every commit from master
-2. Integration testing happens on a build that is a candidate for release.
-3. If all goes well we tag the release and create a new release branch if needed.
-4. Each release build will be promoted to the release channel.
+1. Declare feature freeze 2-3 weeks before the release
+1. Create the release branch when the commits are winding down
+1. When all the release criteria is met we will tag the release
+1. Each release build will be promoted to the release channel
 
 Jenkins has all the jobs to do the release -- there is no need to perform any of the release tasks on a build/dev machine.
 
@@ -39,6 +39,23 @@ The maintainers have the responsibility of ensuring this criteria is met.
 * Sign-off
   * Maintainers have signed-off (approved) of the release in accordance with the [project governance voting policy](/GOVERNANCE.md#conflict-resolution-and-voting). If a maintainer is unavailable, advance approval is okay.  Approval can be verbal or written.
 
+## Create the release branch
+
+When the release is winding down and it is time to start the final testing for a release, creating the release branch
+will provide a stable place for the testing to occur and allow master to move on. To create the release branch,
+run the `release/tag` pipeline with a version that has not been previously tagged. See the next section for more details
+on running the pipeline.
+
+Using a pre-release tag will allow the release branch to be created without creating the final release tag.
+The tags allow for a progression of pre-releases such as:
+- `v1.1.0-alpha.0`: Alpha release
+- `v1.1.0-beta.0`: Beta release
+- `v1.1.0-rc.0`: Release candidate
+- `v1.1.0`: Official release build
+
+The release tags should be agreed on by the release team.
+
+
 ## Tagging a new release
 
 To create a new release build, run a new build from `release/tag` pipeline in Jenkins. Be sure to use the correct branch for the
@@ -52,7 +69,8 @@ The release branch is not by default created as "protected", so remember to go t
 The protection settings should be similar to that of the previous release branches.
 
 ## Authoring release notes
-Every release should have comprehensive and well written release notes published.
+
+Every official release should have comprehensive and well written release notes published.
 While work is ongoing for a milestone, contributors should be keeping the [pending release notes](/PendingReleaseNotes.md) up to date, so that should be used as a starting point.
 
 When the release is nearing completion, start a new release "draft" by going to https://github.com/rook/rook/releases/new and start with the content from the pending release notes.

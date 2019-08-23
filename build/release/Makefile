@@ -91,7 +91,7 @@ clean: $(addprefix clean.,$(FLAVORS)) ;
 # ====================================================================================
 # tagging a release
 
-VERSION_REGEX := ^v\([0-9]*\)[.]\([0-9]*\)[.]\([0-9]*\)$$
+VERSION_REGEX := ^v\([0-9]*\)[.]\([0-9]*\)[.]\([0-9]*\)[-]*\([alpha|beta|rc]\)*[\.]*\([0-9]*\)$$
 VERSION_VALID := $(shell echo "$(VERSION)" | grep -q '$(VERSION_REGEX)' && echo 1 || echo 0)
 VERSION_MAJOR := $(shell echo "$(VERSION)" | sed -e 's/$(VERSION_REGEX)/\1/')
 VERSION_MINOR := $(shell echo "$(VERSION)" | sed -e 's/$(VERSION_REGEX)/\2/')
@@ -99,11 +99,11 @@ VERSION_PATCH := $(shell echo "$(VERSION)" | sed -e 's/$(VERSION_REGEX)/\3/')
 
 tag:
 ifneq ($(VERSION_VALID),1)
-	$(error invalid version $(VERSION). must be a semantic version with v[Major].[Minor].[Patch] only)
+	$(error invalid version $(VERSION), must be a semantic version with v[Major].[Minor].[Patch] and an optional suffix such as -alpha.0, -beta.1, or -rc.2)
 endif
-	@echo === tagging commit hash $(COMMIT_HASH) with v$(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_PATCH)
-	@git tag -f -m "release $(VERSION)" v$(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_PATCH) $(COMMIT_HASH)
-	@git push $(REMOTE_NAME) v$(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_PATCH)
+	@echo === tagging commit hash $(COMMIT_HASH) with $(VERSION) and parsed v$(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_PATCH)
+	@git tag -f -m "release $(VERSION)" $(VERSION) $(COMMIT_HASH)
+	@git push $(REMOTE_NAME) $(VERSION)
 	@set -e; if ! git ls-remote --heads $(REMOTE_NAME) | grep -q refs/heads/release-$(VERSION_MAJOR).$(VERSION_MINOR); then \
 		echo === creating new release branch release-$(VERSION_MAJOR).$(VERSION_MINOR) ;\
 		git branch -f release-$(VERSION_MAJOR).$(VERSION_MINOR) $(COMMIT_HASH) ;\

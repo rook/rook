@@ -9,7 +9,7 @@ pipeline {
     }
 
     parameters {
-        string(name: 'version', defaultValue: '', description: 'The version you are releasing, for example, v0.5.0')
+        string(name: 'version', defaultValue: '', description: 'The version you are releasing, for example, v1.1.0 or v1.1.0-alpha.0 or v1.1.0-beta.0 or v1.1.0-rc.0')
         string(name: 'commit', defaultValue: '', description: 'Optional commit hash for this release, for example, 56b65dba917e50132b0a540ae6ff4c5bbfda2db6. If empty the latest commit hash will be used.')
     }
 
