@@ -1,0 +1,149 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: csi-cephfsplugin-provisioner
+  namespace: {{ .Namespace }}
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+     app: csi-cephfsplugin-provisioner
+  template:
+    metadata:
+      labels:
+        app: csi-cephfsplugin-provisioner
+    spec:
+      serviceAccount: rook-csi-cephfs-provisioner-sa
+      containers:
+        - name: csi-attacher
+          image: {{ .AttacherImage }}
+          args:
+            - "--v=5"
+            - "--csi-address=$(ADDRESS)"
+            - "--leader-election=true"
+            - "--leader-election-type=leases"
+            - "--leader-election-namespace={{ .Namespace }}"
+          env:
+            - name: ADDRESS
+              value: /csi/csi-provisioner.sock
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+        - name: csi-provisioner
+          image: {{ .ProvisionerImage }}
+          args:
+            - "--csi-address=$(ADDRESS)"
+            - "--v=5"
+            - "--timeout=60s"
+            - "--retry-interval-start=500ms"
+            - "--enable-leader-election=true"
+            - "--leader-election-type=leases"
+            - "--leader-election-namespace={{ .Namespace }}"
+          env:
+            - name: ADDRESS
+              value: unix:///csi/csi-provisioner.sock
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+        - name: csi-cephfsplugin
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["SYS_ADMIN"]
+          image: {{ .CSIPluginImage }}
+          args:
+            - "--nodeid=$(NODE_ID)"
+            - "--type=cephfs"
+            - "--endpoint=$(CSI_ENDPOINT)"
+            - "--v=5"
+            - "--drivername={{ .DriverNamePrefix }}cephfs.csi.ceph.com"
+            - "--metadatastorage=k8s_configmap"
+            - "--pidlimit=-1"
+          env:
+            - name: NODE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: CSI_ENDPOINT
+              value: unix:///csi/csi-provisioner.sock
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+            - name: host-sys
+              mountPath: /sys
+            - name: lib-modules
+              mountPath: /lib/modules
+              readOnly: true
+            - name: host-dev
+              mountPath: /dev
+            - name: ceph-csi-config
+              mountPath: /etc/ceph-csi-config/
+            - name: keys-tmp-dir
+              mountPath: /tmp/csi/keys
+        - name: liveness-prometheus
+          image: {{ .CSIPluginImage }}
+          args:
+            - "--type=liveness"
+            - "--endpoint=$(CSI_ENDPOINT)"
+            - "--livenessport=8081"
+            - "--livenesspath=/metrics"
+            - "--polltime=60s"
+            - "--timeout=3s"
+          env:
+            - name: CSI_ENDPOINT
+              value: unix:///csi/csi.sock
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+          imagePullPolicy: "IfNotPresent"
+      volumes:
+        - name: socket-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins/{{ .DriverNamePrefix }}cephfs.csi.ceph.com
+            type: DirectoryOrCreate
+        - name: host-sys
+          hostPath:
+            path: /sys
+        - name: lib-modules
+          hostPath:
+            path: /lib/modules
+        - name: host-dev
+          hostPath:
+            path: /dev
+        - name: ceph-csi-config
+          configMap:
+            name: rook-ceph-csi-config
+            items:
+              - key: csi-cluster-config-json
+                path: config.json
+        - name: keys-tmp-dir
+          emptyDir: {
+            medium: "Memory"
+          }
+---
+# This is a service to expose the liveness side car
+apiVersion: v1
+kind: Service
+metadata:
+  name: csi-liveness-cephfsplugin-provisioner
+  labels:
+    app: csi-liveness
+spec:
+  ports:
+    - name: http-metrics
+      port: 8080
+      protocol: TCP
+      targetPort: 8081
+  selector:
+    app: csi-cephfsplugin-provisioner

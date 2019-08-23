@@ -70,3 +70,17 @@ func templateToDaemonSet(name, templatePath string, p templateParam) (*apps.Daem
 	}
 	return &ds, nil
 }
+
+func templateToDeployment(name, templatePath string, p templateParam) (*apps.Deployment, error) {
+	var ds apps.Deployment
+	t, err := loadTemplate(name, templatePath, p)
+	if err != nil {
+		return nil, err
+	}
+
+	err = yaml.Unmarshal([]byte(t), &ds)
+	if err != nil {
+		return nil, err
+	}
+	return &ds, nil
+}

@@ -1465,6 +1465,7 @@
     "k8s.io/apimachinery/pkg/util/version",
     "k8s.io/apimachinery/pkg/util/wait",
     "k8s.io/apimachinery/pkg/util/yaml",
+    "k8s.io/apimachinery/pkg/version",
     "k8s.io/apimachinery/pkg/watch",
     "k8s.io/apiserver/pkg/server",
     "k8s.io/client-go/discovery",

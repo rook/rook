@@ -1,0 +1,173 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: csi-rbdplugin-provisioner
+  namespace: {{ .Namespace }}
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+     app: csi-rbdplugin-provisioner
+  template:
+    metadata:
+      labels:
+        app: csi-rbdplugin-provisioner
+    spec:
+      serviceAccount: rook-csi-rbd-provisioner-sa
+      containers:
+        - name: csi-provisioner
+          image: {{ .ProvisionerImage }}
+          args:
+            - "--csi-address=$(ADDRESS)"
+            - "--v=5"
+            - "--timeout=60s"
+            - "--retry-interval-start=500ms"
+            - "--enable-leader-election=true"
+            - "--leader-election-type=leases"
+            - "--leader-election-namespace={{ .Namespace }}"
+          env:
+            - name: ADDRESS
+              value: unix:///csi/csi-provisioner.sock
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+        - name: csi-rbdplugin-attacher
+          image: {{ .AttacherImage }}
+          args:
+            - "--v=5"
+            - "--csi-address=$(ADDRESS)"
+            - "--leader-election=true"
+            - "--leader-election-type=leases"
+            - "--leader-election-namespace={{ .Namespace }}"
+          env:
+            - name: ADDRESS
+              value: /csi/csi-provisioner.sock
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+        - name: csi-snapshotter
+          image:  {{ .SnapshotterImage }}
+          args:
+            - "--csi-address=$(ADDRESS)"
+            - "--v=5"
+            - "--timeout=60s"
+            - "--leader-election=true"
+            - "--leader-election-namespace={{ .Namespace }}"
+          env:
+            - name: ADDRESS
+              value: unix:///csi/csi-provisioner.sock
+          imagePullPolicy: Always
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+        - name: csi-rbdplugin
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["SYS_ADMIN"]
+          image: {{ .CSIPluginImage }}
+          args :
+            - "--nodeid=$(NODE_ID)"
+            - "--endpoint=$(CSI_ENDPOINT)"
+            - "--v=5"
+            - "--type=rbd"
+            - "--drivername={{ .DriverNamePrefix }}rbd.csi.ceph.com"
+            - "--containerized=true"
+            - "--pidlimit=-1"
+          env:
+            - name: HOST_ROOTFS
+              value: "/rootfs"
+            - name: NODE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: CSI_ENDPOINT
+              value: unix:///csi/csi-provisioner.sock
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+            - mountPath: /dev
+              name: host-dev
+            - mountPath: /rootfs
+              name: host-rootfs
+            - mountPath: /sys
+              name: host-sys
+            - mountPath: /lib/modules
+              name: lib-modules
+              readOnly: true
+            - name: ceph-csi-config
+              mountPath: /etc/ceph-csi-config/
+            - name: keys-tmp-dir
+              mountPath: /tmp/csi/keys
+        - name: liveness-prometheus
+          image: {{ .CSIPluginImage }}
+          args:
+            - "--type=liveness"
+            - "--endpoint=$(CSI_ENDPOINT)"
+            - "--livenessport=8080"
+            - "--livenesspath=/metrics"
+            - "--polltime=60s"
+            - "--timeout=3s"
+          env:
+            - name: CSI_ENDPOINT
+              value: unix:///csi/csi.sock
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+          imagePullPolicy: "IfNotPresent"
+      volumes:
+        - name: host-dev
+          hostPath:
+            path: /dev
+        - name: host-rootfs
+          hostPath:
+            path: /
+        - name: host-sys
+          hostPath:
+            path: /sys
+        - name: lib-modules
+          hostPath:
+            path: /lib/modules
+        - name: socket-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins/{{ .DriverNamePrefix }}rbd.csi.ceph.com
+            type: DirectoryOrCreate
+        - name: ceph-csi-config
+          configMap:
+            name: rook-ceph-csi-config
+            items:
+              - key: csi-cluster-config-json
+                path: config.json
+        - name: keys-tmp-dir
+          emptyDir: {
+            medium: "Memory"
+          }
+---
+# This is a service to expose the liveness side car
+apiVersion: v1
+kind: Service
+metadata:
+  name: csi-liveness-rbdplugin-provisioner
+  labels:
+    app: csi-liveness
+spec:
+  ports:
+    - name: http-metrics
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+  selector:
+    app: csi-rbdplugin-provisioner

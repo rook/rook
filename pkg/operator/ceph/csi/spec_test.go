@@ -26,9 +26,11 @@ import (
 
 func TestStartCSI(t *testing.T) {
 	RBDPluginTemplatePath = "csi-rbdplugin.yaml"
-	RBDProvisionerTemplatePath = "csi-rbdplugin-provisioner.yaml"
+	RBDProvisionerSTSTemplatePath = "csi-rbdplugin-provisioner-sts.yaml"
+	RBDProvisionerDepTemplatePath = "csi-rbdplugin-provisioner-dep.yaml"
 	CephFSPluginTemplatePath = "csi-cephfsplugin.yaml"
-	CephFSProvisionerTemplatePath = "csi-cephfsplugin-provisioner.yaml"
+	CephFSProvisionerSTSTemplatePath = "csi-cephfsplugin-provisioner-sts.yaml"
+	CephFSProvisionerDepTemplatePath = "csi-cephfsplugin-provisioner-dep.yaml"
 
 	CSIParam = Param{
 		CSIPluginImage:   "image",
@@ -38,6 +40,10 @@ func TestStartCSI(t *testing.T) {
 		SnapshotterImage: "image",
 	}
 	clientset := test.New(3)
-	err := StartCSIDrivers("ns", clientset)
+	serverVersion, err := clientset.Discovery().ServerVersion()
+	if err != nil {
+		assert.Nil(t, err)
+	}
+	err = StartCSIDrivers("ns", clientset, serverVersion)
 	assert.Nil(t, err)
 }

@@ -506,6 +506,7 @@ rules:
   resources:
   - daemonsets
   - statefulsets
+  - deployments
   verbs:
   - get
   - list
@@ -905,7 +906,10 @@ rules:
     verbs: ["get", "list", "watch"]
   - apiGroups: ["apiextensions.k8s.io"]
     resources: ["customresourcedefinitions"]
-    verbs: ["create"]
+    verbs: ["create", "list", "watch", "delete", "get", "update"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshots/status"]
+    verbs: ["update"]
   - apiGroups: [""]
     resources: ["nodes"]
     verbs: ["get", "list", "watch"]
@@ -939,6 +943,9 @@ rules:
   - apiGroups: [""]
     resources: ["configmaps"]
     verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "watch", "list", "delete", "update", "create"]
 ---
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
@@ -1078,6 +1085,9 @@ rules:
   - apiGroups: [""]
     resources: ["configmaps"]
     verbs: ["get", "list", "create", "delete"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "watch", "list", "delete", "update", "create"]
 ---
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
