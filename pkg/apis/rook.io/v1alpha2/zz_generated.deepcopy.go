@@ -146,7 +146,7 @@ func (in *NetworkSpec) DeepCopyInto(out *NetworkSpec) {
 	*out = *in
 	if in.Selectors != nil {
 		in, out := &in.Selectors, &out.Selectors
-		*out = make(map[string]NetworkSelector, len(*in))
+		*out = make(map[string]string, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val
 		}

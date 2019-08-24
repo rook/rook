@@ -22,7 +22,6 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestNetwork_Spec(t *testing.T) {
@@ -42,90 +41,11 @@ selectors:
 
 	expected := NetworkSpec{
 		Provider: "host",
-		Selectors: map[string]NetworkSelector{
-			"server": NetworkSelector("enp2s0f0"),
-			"broker": NetworkSelector("enp2s0f0"),
+		Selectors: map[string]string{
+			"server": "enp2s0f0",
+			"broker": "enp2s0f0",
 		},
 	}
 
 	assert.Equal(t, expected, net)
-}
-
-func TestNetwork_GetMultusIfName(t *testing.T) {
-	multusSelector := NetworkSelector("macvlan@server1")
-	ifName := GetMultusIfName(multusSelector)
-
-	assert.Equal(t, "server1", ifName)
-}
-
-func TestNetwork_GetMultusIfNameDefault(t *testing.T) {
-	multusSelector := NetworkSelector("macvlan")
-	ifName := GetMultusIfName(multusSelector)
-
-	assert.Equal(t, "net1", ifName)
-}
-
-func TestNetwork_parseMultusSelectorJSON(t *testing.T) {
-	multusSelector := NetworkSelector(`{
-		"name": "macvlan",
-		"interface": "server1",
-		"namespace": "rook-edgefs"
-	}`)
-
-	multusMap := parseMultusSelector(multusSelector)
-
-	expected := map[string]string{
-		"name":      "macvlan",
-		"interface": "server1",
-		"namespace": "rook-edgefs",
-	}
-
-	assert.Equal(t, expected, multusMap)
-}
-
-func TestNetwork_parseMultusSelectorShort(t *testing.T) {
-	multusSelector := NetworkSelector("rook-edgefs/macvlan@server1")
-	multusMap := parseMultusSelector(multusSelector)
-
-	expected := map[string]string{
-		"name":      "macvlan",
-		"interface": "server1",
-		"namespace": "rook-edgefs",
-	}
-
-	assert.Equal(t, expected, multusMap)
-}
-
-func TestNetwork_ApplyMultusShort(t *testing.T) {
-	net := NetworkSpec{
-		Provider: "multus",
-		Selectors: map[string]NetworkSelector{
-			"server": "macvlan@net1",
-			"broker": "macvlan@net2",
-		},
-	}
-
-	objMeta := metav1.ObjectMeta{}
-	ApplyMultus(net, &objMeta)
-
-	assert.Contains(t, objMeta.Annotations, "k8s.v1.cni.cncf.io/networks")
-	assert.Contains(t, objMeta.Annotations["k8s.v1.cni.cncf.io/networks"], "macvlan@net1")
-	assert.Contains(t, objMeta.Annotations["k8s.v1.cni.cncf.io/networks"], "macvlan@net2")
-}
-
-func TestNetwork_ApplyMultusJSON(t *testing.T) {
-	net := NetworkSpec{
-		Provider: "multus",
-		Selectors: map[string]NetworkSelector{
-			"server": `{"name": "macvlan", "interface": "net1"}`,
-			"broker": `{"name": "macvlan", "interface": "net2"}`,
-		},
-	}
-
-	objMeta := metav1.ObjectMeta{}
-	ApplyMultus(net, &objMeta)
-
-	assert.Contains(t, objMeta.Annotations, "k8s.v1.cni.cncf.io/networks")
-	assert.Contains(t, objMeta.Annotations["k8s.v1.cni.cncf.io/networks"], `{"name": "macvlan", "interface": "net1"}`)
-	assert.Contains(t, objMeta.Annotations["k8s.v1.cni.cncf.io/networks"], `{"name": "macvlan", "interface": "net2"}`)
 }

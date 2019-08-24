@@ -122,7 +122,7 @@ func TestHostNetwork(t *testing.T) {
 	volSize := resource.NewQuantity(100000.0, resource.BinarySI)
 	net := rookalpha.NetworkSpec{
 		Provider: "host",
-		Selectors: map[string]rookalpha.NetworkSelector{
+		Selectors: map[string]string{
 			"server": "eth0",
 		},
 	}

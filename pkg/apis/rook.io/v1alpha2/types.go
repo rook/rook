@@ -81,8 +81,6 @@ type Placement struct {
 
 type ResourceSpec map[string]v1.ResourceRequirements
 
-type NetworkSelector string
-
 // NetworkSpec represents cluster network settings
 type NetworkSpec struct {
 	// Provider is what provides network connectivity to the cluster e.g. "host" or "multus"
@@ -91,7 +89,7 @@ type NetworkSpec struct {
 	// Selectors string values describe what networks will be used to connect the cluster.
 	// Meanwhile the keys describe each network respective responsibilities or any metadata
 	// storage provider decide.
-	Selectors map[string]NetworkSelector `json:"selectors"`
+	Selectors map[string]string `json:"selectors"`
 }
 
 // +genclient
