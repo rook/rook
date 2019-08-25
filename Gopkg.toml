@@ -122,7 +122,12 @@ ignored = [
   name = "k8s.io/client-go"
   version = "v11.0.0"
 
+# Temporarily freezing these so that them updating their constraints on kube version doesn't break us
 # external bucket provisioner library
 [[constraint]]
-  branch = "master"
   name = "github.com/kube-object-storage/lib-bucket-provisioner"
+  revision = "5b3f4e3b90edc8c914edb04fb5dc0dfee5f9f0d4"
+
+[[constraint]]
+  name = "github.com/rook/operator-kit"
+  revision = "e7b2e1264fff5f1dc9d506089af2399621b5a0c1"
