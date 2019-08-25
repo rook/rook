@@ -12,7 +12,7 @@ Rook allows exporting NFS shares of the filesystem or object store through the C
 
 ## Samples
 
-This configuration adds a cluster of ganesha gateways that store objects in the pool cephfs.a.meta and the namespace **
+This configuration adds a cluster of ganesha gateways that store objects in the pool myfs-data0 and the namespace nfs-ns.
 
 ```yaml
 apiVersion: ceph.rook.io/v1
