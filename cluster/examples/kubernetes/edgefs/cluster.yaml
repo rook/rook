@@ -135,9 +135,11 @@ spec:
   #devicesResurrectMode: "restoreZapWait"
   #dashboard:
   #  localAddr: 10.3.30.75
-  #network: # cluster level networking configuration aka "host network"
-  #  serverIfName: "enp2s0f0"
-  #  brokerIfName: "enp2s0f0"
+  #network: # cluster level networking configuration
+  #  provider: host
+  #  selectors:
+  #    server: "enp2s0f0"
+  #    broker: "enp2s0f0"
   #skipHostPrepare: true
   #maxContainerCapacity: 132Ti
   #trlogProcessingInterval: 2      # set transaction log processing interval to 2s to speed up ISGW Link delivery

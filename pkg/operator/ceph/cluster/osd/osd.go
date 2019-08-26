@@ -75,7 +75,7 @@ type Cluster struct {
 	DesiredStorage  rookalpha.StorageScopeSpec // user-defined storage scope spec
 	ValidStorage    rookalpha.StorageScopeSpec // valid subset of `Storage`, computed at runtime
 	dataDirHostPath string
-	HostNetwork     bool
+	Network         cephv1.NetworkSpec
 	resources       v1.ResourceRequirements
 	ownerRef        metav1.OwnerReference
 	kv              *k8sutil.ConfigMapKVStore
@@ -92,7 +92,7 @@ func New(
 	dataDirHostPath string,
 	placement rookalpha.Placement,
 	annotations rookalpha.Annotations,
-	hostNetwork bool,
+	network cephv1.NetworkSpec,
 	resources v1.ResourceRequirements,
 	ownerRef metav1.OwnerReference,
 ) *Cluster {
@@ -106,7 +106,7 @@ func New(
 		cephVersion:     cephVersion,
 		DesiredStorage:  storageSpec,
 		dataDirHostPath: dataDirHostPath,
-		HostNetwork:     hostNetwork,
+		Network:         network,
 		resources:       resources,
 		ownerRef:        ownerRef,
 		kv:              k8sutil.NewConfigMapKVStore(namespace, context.Clientset, ownerRef),

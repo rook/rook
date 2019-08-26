@@ -167,7 +167,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	NFSController := nfs.NewNFSController(c.context,
 		cluster.Namespace,
 		c.containerImage,
-		isHostNetworkDefined(cluster.Spec.Network),
+		cluster.Spec.Network,
 		cluster.Spec.DataDirHostPath, cluster.Spec.DataVolumeSize,
 		edgefsv1beta1.GetTargetPlacement(cluster.Spec.Placement),
 		cluster.Spec.Resources,
@@ -180,7 +180,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	S3Controller := s3.NewS3Controller(c.context,
 		cluster.Namespace,
 		c.containerImage,
-		isHostNetworkDefined(cluster.Spec.Network),
+		cluster.Spec.Network,
 		cluster.Spec.DataDirHostPath, cluster.Spec.DataVolumeSize,
 		edgefsv1beta1.GetTargetPlacement(cluster.Spec.Placement),
 		cluster.Spec.Resources,
@@ -193,7 +193,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	SWIFTController := swift.NewSWIFTController(c.context,
 		cluster.Namespace,
 		c.containerImage,
-		isHostNetworkDefined(cluster.Spec.Network),
+		cluster.Spec.Network,
 		cluster.Spec.DataDirHostPath, cluster.Spec.DataVolumeSize,
 		edgefsv1beta1.GetTargetPlacement(cluster.Spec.Placement),
 		cluster.Spec.Resources,
@@ -206,7 +206,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	S3XController := s3x.NewS3XController(c.context,
 		cluster.Namespace,
 		c.containerImage,
-		isHostNetworkDefined(cluster.Spec.Network),
+		cluster.Spec.Network,
 		cluster.Spec.DataDirHostPath, cluster.Spec.DataVolumeSize,
 		edgefsv1beta1.GetTargetPlacement(cluster.Spec.Placement),
 		cluster.Spec.Resources,
@@ -219,7 +219,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	ISCSIController := iscsi.NewISCSIController(c.context,
 		cluster.Namespace,
 		c.containerImage,
-		isHostNetworkDefined(cluster.Spec.Network),
+		cluster.Spec.Network,
 		cluster.Spec.DataDirHostPath, cluster.Spec.DataVolumeSize,
 		edgefsv1beta1.GetTargetPlacement(cluster.Spec.Placement),
 		cluster.Spec.Resources,
@@ -232,7 +232,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	ISGWController := isgw.NewISGWController(c.context,
 		cluster.Namespace,
 		c.containerImage,
-		isHostNetworkDefined(cluster.Spec.Network),
+		cluster.Spec.Network,
 		cluster.Spec.DataDirHostPath, cluster.Spec.DataVolumeSize,
 		edgefsv1beta1.GetTargetPlacement(cluster.Spec.Placement),
 		cluster.Spec.Resources,
@@ -378,13 +378,6 @@ func (c *ClusterController) updateClusterStatus(namespace, name string, state ed
 	if _, err := c.context.RookClientset.EdgefsV1beta1().Clusters(cluster.Namespace).Update(cluster); err != nil {
 		logger.Errorf("failed to update cluster %s status: %+v", cluster.Namespace, err)
 	}
-}
-
-func isHostNetworkDefined(hostNetworkSpec edgefsv1beta1.NetworkSpec) bool {
-	if len(hostNetworkSpec.ServerIfName) > 0 || len(hostNetworkSpec.ServerIfName) > 0 {
-		return true
-	}
-	return false
 }
 
 func (c *ClusterController) addFinalizer(clust *edgefsv1beta1.Cluster) error {

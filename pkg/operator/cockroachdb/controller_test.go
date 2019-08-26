@@ -28,7 +28,7 @@ import (
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -39,8 +39,8 @@ func TestValidateClusterSpec(t *testing.T) {
 	// invalid node count
 	spec := cockroachdbv1alpha1.ClusterSpec{
 		Storage: rookalpha.StorageScopeSpec{NodeCount: 0},
-		Network: rookalpha.NetworkSpec{
-			Ports: []rookalpha.PortSpec{
+		Network: cockroachdbv1alpha1.NetworkSpec{
+			Ports: []cockroachdbv1alpha1.PortSpec{
 				{Name: "http", Port: 123},
 				{Name: "grpc", Port: 456},
 			},
@@ -53,8 +53,8 @@ func TestValidateClusterSpec(t *testing.T) {
 	// invalid cache percent
 	spec = cockroachdbv1alpha1.ClusterSpec{
 		Storage: rookalpha.StorageScopeSpec{NodeCount: 1},
-		Network: rookalpha.NetworkSpec{
-			Ports: []rookalpha.PortSpec{
+		Network: cockroachdbv1alpha1.NetworkSpec{
+			Ports: []cockroachdbv1alpha1.PortSpec{
 				{Name: "http", Port: 123},
 				{Name: "grpc", Port: 456},
 			},
@@ -68,8 +68,8 @@ func TestValidateClusterSpec(t *testing.T) {
 	// invalid max SQL memory percent
 	spec = cockroachdbv1alpha1.ClusterSpec{
 		Storage: rookalpha.StorageScopeSpec{NodeCount: 1},
-		Network: rookalpha.NetworkSpec{
-			Ports: []rookalpha.PortSpec{
+		Network: cockroachdbv1alpha1.NetworkSpec{
+			Ports: []cockroachdbv1alpha1.PortSpec{
 				{Name: "http", Port: 123},
 				{Name: "grpc", Port: 456},
 			},
@@ -83,8 +83,8 @@ func TestValidateClusterSpec(t *testing.T) {
 	// invalid port spec
 	spec = cockroachdbv1alpha1.ClusterSpec{
 		Storage: rookalpha.StorageScopeSpec{NodeCount: 1},
-		Network: rookalpha.NetworkSpec{
-			Ports: []rookalpha.PortSpec{
+		Network: cockroachdbv1alpha1.NetworkSpec{
+			Ports: []cockroachdbv1alpha1.PortSpec{
 				{Name: "foo-port", Port: 123},
 			},
 		},
@@ -96,8 +96,8 @@ func TestValidateClusterSpec(t *testing.T) {
 	// valid spec
 	spec = cockroachdbv1alpha1.ClusterSpec{
 		Storage: rookalpha.StorageScopeSpec{NodeCount: 1},
-		Network: rookalpha.NetworkSpec{
-			Ports: []rookalpha.PortSpec{
+		Network: cockroachdbv1alpha1.NetworkSpec{
+			Ports: []cockroachdbv1alpha1.PortSpec{
 				{Name: "http", Port: 123},
 				{Name: "grpc", Port: 456},
 			},
@@ -137,8 +137,8 @@ func TestOnAdd(t *testing.T) {
 					},
 				},
 			},
-			Network: rookalpha.NetworkSpec{
-				Ports: []rookalpha.PortSpec{
+			Network: cockroachdbv1alpha1.NetworkSpec{
+				Ports: []cockroachdbv1alpha1.PortSpec{
 					{Name: "http", Port: 123},
 					{Name: "grpc", Port: 456},
 				},

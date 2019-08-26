@@ -51,10 +51,10 @@ func (c *Cluster) makeDeployment(mdsConfig *mdsConfig) *apps.Deployment {
 			},
 			RestartPolicy: v1.RestartPolicyAlways,
 			Volumes:       opspec.DaemonVolumes(mdsConfig.DataPathMap, mdsConfig.ResourceName),
-			HostNetwork:   c.clusterSpec.Network.HostNetwork,
+			HostNetwork:   c.clusterSpec.Network.IsHost(),
 		},
 	}
-	if c.clusterSpec.Network.HostNetwork {
+	if c.clusterSpec.Network.IsHost() {
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 	c.fs.Spec.MetadataServer.Annotations.ApplyToObjectMeta(&podSpec.ObjectMeta)

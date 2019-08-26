@@ -72,7 +72,7 @@ storage:
 			AllowMultiplePerNode: false,
 		},
 		DataDirHostPath: "/var/lib/rook",
-		Network: rookalpha.NetworkSpec{
+		Network: NetworkSpec{
 			HostNetwork: true,
 		},
 		Storage: rookalpha.StorageScopeSpec{

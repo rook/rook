@@ -81,19 +81,15 @@ type Placement struct {
 
 type ResourceSpec map[string]v1.ResourceRequirements
 
+// NetworkSpec represents cluster network settings
 type NetworkSpec struct {
-	metav1.TypeMeta `json:",inline"`
+	// Provider is what provides network connectivity to the cluster e.g. "host" or "multus"
+	Provider string `json:"provider"`
 
-	// HostNetwork to enable host network
-	HostNetwork bool `json:"hostNetwork"`
-
-	// Set of named ports that can be configured for this resource
-	Ports []PortSpec `json:"ports,omitempty"`
-}
-
-type PortSpec struct {
-	Name string `json:"name,omitempty"`
-	Port int32  `json:"port,omitempty"`
+	// Selectors string values describe what networks will be used to connect the cluster.
+	// Meanwhile the keys describe each network respective responsibilities or any metadata
+	// storage provider decide.
+	Selectors map[string]string `json:"selectors"`
 }
 
 // +genclient

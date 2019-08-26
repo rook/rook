@@ -22,7 +22,7 @@ import (
 	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/operator/edgefs/cluster/target"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -48,17 +48,47 @@ func (c *cluster) createClusterConfigMap(deploymentConfig edgefsv1beta1.ClusterD
 
 	serverIfName := defaultServerIfName
 	brokerIfName := defaultBrokerIfName
-	if isHostNetworkDefined(c.Spec.Network) {
 
-		if len(c.Spec.Network.ServerIfName) > 0 && len(c.Spec.Network.BrokerIfName) > 0 {
-			serverIfName = c.Spec.Network.ServerIfName
-			brokerIfName = c.Spec.Network.BrokerIfName
-		} else if len(c.Spec.Network.ServerIfName) > 0 {
-			serverIfName = c.Spec.Network.ServerIfName
-			brokerIfName = c.Spec.Network.ServerIfName
-		} else if len(c.Spec.Network.BrokerIfName) > 0 {
-			serverIfName = c.Spec.Network.BrokerIfName
-			brokerIfName = c.Spec.Network.BrokerIfName
+	serverSelector, serverDefined := c.Spec.Network.Selectors["server"]
+	brokerSelector, brokerDefined := c.Spec.Network.Selectors["broker"]
+
+	if c.Spec.Network.IsHost() {
+		if serverDefined && brokerDefined {
+			serverIfName = serverSelector
+			brokerIfName = brokerSelector
+		} else if serverDefined {
+			serverIfName = serverSelector
+			brokerIfName = serverSelector
+		} else if brokerDefined {
+			serverIfName = brokerSelector
+			brokerIfName = brokerSelector
+		}
+	} else if c.Spec.Network.IsMultus() {
+		if serverDefined && brokerDefined {
+			var err error
+			serverIfName, err = k8sutil.GetMultusIfName(serverSelector)
+			if err != nil {
+				return err
+			}
+
+			brokerIfName, err = k8sutil.GetMultusIfName(brokerSelector)
+			if err != nil {
+				return err
+			}
+		} else if serverDefined {
+			serverIfName, err := k8sutil.GetMultusIfName(serverSelector)
+			if err != nil {
+				return err
+			}
+
+			brokerIfName = serverIfName
+		} else if brokerDefined {
+			serverIfName, err := k8sutil.GetMultusIfName(brokerSelector)
+			if err != nil {
+				return err
+			}
+
+			brokerIfName = serverIfName
 		}
 	}
 

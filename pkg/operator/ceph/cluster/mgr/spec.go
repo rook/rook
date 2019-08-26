@@ -55,7 +55,7 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
 			ServiceAccountName: serviceAccountName,
 			RestartPolicy:      v1.RestartPolicyAlways,
 			Volumes:            opspec.DaemonVolumes(mgrConfig.DataPathMap, mgrConfig.ResourceName),
-			HostNetwork:        c.HostNetwork,
+			HostNetwork:        c.Network.IsHost(),
 		},
 	}
 
@@ -74,7 +74,7 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
 			keyring.Volume().Admin())
 	}
 
-	if c.HostNetwork {
+	if c.Network.IsHost() {
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 	c.annotations.ApplyToObjectMeta(&podSpec.ObjectMeta)
@@ -272,7 +272,7 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 	}
 
 	// If host networking is enabled, we don't need a bind addr that is different from the public addr
-	if !c.HostNetwork {
+	if !c.Network.IsHost() {
 		// Opposite of the above, --public-bind-addr will *not* still advertise on the previous
 		// port, which makes sense because this is the pod IP, which changes with every new pod.
 		container.Args = append(container.Args,

@@ -49,8 +49,22 @@ type ClusterSpec struct {
 	// The annotations-related configuration to add/set on each Pod related object.
 	Annotations         rook.Annotations      `json:"annotations,omitempty"`
 	Storage             rook.StorageScopeSpec `json:"scope,omitempty"`
-	Network             rook.NetworkSpec      `json:"network,omitempty"`
+	Network             NetworkSpec           `json:"network,omitempty"`
 	Secure              bool                  `json:"secure,omitempty"`
 	CachePercent        int                   `json:"cachePercent,omitempty"`
 	MaxSQLMemoryPercent int                   `json:"maxSQLMemoryPercent,omitempty"`
+}
+
+// NetworkSpec describes network related settings of the cluster
+type NetworkSpec struct {
+	// Set of named ports that can be configured for this resource
+	Ports []PortSpec `json:"ports,omitempty"`
+}
+
+// PortSpec is named port
+type PortSpec struct {
+	// Name of port
+	Name string `json:"name,omitempty"`
+	// Port number
+	Port int32 `json:"port,omitempty"`
 }

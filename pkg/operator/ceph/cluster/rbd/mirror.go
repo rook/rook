@@ -56,7 +56,7 @@ type Mirroring struct {
 	spec            cephv1.RBDMirroringSpec
 	cephVersion     cephv1.CephVersionSpec
 	rookVersion     string
-	hostNetwork     bool
+	Network         cephv1.NetworkSpec
 	dataDirHostPath string
 }
 
@@ -68,7 +68,7 @@ func New(
 	cephVersion cephv1.CephVersionSpec,
 	placement rookalpha.Placement,
 	annotations rookalpha.Annotations,
-	hostNetwork bool,
+	network cephv1.NetworkSpec,
 	spec cephv1.RBDMirroringSpec,
 	resources v1.ResourceRequirements,
 	ownerRef metav1.OwnerReference,
@@ -83,7 +83,7 @@ func New(
 		rookVersion:     rookVersion,
 		cephVersion:     cephVersion,
 		spec:            spec,
-		hostNetwork:     hostNetwork,
+		Network:         network,
 		resources:       resources,
 		ownerRef:        ownerRef,
 		dataDirHostPath: dataDirHostPath,

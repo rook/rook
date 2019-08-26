@@ -17,7 +17,7 @@ package v1beta1
 
 import (
 	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -58,7 +58,7 @@ type ClusterSpec struct {
 	Annotations rook.AnnotationsSpec `json:"annotations,omitempty"`
 	// The placement-related configuration to pass to kubernetes (affinity, node selector, tolerations).
 	Placement rook.PlacementSpec `json:"placement,omitempty"`
-	Network   NetworkSpec        `json:"network,omitempty"`
+	Network   rook.NetworkSpec   `json:"network,omitempty"`
 	Dashboard DashboardSpec      `json:"dashboard,omitempty"`
 	// Resources set resource requests and limits
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`
@@ -79,11 +79,6 @@ type ClusterSpec struct {
 
 type DashboardSpec struct {
 	LocalAddr string `json:"localAddr"`
-}
-
-type NetworkSpec struct {
-	ServerIfName string `json:"serverIfName"`
-	BrokerIfName string `json:"brokerIfName"`
 }
 
 type ClusterState string

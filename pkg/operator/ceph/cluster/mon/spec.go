@@ -147,9 +147,9 @@ func (c *Cluster) makeMonPod(monConfig *monConfig, hostname string) *v1.Pod {
 		RestartPolicy: v1.RestartPolicyAlways,
 		NodeSelector:  map[string]string{v1.LabelHostname: hostname},
 		Volumes:       opspec.DaemonVolumesBase(monConfig.DataPathMap, keyringStoreName),
-		HostNetwork:   c.HostNetwork,
+		HostNetwork:   c.Network.IsHost(),
 	}
-	if c.HostNetwork {
+	if c.Network.IsHost() {
 		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 
@@ -245,7 +245,7 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 
 	// Handle the non-default port for host networking. If host networking is not being used,
 	// the service created elsewhere will handle the non-default port redirection to the default port inside the container.
-	if c.HostNetwork && monConfig.Port != DefaultMsgr1Port {
+	if c.Network.IsHost() && monConfig.Port != DefaultMsgr1Port {
 		logger.Warningf("Starting mon %s with host networking on a non-default port %d. The mon must be failed over before enabling msgr2.",
 			monConfig.DaemonName, monConfig.Port)
 		publicAddr = fmt.Sprintf("%s:%d", publicAddr, monConfig.Port)
@@ -291,7 +291,7 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 	}
 
 	// If host networking is enabled, we don't need a bind addr that is different from the public addr
-	if !c.HostNetwork {
+	if !c.Network.IsHost() {
 		// Opposite of the above, --public-bind-addr will *not* still advertise on the previous
 		// port, which makes sense because this is the pod IP, which changes with every new pod.
 		container.Args = append(container.Args,

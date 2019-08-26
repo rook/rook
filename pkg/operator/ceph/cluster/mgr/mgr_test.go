@@ -61,7 +61,7 @@ func TestStartMGR(t *testing.T) {
 		cephv1.CephVersionSpec{},
 		rookalpha.Placement{},
 		rookalpha.Annotations{},
-		false,
+		cephv1.NetworkSpec{},
 		cephv1.DashboardSpec{Enabled: true},
 		cephv1.MonitoringSpec{Enabled: true, RulesNamespace: ""},
 		v1.ResourceRequirements{},

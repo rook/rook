@@ -73,9 +73,7 @@ If this value is empty, each pod will get an ephemeral directory to store their 
 - `dataVolumeSize`: Alternative to `dataDirHostPath`. If defined then Cluster CRD operator will disregard `dataDirHostPath` setting and instead will automatically claim persistent volume. If `storage` settings not provided then provisioned volume will also be used as a storage device for Target pods (automatic provisioning via `rtlfs`).
 - `dashboard`: This specification may be used to override and enable additional [EdgeFS UI Dashboard](edgefs-ui.md) functionality.
   - `localAddr`: Specifies local IP address to be used as Kubernetes external IP.
-- `network`: If defined then host network will be enabled for the cluster and services. This is optional and if not defined then `eth0` will be used to construct cluster bucket network.
-  - `serverIfName`: Specifies data daemon networking interface name. If not defined then `eth0` is assumed.
-  - `brokerIfName`: Specifies broker daemon networking interface name. If not defined then `eth0` is assumed.
+- `network`: [network configuration settings](#network-configuration-settings)
 - `devicesResurrectMode`: When enabled, this mode attempts to recreate cluster based on previous CRD definition. If this flag set to one of the parameters, then operator will only adjust networking. Often used when clean up of old devices is needed. Only applicable when used with `dataDirHostPath`.
   - `restore`: Attempt to restart and restore previously enabled cluster CRD.
   - `restoreZap`: Attempt to re-initialize previously selected `devices` prior to restore. By default cluster assumes that selected devices have no logical partitions and considered empty.
@@ -159,6 +157,16 @@ A Placement configuration is specified (according to the Kubernetes PodSpec) as:
 - `tolerations`: list of Kubernetes [Toleration](https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/)
 
 The `mgr` pod does not allow `Pod` affinity or anti-affinity. This is because of the mgrs having built-in anti-affinity with each other through the operator. The operator chooses which nodes are to run a mgr on. Each mgr is then tied to a node with a node selector using a hostname.
+
+### Network Configuration Settings
+Configure the network that will be enabled for the cluster and services. This is optional and if not defined then the cluster default network's `eth0` will be used to construct cluster bucket network.
+- `provider`: Specifies the network provider that will be used to connect the network interface. You can choose between `host`, and `multus`.
+- `selectors`: List the network selector that will be used associated by a key. The available keys are `server` and `broker`.
+  - `server`: Specifies data daemon host's networking interface name or multus's network attachment selection annotation.
+  - `broker`: Specifies broker daemon host's networking interface name or multus's network attachment selection annotation.
+
+For `multus` network provider, an already working cluster with multus networking is required. Network attachment definition that later will be attached to the cluster needs to be created before the Cluster CRD.
+You can add the multus network attachment selection annotation selecting the created network attachment definition on `selectors`. Make sure to define the interface name that will be assigned by multus and choose only one syntax either the short or JSON form to define all the available keys.
 
 ### Cluster-wide Resources Configuration Settings
 Resources should be specified so that the rook components are handled after [Kubernetes Pod Quality of Service classes](https://kubernetes.io/docs/tasks/configure-pod-container/quality-service-pod/).
@@ -303,6 +311,26 @@ spec:
         requests:
           cpu: "2"
           memory: "4096Mi"
+```
+
+### Network Configuration: Multus network
+An example on how to configure the cluster network to use multus network. Here, a NetworkAttachmentDefinition named flannel on rook-edgefs namespace is assumed.
+
+```yaml
+apiVersion: edgefs.rook.io/v1beta1
+kind: Cluster
+metadata:
+  name: rook-edgefs
+  namespace: rook-edgefs
+spec:
+  edgefsImageName: edgefs/edgefs:1.2.31
+  dataDirHostPath: /var/lib/rook
+  serviceAccount: rook-edgefs-cluster
+  network:
+    provider: multus
+    selectors:
+      server: flannel@net1
+      broker: flannel@net2
 ```
 
 ## Common Cluster Resources

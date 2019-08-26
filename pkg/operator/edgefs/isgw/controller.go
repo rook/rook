@@ -27,7 +27,7 @@ import (
 	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -56,7 +56,7 @@ type ISGWController struct {
 	context          *clusterd.Context
 	namespace        string
 	rookImage        string
-	hostNetwork      bool
+	NetworkSpec      rookalpha.NetworkSpec
 	dataDirHostPath  string
 	dataVolumeSize   resource.Quantity
 	annotations      rookalpha.Annotations
@@ -72,7 +72,7 @@ func NewISGWController(
 	context *clusterd.Context,
 	namespace string,
 	rookImage string,
-	hostNetwork bool,
+	NetworkSpec rookalpha.NetworkSpec,
 	dataDirHostPath string,
 	dataVolumeSize resource.Quantity,
 	placement rookalpha.Placement,
@@ -85,7 +85,7 @@ func NewISGWController(
 		context:          context,
 		namespace:        namespace,
 		rookImage:        rookImage,
-		hostNetwork:      hostNetwork,
+		NetworkSpec:      NetworkSpec,
 		dataDirHostPath:  dataDirHostPath,
 		dataVolumeSize:   dataVolumeSize,
 		placement:        placement,

@@ -27,7 +27,7 @@ import (
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/operator/discover"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -177,6 +177,11 @@ func (c *cluster) retrieveDeploymentConfig() (edgefsv1beta1.ClusterDeploymentCon
 		if deploymentConfig.DeploymentType == "" || deploymentConfig.TransportKey == "" {
 			return deploymentConfig, fmt.Errorf("Can't retrieve DeploymentConfig from config map. Unknown DeploymentType or TransportKey values")
 		}
+	}
+
+	// Set privileges==true in case of HostNetwork
+	if c.Spec.Network.IsHost() {
+		deploymentConfig.NeedPrivileges = true
 	}
 
 	return deploymentConfig, nil

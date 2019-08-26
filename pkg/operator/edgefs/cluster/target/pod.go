@@ -24,7 +24,7 @@ import (
 	"github.com/rook/rook/pkg/operator/edgefs/cluster/target/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -357,18 +357,11 @@ func (c *Cluster) configOverrideVolume() v1.Volume {
 	return v1.Volume{Name: configVolumeName, VolumeSource: v1.VolumeSource{ConfigMap: cmSource}}
 }
 
-func isHostNetworkDefined(hostNetworkSpec edgefsv1beta1.NetworkSpec) bool {
-	if len(hostNetworkSpec.ServerIfName) > 0 || len(hostNetworkSpec.ServerIfName) > 0 {
-		return true
-	}
-	return false
-}
-
 func (c *Cluster) createPodSpec(rookImage string, dro edgefsv1beta1.DevicesResurrectOptions) v1.PodSpec {
 	terminationGracePeriodSeconds := int64(60)
 
 	DNSPolicy := v1.DNSClusterFirst
-	if isHostNetworkDefined(c.HostNetworkSpec) {
+	if c.NetworkSpec.IsHost() {
 		DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 
@@ -517,7 +510,7 @@ func (c *Cluster) createPodSpec(rookImage string, dro edgefsv1beta1.DevicesResur
 		DNSPolicy:                     DNSPolicy,
 		HostIPC:                       true,
 		HostPID:                       true,
-		HostNetwork:                   isHostNetworkDefined(c.HostNetworkSpec),
+		HostNetwork:                   c.NetworkSpec.IsHost(),
 		Volumes:                       volumes,
 	}
 }
@@ -569,6 +562,11 @@ func (c *Cluster) makeStatefulSet(replicas int32, rookImage string, dro edgefsv1
 	}
 
 	k8sutil.SetOwnerRef(&statefulSet.ObjectMeta, &c.ownerRef)
+
+	if c.NetworkSpec.IsMultus() {
+		k8sutil.ApplyMultus(c.NetworkSpec, &statefulSet.ObjectMeta)
+		k8sutil.ApplyMultus(c.NetworkSpec, &statefulSet.Spec.Template.ObjectMeta)
+	}
 	c.annotations.ApplyToObjectMeta(&statefulSet.ObjectMeta)
 	c.annotations.ApplyToObjectMeta(&statefulSet.Spec.Template.ObjectMeta)
 	c.placement.ApplyToPodSpec(&statefulSet.Spec.Template.Spec)

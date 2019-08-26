@@ -26,7 +26,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -219,12 +219,13 @@ func (c *ISGWController) makeDeployment(svcname, namespace, rookImage string, is
 			RestartPolicy:      v1.RestartPolicyAlways,
 			Volumes:            volumes,
 			HostIPC:            true,
-			HostNetwork:        c.hostNetwork,
+			HostNetwork:        c.NetworkSpec.IsHost(),
 			NodeSelector:       map[string]string{namespace: "cluster"},
 			ServiceAccountName: serviceAccountName,
 		},
 	}
-	if c.hostNetwork {
+
+	if c.NetworkSpec.IsHost() {
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 

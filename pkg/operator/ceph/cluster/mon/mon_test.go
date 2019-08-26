@@ -101,10 +101,10 @@ func newTestStartClusterWithQuorumResponse(namespace string, monResponse func() 
 	}
 }
 
-func newCluster(context *clusterd.Context, namespace string, hostNetwork bool, allowMultiplePerNode bool, resources v1.ResourceRequirements) *Cluster {
+func newCluster(context *clusterd.Context, namespace string, network cephv1.NetworkSpec, allowMultiplePerNode bool, resources v1.ResourceRequirements) *Cluster {
 	return &Cluster{
 		ClusterInfo: nil,
-		HostNetwork: hostNetwork,
+		Network:     network,
 		context:     context,
 		Namespace:   namespace,
 		rookVersion: "myversion",
@@ -146,7 +146,7 @@ func TestStartMonPods(t *testing.T) {
 
 	namespace := "ns"
 	context := newTestStartCluster(namespace)
-	c := newCluster(context, namespace, false, true, v1.ResourceRequirements{})
+	c := newCluster(context, namespace, cephv1.NetworkSpec{}, true, v1.ResourceRequirements{})
 
 	// start a basic cluster
 	_, err := c.Start(c.ClusterInfo, c.rookVersion, cephver.Mimic, c.spec)
@@ -165,7 +165,7 @@ func TestOperatorRestart(t *testing.T) {
 
 	namespace := "ns"
 	context := newTestStartCluster(namespace)
-	c := newCluster(context, namespace, false, true, v1.ResourceRequirements{})
+	c := newCluster(context, namespace, cephv1.NetworkSpec{}, true, v1.ResourceRequirements{})
 	c.ClusterInfo = test.CreateConfigDir(1)
 
 	// start a basic cluster
@@ -175,7 +175,7 @@ func TestOperatorRestart(t *testing.T) {
 
 	validateStart(t, c)
 
-	c = newCluster(context, namespace, false, true, v1.ResourceRequirements{})
+	c = newCluster(context, namespace, cephv1.NetworkSpec{}, true, v1.ResourceRequirements{})
 
 	// starting again should be a no-op, but will not result in an error
 	info, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Mimic, c.spec)
@@ -192,7 +192,7 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 	context := newTestStartCluster(namespace)
 
 	// cluster without host networking
-	c := newCluster(context, namespace, false, false, v1.ResourceRequirements{})
+	c := newCluster(context, namespace, cephv1.NetworkSpec{}, false, v1.ResourceRequirements{})
 	c.ClusterInfo = test.CreateConfigDir(1)
 
 	// start a basic cluster
@@ -203,7 +203,7 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 	validateStart(t, c)
 
 	// cluster with host networking
-	c = newCluster(context, namespace, true, false, v1.ResourceRequirements{})
+	c = newCluster(context, namespace, cephv1.NetworkSpec{HostNetwork: true}, false, v1.ResourceRequirements{})
 
 	// starting again should be a no-op, but still results in an error
 	info, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Mimic, c.spec)
@@ -231,7 +231,7 @@ func TestSaveMonEndpoints(t *testing.T) {
 	clientset := test.New(1)
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
-	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: configDir}, "ns", "", false, metav1.OwnerReference{}, &sync.Mutex{})
+	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: configDir}, "ns", "", cephv1.NetworkSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
 	setCommonMonProperties(c, 1, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 
 	// create the initial config map

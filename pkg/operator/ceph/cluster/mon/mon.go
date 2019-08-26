@@ -99,7 +99,7 @@ type Cluster struct {
 	rookVersion         string
 	orchestrationMutex  sync.Mutex
 	Port                int32
-	HostNetwork         bool
+	Network             cephv1.NetworkSpec
 	maxMonID            int
 	waitForStart        bool
 	dataDirHostPath     string
@@ -140,7 +140,7 @@ type NodeInfo struct {
 }
 
 // New creates an instance of a mon cluster
-func New(context *clusterd.Context, namespace, dataDirHostPath string, hostNetwork bool, ownerRef metav1.OwnerReference, csiConfigMutex *sync.Mutex) *Cluster {
+func New(context *clusterd.Context, namespace, dataDirHostPath string, network cephv1.NetworkSpec, ownerRef metav1.OwnerReference, csiConfigMutex *sync.Mutex) *Cluster {
 	return &Cluster{
 		context:             context,
 		dataDirHostPath:     dataDirHostPath,
@@ -150,7 +150,7 @@ func New(context *clusterd.Context, namespace, dataDirHostPath string, hostNetwo
 		monPodRetryInterval: 6 * time.Second,
 		monPodTimeout:       5 * time.Minute,
 		monTimeoutList:      map[string]time.Time{},
-		HostNetwork:         hostNetwork,
+		Network:             network,
 		mapping: &Mapping{
 			Node: map[string]*NodeInfo{},
 			Port: map[string]int32{},
@@ -172,8 +172,8 @@ func (c *Cluster) Start(clusterInfo *cephconfig.ClusterInfo, rookVersion string,
 	c.spec = spec
 
 	// fail if we were instructed to deploy more than one mon on the same machine with host networking
-	if c.HostNetwork && c.spec.Mon.AllowMultiplePerNode && c.spec.Mon.Count > 1 {
-		return nil, fmt.Errorf("refusing to deploy %d monitors on the same host since hostNetwork is %v and allowMultiplePerNode is %v. Only one monitor per node is allowed", c.spec.Mon.Count, c.HostNetwork, c.spec.Mon.AllowMultiplePerNode)
+	if c.Network.IsHost() && c.spec.Mon.AllowMultiplePerNode && c.spec.Mon.Count > 1 {
+		return nil, fmt.Errorf("refusing to deploy %d monitors on the same host since hostNetwork is %v and allowMultiplePerNode is %v. Only one monitor per node is allowed", c.spec.Mon.Count, c.Network, c.spec.Mon.AllowMultiplePerNode)
 	}
 
 	// Validate pod's memory if specified
@@ -367,7 +367,7 @@ func resourceName(name string) string {
 
 func (c *Cluster) initMonIPs(mons []*monConfig) error {
 	for _, m := range mons {
-		if c.HostNetwork {
+		if c.Network.IsHost() {
 			logger.Infof("setting mon endpoints for hostnetwork mode")
 			node, ok := c.mapping.Node[m.DaemonName]
 			if !ok {

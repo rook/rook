@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	cephtest "github.com/rook/rook/pkg/operator/ceph/test"
@@ -55,7 +54,7 @@ func TestPodSpecs(t *testing.T) {
 		rookVersion: "rook/rook:myversion",
 		clusterSpec: &cephv1.ClusterSpec{
 			CephVersion: cephv1.CephVersionSpec{Image: "ceph/ceph:v13.2.1"},
-			Network: rookalpha.NetworkSpec{
+			Network: cephv1.NetworkSpec{
 				HostNetwork: true,
 			},
 		},
@@ -98,7 +97,7 @@ func TestSSLPodSpec(t *testing.T) {
 		rookVersion: "rook/rook:myversion",
 		clusterSpec: &cephv1.ClusterSpec{
 			CephVersion: cephv1.CephVersionSpec{Image: "ceph/ceph:v13.2.1"},
-			Network: rookalpha.NetworkSpec{
+			Network: cephv1.NetworkSpec{
 				HostNetwork: true,
 			},
 		},

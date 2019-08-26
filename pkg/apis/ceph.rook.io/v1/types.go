@@ -61,7 +61,7 @@ type ClusterSpec struct {
 	Placement rook.PlacementSpec `json:"placement,omitempty"`
 
 	// Network related configuration
-	Network rook.NetworkSpec `json:"network,omitempty"`
+	Network NetworkSpec `json:"network,omitempty"`
 
 	// Resources set resource requests and limits
 	Resources rook.ResourceSpec `json:"resources,omitempty"`
@@ -393,4 +393,12 @@ type GaneshaServerSpec struct {
 
 	// Resources set resource requests and limits
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`
+}
+
+// NetworkSpec for Ceph includes backward compatibility code
+type NetworkSpec struct {
+	rook.NetworkSpec `json:",inline"`
+
+	// HostNetwork to enable host network
+	HostNetwork bool `json:"hostNetwork"`
 }
