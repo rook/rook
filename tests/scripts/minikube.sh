@@ -136,8 +136,7 @@ case "${1:-}" in
     minikube start --memory="${MEMORY}" -b kubeadm --vm-driver="${VM_DRIVER}"
     wait_for_ssh
     # create a link so the default dataDirHostPath will work for this environment
-    minikube ssh "sudo mkdir -p /mnt/${DISK}/${PWD}; sudo mkdir -p $(dirname $PWD); sudo ln -s /mnt/${DISK}/${PWD} $(dirname $PWD)/"
-    minikube ssh "sudo mkdir -p /mnt/${DISK}/var/lib/rook;sudo ln -s /mnt/${DISK}/var/lib/rook /var/lib/rook"
+    minikube ssh "sudo mkdir -p /mnt/${DISK}/rook/ && sudo ln -sf /mnt/${DISK}/rook/ /var/lib/"
     copy_images "$2"
     ;;
   down)
