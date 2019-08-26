@@ -56,7 +56,7 @@ To install the helm chart from master, you will need to pass the specific versio
 ```console
 helm repo add rook-master https://charts.rook.io/master
 helm search rook-ceph
-helm install --namespace rook-ceph rook-master/rook-ceph --version <version>
+helm install --namespace rook-ceph rook-release/rook-ceph --version <version>
 ```
 
 For example:
