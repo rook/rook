@@ -29,6 +29,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/util/display"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/sys"
@@ -40,6 +41,7 @@ const (
 	osdsPerDeviceFlag   = "--osds-per-device"
 	encryptedFlag       = "--dmcrypt"
 	databaseSizeFlag    = "--block-db-size"
+	dbDeviceFlag        = "--db-devices"
 	cephVolumeCmd       = "ceph-volume"
 	cephVolumeMinDBSize = 1024 // 1GB
 	lvmConfPath         = "/etc/lvm/lvm.conf"
@@ -167,20 +169,7 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 	osdsPerDeviceCount := sanitizeOSDsPerDevice(a.storeConfig.OSDsPerDevice)
 	batchArgs := baseArgs
 
-	if a.storeConfig.StoreType == config.Bluestore && a.storeConfig.DatabaseSizeMB > 0 {
-		if a.storeConfig.DatabaseSizeMB < cephVolumeMinDBSize {
-			// ceph-volume will convert this value to ?G. It needs to be > 1G to invoke lvcreate.
-			logger.Infof("skipping databaseSizeMB setting. For it should be larger than %dMB.", cephVolumeMinDBSize)
-		} else {
-			batchArgs = append(batchArgs, []string{
-				databaseSizeFlag,
-				// ceph-volume takes in this value in bytes
-				strconv.FormatUint(display.MbTob(uint64(a.storeConfig.DatabaseSizeMB)), 10),
-			}...)
-		}
-	}
-
-	metadataDevices := make(map[string][]string)
+	metadataDevices := make(map[string]map[string]string)
 	for name, device := range devices.Entries {
 		if device.LegacyPartitionsFound {
 			logger.Infof("skipping device %s configured with legacy rook osd", name)
@@ -203,18 +192,33 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 				}
 				logger.Infof("using %s as metadataDevice for device %s and let ceph-volume lvm batch decide how to create volumes", md, deviceArg)
 				if _, ok := metadataDevices[md]; ok {
-					metadataDevices[md] = append(metadataDevices[md], deviceArg)
 					// Fail when two devices using the same metadata device have different values for osdsPerDevice
-					if deviceOSDCount != metadataDevices[md][1] {
-						return fmt.Errorf("metadataDevice (%s) has more than 1 osdsPerDevice value set: %s != %s", md, deviceOSDCount, metadataDevices[md][1])
+					metadataDevices[md]["devices"] += " " + deviceArg
+					if deviceOSDCount != metadataDevices[md]["osdsperdevice"] {
+						return fmt.Errorf("metadataDevice (%s) has more than 1 osdsPerDevice value set: %s != %s", md, deviceOSDCount, metadataDevices[md]["osdsperdevice"])
 					}
 				} else {
-					metadataDevices[md] = []string{
-						osdsPerDeviceFlag,
-						deviceOSDCount,
-						deviceArg,
+					metadataDevices[md] = make(map[string]string)
+					metadataDevices[md]["osdsperdevice"] = deviceOSDCount
+					metadataDevices[md]["devices"] = deviceArg
+				}
+				deviceDBSizeMB := getDatabaseSize(a.storeConfig.DatabaseSizeMB, device.Config.DatabaseSizeMB)
+				if storeFlag == "--bluestore" && deviceDBSizeMB > 0 {
+					if deviceDBSizeMB < cephVolumeMinDBSize {
+						// ceph-volume will convert this value to ?G. It needs to be > 1G to invoke lvcreate.
+						logger.Infof("skipping databaseSizeMB setting (%d). For it should be larger than %dMB.", deviceDBSizeMB, cephVolumeMinDBSize)
+					} else {
+						dbSizeString := strconv.FormatUint(display.MbTob(uint64(deviceDBSizeMB)), 10)
+						if _, ok := metadataDevices[md]["databasesizemb"]; ok {
+							if metadataDevices[md]["databasesizemb"] != dbSizeString {
+								return fmt.Errorf("metadataDevice (%s) has more than 1 databaseSizeMB value set: %s != %s", md, metadataDevices[md]["databasesizemb"], dbSizeString)
+							}
+						} else {
+							metadataDevices[md]["databasesizemb"] = dbSizeString
+						}
 					}
 				}
+
 			} else {
 				immediateExecuteArgs := append(baseArgs, []string{
 					osdsPerDeviceFlag,
@@ -245,10 +249,30 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 		}
 	}
 
-	for md, devs := range metadataDevices {
+	for md, conf := range metadataDevices {
 
-		mdArgs := append(batchArgs, devs...)
-		mdArgs = append(mdArgs, path.Join("/dev", md))
+		if _, ok := conf["osdsperdevice"]; ok {
+			batchArgs = append(batchArgs, []string{
+				osdsPerDeviceFlag,
+				conf["osdsperdevice"],
+			}...)
+		}
+		if _, ok := conf["databasesizemb"]; ok {
+			batchArgs = append(batchArgs, []string{
+				databaseSizeFlag,
+				conf["databasesizemb"],
+			}...)
+		}
+		mdArgs := append(batchArgs, strings.Split(conf["devices"], " ")...)
+
+		if a.cluster.CephVersion.IsAtLeast(cephver.CephVersion{Major: 14, Minor: 2, Extra: 1}) {
+			mdArgs = append(mdArgs, []string{
+				dbDeviceFlag,
+				path.Join("/dev", md),
+			}...)
+		} else {
+			mdArgs = append(mdArgs, path.Join("/dev", md))
+		}
 
 		// Reporting
 		reportArgs := append(mdArgs, []string{
@@ -287,6 +311,13 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 	}
 
 	return nil
+}
+
+func getDatabaseSize(globalSize int, deviceSize int) int {
+	if deviceSize > 0 {
+		globalSize = deviceSize
+	}
+	return globalSize
 }
 
 func sanitizeOSDsPerDevice(count int) string {
