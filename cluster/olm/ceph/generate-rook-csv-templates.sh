@@ -2,6 +2,9 @@
 set -e
 
 export OLM_SKIP_PKG_FILE_GEN="true"
+export OLM_INCLUDE_CEPHFS_CSI="true"
+export OLM_INCLUDE_RBD_CSI="true"
+export OLM_INCLUDE_REPORTER="true"
 
 if [ -f "Dockerfile" ]; then
     # if this is being executed from the images/ceph/ dir,
@@ -18,7 +21,6 @@ TEMPLATES_DIR="$OLM_CATALOG_DIR/templates"
 
 function generate_template() {
     local provider=$1
-
     local csv_template_file="$TEMPLATES_DIR/rook-ceph-${provider}.vVERSION.clusterserviceversion.yaml.in"
 
     # v9999.9999.9999 is just a placeholder. operator-sdk requires valid semver here.
@@ -27,6 +29,8 @@ function generate_template() {
 
     # replace the placeholder with the templated value
     sed -i "s/9999.9999.9999/{{.RookOperatorCsvVersion}}/g" $csv_template_file
+
+    echo "Template stored at $csv_template_file"
 }
 
 # start clean
