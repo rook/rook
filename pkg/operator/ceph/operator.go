@@ -166,15 +166,6 @@ func (o *Operator) startSystemDaemons(externalCeph bool) error {
 		}
 	}
 
-	// The discover daemon is only needed for local clusters where OSDs will be created.
-	// External clusters do not create OSDs locally.
-	if !externalCeph {
-		rookDiscover := discover.New(o.context.Clientset)
-		if err := rookDiscover.Start(namespace, o.rookImage, o.securityAccount); err != nil {
-			return fmt.Errorf("Error starting device discovery daemonset: %v", err)
-		}
-	}
-
 	serverVersion, err := o.context.Clientset.Discovery().ServerVersion()
 	if err != nil {
 		return fmt.Errorf("error getting server version: %v", err)
