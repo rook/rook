@@ -218,6 +218,7 @@ function hack_csv() {
 
     sed -i 's/rook-ceph-cluster-mgmt-rules/rook-ceph-system/' "$DESIRED_CSV_FILE_NAME"
     sed -i 's/rook-ceph-global-rules/rook-ceph-system/' "$DESIRED_CSV_FILE_NAME"
+    sed -i 's/rook-ceph-object-bucket/rook-ceph-system/' "$DESIRED_CSV_FILE_NAME"
 
     sed -i 's/rook-ceph-mgr-system-rules/rook-ceph-mgr/' "$DESIRED_CSV_FILE_NAME"
     sed -i 's/rook-ceph-mgr-cluster-rules/rook-ceph-mgr/' "$DESIRED_CSV_FILE_NAME"
@@ -225,16 +226,15 @@ function hack_csv() {
     sed -i 's/cephfs-csi-nodeplugin-rules/rook-csi-cephfs-plugin-sa/' "$DESIRED_CSV_FILE_NAME"
     sed -i 's/cephfs-external-provisioner-runner-rules/rook-csi-cephfs-provisioner-sa/' "$DESIRED_CSV_FILE_NAME"
     sed -i 's/rbd-csi-nodeplugin-rules/rook-csi-rbd-plugin-sa/' "$DESIRED_CSV_FILE_NAME"
-
+    sed -i 's/rbd-external-provisioner-runner-rules/rook-csi-rbd-provisioner-sa/' "$DESIRED_CSV_FILE_NAME"
     # The operator-sdk also does not properly respect when
     # Roles differ from the Service Account name
     # The operator-sdk instead assumes the Role/ClusterRole is the ServiceAccount name
     #
     # To account for these mappings, we have to replace Role/ClusterRole names with
     # the corresponding ServiceAccount.
-    sed -i 's/cephfs-external-provisioner-cfg/cephfs-csi-provisioner/' "$DESIRED_CSV_FILE_NAME"
-    sed -i 's/rbd-external-provisioner-cfg/rbd-csi-provisioner/' "$DESIRED_CSV_FILE_NAME"
-    sed -i 's/rbd-external-provisioner-runner/rook-csi-rbd-provisioner-sa/' "$DESIRED_CSV_FILE_NAME"
+    sed -i 's/cephfs-external-provisioner-cfg/rook-csi-cephfs-provisioner-sa/' "$DESIRED_CSV_FILE_NAME"
+    sed -i 's/rbd-external-provisioner-cfg/rbd-csi-provisioner-sa/' "$DESIRED_CSV_FILE_NAME"
 }
 
 function generate_package() {
