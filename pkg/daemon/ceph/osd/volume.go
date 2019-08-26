@@ -247,8 +247,8 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 
 	for md, devs := range metadataDevices {
 
-		mdArgs := append(batchArgs, path.Join("/dev", md))
-		mdArgs = append(mdArgs, devs...)
+		mdArgs := append(batchArgs, devs...)
+		mdArgs = append(mdArgs, path.Join("/dev", md))
 
 		// Reporting
 		reportArgs := append(mdArgs, []string{
