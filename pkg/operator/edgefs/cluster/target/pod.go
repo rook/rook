@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"strconv"
 
-	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
+	edgefsv1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/edgefs/cluster/target/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	appsv1 "k8s.io/api/apps/v1"
@@ -82,7 +82,7 @@ func (c *Cluster) makeCorosyncContainer(containerImage string) v1.Container {
 	}
 
 	if c.useHostLocalTime {
-		volumeMounts = append(volumeMounts, edgefsv1beta1.GetHostLocalTimeVolumeMount())
+		volumeMounts = append(volumeMounts, edgefsv1.GetHostLocalTimeVolumeMount())
 	}
 
 	return v1.Container{
@@ -134,7 +134,7 @@ func (c *Cluster) makeAuditdContainer(containerImage string) v1.Container {
 	}
 
 	if c.useHostLocalTime {
-		volumeMounts = append(volumeMounts, edgefsv1beta1.GetHostLocalTimeVolumeMount())
+		volumeMounts = append(volumeMounts, edgefsv1.GetHostLocalTimeVolumeMount())
 	}
 
 	return v1.Container{
@@ -165,7 +165,7 @@ func (c *Cluster) makeAuditdContainer(containerImage string) v1.Container {
 	}
 }
 
-func (c *Cluster) makeDaemonContainer(containerImage string, dro edgefsv1beta1.DevicesResurrectOptions, isInitContainer bool, containerSlaveIndex int) v1.Container {
+func (c *Cluster) makeDaemonContainer(containerImage string, dro edgefsv1.DevicesResurrectOptions, isInitContainer bool, containerSlaveIndex int) v1.Container {
 
 	privileged := c.deploymentConfig.NeedPrivileges
 	runAsUser := int64(0)
@@ -214,7 +214,7 @@ func (c *Cluster) makeDaemonContainer(containerImage string, dro edgefsv1beta1.D
 	}
 
 	if c.useHostLocalTime {
-		volumeMounts = append(volumeMounts, edgefsv1beta1.GetHostLocalTimeVolumeMount())
+		volumeMounts = append(volumeMounts, edgefsv1.GetHostLocalTimeVolumeMount())
 	}
 
 	if containerSlaveIndex > 0 {
@@ -243,9 +243,9 @@ func (c *Cluster) makeDaemonContainer(containerImage string, dro edgefsv1beta1.D
 	// get cluster wide sync option, and apply for deploymentConfig
 	clusterStorageConfig := config.ToStoreConfig(c.Storage.Config)
 
-	if c.deploymentConfig.DeploymentType == edgefsv1beta1.DeploymentAutoRtlfs {
+	if c.deploymentConfig.DeploymentType == edgefsv1.DeploymentAutoRtlfs {
 		volumeMounts = append(volumeMounts, v1.VolumeMount{Name: dataVolumeName, MountPath: "/data"})
-	} else if c.deploymentConfig.DeploymentType == edgefsv1beta1.DeploymentRtlfs {
+	} else if c.deploymentConfig.DeploymentType == edgefsv1.DeploymentRtlfs {
 		rtlfsDevices := GetRtlfsDevices(c.Storage.Directories, &clusterStorageConfig)
 		for _, device := range rtlfsDevices {
 			volumeMounts = append(volumeMounts, v1.VolumeMount{Name: device.Name, MountPath: device.Path})
@@ -315,7 +315,7 @@ func (c *Cluster) makeDaemonContainer(containerImage string, dro edgefsv1beta1.D
 		cont.ReadinessProbe = c.getReadinessProbe()
 	}
 
-	cont.Env = append(cont.Env, edgefsv1beta1.GetInitiatorEnvArr("target",
+	cont.Env = append(cont.Env, edgefsv1.GetInitiatorEnvArr("target",
 		c.resourceProfile == "embedded", c.chunkCacheSize, c.resources)...)
 
 	return cont
@@ -357,7 +357,7 @@ func (c *Cluster) configOverrideVolume() v1.Volume {
 	return v1.Volume{Name: configVolumeName, VolumeSource: v1.VolumeSource{ConfigMap: cmSource}}
 }
 
-func (c *Cluster) createPodSpec(rookImage string, dro edgefsv1beta1.DevicesResurrectOptions) v1.PodSpec {
+func (c *Cluster) createPodSpec(rookImage string, dro edgefsv1.DevicesResurrectOptions) v1.PodSpec {
 	terminationGracePeriodSeconds := int64(60)
 
 	DNSPolicy := v1.DNSClusterFirst
@@ -393,7 +393,7 @@ func (c *Cluster) createPodSpec(rookImage string, dro edgefsv1beta1.DevicesResur
 	}
 
 	if c.useHostLocalTime {
-		volumes = append(volumes, edgefsv1beta1.GetHostLocalTimeVolume())
+		volumes = append(volumes, edgefsv1.GetHostLocalTimeVolume())
 	}
 
 	hostPathDirectoryOrCreate := v1.HostPathDirectoryOrCreate
@@ -419,7 +419,7 @@ func (c *Cluster) createPodSpec(rookImage string, dro edgefsv1beta1.DevicesResur
 		})
 	}
 
-	if c.deploymentConfig.DeploymentType == edgefsv1beta1.DeploymentRtlfs {
+	if c.deploymentConfig.DeploymentType == edgefsv1.DeploymentRtlfs {
 		// RTLFS with specified folders
 		for _, folder := range c.deploymentConfig.GetRtlfsDevices() {
 			volumes = append(volumes, v1.Volume{
@@ -515,7 +515,7 @@ func (c *Cluster) createPodSpec(rookImage string, dro edgefsv1beta1.DevicesResur
 	}
 }
 
-func (c *Cluster) makeStatefulSet(replicas int32, rookImage string, dro edgefsv1beta1.DevicesResurrectOptions) (*appsv1.StatefulSet, error) {
+func (c *Cluster) makeStatefulSet(replicas int32, rookImage string, dro edgefsv1.DevicesResurrectOptions) (*appsv1.StatefulSet, error) {
 	statefulSet := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      appName,

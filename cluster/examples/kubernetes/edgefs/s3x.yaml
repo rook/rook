@@ -1,4 +1,4 @@
-apiVersion: edgefs.rook.io/v1beta1
+apiVersion: edgefs.rook.io/v1
 kind: S3X
 metadata:
   name: s3x01

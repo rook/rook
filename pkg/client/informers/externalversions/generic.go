@@ -24,7 +24,7 @@ import (
 	v1alpha1 "github.com/rook/rook/pkg/apis/cassandra.rook.io/v1alpha1"
 	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cockroachdbrookiov1alpha1 "github.com/rook/rook/pkg/apis/cockroachdb.rook.io/v1alpha1"
-	v1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
+	edgefsrookiov1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
 	miniorookiov1alpha1 "github.com/rook/rook/pkg/apis/minio.rook.io/v1alpha1"
 	nfsrookiov1alpha1 "github.com/rook/rook/pkg/apis/nfs.rook.io/v1alpha1"
 	v1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
@@ -81,21 +81,21 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 	case cockroachdbrookiov1alpha1.SchemeGroupVersion.WithResource("clusters"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Cockroachdb().V1alpha1().Clusters().Informer()}, nil
 
-		// Group=edgefs.rook.io, Version=v1beta1
-	case v1beta1.SchemeGroupVersion.WithResource("clusters"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Edgefs().V1beta1().Clusters().Informer()}, nil
-	case v1beta1.SchemeGroupVersion.WithResource("iscsis"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Edgefs().V1beta1().ISCSIs().Informer()}, nil
-	case v1beta1.SchemeGroupVersion.WithResource("isgws"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Edgefs().V1beta1().ISGWs().Informer()}, nil
-	case v1beta1.SchemeGroupVersion.WithResource("nfss"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Edgefs().V1beta1().NFSs().Informer()}, nil
-	case v1beta1.SchemeGroupVersion.WithResource("s3s"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Edgefs().V1beta1().S3s().Informer()}, nil
-	case v1beta1.SchemeGroupVersion.WithResource("s3xs"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Edgefs().V1beta1().S3Xs().Informer()}, nil
-	case v1beta1.SchemeGroupVersion.WithResource("swifts"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Edgefs().V1beta1().SWIFTs().Informer()}, nil
+		// Group=edgefs.rook.io, Version=v1
+	case edgefsrookiov1.SchemeGroupVersion.WithResource("clusters"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Edgefs().V1().Clusters().Informer()}, nil
+	case edgefsrookiov1.SchemeGroupVersion.WithResource("iscsis"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Edgefs().V1().ISCSIs().Informer()}, nil
+	case edgefsrookiov1.SchemeGroupVersion.WithResource("isgws"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Edgefs().V1().ISGWs().Informer()}, nil
+	case edgefsrookiov1.SchemeGroupVersion.WithResource("nfss"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Edgefs().V1().NFSs().Informer()}, nil
+	case edgefsrookiov1.SchemeGroupVersion.WithResource("s3s"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Edgefs().V1().S3s().Informer()}, nil
+	case edgefsrookiov1.SchemeGroupVersion.WithResource("s3xs"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Edgefs().V1().S3Xs().Informer()}, nil
+	case edgefsrookiov1.SchemeGroupVersion.WithResource("swifts"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Edgefs().V1().SWIFTs().Informer()}, nil
 
 		// Group=minio.rook.io, Version=v1alpha1
 	case miniorookiov1alpha1.SchemeGroupVersion.WithResource("objectstores"):

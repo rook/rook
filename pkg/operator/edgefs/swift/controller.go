@@ -24,7 +24,7 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/google/go-cmp/cmp"
 	opkit "github.com/rook/operator-kit"
-	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
+	edgefsv1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	v1 "k8s.io/api/core/v1"
@@ -45,10 +45,10 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "edgefs-op-swift"
 var SWIFTResource = opkit.CustomResource{
 	Name:    customResourceName,
 	Plural:  customResourceNamePlural,
-	Group:   edgefsv1beta1.CustomResourceGroup,
-	Version: edgefsv1beta1.Version,
+	Group:   edgefsv1.CustomResourceGroup,
+	Version: edgefsv1.Version,
 	Scope:   apiextensionsv1beta1.NamespaceScoped,
-	Kind:    reflect.TypeOf(edgefsv1beta1.SWIFT{}).Name(),
+	Kind:    reflect.TypeOf(edgefsv1.SWIFT{}).Name(),
 }
 
 // SWIFTController represents a controller object for swift custom resources
@@ -105,8 +105,8 @@ func (c *SWIFTController) StartWatch(stopCh chan struct{}) error {
 	}
 
 	logger.Infof("start watching swift resources in namespace %s", c.namespace)
-	watcher := opkit.NewWatcher(SWIFTResource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1beta1().RESTClient())
-	go watcher.Watch(&edgefsv1beta1.SWIFT{}, stopCh)
+	watcher := opkit.NewWatcher(SWIFTResource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1().RESTClient())
+	go watcher.Watch(&edgefsv1.SWIFT{}, stopCh)
 
 	return nil
 }
@@ -158,7 +158,7 @@ func (c *SWIFTController) onDelete(obj interface{}) {
 	}
 }
 
-func (c *SWIFTController) serviceOwners(service *edgefsv1beta1.SWIFT) []metav1.OwnerReference {
+func (c *SWIFTController) serviceOwners(service *edgefsv1.SWIFT) []metav1.OwnerReference {
 	// Only set the cluster crd as the owner of the SWIFT resources.
 	// If the SWIFT crd is deleted, the operator will explicitly remove the SWIFT resources.
 	// If the SWIFT crd still exists when the cluster crd is deleted, this will make sure the SWIFT
@@ -166,7 +166,7 @@ func (c *SWIFTController) serviceOwners(service *edgefsv1beta1.SWIFT) []metav1.O
 	return []metav1.OwnerReference{c.ownerRef}
 }
 
-func (c *SWIFTController) ParentClusterChanged(cluster edgefsv1beta1.ClusterSpec) {
+func (c *SWIFTController) ParentClusterChanged(cluster edgefsv1.ClusterSpec) {
 	if c.rookImage == cluster.EdgefsImageName {
 		logger.Infof("No need to update the swift service, the same images present")
 		return
@@ -175,7 +175,7 @@ func (c *SWIFTController) ParentClusterChanged(cluster edgefsv1beta1.ClusterSpec
 	// update controller options by updated cluster spec
 	c.rookImage = cluster.EdgefsImageName
 
-	svcs, err := c.context.RookClientset.EdgefsV1beta1().SWIFTs(c.namespace).List(metav1.ListOptions{})
+	svcs, err := c.context.RookClientset.EdgefsV1().SWIFTs(c.namespace).List(metav1.ListOptions{})
 	if err != nil {
 		logger.Errorf("failed to retrieve SWIFTs to update the Edgefs version. %+v", err)
 		return
@@ -191,7 +191,7 @@ func (c *SWIFTController) ParentClusterChanged(cluster edgefsv1beta1.ClusterSpec
 	}
 }
 
-func serviceChanged(oldService, newService edgefsv1beta1.SWIFTSpec) bool {
+func serviceChanged(oldService, newService edgefsv1.SWIFTSpec) bool {
 	var diff string
 	if !reflect.DeepEqual(oldService, newService) {
 		func() {
@@ -215,9 +215,9 @@ func serviceChanged(oldService, newService edgefsv1beta1.SWIFTSpec) bool {
 	return false
 }
 
-func getSWIFTObject(obj interface{}) (swift *edgefsv1beta1.SWIFT, err error) {
+func getSWIFTObject(obj interface{}) (swift *edgefsv1.SWIFT, err error) {
 	var ok bool
-	swift, ok = obj.(*edgefsv1beta1.SWIFT)
+	swift, ok = obj.(*edgefsv1.SWIFT)
 	if ok {
 		// the swift object is of the latest type, simply return it
 		return swift.DeepCopy(), nil

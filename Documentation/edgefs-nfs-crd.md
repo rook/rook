@@ -12,7 +12,7 @@ The following settings are available for customization of EdgeFS NFS services.
 ## Sample
 
 ```yaml
-apiVersion: edgefs.rook.io/v1beta1
+apiVersion: edgefs.rook.io/v1
 kind: NFS
 metadata:
   name: nfs01
@@ -125,7 +125,7 @@ efscli service serve nfs-pepsi Hawaii/Pepsi/bk1
 5. Create NFS CRDs
 
 ```yaml
-apiVersion: edgefs.rook.io/v1beta1
+apiVersion: edgefs.rook.io/v1
 kind: NFS
 metadata:
   name: nfs-cola
@@ -135,7 +135,7 @@ spec:
 ```
 
 ```yaml
-apiVersion: edgefs.rook.io/v1beta1
+apiVersion: edgefs.rook.io/v1
 kind: NFS
 metadata:
   name: nfs-pepsi

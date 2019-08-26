@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
-	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
+	edgefsv1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	appsv1 "k8s.io/api/apps/v1"
@@ -62,7 +62,7 @@ type Cluster struct {
 	chunkCacheSize   resource.Quantity
 	ownerRef         metav1.OwnerReference
 	serviceAccount   string
-	deploymentConfig edgefsv1beta1.ClusterDeploymentConfig
+	deploymentConfig edgefsv1.ClusterDeploymentConfig
 	useHostLocalTime bool
 }
 
@@ -82,7 +82,7 @@ func New(
 	resourceProfile string,
 	chunkCacheSize resource.Quantity,
 	ownerRef metav1.OwnerReference,
-	deploymentConfig edgefsv1beta1.ClusterDeploymentConfig,
+	deploymentConfig edgefsv1.ClusterDeploymentConfig,
 	useHostLocalTime bool,
 ) *Cluster {
 
@@ -113,7 +113,7 @@ func New(
 }
 
 // Start the target management
-func (c *Cluster) Start(rookImage string, nodes []rookalpha.Node, dro edgefsv1beta1.DevicesResurrectOptions) (err error) {
+func (c *Cluster) Start(rookImage string, nodes []rookalpha.Node, dro edgefsv1.DevicesResurrectOptions) (err error) {
 	logger.Infof("start running targets in namespace %s", c.Namespace)
 
 	logger.Infof("Target Image is %s", rookImage)

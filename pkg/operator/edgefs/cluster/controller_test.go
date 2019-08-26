@@ -20,7 +20,7 @@ import (
 	"testing"
 	"time"
 
-	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
+	edgefsv1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	rookfake "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/clusterd"
@@ -46,20 +46,20 @@ func TestClusterDelete(t *testing.T) {
 
 	// create the cluster controller and tell it that the cluster has been deleted
 	controller := NewClusterController(context, "")
-	clusterToDelete := &edgefsv1beta1.Cluster{ObjectMeta: metav1.ObjectMeta{Namespace: clusterName}}
+	clusterToDelete := &edgefsv1.Cluster{ObjectMeta: metav1.ObjectMeta{Namespace: clusterName}}
 	controller.handleDelete(clusterToDelete, time.Microsecond)
 }
 
 func TestClusterChanged(t *testing.T) {
 	// a new node added, should be a change
-	old := edgefsv1beta1.ClusterSpec{
+	old := edgefsv1.ClusterSpec{
 		Storage: rookalpha.StorageScopeSpec{
 			Nodes: []rookalpha.Node{
 				{Name: "node1", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
 			},
 		},
 	}
-	new := edgefsv1beta1.ClusterSpec{
+	new := edgefsv1.ClusterSpec{
 		Storage: rookalpha.StorageScopeSpec{
 			Nodes: []rookalpha.Node{
 				{Name: "node1", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
@@ -102,7 +102,7 @@ func TestRemoveFinalizer(t *testing.T) {
 	// *****************************************
 	// start with a current version edgefs cluster
 	// *****************************************
-	cluster := &edgefsv1beta1.Cluster{
+	cluster := &edgefsv1.Cluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "cluster-1893",
 			Namespace:  "namespace-6551",
@@ -111,7 +111,7 @@ func TestRemoveFinalizer(t *testing.T) {
 	}
 
 	// create the cluster initially so it exists in the k8s api
-	cluster, err := context.RookClientset.EdgefsV1beta1().Clusters(cluster.Namespace).Create(cluster)
+	cluster, err := context.RookClientset.EdgefsV1().Clusters(cluster.Namespace).Create(cluster)
 	assert.NoError(t, err)
 	assert.Len(t, cluster.Finalizers, 1)
 
@@ -119,7 +119,7 @@ func TestRemoveFinalizer(t *testing.T) {
 	controller.removeFinalizer(cluster)
 
 	// verify the finalier was removed
-	cluster, err = context.RookClientset.EdgefsV1beta1().Clusters(cluster.Namespace).Get(cluster.Name, metav1.GetOptions{})
+	cluster, err = context.RookClientset.EdgefsV1().Clusters(cluster.Namespace).Get(cluster.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, cluster)
 	assert.Len(t, cluster.Finalizers, 0)

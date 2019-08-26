@@ -24,7 +24,7 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/google/go-cmp/cmp"
 	opkit "github.com/rook/operator-kit"
-	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
+	edgefsv1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	v1 "k8s.io/api/core/v1"
@@ -45,10 +45,10 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "edgefs-op-s3x")
 var S3XResource = opkit.CustomResource{
 	Name:    customResourceName,
 	Plural:  customResourceNamePlural,
-	Group:   edgefsv1beta1.CustomResourceGroup,
-	Version: edgefsv1beta1.Version,
+	Group:   edgefsv1.CustomResourceGroup,
+	Version: edgefsv1.Version,
 	Scope:   apiextensionsv1beta1.NamespaceScoped,
-	Kind:    reflect.TypeOf(edgefsv1beta1.S3X{}).Name(),
+	Kind:    reflect.TypeOf(edgefsv1.S3X{}).Name(),
 }
 
 // S3XController represents a controller object for s3x custom resources
@@ -106,8 +106,8 @@ func (c *S3XController) StartWatch(stopCh chan struct{}) error {
 	}
 
 	logger.Infof("start watching s3x resources in namespace %s", c.namespace)
-	watcher := opkit.NewWatcher(S3XResource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1beta1().RESTClient())
-	go watcher.Watch(&edgefsv1beta1.S3X{}, stopCh)
+	watcher := opkit.NewWatcher(S3XResource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1().RESTClient())
+	go watcher.Watch(&edgefsv1.S3X{}, stopCh)
 
 	return nil
 }
@@ -159,7 +159,7 @@ func (c *S3XController) onDelete(obj interface{}) {
 	}
 }
 
-func (c *S3XController) serviceOwners(service *edgefsv1beta1.S3X) []metav1.OwnerReference {
+func (c *S3XController) serviceOwners(service *edgefsv1.S3X) []metav1.OwnerReference {
 	// Only set the cluster crd as the owner of the S3X resources.
 	// If the S3X crd is deleted, the operator will explicitly remove the S3X resources.
 	// If the S3X crd still exists when the cluster crd is deleted, this will make sure the S3X
@@ -167,7 +167,7 @@ func (c *S3XController) serviceOwners(service *edgefsv1beta1.S3X) []metav1.Owner
 	return []metav1.OwnerReference{c.ownerRef}
 }
 
-func (c *S3XController) ParentClusterChanged(cluster edgefsv1beta1.ClusterSpec) {
+func (c *S3XController) ParentClusterChanged(cluster edgefsv1.ClusterSpec) {
 	if c.rookImage == cluster.EdgefsImageName {
 		logger.Infof("No need to update the s3x service, the same images present")
 		return
@@ -176,7 +176,7 @@ func (c *S3XController) ParentClusterChanged(cluster edgefsv1beta1.ClusterSpec) 
 	// update controller options by updated cluster spec
 	c.rookImage = cluster.EdgefsImageName
 
-	s3xs, err := c.context.RookClientset.EdgefsV1beta1().S3Xs(c.namespace).List(metav1.ListOptions{})
+	s3xs, err := c.context.RookClientset.EdgefsV1().S3Xs(c.namespace).List(metav1.ListOptions{})
 	if err != nil {
 		logger.Errorf("failed to retrieve S3Xs to update the Edgefs version. %+v", err)
 		return
@@ -192,7 +192,7 @@ func (c *S3XController) ParentClusterChanged(cluster edgefsv1beta1.ClusterSpec) 
 	}
 }
 
-func serviceChanged(oldService, newService edgefsv1beta1.S3XSpec) bool {
+func serviceChanged(oldService, newService edgefsv1.S3XSpec) bool {
 	var diff string
 	if !reflect.DeepEqual(oldService, newService) {
 		func() {
@@ -216,9 +216,9 @@ func serviceChanged(oldService, newService edgefsv1beta1.S3XSpec) bool {
 	return false
 }
 
-func getS3XObject(obj interface{}) (s3x *edgefsv1beta1.S3X, err error) {
+func getS3XObject(obj interface{}) (s3x *edgefsv1.S3X, err error) {
 	var ok bool
-	s3x, ok = obj.(*edgefsv1beta1.S3X)
+	s3x, ok = obj.(*edgefsv1.S3X)
 	if ok {
 		// the s3x object is of the latest type, simply return it
 		return s3x.DeepCopy(), nil

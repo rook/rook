@@ -24,7 +24,7 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/google/go-cmp/cmp"
 	opkit "github.com/rook/operator-kit"
-	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
+	edgefsv1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	v1 "k8s.io/api/core/v1"
@@ -45,10 +45,10 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "edgefs-op-iscsi"
 var ISCSIResource = opkit.CustomResource{
 	Name:    customResourceName,
 	Plural:  customResourceNamePlural,
-	Group:   edgefsv1beta1.CustomResourceGroup,
-	Version: edgefsv1beta1.Version,
+	Group:   edgefsv1.CustomResourceGroup,
+	Version: edgefsv1.Version,
 	Scope:   apiextensionsv1beta1.NamespaceScoped,
-	Kind:    reflect.TypeOf(edgefsv1beta1.ISCSI{}).Name(),
+	Kind:    reflect.TypeOf(edgefsv1.ISCSI{}).Name(),
 }
 
 // ISCSIController represents a controller object for iscsi custom resources
@@ -106,8 +106,8 @@ func (c *ISCSIController) StartWatch(stopCh chan struct{}) error {
 	}
 
 	logger.Infof("start watching iscsi resources in namespace %s", c.namespace)
-	watcher := opkit.NewWatcher(ISCSIResource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1beta1().RESTClient())
-	go watcher.Watch(&edgefsv1beta1.ISCSI{}, stopCh)
+	watcher := opkit.NewWatcher(ISCSIResource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1().RESTClient())
+	go watcher.Watch(&edgefsv1.ISCSI{}, stopCh)
 
 	return nil
 }
@@ -159,7 +159,7 @@ func (c *ISCSIController) onDelete(obj interface{}) {
 	}
 }
 
-func (c *ISCSIController) serviceOwners(service *edgefsv1beta1.ISCSI) []metav1.OwnerReference {
+func (c *ISCSIController) serviceOwners(service *edgefsv1.ISCSI) []metav1.OwnerReference {
 	// Only set the cluster crd as the owner of the ISCSI resources.
 	// If the ISCSI crd is deleted, the operator will explicitly remove the ISCSI resources.
 	// If the ISCSI crd still exists when the cluster crd is deleted, this will make sure the ISCSI
@@ -167,7 +167,7 @@ func (c *ISCSIController) serviceOwners(service *edgefsv1beta1.ISCSI) []metav1.O
 	return []metav1.OwnerReference{c.ownerRef}
 }
 
-func (c *ISCSIController) ParentClusterChanged(cluster edgefsv1beta1.ClusterSpec) {
+func (c *ISCSIController) ParentClusterChanged(cluster edgefsv1.ClusterSpec) {
 	if c.rookImage == cluster.EdgefsImageName {
 		logger.Infof("No need to update the iscsi service, the same images present")
 		return
@@ -176,7 +176,7 @@ func (c *ISCSIController) ParentClusterChanged(cluster edgefsv1beta1.ClusterSpec
 	// update controller options by updated cluster spec
 	c.rookImage = cluster.EdgefsImageName
 
-	iscsis, err := c.context.RookClientset.EdgefsV1beta1().ISCSIs(c.namespace).List(metav1.ListOptions{})
+	iscsis, err := c.context.RookClientset.EdgefsV1().ISCSIs(c.namespace).List(metav1.ListOptions{})
 	if err != nil {
 		logger.Errorf("failed to retrieve NFSes to update the Edgefs version. %+v", err)
 		return
@@ -192,7 +192,7 @@ func (c *ISCSIController) ParentClusterChanged(cluster edgefsv1beta1.ClusterSpec
 	}
 }
 
-func serviceChanged(oldService, newService edgefsv1beta1.ISCSISpec) bool {
+func serviceChanged(oldService, newService edgefsv1.ISCSISpec) bool {
 	var diff string
 	if !reflect.DeepEqual(oldService, newService) {
 		func() {
@@ -216,9 +216,9 @@ func serviceChanged(oldService, newService edgefsv1beta1.ISCSISpec) bool {
 	return false
 }
 
-func getISCSIObject(obj interface{}) (iscsi *edgefsv1beta1.ISCSI, err error) {
+func getISCSIObject(obj interface{}) (iscsi *edgefsv1.ISCSI, err error) {
 	var ok bool
-	iscsi, ok = obj.(*edgefsv1beta1.ISCSI)
+	iscsi, ok = obj.(*edgefsv1.ISCSI)
 	if ok {
 		// the iscsi object is of the latest type, simply return it
 		return iscsi.DeepCopy(), nil

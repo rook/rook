@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"os"
 
-	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
+	edgefsv1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/operator/discover"
 	"github.com/rook/rook/pkg/operator/edgefs/cluster/target"
@@ -29,12 +29,12 @@ import (
 )
 
 type ClusterReconfigureSpec struct {
-	DeploymentConfig     edgefsv1beta1.ClusterDeploymentConfig
+	DeploymentConfig     edgefsv1.ClusterDeploymentConfig
 	ClusterNodesToDelete []string
 	ClusterNodesToAdd    []string
 }
 
-func (c *cluster) createClusterReconfigurationSpec(existingConfig edgefsv1beta1.ClusterDeploymentConfig, validNodes []rookv1alpha2.Node, dro edgefsv1beta1.DevicesResurrectOptions) (ClusterReconfigureSpec, error) {
+func (c *cluster) createClusterReconfigurationSpec(existingConfig edgefsv1.ClusterDeploymentConfig, validNodes []rookv1alpha2.Node, dro edgefsv1.DevicesResurrectOptions) (ClusterReconfigureSpec, error) {
 
 	deploymentType, err := c.getClusterDeploymentType()
 	if err != nil {
@@ -44,10 +44,10 @@ func (c *cluster) createClusterReconfigurationSpec(existingConfig edgefsv1beta1.
 
 	transportKey := getClusterTransportKey(deploymentType)
 	reconfigSpec := ClusterReconfigureSpec{
-		DeploymentConfig: edgefsv1beta1.ClusterDeploymentConfig{
+		DeploymentConfig: edgefsv1.ClusterDeploymentConfig{
 			DeploymentType: deploymentType,
 			TransportKey:   transportKey,
-			DevConfig:      make(map[string]edgefsv1beta1.DevicesConfig, 0),
+			DevConfig:      make(map[string]edgefsv1.DevicesConfig, 0),
 			NeedPrivileges: c.needPrivelege(deploymentType),
 		},
 	}
@@ -56,7 +56,7 @@ func (c *cluster) createClusterReconfigurationSpec(existingConfig edgefsv1beta1.
 	for _, node := range validNodes {
 		// Copy devices confiruration for already existing devicesConfig
 		// We can't modify devices config for already existing node in config map
-		var devicesConfig edgefsv1beta1.DevicesConfig
+		var devicesConfig edgefsv1.DevicesConfig
 		if nodeDevConfig, ok := existingConfig.DevConfig[node.Name]; ok {
 			devicesConfig = nodeDevConfig
 		} else {
@@ -99,11 +99,11 @@ func (c *cluster) createClusterReconfigurationSpec(existingConfig edgefsv1beta1.
 func (c *cluster) getClusterDeploymentType() (string, error) {
 
 	if len(c.Spec.Storage.Directories) > 0 && (len(c.Spec.DataDirHostPath) > 0 || c.Spec.DataVolumeSize.Value() != 0) {
-		return edgefsv1beta1.DeploymentRtlfs, nil
+		return edgefsv1.DeploymentRtlfs, nil
 	} else if c.HasDevicesSpecification() && (len(c.Spec.DataDirHostPath) > 0 || c.Spec.DataVolumeSize.Value() != 0) {
-		return edgefsv1beta1.DeploymentRtrd, nil
+		return edgefsv1.DeploymentRtrd, nil
 	} else if len(c.Spec.DataDirHostPath) == 0 || c.Spec.DataVolumeSize.Value() == 0 {
-		return edgefsv1beta1.DeploymentAutoRtlfs, nil
+		return edgefsv1.DeploymentAutoRtlfs, nil
 	}
 	return "", fmt.Errorf("Can't determine deployment type for [%s] cluster", c.Namespace)
 }
@@ -116,26 +116,26 @@ func (c *cluster) needPrivelege(deploymentType string) bool {
 		needPriveleges = true
 	}
 
-	if deploymentType == edgefsv1beta1.DeploymentRtrd {
+	if deploymentType == edgefsv1.DeploymentRtrd {
 		needPriveleges = true
 	}
 	return needPriveleges
 }
 
 func getClusterTransportKey(deploymentType string) string {
-	transportKey := edgefsv1beta1.DeploymentRtrd
-	if deploymentType == edgefsv1beta1.DeploymentRtlfs || deploymentType == edgefsv1beta1.DeploymentAutoRtlfs {
-		transportKey = edgefsv1beta1.DeploymentRtlfs
+	transportKey := edgefsv1.DeploymentRtrd
+	if deploymentType == edgefsv1.DeploymentRtlfs || deploymentType == edgefsv1.DeploymentAutoRtlfs {
+		transportKey = edgefsv1.DeploymentRtlfs
 	}
 	return transportKey
 }
 
 // createDevicesConfig creates DevicesConfig for specific node
-func (c *cluster) createDevicesConfig(deploymentType string, node rookv1alpha2.Node, dro edgefsv1beta1.DevicesResurrectOptions) (edgefsv1beta1.DevicesConfig, error) {
-	devicesConfig := edgefsv1beta1.DevicesConfig{}
-	devicesConfig.Rtrd.Devices = make([]edgefsv1beta1.RTDevice, 0)
-	devicesConfig.RtrdSlaves = make([]edgefsv1beta1.RTDevices, 0)
-	devicesConfig.Rtlfs.Devices = make([]edgefsv1beta1.RtlfsDevice, 0)
+func (c *cluster) createDevicesConfig(deploymentType string, node rookv1alpha2.Node, dro edgefsv1.DevicesResurrectOptions) (edgefsv1.DevicesConfig, error) {
+	devicesConfig := edgefsv1.DevicesConfig{}
+	devicesConfig.Rtrd.Devices = make([]edgefsv1.RTDevice, 0)
+	devicesConfig.RtrdSlaves = make([]edgefsv1.RTDevices, 0)
+	devicesConfig.Rtlfs.Devices = make([]edgefsv1.RtlfsDevice, 0)
 
 	n := c.resolveNode(node.Name)
 	if n == nil {
@@ -159,19 +159,19 @@ func (c *cluster) createDevicesConfig(deploymentType string, node rookv1alpha2.N
 		logger.Infof("Skipping node [%s] devices due 'restore' option", node.Name)
 		devicesConfig.Rtlfs.Devices = target.GetRtlfsDevices(c.Spec.Storage.Directories, &storeConfig)
 		if dro.SlaveContainers > 0 {
-			devicesConfig.RtrdSlaves = make([]edgefsv1beta1.RTDevices, dro.SlaveContainers)
+			devicesConfig.RtrdSlaves = make([]edgefsv1.RTDevices, dro.SlaveContainers)
 		}
 
 		return devicesConfig, nil
 	}
 
-	if deploymentType == edgefsv1beta1.DeploymentRtrd {
+	if deploymentType == edgefsv1.DeploymentRtrd {
 		rookSystemNS := os.Getenv(k8sutil.PodNamespaceEnvVar)
 		nodeDevices, _ := discover.ListDevices(c.context, rookSystemNS, n.Name)
 
 		logger.Infof("[%s] available devices: ", n.Name)
 		for _, dev := range nodeDevices[n.Name] {
-			logger.Infof("\tName: %s, Size: %s, Type: %s, Rotational: %t, Empty: %t", dev.Name, edgefsv1beta1.ByteCountBinary(dev.Size), dev.Type, dev.Rotational, dev.Empty)
+			logger.Infof("\tName: %s, Size: %s, Type: %s, Rotational: %t, Empty: %t", dev.Name, edgefsv1.ByteCountBinary(dev.Size), dev.Type, dev.Rotational, dev.Empty)
 		}
 
 		availDevs, deviceErr := discover.GetAvailableDevices(c.context, n.Name, c.Namespace,
@@ -193,7 +193,7 @@ func (c *cluster) createDevicesConfig(deploymentType string, node rookv1alpha2.N
 					if disk.Rotational {
 						diskType = "HDD"
 					}
-					logger.Infof("\tName: %s, Type: %s, Size: %s", disk.Name, diskType, edgefsv1beta1.ByteCountBinary(disk.Size))
+					logger.Infof("\tName: %s, Type: %s, Size: %s", disk.Name, diskType, edgefsv1.ByteCountBinary(disk.Size))
 					availDisks = append(availDisks, disk)
 				}
 			}
@@ -202,13 +202,13 @@ func (c *cluster) createDevicesConfig(deploymentType string, node rookv1alpha2.N
 		rtDevices, err := target.GetContainersRTDevices(n.Name, c.Spec.MaxContainerCapacity.Value(), availDisks, &storeConfig)
 		if err != nil {
 			logger.Warningf("Can't get rtDevices for node %s due %v", n.Name, err)
-			rtDevices = make([]edgefsv1beta1.RTDevices, 1)
+			rtDevices = make([]edgefsv1.RTDevices, 1)
 		}
 		if len(rtDevices) > 0 {
 			devicesConfig.Rtrd.Devices = rtDevices[0].Devices
 			// append to RtrdSlaves in case of additional containers
 			if len(rtDevices) > 1 {
-				devicesConfig.RtrdSlaves = make([]edgefsv1beta1.RTDevices, len(rtDevices)-1)
+				devicesConfig.RtrdSlaves = make([]edgefsv1.RTDevices, len(rtDevices)-1)
 				devicesConfig.RtrdSlaves = rtDevices[1:]
 			}
 		}
@@ -220,7 +220,7 @@ func (c *cluster) createDevicesConfig(deploymentType string, node rookv1alpha2.N
 }
 
 // ValidateZones validates all nodes in cluster that each one has valid zone number or all of them has zone == 0
-func validateZones(deploymentConfig edgefsv1beta1.ClusterDeploymentConfig) error {
+func validateZones(deploymentConfig edgefsv1.ClusterDeploymentConfig) error {
 	validZonesFound := 0
 	for _, nodeDevConfig := range deploymentConfig.DevConfig {
 		if nodeDevConfig.Zone > 0 {
@@ -235,7 +235,7 @@ func validateZones(deploymentConfig edgefsv1beta1.ClusterDeploymentConfig) error
 	return nil
 }
 
-func (c *cluster) validateDeploymentConfig(deploymentConfig edgefsv1beta1.ClusterDeploymentConfig, dro edgefsv1beta1.DevicesResurrectOptions) error {
+func (c *cluster) validateDeploymentConfig(deploymentConfig edgefsv1.ClusterDeploymentConfig, dro edgefsv1.DevicesResurrectOptions) error {
 
 	if len(deploymentConfig.TransportKey) == 0 || len(deploymentConfig.DeploymentType) == 0 {
 		return fmt.Errorf("ClusterDeploymentConfig has no valid TransportKey or DeploymentType")
@@ -247,12 +247,12 @@ func (c *cluster) validateDeploymentConfig(deploymentConfig edgefsv1beta1.Cluste
 	}
 
 	deploymentNodesCount := len(deploymentConfig.DevConfig)
-	if deploymentConfig.TransportKey == edgefsv1beta1.DeploymentRtlfs {
+	if deploymentConfig.TransportKey == edgefsv1.DeploymentRtlfs {
 		// Check directories devices count on all nodes
 		if len(c.Spec.Storage.Directories)*deploymentNodesCount < 3 {
 			return fmt.Errorf("Rtlfs devices should be more then 3 on all nodes summary")
 		}
-	} else if deploymentConfig.TransportKey == edgefsv1beta1.DeploymentRtrd {
+	} else if deploymentConfig.TransportKey == edgefsv1.DeploymentRtrd {
 		// Check all deployment nodes has available disk devices
 		devicesCount := 0
 		for nodeName, devCfg := range deploymentConfig.DevConfig {
@@ -275,7 +275,7 @@ func (c *cluster) validateDeploymentConfig(deploymentConfig edgefsv1beta1.Cluste
 	return nil
 }
 
-func (c *cluster) alignSlaveContainers(deploymentConfig *edgefsv1beta1.ClusterDeploymentConfig) error {
+func (c *cluster) alignSlaveContainers(deploymentConfig *edgefsv1.ClusterDeploymentConfig) error {
 
 	nodeContainersCount := 0
 
@@ -303,7 +303,7 @@ func (c *cluster) alignSlaveContainers(deploymentConfig *edgefsv1beta1.ClusterDe
 		stubContainersCount := maxContainerCount - nodeContainersCount
 
 		for i := 0; i < stubContainersCount; i++ {
-			nodeDevConfig.RtrdSlaves = append(nodeDevConfig.RtrdSlaves, edgefsv1beta1.RTDevices{})
+			nodeDevConfig.RtrdSlaves = append(nodeDevConfig.RtrdSlaves, edgefsv1.RTDevices{})
 		}
 
 		// Update nodeDevConfig record in deploymentConfig

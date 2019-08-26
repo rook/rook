@@ -24,7 +24,7 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/google/go-cmp/cmp"
 	opkit "github.com/rook/operator-kit"
-	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
+	edgefsv1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	v1 "k8s.io/api/core/v1"
@@ -45,10 +45,10 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "edgefs-op-isgw")
 var ISGWResource = opkit.CustomResource{
 	Name:    customResourceName,
 	Plural:  customResourceNamePlural,
-	Group:   edgefsv1beta1.CustomResourceGroup,
-	Version: edgefsv1beta1.Version,
+	Group:   edgefsv1.CustomResourceGroup,
+	Version: edgefsv1.Version,
 	Scope:   apiextensionsv1beta1.NamespaceScoped,
-	Kind:    reflect.TypeOf(edgefsv1beta1.ISGW{}).Name(),
+	Kind:    reflect.TypeOf(edgefsv1.ISGW{}).Name(),
 }
 
 // ISGWController represents a controller object for isgw custom resources
@@ -106,8 +106,8 @@ func (c *ISGWController) StartWatch(stopCh chan struct{}) error {
 	}
 
 	logger.Infof("start watching isgw resources in namespace %s", c.namespace)
-	watcher := opkit.NewWatcher(ISGWResource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1beta1().RESTClient())
-	go watcher.Watch(&edgefsv1beta1.ISGW{}, stopCh)
+	watcher := opkit.NewWatcher(ISGWResource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1().RESTClient())
+	go watcher.Watch(&edgefsv1.ISGW{}, stopCh)
 
 	return nil
 }
@@ -159,7 +159,7 @@ func (c *ISGWController) onDelete(obj interface{}) {
 	}
 }
 
-func (c *ISGWController) serviceOwners(service *edgefsv1beta1.ISGW) []metav1.OwnerReference {
+func (c *ISGWController) serviceOwners(service *edgefsv1.ISGW) []metav1.OwnerReference {
 	// Only set the cluster crd as the owner of the ISGW resources.
 	// If the ISGW crd is deleted, the operator will explicitly remove the ISGW resources.
 	// If the ISGW crd still exists when the cluster crd is deleted, this will make sure the ISGW
@@ -167,7 +167,7 @@ func (c *ISGWController) serviceOwners(service *edgefsv1beta1.ISGW) []metav1.Own
 	return []metav1.OwnerReference{c.ownerRef}
 }
 
-func (c *ISGWController) ParentClusterChanged(cluster edgefsv1beta1.ClusterSpec) {
+func (c *ISGWController) ParentClusterChanged(cluster edgefsv1.ClusterSpec) {
 	if c.rookImage == cluster.EdgefsImageName {
 		logger.Infof("No need to update the isgw service, the same images present")
 		return
@@ -176,7 +176,7 @@ func (c *ISGWController) ParentClusterChanged(cluster edgefsv1beta1.ClusterSpec)
 	// update controller options by updated cluster spec
 	c.rookImage = cluster.EdgefsImageName
 
-	isgws, err := c.context.RookClientset.EdgefsV1beta1().ISGWs(c.namespace).List(metav1.ListOptions{})
+	isgws, err := c.context.RookClientset.EdgefsV1().ISGWs(c.namespace).List(metav1.ListOptions{})
 	if err != nil {
 		logger.Errorf("failed to retrieve ISGWs to update the Edgefs version. %+v", err)
 		return
@@ -192,7 +192,7 @@ func (c *ISGWController) ParentClusterChanged(cluster edgefsv1beta1.ClusterSpec)
 	}
 }
 
-func serviceChanged(oldService, newService edgefsv1beta1.ISGWSpec) bool {
+func serviceChanged(oldService, newService edgefsv1.ISGWSpec) bool {
 	var diff string
 	if !reflect.DeepEqual(oldService, newService) {
 		func() {
@@ -216,9 +216,9 @@ func serviceChanged(oldService, newService edgefsv1beta1.ISGWSpec) bool {
 	return false
 }
 
-func getISGWObject(obj interface{}) (isgw *edgefsv1beta1.ISGW, err error) {
+func getISGWObject(obj interface{}) (isgw *edgefsv1.ISGW, err error) {
 	var ok bool
-	isgw, ok = obj.(*edgefsv1beta1.ISGW)
+	isgw, ok = obj.(*edgefsv1.ISGW)
 	if ok {
 		// the isgw object is of the latest type, simply return it
 		return isgw.DeepCopy(), nil

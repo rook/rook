@@ -21,7 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
+	edgefsv1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
@@ -44,16 +44,16 @@ const (
 )
 
 // Start the ISCSI manager
-func (c *ISCSIController) CreateService(s edgefsv1beta1.ISCSI, ownerRefs []metav1.OwnerReference) error {
+func (c *ISCSIController) CreateService(s edgefsv1.ISCSI, ownerRefs []metav1.OwnerReference) error {
 	return c.CreateOrUpdate(s, false, ownerRefs)
 }
 
-func (c *ISCSIController) UpdateService(s edgefsv1beta1.ISCSI, ownerRefs []metav1.OwnerReference) error {
+func (c *ISCSIController) UpdateService(s edgefsv1.ISCSI, ownerRefs []metav1.OwnerReference) error {
 	return c.CreateOrUpdate(s, true, ownerRefs)
 }
 
 // Start the iscsi instance
-func (c *ISCSIController) CreateOrUpdate(s edgefsv1beta1.ISCSI, update bool, ownerRefs []metav1.OwnerReference) error {
+func (c *ISCSIController) CreateOrUpdate(s edgefsv1.ISCSI, update bool, ownerRefs []metav1.OwnerReference) error {
 	logger.Infof("starting update=%v service=%s", update, s.Name)
 
 	logger.Infof("ISCSI Base image is %s", c.rookImage)
@@ -105,7 +105,7 @@ func (c *ISCSIController) CreateOrUpdate(s edgefsv1beta1.ISCSI, update bool, own
 	return nil
 }
 
-func (c *ISCSIController) makeISCSIService(name, svcname, namespace string, iscsiSpec edgefsv1beta1.ISCSISpec) *v1.Service {
+func (c *ISCSIController) makeISCSIService(name, svcname, namespace string, iscsiSpec edgefsv1.ISCSISpec) *v1.Service {
 	labels := getLabels(name, svcname, namespace)
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -127,12 +127,12 @@ func (c *ISCSIController) makeISCSIService(name, svcname, namespace string, iscs
 	return svc
 }
 
-func (c *ISCSIController) makeDeployment(svcname, namespace, rookImage string, iscsiSpec edgefsv1beta1.ISCSISpec) *apps.Deployment {
+func (c *ISCSIController) makeDeployment(svcname, namespace, rookImage string, iscsiSpec edgefsv1.ISCSISpec) *apps.Deployment {
 	name := instanceName(svcname)
 	volumes := []v1.Volume{}
 
 	if c.useHostLocalTime {
-		volumes = append(volumes, edgefsv1beta1.GetHostLocalTimeVolume())
+		volumes = append(volumes, edgefsv1.GetHostLocalTimeVolume())
 	}
 
 	if c.dataVolumeSize.Value() > 0 {
@@ -203,7 +203,7 @@ func (c *ISCSIController) makeDeployment(svcname, namespace, rookImage string, i
 	return d
 }
 
-func (c *ISCSIController) iscsiContainer(svcname, name, containerImage string, iscsiSpec edgefsv1beta1.ISCSISpec) v1.Container {
+func (c *ISCSIController) iscsiContainer(svcname, name, containerImage string, iscsiSpec edgefsv1.ISCSISpec) v1.Container {
 	runAsUser := int64(0)
 	readOnlyRootFilesystem := false
 	securityContext := &v1.SecurityContext{
@@ -228,7 +228,7 @@ func (c *ISCSIController) iscsiContainer(svcname, name, containerImage string, i
 	}
 
 	if c.useHostLocalTime {
-		volumeMounts = append(volumeMounts, edgefsv1beta1.GetHostLocalTimeVolumeMount())
+		volumeMounts = append(volumeMounts, edgefsv1.GetHostLocalTimeVolumeMount())
 	}
 
 	cont := v1.Container{
@@ -279,7 +279,7 @@ func (c *ISCSIController) iscsiContainer(svcname, name, containerImage string, i
 		VolumeMounts: volumeMounts,
 	}
 
-	cont.Env = append(cont.Env, edgefsv1beta1.GetInitiatorEnvArr("iscsi",
+	cont.Env = append(cont.Env, edgefsv1.GetInitiatorEnvArr("iscsi",
 		c.resourceProfile == "embedded" || iscsiSpec.ResourceProfile == "embedded",
 		iscsiSpec.ChunkCacheSize, iscsiSpec.Resources)...)
 
@@ -287,7 +287,7 @@ func (c *ISCSIController) iscsiContainer(svcname, name, containerImage string, i
 }
 
 // Delete ISCSI service and possibly some artifacts.
-func (c *ISCSIController) DeleteService(s edgefsv1beta1.ISCSI) error {
+func (c *ISCSIController) DeleteService(s edgefsv1.ISCSI) error {
 	// check if service  exists
 	exists, err := serviceExists(c.context, s)
 	if err != nil {
@@ -330,7 +330,7 @@ func getLabels(name, svcname, namespace string) map[string]string {
 }
 
 // Validate the ISCSI arguments
-func validateService(context *clusterd.Context, s edgefsv1beta1.ISCSI) error {
+func validateService(context *clusterd.Context, s edgefsv1.ISCSI) error {
 	if s.Name == "" {
 		return fmt.Errorf("missing name")
 	}
@@ -346,7 +346,7 @@ func instanceName(svcname string) string {
 }
 
 // Check if the ISCSI service exists
-func serviceExists(context *clusterd.Context, s edgefsv1beta1.ISCSI) (bool, error) {
+func serviceExists(context *clusterd.Context, s edgefsv1.ISCSI) (bool, error) {
 	_, err := context.Clientset.AppsV1().Deployments(s.Namespace).Get(instanceName(s.Name), metav1.GetOptions{})
 	if err == nil {
 		// the deployment was found
@@ -360,7 +360,7 @@ func serviceExists(context *clusterd.Context, s edgefsv1beta1.ISCSI) (bool, erro
 	return false, nil
 }
 
-func getTargetParamsJSON(params edgefsv1beta1.TargetParametersSpec) string {
+func getTargetParamsJSON(params edgefsv1.TargetParametersSpec) string {
 	result := make(map[string]uint)
 
 	if params.MaxRecvDataSegmentLength > 0 {

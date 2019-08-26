@@ -31,7 +31,7 @@ spec:
     plural: clusters
     singular: cluster
   scope: Namespaced
-  version: v1beta1
+  version: v1
 `
 }
 
@@ -173,7 +173,7 @@ spec:
       serviceAccountName: rook-edgefs-system
       containers:
       - name: rook-edgefs-operator
-        image: rook/edgefs:master
+        image: edgefs/edgefs-operator:v1 #TODO: should be replaced by rook/edgefs:1.1 after 1.1 release
         imagePullPolicy: "Always"
         args: ["edgefs", "operator"]
         env:
@@ -307,7 +307,7 @@ subjects:
   name: rook-edgefs-cluster
   namespace: ` + namespace + `
 ---
-apiVersion: edgefs.rook.io/v1beta1
+apiVersion: edgefs.rook.io/v1
 kind: Cluster
 metadata:
   name: rook-edgefs

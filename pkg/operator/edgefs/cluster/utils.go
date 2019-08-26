@@ -23,7 +23,7 @@ import (
 	"strings"
 	"time"
 
-	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
+	edgefsv1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/operator/discover"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -40,8 +40,8 @@ const (
 )
 
 // ParseDevicesResurrectMode parse resurrect options string. String format "restore|restorezap|restorezapwait:<SlaveContainersCount>":
-func ParseDevicesResurrectMode(resurrectMode string) edgefsv1beta1.DevicesResurrectOptions {
-	drm := edgefsv1beta1.DevicesResurrectOptions{}
+func ParseDevicesResurrectMode(resurrectMode string) edgefsv1.DevicesResurrectOptions {
+	drm := edgefsv1.DevicesResurrectOptions{}
 	if len(resurrectMode) == 0 {
 		return drm
 	}
@@ -101,16 +101,16 @@ func (c *cluster) getClusterNodes() ([]rookv1alpha2.Node, error) {
 			c.Spec.Storage.Nodes = append(c.Spec.Storage.Nodes, storageNode)
 		}
 	}
-	validNodes := k8sutil.GetValidNodes(c.Spec.Storage, c.context.Clientset, edgefsv1beta1.GetTargetPlacement(c.Spec.Placement))
+	validNodes := k8sutil.GetValidNodes(c.Spec.Storage, c.context.Clientset, edgefsv1.GetTargetPlacement(c.Spec.Placement))
 	c.Spec.Storage.Nodes = validNodes
 	return validNodes, nil
 }
 
 // retrieveDeploymentConfig restore ClusterDeploymentConfig from cluster's Kubernetes ConfigMap
-func (c *cluster) retrieveDeploymentConfig() (edgefsv1beta1.ClusterDeploymentConfig, error) {
+func (c *cluster) retrieveDeploymentConfig() (edgefsv1.ClusterDeploymentConfig, error) {
 
-	deploymentConfig := edgefsv1beta1.ClusterDeploymentConfig{
-		DevConfig: make(map[string]edgefsv1beta1.DevicesConfig, 0),
+	deploymentConfig := edgefsv1.ClusterDeploymentConfig{
+		DevConfig: make(map[string]edgefsv1.DevicesConfig, 0),
 	}
 
 	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(configName, metav1.GetOptions{})
@@ -129,7 +129,7 @@ func (c *cluster) retrieveDeploymentConfig() (edgefsv1beta1.ClusterDeploymentCon
 		return deploymentConfig, err
 	}
 
-	setup := map[string]edgefsv1beta1.SetupNode{}
+	setup := map[string]edgefsv1.SetupNode{}
 	if nesetup, ok := cm.Data["nesetup"]; ok {
 		err = json.Unmarshal([]byte(nesetup), &setup)
 		if err != nil {
@@ -139,7 +139,7 @@ func (c *cluster) retrieveDeploymentConfig() (edgefsv1beta1.ClusterDeploymentCon
 
 		deploymentTypeAchived := false
 		for nodeKey, nodeConfig := range setup {
-			devicesConfig := edgefsv1beta1.DevicesConfig{}
+			devicesConfig := edgefsv1.DevicesConfig{}
 
 			devicesConfig.Rtlfs = nodeConfig.Rtlfs
 			devicesConfig.Rtrd = nodeConfig.Rtrd
@@ -155,15 +155,15 @@ func (c *cluster) retrieveDeploymentConfig() (edgefsv1beta1.ClusterDeploymentCon
 			// we can't detect deployment type on gw node, move to next one
 			if !devicesConfig.IsGatewayNode && !deploymentTypeAchived {
 				if len(nodeConfig.Rtrd.Devices) > 0 {
-					deploymentConfig.DeploymentType = edgefsv1beta1.DeploymentRtrd
-					deploymentConfig.TransportKey = edgefsv1beta1.DeploymentRtrd
+					deploymentConfig.DeploymentType = edgefsv1.DeploymentRtrd
+					deploymentConfig.TransportKey = edgefsv1.DeploymentRtrd
 					deploymentConfig.NeedPrivileges = true
 				} else if len(nodeConfig.Rtlfs.Devices) > 0 {
-					deploymentConfig.DeploymentType = edgefsv1beta1.DeploymentRtlfs
-					deploymentConfig.TransportKey = edgefsv1beta1.DeploymentRtlfs
+					deploymentConfig.DeploymentType = edgefsv1.DeploymentRtlfs
+					deploymentConfig.TransportKey = edgefsv1.DeploymentRtlfs
 				} else if len(nodeConfig.RtlfsAutodetect) > 0 {
-					deploymentConfig.DeploymentType = edgefsv1beta1.DeploymentAutoRtlfs
-					deploymentConfig.TransportKey = edgefsv1beta1.DeploymentRtlfs
+					deploymentConfig.DeploymentType = edgefsv1.DeploymentAutoRtlfs
+					deploymentConfig.TransportKey = edgefsv1.DeploymentRtlfs
 				}
 
 				// hostNetwork option specified
@@ -187,7 +187,7 @@ func (c *cluster) retrieveDeploymentConfig() (edgefsv1beta1.ClusterDeploymentCon
 	return deploymentConfig, nil
 }
 
-func (c *cluster) PrintRTDevices(containerIndex int, rtDevices edgefsv1beta1.RTDevices) {
+func (c *cluster) PrintRTDevices(containerIndex int, rtDevices edgefsv1.RTDevices) {
 
 	if len(rtDevices.Devices) == 0 {
 		logger.Infof("\t\tContainer[%d] Stub container. No devices assigned", containerIndex)
@@ -199,14 +199,14 @@ func (c *cluster) PrintRTDevices(containerIndex int, rtDevices edgefsv1beta1.RTD
 	}
 }
 
-func (c *cluster) PrintRtlfsDevices(containerIndex int, rtlfsDevices edgefsv1beta1.RtlfsDevices) {
+func (c *cluster) PrintRtlfsDevices(containerIndex int, rtlfsDevices edgefsv1.RtlfsDevices) {
 
 	for _, device := range rtlfsDevices.Devices {
-		logger.Infof("\t\tContainer[%d] Path: %s, Name: %s, MaxSize: %s", containerIndex, device.Path, device.Name, edgefsv1beta1.ByteCountBinary(device.Maxsize))
+		logger.Infof("\t\tContainer[%d] Path: %s, Name: %s, MaxSize: %s", containerIndex, device.Path, device.Name, edgefsv1.ByteCountBinary(device.Maxsize))
 	}
 }
 
-func (c *cluster) PrintDeploymentConfig(deploymentConfig *edgefsv1beta1.ClusterDeploymentConfig) {
+func (c *cluster) PrintDeploymentConfig(deploymentConfig *edgefsv1.ClusterDeploymentConfig) {
 	logger.Infof("[%s] DeploymentConfig: ", c.Namespace)
 	logger.Infof("DeploymentType: %s", deploymentConfig.DeploymentType)
 	logger.Infof("TransportKey: %s", deploymentConfig.TransportKey)
@@ -221,14 +221,14 @@ func (c *cluster) PrintDeploymentConfig(deploymentConfig *edgefsv1beta1.ClusterD
 		}
 
 		switch deploymentConfig.DeploymentType {
-		case edgefsv1beta1.DeploymentRtrd:
+		case edgefsv1.DeploymentRtrd:
 			c.PrintRTDevices(0, nodeDevConfig.Rtrd)
 			for index, slaveDevices := range nodeDevConfig.RtrdSlaves {
 				c.PrintRTDevices(index+1, slaveDevices)
 			}
-		case edgefsv1beta1.DeploymentRtlfs:
+		case edgefsv1.DeploymentRtlfs:
 			c.PrintRtlfsDevices(0, nodeDevConfig.Rtlfs)
-		case edgefsv1beta1.DeploymentAutoRtlfs:
+		case edgefsv1.DeploymentAutoRtlfs:
 			logger.Infof("\t\tContainer[0] Path: /mnt/disks/disk0")
 			logger.Infof("\t\tContainer[0] Path: /mnt/disks/disk1")
 			logger.Infof("\t\tContainer[0] Path: /mnt/disks/disk2")

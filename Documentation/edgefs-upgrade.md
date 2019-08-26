@@ -24,19 +24,35 @@ Upgrades from Alpha to Beta not supported. However, please see migration procedu
 EdgeFS Operator provides a way of preserving data on disks or directories while moving to a
 new version (like Alpha to Beta transitioning) or reconfiguring (like full re-start).
 
-Example of migration from `v1alpha1` to `v1beta1`:
 
-1. Delete all EdgeFS services in Kubernetes, e.g., `kubectl delete -f s3.yaml`
-2. Delete EdgeFS cluster, e.g., `kubectl delete -f cluster.yaml`
-3. Delete EdgeFS operator, e.g., `kubectl delete -f operator.yaml`
-4. Edit operator.yaml to transition to a new version. This has to be done for each CustomResourceDefinition in the file.
-5. Create EdgeFS operator, e.g., `kubectl create -f operator.yaml`
-6. Edit cluster.yaml to transition to a new version. I.e. `edgefs.rook.io/v1alpha1` to `edgefs.rook.io/v1beta1`.
-7. If you using devices, edit cluster.yaml and enable devicesResurrectMode "restore" and delete in-use discovery configmaps. This will preserve old cluster data.
-8. Create EdgeFS cluster, e.g., `kubectl create -f cluster.yaml`
-9. Login to mgr container and check system status, e.g., `efscli system status`
-10. Edit EdgeFS services CRD files to transition to a new version. I.e. `edgefs.rook.io/v1alpha1` to `edgefs.rook.io/v1beta1`.
-11. Deploy services CRDs, e.g., `kubectl create -f s3.yaml`
+We will do all our work in the EdgeFS example manifests directory.
+```sh
+cd $YOUR_ROOK_REPO/cluster/examples/kubernetes/edgefs/
+```
+
+Example of migration from existing `v1beta1` EdgeFS cluster to stable `v1` EdgeFS cluster:
+For already existing EdgeFS manifests we should replace `v1beta1` version to `v1`.
+We can use a few simple `sed` commands to do this for all manifests at once.
+
+```sh
+sed -i.bak -e "s/edgefs.rook.io\/v1beta1/edgefs.rook.io\/v1beta1/g" *.yaml
+sed -i -e "s/edgefs.rook.io\/v1beta1/edgefs.rook.io\/v1/g" *.yaml
+mkdir -p backups
+mv *.bak backups/
+```
+
+Then we should add new `v1` version specification to existing EdgeFS' CRDs.
+```sh
+kubectl apply -f upgrade-from-v1beta1-create.yaml
+```
+
+And replace EdgeFS operator to new stable 'v1' version
+
+```sh
+kubectl -n rook-edgefs-system set image deploy/rook-edgefs-operator rook-edgefs-operator=rook/edgefs:v1.1.0
+```
+
+Then you could update your cluster's EdgeFS image for latest one as discribed below.
 
 ## EdgeFS Version Upgrade
 
@@ -52,7 +68,7 @@ export CLUSTER_NAME="rook-edgefs"
 The majority of the upgrade will be handled by the Rook operator. Begin the upgrade by changing the
 EdgeFS image field in the cluster CRD (`spec:edgefsImageName`).
 ```sh
-NEW_EDGEFS_IMAGE='edgefs/edgefs:1.2.31'
+NEW_EDGEFS_IMAGE='edgefs/edgefs:1.2.50'
 kubectl -n $CLUSTER_NAME patch Cluster $CLUSTER_NAME --type=merge \
   -p "{\"spec\": {\"edgefsImageName\": \"$NEW_EDGEFS_IMAGE\"}}"
 ```
@@ -72,14 +88,14 @@ version has fully updated is rather simple.
 ```sh
 kubectl -n $CLUSTER_NAME describe pods | grep "Image:" | sort | uniq
 # This cluster is not yet finished:
-#      Image:         edgefs/edgefs:1.1.50
 #      Image:         edgefs/edgefs:1.2.31
+#      Image:         edgefs/edgefs:1.2.50
 #      Image:         edgefs/edgefs-restapi:1.2.31
 #      Image:         edgefs/edgefs-ui:1.2.31
 # This cluster is also finished(all versions are the same):
-#      Image:         edgefs/edgefs:1.2.31
-#      Image:         edgefs/edgefs-restapi:1.2.31
-#      Image:         edgefs/edgefs-ui:1.2.31
+#      Image:         edgefs/edgefs:1.2.50
+#      Image:         edgefs/edgefs-restapi:1.2.50
+#      Image:         edgefs/edgefs-ui:1.2.50
 ```
 #### 3. Verify the updated cluster
 

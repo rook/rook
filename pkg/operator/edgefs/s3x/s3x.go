@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"strings"
 
-	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
+	edgefsv1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
@@ -47,16 +47,16 @@ const (
 )
 
 // Start the rgw manager
-func (c *S3XController) CreateService(s edgefsv1beta1.S3X, ownerRefs []metav1.OwnerReference) error {
+func (c *S3XController) CreateService(s edgefsv1.S3X, ownerRefs []metav1.OwnerReference) error {
 	return c.CreateOrUpdate(s, false, ownerRefs)
 }
 
-func (c *S3XController) UpdateService(s edgefsv1beta1.S3X, ownerRefs []metav1.OwnerReference) error {
+func (c *S3XController) UpdateService(s edgefsv1.S3X, ownerRefs []metav1.OwnerReference) error {
 	return c.CreateOrUpdate(s, true, ownerRefs)
 }
 
 // Start the s3x instance
-func (c *S3XController) CreateOrUpdate(s edgefsv1beta1.S3X, update bool, ownerRefs []metav1.OwnerReference) error {
+func (c *S3XController) CreateOrUpdate(s edgefsv1.S3X, update bool, ownerRefs []metav1.OwnerReference) error {
 	logger.Infof("starting update=%v service=%s", update, s.Name)
 
 	logger.Infof("S3X Base image is %s", c.rookImage)
@@ -117,7 +117,7 @@ func (c *S3XController) CreateOrUpdate(s edgefsv1beta1.S3X, update bool, ownerRe
 	return nil
 }
 
-func (c *S3XController) makeS3XService(name, svcname, namespace string, s3xSpec edgefsv1beta1.S3XSpec) *v1.Service {
+func (c *S3XController) makeS3XService(name, svcname, namespace string, s3xSpec edgefsv1.S3XSpec) *v1.Service {
 	labels := getLabels(name, svcname, namespace)
 	httpPort := v1.ServicePort{Name: "port", Port: int32(s3xSpec.Port), Protocol: v1.ProtocolTCP}
 	httpsPort := v1.ServicePort{Name: "secure-port", Port: int32(s3xSpec.SecurePort), Protocol: v1.ProtocolTCP}
@@ -150,12 +150,12 @@ func (c *S3XController) makeS3XService(name, svcname, namespace string, s3xSpec 
 	return svc
 }
 
-func (c *S3XController) makeDeployment(svcname, namespace, rookImage string, s3xSpec edgefsv1beta1.S3XSpec) *apps.Deployment {
+func (c *S3XController) makeDeployment(svcname, namespace, rookImage string, s3xSpec edgefsv1.S3XSpec) *apps.Deployment {
 	name := instanceName(svcname)
 	volumes := []v1.Volume{}
 
 	if c.useHostLocalTime {
-		volumes = append(volumes, edgefsv1beta1.GetHostLocalTimeVolume())
+		volumes = append(volumes, edgefsv1.GetHostLocalTimeVolume())
 	}
 
 	// add ssl certificate volume if defined
@@ -254,7 +254,7 @@ func (c *S3XController) makeDeployment(svcname, namespace, rookImage string, s3x
 	return d
 }
 
-func (c *S3XController) s3xContainer(svcname, name, containerImage string, s3xSpec edgefsv1beta1.S3XSpec) v1.Container {
+func (c *S3XController) s3xContainer(svcname, name, containerImage string, s3xSpec edgefsv1.S3XSpec) v1.Container {
 	runAsUser := int64(0)
 	readOnlyRootFilesystem := false
 	securityContext := &v1.SecurityContext{
@@ -279,7 +279,7 @@ func (c *S3XController) s3xContainer(svcname, name, containerImage string, s3xSp
 	}
 
 	if c.useHostLocalTime {
-		volumeMounts = append(volumeMounts, edgefsv1beta1.GetHostLocalTimeVolumeMount())
+		volumeMounts = append(volumeMounts, edgefsv1.GetHostLocalTimeVolumeMount())
 	}
 
 	if len(s3xSpec.SSLCertificateRef) > 0 {
@@ -335,14 +335,14 @@ func (c *S3XController) s3xContainer(svcname, name, containerImage string, s3xSp
 		VolumeMounts: volumeMounts,
 	}
 
-	cont.Env = append(cont.Env, edgefsv1beta1.GetInitiatorEnvArr("s3x",
+	cont.Env = append(cont.Env, edgefsv1.GetInitiatorEnvArr("s3x",
 		c.resourceProfile == "embedded" || s3xSpec.ResourceProfile == "embedded",
 		s3xSpec.ChunkCacheSize, s3xSpec.Resources)...)
 
 	return cont
 }
 
-func (c *S3XController) s3ProxyContainer(svcname, name, containerImage, args string, s3xSpec edgefsv1beta1.S3XSpec) v1.Container {
+func (c *S3XController) s3ProxyContainer(svcname, name, containerImage, args string, s3xSpec edgefsv1.S3XSpec) v1.Container {
 	runAsUser := int64(0)
 	readOnlyRootFilesystem := false
 	securityContext := &v1.SecurityContext{
@@ -421,7 +421,7 @@ func (c *S3XController) s3ProxyContainer(svcname, name, containerImage, args str
 		VolumeMounts: volumeMounts,
 	}
 
-	cont.Env = append(cont.Env, edgefsv1beta1.GetInitiatorEnvArr("s3",
+	cont.Env = append(cont.Env, edgefsv1.GetInitiatorEnvArr("s3",
 		c.resourceProfile == "embedded" || s3xSpec.ResourceProfile == "embedded",
 		s3xSpec.ChunkCacheSize, s3xSpec.Resources)...)
 
@@ -429,7 +429,7 @@ func (c *S3XController) s3ProxyContainer(svcname, name, containerImage, args str
 }
 
 // Delete S3X service and possibly some artifacts.
-func (c *S3XController) DeleteService(s edgefsv1beta1.S3X) error {
+func (c *S3XController) DeleteService(s edgefsv1.S3X) error {
 	// check if service  exists
 	exists, err := serviceExists(c.context, s)
 	if err != nil {
@@ -472,7 +472,7 @@ func getLabels(name, svcname, namespace string) map[string]string {
 }
 
 // Validate the S3X arguments
-func validateService(context *clusterd.Context, s edgefsv1beta1.S3X) error {
+func validateService(context *clusterd.Context, s edgefsv1.S3X) error {
 	if s.Name == "" {
 		return fmt.Errorf("missing name")
 	}
@@ -488,7 +488,7 @@ func instanceName(svcname string) string {
 }
 
 // Check if the S3X service exists
-func serviceExists(context *clusterd.Context, s edgefsv1beta1.S3X) (bool, error) {
+func serviceExists(context *clusterd.Context, s edgefsv1.S3X) (bool, error) {
 	_, err := context.Clientset.AppsV1().Deployments(s.Namespace).Get(instanceName(s.Name), metav1.GetOptions{})
 	if err == nil {
 		// the deployment was found

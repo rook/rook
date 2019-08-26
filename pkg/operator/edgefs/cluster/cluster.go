@@ -22,7 +22,7 @@ import (
 	"sort"
 
 	"github.com/google/go-cmp/cmp"
-	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
+	edgefsv1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/edgefs/cluster/mgr"
@@ -52,7 +52,7 @@ const (
 type cluster struct {
 	context          *clusterd.Context
 	Namespace        string
-	Spec             edgefsv1beta1.ClusterSpec
+	Spec             edgefsv1.ClusterSpec
 	ownerRef         metav1.OwnerReference
 	targets          *target.Cluster
 	mgrs             *mgr.Cluster
@@ -60,7 +60,7 @@ type cluster struct {
 	childControllers []childController
 }
 
-func newCluster(c *edgefsv1beta1.Cluster, context *clusterd.Context) *cluster {
+func newCluster(c *edgefsv1.Cluster, context *clusterd.Context) *cluster {
 
 	return &cluster{
 		context:   context,
@@ -74,7 +74,7 @@ func newCluster(c *edgefsv1beta1.Cluster, context *clusterd.Context) *cluster {
 // ChildController is implemented by CRs that are owned by the EdgefsCluster
 type childController interface {
 	// ParentClusterChanged is called when the EdgefsCluster CR is updated, for example for a newer edgefs version
-	ParentClusterChanged(cluster edgefsv1beta1.ClusterSpec)
+	ParentClusterChanged(cluster edgefsv1.ClusterSpec)
 }
 
 func (c *cluster) createInstance(rookImage string, isClusterUpdate bool) error {
@@ -185,7 +185,7 @@ func (c *cluster) createInstance(rookImage string, isClusterUpdate bool) error {
 	// Rest of deployments should be updated as is
 	if !(isClusterUpdate && dro.NeedToResurrect) {
 		c.targets = target.New(c.context, c.Namespace, "latest", c.Spec.ServiceAccount, c.Spec.Storage, c.Spec.DataDirHostPath, c.Spec.DataVolumeSize,
-			edgefsv1beta1.GetTargetAnnotations(c.Spec.Annotations), edgefsv1beta1.GetTargetPlacement(c.Spec.Placement), c.Spec.Network,
+			edgefsv1.GetTargetAnnotations(c.Spec.Annotations), edgefsv1.GetTargetPlacement(c.Spec.Placement), c.Spec.Network,
 			c.Spec.Resources, c.Spec.ResourceProfile, c.Spec.ChunkCacheSize, c.ownerRef, clusterReconfiguration.DeploymentConfig, c.Spec.UseHostLocalTime)
 
 		err = c.targets.Start(rookImage, clusterNodes, dro)
@@ -198,7 +198,7 @@ func (c *cluster) createInstance(rookImage string, isClusterUpdate bool) error {
 	// Create and start EdgeFS manager Deployment (gRPC proxy, Prometheus metrics)
 	//
 	c.mgrs = mgr.New(c.context, c.Namespace, "latest", c.Spec.ServiceAccount, c.Spec.DataDirHostPath, c.Spec.DataVolumeSize,
-		edgefsv1beta1.GetMgrAnnotations(c.Spec.Annotations), edgefsv1beta1.GetMgrPlacement(c.Spec.Placement), c.Spec.Network, c.Spec.Dashboard,
+		edgefsv1.GetMgrAnnotations(c.Spec.Annotations), edgefsv1.GetMgrPlacement(c.Spec.Placement), c.Spec.Network, c.Spec.Dashboard,
 		v1.ResourceRequirements{}, c.Spec.ResourceProfile, c.ownerRef, c.Spec.UseHostLocalTime)
 
 	err = c.mgrs.Start(rookImage)
@@ -216,10 +216,10 @@ func (c *cluster) createInstance(rookImage string, isClusterUpdate bool) error {
 	return nil
 }
 
-func (c *cluster) prepareHostNodes(rookImage string, deploymentConfig edgefsv1beta1.ClusterDeploymentConfig) error {
+func (c *cluster) prepareHostNodes(rookImage string, deploymentConfig edgefsv1.ClusterDeploymentConfig) error {
 
 	prep := prepare.New(c.context, c.Namespace, "latest", c.Spec.ServiceAccount,
-		edgefsv1beta1.GetPrepareAnnotations(c.Spec.Annotations), edgefsv1beta1.GetPreparePlacement(c.Spec.Placement), v1.ResourceRequirements{}, c.ownerRef)
+		edgefsv1.GetPrepareAnnotations(c.Spec.Annotations), edgefsv1.GetPreparePlacement(c.Spec.Placement), v1.ResourceRequirements{}, c.ownerRef)
 
 	for nodeName, devicesConfig := range deploymentConfig.DevConfig {
 
@@ -291,7 +291,7 @@ func (c *cluster) validateClusterSpec() error {
 	return nil
 }
 
-func clusterChanged(oldCluster, newCluster edgefsv1beta1.ClusterSpec) bool {
+func clusterChanged(oldCluster, newCluster edgefsv1.ClusterSpec) bool {
 	// sort the nodes by name then compare to see if there are changes
 	sort.Sort(rookv1alpha2.NodesByName(oldCluster.Storage.Nodes))
 	sort.Sort(rookv1alpha2.NodesByName(newCluster.Storage.Nodes))

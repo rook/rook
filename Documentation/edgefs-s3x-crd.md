@@ -16,7 +16,7 @@ The following settings are available for customization of Edge-S3 services.
 ## Sample
 
 ```yaml
-apiVersion: edgefs.rook.io/v1beta1
+apiVersion: edgefs.rook.io/v1
 kind: S3X
 metadata:
   name: s3x01
@@ -130,7 +130,7 @@ efscli service serve s3x-pepsi Hawaii/Pepsi
 5. Create S3X CRDs
 
 ```yaml
-apiVersion: edgefs.rook.io/v1beta1
+apiVersion: edgefs.rook.io/v1
 kind: S3X
 metadata:
   name: s3x-cola
@@ -140,7 +140,7 @@ spec:
 ```
 
 ```yaml
-apiVersion: edgefs.rook.io/v1beta1
+apiVersion: edgefs.rook.io/v1
 kind: S3X
 metadata:
   name: s3x-pepsi
