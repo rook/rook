@@ -163,11 +163,11 @@ spec:
         #- name: ROOK_CSI_REGISTRAR_IMAGE
         #  value: "quay.io/k8scsi/csi-node-driver-registrar:v1.1.0"
         #- name: ROOK_CSI_PROVISIONER_IMAGE
-        #  value: "quay.io/k8scsi/csi-provisioner:v1.2.0"
+        #  value: "quay.io/k8scsi/csi-provisioner:v1.3.0"
         #- name: ROOK_CSI_SNAPSHOTTER_IMAGE
-        #  value: "quay.io/k8scsi/csi-snapshotter:v1.1.0"
+        #  value: "quay.io/k8scsi/csi-snapshotter:v1.2.0"
         #- name: ROOK_CSI_ATTACHER_IMAGE
-        #  value: "quay.io/k8scsi/csi-attacher:v1.1.1"
+        #  value: "quay.io/k8scsi/csi-attacher:v1.2.0"
 
         # The name of the node to pass with the downward API
         - name: NODE_NAME

@@ -25,6 +25,7 @@ import (
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -212,4 +213,17 @@ func AddLabelToJob(key, value string, b *batchv1.Job) {
 
 func addLabel(key, value string, labels map[string]string) {
 	labels[key] = value
+}
+
+func CreateDeployment(name, namespace, appName string, clientset kubernetes.Interface, dep *apps.Deployment) error {
+	_, err := clientset.AppsV1().Deployments(namespace).Create(dep)
+	if err != nil {
+		if k8serrors.IsAlreadyExists(err) {
+			_, err = clientset.AppsV1().Deployments(namespace).Update(dep)
+		}
+		if err != nil {
+			return fmt.Errorf("failed to start %s deployment: %v\n%v", name, err, dep)
+		}
+	}
+	return err
 }

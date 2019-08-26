@@ -1,51 +1,67 @@
-kind: DaemonSet
+kind: StatefulSet
 apiVersion: apps/v1
 metadata:
-  name: csi-rbdplugin
+  name: csi-rbdplugin-provisioner
   namespace: {{ .Namespace }}
 spec:
+  serviceName: "csi-rbdplugin-provisioner"
+  replicas: 1
   selector:
     matchLabels:
-      app: csi-rbdplugin
+     app: csi-rbdplugin-provisioner
   template:
     metadata:
       labels:
-        app: csi-rbdplugin
-        contains: liveness
+        app: csi-rbdplugin-provisioner
     spec:
-      serviceAccount: rook-csi-rbd-plugin-sa
-      hostNetwork: true
-      hostPID: true
-      # to use e.g. Rook orchestrated cluster, and mons' FQDN is
-      # resolved through k8s service, set dns policy to cluster first
-      dnsPolicy: ClusterFirstWithHostNet
+      serviceAccount: rook-csi-rbd-provisioner-sa
       containers:
-        - name: driver-registrar
-          image: {{ .RegistrarImage }}
+        - name: csi-provisioner
+          image: {{ .ProvisionerImage }}
+          args:
+            - "--csi-address=$(ADDRESS)"
+            - "--v=5"
+            - "--timeout=60s"
+            - "--retry-interval-start=500ms"
+          env:
+            - name: ADDRESS
+              value: unix:///csi/csi-provisioner.sock
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+        - name: csi-rbdplugin-attacher
+          image: {{ .AttacherImage }}
           args:
             - "--v=5"
-            - "--csi-address=/csi/csi.sock"
-            - "--kubelet-registration-path=/var/lib/kubelet/plugins/{{ .DriverNamePrefix }}rbd.csi.ceph.com/csi.sock"
-          lifecycle:
-            preStop:
-              exec:
-                  command: ["/bin/sh", "-c", "rm -rf /registration/csi-rbdplugin /registration/csi-rbdplugin-reg.sock"]
+            - "--csi-address=$(ADDRESS)"
           env:
-            - name: KUBE_NODE_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: spec.nodeName
+            - name: ADDRESS
+              value: /csi/csi-provisioner.sock
+          imagePullPolicy: "IfNotPresent"
           volumeMounts:
-            - name: plugin-dir
+            - name: socket-dir
               mountPath: /csi
-            - name: registration-dir
-              mountPath: /registration
+        - name: csi-snapshotter
+          image:  {{ .SnapshotterImage }}
+          args:
+            - "--csi-address=$(ADDRESS)"
+            - "--v=5"
+            - "--timeout=60s"
+          env:
+            - name: ADDRESS
+              value: unix:///csi/csi-provisioner.sock
+          imagePullPolicy: Always
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
         - name: csi-rbdplugin
           securityContext:
             privileged: true
             capabilities:
               add: ["SYS_ADMIN"]
-            allowPrivilegeEscalation: true
           image: {{ .CSIPluginImage }}
           args :
             - "--nodeid=$(NODE_ID)"
@@ -54,6 +70,7 @@ spec:
             - "--type=rbd"
             - "--drivername={{ .DriverNamePrefix }}rbd.csi.ceph.com"
             - "--containerized=true"
+            - "--pidlimit=-1"
           env:
             - name: HOST_ROOTFS
               value: "/rootfs"
@@ -66,17 +83,11 @@ spec:
                 fieldRef:
                   fieldPath: metadata.namespace
             - name: CSI_ENDPOINT
-              value: unix:///csi/csi.sock
+              value: unix:///csi/csi-provisioner.sock
           imagePullPolicy: "IfNotPresent"
           volumeMounts:
-            - name: plugin-dir
+            - name: socket-dir
               mountPath: /csi
-            - name: pods-mount-dir
-              mountPath: /var/lib/kubelet/pods
-              mountPropagation: "Bidirectional"
-            - name: plugin-mount-dir
-              mountPath: /var/lib/kubelet/plugins
-              mountPropagation: "Bidirectional"
             - mountPath: /dev
               name: host-dev
             - mountPath: /rootfs
@@ -107,26 +118,10 @@ spec:
                 fieldRef:
                   fieldPath: status.podIP
           volumeMounts:
-            - name: plugin-dir
+            - name: socket-dir
               mountPath: /csi
           imagePullPolicy: "IfNotPresent"
       volumes:
-        - name: plugin-dir
-          hostPath:
-            path: /var/lib/kubelet/plugins/{{ .DriverNamePrefix }}rbd.csi.ceph.com
-            type: DirectoryOrCreate
-        - name: plugin-mount-dir
-          hostPath:
-            path: /var/lib/kubelet/plugins
-            type: Directory
-        - name: registration-dir
-          hostPath:
-            path: /var/lib/kubelet/plugins_registry/
-            type: Directory
-        - name: pods-mount-dir
-          hostPath:
-            path: /var/lib/kubelet/pods
-            type: Directory
         - name: host-dev
           hostPath:
             path: /dev
@@ -139,6 +134,10 @@ spec:
         - name: lib-modules
           hostPath:
             path: /lib/modules
+        - name: socket-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins/{{ .DriverNamePrefix }}rbd.csi.ceph.com
+            type: DirectoryOrCreate
         - name: ceph-csi-config
           configMap:
             name: rook-ceph-csi-config
@@ -154,7 +153,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: csi-liveness-rbdplugin
+  name: csi-liveness-rbdplugin-provisioner
   labels:
     app: csi-liveness
 spec:
@@ -164,4 +163,4 @@ spec:
       protocol: TCP
       targetPort: 8080
   selector:
-    app: csi-rbdplugin
+    app: csi-rbdplugin-provisioner

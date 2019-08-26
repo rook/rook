@@ -59,10 +59,12 @@ func init() {
 
 	// csi deployment templates
 	operatorCmd.Flags().StringVar(&csi.RBDPluginTemplatePath, "csi-rbd-plugin-template-path", csi.DefaultRBDPluginTemplatePath, "path to ceph-csi rbd plugin template")
-	operatorCmd.Flags().StringVar(&csi.RBDProvisionerTemplatePath, "csi-rbd-provisioner-template-path", csi.DefaultRBDProvisionerTemplatePath, "path to ceph-csi rbd provisioner template")
+	operatorCmd.Flags().StringVar(&csi.RBDProvisionerSTSTemplatePath, "csi-rbd-provisioner-sts-template-path", csi.DefaultRBDProvisionerSTSTemplatePath, "path to ceph-csi rbd provisioner statefulset template")
+	operatorCmd.Flags().StringVar(&csi.RBDProvisionerDepTemplatePath, "csi-rbd-provisioner-dep-template-path", csi.DefaultRBDProvisionerDepTemplatePath, "path to ceph-csi rbd provisioner deployment template")
 
 	operatorCmd.Flags().StringVar(&csi.CephFSPluginTemplatePath, "csi-cephfs-plugin-template-path", csi.DefaultCephFSPluginTemplatePath, "path to ceph-csi cephfs plugin template")
-	operatorCmd.Flags().StringVar(&csi.CephFSProvisionerTemplatePath, "csi-cephfs-provisioner-template-path", csi.DefaultCephFSProvisionerTemplatePath, "path to ceph-csi cephfs provisioner template")
+	operatorCmd.Flags().StringVar(&csi.CephFSProvisionerSTSTemplatePath, "csi-cephfs-provisioner-sts-template-path", csi.DefaultCephFSProvisionerSTSTemplatePath, "path to ceph-csi cephfs provisioner statefulset template")
+	operatorCmd.Flags().StringVar(&csi.CephFSProvisionerDepTemplatePath, "csi-cephfs-provisioner-dep-template-path", csi.DefaultCephFSProvisionerDepTemplatePath, "path to ceph-csi cephfs provisioner deployment template")
 
 	flags.SetFlagsFromEnv(operatorCmd.Flags(), rook.RookEnvVarPrefix)
 	flags.SetLoggingFlags(operatorCmd.Flags())

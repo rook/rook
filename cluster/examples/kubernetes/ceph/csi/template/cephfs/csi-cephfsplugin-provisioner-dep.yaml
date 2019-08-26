@@ -1,11 +1,10 @@
-kind: StatefulSet
+kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: csi-cephfsplugin-provisioner
   namespace: {{ .Namespace }}
 spec:
-  serviceName: "csi-cephfsplugin-provisioner"
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
      app: csi-cephfsplugin-provisioner
@@ -21,6 +20,9 @@ spec:
           args:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"
+            - "--leader-election=true"
+            - "--leader-election-type=leases"
+            - "--leader-election-namespace={{ .Namespace }}"
           env:
             - name: ADDRESS
               value: /csi/csi-provisioner.sock
@@ -35,6 +37,9 @@ spec:
             - "--v=5"
             - "--timeout=60s"
             - "--retry-interval-start=500ms"
+            - "--enable-leader-election=true"
+            - "--leader-election-type=leases"
+            - "--leader-election-namespace={{ .Namespace }}"
           env:
             - name: ADDRESS
               value: unix:///csi/csi-provisioner.sock
@@ -105,7 +110,7 @@ spec:
       volumes:
         - name: socket-dir
           hostPath:
-            path: /var/lib/kubelet/plugins/cephfs.csi.ceph.com
+            path: /var/lib/kubelet/plugins/{{ .DriverNamePrefix }}cephfs.csi.ceph.com
             type: DirectoryOrCreate
         - name: host-sys
           hostPath:

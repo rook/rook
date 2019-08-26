@@ -1,11 +1,10 @@
-kind: StatefulSet
+kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: csi-rbdplugin-provisioner
   namespace: {{ .Namespace }}
 spec:
-  serviceName: "csi-rbdplugin-provisioner"
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
      app: csi-rbdplugin-provisioner
@@ -23,6 +22,9 @@ spec:
             - "--v=5"
             - "--timeout=60s"
             - "--retry-interval-start=500ms"
+            - "--enable-leader-election=true"
+            - "--leader-election-type=leases"
+            - "--leader-election-namespace={{ .Namespace }}"
           env:
             - name: ADDRESS
               value: unix:///csi/csi-provisioner.sock
@@ -35,6 +37,9 @@ spec:
           args:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"
+            - "--leader-election=true"
+            - "--leader-election-type=leases"
+            - "--leader-election-namespace={{ .Namespace }}"
           env:
             - name: ADDRESS
               value: /csi/csi-provisioner.sock
@@ -48,6 +53,8 @@ spec:
             - "--csi-address=$(ADDRESS)"
             - "--v=5"
             - "--timeout=60s"
+            - "--leader-election=true"
+            - "--leader-election-namespace={{ .Namespace }}"
           env:
             - name: ADDRESS
               value: unix:///csi/csi-provisioner.sock
@@ -136,7 +143,7 @@ spec:
             path: /lib/modules
         - name: socket-dir
           hostPath:
-            path: /var/lib/kubelet/plugins/rbd.csi.ceph.com
+            path: /var/lib/kubelet/plugins/{{ .DriverNamePrefix }}rbd.csi.ceph.com
             type: DirectoryOrCreate
         - name: ceph-csi-config
           configMap:
