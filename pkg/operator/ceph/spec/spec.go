@@ -90,20 +90,17 @@ func confGeneratedInPodVolumeAndMount() (v1.Volume, v1.VolumeMount) {
 }
 
 // PodVolumes fills in the volumes parameter with the common list of Kubernetes volumes for use in Ceph pods.
-// This function is only used for OSDs.
+// This function is only used for OSDs. dataDirHostPath MUST be specified.
 func PodVolumes(dataPaths *config.DataPathMap, dataDirHostPath string, confGeneratedInPod bool) []v1.Volume {
 
-	dataDirSource := v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}
-	if dataDirHostPath != "" {
-		dataDirSource = v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: dataDirHostPath}}
-	}
 	configVolume, _ := configOverrideConfigMapVolumeAndMount()
 	if confGeneratedInPod {
 		configVolume, _ = confGeneratedInPodVolumeAndMount()
 	}
 
 	v := []v1.Volume{
-		{Name: k8sutil.DataDirVolume, VolumeSource: dataDirSource},
+		{Name: k8sutil.DataDirVolume, VolumeSource: v1.VolumeSource{
+			HostPath: &v1.HostPathVolumeSource{Path: dataDirHostPath}}},
 		configVolume,
 	}
 	v = append(v, StoredLogAndCrashVolume(dataPaths.HostLogDir(), dataPaths.HostCrashDir())...)

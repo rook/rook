@@ -269,11 +269,6 @@ func (c *ClusterController) onAdd(obj interface{}) {
 }
 
 func (c *ClusterController) configureExternalCephCluster(namespace, name string, cluster *cluster) error {
-	// Make sure the spec contains all the information we need
-	err := validateExternalClusterSpec(cluster)
-	if err != nil {
-		return errors.Wrapf(err, "failed to validate external cluster specs")
-	}
 
 	c.updateClusterStatus(namespace, name, cephv1.ClusterStateConnecting, "")
 
@@ -283,7 +278,7 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 
 	// Write connection info (ceph config file and keyring) for ceph commands
 	if cluster.Spec.CephVersion.Image == "" {
-		err = mon.WriteConnectionConfig(c.context, cluster.Info)
+		err := mon.WriteConnectionConfig(c.context, cluster.Info)
 		if err != nil {
 			logger.Errorf("failed to write config. Attempting to continue. %+v", err)
 		}
@@ -403,14 +398,18 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 		}
 	}
 
+	if err := validateCommonClusterSpec(cluster); err != nil {
+		logger.Errorf("failed to configure Ceph cluster. %+v", err)
+	}
+
 	if !cluster.Spec.External.Enable {
 		if err := c.configureLocalCephCluster(clusterObj.Namespace, clusterObj.Name, cluster, clusterObj); err != nil {
-			logger.Errorf("failed to configure local ceph cluster. %+v", err)
+			logger.Errorf("failed to configure local Ceph cluster. %+v", err)
 			return
 		}
 	} else {
 		if err := c.configureExternalCephCluster(clusterObj.Namespace, clusterObj.Name, cluster); err != nil {
-			logger.Errorf("failed to configure external ceph cluster. %+v", err)
+			logger.Errorf("failed to configure external Ceph cluster. %+v", err)
 			return
 		}
 	}
@@ -1085,14 +1084,6 @@ func printOverallCephVersion(context *clusterd.Context, namespace string) {
 	}
 }
 
-func validateExternalClusterSpec(cluster *cluster) error {
-	if cluster.Spec.DataDirHostPath == "" {
-		return errors.New("dataDirHostPath must be specified")
-	}
-
-	return nil
-}
-
 // Add validation in the code to fail if the external cluster has no OSDs keep waiting
 func populateExternalClusterInfo(context *clusterd.Context, namespace string) *cephconfig.ClusterInfo {
 	var clusterInfo *cephconfig.ClusterInfo
@@ -1128,6 +1119,14 @@ func populateConfigOverrideConfigMap(context *clusterd.Context, namespace string
 	_, err := context.Clientset.CoreV1().ConfigMaps(namespace).Create(cm)
 	if err != nil && !kerrors.IsAlreadyExists(err) {
 		return errors.Wrapf(err, "failed to create override configmap %s", namespace)
+	}
+
+	return nil
+}
+
+func validateCommonClusterSpec(cluster *cluster) error {
+	if cluster.Spec.DataDirHostPath == "" {
+		return errors.New("dataDirHostPath must be specified")
 	}
 
 	return nil

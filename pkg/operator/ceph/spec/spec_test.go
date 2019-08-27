@@ -30,11 +30,12 @@ import (
 func TestPodVolumes(t *testing.T) {
 	dataPathMap := opconfig.NewDatalessDaemonDataPathMap("rook-ceph", "/var/lib/rook")
 
-	if err := test.VolumeIsEmptyDir(k8sutil.DataDirVolume, PodVolumes(dataPathMap, "", false)); err != nil {
-		t.Errorf("PodVolumes(\"\") - data dir source is not EmptyDir: %s", err.Error())
-	}
 	if err := test.VolumeIsHostPath(k8sutil.DataDirVolume, "/dev/sdb", PodVolumes(dataPathMap, "/dev/sdb", false)); err != nil {
-		t.Errorf("PodVolumes(\"/dev/sdb\") - data dir source is not HostPath: %s", err.Error())
+		t.Errorf("PodVolumes(\"/dev/sdb\") - data dir source is not HostPath: %v", err.Error())
+	}
+
+	if err := test.VolumeIsHostPath(k8sutil.DataDirVolume, "/dev/vdg", PodVolumes(dataPathMap, "/dev/vdg", true)); err != nil {
+		t.Errorf("PodVolumes(\"/dev/vdg\") - data dir source is not HostPath: %v", err.Error())
 	}
 }
 
