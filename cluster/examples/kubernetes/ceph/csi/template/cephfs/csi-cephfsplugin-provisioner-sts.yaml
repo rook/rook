@@ -87,7 +87,7 @@ spec:
           args:
             - "--type=liveness"
             - "--endpoint=$(CSI_ENDPOINT)"
-            - "--livenessport=8081"
+            - "--livenessport=8681"
             - "--livenesspath=/metrics"
             - "--polltime=60s"
             - "--timeout=3s"
@@ -139,6 +139,6 @@ spec:
     - name: http-metrics
       port: 8080
       protocol: TCP
-      targetPort: 8081
+      targetPort: 8681
   selector:
     app: csi-cephfsplugin-provisioner
