@@ -104,19 +104,24 @@ The following tables lists the configurable parameters of the rook-operator char
 | `hostpathRequiresPrivileged` | Runs Ceph Pods as privileged to be able to write to `hostPath`s in OpenShift with SELinux restrictions. | `false`                                                |
 | `agent.flexVolumeDirPath`    | Path where the Rook agent discovers the flex volume plugins (*)                                         | `/usr/libexec/kubernetes/kubelet-plugins/volume/exec/` |
 | `agent.libModulesDirPath`    | Path where the Rook agent should look for kernel modules (*)                                            | `/lib/modules`                                         |
-| `agent.mounts`               | Additional paths to be mounted in the agent container                                                   | <none>                                                 |
+| `agent.mounts`               | Additional paths to be mounted in the agent container (**)                                              | <none>                                                 |
 | `agent.mountSecurityMode`    | Mount Security Mode for the agent.                                                                      | `Any`                                                  |
 | `agent.toleration`           | Toleration for the agent pods                                                                           | <none>                                                 |
 | `agent.tolerationKey`        | The specific key of the taint to tolerate                                                               | <none>                                                 |
 | `agent.tolerations`          | Array of tolerations in YAML format which will be added to agent deployment                             | <none>                                                 |
+| `agent.nodeAffinity`         | The node labels for affinity of `rook-agent` (***)                                                      | <none>                                                 |
 | `discover.toleration`        | Toleration for the discover pods                                                                        | <none>                                                 |
 | `discover.tolerationKey`     | The specific key of the taint to tolerate                                                               | <none>                                                 |
 | `discover.tolerations`       | Array of tolerations in YAML format which will be added to discover deployment                          | <none>                                                 |
+| `discover.nodeAffinity`      | The node labels for affinity of `discover-agent` (***)                                                  | <none>                                                 |
 | `mon.healthCheckInterval`    | The frequency for the operator to check the mon health                                                  | `45s`                                                  |
 | `mon.monOutTimeout`          | The time to wait before failing over an unhealthy mon                                                   | `600s`                                                 |
 
 &ast; For information on what to set `agent.flexVolumeDirPath` to, please refer to the [Rook flexvolume documentation](flexvolume.md)
-&ast; `agent.mounts` should have this format `mountname1=/host/path:/container/path,mountname2=/host/path2:/container/path2`
+
+&ast; &ast; `agent.mounts` should have this format `mountname1=/host/path:/container/path,mountname2=/host/path2:/container/path2`
+
+&ast; &ast; &ast; `agent.nodeAffinity` and `discover.nodeAffinity` should have the format `"role=storage,rook; storage=ceph"` or `storage=;role=rook-example` or `storage=;` (_checks only for presence of key_)
 
 ### Command Line
 You can pass the settings with helm command line parameters. Specify each parameter using the
