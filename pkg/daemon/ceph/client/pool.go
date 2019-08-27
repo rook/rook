@@ -23,6 +23,8 @@ import (
 
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/model"
+
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 )
 
 const (
@@ -244,7 +246,7 @@ func CreateReplicatedPoolForApp(context *clusterd.Context, clusterName string, n
 func createReplicationCrushRule(context *clusterd.Context, clusterName string, newPool CephStoragePoolDetails, ruleName string) error {
 	failureDomain := newPool.FailureDomain
 	if failureDomain == "" {
-		failureDomain = "host"
+		failureDomain = cephv1.DefaultFailureDomain
 	}
 
 	// set the crush root to the default if not already specified

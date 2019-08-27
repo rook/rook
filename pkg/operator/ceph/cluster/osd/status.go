@@ -64,7 +64,7 @@ func (c *Cluster) updateOSDStatus(node string, status OrchestrationStatus) error
 
 func UpdateNodeStatus(kv *k8sutil.ConfigMapKVStore, node string, status OrchestrationStatus) error {
 	labels := map[string]string{
-		k8sutil.AppAttr:        appName,
+		k8sutil.AppAttr:        AppName,
 		orchestrationStatusKey: provisioningLabelKey,
 		nodeLabelKey:           node,
 	}
@@ -160,7 +160,7 @@ func (c *Cluster) checkNodesCompleted(selector string, config *provisionConfig, 
 
 func (c *Cluster) completeOSDsForAllNodes(config *provisionConfig, configOSDs bool, timeoutMinutes int) bool {
 	selector := fmt.Sprintf("%s=%s,%s=%s",
-		k8sutil.AppAttr, appName,
+		k8sutil.AppAttr, AppName,
 		orchestrationStatusKey, provisioningLabelKey,
 	)
 

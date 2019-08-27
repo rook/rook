@@ -130,4 +130,3 @@ ignored = [
 [[constraint]]
   branch = "master"
   name = "github.com/kube-object-storage/lib-bucket-provisioner"
-

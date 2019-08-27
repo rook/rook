@@ -72,6 +72,9 @@ type ClusterSpec struct {
 	// Ceph config overrides to apply.
 	ConfigOverrides ConfigOverridesSpec `json:"configOverrides,omitempty"`
 
+	// This enables management of poddisruptionbudgets
+	ManagedDisruptionBudgets bool `json:"managedDisruptionBudgets,omitempty"`
+
 	// A spec for mon related options
 	Mon MonSpec `json:"mon,omitempty"`
 
@@ -149,6 +152,8 @@ const (
 	ClusterStateConnecting ClusterState = "Connecting"
 	ClusterStateConnected  ClusterState = "Connected"
 	ClusterStateError      ClusterState = "Error"
+	// DefaultFailureDomain for PoolSpec
+	DefaultFailureDomain = "host"
 )
 
 // ConfigOverridesSpec defines how Ceph configurations can be overridden by Rook.
@@ -196,9 +201,9 @@ type CephBlockPoolList struct {
 	Items           []CephBlockPool `json:"items"`
 }
 
-// CephBlockPoolSpec represent the spec of a pool
+// PoolSpec represents the spec of ceph pool
 type PoolSpec struct {
-	// The failure domain: osd or host (technically also any type in the crush map)
+	// The failure domain: osd/host/(region or zone if topologyAware) - technically also any type in the crush map
 	FailureDomain string `json:"failureDomain"`
 
 	// The root of the crush hierarchy utilized by the pool

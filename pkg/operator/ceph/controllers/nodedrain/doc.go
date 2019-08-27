@@ -14,14 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controllerconfig
-
-import (
-	"github.com/rook/rook/pkg/clusterd"
-)
-
-// Options passed to the controller when associating it with the manager.
-type Options struct {
-	Context           *clusterd.Context
-	OperatorNamespace string
-}
+/*
+Package nodedrain implements the controller for ensuring that drain detection deployments exist.
+The design and purpose for drain detection is found at:
+https://github.com/rook/rook/blob/master/design/ceph-managed-disruptionbudgets.md
+*/
+package nodedrain

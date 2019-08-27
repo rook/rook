@@ -293,9 +293,9 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 		Spec: apps.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					k8sutil.AppAttr:     appName,
+					k8sutil.AppAttr:     AppName,
 					k8sutil.ClusterAttr: c.Namespace,
-					osdLabelKey:         fmt.Sprintf("%d", osd.ID),
+					OsdIdLabelKey:       fmt.Sprintf("%d", osd.ID),
 				},
 			},
 			Strategy: apps.DeploymentStrategy{
@@ -303,7 +303,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 			},
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:   appName,
+					Name:   AppName,
 					Labels: c.getOSDLabels(osd.ID, failureDomainValue, osdProps.portable),
 				},
 				Spec: v1.PodSpec{
@@ -444,7 +444,7 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 	}
 
 	podMeta := metav1.ObjectMeta{
-		Name: appName,
+		Name: AppName,
 		Labels: map[string]string{
 			k8sutil.AppAttr:     prepareAppName,
 			k8sutil.ClusterAttr: c.Namespace,
@@ -765,10 +765,10 @@ func makeStorageClassDeviceSetPVCLabel(storageClassDeviceSetName, pvcStorageClas
 
 func (c *Cluster) getOSDLabels(osdID int, failureDomainValue string, portable bool) map[string]string {
 	return map[string]string{
-		k8sutil.AppAttr:     appName,
+		k8sutil.AppAttr:     AppName,
 		k8sutil.ClusterAttr: c.Namespace,
-		osdLabelKey:         fmt.Sprintf("%d", osdID),
-		failureDomainKey:    failureDomainValue,
+		OsdIdLabelKey:       fmt.Sprintf("%d", osdID),
+		FailureDomainKey:    failureDomainValue,
 		portableKey:         strconv.FormatBool(portable),
 	}
 }

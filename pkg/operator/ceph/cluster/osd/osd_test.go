@@ -154,7 +154,7 @@ func TestAddRemoveNode(t *testing.T) {
 	// simulate the OSD pod having been created
 	osdPod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{
 		Name:   "osdPod",
-		Labels: map[string]string{k8sutil.AppAttr: appName}}}
+		Labels: map[string]string{k8sutil.AppAttr: AppName}}}
 	c.context.Clientset.CoreV1().Pods(c.Namespace).Create(osdPod)
 
 	// mock the ceph calls that will be called during remove node
