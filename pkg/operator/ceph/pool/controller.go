@@ -124,7 +124,8 @@ func (c *PoolController) onUpdate(oldObj, newObj interface{}) {
 	}
 }
 
-func (c *PoolController) ParentClusterChanged(cluster cephv1.ClusterSpec, clusterInfo *cephconfig.ClusterInfo) {
+// ParentClusterChanged determines wether or not a CR update has been sent
+func (c *PoolController) ParentClusterChanged(cluster cephv1.ClusterSpec, clusterInfo *cephconfig.ClusterInfo, isUpgrade bool) {
 	logger.Debugf("No need to update the pool after the parent cluster changed")
 }
 

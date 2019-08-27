@@ -118,6 +118,7 @@ type Cluster struct {
 	mapping             *Mapping
 	ownerRef            metav1.OwnerReference
 	csiConfigMutex      *sync.Mutex
+	isUpgrade           bool
 }
 
 // monConfig for a single monitor
@@ -154,7 +155,7 @@ type SchedulingResult struct {
 }
 
 // New creates an instance of a mon cluster
-func New(context *clusterd.Context, namespace, dataDirHostPath string, network cephv1.NetworkSpec, ownerRef metav1.OwnerReference, csiConfigMutex *sync.Mutex) *Cluster {
+func New(context *clusterd.Context, namespace, dataDirHostPath string, network cephv1.NetworkSpec, ownerRef metav1.OwnerReference, csiConfigMutex *sync.Mutex, isUpgrade bool) *Cluster {
 	return &Cluster{
 		context:             context,
 		dataDirHostPath:     dataDirHostPath,
@@ -170,11 +171,12 @@ func New(context *clusterd.Context, namespace, dataDirHostPath string, network c
 		},
 		ownerRef:       ownerRef,
 		csiConfigMutex: csiConfigMutex,
+		isUpgrade:      isUpgrade,
 	}
 }
 
 // Start begins the process of running a cluster of Ceph mons.
-func (c *Cluster) Start(clusterInfo *cephconfig.ClusterInfo, rookVersion string, cephVersion cephver.CephVersion, spec cephv1.ClusterSpec) (*cephconfig.ClusterInfo, error) {
+func (c *Cluster) Start(clusterInfo *cephconfig.ClusterInfo, rookVersion string, cephVersion cephver.CephVersion, spec cephv1.ClusterSpec, isUpgrade bool) (*cephconfig.ClusterInfo, error) {
 
 	// Only one goroutine can orchestrate the mons at a time
 	c.acquireOrchestrationLock()
@@ -183,6 +185,7 @@ func (c *Cluster) Start(clusterInfo *cephconfig.ClusterInfo, rookVersion string,
 	c.ClusterInfo = clusterInfo
 	c.rookVersion = rookVersion
 	c.spec = spec
+	c.isUpgrade = isUpgrade
 
 	// fail if we were instructed to deploy more than one mon on the same machine with host networking
 	if c.Network.IsHost() && c.spec.Mon.AllowMultiplePerNode && c.spec.Mon.Count > 1 {
@@ -726,17 +729,21 @@ func (c *Cluster) updateMon(m *monConfig, d *apps.Deployment) error {
 
 	daemonType := string(config.MonType)
 	var cephVersionToUse cephver.CephVersion
-	currentCephVersion, err := client.LeastUptodateDaemonVersion(c.context, c.ClusterInfo.Name, daemonType)
-	if err != nil {
-		logger.Warningf("failed to retrieve current ceph %s version. %+v", daemonType, err)
-		logger.Debug("could not detect ceph version during update, this is likely an initial bootstrap, proceeding with c.clusterInfo.CephVersion")
-		cephVersionToUse = c.ClusterInfo.CephVersion
-	} else {
-		logger.Debugf("current cluster version for monitors before upgrading is: %+v", currentCephVersion)
-		cephVersionToUse = currentCephVersion
+
+	// If this is not an upgrade there is no need to check the ceph version
+	if c.isUpgrade {
+		currentCephVersion, err := client.LeastUptodateDaemonVersion(c.context, c.ClusterInfo.Name, daemonType)
+		if err != nil {
+			logger.Warningf("failed to retrieve current ceph %s version. %+v", daemonType, err)
+			logger.Debug("could not detect ceph version during update, this is likely an initial bootstrap, proceeding with c.clusterInfo.CephVersion")
+			cephVersionToUse = c.ClusterInfo.CephVersion
+		} else {
+			logger.Debugf("current cluster version for monitors before upgrading is: %+v", currentCephVersion)
+			cephVersionToUse = currentCephVersion
+		}
 	}
 
-	err = updateDeploymentAndWait(c.context, d, c.Namespace, daemonType, m.DaemonName, cephVersionToUse)
+	err := updateDeploymentAndWait(c.context, d, c.Namespace, daemonType, m.DaemonName, cephVersionToUse, c.isUpgrade)
 	if err != nil {
 		return fmt.Errorf("failed to update mon deployment %s. %+v", m.ResourceName, err)
 	}

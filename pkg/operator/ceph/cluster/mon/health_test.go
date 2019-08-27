@@ -54,7 +54,7 @@ func TestCheckHealth(t *testing.T) {
 		ConfigDir: configDir,
 		Executor:  executor,
 	}
-	c := New(context, "ns", "", cephv1.NetworkSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
+	c := New(context, "ns", "", cephv1.NetworkSpec{}, metav1.OwnerReference{}, &sync.Mutex{}, false)
 	setCommonMonProperties(c, 1, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 	logger.Infof("initial mons: %v", c.ClusterInfo.Monitors)
 	c.waitForStart = false
@@ -109,7 +109,7 @@ func TestCheckHealthNotFound(t *testing.T) {
 		ConfigDir: configDir,
 		Executor:  executor,
 	}
-	c := New(context, "ns", "", cephv1.NetworkSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
+	c := New(context, "ns", "", cephv1.NetworkSpec{}, metav1.OwnerReference{}, &sync.Mutex{}, false)
 	setCommonMonProperties(c, 2, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 	c.waitForStart = false
 	defer os.RemoveAll(c.context.ConfigDir)
@@ -165,7 +165,7 @@ func TestAddRemoveMons(t *testing.T) {
 		ConfigDir: configDir,
 		Executor:  executor,
 	}
-	c := New(context, "ns", "", cephv1.NetworkSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
+	c := New(context, "ns", "", cephv1.NetworkSpec{}, metav1.OwnerReference{}, &sync.Mutex{}, false)
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 5, AllowMultiplePerNode: true}, "myversion")
 	c.maxMonID = 0 // "a" is max mon id
 	c.waitForStart = false

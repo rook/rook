@@ -60,6 +60,7 @@ type Cluster struct {
 	fsID            string
 	ownerRefs       []metav1.OwnerReference
 	dataDirHostPath string
+	isUpgrade       bool
 }
 
 type mdsConfig struct {
@@ -78,6 +79,7 @@ func NewCluster(
 	fsdetails *client.CephFilesystemDetails,
 	ownerRefs []metav1.OwnerReference,
 	dataDirHostPath string,
+	isUpgrade bool,
 ) *Cluster {
 	return &Cluster{
 		clusterInfo:     clusterInfo,
@@ -88,6 +90,7 @@ func NewCluster(
 		fsID:            strconv.Itoa(fsdetails.ID),
 		ownerRefs:       ownerRefs,
 		dataDirHostPath: dataDirHostPath,
+		isUpgrade:       isUpgrade,
 	}
 }
 
@@ -166,7 +169,7 @@ func (c *Cluster) Start() error {
 				logger.Debugf("current cluster version for mdss before upgrading is: %+v", currentCephVersion)
 				cephVersionToUse = currentCephVersion
 			}
-			if err = UpdateDeploymentAndWait(c.context, d, c.fs.Namespace, daemon, daemonLetterID, cephVersionToUse); err != nil {
+			if err = UpdateDeploymentAndWait(c.context, d, c.fs.Namespace, daemon, daemonLetterID, cephVersionToUse, c.isUpgrade); err != nil {
 				return fmt.Errorf("failed to update mds deployment %s. %+v", d.Name, err)
 			}
 		}

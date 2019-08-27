@@ -62,12 +62,13 @@ type cluster struct {
 	orchestrationNeeded  bool
 	orchMux              sync.Mutex
 	childControllers     []childController
+	isUpgrade            bool
 }
 
 // ChildController is implemented by CRs that are owned by the CephCluster
 type childController interface {
 	// ParentClusterChanged is called when the CephCluster CR is updated, for example for a newer ceph version
-	ParentClusterChanged(cluster cephv1.ClusterSpec, clusterInfo *cephconfig.ClusterInfo)
+	ParentClusterChanged(cluster cephv1.ClusterSpec, clusterInfo *cephconfig.ClusterInfo, isUpgrade bool)
 }
 
 func newCluster(c *cephv1.CephCluster, context *clusterd.Context, csiMutex *sync.Mutex) *cluster {
@@ -83,7 +84,8 @@ func newCluster(c *cephv1.CephCluster, context *clusterd.Context, csiMutex *sync
 		crdName:   c.Name,
 		stopCh:    make(chan struct{}),
 		ownerRef:  ownerRef,
-		mons:      mon.New(context, c.Namespace, c.Spec.DataDirHostPath, c.Spec.Network, ownerRef, csiMutex),
+		// we set isUpgrade to false since it's a new cluster
+		mons: mon.New(context, c.Namespace, c.Spec.DataDirHostPath, c.Spec.Network, ownerRef, csiMutex, false),
 	}
 }
 
@@ -128,14 +130,12 @@ func (c *cluster) validateCephVersion(version *cephver.CephVersion) error {
 
 	if !version.Supported() {
 		logger.Warningf("unsupported ceph version detected: %s.", version)
-		if c.Spec.CephVersion.AllowUnsupported {
-			return nil
+		if !c.Spec.CephVersion.AllowUnsupported {
+			return fmt.Errorf("allowUnsupported must be set to true to run with this version: %v", version)
 		}
-
-		return fmt.Errorf("allowUnsupported must be set to true to run with this version: %v", version)
 	}
 
-	// The following tries to determine if the operator can proceed with an upgrade
+	// The following tries to determine if the operator can proceed with an upgrade because we come from an OnAdd() call
 	// If the cluster was unhealthy and someone injected a new image version, an upgrade was triggered but failed because the cluster is not healthy
 	// Then after this, if the operator gets restarted we are not able to fail if the cluster is not healthy, the following tries to determine the
 	// state we are in and if we should upgrade or not
@@ -152,6 +152,7 @@ func (c *cluster) validateCephVersion(version *cephver.CephVersion) error {
 
 	if !clusterInfo.IsInitialized() {
 		// If not initialized, this is likely a new cluster so there is nothing to do
+		logger.Debug("cluster not initialized, nothing to validate")
 		return nil
 	}
 
@@ -168,7 +169,7 @@ func (c *cluster) validateCephVersion(version *cephver.CephVersion) error {
 		logger.Errorf("failed to determine if we should upgrade or not. %+v", err)
 		// we shouldn't block the orchestration if we can't determine the version of the image spec, we proceed anyway in best effort
 		// we won't be able to check if there is an update or not and what to do, so we don't check the cluster status either
-		// will happen if someone uses ceph/daemon:latest-master for instance
+		// This will happen if someone uses ceph/daemon:latest-master for instance
 		return nil
 	}
 
@@ -179,6 +180,7 @@ func (c *cluster) validateCephVersion(version *cephver.CephVersion) error {
 		if !cephHealthy {
 			return fmt.Errorf("ceph status in namespace %s is not healthy, refusing to upgrade. fix the cluster and re-edit the cluster CR to trigger a new orchestation update", c.Namespace)
 		}
+		c.isUpgrade = true
 	}
 
 	return nil
@@ -231,7 +233,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 
 	// This gets triggered on CR update so let's not run that (mon/mgr/osd daemons)
 	// Start the mon pods
-	clusterInfo, err := c.mons.Start(c.Info, rookImage, cephVersion, *c.Spec)
+	clusterInfo, err := c.mons.Start(c.Info, rookImage, cephVersion, *c.Spec, c.isUpgrade)
 	if err != nil {
 		return fmt.Errorf("failed to start the mons. %+v", err)
 	}
@@ -244,7 +246,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 
 	mgrs := mgr.New(c.Info, c.context, c.Namespace, rookImage,
 		spec.CephVersion, cephv1.GetMgrPlacement(spec.Placement), cephv1.GetMgrAnnotations(c.Spec.Annotations),
-		spec.Network, spec.Dashboard, spec.Monitoring, cephv1.GetMgrResources(spec.Resources), c.ownerRef, c.Spec.DataDirHostPath)
+		spec.Network, spec.Dashboard, spec.Monitoring, cephv1.GetMgrResources(spec.Resources), c.ownerRef, c.Spec.DataDirHostPath, c.isUpgrade)
 	err = mgrs.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the ceph mgr. %+v", err)
@@ -253,7 +255,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 	// Start the OSDs
 	osds := osd.New(c.Info, c.context, c.Namespace, rookImage, spec.CephVersion, spec.Storage, spec.DataDirHostPath,
 		cephv1.GetOSDPlacement(spec.Placement), cephv1.GetOSDAnnotations(spec.Annotations), spec.Network,
-		cephv1.GetOSDResources(spec.Resources), c.ownerRef)
+		cephv1.GetOSDResources(spec.Resources), c.ownerRef, c.isUpgrade)
 	err = osds.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the osds. %+v", err)
@@ -262,7 +264,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 	// Start the rbd mirroring daemon(s)
 	rbdmirror := rbd.New(c.Info, c.context, c.Namespace, rookImage, spec.CephVersion, cephv1.GetRBDMirrorPlacement(spec.Placement),
 		cephv1.GetRBDMirrorAnnotations(spec.Annotations), spec.Network, spec.RBDMirroring,
-		cephv1.GetRBDMirrorResources(spec.Resources), c.ownerRef, c.Spec.DataDirHostPath)
+		cephv1.GetRBDMirrorResources(spec.Resources), c.ownerRef, c.Spec.DataDirHostPath, c.isUpgrade)
 	err = rbdmirror.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the rbd mirrors. %+v", err)
@@ -273,7 +275,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 
 	// Notify the child controllers that the cluster spec might have changed
 	for _, child := range c.childControllers {
-		child.ParentClusterChanged(*c.Spec, clusterInfo)
+		child.ParentClusterChanged(*c.Spec, clusterInfo, c.isUpgrade)
 	}
 
 	return nil

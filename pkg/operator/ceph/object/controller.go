@@ -54,6 +54,7 @@ type ObjectStoreController struct {
 	ownerRef           metav1.OwnerReference
 	dataDirHostPath    string
 	orchestrationMutex sync.Mutex
+	isUpgrade          bool
 }
 
 // NewObjectStoreController create controller for watching object store custom resources created
@@ -65,6 +66,7 @@ func NewObjectStoreController(
 	clusterSpec *cephv1.ClusterSpec,
 	ownerRef metav1.OwnerReference,
 	dataDirHostPath string,
+	isUpgrade bool,
 ) *ObjectStoreController {
 	return &ObjectStoreController{
 		clusterInfo:     clusterInfo,
@@ -74,6 +76,7 @@ func NewObjectStoreController(
 		rookImage:       rookImage,
 		ownerRef:        ownerRef,
 		dataDirHostPath: dataDirHostPath,
+		isUpgrade:       isUpgrade,
 	}
 }
 
@@ -138,6 +141,7 @@ func (c *ObjectStoreController) createOrUpdateStore(objectstore *cephv1.CephObje
 		clusterSpec: c.clusterSpec,
 		ownerRefs:   c.storeOwners(objectstore),
 		DataPathMap: cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, objectstore.Name, c.clusterInfo.Name, c.dataDirHostPath),
+		isUpgrade:   c.isUpgrade,
 	}
 	if err := cfg.createOrUpdate(); err != nil {
 		logger.Errorf("failed to create or update object store %s. %+v", objectstore.Name, err)
@@ -160,12 +164,16 @@ func (c *ObjectStoreController) onDelete(obj interface{}) {
 	}
 }
 
-func (c *ObjectStoreController) ParentClusterChanged(cluster cephv1.ClusterSpec, clusterInfo *daemonconfig.ClusterInfo) {
+// ParentClusterChanged determines wether or not a CR update has been sent
+func (c *ObjectStoreController) ParentClusterChanged(cluster cephv1.ClusterSpec, clusterInfo *daemonconfig.ClusterInfo, isUpgrade bool) {
 	c.clusterInfo = clusterInfo
-	if cluster.CephVersion.Image == c.clusterSpec.CephVersion.Image {
+	if !isUpgrade {
 		logger.Debugf("No need to update the object store after the parent cluster changed")
 		return
 	}
+
+	// This is an upgrade so let's activate the flag
+	c.isUpgrade = isUpgrade
 
 	c.acquireOrchestrationLock()
 	defer c.releaseOrchestrationLock()

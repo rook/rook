@@ -349,18 +349,7 @@ func (c *ClusterController) configureLocalCephCluster(namespace, name string, cl
 	failedMessage := ""
 	state := cephv1.ClusterStateError
 
-	// Try to load clusterInfo early so we can compare the running version with the one from the spec image
-	var err error
-	cluster.Info, _, _, err = mon.LoadClusterInfo(c.context, cluster.Namespace)
-	if err == nil {
-		// Let's write connection info (ceph config file and keyring) to the operator for health checks
-		err = mon.WriteConnectionConfig(cluster.context, cluster.Info)
-		if err != nil {
-			return err
-		}
-	}
-
-	err = wait.Poll(clusterCreateInterval, clusterCreateTimeout,
+	err := wait.Poll(clusterCreateInterval, clusterCreateTimeout,
 		func() (bool, error) {
 			cephVersion, canRetry, err := c.detectAndValidateCephVersion(cluster, cluster.Spec.CephVersion.Image)
 			if err != nil {
@@ -386,6 +375,10 @@ func (c *ClusterController) configureLocalCephCluster(namespace, name string, cl
 			failedMessage = ""
 			return true, nil
 		})
+
+	if err != nil {
+		return fmt.Errorf("giving up waiting for cluster creating. %+v", err)
+	}
 
 	c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, state, failedMessage)
 
@@ -417,7 +410,7 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 	poolController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start object store CRD watcher
-	objectStoreController := object.NewObjectStoreController(cluster.Info, c.context, cluster.Namespace, c.rookImage, cluster.Spec, cluster.ownerRef, cluster.Spec.DataDirHostPath)
+	objectStoreController := object.NewObjectStoreController(cluster.Info, c.context, cluster.Namespace, c.rookImage, cluster.Spec, cluster.ownerRef, cluster.Spec.DataDirHostPath, cluster.isUpgrade)
 	objectStoreController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start object store user CRD watcher
@@ -432,12 +425,18 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 	go bucketController.Run(cluster.stopCh)
 
 	// Start file system CRD watcher
-	fileController := file.NewFilesystemController(cluster.Info, c.context, cluster.Namespace, c.rookImage, cluster.Spec, cluster.ownerRef, cluster.Spec.DataDirHostPath)
+	fileController := file.NewFilesystemController(cluster.Info, c.context, cluster.Namespace, c.rookImage, cluster.Spec, cluster.ownerRef, cluster.Spec.DataDirHostPath, cluster.isUpgrade)
 	fileController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start nfs ganesha CRD watcher
 	ganeshaController := nfs.NewCephNFSController(cluster.Info, c.context, cluster.Spec.DataDirHostPath, cluster.Namespace, c.rookImage, cluster.Spec, cluster.ownerRef)
 	ganeshaController.StartWatch(cluster.Namespace, cluster.stopCh)
+
+	// Populate childControllers
+	logger.Debug("populating child controllers, so cluster CR spec updates will be propagaged to other CR")
+	cluster.childControllers = []childController{
+		poolController, objectStoreController, objectStoreUserController, fileController, ganeshaController,
+	}
 
 	// Populate ClusterInfo
 	if cluster.Spec.External.Enable {
@@ -580,12 +579,13 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 	// if the image changed, we need to detect the new image version
 	versionChanged := false
 	if oldClust.Spec.CephVersion.Image != newClust.Spec.CephVersion.Image {
-		logger.Infof("the ceph version changed")
+		logger.Infof("the ceph version changed from %s to %s", oldClust.Spec.CephVersion.Image, newClust.Spec.CephVersion.Image)
 		version, _, err := c.detectAndValidateCephVersion(cluster, newClust.Spec.CephVersion.Image)
 		if err != nil {
 			logger.Errorf("unknown ceph major version. %+v", err)
 			return
 		}
+		versionChanged = true
 		cluster.Info.CephVersion = *version
 	}
 
@@ -603,7 +603,12 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 	runningVersions := *versions
 
 	// If the image version changed let's make sure we can safely upgrade
+	// Also we make sure there is actually an upgrade to perform
+	// It's not because the image spec changed that the ceph version did
+	// Someone could use the same Ceph version but with a different base OS content
 	if versionChanged {
+		// we compare against cluster.Info.CephVersion since it received the new spec version earlier
+		// so don't get confused by the name of the function and its arguments
 		updateOrNot, err := diffImageSpecAndClusterRunningVersion(cluster.Info.CephVersion, runningVersions)
 		if err != nil {
 			logger.Errorf("failed to determine if we should upgrade or not. %+v", err)
@@ -618,6 +623,8 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 				logger.Errorf("ceph status in namespace %s is not healthy, refusing to upgrade. fix the cluster and re-edit the cluster CR to trigger a new orchestation update", cluster.Namespace)
 				return
 			}
+			// If Ceph is healthy let's start the upgrade!
+			cluster.isUpgrade = true
 		}
 	} else {
 		logger.Infof("ceph daemons running versions are: %+v", runningVersions)

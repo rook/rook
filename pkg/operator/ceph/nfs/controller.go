@@ -52,6 +52,7 @@ type CephNFSController struct {
 	clusterSpec        *cephv1.ClusterSpec
 	ownerRef           metav1.OwnerReference
 	orchestrationMutex sync.Mutex
+	isUpgrade          bool
 }
 
 // NewCephNFSController create controller for watching NFS custom resources created
@@ -148,12 +149,16 @@ func (c *CephNFSController) onDelete(obj interface{}) {
 
 // ParentClusterChanged performs the steps needed to update the NFS cluster when the parent Ceph
 // cluster has changed.
-func (c *CephNFSController) ParentClusterChanged(cluster cephv1.ClusterSpec, clusterInfo *cephconfig.ClusterInfo) {
+func (c *CephNFSController) ParentClusterChanged(cluster cephv1.ClusterSpec, clusterInfo *cephconfig.ClusterInfo, isUpgrade bool) {
 	c.clusterInfo = clusterInfo
 	if cluster.CephVersion.Image == c.clusterSpec.CephVersion.Image || !c.clusterInfo.CephVersion.IsAtLeastNautilus() {
 		logger.Debugf("No need to update the nfs daemons after the parent cluster changed")
 		return
 	}
+
+	// This is mostly a placeholder since we don't perform any upgrade checks for nfs since it's not in Ceph's servicemap yet
+	// This is an upgrade so let's activate the flag
+	c.isUpgrade = isUpgrade
 
 	c.acquireOrchestrationLock()
 	defer c.releaseOrchestrationLock()

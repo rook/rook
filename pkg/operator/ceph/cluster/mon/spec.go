@@ -342,8 +342,14 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 }
 
 // UpdateCephDeploymentAndWait verifies a deployment can be stopped or continued
-func UpdateCephDeploymentAndWait(context *clusterd.Context, deployment *apps.Deployment, namespace, daemonType, daemonName string, cephVersion cephver.CephVersion) error {
+func UpdateCephDeploymentAndWait(context *clusterd.Context, deployment *apps.Deployment, namespace, daemonType, daemonName string, cephVersion cephver.CephVersion, isUpgrade bool) error {
+
 	callback := func(action string) error {
+		if !isUpgrade {
+			logger.Info("this is not an upgrade, not performing upgrade checks")
+			return nil
+		}
+
 		logger.Infof("checking if we can %s the deployment %s", action, deployment.Name)
 
 		if action == "stop" {
