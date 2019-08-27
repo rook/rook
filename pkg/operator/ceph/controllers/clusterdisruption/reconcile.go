@@ -54,6 +54,7 @@ type ReconcileClusterDisruption struct {
 	options             *controllerconfig.Options
 	clusterMap          *ClusterMap
 	osdCrushLocationMap *OSDCrushLocationMap
+	maintenanceTimeout  time.Duration
 }
 
 // Reconcile reconciles a node and ensures that it has a drain-detection deployment
@@ -91,7 +92,6 @@ func (r *ReconcileClusterDisruption) reconcile(request reconcile.Request) (recon
 	}
 
 	// get the ceph cluster
-	logger.Debugf("getting the cephcluster %s", request.NamespacedName)
 	cephCluster := &cephv1.CephCluster{}
 	err := r.client.Get(context.TODO(), request.NamespacedName, cephCluster)
 	if err != nil {
@@ -101,9 +101,12 @@ func (r *ReconcileClusterDisruption) reconcile(request reconcile.Request) (recon
 		// feature disabled for this cluster. not requeueing
 		return reconcile.Result{Requeue: false}, nil
 	}
+	r.maintenanceTimeout = cephCluster.Spec.MaintenanceTimeout
+	if r.maintenanceTimeout == 0 {
+		r.maintenanceTimeout = DefaultMaintenanceTimeout
+	}
 
 	//  determine failure domain
-	logger.Debugf("getting the failure domain")
 	poolFailureDomain, poolCount, err := r.getFailureDomain(request)
 	if err != nil {
 		return reconcile.Result{}, err
@@ -149,7 +152,7 @@ func (r *ReconcileClusterDisruption) reconcile(request reconcile.Request) (recon
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-	return reconcile.Result{RequeueAfter: time.Minute}, nil
+	return reconcile.Result{Requeue: true, RequeueAfter: time.Minute}, nil
 }
 
 func emptyResultAndErrorf(format string, a ...interface{}) (reconcile.Result, error) {

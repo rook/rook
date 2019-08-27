@@ -16,6 +16,8 @@ limitations under the License.
 package v1
 
 import (
+	"time"
+
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -74,6 +76,11 @@ type ClusterSpec struct {
 
 	// This enables management of poddisruptionbudgets
 	ManagedDisruptionBudgets bool `json:"managedDisruptionBudgets,omitempty"`
+
+	// This sets how many minutes the DOWN/OUT interval is for drained failure domains
+	// it only works if managedDisruptionBudgets is true.
+	// the default is 30 minutes
+	MaintenanceTimeout time.Duration `json:"managedDisruptionTimeout,omitempty"`
 
 	// A spec for mon related options
 	Mon MonSpec `json:"mon,omitempty"`

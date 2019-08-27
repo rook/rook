@@ -19,6 +19,7 @@ package clusterdisruption
 import (
 	"context"
 	"fmt"
+	"time"
 
 	cephClient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
@@ -39,6 +40,9 @@ const (
 	// PDBAppName is that app label value for pdbs targeting osds
 	PDBAppName     = "rook-ceph-pdb"
 	disabledPDBKey = "disabled-pdb"
+	// DefaultMaintenanceTimeout is the period for which a drained failure domain will remain in noout
+	DefaultMaintenanceTimeout = 30 * time.Minute
+	nooutFlag                 = "noout"
 )
 
 func (r *ReconcileClusterDisruption) createPDB(deployment appsv1.Deployment) error {
@@ -140,20 +144,23 @@ func (r *ReconcileClusterDisruption) reconcilePDB(
 	if err != nil {
 		return fmt.Errorf("could not check cluster health: %+v", err)
 	}
-	logger.Infof("Cluster PGs Clean: %t", clean)                                    // ghost
-	logger.Infof("PG health message for cluster %s: %s", request.Name, pgHealthMsg) // ghost
 	_, ok := pdbStateMap.Data[disabledPDBKey]
 	if !ok {
 		pdbStateMap.Data[disabledPDBKey] = ""
 	}
 	if len(drainingFailureDomains) != 0 {
-		logger.Infof("detected drains on %ss: %v", poolFailureDomain, drainingFailureDomains)
+		logger.Infof("pg health: %s. detected drains on %ss: %v", pgHealthMsg, poolFailureDomain, drainingFailureDomains)
 		// change only when clean
 		if clean {
 			pdbStateMap.Data[disabledPDBKey] = drainingFailureDomains[0]
 		}
 	} else {
 		pdbStateMap.Data[disabledPDBKey] = ""
+	}
+
+	err = r.updateNoout(pdbStateMap, allFailureDomainsMap)
+	if err != nil {
+		return fmt.Errorf("could not update maintenance noout in cluster %s: %+v", request, err)
 	}
 	err = r.client.Update(context.TODO(), pdbStateMap)
 	if err != nil {
@@ -173,5 +180,44 @@ func (r *ReconcileClusterDisruption) reconcilePDB(
 		}
 	}
 
+	return nil
+}
+
+func (r *ReconcileClusterDisruption) updateNoout(pdbStateMap *corev1.ConfigMap, allFailureDomainsMap map[string][]OsdData) error {
+	disabledFailureDomain := pdbStateMap.Data[disabledPDBKey]
+	namespace := pdbStateMap.ObjectMeta.Namespace
+	osdDump, err := cephClient.GetOSDDump(r.options.Context, namespace)
+	if err != nil {
+		return fmt.Errorf("could not get osddump for reconciling maintenance noout in namespace %s: %+v", namespace, err)
+	}
+
+	for failureDomain := range allFailureDomainsMap {
+		timeStampKey := fmt.Sprintf("%s-noout-set-at", failureDomain)
+		if disabledFailureDomain == failureDomain {
+			nooutSetTimeString, ok := pdbStateMap.Data[timeStampKey]
+			if !ok {
+				pdbStateMap.Data[timeStampKey] = time.Now().Format(time.RFC3339)
+			} else if len(nooutSetTimeString) == 0 {
+				pdbStateMap.Data[timeStampKey] = time.Now().Format(time.RFC3339)
+			}
+
+			nooutSetTime, err := time.Parse(time.RFC3339, pdbStateMap.Data[timeStampKey])
+			if err != nil {
+				return fmt.Errorf("could not parse timestamp %s for failureDomain %s", pdbStateMap.Data[timeStampKey], nooutSetTime)
+			}
+			if time.Since(nooutSetTime) >= r.maintenanceTimeout {
+				// noout expired
+				osdDump.UpdateFlagOnCrushUnit(r.options.Context, false, namespace, failureDomain, nooutFlag)
+			} else {
+				// set noout
+				osdDump.UpdateFlagOnCrushUnit(r.options.Context, true, namespace, failureDomain, nooutFlag)
+			}
+
+		} else {
+			delete(pdbStateMap.Data, timeStampKey)
+			// ensure noout unset
+			osdDump.UpdateFlagOnCrushUnit(r.options.Context, false, namespace, failureDomain, nooutFlag)
+		}
+	}
 	return nil
 }
