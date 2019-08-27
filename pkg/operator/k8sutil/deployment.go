@@ -25,6 +25,7 @@ import (
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -199,6 +200,16 @@ func AddLabelToDeployement(key, value string, d *v1.Deployment) {
 		d.Labels = map[string]string{}
 	}
 	addLabel(key, value, d.Labels)
+}
+
+func AddLabelToPod(key, value string, p *corev1.PodTemplateSpec) {
+	if p == nil {
+		return
+	}
+	if p.Labels == nil {
+		p.Labels = map[string]string{}
+	}
+	addLabel(key, value, p.Labels)
 }
 
 func AddLabelToJob(key, value string, b *batchv1.Job) {

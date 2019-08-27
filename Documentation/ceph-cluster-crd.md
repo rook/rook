@@ -63,6 +63,7 @@ spec:
    storageClassDeviceSets:
     - name: set1
       count: 3
+      portable: false
       volumeClaimTemplates:
       - metadata:
           name: data
@@ -203,6 +204,7 @@ The following are the settings for Storage Class Device Sets which can be config
 - `count`: The number of devices in the set.
 - `resources`: The CPU and RAM requests/limits for the devices.(Optional)
 - `placement`: The placement criteria for the devices. Default is no placement criteria.(Optional)
+- `portable`: If `true`, the OSDs will be allowed to move between nodes during failover. This requires a storage class that supports portability (e.g. `aws-ebs`, but not the local storage provisioner). If `false`, the OSDs will be assigned to a node permanently. Rook will configure Ceph's CRUSH map to support the portability.
 - `volumeClaimTemplates`: A list of PVC templates to use for provisioning the underlying storage devices.
   - `resources.requests.storage`: The desired capacity for the underlying storage devices.
   - `storageClassName`: The StorageClass to provision PVCs from. Default would be to use the cluster-default StorageClass.
@@ -613,6 +615,7 @@ spec:
     storageClassDeviceSets:
     - name: set1
       count: 3
+      portable: false
       resources:
         limits:
           cpu: "500m"
