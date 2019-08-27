@@ -190,20 +190,19 @@ func (r *ReconcileClusterDisruption) updateNoout(pdbStateMap *corev1.ConfigMap, 
 	if err != nil {
 		return fmt.Errorf("could not get osddump for reconciling maintenance noout in namespace %s: %+v", namespace, err)
 	}
-
+	disabledFailureDomainTimeStampKey := fmt.Sprintf("%s-noout-set-at", disabledFailureDomain)
 	for failureDomain := range allFailureDomainsMap {
-		timeStampKey := fmt.Sprintf("%s-noout-set-at", failureDomain)
 		if disabledFailureDomain == failureDomain {
-			nooutSetTimeString, ok := pdbStateMap.Data[timeStampKey]
+			nooutSetTimeString, ok := pdbStateMap.Data[disabledFailureDomainTimeStampKey]
 			if !ok {
-				pdbStateMap.Data[timeStampKey] = time.Now().Format(time.RFC3339)
+				pdbStateMap.Data[disabledFailureDomainTimeStampKey] = time.Now().Format(time.RFC3339)
 			} else if len(nooutSetTimeString) == 0 {
-				pdbStateMap.Data[timeStampKey] = time.Now().Format(time.RFC3339)
+				pdbStateMap.Data[disabledFailureDomainTimeStampKey] = time.Now().Format(time.RFC3339)
 			}
 
-			nooutSetTime, err := time.Parse(time.RFC3339, pdbStateMap.Data[timeStampKey])
+			nooutSetTime, err := time.Parse(time.RFC3339, pdbStateMap.Data[disabledFailureDomainTimeStampKey])
 			if err != nil {
-				return fmt.Errorf("could not parse timestamp %s for failureDomain %s", pdbStateMap.Data[timeStampKey], nooutSetTime)
+				return fmt.Errorf("could not parse timestamp %s for failureDomain %s", pdbStateMap.Data[disabledFailureDomainTimeStampKey], nooutSetTime)
 			}
 			if time.Since(nooutSetTime) >= r.maintenanceTimeout {
 				// noout expired
@@ -214,9 +213,15 @@ func (r *ReconcileClusterDisruption) updateNoout(pdbStateMap *corev1.ConfigMap, 
 			}
 
 		} else {
-			delete(pdbStateMap.Data, timeStampKey)
+			delete(pdbStateMap.Data, disabledFailureDomainTimeStampKey)
 			// ensure noout unset
 			osdDump.UpdateFlagOnCrushUnit(r.options.Context, false, namespace, failureDomain, nooutFlag)
+		}
+		// cleanup
+		for key := range pdbStateMap.Data {
+			if key != disabledPDBKey && key != disabledFailureDomainTimeStampKey {
+				delete(pdbStateMap.Data, key)
+			}
 		}
 	}
 	return nil

@@ -106,8 +106,8 @@ func (r *ReconcileClusterDisruption) reconcile(request reconcile.Request) (recon
 		r.maintenanceTimeout = DefaultMaintenanceTimeout
 	}
 
-	//  determine failure domain
-	poolFailureDomain, poolCount, err := r.getFailureDomain(request)
+	//  reconcile the pools and get the failure domain
+	cephObjectStoreList, cephFilesystemList, poolFailureDomain, poolCount, err := r.processPools(request)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -133,6 +133,24 @@ func (r *ReconcileClusterDisruption) reconcile(request reconcile.Request) (recon
 		return reconcile.Result{}, err
 	}
 
+	// reconcile the static mond PDB
+	err = r.reconcileMonPDB(cephCluster, drainingOSDs)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	// reconcile the pdbs for objectstores
+	err = r.reconcileCephObjectStore(cephObjectStoreList, drainingOSDs)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	// reconcile the pdbs for filesystems
+	err = r.reconcileCephFilesystem(cephFilesystemList, drainingOSDs)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
 	allFailureDomainsMap, err := getFailureDomainMapForOsds(osdDataList, poolFailureDomain)
 	if err != nil {
 		logger.Error(err)
@@ -152,7 +170,7 @@ func (r *ReconcileClusterDisruption) reconcile(request reconcile.Request) (recon
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-	return reconcile.Result{Requeue: true, RequeueAfter: time.Minute}, nil
+	return reconcile.Result{Requeue: true, RequeueAfter: 45 * time.Second}, nil
 }
 
 func emptyResultAndErrorf(format string, a ...interface{}) (reconcile.Result, error) {

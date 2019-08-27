@@ -29,18 +29,20 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	policyv1beta1 "k8s.io/api/policy/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	// metav1 "k8s.io/api/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func (r *ReconcileClusterDisruption) getFailureDomain(request reconcile.Request) (string, int, error) {
+func (r *ReconcileClusterDisruption) processPools(request reconcile.Request) (*cephv1.CephObjectStoreList, *cephv1.CephFilesystemList, string, int, error) {
 	namespaceListOpt := client.InNamespace(request.Namespace)
 	poolSpecs := make([]cephv1.PoolSpec, 0)
 	poolCount := 0
 	cephBlockPoolList := &cephv1.CephBlockPoolList{}
 	err := r.client.List(context.TODO(), cephBlockPoolList, namespaceListOpt)
 	if err != nil {
-		return "", poolCount, fmt.Errorf("could not list the CephBlockpools %s: %+v", request.NamespacedName, err)
+		return nil, nil, "", poolCount, fmt.Errorf("could not list the CephBlockpools %s: %+v", request.NamespacedName, err)
 	}
 	poolCount += len(cephBlockPoolList.Items)
 	for _, cephBlockPool := range cephBlockPoolList.Items {
@@ -50,7 +52,7 @@ func (r *ReconcileClusterDisruption) getFailureDomain(request reconcile.Request)
 	cephFilesystemList := &cephv1.CephFilesystemList{}
 	err = r.client.List(context.TODO(), cephFilesystemList, namespaceListOpt)
 	if err != nil {
-		return "", poolCount, fmt.Errorf("could not list the CephFilesystems  %s: %+v", request.NamespacedName, err)
+		return nil, nil, "", poolCount, fmt.Errorf("could not list the CephFilesystems  %s: %+v", request.NamespacedName, err)
 	}
 	poolCount += len(cephFilesystemList.Items)
 	for _, cephFilesystem := range cephFilesystemList.Items {
@@ -62,7 +64,7 @@ func (r *ReconcileClusterDisruption) getFailureDomain(request reconcile.Request)
 	cephObjectStoreList := &cephv1.CephObjectStoreList{}
 	err = r.client.List(context.TODO(), cephObjectStoreList, namespaceListOpt)
 	if err != nil {
-		return "", poolCount, fmt.Errorf("could not list the CephObjectStores %s: %+v", request.NamespacedName, err)
+		return nil, nil, "", poolCount, fmt.Errorf("could not list the CephObjectStores %s: %+v", request.NamespacedName, err)
 	}
 	poolCount += len(cephObjectStoreList.Items)
 	for _, cephObjectStore := range cephObjectStoreList.Items {
@@ -70,8 +72,9 @@ func (r *ReconcileClusterDisruption) getFailureDomain(request reconcile.Request)
 		poolSpecs = append(poolSpecs, cephObjectStore.Spec.DataPool)
 
 	}
+	minFailureDomain := getMinimumFailureDomain(poolSpecs)
 
-	return getMinimumFailureDomain(poolSpecs), poolCount, nil
+	return cephObjectStoreList, cephFilesystemList, minFailureDomain, poolCount, nil
 
 }
 
@@ -100,6 +103,7 @@ func getMinimumFailureDomain(poolList []cephv1.PoolSpec) string {
 		}
 	}
 	if !matched {
+		logger.Errorf("could not match failure domain. defaulting to %s", cephv1.DefaultFailureDomain)
 		return cephv1.DefaultFailureDomain
 	}
 	return failureDomainOrder[minfailureDomainIndex]
@@ -132,4 +136,103 @@ func (r *ReconcileClusterDisruption) getOngoingDrains(request reconcile.Request)
 		}
 	}
 	return ongoingDrains, nil
+}
+
+// Setting naive minAvailable for RGW at: n - 1
+func (r *ReconcileClusterDisruption) reconcileCephObjectStore(cephObjectStoreList *cephv1.CephObjectStoreList, drainingOSDs []OsdData) error {
+	for _, objectStore := range cephObjectStoreList.Items {
+		storeName := objectStore.ObjectMeta.Name
+		namespace := objectStore.ObjectMeta.Namespace
+		pdbName := fmt.Sprintf("rook-ceph-rgw-%s", storeName)
+		labelSelector := &metav1.LabelSelector{
+			MatchLabels: map[string]string{"rgw": storeName},
+		}
+
+		rgwCount := objectStore.Spec.Gateway.Instances
+		minAvailable := &intstr.IntOrString{IntVal: rgwCount - 1}
+		if minAvailable.IntVal <= 1 {
+			break
+		}
+		blockOwnerDeletion := false
+		pdb := &policyv1beta1.PodDisruptionBudget{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      pdbName,
+				Namespace: namespace,
+				OwnerReferences: []metav1.OwnerReference{
+					{
+						APIVersion:         objectStore.APIVersion,
+						Kind:               objectStore.Kind,
+						Name:               objectStore.ObjectMeta.Name,
+						UID:                objectStore.UID,
+						BlockOwnerDeletion: &blockOwnerDeletion,
+					},
+				},
+			},
+			Spec: policyv1beta1.PodDisruptionBudgetSpec{
+				Selector:     labelSelector,
+				MinAvailable: minAvailable,
+			},
+		}
+
+		request := types.NamespacedName{Name: pdbName, Namespace: namespace}
+		draining := false
+		if len(drainingOSDs) > 0 {
+			draining = true
+		}
+		err := r.reconcileStaticPDB(request, pdb, draining)
+		if err != nil {
+			return fmt.Errorf("could not reconcile cephobjectstore pdb %s: %+v", request, err)
+		}
+	}
+	return nil
+}
+
+// Setting naive minAvailable for MDS at: n -1
+// getting n from the cephfilesystem.spec.metadataserver.activecount
+func (r *ReconcileClusterDisruption) reconcileCephFilesystem(cephFilesystemList *cephv1.CephFilesystemList, drainingOSDs []OsdData) error {
+	for _, filesystem := range cephFilesystemList.Items {
+		fsName := filesystem.ObjectMeta.Name
+		namespace := filesystem.ObjectMeta.Namespace
+		pdbName := fmt.Sprintf("rook-ceph-mds-%s", fsName)
+		labelSelector := &metav1.LabelSelector{
+			MatchLabels: map[string]string{"rook_file_system": fsName},
+		}
+
+		activeCount := filesystem.Spec.MetadataServer.ActiveCount
+		minAvailable := &intstr.IntOrString{IntVal: activeCount - 1}
+		if minAvailable.IntVal <= 1 {
+			break
+		}
+		blockOwnerDeletion := false
+		pdb := &policyv1beta1.PodDisruptionBudget{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      pdbName,
+				Namespace: namespace,
+				OwnerReferences: []metav1.OwnerReference{
+					{
+						APIVersion:         filesystem.APIVersion,
+						Kind:               filesystem.Kind,
+						Name:               filesystem.ObjectMeta.Name,
+						UID:                filesystem.UID,
+						BlockOwnerDeletion: &blockOwnerDeletion,
+					},
+				},
+			},
+			Spec: policyv1beta1.PodDisruptionBudgetSpec{
+				Selector:     labelSelector,
+				MinAvailable: minAvailable,
+			},
+		}
+
+		request := types.NamespacedName{Name: pdbName, Namespace: namespace}
+		draining := false
+		if len(drainingOSDs) > 0 {
+			draining = true
+		}
+		err := r.reconcileStaticPDB(request, pdb, draining)
+		if err != nil {
+			return fmt.Errorf("could not reconcile cephfs pdb %s: %+v", request, err)
+		}
+	}
+	return nil
 }
