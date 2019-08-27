@@ -32,7 +32,7 @@ spec:
           requests:
             storage: 10Gi
   cephVersion:
-    image: ceph/ceph:v14.2.2-20190722
+    image: ceph/ceph:v14.2.2-20190826
     allowUnsupported: false
   dashboard:
     enabled: true
