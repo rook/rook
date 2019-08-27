@@ -115,6 +115,10 @@ ignored = [
   source = "github.com/rancher/goautoneg"
 
 [[override]]
+  name = "gopkg.in/fsnotify.v1"
+  source = "https://github.com/fsnotify/fsnotify.git"
+
+[[override]]
   name = "k8s.io/apimachinery"
   version = "kubernetes-1.14.1"
 

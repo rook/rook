@@ -713,6 +713,14 @@
   revision = "16909d206f00da7d0d5ba28cd9dc7fb223648ecf"
 
 [[projects]]
+  digest = "1:7d4fd782f2a710d08834b2c01742b3bba7fb0248383f9cc6c3dc95b3025689d7"
+  name = "gomodules.xyz/jsonpatch"
+  packages = ["v2"]
+  pruneopts = "UT"
+  revision = "e8422f09d27ee2c8cfb2c7f8089eb9eeb0764849"
+  version = "v2.0.1"
+
+[[projects]]
   digest = "1:9e29a0ec029d012437d88da3ccccf18adcdce069cab08d462056c2c6bb006505"
   name = "google.golang.org/appengine"
   packages = [
@@ -777,6 +785,15 @@
   pruneopts = "UT"
   revision = "a02b0774206b209466313a0b525d2c738fe407eb"
   version = "v1.18.0"
+
+[[projects]]
+  digest = "1:abeb38ade3f32a92943e5be54f55ed6d6e3b6602761d74b4aab4c9dd45c18abd"
+  name = "gopkg.in/fsnotify.v1"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "c2828203cd70a50dcccfb2761f8b1f8ceef9a8e9"
+  source = "https://github.com/fsnotify/fsnotify.git"
+  version = "v1.4.7"
 
 [[projects]]
   digest = "1:2d1fbdc6777e5408cabeb02bf336305e724b925ff4546ded0fa8715a7267922a"
@@ -1016,11 +1033,12 @@
   version = "kubernetes-1.14.1"
 
 [[projects]]
-  digest = "1:f07252504bce93f28bb2ad35ed560707b066c8cf5ea11f11d6fa3984822ccd87"
+  digest = "1:0ba95b738f56ff0e3f095be43fe8a31d05ab02f3a1a3cc85b6e0284002140fb9"
   name = "k8s.io/client-go"
   packages = [
     "discovery",
     "discovery/fake",
+    "dynamic",
     "informers",
     "informers/admissionregistration",
     "informers/admissionregistration/v1beta1",
@@ -1186,6 +1204,7 @@
     "plugin/pkg/client/auth/exec",
     "rest",
     "rest/watch",
+    "restmapper",
     "testing",
     "tools/auth",
     "tools/cache",
@@ -1373,6 +1392,32 @@
   revision = "21c4ce38f2a793ec01e925ddc31216500183b773"
 
 [[projects]]
+  digest = "1:0cd6ebefee0b1722eea7aef9f0396e394d18895d8afcf67080d749d68b975873"
+  name = "sigs.k8s.io/controller-runtime"
+  packages = [
+    "pkg/cache",
+    "pkg/cache/internal",
+    "pkg/client",
+    "pkg/client/apiutil",
+    "pkg/internal/log",
+    "pkg/internal/objectutil",
+    "pkg/internal/recorder",
+    "pkg/leaderelection",
+    "pkg/log",
+    "pkg/manager",
+    "pkg/metrics",
+    "pkg/recorder",
+    "pkg/runtime/inject",
+    "pkg/webhook",
+    "pkg/webhook/admission",
+    "pkg/webhook/internal/certwatcher",
+    "pkg/webhook/internal/metrics",
+  ]
+  pruneopts = "UT"
+  revision = "e1159d6655b260c4812fd0792cd1344ecc96a57e"
+  version = "v0.2.0"
+
+[[projects]]
   branch = "release-1.14"
   digest = "1:a2147c72c6ac436c7cbd3ffaefb3a8ca26264dd60fed5aec22cf4ed6d6c42690"
   name = "sigs.k8s.io/sig-storage-lib-external-provisioner"
@@ -1495,6 +1540,7 @@
     "k8s.io/kubernetes/pkg/scheduler/api",
     "k8s.io/kubernetes/pkg/util/mount",
     "k8s.io/kubernetes/pkg/volume/flexvolume",
+    "sigs.k8s.io/controller-runtime/pkg/manager",
     "sigs.k8s.io/sig-storage-lib-external-provisioner/controller",
   ]
   solver-name = "gps-cdcl"
