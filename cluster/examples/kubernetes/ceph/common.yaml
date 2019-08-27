@@ -141,8 +141,6 @@ spec:
                   type: integer
             placement: {}
             resources: {}
-          required:
-          - mon
   additionalPrinterColumns:
     - name: DataDirHostPath
       type: string
