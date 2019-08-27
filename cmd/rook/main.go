@@ -27,6 +27,7 @@ import (
 	rook "github.com/rook/rook/cmd/rook/rook"
 	"github.com/rook/rook/cmd/rook/util"
 	"github.com/rook/rook/cmd/rook/version"
+	"github.com/rook/rook/cmd/rook/yugabytedb"
 )
 
 func main() {
@@ -48,6 +49,7 @@ func addCommands() {
 		edgefs.Cmd,
 		nfs.Cmd,
 		cassandra.Cmd,
+		yugabytedb.Cmd,
 
 		// util commands
 		util.CmdReporterCmd,

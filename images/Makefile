@@ -44,6 +44,9 @@ nfs.%:
 cassandra.%:
 	@$(MAKE) -C cassandra PLATFORM=$*
 
+yugabytedb.%:
+	@$(MAKE) -C yugabytedb PLATFORM=$*
+
 
 do.build.images.%: $(foreach i,$(IMAGES), $(i).%);
 

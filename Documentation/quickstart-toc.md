@@ -18,3 +18,4 @@ Rook provides growing number of storage providers to a Kubernetes cluster, each 
 | [CockroachDB](cockroachdb.md) | Alpha | CockroachDB is a cloud-native SQL database for building global, scalable cloud services that survive disasters.  |
 | [Minio](minio-object-store.md) | Alpha | Minio is a high performance distributed object storage server, designed for large-scale private cloud infrastructure. |
 | [NFS](nfs.md) | Alpha | NFS allows remote hosts to mount file systems over a network and interact with those file systems as though they are mounted locally. |
+| [YugabyteDB](yugabytedb.md) | Alpha | YugaByteDB is a high-performance, cloud-native distributed SQL database which can tolerate disk, node, zone and region failures automatically. |
