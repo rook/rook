@@ -59,6 +59,7 @@ an example usage
 - The minimum version supported by Rook is Ceph Mimic v13.2.4. Before upgrading to v1.1 it is required to update the version of Ceph to at least this version.
 - The CSI driver is enabled by default. Documentation has been changed significantly for block and filesystem to use the CSI driver instead of flex.
 While the flex driver is still supported, it is anticipated to be deprecated soon.
+- The `Mon.PreferredCount` setting has been removed.
 
 ## Known Issues
 

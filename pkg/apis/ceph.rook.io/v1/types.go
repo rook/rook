@@ -150,7 +150,6 @@ const (
 
 type MonSpec struct {
 	Count                int                       `json:"count,omitempty"`
-	PreferredCount       int                       `json:"preferredCount,omitempty"`
 	AllowMultiplePerNode bool                      `json:"allowMultiplePerNode,omitempty"`
 	VolumeClaimTemplate  *v1.PersistentVolumeClaim `json:"volumeClaimTemplate,omitempty"`
 }
