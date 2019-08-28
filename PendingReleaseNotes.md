@@ -13,6 +13,7 @@ an example usage
 - Provisioning will fail if the user specifies a `metadataDevice` but that device is not used as a metadata device by Ceph.
 - Allow `metadataDevice` to be set per OSD device in the device specific `config` section.
 - [YugabyteDB](https://www.yugabyte.com/) is now supported by Rook with a new operator. You can deploy, configure and manage instances of this high-performance distributed SQL database. Create an instance of the new `ybcluster.yugabytedb.rook.io` custom resource to easily deploy a cluster of YugabyteDB Database. Checkout its [user guide](Documentation/yugabytedb.md) to get started with YugabyteDB.
+- Git tags can be added for alpha, beta, or rc releases. For example: v1.1.0-alpha.0
 
 ### Ceph
 
