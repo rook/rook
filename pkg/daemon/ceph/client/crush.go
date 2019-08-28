@@ -72,6 +72,7 @@ type CrushMap struct {
 type CrushFindResult struct {
 	ID       int               `json:"osd"`
 	IP       string            `json:"ip"`
+	Host     string            `json:"host,omitempty"`
 	Location map[string]string `json:"crush_location"`
 }
 

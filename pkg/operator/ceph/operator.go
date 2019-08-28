@@ -25,6 +25,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	opkit "github.com/rook/operator-kit"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
@@ -89,7 +90,10 @@ func New(context *clusterd.Context, volumeAttachmentWrapper attachment.Attachmen
 		rookImage:         rookImage,
 		securityAccount:   securityAccount,
 	}
-	o.clusterController = cluster.NewClusterController(context, rookImage, volumeAttachmentWrapper, o.startSystemDaemons)
+	callbacks := []func(*cephv1.ClusterSpec) error{
+		o.startSystemDaemons,
+	}
+	o.clusterController = cluster.NewClusterController(context, rookImage, volumeAttachmentWrapper, callbacks)
 	return o
 }
 
@@ -155,7 +159,7 @@ func (o *Operator) Run() error {
 	}
 }
 
-func (o *Operator) startSystemDaemons(externalCeph bool) error {
+func (o *Operator) startSystemDaemons(clusterSpec *cephv1.ClusterSpec) error {
 	if o.delayedDaemonsStarted {
 		return nil
 	}

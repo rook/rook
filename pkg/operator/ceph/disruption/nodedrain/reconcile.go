@@ -22,7 +22,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 
-	"github.com/rook/rook/pkg/operator/ceph/controllers/controllerconfig"
+	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -41,16 +41,12 @@ var (
 	_ reconcile.Reconciler = &ReconcileNode{}
 )
 
-const (
-	nodeHostNameKey = "kubernetes.io/hostname"
-)
-
 // ReconcileNode reconciles ReplicaSets
 type ReconcileNode struct {
 	// client can be used to retrieve objects from the APIServer.
 	scheme  *runtime.Scheme
 	client  client.Client
-	options *controllerconfig.Options
+	context *controllerconfig.Context
 }
 
 // Reconcile reconciles a node and ensures that it has a drain-detection deployment
@@ -68,6 +64,10 @@ func (r *ReconcileNode) Reconcile(request reconcile.Request) (reconcile.Result, 
 
 func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, error) {
 
+	if !r.context.ReconcileCanaries.Get() {
+		return reconcile.Result{}, nil
+	}
+
 	logger.Debugf("reconciling node: %s", request.Name)
 
 	node := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: request.Name}}
@@ -77,16 +77,16 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 		return reconcile.Result{}, fmt.Errorf("Could not get node %s", request.NamespacedName)
 	}
 
-	nodeHostnameLabel, ok := node.ObjectMeta.Labels[nodeHostNameKey]
+	nodeHostnameLabel, ok := node.ObjectMeta.Labels[corev1.LabelHostname]
 	if !ok {
-		return reconcile.Result{}, fmt.Errorf("Label key %s does not exist on node %s", nodeHostNameKey, request.NamespacedName)
+		return reconcile.Result{}, fmt.Errorf("Label key %s does not exist on node %s", corev1.LabelHostname, request.NamespacedName)
 	}
 
 	// Create or Update the deployment default/foo
 	deploy := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("rook-ceph-canary-%s", request.Name),
-			Namespace: r.options.OperatorNamespace,
+			Name:      k8sutil.TruncateNodeName(fmt.Sprintf("%s-%%s", CanaryAppName), nodeHostnameLabel),
+			Namespace: r.context.OperatorNamespace,
 		},
 	}
 
@@ -95,11 +95,11 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 
 		// lablels for the pod, the deployment, and the deploymentSelector
 		deploymentLabels := map[string]string{
-			nodeHostNameKey: nodeHostnameLabel,
-			k8sutil.AppAttr: CanaryAppName,
+			corev1.LabelHostname: nodeHostnameLabel,
+			k8sutil.AppAttr:      CanaryAppName,
 		}
 
-		nodeSelector := map[string]string{nodeHostNameKey: nodeHostnameLabel}
+		nodeSelector := map[string]string{corev1.LabelHostname: nodeHostnameLabel}
 
 		// Deployment selector is immutable so we set this value only if
 		// a new object is going to be created
@@ -120,7 +120,6 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 				Containers:   newDoNothingContainers(),
 			},
 		}
-		controllerutil.SetControllerReference(node, deploy, r.scheme)
 
 		return nil
 	}

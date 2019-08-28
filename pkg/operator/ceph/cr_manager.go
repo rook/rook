@@ -17,8 +17,8 @@ limitations under the License.
 package operator
 
 import (
-	"github.com/rook/rook/pkg/operator/ceph/controllers"
-	"github.com/rook/rook/pkg/operator/ceph/controllers/controllerconfig"
+	controllers "github.com/rook/rook/pkg/operator/ceph/disruption"
+	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
 
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
@@ -37,9 +37,10 @@ func (o *Operator) startManager(stopCh <-chan struct{}) {
 		return
 	}
 	// options to pass to the controllers
-	controllerOpts := &controllerconfig.Options{
-		Context:           o.context,
+	controllerOpts := &controllerconfig.Context{
+		ClusterdContext:   o.context,
 		OperatorNamespace: o.operatorNamespace,
+		ReconcileCanaries: &controllerconfig.LockingBool{},
 	}
 
 	// Add the registered controllers to the manager (entrypoint for controllers)

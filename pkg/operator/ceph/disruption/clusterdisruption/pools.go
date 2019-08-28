@@ -23,7 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/rook/rook/pkg/operator/ceph/controllers/nodedrain"
+	"github.com/rook/rook/pkg/operator/ceph/disruption/nodedrain"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -52,7 +52,7 @@ func (r *ReconcileClusterDisruption) processPools(request reconcile.Request) (*c
 	cephFilesystemList := &cephv1.CephFilesystemList{}
 	err = r.client.List(context.TODO(), cephFilesystemList, namespaceListOpt)
 	if err != nil {
-		return nil, nil, "", poolCount, fmt.Errorf("could not list the CephFilesystems  %s: %+v", request.NamespacedName, err)
+		return nil, nil, "", poolCount, fmt.Errorf("could not list the CephFilesystems %s: %+v", request.NamespacedName, err)
 	}
 	poolCount += len(cephFilesystemList.Items)
 	for _, cephFilesystem := range cephFilesystemList.Items {
@@ -78,9 +78,11 @@ func (r *ReconcileClusterDisruption) processPools(request reconcile.Request) (*c
 
 }
 
-// TODO: test
 func getMinimumFailureDomain(poolList []cephv1.PoolSpec) string {
-	failureDomainOrder := []string{"osd", "host", "zone", "region"}
+	failureDomainOrder := []string{"host", "zone", "region"}
+	if len(poolList) == 0 {
+		return cephv1.DefaultFailureDomain
+	}
 
 	//start with max as the min
 	minfailureDomainIndex := len(failureDomainOrder) - 1
@@ -127,19 +129,22 @@ func (r *ReconcileClusterDisruption) getOngoingDrains(request reconcile.Request)
 				continue
 			}
 
-			node := &corev1.Node{}
-			err = r.client.Get(context.TODO(), types.NamespacedName{Name: nodeHostname}, node)
-			if err != nil {
+			nodeList := &corev1.NodeList{}
+			err = r.client.List(context.TODO(), nodeList, client.MatchingLabels{corev1.LabelHostname: nodeHostname})
+			nodeNum := len(nodeList.Items)
+			if err != nil || nodeNum < 1 {
 				return nil, fmt.Errorf("could not get node: %s ", nodeHostname)
+			} else if nodeNum > 1 {
+				logger.Warningf("found more than one node with %s=%s", corev1.LabelHostname, nodeHostname)
 			}
-			ongoingDrains = append(ongoingDrains, node)
+			ongoingDrains = append(ongoingDrains, &nodeList.Items[0])
 		}
 	}
 	return ongoingDrains, nil
 }
 
 // Setting naive minAvailable for RGW at: n - 1
-func (r *ReconcileClusterDisruption) reconcileCephObjectStore(cephObjectStoreList *cephv1.CephObjectStoreList, drainingOSDs []OsdData) error {
+func (r *ReconcileClusterDisruption) reconcileCephObjectStore(cephObjectStoreList *cephv1.CephObjectStoreList) error {
 	for _, objectStore := range cephObjectStoreList.Items {
 		storeName := objectStore.ObjectMeta.Name
 		namespace := objectStore.ObjectMeta.Namespace
@@ -175,11 +180,7 @@ func (r *ReconcileClusterDisruption) reconcileCephObjectStore(cephObjectStoreLis
 		}
 
 		request := types.NamespacedName{Name: pdbName, Namespace: namespace}
-		draining := false
-		if len(drainingOSDs) > 0 {
-			draining = true
-		}
-		err := r.reconcileStaticPDB(request, pdb, draining)
+		err := r.reconcileStaticPDB(request, pdb)
 		if err != nil {
 			return fmt.Errorf("could not reconcile cephobjectstore pdb %s: %+v", request, err)
 		}
@@ -189,7 +190,7 @@ func (r *ReconcileClusterDisruption) reconcileCephObjectStore(cephObjectStoreLis
 
 // Setting naive minAvailable for MDS at: n -1
 // getting n from the cephfilesystem.spec.metadataserver.activecount
-func (r *ReconcileClusterDisruption) reconcileCephFilesystem(cephFilesystemList *cephv1.CephFilesystemList, drainingOSDs []OsdData) error {
+func (r *ReconcileClusterDisruption) reconcileCephFilesystem(cephFilesystemList *cephv1.CephFilesystemList) error {
 	for _, filesystem := range cephFilesystemList.Items {
 		fsName := filesystem.ObjectMeta.Name
 		namespace := filesystem.ObjectMeta.Namespace
@@ -225,11 +226,7 @@ func (r *ReconcileClusterDisruption) reconcileCephFilesystem(cephFilesystemList 
 		}
 
 		request := types.NamespacedName{Name: pdbName, Namespace: namespace}
-		draining := false
-		if len(drainingOSDs) > 0 {
-			draining = true
-		}
-		err := r.reconcileStaticPDB(request, pdb, draining)
+		err := r.reconcileStaticPDB(request, pdb)
 		if err != nil {
 			return fmt.Errorf("could not reconcile cephfs pdb %s: %+v", request, err)
 		}

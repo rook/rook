@@ -17,11 +17,34 @@ limitations under the License.
 package controllerconfig
 
 import (
+	"sync"
+
 	"github.com/rook/rook/pkg/clusterd"
 )
 
-// Options passed to the controller when associating it with the manager.
-type Options struct {
-	Context           *clusterd.Context
+// Context passed to the controller when associating it with the manager.
+type Context struct {
+	ClusterdContext   *clusterd.Context
 	OperatorNamespace string
+	ReconcileCanaries *LockingBool
+}
+
+// LockingBool is a bool coupled with a sync.Mutex
+type LockingBool struct {
+	value bool
+	mux   sync.Mutex
+}
+
+// Get bool
+func (b *LockingBool) Get() bool {
+	b.mux.Lock()
+	defer b.mux.Unlock()
+	return b.value
+}
+
+// Update bool
+func (b *LockingBool) Update(newValue bool) {
+	b.mux.Lock()
+	defer b.mux.Unlock()
+	b.value = newValue
 }

@@ -15,23 +15,22 @@ limitations under the License.
 */
 
 // Package controllers contains all the controller-runtime controllers and
-// exports a method for registering them all with a manager.
-
+// exports
 package controllers
 
 import (
 	"fmt"
 
-	"github.com/rook/rook/pkg/operator/ceph/controllers/controllerconfig"
+	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
 
-	"github.com/rook/rook/pkg/operator/ceph/controllers/clusterdisruption"
-	"github.com/rook/rook/pkg/operator/ceph/controllers/nodedrain"
+	"github.com/rook/rook/pkg/operator/ceph/disruption/clusterdisruption"
+	"github.com/rook/rook/pkg/operator/ceph/disruption/nodedrain"
 
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 // AddToManagerFuncs is a list of functions to add all Controllers to the Manager (entrypoint for controller)
-var AddToManagerFuncs = []func(manager.Manager, *controllerconfig.Options) error{
+var AddToManagerFuncs = []func(manager.Manager, *controllerconfig.Context) error{
 	nodedrain.Add,
 	clusterdisruption.Add,
 }
@@ -39,12 +38,12 @@ var AddToManagerFuncs = []func(manager.Manager, *controllerconfig.Options) error
 // AddToManager adds all the registered controllers to the passed manager.
 // each controller package will have an Add method listed in AddToManagerFuncs
 // which will setup all the necessary watch
-func AddToManager(m manager.Manager, o *controllerconfig.Options) error {
-	if o == nil {
-		return fmt.Errorf("nil controllerconfig passed")
+func AddToManager(m manager.Manager, c *controllerconfig.Context) error {
+	if c == nil {
+		return fmt.Errorf("nil controllercontext passed")
 	}
 	for _, f := range AddToManagerFuncs {
-		if err := f(m, o); err != nil {
+		if err := f(m, c); err != nil {
 			return err
 		}
 	}

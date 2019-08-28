@@ -20,7 +20,7 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/rook/rook/pkg/operator/ceph/controllers/controllerconfig"
+	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -38,15 +38,15 @@ const (
 	controllerName       = "nodedrain-controller"
 
 	// CanaryAppName is applied to nodedrain canary components (pods, deployments) with the key app
-	CanaryAppName = "rook-ceph-canary"
+	CanaryAppName = "rook-ceph-drain-canary"
 )
 
 // Add adds a new Controller based on nodedrain.ReconcileNode and registers the relevant watches and handlers
-func Add(mgr manager.Manager, opts *controllerconfig.Options) error {
+func Add(mgr manager.Manager, context *controllerconfig.Context) error {
 	reconcileNode := &ReconcileNode{
 		client:  mgr.GetClient(),
 		scheme:  mgr.GetScheme(),
-		options: opts,
+		context: context,
 	}
 	reconciler := reconcile.Reconciler(reconcileNode)
 	// Create a new controller

@@ -88,7 +88,7 @@ type cachedOSDLocation struct {
 	lastSynced time.Time
 }
 
-//Get takes an osd id and returns a CrushFindResult from cache
+// Get takes an osd id and returns a CrushFindResult from cache
 func (o *OSDCrushLocationMap) Get(clusterNamespace string, id int) (*cephClient.CrushFindResult, error) {
 	o.mux.Lock()
 	defer o.mux.Unlock()
@@ -111,7 +111,7 @@ func (o *OSDCrushLocationMap) Get(clusterNamespace string, id int) (*cephClient.
 	if !ok {
 		osdResult, err := o.get(clusterNamespace, id)
 		if err != nil {
-			return nil, fmt.Errorf("failed to run `find` on osd %d in cluster %s", id, clusterNamespace)
+			return nil, fmt.Errorf("failed to run `find` on osd %d in cluster %s: %v", id, clusterNamespace, err)
 		}
 		o.clusterLocationMap[clusterNamespace][id] = cachedOSDLocation{result: osdResult, lastSynced: time.Now()}
 		return osdResult, nil
@@ -121,7 +121,7 @@ func (o *OSDCrushLocationMap) Get(clusterNamespace string, id int) (*cephClient.
 	if time.Since(osdLocation.lastSynced) > o.ResyncPeriod {
 		osdResult, err := o.get(clusterNamespace, id)
 		if err != nil {
-			return nil, fmt.Errorf("failed to run `find` on osd %d in cluster %s", id, clusterNamespace)
+			return nil, fmt.Errorf("failed to run `find` on osd %d in cluster %s: %v", id, clusterNamespace, err)
 		}
 		o.clusterLocationMap[clusterNamespace][id] = cachedOSDLocation{result: osdResult, lastSynced: time.Now()}
 		return osdResult, nil
@@ -144,36 +144,34 @@ func (o *OSDCrushLocationMap) get(clusterNamespace string, id int) (*cephClient.
 	return osdResult, nil
 }
 
-func (o OsdData) isInFailureDomain(failureDomainType, failureDomain string) (yes, found bool) {
-	location, found := o.CrushMeta.Location[failureDomainType]
-	if !found {
-		return false, false
-	}
-	if location == failureDomain {
-		return true, true
-	}
-	return false, true
-}
-
-func (r *ReconcileClusterDisruption) getOSDsForNodes(osdDataList []OsdData, nodeList []*corev1.Node) ([]OsdData, error) {
+func getOSDsForNodes(osdDataList []OsdData, nodeList []*corev1.Node, failureDomainType string) ([]OsdData, error) {
 	nodeOsdDataList := make([]OsdData, 0)
 	for _, node := range nodeList {
 		if node == nil {
-			break
+			logger.Warningf("node in nodelist was nil")
+			continue
+		}
+		topologyLabelMap := map[string]string{
+			"host":   corev1.LabelHostname,
+			"zone":   corev1.LabelZoneFailureDomain,
+			"region": corev1.LabelZoneRegion,
+		}
+		failureDomainLabel, ok := topologyLabelMap[failureDomainType]
+		if !ok {
+			return nil, fmt.Errorf("invalid failure domain %s cannot manage PDBs for OSDs", failureDomainType)
 		}
 		nodeLabels := node.ObjectMeta.GetLabels()
 		for _, osdData := range osdDataList {
-			crushHostname, ok := osdData.CrushMeta.Location["host"]
-			if !ok {
-				return nil, fmt.Errorf("could not find the CrushFindResult.Location['host'] for %s", osdData.Deployment.ObjectMeta.Name)
+			secondaryCrushHostname := osdData.CrushMeta.Host
+			crushFailureDomain, ok := osdData.CrushMeta.Location[failureDomainType]
+			if !ok && secondaryCrushHostname == "" {
+				return nil, fmt.Errorf("could not find the CrushFindResult.Location['%s'] for %s", failureDomainType, osdData.Deployment.ObjectMeta.Name)
 			}
-			nodeHostname, ok := nodeLabels[corev1.LabelHostname]
+			nodeFailureDomain, ok := nodeLabels[failureDomainLabel]
 			if !ok {
-				return nil, fmt.Errorf("could not find the %s label on node %s", corev1.LabelHostname, node.ObjectMeta.Name)
+				return nil, fmt.Errorf("could not find the %s label on node %s", failureDomainLabel, node.ObjectMeta.Name)
 			}
-			// TODO: implement checking for virtual nodes if the osds are portable.
-			// virtual node implementation for portable osds is pending. https://github.com/rook/rook/issues/3648
-			if crushHostname == nodeHostname {
+			if crushFailureDomain == nodeFailureDomain || secondaryCrushHostname == nodeFailureDomain {
 				nodeOsdDataList = append(nodeOsdDataList, osdData)
 			}
 		}
@@ -195,7 +193,6 @@ func getFailureDomainMapForOsds(osdDataList []OsdData, failureDomainType string)
 				failureDomainMap[failureDomainValue] = make([]OsdData, 0)
 			}
 			failureDomainMap[failureDomainValue] = append(failureDomainMap[failureDomainValue], osdData)
-
 		}
 	}
 	if len(unfoundOSDs) > 0 {

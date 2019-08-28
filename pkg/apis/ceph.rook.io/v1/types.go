@@ -74,13 +74,8 @@ type ClusterSpec struct {
 	// Ceph config overrides to apply.
 	ConfigOverrides ConfigOverridesSpec `json:"configOverrides,omitempty"`
 
-	// This enables management of poddisruptionbudgets
-	ManagedDisruptionBudgets bool `json:"managedDisruptionBudgets,omitempty"`
-
-	// This sets how many minutes the DOWN/OUT interval is for drained failure domains
-	// it only works if managedDisruptionBudgets is true.
-	// the default is 30 minutes
-	MaintenanceTimeout time.Duration `json:"managedDisruptionTimeout,omitempty"`
+	// A spec for configuring disruption management.
+	DisruptionManagement DisruptionManagementSpec `json:"disruptionManagement,omitempty"`
 
 	// A spec for mon related options
 	Mon MonSpec `json:"mon,omitempty"`
@@ -427,4 +422,16 @@ type NetworkSpec struct {
 
 	// HostNetwork to enable host network
 	HostNetwork bool `json:"hostNetwork"`
+}
+
+// DisruptionManagementSpec configures mangement of daemon disruptions
+type DisruptionManagementSpec struct {
+
+	// This enables management of poddisruptionbudgets
+	ManagePodBudgets bool `json:"managePodBudgets,omitempty"`
+
+	// OSDMaintenenceTimeout sets how many additional minutes the DOWN/OUT interval is for drained failure domains
+	// it only works if managePodBudgetss is true.
+	// the default is 30 minutes
+	OSDMaintenenceTimeout time.Duration `json:"osdMaintenanceTimeout,omitempty"`
 }

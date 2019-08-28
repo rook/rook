@@ -29,11 +29,26 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-// setting minAvailable for mons at floor((n+1)/2)
-func (r *ReconcileClusterDisruption) reconcileMonPDB(cephCluster *cephv1.CephCluster, drainingOSDs []OsdData) error {
+const (
+	pdbName = "rook-ceph-mon-pdb"
+)
+
+// setting minAvailable for mons at floor((n+1)/2) an logging and error if n is even
+// monCount - minAvailable
+// 1,2      - 0 (no HA)
+// even     - n -1
+// odd      - floor((n+1)/2)
+func (r *ReconcileClusterDisruption) reconcileMonPDB(cephCluster *cephv1.CephCluster) error {
 	monCount := cephCluster.Spec.Mon.Count
 	minAvailable := int32(math.Floor(float64((monCount + 1) / 2)))
-	pdbName := "rook-ceph-mon-pdb"
+	if monCount%2 == 0 {
+		logger.Error("mon count should be an odd number, setting effective maxUnvailable to 1")
+		minAvailable = int32(monCount - 1)
+	}
+	if monCount <= 2 {
+		logger.Error("managePodBudgets is set, but mon-count <= 2. Not creating a disruptionbudget for Mons")
+		return nil
+	}
 	namespace := cephCluster.ObjectMeta.Namespace
 	pdbRequest := types.NamespacedName{Name: pdbName, Namespace: namespace}
 	pdb := &policyv1beta1.PodDisruptionBudget{
@@ -48,11 +63,7 @@ func (r *ReconcileClusterDisruption) reconcileMonPDB(cephCluster *cephv1.CephClu
 			MinAvailable: &intstr.IntOrString{IntVal: minAvailable},
 		},
 	}
-	draining := false
-	if len(drainingOSDs) > 0 {
-		draining = true
-	}
-	err := r.reconcileStaticPDB(pdbRequest, pdb, draining)
+	err := r.reconcileStaticPDB(pdbRequest, pdb)
 	if err != nil {
 		return fmt.Errorf("could not reconcile mon pdb: %+v", err)
 	}

@@ -131,7 +131,7 @@ func UnsetFlagOnCrushUnit(context *clusterd.Context, clusterName, crushUnit, fla
 	cmd := NewCephCommand(context, clusterName, args)
 	_, err := cmd.Run()
 	if err != nil {
-		return fmt.Errorf("failed to uset flag %s on %s: %+v", crushUnit, flag, err)
+		return fmt.Errorf("failed to unset flag %s on %s: %+v", crushUnit, flag, err)
 	}
 	return nil
 }

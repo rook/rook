@@ -47,7 +47,7 @@ func (r *ReconcileClusterDisruption) updateStaticPDB(request types.NamespacedNam
 	return r.createStaticPDB(request, pdb)
 }
 
-func (r *ReconcileClusterDisruption) reconcileStaticPDB(request types.NamespacedName, pdb *policyv1beta1.PodDisruptionBudget, draining bool) error {
+func (r *ReconcileClusterDisruption) reconcileStaticPDB(request types.NamespacedName, pdb *policyv1beta1.PodDisruptionBudget) error {
 	err := r.client.Get(context.TODO(), request, pdb)
 	if errors.IsNotFound(err) {
 		return r.createStaticPDB(request, pdb)

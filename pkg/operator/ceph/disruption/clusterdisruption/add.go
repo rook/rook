@@ -17,10 +17,8 @@ limitations under the License.
 package clusterdisruption
 
 import (
-	"sync"
-
-	"github.com/rook/rook/pkg/operator/ceph/controllers/controllerconfig"
-	"github.com/rook/rook/pkg/operator/ceph/controllers/nodedrain"
+	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
+	"github.com/rook/rook/pkg/operator/ceph/disruption/nodedrain"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -36,8 +34,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-// Add adds a new Controller based on clusterdisruption.ReconcileClusterDisruption and registers the relevant watches and handlers
-func Add(mgr manager.Manager, opts *controllerconfig.Options) error {
+// Add adds a new Controller to the Manager based on clusterdisruption.ReconcileClusterDisruption and registers the relevant watches and handlers.
+// Read more about how Managers, Controllers, and their Watches, Handlers, Predicates, etc work here:
+// https://godoc.org/github.com/kubernetes-sigs/controller-runtime/pkg
+func Add(mgr manager.Manager, context *controllerconfig.Context) error {
 
 	// Add the cephv1 scheme to the manager scheme
 	mgrScheme := mgr.GetScheme()
@@ -49,9 +49,9 @@ func Add(mgr manager.Manager, opts *controllerconfig.Options) error {
 	reconcileClusterDisruption := &ReconcileClusterDisruption{
 		client:              mgr.GetClient(),
 		scheme:              mgrScheme,
-		options:             opts,
+		context:             context,
 		clusterMap:          sharedClusterMap,
-		osdCrushLocationMap: &OSDCrushLocationMap{Context: opts.Context},
+		osdCrushLocationMap: &OSDCrushLocationMap{Context: context.ClusterdContext},
 	}
 	reconciler := reconcile.Reconciler(reconcileClusterDisruption)
 	// Create a new controller
@@ -88,7 +88,7 @@ func Add(mgr manager.Manager, opts *controllerconfig.Options) error {
 			ToRequests: handler.ToRequestsFunc(func(obj handler.MapObject) []reconcile.Request {
 				_, ok := obj.Object.(*policyv1beta1.PodDisruptionBudget)
 				if !ok {
-					// not a pod, returning empty
+					// not a pdb, returning empty
 					logger.Errorf("PDB handler recieved non-PDB")
 					return []reconcile.Request{}
 				}
@@ -130,7 +130,7 @@ func Add(mgr manager.Manager, opts *controllerconfig.Options) error {
 					return []reconcile.Request{}
 				}
 
-				// Enqueue all CephCluster
+				// Enqueue all CephClusters
 				clusterMap := sharedClusterMap.GetClusterMap()
 				numClusters := len(clusterMap)
 				if numClusters == 0 {
@@ -169,47 +169,4 @@ func Add(mgr manager.Manager, opts *controllerconfig.Options) error {
 	}
 
 	return nil
-}
-
-// ClusterMap maintains the association between namespace and clusername
-type ClusterMap struct {
-	clusterMap map[string]string
-	mux        sync.Mutex
-}
-
-// UpdateClusterMap to populate the clusterName for the namespace
-func (c *ClusterMap) UpdateClusterMap(namespace, clusterName string) {
-	defer c.mux.Unlock()
-	c.mux.Lock()
-	if len(c.clusterMap) == 0 {
-		c.clusterMap = make(map[string]string)
-	}
-	c.clusterMap[namespace] = clusterName
-
-}
-
-// GetClusterName returns clusterName, found. clusterName is the cluster name associated
-// with that namespace and found is the boolean indicating whether a cluster name was
-// populated for that namespace or not.
-func (c *ClusterMap) GetClusterName(namespace string) (string, bool) {
-	defer c.mux.Unlock()
-	c.mux.Lock()
-
-	if len(c.clusterMap) == 0 {
-		c.clusterMap = make(map[string]string)
-	}
-
-	clusterName, ok := c.clusterMap[namespace]
-	if !ok {
-		return "", false
-	}
-	return clusterName, true
-}
-
-// GetClusterMap returns the internal clustermap for iteration purporses
-func (c *ClusterMap) GetClusterMap() map[string]string {
-	defer c.mux.Unlock()
-	c.mux.Lock()
-
-	return c.clusterMap
 }

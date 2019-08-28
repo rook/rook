@@ -19,14 +19,16 @@ package clusterdisruption
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/rook/rook/pkg/operator/ceph/controllers/controllerconfig"
+	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	// metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,7 +38,8 @@ const (
 	osdDisruptionAppName = "rook-ceph-osd-disruption"
 	controllerName       = "clusterdisruption-controller"
 	// pdbStateMapName for the clusterdisruption pdb state map
-	pdbStateMapName = "rook-ceph-pdbstatemap"
+	pdbStateMapName    = "rook-ceph-pdbstatemap"
+	maxNamelessRetries = 20
 )
 
 var (
@@ -51,10 +54,11 @@ type ReconcileClusterDisruption struct {
 	// client can be used to retrieve objects from the APIServer.
 	scheme              *runtime.Scheme
 	client              client.Client
-	options             *controllerconfig.Options
+	context             *controllerconfig.Context
 	clusterMap          *ClusterMap
 	osdCrushLocationMap *OSDCrushLocationMap
 	maintenanceTimeout  time.Duration
+	namelessRetries     int
 }
 
 // Reconcile reconciles a node and ensures that it has a drain-detection deployment
@@ -71,7 +75,6 @@ func (r *ReconcileClusterDisruption) Reconcile(request reconcile.Request) (recon
 }
 
 func (r *ReconcileClusterDisruption) reconcile(request reconcile.Request) (reconcile.Result, error) {
-	logger.Infof("reconciling %v", request.NamespacedName)
 	if len(request.Namespace) == 0 {
 		return reconcile.Result{}, fmt.Errorf("request did not have namespace: %s", request.NamespacedName)
 	}
@@ -79,29 +82,39 @@ func (r *ReconcileClusterDisruption) reconcile(request reconcile.Request) (recon
 	// ensure that the cluster name is populated
 	if len(request.Name) == 0 {
 		clusterName, found := r.clusterMap.GetClusterName(request.Namespace)
-		if !found {
-			logger.Infof("requeueing because clusterName is not known yet for namespace %s", request.Namespace)
-			return reconcile.Result{Requeue: true, RequeueAfter: time.Second * 5}, nil
+		if !found && r.namelessRetries < maxNamelessRetries {
+			// ensure that a deleted cluster doesn't result in infinite retries
+			r.namelessRetries++
+			logger.Infof("clusterName is not known yet for namespace %s", request.Namespace)
+			return reconcile.Result{Requeue: true, RequeueAfter: 5 * time.Second}, fmt.Errorf("clusterName for this namespace not yet known")
 		}
 		request.Name = clusterName
 		logger.Debugf("discovered NamespacedName: %s", request.NamespacedName)
-	} else {
-		// update the clustermap with the cluster's name so that
-		// events on resources associated with the cluster can trigger reconciliation by namespace
-		r.clusterMap.UpdateClusterMap(request.Namespace, request.Name)
 	}
+	r.namelessRetries = 0
+	logger.Infof("reconciling %s", request.NamespacedName)
 
 	// get the ceph cluster
 	cephCluster := &cephv1.CephCluster{}
 	err := r.client.Get(context.TODO(), request.NamespacedName, cephCluster)
-	if err != nil {
-		return emptyResultAndErrorf("could not get the ceph cluster %s: %+v", request.NamespacedName, err)
+	if errors.IsNotFound(err) {
+		logger.Errorf("cephcluster %s seems to be deleted, not requeuing until triggered again", request)
+		return reconcile.Result{}, nil
+	} else if err != nil {
+		return reconcile.Result{}, fmt.Errorf("could not get the ceph cluster %s: %+v", request.NamespacedName, err)
 	}
-	if !cephCluster.Spec.ManagedDisruptionBudgets {
+
+	// update the clustermap with the cluster's name so that
+	// events on resources associated with the cluster can trigger reconciliation by namespace
+	r.clusterMap.UpdateClusterMap(request.Namespace, cephCluster)
+
+	if !cephCluster.Spec.DisruptionManagement.ManagePodBudgets {
 		// feature disabled for this cluster. not requeueing
 		return reconcile.Result{Requeue: false}, nil
 	}
-	r.maintenanceTimeout = cephCluster.Spec.MaintenanceTimeout
+	//signal to the nodedrain controller to start
+	r.context.ReconcileCanaries.Update(true)
+	r.maintenanceTimeout = cephCluster.Spec.DisruptionManagement.OSDMaintenenceTimeout
 	if r.maintenanceTimeout == 0 {
 		r.maintenanceTimeout = DefaultMaintenanceTimeout
 	}
@@ -111,7 +124,26 @@ func (r *ReconcileClusterDisruption) reconcile(request reconcile.Request) (recon
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-	// no pools, no need to reconcile
+
+	// reconcile the static mon PDB
+	err = r.reconcileMonPDB(cephCluster)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	// reconcile the pdbs for objectstores
+	err = r.reconcileCephObjectStore(cephObjectStoreList)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	// reconcile the pdbs for filesystems
+	err = r.reconcileCephFilesystem(cephFilesystemList)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	// no pools, no need to reconcile OSD PDB
 	if poolCount < 1 {
 		return reconcile.Result{}, nil
 	}
@@ -128,25 +160,7 @@ func (r *ReconcileClusterDisruption) reconcile(request reconcile.Request) (recon
 		return reconcile.Result{}, err
 	}
 
-	drainingOSDs, err := r.getOSDsForNodes(osdDataList, drainingNodes)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-
-	// reconcile the static mond PDB
-	err = r.reconcileMonPDB(cephCluster, drainingOSDs)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-
-	// reconcile the pdbs for objectstores
-	err = r.reconcileCephObjectStore(cephObjectStoreList, drainingOSDs)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-
-	// reconcile the pdbs for filesystems
-	err = r.reconcileCephFilesystem(cephFilesystemList, drainingOSDs)
+	drainingOSDs, err := getOSDsForNodes(osdDataList, drainingNodes, poolFailureDomain)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -166,13 +180,75 @@ func (r *ReconcileClusterDisruption) reconcile(request reconcile.Request) (recon
 		return reconcile.Result{}, err
 	}
 
-	err = r.reconcilePDB(request, pdbStateMap, poolFailureDomain, allFailureDomainsMap, drainingFailureDomainsMap)
+	err = r.reconcilePDBsForOSDs(request, pdbStateMap, poolFailureDomain, allFailureDomainsMap, drainingFailureDomainsMap)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-	return reconcile.Result{Requeue: true, RequeueAfter: 45 * time.Second}, nil
+	_, ok := pdbStateMap.Data[disabledPDBKey]
+	if ok {
+		return reconcile.Result{Requeue: true, RequeueAfter: 30 * time.Second}, nil
+	}
+	return reconcile.Result{}, nil
 }
 
-func emptyResultAndErrorf(format string, a ...interface{}) (reconcile.Result, error) {
-	return reconcile.Result{}, fmt.Errorf(format, a...)
+// ClusterMap maintains the association between namespace and clusername
+type ClusterMap struct {
+	clusterMap map[string]*cephv1.CephCluster
+	mux        sync.Mutex
+}
+
+// UpdateClusterMap to populate the clusterName for the namespace
+func (c *ClusterMap) UpdateClusterMap(namespace string, cluster *cephv1.CephCluster) {
+	defer c.mux.Unlock()
+	c.mux.Lock()
+	if len(c.clusterMap) == 0 {
+		c.clusterMap = make(map[string]*cephv1.CephCluster)
+	}
+	c.clusterMap[namespace] = cluster
+
+}
+
+// GetClusterName returns vars clusterName, found. clusterName is the cluster name associated
+// with that namespace and found is the boolean indicating whether a cluster was
+// populated for that namespace or not.
+func (c *ClusterMap) GetClusterName(namespace string) (string, bool) {
+	defer c.mux.Unlock()
+	c.mux.Lock()
+
+	if len(c.clusterMap) == 0 {
+		c.clusterMap = make(map[string]*cephv1.CephCluster)
+	}
+
+	cluster, ok := c.clusterMap[namespace]
+	if !ok {
+		return "", false
+	}
+
+	return cluster.ObjectMeta.GetName(), true
+}
+
+// GetCluster returns vars cluster, found. cluster is the cephcluster associated
+// with that namespace and found is the boolean indicating whether a cluster was
+// populated for that namespace or not.
+func (c *ClusterMap) GetCluster(namespace string) (*cephv1.CephCluster, bool) {
+	defer c.mux.Unlock()
+	c.mux.Lock()
+
+	if len(c.clusterMap) == 0 {
+		c.clusterMap = make(map[string]*cephv1.CephCluster)
+	}
+
+	cluster, ok := c.clusterMap[namespace]
+	if !ok {
+		return nil, false
+	}
+
+	return cluster, true
+}
+
+// GetClusterMap returns the internal clustermap for iteration purporses
+func (c *ClusterMap) GetClusterMap() map[string]*cephv1.CephCluster {
+	defer c.mux.Unlock()
+	c.mux.Lock()
+	return c.clusterMap
 }

@@ -88,25 +88,25 @@ var ClusterResource = opkit.CustomResource{
 
 // ClusterController controls an instance of a Rook cluster
 type ClusterController struct {
-	context            *clusterd.Context
-	volumeAttachment   attachment.Attachment
-	devicesInUse       bool
-	rookImage          string
-	clusterMap         map[string]*cluster
-	addClusterCallback func(bool) error
-	csiConfigMutex     *sync.Mutex
-	nodeStore          cache.Store
+	context             *clusterd.Context
+	volumeAttachment    attachment.Attachment
+	devicesInUse        bool
+	rookImage           string
+	clusterMap          map[string]*cluster
+	addClusterCallbacks []func(*cephv1.ClusterSpec) error
+	csiConfigMutex      *sync.Mutex
+	nodeStore           cache.Store
 }
 
 // NewClusterController create controller for watching cluster custom resources created
-func NewClusterController(context *clusterd.Context, rookImage string, volumeAttachment attachment.Attachment, addClusterCallback func(bool) error) *ClusterController {
+func NewClusterController(context *clusterd.Context, rookImage string, volumeAttachment attachment.Attachment, addClusterCallbacks []func(*cephv1.ClusterSpec) error) *ClusterController {
 	return &ClusterController{
-		context:            context,
-		volumeAttachment:   volumeAttachment,
-		rookImage:          rookImage,
-		clusterMap:         make(map[string]*cluster),
-		addClusterCallback: addClusterCallback,
-		csiConfigMutex:     &sync.Mutex{},
+		context:             context,
+		volumeAttachment:    volumeAttachment,
+		rookImage:           rookImage,
+		clusterMap:          make(map[string]*cluster),
+		addClusterCallbacks: addClusterCallbacks,
+		csiConfigMutex:      &sync.Mutex{},
 	}
 }
 
@@ -235,9 +235,8 @@ func (c *ClusterController) onAdd(obj interface{}) {
 
 	logger.Infof("starting cluster in namespace %s", cluster.Namespace)
 
-	// notify the callback that a cluster crd is being added
-	if c.addClusterCallback != nil {
-		if err := c.addClusterCallback(cluster.Spec.External.Enable); err != nil {
+	for _, callback := range c.addClusterCallbacks {
+		if err := callback(cluster.Spec); err != nil {
 			logger.Errorf("%+v", err)
 		}
 	}
@@ -482,7 +481,6 @@ func (c *ClusterController) onK8sNodeUpdate(oldObj, newObj interface{}) {
 		return
 	}
 
-	// set or unset noout depending on whether nodes are schedulable.
 	newNodeSchedulable := k8sutil.GetNodeSchedulable(*newNode)
 	oldNodeSchedulable := k8sutil.GetNodeSchedulable(*oldNode)
 
