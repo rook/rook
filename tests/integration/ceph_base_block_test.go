@@ -93,7 +93,7 @@ func runBlockE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.
 
 	logger.Infof("step 7: Mount same block storage on a different pod. Should not be allowed")
 	otherPod := "block-test2"
-	_, mtErr := helper.BlockClient.BlockMap(getBlockPodDefintion(otherPod, blockName, false))
+	_, mtErr := helper.BlockClient.BlockMap(getBlockPodDefinition(otherPod, blockName, false))
 	require.Nil(s.T(), mtErr)
 	require.True(s.T(), k8sh.IsPodInError(otherPod, defaultNamespace, "FailedMount", "Volume is already attached by pod"), "make sure block-test2 pod errors out while mounting the volume")
 	logger.Infof("Block Storage successfully fenced")
@@ -147,7 +147,7 @@ func runBlockE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.
 }
 
 func createPodWithBlock(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace, blockName, podName string) string {
-	_, mtErr := helper.BlockClient.BlockMap(getBlockPodDefintion(podName, blockName, false))
+	_, mtErr := helper.BlockClient.BlockMap(getBlockPodDefinition(podName, blockName, false))
 	require.Nil(s.T(), mtErr)
 	crdName, err := k8sh.GetVolumeResourceName(defaultNamespace, blockName)
 	require.Nil(s.T(), err)
@@ -304,7 +304,7 @@ func cleanupDynamicBlockStorage(helper *clients.TestClient, namespace string) {
 	}
 }
 
-func getBlockPodDefintion(podName, blockName string, readOnly bool) string {
+func getBlockPodDefinition(podName, blockName string, readOnly bool) string {
 	return `apiVersion: v1
 kind: Pod
 metadata:
