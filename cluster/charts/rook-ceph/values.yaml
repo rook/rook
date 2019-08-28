@@ -57,7 +57,7 @@ pspEnable: true
 enableCsiRbdDriver: true
 enableCsiCephfsDriver: true
 enableCsiGrpcMetrics: true
-enableFlexDriver: true
+enableFlexDriver: false
 enableDiscoveryDaemon: true
 
 ## Rook Agent configuration

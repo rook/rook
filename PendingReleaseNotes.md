@@ -23,7 +23,7 @@ an example usage
 - Added `deviceClass` to the per OSD device specific `config` section for setting custom crush device class per OSD.
 - Use `--db-devices` with Ceph 14.2.1 and newer clusters to explicitly set `metadataDevice` per OSD.
 - The minimum version supported by Rook is now Ceph Mimic v13.2.4.
-- The Ceph CSI driver is enabled by default and preferred over the flex driver
+- The Ceph CSI driver is enabled by default and preferred over the flex driver which has been disabled by default
    - The flex driver can be disabled in operator.yaml by setting ROOK_ENABLE_FLEX_DRIVER=false
    - The CSI drivers can be disabled by setting ROOK_CSI_ENABLE_CEPHFS=false and ROOK_CSI_ENABLE_RBD=false
 - The device discovery daemon can be disabled in operator.yaml by setting ROOK_ENABLE_DISCOVERY_DAEMON=false

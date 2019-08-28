@@ -739,7 +739,7 @@ rules:
   - get
   - list
 ---
-# Allow the ceph osd to access cluster-wide resources necessary for determining their topology location 
+# Allow the ceph osd to access cluster-wide resources necessary for determining their topology location
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
@@ -1364,6 +1364,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
+        - name: ROOK_ENABLE_FLEX_DRIVER
+          value: "true"
         - name: ROOK_CSI_ENABLE_CEPHFS
           value: "true"
         - name: ROOK_CSI_ENABLE_RBD
