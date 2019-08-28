@@ -23,6 +23,7 @@ If after trying the suggestions found on this page and the problem is not resolv
 - [Rook Agent rbd module missing error](#rook-agent-rbd-module-missing-error)
 - [Using multiple shared filesystem (CephFS) is attempted on a kernel version older than 4.7](#using-multiple-shared-filesystem-cephfs-is-attempted-on-a-kernel-version-older-than-47)
 - [Activate log to file for a particular Ceph daemon](#activate-log-to-file-for-a-particular-ceph-daemon)
+- [Flex storage class versus Ceph CSI storage class](#flex-storage-class-versus-ceph-csi-storage-class)
 
 # Troubleshooting Techniques
 There are two main categories of information you will need to investigate issues in the cluster:
@@ -589,3 +590,12 @@ Documentation)[Documentation/advanced-configuration.md#kubernetes] for informati
 the config override ConfigMap.
 
 For Ceph Luminous/Mimic releases, `mon_cluster_log_file` and `cluster_log_file` can be set to `/var/log/ceph/XXXX` in the config override ConfigMap to enable logging. See the (Advanced Documentation)[advanced-configuration.md#custom-cephconf-settings] for information about how to use the config override ConfigMap.
+
+# Flex storage class versus Ceph CSI storage class
+
+Since Rook 1.1, Ceph CSI has become stable and moving forward is the ultimate replacement over the Flex driver.
+However, not all Flex storage classes are available through Ceph CSI since it's basically catching up on features.
+Ceph CSI in its 1.2 version (with Rook 1.1) does not support the Erasure coded pools storage class.
+
+So, if you are looking at using such storage class you should enable the Flex driver by setting `ROOK_ENABLE_FLEX_DRIVER: true` in your `operator.yaml`.
+Also, if you are in the need of specific features and wonder if CSI is capable of handling them, you should read [the ceph-csi support matrix](https://github.com/ceph/ceph-csi#support-matrix).
