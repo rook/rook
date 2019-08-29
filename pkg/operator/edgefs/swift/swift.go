@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"strings"
 
-	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
+	edgefsv1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
@@ -47,16 +47,16 @@ const (
 )
 
 // Start the SWIFT manager
-func (c *SWIFTController) CreateService(s edgefsv1beta1.SWIFT, ownerRefs []metav1.OwnerReference) error {
+func (c *SWIFTController) CreateService(s edgefsv1.SWIFT, ownerRefs []metav1.OwnerReference) error {
 	return c.CreateOrUpdate(s, false, ownerRefs)
 }
 
-func (c *SWIFTController) UpdateService(s edgefsv1beta1.SWIFT, ownerRefs []metav1.OwnerReference) error {
+func (c *SWIFTController) UpdateService(s edgefsv1.SWIFT, ownerRefs []metav1.OwnerReference) error {
 	return c.CreateOrUpdate(s, true, ownerRefs)
 }
 
 // Start the swift instance
-func (c *SWIFTController) CreateOrUpdate(s edgefsv1beta1.SWIFT, update bool, ownerRefs []metav1.OwnerReference) error {
+func (c *SWIFTController) CreateOrUpdate(s edgefsv1.SWIFT, update bool, ownerRefs []metav1.OwnerReference) error {
 	logger.Debugf("starting update=%v service=%s", update, s.Name)
 
 	// validate SWIFT service settings
@@ -130,7 +130,7 @@ func (c *SWIFTController) CreateOrUpdate(s edgefsv1beta1.SWIFT, update bool, own
 	return nil
 }
 
-func (c *SWIFTController) makeSWIFTService(name, svcname, namespace string, swiftSpec edgefsv1beta1.SWIFTSpec) *v1.Service {
+func (c *SWIFTController) makeSWIFTService(name, svcname, namespace string, swiftSpec edgefsv1.SWIFTSpec) *v1.Service {
 	labels := getLabels(name, svcname, namespace)
 	httpPort := v1.ServicePort{Name: "port", Port: int32(swiftSpec.Port), Protocol: v1.ProtocolTCP}
 	httpsPort := v1.ServicePort{Name: "secure-port", Port: int32(swiftSpec.SecurePort), Protocol: v1.ProtocolTCP}
@@ -163,12 +163,12 @@ func (c *SWIFTController) makeSWIFTService(name, svcname, namespace string, swif
 	return svc
 }
 
-func (c *SWIFTController) makeDeployment(svcname, namespace, rookImage, imageArgs string, swiftSpec edgefsv1beta1.SWIFTSpec) *apps.Deployment {
+func (c *SWIFTController) makeDeployment(svcname, namespace, rookImage, imageArgs string, swiftSpec edgefsv1.SWIFTSpec) *apps.Deployment {
 	name := instanceName(svcname)
 	volumes := []v1.Volume{}
 
 	if c.useHostLocalTime {
-		volumes = append(volumes, edgefsv1beta1.GetHostLocalTimeVolume())
+		volumes = append(volumes, edgefsv1.GetHostLocalTimeVolume())
 	}
 
 	// add ssl certificate volume if defined
@@ -254,7 +254,7 @@ func (c *SWIFTController) makeDeployment(svcname, namespace, rookImage, imageArg
 	return d
 }
 
-func (c *SWIFTController) swiftContainer(svcname, name, containerImage, args string, swiftSpec edgefsv1beta1.SWIFTSpec) v1.Container {
+func (c *SWIFTController) swiftContainer(svcname, name, containerImage, args string, swiftSpec edgefsv1.SWIFTSpec) v1.Container {
 	runAsUser := int64(0)
 	readOnlyRootFilesystem := false
 	securityContext := &v1.SecurityContext{
@@ -279,7 +279,7 @@ func (c *SWIFTController) swiftContainer(svcname, name, containerImage, args str
 	}
 
 	if c.useHostLocalTime {
-		volumeMounts = append(volumeMounts, edgefsv1beta1.GetHostLocalTimeVolumeMount())
+		volumeMounts = append(volumeMounts, edgefsv1.GetHostLocalTimeVolumeMount())
 	}
 
 	if len(swiftSpec.SSLCertificateRef) > 0 {
@@ -339,7 +339,7 @@ func (c *SWIFTController) swiftContainer(svcname, name, containerImage, args str
 		VolumeMounts: volumeMounts,
 	}
 
-	cont.Env = append(cont.Env, edgefsv1beta1.GetInitiatorEnvArr("swift",
+	cont.Env = append(cont.Env, edgefsv1.GetInitiatorEnvArr("swift",
 		c.resourceProfile == "embedded" || swiftSpec.ResourceProfile == "embedded",
 		swiftSpec.ChunkCacheSize, swiftSpec.Resources)...)
 
@@ -347,7 +347,7 @@ func (c *SWIFTController) swiftContainer(svcname, name, containerImage, args str
 }
 
 // Delete SWIFT service and possibly some artifacts.
-func (c *SWIFTController) DeleteService(s edgefsv1beta1.SWIFT) error {
+func (c *SWIFTController) DeleteService(s edgefsv1.SWIFT) error {
 	// check if service  exists
 	exists, err := serviceExists(c.context, s)
 	if err != nil {
@@ -390,7 +390,7 @@ func getLabels(name, svcname, namespace string) map[string]string {
 }
 
 // Validate the SWIFT arguments
-func validateService(context *clusterd.Context, s edgefsv1beta1.SWIFT) error {
+func validateService(context *clusterd.Context, s edgefsv1.SWIFT) error {
 	if s.Name == "" {
 		return fmt.Errorf("missing name")
 	}
@@ -406,7 +406,7 @@ func instanceName(svcname string) string {
 }
 
 // Check if the SWIFT service exists
-func serviceExists(context *clusterd.Context, s edgefsv1beta1.SWIFT) (bool, error) {
+func serviceExists(context *clusterd.Context, s edgefsv1.SWIFT) (bool, error) {
 	_, err := context.Clientset.AppsV1().Deployments(s.Namespace).Get(instanceName(s.Name), metav1.GetOptions{})
 	if err == nil {
 		// the deployment was found

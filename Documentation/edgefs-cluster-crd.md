@@ -11,7 +11,7 @@ Rook allows creation and customization of storage clusters through the custom re
 To get you started, here is a simple example of a CRD to configure a EdgeFS cluster with just one local per-host directory /data:
 
 ```yaml
-apiVersion: edgefs.rook.io/v1beta1
+apiVersion: edgefs.rook.io/v1
 kind: Cluster
 metadata:
   name: rook-edgefs
@@ -34,7 +34,7 @@ spec:
 or if you have raw block devices provisioned, it can dynamically detect, format and utilize all raw devices on all nodes with simple CRD as below:
 
 ```yaml
-apiVersion: edgefs.rook.io/v1beta1
+apiVersion: edgefs.rook.io/v1
 kind: Cluster
 metadata:
   name: rook-edgefs
@@ -196,7 +196,7 @@ Here are several samples for configuring EdgeFS clusters. Each of the samples mu
 
 ### Storage configuration: All devices, All SSD/NVMes.
 ```yaml
-apiVersion: edgefs.rook.io/v1beta1
+apiVersion: edgefs.rook.io/v1
 kind: Cluster
 metadata:
   name: rook-edgefs
@@ -220,7 +220,7 @@ Individual nodes and their config can be specified so that only the named nodes 
 Each node's 'name' field should match their 'kubernetes.io/hostname' label.
 
 ```yaml
-apiVersion: edgefs.rook.io/v1beta1
+apiVersion: edgefs.rook.io/v1
 kind: Cluster
 metadata:
   name: rook-edgefs
@@ -254,7 +254,7 @@ The example under 'all' would have all services scheduled on Kubernetes nodes la
 tolerate taints with a key of 'storage-node'.
 
 ```yaml
-apiVersion: edgefs.rook.io/v1beta1
+apiVersion: edgefs.rook.io/v1
 kind: Cluster
 metadata:
   name: rook-edgefs
@@ -289,7 +289,7 @@ To control how many resources the rook components can request/use, you can set r
 You can override these requests/limits for Targts per node when using `useAllNodes: false` in the `node` item in the `nodes` list.
 
 ```yaml
-apiVersion: edgefs.rook.io/v1beta1
+apiVersion: edgefs.rook.io/v1
 kind: Cluster
 metadata:
   name: rook-edgefs
@@ -317,7 +317,7 @@ spec:
 An example on how to configure the cluster network to use multus network. Here, a NetworkAttachmentDefinition named flannel on rook-edgefs namespace is assumed.
 
 ```yaml
-apiVersion: edgefs.rook.io/v1beta1
+apiVersion: edgefs.rook.io/v1
 kind: Cluster
 metadata:
   name: rook-edgefs

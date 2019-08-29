@@ -1,0 +1,165 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rook-edgefs-system
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: clusters.edgefs.rook.io
+spec:
+  group: edgefs.rook.io
+  names:
+    kind: Cluster
+    listKind: ClusterList
+    plural: clusters
+    singular: cluster
+  scope: Namespaced
+  version: v1
+  versions:
+  - name: v1
+    served: true
+    storage: true
+  - name: v1beta1
+    served: false
+    storage: false
+  conversion:
+    strategy: None
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: nfss.edgefs.rook.io
+spec:
+  group: edgefs.rook.io
+  names:
+    kind: NFS
+    listKind: NFSList
+    plural: nfss
+    singular: nfs
+  scope: Namespaced
+  version: v1
+  versions:
+  - name: v1
+    served: true
+    storage: true
+  - name: v1beta1
+    served: false
+    storage: false
+  conversion:
+    strategy: None
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: swifts.edgefs.rook.io
+spec:
+  group: edgefs.rook.io
+  names:
+    kind: SWIFT
+    listKind: SWIFTList
+    plural: swifts
+    singular: swift
+  scope: Namespaced
+  version: v1
+  versions:
+  - name: v1
+    served: true
+    storage: true
+  - name: v1beta1
+    served: false
+    storage: false
+  conversion:
+    strategy: None
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: s3s.edgefs.rook.io
+spec:
+  group: edgefs.rook.io
+  names:
+    kind: S3
+    listKind: S3List
+    plural: s3s
+    singular: s3
+  scope: Namespaced
+  version: v1
+  versions:
+  - name: v1
+    served: true
+    storage: true
+  - name: v1beta1
+    served: false
+    storage: false
+  conversion:
+    strategy: None
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: s3xs.edgefs.rook.io
+spec:
+  group: edgefs.rook.io
+  names:
+    kind: S3X
+    listKind: S3XList
+    plural: s3xs
+    singular: s3x
+  scope: Namespaced
+  version: v1
+  versions:
+  - name: v1
+    served: true
+    storage: true
+  - name: v1beta1
+    served: false
+    storage: false
+  conversion:
+    strategy: None
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: iscsis.edgefs.rook.io
+spec:
+  group: edgefs.rook.io
+  names:
+    kind: ISCSI
+    listKind: ISCSIList
+    plural: iscsis
+    singular: iscsi
+  scope: Namespaced
+  version: v1
+  versions:
+  - name: v1
+    served: true
+    storage: true
+  - name: v1beta1
+    served: false
+    storage: false
+  conversion:
+    strategy: None
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: isgws.edgefs.rook.io
+spec:
+  group: edgefs.rook.io
+  names:
+    kind: ISGW
+    listKind: ISGWList
+    plural: isgws
+    singular: isgw
+  scope: Namespaced
+  version: v1
+  versions:
+  - name: v1
+    served: true
+    storage: true
+  - name: v1beta1
+    served: false
+    storage: false
+  conversion:
+    strategy: None

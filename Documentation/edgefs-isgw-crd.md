@@ -40,7 +40,7 @@ The following settings are available for customization of ISGW services.
 ## Sample
 
 ```yaml
-apiVersion: edgefs.rook.io/v1beta1
+apiVersion: edgefs.rook.io/v1
 kind: ISGW
 metadata:
   name: isgw01                               # Inter-Segment Gateway service name
@@ -180,7 +180,7 @@ Because we creating bi-directional link, on the secondary site we would need to 
 5. Create ISGW Link CRDs on both EdgeFS sites
 
 ```yaml
-apiVersion: edgefs.rook.io/v1beta1
+apiVersion: edgefs.rook.io/v1
 kind: ISGW
 metadata:
   name: hawaii
@@ -192,7 +192,7 @@ spec:
 ```
 
 ```yaml
-apiVersion: edgefs.rook.io/v1beta1
+apiVersion: edgefs.rook.io/v1
 kind: ISGW
 metadata:
   name: hawaii

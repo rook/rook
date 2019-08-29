@@ -20,7 +20,7 @@ package nfs
 import (
 	"fmt"
 
-	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
+	edgefsv1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
@@ -40,16 +40,16 @@ const (
 )
 
 // Start the rgw manager
-func (c *NFSController) CreateService(s edgefsv1beta1.NFS, ownerRefs []metav1.OwnerReference) error {
+func (c *NFSController) CreateService(s edgefsv1.NFS, ownerRefs []metav1.OwnerReference) error {
 	return c.CreateOrUpdate(s, false, ownerRefs)
 }
 
-func (c *NFSController) UpdateService(s edgefsv1beta1.NFS, ownerRefs []metav1.OwnerReference) error {
+func (c *NFSController) UpdateService(s edgefsv1.NFS, ownerRefs []metav1.OwnerReference) error {
 	return c.CreateOrUpdate(s, true, ownerRefs)
 }
 
 // Start the nfs instance
-func (c *NFSController) CreateOrUpdate(s edgefsv1beta1.NFS, update bool, ownerRefs []metav1.OwnerReference) error {
+func (c *NFSController) CreateOrUpdate(s edgefsv1.NFS, update bool, ownerRefs []metav1.OwnerReference) error {
 	logger.Infof("starting update=%v service=%s", update, s.Name)
 
 	logger.Infof("NFS Base image is %s", c.rookImage)
@@ -131,12 +131,12 @@ func (c *NFSController) makeNFSService(name, svcname, namespace string) *v1.Serv
 	return svc
 }
 
-func (c *NFSController) makeDeployment(svcname, namespace, rookImage string, nfsSpec edgefsv1beta1.NFSSpec) *apps.Deployment {
+func (c *NFSController) makeDeployment(svcname, namespace, rookImage string, nfsSpec edgefsv1.NFSSpec) *apps.Deployment {
 	name := instanceName(svcname)
 	volumes := []v1.Volume{}
 
 	if c.useHostLocalTime {
-		volumes = append(volumes, edgefsv1beta1.GetHostLocalTimeVolume())
+		volumes = append(volumes, edgefsv1.GetHostLocalTimeVolume())
 	}
 
 	if c.dataVolumeSize.Value() > 0 {
@@ -205,7 +205,7 @@ func (c *NFSController) makeDeployment(svcname, namespace, rookImage string, nfs
 	return d
 }
 
-func (c *NFSController) nfsContainer(svcname, name, containerImage string, nfsSpec edgefsv1beta1.NFSSpec) v1.Container {
+func (c *NFSController) nfsContainer(svcname, name, containerImage string, nfsSpec edgefsv1.NFSSpec) v1.Container {
 	runAsUser := int64(0)
 	readOnlyRootFilesystem := false
 	securityContext := &v1.SecurityContext{
@@ -230,7 +230,7 @@ func (c *NFSController) nfsContainer(svcname, name, containerImage string, nfsSp
 	}
 
 	if c.useHostLocalTime {
-		volumeMounts = append(volumeMounts, edgefsv1beta1.GetHostLocalTimeVolumeMount())
+		volumeMounts = append(volumeMounts, edgefsv1.GetHostLocalTimeVolumeMount())
 	}
 
 	cont := v1.Container{
@@ -291,7 +291,7 @@ func (c *NFSController) nfsContainer(svcname, name, containerImage string, nfsSp
 		})
 	}
 
-	cont.Env = append(cont.Env, edgefsv1beta1.GetInitiatorEnvArr("nfs",
+	cont.Env = append(cont.Env, edgefsv1.GetInitiatorEnvArr("nfs",
 		c.resourceProfile == "embedded" || nfsSpec.ResourceProfile == "embedded",
 		nfsSpec.ChunkCacheSize, nfsSpec.Resources)...)
 
@@ -299,7 +299,7 @@ func (c *NFSController) nfsContainer(svcname, name, containerImage string, nfsSp
 }
 
 // Delete NFS service and possibly some artifacts.
-func (c *NFSController) DeleteService(s edgefsv1beta1.NFS) error {
+func (c *NFSController) DeleteService(s edgefsv1.NFS) error {
 	// check if service  exists
 	exists, err := serviceExists(c.context, s)
 	if err != nil {
@@ -342,7 +342,7 @@ func getLabels(name, svcname, namespace string) map[string]string {
 }
 
 // Validate the NFS arguments
-func validateService(context *clusterd.Context, s edgefsv1beta1.NFS) error {
+func validateService(context *clusterd.Context, s edgefsv1.NFS) error {
 	if s.Name == "" {
 		return fmt.Errorf("missing name")
 	}
@@ -358,7 +358,7 @@ func instanceName(svcname string) string {
 }
 
 // Check if the NFS service exists
-func serviceExists(context *clusterd.Context, s edgefsv1beta1.NFS) (bool, error) {
+func serviceExists(context *clusterd.Context, s edgefsv1.NFS) (bool, error) {
 	_, err := context.Clientset.AppsV1().Deployments(s.Namespace).Get(instanceName(s.Name), metav1.GetOptions{})
 	if err == nil {
 		// the deployment was found

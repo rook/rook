@@ -26,8 +26,8 @@ import (
 	fakecephv1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1/fake"
 	cockroachdbv1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/cockroachdb.rook.io/v1alpha1"
 	fakecockroachdbv1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/cockroachdb.rook.io/v1alpha1/fake"
-	edgefsv1beta1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/edgefs.rook.io/v1beta1"
-	fakeedgefsv1beta1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/edgefs.rook.io/v1beta1/fake"
+	edgefsv1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/edgefs.rook.io/v1"
+	fakeedgefsv1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/edgefs.rook.io/v1/fake"
 	miniov1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/minio.rook.io/v1alpha1"
 	fakeminiov1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/minio.rook.io/v1alpha1/fake"
 	nfsv1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/nfs.rook.io/v1alpha1"
@@ -100,9 +100,9 @@ func (c *Clientset) CockroachdbV1alpha1() cockroachdbv1alpha1.CockroachdbV1alpha
 	return &fakecockroachdbv1alpha1.FakeCockroachdbV1alpha1{Fake: &c.Fake}
 }
 
-// EdgefsV1beta1 retrieves the EdgefsV1beta1Client
-func (c *Clientset) EdgefsV1beta1() edgefsv1beta1.EdgefsV1beta1Interface {
-	return &fakeedgefsv1beta1.FakeEdgefsV1beta1{Fake: &c.Fake}
+// EdgefsV1 retrieves the EdgefsV1Client
+func (c *Clientset) EdgefsV1() edgefsv1.EdgefsV1Interface {
+	return &fakeedgefsv1.FakeEdgefsV1{Fake: &c.Fake}
 }
 
 // MinioV1alpha1 retrieves the MinioV1alpha1Client

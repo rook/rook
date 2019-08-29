@@ -1,4 +1,4 @@
-apiVersion: edgefs.rook.io/v1beta1
+apiVersion: edgefs.rook.io/v1
 kind: NFS
 metadata:
   name: nfs01

@@ -12,7 +12,7 @@ The following settings are available for customization of iSCSI Target services.
 ## Sample
 
 ```yaml
-apiVersion: edgefs.rook.io/v1beta1
+apiVersion: edgefs.rook.io/v1
 kind: ISCSI
 metadata:
   name: iscsi01
@@ -130,7 +130,7 @@ efscli service serve isc-pepsi Hawaii/Pepsi/bk1/lun1 X-volsize=20G
 5. Create ISCSI CRDs
 
 ```yaml
-apiVersion: edgefs.rook.io/v1beta1
+apiVersion: edgefs.rook.io/v1
 kind: ISCSI
 metadata:
   name: iscCola
@@ -138,7 +138,7 @@ metadata:
 ```
 
 ```yaml
-apiVersion: edgefs.rook.io/v1beta1
+apiVersion: edgefs.rook.io/v1
 kind: ISCSI
 metadata:
   name: iscPepsi

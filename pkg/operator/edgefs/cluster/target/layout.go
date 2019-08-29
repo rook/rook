@@ -22,7 +22,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
+	edgefsv1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/operator/edgefs/cluster/target/config"
 	"github.com/rook/rook/pkg/util/sys"
@@ -97,7 +97,7 @@ func GetContainers(maxContainerCapacity int64, devices []sys.LocalDisk, storeCon
 	selectedSsdsDevices := make([]bool, len(ssds))
 	selectedHddsDevices := make([]bool, len(hdds))
 
-	logger.Infof("MaxContainerCapacity: %s, TotalCapacity: %s", edgefsv1beta1.ByteCountBinary(maxCap), edgefsv1beta1.ByteCountBinary(totalCapacity))
+	logger.Infof("MaxContainerCapacity: %s, TotalCapacity: %s", edgefsv1.ByteCountBinary(maxCap), edgefsv1.ByteCountBinary(totalCapacity))
 
 	if totalCapacity == 0 {
 		return nil, fmt.Errorf("No available disks for container")
@@ -153,7 +153,7 @@ func GetContainers(maxContainerCapacity int64, devices []sys.LocalDisk, storeCon
 	return containerDevices, nil
 }
 
-func GetContainersRTDevices(nodeName string, maxContainerCapacity int64, nodeDisks []sys.LocalDisk, storeConfig *config.StoreConfig) (rtDevices []edgefsv1beta1.RTDevices, err error) {
+func GetContainersRTDevices(nodeName string, maxContainerCapacity int64, nodeDisks []sys.LocalDisk, storeConfig *config.StoreConfig) (rtDevices []edgefsv1.RTDevices, err error) {
 	if storeConfig == nil {
 		return rtDevices, fmt.Errorf("no pointer to StoreConfig provided")
 	}
@@ -167,7 +167,7 @@ func GetContainersRTDevices(nodeName string, maxContainerCapacity int64, nodeDis
 		return nil, err
 	}
 
-	containersRtDevices := make([]edgefsv1beta1.RTDevices, len(containers))
+	containersRtDevices := make([]edgefsv1.RTDevices, len(containers))
 	for i, container := range containers {
 		rtDevices, err := getRTDevices(container, storeConfig)
 		if err != nil {
@@ -179,8 +179,8 @@ func GetContainersRTDevices(nodeName string, maxContainerCapacity int64, nodeDis
 	return containersRtDevices, nil
 }
 
-func getRTDevices(cntDevs ContainerDevices, storeConfig *config.StoreConfig) (rtDevices []edgefsv1beta1.RTDevice, err error) {
-	rtDevices = make([]edgefsv1beta1.RTDevice, 0)
+func getRTDevices(cntDevs ContainerDevices, storeConfig *config.StoreConfig) (rtDevices []edgefsv1.RTDevice, err error) {
+	rtDevices = make([]edgefsv1.RTDevice, 0)
 
 	if storeConfig.UseAllSSD {
 		//
@@ -194,7 +194,7 @@ func getRTDevices(cntDevs ContainerDevices, storeConfig *config.StoreConfig) (rt
 		}
 
 		for i := range cntDevs.Ssds {
-			rtdev := edgefsv1beta1.RTDevice{
+			rtdev := edgefsv1.RTDevice{
 				Name:       getIdDevLinkName(cntDevs.Ssds[i].DevLinks),
 				Device:     "/dev/" + cntDevs.Ssds[i].Name,
 				Psize:      storeConfig.LmdbPageSize,
@@ -218,7 +218,7 @@ func getRTDevices(cntDevs ContainerDevices, storeConfig *config.StoreConfig) (rt
 		// All HDD media case (capacity, cold archive)
 		//
 		for i := range cntDevs.Hdds {
-			rtdev := edgefsv1beta1.RTDevice{
+			rtdev := edgefsv1.RTDevice{
 				Name:         getIdDevLinkName(cntDevs.Hdds[i].DevLinks),
 				Device:       "/dev/" + cntDevs.Hdds[i].Name,
 				Psize:        storeConfig.LmdbPageSize,
@@ -258,7 +258,7 @@ func getRTDevices(cntDevs ContainerDevices, storeConfig *config.StoreConfig) (rt
 
 	for i := range hdds_divided {
 		for j := range hdds_divided[i] {
-			rtdev := edgefsv1beta1.RTDevice{
+			rtdev := edgefsv1.RTDevice{
 				Name:              getIdDevLinkName(hdds_divided[i][j].DevLinks),
 				Device:            "/dev/" + hdds_divided[i][j].Name,
 				Psize:             storeConfig.LmdbPageSize,
@@ -287,10 +287,10 @@ func getRTDevices(cntDevs ContainerDevices, storeConfig *config.StoreConfig) (rt
 	return rtDevices, nil
 }
 
-func GetRtlfsDevices(directories []rookalpha.Directory, storeConfig *config.StoreConfig) []edgefsv1beta1.RtlfsDevice {
-	rtlfsDevices := make([]edgefsv1beta1.RtlfsDevice, 0)
+func GetRtlfsDevices(directories []rookalpha.Directory, storeConfig *config.StoreConfig) []edgefsv1.RtlfsDevice {
+	rtlfsDevices := make([]edgefsv1.RtlfsDevice, 0)
 	for _, dir := range directories {
-		rtlfsDevice := edgefsv1beta1.RtlfsDevice{
+		rtlfsDevice := edgefsv1.RtlfsDevice{
 			Name:            filepath.Base(dir.Path),
 			Path:            dir.Path,
 			CheckMountpoint: 0,

@@ -12,7 +12,7 @@ The following settings are available for customization of S3 services.
 ## Sample
 
 ```yaml
-apiVersion: edgefs.rook.io/v1beta1
+apiVersion: edgefs.rook.io/v1
 kind: S3
 metadata:
   name: s301
@@ -135,7 +135,7 @@ efscli service config s3-pepsi X-Domain pepsi.com
 5. Create S3 CRDs
 
 ```yaml
-apiVersion: edgefs.rook.io/v1beta1
+apiVersion: edgefs.rook.io/v1
 kind: S3
 metadata:
   name: s3-cola
@@ -145,7 +145,7 @@ spec:
 ```
 
 ```yaml
-apiVersion: edgefs.rook.io/v1beta1
+apiVersion: edgefs.rook.io/v1
 kind: S3
 metadata:
   name: s3-pepsi

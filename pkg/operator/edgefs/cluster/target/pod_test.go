@@ -19,7 +19,7 @@ package target
 import (
 	"testing"
 
-	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
+	edgefsv1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/edgefs/cluster/target/config"
@@ -43,7 +43,7 @@ func TestStorageSpecConfig(t *testing.T) {
 				Name:     "node1",
 				Location: "zone1",
 				Config: map[string]string{
-					"rtTransport":        edgefsv1beta1.DeploymentRtrd,
+					"rtTransport":        edgefsv1.DeploymentRtrd,
 					"useAllSSD":          "true",
 					"useMetadataOffload": "false",
 				},
@@ -63,7 +63,7 @@ func TestStorageSpecConfig(t *testing.T) {
 	}
 
 	clientset := fake.NewSimpleClientset()
-	deploymentConfig := edgefsv1beta1.ClusterDeploymentConfig{}
+	deploymentConfig := edgefsv1.ClusterDeploymentConfig{}
 	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", "",
 		storageSpec, "", *resource.NewQuantity(100000.0, resource.BinarySI),
 		rookalpha.Annotations{}, rookalpha.Placement{}, rookalpha.NetworkSpec{}, v1.ResourceRequirements{}, "", *resource.NewQuantity(0.0, resource.BinarySI),

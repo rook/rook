@@ -24,7 +24,7 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/google/go-cmp/cmp"
 	opkit "github.com/rook/operator-kit"
-	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
+	edgefsv1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	v1 "k8s.io/api/core/v1"
@@ -45,10 +45,10 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "edgefs-op-nfs")
 var NFSResource = opkit.CustomResource{
 	Name:    customResourceName,
 	Plural:  customResourceNamePlural,
-	Group:   edgefsv1beta1.CustomResourceGroup,
-	Version: edgefsv1beta1.Version,
+	Group:   edgefsv1.CustomResourceGroup,
+	Version: edgefsv1.Version,
 	Scope:   apiextensionsv1beta1.NamespaceScoped,
-	Kind:    reflect.TypeOf(edgefsv1beta1.NFS{}).Name(),
+	Kind:    reflect.TypeOf(edgefsv1.NFS{}).Name(),
 }
 
 // NFSController represents a controller object for nfs custom resources
@@ -106,8 +106,8 @@ func (c *NFSController) StartWatch(stopCh chan struct{}) error {
 	}
 
 	logger.Infof("start watching nfs resources in namespace %s", c.namespace)
-	watcher := opkit.NewWatcher(NFSResource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1beta1().RESTClient())
-	go watcher.Watch(&edgefsv1beta1.NFS{}, stopCh)
+	watcher := opkit.NewWatcher(NFSResource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1().RESTClient())
+	go watcher.Watch(&edgefsv1.NFS{}, stopCh)
 
 	return nil
 }
@@ -158,7 +158,7 @@ func (c *NFSController) onDelete(obj interface{}) {
 		logger.Errorf("failed to delete nfs %s. %+v", nfs.Name, err)
 	}
 }
-func (c *NFSController) ParentClusterChanged(cluster edgefsv1beta1.ClusterSpec) {
+func (c *NFSController) ParentClusterChanged(cluster edgefsv1.ClusterSpec) {
 	if c.rookImage == cluster.EdgefsImageName {
 		logger.Infof("No need to update the nfs service, the same images present")
 		return
@@ -167,7 +167,7 @@ func (c *NFSController) ParentClusterChanged(cluster edgefsv1beta1.ClusterSpec) 
 	// update controller options by updated cluster spec
 	c.rookImage = cluster.EdgefsImageName
 
-	nfses, err := c.context.RookClientset.EdgefsV1beta1().NFSs(c.namespace).List(metav1.ListOptions{})
+	nfses, err := c.context.RookClientset.EdgefsV1().NFSs(c.namespace).List(metav1.ListOptions{})
 	if err != nil {
 		logger.Errorf("failed to retrieve NFSes to update the Edgefs version. %+v", err)
 		return
@@ -183,7 +183,7 @@ func (c *NFSController) ParentClusterChanged(cluster edgefsv1beta1.ClusterSpec) 
 	}
 }
 
-func (c *NFSController) serviceOwners(service *edgefsv1beta1.NFS) []metav1.OwnerReference {
+func (c *NFSController) serviceOwners(service *edgefsv1.NFS) []metav1.OwnerReference {
 	// Only set the cluster crd as the owner of the NFS resources.
 	// If the NFS crd is deleted, the operator will explicitly remove the NFS resources.
 	// If the NFS crd still exists when the cluster crd is deleted, this will make sure the NFS
@@ -191,7 +191,7 @@ func (c *NFSController) serviceOwners(service *edgefsv1beta1.NFS) []metav1.Owner
 	return []metav1.OwnerReference{c.ownerRef}
 }
 
-func serviceChanged(oldService, newService edgefsv1beta1.NFSSpec) bool {
+func serviceChanged(oldService, newService edgefsv1.NFSSpec) bool {
 
 	var diff string
 	// any change in the crd will trigger an orchestration
@@ -217,9 +217,9 @@ func serviceChanged(oldService, newService edgefsv1beta1.NFSSpec) bool {
 	return false
 }
 
-func getNFSObject(obj interface{}) (nfs *edgefsv1beta1.NFS, err error) {
+func getNFSObject(obj interface{}) (nfs *edgefsv1.NFS, err error) {
 	var ok bool
-	nfs, ok = obj.(*edgefsv1beta1.NFS)
+	nfs, ok = obj.(*edgefsv1.NFS)
 	if ok {
 		// the nfs object is of the latest type, simply return it
 		return nfs.DeepCopy(), nil
