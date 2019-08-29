@@ -127,7 +127,7 @@ These metrics are meant to be collected by prometheus but can be acceses through
 for example `curl -X get http://[pod ip]:[liveness-port][liveness-path]  2>/dev/null | grep csi`
 the expected output should be
 ```bash
-[root@worker2 /]# curl -X GET http://10.109.65.142:8080/metrics 2>/dev/null | grep csi
+[root@worker2 /]# curl -X GET http://10.109.65.142:9080/metrics 2>/dev/null | grep csi
 # HELP csi_liveness Liveness Probe
 # TYPE csi_liveness gauge
 csi_liveness 1

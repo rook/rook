@@ -106,7 +106,7 @@ spec:
           args:
             - "--type=liveness"
             - "--endpoint=$(CSI_ENDPOINT)"
-            - "--livenessport=8080"
+            - "--livenessport=9080"
             - "--livenesspath=/metrics"
             - "--polltime=60s"
             - "--timeout=3s"
@@ -161,6 +161,6 @@ spec:
     - name: http-metrics
       port: 8080
       protocol: TCP
-      targetPort: 8080
+      targetPort: 9080
   selector:
     app: csi-rbdplugin-provisioner
