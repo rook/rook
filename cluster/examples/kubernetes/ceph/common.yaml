@@ -703,6 +703,9 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+# imagePullSecrets:
+# - name: my-registry-secret
+
 # OLM: END SERVICE ACCOUNT SYSTEM
 # OLM: BEGIN OPERATOR ROLEBINDING
 ---
@@ -755,6 +758,9 @@ kind: ServiceAccount
 metadata:
   name: rook-ceph-osd
   namespace: rook-ceph
+# imagePullSecrets:
+# - name: my-registry-secret
+
 # OLM: END SERVICE ACCOUNT OSD
 # OLM: BEGIN SERVICE ACCOUNT MGR
 ---
@@ -764,6 +770,9 @@ kind: ServiceAccount
 metadata:
   name: rook-ceph-mgr
   namespace: rook-ceph
+# imagePullSecrets:
+# - name: my-registry-secret
+
 # OLM: END SERVICE ACCOUNT MGR
 # OLM: BEGIN CMD REPORTER SERVICE ACCOUNT
 ---
