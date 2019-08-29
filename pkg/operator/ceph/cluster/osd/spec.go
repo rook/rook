@@ -66,12 +66,13 @@ func (c *Cluster) makeJob(osdProps osdProperties) (*batch.Job, error) {
 		return nil, err
 	}
 
-	if osdProps.pvc.ClaimName == "" {
-		podSpec.Spec.NodeSelector = map[string]string{v1.LabelHostname: osdProps.crushHostname}
-	} else {
+	if osdProps.pvc.ClaimName != "" {
 		podSpec.Spec.InitContainers = []v1.Container{
 			c.getPVCInitContainer(osdProps.pvc),
 		}
+	}
+	if !osdProps.portable {
+		podSpec.Spec.NodeSelector = map[string]string{v1.LabelHostname: osdProps.crushHostname}
 	}
 
 	job := &batch.Job{
@@ -343,12 +344,15 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 			Replicas: &replicaCount,
 		},
 	}
-	if osdProps.pvc.ClaimName == "" {
-		deployment.Spec.Template.Spec.NodeSelector = map[string]string{v1.LabelHostname: osdProps.crushHostname}
-	} else {
+	if osdProps.pvc.ClaimName != "" {
 		deployment.Spec.Template.Spec.InitContainers = append(deployment.Spec.Template.Spec.InitContainers, c.getPVCInitContainer(osdProps.pvc))
 		k8sutil.AddLabelToDeployement(OSDOverPVCLabelKey, osdProps.pvc.ClaimName, deployment)
+		k8sutil.AddLabelToPod(OSDOverPVCLabelKey, osdProps.pvc.ClaimName, &deployment.Spec.Template)
 	}
+	if !osdProps.portable {
+		deployment.Spec.Template.Spec.NodeSelector = map[string]string{v1.LabelHostname: osdProps.crushHostname}
+	}
+
 	k8sutil.AddRookVersionLabelToDeployment(deployment)
 	c.annotations.ApplyToObjectMeta(&deployment.ObjectMeta)
 	c.annotations.ApplyToObjectMeta(&deployment.Spec.Template.ObjectMeta)
@@ -441,6 +445,7 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 		Labels: map[string]string{
 			k8sutil.AppAttr:     prepareAppName,
 			k8sutil.ClusterAttr: c.Namespace,
+			OSDOverPVCLabelKey:  osdProps.pvc.ClaimName,
 		},
 		Annotations: map[string]string{},
 	}
@@ -642,7 +647,7 @@ func (c *Cluster) skipVolumeForDirectory(path string) bool {
 func getPVCOSDVolumes(osdProps *osdProperties) []v1.Volume {
 	return []v1.Volume{
 		{
-			Name: osdProps.crushHostname,
+			Name: osdProps.pvc.ClaimName,
 			VolumeSource: v1.VolumeSource{
 				PersistentVolumeClaim: &osdProps.pvc,
 			},

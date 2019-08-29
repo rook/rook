@@ -46,6 +46,9 @@ an example usage
   [monitor settings for more detail](Documentation/ceph-cluster-crd.md#mon-settings).
 - Ceph OSDs can be created by using StorageClassDeviceSet. See docs on [Storage Class Device Sets](Documentation/ceph-cluster-crd.md#storage-class-device-sets).
 - Rook can now connect to an external cluster, for more info about external cluster [read the design](https://github.com/rook/rook/blob/master/design/ceph-external-cluster.md) as well as the documentation [Ceph External cluster](Documentation/ceph-cluster-crd.md#external-cluster)
+- Added a new property in `storageClassDeviceSets` named `portable`: 
+   - If `true`, the OSDs will be allowed to move between nodes during failover. This requires a storage class that supports portability (e.g. `aws-ebs`, but not the local storage provisioner).
+   - If `false`, the OSDs will be assigned to a node permanently. Rook will configure Ceph's CRUSH map to support the portability.
 
 ### YugabyteDB
 

@@ -406,12 +406,11 @@ func (c *Cluster) startOSDDaemonsOnPVC(pvcName string, config *provisionConfig, 
 			config.addError(errMsg)
 			continue
 		}
-
 		_, err = c.context.Clientset.AppsV1().Deployments(c.Namespace).Create(dp)
 		if err != nil {
 			if !errors.IsAlreadyExists(err) {
 				// we failed to create job, update the orchestration status for this pvc
-				logger.Warningf("failed to create osd deployment for pvc %s, osd %v: %+v", osdProps.crushHostname, osd, err)
+				logger.Warningf("failed to create osd deployment for pvc %s, osd %v: %+v", osdProps.pvc.ClaimName, osd, err)
 				continue
 			}
 			logger.Infof("deployment for osd %d already exists. updating if needed", osd.ID)
@@ -718,14 +717,35 @@ func (c *Cluster) resolveNode(nodeName string) *rookalpha.Node {
 func (c *Cluster) getOSDPropsForPVC(pvcName string) (osdProperties, error) {
 	for _, volumeSource := range c.ValidStorage.VolumeSources {
 		if pvcName == volumeSource.PersistentVolumeClaimSource.ClaimName {
-			return osdProperties{
+			osdProps := osdProperties{
 				crushHostname: volumeSource.PersistentVolumeClaimSource.ClaimName,
 				pvc:           volumeSource.PersistentVolumeClaimSource,
 				resources:     volumeSource.Resources,
 				placement:     volumeSource.Placement,
 				portable:      volumeSource.Portable,
-			}, nil
+			}
+			// If OSD isn't portable, we're getting the host name of the pod where the osd prepare job pod prepared the OSD.
+			if !volumeSource.Portable {
+				var err error
+				osdProps.crushHostname, err = c.getPVCHostName(pvcName)
+				if err != nil {
+					return osdProperties{}, fmt.Errorf("Unable to get crushHostname of non portable pvc %s. %+v", pvcName, err)
+				}
+			}
+			return osdProps, nil
 		}
 	}
 	return osdProperties{}, fmt.Errorf("No valid VolumeSource found for pvc %s", pvcName)
+}
+
+func (c *Cluster) getPVCHostName(pvcName string) (string, error) {
+	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", OSDOverPVCLabelKey, pvcName)}
+	podList, err := c.context.Clientset.CoreV1().Pods(c.Namespace).List(listOpts)
+	if err != nil {
+		return "", err
+	}
+	for _, pod := range podList.Items {
+		return pod.Spec.NodeName, nil
+	}
+	return "", err
 }
