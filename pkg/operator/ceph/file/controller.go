@@ -54,6 +54,7 @@ type FilesystemController struct {
 	ownerRef           metav1.OwnerReference
 	dataDirHostPath    string
 	orchestrationMutex sync.Mutex
+	isUpgrade          bool
 }
 
 // NewFilesystemController create controller for watching filesystem custom resources created
@@ -65,6 +66,7 @@ func NewFilesystemController(
 	clusterSpec *cephv1.ClusterSpec,
 	ownerRef metav1.OwnerReference,
 	dataDirHostPath string,
+	isUpgrade bool,
 ) *FilesystemController {
 	return &FilesystemController{
 		clusterInfo:     clusterInfo,
@@ -74,6 +76,7 @@ func NewFilesystemController(
 		clusterSpec:     clusterSpec,
 		ownerRef:        ownerRef,
 		dataDirHostPath: dataDirHostPath,
+		isUpgrade:       isUpgrade,
 	}
 }
 
@@ -102,7 +105,7 @@ func (c *FilesystemController) onAdd(obj interface{}) {
 	c.acquireOrchestrationLock()
 	defer c.releaseOrchestrationLock()
 
-	err = createFilesystem(c.clusterInfo, c.context, *filesystem, c.rookVersion, c.clusterSpec, c.filesystemOwners(filesystem), c.clusterSpec.DataDirHostPath)
+	err = createFilesystem(c.clusterInfo, c.context, *filesystem, c.rookVersion, c.clusterSpec, c.filesystemOwners(filesystem), c.clusterSpec.DataDirHostPath, c.isUpgrade)
 	if err != nil {
 		logger.Errorf("failed to create filesystem %s: %+v", filesystem.Name, err)
 	}
@@ -130,18 +133,22 @@ func (c *FilesystemController) onUpdate(oldObj, newObj interface{}) {
 
 	// if the filesystem is modified, allow the filesystem to be created if it wasn't already
 	logger.Infof("updating filesystem %s", newFS.Name)
-	err = createFilesystem(c.clusterInfo, c.context, *newFS, c.rookVersion, c.clusterSpec, c.filesystemOwners(newFS), c.clusterSpec.DataDirHostPath)
+	err = createFilesystem(c.clusterInfo, c.context, *newFS, c.rookVersion, c.clusterSpec, c.filesystemOwners(newFS), c.clusterSpec.DataDirHostPath, c.isUpgrade)
 	if err != nil {
 		logger.Errorf("failed to create (modify) filesystem %s: %+v", newFS.Name, err)
 	}
 }
 
-func (c *FilesystemController) ParentClusterChanged(cluster cephv1.ClusterSpec, clusterInfo *cephconfig.ClusterInfo) {
+// ParentClusterChanged determines wether or not a CR update has been sent
+func (c *FilesystemController) ParentClusterChanged(cluster cephv1.ClusterSpec, clusterInfo *cephconfig.ClusterInfo, isUpgrade bool) {
 	c.clusterInfo = clusterInfo
-	if cluster.CephVersion.Image == c.clusterSpec.CephVersion.Image {
+	if !isUpgrade {
 		logger.Debugf("No need to update the file system after the parent cluster changed")
 		return
 	}
+
+	// This is an upgrade so let's activate the flag
+	c.isUpgrade = isUpgrade
 
 	c.acquireOrchestrationLock()
 	defer c.releaseOrchestrationLock()
@@ -154,7 +161,7 @@ func (c *FilesystemController) ParentClusterChanged(cluster cephv1.ClusterSpec, 
 	}
 	for _, fs := range filesystems.Items {
 		logger.Infof("updating the ceph version for filesystem %s to %s", fs.Name, c.clusterSpec.CephVersion.Image)
-		err = createFilesystem(c.clusterInfo, c.context, fs, c.rookVersion, c.clusterSpec, c.filesystemOwners(&fs), c.clusterSpec.DataDirHostPath)
+		err = createFilesystem(c.clusterInfo, c.context, fs, c.rookVersion, c.clusterSpec, c.filesystemOwners(&fs), c.clusterSpec.DataDirHostPath, c.isUpgrade)
 		if err != nil {
 			logger.Errorf("failed to update filesystem %s. %+v", fs.Name, err)
 		} else {

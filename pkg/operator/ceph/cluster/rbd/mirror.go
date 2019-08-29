@@ -58,6 +58,7 @@ type Mirroring struct {
 	rookVersion     string
 	Network         cephv1.NetworkSpec
 	dataDirHostPath string
+	isUpgrade       bool
 }
 
 // New creates an instance of the rbd mirroring
@@ -73,6 +74,7 @@ func New(
 	resources v1.ResourceRequirements,
 	ownerRef metav1.OwnerReference,
 	dataDirHostPath string,
+	isUpgrade bool,
 ) *Mirroring {
 	return &Mirroring{
 		ClusterInfo:     cluster,
@@ -87,6 +89,7 @@ func New(
 		resources:       resources,
 		ownerRef:        ownerRef,
 		dataDirHostPath: dataDirHostPath,
+		isUpgrade:       isUpgrade,
 	}
 }
 
@@ -126,17 +129,22 @@ func (m *Mirroring) Start() error {
 			// Always invoke ceph version before an upgrade so we are sure to be up-to-date
 			daemon := string(config.RbdMirrorType)
 			var cephVersionToUse cephver.CephVersion
-			currentCephVersion, err := client.LeastUptodateDaemonVersion(m.context, m.ClusterInfo.Name, daemon)
-			if err != nil {
-				logger.Warningf("failed to retrieve current ceph %s version. %+v", daemon, err)
-				logger.Debug("could not detect ceph version during update, this is likely an initial bootstrap, proceeding with m.ClusterInfo.CephVersion")
-				cephVersionToUse = m.ClusterInfo.CephVersion
 
-			} else {
-				logger.Debugf("current cluster version for rbd mirrors before upgrading is: %+v", currentCephVersion)
-				cephVersionToUse = currentCephVersion
+			// If this is not an upgrade there is no need to check the ceph version
+			if m.isUpgrade {
+				currentCephVersion, err := client.LeastUptodateDaemonVersion(m.context, m.ClusterInfo.Name, daemon)
+				if err != nil {
+					logger.Warningf("failed to retrieve current ceph %s version. %+v", daemon, err)
+					logger.Debug("could not detect ceph version during update, this is likely an initial bootstrap, proceeding with m.ClusterInfo.CephVersion")
+					cephVersionToUse = m.ClusterInfo.CephVersion
+
+				} else {
+					logger.Debugf("current cluster version for rbd mirrors before upgrading is: %+v", currentCephVersion)
+					cephVersionToUse = currentCephVersion
+				}
 			}
-			if err := updateDeploymentAndWait(m.context, d, m.Namespace, daemon, daemonConf.DaemonID, cephVersionToUse); err != nil {
+
+			if err := updateDeploymentAndWait(m.context, d, m.Namespace, daemon, daemonConf.DaemonID, cephVersionToUse, m.isUpgrade); err != nil {
 				// fail could be an issue updating label selector (immutable), so try del and recreate
 				logger.Debugf("updateDeploymentAndWait failed for rbd-mirror %s. Attempting del-and-recreate. %+v", resourceName, err)
 				err = m.context.Clientset.AppsV1().Deployments(m.Namespace).Delete(d.Name, &metav1.DeleteOptions{})

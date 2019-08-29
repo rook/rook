@@ -49,6 +49,7 @@ func testPodSpec(t *testing.T, monID string, pvc bool) {
 		cephv1.NetworkSpec{},
 		metav1.OwnerReference{},
 		&sync.Mutex{},
+		false,
 	)
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "rook/rook:myversion")
 	c.spec.CephVersion = cephv1.CephVersionSpec{Image: "ceph/ceph:myceph"}
@@ -94,6 +95,7 @@ func TestDeploymentPVCSpec(t *testing.T) {
 		cephv1.NetworkSpec{},
 		metav1.OwnerReference{},
 		&sync.Mutex{},
+		false,
 	)
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "rook/rook:myversion")
 	c.spec.CephVersion = cephv1.CephVersionSpec{Image: "ceph/ceph:myceph"}
@@ -156,6 +158,7 @@ func testPodSpecPlacement(t *testing.T, hostNet, allowMulti bool, req, pref int,
 		cephv1.NetworkSpec{HostNetwork: hostNet},
 		metav1.OwnerReference{},
 		&sync.Mutex{},
+		false,
 	)
 
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: allowMulti}, "rook/rook:myversion")

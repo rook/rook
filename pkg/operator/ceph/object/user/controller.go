@@ -116,7 +116,8 @@ func (c *ObjectStoreUserController) onDelete(obj interface{}) {
 	}
 }
 
-func (c *ObjectStoreUserController) ParentClusterChanged(cluster cephv1.ClusterSpec, clusterInfo *cephconfig.ClusterInfo) {
+// ParentClusterChanged determines wether or not a CR update has been sent
+func (c *ObjectStoreUserController) ParentClusterChanged(cluster cephv1.ClusterSpec, clusterInfo *cephconfig.ClusterInfo, isUpgrade bool) {
 	logger.Debugf("No need to update object store users after the parent cluster changed")
 }
 

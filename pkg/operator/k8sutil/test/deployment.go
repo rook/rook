@@ -15,11 +15,11 @@ import (
 // returns a pointer to this slice which the calling func may use to verify the expected contents of
 // deploymentsUpdated based on expected behavior.
 func UpdateDeploymentAndWaitStub() (
-	stubFunc func(context *clusterd.Context, deployment *apps.Deployment, namespace, daemonType, daemonName string, cephVersion version.CephVersion) error,
+	stubFunc func(context *clusterd.Context, deployment *apps.Deployment, namespace, daemonType, daemonName string, cephVersion version.CephVersion, isUpgrade bool) error,
 	deploymentsUpdated *[]*apps.Deployment,
 ) {
 	deploymentsUpdated = &[]*apps.Deployment{}
-	stubFunc = func(context *clusterd.Context, deployment *apps.Deployment, namespace, daemonType, daemonName string, cephVersion version.CephVersion) error {
+	stubFunc = func(context *clusterd.Context, deployment *apps.Deployment, namespace, daemonType, daemonName string, cephVersion version.CephVersion, isUpgrade bool) error {
 		*deploymentsUpdated = append(*deploymentsUpdated, deployment)
 		return nil
 	}
