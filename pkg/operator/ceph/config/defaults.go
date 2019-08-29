@@ -87,14 +87,6 @@ func DefaultCentralizedConfigs(cephVersion version.CephVersion) rookceph.ConfigO
 // made to override these options for the Ceph clusters it creates.
 func DefaultLegacyConfigs() rookceph.ConfigOverridesSpec {
 	overrides := []rookceph.ConfigOverride{
-		configOverride("global", "mon max pg per osd", "1000"),
-		//
-		// TODO: remove these; if we need for integration tests, set in integration test spec
-		configOverride("global", "osd pool default size", "1"),
-		configOverride("global", "osd pool default min size", "1"),
-		configOverride("global", "osd pool default pg num", "100"),
-		configOverride("global", "osd pool default pgp num", "100"),
-		//
 		// TODO: drop this when FlexVolume is no longer supported
 		configOverride("global", "rbd_default_features", "3"),
 	}
