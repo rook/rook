@@ -4,7 +4,7 @@ kind: PersistentVolumeClaim
 metadata:
   name: rbd-pvc-restore
 spec:
-  storageClassName: csi-rbd
+  storageClassName: rook-ceph-block
   dataSource:
     name: rbd-pvc-snapshot
     kind: VolumeSnapshot
