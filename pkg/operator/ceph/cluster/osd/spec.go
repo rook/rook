@@ -66,13 +66,12 @@ func (c *Cluster) makeJob(osdProps osdProperties) (*batch.Job, error) {
 		return nil, err
 	}
 
-	if osdProps.pvc.ClaimName != "" {
+	if osdProps.pvc.ClaimName == "" {
+		podSpec.Spec.NodeSelector = map[string]string{v1.LabelHostname: osdProps.crushHostname}
+	} else {
 		podSpec.Spec.InitContainers = []v1.Container{
 			c.getPVCInitContainer(osdProps.pvc),
 		}
-	}
-	if !osdProps.portable {
-		podSpec.Spec.NodeSelector = map[string]string{v1.LabelHostname: osdProps.crushHostname}
 	}
 
 	job := &batch.Job{
