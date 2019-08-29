@@ -234,7 +234,7 @@ function hack_csv() {
     # To account for these mappings, we have to replace Role/ClusterRole names with
     # the corresponding ServiceAccount.
     sed -i 's/cephfs-external-provisioner-cfg/rook-csi-cephfs-provisioner-sa/' "$DESIRED_CSV_FILE_NAME"
-    sed -i 's/rbd-external-provisioner-cfg/rbd-csi-provisioner-sa/' "$DESIRED_CSV_FILE_NAME"
+    sed -i 's/rbd-external-provisioner-cfg/rook-csi-rbd-provisioner-sa/' "$DESIRED_CSV_FILE_NAME"
 }
 
 function generate_package() {
