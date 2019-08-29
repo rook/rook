@@ -29,12 +29,13 @@ import (
 )
 
 type Param struct {
-	CSIPluginImage   string
-	RegistrarImage   string
-	ProvisionerImage string
-	AttacherImage    string
-	SnapshotterImage string
-	DriverNamePrefix string
+	CSIPluginImage       string
+	RegistrarImage       string
+	ProvisionerImage     string
+	AttacherImage        string
+	SnapshotterImage     string
+	DriverNamePrefix     string
+	EnableCSIGRPCMetrics string
 }
 
 type templateParam struct {
@@ -46,8 +47,9 @@ type templateParam struct {
 var (
 	CSIParam Param
 
-	EnableRBD    = false
-	EnableCephFS = false
+	EnableRBD            = false
+	EnableCephFS         = false
+	EnableCSIGRPCMetrics = false
 
 	// template paths
 	RBDPluginTemplatePath         string
@@ -151,6 +153,9 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 	if tp.DriverNamePrefix == "" {
 		tp.DriverNamePrefix = fmt.Sprintf("%s.", namespace)
 	}
+
+	tp.EnableCSIGRPCMetrics = fmt.Sprintf("%t", EnableCSIGRPCMetrics)
+
 	if ver.Minor < provDeploymentSuppVersion {
 		deployProvSTS = true
 	}

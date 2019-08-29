@@ -1303,6 +1303,8 @@ spec:
           value: "true"
         - name: ROOK_CSI_ENABLE_RBD
           value: "true"
+        - name: ROOK_CSI_ENABLE_GRPC_METRICS
+          value: "true"
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1

@@ -57,7 +57,14 @@ spec:
             - "--drivername={{ .DriverNamePrefix }}cephfs.csi.ceph.com"
             - "--metadatastorage=k8s_configmap"
             - "--pidlimit=-1"
+            - "--metricsport=9091"
+            - "--metricspath=/metrics"
+            - "--enablegrpcmetrics={{ .EnableCSIGRPCMetrics }}"
           env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
             - name: NODE_ID
               valueFrom:
                 fieldRef:
@@ -88,8 +95,8 @@ spec:
           args:
             - "--type=liveness"
             - "--endpoint=$(CSI_ENDPOINT)"
-            - "--livenessport=9081"
-            - "--livenesspath=/metrics"
+            - "--metricsport=9081"
+            - "--metricspath=/metrics"
             - "--polltime=60s"
             - "--timeout=3s"
           env:

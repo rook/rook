@@ -135,4 +135,5 @@ curl -X GET http://10.109.65.142:9080/metrics 2>/dev/null | grep csi
 csi_liveness 1
 ```
 
-Check the [monitoring doc](ceph-monitoring.md) to see how to integrate CSI liveness into ceph monitoring.
+Check the [monitoring doc](ceph-monitoring.md) to see how to integrate CSI
+liveness and grpc metrics into ceph monitoring.

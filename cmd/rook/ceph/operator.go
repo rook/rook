@@ -65,6 +65,8 @@ func init() {
 	operatorCmd.Flags().StringVar(&csi.CephFSPluginTemplatePath, "csi-cephfs-plugin-template-path", csi.DefaultCephFSPluginTemplatePath, "path to ceph-csi cephfs plugin template")
 	operatorCmd.Flags().StringVar(&csi.CephFSProvisionerSTSTemplatePath, "csi-cephfs-provisioner-sts-template-path", csi.DefaultCephFSProvisionerSTSTemplatePath, "path to ceph-csi cephfs provisioner statefulset template")
 	operatorCmd.Flags().StringVar(&csi.CephFSProvisionerDepTemplatePath, "csi-cephfs-provisioner-dep-template-path", csi.DefaultCephFSProvisionerDepTemplatePath, "path to ceph-csi cephfs provisioner deployment template")
+	//csi grpc flag
+	operatorCmd.Flags().BoolVar(&csi.EnableCSIGRPCMetrics, "csi-enable-grpc-metrics", true, "enable grpc metrics in ceph-csi")
 
 	flags.SetFlagsFromEnv(operatorCmd.Flags(), rook.RookEnvVarPrefix)
 	flags.SetLoggingFlags(operatorCmd.Flags())

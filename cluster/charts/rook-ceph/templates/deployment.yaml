@@ -105,6 +105,10 @@ spec:
         - name: ROOK_CSI_ENABLE_CEPHFS
           value: "{{ .Values.enableCsiCephfsDriver }}"
 {{- end }}
+{{- if .Values.enableCsiGrpcMetrics }}
+        - name: ROOK_CSI_ENABLE_GRPC_METRICS
+          value: "{{ .Values.enableCsiGrpcMetrics }}"
+{{- end }}
 {{- if .Values.enableFlexDriver }}
         - name: ROOK_ENABLE_FLEX_DRIVER
           value: "{{ .Values.enableFlexDriver }}"
