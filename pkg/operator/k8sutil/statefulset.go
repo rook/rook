@@ -52,7 +52,7 @@ func CreateStatefulSet(name, namespace, appName string, clientset kubernetes.Int
 	label := ss.GetLabels()
 	svc, err := makeHeadlessSvc(appName, namespace, label, clientset)
 	if err != nil {
-		return nil, fmt.Errorf("failed to start %s service: %v\n%v", name, err, ss)
+		return nil, fmt.Errorf("failed to start %s service: %+v\n%+v", name, err, ss)
 	}
 
 	_, err = clientset.AppsV1().StatefulSets(namespace).Create(ss)
@@ -61,7 +61,7 @@ func CreateStatefulSet(name, namespace, appName string, clientset kubernetes.Int
 			_, err = clientset.AppsV1().StatefulSets(namespace).Update(ss)
 		}
 		if err != nil {
-			return nil, fmt.Errorf("failed to start %s statefulset: %v\n%v", name, err, ss)
+			return nil, fmt.Errorf("failed to start %s statefulset: %+v\n%+v", name, err, ss)
 		}
 	}
 	return svc, err

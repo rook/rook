@@ -153,17 +153,17 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 	if EnableRBD {
 		rbdPlugin, err = templateToDaemonSet("rbdplugin", RBDPluginTemplatePath, tp)
 		if err != nil {
-			return fmt.Errorf("failed to load rbd plugin template: %v", err)
+			return fmt.Errorf("failed to load rbdplugin template: %+v", err)
 		}
 		if deployProvSTS {
 			rbdProvisionerSTS, err = templateToStatefulSet("rbd-provisioner", RBDProvisionerSTSTemplatePath, tp)
 			if err != nil {
-				return fmt.Errorf("failed to load rbd provisioner statefulset template: %v", err)
+				return fmt.Errorf("failed to load rbd provisioner statefulset template: %+v", err)
 			}
 		} else {
 			rbdProvisionerDeployment, err = templateToDeployment("rbd-provisioner", RBDProvisionerDepTemplatePath, tp)
 			if err != nil {
-				return fmt.Errorf("failed to load rbd provisioner deployment template: %v", err)
+				return fmt.Errorf("failed to load rbd provisioner deployment template: %+v", err)
 			}
 		}
 
@@ -171,17 +171,17 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 	if EnableCephFS {
 		cephfsPlugin, err = templateToDaemonSet("cephfsplugin", CephFSPluginTemplatePath, tp)
 		if err != nil {
-			return fmt.Errorf("failed to load CephFS plugin template: %v", err)
+			return fmt.Errorf("failed to load CephFS plugin template: %+v", err)
 		}
 		if deployProvSTS {
 			cephfsProvisionerSTS, err = templateToStatefulSet("cephfs-provisioner", CephFSProvisionerSTSTemplatePath, tp)
 			if err != nil {
-				return fmt.Errorf("failed to load CephFS provisioner statefulset template: %v", err)
+				return fmt.Errorf("failed to load CephFS provisioner statefulset template: %+v", err)
 			}
 		} else {
 			cephfsProvisionerDeployment, err = templateToDeployment("cephfs-provisioner", CephFSProvisionerDepTemplatePath, tp)
 			if err != nil {
-				return fmt.Errorf("failed to load rbd provisioner deployment template: %v", err)
+				return fmt.Errorf("failed to load rbd provisioner deployment template: %+v", err)
 			}
 		}
 	}
@@ -189,38 +189,38 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 	if rbdPlugin != nil {
 		err = k8sutil.CreateDaemonSet("csi rbd plugin", namespace, clientset, rbdPlugin)
 		if err != nil {
-			return fmt.Errorf("failed to start rbdplugin daemonset: %v\n%v", err, rbdPlugin)
+			return fmt.Errorf("failed to start rbdplugin daemonset: %+v\n%+v", err, rbdPlugin)
 		}
 	}
 	if rbdProvisionerSTS != nil {
 		_, err = k8sutil.CreateStatefulSet("csi rbd provisioner", namespace, "csi-rbdplugin-provisioner", clientset, rbdProvisionerSTS)
 		if err != nil {
-			return fmt.Errorf("failed to start rbd provisioner statefulset: %v\n%v", err, rbdProvisionerSTS)
+			return fmt.Errorf("failed to start rbd provisioner statefulset: %+v\n%+v", err, rbdProvisionerSTS)
 		}
 	} else if rbdProvisionerDeployment != nil {
 		err = k8sutil.CreateDeployment("csi rbd provisioner", namespace, "csi-rbdplugin-provisioner", clientset, rbdProvisionerDeployment)
 		if err != nil {
-			return fmt.Errorf("failed to start rbd provisioner deployment: %v\n%v", err, rbdProvisionerDeployment)
+			return fmt.Errorf("failed to start rbd provisioner deployment: %+v\n%+v", err, rbdProvisionerDeployment)
 		}
 	}
 
 	if cephfsPlugin != nil {
 		err = k8sutil.CreateDaemonSet("csi cephfs plugin", namespace, clientset, cephfsPlugin)
 		if err != nil {
-			return fmt.Errorf("failed to start cephfs plugin daemonset: %v\n%v", err, cephfsPlugin)
+			return fmt.Errorf("failed to start cephfs plugin daemonset: %+v\n%+v", err, cephfsPlugin)
 		}
 	}
 
 	if cephfsProvisionerSTS != nil {
 		_, err = k8sutil.CreateStatefulSet("csi cephfs provisioner", namespace, "csi-cephfsplugin-provisioner", clientset, cephfsProvisionerSTS)
 		if err != nil {
-			return fmt.Errorf("failed to start cephfs provisioner statefulset: %v\n%v", err, cephfsProvisionerSTS)
+			return fmt.Errorf("failed to start cephfs provisioner statefulset: %+v\n%+v", err, cephfsProvisionerSTS)
 		}
 
 	} else if cephfsProvisionerDeployment != nil {
 		err = k8sutil.CreateDeployment("csi cephfs provisioner", namespace, "csi-cephfsplugin-provisioner", clientset, cephfsProvisionerDeployment)
 		if err != nil {
-			return fmt.Errorf("failed to start cephfs provisioner deployment: %v\n%v", err, cephfsProvisionerDeployment)
+			return fmt.Errorf("failed to start cephfs provisioner deployment: %+v\n%+v", err, cephfsProvisionerDeployment)
 		}
 	}
 	return nil

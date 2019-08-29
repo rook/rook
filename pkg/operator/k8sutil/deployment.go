@@ -233,7 +233,7 @@ func CreateDeployment(name, namespace, appName string, clientset kubernetes.Inte
 			_, err = clientset.AppsV1().Deployments(namespace).Update(dep)
 		}
 		if err != nil {
-			return fmt.Errorf("failed to start %s deployment: %v\n%v", name, err, dep)
+			return fmt.Errorf("failed to start %s deployment: %+v\n%+v", name, err, dep)
 		}
 	}
 	return err
