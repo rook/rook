@@ -11,7 +11,7 @@ spec:
     metadata:
       labels:
         app: csi-rbdplugin
-        contains: liveness
+        contains: csi-rbdplugin-metrics
     spec:
       serviceAccount: rook-csi-rbd-plugin-sa
       hostNetwork: true
@@ -150,19 +150,3 @@ spec:
           emptyDir: {
             medium: "Memory"
           }
----
-# This is a service to expose the liveness side car
-apiVersion: v1
-kind: Service
-metadata:
-  name: csi-liveness-rbdplugin
-  labels:
-    app: csi-liveness
-spec:
-  ports:
-    - name: csi-http-metrics
-      port: 8080
-      protocol: TCP
-      targetPort: 9080
-  selector:
-    app: csi-rbdplugin

@@ -12,6 +12,7 @@ spec:
     metadata:
       labels:
         app: csi-cephfsplugin-provisioner
+        contains: csi-cephfsplugin-metrics
     spec:
       serviceAccount: rook-csi-cephfs-provisioner-sa
       containers:
@@ -131,19 +132,3 @@ spec:
           emptyDir: {
             medium: "Memory"
           }
----
-# This is a service to expose the liveness side car
-apiVersion: v1
-kind: Service
-metadata:
-  name: csi-liveness-cephfsplugin-provisioner
-  labels:
-    app: csi-liveness
-spec:
-  ports:
-    - name: csi-http-metrics
-      port: 8080
-      protocol: TCP
-      targetPort: 9081
-  selector:
-    app: csi-cephfsplugin-provisioner

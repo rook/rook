@@ -25,6 +25,7 @@ import (
 	"github.com/ghodss/yaml"
 
 	apps "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 )
 
 func loadTemplate(name, templatePath string, p templateParam) (string, error) {
@@ -41,6 +42,20 @@ func loadTemplate(name, templatePath string, p templateParam) (string, error) {
 	}
 	err = t.Execute(&writer, p)
 	return writer.String(), err
+}
+
+func templateToService(name, templatePath string, p templateParam) (*corev1.Service, error) {
+	var svc corev1.Service
+	t, err := loadTemplate(name, templatePath, p)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load service template. %+v", err)
+	}
+
+	err = yaml.Unmarshal([]byte(t), &svc)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal service template %+v", err)
+	}
+	return &svc, nil
 }
 
 func templateToStatefulSet(name, templatePath string, p templateParam) (*apps.StatefulSet, error) {
