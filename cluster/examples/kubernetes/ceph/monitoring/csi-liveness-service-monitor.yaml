@@ -9,7 +9,7 @@ metadata:
 spec:
   namespaceSelector:
     matchNames:
-      - default
+      - rook-ceph
   selector:
     matchLabels:
       app: csi-liveness
