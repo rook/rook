@@ -92,7 +92,7 @@ func (r *ReconcileClusterDisruption) reconcile(request reconcile.Request) (recon
 		logger.Debugf("discovered NamespacedName: %s", request.NamespacedName)
 	}
 	r.namelessRetries = 0
-	logger.Infof("reconciling %s", request.NamespacedName)
+	logger.Debugf("reconciling %s", request.NamespacedName)
 
 	// get the ceph cluster
 	cephCluster := &cephv1.CephCluster{}
