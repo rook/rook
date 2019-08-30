@@ -272,6 +272,52 @@ At this point, your Rook operator should be running version `rook/ceph:v1.1.0`
 
 Verify the Ceph cluster's health using the [health verification section](#health-verification).
 
+### 6. (Optional) Migrate config overrides from ConfigMap to the CephCluster resource
+If there are Ceph configuration overrides set in the `config` field of the ConfigMap
+`rook-config-override`, it is now possible to migrate those configs manually from the ConfigMap to
+the newly-added `configOverrides` section of the `CephCluster` custom resource. This is not required
+but may be preferable, as the values set in `configOverrides` can be temporarily overridden by the
+user from the toolbox pod as needed in debug/failure scenarios. Values are reset if the operator
+restarts.
+
+Ceph config file headers correspond to
+the `who` field of each config override as part of the section. For example, the `[global]` section
+corresponds to `who: global`, and `[osd.0]` corresponds to `who: osd.0`.
+
+```sh
+# List the contents of the override ConfigMap
+$> kubectl --namespace $ROOK_NAMESPACE describe configmap rook-ceph-override -o yaml
+Name:         rook-config-override
+Namespace:    rook-ceph
+Labels:       <none>
+Annotations:  <none>
+
+Data
+====
+config:
+----
+[global]
+debug_ms = 1/5
+
+[osd.0]
+debug_osd = 10
+Events:  <none>
+
+# Edit the Ceph cluster resource, and add the overrides from the ConfigMap
+$> kubectl --namespace $ROOK_NAMESPACE edit cephcluster $ROOK_NAMESPACE
+# ...
+spec:
+  # ...
+  configOverrides:
+  - who: global
+    option: debug_ms
+    value: 1/5
+  - who: osd.0
+    option: debug_osd
+    value: "10"
+    who: osd.0
+# ....
+```
 
 # Ceph Version Upgrades
 Rook 1.0 was the last Rook release which will support Ceph's Luminous (v12.x.x) version. Users are

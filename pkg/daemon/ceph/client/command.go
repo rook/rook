@@ -43,6 +43,12 @@ const (
 	cephConnectionTimeout = "15" // in seconds
 )
 
+// CephConfFilePath returns the location to the cluster's config file in the operator container.
+func CephConfFilePath(configDir, clusterName string) string {
+	confFile := fmt.Sprintf("%s.config", clusterName)
+	return path.Join(configDir, clusterName, confFile)
+}
+
 // FinalizeCephCommandArgs builds the command line to be called
 func FinalizeCephCommandArgs(command string, args []string, configDir, clusterName string) (string, []string) {
 	// the rbd client tool does not support the '--connect-timeout' option
@@ -68,11 +74,10 @@ func FinalizeCephCommandArgs(command string, args []string, configDir, clusterNa
 	}
 
 	// Append the args to find the config and keyring
-	confFile := fmt.Sprintf("%s.config", clusterName)
 	keyringFile := fmt.Sprintf("%s.keyring", AdminUsername)
 	configArgs := []string{
 		fmt.Sprintf("--cluster=%s", clusterName),
-		fmt.Sprintf("--conf=%s", path.Join(configDir, clusterName, confFile)),
+		fmt.Sprintf("--conf=%s", CephConfFilePath(configDir, clusterName)),
 		fmt.Sprintf("--keyring=%s", path.Join(configDir, clusterName, keyringFile)),
 	}
 	return command, append(args, configArgs...)

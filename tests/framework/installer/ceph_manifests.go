@@ -153,7 +153,7 @@ spec:
                           encryptedDevice:
                             type: string
                             pattern: ^(true|false)$
-                      useAllDevices: 
+                      useAllDevices:
                         type: boolean
                       deviceFilter: {}
                       directories:
@@ -172,7 +172,7 @@ spec:
                       location: {}
                       resources: {}
                   type: array
-                useAllDevices: 
+                useAllDevices:
                   type: boolean
                 deviceFilter: {}
                 location: {}
@@ -183,7 +183,7 @@ spec:
                       path:
                         type: string
                 config: {}
-                topologyAware: 
+                topologyAware:
                   type: boolean
             monitoring:
               properties:
@@ -197,6 +197,15 @@ spec:
                   type: integer
             placement: {}
             resources: {}
+            configOverrides:
+              items:
+                properties:
+                  who:
+                    type: string
+                  option:
+                    type: string
+                  value:
+                    type: string
           required:
           - mon
   additionalPrinterColumns:

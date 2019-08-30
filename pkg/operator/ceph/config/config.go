@@ -25,7 +25,11 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/go-ini/ini"
+	rookceph "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	"github.com/rook/rook/pkg/operator/k8sutil"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -81,22 +85,6 @@ var (
 	ContainerPostStartCmd = []string{"chown", "--recursive", "--verbose", chownUserGroup, VarLogCephDir}
 )
 
-// Config is a Ceph config struct containing zero or more Ceph config sections.
-type Config struct {
-	sections        map[string]*Section
-	sectionOrder    []string
-	context         *clusterd.Context
-	namespace       string
-	ownerRef        *metav1.OwnerReference
-	dataDirHostPath string
-}
-
-// A Section is a collection of zero or more Ceph config key-value pairs.
-type Section struct {
-	configs     map[string]string
-	configOrder []string // allows us to make an ordered dict
-}
-
 // normalizeKey converts a key in any format to a key with underscores.
 //
 // The internal representation of Ceph config keys uses underscores only, where Ceph supports both
@@ -105,98 +93,6 @@ type Section struct {
 // section, and "some-config-key" in yet another section.
 func normalizeKey(key string) string {
 	return strings.Replace(strings.Replace(key, " ", "_", -1), "-", "_", -1)
-}
-
-// NewConfig returns a new, blank Ceph Config.
-func NewConfig() *Config {
-	return &Config{
-		sections:     make(map[string]*Section),
-		sectionOrder: make([]string, 0, 1), // capacity=1 b/c usually we'll only create [global]
-	}
-}
-
-// Section returns a Ceph config Section with the given name from the Config. If the section does
-// not exist, a new empty section is created and returned for the caller's use.
-func (c *Config) Section(name string) *Section {
-	s, ok := c.sections[name]
-	if !ok {
-		s = &Section{
-			configs:     make(map[string]string),
-			configOrder: []string{},
-		}
-		c.sections[name] = s
-		c.sectionOrder = append(c.sectionOrder, name)
-	}
-	return s
-}
-
-// Set sets the Ceph config key to the given value. Set accepts Ceph keys in both
-// space-separated-words and underscore-separated-words formats. Set modifies the section in-place
-// and also returns the same modified-in-place Section to give flexibility of usage.
-//
-// NOTE that if a config item in a map should have quotes around it, they will have to be added to
-// the string explicitly. e.g., a Value of " test " will be interpreted as as 'Key = test', whereas
-// a Value of "\" test \"" will be interpreted as 'Key = " test "'
-func (s *Section) Set(key, value string) *Section {
-	key = normalizeKey(key)
-	_, ok := s.configs[key]
-	if !ok {
-		s.configOrder = append(s.configOrder, key)
-	}
-	s.configs[key] = value
-	return s
-}
-
-// Merge modifies the Section in-place adding values from the overrides Section and overriding
-// existing values with the new value in overrides.
-func (s *Section) Merge(overrides *Section) {
-	for _, k := range overrides.configOrder {
-		if v, ok := overrides.configs[k]; ok {
-			s.Set(k, v)
-			continue
-		}
-		// this condition should never exist except in case of some kind of mem corruption
-		logger.Errorf("override config key %s could not be applied. possible struct corruption of overrides: %+v", k, overrides)
-	}
-
-}
-
-// Merge modifies the Config in-place, adding Sections from the overrides config, and overriding
-// existing Sections with Section values from overrides.
-func (c *Config) Merge(overrides *Config) {
-	for _, hdr := range overrides.sectionOrder {
-		if s, ok := overrides.sections[hdr]; ok {
-			c.Section(hdr).Merge(s)
-			continue
-		}
-		// this condition should never exist except in case of some kind of mem corruption
-		logger.Errorf("override section %s could not be applied. possible struct corruption of overrides: %+v", hdr, overrides)
-	}
-}
-
-// IniFile converts the Ceph Config to an *ini.File.
-func (c *Config) IniFile() (*ini.File, error) {
-	f := ini.Empty()
-	for _, hdr := range c.sectionOrder {
-		sec, ok := c.sections[hdr]
-		if !ok {
-			return nil, fmt.Errorf("Error: section header %s not found: %+v", hdr, c)
-		}
-		s, err := f.NewSection(hdr)
-		if err != nil {
-			return nil, fmt.Errorf("Error converting config to ini file text: %+v. %+v", c, err)
-		}
-		for _, k := range sec.configOrder {
-			v, ok := sec.configs[k]
-			if !ok {
-				return nil, fmt.Errorf("Error: config %s not found in section %s: %+v", k, hdr, sec)
-			}
-			if _, err := s.NewKey(k, v); err != nil {
-				return nil, fmt.Errorf("Error converting config to ini file text: %+v. %+v", c, err)
-			}
-		}
-	}
-	return f, nil
 }
 
 // NewFlag returns the key-value pair in the format of a Ceph command line-compatible flag.
@@ -208,23 +104,105 @@ func NewFlag(key, value string) string {
 	return fmt.Sprintf("--%s=%s", f, value)
 }
 
-// GlobalFlags converts the Config's 'global' Section to a list of command line flag strings which
-// can be used with Kubernetes container specs for Ceph daemons.
-//
-// It should never be necessary to get flags for anything but the 'global' config section,
-// otherwise, Rook will have to determine which sections apply for a given Ceph daemon. Does
-// 'mon.a' apply to 'mon.b'? 'mon.aa'? 'osd.0'? The logic would be prone to errors, so only allow
-// the 'global' section to be converted to flags.
-func (c *Config) GlobalFlags() []string {
-	f := []string{}
-	g := c.Section("global")
-	for _, k := range g.configOrder {
-		if v, ok := g.configs[k]; ok {
-			f = append(f, NewFlag(k, v))
-			continue
-		}
-		// this condition should never exist except in case of some kind of mem corruption
-		logger.Errorf("override config key %s could not be applied. possible struct corruption of section: %+v", k, g)
+// SetDefaultAndUserConfigs sets Rook's desired default configs and the user's override configs from
+// the CephCluster CRD in the centralized monitor database. This cannot be called before at least
+// one monitor is established.
+func SetDefaultAndUserConfigs(
+	context *clusterd.Context,
+	namespace string,
+	clusterInfo *cephconfig.ClusterInfo,
+	configOverrides rookceph.ConfigOverridesSpec,
+) error {
+	// ceph.conf is never used. All configurations are made in the centralized mon config database,
+	// or they are specified on the commandline when daemons are called.
+	monStore := GetMonStore(context, namespace)
+
+	if err := monStore.SetAll(DefaultCentralizedConfigs(clusterInfo.CephVersion)); err != nil {
+		return fmt.Errorf("failed to apply default Ceph configurations. %+v", err)
 	}
-	return f
+
+	if err := monStore.SetAll(DefaultLegacyConfigs()); err != nil {
+		return fmt.Errorf("failed to apply legacy config overrides. %+v", err)
+	}
+
+	// user-specified config overrides from the CRD will go here
+	if err := monStore.SetAll(configOverrides); err != nil {
+		return fmt.Errorf("failed to apply one or more user-specified overrides. %+v", err)
+	}
+
+	return nil
+}
+
+// LegacyConfigMapOverrideDefined checks to see if the legacy ConfigMap override exists with
+// overrides defined. If it exists and has config overrides defined, this will return true. If it
+// does not exist or exists without config overrides set, it will return false.
+func LegacyConfigMapOverrideDefined(context *clusterd.Context, namespace string) (bool, error) {
+	cm, err := context.Clientset.CoreV1().ConfigMaps(namespace).
+		Get(k8sutil.ConfigOverrideName, metav1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			logger.Debugf("override configmap does not exist")
+			return false, nil
+		}
+		// if we can't determine existence or not, assume it exists
+		return true, fmt.Errorf("failed to see if legacy override ConfigMap exists. %+v", err)
+	}
+
+	o, ok := cm.Data[k8sutil.ConfigOverrideVal]
+	if !ok || (ok && o == "") {
+		// if no override set or override is empty string
+		return false, nil
+	}
+
+	return true, nil
+}
+
+func configFileTextToOverrides(txt string) (rookceph.ConfigOverridesSpec, error) {
+	overrides := []rookceph.ConfigOverride{}
+
+	f, err := configFileTxtToINI(txt)
+	if err != nil {
+		return nil, err
+	}
+	sections := f.Sections()
+	for _, s := range sections {
+		who := s.Name()
+		keys := s.Keys()
+		for _, k := range keys {
+			option := k.Name()
+			value := k.String()
+			overrides = append(overrides, configOverride(who, option, value))
+		}
+	}
+
+	return overrides, nil
+}
+
+func configFileTxtToINI(txt string) (*ini.File, error) {
+	f := ini.Empty()
+	ovrTxt := []byte(txt)
+	if err := f.Append(ovrTxt); err != nil {
+		return nil, fmt.Errorf("failed to interpret text as INI file '''%s'''. %+v", ovrTxt, err)
+	}
+	return f, nil
+}
+
+func getOverrideConfigFromConfigMap(context *clusterd.Context, namespace string) string {
+	cm, err := context.Clientset.CoreV1().ConfigMaps(namespace).
+		Get(k8sutil.ConfigOverrideName, metav1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			logger.Debugf("override configmap does not exist")
+			return "" // return empty string if cannot get override text
+		}
+		logger.Warningf("Error getting override configmap. %+v", err)
+		return "" // return empty string if cannot get override text
+	}
+	// the override config map exists
+	o, ok := cm.Data[k8sutil.ConfigOverrideVal]
+	if !ok {
+		logger.Warningf("The override config map does not have override text defined. %+v", o)
+		return "" // return empty string if cannot get override text
+	}
+	return o
 }

@@ -55,16 +55,15 @@ func rgwFrontend(v cephver.CephVersion) string {
 }
 
 // TODO: these should be set in the mon's central kv store for mimic+
-func (c *clusterConfig) defaultSettings() *cephconfig.Config {
-	s := cephconfig.NewConfig()
-	s.Section("global").
-		Set("rgw log nonexistent bucket", "true").
-		Set("rgw intent log object name utc", "true").
-		Set("rgw enable usage log", "true").
-		Set("rgw frontends", fmt.Sprintf("%s %s", rgwFrontend(c.clusterInfo.CephVersion), c.portString(c.clusterInfo.CephVersion))).
-		Set("rgw zone", c.store.Name).
-		Set("rgw zonegroup", c.store.Name)
-	return s
+func (c *clusterConfig) defaultFlags() []string {
+	return []string{
+		cephconfig.NewFlag("rgw log nonexistent bucket", "true"),
+		cephconfig.NewFlag("rgw intent log object name utc", "true"),
+		cephconfig.NewFlag("rgw enable usage log", "true"),
+		cephconfig.NewFlag("rgw frontends", fmt.Sprintf("%s %s", rgwFrontend(c.clusterInfo.CephVersion), c.portString(c.clusterInfo.CephVersion))),
+		cephconfig.NewFlag("rgw zone", c.store.Name),
+		cephconfig.NewFlag("rgw zonegroup", c.store.Name),
+	}
 }
 
 func (c *clusterConfig) portString(v cephver.CephVersion) string {

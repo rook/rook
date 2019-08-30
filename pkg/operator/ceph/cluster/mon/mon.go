@@ -220,11 +220,45 @@ func (c *Cluster) startMons(targetCount int) error {
 		return fmt.Errorf("failed to assign pods to mons. %+v", err)
 	}
 
+	// The centralized mon config database can only be used if there is at least one mon
+	// operational. If we are starting mons, and one is already up, then there is a cluster already
+	// created, and we can immediately set values in the config database. The goal is to set configs
+	// only once and do it as early as possible in the mon orchestration.
+	setConfigsNeedsRetry := false
+	if existingCount > 0 {
+		err := config.SetDefaultAndUserConfigs(c.context, c.Namespace, c.ClusterInfo, c.spec.ConfigOverrides)
+		if err != nil {
+			// If we fail here, it could be because the mons are not healthy, and this might be
+			// fixed by updating the mon deployments. Instead of returning error here, log a
+			// warning, and retry setting this later.
+			setConfigsNeedsRetry = true
+			logger.Warningf("failed to set Rook and/or user-defined Ceph config options before starting mons; will retry after starting mons. %+v", err)
+		}
+	}
+
 	if existingCount < len(mons) {
 		// Start the new mons one at a time
 		for i := existingCount; i < targetCount; i++ {
 			if err := c.ensureMonsRunning(mons, i, targetCount, true); err != nil {
 				return err
+			}
+
+			// If this is the first mon being created, we have to wait until it is created to set
+			// values in the config database. Do this only when the existing count is zero so that
+			// this is only done once when the cluster is created.
+			if existingCount == 0 {
+				err := config.SetDefaultAndUserConfigs(c.context, c.Namespace, c.ClusterInfo, c.spec.ConfigOverrides)
+				if err != nil {
+					return fmt.Errorf("failed to set Rook and/or user-defined Ceph config options after creating the first mon. %+v", err)
+				}
+			} else if setConfigsNeedsRetry && i == existingCount {
+				// Or if we need to retry, only do this when we are on the first iteration of the
+				// loop. This could be in the same if statement as above, but separate it to get a
+				// different error message.
+				err := config.SetDefaultAndUserConfigs(c.context, c.Namespace, c.ClusterInfo, c.spec.ConfigOverrides)
+				if err != nil {
+					return fmt.Errorf("failed to set Rook and/or user-defined Ceph config options after updating the existing mons. %+v", err)
+				}
 			}
 		}
 	} else {
@@ -232,6 +266,13 @@ func (c *Cluster) startMons(targetCount int) error {
 		lastMonIndex := len(mons) - 1
 		if err := c.ensureMonsRunning(mons, lastMonIndex, targetCount, false); err != nil {
 			return err
+		}
+
+		if setConfigsNeedsRetry {
+			err := config.SetDefaultAndUserConfigs(c.context, c.Namespace, c.ClusterInfo, c.spec.ConfigOverrides)
+			if err != nil {
+				return fmt.Errorf("failed to set Rook and/or user-defined Ceph config options after forcefully updating the existing mons. %+v", err)
+			}
 		}
 	}
 
@@ -735,7 +776,7 @@ func (c *Cluster) updateMon(m *monConfig, d *apps.Deployment) error {
 		currentCephVersion, err := client.LeastUptodateDaemonVersion(c.context, c.ClusterInfo.Name, daemonType)
 		if err != nil {
 			logger.Warningf("failed to retrieve current ceph %s version. %+v", daemonType, err)
-			logger.Debug("could not detect ceph version during update, this is likely an initial bootstrap, proceeding with c.clusterInfo.CephVersion")
+			logger.Debug("could not detect ceph version during update, this is likely an initial bootstrap, proceeding with %+v", c.ClusterInfo.CephVersion)
 			cephVersionToUse = c.ClusterInfo.CephVersion
 		} else {
 			logger.Debugf("current cluster version for monitors before upgrading is: %+v", currentCephVersion)

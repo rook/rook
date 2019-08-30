@@ -18,10 +18,14 @@ limitations under the License.
 package nfs
 
 import (
+	"bytes"
 	"fmt"
+	"os/exec"
+	"strings"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
@@ -107,13 +111,21 @@ func (c *CephNFSController) upCephNFS(n cephv1.CephNFS, oldActive int) error {
 func (c *CephNFSController) addRADOSConfigFile(n cephv1.CephNFS, name string) error {
 	nodeID := getNFSNodeID(n, name)
 	config := getGaneshaConfigObject(nodeID)
-	err := c.context.Executor.ExecuteCommand(false, "", "rados", "--pool", n.Spec.RADOS.Pool, "--namespace", n.Spec.RADOS.Namespace, "stat", config)
+	cmd := "rados"
+	args := []string{
+		"--pool", n.Spec.RADOS.Pool,
+		"--namespace", n.Spec.RADOS.Namespace,
+		"--conf", cephclient.CephConfFilePath(c.context.ConfigDir, c.namespace),
+	}
+	moniker := "rados stat " + config
+	err := c.context.Executor.ExecuteCommand(false, moniker, cmd, append(args, "stat", config)...)
 	if err == nil {
 		// If stat works then we assume it's present already
 		return nil
 	}
 	// try to create it
-	return c.context.Executor.ExecuteCommand(false, "", "rados", "--pool", n.Spec.RADOS.Pool, "--namespace", n.Spec.RADOS.Namespace, "create", config)
+	moniker = "rados create " + config
+	return c.context.Executor.ExecuteCommand(false, moniker, cmd, append(args, "create", config)...)
 }
 
 func (c *CephNFSController) addServerToDatabase(nfs cephv1.CephNFS, name string) {
@@ -134,8 +146,25 @@ func (c *CephNFSController) removeServerFromDatabase(nfs cephv1.CephNFS, name st
 
 func (c *CephNFSController) runGaneshaRadosGrace(nfs cephv1.CephNFS, name, action string) error {
 	nodeID := getNFSNodeID(nfs, name)
+	cmd := ganeshaRadosGraceCmd
 	args := []string{"--pool", nfs.Spec.RADOS.Pool, "--ns", nfs.Spec.RADOS.Namespace, action, nodeID}
-	return c.context.Executor.ExecuteCommand(false, "", ganeshaRadosGraceCmd, args...)
+	moniker := ganeshaRadosGraceCmd + " " + action + " " + nodeID
+	// Need to run a command with CEPH_CONF env var set, so don't use c.context.Executor
+	x := exec.Command(cmd, args...)
+	x.Env = []string{fmt.Sprintf("CEPH_CONF=%s", cephclient.CephConfFilePath(c.context.ConfigDir, c.namespace))}
+	var b bytes.Buffer
+	x.Stdout = &b
+	x.Stderr = &b
+	logger.Infof("Running command: %s %s %s", x.Env[0], cmd, strings.Join(args, " "))
+	if err := x.Run(); err != nil {
+		return fmt.Errorf(`failed to execute '%s'
+stdout: %s
+stderr: %s
+error: %+v`, moniker, x.Stdout, x.Stderr, err)
+	}
+	return nil
+	// The below can be used when/if `ganesha-rados-grace` supports a `--cephconf` or similar option
+	// return c.context.Executor.ExecuteCommand(false, moniker, cmd, args...)
 }
 
 func (c *CephNFSController) generateConfig(n cephv1.CephNFS, name string) (string, error) {

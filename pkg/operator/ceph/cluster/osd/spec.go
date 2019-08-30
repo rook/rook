@@ -101,9 +101,9 @@ func (c *Cluster) makeJob(osdProps osdProperties) (*batch.Job, error) {
 func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Deployment, error) {
 
 	replicaCount := int32(1)
-	volumeMounts := opspec.CephVolumeMounts()
-	configVolumeMounts := opspec.RookVolumeMounts()
-	volumes := opspec.PodVolumes(c.dataDirHostPath, c.Namespace)
+	volumeMounts := opspec.CephVolumeMounts(false)
+	configVolumeMounts := opspec.RookVolumeMounts(false)
+	volumes := opspec.PodVolumes(c.dataDirHostPath, c.Namespace, false)
 	failureDomainValue := osdProps.crushHostname
 
 	var dataDir string
@@ -387,7 +387,9 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 
 	copyBinariesVolume, copyBinariesContainer := c.getCopyBinariesContainer()
 
-	volumes := append(opspec.PodVolumes(c.dataDirHostPath, c.Namespace), copyBinariesVolume)
+	// ceph-volume is currently set up to use /etc/ceph/ceph.conf; this means no user config
+	// overrides will apply to ceph-volume, but this is unnecessary anyway
+	volumes := append(opspec.PodVolumes(c.dataDirHostPath, c.Namespace, true), copyBinariesVolume)
 
 	// by default, don't define any volume config unless it is required
 	if len(osdProps.devices) > 0 || osdProps.selection.DeviceFilter != "" || osdProps.selection.GetUseAllDevices() || osdProps.metadataDevice != "" {
@@ -422,8 +424,10 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 
 	podSpec := v1.PodSpec{
 		ServiceAccountName: serviceAccountName,
-		Containers: []v1.Container{
+		InitContainers: []v1.Container{
 			*copyBinariesContainer,
+		},
+		Containers: []v1.Container{
 			c.provisionOSDContainer(osdProps, copyBinariesContainer.VolumeMounts[0]),
 		},
 		RestartPolicy: restart,
@@ -574,7 +578,9 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 		devMountNeeded = true
 	}
 
-	volumeMounts := append(opspec.CephVolumeMounts(), copyBinariesMount)
+	// ceph-volume is currently set up to use /etc/ceph/ceph.conf; this means no user config
+	// overrides will apply to ceph-volume, but this is unnecessary anyway
+	volumeMounts := append(opspec.CephVolumeMounts(true), copyBinariesMount)
 	if devMountNeeded {
 		devMount := v1.VolumeMount{Name: "devices", MountPath: "/dev"}
 		volumeMounts = append(volumeMounts, devMount)

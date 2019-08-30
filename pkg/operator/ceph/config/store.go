@@ -19,13 +19,11 @@ limitations under the License.
 package config
 
 import (
-	"bytes"
 	"fmt"
 	"net"
 	"strconv"
 	"strings"
 
-	"github.com/go-ini/ini"
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
@@ -70,82 +68,12 @@ func GetStore(context *clusterd.Context, namespace string, ownerRef *metav1.Owne
 
 // CreateOrUpdate creates or updates the stored Ceph config based on the cluster info.
 func (s *Store) CreateOrUpdate(clusterInfo *cephconfig.ClusterInfo) error {
-	c := DefaultCentralizedConfigs(clusterInfo.CephVersion)
-
-	// DefaultLegacyConfigs need to be added to the Ceph config file until the integration tests can be
-	// made to override these options for the Ceph clusters it creates.
-	c.Merge(DefaultLegacyConfigs())
-
-	/* TODO: config overrides from the CRD will go here */
-
-	f, err := c.IniFile()
-	if err != nil {
-		return fmt.Errorf("failed to store the Ceph config file. could not generate default ini. %+v", err)
-	}
-
-	// merge config overrides from the legacy override configmap
-	b := new(bytes.Buffer)
-	if err := s.applyLegacyOverrides(f); err != nil {
-		logger.Warningf("failed to merge config override with default Ceph config file; using only the default config. %+v", err)
-		f, err = c.IniFile() // regenerate the orig ini in case override attempt altered the struct
-		if err != nil {
-			return fmt.Errorf("failed to store the Ceph config file. could not generate default ini after merge failure. %+v", err)
-		}
-	}
-	if _, err := f.WriteTo(b); err != nil {
-		return fmt.Errorf("failed to convert merged Ceph config to text; continuing with original config. %+v", err)
-	}
-	txt := b.String()
-
-	// Store the config in a configmap
-	if err := s.configMapStore.SetValue(StoreName, confFileName, txt); err != nil {
-		return fmt.Errorf("failed to store the Ceph config file. failed to store config to configmap. %+v", err)
-	}
-	logger.Debugf("Generated and stored config file:\n%s", txt)
-
 	// these are used for all ceph daemons on the commandline and must *always* be stored
 	if err := s.createOrUpdateMonHostSecrets(clusterInfo); err != nil {
 		return fmt.Errorf("failed to store mon host configs. %+v", err)
 	}
 
-	/*
-		TODO:
-			set config values with `ceph config assimilage-conf t` after at least one mon is active
-	*/
-
 	return nil
-}
-
-func (s *Store) applyLegacyOverrides(toFile *ini.File) error {
-	ovrTxt := []byte(s.overrideConfig())
-	if err := toFile.Append(ovrTxt); err != nil {
-		return fmt.Errorf("failed to apply config file override from '''%s'''. %+v", ovrTxt, err)
-	}
-	b := new(bytes.Buffer)
-	if _, err := toFile.WriteTo(b); err != nil {
-		return fmt.Errorf("failed to write out toFile config file '''%+v'''. %+v", toFile, err)
-	}
-	return nil
-}
-
-func (s *Store) overrideConfig() string {
-	cm, err := s.context.Clientset.CoreV1().ConfigMaps(s.namespace).
-		Get(k8sutil.ConfigOverrideName, metav1.GetOptions{})
-	if err != nil {
-		if errors.IsNotFound(err) {
-			logger.Debugf("override configmap does not exist")
-			return "" // return empty string if cannot get override text
-		}
-		logger.Warningf("Error getting override configmap. %+v", err)
-		return "" // return empty string if cannot get override text
-	}
-	// the override config map exists
-	o, ok := cm.Data[k8sutil.ConfigOverrideVal]
-	if !ok {
-		logger.Warningf("The override config map does not have override text defined. %+v", o)
-		return "" // return empty string if cannot get override text
-	}
-	return o
 }
 
 // update "mon_host" and "mon_initial_members" in the stored config
@@ -216,40 +144,6 @@ func (s *Store) createOrUpdateMonHostSecrets(clusterInfo *cephconfig.ClusterInfo
 	return nil
 }
 
-// StoredFileVolume returns a pod volume sourced from the stored config file.
-func StoredFileVolume() v1.Volume {
-	// TL;DR: mount the configmap's "ceph.conf" to a file called "ceph.conf" with 0444 permissions
-	// security: allow to be read by everyone since now ceph processes run as 'ceph' and not 'root' user
-	// Further investigation needs to be done to copy the ceph.conf and change its ownership
-	// since configuring a owner of a ConfigMap secret is currently impossible
-	// This also works around the following issue: https://tracker.ceph.com/issues/38606
-	//
-	// This design choice avoids the crash/restart situation in Rook
-	// If we don't set 0444 to the ceph.conf configuration file during its respawn (with exec) the ceph-mgr
-	// won't be able to read the ceph.conf and the container will die, the "restart" count will increase in k8s
-	// This will mislead users thinking something won't wrong but that a false positive
-	mode := int32(0444)
-	return v1.Volume{
-		Name: configVolumeName,
-		VolumeSource: v1.VolumeSource{
-			ConfigMap: &v1.ConfigMapVolumeSource{LocalObjectReference: v1.LocalObjectReference{
-				Name: StoreName},
-				Items: []v1.KeyToPath{
-					{Key: confFileName, Path: confFileName, Mode: &mode},
-				}}}}
-}
-
-// StoredFileVolumeMount returns a container volume mount that mounts the stored config from
-// StoredFileVolume into the container at `/etc/ceph/ceph.conf`.
-func StoredFileVolumeMount() v1.VolumeMount {
-	// configmap's "ceph.conf" to "/etc/ceph/ceph.conf"
-	return v1.VolumeMount{
-		Name:      StoreName,
-		ReadOnly:  true, // should be no reason to write to the config in pods, so enforce this
-		MountPath: "/etc/ceph",
-	}
-}
-
 // StoredMonHostEnvVars returns a container environment variable defined by the most updated stored
 // "mon_host" and "mon_initial_members" information.
 func StoredMonHostEnvVars() []v1.EnvVar {
@@ -267,13 +161,11 @@ func StoredMonHostEnvVars() []v1.EnvVar {
 	}
 }
 
-// StoredMonHostEnvVarReferences returns a small Ceph Config which references "mon_host" and
-// "mon_initial_members" information from the StoredMonHostEnvVars. This config can be used to
-// generate flags referencing the env vars or to generate the string representation of a Config.
-func StoredMonHostEnvVarReferences() *Config {
-	c := NewConfig()
-	c.Section("global").
-		Set(monHostKey, "$(ROOK_CEPH_MON_HOST)").
-		Set(monInitialMembersKey, "$(ROOK_CEPH_MON_INITIAL_MEMBERS)")
-	return c
+// StoredMonHostEnvVarFlags returns Ceph commandline flag references to "mon_host" and
+// "mon_initial_members" sourced from the StoredMonHostEnvVars.
+func StoredMonHostEnvVarFlags() []string {
+	return []string{
+		NewFlag(monHostKey, "$(ROOK_CEPH_MON_HOST)"),
+		NewFlag(monInitialMembersKey, "$(ROOK_CEPH_MON_INITIAL_MEMBERS)"),
+	}
 }

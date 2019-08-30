@@ -286,6 +286,62 @@ For more information on resource requests/limits see the official Kubernetes doc
   - `cpu`: Limit for CPU (example: one CPU core `1`, 50% of one CPU core `500m`).
   - `memory`: Limit for Memory (example: one gigabyte of memory `1Gi`, half a gigabyte of memory `512Mi`).
 
+### Ceph config overrides
+Users are advised to use Ceph's CLI or dashboard to configure Ceph; however, some users may want to
+specify some settings they want set in the `CephCluster` manifest. This is possible using the
+`configOverrides` section. Config overrides follow the same syntax as [Ceph's documentation for
+setting config values](https://docs.ceph.com/docs/master/rados/configuration/ceph-conf/#commands),
+and configuration is stored in Ceph's centralized configuration database.
+
+Each item in `configOverrides` has `who`, `option`, and `value` properties. `who` can be `global` to
+affect all Ceph daemons, a daemon type, an individual Ceph daemon, or a glob matching multiple
+daemons. It may also use a
+[mask](https://docs.ceph.com/docs/master/rados/configuration/ceph-conf/#sections-and-masks).
+`option` is the configuration option to be overridden, and `value` is the value to set on the
+configuration option. All properties are strings.
+
+Rook will only set configuration overrides once when an orchestration is run. For example, on node
+addition or removal, when disks change on a node, or when the operator starts (or restarts). This
+means that users can change Ceph's configuration from the CLI or dashboard as desired without Rook
+constantly fighting to control the setting. This is particularly valuable in situations where values
+need to be changed to debug errors or test changes to tuning parameters.
+
+**WARNING:** Remember that Rook will set these overrides any time the operator restarts, so user
+changes via Ceph's CLI or dashboard to values set here will not persist forever.
+
+Some examples:
+```yaml
+  configOverrides:
+    - who: global
+      option: log_file
+      value: /var/log/custom-log-dir
+    - who: mon
+      option: mon_compact_on_start
+      value: "true"
+    - who: mgr.a
+      option: mgr_stats_period
+      value: "10"
+    - who: osd.*
+      option: osd_memory_target
+      value: "2147483648"
+    - who: osd/rack:foo
+      option: debug_ms
+      value: "20"
+```
+
+#### Advanced config
+Setting configs in the Ceph mons' centralized database this way requires that at least one mon be
+available for the configs to be set. Ceph may also have a small number of very advanced settings
+that aren't able to be modified easily in the configuration database. In order to set configurations
+before monitors are available or to set problematic configuration settings, the
+`rook-config-override` ConfigMap exists, and the `config` field can be set with the contents of a
+`ceph.conf` file. It is highly recommended that this only be used when absolutely necessary and that
+the `config` be reset to an empty string if/when the configurations are no longer necessary, as this
+will make the Ceph cluster less configurable from the CLI and dashboard and may make future tuning
+or debugging difficult. Read more about this in the
+[advanced configuration docs](ceph-advanced-configuration.md#custom-cephconf-settings).
+
+
 ## Samples
 Here are several samples for configuring Ceph clusters. Each of the samples must also include the namespace and corresponding access granted for management by the Ceph operator. See the [common cluster resources](#common-cluster-resources) below.
 

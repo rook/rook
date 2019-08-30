@@ -419,9 +419,14 @@ ceph osd pool set rbd pg_num 512
 ```
 
 ## Custom ceph.conf Settings
+**WARNING:** The advised method for controlling Ceph configuration is to manually use the Ceph CLI
+or the Ceph dashboard because this offers the most flexibility. If configs must be set as part of
+Rook, the `configOverrides` section of the CephCluster resource is recommended. Read the
+[CephCluster CRD docs](ceph-cluster-crd.md#ceph-config-overrides) first before considering this
+advanced method.
 
 With Rook the full swath of
-[Ceph settings](http://docs.ceph.com/docs/kraken/rados/configuration/) are available
+[Ceph settings](http://docs.ceph.com/docs/master/rados/configuration/) are available
 to use on your storage cluster.  When we supply Rook with a ceph.conf file those
 settings will be propagated to all Mon, OSD, MDS, and RGW daemons to use.
 
@@ -431,7 +436,6 @@ daemons not to change the weight of OSDs on startup.
 **WARNING**: Modify Ceph settings carefully. You are leaving the sandbox tested by Rook.
 Changing the settings could result in unhealthy daemons or even data loss if used incorrectly.
 
-### Kubernetes
 When the Rook Operator creates a cluster, a placeholder ConfigMap is created that
 will allow you to override Ceph configuration settings. When the daemon pods are started, the
 settings specified in this ConfigMap will be merged with the default settings
@@ -492,7 +496,7 @@ the validity of the settings is your responsibility.
 
 ## OSD CRUSH Settings
 
-A useful view of the [CRUSH Map](http://docs.ceph.com/docs/kraken/rados/operations/crush-map/)
+A useful view of the [CRUSH Map](http://docs.ceph.com/docs/master/rados/operations/crush-map/)
 is generated with the following command:
 
 ```bash

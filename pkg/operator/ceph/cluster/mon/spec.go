@@ -188,8 +188,10 @@ func (c *Cluster) makeMonPod(monConfig *monConfig) *v1.Pod {
 			c.makeMonDaemonContainer(monConfig),
 		},
 		RestartPolicy: v1.RestartPolicyAlways,
-		Volumes:       opspec.DaemonVolumesBase(monConfig.DataPathMap, keyringStoreName),
-		HostNetwork:   c.Network.IsHost(),
+		// we decide later whether to use a PVC volume or host volumes for mons, so only populate
+		// the base volumes at this point.
+		Volumes:     opspec.DaemonVolumesBase(monConfig.DataPathMap, keyringStoreName),
+		HostNetwork: c.Network.IsHost(),
 	}
 	if c.Network.IsHost() {
 		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
