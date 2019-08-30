@@ -60,6 +60,12 @@ any time without compatibility support and without prior notice.
 was the last Rook release which will support Ceph's Luminous (v12.x.x) version. These are the only
 supported major versions of Ceph.
 
+Rook documentation for 1.1 has identified some Ceph configuration options that the user is highly
+advised to consider. See them in the docs [here](ceph-configuration.md#default-pg-and-pgp-counts).
+While this is not yet the time to update the settings, it could be beneficial to consider these
+options now. If the user determines that these configuration options apply to them, they will be
+able to set the configuration as documented once the Rook operator has been upgraded.
+
 ## Prerequisites
 We will do all our work in the Ceph example manifests directory.
 ```sh
