@@ -78,13 +78,15 @@ func TestClusterDelete(t *testing.T) {
 
 		},
 	}
-	callback := func(external bool) error {
-		logger.Infof("test success callback")
-		return nil
+	callbacks := []func(clusterSpec *cephv1.ClusterSpec) error{
+		func(clusterSpec *cephv1.ClusterSpec) error {
+			logger.Infof("test success callback")
+			return nil
+		},
 	}
 
 	// create the cluster controller and tell it that the cluster has been deleted
-	controller := NewClusterController(context, "", volumeAttachmentController, callback)
+	controller := NewClusterController(context, "", volumeAttachmentController, callbacks)
 	clusterToDelete := &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: clusterName}}
 	controller.handleDelete(clusterToDelete, time.Microsecond)
 
@@ -113,7 +115,7 @@ func TestClusterChanged(t *testing.T) {
 	c := &cluster{Spec: &cephv1.ClusterSpec{}, mons: &mon.Cluster{}}
 	changed, diff := clusterChanged(old, new, c)
 	assert.True(t, changed)
-	assert.Equal(t, "{v1.ClusterSpec}.Storage.Nodes[?->1]:\n\t-: <non-existent>\n\t+: v1alpha2.Node{Name: \"node2\", Selection: v1alpha2.Selection{Devices: []v1alpha2.Device{{Name: \"sda\"}}}}\n", diff)
+	assert.NotEqual(t, diff, "")
 	assert.Equal(t, 0, c.Spec.Mon.Count)
 
 	// a node was removed, should be a change
@@ -126,7 +128,7 @@ func TestClusterChanged(t *testing.T) {
 	}
 	changed, diff = clusterChanged(old, new, c)
 	assert.True(t, changed)
-	assert.Equal(t, "{v1.ClusterSpec}.Storage.Nodes[1->?]:\n\t-: v1alpha2.Node{Name: \"node2\", Selection: v1alpha2.Selection{Devices: []v1alpha2.Device{{Name: \"sda\"}}}}\n\t+: <non-existent>\n", diff)
+	assert.NotEqual(t, diff, "")
 
 	// the nodes being in a different order should not be a change
 	old.Storage.Nodes = []rookalpha.Node{
@@ -147,7 +149,7 @@ func TestClusterChanged(t *testing.T) {
 	new.Mon.AllowMultiplePerNode = true
 	changed, diff = clusterChanged(old, new, c)
 	assert.True(t, changed)
-	assert.Equal(t, "{v1.ClusterSpec}.Mon.Count:\n\t-: 0\n\t+: 3\n{v1.ClusterSpec}.Mon.AllowMultiplePerNode:\n\t-: false\n\t+: true\n", diff)
+	assert.NotEqual(t, diff, "")
 }
 
 func TestRemoveFinalizer(t *testing.T) {
@@ -156,10 +158,14 @@ func TestRemoveFinalizer(t *testing.T) {
 		Clientset:     clientset,
 		RookClientset: rookfake.NewSimpleClientset(),
 	}
-	callback := func(external bool) error {
-		return fmt.Errorf("test failed callback")
+	callbacks := []func(clusterSpec *cephv1.ClusterSpec) error{
+		func(clusterSpec *cephv1.ClusterSpec) error {
+			logger.Infof("test success callback")
+			return fmt.Errorf("test failed callback")
+		},
 	}
-	controller := NewClusterController(context, "", &attachment.MockAttachment{}, callback)
+
+	controller := NewClusterController(context, "", &attachment.MockAttachment{}, callbacks)
 
 	// *****************************************
 	// start with a current version ceph cluster

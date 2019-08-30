@@ -93,21 +93,21 @@ func TestIsClusterClean(t *testing.T) {
 	}
 
 	// not a clean cluster with PGs not adding up
-	err := isClusterClean(status)
-	assert.NotNil(t, err)
+	_, clean := isClusterClean(status)
+	assert.False(t, clean)
 
 	// clean cluster
 	status.PgMap.PgsByState = append(status.PgMap.PgsByState,
 		PgStateEntry{StateName: activeCleanScrubbing, Count: 5})
 	status.PgMap.PgsByState = append(status.PgMap.PgsByState,
 		PgStateEntry{StateName: activeCleanScrubbingDeep, Count: 2})
-	err = isClusterClean(status)
-	assert.Nil(t, err)
+	_, clean = isClusterClean(status)
+	assert.True(t, clean)
 
 	// not a clean cluster with PGs in a bad state
 	status.PgMap.PgsByState[0].StateName = "notclean"
-	err = isClusterClean(status)
-	assert.NotNil(t, err)
+	_, clean = isClusterClean(status)
+	assert.False(t, clean)
 }
 
 func TestGetMDSRank(t *testing.T) {

@@ -46,10 +46,9 @@ import (
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 )
@@ -70,6 +69,7 @@ const (
 	clusterDeleteRetryInterval = 2 // seconds
 	clusterDeleteMaxRetries    = 15
 	disableHotplugEnv          = "ROOK_DISABLE_DEVICE_HOTPLUG"
+	minStoreResyncPeriod       = 10 * time.Hour // the minimum duration for forced Store resyncs.
 )
 
 var (
@@ -88,28 +88,29 @@ var ClusterResource = opkit.CustomResource{
 
 // ClusterController controls an instance of a Rook cluster
 type ClusterController struct {
-	context            *clusterd.Context
-	volumeAttachment   attachment.Attachment
-	devicesInUse       bool
-	rookImage          string
-	clusterMap         map[string]*cluster
-	addClusterCallback func(bool) error
-	csiConfigMutex     *sync.Mutex
+	context             *clusterd.Context
+	volumeAttachment    attachment.Attachment
+	devicesInUse        bool
+	rookImage           string
+	clusterMap          map[string]*cluster
+	addClusterCallbacks []func(*cephv1.ClusterSpec) error
+	csiConfigMutex      *sync.Mutex
+	nodeStore           cache.Store
 }
 
 // NewClusterController create controller for watching cluster custom resources created
-func NewClusterController(context *clusterd.Context, rookImage string, volumeAttachment attachment.Attachment, addClusterCallback func(bool) error) *ClusterController {
+func NewClusterController(context *clusterd.Context, rookImage string, volumeAttachment attachment.Attachment, addClusterCallbacks []func(*cephv1.ClusterSpec) error) *ClusterController {
 	return &ClusterController{
-		context:            context,
-		volumeAttachment:   volumeAttachment,
-		rookImage:          rookImage,
-		clusterMap:         make(map[string]*cluster),
-		addClusterCallback: addClusterCallback,
-		csiConfigMutex:     &sync.Mutex{},
+		context:             context,
+		volumeAttachment:    volumeAttachment,
+		rookImage:           rookImage,
+		clusterMap:          make(map[string]*cluster),
+		addClusterCallbacks: addClusterCallbacks,
+		csiConfigMutex:      &sync.Mutex{},
 	}
 }
 
-// Watch watches instances of cluster resources
+// StartWatch watches instances of cluster resources
 func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) error {
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
@@ -117,31 +118,27 @@ func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) e
 		DeleteFunc: c.onDelete,
 	}
 
-	logger.Infof("start watching clusters in all namespaces")
+	if len(namespace) == 0 {
+		logger.Infof("start watching clusters in all namespaces")
+	} else {
+		logger.Infof("start watching clusters in namespace: %v", namespace)
+	}
 	watcher := opkit.NewWatcher(ClusterResource, namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1().RESTClient())
 	go watcher.Watch(&cephv1.CephCluster{}, stopCh)
 
-	// watch for events on new/updated K8s nodes, too
+	// Watch for events on new/updated K8s Nodes objects
 
-	lwNodes := &cache.ListWatch{
-		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
-			return c.context.Clientset.CoreV1().Nodes().List(options)
-		},
-		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-			return c.context.Clientset.CoreV1().Nodes().Watch(options)
-		},
-	}
-
-	_, nodeController := cache.NewInformer(
-		lwNodes,
-		&v1.Node{},
-		0,
+	sharedInformerFactory := informers.NewSharedInformerFactory(c.context.Clientset, minStoreResyncPeriod)
+	nodeController := sharedInformerFactory.Core().V1().Nodes().Informer()
+	nodeController.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc:    c.onK8sNodeAdd,
 			UpdateFunc: c.onK8sNodeUpdate,
 			DeleteFunc: nil,
 		},
 	)
+	c.nodeStore = nodeController.GetStore()
+
 	go nodeController.Run(stopCh)
 
 	if disableVal := os.Getenv(disableHotplugEnv); disableVal != "true" {
@@ -238,15 +235,13 @@ func (c *ClusterController) onAdd(obj interface{}) {
 
 	logger.Infof("starting cluster in namespace %s", cluster.Namespace)
 
-	// notify the callback that a cluster crd is being added
-	if c.addClusterCallback != nil {
-		if err := c.addClusterCallback(cluster.Spec.External.Enable); err != nil {
+	for _, callback := range c.addClusterCallbacks {
+		if err := callback(cluster.Spec); err != nil {
 			logger.Errorf("%+v", err)
 		}
 	}
 
 	c.initializeCluster(cluster, clusterObj)
-
 }
 
 func (c *ClusterController) configureExternalCephCluster(namespace, name string, cluster *cluster) error {
@@ -486,7 +481,6 @@ func (c *ClusterController) onK8sNodeUpdate(oldObj, newObj interface{}) {
 		return
 	}
 
-	// set or unset noout depending on whether nodes are schedulable.
 	newNodeSchedulable := k8sutil.GetNodeSchedulable(*newNode)
 	oldNodeSchedulable := k8sutil.GetNodeSchedulable(*oldNode)
 
@@ -732,6 +726,7 @@ func (c *ClusterController) onDeviceCMUpdate(oldObj, newObj interface{}) {
 // ************************************************************************************************
 // Delete event functions
 // ************************************************************************************************
+
 func (c *ClusterController) onDelete(obj interface{}) {
 	clust, err := getClusterObject(obj)
 	if err != nil {

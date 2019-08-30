@@ -70,13 +70,10 @@ type CrushMap struct {
 }
 
 type CrushFindResult struct {
-	ID       int    `json:"osd"`
-	IP       string `json:"ip"`
-	Location struct {
-		// add more crush location fields if needed
-		Root string `json:"root"`
-		Host string `json:"host"`
-	} `json:"crush_location"`
+	ID       int               `json:"osd"`
+	IP       string            `json:"ip"`
+	Host     string            `json:"host,omitempty"`
+	Location map[string]string `json:"crush_location"`
 }
 
 func GetCrushMap(context *clusterd.Context, clusterName string) (CrushMap, error) {
@@ -133,7 +130,7 @@ func GetCrushHostName(context *clusterd.Context, clusterName string, osdID int) 
 		return "", err
 	}
 
-	return result.Location.Host, nil
+	return result.Location["host"], nil
 }
 
 func FormatLocation(location, hostName string) ([]string, error) {

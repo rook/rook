@@ -127,6 +127,9 @@ For more details on the mons and when to choose a number other than `3`, see the
   - `config`: Config settings applied to all OSDs on the node unless overridden by `devices` or `directories`. See the [config settings](#osd-configuration-settings) below.
   - [storage selection settings](#storage-selection-settings)
   - [Storage Class Device Sets](#storage-class-device-sets)
+- `disruptionManagement`: The section for configuring management of daemon disruptions
+  - `managePodBudgets`: if `true`, the operator will create and manage PodDsruptionBudgets for OSD, Mon, RGW, and MDS daemons. OSD PDBs are managed dynamically via the strategy outlined in the [design](https://github.com/rook/rook/blob/master/design/ceph-managed-disruptionbudgets.md). The operator will block eviction of OSDs by default and unblock them safely when drains are detected.
+  - `osdMaintenanceTimeout`: is a duration in minutes that determines how long an entire failureDomain like `region/zone/host` will be held in `noout` (in addition to the default DOWN/OUT interval) when it is draining. This is only relevant when  `managePodBudgets` is `true`. The default value is `30` minutes.
 
 ### Mon Settings
 

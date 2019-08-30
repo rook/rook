@@ -182,7 +182,7 @@ func waitForRebalance(context *clusterd.Context, namespace string, osdID int, in
 		}
 
 		// finally, ensure the cluster gets back to a clean state, meaning rebalancing is complete
-		return client.IsClusterClean(context, namespace)
+		return client.IsClusterCleanError(context, namespace)
 	})
 	if err != nil {
 		return err

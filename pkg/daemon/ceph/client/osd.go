@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/rook/rook/pkg/clusterd"
 )
@@ -63,6 +64,76 @@ type OSDDump struct {
 		Up  json.Number `json:"up"`
 		In  json.Number `json:"in"`
 	} `json:"osds"`
+	Flags          string              `json:"flags"`
+	CrushNodeFlags map[string][]string `json:"crush_node_flags"`
+}
+
+// IsFlagSet checks if an OSD flag is set
+func (dump *OSDDump) IsFlagSet(checkFlag string) bool {
+	flags := strings.Split(dump.Flags, ",")
+	for _, flag := range flags {
+		if flag == checkFlag {
+			return true
+		}
+	}
+	return false
+}
+
+// IsFlagSetOnCrushUnit checks if an OSD flag is set on specified Crush unit
+func (dump *OSDDump) IsFlagSetOnCrushUnit(checkFlag, crushUnit string) bool {
+	for unit, list := range dump.CrushNodeFlags {
+		if crushUnit == unit {
+			for _, flag := range list {
+				if flag == checkFlag {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// UpdateFlagOnCrushUnit checks if the flag is in the desired state and sets/unsets if it isn't. Mitigates redundant calls
+// it returns true if the value was changed
+func (dump *OSDDump) UpdateFlagOnCrushUnit(context *clusterd.Context, set bool, clusterName, crushUnit, flag string) (bool, error) {
+	flagSet := dump.IsFlagSetOnCrushUnit(flag, crushUnit)
+	if flagSet && !set {
+		err := UnsetFlagOnCrushUnit(context, clusterName, crushUnit, flag)
+		if err != nil {
+			return true, err
+		}
+		return true, nil
+	}
+	if !flagSet && set {
+		err := SetFlagOnCrushUnit(context, clusterName, crushUnit, flag)
+		if err != nil {
+			return true, err
+		}
+		return true, nil
+	}
+	return false, nil
+}
+
+// SetFlagOnCrushUnit sets the specified flag on the crush unit
+func SetFlagOnCrushUnit(context *clusterd.Context, clusterName, crushUnit, flag string) error {
+	args := []string{"osd", "set-group", flag, crushUnit}
+	cmd := NewCephCommand(context, clusterName, args)
+	_, err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf("failed to set flag %s on %s: %+v", crushUnit, flag, err)
+	}
+	return nil
+}
+
+// UnsetFlagOnCrushUnit unsets the specified flag on the crush unit
+func UnsetFlagOnCrushUnit(context *clusterd.Context, clusterName, crushUnit, flag string) error {
+	args := []string{"osd", "unset-group", flag, crushUnit}
+	cmd := NewCephCommand(context, clusterName, args)
+	_, err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf("failed to unset flag %s on %s: %+v", crushUnit, flag, err)
+	}
+	return nil
 }
 
 type SafeToDestroyStatus struct {

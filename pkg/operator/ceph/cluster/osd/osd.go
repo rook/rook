@@ -48,17 +48,19 @@ var (
 )
 
 const (
-	appName                             = "rook-ceph-osd"
+	// AppName is the "app" label on osd pods
+	AppName = "rook-ceph-osd"
+	// FailureDomainKey is the label key whose value is the failure domain of the OSD
+	FailureDomainKey                    = "failure-domain"
 	prepareAppName                      = "rook-ceph-osd-prepare"
 	prepareAppNameFmt                   = "rook-ceph-osd-prepare-%s"
 	legacyAppNameFmt                    = "rook-ceph-osd-id-%d"
 	osdAppNameFmt                       = "rook-ceph-osd-%d"
-	osdLabelKey                         = "ceph-osd-id"
+	OsdIdLabelKey                       = "ceph-osd-id"
 	clusterAvailableSpaceReserve        = 0.05
 	serviceAccountName                  = "rook-ceph-osd"
 	unknownID                           = -1
 	portableKey                         = "portable"
-	failureDomainKey                    = "failure-domain"
 	cephOsdPodMinimumMemory      uint64 = 4096 // minimum amount of memory in MB to run the pod
 )
 
@@ -618,7 +620,7 @@ func (c *Cluster) cleanupRemovedNode(config *provisionConfig, nodeName, crushNam
 // node names -> a list of osd deployments on the node
 func (c *Cluster) discoverStorageNodes() (map[string][]*apps.Deployment, error) {
 
-	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", appName)}
+	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", AppName)}
 	osdDeployments, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).List(listOpts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list osd deployment: %+v", err)
@@ -647,7 +649,7 @@ func (c *Cluster) discoverStorageNodes() (map[string][]*apps.Deployment, error) 
 }
 
 func (c *Cluster) isSafeToRemoveNode(nodeName string, osdDeployments []*apps.Deployment) error {
-	if err := client.IsClusterClean(c.context, c.Namespace); err != nil {
+	if err := client.IsClusterCleanError(c.context, c.Namespace); err != nil {
 		// the cluster isn't clean, it's not safe to remove this node
 		return err
 	}
@@ -704,7 +706,7 @@ func (c *Cluster) isSafeToRemoveNode(nodeName string, osdDeployments []*apps.Dep
 }
 
 func getIDFromDeployment(deployment *apps.Deployment) int {
-	if idstr, ok := deployment.Labels[osdLabelKey]; ok {
+	if idstr, ok := deployment.Labels[OsdIdLabelKey]; ok {
 		id, err := strconv.Atoi(idstr)
 		if err != nil {
 			logger.Errorf("unknown osd id from label %s", idstr)

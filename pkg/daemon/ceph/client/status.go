@@ -158,21 +158,41 @@ func Status(context *clusterd.Context, clusterName string, debug bool) (CephStat
 	return status, nil
 }
 
-// IsClusterClean returns a value indicating if the cluster is fully clean yet (i.e., all placement
-// groups are in the active+clean state).
-func IsClusterClean(context *clusterd.Context, clusterName string) error {
+// IsClusterClean returns msg (string), clean (bool), err (error)
+// msg describes the state of the PGs
+// clean is true if the cluster is clean
+// err is not nil if getting the status failed.
+func IsClusterClean(context *clusterd.Context, clusterName string) (string, bool, error) {
 	status, err := Status(context, clusterName, false)
+	if err != nil {
+		return "unable to get PG health", false, err
+	}
+	msg, clean := isClusterClean(status)
+	if !clean {
+		return msg, false, nil
+	}
+	return msg, true, nil
+}
+
+// IsClusterCleanError returns an error indicating if the cluster is fully clean yet (i.e., all placement
+// groups are in the active+clean state). It returns nil if the cluster is clean.
+// Using IsClusterClean is recommended if you want to differentiate between a failure of the status query and
+// an unclean cluster.
+func IsClusterCleanError(context *clusterd.Context, clusterName string) error {
+	msg, clean, err := IsClusterClean(context, clusterName)
 	if err != nil {
 		return err
 	}
-
-	return isClusterClean(status)
+	if !clean {
+		return fmt.Errorf(msg)
+	}
+	return nil
 }
 
-func isClusterClean(status CephStatus) error {
+func isClusterClean(status CephStatus) (string, bool) {
 	if status.PgMap.NumPgs == 0 {
 		// there are no PGs yet, that still counts as clean
-		return nil
+		return "cluster has no PGs", true
 	}
 
 	cleanPGs := 0
@@ -184,10 +204,10 @@ func isClusterClean(status CephStatus) error {
 	if cleanPGs == status.PgMap.NumPgs {
 		// all PGs in the cluster are in a clean state
 		logger.Infof("all placement groups have reached a clean state: %+v", status.PgMap.PgsByState)
-		return nil
+		return "all PGs in cluster are clean", true
 	}
 
-	return fmt.Errorf("cluster is not fully clean. PGs: %+v", status.PgMap.PgsByState)
+	return fmt.Sprintf("cluster is not fully clean. PGs: %+v", status.PgMap.PgsByState), false
 }
 
 // getMDSRank returns the rank of a given MDS

@@ -63,9 +63,9 @@ func TestOSDStatus(t *testing.T) {
 	}
 
 	labels := map[string]string{
-		k8sutil.AppAttr:     appName,
+		k8sutil.AppAttr:     AppName,
 		k8sutil.ClusterAttr: cluster,
-		osdLabelKey:         "0",
+		OsdIdLabelKey:       "0",
 	}
 
 	deployment := &apps.Deployment{
@@ -80,7 +80,7 @@ func TestOSDStatus(t *testing.T) {
 	}
 
 	// Check if the osd deployment is created
-	dp, _ := context.Clientset.AppsV1().Deployments(cluster).List(metav1.ListOptions{LabelSelector: fmt.Sprintf("%v=%d", osdLabelKey, 0)})
+	dp, _ := context.Clientset.AppsV1().Deployments(cluster).List(metav1.ListOptions{LabelSelector: fmt.Sprintf("%v=%d", OsdIdLabelKey, 0)})
 	assert.Equal(t, 1, len(dp.Items))
 
 	// Initializing an OSD monitoring
@@ -93,7 +93,7 @@ func TestOSDStatus(t *testing.T) {
 	assert.Equal(t, 2, execCount)
 
 	// Check if the osd deployment was deleted
-	dp, _ = context.Clientset.AppsV1().Deployments(cluster).List(metav1.ListOptions{LabelSelector: fmt.Sprintf("%v=%d", osdLabelKey, 0)})
+	dp, _ = context.Clientset.AppsV1().Deployments(cluster).List(metav1.ListOptions{LabelSelector: fmt.Sprintf("%v=%d", OsdIdLabelKey, 0)})
 	assert.Equal(t, 0, len(dp.Items))
 }
 

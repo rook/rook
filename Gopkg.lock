@@ -113,7 +113,7 @@
   version = "v4"
 
 [[projects]]
-  digest = "1:3ebeccd09713eef123e504ddaf58392f2aa4d50ae2939d4295ad8081befd6717"
+  digest = "1:32945438a670edb831120e35007cbb4ba17218e0c5fd52566ba7c56043ae0d96"
   name = "github.com/coreos/prometheus-operator"
   packages = [
     "pkg/apis/monitoring",
@@ -123,8 +123,8 @@
     "pkg/client/versioned/typed/monitoring/v1",
   ]
   pruneopts = "UT"
-  revision = "6efd4e5e12213021516c10b3ebd0699260ddd804"
-  version = "v0.31.1"
+  revision = "18fbf558ab7f8809fd610a3dc50bf483508dc1bb"
+  version = "v0.30.1"
 
 [[projects]]
   digest = "1:86909a5b1e4522ad763f86327cfa65e51d7eb838d4adb3d6f68069fede181122"
@@ -412,7 +412,7 @@
     "pkg/provisioner/api/errors",
   ]
   pruneopts = "UT"
-  revision = "5b3f4e3b90edc8c914edb04fb5dc0dfee5f9f0d4"
+  revision = "a2a5b76832ebeb63aa76f14e36082617d5adb730"
 
 [[projects]]
   branch = "master"
@@ -545,11 +545,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:da278413b1e908bf462b4bc1caac1108c3f24522e27e446e2de584bc6e59cbcb"
+  digest = "1:1ae8472d770851e687463105821ccddad62766c66202f95693dc6970cd1269ab"
   name = "github.com/rook/operator-kit"
   packages = ["."]
   pruneopts = "UT"
-  revision = "e7b2e1264fff5f1dc9d506089af2399621b5a0c1"
+  revision = "5ae9623aed20e249092e0ba99e0dd126c3173a29"
 
 [[projects]]
   digest = "1:d707dbc1330c0ed177d4642d6ae102d5e2c847ebd0eb84562d0dc4f024531cfc"
@@ -713,6 +713,14 @@
   revision = "16909d206f00da7d0d5ba28cd9dc7fb223648ecf"
 
 [[projects]]
+  digest = "1:7d4fd782f2a710d08834b2c01742b3bba7fb0248383f9cc6c3dc95b3025689d7"
+  name = "gomodules.xyz/jsonpatch"
+  packages = ["v2"]
+  pruneopts = "UT"
+  revision = "e8422f09d27ee2c8cfb2c7f8089eb9eeb0764849"
+  version = "v2.0.1"
+
+[[projects]]
   digest = "1:9e29a0ec029d012437d88da3ccccf18adcdce069cab08d462056c2c6bb006505"
   name = "google.golang.org/appengine"
   packages = [
@@ -777,6 +785,15 @@
   pruneopts = "UT"
   revision = "a02b0774206b209466313a0b525d2c738fe407eb"
   version = "v1.18.0"
+
+[[projects]]
+  digest = "1:abeb38ade3f32a92943e5be54f55ed6d6e3b6602761d74b4aab4c9dd45c18abd"
+  name = "gopkg.in/fsnotify.v1"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "c2828203cd70a50dcccfb2761f8b1f8ceef9a8e9"
+  source = "https://github.com/fsnotify/fsnotify.git"
+  version = "v1.4.7"
 
 [[projects]]
   digest = "1:2d1fbdc6777e5408cabeb02bf336305e724b925ff4546ded0fa8715a7267922a"
@@ -850,8 +867,8 @@
     "storage/v1beta1",
   ]
   pruneopts = "UT"
-  revision = "40a48860b5abbba9aa891b02b32da429b08d96a0"
-  version = "kubernetes-1.14.0"
+  revision = "6e4e0e4f393bf5e8bbff570acd13217aa5a770cd"
+  version = "kubernetes-1.14.1"
 
 [[projects]]
   digest = "1:5b60f7bda6ce2daa695784a4a4d366bc8b0ab1603fd144025d313b0dc7b9f5b1"
@@ -865,8 +882,8 @@
     "pkg/features",
   ]
   pruneopts = "UT"
-  revision = "53c4693659ed354d76121458fb819202dd1635fa"
-  version = "kubernetes-1.14.0"
+  revision = "727a075fdec8319bf095330e344b3ccc668abc73"
+  version = "kubernetes-1.14.1"
 
 [[projects]]
   digest = "1:12e1193fca56eef2efa8e94239f96011a2ac8f60cba50f04da1babad5029de99"
@@ -924,8 +941,8 @@
     "third_party/forked/golang/reflect",
   ]
   pruneopts = "UT"
-  revision = "d7deff9243b165ee192f5551710ea4285dcfd615"
-  version = "kubernetes-1.14.0"
+  revision = "6a84e37a896db9780c75367af8d2ed2bb944022e"
+  version = "kubernetes-1.14.1"
 
 [[projects]]
   digest = "1:f1762b5ef39911603327ac0ac2f57e3adf005b268f9ae91c405e1d7749ae1bd0"
@@ -1012,15 +1029,16 @@
     "plugin/pkg/authorizer/webhook",
   ]
   pruneopts = "UT"
-  revision = "8b27c41bdbb11ff103caa673315e097bf0289171"
-  version = "kubernetes-1.14.0"
+  revision = "1ec86e4da56ce0573788fc12bb3a5530600c0e5d"
+  version = "kubernetes-1.14.1"
 
 [[projects]]
-  digest = "1:f07252504bce93f28bb2ad35ed560707b066c8cf5ea11f11d6fa3984822ccd87"
+  digest = "1:0ba95b738f56ff0e3f095be43fe8a31d05ab02f3a1a3cc85b6e0284002140fb9"
   name = "k8s.io/client-go"
   packages = [
     "discovery",
     "discovery/fake",
+    "dynamic",
     "informers",
     "informers/admissionregistration",
     "informers/admissionregistration/v1beta1",
@@ -1186,6 +1204,7 @@
     "plugin/pkg/client/auth/exec",
     "rest",
     "rest/watch",
+    "restmapper",
     "testing",
     "tools/auth",
     "tools/cache",
@@ -1242,7 +1261,7 @@
   ]
   pruneopts = "T"
   revision = "50b561225d70b3eb79a1faafd3dfe7b1a62cbe73"
-  version = "kubernetes-1.14.0"
+  version = "kubernetes-1.14.1"
 
 [[projects]]
   branch = "master"
@@ -1271,23 +1290,23 @@
   revision = "f8a0810f38afb8478882b3835a615aebfda39afa"
 
 [[projects]]
-  digest = "1:ed455ccc8731bfd9299cbdaebd7a96da8097f5399f15ee4ec5d3ea3bcdff9f91"
+  digest = "1:385cbb4cbcfbb65488aad4f89deafe6a1fe491e8f78c874885addc1644f49294"
   name = "k8s.io/klog"
   packages = [
     ".",
     "klogr",
   ]
   pruneopts = "UT"
-  revision = "71442cd4037d612096940ceb0f3fec3f7fff66e0"
-  version = "v0.2.0"
+  revision = "3ca30a56d8a775276f9cdae009ba326fdc05af7f"
+  version = "v0.4.0"
 
 [[projects]]
   digest = "1:8cd43685b10cdb021157fe77fb8f7d3978df2e39e860ef4db8699268bc0d1e2e"
   name = "k8s.io/kube-controller-manager"
   packages = ["config/v1alpha1"]
   pruneopts = "UT"
-  revision = "97ed623e38350ab8a3cce36d6003ff9ab27f6669"
-  version = "kubernetes-1.14.0"
+  revision = "97e4e67125a687ca6d4310fec43015a96a37f116"
+  version = "kubernetes-1.14.1"
 
 [[projects]]
   digest = "1:e60662eae49be670de501df7393dc4bfa8c5a4fa9a88915dc14e61b461c0935b"
@@ -1349,8 +1368,8 @@
     "pkg/volume/util/volumepathhandler",
   ]
   pruneopts = "UT"
-  revision = "641856db18352033a0d96dbc99153fa3b27298e5"
-  version = "v1.14.0"
+  revision = "b7394102d6ef778017f2ca4046abbaa23b88c290"
+  version = "v1.14.1"
 
 [[projects]]
   branch = "master"
@@ -1371,6 +1390,42 @@
   ]
   pruneopts = "UT"
   revision = "21c4ce38f2a793ec01e925ddc31216500183b773"
+
+[[projects]]
+  digest = "1:b7f9d0b6c5e0e999f781f7b2277feab6a6a04c4c8159e04484a3ebb85aa68807"
+  name = "sigs.k8s.io/controller-runtime"
+  packages = [
+    "pkg/cache",
+    "pkg/cache/internal",
+    "pkg/client",
+    "pkg/client/apiutil",
+    "pkg/controller",
+    "pkg/controller/controllerutil",
+    "pkg/event",
+    "pkg/handler",
+    "pkg/internal/controller",
+    "pkg/internal/controller/metrics",
+    "pkg/internal/log",
+    "pkg/internal/objectutil",
+    "pkg/internal/recorder",
+    "pkg/leaderelection",
+    "pkg/log",
+    "pkg/manager",
+    "pkg/metrics",
+    "pkg/predicate",
+    "pkg/reconcile",
+    "pkg/recorder",
+    "pkg/runtime/inject",
+    "pkg/source",
+    "pkg/source/internal",
+    "pkg/webhook",
+    "pkg/webhook/admission",
+    "pkg/webhook/internal/certwatcher",
+    "pkg/webhook/internal/metrics",
+  ]
+  pruneopts = "UT"
+  revision = "e1159d6655b260c4812fd0792cd1344ecc96a57e"
+  version = "v0.2.0"
 
 [[projects]]
   branch = "release-1.14"
@@ -1495,6 +1550,15 @@
     "k8s.io/kubernetes/pkg/scheduler/api",
     "k8s.io/kubernetes/pkg/util/mount",
     "k8s.io/kubernetes/pkg/volume/flexvolume",
+    "sigs.k8s.io/controller-runtime/pkg/client",
+    "sigs.k8s.io/controller-runtime/pkg/controller",
+    "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil",
+    "sigs.k8s.io/controller-runtime/pkg/event",
+    "sigs.k8s.io/controller-runtime/pkg/handler",
+    "sigs.k8s.io/controller-runtime/pkg/manager",
+    "sigs.k8s.io/controller-runtime/pkg/predicate",
+    "sigs.k8s.io/controller-runtime/pkg/reconcile",
+    "sigs.k8s.io/controller-runtime/pkg/source",
     "sigs.k8s.io/sig-storage-lib-external-provisioner/controller",
   ]
   solver-name = "gps-cdcl"

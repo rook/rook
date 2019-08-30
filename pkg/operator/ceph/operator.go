@@ -25,6 +25,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	opkit "github.com/rook/operator-kit"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
@@ -65,10 +66,11 @@ var (
 
 // Operator type for managing storage
 type Operator struct {
-	context         *clusterd.Context
-	resources       []opkit.CustomResource
-	rookImage       string
-	securityAccount string
+	context           *clusterd.Context
+	resources         []opkit.CustomResource
+	operatorNamespace string
+	rookImage         string
+	securityAccount   string
 	// The custom resource that is global to the kubernetes cluster.
 	// The cluster is global because you create multiple clusters in k8s
 	clusterController     *cluster.ClusterController
@@ -79,27 +81,32 @@ type Operator struct {
 func New(context *clusterd.Context, volumeAttachmentWrapper attachment.Attachment, rookImage, securityAccount string) *Operator {
 	schemes := []opkit.CustomResource{cluster.ClusterResource, pool.PoolResource, object.ObjectStoreResource, objectuser.ObjectStoreUserResource,
 		file.FilesystemResource, attachment.VolumeResource}
+
+	operatorNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
 	o := &Operator{
-		context:         context,
-		resources:       schemes,
-		rookImage:       rookImage,
-		securityAccount: securityAccount,
+		context:           context,
+		resources:         schemes,
+		operatorNamespace: operatorNamespace,
+		rookImage:         rookImage,
+		securityAccount:   securityAccount,
 	}
-	o.clusterController = cluster.NewClusterController(context, rookImage, volumeAttachmentWrapper, o.startSystemDaemons)
+	callbacks := []func(*cephv1.ClusterSpec) error{
+		o.startSystemDaemons,
+	}
+	o.clusterController = cluster.NewClusterController(context, rookImage, volumeAttachmentWrapper, callbacks)
 	return o
 }
 
 // Run the operator instance
 func (o *Operator) Run() error {
 
-	namespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
-	if namespace == "" {
+	if o.operatorNamespace == "" {
 		return fmt.Errorf("Rook operator namespace is not provided. Expose it via downward API in the rook operator manifest file using environment variable %s", k8sutil.PodNamespaceEnvVar)
 	}
 
 	if EnableDiscoveryDaemon {
 		rookDiscover := discover.New(o.context.Clientset)
-		if err := rookDiscover.Start(namespace, o.rookImage, o.securityAccount); err != nil {
+		if err := rookDiscover.Start(o.operatorNamespace, o.rookImage, o.securityAccount); err != nil {
 			return fmt.Errorf("error starting device discovery daemonset. %+v", err)
 		}
 	}
@@ -129,11 +136,14 @@ func (o *Operator) Run() error {
 	var namespaceToWatch string
 	if os.Getenv("ROOK_CURRENT_NAMESPACE_ONLY") == "true" {
 		logger.Infof("Watching the current namespace for a cluster CRD")
-		namespaceToWatch = namespace
+		namespaceToWatch = o.operatorNamespace
 	} else {
 		logger.Infof("Watching all namespaces for cluster CRDs")
 		namespaceToWatch = v1.NamespaceAll
 	}
+
+	// Start the controller-runtime Manager.
+	go o.startManager(stopChan)
 
 	// watch for changes to the rook clusters
 	o.clusterController.StartWatch(namespaceToWatch, stopChan)
@@ -149,19 +159,18 @@ func (o *Operator) Run() error {
 	}
 }
 
-func (o *Operator) startSystemDaemons(externalCeph bool) error {
+func (o *Operator) startSystemDaemons(clusterSpec *cephv1.ClusterSpec) error {
 	if o.delayedDaemonsStarted {
 		return nil
 	}
 
-	namespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
-	if namespace == "" {
+	if o.operatorNamespace == "" {
 		return fmt.Errorf("Rook operator namespace is not provided. Expose it via downward API in the rook operator manifest file using environment variable %s", k8sutil.PodNamespaceEnvVar)
 	}
 
 	if EnableFlexDriver {
 		rookAgent := agent.New(o.context.Clientset)
-		if err := rookAgent.Start(namespace, o.rookImage, o.securityAccount); err != nil {
+		if err := rookAgent.Start(o.operatorNamespace, o.rookImage, o.securityAccount); err != nil {
 			return fmt.Errorf("error starting agent daemonset: %v", err)
 		}
 	}
@@ -187,7 +196,8 @@ func (o *Operator) startSystemDaemons(externalCeph bool) error {
 	if err = csi.ValidateCSIParam(); err != nil {
 		return fmt.Errorf("invalid csi params: %v", err)
 	}
-	if err = csi.StartCSIDrivers(namespace, o.context.Clientset, serverVersion); err != nil {
+
+	if err = csi.StartCSIDrivers(o.operatorNamespace, o.context.Clientset, serverVersion); err != nil {
 		return fmt.Errorf("failed to start Ceph csi drivers: %v", err)
 	}
 	logger.Infof("successfully started Ceph CSI driver(s)")
