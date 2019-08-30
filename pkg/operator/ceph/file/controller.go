@@ -26,7 +26,9 @@ import (
 	opkit "github.com/rook/operator-kit"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
@@ -104,6 +106,23 @@ func (c *FilesystemController) onAdd(obj interface{}) {
 
 	c.acquireOrchestrationLock()
 	defer c.releaseOrchestrationLock()
+
+	if c.clusterSpec.External.Enable {
+		// health check should tell us if the external cluster has been upgraded and display a message
+		externalCephMonVersion, err := client.GetCephMonVersion(c.context, c.namespace)
+		if err != nil {
+			logger.Errorf("failed to get ceph mon version. %+v", err)
+			return
+		}
+
+		err = cephver.ValidateCephVersionsBetweenLocalAndExternalClusters(c.clusterInfo.CephVersion, *externalCephMonVersion)
+		if err != nil {
+			// This handles the case where the operator is running, the external cluster has been upgraded and a CR creation is called
+			// If that's a major version upgrade we fail, if it's a minor version, we continue, it's not ideal but not critical
+			logger.Errorf("refusing to run new crd. %+v", err)
+			return
+		}
+	}
 
 	err = createFilesystem(c.clusterInfo, c.context, *filesystem, c.rookVersion, c.clusterSpec, c.filesystemOwners(filesystem), c.clusterSpec.DataDirHostPath, c.isUpgrade)
 	if err != nil {
