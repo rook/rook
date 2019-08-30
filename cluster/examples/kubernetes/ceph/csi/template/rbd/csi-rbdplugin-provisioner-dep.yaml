@@ -12,6 +12,7 @@ spec:
     metadata:
       labels:
         app: csi-rbdplugin-provisioner
+        contains: csi-rbdplugin-metrics
     spec:
       serviceAccount: rook-csi-rbd-provisioner-sa
       containers:
@@ -78,7 +79,14 @@ spec:
             - "--drivername={{ .DriverNamePrefix }}rbd.csi.ceph.com"
             - "--containerized=true"
             - "--pidlimit=-1"
+            - "--metricsport=9090"
+            - "--metricspath=/metrics"
+            - "--enablegrpcmetrics={{ .EnableCSIGRPCMetrics }}"
           env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
             - name: HOST_ROOTFS
               value: "/rootfs"
             - name: NODE_ID
@@ -113,8 +121,8 @@ spec:
           args:
             - "--type=liveness"
             - "--endpoint=$(CSI_ENDPOINT)"
-            - "--livenessport=8080"
-            - "--livenesspath=/metrics"
+            - "--metricsport=9080"
+            - "--metricspath=/metrics"
             - "--polltime=60s"
             - "--timeout=3s"
           env:
@@ -155,19 +163,3 @@ spec:
           emptyDir: {
             medium: "Memory"
           }
----
-# This is a service to expose the liveness side car
-apiVersion: v1
-kind: Service
-metadata:
-  name: csi-liveness-rbdplugin-provisioner
-  labels:
-    app: csi-liveness
-spec:
-  ports:
-    - name: http-metrics
-      port: 8080
-      protocol: TCP
-      targetPort: 8080
-  selector:
-    app: csi-rbdplugin-provisioner

@@ -34,7 +34,7 @@ func CreateDaemonSet(name, namespace string, clientset kubernetes.Interface, ds 
 			_, err = clientset.AppsV1().DaemonSets(namespace).Update(ds)
 		}
 		if err != nil {
-			return fmt.Errorf("failed to start %s daemonset: %v\n%v", name, err, ds)
+			return fmt.Errorf("failed to start %s daemonset: %+v\n%+v", name, err, ds)
 		}
 	}
 	return err

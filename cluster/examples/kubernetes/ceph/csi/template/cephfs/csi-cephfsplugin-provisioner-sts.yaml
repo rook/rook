@@ -13,6 +13,7 @@ spec:
     metadata:
       labels:
         app: csi-cephfsplugin-provisioner
+        contains: csi-cephfsplugin-metrics
     spec:
       serviceAccount: rook-csi-cephfs-provisioner-sa
       containers:
@@ -56,7 +57,14 @@ spec:
             - "--drivername={{ .DriverNamePrefix }}cephfs.csi.ceph.com"
             - "--metadatastorage=k8s_configmap"
             - "--pidlimit=-1"
+            - "--metricsport=9091"
+            - "--metricspath=/metrics"
+            - "--enablegrpcmetrics={{ .EnableCSIGRPCMetrics }}"
           env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
             - name: NODE_ID
               valueFrom:
                 fieldRef:
@@ -87,8 +95,8 @@ spec:
           args:
             - "--type=liveness"
             - "--endpoint=$(CSI_ENDPOINT)"
-            - "--livenessport=8081"
-            - "--livenesspath=/metrics"
+            - "--metricsport=9081"
+            - "--metricspath=/metrics"
             - "--polltime=60s"
             - "--timeout=3s"
           env:
@@ -126,19 +134,3 @@ spec:
           emptyDir: {
             medium: "Memory"
           }
----
-# This is a service to expose the liveness side car
-apiVersion: v1
-kind: Service
-metadata:
-  name: csi-liveness-cephfsplugin-provisioner
-  labels:
-    app: csi-liveness
-spec:
-  ports:
-    - name: http-metrics
-      port: 8080
-      protocol: TCP
-      targetPort: 8081
-  selector:
-    app: csi-cephfsplugin-provisioner

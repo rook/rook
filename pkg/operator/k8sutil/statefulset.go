@@ -22,47 +22,28 @@ import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
 // make a headless svc for statefulset
-func makeHeadlessSvc(name, namespace string, label map[string]string, clientset kubernetes.Interface) (*corev1.Service, error) {
-	svc := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-			Labels:    label,
-		},
-		Spec: corev1.ServiceSpec{
-			Selector: label,
-			Ports:    []corev1.ServicePort{{Name: "dummy", Port: 1234}},
-		},
-	}
-
+func CreateService(name, namespace string, clientset kubernetes.Interface, svc *corev1.Service) error {
 	_, err := clientset.CoreV1().Services(namespace).Create(svc)
 	if err != nil && !k8serrors.IsAlreadyExists(err) {
-		return nil, fmt.Errorf("failed to create %s headless service. %+v", name, err)
+		return fmt.Errorf("failed to create %s service. %+v", name, err)
 	}
-	return svc, nil
+	return nil
 }
 
-// create a apps.statefulset and a headless svc
-func CreateStatefulSet(name, namespace, appName string, clientset kubernetes.Interface, ss *apps.StatefulSet) (*corev1.Service, error) {
-	label := ss.GetLabels()
-	svc, err := makeHeadlessSvc(appName, namespace, label, clientset)
-	if err != nil {
-		return nil, fmt.Errorf("failed to start %s service: %v\n%v", name, err, ss)
-	}
-
-	_, err = clientset.AppsV1().StatefulSets(namespace).Create(ss)
+// create a apps.statefulset
+func CreateStatefulSet(name, namespace string, clientset kubernetes.Interface, ss *apps.StatefulSet) error {
+	_, err := clientset.AppsV1().StatefulSets(namespace).Create(ss)
 	if err != nil {
 		if k8serrors.IsAlreadyExists(err) {
 			_, err = clientset.AppsV1().StatefulSets(namespace).Update(ss)
 		}
 		if err != nil {
-			return nil, fmt.Errorf("failed to start %s statefulset: %v\n%v", name, err, ss)
+			return fmt.Errorf("failed to start %s statefulset: %+v\n%+v", name, err, ss)
 		}
 	}
-	return svc, err
+	return nil
 }

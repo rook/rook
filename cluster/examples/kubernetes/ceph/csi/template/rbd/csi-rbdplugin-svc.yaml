@@ -1,0 +1,20 @@
+---
+# This is a service to expose the liveness and grpc metrics
+apiVersion: v1
+kind: Service
+metadata:
+  name: csi-rbdplugin-metrics
+  labels:
+    app: csi-metrics
+spec:
+  ports:
+    - name: csi-http-metrics
+      port: 8080
+      protocol: TCP
+      targetPort: 9080
+    - name: csi-grpc-metrics
+      port: 8081
+      protocol: TCP
+      targetPort: 9080
+  selector:
+    contains: csi-rbdplugin-metrics

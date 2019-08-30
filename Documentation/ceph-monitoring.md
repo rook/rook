@@ -86,7 +86,7 @@ To enable prometheus alerts,
 first, create the RBAC rules to enable monitoring,
 ```BASH
 kubectl create -f cluster/examples/kubernetes/ceph/monitoring/rbac.yaml
-``` 
+```
 then, make following changes to `cluster.yaml` and deploy.
 ```YAML
 monitoring:
@@ -128,8 +128,11 @@ After this you only need to create the service monitor as stated above.
 
 ### CSI Liveness
 
-To integrate CSI Liveness into ceph monitoring we will need to deploy a service and service monitor.
+To integrate CSI liveness and grpc into ceph monitoring we will need to deploy
+a service and service monitor.
+
 ```bash
-kubectl create -f csi-liveness-service-monitor.yaml
+kubectl create -f csi-metrics-service-monitor.yaml
 ```
+
 This will create the service monitor to have promethues monitor CSI

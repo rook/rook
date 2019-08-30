@@ -56,6 +56,7 @@ pspEnable: true
 ## Settings for whether to disable the drivers or other daemons if they are not needed
 enableCsiRbdDriver: true
 enableCsiCephfsDriver: true
+enableCsiGrpcMetrics: true
 enableFlexDriver: true
 enableDiscoveryDaemon: true
 
