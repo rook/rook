@@ -38,7 +38,7 @@ import (
 )
 
 func TestPodContainer(t *testing.T) {
-	cluster := &Cluster{Namespace: "myosd", rookVersion: "23", cephVersion: cephv1.CephVersionSpec{}}
+	cluster := &Cluster{Namespace: "myosd", rookVersion: "23", cephVersion: cephv1.CephVersionSpec{}, clusterInfo: &cephconfig.ClusterInfo{}}
 	osdProps := osdProperties{
 		crushHostname: "node",
 		devices:       []rookalpha.Device{},

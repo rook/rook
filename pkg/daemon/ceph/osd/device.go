@@ -76,6 +76,8 @@ type DesiredDevice struct {
 	Name           string
 	OSDsPerDevice  int
 	MetadataDevice string
+	DatabaseSizeMB int
+	DeviceClass    string
 	IsFilter       bool
 }
 

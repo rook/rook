@@ -555,9 +555,23 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 			} else {
 				devSuffix += ":1"
 			}
+			if databaseSizeMB, ok := device.Config[config.DatabaseSizeMBKey]; ok {
+				logger.Infof("osd %s requested with DB size %sMB (node %s)", device.Name, databaseSizeMB, osdProps.crushHostname)
+				devSuffix += ":" + databaseSizeMB
+			} else {
+				devSuffix += ":"
+			}
+			if deviceClass, ok := device.Config[config.DeviceClassKey]; ok {
+				logger.Infof("osd %s requested with deviceClass %s (node %s)", device.Name, deviceClass, osdProps.crushHostname)
+				devSuffix += ":" + deviceClass
+			} else {
+				devSuffix += ":"
+			}
 			if md, ok := device.Config[config.MetadataDeviceKey]; ok {
 				logger.Infof("osd %s requested with metadataDevice %s (node %s)", device.Name, md, osdProps.crushHostname)
 				devSuffix += ":" + md
+			} else {
+				devSuffix += ":"
 			}
 			deviceNames[i] = device.Name + devSuffix
 		}
@@ -570,6 +584,7 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 		envVars = append(envVars, deviceFilterEnvVar("all"))
 		devMountNeeded = true
 	}
+	envVars = append(envVars, v1.EnvVar{Name: "ROOK_CEPH_VERSION", Value: c.clusterInfo.CephVersion.CephVersionFormatted()})
 
 	if osdProps.metadataDevice != "" {
 		envVars = append(envVars, metadataDeviceEnvVar(osdProps.metadataDevice))

@@ -306,3 +306,8 @@ func TestSanitizeOSDsPerDevice(t *testing.T) {
 	assert.Equal(t, "1", sanitizeOSDsPerDevice(1))
 	assert.Equal(t, "2", sanitizeOSDsPerDevice(2))
 }
+
+func TestGetDatabaseSize(t *testing.T) {
+	assert.Equal(t, 0, getDatabaseSize(0, 0))
+	assert.Equal(t, 2048, getDatabaseSize(4096, 2048))
+}

@@ -275,9 +275,9 @@ func commonOSDInit(cmd *cobra.Command) {
 // Parse the devices, which are comma separated. A colon indicates a non-default number of osds per device
 // or a non collocated metadata device.
 // For example, one osd will be created on each of sda and sdb, with 5 osds on the nvme01 device.
-//   sda:1,sdb:1,nvme01:5
+//   sda:1:::,sdb:1:::,nvme01:5:::
 // For example, 3 osds will use sdb SSD for db and 3 osds will use sdc SSD for db.
-//   sdd:1:sdb,sde:1:sdb,sdf:1:sdb,sdg:1:sdc,sdh:1:sdc,sdi:1:sdc
+//   sdd:1:::sdb,sde:1:::sdb,sdf:1:::sdb,sdg:1:::sdc,sdh:1:::sdc,sdi:1:::sdc
 func parseDevices(devices string) ([]osddaemon.DesiredDevice, error) {
 	var result []osddaemon.DesiredDevice
 	parsed := strings.Split(devices, ",")
@@ -294,8 +294,18 @@ func parseDevices(devices string) ([]osddaemon.DesiredDevice, error) {
 			}
 			d.OSDsPerDevice = count
 		}
-		if len(parts) > 2 {
-			d.MetadataDevice = parts[2]
+		if len(parts) > 2 && parts[2] != "" {
+			size, err := strconv.Atoi(parts[2])
+			if err != nil {
+				return nil, fmt.Errorf("error DatabaseSizeMB (%s) to int. %+v", parts[2], err)
+			}
+			d.DatabaseSizeMB = size
+		}
+		if len(parts) > 3 && parts[3] != "" {
+			d.DeviceClass = parts[3]
+		}
+		if len(parts) > 4 {
+			d.MetadataDevice = parts[4]
 		}
 		result = append(result, d)
 	}
