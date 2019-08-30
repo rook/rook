@@ -486,11 +486,11 @@ func (c *ClusterController) onK8sNodeUpdate(oldObj, newObj interface{}) {
 
 	// Checking for NoSchedule added to storage node
 	if oldNodeSchedulable == false && newNodeSchedulable == false {
-		logger.Debugf("Skipping cluster update. Updated node %s was and is still unschedulable", newNode.Labels[v1.LabelHostname])
+		// Skipping cluster update. Updated node was and is still unschedulable
 		return
 	}
 	if oldNodeSchedulable == true && newNodeSchedulable == true {
-		logger.Debugf("Skipping cluster update. Updated node %s was and it is still schedulable", oldNode.Labels[v1.LabelHostname])
+		// Skipping cluster update. Updated node was and is still schedulable
 		return
 	}
 
@@ -711,7 +711,7 @@ func (c *ClusterController) onDeviceCMUpdate(oldObj, newObj interface{}) {
 
 	for _, cluster := range c.clusterMap {
 		if cluster.Info == nil {
-			logger.Info("Cluster %s is not ready. Skipping orchestration on device change", cluster.Namespace)
+			logger.Infof("Cluster %s is not ready. Skipping orchestration on device change", cluster.Namespace)
 			continue
 		}
 		logger.Infof("Running orchestration for namespace %s after device change", cluster.Namespace)
