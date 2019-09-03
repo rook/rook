@@ -420,8 +420,8 @@ func getCephVolumeOSDs(context *clusterd.Context, clusterName string, cephfsid s
 		}
 		osds = append(osds, osd)
 	}
-
 	logger.Infof("%d ceph-volume osd devices configured on this node", len(osds))
+
 	return osds, nil
 }
 
