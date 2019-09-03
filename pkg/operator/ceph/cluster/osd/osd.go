@@ -569,6 +569,66 @@ func (c *Cluster) handleRemovedNodes(config *provisionConfig) {
 	logger.Infof("done processing removed nodes")
 }
 
+func (c *Cluster) cleanupTimeoutNode(selector string, config *provisionConfig, nodeName, crushName string) {
+	// update the orchestration status of this removed node to the completed state
+	if err := c.updateOSDStatus(nodeName, OrchestrationStatus{Status: OrchestrationStatusCompleted}); err != nil {
+		config.addError("failed to set orchestration completed status for timeout node %s: %+v", nodeName, err)
+		return
+	}
+
+	// remove all batch jobs on this node
+	osdProps := osdProperties{
+		crushHostname: nodeName,
+		devices:       []rookalpha.Device{},
+		selection:     rookalpha.Selection{DeviceFilter: "none"},
+		resources:     v1.ResourceRequirements{},
+		storeConfig:   osdconfig.StoreConfig{},
+	}
+
+	job, err := c.makeJob(osdProps)
+	if err != nil {
+		message := fmt.Sprintf("failed to create prepare job node %s: %+v", nodeName, err)
+		config.addError(message)
+		return
+	}
+
+	if !c.runJob(job, nodeName, config, "remove") {
+		config.addError("failed to cleanup osd config on node %s", nodeName)
+		return
+	}
+
+	// after the batch job is finished, clean up all the resources related to the node
+	if err := c.cleanUpNodeResources(nodeName, crushName); err != nil {
+		config.addError("failed to cleanup node resources for %s", nodeName)
+	}
+
+	opts := metav1.ListOptions{
+		LabelSelector: selector,
+		Watch:         false,
+	}
+
+	// check the status map
+	configMapList, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).List(opts)
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			config.addError("failed to get config status. %+v", err)
+			return
+		}
+	}
+
+	// check configmap name by node name
+	for _, configMap := range configMapList.Items {
+		node, ok := configMap.Labels[nodeLabelKey]
+		if !ok {
+			logger.Warningf("missing node label on configmap %s", configMap.Name)
+			continue
+		}
+		if nodeName == node {
+			c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Delete(configMap.Name, &metav1.DeleteOptions{})
+		}
+	}
+}
+
 func (c *Cluster) cleanupRemovedNode(config *provisionConfig, nodeName, crushName string) {
 	// update the orchestration status of this removed node to the starting state
 	if err := c.updateOSDStatus(nodeName, OrchestrationStatus{Status: OrchestrationStatusStarting}); err != nil {

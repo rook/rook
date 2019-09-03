@@ -235,6 +235,11 @@ func (c *Cluster) completeOSDsForAllNodes(config *provisionConfig, configOSDs bo
 				currentTimeoutMinutes++
 				if currentTimeoutMinutes == timeoutMinutes {
 					config.addError("timed out waiting for %d nodes: %+v", remainingNodes.Count(), remainingNodes)
+					//start to remove remainingNodes waiting timeout.
+					var nodeCrushName string
+					for remainingNode := range remainingNodes.Iter() {
+						c.cleanupTimeoutNode(selector, config, remainingNode, nodeCrushName)
+					}
 					return false
 				}
 				logger.Infof("waiting on orchestration status update from %d remaining nodes", remainingNodes.Count())
