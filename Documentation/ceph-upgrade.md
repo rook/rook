@@ -277,54 +277,51 @@ At this point, your Rook operator should be running version `rook/ceph:v1.1.0`
 
 Verify the Ceph cluster's health using the [health verification section](#health-verification).
 
-### 6. (Optional) Migrate config overrides from ConfigMap to the CephCluster resource
+### 6. (Recommended) Migrate config overrides from ConfigMap to Ceph directly
 If there are Ceph configuration overrides set in the `config` field of the ConfigMap
 `rook-config-override`, it is now possible to migrate those configs manually from the ConfigMap to
-the newly-added `configOverrides` section of the `CephCluster` custom resource. This is not required
-but may be preferable, as the values set in `configOverrides` can be temporarily overridden by the
-user from the toolbox pod as needed in debug/failure scenarios. Values are reset if the operator
-restarts.
+Ceph directly as documented [here](ceph-configuration.md#specifying-configuration-options). This is
+not required but is recommended because the values configured in Ceph directly can be temporarily
+overridden by the user as needed in debug/failure scenarios.
 
-Ceph config file headers correspond to
-the `who` field of each config override as part of the section. For example, the `[global]` section
-corresponds to `who: global`, and `[osd.0]` corresponds to `who: osd.0`.
-
+#### Example
+List the contents of the override ConfigMap.
 ```sh
-# List the contents of the override ConfigMap
-$> kubectl --namespace $ROOK_NAMESPACE describe configmap rook-ceph-override -o yaml
-Name:         rook-config-override
-Namespace:    rook-ceph
-Labels:       <none>
-Annotations:  <none>
-
-Data
-====
-config:
-----
-[global]
-debug_ms = 1/5
-
-[osd.0]
-debug_osd = 10
-Events:  <none>
-
-# Edit the Ceph cluster resource, and add the overrides from the ConfigMap
-$> kubectl --namespace $ROOK_NAMESPACE edit cephcluster $ROOK_NAMESPACE
-# ...
-spec:
-  # ...
-  configOverrides:
-  - who: global
-    option: debug_ms
-    value: 1/5
-  - who: osd.0
-    option: debug_osd
-    value: "10"
-    who: osd.0
-# ....
+kubectl --namespace $ROOK_NAMESPACE describe configmap rook-config-override
+# Name:         rook-config-override
+# Namespace:    rook-ceph
+# Labels:       <none>
+# Annotations:  <none>
+#
+# Data
+# ====
+# config:
+# ----
+# [global]
+# debug_ms = 1/5
+#
+# [osd.0]
+# debug_osd = 10
+# Events:  <none>
 ```
 
-### 7. Update Rook-Ceph custom resource definitions
+Apply the configurations to Ceph directly using Ceph's CLI.
+```sh
+TOOLS_POD=$(kubectl -n $ROOK_NAMESPACE get pod -l "app=rook-ceph-tools" -o jsonpath='{.items[0].metadata.name}')
+kubectl -n $ROOK_NAMESPACE exec -it $TOOLS_POD -- ceph config set global debug_ms 1/5
+kubectl -n $ROOK_NAMESPACE exec -it $TOOLS_POD -- ceph config set osd.0 debug_osd 10
+```
+
+Empty the config override in the ConfigMap.
+```sh
+kubectl --namespace $ROOK_NAMESPACE patch configmap rook-config-override --type=merge -p '{"data": {"config": ""}}'
+```
+
+### 7. (Recommended) Consider required Ceph config settings
+If the user determines that the [advised configuration options](ceph-configuration.md#default-pg-and-pgp-counts)
+newly identified in Rook's 1.1 release apply to them, now is the time to set these configs.
+
+### 8. Update Rook-Ceph custom resource definitions
 **IMPORTANT: Do not perform this step until ALL existing Rook-Ceph clusters are updated**
 
 After all Rook-Ceph clusters have been updated following the steps above, update the Rook-Ceph
@@ -369,8 +366,7 @@ Ceph image field in the cluster CRD (`spec:cephVersion:image`).
 ```sh
 NEW_CEPH_IMAGE='ceph/ceph:v14.2.2-20190830'
 CLUSTER_NAME="$ROOK_NAMESPACE"  # change if your cluster name is not the Rook namespace
-kubectl -n $ROOK_NAMESPACE patch CephCluster $CLUSTER_NAME --type=merge \
-  -p "{\"spec\": {\"cephVersion\": {\"image\": \"$NEW_CEPH_IMAGE\"}}}"
+kubectl -n $ROOK_NAMESPACE patch CephCluster $CLUSTER_NAME --type=merge -p "{\"spec\": {\"cephVersion\": {\"image\": \"$NEW_CEPH_IMAGE\"}}}"
 ```
 
 ### 2. Wait for the daemon pod updates to complete

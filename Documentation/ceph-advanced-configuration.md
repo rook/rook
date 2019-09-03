@@ -420,16 +420,37 @@ ceph osd pool set rbd pg_num 512
 
 ## Custom ceph.conf Settings
 **WARNING:** The advised method for controlling Ceph configuration is to manually use the Ceph CLI
-or the Ceph dashboard because this offers the most flexibility. If configs must be set as part of
-Rook, the `configOverrides` section of the CephCluster resource is recommended. Read the
-[CephCluster CRD docs](ceph-cluster-crd.md#ceph-config-overrides) first before considering this
-advanced method.
+or the Ceph dashboard because this offers the most flexibility. It is highly recommended that this
+only be used when absolutely necessary and that the `config` be reset to an empty string if/when the
+configurations are no longer necessary. Configurations in the config file will make the Ceph cluster
+less configurable from the CLI and dashboard and may make future tuning or debugging difficult.
 
-With Rook the full swath of
-[Ceph settings](http://docs.ceph.com/docs/master/rados/configuration/) are available
-to use on your storage cluster.  When we supply Rook with a ceph.conf file those
-settings will be propagated to all Mon, OSD, MDS, and RGW daemons to use.
+Setting configs via Ceph's CLI requires that at least one mon be available for the configs to be
+set, and setting configs via dashboard requires at least one mgr to be available. Ceph may also have
+a small number of very advanced settings that aren't able to be modified easily via CLI or
+dashboard. In order to set configurations before monitors are available or to set problematic
+configuration settings, the `rook-config-override` ConfigMap exists, and the `config` field can be
+set with the contents of a `ceph.conf` file. The contents will be propagated to all mon, mgr, OSD,
+MDS, and RGW daemons as an `/etc/ceph/ceph.conf` file.
 
+**WARNING:** Rook performs no validation on the config, so the  validity of the settings is the
+user's responsibility.
+
+Each daemon will need to be restarted where you want the settings applied:
+
+- mons: ensure all three mons are online and healthy before restarting each mon pod, one at a time.
+- mgrs: the pods are stateless and can be restarted as needed, but note that this will disrupt the
+  Ceph dashboard during restart.
+- OSDs: restart your the pods by deleting them, one at a time, and running `ceph -s`
+between each restart to ensure the cluster goes back to "active/clean" state.
+- RGW: the pods are stateless and can be restarted as needed.
+- MDS: the pods are stateless and can be restarted as needed.
+
+After the pod restart, the new settings should be in effect. Note that if the ConfigMap in the Ceph
+cluster's namespace is created before the cluster is created, the daemons will pick up the settings
+at first launch.
+
+### Example
 In this example we will set the default pool `size` to two, and tell OSD
 daemons not to change the weight of OSDs on startup.
 
@@ -455,9 +476,8 @@ data:
   config: ""
 ```
 
-To apply your desired configuration, you will need to update this ConfigMap.
-The next time the daemon pod(s) start, the settings will be merged with the default
-settings created by Rook.
+To apply your desired configuration, you will need to update this ConfigMap. The next time the
+daemon pod(s) start, they will use the updated configs.
 
 ```bash
 kubectl -n rook-ceph edit configmap rook-config-override
@@ -477,22 +497,6 @@ data:
     osd crush update on start = false
     osd pool default size = 2
 ```
-
-Each daemon will need to be restarted where you want the settings applied:
-
-- Mons: ensure all three mons are online and healthy before restarting each mon pod, one at a time
-- OSDs: restart your the pods by deleting them, one at a time, and running `ceph -s`
-between each restart to ensure the cluster goes back to "active/clean" state.
-- RGW: the pods are stateless and can be restarted as needed
-- MDS: the pods are stateless and can be restarted as needed
-
-After the pod restart, your new settings should be in effect. Note that if you create
-the ConfigMap in the `rook-ceph` namespace before the cluster is even created
-the daemons will pick up the settings at first launch.
-
-The only validation of the settings done by Rook is whether the settings can be merged
-using the ini file format with the default settings created by Rook. Beyond that,
-the validity of the settings is your responsibility.
 
 ## OSD CRUSH Settings
 

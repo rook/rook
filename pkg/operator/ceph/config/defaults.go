@@ -18,7 +18,6 @@ limitations under the License.
 package config
 
 import (
-	rookceph "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/ceph/version"
 )
 
@@ -55,14 +54,14 @@ func DefaultFlags(fsid, mountedKeyringPath string, cephVersion version.CephVersi
 }
 
 // makes it possible to be slightly less verbose to create a ConfigOverride here
-func configOverride(who, option, value string) rookceph.ConfigOverride {
-	return rookceph.ConfigOverride{Who: who, Option: option, Value: value}
+func configOverride(who, option, value string) Option {
+	return Option{Who: who, Option: option, Value: value}
 }
 
 // DefaultCentralizedConfigs returns the default configuration options Rook will set in Ceph's
 // centralized config store.
-func DefaultCentralizedConfigs(cephVersion version.CephVersion) rookceph.ConfigOverridesSpec {
-	overrides := []rookceph.ConfigOverride{
+func DefaultCentralizedConfigs(cephVersion version.CephVersion) []Option {
+	overrides := []Option{
 		configOverride("global", "mon allow pool delete", "true"),
 	}
 
@@ -74,7 +73,7 @@ func DefaultCentralizedConfigs(cephVersion version.CephVersion) rookceph.ConfigO
 	if !cephVersion.IsAtLeast(version.CephVersion{Major: 14, Minor: 2, Extra: 1}) {
 		// Set the default log files to empty so they don't bloat containers. Can be changed in
 		// Mimic+ by users if needed.
-		overrides = append(overrides, []rookceph.ConfigOverride{
+		overrides = append(overrides, []Option{
 			configOverride("global", "log file", ""),
 			configOverride("global", "mon cluster log file", ""),
 		}...)
@@ -85,8 +84,8 @@ func DefaultCentralizedConfigs(cephVersion version.CephVersion) rookceph.ConfigO
 
 // DefaultLegacyConfigs need to be added to the Ceph config file until the integration tests can be
 // made to override these options for the Ceph clusters it creates.
-func DefaultLegacyConfigs() rookceph.ConfigOverridesSpec {
-	overrides := []rookceph.ConfigOverride{
+func DefaultLegacyConfigs() []Option {
+	overrides := []Option{
 		// TODO: drop this when FlexVolume is no longer supported
 		configOverride("global", "rbd_default_features", "3"),
 	}

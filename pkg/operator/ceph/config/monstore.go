@@ -19,7 +19,6 @@ package config
 import (
 	"fmt"
 
-	rookceph "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 )
@@ -39,6 +38,18 @@ func GetMonStore(context *clusterd.Context, namespace string) *MonStore {
 	}
 }
 
+// Option defines the pieces of information relevant to Ceph configuration options.
+type Option struct {
+	// Who is the entity(-ies) the option should apply to.
+	Who string
+
+	// Option is the option key
+	Option string
+
+	// Value is the value for the option
+	Value string
+}
+
 // Set sets a config in the centralized mon configuration database.
 // https://docs.ceph.com/docs/master/rados/configuration/ceph-conf/#monitor-configuration-database
 func (m *MonStore) Set(who, option, value string) error {
@@ -54,9 +65,9 @@ func (m *MonStore) Set(who, option, value string) error {
 
 // SetAll sets all configs from the overrides in the centralized mon configuration database.
 // See MonStore.Set for more.
-func (m *MonStore) SetAll(configOverrides rookceph.ConfigOverridesSpec) error {
+func (m *MonStore) SetAll(options ...Option) error {
 	var errs []error
-	for _, override := range configOverrides {
+	for _, override := range options {
 		err := m.Set(override.Who, override.Option, override.Value)
 		if err != nil {
 			errs = append(errs, err)

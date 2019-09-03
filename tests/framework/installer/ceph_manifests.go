@@ -197,15 +197,6 @@ spec:
                   type: integer
             placement: {}
             resources: {}
-            configOverrides:
-              items:
-                properties:
-                  who:
-                    type: string
-                  option:
-                    type: string
-                  value:
-                    type: string
           required:
           - mon
   additionalPrinterColumns:

@@ -278,7 +278,7 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 	}
 
 	// Apply CRD ConfigOverrideName to the external cluster
-	err = config.SetDefaultAndUserConfigs(cluster.context, namespace, cluster.Info, cluster.Spec.ConfigOverrides)
+	err = config.SetDefaultConfigs(cluster.context, namespace, cluster.Info)
 	if err != nil {
 		// Mons are up, so something else is wrong
 		return fmt.Errorf("failed to set Rook and/or user-defined Ceph config options on the external cluster monitors. %+v", err)
