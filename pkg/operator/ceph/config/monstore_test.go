@@ -21,7 +21,6 @@ import (
 	"strings"
 	"testing"
 
-	rookceph "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -96,16 +95,14 @@ func TestMonStore_SetAll(t *testing.T) {
 
 	monStore := GetMonStore(ctx, "ns")
 
-	var cfgOverrides rookceph.ConfigOverridesSpec
-
-	cfgOverrides = []rookceph.ConfigOverride{
+	cfgOverrides := []Option{
 		configOverride("global", "debug ms", "10"), // setting w/ spaces converts to underscores
 		configOverride("osd.0", "debug-osd", "20"), // setting w/ dashes converts to underscores
 		configOverride("mds.*", "debug_mds", "15"), // setting w/ underscores remains the same
 	}
 
 	// commands w/ no error
-	e := monStore.SetAll(cfgOverrides)
+	e := monStore.SetAll(cfgOverrides...)
 	assert.NoError(t, e)
 	assert.Len(t, execedCmds, 3)
 	assert.Contains(t, execedCmds[0], " global debug_ms 10 ")
@@ -116,7 +113,7 @@ func TestMonStore_SetAll(t *testing.T) {
 	// keep cfgOverrides from last test
 	execInjectErrOnKeyword = "debug_osd"
 	execedCmds = execedCmds[:0] // empty execedCmds slice
-	e = monStore.SetAll(cfgOverrides)
+	e = monStore.SetAll(cfgOverrides...)
 	assert.Error(t, e)
 	// Rook should not return error before trying to set all config overrides
 	assert.Len(t, execedCmds, 3)
@@ -125,7 +122,7 @@ func TestMonStore_SetAll(t *testing.T) {
 	// keep cfgOverrides
 	execInjectErrOnKeyword = "debug"
 	execedCmds = execedCmds[:0]
-	e = monStore.SetAll(cfgOverrides)
+	e = monStore.SetAll(cfgOverrides...)
 	assert.Error(t, e)
 	assert.Len(t, execedCmds, 3)
 }

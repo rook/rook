@@ -24,7 +24,6 @@ import (
 	"strings"
 
 	"github.com/coreos/pkg/capnslog"
-	rookceph "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 )
@@ -100,30 +99,23 @@ func NewFlag(key, value string) string {
 	return fmt.Sprintf("--%s=%s", f, value)
 }
 
-// SetDefaultAndUserConfigs sets Rook's desired default configs and the user's override configs from
-// the CephCluster CRD in the centralized monitor database. This cannot be called before at least
-// one monitor is established.
-func SetDefaultAndUserConfigs(
+// SetDefaultConfigs sets Rook's desired default configs in the centralized monitor database. This
+// cannot be called before at least one monitor is established.
+func SetDefaultConfigs(
 	context *clusterd.Context,
 	namespace string,
 	clusterInfo *cephconfig.ClusterInfo,
-	configOverrides rookceph.ConfigOverridesSpec,
 ) error {
 	// ceph.conf is never used. All configurations are made in the centralized mon config database,
 	// or they are specified on the commandline when daemons are called.
 	monStore := GetMonStore(context, namespace)
 
-	if err := monStore.SetAll(DefaultCentralizedConfigs(clusterInfo.CephVersion)); err != nil {
+	if err := monStore.SetAll(DefaultCentralizedConfigs(clusterInfo.CephVersion)...); err != nil {
 		return fmt.Errorf("failed to apply default Ceph configurations. %+v", err)
 	}
 
-	if err := monStore.SetAll(DefaultLegacyConfigs()); err != nil {
+	if err := monStore.SetAll(DefaultLegacyConfigs()...); err != nil {
 		return fmt.Errorf("failed to apply legacy config overrides. %+v", err)
-	}
-
-	// user-specified config overrides from the CRD will go here
-	if err := monStore.SetAll(configOverrides); err != nil {
-		return fmt.Errorf("failed to apply one or more user-specified overrides. %+v", err)
 	}
 
 	return nil
