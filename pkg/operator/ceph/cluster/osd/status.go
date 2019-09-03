@@ -235,6 +235,21 @@ func (c *Cluster) completeOSDsForAllNodes(config *provisionConfig, configOSDs bo
 				currentTimeoutMinutes++
 				if currentTimeoutMinutes == timeoutMinutes {
 					config.addError("timed out waiting for %d nodes: %+v", remainingNodes.Count(), remainingNodes)
+					//start to remove remainingNodes waiting timeout.
+					for remainingNode := range remainingNodes.Iter() {
+						if err := c.updateOSDStatus(
+							remainingNode,
+							OrchestrationStatus{Status: OrchestrationStatusCompleted},
+						); err != nil {
+							config.addError("failed to set orchestration completed status for timeout node %s: %+v", remainingNode, err)
+							continue
+						}
+						if err := c.kv.ClearStore(
+							k8sutil.TruncateNodeName(orchestrationStatusMapName, remainingNode),
+						); err != nil {
+							config.addError("removing timeout node %+v error: %+v", remainingNode, err)
+						}
+					}
 					return false
 				}
 				logger.Infof("waiting on orchestration status update from %d remaining nodes", remainingNodes.Count())
