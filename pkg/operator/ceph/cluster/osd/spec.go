@@ -123,7 +123,6 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 		}
 	} else {
 		dataDir = k8sutil.DataDir
-
 		// Create volume config for /dev so the pod can access devices on the host
 		devVolume := v1.Volume{Name: "devices", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/dev"}}}
 		volumes = append(volumes, devVolume)
@@ -175,6 +174,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 	}
 
 	// default args when the ceph cluster isn't initialized
+
 	defaultArgs := []string{
 		"--foreground",
 		"--id", osdID,
@@ -374,6 +374,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 	} else {
 		osdProps.placement.ApplyToPodSpec(&deployment.Spec.Template.Spec)
 	}
+
 	return deployment, nil
 }
 
@@ -403,7 +404,7 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 	volumes := append(opspec.PodVolumes(c.dataDirHostPath, c.Namespace, true), copyBinariesVolume)
 
 	// by default, don't define any volume config unless it is required
-	if len(osdProps.devices) > 0 || osdProps.selection.DeviceFilter != "" || osdProps.selection.GetUseAllDevices() || osdProps.metadataDevice != "" {
+	if len(osdProps.devices) > 0 || osdProps.selection.DeviceFilter != "" || osdProps.selection.GetUseAllDevices() || osdProps.metadataDevice != "" || osdProps.pvc.ClaimName != "" {
 		// create volume config for the data dir and /dev so the pod can access devices on the host
 		devVolume := v1.Volume{Name: "devices", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/dev"}}}
 		volumes = append(volumes, devVolume)
@@ -564,6 +565,9 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 	envVars := c.getConfigEnvVars(osdProps.storeConfig, k8sutil.DataDir, osdProps.crushHostname, osdProps.location)
 
 	devMountNeeded := false
+	if osdProps.pvc.ClaimName != "" {
+		devMountNeeded = true
+	}
 	privileged := false
 
 	// only 1 of device list, device filter and use all devices can be specified.  We prioritize in that order.

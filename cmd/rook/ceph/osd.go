@@ -59,6 +59,7 @@ var osdStartCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Starts the osd daemon", // OSDs that were provisioned by ceph-volume
 }
+
 var (
 	osdDataDeviceFilter string
 	ownerRefID          string
