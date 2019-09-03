@@ -415,6 +415,7 @@ func getCephVolumeOSDs(context *clusterd.Context, clusterName string, cephfsid s
 			UUID:                osdFSID,
 			CephVolumeInitiated: true,
 			IsFileStore:         isFilestore,
+			LVPath:              lv,
 		}
 		osds = append(osds, osd)
 	}

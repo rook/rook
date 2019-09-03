@@ -130,6 +130,8 @@ type OSDInfo struct {
 	IsDirectory         bool   `json:"is-directory"`
 	DevicePartUUID      string `json:"device-part-uuid"`
 	CephVolumeInitiated bool   `json:"ceph-volume-initiated"`
+	//LVPath is the logical Volume path for an OSD created by Ceph-volume with format '/dev/<Volume Group>/<Logical Volume>'
+	LVPath string `json:"lv-path"`
 }
 
 type OrchestrationStatus struct {

@@ -49,6 +49,7 @@ const (
 	encryptedDeviceEnvVarName           = "ROOK_ENCRYPTED_DEVICE"
 	osdMetadataDeviceEnvVarName         = "ROOK_METADATA_DEVICE"
 	pvcBackedOSDVarName                 = "ROOK_PVC_BACKED_OSD"
+	lvPathVarName                       = "ROOK_LV_PATH"
 	rookBinariesMountPath               = "/rook"
 	rookBinariesVolumeName              = "rook-binaries"
 	blockPVCMapperInitContainer         = "blkdevmapper"
@@ -263,6 +264,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 	if osdProps.pvc.ClaimName != "" {
 		volumeMounts = append(volumeMounts, getPvcOSDBridgeMount(osdProps.pvc.ClaimName))
 		envVars = append(envVars, pvcBackedOSDEnvVar("true"))
+		envVars = append(envVars, lvPathEnvVariable(osd.LVPath))
 	}
 
 	privileged := true
@@ -706,6 +708,10 @@ func dataDirectoriesEnvVar(dataDirectories string) v1.EnvVar {
 
 func pvcBackedOSDEnvVar(pvcBacked string) v1.EnvVar {
 	return v1.EnvVar{Name: pvcBackedOSDVarName, Value: pvcBacked}
+}
+
+func lvPathEnvVariable(lvPath string) v1.EnvVar {
+	return v1.EnvVar{Name: lvPathVarName, Value: lvPath}
 }
 
 func getDirectoriesFromContainer(osdContainer v1.Container) []rookalpha.Directory {

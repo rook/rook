@@ -67,6 +67,7 @@ var (
 	osdUUID             string
 	osdIsDevice         bool
 	pvcBackedOSD        bool
+	lvPath              string
 )
 
 func addOSDFlags(command *cobra.Command) {
@@ -95,6 +96,7 @@ func addOSDFlags(command *cobra.Command) {
 	osdStartCmd.Flags().StringVar(&osdUUID, "osd-uuid", "", "the osd UUID")
 	osdStartCmd.Flags().StringVar(&osdStoreType, "osd-store-type", "", "whether the osd is bluestore or filestore")
 	osdStartCmd.Flags().BoolVar(&pvcBackedOSD, "pvc-backed-osd", false, "Whether the OSD backing store in PVC or not")
+	osdStartCmd.Flags().StringVar(&lvPath, "lv-path", "", "LV path for the OSD created by ceph volume")
 
 	// add the subcommands to the parent osd command
 	osdCmd.AddCommand(osdConfigCmd,
@@ -142,7 +144,7 @@ func startOSD(cmd *cobra.Command, args []string) error {
 	commonOSDInit(osdStartCmd)
 
 	context := createContext()
-	err := osddaemon.StartOSD(context, osdStoreType, osdStringID, osdUUID, pvcBackedOSD, args)
+	err := osddaemon.StartOSD(context, osdStoreType, osdStringID, osdUUID, lvPath, pvcBackedOSD, args)
 	if err != nil {
 		rook.TerminateFatal(err)
 	}
