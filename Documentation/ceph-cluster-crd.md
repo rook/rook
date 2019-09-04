@@ -275,7 +275,7 @@ Here are the current minimum amounts of memory in MB to apply so that Rook will 
 
 - `mon`: 1024MB
 - `mgr`: 512MB
-- `osd`: 4096MB
+- `osd`: 2048MB
 - `mds`: 4096MB
 - `rbdmirror`: 512MB
 
