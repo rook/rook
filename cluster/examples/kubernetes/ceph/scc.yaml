@@ -77,6 +77,5 @@ users:
   # If other namespaces or service accounts are configured, they need to be updated here.
   - system:serviceaccount:rook-ceph:rook-csi-rbd-plugin-sa
   - system:serviceaccount:rook-ceph:rook-csi-rbd-provisioner-sa
-  - system:serviceaccount:rook-ceph:rook-csi-rbd-attacher-sa
   - system:serviceaccount:rook-ceph:rook-csi-cephfs-plugin-sa
   - system:serviceaccount:rook-ceph:rook-csi-cephfs-provisioner-sa
