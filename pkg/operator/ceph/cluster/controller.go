@@ -265,6 +265,11 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 		return fmt.Errorf("failed to detect and validate ceph version. %+v", err)
 	}
 
+	err = populateConfigOverrideConfigMap(cluster.context, namespace, cluster.ownerRef)
+	if err != nil {
+		return fmt.Errorf("failed to populate config override config map. %+v", err)
+	}
+
 	// Write the rook-ceph-config configmap (used by various daemons to apply config overrides)
 	// If we don't do this, daemons will never start, waiting forever for this configmap to be present
 	err = config.GetStore(cluster.context, namespace, &cluster.ownerRef).CreateOrUpdate(cluster.Info)
@@ -971,4 +976,25 @@ func populateExternalClusterInfo(context *clusterd.Context, namespace string) *c
 	}
 
 	return clusterInfo
+}
+
+func populateConfigOverrideConfigMap(context *clusterd.Context, namespace string, ownerRef metav1.OwnerReference) error {
+	placeholderConfig := map[string]string{
+		k8sutil.ConfigOverrideVal: "",
+	}
+
+	cm := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: k8sutil.ConfigOverrideName,
+		},
+		Data: placeholderConfig,
+	}
+
+	k8sutil.SetOwnerRef(&cm.ObjectMeta, &ownerRef)
+	_, err := context.Clientset.CoreV1().ConfigMaps(namespace).Create(cm)
+	if err != nil && !errors.IsAlreadyExists(err) {
+		return fmt.Errorf("failed to create override configmap %s. %+v", namespace, err)
+	}
+
+	return nil
 }
