@@ -38,9 +38,6 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/rbd"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
-	"github.com/rook/rook/pkg/operator/k8sutil"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -231,19 +228,9 @@ func (c *cluster) createInstance(rookImage string, cephVersion cephver.CephVersi
 func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVersion, spec *cephv1.ClusterSpec) error {
 	// Create a configmap for overriding ceph config settings
 	// These settings should only be modified by a user after they are initialized
-	placeholderConfig := map[string]string{
-		k8sutil.ConfigOverrideVal: "",
-	}
-	cm := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: k8sutil.ConfigOverrideName,
-		},
-		Data: placeholderConfig,
-	}
-	k8sutil.SetOwnerRef(&cm.ObjectMeta, &c.ownerRef)
-	_, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(cm)
-	if err != nil && !errors.IsAlreadyExists(err) {
-		return fmt.Errorf("failed to create override configmap %s. %+v", c.Namespace, err)
+	err := populateConfigOverrideConfigMap(c.context, c.Namespace, c.ownerRef)
+	if err != nil {
+		return fmt.Errorf("failed to populate config override config map. %+v", err)
 	}
 
 	if c.Spec.External.Enable {
