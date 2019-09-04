@@ -20,4 +20,4 @@ spec:
     enable: true
   dataDirHostPath: /var/lib/rook
   cephVersion:
-    image: ceph/ceph:v14.2.2-20190826 # MUST match external cluster version
+    image: ceph/ceph:v14.2.3-20190904 # MUST match external cluster version
