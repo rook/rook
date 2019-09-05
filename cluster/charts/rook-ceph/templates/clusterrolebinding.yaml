@@ -31,6 +31,20 @@ subjects:
   name: rook-ceph-mgr
   namespace: {{ .Release.Namespace }}
 ---
+# Allow the ceph osd to access cluster-wide resources necessary for determining their topology location 
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-osd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-osd
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-osd
+  namespace: {{ .Release.Namespace }}
+---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
