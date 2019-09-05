@@ -640,6 +640,16 @@ rules:
   - "*"
   verbs:
   - "*"
+- apiGroups:
+  - policy
+  - apps
+  resources:
+  #this is for the clusterdisruption controller
+  - poddisruptionbudgets
+  #this is for both clusterdisruption and nodedrain controllers
+  - deployments
+  verbs:
+  - "*"
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
