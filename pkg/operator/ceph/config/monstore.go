@@ -41,9 +41,19 @@ func GetMonStore(context *clusterd.Context, namespace string) *MonStore {
 
 // Set sets a config in the centralized mon configuration database.
 // https://docs.ceph.com/docs/master/rados/configuration/ceph-conf/#monitor-configuration-database
-func (m *MonStore) Set(who, option, value string) error {
-	args := []string{"config", "set", who, normalizeKey(option), value}
-	cephCmd := client.NewCephCommand(m.context, m.namespace, args)
+// If the value is a nil pointer, the config is instead removed, allowing the config to take on the
+// default value.
+func (m *MonStore) Set(who, option string, value *string) error {
+	var args []string
+	var cephCmd *client.CephToolCommand
+	if value != nil {
+		args = []string{"config", "set", who, normalizeKey(option), *value}
+		cephCmd = client.NewCephCommand(m.context, m.namespace, args)
+	} else {
+		args = []string{"config", "rm", who, normalizeKey(option)}
+		cephCmd = client.NewCephCommand(m.context, m.namespace, args)
+	}
+
 	out, err := cephCmd.Run()
 	if err != nil {
 		return fmt.Errorf("failed to set Ceph config in the centralized mon configuration database; "+

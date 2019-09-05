@@ -150,6 +150,7 @@ spec:
                     type: string
                   value:
                     type: string
+                    nullable: true
   additionalPrinterColumns:
     - name: DataDirHostPath
       type: string

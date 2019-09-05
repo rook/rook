@@ -301,15 +301,19 @@ affect all Ceph daemons, a daemon type, an individual Ceph daemon, or a glob mat
 daemons. It may also use a
 [mask](https://docs.ceph.com/docs/master/rados/configuration/ceph-conf/#sections-and-masks).
 `option` is the configuration option to be overridden, and `value` is the value to set on the
-configuration option. All properties are strings.
+configuration option. All properties are strings. `value` may also be a null value (`null` or `~` in
+YAML; `null` in JSON), which will configure Ceph to use the default value for a parameter.
+
+If an item is removed from the `configOverrides` section, Rook will no longer control the option,
+and Ceph will retain the most recently set value.
 
 Rook will only set configuration overrides once when an orchestration is run. For example, on node
 addition or removal, when disks change on a node, or when the operator starts (or restarts). This
 means that users can change Ceph's configuration from the CLI or dashboard as desired without Rook
 constantly fighting to control the setting. This is particularly valuable in situations where values
-need to be changed to debug errors or test changes to tuning parameters.
+need to be changed temporarily to debug errors or test changes to tuning parameters.
 
-**WARNING:** Remember that Rook will set these overrides any time the operator restarts, so user
+**WARNING:** Remember that Rook will set these overrides any time an orchestration is run, so user
 changes via Ceph's CLI or dashboard to values set here will not persist forever.
 
 Some examples:
@@ -330,6 +334,12 @@ Some examples:
     - who: osd/rack:foo
       option: debug_ms
       value: "20"
+    - who: mon.b
+      option: debug_ms
+      value: ~
+    - who: mon.c
+      option: debug_ms
+      value: null
 ```
 
 #### Advanced config

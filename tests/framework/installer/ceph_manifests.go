@@ -206,6 +206,7 @@ spec:
                     type: string
                   value:
                     type: string
+                    nullable: true
           required:
           - mon
   additionalPrinterColumns:

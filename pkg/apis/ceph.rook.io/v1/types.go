@@ -165,9 +165,9 @@ type ConfigOverridesSpec []ConfigOverride
 // `ceph config set <who> <option> <value>` (or similar) command.
 // See Ceph docs: https://docs.ceph.com/docs/master/rados/configuration/ceph-conf/#monitor-configuration-database
 type ConfigOverride struct {
-	Who    string `json:"who"`
-	Option string `json:"option"`
-	Value  string `json:"value"`
+	Who    string  `json:"who"`
+	Option string  `json:"option"`
+	Value  *string `json:"value"`
 }
 
 type MonSpec struct {

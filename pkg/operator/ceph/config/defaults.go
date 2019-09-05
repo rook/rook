@@ -56,7 +56,7 @@ func DefaultFlags(fsid, mountedKeyringPath string, cephVersion version.CephVersi
 
 // makes it possible to be slightly less verbose to create a ConfigOverride here
 func configOverride(who, option, value string) rookceph.ConfigOverride {
-	return rookceph.ConfigOverride{Who: who, Option: option, Value: value}
+	return rookceph.ConfigOverride{Who: who, Option: option, Value: &value}
 }
 
 // DefaultCentralizedConfigs returns the default configuration options Rook will set in Ceph's

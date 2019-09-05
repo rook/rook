@@ -50,26 +50,36 @@ func TestMonStore_Set(t *testing.T) {
 
 	monStore := GetMonStore(ctx, "ns")
 
+	stringPointer := func(s string) *string {
+		return &s
+	}
+
 	// setting with spaces converts to underscores
-	e := monStore.Set("global", "debug ms", "10")
+	e := monStore.Set("global", "debug ms", stringPointer("10"))
 	assert.NoError(t, e)
 	assert.Contains(t, execedCmd, "config set global debug_ms 10")
 
 	// setting with dashes converts to underscores
-	e = monStore.Set("osd.0", "debug-osd", "20")
+	e = monStore.Set("osd.0", "debug-osd", stringPointer("20"))
 	assert.NoError(t, e)
 	assert.Contains(t, execedCmd, " config set osd.0 debug_osd 20 ")
 
 	// setting with underscores stays the same
-	e = monStore.Set("mds.*", "debug_mds", "15")
+	e = monStore.Set("mds.*", "debug_mds", stringPointer("15"))
 	assert.NoError(t, e)
 	assert.Contains(t, execedCmd, " config set mds.* debug_mds 15 ")
 
 	// errors returned as expected
 	execInjectErr = true
-	e = monStore.Set("mon.*", "unknown_setting", "10")
+	e = monStore.Set("mon.*", "unknown_setting", stringPointer("10"))
 	assert.Error(t, e)
 	assert.Contains(t, execedCmd, " config set mon.* unknown_setting 10 ")
+
+	// unset when nil
+	execInjectErr = false
+	e = monStore.Set("global", "debug_ms", nil)
+	assert.NoError(t, e)
+	assert.Contains(t, execedCmd, " config rm global debug_ms")
 }
 
 func TestMonStore_SetAll(t *testing.T) {
