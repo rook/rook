@@ -257,7 +257,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 
 		mgrs := mgr.New(c.Info, c.context, c.Namespace, rookImage,
 			spec.CephVersion, cephv1.GetMgrPlacement(spec.Placement), cephv1.GetMgrAnnotations(c.Spec.Annotations),
-			spec.Network, spec.Dashboard, spec.Monitoring, cephv1.GetMgrResources(spec.Resources), c.ownerRef, c.Spec.DataDirHostPath, c.isUpgrade)
+			spec.Network, spec.Dashboard, spec.Monitoring, spec.Mgr, cephv1.GetMgrResources(spec.Resources), c.ownerRef, c.Spec.DataDirHostPath, c.isUpgrade)
 		err = mgrs.Start()
 		if err != nil {
 			return fmt.Errorf("failed to start the ceph mgr. %+v", err)

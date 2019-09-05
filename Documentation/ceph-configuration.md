@@ -31,20 +31,19 @@ provide detailed information about how to tune these parameters.
 An easier option exists for Rook-Ceph clusters running Ceph Nautilus (v14.2.x) or newer. Nautilus
 [introduced the PG auto-scaler mgr module](https://ceph.com/rados/new-in-nautilus-pg-merging-and-autotuning/)
 capable of automatically managing PG and PGP values for pools. This module is not enabled by default
-but can be enabled by running the following from the Ceph toolbox pod (more on the toolbox pod and
-Ceph CLI later in this document). Using this module, the user does not need to configure
-`osd_pool_default_pg_num` or `osd_pool_default_pgp_num`.
-```
-ceph mgr module enable pg_autoscaler
+but can be enabled by the following setting in the [CephCluster CR](ceph-cluster-crd.md#mgr-settings):
+
+```yaml
+  mgr:
+    modules:
+    - name: pg_autoscaler
+      enabled: true
 ```
 
-The user must also decide whether they want the autoscaler to be used for all new pools by default.
-Turning this on is recommended. The Ceph CLI command for turning this on is shown below, but this
-can be configured via any of the configuration methods detailed later in this document.
-```
-ceph config set global osd_pool_default_autoscale_mode on
-```
-
+With that setting, the autoscaler will be enabled for all new pools. If you do not desire to have
+the autoscaler enabled for all pools, you will need to use the Rook toolbox to enable the module
+and [enable the autoscaling](https://docs.ceph.com/docs/master/rados/operations/placement-groups/)
+on individual pools.
 
 ## Specifying configuration options
 
