@@ -120,8 +120,15 @@ spec:
                   maximum: 9
                   minimum: 1
                   type: integer
-              required:
-              - count
+            mgr:
+              properties:
+                modules:
+                  items:
+                    properties:
+                      name:
+                        type: string
+                      enabled:
+                        type: boolean
             network:
               properties:
                 hostNetwork:
@@ -1603,7 +1610,11 @@ spec:
     config:
       storeType: "` + settings.StoreType + `"
       databaseSizeMB: "1024"
-      journalSizeMB: "1024"`
+      journalSizeMB: "1024"
+  mgr:
+    modules:
+    - name: pg_autoscaler
+      enabled: true`
 }
 
 // GetRookToolBox returns rook-toolbox manifest

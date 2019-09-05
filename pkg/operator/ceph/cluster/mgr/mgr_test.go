@@ -26,6 +26,7 @@ import (
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	testopk8s "github.com/rook/rook/pkg/operator/k8sutil/test"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -64,6 +65,7 @@ func TestStartMGR(t *testing.T) {
 		cephv1.NetworkSpec{},
 		cephv1.DashboardSpec{Enabled: true},
 		cephv1.MonitoringSpec{Enabled: true, RulesNamespace: ""},
+		cephv1.MgrSpec{},
 		v1.ResourceRequirements{},
 		metav1.OwnerReference{},
 		"/var/lib/rook/",
@@ -124,4 +126,80 @@ func validateStart(t *testing.T, c *Cluster) {
 	} else {
 		assert.True(t, errors.IsNotFound(err))
 	}
+}
+
+func TestConfigureModules(t *testing.T) {
+	modulesEnabled := 0
+	modulesDisabled := 0
+	configSettings := map[string]string{}
+	lastModuleConfigured := ""
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
+			logger.Infof("Command: %s %v", command, args)
+			if command == "ceph" && len(args) > 3 {
+				if args[0] == "mgr" && args[1] == "module" {
+					if args[2] == "enable" {
+						modulesEnabled++
+					}
+					if args[2] == "disable" {
+						modulesDisabled++
+					}
+					lastModuleConfigured = args[3]
+				}
+				if args[0] == "config" && args[1] == "set" && args[2] == "global" {
+					configSettings[args[3]] = args[4]
+				}
+			}
+			return "", nil //return "{\"key\":\"mysecurekey\"}", nil
+		},
+	}
+
+	context := &clusterd.Context{Executor: executor, Clientset: testop.New(3)}
+	clusterInfo := &cephconfig.ClusterInfo{}
+	c := &Cluster{
+		clusterInfo: clusterInfo,
+		context:     context,
+		Namespace:   "ns",
+	}
+
+	// one module without any special configuration
+	c.mgrSpec.Modules = []cephv1.Module{
+		{Name: "mymodule", Enabled: true},
+	}
+	assert.NoError(t, c.configureMgrModules())
+	assert.Equal(t, 1, modulesEnabled)
+	assert.Equal(t, 0, modulesDisabled)
+	assert.Equal(t, "mymodule", lastModuleConfigured)
+
+	// one module that has a min version that is not met
+	c.mgrSpec.Modules = []cephv1.Module{
+		{Name: "pg_autoscaler", Enabled: true},
+	}
+	c.clusterInfo.CephVersion = cephver.CephVersion{Major: 13}
+	assert.Error(t, c.configureMgrModules())
+	assert.Equal(t, 0, len(configSettings))
+
+	// one module that has a min version that is met
+	c.mgrSpec.Modules = []cephv1.Module{
+		{Name: "pg_autoscaler", Enabled: true},
+	}
+	c.clusterInfo.CephVersion = cephver.CephVersion{Major: 14}
+	modulesEnabled = 0
+	assert.NoError(t, c.configureMgrModules())
+	assert.Equal(t, 1, modulesEnabled)
+	assert.Equal(t, 0, modulesDisabled)
+	assert.Equal(t, "pg_autoscaler", lastModuleConfigured)
+	assert.Equal(t, 1, len(configSettings))
+	assert.Equal(t, "on", configSettings["osd_pool_default_pg_autoscale_mode"])
+
+	// disable the module
+	modulesEnabled = 0
+	lastModuleConfigured = ""
+	configSettings = map[string]string{}
+	c.mgrSpec.Modules[0].Enabled = false
+	assert.NoError(t, c.configureMgrModules())
+	assert.Equal(t, 0, modulesEnabled)
+	assert.Equal(t, 1, modulesDisabled)
+	assert.Equal(t, "pg_autoscaler", lastModuleConfigured)
+	assert.Equal(t, 0, len(configSettings))
 }

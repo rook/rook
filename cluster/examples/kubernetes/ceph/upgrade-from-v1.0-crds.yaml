@@ -49,7 +49,16 @@ spec:
                   maximum: 9
                   minimum: 0
                   type: integer
-            network:
+            mgr:
+              properties:
+                modules:
+                  items:
+                    properties:
+                      name:
+                        type: string
+                      enabled:
+                        type: boolean
+             network:
               properties:
                 hostNetwork:
                   type: boolean

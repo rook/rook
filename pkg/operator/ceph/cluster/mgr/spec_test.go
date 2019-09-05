@@ -46,6 +46,7 @@ func TestPodSpec(t *testing.T) {
 		cephv1.NetworkSpec{},
 		cephv1.DashboardSpec{},
 		cephv1.MonitoringSpec{},
+		cephv1.MgrSpec{},
 		v1.ResourceRequirements{
 			Limits: v1.ResourceList{
 				v1.ResourceCPU:    *resource.NewQuantity(200.0, resource.BinarySI),
@@ -97,6 +98,7 @@ func TestServiceSpec(t *testing.T) {
 		cephv1.NetworkSpec{},
 		cephv1.DashboardSpec{},
 		cephv1.MonitoringSpec{},
+		cephv1.MgrSpec{},
 		v1.ResourceRequirements{},
 		metav1.OwnerReference{},
 		"/var/lib/rook/",
@@ -122,6 +124,7 @@ func TestHostNetwork(t *testing.T) {
 		cephv1.NetworkSpec{HostNetwork: true},
 		cephv1.DashboardSpec{},
 		cephv1.MonitoringSpec{},
+		cephv1.MgrSpec{},
 		v1.ResourceRequirements{},
 		metav1.OwnerReference{},
 		"/var/lib/rook/",
@@ -155,6 +158,7 @@ func TestHttpBindFix(t *testing.T) {
 		cephv1.NetworkSpec{},
 		cephv1.DashboardSpec{},
 		cephv1.MonitoringSpec{},
+		cephv1.MgrSpec{},
 		v1.ResourceRequirements{},
 		metav1.OwnerReference{},
 		"/var/lib/rook/",
