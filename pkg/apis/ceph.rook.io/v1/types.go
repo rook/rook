@@ -71,9 +71,6 @@ type ClusterSpec struct {
 	// The path on the host where config and data can be persisted.
 	DataDirHostPath string `json:"dataDirHostPath,omitempty"`
 
-	// Ceph config overrides to apply.
-	ConfigOverrides ConfigOverridesSpec `json:"configOverrides,omitempty"`
-
 	// A spec for configuring disruption management.
 	DisruptionManagement DisruptionManagementSpec `json:"disruptionManagement,omitempty"`
 
@@ -157,18 +154,6 @@ const (
 	// DefaultFailureDomain for PoolSpec
 	DefaultFailureDomain = "host"
 )
-
-// ConfigOverridesSpec defines how Ceph configurations can be overridden by Rook.
-type ConfigOverridesSpec []ConfigOverride
-
-// ConfigOverride defines the syntax for overriding a Ceph config. This translates to a
-// `ceph config set <who> <option> <value>` (or similar) command.
-// See Ceph docs: https://docs.ceph.com/docs/master/rados/configuration/ceph-conf/#monitor-configuration-database
-type ConfigOverride struct {
-	Who    string `json:"who"`
-	Option string `json:"option"`
-	Value  string `json:"value"`
-}
 
 type MonSpec struct {
 	Count                int                       `json:"count,omitempty"`
