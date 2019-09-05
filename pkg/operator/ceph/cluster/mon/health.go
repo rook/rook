@@ -25,7 +25,7 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
-	cephver "github.com/rook/rook/pkg/operator/ceph/version"
+	cephspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -297,19 +297,9 @@ func removeMonitorFromQuorum(context *clusterd.Context, clusterName, name string
 }
 
 func (c *Cluster) handleExternalMonStatus(status client.MonStatusResponse) error {
-
-	// health check should tell us if the external cluster has been upgraded and display a message
-	externalCephMonVersion, err := client.GetCephMonVersion(c.context, c.Namespace)
+	_, err := cephspec.ValidateCephVersionsBetweenLocalAndExternalClusters(c.context, c.Namespace, c.ClusterInfo.CephVersion)
 	if err != nil {
-		return fmt.Errorf("failed to get ceph mon version. %+v", err)
-	}
-
-	err = cephver.ValidateCephVersionsBetweenLocalAndExternalClusters(c.ClusterInfo.CephVersion, *externalCephMonVersion)
-	if err != nil {
-		// We only want to display a warning
-		// Any CR update will be caught earlier and proper error will be return
-		// This only helps displaying potential upgrade from the external cluster
-		logger.Warning(err)
+		return fmt.Errorf("failed to validate external ceph version. %+v", err)
 	}
 
 	changed, err := c.addOrRemoveExternalMonitor(status)

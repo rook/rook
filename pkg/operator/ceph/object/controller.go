@@ -25,10 +25,9 @@ import (
 	opkit "github.com/rook/operator-kit"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 	daemonconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
-	cephver "github.com/rook/rook/pkg/operator/ceph/version"
+	cephspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
@@ -107,14 +106,7 @@ func (c *ObjectStoreController) onAdd(obj interface{}) {
 	defer c.releaseOrchestrationLock()
 
 	if c.clusterSpec.External.Enable {
-		// health check should tell us if the external cluster has been upgraded and display a message
-		externalCephMonVersion, err := client.GetCephMonVersion(c.context, c.namespace)
-		if err != nil {
-			logger.Errorf("failed to get ceph mon version. %+v", err)
-			return
-		}
-
-		err = cephver.ValidateCephVersionsBetweenLocalAndExternalClusters(c.clusterInfo.CephVersion, *externalCephMonVersion)
+		_, err := cephspec.ValidateCephVersionsBetweenLocalAndExternalClusters(c.context, c.namespace, c.clusterInfo.CephVersion)
 		if err != nil {
 			// This handles the case where the operator is running, the external cluster has been upgraded and a CR creation is called
 			// If that's a major version upgrade we fail, if it's a minor version, we continue, it's not ideal but not critical
