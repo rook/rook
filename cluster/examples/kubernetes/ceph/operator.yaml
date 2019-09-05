@@ -161,7 +161,7 @@ spec:
         # of the CSI driver to something other than what is officially supported, change
         # these images to the desired release of the CSI driver.
         #- name: ROOK_CSI_CEPH_IMAGE
-        #  value: "quay.io/cephcsi/cephcsi:canary"
+        #  value: "quay.io/cephcsi/cephcsi:v1.2.0"
         #- name: ROOK_CSI_REGISTRAR_IMAGE
         #  value: "quay.io/k8scsi/csi-node-driver-registrar:v1.1.0"
         #- name: ROOK_CSI_PROVISIONER_IMAGE

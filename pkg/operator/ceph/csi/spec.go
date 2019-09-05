@@ -71,7 +71,7 @@ const (
 	provDeploymentSuppVersion = "14"
 
 	// image names
-	DefaultCSIPluginImage   = "quay.io/cephcsi/cephcsi:canary"
+	DefaultCSIPluginImage   = "quay.io/cephcsi/cephcsi:v1.2.0"
 	DefaultRegistrarImage   = "quay.io/k8scsi/csi-node-driver-registrar:v1.1.0"
 	DefaultProvisionerImage = "quay.io/k8scsi/csi-provisioner:v1.3.0"
 	DefaultAttacherImage    = "quay.io/k8scsi/csi-attacher:v1.2.0"
