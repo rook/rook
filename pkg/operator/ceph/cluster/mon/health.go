@@ -25,6 +25,7 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
+	cephspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -296,6 +297,10 @@ func removeMonitorFromQuorum(context *clusterd.Context, clusterName, name string
 }
 
 func (c *Cluster) handleExternalMonStatus(status client.MonStatusResponse) error {
+	_, err := cephspec.ValidateCephVersionsBetweenLocalAndExternalClusters(c.context, c.Namespace, c.ClusterInfo.CephVersion)
+	if err != nil {
+		return fmt.Errorf("failed to validate external ceph version. %+v", err)
+	}
 
 	changed, err := c.addOrRemoveExternalMonitor(status)
 	if err != nil {
@@ -319,6 +324,15 @@ func (c *Cluster) addOrRemoveExternalMonitor(status client.MonStatusResponse) (b
 	monsNotFound := map[string]interface{}{}
 	for _, mon := range c.ClusterInfo.Monitors {
 		monsNotFound[mon.Name] = struct{}{}
+	}
+
+	monCount := len(status.MonMap.Mons)
+	if monCount%2 == 0 {
+		logger.Warningf("external cluster mon count is even (%d), should be uneven, continuing.", monCount)
+	}
+
+	if monCount == 1 {
+		logger.Warning("external cluster mon count is 1, consider adding new monitors.")
 	}
 
 	// Iterate over the mons first and compare it with ClusterInfo

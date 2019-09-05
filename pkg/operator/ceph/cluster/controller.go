@@ -30,6 +30,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
@@ -61,6 +62,7 @@ const (
 	updateClusterInterval    = 30 * time.Second
 	updateClusterTimeout     = 1 * time.Hour
 	detectCephVersionTimeout = 15 * time.Minute
+	externalConnectionRetry  = 60 * time.Second
 )
 
 const (
@@ -254,19 +256,19 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 	c.updateClusterStatus(namespace, name, cephv1.ClusterStateConnecting, "")
 
 	// loop until we find the secret necessary to connect to the external cluster
-	for {
-		var err error
-		cluster.Info, _, _, err = mon.LoadClusterInfo(c.context, namespace)
-		if err != nil {
-			logger.Warningf("waiting for the connection info of the external cluster. %+v", err)
-			time.Sleep(10 * time.Second)
-			continue
-		} else {
-			break
-		}
+	// then populate clusterInfo
+	cluster.Info = populateExternalClusterInfo(c.context, namespace)
+
+	// Validate versions (local and external)
+	_, _, err = c.detectAndValidateCephVersion(cluster, cluster.Spec.CephVersion.Image)
+	if err != nil {
+		return fmt.Errorf("failed to detect and validate ceph version. %+v", err)
 	}
 
-	logger.Infof("found the cluster info to connect to the external cluster. mons=%+v", cluster.Info.Monitors)
+	err = populateConfigOverrideConfigMap(cluster.context, namespace, cluster.ownerRef)
+	if err != nil {
+		return fmt.Errorf("failed to populate config override config map. %+v", err)
+	}
 
 	// Write the rook-ceph-config configmap (used by various daemons to apply config overrides)
 	// If we don't do this, daemons will never start, waiting forever for this configmap to be present
@@ -275,36 +277,11 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 		return err
 	}
 
-	// Let's write connection info (ceph config file and keyring) to the operator for health checks
-	err = mon.WriteConnectionConfig(cluster.context, cluster.Info)
+	// Apply CRD ConfigOverrideName to the external cluster
+	err = config.SetDefaultAndUserConfigs(cluster.context, namespace, cluster.Info, cluster.Spec.ConfigOverrides)
 	if err != nil {
-		return fmt.Errorf("failed to write connection info %+v", err)
-	}
-
-	// Get Ceph monitors version on the external cluster
-	cephMonVersion, err := client.GetCephMonVersion(c.context, namespace)
-	if err != nil {
-		return fmt.Errorf("failed to get ceph mon version. %+v", err)
-	}
-
-	// We only support Nautilus or newer
-	if !cephMonVersion.IsAtLeastNautilus() {
-		return fmt.Errorf("unsupported ceph version %s, need at least nautilus", cephMonVersion.String())
-	}
-
-	logger.Infof("detecting the image version provided for the external cluster...")
-	specCephVersionImage, err := cluster.detectCephVersion(c.rookImage, cluster.Spec.CephVersion.Image, detectCephVersionTimeout)
-	if err != nil {
-		return fmt.Errorf("unknown ceph major version. %+v", err)
-	}
-	specCephVersion := *specCephVersionImage
-
-	// Populate clusterInfo with the external cluster version
-	cluster.Info.CephVersion = *cephMonVersion
-
-	// Make sure the external cluster version and the ceph version in the provided image are identical
-	if !cephver.IsIdentical(specCephVersion, cluster.Info.CephVersion) {
-		return fmt.Errorf("wrong ceph version %s, external cluster version is %s, they must match", specCephVersion.String(), cephMonVersion.String())
+		// Mons are up, so something else is wrong
+		return fmt.Errorf("failed to set Rook and/or user-defined Ceph config options on the external cluster monitors. %+v", err)
 	}
 
 	// The cluster Identity must be established at this point
@@ -977,6 +954,46 @@ func validateExternalClusterSpec(cluster *cluster) error {
 	}
 	if cluster.Spec.CephVersion.Image == "" {
 		return fmt.Errorf("spec image must be specified")
+	}
+
+	return nil
+}
+
+// Add validation in the code to fail if the external cluster has no OSDs keep waiting
+func populateExternalClusterInfo(context *clusterd.Context, namespace string) *cephconfig.ClusterInfo {
+	var clusterInfo *cephconfig.ClusterInfo
+	for {
+		var err error
+		clusterInfo, _, _, err = mon.LoadClusterInfo(context, namespace)
+		if err != nil {
+			logger.Warningf("waiting for the connection info of the external cluster. retrying in %s.", externalConnectionRetry.String())
+			time.Sleep(externalConnectionRetry)
+			continue
+		} else {
+			logger.Infof("found the cluster info to connect to the external cluster. mons=%+v", clusterInfo.Monitors)
+			break
+		}
+	}
+
+	return clusterInfo
+}
+
+func populateConfigOverrideConfigMap(context *clusterd.Context, namespace string, ownerRef metav1.OwnerReference) error {
+	placeholderConfig := map[string]string{
+		k8sutil.ConfigOverrideVal: "",
+	}
+
+	cm := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: k8sutil.ConfigOverrideName,
+		},
+		Data: placeholderConfig,
+	}
+
+	k8sutil.SetOwnerRef(&cm.ObjectMeta, &ownerRef)
+	_, err := context.Clientset.CoreV1().ConfigMaps(namespace).Create(cm)
+	if err != nil && !errors.IsAlreadyExists(err) {
+		return fmt.Errorf("failed to create override configmap %s. %+v", namespace, err)
 	}
 
 	return nil

@@ -27,6 +27,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	daemonconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
+	cephspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
@@ -104,6 +105,15 @@ func (c *ObjectStoreController) onAdd(obj interface{}) {
 	c.acquireOrchestrationLock()
 	defer c.releaseOrchestrationLock()
 
+	if c.clusterSpec.External.Enable {
+		_, err := cephspec.ValidateCephVersionsBetweenLocalAndExternalClusters(c.context, c.namespace, c.clusterInfo.CephVersion)
+		if err != nil {
+			// This handles the case where the operator is running, the external cluster has been upgraded and a CR creation is called
+			// If that's a major version upgrade we fail, if it's a minor version, we continue, it's not ideal but not critical
+			logger.Errorf("refusing to run new crd. %+v", err)
+			return
+		}
+	}
 	c.createOrUpdateStore(objectstore)
 }
 

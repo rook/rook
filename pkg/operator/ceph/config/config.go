@@ -24,13 +24,9 @@ import (
 	"strings"
 
 	"github.com/coreos/pkg/capnslog"
-	"github.com/go-ini/ini"
 	rookceph "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
-	"github.com/rook/rook/pkg/operator/k8sutil"
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-config")
@@ -131,78 +127,4 @@ func SetDefaultAndUserConfigs(
 	}
 
 	return nil
-}
-
-// LegacyConfigMapOverrideDefined checks to see if the legacy ConfigMap override exists with
-// overrides defined. If it exists and has config overrides defined, this will return true. If it
-// does not exist or exists without config overrides set, it will return false.
-func LegacyConfigMapOverrideDefined(context *clusterd.Context, namespace string) (bool, error) {
-	cm, err := context.Clientset.CoreV1().ConfigMaps(namespace).
-		Get(k8sutil.ConfigOverrideName, metav1.GetOptions{})
-	if err != nil {
-		if errors.IsNotFound(err) {
-			logger.Debugf("override configmap does not exist")
-			return false, nil
-		}
-		// if we can't determine existence or not, assume it exists
-		return true, fmt.Errorf("failed to see if legacy override ConfigMap exists. %+v", err)
-	}
-
-	o, ok := cm.Data[k8sutil.ConfigOverrideVal]
-	if !ok || (ok && o == "") {
-		// if no override set or override is empty string
-		return false, nil
-	}
-
-	return true, nil
-}
-
-func configFileTextToOverrides(txt string) (rookceph.ConfigOverridesSpec, error) {
-	overrides := []rookceph.ConfigOverride{}
-
-	f, err := configFileTxtToINI(txt)
-	if err != nil {
-		return nil, err
-	}
-	sections := f.Sections()
-	for _, s := range sections {
-		who := s.Name()
-		keys := s.Keys()
-		for _, k := range keys {
-			option := k.Name()
-			value := k.String()
-			overrides = append(overrides, configOverride(who, option, value))
-		}
-	}
-
-	return overrides, nil
-}
-
-func configFileTxtToINI(txt string) (*ini.File, error) {
-	f := ini.Empty()
-	ovrTxt := []byte(txt)
-	if err := f.Append(ovrTxt); err != nil {
-		return nil, fmt.Errorf("failed to interpret text as INI file '''%s'''. %+v", ovrTxt, err)
-	}
-	return f, nil
-}
-
-func getOverrideConfigFromConfigMap(context *clusterd.Context, namespace string) string {
-	cm, err := context.Clientset.CoreV1().ConfigMaps(namespace).
-		Get(k8sutil.ConfigOverrideName, metav1.GetOptions{})
-	if err != nil {
-		if errors.IsNotFound(err) {
-			logger.Debugf("override configmap does not exist")
-			return "" // return empty string if cannot get override text
-		}
-		logger.Warningf("Error getting override configmap. %+v", err)
-		return "" // return empty string if cannot get override text
-	}
-	// the override config map exists
-	o, ok := cm.Data[k8sutil.ConfigOverrideVal]
-	if !ok {
-		logger.Warningf("The override config map does not have override text defined. %+v", o)
-		return "" // return empty string if cannot get override text
-	}
-	return o
 }

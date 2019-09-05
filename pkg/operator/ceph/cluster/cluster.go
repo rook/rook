@@ -36,10 +36,9 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/rbd"
+	"github.com/rook/rook/pkg/operator/ceph/config"
+	cephspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
-	"github.com/rook/rook/pkg/operator/k8sutil"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -124,17 +123,19 @@ func (c *cluster) detectCephVersion(rookImage, cephImage string, timeout time.Du
 }
 
 func (c *cluster) validateCephVersion(version *cephver.CephVersion) error {
-	if !version.IsAtLeast(cephver.Minimum) {
-		return fmt.Errorf("the version does not meet the minimum version: %s", cephver.Minimum.String())
-	}
+	// The external has its own supported versions
+	if !c.Spec.External.Enable {
+		if !version.IsAtLeast(cephver.Minimum) {
+			return fmt.Errorf("the version does not meet the minimum version: %s", cephver.Minimum.String())
+		}
 
-	if !version.Supported() {
-		logger.Warningf("unsupported ceph version detected: %s.", version)
-		if !c.Spec.CephVersion.AllowUnsupported {
-			return fmt.Errorf("allowUnsupported must be set to true to run with this version: %v", version)
+		if !version.Supported() {
+			logger.Warningf("unsupported ceph version detected: %s.", version)
+			if !c.Spec.CephVersion.AllowUnsupported {
+				return fmt.Errorf("allowUnsupported must be set to true to run with this version: %v", version)
+			}
 		}
 	}
-
 	// The following tries to determine if the operator can proceed with an upgrade because we come from an OnAdd() call
 	// If the cluster was unhealthy and someone injected a new image version, an upgrade was triggered but failed because the cluster is not healthy
 	// Then after this, if the operator gets restarted we are not able to fail if the cluster is not healthy, the following tries to determine the
@@ -154,6 +155,13 @@ func (c *cluster) validateCephVersion(version *cephver.CephVersion) error {
 		// If not initialized, this is likely a new cluster so there is nothing to do
 		logger.Debug("cluster not initialized, nothing to validate")
 		return nil
+	}
+
+	if c.Spec.External.Enable {
+		c.Info.CephVersion, err = cephspec.ValidateCephVersionsBetweenLocalAndExternalClusters(c.context, c.Namespace, *version)
+		if err != nil {
+			return fmt.Errorf("failed to validate ceph version between external and local. %+v", err)
+		}
 	}
 
 	// Get cluster running versions
@@ -216,66 +224,71 @@ func (c *cluster) createInstance(rookImage string, cephVersion cephver.CephVersi
 func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVersion, spec *cephv1.ClusterSpec) error {
 	// Create a configmap for overriding ceph config settings
 	// These settings should only be modified by a user after they are initialized
-	placeholderConfig := map[string]string{
-		k8sutil.ConfigOverrideVal: "",
-	}
-	cm := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: k8sutil.ConfigOverrideName,
-		},
-		Data: placeholderConfig,
-	}
-	k8sutil.SetOwnerRef(&cm.ObjectMeta, &c.ownerRef)
-	_, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(cm)
-	if err != nil && !errors.IsAlreadyExists(err) {
-		return fmt.Errorf("failed to create override configmap %s. %+v", c.Namespace, err)
-	}
-
-	// This gets triggered on CR update so let's not run that (mon/mgr/osd daemons)
-	// Start the mon pods
-	clusterInfo, err := c.mons.Start(c.Info, rookImage, cephVersion, *c.Spec, c.isUpgrade)
+	err := populateConfigOverrideConfigMap(c.context, c.Namespace, c.ownerRef)
 	if err != nil {
-		return fmt.Errorf("failed to start the mons. %+v", err)
-	}
-	c.Info = clusterInfo // mons return the cluster's info
-
-	// The cluster Identity must be established at this point
-	if !c.Info.IsInitialized() {
-		return fmt.Errorf("the cluster identity was not established: %+v", c.Info)
+		return fmt.Errorf("failed to populate config override config map. %+v", err)
 	}
 
-	mgrs := mgr.New(c.Info, c.context, c.Namespace, rookImage,
-		spec.CephVersion, cephv1.GetMgrPlacement(spec.Placement), cephv1.GetMgrAnnotations(c.Spec.Annotations),
-		spec.Network, spec.Dashboard, spec.Monitoring, cephv1.GetMgrResources(spec.Resources), c.ownerRef, c.Spec.DataDirHostPath, c.isUpgrade)
-	err = mgrs.Start()
-	if err != nil {
-		return fmt.Errorf("failed to start the ceph mgr. %+v", err)
-	}
+	if c.Spec.External.Enable {
+		// Apply CRD ConfigOverrideName to the external cluster
+		err = config.SetDefaultAndUserConfigs(c.context, c.Namespace, c.Info, c.Spec.ConfigOverrides)
+		if err != nil {
+			// Mons are up, so something else is wrong
+			return fmt.Errorf("failed to set Rook and/or user-defined Ceph config options on the external cluster monitors. %+v", err)
+		}
 
-	// Start the OSDs
-	osds := osd.New(c.Info, c.context, c.Namespace, rookImage, spec.CephVersion, spec.Storage, spec.DataDirHostPath,
-		cephv1.GetOSDPlacement(spec.Placement), cephv1.GetOSDAnnotations(spec.Annotations), spec.Network,
-		cephv1.GetOSDResources(spec.Resources), c.ownerRef, c.isUpgrade)
-	err = osds.Start()
-	if err != nil {
-		return fmt.Errorf("failed to start the osds. %+v", err)
-	}
+		// The cluster Identity must be established at this point
+		if !c.Info.IsInitialized() {
+			return fmt.Errorf("the cluster identity was not established: %+v", c.Info)
+		}
+	} else {
+		// This gets triggered on CR update so let's not run that (mon/mgr/osd daemons)
+		// Start the mon pods
+		clusterInfo, err := c.mons.Start(c.Info, rookImage, cephVersion, *c.Spec, c.isUpgrade)
+		if err != nil {
+			return fmt.Errorf("failed to start the mons. %+v", err)
+		}
+		c.Info = clusterInfo // mons return the cluster's info
 
-	// Start the rbd mirroring daemon(s)
-	rbdmirror := rbd.New(c.Info, c.context, c.Namespace, rookImage, spec.CephVersion, cephv1.GetRBDMirrorPlacement(spec.Placement),
-		cephv1.GetRBDMirrorAnnotations(spec.Annotations), spec.Network, spec.RBDMirroring,
-		cephv1.GetRBDMirrorResources(spec.Resources), c.ownerRef, c.Spec.DataDirHostPath, c.isUpgrade)
-	err = rbdmirror.Start()
-	if err != nil {
-		return fmt.Errorf("failed to start the rbd mirrors. %+v", err)
-	}
+		// The cluster Identity must be established at this point
+		if !c.Info.IsInitialized() {
+			return fmt.Errorf("the cluster identity was not established: %+v", c.Info)
+		}
 
-	logger.Infof("Done creating rook instance in namespace %s", c.Namespace)
-	c.initCompleted = true
+		mgrs := mgr.New(c.Info, c.context, c.Namespace, rookImage,
+			spec.CephVersion, cephv1.GetMgrPlacement(spec.Placement), cephv1.GetMgrAnnotations(c.Spec.Annotations),
+			spec.Network, spec.Dashboard, spec.Monitoring, cephv1.GetMgrResources(spec.Resources), c.ownerRef, c.Spec.DataDirHostPath, c.isUpgrade)
+		err = mgrs.Start()
+		if err != nil {
+			return fmt.Errorf("failed to start the ceph mgr. %+v", err)
+		}
+
+		// Start the OSDs
+		osds := osd.New(c.Info, c.context, c.Namespace, rookImage, spec.CephVersion, spec.Storage, spec.DataDirHostPath,
+			cephv1.GetOSDPlacement(spec.Placement), cephv1.GetOSDAnnotations(spec.Annotations), spec.Network,
+			cephv1.GetOSDResources(spec.Resources), c.ownerRef, c.isUpgrade)
+		err = osds.Start()
+		if err != nil {
+			return fmt.Errorf("failed to start the osds. %+v", err)
+		}
+
+		// Start the rbd mirroring daemon(s)
+		rbdmirror := rbd.New(c.Info, c.context, c.Namespace, rookImage, spec.CephVersion, cephv1.GetRBDMirrorPlacement(spec.Placement),
+			cephv1.GetRBDMirrorAnnotations(spec.Annotations), spec.Network, spec.RBDMirroring,
+			cephv1.GetRBDMirrorResources(spec.Resources), c.ownerRef, c.Spec.DataDirHostPath, c.isUpgrade)
+		err = rbdmirror.Start()
+		if err != nil {
+			return fmt.Errorf("failed to start the rbd mirrors. %+v", err)
+		}
+
+		logger.Infof("Done creating rook instance in namespace %s", c.Namespace)
+		c.initCompleted = true
+	}
 
 	// Notify the child controllers that the cluster spec might have changed
+	logger.Debug("notifying CR childs of the potential upgrade")
 	for _, child := range c.childControllers {
-		child.ParentClusterChanged(*c.Spec, clusterInfo, c.isUpgrade)
+		child.ParentClusterChanged(*c.Spec, c.Info, c.isUpgrade)
 	}
 
 	return nil
