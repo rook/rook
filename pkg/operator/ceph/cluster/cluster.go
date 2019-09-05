@@ -37,6 +37,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/rbd"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	cephspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -157,12 +158,7 @@ func (c *cluster) validateCephVersion(version *cephver.CephVersion) error {
 	}
 
 	if c.Spec.External.Enable {
-		externalCephMonVersion, err := client.GetCephMonVersion(c.context, c.Namespace)
-		if err != nil {
-			return fmt.Errorf("failed to get ceph mon version. %+v", err)
-		}
-		c.Info.CephVersion = *externalCephMonVersion
-		err = cephver.ValidateCephVersionsBetweenLocalAndExternalClusters(*version, c.Info.CephVersion)
+		c.Info.CephVersion, err = cephspec.ValidateCephVersionsBetweenLocalAndExternalClusters(c.context, c.Namespace, *version)
 		if err != nil {
 			return fmt.Errorf("failed to validate ceph version between external and local. %+v", err)
 		}
