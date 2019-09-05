@@ -33,7 +33,7 @@ type CephManifests interface {
 	GetCleanupPod(node, removalDir string) string
 	GetBlockPoolDef(poolName string, namespace string, replicaSize string) string
 	GetBlockStorageClassDef(poolName string, storageClassName string, reclaimPolicy string, namespace string, varClusterName bool) string
-	GetBlockPvcDef(claimName string, storageClassName string, accessModes string) string
+	GetBlockPvcDef(claimName string, storageClassName string, accessModes string, size string) string
 	GetBlockPoolStorageClassAndPvcDef(namespace string, poolName string, storageClassName string, reclaimPolicy string, blockName string, accessMode string) string
 	GetBlockPoolStorageClass(namespace string, poolName string, storageClassName string, reclaimPolicy string) string
 	GetFilesystem(namepace, name string, activeCount int) string
@@ -1707,13 +1707,14 @@ kind: StorageClass
 metadata:
    name: ` + storageClassName + `
 provisioner: ceph.rook.io/block
+allowVolumeExpansion: true
 reclaimPolicy: ` + reclaimPolicy + `
 parameters:
     blockPool: ` + poolName + `
     ` + namespaceParameter + `: ` + namespace
 }
 
-func (m *CephManifestsMaster) GetBlockPvcDef(claimName string, storageClassName string, accessModes string) string {
+func (m *CephManifestsMaster) GetBlockPvcDef(claimName, storageClassName, accessModes, size string) string {
 	return `apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -1725,12 +1726,12 @@ spec:
     - ` + accessModes + `
   resources:
     requests:
-      storage: 1M`
+      storage: ` + size
 }
 
 func (m *CephManifestsMaster) GetBlockPoolStorageClassAndPvcDef(namespace string, poolName string, storageClassName string, reclaimPolicy string, blockName string, accessMode string) string {
 	return concatYaml(m.GetBlockPoolDef(poolName, namespace, "1"),
-		concatYaml(m.GetBlockStorageClassDef(poolName, storageClassName, reclaimPolicy, namespace, false), m.GetBlockPvcDef(blockName, storageClassName, accessMode)))
+		concatYaml(m.GetBlockStorageClassDef(poolName, storageClassName, reclaimPolicy, namespace, false), m.GetBlockPvcDef(blockName, storageClassName, accessMode, "1M")))
 }
 
 func (m *CephManifestsMaster) GetBlockPoolStorageClass(namespace string, poolName string, storageClassName string, reclaimPolicy string) string {

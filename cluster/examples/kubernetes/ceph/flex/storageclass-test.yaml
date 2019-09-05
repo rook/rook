@@ -17,6 +17,8 @@ kind: StorageClass
 metadata:
    name: rook-ceph-block
 provisioner: ceph.rook.io/block
+# Works for Kubernetes 1.14+
+allowVolumeExpansion: true
 parameters:
   blockPool: replicapool
   clusterNamespace: rook-ceph

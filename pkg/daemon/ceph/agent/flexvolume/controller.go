@@ -19,6 +19,7 @@ package flexvolume
 
 import (
 	"fmt"
+	"github.com/rook/rook/pkg/util/display"
 	"os"
 	"path"
 	"path/filepath"
@@ -193,6 +194,17 @@ func (c *Controller) Attach(attachOpts AttachOptions, devicePath *string) error 
 	*devicePath, err = c.volumeManager.Attach(attachOpts.Image, attachOpts.BlockPool, attachOpts.MountUser, attachOpts.MountSecret, attachOpts.ClusterNamespace)
 	if err != nil {
 		return fmt.Errorf("failed to attach volume %s/%s: %+v", attachOpts.BlockPool, attachOpts.Image, err)
+	}
+	return nil
+}
+
+// Expand RBD image
+func (c *Controller) Expand(expandArgs ExpandArgs, _ *struct{}) error {
+	expandOpts := expandArgs.ExpandOptions
+	sizeInMb := display.BToMb(expandArgs.Size)
+	err := c.volumeManager.Expand(expandOpts.Image, expandOpts.Pool, expandOpts.ClusterNamespace, sizeInMb)
+	if err != nil {
+		return fmt.Errorf("failed to resize volume %s/%s: %+v", expandOpts.Pool, expandOpts.Image, err)
 	}
 	return nil
 }

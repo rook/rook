@@ -1233,7 +1233,30 @@ func (k8sh *K8sHelper) WaitUntilPVCIsBound(namespace string, pvcname string) boo
 				return true
 			}
 		}
-		logger.Infof("waiting for PVC %s  to be bound. current=%s. err=%+v", pvcname, out, err)
+		logger.Infof("waiting for PVC %s to be bound. current=%s. err=%+v", pvcname, out, err)
+		inc++
+		time.Sleep(RetryInterval * time.Second)
+	}
+	return false
+}
+
+// WaitUntilPVCIsExpanded waits for a PVC to be resized for specified value
+func (k8sh *K8sHelper) WaitUntilPVCIsExpanded(namespace, pvcname, size string) bool {
+	getOpts := metav1.GetOptions{}
+	inc := 0
+	for inc < RetryLoop {
+		// PVC specs changes immediately, but status will change only if resize process is successfully completed.
+		pvc, err := k8sh.Clientset.CoreV1().PersistentVolumeClaims(namespace).Get(pvcname, getOpts)
+		if err == nil {
+			currentSize := pvc.Status.Capacity[v1.ResourceStorage]
+			if currentSize.String() == size {
+				logger.Infof("PVC %s is resized", pvcname)
+				return true
+			}
+			logger.Infof("waiting for PVC %s to be resized, current: %s, expected: %s", pvcname, currentSize.String(), size)
+		} else {
+			logger.Infof("error while getting PVC specs: %+v", err)
+		}
 		inc++
 		time.Sleep(RetryInterval * time.Second)
 	}
@@ -1248,7 +1271,7 @@ func (k8sh *K8sHelper) WaitUntilPVCIsDeleted(namespace string, pvcname string) b
 		if err != nil {
 			return true
 		}
-		logger.Infof("waiting for PVC %s  to be deleted.", pvcname)
+		logger.Infof("waiting for PVC %s to be deleted.", pvcname)
 		inc++
 		time.Sleep(RetryInterval * time.Second)
 	}

@@ -23,6 +23,7 @@ type FakeVolumeManager struct {
 	FakeInit   func() error
 	FakeAttach func(image, pool, id, key, clusterName string) (string, error)
 	FakeDetach func(image, pool, clusterName string, force bool) error
+	FakeExpand func(image, pool, clusterName string, size uint64) error
 }
 
 // Init initializes the FakeVolumeManager
@@ -45,6 +46,13 @@ func (f *FakeVolumeManager) Attach(image, pool, id, key, clusterName string) (st
 func (f *FakeVolumeManager) Detach(image, pool, id, key, clusterName string, force bool) error {
 	if f.FakeDetach != nil {
 		return f.FakeDetach(image, pool, clusterName, force)
+	}
+	return nil
+}
+
+func (f *FakeVolumeManager) Expand(image, pool, clusterName string, size uint64) error {
+	if f.FakeExpand != nil {
+		return f.FakeExpand(image, pool, clusterName, size)
 	}
 	return nil
 }

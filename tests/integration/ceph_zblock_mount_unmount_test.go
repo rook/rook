@@ -111,7 +111,7 @@ func (s *BlockMountUnMountSuite) setupPVCs() {
 	require.Nil(s.T(), cbErr)
 	require.True(s.T(), s.kh.WaitUntilPVCIsBound(defaultNamespace, s.pvcNameRWO), "Make sure PVC is Bound")
 
-	cbErr2 := s.testClient.BlockClient.CreatePvc(s.pvcNameRWX, storageClassNameRWO, "ReadWriteMany")
+	cbErr2 := s.testClient.BlockClient.CreatePvc(s.pvcNameRWX, storageClassNameRWO, "ReadWriteMany", "1M")
 	require.Nil(s.T(), cbErr2)
 	require.True(s.T(), s.kh.WaitUntilPVCIsBound(defaultNamespace, s.pvcNameRWX), "Make sure PVC is Bound")
 
