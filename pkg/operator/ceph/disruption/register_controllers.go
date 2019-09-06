@@ -16,23 +16,34 @@ limitations under the License.
 
 // Package controllers contains all the controller-runtime controllers and
 // exports
-package controllers
+package disruption
 
 import (
 	"fmt"
 
-	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
-
 	"github.com/rook/rook/pkg/operator/ceph/disruption/clusterdisruption"
+	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
+	"github.com/rook/rook/pkg/operator/ceph/disruption/machinedisruption"
+	"github.com/rook/rook/pkg/operator/ceph/disruption/machinelabel"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/nodedrain"
 
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+)
+
+var (
+	EnableMachineDisruptionBudget bool
 )
 
 // AddToManagerFuncs is a list of functions to add all Controllers to the Manager (entrypoint for controller)
 var AddToManagerFuncs = []func(manager.Manager, *controllerconfig.Context) error{
 	nodedrain.Add,
 	clusterdisruption.Add,
+}
+
+// MachineDisruptionBudgetAddToManagerFuncs is a list of fencing related functions to add all Controllers to the Manager (entrypoint for controller)
+var MachineDisruptionBudgetAddToManagerFuncs = []func(manager.Manager, *controllerconfig.Context) error{
+	machinelabel.Add,
+	machinedisruption.Add,
 }
 
 // AddToManager adds all the registered controllers to the passed manager.
@@ -47,5 +58,14 @@ func AddToManager(m manager.Manager, c *controllerconfig.Context) error {
 			return err
 		}
 	}
+
+	if EnableMachineDisruptionBudget {
+		for _, f := range MachineDisruptionBudgetAddToManagerFuncs {
+			if err := f(m, c); err != nil {
+				return err
+			}
+		}
+	}
+
 	return nil
 }

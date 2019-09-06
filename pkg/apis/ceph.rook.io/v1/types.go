@@ -433,4 +433,10 @@ type DisruptionManagementSpec struct {
 	// it only works if managePodBudgetss is true.
 	// the default is 30 minutes
 	OSDMaintenenceTimeout time.Duration `json:"osdMaintenanceTimeout,omitempty"`
+
+	// This enables management of machinedisruptionbudgets
+	ManageMachineDisruptionBudgets bool `json:"manageMachineDisruptionBudgets,omitempty"`
+
+	// Namespace to look for MDBs by the machineDisruptionBudgetController
+	MachineDisruptionBudgetNamespace string `json:"machineDisruptionBudgetNamespace,omitempty"`
 }

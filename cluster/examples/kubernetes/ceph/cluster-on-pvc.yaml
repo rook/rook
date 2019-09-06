@@ -73,3 +73,8 @@ spec:
           volumeMode: Block
           accessModes:
             - ReadWriteOnce
+  disruptionManagement:
+    managePodBudgets: false
+    osdMaintenanceTimeout: 30
+    manageMachineDisruptionBudgets: false
+    machineDisruptionBudgetNamespace: openshift-machine-api
