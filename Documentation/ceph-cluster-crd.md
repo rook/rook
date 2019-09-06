@@ -130,6 +130,8 @@ For more details on the mons and when to choose a number other than `3`, see the
 - `disruptionManagement`: The section for configuring management of daemon disruptions
   - `managePodBudgets`: if `true`, the operator will create and manage PodDsruptionBudgets for OSD, Mon, RGW, and MDS daemons. OSD PDBs are managed dynamically via the strategy outlined in the [design](https://github.com/rook/rook/blob/master/design/ceph-managed-disruptionbudgets.md). The operator will block eviction of OSDs by default and unblock them safely when drains are detected.
   - `osdMaintenanceTimeout`: is a duration in minutes that determines how long an entire failureDomain like `region/zone/host` will be held in `noout` (in addition to the default DOWN/OUT interval) when it is draining. This is only relevant when  `managePodBudgets` is `true`. The default value is `30` minutes.
+- `mgr`: manager top level section
+  - `modules`: is the list of ceph manager modules to enable
 
 ### Mon Settings
 
@@ -150,6 +152,20 @@ If these settings are changed in the CRD the operator will update the number of 
 To change the defaults that the operator uses to determine the mon health and whether to failover a mon, the following environment variables can be changed in [operator.yaml](https://github.com/rook/rook/blob/master/cluster/examples/kubernetes/ceph/operator.yaml). The intervals should be small enough that you have confidence the mons will maintain quorum, while also being long enough to ignore network blips where mons are failed over too often.
 - `ROOK_MON_HEALTHCHECK_INTERVAL`: The frequency with which to check if mons are in quorum (default is 45 seconds)
 - `ROOK_MON_OUT_TIMEOUT`: The interval to wait before marking a mon as "out" and starting a new mon to replace it in the quorum (default is 600 seconds)
+
+### Mgr Settings
+
+You can use the cluster CR to enable or disable any manager module. This can be configured like so:
+
+```yaml
+mgr:
+  modules:
+  - name: <name of the module>
+    enabled: true
+```
+
+Some modules will have special configuration to ensure the module is fully functional after being enabled. Specifically:
+- `pg_autoscaler`: Rook will configure all new pools with PG autoscaling by setting: `osd_pool_default_pg_autoscale_mode = on`
 
 ### Node Settings
 In addition to the cluster level settings specified above, each individual node can also specify configuration to override the cluster level settings and defaults.

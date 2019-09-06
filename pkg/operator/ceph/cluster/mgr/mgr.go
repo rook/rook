@@ -44,12 +44,13 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mgr")
 var prometheusRuleName = "prometheus-ceph-vVERSION-rules"
 
 const (
-	appName              = "rook-ceph-mgr"
-	serviceAccountName   = "rook-ceph-mgr"
-	prometheusModuleName = "prometheus"
-	metricsPort          = 9283
-	monitoringPath       = "/etc/ceph-monitoring/"
-	serviceMonitorFile   = "service-monitor.yaml"
+	appName                = "rook-ceph-mgr"
+	serviceAccountName     = "rook-ceph-mgr"
+	prometheusModuleName   = "prometheus"
+	pgautoscalerModuleName = "pg_autoscaler"
+	metricsPort            = 9283
+	monitoringPath         = "/etc/ceph-monitoring/"
+	serviceMonitorFile     = "service-monitor.yaml"
 	// minimum amount of memory in MB to run the pod
 	cephMgrPodMinimumMemory uint64 = 512
 )
@@ -68,6 +69,7 @@ type Cluster struct {
 	ownerRef        metav1.OwnerReference
 	dashboard       cephv1.DashboardSpec
 	monitoringSpec  cephv1.MonitoringSpec
+	mgrSpec         cephv1.MgrSpec
 	cephVersion     cephv1.CephVersionSpec
 	rookVersion     string
 	exitCode        func(err error) (int, bool)
@@ -86,6 +88,7 @@ func New(
 	network cephv1.NetworkSpec,
 	dashboard cephv1.DashboardSpec,
 	monitoringSpec cephv1.MonitoringSpec,
+	mgrSpec cephv1.MgrSpec,
 	resources v1.ResourceRequirements,
 	ownerRef metav1.OwnerReference,
 	dataDirHostPath string,
@@ -102,6 +105,7 @@ func New(
 		dataDir:         k8sutil.DataDir,
 		dashboard:       dashboard,
 		monitoringSpec:  monitoringSpec,
+		mgrSpec:         mgrSpec,
 		Network:         network,
 		resources:       resources,
 		ownerRef:        ownerRef,
@@ -190,6 +194,10 @@ func (c *Cluster) Start() error {
 			logger.Errorf("failed to enable mgr dashboard. %+v", err)
 		}
 
+		if err := c.configureMgrModules(); err != nil {
+			logger.Errorf("failed to enable mgr module(s) from the spec. %+v", err)
+		}
+
 	}
 
 	// create the metrics service
@@ -238,6 +246,67 @@ func (c *Cluster) enablePrometheusModule(clusterName string) error {
 		return fmt.Errorf("failed to enable mgr prometheus module. %+v", err)
 	}
 	return nil
+}
+
+func (c *Cluster) configureMgrModules() error {
+	// Enable mgr modules from the spec
+	for _, module := range c.mgrSpec.Modules {
+		if module.Name == "" {
+			return fmt.Errorf("name not specified for the mgr module configuration")
+		}
+		if wellKnownModule(module.Name) {
+			return fmt.Errorf("cannot configure mgr module %s that is configured with other cluster settings", module.Name)
+		}
+		minVersion, versionOK := c.moduleMeetsMinVersion(module.Name)
+		if !versionOK {
+			return fmt.Errorf("module %s cannot be configured because it requires at least Ceph version %v", module.Name, minVersion)
+		}
+
+		if module.Enabled {
+			if err := client.MgrEnableModule(c.context, c.Namespace, module.Name, false); err != nil {
+				return fmt.Errorf("failed to enable mgr module %s. %+v", module.Name, err)
+			}
+
+			// Configure special settings for individual modules that are enabled
+			if module.Name == pgautoscalerModuleName && c.clusterInfo.CephVersion.IsAtLeastNautilus() {
+				monStore := config.GetMonStore(c.context, c.Namespace)
+				// Ceph Octopus will have that option enabled
+				err := monStore.Set("global", "osd_pool_default_pg_autoscale_mode", "on")
+				if err != nil {
+					return fmt.Errorf("failed to enable pg autoscale mode for newly created pools. %+v", err)
+				}
+			}
+		} else {
+			if err := client.MgrDisableModule(c.context, c.Namespace, module.Name); err != nil {
+				return fmt.Errorf("failed to disable mgr module %s. %+v", module.Name, err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (c *Cluster) moduleMeetsMinVersion(name string) (*cephver.CephVersion, bool) {
+	minVersions := map[string]cephver.CephVersion{
+		// The PG autoscaler module requires Nautilus
+		pgautoscalerModuleName: {Major: 14},
+	}
+	if ver, ok := minVersions[name]; ok {
+		// Check if the required min version is met
+		return &ver, c.clusterInfo.CephVersion.IsAtLeast(ver)
+	}
+	// no min version was required
+	return nil, true
+}
+
+func wellKnownModule(name string) bool {
+	knownModules := []string{rookModuleName, dashboardModuleName, prometheusModuleName}
+	for _, known := range knownModules {
+		if name == known {
+			return true
+		}
+	}
+	return false
 }
 
 // add a servicemonitor that allows prometheus to scrape from the monitoring endpoint of the cluster

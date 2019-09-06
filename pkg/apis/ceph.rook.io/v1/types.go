@@ -89,6 +89,9 @@ type ClusterSpec struct {
 	// Whether the Ceph Cluster is running external to this Kubernetes cluster
 	// mon, mgr, osd, mds, and discover daemons will not be created for external clusters.
 	External ExternalSpec `json:"external"`
+
+	// A spec for mgr related options
+	Mgr MgrSpec `json:"mgr,omitempty"`
 }
 
 // VersionSpec represents the settings for the Ceph version that Rook is orchestrating.
@@ -159,6 +162,17 @@ type MonSpec struct {
 	Count                int                       `json:"count,omitempty"`
 	AllowMultiplePerNode bool                      `json:"allowMultiplePerNode,omitempty"`
 	VolumeClaimTemplate  *v1.PersistentVolumeClaim `json:"volumeClaimTemplate,omitempty"`
+}
+
+// MgrSpec represents options to configure a ceph mgr
+type MgrSpec struct {
+	Modules []Module `json:"modules,omitempty"`
+}
+
+// Module represents mgr modules that the user wants to enable or disable
+type Module struct {
+	Name    string `json:"name,omitempty"`
+	Enabled bool   `json:"enabled"`
 }
 
 // ExternalSpec represents the options supported by an external cluster
