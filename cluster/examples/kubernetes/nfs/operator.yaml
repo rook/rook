@@ -183,7 +183,7 @@ spec:
       app: rook-nfs-provisioner
   replicas: 1
   strategy:
-    type: Recreate 
+    type: Recreate
   template:
     metadata:
       labels:
