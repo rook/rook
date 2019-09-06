@@ -154,11 +154,42 @@ func FormatLocation(location, hostName string) ([]string, error) {
 	// set the host name
 	if !isCrushFieldSet("host", pairs) {
 		// keep the fully qualified host name in the crush map, but replace the dots with dashes to satisfy ceph
-		hostName = strings.Replace(hostName, ".", "-", -1)
+		hostName = NormalizeCrushName(hostName)
 		pairs = append(pairs, formatProperty("host", hostName))
 	}
 
 	return pairs, nil
+}
+
+// NormalizeCrushName replaces . with -
+func NormalizeCrushName(name string) string {
+	return strings.Replace(name, ".", "-", -1)
+}
+
+// IsNormalizedCrushNameEqual returns true if normalized is either equal to or the normalized version of notNormalized
+// a crush name is normalized if it comes from the crushmap or has passed through the NormalizeCrushName function.
+func IsNormalizedCrushNameEqual(notNormalized, normalized string) bool {
+	if notNormalized == normalized || NormalizeCrushName(notNormalized) == normalized {
+		return true
+	}
+	return false
+}
+
+// UpdateCrushMapValue is for updating the output of FormatLocation(location, hostName)
+// this is not safe for incorrectly formatted strings
+func UpdateCrushMapValue(pairs *[]string, key, value string) {
+	found := false
+	property := formatProperty(key, value)
+	for i, pair := range *pairs {
+		entry := strings.Split(pair, "=")
+		if key == entry[0] {
+			(*pairs)[i] = property
+			found = true
+		}
+	}
+	if !found {
+		*pairs = append(*pairs, property)
+	}
 }
 
 func isValidCrushFieldFormat(pair string) bool {

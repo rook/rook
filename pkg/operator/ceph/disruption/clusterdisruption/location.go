@@ -171,7 +171,7 @@ func getOSDsForNodes(osdDataList []OsdData, nodeList []*corev1.Node, failureDoma
 			if !ok {
 				return nil, fmt.Errorf("could not find the %s label on node %s", failureDomainLabel, node.ObjectMeta.Name)
 			}
-			if crushFailureDomain == nodeFailureDomain || secondaryCrushHostname == nodeFailureDomain {
+			if cephClient.IsNormalizedCrushNameEqual(nodeFailureDomain, crushFailureDomain) || cephClient.IsNormalizedCrushNameEqual(secondaryCrushHostname, crushFailureDomain) {
 				nodeOsdDataList = append(nodeOsdDataList, osdData)
 			}
 		}
