@@ -149,7 +149,7 @@ func (r *ReconcileClusterDisruption) reconcile(request reconcile.Request) (recon
 	}
 
 	// get the osds with crush data populated
-	osdDataList, err := r.getOsdDataList(request)
+	osdDataList, err := r.getOsdDataList(request, poolFailureDomain)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
