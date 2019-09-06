@@ -100,7 +100,7 @@ spec:
       serviceAccountName: rook-yugabytedb-operator
       containers:
       - name: rook-yugabytedb-operator
-        image: rook/yugabytedb:v1.1.0-beta.0
+        image: rook/yugabytedb:v1.1.0-beta.1
         args: ["yugabytedb", "operator"]
         env:
         - name: POD_NAME
