@@ -41,6 +41,7 @@ const (
 	MDReserved            = "mdReserved"
 	HDDReadAhead          = "hddReadAhead"
 	LmdbPageSizeKey       = "lmdbPageSize"
+	LmdbMdPageSizeKey     = "lmdbMdPageSize"
 	UseBcacheKey          = "useBCache"
 	UseBcacheWBKey        = "useBCacheWB"
 	UseMetadataMaskKey    = "useMetadataMask"
@@ -56,6 +57,8 @@ type StoreConfig struct {
 	RtVerifyChid int `json:"rtVerifyChid,omitempty"`
 	// 4096, 8192, 16384 or 32768
 	LmdbPageSize int `json:"lmdbPageSize,omitempty"`
+	// 4096, 8192, 16384 or 32768
+	LmdbMdPageSize int `json:"lmdbMdPageSize,omitempty"`
 	// in 10..99% of potential SSD partition
 	MDReserved int `json:"mdReserved,omitempty"`
 	// applies to data chunks on HDD partitions, in KBs
@@ -84,6 +87,7 @@ func DefaultStoreConfig() StoreConfig {
 	return StoreConfig{
 		RtVerifyChid:       1,
 		LmdbPageSize:       16384,
+		LmdbMdPageSize:     8192,
 		MDReserved:         0,
 		HDDReadAhead:       0,
 		UseBCache:          false,
@@ -142,6 +146,13 @@ func ToStoreConfig(config map[string]string) StoreConfig {
 				storeConfig.LmdbPageSize = value
 			} else {
 				logger.Warningf("Incorrect 'lmdbPageSize' value %d ignored", value)
+			}
+		case LmdbMdPageSizeKey:
+			value := convertToIntIgnoreErr(v)
+			if validLmbdPageSize[value] {
+				storeConfig.LmdbMdPageSize = value
+			} else {
+				logger.Warningf("Incorrect 'lmdbMdPageSize' value %d ignored", value)
 			}
 		case UseBcacheKey:
 			storeConfig.UseBCache = convertToBoolIgnoreErr(v)

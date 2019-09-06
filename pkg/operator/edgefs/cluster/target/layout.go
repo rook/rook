@@ -262,6 +262,7 @@ func getRTDevices(cntDevs ContainerDevices, storeConfig *config.StoreConfig) (rt
 				Name:              getIdDevLinkName(hdds_divided[i][j].DevLinks),
 				Device:            "/dev/" + hdds_divided[i][j].Name,
 				Psize:             storeConfig.LmdbPageSize,
+				MdPsize:           storeConfig.LmdbMdPageSize,
 				VerifyChid:        storeConfig.RtVerifyChid,
 				HDDReadAhead:      storeConfig.HDDReadAhead,
 				BcacheWritearound: (map[bool]int{true: 0, false: 1})[storeConfig.UseBCacheWB],
