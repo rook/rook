@@ -293,3 +293,21 @@ func testGetRemovedDevicesHelper(t *testing.T, storeConfig *config.StoreConfig) 
 	assert.NotNil(t, mappingEntry)
 	assert.Equal(t, 1, mappingEntry.Data)
 }
+
+func TestGetVolumeGroupName(t *testing.T) {
+	validLVPath := "/dev/vgName1/lvName2"
+	invalidLVPath1 := "/dev//vgName2"
+	invalidLVPath2 := "/dev/"
+
+	vgName, err := getVolumeGroupName(validLVPath)
+	assert.Nil(t, err)
+	assert.Equal(t, vgName, "vgName1")
+
+	vgName, err = getVolumeGroupName(invalidLVPath1)
+	assert.NotNil(t, err)
+	assert.Equal(t, vgName, "")
+
+	vgName, err = getVolumeGroupName(invalidLVPath2)
+	assert.NotNil(t, err)
+	assert.Equal(t, vgName, "")
+}

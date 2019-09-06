@@ -40,7 +40,7 @@ var (
 )
 
 // StartOSD starts an OSD on a device that was provisioned by ceph-volume
-func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID string, pvcBackedOSD bool, cephArgs []string) error {
+func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID, lvPath string, pvcBackedOSD bool, cephArgs []string) error {
 
 	// ensure the config mount point exists
 	configDir := fmt.Sprintf("/var/lib/ceph/osd/ceph-%s", osdID)
@@ -49,14 +49,24 @@ func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID string, pvcBack
 		logger.Errorf("failed to create config dir %s. %+v", configDir, err)
 	}
 
+	var volumeGroupName string
 	if pvcBackedOSD {
+		volumeGroupName, err = getVolumeGroupName(lvPath)
+		if err != nil {
+			return fmt.Errorf("error fetching volume group name for OSD %s. %+v", osdID, err)
+		}
+
 		if err := updateLVMConfig(context); err != nil {
 			return fmt.Errorf("sed failure, %+v", err) // fail return here as validation provided by ceph-volume
 		}
 
-		context.Executor.ExecuteCommand(false, "", "/sbin/vgchange", "-an")
+		if err := context.Executor.ExecuteCommand(false, "", "/sbin/vgchange", "-an", volumeGroupName); err != nil {
+			return fmt.Errorf("failed to deactivate volume group for lv %+v. Error: %+v", lvPath, err)
+		}
 
-		context.Executor.ExecuteCommand(false, "", "/sbin/vgchange", "-ay")
+		if err := context.Executor.ExecuteCommand(false, "", "/sbin/vgchange", "-ay", volumeGroupName); err != nil {
+			return fmt.Errorf("failed to activate volume group for lv %+v. Error: %+v", lvPath, err)
+		}
 	}
 
 	// activate the osd with ceph-volume
@@ -70,6 +80,11 @@ func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID string, pvcBack
 		return fmt.Errorf("failed to start osd. %+v", err)
 	}
 
+	if pvcBackedOSD {
+		if err := releaseLVMDevice(context, volumeGroupName); err != nil {
+			return fmt.Errorf("failed to release device from lvm. %+v", err)
+		}
+	}
 	return nil
 }
 
@@ -200,6 +215,17 @@ func Provision(context *clusterd.Context, agent *OsdAgent) error {
 	}
 
 	logger.Infof("device osds:%+v\ndir osds: %+v", deviceOSDs, dirOSDs)
+
+	if agent.pvcBacked {
+		volumeGroupName, err := getVolumeGroupName(deviceOSDs[0].LVPath)
+		if err != nil {
+			return fmt.Errorf("error fetching volume group name. %+v", err)
+		}
+		if err := releaseLVMDevice(context, volumeGroupName); err != nil {
+			return fmt.Errorf("failed to release device from lvm. %+v", err)
+		}
+	}
+
 	osds := append(deviceOSDs, dirOSDs...)
 
 	// orchestration is completed, update the status
@@ -407,4 +433,28 @@ func getActiveAndRemovedDirs(
 	}
 
 	return activeDirs, removedDirs
+}
+
+//releaseLVMDevice deativates the LV to release the device.
+func releaseLVMDevice(context *clusterd.Context, volumeGroupName string) error {
+	if err := context.Executor.ExecuteCommand(false, "", "lvchange", "-an", volumeGroupName); err != nil {
+		return fmt.Errorf("failed to deactivate LVM %s. Error: %+v", volumeGroupName, err)
+	}
+	logger.Info("Successfully released device from lvm")
+	return nil
+}
+
+//getVolumeGroupName returns the Volume group name from the given Logical Volume Path
+func getVolumeGroupName(lvPath string) (string, error) {
+	if lvPath == "" {
+		return "", fmt.Errorf("empty LV Path : %s", lvPath)
+	}
+
+	vgSlice := strings.Split(lvPath, "/")
+	//Assert that lvpath is in correct format `/dev/<vg name>/<lv name>` before extracting the vg name
+	if len(vgSlice) != 4 || vgSlice[2] == "" {
+		return "", fmt.Errorf("invalid LV Path : %s", lvPath)
+	}
+
+	return vgSlice[2], nil
 }
