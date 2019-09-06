@@ -83,7 +83,7 @@ func mountUnmountPVCOnPod(k8sh *utils.K8sHelper, podName string, pvcName string,
 		"readOnly": readonly,
 	}
 
-	result, err := k8sh.ResourceOperationFromTemplate(action, getBlockPodDefintion(), config)
+	result, err := k8sh.ResourceOperationFromTemplate(action, getBlockPodDefinition(), config)
 
 	return result, err
 }
@@ -249,7 +249,7 @@ spec:
           claimName: {{.pvcName}}`
 }
 
-func getBlockPodDefintion() string {
+func getBlockPodDefinition() string {
 	return `apiVersion: v1
 kind: Pod
 metadata:

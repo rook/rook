@@ -116,7 +116,7 @@ func (s *BlockMountUnMountSuite) setupPVCs() {
 	require.True(s.T(), s.kh.WaitUntilPVCIsBound(defaultNamespace, s.pvcNameRWX), "Make sure PVC is Bound")
 
 	// Mount PVC on a pod and write some data.
-	_, mtErr := s.bc.BlockMap(getBlockPodDefintion("setup-block-rwo", s.pvcNameRWO, false))
+	_, mtErr := s.bc.BlockMap(getBlockPodDefinition("setup-block-rwo", s.pvcNameRWO, false))
 	require.Nil(s.T(), mtErr)
 	crdName, err := s.kh.GetVolumeResourceName(defaultNamespace, s.pvcNameRWO)
 	require.Nil(s.T(), err)
@@ -128,7 +128,7 @@ func (s *BlockMountUnMountSuite) setupPVCs() {
 	}
 	require.True(s.T(), rwoVolumePresent, fmt.Sprintf("make sure rwo Volume %s is created", crdName))
 
-	_, mtErr1 := s.bc.BlockMap(getBlockPodDefintion("setup-block-rwx", s.pvcNameRWX, false))
+	_, mtErr1 := s.bc.BlockMap(getBlockPodDefinition("setup-block-rwx", s.pvcNameRWX, false))
 	require.Nil(s.T(), mtErr1)
 	crdName1, err1 := s.kh.GetVolumeResourceName(defaultNamespace, s.pvcNameRWX)
 	require.Nil(s.T(), err1)
@@ -170,10 +170,10 @@ func (s *BlockMountUnMountSuite) TestBlockStorageMountUnMountForDifferentAccessM
 	logger.Infof("Test case when existing RWO PVC is mounted and unmounted on pods with various accessModes")
 	logger.Infof("Step 1.1: Mount existing ReadWriteOnce and ReadWriteMany PVC on a Pod with RW access")
 	// mount PVC with RWO access on a pod with readonly set to false
-	_, err := s.bc.BlockMap(getBlockPodDefintion("rwo-block-rw-one", s.pvcNameRWO, false))
+	_, err := s.bc.BlockMap(getBlockPodDefinition("rwo-block-rw-one", s.pvcNameRWO, false))
 	require.Nil(s.T(), err)
 	// mount PVC with RWX access on a pod with readonly set to false
-	_, err = s.bc.BlockMap(getBlockPodDefintion("rwx-block-rw-one", s.pvcNameRWX, false))
+	_, err = s.bc.BlockMap(getBlockPodDefinition("rwx-block-rw-one", s.pvcNameRWX, false))
 	require.Nil(s.T(), err)
 	crdName1, err1 := s.kh.GetVolumeResourceName(defaultNamespace, s.pvcNameRWO)
 	crdName2, err2 := s.kh.GetVolumeResourceName(defaultNamespace, s.pvcNameRWX)
@@ -214,10 +214,10 @@ func (s *BlockMountUnMountSuite) TestBlockStorageMountUnMountForDifferentAccessM
 	// Mount another Pod with RW access on same PVC
 	logger.Infof("Step 4: Mount existing ReadWriteOnce and ReadWriteMany PVC on a new Pod with RW access")
 	// Mount RWO PVC on a new pod with ReadOnly set to false
-	_, err = s.bc.BlockMap(getBlockPodDefintion("rwo-block-rw-two", s.pvcNameRWO, false))
+	_, err = s.bc.BlockMap(getBlockPodDefinition("rwo-block-rw-two", s.pvcNameRWO, false))
 	assert.Nil(s.T(), err)
 	// Mount RWX PVC on a new pod with ReadOnly set to false
-	_, err = s.bc.BlockMap(getBlockPodDefintion("rwx-block-rw-two", s.pvcNameRWX, false))
+	_, err = s.bc.BlockMap(getBlockPodDefinition("rwx-block-rw-two", s.pvcNameRWX, false))
 	assert.Nil(s.T(), err)
 	assert.True(s.T(), s.kh.IsPodInError("rwo-block-rw-two", defaultNamespace, "FailedMount", "Volume is already attached by pod"), "make sure rwo-block-rw-two pod errors out while mounting the volume")
 	assert.True(s.T(), s.kh.IsPodInError("rwx-block-rw-two", defaultNamespace, "FailedMount", "Volume is already attached by pod"), "make sure rwx-block-rw-two pod errors out while mounting the volume")
@@ -228,10 +228,10 @@ func (s *BlockMountUnMountSuite) TestBlockStorageMountUnMountForDifferentAccessM
 
 	logger.Infof("Step 5: Mount existing ReadWriteOnce and ReadWriteMany PVC on a new Pod with RO access")
 	// Mount RWO PVC on a new pod with ReadOnly set to true
-	_, err = s.bc.BlockMap(getBlockPodDefintion("rwo-block-ro-one", s.pvcNameRWO, true))
+	_, err = s.bc.BlockMap(getBlockPodDefinition("rwo-block-ro-one", s.pvcNameRWO, true))
 	assert.Nil(s.T(), err)
 	// Mount RWX PVC on a new pod with ReadOnly set to true
-	_, err = s.bc.BlockMap(getBlockPodDefintion("rwx-block-ro-one", s.pvcNameRWX, true))
+	_, err = s.bc.BlockMap(getBlockPodDefinition("rwx-block-ro-one", s.pvcNameRWX, true))
 	assert.Nil(s.T(), err)
 	assert.True(s.T(), s.kh.IsPodInError("rwo-block-ro-one", defaultNamespace, "FailedMount", "Volume is already attached by pod"), "make sure rwo-block-ro-one pod errors out while mounting the volume")
 	assert.True(s.T(), s.kh.IsPodInError("rwx-block-ro-one", defaultNamespace, "FailedMount", "Volume is already attached by pod"), "make sure rwx-block-ro-one pod errors out while mounting the volume")
@@ -248,13 +248,13 @@ func (s *BlockMountUnMountSuite) TestBlockStorageMountUnMountForDifferentAccessM
 
 	logger.Infof("Step 7: Mount ReadWriteOnce and ReadWriteMany PVC on two different pods with ReadOnlyMany with Readonly Access")
 	// Mount RWO PVC on 2 pods with ReadOnly set to True
-	_, err1 = s.bc.BlockMap(getBlockPodDefintion("rwo-block-ro-one", s.pvcNameRWO, true))
-	_, err2 = s.bc.BlockMap(getBlockPodDefintion("rwo-block-ro-two", s.pvcNameRWO, true))
+	_, err1 = s.bc.BlockMap(getBlockPodDefinition("rwo-block-ro-one", s.pvcNameRWO, true))
+	_, err2 = s.bc.BlockMap(getBlockPodDefinition("rwo-block-ro-two", s.pvcNameRWO, true))
 	assert.Nil(s.T(), err1)
 	assert.Nil(s.T(), err2)
 	// Mount RWX PVC on 2 pods with ReadOnly set to True
-	_, err1 = s.bc.BlockMap(getBlockPodDefintion("rwx-block-ro-one", s.pvcNameRWX, true))
-	_, err2 = s.bc.BlockMap(getBlockPodDefintion("rwx-block-ro-two", s.pvcNameRWX, true))
+	_, err1 = s.bc.BlockMap(getBlockPodDefinition("rwx-block-ro-one", s.pvcNameRWX, true))
+	_, err2 = s.bc.BlockMap(getBlockPodDefinition("rwx-block-ro-two", s.pvcNameRWX, true))
 	assert.Nil(s.T(), err1)
 	assert.Nil(s.T(), err2)
 	assert.True(s.T(), s.kh.IsPodRunning("rwo-block-ro-one", defaultNamespace), "make sure rwo-block-ro-one pod is in running state")
