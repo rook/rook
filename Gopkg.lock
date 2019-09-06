@@ -475,6 +475,27 @@
   version = "v1.0.0-rc1"
 
 [[projects]]
+  branch = "openshift-4.2-cluster-api-0.1.0"
+  digest = "1:1707d29b96c606896605af52a284985abbe29980baeffeea486ad5aba4797638"
+  name = "github.com/openshift/cluster-api"
+  packages = [
+    "pkg/apis/machine/common",
+    "pkg/apis/machine/v1beta1",
+  ]
+  pruneopts = "UT"
+  revision = "072f7d777dc81aac0dd222686e1516dd9e7db38b"
+
+[[projects]]
+  digest = "1:231797c5447a21f16af4127737f8546a1cc77014ed65dc409a37245133b285f5"
+  name = "github.com/openshift/machine-api-operator"
+  packages = [
+    "pkg/apis/healthchecking",
+    "pkg/apis/healthchecking/v1alpha1",
+  ]
+  pruneopts = "UT"
+  revision = "a0949226d20ea454cf08252a182a8e32054027c3"
+
+[[projects]]
   digest = "1:e5d0bd87abc2781d14e274807a470acd180f0499f8bf5bb18606e9ec22ad9de9"
   name = "github.com/pborman/uuid"
   packages = ["."]
@@ -1392,7 +1413,8 @@
   revision = "21c4ce38f2a793ec01e925ddc31216500183b773"
 
 [[projects]]
-  digest = "1:b7f9d0b6c5e0e999f781f7b2277feab6a6a04c4c8159e04484a3ebb85aa68807"
+  branch = "release-0.2"
+  digest = "1:9f0ef29c01f23bbd2913084e7d9c692115c6c480ef6d1d5807773f077a1c57d3"
   name = "sigs.k8s.io/controller-runtime"
   packages = [
     "pkg/cache",
@@ -1416,6 +1438,7 @@
     "pkg/reconcile",
     "pkg/recorder",
     "pkg/runtime/inject",
+    "pkg/scheme",
     "pkg/source",
     "pkg/source/internal",
     "pkg/webhook",
@@ -1425,7 +1448,6 @@
   ]
   pruneopts = "UT"
   revision = "e1159d6655b260c4812fd0792cd1344ecc96a57e"
-  version = "v0.2.0"
 
 [[projects]]
   branch = "release-1.14"
@@ -1485,6 +1507,8 @@
     "github.com/kube-object-storage/lib-bucket-provisioner/pkg/provisioner",
     "github.com/kube-object-storage/lib-bucket-provisioner/pkg/provisioner/api",
     "github.com/kube-object-storage/lib-bucket-provisioner/pkg/provisioner/api/errors",
+    "github.com/openshift/cluster-api/pkg/apis/machine/v1beta1",
+    "github.com/openshift/machine-api-operator/pkg/apis/healthchecking/v1alpha1",
     "github.com/pkg/errors",
     "github.com/rook/operator-kit",
     "github.com/spf13/cobra",

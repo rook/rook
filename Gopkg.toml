@@ -130,3 +130,7 @@ ignored = [
 [[constraint]]
   branch = "master"
   name = "github.com/kube-object-storage/lib-bucket-provisioner"
+
+[[override]]
+  name = "github.com/openshift/machine-api-operator"
+  revision = "a0949226d20ea454cf08252a182a8e32054027c3"

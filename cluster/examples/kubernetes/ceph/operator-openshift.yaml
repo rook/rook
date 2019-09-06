@@ -197,7 +197,7 @@ spec:
         - name: ROOK_DISABLE_DEVICE_HOTPLUG
           value: "false"
 
-       # Whether to enable the flex driver. By default it is enabled and is fully supported, but will be deprecated in some future release
+        # Whether to enable the flex driver. By default it is enabled and is fully supported, but will be deprecated in some future release
         # in favor of the CSI driver.
         - name: ROOK_ENABLE_FLEX_DRIVER
           value: "true"
@@ -206,6 +206,10 @@ spec:
         # This daemon does not need to run if you are only going to create your OSDs based on StorageClassDeviceSets with PVCs.
         - name: ROOK_ENABLE_DISCOVERY_DAEMON
           value: "true"
+
+        # Whether to start machineDisruptionBudget and machineLabel controller to watch for the osd pods and MDBs.
+        - name: ROOK_ENABLE_MACHINE_DISRUPTION_BUDGET
+          value: "false"
 
         # Enable the CSI driver.
         # To run the non-default version of the CSI driver, see the override-able image properties in operator.yaml
