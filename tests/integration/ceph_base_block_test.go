@@ -30,7 +30,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/version"
@@ -101,7 +101,7 @@ func runBlockE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.
 		// Once the pod using the volume is terminated, the filesystem is expanded and the size of the PVC is increased.
 		err = k8sh.DeletePod(k8sutil.DefaultNamespace, podName)
 		require.Nil(s.T(), err)
-		_, err = helper.BlockClient.BlockMap(getBlockPodDefintion(podName, blockName, false))
+		_, err = helper.BlockClient.BlockMap(getBlockPodDefinition(podName, blockName, false))
 		require.Nil(s.T(), err)
 		require.True(s.T(), k8sh.IsPodRunning(podName, defaultNamespace), "Make sure new pod is running")
 		require.True(s.T(), k8sh.WaitUntilPVCIsExpanded(defaultNamespace, blockName, "2M"), "Make sure PVC is expanded")
