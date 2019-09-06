@@ -222,9 +222,9 @@ spec:
                       codingChunks:
                         type: integer
   additionalPrinterColumns:
-    - name: MdsCount
+    - name: ActiveMDS
       type: string
-      description: Number of MDSs
+      description: Number of desired active MDS daemons
       JSONPath: .spec.metadataServer.activeCount
     - name: Age
       type: date
