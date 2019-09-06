@@ -23,6 +23,7 @@ type RTDevice struct {
 	Name              string `json:"name,omitempty"`
 	Device            string `json:"device,omitempty"`
 	Psize             int    `json:"psize,omitempty"`
+	MdPsize           int    `json:"mdpsize,omitempty"`
 	MDReserved        int    `json:"mdcache_reserved,omitempty"`
 	HDDReadAhead      int    `json:"hdd_readahead,omitempty"`
 	VerifyChid        int    `json:"verify_chid"`
@@ -78,7 +79,8 @@ type CcowdNetwork struct {
 }
 
 type CcowdBgConfig struct {
-	TrlogDeleteAfterHours int `json:"trlog_delete_after_hours,omitempty"`
+	TrlogDeleteAfterHours     int `json:"trlog_delete_after_hours,omitempty"`
+	SpeculativeBackrefTimeout int `json:"speculative_backref_timeout,omitempty"`
 }
 
 type CcowdConf struct {

@@ -31,7 +31,7 @@ const (
 	defaultServerIfName            = "eth0"
 	defaultBrokerIfName            = "eth0"
 	defaultTrlogProcessingInterval = 10
-	defaultTrlogKeepDays           = 7
+	defaultTrlogKeepDays           = 3
 )
 
 // As we relying on StatefulSet, we want to build global ConfigMap shared
@@ -141,7 +141,8 @@ func (c *cluster) createClusterConfigMap(deploymentConfig edgefsv1.ClusterDeploy
 			},
 			Ccowd: edgefsv1.CcowdConf{
 				BgConfig: edgefsv1.CcowdBgConfig{
-					TrlogDeleteAfterHours: defaultTrlogKeepDays * 24,
+					TrlogDeleteAfterHours:     defaultTrlogKeepDays * 24,
+					SpeculativeBackrefTimeout: defaultTrlogKeepDays * 24 * 3600 * 1000,
 				},
 				Zone: devConfig.Zone,
 				Network: edgefsv1.CcowdNetwork{
@@ -172,6 +173,7 @@ func (c *cluster) createClusterConfigMap(deploymentConfig edgefsv1.ClusterDeploy
 
 		if c.Spec.TrlogKeepDays > 0 {
 			nodeConfig.Ccowd.BgConfig.TrlogDeleteAfterHours = c.Spec.TrlogKeepDays * 24
+			nodeConfig.Ccowd.BgConfig.SpeculativeBackrefTimeout = c.Spec.TrlogKeepDays * 24 * 3600 * 1000
 		}
 
 		cm[nodeName] = nodeConfig
