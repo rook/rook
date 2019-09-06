@@ -22,6 +22,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 
+	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 
@@ -82,6 +83,18 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 		return reconcile.Result{}, fmt.Errorf("Label key %s does not exist on node %s", corev1.LabelHostname, request.NamespacedName)
 	}
 
+	osdPodList := &corev1.PodList{}
+	err = r.client.List(context.TODO(), osdPodList, client.MatchingLabels{k8sutil.AppAttr: osd.AppName})
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("could not list the osd pods: %+v", err)
+	}
+	occupiedByOSD := false
+	for _, osdPod := range osdPodList.Items {
+		if osdPod.Spec.NodeName == request.Name {
+			occupiedByOSD = true
+			break
+		}
+	}
 	// Create or Update the deployment default/foo
 	deploy := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -123,11 +136,15 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 
 		return nil
 	}
-	op, err := controllerutil.CreateOrUpdate(context.TODO(), r.client, deploy, mutateFunc)
-	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("Node reconcile failed on op: %s : %+v", op, err)
+	if occupiedByOSD {
+		op, err := controllerutil.CreateOrUpdate(context.TODO(), r.client, deploy, mutateFunc)
+		if err != nil {
+			return reconcile.Result{}, fmt.Errorf("Node reconcile failed on op: %s : %+v", op, err)
+		}
+		logger.Debugf("deployment successfully reconciled for node %s. operation: %s", request.Name, op)
+	} else {
+		logger.Debugf("not watching for drains on node %s as there are no osds running there.", request.Name)
 	}
-	logger.Debugf("Deployment successfully reconciled. operation: %s", op)
 	return reconcile.Result{}, nil
 }
 
