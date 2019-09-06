@@ -124,7 +124,8 @@ func getLVPath(op string) string {
 
 	tmp = sys.Grep(op, "Logical volume")
 	lvtmp := strings.Split(tmp, "\"")
-	if len(vgtmp) > 0 && len(lvtmp) > 0 {
+
+	if len(vgtmp) >= 2 && len(lvtmp) >= 2 {
 		if sys.Grep(vgtmp[1], "ceph") != "" && sys.Grep(lvtmp[1], "osd-block") != "" {
 			return fmt.Sprintf("/dev/%s/%s", vgtmp[1], lvtmp[1])
 		}
