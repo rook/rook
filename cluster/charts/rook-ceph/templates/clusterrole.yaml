@@ -143,6 +143,28 @@ rules:
   - deployments
   verbs:
   - "*"
+- apiGroups:
+  - healthchecking.openshift.io
+  resources:
+  - machinedisruptionbudgets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - machine.openshift.io
+  resources:
+  - machines
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
 ---
 # Aspects of ceph-mgr that require cluster-wide access
 kind: ClusterRole

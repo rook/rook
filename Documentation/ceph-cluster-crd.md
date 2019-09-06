@@ -110,6 +110,8 @@ If this value is empty, each pod will get an ephemeral directory to store their 
   - `hostNetwork`: uses network of the hosts instead of using the SDN below the containers.
 - `mon`: contains mon related options [mon settings](#mon-settings)
 For more details on the mons and when to choose a number other than `3`, see the [mon health design doc](https://github.com/rook/rook/blob/master/design/mon-health.md).
+- `mgr`: manager top level section
+  - `modules`: is the list of Ceph manager modules to enable
 - `rbdMirroring`: The settings for rbd mirror daemon(s). Configuring which pools or images to be mirrored must be completed in the rook toolbox by running the
 [rbd mirror](http://docs.ceph.com/docs/mimic/rbd/rbd-mirroring/) command.
   - `workers`: The number of rbd daemons to perform the rbd mirroring between clusters.
@@ -130,8 +132,8 @@ For more details on the mons and when to choose a number other than `3`, see the
 - `disruptionManagement`: The section for configuring management of daemon disruptions
   - `managePodBudgets`: if `true`, the operator will create and manage PodDsruptionBudgets for OSD, Mon, RGW, and MDS daemons. OSD PDBs are managed dynamically via the strategy outlined in the [design](https://github.com/rook/rook/blob/master/design/ceph-managed-disruptionbudgets.md). The operator will block eviction of OSDs by default and unblock them safely when drains are detected.
   - `osdMaintenanceTimeout`: is a duration in minutes that determines how long an entire failureDomain like `region/zone/host` will be held in `noout` (in addition to the default DOWN/OUT interval) when it is draining. This is only relevant when  `managePodBudgets` is `true`. The default value is `30` minutes.
-- `mgr`: manager top level section
-  - `modules`: is the list of ceph manager modules to enable
+  - `manageMachineDisruptionBudgets`: if `true`, the operator will create and manage MachineDisruptionBudgets to ensure OSDs are only fenced when the cluster is healthy. Only available on OpenShift.
+  - `machineDisruptionBudgetNamespace`: the namespace in which to watch the MachineDisruptionBudgets.
 
 ### Mon Settings
 

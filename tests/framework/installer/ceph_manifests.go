@@ -135,6 +135,14 @@ spec:
                   type: boolean
             storage:
               properties:
+                disruptionManagement:
+                  properties:
+                    managePodBudgets:
+                      type: boolean
+                    osdMaintenanceTimeout:
+                      type: integer
+                    manageMachineDisruptionBudgets:
+                      type: boolean
                 useAllNodes:
                   type: boolean
                 nodes:
@@ -657,6 +665,28 @@ rules:
   - deployments
   verbs:
   - "*"
+- apiGroups:
+  - healthchecking.openshift.io
+  resources:
+  - machinedisruptionbudgets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - machine.openshift.io
+  resources:
+  - machines
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1

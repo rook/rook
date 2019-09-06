@@ -31,7 +31,6 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	// metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
