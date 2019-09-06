@@ -157,10 +157,11 @@ spec:
   #    hddReadAhead: "2048"        # speed up reads of 2MB+ chunks of HDD (offload use case)
   #    rtVerifyChid: "0"           # may improve CPU utilization
   #    lmdbPageSize: "32768"       # larger value can improve stream operations
+  #    lmdbMdPageSize: "4096"      # smaller value can improve metadata offload device utilization
   #    useMetadataOffload: "true"  # enable use of SSD device as metadata offload
   #    useBCache: "true"           # enable SSD cache device and read-cache
   #    useBCacheWB: "true"         # enable SSD write-cache
-  #    useMetadataMask: "0xff"     # all metadata on SSD
+  #    useMetadataMask: "0x7d"     # all metadata on SSD except second level manifests
   #    rtPLevelOverride: "4"       # enable large device partitioning, only needed if automatic not working
   #    sync: "0"                   # highest performance, consistent on pod/software failures, not-consistent on power failures
   #    useAllSSD: "true"           # use only SSDs during deployment
