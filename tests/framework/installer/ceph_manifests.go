@@ -1306,6 +1306,8 @@ spec:
           value: "true"
         - name: ROOK_CSI_ENABLE_GRPC_METRICS
           value: "true"
+        - name: ROOK_DISABLE_NFS
+          value: "false"
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1

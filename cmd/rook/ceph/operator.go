@@ -23,6 +23,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
 	operator "github.com/rook/rook/pkg/operator/ceph"
+	"github.com/rook/rook/pkg/operator/ceph/cluster"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -67,6 +68,9 @@ func init() {
 	operatorCmd.Flags().StringVar(&csi.CephFSProvisionerDepTemplatePath, "csi-cephfs-provisioner-dep-template-path", csi.DefaultCephFSProvisionerDepTemplatePath, "path to ceph-csi cephfs provisioner deployment template")
 	//csi grpc flag
 	operatorCmd.Flags().BoolVar(&csi.EnableCSIGRPCMetrics, "csi-enable-grpc-metrics", true, "enable grpc metrics in ceph-csi")
+
+	// nfs ganesha flag
+	operatorCmd.Flags().BoolVar(&cluster.DisableNFS, "disable-nfs", true, "disable the cephnfs controller")
 
 	flags.SetFlagsFromEnv(operatorCmd.Flags(), rook.RookEnvVarPrefix)
 	flags.SetLoggingFlags(operatorCmd.Flags())

@@ -60,6 +60,9 @@ enableCsiGrpcMetrics: true
 enableFlexDriver: true
 enableDiscoveryDaemon: true
 
+# to disable the cephnfs controller
+disableNFS: false
+
 ## Rook Agent configuration
 ## toleration: NoSchedule, PreferNoSchedule or NoExecute
 ## tolerationKey: Set this to the specific key of the taint to tolerate

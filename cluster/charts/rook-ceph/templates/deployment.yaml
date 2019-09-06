@@ -117,6 +117,10 @@ spec:
         - name: ROOK_ENABLE_DISCOVERY_DAEMON
           value: "{{ .Values.enableDiscoveryDaemon }}"
 {{- end }}
+{{- if .Values.enableDiscoveryDaemon }}
+        - name: ROOK_DISABLE_NFS
+          value: "{{ .Values.disableNFS }}"
+{{- end }}
 
         - name: NODE_NAME
           valueFrom:

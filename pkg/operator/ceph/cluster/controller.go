@@ -77,6 +77,8 @@ const (
 var (
 	logger        = capnslog.NewPackageLogger("github.com/rook/rook", "op-cluster")
 	finalizerName = fmt.Sprintf("%s.%s", ClusterResource.Name, ClusterResource.Group)
+	// DisableNFS is a flag/env var to disable the nfs ganesha controller
+	DisableNFS bool
 )
 
 var ClusterResource = opkit.CustomResource{
@@ -400,9 +402,11 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 	fileController := file.NewFilesystemController(cluster.Info, c.context, cluster.Namespace, c.rookImage, cluster.Spec, cluster.ownerRef, cluster.Spec.DataDirHostPath, cluster.isUpgrade)
 	fileController.StartWatch(cluster.Namespace, cluster.stopCh)
 
-	// Start nfs ganesha CRD watcher
 	ganeshaController := nfs.NewCephNFSController(cluster.Info, c.context, cluster.Spec.DataDirHostPath, cluster.Namespace, c.rookImage, cluster.Spec, cluster.ownerRef)
-	ganeshaController.StartWatch(cluster.Namespace, cluster.stopCh)
+	// Start nfs ganesha CRD watcher
+	if !DisableNFS {
+		ganeshaController.StartWatch(cluster.Namespace, cluster.stopCh)
+	}
 
 	// Populate childControllers
 	logger.Debug("populating child controllers, so cluster CR spec updates will be propagaged to other CR")

@@ -215,6 +215,8 @@ spec:
           value: "true"
         - name: ROOK_CSI_ENABLE_GRPC_METRICS
           value: "true"
+        - name: ROOK_DISABLE_NFS
+          value: "false"
 
         - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
           value: "true"
