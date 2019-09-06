@@ -54,6 +54,7 @@ spec:
             - "--type=cephfs"
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--v=5"
+            - "--controllerserver=true"
             - "--drivername={{ .DriverNamePrefix }}cephfs.csi.ceph.com"
             - "--metadatastorage=k8s_configmap"
             - "--pidlimit=-1"
