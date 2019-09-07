@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+
+	"github.com/coreos/pkg/capnslog"
 )
 
 // CephVersion represents the Ceph version format
@@ -51,6 +53,8 @@ var (
 
 	// for parsing the output of `ceph --version`
 	versionPattern = regexp.MustCompile(`ceph version (\d+)\.(\d+)\.(\d+)`)
+
+	logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephver")
 )
 
 func (v *CephVersion) String() string {
@@ -213,4 +217,41 @@ func IsInferior(a, b CephVersion) bool {
 	}
 
 	return false
+}
+
+// ValidateCephVersionsBetweenLocalAndExternalClusters makes sure an external cluster can be connected
+// by checking the external ceph versions available and comparing it with the local image provided
+func ValidateCephVersionsBetweenLocalAndExternalClusters(localVersion, externalVersion CephVersion) error {
+	logger.Debugf("local version is %s, external version is %s", localVersion.String(), externalVersion.String())
+
+	// We only support Nautilus or newer
+	if !externalVersion.IsAtLeastNautilus() {
+		return fmt.Errorf("unsupported ceph version %s, need at least nautilus, delete your cluster CR and create a new one with a correct ceph version", externalVersion.String())
+	}
+
+	// Identical version, regardless if other CRs are running, it's ok!
+	if IsIdentical(localVersion, externalVersion) {
+		return nil
+	}
+
+	// Local version must never be higher than the external one
+	if IsSuperior(localVersion, externalVersion) {
+		return fmt.Errorf("local cluster ceph version is higher %s than the external cluster %s, this must never happen", externalVersion.String(), localVersion.String())
+	}
+
+	// External cluster was updated to a minor version higher, consider updating too!
+	if localVersion.Major == externalVersion.Major {
+		if IsSuperior(externalVersion, localVersion) {
+			logger.Warningf("external cluster ceph version is a minor version higher %s than the local cluster %s, consider upgrading", externalVersion.String(), localVersion.String())
+			return nil
+		}
+	}
+
+	// The external cluster was upgraded, consider upgrading too!
+	if localVersion.Major < externalVersion.Major {
+		logger.Errorf("external cluster ceph version is a major version higher %s than the local cluster %s, consider upgrading", externalVersion.String(), localVersion.String())
+		return nil
+	}
+
+	return nil
 }

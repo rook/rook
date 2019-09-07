@@ -17,7 +17,7 @@ metadata:
   name: rook-edgefs
   namespace: rook-edgefs
 spec:
-  edgefsImageName: edgefs/edgefs:1.2.31
+  edgefsImageName: edgefs/edgefs:1.2.64
   serviceAccount: rook-edgefs-cluster
   dataDirHostPath: /data
   storage:
@@ -40,7 +40,7 @@ metadata:
   name: rook-edgefs
   namespace: rook-edgefs
 spec:
-  edgefsImageName: edgefs/edgefs:1.2.31
+  edgefsImageName: edgefs/edgefs:1.2.64
   serviceAccount: rook-edgefs-cluster
   dataDirHostPath: /data
   storage:
@@ -63,7 +63,7 @@ Settings can be specified at the global level to apply to the cluster as a whole
 ### Cluster metadata
 - `name`: The name that will be used internally for the EdgeFS cluster. Most commonly the name is the same as the namespace since multiple clusters are not supported in the same namespace.
 - `namespace`: The Kubernetes namespace that will be created for the Rook cluster. The services, pods, and other resources created by the operator will be added to this namespace. The common scenario is to create a single Rook cluster. If multiple clusters are created, they must not have conflicting devices or host paths.
-- `edgefsImageName`: EdgeFS image to use. If not specified then `edgefs/edgefs:latest` is used. We recommend to specify particular image version for production use, for example `edgefs/edgefs:1.2.31`.
+- `edgefsImageName`: EdgeFS image to use. If not specified then `edgefs/edgefs:latest` is used. We recommend to specify particular image version for production use, for example `edgefs/edgefs:1.2.64`.
 
 ### Cluster Settings
 - `dataDirHostPath`: The path on the host ([hostPath](https://kubernetes.io/docs/concepts/storage/volumes/#hostpath)) where config and data should be stored for each of the services. If the directory does not exist, it will be created. Because this directory persists on the host, it will remain after pods are deleted. If `storage` settings not provided then provisioned hostPath will also be used as a storage device for Target pods (automatic provisioning via `rtlfs`).
@@ -92,7 +92,7 @@ If this value is empty, each pod will get an ephemeral directory to store their 
   - [storage configuration settings](#storage-configuration-settings)
 - `skipHostPrepare`: By default all nodes selected for EdgeFS deployment will be automatically configured via preparation jobs. If this option set to `true` node configuration will be skipped.
 - `trlogProcessingInterval`: Controls for how many seconds cluster would aggregate object modifications prior to processing it by accounting, bucket updates, ISGW Links and notifications components. Has to be defined in seconds and must be composite of 60, i.e. 1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30. Default is 10. Recommended range is 2 - 20. This is cluster wide setting and cannot be easily changed after cluster is created. Any new node added has to reflect exactly the same setting.
-- `trlogKeepDays`: Controls for how many days cluster need to keep transaction log interval batches with version manifest references. If you planning to have cluster disconnected from ISGW downlinks for longer period time, consider to increase this value. Default is 7. This is cluster wide setting and cannot be easily changed after cluster is created.
+- `trlogKeepDays`: Controls for how many days cluster need to keep transaction log interval batches with version manifest references. If you planning to have cluster disconnected from ISGW downlinks for longer period time, consider to increase this value. Default is 3. This is cluster wide setting and cannot be easily changed after cluster is created.
 - `maxContainerCapacity`: Overrides default total disks capacity per target container. Default is "132Ti".
 - `useHostLocalTime`: Force usage of the host's /etc/localtime inside EdgeFS containers. Default is `false`.
 #### Node Updates
@@ -130,7 +130,7 @@ Below are the settings available, both at the cluster and individual node level,
 The following storage selection settings are specific to EdgeFS and do not apply to other backends. All variables are key-value pairs represented as strings. While EdgeFS supports multiple backends, it is not recommended to mix them within same cluster. In case of `devices` (physical or emulated raw disks), EdgeFS will automatically use `rtrd` backend. In all other cases `rtlfs` (local file system) will be used.
 **IMPORTANT** Keys needs to be case-sensitive and values has to be provided as strings.
   - `useMetadataOffload`: Dynamically detect appropriate SSD/NVMe device to use for the metadata on each node. Performance can be improved by using a low latency device as the metadata device, while other spinning platter (HDD) devices on a node are used to store data. Typical and recommended proportion is in range of 1:1 - 1:6. Default is false. Applicable only to rtrd.
-  - `useMetadataMask`: Defines what parts of metadata needs to be stored on offloaded devices. Default is 0x7d, offload all except second level manifests. For maximum performance, when you have enough SSD/NVMe capacity provisioned, set it to 0xff, i.e. all metadata. Applicable only to rtrd.
+  - `useMetadataMask`: Defines what parts of metadata needs to be stored on offloaded devices. Default is 0xff, offload all metadata. To save SSD/NVMe capacity, set it to 0x7d to offload all except second level manifests. Applicable only to rtrd.
   - `useBCache`: When `useMetadataOffload` is true, enable use of BCache. Default is false. Applicable only to rtrd and when host has "bcache" kernel module preloaded.
   - `useBCacheWB`:  When `useMetadataOffload` and `useBCache` is true, this option can enable use of BCache write-back cache. By default BCache only used as read cache in front of HDD. Applicable only to rtrd.
   - `useAllSSD`: When set to true, only SSD/NVMe non rotational devices will be used. Default is false and if `useMetadataOffload` not defined then only rotational devices (HDDs) will be picked up during node provisioning phase.
@@ -139,6 +139,7 @@ The following storage selection settings are specific to EdgeFS and do not apply
   - `mdReserved`: For hybrid (SSD/HDD) use case, adjusting mdReserved can be necessary when combined with BCache read/write caches. Allowed range 10-99% of automatically calcuated slice.
   - `rtVerifyChid`:  Verify transferred or read payload. Payload can be data or metadata chunk of flexible size between 4K and 8MB. EdgeFS uses SHA-3 variant to cryptographically sign each chunk and uses it for self validation, self healing and FlexHash addressing. In case of low CPU systems verification after networking transfer prior to write can be disabled by setting this parameter to 0. In case of high CPU systems, verification after read but before networking transfer can be enabled by setting this parameter to 2. Default is 1, i.e. verify after networking transfer only. Setting it to 0 may improve CPU utilization at the cost of reduced availability. However, for objects with 3 or more replicas, availability isn't going to be visibly affected.
   - `lmdbPageSize`: Defines default LMDB page size in bytes. Default is 16384. For capacity (all HDD) or hybrid (HDD/SSD) systems consider to increase this value to 32768 to achieve higher throughput performance. For all SSD and small database workloads, consider to decrease this to 8192 to achieve lower latency and higher IOPS. Please be advised that smaller values MAY cause fragmentation. Acceptable values are 4096, 8192, 16384 and 32768.
+  - `lmdbMdPageSize`: Defines SSD metadata offload LMDB page size in bytes. Default is 8192. For large amount of small objects or files, consider to decrease this to 4096 to achieve better SSD capacity utilization. Acceptable values are 4096, 8192, 16384 and 32768.
   - `sync`: Defines default behavior of write operations at device or directory level. Acceptable values are 0, 1 (default), 2, 3.
     - `0`: No syncing will happen. Highest performance possible and good for HPC scratch types of deployments. This option will still sustain crash of pods or software bugs. It will not sustain server power loss an may cause node / device level inconsistency.
     - `1`: Default method. Will guarantee node / device consistency in case of power loss with reduced durability.
@@ -202,7 +203,7 @@ metadata:
   name: rook-edgefs
   namespace: rook-edgefs
 spec:
-  edgefsImageName: edgefs/edgefs:1.2.31
+  edgefsImageName: edgefs/edgefs:1.2.64
   dataDirHostPath: /var/lib/rook
   serviceAccount: rook-edgefs-cluster
   # cluster level storage configuration and selection
@@ -226,7 +227,7 @@ metadata:
   name: rook-edgefs
   namespace: rook-edgefs
 spec:
-  edgefsImageName: edgefs/edgefs:1.2.31
+  edgefsImageName: edgefs/edgefs:1.2.64
   dataDirHostPath: /var/lib/rook
   serviceAccount: rook-edgefs-cluster
   # cluster level storage configuration and selection
@@ -260,7 +261,7 @@ metadata:
   name: rook-edgefs
   namespace: rook-edgefs
 spec:
-  edgefsImageName: edgefs/edgefs:1.2.31
+  edgefsImageName: edgefs/edgefs:1.2.64
   dataDirHostPath: /var/lib/rook
   serviceAccount: rook-edgefs-cluster
   placement:
@@ -295,7 +296,7 @@ metadata:
   name: rook-edgefs
   namespace: rook-edgefs
 spec:
-  edgefsImageName: edgefs/edgefs:1.2.31
+  edgefsImageName: edgefs/edgefs:1.2.64
   dataDirHostPath: /var/lib/rook
   serviceAccount: rook-edgefs-cluster
   # cluster level resource requests/limits configuration
@@ -323,7 +324,7 @@ metadata:
   name: rook-edgefs
   namespace: rook-edgefs
 spec:
-  edgefsImageName: edgefs/edgefs:1.2.31
+  edgefsImageName: edgefs/edgefs:1.2.64
   dataDirHostPath: /var/lib/rook
   serviceAccount: rook-edgefs-cluster
   network:

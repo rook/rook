@@ -47,6 +47,15 @@ spec:
                   maximum: 9
                   minimum: 0
                   type: integer
+            mgr:
+              properties:
+                modules:
+                  items:
+                    properties:
+                      name:
+                        type: string
+                      enabled:
+                        type: boolean
             network:
               properties:
                 hostNetwork:
@@ -197,9 +206,9 @@ spec:
                       codingChunks:
                         type: integer
   additionalPrinterColumns:
-    - name: MdsCount
+    - name: ActiveMDS
       type: string
-      description: Number of MDSs
+      description: Number of desired active MDS daemons
       JSONPath: .spec.metadataServer.activeCount
     - name: Age
       type: date

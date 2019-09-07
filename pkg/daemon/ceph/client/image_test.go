@@ -18,6 +18,7 @@ package client
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"strings"
 
@@ -139,6 +140,26 @@ func TestCreateImage(t *testing.T) {
 	assert.True(t, createCalled)
 	createCalled = false
 
+}
+
+func TestExpandImage(t *testing.T) {
+	executor := &exectest.MockExecutor{}
+	context := &clusterd.Context{Executor: executor}
+	executor.MockExecuteCommandWithTimeout = func(debug bool, timeout time.Duration, actionName string, command string, args ...string) (string, error) {
+		switch {
+		case args[1] != "kube/some-image":
+			return "", fmt.Errorf("no image %s", args[1])
+
+		case command == "rbd" && args[0] == "resize":
+			return "everything is okay", nil
+		}
+		return "", fmt.Errorf("unexpected ceph command '%v'", args)
+	}
+	err := ExpandImage(context, "default", "error-name", "kube", "mon1,mon2,mon3", "/tmp/keyring", 1000000)
+	assert.Error(t, err)
+
+	err = ExpandImage(context, "default", "some-image", "kube", "mon1,mon2,mon3", "/tmp/keyring", 1000000)
+	assert.NoError(t, err)
 }
 
 func TestListImageLogLevelInfo(t *testing.T) {

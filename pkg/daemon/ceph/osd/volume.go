@@ -124,7 +124,8 @@ func getLVPath(op string) string {
 
 	tmp = sys.Grep(op, "Logical volume")
 	lvtmp := strings.Split(tmp, "\"")
-	if len(vgtmp) > 0 && len(lvtmp) > 0 {
+
+	if len(vgtmp) >= 2 && len(lvtmp) >= 2 {
 		if sys.Grep(vgtmp[1], "ceph") != "" && sys.Grep(lvtmp[1], "osd-block") != "" {
 			return fmt.Sprintf("/dev/%s/%s", vgtmp[1], lvtmp[1])
 		}
@@ -142,6 +143,7 @@ func updateLVMConfig(context *clusterd.Context) error {
 	output := bytes.Replace(input, []byte("udev_sync = 1"), []byte("udev_sync = 0"), 1)
 	output = bytes.Replace(output, []byte("udev_rules = 1"), []byte("udev_rules = 0"), 1)
 	output = bytes.Replace(output, []byte("use_lvmetad = 1"), []byte("use_lvmetad = 0"), 1)
+	output = bytes.Replace(output, []byte("obtain_device_list_from_udev = 1"), []byte("obtain_device_list_from_udev = 0"), 1)
 	output = bytes.Replace(output, []byte(`scan = [ "/dev" ]`), []byte(`scan = [ "/dev", "/mnt" ]`), 1)
 	output = bytes.Replace(output, []byte(`# filter = [ "a|.*/|" ]`), []byte(`filter = [ "a|^/mnt/.*| r|.*/|" ]`), 1)
 
@@ -414,6 +416,7 @@ func getCephVolumeOSDs(context *clusterd.Context, clusterName string, cephfsid s
 			UUID:                osdFSID,
 			CephVolumeInitiated: true,
 			IsFileStore:         isFilestore,
+			LVPath:              lv,
 		}
 		osds = append(osds, osd)
 	}

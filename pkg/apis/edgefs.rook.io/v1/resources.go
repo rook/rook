@@ -73,6 +73,9 @@ func GetInitiatorEnvArr(svctype string, embedded bool, chunkCacheSize resource.Q
 				Name:  "CCOWD_CGROUP_MEMLIM",
 				Value: strconv.FormatInt(cgroupTgt, 10),
 			})
+		} else if svctype == "isgw" {
+			// ISGW doesn't need large chunk cache
+			cacheSize = rMemLim.Value() * 25 / 100
 		} else if svctype == "s3" || svctype == "swift" {
 			// adjust restapi's node.js GC settings. This memory
 			// will be shared among all the HTTP worker processes

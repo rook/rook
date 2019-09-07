@@ -273,3 +273,39 @@ func TestCrushLocation(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "is not in a valid format")
 }
+
+func TestCrushName(t *testing.T) {
+	// each is slightly different than the last
+	crushNames := []string{
+		"www.zxyz.com",
+		"www.abcd.com",
+		"ip-10-0-132-84.us-east-2.compute.internal",
+		"ip-10-0-132-85.us-east-2.compute.internal",
+		"worker1",
+		"worker2",
+		"master1",
+		"master2",
+		"us-east-2b",
+		"us-east-2c",
+		"us-east-1",
+		"us-east-2",
+		"ip-10-0-175-140",
+		"ip-10-0-175-141",
+	}
+
+	for i, crushName := range crushNames {
+		normalizedCrushName := NormalizeCrushName(crushName)
+		fmt.Printf("crushName: %s, normalizedCrushName: %s\n", crushName, normalizedCrushName)
+		assert.True(t, IsNormalizedCrushNameEqual(crushName, normalizedCrushName))
+		assert.True(t, IsNormalizedCrushNameEqual(crushName, crushName))
+		assert.True(t, IsNormalizedCrushNameEqual(normalizedCrushName, normalizedCrushName))
+		if i > 0 {
+			// slightly different crush name
+			differentCrushName := crushNames[i-1]
+			differentNormalizedCrushName := NormalizeCrushName(differentCrushName)
+			assert.False(t, IsNormalizedCrushNameEqual(crushName, differentNormalizedCrushName))
+			assert.False(t, IsNormalizedCrushNameEqual(crushName, differentCrushName))
+			assert.False(t, IsNormalizedCrushNameEqual(normalizedCrushName, differentNormalizedCrushName))
+		}
+	}
+}

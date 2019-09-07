@@ -110,6 +110,8 @@ If this value is empty, each pod will get an ephemeral directory to store their 
   - `hostNetwork`: uses network of the hosts instead of using the SDN below the containers.
 - `mon`: contains mon related options [mon settings](#mon-settings)
 For more details on the mons and when to choose a number other than `3`, see the [mon health design doc](https://github.com/rook/rook/blob/master/design/mon-health.md).
+- `mgr`: manager top level section
+  - `modules`: is the list of Ceph manager modules to enable
 - `rbdMirroring`: The settings for rbd mirror daemon(s). Configuring which pools or images to be mirrored must be completed in the rook toolbox by running the
 [rbd mirror](http://docs.ceph.com/docs/mimic/rbd/rbd-mirroring/) command.
   - `workers`: The number of rbd daemons to perform the rbd mirroring between clusters.
@@ -130,6 +132,8 @@ For more details on the mons and when to choose a number other than `3`, see the
 - `disruptionManagement`: The section for configuring management of daemon disruptions
   - `managePodBudgets`: if `true`, the operator will create and manage PodDsruptionBudgets for OSD, Mon, RGW, and MDS daemons. OSD PDBs are managed dynamically via the strategy outlined in the [design](https://github.com/rook/rook/blob/master/design/ceph-managed-disruptionbudgets.md). The operator will block eviction of OSDs by default and unblock them safely when drains are detected.
   - `osdMaintenanceTimeout`: is a duration in minutes that determines how long an entire failureDomain like `region/zone/host` will be held in `noout` (in addition to the default DOWN/OUT interval) when it is draining. This is only relevant when  `managePodBudgets` is `true`. The default value is `30` minutes.
+  - `manageMachineDisruptionBudgets`: if `true`, the operator will create and manage MachineDisruptionBudgets to ensure OSDs are only fenced when the cluster is healthy. Only available on OpenShift.
+  - `machineDisruptionBudgetNamespace`: the namespace in which to watch the MachineDisruptionBudgets.
 
 ### Mon Settings
 
@@ -150,6 +154,20 @@ If these settings are changed in the CRD the operator will update the number of 
 To change the defaults that the operator uses to determine the mon health and whether to failover a mon, the following environment variables can be changed in [operator.yaml](https://github.com/rook/rook/blob/master/cluster/examples/kubernetes/ceph/operator.yaml). The intervals should be small enough that you have confidence the mons will maintain quorum, while also being long enough to ignore network blips where mons are failed over too often.
 - `ROOK_MON_HEALTHCHECK_INTERVAL`: The frequency with which to check if mons are in quorum (default is 45 seconds)
 - `ROOK_MON_OUT_TIMEOUT`: The interval to wait before marking a mon as "out" and starting a new mon to replace it in the quorum (default is 600 seconds)
+
+### Mgr Settings
+
+You can use the cluster CR to enable or disable any manager module. This can be configured like so:
+
+```yaml
+mgr:
+  modules:
+  - name: <name of the module>
+    enabled: true
+```
+
+Some modules will have special configuration to ensure the module is fully functional after being enabled. Specifically:
+- `pg_autoscaler`: Rook will configure all new pools with PG autoscaling by setting: `osd_pool_default_pg_autoscale_mode = on`
 
 ### Node Settings
 In addition to the cluster level settings specified above, each individual node can also specify configuration to override the cluster level settings and defaults.
@@ -275,7 +293,7 @@ Here are the current minimum amounts of memory in MB to apply so that Rook will 
 
 - `mon`: 1024MB
 - `mgr`: 512MB
-- `osd`: 4096MB
+- `osd`: 2048MB
 - `mds`: 4096MB
 - `rbdmirror`: 512MB
 
@@ -288,62 +306,6 @@ For more information on resource requests/limits see the official Kubernetes doc
 - `limits`: Limits for cpu or memory.
   - `cpu`: Limit for CPU (example: one CPU core `1`, 50% of one CPU core `500m`).
   - `memory`: Limit for Memory (example: one gigabyte of memory `1Gi`, half a gigabyte of memory `512Mi`).
-
-### Ceph config overrides
-Users are advised to use Ceph's CLI or dashboard to configure Ceph; however, some users may want to
-specify some settings they want set in the `CephCluster` manifest. This is possible using the
-`configOverrides` section. Config overrides follow the same syntax as [Ceph's documentation for
-setting config values](https://docs.ceph.com/docs/master/rados/configuration/ceph-conf/#commands),
-and configuration is stored in Ceph's centralized configuration database.
-
-Each item in `configOverrides` has `who`, `option`, and `value` properties. `who` can be `global` to
-affect all Ceph daemons, a daemon type, an individual Ceph daemon, or a glob matching multiple
-daemons. It may also use a
-[mask](https://docs.ceph.com/docs/master/rados/configuration/ceph-conf/#sections-and-masks).
-`option` is the configuration option to be overridden, and `value` is the value to set on the
-configuration option. All properties are strings.
-
-Rook will only set configuration overrides once when an orchestration is run. For example, on node
-addition or removal, when disks change on a node, or when the operator starts (or restarts). This
-means that users can change Ceph's configuration from the CLI or dashboard as desired without Rook
-constantly fighting to control the setting. This is particularly valuable in situations where values
-need to be changed to debug errors or test changes to tuning parameters.
-
-**WARNING:** Remember that Rook will set these overrides any time the operator restarts, so user
-changes via Ceph's CLI or dashboard to values set here will not persist forever.
-
-Some examples:
-```yaml
-  configOverrides:
-    - who: global
-      option: log_file
-      value: /var/log/custom-log-dir
-    - who: mon
-      option: mon_compact_on_start
-      value: "true"
-    - who: mgr.a
-      option: mgr_stats_period
-      value: "10"
-    - who: osd.*
-      option: osd_memory_target
-      value: "2147483648"
-    - who: osd/rack:foo
-      option: debug_ms
-      value: "20"
-```
-
-#### Advanced config
-Setting configs in the Ceph mons' centralized database this way requires that at least one mon be
-available for the configs to be set. Ceph may also have a small number of very advanced settings
-that aren't able to be modified easily in the configuration database. In order to set configurations
-before monitors are available or to set problematic configuration settings, the
-`rook-config-override` ConfigMap exists, and the `config` field can be set with the contents of a
-`ceph.conf` file. It is highly recommended that this only be used when absolutely necessary and that
-the `config` be reset to an empty string if/when the configurations are no longer necessary, as this
-will make the Ceph cluster less configurable from the CLI and dashboard and may make future tuning
-or debugging difficult. Read more about this in the
-[advanced configuration docs](ceph-advanced-configuration.md#custom-cephconf-settings).
-
 
 ## Samples
 Here are several samples for configuring Ceph clusters. Each of the samples must also include the namespace and corresponding access granted for management by the Ceph operator. See the [common cluster resources](#common-cluster-resources) below.

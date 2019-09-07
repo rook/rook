@@ -61,7 +61,7 @@ const (
 	serviceAccountName                  = "rook-ceph-osd"
 	unknownID                           = -1
 	portableKey                         = "portable"
-	cephOsdPodMinimumMemory      uint64 = 4096 // minimum amount of memory in MB to run the pod
+	cephOsdPodMinimumMemory      uint64 = 2048 // minimum amount of memory in MB to run the pod
 )
 
 // Cluster keeps track of the OSDs
@@ -130,6 +130,8 @@ type OSDInfo struct {
 	IsDirectory         bool   `json:"is-directory"`
 	DevicePartUUID      string `json:"device-part-uuid"`
 	CephVolumeInitiated bool   `json:"ceph-volume-initiated"`
+	//LVPath is the logical Volume path for an OSD created by Ceph-volume with format '/dev/<Volume Group>/<Logical Volume>'
+	LVPath string `json:"lv-path"`
 }
 
 type OrchestrationStatus struct {

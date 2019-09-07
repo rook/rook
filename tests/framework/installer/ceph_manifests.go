@@ -33,7 +33,7 @@ type CephManifests interface {
 	GetCleanupPod(node, removalDir string) string
 	GetBlockPoolDef(poolName string, namespace string, replicaSize string) string
 	GetBlockStorageClassDef(poolName string, storageClassName string, reclaimPolicy string, namespace string, varClusterName bool) string
-	GetBlockPvcDef(claimName string, storageClassName string, accessModes string) string
+	GetBlockPvcDef(claimName string, storageClassName string, accessModes string, size string) string
 	GetBlockPoolStorageClassAndPvcDef(namespace string, poolName string, storageClassName string, reclaimPolicy string, blockName string, accessMode string) string
 	GetBlockPoolStorageClass(namespace string, poolName string, storageClassName string, reclaimPolicy string) string
 	GetFilesystem(namepace, name string, activeCount int) string
@@ -120,14 +120,29 @@ spec:
                   maximum: 9
                   minimum: 1
                   type: integer
-              required:
-              - count
+            mgr:
+              properties:
+                modules:
+                  items:
+                    properties:
+                      name:
+                        type: string
+                      enabled:
+                        type: boolean
             network:
               properties:
                 hostNetwork:
                   type: boolean
             storage:
               properties:
+                disruptionManagement:
+                  properties:
+                    managePodBudgets:
+                      type: boolean
+                    osdMaintenanceTimeout:
+                      type: integer
+                    manageMachineDisruptionBudgets:
+                      type: boolean
                 useAllNodes:
                   type: boolean
                 nodes:
@@ -197,15 +212,6 @@ spec:
                   type: integer
             placement: {}
             resources: {}
-            configOverrides:
-              items:
-                properties:
-                  who:
-                    type: string
-                  option:
-                    type: string
-                  value:
-                    type: string
           required:
           - mon
   additionalPrinterColumns:
@@ -287,9 +293,9 @@ spec:
                       codingChunks:
                         type: integer
   additionalPrinterColumns:
-    - name: MdsCount
+    - name: ActiveMDS
       type: string
-      description: Number of MDSs
+      description: Number of desired active MDS daemons
       JSONPath: .spec.metadataServer.activeCount
     - name: Age
       type: date
@@ -649,6 +655,38 @@ rules:
   - "*"
   verbs:
   - "*"
+- apiGroups:
+  - policy
+  - apps
+  resources:
+  #this is for the clusterdisruption controller
+  - poddisruptionbudgets
+  #this is for both clusterdisruption and nodedrain controllers
+  - deployments
+  verbs:
+  - "*"
+- apiGroups:
+  - healthchecking.openshift.io
+  resources:
+  - machinedisruptionbudgets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - machine.openshift.io
+  resources:
+  - machines
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
@@ -687,6 +725,33 @@ rules:
   - list
   - get
   - watch
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-osd
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs:
+  - get
+  - list
+---
+# Allow the ceph osd to access cluster-wide resources necessary for determining their topology location 
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-osd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-osd
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-osd
+  namespace: ` + namespace + `
 ---
 # Aspects of Rook Ceph Agent that require access to secrets
 apiVersion: rbac.authorization.k8s.io/v1beta1
@@ -1602,7 +1667,11 @@ spec:
     config:
       storeType: "` + settings.StoreType + `"
       databaseSizeMB: "1024"
-      journalSizeMB: "1024"`
+      journalSizeMB: "1024"
+  mgr:
+    modules:
+    - name: pg_autoscaler
+      enabled: true`
 }
 
 // GetRookToolBox returns rook-toolbox manifest
@@ -1707,13 +1776,14 @@ kind: StorageClass
 metadata:
    name: ` + storageClassName + `
 provisioner: ceph.rook.io/block
+allowVolumeExpansion: true
 reclaimPolicy: ` + reclaimPolicy + `
 parameters:
     blockPool: ` + poolName + `
     ` + namespaceParameter + `: ` + namespace
 }
 
-func (m *CephManifestsMaster) GetBlockPvcDef(claimName string, storageClassName string, accessModes string) string {
+func (m *CephManifestsMaster) GetBlockPvcDef(claimName, storageClassName, accessModes, size string) string {
 	return `apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -1725,12 +1795,12 @@ spec:
     - ` + accessModes + `
   resources:
     requests:
-      storage: 1M`
+      storage: ` + size
 }
 
 func (m *CephManifestsMaster) GetBlockPoolStorageClassAndPvcDef(namespace string, poolName string, storageClassName string, reclaimPolicy string, blockName string, accessMode string) string {
 	return concatYaml(m.GetBlockPoolDef(poolName, namespace, "1"),
-		concatYaml(m.GetBlockStorageClassDef(poolName, storageClassName, reclaimPolicy, namespace, false), m.GetBlockPvcDef(blockName, storageClassName, accessMode)))
+		concatYaml(m.GetBlockStorageClassDef(poolName, storageClassName, reclaimPolicy, namespace, false), m.GetBlockPvcDef(blockName, storageClassName, accessMode, "1M")))
 }
 
 func (m *CephManifestsMaster) GetBlockPoolStorageClass(namespace string, poolName string, storageClassName string, reclaimPolicy string) string {

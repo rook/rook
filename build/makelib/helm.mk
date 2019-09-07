@@ -36,12 +36,15 @@ $(HELM):
 	@rm -fr $(TOOLS_HOST_DIR)/tmp
 	@$(HELM) init -c
 
+# TODO: after helm 3.0 released just pass --set image.tag=foo
+# to helm lint and helm package steps
 define helm.chart
 $(HELM_OUTPUT_DIR)/$(1)-$(VERSION).tgz: $(HELM) $(HELM_OUTPUT_DIR) $(shell find $(HELM_CHARTS_DIR)/$(1) -type f)
 	@echo === helm package $(1)
-	@$(SED_CMD) 's|%%VERSION%%|$(VERSION)|g' $(HELM_CHARTS_DIR)/$(1)/values.yaml
-	@$(HELM) lint --strict $(abspath $(HELM_CHARTS_DIR)/$(1))
-	@$(HELM) package --version $(VERSION) -d $(HELM_OUTPUT_DIR) $(abspath $(HELM_CHARTS_DIR)/$(1))
+	@cp -r $(HELM_CHARTS_DIR)/$(1) $(OUTPUT_DIR)
+	@$(SED_CMD) 's|%%VERSION%%|$(VERSION)|g' $(OUTPUT_DIR)/$(1)/values.yaml
+	@$(HELM) lint --strict $(abspath $(OUTPUT_DIR)/$(1))
+	@$(HELM) package --version $(VERSION) -d $(HELM_OUTPUT_DIR) $(abspath $(OUTPUT_DIR)/$(1))
 $(HELM_INDEX): $(HELM_OUTPUT_DIR)/$(1)-$(VERSION).tgz
 endef
 $(foreach p,$(HELM_CHARTS),$(eval $(call helm.chart,$(p))))

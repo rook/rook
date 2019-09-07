@@ -85,7 +85,6 @@ users:
   # If other namespaces or service accounts are configured, they need to be updated here.
   - system:serviceaccount:rook-ceph:rook-csi-rbd-plugin-sa
   - system:serviceaccount:rook-ceph:rook-csi-rbd-provisioner-sa
-  - system:serviceaccount:rook-ceph:rook-csi-rbd-attacher-sa
   - system:serviceaccount:rook-ceph:rook-csi-cephfs-plugin-sa
   - system:serviceaccount:rook-ceph:rook-csi-cephfs-provisioner-sa
 ---
@@ -112,7 +111,7 @@ spec:
       serviceAccountName: rook-ceph-system
       containers:
       - name: rook-ceph-operator
-        image: rook/ceph:v1.1.0-beta.0
+        image: rook/ceph:v1.1.0-beta.1
         args: ["ceph", "operator"]
         volumeMounts:
         - mountPath: /var/lib/rook
@@ -198,7 +197,7 @@ spec:
         - name: ROOK_DISABLE_DEVICE_HOTPLUG
           value: "false"
 
-       # Whether to enable the flex driver. By default it is enabled and is fully supported, but will be deprecated in some future release
+        # Whether to enable the flex driver. By default it is enabled and is fully supported, but will be deprecated in some future release
         # in favor of the CSI driver.
         - name: ROOK_ENABLE_FLEX_DRIVER
           value: "true"
@@ -207,6 +206,10 @@ spec:
         # This daemon does not need to run if you are only going to create your OSDs based on StorageClassDeviceSets with PVCs.
         - name: ROOK_ENABLE_DISCOVERY_DAEMON
           value: "true"
+
+        # Whether to start machineDisruptionBudget and machineLabel controller to watch for the osd pods and MDBs.
+        - name: ROOK_ENABLE_MACHINE_DISRUPTION_BUDGET
+          value: "false"
 
         # Enable the CSI driver.
         # To run the non-default version of the CSI driver, see the override-able image properties in operator.yaml

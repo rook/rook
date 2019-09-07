@@ -71,9 +71,6 @@ type ClusterSpec struct {
 	// The path on the host where config and data can be persisted.
 	DataDirHostPath string `json:"dataDirHostPath,omitempty"`
 
-	// Ceph config overrides to apply.
-	ConfigOverrides ConfigOverridesSpec `json:"configOverrides,omitempty"`
-
 	// A spec for configuring disruption management.
 	DisruptionManagement DisruptionManagementSpec `json:"disruptionManagement,omitempty"`
 
@@ -92,6 +89,9 @@ type ClusterSpec struct {
 	// Whether the Ceph Cluster is running external to this Kubernetes cluster
 	// mon, mgr, osd, mds, and discover daemons will not be created for external clusters.
 	External ExternalSpec `json:"external"`
+
+	// A spec for mgr related options
+	Mgr MgrSpec `json:"mgr,omitempty"`
 }
 
 // VersionSpec represents the settings for the Ceph version that Rook is orchestrating.
@@ -158,22 +158,21 @@ const (
 	DefaultFailureDomain = "host"
 )
 
-// ConfigOverridesSpec defines how Ceph configurations can be overridden by Rook.
-type ConfigOverridesSpec []ConfigOverride
-
-// ConfigOverride defines the syntax for overriding a Ceph config. This translates to a
-// `ceph config set <who> <option> <value>` (or similar) command.
-// See Ceph docs: https://docs.ceph.com/docs/master/rados/configuration/ceph-conf/#monitor-configuration-database
-type ConfigOverride struct {
-	Who    string `json:"who"`
-	Option string `json:"option"`
-	Value  string `json:"value"`
-}
-
 type MonSpec struct {
 	Count                int                       `json:"count,omitempty"`
 	AllowMultiplePerNode bool                      `json:"allowMultiplePerNode,omitempty"`
 	VolumeClaimTemplate  *v1.PersistentVolumeClaim `json:"volumeClaimTemplate,omitempty"`
+}
+
+// MgrSpec represents options to configure a ceph mgr
+type MgrSpec struct {
+	Modules []Module `json:"modules,omitempty"`
+}
+
+// Module represents mgr modules that the user wants to enable or disable
+type Module struct {
+	Name    string `json:"name,omitempty"`
+	Enabled bool   `json:"enabled"`
 }
 
 // ExternalSpec represents the options supported by an external cluster
@@ -434,4 +433,10 @@ type DisruptionManagementSpec struct {
 	// it only works if managePodBudgetss is true.
 	// the default is 30 minutes
 	OSDMaintenenceTimeout time.Duration `json:"osdMaintenanceTimeout,omitempty"`
+
+	// This enables management of machinedisruptionbudgets
+	ManageMachineDisruptionBudgets bool `json:"manageMachineDisruptionBudgets,omitempty"`
+
+	// Namespace to look for MDBs by the machineDisruptionBudgetController
+	MachineDisruptionBudgetNamespace string `json:"machineDisruptionBudgetNamespace,omitempty"`
 }

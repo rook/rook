@@ -22,6 +22,8 @@ import (
 	"strconv"
 	"strings"
 
+	"k8s.io/client-go/kubernetes"
+
 	"github.com/rook/rook/cmd/rook/rook"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	osddaemon "github.com/rook/rook/pkg/daemon/ceph/osd"
@@ -32,6 +34,8 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -67,6 +71,7 @@ var (
 	osdUUID             string
 	osdIsDevice         bool
 	pvcBackedOSD        bool
+	lvPath              string
 )
 
 func addOSDFlags(command *cobra.Command) {
@@ -81,7 +86,7 @@ func addOSDFlags(command *cobra.Command) {
 	provisionCmd.Flags().BoolVar(&cfg.forceFormat, "force-format", false,
 		"true to force the format of any specified devices, even if they already have a filesystem.  BE CAREFUL!")
 	provisionCmd.Flags().BoolVar(&cfg.pvcBacked, "pvc-backed-osd", false, "true to specify a block mode pvc is backing the OSD")
-
+	provisionCmd.Flags().BoolVar(&cfg.topologyAware, "topology-aware", false, "true to specify crush location should be set based on the node's zone/region labels")
 	// flags for generating the osd config
 	osdConfigCmd.Flags().IntVar(&osdID, "osd-id", -1, "osd id for which to generate config")
 	osdConfigCmd.Flags().BoolVar(&osdIsDevice, "is-device", false, "whether the osd is a device")
@@ -95,6 +100,7 @@ func addOSDFlags(command *cobra.Command) {
 	osdStartCmd.Flags().StringVar(&osdUUID, "osd-uuid", "", "the osd UUID")
 	osdStartCmd.Flags().StringVar(&osdStoreType, "osd-store-type", "", "whether the osd is bluestore or filestore")
 	osdStartCmd.Flags().BoolVar(&pvcBackedOSD, "pvc-backed-osd", false, "Whether the OSD backing store in PVC or not")
+	osdStartCmd.Flags().StringVar(&lvPath, "lv-path", "", "LV path for the OSD created by ceph volume")
 
 	// add the subcommands to the parent osd command
 	osdCmd.AddCommand(osdConfigCmd,
@@ -142,7 +148,7 @@ func startOSD(cmd *cobra.Command, args []string) error {
 	commonOSDInit(osdStartCmd)
 
 	context := createContext()
-	err := osddaemon.StartOSD(context, osdStoreType, osdStringID, osdUUID, pvcBackedOSD, args)
+	err := osddaemon.StartOSD(context, osdStoreType, osdStringID, osdUUID, lvPath, pvcBackedOSD, args)
 	if err != nil {
 		rook.TerminateFatal(err)
 	}
@@ -193,11 +199,10 @@ func writeOSDConfig(cmd *cobra.Command, args []string) error {
 
 	context := createContext()
 	commonOSDInit(osdConfigCmd)
-	locArgs, err := client.FormatLocation(cfg.location, cfg.nodeName)
+	crushLocation, err := getLocation(context.Clientset, cfg.location, cfg.topologyAware)
 	if err != nil {
-		rook.TerminateFatal(fmt.Errorf("invalid location %s. %+v\n", cfg.location, err))
+		rook.TerminateFatal(err)
 	}
-	crushLocation := strings.Join(locArgs, " ")
 	kv := k8sutil.NewConfigMapKVStore(clusterInfo.Name, context.Clientset, metav1.OwnerReference{})
 
 	if err := osddaemon.WriteConfigFile(context, &clusterInfo, kv, osdID, osdIsDevice, cfg.storeConfig, cfg.nodeName, crushLocation); err != nil {
@@ -236,12 +241,11 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 
 	context := createContext()
 	commonOSDInit(provisionCmd)
-
-	locArgs, err := client.FormatLocation(cfg.location, cfg.nodeName)
+	crushLocation, err := getLocation(context.Clientset, cfg.location, cfg.topologyAware)
 	if err != nil {
-		rook.TerminateFatal(fmt.Errorf("invalid location. %+v", err))
+		rook.TerminateFatal(err)
 	}
-	crushLocation := strings.Join(locArgs, " ")
+	logger.Infof("crush location of osd: %s", crushLocation)
 
 	forceFormat := false
 	ownerRef := cluster.ClusterOwnerRef(clusterInfo.Name, ownerRefID)
@@ -270,6 +274,56 @@ func commonOSDInit(cmd *cobra.Command) {
 	rook.LogStartupInfo(cmd.Flags())
 
 	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
+}
+
+func getLocation(clientset kubernetes.Interface, location string, topologyAware bool) (string, error) {
+	locArgs, err := client.FormatLocation(cfg.location, cfg.nodeName)
+	if err != nil {
+		return "", fmt.Errorf("invalid location. %+v", err)
+	}
+	// use zone/region/hostname labels in the crushmap
+	if cfg.topologyAware {
+		nodeName := os.Getenv(k8sutil.NodeNameEnvVar)
+		node, err := getNode(clientset, nodeName)
+		if err != nil {
+			return "", fmt.Errorf("topologyAware is set, but could not get the node: %+v", err)
+		}
+		nodeLabels := node.GetLabels()
+		// get zone
+		zone, ok := nodeLabels[corev1.LabelZoneFailureDomain]
+		if ok {
+			client.UpdateCrushMapValue(&locArgs, "zone", client.NormalizeCrushName(zone))
+		}
+		// get region
+		region, ok := nodeLabels[corev1.LabelZoneRegion]
+		if ok {
+			client.UpdateCrushMapValue(&locArgs, "region", client.NormalizeCrushName(region))
+		}
+
+	}
+
+	return strings.Join(locArgs, " "), nil
+}
+
+// getNode will try to get the node object for the provided nodeName
+// it will try using the node's name it's hostname label
+func getNode(clientset kubernetes.Interface, nodeName string) (*corev1.Node, error) {
+	var node *corev1.Node
+	var err error
+	// try to find by the node by matching the provided nodeName
+	node, err = clientset.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+	if errors.IsNotFound(err) {
+		listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", corev1.LabelHostname, nodeName)}
+		nodeList, err := clientset.CoreV1().Nodes().List(listOpts)
+		if err != nil || len(nodeList.Items) < 1 {
+			return nil, fmt.Errorf("could not find node '%s'hostname label: %+v", nodeName, err)
+		}
+		return &nodeList.Items[0], nil
+	} else if err != nil {
+		return nil, fmt.Errorf("could not find node '%s' by name: %+v", nodeName, err)
+	}
+
+	return node, nil
 }
 
 // Parse the devices, which are comma separated. A colon indicates a non-default number of osds per device

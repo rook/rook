@@ -152,8 +152,9 @@ func generateFlexSettings(enableSELinuxRelabeling, enableFSGroup bool) ([]byte, 
 			// Required for metrics
 			SupportsMetrics: true,
 			// Required for any mount performed on a host running selinux
-			SELinuxRelabel: enableSELinuxRelabeling,
-			FSGroup:        enableFSGroup,
+			SELinuxRelabel:   enableSELinuxRelabeling,
+			FSGroup:          enableFSGroup,
+			RequiresFSResize: true,
 		},
 	}
 	result, err := json.Marshal(status)

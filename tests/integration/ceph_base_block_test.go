@@ -30,13 +30,14 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/version"
 )
 
 // Smoke Test for Block Storage - Test check the following operations on Block Storage in order
-// Create,Mount,Write,Read,Unmount and Delete.
+// Create,Mount,Write,Read,Expand,Unmount and Delete.
 func runBlockE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
 	podName := "block-test"
 	poolName := "replicapool"
@@ -91,9 +92,25 @@ func runBlockE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.
 	require.Nil(s.T(), err)
 	logger.Infof("Read from  Block storage successfully")
 
+	v := version.MustParseSemantic(k8sh.GetK8sServerVersion())
+	if v.AtLeast(version.MustParseSemantic("1.14.0")) {
+		logger.Infof("additional step: Expand block storage")
+		// Expanding the image by applying new PVC specs
+		err = helper.BlockClient.CreatePvc(blockName, storageClassName, "ReadWriteOnce", "2M")
+		require.Nil(s.T(), err)
+		// Once the pod using the volume is terminated, the filesystem is expanded and the size of the PVC is increased.
+		err = k8sh.DeletePod(k8sutil.DefaultNamespace, podName)
+		require.Nil(s.T(), err)
+		_, err = helper.BlockClient.BlockMap(getBlockPodDefinition(podName, blockName, false))
+		require.Nil(s.T(), err)
+		require.True(s.T(), k8sh.IsPodRunning(podName, defaultNamespace), "Make sure new pod is running")
+		require.True(s.T(), k8sh.WaitUntilPVCIsExpanded(defaultNamespace, blockName, "2M"), "Make sure PVC is expanded")
+		logger.Infof("Block Storage successfully expanded")
+	}
+
 	logger.Infof("step 7: Mount same block storage on a different pod. Should not be allowed")
 	otherPod := "block-test2"
-	_, mtErr := helper.BlockClient.BlockMap(getBlockPodDefintion(otherPod, blockName, false))
+	_, mtErr := helper.BlockClient.BlockMap(getBlockPodDefinition(otherPod, blockName, false))
 	require.Nil(s.T(), mtErr)
 	require.True(s.T(), k8sh.IsPodInError(otherPod, defaultNamespace, "FailedMount", "Volume is already attached by pod"), "make sure block-test2 pod errors out while mounting the volume")
 	logger.Infof("Block Storage successfully fenced")
@@ -147,7 +164,7 @@ func runBlockE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.
 }
 
 func createPodWithBlock(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace, blockName, podName string) string {
-	_, mtErr := helper.BlockClient.BlockMap(getBlockPodDefintion(podName, blockName, false))
+	_, mtErr := helper.BlockClient.BlockMap(getBlockPodDefinition(podName, blockName, false))
 	require.Nil(s.T(), mtErr)
 	crdName, err := k8sh.GetVolumeResourceName(defaultNamespace, blockName)
 	require.Nil(s.T(), err)
@@ -304,7 +321,7 @@ func cleanupDynamicBlockStorage(helper *clients.TestClient, namespace string) {
 	}
 }
 
-func getBlockPodDefintion(podName, blockName string, readOnly bool) string {
+func getBlockPodDefinition(podName, blockName string, readOnly bool) string {
 	return `apiVersion: v1
 kind: Pod
 metadata:
