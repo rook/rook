@@ -47,8 +47,6 @@ func checkIfRookClusterIsInstalled(s suite.Suite, k8sh *utils.K8sHelper, opNames
 		"Make sure there is 1 rook-operator present in Running state")
 	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-ceph-agent", opNamespace, 1, "Running"),
 		"Make sure there is 1 rook-ceph-agent present in Running state")
-	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-discover", opNamespace, 1, "Running"),
-		"Make sure there is 1 rook-discover present in Running state")
 	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-ceph-mgr", clusterNamespace, 1, "Running"),
 		"Make sure there is 1 rook-ceph-mgr present in Running state")
 	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-ceph-osd", clusterNamespace, 1, "Running"),
