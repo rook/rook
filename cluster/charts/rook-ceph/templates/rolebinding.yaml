@@ -98,7 +98,7 @@ metadata:
   namespace: {{ .Release.Namespace }}
 subjects:
   - kind: ServiceAccount
-    name: cephfs-csi-provisioner
+    name: rook-csi-cephfs-provisioner-sa
     namespace: {{ .Release.Namespace }}
 roleRef:
   kind: Role
@@ -112,7 +112,7 @@ metadata:
   namespace: {{ .Release.Namespace }}
 subjects:
   - kind: ServiceAccount
-    name: rbd-csi-provisioner
+    name: rook-csi-rbd-provisioner-sa
     namespace: {{ .Release.Namespace }}
 roleRef:
   kind: Role
