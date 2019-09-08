@@ -2,23 +2,26 @@
 
 ## Action Required
 
-## Notable Features
-- Creation of storage pools through the custom resource definitions (CRDs) now allows users to optionally specify `deviceClass` property to enable
-distribution of the data only across the specified device class. See [Ceph Block Pool CRD](Documentation/ceph-pool-crd.md#ceph-block-pool-crd) for
-an example usage
+- With Rook [EdgeFS](http://edgefs.io) operator CRDs graduated to v1 stable (WooHoo!), please follow [upgrade procedure](Documentation/edgefs-upgrade.md) on how to get CRDs and running setups converted.
+
+## Notable Rook Framework Features
 - Added K8s 1.15 to the test matrix and removed K8s 1.10 from the test matrix.
 - OwnerReferences are created with the fully qualified `apiVersion` such that the references will work properly on OpenShift.
-- Linear disk device can now be used for Ceph OSDs.
 - The integration tests can be triggered for specific storage providers rather than always running all tests. See the [dev guide](INSTALL.md#test-storage-provider) for more details.
 - Provisioning will fail if the user specifies a `metadataDevice` but that device is not used as a metadata device by Ceph.
-- Allow `metadataDevice` to be set per OSD device in the device specific `config` section.
 - [YugabyteDB](https://www.yugabyte.com/) is now supported by Rook with a new operator. You can deploy, configure and manage instances of this high-performance distributed SQL database. Create an instance of the new `ybcluster.yugabytedb.rook.io` custom resource to easily deploy a cluster of YugabyteDB Database. Checkout its [user guide](Documentation/yugabytedb.md) to get started with YugabyteDB.
+- Rook now supports Multi-Homed networking. This feature significantly improves performance and security by isolating a backend network as a separate network. Read more on Multi-Homed networking with Rook EdgeFS in this [presentation at KubeCon China 2019](https://www.youtube.com/watch?v=h38FCAuOehc&list=PLj6h78yzYM2Njj5PvNc4Mtcril2YyR95d&index=76&t=0s).
 - Git tags can be added for alpha, beta, or rc releases. For example: v1.1.0-alpha.0
-- Added `deviceClass` to the per OSD device specific `config` section for setting custom crush device class per OSD.
-- Use `--db-devices` with Ceph 14.2.1 and newer clusters to explicitly set `metadataDevice` per OSD.
 
 ### Ceph
 
+- Creation of storage pools through the custom resource definitions (CRDs) now allows users to optionally specify `deviceClass` property to enable
+distribution of the data only across the specified device class. See [Ceph Block Pool CRD](Documentation/ceph-pool-crd.md#ceph-block-pool-crd) for
+an example usage
+- Linear disk device can now be used for Ceph OSDs.
+- Allow `metadataDevice` to be set per OSD device in the device specific `config` section.
+- Added `deviceClass` to the per OSD device specific `config` section for setting custom crush device class per OSD.
+- Use `--db-devices` with Ceph 14.2.1 and newer clusters to explicitly set `metadataDevice` per OSD.
 - The minimum version supported by Rook is now Ceph Mimic v13.2.4.
 - The Ceph CSI driver is enabled by default and preferred over the flex driver
    - The flex driver can be disabled in operator.yaml by setting ROOK_ENABLE_FLEX_DRIVER=false
@@ -57,6 +60,24 @@ an example usage
 - Flexvolume plugin now supports dynamic PVC expansion.
 - The Rook-enforced minimum memory for OSD pods has been reduced from 4096M to 2048M
 
+### EdgeFS
+
+- The minimum version supported by Rook is now EdgeFS v1.2.64.
+- Graduate CRDs to stable v1 [#3702](https://github.com/rook/rook/issues/3702)
+- Added support for useHostLocalTime option to synchronize time in service pods to host [#3627](https://github.com/rook/rook/issues/3627)
+- Added support for Multi-homing networking to provide better storage backend security isolation [#3576](https://github.com/rook/rook/issues/3576)
+- Allow users to define Kubernetes users to define ServiceType and NodePort via the service CRD spec [#3516](https://github.com/rook/rook/pull/3516)
+- Added mgr pod liveness probes [#3492](https://github.com/rook/rook/issues/3492)
+- Ability to add/remove nodes via EdgeFS cluster CRD [#3462](https://github.com/rook/rook/issues/3462)
+- Support for device full name path spec i.e. /dev/disk/by-id/NAME [#3374](https://github.com/rook/rook/issues/3374)
+- Rolling Upgrade support [#2990](https://github.com/rook/rook/issues/2990)
+- Prevents multiple targets deployment on the same node  [#3181](https://github.com/rook/rook/issues/3181)
+- Enhance S3 compatibility support for S3X pods [#3169](https://github.com/rook/rook/issues/3169)
+- Add K8S_NAMESPACE env to EdgeFS containers [#3097](https://github.com/rook/rook/issues/3097)
+- Improved support for ISGW dynamicFetch configuring [#3070](https://github.com/rook/rook/issues/3070)
+- OLM integration [#3017](https://github.com/rook/rook/issues/3017)
+- Flexible Metadata Offload page size setting support [#3776](https://github.com/rook/rook/issues/3776)
+
 ### YugabyteDB
 
 - Rook now supports YugabyteDB as storage provider. YugaByteDB is a high-performance, cloud-native distributed SQL database which can tolerate disk, node, zone and region failures automatically. You can find more information about YugabyteDB [here](https://docs.yugabyte.com/latest/introduction/)
@@ -72,6 +93,11 @@ an example usage
 While the flex driver is still supported, it is anticipated to be deprecated soon.
 - The `Mon.PreferredCount` setting has been removed.
 - imagePullSecrets option added to helm-chart
+
+### EdgeFS
+
+- With Rook EdgeFS operator CRDs graduated to v1, please follow [upgrade procedure](Documentation/edgefs-upgrade.md) on how to get CRDs and running setups converted.
+- EdgeFS versions greater than v1.2.62 require full cluster restart.
 
 ## Known Issues
 
