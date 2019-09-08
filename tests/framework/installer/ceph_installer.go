@@ -137,7 +137,7 @@ func (h *CephInstaller) CreateCephOperator(namespace string) (err error) {
 }
 
 // CreateK8sRookOperatorViaHelm creates rook operator via Helm chart named local/rook present in local repo
-func (h *CephInstaller) CreateK8sRookOperatorViaHelm(namespace string) error {
+func (h *CephInstaller) CreateK8sRookOperatorViaHelm(namespace, chartSettings string) error {
 	// creating clusterrolebinding for kubeadm env.
 	h.k8shelper.CreateAnonSystemClusterBinding()
 
@@ -147,7 +147,7 @@ func (h *CephInstaller) CreateK8sRookOperatorViaHelm(namespace string) error {
 		return fmt.Errorf("Failed to get Version of helm chart %v, err : %v", helmChartName, err)
 	}
 
-	err = h.helmHelper.InstallLocalRookHelmChart(helmChartName, helmDeployName, helmTag, namespace)
+	err = h.helmHelper.InstallLocalRookHelmChart(helmChartName, helmDeployName, helmTag, namespace, chartSettings)
 	if err != nil {
 		return fmt.Errorf("failed to install rook operator via helm, err : %v", err)
 
@@ -285,10 +285,14 @@ func (h *CephInstaller) InstallRookOnK8sWithHostPathAndDevices(namespace, storeT
 
 	logger.Infof("Installing rook on k8s %s", k8sversion)
 
+	startDiscovery := true
 	onamespace := namespace
 	// Create rook operator
 	if h.useHelm {
-		err = h.CreateK8sRookOperatorViaHelm(namespace)
+		// disable the discovery daemonset with the helm chart
+		settings := "enableDiscoveryDaemon=false"
+		startDiscovery = false
+		err = h.CreateK8sRookOperatorViaHelm(namespace, settings)
 		if err != nil {
 			logger.Errorf("Rook Operator not installed ,error -> %v", err)
 			return false, err
@@ -326,6 +330,15 @@ func (h *CephInstaller) InstallRookOnK8sWithHostPathAndDevices(namespace, storeT
 	if err != nil {
 		logger.Errorf("Rook cluster %s not installed, error -> %v", namespace, err)
 		return false, err
+	}
+
+	discovery, err := h.k8shelper.Clientset.AppsV1().DaemonSets(onamespace).Get("rook-discover", metav1.GetOptions{})
+	if startDiscovery {
+		assert.NoError(h.T(), err)
+		assert.NotNil(h.T(), discovery)
+	} else {
+		assert.Error(h.T(), err)
+		assert.True(h.T(), errors.IsNotFound(err))
 	}
 
 	// Create rook client
