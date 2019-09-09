@@ -217,6 +217,10 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig config.StoreConfig,
 			assert.Equal(t, config.Bluestore, storeConfig.StoreType)
 			return `SIZE="1234567890" TYPE="part"`, nil
 		}
+		return "", nil
+	}
+	executor.MockExecuteCommandWithCombinedOutput = func(debug bool, actionName string, command string, args ...string) (string, error) {
+		outputExecCount++
 		if command == "ceph-volume" {
 			if args[1] == "list" {
 				return `{}`, nil
@@ -386,7 +390,7 @@ func createTestAgent(t *testing.T, devices, configDir, nodeName string, storeCon
 			logger.Infof("%s %v", command, args)
 			return "{\"key\":\"mysecurekey\", \"osdid\":3.0}", nil
 		},
-		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
+		MockExecuteCommandWithCombinedOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
 			logger.Infof("%s %v", command, args)
 			if command == "ceph-volume" {
 				if len(args) == 3 && args[0] == "lvm" && args[1] == "batch" && args[2] == "--prepare" {
