@@ -21,7 +21,7 @@ spec:
           args:
             - "--csi-address=$(ADDRESS)"
             - "--v=5"
-            - "--timeout=60s"
+            - "--timeout=150s"
             - "--retry-interval-start=500ms"
             - "--enable-leader-election=true"
             - "--leader-election-type=leases"
@@ -37,6 +37,7 @@ spec:
           image: {{ .AttacherImage }}
           args:
             - "--v=5"
+            - "--timeout=150s"
             - "--csi-address=$(ADDRESS)"
             - "--leader-election=true"
             - "--leader-election-type=leases"
@@ -53,7 +54,7 @@ spec:
           args:
             - "--csi-address=$(ADDRESS)"
             - "--v=5"
-            - "--timeout=60s"
+            - "--timeout=150s"
             - "--leader-election=true"
             - "--leader-election-namespace={{ .Namespace }}"
           env:

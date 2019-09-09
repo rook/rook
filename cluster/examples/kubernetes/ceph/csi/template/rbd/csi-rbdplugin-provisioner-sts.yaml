@@ -22,7 +22,7 @@ spec:
           args:
             - "--csi-address=$(ADDRESS)"
             - "--v=5"
-            - "--timeout=60s"
+            - "--timeout=150s"
             - "--retry-interval-start=500ms"
           env:
             - name: ADDRESS
@@ -35,6 +35,7 @@ spec:
           image: {{ .AttacherImage }}
           args:
             - "--v=5"
+            - "--timeout=150s"
             - "--csi-address=$(ADDRESS)"
           env:
             - name: ADDRESS
@@ -48,7 +49,7 @@ spec:
           args:
             - "--csi-address=$(ADDRESS)"
             - "--v=5"
-            - "--timeout=60s"
+            - "--timeout=150s"
           env:
             - name: ADDRESS
               value: unix:///csi/csi-provisioner.sock
