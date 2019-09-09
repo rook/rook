@@ -87,7 +87,7 @@ spec:
     - alert: CephMonHighNumberOfLeaderChanges
       annotations:
         description: 'Ceph Monitor "{{ $labels.job }}": instance {{ $labels.instance
-          }} has seen {{ $value }} leader changes per minute recently.'
+          }} has seen {{ $value | printf "%.2f" }} leader changes per minute recently.'
         message: Storage Cluster has seen many leader changes recently.
         severity_level: warning
         storage_type: ceph
