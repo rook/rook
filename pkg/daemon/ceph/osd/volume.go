@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path"
+	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"syscall"
@@ -285,14 +287,20 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 			}...)
 		}
 		mdArgs = append(mdArgs, strings.Split(conf["devices"], " ")...)
+		r, err := regexp.Compile("([a-z0-9]+)")
+		if err != nil {
+			return fmt.Errorf("failed to compile regex. %+v", err)
+		}
+		mdList := strings.Split(strings.Replace(r.ReplaceAllString(md, "/dev/$1"), " ", "", -1), ",")
+		sort.Strings(mdList)
 
 		if a.cluster.CephVersion.IsAtLeast(cephver.CephVersion{Major: 14, Minor: 2, Extra: 1}) {
 			mdArgs = append(mdArgs, []string{
 				dbDeviceFlag,
-				path.Join("/dev", md),
 			}...)
+			mdArgs = append(mdArgs, mdList...)
 		} else {
-			mdArgs = append(mdArgs, path.Join("/dev", md))
+			mdArgs = append(mdArgs, mdList...)
 		}
 
 		// Reporting
@@ -321,8 +329,10 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 			return fmt.Errorf("failed to unmarshal ceph-volume report json. %+v", err)
 		}
 
-		if path.Join("/dev", md) != cvReport.Vg.Devices {
-			return fmt.Errorf("ceph-volume did not use the expected metadataDevice [%s]", md)
+		cvReportMDList := strings.Split(strings.Replace(cvReport.Vg.Devices, " ", "", -1), ",")
+		sort.Strings(cvReportMDList)
+		if strings.Join(mdList, "") != strings.Join(cvReportMDList, "") {
+			return fmt.Errorf("ceph-volume did not use the expected metadataDevice [%s]", mdList)
 		}
 
 		// execute ceph-volume batching up multiple devices
