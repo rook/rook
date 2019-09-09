@@ -101,7 +101,7 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 			}...)
 			// execute ceph-volume with the device
 
-			if op, err := context.Executor.ExecuteCommandWithOutput(false, "", baseCommand, immediateExecuteArgs...); err != nil {
+			if op, err := context.Executor.ExecuteCommandWithCombinedOutput(false, "", baseCommand, immediateExecuteArgs...); err != nil {
 				return "", fmt.Errorf("failed ceph-volume. %+v", err) // fail return here as validation provided by ceph-volume
 			} else {
 				logger.Infof("%v", op)
@@ -309,7 +309,7 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 			"json",
 		}...)
 
-		cvOut, err := context.Executor.ExecuteCommandWithOutput(false, "", baseCommand, reportArgs...)
+		cvOut, err := context.Executor.ExecuteCommandWithCombinedOutput(false, "", baseCommand, reportArgs...)
 		if err != nil {
 			return fmt.Errorf("failed ceph-volume json report. %+v", err) // fail return here as validation provided by ceph-volume
 		}
@@ -350,7 +350,7 @@ func sanitizeOSDsPerDevice(count int) string {
 
 func getCephVolumeSupported(context *clusterd.Context) (bool, error) {
 
-	_, err := context.Executor.ExecuteCommandWithOutput(false, "", cephVolumeCmd, "lvm", "batch", "--prepare")
+	_, err := context.Executor.ExecuteCommandWithCombinedOutput(false, "", cephVolumeCmd, "lvm", "batch", "--prepare")
 
 	if err != nil {
 		if cmdErr, ok := err.(*exec.CommandError); ok {
@@ -369,7 +369,7 @@ func getCephVolumeSupported(context *clusterd.Context) (bool, error) {
 
 func getCephVolumeOSDs(context *clusterd.Context, clusterName string, cephfsid string, lv string) ([]oposd.OSDInfo, error) {
 
-	result, err := context.Executor.ExecuteCommandWithOutput(false, "", cephVolumeCmd, "lvm", "list", lv, "--format", "json")
+	result, err := context.Executor.ExecuteCommandWithCombinedOutput(false, "", cephVolumeCmd, "lvm", "list", lv, "--format", "json")
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve ceph-volume results. %+v", err)
 	}

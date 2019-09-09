@@ -241,7 +241,7 @@ var cephVolumeTestResultMultiClusterMultiOSD = `{
 func TestParseCephVolumeResult(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	// set up a mock function to return "rook owned" partitions on the device and it does not have a filesystem
-	executor.MockExecuteCommandWithOutput = func(debug bool, name string, command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithCombinedOutput = func(debug bool, name string, command string, args ...string) (string, error) {
 		logger.Infof("%s %+v", command, args)
 
 		if command == "ceph-volume" {
@@ -261,7 +261,7 @@ func TestParseCephVolumeResult(t *testing.T) {
 func TestCephVolumeResultMultiClusterSingleOSD(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	// set up a mock function to return "rook owned" partitions on the device and it does not have a filesystem
-	executor.MockExecuteCommandWithOutput = func(debug bool, name string, command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithCombinedOutput = func(debug bool, name string, command string, args ...string) (string, error) {
 		logger.Infof("%s %+v", command, args)
 
 		if command == "ceph-volume" {
@@ -282,7 +282,7 @@ func TestCephVolumeResultMultiClusterSingleOSD(t *testing.T) {
 func TestCephVolumeResultMultiClusterMultiOSD(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	// set up a mock function to return "rook owned" partitions on the device and it does not have a filesystem
-	executor.MockExecuteCommandWithOutput = func(debug bool, name string, command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithCombinedOutput = func(debug bool, name string, command string, args ...string) (string, error) {
 		logger.Infof("%s %+v", command, args)
 
 		if command == "ceph-volume" {
