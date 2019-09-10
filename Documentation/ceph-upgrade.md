@@ -232,9 +232,42 @@ kubectl apply -f upgrade-from-v1.0-apply.yaml
 Upgrade notes have been added to `upgrade-from-v1.0-create.yaml` identifying the changes made to 1.1
 to aid users in any manifest-related auditing they wish to do.
 
-### 3. Update the Rook operator image
-The largest portion of the upgrade is triggered when the operator's image is updated to `v1.1.x`.
+### 3. Update the Rook operator deployment
+#### **Important note for CSI driver users:**
+If you have a v1.0 cluster running with CSI drivers enabled, the environment (`env`) variables
+controlling which Ceph CSI images are used likely need to be updated as well. If this is the case,
+it is easiest to `kubectl edit` the operator deployment and modify everything needed at once.
+
+The `ROOK_CSI_CEPHFS_IMAGE` and `ROOK_CSI_RBD_IMAGE` `env` variables are no longer used in Rook
+v1.1. These can be removed.
+
+If you would like to use the upstream images which Rook uses by default, then you may simply remove
+all `env` variables with the `ROOK_CSI_` prefix from the `CephCluster` resource.
+
+OR, if you would like to use images hosted in a different location like a local image registry, then
+the following `env` variables will need to be configured. The suggested upstream images are included
+below, which you should change to match where your images are located.
+```yaml
+    env:
+    - name: ROOK_CSI_CEPH_IMAGE
+        value: "quay.io/cephcsi/cephcsi:v1.2.0"
+    - name: ROOK_CSI_REGISTRAR_IMAGE
+        value: "quay.io/k8scsi/csi-node-driver-registrar:v1.1.0"
+    - name: ROOK_CSI_PROVISIONER_IMAGE
+        value: "quay.io/k8scsi/csi-provisioner:v1.3.0"
+    - name: ROOK_CSI_SNAPSHOTTER_IMAGE
+        value: "quay.io/k8scsi/csi-snapshotter:v1.2.0"
+    - name: ROOK_CSI_ATTACHER_IMAGE
+        value: "quay.io/k8scsi/csi-attacher:v1.2.0"
+```
+
+#### Update the Rook image
+The largest portion of the upgrade is triggered when the operator's image is updated to `v1.1.x`. If
+there are no CSI `env` variable updates needed, then the following command will be all that is
+needed to kick off the Rook upgrade. Otherwise, the image should be changed at the same time as
+editing the `ROOK_CSI_` `env` variables detailed above, and this command may be skipped.
 ```sh
+# If no ROOK_CSI_ env variable updates are needed
 kubectl -n $ROOK_SYSTEM_NAMESPACE set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.1.0
 ```
 
