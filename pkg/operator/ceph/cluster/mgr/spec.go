@@ -309,6 +309,10 @@ func (c *Cluster) makeMetricsService(name string) *v1.Service {
 
 func (c *Cluster) makeDashboardService(name string, port int) *v1.Service {
 	labels := opspec.AppLabels(appName, c.Namespace)
+	portName := "https-dashboard"
+	if !c.dashboard.SSL {
+		portName = "dashboard"
+	}
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-dashboard", name),
@@ -320,7 +324,7 @@ func (c *Cluster) makeDashboardService(name string, port int) *v1.Service {
 			Type:     v1.ServiceTypeClusterIP,
 			Ports: []v1.ServicePort{
 				{
-					Name:     "https-dashboard",
+					Name:     portName,
 					Port:     int32(port),
 					Protocol: v1.ProtocolTCP,
 				},
