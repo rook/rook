@@ -89,7 +89,7 @@ func (m *Monitor) osdStatus() error {
 		}
 
 		if status != upStatus {
-			logger.Infof("osd.%d is marked 'DOWN'", id)
+			logger.Debugf("osd.%d is marked 'DOWN'", id)
 		} else {
 			logger.Debugf("osd.%d is healthy.", id)
 
