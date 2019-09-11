@@ -58,12 +58,20 @@ spec:
                         type: string
                       enabled:
                         type: boolean
-             network:
+            network:
               properties:
                 hostNetwork:
                   type: boolean
             storage:
               properties:
+                disruptionManagement:
+                  properties:
+                    managePodBudgets:
+                      type: boolean
+                    osdMaintenanceTimeout:
+                      type: integer
+                    manageMachineDisruptionBudgets:
+                      type: boolean
                 useAllNodes:
                   type: boolean
                 nodes:
@@ -402,4 +410,3 @@ spec:
   scope: Namespaced
   subresources:
     status: {}
----
