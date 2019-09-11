@@ -22,6 +22,7 @@ spec:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"
             - "--leader-election=true"
+            - "--timeout=150s"
             - "--leader-election-type=leases"
             - "--leader-election-namespace={{ .Namespace }}"
           env:
@@ -36,7 +37,7 @@ spec:
           args:
             - "--csi-address=$(ADDRESS)"
             - "--v=5"
-            - "--timeout=60s"
+            - "--timeout=150s"
             - "--retry-interval-start=500ms"
             - "--enable-leader-election=true"
             - "--leader-election-type=leases"

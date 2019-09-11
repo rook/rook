@@ -35,7 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-func (r *ReconcileClusterDisruption) getOsdDataList(request reconcile.Request) ([]OsdData, error) {
+func (r *ReconcileClusterDisruption) getOsdDataList(request reconcile.Request, poolFailureDomain string) ([]OsdData, error) {
 	osdDeploymentList := &appsv1.DeploymentList{}
 	namespaceListOpts := client.InNamespace(request.Namespace)
 	err := r.client.List(context.TODO(), osdDeploymentList, client.MatchingLabels{k8sutil.AppAttr: osd.AppName}, namespaceListOpts)
@@ -60,6 +60,15 @@ func (r *ReconcileClusterDisruption) getOsdDataList(request reconcile.Request) (
 		if err != nil {
 			return nil, fmt.Errorf("could not fetch info from ceph for osd %s", osdID)
 		}
+		// bypass the cache if the topology location is not populated in the cache
+		_, failureDomainKnown := crushMeta.Location[poolFailureDomain]
+		if !failureDomainKnown {
+			crushMeta, err = r.osdCrushLocationMap.get(request.Namespace, osdIDInt)
+			if err != nil {
+				return nil, fmt.Errorf("could not fetch info from ceph for osd %s", osdID)
+			}
+		}
+
 		osdData.CrushMeta = crushMeta
 		osds = append(osds, osdData)
 

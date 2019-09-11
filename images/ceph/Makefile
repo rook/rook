@@ -17,7 +17,7 @@ include ../image.mk
 # ====================================================================================
 # Image Build Options
 
-CEPH_VERSION = v14.2.2-20190826
+CEPH_VERSION = v14.2.3-20190904
 BASEIMAGE = ceph/ceph-$(GOARCH):$(CEPH_VERSION)
 CEPH_IMAGE = $(BUILD_REGISTRY)/ceph-$(GOARCH)
 OPERATOR_SDK_VERSION = v0.10.0
@@ -30,7 +30,7 @@ OPERATOR_SDK_PLATFORM = x86_64-linux-gnu
 INCLUDE_CSV_TEMPLATES = true
 endif
 
-OPERATOR_SDK := $(TOOLS_HOST_DIR)/operator-sdk-$(OPERATOR_SDK_VERSION) 
+OPERATOR_SDK := $(TOOLS_HOST_DIR)/operator-sdk-$(OPERATOR_SDK_VERSION)
 YQ := $(TOOLS_HOST_DIR)/yq.v2
 
 # ====================================================================================

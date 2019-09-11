@@ -20,10 +20,13 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -67,11 +70,54 @@ func Add(mgr manager.Manager, context *controllerconfig.Context) error {
 	if err != nil {
 		return err
 	}
-
+	// Watch for changes to the node canary deployments
 	err = c.Watch(&source.Kind{Type: &appsv1.Deployment{}}, &handler.EnqueueRequestForOwner{
 		OwnerType:    &corev1.Node{},
 		IsController: true,
 	})
+	if err != nil {
+		return err
+	}
+
+	// Watch for changes to the osd pod nodename and enqueue thier nodes
+	err = c.Watch(
+		&source.Kind{Type: &corev1.Pod{}},
+		&handler.EnqueueRequestsFromMapFunc{
+			ToRequests: handler.ToRequestsFunc(func(obj handler.MapObject) []reconcile.Request {
+				pod, ok := obj.Object.(*corev1.Pod)
+				if !ok {
+					return []reconcile.Request{}
+				}
+				labels := pod.GetLabels()
+				if appName, ok := labels[k8sutil.AppAttr]; !ok || appName != osd.AppName {
+					return []reconcile.Request{}
+				}
+				nodeName := pod.Spec.NodeName
+				if len(nodeName) < 1 {
+					return []reconcile.Request{}
+				}
+				req := reconcile.Request{NamespacedName: types.NamespacedName{Name: nodeName}}
+				return []reconcile.Request{req}
+			}),
+		},
+		predicate.Funcs{
+			UpdateFunc: func(event event.UpdateEvent) bool {
+				oldPod, ok := event.ObjectOld.(*corev1.Pod)
+				if !ok {
+					return false
+				}
+				newPod, ok := event.ObjectNew.(*corev1.Pod)
+				if !ok {
+					return false
+				}
+				// only enqueue if the nodename has changed
+				if oldPod.Spec.NodeName == newPod.Spec.NodeName {
+					return false
+				}
+				return true
+			},
+		},
+	)
 	if err != nil {
 		return err
 	}
