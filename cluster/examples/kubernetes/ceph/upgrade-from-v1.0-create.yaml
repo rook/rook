@@ -4,13 +4,13 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: rook-ceph-cmd-reporter
-  namespace: rook-ceph
+  namespace: ROOK_NAMESPACE
 ---
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-ceph-cmd-reporter
-  namespace: rook-ceph
+  namespace: ROOK_NAMESPACE
 rules:
 - apiGroups:
   - ""
@@ -29,7 +29,7 @@ kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-ceph-cmd-reporter
-  namespace: rook-ceph
+  namespace: ROOK_NAMESPACE
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -37,7 +37,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: rook-ceph-cmd-reporter
-  namespace: rook-ceph
+  namespace: ROOK_NAMESPACE
 
 
 # CRDs, role, and binding for Object Buckets
@@ -128,4 +128,4 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: rook-ceph-system
-    namespace: rook-ceph
+    namespace: ROOK_SYSTEM_NAMESPACE

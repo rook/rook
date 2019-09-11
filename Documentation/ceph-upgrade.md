@@ -60,9 +60,9 @@ any time without compatibility support and without prior notice.
 was the last Rook release which will support Ceph's Luminous (v12.x.x) version. These are the only
 supported major versions of Ceph.
 
-Rook documentation for 1.1 has identified some Ceph configuration options that the user is highly
-advised to consider. See them in the docs [here](ceph-configuration.md#default-pg-and-pgp-counts).
-While this is not yet the time to update the settings, it could be beneficial to consider these
+Rook documentation for 1.1 has identified some Ceph configuration options that the user is
+advised to consider regarding PG management for pools. See the topic [here](ceph-configuration.md#default-pg-and-pgp-counts).
+While this is not directly related to the upgrade, it could be beneficial to consider these
 options now. If the user determines that these configuration options apply to them, they will be
 able to set the configuration as documented once the Rook operator has been upgraded.
 
@@ -73,14 +73,18 @@ cd $YOUR_ROOK_REPO/cluster/examples/kubernetes/ceph/
 ```
 
 Unless your Rook cluster was created with customized namespaces, namespaces for Rook clusters
-created before v0.8 are likely to be `rook-system` and `rook`, and for Rook-Ceph clusters created
-with v0.8 or after, `rook-ceph-system` and `rook-ceph`. With this guide, we do our best not to
-assume the namespaces in your cluster. To make things as easy as possible, modify and use the below
-snippet to configure your environment. We will use these environment variables throughout this
-document.
+created before v0.8 are likely to be:
+- Clusters created by v0.7 or earlier: `rook-system` and `rook`
+- Clusters created in v0.8 or v0.9: `rook-ceph-system` and `rook-ceph`
+- Clusters created in v1.0 or newer: only `rook-ceph`
+
+With this guide, we do our best not to assume the namespaces in your cluster.
+To make things as easy as possible, modify and use the below snippet to configure your environment.
+We will use these environment variables throughout this document.
+
 ```sh
 # Parameterize the environment
-export ROOK_SYSTEM_NAMESPACE="rook-ceph-system"
+export ROOK_SYSTEM_NAMESPACE="rook-ceph"
 export ROOK_NAMESPACE="rook-ceph"
 ```
 
@@ -204,42 +208,34 @@ time without compatibility support and without prior notice.
 
 Let's get started!
 
-### 1. Configure manifests
+### 1. Update modified permissions
 **IMPORTANT:** Ensure that you are using the latest manifests from the `release-1.1` branch. If you
 have custom configuration options set in your 1.0 manifests, you will need to also alter those
 values in the 1.1 manifests.
 
-If your cluster does not use the `rook-ceph-system` and `rook-ceph` namespaces, you will need to
-replace all manifest references to these namespaces with references to those used by your cluster.
-We can use a few simple `sed` commands to do this for all manifests at once.
-```sh
-# Replace yaml file namespaces with sed (and make backups)
-sed -i.bak -e "s/namespace: rook-ceph-system/namespace: $ROOK_SYSTEM_NAMESPACE/g" *.yaml
-sed -i -e "s/namespace: rook-ceph/namespace: $ROOK_NAMESPACE/g" *.yaml
-# Reduce clutter by moving the backups we just created
-mkdir backups
-mv *.bak backups/
-```
-
-### 2. Update modified permissions
 A few permissions have been added in v1.1. To make updating these resources easy, special upgrade
 manifests have been created.
+
+Replace the namespace names in the new resources:
+```sh
+sed "s/ROOK_SYSTEM_NAMESPACE/$ROOK_SYSTEM_NAMESPACE/g" upgrade-from-v1.0-create.yaml > upgrade-from-v1.0-create.yaml.tmp
+sed "s/ROOK_NAMESPACE/$ROOK_NAMESPACE/g" upgrade-from-v1.0-create.yaml.tmp > upgrade-from-v1.0-create.yaml
+rm -f upgrade-from-v1.0-create.yaml.tmp
+```
+
+Apply the new permissions:
 ```sh
 kubectl create -f upgrade-from-v1.0-create.yaml
 kubectl apply -f upgrade-from-v1.0-apply.yaml
 ```
 
-Upgrade notes have been added to `upgrade-from-v1.0-create.yaml` identifying the changes made to 1.1
-to aid users in any manifest-related auditing they wish to do.
+### 2. Update CSI Driver settings (if applicable)
 
-### 3. Update the Rook operator deployment
-#### **Important note for CSI driver users:**
+**If you did not configure the CSI driver in the v1.0 release, skip to step 3.**
+
 If you have a v1.0 cluster running with CSI drivers enabled, the environment (`env`) variables
 controlling which Ceph CSI images are used likely need to be updated as well. If this is the case,
 it is easiest to `kubectl edit` the operator deployment and modify everything needed at once.
-
-The `ROOK_CSI_CEPHFS_IMAGE` and `ROOK_CSI_RBD_IMAGE` `env` variables are no longer used in Rook
-v1.1. These can be removed.
 
 If you would like to use the upstream images which Rook uses by default, then you may simply remove
 all `env` variables with the `ROOK_CSI_` prefix from the `CephCluster` resource.
@@ -261,22 +257,31 @@ below, which you should change to match where your images are located.
         value: "quay.io/k8scsi/csi-attacher:v1.2.0"
 ```
 
-#### Update the Rook image
-The largest portion of the upgrade is triggered when the operator's image is updated to `v1.1.x`. If
-there are no CSI `env` variable updates needed, then the following command will be all that is
-needed to kick off the Rook upgrade. Otherwise, the image should be changed at the same time as
-editing the `ROOK_CSI_` `env` variables detailed above, and this command may be skipped.
+You can also remove the `ROOK_CSI_CEPHFS_IMAGE` and `ROOK_CSI_RBD_IMAGE` `env` variables that are
+no longer used in Rook.
+
+At the same time you edit the CSI driver settings, go ahead and update the operator deployment image:
+```yaml
+  image: rook/ceph:v1.1.0
+```
+
+Skip to step 4 since the operator image is already updated.
+
+#### 3. Update the Rook Operator
+The largest portion of the upgrade is triggered when the operator's image is updated to `v1.1.x`.
+When the operator is updated, it will proceed to update all of the Ceph daemons.
+(If step 2 was completed, this change has already been applied.)
+
 ```sh
-# If no ROOK_CSI_ env variable updates are needed
 kubectl -n $ROOK_SYSTEM_NAMESPACE set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.1.0
 ```
 
+### 4. Wait for the upgrade to complete
 Watch now in amazement as the Ceph mons, mgrs, OSDs, rbd-mirrors, MDSes and RGWs are terminated and
 replaced with updated versions in sequence. The cluster may be offline very briefly as mons update,
 and the Ceph Filesystem may fall offline a few times while the MDSes are upgrading. This is normal.
 Continue on to the next upgrade step while the update is commencing.
 
-### 4. Wait for the upgrade to complete
 Before moving on, the Ceph cluster's core (RADOS) components (i.e., mons, mgrs, and OSDs) must be
 fully updated.
 
@@ -357,8 +362,9 @@ kubectl --namespace $ROOK_NAMESPACE patch configmap rook-config-override --type=
 ```
 
 ### 7. (Recommended) Consider required Ceph config settings
-If the user determines that the [advised configuration options](ceph-configuration.md#default-pg-and-pgp-counts)
-newly identified in Rook's 1.1 release apply to them, now is the time to set these configs.
+We highly recommend updates to your cluster regarding PG management. There is a new setting where
+Rook can enable the automatic PG management, or you can continue managing it manually.
+See more information in the docs [here](ceph-configuration.md#default-pg-and-pgp-counts).
 
 ### 8. Update Rook-Ceph custom resource definitions
 **IMPORTANT: Do not perform this step until ALL existing Rook-Ceph clusters are updated**
