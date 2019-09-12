@@ -27,8 +27,9 @@ import (
 	"time"
 
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -121,26 +122,32 @@ func (c *Cluster) configureDashboardModule(m *mgrConfig) error {
 		return err
 	}
 
-	// server port
-	port := strconv.Itoa(m.DashboardPort)
-	changed, err := client.MgrSetConfig(c.context, c.Namespace, m.DaemonID, c.clusterInfo.CephVersion, "mgr/dashboard/server_port", port, false)
+	// ssl support
+	ssl := strconv.FormatBool(c.dashboard.SSL)
+	changed, err := client.MgrSetConfig(c.context, c.Namespace, m.DaemonID, c.clusterInfo.CephVersion, "mgr/dashboard/ssl", ssl, false)
 	if err != nil {
 		return err
 	}
 	hasChanged = hasChanged || changed
 
-	// ssl support
-	var ssl string
-	if c.dashboard.SSL == nil {
-		ssl = ""
-	} else {
-		ssl = strconv.FormatBool(*c.dashboard.SSL)
-	}
-	changed, err = client.MgrSetConfig(c.context, c.Namespace, m.DaemonID, c.clusterInfo.CephVersion, "mgr/dashboard/ssl", ssl, false)
+	// server port
+	port := strconv.Itoa(m.DashboardPort)
+	changed, err = client.MgrSetConfig(c.context, c.Namespace, m.DaemonID, c.clusterInfo.CephVersion, "mgr/dashboard/server_port", port, false)
 	if err != nil {
 		return err
 	}
 	hasChanged = hasChanged || changed
+
+	// SSL enabled. Needed to set specifically the ssl port setting starting with Nautilus(14.2.1)
+	if c.dashboard.SSL {
+		if c.clusterInfo.CephVersion.IsAtLeast(cephver.CephVersion{Major: 14, Minor: 2, Extra: 1}) {
+			changed, err = client.MgrSetConfig(c.context, c.Namespace, m.DaemonID, c.clusterInfo.CephVersion, "mgr/dashboard/ssl_server_port", port, false)
+			if err != nil {
+				return err
+			}
+			hasChanged = hasChanged || changed
+		}
+	}
 
 	if hasChanged {
 		logger.Infof("dashboard config has changed")
@@ -158,7 +165,7 @@ func (c *Cluster) initializeSecureDashboard() error {
 		return fmt.Errorf("failed to generate a password. %+v", err)
 	}
 
-	if c.dashboard.SSL == nil || *c.dashboard.SSL {
+	if c.dashboard.SSL {
 		alreadyCreated, err := c.createSelfSignedCert()
 		if err != nil {
 			return fmt.Errorf("failed to create a self signed cert. %+v", err)
