@@ -88,11 +88,26 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("could not list the osd pods: %+v", err)
 	}
+
+	// map with tolerations as keys and empty struct as values for uniqueness
+	uniqueTolerations := make(map[corev1.Toleration]struct{})
 	occupiedByOSD := false
 	for _, osdPod := range osdPodList.Items {
 		if osdPod.Spec.NodeName == request.Name {
 			occupiedByOSD = true
-			break
+			// get the osd tolerations
+			for _, osdToleration := range osdPod.Spec.Tolerations {
+				if osdToleration.Key == "node.kubernetes.io/unschedulable" {
+					labels := osdPod.GetLabels()
+					logger.Errorf(
+						"osd %s in namespace %s tolerates the drain taint, but the drain canary will not.",
+						labels[osd.OsdIdLabelKey],
+						labels[k8sutil.ClusterAttr],
+					)
+				} else {
+					uniqueTolerations[osdToleration] = struct{}{}
+				}
+			}
 		}
 	}
 	// Create or Update the deployment default/foo
@@ -110,6 +125,7 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 		deploymentLabels := map[string]string{
 			corev1.LabelHostname: nodeHostnameLabel,
 			k8sutil.AppAttr:      CanaryAppName,
+			NodeNameLabel:        node.GetName(),
 		}
 
 		nodeSelector := map[string]string{corev1.LabelHostname: nodeHostnameLabel}
@@ -131,6 +147,7 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 			Spec: corev1.PodSpec{
 				NodeSelector: nodeSelector,
 				Containers:   newDoNothingContainers(),
+				Tolerations:  tolerationMapToList(uniqueTolerations),
 			},
 		}
 
@@ -146,6 +163,14 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 		logger.Debugf("not watching for drains on node %s as there are no osds running there.", request.Name)
 	}
 	return reconcile.Result{}, nil
+}
+
+func tolerationMapToList(tolerationMap map[corev1.Toleration]struct{}) []corev1.Toleration {
+	tolerationList := make([]corev1.Toleration, 0)
+	for toleration := range tolerationMap {
+		tolerationList = append(tolerationList, toleration)
+	}
+	return tolerationList
 }
 
 // returns a container that does nothing

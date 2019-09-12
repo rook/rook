@@ -42,6 +42,7 @@ const (
 
 	// CanaryAppName is applied to nodedrain canary components (pods, deployments) with the key app
 	CanaryAppName = "rook-ceph-drain-canary"
+	NodeNameLabel = "node_name"
 )
 
 // Add adds a new Controller based on nodedrain.ReconcileNode and registers the relevant watches and handlers
@@ -71,10 +72,27 @@ func Add(mgr manager.Manager, context *controllerconfig.Context) error {
 		return err
 	}
 	// Watch for changes to the node canary deployments
-	err = c.Watch(&source.Kind{Type: &appsv1.Deployment{}}, &handler.EnqueueRequestForOwner{
-		OwnerType:    &corev1.Node{},
-		IsController: true,
-	})
+	err = c.Watch(
+		&source.Kind{Type: &appsv1.Deployment{}},
+		&handler.EnqueueRequestsFromMapFunc{
+			ToRequests: handler.ToRequestsFunc(func(obj handler.MapObject) []reconcile.Request {
+				deployment, ok := obj.Object.(*appsv1.Deployment)
+				if !ok {
+					return []reconcile.Request{}
+				}
+				labels := deployment.GetLabels()
+				if appName, ok := labels[k8sutil.AppAttr]; !ok || appName != CanaryAppName {
+					return []reconcile.Request{}
+				}
+				nodeName, ok := deployment.Spec.Template.ObjectMeta.Labels[NodeNameLabel]
+				if !ok {
+					return []reconcile.Request{}
+				}
+				req := reconcile.Request{NamespacedName: types.NamespacedName{Name: nodeName}}
+				return []reconcile.Request{req}
+			}),
+		},
+	)
 	if err != nil {
 		return err
 	}
