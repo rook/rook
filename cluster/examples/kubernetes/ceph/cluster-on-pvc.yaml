@@ -27,7 +27,7 @@ spec:
     # size appropriate for monitor data will be used.
     volumeClaimTemplate:
       spec:
-        storageClassName: local-storage
+        storageClassName: gp2
         resources:
           requests:
             storage: 10Gi
@@ -69,7 +69,7 @@ spec:
             requests:
               storage: 10Gi
           # IMPORTANT: Change the storage class depending on your environment (e.g. local-storage, gp2)
-          storageClassName: generic
+          storageClassName: gp2
           volumeMode: Block
           accessModes:
             - ReadWriteOnce
