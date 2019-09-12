@@ -321,7 +321,17 @@ At this point, your Rook operator should be running version `rook/ceph:v1.1.0`
 
 Verify the Ceph cluster's health using the [health verification section](#health-verification).
 
-### 6. (Recommended) Migrate config overrides from ConfigMap to Ceph directly
+### 6. Update (if applicable) CephObjectStores
+The CephObjectStore `gateway` parameter `allNodes` was deprecated in Rook v1.0 and is not supported
+any more. If you have CephObjectStores using `allNodes: true`, Rook will replace each daemonset with
+a deployment (one for one replacement) gradually during the upgrade. Once complete, you should edit
+your CephObjectStore to set `allNodes: false`, and set `instances` to the current number of RGW
+instances.
+```sh
+kubectl -n $ROOK_NAMESPACE edit cephobjectstore.ceph.rook.io/$OBJECT_STORE_NAME
+```
+
+### 7. (Recommended) Migrate config overrides from ConfigMap to Ceph directly
 If there are Ceph configuration overrides set in the `config` field of the ConfigMap
 `rook-config-override`, it is now possible to migrate those configs manually from the ConfigMap to
 Ceph directly as documented [here](ceph-configuration.md#specifying-configuration-options). This is
@@ -361,12 +371,12 @@ Empty the config override in the ConfigMap.
 kubectl --namespace $ROOK_NAMESPACE patch configmap rook-config-override --type=merge -p '{"data": {"config": ""}}'
 ```
 
-### 7. (Recommended) Consider required Ceph config settings
+### 8. (Recommended) Consider required Ceph config settings
 We highly recommend updates to your cluster regarding PG management. There is a new setting where
 Rook can enable the automatic PG management, or you can continue managing it manually.
 See more information in the docs [here](ceph-configuration.md#default-pg-and-pgp-counts).
 
-### 8. Update Rook-Ceph custom resource definitions
+### 9. Update Rook-Ceph custom resource definitions
 **IMPORTANT: Do not perform this step until ALL existing Rook-Ceph clusters are updated**
 
 After all Rook-Ceph clusters have been updated following the steps above, update the Rook-Ceph
