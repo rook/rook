@@ -169,7 +169,7 @@ func udevBlockMonitor(c chan string, period time.Duration) {
 	events := make(chan string)
 	go rawUdevBlockMonitor(events,
 		[]string{"(?i)add", "(?i)remove"},
-		[]string{"(?i)dm-[0-9]+", "(?i)rbd[0-9]+"})
+		[]string{"(?i)dm-[0-9]+", "(?i)rbd[0-9]+", "(?i)nbd[0-9]+"})
 
 	for {
 		event, ok := <-events
