@@ -165,6 +165,48 @@ spec:
       storage: 1Mi
 ```
 
+```console
+kubectl create -f pvc.yaml
+```
+
+### Consuming the Export
+
+Now we can consume the PV that we just created by creating an example web server app that uses the above `PersistentVolumeClaim` to claim the exported volume.
+There are 2 pods that comprise this example:
+
+1. A web server pod that will read and display the contents of the NFS share
+1. A writer pod that will write random data to the NFS share so the website will continually update
+
+Start both the busybox pod (writer) and the web server from the `cluster/examples/kubernetes/nfs` folder:
+
+```console
+kubectl create -f busybox-rc.yaml
+kubectl create -f web-rc.yaml
+```
+
+Let's confirm that the expected busybox writer pod and web server pod are **all** up and in the `Running` state:
+
+```console
+kubectl get pod -l app=nfs-demo
+```
+
+In order to be able to reach the web server over the network, let's create a service for it:
+
+```console
+kubectl create -f web-service.yaml
+```
+
+We can then use the busybox writer pod we launched before to check that nginx is serving the data appropriately.
+In the below 1-liner command, we use `kubectl exec` to run a command in the busybox writer pod that uses `wget` to retrieve the web page that the web server pod is hosting. As the busybox writer pod continues to write a new timestamp, we should see the returned output also update every ~10 seconds or so.
+
+```console
+> echo; kubectl exec $(kubectl get pod -l name=nfs-busybox -o jsonpath='{.items[0].metadata.name}') -- wget -qO- http://$(kubectl get services nfs-web -o jsonpath='{.spec.clusterIP}'); echo
+
+Thu Oct 22 19:28:55 UTC 2015
+nfs-busybox-w3s4t
+
+```
+
 ## Rook Ceph volume example
 
 In this alternative example, we will use a different underlying volume as an export for the NFS server.
