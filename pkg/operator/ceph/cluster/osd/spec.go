@@ -473,7 +473,10 @@ func (c *Cluster) getPVCInitContainer(pvc v1.PersistentVolumeClaimVolumeSource) 
 	return v1.Container{
 		Name:  blockPVCMapperInitContainer,
 		Image: c.cephVersion.Image,
-		Args:  []string{"cp", "-a", fmt.Sprintf("/%s", pvc.ClaimName), fmt.Sprintf("/mnt/%s", pvc.ClaimName)},
+		Command: []string{
+			"cp",
+		},
+		Args: []string{"-a", fmt.Sprintf("/%s", pvc.ClaimName), fmt.Sprintf("/mnt/%s", pvc.ClaimName)},
 		VolumeDevices: []v1.VolumeDevice{
 			{
 				Name:       pvc.ClaimName,
