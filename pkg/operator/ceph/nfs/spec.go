@@ -21,6 +21,7 @@ import (
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -185,7 +186,8 @@ func (c *CephNFSController) daemonContainer(nfs cephv1.CephNFS, cfg daemonConfig
 		Env: append(
 			opspec.DaemonEnvVars(c.clusterSpec.CephVersion.Image),
 		),
-		Resources: nfs.Spec.Server.Resources,
+		Resources:       nfs.Spec.Server.Resources,
+		SecurityContext: mon.PodSecurityContext(),
 	}
 }
 
