@@ -54,7 +54,18 @@ type MachineDisruptionReconciler struct {
 
 // Reconcile is the implementation of reconcile function for MachineDisruptionReconciler
 // which ensures that the machineDisruptionBudget for the rook ceph cluster is in correct state
+// The Controller will requeue the Request to be processed again if an error is non-nil or
+// Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *MachineDisruptionReconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+	// wrapping reconcile because the rook logging mechanism is not compatible with the controller-runtime logging interface
+	result, err := r.reconcile(request)
+	if err != nil {
+		logger.Error(err)
+	}
+	return result, err
+}
+
+func (r *MachineDisruptionReconciler) reconcile(request reconcile.Request) (reconcile.Result, error) {
 	logger.Debugf("reconciling %s", request.NamespacedName)
 
 	// Fetching the cephCluster
@@ -64,8 +75,7 @@ func (r *MachineDisruptionReconciler) Reconcile(request reconcile.Request) (reco
 		logger.Infof("cephCluster instance not found for %s", request.NamespacedName)
 		return reconcile.Result{}, nil
 	} else if err != nil {
-		logger.Errorf("could not fetch cephCluster %s: %+v", request.Name, err)
-		return reconcile.Result{}, err
+		return reconcile.Result{}, fmt.Errorf("could not fetch cephCluster %s: %+v", request.Name, err)
 	}
 
 	// skipping the reconcile since the feature is switched off
@@ -108,12 +118,10 @@ func (r *MachineDisruptionReconciler) Reconcile(request reconcile.Request) (reco
 		}
 		err = r.client.Create(context.TODO(), newMDB)
 		if err != nil {
-			logger.Errorf("failed to create mdb %+v", err)
-			return reconcile.Result{}, err
+			return reconcile.Result{}, fmt.Errorf("failed to create mdb %s: %+v", mdb.GetName(), err)
 		}
 		return reconcile.Result{}, nil
 	} else if err != nil {
-		logger.Errorf("%+v", err)
 		return reconcile.Result{}, err
 	}
 	if mdb.Spec.MaxUnavailable == nil {
@@ -123,31 +131,27 @@ func (r *MachineDisruptionReconciler) Reconcile(request reconcile.Request) (reco
 	// Check if the cluster is clean or not
 	_, isClean, err := cephClient.IsClusterClean(r.context.ClusterdContext, request.Name)
 	if err != nil {
-		logger.Errorf("failed to get cephCluster status %+v", err)
 		maxUnavailable := int32(0)
 		mdb.Spec.MaxUnavailable = &maxUnavailable
-		updateErr := r.client.Update(context.TODO(), mdb)
+		err = r.client.Update(context.TODO(), mdb)
 		if err != nil {
-			logger.Errorf("failed to update mdb %+v", err)
-			return reconcile.Result{}, updateErr
+			return reconcile.Result{}, fmt.Errorf("failed to update mdb %s: %+v", mdb.GetName(), err)
 		}
-		return reconcile.Result{}, err
+		return reconcile.Result{}, fmt.Errorf("failed to get cephCluster %s status %+v", request.NamespacedName, err)
 	}
 	if isClean && *mdb.Spec.MaxUnavailable != 1 {
 		maxUnavailable := int32(1)
 		mdb.Spec.MaxUnavailable = &maxUnavailable
 		err = r.client.Update(context.TODO(), mdb)
 		if err != nil {
-			logger.Errorf("failed to update mdb %+v", err)
-			return reconcile.Result{}, err
+			return reconcile.Result{}, fmt.Errorf("failed to update mdb %s: %+v", mdb.GetName(), err)
 		}
 	} else if !isClean && *mdb.Spec.MaxUnavailable != 0 {
 		maxUnavailable := int32(0)
 		mdb.Spec.MaxUnavailable = &maxUnavailable
 		err = r.client.Update(context.TODO(), mdb)
 		if err != nil {
-			logger.Errorf("failed to update mdb %+v", err)
-			return reconcile.Result{}, err
+			return reconcile.Result{}, fmt.Errorf("failed to update mdb %s: %+v", mdb.GetName(), err)
 		}
 	}
 	return reconcile.Result{Requeue: true, RequeueAfter: time.Minute}, nil
