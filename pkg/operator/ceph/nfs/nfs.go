@@ -25,6 +25,7 @@ import (
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
@@ -238,6 +239,13 @@ func validateGanesha(context *clusterd.Context, n cephv1.CephNFS) error {
 	// Ganesha server properties
 	if n.Spec.Server.Active == 0 {
 		return fmt.Errorf("at least one active server required")
+	}
+
+	// We cannot run an NFS server if no MDS is running
+	// The existence of the pool provided in n.Spec.RADOS.Pool is necessary otherwise addRADOSConfigFile() will fail
+	_, err := client.GetPoolDetails(context, n.Namespace, n.Spec.RADOS.Pool)
+	if err != nil {
+		return fmt.Errorf("pool %s not found, did the filesystem cr successfully complete? %+v", n.Spec.RADOS.Pool, err)
 	}
 
 	return nil
