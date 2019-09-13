@@ -275,6 +275,10 @@ func (c *Cluster) configureMgrModules() error {
 				if err != nil {
 					return fmt.Errorf("failed to enable pg autoscale mode for newly created pools. %+v", err)
 				}
+				err = monStore.Set("global", "mon_pg_warn_min_per_osd", "0")
+				if err != nil {
+					return fmt.Errorf("failed to set minimal number PGs per (in) osd before we warn the admin to 0. %+v", err)
+				}
 			}
 		} else {
 			if err := client.MgrDisableModule(c.context, c.Namespace, module.Name); err != nil {
