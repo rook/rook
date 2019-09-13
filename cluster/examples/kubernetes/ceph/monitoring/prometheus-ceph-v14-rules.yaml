@@ -138,7 +138,7 @@ spec:
         severity: critical
     - alert: CephDataRecoveryTakingTooLong
       annotations:
-        description: Data recovery has been active for more than 2h. Contact Support.
+        description: Data recovery has been active for too long. Contact Support.
         message: Data recovery is slow
         severity_level: warning
         storage_type: ceph
