@@ -77,7 +77,7 @@ var (
 
 	// ContainerPostStartCmd is the command we run before starting any Ceph daemon
 	// It makes sure Ceph directories are owned by 'ceph'
-	ContainerPostStartCmd = []string{"chown", "--recursive", "--verbose", chownUserGroup, VarLogCephDir}
+	ContainerPostStartCmd = []string{"chown", "--recursive", chownUserGroup, VarLogCephDir}
 )
 
 // normalizeKey converts a key in any format to a key with underscores.
