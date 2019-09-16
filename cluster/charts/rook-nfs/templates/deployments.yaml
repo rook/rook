@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rook-nfs-operator
+ # namespace: rook-nfs-system
+  labels:
+    app: rook-nfs-operator
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rook-nfs-operator
+  template:
+    metadata:
+      labels:
+        app: rook-nfs-operator
+        chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
+{{- if .Values.annotations }}
+      annotations:
+{{ toYaml .Values.annotations | indent 8 }}
+{{- end }}
+    spec:
+      serviceAccountName: rook-nfs-operator
+      containers:
+      - name: rook-nfs-operator
+        image: "{{ .Values.image.repository}}:{{ .Values.image.tag}}"
+        imagePullPolicy: IfNotPresent
+        args: ["nfs", "operator"]
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: rook-nfs-provisioner
+  #namespace: rook-nfs-system
+spec:
+  selector:
+    matchLabels:
+      app: rook-nfs-provisioner
+  replicas: 1
+  strategy:
+    type: Recreate 
+  template:
+    metadata:
+      labels:
+        app: rook-nfs-provisioner
+    spec:
+      serviceAccount: rook-nfs-provisioner
+      containers:
+      - name: rook-nfs-provisioner
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        #image: rook/nfs:master
+        imagePullPolicy: IfNotPresent
+        args: ["nfs", "provisioner","--provisioner=rook.io/nfs-provisioner"]
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace

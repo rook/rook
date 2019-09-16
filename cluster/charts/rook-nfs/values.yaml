@@ -1,0 +1,42 @@
+# Default values for rook-nfs-operator
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+image:
+  prefix: rook
+  repository: rook/nfs
+  tag: %%VERSION%%
+  pullPolicy: IfNotPresent
+
+hyperkube:
+  repository: k8s.gcr.io/hyperkube
+  tag: v1.7.12
+  pullPolicy: IfNotPresent
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 128Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+provisioner:
+  name: "rook.io/nfs-provisioner"
+  
+
+nodeSelector:
+# Constraint rook-nfs-operator Deployment to nodes with label `kubernetes.io/hostname : t101: `.
+# For more info, see https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector
+
+## Annotations to be added to pod
+annotations: {}
+
+## LogLevel can be set to: TRACE, DEBUG, INFO, NOTICE, WARNING, ERROR or CRITICAL
+logLevel: INFO
+
+## If true, create & use RBAC resources
+##
+rbacEnable: true
+
+# ##########

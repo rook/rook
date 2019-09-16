@@ -1,0 +1,33 @@
+{{- if .Values.rbacEnable }}
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-nfs-operator
+  namespace: {{ .Release.Namespace }}
+  #namespace: rook-nfs-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-nfs-operator
+subjects:
+- kind: ServiceAccount
+  name: rook-nfs-operator
+  namespace: {{ .Release.Namespace }}
+  #namespace: rook-nfs-system
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: run-nfs-provisioner
+subjects:
+  - kind: ServiceAccount
+    name: rook-nfs-provisioner
+     # replace with namespace where provisioner is deployed
+    namespace: {{ .Release.Namespace }}
+    #namespace: rook-nfs-system
+roleRef:
+  kind: ClusterRole
+  name: rook-nfs-provisioner-runner
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}
