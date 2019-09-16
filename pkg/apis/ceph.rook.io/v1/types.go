@@ -127,6 +127,7 @@ type MonitoringSpec struct {
 }
 
 type ClusterStatus struct {
+	Phase	   ClusterState `json:"phase,omitempty"`
 	State      ClusterState `json:"state,omitempty"`
 	Message    string       `json:"message,omitempty"`
 	CephStatus *CephStatus  `json:"ceph,omitempty"`
@@ -156,6 +157,7 @@ const (
 	ClusterStateError      ClusterState = "Error"
 	// DefaultFailureDomain for PoolSpec
 	DefaultFailureDomain = "host"
+	Phase = State
 )
 
 type MonSpec struct {
