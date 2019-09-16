@@ -105,6 +105,46 @@ To directly retrieve the secrets:
 kubectl -n rook-ceph get secret rook-ceph-object-user-my-store-my-user -o yaml | grep AccessKey | awk '{print $2}' | base64 --decode
 kubectl -n rook-ceph get secret rook-ceph-object-user-my-store-my-user -o yaml | grep SecretKey | awk '{print $2}' | base64 --decode
 ```
+## Create an Object Bucket Claim
+
+Creating an Object Bucket Claim (OBC) causes the Rook-Ceph bucket provisioner to create a new bucket or to grant access to an existing bucket. OBCs reference a Storage Class which is created by a cluster administrator. The Storage Class defines the object storage system, the bucket retention policy, and, when granting access to existing (brownfield) buckets, the name of the bucket. If a new bucket is desired then the OBC contains the bucket name or a prefix used for a random bucket name. See the [Object Bucket Claim Documentation](ceph-object-bucket-claim.md) for more detail on the `CephObjectBucketClaims`.
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+   name: rook-ceph-bucket
+provisioner: ceph.rook.io/bucket
+reclaimPolicy: Delete
+parameters:
+  objectStoreName: my-store
+  objectStoreNamespace: rook-ceph
+  region: us-east-1
+```
+```bash
+# Above Storage class for new bucket provisioning, below command need to executed by administrator
+kubectl create -f storageclass-bucket.yaml
+```
+```yaml
+apiVersion: objectbucket.io/v1alpha1
+kind: ObjectBucketClaim
+metadata:
+  name: ceph-bucket
+spec:
+  generateBucketName: ceph-bkt
+  storageClassName: rook-ceph-bucket
+```
+
+After creating the OBC, a secret and ConfigMap are created with the same name as the OBC and in the same namespace. The secret contains credentials used by the application pod to access the bucket. The configmap contains bucket endpoint information and is also consumed by the pod.
+
+The following commands extract key pieces of information from the secret and configmap:"
+
+```bash
+#config-map, secret, OBC will part of default if no specific name space mentioned
+kubectl -n default get cm ceph-bucket -o yaml | grep BUCKET_HOST | awk '{print $2}'
+kubectl -n default get secret ceph-bucket -o yaml | grep AWS_ACCESS_KEY_ID | awk '{print $2}' | base64 --decode
+kubectl -n default get secret ceph-bucket -o yaml | grep AWS_SECRET_ACCESS_KEY | awk '{print $2}' | base64 --decode
+```
 
 ## Consume the Object Storage
 
