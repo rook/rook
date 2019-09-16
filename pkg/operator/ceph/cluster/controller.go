@@ -907,6 +907,7 @@ func (c *ClusterController) updateClusterStatus(namespace, name string, state ce
 
 	// update the status on the retrieved cluster object
 	// do not overwrite the ceph status that is updated in a separate goroutine
+	cluster.Status.Phase = state
 	cluster.Status.State = state
 	cluster.Status.Message = message
 	if _, err := c.context.RookClientset.CephV1().CephClusters(namespace).Update(cluster); err != nil {

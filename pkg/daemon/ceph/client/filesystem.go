@@ -72,6 +72,7 @@ type MDSInfo struct {
 	Name    string `json:"name"`
 	Rank    int    `json:"rank"`
 	State   string `json:"state"`
+	Phase   string `json:"phase"`
 	Address string `json:"addr"`
 }
 

@@ -40,6 +40,7 @@ type Cluster struct {
 }
 
 type ClusterStatus struct {
+	Phase   ClusterState `json:"phase,omitempty"`
 	State   ClusterState `json:"state,omitempty"`
 	Message string       `json:"message,omitempty"`
 }

@@ -374,7 +374,7 @@ func (c *ClusterController) updateClusterStatus(namespace, name string, state ed
 	}
 
 	// update the status on the retrieved cluster object
-	cluster.Status = edgefsv1.ClusterStatus{State: state, Message: message}
+	cluster.Status = edgefsv1.ClusterStatus{Phase: state, State: state, Message: message}
 	if _, err := c.context.RookClientset.EdgefsV1().Clusters(cluster.Namespace).Update(cluster); err != nil {
 		logger.Errorf("failed to update cluster %s status: %+v", cluster.Namespace, err)
 	}

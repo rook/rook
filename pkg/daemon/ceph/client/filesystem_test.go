@@ -80,6 +80,7 @@ func TestFilesystemGetMarshal(t *testing.T) {
 					Name:    "1",
 					Rank:    0,
 					State:   "up:active",
+					Phase:   State,
 					Address: "127.0.0.1:6804/2981621686",
 				},
 			},

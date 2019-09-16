@@ -29,6 +29,7 @@ type PGDumpBrief struct {
 type PgStats struct {
 	ID              string `json:"pgid"`
 	State           string `json:"state"`
+	Phase           string `json:"phase"`
 	UpOsdIDs        []int  `json:"up"`
 	UpPrimaryID     int    `json:"up_primary"`
 	ActingOsdIDs    []int  `json:"acting"`
