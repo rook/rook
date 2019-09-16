@@ -60,7 +60,7 @@ func TestEnableMessenger2(t *testing.T) {
 	}
 	context := &clusterd.Context{Executor: executor}
 
-	err := EnableMessenger2(context)
+	err := EnableMessenger2(context, "rook-ceph")
 	assert.NoError(t, err)
 }
 
@@ -73,7 +73,7 @@ func TestEnableNautilusOSD(t *testing.T) {
 	}
 	context := &clusterd.Context{Executor: executor}
 
-	err := EnableNautilusOSD(context)
+	err := EnableNautilusOSD(context, "rook-ceph")
 	assert.NoError(t, err)
 }
 

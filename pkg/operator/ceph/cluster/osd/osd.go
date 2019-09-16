@@ -205,7 +205,7 @@ func (c *Cluster) Start() error {
 					}
 					// if the version of these OSDs is Nautilus then we run the command
 					if osdVersion.IsAtLeastNautilus() {
-						client.EnableNautilusOSD(c.context)
+						client.EnableNautilusOSD(c.context, c.Namespace)
 					}
 				}
 			}
