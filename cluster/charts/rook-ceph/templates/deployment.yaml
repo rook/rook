@@ -93,12 +93,48 @@ spec:
           value: "{{ .Values.enableSelinuxRelabeling }}"
         - name: ROOK_DISABLE_DEVICE_HOTPLUG
           value: "{{ .Values.disableDeviceHotplug }}"
+{{- if .Values.csi }}
         - name: ROOK_CSI_ENABLE_RBD
-          value: "{{ .Values.enableCsiRbdDriver }}"
+          value: {{ .Values.csi.enableRbdDriver | quote }}
+{{- end }}
+{{- if .Values.csi }}
         - name: ROOK_CSI_ENABLE_CEPHFS
-          value: "{{ .Values.enableCsiCephfsDriver }}"
+          value: {{ .Values.csi.enableCephfsDriver | quote }}
+{{- end }}
+{{- if .Values.csi }}
         - name: ROOK_CSI_ENABLE_GRPC_METRICS
-          value: "{{ .Values.enableCsiGrpcMetrics }}"
+          value: {{ .Values.csi.enableGrpcMetrics | quote }}
+{{- end }}
+{{- if .Values.csi.cephcsi }}
+{{- if .Values.csi.cephcsi.image }}
+        - name: ROOK_CSI_CEPH_IMAGE
+          value: {{ .Values.csi.cephcsi.image | quote }}
+{{- end }}
+{{- end }}
+{{- if .Values.csi.registrar }}
+{{- if .Values.csi.registrar.image }}
+        - name: ROOK_CSI_REGISTRAR_IMAGE
+          value: {{ .Values.csi.registrar.image | quote }}
+{{- end }}
+{{- end }}
+{{- if .Values.csi.provisioner }}
+{{- if .Values.csi.provisioner.image }}
+        - name: ROOK_CSI_PROVISIONER_IMAGE
+          value: {{ .Values.csi.provisioner.image | quote }}
+{{- end }}
+{{- end }}
+{{- if .Values.csi.snapshotter }}
+{{- if .Values.csi.snapshotter.image }}
+        - name: ROOK_CSI_SNAPSHOTTER_IMAGE
+          value: {{ .Values.csi.snapshotter.image | quote }}
+{{- end }}
+{{- end }}
+{{- if .Values.csi.attacher }}
+{{- if .Values.csi.attacher.image }}
+        - name: ROOK_CSI_ATTACHER_IMAGE
+          value: {{ .Values.csi.attacher.image | quote }}
+{{- end }}
+{{- end }}
         - name: ROOK_ENABLE_FLEX_DRIVER
           value: "{{ .Values.enableFlexDriver }}"
         - name: ROOK_ENABLE_DISCOVERY_DAEMON
