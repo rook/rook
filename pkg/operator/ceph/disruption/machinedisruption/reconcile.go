@@ -129,7 +129,7 @@ func (r *MachineDisruptionReconciler) reconcile(request reconcile.Request) (reco
 		mdb.Spec.MaxUnavailable = &maxUnavailable
 	}
 	// Check if the cluster is clean or not
-	_, isClean, err := cephClient.IsClusterClean(r.context.ClusterdContext, request.Name)
+	_, isClean, err := cephClient.IsClusterClean(r.context.ClusterdContext, request.Namespace)
 	if err != nil {
 		maxUnavailable := int32(0)
 		mdb.Spec.MaxUnavailable = &maxUnavailable
