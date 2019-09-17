@@ -202,7 +202,7 @@ func TestValidateExternalClusterSpec(t *testing.T) {
 	err = validateExternalClusterSpec(c)
 	assert.Error(t, err)
 
-	c.Spec.CephVersion.Image = "ceph/ceph:v14.2.3-20190904"
+	c.Spec.CephVersion.Image = "ceph/ceph:v14.2.4-20190917"
 	err = validateExternalClusterSpec(c)
 	assert.NoError(t, err)
 }
