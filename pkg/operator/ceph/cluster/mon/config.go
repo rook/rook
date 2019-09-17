@@ -111,6 +111,11 @@ func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerR
 		logger.Debugf("found existing monitor secrets for cluster %s", clusterInfo.Name)
 	}
 
+	// ensure the csi secret exists
+	if err := createCSISecret(context.Clientset, namespace, clusterInfo, ownerRef); err != nil {
+		logger.Errorf("failed to create csi secret. %+v", err)
+	}
+
 	// get the existing monitor config
 	clusterInfo.Monitors, maxMonID, monMapping, err = loadMonConfig(context.Clientset, namespace)
 	if err != nil {
@@ -177,8 +182,7 @@ func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string
 	return monEndpointMap, maxMonID, monMapping, nil
 }
 
-func createClusterAccessSecret(clientset kubernetes.Interface, namespace string, clusterInfo *cephconfig.ClusterInfo, ownerRef *metav1.OwnerReference) error {
-	logger.Infof("creating csi and mon secrets for a new cluster")
+func createCSISecret(clientset kubernetes.Interface, namespace string, clusterInfo *cephconfig.ClusterInfo, ownerRef *metav1.OwnerReference) error {
 	var err error
 
 	// Store the admin secret for the csi driver
@@ -204,6 +208,13 @@ func createClusterAccessSecret(clientset kubernetes.Interface, namespace string,
 			return fmt.Errorf("failed to save csi secret. %+v", err)
 		}
 	}
+	logger.Infof("created csi secret for cluster %s", namespace)
+	return nil
+}
+
+func createClusterAccessSecret(clientset kubernetes.Interface, namespace string, clusterInfo *cephconfig.ClusterInfo, ownerRef *metav1.OwnerReference) error {
+	logger.Infof("creating mon secrets for a new cluster")
+	var err error
 
 	// store the secrets for internal usage of the rook pods
 	secrets := map[string][]byte{
