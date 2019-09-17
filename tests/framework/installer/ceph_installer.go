@@ -41,7 +41,7 @@ const (
 	// test with the latest mimic build
 	mimicTestImage = "ceph/ceph:v13"
 	// test with the latest nautilus build
-	nautilusTestImage = "ceph/ceph:v14.2.3-20190904"
+	nautilusTestImage = "ceph/ceph:v14.2.4-20190917"
 	helmChartName     = "local/rook-ceph"
 	helmDeployName    = "rook-ceph"
 	cephOperatorLabel = "app=rook-ceph-operator"
