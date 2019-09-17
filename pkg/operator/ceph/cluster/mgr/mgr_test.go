@@ -189,8 +189,9 @@ func TestConfigureModules(t *testing.T) {
 	assert.Equal(t, 1, modulesEnabled)
 	assert.Equal(t, 0, modulesDisabled)
 	assert.Equal(t, "pg_autoscaler", lastModuleConfigured)
-	assert.Equal(t, 1, len(configSettings))
+	assert.Equal(t, 2, len(configSettings))
 	assert.Equal(t, "on", configSettings["osd_pool_default_pg_autoscale_mode"])
+	assert.Equal(t, "0", configSettings["mon_pg_warn_min_per_osd"])
 
 	// disable the module
 	modulesEnabled = 0
