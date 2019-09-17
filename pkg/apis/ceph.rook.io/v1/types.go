@@ -127,7 +127,7 @@ type MonitoringSpec struct {
 }
 
 type ClusterStatus struct {
-	Phase	   ClusterState `json:"phase,omitempty"`
+	Phase      ClusterState `json:"phase,omitempty"`
 	State      ClusterState `json:"state,omitempty"`
 	Message    string       `json:"message,omitempty"`
 	CephStatus *CephStatus  `json:"ceph,omitempty"`
@@ -158,7 +158,6 @@ const (
 	// DefaultFailureDomain for PoolSpec
 	DefaultFailureDomain = "host"
 )
-
 
 type MonSpec struct {
 	Count                int                       `json:"count,omitempty"`
@@ -221,6 +220,7 @@ type PoolSpec struct {
 	// The erasure code settings
 	ErasureCoded ErasureCodedSpec `json:"erasureCoded"`
 }
+
 // ReplicationSpec represents the spec for replication in a pool
 type ReplicatedSpec struct {
 	// Number of copies per object in a replicated storage pool, including the object itself (required for replicated pool type)
@@ -328,7 +328,6 @@ type CephObjectStoreUser struct {
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
 
 type CephObjectStoreUserList struct {
 	metav1.TypeMeta `json:",inline"`
