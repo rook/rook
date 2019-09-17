@@ -5,7 +5,7 @@
 image:
   prefix: rook
   repository: rook/ceph
-  tag: %%VERSION%%
+  tag: VERSION
   pullPolicy: IfNotPresent
 
 hyperkube:
