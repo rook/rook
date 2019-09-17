@@ -72,6 +72,7 @@ an example usage
 While the flex driver is still supported, it is anticipated to be deprecated soon.
 - The `Mon.PreferredCount` setting has been removed.
 - imagePullSecrets option added to helm-chart
+- Enforce `dataDirHostPath` restrictions to prevent collisions with Rook internally used mount paths like `/rook`,  `/etc/ceph`, `/var/log/ceph`.
 
 ## Known Issues
 

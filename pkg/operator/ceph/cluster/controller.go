@@ -20,6 +20,7 @@ package cluster
 import (
 	"fmt"
 	"os"
+	"path"
 	"reflect"
 	"sync"
 	"time"
@@ -77,8 +78,11 @@ const (
 var (
 	logger        = capnslog.NewPackageLogger("github.com/rook/rook", "op-cluster")
 	finalizerName = fmt.Sprintf("%s.%s", ClusterResource.Name, ClusterResource.Group)
+	// disallowedHostDirectories directories which are not allowed to be used
+	disallowedHostDirectories = []string{"/etc/ceph", "/rook", "/var/log/ceph"}
 )
 
+// ClusterResource operator-kit Custom Resource Definition
 var ClusterResource = opkit.CustomResource{
 	Name:    "cephcluster",
 	Plural:  "cephclusters",
@@ -364,6 +368,15 @@ func (c *ClusterController) configureLocalCephCluster(namespace, name string, cl
 
 func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *cephv1.CephCluster) {
 	cluster.Spec = &clusterObj.Spec
+
+	// Check if the dataDirHostPath is located in the disallowed paths list
+	cleanDataDirHostPath := path.Clean(cluster.Spec.DataDirHostPath)
+	for _, b := range disallowedHostDirectories {
+		if cleanDataDirHostPath == b {
+			logger.Errorf("dataDirHostPath (given: %s) must not be used, conflicts with %s internal path", cluster.Spec.DataDirHostPath, b)
+			return
+		}
+	}
 
 	if !cluster.Spec.External.Enable {
 		if err := c.configureLocalCephCluster(clusterObj.Namespace, clusterObj.Name, cluster, clusterObj); err != nil {
