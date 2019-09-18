@@ -186,7 +186,11 @@ func (c *cluster) validateCephVersion(version *cephver.CephVersion) error {
 		// check ceph's status, if not healthy we fail
 		cephHealthy := client.IsCephHealthy(c.context, c.Namespace)
 		if !cephHealthy {
-			return fmt.Errorf("ceph status in namespace %s is not healthy, refusing to upgrade. fix the cluster and re-edit the cluster CR to trigger a new orchestation update", c.Namespace)
+			if c.Spec.SkipUpgradeChecks {
+				logger.Warning("ceph is not healthy but SkipUpgradeChecks is set, forcing upgrade.")
+			} else {
+				return fmt.Errorf("ceph status in namespace %s is not healthy, refusing to upgrade. fix the cluster and re-edit the cluster CR to trigger a new orchestation update", c.Namespace)
+			}
 		}
 		c.isUpgrade = true
 	}
@@ -257,7 +261,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 
 		mgrs := mgr.New(c.Info, c.context, c.Namespace, rookImage,
 			spec.CephVersion, cephv1.GetMgrPlacement(spec.Placement), cephv1.GetMgrAnnotations(c.Spec.Annotations),
-			spec.Network, spec.Dashboard, spec.Monitoring, spec.Mgr, cephv1.GetMgrResources(spec.Resources), c.ownerRef, c.Spec.DataDirHostPath, c.isUpgrade)
+			spec.Network, spec.Dashboard, spec.Monitoring, spec.Mgr, cephv1.GetMgrResources(spec.Resources), c.ownerRef, c.Spec.DataDirHostPath, c.isUpgrade, c.Spec.SkipUpgradeChecks)
 		err = mgrs.Start()
 		if err != nil {
 			return fmt.Errorf("failed to start the ceph mgr. %+v", err)
@@ -266,7 +270,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 		// Start the OSDs
 		osds := osd.New(c.Info, c.context, c.Namespace, rookImage, spec.CephVersion, spec.Storage, spec.DataDirHostPath,
 			cephv1.GetOSDPlacement(spec.Placement), cephv1.GetOSDAnnotations(spec.Annotations), spec.Network,
-			cephv1.GetOSDResources(spec.Resources), c.ownerRef, c.isUpgrade)
+			cephv1.GetOSDResources(spec.Resources), c.ownerRef, c.isUpgrade, c.Spec.SkipUpgradeChecks)
 		err = osds.Start()
 		if err != nil {
 			return fmt.Errorf("failed to start the osds. %+v", err)
@@ -275,7 +279,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 		// Start the rbd mirroring daemon(s)
 		rbdmirror := rbd.New(c.Info, c.context, c.Namespace, rookImage, spec.CephVersion, cephv1.GetRBDMirrorPlacement(spec.Placement),
 			cephv1.GetRBDMirrorAnnotations(spec.Annotations), spec.Network, spec.RBDMirroring,
-			cephv1.GetRBDMirrorResources(spec.Resources), c.ownerRef, c.Spec.DataDirHostPath, c.isUpgrade)
+			cephv1.GetRBDMirrorResources(spec.Resources), c.ownerRef, c.Spec.DataDirHostPath, c.isUpgrade, c.Spec.SkipUpgradeChecks)
 		err = rbdmirror.Start()
 		if err != nil {
 			return fmt.Errorf("failed to start the rbd mirrors. %+v", err)

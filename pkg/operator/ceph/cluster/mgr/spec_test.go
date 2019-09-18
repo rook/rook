@@ -60,6 +60,7 @@ func TestPodSpec(t *testing.T) {
 		metav1.OwnerReference{},
 		"/var/lib/rook/",
 		false,
+		false,
 	)
 
 	mgrTestConfig := mgrConfig{
@@ -103,6 +104,7 @@ func TestServiceSpec(t *testing.T) {
 		metav1.OwnerReference{},
 		"/var/lib/rook/",
 		false,
+		false,
 	)
 
 	s := c.makeMetricsService("rook-mgr")
@@ -128,6 +130,7 @@ func TestHostNetwork(t *testing.T) {
 		v1.ResourceRequirements{},
 		metav1.OwnerReference{},
 		"/var/lib/rook/",
+		false,
 		false,
 	)
 
@@ -162,6 +165,7 @@ func TestHttpBindFix(t *testing.T) {
 		v1.ResourceRequirements{},
 		metav1.OwnerReference{},
 		"/var/lib/rook/",
+		false,
 		false,
 	)
 

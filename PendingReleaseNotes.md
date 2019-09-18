@@ -59,6 +59,7 @@ an example usage
 - Rook now has a new config CRD `mgr` to enable ceph manager modules
 - Flexvolume plugin now supports dynamic PVC expansion.
 - The Rook-enforced minimum memory for OSD pods has been reduced from 4096M to 2048M
+- A new CR property `skipUpgradeChecks` has been added, which allows you force an upgrade by skipping daemon checks. Use this at **YOUR OWN RISK**, only if you know what you're doing. To understand Rook's upgrade process of Ceph, read the [upgrade doc](Documentation/ceph-upgrade.html#ceph-version-upgrades).
 
 ### EdgeFS
 

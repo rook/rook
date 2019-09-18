@@ -58,6 +58,7 @@ func TestRBDMirror(t *testing.T) {
 		metav1.OwnerReference{},
 		"/var/lib/rook/",
 		false,
+		false,
 	)
 
 	err := c.Start()

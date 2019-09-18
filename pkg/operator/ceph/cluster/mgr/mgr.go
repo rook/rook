@@ -57,24 +57,25 @@ const (
 
 // Cluster represents the Rook and environment configuration settings needed to set up Ceph mgrs.
 type Cluster struct {
-	clusterInfo     *cephconfig.ClusterInfo
-	Namespace       string
-	Replicas        int
-	placement       rookalpha.Placement
-	annotations     rookalpha.Annotations
-	context         *clusterd.Context
-	dataDir         string
-	Network         cephv1.NetworkSpec
-	resources       v1.ResourceRequirements
-	ownerRef        metav1.OwnerReference
-	dashboard       cephv1.DashboardSpec
-	monitoringSpec  cephv1.MonitoringSpec
-	mgrSpec         cephv1.MgrSpec
-	cephVersion     cephv1.CephVersionSpec
-	rookVersion     string
-	exitCode        func(err error) (int, bool)
-	dataDirHostPath string
-	isUpgrade       bool
+	clusterInfo       *cephconfig.ClusterInfo
+	Namespace         string
+	Replicas          int
+	placement         rookalpha.Placement
+	annotations       rookalpha.Annotations
+	context           *clusterd.Context
+	dataDir           string
+	Network           cephv1.NetworkSpec
+	resources         v1.ResourceRequirements
+	ownerRef          metav1.OwnerReference
+	dashboard         cephv1.DashboardSpec
+	monitoringSpec    cephv1.MonitoringSpec
+	mgrSpec           cephv1.MgrSpec
+	cephVersion       cephv1.CephVersionSpec
+	rookVersion       string
+	exitCode          func(err error) (int, bool)
+	dataDirHostPath   string
+	isUpgrade         bool
+	skipUpgradeChecks bool
 }
 
 // New creates an instance of the mgr
@@ -93,25 +94,27 @@ func New(
 	ownerRef metav1.OwnerReference,
 	dataDirHostPath string,
 	isUpgrade bool,
+	skipUpgradeChecks bool,
 ) *Cluster {
 	return &Cluster{
-		clusterInfo:     clusterInfo,
-		context:         context,
-		Namespace:       namespace,
-		placement:       placement,
-		rookVersion:     rookVersion,
-		cephVersion:     cephVersion,
-		Replicas:        1,
-		dataDir:         k8sutil.DataDir,
-		dashboard:       dashboard,
-		monitoringSpec:  monitoringSpec,
-		mgrSpec:         mgrSpec,
-		Network:         network,
-		resources:       resources,
-		ownerRef:        ownerRef,
-		exitCode:        getExitCode,
-		dataDirHostPath: dataDirHostPath,
-		isUpgrade:       isUpgrade,
+		clusterInfo:       clusterInfo,
+		context:           context,
+		Namespace:         namespace,
+		placement:         placement,
+		rookVersion:       rookVersion,
+		cephVersion:       cephVersion,
+		Replicas:          1,
+		dataDir:           k8sutil.DataDir,
+		dashboard:         dashboard,
+		monitoringSpec:    monitoringSpec,
+		mgrSpec:           mgrSpec,
+		Network:           network,
+		resources:         resources,
+		ownerRef:          ownerRef,
+		exitCode:          getExitCode,
+		dataDirHostPath:   dataDirHostPath,
+		isUpgrade:         isUpgrade,
+		skipUpgradeChecks: skipUpgradeChecks,
 	}
 }
 
@@ -177,7 +180,7 @@ func (c *Cluster) Start() error {
 				}
 			}
 
-			if err := updateDeploymentAndWait(c.context, d, c.Namespace, daemon, mgrConfig.DaemonID, cephVersionToUse, c.isUpgrade); err != nil {
+			if err := updateDeploymentAndWait(c.context, d, c.Namespace, daemon, mgrConfig.DaemonID, cephVersionToUse, c.isUpgrade, c.skipUpgradeChecks); err != nil {
 				return fmt.Errorf("failed to update mgr deployment %s. %+v", resourceName, err)
 			}
 		}

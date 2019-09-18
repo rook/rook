@@ -39,6 +39,8 @@ spec:
             dataDirHostPath:
               pattern: ^/(\S+)
               type: string
+            skipUpgradeChecks:
+              type: boolean
             mon:
               properties:
                 allowMultiplePerNode:
