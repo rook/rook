@@ -142,6 +142,8 @@ kubectl delete storageclass rook-ceph-block
 ## Flex Driver
 
 To create a volume based on the flex driver instead of the CSI driver, see the following example of a storage class.
+Make sure the flex driver is enabled over Ceph CSI.
+For this, you need to set `ROOK_ENABLE_FLEX_DRIVER` to `true` in your operator deployment in the `operator.yaml` file.
 The pool definition is the same as for the CSI driver.
 
 ```yaml
@@ -181,6 +183,8 @@ kubectl create -f cluster/examples/kubernetes/ceph/flex/storageclass.yaml
 Continue with the example above for the [wordpress application](#consume-the-storage-wordpress-sample).
 
 ## Advanced Example: Erasure Coded Block Storage
+
+**IMPORTANT:** This is only possible when using the Flex driver. Ceph CSI 1.2 (with Rook 1.1) does not support this type of configuration yet.
 
 If you want to use erasure coded pool with RBD, your OSDs must use `bluestore` as their `storeType`.
 Additionally the nodes that are going to mount the erasure coded RBD block storage must have Linux kernel >= `4.11`.
