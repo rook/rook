@@ -46,12 +46,11 @@ var (
 
 func getCephMonVersionString(context *clusterd.Context, clusterName string) (string, error) {
 	args := []string{"version"}
-	command, args := FinalizeCephCommandArgs("ceph", args, context.ConfigDir, clusterName)
-
-	output, err := context.Executor.ExecuteCommandWithOutput(false, "", command, args...)
+	buf, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
 		return "", fmt.Errorf("failed to run 'ceph version'. %+v", err)
 	}
+	output := string(buf)
 	logger.Debug(output)
 
 	return output, nil
@@ -59,12 +58,11 @@ func getCephMonVersionString(context *clusterd.Context, clusterName string) (str
 
 func getAllCephDaemonVersionsString(context *clusterd.Context, clusterName string) (string, error) {
 	args := []string{"versions"}
-	command, args := FinalizeCephCommandArgs("ceph", args, context.ConfigDir, clusterName)
-
-	output, err := context.Executor.ExecuteCommandWithOutput(false, "", command, args...)
+	buf, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
 		return "", fmt.Errorf("failed to run 'ceph versions'. %+v", err)
 	}
+	output := string(buf)
 	logger.Debug(output)
 
 	return output, nil
@@ -104,23 +102,30 @@ func GetAllCephDaemonVersions(context *clusterd.Context, clusterName string) (*C
 }
 
 // EnableMessenger2 enable the messenger 2 protocol on Nautilus clusters
-func EnableMessenger2(context *clusterd.Context) error {
-	_, err := context.Executor.ExecuteCommandWithOutput(false, "", "ceph", "mon", "enable-msgr2")
+func EnableMessenger2(context *clusterd.Context, clusterName string) error {
+	args := []string{"mon", "enable-msgr2"}
+	buf, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
 		return fmt.Errorf("failed to enable msgr2 protocol. %+v", err)
 	}
+	output := string(buf)
+	logger.Debug(output)
 	logger.Infof("successfully enabled msgr2 protocol")
 
 	return nil
 }
 
 // EnableNautilusOSD disallows pre-Nautilus OSDs and enables all new Nautilus-only functionality
-func EnableNautilusOSD(context *clusterd.Context) error {
-	_, err := context.Executor.ExecuteCommandWithOutput(false, "", "ceph", "osd", "require-osd-release", "nautilus")
+func EnableNautilusOSD(context *clusterd.Context, clusterName string) error {
+	args := []string{"osd", "require-osd-release", "nautilus"}
+	buf, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
 		return fmt.Errorf("failed to disallow pre-nautilus osds and enable all new nautilus-only functionality: %+v", err)
 	}
+	output := string(buf)
+	logger.Debug(output)
 	logger.Infof("successfully disallowed pre-nautilus osds and enabled all new nautilus-only functionality")
+
 	return nil
 }
 
@@ -201,12 +206,11 @@ func OkToContinue(context *clusterd.Context, namespace, deployment, daemonType, 
 func okToStopDaemon(context *clusterd.Context, deployment, clusterName, daemonType, daemonName string) error {
 	if !stringInSlice(daemonType, daemonNoCheck) {
 		args := []string{daemonType, "ok-to-stop", daemonName}
-		command, args := FinalizeCephCommandArgs("ceph", args, context.ConfigDir, clusterName)
-
-		output, err := context.Executor.ExecuteCommandWithOutput(false, "", command, args...)
+		buf, err := NewCephCommand(context, clusterName, args).Run()
 		if err != nil {
 			return fmt.Errorf("deployment %s cannot be stopped. %+v", deployment, err)
 		}
+		output := string(buf)
 		logger.Debugf("deployment %s is ok to be updated. %s", deployment, output)
 	}
 
