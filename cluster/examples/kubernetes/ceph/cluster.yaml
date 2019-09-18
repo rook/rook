@@ -29,6 +29,11 @@ spec:
   # Important: if you reinstall the cluster, make sure you delete this directory from each host or else the mons will fail to start on the new cluster.
   # In Minikube, the '/data' directory is configured to persist across reboots. Use "/data/rook" in Minikube environment.
   dataDirHostPath: /var/lib/rook
+  # Whether or not upgrade should continue even if a check fails
+  # This means Ceph's status could be degraded and we don't recommend upgrading but you might decide otherwise
+  # Use at your OWN risk
+  # To understand Rook's upgrade process of Ceph, read https://rook.io/docs/rook/master/ceph-upgrade.html#ceph-version-upgrades
+  skipUpgradeChecks: false
   # set the amount of mons to be started
   mon:
     count: 3
@@ -86,7 +91,7 @@ spec:
 # The above placement information can also be specified for mon, osd, and mgr components
 #    mon:
 # Monitor deployments may contain an anti-affinity rule for avoiding monitor
-# colocation on the same node. This is a required rule when host network is used
+# collocation on the same node. This is a required rule when host network is used
 # or when AllowMultiplePerNode is false. Otherwise this anti-affinity rule is a
 # preferred rule with weight: 50.
 #    osd:
@@ -123,7 +128,7 @@ spec:
       # journalSizeMB: "1024"  # uncomment if the disks are 20 GB or smaller
       # osdsPerDevice: "1" # this value can be overridden at the node or device level
       # encryptedDevice: "true" # the default value for this option is "false"
-# Cluster level list of directories to use for filestore-based OSD storage. If uncommented, this example would create an OSD under the dataDirHostPath.
+# Cluster level list of directories to use for filestore-based OSD storage. If uncomment, this example would create an OSD under the dataDirHostPath.
     #directories:
     #- path: /var/lib/rook
 # Individual nodes and their config can be specified as well, but 'useAllNodes' above must be set to false. Then, only the named
@@ -151,7 +156,7 @@ spec:
 #      deviceFilter: "^sd."
   # The section for configuring management of daemon disruptions during upgrade or fencing.
   disruptionManagement:
-    # If true, the operator will create and manage PodDsruptionBudgets for OSD, Mon, RGW, and MDS daemons. OSD PDBs are managed dynamically
+    # If true, the operator will create and manage PodDisruptionBudgets for OSD, Mon, RGW, and MDS daemons. OSD PDBs are managed dynamically
     # via the strategy outlined in the [design](https://github.com/rook/rook/blob/master/design/ceph-managed-disruptionbudgets.md). The operator will
     # block eviction of OSDs by default and unblock them safely when drains are detected.
     managePodBudgets: false

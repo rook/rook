@@ -58,6 +58,8 @@ spec:
             dataDirHostPath:
               pattern: ^/(\S+)
               type: string
+            skipUpgradeChecks:
+              type: boolean
             mon:
               properties:
                 allowMultiplePerNode:
@@ -1019,9 +1021,9 @@ subjects:
 - kind: ServiceAccount
   name: rook-ceph-mgr
   namespace: rook-ceph
-  
+
 ---
-# Allow the ceph osd to access cluster-wide resources necessary for determining their topology location 
+# Allow the ceph osd to access cluster-wide resources necessary for determining their topology location
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
@@ -1034,7 +1036,7 @@ subjects:
 - kind: ServiceAccount
   name: rook-ceph-osd
   namespace: rook-ceph
-  
+
 # OLM: END CLUSTER ROLEBINDING
 # OLM: BEGIN CMD REPORTER ROLEBINDING
 ---
