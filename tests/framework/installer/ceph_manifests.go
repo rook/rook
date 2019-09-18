@@ -112,13 +112,23 @@ spec:
             dataDirHostPath:
               pattern: ^/(\S+)
               type: string
+            disruptionManagement:
+              properties:
+                machineDisruptionBudgetNamespace:
+                  type: string
+                managePodBudgets:
+                  type: boolean
+                osdMaintenanceTimeout:
+                  type: integer
+                manageMachineDisruptionBudgets:
+                  type: boolean
             mon:
               properties:
                 allowMultiplePerNode:
                   type: boolean
                 count:
                   maximum: 9
-                  minimum: 1
+                  minimum: 0
                   type: integer
             mgr:
               properties:
@@ -137,6 +147,8 @@ spec:
               properties:
                 disruptionManagement:
                   properties:
+                    machineDisruptionBudgetNamespace:
+                      type: string
                     managePodBudgets:
                       type: boolean
                     osdMaintenanceTimeout:
@@ -212,8 +224,6 @@ spec:
                   type: integer
             placement: {}
             resources: {}
-          required:
-          - mon
   additionalPrinterColumns:
     - name: DataDirHostPath
       type: string

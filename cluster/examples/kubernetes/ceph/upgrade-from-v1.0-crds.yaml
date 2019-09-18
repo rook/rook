@@ -41,6 +41,16 @@ spec:
             dataDirHostPath:
               pattern: ^/(\S+)
               type: string
+            disruptionManagement:
+              properties:
+                machineDisruptionBudgetNamespace:
+                  type: string
+                managePodBudgets:
+                  type: boolean
+                osdMaintenanceTimeout:
+                  type: integer
+                manageMachineDisruptionBudgets:
+                  type: boolean
             skipUpgradeChecks:
               type: boolean
             mon:
@@ -68,6 +78,8 @@ spec:
               properties:
                 disruptionManagement:
                   properties:
+                    machineDisruptionBudgetNamespace:
+                      type: string
                     managePodBudgets:
                       type: boolean
                     osdMaintenanceTimeout:
