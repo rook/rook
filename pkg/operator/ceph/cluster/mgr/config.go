@@ -45,8 +45,12 @@ type mgrConfig struct {
 
 func (c *Cluster) dashboardPort() int {
 	if c.dashboard.Port == 0 {
-		// select default port
-		return dashboardPortHTTPS
+		// default port for HTTP/HTTPS
+		if c.dashboard.SSL {
+			return dashboardPortHTTPS
+		} else {
+			return dashboardPortHTTP
+		}
 	}
 	// crd validates port >= 0
 	return c.dashboard.Port
