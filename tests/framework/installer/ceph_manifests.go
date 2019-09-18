@@ -130,6 +130,7 @@ spec:
                   maximum: 9
                   minimum: 0
                   type: integer
+                volumeClaimTemplate: {}
             mgr:
               properties:
                 modules:
@@ -212,6 +213,7 @@ spec:
                 config: {}
                 topologyAware:
                   type: boolean
+                storageClassDeviceSets: {}
             monitoring:
               properties:
                 enabled:
@@ -222,6 +224,10 @@ spec:
               properties:
                 workers:
                   type: integer
+            external:
+              properties:
+                enable:
+                  type: boolean
             placement: {}
             resources: {}
   additionalPrinterColumns:
