@@ -604,8 +604,12 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 			// check ceph's status, if not healthy we fail
 			cephStatus := client.IsCephHealthy(c.context, cluster.Namespace)
 			if !cephStatus {
-				logger.Errorf("ceph status in namespace %s is not healthy, refusing to upgrade. fix the cluster and re-edit the cluster CR to trigger a new orchestation update", cluster.Namespace)
-				return
+				if cluster.Spec.SkipUpgradeChecks {
+					logger.Warning("ceph is not healthy but SkipUpgradeChecks is set, forcing upgrade.")
+				} else {
+					logger.Errorf("ceph status in namespace %s is not healthy, refusing to upgrade. fix the cluster and re-edit the cluster CR to trigger a new orchestation update", cluster.Namespace)
+					return
+				}
 			}
 			// If Ceph is healthy let's start the upgrade!
 			cluster.isUpgrade = true

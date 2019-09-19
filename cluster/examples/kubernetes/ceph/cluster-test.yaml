@@ -17,6 +17,7 @@ spec:
     image: ceph/ceph:v14.2.4-20190917
     allowUnsupported: true
   dataDirHostPath: /var/lib/rook
+  skipUpgradeChecks: false
   mon:
     count: 1
     allowMultiplePerNode: true
