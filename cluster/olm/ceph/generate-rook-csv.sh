@@ -95,6 +95,7 @@ CEPH_BLOCK_POOLS_CRD_YAML_FILE="$OLM_CATALOG_DIR/deploy/crds/rookcephblockpools.
 CEPH_OBJECT_STORE_YAML_FILE="$OLM_CATALOG_DIR/deploy/crds/rookcephobjectstores.crd.yaml"
 CEPH_OBJECT_STORE_USERS_YAML_FILE="$OLM_CATALOG_DIR/deploy/crds/rookcephobjectstoreusers.crd.yaml"
 CEPH_FILESYSTEMS_CRD_YAML_FILE="$OLM_CATALOG_DIR/deploy/crds/rookcephfilesystems.crd.yaml"
+CEPH_NFS_CRD_YAML_FILE="$OLM_CATALOG_DIR/deploy/crds/rookcephnfses.crd.yaml"
 
 #############
 # FUNCTIONS #
@@ -191,6 +192,7 @@ function generate_crds_yaml() {
     sed -n '/^# OLM: BEGIN CEPH OBJECT STORE CRD$/,/# OLM: END CEPH OBJECT STORE CRD$/p' "$COMMON_YAML_FILE" > "$CEPH_OBJECT_STORE_YAML_FILE"
     sed -n '/^# OLM: BEGIN CEPH OBJECT STORE USERS CRD$/,/# OLM: END CEPH OBJECT STORE USERS CRD$/p' "$COMMON_YAML_FILE" > "$CEPH_OBJECT_STORE_USERS_YAML_FILE"
     sed -n '/^# OLM: BEGIN CEPH BLOCK POOL CRD$/,/# OLM: END CEPH BLOCK POOL CRD$/p' "$COMMON_YAML_FILE" > "$CEPH_BLOCK_POOLS_CRD_YAML_FILE"
+     sed -n '/^# OLM: BEGIN CEPH NFS CRD$/,/# OLM: END CEPH NFS CRD$/p' "$COMMON_YAML_FILE" > "$CEPH_NFS_CRD_YAML_FILE"
 
     if [ -n "$OLM_INCLUDE_CEPHFS_CSI" ]; then
         sed -n '/^# OLM: BEGIN CEPH FS CRD$/,/# OLM: END CEPH FS CRD/p' "$COMMON_YAML_FILE" > "$CEPH_FILESYSTEMS_CRD_YAML_FILE"
