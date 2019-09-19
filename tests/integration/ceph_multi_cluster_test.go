@@ -141,6 +141,8 @@ func NewMCTestOperations(t func() *testing.T, namespace1 string, namespace2 stri
 
 	kh, err := utils.CreateK8sHelper(t)
 	require.NoError(t(), err)
+	checkIfShouldRunForMinimalTestMatrix(t, kh, multiClusterMinimalTestVersion)
+
 	i := installer.NewCephInstaller(t, kh.Clientset, false, installer.VersionMaster, installer.NautilusVersion)
 
 	op := &MCTestOperations{i, kh, t, namespace1, namespace2, installer.SystemNamespace(namespace1)}

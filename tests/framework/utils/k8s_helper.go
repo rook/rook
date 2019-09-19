@@ -100,6 +100,12 @@ func (k8sh *K8sHelper) VersionAtLeast(minVersion string) bool {
 	return v.AtLeast(version.MustParseSemantic(minVersion))
 }
 
+func (k8sh *K8sHelper) VersionMinorMatches(minVersion string) bool {
+	v := version.MustParseSemantic(k8sh.GetK8sServerVersion())
+	requestedVersion := version.MustParseSemantic(minVersion)
+	return v.Major() == requestedVersion.Major() && v.Minor() == requestedVersion.Minor()
+}
+
 func (k8sh *K8sHelper) MakeContext() *clusterd.Context {
 	return &clusterd.Context{Clientset: k8sh.Clientset, RookClientset: k8sh.RookClientset, Executor: k8sh.executor}
 }
