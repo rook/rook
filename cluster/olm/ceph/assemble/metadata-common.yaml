@@ -1,4 +1,5 @@
 spec:
+  replaces:  rook-ceph.v1.0.1
   customresourcedefinitions:
     owned:
       - kind: CephCluster
