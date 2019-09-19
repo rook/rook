@@ -169,6 +169,11 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 		configEnvVars = append(configEnvVars, v1.EnvVar{Name: "ROOK_IS_DEVICE", Value: "true"})
 	}
 
+	// Activate verbose mode for ceph-volume on prepare
+	if osd.CephVolumeInitiated {
+		configEnvVars = append(configEnvVars, v1.EnvVar{Name: "CEPH_VOLUME_DEBUG", Value: "1"})
+	}
+
 	// default args when the ceph cluster isn't initialized
 	defaultArgs := []string{
 		"--foreground",
@@ -253,6 +258,11 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 		volumeMounts = append(volumeMounts, v1.VolumeMount{
 			Name:      "run-udev",
 			MountPath: "/run/udev"})
+
+		// Activate verbose mode for ceph-volume on activate
+		envVars = append(envVars, []v1.EnvVar{
+			{Name: "CEPH_VOLUME_DEBUG", Value: "1"},
+		}...)
 
 	} else {
 		// other osds can launch the osd daemon directly
