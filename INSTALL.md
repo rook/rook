@@ -183,3 +183,13 @@ all tests will be executed.
 These options should **not** be used if there are any changes to code which is shared with other
 storage providers. If there is any risk of affecting another storage provider, all tests should
 be executed in the CI.
+
+### [test ceph min]
+
+By default all the ceph test suites run on all versions of K8s. For more efficient
+CI times, we can choose to run each test suite on only one K8s version by using the tag:
+```
+[test ceph min]
+```
+
+This option should only be used for changes with lower risk.

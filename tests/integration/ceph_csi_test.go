@@ -42,7 +42,7 @@ const (
 func runCephCSIE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, t *testing.T, namespace string) {
 
 	if !k8sh.VersionAtLeast("v1.13.0") {
-		logger.Info("Skiping csi tests as kube version is less than 1.13.0")
+		logger.Info("Skipping csi tests as kube version is less than 1.13.0")
 		t.Skip()
 	}
 
