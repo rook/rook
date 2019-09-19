@@ -71,6 +71,9 @@ type ClusterSpec struct {
 	// The path on the host where config and data can be persisted.
 	DataDirHostPath string `json:"dataDirHostPath,omitempty"`
 
+	// SkipUpgradeChecks defines if an upgrade should be forced even if one of the check fails
+	SkipUpgradeChecks bool `json:"skipUpgradeChecks,omitempty"`
+
 	// A spec for configuring disruption management.
 	DisruptionManagement DisruptionManagementSpec `json:"disruptionManagement,omitempty"`
 

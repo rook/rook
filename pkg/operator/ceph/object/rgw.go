@@ -35,14 +35,15 @@ import (
 )
 
 type clusterConfig struct {
-	clusterInfo *cephconfig.ClusterInfo
-	context     *clusterd.Context
-	store       cephv1.CephObjectStore
-	rookVersion string
-	clusterSpec *cephv1.ClusterSpec
-	ownerRefs   []metav1.OwnerReference
-	DataPathMap *config.DataPathMap
-	isUpgrade   bool
+	clusterInfo       *cephconfig.ClusterInfo
+	context           *clusterd.Context
+	store             cephv1.CephObjectStore
+	rookVersion       string
+	clusterSpec       *cephv1.ClusterSpec
+	ownerRefs         []metav1.OwnerReference
+	DataPathMap       *config.DataPathMap
+	isUpgrade         bool
+	skipUpgradeChecks bool
 }
 
 type rgwConfig struct {
@@ -158,7 +159,7 @@ func (c *clusterConfig) startRGWPods() error {
 				logger.Debugf("current cluster version for rgws before upgrading is: %+v", currentCephVersion)
 				cephVersionToUse = currentCephVersion
 			}
-			if err := updateDeploymentAndWait(c.context, deployment, c.store.Namespace, daemon, daemonLetterID, cephVersionToUse, c.isUpgrade); err != nil {
+			if err := updateDeploymentAndWait(c.context, deployment, c.store.Namespace, daemon, daemonLetterID, cephVersionToUse, c.isUpgrade, c.skipUpgradeChecks); err != nil {
 				return fmt.Errorf("failed to update object store %s deployment %s. %+v", c.store.Name, deployment.Name, err)
 			}
 		}
