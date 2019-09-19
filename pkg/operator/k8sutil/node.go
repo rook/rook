@@ -108,6 +108,19 @@ func GetNodeNameFromHostname(clientset kubernetes.Interface, hostName string) (s
 	return hostName, fmt.Errorf("node not found")
 }
 
+// GetNodeHostName returns the hostname label given the node name.
+func GetNodeHostName(clientset kubernetes.Interface, nodeName string) (string, error) {
+	node, err := clientset.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	hostname, ok := node.Labels[v1.LabelHostname]
+	if !ok {
+		return "", fmt.Errorf("hostname not found on the node")
+	}
+	return hostname, nil
+}
+
 // GetNodeHostNames returns the name of the node resource mapped to their hostname label.
 // Typically these will be the same name, but sometimes they are not such as when nodes have a longer
 // dns name, but the hostname is short.
