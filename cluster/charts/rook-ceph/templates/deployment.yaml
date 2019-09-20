@@ -96,21 +96,14 @@ spec:
 {{- if .Values.csi }}
         - name: ROOK_CSI_ENABLE_RBD
           value: {{ .Values.csi.enableRbdDriver | quote }}
-{{- end }}
-{{- if .Values.csi }}
         - name: ROOK_CSI_ENABLE_CEPHFS
           value: {{ .Values.csi.enableCephfsDriver | quote }}
-{{- end }}
-{{- if .Values.csi }}
 {{- if .Values.csi.kubeletDirPath }}
         - name: ROOK_CSI_KUBELET_DIR_PATH
           value: {{ .Values.csi.kubeletDirPath | quote }}
 {{- end }}
-{{- end }}
-{{- if .Values.csi }}
         - name: ROOK_CSI_ENABLE_GRPC_METRICS
           value: {{ .Values.csi.enableGrpcMetrics | quote }}
-{{- end }}
 {{- if .Values.csi.cephcsi }}
 {{- if .Values.csi.cephcsi.image }}
         - name: ROOK_CSI_CEPH_IMAGE
@@ -139,6 +132,7 @@ spec:
 {{- if .Values.csi.attacher.image }}
         - name: ROOK_CSI_ATTACHER_IMAGE
           value: {{ .Values.csi.attacher.image | quote }}
+{{- end }}
 {{- end }}
 {{- end }}
         - name: ROOK_ENABLE_FLEX_DRIVER
