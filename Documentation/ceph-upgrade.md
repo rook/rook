@@ -270,6 +270,15 @@ below, which you should change to match where your images are located.
 You can also remove the `ROOK_CSI_CEPHFS_IMAGE` and `ROOK_CSI_RBD_IMAGE` `env` variables that are
 no longer used in Rook.
 
+If you have configured the kubelet to use other than `/var/lib/kubelet` please
+add below to the operator `env` variables.
+
+```yaml
+env:
+    - name: ROOK_CSI_KUBELET_DIR_PATH
+      value: "/kubelet/path"
+```
+
 At the same time you edit the CSI driver settings, go ahead and update the operator deployment image:
 ```yaml
   image: rook/ceph:v1.1.0
