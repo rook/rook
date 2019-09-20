@@ -181,7 +181,9 @@ spec:
         #  value: "quay.io/k8scsi/csi-snapshotter:v1.2.0"
         #- name: ROOK_CSI_ATTACHER_IMAGE
         #  value: "quay.io/k8scsi/csi-attacher:v1.2.0"
-
+        # kubelet directory path, if kubelet configured to use other than /var/lib/kubelet path.
+        #- name: ROOK_CSI_KUBELET_DIR_PATH
+        #  value: "/var/lib/kubelet"
         # The name of the node to pass with the downward API
         - name: NODE_NAME
           valueFrom:

@@ -25,7 +25,7 @@ spec:
           args:
             - "--v=5"
             - "--csi-address=/csi/csi.sock"
-            - "--kubelet-registration-path=/var/lib/kubelet/plugins/{{ .DriverNamePrefix }}rbd.csi.ceph.com/csi.sock"
+            - "--kubelet-registration-path={{ .KubeletDirPath }}/plugins/{{ .DriverNamePrefix }}rbd.csi.ceph.com/csi.sock"
           lifecycle:
             preStop:
               exec:
@@ -81,10 +81,10 @@ spec:
             - name: plugin-dir
               mountPath: /csi
             - name: pods-mount-dir
-              mountPath: /var/lib/kubelet/pods
+              mountPath: "{{ .KubeletDirPath }}/pods"
               mountPropagation: "Bidirectional"
             - name: plugin-mount-dir
-              mountPath: /var/lib/kubelet/plugins
+              mountPath: "{{ .KubeletDirPath }}/plugins"
               mountPropagation: "Bidirectional"
             - mountPath: /dev
               name: host-dev
@@ -122,19 +122,19 @@ spec:
       volumes:
         - name: plugin-dir
           hostPath:
-            path: /var/lib/kubelet/plugins/{{ .DriverNamePrefix }}rbd.csi.ceph.com
+            path: "{{ .KubeletDirPath }}/plugins/{{ .DriverNamePrefix }}rbd.csi.ceph.com"
             type: DirectoryOrCreate
         - name: plugin-mount-dir
           hostPath:
-            path: /var/lib/kubelet/plugins
+            path: "{{ .KubeletDirPath }}/plugins"
             type: Directory
         - name: registration-dir
           hostPath:
-            path: /var/lib/kubelet/plugins_registry/
+            path: "{{ .KubeletDirPath }}/plugins_registry/"
             type: Directory
         - name: pods-mount-dir
           hostPath:
-            path: /var/lib/kubelet/pods
+            path: "{{ .KubeletDirPath }}/pods"
             type: Directory
         - name: host-dev
           hostPath:

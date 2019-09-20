@@ -59,6 +59,7 @@ csi:
   enableRbdDriver: true
   enableCephfsDriver: true
   enableGrpcMetrics: true
+  #kubeletDirPath: /var/lib/kubelet
   #cephcsi:
     #image: quay.io/cephcsi/cephcsi:v1.2.0
   #registrar:

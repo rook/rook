@@ -68,6 +68,8 @@ func init() {
 	operatorCmd.Flags().StringVar(&csi.CephFSProvisionerDepTemplatePath, "csi-cephfs-provisioner-dep-template-path", csi.DefaultCephFSProvisionerDepTemplatePath, "path to ceph-csi cephfs provisioner deployment template")
 	operatorCmd.Flags().BoolVar(&csi.EnableCSIGRPCMetrics, "csi-enable-grpc-metrics", true, "enable grpc metrics in ceph-csi")
 
+	operatorCmd.Flags().StringVar(&csi.CSIParam.KubeletDirPath, "csi-kubelet-dir-path", csi.DefaultKubeletDirPath, "kubelet directory path for mounting volumes")
+
 	operatorCmd.Flags().BoolVar(&disruption.EnableMachineDisruptionBudget, "enable-machine-disruption-budget", false, "enable fencing controllers")
 
 	flags.SetFlagsFromEnv(operatorCmd.Flags(), rook.RookEnvVarPrefix)
