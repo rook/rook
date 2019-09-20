@@ -39,6 +39,16 @@ spec:
             dataDirHostPath:
               pattern: ^/(\S+)
               type: string
+            disruptionManagement:
+              properties:
+                machineDisruptionBudgetNamespace:
+                  type: string
+                managePodBudgets:
+                  type: boolean
+                osdMaintenanceTimeout:
+                  type: integer
+                manageMachineDisruptionBudgets:
+                  type: boolean
             skipUpgradeChecks:
               type: boolean
             mon:
@@ -49,6 +59,7 @@ spec:
                   maximum: 9
                   minimum: 0
                   type: integer
+                volumeClaimTemplate: {}
             mgr:
               properties:
                 modules:
@@ -64,6 +75,16 @@ spec:
                   type: boolean
             storage:
               properties:
+                disruptionManagement:
+                  properties:
+                    machineDisruptionBudgetNamespace:
+                      type: string
+                    managePodBudgets:
+                      type: boolean
+                    osdMaintenanceTimeout:
+                      type: integer
+                    manageMachineDisruptionBudgets:
+                      type: boolean
                 useAllNodes:
                   type: boolean
                 nodes:
@@ -121,6 +142,7 @@ spec:
                 config: {}
                 topologyAware:
                   type: boolean
+                storageClassDeviceSets: {}
             monitoring:
               properties:
                 enabled:
@@ -131,6 +153,10 @@ spec:
               properties:
                 workers:
                   type: integer
+            external:
+              properties:
+                enable:
+                  type: boolean
             placement: {}
             resources: {}
   additionalPrinterColumns:
