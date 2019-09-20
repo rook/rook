@@ -20,8 +20,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/signal"
 	"path"
 	"regexp"
+	"strconv"
+	"syscall"
+	"time"
 
 	"strings"
 
@@ -55,7 +59,7 @@ func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID, lvPath string,
 		if err != nil {
 			return fmt.Errorf("error fetching volume group name for OSD %s. %+v", osdID, err)
 		}
-
+		go handleTerminate(context, lvPath, volumeGroupName)
 		if err := updateLVMConfig(context); err != nil {
 			return fmt.Errorf("sed failure, %+v", err) // fail return here as validation provided by ceph-volume
 		}
@@ -84,7 +88,66 @@ func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID, lvPath string,
 		if err := releaseLVMDevice(context, volumeGroupName); err != nil {
 			return fmt.Errorf("failed to release device from lvm. %+v", err)
 		}
+
 	}
+
+	return nil
+}
+
+func handleTerminate(context *clusterd.Context, lvPath, volumeGroupName string) error {
+	sigc := make(chan os.Signal, 1)
+	signal.Notify(sigc, syscall.SIGTERM)
+	for {
+		select {
+		case <-sigc:
+			logger.Infof("shutdown signal received, exiting...")
+			err := killCephOSDProcess(context, lvPath)
+			if err != nil {
+				return fmt.Errorf("failed to kill ceph-osd process. %+v", err)
+			}
+			if err := releaseLVMDevice(context, volumeGroupName); err != nil {
+				return fmt.Errorf("failed to release device from lvm. %+v", err)
+			}
+			return nil
+		}
+	}
+}
+
+func killCephOSDProcess(context *clusterd.Context, lvPath string) error {
+
+	processKilled := false
+	pid, err := context.Executor.ExecuteCommandWithOutput(false, "", "fuser", "-a", lvPath)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve process ID for - %s. Error %+v", lvPath, err)
+	}
+
+	logger.Debugf("process ID for ceph-osd: %s", pid)
+
+	// shut down the osd-ceph process so that lvm release does not show device in use error.
+	if pid != "" {
+		if err := context.Executor.ExecuteCommand(false, "", "kill", pid); err != nil {
+			return fmt.Errorf("failed to delete ceph-osd process. %+v", err)
+		}
+	} else {
+		return nil
+	}
+
+	pidInt, err := strconv.Atoi(pid)
+	if err != nil {
+		return fmt.Errorf("failed to convert process ID - %s to string. Error %+v ", pid, err)
+	}
+	for !processKilled {
+		_, err := os.FindProcess(int(pidInt))
+		if err != nil {
+			logger.Infof("ceph-osd process deleted successfully")
+			processKilled = true
+		} else {
+			logger.Infof("ceph-osd process still running")
+			time.Sleep(2 * time.Second)
+			continue
+		}
+	}
+
 	return nil
 }
 

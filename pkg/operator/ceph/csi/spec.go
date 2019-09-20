@@ -36,6 +36,7 @@ type Param struct {
 	SnapshotterImage     string
 	DriverNamePrefix     string
 	EnableCSIGRPCMetrics string
+	KubeletDirPath       string
 }
 
 type templateParam struct {
@@ -76,6 +77,9 @@ const (
 	DefaultProvisionerImage = "quay.io/k8scsi/csi-provisioner:v1.3.0"
 	DefaultAttacherImage    = "quay.io/k8scsi/csi-attacher:v1.2.0"
 	DefaultSnapshotterImage = "quay.io/k8scsi/csi-snapshotter:v1.2.0"
+
+	// kubelet directory path
+	DefaultKubeletDirPath = "/var/lib/kubelet"
 
 	// template
 	DefaultRBDPluginTemplatePath         = "/etc/ceph-csi/rbd/csi-rbdplugin.yaml"

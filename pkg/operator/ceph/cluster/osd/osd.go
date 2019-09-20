@@ -765,7 +765,12 @@ func (c *Cluster) getPVCHostName(pvcName string) (string, error) {
 		return "", err
 	}
 	for _, pod := range podList.Items {
-		return pod.Spec.NodeName, nil
+		name, err := k8sutil.GetNodeHostName(c.context.Clientset, pod.Spec.NodeName)
+		if err != nil {
+			logger.Warningf("falling back to node name %s since hostname not found for node", pod.Spec.NodeName)
+			name = pod.Spec.NodeName
+		}
+		return name, nil
 	}
 	return "", err
 }

@@ -18,6 +18,8 @@ package integration
 
 import (
 	"fmt"
+	"os"
+	"strings"
 	"time"
 
 	"testing"
@@ -34,6 +36,15 @@ import (
 
 const (
 	defaultNamespace = "default"
+	// UPDATE these versions when the integration test matrix changes
+	// These versions are for running a minimal test suite for more efficient tests across different versions of K8s
+	// instead of running all suites on all versions
+	blockCreateMinimalTestVersion  = "1.11.0"
+	blockMountMinimalTestVersion   = "1.11.0"
+	multiClusterMinimalTestVersion = "1.12.0"
+	helmMinimalTestVersion         = "1.13.0"
+	upgradeMinimalTestVersion      = "1.14.0"
+	smokeSuiteMinimalTestVersion   = "1.15.0"
 )
 
 var (
@@ -95,12 +106,26 @@ type TestCluster struct {
 	rbdMirrorWorkers int
 }
 
+func checkIfShouldRunForMinimalTestMatrix(t func() *testing.T, k8sh *utils.K8sHelper, version string) {
+	testArgs := os.Getenv("TEST_ARGUMENTS")
+	if !strings.Contains(testArgs, "min-test-matrix") {
+		logger.Infof("running all tests")
+		return
+	}
+	if !k8sh.VersionMinorMatches(version) {
+		logger.Infof("Skipping test suite since kube version is not minor version %s", version)
+		t().Skip()
+	}
+	logger.Infof("Running test suite since kube version is minor version %s", version)
+}
+
 // StartTestCluster creates new instance of TestCluster struct
-func StartTestCluster(t func() *testing.T, namespace, storeType string, useHelm, useDevices bool, mons,
+func StartTestCluster(t func() *testing.T, minimalMatrixK8sVersion, namespace, storeType string, useHelm, useDevices bool, mons,
 	rbdMirrorWorkers int, rookVersion string, cephVersion cephv1.CephVersionSpec) (*TestCluster, *utils.K8sHelper) {
 
 	kh, err := utils.CreateK8sHelper(t)
 	require.NoError(t(), err)
+	checkIfShouldRunForMinimalTestMatrix(t, kh, minimalMatrixK8sVersion)
 
 	i := installer.NewCephInstaller(t, kh.Clientset, useHelm, rookVersion, cephVersion)
 
