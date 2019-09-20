@@ -21,6 +21,11 @@ spec:
         version: v1
         displayName: Ceph Object Store User
         description: Represents a Ceph Object Store User.
+      - kind: CephNFS
+        name: cephnfses.ceph.rook.io
+        version: v1
+        displayName: Ceph NFS
+        description: Represents a cluster of Ceph NFS ganesha gateways.
   displayName: Rook-Ceph
   description: |
 
