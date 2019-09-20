@@ -35,6 +35,9 @@ pipeline {
                         env.testProvider = "cassandra"
                     } else if (body.contains("[test ceph]")) {
                         env.testProvider = "ceph"
+                    } else if (body.contains("[test ceph min]")) {
+                        env.testProvider = "ceph"
+                        env.testArgs = "min-test-matrix"
                     } else if (body.contains("[test cockroachdb]")) {
                         env.testProvider = "cockroachdb"
                     } else if (body.contains("[test edgefs]")) {
@@ -176,7 +179,8 @@ def RunIntegrationTest(k, v) {
                               set -o pipefail
                               export PATH="/tmp/rook-tests-scripts-helm/linux-amd64:$PATH" \
                                   KUBECONFIG=$HOME/admin.conf \
-                                  STORAGE_PROVIDER_TESTS='''+"${env.testProvider}"+'''
+                                  STORAGE_PROVIDER_TESTS='''+"${env.testProvider}"+''' \
+                                  TEST_ARGUMENTS='''+"${env.testArgs}"+'''
                               kubectl config view
                               _output/tests/linux_amd64/integration -test.v -test.timeout 7200s --host_type '''+"${k}"+''' --logs '''+"${env.getLogs}"+''' --helm /tmp/rook-tests-scripts-helm/linux-amd64/helm 2>&1 | tee _output/tests/integrationTests.log'''
                     }
