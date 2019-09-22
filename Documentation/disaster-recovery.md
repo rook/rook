@@ -17,35 +17,116 @@ For example, if you have three mons and lose quorum, you will need to remove the
 that it is the only mon in quorum, and then restart the good mon.
 
 ### Stop the operator
+
 First, stop the operator so it will not try to failover the mons while we are modifying the monmap
 ```bash
-kubectl -n rook-ceph delete deployment rook-ceph-operator
+kubectl -n rook-ceph scale deployment rook-ceph-operator --replicas=0
 ```
 
 ### Inject a new monmap
+
 **WARNING: Injecting a monmap must be done very carefully. If run incorrectly, your cluster could be permanently destroyed.**
 
 The Ceph monmap keeps track of the mon quorum. We will update the monmap to only contain the healthy mon.
 In this example, the healthy mon is `rook-ceph-mon-b`, while the unhealthy mons are `rook-ceph-mon-a` and `rook-ceph-mon-c`.
 
-Connect to the pod of a healthy mon and run the following commands.
+Take a backup of the current `rook-ceph-mon-b` Deployment:
 ```bash
+kubectl -n rook-ceph get deployment rook-ceph-mon-b -o yaml > rook-ceph-mon-b-deployment.yaml
+```
+
+Open the file and copy the `command` and `args` from the `mon` container (see `containers` list). This is needed for the monmap changes.
+Cleanup the copied `command` and `args` fields to form a pastable command.
+Example:
+
+The following parts of the `mon` container:
+```yaml
+[...]
+  containers:
+  - args:
+    - --fsid=41a537f2-f282-428e-989f-a9e07be32e47
+    - --keyring=/etc/ceph/keyring-store/keyring
+    - --log-to-stderr=true
+    - --err-to-stderr=true
+    - --mon-cluster-log-to-stderr=true
+    - '--log-stderr-prefix=debug '
+    - --default-log-to-file=false
+    - --default-mon-cluster-log-to-file=false
+    - --mon-host=$(ROOK_CEPH_MON_HOST)
+    - --mon-initial-members=$(ROOK_CEPH_MON_INITIAL_MEMBERS)
+    - --id=b
+    - --setuser=ceph
+    - --setgroup=ceph
+    - --foreground
+    - --public-addr=10.100.13.242
+    - --setuser-match-path=/var/lib/ceph/mon/ceph-b/store.db
+    - --public-bind-addr=$(ROOK_POD_IP)
+    command:
+    - ceph-mon
+[...]
+```
+
+Should be made into a command like this: (**do not copy the example command!**)
+```bash
+ceph-mon \
+    --fsid=41a537f2-f282-428e-989f-a9e07be32e47 \
+    --keyring=/etc/ceph/keyring-store/keyring \
+    --log-to-stderr=true \
+    --err-to-stderr=true \
+    --mon-cluster-log-to-stderr=true \
+    --log-stderr-prefix=debug \
+    --default-log-to-file=false \
+    --default-mon-cluster-log-to-file=false \
+    --mon-host=$(ROOK_CEPH_MON_HOST) \
+    --mon-initial-members=$(ROOK_CEPH_MON_INITIAL_MEMBERS) \
+    --id=b \
+    --setuser=ceph \
+    --setgroup=ceph \
+    --foreground \
+    --public-addr=10.100.13.242 \
+    --setuser-match-path=/var/lib/ceph/mon/ceph-b/store.db \
+    --public-bind-addr=$(ROOK_POD_IP)
+```
+(be sure to remove the single quotes around the `--log-stderr-prefix` flag)
+
+Patch the `rook-ceph-mon-b` Deployment to run a sleep instead of the `ceph mon` command:
+
+```bash
+kubectl -n rook-ceph patch deployment rook-ceph-mon-b -p '{"spec": {"template": {"spec": {"containers": [{"name": "mon", "command": ["sleep", "infinity"], "args": []}]}}}}'
+```
+
+Connect to the pod of a healthy mon and run the following commands.
+
+``` bash
 kubectl -n rook-ceph exec -it <mon-pod> bash
 
 # set a few simple variables
-cluster_namespace=rook
-good_mon_id=rook-ceph-mon-b
+cluster_namespace=rook-ceph
+good_mon_id=b
 monmap_path=/tmp/monmap
 
-# make sure the quorum lock file does not exist
-rm -f /var/lib/rook/${good_mon_id}/data/store.db/LOCK
-
-# extract the monmap to a file
-ceph-mon -i ${good_mon_id} --extract-monmap ${monmap_path} \
-  --cluster=${cluster_namespace} --mon-data=/var/lib/rook/${good_mon_id}/data \
-  --conf=/var/lib/rook/${good_mon_id}/${cluster_namespace}.config \
-  --keyring=/var/lib/rook/${good_mon_id}/keyring \
-  --monmap=/var/lib/rook/${good_mon_id}/monmap
+# extract the monmap to a file, by pasting the ceph mon command
+# from the good mon deployment and adding the
+# `--extract-monmap=${monmap_path}` flag
+ceph-mon \
+    --fsid=41a537f2-f282-428e-989f-a9e07be32e47 \
+    --keyring=/etc/ceph/keyring-store/keyring \
+    --log-to-stderr=true \
+    --err-to-stderr=true \
+    --mon-cluster-log-to-stderr=true \
+    --log-stderr-prefix=debug \
+    --default-log-to-file=false \
+    --default-mon-cluster-log-to-file=false \
+    --mon-host=$(ROOK_CEPH_MON_HOST) \
+    --mon-initial-members=$(ROOK_CEPH_MON_INITIAL_MEMBERS) \
+    --id=b \
+    --setuser=ceph \
+    --setgroup=ceph \
+    --foreground \
+    --public-addr=10.100.13.242 \
+    --setuser-match-path=/var/lib/ceph/mon/ceph-b/store.db \
+    --public-bind-addr=$(ROOK_POD_IP) \
+    --extract-monmap=${monmap_path}
 
 # review the contents of the monmap
 monmaptool --print /tmp/monmap
@@ -54,19 +135,36 @@ monmaptool --print /tmp/monmap
 monmaptool ${monmap_path} --rm <bad_mon>
 
 # in this example we remove mon0 and mon2:
-monmaptool ${monmap_path} --rm rook-ceph-mon-a
-monmaptool ${monmap_path} --rm rook-ceph-mon-c
+monmaptool ${monmap_path} --rm a
+monmaptool ${monmap_path} --rm c
 
-# inject the monmap into the good mon
-ceph-mon -i ${good_mon_id} --inject-monmap ${monmap_path} \
-  --cluster=${cluster_namespace} --mon-data=/var/lib/rook/${good_mon_id}/data \
-  --conf=/var/lib/rook/${good_mon_id}/${cluster_namespace}.config \
-  --keyring=/var/lib/rook/${good_mon_id}/keyring
+# inject the modified monmap into the good mon, by pasting
+# the ceph mon command and adding the
+# `--inject-monmap=${monmap_path}` flag, like this
+ceph-mon \
+    --fsid=41a537f2-f282-428e-989f-a9e07be32e47 \
+    --keyring=/etc/ceph/keyring-store/keyring \
+    --log-to-stderr=true \
+    --err-to-stderr=true \
+    --mon-cluster-log-to-stderr=true \
+    --log-stderr-prefix=debug \
+    --default-log-to-file=false \
+    --default-mon-cluster-log-to-file=false \
+    --mon-host=$(ROOK_CEPH_MON_HOST) \
+    --mon-initial-members=$(ROOK_CEPH_MON_INITIAL_MEMBERS) \
+    --id=b \
+    --setuser=ceph \
+    --setgroup=ceph \
+    --foreground \
+    --public-addr=10.100.13.242 \
+    --setuser-match-path=/var/lib/ceph/mon/ceph-b/store.db \
+    --public-bind-addr=$(ROOK_POD_IP) \
+    --inject-monmap=${monmap_path}
 ```
 
 Exit the shell to continue.
 
-### Edit the rook configmap for mons
+### Edit the Rook configmaps
 
 Edit the configmap that the operator uses to track the mons.
 ```bash
@@ -75,20 +173,31 @@ kubectl -n rook-ceph edit configmap rook-ceph-mon-endpoints
 
 In the `data` element you will see three mons such as the following (or more depending on your `moncount`):
 ```
-data: rook-ceph-mon-a=10.100.35.200:6789;rook-ceph-mon-b=10.100.35.233:6789;rook-ceph-mon-c=10.100.35.12:6789
+data: a=10.100.35.200:6789;b=10.100.13.242:6789;c=10.100.35.12:6789
 ```
 
 Delete the bad mons from the list, for example to end up with a single good mon:
 ```
-data: rook-ceph-mon-b=10.100.35.233:6789
+data: b=10.100.13.242:6789
 ```
 
 Save the file and exit.
 
-### Restart the mon
-You will need to restart the good mon pod to pick up the changes. Delete the good mon pod and kubernetes will automatically restart the mon.
+Now we need to adapt a Secret which is used for the mons and other components.
+The following `kubectl patch` command is an easy way to do that. In the end it patches the `rook-ceph-config` secret and updates the two key/value pairs `mon_host` and `mon_initial_members`.
+
 ```bash
-kubectl -n rook-ceph delete pod -l mon=rook-ceph-mon-b
+mon_host=$(kubectl -n rook-ceph get svc rook-ceph-mon-b -o jsonpath='{.spec.clusterIP}')
+kubectl -n rook-ceph edit secret rook-ceph-config -p '{"stringData": {"mon_host": "[v2:'"${mon_host}"':3300,v1:'"${mon_host}"':6789]", "mon_initial_members": "'"${good_mon_id}"'"}}'
+```
+
+**NOTE**: If you are using `hostNetwork: true`, you need to replace the `mon_host` var with the node IP the mon is pinned to (`nodeSelector`). This is because there is no `rook-ceph-mon-*` service created in that "mode".
+
+### Restart the mon
+
+You will need to "restart" the good mon pod to pick up the changes. For this run `kubectl replace` on the backup of the mon deployment yaml:
+```bash
+kubectl replace -f rook-ceph-mon-b-deployment.yaml
 ```
 
 Start the rook [toolbox](/Documentation/ceph-toolbox.md) and verify the status of the cluster.
@@ -102,10 +211,10 @@ The status should show one mon in quorum. If the status looks good, your cluster
 Start the rook operator again to resume monitoring the health of the cluster.
 ```bash
 # create the operator. it is safe to ignore the errors that a number of resources already exist.
-kubectl create -f operator.yaml
+kubectl -n rook-ceph scale deployment rook-ceph-operator --replicas=1
 ```
 
-The operator will automatically add more mons to increase the quorum size again, depending on the `monCount`.
+The operator will automatically add more mons to increase the quorum size again, depending on the `mon.count`.
 
 # Adopt an existing Rook Ceph cluster into a new Kubernetes cluster
 
