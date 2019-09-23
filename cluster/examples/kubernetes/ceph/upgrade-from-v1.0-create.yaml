@@ -134,18 +134,18 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: rook-csi-cephfs-plugin-sa
-  namespace: ROOK_NAMESPACE
+  namespace: ROOK_SYSYTEM_NAMESPACE
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: rook-csi-cephfs-provisioner-sa
-  namespace: ROOK_NAMESPACE
+  namespace: ROOK_SYSTEM_NAMESPACE
 ---
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  namespace: ROOK_NAMESPACE
+  namespace: ROOK_SYSTTEM_NAMESPACE
   name: cephfs-external-provisioner-cfg
 rules:
   - apiGroups: [""]
@@ -162,11 +162,11 @@ kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: cephfs-csi-provisioner-role-cfg
-  namespace: ROOK_NAMESPACE
+  namespace: ROOK_SYSTTEM_NAMESPACE
 subjects:
   - kind: ServiceAccount
     name: rook-csi-cephfs-provisioner-sa
-    namespace: ROOK_NAMESPACE
+    namespace: ROOK_SYSTTEM_NAMESPACE
 roleRef:
   kind: Role
   name: cephfs-external-provisioner-cfg
@@ -251,7 +251,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: rook-csi-cephfs-plugin-sa
-    namespace: ROOK_NAMESPACE
+    namespace: ROOK_SYSTEM_NAMESPACE
 roleRef:
   kind: ClusterRole
   name: cephfs-csi-nodeplugin
@@ -264,7 +264,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: rook-csi-cephfs-provisioner-sa
-    namespace: ROOK_NAMESPACE
+    namespace: ROOK_SYSTEM_NAMESPACE
 roleRef:
   kind: ClusterRole
   name: cephfs-external-provisioner-runner
@@ -274,18 +274,18 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: rook-csi-rbd-plugin-sa
-  namespace: ROOK_NAMESPACE
+  namespace: ROOK_SYSTEM_NAMESPACE
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: rook-csi-rbd-provisioner-sa
-  namespace: ROOK_NAMESPACE
+  namespace: ROOK_SYSTEM_NAMESPACE
 ---
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  namespace: ROOK_NAMESPACE
+  namespace: ROOK_SYSTEM_NAMESPACE
   name: rbd-external-provisioner-cfg
 rules:
   - apiGroups: [""]
@@ -302,11 +302,11 @@ kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rbd-csi-provisioner-role-cfg
-  namespace: ROOK_NAMESPACE
+  namespace: ROOK_SYSTEM_NAMESPACE
 subjects:
   - kind: ServiceAccount
     name: rook-csi-rbd-provisioner-sa
-    namespace: ROOK_NAMESPACE
+    namespace: ROOK_SYSTEM_NAMESPACE
 roleRef:
   kind: Role
   name: rbd-external-provisioner-cfg
@@ -409,7 +409,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: rook-csi-rbd-plugin-sa
-    namespace: ROOK_NAMESPACE
+    namespace: ROOK_SYSYTEM_NAMESPACE
 roleRef:
   kind: ClusterRole
   name: rbd-csi-nodeplugin
@@ -422,7 +422,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: rook-csi-rbd-provisioner-sa
-    namespace: ROOK_NAMESPACE
+    namespace: ROOK_SYSYTEM_NAMESPACE
 roleRef:
   kind: ClusterRole
   name: rbd-external-provisioner-runner
