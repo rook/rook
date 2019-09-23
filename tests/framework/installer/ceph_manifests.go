@@ -144,6 +144,9 @@ spec:
               properties:
                 hostNetwork:
                   type: boolean
+                provider:
+                  type: string
+                selectors: {}
             storage:
               properties:
                 disruptionManagement:
