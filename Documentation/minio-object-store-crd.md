@@ -56,6 +56,63 @@ spec:
 
 ## Cluster Settings
 
+### Minio accessKey and secretKey
+
+It is recommended to update the values of `accessKey` and `secretKey` in the `object-store.yaml` to a secure key pair, which is described in the [Minio client quickstart guide](https://docs.minio.io/docs/minio-client-quickstart-guide)
+
+The default kubernetes secret resource will look like:
+```yaml
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: access-keys
+  namespace: rook-minio
+type: Opaque
+data:
+  # Base64 encoded string: "TEMP_DEMO_ACCESS_KEY"
+  username: VEVNUF9ERU1PX0FDQ0VTU19LRVk=
+  # Base64 encoded string: "TEMP_DEMO_SECRET_KEY"
+  password: VEVNUF9ERU1PX1NFQ1JFVF9LRVk=
+```
+
+You can use any mechanism to generate the new secure key pair, but you need to be sure the values are base64 encoded when being entered into kubernetes.
+It is recommended to do the following in order to prevent new line feeds and carriage returns from being added into the base64 encoded value:
+```bash
+$ cat minio-object-store.yaml
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: access-keys
+  namespace: rook-minio
+type: Opaque
+data:
+  username: #1
+  password: #2
+
+
+$ MINIO_ACCESS_KEY=$(echo -n "minio" | base64 -w0)
+$ MINIO_SECRET_KEY=$(echo -n "minio123" | base64 -w0)
+$ sed -i "s/#1/$MINIO_ACCESS_KEY/g" minio-object-store.yaml
+$ sed -i "s/#2/$MINIO_SECRET_KEY/g" minio-object-store.yaml
+
+$ cat minio-object-store.yaml
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: access-keys
+  namespace: rook-minio
+type: Opaque
+data:
+  username: bWluaW8K
+  password: bWluaW8xMjMK
+```
+
+For further information in regards to this, please refer to the following related GitHub issues: [minio/minio](https://github.com/minio/minio/issues/7750) and [rook/minio](https://github.com/rook/rook/issues/3478)
+
+
 ### Minio Specific Settings
 
 The settings below are specific to Minio object stores:
