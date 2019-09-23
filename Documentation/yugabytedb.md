@@ -74,8 +74,8 @@ kubectl -n rook-yugabytedb-system logs -l app=rook-yugabytedb-operator
 If everything is OK in the operator logs, check the YugabyteDB Master & TServer logs next.
 
 ```console
-kubectl -n rook-yugabytedb logs -l app=yb-master-rook-yugabytedb
-kubectl -n rook-yugabytedb logs -l app=yb-tserver-rook-yugabytedb
+kubectl -n rook-yugabytedb logs -l app=yb-master-hello-ybdb-cluster
+kubectl -n rook-yugabytedb logs -l app=yb-tserver-hello-ybdb-cluster
 ```
 
 ## Access the Database
@@ -83,7 +83,7 @@ kubectl -n rook-yugabytedb logs -l app=yb-tserver-rook-yugabytedb
 After all the pods in YugabyteDB cluster are running, you can access the YugabyteDB's postgres compliant `ysql` api. Run following command to access it.
 
 ```console
-kubectl exec -it yb-tserver-rook-yugabytedb-0 /home/yugabyte/bin/ysqlsh -- -h yb-tserver-rook-yugabytedb-0  --echo-queries
+kubectl -n rook-yugabytedb exec -it yb-tserver-hello-ybdb-cluster-0 /home/yugabyte/bin/ysqlsh -- -h yb-tserver-hello-ybdb-cluster-0  --echo-queries
 ```
 Refer the [YugabyteDB documentation](https://docs.yugabyte.com/latest/quick-start/explore-ysql/#kubernetes) for more details on the `ysql` api.
 
