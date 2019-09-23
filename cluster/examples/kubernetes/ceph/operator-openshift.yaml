@@ -219,7 +219,9 @@ spec:
           value: "true"
         - name: ROOK_CSI_ENABLE_GRPC_METRICS
           value: "true"
-
+        # kubelet directory path, if kubelet configured to use other than /var/lib/kubelet path.
+        #- name: ROOK_CSI_KUBELET_DIR_PATH
+        #  value: "/var/lib/kubelet"
         - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
           value: "true"
         # The name of the node to pass with the downward API
