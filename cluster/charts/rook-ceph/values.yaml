@@ -71,7 +71,7 @@ csi:
   #attacher:
     #image: quay.io/k8scsi/csi-attacher:v1.2.0
 
-enableFlexDriver: true
+enableFlexDriver: false
 enableDiscoveryDaemon: true
 
 ## Rook Agent configuration
