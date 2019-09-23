@@ -20,19 +20,9 @@ import (
 	"fmt"
 
 	apps "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes"
 )
-
-// make a headless svc for statefulset
-func CreateService(name, namespace string, clientset kubernetes.Interface, svc *corev1.Service) error {
-	_, err := clientset.CoreV1().Services(namespace).Create(svc)
-	if err != nil && !k8serrors.IsAlreadyExists(err) {
-		return fmt.Errorf("failed to create %s service. %+v", name, err)
-	}
-	return nil
-}
 
 // create a apps.statefulset
 func CreateStatefulSet(name, namespace string, clientset kubernetes.Interface, ss *apps.StatefulSet) error {

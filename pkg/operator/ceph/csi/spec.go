@@ -226,7 +226,7 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 	}
 
 	if rbdService != nil {
-		err = k8sutil.CreateService("rbdplugin-service", namespace, clientset, rbdService)
+		_, err = k8sutil.CreateOrUpdateService(clientset, namespace, rbdService)
 		if err != nil {
 			return fmt.Errorf("failed to create rbd service: %+v\n%+v", err, rbdService)
 		}
@@ -252,9 +252,8 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 		}
 	}
 	if cephfsService != nil {
-		err = k8sutil.CreateService("cephfsplugin-service", namespace, clientset, cephfsService)
+		_, err = k8sutil.CreateOrUpdateService(clientset, namespace, cephfsService)
 		if err != nil {
-
 			return fmt.Errorf("failed to create rbd service: %+v\n%+v", err, cephfsService)
 		}
 	}
