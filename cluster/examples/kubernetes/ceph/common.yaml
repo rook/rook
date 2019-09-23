@@ -669,7 +669,7 @@ rules:
   verbs:
   - "*"
 - apiGroups:
-  - healthchecking.openshift.io
+  - machineremediation.kubevirt.io
   resources:
   - machinedisruptionbudgets
   verbs:
@@ -679,6 +679,12 @@ rules:
   - create
   - update
   - delete
+- apiGroups:
+  - apiextensions.k8s.io
+  resources:
+  - customresourcedefinitions
+  verbs:
+  - "*"
 - apiGroups:
   - machine.openshift.io
   resources:

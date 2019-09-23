@@ -24,9 +24,10 @@ import (
 
 // Context passed to the controller when associating it with the manager.
 type Context struct {
-	ClusterdContext   *clusterd.Context
-	OperatorNamespace string
-	ReconcileCanaries *LockingBool
+	ClusterdContext                     *clusterd.Context
+	OperatorNamespace                   string
+	ReconcileCanaries                   *LockingBool
+	RegisterMachineDisruptionController bool
 }
 
 // LockingBool is a bool coupled with a sync.Mutex

@@ -19,6 +19,8 @@ package operator
 import (
 	controllers "github.com/rook/rook/pkg/operator/ceph/disruption"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
+	"k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
@@ -43,6 +45,13 @@ func (o *Operator) startManager(stopCh <-chan struct{}) {
 		ReconcileCanaries: &controllerconfig.LockingBool{},
 	}
 
+	_, err = o.context.APIExtensionClientset.ApiextensionsV1beta1().CustomResourceDefinitions().Get("machinedisruptionbudgets.machineremediation.kubevirt.io", v1.GetOptions{})
+	if !errors.IsNotFound(err) {
+		controllerOpts.RegisterMachineDisruptionController = true
+	} else if err != nil {
+		logger.Errorf("unable to get MachineDisruptionBudget CRD %+v", err)
+		return
+	}
 	// Add the registered controllers to the manager (entrypoint for controllers)
 	err = controllers.AddToManager(mgr, controllerOpts)
 	if err != nil {

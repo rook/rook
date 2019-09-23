@@ -59,7 +59,7 @@ func AddToManager(m manager.Manager, c *controllerconfig.Context) error {
 		}
 	}
 
-	if EnableMachineDisruptionBudget {
+	if EnableMachineDisruptionBudget && c.RegisterMachineDisruptionController {
 		for _, f := range MachineDisruptionBudgetAddToManagerFuncs {
 			if err := f(m, c); err != nil {
 				return err

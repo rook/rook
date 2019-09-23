@@ -22,9 +22,9 @@ import (
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
-	healthchecking "github.com/openshift/machine-api-operator/pkg/apis/healthchecking/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	machineremediation "kubevirt.io/machine-remediation-operator/pkg/apis/machineremediation/v1alpha1"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephClient "github.com/rook/rook/pkg/daemon/ceph/client"
@@ -84,7 +84,7 @@ func (r *MachineDisruptionReconciler) reconcile(request reconcile.Request) (reco
 		return reconcile.Result{}, nil
 	}
 
-	mdb := &healthchecking.MachineDisruptionBudget{
+	mdb := &machineremediation.MachineDisruptionBudget{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      generateMDBInstanceName(request.Name, request.Namespace),
 			Namespace: cephClusterInstance.Spec.DisruptionManagement.MachineDisruptionBudgetNamespace,
@@ -96,7 +96,7 @@ func (r *MachineDisruptionReconciler) reconcile(request reconcile.Request) (reco
 		// If the MDB is not found creating the MDB for the cephCluster
 		maxUnavailable := int32(0)
 		// Generating the MDB instance for the cephCluster
-		newMDB := &healthchecking.MachineDisruptionBudget{
+		newMDB := &machineremediation.MachineDisruptionBudget{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      generateMDBInstanceName(request.Name, request.Namespace),
 				Namespace: cephClusterInstance.Spec.DisruptionManagement.MachineDisruptionBudgetNamespace,
@@ -106,7 +106,7 @@ func (r *MachineDisruptionReconciler) reconcile(request reconcile.Request) (reco
 				},
 				OwnerReferences: []metav1.OwnerReference{cephCluster.ClusterOwnerRef(cephClusterInstance.GetName(), string(cephClusterInstance.GetUID()))},
 			},
-			Spec: healthchecking.MachineDisruptionBudgetSpec{
+			Spec: machineremediation.MachineDisruptionBudgetSpec{
 				MaxUnavailable: &maxUnavailable,
 				Selector: &metav1.LabelSelector{
 					MatchLabels: map[string]string{

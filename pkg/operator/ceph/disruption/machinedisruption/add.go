@@ -17,9 +17,9 @@ limitations under the License.
 package machinedisruption
 
 import (
-	healthchecking "github.com/openshift/machine-api-operator/pkg/apis/healthchecking/v1alpha1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
+	machineremediation "kubevirt.io/machine-remediation-operator/pkg/apis/machineremediation/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -32,7 +32,7 @@ import (
 // https://godoc.org/github.com/kubernetes-sigs/controller-runtime/pkg
 func Add(mgr manager.Manager, context *controllerconfig.Context) error {
 	mgrScheme := mgr.GetScheme()
-	healthchecking.AddToScheme(mgrScheme)
+	machineremediation.AddToScheme(mgrScheme)
 	cephv1.AddToScheme(mgrScheme)
 
 	reconcileMachineDisruption := &MachineDisruptionReconciler{
@@ -53,7 +53,7 @@ func Add(mgr manager.Manager, context *controllerconfig.Context) error {
 		return err
 	}
 
-	return c.Watch(&source.Kind{Type: &healthchecking.MachineDisruptionBudget{}}, &handler.EnqueueRequestForOwner{
+	return c.Watch(&source.Kind{Type: &machineremediation.MachineDisruptionBudget{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &cephv1.CephCluster{},
 	})

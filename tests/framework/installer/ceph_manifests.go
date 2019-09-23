@@ -692,7 +692,7 @@ rules:
   verbs:
   - "*"
 - apiGroups:
-  - healthchecking.openshift.io
+  - machineremediation.kubevirt.io
   resources:
   - machinedisruptionbudgets
   verbs:

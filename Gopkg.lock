@@ -486,16 +486,6 @@
   revision = "072f7d777dc81aac0dd222686e1516dd9e7db38b"
 
 [[projects]]
-  digest = "1:231797c5447a21f16af4127737f8546a1cc77014ed65dc409a37245133b285f5"
-  name = "github.com/openshift/machine-api-operator"
-  packages = [
-    "pkg/apis/healthchecking",
-    "pkg/apis/healthchecking/v1alpha1",
-  ]
-  pruneopts = "UT"
-  revision = "a0949226d20ea454cf08252a182a8e32054027c3"
-
-[[projects]]
   digest = "1:e5d0bd87abc2781d14e274807a470acd180f0499f8bf5bb18606e9ec22ad9de9"
   name = "github.com/pborman/uuid"
   packages = ["."]
@@ -1413,6 +1403,17 @@
   revision = "21c4ce38f2a793ec01e925ddc31216500183b773"
 
 [[projects]]
+  digest = "1:ecfd5c449c5f0b25f6b174201fab4047574338aedb451210768301cf41428fa9"
+  name = "kubevirt.io/machine-remediation-operator"
+  packages = [
+    "pkg/apis/machineremediation",
+    "pkg/apis/machineremediation/v1alpha1",
+  ]
+  pruneopts = "UT"
+  revision = "1ccdf20edddfdef900eafc3df308cc844791eea9"
+  version = "v0.3.12"
+
+[[projects]]
   branch = "release-0.2"
   digest = "1:9f0ef29c01f23bbd2913084e7d9c692115c6c480ef6d1d5807773f077a1c57d3"
   name = "sigs.k8s.io/controller-runtime"
@@ -1508,7 +1509,6 @@
     "github.com/kube-object-storage/lib-bucket-provisioner/pkg/provisioner/api",
     "github.com/kube-object-storage/lib-bucket-provisioner/pkg/provisioner/api/errors",
     "github.com/openshift/cluster-api/pkg/apis/machine/v1beta1",
-    "github.com/openshift/machine-api-operator/pkg/apis/healthchecking/v1alpha1",
     "github.com/pkg/errors",
     "github.com/rook/operator-kit",
     "github.com/spf13/cobra",
@@ -1574,6 +1574,7 @@
     "k8s.io/kubernetes/pkg/scheduler/api",
     "k8s.io/kubernetes/pkg/util/mount",
     "k8s.io/kubernetes/pkg/volume/flexvolume",
+    "kubevirt.io/machine-remediation-operator/pkg/apis/machineremediation/v1alpha1",
     "sigs.k8s.io/controller-runtime/pkg/client",
     "sigs.k8s.io/controller-runtime/pkg/controller",
     "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil",
