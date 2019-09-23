@@ -122,6 +122,8 @@ spec:
                   type: integer
                 manageMachineDisruptionBudgets:
                   type: boolean
+            skipUpgradeChecks:
+              type: boolean
             mon:
               properties:
                 allowMultiplePerNode:
@@ -425,6 +427,9 @@ spec:
     listKind: CephObjectStoreUserList
     plural: cephobjectstoreusers
     singular: cephobjectstoreuser
+    shortNames:
+    - rcou
+    - objectuser
   scope: Namespaced
   version: v1
 ---
@@ -453,6 +458,8 @@ spec:
     listKind: VolumeList
     plural: volumes
     singular: volume
+    shortNames:
+    - rv
   scope: Namespaced
   version: v1alpha2
 ---
