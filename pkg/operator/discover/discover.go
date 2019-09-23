@@ -31,9 +31,10 @@ import (
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
 	k8sutil "github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/sys"
+
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	kserrors "k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -195,7 +196,7 @@ func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage, securityAcc
 
 	_, err = d.clientset.AppsV1().DaemonSets(namespace).Create(ds)
 	if err != nil {
-		if !kserrors.IsAlreadyExists(err) {
+		if !k8serrors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create rook-discover daemon set. %+v", err)
 		}
 		logger.Infof("rook-discover daemonset already exists, updating ...")
@@ -427,7 +428,7 @@ func GetAvailableDevices(context *clusterd.Context, nodeName, clusterName string
 		}
 		_, err = context.Clientset.CoreV1().ConfigMaps(namespace).Create(cm)
 		if err != nil {
-			if !kserrors.IsAlreadyExists(err) {
+			if !k8serrors.IsAlreadyExists(err) {
 				return results, fmt.Errorf("failed to update device in use for cluster %s node %s: %v", clusterName, nodeName, err)
 			}
 			if _, err := context.Clientset.CoreV1().ConfigMaps(namespace).Update(cm); err != nil {

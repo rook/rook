@@ -28,7 +28,7 @@ import (
 	k8sutil "github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	kserrors "k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -264,7 +264,7 @@ func (a *Agent) createAgentDaemonSet(namespace, agentImage, serviceAccount strin
 
 	_, err = a.clientset.AppsV1().DaemonSets(namespace).Create(ds)
 	if err != nil {
-		if !kserrors.IsAlreadyExists(err) {
+		if !k8serrors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create rook-ceph-agent daemon set. %+v", err)
 		}
 		logger.Infof("rook-ceph-agent daemonset already exists, updating ...")
