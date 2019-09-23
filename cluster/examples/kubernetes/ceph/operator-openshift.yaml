@@ -200,7 +200,7 @@ spec:
         # Whether to enable the flex driver. By default it is enabled and is fully supported, but will be deprecated in some future release
         # in favor of the CSI driver.
         - name: ROOK_ENABLE_FLEX_DRIVER
-          value: "true"
+          value: "false"
 
         # Whether to start the discovery daemon to watch for raw storage devices on nodes in the cluster.
         # This daemon does not need to run if you are only going to create your OSDs based on StorageClassDeviceSets with PVCs.
