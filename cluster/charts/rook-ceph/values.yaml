@@ -59,6 +59,20 @@ csi:
   enableRbdDriver: true
   enableCephfsDriver: true
   enableGrpcMetrics: true
+  # Set provisonerTolerations and provisionerNodeAffinity for provisioner pod.
+  # The CSI provisioner would be best to start on the same nodes as other ceph daemons.
+  # provisionerTolerations:
+  #    - key: key
+  #      operator: Exists
+  #      effect: NoSchedule
+  # provisionerNodeAffinity: key1=value1,value2; key2=value3
+  # Set pluginTolerations and pluginNodeAffinity for plugin daemonset pods.
+  # The CSI plugins need to be started on all the nodes where the clients need to mount the storage.
+  # pluginTolerations:
+  #    - key: key
+  #      operator: Exists
+  #      effect: NoSchedule
+  # pluginNodeAffinity: key1=value1,value2; key2=value3
   #kubeletDirPath: /var/lib/kubelet
   #cephcsi:
     #image: quay.io/cephcsi/cephcsi:v1.2.1
