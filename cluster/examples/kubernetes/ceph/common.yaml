@@ -302,7 +302,6 @@ spec:
                 annotations: {}
                 placement: {}
                 resources: {}
-
 # OLM: END CEPH NFS CRD
 # OLM: BEGIN CEPH OBJECT STORE CRD
 ---
