@@ -75,6 +75,9 @@ spec:
               properties:
                 hostNetwork:
                   type: boolean
+                provider:
+                  type: string
+                selectors: {}
             storage:
               properties:
                 disruptionManagement:
@@ -354,6 +357,9 @@ spec:
     listKind: CephObjectStoreUserList
     plural: cephobjectstoreusers
     singular: cephobjectstoreuser
+    shortNames:
+    - rcou
+    - objectuser
   scope: Namespaced
   version: v1
 ---
