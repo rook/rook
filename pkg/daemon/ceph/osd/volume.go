@@ -35,7 +35,11 @@ import (
 	"github.com/rook/rook/pkg/util/sys"
 )
 
-var cephConfigDir = "/var/lib/ceph"
+// These are not constants because they are used by the tests
+var (
+	cephConfigDir = "/var/lib/ceph"
+	lvmConfPath   = "/etc/lvm/lvm.conf"
+)
 
 const (
 	osdsPerDeviceFlag    = "--osds-per-device"
@@ -45,7 +49,6 @@ const (
 	dbDeviceFlag         = "--db-devices"
 	cephVolumeCmd        = "ceph-volume"
 	cephVolumeMinDBSize  = 1024 // 1GB
-	lvmConfPath          = "/etc/lvm/lvm.conf"
 )
 
 func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *DeviceOsdMapping) ([]oposd.OSDInfo, error) {
@@ -66,6 +69,10 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate osd keyring. %+v", err)
 	}
+	// Update LVM configuration file
+	if err := updateLVMConfig(context, a.pvcBacked); err != nil {
+		return nil, fmt.Errorf("failed to update lvm configuration file, %+v", err) // fail return here as validation provided by ceph-volume
+	}
 	if a.pvcBacked {
 		if lv, err = a.initializeBlockPVC(context, devices); err != nil {
 			return nil, fmt.Errorf("failed to initialize devices. %+v", err)
@@ -81,9 +88,6 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 }
 
 func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *DeviceOsdMapping) (string, error) {
-	if err := updateLVMConfig(context); err != nil {
-		return "", fmt.Errorf("sed failure, %+v", err) // fail return here as validation provided by ceph-volume
-	}
 	baseCommand := "stdbuf"
 	baseArgs := []string{"-oL", cephVolumeCmd, "lvm", "prepare"}
 	var lvpath string
@@ -133,7 +137,7 @@ func getLVPath(op string) string {
 	return ""
 }
 
-func updateLVMConfig(context *clusterd.Context) error {
+func updateLVMConfig(context *clusterd.Context, onPVC bool) error {
 
 	input, err := ioutil.ReadFile(lvmConfPath)
 	if err != nil {
@@ -145,8 +149,14 @@ func updateLVMConfig(context *clusterd.Context) error {
 	output = bytes.Replace(output, []byte("udev_rules = 1"), []byte("udev_rules = 0"), 1)
 	output = bytes.Replace(output, []byte("use_lvmetad = 1"), []byte("use_lvmetad = 0"), 1)
 	output = bytes.Replace(output, []byte("obtain_device_list_from_udev = 1"), []byte("obtain_device_list_from_udev = 0"), 1)
-	output = bytes.Replace(output, []byte(`scan = [ "/dev" ]`), []byte(`scan = [ "/dev", "/mnt" ]`), 1)
-	output = bytes.Replace(output, []byte(`# filter = [ "a|.*/|" ]`), []byte(`filter = [ "a|^/mnt/.*|", "r|.*|" ]`), 1)
+
+	// When running on PVC
+	if onPVC {
+		output = bytes.Replace(output, []byte(`scan = [ "/dev" ]`), []byte(`scan = [ "/dev", "/mnt" ]`), 1)
+		// Only filter blocks in /mnt, when running on PVC we copy the PVC claim path to /mnt
+		// And reject everything else
+		output = bytes.Replace(output, []byte(`# filter = [ "a|.*/|" ]`), []byte(`filter = [ "a|^/mnt/.*|", "r|.*|" ]`), 1)
+	}
 
 	if err = ioutil.WriteFile(lvmConfPath, output, 0644); err != nil {
 		return fmt.Errorf("failed to update lvm config file. %+v", err)
