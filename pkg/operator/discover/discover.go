@@ -183,7 +183,7 @@ func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage, securityAcc
 	// Add NodeAffinity if any
 	nodeAffinity := os.Getenv(discoverDaemonSetNodeAffinityEnv)
 	if nodeAffinity != "" {
-		v1NodeAffinity, err := k8sutil.AddNodeAffinity(nodeAffinity)
+		v1NodeAffinity, err := k8sutil.GenerateNodeAffinity(nodeAffinity)
 		if err != nil {
 			logger.Errorf("failed to create NodeAffinity. %+v", err)
 		} else {

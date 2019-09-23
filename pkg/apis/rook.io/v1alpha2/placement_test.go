@@ -21,7 +21,7 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 )
 
 func TestPlacement_spec(t *testing.T) {
@@ -76,7 +76,7 @@ tolerations:
 
 func TestPlacement_ApplyToPodSpec(t *testing.T) {
 	to := placementTestGetTolerations("foo", "bar")
-	na := placementTestGetNodeAffinity()
+	na := placementTestGenerateNodeAffinity()
 	expected := &v1.PodSpec{Affinity: &v1.Affinity{NodeAffinity: na}, Tolerations: to}
 
 	var p Placement
@@ -100,7 +100,7 @@ func TestPlacement_ApplyToPodSpec(t *testing.T) {
 	assert.Equal(t, expected, ps)
 
 	p = Placement{NodeAffinity: na}
-	nap := placementTestGetNodeAffinity()
+	nap := placementTestGenerateNodeAffinity()
 	nap.PreferredDuringSchedulingIgnoredDuringExecution[0].Weight = 5
 	ps = &v1.PodSpec{Affinity: &v1.Affinity{NodeAffinity: nap}, Tolerations: to}
 	p.ApplyToPodSpec(ps)
@@ -109,7 +109,7 @@ func TestPlacement_ApplyToPodSpec(t *testing.T) {
 
 func TestPlacement_Merge(t *testing.T) {
 	to := placementTestGetTolerations("foo", "bar")
-	na := placementTestGetNodeAffinity()
+	na := placementTestGenerateNodeAffinity()
 
 	var original, with, expected, merged Placement
 
@@ -145,7 +145,7 @@ func placementTestGetTolerations(key, value string) []v1.Toleration {
 	}
 }
 
-func placementTestGetNodeAffinity() *v1.NodeAffinity {
+func placementTestGenerateNodeAffinity() *v1.NodeAffinity {
 	return &v1.NodeAffinity{
 		RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
 			NodeSelectorTerms: []v1.NodeSelectorTerm{
