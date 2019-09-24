@@ -58,6 +58,7 @@ import (
 const (
 	crushConfigMapName       = "rook-crush-config"
 	crushmapCreatedKey       = "initialCrushMapCreated"
+	enableFlexDriver         = "ROOK_ENABLE_FLEX_DRIVER"
 	clusterCreateInterval    = 6 * time.Second
 	clusterCreateTimeout     = 60 * time.Minute
 	updateClusterInterval    = 30 * time.Second
@@ -759,8 +760,15 @@ func (c *ClusterController) onDelete(obj interface{}) {
 }
 
 func (c *ClusterController) handleDelete(cluster *cephv1.CephCluster, retryInterval time.Duration) error {
-
+	flexDriverEnabled := os.Getenv(enableFlexDriver) != "false"
 	operatorNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
+
+	if !flexDriverEnabled {
+		logger.Debugf("Flex driver disabled: no volume attachments for cluster %s (operator namespace: %s)",
+			cluster.Namespace, operatorNamespace)
+		return nil
+	}
+
 	retryCount := 0
 	for {
 		// TODO: filter this List operation by cluster namespace on the server side
