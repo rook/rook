@@ -71,6 +71,8 @@ Settings can be specified at the global level to apply to the cluster as a whole
   - **WARNING**: For test scenarios, if you delete a cluster and start a new cluster on the same hosts, the path used by `dataDirHostPath` must be deleted. Otherwise, stale information and other config will remain from the previous cluster and the new target will fail to start.
 If this value is empty, each pod will get an ephemeral directory to store their config files that is tied to the lifetime of the pod running on that node. More details can be found in the Kubernetes [empty dir docs](https://kubernetes.io/docs/concepts/storage/volumes/#emptydir).
 - `dataVolumeSize`: Alternative to `dataDirHostPath`. If defined then Cluster CRD operator will disregard `dataDirHostPath` setting and instead will automatically claim persistent volume. If `storage` settings not provided then provisioned volume will also be used as a storage device for Target pods (automatic provisioning via `rtlfs`).
+- `sysRepCount`: overrides the default (3) system replication count value. Can be set to 1 or 2 for a cluster with limited number of failure domains. For example, a signle node setup with two disks can provide up to 2 replicas per chunk and requires `sysRepCount` to be set to 1 or 2.
+- `failureDomain`: identifies the way chunk replicas are distributed accross cluster's disks. The `device` domain requires each replicas to resides on different disks, the `host` domains implies one replica per node and the `zone` domain is for one replica per zone. If `failureDomain` option isn't specified, then the failure domain is set to `host` or `zone` depending on nodes config (see below). The `failureDomain` allows to specify the failure domain explicitly. For example, a single-node cluster with multiple nodes requires the `failureDomain` set to `device` if the `sysRepCount` > 1.
 - `dashboard`: This specification may be used to override and enable additional [EdgeFS UI Dashboard](edgefs-ui.md) functionality.
   - `localAddr`: Specifies local IP address to be used as Kubernetes external IP.
 - `network`: [network configuration settings](#network-configuration-settings)
@@ -110,7 +112,7 @@ If a node does not specify any configuration then it will inherit the cluster le
 
 ### Storage Selection Settings
 Below are the settings available, both at the cluster and individual node level, for selecting which storage resources will be included in the cluster.
-- `useAllDevices`: `true` or `false`, indicating whether all devices found on nodes in the cluster should be automatically consumed by Targets. This is recommended for controlled environments where you will not risk formatting of devices with existing data. When `true`, all devices will be used except those with partitions created or a local filesystem. This can be overridden by `deviceFilter`.
+- `useAllDevices`: `true` or `false`, indicating whether all devices found on nodes in the cluster should be automatically consumed by Targets. This is recommended for controlled environments where you will not risk formatting of devices with existing data. When `true`, all devices will be used except those with partitions created or a local filesystem. This can be overridden by `deviceFilter`. **warning** Don't set this option to `true` for RTKVS disk backend.
 - `deviceFilter`: A regular expression that allows selection of devices to be consumed by target.  If individual devices have been specified for a node then this filter will be ignored.  This field uses [golang regular expression syntax](https://golang.org/pkg/regexp/syntax/). For example:
   - `sdb`: Only selects the `sdb` device if found
   - `^sd.`: Selects all devices starting with `sd`
@@ -121,32 +123,34 @@ Below are the settings available, both at the cluster and individual node level,
   - `name`: The name of the device (e.g., `sda`).
   - `fullpath`: The full path to the device (e.g., `/dev/disk/by-id/scsi-35000c5008335c83f`). If specified then `name` can be omitted.
   - `config`: Device-specific config settings. See the [config settings](#target-configuration-settings) below.
-- `directories`:  A list of directory paths on the nodes that will be included in the storage cluster. Note that using two directories on the same physical device can cause a negative performance impact. Mixing of `devices` and `directories` on the same node isn't supported. Since EdgeFS is leveraging StatefulSet, directories can only be defined at cluster level.
+- `directories`:  A list of directory paths on the nodes that will be included in the storage cluster. Note that using two directories on the same physical device can cause a negative performance impact. Since EdgeFS is leveraging StatefulSet, directories can only be defined at cluster level. Mixing of `devices` and `directories` on the same node isn't supported unless `rtkvs` disk engine is used. ** note **: For the `rtkvs` disk engine, at least one directory needs to be provided in order to store some small amount of metadata. For performance reasons, it would be better to have one directory per disk.
   - `path`: The path on disk of the directory (e.g., `/rook/storage-dir`).
   - `config`: Directory-specific config settings. See the [config settings](#target-configuration-settings) below.
 
 
 ### Storage Configuration Settings
-The following storage selection settings are specific to EdgeFS and do not apply to other backends. All variables are key-value pairs represented as strings. While EdgeFS supports multiple backends, it is not recommended to mix them within same cluster. In case of `devices` (physical or emulated raw disks), EdgeFS will automatically use `rtrd` backend. In all other cases `rtlfs` (local file system) will be used.
+The following storage selection settings are specific to EdgeFS and do not apply to other backends. All variables are key-value pairs represented as strings. While EdgeFS supports multiple backends, it is not recommended to mix them within same cluster. In case of `devices` (physical or emulated raw disks), EdgeFS will automatically use `rtrd` backend unless `useRtkvsBackend` is specified. In the latter case, the `rtkvs` engine will be chosen. In all other cases `rtlfs` (local file system) will be used.
 **IMPORTANT** Keys needs to be case-sensitive and values has to be provided as strings.
-  - `useMetadataOffload`: Dynamically detect appropriate SSD/NVMe device to use for the metadata on each node. Performance can be improved by using a low latency device as the metadata device, while other spinning platter (HDD) devices on a node are used to store data. Typical and recommended proportion is in range of 1:1 - 1:6. Default is false. Applicable only to rtrd.
-  - `useMetadataMask`: Defines what parts of metadata needs to be stored on offloaded devices. Default is 0xff, offload all metadata. To save SSD/NVMe capacity, set it to 0x7d to offload all except second level manifests. Applicable only to rtrd.
-  - `useBCache`: When `useMetadataOffload` is true, enable use of BCache. Default is false. Applicable only to rtrd and when host has "bcache" kernel module preloaded.
-  - `useBCacheWB`:  When `useMetadataOffload` and `useBCache` is true, this option can enable use of BCache write-back cache. By default BCache only used as read cache in front of HDD. Applicable only to rtrd.
-  - `useAllSSD`: When set to true, only SSD/NVMe non rotational devices will be used. Default is false and if `useMetadataOffload` not defined then only rotational devices (HDDs) will be picked up during node provisioning phase.
-  - `rtPLevelOverride`:  In case of large devices or directories, it will be automatically partitioned into smaller parts around 500GB each. In case of embedded use cases, lowering the value would allow to operate with smaller memory footprint devices at the cost of performance. This option allows partitioning number override. Default is automatic. Typical and recommended range is 1 - 32.
-  - `hddReadAhead`: For all HDD or hybrid (SSD/HDD) use cases, adjusting hddReadAhead may provide significant boost in performance. Set to a value higher then 0, in KBs.
-  - `mdReserved`: For hybrid (SSD/HDD) use case, adjusting mdReserved can be necessary when combined with BCache read/write caches. Allowed range 10-99% of automatically calcuated slice.
+  - `useRtkvsBackend`: forces the cluster use the `rtkvs` disk engine and setting's value selects a key-value backend to be used. At the moment there is only backend named the `kvssd` for Samsung's KV SSD. The usage of `rtkvs` engine implies definition of one or several `device.name` or `device.fullpath` settings which have to point to backend's disk entries (see cluster_kvsdd.yaml).
+  - `walMode`: allows to enable/disable the Write-Ahead log (WAL). For `rtlfs` and `rtkvs` there are two options: `on` to enable or `off` to disable. It's better to keep it `on` unless `useAllSSD` or `useRtkvsBackend` are used. For `rtkvs`, there is an extra option: `metadata` which implies usage of WAL for data types which aren't stored on `rtkvs` backend (a KVSSD).
+  - `useMetadataOffload`: Dynamically detect appropriate SSD/NVMe device to use for the metadata on each node. Performance can be improved by using a low latency device as the metadata device, while other spinning platter (HDD) devices on a node are used to store data. Typical and recommended proportion is in range of 1:1 - 1:6. Default is false. Applicable only to `rtrd`.
+  - `useMetadataMask`: Defines what parts of metadata needs to be stored on offloaded devices. Default is 0xff, offload all metadata. To save SSD/NVMe capacity, set it to 0x7d to offload all except second level manifests. Applicable only to `rtrd`.
+  - `useBCache`: When `useMetadataOffload` is true, enable use of BCache. Default is false. Applicable only to `rtrd` and when host has "bcache" kernel module preloaded.
+  - `useBCacheWB`:  When `useMetadataOffload` and `useBCache` is true, this option can enable use of BCache write-back cache. By default BCache only used as read cache in front of HDD. Applicable only to `rtrd`.
+  - `useAllSSD`: When set to true, only SSD/NVMe non rotational devices will be used. Default is false and if `useMetadataOffload` not defined then only rotational devices (HDDs) will be picked up during node provisioning phase. Is not applicabel to `rtkvs`.
+  - `rtPLevelOverride`:  In case of large devices or directories, it will be automatically partitioned into smaller parts around 500GB each. In case of embedded use cases, lowering the value would allow to operate with smaller memory footprint devices at the cost of performance. This option allows partitioning number override. Default is automatic. Typical and recommended range is 1 - 32. For `rtkvs` recomended plevel is 16.
+  - `hddReadAhead`: For all HDD or hybrid (SSD/HDD) use cases, adjusting hddReadAhead may provide significant boost in performance. Set to a value higher then 0, in KBs. Not applicable to `rtkvs`
+  - `mdReserved`: For hybrid (SSD/HDD) use case, adjusting mdReserved can be necessary when combined with BCache read/write caches. Allowed range 10-99% of automatically calcuated slice. Not applicable to `rtkvs`
   - `rtVerifyChid`:  Verify transferred or read payload. Payload can be data or metadata chunk of flexible size between 4K and 8MB. EdgeFS uses SHA-3 variant to cryptographically sign each chunk and uses it for self validation, self healing and FlexHash addressing. In case of low CPU systems verification after networking transfer prior to write can be disabled by setting this parameter to 0. In case of high CPU systems, verification after read but before networking transfer can be enabled by setting this parameter to 2. Default is 1, i.e. verify after networking transfer only. Setting it to 0 may improve CPU utilization at the cost of reduced availability. However, for objects with 3 or more replicas, availability isn't going to be visibly affected.
-  - `lmdbPageSize`: Defines default LMDB page size in bytes. Default is 16384. For capacity (all HDD) or hybrid (HDD/SSD) systems consider to increase this value to 32768 to achieve higher throughput performance. For all SSD and small database workloads, consider to decrease this to 8192 to achieve lower latency and higher IOPS. Please be advised that smaller values MAY cause fragmentation. Acceptable values are 4096, 8192, 16384 and 32768.
-  - `lmdbMdPageSize`: Defines SSD metadata offload LMDB page size in bytes. Default is 8192. For large amount of small objects or files, consider to decrease this to 4096 to achieve better SSD capacity utilization. Acceptable values are 4096, 8192, 16384 and 32768.
+  - `lmdbPageSize`: Defines default LMDB page size in bytes. Default is 16384. For capacity (all HDD) or hybrid (HDD/SSD) systems consider to increase this value to 32768 to achieve higher throughput performance. For all SSD and small database workloads, consider to decrease this to 8192 to achieve lower latency and higher IOPS. Please be advised that smaller values MAY cause fragmentation. Acceptable values are 4096, 8192, 16384 and 32768. Not applicable to `rtkvs`
+  - `lmdbMdPageSize`: Defines SSD metadata offload LMDB page size in bytes. Default is 8192. For large amount of small objects or files, consider to decrease this to 4096 to achieve better SSD capacity utilization. Acceptable values are 4096, 8192, 16384 and 32768. Not applicable to `rtkvs`
   - `sync`: Defines default behavior of write operations at device or directory level. Acceptable values are 0, 1 (default), 2, 3.
     - `0`: No syncing will happen. Highest performance possible and good for HPC scratch types of deployments. This option will still sustain crash of pods or software bugs. It will not sustain server power loss an may cause node / device level inconsistency.
     - `1`: Default method. Will guarantee node / device consistency in case of power loss with reduced durability.
     - `2`: Provides better durability in case of power loss at the cost of extra metadata syncing.
     - `3`: Most durable and reliable option at the cost of significant performance impact.
-  - `maxSizeGB`: Defines maximum allowed size to use per directory in gigabytes. Applicable only to rtlfs.
-  - `zone`: Enables the node's failure domain number. Default value is 0 (no zoning). Zoning number is a logical failure domain tagging mechanism and if enabled then it has to be set for all the nodes in the cluster.
+  - `maxSizeGB`: For `rtlfs`, defines maximum allowed size to use per directory in gigabytes. For `rtkvs` this is the maximum space the disk's metadata table can occupy.
+  - `zone`: Enables the node's failure domain number. Default value is 0 (no zoning). Zoning number is a logical failure domain tagging mechanism and if enabled then it has to be set for all the nodes in the cluster. See also, the `failureDomain`
 
 ### Placement Configuration Settings
 Placement configuration for the cluster services. It includes the following keys: `mgr`, `target` and `all`. Each service will have its placement configuration generated by merging the generic configuration under `all` with the most specific one (which will override any attributes).
@@ -247,6 +251,33 @@ spec:
         rtPLevelOverride: 8
     - name: "172.17.4.301"
       deviceFilter: "^sd."
+```
+### Storage Configuration: Samsung's KV SSD
+A single nodes configuration with 2 KV SSDs. The host's /media directory should have at least 64GB of free space for metadata.
+
+```yaml
+spec:
+  edgefsImageName: edgefs/edgefs:1.2.0
+  serviceAccount: rook-edgefs-cluster
+  dataDirHostPath: /var/lib/edgefs
+  sysRepCount: 2
+  failureDomain: "device"
+  storage:
+    useAllNodes: false
+    directories:
+    - path: /media
+    useAllDevices: false
+    config:
+      useRtkvsBackend: kvssd
+      rtPLevelOverride: "16"
+      maxSizeGB: "32"
+      sync: "0"
+      walMode: "off"
+    nodes:
+    - name: "node1"
+      devices:
+      - fullpath: "/dev/disk/by-id/nvme-SAMSUNG_MZQLB3T8HALS-000AZ_S3VJNY0J600450"
+      - fullpath: "/dev/disk/by-id/nvme-SAMSUNG_MZQLB3T8HALS-000AZ_S3VJNY0K303383"
 ```
 
 ### Node Affinity

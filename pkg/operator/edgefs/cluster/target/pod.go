@@ -38,6 +38,7 @@ const (
 	dataVolumeName    = "edgefs-datadir"
 	stateVolumeFolder = ".state"
 	etcVolumeFolder   = ".etc"
+	kvsJournalFolder  = "kvsjournaldir"
 )
 
 func (c *Cluster) createAppLabels() map[string]string {
@@ -250,6 +251,13 @@ func (c *Cluster) makeDaemonContainer(containerImage string, dro edgefsv1.Device
 		for _, device := range rtlfsDevices {
 			volumeMounts = append(volumeMounts, v1.VolumeMount{Name: device.Name, MountPath: device.Path})
 		}
+	} else if c.deploymentConfig.DeploymentType == edgefsv1.DeploymentRtkvs {
+		fmt.Printf("\tExporting data dirs:\n")
+		for i := 0; i < len(c.Storage.Directories); i++ {
+			fmt.Printf("\t\t%v\n", c.Storage.Directories[i].Path)
+			name := kvsJournalFolder + strconv.Itoa(i)
+			volumeMounts = append(volumeMounts, v1.VolumeMount{Name: name, MountPath: c.Storage.Directories[i].Path})
+		}
 	}
 
 	name := "daemon"
@@ -433,7 +441,18 @@ func (c *Cluster) createPodSpec(rookImage string, dro edgefsv1.DevicesResurrectO
 			})
 
 		}
-
+	} else if c.deploymentConfig.DeploymentType == edgefsv1.DeploymentRtkvs {
+		for i := 0; i < len(c.Storage.Directories); i++ {
+			volumes = append(volumes, v1.Volume{
+				Name: kvsJournalFolder + strconv.Itoa(i),
+				VolumeSource: v1.VolumeSource{
+					HostPath: &v1.HostPathVolumeSource{
+						Path: c.Storage.Directories[i].Path,
+						Type: &hostPathDirectoryOrCreate,
+					},
+				},
+			})
+		}
 	}
 
 	var containers []v1.Container

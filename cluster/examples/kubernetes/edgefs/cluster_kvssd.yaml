@@ -1,0 +1,195 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rook-edgefs
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-edgefs-cluster
+  namespace: rook-edgefs
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-edgefs-cluster
+  namespace: rook-edgefs
+rules:
+- apiGroups: [""]
+  resources: ["configmaps", "endpoints"]
+  verbs: [ "get", "list", "watch", "create", "update", "delete" ]
+- apiGroups: ["edgefs.rook.io"]
+  resources: ["*"]
+  verbs: ["*"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: [ "get", "list" ]
+- apiGroups: ["extensions"]
+  resources: ["deployments/scale"]
+  verbs: [ "get", "update" ]
+---
+# Allow the operator to create resources in this cluster's namespace
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-edgefs-cluster-mgmt
+  namespace: rook-edgefs
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-edgefs-cluster-mgmt
+subjects:
+- kind: ServiceAccount
+  name: rook-edgefs-system
+  namespace: rook-edgefs-system
+---
+# Allow the pods in this namespace to work with configmaps
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-edgefs-cluster
+  namespace: rook-edgefs
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-edgefs-cluster
+subjects:
+- kind: ServiceAccount
+  name: rook-edgefs-cluster
+  namespace: rook-edgefs
+---
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: privileged
+spec:
+  fsGroup:
+    rule: RunAsAny
+  privileged: true
+  runAsUser:
+    rule: RunAsAny
+  seLinux:
+    rule: RunAsAny
+  supplementalGroups:
+    rule: RunAsAny
+  volumes:
+  - '*'
+  allowedCapabilities:
+  - '*'
+  hostPID: true
+  hostIPC: true
+  hostNetwork: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: privileged-psp-user
+rules:
+- apiGroups:
+  - apps
+  resources:
+  - podsecuritypolicies
+  resourceNames:
+  - privileged
+  verbs:
+  - use
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: rook-edgefs-system-psp
+  namespace: rook-edgefs
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: privileged-psp-user
+subjects:
+- kind: ServiceAccount
+  name: rook-edgefs-system
+  namespace: rook-edgefs-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: rook-edgefs-cluster-psp
+  namespace: rook-edgefs
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: privileged-psp-user
+subjects:
+- kind: ServiceAccount
+  name: rook-edgefs-cluster
+  namespace: rook-edgefs
+---
+apiVersion: edgefs.rook.io/v1
+kind: Cluster
+metadata:
+  name: rook-edgefs
+  namespace: rook-edgefs
+spec:
+  edgefsImageName: edgefs/edgefs:1.2.64 # specify version here, i.e. edgefs/edgefs:1.1.0 etc
+  serviceAccount: rook-edgefs-cluster
+  dataDirHostPath: /var/lib/edgefs
+  sysRepCount: 2                  # number of chunk replicas to keep. Overrides default one (3)
+  failureDomain: device           # failure domain: "device", "host" or "zone". Overrides automatically calculated one
+  #devicesResurrectMode: "restoreZapWait"
+  #dashboard:
+  #  localAddr: 10.3.30.75
+  #network: # cluster level networking configuration
+  #  provider: host
+  #  selectors:
+  #    server: "enp2s0f0"
+  #    broker: "enp2s0f0"
+  #skipHostPrepare: true
+  #trlogProcessingInterval: 2      # set transaction log processing interval to 2s to speed up ISGW Link delivery
+  #trlogKeepDays: 2                # keep up to 2 days of transaction log interval batches to reduce local storage overhead
+  #useHostLocalTime: true
+  storage: # cluster level storage configuration and selection
+    useAllNodes: false
+    directories:
+    - path: /media                 # if the RTKVS is chosen, then the directory will be used as a journal to store metadata. Mandatory for RTKVS.
+    useAllDevices: false
+    config:
+      useRtkvsBackend: kvssd       # Use the RTKVS store driver. Value is the backend ID. The "kvssd" is for Samsung's KV SSD
+  #    rtVerifyChid: "0"           # may improve CPU utilization
+      rtPLevelOverride: "16"       # enable large device partitioning, only needed if automatic not working
+      maxSizeGB: "32"              # RTKVS: max.space allocated for a journal
+      sync: "0"                    # highest performance, consistent on pod/software failures, not-consistent on power failures
+      walMode: "off"               # Write-ahead-log mode. From a set: "on" - enabled, "off" - disabled, "metadata" - use the WAL for data type stored on the metadata SSD (RTKVS only)
+  #    zone: "1"                   # defines failure domain's zone number for all edgefs nodes
+    nodes:
+    - name: "msl-colo-client20"
+      devices:
+      - name: "nvme0n1"            # for the RTKVS store, the user needs to specify explicitly devices (KV SSD drives for in this example) to be used.
+      - name: "nvme1n1"
+  #   config: # configuration can be specified at the node level which overrides the cluster level config
+  #      rtPLevelOverride: 8
+  #      zone: "2"  # defines failure domain's zone number for specific node(node3074ub16)
+  #resources:
+  #  limits:
+  #    cpu: "2"
+  #    memory: "4096Mi"
+  #  requests:
+  #    cpu: "2"
+  #    memory: "4096Mi"
+  # A key value list of annotations
+  #annotations:
+  #  all:
+  #    key: value
+  #  mgr:
+  #  prepare:
+  #  target:
+  #placement:
+  #  all:
+  #    nodeAffinity:
+  #      requiredDuringSchedulingIgnoredDuringExecution:
+  #        nodeSelectorTerms:
+  #        - matchExpressions:
+  #          - key: nodekey
+  #            operator: In
+  #            values:
+  #            - edgefs-target
+  #    tolerations:
+  #    - key: taintKey
+  #      operator: Exists

@@ -98,7 +98,11 @@ func (c *cluster) createClusterReconfigurationSpec(existingConfig edgefsv1.Clust
 
 func (c *cluster) getClusterDeploymentType() (string, error) {
 
-	if len(c.Spec.Storage.Directories) > 0 && (len(c.Spec.DataDirHostPath) > 0 || c.Spec.DataVolumeSize.Value() != 0) {
+	storeConfig := config.ToStoreConfig(c.Spec.Storage.Config)
+	if len(storeConfig.UseRtkvsBackend) > 0 {
+		logger.Warningf("Using rtkvs")
+		return edgefsv1.DeploymentRtkvs, nil
+	} else if len(c.Spec.Storage.Directories) > 0 && (len(c.Spec.DataDirHostPath) > 0 || c.Spec.DataVolumeSize.Value() != 0) {
 		return edgefsv1.DeploymentRtlfs, nil
 	} else if c.HasDevicesSpecification() && (len(c.Spec.DataDirHostPath) > 0 || c.Spec.DataVolumeSize.Value() != 0) {
 		return edgefsv1.DeploymentRtrd, nil
@@ -116,7 +120,7 @@ func (c *cluster) needPrivelege(deploymentType string) bool {
 		needPriveleges = true
 	}
 
-	if deploymentType == edgefsv1.DeploymentRtrd {
+	if deploymentType == edgefsv1.DeploymentRtrd || deploymentType == edgefsv1.DeploymentRtkvs {
 		needPriveleges = true
 	}
 	return needPriveleges
@@ -124,7 +128,9 @@ func (c *cluster) needPrivelege(deploymentType string) bool {
 
 func getClusterTransportKey(deploymentType string) string {
 	transportKey := edgefsv1.DeploymentRtrd
-	if deploymentType == edgefsv1.DeploymentRtlfs || deploymentType == edgefsv1.DeploymentAutoRtlfs {
+	if deploymentType == edgefsv1.DeploymentRtkvs {
+		transportKey = edgefsv1.DeploymentRtkvs
+	} else if deploymentType == edgefsv1.DeploymentRtlfs || deploymentType == edgefsv1.DeploymentAutoRtlfs {
 		transportKey = edgefsv1.DeploymentRtlfs
 	}
 	return transportKey
@@ -136,6 +142,7 @@ func (c *cluster) createDevicesConfig(deploymentType string, node rookv1alpha2.N
 	devicesConfig.Rtrd.Devices = make([]edgefsv1.RTDevice, 0)
 	devicesConfig.RtrdSlaves = make([]edgefsv1.RTDevices, 0)
 	devicesConfig.Rtlfs.Devices = make([]edgefsv1.RtlfsDevice, 0)
+	devicesConfig.Rtkvs.Devices = make([]edgefsv1.RtkvsDevice, 0)
 
 	n := c.resolveNode(node.Name)
 	if n == nil {
@@ -165,7 +172,65 @@ func (c *cluster) createDevicesConfig(deploymentType string, node rookv1alpha2.N
 		return devicesConfig, nil
 	}
 
-	if deploymentType == edgefsv1.DeploymentRtrd {
+	if deploymentType == edgefsv1.DeploymentRtkvs {
+		rookSystemNS := os.Getenv(k8sutil.PodNamespaceEnvVar)
+		nodeDevices, _ := discover.ListDevices(c.context, rookSystemNS, n.Name)
+		logger.Infof("[%s] available devices: ", n.Name)
+		for _, dev := range nodeDevices[n.Name] {
+			logger.Infof("\tName: %s, Size: %s, Type: %s, Rotational: %t, Empty: %t", dev.Name, edgefsv1.ByteCountBinary(dev.Size), dev.Type, dev.Rotational, dev.Empty)
+		}
+		disks := []string{}
+		if storeConfig.UseRtkvsBackend == "kvssd" {
+			// For KVSSD backend make sure the user selected devices are attached
+			// TODO: make sure disks are truly KVSSD devices
+			availDevs, deviceErr := discover.GetAvailableDevices(c.context, n.Name, c.Namespace,
+				n.Devices, n.Selection.DeviceFilter, n.Selection.GetUseAllDevices())
+
+			if deviceErr != nil {
+				// Devices were specified but we couldn't find any.
+				// User needs to fix CRD.
+				return devicesConfig, fmt.Errorf("failed to create DevicesConfig for node %s cluster %s: %v", n.Name, c.Namespace, deviceErr)
+			}
+
+			if len(availDevs) == 0 {
+				// For the rtkvs backed user has to explicitly specify NVME devices
+				return devicesConfig, fmt.Errorf("failed to create DevicesConfig for node %s cluster %s: no NVME (KVSSD) devices in CRD", n.Name, c.Namespace)
+			}
+			// Make sure selected disks exist
+			for _, dev := range availDevs {
+				for _, disk := range nodeDevices[n.Name] {
+					if disk.Name == dev.Name {
+						fullPath := dev.FullPath
+						if len(fullPath) == 0 {
+							fullPath = "/dev/disk/by-id/" + target.GetIdDevLinkName(disk.DevLinks)
+						}
+						disks = append(disks, fullPath)
+						logger.Infof("\t%s: using %s (%s) as a KVSSD drive", n.Name, fullPath, dev.Name)
+					}
+				}
+			}
+			if len(disks) == 0 {
+				return devicesConfig, fmt.Errorf("failed to create DevicesConfig for node %s cluster %s: "+
+					"none of specified KVSSD devices were detected", n.Name, c.Namespace)
+			}
+		} else {
+			return devicesConfig, fmt.Errorf("failed to create DevicesConfig for node %s cluster %s:"+
+				" rtkvs backend %s isn't supported", n.Name, c.Namespace, storeConfig.UseRtkvsBackend)
+		}
+
+		// storage.directories need to contain a mountpoint(s) for rtkvs journal/metadata
+		// The user can specify single or several mountpoints. In the former case all VDEVs will share the same mountpoint,
+		// in the latter each VDEV will get its own.
+		// NOTE: directories are scooped at a cluster level and cannot be overridden on a per-node basis.
+
+		if len(c.Spec.Storage.Directories) == 0 {
+			return devicesConfig, fmt.Errorf("failed to create DevicesConfig for node %s cluster %s: "+
+				"couldn't find KVSSD journals mountpoints in the CRD. Use storage.directories for this purpose",
+				n.Name, c.Namespace)
+		}
+		devicesConfig.Rtkvs = target.GetRtkvsDevices(disks, c.Spec.Storage.Directories, &storeConfig)
+
+	} else if deploymentType == edgefsv1.DeploymentRtrd {
 		rookSystemNS := os.Getenv(k8sutil.PodNamespaceEnvVar)
 		nodeDevices, _ := discover.ListDevices(c.context, rookSystemNS, n.Name)
 
@@ -247,7 +312,16 @@ func (c *cluster) validateDeploymentConfig(deploymentConfig edgefsv1.ClusterDepl
 	}
 
 	deploymentNodesCount := len(deploymentConfig.DevConfig)
-	if deploymentConfig.TransportKey == edgefsv1.DeploymentRtlfs {
+	if deploymentConfig.TransportKey == edgefsv1.DeploymentRtkvs {
+		if len(c.Spec.Storage.Directories) == 0 {
+			return fmt.Errorf("RTKVS configuration error: storage.directory has to " +
+				"contain at least one host's directory. It will be used to store certain metadata types.")
+		}
+		if c.Spec.Storage.UseAllNodes || (c.Spec.Storage.UseAllDevices != nil && *c.Spec.Storage.UseAllDevices) {
+			return fmt.Errorf("RTKVS configuration error: storage.useAllNodes and storage.useAllDevices options aren't allowed." +
+				" A per-node NVME KVSSD disks list is expected")
+		}
+	} else if deploymentConfig.TransportKey == edgefsv1.DeploymentRtlfs {
 		// Check directories devices count on all nodes
 		if len(c.Spec.Storage.Directories)*deploymentNodesCount < 3 {
 			return fmt.Errorf("Rtlfs devices should be more then 3 on all nodes summary")

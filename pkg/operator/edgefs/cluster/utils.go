@@ -154,7 +154,10 @@ func (c *cluster) retrieveDeploymentConfig() (edgefsv1.ClusterDeploymentConfig, 
 
 			// we can't detect deployment type on gw node, move to next one
 			if !devicesConfig.IsGatewayNode && !deploymentTypeAchived {
-				if len(nodeConfig.Rtrd.Devices) > 0 {
+				if len(nodeConfig.Rtkvs.Devices) > 0 {
+					deploymentConfig.DeploymentType = edgefsv1.DeploymentRtkvs
+					deploymentConfig.TransportKey = edgefsv1.DeploymentRtkvs
+				} else if len(nodeConfig.Rtrd.Devices) > 0 {
 					deploymentConfig.DeploymentType = edgefsv1.DeploymentRtrd
 					deploymentConfig.TransportKey = edgefsv1.DeploymentRtrd
 					deploymentConfig.NeedPrivileges = true
@@ -206,6 +209,15 @@ func (c *cluster) PrintRtlfsDevices(containerIndex int, rtlfsDevices edgefsv1.Rt
 	}
 }
 
+func (c *cluster) PrintRtkvsDevices(containerIndex int, rtkvsDevices edgefsv1.RtkvsDevices) {
+	for _, device := range rtkvsDevices.Devices {
+		logger.Infof("\t\tContainer[%d] Path: %s, Name: %s, Backend: %s, JournalPath: %s, JournalMaxSize: %s,"+
+			" plevelOverride: %d, sync: %d, wal_disabled: %d",
+			containerIndex, device.Path, device.Name, rtkvsDevices.Backend, device.JornalPath,
+			edgefsv1.ByteCountBinary(device.JournalMaxsize), device.PlevelOverride, device.Sync, device.WalDisabled)
+	}
+}
+
 func (c *cluster) PrintDeploymentConfig(deploymentConfig *edgefsv1.ClusterDeploymentConfig) {
 	logger.Infof("[%s] DeploymentConfig: ", c.Namespace)
 	logger.Infof("DeploymentType: %s", deploymentConfig.DeploymentType)
@@ -228,6 +240,8 @@ func (c *cluster) PrintDeploymentConfig(deploymentConfig *edgefsv1.ClusterDeploy
 			}
 		case edgefsv1.DeploymentRtlfs:
 			c.PrintRtlfsDevices(0, nodeDevConfig.Rtlfs)
+		case edgefsv1.DeploymentRtkvs:
+			c.PrintRtkvsDevices(0, nodeDevConfig.Rtkvs)
 		case edgefsv1.DeploymentAutoRtlfs:
 			logger.Infof("\t\tContainer[0] Path: /mnt/disks/disk0")
 			logger.Infof("\t\tContainer[0] Path: /mnt/disks/disk1")

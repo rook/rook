@@ -73,6 +73,9 @@ type ClusterSpec struct {
 	ChunkCacheSize          resource.Quantity `json:"chunkCacheSize,omitempty"`
 	TrlogProcessingInterval int               `json:"trlogProcessingInterval,omitempty"`
 	TrlogKeepDays           int               `json:"trlogKeepDays,omitempty"`
+	SystemReplicationCount  int               `json:"sysRepCount,omitempty"`
+	FailureDomain           string            `json:"failureDomain,omitempty"`
+	CommitNWait             int               `json:"commitNWait,omitempty"`
 	MaxContainerCapacity    resource.Quantity `json:"maxContainerCapacity,omitempty"`
 	UseHostLocalTime        bool              `json:"useHostLocalTime,omitempty"`
 }

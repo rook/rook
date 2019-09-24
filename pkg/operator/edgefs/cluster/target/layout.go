@@ -41,7 +41,7 @@ func CreateQualifiedHeadlessServiceName(replicaNum int, namespace string) string
 }
 
 // EdgeFS RT-RD driver needs SCSI-3, ATA, NVMe by-id link
-func getIdDevLinkName(dls string) (dl string) {
+func GetIdDevLinkName(dls string) (dl string) {
 	dlsArr := strings.Split(dls, " ")
 	for i := range dlsArr {
 		s := strings.Replace(dlsArr[i], "/dev/disk/by-id/", "", 1)
@@ -182,6 +182,11 @@ func GetContainersRTDevices(nodeName string, maxContainerCapacity int64, nodeDis
 func getRTDevices(cntDevs ContainerDevices, storeConfig *config.StoreConfig) (rtDevices []edgefsv1.RTDevice, err error) {
 	rtDevices = make([]edgefsv1.RTDevice, 0)
 
+	walDisabled := 0
+	if storeConfig.WalMode > 0 {
+		walDisabled = 1
+	}
+
 	if storeConfig.UseAllSSD {
 		//
 		// All flush media case (High Performance)
@@ -192,14 +197,14 @@ func getRTDevices(cntDevs ContainerDevices, storeConfig *config.StoreConfig) (rt
 		if storeConfig.UseMetadataOffload {
 			fmt.Println("Warning: useMetadataOffload parameter is ignored due to use useAllSSD=true")
 		}
-
 		for i := range cntDevs.Ssds {
 			rtdev := edgefsv1.RTDevice{
-				Name:       getIdDevLinkName(cntDevs.Ssds[i].DevLinks),
-				Device:     "/dev/" + cntDevs.Ssds[i].Name,
-				Psize:      storeConfig.LmdbPageSize,
-				VerifyChid: storeConfig.RtVerifyChid,
-				Sync:       storeConfig.Sync,
+				Name:        GetIdDevLinkName(cntDevs.Ssds[i].DevLinks),
+				Device:      "/dev/" + cntDevs.Ssds[i].Name,
+				Psize:       storeConfig.LmdbPageSize,
+				VerifyChid:  storeConfig.RtVerifyChid,
+				Sync:        storeConfig.Sync,
+				WalDisabled: walDisabled,
 			}
 			if storeConfig.RtPLevelOverride != 0 {
 				rtdev.PlevelOverride = storeConfig.RtPLevelOverride
@@ -219,12 +224,13 @@ func getRTDevices(cntDevs ContainerDevices, storeConfig *config.StoreConfig) (rt
 		//
 		for i := range cntDevs.Hdds {
 			rtdev := edgefsv1.RTDevice{
-				Name:         getIdDevLinkName(cntDevs.Hdds[i].DevLinks),
+				Name:         GetIdDevLinkName(cntDevs.Hdds[i].DevLinks),
 				Device:       "/dev/" + cntDevs.Hdds[i].Name,
 				Psize:        storeConfig.LmdbPageSize,
 				VerifyChid:   storeConfig.RtVerifyChid,
 				HDDReadAhead: storeConfig.HDDReadAhead,
 				Sync:         storeConfig.Sync,
+				WalDisabled:  walDisabled,
 			}
 			if storeConfig.RtPLevelOverride != 0 {
 				rtdev.PlevelOverride = storeConfig.RtPLevelOverride
@@ -259,17 +265,18 @@ func getRTDevices(cntDevs ContainerDevices, storeConfig *config.StoreConfig) (rt
 	for i := range hdds_divided {
 		for j := range hdds_divided[i] {
 			rtdev := edgefsv1.RTDevice{
-				Name:              getIdDevLinkName(hdds_divided[i][j].DevLinks),
+				Name:              GetIdDevLinkName(hdds_divided[i][j].DevLinks),
 				Device:            "/dev/" + hdds_divided[i][j].Name,
 				Psize:             storeConfig.LmdbPageSize,
 				MdPsize:           storeConfig.LmdbMdPageSize,
 				VerifyChid:        storeConfig.RtVerifyChid,
 				HDDReadAhead:      storeConfig.HDDReadAhead,
 				BcacheWritearound: (map[bool]int{true: 0, false: 1})[storeConfig.UseBCacheWB],
-				Journal:           getIdDevLinkName(cntDevs.Ssds[i].DevLinks),
-				Metadata:          getIdDevLinkName(cntDevs.Ssds[i].DevLinks) + "," + storeConfig.UseMetadataMask,
+				Journal:           GetIdDevLinkName(cntDevs.Ssds[i].DevLinks),
+				Metadata:          GetIdDevLinkName(cntDevs.Ssds[i].DevLinks) + "," + storeConfig.UseMetadataMask,
 				Bcache:            0,
 				Sync:              storeConfig.Sync,
+				WalDisabled:       walDisabled,
 			}
 
 			if storeConfig.UseBCache {
@@ -290,6 +297,10 @@ func getRTDevices(cntDevs ContainerDevices, storeConfig *config.StoreConfig) (rt
 
 func GetRtlfsDevices(directories []rookalpha.Directory, storeConfig *config.StoreConfig) []edgefsv1.RtlfsDevice {
 	rtlfsDevices := make([]edgefsv1.RtlfsDevice, 0)
+	walDisabled := 0
+	if storeConfig.WalMode > 0 {
+		walDisabled = 1
+	}
 	for _, dir := range directories {
 		rtlfsDevice := edgefsv1.RtlfsDevice{
 			Name:            filepath.Base(dir.Path),
@@ -298,6 +309,7 @@ func GetRtlfsDevices(directories []rookalpha.Directory, storeConfig *config.Stor
 			Psize:           storeConfig.LmdbPageSize,
 			VerifyChid:      storeConfig.RtVerifyChid,
 			Sync:            storeConfig.Sync,
+			WalDisabled:     walDisabled,
 		}
 		if storeConfig.MaxSize != 0 {
 			rtlfsDevice.Maxsize = storeConfig.MaxSize
@@ -308,4 +320,37 @@ func GetRtlfsDevices(directories []rookalpha.Directory, storeConfig *config.Stor
 		rtlfsDevices = append(rtlfsDevices, rtlfsDevice)
 	}
 	return rtlfsDevices
+}
+
+func GetRtkvsDevices(disks []string, directories []rookalpha.Directory, storeConfig *config.StoreConfig) edgefsv1.RtkvsDevices {
+	rc := edgefsv1.RtkvsDevices{}
+	rc.Devices = make([]edgefsv1.RtkvsDevice, 0)
+	rc.Backend = storeConfig.UseRtkvsBackend
+	sharedDir := len(disks) > len(directories)
+	index := 0
+	for _, disk := range disks {
+		journalPath := directories[0].Path
+		if !sharedDir {
+			journalPath = directories[index].Path
+		}
+		devIDs := strings.Split(disk, "/")
+		devID := devIDs[len(devIDs)-1]
+		rtkvsDevice := edgefsv1.RtkvsDevice{
+			Name:        devID,
+			Path:        disk,
+			JornalPath:  journalPath,
+			VerifyChid:  storeConfig.RtVerifyChid,
+			Sync:        storeConfig.Sync,
+			WalDisabled: storeConfig.WalMode,
+		}
+		if storeConfig.MaxSize != 0 {
+			rtkvsDevice.JournalMaxsize = storeConfig.MaxSize
+		}
+		if storeConfig.RtPLevelOverride != 0 {
+			rtkvsDevice.PlevelOverride = storeConfig.RtPLevelOverride
+		}
+		rc.Devices = append(rc.Devices, rtkvsDevice)
+		index++
+	}
+	return rc
 }
