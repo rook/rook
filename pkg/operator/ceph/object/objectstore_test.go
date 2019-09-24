@@ -138,6 +138,13 @@ func deleteStore(t *testing.T, name string, existingStores string, expectedDelet
 			zoneDeleted = true
 			return "", nil
 		}
+
+		if args[0] == "pool" {
+			if args[1] == "stats" {
+				emptyPool := "{\"images\":{\"count\":0,\"provisioned_bytes\":0,\"snap_count\":0},\"trash\":{\"count\":1,\"provisioned_bytes\":2048,\"snap_count\":0}}"
+				return emptyPool, nil
+			}
+		}
 		return "", fmt.Errorf("unexpected ceph command '%v'", args)
 	}
 	executor.MockExecuteCommandWithOutput = executorFunc
