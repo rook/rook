@@ -35,7 +35,7 @@ parameters:
     csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph
     # Specify the filesystem type of the volume. If not specified, csi-provisioner
     # will set default as `ext4`.
-    csi.storage.k8s.io/fstype: xfs
+    csi.storage.k8s.io/fstype: ext4
 # uncomment the following to use rbd-nbd as mounter on supported nodes
 #mounter: rbd-nbd
 reclaimPolicy: Delete
