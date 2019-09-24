@@ -34,13 +34,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestClusterDelete(t *testing.T) {
+func TestClusterDeleteFlexEnabled(t *testing.T) {
 	nodeName := "node841"
 	clusterName := "cluster684"
 	pvName := "pvc-540"
 	rookSystemNamespace := "rook-system-6413"
 
+	os.Setenv("ROOK_ENABLE_FLEX_DRIVER", "true")
 	os.Setenv(k8sutil.PodNamespaceEnvVar, rookSystemNamespace)
+	defer os.Unsetenv("ROOK_ENABLE_FLEX_DRIVER")
 	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
 
 	clientset := testop.New(3)
@@ -93,6 +95,47 @@ func TestClusterDelete(t *testing.T) {
 	// listing of volume attachments should have been called twice.  the first time there were volume attachments
 	// that the controller needed to wait on to be cleaned up and the second time they were all cleaned up.
 	assert.Equal(t, 2, listCount)
+}
+
+func TestClusterDeleteFlexDisabled(t *testing.T) {
+	clusterName := "cluster684"
+	rookSystemNamespace := "rook-system-6413"
+
+	os.Setenv("ROOK_ENABLE_FLEX_DRIVER", "false")
+	os.Setenv(k8sutil.PodNamespaceEnvVar, rookSystemNamespace)
+	defer os.Unsetenv("ROOK_ENABLE_FLEX_DRIVER")
+	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
+
+	clientset := testop.New(3)
+	context := &clusterd.Context{
+		Clientset: clientset,
+	}
+
+	listCount := 0
+	volumeAttachmentController := &attachment.MockAttachment{
+		MockList: func(namespace string) (*rookalpha.VolumeList, error) {
+			listCount++
+			return &rookalpha.VolumeList{Items: []rookalpha.Volume{}}, nil
+
+		},
+	}
+	callbacks := []func(clusterSpec *cephv1.ClusterSpec) error{
+		func(clusterSpec *cephv1.ClusterSpec) error {
+			logger.Infof("test success callback")
+			os.Setenv("ROOK_ENABLE_FLEX_DRIVER", "true")
+			os.Setenv(k8sutil.PodNamespaceEnvVar, rookSystemNamespace)
+			defer os.Unsetenv("ROOK_ENABLE_FLEX_DRIVER")
+			return nil
+		},
+	}
+
+	// create the cluster controller and tell it that the cluster has been deleted
+	controller := NewClusterController(context, "", volumeAttachmentController, callbacks)
+	clusterToDelete := &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: clusterName}}
+	controller.handleDelete(clusterToDelete, time.Microsecond)
+
+	// Ensure that the listing of volume attachments was never called.
+	assert.Equal(t, 0, listCount)
 }
 
 func TestClusterChanged(t *testing.T) {
