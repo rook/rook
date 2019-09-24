@@ -152,6 +152,7 @@ func TestUpdatePool(t *testing.T) {
 }
 
 func TestDeletePool(t *testing.T) {
+	failOnDelete := false
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(debug bool, actionName, command, outfile string, args ...string) (string, error) {
 			if command == "ceph" && args[1] == "lspools" {
@@ -159,7 +160,27 @@ func TestDeletePool(t *testing.T) {
 			} else if command == "ceph" && args[1] == "pool" && args[2] == "get" {
 				return `{"pool": "mypool","pool_id": 1,"size":1}`, nil
 			}
+
 			return "", nil
+		},
+		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
+			emptyPool := "{\"images\":{\"count\":0,\"provisioned_bytes\":0,\"snap_count\":0},\"trash\":{\"count\":1,\"provisioned_bytes\":2048,\"snap_count\":0}}"
+			p := "{\"images\":{\"count\":1,\"provisioned_bytes\":1024,\"snap_count\":0},\"trash\":{\"count\":1,\"provisioned_bytes\":2048,\"snap_count\":0}}"
+			logger.Infof("Command: %s %v", command, args)
+
+			if args[0] == "pool" {
+				if args[1] == "stats" {
+					if !failOnDelete {
+						return emptyPool, nil
+					}
+
+					return p, nil
+
+				}
+				return "", fmt.Errorf("rbd: error opening pool '%s': (2) No such file or directory", args[3])
+
+			}
+			return "", fmt.Errorf("unexpected rbd command '%v'", args)
 		},
 	}
 	context := &clusterd.Context{Executor: executor}
@@ -179,6 +200,15 @@ func TestDeletePool(t *testing.T) {
 	assert.False(t, exists)
 	err = deletePool(context, p)
 	assert.Nil(t, err)
+
+	// fail if images/snapshosts exist in the pool
+	failOnDelete = true
+	p = &cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
+	exists, err = poolExists(context, p)
+	assert.Nil(t, err)
+	assert.True(t, exists)
+	err = deletePool(context, p)
+	assert.NotNil(t, err)
 }
 
 func TestGetPoolObject(t *testing.T) {
