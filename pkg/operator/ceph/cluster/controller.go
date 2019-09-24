@@ -25,6 +25,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/rook/rook/pkg/operator/ceph/csi"
+
 	"github.com/coreos/pkg/capnslog"
 	opkit "github.com/rook/operator-kit"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -44,6 +46,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/pool"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+
 	v1 "k8s.io/api/core/v1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -759,16 +762,7 @@ func (c *ClusterController) onDelete(obj interface{}) {
 	}
 }
 
-func (c *ClusterController) handleDelete(cluster *cephv1.CephCluster, retryInterval time.Duration) error {
-	flexDriverEnabled := os.Getenv(enableFlexDriver) != "false"
-	operatorNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
-
-	if !flexDriverEnabled {
-		logger.Debugf("Flex driver disabled: no volume attachments for cluster %s (operator namespace: %s)",
-			cluster.Namespace, operatorNamespace)
-		return nil
-	}
-
+func (c *ClusterController) waitForFlexVolumeCleanup(cluster *cephv1.CephCluster, operatorNamespace string, retryInterval time.Duration) error {
 	retryCount := 0
 	for {
 		// TODO: filter this List operation by cluster namespace on the server side
@@ -805,11 +799,82 @@ func (c *ClusterController) handleDelete(cluster *cephv1.CephCluster, retryInter
 		}
 
 		logger.Infof("waiting for volume attachments in cluster %s to be cleaned up. Retrying in %s.",
-			cluster.Namespace, retryInterval)
+			cluster.Namespace, retryInterval.String())
 		<-time.After(retryInterval)
 	}
-
 	return nil
+}
+
+func (c *ClusterController) checkPVPresentInCluster(drivers []string, clusterID string) (bool, error) {
+	pv, err := c.context.Clientset.CoreV1().PersistentVolumes().List(metav1.ListOptions{})
+	if err != nil {
+		return false, fmt.Errorf("failed to list PV. %+v", err)
+	}
+
+	for _, p := range pv.Items {
+		if p.Spec.CSI == nil {
+			logger.Errorf("Spec.CSI is nil for PV %s", p.Name)
+			continue
+		}
+		if p.Spec.CSI.VolumeAttributes["clusterID"] == clusterID {
+			//check PV is created by drivers deployed by rook
+			for _, d := range drivers {
+				if d == p.Spec.CSI.Driver {
+					return true, nil
+				}
+			}
+
+		}
+	}
+	return false, nil
+}
+
+func (c *ClusterController) waitForCSIVolumeCleanup(cluster *cephv1.CephCluster, retryInterval time.Duration) error {
+	retryCount := 0
+	drivers := []string{csi.CephFSDriverName, csi.RBDDriverName}
+	for {
+		logger.Infof("checking any PVC created by drivers %s and %s with clusterID %s", csi.CephFSDriverName, csi.RBDDriverName, cluster.Namespace)
+		// check any PV is created in this cluster
+		attachmentsExist, err := c.checkPVPresentInCluster(drivers, cluster.Namespace)
+		if err != nil {
+			return fmt.Errorf("failed to list PersistentVolumes. %+v", err)
+		}
+		// no PVC created in this cluster
+		if !attachmentsExist {
+			logger.Infof("no volume attachments for cluster %s", cluster.Namespace)
+			break
+		}
+
+		retryCount++
+		if retryCount == clusterDeleteMaxRetries {
+			logger.Warningf(
+				"exceeded retry count while waiting for volume attachments for cluster %s to be cleaned up", cluster.Namespace)
+			break
+		}
+
+		logger.Infof("waiting for volume attachments in cluster %s to be cleaned up. Retrying in %s",
+			cluster.Namespace, retryInterval.String())
+		<-time.After(retryInterval)
+	}
+	return nil
+}
+
+func (c *ClusterController) handleDelete(cluster *cephv1.CephCluster, retryInterval time.Duration) error {
+	if csi.CSIEnabled() {
+		err := c.waitForCSIVolumeCleanup(cluster, retryInterval)
+		if err != nil {
+			return fmt.Errorf("failed to wait for the csi volume cleanup. %+v", err)
+		}
+	}
+	operatorNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
+	flexDriverEnabled := os.Getenv(enableFlexDriver) != "false"
+	if !flexDriverEnabled {
+		logger.Debugf("Flex driver disabled: no volume attachments for cluster %s (operator namespace: %s)",
+			cluster.Namespace, operatorNamespace)
+		return nil
+	}
+	err := c.waitForFlexVolumeCleanup(cluster, operatorNamespace, retryInterval)
+	return err
 }
 
 func purgeExternalCluster(clientset kubernetes.Interface, namespace string) error {
