@@ -58,7 +58,6 @@ var (
 type GlobalConfig struct {
 	EnableExperimental       string `ini:"enable experimental unrecoverable data corrupting features,omitempty"`
 	FSID                     string `ini:"fsid,omitempty"`
-	RunDir                   string `ini:"run dir,omitempty"`
 	MonMembers               string `ini:"mon initial members,omitempty"`
 	MonHost                  string `ini:"mon host"`
 	LogFile                  string `ini:"log file,omitempty"`
@@ -146,7 +145,7 @@ func GenerateConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoo
 		logger.Warningf("failed to create config directory at %s: %+v", pathRoot, err)
 	}
 
-	configFile, err := createGlobalConfigFileSection(context, cluster, pathRoot, globalConfig)
+	configFile, err := createGlobalConfigFileSection(context, cluster, globalConfig)
 	if err != nil {
 		return "", fmt.Errorf("failed to create global config section, %+v", err)
 	}
@@ -176,7 +175,7 @@ func getQualifiedUser(user string) string {
 }
 
 // CreateDefaultCephConfig creates a default ceph config file.
-func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, runDir string) (*CephConfig, error) {
+func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo) (*CephConfig, error) {
 
 	cephVersionEnv := os.Getenv("ROOK_CEPH_VERSION")
 	if cephVersionEnv != "" {
@@ -232,7 +231,6 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, ru
 	conf := &CephConfig{
 		GlobalConfig: &GlobalConfig{
 			FSID:                   cluster.FSID,
-			RunDir:                 runDir,
 			MonMembers:             strings.Join(monMembers, " "),
 			MonHost:                strings.Join(monHosts, ","),
 			PublicAddr:             context.NetworkInfo.PublicAddr,
@@ -275,7 +273,7 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, ru
 }
 
 // create a config file with global settings configured, and return an ini file
-func createGlobalConfigFileSection(context *clusterd.Context, cluster *ClusterInfo, runDir string, userConfig *CephConfig) (*ini.File, error) {
+func createGlobalConfigFileSection(context *clusterd.Context, cluster *ClusterInfo, userConfig *CephConfig) (*ini.File, error) {
 
 	var ceph *CephConfig
 
@@ -284,7 +282,7 @@ func createGlobalConfigFileSection(context *clusterd.Context, cluster *ClusterIn
 		ceph = userConfig
 	} else {
 		var err error
-		ceph, err = CreateDefaultCephConfig(context, cluster, runDir)
+		ceph, err = CreateDefaultCephConfig(context, cluster)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create default ceph config. %+v", err)
 		}
