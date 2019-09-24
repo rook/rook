@@ -197,7 +197,7 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, ru
 		monIP := cephutil.GetIPFromEndpoint(monitor.Endpoint)
 
 		// This tries to detect the current port if the mon already exists
-		// This basically handles the transtion between monitors running on 6790 to msgr2
+		// This basically handles the transition between monitors running on 6790 to msgr2
 		// So whatever the previous monitor port was we keep it
 		currentMonPort := cephutil.GetPortFromEndpoint(monitor.Endpoint)
 
@@ -263,9 +263,9 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, ru
 	}
 
 	// Everything before 14.2.1
-	// These new flags control Ceph's daemon logging behaviour to files
+	// These new flags control Ceph's daemon logging behavior to files
 	// By default we set them to False so no logs get written on file
-	// However they can be actived at any time via the centralized config store
+	// However they can be activated at any time via the centralized config store
 	if !cluster.CephVersion.IsAtLeast(cephver.CephVersion{Major: 14, Minor: 2, Extra: 1}) {
 		conf.LogFile = "/dev/stderr"
 		conf.MonClusterLogFile = "/dev/stderr"
