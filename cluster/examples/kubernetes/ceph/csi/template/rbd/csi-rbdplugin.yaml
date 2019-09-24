@@ -54,7 +54,7 @@ spec:
             - "--type=rbd"
             - "--nodeserver=true"
             - "--drivername={{ .DriverNamePrefix }}rbd.csi.ceph.com"
-            - "--containerized=true"
+            - "--containerized=false"
             - "--pidlimit=-1"
             - "--metricsport=9090"
             - "--metricspath=/metrics"
@@ -64,8 +64,6 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-            - name: HOST_ROOTFS
-              value: "/rootfs"
             - name: NODE_ID
               valueFrom:
                 fieldRef:
@@ -88,8 +86,6 @@ spec:
               mountPropagation: "Bidirectional"
             - mountPath: /dev
               name: host-dev
-            - mountPath: /rootfs
-              name: host-rootfs
             - mountPath: /sys
               name: host-sys
             - mountPath: /lib/modules
@@ -139,9 +135,6 @@ spec:
         - name: host-dev
           hostPath:
             path: /dev
-        - name: host-rootfs
-          hostPath:
-            path: /
         - name: host-sys
           hostPath:
             path: /sys
