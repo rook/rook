@@ -498,7 +498,7 @@ func getActiveAndRemovedDirs(
 	return activeDirs, removedDirs
 }
 
-//releaseLVMDevice deativates the LV to release the device.
+//releaseLVMDevice deactivates the LV to release the device.
 func releaseLVMDevice(context *clusterd.Context, volumeGroupName string) error {
 	if err := context.Executor.ExecuteCommand(false, "", "lvchange", "-an", volumeGroupName); err != nil {
 		return fmt.Errorf("failed to deactivate LVM %s. Error: %+v", volumeGroupName, err)
