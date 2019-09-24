@@ -104,6 +104,9 @@ func (c *cluster) detectCephVersion(rookImage, cephImage string, timeout time.Du
 	job := versionReporter.Job()
 	job.Spec.Template.Spec.ServiceAccountName = "rook-ceph-cmd-reporter"
 
+	// Apply the same node selector and tolerations for the ceph version detection as the mon daemons
+	cephv1.GetMonPlacement(c.Spec.Placement).ApplyToPodSpec(&job.Spec.Template.Spec)
+
 	stdout, stderr, retcode, err := versionReporter.Run(timeout)
 	if err != nil {
 		return nil, fmt.Errorf("failed to complete ceph version job. %+v", err)
