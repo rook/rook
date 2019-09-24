@@ -39,6 +39,7 @@ spec:
     - failureDomain: host
       replicated:
         size: 3
+  preservePoolsOnDelete: true
   metadataServer:
     activeCount: 1
     activeStandby: true
@@ -113,6 +114,7 @@ The pools allow all of the settings defined in the Pool CRD spec. For more detai
 
 - `metadataPool`: The settings used to create the file system metadata pool. Must use replication.
 - `dataPools`: The settings to create the file system data pools. If multiple pools are specified, Rook will add the pools to the file system. Assigning users or files to a pool is left as an exercise for the reader with the [CephFS documentation](http://docs.ceph.com/docs/master/cephfs/file-layouts/). The data pools can use replication or erasure coding. If erasure coding pools are specified, the cluster must be running with bluestore enabled on the OSDs.
+- `preservePoolsOnDelete`: If it is set to 'true' the pools used to support the filesystem will remain when the filesystem will be deleted. This is a security measure to avoid accidental loss of data. It is set to 'false' by default. If not specified is also deemed as 'false'.
 
 ## Metadata Server Settings
 

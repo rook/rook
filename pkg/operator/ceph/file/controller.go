@@ -218,6 +218,11 @@ func filesystemChanged(oldFS, newFS cephv1.FilesystemSpec) bool {
 		logger.Infof("mds active standby changed from %t to %t", oldFS.MetadataServer.ActiveStandby, newFS.MetadataServer.ActiveStandby)
 		return true
 	}
+	if oldFS.PreservePoolsOnDelete != newFS.PreservePoolsOnDelete {
+		logger.Infof("value of Preserve pools setting changed from %t to %t", oldFS.PreservePoolsOnDelete, newFS.PreservePoolsOnDelete)
+		// This setting only will be used when the filesystem will be deleted
+		return false
+	}
 	return false
 }
 

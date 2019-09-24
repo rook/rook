@@ -34,6 +34,7 @@ spec:
     erasureCoded:
       dataChunks: 2
       codingChunks: 1
+  preservePoolsOnDelete: true
   gateway:
     type: s3
     sslCertificateRef:
@@ -79,6 +80,8 @@ The pools allow all of the settings defined in the Pool CRD spec. For more detai
 
 - `metadataPool`: The settings used to create all of the object store metadata pools. Must use replication.
 - `dataPool`: The settings to create the object store data pool. Can use replication or erasure coding.
+- `preservePoolsOnDelete`: If it is set to 'true' the pools used to support the object store will remain when the object store will be deleted. This is a security measure to avoid accidental loss of data. It is set to 'false' by default. If not specified is also deemed as 'false'.
+
 
 ## Gateway Settings
 

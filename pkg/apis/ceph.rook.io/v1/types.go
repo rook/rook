@@ -267,6 +267,9 @@ type FilesystemSpec struct {
 	// The data pool settings
 	DataPools []PoolSpec `json:"dataPools,omitempty"`
 
+	// Preserve pools on filesystem deletion
+	PreservePoolsOnDelete bool `json:"preservePoolsOnDelete"`
+
 	// The mds pod info
 	MetadataServer MetadataServerSpec `json:"metadataServer"`
 }
@@ -314,6 +317,9 @@ type ObjectStoreSpec struct {
 
 	// The data pool settings
 	DataPool PoolSpec `json:"dataPool"`
+
+	// Preserve pools on object store deletion
+	PreservePoolsOnDelete bool `json:"preservePoolsOnDelete"`
 
 	// The rgw pod info
 	Gateway GatewaySpec `json:"gateway"`

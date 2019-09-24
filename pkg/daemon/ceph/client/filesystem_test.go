@@ -160,7 +160,7 @@ func TestFilesystemRemove(t *testing.T) {
 		return "", fmt.Errorf("unexpected rbd command '%v'", args)
 	}
 
-	err := RemoveFilesystem(context, "ns", fs.MDSMap.FilesystemName)
+	err := RemoveFilesystem(context, "ns", fs.MDSMap.FilesystemName, false)
 	assert.Nil(t, err)
 	assert.True(t, metadataDeleted)
 	assert.True(t, dataDeleted)

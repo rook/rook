@@ -296,7 +296,7 @@ func (c *clusterConfig) deleteStore() error {
 
 	// Delete the realm and pools
 	objContext := NewContext(c.context, c.store.Name, c.store.Namespace)
-	err = deleteRealmAndPools(objContext)
+	err = deleteRealmAndPools(objContext, c.store.Spec.PreservePoolsOnDelete)
 	if err != nil {
 		return fmt.Errorf("failed to delete the realm and pools. %+v", err)
 	}
