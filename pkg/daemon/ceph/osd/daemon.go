@@ -21,7 +21,6 @@ import (
 	"io/ioutil"
 	"os"
 	"os/signal"
-	"path"
 	"regexp"
 	"strconv"
 	"syscall"
@@ -177,7 +176,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent) error {
 	}
 
 	// set the crush location in the osd config file
-	cephConfig, err := cephconfig.CreateDefaultCephConfig(context, agent.cluster, path.Join(context.ConfigDir, agent.cluster.Name))
+	cephConfig, err := cephconfig.CreateDefaultCephConfig(context, agent.cluster)
 	if err != nil {
 		return fmt.Errorf("failed to create default ceph config. %+v", err)
 	}
@@ -498,7 +497,7 @@ func getActiveAndRemovedDirs(
 	return activeDirs, removedDirs
 }
 
-//releaseLVMDevice deativates the LV to release the device.
+//releaseLVMDevice deactivates the LV to release the device.
 func releaseLVMDevice(context *clusterd.Context, volumeGroupName string) error {
 	if err := context.Executor.ExecuteCommand(false, "", "lvchange", "-an", volumeGroupName); err != nil {
 		return fmt.Errorf("failed to deactivate LVM %s. Error: %+v", volumeGroupName, err)
