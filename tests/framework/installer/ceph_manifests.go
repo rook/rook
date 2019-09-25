@@ -277,6 +277,8 @@ spec:
             metadataServer:
               properties:
                 activeCount:
+                  minimum: 1
+                  maximum: 10
                   type: integer
                 activeStandby:
                   type: boolean
@@ -290,6 +292,8 @@ spec:
                 replicated:
                   properties:
                     size:
+                      minimum: 1
+                      maximum: 10
                       type: integer
                 erasureCoded:
                   properties:
@@ -306,6 +310,8 @@ spec:
                   replicated:
                     properties:
                       size:
+                        minimum: 1
+                        maximum: 10
                         type: integer
                   erasureCoded:
                     properties:
