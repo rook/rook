@@ -254,38 +254,13 @@ After the PR is open, you can make changes simply by pushing new commits. Your P
 
 ### Backport a Fix to a Release Branch
 
-#### Manual flow
+The flow for getting a fix into a release branch is:
 
-The flow for getting a fix into a release branch is to first make the commit to master following the process outlined above.
-After the commit is in master, you'll need to cherry-pick the commit to the intended release branch.
-You can do this by first creating a local branch that is based off the release branch, for example:
-```console
-git fetch --all
-git checkout -b backport-my-fix upstream/release-0.6
-```
-
-Then go ahead and cherry-pick the commit using the hash of the commit itself, **not** the merge commit hash:
-```console
-git cherry-pick -x 099cc27b73a8d77e0504831f374a7e117ad0a2e4
-```
-
-This will immediately create a cherry-picked commit with a nice message saying where the commit was cherry-picked from.
-Now go ahead and push to your origin:
-```console
-git push origin HEAD
-```
-
-#### Automated flow
-
-You will find a script at `contrib/backport_to_stable_branch.sh` at the root of the Rook repository.
-Execute it and it will do the necessary things and will push the backport branch.
-Then go on the Rook Github web page and create your pull request.
-
-#### Create the backport pull request
-
-The last step is to open a PR with the base being the intended release branch.
-If you don't know how to do this, [read Github documentation on changing the base branch range](https://help.github.com/en/articles/creating-a-pull-request#changing-the-branch-range-and-destination-repository).
-Once the PR is approved and merged, then your backported change will be available in the next release.
+1. Open a PR to merge the changes to master following the process outlined above.
+1. Add the backport label to that PR such as backport-release-1.1
+1. After your PR is merged to master, the mergify bot will automatically open a PR with your commits backported to the release branch
+1. If there are any conflicts you will need to resolve them by pulling the branch, resolving the conflicts and force push back the branch
+1. After the CI is green, the bot will automatically merge the backport PR.
 
 ## Debugging operators locally
 
