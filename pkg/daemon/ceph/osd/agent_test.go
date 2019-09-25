@@ -102,6 +102,8 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig config.StoreConfig,
 	}
 	defer os.RemoveAll(configDir)
 	cephConfigDir = configDir
+	lvmConfPath = path.Join(configDir, "lvm.conf")
+	os.Create(lvmConfPath)
 
 	agent, executor, _ := createTestAgent(t, "sdx,sdy", configDir, "node1891", &storeConfig)
 
