@@ -52,6 +52,11 @@ func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID, lvPath string,
 		logger.Errorf("failed to create config dir %s. %+v", configDir, err)
 	}
 
+	// Update LVM config at runtime
+	if err := updateLVMConfig(context, pvcBackedOSD); err != nil {
+		return fmt.Errorf("sed failure, %+v", err) // fail return here as validation provided by ceph-volume
+	}
+
 	var volumeGroupName string
 	if pvcBackedOSD {
 		volumeGroupName, err = getVolumeGroupName(lvPath)
@@ -59,9 +64,6 @@ func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID, lvPath string,
 			return fmt.Errorf("error fetching volume group name for OSD %s. %+v", osdID, err)
 		}
 		go handleTerminate(context, lvPath, volumeGroupName)
-		if err := updateLVMConfig(context); err != nil {
-			return fmt.Errorf("sed failure, %+v", err) // fail return here as validation provided by ceph-volume
-		}
 
 		if err := context.Executor.ExecuteCommand(false, "", "/sbin/vgchange", "-an", volumeGroupName); err != nil {
 			return fmt.Errorf("failed to deactivate volume group for lv %+v. Error: %+v", lvPath, err)
