@@ -174,11 +174,6 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 		configEnvVars = append(configEnvVars, v1.EnvVar{Name: "ROOK_IS_DEVICE", Value: "true"})
 	}
 
-	// Activate verbose mode for ceph-volume on prepare
-	if osd.CephVolumeInitiated {
-		configEnvVars = append(configEnvVars, v1.EnvVar{Name: "CEPH_VOLUME_DEBUG", Value: "1"})
-	}
-
 	// default args when the ceph cluster isn't initialized
 
 	defaultArgs := []string{
@@ -528,6 +523,7 @@ func (c *Cluster) getConfigEnvVars(storeConfig config.StoreConfig, dataDir, node
 				Key:                  "fsid",
 			},
 		}},
+		{Name: "CEPH_VOLUME_DEBUG", Value: "1"},
 		k8sutil.NodeEnvVar(),
 	}
 	// pass on the topologyAware flag to the provion pod so that portable OSDs can reconcile zone/region
