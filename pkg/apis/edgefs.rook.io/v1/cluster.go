@@ -23,6 +23,7 @@ const (
 	DeploymentRtlfs     = "rtlfs"
 	DeploymentRtrd      = "rtrd"
 	DeploymentAutoRtlfs = "autoRtlfs"
+	DeploymentRtkvs     = "rtkvs"
 )
 
 type ClusterDeploymentConfig struct {
@@ -78,6 +79,7 @@ type DevicesConfig struct {
 	Rtrd          RTDevices
 	RtrdSlaves    []RTDevices
 	Rtlfs         RtlfsDevices
+	Rtkvs         RtkvsDevices
 	Zone          int
 	IsGatewayNode bool
 }

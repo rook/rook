@@ -125,7 +125,22 @@ func (c *cluster) createClusterConfigMap(deploymentConfig edgefsv1.ClusterDeploy
 		if devConfig.Zone > 0 {
 			failureDomain = 2
 		}
-
+		if len(c.Spec.FailureDomain) > 0 {
+			switch c.Spec.FailureDomain {
+			case "device":
+				failureDomain = 0
+			case "host":
+				failureDomain = 1
+			case "zone":
+				failureDomain = 2
+			default:
+				logger.Infof("Unknow failure domain %s, skipped", c.Spec.FailureDomain)
+			}
+		}
+		commitWait := 1
+		if c.Spec.CommitNWait > 0 {
+			commitWait = 0
+		}
 		nodeConfig := edgefsv1.SetupNode{
 			Ccow: edgefsv1.CcowConf{
 				Trlog: edgefsv1.CcowTrlog{
@@ -133,6 +148,7 @@ func (c *cluster) createClusterConfigMap(deploymentConfig edgefsv1.ClusterDeploy
 				},
 				Tenant: edgefsv1.CcowTenant{
 					FailureDomain: failureDomain,
+					CommitWait:    commitWait,
 				},
 				Network: edgefsv1.CcowNetwork{
 					BrokerInterfaces: brokerIfName,
@@ -161,6 +177,7 @@ func (c *cluster) createClusterConfigMap(deploymentConfig edgefsv1.ClusterDeploy
 			Rtlfs: edgefsv1.RtlfsDevices{
 				Devices: rtlfsDevices,
 			},
+			Rtkvs:           devConfig.Rtkvs,
 			Ipv4Autodetect:  1,
 			RtlfsAutodetect: rtlfsAutoDetectPath,
 			ClusterNodes:    dnsRecords,
@@ -174,6 +191,12 @@ func (c *cluster) createClusterConfigMap(deploymentConfig edgefsv1.ClusterDeploy
 		if c.Spec.TrlogKeepDays > 0 {
 			nodeConfig.Ccowd.BgConfig.TrlogDeleteAfterHours = c.Spec.TrlogKeepDays * 24
 			nodeConfig.Ccowd.BgConfig.SpeculativeBackrefTimeout = c.Spec.TrlogKeepDays * 24 * 3600 * 1000
+		}
+
+		if c.Spec.SystemReplicationCount > 0 {
+			nodeConfig.Ccow.Tenant.ReplicationCount = c.Spec.SystemReplicationCount
+			nodeConfig.Ccow.Tenant.SyncPut = c.Spec.SystemReplicationCount
+			nodeConfig.Ccow.Tenant.SyncPutNamed = c.Spec.SystemReplicationCount
 		}
 
 		cm[nodeName] = nodeConfig

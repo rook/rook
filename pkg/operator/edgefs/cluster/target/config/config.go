@@ -50,6 +50,8 @@ const (
 	RtPlevelOverrideKey   = "rtPLevelOverride"
 	SyncKey               = "sync"
 	ZoneKey               = "zone"
+	UseRtkvsBackendKey    = "useRtkvsBackend"
+	WalModeKey            = "walMode"
 )
 
 type StoreConfig struct {
@@ -63,7 +65,7 @@ type StoreConfig struct {
 	MDReserved int `json:"mdReserved,omitempty"`
 	// applies to data chunks on HDD partitions, in KBs
 	HDDReadAhead int `json:"hddReadAhead,omitempty"`
-	// rtlfs only, max size to use per directory, in bytes
+	// rtlfs/rtkvs only, max size to use per directory (journal in rtkvs), in bytes
 	MaxSize uint64 `json:"maxsize,omitempty"`
 	// enable use of bcache
 	UseBCache bool `json:"useBCache,omitempty"`
@@ -81,6 +83,10 @@ type StoreConfig struct {
 	Sync int `json:"sync"`
 	// apply edgefs cluster zones id to whole cluster or node if zone value > 0
 	Zone int `json:"zone,omitempty"`
+	// Use RTKVS IO engine with specified backend name
+	UseRtkvsBackend string `json:"useRtkvsBackend,omitempty"`
+	// Write-ahead-log mode
+	WalMode int `json:"walMode,omitempty"`
 }
 
 func DefaultStoreConfig() StoreConfig {
@@ -98,6 +104,8 @@ func DefaultStoreConfig() StoreConfig {
 		RtPLevelOverride:   0,
 		Sync:               1,
 		Zone:               0,
+		UseRtkvsBackend:    "",
+		WalMode:            0,
 	}
 }
 
@@ -106,6 +114,12 @@ var validLmbdPageSize = map[int]bool{
 	8192:  true,
 	16384: true,
 	32768: true,
+}
+
+var walModeMap = map[string]int{
+	"on":       0,
+	"off":      2,
+	"metadata": 1,
 }
 
 func ToStoreConfig(config map[string]string) StoreConfig {
@@ -178,8 +192,15 @@ func ToStoreConfig(config map[string]string) StoreConfig {
 			if value > 0 {
 				storeConfig.Zone = value
 			}
+		case UseRtkvsBackendKey:
+			storeConfig.UseRtkvsBackend = v
+		case WalModeKey:
+			if val, ok := walModeMap[v]; !ok {
+				logger.Warningf("Incorrect 'walMode' value %s ignored", v)
+			} else {
+				storeConfig.WalMode = val
+			}
 		}
-
 	}
 
 	return storeConfig

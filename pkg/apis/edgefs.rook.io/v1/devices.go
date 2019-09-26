@@ -33,6 +33,7 @@ type RTDevice struct {
 	BcacheWritearound int    `json:"bcache_writearound"`
 	PlevelOverride    int    `json:"plevel_override,omitempty"`
 	Sync              int    `json:"sync"`
+	WalDisabled       int    `json:"wal_disabled,omitempty"`
 }
 
 type RtlfsDevices struct {
@@ -48,10 +49,31 @@ type RtlfsDevice struct {
 	PlevelOverride  int    `json:"plevel_override,omitempty"`
 	CheckMountpoint int    `json:"check_mountpoint"`
 	Sync            int    `json:"sync"`
+	WalDisabled     int    `json:"wal_disabled,omitempty"`
+}
+
+type RtkvsDevices struct {
+	Backend string        `json:"backend"`
+	Devices []RtkvsDevice `json:"devices"`
+}
+
+type RtkvsDevice struct {
+	Name           string `json:"name"`
+	Path           string `json:"path"`
+	JornalPath     string `json:"journal"`
+	JournalMaxsize uint64 `json:"jenvsize,omitempty"`
+	VerifyChid     int    `json:"verify_chid"`
+	PlevelOverride int    `json:"plevel_override,omitempty"`
+	Sync           int    `json:"sync"`
+	WalDisabled    int    `json:"wal_disabled,omitempty"`
 }
 
 type CcowTenant struct {
-	FailureDomain int `json:"failure_domain"`
+	FailureDomain    int `json:"failure_domain"`
+	ReplicationCount int `json:"replication_count,omitempty"`
+	SyncPut          int `json:"sync_put,omitempty"`
+	SyncPutNamed     int `json:"sync_put_named"`
+	CommitWait       int `json:"sync_put_commit_wait"`
 }
 
 type CcowNetwork struct {
@@ -104,5 +126,6 @@ type SetupNode struct {
 	Rtrd            RTDevices    `json:"rtrd"`
 	RtrdSlaves      []RTDevices  `json:"rtrdslaves"`
 	Rtlfs           RtlfsDevices `json:"rtlfs"`
+	Rtkvs           RtkvsDevices `json:"rtkvs"`
 	NodeType        string       `json:"nodeType"`
 }
