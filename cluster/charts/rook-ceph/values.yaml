@@ -88,6 +88,9 @@ csi:
 enableFlexDriver: false
 enableDiscoveryDaemon: true
 
+## if true, run rook operator on the host network
+# useOperatorHostNetwork: true
+
 ## Rook Agent configuration
 ## toleration: NoSchedule, PreferNoSchedule or NoExecute
 ## tolerationKey: Set this to the specific key of the taint to tolerate
