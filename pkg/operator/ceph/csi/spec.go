@@ -52,6 +52,10 @@ var (
 	EnableCephFS         = false
 	EnableCSIGRPCMetrics = false
 
+	//driver names
+	CephFSDriverName string
+	RBDDriverName    string
+
 	// template paths
 	RBDPluginTemplatePath         string
 	RBDProvisionerSTSTemplatePath string
@@ -157,6 +161,9 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 	if tp.DriverNamePrefix == "" {
 		tp.DriverNamePrefix = fmt.Sprintf("%s.", namespace)
 	}
+
+	CephFSDriverName = tp.DriverNamePrefix + "cephfs.csi.ceph.com"
+	RBDDriverName = tp.DriverNamePrefix + "rbd.csi.ceph.com"
 
 	tp.EnableCSIGRPCMetrics = fmt.Sprintf("%t", EnableCSIGRPCMetrics)
 
