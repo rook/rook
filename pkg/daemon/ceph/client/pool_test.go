@@ -17,6 +17,7 @@ package client
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/rook/rook/pkg/daemon/ceph/model"
@@ -171,4 +172,39 @@ func testIsStringInSlice(a string, list []string) bool {
 		}
 	}
 	return false
+}
+
+func TestGetPoolStatistics(t *testing.T) {
+	p := PoolStatistics{}
+	p.Images.Count = 1
+	p.Images.ProvisionedBytes = 1024
+	p.Images.SnapCount = 1
+	p.Trash.Count = 1
+	p.Trash.ProvisionedBytes = 2048
+	p.Trash.SnapCount = 0
+	executor := &exectest.MockExecutor{}
+	context := &clusterd.Context{Executor: executor}
+	executor.MockExecuteCommandWithOutput = func(debug bool, actionName string, command string, args ...string) (string, error) {
+		a := "{\"images\":{\"count\":1,\"provisioned_bytes\":1024,\"snap_count\":1},\"trash\":{\"count\":1,\"provisioned_bytes\":2048,\"snap_count\":0}}"
+		logger.Infof("Command: %s %v", command, args)
+
+		if args[0] == "pool" {
+			if args[1] == "stats" {
+				if args[2] == "replicapool" {
+					return a, nil
+				}
+				return "", fmt.Errorf("rbd:error opening pool '%s': (2) No such file or directory", args[3])
+
+			}
+		}
+		return "", fmt.Errorf("unexpected rbd command '%v'", args)
+	}
+
+	stats, err := GetPoolStatistics(context, "replicapool", "cluster")
+	assert.Nil(t, err)
+	assert.True(t, reflect.DeepEqual(stats, &p))
+
+	stats, err = GetPoolStatistics(context, "rbd", "cluster")
+	assert.NotNil(t, err)
+	assert.Nil(t, stats)
 }

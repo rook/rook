@@ -149,6 +149,17 @@ func TestFilesystemRemove(t *testing.T) {
 		}
 		return "", fmt.Errorf("unexpected ceph command '%v'", args)
 	}
+	executor.MockExecuteCommandWithOutput = func(debug bool, actionName string, command string, args ...string) (string, error) {
+		emptyPool := "{\"images\":{\"count\":0,\"provisioned_bytes\":0,\"snap_count\":0},\"trash\":{\"count\":1,\"provisioned_bytes\":2048,\"snap_count\":0}}"
+
+		if args[0] == "pool" {
+			if args[1] == "stats" {
+				return emptyPool, nil
+			}
+		}
+		return "", fmt.Errorf("unexpected rbd command '%v'", args)
+	}
+
 	err := RemoveFilesystem(context, "ns", fs.MDSMap.FilesystemName)
 	assert.Nil(t, err)
 	assert.True(t, metadataDeleted)

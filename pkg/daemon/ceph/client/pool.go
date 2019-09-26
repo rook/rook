@@ -21,10 +21,9 @@ import (
 	"strconv"
 	"strings"
 
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/model"
-
-	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 )
 
 const (
@@ -63,6 +62,19 @@ type CephStoragePoolStats struct {
 			WriteBytes   float64 `json:"wr_bytes"`
 		} `json:"stats"`
 	} `json:"pools"`
+}
+
+type PoolStatistics struct {
+	Images struct {
+		Count            int `json:"count"`
+		ProvisionedBytes int `json:"provisioned_bytes"`
+		SnapCount        int `json:"snap_count"`
+	} `json:"images"`
+	Trash struct {
+		Count            int `json:"count"`
+		ProvisionedBytes int `json:"provisioned_bytes"`
+		SnapCount        int `json:"snap_count"`
+	} `json:"trash"`
 }
 
 func ListPoolSummaries(context *clusterd.Context, clusterName string) ([]CephStoragePoolSummary, error) {
@@ -152,6 +164,25 @@ func CreatePoolWithProfile(context *clusterd.Context, clusterName string, newPoo
 	)
 }
 
+func checkForImagesInPool(context *clusterd.Context, name, namespace string) error {
+	var err error
+	var stats = new(PoolStatistics)
+	logger.Infof("checking any images/snapshosts present in pool %s", name)
+	stats, err = GetPoolStatistics(context, name, namespace)
+	if err != nil {
+		if strings.Contains(err.Error(), "No such file or directory") {
+			return nil
+		}
+		return fmt.Errorf("failed to list images/snapshosts in pool %s. %+v", name, err)
+	}
+	if stats.Images.Count == 0 && stats.Images.SnapCount == 0 {
+		logger.Infof("no images/snapshosts present in pool %s", name)
+		return nil
+	}
+
+	return fmt.Errorf("pool %s contains images/snapshosts", name)
+}
+
 func DeletePool(context *clusterd.Context, clusterName string, name string) error {
 	// check if the pool exists
 	pool, err := GetPoolDetails(context, clusterName, name)
@@ -160,6 +191,10 @@ func DeletePool(context *clusterd.Context, clusterName string, name string) erro
 		return nil
 	}
 
+	err = checkForImagesInPool(context, name, clusterName)
+	if err != nil {
+		return fmt.Errorf("failed to delete pool %s. %+v", name, err)
+	}
 	logger.Infof("purging pool %s (id=%d)", name, pool.Number)
 	args := []string{"osd", "pool", "delete", name, name, reallyConfirmFlag}
 	_, err = NewCephCommand(context, clusterName, args).Run()
@@ -287,6 +322,23 @@ func GetPoolStats(context *clusterd.Context, clusterName string) (*CephStoragePo
 	}
 
 	var poolStats CephStoragePoolStats
+	if err := json.Unmarshal(buf, &poolStats); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal pool stats response: %+v", err)
+	}
+
+	return &poolStats, nil
+}
+
+func GetPoolStatistics(context *clusterd.Context, name, clusterName string) (*PoolStatistics, error) {
+	args := []string{"pool", "stats", name}
+	cmd := NewRBDCommand(context, clusterName, args)
+	cmd.JsonOutput = true
+	buf, err := cmd.Run()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get pool stats: %+v", err)
+	}
+
+	var poolStats PoolStatistics
 	if err := json.Unmarshal(buf, &poolStats); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal pool stats response: %+v", err)
 	}

@@ -143,7 +143,6 @@ func (c *PoolController) onDelete(obj interface{}) {
 		logger.Errorf("failed to get pool object: %+v", err)
 		return
 	}
-
 	if err := deletePool(c.context, pool); err != nil {
 		logger.Errorf("failed to delete pool %s. %+v", pool.ObjectMeta.Name, err)
 	}
