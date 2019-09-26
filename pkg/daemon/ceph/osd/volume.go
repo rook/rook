@@ -58,7 +58,7 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 	var err error
 	if len(devices.Entries) == 0 {
 		logger.Infof("no new devices to configure. returning devices already configured with ceph-volume.")
-		osds, err = getCephVolumeOSDs(context, a.cluster.Name, a.cluster.FSID, lv)
+		osds, err = getCephVolumeOSDs(context, a.cluster.Name, a.cluster.FSID, lv, false)
 		if err != nil {
 			logger.Infof("failed to get devices already provisioned by ceph-volume. %+v", err)
 		}
@@ -83,7 +83,7 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 		}
 	}
 
-	osds, err = getCephVolumeOSDs(context, a.cluster.Name, a.cluster.FSID, lv)
+	osds, err = getCephVolumeOSDs(context, a.cluster.Name, a.cluster.FSID, lv, false)
 	return osds, err
 }
 
@@ -378,7 +378,7 @@ func getCephVolumeSupported(context *clusterd.Context) (bool, error) {
 	return true, nil
 }
 
-func getCephVolumeOSDs(context *clusterd.Context, clusterName string, cephfsid string, lv string) ([]oposd.OSDInfo, error) {
+func getCephVolumeOSDs(context *clusterd.Context, clusterName string, cephfsid string, lv string, skipLVRelease bool) ([]oposd.OSDInfo, error) {
 
 	result, err := context.Executor.ExecuteCommandWithCombinedOutput(false, "", cephVolumeCmd, "lvm", "list", lv, "--format", "json")
 	if err != nil {
@@ -428,6 +428,7 @@ func getCephVolumeOSDs(context *clusterd.Context, clusterName string, cephfsid s
 			CephVolumeInitiated: true,
 			IsFileStore:         isFilestore,
 			LVPath:              lv,
+			SkipLVRelease:       skipLVRelease,
 		}
 		osds = append(osds, osd)
 	}
