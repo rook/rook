@@ -436,7 +436,9 @@ MDS, and RGW daemons as an `/etc/ceph/ceph.conf` file.
 **WARNING:** Rook performs no validation on the config, so the  validity of the settings is the
 user's responsibility.
 
-Each daemon will need to be restarted where you want the settings applied:
+If the `rook-config-override` ConfigMap is created before the cluster is started, the Ceph daemons
+will automatically pick up the settings. If you add the settings to the ConfigMap after the cluster
+has been initialized, each daemon will need to be restarted where you want the settings applied:
 
 - mons: ensure all three mons are online and healthy before restarting each mon pod, one at a time.
 - mgrs: the pods are stateless and can be restarted as needed, but note that this will disrupt the
