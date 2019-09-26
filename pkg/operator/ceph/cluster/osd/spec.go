@@ -239,8 +239,6 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 			"--",
 			"--foreground",
 			"--id", osdID,
-			"--osd-uuid", osd.UUID,
-			"--conf", osd.Config,
 			"--cluster", "ceph",
 			"--setuser", "ceph",
 			"--setgroup", "ceph",
