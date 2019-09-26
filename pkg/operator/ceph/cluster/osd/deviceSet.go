@@ -23,7 +23,6 @@ import (
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
 func (c *Cluster) prepareStorageClassDeviceSets(config *provisionConfig) []rookalpha.VolumeSource {
@@ -80,27 +79,6 @@ func (c *Cluster) createStorageClassDeviceSetPVC(storageClassDeviceSet rookalpha
 	}
 	// More than one PVC exists with same labelSelector
 	return nil, fmt.Errorf("more than one PVCs exists with label %v, pvcs %+v", pvcStorageClassDeviceSetPVCIdLabelSelector, presentPVCs)
-}
-
-// GetValidVolumeSources returns all volumes that has an OSDDeployment
-func GetValidVolumeSources(clientset kubernetes.Interface, namespace string, volumeSources []rookalpha.VolumeSource) (validVolumes []rookalpha.VolumeSource, err error) {
-	if clientset == nil {
-		return validVolumes, fmt.Errorf("nil clientset received")
-	}
-	for _, vol := range volumeSources {
-		osdDeployments, err := clientset.AppsV1().Deployments(namespace).List(metav1.ListOptions{LabelSelector: OSDOverPVCLabelKey + "=" + vol.PersistentVolumeClaimSource.ClaimName})
-		if err != nil {
-			return validVolumes, err
-		}
-		osdPrepareJob, err := clientset.BatchV1().Jobs(namespace).List(metav1.ListOptions{LabelSelector: OSDOverPVCLabelKey + "=" + vol.PersistentVolumeClaimSource.ClaimName})
-		if err != nil {
-			return validVolumes, err
-		}
-		if len(osdDeployments.Items) == 0 && len(osdPrepareJob.Items) == 0 {
-			validVolumes = append(validVolumes, vol)
-		}
-	}
-	return
 }
 
 func makeStorageClassDeviceSetPVC(storageClassDeviceSetName, pvcStorageClassDeviceSetPVCId string, pvcIndex, setIndex int, pvcTemplate v1.PersistentVolumeClaim) (pvcs *v1.PersistentVolumeClaim) {

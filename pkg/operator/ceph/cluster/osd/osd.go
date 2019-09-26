@@ -138,7 +138,8 @@ type OSDInfo struct {
 	DevicePartUUID      string `json:"device-part-uuid"`
 	CephVolumeInitiated bool   `json:"ceph-volume-initiated"`
 	//LVPath is the logical Volume path for an OSD created by Ceph-volume with format '/dev/<Volume Group>/<Logical Volume>'
-	LVPath string `json:"lv-path"`
+	LVPath        string `json:"lv-path"`
+	SkipLVRelease bool   `json:"skip-lv-release"`
 }
 
 type OrchestrationStatus struct {
@@ -227,21 +228,13 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig) {
 	// Parsing storageClassDeviceSets and parsing it to volume sources
 	c.DesiredStorage.VolumeSources = append(c.DesiredStorage.VolumeSources, c.prepareStorageClassDeviceSets(config)...)
 
-	// Filtering out valid volume sources
-	validVolumeSources, err := GetValidVolumeSources(c.context.Clientset, c.Namespace, c.DesiredStorage.VolumeSources)
-	if err != nil {
-		config.addError(fmt.Sprintf("%v", err))
-		return
-	}
-	c.ValidStorage.VolumeSources = validVolumeSources
+	c.ValidStorage.VolumeSources = c.DesiredStorage.VolumeSources
 
 	// no validVolumeSource is ready to run an osd
 	if len(c.DesiredStorage.VolumeSources) == 0 && len(c.DesiredStorage.StorageClassDeviceSets) == 0 {
-		logger.Warningf("no volume sources specified for creating OSDs on PVCs.")
+		logger.Info("no volume sources defined to configure OSDs on PVCs.")
 		return
 	}
-
-	logger.Infof("%d of the %d volumeSources are valid", len(validVolumeSources), len(c.DesiredStorage.VolumeSources))
 
 	//check k8s version
 	k8sVersion, err := k8sutil.GetK8SVersion(c.context.Clientset)
