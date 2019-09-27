@@ -29,14 +29,18 @@ import (
 )
 
 type Param struct {
-	CSIPluginImage       string
-	RegistrarImage       string
-	ProvisionerImage     string
-	AttacherImage        string
-	SnapshotterImage     string
-	DriverNamePrefix     string
-	EnableCSIGRPCMetrics string
-	KubeletDirPath       string
+	CSIPluginImage            string
+	RegistrarImage            string
+	ProvisionerImage          string
+	AttacherImage             string
+	SnapshotterImage          string
+	DriverNamePrefix          string
+	EnableCSIGRPCMetrics      string
+	KubeletDirPath            string
+	CephFSGRPCMetricsPort     uint16
+	CephFSLivenessMetricsPort uint16
+	RBDGRPCMetricsPort        uint16
+	RBDLivenessMetricsPort    uint16
 }
 
 type templateParam struct {
@@ -101,6 +105,12 @@ const (
 	DefaultCephFSProvisionerSTSTemplatePath = "/etc/ceph-csi/cephfs/csi-cephfsplugin-provisioner-sts.yaml"
 	DefaultCephFSProvisionerDepTemplatePath = "/etc/ceph-csi/cephfs/csi-cephfsplugin-provisioner-dep.yaml"
 	DefaultCephFSPluginServiceTemplatePath  = "/etc/ceph-csi/cephfs/csi-cephfsplugin-svc.yaml"
+
+	// grpc metrics and liveness port for cephfs  and rbd
+	DefaultCephFSGRPCMerticsPort     uint16 = 9091
+	DefaultCephFSLivenessMerticsPort uint16 = 9081
+	DefaultRBDGRPCMerticsPort        uint16 = 9090
+	DefaultRBDLivenessMerticsPort    uint16 = 9080
 )
 
 func CSIEnabled() bool {
@@ -172,6 +182,13 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 	RBDDriverName = tp.DriverNamePrefix + "rbd.csi.ceph.com"
 
 	tp.EnableCSIGRPCMetrics = fmt.Sprintf("%t", EnableCSIGRPCMetrics)
+
+	// parse GRPC and Liveness ports
+	tp.CephFSGRPCMetricsPort = getPortFromENV("CSI_CEPHFS_GRPC_METRICS_PORT", DefaultCephFSGRPCMerticsPort)
+	tp.CephFSLivenessMetricsPort = getPortFromENV("CSI_CEPHFS_LIVENESS_METRICS_PORT", DefaultCephFSLivenessMerticsPort)
+
+	tp.RBDGRPCMetricsPort = getPortFromENV("CSI_RBD_GRPC_METRICS_PORT", DefaultRBDGRPCMerticsPort)
+	tp.RBDLivenessMetricsPort = getPortFromENV("CSI_RBD_LIVENESS_METRICS_PORT", DefaultRBDLivenessMerticsPort)
 
 	if ver.Minor < provDeploymentSuppVersion {
 		deployProvSTS = true
