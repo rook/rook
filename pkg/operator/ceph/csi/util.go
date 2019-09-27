@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strconv"
+	"strings"
 	"text/template"
 
 	k8sutil "github.com/rook/rook/pkg/operator/k8sutil"
@@ -153,4 +155,21 @@ func applyToPodSpec(pod *corev1.PodSpec, n *corev1.NodeAffinity, t []corev1.Tole
 	pod.Affinity = &corev1.Affinity{
 		NodeAffinity: n,
 	}
+}
+
+func getPortFromENV(env string, defaultPort uint16) uint16 {
+	port := os.Getenv(env)
+	if strings.TrimSpace(port) == "" {
+		return defaultPort
+	}
+	p, err := strconv.ParseUint(port, 10, 64)
+	if err != nil {
+		logger.Debugf("failed to parse port value for env %s. using default port %d. %+v", env, defaultPort, err)
+		return defaultPort
+	}
+	if p > 65535 {
+		logger.Debugf("%s port value is greater than 65535. using default port %d for %s", port, defaultPort, env)
+		return defaultPort
+	}
+	return uint16(p)
 }
