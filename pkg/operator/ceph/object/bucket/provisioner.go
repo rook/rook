@@ -155,6 +155,7 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 		WithSID(p.cephUserName).
 		ForPrincipals(p.cephUserName).
 		ForResources(p.bucketName).
+		ForSubResources(p.bucketName).
 		Allows().
 		Actions(AllowedActions...)
 	if policy == nil {
