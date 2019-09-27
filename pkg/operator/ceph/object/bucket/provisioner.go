@@ -256,12 +256,6 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 		logger.Infof("principal %q ejected from bucket %q policy. Output: %v", p.cephUserName, p.bucketName, output)
 	}
 
-	// unlink user from bucket
-	_, _, err = cephObject.UnlinkUser(p.objectContext, p.cephUserName, p.bucketName)
-	if err != nil {
-		return err
-	}
-
 	// finally, delete unlinked user
 	err = p.deleteCephUser(p.cephUserName)
 	if err != nil {
