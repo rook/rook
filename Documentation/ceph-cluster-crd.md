@@ -43,6 +43,7 @@ spec:
 
 ## PVC-based Cluster
 
+**NOTE** Kubernetes version 1.13.0 or greater is required to provision OSDs on PVCs.
 ```yaml
 apiVersion: ceph.rook.io/v1
 kind: CephCluster
