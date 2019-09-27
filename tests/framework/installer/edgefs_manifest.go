@@ -155,7 +155,7 @@ subjects:
   namespace: ` + namespace + `
 ---
 # The deployment for the rook operator
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: rook-edgefs-operator
@@ -165,6 +165,9 @@ metadata:
     storage-backend: edgefs
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: rook-edgefs-operator
   template:
     metadata:
       labels:

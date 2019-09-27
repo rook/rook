@@ -17,7 +17,10 @@ limitations under the License.
 package installer
 
 import (
+	"bytes"
 	"fmt"
+	"net/http"
+	"strings"
 
 	"github.com/rook/rook/tests/framework/utils"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -44,9 +47,11 @@ func InstallHostPathProvisioner(k8shelper *utils.K8sHelper) error {
 		return fmt.Errorf("failed to create hostpath provisioner RBAC: %+v. %s", err, out)
 	}
 
-	deploymentResourceURL := fmt.Sprintf(hostPathProvisionerResourceBaseURL, hostPathProvisionerDeployment)
-	args = append(createArgs, deploymentResourceURL)
-	out, err = k8shelper.Kubectl(args...)
+	deployment, err := getHostPathProvisionerDeployment()
+	if err != nil {
+		return err
+	}
+	out, err = k8shelper.KubectlWithStdin(deployment, createFromStdinArgs...)
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return fmt.Errorf("failed to create hostpath provisioner deployment: %+v. %s", err, out)
 	}
@@ -86,9 +91,11 @@ func UninstallHostPathProvisioner(k8shelper *utils.K8sHelper) error {
 		return fmt.Errorf("failed to delete hostpath provisioner StorageClass: %+v. %s", err, out)
 	}
 
-	deploymentResourceURL := fmt.Sprintf(hostPathProvisionerResourceBaseURL, hostPathProvisionerDeployment)
-	args = append(deleteArgs, deploymentResourceURL)
-	out, err = k8shelper.Kubectl(args...)
+	deployment, err := getHostPathProvisionerDeployment()
+	if err != nil {
+		return err
+	}
+	out, err = k8shelper.KubectlWithStdin(deployment, deleteFromStdinArgs...)
 	if err != nil && !utils.IsKubectlErrorNotFound(out, err) {
 		return fmt.Errorf("failed to delete hostpath provisioner deployment: %+v. %s", err, out)
 	}
@@ -101,4 +108,22 @@ func UninstallHostPathProvisioner(k8shelper *utils.K8sHelper) error {
 	}
 
 	return nil
+}
+
+func getHostPathProvisionerDeployment() (string, error) {
+	// The hostpath provisioner project is readonly so we can't submit a PR.
+	// Until we replace this completely, we'll just replace the necessary string.
+	deploymentResourceURL := fmt.Sprintf(hostPathProvisionerResourceBaseURL, hostPathProvisionerDeployment)
+	response, err := http.Get(deploymentResourceURL)
+	if err != nil {
+		return "", fmt.Errorf("failed to get hostpath provisioner deployment. %+v", err)
+	}
+	defer response.Body.Close()
+	buf := new(bytes.Buffer)
+	_, err = buf.ReadFrom(response.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read hostpath provisioner deployment. %+v", err)
+	}
+	// K8s 1.16 requires apps/v1
+	return strings.Replace(buf.String(), "apiVersion: extensions/v1beta1", "apiVersion: apps/v1", 1), nil
 }
