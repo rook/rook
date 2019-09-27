@@ -342,7 +342,7 @@ func TestNodeIsInRookList(t *testing.T) {
 	assert.True(t, NodeIsInRookNodeList("node0-hostname", rookNodes))
 }
 
-func TestAddNodeAffinity(t *testing.T) {
+func TestGenerateNodeAffinity(t *testing.T) {
 	type args struct {
 		nodeAffinity string
 	}
@@ -353,7 +353,7 @@ func TestAddNodeAffinity(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "AddNodeAffinity",
+			name: "GenerateNodeAffinity",
 			args: args{
 				nodeAffinity: "rook.io/ceph=true",
 			},
@@ -375,7 +375,7 @@ func TestAddNodeAffinity(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "FailAddNodeAffinity",
+			name: "FailGenerateNodeAffinity",
 			args: args{
 				nodeAffinity: "rook.io/ceph,minio=true",
 			},
@@ -383,7 +383,7 @@ func TestAddNodeAffinity(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "AddNodeAffinityWithKeyOnly",
+			name: "GenerateNodeAffinityWithKeyOnly",
 			args: args{
 				nodeAffinity: "rook.io/ceph",
 			},
@@ -406,13 +406,13 @@ func TestAddNodeAffinity(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := AddNodeAffinity(tt.args.nodeAffinity)
+			got, err := GenerateNodeAffinity(tt.args.nodeAffinity)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("AddNodeAffinity() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("GenerateNodeAffinity() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("AddNodeAffinity() = %v, want %v", got, tt.want)
+				t.Errorf("GenerateNodeAffinity() = %v, want %v", got, tt.want)
 			}
 		})
 	}

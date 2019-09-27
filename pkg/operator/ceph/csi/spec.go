@@ -82,6 +82,12 @@ const (
 	DefaultAttacherImage    = "quay.io/k8scsi/csi-attacher:v1.2.0"
 	DefaultSnapshotterImage = "quay.io/k8scsi/csi-snapshotter:v1.2.0"
 
+	// toleration and node affinity
+	provisionerTolerationsEnv  = "CSI_PROVISIONER_TOLERATIONS"
+	provisionerNodeAffinityEnv = "CSI_PROVISIONER_NODE_AFFINITY"
+	pluginTolerationsEnv       = "CSI_PLUGIN_TOLERATIONS"
+	pluginNodeAffinityEnv      = "CSI_PLUGIN_NODE_AFFINITY"
+
 	// kubelet directory path
 	DefaultKubeletDirPath = "/var/lib/kubelet"
 
@@ -213,19 +219,28 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 			return fmt.Errorf("failed to load cephfs plugin service template: %+v", err)
 		}
 	}
-
+	// get provisioner toleration and node affinity
+	provisionerTolerations := getToleration(true)
+	provisionerNodeAffinity := getNodeAffinity(true)
+	// get plugin toleration and node affinity
+	pluginTolerations := getToleration(false)
+	pluginNodeAffinity := getNodeAffinity(false)
 	if rbdPlugin != nil {
+		applyToPodSpec(&rbdPlugin.Spec.Template.Spec, pluginNodeAffinity, pluginTolerations)
 		err = k8sutil.CreateDaemonSet("csi-rbdplugin", namespace, clientset, rbdPlugin)
 		if err != nil {
 			return fmt.Errorf("failed to start rbdplugin daemonset: %+v\n%+v", err, rbdPlugin)
 		}
 	}
+
 	if rbdProvisionerSTS != nil {
+		applyToPodSpec(&rbdProvisionerSTS.Spec.Template.Spec, provisionerNodeAffinity, provisionerTolerations)
 		err = k8sutil.CreateStatefulSet("csi-rbdplugin-provisioner", namespace, clientset, rbdProvisionerSTS)
 		if err != nil {
 			return fmt.Errorf("failed to start rbd provisioner statefulset: %+v\n%+v", err, rbdProvisionerSTS)
 		}
 	} else if rbdProvisionerDeployment != nil {
+		applyToPodSpec(&rbdProvisionerDeployment.Spec.Template.Spec, provisionerNodeAffinity, provisionerTolerations)
 		err = k8sutil.CreateDeployment("csi-rbdplugin-provisioner", namespace, clientset, rbdProvisionerDeployment)
 		if err != nil {
 			return fmt.Errorf("failed to start rbd provisioner deployment: %+v\n%+v", err, rbdProvisionerDeployment)
@@ -240,6 +255,7 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 	}
 
 	if cephfsPlugin != nil {
+		applyToPodSpec(&cephfsPlugin.Spec.Template.Spec, pluginNodeAffinity, pluginTolerations)
 		err = k8sutil.CreateDaemonSet("csi-cephfsplugin", namespace, clientset, cephfsPlugin)
 		if err != nil {
 			return fmt.Errorf("failed to start cephfs plugin daemonset: %+v\n%+v", err, cephfsPlugin)
@@ -247,12 +263,14 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 	}
 
 	if cephfsProvisionerSTS != nil {
+		applyToPodSpec(&cephfsProvisionerSTS.Spec.Template.Spec, provisionerNodeAffinity, provisionerTolerations)
 		err = k8sutil.CreateStatefulSet("csi-cephfsplugin-provisioner", namespace, clientset, cephfsProvisionerSTS)
 		if err != nil {
 			return fmt.Errorf("failed to start cephfs provisioner statefulset: %+v\n%+v", err, cephfsProvisionerSTS)
 		}
 
 	} else if cephfsProvisionerDeployment != nil {
+		applyToPodSpec(&cephfsProvisionerDeployment.Spec.Template.Spec, provisionerNodeAffinity, provisionerTolerations)
 		err = k8sutil.CreateDeployment("csi-cephfsplugin-provisioner", namespace, clientset, cephfsProvisionerDeployment)
 		if err != nil {
 			return fmt.Errorf("failed to start cephfs provisioner deployment: %+v\n%+v", err, cephfsProvisionerDeployment)
