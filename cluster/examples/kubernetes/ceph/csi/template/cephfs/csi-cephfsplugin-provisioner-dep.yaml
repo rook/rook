@@ -64,7 +64,7 @@ spec:
             - "--drivername={{ .DriverNamePrefix }}cephfs.csi.ceph.com"
             - "--metadatastorage=k8s_configmap"
             - "--pidlimit=-1"
-            - "--metricsport=9091"
+            - "--metricsport={{ .CephFSGRPCMetricsPort }}"
             - "--metricspath=/metrics"
             - "--enablegrpcmetrics={{ .EnableCSIGRPCMetrics }}"
           env:
@@ -102,7 +102,7 @@ spec:
           args:
             - "--type=liveness"
             - "--endpoint=$(CSI_ENDPOINT)"
-            - "--metricsport=9081"
+            - "--metricsport={{ .CephFSLivenessMetricsPort }}"
             - "--metricspath=/metrics"
             - "--polltime=60s"
             - "--timeout=3s"
