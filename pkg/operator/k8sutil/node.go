@@ -306,8 +306,8 @@ func NodeIsInRookNodeList(targetNodeName string, rookNodes []rookalpha.Node) boo
 	return false
 }
 
-// AddNodeAffinity will return v1.NodeAffinity or error
-func AddNodeAffinity(nodeAffinity string) (*v1.NodeAffinity, error) {
+// GenerateNodeAffinity will return v1.NodeAffinity or error
+func GenerateNodeAffinity(nodeAffinity string) (*v1.NodeAffinity, error) {
 	newNodeAffinity := &v1.NodeAffinity{
 		RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
 			NodeSelectorTerms: []v1.NodeSelectorTerm{

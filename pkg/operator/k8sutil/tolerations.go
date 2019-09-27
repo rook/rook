@@ -37,7 +37,7 @@ func YamlToTolerations(raw string) ([]v1.Toleration, error) {
 
 	err = json.Unmarshal(rawJSON, &tolerations)
 	if err != nil {
-		return tolerations, err
+		return []v1.Toleration{}, err
 	}
 
 	return tolerations, nil

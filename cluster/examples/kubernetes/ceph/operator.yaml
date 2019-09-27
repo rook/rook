@@ -184,6 +184,32 @@ spec:
         # kubelet directory path, if kubelet configured to use other than /var/lib/kubelet path.
         #- name: ROOK_CSI_KUBELET_DIR_PATH
         #  value: "/var/lib/kubelet"
+        # (Optional) Ceph Provisioner NodeAffinity.
+        # - name: CSI_PROVISIONER_NODE_AFFINITY
+        #   value: "role=storage-node; storage=rook, ceph"
+        # (Optional) CEPH CSI provisioner tolerations list. Put here list of taints you want to tolerate in YAML format.
+        #  CSI provisioner would be best to start on the same nodes as other ceph daemons.
+        # - name: CSI_PROVISIONER_TOLERATIONS
+        #   value: |
+        #     - effect: NoSchedule
+        #       key: node-role.kubernetes.io/controlplane
+        #       operator: Exists
+        #     - effect: NoExecute
+        #       key: node-role.kubernetes.io/etcd
+        #       operator: Exists
+        # (Optional) Ceph CSI plugin NodeAffinity.
+        # - name: CSI_PLUGIN_NODE_AFFINITY
+        #   value: "role=storage-node; storage=rook, ceph"
+        # (Optional) CEPH CSI plugin tolerations list. Put here list of taints you want to tolerate in YAML format.
+        # CSI plugins need to be started on all the nodes where the clients need to mount the storage.
+        # - name: CSI_PLUGIN_TOLERATIONS
+        #   value: |
+        #     - effect: NoSchedule
+        #       key: node-role.kubernetes.io/controlplane
+        #       operator: Exists
+        #     - effect: NoExecute
+        #       key: node-role.kubernetes.io/etcd
+        #       operator: Exists
         # The name of the node to pass with the downward API
         - name: NODE_NAME
           valueFrom:
