@@ -74,17 +74,23 @@ var (
 	ConfigKey  = "csi-cluster-config-json"
 )
 
-const (
-	KubeMinMajor              = "1"
-	KubeMinMinor              = "13"
-	provDeploymentSuppVersion = "14"
-
+// Specify default images as var instead of const so that they can be overridden with the Go
+// linker's -X flag. This allows users to easily build images with a different opinionated set of
+// images without having to specify them manually in charts/manifests which can make upgrades more
+// manually challenging.
+var (
 	// image names
 	DefaultCSIPluginImage   = "quay.io/cephcsi/cephcsi:v1.2.1"
 	DefaultRegistrarImage   = "quay.io/k8scsi/csi-node-driver-registrar:v1.1.0"
 	DefaultProvisionerImage = "quay.io/k8scsi/csi-provisioner:v1.3.0"
 	DefaultAttacherImage    = "quay.io/k8scsi/csi-attacher:v1.2.0"
 	DefaultSnapshotterImage = "quay.io/k8scsi/csi-snapshotter:v1.2.0"
+)
+
+const (
+	KubeMinMajor              = "1"
+	KubeMinMinor              = "13"
+	provDeploymentSuppVersion = "14"
 
 	// toleration and node affinity
 	provisionerTolerationsEnv  = "CSI_PROVISIONER_TOLERATIONS"
