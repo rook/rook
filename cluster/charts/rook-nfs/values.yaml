@@ -5,7 +5,7 @@
 image:
   prefix: rook
   repository: rook/nfs
-  tag: %%VERSION%%
+  tag: VERSION
   pullPolicy: IfNotPresent
 
 hyperkube:
