@@ -49,11 +49,10 @@ func (c *Cluster) configureOrchestratorModules() error {
 	// retry a few times in the case that the mgr module is not ready to accept commands
 	_, err := client.ExecuteCephCommandWithRetry(func() ([]byte, error) {
 		args := []string{"orchestrator", "set", "backend", "rook"}
-		return client.NewCephCommand(c.context, c.Namespace, args).Run()
+		return client.NewCephCommand(c.context, c.Namespace, args).RunWithTimeout(client.CmdExecuteTimeout)
 	}, c.exitCode, 5, invalidArgErrorCode, orchestratorInitWaitTime)
 	if err != nil {
 		return fmt.Errorf("failed to set rook as the orchestrator backend. %+v", err)
-
 	}
 
 	return nil
