@@ -23,6 +23,7 @@ spec:
     allowMultiplePerNode: true
   dashboard:
     enabled: true
+    ssl: true
   monitoring:
     enabled: false  # requires Prometheus to be pre-installed
     rulesNamespace: rook-ceph
