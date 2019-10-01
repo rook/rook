@@ -134,6 +134,22 @@ spec:
           value: {{ .Values.csi.attacher.image | quote }}
 {{- end }}
 {{- end }}
+{{- if .Values.csi.provisionerTolerations }}
+        - name: CSI_PROVISIONER_TOLERATIONS
+          value: {{ toYaml .Values.csi.provisionerTolerations | quote }}
+{{- end }}
+{{- if .Values.csi.provisionerNodeAffinity }}
+        - name: CSI_PROVISIONER_NODE_AFFINITY
+          value: {{ .Values.csi.provisionerNodeAffinity }}
+{{- end }}
+{{- if .Values.csi.pluginTolerations }}
+        - name: CSI_PLUGIN_TOLERATIONS
+          value: {{ toYaml .Values.csi.pluginTolerations | quote }}
+{{- end }}
+{{- if .Values.csi.pluginNodeAffinity }}
+        - name: CSI_PLUGIN_NODE_AFFINITY
+          value: {{ .Values.csi.pluginNodeAffinity }}
+{{- end }}
 {{- end }}
         - name: ROOK_ENABLE_FLEX_DRIVER
           value: "{{ .Values.enableFlexDriver }}"

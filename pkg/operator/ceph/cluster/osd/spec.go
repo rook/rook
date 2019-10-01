@@ -157,6 +157,12 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 		{Name: "ROOK_OSD_UUID", Value: osd.UUID},
 		{Name: "ROOK_OSD_ID", Value: osdID},
 		{Name: "ROOK_OSD_STORE_TYPE", Value: storeType},
+		{Name: "ROOK_CEPH_MON_HOST",
+			ValueFrom: &v1.EnvVarSource{
+				SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{
+					Name: "rook-ceph-config"},
+					Key: "mon_host"}}},
+		{Name: "CEPH_ARGS", Value: "-m $(ROOK_CEPH_MON_HOST)"},
 	}...)
 	configEnvVars := append(c.getConfigEnvVars(osdProps.storeConfig, dataDir, osdProps.crushHostname, osdProps.location), []v1.EnvVar{
 		tiniEnvVar,
@@ -166,11 +172,6 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 
 	if !osd.IsDirectory {
 		configEnvVars = append(configEnvVars, v1.EnvVar{Name: "ROOK_IS_DEVICE", Value: "true"})
-	}
-
-	// Activate verbose mode for ceph-volume on prepare
-	if osd.CephVolumeInitiated {
-		configEnvVars = append(configEnvVars, v1.EnvVar{Name: "CEPH_VOLUME_DEBUG", Value: "1"})
 	}
 
 	// default args when the ceph cluster isn't initialized
@@ -238,8 +239,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 			"--",
 			"--foreground",
 			"--id", osdID,
-			"--osd-uuid", osd.UUID,
-			"--conf", osd.Config,
+			"--fsid", c.clusterInfo.FSID,
 			"--cluster", "ceph",
 			"--setuser", "ceph",
 			"--setgroup", "ceph",
@@ -522,6 +522,7 @@ func (c *Cluster) getConfigEnvVars(storeConfig config.StoreConfig, dataDir, node
 				Key:                  "fsid",
 			},
 		}},
+		{Name: "CEPH_VOLUME_DEBUG", Value: "1"},
 		k8sutil.NodeEnvVar(),
 	}
 	// pass on the topologyAware flag to the provion pod so that portable OSDs can reconcile zone/region

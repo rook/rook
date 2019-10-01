@@ -149,7 +149,16 @@ func startOSD(cmd *cobra.Command, args []string) error {
 	commonOSDInit(osdStartCmd)
 
 	context := createContext()
-	err := osddaemon.StartOSD(context, osdStoreType, osdStringID, osdUUID, lvPath, pvcBackedOSD, args)
+
+	// Get crush location
+	crushLocation, err := getLocation(context.Clientset, cfg.location, cfg.topologyAware)
+	if err != nil {
+		rook.TerminateFatal(err)
+	}
+	args = append(args, fmt.Sprintf("--crush-location=%s", crushLocation))
+
+	// Run OSD start sequence
+	err = osddaemon.StartOSD(context, osdStoreType, osdStringID, osdUUID, lvPath, pvcBackedOSD, args)
 	if err != nil {
 		rook.TerminateFatal(err)
 	}
@@ -317,7 +326,7 @@ func getNode(clientset kubernetes.Interface, nodeName string) (*corev1.Node, err
 		listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", corev1.LabelHostname, nodeName)}
 		nodeList, err := clientset.CoreV1().Nodes().List(listOpts)
 		if err != nil || len(nodeList.Items) < 1 {
-			return nil, fmt.Errorf("could not find node '%s'hostname label: %+v", nodeName, err)
+			return nil, fmt.Errorf("could not find node '%s' hostname label: %+v", nodeName, err)
 		}
 		return &nodeList.Items[0], nil
 	} else if err != nil {
