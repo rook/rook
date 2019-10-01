@@ -293,7 +293,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 	}
 
 	// Notify the child controllers that the cluster spec might have changed
-	logger.Debug("notifying CR childs of the potential upgrade")
+	logger.Debug("notifying CR child of the potential upgrade")
 	for _, child := range c.childControllers {
 		child.ParentClusterChanged(*c.Spec, c.Info, c.isUpgrade)
 	}
@@ -362,12 +362,12 @@ func (c *cluster) checkSetOrchestrationStatus() bool {
 func diffImageSpecAndClusterRunningVersion(imageSpecVersion cephver.CephVersion, runningVersions client.CephDaemonsVersions) (bool, error) {
 	numberOfCephVersions := len(runningVersions.Overall)
 	if numberOfCephVersions == 0 {
-		// let's return immediatly
+		// let's return immediately
 		return false, fmt.Errorf("no 'overall' section in the ceph versions. %+v", runningVersions.Overall)
 	}
 
 	if numberOfCephVersions > 1 {
-		// let's return immediatly
+		// let's return immediately
 		logger.Warningf("it looks like we have more than one ceph version running. triggering upgrade. %+v:", runningVersions.Overall)
 		return true, nil
 	}
