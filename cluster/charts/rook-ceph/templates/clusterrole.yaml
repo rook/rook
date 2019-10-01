@@ -267,7 +267,6 @@ rules:
   - "*"
   resources:
   - "*"
-{{- if ((.Values.agent) and .Values.agent.mountSecurityMode) and ne .Values.agent.mountSecurityMode "Any" }}
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
@@ -281,6 +280,7 @@ rules:
   verbs:
   - get
   - list
+{{- if ((.Values.agent) and .Values.agent.mountSecurityMode) and ne .Values.agent.mountSecurityMode "Any" }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
