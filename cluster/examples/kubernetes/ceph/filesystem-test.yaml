@@ -16,6 +16,7 @@ spec:
     - failureDomain: osd
       replicated:
         size: 1
+  preservePoolsOnDelete: false
   metadataServer:
     activeCount: 1
     activeStandby: true

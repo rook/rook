@@ -46,6 +46,7 @@ spec:
   dataPools:
     - replicated:
         size: 3
+  preservePoolsOnDelete: true
   metadataServer:
     activeCount: 1
     activeStandby: true
@@ -219,10 +220,12 @@ To clean up all the artifacts created by the file system demo:
 kubectl delete -f kube-registry.yaml
 ```
 
-To delete the filesystem components and backing data, delete the Filesystem CRD. **Warning: Data will be deleted**
+To delete the filesystem components and backing data, delete the Filesystem CRD. **Warning: Data will be deleted if preservePoolsOnDelete=false**
 ```
 kubectl -n rook-ceph delete cephfilesystem myfs
 ```
+
+Note: If the "preservePoolsOnDelete" filesystem attribute is set to true, the above command won't delete the pools. Creating again the filesystem with the same CRD will reuse again the previous pools.
 
 ## Flex Driver
 

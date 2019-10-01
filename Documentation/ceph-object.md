@@ -20,7 +20,7 @@ The below sample will create a `CephObjectStore` that starts the RGW service in 
 
 The OSDs must be located on different nodes, because the [`failureDomain`](ceph-pool-crd.md#spec) is set to `host` and the `erasureCoded` chunk settings require at least 3 different OSDs (2 `dataChunks` + 1 `codingChunks`).
 
-See the [Object Store CRD](ceph-object-store-crd.md#object-store-settings), for more detail on the settings availabe for a `CephObjectStore`. 
+See the [Object Store CRD](ceph-object-store-crd.md#object-store-settings), for more detail on the settings available for a `CephObjectStore`.
 
 ```yaml
 apiVersion: ceph.rook.io/v1
@@ -38,6 +38,7 @@ spec:
     erasureCoded:
       dataChunks: 2
       codingChunks: 1
+  preservePoolsOnDelete: true
   gateway:
     type: s3
     sslCertificateRef:

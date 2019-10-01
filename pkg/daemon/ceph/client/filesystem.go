@@ -121,7 +121,7 @@ func AllowStandbyReplay(context *clusterd.Context, clusterName string, fsName st
 }
 
 // CreateFilesystem performs software configuration steps for Ceph to provide a new filesystem.
-func CreateFilesystem(context *clusterd.Context, clusterName, name, metadataPool string, dataPools []string) error {
+func CreateFilesystem(context *clusterd.Context, clusterName, name, metadataPool string, dataPools []string, force bool) error {
 	if len(dataPools) == 0 {
 		return fmt.Errorf("at least one data pool is required")
 	}
@@ -141,6 +141,11 @@ func CreateFilesystem(context *clusterd.Context, clusterName, name, metadataPool
 
 	// create the filesystem
 	args = []string{"fs", "new", name, metadataPool, dataPools[0]}
+	// Force to use pre-existing pools
+	if force {
+		args = append(args, "--force")
+		logger.Infof("Filesystem %s will reuse pre-existing pools", name)
+	}
 	_, err = NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
 		return fmt.Errorf("failed enabling ceph fs %s. %+v", name, err)
@@ -323,7 +328,7 @@ func FailFilesystem(context *clusterd.Context, clusterName, fsName string) error
 
 // RemoveFilesystem performs software configuration steps to remove a Ceph filesystem and its
 // backing pools.
-func RemoveFilesystem(context *clusterd.Context, clusterName, fsName string) error {
+func RemoveFilesystem(context *clusterd.Context, clusterName, fsName string, preservePoolsOnDelete bool) error {
 	fs, err := GetFilesystem(context, clusterName, fsName)
 	if err != nil {
 		return fmt.Errorf("filesystem %s not found. %+v", fsName, err)
@@ -335,10 +340,15 @@ func RemoveFilesystem(context *clusterd.Context, clusterName, fsName string) err
 		return fmt.Errorf("Failed to delete ceph fs %s. err=%+v", fsName, err)
 	}
 
-	err = deleteFSPools(context, clusterName, fs)
-	if err != nil {
-		return fmt.Errorf("failed to delete fs %s pools. %+v", fsName, err)
+	if !preservePoolsOnDelete {
+		err = deleteFSPools(context, clusterName, fs)
+		if err != nil {
+			return fmt.Errorf("failed to delete fs %s pools. %+v", fsName, err)
+		}
+	} else {
+		logger.Infof("PreservePoolsOnDelete is set in filesystem %s. Pools not deleted", fsName)
 	}
+
 	return nil
 }
 
@@ -348,8 +358,9 @@ func deleteFSPools(context *clusterd.Context, clusterName string, fs *CephFilesy
 		return fmt.Errorf("failed to get pool names. %+v", err)
 	}
 
+	var lastErr error = nil
+
 	// delete the metadata pool
-	var lastErr error
 	if err := deleteFSPool(context, clusterName, poolNames, fs.MDSMap.MetadataPool); err != nil {
 		lastErr = err
 	}
@@ -360,6 +371,7 @@ func deleteFSPools(context *clusterd.Context, clusterName string, fs *CephFilesy
 			lastErr = err
 		}
 	}
+
 	return lastErr
 }
 

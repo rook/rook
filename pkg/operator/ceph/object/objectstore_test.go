@@ -152,7 +152,7 @@ func deleteStore(t *testing.T, name string, existingStores string, expectedDelet
 	context := &Context{Context: &clusterd.Context{Executor: executor}, Name: "myobj", ClusterName: "ns"}
 
 	// Delete an object store
-	err := deleteRealmAndPools(context)
+	err := deleteRealmAndPools(context, false)
 	assert.Nil(t, err)
 	expectedPoolsDeleted := 5
 	if expectedDeleteRootPool {

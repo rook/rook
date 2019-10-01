@@ -15,6 +15,7 @@ spec:
   dataPool:
     replicated:
       size: 1
+  preservePoolsOnDelete: false
   gateway:
     type: s3
     port: 80
