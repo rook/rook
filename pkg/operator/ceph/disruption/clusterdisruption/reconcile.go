@@ -113,7 +113,7 @@ func (r *ReconcileClusterDisruption) reconcile(request reconcile.Request) (recon
 	}
 	//signal to the nodedrain controller to start
 	r.context.ReconcileCanaries.Update(true)
-	r.maintenanceTimeout = cephCluster.Spec.DisruptionManagement.OSDMaintenenceTimeout
+	r.maintenanceTimeout = cephCluster.Spec.DisruptionManagement.OSDMaintenanceTimeout
 	if r.maintenanceTimeout == 0 {
 		r.maintenanceTimeout = DefaultMaintenanceTimeout
 	}
