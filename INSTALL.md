@@ -192,3 +192,7 @@ it is recommended to run all test suites on all versions of K8s by using the tag
 ```
 [test full]
 ```
+
+### [test]
+
+If specified, the `[test]` flag will instruct the CI to run all storage providers integration tests.

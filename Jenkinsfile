@@ -18,8 +18,7 @@ pipeline {
             when { branch "PR-*" }
             steps {
                 script {
-                    pr_number = sh (script: "echo ${env.BRANCH_NAME} | grep -o -E '[0-9]+' ",returnStdout: true)
-                    def json = sh (script: "curl -s https://api.github.com/repos/rook/rook/pulls/${pr_number}", returnStdout: true).trim()
+                    def json = sh (script: "curl -s https://api.github.com/repos/rook/rook/pulls/${env.CHANGE_ID}", returnStdout: true).trim()
                     def draft = evaluateJson(json,'${json.draft}')
                     if (draft.contains("true")) {
                         echo ("This is a draft PR. Aborting")
@@ -27,14 +26,14 @@ pipeline {
                     }
                     def body = evaluateJson(json,'${json.body}')
                     if (body.contains("[skip ci]")) {
-                         echo ("'[skip ci]' spotted in PR body text. Aborting.")
-                         env.shouldBuild = "false"
+                        echo ("'[skip ci]' spotted in PR body text. Aborting.")
+                        env.shouldBuild = "false"
                     }
                     if (body.contains("[skip tests]")) {
-                         env.shouldTest = "false"
+                        env.shouldTest = "false"
                     }
                     if (body.contains("[all logs]")) {
-                          env.getLogs = "all"
+                        env.getLogs = "all"
                     }
 
                     // When running in a PR we assuming it's not an official build
@@ -45,6 +44,12 @@ pipeline {
                         // This only affects the PR builds. The master and release builds will always run the full matrix.
                         env.testArgs = "min-test-matrix"
                     }
+
+                    // Get changed files
+                    def json_changed_files = sh (script: "curl -s https://api.github.com/repos/rook/rook/pulls/${env.CHANGE_ID}/files", returnStdout: true).trim()
+                    def list = new groovy.json.JsonSlurper().parseText(json_changed_files)
+                    def changed_files = list.filename
+                     echo ("changed files are: ${changed_files}")
 
                     // extract which specific storage provider to test
                     if (body.contains("[test cassandra]")) {
@@ -59,7 +64,16 @@ pipeline {
                         env.testProvider = "nfs"
                     } else if (body.contains("[test yugabytedb]")) {
                         env.testProvider = "yugabytedb"
+                    } else if (body.contains("[test]")) {
+                        env.shouldBuild = "true"
+                    } else if (!changed_files.contains(".go") && (changed_files.contains(".md") || changed_files.contains(".yaml") || changed_files.contains(".txt"))) {
+                        echo ("Doc, yaml or text changes detected! Aborting.")
+                        env.shouldBuild = "false"
+                    } else if (!changed_files.contains(".go")) {
+                        echo ("No code changes detected! Just building.")
+                        env.shouldTest = "false"
                     }
+
                     echo ("integration test provider: ${env.testProvider}")
                 }
             }
