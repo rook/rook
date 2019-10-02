@@ -18,6 +18,7 @@ package mon
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -297,9 +298,12 @@ func removeMonitorFromQuorum(context *clusterd.Context, clusterName, name string
 }
 
 func (c *Cluster) handleExternalMonStatus(status client.MonStatusResponse) error {
-	_, err := cephspec.ValidateCephVersionsBetweenLocalAndExternalClusters(c.context, c.Namespace, c.ClusterInfo.CephVersion)
-	if err != nil {
-		return fmt.Errorf("failed to validate external ceph version. %+v", err)
+	// We don't need to validate Ceph version if no image is present
+	if c.spec.CephVersion.Image == "" {
+		_, err := cephspec.ValidateCephVersionsBetweenLocalAndExternalClusters(c.context, c.Namespace, c.ClusterInfo.CephVersion)
+		if err != nil {
+			return fmt.Errorf("failed to validate external ceph version. %+v", err)
+		}
 	}
 
 	changed, err := c.addOrRemoveExternalMonitor(status)
@@ -318,7 +322,6 @@ func (c *Cluster) handleExternalMonStatus(status client.MonStatusResponse) error
 }
 
 func (c *Cluster) addOrRemoveExternalMonitor(status client.MonStatusResponse) (bool, error) {
-	// func addOrRemoveExternalMonitor(status client.MonStatusResponse) (bool, error) {
 	var changed bool
 	// Populate a map with the current monitor from ClusterInfo
 	monsNotFound := map[string]interface{}{}
@@ -343,14 +346,11 @@ func (c *Cluster) addOrRemoveExternalMonitor(status client.MonStatusResponse) (b
 			// If the mon is part of the quorum
 			if inQuorum {
 				// let's add it to ClusterInfo
-				// Always pick the v1 endpoint, that's the easier thing to do since some people might not have activated msgr2
-				// We must run on at least Nautilus so we are 100% certain that will have a field mon.PublicAddrs.Addrvec with 'v1' in it
-				var endpoint string
-				for i := range mon.PublicAddrs.Addrvec {
-					if mon.PublicAddrs.Addrvec[i].Type == "v1" {
-						endpoint = mon.PublicAddrs.Addrvec[i].Addr
-					}
-				}
+				// FYI mon.PublicAddr is "10.97.171.131:6789/0"
+				// so we need to remove '/0'
+				endpointSlash := strings.Split(mon.PublicAddr, "/")
+				endpoint := endpointSlash[0]
+
 				// find IP and Port of that Mon
 				monIP := cephutil.GetIPFromEndpoint(endpoint)
 				monPort := cephutil.GetPortFromEndpoint(endpoint)

@@ -47,6 +47,7 @@ type MonMapEntry struct {
 	Name        string `json:"name"`
 	Rank        int    `json:"rank"`
 	Address     string `json:"addr"`
+	PublicAddr  string `json:"public_addr"`
 	PublicAddrs struct {
 		Addrvec []AddrvecEntry `json:"addrvec"`
 	} `json:"public_addrs"`
