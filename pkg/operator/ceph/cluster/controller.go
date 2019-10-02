@@ -267,29 +267,30 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 	// then populate clusterInfo
 	cluster.Info = populateExternalClusterInfo(c.context, namespace)
 
+	// Write connection info (ceph config file and keyring) for ceph commands
+	if cluster.Spec.CephVersion.Image == "" {
+		err = mon.WriteConnectionConfig(c.context, cluster.Info)
+		if err != nil {
+			logger.Errorf("failed to write config. Attempting to continue. %+v", err)
+		}
+	}
+
 	// Validate versions (local and external)
-	_, _, err = c.detectAndValidateCephVersion(cluster, cluster.Spec.CephVersion.Image)
-	if err != nil {
-		return fmt.Errorf("failed to detect and validate ceph version. %+v", err)
-	}
+	// If no image is specified we don't perform any checks
+	if cluster.Spec.CephVersion.Image != "" {
+		_, _, err = c.detectAndValidateCephVersion(cluster, cluster.Spec.CephVersion.Image)
+		if err != nil {
+			return fmt.Errorf("failed to detect and validate ceph version. %+v", err)
+		}
 
-	err = populateConfigOverrideConfigMap(cluster.context, namespace, cluster.ownerRef)
-	if err != nil {
-		return fmt.Errorf("failed to populate config override config map. %+v", err)
-	}
-
-	// Write the rook-ceph-config configmap (used by various daemons to apply config overrides)
-	// If we don't do this, daemons will never start, waiting forever for this configmap to be present
-	err = config.GetStore(cluster.context, namespace, &cluster.ownerRef).CreateOrUpdate(cluster.Info)
-	if err != nil {
-		return err
-	}
-
-	// Apply CRD ConfigOverrideName to the external cluster
-	err = config.SetDefaultConfigs(cluster.context, namespace, cluster.Info)
-	if err != nil {
-		// Mons are up, so something else is wrong
-		return fmt.Errorf("failed to set Rook and/or user-defined Ceph config options on the external cluster monitors. %+v", err)
+		// Write the rook-ceph-config configmap (used by various daemons to apply config overrides)
+		// If we don't do this, daemons will never start, waiting forever for this configmap to be present
+		//
+		// Only do this when doing a bit of management...
+		err = config.GetStore(cluster.context, namespace, &cluster.ownerRef).CreateOrUpdate(cluster.Info)
+		if err != nil {
+			return err
+		}
 	}
 
 	// The cluster Identity must be established at this point
@@ -1041,9 +1042,6 @@ func printOverallCephVersion(context *clusterd.Context, namespace string) {
 func validateExternalClusterSpec(cluster *cluster) error {
 	if cluster.Spec.DataDirHostPath == "" {
 		return fmt.Errorf("dataDirHostPath must be specified")
-	}
-	if cluster.Spec.CephVersion.Image == "" {
-		return fmt.Errorf("spec image must be specified")
 	}
 
 	return nil

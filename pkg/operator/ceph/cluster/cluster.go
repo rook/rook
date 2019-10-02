@@ -126,7 +126,6 @@ func (c *cluster) detectCephVersion(rookImage, cephImage string, timeout time.Du
 }
 
 func (c *cluster) validateCephVersion(version *cephver.CephVersion) error {
-	// The external has its own supported versions
 	if !c.Spec.External.Enable {
 		if !version.IsAtLeast(cephver.Minimum) {
 			return fmt.Errorf("the version does not meet the minimum version: %s", cephver.Minimum.String())
@@ -139,6 +138,7 @@ func (c *cluster) validateCephVersion(version *cephver.CephVersion) error {
 			}
 		}
 	}
+
 	// The following tries to determine if the operator can proceed with an upgrade because we come from an OnAdd() call
 	// If the cluster was unhealthy and someone injected a new image version, an upgrade was triggered but failed because the cluster is not healthy
 	// Then after this, if the operator gets restarted we are not able to fail if the cluster is not healthy, the following tries to determine the
@@ -160,11 +160,18 @@ func (c *cluster) validateCephVersion(version *cephver.CephVersion) error {
 		return nil
 	}
 
-	if c.Spec.External.Enable {
+	if c.Spec.External.Enable && c.Spec.CephVersion.Image != "" {
 		c.Info.CephVersion, err = cephspec.ValidateCephVersionsBetweenLocalAndExternalClusters(c.context, c.Namespace, *version)
 		if err != nil {
 			return fmt.Errorf("failed to validate ceph version between external and local. %+v", err)
 		}
+	}
+
+	// On external cluster setup, if we don't bootstrap any resources in the Kubernetes cluster then
+	// there is no need to validate the Ceph image further
+	if c.Spec.External.Enable && c.Spec.CephVersion.Image == "" {
+		logger.Debug("no spec image specified on external cluster, not validating Ceph version.")
+		return nil
 	}
 
 	// Get cluster running versions
