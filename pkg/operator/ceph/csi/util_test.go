@@ -114,3 +114,32 @@ func TestStatefulSetTemplate(t *testing.T) {
 	_, err = templateToStatefulSet("test-ss", tmp.Name(), tp)
 	assert.Nil(t, err)
 }
+
+func Test_getPortFromENV(t *testing.T) {
+	var key = "TEST_CSI_PORT_ENV"
+	var defaultPort uint16 = 8000
+	// emtpty env variable
+	port := getPortFromENV(key, defaultPort)
+	assert.Equal(t, port, defaultPort)
+	// valid port is set in env
+	err := os.Setenv(key, "9000")
+	assert.Nil(t, err)
+	port = getPortFromENV(key, defaultPort)
+	assert.Equal(t, port, uint16(9000))
+	err = os.Unsetenv(key)
+	assert.Nil(t, err)
+	// higher port value is set in env
+	err = os.Setenv(key, "65536")
+	assert.Nil(t, err)
+	port = getPortFromENV(key, defaultPort)
+	assert.Equal(t, port, defaultPort)
+	err = os.Unsetenv(key)
+	assert.Nil(t, err)
+	// negative port is set in env
+	err = os.Setenv(key, "-1")
+	assert.Nil(t, err)
+	port = getPortFromENV(key, defaultPort)
+	assert.Equal(t, port, defaultPort)
+	err = os.Unsetenv(key)
+	assert.Nil(t, err)
+}

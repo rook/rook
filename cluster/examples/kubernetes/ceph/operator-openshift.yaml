@@ -248,6 +248,16 @@ spec:
         #     - effect: NoExecute
         #       key: node-role.kubernetes.io/etcd
         #       operator: Exists
+        # Configure CSI cephfs grpc and liveness metrics port
+        #- name: CSI_CEPHFS_GRPC_METRICS_PORT
+        #  value: "9091"
+        #- name: CSI_CEPHFS_LIVENESS_METRICS_PORT
+        #  value: "9081"
+        # Configure CSI rbd grpc and liveness metrics port
+        #- name: CSI_RBD_GRPC_METRICS_PORT
+        #  value: "9090"
+        #- name: CSI_RBD_LIVENESS_METRICS_PORT
+        #  value: "9080"
         - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
           value: "true"
         # The name of the node to pass with the downward API

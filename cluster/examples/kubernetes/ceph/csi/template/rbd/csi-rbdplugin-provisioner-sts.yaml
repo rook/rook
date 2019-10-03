@@ -73,7 +73,7 @@ spec:
             - "--controllerserver=true"
             - "--drivername={{ .DriverNamePrefix }}rbd.csi.ceph.com"
             - "--pidlimit=-1"
-            - "--metricsport=9090"
+            - "--metricsport={{ .RBDGRPCMetricsPort }}"
             - "--metricspath=/metrics"
             - "--enablegrpcmetrics={{ .EnableCSIGRPCMetrics }}"
           env:
@@ -111,7 +111,7 @@ spec:
           args:
             - "--type=liveness"
             - "--endpoint=$(CSI_ENDPOINT)"
-            - "--metricsport=9080"
+            - "--metricsport={{ .RBDLivenessMetricsPort }}"
             - "--metricspath=/metrics"
             - "--polltime=60s"
             - "--timeout=3s"
