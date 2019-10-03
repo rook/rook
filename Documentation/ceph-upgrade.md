@@ -221,14 +221,14 @@ Replace the namespace names in the new resources:
 sed "s/ROOK_SYSTEM_NAMESPACE/$ROOK_SYSTEM_NAMESPACE/g" upgrade-from-v1.0-create.yaml > upgrade-from-v1.0-create.yaml.tmp
 sed "s/ROOK_NAMESPACE/$ROOK_NAMESPACE/g" upgrade-from-v1.0-create.yaml.tmp > upgrade-from-v1.0-create.yaml
 rm -f upgrade-from-v1.0-create.yaml.tmp
-sed -i "s/ROOK_NAMESPACE/$ROOK_NAMESPACE/g" upgrade-from-v1.0-apply.yaml
+sed -i "s/ROOK_SYSTEM_NAMESPACE/$ROOK_SYSTEM_NAMESPACE/g" upgrade-from-v1.0-apply.yaml
 ```
 
 If you have a v1.0 cluster running with CSI drivers enabled, delete the rbac rules created for CSI
 
 ```sh
-kubectl -n $ROOK_NAMESPACE delete clusterrole.rbac.authorization.k8s.io/rbd-external-provisioner-runner-rules
-kubectl -n $ROOK_NAMESPACE delete clusterrole.rbac.authorization.k8s.io/cephfs-external-provisioner-runner-rules
+kubectl -n $ROOK_SYSTEM_NAMESPACE delete clusterrole.rbac.authorization.k8s.io/rbd-external-provisioner-runner-rules
+kubectl -n $ROOK_SYSTEM_NAMESPACE delete clusterrole.rbac.authorization.k8s.io/cephfs-external-provisioner-runner-rules
 ```
 
 Apply the new permissions:
