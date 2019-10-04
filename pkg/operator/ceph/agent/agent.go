@@ -125,6 +125,9 @@ func (a *Agent) createAgentDaemonSet(namespace, agentImage, serviceAccount strin
 					},
 				},
 				Spec: v1.PodSpec{
+					NodeSelector: map[string]string{
+						"kubernetes.io/os": "linux",
+					},
 					ServiceAccountName: serviceAccount,
 					Containers: []v1.Container{
 						{

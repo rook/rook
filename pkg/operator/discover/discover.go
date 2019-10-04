@@ -97,6 +97,9 @@ func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage, securityAcc
 					},
 				},
 				Spec: v1.PodSpec{
+					NodeSelector: map[string]string{
+						"kubernetes.io/os": "linux",
+					},
 					ServiceAccountName: securityAccount,
 					Containers: []v1.Container{
 						{
