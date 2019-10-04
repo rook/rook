@@ -13,6 +13,8 @@ spec:
         app: csi-rbdplugin
         contains: csi-rbdplugin-metrics
     spec:
+      nodeSelector:
+        kubernetes.io/os: linux
       serviceAccount: rook-csi-rbd-plugin-sa
       hostNetwork: true
       hostPID: true

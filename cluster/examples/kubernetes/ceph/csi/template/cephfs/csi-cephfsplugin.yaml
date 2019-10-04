@@ -13,6 +13,8 @@ spec:
         app: csi-cephfsplugin
         contains: csi-cephfsplugin-metrics
     spec:
+      nodeSelector:
+        kubernetes.io/os: linux
       serviceAccount: rook-csi-cephfs-plugin-sa
       hostNetwork: true
       # to use e.g. Rook orchestrated cluster, and mons' FQDN is
