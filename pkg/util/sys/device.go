@@ -79,6 +79,8 @@ type LocalDisk struct {
 	WWNVendorExtension string `json:"wwnVendorExtension"`
 	// Empty checks whether the device is completely empty
 	Empty bool `json:"empty"`
+	// Information provided by Ceph Volume Inventory
+	CephVolumeData string `json:"cephVolumeData,omitempty"`
 }
 
 func ListDevices(executor exec.Executor) ([]string, error) {

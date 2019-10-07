@@ -24,6 +24,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path"
 	"regexp"
 	"strings"
 	"syscall"
@@ -51,18 +52,30 @@ var (
 	cmName          string
 	cm              *v1.ConfigMap
 	udevEventPeriod = time.Duration(5) * time.Second
+	useCVInventory  bool
 )
 
-func Run(context *clusterd.Context, probeInterval time.Duration) error {
+type CephVolumeInventory struct {
+	Path            string          `json:"path"`
+	Available       bool            `json:"available"`
+	RejectedReasons json.RawMessage `json:"rejected_reasons"`
+	SysAPI          json.RawMessage `json:"sys_api"`
+	LVS             json.RawMessage `json:"lvs"`
+}
+
+func Run(context *clusterd.Context, probeInterval time.Duration, useCV bool) error {
 	if context == nil {
 		return fmt.Errorf("nil context")
 	}
-	logger.Infof("device discovery interval is %s", probeInterval.String())
+	logger.Debugf("device discovery interval is %q", probeInterval.String())
+	logger.Debugf("use ceph-volume inventory is %t", useCV)
 	nodeName = os.Getenv(k8sutil.NodeNameEnvVar)
 	namespace = os.Getenv(k8sutil.PodNamespaceEnvVar)
 	cmName = k8sutil.TruncateNodeName(LocalDiskCMName, nodeName)
+	useCVInventory = useCV
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc, syscall.SIGTERM)
+
 	err := updateDeviceCM(context)
 	if err != nil {
 		logger.Infof("failed to update device configmap: %v", err)
@@ -244,6 +257,10 @@ func checkDeviceListsEqual(oldDevs, newDevs []sys.LocalDisk) bool {
 		if oldDev.Partitions != nil && match.Partitions == nil {
 			return false
 		}
+		if string(oldDev.CephVolumeData) == "" && string(match.CephVolumeData) != "" {
+			// return ceph volume inventory data was not enabled before
+			return false
+		}
 	}
 
 	for _, newDev := range newDevs {
@@ -290,6 +307,7 @@ func updateDeviceCM(context *clusterd.Context) error {
 		logger.Infof("failed to marshal: %v", err)
 		return err
 	}
+
 	deviceStr := string(deviceJson)
 	if cm == nil {
 		cm, err = context.Clientset.CoreV1().ConfigMaps(namespace).Get(cmName, metav1.GetOptions{})
@@ -305,6 +323,7 @@ func updateDeviceCM(context *clusterd.Context) error {
 
 		data := make(map[string]string, 1)
 		data[LocalDiskCMData] = deviceStr
+
 		// the map doesn't exist yet, create it now
 		cm = &v1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
@@ -348,6 +367,18 @@ func probeDevices(context *clusterd.Context) ([]sys.LocalDisk, error) {
 	if err != nil {
 		return devices, fmt.Errorf("failed initial hardware discovery. %+v", err)
 	}
+
+	// ceph-volume inventory command takes a little time to complete.
+	// Get this data only if it is needed and once by function execution
+	var cvInventory *map[string]string = nil
+	if useCVInventory {
+		logger.Infof("Getting ceph-volume inventory information")
+		cvInventory, err = getCephVolumeInventory(context)
+		if err != nil {
+			logger.Errorf("error getting ceph-volume inventory: %v", err)
+		}
+	}
+
 	for _, device := range localDevices {
 		if device == nil {
 			continue
@@ -372,9 +403,57 @@ func probeDevices(context *clusterd.Context) ([]sys.LocalDisk, error) {
 		device.Filesystem = fs
 		device.Empty = clusterd.GetDeviceEmpty(device)
 
+		// Add the information provided by ceph-volume inventory
+		if cvInventory != nil {
+			CVData, deviceExists := (*cvInventory)[path.Join("/dev/", device.Name)]
+			if deviceExists {
+				device.CephVolumeData = CVData
+			} else {
+				logger.Errorf("ceph-volume information for device %q not found", device.Name)
+			}
+		} else {
+			device.CephVolumeData = ""
+		}
+
 		devices = append(devices, *device)
 	}
 
 	logger.Infof("available devices: %+v", devices)
 	return devices, nil
+}
+
+// getCephVolumeInventory: Return a map of strings indexed by device with the
+// information about the device returned by the command <ceph-volume inventory>
+func getCephVolumeInventory(context *clusterd.Context) (*map[string]string, error) {
+	inventory, err := context.Executor.ExecuteCommandWithOutput(false, "", "ceph-volume", "inventory", "--format", "json")
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute ceph-volume inventory. %+v", err)
+	}
+
+	// Return a map with the information of each device indexed by path
+	CVDevices := make(map[string]string)
+
+	// No data retrieved from ceph-volume
+	if inventory == "" {
+		return &CVDevices, nil
+	}
+
+	// Get a slice to store the json data
+	bInventory := []byte(inventory)
+	var CVInventory []CephVolumeInventory
+	err = json.Unmarshal(bInventory, &CVInventory)
+	if err != nil {
+		return &CVDevices, fmt.Errorf("error unmarshalling json data coming from ceph-volume inventory. %v", err)
+	}
+
+	for _, device := range CVInventory {
+		jsonData, err := json.Marshal(device)
+		if err != nil {
+			logger.Errorf("error marshaling json data for device: %v", device.Path)
+		} else {
+			CVDevices[device.Path] = string(jsonData)
+		}
+	}
+
+	return &CVDevices, nil
 }

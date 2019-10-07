@@ -46,7 +46,7 @@ func TestStartDiscoveryDaemonset(t *testing.T) {
 	a := New(clientset)
 
 	// start a basic cluster
-	err := a.Start(namespace, "rook/rook:myversion", "mysa")
+	err := a.Start(namespace, "rook/rook:myversion", "mysa", false)
 	assert.Nil(t, err)
 
 	// check daemonset parameters

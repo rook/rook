@@ -29,7 +29,7 @@ import (
 	"github.com/rook/rook/pkg/operator/discover"
 	"github.com/rook/rook/pkg/operator/edgefs/cluster"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "edgefs-operator")
@@ -65,7 +65,7 @@ func (o *Operator) Run() error {
 	}
 
 	rookDiscover := discover.New(o.context.Clientset)
-	if err := rookDiscover.Start(namespace, o.rookImage, o.securityAccount); err != nil {
+	if err := rookDiscover.Start(namespace, o.rookImage, o.securityAccount, false); err != nil {
 		return fmt.Errorf("Error starting device discovery daemonset: %v", err)
 	}
 

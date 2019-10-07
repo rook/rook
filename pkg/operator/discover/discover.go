@@ -49,6 +49,7 @@ const (
 	deviceInUseAppName                = "rook-claimed-devices"
 	deviceInUseClusterAttr            = "rook.io/cluster"
 	discoverIntervalEnv               = "ROOK_DISCOVER_DEVICES_INTERVAL"
+	defaultDiscoverInterval           = "60m"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-discover")
@@ -66,17 +67,23 @@ func New(clientset kubernetes.Interface) *Discover {
 }
 
 // Start the discover
-func (d *Discover) Start(namespace, discoverImage, securityAccount string) error {
+func (d *Discover) Start(namespace, discoverImage, securityAccount string, useCephVolume bool) error {
 
-	err := d.createDiscoverDaemonSet(namespace, discoverImage, securityAccount)
+	err := d.createDiscoverDaemonSet(namespace, discoverImage, securityAccount, useCephVolume)
 	if err != nil {
 		return fmt.Errorf("Error starting discover daemonset: %v", err)
 	}
 	return nil
 }
 
-func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage, securityAccount string) error {
+func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage, securityAccount string, useCephVolume bool) error {
 	privileged := true
+	discovery_parameters := []string{"discover",
+		"--discover-interval", getEnvVar(discoverIntervalEnv, defaultDiscoverInterval)}
+	if useCephVolume {
+		discovery_parameters = append(discovery_parameters, "--use-ceph-volume")
+	}
+
 	ds := &apps.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: discoverDaemonsetName,
@@ -102,7 +109,7 @@ func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage, securityAcc
 						{
 							Name:  discoverDaemonsetName,
 							Image: discoverImage,
-							Args:  []string{"discover", "--discover-interval", getDiscoverInterval()},
+							Args:  discovery_parameters,
 							SecurityContext: &v1.SecurityContext{
 								Privileged: &privileged,
 							},
@@ -211,13 +218,12 @@ func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage, securityAcc
 
 }
 
-func getDiscoverInterval() string {
-	discoverValue := os.Getenv(discoverIntervalEnv)
-	if discoverValue != "" {
-		return discoverValue
+func getEnvVar(varName string, defaultValue string) string {
+	envValue := os.Getenv(varName)
+	if envValue != "" {
+		return envValue
 	}
-	// Default is 60 minutes
-	return "60m"
+	return defaultValue
 }
 
 // ListDevices lists all devices discovered on all nodes or specific node if node name is provided.
