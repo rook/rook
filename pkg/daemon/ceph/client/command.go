@@ -21,6 +21,7 @@ import (
 	"path"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 )
 
@@ -196,12 +197,12 @@ func ExecuteCephCommandWithRetry(
 					continue
 				}
 			}
-			return nil, fmt.Errorf("failed to complete command %+v", err)
+			return nil, errors.Wrapf(err, "failed to complete command")
 		}
 		if i > 0 {
 			logger.Infof("command succeeded on attempt %d", i)
 		}
 		return data, nil
 	}
-	return nil, fmt.Errorf("max command retries exceeded")
+	return nil, errors.New("max command retries exceeded")
 }

@@ -25,6 +25,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/google/uuid"
 
 	"github.com/rook/rook/pkg/clusterd"
@@ -139,7 +141,7 @@ func (a *OsdAgent) removeDirs(context *clusterd.Context, removedDirs map[string]
 
 	if len(failedDirs) > 0 {
 		// at least one OSD failed, return an overall error
-		return fmt.Errorf("failed to cleanup directories: %+v", failedDirs)
+		return errors.Errorf("failed to cleanup directories: %+v", failedDirs)
 	}
 
 	return nil
@@ -172,7 +174,7 @@ func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOs
 			if a.pvcBacked {
 				lvPath, err = getDeviceLVPath(context, fmt.Sprintf("/mnt/%s", a.nodeName))
 				if err != nil {
-					return osds, fmt.Errorf("failed to get logical volume path. %+v", err)
+					return osds, errors.Wrapf(err, "failed to get logical volume path")
 				}
 				skipLVRelease = true
 			}
@@ -188,12 +190,12 @@ func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOs
 	scheme, cvDevices, err := a.getPartitionPerfScheme(context, devices, cvSupported)
 	logger.Debugf("partition scheme: %+v, err: %+v", scheme, err)
 	if err != nil {
-		return osds, fmt.Errorf("failed to get OSD partition scheme: %+v", err)
+		return osds, errors.Wrapf(err, "failed to get OSD partition scheme")
 	}
 	if scheme.Metadata != nil {
 		// partition the dedicated metadata device
 		if err := partitionMetadata(context, scheme.Metadata, a.kv, config.GetConfigStoreName(a.nodeName)); err != nil {
-			return osds, fmt.Errorf("failed to partition metadata %+v: %+v", scheme.Metadata, err)
+			return osds, errors.Wrapf(err, "failed to partition metadata %+v", scheme.Metadata)
 		}
 	}
 	// initialize and start all the desired OSDs using the computed scheme
@@ -204,7 +206,7 @@ func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOs
 			partitionScheme: entry, storeConfig: a.storeConfig, kv: a.kv, storeName: config.GetConfigStoreName(a.nodeName)}
 		osd, err := a.prepareOSD(context, config)
 		if err != nil {
-			return osds, fmt.Errorf("failed to config osd %d. %+v", entry.ID, err)
+			return osds, errors.Wrapf(err, "failed to config osd %d", entry.ID)
 		}
 
 		succeeded++
@@ -219,7 +221,7 @@ func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOs
 	// Now ask ceph-volume for osds already configured or to newly configure devices
 	cvOSDs, err := a.configureCVDevices(context, cvDevices)
 	if err != nil {
-		return nil, fmt.Errorf("failed to configure devices with ceph-volume. %+v", err)
+		return nil, errors.Wrapf(err, "failed to configure devices with ceph-volume")
 	}
 	osds = append(osds, cvOSDs...)
 	return osds, nil
@@ -229,11 +231,11 @@ func getDeviceLVPath(context *clusterd.Context, deviceName string) (string, erro
 	cmd := fmt.Sprintf("get logical volume path for device")
 	output, err := context.Executor.ExecuteCommandWithOutput(false, cmd, "pvdisplay", "-C", "-o", "lvpath", "--noheadings", deviceName)
 	if err != nil {
-		return "", fmt.Errorf("failed to retrieve logical volume path. %+v", err)
+		return "", errors.Wrapf(err, "failed to retrieve logical volume path")
 	}
 	logger.Debugf("logical volume path for device %q is %q", deviceName, output)
 	if output == "" {
-		return "", fmt.Errorf("no logical volume path found for device %q", deviceName)
+		return "", errors.Errorf("no logical volume path found for device %q", deviceName)
 	}
 	return output, nil
 }
@@ -266,7 +268,7 @@ func (a *OsdAgent) removeDevices(context *clusterd.Context, removedDevicesScheme
 
 	if len(errorMessages) > 0 {
 		// at least one OSD failed, return an overall error
-		return fmt.Errorf("%s", strings.Join(errorMessages, "\n"))
+		return errors.Errorf("%s", strings.Join(errorMessages, "\n"))
 	}
 
 	return nil
@@ -280,7 +282,7 @@ func (a *OsdAgent) getPartitionPerfScheme(context *clusterd.Context, devices *De
 	// load the existing (committed) partition scheme from disk
 	perfScheme, err := config.LoadScheme(a.kv, config.GetConfigStoreName(a.nodeName))
 	if err != nil {
-		return nil, skippedDevices, fmt.Errorf("failed to load partition scheme: %+v", err)
+		return nil, skippedDevices, errors.Wrapf(err, "failed to load partition scheme")
 	}
 
 	nameToUUID := map[string]string{}
@@ -319,7 +321,7 @@ func (a *OsdAgent) getPartitionPerfScheme(context *clusterd.Context, devices *De
 			if perfScheme.Metadata != nil {
 				// TODO: this perf scheme creation algorithm assumes either zero or one metadata device, enhance to allow multiple
 				// https://github.com/rook/rook/issues/341
-				return nil, nil, fmt.Errorf("%s is desired for metadata, but %s (%s) is already the metadata device",
+				return nil, nil, errors.Errorf("%s is desired for metadata, but %s (%s) is already the metadata device",
 					name, perfScheme.Metadata.Device, perfScheme.Metadata.DiskUUID)
 			}
 
@@ -338,7 +340,7 @@ func (a *OsdAgent) getPartitionPerfScheme(context *clusterd.Context, devices *De
 			// register/create the OSD with ceph, which will assign it a cluster wide ID
 			osdID, osdUUID, err := registerOSD(context, a.cluster.Name)
 			if err != nil {
-				return nil, nil, fmt.Errorf("failed to register OSD for device %s: %+v", name, err)
+				return nil, nil, errors.Wrapf(err, "failed to register OSD for device %s", name)
 			}
 
 			schemeEntry := config.NewPerfSchemeEntry(a.storeConfig.StoreType)
@@ -353,7 +355,7 @@ func (a *OsdAgent) getPartitionPerfScheme(context *clusterd.Context, devices *De
 				// populate the perf partition scheme entry with distributed partition details
 				err := config.PopulateDistributedPerfSchemeEntry(schemeEntry, name, perfScheme.Metadata, a.storeConfig)
 				if err != nil {
-					return nil, nil, fmt.Errorf("failed to create distributed perf scheme entry for %s: %+v", name, err)
+					return nil, nil, errors.Wrapf(err, "failed to create distributed perf scheme entry for %s", name)
 				}
 			} else {
 				// there is no metadata device to use, store everything on the data device
@@ -365,7 +367,7 @@ func (a *OsdAgent) getPartitionPerfScheme(context *clusterd.Context, devices *De
 				// populate the perf partition scheme entry with collocated partition details
 				err := config.PopulateCollocatedPerfSchemeEntry(schemeEntry, name, a.storeConfig)
 				if err != nil {
-					return nil, nil, fmt.Errorf("failed to create collocated perf scheme entry for %s: %+v", name, err)
+					return nil, nil, errors.Wrapf(err, "failed to create collocated perf scheme entry for %s", name)
 				}
 			}
 
@@ -463,7 +465,7 @@ func (a *OsdAgent) prepareOSD(context *clusterd.Context, cfg *osdConfig) (*oposd
 			// format and partition the device if needed
 			savedScheme, err := config.LoadScheme(a.kv, config.GetConfigStoreName(a.nodeName))
 			if err != nil {
-				return nil, fmt.Errorf("failed to load the saved partition scheme from %s: %+v", cfg.configRoot, err)
+				return nil, errors.Wrapf(err, "failed to load the saved partition scheme from %s", cfg.configRoot)
 			}
 
 			skipFormat := false
@@ -478,7 +480,7 @@ func (a *OsdAgent) prepareOSD(context *clusterd.Context, cfg *osdConfig) (*oposd
 			if !skipFormat {
 				devPartInfo, err = formatDevice(context, cfg, a.forceFormat, a.storeConfig)
 				if err != nil {
-					return nil, fmt.Errorf("failed format/partition of osd %d. %+v", cfg.id, err)
+					return nil, errors.Wrapf(err, "failed format/partition of osd %d", cfg.id)
 				}
 
 				logger.Notice("waiting after partition/format...")
@@ -489,7 +491,7 @@ func (a *OsdAgent) prepareOSD(context *clusterd.Context, cfg *osdConfig) (*oposd
 		// osd_data_dir/ready does not exist yet, create/initialize the OSD
 		err := initializeOSD(cfg, context, a.cluster)
 		if err != nil {
-			return nil, fmt.Errorf("failed to initialize OSD at %s: %+v", cfg.rootPath, err)
+			return nil, errors.Wrapf(err, "failed to initialize OSD at %s", cfg.rootPath)
 		}
 	} else {
 		// update the osd config file
@@ -502,7 +504,7 @@ func (a *OsdAgent) prepareOSD(context *clusterd.Context, cfg *osdConfig) (*oposd
 		// look up some basic information about it so we can run it.
 		err = loadOSDInfo(cfg)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get OSD information from %s: %+v", cfg.rootPath, err)
+			return nil, errors.Wrapf(err, "failed to get OSD information from %s", cfg.rootPath)
 		}
 	}
 	osdInfo := getOSDInfo(a.cluster.Name, cfg, devPartInfo)
@@ -531,7 +533,7 @@ func prepareOSDRoot(cfg *osdConfig) (newOSD bool, err error) {
 
 	// prepare the osd dir by creating it now
 	if err := os.MkdirAll(cfg.rootPath, 0744); err != nil {
-		return newOSD, fmt.Errorf("failed to make osd.%d config at %s: %+v", cfg.id, cfg.rootPath, err)
+		return newOSD, errors.Wrapf(err, "failed to make osd.%d config at %s", cfg.id, cfg.rootPath)
 	}
 
 	return newOSD, nil
@@ -581,23 +583,23 @@ func loadOSDInfo(config *osdConfig) error {
 	idFile := filepath.Join(config.rootPath, "whoami")
 	idContent, err := ioutil.ReadFile(idFile)
 	if err != nil {
-		return fmt.Errorf("failed to read OSD ID from %s: %+v", idFile, err)
+		return errors.Wrapf(err, "failed to read OSD ID from %s", idFile)
 	}
 
 	osdID, err := strconv.Atoi(strings.TrimSpace(string(idContent[:])))
 	if err != nil {
-		return fmt.Errorf("failed to parse OSD ID from %s with content %s: %+v", idFile, idContent, err)
+		return errors.Wrapf(err, "failed to parse OSD ID from %s with content %s", idFile, idContent)
 	}
 
 	uuidFile := filepath.Join(config.rootPath, "fsid")
 	fsidContent, err := ioutil.ReadFile(uuidFile)
 	if err != nil {
-		return fmt.Errorf("failed to read UUID from %s: %+v", uuidFile, err)
+		return errors.Wrapf(err, "failed to read UUID from %s", uuidFile)
 	}
 
 	osdUUID, err := uuid.Parse(strings.TrimSpace(string(fsidContent[:])))
 	if err != nil {
-		return fmt.Errorf("failed to parse UUID from %s with content %s: %+v", uuidFile, string(fsidContent[:]), err)
+		return errors.Wrapf(err, "failed to parse UUID from %s with content %s", uuidFile, string(fsidContent[:]))
 	}
 
 	config.id = osdID

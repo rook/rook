@@ -22,6 +22,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 )
 
@@ -81,12 +82,12 @@ func GetCrushMap(context *clusterd.Context, clusterName string) (CrushMap, error
 	args := []string{"osd", "crush", "dump"}
 	buf, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
-		return c, fmt.Errorf("failed to get crush map. %v", err)
+		return c, errors.Wrapf(err, "failed to get crush map")
 	}
 
 	err = json.Unmarshal(buf, &c)
 	if err != nil {
-		return c, fmt.Errorf("failed to unmarshal crush map. %+v", err)
+		return c, errors.Wrapf(err, "failed to unmarshal crush map")
 	}
 
 	return c, nil
@@ -103,7 +104,7 @@ func CrushRemove(context *clusterd.Context, clusterName, name string) (string, e
 	args := []string{"osd", "crush", "rm", name}
 	buf, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
-		return "", fmt.Errorf("failed to crush rm: %+v, %s", err, string(buf))
+		return "", errors.Wrapf(err, "failed to crush rm. %s", string(buf))
 	}
 
 	return string(buf), nil
@@ -113,12 +114,12 @@ func FindOSDInCrushMap(context *clusterd.Context, clusterName string, osdID int)
 	args := []string{"osd", "find", strconv.Itoa(osdID)}
 	buf, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
-		return nil, fmt.Errorf("failed to find osd.%d in crush map: %+v, %s", osdID, err, string(buf))
+		return nil, errors.Wrapf(err, "failed to find osd.%d in crush map: %s", osdID, string(buf))
 	}
 
 	var result CrushFindResult
 	if err := json.Unmarshal(buf, &result); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal crush find result: %+v. raw: %s", err, string(buf))
+		return nil, errors.Wrapf(err, "failed to unmarshal crush find result: %s", string(buf))
 	}
 
 	return &result, nil

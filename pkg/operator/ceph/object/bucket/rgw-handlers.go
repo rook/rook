@@ -3,6 +3,7 @@ package bucket
 import (
 	"fmt"
 
+	"github.com/pkg/errors"
 	cephObject "github.com/rook/rook/pkg/operator/ceph/object"
 )
 
@@ -23,15 +24,13 @@ func (p *Provisioner) deleteBucket(bktName string) error {
 		return nil
 	}
 
-	errmsg := fmt.Errorf("failed to delete bucket %q: errCode: %d, err: %v", bktName, errCode, err)
-	logger.Info(errmsg.Error())
-	return errmsg
+	return errors.Wrapf(err, "failed to delete bucket %q: errCode: %d", bktName, errCode)
 }
 
 func (p *Provisioner) bucketExists(name string) (bool, error) {
 	_, errCode, err := cephObject.GetBucket(p.objectContext, name)
 	if errCode != 0 {
-		return false, fmt.Errorf("error getting ceph bucket %q: %v", name, err)
+		return false, errors.Wrapf(err, "error getting ceph bucket %q", name)
 	}
 	return true, nil
 }
@@ -39,7 +38,7 @@ func (p *Provisioner) bucketExists(name string) (bool, error) {
 func (p *Provisioner) bucketIsEmpty(name string) (bool, error) {
 	bucketStat, _, err := cephObject.GetBucketStats(p.objectContext, name)
 	if err != nil {
-		return false, fmt.Errorf("error getting ceph bucket %q: %v", name, err)
+		return false, errors.Wrapf(err, "error getting ceph bucket %q", name)
 	}
 	if bucketStat.NumberOfObjects == 0 {
 		return true, nil
@@ -53,7 +52,7 @@ func (p *Provisioner) userExists(name string) (bool, error) {
 		return false, nil
 	}
 	if errCode > 0 {
-		return false, fmt.Errorf("error getting ceph user %q: %v", name, err)
+		return false, errors.Wrapf(err, "error getting ceph user %q", name)
 	}
 	return true, nil
 }
@@ -64,7 +63,7 @@ func (p *Provisioner) createCephUser(username string) (accKey string, secKey str
 	if len(username) == 0 {
 		username, err = p.genUserName()
 		if len(username) == 0 || err != nil {
-			return "", "", fmt.Errorf("no user name provided and unable to generate a unique name: %v", err)
+			return "", "", errors.Wrapf(err, "no user name provided and unable to generate a unique name")
 		}
 	}
 	p.cephUserName = username
@@ -77,7 +76,7 @@ func (p *Provisioner) createCephUser(username string) (accKey string, secKey str
 
 	u, errCode, err := cephObject.CreateUser(p.objectContext, userConfig)
 	if err != nil || errCode != 0 {
-		return "", "", fmt.Errorf("error creating ceph user %q: %v: %v", username, err, errCode)
+		return "", "", errors.Wrapf(err, "error creating ceph user %q: %v", username, err)
 	}
 
 	logger.Infof("successfully created Ceph user %q with access keys", username)
@@ -101,9 +100,7 @@ func (p *Provisioner) deleteCephUser(username string) error {
 		return nil
 	}
 
-	errmsg := fmt.Errorf("failed to delete user %q: errCode: %d, err: %v", username, errCode, err)
-	logger.Info(errmsg.Error())
-	return errmsg
+	return errors.Wrapf(err, "failed to delete user %q: errCode: %d", username, errCode)
 }
 
 // returns "" if unable to generate a unique name.

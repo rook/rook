@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume"
 	ceph "github.com/rook/rook/pkg/daemon/ceph/client"
@@ -75,7 +76,7 @@ func (p *RookVolumeProvisioner) Provision(options controller.VolumeOptions) (*v1
 
 	var err error
 	if options.PVC.Spec.Selector != nil {
-		return nil, fmt.Errorf("claim Selector is not supported")
+		return nil, errors.New("claim Selector is not supported")
 	}
 
 	cfg, err := parseClassParameters(options.Parameters)
@@ -117,12 +118,12 @@ func (p *RookVolumeProvisioner) Provision(options controller.VolumeOptions) (*v1
 	s := fmt.Sprintf("%dMi", blockImage.Size/sizeMB)
 	quantity, err := resource.ParseQuantity(s)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse '%v': %v", s, err)
+		return nil, errors.Wrapf(err, "cannot parse %q", s)
 	}
 
 	driverName, err := flexvolume.RookDriverName(p.context)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get driver name. %+v", err)
+		return nil, errors.Wrapf(err, "failed to get driver name")
 	}
 
 	flexdriver := fmt.Sprintf("%s/%s", p.flexDriverVendor, driverName)
@@ -158,12 +159,12 @@ func (p *RookVolumeProvisioner) Provision(options controller.VolumeOptions) (*v1
 // createVolume creates a rook block volume.
 func (p *RookVolumeProvisioner) createVolume(image, pool, dataPool string, clusterNamespace string, size int64) (*ceph.CephBlockImage, error) {
 	if image == "" || pool == "" || clusterNamespace == "" || size == 0 {
-		return nil, fmt.Errorf("image missing required fields (image=%s, pool=%s, clusterNamespace=%s, size=%d)", image, pool, clusterNamespace, size)
+		return nil, errors.Errorf("image missing required fields (image=%s, pool=%s, clusterNamespace=%s, size=%d)", image, pool, clusterNamespace, size)
 	}
 
 	createdImage, err := ceph.CreateImage(p.context, clusterNamespace, image, pool, dataPool, uint64(size))
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create rook block image %s/%s: %v", pool, image, err)
+		return nil, errors.Wrapf(err, "failed to create rook block image %s/%s", pool, image)
 	}
 	logger.Infof("Rook block image created: %s, size = %d", createdImage.Name, createdImage.Size)
 
@@ -175,10 +176,10 @@ func (p *RookVolumeProvisioner) createVolume(image, pool, dataPool string, clust
 func (p *RookVolumeProvisioner) Delete(volume *v1.PersistentVolume) error {
 	logger.Infof("Deleting volume %s", volume.Name)
 	if volume.Spec.PersistentVolumeSource.FlexVolume == nil {
-		return fmt.Errorf("Failed to delete rook block image %s: %v", volume.Name, "PersistentVolume is not a FlexVolume")
+		return errors.Errorf("Failed to delete rook block image %s: %s", volume.Name, "PersistentVolume is not a FlexVolume")
 	}
 	if volume.Spec.PersistentVolumeSource.FlexVolume.Options == nil {
-		return fmt.Errorf("Failed to delete rook block image %s: %v", volume.Name, "PersistentVolume has no image defined for the FlexVolume")
+		return errors.Errorf("Failed to delete rook block image %s: %s", volume.Name, "PersistentVolume has no image defined for the FlexVolume")
 	}
 	name := volume.Spec.PersistentVolumeSource.FlexVolume.Options[flexvolume.ImageKey]
 	pool := volume.Spec.PersistentVolumeSource.FlexVolume.Options[flexvolume.PoolKey]
@@ -190,11 +191,11 @@ func (p *RookVolumeProvisioner) Delete(volume *v1.PersistentVolume) error {
 		clusterns = volume.Spec.PersistentVolumeSource.FlexVolume.Options[flexvolume.ClusterNameKey]
 	}
 	if clusterns == "" {
-		return fmt.Errorf("Failed to delete rook block image %s/%s: no clusterNamespace or (deprecated) clusterName option given", pool, volume.Name)
+		return errors.Errorf("failed to delete rook block image %s/%s: no clusterNamespace or (deprecated) clusterName option given", pool, volume.Name)
 	}
 	err := ceph.DeleteImage(p.context, clusterns, name, pool)
 	if err != nil {
-		return fmt.Errorf("Failed to delete rook block image %s/%s: %v", pool, volume.Name, err)
+		return errors.Wrapf(err, "failed to delete rook block image %s/%s", pool, volume.Name)
 	}
 	logger.Infof("succeeded deleting volume %+v", volume)
 	return nil
@@ -210,7 +211,7 @@ func parseStorageClass(options controller.VolumeOptions) (string, error) {
 		return val, nil
 	}
 
-	return "", fmt.Errorf("failed to get storageclass from PVC %s/%s", options.PVC.Namespace, options.PVC.Name)
+	return "", errors.Errorf("failed to get storageclass from PVC %s/%s", options.PVC.Namespace, options.PVC.Name)
 }
 
 func parseClassParameters(params map[string]string) (*provisionerConfig, error) {
@@ -231,12 +232,12 @@ func parseClassParameters(params map[string]string) (*provisionerConfig, error) 
 		case "datablockpool":
 			cfg.dataBlockPool = v
 		default:
-			return nil, fmt.Errorf("invalid option %q for volume plugin %s", k, "rookVolumeProvisioner")
+			return nil, errors.Errorf("invalid option %q for volume plugin %s", k, "rookVolumeProvisioner")
 		}
 	}
 
 	if len(cfg.blockPool) == 0 {
-		return nil, fmt.Errorf("StorageClass for provisioner %s must contain 'blockPool' parameter", "rookVolumeProvisioner")
+		return nil, errors.Errorf("StorageClass for provisioner %s must contain 'blockPool' parameter", "rookVolumeProvisioner")
 	}
 
 	if len(cfg.clusterNamespace) == 0 {

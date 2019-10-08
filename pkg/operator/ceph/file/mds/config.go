@@ -22,9 +22,10 @@ import (
 
 	apps "k8s.io/api/apps/v1"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -53,7 +54,7 @@ func (c *Cluster) generateKeyring(m *mdsConfig) (string, error) {
 	// Delete legacy key store for upgrade from Rook v0.9.x to v1.0.x
 	err = c.context.Clientset.CoreV1().Secrets(c.fs.Namespace).Delete(m.ResourceName, &metav1.DeleteOptions{})
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if kerrors.IsNotFound(err) {
 			logger.Debugf("legacy mds key %s is already removed", m.ResourceName)
 		} else {
 			logger.Warningf("legacy mds key %s could not be removed: %+v", m.ResourceName, err)
@@ -89,7 +90,7 @@ func (c *Cluster) setDefaultFlagsMonConfigStore(mdsID string) error {
 	for flag, val := range configOptions {
 		err := monStore.Set(who, flag, val)
 		if err != nil {
-			return fmt.Errorf("failed to set %q to %q on %q. %+v", flag, val, who, err)
+			return errors.Wrapf(err, "failed to set %q to %q on %q", flag, val, who)
 		}
 	}
 

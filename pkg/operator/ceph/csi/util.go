@@ -18,13 +18,13 @@ package csi
 
 import (
 	"bytes"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
 	"text/template"
 
+	"github.com/pkg/errors"
 	k8sutil "github.com/rook/rook/pkg/operator/k8sutil"
 
 	"github.com/ghodss/yaml"
@@ -42,7 +42,7 @@ func loadTemplate(name, templatePath string, p templateParam) (string, error) {
 	t := template.New(name)
 	t, err = t.Parse(data)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse template %v. %+v", name, err)
+		return "", errors.Wrapf(err, "failed to parse template %v", name)
 	}
 	err = t.Execute(&writer, p)
 	return writer.String(), err
@@ -52,12 +52,12 @@ func templateToService(name, templatePath string, p templateParam) (*corev1.Serv
 	var svc corev1.Service
 	t, err := loadTemplate(name, templatePath, p)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load service template. %+v", err)
+		return nil, errors.Wrapf(err, "failed to load service template")
 	}
 
 	err = yaml.Unmarshal([]byte(t), &svc)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal service template %+v", err)
+		return nil, errors.Wrapf(err, "failed to unmarshal service template")
 	}
 	return &svc, nil
 }
@@ -66,12 +66,12 @@ func templateToStatefulSet(name, templatePath string, p templateParam) (*apps.St
 	var ss apps.StatefulSet
 	t, err := loadTemplate(name, templatePath, p)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load statefulset template. %+v", err)
+		return nil, errors.Wrapf(err, "failed to load statefulset template")
 	}
 
 	err = yaml.Unmarshal([]byte(t), &ss)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal statefulset template %+v", err)
+		return nil, errors.Wrapf(err, "failed to unmarshal statefulset template")
 	}
 	return &ss, nil
 }
@@ -80,12 +80,12 @@ func templateToDaemonSet(name, templatePath string, p templateParam) (*apps.Daem
 	var ds apps.DaemonSet
 	t, err := loadTemplate(name, templatePath, p)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load daemonset template. %+v", err)
+		return nil, errors.Wrapf(err, "failed to load daemonset template")
 	}
 
 	err = yaml.Unmarshal([]byte(t), &ds)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal daemonset template %+v", err)
+		return nil, errors.Wrapf(err, "failed to unmarshal daemonset template")
 	}
 	return &ds, nil
 }
@@ -94,12 +94,12 @@ func templateToDeployment(name, templatePath string, p templateParam) (*apps.Dep
 	var ds apps.Deployment
 	t, err := loadTemplate(name, templatePath, p)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load deployment template. %+v", err)
+		return nil, errors.Wrapf(err, "failed to load deployment template")
 	}
 
 	err = yaml.Unmarshal([]byte(t), &ds)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal deployment template %+v", err)
+		return nil, errors.Wrapf(err, "failed to unmarshal deployment template")
 	}
 	return &ds, nil
 }

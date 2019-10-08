@@ -22,10 +22,10 @@ import (
 	"reflect"
 	"time"
 
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/pkg/errors"
 	opkit "github.com/rook/operator-kit"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -34,6 +34,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
 )
@@ -150,14 +151,14 @@ func getObjectStoreUserObject(obj interface{}) (objectstoreuser *cephv1.CephObje
 		// the objectstoreuser object is of the latest type, simply return it
 		return objectstoreuser.DeepCopy(), nil
 	}
-	return nil, fmt.Errorf("not a known objectstoreuser object: %+v", obj)
+	return nil, errors.Errorf("not a known objectstoreuser object %+v", obj)
 }
 
 // Create the user
 func (c *ObjectStoreUserController) createUser(context *clusterd.Context, u *cephv1.CephObjectStoreUser) error {
 	// validate the user settings
 	if err := ValidateUser(context, u); err != nil {
-		return fmt.Errorf("invalid user %s arguments. %+v", u.Name, err)
+		return errors.Wrapf(err, "invalid user %s arguments", u.Name)
 	}
 	// Set DisplayName to match Name if DisplayName is not set
 	displayName := u.Spec.DisplayName
@@ -195,14 +196,14 @@ func (c *ObjectStoreUserController) createUser(context *clusterd.Context, u *cep
 			user, rgwerr, err = object.CreateUser(objContext, userConfig)
 			if err != nil {
 				if rgwerr == object.RGWErrorBadData {
-					return true, fmt.Errorf("failed to create rgw user %q. error code %d. %+v", u.Name, rgwerr, err)
+					return true, errors.Wrapf(err, "failed to create rgw user %q. error code %d", u.Name, rgwerr)
 				}
 				return false, nil
 			}
 			return true, nil
 		})
 		if pollErr != nil {
-			return fmt.Errorf("err or timed out while waiting for objectuser %q to be created. %+v", u.Name, pollErr)
+			return errors.Wrapf(pollErr, "errored or timed out while waiting for objectuser %q to be created", u.Name)
 		}
 	}
 
@@ -229,7 +230,7 @@ func (c *ObjectStoreUserController) createUser(context *clusterd.Context, u *cep
 
 	_, err = context.Clientset.CoreV1().Secrets(u.Namespace).Create(secret)
 	if err != nil {
-		return fmt.Errorf("failed to save user %s secret. %+v", u.Name, err)
+		return errors.Wrapf(err, "failed to save user %s secret", u.Name)
 	}
 	logger.Infof("created user %s", u.Name)
 	return nil
@@ -239,7 +240,7 @@ func objectStoreInitialized(context *object.Context) (bool, error) {
 	// check if CephObjectStore CR is created
 	_, err := context.Context.RookClientset.CephV1().CephObjectStores(context.ClusterName).Get(context.Name, metav1.GetOptions{})
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if kerrors.IsNotFound(err) {
 			logger.Warningf("CephObjectStore %s could not be found. %+v", context.Name, err)
 			return false, nil
 		}
@@ -254,7 +255,7 @@ func objectStoreInitialized(context *object.Context) (bool, error) {
 	)
 	pods, err := context.Context.Clientset.CoreV1().Pods(context.ClusterName).List(metav1.ListOptions{LabelSelector: selector, FieldSelector: "status.phase=Running"})
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if kerrors.IsNotFound(err) {
 			return false, nil
 		}
 		return false, err
@@ -276,7 +277,7 @@ func deleteUser(context *clusterd.Context, u *cephv1.CephObjectStoreUser) error 
 		if rgwerr == 3 {
 			logger.Infof("user %s does not exist in store %s", u.Name, u.Spec.Store)
 		} else {
-			return fmt.Errorf("failed to delete user '%s': %+v", u.Name, err)
+			return errors.Wrapf(err, "failed to delete user %q", u.Name)
 		}
 	}
 
@@ -292,13 +293,13 @@ func deleteUser(context *clusterd.Context, u *cephv1.CephObjectStoreUser) error 
 // ValidateUser validates the user arguments
 func ValidateUser(context *clusterd.Context, u *cephv1.CephObjectStoreUser) error {
 	if u.Name == "" {
-		return fmt.Errorf("missing name")
+		return errors.New("missing name")
 	}
 	if u.Namespace == "" {
-		return fmt.Errorf("missing namespace")
+		return errors.New("missing namespace")
 	}
 	if u.Spec.Store == "" {
-		return fmt.Errorf("missing store")
+		return errors.New("missing store")
 	}
 	return nil
 }

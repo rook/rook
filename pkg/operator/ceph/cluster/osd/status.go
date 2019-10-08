@@ -22,12 +22,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 )
@@ -81,7 +82,7 @@ func UpdateNodeStatus(kv *k8sutil.ConfigMapKVStore, node string, status Orchestr
 		string(s),
 		labels,
 	); err != nil {
-		return fmt.Errorf("failed to set node %s status. %+v", node, err)
+		return errors.Wrapf(err, "failed to set node %s status", node)
 	}
 	return nil
 }
@@ -135,7 +136,7 @@ func (c *Cluster) checkNodesCompleted(selector string, config *provisionConfig, 
 	// check the status map to see if the node is already completed before we start watching
 	statuses, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).List(opts)
 	if err != nil {
-		if !errors.IsNotFound(err) {
+		if !kerrors.IsNotFound(err) {
 			config.addError("failed to get config status. %+v", err)
 			return 0, remainingNodes, false, statuses, err
 		}
@@ -293,7 +294,7 @@ func (c *Cluster) findRemovedNodes() (map[string][]*apps.Deployment, error) {
 	// first discover the storage nodes that are still running
 	discoveredNodes, err := c.discoverStorageNodes()
 	if err != nil {
-		return nil, fmt.Errorf("aborting search for removed nodes. failed to discover storage nodes. %+v", err)
+		return nil, errors.Wrapf(err, "aborting search for removed nodes. failed to discover storage nodes")
 	}
 
 	// c.ValidStorage.Nodes currently in the cluster `c` is only the subset of the user-defined
@@ -301,7 +302,7 @@ func (c *Cluster) findRemovedNodes() (map[string][]*apps.Deployment, error) {
 	// for maintenance or have automatic Kubernetes well-known taints added.
 	k8sNodes, err := k8sutil.GetKubernetesNodesMatchingRookNodes(c.DesiredStorage.Nodes, c.context.Clientset)
 	if err != nil {
-		return nil, fmt.Errorf("aborting search for removed nodes. failed to list nodes from Kubernetes. %+v", err)
+		return nil, errors.Wrapf(err, "aborting search for removed nodes. failed to list nodes from Kubernetes")
 	}
 	nodeMap := map[string]v1.Node{}
 	for _, n := range k8sNodes {

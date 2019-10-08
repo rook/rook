@@ -17,7 +17,6 @@ limitations under the License.
 package util
 
 import (
-	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
@@ -26,6 +25,7 @@ import (
 	"strings"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -47,7 +47,7 @@ func FindRBDMappedFile(imageName, poolName, sysBusDir string) (string, error) {
 
 	files, err := ioutil.ReadDir(sysBusDeviceDir)
 	if err != nil {
-		return "", fmt.Errorf("failed to read rbd device dir: %+v", err)
+		return "", errors.Wrapf(err, "failed to read rbd device dir")
 	}
 
 	for _, idFile := range files {

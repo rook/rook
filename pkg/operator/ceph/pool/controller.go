@@ -18,10 +18,10 @@ limitations under the License.
 package pool
 
 import (
-	"fmt"
 	"reflect"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/pkg/errors"
 	opkit "github.com/rook/operator-kit"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -167,13 +167,13 @@ func (c *PoolController) onDelete(obj interface{}) {
 func createPool(context *clusterd.Context, p *cephv1.CephBlockPool) error {
 	// validate the pool settings
 	if err := ValidatePool(context, p); err != nil {
-		return fmt.Errorf("invalid pool %s arguments. %+v", p.Name, err)
+		return errors.Wrapf(err, "invalid pool %s arguments", p.Name)
 	}
 
 	// create the pool
 	logger.Infof("creating pool %s in namespace %s", p.Name, p.Namespace)
 	if err := ceph.CreatePoolWithProfile(context, p.Namespace, *p.Spec.ToModel(p.Name), poolApplicationNameRBD); err != nil {
-		return fmt.Errorf("failed to create pool %s. %+v", p.Name, err)
+		return errors.Wrapf(err, "failed to create pool %s", p.Name)
 	}
 
 	logger.Infof("created pool %s", p.Name)
@@ -184,7 +184,7 @@ func createPool(context *clusterd.Context, p *cephv1.CephBlockPool) error {
 func deletePool(context *clusterd.Context, p *cephv1.CephBlockPool) error {
 
 	if err := ceph.DeletePool(context, p.Namespace, p.Name); err != nil {
-		return fmt.Errorf("failed to delete pool '%s'. %+v", p.Name, err)
+		return errors.Wrapf(err, "failed to delete pool %q", p.Name)
 	}
 
 	return nil
@@ -218,10 +218,10 @@ func ModelToSpec(pool model.Pool) cephv1.PoolSpec {
 // Validate the pool arguments
 func ValidatePool(context *clusterd.Context, p *cephv1.CephBlockPool) error {
 	if p.Name == "" {
-		return fmt.Errorf("missing name")
+		return errors.New("missing name")
 	}
 	if p.Namespace == "" {
-		return fmt.Errorf("missing namespace")
+		return errors.New("missing namespace")
 	}
 	if err := ValidatePoolSpec(context, p.Namespace, &p.Spec); err != nil {
 		return err
@@ -232,7 +232,7 @@ func ValidatePool(context *clusterd.Context, p *cephv1.CephBlockPool) error {
 // ValidatePoolSpec validates the Ceph block pool spec CR
 func ValidatePoolSpec(context *clusterd.Context, namespace string, p *cephv1.PoolSpec) error {
 	if p.Replication() != nil && p.ErasureCode() != nil {
-		return fmt.Errorf("both replication and erasure code settings cannot be specified")
+		return errors.New("both replication and erasure code settings cannot be specified")
 	}
 
 	var crush ceph.CrushMap
@@ -240,7 +240,7 @@ func ValidatePoolSpec(context *clusterd.Context, namespace string, p *cephv1.Poo
 	if p.FailureDomain != "" || p.CrushRoot != "" {
 		crush, err = ceph.GetCrushMap(context, namespace)
 		if err != nil {
-			return fmt.Errorf("failed to get crush map. %+v", err)
+			return errors.Wrapf(err, "failed to get crush map")
 		}
 	}
 
@@ -254,7 +254,7 @@ func ValidatePoolSpec(context *clusterd.Context, namespace string, p *cephv1.Poo
 			}
 		}
 		if !found {
-			return fmt.Errorf("unrecognized failure domain %s", p.FailureDomain)
+			return errors.Errorf("unrecognized failure domain %s", p.FailureDomain)
 		}
 	}
 
@@ -268,7 +268,7 @@ func ValidatePoolSpec(context *clusterd.Context, namespace string, p *cephv1.Poo
 			}
 		}
 		if !found {
-			return fmt.Errorf("unrecognized crush root %s", p.CrushRoot)
+			return errors.Errorf("unrecognized crush root %s", p.CrushRoot)
 		}
 	}
 
@@ -283,5 +283,5 @@ func getPoolObject(obj interface{}) (pool *cephv1.CephBlockPool, err error) {
 		return pool.DeepCopy(), nil
 	}
 
-	return nil, fmt.Errorf("not a known pool object: %+v", obj)
+	return nil, errors.Errorf("not a known pool object %+v", obj)
 }

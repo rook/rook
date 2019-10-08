@@ -17,16 +17,16 @@ limitations under the License.
 package keyring
 
 import (
-	"fmt"
 	"path"
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -37,7 +37,7 @@ func TestGenerateKey(t *testing.T) {
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
 			if failGenerateKey {
-				return "", fmt.Errorf("test error")
+				return "", errors.New("test error")
 			}
 			return "{\"key\": \"" + generateKey + "\"}", nil
 		},
@@ -88,7 +88,7 @@ func TestKeyringStore(t *testing.T) {
 
 	assertDoesNotExist := func(keyringName string) {
 		_, e := clientset.CoreV1().Secrets(ns).Get(keyringName, metav1.GetOptions{})
-		assert.True(t, errors.IsNotFound(e))
+		assert.True(t, kerrors.IsNotFound(e))
 	}
 
 	// create first key

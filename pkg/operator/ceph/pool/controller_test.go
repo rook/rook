@@ -17,9 +17,9 @@ limitations under the License.
 package pool
 
 import (
-	"fmt"
 	"testing"
 
+	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -75,7 +75,7 @@ func TestValidateCrushProperties(t *testing.T) {
 		if args[1] == "crush" && args[2] == "dump" {
 			return `{"types":[{"type_id": 0,"name": "osd"}],"buckets":[{"id": -1,"name":"default"},{"id": -2,"name":"good"}]}`, nil
 		}
-		return "", fmt.Errorf("unexpected ceph command '%v'", args)
+		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
 
 	// succeed with a failure domain that exists
@@ -177,10 +177,10 @@ func TestDeletePool(t *testing.T) {
 					return p, nil
 
 				}
-				return "", fmt.Errorf("rbd: error opening pool '%s': (2) No such file or directory", args[3])
+				return "", errors.Errorf("rbd: error opening pool %q: (2) No such file or directory", args[3])
 
 			}
-			return "", fmt.Errorf("unexpected rbd command '%v'", args)
+			return "", errors.Errorf("unexpected rbd command %q", args)
 		},
 	}
 	context := &clusterd.Context{Executor: executor}

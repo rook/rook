@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/pkg/errors"
 	ceph "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/daemon/ceph/model"
 )
@@ -57,12 +58,12 @@ type realmType struct {
 func createObjectStore(context *Context, metadataSpec, dataSpec model.Pool, serviceIP string, port int32) error {
 	err := createPools(context, metadataSpec, dataSpec)
 	if err != nil {
-		return fmt.Errorf("failed to create object pools. %+v", err)
+		return errors.Wrapf(err, "failed to create object pools")
 	}
 
 	err = createRealm(context, serviceIP, port)
 	if err != nil {
-		return fmt.Errorf("failed to create object store realm. %+v", err)
+		return errors.Wrapf(err, "failed to create object store realm")
 	}
 	return nil
 }
@@ -70,13 +71,13 @@ func createObjectStore(context *Context, metadataSpec, dataSpec model.Pool, serv
 func deleteRealmAndPools(context *Context, preservePoolsOnDelete bool) error {
 	stores, err := getObjectStores(context)
 	if err != nil {
-		return fmt.Errorf("failed to detect object stores during deletion. %+v", err)
+		return errors.Wrapf(err, "failed to detect object stores during deletion")
 	}
 	logger.Infof("Found stores %v when deleting store %s", stores, context.Name)
 
 	err = deleteRealm(context)
 	if err != nil {
-		return fmt.Errorf("failed to delete realm. %+v", err)
+		return errors.Wrapf(err, "failed to delete realm")
 	}
 
 	lastStore := false
@@ -87,7 +88,7 @@ func deleteRealmAndPools(context *Context, preservePoolsOnDelete bool) error {
 	if !preservePoolsOnDelete {
 		err = deletePools(context, lastStore)
 		if err != nil {
-			return fmt.Errorf("failed to delete object store pools. %+v", err)
+			return errors.Wrapf(err, "failed to delete object store pools")
 		}
 	} else {
 		logger.Infof("PreservePoolsOnDelete is set in object store %s. Pools not deleted", context.Name)
@@ -104,7 +105,7 @@ func createRealm(context *Context, serviceIP string, port int32) error {
 	defaultArg := ""
 	stores, err := getObjectStores(context)
 	if err != nil {
-		return fmt.Errorf("failed to get object stores. %+v", err)
+		return errors.Wrapf(err, "failed to get object stores")
 	}
 	if len(stores) == 0 {
 		defaultArg = "--default"
@@ -116,13 +117,13 @@ func createRealm(context *Context, serviceIP string, port int32) error {
 		updatePeriod = true
 		output, err = runAdminCommand(context, "realm", "create", defaultArg)
 		if err != nil {
-			return fmt.Errorf("failed to create rgw realm %s. %+v", context.Name, err)
+			return errors.Wrapf(err, "failed to create rgw realm %s", context.Name)
 		}
 	}
 
 	realmID, err := decodeID(output)
 	if err != nil {
-		return fmt.Errorf("failed to parse realm id. %+v", err)
+		return errors.Wrapf(err, "failed to parse realm id")
 	}
 
 	// create the zonegroup if it doesn't exist yet
@@ -131,13 +132,13 @@ func createRealm(context *Context, serviceIP string, port int32) error {
 		updatePeriod = true
 		output, err = runAdminCommand(context, "zonegroup", "create", "--master", endpointArg, defaultArg)
 		if err != nil {
-			return fmt.Errorf("failed to create rgw zonegroup for %s. %+v", context.Name, err)
+			return errors.Wrapf(err, "failed to create rgw zonegroup for %s", context.Name)
 		}
 	}
 
 	zoneGroupID, err := decodeID(output)
 	if err != nil {
-		return fmt.Errorf("failed to parse zone group id. %+v", err)
+		return errors.Wrapf(err, "failed to parse zone group id")
 	}
 
 	// create the zone if it doesn't exist yet
@@ -146,19 +147,19 @@ func createRealm(context *Context, serviceIP string, port int32) error {
 		updatePeriod = true
 		output, err = runAdminCommand(context, "zone", "create", "--master", endpointArg, zoneArg, defaultArg)
 		if err != nil {
-			return fmt.Errorf("failed to create rgw zonegroup for %s. %+v", context.Name, err)
+			return errors.Wrapf(err, "failed to create rgw zonegroup for %s", context.Name)
 		}
 	}
 	zoneID, err := decodeID(output)
 	if err != nil {
-		return fmt.Errorf("failed to parse zone id. %+v", err)
+		return errors.Wrapf(err, "failed to parse zone id")
 	}
 
 	if updatePeriod {
 		// the period will help notify other zones of changes if there are multi-zones
 		_, err := runAdminCommandNoRealm(context, "period", "update", "--commit")
 		if err != nil {
-			return fmt.Errorf("failed to update period. %+v", err)
+			return errors.Wrapf(err, "failed to update period")
 		}
 	}
 
@@ -190,7 +191,7 @@ func decodeID(data string) (string, error) {
 	var id idType
 	err := json.Unmarshal([]byte(data), &id)
 	if err != nil {
-		return "", fmt.Errorf("Failed to unmarshal json: %+v", err)
+		return "", errors.Wrapf(err, "Failed to unmarshal json")
 	}
 
 	return id.ID, err
@@ -208,7 +209,7 @@ func getObjectStores(context *Context) ([]string, error) {
 	var r realmType
 	err = json.Unmarshal([]byte(output), &r)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to unmarshal realms: %+v", err)
+		return nil, errors.Wrapf(err, "Failed to unmarshal realms")
 	}
 
 	return r.Realms, nil
@@ -230,14 +231,14 @@ func deletePools(context *Context, lastStore bool) error {
 	// Delete erasure code profile if any
 	erasureCodes, err := ceph.ListErasureCodeProfiles(context.Context, context.ClusterName)
 	if err != nil {
-		return fmt.Errorf("failed to list erasure code profiles for cluster %s: %+v", context.ClusterName, err)
+		return errors.Wrapf(err, "failed to list erasure code profiles for cluster %s", context.ClusterName)
 	}
 	// cleans up the EC profile for the data pool only. Metadata pools don't support EC (only replication is supported).
 	objectStoreErasureCode := ceph.GetErasureCodeProfileForPool(context.Name)
 	for i := range erasureCodes {
 		if erasureCodes[i] == objectStoreErasureCode {
 			if err := ceph.DeleteErasureCodeProfile(context.Context, context.ClusterName, objectStoreErasureCode); err != nil {
-				return fmt.Errorf("failed to delete erasure code profile %s for object store %s: %+v", objectStoreErasureCode, context.Name, err)
+				return errors.Wrapf(err, "failed to delete erasure code profile %s for object store %s", objectStoreErasureCode, context.Name)
 			}
 			break
 		}
@@ -248,11 +249,11 @@ func deletePools(context *Context, lastStore bool) error {
 
 func createPools(context *Context, metadataSpec, dataSpec model.Pool) error {
 	if err := createSimilarPools(context, append(metadataPools, rootPool), metadataSpec); err != nil {
-		return fmt.Errorf("failed to create metadata pools. %+v", err)
+		return errors.Wrapf(err, "failed to create metadata pools")
 	}
 
 	if err := createSimilarPools(context, dataPools, dataSpec); err != nil {
-		return fmt.Errorf("failed to create data pool. %+v", err)
+		return errors.Wrapf(err, "failed to create data pool")
 	}
 
 	return nil
@@ -266,7 +267,7 @@ func createSimilarPools(context *Context, pools []string, poolSpec model.Pool) e
 		// create a new erasure code profile for the new pool
 		if err := ceph.CreateErasureCodeProfile(context.Context, context.ClusterName, poolSpec.ErasureCodedConfig, cephConfig.ErasureCodeProfile,
 			poolSpec.FailureDomain, poolSpec.CrushRoot, poolSpec.DeviceClass); err != nil {
-			return fmt.Errorf("failed to create erasure code profile for object store %s: %+v", context.Name, err)
+			return errors.Wrapf(err, "failed to create erasure code profile for object store %s", context.Name)
 		}
 	}
 
@@ -286,7 +287,7 @@ func createSimilarPools(context *Context, pools []string, poolSpec model.Pool) e
 				err = ceph.CreateReplicatedPoolForApp(context.Context, context.ClusterName, cephConfig, AppName)
 			}
 			if err != nil {
-				return fmt.Errorf("failed to create pool %s for object store %s", name, context.Name)
+				return errors.Errorf("failed to create pool %s for object store %s", name, context.Name)
 			}
 		}
 	}

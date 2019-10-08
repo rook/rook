@@ -18,12 +18,12 @@ limitations under the License.
 package operator
 
 import (
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/pkg/errors"
 	opkit "github.com/rook/operator-kit"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -104,19 +104,19 @@ func New(context *clusterd.Context, volumeAttachmentWrapper attachment.Attachmen
 func (o *Operator) Run() error {
 
 	if o.operatorNamespace == "" {
-		return fmt.Errorf("Rook operator namespace is not provided. Expose it via downward API in the rook operator manifest file using environment variable %s", k8sutil.PodNamespaceEnvVar)
+		return errors.Errorf("rook operator namespace is not provided. expose it via downward API in the rook operator manifest file using environment variable %s", k8sutil.PodNamespaceEnvVar)
 	}
 
 	if EnableDiscoveryDaemon {
 		rookDiscover := discover.New(o.context.Clientset)
 		if err := rookDiscover.Start(o.operatorNamespace, o.rookImage, o.securityAccount, true); err != nil {
-			return fmt.Errorf("error starting device discovery daemonset. %+v", err)
+			return errors.Wrapf(err, "error starting device discovery daemonset")
 		}
 	}
 
 	serverVersion, err := o.context.Clientset.Discovery().ServerVersion()
 	if err != nil {
-		return fmt.Errorf("error getting server version. %+v", err)
+		return errors.Wrapf(err, "error getting server version")
 	}
 
 	signalChan := make(chan os.Signal, 1)
@@ -168,19 +168,19 @@ func (o *Operator) startSystemDaemons(clusterSpec *cephv1.ClusterSpec) error {
 	}
 
 	if o.operatorNamespace == "" {
-		return fmt.Errorf("Rook operator namespace is not provided. Expose it via downward API in the rook operator manifest file using environment variable %s", k8sutil.PodNamespaceEnvVar)
+		return errors.Errorf("rook operator namespace is not provided. expose it via downward API in the rook operator manifest file using environment variable %s", k8sutil.PodNamespaceEnvVar)
 	}
 
 	if EnableFlexDriver {
 		rookAgent := agent.New(o.context.Clientset)
 		if err := rookAgent.Start(o.operatorNamespace, o.rookImage, o.securityAccount); err != nil {
-			return fmt.Errorf("error starting agent daemonset: %v", err)
+			return errors.Wrapf(err, "error starting agent daemonset")
 		}
 	}
 
 	serverVersion, err := o.context.Clientset.Discovery().ServerVersion()
 	if err != nil {
-		return fmt.Errorf("error getting server version: %v", err)
+		return errors.Wrapf(err, "error getting server version")
 	}
 
 	if !csi.CSIEnabled() {
@@ -197,11 +197,11 @@ func (o *Operator) startSystemDaemons(clusterSpec *cephv1.ClusterSpec) error {
 	}
 
 	if err = csi.ValidateCSIParam(); err != nil {
-		return fmt.Errorf("invalid csi params: %v", err)
+		return errors.Wrapf(err, "invalid csi params")
 	}
 
 	if err = csi.StartCSIDrivers(o.operatorNamespace, o.context.Clientset, serverVersion); err != nil {
-		return fmt.Errorf("failed to start Ceph csi drivers: %v", err)
+		return errors.Wrapf(err, "failed to start Ceph csi drivers")
 	}
 	logger.Infof("successfully started Ceph CSI driver(s)")
 
@@ -214,7 +214,7 @@ func (o *Operator) stopSystemDaemons() error {
 		return nil
 	}
 	if o.operatorNamespace == "" {
-		return fmt.Errorf("Rook operator namespace is not provided. Expose it via downward API in the rook operator manifest file using environment variable %s", k8sutil.PodNamespaceEnvVar)
+		return errors.Errorf("Rook operator namespace is not provided. Expose it via downward API in the rook operator manifest file using environment variable %q", k8sutil.PodNamespaceEnvVar)
 	}
 	// TODO: Add removal of FlexVolume daemons
 	if !csi.CSIEnabled() {
@@ -223,7 +223,7 @@ func (o *Operator) stopSystemDaemons() error {
 	}
 
 	if err := csi.StopCSIDrivers(o.operatorNamespace, o.context.Clientset); err != nil {
-		return fmt.Errorf("failed to start Ceph csi drivers: %v", err)
+		return errors.Wrapf(err, "failed to start Ceph csi drivers")
 	}
 	logger.Infof("successfully stopped Ceph CSI driver(s)")
 

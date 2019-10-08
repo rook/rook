@@ -27,6 +27,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/go-ini/ini"
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
@@ -125,12 +126,12 @@ func GenerateAdminConnectionConfigWithSettings(context *clusterd.Context, cluste
 	keyringPath := path.Join(root, fmt.Sprintf("%s.keyring", client.AdminUsername))
 	err := writeKeyring(AdminKeyring(cluster), keyringPath)
 	if err != nil {
-		return "", fmt.Errorf("failed to write keyring to %s. %+v", root, err)
+		return "", errors.Wrapf(err, "failed to write keyring to %s", root)
 	}
 
 	filePath, err := GenerateConfigFile(context, cluster, root, client.AdminUsername, keyringPath, settings, nil)
 	if err != nil {
-		return "", fmt.Errorf("failed to write config to %s. %+v", root, err)
+		return "", errors.Wrapf(err, "failed to write config to %s", root)
 	}
 	logger.Infof("generated admin config in %s", root)
 	return filePath, nil
@@ -146,19 +147,19 @@ func GenerateConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoo
 
 	configFile, err := createGlobalConfigFileSection(context, cluster, globalConfig)
 	if err != nil {
-		return "", fmt.Errorf("failed to create global config section, %+v", err)
+		return "", errors.Wrapf(err, "failed to create global config section")
 	}
 
 	qualifiedUser := getQualifiedUser(user)
 	if err := addClientConfigFileSection(configFile, qualifiedUser, keyringPath, clientSettings); err != nil {
-		return "", fmt.Errorf("failed to add admin client config section, %+v", err)
+		return "", errors.Wrapf(err, "failed to add admin client config section")
 	}
 
 	// write the entire config to disk
 	filePath := GetConfFilePath(pathRoot, cluster.Name)
 	logger.Infof("writing config file %s", filePath)
 	if err := configFile.SaveTo(filePath); err != nil {
-		return "", fmt.Errorf("failed to save config file %s. %+v", filePath, err)
+		return "", errors.Wrapf(err, "failed to save config file %s", filePath)
 	}
 
 	return filePath, nil
@@ -180,7 +181,7 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo) (*
 	if cephVersionEnv != "" {
 		v, err := cephver.ExtractCephVersion(cephVersionEnv)
 		if err != nil {
-			return nil, fmt.Errorf("failed to extract ceph version. %+v", err)
+			return nil, errors.Wrapf(err, "failed to extract ceph version")
 		}
 		cluster.CephVersion = *v
 	}
@@ -283,7 +284,7 @@ func createGlobalConfigFileSection(context *clusterd.Context, cluster *ClusterIn
 		var err error
 		ceph, err = CreateDefaultCephConfig(context, cluster)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create default ceph config. %+v", err)
+			return nil, errors.Wrapf(err, "failed to create default ceph config")
 		}
 	}
 
@@ -305,7 +306,7 @@ func addClientConfigFileSection(configFile *ini.File, clientName, keyringPath st
 
 	for key, val := range settings {
 		if _, err := s.NewKey(key, val); err != nil {
-			return fmt.Errorf("failed to add key %s. %v", key, err)
+			return errors.Wrapf(err, "failed to add key %s", key)
 		}
 	}
 

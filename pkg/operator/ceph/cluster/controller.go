@@ -48,9 +48,10 @@ import (
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 
+	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -271,7 +272,7 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 	// Make sure the spec contains all the information we need
 	err := validateExternalClusterSpec(cluster)
 	if err != nil {
-		return fmt.Errorf("failed to validate external cluster specs. %+v", err)
+		return errors.Wrapf(err, "failed to validate external cluster specs")
 	}
 
 	c.updateClusterStatus(namespace, name, cephv1.ClusterStateConnecting, "")
@@ -293,7 +294,7 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 	if cluster.Spec.CephVersion.Image != "" {
 		_, _, err = c.detectAndValidateCephVersion(cluster, cluster.Spec.CephVersion.Image)
 		if err != nil {
-			return fmt.Errorf("failed to detect and validate ceph version. %+v", err)
+			return errors.Wrapf(err, "failed to detect and validate ceph version")
 		}
 
 		// Write the rook-ceph-config configmap (used by various daemons to apply config overrides)
@@ -302,13 +303,13 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 		// Only do this when doing a bit of management...
 		err = config.GetStore(cluster.context, namespace, &cluster.ownerRef).CreateOrUpdate(cluster.Info)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "failed to set config store")
 		}
 	}
 
 	// The cluster Identity must be established at this point
 	if !cluster.Info.IsInitialized() {
-		return fmt.Errorf("the cluster identity was not established: %+v", cluster.Info)
+		return errors.Errorf("the cluster identity was not established: %+v", cluster.Info)
 	}
 	logger.Info("cluster identity established.")
 
@@ -318,7 +319,7 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 	// Create CSI Secrets
 	err = csi.CreateCSISecrets(c.context, namespace, &cluster.ownerRef)
 	if err != nil {
-		return fmt.Errorf("failed to create csi kubernetes secrets. %+v", err)
+		return errors.Wrapf(err, "failed to create csi kubernetes secrets")
 	}
 
 	// Mark initialization has done
@@ -338,7 +339,7 @@ func (c *ClusterController) configureLocalCephCluster(namespace, name string, cl
 
 	if c.devicesInUse && cluster.Spec.Storage.AnyUseAllDevices() {
 		c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1.ClusterStateError, "using all devices in more than one namespace is not supported")
-		return fmt.Errorf("using all devices in more than one namespace is not supported")
+		return errors.New("using all devices in more than one namespace is not supported")
 	}
 
 	if cluster.Spec.Storage.AnyUseAllDevices() {
@@ -377,14 +378,14 @@ func (c *ClusterController) configureLocalCephCluster(namespace, name string, cl
 		})
 
 	if err != nil {
-		return fmt.Errorf("giving up waiting for cluster creating. %+v", err)
+		return errors.Wrapf(err, "giving up waiting for cluster creating")
 	}
 
 	c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, state, failedMessage)
 
 	if state == cephv1.ClusterStateError {
 		// the cluster could not be initialized
-		return fmt.Errorf("failed to initialized the cluster")
+		return errors.New("failed to initialized the cluster")
 	}
 
 	return nil
@@ -813,7 +814,7 @@ func (c *ClusterController) waitForFlexVolumeCleanup(cluster *cephv1.CephCluster
 		// TODO: filter this List operation by cluster namespace on the server side
 		vols, err := c.volumeAttachment.List(operatorNamespace)
 		if err != nil {
-			return fmt.Errorf("failed to get volume attachments for operator namespace %s: %+v", operatorNamespace, err)
+			return errors.Wrapf(err, "failed to get volume attachments for operator namespace %s", operatorNamespace)
 		}
 
 		// find volume attachments in the deleted cluster
@@ -853,7 +854,7 @@ func (c *ClusterController) waitForFlexVolumeCleanup(cluster *cephv1.CephCluster
 func (c *ClusterController) checkPVPresentInCluster(drivers []string, clusterID string) (bool, error) {
 	pv, err := c.context.Clientset.CoreV1().PersistentVolumes().List(metav1.ListOptions{})
 	if err != nil {
-		return false, fmt.Errorf("failed to list PV. %+v", err)
+		return false, errors.Wrapf(err, "failed to list PV")
 	}
 
 	for _, p := range pv.Items {
@@ -882,7 +883,7 @@ func (c *ClusterController) waitForCSIVolumeCleanup(cluster *cephv1.CephCluster,
 		// check any PV is created in this cluster
 		attachmentsExist, err := c.checkPVPresentInCluster(drivers, cluster.Namespace)
 		if err != nil {
-			return fmt.Errorf("failed to list PersistentVolumes. %+v", err)
+			return errors.Wrapf(err, "failed to list PersistentVolumes")
 		}
 		// no PVC created in this cluster
 		if !attachmentsExist {
@@ -908,7 +909,7 @@ func (c *ClusterController) handleDelete(cluster *cephv1.CephCluster, retryInter
 	if csi.CSIEnabled() {
 		err := c.waitForCSIVolumeCleanup(cluster, retryInterval)
 		if err != nil {
-			return fmt.Errorf("failed to wait for the csi volume cleanup. %+v", err)
+			return errors.Wrapf(err, "failed to wait for the csi volume cleanup")
 		}
 	}
 	operatorNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
@@ -925,26 +926,26 @@ func (c *ClusterController) handleDelete(cluster *cephv1.CephCluster, retryInter
 func purgeExternalCluster(clientset kubernetes.Interface, namespace string) error {
 	// purge the mon endpoint config map
 	err := clientset.CoreV1().ConfigMaps(namespace).Delete(mon.EndpointConfigMapName, &metav1.DeleteOptions{})
-	if err != nil && !errors.IsNotFound(err) {
+	if err != nil && !kerrors.IsNotFound(err) {
 		return err
 	}
 
 	// purge the config flag overrides
 	err = clientset.CoreV1().ConfigMaps(namespace).Delete(config.StoreName, &metav1.DeleteOptions{})
-	if err != nil && !errors.IsNotFound(err) {
+	if err != nil && !kerrors.IsNotFound(err) {
 		return err
 	}
 
 	// purge config override configmap?
 	err = clientset.CoreV1().ConfigMaps(namespace).Delete(k8sutil.ConfigOverrideName, &metav1.DeleteOptions{})
-	if err != nil && !errors.IsNotFound(err) {
+	if err != nil && !kerrors.IsNotFound(err) {
 		return err
 	}
 
 	// Now delete secret
 	err = clientset.CoreV1().Secrets(namespace).Delete(mon.AppName, &metav1.DeleteOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to delete secret %+v. %+v", mon.AppName, err)
+		return errors.Wrapf(err, "failed to delete secret %+v", mon.AppName)
 	}
 
 	return nil
@@ -975,7 +976,7 @@ func (c *ClusterController) addFinalizer(namespace, name string) error {
 	// update the crd
 	_, err = c.context.RookClientset.CephV1().CephClusters(clust.Namespace).Update(clust)
 	if err != nil {
-		return fmt.Errorf("failed to add finalizer to cluster. %+v", err)
+		return errors.Wrapf(err, "failed to add finalizer to cluster")
 	}
 
 	logger.Infof("added finalizer to cluster %s", clust.Name)
@@ -1085,7 +1086,7 @@ func printOverallCephVersion(context *clusterd.Context, namespace string) {
 
 func validateExternalClusterSpec(cluster *cluster) error {
 	if cluster.Spec.DataDirHostPath == "" {
-		return fmt.Errorf("dataDirHostPath must be specified")
+		return errors.New("dataDirHostPath must be specified")
 	}
 
 	return nil
@@ -1124,8 +1125,8 @@ func populateConfigOverrideConfigMap(context *clusterd.Context, namespace string
 
 	k8sutil.SetOwnerRef(&cm.ObjectMeta, &ownerRef)
 	_, err := context.Clientset.CoreV1().ConfigMaps(namespace).Create(cm)
-	if err != nil && !errors.IsAlreadyExists(err) {
-		return fmt.Errorf("failed to create override configmap %s. %+v", namespace, err)
+	if err != nil && !kerrors.IsAlreadyExists(err) {
+		return errors.Wrapf(err, "failed to create override configmap %s", namespace)
 	}
 
 	return nil

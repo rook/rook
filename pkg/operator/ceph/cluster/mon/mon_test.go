@@ -27,6 +27,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -305,7 +306,7 @@ func TestWaitForQuorum(t *testing.T) {
 		quorumChecks++
 		if quorumChecks == 1 {
 			// return an error the first time while we're waiting for the mon to join quorum
-			return "", fmt.Errorf("test error")
+			return "", errors.New("test error")
 		}
 		// a successful response indicates that we have quorum, even if we didn't check which specific mons were in quorum
 		return clienttest.MonInQuorumResponseFromMons(mons), nil

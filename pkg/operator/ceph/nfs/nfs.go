@@ -23,6 +23,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
@@ -32,7 +33,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -62,12 +63,12 @@ func (c *CephNFSController) upCephNFS(n cephv1.CephNFS, oldActive int) error {
 
 		configName, err := c.generateConfig(n, id)
 		if err != nil {
-			return fmt.Errorf("failed to create config. %+v", err)
+			return errors.Wrapf(err, "failed to create config")
 		}
 
 		err = c.addRADOSConfigFile(n, id)
 		if err != nil {
-			return fmt.Errorf("failed to create RADOS config object. %+v", err)
+			return errors.Wrapf(err, "failed to create RADOS config object")
 		}
 
 		cfg := daemonConfig{
@@ -84,13 +85,13 @@ func (c *CephNFSController) upCephNFS(n cephv1.CephNFS, oldActive int) error {
 		deployment := c.makeDeployment(n, cfg)
 		_, err = c.context.Clientset.AppsV1().Deployments(n.Namespace).Create(deployment)
 		if err != nil {
-			if !errors.IsAlreadyExists(err) {
-				return fmt.Errorf("failed to create ganesha deployment. %+v", err)
+			if !kerrors.IsAlreadyExists(err) {
+				return errors.Wrapf(err, "failed to create ganesha deployment")
 			}
 			logger.Infof("ganesha deployment %s already exists. updating if needed", deployment.Name)
 			// We don't invoke ceph versions here since nfs do not show up in the service map (yet?)
 			if err := updateDeploymentAndWait(c.context, deployment, n.Namespace, "nfs", id, c.clusterInfo.CephVersion, c.isUpgrade, c.clusterSpec.SkipUpgradeChecks); err != nil {
-				return fmt.Errorf("failed to update ganesha deployment %s. %+v", deployment.Name, err)
+				return errors.Wrapf(err, "failed to update ganesha deployment %s", deployment.Name)
 			}
 		} else {
 			logger.Infof("ganesha deployment %s started", deployment.Name)
@@ -99,7 +100,7 @@ func (c *CephNFSController) upCephNFS(n cephv1.CephNFS, oldActive int) error {
 		// create a service
 		err = c.createCephNFSService(n, cfg)
 		if err != nil {
-			return fmt.Errorf("failed to create ganesha service. %+v", err)
+			return errors.Wrapf(err, "failed to create ganesha service")
 		}
 
 		c.addServerToDatabase(n, id)
@@ -158,10 +159,9 @@ func (c *CephNFSController) runGaneshaRadosGrace(nfs cephv1.CephNFS, name, actio
 	x.Stderr = &b
 	logger.Infof("Running command: %s %s %s", x.Env[0], cmd, strings.Join(args, " "))
 	if err := x.Run(); err != nil {
-		return fmt.Errorf(`failed to execute '%s'
+		return errors.Wrapf(err, `failed to execute %q
 stdout: %s
-stderr: %s
-error: %+v`, moniker, x.Stdout, x.Stderr, err)
+stderr: %s`, moniker, x.Stdout, x.Stderr)
 	}
 	return nil
 	// The below can be used when/if `ganesha-rados-grace` supports a `--cephconf` or similar option
@@ -182,13 +182,13 @@ func (c *CephNFSController) generateConfig(n cephv1.CephNFS, name string) (strin
 		Data: data,
 	}
 	if _, err := c.context.Clientset.CoreV1().ConfigMaps(n.Namespace).Create(configMap); err != nil {
-		if errors.IsAlreadyExists(err) {
+		if kerrors.IsAlreadyExists(err) {
 			if _, err := c.context.Clientset.CoreV1().ConfigMaps(n.Namespace).Update(configMap); err != nil {
-				return "", fmt.Errorf("failed to update ganesha config. %+v", err)
+				return "", errors.Wrapf(err, "failed to update ganesha config")
 			}
 			return configMap.Name, nil
 		}
-		return "", fmt.Errorf("failed to create ganesha config. %+v", err)
+		return "", errors.Wrapf(err, "failed to create ganesha config")
 	}
 	return configMap.Name, nil
 }
@@ -212,30 +212,30 @@ func instanceName(n cephv1.CephNFS, name string) string {
 func validateGanesha(context *clusterd.Context, n cephv1.CephNFS) error {
 	// core properties
 	if n.Name == "" {
-		return fmt.Errorf("missing name")
+		return errors.New("missing name")
 	}
 	if n.Namespace == "" {
-		return fmt.Errorf("missing namespace")
+		return errors.New("missing namespace")
 	}
 
 	// Client recovery properties
 	if n.Spec.RADOS.Pool == "" {
-		return fmt.Errorf("missing RADOS.pool")
+		return errors.New("missing RADOS.pool")
 	}
 	if n.Spec.RADOS.Namespace == "" {
-		return fmt.Errorf("missing RADOS.namespace")
+		return errors.New("missing RADOS.namespace")
 	}
 
 	// Ganesha server properties
 	if n.Spec.Server.Active == 0 {
-		return fmt.Errorf("at least one active server required")
+		return errors.New("at least one active server required")
 	}
 
 	// We cannot run an NFS server if no MDS is running
 	// The existence of the pool provided in n.Spec.RADOS.Pool is necessary otherwise addRADOSConfigFile() will fail
 	_, err := client.GetPoolDetails(context, n.Namespace, n.Spec.RADOS.Pool)
 	if err != nil {
-		return fmt.Errorf("pool %s not found, did the filesystem cr successfully complete? %+v", n.Spec.RADOS.Pool, err)
+		return errors.Wrapf(err, "pool %s not found, did the filesystem cr successfully complete?", n.Spec.RADOS.Pool)
 	}
 
 	return nil

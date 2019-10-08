@@ -17,15 +17,14 @@ limitations under the License.
 package object
 
 import (
-	"fmt"
-
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -181,12 +180,12 @@ func (c *clusterConfig) startService() (string, error) {
 
 	svc, err := c.context.Clientset.CoreV1().Services(c.store.Namespace).Create(svc)
 	if err != nil {
-		if !errors.IsAlreadyExists(err) {
-			return "", fmt.Errorf("failed to create rgw service. %+v", err)
+		if !kerrors.IsAlreadyExists(err) {
+			return "", errors.Wrapf(err, "failed to create rgw service")
 		}
 		svc, err = c.context.Clientset.CoreV1().Services(c.store.Namespace).Get(c.instanceName(), metav1.GetOptions{})
 		if err != nil {
-			return "", fmt.Errorf("failed to get existing service IP. %+v", err)
+			return "", errors.Wrapf(err, "failed to get existing service IP")
 		}
 		return svc.Spec.ClusterIP, nil
 	}

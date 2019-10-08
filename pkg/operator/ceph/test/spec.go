@@ -21,6 +21,7 @@ import (
 	"strings"
 	"testing"
 
+	e "github.com/pkg/errors"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	optest "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
@@ -33,10 +34,10 @@ const (
 func checkLabel(key, value string, labels map[string]string) error {
 	v, ok := labels[key]
 	if !ok {
-		return fmt.Errorf("label not present: expected={%s: %s}", key, value)
+		return e.Errorf("label not present: expected={%s: %s}", key, value)
 	}
 	if v != value {
-		return fmt.Errorf("label mismatch: expected={%s: %s} present={%s: %s}", key, value, key, v)
+		return e.Errorf("label mismatch: expected={%s: %s} present={%s: %s}", key, value, key, v)
 	}
 	return nil
 }
@@ -52,7 +53,7 @@ func combineErrors(errors ...error) error {
 	}
 	if failure {
 		errText = strings.TrimRight(errText, ": ") // Remove ": " from end
-		return fmt.Errorf("%s", errText)
+		return e.Errorf("%s", errText)
 	}
 	return nil
 }

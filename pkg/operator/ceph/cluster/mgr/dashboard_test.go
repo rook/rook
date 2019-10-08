@@ -16,10 +16,10 @@ limitations under the License.
 package mgr
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
@@ -28,7 +28,7 @@ import (
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -48,7 +48,7 @@ func TestGeneratePassword(t *testing.T) {
 func TestGetOrGeneratePassword(t *testing.T) {
 	c := &Cluster{context: &clusterd.Context{Clientset: test.New(3)}, Namespace: "myns"}
 	_, err := c.context.Clientset.CoreV1().Secrets(c.Namespace).Get(dashboardPasswordName, metav1.GetOptions{})
-	assert.True(t, errors.IsNotFound(err))
+	assert.True(t, kerrors.IsNotFound(err))
 
 	// Generate a password
 	password, err := c.getOrGenerateDashboardPassword()
@@ -88,7 +88,7 @@ func TestStartSecureDashboard(t *testing.T) {
 					logger.Infof("simulating retry...")
 					exitCodeResponse = invalidArgErrorCode
 					moduleRetries++
-					return "", fmt.Errorf("test failure")
+					return "", errors.New("test failure")
 				}
 			}
 			return "", nil
@@ -136,6 +136,6 @@ func TestStartSecureDashboard(t *testing.T) {
 
 	svc, err = c.context.Clientset.CoreV1().Services(c.Namespace).Get("rook-ceph-mgr-dashboard", metav1.GetOptions{})
 	assert.NotNil(t, err)
-	assert.True(t, errors.IsNotFound(err))
+	assert.True(t, kerrors.IsNotFound(err))
 	assert.Nil(t, svc)
 }

@@ -17,8 +17,7 @@ limitations under the License.
 package ceph
 
 import (
-	"fmt"
-
+	"github.com/pkg/errors"
 	"github.com/rook/rook/cmd/rook/rook"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
@@ -97,7 +96,7 @@ func startOperator(cmd *cobra.Command, args []string) error {
 	op := operator.New(context, volumeAttachment, rookImage, serviceAccountName)
 	err = op.Run()
 	if err != nil {
-		rook.TerminateFatal(fmt.Errorf("failed to run operator. %+v\n", err))
+		rook.TerminateFatal(errors.Wrapf(err, "failed to run operator\n"))
 	}
 
 	return nil

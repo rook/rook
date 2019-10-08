@@ -17,8 +17,7 @@ limitations under the License.
 package spec
 
 import (
-	"fmt"
-
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
@@ -30,7 +29,7 @@ func ValidateCephVersionsBetweenLocalAndExternalClusters(context *clusterd.Conte
 	// health check should tell us if the external cluster has been upgraded and display a message
 	externalVersion, err := client.GetCephMonVersion(context, namespace)
 	if err != nil {
-		return cephver.CephVersion{}, fmt.Errorf("failed to get ceph mon version. %+v", err)
+		return cephver.CephVersion{}, errors.Wrapf(err, "failed to get ceph mon version")
 	}
 
 	return *externalVersion, cephver.ValidateCephVersionsBetweenLocalAndExternalClusters(localVersion, *externalVersion)

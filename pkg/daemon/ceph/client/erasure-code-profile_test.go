@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/daemon/ceph/model"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -72,7 +73,7 @@ func testCreateProfile(t *testing.T, failureDomain, crushRoot, deviceClass strin
 				return "", nil
 			}
 		}
-		return "", fmt.Errorf("unexpected ceph command '%v'", args)
+		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
 
 	err := CreateErasureCodeProfile(context, "myns", cfg, "myapp", failureDomain, crushRoot, deviceClass)

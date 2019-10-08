@@ -17,8 +17,7 @@ limitations under the License.
 package osd
 
 import (
-	"fmt"
-
+	"github.com/pkg/errors"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	v1 "k8s.io/api/core/v1"
@@ -58,7 +57,7 @@ func (c *Cluster) prepareStorageClassDeviceSets(config *provisionConfig) []rooka
 
 func (c *Cluster) createStorageClassDeviceSetPVC(storageClassDeviceSet rookalpha.StorageClassDeviceSet, setIndex int) (*v1.PersistentVolumeClaim, error) {
 	if len(storageClassDeviceSet.VolumeClaimTemplates) == 0 {
-		return nil, fmt.Errorf("No PVC available for storageClassDeviceSet %s", storageClassDeviceSet.Name)
+		return nil, errors.Errorf("no PVC available for storageClassDeviceSet %s", storageClassDeviceSet.Name)
 	}
 	pvcStorageClassDeviceSetPVCId, pvcStorageClassDeviceSetPVCIdLabelSelector := makeStorageClassDeviceSetPVCID(storageClassDeviceSet.Name, setIndex, 0)
 
@@ -66,19 +65,19 @@ func (c *Cluster) createStorageClassDeviceSetPVC(storageClassDeviceSet rookalpha
 	// Check if a PVC already exists with same StorageClassDeviceSet label
 	presentPVCs, err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).List(metav1.ListOptions{LabelSelector: pvcStorageClassDeviceSetPVCIdLabelSelector})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create pvc %v for storageClassDeviceSet %v, err %+v", pvc.GetGenerateName(), storageClassDeviceSet.Name, err)
+		return nil, errors.Wrapf(err, "failed to create pvc %s for storageClassDeviceSet %s", pvc.GetGenerateName(), storageClassDeviceSet.Name)
 	}
 	if len(presentPVCs.Items) == 0 { // No PVC found, creating a new one
 		deployedPVC, err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).Create(pvc)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create pvc %v for storageClassDeviceSet %v, err %+v", pvc.GetGenerateName(), storageClassDeviceSet.Name, err)
+			return nil, errors.Wrapf(err, "failed to create pvc %s for storageClassDeviceSet %s", pvc.GetGenerateName(), storageClassDeviceSet.Name)
 		}
 		return deployedPVC, nil
 	} else if len(presentPVCs.Items) == 1 { // The PVC is already present.
 		return &presentPVCs.Items[0], nil
 	}
 	// More than one PVC exists with same labelSelector
-	return nil, fmt.Errorf("more than one PVCs exists with label %v, pvcs %+v", pvcStorageClassDeviceSetPVCIdLabelSelector, presentPVCs)
+	return nil, errors.Errorf("more than one PVCs exists with label %s, pvcs %s", pvcStorageClassDeviceSetPVCIdLabelSelector, presentPVCs)
 }
 
 func makeStorageClassDeviceSetPVC(storageClassDeviceSetName, pvcStorageClassDeviceSetPVCId string, pvcIndex, setIndex int, pvcTemplate v1.PersistentVolumeClaim) (pvcs *v1.PersistentVolumeClaim) {

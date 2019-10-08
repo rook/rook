@@ -17,8 +17,7 @@ limitations under the License.
 package nfs
 
 import (
-	"fmt"
-
+	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
@@ -27,7 +26,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -65,8 +64,8 @@ func (c *CephNFSController) createCephNFSService(nfs cephv1.CephNFS, cfg daemonC
 
 	svc, err := c.context.Clientset.CoreV1().Services(nfs.Namespace).Create(svc)
 	if err != nil {
-		if !errors.IsAlreadyExists(err) {
-			return fmt.Errorf("failed to create ganesha service. %+v", err)
+		if !kerrors.IsAlreadyExists(err) {
+			return errors.Wrapf(err, "failed to create ganesha service")
 		}
 		logger.Infof("ceph nfs service already created")
 		return nil

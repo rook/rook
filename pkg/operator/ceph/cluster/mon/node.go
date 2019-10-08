@@ -17,9 +17,8 @@ limitations under the License.
 package mon
 
 import (
-	"fmt"
-
-	"k8s.io/api/core/v1"
+	"github.com/pkg/errors"
+	v1 "k8s.io/api/core/v1"
 )
 
 // NodeUsage is a mapping between a Node and computed metadata about the node
@@ -60,7 +59,7 @@ func getNodeInfoFromNode(n v1.Node) (*NodeInfo, error) {
 		}
 	}
 	if nr.Address == "" {
-		return nil, fmt.Errorf("couldn't get IP of node %s", nr.Name)
+		return nil, errors.Errorf("couldn't get IP of node %s", nr.Name)
 	}
 	return nr, nil
 }

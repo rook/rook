@@ -19,7 +19,7 @@ limitations under the License.
 package disruption
 
 import (
-	"fmt"
+	"github.com/pkg/errors"
 
 	"github.com/rook/rook/pkg/operator/ceph/disruption/clusterdisruption"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
@@ -51,7 +51,7 @@ var MachineDisruptionBudgetAddToManagerFuncs = []func(manager.Manager, *controll
 // which will setup all the necessary watch
 func AddToManager(m manager.Manager, c *controllerconfig.Context) error {
 	if c == nil {
-		return fmt.Errorf("nil controllercontext passed")
+		return errors.New("nil controllercontext passed")
 	}
 	for _, f := range AddToManagerFuncs {
 		if err := f(m, c); err != nil {

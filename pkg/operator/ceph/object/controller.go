@@ -22,6 +22,7 @@ import (
 	"sync"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/pkg/errors"
 	opkit "github.com/rook/operator-kit"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -270,7 +271,7 @@ func getObjectStoreObject(obj interface{}) (objectstore *cephv1.CephObjectStore,
 		return objectstore.DeepCopy(), nil
 	}
 
-	return nil, fmt.Errorf("not a known objectstore object: %+v", obj)
+	return nil, errors.Errorf("not a known objectstore object %+v", obj)
 }
 
 func (c *ObjectStoreController) acquireOrchestrationLock() {

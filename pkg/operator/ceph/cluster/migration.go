@@ -18,8 +18,7 @@ limitations under the License.
 package cluster
 
 import (
-	"fmt"
-
+	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 )
 
@@ -32,5 +31,5 @@ func getClusterObject(obj interface{}) (cluster *cephv1.CephCluster, err error) 
 		return cluster, nil
 	}
 
-	return nil, fmt.Errorf("not a known cluster object: %+v", obj)
+	return nil, errors.Errorf("not a known cluster object: %+v", obj)
 }

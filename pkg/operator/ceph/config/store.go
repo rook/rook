@@ -19,17 +19,17 @@ limitations under the License.
 package config
 
 import (
-	"fmt"
 	"net"
 	"strconv"
 	"strings"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -70,7 +70,7 @@ func GetStore(context *clusterd.Context, namespace string, ownerRef *metav1.Owne
 func (s *Store) CreateOrUpdate(clusterInfo *cephconfig.ClusterInfo) error {
 	// these are used for all ceph daemons on the commandline and must *always* be stored
 	if err := s.createOrUpdateMonHostSecrets(clusterInfo); err != nil {
-		return fmt.Errorf("failed to store mon host configs. %+v", err)
+		return errors.Wrapf(err, "failed to store mon host configs")
 	}
 
 	return nil
@@ -126,19 +126,19 @@ func (s *Store) createOrUpdateMonHostSecrets(clusterInfo *cephconfig.ClusterInfo
 
 	_, err := clientset.CoreV1().Secrets(s.namespace).Get(StoreName, metav1.GetOptions{})
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if kerrors.IsNotFound(err) {
 			logger.Debugf("creating config secret %+v", secret)
 			if _, err := clientset.CoreV1().Secrets(s.namespace).Create(secret); err != nil {
-				return fmt.Errorf("failed to create config secret %+v. %+v", secret, err)
+				return errors.Wrapf(err, "failed to create config secret %+v", secret)
 			}
 		} else {
-			return fmt.Errorf("failed to get config secret %s. %+v", StoreName, err)
+			return errors.Wrapf(err, "failed to get config secret %s", StoreName)
 		}
 	}
 
 	logger.Debugf("updating config secret %+v", secret)
 	if _, err := clientset.CoreV1().Secrets(s.namespace).Update(secret); err != nil {
-		return fmt.Errorf("failed to update config secret %+v. %+v", secret, err)
+		return errors.Wrapf(err, "failed to update config secret %+v", secret)
 	}
 
 	return nil

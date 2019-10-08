@@ -17,9 +17,9 @@ limitations under the License.
 package osd
 
 import (
-	"fmt"
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -248,7 +248,7 @@ func TestParseCephVolumeResult(t *testing.T) {
 			return cephVolumeTestResult, nil
 		}
 
-		return "", fmt.Errorf("unknown command %s %+v", command, args)
+		return "", errors.Errorf("unknown command %s %s", command, args)
 	}
 
 	context := &clusterd.Context{Executor: executor}
@@ -268,7 +268,7 @@ func TestCephVolumeResultMultiClusterSingleOSD(t *testing.T) {
 			return cephVolumeTestResultMultiCluster, nil
 		}
 
-		return "", fmt.Errorf("unknown command %s %+v", command, args)
+		return "", errors.Errorf("unknown command %s %s", command, args)
 	}
 
 	context := &clusterd.Context{Executor: executor}
@@ -289,7 +289,7 @@ func TestCephVolumeResultMultiClusterMultiOSD(t *testing.T) {
 			return cephVolumeTestResultMultiClusterMultiOSD, nil
 		}
 
-		return "", fmt.Errorf("unknown command %s %+v", command, args)
+		return "", errors.Errorf("unknown command %s% s", command, args)
 	}
 
 	context := &clusterd.Context{Executor: executor}

@@ -27,6 +27,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
@@ -117,7 +118,7 @@ func formatDevice(context *clusterd.Context, config *osdConfig, forceFormat bool
 	pvcBackedOSD := false
 	_, ownPartitions, devFS, err := sys.CheckIfDeviceAvailable(context.Executor, dataDetails.Device, pvcBackedOSD)
 	if err != nil {
-		return nil, fmt.Errorf("failed to format device. %+v", err)
+		return nil, errors.Wrapf(err, "failed to format device")
 	}
 
 	if !ownPartitions {
@@ -134,7 +135,7 @@ func formatDevice(context *clusterd.Context, config *osdConfig, forceFormat bool
 			logger.Warningf("device %s already formatted with %s, but forcing a format!!!", dataDetails.Device, devFS)
 		} else {
 			// disk is already formatted and the user doesn't want to force it, but we require partitioning
-			return nil, fmt.Errorf("device %s already formatted with %s", dataDetails.Device, devFS)
+			return nil, errors.Errorf("device %s already formatted with %s", dataDetails.Device, devFS)
 		}
 	}
 
@@ -144,7 +145,7 @@ func formatDevice(context *clusterd.Context, config *osdConfig, forceFormat bool
 	if !dangerousToFormat || forceFormat {
 		devPartInfo, err = partitionOSD(context, config)
 		if err != nil {
-			return nil, fmt.Errorf("failed to partion device %s. %+v", dataDetails.Device, err)
+			return nil, errors.Wrapf(err, "failed to partion device %s", dataDetails.Device)
 		}
 	}
 
@@ -160,7 +161,7 @@ func partitionMetadata(context *clusterd.Context, info *config.MetadataDeviceInf
 	// check to see if the metadata partition scheme has already been applied
 	savedScheme, err := config.LoadScheme(kv, storeName)
 	if err != nil {
-		return fmt.Errorf("failed to load the saved partition scheme: %+v", err)
+		return errors.Wrapf(err, "failed to load the saved partition scheme")
 	}
 
 	if savedScheme.Metadata != nil && len(savedScheme.Metadata.Partitions) > 0 {
@@ -170,7 +171,7 @@ func partitionMetadata(context *clusterd.Context, info *config.MetadataDeviceInf
 			// the existing metadata partition scheme is the same disk as the desired metadata device.  no work to perform.
 			return nil
 		}
-		return fmt.Errorf("metadata partition scheme already exists on %s (%s), cannot use desired metadata device %s (%s)",
+		return errors.Errorf("metadata partition scheme already exists on %s (%s), cannot use desired metadata device %s (%s)",
 			savedScheme.Metadata.Device, savedScheme.Metadata.DiskUUID, info.Device, info.DiskUUID)
 	}
 
@@ -178,27 +179,27 @@ func partitionMetadata(context *clusterd.Context, info *config.MetadataDeviceInf
 	pvcBackedOSD := false
 	_, ownPartitions, fs, err := sys.CheckIfDeviceAvailable(context.Executor, info.Device, pvcBackedOSD)
 	if err != nil {
-		return fmt.Errorf("failed to get metadata device %s info: %+v", info.Device, err)
+		return errors.Wrapf(err, "failed to get metadata device %s info", info.Device)
 	} else if fs != "" || !ownPartitions {
-		return fmt.Errorf("metadata device %s is already in use (not by rook). fs: %s, ownPartitions: %t", info.Device, fs, ownPartitions)
+		return errors.Errorf("metadata device %s is already in use (not by rook). fs: %s, ownPartitions: %t", info.Device, fs, ownPartitions)
 	}
 
 	// zap/clear all existing partitions
 	err = sys.RemovePartitions(info.Device, context.Executor)
 	if err != nil {
-		return fmt.Errorf("failed to zap partitions on metadata device /dev/%s: %+v", info.Device, err)
+		return errors.Wrapf(err, "failed to zap partitions on metadata device /dev/%s", info.Device)
 	}
 
 	// create the partitions
 	err = sys.CreatePartitions(info.Device, info.GetPartitionArgs(), context.Executor)
 	if err != nil {
-		return fmt.Errorf("failed to partition metadata device /dev/%s. %+v", info.Device, err)
+		return errors.Wrapf(err, "failed to partition metadata device /dev/%s", info.Device)
 	}
 
 	// save the metadata partition info to disk now that it has been committed
 	savedScheme.Metadata = info
 	if err := savedScheme.SaveScheme(kv, storeName); err != nil {
-		return fmt.Errorf("failed to save partition scheme: %+v", err)
+		return errors.Wrapf(err, "failed to save partition scheme")
 	}
 
 	return nil
@@ -215,13 +216,13 @@ func partitionOSD(context *clusterd.Context, cfg *osdConfig) (*devicePartInfo, e
 	// zap/clear all existing partitions on the device
 	err = sys.RemovePartitions(dataDetails.Device, context.Executor)
 	if err != nil {
-		return nil, fmt.Errorf("failed to zap partitions on metadata device /dev/%s: %+v", dataDetails.Device, err)
+		return nil, errors.Wrapf(err, "failed to zap partitions on metadata device /dev/%s", dataDetails.Device)
 	}
 
 	// create the partitions on the device
 	err = sys.CreatePartitions(dataDetails.Device, cfg.partitionScheme.GetPartitionArgs(), context.Executor)
 	if err != nil {
-		return nil, fmt.Errorf("failed to partition /dev/%s. %+v", dataDetails.Device, err)
+		return nil, errors.Wrapf(err, "failed to partition /dev/%s", dataDetails.Device)
 	}
 
 	var devPartInfo *devicePartInfo
@@ -237,11 +238,11 @@ func partitionOSD(context *clusterd.Context, cfg *osdConfig) (*devicePartInfo, e
 	// save the partition scheme entry to disk now that it has been committed
 	savedScheme, err := config.LoadScheme(cfg.kv, cfg.storeName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load the saved partition scheme: %+v", err)
+		return nil, errors.Wrapf(err, "failed to load the saved partition scheme")
 	}
 	savedScheme.Entries = append(savedScheme.Entries, cfg.partitionScheme)
 	if err := savedScheme.SaveScheme(cfg.kv, cfg.storeName); err != nil {
-		return nil, fmt.Errorf("failed to save partition scheme: %+v", err)
+		return nil, errors.Wrapf(err, "failed to save partition scheme")
 	}
 
 	// update the uuid of the disk in the inventory in memory
@@ -258,7 +259,7 @@ func partitionOSD(context *clusterd.Context, cfg *osdConfig) (*devicePartInfo, e
 
 func prepareFilestoreDevice(context *clusterd.Context, cfg *osdConfig, doFormat bool) (*devicePartInfo, error) {
 	if !isFilestoreDevice(cfg) {
-		return nil, fmt.Errorf("osd is not a filestore device: %+v", cfg)
+		return nil, errors.Errorf("osd is not a filestore device: %+v", cfg)
 	}
 
 	// wait for the special /dev/disk/by-partuuid path to show up
@@ -267,7 +268,7 @@ func prepareFilestoreDevice(context *clusterd.Context, cfg *osdConfig, doFormat 
 	logger.Infof("waiting for partition path %s", dataPartPath)
 	err := waitForPath(dataPartPath, context.Executor)
 	if err != nil {
-		return nil, fmt.Errorf("failed waiting for %s: %+v", dataPartPath, err)
+		return nil, errors.Wrapf(err, "failed waiting for %s", dataPartPath)
 	}
 
 	if doFormat {
@@ -277,14 +278,14 @@ func prepareFilestoreDevice(context *clusterd.Context, cfg *osdConfig, doFormat 
 				dataPartDetails.PartitionUUID, dataPartDetails.Device, err)
 			<-time.After(2 * time.Second)
 			if err = sys.FormatDevice(dataPartPath, context.Executor); err != nil {
-				return nil, fmt.Errorf("failed to format partition %s on device %s. %+v", dataPartDetails.PartitionUUID, dataPartDetails.Device, err)
+				return nil, errors.Wrapf(err, "failed to format partition %s on device %s", dataPartDetails.PartitionUUID, dataPartDetails.Device)
 			}
 		}
 	}
 
 	// mount the device
 	if err = sys.MountDevice(dataPartPath, cfg.rootPath, context.Executor); err != nil {
-		return nil, fmt.Errorf("failed to mount %s at %s: %+v", dataPartPath, cfg.rootPath, context.Executor)
+		return nil, errors.Wrapf(err, "failed to mount %s at %s", dataPartPath, cfg.rootPath)
 	}
 
 	return &devicePartInfo{pathToUnmount: cfg.rootPath, deviceUUID: dataPartDetails.PartitionUUID}, nil
@@ -301,7 +302,7 @@ func remountFilestoreDeviceIfNeeded(context *clusterd.Context, cfg *osdConfig) (
 
 	savedScheme, err := config.LoadScheme(cfg.kv, cfg.storeName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load the saved partition scheme from %s: %+v", cfg.configRoot, err)
+		return nil, errors.Wrapf(err, "failed to load the saved partition scheme from %s", cfg.configRoot)
 	}
 
 	var devPartInfo *devicePartInfo
@@ -324,14 +325,14 @@ func remountFilestoreDeviceIfNeeded(context *clusterd.Context, cfg *osdConfig) (
 
 func getDataPartitionDetails(config *osdConfig) (*config.PerfSchemePartitionDetails, error) {
 	if config.partitionScheme == nil {
-		return nil, fmt.Errorf("partition scheme missing from %+v", config)
+		return nil, errors.Errorf("partition scheme missing from %+v", config)
 	}
 
 	dataPartitionType := config.partitionScheme.GetDataPartitionType()
 
 	dataDetails, ok := config.partitionScheme.Partitions[dataPartitionType]
 	if !ok || dataDetails == nil {
-		return nil, fmt.Errorf("data partition missing from %+v", config.partitionScheme)
+		return nil, errors.Errorf("data partition missing from %+v", config.partitionScheme)
 	}
 
 	return dataDetails, nil
@@ -344,7 +345,7 @@ func getDiskSize(context *clusterd.Context, name string) (uint64, error) {
 		}
 	}
 
-	return 0, fmt.Errorf("device %s not found", name)
+	return 0, errors.Errorf("device %s not found", name)
 }
 
 func waitForPath(path string, executor exec.Executor) error {
@@ -369,7 +370,7 @@ func registerOSD(context *clusterd.Context, clusterName string) (*int, *uuid.UUI
 	var err error
 	osdUUID, err := uuid.NewRandom()
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to generate UUID for osd: %+v", err)
+		return nil, nil, errors.Wrapf(err, "failed to generate UUID for osd")
 	}
 
 	// create the OSD instance via a mon_command, this assigns a cluster wide ID to the OSD
@@ -444,7 +445,7 @@ func getStoreSettings(cfg *osdConfig) (map[string]string, error) {
 			settings["bluestore block path"] = path.Join(basePath, "block")
 			settings["keyring"] = path.Join(basePath, "keyring")
 			return settings, nil
-			//FIX: return nil, fmt.Errorf("failed to find partitions from config for osd %d", cfg.id)
+			//FIX: return nil, errors.Wrapf(err, "failed to find partitions from config for osd %d", cfg.id)
 		} else {
 			walPath, dbPath, blockPath, err = getBluestorePartitionPaths(cfg)
 			if err != nil {
@@ -463,7 +464,7 @@ func getStoreSettings(cfg *osdConfig) (map[string]string, error) {
 func WriteConfigFile(context *clusterd.Context, cluster *cephconfig.ClusterInfo, kv *k8sutil.ConfigMapKVStore, osdID int, device bool, storeConfig config.StoreConfig, nodeName string) error {
 	scheme, err := config.LoadScheme(kv, config.GetConfigStoreName(nodeName))
 	if err != nil {
-		return fmt.Errorf("failed to load partition scheme: %+v", err)
+		return errors.Wrapf(err, "failed to load partition scheme")
 	}
 
 	cfg := &osdConfig{id: osdID, configRoot: context.ConfigDir, rootPath: getOSDRootDir(context.ConfigDir, osdID),
@@ -483,15 +484,15 @@ func WriteConfigFile(context *clusterd.Context, cluster *cephconfig.ClusterInfo,
 		cfg.dir = true
 		dirMap, err := config.LoadOSDDirMap(kv, nodeName)
 		if err != nil {
-			return fmt.Errorf("failed to load osd dir map. %+v", err)
+			return errors.Wrapf(err, "failed to load osd dir map")
 		}
 
 		id, ok := dirMap[context.ConfigDir]
 		if !ok {
-			return fmt.Errorf("dir %s was not found in the dir map. %+v", context.ConfigDir, dirMap)
+			return errors.Errorf("dir %s was not found in the dir map. %+v", context.ConfigDir, dirMap)
 		}
 		if id != osdID {
-			return fmt.Errorf("dir found in dirMap, but desired osd ID %d does not match dirMap id %d", osdID, id)
+			return errors.Errorf("dir found in dirMap, but desired osd ID %d does not match dirMap id %d", osdID, id)
 		}
 		logger.Infof("found osd %d in dir map for path %s", osdID, context.ConfigDir)
 	}
@@ -509,7 +510,7 @@ func WriteConfigFile(context *clusterd.Context, cluster *cephconfig.ClusterInfo,
 func writeConfigFile(cfg *osdConfig, context *clusterd.Context, cluster *cephconfig.ClusterInfo) error {
 	cephConfig, err := cephconfig.CreateDefaultCephConfig(context, cluster)
 	if err != nil {
-		return fmt.Errorf("failed to create default ceph config. %+v", err)
+		return errors.Wrapf(err, "failed to create default ceph config")
 	}
 	if isBluestore(cfg) {
 		cephConfig.GlobalConfig.OsdObjectStore = config.Bluestore
@@ -527,14 +528,14 @@ func writeConfigFile(cfg *osdConfig, context *clusterd.Context, cluster *cephcon
 	// bluestore has some extra settings
 	settings, err := getStoreSettings(cfg)
 	if err != nil {
-		return fmt.Errorf("failed to read store settings. %+v", err)
+		return errors.Wrapf(err, "failed to read store settings")
 	}
 
 	// write the OSD config file to disk
 	_, err = cephconfig.GenerateConfigFile(context, cluster, cfg.rootPath, fmt.Sprintf("osd.%d", cfg.id),
 		getOSDKeyringPath(cfg.rootPath), cephConfig, settings)
 	if err != nil {
-		return fmt.Errorf("failed to write OSD %d config file: %+v", cfg.id, err)
+		return errors.Wrapf(err, "failed to write OSD %d config file", cfg.id)
 	}
 
 	return nil
@@ -543,7 +544,7 @@ func writeConfigFile(cfg *osdConfig, context *clusterd.Context, cluster *cephcon
 func initializeOSD(config *osdConfig, context *clusterd.Context, cluster *cephconfig.ClusterInfo) error {
 	err := writeConfigFile(config, context, cluster)
 	if err != nil {
-		return fmt.Errorf("failed to write config file: %+v", err)
+		return errors.Wrapf(err, "failed to write config file")
 	}
 
 	// add auth privileges for the OSD, the bootstrap-osd privileges were very limited
@@ -573,13 +574,13 @@ func createOSD(context *clusterd.Context, clusterName string, osdUUID uuid.UUID)
 	args := []string{"osd", "create", osdUUID.String()}
 	buf, err := client.NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
-		return 0, fmt.Errorf("failed to create osd %s: %+v", osdUUID, err)
+		return 0, errors.Wrapf(err, "failed to create osd %s", osdUUID)
 	}
 
 	var resp map[string]interface{}
 	err = json.Unmarshal(buf, &resp)
 	if err != nil {
-		return 0, fmt.Errorf("failed to unmarshal response: %+v.  raw response: '%s'", err, string(buf[:]))
+		return 0, errors.Wrapf(err, "failed to unmarshal response. raw response: %q", string(buf[:]))
 	}
 
 	return int(resp["osdid"].(float64)), nil
@@ -591,7 +592,7 @@ func getMonMap(context *clusterd.Context, clusterName string) ([]byte, error) {
 	args := []string{"mon", "getmap"}
 	buf, err := client.NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get mon map: %+v", err)
+		return nil, errors.Wrapf(err, "failed to get mon map")
 	}
 	return buf, nil
 }
@@ -608,20 +609,20 @@ func addOSDAuth(context *clusterd.Context, clusterName string, osdID int, osdDat
 
 func getBluestorePartitionPaths(cfg *osdConfig) (string, string, string, error) {
 	if !isBluestoreDevice(cfg) {
-		return "", "", "", fmt.Errorf("must be bluestore device to get bluestore partition paths: %+v", cfg)
+		return "", "", "", errors.Errorf("must be bluestore device to get bluestore partition paths: %+v", cfg)
 	}
 	parts := cfg.partitionScheme.Partitions
 	walPartition, ok := parts[config.WalPartitionType]
 	if !ok {
-		return "", "", "", fmt.Errorf("failed to find wal partition for osd %d", cfg.id)
+		return "", "", "", errors.Errorf("failed to find wal partition for osd %d", cfg.id)
 	}
 	dbPartition, ok := parts[config.DatabasePartitionType]
 	if !ok {
-		return "", "", "", fmt.Errorf("failed to find db partition for osd %d", cfg.id)
+		return "", "", "", errors.Errorf("failed to find db partition for osd %d", cfg.id)
 	}
 	blockPartition, ok := parts[config.BlockPartitionType]
 	if !ok {
-		return "", "", "", fmt.Errorf("failed to find block partition for osd %d", cfg.id)
+		return "", "", "", errors.Errorf("failed to find block partition for osd %d", cfg.id)
 	}
 
 	return filepath.Join(diskByPartUUID, walPartition.PartitionUUID),
@@ -633,7 +634,7 @@ func getBluestorePartitionPaths(cfg *osdConfig) (string, string, string, error) 
 
 func getBluestoreDirPaths(cfg *osdConfig) (string, string, string, error) {
 	if !isBluestoreDir(cfg) {
-		return "", "", "", fmt.Errorf("must be bluestore dir to get bluestore dir paths: %+v", cfg)
+		return "", "", "", errors.Errorf("must be bluestore dir to get bluestore dir paths: %+v", cfg)
 	}
 
 	return filepath.Join(cfg.rootPath, config.BluestoreDirWalName),
@@ -646,7 +647,7 @@ func getBluestoreDirPaths(cfg *osdConfig) (string, string, string, error) {
 func getSizeForPath(path string) (uint64, error) {
 	s := syscall.Statfs_t{}
 	if err := syscall.Statfs(path, &s); err != nil {
-		return 0, fmt.Errorf("failed to statfs on %s, %+v", path, err)
+		return 0, errors.Wrapf(err, "failed to statfs on %s", path)
 	}
 
 	return s.Blocks * uint64(s.Bsize), nil

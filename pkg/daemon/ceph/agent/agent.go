@@ -18,7 +18,6 @@ limitations under the License.
 package agent
 
 import (
-	"fmt"
 	"net/rpc"
 	"os"
 	"os/signal"
@@ -26,13 +25,14 @@ import (
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/cluster"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/manager/ceph"
 	"github.com/rook/rook/pkg/operator/ceph/agent"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "rook-ceph-agent")
@@ -51,19 +51,19 @@ func New(context *clusterd.Context) *Agent {
 func (a *Agent) Run() error {
 	volumeAttachmentController, err := attachment.New(a.context)
 	if err != nil {
-		return fmt.Errorf("failed to create volume attachment controller: %+v", err)
+		return errors.Wrapf(err, "failed to create volume attachment controller")
 	}
 
 	volumeManager, err := ceph.NewVolumeManager(a.context)
 	if err != nil {
-		return fmt.Errorf("failed to create volume manager: %+v", err)
+		return errors.Wrapf(err, "failed to create volume manager")
 	}
 
 	mountSecurityMode := os.Getenv(agent.AgentMountSecurityModeEnv)
 	// Don't check if it is not empty because the operator always sets it on the DaemonSet
 	// meaning if it is not set, there is something wrong thus return an error.
 	if mountSecurityMode == "" {
-		return fmt.Errorf("no mount security mode env var found on the agent, have you upgraded your Rook operator correctly?")
+		return errors.New("no mount security mode env var found on the agent, have you upgraded your Rook operator correctly?")
 	}
 
 	flexvolumeController := flexvolume.NewController(a.context, volumeAttachmentController, volumeManager, mountSecurityMode)
@@ -75,12 +75,12 @@ func (a *Agent) Run() error {
 
 	err = rpc.Register(flexvolumeController)
 	if err != nil {
-		return fmt.Errorf("unable to register rpc: %v", err)
+		return errors.Wrapf(err, "unable to register rpc")
 	}
 
 	driverName, err := flexvolume.RookDriverName(a.context)
 	if err != nil {
-		return fmt.Errorf("failed to get driver name. %+v", err)
+		return errors.Wrapf(err, "failed to get driver name")
 	}
 
 	flexDriverVendors := []string{flexvolume.FlexvolumeVendor, flexvolume.FlexvolumeVendorLegacy}
@@ -93,7 +93,7 @@ func (a *Agent) Run() error {
 
 		err = flexvolumeServer.Start(vendor, driverName)
 		if err != nil {
-			return fmt.Errorf("failed to start flex volume server %s/%s, %+v", vendor, driverName, err)
+			return errors.Wrapf(err, "failed to start flex volume server %s/%s", vendor, driverName)
 		}
 
 		// Wait before the next driver is registered
@@ -103,7 +103,7 @@ func (a *Agent) Run() error {
 		// for the volume plugins not based on the namespace.
 		err = flexvolumeServer.Start(vendor, flexvolume.FlexDriverName)
 		if err != nil {
-			return fmt.Errorf("failed to start flex volume server %s/%s. %+v", vendor, flexvolume.FlexDriverName, err)
+			return errors.Wrapf(err, "failed to start flex volume server %s/%s", vendor, flexvolume.FlexDriverName)
 		}
 	}
 

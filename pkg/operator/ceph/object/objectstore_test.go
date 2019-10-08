@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -31,7 +32,7 @@ func TestCreateRealm(t *testing.T) {
 		idResponse := `{"id":"test-id"}`
 		logger.Infof("Execute: %s %v", command, args)
 		if args[1] == "get" {
-			return "", fmt.Errorf("induce a create")
+			return "", errors.New("induce a create")
 		} else if args[1] == "create" {
 			for _, arg := range args {
 				if arg == "--default" {
@@ -42,7 +43,7 @@ func TestCreateRealm(t *testing.T) {
 			assert.False(t, defaultStore, "did not find --default flag in %v", args)
 		} else if args[0] == "realm" && args[1] == "list" {
 			if defaultStore {
-				return "", fmt.Errorf("failed to run radosgw-admin: Failed to complete : exit status 2")
+				return "", errors.New("failed to run radosgw-admin: Failed to complete : exit status 2")
 			}
 			return `{"realms": ["myobj"]}`, nil
 		}
@@ -115,7 +116,7 @@ func deleteStore(t *testing.T, name string, existingStores string, expectedDelet
 				}
 			}
 		}
-		return "", fmt.Errorf("unexpected ceph command '%v'", args)
+		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
 	executorFunc := func(debug bool, actionName, command string, args ...string) (string, error) {
 		//logger.Infof("Command: %s %v", command, args)
@@ -145,7 +146,7 @@ func deleteStore(t *testing.T, name string, existingStores string, expectedDelet
 				return emptyPool, nil
 			}
 		}
-		return "", fmt.Errorf("unexpected ceph command '%v'", args)
+		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
 	executor.MockExecuteCommandWithOutput = executorFunc
 	executor.MockExecuteCommandWithCombinedOutput = executorFunc

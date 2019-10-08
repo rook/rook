@@ -143,7 +143,7 @@ func TestCreateFilesystem(t *testing.T) {
 
 	//Create another filesystem which should fail
 	err = createFilesystem(clusterInfo, context, fs, "v0.1", &cephv1.ClusterSpec{}, metav1.OwnerReference{}, "/var/lib/rook/", false)
-	assert.Equal(t, "failed to create filesystem myfs: Cannot create multiple filesystems. Enable ROOK_ALLOW_MULTIPLE_FILESYSTEMS env variable to create more than one", err.Error())
+	assert.Equal(t, "failed to create filesystem myfs: cannot create multiple filesystems. enable ROOK_ALLOW_MULTIPLE_FILESYSTEMS env variable to create more than one", err.Error())
 }
 
 func TestCreateNopoolFilesystem(t *testing.T) {

@@ -16,12 +16,12 @@ limitations under the License.
 package osd
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
@@ -202,7 +202,7 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 			return "", nil
 		}
 
-		return "", fmt.Errorf("unknown command %s %+v", command, args)
+		return "", errors.Errorf("unknown command %s %s", command, args)
 	}
 
 	context := &clusterd.Context{Executor: executor}

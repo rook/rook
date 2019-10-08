@@ -17,8 +17,7 @@ limitations under the License.
 package csi
 
 import (
-	"fmt"
-
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -152,7 +151,7 @@ func createOrUpdateCSISecret(namespace, csiRBDProvisionerSecretKey, csiRBDNodeSe
 		// Create Kubernetes Secret
 		err := k.CreateSecret(s)
 		if err != nil {
-			return fmt.Errorf("failed to create kubernetes secret %q for cluster %q", secret, namespace)
+			return errors.Errorf("failed to create kubernetes secret %q for cluster %q", secret, namespace)
 		}
 
 	}
@@ -168,30 +167,30 @@ func CreateCSISecrets(context *clusterd.Context, clusterName string, ownerRef *m
 	// Create CSI RBD Provisioner Ceph key
 	csiRBDProvisionerSecretKey, err := createCSIKeyringRBDProvisioner(k)
 	if err != nil {
-		return fmt.Errorf("failed to create csi rbd provisioner ceph keyring. %+v", err)
+		return errors.Wrapf(err, "failed to create csi rbd provisioner ceph keyring")
 	}
 
 	// Create CSI RBD Node Ceph key
 	csiRBDNodeSecretKey, err := createCSIKeyringRBDNode(k)
 	if err != nil {
-		return fmt.Errorf("failed to create csi rbd node ceph keyring. %+v", err)
+		return errors.Wrapf(err, "failed to create csi rbd node ceph keyring")
 	}
 
 	// Create CSI Cephfs provisioner Ceph key
 	csiCephFSProvisionerSecretKey, err := createCSIKeyringCephFSProvisioner(k)
 	if err != nil {
-		return fmt.Errorf("failed to create csi cephfs provisioner ceph keyring. %+v", err)
+		return errors.Wrapf(err, "failed to create csi cephfs provisioner ceph keyring")
 	}
 
 	// Create CSI Cephfs node Ceph key
 	csiCephFSNodeSecretKey, err := createCSIKeyringCephFSNode(k)
 	if err != nil {
-		return fmt.Errorf("failed to create csi cephfs node ceph keyring. %+v", err)
+		return errors.Wrapf(err, "failed to create csi cephfs node ceph keyring")
 	}
 
 	// Create or update Kubernetes CSI secret
 	if err := createOrUpdateCSISecret(clusterName, csiRBDProvisionerSecretKey, csiRBDNodeSecretKey, csiCephFSProvisionerSecretKey, csiCephFSNodeSecretKey, k); err != nil {
-		return fmt.Errorf("failed to create kubernetes csi secret. %+v", err)
+		return errors.Wrapf(err, "failed to create kubernetes csi secret")
 	}
 
 	return nil

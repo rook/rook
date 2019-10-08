@@ -17,17 +17,17 @@ limitations under the License.
 package mon
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
 	cephspec "github.com/rook/rook/pkg/operator/ceph/spec"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -85,7 +85,7 @@ func (c *Cluster) checkHealth() error {
 	// get the status and check for quorum
 	quorumStatus, err := client.GetMonQuorumStatus(c.context, c.ClusterInfo.Name, true)
 	if err != nil {
-		return fmt.Errorf("failed to get mon quorum status. %+v", err)
+		return errors.Wrapf(err, "failed to get mon quorum status")
 	}
 	logger.Debugf("Mon quorum status: %+v", quorumStatus)
 	if c.spec.External.Enable {
@@ -213,20 +213,20 @@ func (c *Cluster) failoverMon(name string) error {
 
 	// Assign the pod to a node
 	if err := c.assignMons(mConf); err != nil {
-		return fmt.Errorf("failed to place new mon on a node. %+v", err)
+		return errors.Wrapf(err, "failed to place new mon on a node")
 	}
 
 	if c.Network.IsHost() {
 		node, ok := c.mapping.Node[m.DaemonName]
 		if !ok {
-			return fmt.Errorf("mon %s doesn't exist in assignment map", m.DaemonName)
+			return errors.Errorf("mon %s doesn't exist in assignment map", m.DaemonName)
 		}
 		m.PublicIP = node.Address
 	} else {
 		// Create the service endpoint
 		serviceIP, err := c.createService(m)
 		if err != nil {
-			return fmt.Errorf("failed to create mon service. %+v", err)
+			return errors.Wrapf(err, "failed to create mon service")
 		}
 		m.PublicIP = serviceIP
 	}
@@ -234,7 +234,7 @@ func (c *Cluster) failoverMon(name string) error {
 
 	// Start the deployment
 	if err := c.startDeployments(mConf, true); err != nil {
-		return fmt.Errorf("failed to start new mon %s. %+v", m.DaemonName, err)
+		return errors.Wrapf(err, "failed to start new mon %s", m.DaemonName)
 	}
 
 	// Only increment the max mon id if the new pod started successfully
@@ -253,16 +253,16 @@ func (c *Cluster) removeMon(daemonName string) error {
 	propagation := metav1.DeletePropagationForeground
 	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
 	if err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Delete(resourceName, options); err != nil {
-		if errors.IsNotFound(err) {
+		if kerrors.IsNotFound(err) {
 			logger.Infof("dead mon %s was already gone", resourceName)
 		} else {
-			return fmt.Errorf("failed to remove dead mon deployment %s. %+v", resourceName, err)
+			return errors.Wrapf(err, "failed to remove dead mon deployment %s", resourceName)
 		}
 	}
 
 	// Remove the bad monitor from quorum
 	if err := removeMonitorFromQuorum(c.context, c.ClusterInfo.Name, daemonName); err != nil {
-		return fmt.Errorf("failed to remove mon %s from quorum. %+v", daemonName, err)
+		return errors.Wrapf(err, "failed to remove mon %s from quorum", daemonName)
 	}
 	delete(c.ClusterInfo.Monitors, daemonName)
 	// check if a mapping exists for the mon
@@ -272,15 +272,15 @@ func (c *Cluster) removeMon(daemonName string) error {
 
 	// Remove the service endpoint
 	if err := c.context.Clientset.CoreV1().Services(c.Namespace).Delete(resourceName, options); err != nil {
-		if errors.IsNotFound(err) {
+		if kerrors.IsNotFound(err) {
 			logger.Infof("dead mon service %s was already gone", resourceName)
 		} else {
-			return fmt.Errorf("failed to remove dead mon service %s. %+v", resourceName, err)
+			return errors.Wrapf(err, "failed to remove dead mon service %s", resourceName)
 		}
 	}
 
 	if err := c.saveMonConfig(); err != nil {
-		return fmt.Errorf("failed to save mon config after failing over mon %s. %+v", daemonName, err)
+		return errors.Wrapf(err, "failed to save mon config after failing over mon %s", daemonName)
 	}
 
 	return nil
@@ -290,7 +290,7 @@ func removeMonitorFromQuorum(context *clusterd.Context, clusterName, name string
 	logger.Debugf("removing monitor %s", name)
 	args := []string{"mon", "remove", name}
 	if _, err := client.NewCephCommand(context, clusterName, args).Run(); err != nil {
-		return fmt.Errorf("mon %s remove failed: %+v", name, err)
+		return errors.Wrapf(err, "mon %s remove failed", name)
 	}
 
 	logger.Infof("removed monitor %s", name)
@@ -302,19 +302,19 @@ func (c *Cluster) handleExternalMonStatus(status client.MonStatusResponse) error
 	if c.spec.CephVersion.Image == "" {
 		_, err := cephspec.ValidateCephVersionsBetweenLocalAndExternalClusters(c.context, c.Namespace, c.ClusterInfo.CephVersion)
 		if err != nil {
-			return fmt.Errorf("failed to validate external ceph version. %+v", err)
+			return errors.Wrapf(err, "failed to validate external ceph version")
 		}
 	}
 
 	changed, err := c.addOrRemoveExternalMonitor(status)
 	if err != nil {
-		return fmt.Errorf("failed to add or remove external mon. %+v", err)
+		return errors.Wrapf(err, "failed to add or remove external mon")
 	}
 
 	// let's save the monitor's config if anything happened
 	if changed {
 		if err := c.saveMonConfig(); err != nil {
-			return fmt.Errorf("failed to save mon config after adding/removing external mon. %+v", err)
+			return errors.Wrapf(err, "failed to save mon config after adding/removing external mon")
 		}
 	}
 

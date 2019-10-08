@@ -18,12 +18,13 @@ package clusterdisruption
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/coreos/pkg/capnslog"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -75,7 +76,7 @@ func (r *ReconcileClusterDisruption) Reconcile(request reconcile.Request) (recon
 
 func (r *ReconcileClusterDisruption) reconcile(request reconcile.Request) (reconcile.Result, error) {
 	if len(request.Namespace) == 0 {
-		return reconcile.Result{}, fmt.Errorf("request did not have namespace: %s", request.NamespacedName)
+		return reconcile.Result{}, errors.Errorf("request did not have namespace: %s", request.NamespacedName)
 	}
 
 	// ensure that the cluster name is populated
@@ -85,7 +86,7 @@ func (r *ReconcileClusterDisruption) reconcile(request reconcile.Request) (recon
 			// ensure that a deleted cluster doesn't result in infinite retries
 			r.namelessRetries++
 			logger.Infof("clusterName is not known yet for namespace %s", request.Namespace)
-			return reconcile.Result{Requeue: true, RequeueAfter: 5 * time.Second}, fmt.Errorf("clusterName for this namespace not yet known")
+			return reconcile.Result{Requeue: true, RequeueAfter: 5 * time.Second}, errors.New("clusterName for this namespace not yet known")
 		}
 		request.Name = clusterName
 		logger.Debugf("discovered NamespacedName: %s", request.NamespacedName)
@@ -96,11 +97,11 @@ func (r *ReconcileClusterDisruption) reconcile(request reconcile.Request) (recon
 	// get the ceph cluster
 	cephCluster := &cephv1.CephCluster{}
 	err := r.client.Get(context.TODO(), request.NamespacedName, cephCluster)
-	if errors.IsNotFound(err) {
+	if kerrors.IsNotFound(err) {
 		logger.Errorf("cephcluster %s seems to be deleted, not requeuing until triggered again", request)
 		return reconcile.Result{}, nil
 	} else if err != nil {
-		return reconcile.Result{}, fmt.Errorf("could not get the ceph cluster %s: %+v", request.NamespacedName, err)
+		return reconcile.Result{}, errors.Wrapf(err, "could not get the ceph cluster %s", request.NamespacedName)
 	}
 
 	// update the clustermap with the cluster's name so that

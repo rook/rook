@@ -17,11 +17,11 @@ limitations under the License.
 package cluster
 
 import (
-	"fmt"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	rookfake "github.com/rook/rook/pkg/client/clientset/versioned/fake"
@@ -216,7 +216,7 @@ func TestRemoveFinalizer(t *testing.T) {
 	addCallbacks := []func(clusterSpec *cephv1.ClusterSpec) error{
 		func(clusterSpec *cephv1.ClusterSpec) error {
 			logger.Infof("test success callback")
-			return fmt.Errorf("test failed callback")
+			return errors.New("test failed callback")
 		},
 	}
 	removeCallbacks := []func() error{

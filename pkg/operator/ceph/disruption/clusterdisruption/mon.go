@@ -17,9 +17,9 @@ limitations under the License.
 package clusterdisruption
 
 import (
-	"fmt"
 	"math"
 
+	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -65,7 +65,7 @@ func (r *ReconcileClusterDisruption) reconcileMonPDB(cephCluster *cephv1.CephClu
 	}
 	err := r.reconcileStaticPDB(pdbRequest, pdb)
 	if err != nil {
-		return fmt.Errorf("could not reconcile mon pdb: %+v", err)
+		return errors.Wrapf(err, "could not reconcile mon pdb")
 	}
 	return nil
 }

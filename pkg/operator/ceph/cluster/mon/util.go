@@ -17,10 +17,10 @@ limitations under the License.
 package mon
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
@@ -50,7 +50,7 @@ func fullNameToIndex(name string) (int, error) {
 	// attempt to parse the legacy mon name
 	legacyPrefix := AppName
 	if strings.Index(name, legacyPrefix) == -1 || len(name) < len(AppName) {
-		return -1, fmt.Errorf("unexpected mon name")
+		return -1, errors.New("unexpected mon name")
 	}
 	id, err := strconv.Atoi(name[len(legacyPrefix):])
 	if err != nil {

@@ -28,13 +28,14 @@ import (
 	"strings"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/sys"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 var (
@@ -53,30 +54,30 @@ func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID, lvPath string,
 
 	// Update LVM config at runtime
 	if err := updateLVMConfig(context, pvcBackedOSD, lvBackedPV); err != nil {
-		return fmt.Errorf("failed to update lvm configuration file, %+v", err) // fail return here as validation provided by ceph-volume
+		return errors.Wrapf(err, "failed to update lvm configuration file") // fail return here as validation provided by ceph-volume
 	}
 
 	var volumeGroupName string
 	if pvcBackedOSD && !lvBackedPV {
 		volumeGroupName, err = getVolumeGroupName(lvPath)
 		if err != nil {
-			return fmt.Errorf("error fetching volume group name for OSD %s. %+v", osdID, err)
+			return errors.Wrapf(err, "error fetching volume group name for OSD %s", osdID)
 		}
 		go handleTerminate(context, lvPath, volumeGroupName)
 
 		if err := context.Executor.ExecuteCommand(false, "", "vgchange", "-an", volumeGroupName); err != nil {
-			return fmt.Errorf("failed to deactivate volume group for lv %+v. Error: %+v", lvPath, err)
+			return errors.Wrapf(err, "failed to deactivate volume group for lv %q", lvPath)
 		}
 
 		if err := context.Executor.ExecuteCommand(false, "", "vgchange", "-ay", volumeGroupName); err != nil {
-			return fmt.Errorf("failed to activate volume group for lv %+v. Error: %+v", lvPath, err)
+			return errors.Wrapf(err, "failed to activate volume group for lv %q", lvPath)
 		}
 	}
 
 	// activate the osd with ceph-volume
 	storeFlag := "--" + osdType
 	if err := context.Executor.ExecuteCommand(false, "", "stdbuf", "-oL", "ceph-volume", "lvm", "activate", "--no-systemd", storeFlag, osdID, osdUUID); err != nil {
-		return fmt.Errorf("failed to activate osd. %+v", err)
+		return errors.Wrapf(err, "failed to activate osd")
 	}
 
 	// run the ceph-osd daemon
@@ -87,7 +88,7 @@ func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID, lvPath string,
 
 	if pvcBackedOSD && !lvBackedPV {
 		if err := releaseLVMDevice(context, volumeGroupName); err != nil {
-			return fmt.Errorf("failed to release device from lvm. %+v", err)
+			return errors.Wrapf(err, "failed to release device from lvm")
 		}
 	}
 
@@ -103,7 +104,7 @@ func handleTerminate(context *clusterd.Context, lvPath, volumeGroupName string) 
 			logger.Infof("shutdown signal received, exiting...")
 			err := killCephOSDProcess(context, lvPath)
 			if err != nil {
-				return fmt.Errorf("failed to kill ceph-osd process. %+v", err)
+				return errors.Wrapf(err, "failed to kill ceph-osd process")
 			}
 			return nil
 		}
@@ -114,7 +115,7 @@ func killCephOSDProcess(context *clusterd.Context, lvPath string) error {
 
 	pid, err := context.Executor.ExecuteCommandWithOutput(false, "", "fuser", "-a", lvPath)
 	if err != nil {
-		return fmt.Errorf("failed to retrieve process ID for - %s. Error %+v", lvPath, err)
+		return errors.Wrapf(err, "failed to retrieve process ID for %s", lvPath)
 	}
 
 	logger.Infof("process ID for ceph-osd: %s", pid)
@@ -128,7 +129,7 @@ func killCephOSDProcess(context *clusterd.Context, lvPath string) error {
 		// improve the shutdown time of the OSD. For cleanliness we should consider removing the -9
 		// once it is backported to Nautilus: https://github.com/ceph/ceph/pull/31677.
 		if err := context.Executor.ExecuteCommand(false, "", "kill", "-9", pid); err != nil {
-			return fmt.Errorf("failed to kill ceph-osd process. %+v", err)
+			return errors.Wrapf(err, "failed to kill ceph-osd process")
 		}
 	}
 
@@ -140,14 +141,14 @@ func RunFilestoreOnDevice(context *clusterd.Context, mountSourcePath, mountPath 
 	logger.Infof("starting filestore osd on a device")
 
 	if err := sys.MountDevice(mountSourcePath, mountPath, context.Executor); err != nil {
-		return fmt.Errorf("failed to mount device. %+v", err)
+		return errors.Wrapf(err, "failed to mount device")
 	}
 	// unmount the device before exit
 	defer sys.UnmountDevice(mountPath, context.Executor)
 
 	// run the ceph-osd daemon
 	if err := context.Executor.ExecuteCommand(false, "", "ceph-osd", cephArgs...); err != nil {
-		return fmt.Errorf("failed to start osd. %+v", err)
+		return errors.Wrapf(err, "failed to start osd")
 	}
 
 	return nil
@@ -164,21 +165,21 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 	// create the ceph.conf with the default settings
 	cephConfig, err := cephconfig.CreateDefaultCephConfig(context, agent.cluster)
 	if err != nil {
-		return fmt.Errorf("failed to create default ceph config. %+v", err)
+		return errors.Wrapf(err, "failed to create default ceph config")
 	}
 
 	// write the latest config to the config dir
 	confFilePath, err := cephconfig.GenerateAdminConnectionConfigWithSettings(context, agent.cluster, cephConfig)
 	if err != nil {
-		return fmt.Errorf("failed to write connection config. %+v", err)
+		return errors.Wrapf(err, "failed to write connection config")
 	}
 	src, err := ioutil.ReadFile(confFilePath)
 	if err != nil {
-		return fmt.Errorf("failed to copy connection config to /etc/ceph. failed to read the connection config. %+v", err)
+		return errors.Wrapf(err, "failed to copy connection config to /etc/ceph. failed to read the connection config")
 	}
 	err = ioutil.WriteFile(cephconfig.DefaultConfigFilePath(), src, 0444)
 	if err != nil {
-		return fmt.Errorf("failed to copy connection config to /etc/ceph. failed to write %s. %+v", cephconfig.DefaultConfigFilePath(), err)
+		return errors.Wrapf(err, "failed to copy connection config to /etc/ceph. failed to write %s", cephconfig.DefaultConfigFilePath())
 	}
 	dst, err := ioutil.ReadFile(cephconfig.DefaultConfigFilePath())
 	if err == nil {
@@ -191,17 +192,17 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 	var rawDevices []*sys.LocalDisk
 	if agent.pvcBacked {
 		if len(agent.devices) > 1 {
-			return fmt.Errorf("more than one desired device found in case of PVC backed OSDs. we expect exactly one device")
+			return errors.New("more than one desired device found in case of PVC backed OSDs. we expect exactly one device")
 		}
 		rawDevice, err := clusterd.PopulateDeviceInfo(agent.devices[0].Name, context.Executor)
 		if err != nil {
-			return fmt.Errorf("failed to get device info for %s. %+v", agent.devices[0].Name, err)
+			return errors.Wrapf(err, "failed to get device info for %q", agent.devices[0].Name)
 		}
 		rawDevices = append(rawDevices, rawDevice)
 	} else {
 		rawDevices, err = clusterd.DiscoverDevices(context.Executor)
 		if err != nil {
-			return fmt.Errorf("failed initial hardware discovery. %+v", err)
+			return errors.Wrapf(err, "failed initial hardware discovery")
 		}
 	}
 
@@ -212,13 +213,13 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 	// determine the set of devices that can/should be used for OSDs.
 	devices, err := getAvailableDevices(context, agent.devices, agent.metadataDevice, agent.pvcBacked)
 	if err != nil {
-		return fmt.Errorf("failed to get available devices. %+v", err)
+		return errors.Wrapf(err, "failed to get available devices")
 	}
 
 	// determine the set of removed OSDs and the node's crush name (if needed)
 	removedDevicesScheme, _, err := getRemovedDevices(agent)
 	if err != nil {
-		return fmt.Errorf("failed to get removed devices: %+v", err)
+		return errors.Wrapf(err, "failed to get removed devices")
 	}
 
 	// orchestration is about to start, update the status
@@ -231,7 +232,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 	logger.Infof("configuring osd devices: %+v", devices)
 	deviceOSDs, err := agent.configureDevices(context, devices)
 	if err != nil {
-		return fmt.Errorf("failed to configure devices. %+v", err)
+		return errors.Wrapf(err, "failed to configure devices")
 	}
 
 	// Populate CRUSH location for each OSD on the host
@@ -244,30 +245,30 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 	devicesConfigured := len(deviceOSDs) > 0
 	dirs, removedDirs, err := getDataDirs(context, agent.kv, agent.directories, devicesConfigured, agent.nodeName)
 	if err != nil {
-		return fmt.Errorf("failed to get data dirs. %+v", err)
+		return errors.Wrapf(err, "failed to get data dirs")
 	}
 
 	// start up the OSDs for directories
 	logger.Infof("configuring osd dirs: %+v", dirs)
 	dirOSDs, err := agent.configureDirs(context, dirs)
 	if err != nil {
-		return fmt.Errorf("failed to configure dirs %+v. %+v", dirs, err)
+		return errors.Wrapf(err, "failed to configure dirs %+v", dirs)
 	}
 
 	// now we can start removing OSDs from devices and directories
 	logger.Infof("removing osd devices: %+v", removedDevicesScheme)
 	if err := agent.removeDevices(context, removedDevicesScheme); err != nil {
-		return fmt.Errorf("failed to remove devices. %+v", err)
+		return errors.Wrapf(err, "failed to remove devices")
 	}
 
 	logger.Infof("removing osd dirs: %+v", removedDirs)
 	if err := agent.removeDirs(context, removedDirs); err != nil {
-		return fmt.Errorf("failed to remove dirs. %+v", err)
+		return errors.Wrapf(err, "failed to remove dirs")
 	}
 
 	logger.Info("saving osd dir map")
 	if err := config.SaveOSDDirMap(agent.kv, agent.nodeName, dirs); err != nil {
-		return fmt.Errorf("failed to save osd dir map. %+v", err)
+		return errors.Wrapf(err, "failed to save osd dir map")
 	}
 
 	logger.Infof("device osds:%+v\ndir osds: %+v", deviceOSDs, dirOSDs)
@@ -275,10 +276,10 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 	if agent.pvcBacked && !deviceOSDs[0].SkipLVRelease && !deviceOSDs[0].LVBackedPV {
 		volumeGroupName, err := getVolumeGroupName(deviceOSDs[0].LVPath)
 		if err != nil {
-			return fmt.Errorf("error fetching volume group name. %+v", err)
+			return errors.Wrapf(err, "error fetching volume group name")
 		}
 		if err := releaseLVMDevice(context, volumeGroupName); err != nil {
-			return fmt.Errorf("failed to release device from lvm. %+v", err)
+			return errors.Wrapf(err, "failed to release device from lvm")
 		}
 	}
 
@@ -308,7 +309,7 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 		}
 		partCount, ownPartitions, fs, err := sys.CheckIfDeviceAvailable(context.Executor, device.Name, pvcBacked)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get device %q info. %+v", device.Name, err)
+			return nil, errors.Wrapf(err, "failed to get device %q info", device.Name)
 		}
 
 		if fs != "" || !ownPartitions {
@@ -414,9 +415,9 @@ func getDataDirs(context *clusterd.Context, kv *k8sutil.ConfigMapKVStore, desire
 		return activeDirs, removedDirs, nil
 	}
 
-	if !errors.IsNotFound(err) {
+	if !kerrors.IsNotFound(err) {
 		// real error when trying to load the osd dir map, return the err
-		return nil, nil, fmt.Errorf("failed to load OSD dir map: %+v", err)
+		return nil, nil, errors.Wrapf(err, "failed to load OSD dir map")
 	}
 
 	// the osd dirs map doesn't exist yet
@@ -452,14 +453,14 @@ func getRemovedDevices(agent *OsdAgent) (*config.PerfScheme, *DeviceOsdMapping, 
 
 	scheme, err := config.LoadScheme(agent.kv, config.GetConfigStoreName(agent.nodeName))
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to load agent's partition scheme: %+v", err)
+		return nil, nil, errors.Wrapf(err, "failed to load agent's partition scheme")
 	}
 
 	for _, entry := range scheme.Entries {
 		// determine which partition the data lives on for this entry
 		dataDetails, ok := entry.Partitions[entry.GetDataPartitionType()]
 		if !ok || dataDetails == nil {
-			return nil, nil, fmt.Errorf("failed to find data partition for entry %+v", entry)
+			return nil, nil, errors.Errorf("failed to find data partition for entry %+v", entry)
 		}
 
 		// add the current scheme entry to the removed devices scheme and its device to the removed
@@ -508,7 +509,7 @@ func getActiveAndRemovedDirs(
 //releaseLVMDevice deactivates the LV to release the device.
 func releaseLVMDevice(context *clusterd.Context, volumeGroupName string) error {
 	if err := context.Executor.ExecuteCommand(false, "", "lvchange", "-an", volumeGroupName); err != nil {
-		return fmt.Errorf("failed to deactivate LVM %s. Error: %+v", volumeGroupName, err)
+		return errors.Wrapf(err, "failed to deactivate LVM %s", volumeGroupName)
 	}
 	logger.Info("Successfully released device from lvm")
 	return nil
@@ -517,13 +518,13 @@ func releaseLVMDevice(context *clusterd.Context, volumeGroupName string) error {
 //getVolumeGroupName returns the Volume group name from the given Logical Volume Path
 func getVolumeGroupName(lvPath string) (string, error) {
 	if lvPath == "" {
-		return "", fmt.Errorf("empty LV Path : %s", lvPath)
+		return "", errors.Errorf("empty LV Path : %s", lvPath)
 	}
 
 	vgSlice := strings.Split(lvPath, "/")
 	//Assert that lvpath is in correct format `/dev/<vg name>/<lv name>` before extracting the vg name
 	if len(vgSlice) != 4 || vgSlice[2] == "" {
-		return "", fmt.Errorf("invalid LV Path : %s", lvPath)
+		return "", errors.Errorf("invalid LV Path : %s", lvPath)
 	}
 
 	return vgSlice[2], nil

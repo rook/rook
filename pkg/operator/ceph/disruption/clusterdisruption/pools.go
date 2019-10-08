@@ -23,6 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/nodedrain"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -43,7 +44,7 @@ func (r *ReconcileClusterDisruption) processPools(request reconcile.Request) (*c
 	cephBlockPoolList := &cephv1.CephBlockPoolList{}
 	err := r.client.List(context.TODO(), cephBlockPoolList, namespaceListOpt)
 	if err != nil {
-		return nil, nil, "", poolCount, fmt.Errorf("could not list the CephBlockpools %s: %+v", request.NamespacedName, err)
+		return nil, nil, "", poolCount, errors.Wrapf(err, "could not list the CephBlockpools %s", request.NamespacedName)
 	}
 	poolCount += len(cephBlockPoolList.Items)
 	for _, cephBlockPool := range cephBlockPoolList.Items {
@@ -53,7 +54,7 @@ func (r *ReconcileClusterDisruption) processPools(request reconcile.Request) (*c
 	cephFilesystemList := &cephv1.CephFilesystemList{}
 	err = r.client.List(context.TODO(), cephFilesystemList, namespaceListOpt)
 	if err != nil {
-		return nil, nil, "", poolCount, fmt.Errorf("could not list the CephFilesystems %s: %+v", request.NamespacedName, err)
+		return nil, nil, "", poolCount, errors.Wrapf(err, "could not list the CephFilesystems %s", request.NamespacedName)
 	}
 	poolCount += len(cephFilesystemList.Items)
 	for _, cephFilesystem := range cephFilesystemList.Items {
@@ -65,7 +66,7 @@ func (r *ReconcileClusterDisruption) processPools(request reconcile.Request) (*c
 	cephObjectStoreList := &cephv1.CephObjectStoreList{}
 	err = r.client.List(context.TODO(), cephObjectStoreList, namespaceListOpt)
 	if err != nil {
-		return nil, nil, "", poolCount, fmt.Errorf("could not list the CephObjectStores %s: %+v", request.NamespacedName, err)
+		return nil, nil, "", poolCount, errors.Wrapf(err, "could not list the CephObjectStores %s", request.NamespacedName)
 	}
 	poolCount += len(cephObjectStoreList.Items)
 	for _, cephObjectStore := range cephObjectStoreList.Items {
@@ -114,7 +115,7 @@ func (r *ReconcileClusterDisruption) getOngoingDrains(request reconcile.Request)
 	operatorNameSpaceListOpts := client.InNamespace(request.Namespace)
 	err := r.client.List(context.TODO(), canaryDeploymentList, client.MatchingLabels{k8sutil.AppAttr: nodedrain.CanaryAppName}, operatorNameSpaceListOpts)
 	if err != nil {
-		return nil, fmt.Errorf("could not list canary deployments: %+v", err)
+		return nil, errors.Wrapf(err, "could not list canary deployments")
 	}
 
 	ongoingDrains := make([]*corev1.Node, 0)
@@ -130,7 +131,7 @@ func (r *ReconcileClusterDisruption) getOngoingDrains(request reconcile.Request)
 			err = r.client.List(context.TODO(), nodeList, client.MatchingLabels{corev1.LabelHostname: nodeHostname})
 			nodeNum := len(nodeList.Items)
 			if err != nil || nodeNum < 1 {
-				return nil, fmt.Errorf("could not get node: %s ", nodeHostname)
+				return nil, errors.Errorf("could not get node: %s ", nodeHostname)
 			} else if nodeNum > 1 {
 				logger.Warningf("found more than one node with %s=%s", corev1.LabelHostname, nodeHostname)
 			}
@@ -179,7 +180,7 @@ func (r *ReconcileClusterDisruption) reconcileCephObjectStore(cephObjectStoreLis
 		request := types.NamespacedName{Name: pdbName, Namespace: namespace}
 		err := r.reconcileStaticPDB(request, pdb)
 		if err != nil {
-			return fmt.Errorf("could not reconcile cephobjectstore pdb %s: %+v", request, err)
+			return errors.Wrapf(err, "could not reconcile cephobjectstore pdb %s", request)
 		}
 	}
 	return nil
@@ -228,7 +229,7 @@ func (r *ReconcileClusterDisruption) reconcileCephFilesystem(cephFilesystemList 
 		request := types.NamespacedName{Name: pdbName, Namespace: namespace}
 		err := r.reconcileStaticPDB(request, pdb)
 		if err != nil {
-			return fmt.Errorf("could not reconcile cephfs pdb %s: %+v", request, err)
+			return errors.Wrapf(err, "could not reconcile cephfs pdb %s", request)
 		}
 	}
 	return nil
