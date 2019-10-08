@@ -87,6 +87,14 @@ kubectl -n rook-yugabytedb exec -it yb-tserver-hello-ybdb-cluster-0 /home/yugaby
 ```
 Refer the [YugabyteDB documentation](https://docs.yugabyte.com/latest/quick-start/explore-ysql/#kubernetes) for more details on the `ysql` api.
 
+You can also access the YugabyteDB dashboard using port-forwarding.
+
+```console
+kubectl port-forward -n rook-yugabytedb svc/yb-master-ui-hello-ybdb-cluster 7000:7000
+```
+
+You should now be able to navigate to `127.0.0.1:7000` to visualize your cluster.
+
 ## Cleanup
 Run the commands below to clean up all resources created above.
 
