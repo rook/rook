@@ -29,6 +29,7 @@ import (
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
+	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/ceph/version"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
@@ -112,15 +113,15 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 		// osd.DataPath includes the osd subdirectory, so we want to mount the parent directory
 		parentDir := filepath.Dir(osd.DataPath)
 		dataDir = parentDir
-		// Skip the mount if this is the default directory being mounted. Inside the container, the path
-		// will be mounted at "/var/lib/rook" even if the dataDirHostPath is a different path on the host.
-		if parentDir != k8sutil.DataDir {
-			volumeName := k8sutil.PathToVolumeName(parentDir)
-			dataDirSource := v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: parentDir}}
-			volumes = append(volumes, v1.Volume{Name: volumeName, VolumeSource: dataDirSource})
-			configVolumeMounts = append(configVolumeMounts, v1.VolumeMount{Name: volumeName, MountPath: parentDir})
-			volumeMounts = append(volumeMounts, v1.VolumeMount{Name: volumeName, MountPath: parentDir})
+		// for directory osds, we completely overwrite the starting point from above.
+		dataPathMap := &opconfig.DataPathMap{
+			HostDataDir:      dataDir,
+			ContainerDataDir: dataDir,
+			HostLogDir:       path.Join(c.dataDirHostPath, c.Namespace, "log"),
 		}
+		volumes = opspec.DaemonVolumes(dataPathMap, "" /* keyring generated in init */)
+		volumeMounts = opspec.DaemonVolumeMounts(dataPathMap, "")
+		configVolumeMounts = opspec.DaemonVolumeMounts(dataPathMap, "")
 	} else {
 		dataDir = k8sutil.DataDir
 		// Create volume config for /dev so the pod can access devices on the host
