@@ -15,6 +15,8 @@
   - Ceph OSD's admin socket is now placed under Ceph's default system location `/run/ceph`.
   - The on-host log directory for OSDs was set incorrectly to `<dataDirHostPath>/<namespace>/log`;
     fix this to be `<dataDirHostPath>/log/<namespace>`, the same as other daemons.
+  - Use the mon configuration database for directory-based OSDs, and do not generate a config
+
 
 ### EdgeFS
 
