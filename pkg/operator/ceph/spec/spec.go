@@ -102,7 +102,7 @@ func PodVolumes(dataDirHostPath, namespace string, confGeneratedInPod bool) []v1
 	return []v1.Volume{
 		{Name: k8sutil.DataDirVolume, VolumeSource: dataDirSource},
 		configVolume,
-		StoredLogVolume(path.Join(dataDirHostPath, "log", namespace)),
+		StoredLogVolume(path.Join(dataDirHostPath, namespace, "log")),
 	}
 }
 
