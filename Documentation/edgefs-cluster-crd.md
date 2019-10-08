@@ -71,8 +71,8 @@ Settings can be specified at the global level to apply to the cluster as a whole
   - **WARNING**: For test scenarios, if you delete a cluster and start a new cluster on the same hosts, the path used by `dataDirHostPath` must be deleted. Otherwise, stale information and other config will remain from the previous cluster and the new target will fail to start.
 If this value is empty, each pod will get an ephemeral directory to store their config files that is tied to the lifetime of the pod running on that node. More details can be found in the Kubernetes [empty dir docs](https://kubernetes.io/docs/concepts/storage/volumes/#emptydir).
 - `dataVolumeSize`: Alternative to `dataDirHostPath`. If defined then Cluster CRD operator will disregard `dataDirHostPath` setting and instead will automatically claim persistent volume. If `storage` settings not provided then provisioned volume will also be used as a storage device for Target pods (automatic provisioning via `rtlfs`).
-- `sysRepCount`: overrides the default (3) system replication count value. Can be set to 1 or 2 for a cluster with limited number of failure domains. For example, a signle node setup with two disks can provide up to 2 replicas per chunk and requires `sysRepCount` to be set to 1 or 2.
-- `failureDomain`: identifies the way chunk replicas are distributed accross cluster's disks. The `device` domain requires each replicas to resides on different disks, the `host` domains implies one replica per node and the `zone` domain is for one replica per zone. If `failureDomain` option isn't specified, then the failure domain is set to `host` or `zone` depending on nodes config (see below). The `failureDomain` allows to specify the failure domain explicitly. For example, a single-node cluster with multiple nodes requires the `failureDomain` set to `device` if the `sysRepCount` > 1.
+- `sysRepCount`: overrides the default (3) system replication count value. Can be set to 1 or 2 for a cluster with limited number of failure domains. For example, a single-node setup with two disks can provide up to 2 replicas per chunk and requires `sysRepCount` to be set to 1 or 2.
+- `failureDomain`: identifies the way chunk replicas are distributed accross cluster's disks. The `device` domain requires each replicas to resides on different disks, the `host` domains implies one replica per node and the `zone` domain is for one replica per zone. If `failureDomain` option isn't specified, then the failure domain is set to `host` or `zone` depending on nodes config (see below). The `failureDomain` allows to specify the failure domain explicitly. For example, a single-node cluster with multiple disks requires the `failureDomain` set to `device` if the `sysRepCount` > 1.
 - `dashboard`: This specification may be used to override and enable additional [EdgeFS UI Dashboard](edgefs-ui.md) functionality.
   - `localAddr`: Specifies local IP address to be used as Kubernetes external IP.
 - `network`: [network configuration settings](#network-configuration-settings)
@@ -253,7 +253,7 @@ spec:
       deviceFilter: "^sd."
 ```
 ### Storage Configuration: Samsung's KV SSD
-A single nodes configuration with 2 KV SSDs. The host's /media directory should have at least 64GB of free space for metadata.
+A single-node configuration with 2 KV SSDs. The host's /media directory should have at least 64GB of free space for metadata.
 
 ```yaml
 spec:
