@@ -27,7 +27,7 @@ import (
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
-	cephclient "github.com/rook/rook/pkg/daemon/client"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
@@ -101,12 +101,14 @@ func (c *Cluster) makeJob(osdProps osdProperties) (*batch.Job, error) {
 }
 
 func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Deployment, error) {
-
+	deploymentName := fmt.Sprintf(osdAppNameFmt, osd.ID)
 	replicaCount := int32(1)
 	volumeMounts := opspec.CephVolumeMounts(false)
 	configVolumeMounts := opspec.RookVolumeMounts(false)
 	volumes := opspec.PodVolumes(c.dataDirHostPath, c.Namespace, false)
 	failureDomainValue := osdProps.crushHostname
+	doConfigInit := true     // initialize ceph.conf in init container?
+	doBinaryCopyInit := true // copy tini and rook binaries in an init container?
 
 	var dataDir string
 	if osd.IsDirectory {
@@ -120,9 +122,9 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 			ContainerDataDir: dataDir,
 			HostLogDir:       path.Join(c.dataDirHostPath, c.Namespace, "log"),
 		}
-		volumes = opspec.DaemonVolumes(dataPathMap, "" /* keyring generated in init */)
-		volumeMounts = opspec.DaemonVolumeMounts(dataPathMap, "")
-		configVolumeMounts = opspec.DaemonVolumeMounts(dataPathMap, "")
+		volumes = opspec.DaemonVolumes(dataPathMap, deploymentName)
+		volumeMounts = opspec.DaemonVolumeMounts(dataPathMap, deploymentName)
+		configVolumeMounts = opspec.DaemonVolumeMounts(dataPathMap, deploymentName)
 	} else {
 		dataDir = k8sutil.DataDir
 		// Create volume config for /dev so the pod can access devices on the host
@@ -211,8 +213,10 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 
 	// Add the volume to the spec and the mount to the daemon container
 	copyBinariesVolume, copyBinariesContainer := c.getCopyBinariesContainer()
-	volumes = append(volumes, copyBinariesVolume)
-	volumeMounts = append(volumeMounts, copyBinariesContainer.VolumeMounts[0])
+	if doBinaryCopyInit {
+		volumes = append(volumes, copyBinariesVolume)
+		volumeMounts = append(volumeMounts, copyBinariesContainer.VolumeMounts[0])
+	}
 
 	var command []string
 	var args []string
@@ -267,16 +271,22 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 		}...)
 
 	} else if osd.IsDirectory {
+		// config for dir-based osds is gotten from the commandline or from the mon database
+		doConfigInit = false
+		doBinaryCopyInit = false
+
+		storeType := "bluestore"
+		if osd.IsFileStore {
+			storeType = "filestore"
+		}
+
 		command = []string{"ceph-osd"}
-		args = opconfig.DefaultFlags(c.clusterInfo.FSID, path.Join(osd.DataPath, "keyring"), c.clusterInfo.CephVersion)
-		args = append(args,
+		args = append(
+			opspec.DaemonFlags(c.clusterInfo, osdID),
 			"--foreground",
-			"--id", osdID,
 			"--osd-data", osd.DataPath,
 			"--osd-uuid", osd.UUID,
-			"--setuser", "ceph",
-			"--setgroup", "ceph",
-			"--osd-objectstore", "filestore", /* always? */
+			"--osd-objectstore", storeType,
 			"--osd-max-object-name-len", "256",
 			"--osd-max-object-namespace-len", "64",
 		)
@@ -323,9 +333,25 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 		DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 
+	initContainers := make([]v1.Container, 0, 2)
+	if doConfigInit {
+		initContainers = append(initContainers,
+			v1.Container{
+				Args:            []string{"ceph", "osd", "init"},
+				Name:            opspec.ConfigInitContainerName,
+				Image:           k8sutil.MakeRookImage(c.rookVersion),
+				VolumeMounts:    configVolumeMounts,
+				Env:             configEnvVars,
+				SecurityContext: securityContext,
+			})
+	}
+	if doBinaryCopyInit {
+		initContainers = append(initContainers, *copyBinariesContainer)
+	}
+
 	deployment := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf(osdAppNameFmt, osd.ID),
+			Name:      deploymentName,
 			Namespace: c.Namespace,
 			Labels:    c.getOSDLabels(osd.ID, failureDomainValue, osdProps.portable),
 		},
@@ -352,17 +378,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 					HostPID:            true,
 					HostIPC:            hostIPC,
 					DNSPolicy:          DNSPolicy,
-					InitContainers: []v1.Container{
-						{
-							Args:            []string{"ceph", "osd", "init"},
-							Name:            opspec.ConfigInitContainerName,
-							Image:           k8sutil.MakeRookImage(c.rookVersion),
-							VolumeMounts:    configVolumeMounts,
-							Env:             configEnvVars,
-							SecurityContext: securityContext,
-						},
-						*copyBinariesContainer,
-					},
+					InitContainers:     initContainers,
 					Containers: []v1.Container{
 						{
 							Command:         command,
