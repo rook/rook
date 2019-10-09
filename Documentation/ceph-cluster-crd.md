@@ -89,7 +89,7 @@ Settings can be specified at the global level to apply to the cluster as a whole
 ### Cluster Settings
 
 - `external`:
-  - `enable`: if `true`, the cluster will not be managed by Rook but via an external entity. This mode is intended to connect to an existing cluster. In this case, Rook will only consume the external cluster. However, Rook will be able to deploy various daemons in Kubernetes such as object gateways, mds and nfs. If this setting is enabled **all** the other options will be ignored except `cephVersion.image` and `dataDirHostPath`. See [external cluster configuration](#external-cluster).
+  - `enable`: if `true`, the cluster will not be managed by Rook but via an external entity. This mode is intended to connect to an existing cluster. In this case, Rook will only consume the external cluster. However, Rook will be able to deploy various daemons in Kubernetes such as object gateways, mds and nfs if an image is provided and will refuse otherwise. If this setting is enabled **all** the other options will be ignored except `cephVersion.image` and `dataDirHostPath`. See [external cluster configuration](#external-cluster). If `cephVersion.image` is left blank, Rook will refuse the creation of extra CRs like object, file and nfs.
 - `cephVersion`: The version information for launching the ceph daemons.
   - `image`: The image used for running the ceph daemons. For example, `ceph/ceph:v13.2.6-20190604` or `ceph/ceph:v14.2.4-20190917`.
   For the latest ceph images, see the [Ceph DockerHub](https://hub.docker.com/r/ceph/ceph/tags/).
@@ -672,6 +672,18 @@ spec:
 
 ### External cluster
 
+**The minimum supported Ceph version for the External Cluster is Luminous 12.2.x.**
+
+The features available from the external cluster will vary depending on the version of Ceph. The following table shows the minimum version of Ceph for some of the features:
+
+| FEATURE                                      | CEPH VERSION |
+|----------------------------------------------|--------------|
+| Dynamic provisioning RBD                     | 12.2.X       |
+| Configure extra CRDs (object, file, nfs)[^1] | 13.2.3       |
+| Dynamic provisioning CephFS                  | 14.2.3       |
+
+[^1]: Configure an object store, shared file system, or NFS resources in the local cluster to connect to the external Ceph cluster
+
 #### Pre-requisites
 
 In order to configure an external Ceph cluster with Rook, we need to inject some information in order to connect to that cluster.
@@ -712,12 +724,13 @@ spec:
   external:
     enable: true
   dataDirHostPath: /var/lib/rook
+  # providing an image is optional, do this if you want to create other CRs (rgw, mds, nfs)
   cephVersion:
-    image: ceph/ceph:v14.2.4-20190917 # the image version **must** match the version of the external Ceph cluster
+    image: ceph/ceph:v14.2.4-20190917 # MUST match external cluster version
 ```
 
 Choose the namespace carefully, if you have an existing cluster managed by Rook, you have likely already injected `common.yaml`.
-Additionnally, you now need to inject `common-external.yaml` too.
+Additionally, you now need to inject `common-external.yaml` too.
 
 You can now create it like this:
 

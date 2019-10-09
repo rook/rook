@@ -126,7 +126,6 @@ func (c *cluster) detectCephVersion(rookImage, cephImage string, timeout time.Du
 }
 
 func (c *cluster) validateCephVersion(version *cephver.CephVersion) error {
-	// The external has its own supported versions
 	if !c.Spec.External.Enable {
 		if !version.IsAtLeast(cephver.Minimum) {
 			return fmt.Errorf("the version does not meet the minimum version: %s", cephver.Minimum.String())
@@ -139,6 +138,7 @@ func (c *cluster) validateCephVersion(version *cephver.CephVersion) error {
 			}
 		}
 	}
+
 	// The following tries to determine if the operator can proceed with an upgrade because we come from an OnAdd() call
 	// If the cluster was unhealthy and someone injected a new image version, an upgrade was triggered but failed because the cluster is not healthy
 	// Then after this, if the operator gets restarted we are not able to fail if the cluster is not healthy, the following tries to determine the
@@ -160,11 +160,18 @@ func (c *cluster) validateCephVersion(version *cephver.CephVersion) error {
 		return nil
 	}
 
-	if c.Spec.External.Enable {
+	if c.Spec.External.Enable && c.Spec.CephVersion.Image != "" {
 		c.Info.CephVersion, err = cephspec.ValidateCephVersionsBetweenLocalAndExternalClusters(c.context, c.Namespace, *version)
 		if err != nil {
 			return fmt.Errorf("failed to validate ceph version between external and local. %+v", err)
 		}
+	}
+
+	// On external cluster setup, if we don't bootstrap any resources in the Kubernetes cluster then
+	// there is no need to validate the Ceph image further
+	if c.Spec.External.Enable && c.Spec.CephVersion.Image == "" {
+		logger.Debug("no spec image specified on external cluster, not validating Ceph version.")
+		return nil
 	}
 
 	// Get cluster running versions
@@ -293,7 +300,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 	}
 
 	// Notify the child controllers that the cluster spec might have changed
-	logger.Debug("notifying CR childs of the potential upgrade")
+	logger.Debug("notifying CR child of the potential upgrade")
 	for _, child := range c.childControllers {
 		child.ParentClusterChanged(*c.Spec, c.Info, c.isUpgrade)
 	}
@@ -362,12 +369,12 @@ func (c *cluster) checkSetOrchestrationStatus() bool {
 func diffImageSpecAndClusterRunningVersion(imageSpecVersion cephver.CephVersion, runningVersions client.CephDaemonsVersions) (bool, error) {
 	numberOfCephVersions := len(runningVersions.Overall)
 	if numberOfCephVersions == 0 {
-		// let's return immediatly
+		// let's return immediately
 		return false, fmt.Errorf("no 'overall' section in the ceph versions. %+v", runningVersions.Overall)
 	}
 
 	if numberOfCephVersions > 1 {
-		// let's return immediatly
+		// let's return immediately
 		logger.Warningf("it looks like we have more than one ceph version running. triggering upgrade. %+v:", runningVersions.Overall)
 		return true, nil
 	}

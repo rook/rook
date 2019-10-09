@@ -432,16 +432,16 @@ type NetworkSpec struct {
 	HostNetwork bool `json:"hostNetwork"`
 }
 
-// DisruptionManagementSpec configures mangement of daemon disruptions
+// DisruptionManagementSpec configures management of daemon disruptions
 type DisruptionManagementSpec struct {
 
 	// This enables management of poddisruptionbudgets
 	ManagePodBudgets bool `json:"managePodBudgets,omitempty"`
 
-	// OSDMaintenenceTimeout sets how many additional minutes the DOWN/OUT interval is for drained failure domains
+	// OSDMaintenanceTimeout sets how many additional minutes the DOWN/OUT interval is for drained failure domains
 	// it only works if managePodBudgetss is true.
 	// the default is 30 minutes
-	OSDMaintenenceTimeout time.Duration `json:"osdMaintenanceTimeout,omitempty"`
+	OSDMaintenanceTimeout time.Duration `json:"osdMaintenanceTimeout,omitempty"`
 
 	// This enables management of machinedisruptionbudgets
 	ManageMachineDisruptionBudgets bool `json:"manageMachineDisruptionBudgets,omitempty"`

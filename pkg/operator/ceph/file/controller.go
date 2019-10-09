@@ -97,6 +97,12 @@ func (c *FilesystemController) StartWatch(namespace string, stopCh chan struct{}
 }
 
 func (c *FilesystemController) onAdd(obj interface{}) {
+
+	if c.clusterSpec.External.Enable && c.clusterSpec.CephVersion.Image == "" {
+		logger.Warningf("Creating filesystems for an external ceph cluster is disabled because no Ceph image is specified")
+		return
+	}
+
 	filesystem, err := getFilesystemObject(obj)
 	if err != nil {
 		logger.Errorf("failed to get filesystem object: %+v", err)
@@ -123,6 +129,11 @@ func (c *FilesystemController) onAdd(obj interface{}) {
 }
 
 func (c *FilesystemController) onUpdate(oldObj, newObj interface{}) {
+	if c.clusterSpec.External.Enable && c.clusterSpec.CephVersion.Image == "" {
+		logger.Warningf("Updating filesystems for an external ceph cluster is disabled because no Ceph image is specified")
+		return
+	}
+
 	oldFS, err := getFilesystemObject(oldObj)
 	if err != nil {
 		logger.Errorf("failed to get old filesystem object: %+v", err)
@@ -182,6 +193,11 @@ func (c *FilesystemController) ParentClusterChanged(cluster cephv1.ClusterSpec, 
 }
 
 func (c *FilesystemController) onDelete(obj interface{}) {
+	if c.clusterSpec.External.Enable && c.clusterSpec.CephVersion.Image == "" {
+		logger.Warningf("Deleting filesystems for an external ceph cluster is disabled because no Ceph image is specified")
+		return
+	}
+
 	filesystem, err := getFilesystemObject(obj)
 	if err != nil {
 		logger.Errorf("failed to get filesystem object: %+v", err)
