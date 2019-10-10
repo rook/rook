@@ -9,9 +9,8 @@ pull_request_rules:
       - 'status-success=continuous-integration/jenkins/pr-head'
     actions:
       merge:
-        method: rebase
-        rebase_fallback: merge
-        strict: smart
+        method: merge
+        strict: false
       dismiss_reviews: {}
       delete_head_branch: {}
 # Trigger backport PRs based on label
