@@ -128,7 +128,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, c.Namespace, deployment.Spec.Template.ObjectMeta.Labels["rook_cluster"])
 	assert.Equal(t, 0, len(deployment.Spec.Template.ObjectMeta.Annotations))
 
-	assert.Equal(t, 2, len(deployment.Spec.Template.Spec.InitContainers))
+	assert.Equal(t, 3, len(deployment.Spec.Template.Spec.InitContainers))
 	initCont := deployment.Spec.Template.Spec.InitContainers[0]
 	assert.Equal(t, "rook/rook:myversion", initCont.Image)
 	assert.Equal(t, "config-init", initCont.Name)
@@ -198,7 +198,7 @@ func TestStorageSpecDevicesAndDirectories(t *testing.T) {
 	// pod spec should have a volume for the given dir in the main container and the init container
 	podSpec := deployment.Spec.Template.Spec
 	require.Equal(t, 1, len(podSpec.Containers))
-	require.Equal(t, 0, len(podSpec.InitContainers))
+	require.Equal(t, 1, len(podSpec.InitContainers))
 
 	// the default osd created on a node will be under /var/lib/rook, which won't need an extra mount
 	osd = OSDInfo{
@@ -212,7 +212,7 @@ func TestStorageSpecDevicesAndDirectories(t *testing.T) {
 	// pod spec should have a volume for the given dir in the main container and the init container
 	podSpec = deployment.Spec.Template.Spec
 	require.Equal(t, 1, len(podSpec.Containers))
-	require.Equal(t, 0, len(podSpec.InitContainers))
+	require.Equal(t, 1, len(podSpec.InitContainers))
 }
 
 func TestStorageSpecConfig(t *testing.T) {

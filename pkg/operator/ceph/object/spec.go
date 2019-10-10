@@ -59,7 +59,9 @@ func (c *clusterConfig) createDeployment(rgwConfig *rgwConfig) *apps.Deployment 
 
 func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) v1.PodTemplateSpec {
 	podSpec := v1.PodSpec{
-		InitContainers: []v1.Container{},
+		InitContainers: []v1.Container{
+			c.makeChownInitContainer(rgwConfig),
+		},
 		Containers: []v1.Container{
 			c.makeDaemonContainer(rgwConfig),
 		},
@@ -102,6 +104,16 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) v1.PodTemplateSpec 
 	return podTemplateSpec
 }
 
+func (c *clusterConfig) makeChownInitContainer(rgwConfig *rgwConfig) v1.Container {
+	return opspec.ChownCephDataDirsInitContainer(
+		*c.DataPathMap,
+		c.clusterSpec.CephVersion.Image,
+		opspec.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName),
+		c.store.Spec.Gateway.Resources,
+		mon.PodSecurityContext(),
+	)
+}
+
 func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 	// start the rgw daemon in the foreground
 	container := v1.Container{
@@ -134,7 +146,6 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 			},
 			InitialDelaySeconds: 10,
 		},
-		Lifecycle:       opspec.PodLifeCycle(""),
 		SecurityContext: mon.PodSecurityContext(),
 	}
 

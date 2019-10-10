@@ -45,7 +45,9 @@ func (c *Cluster) makeDeployment(mdsConfig *mdsConfig) *apps.Deployment {
 			Labels: c.podLabels(mdsConfig),
 		},
 		Spec: v1.PodSpec{
-			InitContainers: []v1.Container{},
+			InitContainers: []v1.Container{
+				c.makeChownInitContainer(mdsConfig),
+			},
 			Containers: []v1.Container{
 				c.makeMdsDaemonContainer(mdsConfig),
 			},
@@ -85,6 +87,16 @@ func (c *Cluster) makeDeployment(mdsConfig *mdsConfig) *apps.Deployment {
 	return d
 }
 
+func (c *Cluster) makeChownInitContainer(mdsConfig *mdsConfig) v1.Container {
+	return opspec.ChownCephDataDirsInitContainer(
+		*mdsConfig.DataPathMap,
+		c.clusterSpec.CephVersion.Image,
+		opspec.DaemonVolumeMounts(mdsConfig.DataPathMap, mdsConfig.ResourceName),
+		c.fs.Spec.MetadataServer.Resources,
+		mon.PodSecurityContext(),
+	)
+}
+
 func (c *Cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
 	args := append(
 		opspec.DaemonFlags(c.clusterInfo, mdsConfig.DaemonID),
@@ -117,7 +129,6 @@ func (c *Cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
 			opspec.DaemonEnvVars(c.clusterSpec.CephVersion.Image),
 		),
 		Resources:       c.fs.Spec.MetadataServer.Resources,
-		Lifecycle:       opspec.PodLifeCycle(""),
 		SecurityContext: mon.PodSecurityContext(),
 	}
 

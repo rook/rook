@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -114,8 +113,9 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 	if osd.IsDirectory {
 		// Mount the path to the directory-based osd
 		// osd.DataPath includes the osd subdirectory, so we want to mount the parent directory
-		parentDir := filepath.Dir(osd.DataPath)
-		dataDir = parentDir
+		//parentDir := filepath.Dir(osd.DataPath)
+		//dataDir = parentDir
+		dataDir = osd.DataPath
 		// for directory osds, we completely overwrite the starting point from above.
 		dataPathMap := &opconfig.DataPathMap{
 			HostDataDir:      dataDir,
@@ -333,7 +333,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 		DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 
-	initContainers := make([]v1.Container, 0, 2)
+	initContainers := make([]v1.Container, 0, 3)
 	if doConfigInit {
 		initContainers = append(initContainers,
 			v1.Container{
@@ -348,6 +348,20 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 	if doBinaryCopyInit {
 		initContainers = append(initContainers, *copyBinariesContainer)
 	}
+
+	// Doing a chown in a post start lifecycle hook does not reliably complete before the OSD
+	// process starts, which can cause the pod to fail without the lifecycle hook's chown command
+	// completing. It can take an arbitrarily long time for a pod restart to successfully chown the
+	// directory. This is a race condition for all OSDs; therefore, do this in an init container.
+	// See more discussion here: https://github.com/rook/rook/pull/3594#discussion_r312279176
+	initContainers = append(initContainers,
+		opspec.ChownCephDataDirsInitContainer(
+			opconfig.DataPathMap{ContainerDataDir: osd.DataPath},
+			c.cephVersion.Image,
+			volumeMounts,
+			osdProps.resources,
+			securityContext,
+		))
 
 	deployment := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -389,7 +403,6 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 							Env:             envVars,
 							Resources:       osdProps.resources,
 							SecurityContext: securityContext,
-							Lifecycle:       opspec.PodLifeCycle(osd.DataPath),
 						},
 					},
 					Volumes: volumes,

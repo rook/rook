@@ -199,7 +199,7 @@ func TestHttpBindFix(t *testing.T) {
 	for _, test := range vers {
 		c.clusterInfo.CephVersion = test.ver
 
-		expectedInitContainers := 0
+		expectedInitContainers := 1
 		if !test.hasFix {
 			expectedInitContainers += 2
 		}

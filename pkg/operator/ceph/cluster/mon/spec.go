@@ -229,29 +229,13 @@ func PodSecurityContext() *v1.SecurityContext {
 }
 
 func (c *Cluster) makeChownInitContainer(monConfig *monConfig) v1.Container {
-	// Before makeMonFSInitContainer starts we must apply the right ownership to the mon data dir
-	// so the mkfs can succeed, otherwise it'll fail since it's owned by root
-	// Unfortunately, we can't use:
-	// Lifecycle: &v1.Lifecycle{PostStart: &v1.Handler{Exec: &v1.ExecAction{
-	// On an InitContainer :-(
-	container := v1.Container{
-		Name: "chown-container-data-dir",
-		Command: []string{
-			"chown",
-		},
-		Args: []string{
-			"--verbose",
-			"--recursive",
-			"ceph:ceph",
-			monConfig.DataPathMap.ContainerDataDir,
-			config.VarLogCephDir,
-		},
-		Image:           c.spec.CephVersion.Image,
-		VolumeMounts:    opspec.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),
-		Resources:       cephv1.GetMonResources(c.spec.Resources),
-		SecurityContext: PodSecurityContext(),
-	}
-	return container
+	return opspec.ChownCephDataDirsInitContainer(
+		*monConfig.DataPathMap,
+		c.spec.CephVersion.Image,
+		opspec.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),
+		cephv1.GetMonResources(c.spec.Resources),
+		PodSecurityContext(),
+	)
 }
 
 func (c *Cluster) makeMonFSInitContainer(monConfig *monConfig) v1.Container {
@@ -322,9 +306,6 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 			k8sutil.PodIPEnvVar(podIPEnvVar),
 		),
 		Resources: cephv1.GetMonResources(c.spec.Resources),
-		//Chown is performed in the init container
-		//See discussion here: https://github.com/rook/rook/pull/3594
-		//Lifecycle: opspec.PodLifeCycle("")
 	}
 
 	// If host networking is enabled, we don't need a bind addr that is different from the public addr

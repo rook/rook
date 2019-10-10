@@ -48,7 +48,9 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
 			Labels: c.getPodLabels(mgrConfig.DaemonID),
 		},
 		Spec: v1.PodSpec{
-			InitContainers: []v1.Container{},
+			InitContainers: []v1.Container{
+				c.makeChownInitContainer(mgrConfig),
+			},
 			Containers: []v1.Container{
 				c.makeMgrDaemonContainer(mgrConfig),
 			},
@@ -65,10 +67,10 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
 	// there is additional work done to clear fixes after upgrades. See
 	// clearHttpBindFix() method for more details.
 	if c.needHttpBindFix() {
-		podSpec.Spec.InitContainers = []v1.Container{
+		podSpec.Spec.InitContainers = append(podSpec.Spec.InitContainers,
 			c.makeSetServerAddrInitContainer(mgrConfig, "dashboard"),
 			c.makeSetServerAddrInitContainer(mgrConfig, "prometheus"),
-		}
+		)
 		// ceph config set commands want admin keyring
 		podSpec.Spec.Volumes = append(podSpec.Spec.Volumes,
 			keyring.Volume().Admin())
@@ -156,28 +158,14 @@ func (c *Cluster) clearHttpBindFix(mgrConfig *mgrConfig) {
 	}
 }
 
-func (c *Cluster) makeCopyKeyringInitContainer(mgrConfig *mgrConfig) v1.Container {
-	// mgr does not obey `--keyring=/etc/ceph/keyring-store/keyring` flag, and always reports:
-	// "unable to find a keyring on /var/lib/ceph/mgr/ceph-a/keyring: (2) No such file or directory"
-	// Workaround: copy the keyring to the container data dir
-	container := v1.Container{
-		Name: "init-copy-keyring-to-data-dir",
-		Command: []string{
-			"cp",
-		},
-		Args: []string{
-			"--verbose",
-			"--preserve=all",
-			"--force", // overwrite existing keyring if exists
-			keyring.VolumeMount().KeyringFilePath(),
-			mgrConfig.DataPathMap.ContainerDataDir,
-		},
-		Image:        c.cephVersion.Image,
-		VolumeMounts: opspec.DaemonVolumeMounts(mgrConfig.DataPathMap, mgrConfig.ResourceName),
-		// no env vars needed
-		Resources: c.resources,
-	}
-	return container
+func (c *Cluster) makeChownInitContainer(mgrConfig *mgrConfig) v1.Container {
+	return opspec.ChownCephDataDirsInitContainer(
+		*mgrConfig.DataPathMap,
+		c.cephVersion.Image,
+		opspec.DaemonVolumeMounts(mgrConfig.DataPathMap, mgrConfig.ResourceName),
+		c.resources,
+		mon.PodSecurityContext(),
+	)
 }
 
 func (c *Cluster) makeSetServerAddrInitContainer(mgrConfig *mgrConfig, mgrModule string) v1.Container {
@@ -267,7 +255,6 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 			},
 			InitialDelaySeconds: 60,
 		},
-		Lifecycle:       opspec.PodLifeCycle(""),
 		SecurityContext: mon.PodSecurityContext(),
 	}
 
