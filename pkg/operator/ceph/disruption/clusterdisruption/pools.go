@@ -201,7 +201,10 @@ func (r *ReconcileClusterDisruption) reconcileCephFilesystem(cephFilesystemList 
 
 		activeCount := filesystem.Spec.MetadataServer.ActiveCount
 		minAvailable := &intstr.IntOrString{IntVal: activeCount - 1}
-		if minAvailable.IntVal <= 1 {
+		if filesystem.Spec.MetadataServer.ActiveStandby {
+			minAvailable.IntVal++
+		}
+		if minAvailable.IntVal < 1 {
 			break
 		}
 		blockOwnerDeletion := false
