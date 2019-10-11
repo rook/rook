@@ -18,6 +18,7 @@ package version
 
 import (
 	"fmt"
+	"runtime"
 
 	"github.com/rook/rook/pkg/version"
 	"github.com/spf13/cobra"
@@ -28,7 +29,8 @@ var VersionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print the version number of rook",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Printf(" rook: %s\n", version.Version)
+		fmt.Printf("rook: %s\n", version.Version)
+		fmt.Printf("go: %s\n", runtime.Version())
 		return nil
 	},
 }
