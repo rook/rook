@@ -65,20 +65,4 @@ func TestCreateClusterSecrets(t *testing.T) {
 	secret, err := clientset.CoreV1().Secrets(namespace).Get("rook-ceph-mon", metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, adminSecret, string(secret.Data["admin-secret"]))
-
-	// check for the csi secret
-	secret, err = clientset.CoreV1().Secrets(namespace).Get("rook-ceph-csi", metav1.GetOptions{})
-	assert.NoError(t, err)
-	assert.Equal(t, adminSecret, string(secret.Data["adminKey"]))
-
-	// delete the csi secret and confirm it is created again
-	opts := &metav1.DeleteOptions{}
-	err = clientset.CoreV1().Secrets(namespace).Delete("rook-ceph-csi", opts)
-	assert.NoError(t, err)
-
-	_, _, _, err = CreateOrLoadClusterInfo(context, namespace, ownerRef)
-	require.NoError(t, err)
-	secret, err = clientset.CoreV1().Secrets(namespace).Get("rook-ceph-csi", metav1.GetOptions{})
-	assert.NoError(t, err)
-	assert.Equal(t, adminSecret, string(secret.Data["adminKey"]))
 }
