@@ -65,11 +65,11 @@ func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID, lvPath string,
 		}
 		go handleTerminate(context, lvPath, volumeGroupName)
 
-		if err := context.Executor.ExecuteCommand(false, "", "/sbin/vgchange", "-an", volumeGroupName); err != nil {
+		if err := context.Executor.ExecuteCommand(false, "", "vgchange", "-an", volumeGroupName); err != nil {
 			return fmt.Errorf("failed to deactivate volume group for lv %+v. Error: %+v", lvPath, err)
 		}
 
-		if err := context.Executor.ExecuteCommand(false, "", "/sbin/vgchange", "-ay", volumeGroupName); err != nil {
+		if err := context.Executor.ExecuteCommand(false, "", "vgchange", "-ay", volumeGroupName); err != nil {
 			return fmt.Errorf("failed to activate volume group for lv %+v. Error: %+v", lvPath, err)
 		}
 	}
