@@ -90,7 +90,7 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	createFilesystem(s.helper, s.k8sh, s.Suite, s.namespace, filesystemName)
 	createFilesystemConsumerPod(s.helper, s.k8sh, s.Suite, s.namespace, filesystemName)
 	defer func() {
-		cleanupFilesystemConsumer(s.helper, s.k8sh, s.Suite, s.namespace, filesystemName, filePodName)
+		cleanupFilesystemConsumer(s.k8sh, s.Suite, s.namespace, filePodName)
 		cleanupFilesystem(s.helper, s.k8sh, s.Suite, s.namespace, filesystemName)
 	}()
 

@@ -24,7 +24,7 @@ import (
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -49,7 +49,7 @@ func runFileMountUserE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, 
 	require.NotNil(s.T(), err, "we should not be able to write to file canttouchthis on CephFS `/`")
 	err = writeAndReadToFilesystem(helper, k8sh, s, namespace, fileMountUserPodName, "foo/test_file")
 	require.Nil(s.T(), err, "we should be able to write to the `/foo` directory on CephFS")
-	cleanupFilesystemConsumer(helper, k8sh, s, namespace, filesystemName, fileMountUserPodName)
+	cleanupFilesystemConsumer(k8sh, s, namespace, fileMountUserPodName)
 	cleanupFilesystem(helper, k8sh, s, namespace, filesystemName)
 }
 
@@ -98,7 +98,7 @@ func createFilesystemMountCephCredentials(helper *clients.TestClient, k8sh *util
 }
 
 func createFilesystemMountUserConsumerPod(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, filesystemName string) {
-	mtfsErr := podWithFilesystem(k8sh, s, fileMountUserPodName, namespace, filesystemName, "apply", getFilesystemMountUserTestPod)
+	mtfsErr := createPodWithFilesystem(k8sh, s, fileMountUserPodName, namespace, filesystemName, true)
 	require.Nil(s.T(), mtfsErr)
 	filePodRunning := k8sh.IsPodRunning(fileMountUserPodName, namespace)
 	if !filePodRunning {
@@ -108,38 +108,6 @@ func createFilesystemMountUserConsumerPod(helper *clients.TestClient, k8sh *util
 	}
 	require.True(s.T(), filePodRunning, "make sure file-mountuser-test pod is in running state")
 	logger.Infof("File system mounted successfully")
-}
-
-func getFilesystemMountUserTestPod(podName string, namespace string, filesystemName string, driverName string) string {
-	return `apiVersion: v1
-kind: Pod
-metadata:
-  name: ` + podName + `
-  namespace: ` + namespace + `
-spec:
-  containers:
-  - name: ` + podName + `
-    image: busybox
-    command:
-        - sleep
-        - "3600"
-    imagePullPolicy: IfNotPresent
-    env:
-    volumeMounts:
-    - mountPath: "` + utils.TestMountPath + `"
-      name: ` + filesystemName + `
-  volumes:
-  - name: ` + filesystemName + `
-    flexVolume:
-      driver: ceph.rook.io/` + driverName + `
-      fsType: ceph
-      options:
-        fsName: ` + filesystemName + `
-        clusterNamespace: ` + namespace + `
-        mountUser: ` + fileMountUser + `
-        mountSecret: ` + fileMountSecret + `
-  restartPolicy: Never
-`
 }
 
 func getFilesystemAgentMountSecretsBinding(namespace string) string {
