@@ -43,7 +43,7 @@ In short, as the documentation describes it:
 > VolumeSnapshotClass provides a way to describe the “classes” of storage when
 > provisioning a volume snapshot.
 
-In [snapshotClass](cluster/examples/kubernetes/ceph/csi/example/rbd/snapshotclass.yaml),
+In [snapshotClass](/cluster/examples/kubernetes/ceph/csi/rbd/snapshotclass.yaml),
 the `csi.storage.k8s.io/snapshotter-secret-name` parameter should reference the
 name of the secret created for the rbdplugin and `pool` to reflect the Ceph pool name.
 
@@ -53,17 +53,17 @@ maintain a config map whose contents will match this key. By default this is
 "rook-ceph".
 
 ```console
-kubectl create -f cluster/examples/kubernetes/ceph/csi/example/rbd/snapshotclass.yaml
+kubectl create -f cluster/examples/kubernetes/ceph/csi/rbd/snapshotclass.yaml
 ```
 
 ### Volumesnapshot
 
-In [snapshot](cluster/examples/kubernetes/ceph/csi/example/rbd/snapshot.yaml),
+In [snapshot](/cluster/examples/kubernetes/ceph/csi/rbd/snapshot.yaml),
 `snapshotClassName` should be the name of the `VolumeSnapshotClass` previously
 created. The source name should be the name of the PVC you created earlier.
 
 ```console
-kubectl create -f cluster/examples/kubernetes/ceph/csi/example/rbd/snapshot.yaml
+kubectl create -f cluster/examples/kubernetes/ceph/csi/rbd/snapshot.yaml
 ```
 
 ### Verify RBD Snapshot Creation
@@ -89,14 +89,14 @@ SNAPID NAME                                                                     
 ### Restore the snapshot to a new PVC
 
 In
-[pvc-restore](cluster/examples/kubernetes/ceph/csi/example/rbd/pvc-restore.yaml),
+[pvc-restore](/cluster/examples/kubernetes/ceph/csi/rbd/pvc-restore.yaml),
 `dataSource` should be the name of the `VolumeSnapshot` previously
 created. The kind should be the `VolumeSnapshot`.
 
 Create a new PVC from the snapshot
 
 ```console
-kubectl create -f cluster/examples/kubernetes/ceph/csi/example/rbd/pvc-restore.yaml
+kubectl create -f cluster/examples/kubernetes/ceph/csi/rbd/pvc-restore.yaml
 ```
 
 ### Verify RBD Clone PVC Creation
@@ -116,9 +116,9 @@ if you have tested snapshot, delete snapshotclass, snapshot and pvc-restore
 created to test snapshot feature
 
 ```console
-kubectl delete -f cluster/examples/kubernetes/ceph/csi/example/rbd/pvc-restore.yaml
-kubectl delete -f cluster/examples/kubernetes/ceph/csi/example/rbd/snapshot.yaml
-kubectl delete -f cluster/examples/kubernetes/ceph/csi/example/rbd/snapshotclass.yaml
+kubectl delete -f cluster/examples/kubernetes/ceph/csi/rbd/pvc-restore.yaml
+kubectl delete -f cluster/examples/kubernetes/ceph/csi/rbd/snapshot.yaml
+kubectl delete -f cluster/examples/kubernetes/ceph/csi/rbd/snapshotclass.yaml
 ```
 
 ## Liveness Sidecar

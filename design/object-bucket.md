@@ -20,13 +20,13 @@ We welcome contributions! In the meantime, features that are not yet implemented
 
 - A Rook storage cluster must be configured and running in Kubernetes. In this example, it is assumed the cluster is in the `rook` namespace.
 - The following resources, or equivilant, need to be created:
-  - [common](cluster/examples/kubernetes/ceph/common.yaml)
-  - [operator](cluster/examples/kubernetes/ceph/operator.yaml)
-  - [cluster](cluster/examples/kubernetes/ceph/cluster-test.yaml)
-  - [object](cluster/examples/kubernetes/ceph/object-test.yaml)
-  - [user](cluster/examples/kubernetes/ceph/object-user.yaml)
-  - [storageclass](cluster/examples/kubernetes/ceph/storageclass-bucket-retain.yaml)
-  - [claim](cluster/examples/kubernetes/ceph/object-bucket-claim-retain.yaml)
+  - [common](/cluster/examples/kubernetes/ceph/common.yaml)
+  - [operator](/cluster/examples/kubernetes/ceph/operator.yaml)
+  - [cluster](/cluster/examples/kubernetes/ceph/cluster-test.yaml)
+  - [object](/cluster/examples/kubernetes/ceph/object-test.yaml)
+  - [user](/cluster/examples/kubernetes/ceph/object-user.yaml)
+  - [storageclass](/cluster/examples/kubernetes/ceph/storageclass-bucket-retain.yaml)
+  - [claim](/cluster/examples/kubernetes/ceph/object-bucket-claim-retain.yaml)
 
 
 ## Object Store Bucket Walkthrough
