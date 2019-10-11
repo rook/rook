@@ -18,6 +18,7 @@ package integration
 
 import (
 	"fmt"
+	"path"
 
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
@@ -47,7 +48,7 @@ func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.S
 	testNFSDaemons(helper, k8sh, s, namespace, filesystemName)
 
 	downscaleMetadataServers(helper, k8sh, s, namespace, filesystemName)
-	cleanupFilesystemConsumer(helper, k8sh, s, namespace, filesystemName, filePodName)
+	cleanupFilesystemConsumer(k8sh, s, namespace, filePodName)
 	cleanupFilesystem(helper, k8sh, s, namespace, filesystemName)
 }
 
@@ -61,8 +62,8 @@ func testNFSDaemons(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.S
 }
 
 func createFilesystemConsumerPod(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, filesystemName string) {
-	mtfsErr := podWithFilesystem(k8sh, s, filePodName, namespace, filesystemName, "apply", getFilesystemTestPod)
-	require.Nil(s.T(), mtfsErr)
+	err := createPodWithFilesystem(k8sh, s, filePodName, namespace, filesystemName, false)
+	require.NoError(s.T(), err)
 	filePodRunning := k8sh.IsPodRunning(filePodName, namespace)
 	if !filePodRunning {
 		k8sh.PrintPodDescribe(namespace, filePodName)
@@ -89,7 +90,7 @@ func downscaleMetadataServers(helper *clients.TestClient, k8sh *utils.K8sHelper,
 	require.Nil(s.T(), err)
 }
 
-func cleanupFilesystemConsumer(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, filesystemName string, podName string) {
+func cleanupFilesystemConsumer(k8sh *utils.K8sHelper, s suite.Suite, namespace string, podName string) {
 	logger.Infof("Delete file System consumer")
 	err := k8sh.DeletePod(namespace, podName)
 	require.Nil(s.T(), err)
@@ -97,9 +98,9 @@ func cleanupFilesystemConsumer(helper *clients.TestClient, k8sh *utils.K8sHelper
 	logger.Infof("File system consumer deleted")
 }
 
-// cleanupFilesystem cleans up the filesystem and checks if all mds pods are teminated before continuing
+// cleanupFilesystem cleans up the filesystem and checks if all mds pods are terminated before continuing
 func cleanupFilesystem(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, filesystemName string) {
-	args := []string{"--grace-period=0", "-n", namespace, "deployment", "-l", fmt.Sprintf("rook_file_system=%s", filesystemName)}
+	args := []string{"--grace-period=0", "-n", namespace, "deployment", "-l"}
 	err := k8sh.DeleteResourceAndWait(false, args...)
 	assert.Nil(s.T(), err, "force and no wait delete of rook file system deployments failed")
 
@@ -129,29 +130,27 @@ func createFilesystem(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 
 func fileTestDataCleanUp(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, podName string, namespace string, filesystemName string) {
 	logger.Infof("Cleaning up file system")
-	podWithFilesystem(k8sh, s, podName, namespace, filesystemName, "delete", getFilesystemTestPod)
+	assert.NoError(s.T(), k8sh.DeletePod(namespace, podName))
 	helper.FSClient.Delete(filesystemName, namespace)
 }
 
-func podWithFilesystem(
-	k8sh *utils.K8sHelper,
-	s suite.Suite,
-	podName string,
-	namespace string,
-	filesystemName string,
-	action string,
-	testPod func(podName string, namespace string, filesystemName string, driverName string) string,
-) error {
+func createPodWithFilesystem(k8sh *utils.K8sHelper, s suite.Suite, podName, namespace, filesystemName string, mountUser bool) error {
 	driverName := installer.SystemNamespace(namespace)
-	testPodManifest := testPod(podName, namespace, filesystemName, driverName)
+	testPodManifest := getFilesystemTestPod(podName, namespace, filesystemName, driverName, mountUser)
 	logger.Infof("creating test pod: %s", testPodManifest)
-	if err := k8sh.ResourceOperation(action, testPodManifest); err != nil {
-		return fmt.Errorf("failed to %s pod -- %s. %+v", action, testPodManifest, err)
+	if err := k8sh.ResourceOperation("create", testPodManifest); err != nil {
+		return fmt.Errorf("failed to create pod -- %s. %+v", testPodManifest, err)
 	}
 	return nil
 }
 
-func getFilesystemTestPod(podName string, namespace string, filesystemName string, driverName string) string {
+func getFilesystemTestPod(podName, namespace, filesystemName, driverName string, mountUser bool) string {
+	mountUserInsert := ""
+	if mountUser {
+		mountUserInsert = `
+        mountUser: ` + fileMountUser + `
+        mountSecret: ` + fileMountSecret
+	}
 	return `apiVersion: v1
 kind: Pod
 metadata:
@@ -162,8 +161,10 @@ spec:
   - name: ` + podName + `
     image: busybox
     command:
-        - sleep
-        - "3600"
+    command:
+        - sh
+        - "-c"
+        - "touch ` + path.Join(utils.TestMountPath, "flex.test") + ` && sleep 300"
     imagePullPolicy: IfNotPresent
     env:
     volumeMounts:
@@ -176,7 +177,8 @@ spec:
       fsType: ceph
       options:
         fsName: ` + filesystemName + `
-        clusterNamespace: ` + namespace + `
+        clusterNamespace: ` + namespace +
+		mountUserInsert + `
   restartPolicy: Never
 `
 }
