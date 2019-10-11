@@ -39,6 +39,7 @@ var (
 		"rgw.meta",
 		"rgw.log",
 		"rgw.buckets.index",
+		"rgw.buckets.non-ec",
 	}
 	dataPools = []string{
 		"rgw.buckets.data",
