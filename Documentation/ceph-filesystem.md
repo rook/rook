@@ -106,9 +106,9 @@ parameters:
 
   # The secrets contain Ceph admin credentials. These are generated automatically by the operator
   # in the same namespace as the cluster.
-  csi.storage.k8s.io/provisioner-secret-name: rook-ceph-csi
+  csi.storage.k8s.io/provisioner-secret-name: rook-csi-cephfs-provisioner
   csi.storage.k8s.io/provisioner-secret-namespace: rook-ceph
-  csi.storage.k8s.io/node-stage-secret-name: rook-ceph-csi
+  csi.storage.k8s.io/node-stage-secret-name: rook-csi-cephfs-node
   csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph
 
 reclaimPolicy: Delete
