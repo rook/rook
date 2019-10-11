@@ -154,7 +154,7 @@ func deleteStore(t *testing.T, name string, existingStores string, expectedDelet
 	// Delete an object store
 	err := deleteRealmAndPools(context, false)
 	assert.Nil(t, err)
-	expectedPoolsDeleted := 5
+	expectedPoolsDeleted := 6
 	if expectedDeleteRootPool {
 		expectedPoolsDeleted++
 	}
