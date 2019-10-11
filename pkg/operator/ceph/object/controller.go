@@ -96,6 +96,11 @@ func (c *ObjectStoreController) StartWatch(namespace string, stopCh chan struct{
 }
 
 func (c *ObjectStoreController) onAdd(obj interface{}) {
+	if c.clusterSpec.External.Enable && c.clusterSpec.CephVersion.Image == "" {
+		logger.Warningf("Creating object store for an external ceph cluster is disabled because no Ceph image is specified")
+		return
+	}
+
 	objectstore, err := getObjectStoreObject(obj)
 	if err != nil {
 		logger.Errorf("failed to get objectstore object: %+v", err)
@@ -118,6 +123,11 @@ func (c *ObjectStoreController) onAdd(obj interface{}) {
 }
 
 func (c *ObjectStoreController) onUpdate(oldObj, newObj interface{}) {
+	if c.clusterSpec.External.Enable && c.clusterSpec.CephVersion.Image == "" {
+		logger.Warningf("Updating object store for an external ceph cluster is disabled because no Ceph image is specified")
+		return
+	}
+
 	// if the object store spec is modified, update the object store
 	oldStore, err := getObjectStoreObject(oldObj)
 	if err != nil {
@@ -159,6 +169,11 @@ func (c *ObjectStoreController) createOrUpdateStore(objectstore *cephv1.CephObje
 }
 
 func (c *ObjectStoreController) onDelete(obj interface{}) {
+	if c.clusterSpec.External.Enable && c.clusterSpec.CephVersion.Image == "" {
+		logger.Warningf("Deleting object store for an external ceph cluster is disabled because no Ceph image is specified")
+		return
+	}
+
 	objectstore, err := getObjectStoreObject(obj)
 	if err != nil {
 		logger.Errorf("failed to get objectstore object: %+v", err)

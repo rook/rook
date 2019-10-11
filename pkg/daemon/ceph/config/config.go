@@ -213,7 +213,7 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo) (*
 		// The operator always fails this test since it does not have the env var 'ROOK_CEPH_VERSION'
 		podName := os.Getenv("POD_NAME")
 		if cluster.CephVersion.IsAtLeastNautilus() {
-			monHosts[i] = "v1:" + msgr1Endpoint
+			monHosts[i] = msgr1Prefix + msgr1Endpoint
 		} else if podName != "" && strings.Contains(podName, "operator") {
 			// This is an operator and its version is always based on Nautilus
 			// so it knows how to parse both msgr1 and msgr2 syntax
