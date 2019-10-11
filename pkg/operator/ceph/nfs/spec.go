@@ -41,9 +41,10 @@ func (c *CephNFSController) createCephNFSService(nfs cephv1.CephNFS, cfg daemonC
 	labels := getLabels(nfs, cfg.ID)
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      instanceName(nfs, cfg.ID),
-			Namespace: nfs.Namespace,
-			Labels:    labels,
+			Name:            instanceName(nfs, cfg.ID),
+			Namespace:       nfs.Namespace,
+			Labels:          labels,
+			OwnerReferences: ownerRefs(nfs),
 		},
 		Spec: v1.ServiceSpec{
 			Selector: labels,
@@ -57,7 +58,6 @@ func (c *CephNFSController) createCephNFSService(nfs cephv1.CephNFS, cfg daemonC
 			},
 		},
 	}
-	k8sutil.SetOwnerRef(&svc.ObjectMeta, &c.ownerRef)
 	if c.clusterSpec.Network.IsHost() {
 		svc.Spec.ClusterIP = v1.ClusterIPNone
 	}
@@ -78,15 +78,15 @@ func (c *CephNFSController) createCephNFSService(nfs cephv1.CephNFS, cfg daemonC
 func (c *CephNFSController) makeDeployment(nfs cephv1.CephNFS, cfg daemonConfig) *apps.Deployment {
 	deployment := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      instanceName(nfs, cfg.ID),
-			Namespace: nfs.Namespace,
-			Labels:    getLabels(nfs, cfg.ID),
+			Name:            instanceName(nfs, cfg.ID),
+			Namespace:       nfs.Namespace,
+			Labels:          getLabels(nfs, cfg.ID),
+			OwnerReferences: ownerRefs(nfs),
 		},
 	}
 	k8sutil.AddRookVersionLabelToDeployment(deployment)
 	opspec.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, deployment)
 	nfs.Spec.Server.Annotations.ApplyToObjectMeta(&deployment.ObjectMeta)
-	k8sutil.SetOwnerRef(&deployment.ObjectMeta, &c.ownerRef)
 
 	cephConfigVol, _ := cephConfigVolumeAndMount()
 	nfsConfigVol, _ := nfsConfigVolumeAndMount(cfg.ConfigConfigMap)
