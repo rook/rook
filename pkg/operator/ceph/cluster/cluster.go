@@ -37,6 +37,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/rbd"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/csi"
 	cephspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -269,6 +270,13 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 			return fmt.Errorf("the cluster identity was not established: %+v", c.Info)
 		}
 
+		// Execute actions after the monitors are up and running
+		logger.Debug("monitors are up and running, executing post actions")
+		err = c.postMonStartupActions()
+		if err != nil {
+			return fmt.Errorf("failed to execute post actions after all the monitors started. %+v", err)
+		}
+
 		mgrs := mgr.New(c.Info, c.context, c.Namespace, rookImage,
 			spec.CephVersion, cephv1.GetMgrPlacement(spec.Placement), cephv1.GetMgrAnnotations(c.Spec.Annotations),
 			spec.Network, spec.Dashboard, spec.Monitoring, spec.Mgr, cephv1.GetMgrResources(spec.Resources), c.ownerRef, c.Spec.DataDirHostPath, c.isUpgrade, c.Spec.SkipUpgradeChecks)
@@ -406,4 +414,37 @@ func diffImageSpecAndClusterRunningVersion(imageSpecVersion cephver.CephVersion,
 	}
 
 	return false, nil
+}
+
+// postMonStartupActions is a collection of actions to run once the monitors are up and running
+// It gets executed right after the main mon Start() method
+// Basically, it is executed between the monitors and the manager sequence
+func (c *cluster) postMonStartupActions() error {
+	// Create CSI Kubernetes Secrets
+	err := csi.CreateCSISecrets(c.context, c.Namespace, &c.ownerRef)
+	if err != nil {
+		return fmt.Errorf("failed to create csi kubernetes secrets. %+v", err)
+	}
+
+	// Enable Ceph messenger 2 protocol on Nautilus
+	if c.Info.CephVersion.IsAtLeastNautilus() {
+		v, err := client.GetCephMonVersion(c.context, c.Info.Name)
+		if err != nil {
+			return fmt.Errorf("failed to get ceph mon version. %+v", err)
+		}
+		if v.IsAtLeastNautilus() {
+			versions, err := client.GetAllCephDaemonVersions(c.context, c.Info.Name)
+			if err != nil {
+				return fmt.Errorf("failed to get ceph daemons versions. %+v", err)
+			}
+			if len(versions.Mon) == 1 {
+				// If length is one, this clearly indicates that all the mons are running the same version
+				// We are doing this because 'ceph version' might return the Ceph version that a majority of mons has but not all of them
+				// so instead of trying to active msgr2 when mons are not ready, we activate it when we believe that's the right time
+				client.EnableMessenger2(c.context, c.Namespace)
+			}
+		}
+	}
+
+	return nil
 }

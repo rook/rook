@@ -25,18 +25,20 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
-	csiSecretName        = "ceph-csi-secret"
-	csiSCRBD             = "ceph-csi-rbd"
-	csiSCCephFS          = "ceph-csi-cephfs"
-	csiPoolRBD           = "csi-rbd"
-	csiPoolCephFS        = "csi-cephfs"
-	csiTestRBDPodName    = "csi-test-rbd"
-	csiTestCephFSPodName = "csi-test-cephfs"
+	csiRBDNodeSecret           = "rook-csi-rbd-node"
+	csiRBDProvisionerSecret    = "rook-csi-rbd-provisioner"
+	csiCephFSNodeSecret        = "rook-csi-cephfs-node"
+	csiCephFSProvisionerSecret = "rook-csi-cephfs-provisioner"
+	csiSCRBD                   = "ceph-csi-rbd"
+	csiSCCephFS                = "ceph-csi-cephfs"
+	csiPoolRBD                 = "csi-rbd"
+	csiPoolCephFS              = "csi-cephfs"
+	csiTestRBDPodName          = "csi-test-rbd"
+	csiTestCephFSPodName       = "csi-test-cephfs"
 )
 
 func runCephCSIE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, t *testing.T, namespace string) {
@@ -47,47 +49,14 @@ func runCephCSIE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suit
 	}
 
 	logger.Info("test Ceph CSI driver")
-	createCephCSISecret(helper, k8sh, s, namespace)
 	createCephPools(helper, s, namespace)
 	createCSIStorageClass(k8sh, s, namespace)
 	createAndDeleteCSIRBDTestPod(k8sh, s, namespace)
 	createAndDeleteCSICephFSTestPod(k8sh, s, namespace)
 
 	//cleanup resources created
-	deleteCephCSISecret(k8sh, namespace)
 	deleteCephPools(helper, namespace)
 	deleteCSIStorageClass(k8sh, namespace)
-}
-
-func createCephCSISecret(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
-	commandArgs := []string{"-c", "ceph auth get-key client.admin"}
-	keyResult, err := k8sh.Exec(namespace, "rook-ceph-tools", "bash", commandArgs)
-	logger.Infof("Ceph get-key: %s", keyResult)
-	require.Nil(s.T(), err)
-
-	_, err = k8sh.Clientset.CoreV1().Secrets(namespace).Create(&v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      csiSecretName,
-			Namespace: namespace,
-		},
-		StringData: map[string]string{
-			"userID":   "admin",
-			"userKey":  keyResult,
-			"adminID":  "admin",
-			"adminKey": keyResult,
-		},
-	})
-	require.Nil(s.T(), err)
-	logger.Info("Created Ceph CSI Secret")
-}
-
-func deleteCephCSISecret(k8sh *utils.K8sHelper, namespace string) {
-	err := k8sh.Clientset.CoreV1().Secrets(namespace).Delete(csiSecretName, &metav1.DeleteOptions{})
-	if err != nil {
-		logger.Errorf("failed to delete ceph-csi %s with error %v", csiSecretName, err)
-		return
-	}
-	logger.Info("Deleted Ceph CSI Secret")
 }
 
 func createCephPools(helper *clients.TestClient, s suite.Suite, namespace string) {
@@ -122,9 +91,9 @@ provisioner: ` + installer.SystemNamespace(namespace) + `.rbd.csi.ceph.com
 parameters:
     pool: ` + csiPoolRBD + `
     clusterID: ` + namespace + `
-    csi.storage.k8s.io/provisioner-secret-name: ` + csiSecretName + `
+    csi.storage.k8s.io/provisioner-secret-name: ` + csiRBDProvisionerSecret + `
     csi.storage.k8s.io/provisioner-secret-namespace: ` + namespace + `
-    csi.storage.k8s.io/node-stage-secret-name: ` + csiSecretName + `
+    csi.storage.k8s.io/node-stage-secret-name: ` + csiRBDNodeSecret + `
     csi.storage.k8s.io/node-stage-secret-namespace: ` + namespace + `
 `
 	cephFSSC := `
@@ -137,9 +106,9 @@ parameters:
     clusterID: ` + namespace + `
     fsName: ` + csiPoolCephFS + `
     pool: ` + csiPoolCephFS + `-data0
-    csi.storage.k8s.io/provisioner-secret-name: ` + csiSecretName + `
+    csi.storage.k8s.io/provisioner-secret-name: ` + csiCephFSProvisionerSecret + `
     csi.storage.k8s.io/provisioner-secret-namespace: ` + namespace + `
-    csi.storage.k8s.io/node-stage-secret-name: ` + csiSecretName + `
+    csi.storage.k8s.io/node-stage-secret-name: ` + csiCephFSNodeSecret + `
     csi.storage.k8s.io/node-stage-secret-namespace: ` + namespace + `
 `
 	err := k8sh.ResourceOperation("apply", rbdSC)
