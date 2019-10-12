@@ -16,7 +16,7 @@
   - The on-host log directory for OSDs was set incorrectly to `<dataDirHostPath>/<namespace>/log`;
     fix this to be `<dataDirHostPath>/log/<namespace>`, the same as other daemons.
   - Use the mon configuration database for directory-based OSDs, and do not generate a config
-
+  - During each OSD Pod init `vgchange -ay` command will be run activate any VGs on the server. This is to counter issues with hosts not having the LVM services enabled (e.g., https://github.com/rook/rook/issues/3640).
 
 ### EdgeFS
 

@@ -57,21 +57,20 @@ func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID, lvPath string,
 		return fmt.Errorf("sed failure, %+v", err) // fail return here as validation provided by ceph-volume
 	}
 
-	var volumeGroupName string
+	volumeGroupName, err := getVolumeGroupName(lvPath)
+	if err != nil {
+		return fmt.Errorf("error fetching volume group name for OSD %s. %+v", osdID, err)
+	}
 	if pvcBackedOSD {
-		volumeGroupName, err = getVolumeGroupName(lvPath)
-		if err != nil {
-			return fmt.Errorf("error fetching volume group name for OSD %s. %+v", osdID, err)
-		}
 		go handleTerminate(context, lvPath, volumeGroupName)
 
-		if err := context.Executor.ExecuteCommand(false, "", "vgchange", "-an", volumeGroupName); err != nil {
-			return fmt.Errorf("failed to deactivate volume group for lv %+v. Error: %+v", lvPath, err)
+		if err := context.Executor.ExecuteCommand(false, "", "vgchange", "--activate n", volumeGroupName); err != nil {
+			return fmt.Errorf("failed to deactivate volume group for lv %q. %+v", lvPath, err)
 		}
+	}
 
-		if err := context.Executor.ExecuteCommand(false, "", "vgchange", "-ay", volumeGroupName); err != nil {
-			return fmt.Errorf("failed to activate volume group for lv %+v. Error: %+v", lvPath, err)
-		}
+	if err := context.Executor.ExecuteCommand(false, "", "vgchange", "--activate y", volumeGroupName); err != nil {
+		return fmt.Errorf("failed to activate volume group for lv %q. %+v", lvPath, err)
 	}
 
 	// activate the osd with ceph-volume
