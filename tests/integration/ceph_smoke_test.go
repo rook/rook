@@ -98,10 +98,6 @@ func (suite *SmokeSuite) TestFileStorage_SmokeTest() {
 	runFileE2ETest(suite.helper, suite.k8sh, suite.Suite, suite.namespace, "smoke-test-fs")
 }
 
-func (suite *SmokeSuite) TestFileStorageMountUser_SmokeTest() {
-	runFileMountUserE2ETest(suite.helper, suite.k8sh, suite.Suite, suite.namespace, "smoke-test-fs-mountuser")
-}
-
 func (suite *SmokeSuite) TestObjectStorage_SmokeTest() {
 	runObjectE2ETest(suite.helper, suite.k8sh, suite.Suite, suite.namespace)
 }
