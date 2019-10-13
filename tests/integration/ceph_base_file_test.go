@@ -18,7 +18,6 @@ package integration
 
 import (
 	"fmt"
-	"path"
 
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
@@ -26,11 +25,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
-	fileMountPath = "/tmp/rookfs"
-	filePodName   = "file-test"
+	fileMountPath        = "/tmp/rookfs"
+	filePodName          = "file-test"
+	fileMountUserPodName = "file-mountuser-test"
+	fileMountUser        = "filemountuser"
+	fileMountSecret      = "file-mountuser-cephkey"
 )
 
 // Smoke Test for File System Storage - Test check the following operations on Filesystem Storage in order
@@ -41,14 +45,31 @@ func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.S
 	logger.Infof("File Storage End To End Integration Test - create, mount, write to, read from, and unmount")
 
 	createFilesystem(helper, k8sh, s, namespace, filesystemName)
-	createFilesystemConsumerPod(helper, k8sh, s, namespace, filesystemName)
-	err := writeAndReadToFilesystem(helper, k8sh, s, namespace, filePodName, "test_file")
-	require.Nil(s.T(), err)
 
+	// Create a test pod where CephFS is consumed without user creds
+	createFilesystemConsumerPod(helper, k8sh, s, namespace, filesystemName)
+
+	// Create a test pod where CephFS is consumed with a mountUser and mountSecret specified.
+	createFilesystemMountCephCredentials(helper, k8sh, s, namespace, filesystemName)
+	createFilesystemMountUserConsumerPod(helper, k8sh, s, namespace, filesystemName)
+
+	// Test reading and writing to the first pod
+	err := writeAndReadToFilesystem(helper, k8sh, s, namespace, filePodName, "test_file")
+	assert.NoError(s.T(), err)
+
+	// Test reading and writing to the second pod
+	err = writeAndReadToFilesystem(helper, k8sh, s, namespace, fileMountUserPodName, "canttouchthis")
+	assert.Error(s.T(), err, "we should not be able to write to file canttouchthis on CephFS `/`")
+	err = writeAndReadToFilesystem(helper, k8sh, s, namespace, fileMountUserPodName, "foo/test_file")
+	assert.NoError(s.T(), err, "we should be able to write to the `/foo` directory on CephFS")
+
+	// Start the NFS daemons
 	testNFSDaemons(helper, k8sh, s, namespace, filesystemName)
 
+	// Cleanup the filesystem and its clients
 	downscaleMetadataServers(helper, k8sh, s, namespace, filesystemName)
 	cleanupFilesystemConsumer(k8sh, s, namespace, filePodName)
+	cleanupFilesystemConsumer(k8sh, s, namespace, fileMountUserPodName)
 	cleanupFilesystem(helper, k8sh, s, namespace, filesystemName)
 }
 
@@ -65,11 +86,6 @@ func createFilesystemConsumerPod(helper *clients.TestClient, k8sh *utils.K8sHelp
 	err := createPodWithFilesystem(k8sh, s, filePodName, namespace, filesystemName, false)
 	require.NoError(s.T(), err)
 	filePodRunning := k8sh.IsPodRunning(filePodName, namespace)
-	if !filePodRunning {
-		k8sh.PrintPodDescribe(namespace, filePodName)
-		k8sh.PrintPodStatus(namespace)
-		k8sh.PrintPodStatus(installer.SystemNamespace(namespace))
-	}
 	require.True(s.T(), filePodRunning, "make sure file-test pod is in running state")
 	logger.Infof("File system mounted successfully")
 }
@@ -100,12 +116,8 @@ func cleanupFilesystemConsumer(k8sh *utils.K8sHelper, s suite.Suite, namespace s
 
 // cleanupFilesystem cleans up the filesystem and checks if all mds pods are terminated before continuing
 func cleanupFilesystem(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, filesystemName string) {
-	args := []string{"--grace-period=0", "-n", namespace, "deployment", "-l"}
-	err := k8sh.DeleteResourceAndWait(false, args...)
-	assert.Nil(s.T(), err, "force and no wait delete of rook file system deployments failed")
-
 	logger.Infof("Deleting file system")
-	err = helper.FSClient.Delete(filesystemName, namespace)
+	err := helper.FSClient.Delete(filesystemName, namespace)
 	require.Nil(s.T(), err)
 	logger.Infof("File system %s deleted", filesystemName)
 }
@@ -130,7 +142,8 @@ func createFilesystem(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 
 func fileTestDataCleanUp(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, podName string, namespace string, filesystemName string) {
 	logger.Infof("Cleaning up file system")
-	assert.NoError(s.T(), k8sh.DeletePod(namespace, podName))
+	err := k8sh.DeletePod(namespace, podName)
+	assert.NoError(s.T(), err)
 	helper.FSClient.Delete(filesystemName, namespace)
 }
 
@@ -161,10 +174,9 @@ spec:
   - name: ` + podName + `
     image: busybox
     command:
-    command:
         - sh
         - "-c"
-        - "touch ` + path.Join(utils.TestMountPath, "flex.test") + ` && sleep 300"
+        - "sleep 300"
     imagePullPolicy: IfNotPresent
     env:
     volumeMounts:
@@ -180,5 +192,76 @@ spec:
         clusterNamespace: ` + namespace +
 		mountUserInsert + `
   restartPolicy: Never
+`
+}
+
+func createFilesystemMountCephCredentials(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, filesystemName string) {
+	// Create agent binding for access to Secrets
+	err := k8sh.ResourceOperation("apply", getFilesystemAgentMountSecretsBinding(namespace))
+	require.Nil(s.T(), err)
+	// Mount CephFS in toolbox and create /foo directory on it
+	logger.Info("Creating /foo directory on CephFS")
+	_, err = k8sh.Exec(namespace, "rook-ceph-tools", "mkdir", []string{"-p", utils.TestMountPath})
+	require.Nil(s.T(), err)
+	_, err = k8sh.ExecWithRetry(3, namespace, "rook-ceph-tools", "bash", []string{"-c", fmt.Sprintf("mount -t ceph -o mds_namespace=%s,name=admin,secret=$(grep key /etc/ceph/keyring | awk '{print $3}') $(grep mon_host /etc/ceph/ceph.conf | awk '{print $3}'):/ %s", filesystemName, utils.TestMountPath)})
+	require.Nil(s.T(), err)
+	_, err = k8sh.Exec(namespace, "rook-ceph-tools", "mkdir", []string{"-p", fmt.Sprintf("%s/foo", utils.TestMountPath)})
+	require.Nil(s.T(), err)
+	_, err = k8sh.Exec(namespace, "rook-ceph-tools", "umount", []string{utils.TestMountPath})
+	require.Nil(s.T(), err)
+	logger.Info("Created /foo directory on CephFS")
+
+	// Create Ceph credentials which allow CephFS access to `/foo` but not `/`.
+	commandArgs := []string{
+		"-c",
+		fmt.Sprintf(
+			`ceph auth get-or-create-key client.%s mon "allow r" osd "allow rw pool=%s-data0" mds "allow r, allow rw path=/foo"`,
+			fileMountUser,
+			filesystemName,
+		),
+	}
+	logger.Infof("ceph credentials command args: %s", commandArgs[1])
+	result, err := k8sh.Exec(namespace, "rook-ceph-tools", "bash", commandArgs)
+	logger.Infof("Ceph filesystem credentials output: %s", result)
+	logger.Info("Created Ceph credentials")
+	require.Nil(s.T(), err)
+	// Save Ceph credentials to Kubernetes
+	_, err = k8sh.Clientset.CoreV1().Secrets(namespace).Create(&v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fileMountSecret,
+			Namespace: namespace,
+		},
+		Data: map[string][]byte{
+			"mykey": []byte(result),
+		},
+	})
+	require.Nil(s.T(), err)
+	logger.Info("Created Ceph credentials Secret in Kubernetes")
+}
+
+func createFilesystemMountUserConsumerPod(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, filesystemName string) {
+	mtfsErr := createPodWithFilesystem(k8sh, s, fileMountUserPodName, namespace, filesystemName, true)
+	require.Nil(s.T(), mtfsErr)
+	filePodRunning := k8sh.IsPodRunning(fileMountUserPodName, namespace)
+	require.True(s.T(), filePodRunning, "make sure file-mountuser-test pod is in running state")
+	logger.Infof("File system mounted successfully")
+}
+
+func getFilesystemAgentMountSecretsBinding(namespace string) string {
+	return `apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: rook-ceph-agent-mount
+  labels:
+    operator: rook
+    storage-backend: ceph
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-agent-mount
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-system
+  namespace: ` + namespace + `
 `
 }
