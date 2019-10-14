@@ -67,9 +67,9 @@ func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.S
 	testNFSDaemons(helper, k8sh, s, namespace, filesystemName)
 
 	// Cleanup the filesystem and its clients
-	downscaleMetadataServers(helper, k8sh, s, namespace, filesystemName)
 	cleanupFilesystemConsumer(k8sh, s, namespace, filePodName)
 	cleanupFilesystemConsumer(k8sh, s, namespace, fileMountUserPodName)
+	downscaleMetadataServers(helper, k8sh, s, namespace, filesystemName)
 	cleanupFilesystem(helper, k8sh, s, namespace, filesystemName)
 }
 
@@ -150,7 +150,6 @@ func fileTestDataCleanUp(helper *clients.TestClient, k8sh *utils.K8sHelper, s su
 func createPodWithFilesystem(k8sh *utils.K8sHelper, s suite.Suite, podName, namespace, filesystemName string, mountUser bool) error {
 	driverName := installer.SystemNamespace(namespace)
 	testPodManifest := getFilesystemTestPod(podName, namespace, filesystemName, driverName, mountUser)
-	logger.Infof("creating test pod: %s", testPodManifest)
 	if err := k8sh.ResourceOperation("create", testPodManifest); err != nil {
 		return fmt.Errorf("failed to create pod -- %s. %+v", testPodManifest, err)
 	}
