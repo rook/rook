@@ -57,7 +57,6 @@ func runCephCSIE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suit
 	deleteCephCSISecret(k8sh, namespace)
 	deleteCephPools(helper, namespace)
 	deleteCSIStorageClass(k8sh, namespace)
-
 }
 
 func createCephCSISecret(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
