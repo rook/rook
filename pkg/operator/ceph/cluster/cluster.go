@@ -102,7 +102,7 @@ func (c *cluster) detectCephVersion(rookImage, cephImage string, timeout time.Du
 	}
 
 	job := versionReporter.Job()
-	job.Spec.Template.Spec.ServiceAccountName = "rook-ceph-cmd-reporter"
+	job.Spec.Template.Spec.ServiceAccountName = c.Namespace + "-cmd-reporter"
 
 	// Apply the same node selector and tolerations for the ceph version detection as the mon daemons
 	cephv1.GetMonPlacement(c.Spec.Placement).ApplyToPodSpec(&job.Spec.Template.Spec)
