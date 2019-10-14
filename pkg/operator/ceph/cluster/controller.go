@@ -939,29 +939,11 @@ func (c *ClusterController) addFinalizer(namespace, name string) error {
 }
 
 func (c *ClusterController) removeFinalizer(obj interface{}) {
-	var fname string
-	var objectMeta *metav1.ObjectMeta
-
 	// first determine what type/version of cluster we are dealing with
-	if cl, ok := obj.(*cephv1.CephCluster); ok {
-		fname = finalizerName
-		objectMeta = &cl.ObjectMeta
-	} else {
-		logger.Warningf("cannot remove finalizer from object that is not a cluster: %+v", obj)
-		return
-	}
 
-	// remove the finalizer from the slice if it exists
-	found := false
-	for i, finalizer := range objectMeta.Finalizers {
-		if finalizer == fname {
-			objectMeta.Finalizers = append(objectMeta.Finalizers[:i], objectMeta.Finalizers[i+1:]...)
-			found = true
-			break
-		}
-	}
-	if !found {
-		logger.Infof("finalizer %s not found in the cluster crd '%s'", fname, objectMeta.Name)
+	cl, ok := obj.(*cephv1.CephCluster)
+	if !ok {
+		logger.Warningf("cannot remove finalizer from object that is not a cluster: %+v", obj)
 		return
 	}
 
@@ -969,21 +951,39 @@ func (c *ClusterController) removeFinalizer(obj interface{}) {
 	maxRetries := 5
 	retrySeconds := 5 * time.Second
 	for i := 0; i < maxRetries; i++ {
-		var err error
-		if cluster, ok := obj.(*cephv1.CephCluster); ok {
-			_, err = c.context.RookClientset.CephV1().CephClusters(cluster.Namespace).Update(cluster)
+		// Get the latest cluster instead of using the same instance in case it has been changed
+		cluster, err := c.context.RookClientset.CephV1().CephClusters(cl.Namespace).Get(cl.Name, metav1.GetOptions{})
+		if err != nil {
+			logger.Errorf("failed to remove finalizer. failed to get cluster. %+v", err)
+			return
+		}
+		objectMeta := &cluster.ObjectMeta
+
+		// remove the finalizer from the slice if it exists
+		found := false
+		for i, finalizer := range objectMeta.Finalizers {
+			if finalizer == finalizerName {
+				objectMeta.Finalizers = append(objectMeta.Finalizers[:i], objectMeta.Finalizers[i+1:]...)
+				found = true
+				break
+			}
+		}
+		if !found {
+			logger.Infof("finalizer %s not found in the cluster crd '%s'", finalizerName, objectMeta.Name)
+			return
 		}
 
+		_, err = c.context.RookClientset.CephV1().CephClusters(cluster.Namespace).Update(cluster)
 		if err != nil {
-			logger.Errorf("failed to remove finalizer %s from cluster %s. %+v", fname, objectMeta.Name, err)
+			logger.Errorf("failed to remove finalizer %s from cluster %s. %+v", finalizerName, objectMeta.Name, err)
 			time.Sleep(retrySeconds)
 			continue
 		}
-		logger.Infof("removed finalizer %s from cluster %s", fname, objectMeta.Name)
+		logger.Infof("removed finalizer %s from cluster %s", finalizerName, objectMeta.Name)
 		return
 	}
 
-	logger.Warningf("giving up from removing the %s cluster finalizer", fname)
+	logger.Warningf("giving up from removing the %s cluster finalizer", finalizerName)
 }
 
 // updateClusterStatus updates the status of the cluster custom resource, whether it is being updated or is completed
