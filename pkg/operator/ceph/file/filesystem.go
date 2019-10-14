@@ -100,9 +100,10 @@ func createFilesystem(
 	return nil
 }
 
-// deleteFileSystem deletes the filesystem and the metadata servers
+// deleteFileSystem deletes the filesystem from Ceph
 func deleteFilesystem(context *clusterd.Context, cephVersion cephver.CephVersion, fs cephv1.CephFilesystem) error {
 	// The most important part of deletion is that the filesystem gets removed from Ceph
+	// The K8s resources will already be removed with the K8s owner references
 	if err := downFilesystem(context, cephVersion, fs.Namespace, fs.Name); err != nil {
 		// If the fs isn't deleted from Ceph, leave the daemons so it can still be used.
 		return fmt.Errorf("failed to down filesystem %s: %+v", fs.Name, err)
@@ -114,8 +115,7 @@ func deleteFilesystem(context *clusterd.Context, cephVersion cephver.CephVersion
 			return fmt.Errorf("failed to remove filesystem %s: %+v", fs.Name, err)
 		}
 	}
-
-	return mds.DeleteCluster(context, fs.Namespace, fs.Name)
+	return nil
 }
 
 func validateFilesystem(context *clusterd.Context, f cephv1.CephFilesystem) error {

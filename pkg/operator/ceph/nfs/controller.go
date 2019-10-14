@@ -17,6 +17,7 @@ limitations under the License.
 package nfs
 
 import (
+	"fmt"
 	"reflect"
 	"sync"
 
@@ -50,7 +51,6 @@ type CephNFSController struct {
 	namespace          string
 	rookImage          string
 	clusterSpec        *cephv1.ClusterSpec
-	ownerRef           metav1.OwnerReference
 	orchestrationMutex sync.Mutex
 	isUpgrade          bool
 }
@@ -64,7 +64,6 @@ func NewCephNFSController(clusterInfo *cephconfig.ClusterInfo, context *clusterd
 		namespace:       namespace,
 		rookImage:       rookImage,
 		clusterSpec:     clusterSpec,
-		ownerRef:        ownerRef,
 	}
 }
 
@@ -211,4 +210,14 @@ func (c *CephNFSController) acquireOrchestrationLock() {
 func (c *CephNFSController) releaseOrchestrationLock() {
 	c.orchestrationMutex.Unlock()
 	logger.Debugf("Released lock for nfs orchestration")
+}
+
+func ownerRefs(nfs cephv1.CephNFS) []metav1.OwnerReference {
+	// Set the filesystem CR as the owner
+	return []metav1.OwnerReference{{
+		APIVersion: fmt.Sprintf("%s/%s", CephNFSResource.Group, CephNFSResource.Version),
+		Kind:       CephNFSResource.Kind,
+		Name:       nfs.Name,
+		UID:        nfs.UID,
+	}}
 }

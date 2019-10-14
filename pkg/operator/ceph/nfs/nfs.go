@@ -200,16 +200,6 @@ func (c *CephNFSController) downCephNFS(n cephv1.CephNFS, newActive int) error {
 
 		// Remove from grace db
 		c.removeServerFromDatabase(n, name)
-
-		// Delete the mds deployment
-		k8sutil.DeleteDeployment(c.context.Clientset, n.Namespace, instanceName(n, name))
-
-		// Delete the ganesha service
-		options := &metav1.DeleteOptions{}
-		err := c.context.Clientset.CoreV1().Services(n.Namespace).Delete(instanceName(n, name), options)
-		if err != nil && !errors.IsNotFound(err) {
-			logger.Warningf("failed to delete ganesha service. %+v", err)
-		}
 	}
 
 	return nil
