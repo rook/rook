@@ -49,7 +49,7 @@ var (
 	createBaseTestDir = true
 	// ** end of Variables to modify
 	logger              = capnslog.NewPackageLogger("github.com/rook/rook", "installer")
-	createArgs          = []string{"apply", "-f"}
+	createArgs          = []string{"create", "-f"}
 	createFromStdinArgs = append(createArgs, "-")
 	deleteArgs          = []string{"delete", "-f"}
 	deleteFromStdinArgs = append(deleteArgs, "-")
