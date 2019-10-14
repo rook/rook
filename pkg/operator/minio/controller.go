@@ -315,7 +315,7 @@ func (c *Controller) onAdd(obj interface{}) {
 	ownerRef := meta_v1.OwnerReference{
 		APIVersion: ObjectStoreResource.Version,
 		Kind:       ObjectStoreResource.Kind,
-		Name:       objectstore.Namespace,
+		Name:       objectstore.Name,
 		UID:        types.UID(objectstore.ObjectMeta.UID),
 	}
 

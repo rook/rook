@@ -257,38 +257,11 @@ func (c *clusterConfig) deleteLegacyDaemons() {
 func (c *clusterConfig) deleteStore() error {
 	logger.Infof("Deleting object store %s from namespace %s", c.store.Name, c.store.Namespace)
 
-	var gracePeriod int64
-	propagation := metav1.DeletePropagationForeground
-	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
-
-	// Delete the rgw service
-	err := c.context.Clientset.CoreV1().Services(c.store.Namespace).Delete(c.instanceName(), options)
-	if err != nil && !errors.IsNotFound(err) {
-		logger.Warningf("failed to delete rgw service. %+v", err)
-	}
-
-	// Make a best effort to delete the rgw pods deployments
-	deps, err := k8sutil.GetDeployments(c.context.Clientset, c.store.Namespace, c.storeLabelSelector())
-	if err != nil {
-		logger.Warning("could not get deployments for object store %s (matching label selector '%s'): %+v", c.store.Namespace, c.storeLabelSelector(), err)
-	}
-	for _, d := range deps.Items {
-		if err := k8sutil.DeleteDeployment(c.context.Clientset, c.store.Namespace, d.Name); err != nil {
-			logger.Warning("error during deletion of deployment %s resource: %+v", d.Name, err)
-		}
-	}
-
-	// Delete the rgw config map keyrings
-	err = c.context.Clientset.CoreV1().Secrets(c.store.Namespace).Delete(c.instanceName(), options)
-	if err != nil && !errors.IsNotFound(err) {
-		logger.Warningf("failed to delete rgw secret. %+v", err)
-	}
-
 	// Delete rgw CephX keys
 	for i := 0; i < int(c.store.Spec.Gateway.Instances); i++ {
 		daemonLetterID := k8sutil.IndexToName(i)
 		keyName := fmt.Sprintf("client.%s.%s", strings.Replace(c.store.Name, "-", ".", -1), daemonLetterID)
-		err = client.AuthDelete(c.context, c.store.Namespace, keyName)
+		err := client.AuthDelete(c.context, c.store.Namespace, keyName)
 		if err != nil {
 			return err
 		}
@@ -296,7 +269,7 @@ func (c *clusterConfig) deleteStore() error {
 
 	// Delete the realm and pools
 	objContext := NewContext(c.context, c.store.Name, c.store.Namespace)
-	err = deleteRealmAndPools(objContext, c.store.Spec.PreservePoolsOnDelete)
+	err := deleteRealmAndPools(objContext, c.store.Spec.PreservePoolsOnDelete)
 	if err != nil {
 		return fmt.Errorf("failed to delete the realm and pools. %+v", err)
 	}

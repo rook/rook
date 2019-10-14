@@ -311,7 +311,7 @@ func (k8sh *K8sHelper) ResourceOperationFromTemplate(action string, podDefinitio
 // ResourceOperation performs a kubectl action on a pod definition
 func (k8sh *K8sHelper) ResourceOperation(action string, manifest string) error {
 	args := []string{action, "-f", "-"}
-	logger.Infof("kubectl create manifest:\n%s", manifest)
+	logger.Infof("kubectl %s manifest:\n%s", action, manifest)
 	_, err := k8sh.KubectlWithStdin(manifest, args...)
 	if err == nil {
 		return nil
