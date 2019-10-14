@@ -27,6 +27,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // ******************************************************
@@ -59,19 +60,19 @@ import (
 // There is an issue on k8s 1.7 where the CRD controller will frequently fail to create a cluster after this suite is run.
 // The error is "the server does not allow this method on the requested resource (post cephclusters.ceph.rook.io)".
 // Everything appears to have been cleaned up successfully in this test, so it is still unclear what is causing the issue between tests.
-func TestCephBlockMountUnMountSuite(t *testing.T) {
+func TestCephBlockSuite(t *testing.T) {
 	if installer.SkipTestSuite(installer.CephTestSuite) {
 		t.Skip()
 	}
 
-	s := new(BlockMountUnMountSuite)
-	defer func(s *BlockMountUnMountSuite) {
+	s := new(CephBlockSuite)
+	defer func(s *CephBlockSuite) {
 		HandlePanics(recover(), s.op, s.T)
 	}(s)
 	suite.Run(t, s)
 }
 
-type BlockMountUnMountSuite struct {
+type CephBlockSuite struct {
 	suite.Suite
 	testClient *clients.TestClient
 	bc         *clients.BlockOperation
@@ -83,7 +84,7 @@ type BlockMountUnMountSuite struct {
 	op         *TestCluster
 }
 
-func (s *BlockMountUnMountSuite) SetupSuite() {
+func (s *CephBlockSuite) SetupSuite() {
 
 	s.namespace = "block-test-ns"
 	s.pvcNameRWO = "block-persistent-rwo"
@@ -92,16 +93,76 @@ func (s *BlockMountUnMountSuite) SetupSuite() {
 	useDevices := true
 	mons := 1
 	rbdMirrorWorkers := 1
-	s.op, s.kh = StartTestCluster(s.T, blockMountMinimalTestVersion, s.namespace, "filestore", useHelm, useDevices, mons, rbdMirrorWorkers, installer.VersionMaster, installer.NautilusVersion)
+	s.op, s.kh = StartTestCluster(s.T, blockMinimalTestVersion, s.namespace, "filestore", useHelm, useDevices, mons, rbdMirrorWorkers, installer.VersionMaster, installer.NautilusVersion)
 	s.testClient = clients.CreateTestClient(s.kh, s.op.installer.Manifests)
 	s.bc = s.testClient.BlockClient
 }
 
-func (s *BlockMountUnMountSuite) AfterTest(suiteName, testName string) {
+func (s *CephBlockSuite) AfterTest(suiteName, testName string) {
 	s.op.installer.CollectOperatorLog(suiteName, testName, installer.SystemNamespace(s.namespace))
 }
 
-func (s *BlockMountUnMountSuite) setupPVCs() {
+func (s *CephBlockSuite) TestBlockStorageMountUnMountForStatefulSets() {
+	poolName := "stspool"
+	storageClassName := "stssc"
+	reclaimPolicy := "Delete"
+	statefulSetName := "block-stateful-set"
+	statefulPodsName := "ststest"
+
+	defer s.statefulSetDataCleanup(defaultNamespace, poolName, storageClassName, reclaimPolicy, statefulSetName, statefulPodsName)
+	logger.Infof("Test case when block persistent volumes are scaled up and down along with StatefulSet")
+	logger.Info("Step 1: Create pool and storageClass")
+
+	err := s.testClient.PoolClient.CreateStorageClass(s.namespace, poolName, storageClassName, reclaimPolicy)
+	assert.Nil(s.T(), err)
+	logger.Info("Step 2 : Deploy statefulSet with 1X replication")
+	service, statefulset := getBlockStatefulSetAndServiceDefinition(defaultNamespace, statefulSetName, statefulPodsName, storageClassName)
+	_, err = s.kh.Clientset.CoreV1().Services(defaultNamespace).Create(service)
+	assert.Nil(s.T(), err)
+	_, err = s.kh.Clientset.AppsV1().StatefulSets(defaultNamespace).Create(statefulset)
+	assert.Nil(s.T(), err)
+	require.True(s.T(), s.kh.CheckPodCountAndState(statefulSetName, defaultNamespace, 1, "Running"))
+	require.True(s.T(), s.kh.CheckPvcCountAndStatus(statefulSetName, defaultNamespace, 1, "Bound"))
+
+	logger.Info("Step 3 : Scale up replication on statefulSet")
+	scaleerr := s.kh.ScaleStatefulSet(statefulPodsName, defaultNamespace, 2)
+	assert.NoError(s.T(), scaleerr, "make sure scale up is successful")
+	require.True(s.T(), s.kh.CheckPodCountAndState(statefulSetName, defaultNamespace, 2, "Running"))
+	require.True(s.T(), s.kh.CheckPvcCountAndStatus(statefulSetName, defaultNamespace, 2, "Bound"))
+
+	logger.Info("Step 4 : Scale down replication on statefulSet")
+	scaleerr = s.kh.ScaleStatefulSet(statefulPodsName, defaultNamespace, 1)
+	assert.NoError(s.T(), scaleerr, "make sure scale down is successful")
+	require.True(s.T(), s.kh.CheckPodCountAndState(statefulSetName, defaultNamespace, 1, "Running"))
+	require.True(s.T(), s.kh.CheckPvcCountAndStatus(statefulSetName, defaultNamespace, 2, "Bound"))
+
+	logger.Info("Step 5 : Delete statefulSet")
+	delOpts := metav1.DeleteOptions{}
+	listOpts := metav1.ListOptions{LabelSelector: "app=" + statefulSetName}
+	err = s.kh.Clientset.CoreV1().Services(defaultNamespace).Delete(statefulSetName, &delOpts)
+	assert.Nil(s.T(), err)
+	err = s.kh.Clientset.AppsV1().StatefulSets(defaultNamespace).Delete(statefulPodsName, &delOpts)
+	assert.Nil(s.T(), err)
+	err = s.kh.Clientset.CoreV1().Pods(defaultNamespace).DeleteCollection(&delOpts, listOpts)
+	assert.Nil(s.T(), err)
+	require.True(s.T(), s.kh.WaitUntilPodWithLabelDeleted(fmt.Sprintf("app=%s", statefulSetName), defaultNamespace))
+	require.True(s.T(), s.kh.CheckPvcCountAndStatus(statefulSetName, defaultNamespace, 2, "Bound"))
+}
+
+func (s *CephBlockSuite) statefulSetDataCleanup(namespace, poolName, storageClassName, reclaimPolicy, statefulSetName, statefulPodsName string) {
+	delOpts := metav1.DeleteOptions{}
+	listOpts := metav1.ListOptions{LabelSelector: "app=" + statefulSetName}
+	// Delete stateful set
+	s.kh.Clientset.CoreV1().Services(namespace).Delete(statefulSetName, &delOpts)
+	s.kh.Clientset.AppsV1().StatefulSets(defaultNamespace).Delete(statefulPodsName, &delOpts)
+	s.kh.Clientset.CoreV1().Pods(defaultNamespace).DeleteCollection(&delOpts, listOpts)
+	// Delete all PVCs
+	s.kh.DeletePvcWithLabel(defaultNamespace, statefulSetName)
+	// Delete storageclass and pool
+	s.testClient.PoolClient.DeleteStorageClass(s.namespace, poolName, storageClassName, reclaimPolicy)
+}
+
+func (s *CephBlockSuite) setupPVCs() {
 	logger.Infof("creating the test PVCs")
 	poolNameRWO := "block-pool-rwo"
 	storageClassNameRWO := "rook-ceph-block-rwo"
@@ -151,7 +212,7 @@ func (s *BlockMountUnMountSuite) setupPVCs() {
 	require.True(s.T(), s.kh.IsPodTerminated("setup-block-rwx", defaultNamespace), "make sure setup-block-rwx pod is terminated")
 }
 
-func (s *BlockMountUnMountSuite) TearDownSuite() {
+func (s *CephBlockSuite) TearDownSuite() {
 	logger.Infof("Cleaning up block storage")
 
 	s.kh.DeletePods(
@@ -164,7 +225,7 @@ func (s *BlockMountUnMountSuite) TearDownSuite() {
 	s.op.Teardown()
 }
 
-func (s *BlockMountUnMountSuite) TestBlockStorageMountUnMountForDifferentAccessModes() {
+func (s *CephBlockSuite) TestBlockStorageMountUnMountForDifferentAccessModes() {
 	s.setupPVCs()
 
 	logger.Infof("Test case when existing RWO PVC is mounted and unmounted on pods with various accessModes")
@@ -290,5 +351,4 @@ func (s *BlockMountUnMountSuite) TestBlockStorageMountUnMountForDifferentAccessM
 	assert.True(s.T(), s.kh.IsPodTerminated("rwo-block-ro-two", defaultNamespace), "make sure rwo-block-ro-two pod is terminated")
 	assert.True(s.T(), s.kh.IsPodTerminated("rwx-block-ro-one", defaultNamespace), "make sure rwx-lock-ro-one pod is terminated")
 	assert.True(s.T(), s.kh.IsPodTerminated("rwx-block-ro-two", defaultNamespace), "make sure rwx-block-ro-two pod is terminated")
-
 }

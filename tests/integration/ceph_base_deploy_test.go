@@ -39,8 +39,7 @@ const (
 	// UPDATE these versions when the integration test matrix changes
 	// These versions are for running a minimal test suite for more efficient tests across different versions of K8s
 	// instead of running all suites on all versions
-	blockCreateMinimalTestVersion  = "1.11.0"
-	blockMountMinimalTestVersion   = "1.11.0"
+	blockMinimalTestVersion        = "1.11.0"
 	multiClusterMinimalTestVersion = "1.12.0"
 	helmMinimalTestVersion         = "1.13.0"
 	upgradeMinimalTestVersion      = "1.14.0"
