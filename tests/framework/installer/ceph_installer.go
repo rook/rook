@@ -383,6 +383,8 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(gatherLogs bool, systemNames
 
 		crdCheckerFunc := func() error {
 			_, err := h.k8shelper.RookClientset.CephV1().CephClusters(namespace).Get(namespace, metav1.GetOptions{})
+			// ensure the finalizer(s) are removed
+			h.removeClusterFinalizers(namespace, namespace)
 			return err
 		}
 		err = h.k8shelper.WaitForCustomResourceDeletion(namespace, crdCheckerFunc)
@@ -471,6 +473,27 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(gatherLogs bool, systemNames
 		// revert the hostname labels for the test
 		h.k8shelper.RestoreHostnames()
 	}
+}
+
+func (h *CephInstaller) removeClusterFinalizers(namespace, name string) {
+	// Get the latest cluster instead of using the same instance in case it has been changed
+	cluster, err := h.k8shelper.RookClientset.CephV1().CephClusters(namespace).Get(name, metav1.GetOptions{})
+	if err != nil {
+		logger.Errorf("failed to remove finalizer. failed to get cluster. %+v", err)
+		return
+	}
+	objectMeta := &cluster.ObjectMeta
+	if len(objectMeta.Finalizers) == 0 {
+		logger.Infof("no finalizers to remove from cluster %s", name)
+		return
+	}
+	objectMeta.Finalizers = nil
+	_, err = h.k8shelper.RookClientset.CephV1().CephClusters(cluster.Namespace).Update(cluster)
+	if err != nil {
+		logger.Errorf("failed to remove finalizers from cluster %s. %+v", objectMeta.Name, err)
+		return
+	}
+	logger.Infof("removed finalizers from cluster %s", objectMeta.Name)
 }
 
 func (h *CephInstaller) purgeClusters() error {
