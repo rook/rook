@@ -194,12 +194,14 @@ func (o MCTestOperations) Teardown() {
 func (o MCTestOperations) startCluster(namespace, store string, errCh chan error) {
 	logger.Infof("starting cluster %s", namespace)
 	if err := o.installer.CreateK8sRookCluster(namespace, o.systemNamespace, store); err != nil {
+		o.T().Fail()
 		o.installer.GatherAllRookLogs(o.T().Name(), namespace, o.systemNamespace)
 		errCh <- fmt.Errorf("failed to create cluster %s. %+v", namespace, err)
 		return
 	}
 
 	if err := o.installer.CreateK8sRookToolbox(namespace); err != nil {
+		o.T().Fail()
 		o.installer.GatherAllRookLogs(o.T().Name(), namespace, o.systemNamespace)
 		errCh <- fmt.Errorf("failed to create toolbox for %s. %+v", namespace, err)
 		return
