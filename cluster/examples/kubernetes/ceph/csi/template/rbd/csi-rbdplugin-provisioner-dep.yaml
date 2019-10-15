@@ -60,7 +60,7 @@ spec:
           env:
             - name: ADDRESS
               value: unix:///csi/csi-provisioner.sock
-          imagePullPolicy: Always
+          imagePullPolicy: "IfNotPresent"
           securityContext:
             privileged: true
           volumeMounts:
