@@ -210,7 +210,11 @@ func Provision(context *clusterd.Context, agent *OsdAgent) error {
 		if len(agent.devices) > 1 {
 			return fmt.Errorf("more than one desired device found in case of PVC backed OSDs. we expect exactly one device")
 		}
-		rawDevices = append(rawDevices, clusterd.PopulateDeviceInfo(agent.devices[0].Name, context.Executor))
+		rawDevice, err := clusterd.PopulateDeviceInfo(agent.devices[0].Name, context.Executor)
+		if err != nil {
+			return fmt.Errorf("failed to get device info for %s. %+v", agent.devices[0].Name, err)
+		}
+		rawDevices = append(rawDevices, rawDevice)
 	} else {
 		rawDevices, err = clusterd.DiscoverDevices(context.Executor)
 		if err != nil {
