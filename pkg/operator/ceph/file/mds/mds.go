@@ -233,28 +233,6 @@ func (c *Cluster) scaleDownDeployments(replicas int32, desiredDeployments map[st
 	return nil
 }
 
-// DeleteCluster deletes a Ceph mds cluster from Kubernetes.
-func DeleteCluster(context *clusterd.Context, namespace, fsName string) error {
-	// Try to delete all mds deployments and secret keys serving the filesystem, and aggregate
-	// failures together to report all at once at the end.
-	deps, err := getMdsDeployments(context, namespace, fsName)
-	if err != nil {
-		return err
-	}
-	errCount := 0
-	// d.GetName() should be the "ResourceName" field from the mdsConfig struct
-	for _, d := range deps.Items {
-		if err := deleteMdsDeployment(context, namespace, &d); err != nil {
-			errCount++
-			logger.Errorf("error during deletion of filesystem %s resources: %+v", fsName, err)
-		}
-	}
-	if errCount > 0 {
-		return fmt.Errorf("%d error(s) during deletion of mds cluster for filesystem %s, see logs above", errCount, fsName)
-	}
-	return nil
-}
-
 // prepareForDaemonUpgrade performs all actions necessary to ensure the filesystem is prepared
 // to have its daemon(s) updated. This helps ensure there is no aberrant behavior during upgrades.
 // If the mds is not prepared within the timeout window, an error will be reported.
