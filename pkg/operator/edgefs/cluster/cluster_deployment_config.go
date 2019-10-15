@@ -311,7 +311,6 @@ func (c *cluster) validateDeploymentConfig(deploymentConfig edgefsv1.ClusterDepl
 		return err
 	}
 
-	deploymentNodesCount := len(deploymentConfig.DevConfig)
 	if deploymentConfig.TransportKey == edgefsv1.DeploymentRtkvs {
 		if len(c.Spec.Storage.Directories) == 0 {
 			return fmt.Errorf("RTKVS configuration error: storage.directory has to " +
@@ -322,9 +321,12 @@ func (c *cluster) validateDeploymentConfig(deploymentConfig edgefsv1.ClusterDepl
 				" A per-node NVME KVSSD disks list is expected")
 		}
 	} else if deploymentConfig.TransportKey == edgefsv1.DeploymentRtlfs {
-		// Check directories devices count on all nodes
-		if len(c.Spec.Storage.Directories)*deploymentNodesCount < 3 {
-			return fmt.Errorf("Rtlfs devices should be more then 3 on all nodes summary")
+		// Check directories devices count on all nodes for autoRtlfs mode
+		deploymentNodesCount := len(deploymentConfig.DevConfig)
+		if len(c.Spec.Storage.Directories) > 0 {
+			if len(c.Spec.Storage.Directories)*deploymentNodesCount < 3 {
+				return fmt.Errorf("Rtlfs devices should be more then 3 on all nodes summary")
+			}
 		}
 	} else if deploymentConfig.TransportKey == edgefsv1.DeploymentRtrd {
 		// Check all deployment nodes has available disk devices
