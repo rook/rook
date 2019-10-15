@@ -102,7 +102,7 @@ func PodVolumes(dataDirHostPath, namespace string, confGeneratedInPod bool) []v1
 	return []v1.Volume{
 		{Name: k8sutil.DataDirVolume, VolumeSource: dataDirSource},
 		configVolume,
-		StoredLogVolume(path.Join(dataDirHostPath, "log", namespace)),
+		StoredLogVolume(path.Join(dataDirHostPath, namespace, "log")),
 	}
 }
 
@@ -353,25 +353,38 @@ func StoredLogVolumeMount() v1.VolumeMount {
 	}
 }
 
-func generateLifeCycleCmd(dataDirHostPath string) []string {
-	cmd := config.ContainerPostStartCmd
-
-	if dataDirHostPath != "" {
-		cmd = append(cmd, dataDirHostPath)
+// ChownCephDataDirsInitContainer returns an init container which `chown`s the given data
+// directories as the `ceph:ceph` user in the container. It also `chown`s the Ceph log dir in the
+// container automatically.
+// Doing a chown in a post start lifecycle hook does not reliably complete before the OSD
+// process starts, which can cause the pod to fail without the lifecycle hook's chown command
+// completing. It can take an arbitrarily long time for a pod restart to successfully chown the
+// directory. This is a race condition for all daemons; therefore, do this in an init container.
+// See more discussion here: https://github.com/rook/rook/pull/3594#discussion_r312279176
+func ChownCephDataDirsInitContainer(
+	dpm config.DataPathMap,
+	containerImage string,
+	volumeMounts []v1.VolumeMount,
+	resources v1.ResourceRequirements,
+	securityContext *v1.SecurityContext,
+) v1.Container {
+	args := make([]string, 0, 5)
+	args = append(args,
+		"--verbose",
+		"--recursive",
+		"ceph:ceph",
+		config.VarLogCephDir,
+	)
+	if dpm.ContainerDataDir != "" {
+		args = append(args, dpm.ContainerDataDir)
 	}
-
-	return cmd
-}
-
-// PodLifeCycle returns a pod lifecycle resource to execute actions before a pod starts
-func PodLifeCycle(dataDirHostPath string) *v1.Lifecycle {
-	cmd := generateLifeCycleCmd(dataDirHostPath)
-
-	return &v1.Lifecycle{
-		PostStart: &v1.Handler{
-			Exec: &v1.ExecAction{
-				Command: cmd,
-			},
-		},
+	return v1.Container{
+		Name:            "chown-container-data-dir",
+		Command:         []string{"chown"},
+		Args:            args,
+		Image:           containerImage,
+		VolumeMounts:    volumeMounts,
+		Resources:       resources,
+		SecurityContext: securityContext,
 	}
 }

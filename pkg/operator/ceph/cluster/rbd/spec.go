@@ -33,7 +33,9 @@ func (m *Mirroring) makeDeployment(daemonConfig *daemonConfig) *apps.Deployment 
 			Labels: opspec.PodLabels(appName, m.Namespace, string(config.RbdMirrorType), daemonConfig.DaemonID),
 		},
 		Spec: v1.PodSpec{
-			InitContainers: []v1.Container{},
+			InitContainers: []v1.Container{
+				m.makeChownInitContainer(daemonConfig),
+			},
 			Containers: []v1.Container{
 				m.makeMirroringDaemonContainer(daemonConfig),
 			},
@@ -69,6 +71,16 @@ func (m *Mirroring) makeDeployment(daemonConfig *daemonConfig) *apps.Deployment 
 	return d
 }
 
+func (m *Mirroring) makeChownInitContainer(daemonConfig *daemonConfig) v1.Container {
+	return opspec.ChownCephDataDirsInitContainer(
+		*daemonConfig.DataPathMap,
+		m.cephVersion.Image,
+		opspec.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName),
+		m.resources,
+		mon.PodSecurityContext(),
+	)
+}
+
 func (m *Mirroring) makeMirroringDaemonContainer(daemonConfig *daemonConfig) v1.Container {
 	container := v1.Container{
 		Name: "rbd-mirror",
@@ -84,7 +96,6 @@ func (m *Mirroring) makeMirroringDaemonContainer(daemonConfig *daemonConfig) v1.
 		VolumeMounts:    opspec.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName),
 		Env:             opspec.DaemonEnvVars(m.cephVersion.Image),
 		Resources:       m.resources,
-		Lifecycle:       opspec.PodLifeCycle(""),
 		SecurityContext: mon.PodSecurityContext(),
 	}
 	return container

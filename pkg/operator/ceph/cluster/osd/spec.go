@@ -21,14 +21,15 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"path/filepath"
 	"strconv"
 	"strings"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
+	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/ceph/version"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
@@ -99,28 +100,31 @@ func (c *Cluster) makeJob(osdProps osdProperties) (*batch.Job, error) {
 }
 
 func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Deployment, error) {
-
+	deploymentName := fmt.Sprintf(osdAppNameFmt, osd.ID)
 	replicaCount := int32(1)
 	volumeMounts := opspec.CephVolumeMounts(false)
 	configVolumeMounts := opspec.RookVolumeMounts(false)
 	volumes := opspec.PodVolumes(c.dataDirHostPath, c.Namespace, false)
 	failureDomainValue := osdProps.crushHostname
+	doConfigInit := true     // initialize ceph.conf in init container?
+	doBinaryCopyInit := true // copy tini and rook binaries in an init container?
 
 	var dataDir string
 	if osd.IsDirectory {
 		// Mount the path to the directory-based osd
 		// osd.DataPath includes the osd subdirectory, so we want to mount the parent directory
-		parentDir := filepath.Dir(osd.DataPath)
-		dataDir = parentDir
-		// Skip the mount if this is the default directory being mounted. Inside the container, the path
-		// will be mounted at "/var/lib/rook" even if the dataDirHostPath is a different path on the host.
-		if parentDir != k8sutil.DataDir {
-			volumeName := k8sutil.PathToVolumeName(parentDir)
-			dataDirSource := v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: parentDir}}
-			volumes = append(volumes, v1.Volume{Name: volumeName, VolumeSource: dataDirSource})
-			configVolumeMounts = append(configVolumeMounts, v1.VolumeMount{Name: volumeName, MountPath: parentDir})
-			volumeMounts = append(volumeMounts, v1.VolumeMount{Name: volumeName, MountPath: parentDir})
+		//parentDir := filepath.Dir(osd.DataPath)
+		//dataDir = parentDir
+		dataDir = osd.DataPath
+		// for directory osds, we completely overwrite the starting point from above.
+		dataPathMap := &opconfig.DataPathMap{
+			HostDataDir:      dataDir,
+			ContainerDataDir: dataDir,
+			HostLogDir:       path.Join(c.dataDirHostPath, c.Namespace, "log"),
 		}
+		volumes = opspec.DaemonVolumes(dataPathMap, deploymentName)
+		volumeMounts = opspec.DaemonVolumeMounts(dataPathMap, deploymentName)
+		configVolumeMounts = opspec.DaemonVolumeMounts(dataPathMap, deploymentName)
 	} else {
 		dataDir = k8sutil.DataDir
 		// Create volume config for /dev so the pod can access devices on the host
@@ -209,8 +213,10 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 
 	// Add the volume to the spec and the mount to the daemon container
 	copyBinariesVolume, copyBinariesContainer := c.getCopyBinariesContainer()
-	volumes = append(volumes, copyBinariesVolume)
-	volumeMounts = append(volumeMounts, copyBinariesContainer.VolumeMounts[0])
+	if doBinaryCopyInit {
+		volumes = append(volumes, copyBinariesVolume)
+		volumeMounts = append(volumeMounts, copyBinariesContainer.VolumeMounts[0])
+	}
 
 	var command []string
 	var args []string
@@ -264,6 +270,38 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 			{Name: "CEPH_VOLUME_DEBUG", Value: "1"},
 		}...)
 
+	} else if osd.IsDirectory {
+		// config for dir-based osds is gotten from the commandline or from the mon database
+		doConfigInit = false
+		doBinaryCopyInit = false
+
+		storeType := "bluestore"
+		if osd.IsFileStore {
+			storeType = "filestore"
+		}
+
+		command = []string{"ceph-osd"}
+		args = append(
+			opspec.DaemonFlags(c.clusterInfo, osdID),
+			"--foreground",
+			"--osd-data", osd.DataPath,
+			"--osd-uuid", osd.UUID,
+			"--osd-objectstore", storeType,
+			"--osd-max-object-name-len", "256",
+			"--osd-max-object-namespace-len", "64",
+		)
+
+		// Set configs in mon cfg database
+		monstore := opconfig.GetMonStore(c.context, c.Namespace)
+		who := fmt.Sprintf("osd.%s", osdID)
+		// crush_location
+		loc, err := getCRUSHLocation(osdProps)
+		if err != nil {
+			return nil, fmt.Errorf("failed to determine CRUSH location for osd.%s. %+v", osdID, err)
+		}
+		if err := monstore.Set(who, "crush_location", loc); err != nil {
+			return nil, fmt.Errorf("failed to set CRUSH location for osd.%s. %+v", osdID, err)
+		}
 	} else {
 		// other osds can launch the osd daemon directly
 		command = []string{"ceph-osd"}
@@ -295,9 +333,39 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 		DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 
+	initContainers := make([]v1.Container, 0, 3)
+	if doConfigInit {
+		initContainers = append(initContainers,
+			v1.Container{
+				Args:            []string{"ceph", "osd", "init"},
+				Name:            opspec.ConfigInitContainerName,
+				Image:           k8sutil.MakeRookImage(c.rookVersion),
+				VolumeMounts:    configVolumeMounts,
+				Env:             configEnvVars,
+				SecurityContext: securityContext,
+			})
+	}
+	if doBinaryCopyInit {
+		initContainers = append(initContainers, *copyBinariesContainer)
+	}
+
+	// Doing a chown in a post start lifecycle hook does not reliably complete before the OSD
+	// process starts, which can cause the pod to fail without the lifecycle hook's chown command
+	// completing. It can take an arbitrarily long time for a pod restart to successfully chown the
+	// directory. This is a race condition for all OSDs; therefore, do this in an init container.
+	// See more discussion here: https://github.com/rook/rook/pull/3594#discussion_r312279176
+	initContainers = append(initContainers,
+		opspec.ChownCephDataDirsInitContainer(
+			opconfig.DataPathMap{ContainerDataDir: osd.DataPath},
+			c.cephVersion.Image,
+			volumeMounts,
+			osdProps.resources,
+			securityContext,
+		))
+
 	deployment := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf(osdAppNameFmt, osd.ID),
+			Name:      deploymentName,
 			Namespace: c.Namespace,
 			Labels:    c.getOSDLabels(osd.ID, failureDomainValue, osdProps.portable),
 		},
@@ -324,17 +392,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 					HostPID:            true,
 					HostIPC:            hostIPC,
 					DNSPolicy:          DNSPolicy,
-					InitContainers: []v1.Container{
-						{
-							Args:            []string{"ceph", "osd", "init"},
-							Name:            opspec.ConfigInitContainerName,
-							Image:           k8sutil.MakeRookImage(c.rookVersion),
-							VolumeMounts:    configVolumeMounts,
-							Env:             configEnvVars,
-							SecurityContext: securityContext,
-						},
-						*copyBinariesContainer,
-					},
+					InitContainers:     initContainers,
 					Containers: []v1.Container{
 						{
 							Command:         command,
@@ -345,7 +403,6 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 							Env:             envVars,
 							Resources:       osdProps.resources,
 							SecurityContext: securityContext,
-							Lifecycle:       opspec.PodLifeCycle(osd.DataPath),
 						},
 					},
 					Volumes: volumes,
@@ -819,4 +876,12 @@ func (c *Cluster) getOSDLabels(osdID int, failureDomainValue string, portable bo
 		FailureDomainKey:    failureDomainValue,
 		portableKey:         strconv.FormatBool(portable),
 	}
+}
+
+func getCRUSHLocation(p osdProperties) (string, error) {
+	locs, err := cephclient.FormatLocation(p.location, p.crushHostname)
+	if err != nil {
+		return "", err
+	}
+	return strings.Join(locs, " "), nil
 }

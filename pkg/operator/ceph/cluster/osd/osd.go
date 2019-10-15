@@ -416,14 +416,27 @@ func (c *Cluster) startOSDDaemonsOnPVC(pvcName string, config *provisionConfig, 
 			config.addError(errMsg)
 			continue
 		}
-		_, err = c.context.Clientset.AppsV1().Deployments(c.Namespace).Create(dp)
-		if err != nil {
-			if !errors.IsAlreadyExists(err) {
+
+		createdDeployment, createErr := c.context.Clientset.AppsV1().Deployments(c.Namespace).Create(dp)
+		if createErr != nil {
+			if !errors.IsAlreadyExists(createErr) {
 				// we failed to create job, update the orchestration status for this pvc
-				logger.Warningf("failed to create osd deployment for pvc %s, osd %v: %+v", osdProps.pvc.ClaimName, osd, err)
+				logger.Warningf("failed to create osd deployment for pvc %s, osd %v: %+v", osdProps.pvc.ClaimName, osd, createErr)
 				continue
 			}
 			logger.Infof("deployment for osd %d already exists. updating if needed", osd.ID)
+			createdDeployment, err = c.context.Clientset.AppsV1().Deployments(c.Namespace).Get(dp.Name, metav1.GetOptions{})
+			if err != nil {
+				logger.Warningf("failed to get existing OSD deployment %s for update: %+v", dp.Name, err)
+				continue
+			}
+		}
+
+		// keyring must be generated before update-and-wait since no keyring will prevent the
+		// deployment from reaching ready state
+		c.generateKeyring(strconv.Itoa(osd.ID), createdDeployment)
+
+		if createErr != nil && errors.IsAlreadyExists(createErr) {
 			// Always invoke ceph version before an upgrade so we are sure to be up-to-date
 			daemon := string(opconfig.OsdType)
 			var cephVersionToUse cephver.CephVersion
@@ -483,14 +496,25 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 			continue
 		}
 
-		_, err = c.context.Clientset.AppsV1().Deployments(c.Namespace).Create(dp)
-		if err != nil {
-			if !errors.IsAlreadyExists(err) {
+		createdDeployment, createErr := c.context.Clientset.AppsV1().Deployments(c.Namespace).Create(dp)
+		if createErr != nil {
+			if !errors.IsAlreadyExists(createErr) {
 				// we failed to create job, update the orchestration status for this node
-				logger.Warningf("failed to create osd deployment for node %s, osd %v: %+v", n.Name, osd, err)
+				logger.Warningf("failed to create osd deployment for node %s, osd %v: %+v", n.Name, osd, createErr)
 				continue
 			}
 			logger.Infof("deployment for osd %d already exists. updating if needed", osd.ID)
+			createdDeployment, err = c.context.Clientset.AppsV1().Deployments(c.Namespace).Get(dp.Name, metav1.GetOptions{})
+			if err != nil {
+				logger.Warningf("failed to get existing OSD deployment %s for update: %+v", dp.Name, err)
+				continue
+			}
+		}
+		// keyring must be generated before update-and-wait since no keyring will prevent the
+		// deployment from reaching ready state
+		c.generateKeyring(strconv.Itoa(osd.ID), createdDeployment)
+
+		if createErr != nil && errors.IsAlreadyExists(createErr) {
 			// Always invoke ceph version before an upgrade so we are sure to be up-to-date
 			daemon := string(opconfig.OsdType)
 			var cephVersionToUse cephver.CephVersion

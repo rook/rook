@@ -17,10 +17,10 @@ limitations under the License.
 package integration
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
-	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
@@ -111,6 +111,15 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	assert.Nil(s.T(), s.k8sh.WriteToPod(s.namespace, filePodName, preFilename, message))
 	assert.Nil(s.T(), s.k8sh.ReadFromPod(s.namespace, filePodName, preFilename, message))
 
+	// Get some info about the currently deployed OSDs to determine later if they are all updated
+	osdDepList, err := k8sutil.GetDeployments(s.k8sh.Clientset, s.namespace, "app=rook-ceph-osd")
+	require.NoError(s.T(), err)
+	osdDeps := osdDepList.Items
+	numOSDs := len(osdDeps) // there should be this many upgraded OSDs
+	require.True(s.T(), numOSDs > 0)
+	d := osdDeps[0]
+	oldRookVersion := d.Labels["rook-version"] // upgraded OSDs should not have this version label
+
 	// Update to the next version of cluster roles before the operator is restarted
 	err = s.updateClusterRoles()
 	require.Nil(s.T(), err)
@@ -130,11 +139,10 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	require.Nil(s.T(), err)
 
 	// wait for the osd pods to be updated
-	err = k8sutil.WaitForDeploymentImage(s.k8sh.Clientset, s.namespace, "app=rook-ceph-osd", opspec.ConfigInitContainerName, true, "rook/ceph:master")
-	require.Nil(s.T(), err)
+	osdsNotOldVersion := fmt.Sprintf("app=rook-ceph-osd,rook-version!=%s", oldRookVersion)
+	err = s.k8sh.WaitForDeploymentCount(osdsNotOldVersion, s.namespace, numOSDs)
+	require.NoError(s.T(), err)
 
-	err = s.k8sh.WaitForLabeledPodsToRun("app=rook-ceph-osd", s.namespace)
-	require.Nil(s.T(), err)
 	logger.Infof("Done with automatic upgrade to master")
 
 	// Give a few seconds for the daemons to settle down after the upgrade

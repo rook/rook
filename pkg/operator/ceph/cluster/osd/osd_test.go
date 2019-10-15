@@ -251,7 +251,17 @@ func TestDiscoverOSDs(t *testing.T) {
 	clusterInfo := &cephconfig.ClusterInfo{
 		CephVersion: cephver.Nautilus,
 	}
-	c := New(clusterInfo, &clusterd.Context{}, "ns", "myversion", cephv1.CephVersionSpec{},
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
+			logger.Infof("Command: %s %v", command, args)
+			// very simple stub that just reports success
+			return "", nil
+		},
+	}
+	context := &clusterd.Context{
+		Executor: executor,
+	}
+	c := New(clusterInfo, context, "ns", "myversion", cephv1.CephVersionSpec{},
 		rookalpha.StorageScopeSpec{}, "", rookalpha.Placement{}, rookalpha.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, metav1.OwnerReference{}, false, false)
 	node1 := "n1"
 	node2 := "n2"

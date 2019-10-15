@@ -71,13 +71,6 @@ var (
 	// VarLogCephDir defines Ceph logging directory. It is made overwriteable only for unit tests where it
 	// may be needed to send data intended for /var/log/ceph to a temporary test dir.
 	VarLogCephDir = "/var/log/ceph"
-
-	// chownUserGroup represents ceph:ceph
-	chownUserGroup = CephUser + ":" + CephGroup
-
-	// ContainerPostStartCmd is the command we run before starting any Ceph daemon
-	// It makes sure Ceph directories are owned by 'ceph'
-	ContainerPostStartCmd = []string{"chown", "--recursive", chownUserGroup, VarLogCephDir}
 )
 
 // normalizeKey converts a key in any format to a key with underscores.

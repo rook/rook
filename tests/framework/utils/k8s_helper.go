@@ -1595,3 +1595,25 @@ func (k8sh *K8sHelper) ScaleStatefulSet(statefulSetName, namespace string, repli
 func IsKubectlErrorNotFound(output string, err error) bool {
 	return err != nil && strings.Contains(output, "Error from server (NotFound)")
 }
+
+// WaitForDeploymentCount waits until the desired number of deployments with the label exist. The
+// deployments are not guaranteed to be running, only existing.
+func (k8sh *K8sHelper) WaitForDeploymentCount(label, namespace string, count int) error {
+	options := metav1.ListOptions{LabelSelector: label}
+	for i := 0; i < RetryLoop; i++ {
+		deps, err := k8sh.Clientset.AppsV1().Deployments(namespace).List(options)
+		numDeps := 0
+		if err == nil {
+			numDeps = len(deps.Items)
+		}
+
+		if numDeps >= count {
+			logger.Infof("found %d of %d deployments with label %s in namespace %s", numDeps, count, label, namespace)
+			return nil
+		}
+
+		logger.Infof("waiting for %d deployments (found %d) with label %s in namespace %s", count, numDeps, label, namespace)
+		time.Sleep(RetryInterval * time.Second)
+	}
+	return fmt.Errorf("giving up waiting for %d deployments with label %s in namespace %s", count, label, namespace)
+}

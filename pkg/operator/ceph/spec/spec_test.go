@@ -20,10 +20,8 @@ import (
 	"math"
 	"testing"
 
-	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
-	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -55,14 +53,6 @@ func TestMountsMatchVolumes(t *testing.T) {
 			{Moniker: "RookVolumeMounts(false)", Mounts: RookVolumeMounts(true)}},
 	}
 	volsMountsTestDef.TestMountsMatchVolumes(t)
-}
-
-func TestGenerateLifeCycleCmd(t *testing.T) {
-	cmd := generateLifeCycleCmd("")
-	assert.Equal(t, config.ContainerPostStartCmd, cmd)
-
-	cmd = generateLifeCycleCmd("foo")
-	assert.Equal(t, append(config.ContainerPostStartCmd, "foo"), cmd)
 }
 
 func TestCheckPodMemory(t *testing.T) {
