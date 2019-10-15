@@ -146,12 +146,9 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 
 	osdID := strconv.Itoa(osd.ID)
 	tiniEnvVar := v1.EnvVar{Name: "TINI_SUBREAPER", Value: ""}
-	envVars := []v1.EnvVar{
-		nodeNameEnvVar(osdProps.crushHostname),
-		k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
-		k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
+	envVars := append(c.getConfigEnvVars(osdProps.storeConfig, dataDir, osdProps.crushHostname, osdProps.location), []v1.EnvVar{
 		tiniEnvVar,
-	}
+	}...)
 	envVars = append(envVars, k8sutil.ClusterDaemonEnvVars(c.cephVersion.Image)...)
 	envVars = append(envVars, []v1.EnvVar{
 		{Name: "ROOK_OSD_UUID", Value: osd.UUID},
