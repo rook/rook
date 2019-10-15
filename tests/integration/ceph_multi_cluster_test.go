@@ -166,12 +166,10 @@ func (o MCTestOperations) Setup() {
 
 	// start the two clusters in parallel
 	logger.Infof("starting two clusters in parallel")
-	errCh1 := make(chan error, 1)
-	errCh2 := make(chan error, 1)
-	go o.startCluster(o.namespace1, "bluestore", errCh1)
-	go o.startCluster(o.namespace2, "filestore", errCh2)
-	require.NoError(o.T(), <-errCh1)
-	require.NoError(o.T(), <-errCh2)
+	err = o.startCluster(o.namespace1, "bluestore")
+	require.NoError(o.T(), err)
+	err = o.startCluster(o.namespace2, "filestore")
+	require.NoError(o.T(), err)
 
 	require.True(o.T(), o.kh.IsPodInExpectedState("rook-ceph-agent", o.systemNamespace, "Running"),
 		"Make sure rook-ceph-agent is in running state")
@@ -191,21 +189,19 @@ func (o MCTestOperations) Teardown() {
 	o.installer.UninstallRookFromMultipleNS(true, installer.SystemNamespace(o.namespace1), o.namespace1, o.namespace2)
 }
 
-func (o MCTestOperations) startCluster(namespace, store string, errCh chan error) {
+func (o MCTestOperations) startCluster(namespace, store string) error {
 	logger.Infof("starting cluster %s", namespace)
 	if err := o.installer.CreateK8sRookCluster(namespace, o.systemNamespace, store); err != nil {
 		o.T().Fail()
 		o.installer.GatherAllRookLogs(o.T().Name(), namespace, o.systemNamespace)
-		errCh <- fmt.Errorf("failed to create cluster %s. %+v", namespace, err)
-		return
+		return fmt.Errorf("failed to create cluster %s. %+v", namespace, err)
 	}
 
 	if err := o.installer.CreateK8sRookToolbox(namespace); err != nil {
 		o.T().Fail()
 		o.installer.GatherAllRookLogs(o.T().Name(), namespace, o.systemNamespace)
-		errCh <- fmt.Errorf("failed to create toolbox for %s. %+v", namespace, err)
-		return
+		return fmt.Errorf("failed to create toolbox for %s. %+v", namespace, err)
 	}
 	logger.Infof("succeeded starting cluster %s", namespace)
-	errCh <- nil
+	return nil
 }
