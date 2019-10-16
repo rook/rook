@@ -616,7 +616,7 @@ func (k8sh *K8sHelper) IsPodTerminatedWithOpts(name string, namespace string, ge
 			k8slogger.Infof("Pod  %s in namespace %s terminated ", name, namespace)
 			return true
 		}
-		k8slogger.Infof("waiting for Pod %s in namespace %s to terminate, status : %v", name, namespace, pod.Status.Phase)
+		k8slogger.Infof("waiting for Pod %s in namespace %s to terminate, status : %+v", name, namespace, pod.Status)
 		time.Sleep(RetryInterval * time.Second)
 		inc++
 	}
