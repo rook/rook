@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	rookcephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
@@ -78,16 +79,11 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 	c.annotations.ApplyToObjectMeta(&podSpec.ObjectMeta)
+	c.applyPrometheusAnnotations(&podSpec.ObjectMeta)
 	c.placement.ApplyToPodSpec(&podSpec.Spec)
 
 	replicas := int32(1)
-	if len(c.annotations) == 0 {
-		prometheusAnnotations := map[string]string{
-			"prometheus.io/scrape": "true",
-			"prometheus.io/port":   strconv.Itoa(metricsPort),
-		}
-		podSpec.ObjectMeta.Annotations = prometheusAnnotations
-	}
+
 	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      mgrConfig.ResourceName,
@@ -340,6 +336,19 @@ func (c *Cluster) getPodLabels(daemonName string) map[string]string {
 	// leave "instance" key for legacy usage
 	labels["instance"] = daemonName
 	return labels
+}
+
+func (c *Cluster) applyPrometheusAnnotations(objectMeta *metav1.ObjectMeta) error {
+	if len(c.annotations) == 0 {
+		t := rookalpha.Annotations{
+			"prometheus.io/scrape": "true",
+			"prometheus.io/port":   strconv.Itoa(metricsPort),
+		}
+
+		t.ApplyToObjectMeta(objectMeta)
+	}
+
+	return nil
 }
 
 func (c *Cluster) cephMgrOrchestratorModuleEnvs() []v1.EnvVar {
