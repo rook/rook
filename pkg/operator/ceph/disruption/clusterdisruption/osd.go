@@ -19,6 +19,7 @@ package clusterdisruption
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	cephClient "github.com/rook/rook/pkg/daemon/ceph/client"
@@ -156,6 +157,12 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 
 	pgHealthMsg, clean, err := cephClient.IsClusterClean(r.context.ClusterdContext, request.Namespace)
 	if err != nil {
+		// If the error contains that message, this means the cluster is not up and running
+		// No monitors are present and thus no ceph configuration has been created
+		if strings.Contains(err.Error(), "error calling conf_read_file") {
+			logger.Debugf("Ceph %q cluster not ready, cannot check Ceph status yet.", request.Namespace)
+			return nil
+		}
 		return fmt.Errorf("could not check cluster health: %+v", err)
 	}
 	_, ok := pdbStateMap.Data[disabledPDBKey]
