@@ -147,7 +147,7 @@ func unmountCephFS(client *rpc.Client, mounter *k8smount.SafeFormatAndMount, mou
 		},
 	)
 	if err != nil {
-		log(client, fmt.Sprintf("failed to mount cephfs volume from %s: %+v", mountDir, err), true)
+		log(client, fmt.Sprintf("failed to unmount cephfs volume from %s: %+v", mountDir, err), true)
 	} else {
 		log(client, fmt.Sprintf("cephfs volume has been unmounted from %s", mountDir), false)
 	}

@@ -42,7 +42,7 @@ func (suite *SmokeSuite) TestMonFailover() {
 	require.Nil(suite.T(), err)
 
 	// Wait for the health check to start a new monitor
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 30; i++ {
 		deployments, err := suite.k8sh.Clientset.AppsV1().Deployments(suite.namespace).List(opts)
 		require.Nil(suite.T(), err)
 
@@ -71,7 +71,7 @@ func (suite *SmokeSuite) TestMonFailover() {
 			assert.Equal(suite.T(), 2, len(deployments.Items))
 		}
 
-		time.Sleep(8 * time.Second)
+		time.Sleep(5 * time.Second)
 	}
 
 	require.Fail(suite.T(), "giving up waiting for a new monitor")
