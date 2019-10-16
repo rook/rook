@@ -106,6 +106,7 @@ type ClusterController struct {
 	addClusterCallbacks []func(*cephv1.ClusterSpec) error
 	csiConfigMutex      *sync.Mutex
 	nodeStore           cache.Store
+	osdChecker          *osd.Monitor
 }
 
 // NewClusterController create controller for watching cluster custom resources created
@@ -439,8 +440,8 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 
 	if !cluster.Spec.External.Enable {
 		// Start the osd health checker only if running OSDs in the local ceph cluster
-		osdChecker := osd.NewMonitor(c.context, cluster.Namespace)
-		go osdChecker.Start(cluster.stopCh)
+		c.osdChecker = osd.NewMonitor(c.context, cluster.Namespace, cluster.Spec.RemoveOSDsIfOutAndSafeToRemove)
+		go c.osdChecker.Start(cluster.stopCh)
 	}
 
 	// Start the ceph status checker
@@ -564,6 +565,11 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 	}
 
 	logger.Infof("update event for cluster %s is supported, orchestrating update now", newClust.Namespace)
+
+	if oldClust.Spec.RemoveOSDsIfOutAndSafeToRemove != newClust.Spec.RemoveOSDsIfOutAndSafeToRemove {
+		logger.Infof("removeOSDsIfOutAndSafeToRemove is set to %t", newClust.Spec.RemoveOSDsIfOutAndSafeToRemove)
+		c.osdChecker.Update(newClust.Spec.RemoveOSDsIfOutAndSafeToRemove)
+	}
 
 	// if the image changed, we need to detect the new image version
 	versionChanged := false
