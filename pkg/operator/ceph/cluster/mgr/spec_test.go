@@ -210,3 +210,51 @@ func TestHttpBindFix(t *testing.T) {
 			len(d.Spec.Template.Spec.InitContainers))
 	}
 }
+
+func TestApplyPrometheusAnnotations(t *testing.T) {
+	c := New(
+		&cephconfig.ClusterInfo{FSID: "myfsid"},
+		&clusterd.Context{Clientset: optest.New(1)},
+		"ns",
+		"myversion",
+		cephv1.CephVersionSpec{},
+		rookalpha.Placement{},
+		rookalpha.Annotations{},
+		cephv1.NetworkSpec{},
+		cephv1.DashboardSpec{},
+		cephv1.MonitoringSpec{},
+		cephv1.MgrSpec{},
+		v1.ResourceRequirements{},
+		metav1.OwnerReference{},
+		"/var/lib/rook/",
+		false,
+		false,
+	)
+
+	mgrTestConfig := mgrConfig{
+		DaemonID:      "a",
+		ResourceName:  "rook-ceph-mgr-a",
+		DashboardPort: 1234,
+		DataPathMap:   config.NewStatelessDaemonDataPathMap(config.MgrType, "a", "rook-ceph", "/var/lib/rook/"),
+	}
+
+	d := c.makeDeployment(&mgrTestConfig)
+
+	// Test without annotations
+	c.applyPrometheusAnnotations(&d.ObjectMeta)
+	assert.Equal(t, 2, len(d.ObjectMeta.Annotations))
+
+	// Test with existing annotations
+	// applyPrometheusAnnotations() shouldn't do anything
+	// re-initialize "d"
+	d = c.makeDeployment(&mgrTestConfig)
+
+	fakeAnnotations := rookalpha.Annotations{
+		"foo.io/bar": "foobar",
+	}
+	c.annotations = fakeAnnotations
+
+	c.applyPrometheusAnnotations(&d.ObjectMeta)
+	assert.Equal(t, 1, len(c.annotations))
+	assert.Equal(t, 0, len(d.ObjectMeta.Annotations))
+}
