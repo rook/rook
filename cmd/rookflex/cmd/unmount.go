@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net/rpc"
 	"os/exec"
+	"strings"
 
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume"
 	"github.com/spf13/cobra"
@@ -50,10 +51,12 @@ func handleUnmount(cmd *cobra.Command, args []string) error {
 
 	mounter := getMounter()
 
-	// Check if it's a cephfs
-	command := exec.Command("df", "--type", cephFS, mountDir)
-	err = command.Run()
-	if err == nil {
+	// Check if it's a cephfs mount
+	fstype, err := exec.Command("findmnt", "--nofsroot", "--noheadings", "--output", "FSTYPE", "--submounts", "--target", mountDir).Output()
+	if err != nil {
+		return fmt.Errorf("failed to retrieve filesystem type for path %q. %+v", mountDir, err)
+	}
+	if strings.Contains(string(fstype), "ceph") {
 		return unmountCephFS(client, mounter, mountDir)
 	}
 
