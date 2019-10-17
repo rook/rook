@@ -267,6 +267,8 @@ spec:
                         type: integer
                       codingChunks:
                         type: integer
+            preservePoolsOnDelete:
+              type: boolean
   additionalPrinterColumns:
     - name: ActiveMDS
       type: string
@@ -373,6 +375,8 @@ spec:
                       type: integer
                     codingChunks:
                       type: integer
+            preservePoolsOnDelete:
+              type: boolean
 # OLM: END CEPH OBJECT STORE CRD
 # OLM: BEGIN CEPH OBJECT STORE USERS CRD
 ---
