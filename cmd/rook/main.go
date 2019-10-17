@@ -17,6 +17,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/rook/rook/cmd/rook/ozone"
 
 	"github.com/rook/rook/cmd/rook/cassandra"
 	"github.com/rook/rook/cmd/rook/ceph"
@@ -50,6 +51,7 @@ func addCommands() {
 		nfs.Cmd,
 		cassandra.Cmd,
 		yugabytedb.Cmd,
+		ozone.Cmd,
 
 		// util commands
 		util.CmdReporterCmd,

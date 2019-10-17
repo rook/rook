@@ -31,6 +31,7 @@ import (
 	internalinterfaces "github.com/rook/rook/pkg/client/informers/externalversions/internalinterfaces"
 	miniorookio "github.com/rook/rook/pkg/client/informers/externalversions/minio.rook.io"
 	nfsrookio "github.com/rook/rook/pkg/client/informers/externalversions/nfs.rook.io"
+	ozonerookio "github.com/rook/rook/pkg/client/informers/externalversions/ozone.rook.io"
 	rookio "github.com/rook/rook/pkg/client/informers/externalversions/rook.io"
 	yugabytedbrookio "github.com/rook/rook/pkg/client/informers/externalversions/yugabytedb.rook.io"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -185,6 +186,7 @@ type SharedInformerFactory interface {
 	Edgefs() edgefsrookio.Interface
 	Minio() miniorookio.Interface
 	Nfs() nfsrookio.Interface
+	Ozone() ozonerookio.Interface
 	Rook() rookio.Interface
 	Yugabytedb() yugabytedbrookio.Interface
 }
@@ -211,6 +213,10 @@ func (f *sharedInformerFactory) Minio() miniorookio.Interface {
 
 func (f *sharedInformerFactory) Nfs() nfsrookio.Interface {
 	return nfsrookio.New(f, f.namespace, f.tweakListOptions)
+}
+
+func (f *sharedInformerFactory) Ozone() ozonerookio.Interface {
+	return ozonerookio.New(f, f.namespace, f.tweakListOptions)
 }
 
 func (f *sharedInformerFactory) Rook() rookio.Interface {

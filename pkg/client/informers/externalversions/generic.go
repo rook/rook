@@ -27,6 +27,7 @@ import (
 	edgefsrookiov1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
 	miniorookiov1alpha1 "github.com/rook/rook/pkg/apis/minio.rook.io/v1alpha1"
 	nfsrookiov1alpha1 "github.com/rook/rook/pkg/apis/nfs.rook.io/v1alpha1"
+	ozonerookiov1alpha1 "github.com/rook/rook/pkg/apis/ozone.rook.io/v1alpha1"
 	v1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	yugabytedbrookiov1alpha1 "github.com/rook/rook/pkg/apis/yugabytedb.rook.io/v1alpha1"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -104,6 +105,10 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		// Group=nfs.rook.io, Version=v1alpha1
 	case nfsrookiov1alpha1.SchemeGroupVersion.WithResource("nfsservers"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Nfs().V1alpha1().NFSServers().Informer()}, nil
+
+		// Group=ozone.rook.io, Version=v1alpha1
+	case ozonerookiov1alpha1.SchemeGroupVersion.WithResource("ozoneobjectstores"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Ozone().V1alpha1().OzoneObjectStores().Informer()}, nil
 
 		// Group=rook.io, Version=v1alpha2
 	case v1alpha2.SchemeGroupVersion.WithResource("volumes"):

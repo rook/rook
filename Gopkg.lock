@@ -153,6 +153,18 @@
   revision = "edc3ab29cdff8694dd6feb85cfeb4b5f1b38ed9c"
 
 [[projects]]
+  digest = "1:5ff79a253956741cf78137329d3cbf3795336e61ba262d45924301e15a73bd64"
+  name = "github.com/elek/flekszible"
+  packages = [
+    "api",
+    "api/data",
+    "api/processor",
+    "api/yaml",
+  ]
+  pruneopts = "UT"
+  revision = "v1.4.2"
+
+[[projects]]
   digest = "1:9f6d41e901cde897bad4569877c96c9cacee67c9c6ede2794c515371c954cb6a"
   name = "github.com/emicklei/go-restful"
   packages = [
@@ -393,6 +405,14 @@
   version = "v1.1.5"
 
 [[projects]]
+  digest = "1:31e761d97c76151dde79e9d28964a812c46efc5baee4085b86f68f0c654450de"
+  name = "github.com/konsorten/go-windows-terminal-sequences"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "f55edac94c9bbba5d6182a4be46d86a2c9b5b50e"
+  version = "v1.0.2"
+
+[[projects]]
   branch = "master"
   digest = "1:80f31c6e81838463d5d7b05710cb4722bdb939a9c5c22e35b59282ca898a2296"
   name = "github.com/kube-object-storage/lib-bucket-provisioner"
@@ -571,6 +591,14 @@
   packages = ["."]
   pruneopts = "UT"
   revision = "5ae9623aed20e249092e0ba99e0dd126c3173a29"
+
+[[projects]]
+  digest = "1:04457f9f6f3ffc5fea48e71d62f2ca256637dee0a04d710288e27e05c8b41976"
+  name = "github.com/sirupsen/logrus"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "839c75faf7f98a33d445d181f3018b5c3409a45e"
+  version = "v1.4.2"
 
 [[projects]]
   digest = "1:d707dbc1330c0ed177d4642d6ae102d5e2c847ebd0eb84562d0dc4f024531cfc"
@@ -1495,6 +1523,9 @@
     "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1",
     "github.com/coreos/prometheus-operator/pkg/client/versioned",
     "github.com/davecgh/go-spew/spew",
+    "github.com/elek/flekszible/api",
+    "github.com/elek/flekszible/api/data",
+    "github.com/elek/flekszible/api/processor",
     "github.com/ghodss/yaml",
     "github.com/go-ini/ini",
     "github.com/go-sql-driver/mysql",

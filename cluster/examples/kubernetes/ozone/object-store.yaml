@@ -1,0 +1,16 @@
+apiVersion: ozone.rook.io/v1alpha1
+kind: OzoneObjectStore
+metadata:
+  name: my-store
+spec:
+  ozoneVersion:
+      image: apache/ozone:0.4.1
+  scope:
+    nodeCount: 4
+  annotations:
+  #  key: value
+  placement:
+    tolerations:
+    nodeAffinity:
+    podAffinity:
+    podAnyAffinity:

@@ -25,6 +25,7 @@ import (
 	edgefsv1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/edgefs.rook.io/v1"
 	miniov1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/minio.rook.io/v1alpha1"
 	nfsv1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/nfs.rook.io/v1alpha1"
+	ozonev1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/ozone.rook.io/v1alpha1"
 	rookv1alpha2 "github.com/rook/rook/pkg/client/clientset/versioned/typed/rook.io/v1alpha2"
 	yugabytedbv1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/yugabytedb.rook.io/v1alpha1"
 	discovery "k8s.io/client-go/discovery"
@@ -40,6 +41,7 @@ type Interface interface {
 	EdgefsV1() edgefsv1.EdgefsV1Interface
 	MinioV1alpha1() miniov1alpha1.MinioV1alpha1Interface
 	NfsV1alpha1() nfsv1alpha1.NfsV1alpha1Interface
+	OzoneV1alpha1() ozonev1alpha1.OzoneV1alpha1Interface
 	RookV1alpha2() rookv1alpha2.RookV1alpha2Interface
 	YugabytedbV1alpha1() yugabytedbv1alpha1.YugabytedbV1alpha1Interface
 }
@@ -54,6 +56,7 @@ type Clientset struct {
 	edgefsV1            *edgefsv1.EdgefsV1Client
 	minioV1alpha1       *miniov1alpha1.MinioV1alpha1Client
 	nfsV1alpha1         *nfsv1alpha1.NfsV1alpha1Client
+	ozoneV1alpha1       *ozonev1alpha1.OzoneV1alpha1Client
 	rookV1alpha2        *rookv1alpha2.RookV1alpha2Client
 	yugabytedbV1alpha1  *yugabytedbv1alpha1.YugabytedbV1alpha1Client
 }
@@ -86,6 +89,11 @@ func (c *Clientset) MinioV1alpha1() miniov1alpha1.MinioV1alpha1Interface {
 // NfsV1alpha1 retrieves the NfsV1alpha1Client
 func (c *Clientset) NfsV1alpha1() nfsv1alpha1.NfsV1alpha1Interface {
 	return c.nfsV1alpha1
+}
+
+// OzoneV1alpha1 retrieves the OzoneV1alpha1Client
+func (c *Clientset) OzoneV1alpha1() ozonev1alpha1.OzoneV1alpha1Interface {
+	return c.ozoneV1alpha1
 }
 
 // RookV1alpha2 retrieves the RookV1alpha2Client
@@ -138,6 +146,10 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 	if err != nil {
 		return nil, err
 	}
+	cs.ozoneV1alpha1, err = ozonev1alpha1.NewForConfig(&configShallowCopy)
+	if err != nil {
+		return nil, err
+	}
 	cs.rookV1alpha2, err = rookv1alpha2.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
@@ -164,6 +176,7 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 	cs.edgefsV1 = edgefsv1.NewForConfigOrDie(c)
 	cs.minioV1alpha1 = miniov1alpha1.NewForConfigOrDie(c)
 	cs.nfsV1alpha1 = nfsv1alpha1.NewForConfigOrDie(c)
+	cs.ozoneV1alpha1 = ozonev1alpha1.NewForConfigOrDie(c)
 	cs.rookV1alpha2 = rookv1alpha2.NewForConfigOrDie(c)
 	cs.yugabytedbV1alpha1 = yugabytedbv1alpha1.NewForConfigOrDie(c)
 
@@ -180,6 +193,7 @@ func New(c rest.Interface) *Clientset {
 	cs.edgefsV1 = edgefsv1.New(c)
 	cs.minioV1alpha1 = miniov1alpha1.New(c)
 	cs.nfsV1alpha1 = nfsv1alpha1.New(c)
+	cs.ozoneV1alpha1 = ozonev1alpha1.New(c)
 	cs.rookV1alpha2 = rookv1alpha2.New(c)
 	cs.yugabytedbV1alpha1 = yugabytedbv1alpha1.New(c)
 

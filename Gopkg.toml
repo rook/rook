@@ -134,3 +134,7 @@ ignored = [
 [[override]]
   name = "github.com/openshift/machine-api-operator"
   revision = "a0949226d20ea454cf08252a182a8e32054027c3"
+
+[[constraint]]
+   name = "github.com/elek/flekszible"
+   revision = "v1.4.2"
