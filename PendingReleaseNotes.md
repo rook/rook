@@ -3,7 +3,7 @@
 ## Action Required
 
 ## Notable Features
-
+- Added K8s 1.16 to the test matrix and removed K8s 1.11 from the test matrix.
 
 ### Ceph
 
