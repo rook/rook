@@ -121,7 +121,8 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 		return nil, err
 	}
 
-	_, _, err = cephObject.SetQuotaUserBucketMax(p.objectContext, p.cephUserName, 0)
+	// need to quota into -1 for restricting creation of new buckets in rgw
+	_, _, err = cephObject.SetQuotaUserBucketMax(p.objectContext, p.cephUserName, -1)
 	if err != nil {
 		return nil, err
 	}
