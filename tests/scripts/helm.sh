@@ -39,8 +39,17 @@ install() {
         HELM="${temp}/${dist}-${arch}/helm"
     fi
 
+    # set up RBAC for helm
+    kubectl --namespace kube-system create sa tiller
+    kubectl create clusterrolebinding tiller --clusterrole cluster-admin --serviceaccount=kube-system:tiller
+    kubectl -n kube-system patch deploy/tiller-deploy -p '{"spec": {"template": {"spec": {"serviceAccountName": "tiller"}}}}'
+
     # Init helm
-    "${HELM}" init
+    "${HELM}" init --service-account tiller --output yaml | \
+       sed 's@apiVersion: extensions/v1beta1@apiVersion: apps/v1@' | \
+       sed 's@strategy: {}@selector: {"matchLabels": {"app": "helm", "name": "tiller"}}@' | \
+       kubectl apply -f -
+    "${HELM}" init --client-only
 
     sleep 5
 
@@ -59,12 +68,6 @@ install() {
     fi
 
     echo "Helm init successful"
-
-
-    # set up RBAC for helm
-    kubectl -n kube-system create sa tiller
-    kubectl create clusterrolebinding tiller --clusterrole cluster-admin --serviceaccount=kube-system:tiller
-    kubectl -n kube-system patch deploy/tiller-deploy -p '{"spec": {"template": {"spec": {"serviceAccountName": "tiller"}}}}'
 
     # set up local repo for helm and add local/rook-ceph
     "${HELM}" repo remove local
