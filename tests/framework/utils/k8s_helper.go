@@ -597,6 +597,8 @@ func (k8sh *K8sHelper) IsPodRunning(name string, namespace string) bool {
 		logger.Infof("waiting for pod %s in namespace %s to be running", name, namespace)
 
 	}
+	pod, _ := k8sh.Clientset.CoreV1().Pods(namespace).Get(name, getOpts)
+	k8sh.PrintPodDescribe(namespace, pod.Name)
 	logger.Infof("Giving up waiting for pod %s in namespace %s to be running", name, namespace)
 	return false
 }
