@@ -68,8 +68,8 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 		time.Sleep(5 * time.Second)
 	}
 	assert.True(s.T(), helper.ObjectUserClient.UserSecretExists(namespace, storeName, userid))
-	userInfo, gosuErr := helper.ObjectUserClient.GetUser(namespace, storeName, userid)
-	assert.Nil(s.T(), gosuErr)
+	userInfo, err := helper.ObjectUserClient.GetUser(namespace, storeName, userid)
+	require.NoError(s.T(), err)
 	assert.Equal(s.T(), userid, userInfo.UserID)
 	assert.Equal(s.T(), userdisplayname, *userInfo.DisplayName)
 	logger.Infof("Done creating object store user")
