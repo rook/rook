@@ -102,26 +102,23 @@ func TestStartSecureDashboard(t *testing.T) {
 		CephVersion: cephver.Mimic,
 	}
 	c := &Cluster{clusterInfo: clusterInfo, context: &clusterd.Context{Clientset: test.New(3), Executor: executor}, Namespace: "myns",
-		dashboard: cephv1.DashboardSpec{Enabled: true, SSL: true}, cephVersion: cephv1.CephVersionSpec{Image: "ceph/ceph:v13.2.2"}}
+		dashboard: cephv1.DashboardSpec{Port: dashboardPortHTTP, Enabled: true, SSL: true}, cephVersion: cephv1.CephVersionSpec{Image: "ceph/ceph:v13.2.2"}}
 	c.exitCode = func(err error) (int, bool) {
 		if exitCodeResponse != 0 {
 			return exitCodeResponse, true
 		}
 		return exitCodeResponse, false
 	}
-	mgrConfig := &mgrConfig{
-		DaemonID:      "a",
-		ResourceName:  "mgr",
-		DashboardPort: dashboardPortHTTP,
-	}
 
 	dashboardInitWaitTime = 0
-	err := c.configureDashboard(mgrConfig)
-	assert.Nil(t, err)
+	err := c.configureDashboardService()
+	assert.NoError(t, err)
+	err = c.configureDashboardModules()
+	assert.NoError(t, err)
 	// the dashboard is enabled, then disabled and enabled again to restart
 	// it with the cert, and another restart when setting the dashboard port
-	assert.Equal(t, 3, enables)
-	assert.Equal(t, 2, disables)
+	assert.Equal(t, 2, enables)
+	assert.Equal(t, 1, disables)
 	assert.Equal(t, 2, moduleRetries)
 
 	svc, err := c.context.Clientset.CoreV1().Services(c.Namespace).Get("rook-ceph-mgr-dashboard", metav1.GetOptions{})
@@ -130,10 +127,12 @@ func TestStartSecureDashboard(t *testing.T) {
 
 	// disable the dashboard
 	c.dashboard.Enabled = false
-	err = c.configureDashboard(mgrConfig)
+	err = c.configureDashboardService()
 	assert.Nil(t, err)
-	assert.Equal(t, 3, enables)
-	assert.Equal(t, 3, disables)
+	err = c.configureDashboardModules()
+	assert.NoError(t, err)
+	assert.Equal(t, 2, enables)
+	assert.Equal(t, 2, disables)
 
 	svc, err = c.context.Clientset.CoreV1().Services(c.Namespace).Get("rook-ceph-mgr-dashboard", metav1.GetOptions{})
 	assert.NotNil(t, err)

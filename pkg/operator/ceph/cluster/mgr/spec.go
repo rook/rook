@@ -67,11 +67,11 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
 	// be equal to the pod's IP address. Note that when the fix is not needed,
 	// there is additional work done to clear fixes after upgrades. See
 	// clearHttpBindFix() method for more details.
-	if c.needHttpBindFix() {
-		podSpec.Spec.InitContainers = append(podSpec.Spec.InitContainers,
+	if c.needHTTPBindFix() {
+		podSpec.Spec.InitContainers = append(podSpec.Spec.InitContainers, []v1.Container{
 			c.makeSetServerAddrInitContainer(mgrConfig, "dashboard"),
 			c.makeSetServerAddrInitContainer(mgrConfig, "prometheus"),
-		)
+		}...)
 		// ceph config set commands want admin keyring
 		podSpec.Spec.Volumes = append(podSpec.Spec.Volumes,
 			keyring.Volume().Admin())
@@ -109,7 +109,7 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
 	return d
 }
 
-func (c *Cluster) needHttpBindFix() bool {
+func (c *Cluster) needHTTPBindFix() bool {
 	needed := true
 
 	// if mimic and >= 13.2.6
@@ -135,23 +135,29 @@ func (c *Cluster) needHttpBindFix() bool {
 // always do this and (b) make sure that all forms of the configuration option
 // are removed (see the init container factory method). Once the minimum
 // supported version of Rook contains the fix, all of this can be removed.
-func (c *Cluster) clearHttpBindFix(mgrConfig *mgrConfig) {
-	for _, module := range []string{"dashboard", "prometheus"} {
-		// there are two forms of the configuration key that might exist which
-		// depends not on the current version, but on the version that may be
-		// the version being upgraded from.
-		for _, ver := range []cephver.CephVersion{cephver.Mimic} {
-			changed, err := client.MgrSetConfig(c.context, c.Namespace, mgrConfig.DaemonID, ver,
-				fmt.Sprintf("mgr/%s/server_addr", module), "", false)
-			logger.Infof("clearing http bind fix mod=%s ver=%s changed=%t err=%+v", module, &ver, changed, err)
+func (c *Cluster) clearHTTPBindFix() error {
+	// We only need to apply these changes once. No harm in once each time the operator restarts.
+	if c.appliedHttpBind {
+		return nil
+	}
+	for _, daemonID := range c.getDaemonIDs() {
+		for _, module := range []string{"dashboard", "prometheus"} {
+			// there are two forms of the configuration key that might exist which
+			// depends not on the current version, but on the version that may be
+			// the version being upgraded from.
+			for _, ver := range []cephver.CephVersion{cephver.Mimic} {
+				client.MgrSetConfig(c.context, c.Namespace, daemonID, ver,
+					fmt.Sprintf("mgr/%s/server_addr", module), "", false)
 
-			// this is for the format used in v1.0
-			// https://github.com/rook/rook/commit/11d318fb2f77a6ac9a8f2b9be42c826d3b4a93c3
-			changed, err = client.MgrSetConfig(c.context, c.Namespace, mgrConfig.DaemonID, ver,
-				fmt.Sprintf("mgr/%s/%s/server_addr", module, mgrConfig.DaemonID), "", false)
-			logger.Infof("clearing http bind fix mod=%s ver=%s changed=%t err=%+v", module, &ver, changed, err)
+				// this is for the format used in v1.0
+				// https://github.com/rook/rook/commit/11d318fb2f77a6ac9a8f2b9be42c826d3b4a93c3
+				client.MgrSetConfig(c.context, c.Namespace, daemonID, ver,
+					fmt.Sprintf("mgr/%s/%s/server_addr", module, daemonID), "", false)
+			}
 		}
 	}
+	c.appliedHttpBind = true
+	return nil
 }
 
 func (c *Cluster) makeChownInitContainer(mgrConfig *mgrConfig) v1.Container {
@@ -233,7 +239,7 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 			},
 			{
 				Name:          "dashboard",
-				ContainerPort: int32(mgrConfig.DashboardPort),
+				ContainerPort: int32(c.dashboardPort()),
 				Protocol:      v1.ProtocolTCP,
 			},
 		},
@@ -290,7 +296,7 @@ func (c *Cluster) makeMetricsService(name string) *v1.Service {
 	return svc
 }
 
-func (c *Cluster) makeDashboardService(name string, port int) *v1.Service {
+func (c *Cluster) makeDashboardService(name string) *v1.Service {
 	labels := opspec.AppLabels(appName, c.Namespace)
 	portName := "https-dashboard"
 	if !c.dashboard.SSL {
@@ -308,7 +314,7 @@ func (c *Cluster) makeDashboardService(name string, port int) *v1.Service {
 			Ports: []v1.ServicePort{
 				{
 					Name:     portName,
-					Port:     int32(port),
+					Port:     int32(c.dashboardPort()),
 					Protocol: v1.ProtocolTCP,
 				},
 			},

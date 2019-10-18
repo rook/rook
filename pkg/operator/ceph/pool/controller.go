@@ -73,7 +73,7 @@ func (c *PoolController) StartWatch(namespace string, stopCh chan struct{}) erro
 		DeleteFunc: c.onDelete,
 	}
 
-	logger.Infof("start watching pools in namespace %s", namespace)
+	logger.Infof("start watching pools in namespace %q", namespace)
 	watcher := opkit.NewWatcher(PoolResource, namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1().RESTClient())
 	go watcher.Watch(&cephv1.CephBlockPool{}, stopCh)
 	return nil
