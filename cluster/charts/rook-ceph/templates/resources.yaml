@@ -3,6 +3,8 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   name: cephclusters.ceph.rook.io
+  annotations:
+    "helm.sh/hook": crd-install
 spec:
   group: ceph.rook.io
   names:
@@ -187,6 +189,8 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   name: cephfilesystems.ceph.rook.io
+  annotations:
+    "helm.sh/hook": crd-install
 spec:
   group: ceph.rook.io
   names:
@@ -261,6 +265,8 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   name: cephnfses.ceph.rook.io
+  annotations:
+    "helm.sh/hook": crd-install
 spec:
   group: ceph.rook.io
   names:
@@ -295,6 +301,8 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   name: cephobjectstores.ceph.rook.io
+  annotations:
+    "helm.sh/hook": crd-install
 spec:
   group: ceph.rook.io
   names:
@@ -357,6 +365,8 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   name: cephobjectstoreusers.ceph.rook.io
+  annotations:
+    "helm.sh/hook": crd-install
 spec:
   group: ceph.rook.io
   names:
@@ -374,6 +384,8 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   name: cephblockpools.ceph.rook.io
+  annotations:
+    "helm.sh/hook": crd-install
 spec:
   group: ceph.rook.io
   names:
@@ -388,6 +400,8 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   name: volumes.rook.io
+  annotations:
+    "helm.sh/hook": crd-install
 spec:
   group: rook.io
   names:
@@ -404,6 +418,8 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   name: objectbuckets.objectbucket.io
+  annotations:
+    "helm.sh/hook": crd-install
 spec:
   group: objectbucket.io
   versions:
@@ -426,6 +442,8 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   name: objectbucketclaims.objectbucket.io
+  annotations:
+    "helm.sh/hook": crd-install
 spec:
   versions:
     - name: v1alpha1
