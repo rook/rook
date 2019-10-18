@@ -140,7 +140,7 @@ spec:
   resources:
     requests:
       storage: 1Gi
-  storageClassName: csi-cephfs
+  storageClassName: rook-cephfs
 ---
 apiVersion: apps/v1
 kind: Deployment
