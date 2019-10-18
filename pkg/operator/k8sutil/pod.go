@@ -48,8 +48,8 @@ const (
 	// ConfigOverrideVal config override value
 	ConfigOverrideVal = "config"
 	defaultVersion    = "rook/rook:latest"
-	configMountDir    = "/etc/rook/config"
-	overrideFilename  = "override.conf"
+	configMountDir    = "/etc/ceph"
+	overrideFilename  = "ceph.conf"
 )
 
 // ConfigOverrideMount is an override mount

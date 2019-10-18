@@ -244,6 +244,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 			"--id", osdID,
 			"--fsid", c.clusterInfo.FSID,
 			"--cluster", "ceph",
+			"--conf", osd.Config,
 			"--setuser", "ceph",
 			"--setgroup", "ceph",
 			// Set '--setuser-match-path' so that existing directory owned by root won't affect the daemon startup.
