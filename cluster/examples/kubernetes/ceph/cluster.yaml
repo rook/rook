@@ -114,6 +114,7 @@ spec:
 # The above example requests/limits can also be added to the mon and osd components
 #    mon:
 #    osd:
+#    prepareosd:
   storage: # cluster level storage configuration and selection
     useAllNodes: true
     useAllDevices: true

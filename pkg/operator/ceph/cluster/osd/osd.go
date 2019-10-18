@@ -79,6 +79,7 @@ type Cluster struct {
 	dataDirHostPath   string
 	Network           cephv1.NetworkSpec
 	resources         v1.ResourceRequirements
+	prepareResources  v1.ResourceRequirements
 	ownerRef          metav1.OwnerReference
 	kv                *k8sutil.ConfigMapKVStore
 	isUpgrade         bool
@@ -98,6 +99,7 @@ func New(
 	annotations rookalpha.Annotations,
 	network cephv1.NetworkSpec,
 	resources v1.ResourceRequirements,
+	prepareResources v1.ResourceRequirements,
 	ownerRef metav1.OwnerReference,
 	isUpgrade bool,
 	skipUpgradeChecks bool,
@@ -114,6 +116,7 @@ func New(
 		dataDirHostPath:   dataDirHostPath,
 		Network:           network,
 		resources:         resources,
+		prepareResources:  resources,
 		ownerRef:          ownerRef,
 		kv:                k8sutil.NewConfigMapKVStore(namespace, context.Clientset, ownerRef),
 		isUpgrade:         isUpgrade,
