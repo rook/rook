@@ -62,7 +62,7 @@ kubectl create -f object-store.yaml
 ```
 
 At this point the Rook operator recognizes that a new object store resource needs to be configured. The operator will create all of the resources to start the object store.
-1. Metadata pools are created (`.rgw.root`, `my-store.rgw.control`, `my-store.rgw.meta`, `my-store.rgw.log`, `my-store.rgw.buckets.index`)
+1. Metadata pools are created (`.rgw.root`, `my-store.rgw.control`, `my-store.rgw.meta`, `my-store.rgw.log`, `my-store.rgw.buckets.index`, `my-store.rgw.buckets.non-ec`)
 1. The data pool is created (`my-store.rgw.buckets.data`)
 1. A Ceph realm is created
 1. A Ceph zone group is created in the new realm
