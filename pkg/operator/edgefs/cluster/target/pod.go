@@ -57,7 +57,7 @@ func (c *Cluster) makeCorosyncContainer(containerImage string) v1.Container {
 		RunAsUser:              &runAsUser,
 		ReadOnlyRootFilesystem: &readOnlyRootFilesystem,
 		Capabilities: &v1.Capabilities{
-			Add: []v1.Capability{"SYS_NICE", "IPC_LOCK"},
+			Add: []v1.Capability{"SYS_NICE", "IPC_LOCK", "NET_ADMIN"},
 		},
 	}
 
