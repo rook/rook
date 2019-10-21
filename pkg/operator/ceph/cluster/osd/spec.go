@@ -36,6 +36,7 @@ import (
 	apps "k8s.io/api/apps/v1"
 	batch "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -670,7 +671,7 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 			RunAsNonRoot:           &runAsNonRoot,
 			ReadOnlyRootFilesystem: &readOnlyRootFilesystem,
 		},
-		Resources: osdProps.resources,
+		Resources: c.osdPrepareResources(osdProps.pvc.ClaimName),
 	}
 
 	return osdProvisionContainer
@@ -815,5 +816,25 @@ func (c *Cluster) getOSDLabels(osdID int, failureDomainValue string, portable bo
 		OsdIdLabelKey:       fmt.Sprintf("%d", osdID),
 		FailureDomainKey:    failureDomainValue,
 		portableKey:         strconv.FormatBool(portable),
+	}
+}
+
+func (c *Cluster) osdPrepareResources(osdClaimName string) v1.ResourceRequirements {
+	var cpuLimit, cpuRequest, memoryLimit, memoryRequest int64
+
+	cpuLimit = c.prepareResources.Limits.Cpu().Value()
+	cpuRequest = c.prepareResources.Requests.Cpu().Value()
+	memoryLimit = c.prepareResources.Limits.Memory().Value()
+	memoryRequest = c.prepareResources.Requests.Memory().Value()
+
+	return v1.ResourceRequirements{
+		Limits: v1.ResourceList{
+			v1.ResourceCPU:    *resource.NewMilliQuantity(cpuLimit, resource.DecimalSI),
+			v1.ResourceMemory: *resource.NewQuantity(memoryLimit, resource.BinarySI),
+		},
+		Requests: v1.ResourceList{
+			v1.ResourceCPU:    *resource.NewMilliQuantity(cpuRequest, resource.DecimalSI),
+			v1.ResourceMemory: *resource.NewQuantity(memoryRequest, resource.BinarySI),
+		},
 	}
 }

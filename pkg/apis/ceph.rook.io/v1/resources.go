@@ -17,13 +17,19 @@ package v1
 
 import (
 	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 )
 
 const (
-	ResourcesKeyMgr       = "mgr"
-	ResourcesKeyMon       = "mon"
-	ResourcesKeyOSD       = "osd"
+	// ResourcesKeyMon represents the name of resource in the CR for a mon
+	ResourcesKeyMon = "mon"
+	// ResourcesKeyMgr represents the name of resource in the CR for a mgr
+	ResourcesKeyMgr = "mgr"
+	// ResourcesKeyOSD represents the name of resource in the CR for an osd
+	ResourcesKeyOSD = "osd"
+	// ResourcesKeyPrepareOSD represents the name of resource in the CR for the osd prepare job
+	ResourcesKeyPrepareOSD = "prepareosd"
+	// ResourcesKeyRBDMirror represents the name of resource in the CR for the rbdmirror
 	ResourcesKeyRBDMirror = "rbdmirror"
 )
 
@@ -40,6 +46,11 @@ func GetMonResources(p rook.ResourceSpec) v1.ResourceRequirements {
 // GetOSDResources returns the placement for the OSDs
 func GetOSDResources(p rook.ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyOSD]
+}
+
+// GetPrepareOSDResources returns the placement for the OSDs prepare job
+func GetPrepareOSDResources(p rook.ResourceSpec) v1.ResourceRequirements {
+	return p[ResourcesKeyPrepareOSD]
 }
 
 // GetRBDMirrorResources returns the placement for the RBD Mirrors

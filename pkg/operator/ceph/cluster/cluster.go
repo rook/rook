@@ -280,7 +280,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 		// Start the OSDs
 		osds := osd.New(c.Info, c.context, c.Namespace, rookImage, spec.CephVersion, spec.Storage, spec.DataDirHostPath,
 			cephv1.GetOSDPlacement(spec.Placement), cephv1.GetOSDAnnotations(spec.Annotations), spec.Network,
-			cephv1.GetOSDResources(spec.Resources), c.ownerRef, c.isUpgrade, c.Spec.SkipUpgradeChecks)
+			cephv1.GetOSDResources(spec.Resources), cephv1.GetPrepareOSDResources(spec.Resources), c.ownerRef, c.isUpgrade, c.Spec.SkipUpgradeChecks)
 		err = osds.Start()
 		if err != nil {
 			return fmt.Errorf("failed to start the osds. %+v", err)
