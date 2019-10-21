@@ -40,6 +40,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/version"
 )
 
 var (
@@ -236,13 +237,23 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig) {
 
 	// no validVolumeSource is ready to run an osd
 	if len(c.DesiredStorage.VolumeSources) == 0 && len(c.DesiredStorage.StorageClassDeviceSets) == 0 {
-		logger.Warningf("no valid volumeSource available to run an osd in namespace %s. "+
-			"Rook will not create any new OSD nodes and will skip checking for removed pvcs "+
-			"removing all OSD nodes without destroying the Rook cluster is unlikely to be intentional", c.Namespace)
+		logger.Warningf("no volume sources specified for creating OSDs on PVCs.")
 		return
 	}
 
 	logger.Infof("%d of the %d volumeSources are valid", len(validVolumeSources), len(c.DesiredStorage.VolumeSources))
+
+	//check k8s version
+	k8sVersion, err := k8sutil.GetK8SVersion(c.context.Clientset)
+	if err != nil {
+		config.addError("error finding Kubernetes version. %+v", err)
+		return
+	}
+	if !k8sVersion.AtLeast(version.MustParseSemantic("v1.13.0")) {
+		logger.Warningf("skipping OSD on PVC provisioning. Minimum Kubernetes version required: 1.13.0. Actual version: %s", k8sVersion.String())
+		return
+	}
+
 	for _, volume := range c.ValidStorage.VolumeSources {
 		osdProps := osdProperties{
 			crushHostname: volume.PersistentVolumeClaimSource.ClaimName,
