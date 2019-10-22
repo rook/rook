@@ -276,26 +276,6 @@ func (c *Cluster) startMons(targetCount int) error {
 		}
 	}
 
-	// Enable Ceph messenger 2 protocol on Nautilus
-	if c.ClusterInfo.CephVersion.IsAtLeastNautilus() {
-		v, err := client.GetCephMonVersion(c.context, c.ClusterInfo.Name)
-		if err != nil {
-			return fmt.Errorf("failed to get ceph mon version. %+v", err)
-		}
-		if v.IsAtLeastNautilus() {
-			versions, err := client.GetAllCephDaemonVersions(c.context, c.ClusterInfo.Name)
-			if err != nil {
-				return fmt.Errorf("failed to get ceph daemons versions. %+v", err)
-			}
-			if len(versions.Mon) == 1 {
-				// If length is one, this clearly indicates that all the mons are running the same version
-				// We are doing this because 'ceph version' might return the Ceph version that a majority of mons has but not all of them
-				// so instead of trying to active msgr2 when mons are not ready, we activate it when we believe that's the right time
-				client.EnableMessenger2(c.context, c.Namespace)
-			}
-		}
-	}
-
 	logger.Debugf("mon endpoints used are: %s", FlattenMonEndpoints(c.ClusterInfo.Monitors))
 	return nil
 }
@@ -350,11 +330,11 @@ func (c *Cluster) initClusterInfo(cephVersion cephver.CephVersion) error {
 
 	// get the cluster info from secret
 	c.ClusterInfo, c.maxMonID, c.mapping, err = CreateOrLoadClusterInfo(c.context, c.Namespace, &c.ownerRef)
-	c.ClusterInfo.CephVersion = cephVersion
-
 	if err != nil {
 		return fmt.Errorf("failed to get cluster info. %+v", err)
 	}
+
+	c.ClusterInfo.CephVersion = cephVersion
 
 	// save cluster monitor config
 	if err = c.saveMonConfig(); err != nil {

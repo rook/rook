@@ -111,11 +111,6 @@ func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerR
 		logger.Debugf("found existing monitor secrets for cluster %s", clusterInfo.Name)
 	}
 
-	// ensure the csi secret exists
-	if err := createCSISecret(context.Clientset, namespace, clusterInfo, ownerRef); err != nil {
-		logger.Errorf("failed to create csi secret. %+v", err)
-	}
-
 	// get the existing monitor config
 	clusterInfo.Monitors, maxMonID, monMapping, err = loadMonConfig(context.Clientset, namespace)
 	if err != nil {
@@ -180,36 +175,6 @@ func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string
 
 	logger.Infof("loaded: maxMonID=%d, mons=%+v, mapping=%+v", maxMonID, monEndpointMap, monMapping)
 	return monEndpointMap, maxMonID, monMapping, nil
-}
-
-func createCSISecret(clientset kubernetes.Interface, namespace string, clusterInfo *cephconfig.ClusterInfo, ownerRef *metav1.OwnerReference) error {
-	var err error
-
-	// Store the admin secret for the csi driver
-	csiSecrets := map[string][]byte{
-		// adminID is expected for the cephfs driver
-		"adminID":  []byte("admin"),
-		"adminKey": []byte(clusterInfo.AdminSecret),
-		// userID is expected for the cephfs driver
-		"userID":  []byte("admin"),
-		"userKey": []byte(clusterInfo.AdminSecret),
-	}
-	csiSecret := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "rook-ceph-csi",
-			Namespace: namespace,
-		},
-		Data: csiSecrets,
-		Type: k8sutil.RookType,
-	}
-	k8sutil.SetOwnerRef(&csiSecret.ObjectMeta, ownerRef)
-	if _, err = clientset.CoreV1().Secrets(namespace).Create(csiSecret); err != nil {
-		if !errors.IsAlreadyExists(err) {
-			return fmt.Errorf("failed to save csi secret. %+v", err)
-		}
-	}
-	logger.Infof("created csi secret for cluster %s", namespace)
-	return nil
 }
 
 func createClusterAccessSecret(clientset kubernetes.Interface, namespace string, clusterInfo *cephconfig.ClusterInfo, ownerRef *metav1.OwnerReference) error {

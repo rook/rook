@@ -44,6 +44,7 @@ type CephStoragePoolDetails struct {
 	FailureDomain      string `json:"failureDomain"`
 	CrushRoot          string `json:"crushRoot"`
 	DeviceClass        string `json:"deviceClass"`
+	NotEnableAppPool   bool   `json:"notEnableAppPool"`
 }
 
 type CephStoragePoolStats struct {
@@ -241,9 +242,11 @@ func CreateECPoolForApp(context *clusterd.Context, clusterName string, newPool C
 		}
 	}
 
-	err = givePoolAppTag(context, clusterName, newPool.Name, appName)
-	if err != nil {
-		return err
+	if !newPool.NotEnableAppPool {
+		err = givePoolAppTag(context, clusterName, newPool.Name, appName)
+		if err != nil {
+			return err
+		}
 	}
 
 	logger.Infof("creating EC pool %s succeeded, buf: %s", newPool.Name, string(buf))
@@ -269,9 +272,11 @@ func CreateReplicatedPoolForApp(context *clusterd.Context, clusterName string, n
 	}
 
 	// ensure that the newly created pool gets an application tag
-	err = givePoolAppTag(context, clusterName, newPool.Name, appName)
-	if err != nil {
-		return err
+	if !newPool.NotEnableAppPool {
+		err = givePoolAppTag(context, clusterName, newPool.Name, appName)
+		if err != nil {
+			return err
+		}
 	}
 
 	logger.Infof("creating replicated pool %s succeeded, buf: %s", newPool.Name, string(buf))

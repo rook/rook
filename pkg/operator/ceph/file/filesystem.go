@@ -152,6 +152,10 @@ func newFS(name string, metadataPool *model.Pool, dataPools []*model.Pool, activ
 		pool.Name = fmt.Sprintf("%s-%s%d", name, dataPoolSuffix, i)
 	}
 
+	// For the filesystem pool we don't want to enable the application pool
+	// since it's being done via 'fs new' already
+	metadataPool.NotEnableAppPool = true
+
 	return &Filesystem{
 		Name:           name,
 		metadataPool:   metadataPool,
@@ -202,9 +206,9 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, cephVersion c
 		reversedPoolMap[value] = key
 	}
 
-	pools_created := false
-	if _, pool_found := reversedPoolMap[f.metadataPool.Name]; !pool_found {
-		pools_created = true
+	poolsCreated := false
+	if _, poolFound := reversedPoolMap[f.metadataPool.Name]; !poolFound {
+		poolsCreated = true
 		err = client.CreatePoolWithProfile(context, clusterName, *f.metadataPool, appName)
 		if err != nil {
 			return fmt.Errorf("failed to create metadata pool '%s': %+v", f.metadataPool.Name, err)
@@ -214,8 +218,8 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, cephVersion c
 	var dataPoolNames []string
 	for _, pool := range f.dataPools {
 		dataPoolNames = append(dataPoolNames, pool.Name)
-		if _, pool_found := reversedPoolMap[pool.Name]; !pool_found {
-			pools_created = true
+		if _, poolFound := reversedPoolMap[pool.Name]; !poolFound {
+			poolsCreated = true
 			err = client.CreatePoolWithProfile(context, clusterName, *pool, appName)
 			if err != nil {
 				return fmt.Errorf("failed to create data pool %s: %+v", pool.Name, err)
@@ -231,7 +235,7 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, cephVersion c
 
 	// create the filesystem ('fs new' needs to be forced in order to reuse pre-existing pools)
 	// if only one pool is created new it wont work (to avoid inconsistencies).
-	if err := client.CreateFilesystem(context, clusterName, f.Name, f.metadataPool.Name, dataPoolNames, !pools_created); err != nil {
+	if err := client.CreateFilesystem(context, clusterName, f.Name, f.metadataPool.Name, dataPoolNames, !poolsCreated); err != nil {
 		return err
 	}
 
