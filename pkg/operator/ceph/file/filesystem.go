@@ -152,6 +152,10 @@ func newFS(name string, metadataPool *model.Pool, dataPools []*model.Pool, activ
 		pool.Name = fmt.Sprintf("%s-%s%d", name, dataPoolSuffix, i)
 	}
 
+	// For the filesystem pool we don't want to enable the application pool
+	// since it's being done via 'fs new' already
+	metadataPool.NotEnableAppPool = true
+
 	return &Filesystem{
 		Name:           name,
 		metadataPool:   metadataPool,

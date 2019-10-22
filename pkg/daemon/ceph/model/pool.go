@@ -42,4 +42,5 @@ type Pool struct {
 	DeviceClass        string                 `json:"deviceClass"`
 	ReplicatedConfig   ReplicatedPoolConfig   `json:"replicatedConfig"`
 	ErasureCodedConfig ErasureCodedPoolConfig `json:"erasureCodedConfig"`
+	NotEnableAppPool   bool                   `json:"notEnableAppPool"`
 }
