@@ -134,10 +134,10 @@ func GetDevicePartitions(device string, executor exec.Executor) (partitions []Pa
 			if err != nil {
 				return nil, 0, err
 			}
-			if v, ok := info["ID_PART_ENTRY_NAME"]; ok {
+			if v, ok := info["PARTNAME"]; ok {
 				p.Label = v
 			}
-			if v, ok := info["PARTNAME"]; ok {
+			if v, ok := info["ID_PART_ENTRY_NAME"]; ok {
 				p.Label = v
 			}
 			if v, ok := info["ID_FS_TYPE"]; ok {
