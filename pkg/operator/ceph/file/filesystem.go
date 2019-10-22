@@ -194,14 +194,32 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, cephVersion c
 	}
 
 	logger.Infof("Creating filesystem %s", f.Name)
+<<<<<<< HEAD
 	err = client.CreatePoolWithProfile(context, clusterName, *f.metadataPool, appName)
 	if err != nil {
 		return fmt.Errorf("failed to create metadata pool '%s': %+v", f.metadataPool.Name, err)
+=======
+
+	// Make easy to locate a pool by name and avoid repeated searches
+	reversedPoolMap := make(map[string]int)
+	for key, value := range poolNames {
+		reversedPoolMap[value] = key
+	}
+
+	poolsCreated := false
+	if _, poolFound := reversedPoolMap[f.metadataPool.Name]; !poolFound {
+		poolsCreated = true
+		err = client.CreatePoolWithProfile(context, clusterName, *f.metadataPool, appName)
+		if err != nil {
+			return fmt.Errorf("failed to create metadata pool '%s': %+v", f.metadataPool.Name, err)
+		}
+>>>>>>> b3701c5c7... ceph: use golang convention on var name
 	}
 
 	var dataPoolNames []string
 	for _, pool := range f.dataPools {
 		dataPoolNames = append(dataPoolNames, pool.Name)
+<<<<<<< HEAD
 		err = client.CreatePoolWithProfile(context, clusterName, *pool, appName)
 		if err != nil {
 			return fmt.Errorf("failed to create data pool %s: %+v", pool.Name, err)
@@ -210,12 +228,31 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, cephVersion c
 			// An erasure coded data pool used for a filesystem must allow overwrites
 			if err := client.SetPoolProperty(context, clusterName, pool.Name, "allow_ec_overwrites", "true"); err != nil {
 				logger.Warningf("failed to set ec pool property: %+v", err)
+=======
+		if _, poolFound := reversedPoolMap[pool.Name]; !poolFound {
+			poolsCreated = true
+			err = client.CreatePoolWithProfile(context, clusterName, *pool, appName)
+			if err != nil {
+				return fmt.Errorf("failed to create data pool %s: %+v", pool.Name, err)
+			}
+			if pool.Type == model.ErasureCoded {
+				// An erasure coded data pool used for a filesystem must allow overwrites
+				if err := client.SetPoolProperty(context, clusterName, pool.Name, "allow_ec_overwrites", "true"); err != nil {
+					logger.Warningf("failed to set ec pool property: %+v", err)
+				}
+>>>>>>> b3701c5c7... ceph: use golang convention on var name
 			}
 		}
 	}
 
+<<<<<<< HEAD
 	// create the filesystem
 	if err := client.CreateFilesystem(context, clusterName, f.Name, f.metadataPool.Name, dataPoolNames); err != nil {
+=======
+	// create the filesystem ('fs new' needs to be forced in order to reuse pre-existing pools)
+	// if only one pool is created new it wont work (to avoid inconsistencies).
+	if err := client.CreateFilesystem(context, clusterName, f.Name, f.metadataPool.Name, dataPoolNames, !poolsCreated); err != nil {
+>>>>>>> b3701c5c7... ceph: use golang convention on var name
 		return err
 	}
 
