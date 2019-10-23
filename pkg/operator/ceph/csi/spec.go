@@ -263,6 +263,7 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 		if err != nil {
 			return fmt.Errorf("failed to start rbd provisioner statefulset: %+v\n%+v", err, rbdProvisionerSTS)
 		}
+		k8sutil.AddRookVersionLabelToStatefulSet(rbdProvisionerSTS)
 	} else if rbdProvisionerDeployment != nil {
 		applyToPodSpec(&rbdProvisionerDeployment.Spec.Template.Spec, provisionerNodeAffinity, provisionerTolerations)
 		err = k8sutil.CreateDeployment("csi-rbdplugin-provisioner", namespace, clientset, rbdProvisionerDeployment)
@@ -294,6 +295,7 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 		if err != nil {
 			return fmt.Errorf("failed to start cephfs provisioner statefulset: %+v\n%+v", err, cephfsProvisionerSTS)
 		}
+		k8sutil.AddRookVersionLabelToStatefulSet(cephfsProvisionerSTS)
 
 	} else if cephfsProvisionerDeployment != nil {
 		applyToPodSpec(&cephfsProvisionerDeployment.Spec.Template.Spec, provisionerNodeAffinity, provisionerTolerations)
