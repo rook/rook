@@ -51,13 +51,17 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	logger.Infof("Object Storage End To End Integration Test - Create Object Store, User,Bucket and read/write to bucket")
 	logger.Infof("Running on Rook Cluster %s", namespace)
 
-	logger.Infof("Step 0 : Create Object Store")
+	logger.Infof("Step 0 : Create Object Store User")
+	cosuErr := helper.ObjectUserClient.Create(namespace, userid, userdisplayname, storeName)
+
+	logger.Infof("Step 1 : Create Object Store")
 	cobsErr := helper.ObjectClient.Create(namespace, storeName, 3)
+
+	// check that ObjectStore is created
 	require.Nil(s.T(), cobsErr)
 	logger.Infof("Object store created successfully")
 
-	logger.Infof("Step 1 : Create Object Store User")
-	cosuErr := helper.ObjectUserClient.Create(namespace, userid, userdisplayname, storeName)
+	// check that ObjectUser is created
 	require.Nil(s.T(), cosuErr)
 	logger.Infof("Waiting 10 seconds to ensure user was created")
 	time.Sleep(10 * time.Second)
