@@ -95,6 +95,9 @@ type ClusterSpec struct {
 
 	// A spec for mgr related options
 	Mgr MgrSpec `json:"mgr,omitempty"`
+
+	// Remove the OSD that is out and safe to remove only if this option is true
+	RemoveOSDsIfOutAndSafeToRemove bool `json:"removeOSDsIfOutAndSafeToRemove"`
 }
 
 // VersionSpec represents the settings for the Ceph version that Rook is orchestrating.
