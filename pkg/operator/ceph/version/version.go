@@ -31,6 +31,12 @@ type CephVersion struct {
 	Extra int
 }
 
+// CephCSIVersion represents the Ceph CSI version format
+type CephCSIVersion struct {
+	Major int
+	Minor int
+}
+
 const (
 	unknownVersionString = "<unknown version>"
 )
@@ -50,11 +56,15 @@ var (
 	// supportedVersions are production-ready versions that rook supports
 	supportedVersions   = []CephVersion{Mimic, Nautilus}
 	unsupportedVersions = []CephVersion{Octopus}
+	//supportedCSIVersions are versions that rook supports
+	supportedCSIVersions = []CephCSIVersion{{1, 2}}
 	// allVersions includes all supportedVersions as well as unreleased versions that are being tested with rook
 	allVersions = append(supportedVersions, unsupportedVersions...)
 
 	// for parsing the output of `ceph --version`
 	versionPattern = regexp.MustCompile(`ceph version (\d+)\.(\d+)\.(\d+)`)
+	// for parsing the output of `cephcsi`
+	versionCSIPattern = regexp.MustCompile(`v(\d+)\.(\d+)\.(\d+)`)
 
 	logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephver")
 )
@@ -62,6 +72,23 @@ var (
 func (v *CephVersion) String() string {
 	return fmt.Sprintf("%d.%d.%d %s",
 		v.Major, v.Minor, v.Extra, v.ReleaseName())
+}
+
+func (v *CephCSIVersion) String() string {
+	return fmt.Sprintf("%d.%d",
+		v.Major, v.Minor)
+}
+
+// Supported checks if the detected version is part of the known supported CSI versions
+func (v *CephCSIVersion) Supported() bool {
+	for _, sv := range supportedCSIVersions {
+		if v.Major == sv.Major {
+			if v.Minor == sv.Minor {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // CephVersionFormatted returns the Ceph version in a human readable format
@@ -107,6 +134,26 @@ func ExtractCephVersion(src string) (*CephVersion, error) {
 	}
 
 	return &CephVersion{major, minor, extra}, nil
+}
+
+// ExtractCephCSIVersion extracts the major, minor and extra digit of a Ceph release
+func ExtractCephCSIVersion(src string) (*CephCSIVersion, error) {
+	m := versionCSIPattern.FindStringSubmatch(src)
+	if m == nil {
+		return nil, fmt.Errorf("failed to parse version from: %s", src)
+	}
+
+	major, err := strconv.Atoi(m[1])
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse version major part: %s", m[0])
+	}
+
+	minor, err := strconv.Atoi(m[2])
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse version minor part: %s", m[1])
+	}
+
+	return &CephCSIVersion{major, minor}, nil
 }
 
 // Supported checks if a given release is supported

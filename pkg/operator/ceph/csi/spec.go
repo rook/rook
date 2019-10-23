@@ -19,11 +19,16 @@ package csi
 import (
 	"errors"
 	"fmt"
+	"time"
 
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/operator/k8sutil/cmdreporter"
 
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/kubernetes"
 )
@@ -306,4 +311,48 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 		}
 	}
 	return nil
+}
+
+// ValidateCSIVersion checks if the configured ceph-csi image is supported
+func ValidateCSIVersion(namespace string, clientset kubernetes.Interface, csiPluginImage string, rookImage string, serviceAccountName string) (bool, error) {
+	ownerRef := metav1.OwnerReference{
+		APIVersion: fmt.Sprintf("%s", "detect-csi-version"),
+		Kind:       "VersionDetection",
+		Name:       namespace,
+		UID:        types.UID(namespace),
+	}
+	timeout := 15 * time.Minute
+
+	logger.Infof("detecting the ceph csi image version for image %s...", csiPluginImage)
+	versionReporter, err := cmdreporter.New(
+		clientset, &ownerRef,
+		"rook-ceph-csi-detect-version", "rook-ceph-csi-detect-version", namespace,
+		[]string{"cephcsi"}, []string{""},
+		rookImage, csiPluginImage)
+
+	if err != nil {
+		return false, fmt.Errorf("failed to set up ceph CSI version job. %+v", err)
+	}
+
+	job := versionReporter.Job()
+	job.Spec.Template.Spec.ServiceAccountName = serviceAccountName
+
+	// CephCSI has not --version or --help parameter
+	// To get the version of it is necessary to start with no or invalid parameters and parse the stderr
+	_, stderr, _, err := versionReporter.Run(timeout)
+	if err != nil {
+		return false, fmt.Errorf("failed to complete ceph version job. %+v", err)
+	}
+
+	version, err := cephver.ExtractCephCSIVersion(stderr)
+	if err != nil {
+		return false, fmt.Errorf("failed to extract ceph version. %+v", err)
+	}
+	logger.Infof("Detected ceph CSI image version: %s", version)
+
+	if !version.Supported() {
+		return false, fmt.Errorf("unsupported ceph CSI version detected: %s", version)
+
+	}
+	return true, nil
 }
