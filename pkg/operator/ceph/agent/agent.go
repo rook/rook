@@ -275,6 +275,7 @@ func (a *Agent) createAgentDaemonSet(namespace, agentImage, serviceAccount strin
 	} else {
 		logger.Infof("rook-ceph-agent daemonset started")
 	}
+	k8sutil.AddRookVersionLabelToDaemonSet(ds)
 	return nil
 
 }

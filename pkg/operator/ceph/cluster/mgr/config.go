@@ -37,10 +37,9 @@ const (
 
 // mgrConfig for a single mgr
 type mgrConfig struct {
-	ResourceName  string              // the name rook gives to mgr resources in k8s metadata
-	DaemonID      string              // the ID of the Ceph daemon ("a", "b", ...)
-	DashboardPort int                 // port used by Ceph dashboard
-	DataPathMap   *config.DataPathMap // location to store data in container
+	ResourceName string              // the name rook gives to mgr resources in k8s metadata
+	DaemonID     string              // the ID of the Ceph daemon ("a", "b", ...)
+	DataPathMap  *config.DataPathMap // location to store data in container
 }
 
 func (c *Cluster) dashboardPort() int {

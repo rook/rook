@@ -254,6 +254,7 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 		if err != nil {
 			return fmt.Errorf("failed to start rbdplugin daemonset: %+v\n%+v", err, rbdPlugin)
 		}
+		k8sutil.AddRookVersionLabelToDaemonSet(rbdPlugin)
 	}
 
 	if rbdProvisionerSTS != nil {
@@ -262,12 +263,14 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 		if err != nil {
 			return fmt.Errorf("failed to start rbd provisioner statefulset: %+v\n%+v", err, rbdProvisionerSTS)
 		}
+		k8sutil.AddRookVersionLabelToStatefulSet(rbdProvisionerSTS)
 	} else if rbdProvisionerDeployment != nil {
 		applyToPodSpec(&rbdProvisionerDeployment.Spec.Template.Spec, provisionerNodeAffinity, provisionerTolerations)
 		err = k8sutil.CreateDeployment("csi-rbdplugin-provisioner", namespace, clientset, rbdProvisionerDeployment)
 		if err != nil {
 			return fmt.Errorf("failed to start rbd provisioner deployment: %+v\n%+v", err, rbdProvisionerDeployment)
 		}
+		k8sutil.AddRookVersionLabelToDeployment(rbdProvisionerDeployment)
 	}
 
 	if rbdService != nil {
@@ -283,6 +286,7 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 		if err != nil {
 			return fmt.Errorf("failed to start cephfs plugin daemonset: %+v\n%+v", err, cephfsPlugin)
 		}
+		k8sutil.AddRookVersionLabelToDaemonSet(cephfsPlugin)
 	}
 
 	if cephfsProvisionerSTS != nil {
@@ -291,6 +295,7 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 		if err != nil {
 			return fmt.Errorf("failed to start cephfs provisioner statefulset: %+v\n%+v", err, cephfsProvisionerSTS)
 		}
+		k8sutil.AddRookVersionLabelToStatefulSet(cephfsProvisionerSTS)
 
 	} else if cephfsProvisionerDeployment != nil {
 		applyToPodSpec(&cephfsProvisionerDeployment.Spec.Template.Spec, provisionerNodeAffinity, provisionerTolerations)
@@ -298,6 +303,7 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 		if err != nil {
 			return fmt.Errorf("failed to start cephfs provisioner deployment: %+v\n%+v", err, cephfsProvisionerDeployment)
 		}
+		k8sutil.AddRookVersionLabelToDeployment(cephfsProvisionerDeployment)
 	}
 	if cephfsService != nil {
 		_, err = k8sutil.CreateOrUpdateService(clientset, namespace, cephfsService)
