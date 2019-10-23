@@ -6,6 +6,7 @@ metadata:
     operator: rook
     storage-backend: ceph
     chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
+    rook-version: {{ .Values.image.tag }}
 spec:
   replicas: 1
   selector:

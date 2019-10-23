@@ -254,6 +254,7 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 		if err != nil {
 			return fmt.Errorf("failed to start rbdplugin daemonset: %+v\n%+v", err, rbdPlugin)
 		}
+		k8sutil.AddRookVersionLabelToDaemonSet(rbdPlugin)
 	}
 
 	if rbdProvisionerSTS != nil {
@@ -268,6 +269,7 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 		if err != nil {
 			return fmt.Errorf("failed to start rbd provisioner deployment: %+v\n%+v", err, rbdProvisionerDeployment)
 		}
+		k8sutil.AddRookVersionLabelToDeployment(rbdProvisionerDeployment)
 	}
 
 	if rbdService != nil {
@@ -283,6 +285,7 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 		if err != nil {
 			return fmt.Errorf("failed to start cephfs plugin daemonset: %+v\n%+v", err, cephfsPlugin)
 		}
+		k8sutil.AddRookVersionLabelToDaemonSet(cephfsPlugin)
 	}
 
 	if cephfsProvisionerSTS != nil {
@@ -298,6 +301,7 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 		if err != nil {
 			return fmt.Errorf("failed to start cephfs provisioner deployment: %+v\n%+v", err, cephfsProvisionerDeployment)
 		}
+		k8sutil.AddRookVersionLabelToDeployment(cephfsProvisionerDeployment)
 	}
 	if cephfsService != nil {
 		_, err = k8sutil.CreateOrUpdateService(clientset, namespace, cephfsService)
