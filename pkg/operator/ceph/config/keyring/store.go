@@ -98,7 +98,7 @@ func (k *SecretStore) CreateOrUpdate(resourceName, keyring string) error {
 	}
 	k8sutil.SetOwnerRef(&secret.ObjectMeta, k.ownerRef)
 
-	return k.createSecret(secret)
+	return k.CreateSecret(secret)
 }
 
 // Delete deletes the keyring secret for the resource.
@@ -112,7 +112,8 @@ func (k *SecretStore) Delete(resourceName string) error {
 	return nil
 }
 
-func (k *SecretStore) createSecret(secret *v1.Secret) error {
+// CreateSecret creates or update a kubernetes secret
+func (k *SecretStore) CreateSecret(secret *v1.Secret) error {
 	secretName := secret.ObjectMeta.Name
 	_, err := k.context.Clientset.CoreV1().Secrets(k.namespace).Get(secretName, metav1.GetOptions{})
 	if err != nil {
