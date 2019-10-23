@@ -44,7 +44,7 @@ func TestPodSpec(t *testing.T) {
 		rookalpha.Placement{},
 		rookalpha.Annotations{},
 		cephv1.NetworkSpec{},
-		cephv1.DashboardSpec{},
+		cephv1.DashboardSpec{Port: 1234},
 		cephv1.MonitoringSpec{},
 		cephv1.MgrSpec{},
 		v1.ResourceRequirements{
@@ -64,10 +64,9 @@ func TestPodSpec(t *testing.T) {
 	)
 
 	mgrTestConfig := mgrConfig{
-		DaemonID:      "a",
-		ResourceName:  "rook-ceph-mgr-a",
-		DashboardPort: 1234,
-		DataPathMap:   config.NewStatelessDaemonDataPathMap(config.MgrType, "a", "rook-ceph", "/var/lib/rook/"),
+		DaemonID:     "a",
+		ResourceName: "rook-ceph-mgr-a",
+		DataPathMap:  config.NewStatelessDaemonDataPathMap(config.MgrType, "a", "rook-ceph", "/var/lib/rook/"),
 	}
 
 	d := c.makeDeployment(&mgrTestConfig)
@@ -124,7 +123,7 @@ func TestHostNetwork(t *testing.T) {
 		rookalpha.Placement{},
 		rookalpha.Annotations{},
 		cephv1.NetworkSpec{HostNetwork: true},
-		cephv1.DashboardSpec{},
+		cephv1.DashboardSpec{Port: 1234},
 		cephv1.MonitoringSpec{},
 		cephv1.MgrSpec{},
 		v1.ResourceRequirements{},
@@ -135,10 +134,9 @@ func TestHostNetwork(t *testing.T) {
 	)
 
 	mgrTestConfig := mgrConfig{
-		DaemonID:      "a",
-		ResourceName:  "mgr-a",
-		DashboardPort: 1234,
-		DataPathMap:   config.NewStatelessDaemonDataPathMap(config.MgrType, "a", "rook-ceph", "/var/lib/rook/"),
+		DaemonID:     "a",
+		ResourceName: "mgr-a",
+		DataPathMap:  config.NewStatelessDaemonDataPathMap(config.MgrType, "a", "rook-ceph", "/var/lib/rook/"),
 	}
 
 	d := c.makeDeployment(&mgrTestConfig)
@@ -159,7 +157,7 @@ func TestHttpBindFix(t *testing.T) {
 		rookalpha.Placement{},
 		rookalpha.Annotations{},
 		cephv1.NetworkSpec{},
-		cephv1.DashboardSpec{},
+		cephv1.DashboardSpec{Port: 1234},
 		cephv1.MonitoringSpec{},
 		cephv1.MgrSpec{},
 		v1.ResourceRequirements{},
@@ -170,10 +168,9 @@ func TestHttpBindFix(t *testing.T) {
 	)
 
 	mgrTestConfig := mgrConfig{
-		DaemonID:      "a",
-		ResourceName:  "mgr-a",
-		DashboardPort: 1234,
-		DataPathMap:   config.NewStatelessDaemonDataPathMap(config.MgrType, "a", "rook-ceph", "/var/lib/rook/"),
+		DaemonID:     "a",
+		ResourceName: "mgr-a",
+		DataPathMap:  config.NewStatelessDaemonDataPathMap(config.MgrType, "a", "rook-ceph", "/var/lib/rook/"),
 	}
 
 	vers := []struct {
@@ -232,10 +229,9 @@ func TestApplyPrometheusAnnotations(t *testing.T) {
 	)
 
 	mgrTestConfig := mgrConfig{
-		DaemonID:      "a",
-		ResourceName:  "rook-ceph-mgr-a",
-		DashboardPort: 1234,
-		DataPathMap:   config.NewStatelessDaemonDataPathMap(config.MgrType, "a", "rook-ceph", "/var/lib/rook/"),
+		DaemonID:     "a",
+		ResourceName: "rook-ceph-mgr-a",
+		DataPathMap:  config.NewStatelessDaemonDataPathMap(config.MgrType, "a", "rook-ceph", "/var/lib/rook/"),
 	}
 
 	d := c.makeDeployment(&mgrTestConfig)

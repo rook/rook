@@ -54,13 +54,8 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-func (c *Cluster) configureDashboard(m *mgrConfig) error {
-	// enable or disable the dashboard module
-	if err := c.toggleDashboardModule(m); err != nil {
-		return err
-	}
-
-	dashboardService := c.makeDashboardService(appName, m.DashboardPort)
+func (c *Cluster) configureDashboardService() error {
+	dashboardService := c.makeDashboardService(appName)
 	if c.dashboard.Enabled {
 		// expose the dashboard service
 		if _, err := c.context.Clientset.CoreV1().Services(c.Namespace).Create(dashboardService); err != nil {
@@ -72,9 +67,9 @@ func (c *Cluster) configureDashboard(m *mgrConfig) error {
 			if err != nil {
 				return fmt.Errorf("failed to get dashboard service. %+v", err)
 			}
-			if original.Spec.Ports[0].Port != int32(m.DashboardPort) {
+			if original.Spec.Ports[0].Port != int32(c.dashboardPort()) {
 				logger.Infof("dashboard port changed. updating service")
-				original.Spec.Ports[0].Port = int32(m.DashboardPort)
+				original.Spec.Ports[0].Port = int32(c.dashboardPort())
 				if _, err := c.context.Clientset.CoreV1().Services(c.Namespace).Update(original); err != nil {
 					return fmt.Errorf("failed to update dashboard mgr service. %+v", err)
 				}
@@ -94,92 +89,100 @@ func (c *Cluster) configureDashboard(m *mgrConfig) error {
 }
 
 // Ceph docs about the dashboard module: http://docs.ceph.com/docs/nautilus/mgr/dashboard/
-func (c *Cluster) toggleDashboardModule(m *mgrConfig) error {
+func (c *Cluster) configureDashboardModules() error {
 	if c.dashboard.Enabled {
 		if err := client.MgrEnableModule(c.context, c.Namespace, dashboardModuleName, true); err != nil {
 			return fmt.Errorf("failed to enable mgr dashboard module. %+v", err)
-		}
-
-		if err := c.initializeSecureDashboard(); err != nil {
-			return fmt.Errorf("failed to initialize dashboard. %+v", err)
-		}
-
-		if err := c.configureDashboardModule(m); err != nil {
-			return fmt.Errorf("failed to configure mgr dashboard module. %+v", err)
 		}
 	} else {
 		if err := client.MgrDisableModule(c.context, c.Namespace, dashboardModuleName); err != nil {
 			logger.Errorf("failed to disable mgr dashboard module. %+v", err)
 		}
+		return nil
+	}
+
+	hasChanged, err := c.initializeSecureDashboard()
+	if err != nil {
+		return fmt.Errorf("failed to initialize dashboard. %+v", err)
+	}
+
+	for _, daemonID := range c.getDaemonIDs() {
+		changed, err := c.configureDashboardModuleSettings(daemonID)
+		if err != nil {
+			return err
+		}
+		if changed {
+			hasChanged = true
+		}
+	}
+	if hasChanged {
+		logger.Infof("dashboard config has changed. restarting the dashboard module.")
+		return c.restartDashboard()
 	}
 	return nil
 }
 
-func (c *Cluster) configureDashboardModule(m *mgrConfig) error {
+func (c *Cluster) configureDashboardModuleSettings(daemonID string) (bool, error) {
 	// url prefix
-	hasChanged, err := client.MgrSetConfig(c.context, c.Namespace, m.DaemonID, c.clusterInfo.CephVersion, "mgr/dashboard/url_prefix", c.dashboard.UrlPrefix, false)
+	hasChanged, err := client.MgrSetConfig(c.context, c.Namespace, daemonID, c.clusterInfo.CephVersion, "mgr/dashboard/url_prefix", c.dashboard.UrlPrefix, false)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	// ssl support
 	ssl := strconv.FormatBool(c.dashboard.SSL)
-	changed, err := client.MgrSetConfig(c.context, c.Namespace, m.DaemonID, c.clusterInfo.CephVersion, "mgr/dashboard/ssl", ssl, false)
+	changed, err := client.MgrSetConfig(c.context, c.Namespace, daemonID, c.clusterInfo.CephVersion, "mgr/dashboard/ssl", ssl, false)
 	if err != nil {
-		return err
+		return false, err
 	}
 	hasChanged = hasChanged || changed
 
 	// server port
-	port := strconv.Itoa(m.DashboardPort)
-	changed, err = client.MgrSetConfig(c.context, c.Namespace, m.DaemonID, c.clusterInfo.CephVersion, "mgr/dashboard/server_port", port, false)
+	port := strconv.Itoa(c.dashboardPort())
+	changed, err = client.MgrSetConfig(c.context, c.Namespace, daemonID, c.clusterInfo.CephVersion, "mgr/dashboard/server_port", port, false)
 	if err != nil {
-		return err
+		return false, err
 	}
 	hasChanged = hasChanged || changed
 
 	// SSL enabled. Needed to set specifically the ssl port setting starting with Nautilus(14.2.1)
 	if c.dashboard.SSL {
 		if c.clusterInfo.CephVersion.IsAtLeast(cephver.CephVersion{Major: 14, Minor: 2, Extra: 1}) {
-			changed, err = client.MgrSetConfig(c.context, c.Namespace, m.DaemonID, c.clusterInfo.CephVersion, "mgr/dashboard/ssl_server_port", port, false)
+			changed, err = client.MgrSetConfig(c.context, c.Namespace, daemonID, c.clusterInfo.CephVersion, "mgr/dashboard/ssl_server_port", port, false)
 			if err != nil {
-				return err
+				return false, err
 			}
 			hasChanged = hasChanged || changed
 		}
 	}
 
-	if hasChanged {
-		logger.Infof("dashboard config has changed")
-		return c.restartDashboard()
-	}
-	return nil
+	return hasChanged, nil
 }
 
-func (c *Cluster) initializeSecureDashboard() error {
+func (c *Cluster) initializeSecureDashboard() (bool, error) {
 	// we need to wait a short period after enabling the module before we can call the `ceph dashboard` commands.
 	time.Sleep(dashboardInitWaitTime)
 
 	password, err := c.getOrGenerateDashboardPassword()
 	if err != nil {
-		return fmt.Errorf("failed to generate a password. %+v", err)
+		return false, fmt.Errorf("failed to generate a password for the ceph dashboard. %+v", err)
 	}
 
 	if c.dashboard.SSL {
 		alreadyCreated, err := c.createSelfSignedCert()
 		if err != nil {
-			return fmt.Errorf("failed to create a self signed cert. %+v", err)
+			return false, fmt.Errorf("failed to create a self signed cert. %+v", err)
 		}
 		if alreadyCreated {
-			return nil
+			return false, nil
 		}
 	}
 
 	if err := c.setLoginCredentials(password); err != nil {
-		return fmt.Errorf("failed to set login creds. %+v", err)
+		return false, fmt.Errorf("failed to set login creds. %+v", err)
 	}
 
-	return c.restartDashboard()
+	return true, nil
 }
 
 func (c *Cluster) createSelfSignedCert() (bool, error) {

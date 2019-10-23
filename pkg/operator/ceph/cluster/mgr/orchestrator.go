@@ -40,12 +40,23 @@ func (c *Cluster) configureOrchestratorModules() error {
 		return nil
 	}
 
-	if err := client.MgrEnableModule(c.context, c.Namespace, orchestratorModuleName, true); err != nil {
-		return fmt.Errorf("failed to enable mgr orchestrator module. %+v", err)
-	}
 	if err := client.MgrEnableModule(c.context, c.Namespace, rookModuleName, true); err != nil {
 		return fmt.Errorf("failed to enable mgr rook module. %+v", err)
 	}
+	if err := client.MgrEnableModule(c.context, c.Namespace, orchestratorModuleName, true); err != nil {
+		return fmt.Errorf("failed to enable mgr orchestrator module. %+v", err)
+	}
+	if err := c.setRookOrchestratorBackend(); err != nil {
+		return fmt.Errorf("failed to set rook orchestrator backend. %+v", err)
+	}
+	return nil
+}
+
+func (c *Cluster) setRookOrchestratorBackend() error {
+	if !c.clusterInfo.CephVersion.IsAtLeastNautilus() {
+		return nil
+	}
+
 	// retry a few times in the case that the mgr module is not ready to accept commands
 	_, err := client.ExecuteCephCommandWithRetry(func() ([]byte, error) {
 		args := []string{"orchestrator", "set", "backend", "rook"}
