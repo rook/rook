@@ -166,10 +166,19 @@ func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOs
 	}
 
 	var osds []oposd.OSDInfo
+	var lvPath string
+	var skipLVRelease bool
 	if devices == nil || len(devices.Entries) == 0 {
 		logger.Infof("no more devices to configure")
 		if cvSupported {
-			return getCephVolumeOSDs(context, a.cluster.Name, a.cluster.FSID, "")
+			if a.pvcBacked {
+				lvPath, err = getDeviceLVPath(context, fmt.Sprintf("/mnt/%s", a.nodeName))
+				if err != nil {
+					return osds, fmt.Errorf("failed to get logical volume path. %+v", err)
+				}
+				skipLVRelease = true
+			}
+			return getCephVolumeOSDs(context, a.cluster.Name, a.cluster.FSID, lvPath, skipLVRelease)
 		}
 		return osds, nil
 	}
@@ -216,6 +225,19 @@ func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOs
 	}
 	osds = append(osds, cvOSDs...)
 	return osds, nil
+}
+
+func getDeviceLVPath(context *clusterd.Context, deviceName string) (string, error) {
+	cmd := fmt.Sprintf("get logical volume path for device")
+	output, err := context.Executor.ExecuteCommandWithOutput(false, cmd, "pvdisplay", "-C", "-o", "lvpath", "--noheadings", deviceName)
+	if err != nil {
+		return "", fmt.Errorf("failed to retrieve logical volume path. %+v", err)
+	}
+	logger.Debugf("logical volume path for device %q is %q", deviceName, output)
+	if output == "" {
+		return "", fmt.Errorf("no logical volume path found for device %q", deviceName)
+	}
+	return output, nil
 }
 
 func (a *OsdAgent) removeDevices(context *clusterd.Context, removedDevicesScheme *config.PerfScheme) error {
