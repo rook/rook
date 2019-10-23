@@ -284,7 +284,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent) error {
 
 	logger.Infof("device osds:%+v\ndir osds: %+v", deviceOSDs, dirOSDs)
 
-	if agent.pvcBacked {
+	if agent.pvcBacked && !deviceOSDs[0].SkipLVRelease {
 		volumeGroupName, err := getVolumeGroupName(deviceOSDs[0].LVPath)
 		if err != nil {
 			return fmt.Errorf("error fetching volume group name. %+v", err)
