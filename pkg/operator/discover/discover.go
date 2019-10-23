@@ -207,7 +207,6 @@ func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage, securityAcc
 	} else {
 		logger.Infof("rook-discover daemonset started")
 	}
-	k8sutil.AddRookVersionLabelToDaemonSet(ds)
 	return nil
 
 }
