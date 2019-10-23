@@ -231,7 +231,7 @@ func (c *Cluster) setLoginCredentials(password string) error {
 		args := []string{"dashboard", "set-login-credentials", dashboardUsername, password}
 		cmd := client.NewCephCommand(c.context, c.Namespace, args)
 		cmd.Debug = true
-		return cmd.Run()
+		return cmd.RunWithTimeout(client.CmdExecuteTimeout)
 	}, c.exitCode, 5, invalidArgErrorCode, dashboardInitWaitTime)
 	if err != nil {
 		return fmt.Errorf("failed to set login creds on mgr. %+v", err)
