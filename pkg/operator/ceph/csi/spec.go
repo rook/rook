@@ -341,7 +341,7 @@ func ValidateCSIVersion(namespace string, clientset kubernetes.Interface, csiPlu
 	// To get the version of it is necessary to start with no or invalid parameters and parse the stderr
 	_, stderr, _, err := versionReporter.Run(timeout)
 	if err != nil {
-		return false, fmt.Errorf("failed to complete ceph version job. %+v", err)
+		return false, fmt.Errorf("failed to complete ceph CSI version job. %+v", err)
 	}
 
 	version, err := cephver.ExtractCephCSIVersion(stderr)
