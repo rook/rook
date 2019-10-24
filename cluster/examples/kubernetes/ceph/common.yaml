@@ -1367,9 +1367,6 @@ rules:
   - apiGroups: [""]
     resources: ["nodes"]
     verbs: ["get", "list", "watch"]
-  - apiGroups: ["storage.k8s.io"]
-    resources: ["csidrivers"]
-    verbs: ["create", "delete"]
 # OLM: END CSI CEPHFS CLUSTER ROLE
 # OLM: BEGIN CSI CEPHFS CLUSTER ROLEBINDING
 ---
@@ -1565,9 +1562,6 @@ rules:
   - apiGroups: ["snapshot.storage.k8s.io"]
     resources: ["volumesnapshots/status"]
     verbs: ["update"]
-  - apiGroups: ["storage.k8s.io"]
-    resources: ["csidrivers"]
-    verbs: ["create", "delete"]
 # OLM: END CSI RBD CLUSTER ROLE
 # OLM: BEGIN CSI RBD CLUSTER ROLEBINDING
 ---

@@ -19,7 +19,6 @@ package csi
 import (
 	"errors"
 	"fmt"
-	"os"
 
 	"github.com/rook/rook/pkg/operator/k8sutil"
 
@@ -37,7 +36,6 @@ type Param struct {
 	SnapshotterImage          string
 	DriverNamePrefix          string
 	EnableCSIGRPCMetrics      string
-	CSIDriverRegistration     string
 	KubeletDirPath            string
 	CephFSGRPCMetricsPort     uint16
 	CephFSLivenessMetricsPort uint16
@@ -82,7 +80,7 @@ var (
 // manually challenging.
 var (
 	// image names
-	DefaultCSIPluginImage   = "quay.io/cephcsi/cephcsi:v1.2.2"
+	DefaultCSIPluginImage   = "quay.io/cephcsi/cephcsi:v1.2.1"
 	DefaultRegistrarImage   = "quay.io/k8scsi/csi-node-driver-registrar:v1.1.0"
 	DefaultProvisionerImage = "quay.io/k8scsi/csi-provisioner:v1.3.0"
 	DefaultAttacherImage    = "quay.io/k8scsi/csi-attacher:v1.2.0"
@@ -197,13 +195,10 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 
 	tp.RBDGRPCMetricsPort = getPortFromENV("CSI_RBD_GRPC_METRICS_PORT", DefaultRBDGRPCMerticsPort)
 	tp.RBDLivenessMetricsPort = getPortFromENV("CSI_RBD_LIVENESS_METRICS_PORT", DefaultRBDLivenessMerticsPort)
-	//csi registration requires kubernetes 1.14+ version
-	csiObj := os.Getenv("CSI_DRIVER_REGISTRATION") != "false"
+
 	if ver.Minor < provDeploymentSuppVersion {
 		deployProvSTS = true
-		csiObj = false
 	}
-	tp.CSIDriverRegistration = fmt.Sprintf("%t", csiObj)
 
 	if EnableRBD {
 		rbdPlugin, err = templateToDaemonSet("rbdplugin", RBDPluginTemplatePath, tp)

@@ -184,9 +184,6 @@ spec:
         # kubelet directory path, if kubelet configured to use other than /var/lib/kubelet path.
         #- name: ROOK_CSI_KUBELET_DIR_PATH
         #  value: "/var/lib/kubelet"
-        # CSIDriver object creation in kubernetes.
-        #- name: CSI_DRIVER_REGISTRATION
-        #  value: "false"
         # (Optional) Ceph Provisioner NodeAffinity.
         # - name: CSI_PROVISIONER_NODE_AFFINITY
         #   value: "role=storage-node; storage=rook, ceph"
