@@ -83,6 +83,7 @@ spec:
             - "--metricsport={{ .RBDGRPCMetricsPort }}"
             - "--metricspath=/metrics"
             - "--enablegrpcmetrics={{ .EnableCSIGRPCMetrics }}"
+            - "--registercsidriver={{ .CSIDriverRegistration }}"
           env:
             - name: POD_IP
               valueFrom:
