@@ -22,7 +22,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 )
 
-// represents the response from a mon_status mon_command (subset of all available fields, only
+// MonStatusResponse represents the response from a quorum_status mon_command (subset of all available fields, only
 // marshal ones we care about)
 type MonStatusResponse struct {
 	Quorum []int `json:"quorum"`
@@ -60,14 +60,14 @@ type AddrvecEntry struct {
 	Nonce int    `json:"nonce"`
 }
 
-// GetMonStatus calls mon_status mon_command
-func GetMonStatus(context *clusterd.Context, clusterName string, debug bool) (MonStatusResponse, error) {
-	args := []string{"mon_status"}
+// GetMonQuorumStatus calls quorum_status mon_command
+func GetMonQuorumStatus(context *clusterd.Context, clusterName string, debug bool) (MonStatusResponse, error) {
+	args := []string{"quorum_status"}
 	cmd := NewCephCommand(context, clusterName, args)
 	cmd.Debug = debug
 	buf, err := cmd.Run()
 	if err != nil {
-		return MonStatusResponse{}, fmt.Errorf("mon status failed. %+v", err)
+		return MonStatusResponse{}, fmt.Errorf("mon quorum status failed. %+v", err)
 	}
 
 	var resp MonStatusResponse

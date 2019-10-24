@@ -27,9 +27,9 @@ func TestFinalizeCephCommandArgs(t *testing.T) {
 	clusterName := "rook"
 	configDir := "/var/lib/rook/rook-ceph"
 	expectedCommand := "ceph"
-	args := []string{"mon_status"}
+	args := []string{"quorum_status"}
 	expectedArgs := []string{
-		"mon_status",
+		"quorum_status",
 		"--connect-timeout=15",
 		"--cluster=rook",
 		"--conf=/var/lib/rook/rook-ceph/rook/rook.config",
@@ -98,9 +98,9 @@ func TestFinalizeCephCommandArgsClusterDefaultName(t *testing.T) {
 	clusterName := "ceph"
 	configDir := "/etc"
 	expectedCommand := "ceph"
-	args := []string{"mon_status"}
+	args := []string{"quorum_status"}
 	expectedArgs := []string{
-		"mon_status",
+		"quorum_status",
 		"--connect-timeout=15",
 	}
 

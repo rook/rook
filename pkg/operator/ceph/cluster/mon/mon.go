@@ -943,23 +943,23 @@ func waitForQuorumWithMons(context *clusterd.Context, clusterName string, mons [
 			continue
 		}
 
-		// get the mon_status response that contains info about all monitors in the mon map and
+		// get the quorum_status response that contains info about all monitors in the mon map and
 		// their quorum status
-		monStatusResp, err := client.GetMonStatus(context, clusterName, false)
+		monQuorumStatusResp, err := client.GetMonQuorumStatus(context, clusterName, false)
 		if err != nil {
-			logger.Debugf("failed to get mon_status, err: %+v", err)
+			logger.Debugf("failed to get quorum_status. %+v", err)
 			continue
 		}
 
 		if !requireAllInQuorum {
-			logQuorumMembers(monStatusResp)
+			logQuorumMembers(monQuorumStatusResp)
 			break
 		}
 
 		// check if each of the initial monitors is in quorum
 		allInQuorum := true
 		for _, name := range mons {
-			if !monFoundInQuorum(name, monStatusResp) {
+			if !monFoundInQuorum(name, monQuorumStatusResp) {
 				// found an initial monitor that is not in quorum, bail out of this retry
 				logger.Warningf("monitor %s is not in quorum list", name)
 				allInQuorum = false
@@ -968,7 +968,7 @@ func waitForQuorumWithMons(context *clusterd.Context, clusterName string, mons [
 		}
 
 		if allInQuorum {
-			logQuorumMembers(monStatusResp)
+			logQuorumMembers(monQuorumStatusResp)
 			break
 		}
 	}
@@ -976,22 +976,22 @@ func waitForQuorumWithMons(context *clusterd.Context, clusterName string, mons [
 	return nil
 }
 
-func logQuorumMembers(monStatusResp client.MonStatusResponse) {
+func logQuorumMembers(monQuorumStatusResp client.MonStatusResponse) {
 	var monsInQuorum []string
-	for _, m := range monStatusResp.MonMap.Mons {
-		if monFoundInQuorum(m.Name, monStatusResp) {
+	for _, m := range monQuorumStatusResp.MonMap.Mons {
+		if monFoundInQuorum(m.Name, monQuorumStatusResp) {
 			monsInQuorum = append(monsInQuorum, m.Name)
 		}
 	}
 	logger.Infof("Monitors in quorum: %v", monsInQuorum)
 }
 
-func monFoundInQuorum(name string, monStatusResp client.MonStatusResponse) bool {
+func monFoundInQuorum(name string, monQuorumStatusResp client.MonStatusResponse) bool {
 	// first get the initial monitors corresponding mon map entry
 	var monMapEntry *client.MonMapEntry
-	for i := range monStatusResp.MonMap.Mons {
-		if name == monStatusResp.MonMap.Mons[i].Name {
-			monMapEntry = &monStatusResp.MonMap.Mons[i]
+	for i := range monQuorumStatusResp.MonMap.Mons {
+		if name == monQuorumStatusResp.MonMap.Mons[i].Name {
+			monMapEntry = &monQuorumStatusResp.MonMap.Mons[i]
 			break
 		}
 	}
@@ -1004,7 +1004,7 @@ func monFoundInQuorum(name string, monStatusResp client.MonStatusResponse) bool 
 
 	// using the current initial monitor's mon map entry, check to see if it's in the quorum list
 	// (a list of monitor rank values)
-	for _, q := range monStatusResp.Quorum {
+	for _, q := range monQuorumStatusResp.Quorum {
 		if monMapEntry.Rank == q {
 			return true
 		}
