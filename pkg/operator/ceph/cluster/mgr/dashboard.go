@@ -55,7 +55,7 @@ func init() {
 }
 
 func (c *Cluster) configureDashboardService() error {
-	dashboardService := c.makeDashboardService(appName)
+	dashboardService := c.makeDashboardService(AppName)
 	if c.dashboard.Enabled {
 		// expose the dashboard service
 		if _, err := c.context.Clientset.CoreV1().Services(c.Namespace).Create(dashboardService); err != nil {

@@ -39,7 +39,8 @@ import (
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "rbd-mirror")
 
 const (
-	appName = "rook-ceph-rbd-mirror"
+	// AppName is the ceph rbd mirror  application name
+	AppName = "rook-ceph-rbd-mirror"
 	// minimum amount of memory in MB to run the pod
 	cephRbdMirrorPodMinimumMemory uint64 = 512
 )
@@ -110,7 +111,7 @@ func (m *Mirroring) Start() error {
 
 	for i := 0; i < m.spec.Workers; i++ {
 		daemonID := k8sutil.IndexToName(i)
-		resourceName := fmt.Sprintf("%s-%s", appName, daemonID)
+		resourceName := fmt.Sprintf("%s-%s", AppName, daemonID)
 		daemonConf := &daemonConfig{
 			DaemonID:     daemonID,
 			ResourceName: resourceName,
@@ -181,7 +182,7 @@ func (m *Mirroring) Start() error {
 }
 
 func (m *Mirroring) removeExtraMirrors() error {
-	opts := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", appName)}
+	opts := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", AppName)}
 	d, err := m.context.Clientset.AppsV1().Deployments(m.Namespace).List(opts)
 	if err != nil {
 		return fmt.Errorf("failed to get mirrors. %+v", err)

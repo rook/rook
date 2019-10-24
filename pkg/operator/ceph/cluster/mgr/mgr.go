@@ -45,7 +45,8 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mgr")
 var prometheusRuleName = "prometheus-ceph-vVERSION-rules"
 
 const (
-	appName                = "rook-ceph-mgr"
+	// AppName is the ceph mgr application name
+	AppName                = "rook-ceph-mgr"
 	serviceAccountName     = "rook-ceph-mgr"
 	prometheusModuleName   = "prometheus"
 	pgautoscalerModuleName = "pg_autoscaler"
@@ -146,7 +147,7 @@ func (c *Cluster) Start() error {
 	logger.Infof("start running mgr")
 	daemonIDs := c.getDaemonIDs()
 	for _, daemonID := range daemonIDs {
-		resourceName := fmt.Sprintf("%s-%s", appName, daemonID)
+		resourceName := fmt.Sprintf("%s-%s", AppName, daemonID)
 		mgrConfig := &mgrConfig{
 			DaemonID:     daemonID,
 			ResourceName: resourceName,
@@ -207,7 +208,7 @@ func (c *Cluster) Start() error {
 	c.configureModules(daemonIDs)
 
 	// create the metrics service
-	service := c.makeMetricsService(appName)
+	service := c.makeMetricsService(AppName)
 	if _, err := c.context.Clientset.CoreV1().Services(c.Namespace).Create(service); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create mgr service. %+v", err)

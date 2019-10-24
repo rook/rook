@@ -272,7 +272,7 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 }
 
 func (c *Cluster) makeMetricsService(name string) *v1.Service {
-	labels := opspec.AppLabels(appName, c.Namespace)
+	labels := opspec.AppLabels(AppName, c.Namespace)
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -297,7 +297,7 @@ func (c *Cluster) makeMetricsService(name string) *v1.Service {
 }
 
 func (c *Cluster) makeDashboardService(name string) *v1.Service {
-	labels := opspec.AppLabels(appName, c.Namespace)
+	labels := opspec.AppLabels(AppName, c.Namespace)
 	portName := "https-dashboard"
 	if !c.dashboard.SSL {
 		portName = "dashboard"
@@ -325,7 +325,7 @@ func (c *Cluster) makeDashboardService(name string) *v1.Service {
 }
 
 func (c *Cluster) getPodLabels(daemonName string) map[string]string {
-	labels := opspec.PodLabels(appName, c.Namespace, "mgr", daemonName)
+	labels := opspec.PodLabels(AppName, c.Namespace, "mgr", daemonName)
 	// leave "instance" key for legacy usage
 	labels["instance"] = daemonName
 	return labels
