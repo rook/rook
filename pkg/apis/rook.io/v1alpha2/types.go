@@ -27,12 +27,11 @@ import (
 // ************************************************************************************
 
 type StorageScopeSpec struct {
-	Nodes         []Node            `json:"nodes,omitempty"`
-	UseAllNodes   bool              `json:"useAllNodes,omitempty"`
-	TopologyAware bool              `json:"topologyAware,omitempty"`
-	NodeCount     int               `json:"nodeCount,omitempty"`
-	Location      string            `json:"location,omitempty"`
-	Config        map[string]string `json:"config"`
+	Nodes       []Node            `json:"nodes,omitempty"`
+	UseAllNodes bool              `json:"useAllNodes,omitempty"`
+	NodeCount   int               `json:"nodeCount,omitempty"`
+	Location    string            `json:"location,omitempty"`
+	Config      map[string]string `json:"config"`
 	Selection
 	VolumeSources          []VolumeSource          `json:"volumeSources,omitempty"`
 	StorageClassDeviceSets []StorageClassDeviceSet `json:"storageClassDeviceSets"`

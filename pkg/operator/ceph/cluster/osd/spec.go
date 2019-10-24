@@ -52,7 +52,6 @@ const (
 	osdMetadataDeviceEnvVarName         = "ROOK_METADATA_DEVICE"
 	pvcBackedOSDVarName                 = "ROOK_PVC_BACKED_OSD"
 	lvPathVarName                       = "ROOK_LV_PATH"
-	topologyAwareEnvVarName             = "ROOK_TOPOLOGY_AWARE"
 	rookBinariesMountPath               = "/rook"
 	rookBinariesVolumeName              = "rook-binaries"
 	blockPVCMapperInitContainer         = "blkdevmapper"
@@ -580,11 +579,6 @@ func (c *Cluster) getConfigEnvVars(storeConfig config.StoreConfig, dataDir, node
 		{Name: "CEPH_VOLUME_DEBUG", Value: "1"},
 		k8sutil.NodeEnvVar(),
 	}
-	// pass on the topologyAware flag to the provion pod so that portable OSDs can reconcile zone/region
-	if c.DesiredStorage.TopologyAware {
-		envVars = append(envVars, topologyAwareEnvVar("true"))
-	}
-
 	if storeConfig.StoreType != "" {
 		envVars = append(envVars, v1.EnvVar{Name: osdStoreEnvVarName, Value: storeConfig.StoreType})
 	}
@@ -792,10 +786,6 @@ func pvcBackedOSDEnvVar(pvcBacked string) v1.EnvVar {
 
 func lvPathEnvVariable(lvPath string) v1.EnvVar {
 	return v1.EnvVar{Name: lvPathVarName, Value: lvPath}
-}
-
-func topologyAwareEnvVar(topologyAware string) v1.EnvVar {
-	return v1.EnvVar{Name: topologyAwareEnvVarName, Value: topologyAware}
 }
 
 func getDirectoriesFromContainer(osdContainer v1.Container) []rookalpha.Directory {

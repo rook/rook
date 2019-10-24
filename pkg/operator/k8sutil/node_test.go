@@ -305,7 +305,10 @@ func TestRookNodesMatchingKubernetesNodes(t *testing.T) {
 		{Name: "node0"},
 		{Name: "node1"},
 		{Name: "node2"}}
-	rookStorage.TopologyAware = true
+
+	rookStorage.StorageClassDeviceSets = []rookalpha.StorageClassDeviceSet{
+		{Name: "foobar"},
+	}
 
 	k8sNodes[0].ObjectMeta.Labels = map[string]string{
 		"failure-domain.beta.kubernetes.io/region": "region1",

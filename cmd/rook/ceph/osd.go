@@ -87,7 +87,6 @@ func addOSDFlags(command *cobra.Command) {
 	provisionCmd.Flags().BoolVar(&cfg.forceFormat, "force-format", false,
 		"true to force the format of any specified devices, even if they already have a filesystem.  BE CAREFUL!")
 	provisionCmd.Flags().BoolVar(&cfg.pvcBacked, "pvc-backed-osd", false, "true to specify a block mode pvc is backing the OSD")
-	provisionCmd.Flags().BoolVar(&cfg.topologyAware, "topology-aware", false, "true to specify crush location should be set based on the node's zone/region labels")
 	// flags for generating the osd config
 	osdConfigCmd.Flags().IntVar(&osdID, "osd-id", -1, "osd id for which to generate config")
 	osdConfigCmd.Flags().BoolVar(&osdIsDevice, "is-device", false, "whether the osd is a device")
@@ -150,8 +149,7 @@ func startOSD(cmd *cobra.Command, args []string) error {
 
 	context := createContext()
 
-	// Get crush location
-	crushLocation, err := getLocation(context.Clientset, cfg.topologyAware)
+	crushLocation, err := getLocation(context.Clientset)
 	if err != nil {
 		rook.TerminateFatal(err)
 	}
@@ -209,7 +207,7 @@ func writeOSDConfig(cmd *cobra.Command, args []string) error {
 
 	context := createContext()
 	commonOSDInit(osdConfigCmd)
-	crushLocation, err := getLocation(context.Clientset, cfg.topologyAware)
+	crushLocation, err := getLocation(context.Clientset)
 	if err != nil {
 		rook.TerminateFatal(err)
 	}
@@ -251,7 +249,7 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 
 	context := createContext()
 	commonOSDInit(provisionCmd)
-	crushLocation, err := getLocation(context.Clientset, cfg.topologyAware)
+	crushLocation, err := getLocation(context.Clientset)
 	if err != nil {
 		rook.TerminateFatal(err)
 	}
@@ -286,27 +284,21 @@ func commonOSDInit(cmd *cobra.Command) {
 	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
 }
 
-func getLocation(clientset kubernetes.Interface, topologyAware bool) (string, error) {
+func getLocation(clientset kubernetes.Interface) (string, error) {
 	// Format the basic location properties, then detect the node labels below
-	initialLocation := cfg.location
-	if cfg.topologyAware {
-		// If topology aware, we will detect the node labels rather than allowing them to be specified in the cluster CR
-		initialLocation = ""
-	}
-	locArgs, err := client.FormatLocation(initialLocation, cfg.nodeName)
+	locArgs, err := client.FormatLocation("", cfg.nodeName)
 	if err != nil {
 		return "", fmt.Errorf("invalid location. %+v", err)
 	}
+
 	// use zone/region/hostname labels in the crushmap
-	if cfg.topologyAware {
-		nodeName := os.Getenv(k8sutil.NodeNameEnvVar)
-		node, err := getNode(clientset, nodeName)
-		if err != nil {
-			return "", fmt.Errorf("topologyAware is set, but could not get the node: %+v", err)
-		}
-		nodeLabels := node.GetLabels()
-		updateLocationWithNodeLabels(&locArgs, nodeLabels)
+	nodeName := os.Getenv(k8sutil.NodeNameEnvVar)
+	node, err := getNode(clientset, nodeName)
+	if err != nil {
+		return "", fmt.Errorf("topologyAware is set, but could not get the node: %+v", err)
 	}
+	nodeLabels := node.GetLabels()
+	updateLocationWithNodeLabels(&locArgs, nodeLabels)
 
 	loc := strings.Join(locArgs, " ")
 	logger.Infof("CRUSH location=%s", loc)

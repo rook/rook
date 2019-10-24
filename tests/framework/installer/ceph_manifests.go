@@ -216,8 +216,6 @@ spec:
                       path:
                         type: string
                 config: {}
-                topologyAware:
-                  type: boolean
                 storageClassDeviceSets: {}
             monitoring:
               properties:

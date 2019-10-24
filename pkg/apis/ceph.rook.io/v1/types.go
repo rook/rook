@@ -210,7 +210,7 @@ type CephBlockPoolList struct {
 
 // PoolSpec represents the spec of ceph pool
 type PoolSpec struct {
-	// The failure domain: osd/host/(region or zone if topologyAware) - technically also any type in the crush map
+	// The failure domain: osd/host/(region or zone if available) - technically also any type in the crush map
 	FailureDomain string `json:"failureDomain"`
 
 	// The root of the crush hierarchy utilized by the pool
