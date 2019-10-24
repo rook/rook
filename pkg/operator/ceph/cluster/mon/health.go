@@ -83,13 +83,13 @@ func (c *Cluster) checkHealth() error {
 
 	// connect to the mons
 	// get the status and check for quorum
-	status, err := client.GetMonStatus(c.context, c.ClusterInfo.Name, true)
+	quorumStatus, err := client.GetMonQuorumStatus(c.context, c.ClusterInfo.Name, true)
 	if err != nil {
-		return fmt.Errorf("failed to get mon status. %+v", err)
+		return fmt.Errorf("failed to get mon quorum status. %+v", err)
 	}
-	logger.Debugf("Mon status: %+v", status)
+	logger.Debugf("Mon quorum status: %+v", quorumStatus)
 	if c.spec.External.Enable {
-		return c.handleExternalMonStatus(status)
+		return c.handleExternalMonStatus(quorumStatus)
 	}
 
 	// Use a local mon count in case the user updates the crd in another goroutine.
@@ -106,8 +106,8 @@ func (c *Cluster) checkHealth() error {
 	// first handle mons that are not in quorum but in the ceph mon map
 	// failover the unhealthy mons
 	allMonsInQuorum := true
-	for _, mon := range status.MonMap.Mons {
-		inQuorum := monInQuorum(mon, status.Quorum)
+	for _, mon := range quorumStatus.MonMap.Mons {
+		inQuorum := monInQuorum(mon, quorumStatus.Quorum)
 		// if the mon is in quorum remove it from our check for "existence"
 		// else see below condition
 		if _, ok := monsNotFound[mon.Name]; ok {
@@ -115,7 +115,7 @@ func (c *Cluster) checkHealth() error {
 		} else {
 			// when the mon isn't in the clusterInfo, but is in quorum and there are
 			// enough mons, remove it else remove it on the next run
-			if inQuorum && len(status.MonMap.Mons) > desiredMonCount {
+			if inQuorum && len(quorumStatus.MonMap.Mons) > desiredMonCount {
 				logger.Warningf("mon %s not in source of truth but in quorum, removing", mon.Name)
 				c.removeMon(mon.Name)
 			} else {
@@ -123,7 +123,7 @@ func (c *Cluster) checkHealth() error {
 					"mon %s not in source of truth and not in quorum, not enough mons to remove now (wanted: %d, current: %d)",
 					mon.Name,
 					desiredMonCount,
-					len(status.MonMap.Mons),
+					len(quorumStatus.MonMap.Mons),
 				)
 			}
 		}
@@ -136,7 +136,7 @@ func (c *Cluster) checkHealth() error {
 				logger.Infof("mon %s is back in quorum, removed from mon out timeout list", mon.Name)
 			}
 		} else {
-			logger.Debugf("mon %s NOT found in quorum. Mon status: %+v", mon.Name, status)
+			logger.Debugf("mon %s NOT found in quorum. Mon quorum status: %+v", mon.Name, quorumStatus)
 			allMonsInQuorum = false
 
 			// If not yet set, add the current time, for the timeout
@@ -153,7 +153,7 @@ func (c *Cluster) checkHealth() error {
 			}
 
 			logger.Warningf("mon %s NOT found in quorum and timeout exceeded, mon will be failed over", mon.Name)
-			c.failMon(len(status.MonMap.Mons), desiredMonCount, mon.Name)
+			c.failMon(len(quorumStatus.MonMap.Mons), desiredMonCount, mon.Name)
 			// only deal with one unhealthy mon per health check
 			return nil
 		}
@@ -169,18 +169,18 @@ func (c *Cluster) checkHealth() error {
 	}
 
 	// create/start new mons when there are fewer mons than the desired count in the CRD
-	if len(status.MonMap.Mons) < desiredMonCount {
-		logger.Infof("adding mons. currently %d mons are in quorum and the desired count is %d.", len(status.MonMap.Mons), desiredMonCount)
+	if len(quorumStatus.MonMap.Mons) < desiredMonCount {
+		logger.Infof("adding mons. currently %d mons are in quorum and the desired count is %d.", len(quorumStatus.MonMap.Mons), desiredMonCount)
 		return c.startMons(desiredMonCount)
 	}
 
 	// remove extra mons if the desired count has decreased in the CRD and all the mons are currently healthy
-	if allMonsInQuorum && len(status.MonMap.Mons) > desiredMonCount {
-		if desiredMonCount < 2 && len(status.MonMap.Mons) == 2 {
+	if allMonsInQuorum && len(quorumStatus.MonMap.Mons) > desiredMonCount {
+		if desiredMonCount < 2 && len(quorumStatus.MonMap.Mons) == 2 {
 			logger.Warningf("cannot reduce mon quorum size from 2 to 1")
 		} else {
-			logger.Infof("removing an extra mon. currently %d are in quorum and only %d are desired", len(status.MonMap.Mons), desiredMonCount)
-			return c.removeMon(status.MonMap.Mons[0].Name)
+			logger.Infof("removing an extra mon. currently %d are in quorum and only %d are desired", len(quorumStatus.MonMap.Mons), desiredMonCount)
+			return c.removeMon(quorumStatus.MonMap.Mons[0].Name)
 		}
 	}
 
