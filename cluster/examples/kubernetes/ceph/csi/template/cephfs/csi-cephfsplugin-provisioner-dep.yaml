@@ -67,6 +67,7 @@ spec:
             - "--metricsport={{ .CephFSGRPCMetricsPort }}"
             - "--metricspath=/metrics"
             - "--enablegrpcmetrics={{ .EnableCSIGRPCMetrics }}"
+            - "--registercsidriver={{ .CSIDriverRegistration }}"
           env:
             - name: POD_IP
               valueFrom:
