@@ -4,7 +4,8 @@ weight: 11100
 indent: true
 ---
 
-#  Rook Toolbox
+# Rook Toolbox
+
 The Rook toolbox is a container with common tools used for rook debugging and testing.
 The toolbox is based on CentOS, so more tools of your choosing can be easily installed with `yum`.
 
@@ -78,34 +79,40 @@ spec:
 ```
 
 Launch the rook-ceph-tools pod:
-```bash
+
+```console
 kubectl create -f toolbox.yaml
 ```
 
 Wait for the toolbox pod to download its container and get to the `running` state:
-```bash
+
+```console
 kubectl -n rook-ceph get pod -l "app=rook-ceph-tools"
 ```
 
 Once the rook-ceph-tools pod is running, you can connect to it with:
-```bash
+
+```console
 kubectl -n rook-ceph exec -it $(kubectl -n rook-ceph get pod -l "app=rook-ceph-tools" -o jsonpath='{.items[0].metadata.name}') bash
 ```
 
-All available tools in the toolbox are ready for your troubleshooting needs.  Example:
-```bash
-ceph status
-ceph osd status
-ceph df
-rados df
-```
+All available tools in the toolbox are ready for your troubleshooting needs. 
+
+**Example**:
+
+* `ceph status`
+* `ceph osd status`
+* `ceph df`
+* `rados df`
 
 When you are done with the toolbox, you can remove the deployment:
-```bash
+
+```console
 kubectl -n rook-ceph delete deployment rook-ceph-tools
 ```
 
 ## Troubleshooting without the Toolbox
+
 The Ceph tools will commonly be the only tools needed to troubleshoot a cluster. In that case, you can connect to any of the rook pods and execute the ceph commands in the same way that you would in the toolbox pod such as the mon pods or the operator pod.
 If connecting to the mon pods, make sure you connect to the mon most recently started. The mons keep the config updated in memory after starting and may not have the latest config on disk.
 For example, after starting the cluster connect to the `mon2` pod instead of `mon0`.

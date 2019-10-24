@@ -29,7 +29,8 @@ If you are using `dataDirHostPath` to persist rook data on kubernetes hosts, mak
 ## TL;DR
 
 If you're feeling lucky, a simple Rook cluster can be created with the following kubectl commands and [example yaml files](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph). For the more detailed install, skip to the next section to [deploy the Rook operator](#deploy-the-rook-operator).
-```
+
+```console
 cd cluster/examples/kubernetes/ceph
 kubectl create -f common.yaml
 kubectl create -f operator.yaml
@@ -50,12 +51,12 @@ of requiring a device. For production environments, you will want to follow the 
 
 The first step is to deploy the Rook operator. Check that you are using the [example yaml files](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph) that correspond to your release of Rook. For more options, see the [examples documentation](ceph-examples.md).
 
-```bash
+```console
 cd cluster/examples/kubernetes/ceph
 kubectl create -f common.yaml
 kubectl create -f operator.yaml
 
-# verify the rook-ceph-operator is in the `Running` state before proceeding
+## verify the rook-ceph-operator is in the `Running` state before proceeding
 kubectl -n rook-ceph get pod
 ```
 
@@ -94,7 +95,7 @@ spec:
 
 Create the cluster:
 
-```bash
+```console
 kubectl create -f cluster-test.yaml
 ```
 
@@ -103,7 +104,7 @@ The number of osd pods will depend on the number of nodes in the cluster and the
 If you did not modify the `cluster-test.yaml` above, it is expected that one OSD will be created per node.
 The `rook-ceph-agent` and `rook-discover` pods are also optional depending on your settings.
 
-```bash
+```console
 $ kubectl -n rook-ceph get pod
 NAME                                   READY   STATUS      RESTARTS   AGE
 rook-ceph-agent-4zkg8                  1/1     Running     0          140s
@@ -123,11 +124,13 @@ rook-discover-dhkb8                    1/1     Running     0          140s
 
 To verify that the cluster is in a healthy state, connect to the [Rook toolbox](ceph-toolbox.md) and run the
 `ceph status` command.
-- All mons should be in quorum
-- A mgr should be active
-- At least one OSD should be active
-- If the health is not `HEALTH_OK`, the warnings or errors should be investigated
-```
+
+* All mons should be in quorum
+* A mgr should be active
+* At least one OSD should be active
+* If the health is not `HEALTH_OK`, the warnings or errors should be investigated
+
+```console
 $ ceph status
   cluster:
     id:     a0452c76-30d9-4c1a-a948-5d8405f19a7c
@@ -142,27 +145,27 @@ $ ceph status
 
 If the cluster is not healthy, please refer to the [Ceph common issues](ceph-common-issues.md) for more details and potential solutions.
 
-
-# Storage
+## Storage
 
 For a walkthrough of the three types of storage exposed by Rook, see the guides for:
-- **[Block](ceph-block.md)**: Create block storage to be consumed by a pod
-- **[Object](ceph-object.md)**: Create an object store that is accessible inside or outside the Kubernetes cluster
-- **[Shared File System](ceph-filesystem.md)**: Create a file system to be shared across multiple pods
 
-# Ceph Dashboard
+* **[Block](ceph-block.md)**: Create block storage to be consumed by a pod
+* **[Object](ceph-object.md)**: Create an object store that is accessible inside or outside the Kubernetes cluster
+* **[Shared Filesystem](ceph-filesystem.md)**: Create a filesystem to be shared across multiple pods
+
+## Ceph Dashboard
 
 Ceph has a dashboard in which you can view the status of your cluster. Please see the [dashboard guide](ceph-dashboard.md) for more details.
 
-# Tools
+## Tools
 
 We have created a toolbox container that contains the full suite of Ceph clients for debugging and troubleshooting your Rook cluster.  Please see the [toolbox readme](ceph-toolbox.md) for setup and usage information. Also see our [advanced configuration](advanced-configuration.md) document for helpful maintenance and tuning examples.
 
-# Monitoring
+## Monitoring
 
 Each Rook cluster has some built in metrics collectors/exporters for monitoring with [Prometheus](https://prometheus.io/).
 To learn how to set up monitoring for your Rook cluster, you can follow the steps in the [monitoring guide](./ceph-monitoring.md).
 
-# Teardown
+## Teardown
 
 When you are done with the test cluster, see [these instructions](ceph-teardown.md) to clean up the cluster.
