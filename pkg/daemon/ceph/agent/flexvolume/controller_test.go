@@ -509,10 +509,16 @@ func TestOrphanAttachOriginalPodNameSame(t *testing.T) {
 		volumeManager:    &manager.FakeVolumeManager{},
 	}
 
-	// Attach should succeed and the stale volumeattachment record should be updated to reflect the new pod information
+	// Attach should fail because the pod is on a different node
 	devicePath := ""
 	err = controller.Attach(opts, &devicePath)
-	assert.Nil(t, err)
+	assert.Error(t, err)
+
+	// Attach should succeed and the stale volumeattachment record should be updated to reflect the new pod information
+	// since the pod is restarting on the same node
+	os.Setenv(k8sutil.NodeNameEnvVar, "otherNode")
+	err = controller.Attach(opts, &devicePath)
+	assert.NoError(t, err)
 
 	volAtt, err := context.RookClientset.RookV1alpha2().Volumes("rook-system").Get("pvc-123", metav1.GetOptions{})
 	assert.Nil(t, err)
@@ -524,7 +530,7 @@ func TestOrphanAttachOriginalPodNameSame(t *testing.T) {
 			PodName:      opts.Pod,
 			MountDir:     opts.MountDir,
 			ReadOnly:     false,
-			Node:         "node1",
+			Node:         "otherNode",
 		}, volAtt.Attachments,
 	), "Volume crd does not contain expected attachment")
 }
