@@ -37,3 +37,15 @@ func CreateStatefulSet(name, namespace string, clientset kubernetes.Interface, s
 	}
 	return nil
 }
+
+// AddRookVersionLabelToStatefulSet adds or updates a label reporting the Rook version which last
+// modified a apps.statefulset.
+func AddRookVersionLabelToStatefulSet(ss *apps.StatefulSet) {
+	if ss == nil {
+		return
+	}
+	if ss.Labels == nil {
+		ss.Labels = map[string]string{}
+	}
+	addRookVersionLabel(ss.Labels)
+}
