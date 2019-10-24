@@ -22,6 +22,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/coreos/pkg/capnslog"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -76,6 +77,7 @@ type Cluster struct {
 	dataDirHostPath   string
 	isUpgrade         bool
 	skipUpgradeChecks bool
+	appliedHttpBind   bool
 }
 
 // New creates an instance of the mgr
@@ -120,6 +122,18 @@ func New(
 
 var updateDeploymentAndWait = mon.UpdateCephDeploymentAndWait
 
+func (c *Cluster) getDaemonIDs() []string {
+	var daemonIDs []string
+	for i := 0; i < c.Replicas; i++ {
+		if i >= 2 {
+			logger.Errorf("cannot have more than 2 mgrs")
+			break
+		}
+		daemonIDs = append(daemonIDs, k8sutil.IndexToName(i))
+	}
+	return daemonIDs
+}
+
 // Start begins the process of running a cluster of Ceph mgrs.
 func (c *Cluster) Start() error {
 	// Validate pod's memory if specified
@@ -129,29 +143,18 @@ func (c *Cluster) Start() error {
 	}
 
 	logger.Infof("start running mgr")
-
-	for i := 0; i < c.Replicas; i++ {
-		if i >= 2 {
-			logger.Errorf("cannot have more than 2 mgrs")
-			break
-		}
-
-		daemonID := k8sutil.IndexToName(i)
+	daemonIDs := c.getDaemonIDs()
+	for _, daemonID := range daemonIDs {
 		resourceName := fmt.Sprintf("%s-%s", appName, daemonID)
 		mgrConfig := &mgrConfig{
-			DaemonID:      daemonID,
-			ResourceName:  resourceName,
-			DashboardPort: c.dashboardPort(),
-			DataPathMap:   config.NewStatelessDaemonDataPathMap(config.MgrType, daemonID, c.Namespace, c.dataDirHostPath),
+			DaemonID:     daemonID,
+			ResourceName: resourceName,
+			DataPathMap:  config.NewStatelessDaemonDataPathMap(config.MgrType, daemonID, c.Namespace, c.dataDirHostPath),
 		}
 
 		// generate keyring specific to this mgr daemon saved to k8s secret
 		if err := c.generateKeyring(mgrConfig); err != nil {
 			return fmt.Errorf("failed to generate keyring for %s. %+v", resourceName, err)
-		}
-
-		if !c.needHttpBindFix() {
-			c.clearHttpBindFix(mgrConfig)
 		}
 
 		// start the deployment
@@ -184,24 +187,14 @@ func (c *Cluster) Start() error {
 				return fmt.Errorf("failed to update mgr deployment %s. %+v", resourceName, err)
 			}
 		}
-
-		if err := c.configureOrchestratorModules(); err != nil {
-			logger.Errorf("failed to enable orchestrator modules. %+v", err)
-		}
-
-		if err := c.enablePrometheusModule(c.Namespace); err != nil {
-			logger.Errorf("failed to enable mgr prometheus module. %+v", err)
-		}
-
-		if err := c.configureDashboard(mgrConfig); err != nil {
-			logger.Errorf("failed to enable mgr dashboard. %+v", err)
-		}
-
-		if err := c.configureMgrModules(); err != nil {
-			logger.Errorf("failed to enable mgr module(s) from the spec. %+v", err)
-		}
-
 	}
+
+	if err := c.configureDashboardService(); err != nil {
+		logger.Errorf("failed to enable dashboard. %+v", err)
+	}
+
+	// configure the mgr modules
+	c.configureModules(daemonIDs)
 
 	// create the metrics service
 	service := c.makeMetricsService(appName)
@@ -243,9 +236,38 @@ func (c *Cluster) Start() error {
 	return nil
 }
 
+func (c *Cluster) configureModules(daemonIDs []string) {
+	// Configure the modules asynchronously so we can complete all the configuration much sooner.
+	var wg sync.WaitGroup
+	if !c.needHTTPBindFix() {
+		startModuleConfiguration(&wg, "http bind settings", c.clearHTTPBindFix)
+	}
+
+	startModuleConfiguration(&wg, "orchestrator modules", c.configureOrchestratorModules)
+	startModuleConfiguration(&wg, "prometheus", c.enablePrometheusModule)
+	startModuleConfiguration(&wg, "mgr module(s) from the spec", c.configureMgrModules)
+	startModuleConfiguration(&wg, "dashboard", c.configureDashboardModules)
+
+	// Wait for the goroutines to complete before continuing
+	wg.Wait()
+}
+
+func startModuleConfiguration(wg *sync.WaitGroup, description string, configureModules func() error) {
+	wg.Add(1)
+	go func() {
+		err := configureModules()
+		if err != nil {
+			logger.Errorf("failed modules: %s. %+v", description, err)
+		} else {
+			logger.Infof("successful modules: %s", description)
+		}
+		wg.Done()
+	}()
+}
+
 // Ceph docs about the prometheus module: http://docs.ceph.com/docs/master/mgr/prometheus/
-func (c *Cluster) enablePrometheusModule(clusterName string) error {
-	if err := client.MgrEnableModule(c.context, clusterName, prometheusModuleName, true); err != nil {
+func (c *Cluster) enablePrometheusModule() error {
+	if err := client.MgrEnableModule(c.context, c.Namespace, prometheusModuleName, true); err != nil {
 		return fmt.Errorf("failed to enable mgr prometheus module. %+v", err)
 	}
 	return nil

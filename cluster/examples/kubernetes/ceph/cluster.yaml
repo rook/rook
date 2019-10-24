@@ -115,6 +115,8 @@ spec:
 #    mon:
 #    osd:
 #    prepareosd:
+  # The option to automatically remove OSDs that are out and are safe to destroy.
+  removeOSDsIfOutAndSafeToRemove: false
   storage: # cluster level storage configuration and selection
     useAllNodes: true
     useAllDevices: true

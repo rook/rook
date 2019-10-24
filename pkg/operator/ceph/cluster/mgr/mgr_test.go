@@ -31,6 +31,7 @@ import (
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -116,7 +117,7 @@ func validateStart(t *testing.T, c *Cluster) {
 
 	ds, err := c.context.Clientset.CoreV1().Services(c.Namespace).Get("rook-ceph-mgr-dashboard", metav1.GetOptions{})
 	if c.dashboard.Enabled {
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		if c.dashboard.Port == 0 {
 			// port=0 -> default port
 			assert.Equal(t, ds.Spec.Ports[0].Port, int32(dashboardPortHTTPS))
@@ -204,4 +205,12 @@ func TestConfigureModules(t *testing.T) {
 	assert.Equal(t, 1, modulesDisabled)
 	assert.Equal(t, "pg_autoscaler", lastModuleConfigured)
 	assert.Equal(t, 0, len(configSettings))
+}
+
+func TestMgrDaemons(t *testing.T) {
+	c := &Cluster{Replicas: 3}
+	daemons := c.getDaemonIDs()
+	require.Equal(t, 2, len(daemons))
+	assert.Equal(t, "a", daemons[0])
+	assert.Equal(t, "b", daemons[1])
 }

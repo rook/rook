@@ -38,13 +38,14 @@ var (
 
 // Monitor defines OSD process monitoring
 type Monitor struct {
-	context     *clusterd.Context
-	clusterName string
+	context                        *clusterd.Context
+	clusterName                    string
+	removeOSDsIfOUTAndSafeToRemove bool
 }
 
 // NewMonitor instantiates OSD monitoring
-func NewMonitor(context *clusterd.Context, clusterName string) *Monitor {
-	return &Monitor{context, clusterName}
+func NewMonitor(context *clusterd.Context, clusterName string, removeOSDsIfOUTAndSafeToRemove bool) *Monitor {
+	return &Monitor{context, clusterName, removeOSDsIfOUTAndSafeToRemove}
 }
 
 // Start runs monitoring logic for osds status at set intervals
@@ -64,6 +65,11 @@ func (m *Monitor) Start(stopCh chan struct{}) {
 			return
 		}
 	}
+}
+
+// Update updates the removeOSDsIfOUTAndSafeToRemove
+func (m *Monitor) Update(removeOSDsIfOUTAndSafeToRemove bool) {
+	m.removeOSDsIfOUTAndSafeToRemove = removeOSDsIfOUTAndSafeToRemove
 }
 
 // OSDStatus validates osd dump output
@@ -97,8 +103,10 @@ func (m *Monitor) osdStatus() error {
 
 		if in != inStatus {
 			logger.Debugf("osd.%d is marked 'OUT'", id)
-			if err := m.handleOSDMarkedOut(id); err != nil {
-				logger.Errorf("Error handling marked out osd osd.%d: %v", id, err)
+			if m.removeOSDsIfOUTAndSafeToRemove {
+				if err := m.handleOSDMarkedOut(id); err != nil {
+					logger.Errorf("Error handling marked out osd osd.%d: %v", id, err)
+				}
 			}
 		}
 	}
@@ -107,26 +115,26 @@ func (m *Monitor) osdStatus() error {
 }
 
 func (m *Monitor) handleOSDMarkedOut(outOSDid int) error {
-	safeToDestroyOSD, err := client.OsdSafeToDestroy(m.context, m.clusterName, outOSDid)
+	label := fmt.Sprintf("ceph-osd-id=%d", outOSDid)
+	dp, err := k8sutil.GetDeployments(m.context.Clientset, m.clusterName, label)
 	if err != nil {
-		return err
-	}
-
-	if safeToDestroyOSD {
-		logger.Infof("osd.%d is 'safe-to-destroy'", outOSDid)
-		label := fmt.Sprintf("ceph-osd-id=%d", outOSDid)
-		dp, err := k8sutil.GetDeployments(m.context.Clientset, m.clusterName, label)
-		if err != nil {
-			if errors.IsNotFound(err) {
-				return nil
-			}
-			return fmt.Errorf("failed to get osd deployment of osd id %d: %+v", outOSDid, err)
+		if errors.IsNotFound(err) {
+			return nil
 		}
-		if len(dp.Items) != 0 {
+		return fmt.Errorf("failed to get osd deployment of osd id %d: %+v", outOSDid, err)
+	}
+	if len(dp.Items) != 0 {
+		safeToDestroyOSD, err := client.OsdSafeToDestroy(m.context, m.clusterName, outOSDid)
+		if err != nil {
+			return err
+		}
+
+		if safeToDestroyOSD {
 			podCreationTimestamp := dp.Items[0].GetCreationTimestamp()
 			podDeletionTimeStamp := podCreationTimestamp.Add(graceTime)
 			currentTime := time.Now().UTC()
 			if podDeletionTimeStamp.Before(currentTime) {
+				logger.Infof("osd.%d is 'safe-to-destroy'. removing the osd deployment.", outOSDid)
 				if err := k8sutil.DeleteDeployment(m.context.Clientset, dp.Items[0].Namespace, dp.Items[0].Name); err != nil {
 					return fmt.Errorf("failed to delete osd deployment %s: %+v", dp.Items[0].Name, err)
 				}

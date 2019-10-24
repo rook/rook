@@ -84,7 +84,7 @@ func TestOSDStatus(t *testing.T) {
 	assert.Equal(t, 1, len(dp.Items))
 
 	// Initializing an OSD monitoring
-	osdMon := NewMonitor(context, cluster)
+	osdMon := NewMonitor(context, cluster, true)
 
 	// Run OSD monitoring routine
 	err := osdMon.osdStatus()
@@ -99,7 +99,7 @@ func TestOSDStatus(t *testing.T) {
 
 func TestMonitorStart(t *testing.T) {
 	stopCh := make(chan struct{})
-	osdMon := NewMonitor(&clusterd.Context{}, "cluster")
+	osdMon := NewMonitor(&clusterd.Context{}, "cluster", true)
 	logger.Infof("starting osd monitor")
 	go osdMon.Start(stopCh)
 	close(stopCh)

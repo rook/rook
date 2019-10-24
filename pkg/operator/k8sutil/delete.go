@@ -94,8 +94,8 @@ func DeleteResource(
 			logger.Debugf("%s was deleted after %d retries every %v seconds", resource, i, retryInterval/time.Second)
 			return nil
 		}
-		logger.Infof("Retrying %d more times every %v seconds for %s to be deleted",
-			retries-i, retryInterval/time.Second, resource)
+		logger.Infof("Retrying %d more times every %d seconds for %s to be deleted",
+			retries-i, int(retryInterval/time.Second), resource)
 		if retries-i > 0 {
 			time.Sleep(retryInterval)
 		}

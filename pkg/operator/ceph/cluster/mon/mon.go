@@ -634,6 +634,24 @@ func (c *Cluster) startDeployments(mons []*monConfig, requireAllInQuorum bool) e
 		return fmt.Errorf("cannot start 0 mons")
 	}
 
+	// If all the mon deployments don't exist, allow the mon deployments to all be started without checking for quorum.
+	// This will be the case where:
+	// 1) New clusters where we are starting one deployment at a time. We only need to check for quorum once when we add a new mon.
+	// 2) Clusters being restored where no mon deployments are running. We need to start all the deployments before checking quorum.
+	onlyCheckQuorumOnce := false
+	deployments, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).List(metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", AppName)})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			logger.Infof("0 of %d expected mon deployments exist. creating new deployment(s).", len(mons))
+			onlyCheckQuorumOnce = true
+		} else {
+			logger.Warningf("failed to list mon deployments. attempting to continue. %+v", err)
+		}
+	} else if len(deployments.Items) < len(mons) {
+		logger.Infof("%d of %d expected mon deployments exist. creating new deployment(s).", len(deployments.Items), len(mons))
+		onlyCheckQuorumOnce = true
+	}
+
 	// Ensure each of the mons have been created. If already created, it will be a no-op.
 	for i := 0; i < len(mons); i++ {
 		node, _ := c.mapping.Node[mons[i].DaemonName]
@@ -644,10 +662,12 @@ func (c *Cluster) startDeployments(mons []*monConfig, requireAllInQuorum bool) e
 		// For the initial deployment (first creation) it's expected to not have all the monitors in quorum
 		// However, in an event of an update, it's crucial to proceed monitors by monitors
 		// At the end of the method we perform one last check where all the monitors must be in quorum
-		requireAllInQuorum := false
-		err = c.waitForMonsToJoin(mons, requireAllInQuorum)
-		if err != nil {
-			return fmt.Errorf("failed to check mon quorum %s. %+v", mons[i].DaemonName, err)
+		if !onlyCheckQuorumOnce || (onlyCheckQuorumOnce && i == len(mons)-1) {
+			requireAllInQuorum := false
+			err = c.waitForMonsToJoin(mons, requireAllInQuorum)
+			if err != nil {
+				return fmt.Errorf("failed to check mon quorum %s. %+v", mons[i].DaemonName, err)
+			}
 		}
 	}
 

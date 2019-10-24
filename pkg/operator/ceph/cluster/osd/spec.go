@@ -181,7 +181,6 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 	defaultArgs := []string{
 		"--foreground",
 		"--id", osdID,
-		"--conf", osd.Config,
 		"--osd-data", osd.DataPath,
 		"--keyring", osd.KeyringPath,
 		"--cluster", osd.Cluster,
