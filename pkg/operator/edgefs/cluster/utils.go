@@ -246,6 +246,7 @@ func (c *cluster) PrintDeploymentConfig(deploymentConfig *edgefsv1.ClusterDeploy
 			logger.Infof("\t\tContainer[0] Path: /mnt/disks/disk0")
 			logger.Infof("\t\tContainer[0] Path: /mnt/disks/disk1")
 			logger.Infof("\t\tContainer[0] Path: /mnt/disks/disk2")
+			logger.Infof("\t\tContainer[0] Path: /mnt/disks/disk3")
 		default:
 			logger.Errorf("[%s] Unknown DeploymentType '%s'", c.Namespace, deploymentConfig.DeploymentType)
 		}

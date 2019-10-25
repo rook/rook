@@ -18,6 +18,7 @@ package cluster
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	edgefsv1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
@@ -40,6 +41,7 @@ func (c *cluster) createClusterReconfigurationSpec(existingConfig edgefsv1.Clust
 	if err != nil {
 		return ClusterReconfigureSpec{}, err
 	}
+
 	logger.Debugf("ClusterSpec: %s", ToJSON(c.Spec))
 
 	transportKey := getClusterTransportKey(deploymentType)
@@ -110,6 +112,30 @@ func (c *cluster) getClusterDeploymentType() (string, error) {
 		return edgefsv1.DeploymentAutoRtlfs, nil
 	}
 	return "", fmt.Errorf("Can't determine deployment type for [%s] cluster", c.Namespace)
+}
+
+func (c *cluster) getClusterSysRepCount() int {
+	if c.Spec.SystemReplicationCount > 0 {
+		return c.Spec.SystemReplicationCount
+	}
+	return 3
+}
+
+func (c *cluster) getClusterFailureDomain() (string, error) {
+	failureDomain := "host"
+	if len(c.Spec.FailureDomain) > 0 {
+		switch strings.ToLower(c.Spec.FailureDomain) {
+		case "device":
+			failureDomain = "device"
+		case "host":
+			failureDomain = "host"
+		case "zone":
+			failureDomain = "zone"
+		default:
+			return "", fmt.Errorf("Unknow failure domain %s, skipped", c.Spec.FailureDomain)
+		}
+	}
+	return failureDomain, nil
 }
 
 func (c *cluster) needPrivelege(deploymentType string) bool {
@@ -285,7 +311,7 @@ func (c *cluster) createDevicesConfig(deploymentType string, node rookv1alpha2.N
 }
 
 // ValidateZones validates all nodes in cluster that each one has valid zone number or all of them has zone == 0
-func validateZones(deploymentConfig edgefsv1.ClusterDeploymentConfig) error {
+func validateZones(deploymentConfig edgefsv1.ClusterDeploymentConfig, sysRepCount int, failureDomain string) error {
 	validZonesFound := 0
 	for _, nodeDevConfig := range deploymentConfig.DevConfig {
 		if nodeDevConfig.Zone > 0 {
@@ -297,6 +323,12 @@ func validateZones(deploymentConfig edgefsv1.ClusterDeploymentConfig) error {
 		return fmt.Errorf("Valid Zone number must be propagated to all nodes")
 	}
 
+	if failureDomain == "zone" {
+		if validZonesFound < sysRepCount {
+			return fmt.Errorf("Assigned cluster zones count =%d should be greater or equal then cluster.Spec.SysRepCount = %d", validZonesFound, sysRepCount)
+		}
+	}
+
 	return nil
 }
 
@@ -306,7 +338,13 @@ func (c *cluster) validateDeploymentConfig(deploymentConfig edgefsv1.ClusterDepl
 		return fmt.Errorf("ClusterDeploymentConfig has no valid TransportKey or DeploymentType")
 	}
 
-	err := validateZones(deploymentConfig)
+	sysRepCount := c.getClusterSysRepCount()
+	failureDomain, err := c.getClusterFailureDomain()
+	if err != nil {
+		return err
+	}
+
+	err = validateZones(deploymentConfig, sysRepCount, failureDomain)
 	if err != nil {
 		return err
 	}
@@ -320,32 +358,61 @@ func (c *cluster) validateDeploymentConfig(deploymentConfig edgefsv1.ClusterDepl
 			return fmt.Errorf("RTKVS configuration error: storage.useAllNodes and storage.useAllDevices options aren't allowed." +
 				" A per-node NVME KVSSD disks list is expected")
 		}
+
+		switch failureDomain {
+		case "device":
+			rtkvsDevices := deploymentConfig.GetRtkvsDevicesCount()
+			if rtkvsDevices < sysRepCount {
+				return fmt.Errorf("Rtkvs devices should be greater or equal then SysRepCount=%d on all nodes summary", sysRepCount)
+			}
+		case "host":
+			targets := deploymentConfig.GetTargetsCount()
+			if targets < sysRepCount {
+				return fmt.Errorf("Rtkvs targets=(%d) should be greater or equal then SysRepCount=%d on all nodes summary", targets, sysRepCount)
+			}
+		}
 	} else if deploymentConfig.TransportKey == edgefsv1.DeploymentRtlfs {
 		// Check directories devices count on all nodes for autoRtlfs mode
-		deploymentNodesCount := len(deploymentConfig.DevConfig)
-		if len(c.Spec.Storage.Directories) > 0 {
-			if len(c.Spec.Storage.Directories)*deploymentNodesCount < 3 {
-				return fmt.Errorf("Rtlfs devices should be more then 3 on all nodes summary")
+		switch failureDomain {
+		case "device":
+			deploymentNodesCount := len(deploymentConfig.DevConfig)
+			if len(c.Spec.Storage.Directories) > 0 {
+				if len(c.Spec.Storage.Directories)*deploymentNodesCount < sysRepCount {
+					return fmt.Errorf("Rtlfs devices should be greater or equal then SysRepCount=%d on all nodes summary", sysRepCount)
+				}
+			} else { // Autoftlfs case: 4 folders per node
+				if (4 * deploymentNodesCount) < sysRepCount {
+					return fmt.Errorf("AutoRtlfs devices should be greater or equal then SysRepCount=%d on all nodes summary", sysRepCount)
+				}
+			}
+
+		case "host":
+			targets := deploymentConfig.GetTargetsCount()
+			if targets < sysRepCount {
+				return fmt.Errorf("Rtlfs containers=(%d) should be greater or equal then SysRepCount=%d on all nodes summary", targets, sysRepCount)
 			}
 		}
 	} else if deploymentConfig.TransportKey == edgefsv1.DeploymentRtrd {
-		// Check all deployment nodes has available disk devices
-		devicesCount := 0
 		for nodeName, devCfg := range deploymentConfig.DevConfig {
-
 			if devCfg.IsGatewayNode {
 				continue
 			}
-
 			if len(devCfg.Rtrd.Devices) == 0 && !dro.NeedToResurrect {
 				return fmt.Errorf("Node %s has no devices to deploy", nodeName)
 			}
-			devicesCount += devCfg.GetRtrdDeviceCount()
 		}
 
-		// Check new deployment devices count
-		if !dro.NeedToResurrect && devicesCount < 3 {
-			return fmt.Errorf("At least 3 empty disks required for Edgefs cluster. Those disks should be distributed over all nodes specified for [%s] EdgeFS cluster. Currently there are `%d` nodes cluster and `%d` disks only", c.Namespace, len(deploymentConfig.DevConfig), devicesCount)
+		switch failureDomain {
+		case "device":
+			rtrdDevicesCount := deploymentConfig.GetRtrdDevicesCount()
+			if rtrdDevicesCount < sysRepCount {
+				return fmt.Errorf("Rtrd devices=(%d) should be greater or equal then SysRepCount=%d on all nodes summary", rtrdDevicesCount, sysRepCount)
+			}
+		case "host":
+			containers := deploymentConfig.GetRtrdContainersCount()
+			if containers < sysRepCount {
+				return fmt.Errorf("Rtrd containers=(%d) should be greater or equal then SysRepCount=%d on all nodes summary", containers, sysRepCount)
+			}
 		}
 	}
 	return nil
