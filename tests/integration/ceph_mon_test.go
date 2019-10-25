@@ -42,6 +42,7 @@ func (suite *SmokeSuite) TestMonFailover() {
 	require.Nil(suite.T(), err)
 
 	// Wait for the health check to start a new monitor
+	originalMonDeleted := false
 	for i := 0; i < 30; i++ {
 		deployments, err := suite.k8sh.Clientset.AppsV1().Deployments(suite.namespace).List(opts)
 		require.Nil(suite.T(), err)
@@ -56,9 +57,17 @@ func (suite *SmokeSuite) TestMonFailover() {
 
 		// Check if we have three monitors
 		if foundOldMon {
+			if originalMonDeleted {
+				// Depending on the state of the orchestration, the operator might trigger
+				// re-creation of the deleted mon. In this case, consider the test successful
+				// rather than wait for the failover which will never occur.
+				logger.Infof("Original mon created again, no need to wait for mon failover")
+				return
+			}
 			logger.Infof("Waiting for old monitor to stop")
 		} else {
 			logger.Infof("Waiting for a new monitor to start")
+			originalMonDeleted = true
 			if len(deployments.Items) == 3 {
 				var newMons []string
 				for _, mon := range deployments.Items {
