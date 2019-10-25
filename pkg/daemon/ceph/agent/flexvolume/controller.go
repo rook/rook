@@ -19,11 +19,12 @@ package flexvolume
 
 import (
 	"fmt"
-	"github.com/rook/rook/pkg/util/display"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/rook/rook/pkg/util/display"
 
 	"github.com/coreos/pkg/capnslog"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
@@ -142,15 +143,21 @@ func (c *Controller) Attach(attachOpts AttachOptions, devicePath *string) error 
 
 				logger.Infof("volume attachment record %s/%s exists for pod: %s/%s", volumeattachObj.Namespace, volumeattachObj.Name, attachment.PodNamespace, attachment.PodName)
 				// Note this could return the reference of the pod who is requesting the attach if this pod have the same name as the pod in the attachment record.
+				allowAttach := false
 				pod, err := c.context.Clientset.CoreV1().Pods(attachment.PodNamespace).Get(attachment.PodName, metav1.GetOptions{})
-				if err != nil || (attachment.PodNamespace == attachOpts.PodNamespace && attachment.PodName == attachOpts.Pod) {
-					if err != nil && !errors.IsNotFound(err) {
+				if err != nil {
+					if !errors.IsNotFound(err) {
 						return fmt.Errorf("failed to get pod CRD %s/%s. %+v", attachment.PodNamespace, attachment.PodName, err)
 					}
-
+					allowAttach = true
 					logger.Infof("volume attachment record %s/%s is orphaned. Updating record with new attachment information for pod %s/%s", volumeattachObj.Namespace, volumeattachObj.Name, attachOpts.PodNamespace, attachOpts.Pod)
-
-					// Attachment is orphaned. Update attachment record and proceed with attaching
+				}
+				if err == nil && (attachment.PodNamespace == attachOpts.PodNamespace && attachment.PodName == attachOpts.Pod && attachment.Node == node) {
+					allowAttach = true
+					logger.Infof("volume attachment record %s/%s is starting on the same node. Updating record with new attachment information for pod %s/%s", volumeattachObj.Namespace, volumeattachObj.Name, attachOpts.PodNamespace, attachOpts.Pod)
+				}
+				if allowAttach {
+					// Update attachment record and proceed with attaching
 					attachment.Node = node
 					attachment.MountDir = attachOpts.MountDir
 					attachment.PodNamespace = attachOpts.PodNamespace
@@ -162,7 +169,7 @@ func (c *Controller) Attach(attachOpts AttachOptions, devicePath *string) error 
 						return fmt.Errorf("failed to update volume CRD %s. %+v", crdName, err)
 					}
 				} else {
-					// Attachment is not orphaned. Original pod still exists. Dont attach.
+					// Attachment is not orphaned. Original pod still exists. Don't attach.
 					return fmt.Errorf("failed to attach volume %s for pod %s/%s. Volume is already attached by pod %s/%s. Status %+v",
 						crdName, attachOpts.PodNamespace, attachOpts.Pod, attachment.PodNamespace, attachment.PodName, pod.Status.Phase)
 				}
