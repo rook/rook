@@ -88,7 +88,7 @@ In the Cassandra model, each cluster contains datacenters and each datacenter co
 * `resources`: Defines the CPU and RAM resources for the Cassandra Pods.
 * `annotations`: Key value pair list of annotations to add.
 * `placement`: Defines the placement of Cassandra Pods. Has the following subfields:
-    * [`nodeAffinity`](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity)
-    * [`podAffinity`](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity)
-    * [`podAntiAffinity`](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity)
-    * [`tolerations`](https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/)
+  * [`nodeAffinity`](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity)
+  * [`podAffinity`](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity)
+  * [`podAntiAffinity`](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity)
+  * [`tolerations`](https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/)
