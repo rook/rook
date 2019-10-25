@@ -30,14 +30,18 @@ pipeline {
                     if (body.contains("[all logs]")) {
                           env.getLogs = "all"
                     }
+
+                    if (!body.contains("[test full]")) {
+                        // By default run the min test matrix (all tests run, but will be distributed on different versions of K8s).
+                        // This only affects the PR builds. The master and release builds will always run the full matrix.
+                        env.testArgs = "min-test-matrix"
+                    }
+
                     // extract which specific storage provider to test
                     if (body.contains("[test cassandra]")) {
                         env.testProvider = "cassandra"
                     } else if (body.contains("[test ceph]")) {
                         env.testProvider = "ceph"
-                    } else if (body.contains("[test ceph min]")) {
-                        env.testProvider = "ceph"
-                        env.testArgs = "min-test-matrix"
                     } else if (body.contains("[test cockroachdb]")) {
                         env.testProvider = "cockroachdb"
                     } else if (body.contains("[test edgefs]")) {
