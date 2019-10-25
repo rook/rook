@@ -5,7 +5,7 @@ The framework also provides scripts for starting Kubernetes using `kubeadm` or `
 quickly spin up a Kubernetes cluster.The Test framework is designed to install Rook, run tests, and uninstall Rook.
 
 ## Requirements
-1. Docker version => 1.2 && < 17.0
+1. Docker version => 1.2 && < 17.0 (for other alternatives, see below)
 2. Ubuntu 16 (the framework has only been tested on this version)
 3. Kubernetes with kubectl configured
 4. Rook
@@ -13,6 +13,12 @@ quickly spin up a Kubernetes cluster.The Test framework is designed to install R
 ## Instructions
 
 ## Setup
+
+### Container Runtime
+
+By default, the test suite tries to use the `docker` command line tool. To use
+an alternative container runtime tool, set the `DOCKERCMD` environment variable
+to your command line tool of choice.
 
 ### Install Kubernetes
 You can choose any Kubernetes flavor of your choice.  The test framework only depends on kubectl being configured.
