@@ -242,7 +242,7 @@ However, if there are more OSDs than nodes, this anti-affinity will not be effec
 * `portable`: If `true`, the OSDs will be allowed to move between nodes during failover. This requires a storage class that supports portability (e.g. `aws-ebs`, but not the local storage provisioner). If `false`, the OSDs will be assigned to a node permanently. Rook will configure Ceph's CRUSH map to support the portability.
 * `volumeClaimTemplates`: A list of PVC templates to use for provisioning the underlying storage devices.
   * `resources.requests.storage`: The desired capacity for the underlying storage devices.
-  * `storageClassName`: The StorageClass to provision PVCs from. Default would be to use the cluster-default StorageClass.
+  * `storageClassName`: The StorageClass to provision PVCs from. Default would be to use the cluster-default StorageClass. This StorageClass should provide a raw block device or logical volume. Other types are not supported.
   * `volumeMode`: The volume mode to be set for the PVC. Which should be Block
   * `accessModes`: The access mode for the PVC to be bound by OSD.
 

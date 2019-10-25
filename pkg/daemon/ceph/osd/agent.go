@@ -176,7 +176,7 @@ func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOs
 				}
 				skipLVRelease = true
 			}
-			return getCephVolumeOSDs(context, a.cluster.Name, a.cluster.FSID, lvPath, skipLVRelease)
+			return getCephVolumeOSDs(context, a.cluster.Name, a.cluster.FSID, lvPath, skipLVRelease, false)
 		}
 		return osds, nil
 	}

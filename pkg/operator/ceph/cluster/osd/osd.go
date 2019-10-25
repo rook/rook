@@ -144,6 +144,7 @@ type OSDInfo struct {
 	LVPath        string `json:"lv-path"`
 	SkipLVRelease bool   `json:"skip-lv-release"`
 	Location      string `json:"location"`
+	LVBackedPV    bool   `json:"lv-backed-pv"`
 }
 
 type OrchestrationStatus struct {
