@@ -229,6 +229,8 @@ spec:
               properties:
                 workers:
                   type: integer
+            removeOSDsIfOutAndSafeToRemove:
+              type: boolean
             external:
               properties:
                 enable:
