@@ -117,7 +117,7 @@ func New(
 		dataDirHostPath:   dataDirHostPath,
 		Network:           network,
 		resources:         resources,
-		prepareResources:  resources,
+		prepareResources:  prepareResources,
 		ownerRef:          ownerRef,
 		kv:                k8sutil.NewConfigMapKVStore(namespace, context.Clientset, ownerRef),
 		isUpgrade:         isUpgrade,
