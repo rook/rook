@@ -61,7 +61,7 @@ func TestStartMGR(t *testing.T) {
 		"myversion",
 		cephv1.CephVersionSpec{},
 		rookalpha.Placement{},
-		rookalpha.Annotations{},
+		rookalpha.Annotations{"my": "annotation"},
 		cephv1.NetworkSpec{},
 		cephv1.DashboardSpec{Enabled: true, SSL: true},
 		cephv1.MonitoringSpec{Enabled: true, RulesNamespace: ""},
@@ -107,8 +107,9 @@ func validateStart(t *testing.T, c *Cluster) {
 		}
 		logger.Infof("Looking for cephmgr replica %d", i)
 		daemonName := mgrNames[i]
-		_, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Get(fmt.Sprintf("rook-ceph-mgr-%s", daemonName), metav1.GetOptions{})
+		d, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Get(fmt.Sprintf("rook-ceph-mgr-%s", daemonName), metav1.GetOptions{})
 		assert.Nil(t, err)
+		assert.Equal(t, map[string]string{"my": "annotation"}, d.Spec.Template.Annotations)
 	}
 
 	_, err := c.context.Clientset.CoreV1().Services(c.Namespace).Get("rook-ceph-mgr", metav1.GetOptions{})

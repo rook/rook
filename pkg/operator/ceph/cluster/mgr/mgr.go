@@ -101,6 +101,7 @@ func New(
 		context:           context,
 		Namespace:         namespace,
 		placement:         placement,
+		annotations:       annotations,
 		rookVersion:       rookVersion,
 		cephVersion:       cephVersion,
 		Replicas:          1,
