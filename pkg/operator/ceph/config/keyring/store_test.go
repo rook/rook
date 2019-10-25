@@ -67,6 +67,7 @@ func TestGenerateKey(t *testing.T) {
 	failGenerateKey = true
 	_, e = s.GenerateKey("newuser", []string{"new", "access"})
 	assert.Error(t, e)
+
 }
 
 func TestKeyringStore(t *testing.T) {
@@ -102,6 +103,11 @@ func TestKeyringStore(t *testing.T) {
 
 	// update a key
 	k.CreateOrUpdate("second-resource", "lkjhgfdsa")
+	assertKeyringData("test-resource-keyring", "qwertyuiop")
+	assertKeyringData("second-resource-keyring", "lkjhgfdsa")
+
+	// update a key with a sentinel value to keep the current keyring
+	k.CreateOrUpdate("second-resource", ReplaceKeyring)
 	assertKeyringData("test-resource-keyring", "qwertyuiop")
 	assertKeyringData("second-resource-keyring", "lkjhgfdsa")
 

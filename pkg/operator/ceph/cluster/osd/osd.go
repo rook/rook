@@ -417,6 +417,18 @@ func (c *Cluster) startOSDDaemonsOnPVC(pvcName string, config *provisionConfig, 
 	// start osds
 	for _, osd := range osds {
 		logger.Debugf("start osd %v", osd)
+
+		// keyring must be generated before deployment creation in order to avoid a race condition resulting
+		// in intermittent failure of first-attempt OSD pods.
+		deploymentName := fmt.Sprintf(osdAppNameFmt, osd.ID)
+		osdID := strconv.Itoa(osd.ID)
+		keyringErr := c.generateKeyring(osdID, deploymentName)
+		if keyringErr != nil {
+			errMsg := fmt.Sprintf("failed to create keyring during osd deployment for pvc %s, osd %v: %+v", osdProps.pvc.ClaimName, osd, keyringErr)
+			config.addError(errMsg)
+			continue
+		}
+
 		dp, err := c.makeDeployment(osdProps, osd)
 		if err != nil {
 			errMsg := fmt.Sprintf("failed to create deployment for pvc %s: %v", osdProps.crushHostname, err)
@@ -439,9 +451,11 @@ func (c *Cluster) startOSDDaemonsOnPVC(pvcName string, config *provisionConfig, 
 			}
 		}
 
-		// keyring must be generated before update-and-wait since no keyring will prevent the
-		// deployment from reaching ready state
-		c.generateKeyring(strconv.Itoa(osd.ID), createdDeployment)
+		associationErr := c.associateKeyring(osdID, createdDeployment)
+		if associationErr != nil {
+			logger.Warningf("failed to associate keyring with deployment %s: %+v", dp.Name, associationErr)
+			continue
+		}
 
 		if createErr != nil && errors.IsAlreadyExists(createErr) {
 			// Always invoke ceph version before an upgrade so we are sure to be up-to-date
@@ -496,6 +510,18 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 	// start osds
 	for _, osd := range osds {
 		logger.Debugf("start osd %v", osd)
+
+		// keyring must be generated before deployment creation in order to avoid a race condition resulting
+		// in intermittent failure of first-attempt OSD pods.
+		deploymentName := fmt.Sprintf(osdAppNameFmt, osd.ID)
+		osdID := strconv.Itoa(osd.ID)
+		keyringErr := c.generateKeyring(osdID, deploymentName)
+		if keyringErr != nil {
+			errMsg := fmt.Sprintf("failed to generate keyring for node %s: %v", n.Name, keyringErr)
+			config.addError(errMsg)
+			continue
+		}
+
 		dp, err := c.makeDeployment(osdProps, osd)
 		if err != nil {
 			errMsg := fmt.Sprintf("failed to create deployment for node %s: %v", n.Name, err)
@@ -517,9 +543,13 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 				continue
 			}
 		}
-		// keyring must be generated before update-and-wait since no keyring will prevent the
-		// deployment from reaching ready state
-		c.generateKeyring(strconv.Itoa(osd.ID), createdDeployment)
+
+		// If our attempt to associate the keyring for the OSD with its deployment, we should log it but also
+		// log the successful deployment below.
+		associationErr := c.associateKeyring(osdID, createdDeployment)
+		if associationErr != nil {
+			logger.Warningf("failed to associate keyring with deployment %s: %+v", dp.Name, err)
+		}
 
 		if createErr != nil && errors.IsAlreadyExists(createErr) {
 			// Always invoke ceph version before an upgrade so we are sure to be up-to-date

@@ -36,6 +36,7 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-cfg-keyring")
 const (
 	keyKeyName      = "key"
 	keyringFileName = "keyring"
+	ReplaceKeyring  = "Value to be replaced with previously stored keyring"
 )
 
 // SecretStore is a helper to store Ceph daemon keyrings as Kubernetes secrets.
@@ -115,7 +116,7 @@ func (k *SecretStore) Delete(resourceName string) error {
 // CreateSecret creates or update a kubernetes secret
 func (k *SecretStore) CreateSecret(secret *v1.Secret) error {
 	secretName := secret.ObjectMeta.Name
-	_, err := k.context.Clientset.CoreV1().Secrets(k.namespace).Get(secretName, metav1.GetOptions{})
+	storedSecret, err := k.context.Clientset.CoreV1().Secrets(k.namespace).Get(secretName, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			logger.Debugf("creating secret for %s", secretName)
@@ -126,6 +127,12 @@ func (k *SecretStore) CreateSecret(secret *v1.Secret) error {
 		}
 		return fmt.Errorf("failed to get secret for %s. %+v", secretName, err)
 	}
+
+	// If the ReplaceKeyring sentinel value is set as the keyring, we should replace it with the stored keyring.
+	if secret.StringData[keyringFileName] == ReplaceKeyring {
+		secret.StringData[keyringFileName] = storedSecret.StringData[keyringFileName]
+	}
+
 	logger.Debugf("updating secret for %s", secretName)
 	if _, err := k.context.Clientset.CoreV1().Secrets(k.namespace).Update(secret); err != nil {
 		return fmt.Errorf("failed to update secret for %s. %+v", secretName, err)
