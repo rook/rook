@@ -14,7 +14,7 @@ This chart bootstraps a [rook-ceph-operator](https://github.com/rook/rook) deplo
 
 ## Prerequisites
 
-- Kubernetes 1.10+
+* Kubernetes 1.10+
 
 ### RBAC
 
@@ -41,6 +41,7 @@ The `helm install` command deploys rook on the Kubernetes cluster in the default
 Rook currently publishes builds of the Ceph operator to the `release` and `master` channels.
 
 ### Release
+
 The release channel is the most recent release of Rook that is considered stable for the community.
 
 ```console
@@ -49,10 +50,12 @@ helm install --namespace rook-ceph rook-release/rook-ceph
 ```
 
 ### Master
+
 The master channel includes the latest commits, with all automated tests green. Historically it has been very stable, though it is only recommended for testing.
 The critical point to consider is that upgrades are not supported to or from master builds.
 
 To install the helm chart from master, you will need to pass the specific version returned by the `search` command.
+
 ```console
 helm repo add rook-master https://charts.rook.io/master
 helm search rook-ceph
@@ -60,15 +63,19 @@ helm install --namespace rook-ceph rook-master/rook-ceph --version <version>
 ```
 
 For example:
-```
+
+```cosnole
 helm install --namespace rook-ceph rook-master/rook-ceph --version v0.7.0-278.gcbd9726
 ```
 
 ### Development Build
+
 To deploy from a local build from your development environment:
+
 1. Build the Rook docker image: `make`
 1. Copy the image to your K8s cluster, such as with the `docker save` then the `docker load` commands
-1. Install the helm chart
+1. Install the helm chart:
+
 ```console
 cd cluster/charts/rook-ceph
 helm install --namespace rook-ceph --name rook-ceph .
@@ -79,7 +86,7 @@ helm install --namespace rook-ceph --name rook-ceph .
 To uninstall/delete the `rook-ceph` deployment:
 
 ```console
-$ helm delete --purge rook-ceph
+helm delete --purge rook-ceph
 ```
 
 The command removes all the Kubernetes components associated with the chart and deletes the release.
@@ -124,18 +131,20 @@ The following tables lists the configurable parameters of the rook-operator char
 &ast; &ast; &ast; `agent.nodeAffinity` and `discover.nodeAffinity` should have the format `"role=storage,rook; storage=ceph"` or `storage=;role=rook-example` or `storage=;` (_checks only for presence of key_)
 
 ### Command Line
+
 You can pass the settings with helm command line parameters. Specify each parameter using the
 `--set key=value[,key=value]` argument to `helm install`. For example, the following command will install rook where RBAC is not enabled.
 
 ```console
-$ helm install --namespace rook-ceph --name rook-ceph rook-release/rook-ceph --set rbacEnable=false
+helm install --namespace rook-ceph --name rook-ceph rook-release/rook-ceph --set rbacEnable=false
 ```
 
 ### Settings File
+
 Alternatively, a yaml file that specifies the values for the above parameters (`values.yaml`) can be provided while installing the chart.
 
 ```console
-$ helm install --namespace rook-ceph --name rook-ceph rook-release/rook-ceph -f values.yaml
+helm install --namespace rook-ceph --name rook-ceph rook-release/rook-ceph -f values.yaml
 ```
 
 Here are the sample settings to get you started.

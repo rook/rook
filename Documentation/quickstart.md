@@ -10,7 +10,7 @@ in your Kubernetes cluster.
 
 If you have any questions along the way, please don't hesitate to ask us in our [Slack channel](https://rook-io.slack.com). You can sign up for our Slack [here](https://slack.rook.io).
 
-Rook provides growing number of storage providers to a Kubernetes cluster, each with its own operator to deploy and manage the resources for the storage provider.
+Rook provides a growing number of storage providers to a Kubernetes cluster, each with its own operator to deploy and manage the resources for the storage provider.
 
 **Follow these guides to get started with each provider**:
 

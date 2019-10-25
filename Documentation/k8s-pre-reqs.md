@@ -37,7 +37,7 @@ On certain distributions it may be necessary to mount additional directories int
 
 Some Linux distributions do not ship with the `lvm2` package. This package is required on all storage nodes in your k8s cluster. Please install it using your Linux distribution's package manager; for example:
 
-```Bash
+```console
 # Centos
 sudo yum install -y lvm2
 
@@ -78,7 +78,7 @@ By using `kubeadm`, you can use Rook in just a few minutes!
 
 For a quick start with a new local cluster, use the Rook fork of [coreos-kubernetes](https://github.com/rook/coreos-kubernetes). This will bring up a multi-node Kubernetes cluster with `vagrant` and CoreOS virtual machines ready to use Rook immediately.
 
-```
+```console
 git clone https://github.com/rook/coreos-kubernetes.git
 cd coreos-kubernetes/multi-node/vagrant
 vagrant up
@@ -88,7 +88,7 @@ kubectl config use-context vagrant-multi
 
 Then wait for the cluster to come up and verify that kubernetes is done initializing (be patient, it takes a bit):
 
-```
+```console
 kubectl cluster-info
 ```
 
@@ -109,7 +109,7 @@ To get you started, here's a quick rundown for the ceph example from the [quicks
 
 First, we'll create the secret for our registry as described [here](https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod):
 
-```bash
+```console
 # for namespace rook-ceph
 kubectl -n rook-ceph create secret docker-registry my-registry-secret --docker-server=DOCKER_REGISTRY_SERVER --docker-username=DOCKER_USER --docker-password=DOCKER_PASSWORD --docker-email=DOCKER_EMAIL
 
@@ -125,6 +125,7 @@ imagePullSecrets:
 ```
 
 The service accounts are:
+
 * `rook-ceph-system` (namespace: `rook-ceph`): Will affect all pods created by the rook operator in the `rook-ceph` namespace.
 * `default` (namespace: `rook-ceph`): Will affect most pods in the `rook-ceph` namespace.
 * `rook-ceph-mgr` (namespace: `rook-ceph`): Will affect the MGR pods in the `rook-ceph` namespace.
@@ -135,7 +136,7 @@ and [`cluster.yaml`](https://github.com/rook/rook/blob/master/cluster/examples/k
 
 Since it's the same procedure for all service accounts, here is just one example:
 
-```bash
+```console
 kubectl -n rook-ceph edit serviceaccount default
 ```
 
