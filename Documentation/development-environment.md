@@ -45,8 +45,6 @@ git clone https://github.com/kubernetes-sigs/kubespray/
 cd kubespray
 ```
 
-In order to successfully deploy Kubernetes with Kubespray, you must have this code: https://github.com/kubernetes-incubator/kubespray/pull/2153 and https://github.com/kubernetes-incubator/kubespray/pull/2271.
-
 Edit `inventory/sample/group_vars/k8s-cluster/k8s-cluster.yml` with:
 
 ```bash
