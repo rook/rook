@@ -1,93 +1,69 @@
----
-title: NFS CRD
-weight: 3100
-indent: true
----
+# API Docs
 
-# Ceph NFS Gateway CRD
+This Document documents the types introduced by the Rook Ceph Operator to be consumed by users.
 
-## Overview
+> **NOTE**: This document is generated from code comments. When contributing a change to this document please do so by changing the code comments.
 
-Rook allows exporting NFS shares of the filesystem or object store through the CephNFS custom resource definition. This will spin up a cluster of [NFS Ganesha](https://github.com/nfs-ganesha/nfs-ganesha) servers that coordinate with one another via shared RADOS objects. The servers will be configured for NFSv4.1+ access, as serving earlier protocols can inhibit responsiveness after a server restart.
+## Table of Contents
+* [CephNFS](#cephnfs)
+* [CephNFSList](#cephnfslist)
+* [GaneshaRADOSSpec](#ganesharadosspec)
+* [GaneshaServerSpec](#ganeshaserverspec)
+* [NFSGaneshaSpec](#nfsganeshaspec)
 
-## Samples
+## CephNFS
 
-This configuration adds a cluster of ganesha gateways that store objects in the pool cephfs.a.meta and the namespace **
 
-```yaml
-apiVersion: ceph.rook.io/v1
-kind: CephNFS
-metadata:
-  name: my-nfs
-  namespace: rook-ceph
-spec:
-  rados:
-    # RADOS pool where NFS client recovery data is stored.
-    # In this example the data pool for the "myfs" filesystem is used.
-    # If using the object store example, the data pool would be "my-store.rgw.buckets.data".
-    pool: myfs-data0
-    # RADOS namespace where NFS client recovery data is stored in the pool.
-    namespace: nfs-ns
-  # Settings for the NFS server
-  server:
-    # the number of active NFS servers
-    active: 2
-    # A key/value list of annotations
-    annotations:
-    #  key: value
-    # where to run the NFS server
-    placement:
-    #  nodeAffinity:
-    #    requiredDuringSchedulingIgnoredDuringExecution:
-    #      nodeSelectorTerms:
-    #      - matchExpressions:
-    #        - key: role
-    #          operator: In
-    #          values:
-    #          - mds-node
-    #  tolerations:
-    #  - key: mds-node
-    #    operator: Exists
-    #  podAffinity:
-    #  podAntiAffinity:
-    # The requests and limits set here allow the ganesha pod(s) to use half of one CPU core and 1 gigabyte of memory
-    resources:
-    #  limits:
-    #    cpu: "500m"
-    #    memory: "1024Mi"
-    #  requests:
-    #    cpu: "500m"
-    #    memory: "1024Mi"
-```
 
-## NFS Settings
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| metadata |  | [metav1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#objectmeta-v1-meta) | true |
+| spec |  | [NFSGaneshaSpec](#nfsganeshaspec) | true |
 
-### RADOS Settings
+[Back to TOC](#table-of-contents)
 
-* `pool`: The pool where ganesha recovery backend and supplemental configuration objects will be stored
-* `namespace`: The namespace in `pool` where ganesha recovery backend and supplemental configuration objects will be stored
+## CephNFSList
 
-## EXPORT Block Configuration
 
-Each daemon will have a stock configuration with no exports defined, and that includes a RADOS object via:
 
-```ini
-%url  rados://<pool>/<namespace>/conf-<nodeid>
-```
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| metadata |  | [metav1.ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#listmeta-v1-meta) | true |
+| items |  | [][CephNFS](#cephnfs) | true |
 
-The pool and namespace are configured via the spec's RADOS block. The nodeid is a value automatically assigned internally by rook. Nodeids start with "a" and go through "z", at which point they become two letters ("aa" to "az").
+[Back to TOC](#table-of-contents)
 
-When a server is started, it will create the included object if it does not already exist. It is possible to prepopulate the included objects prior to starting the server. The format for these objects is documented in the [NFS Ganesha](https://github.com/nfs-ganesha/nfs-ganesha/wiki) project.
+## GaneshaRADOSSpec
 
-## Scaling the active server count
 
-It is possible to scale the size of the cluster up or down by modifying
-the spec.server.active field. Scaling the cluster size up can be done at
-will. Once the new server comes up, clients can be assigned to it
-immediately.
 
-The CRD always eliminates the highest index servers first, in reverse
-order from how they were started. Scaling down the cluster requires that
-clients be migrated from servers that will be eliminated to others. That
-process is currently a manual one and should be performed before
-reducing the size of the cluster.
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| pool | Pool is the RADOS pool where NFS client recovery data is stored. | string | true |
+| namespace | Namespace is the RADOS namespace where NFS client recovery data is stored. | string | true |
+
+[Back to TOC](#table-of-contents)
+
+## GaneshaServerSpec
+
+
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| active | The number of active Ganesha servers | int | true |
+| placement | The affinity to place the ganesha pods | rook.Placement | true |
+| annotations | The annotations-related configuration to add/set on each Pod related object. | rook.Annotations | false |
+| resources | Resources set resource requests and limits | [v1.ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#resourcerequirements-v1-core) | false |
+
+[Back to TOC](#table-of-contents)
+
+## NFSGaneshaSpec
+
+NFSGaneshaSpec represents the spec of an nfs ganesha server
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| rados |  | [GaneshaRADOSSpec](#ganesharadosspec) | true |
+| server |  | [GaneshaServerSpec](#ganeshaserverspec) | true |
+
+[Back to TOC](#table-of-contents)

@@ -162,6 +162,14 @@ prune:
 csv-ceph:
 	@cluster/olm/ceph/generate-rook-csv.sh $(CSV_VERSION) $(CSV_PLATFORM) $(ROOK_OP_VERSION)
 
+docs:
+	$(GO) run ./cmd/docgen/ api ./pkg/apis/ceph.rook.io/v1/types_blockpool.go > ./Documentation/ceph-pool-crd.md
+	$(GO) run ./cmd/docgen/ api ./pkg/apis/ceph.rook.io/v1/types_cluster.go > ./Documentation/ceph-cluster-crd.md
+	$(GO) run ./cmd/docgen/ api ./pkg/apis/ceph.rook.io/v1/types_filesystem.go > ./Documentation/ceph-filesystem-crd.md
+	$(GO) run ./cmd/docgen/ api ./pkg/apis/ceph.rook.io/v1/types_objectstore.go > ./Documentation/ceph-object-store-crd.md
+	$(GO) run ./cmd/docgen/ api ./pkg/apis/ceph.rook.io/v1/types_objectstoreuser.go > ./Documentation/ceph-object-store-user-crd.md
+	$(GO) run ./cmd/docgen/ api ./pkg/apis/ceph.rook.io/v1/types_nfs.go > ./Documentation/ceph-nfs-crd.md
+
 .PHONY: all build.common cross.build.parallel
 .PHONY: build build.all install test check vet fmt codegen vendor clean distclean prune
 
