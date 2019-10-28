@@ -158,7 +158,7 @@ spec:
         - name: CSI_CEPHFS_LIVENESS_METRICS_PORT
           value: {{ .Values.csi.cephfsLivenessMetricsPort | quote }}
 {{- end }}
-{{- if .Values.csi.cephfsrbdGrpcMetricsPort }}
+{{- if .Values.csi.rbdGrpcMetricsPort }}
         - name: CSI_RBD_GRPC_METRICS_PORT
           value: {{ .Values.csi.rbdGrpcMetricsPort | quote }}
 {{- end }}
