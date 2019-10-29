@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path"
 	"strconv"
 	"strings"
@@ -37,8 +38,11 @@ import (
 
 // These are not constants because they are used by the tests
 var (
-	cephConfigDir = "/var/lib/ceph"
-	lvmConfPath   = "/etc/lvm/lvm.conf"
+	cephConfigDir         = "/var/lib/ceph"
+	lvmConfPath           = "/etc/lvm/lvm.conf"
+	restoreconPath        = "/usr/sbin/restorecon"
+	restoreconPathNewPath = restoreconPath + ".old"
+	redHatReleaseFile     = "/etc/redhat-release"
 )
 
 const (
@@ -49,6 +53,10 @@ const (
 	dbDeviceFlag         = "--db-devices"
 	cephVolumeCmd        = "ceph-volume"
 	cephVolumeMinDBSize  = 1024 // 1GB
+	restoreconNewContent = `#!/usr/bin/env bash
+echo "restorecon command was replaced with a no-op."
+echo "original restorecon command is now at %s"
+`
 )
 
 func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *DeviceOsdMapping) ([]oposd.OSDInfo, error) {
@@ -72,6 +80,10 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 	// Update LVM configuration file
 	if err := updateLVMConfig(context, a.pvcBacked); err != nil {
 		return nil, fmt.Errorf("failed to update lvm configuration file, %+v", err) // fail return here as validation provided by ceph-volume
+	}
+	// Hide restorecon command, only when hostnetworking is enabled
+	if err := replaceRestoreconCommand(); err != nil {
+		return nil, fmt.Errorf("failed to hide 'restorecon' command. %+v", err)
 	}
 	if a.pvcBacked {
 		if lv, err = a.initializeBlockPVC(context, devices); err != nil {
@@ -163,6 +175,38 @@ func updateLVMConfig(context *clusterd.Context, onPVC bool) error {
 	}
 
 	logger.Info("Successfully updated lvm config file")
+	return nil
+}
+
+func replaceRestoreconCommand() error {
+	// Check if Host Networking is enabled
+	hostnetworking := os.Getenv("ROOK_HOST_NETWORKING")
+	if hostnetworking == "false" {
+		logger.Debugf("ROOK_HOST_NETWORKING is %q, not replacing 'restorecon' command", hostnetworking)
+		return nil
+	}
+
+	// Check whether we are running on RHEL
+	// The existence of /etc/redhat-release should be enough
+	_, err := os.Stat(redHatReleaseFile)
+	if os.IsNotExist(err) {
+		logger.Debugf("%q does not exist, not replacing 'restorecon' command, only doing this on red hat systems", redHatReleaseFile)
+		return nil
+	}
+
+	logger.Debugf("renaming %q to %q", restoreconPath, restoreconPathNewPath)
+	err = os.Rename(restoreconPath, restoreconPathNewPath)
+	if err != nil {
+		return fmt.Errorf("failed to rename %q to %q. %+v", restoreconPath, restoreconPathNewPath, err)
+	}
+
+	logger.Debugf("writing new content to %q", restoreconPath)
+	err = ioutil.WriteFile(restoreconPath, []byte(fmt.Sprintf(restoreconNewContent, restoreconPathNewPath)), 0755)
+	if err != nil {
+		return fmt.Errorf("failed to write new content of restorecon to %q. %+v", restoreconPath, err)
+	}
+
+	logger.Infof("Successfully replaced restorecon command to %q", restoreconPathNewPath)
 	return nil
 }
 
