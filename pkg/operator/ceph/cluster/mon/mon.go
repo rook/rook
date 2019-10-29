@@ -657,8 +657,18 @@ func (c *Cluster) startDeployments(mons []*monConfig, requireAllInQuorum bool) e
 		node, _ := c.mapping.Node[mons[i].DaemonName]
 		err := c.startMon(mons[i], node)
 		if err != nil {
-			return fmt.Errorf("failed to create mon %s. %+v", mons[i].DaemonName, err)
+			if c.isUpgrade {
+				// if we're upgrading, we don't want to risk the health of the cluster by continuing to upgrade
+				// and potentially cause more mons to fail. Therefore, we abort if the mon failed to start after upgrade.
+				return fmt.Errorf("failed to upgrade mon %s. %+v", mons[i].DaemonName, err)
+			}
+			// We will attempt to start all mons, then check for quorum as needed after this. During an operator restart
+			// we need to do everything possible to verify the basic health of a cluster, complete the first orchestration,
+			// and start watching for all the CRs. If mons still have quorum we can continue with the orchestration even
+			// if they aren't all up.
+			logger.Errorf("attempting to continue after failing to start mon %q. %+v", mons[i].DaemonName, err)
 		}
+
 		// For the initial deployment (first creation) it's expected to not have all the monitors in quorum
 		// However, in an event of an update, it's crucial to proceed monitors by monitors
 		// At the end of the method we perform one last check where all the monitors must be in quorum
