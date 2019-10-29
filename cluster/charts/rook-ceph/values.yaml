@@ -138,6 +138,9 @@ hostpathRequiresPrivileged: false
 # Disable automatic orchestration when new devices are discovered.
 disableDeviceHotplug: false
 
+# Blacklist certain disks according to the regex provided. 
+discoverDaemonUdev: 
+
 # imagePullSecrets option allow to pull docker images from private docker registry. Option will be passed to all service accounts.
 # imagePullSecrets:
 # - name: my-registry-secret
