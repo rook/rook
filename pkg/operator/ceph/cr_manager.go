@@ -38,6 +38,7 @@ func (o *Operator) startManager(stopCh <-chan struct{}) {
 	}
 	// options to pass to the controllers
 	controllerOpts := &controllerconfig.Context{
+		RookImage:         o.rookImage,
 		ClusterdContext:   o.context,
 		OperatorNamespace: o.operatorNamespace,
 		ReconcileCanaries: &controllerconfig.LockingBool{},
