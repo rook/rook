@@ -523,7 +523,7 @@ func (h *CephInstaller) purgeClusters() error {
 func (h *CephInstaller) checkCephHealthStatus(namespace string) {
 	clusterResource, err := h.k8shelper.RookClientset.CephV1().CephClusters(namespace).Get(namespace, metav1.GetOptions{})
 	assert.Nil(h.T(), err)
-	assert.Equal(h.T(), "Created", string(clusterResource.Status.State))
+	assert.Equal(h.T(), "Available", string(clusterResource.Status.FinalCondition))
 
 	// Depending on the tests, the health may be fluctuating with different components being started or stopped.
 	// If needed, give it a few seconds to settle and check the status again.

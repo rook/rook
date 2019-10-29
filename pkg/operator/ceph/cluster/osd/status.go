@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"time"
 
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
 	apps "k8s.io/api/apps/v1"
@@ -112,6 +113,87 @@ func parseOrchestrationStatus(data map[string]string) *OrchestrationStatus {
 	}
 
 	return &status
+}
+
+// function to change the condition type to condition expanding
+func (c *Cluster) ConditionExpanding(namespace string, conditions *[]cephv1.RookConditions, reason, message string) {
+	c.setCondition(namespace, conditions, cephv1.RookConditions{
+		Type:    cephv1.ConditionReady,
+		Status:  v1.ConditionFalse,
+		Reason:  "",
+		Message: "",
+	})
+	c.setCondition(namespace, conditions, cephv1.RookConditions{
+		Type:    cephv1.ConditionExpanding,
+		Status:  v1.ConditionTrue,
+		Reason:  reason,
+		Message: message,
+	})
+	c.setCondition(namespace, conditions, cephv1.RookConditions{
+		Type:    cephv1.ConditionNotReady,
+		Status:  v1.ConditionTrue,
+		Reason:  reason,
+		Message: message,
+	})
+}
+
+// function which marks the cluster expanding completion condition
+func (c *Cluster) ConditionReady(namespace string, conditions *[]cephv1.RookConditions, reason, message string) {
+	c.setCondition(namespace, conditions, cephv1.RookConditions{
+		Type:    cephv1.ConditionReady,
+		Status:  v1.ConditionTrue,
+		Reason:  reason,
+		Message: message,
+	})
+	c.setCondition(namespace, conditions, cephv1.RookConditions{
+		Type:    cephv1.ConditionExpanding,
+		Status:  v1.ConditionFalse,
+		Reason:  reason,
+		Message: message,
+	})
+	c.setCondition(namespace, conditions, cephv1.RookConditions{
+		Type:    cephv1.ConditionNotReady,
+		Status:  v1.ConditionFalse,
+		Reason:  "",
+		Message: "",
+	})
+}
+
+// setCondition updates the conditions of the cluster custom resource, whether it is being updated or is complete.
+func (c *Cluster) setCondition(namespace string, conditions *[]cephv1.RookConditions, newCondition cephv1.RookConditions) {
+	if conditions == nil {
+		conditions = &[]cephv1.RookConditions{}
+	}
+	sc := &cephv1.ClusterStatus{}
+	existingCondition := findStatusCondition(*conditions, newCondition.Type)
+	if existingCondition == nil {
+		newCondition.LastTransitionTime = metav1.NewTime(time.Now())
+		newCondition.LastHeartbeatTime = metav1.NewTime(time.Now())
+		*conditions = append(*conditions, newCondition)
+		sc.Condition = *conditions
+		sc.FinalCondition = newCondition.Type
+		sc.Message = newCondition.Message
+		return
+	}
+
+	if existingCondition.Status != newCondition.Status {
+		existingCondition.Status = newCondition.Status
+		if newCondition.Reason != "" {
+			existingCondition.Reason = newCondition.Reason
+			existingCondition.Message = newCondition.Message
+		}
+	}
+	existingCondition.LastHeartbeatTime = metav1.NewTime(time.Now())
+}
+
+//findStatusCondition is used to find the already exisiting Condition Type.
+func findStatusCondition(conditions []cephv1.RookConditions, conditionType cephv1.ConditionType) *cephv1.RookConditions {
+	for i := range conditions {
+		if conditions[i].Type == conditionType {
+			return &conditions[i]
+		}
+	}
+	return nil
 }
 
 func (c *Cluster) completeProvision(config *provisionConfig) bool {
