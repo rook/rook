@@ -256,13 +256,14 @@ func (c *ClusterController) onAdd(obj interface{}) {
 }
 
 func (c *ClusterController) configureExternalCephCluster(namespace, name string, cluster *cluster) error {
+	sc := &cephv1.ClusterStatus{}
 	// Make sure the spec contains all the information we need
 	err := validateExternalClusterSpec(cluster)
 	if err != nil {
 		return fmt.Errorf("failed to validate external cluster specs. %+v", err)
 	}
 
-	c.updateClusterStatus(namespace, name, cephv1.ClusterStateConnecting, "")
+	c.ConditionConnecting(namespace, name, &sc.Condition, "ClusterConnecting", "The Cluster is getting Connected")
 
 	// loop until we find the secret necessary to connect to the external cluster
 	// then populate clusterInfo
@@ -301,7 +302,7 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 	logger.Info("cluster identity established.")
 
 	// Everything went well so let's update the CR's status to "connected"
-	c.updateClusterStatus(namespace, name, cephv1.ClusterStateConnected, "")
+	c.ConditionConnected(namespace, name, &sc.Condition, "ClusterConnected", "The Cluster is now Connected.")
 
 	// Create CSI Secrets
 	err = csi.CreateCSISecrets(c.context, namespace, &cluster.ownerRef)
@@ -316,6 +317,7 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 }
 
 func (c *ClusterController) configureLocalCephCluster(namespace, name string, cluster *cluster, clusterObj *cephv1.CephCluster) error {
+	sc := &cephv1.ClusterStatus{}
 	if cluster.Spec.Mon.Count == 0 {
 		logger.Warningf("mon count should be at least 1, will use default value of %d", mon.DefaultMonCount)
 		cluster.Spec.Mon.Count = mon.DefaultMonCount
@@ -325,7 +327,7 @@ func (c *ClusterController) configureLocalCephCluster(namespace, name string, cl
 	}
 
 	if c.devicesInUse && cluster.Spec.Storage.AnyUseAllDevices() {
-		c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1.ClusterStateError, "using all devices in more than one namespace is not supported")
+		c.ConditionIgnored(clusterObj.Namespace, clusterObj.Name, &sc.Condition, "ClusterIgnored", "using all devices in more than one namespace is not supported")
 		return fmt.Errorf("using all devices in more than one namespace is not supported")
 	}
 
@@ -335,7 +337,6 @@ func (c *ClusterController) configureLocalCephCluster(namespace, name string, cl
 
 	// Start the Rook cluster components. Retry several times in case of failure.
 	failedMessage := ""
-	state := cephv1.ClusterStateError
 
 	err := wait.Poll(clusterCreateInterval, clusterCreateTimeout,
 		func() (bool, error) {
@@ -350,7 +351,7 @@ func (c *ClusterController) configureLocalCephCluster(namespace, name string, cl
 				return false, nil
 			}
 
-			c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1.ClusterStateCreating, "")
+			c.ConditionProgressing(clusterObj.Namespace, clusterObj.Name, &sc.Condition, "ClusterProgressing", "The Cluster is getting created.")
 
 			err = cluster.createInstance(c.rookImage, *cephVersion)
 			if err != nil {
@@ -359,20 +360,24 @@ func (c *ClusterController) configureLocalCephCluster(namespace, name string, cl
 				return false, nil
 			}
 
-			state = cephv1.ClusterStateCreated
+			c.ConditionReady(clusterObj.Namespace, clusterObj.Name, &sc.Condition, "ClusterCreated", "Succesfully Created the Cluster")
 			failedMessage = ""
 			return true, nil
 		})
 
 	if err != nil {
+		c.ConditionFailure(clusterObj.Namespace, clusterObj.Name, &sc.Condition, "ClusterFailure", "Giving up waiting for cluster creating.")
 		return fmt.Errorf("giving up waiting for cluster creating. %+v", err)
 	}
 
-	c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, state, failedMessage)
+	c.ConditionAvailable(clusterObj.Namespace, clusterObj.Name, &sc.Condition, "ClusterAvailabe", "The Cluster is Healthy and Available to use.")
 
-	if state == cephv1.ClusterStateError {
-		// the cluster could not be initialized
-		return fmt.Errorf("failed to initialized the cluster")
+	conditions := []cephv1.RookConditions{}
+	for i := range conditions {
+		if conditions[i].Type == cephv1.ConditionFailure && conditions[i].Status == v1.ConditionTrue {
+			// the cluster could not be initialized
+			return fmt.Errorf("failed to initialize the cluster")
+		}
 	}
 
 	return nil
@@ -380,6 +385,7 @@ func (c *ClusterController) configureLocalCephCluster(namespace, name string, cl
 
 func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *cephv1.CephCluster) {
 	cluster.Spec = &clusterObj.Spec
+	sc := &cephv1.ClusterStatus{}
 
 	// Check if the dataDirHostPath is located in the disallowed paths list
 	cleanDataDirHostPath := path.Clean(cluster.Spec.DataDirHostPath)
@@ -389,6 +395,8 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 			return
 		}
 	}
+
+	c.ConditionInitialize(clusterObj.Namespace, clusterObj.Name, &sc.Condition, "ClusterInitializing", "Started initializing cluster")
 
 	if !cluster.Spec.External.Enable {
 		if err := c.configureLocalCephCluster(clusterObj.Namespace, clusterObj.Name, cluster, clusterObj); err != nil {
@@ -517,6 +525,7 @@ func (c *ClusterController) onK8sNodeUpdate(oldObj, newObj interface{}) {
 }
 
 func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
+	sc := &cephv1.ClusterStatus{}
 	oldClust, err := getClusterObject(oldObj)
 	if err != nil {
 		logger.Errorf("failed to get old cluster object: %+v", err)
@@ -629,6 +638,7 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 				}
 			}
 			// If Ceph is healthy let's start the upgrade!
+			c.ConditionUpgrading(newClust.Namespace, newClust.Name, &sc.Condition, "ClusterUpgrading", "Upgrade in progress")
 			cluster.isUpgrade = true
 		}
 	} else {
@@ -646,13 +656,14 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 		return c.handleUpdate(newClust.Name, cluster)
 	})
 	if err != nil {
-		c.updateClusterStatus(newClust.Namespace, newClust.Name, cephv1.ClusterStateError,
+		c.ConditionFailure(newClust.Namespace, newClust.Name, &sc.Condition, "ClusterUpdateFailure",
 			fmt.Sprintf("giving up trying to update cluster in namespace %s after %s. %+v", cluster.Namespace, updateClusterTimeout, err))
 		return
 	}
 
 	// Display success after upgrade
 	if versionChanged {
+		c.ConditionAvailable(newClust.Namespace, newClust.Name, &sc.Condition, "ClusterAvailable", "Cluster Upgrade succesfully done")
 		printOverallCephVersion(c.context, cluster.Namespace)
 	}
 }
@@ -669,15 +680,15 @@ func (c *ClusterController) detectAndValidateCephVersion(cluster *cluster, image
 }
 
 func (c *ClusterController) handleUpdate(crdName string, cluster *cluster) (bool, error) {
-	c.updateClusterStatus(cluster.Namespace, crdName, cephv1.ClusterStateUpdating, "")
+	sc := &cephv1.ClusterStatus{}
+	c.ConditionUpdating(cluster.Namespace, crdName, &sc.Condition, "ClusterUpdating", "Cluster is getting Updated")
 
 	if err := cluster.createInstance(c.rookImage, cluster.Info.CephVersion); err != nil {
 		logger.Errorf("failed to update cluster in namespace %s. %+v", cluster.Namespace, err)
 		return false, nil
 	}
 
-	c.updateClusterStatus(cluster.Namespace, crdName, cephv1.ClusterStateCreated, "")
-
+	c.ConditionReady(cluster.Namespace, crdName, &sc.Condition, "ClusterUpdated", "Cluster Updated succesfully")
 	logger.Infof("succeeded updating cluster in namespace %s", cluster.Namespace)
 	return true, nil
 }
@@ -1002,23 +1013,48 @@ func (c *ClusterController) removeFinalizer(obj interface{}) {
 	logger.Warningf("giving up from removing the %s cluster finalizer", finalizerName)
 }
 
-// updateClusterStatus updates the status of the cluster custom resource, whether it is being updated or is completed
-func (c *ClusterController) updateClusterStatus(namespace, name string, state cephv1.ClusterState, message string) {
-	logger.Infof("CephCluster %s status: %s. %s", namespace, state, message)
-
-	// get the most recent cluster CRD object
+// setCondition updates the conditions of the cluster custom resource, whether it is being updated or is complete.
+func (c *ClusterController) SetCondition(namespace, name string, conditions *[]cephv1.RookConditions, newCondition cephv1.RookConditions) {
 	cluster, err := c.context.RookClientset.CephV1().CephClusters(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
-		logger.Errorf("failed to get cluster from namespace %s prior to updating its status to %s. %+v", namespace, state, err)
+		logger.Errorf("failed to get cluster from namespace %s prior to updating its condition to %s. %+v", namespace, newCondition.Type, err)
+	}
+	if conditions == nil {
+		conditions = &[]cephv1.RookConditions{}
+	}
+	existingCondition := FindStatusCondition(*conditions, newCondition.Type)
+	if existingCondition == nil {
+		newCondition.LastTransitionTime = metav1.NewTime(time.Now())
+		newCondition.LastHeartbeatTime = metav1.NewTime(time.Now())
+		*conditions = append(*conditions, newCondition)
+		cluster.Status.Condition = *conditions
+		cluster.Status.FinalCondition = newCondition.Type
+		cluster.Status.Message = newCondition.Message
+		if _, err := c.context.RookClientset.CephV1().CephClusters(namespace).Update(cluster); err != nil {
+			logger.Errorf("failed to update cluster %s condition: %+v", namespace, err)
+		}
+		return
 	}
 
-	// update the status on the retrieved cluster object
-	// do not overwrite the ceph status that is updated in a separate goroutine
-	cluster.Status.State = state
-	cluster.Status.Message = message
-	if _, err := c.context.RookClientset.CephV1().CephClusters(namespace).Update(cluster); err != nil {
-		logger.Errorf("failed to update cluster %s status: %+v", namespace, err)
+	if existingCondition.Status != newCondition.Status {
+		existingCondition.Status = newCondition.Status
+		existingCondition.LastTransitionTime = metav1.NewTime(time.Now())
+		if newCondition.Reason != "" {
+			existingCondition.Reason = newCondition.Reason
+			existingCondition.Message = newCondition.Message
+			existingCondition.LastHeartbeatTime = metav1.NewTime(time.Now())
+		}
 	}
+}
+
+//FindStatusCondition is used to find the already exisiting Condition Type.
+func FindStatusCondition(conditions []cephv1.RookConditions, conditionType cephv1.ConditionType) *cephv1.RookConditions {
+	for i := range conditions {
+		if conditions[i].Type == conditionType {
+			return &conditions[i]
+		}
+	}
+	return nil
 }
 
 func ClusterOwnerRef(clusterName, clusterID string) metav1.OwnerReference {
