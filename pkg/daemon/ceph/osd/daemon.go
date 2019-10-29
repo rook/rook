@@ -58,7 +58,7 @@ func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID, lvPath string,
 	}
 
 	// Hide restorecon command, only when hostnetworking is enabled
-	if err := hideRestoreconCommand(context); err != nil {
+	if err := replaceRestoreconCommand(); err != nil {
 		return fmt.Errorf("failed to hide 'restorecon' command. %+v", err)
 	}
 
