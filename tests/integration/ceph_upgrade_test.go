@@ -83,7 +83,7 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	logger.Infof("Initializing block before the upgrade")
 	setupBlockLite(s.helper, s.k8sh, s.Suite, s.namespace, poolName, storageClassName, blockName, podName, s.op.installer.CephVersion)
 	createPodWithBlock(s.helper, s.k8sh, s.Suite, s.namespace, blockName, podName)
-	defer blockTestDataCleanUp(s.helper, s.k8sh, s.namespace, poolName, storageClassName, blockName, podName)
+	defer blockTestDataCleanUp(s.helper, s.k8sh, s.Suite, s.namespace, poolName, storageClassName, blockName, podName)
 
 	logger.Infof("Initializing file before the upgrade")
 	filesystemName := "upgrade-test-fs"
