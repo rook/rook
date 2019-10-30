@@ -146,7 +146,7 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 			ObjectMeta: metav1.ObjectMeta{Labels: deploymentLabels},
 			Spec: corev1.PodSpec{
 				NodeSelector: nodeSelector,
-				Containers:   newDoNothingContainers(),
+				Containers:   newDoNothingContainers(r.context.RookImage),
 				Tolerations:  tolerationMapToList(uniqueTolerations),
 			},
 		}
@@ -174,11 +174,11 @@ func tolerationMapToList(tolerationMap map[corev1.Toleration]struct{}) []corev1.
 }
 
 // returns a container that does nothing
-func newDoNothingContainers() []corev1.Container {
+func newDoNothingContainers(rookImage string) []corev1.Container {
 	return []corev1.Container{{
-		Image:   "busybox",
-		Name:    "busybox",
-		Command: []string{"bin/sh"},
-		Args:    []string{"-c", "sleep infinity"},
+		Image:   rookImage,
+		Name:    "sleep",
+		Command: []string{"/tini"},
+		Args:    []string{"--", "sleep", "infinity"},
 	}}
 }

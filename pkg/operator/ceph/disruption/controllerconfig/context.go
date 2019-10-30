@@ -25,6 +25,7 @@ import (
 // Context passed to the controller when associating it with the manager.
 type Context struct {
 	ClusterdContext   *clusterd.Context
+	RookImage         string
 	OperatorNamespace string
 	ReconcileCanaries *LockingBool
 }
