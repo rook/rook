@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package nodedrain
+package controllerconfig
 
 import (
 	"testing"
@@ -24,8 +24,68 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func TestCanaryTolerations(t *testing.T) {
-	uniqueTolerationsManual := []corev1.Toleration{
+func TestTolerationSet(t *testing.T) {
+	uniqueTolerationsManualA := []corev1.Toleration{
+		// key1
+		//   exists
+		{
+			Key:      "key1",
+			Operator: corev1.TolerationOpExists,
+			Effect:   corev1.TaintEffectNoSchedule,
+		},
+		{
+			Key:      "key1",
+			Operator: corev1.TolerationOpExists,
+			Effect:   corev1.TaintEffectPreferNoSchedule,
+		},
+		//   equals with different values
+		{
+			Key:      "key1",
+			Operator: corev1.TolerationOpEqual,
+			Value:    "value1",
+			Effect:   corev1.TaintEffectNoSchedule,
+		},
+		{
+			Key:      "key1",
+			Operator: corev1.TolerationOpEqual,
+			Value:    "value2",
+			Effect:   corev1.TaintEffectNoSchedule,
+		},
+
+		//   with different effects
+		{
+			Key:      "key1",
+			Operator: corev1.TolerationOpEqual,
+			Value:    "value2",
+			Effect:   corev1.TaintEffectNoExecute,
+		},
+		// key2
+		{
+			Key:      "key2",
+			Operator: corev1.TolerationOpExists,
+			Effect:   corev1.TaintEffectNoSchedule,
+		},
+		{
+			Key:      "key2",
+			Operator: corev1.TolerationOpEqual,
+			Value:    "value1",
+			Effect:   corev1.TaintEffectNoSchedule,
+		},
+		{
+			Key:      "key2",
+			Operator: corev1.TolerationOpEqual,
+			Value:    "value2",
+			Effect:   corev1.TaintEffectNoSchedule,
+		},
+		{
+			Key:      "key2",
+			Operator: corev1.TolerationOpEqual,
+			Value:    "value2",
+			Effect:   corev1.TaintEffectNoExecute,
+		},
+	}
+	//identical to uniqueTolerationsManualA
+	uniqueTolerationsManualB := []corev1.Toleration{
 		// key1
 		//   exists
 		{
@@ -86,25 +146,25 @@ func TestCanaryTolerations(t *testing.T) {
 	}
 
 	tolerationsWithDuplicates := make([]corev1.Toleration, 0)
-	for i := range uniqueTolerationsManual {
-		tolerationsWithDuplicates = append(tolerationsWithDuplicates, uniqueTolerationsManual[i])
+	for i := range uniqueTolerationsManualA {
+		tolerationsWithDuplicates = append(tolerationsWithDuplicates, uniqueTolerationsManualA[i])
 
 		//append the previous one again if it's within range, else append the last one
 		if i > 0 {
-			tolerationsWithDuplicates = append(tolerationsWithDuplicates, uniqueTolerationsManual[i-1])
+			tolerationsWithDuplicates = append(tolerationsWithDuplicates, uniqueTolerationsManualB[i-1])
 		} else {
-			tolerationsWithDuplicates = append(tolerationsWithDuplicates, uniqueTolerationsManual[len(uniqueTolerationsManual)-1])
+			tolerationsWithDuplicates = append(tolerationsWithDuplicates, uniqueTolerationsManualB[len(uniqueTolerationsManualB)-1])
 		}
 	}
-	uniqueTolerationsMap := make(map[corev1.Toleration]struct{})
+	uniqueTolerationsMap := &TolerationSet{}
 	for _, toleration := range tolerationsWithDuplicates {
-		uniqueTolerationsMap[toleration] = struct{}{}
+		uniqueTolerationsMap.Add(toleration)
 	}
 
-	uniqueTolerations := tolerationMapToList(uniqueTolerationsMap)
+	uniqueTolerations := uniqueTolerationsMap.ToList()
 
-	assert.Equal(t, len(uniqueTolerationsManual), len(uniqueTolerations))
-	for _, tolerationI := range uniqueTolerationsManual {
+	assert.Equal(t, len(uniqueTolerationsManualA), len(uniqueTolerations))
+	for _, tolerationI := range uniqueTolerationsManualA {
 		found := false
 		for _, tolerationJ := range uniqueTolerations {
 			if tolerationI == tolerationJ {
