@@ -54,7 +54,12 @@ func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID, lvPath string,
 
 	// Update LVM config at runtime
 	if err := updateLVMConfig(context, pvcBackedOSD); err != nil {
-		return fmt.Errorf("sed failure, %+v", err) // fail return here as validation provided by ceph-volume
+		return fmt.Errorf("failed to update lvm configuration file, %+v", err) // fail return here as validation provided by ceph-volume
+	}
+
+	// Hide restorecon command, only when hostnetworking is enabled
+	if err := replaceRestoreconCommand(); err != nil {
+		return fmt.Errorf("failed to hide 'restorecon' command. %+v", err)
 	}
 
 	var volumeGroupName string
