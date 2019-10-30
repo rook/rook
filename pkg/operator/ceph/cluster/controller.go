@@ -719,6 +719,10 @@ func (c *ClusterController) onDeviceCMUpdate(oldObj, newObj interface{}) {
 			logger.Infof("Cluster %s is not ready. Skipping orchestration on device change", cluster.Namespace)
 			continue
 		}
+		if len(cluster.Spec.Storage.StorageClassDeviceSets) > 0 {
+			logger.Info("skip orchestration on device config map update for OSDs on PVC")
+			continue
+		}
 		logger.Infof("Running orchestration for namespace %s after device change", cluster.Namespace)
 		err := cluster.createInstance(c.rookImage, cluster.Info.CephVersion)
 		if err != nil {
