@@ -90,22 +90,39 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 	}
 
 	// map with tolerations as keys and empty struct as values for uniqueness
-	uniqueTolerations := make(map[corev1.Toleration]struct{})
+	uniqueTolerations := controllerconfig.TolerationSet{}
+
 	occupiedByOSD := false
 	for _, osdPod := range osdPodList.Items {
 		if osdPod.Spec.NodeName == request.Name {
+			labels := osdPod.GetLabels()
+			deploymentList := &appsv1.DeploymentList{}
+			labelSelector := map[string]string{
+				osd.OsdIdLabelKey: labels[osd.OsdIdLabelKey],
+				k8sutil.AppAttr:   osd.AppName,
+			}
+			var deployment appsv1.Deployment
+			err := r.client.List(context.TODO(), deploymentList, client.MatchingLabels(labelSelector), client.InNamespace(osdPod.GetNamespace()))
+			if err != nil || len(deploymentList.Items) < 1 {
+				logger.Errorf("Cannot find deployment for osd id %s in namespace %s", labels[osd.OsdIdLabelKey], osdPod.GetNamespace())
+			} else {
+				deployment = deploymentList.Items[0]
+			}
+			if len(deploymentList.Items) > 1 {
+				logger.Errorf("Found multiple deployments for osd id %s in namespace %s: %+v", labels[osd.OsdIdLabelKey], osdPod.GetNamespace(), deploymentList)
+			}
+
 			occupiedByOSD = true
 			// get the osd tolerations
-			for _, osdToleration := range osdPod.Spec.Tolerations {
+			for _, osdToleration := range deployment.Spec.Template.Spec.Tolerations {
 				if osdToleration.Key == "node.kubernetes.io/unschedulable" {
-					labels := osdPod.GetLabels()
 					logger.Errorf(
 						"osd %s in namespace %s tolerates the drain taint, but the drain canary will not.",
 						labels[osd.OsdIdLabelKey],
 						labels[k8sutil.ClusterAttr],
 					)
 				} else {
-					uniqueTolerations[osdToleration] = struct{}{}
+					uniqueTolerations.Add(osdToleration)
 				}
 			}
 		}
@@ -147,7 +164,7 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 			Spec: corev1.PodSpec{
 				NodeSelector: nodeSelector,
 				Containers:   newDoNothingContainers(r.context.RookImage),
-				Tolerations:  tolerationMapToList(uniqueTolerations),
+				Tolerations:  uniqueTolerations.ToList(),
 			},
 		}
 
@@ -163,14 +180,6 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 		logger.Debugf("not watching for drains on node %s as there are no osds running there.", request.Name)
 	}
 	return reconcile.Result{}, nil
-}
-
-func tolerationMapToList(tolerationMap map[corev1.Toleration]struct{}) []corev1.Toleration {
-	tolerationList := make([]corev1.Toleration, 0)
-	for toleration := range tolerationMap {
-		tolerationList = append(tolerationList, toleration)
-	}
-	return tolerationList
 }
 
 // returns a container that does nothing
