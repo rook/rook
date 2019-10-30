@@ -71,7 +71,7 @@ func testDeploymentObject(network cephv1.NetworkSpec) *apps.Deployment {
 		},
 		fs,
 		&client.CephFilesystemDetails{ID: 15},
-		[]metav1.OwnerReference{{}},
+		metav1.OwnerReference{},
 		"/var/lib/rook/",
 		false,
 	)

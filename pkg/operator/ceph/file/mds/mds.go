@@ -58,7 +58,7 @@ type Cluster struct {
 	clusterSpec     *cephv1.ClusterSpec
 	fs              cephv1.CephFilesystem
 	fsID            string
-	ownerRefs       []metav1.OwnerReference
+	ownerRef        metav1.OwnerReference
 	dataDirHostPath string
 	isUpgrade       bool
 }
@@ -77,7 +77,7 @@ func NewCluster(
 	clusterSpec *cephv1.ClusterSpec,
 	fs cephv1.CephFilesystem,
 	fsdetails *client.CephFilesystemDetails,
-	ownerRefs []metav1.OwnerReference,
+	ownerRef metav1.OwnerReference,
 	dataDirHostPath string,
 	isUpgrade bool,
 ) *Cluster {
@@ -88,7 +88,7 @@ func NewCluster(
 		clusterSpec:     clusterSpec,
 		fs:              fs,
 		fsID:            strconv.Itoa(fsdetails.ID),
-		ownerRefs:       ownerRefs,
+		ownerRef:        ownerRef,
 		dataDirHostPath: dataDirHostPath,
 		isUpgrade:       isUpgrade,
 	}
@@ -135,6 +135,12 @@ func (c *Cluster) Start() error {
 			DataPathMap:  config.NewStatelessDaemonDataPathMap(config.MdsType, daemonName, c.fs.Namespace, c.dataDirHostPath),
 		}
 
+		// create unique key for each mds saved to k8s secret
+		keyring, err := c.generateKeyring(mdsConfig)
+		if err != nil {
+			return fmt.Errorf("failed to generate keyring for %q. %+v", resourceName, err)
+		}
+
 		// start the deployment
 		d := c.makeDeployment(mdsConfig)
 		logger.Debugf("starting mds: %+v", d)
@@ -149,10 +155,11 @@ func (c *Cluster) Start() error {
 				return fmt.Errorf("failed to get existing mds deployment %s for update: %+v", d.Name, err)
 			}
 		}
-		// create unique key for each mds saved to k8s secret
-		if err := c.generateKeyring(mdsConfig, createdDeployment.UID); err != nil {
-			return fmt.Errorf("failed to generate keyring for %s. %+v", resourceName, err)
+
+		if err := c.associateKeyring(keyring, createdDeployment); err != nil {
+			logger.Warningf("failed to associate keyring with deployment for %q. %+v", resourceName, err)
 		}
+
 		// keyring must be generated before update-and-wait since no keyring will prevent the
 		// deployment from reaching ready state
 		if createErr != nil && errors.IsAlreadyExists(createErr) {

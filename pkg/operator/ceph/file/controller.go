@@ -122,7 +122,7 @@ func (c *FilesystemController) onAdd(obj interface{}) {
 		}
 	}
 
-	err = createFilesystem(c.clusterInfo, c.context, *filesystem, c.rookVersion, c.clusterSpec, c.filesystemOwners(filesystem), c.clusterSpec.DataDirHostPath, c.isUpgrade)
+	err = createFilesystem(c.clusterInfo, c.context, *filesystem, c.rookVersion, c.clusterSpec, c.filesystemOwner(filesystem), c.clusterSpec.DataDirHostPath, c.isUpgrade)
 	if err != nil {
 		logger.Errorf("failed to create filesystem %s: %+v", filesystem.Name, err)
 	}
@@ -155,7 +155,7 @@ func (c *FilesystemController) onUpdate(oldObj, newObj interface{}) {
 
 	// if the filesystem is modified, allow the filesystem to be created if it wasn't already
 	logger.Infof("updating filesystem %s", newFS.Name)
-	err = createFilesystem(c.clusterInfo, c.context, *newFS, c.rookVersion, c.clusterSpec, c.filesystemOwners(newFS), c.clusterSpec.DataDirHostPath, c.isUpgrade)
+	err = createFilesystem(c.clusterInfo, c.context, *newFS, c.rookVersion, c.clusterSpec, c.filesystemOwner(newFS), c.clusterSpec.DataDirHostPath, c.isUpgrade)
 	if err != nil {
 		logger.Errorf("failed to create (modify) filesystem %s: %+v", newFS.Name, err)
 	}
@@ -183,7 +183,7 @@ func (c *FilesystemController) ParentClusterChanged(cluster cephv1.ClusterSpec, 
 	}
 	for _, fs := range filesystems.Items {
 		logger.Infof("updating the ceph version for filesystem %s to %s", fs.Name, c.clusterSpec.CephVersion.Image)
-		err = createFilesystem(c.clusterInfo, c.context, fs, c.rookVersion, c.clusterSpec, c.filesystemOwners(&fs), c.clusterSpec.DataDirHostPath, c.isUpgrade)
+		err = createFilesystem(c.clusterInfo, c.context, fs, c.rookVersion, c.clusterSpec, c.filesystemOwner(&fs), c.clusterSpec.DataDirHostPath, c.isUpgrade)
 		if err != nil {
 			logger.Errorf("failed to update filesystem %s. %+v", fs.Name, err)
 		} else {
@@ -213,14 +213,14 @@ func (c *FilesystemController) onDelete(obj interface{}) {
 	}
 }
 
-func (c *FilesystemController) filesystemOwners(fs *cephv1.CephFilesystem) []metav1.OwnerReference {
+func (c *FilesystemController) filesystemOwner(fs *cephv1.CephFilesystem) metav1.OwnerReference {
 	// Set the filesystem CR as the owner
-	return []metav1.OwnerReference{{
+	return metav1.OwnerReference{
 		APIVersion: fmt.Sprintf("%s/%s", FilesystemResource.Group, FilesystemResource.Version),
 		Kind:       FilesystemResource.Kind,
 		Name:       fs.Name,
 		UID:        fs.UID,
-	}}
+	}
 }
 
 func filesystemChanged(oldFS, newFS cephv1.FilesystemSpec) bool {
