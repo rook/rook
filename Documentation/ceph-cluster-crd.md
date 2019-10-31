@@ -136,7 +136,7 @@ For more details on the mons and when to choose a number other than `3`, see the
   - `osdMaintenanceTimeout`: is a duration in minutes that determines how long an entire failureDomain like `region/zone/host` will be held in `noout` (in addition to the default DOWN/OUT interval) when it is draining. This is only relevant when  `managePodBudgets` is `true`. The default value is `30` minutes.
   - `manageMachineDisruptionBudgets`: if `true`, the operator will create and manage MachineDisruptionBudgets to ensure OSDs are only fenced when the cluster is healthy. Only available on OpenShift.
   - `machineDisruptionBudgetNamespace`: the namespace in which to watch the MachineDisruptionBudgets.
-- `removeOSDsIfOutAndSafeToRemove`: If `true` the operator will remove the OSDs that are down and whose data has been restored to other OSDs. In Ceph terms, the osds are `out` and `safe-to-destroy` when then would be removed. 
+- `removeOSDsIfOutAndSafeToRemove`: If `true` the operator will remove the OSDs that are down and whose data has been restored to other OSDs. In Ceph terms, the osds are `out` and `safe-to-destroy` when then would be removed.
 
 ### Mon Settings
 
@@ -506,10 +506,69 @@ spec:
           memory: "4096Mi"
 ```
 
-### Custom Location Information On Node Level
-For each individual node a `location` can be configured. The provided information is fed directly into the CRUSH map of Ceph. More information on CRUSH maps can be found in the [ceph docs](http://docs.ceph.com/docs/master/rados/operations/crush-map/).
+### Custom Location Information for OSDs
 
-**HINT** When setting this prior to `CephCluster` creation, these settings take immediate effect. However, applying this to an already deployed `CephCluster` requires removing each node from the cluster first and then re-adding it with new configuration to take effect. Do this node by node to keep your data safe! Check the result with `ceph osd tree` from the [Rook Toolbox](ceph-toolbox.md). The OSD tree should display the location hierarchy for the nodes that already have been re-added.
+The topology of the cluster is important in production environments where you want your data spread across failure domains. The topology
+can be controlled by adding labels to the nodes. When the labels are found on a node at first OSD deployment, Rook will add them to
+the desired level in the [CRUSH map](http://docs.ceph.com/docs/master/rados/operations/crush-map/).
+
+The complete list of labels in hierarchy order from highest to lowest is:
+```
+failure-domain.beta.kubernetes.io/region
+failure-domain.beta.kubernetes.io/zone
+topology.rook.io/datacenter
+topology.rook.io/room
+topology.rook.io/pod
+topology.rook.io/pdu
+topology.rook.io/row
+topology.rook.io/rack
+topology.rook.io/chassis
+```
+
+For example, if the following labels were added to a node:
+```console
+kubectl label node mynode failure-domain.beta.kubernetes.io/zone=zone1
+kubectl label node mynode topology.rook.io/rack=rack1
+```
+
+These labels would result in the following hierarchy for OSDs on that node (this command can be run in the Rook toolbox):
+```console
+[root@mynode /]# ceph osd tree
+ID CLASS WEIGHT  TYPE NAME                 STATUS REWEIGHT PRI-AFF
+-1       0.01358 root default
+-5       0.01358     zone zone1
+-4       0.01358         rack rack1
+-3       0.01358             host mynode
+ 0   hdd 0.00679                 osd.0         up  1.00000 1.00000
+ 1   hdd 0.00679                 osd.1         up  1.00000 1.00000
+```
+
+Note that the `host` is added automatically to the hierarchy by Rook. The host cannot be specified with a topology label.
+All topology labels are optional.
+
+**HINT** When setting the node labels prior to `CephCluster` creation, these settings take immediate effect. However, applying this to an already deployed `CephCluster` requires removing each node from the cluster first and then re-adding it with new configuration to take effect. Do this node by node to keep your data safe! Check the result with `ceph osd tree` from the [Rook Toolbox](ceph-toolbox.md). The OSD tree should display the location hierarchy for the nodes that already have been re-added.
+
+To utilize the `failureDomain` based on the node labels, specify the corresponding option in the [CephBlockPool](ceph-pool-crd.md)
+
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: replicapool
+  namespace: rook-ceph
+spec:
+  failureDomain: rack        # this uses the location setting from the CephCluster
+  replicated:
+    size: 3
+```
+
+This configuration will split the replication of volumes across unique
+racks in the data center setup.
+
+#### Custom Location in the Cluster CR (Deprecated)
+
+For each individual node a `location` can be configured in the cluster CR. This method is deprecated and will be removed in the next release when the `topologyAware` flag
+becomes the default. At that point, the node labels described previously will always be used and the `location` in the cluster CR will be ignored.
 
 This example assumes that there are 3 unique racks (`rack1`, `rack2`, `rack3`) in a data center to use as failure domains.
 
@@ -554,23 +613,6 @@ spec:
       - name: "sdb"
       - name: "sdc"
 ```
-
-To utilize the `location` as a `failureDomain`, specify the corresponding option in the [CephBlockPool](ceph-pool-crd.md)
-
-```yaml
-apiVersion: ceph.rook.io/v1
-kind: CephBlockPool
-metadata:
-  name: replicapool
-  namespace: rook-ceph
-spec:
-  failureDomain: rack        # this uses the location setting from the CephCluster
-  replicated:
-    size: 3
-```
-
-This configuration will split the replication of volumes across unique
-racks in the data center setup.
 
 ### Using PVC storage for monitors
 

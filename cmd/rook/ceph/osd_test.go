@@ -17,6 +17,7 @@ limitations under the License.
 package ceph
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -77,4 +78,44 @@ func TestParseDesiredDevices(t *testing.T) {
 	assert.False(t, result[2].IsFilter)
 	assert.False(t, result[3].IsFilter)
 
+}
+
+func TestDetectCrushLocation(t *testing.T) {
+	location := []string{"host=foo"}
+	nodeLabels := map[string]string{}
+
+	// no change to the location if there are no labels
+	updateLocationWithNodeLabels(&location, nodeLabels)
+	assert.Equal(t, 1, len(location))
+	assert.Equal(t, "host=foo", location[0])
+
+	// no change to the location if an invalid label or invalid topology
+	nodeLabels = map[string]string{
+		"topology.rook.io/foo":          "bar",
+		"invalid.topology.rook.io/rack": "r1",
+		"topology.rook.io/zone":         "z1",
+	}
+	updateLocationWithNodeLabels(&location, nodeLabels)
+	assert.Equal(t, 1, len(location))
+	assert.Equal(t, "host=foo", location[0])
+
+	// update the location with valid topology labels
+	nodeLabels = map[string]string{
+		"failure-domain.beta.kubernetes.io/region": "region1",
+		"failure-domain.beta.kubernetes.io/zone":   "zone1",
+		"topology.rook.io/rack":                    "rack1",
+		"topology.rook.io/row":                     "row1",
+	}
+	updateLocationWithNodeLabels(&location, nodeLabels)
+	assert.Equal(t, 5, len(location))
+	assert.Equal(t, "host=foo", location[0])
+	assert.Equal(t, "zone=zone1", location[1])
+	assert.Equal(t, "region=region1", location[2])
+	if strings.HasPrefix(location[3], "rack") {
+		assert.Equal(t, "rack=rack1", location[3])
+		assert.Equal(t, "row=row1", location[4])
+	} else {
+		assert.Equal(t, "rack=rack1", location[4])
+		assert.Equal(t, "row=row1", location[3])
+	}
 }

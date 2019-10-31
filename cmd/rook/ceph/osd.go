@@ -151,7 +151,7 @@ func startOSD(cmd *cobra.Command, args []string) error {
 	context := createContext()
 
 	// Get crush location
-	crushLocation, err := getLocation(context.Clientset, cfg.location, cfg.topologyAware)
+	crushLocation, err := getLocation(context.Clientset, cfg.topologyAware)
 	if err != nil {
 		rook.TerminateFatal(err)
 	}
@@ -209,7 +209,7 @@ func writeOSDConfig(cmd *cobra.Command, args []string) error {
 
 	context := createContext()
 	commonOSDInit(osdConfigCmd)
-	crushLocation, err := getLocation(context.Clientset, cfg.location, cfg.topologyAware)
+	crushLocation, err := getLocation(context.Clientset, cfg.topologyAware)
 	if err != nil {
 		rook.TerminateFatal(err)
 	}
@@ -251,7 +251,7 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 
 	context := createContext()
 	commonOSDInit(provisionCmd)
-	crushLocation, err := getLocation(context.Clientset, cfg.location, cfg.topologyAware)
+	crushLocation, err := getLocation(context.Clientset, cfg.topologyAware)
 	if err != nil {
 		rook.TerminateFatal(err)
 	}
@@ -286,8 +286,14 @@ func commonOSDInit(cmd *cobra.Command) {
 	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
 }
 
-func getLocation(clientset kubernetes.Interface, location string, topologyAware bool) (string, error) {
-	locArgs, err := client.FormatLocation(cfg.location, cfg.nodeName)
+func getLocation(clientset kubernetes.Interface, topologyAware bool) (string, error) {
+	// Format the basic location properties, then detect the node labels below
+	initialLocation := cfg.location
+	if cfg.topologyAware {
+		// If topology aware, we will detect the node labels rather than allowing them to be specified in the cluster CR
+		initialLocation = ""
+	}
+	locArgs, err := client.FormatLocation(initialLocation, cfg.nodeName)
 	if err != nil {
 		return "", fmt.Errorf("invalid location. %+v", err)
 	}
@@ -299,20 +305,48 @@ func getLocation(clientset kubernetes.Interface, location string, topologyAware 
 			return "", fmt.Errorf("topologyAware is set, but could not get the node: %+v", err)
 		}
 		nodeLabels := node.GetLabels()
-		// get zone
-		zone, ok := nodeLabels[corev1.LabelZoneFailureDomain]
-		if ok {
-			client.UpdateCrushMapValue(&locArgs, "zone", client.NormalizeCrushName(zone))
-		}
-		// get region
-		region, ok := nodeLabels[corev1.LabelZoneRegion]
-		if ok {
-			client.UpdateCrushMapValue(&locArgs, "region", client.NormalizeCrushName(region))
-		}
-
+		updateLocationWithNodeLabels(&locArgs, nodeLabels)
 	}
 
-	return strings.Join(locArgs, " "), nil
+	loc := strings.Join(locArgs, " ")
+	logger.Infof("CRUSH location=%s", loc)
+	return loc, nil
+}
+
+func updateLocationWithNodeLabels(location *[]string, nodeLabels map[string]string) {
+	// get zone
+	zone, ok := nodeLabels[corev1.LabelZoneFailureDomain]
+	if ok {
+		client.UpdateCrushMapValue(location, "zone", client.NormalizeCrushName(zone))
+	}
+	// get region
+	region, ok := nodeLabels[corev1.LabelZoneRegion]
+	if ok {
+		client.UpdateCrushMapValue(location, "region", client.NormalizeCrushName(region))
+	}
+
+	// get the labels corresponding to other levels the CRUSH map such as topology.rook.io/rack
+	for label, value := range nodeLabels {
+		if strings.HasPrefix(label, k8sutil.TopologyLabelPrefix) {
+			keys := strings.Split(label, "/")
+			if len(keys) != 2 {
+				logger.Warningf("ignored invalid node label %q", label)
+				continue
+			}
+			crushType := keys[1]
+			validDomain := false
+			for _, domain := range oposd.CRUSHTopologyLabels {
+				if domain == crushType {
+					validDomain = true
+					client.UpdateCrushMapValue(location, crushType, client.NormalizeCrushName(value))
+					break
+				}
+			}
+			if !validDomain {
+				logger.Warningf("ignored invalid crush type %q in label %q", crushType, label)
+			}
+		}
+	}
 }
 
 // getNode will try to get the node object for the provided nodeName
