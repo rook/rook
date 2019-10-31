@@ -109,17 +109,25 @@ func generateCephXUser(name string) string {
 	return "client" + strings.Replace(user, "-", ".", -1)
 }
 
-func (c *clusterConfig) generateKeyring(replicationControllerOwnerRef *metav1.OwnerReference) error {
-	user := generateCephXUser(replicationControllerOwnerRef.Name)
+func (c *clusterConfig) generateKeyring(rgwConfig *rgwConfig) (string, error) {
+	user := generateCephXUser(rgwConfig.ResourceName)
 	/* TODO: this says `osd allow rwx` while template says `osd allow *`; which is correct? */
 	access := []string{"osd", "allow rwx", "mon", "allow rw"}
-	s := keyring.GetSecretStore(c.context, c.store.Namespace, replicationControllerOwnerRef)
+	s := keyring.GetSecretStore(c.context, c.store.Namespace, &c.ownerRef)
 
 	key, err := s.GenerateKey(user, access)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	keyring := fmt.Sprintf(keyringTemplate, user, key)
-	return s.CreateOrUpdate(replicationControllerOwnerRef.Name, keyring)
+	return keyring, s.CreateOrUpdate(rgwConfig.ResourceName, keyring)
+}
+
+func (c *clusterConfig) associateKeyring(existingKeyring string, ownerRef *metav1.OwnerReference) error {
+	resourceName := ownerRef.Name
+
+	s := keyring.GetSecretStore(c.context, c.store.Namespace, ownerRef)
+
+	return s.CreateOrUpdate(resourceName, existingKeyring)
 }

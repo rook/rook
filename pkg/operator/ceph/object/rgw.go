@@ -40,7 +40,7 @@ type clusterConfig struct {
 	store             cephv1.CephObjectStore
 	rookVersion       string
 	clusterSpec       *cephv1.ClusterSpec
-	ownerRefs         []metav1.OwnerReference
+	ownerRef          metav1.OwnerReference
 	DataPathMap       *config.DataPathMap
 	isUpgrade         bool
 	skipUpgradeChecks bool
@@ -116,6 +116,13 @@ func (c *clusterConfig) startRGWPods() error {
 			DaemonID:     daemonName,
 		}
 
+		// Generate the keyring after starting the replication controller so that the keyring may use
+		// the controller as its owner reference; the keyring is deleted with the controller
+		keyring, err := c.generateKeyring(rgwConfig)
+		if err != nil {
+			return fmt.Errorf("failed to create rgw keyring. %+v", err)
+		}
+
 		deployment := c.createDeployment(rgwConfig)
 		logger.Infof("object store %s deployment %s started", c.store.Name, deployment.Name)
 		createdDeployment, createErr := c.context.Clientset.AppsV1().Deployments(c.store.Namespace).Create(deployment)
@@ -137,11 +144,9 @@ func (c *clusterConfig) startRGWPods() error {
 			Name:       rgwConfig.ResourceName,
 		}
 
-		// Generate the keyring after starting the replication controller so that the keyring may use
-		// the controller as its owner reference; the keyring is deleted with the controller
-		err = c.generateKeyring(resourceControllerOwnerRef)
+		err = c.associateKeyring(keyring, resourceControllerOwnerRef)
 		if err != nil {
-			return fmt.Errorf("failed to create rgw keyring. %+v", err)
+			logger.Warningf("failed to associate keyring with rgw deployment %q: %+v", createdDeployment.Name, err)
 		}
 
 		// Generate the mime.types file after the rep. controller as well for the same reason as keyring
