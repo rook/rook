@@ -113,19 +113,24 @@ func (p *PoolOperation) CreateStorageClassAndPvc(namespace, poolName, storageCla
 	return p.k8sh.ResourceOperation("apply", p.manifests.GetBlockPoolStorageClassAndPvcDef(namespace, poolName, storageClassName, reclaimPolicy, blockName, mode))
 }
 
-func (p *PoolOperation) DeleteStorageClass(namespace, poolName, storageClassName, reclaimPolicy string) error {
-	err := p.k8sh.ResourceOperation("delete", p.manifests.GetBlockPoolStorageClass(namespace, poolName, storageClassName, reclaimPolicy))
-	return err
+func (p *PoolOperation) DeleteStorageClass(storageClassName string) error {
+	return p.k8sh.Clientset.StorageV1().StorageClasses().Delete(storageClassName, &metav1.DeleteOptions{})
 }
 
-func (p *PoolOperation) DeleteStorageClassAndPvc(namespace, poolName, storageClassName, reclaimPolicy, blockName, mode string) error {
-	err := p.k8sh.ResourceOperation("delete", p.manifests.GetBlockPoolStorageClassAndPvcDef(namespace, poolName, storageClassName, reclaimPolicy, blockName, mode))
-	return err
+func (p *PoolOperation) DeletePool(blockClient *BlockOperation, namespace, poolName string) error {
+	// Delete all the images in a pool
+	blockImagesList, _ := blockClient.List(namespace)
+	for _, blockImage := range blockImagesList {
+		if poolName == blockImage.PoolName {
+			blockClient.DeleteBlockImage(blockImage, namespace)
+		}
+	}
+
+	return p.k8sh.RookClientset.CephV1().CephBlockPools(namespace).Delete(poolName, &metav1.DeleteOptions{})
 }
 
-func (p *PoolOperation) DeletePvc(blockName, storageClassName, mode string) error {
-	err := p.k8sh.ResourceOperation("delete", p.manifests.GetBlockPvcDef(blockName, storageClassName, mode, "1M"))
-	return err
+func (p *PoolOperation) DeletePvc(namespace, pvcName string) error {
+	return p.k8sh.Clientset.CoreV1().PersistentVolumeClaims(namespace).Delete(pvcName, &metav1.DeleteOptions{})
 }
 
 func (p *PoolOperation) CreateStorageClass(namespace, poolName, storageClassName, reclaimPolicy string) error {
