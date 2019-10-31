@@ -263,6 +263,7 @@ below, which you should change to match where your images are located.
         value: "quay.io/k8scsi/csi-provisioner:v1.3.0"
     - name: ROOK_CSI_SNAPSHOTTER_IMAGE
         value: "quay.io/k8scsi/csi-snapshotter:v1.2.0"
+    #ROOK_CSI_ATTACHER_IMAGE is required if Kubernetes version is 1.13.x
     - name: ROOK_CSI_ATTACHER_IMAGE
         value: "quay.io/k8scsi/csi-attacher:v1.2.0"
 ```

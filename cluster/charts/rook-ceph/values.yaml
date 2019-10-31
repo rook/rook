@@ -86,6 +86,7 @@ csi:
     #image: quay.io/k8scsi/csi-provisioner:v1.3.0
   #snapshotter:
     #image: quay.io/k8scsi/csi-snapshotter:v1.2.0
+  # attacher is required if Kubernetes version is 1.13.x
   #attacher:
     #image: quay.io/k8scsi/csi-attacher:v1.2.0
 

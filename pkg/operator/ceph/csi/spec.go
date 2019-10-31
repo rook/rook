@@ -24,6 +24,9 @@ import (
 
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	k8scsi "k8s.io/api/storage/v1beta1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/kubernetes"
 )
@@ -196,7 +199,7 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 	tp.RBDGRPCMetricsPort = getPortFromENV("CSI_RBD_GRPC_METRICS_PORT", DefaultRBDGRPCMerticsPort)
 	tp.RBDLivenessMetricsPort = getPortFromENV("CSI_RBD_LIVENESS_METRICS_PORT", DefaultRBDLivenessMerticsPort)
 
-	if ver.Minor < provDeploymentSuppVersion {
+	if ver.Major > KubeMinMajor || (ver.Major == KubeMinMajor && ver.Minor < provDeploymentSuppVersion) {
 		deployProvSTS = true
 	}
 
@@ -305,5 +308,44 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 			return fmt.Errorf("failed to create rbd service: %+v\n%+v", err, cephfsService)
 		}
 	}
+
+	if ver.Major > KubeMinMajor || (ver.Major == KubeMinMajor && ver.Minor >= provDeploymentSuppVersion) {
+		err = createCSIDriverInfo(clientset, RBDDriverName)
+		if err != nil {
+			return fmt.Errorf("failed to create CSI driver object for %q: %+v", RBDDriverName, err)
+		}
+		err = createCSIDriverInfo(clientset, CephFSDriverName)
+		if err != nil {
+			return fmt.Errorf("failed to create CSI driver object for %q: %+v", CephFSDriverName, err)
+		}
+	}
 	return nil
+}
+
+// createCSIDriverInfo Registers CSI driver by creating a CSIDriver object
+func createCSIDriverInfo(clientset kubernetes.Interface, name string) error {
+	attach := false
+	mountInfo := false
+	// Create CSIDriver object
+	csiDriver := &k8scsi.CSIDriver{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: k8scsi.CSIDriverSpec{
+			AttachRequired: &attach,
+			PodInfoOnMount: &mountInfo,
+		},
+	}
+	csidrivers := clientset.StorageV1beta1().CSIDrivers()
+	_, err := csidrivers.Create(csiDriver)
+	if err == nil {
+		logger.Infof("CSIDriver object created for driver %q", name)
+		return nil
+	}
+	if apierrors.IsAlreadyExists(err) {
+		logger.Info("CSIDriver CRD already had been registered for %q", name)
+		return nil
+	}
+
+	return err
 }

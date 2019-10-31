@@ -673,6 +673,12 @@ rules:
   - create
   - update
   - delete
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - csidrivers
+  verbs:
+  - create
 ---
 # Aspects of ceph-mgr that require cluster-wide access
 kind: ClusterRole

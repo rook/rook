@@ -693,6 +693,12 @@ rules:
   - create
   - update
   - delete
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - csidrivers
+  verbs:
+  - create
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
