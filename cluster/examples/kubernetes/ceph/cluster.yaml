@@ -120,6 +120,7 @@ spec:
   storage: # cluster level storage configuration and selection
     useAllNodes: true
     useAllDevices: true
+    topologyAware: true
     deviceFilter:
     location:
     config:

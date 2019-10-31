@@ -23,6 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/nodedrain"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 
@@ -79,20 +80,16 @@ func (r *ReconcileClusterDisruption) processPools(request reconcile.Request) (*c
 }
 
 func getMinimumFailureDomain(poolList []cephv1.PoolSpec) string {
-	failureDomainOrder := []string{"host", "zone", "region"}
 	if len(poolList) == 0 {
 		return cephv1.DefaultFailureDomain
 	}
 
 	//start with max as the min
-	minfailureDomainIndex := len(failureDomainOrder) - 1
+	minfailureDomainIndex := len(osd.CRUSHMapLevelsOrdered) - 1
 	matched := false
 
 	for _, pool := range poolList {
-		for index, failureDomain := range failureDomainOrder {
-			if len(failureDomain) == 0 {
-				failureDomain = cephv1.DefaultFailureDomain
-			}
+		for index, failureDomain := range osd.CRUSHMapLevelsOrdered {
 			if index == minfailureDomainIndex {
 				// index is higher-than/equal-to the min
 				break
@@ -105,10 +102,10 @@ func getMinimumFailureDomain(poolList []cephv1.PoolSpec) string {
 		}
 	}
 	if !matched {
-		logger.Errorf("could not match failure domain. defaulting to %s", cephv1.DefaultFailureDomain)
+		logger.Debugf("could not match failure domain. defaulting to %q", cephv1.DefaultFailureDomain)
 		return cephv1.DefaultFailureDomain
 	}
-	return failureDomainOrder[minfailureDomainIndex]
+	return osd.CRUSHMapLevelsOrdered[minfailureDomainIndex]
 }
 
 func (r *ReconcileClusterDisruption) getOngoingDrains(request reconcile.Request) ([]*corev1.Node, error) {
