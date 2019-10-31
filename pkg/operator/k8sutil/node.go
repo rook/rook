@@ -31,9 +31,14 @@ import (
 	helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
 )
 
+const (
+	TopologyLabelPrefix = "topology.rook.io/"
+)
+
 var validTopologyLabelKeys = []string{
 	"failure-domain.beta.kubernetes.io",
 	"failure-domain.kubernetes.io",
+	TopologyLabelPrefix,
 }
 
 // ValidNodeNoSched returns true if the node (1) meets Rook's placement terms,

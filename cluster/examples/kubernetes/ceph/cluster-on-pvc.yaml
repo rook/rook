@@ -40,6 +40,7 @@ spec:
   network:
     hostNetwork: false
   storage:
+    topologyAware: true
     storageClassDeviceSets:
     - name: set1
       count: 3
