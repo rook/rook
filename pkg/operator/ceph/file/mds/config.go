@@ -63,15 +63,6 @@ func (c *Cluster) generateKeyring(m *mdsConfig) (string, error) {
 }
 
 func (c *Cluster) associateKeyring(existingKeyring string, d *apps.Deployment) error {
-	resourceName := d.GetName()
-
-	ownerRef := &metav1.OwnerReference{
-		UID:        d.UID,
-		APIVersion: "v1",
-		Kind:       "deployment",
-		Name:       resourceName,
-	}
-	s := keyring.GetSecretStore(c.context, c.fs.Namespace, ownerRef)
-
-	return s.CreateOrUpdate(resourceName, existingKeyring)
+	s := keyring.GetSecretStoreForDeployment(c.context, d)
+	return s.CreateOrUpdate(d.GetName(), existingKeyring)
 }

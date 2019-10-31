@@ -21,6 +21,7 @@ import (
 
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
+	apps "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -41,14 +42,14 @@ type daemonConfig struct {
 	DataPathMap  *config.DataPathMap // location to store data in container
 }
 
-func (m *Mirroring) generateKeyring(daemonConfig *daemonConfig) error {
+func (m *Mirroring) generateKeyring(daemonConfig *daemonConfig) (string, error) {
 	user := fullDaemonName(daemonConfig.DaemonID)
 	access := []string{"mon", "profile rbd-mirror", "osd", "profile rbd"}
 	s := keyring.GetSecretStore(m.context, m.Namespace, &m.ownerRef)
 
 	key, err := s.GenerateKey(user, access)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	// Delete legacy key store for upgrade from Rook v0.9.x to v1.0.x
@@ -62,7 +63,12 @@ func (m *Mirroring) generateKeyring(daemonConfig *daemonConfig) error {
 	}
 
 	keyring := fmt.Sprintf(keyringTemplate, daemonConfig.DaemonID, key)
-	return s.CreateOrUpdate(daemonConfig.ResourceName, keyring)
+	return keyring, s.CreateOrUpdate(daemonConfig.ResourceName, keyring)
+}
+
+func (m *Mirroring) associateKeyring(existingKeyring string, d *apps.Deployment) error {
+	s := keyring.GetSecretStoreForDeployment(m.context, d)
+	return s.CreateOrUpdate(d.GetName(), existingKeyring)
 }
 
 func fullDaemonName(daemonID string) string {

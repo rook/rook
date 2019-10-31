@@ -154,19 +154,21 @@ func (c *Cluster) Start() error {
 		}
 
 		// generate keyring specific to this mgr daemon saved to k8s secret
-		if err := c.generateKeyring(mgrConfig); err != nil {
-			return fmt.Errorf("failed to generate keyring for %s. %+v", resourceName, err)
+		keyring, err := c.generateKeyring(mgrConfig)
+		if err != nil {
+			return fmt.Errorf("failed to generate keyring for %q. %+v", resourceName, err)
 		}
 
 		// start the deployment
 		d := c.makeDeployment(mgrConfig)
 		logger.Debugf("starting mgr deployment: %+v", d)
-		_, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Create(d)
+		_, err = c.context.Clientset.AppsV1().Deployments(c.Namespace).Create(d)
 		if err != nil {
 			if !errors.IsAlreadyExists(err) {
 				return fmt.Errorf("failed to create mgr deployment %s. %+v", resourceName, err)
 			}
 			logger.Infof("deployment for mgr %s already exists. updating if needed", resourceName)
+
 			// Always invoke ceph version before an upgrade so we are sure to be up-to-date
 			daemon := string(config.MgrType)
 			var cephVersionToUse cephver.CephVersion
@@ -186,6 +188,13 @@ func (c *Cluster) Start() error {
 
 			if err := updateDeploymentAndWait(c.context, d, c.Namespace, daemon, mgrConfig.DaemonID, cephVersionToUse, c.isUpgrade, c.skipUpgradeChecks); err != nil {
 				return fmt.Errorf("failed to update mgr deployment %s. %+v", resourceName, err)
+			}
+		}
+		if existingDeployment, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Get(d.GetName(), metav1.GetOptions{}); err != nil {
+			logger.Warningf("failed to find mgr deployment %s for keyring association: %+v", resourceName, err)
+		} else {
+			if err = c.associateKeyring(keyring, existingDeployment); err != nil {
+				logger.Warningf("failed to associate keyring with mgr deployment %s: %+v", resourceName, err)
 			}
 		}
 	}

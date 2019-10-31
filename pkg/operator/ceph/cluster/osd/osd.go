@@ -443,7 +443,7 @@ func (c *Cluster) startOSDDaemonsOnPVC(pvcName string, config *provisionConfig, 
 			logger.Infof("deployment for osd %d already exists. updating if needed", osd.ID)
 			createdDeployment, err = c.context.Clientset.AppsV1().Deployments(c.Namespace).Get(dp.Name, metav1.GetOptions{})
 			if err != nil {
-				logger.Warningf("failed to get existing OSD deployment %s for update: %+v", dp.Name, err)
+				logger.Warningf("failed to get existing OSD deployment %q for update: %+v", dp.Name, err)
 				continue
 			}
 		}
