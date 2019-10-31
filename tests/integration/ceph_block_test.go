@@ -159,7 +159,8 @@ func (s *CephBlockSuite) statefulSetDataCleanup(namespace, poolName, storageClas
 	// Delete all PVCs
 	s.kh.DeletePvcWithLabel(defaultNamespace, statefulSetName)
 	// Delete storageclass and pool
-	s.testClient.PoolClient.DeleteStorageClass(s.namespace, poolName, storageClassName, reclaimPolicy)
+	s.testClient.PoolClient.DeletePool(s.testClient.BlockClient, s.namespace, poolName)
+	s.testClient.PoolClient.DeleteStorageClass(storageClassName)
 }
 
 func (s *CephBlockSuite) setupPVCs() {
@@ -218,10 +219,13 @@ func (s *CephBlockSuite) TearDownSuite() {
 	s.kh.DeletePods(
 		"setup-block-rwo", "setup-block-rwx", "rwo-block-rw-one", "rwo-block-rw-two", "rwo-block-ro-one",
 		"rwo-block-ro-two", "rwx-block-rw-one", "rwx-block-rw-two", "rwx-block-ro-one", "rwx-block-ro-two")
-	s.testClient.PoolClient.DeleteStorageClassAndPvc(s.namespace, "block-pool-rwo", "rook-ceph-block-rwo", "Delete", s.pvcNameRWO, "ReadWriteOnce")
-	s.testClient.PoolClient.DeleteStorageClassAndPvc(s.namespace, "block-pool-rwx", "rook-ceph-block-rwx", "Delete", s.pvcNameRWX, "ReadWriteMany")
 
-	cleanupDynamicBlockStorage(s.testClient, s.namespace)
+	s.testClient.PoolClient.DeletePvc(s.namespace, s.pvcNameRWO)
+	s.testClient.PoolClient.DeletePvc(s.namespace, s.pvcNameRWX)
+	s.testClient.PoolClient.DeleteStorageClass("rook-ceph-block-rwo")
+	s.testClient.PoolClient.DeleteStorageClass("rook-ceph-block-rwx")
+	s.testClient.PoolClient.DeletePool(s.testClient.BlockClient, s.namespace, "block-pool-rwo")
+	s.testClient.PoolClient.DeletePool(s.testClient.BlockClient, s.namespace, "block-pool-rwx")
 	s.op.Teardown()
 }
 
