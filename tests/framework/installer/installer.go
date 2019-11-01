@@ -19,7 +19,6 @@ package installer
 import (
 	"fmt"
 	"os"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -77,14 +76,13 @@ func SkipTestSuite(name string) bool {
 }
 
 func init() {
-	// this default will only work if running kubernetes on the local machine
-	baseTestDir, _ = os.Getwd()
-
-	// The following settings could apply to any environment when the kube context is running on the host and the tests are running inside a
-	// VM such as minikube. This is a cheap test for this condition, we need to find a better way to automate these settings.
-	if runtime.GOOS == "darwin" {
+	// If the base test directory is actively set to empty (as in CI), we use the current working directory.
+	baseTestDir = Env.BaseTestDir
+	if baseTestDir == "" {
+		baseTestDir, _ = os.Getwd()
+	}
+	if baseTestDir == "/data" {
 		createBaseTestDir = false
-		baseTestDir = "/data"
 	}
 }
 

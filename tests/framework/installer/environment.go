@@ -26,6 +26,7 @@ type EnvironmentManifest struct {
 	Helm               string
 	RookImageName      string
 	ToolboxImageName   string
+	BaseTestDir        string
 	SkipInstallRook    bool
 	LoadVolumeNumber   int
 	LoadConcurrentRuns int
@@ -43,6 +44,7 @@ func init() {
 	flag.StringVar(&Env.Helm, "helm", "helm", "Path to helm binary")
 	flag.StringVar(&Env.RookImageName, "rook_image", "rook/ceph", "Docker image name for the rook container to install, must be in docker hub or local environment")
 	flag.StringVar(&Env.ToolboxImageName, "toolbox_image", "rook/ceph", "Docker image name of the toolbox container to install, must be in docker hub or local environment")
+	flag.StringVar(&Env.BaseTestDir, "base_test_dir", "/data", "Base test directory, for use only when kubernetes master is running on localhost")
 	flag.BoolVar(&Env.SkipInstallRook, "skip_install_rook", false, "Indicate if Rook need to installed - false if tests are being running at Rook that is pre-installed")
 	flag.IntVar(&Env.LoadConcurrentRuns, "load_parallel_runs", 20, "number of routines for load test")
 	flag.IntVar(&Env.LoadVolumeNumber, "load_volumes", 1, "number of volumes(file,object or block) to be created for load test")
@@ -50,4 +52,5 @@ func init() {
 	flag.StringVar(&Env.LoadSize, "load_size", "medium", "load size for each thread performing operations - small,medium or large.")
 	flag.BoolVar(&Env.EnableChaos, "enable_chaos", false, "used to determine if random pods in a namespace are to be killed during load test.")
 	flag.StringVar(&Env.Logs, "logs", "", "Gather rook logs, eg - all")
+	flag.Parse()
 }
