@@ -24,7 +24,7 @@ From your browser navigate to [http://github.com/rook/rook](http://github.com/ro
 
 Open a console window and do the following;
 
-```bash
+```console
 # Create the rook repo path
 mkdir -p $GOPATH/src/github.com/rook
 
@@ -38,7 +38,7 @@ cd rook
 
 ### Build
 
-```bash
+```console
 # build all rook storage providers
 make
 
@@ -52,10 +52,12 @@ make IMAGES="cassandra ceph" build
 
 ### Development Settings
 
-To provide consistent whitespace and other formatting in your `go` and other source files, it is recommended you apply
+To provide consistent whitespace and other formatting in your `go` and other source files (e.g., Markdown), it is recommended you apply
 the following settings in your IDE:
-- Format with the `goreturns` tool
-- Trim trailing whitespace
+
+* Format with the `goreturns` tool
+* Trim trailing whitespace
+* Markdown Table of Contents is correctly updated automatically
 
 For example, in VS Code this translates to the following settings:
 
@@ -67,25 +69,35 @@ For example, in VS Code this translates to the following settings:
     "files.trimTrailingWhitespace": true,
     "files.insertFinalNewline": true,
     "files.trimFinalNewlines": true,
+    "markdown.extension.toc.unorderedList.marker": "*",
+    "markdown.extension.toc.githubCompatibility": true,
+    "markdown.extension.toc.levels": "2..2"
 }
 ```
+
+In addition to that it is recommended to install the following extensions:
+
+* [Markdown All in One by Yu Zhang - Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=yzhang.markdown-all-in-one)
 
 ### Add Upstream Remote
 
 First you will need to add the upstream remote to your local git:
-```bash
+
+```console
 # Add 'upstream' to the list of remotes
 git remote add upstream https://github.com/rook/rook.git
 
 # Verify the remote was added
 git remote -v
 ```
+
 Now you should have at least `origin` and `upstream` remotes. You can also add other remotes to collaborate with other contributors.
 
 ## Layout
 
 A source code layout is shown below, annotated with comments about the use of each important directory:
-```
+
+```text
 rook
 ├── build                         # build makefiles and logic to build, publish and release all Rook artifacts
 ├── cluster
@@ -169,7 +181,7 @@ The [design label](https://github.com/rook/rook/labels/design) should be assigne
 
 From a console, create a new branch based on your fork and start working on it:
 
-```bash
+```console
 # Ensure all your remotes are up to date with the latest
 git fetch --all
 
@@ -186,17 +198,18 @@ During the development lifecycle, you will need to keep up-to-date with the late
 
 Whenever you need to update your local repository, you never want to merge. You **always** will rebase. Otherwise you will end up with merge commits in the git history. If you have any modified files, you will first have to stash them (`git stash save -u "<some description>"`).
 
-```bash
+```console
 git fetch --all
 git rebase upstream/master
 ```
 
 Rebasing is a very powerful feature of Git. You need to understand how it works or else you will risk losing your work. Read about it in the [Git documentation](https://git-scm.com/docs/git-rebase), it will be well worth it. In a nutshell, rebasing does the following:
-- "Unwinds" your local commits. Your local commits are removed temporarily from the history.
-- The latest changes from upstream are added to the history
-- Your local commits are re-applied one by one
-- If there are merge conflicts, you will be prompted to fix them before continuing. Read the output closely. It will tell you how to complete the rebase.
-- When done rebasing, you will see all of your commits in the history.
+
+* "Unwinds" your local commits. Your local commits are removed temporarily from the history.
+* The latest changes from upstream are added to the history
+* Your local commits are re-applied one by one
+* If there are merge conflicts, you will be prompted to fix them before continuing. Read the output closely. It will tell you how to complete the rebase.
+* When done rebasing, you will see all of your commits in the history.
 
 ## Submitting a Pull Request
 
@@ -214,13 +227,13 @@ your request will be accepted into the `rook/rook` repo. It is prudent to run al
 
 From the root of your local Rook repo execute the following to run all of the unit tests:
 
-```bash
+```console
 make test
 ```
 
 Unit tests for individual packages can be run with the standard `go test` command. Before you open a PR, confirm that you have sufficient code coverage on the packages that you changed. View the `coverage.html` in a browser to inspect your new code.
 
-```bash
+```console
 go test -coverprofile=coverage.out
 go tool cover -html=coverage.out -o coverage.html
 ```
@@ -235,7 +248,7 @@ To prepare your branch to open a PR, you will need to have the minimal number of
 a clean commit history. Most commonly a PR will include a single commit where all changes are squashed, although
 sometimes there will be multiple logical commits.
 
-```bash
+```console
 # Inspect your commit history to determine if you need to squash commits
 git log
 
@@ -257,10 +270,10 @@ After the PR is open, you can make changes simply by pushing new commits. Your P
 The flow for getting a fix into a release branch is:
 
 1. Open a PR to merge the changes to master following the process outlined above.
-1. Add the backport label to that PR such as backport-release-1.1
-1. After your PR is merged to master, the mergify bot will automatically open a PR with your commits backported to the release branch
-1. If there are any conflicts you will need to resolve them by pulling the branch, resolving the conflicts and force push back the branch
-1. After the CI is green, the bot will automatically merge the backport PR.
+2. Add the backport label to that PR such as backport-release-1.1
+3. After your PR is merged to master, the mergify bot will automatically open a PR with your commits backported to the release branch
+4. If there are any conflicts you will need to resolve them by pulling the branch, resolving the conflicts and force push back the branch
+5. After the CI is green, the bot will automatically merge the backport PR.
 
 ## Debugging operators locally
 
@@ -269,19 +282,19 @@ Operators are meant to be run inside a Kubernetes cluster. However, this makes i
 A common operator developer practice is to run the operator locally on the developer machine in order to leverage the developer tools and comfort.
 
 In order to support this external operator mode, rook detects if the operator is running outside of the cluster (using standard cluster env) and changes the behavior as follows:
-- Connecting to Kubernetes API will load the config from the user `~/.kube/config`.
-- Instead of the default [CommandExecutor](../pkg/util/exec/exec.go) this mode uses a [TranslateCommandExecutor](../pkg/util/exec/translate_exec.go) that executes every command issued by the operator to run as a Kubernetes job inside the cluster, so that any tools that the operator needs from its image can be called. For example, in cockroachdb
+
+* Connecting to Kubernetes API will load the config from the user `~/.kube/config`.
+* Instead of the default [CommandExecutor](../pkg/util/exec/exec.go) this mode uses a [TranslateCommandExecutor](../pkg/util/exec/translate_exec.go) that executes every command issued by the operator to run as a Kubernetes job inside the cluster, so that any tools that the operator needs from its image can be called. For example, in cockroachdb
 
 ### Building locally
 
 Building a single rook binary for all operators:
 
-```
+```console
 make GO_STATIC_PACKAGES=github.com/rook/rook/cmd/rook go.build
 ```
 
 Note: the binary output location is `_output/bin/linux_amd64/rook` on linux, and `_output/bin/darwin_amd64/rook` on mac.
-
 
 ### Running locally
 
@@ -289,19 +302,19 @@ The command-line flag: `--operator-image <image>` should be used to allow runnin
 
 The next sections describe the supported operators and their notes.
 
-### CockroachDB:
+### CockroachDB
 
-```
+```console
 _output/bin/darwin_amd64/rook cockroachdb operator --operator-image cockroachdb/cockroach:v2.0.2
 ```
 
-- Set `--operator-image` to the base image of [cockroachdb Dockerfile](../images/cockroachdb/Dockerfile#L15)
-- The execution of `/cockroach/cockroach init` in [initCluster()](../pkg/operator/cockroachdb/controller.go#L490) runs in a kubernetes job to complete the clusterization of its pods.
+* Set `--operator-image` to the base image of [cockroachdb Dockerfile](../images/cockroachdb/Dockerfile#L15)
+* The execution of `/cockroach/cockroach init` in [initCluster()](../pkg/operator/cockroachdb/controller.go#L490) runs in a kubernetes job to complete the clusterization of its pods.
 
-### Minio:
+### Minio
 
-```
+```console
 _output/bin/darwin_amd64/rook minio operator --operator-image minio/minio:RELEASE.2019-04-23T23-50-36Z
 ```
 
-- Set `--operator-image` to the base image of [minio Dockerfile](../images/minio/Dockerfile#L15)
+* Set `--operator-image` to the base image of [minio Dockerfile](../images/minio/Dockerfile#L15)

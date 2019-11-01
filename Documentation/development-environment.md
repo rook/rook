@@ -6,9 +6,9 @@ indent: true
 
 # Multi-Node Test Environment
 
-- [Using KVM/QEMU and Kubespray](#using-kvmqemu-and-kubespray)
-- [Using VirtualBox and k8s-vagrant-multi-node](#using-virtualbox-and-k8s-vagrant-multi-node)
-- [Using Vagrant and libvirt](#using-vagrant-on-linux-with-libvirt)
+* [Using KVM/QEMU and Kubespray](#using-kvmqemu-and-kubespray)
+* [Using VirtualBox and k8s-vagrant-multi-node](#using-virtualbox-and-k8s-vagrant-multi-node)
+* [Using Vagrant on Linux with libvirt](#using-vagrant-on-linux-with-libvirt)
 
 ## Using KVM/QEMU and Kubespray
 
@@ -30,7 +30,7 @@ do the equivalent for your distribution)
 
 Edit `/etc/docker/daemon.json` to add insecure-registries:
 
-```
+```json
 {
         "insecure-registries":  ["172.17.8.1:5000"]
 }
@@ -40,14 +40,14 @@ Edit `/etc/docker/daemon.json` to add insecure-registries:
 
 Clone it:
 
-```bash
+```console
 git clone https://github.com/kubernetes-sigs/kubespray/
 cd kubespray
 ```
 
 Edit `inventory/sample/group_vars/k8s-cluster/k8s-cluster.yml` with:
 
-```bash
+```console
 docker_options: {% raw %}"--insecure-registry=172.17.8.1:5000 --insecure-registry={{ kube_service_addresses }} --data-root={{ docker_daemon_graph }} {{ docker_log_opts }}"{% endraw %}
 ```
 
@@ -56,7 +56,7 @@ This means a registry running on the host machine is reachable from the virtual 
 
 Create Vagrant's variable directory:
 
-```bash
+```console
 mkdir vagrant/
 ```
 
@@ -65,7 +65,7 @@ Feel free to adapt `num_instances`.
 
 Deploy!
 
-```bash
+```console
 vagrant up --no-provision ; vagrant provision
 ```
 
@@ -156,15 +156,13 @@ subjects:
 
 3) Find the admin-user token in the kube-system namespace:
 
-```bash
+```console
 kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep admin-user | awk '{print $1}')
 ```
 
 and you can use that token to log into the UI at http://localhost:8001/ui.
 
 (See [https://github.com/kubernetes/dashboard/wiki/Creating-sample-user](https://github.com/kubernetes/dashboard/wiki/Creating-sample-user))
-
-
 
 ### Development workflow on the host
 
@@ -184,13 +182,12 @@ You can run `bash tests/scripts/multi-node/build-rook.sh` as many times as you w
 
 From here, resume your dev, change your code and test it by running `bash tests/scripts/multi-node/build-rook.sh`.
 
-
 ### Teardown
 
 Typically, to flush your environment you will run the following from within kubespray's git repository.
 This action will be performed on the host:
 
-```bash
+```console
 [user@host-machine kubespray]$ vagrant destroy -f
 ```
 

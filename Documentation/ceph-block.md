@@ -10,6 +10,7 @@ indent: true
 {% else %}
 {% assign branchName = currentVersion %}
 {% endif %}
+
 # Block Storage
 
 Block storage allows a single pod to mount storage. This guide shows how to create a simple, multi-tier web application on Kubernetes using persistent volumes enabled by Rook.
@@ -22,11 +23,11 @@ This guide assumes a Rook cluster as explained in the [Quickstart](ceph-quicksta
 
 Before Rook can provision storage, a [`StorageClass`](https://kubernetes.io/docs/concepts/storage/storage-classes) and [`CephBlockPool`](ceph-pool-crd.md) need to be created. This will allow Kubernetes to interoperate with Rook when provisioning persistent volumes.
 
-**NOTE:** This sample requires *at least 1 OSD per node*, with each OSD located on *3 different nodes*.
+> **NOTE**: This sample requires *at least 1 OSD per node*, with each OSD located on *3 different nodes*.
 
 Each OSD must be located on a different node, because the [`failureDomain`](ceph-pool-crd.md#spec) is set to `host` and the `replicated.size` is set to `3`.
 
-**NOTE** This example uses the CSI driver, which is the preferred driver going forward for K8s 1.13 and newer. Examples are found in the [CSI RBD](https://github.com/rook/rook/tree/{{ branchName }}/cluster/examples/kubernetes/ceph/csi/rbd) directory. For an example of a storage class using the flex driver (required for K8s 1.12 or earlier), see the [Flex Driver](#flex-driver) section below, which has examples in the [flex](https://github.com/rook/rook/tree/{{ branchName }}/cluster/examples/kubernetes/ceph/flex) directory.
+> **NOTE**: This example uses the CSI driver, which is the preferred driver going forward for K8s 1.13 and newer. Examples are found in the [CSI RBD](https://github.com/rook/rook/tree/{{ branchName }}/cluster/examples/kubernetes/ceph/csi/rbd) directory. For an example of a storage class using the flex driver (required for K8s 1.12 or earlier), see the [Flex Driver](#flex-driver) section below, which has examples in the [flex](https://github.com/rook/rook/tree/{{ branchName }}/cluster/examples/kubernetes/ceph/flex) directory.
 
 Save this `StorageClass` definition as `storageclass.yaml`:
 
@@ -79,11 +80,12 @@ you used. For example, if the Rook operator is running in "rook-op" the
 provisioner value should be "rook-op.rbd.csi.ceph.com".
 
 Create the storage class.
-```bash
+
+```console
 kubectl create -f cluster/examples/kubernetes/ceph/csi/rbd/storageclass.yaml
 ```
 
-**NOTE** As [specified by Kubernetes](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#retain), when using the `Retain` reclaim policy, any Ceph RBD image that is backed by a `PersistentVolume` will continue to exist even after the `PersistentVolume` has been deleted. These Ceph RBD images will need to be cleaned up manually using `rbd rm`.
+> **NOTE**: As [specified by Kubernetes](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#retain), when using the `Retain` reclaim policy, any Ceph RBD image that is backed by a `PersistentVolume` will continue to exist even after the `PersistentVolume` has been deleted. These Ceph RBD images will need to be cleaned up manually using `rbd rm`.
 
 ## Consume the storage: Wordpress sample
 
@@ -92,14 +94,14 @@ Both of these apps will make use of block volumes provisioned by Rook.
 
 Start mysql and wordpress from the `cluster/examples/kubernetes` folder:
 
-```bash
+```console
 kubectl create -f mysql.yaml
 kubectl create -f wordpress.yaml
 ```
 
 Both of these apps create a block volume and mount it to their respective pod. You can see the Kubernetes volume claims by running the following:
 
-```bash
+```console
 $ kubectl get pvc
 NAME             STATUS    VOLUME                                     CAPACITY   ACCESSMODES   AGE
 mysql-pv-claim   Bound     pvc-95402dbc-efc0-11e6-bc9a-0cc47a3459ee   20Gi       RWO           1m
@@ -108,7 +110,7 @@ wp-pv-claim      Bound     pvc-39e43169-efc1-11e6-bc9a-0cc47a3459ee   20Gi      
 
 Once the wordpress and mysql pods are in the `Running` state, get the cluster IP of the wordpress app and enter it in your browser:
 
-```bash
+```console
 $ kubectl get svc wordpress
 NAME        CLUSTER-IP   EXTERNAL-IP   PORT(S)        AGE
 wordpress   10.3.0.155   <pending>     80:30841/TCP   2m
@@ -122,7 +124,7 @@ If you are using Minikube, the Wordpress URL can be retrieved with this one-line
 echo http://$(minikube ip):$(kubectl get service wordpress -o jsonpath='{.spec.ports[0].nodePort}')
 ```
 
-**NOTE:** When running in a vagrant environment, there will be no external IP address to reach wordpress with.  You will only be able to reach wordpress via the `CLUSTER-IP` from inside the Kubernetes cluster.
+> **NOTE**: When running in a vagrant environment, there will be no external IP address to reach wordpress with.  You will only be able to reach wordpress via the `CLUSTER-IP` from inside the Kubernetes cluster.
 
 ## Consume the storage: Toolbox
 
@@ -175,8 +177,9 @@ reclaimPolicy: Retain
 allowVolumeExpansion: true
 ```
 
-Create the pool and storage class.
-```bash
+Create the pool and storage class using `kubectl`:
+
+```console
 kubectl create -f cluster/examples/kubernetes/ceph/flex/storageclass.yaml
 ```
 
@@ -184,7 +187,7 @@ Continue with the example above for the [wordpress application](#consume-the-sto
 
 ## Advanced Example: Erasure Coded Block Storage
 
-**IMPORTANT:** This is only possible when using the Flex driver. Ceph CSI 1.2 (with Rook 1.1) does not support this type of configuration yet.
+> **IMPORTANT**: This is only possible when using the Flex driver. Ceph CSI 1.2 (with Rook 1.1) does not support this type of configuration yet.
 
 If you want to use erasure coded pool with RBD, your OSDs must use `bluestore` as their `storeType`.
 Additionally the nodes that are going to mount the erasure coded RBD block storage must have Linux kernel >= `4.11`.
@@ -193,7 +196,7 @@ To be able to use an erasure coded pool you need to create two pools (as seen be
 The replicated pool must be specified as the `blockPool` parameter. It is used for the metadata of the RBD images.
 The erasure coded pool must be set as the `dataBlockPool` parameter below. It is used for the data of the RBD images.
 
-**NOTE:** This example requires *at least 3 bluestore OSDs*, with each OSD located on a *different node*.
+> **NOTE**: This example requires *at least 3 bluestore OSDs*, with each OSD located on a *different node*.
 
 The OSDs must be located on different nodes, because the [`failureDomain`](ceph-pool-crd.md#spec) is set to `host` and the `erasureCoded` chunk settings require at least 3 different OSDs (2 `dataChunks` + 1 `codingChunks`).
 
@@ -238,6 +241,5 @@ parameters:
 # Works for Kubernetes 1.14+
 allowVolumeExpansion: true
 ```
-
 
 (These definitions can also be found in the [`storageclass-ec.yaml`](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/flex/storage-class-ec.yaml) file)

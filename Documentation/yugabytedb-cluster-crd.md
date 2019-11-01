@@ -4,7 +4,8 @@ weight: 9000
 ---
 # YugabyteDB Cluster CRD
 
-YugabyteDB clusters can be created/configured by creating/updating the custom resource object `ybclusters.yugabytedb.rook.io`. Please follow instructions in the [YugabyteDB Operator Quikstart](yugabytedb.md) to create a YugabyteDB cluster.
+YugabyteDB clusters can be created/configured by creating/updating the custom resource object `ybclusters.yugabytedb.rook.io`.
+Please follow instructions in the [YugabyteDB Operator Quikstart](yugabytedb.md) to create a YugabyteDB cluster.
 
 The configuration options provided by the custom resource are explained here.
 
@@ -69,27 +70,31 @@ spec:
 ## Configuration options
 
 ### Master/TServer
+
 Master & TServer are two essential components of a YugabyteDB cluster. Master is responsible for recording and maintaining system metadata & for admin activities. TServers are mainly responsible for data I/O.
 Specify Master/TServer specific attributes under `master`/`tserver`. The valid attributes are `replicas`, `network` & `volumeClaimTemplate`.
 
 ### Replica Count
+
 Specify replica count for `master` & `tserver` pods under `replicas` field. This is a **required** field.
 
 ### Network
+
 `network` field accepts `NetworkSpec` to be specified which describes YugabyteDB network settings. This is an **optional** field. Default network settings will be used, if any or all of the acceptable values are absent.
 
 A ClusterIP service will be created when `yb-tserver-ui` port is explicitly specified. If it is not specified, only StatefulSet & headless service will be created for TServer. ClusterIP service creation will be skipped. Whereas for Master, all 3 kubernetes objects will always be created.
 
 The acceptable port names & their default values are as follows:
 
-| Name | Default Value |
-| ---- | ------------- |
-| yb-master-ui | 7000 |
-| yb-master-rpc | 7100 |
-| yb-tserver-rpc | 9100 |
-| ycql | 9042 |
-| yedis | 6379 |
-| ysql | 5433 |
+| Name             | Default Value |
+| ---------------- | ------------- |
+| `yb-master-ui`   | `7000`        |
+| `yb-master-rpc`  | `7100`        |
+| `yb-tserver-rpc` | `9100`        |
+| `ycql`           | `9042`        |
+| `yedis`          | `6379`        |
+| `ysql`           | `5433`        |
 
 ### Volume Claim Templates
+
 Specify a `PersistentVolumeClaim` template under the `volumeClaimTemplate` field for `master` & `tserver` each. This is a **required** field.

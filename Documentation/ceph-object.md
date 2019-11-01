@@ -16,7 +16,7 @@ This guide assumes a Rook cluster as explained in the [Quickstart](ceph-quicksta
 
 The below sample will create a `CephObjectStore` that starts the RGW service in the cluster with an S3 API.
 
-**NOTE:** This sample requires *at least 3 bluestore OSDs*, with each OSD located on a *different node*.
+> **NOTE**: This sample requires *at least 3 bluestore OSDs*, with each OSD located on a *different node*.
 
 The OSDs must be located on different nodes, because the [`failureDomain`](ceph-pool-crd.md#spec) is set to `host` and the `erasureCoded` chunk settings require at least 3 different OSDs (2 `dataChunks` + 1 `codingChunks`).
 
@@ -49,7 +49,7 @@ spec:
 
 After the `CephObjectStore` is created, the Rook operator will then create all the pools and other resources necessary to start the service. This may take a minute to complete.
 
-```bash
+```console
 # Create the object store
 kubectl create -f object.yaml
 
@@ -76,7 +76,7 @@ spec:
 
 When the `CephObjectStoreUser` is created, the Rook operator will then create the RGW user on the specified `CephObjectStore` and store the Access Key and Secret Key in a kubernetes secret in the same namespace as the `CephObjectStoreUser`.
 
-```bash
+```console
 # Create the object store user
 kubectl create -f object-user.yaml
 
@@ -94,15 +94,16 @@ Type:	kubernetes.io/rook
 
 Data
 ====
-AccessKey:	20 bytes
-SecretKey:	40 bytes
+AccessKey:  20 bytes
+SecretKey:  40 bytes
 ```
 
 The AccessKey and SecretKey data fields can be mounted in a pod as an environment variable. More information on consuming
 kubernetes secrets can be found in the [K8s secret documentation](https://kubernetes.io/docs/concepts/configuration/secret/)
 
 To directly retrieve the secrets:
-```bash
+
+```console
 kubectl -n rook-ceph get secret rook-ceph-object-user-my-store-my-user -o yaml | grep AccessKey | awk '{print $2}' | base64 --decode
 kubectl -n rook-ceph get secret rook-ceph-object-user-my-store-my-user -o yaml | grep SecretKey | awk '{print $2}' | base64 --decode
 ```
@@ -116,27 +117,30 @@ This section will allow you to test connecting to the `CephObjectStore` and uplo
 ### Install s3cmd
 
 To test the `CephObjectStore` we will install the `s3cmd` tool into the toobox pod.
-```bash
+
+```console
 yum --assumeyes install s3cmd
 ```
 
 ### Connection Environment Variables
 
 To simplify the s3 client commands, you will want to set the four environment variables for use by your client (ie. inside the toolbox):
-```bash
+
+```console
 export AWS_HOST=<host>
 export AWS_ENDPOINT=<endpoint>
 export AWS_ACCESS_KEY_ID=<accessKey>
 export AWS_SECRET_ACCESS_KEY=<secretKey>
 ```
 
-- `Host`: The DNS host name where the rgw service is found in the cluster. Assuming you are using the default `rook-ceph` cluster, it will be `rook-ceph-rgw-my-store.rook-ceph`.
-- `Endpoint`: The endpoint where the rgw service is listening. Run `kubectl -n rook-ceph get svc rook-ceph-rgw-my-store`, then combine the clusterIP and the port.
-- `Access key`: The user's `access_key` as printed above
-- `Secret key`: The user's `secret_key` as printed above
+* `Host`: The DNS host name where the rgw service is found in the cluster. Assuming you are using the default `rook-ceph` cluster, it will be `rook-ceph-rgw-my-store.rook-ceph`.
+* `Endpoint`: The endpoint where the rgw service is listening. Run `kubectl -n rook-ceph get svc rook-ceph-rgw-my-store`, then combine the clusterIP and the port.
+* `Access key`: The user's `access_key` as printed above
+* `Secret key`: The user's `secret_key` as printed above
 
 The variables for the user generated in this example would be:
-```bash
+
+```console
 export AWS_HOST=rook-ceph-rgw-my-store.rook-ceph
 export AWS_ENDPOINT=10.104.35.31:80
 export AWS_ACCESS_KEY_ID=XEZDB3UJ6X7HVBE7X7MA
@@ -151,31 +155,31 @@ Now that the user connection variables were set above, we can proceed to perform
 
 Create a bucket in the `CephObjectStore`
 
-   ```bash
-   s3cmd mb --no-ssl --host=${AWS_HOST} --region=":default-placement" --host-bucket="" s3://rookbucket
-   ```
+```console
+s3cmd mb --no-ssl --host=${AWS_HOST} --region=":default-placement" --host-bucket="" s3://rookbucket
+```
 
 List buckets in the `CephObjectStore`
 
-   ```bash
-   s3cmd ls --no-ssl --host=${AWS_HOST}
-   ```
+```console
+s3cmd ls --no-ssl --host=${AWS_HOST}
+```
 
 ### PUT or GET an object
 
 Upload a file to the newly created bucket
 
-   ```bash
-   echo "Hello Rook" > /tmp/rookObj
-   s3cmd put /tmp/rookObj --no-ssl --host=${AWS_HOST} --host-bucket=  s3://rookbucket
-   ```
+```console
+echo "Hello Rook" > /tmp/rookObj
+s3cmd put /tmp/rookObj --no-ssl --host=${AWS_HOST} --host-bucket=  s3://rookbucket
+```
 
 Download and verify the file from the bucket
 
-   ```bash
-   s3cmd get s3://rookbucket/rookObj /tmp/rookObj-download --no-ssl --host=${AWS_HOST} --host-bucket=
-   cat /tmp/rookObj-download
-   ```
+```console
+s3cmd get s3://rookbucket/rookObj /tmp/rookObj-download --no-ssl --host=${AWS_HOST} --host-bucket=
+cat /tmp/rookObj-download
+```
 
 ## Access External to the Cluster
 
@@ -183,7 +187,8 @@ Rook sets up the object storage so pods will have access internal to the cluster
 you will need to setup an external service through a `NodePort`.
 
 First, note the service that exposes RGW internal to the cluster. We will leave this service intact and create a new service for external access.
-```bash
+
+```console
 $ kubectl -n rook-ceph get service rook-ceph-rgw-my-store
 NAME                     CLUSTER-IP   EXTERNAL-IP   PORT(S)     AGE
 rook-ceph-rgw-my-store   10.3.0.177   <none>        80/TCP      2m
@@ -217,12 +222,13 @@ spec:
 
 Now create the external service.
 
-```bash
+```console
 kubectl create -f rgw-external.yaml
 ```
 
 See both rgw services running and notice what port the external service is running on:
-```bash
+
+```console
 $ kubectl -n rook-ceph get service rook-ceph-rgw-my-store rook-ceph-rgw-my-store-external
 NAME                              TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)        AGE
 rook-ceph-rgw-my-store            ClusterIP   10.104.82.228    <none>        80/TCP         4m

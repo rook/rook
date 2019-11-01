@@ -63,7 +63,8 @@ kubectl -n rook-cockroachdb-system exec -it $(kubectl -n rook-cockroachdb-system
 ```
 
 This will land you in a prompt where you can begin to run SQL commands directly on the database cluster.
-For example:
+
+**Example**:
 
 ```console
 root@cockroachdb-public.rook-cockroachdb:26257/> show databases;
@@ -108,7 +109,7 @@ kubectl -n rook-cockroachdb-system exec -it $(kubectl -n rook-cockroachdb-system
 
 To clean up all resources associated with this walk-through, you can run the commands below.
 
-**NOTE:** that this will destroy your database and delete all of its associated data.
+> **NOTE**: that this will destroy your database and delete all of its associated data.
 
 ```console
 kubectl delete -f loadgen-kv.yaml

@@ -1,12 +1,12 @@
 ---
-title: Network File System (NFS)
+title: Network Filesystem (NFS)
 weight: 800
 indent: true
 ---
 
-# Network File System (NFS)
+# Network Filesystem (NFS)
 
-NFS allows remote hosts to mount file systems over a network and interact with those file systems as though they are mounted locally. This enables system administrators to consolidate resources onto centralized servers on the network.
+NFS allows remote hosts to mount filesystems over a network and interact with those filesystems as though they are mounted locally. This enables system administrators to consolidate resources onto centralized servers on the network.
 
 ## Prerequisites
 
@@ -16,7 +16,6 @@ Any type of PVC can be attached and exported, such as Host Path, AWS Elastic Blo
 The limitations of these volumes also apply while they are shared by NFS.
 You can read further about the details and limitations of these volumes in the [Kubernetes docs](https://kubernetes.io/docs/concepts/storage/persistent-volumes/).
 3. NFS client packages must be installed on all nodes where Kubernetes might run pods with NFS mounted. Install `nfs-utils` on CentOS nodes or `nfs-common` on Ubuntu nodes.
-
 
 ## Deploy NFS Operator
 
@@ -123,7 +122,9 @@ rook-nfs-0   1/1       Running   0          2m
 If the NFS server pod is in the `Running` state, then we have successfully created an exported NFS share that clients can start to access over the network.
 
 ### Accessing the Export
-With PR https://github.com/rook/rook/pull/2758 rook starts supporting dynamic provisioning with NFS. This example will be showing how dynamic provisioning feature can be used for nfs.
+
+Since Rook version v1.0, Rook supports dynamic provisioning of NFS.
+This example will be showing how dynamic provisioning feature can be used for nfs.
 
 Once the NFS Operator and an instance of NFSServer is deployed. A storageclass similar to below example has to be created to dynamically provisioning volumes.
 
@@ -143,11 +144,11 @@ reclaimPolicy: Delete
 volumeBindingMode: Immediate
 ```
 
-#### Note: The storageclass need to have the following 3 parameters passed. 
+> **NOTE**: The StorageClass need to have the following 3 parameters passed.
+>
 1. `exportName`: It tells the provisioner which export to use for provisioning the volumes.
 2. `nfsServerName`: It is the name of the NFSServer instance.
 3. `nfsServerNamespace`: It namespace where the NFSServer instance is running.
-
 
 Once the above storageclass has been created create a PV claim referencing the storageclass as shown in the example given below.
 
@@ -216,6 +217,7 @@ First, you have to [follow these instructions](ceph-quickstart.md) to deploy a s
 After the Rook Ceph cluster is up and running, we can create proceed with creating the NFS server.
 
 Save this PVC and NFS CRD instance as `nfs-ceph.yaml`:
+
 ```yaml
 apiVersion: v1
 kind: Namespace

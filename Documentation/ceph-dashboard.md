@@ -1,32 +1,34 @@
 ---
-title: Dashboard
+title: Ceph Dashboard
 weight: 2400
 indent: true
 ---
 
 # Ceph Dashboard
 
-The dashboard is a very helpful tool to give you an overview of the status of your cluster, including overall health,
+The dashboard is a very helpful tool to give you an overview of the status of your Ceph cluster, including overall health,
 status of the mon quorum, status of the mgr, osd, and other Ceph daemons, view pools and PG status, show logs for the daemons,
 and more. Rook makes it simple to enable the dashboard.
 
 ![The Ceph dashboard](media/ceph-dashboard.png)
 
-## Enable the Dashboard
+## Enable the Ceph Dashboard
 
-The [dashboard](http://docs.ceph.com/docs/mimic/mgr/dashboard/) can be enabled with settings in the cluster CRD. The cluster CRD must have the dashboard `enabled` setting set to `true`.
+The [dashboard](http://docs.ceph.com/docs/mimic/mgr/dashboard/) can be enabled with settings in the CephCluster CRD. The CephCluster CRD must have the dashboard `enabled` setting set to `true`.
 This is the default setting in the example manifests.
+
 ```yaml
   spec:
     dashboard:
       enabled: true
 ```
 
-The Rook operator will enable the ceph-mgr dashboard module. A K8s service will be created to expose that port inside the cluster. Rook will
+The Rook operator will enable the ceph-mgr dashboard module. A service object will be created to expose that port inside the Kubernetes cluster. Rook will
 enable port 8443 for https access.
 
 This example shows that port 8443 was configured.
-```bash
+
+```console
 kubectl -n rook-ceph get service
 NAME                         TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE
 rook-ceph-mgr                ClusterIP   10.108.111.192   <none>        9283/TCP         3h
@@ -38,12 +40,13 @@ If you are on a node in the cluster, you will be able to connect to the dashboar
 DNS name of the service at `https://rook-ceph-mgr-dashboard-https:8443` or by connecting to the cluster IP,
 in this example at `https://10.110.113.240:8443`.
 
-### Credentials
+### Login Credentials
 
 After you connect to the dashboard you will need to login for secure access. Rook creates a default user named
-`admin` and generates a secret called `rook-ceph-dashboard-admin-password` in the namespace where rook is running.
+`admin` and generates a secret called `rook-ceph-dashboard-admin-password` in the namespace where the Rook Ceph cluster is running.
 To retrieve the generated password, you can run the following:
-```
+
+```console
 kubectl -n rook-ceph get secret rook-ceph-dashboard-password -o jsonpath="{['data']['password']}" | base64 --decode && echo
 ```
 
@@ -62,11 +65,9 @@ The following dashboard configuration settings are supported:
 * `urlPrefix` If you are accessing the dashboard via a reverse proxy, you may
   wish to serve it under a URL prefix.  To get the dashboard to use hyperlinks
   that include your prefix, you can set the `urlPrefix` setting.
-
 * `port` The port that the dashboard is served on may be changed from the
   default using the `port` setting. The corresponding K8s service exposing the
   port will automatically be updated.
-
 * `ssl` The dashboard may be served without SSL (useful for when you deploy the
   dashboard behind a proxy already served using SSL) by setting the `ssl` option
   to be false.
@@ -108,12 +109,14 @@ spec:
 ```
 
 Now create the service:
-```bash
-$ kubectl create -f dashboard-external-https.yaml
+
+```console
+kubectl create -f dashboard-external-https.yaml
 ```
 
 You will see the new service `rook-ceph-mgr-dashboard-external-https` created:
-```bash
+
+```console
 $ kubectl -n rook-ceph get service
 NAME                                    TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE
 rook-ceph-mgr                           ClusterIP   10.108.111.192   <none>        9283/TCP         4h
@@ -129,18 +132,23 @@ Now you can enter the URL in your browser such as `https://192.168.99.110:31176`
 
 If you have a cluster on a cloud provider that supports load balancers,
 you can create a service that is provisioned with a public hostname.
-The yaml is the same as `dashboard-external-https.yaml` except for the following line:
+The yaml is the same as `dashboard-external-https.yaml` except for the following property:
+
 ```yaml
+spec:
+[...]
   type: LoadBalancer
 ```
 
 Now create the service:
-```bash
-$ kubectl create -f dashboard-loadbalancer.yaml
+
+```console
+kubectl create -f dashboard-loadbalancer.yaml
 ```
 
 You will see the new service `rook-ceph-mgr-dashboard-loadbalancer` created:
-```bash
+
+```console
 $ kubectl -n rook-ceph get service
 NAME                                     TYPE           CLUSTER-IP       EXTERNAL-IP                                                               PORT(S)             AGE
 rook-ceph-mgr                            ClusterIP      172.30.11.40     <none>                                                                    9283/TCP            4h
@@ -148,11 +156,7 @@ rook-ceph-mgr-dashboard                  ClusterIP      172.30.203.185   <none> 
 rook-ceph-mgr-dashboard-loadbalancer     LoadBalancer   172.30.27.242    a7f23e8e2839511e9b7a5122b08f2038-1251669398.us-east-1.elb.amazonaws.com   8443:32747/TCP      4h
 ```
 
-Now you can enter the URL in your browser such as
-```
-https://a7f23e8e2839511e9b7a5122b08f2038-1251669398.us-east-1.elb.amazonaws.com:8443
-```
-and the dashboard will appear.
+Now you can enter the URL in your browser such as `https://a7f23e8e2839511e9b7a5122b08f2038-1251669398.us-east-1.elb.amazonaws.com:8443` and the dashboard will appear.
 
 ### Ingress Controller
 
@@ -196,30 +200,35 @@ Customise the Ingress resource to match your cluster. Replace the example domain
 with a domain name that will resolve to your Ingress Controller (creating the DNS entry if required).
 
 Now create the Ingress:
-```bash
-$ kubectl create -f dashboard-ingress-https.yaml
+
+```console
+kubectl create -f dashboard-ingress-https.yaml
 ```
 
 You will see the new Ingress `rook-ceph-mgr-dashboard` created:
-```bash
+
+```console
 $ kubectl -n rook-ceph get ingress
 NAME                      HOSTS                      ADDRESS   PORTS     AGE
 rook-ceph-mgr-dashboard   rook-ceph.example.com      80, 443   5m
 ```
 
 And the new Secret for the TLS certificate:
-```bash
+
+```console
 $ kubectl -n rook-ceph get secret rook-ceph.example.com
 NAME                       TYPE                DATA      AGE
 rook-ceph.example.com      kubernetes.io/tls   2         4m
 ```
+
 You can now browse to `https://rook-ceph.example.com/` to log into the dashboard.
 
 ## Enabling Dashboard Object Gateway management
 
 Provided you have deployed the [Ceph Toolbox](ceph-toolbox.md), created an [Object Store](ceph-object.md) and a user, you can enable
 [Object Gateway management](http://docs.ceph.com/docs/master/mgr/dashboard/#enabling-the-object-gateway-management-frontend) by providing the user credentials to the dashboard:
-```
+
+```console
 # Access toolbox CLI:
 kubectl -n rook-ceph exec -it $(kubectl -n rook-ceph get pod -l "app=rook-ceph-tools" -o jsonpath='{.items[0].metadata.name}') bash
 

@@ -26,9 +26,9 @@ kubectl apply -f operator.yaml
 
 This will install the operator in namespace rook-cassandra-system. You can check if the operator is up and running with:
 
- ```console
-  kubectl -n rook-cassandra-system get pod
- ```
+```console
+kubectl -n rook-cassandra-system get pod
+```
 
 ## Create and Initialize a Cassandra/Scylla Cluster
 
@@ -65,21 +65,24 @@ kubectl -n rook-cassandra describe clusters.cassandra.rook.io rook-cassandra
 
 * From kubectl:
 
-To get a cqlsh shell in your new Cluster:
+To get a `cqlsh` shell in your new Cluster:
+
 ```console
 kubectl exec -n rook-cassandra -it rook-cassandra-east-1-east-1a-0 -- cqlsh
 > DESCRIBE KEYSPACES;
 ```
 
-
 * From inside a Pod:
 
 When you create a new Cluster, Rook automatically creates a Service for the clients to use in order to access the Cluster. The service's name follows the convention `<cluster-name>-client`. You can see this Service in you cluster by running:
+
 ```console
 kubectl -n rook-cassandra describe service rook-cassandra-client
 ```
+
 Pods running inside the Kubernetes cluster can use this Service to connect to Cassandra.
 Here's an example using the [Python Driver](https://github.com/datastax/python-driver):
+
 ```python
 from cassandra.cluster import Cluster
 
@@ -90,12 +93,15 @@ session = cluster.connect()
 ## Scale Up
 
 The operator supports scale up of a rack as well as addition of new racks. To make the changes, you can use:
+
 ```console
 kubectl edit clusters.cassandra.rook.io rook-cassandra
 ```
+
 * To scale up a rack, change the `Spec.Members` field of the rack to the desired value.
 * To add a new rack, append the `racks` list with a new rack. Remember to choose a different rack name for the new rack.
 * After editing and saving the yaml, check your cluster's Status and Events for information on what's happening:
+
 ```console
 kubectl -n rook-cassandra describe clusters.cassandra.rook.io rook-cassandra
 ```
@@ -104,11 +110,14 @@ kubectl -n rook-cassandra describe clusters.cassandra.rook.io rook-cassandra
 ## Scale Down
 
 The operator supports scale down of a rack. To make the changes, you can use:
+
 ```console
 kubectl edit clusters.cassandra.rook.io rook-cassandra
 ```
+
 * To scale down a rack, change the `Spec.Members` field of the rack to the desired value.
 * After editing and saving the yaml, check your cluster's Status and Events for information on what's happening:
+
 ```console
 kubectl -n rook-cassandra describe clusters.cassandra.rook.io rook-cassandra
 ```
@@ -117,7 +126,7 @@ kubectl -n rook-cassandra describe clusters.cassandra.rook.io rook-cassandra
 
 To clean up all resources associated with this walk-through, you can run the commands below.
 
-**NOTE:** that this will destroy your database and delete all of its associated data.
+> **NOTE**: that this will destroy your database and delete all of its associated data.
 
 ```console
 kubectl delete -f cluster.yaml

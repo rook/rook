@@ -23,9 +23,9 @@ If you are using `dataDirHostPath` to persist rook data on kubernetes hosts, mak
 
 We recommend you to configure EdgeFS to use of raw devices and equal distribution of available storage capacity.
 
-**IMPORTANT** EdgeFS will automatically adjust deployment nodes to use larger then 128KB data chunks, with the following addition to /etc/sysctl.conf:
+> **IMPORTANT**: EdgeFS will automatically adjust deployment nodes to use larger then 128KB data chunks, with the following addition to /etc/sysctl.conf:
 
-```
+```ini
 net.core.rmem_default = 80331648
 net.core.rmem_max = 80331648
 net.core.wmem_default = 33554432
@@ -34,12 +34,14 @@ vm.dirty_ratio = 10
 vm.dirty_background_ratio = 5
 vm.swappiness = 15
 ```
-To turn off this node adjustment need to enable `skipHostPrepare` option in cluster CRD [configuring the cluster](edgefs-cluster-crd.md)
+
+To turn off this node adjustment need to enable `skipHostPrepare` option in cluster CRD [configuring the cluster](edgefs-cluster-crd.md).
 
 ## TL;DR
 
 If you're feeling lucky, a simple EdgeFS Rook cluster can be created with the following kubectl commands. For the more detailed install, skip to the next section to [deploy the Rook operator](#deploy-the-rook-operator).
-```
+
+```console
 cd cluster/examples/kubernetes/edgefs
 kubectl create -f operator.yaml
 kubectl create -f cluster.yaml
@@ -53,13 +55,13 @@ The first step is to deploy the Rook system components, which include the Rook a
 
 Note that Google Cloud users need to explicitly grant user permission to create roles:
 
-```bash
+```console
 kubectl create clusterrolebinding cluster-admin-binding --clusterrole cluster-admin --user $(gcloud config get-value account)
 ```
 
 Now you ready to create operator:
 
-```bash
+```console
 cd cluster/examples/kubernetes/edgefs
 kubectl create -f operator.yaml
 
@@ -74,19 +76,18 @@ You can also deploy the operator with the [Rook EdgeFS Helm Chart](edgefs-helm-o
 Now that the Rook operator, and discover pods are running, we can create the Rook cluster. For the cluster to survive reboots,
 make sure you set the `dataDirHostPath` property. For more settings, see the documentation on [configuring the cluster](edgefs-cluster-crd.md).
 
-
 Edit the cluster spec in `cluster.yaml` file.
 
 Create the cluster:
 
-```bash
+```console
 kubectl create -f cluster.yaml
 ```
 
 Use `kubectl` to list pods in the `rook-edgefs` namespace. You should be able to see the following pods once they are all running.
 The number of target pods will depend on the number of nodes in the cluster and the number of devices and directories configured.
 
-```bash
+```console
 $ kubectl -n rook-edgefs get pod
 rook-edgefs          rook-edgefs-mgr-7c76cb564d-56sxb        1/1     Running   0          24s
 rook-edgefs          rook-edgefs-target-0                    3/3     Running   0          24s
@@ -96,24 +97,25 @@ rook-edgefs          rook-edgefs-target-2                    3/3     Running   0
 
 Notice that EdgeFS Targets are running as StatefulSet.
 
-# Storage
+## Storage
 
 For a walkthrough of the types of Storage CRDs exposed by EdgeFS Rook, see the guides for:
-- **[NFS Server](edgefs-nfs-crd.md)**: Create Scale-Out NFS storage to be consumed by multiple pods, simultaneously
-- **[S3X](edgefs-s3x-crd.md)**: Create an Extended S3 HTTP/2 compatible object and key-value store that is accessible inside or outside the Kubernetes cluster
-- **[AWS S3](edgefs-s3-crd.md)**: Create an AWS S3 compatible object store that is accessible inside or outside the Kubernetes cluster
-- **[iSCSI Target](edgefs-iscsi-crd.md)**: Create low-latency and high-throughput iSCSI block to be consumed by a pod
 
-# CSI Integration
+* **[NFS Server](edgefs-nfs-crd.md)**: Create Scale-Out NFS storage to be consumed by multiple pods, simultaneously
+* **[S3X](edgefs-s3x-crd.md)**: Create an Extended S3 HTTP/2 compatible object and key-value store that is accessible inside or outside the Kubernetes cluster
+* **[AWS S3](edgefs-s3-crd.md)**: Create an AWS S3 compatible object store that is accessible inside or outside the Kubernetes cluster
+* **[iSCSI Target](edgefs-iscsi-crd.md)**: Create low-latency and high-throughput iSCSI block to be consumed by a pod
+
+## CSI Integration
 
 EdgeFS comes with built-in gRPC management services, which are tightly integrated into Kubernetes provisioning and attaching CSI framework. Please see the [EdgeFS CSI](edgefs-csi.md) for setup and usage information.
 
-# EdgeFS Dashboard and Monitoring
+## EdgeFS Dashboard and Monitoring
 
 Each Rook cluster has some built in metrics collectors/exporters for monitoring with [Prometheus](https://prometheus.io/).
 In additional to classic monitoring parameters, it has a built-in multi-tenancy, multi-service capability. For instance, you can quickly discover most loaded tenants, buckets or services.
 To learn how to set up monitoring for your Rook cluster, you can follow the steps in the [monitoring guide](./edgefs-monitoring.md).
 
-# Teardown
+## Teardown
 
 When you are done with the cluster, simply delete CRDs in reverse order. You may want to re-format your raw disks with `wipefs -a` command. Or if you using raw devices and want to keep same storage configuration but change some resource or networking parameters, consider to use `devicesResurrectMode`.

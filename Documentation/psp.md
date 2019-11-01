@@ -15,13 +15,13 @@ indent: true
 
 ## Cluster Role
 
-**NOTE** Cluster role configuration is only needed when you are not already `cluster-admin` in your Kubernetes cluster!
+> **NOTE**: Cluster role configuration is only needed when you are not already `cluster-admin` in your Kubernetes cluster!
 
 Creating the Rook operator requires privileges for setting up RBAC. To launch the operator you need to have created your user certificate that is bound to ClusterRole `cluster-admin`.
 
 One simple way to achieve it is to assign your certificate with the `system:masters` group:
 
-```
+```console
 -subj "/CN=admin/O=system:masters"
 ```
 
@@ -38,9 +38,9 @@ Security policies will differ for different backends. See Ceph's Pod Security Po
 [common.yaml](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/common.yaml)
 for an example of how this is done in practice.
 
-**Note**: You do not have to perform these steps if you do not have the `PodSecurityPolicy` Admission Controller activated!
+> **NOTE**: You do not have to perform these steps if you do not have the `PodSecurityPolicy` Admission Controller activated!
 
-##### PodSecurityPolicy
+### PodSecurityPolicy
 
 You need at least one `PodSecurityPolicy` that allows privileged `Pod` execution. Here is an example
 which should be more permissive than is needed for any backend:
@@ -72,7 +72,8 @@ spec:
 **Hint**: Allowing `hostNetwork` usage is required when using `hostNetwork: true` in a Cluster `CustomResourceDefinition`!
 You are then also required to allow the usage of `hostPorts` in the `PodSecurityPolicy`. The given
 port range will allow all ports:
- ```yaml
+
+```yaml
    hostPorts:
      # Ceph msgr2 port
      - min: 1

@@ -5,9 +5,11 @@ indent: true
 ---
 
 # EdgeFS Cluster CRD
+
 Rook allows creation and customization of storage clusters through the custom resource definitions (CRDs).
 
 ## Sample
+
 To get you started, here is a simple example of a CRD to configure a EdgeFS cluster with just one local per-host directory /data:
 
 ```yaml
@@ -58,14 +60,17 @@ spec:
 In addition to the CRD, you will also need to create a namespace, role, and role binding as seen in the [common cluster resources](#common-cluster-resources) below.
 
 ## Settings
+
 Settings can be specified at the global level to apply to the cluster as a whole, while other settings can be specified at more fine-grained levels, e.g. individual nodes.  If any setting is unspecified, a suitable default will be used automatically.
 
 ### Cluster metadata
+
 - `name`: The name that will be used internally for the EdgeFS cluster. Most commonly the name is the same as the namespace since multiple clusters are not supported in the same namespace.
 - `namespace`: The Kubernetes namespace that will be created for the Rook cluster. The services, pods, and other resources created by the operator will be added to this namespace. The common scenario is to create a single Rook cluster. If multiple clusters are created, they must not have conflicting devices or host paths.
 - `edgefsImageName`: EdgeFS image to use. If not specified then `edgefs/edgefs:latest` is used. We recommend to specify particular image version for production use, for example `edgefs/edgefs:1.2.64`.
 
 ### Cluster Settings
+
 - `dataDirHostPath`: The path on the host ([hostPath](https://kubernetes.io/docs/concepts/storage/volumes/#hostpath)) where config and data should be stored for each of the services. If the directory does not exist, it will be created. Because this directory persists on the host, it will remain after pods are deleted. If `storage` settings not provided then provisioned hostPath will also be used as a storage device for Target pods (automatic provisioning via `rtlfs`).
   - On **Minikube** environments, use `/data/rook`. Minikube boots into a tmpfs but it provides some [directories](https://github.com/kubernetes/minikube/blob/master/docs/persistent_volumes.md) where files can be persisted across reboots. Using one of these directories will ensure that Rook's data and configuration files are persisted and that enough storage space is available.
   - **WARNING**: For test scenarios, if you delete a cluster and start a new cluster on the same hosts, the path used by `dataDirHostPath` must be deleted. Otherwise, stale information and other config will remain from the previous cluster and the new target will fail to start.
@@ -97,21 +102,27 @@ If this value is empty, each pod will get an ephemeral directory to store their 
 - `trlogKeepDays`: Controls for how many days cluster need to keep transaction log interval batches with version manifest references. If you planning to have cluster disconnected from ISGW downlinks for longer period time, consider to increase this value. Default is 3. This is cluster wide setting and cannot be easily changed after cluster is created.
 - `maxContainerCapacity`: Overrides default total disks capacity per target container. Default is "132Ti".
 - `useHostLocalTime`: Force usage of the host's /etc/localtime inside EdgeFS containers. Default is `false`.
+
 #### Node Updates
+
 Nodes can be added and removed over time by updating the Cluster CRD, for example with `kubectl -n rook-edgefs edit cluster.edgefs.rook.io rook-edgefs`.
 This will bring up your default text editor and allow you to add and remove storage nodes from the cluster.
 This feature is only available when `useAllNodes` has been set to `false`.
 
 ### Node Settings
+
 In addition to the cluster level settings specified above, each individual node can also specify configuration to override the cluster level settings and defaults.
 If a node does not specify any configuration then it will inherit the cluster level settings.
+
 - `name`: The name of the node, which should match its `kubernetes.io/hostname` label.
 - `config`: Config settings applied to all VDEVs on the node unless overridden by `devices` or `directories`. See the [config settings](#storage-configuration-settings) below.
 - [storage selection settings](#storage-selection-settings)
 - [storage configuration settings](#storage-configuration-settings)
 
 ### Storage Selection Settings
+
 Below are the settings available, both at the cluster and individual node level, for selecting which storage resources will be included in the cluster.
+
 - `useAllDevices`: `true` or `false`, indicating whether all devices found on nodes in the cluster should be automatically consumed by Targets. This is recommended for controlled environments where you will not risk formatting of devices with existing data. When `true`, all devices will be used except those with partitions created or a local filesystem. This can be overridden by `deviceFilter`. **warning** Don't set this option to `true` for RTKVS disk backend.
 - `deviceFilter`: A regular expression that allows selection of devices to be consumed by target.  If individual devices have been specified for a node then this filter will be ignored.  This field uses [golang regular expression syntax](https://golang.org/pkg/regexp/syntax/). For example:
   - `sdb`: Only selects the `sdb` device if found
@@ -127,35 +138,39 @@ Below are the settings available, both at the cluster and individual node level,
   - `path`: The path on disk of the directory (e.g., `/rook/storage-dir`).
   - `config`: Directory-specific config settings. See the [config settings](#target-configuration-settings) below.
 
-
 ### Storage Configuration Settings
-The following storage selection settings are specific to EdgeFS and do not apply to other backends. All variables are key-value pairs represented as strings. While EdgeFS supports multiple backends, it is not recommended to mix them within same cluster. In case of `devices` (physical or emulated raw disks), EdgeFS will automatically use `rtrd` backend unless `useRtkvsBackend` is specified. In the latter case, the `rtkvs` engine will be chosen. In all other cases `rtlfs` (local file system) will be used.
-**IMPORTANT** Keys needs to be case-sensitive and values has to be provided as strings.
-  - `useRtkvsBackend`: forces the cluster use the `rtkvs` disk engine and setting's value selects a key-value backend to be used. At the moment there is only backend named the `kvssd` for Samsung's KV SSD. The usage of `rtkvs` engine implies definition of one or several `device.name` or `device.fullpath` settings which have to point to backend's disk entries (see cluster_kvsdd.yaml).
-  - `walMode`: allows to enable/disable the Write-Ahead log (WAL). For `rtlfs` and `rtkvs` there are two options: `on` to enable or `off` to disable. It's better to keep it `on` unless `useAllSSD` or `useRtkvsBackend` are used. For `rtkvs`, there is an extra option: `metadata` which implies usage of WAL for data types which aren't stored on `rtkvs` backend (a KVSSD).
-  - `useMetadataOffload`: Dynamically detect appropriate SSD/NVMe device to use for the metadata on each node. Performance can be improved by using a low latency device as the metadata device, while other spinning platter (HDD) devices on a node are used to store data. Typical and recommended proportion is in range of 1:1 - 1:6. Default is false. Applicable only to `rtrd`.
-  - `useMetadataMask`: Defines what parts of metadata needs to be stored on offloaded devices. Default is 0xff, offload all metadata. To save SSD/NVMe capacity, set it to 0x7d to offload all except second level manifests. Applicable only to `rtrd`.
-  - `useBCache`: When `useMetadataOffload` is true, enable use of BCache. Default is false. Applicable only to `rtrd` and when host has "bcache" kernel module preloaded.
-  - `useBCacheWB`:  When `useMetadataOffload` and `useBCache` is true, this option can enable use of BCache write-back cache. By default BCache only used as read cache in front of HDD. Applicable only to `rtrd`.
-  - `useAllSSD`: When set to true, only SSD/NVMe non rotational devices will be used. Default is false and if `useMetadataOffload` not defined then only rotational devices (HDDs) will be picked up during node provisioning phase. Is not applicabel to `rtkvs`.
-  - `rtPLevelOverride`:  In case of large devices or directories, it will be automatically partitioned into smaller parts around 500GB each. In case of embedded use cases, lowering the value would allow to operate with smaller memory footprint devices at the cost of performance. This option allows partitioning number override. Default is automatic. Typical and recommended range is 1 - 32. For `rtkvs` recomended plevel is 16.
-  - `hddReadAhead`: For all HDD or hybrid (SSD/HDD) use cases, adjusting hddReadAhead may provide significant boost in performance. Set to a value higher then 0, in KBs. Not applicable to `rtkvs`
-  - `mdReserved`: For hybrid (SSD/HDD) use case, adjusting mdReserved can be necessary when combined with BCache read/write caches. Allowed range 10-99% of automatically calcuated slice. Not applicable to `rtkvs`
-  - `rtVerifyChid`:  Verify transferred or read payload. Payload can be data or metadata chunk of flexible size between 4K and 8MB. EdgeFS uses SHA-3 variant to cryptographically sign each chunk and uses it for self validation, self healing and FlexHash addressing. In case of low CPU systems verification after networking transfer prior to write can be disabled by setting this parameter to 0. In case of high CPU systems, verification after read but before networking transfer can be enabled by setting this parameter to 2. Default is 1, i.e. verify after networking transfer only. Setting it to 0 may improve CPU utilization at the cost of reduced availability. However, for objects with 3 or more replicas, availability isn't going to be visibly affected.
-  - `lmdbPageSize`: Defines default LMDB page size in bytes. Default is 16384. For capacity (all HDD) or hybrid (HDD/SSD) systems consider to increase this value to 32768 to achieve higher throughput performance. For all SSD and small database workloads, consider to decrease this to 8192 to achieve lower latency and higher IOPS. Please be advised that smaller values MAY cause fragmentation. Acceptable values are 4096, 8192, 16384 and 32768. Not applicable to `rtkvs`
-  - `lmdbMdPageSize`: Defines SSD metadata offload LMDB page size in bytes. Default is 8192. For large amount of small objects or files, consider to decrease this to 4096 to achieve better SSD capacity utilization. Acceptable values are 4096, 8192, 16384 and 32768. Not applicable to `rtkvs`
-  - `sync`: Defines default behavior of write operations at device or directory level. Acceptable values are 0, 1 (default), 2, 3.
-    - `0`: No syncing will happen. Highest performance possible and good for HPC scratch types of deployments. This option will still sustain crash of pods or software bugs. It will not sustain server power loss an may cause node / device level inconsistency.
-    - `1`: Default method. Will guarantee node / device consistency in case of power loss with reduced durability.
-    - `2`: Provides better durability in case of power loss at the cost of extra metadata syncing.
-    - `3`: Most durable and reliable option at the cost of significant performance impact.
-  - `maxSizeGB`: For `rtlfs`, defines maximum allowed size to use per directory in gigabytes. For `rtkvs` this is the maximum space the disk's metadata table can occupy.
-  - `zone`: Enables the node's failure domain number. Default value is 0 (no zoning). Zoning number is a logical failure domain tagging mechanism and if enabled then it has to be set for all the nodes in the cluster. See also, the `failureDomain`
+
+The following storage selection settings are specific to EdgeFS and do not apply to other backends. All variables are key-value pairs represented as strings. While EdgeFS supports multiple backends, it is not recommended to mix them within same cluster. In case of `devices` (physical or emulated raw disks), EdgeFS will automatically use `rtrd` backend unless `useRtkvsBackend` is specified. In the latter case, the `rtkvs` engine will be chosen. In all other cases `rtlfs` (local filesystem) will be used.
+
+> **IMPORTANT**: Keys needs to be case-sensitive and values has to be provided as strings.
+
+- `useRtkvsBackend`: forces the cluster use the `rtkvs` disk engine and setting's value selects a key-value backend to be used. At the moment there is only backend named the `kvssd` for Samsung's KV SSD. The usage of `rtkvs` engine implies definition of one or several `device.name` or `device.fullpath` settings which have to point to backend's disk entries (see cluster_kvsdd.yaml).
+- `walMode`: allows to enable/disable the Write-Ahead log (WAL). For `rtlfs` and `rtkvs` there are two options: `on` to enable or `off` to disable. It's better to keep it `on` unless `useAllSSD` or `useRtkvsBackend` are used. For `rtkvs`, there is an extra option: `metadata` which implies usage of WAL for data types which aren't stored on `rtkvs` backend (a KVSSD).
+- `useMetadataOffload`: Dynamically detect appropriate SSD/NVMe device to use for the metadata on each node. Performance can be improved by using a low latency device as the metadata device, while other spinning platter (HDD) devices on a node are used to store data. Typical and recommended proportion is in range of 1:1 - 1:6. Default is false. Applicable only to `rtrd`.
+- `useMetadataMask`: Defines what parts of metadata needs to be stored on offloaded devices. Default is 0xff, offload all metadata. To save SSD/NVMe capacity, set it to 0x7d to offload all except second level manifests. Applicable only to `rtrd`.
+- `useBCache`: When `useMetadataOffload` is true, enable use of BCache. Default is false. Applicable only to `rtrd` and when host has "bcache" kernel module preloaded.
+- `useBCacheWB`:  When `useMetadataOffload` and `useBCache` is true, this option can enable use of BCache write-back cache. By default BCache only used as read cache in front of HDD. Applicable only to `rtrd`.
+- `useAllSSD`: When set to true, only SSD/NVMe non rotational devices will be used. Default is false and if `useMetadataOffload` not defined then only rotational devices (HDDs) will be picked up during node provisioning phase. Is not applicabel to `rtkvs`.
+- `rtPLevelOverride`:  In case of large devices or directories, it will be automatically partitioned into smaller parts around 500GB each. In case of embedded use cases, lowering the value would allow to operate with smaller memory footprint devices at the cost of performance. This option allows partitioning number override. Default is automatic. Typical and recommended range is 1 - 32. For `rtkvs` recomended plevel is 16.
+- `hddReadAhead`: For all HDD or hybrid (SSD/HDD) use cases, adjusting hddReadAhead may provide significant boost in performance. Set to a value higher then 0, in KBs. Not applicable to `rtkvs`
+- `mdReserved`: For hybrid (SSD/HDD) use case, adjusting mdReserved can be necessary when combined with BCache read/write caches. Allowed range 10-99% of automatically calcuated slice. Not applicable to `rtkvs`
+- `rtVerifyChid`:  Verify transferred or read payload. Payload can be data or metadata chunk of flexible size between 4K and 8MB. EdgeFS uses SHA-3 variant to cryptographically sign each chunk and uses it for self validation, self healing and FlexHash addressing. In case of low CPU systems verification after networking transfer prior to write can be disabled by setting this parameter to 0. In case of high CPU systems, verification after read but before networking transfer can be enabled by setting this parameter to 2. Default is 1, i.e. verify after networking transfer only. Setting it to 0 may improve CPU utilization at the cost of reduced availability. However, for objects with 3 or more replicas, availability isn't going to be visibly affected.
+- `lmdbPageSize`: Defines default LMDB page size in bytes. Default is 16384. For capacity (all HDD) or hybrid (HDD/SSD) systems consider to increase this value to 32768 to achieve higher throughput performance. For all SSD and small database workloads, consider to decrease this to 8192 to achieve lower latency and higher IOPS. Please be advised that smaller values MAY cause fragmentation. Acceptable values are 4096, 8192, 16384 and 32768. Not applicable to `rtkvs`
+- `lmdbMdPageSize`: Defines SSD metadata offload LMDB page size in bytes. Default is 8192. For large amount of small objects or files, consider to decrease this to 4096 to achieve better SSD capacity utilization. Acceptable values are 4096, 8192, 16384 and 32768. Not applicable to `rtkvs`
+- `sync`: Defines default behavior of write operations at device or directory level. Acceptable values are 0, 1 (default), 2, 3.
+  - `0`: No syncing will happen. Highest performance possible and good for HPC scratch types of deployments. This option will still sustain crash of pods or software bugs. It will not sustain server power loss an may cause node / device level inconsistency.
+  - `1`: Default method. Will guarantee node / device consistency in case of power loss with reduced durability.
+  - `2`: Provides better durability in case of power loss at the cost of extra metadata syncing.
+  - `3`: Most durable and reliable option at the cost of significant performance impact.
+- `maxSizeGB`: For `rtlfs`, defines maximum allowed size to use per directory in gigabytes. For `rtkvs` this is the maximum space the disk's metadata table can occupy.
+- `zone`: Enables the node's failure domain number. Default value is 0 (no zoning). Zoning number is a logical failure domain tagging mechanism and if enabled then it has to be set for all the nodes in the cluster. See also, the `failureDomain`
 
 ### Placement Configuration Settings
+
 Placement configuration for the cluster services. It includes the following keys: `mgr`, `target` and `all`. Each service will have its placement configuration generated by merging the generic configuration under `all` with the most specific one (which will override any attributes).
 
 A Placement configuration is specified (according to the Kubernetes PodSpec) as:
+
 - `nodeAffinity`: Kubernetes [NodeAffinity](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#node-affinity-beta-feature)
 - `podAffinity`: Kubernetes [PodAffinity](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#inter-pod-affinity-and-anti-affinity-beta-feature)
 - `podAntiAffinity`: Kubernetes [PodAntiAffinity](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#inter-pod-affinity-and-anti-affinity-beta-feature)
@@ -164,7 +179,9 @@ A Placement configuration is specified (according to the Kubernetes PodSpec) as:
 The `mgr` pod does not allow `Pod` affinity or anti-affinity. This is because of the mgrs having built-in anti-affinity with each other through the operator. The operator chooses which nodes are to run a mgr on. Each mgr is then tied to a node with a node selector using a hostname.
 
 ### Network Configuration Settings
+
 Configure the network that will be enabled for the cluster and services. This is optional and if not defined then the cluster default network's `eth0` will be used to construct cluster bucket network.
+
 - `provider`: Specifies the network provider that will be used to connect the network interface. You can choose between `host`, and `multus`.
 - `selectors`: List the network selector that will be used associated by a key. The available keys are `server` and `broker`.
   - `server`: Specifies data daemon host's networking interface name or multus's network attachment selection annotation.
@@ -174,15 +191,19 @@ For `multus` network provider, an already working cluster with multus networking
 You can add the multus network attachment selection annotation selecting the created network attachment definition on `selectors`. Make sure to define the interface name that will be assigned by multus and choose only one syntax either the short or JSON form to define all the available keys.
 
 ### Cluster-wide Resources Configuration Settings
+
 Resources should be specified so that the rook components are handled after [Kubernetes Pod Quality of Service classes](https://kubernetes.io/docs/tasks/configure-pod-container/quality-service-pod/).
 This allows to keep rook components running when for example a node runs out of memory and the rook components are not killed depending on their Quality of Service class.
 
 You can set resource requests/limits for rook components through the [Resource Requirements/Limits](#resource-requirementslimits) structure in the following keys:
+
 - `mgr`: Set resource requests/limits for Mgrs.
 - `target`: Set resource requests/limits for Targets.
 
 ### Resource Requirements/Limits
-For more information on resource requests/limits see the official Kubernetes documentation: [Kubernetes - Managing Compute Resources for Containers](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#resource-requests-and-limits-of-pod-and-container)
+
+For more information on resource requests/limits see the official Kubernetes documentation: [Kubernetes - Managing Compute Resources for Containers](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#resource-requests-and-limits-of-pod-and-container).
+
 - `requests`: Requests for cpu or memory.
   - `cpu`: Request for CPU (example: one CPU core `1`, 50% of one CPU core `500m`).
   - `memory`: Limit for Memory (example: one gigabyte of memory `1Gi`, half a gigabyte of memory `512Mi`).
@@ -191,15 +212,18 @@ For more information on resource requests/limits see the official Kubernetes doc
   - `memory`: Limit for Memory (example: one gigabyte of memory `1Gi`, half a gigabyte of memory `512Mi`).
 
 ### Kubernetes node labeling and selection
+
 By default each Kubernetes node, available to deploy EdgeFS over it, will be treated as "target" EdgeFS instance. But cluster administrator able to label node as "gateway" node, such node will have no devices prepared for EdgeFS and will be used as EdgeFS dedicated service node.
 To mark a node as a "gateway", the administrator can add a specific label to a node.
 Label format: `<edgefs-namespace>-nodetype=gateway`, where `edgefs-namespace` is current namespace for EdgeFS cluster deployment, by default is `rook-edgefs`.
 Example: `kubectl label node "k8s node name" rook-edgefs-nodetype=gateway`
 
 ## Samples
+
 Here are several samples for configuring EdgeFS clusters. Each of the samples must also include the namespace and corresponding access granted for management by the EdgeFS operator. See the [common cluster resources](#common-cluster-resources) below.
 
 ### Storage configuration: All devices, All SSD/NVMes.
+
 ```yaml
 apiVersion: edgefs.rook.io/v1
 kind: Cluster
@@ -221,6 +245,7 @@ spec:
 ```
 
 ### Storage Configuration: Specific devices
+
 Individual nodes and their config can be specified so that only the named nodes below will be used as storage resources.
 Each node's 'name' field should match their 'kubernetes.io/hostname' label.
 
@@ -252,7 +277,9 @@ spec:
     - name: "172.17.4.301"
       deviceFilter: "^sd."
 ```
+
 ### Storage Configuration: Samsung's KV SSD
+
 A single nodes configuration with 2 KV SSDs. The host's /media directory should have at least 64GB of free space for metadata.
 
 ```yaml
@@ -281,6 +308,7 @@ spec:
 ```
 
 ### Node Affinity
+
 To control where various services will be scheduled by Kubernetes, use the placement configuration sections below.
 The example under 'all' would have all services scheduled on Kubernetes nodes labeled with 'role=storage' and
 tolerate taints with a key of 'storage-node'.
@@ -317,6 +345,7 @@ spec:
 ```
 
 ### Resource requests/Limits
+
 To control how many resources the rook components can request/use, you can set requests and limits in Kubernetes for them.
 You can override these requests/limits for Targts per node when using `useAllNodes: false` in the `node` item in the `nodes` list.
 
@@ -346,6 +375,7 @@ spec:
 ```
 
 ### Network Configuration: Multus network
+
 An example on how to configure the cluster network to use multus network. Here, a NetworkAttachmentDefinition named flannel on rook-edgefs namespace is assumed.
 
 ```yaml
@@ -366,6 +396,7 @@ spec:
 ```
 
 ## Common Cluster Resources
+
 Each EdgeFS cluster must be created in a namespace and also give access to the Rook operator to manage the cluster in the namespace. Creating the namespace and these controls must be added to each of the examples previously shown.
 
 ```yaml
