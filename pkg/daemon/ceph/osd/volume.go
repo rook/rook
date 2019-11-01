@@ -192,6 +192,12 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 		if device.Data == -1 {
 			logger.Infof("configuring new device %s", name)
 			deviceArg := path.Join("/dev", name)
+			// ceph-volume prefers to use /dev/mapper/<name> if the device has this kind of alias
+			for _, devlink := range device.PersistentDevicePaths {
+				if strings.HasPrefix(devlink, "/dev/mapper") {
+					deviceArg = devlink
+				}
+			}
 
 			deviceOSDCount := osdsPerDeviceCount
 			if device.Config.OSDsPerDevice > 1 {

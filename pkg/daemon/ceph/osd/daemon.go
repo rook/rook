@@ -342,7 +342,7 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 
 			if err == nil && matched {
 				// the current device matches the user specifies filter/list, use it for data
-				deviceInfo = &DeviceOsdIDEntry{Data: unassignedOSDID, Config: matchedDevice}
+				deviceInfo = &DeviceOsdIDEntry{Data: unassignedOSDID, Config: matchedDevice, PersistentDevicePaths: strings.Fields(device.DevLinks)}
 			} else {
 				logger.Infof("skipping device %s that does not match the device filter/list (%v). %+v", device.Name, desiredDevices, err)
 			}

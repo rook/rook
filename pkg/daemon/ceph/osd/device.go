@@ -89,6 +89,7 @@ type DeviceOsdIDEntry struct {
 	Metadata              []int         // OSD IDs (multiple) that have metadata stored here
 	Config                DesiredDevice // Device specific config options
 	LegacyPartitionsFound bool          // Whether legacy rook partitions were found
+	PersistentDevicePaths []string
 }
 
 type devicePartInfo struct {
