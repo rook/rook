@@ -219,8 +219,33 @@ subjects:
 - kind: ServiceAccount
   name: rook-ceph-cmd-reporter
   namespace: ` + namespace + `
-
 ---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-osd
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs:
+  - get
+  - list
+---
+# Allow the ceph osd to access cluster-wide resources necessary for determining their topology location
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-osd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-osd
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-osd
+  namespace: ` + namespace + `
 `
 	logger.Infof("creating the new resources that have been added since 1.0")
 	return s.k8sh.ResourceOperation("apply", newResources)
