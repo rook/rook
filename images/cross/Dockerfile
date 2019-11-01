@@ -18,6 +18,8 @@ FROM ubuntu:16.04
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -yy -q --no-install-recommends \
         awscli \
+        build-essential \
+        bzr \
         ca-certificates \
         curl \
         docker.io \
