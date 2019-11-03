@@ -31,7 +31,7 @@ INCLUDE_CSV_TEMPLATES = true
 endif
 
 OPERATOR_SDK := $(TOOLS_HOST_DIR)/operator-sdk-$(OPERATOR_SDK_VERSION)
-YQ := $(TOOLS_HOST_DIR)/yq.v2
+YQ := $(TOOLS_HOST_DIR)/yq
 
 # ====================================================================================
 # Build Rook
@@ -65,9 +65,8 @@ generate-csv-ceph-templates: $(OPERATOR_SDK) $(YQ)
 $(YQ):
 	@if [ ! "$(INCLUDE_CSV_TEMPLATES)" = "" ]; then\
 		echo === installing yq $(GOHOST);\
-		mkdir -p $(TOOLS_HOST_DIR)/tmp;\
-		GOPATH=$(TOOLS_HOST_DIR)/tmp GOBIN=$(TOOLS_HOST_DIR) $(GOHOST) get gopkg.in/mikefarah/yq.v2;\
-		rm -fr $(TOOLS_HOST_DIR)/tmp;\
+		curl -JL https://github.com/mikefarah/yq/releases/download/2.4.1/yq_$(HOST_PLATFORM) -o $(YQ);\
+		chmod +x $(YQ);\
 	fi
 
 $(OPERATOR_SDK):
@@ -75,4 +74,3 @@ $(OPERATOR_SDK):
 		curl -JL https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk-$(OPERATOR_SDK_VERSION)-$(OPERATOR_SDK_PLATFORM) -o $(TOOLS_HOST_DIR)/operator-sdk-$(OPERATOR_SDK_VERSION);\
 		chmod +x $(OPERATOR_SDK);\
         fi
-
