@@ -300,6 +300,14 @@ below, which you should change to match where your images are located.
 You can also remove the `ROOK_CSI_CEPHFS_IMAGE` and `ROOK_CSI_RBD_IMAGE` `env` variables that are
 no longer used in Rook.
 
+You should also delete outdated `*.snapshot.storage.io` CRDs that may have been created by the previous version. If they are not cleaned up, there may be an error in preventing the VolumeSnapshots from ever being "Ready-To-Use: true":
+
+```console
+kubectl delete crd volumesnapshotclasses.snapshot.storage.k8s.io volumesnapshotcontents.snapshot.storage.k8s.io volumesnapshots.snapshot.storage.k8s.io
+```
+
+The new versions of the CRDs will be created when the `csi-rbdplugin-provisioner-0` pod is started following the operator upgrade.
+
 If you have configured the kubelet to use other than `/var/lib/kubelet` please
 add below to the operator `env` variables.
 
