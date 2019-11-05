@@ -59,6 +59,8 @@ type Selection struct {
 	UseAllDevices *bool `json:"useAllDevices,omitempty"`
 	// A regular expression to allow more fine-grained selection of devices on nodes across the cluster
 	DeviceFilter string `json:"deviceFilter,omitempty"`
+	// A regular expression to allow more fine-grained selection of devices with path names
+	DevicePathFilter string `json:"devicePathFilter,omitempty"`
 	// List of devices to use as storage devices
 	Devices []Device `json:"devices,omitempty"`
 	// List of host directories to use as storage

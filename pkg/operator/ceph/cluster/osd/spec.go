@@ -439,7 +439,7 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 	volumes := append(opspec.PodVolumes(provisionConfig.DataPathMap, c.dataDirHostPath, true), copyBinariesVolume)
 
 	// by default, don't define any volume config unless it is required
-	if len(osdProps.devices) > 0 || osdProps.selection.DeviceFilter != "" || osdProps.selection.GetUseAllDevices() || osdProps.metadataDevice != "" || osdProps.pvc.ClaimName != "" {
+	if len(osdProps.devices) > 0 || osdProps.selection.DeviceFilter != "" || osdProps.selection.DevicePathFilter != "" || osdProps.selection.GetUseAllDevices() || osdProps.metadataDevice != "" || osdProps.pvc.ClaimName != "" {
 		// create volume config for the data dir and /dev so the pod can access devices on the host
 		devVolume := v1.Volume{Name: "devices", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/dev"}}}
 		volumes = append(volumes, devVolume)
@@ -601,7 +601,7 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 	}
 	privileged := false
 
-	// only 1 of device list, device filter and use all devices can be specified.  We prioritize in that order.
+	// only 1 of device list, device filter, device path filter and use all devices can be specified.  We prioritize in that order.
 	if len(osdProps.devices) > 0 {
 		deviceNames := make([]string, len(osdProps.devices))
 		for i, device := range osdProps.devices {
@@ -636,6 +636,9 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 		devMountNeeded = true
 	} else if osdProps.selection.DeviceFilter != "" {
 		envVars = append(envVars, deviceFilterEnvVar(osdProps.selection.DeviceFilter))
+		devMountNeeded = true
+	} else if osdProps.selection.DevicePathFilter != "" {
+		envVars = append(envVars, devicePathFilterEnvVar(osdProps.selection.DevicePathFilter))
 		devMountNeeded = true
 	} else if osdProps.selection.GetUseAllDevices() {
 		envVars = append(envVars, deviceFilterEnvVar("all"))
@@ -751,6 +754,10 @@ func dataDevicesEnvVar(dataDevices string) v1.EnvVar {
 
 func deviceFilterEnvVar(filter string) v1.EnvVar {
 	return v1.EnvVar{Name: "ROOK_DATA_DEVICE_FILTER", Value: filter}
+}
+
+func devicePathFilterEnvVar(filter string) v1.EnvVar {
+	return v1.EnvVar{Name: "ROOK_DATA_DEVICE_PATH_FILTER", Value: filter}
 }
 
 func metadataDeviceEnvVar(metadataDevice string) v1.EnvVar {

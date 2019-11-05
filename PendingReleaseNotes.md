@@ -16,6 +16,7 @@
   - The on-host log directory for OSDs was set incorrectly to `<dataDirHostPath>/<namespace>/log`;
     fix this to be `<dataDirHostPath>/log/<namespace>`, the same as other daemons.
   - Use the mon configuration database for directory-based OSDs, and do not generate a config
+  - Add a new CRD property `devicePathFilter` to support device filtering with path names, e.g. `/dev/disk/by-path/pci-.*-sas-.*`.
 - A new ceph-crashcollector controller has been added, that new pod will run on any node where a Ceph pod is running. Read more about this in the [doc](Documentation/ceph-cluster-crd.html#cluster-wide-resources-configuration-settings)
 - PriorityClassNames can now be added to the Rook/Ceph components to influence the scheduler's pod preemption.
   - mgr/mon/osd/rbdmirror: [priority class names configuration settings](Documentation/ceph-cluster-crd.md#priority-class-names-configuration-settings)

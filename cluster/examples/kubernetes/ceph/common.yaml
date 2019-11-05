@@ -134,7 +134,10 @@ spec:
                             pattern: ^(true|false)$
                       useAllDevices:
                         type: boolean
-                      deviceFilter: {}
+                      deviceFilter:
+                        type: string
+                      devicePathFilter:
+                        type: string
                       directories:
                         type: array
                         items:
@@ -152,7 +155,10 @@ spec:
                   type: array
                 useAllDevices:
                   type: boolean
-                deviceFilter: {}
+                deviceFilter:
+                  type: string
+                devicePathFilter:
+                  type: string
                 directories:
                   type: array
                   items:

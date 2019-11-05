@@ -39,6 +39,7 @@ func TestResolveNodeDefaultValues(t *testing.T) {
 	node := storageSpec.ResolveNode("node1")
 	assert.NotNil(t, node)
 	assert.Equal(t, "", node.Selection.DeviceFilter)
+	assert.Equal(t, "", node.Selection.DevicePathFilter)
 	assert.False(t, node.Selection.GetUseAllDevices())
 	assert.Equal(t, storageSpec.Directories, node.Directories)
 	assert.Equal(t, storageSpec.Devices, node.Devices)
@@ -48,9 +49,10 @@ func TestResolveNodeInherentFromCluster(t *testing.T) {
 	// a node with no properties defined should inherit them from the cluster storage spec
 	storageSpec := StorageScopeSpec{
 		Selection: Selection{
-			DeviceFilter: "^sd.",
-			Directories:  []Directory{{Path: "/rook/datadir1"}},
-			Devices:      []Device{{Name: "sda"}},
+			DeviceFilter:     "^sd.",
+			DevicePathFilter: "^/dev/disk/by-path/pci-.*",
+			Directories:      []Directory{{Path: "/rook/datadir1"}},
+			Devices:          []Device{{Name: "sda"}},
 		},
 		Config: map[string]string{
 			"foo": "bar",
@@ -63,6 +65,7 @@ func TestResolveNodeInherentFromCluster(t *testing.T) {
 	node := storageSpec.ResolveNode("node1")
 	assert.NotNil(t, node)
 	assert.Equal(t, "^sd.", node.Selection.DeviceFilter)
+	assert.Equal(t, "^/dev/disk/by-path/pci-.*", node.Selection.DevicePathFilter)
 	assert.False(t, node.Selection.GetUseAllDevices())
 	assert.Equal(t, "bar", node.Config["foo"])
 	assert.Equal(t, []Directory{{Path: "/rook/datadir1"}}, node.Directories)
@@ -73,8 +76,9 @@ func TestResolveNodeSpecificProperties(t *testing.T) {
 	// a node with its own specific properties defined should keep those values, regardless of what the global cluster config is
 	storageSpec := StorageScopeSpec{
 		Selection: Selection{
-			DeviceFilter: "^sd.",
-			Directories:  []Directory{{Path: "/rook/datadir1"}},
+			DeviceFilter:     "^sd.",
+			DevicePathFilter: "^/dev/disk/by-path/pci-.*",
+			Directories:      []Directory{{Path: "/rook/datadir1"}},
 		},
 		Config: map[string]string{
 			"foo": "bar",
@@ -84,9 +88,10 @@ func TestResolveNodeSpecificProperties(t *testing.T) {
 			{
 				Name: "node1", // node has its own config that should override cluster level config
 				Selection: Selection{
-					DeviceFilter: "nvme.*",
-					Directories:  []Directory{{Path: "/rook/node1data"}},
-					Devices:      []Device{{Name: "device026"}},
+					DeviceFilter:     "nvme.*",
+					DevicePathFilter: "^/dev/disk/by-id/.*foo.*",
+					Directories:      []Directory{{Path: "/rook/node1data"}},
+					Devices:          []Device{{Name: "device026"}},
 				},
 				Config: map[string]string{
 					"foo": "node1bar",
@@ -99,6 +104,7 @@ func TestResolveNodeSpecificProperties(t *testing.T) {
 	assert.NotNil(t, node)
 	assert.False(t, node.Selection.GetUseAllDevices())
 	assert.Equal(t, "nvme.*", node.Selection.DeviceFilter)
+	assert.Equal(t, "^/dev/disk/by-id/.*foo.*", node.Selection.DevicePathFilter)
 	assert.Equal(t, []Directory{{Path: "/rook/node1data"}}, node.Directories)
 	assert.Equal(t, []Device{{Name: "device026"}}, node.Devices)
 	assert.Equal(t, "node1bar", node.Config["foo"])
