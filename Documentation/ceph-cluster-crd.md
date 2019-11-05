@@ -223,7 +223,6 @@ Below are the settings available, both at the cluster and individual node level,
 * `directories`:  A list of directory paths that will be included in the storage cluster. Note that using two directories on the same physical device can cause a negative performance impact. Following paths and any of their subpaths **must not be used**: `/etc/ceph`, `/rook` or `/var/log/ceph`.
   * `path`: The path on disk of the directory (e.g., `/rook/storage-dir`)
   * `config`: Directory-specific config settings. See the [config settings](#osd-configuration-settings) below
-* `location`: Location information about the cluster to help with data placement, such as region or data center.  This is directly fed into the underlying Ceph CRUSH map. The type of this field is `string`. For example, to add data center location information, set this field to `rack=rack1`.  More information on CRUSH maps can be found in the [ceph docs](http://docs.ceph.com/docs/master/rados/operations/crush-map/)
 * `storageClassDeviceSets`: Explained in [Storage Class Device Sets](#storage-class-device-sets)
 
 ### Storage Class Device Sets
@@ -351,7 +350,6 @@ spec:
     useAllNodes: true
     useAllDevices: true
     deviceFilter:
-    location:
     config:
       metadataDevice:
       databaseSizeMB: "1024" # this value can be removed for environments with normal sized disks (100 GB or larger)
@@ -384,7 +382,6 @@ spec:
     useAllNodes: false
     useAllDevices: false
     deviceFilter:
-    location:
     config:
       metadataDevice:
       databaseSizeMB: "1024" # this value can be removed for environments with normal sized disks (100 GB or larger)
@@ -524,7 +521,7 @@ spec:
           memory: "4096Mi"
 ```
 
-### Custom Location Information for OSDs
+### OSD Topology
 
 The topology of the cluster is important in production environments where you want your data spread across failure domains. The topology
 can be controlled by adding labels to the nodes. When the labels are found on a node at first OSD deployment, Rook will add them to
@@ -565,7 +562,7 @@ ID CLASS WEIGHT  TYPE NAME                 STATUS REWEIGHT PRI-AFF
 Note that the `host` is added automatically to the hierarchy by Rook. The host cannot be specified with a topology label.
 All topology labels are optional.
 
-> **HINT**: When setting the node labels prior to `CephCluster` creation, these settings take immediate effect. However, applying this to an already deployed `CephCluster` requires removing each node from the cluster first and then re-adding it with new configuration to take effect. Do this node by node to keep your data safe! Check the result with `ceph osd tree` from the [Rook Toolbox](ceph-toolbox.md). The OSD tree should display the location hierarchy for the nodes that already have been re-added.
+> **HINT** When setting the node labels prior to `CephCluster` creation, these settings take immediate effect. However, applying this to an already deployed `CephCluster` requires removing each node from the cluster first and then re-adding it with new configuration to take effect. Do this node by node to keep your data safe! Check the result with `ceph osd tree` from the [Rook Toolbox](ceph-toolbox.md). The OSD tree should display the hierarchy for the nodes that already have been re-added.
 
 To utilize the `failureDomain` based on the node labels, specify the corresponding option in the [CephBlockPool](ceph-pool-crd.md)
 
@@ -576,62 +573,13 @@ metadata:
   name: replicapool
   namespace: rook-ceph
 spec:
-  failureDomain: rack        # this uses the location setting from the CephCluster
+  failureDomain: rack  # this matches the topology labels on nodes
   replicated:
     size: 3
 ```
 
 This configuration will split the replication of volumes across unique
 racks in the data center setup.
-
-#### Custom Location in the Cluster CR (Deprecated)
-
-For each individual node a `location` can be configured in the cluster CR. This method is deprecated and will be removed in the next release when the `topologyAware` flag
-becomes the default. At that point, the node labels described previously will always be used and the `location` in the cluster CR will be ignored.
-
-This example assumes that there are 3 unique racks (`rack1`, `rack2`, `rack3`) in a data center to use as failure domains.
-
-```yaml
-apiVersion: ceph.rook.io/v1
-kind: CephCluster
-metadata:
-  name: rook-ceph
-  namespace: rook-ceph
-spec:
-  cephVersion:
-    image: ceph/ceph:v14.2.4-20190917
-  dataDirHostPath: /var/lib/rook
-  mon:
-    count: 3
-    allowMultiplePerNode: true
-  dashboard:
-    enabled: true
-  # cluster level storage configuration and selection
-  storage:
-    useAllNodes: false
-    useAllDevices: false
-    deviceFilter:
-    location:
-    config:
-      databaseSizeMB: "1024"
-      journalSizeMB: "1024"
-    nodes:
-    - name: "node1"
-      location: rack=rack1   # a location can be specified for every node and will be added to the CRUSH map
-      devices:
-      - name: "sdb"
-      - name: "sdc"
-    - name: "node2"
-      location: rack=rack2   # a location can be specified for every node and will be added to the CRUSH map
-      devices:
-      - name: "sdb"
-      - name: "sdc"
-    - name: "node3"
-      location: rack=rack3   # a location can be specified for every node and will be added to the CRUSH map
-      devices:
-      - name: "sdb"
-      - name: "sdc"
-```
 
 ### Using PVC storage for monitors
 
@@ -663,7 +611,6 @@ spec:
     useAllNodes: true
     useAllDevices: true
     deviceFilter:
-    location:
     config:
       metadataDevice:
       databaseSizeMB: "1024" # this value can be removed for environments with normal sized disks (100 GB or larger)

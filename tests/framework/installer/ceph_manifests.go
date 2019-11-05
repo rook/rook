@@ -202,13 +202,11 @@ spec:
                             name:
                               type: string
                             config: {}
-                      location: {}
                       resources: {}
                   type: array
                 useAllDevices:
                   type: boolean
                 deviceFilter: {}
-                location: {}
                 directories:
                   type: array
                   items:
@@ -1691,7 +1689,6 @@ spec:
     directories:
     - path: ` + settings.DataDirHostPath + /* simulate legacy fallback osd behavior so existing tests still work */ `
     deviceFilter:
-    location:
     config:
       storeType: "` + settings.StoreType + `"
       databaseSizeMB: "1024"

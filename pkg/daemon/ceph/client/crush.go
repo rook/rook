@@ -133,34 +133,6 @@ func GetCrushHostName(context *clusterd.Context, clusterName string, osdID int) 
 	return result.Location["host"], nil
 }
 
-func FormatLocation(location, hostName string) ([]string, error) {
-	var pairs []string
-	if location == "" {
-		pairs = []string{}
-	} else {
-		pairs = strings.Split(location, ",")
-	}
-
-	for _, p := range pairs {
-		if !isValidCrushFieldFormat(p) {
-			return nil, fmt.Errorf("CRUSH location field '%s' is not in a valid format", p)
-		}
-	}
-
-	// set a default root if it's not already set
-	if !isCrushFieldSet("root", pairs) {
-		pairs = append(pairs, formatProperty("root", "default"))
-	}
-	// set the host name
-	if !isCrushFieldSet("host", pairs) {
-		// keep the fully qualified host name in the crush map, but replace the dots with dashes to satisfy ceph
-		hostName = NormalizeCrushName(hostName)
-		pairs = append(pairs, formatProperty("host", hostName))
-	}
-
-	return pairs, nil
-}
-
 // NormalizeCrushName replaces . with -
 func NormalizeCrushName(name string) string {
 	return strings.Replace(name, ".", "-", -1)
@@ -175,7 +147,7 @@ func IsNormalizedCrushNameEqual(notNormalized, normalized string) bool {
 	return false
 }
 
-// UpdateCrushMapValue is for updating the output of FormatLocation(location, hostName)
+// UpdateCrushMapValue is for updating the location in the crush map
 // this is not safe for incorrectly formatted strings
 func UpdateCrushMapValue(pairs *[]string, key, value string) {
 	found := false

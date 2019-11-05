@@ -182,12 +182,11 @@ func Provision(context *clusterd.Context, agent *OsdAgent) error {
 		return err
 	}
 
-	// set the crush location in the osd config file
+	// create the ceph.conf with the default settings
 	cephConfig, err := cephconfig.CreateDefaultCephConfig(context, agent.cluster)
 	if err != nil {
 		return fmt.Errorf("failed to create default ceph config. %+v", err)
 	}
-	cephConfig.GlobalConfig.CrushLocation = agent.location
 
 	// write the latest config to the config dir
 	confFilePath, err := cephconfig.GenerateAdminConnectionConfigWithSettings(context, agent.cluster, cephConfig)

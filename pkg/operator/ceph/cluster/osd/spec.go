@@ -26,7 +26,6 @@ import (
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
-	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
@@ -285,19 +284,8 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 			"--osd-objectstore", storeType,
 			"--osd-max-object-name-len", "256",
 			"--osd-max-object-namespace-len", "64",
+			"--crush-location", fmt.Sprintf("root=default host=%s", osdProps.crushHostname),
 		)
-
-		// Set configs in mon cfg database
-		monstore := opconfig.GetMonStore(c.context, c.Namespace)
-		who := fmt.Sprintf("osd.%s", osdID)
-		// crush_location
-		loc, err := getCRUSHLocation(osdProps)
-		if err != nil {
-			return nil, fmt.Errorf("failed to determine CRUSH location for osd.%s. %+v", osdID, err)
-		}
-		if err := monstore.Set(who, "crush_location", loc); err != nil {
-			return nil, fmt.Errorf("failed to set CRUSH location for osd.%s. %+v", osdID, err)
-		}
 	} else {
 		// other osds can launch the osd daemon directly
 		command = []string{"ceph-osd"}
@@ -603,10 +591,6 @@ func (c *Cluster) getConfigEnvVars(storeConfig config.StoreConfig, dataDir, node
 		envVars = append(envVars, v1.EnvVar{Name: encryptedDeviceEnvVarName, Value: "true"})
 	}
 
-	if location != "" {
-		envVars = append(envVars, rookalpha.LocationEnvVar(location))
-	}
-
 	return envVars
 }
 
@@ -864,14 +848,6 @@ func (c *Cluster) getOSDLabels(osdID int, failureDomainValue string, portable bo
 		FailureDomainKey:    failureDomainValue,
 		portableKey:         strconv.FormatBool(portable),
 	}
-}
-
-func getCRUSHLocation(p osdProperties) (string, error) {
-	locs, err := cephclient.FormatLocation(p.location, p.crushHostname)
-	if err != nil {
-		return "", err
-	}
-	return strings.Join(locs, " "), nil
 }
 
 func (c *Cluster) osdPrepareResources(osdClaimName string) v1.ResourceRequirements {

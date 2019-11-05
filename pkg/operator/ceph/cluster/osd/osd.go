@@ -357,7 +357,6 @@ func (c *Cluster) startProvisioningOverNodes(config *provisionConfig) {
 			resources:      n.Resources,
 			storeConfig:    storeConfig,
 			metadataDevice: metadataDevice,
-			location:       n.Location,
 		}
 		job, err := c.makeJob(osdProps)
 		if err != nil {
@@ -502,7 +501,6 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 		resources:      n.Resources,
 		storeConfig:    storeConfig,
 		metadataDevice: metadataDevice,
-		location:       n.Location,
 	}
 
 	// start osds

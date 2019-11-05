@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/util"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -243,35 +242,6 @@ func TestGetCrushMap(t *testing.T) {
 	assert.Equal(t, 1, len(crush.Devices))
 	assert.Equal(t, 4, len(crush.Buckets))
 	assert.Equal(t, 2, len(crush.Rules))
-}
-
-func TestCrushLocation(t *testing.T) {
-	loc := "dc=datacenter1"
-
-	// test that root will get filled in with default/runtime values
-	res, err := FormatLocation(loc, "my.node")
-	assert.Nil(t, err)
-	assert.Equal(t, 3, len(res))
-	locSet := util.CreateSet(res)
-	assert.True(t, locSet.Contains("root=default"))
-	assert.True(t, locSet.Contains("dc=datacenter1"))
-	assert.True(t, locSet.Contains("host=my-node"))
-
-	// test that if host name and root are already set they will be honored
-	loc = "root=otherRoot,dc=datacenter2,host=node123"
-	res, err = FormatLocation(loc, "othernode")
-	assert.Nil(t, err)
-	assert.Equal(t, 3, len(res))
-	locSet = util.CreateSet(res)
-	assert.True(t, locSet.Contains("root=otherRoot"))
-	assert.True(t, locSet.Contains("dc=datacenter2"))
-	assert.True(t, locSet.Contains("host=node123"))
-
-	// test an invalid CRUSH location format
-	loc = "root=default,prop:value"
-	_, err = FormatLocation(loc, "othernode")
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "is not in a valid format")
 }
 
 func TestCrushName(t *testing.T) {

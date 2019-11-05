@@ -48,7 +48,6 @@ type OsdAgent struct {
 	cluster        *cephconfig.ClusterInfo
 	nodeName       string
 	forceFormat    bool
-	location       string
 	osdProc        map[int]*proc.MonitoredProc
 	devices        []DesiredDevice
 	metadataDevice string
@@ -67,14 +66,13 @@ type device struct {
 }
 
 func NewAgent(context *clusterd.Context, devices []DesiredDevice, metadataDevice, directories string, forceFormat bool,
-	location string, storeConfig config.StoreConfig, cluster *cephconfig.ClusterInfo, nodeName string, kv *k8sutil.ConfigMapKVStore, pvcBacked bool) *OsdAgent {
+	storeConfig config.StoreConfig, cluster *cephconfig.ClusterInfo, nodeName string, kv *k8sutil.ConfigMapKVStore, pvcBacked bool) *OsdAgent {
 
 	return &OsdAgent{
 		devices:        devices,
 		metadataDevice: metadataDevice,
 		directories:    directories,
 		forceFormat:    forceFormat,
-		location:       location,
 		storeConfig:    storeConfig,
 		cluster:        cluster,
 		nodeName:       nodeName,
@@ -489,13 +487,13 @@ func (a *OsdAgent) prepareOSD(context *clusterd.Context, cfg *osdConfig) (*oposd
 		}
 
 		// osd_data_dir/ready does not exist yet, create/initialize the OSD
-		err := initializeOSD(cfg, context, a.cluster, a.location)
+		err := initializeOSD(cfg, context, a.cluster)
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize OSD at %s: %+v", cfg.rootPath, err)
 		}
 	} else {
 		// update the osd config file
-		err := writeConfigFile(cfg, context, a.cluster, a.location)
+		err := writeConfigFile(cfg, context, a.cluster)
 		if err != nil {
 			logger.Warningf("failed to update config file. %+v", err)
 		}

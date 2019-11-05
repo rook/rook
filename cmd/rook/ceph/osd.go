@@ -207,13 +207,9 @@ func writeOSDConfig(cmd *cobra.Command, args []string) error {
 
 	context := createContext()
 	commonOSDInit(osdConfigCmd)
-	crushLocation, err := getLocation(context.Clientset)
-	if err != nil {
-		rook.TerminateFatal(err)
-	}
 	kv := k8sutil.NewConfigMapKVStore(clusterInfo.Name, context.Clientset, metav1.OwnerReference{})
 
-	if err := osddaemon.WriteConfigFile(context, &clusterInfo, kv, osdID, osdIsDevice, cfg.storeConfig, cfg.nodeName, crushLocation); err != nil {
+	if err := osddaemon.WriteConfigFile(context, &clusterInfo, kv, osdID, osdIsDevice, cfg.storeConfig, cfg.nodeName); err != nil {
 		rook.TerminateFatal(fmt.Errorf("failed to write osd config file. %+v", err))
 	}
 
@@ -259,7 +255,7 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 	ownerRef := cluster.ClusterOwnerRef(clusterInfo.Name, ownerRefID)
 	kv := k8sutil.NewConfigMapKVStore(clusterInfo.Name, context.Clientset, ownerRef)
 	agent := osddaemon.NewAgent(context, dataDevices, cfg.metadataDevice, cfg.directories, forceFormat,
-		crushLocation, cfg.storeConfig, &clusterInfo, cfg.nodeName, kv, cfg.pvcBacked)
+		cfg.storeConfig, &clusterInfo, cfg.nodeName, kv, cfg.pvcBacked)
 
 	err = osddaemon.Provision(context, agent)
 	if err != nil {
@@ -285,17 +281,16 @@ func commonOSDInit(cmd *cobra.Command) {
 }
 
 func getLocation(clientset kubernetes.Interface) (string, error) {
-	// Format the basic location properties, then detect the node labels below
-	locArgs, err := client.FormatLocation("", cfg.nodeName)
-	if err != nil {
-		return "", fmt.Errorf("invalid location. %+v", err)
-	}
+	// Start with the host name in the CRUSH map
+	// Keep the fully qualified host name in the crush map, but replace the dots with dashes to satisfy ceph
+	hostName := client.NormalizeCrushName(cfg.nodeName)
+	locArgs := []string{"root=default", fmt.Sprintf("host=%s", hostName)}
 
 	// use zone/region/hostname labels in the crushmap
 	nodeName := os.Getenv(k8sutil.NodeNameEnvVar)
 	node, err := getNode(clientset, nodeName)
 	if err != nil {
-		return "", fmt.Errorf("topologyAware is set, but could not get the node: %+v", err)
+		return "", fmt.Errorf("could not get the node for topology labels: %+v", err)
 	}
 	nodeLabels := node.GetLabels()
 	updateLocationWithNodeLabels(&locArgs, nodeLabels)

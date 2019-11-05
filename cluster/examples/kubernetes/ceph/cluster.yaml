@@ -122,7 +122,6 @@ spec:
     useAllDevices: true
     topologyAware: true
     deviceFilter:
-    location:
     config:
       # The default and recommended storeType is dynamically set to bluestore for devices and filestore for directories.
       # Set the storeType explicitly only if it is required not to use the default.

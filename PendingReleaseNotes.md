@@ -27,7 +27,10 @@
 
 ## Breaking Changes
 
-### <Storage Provider>
+### Ceph
+- The `topology` setting has been removed from the CephCluster CR. To configure the OSD topology, node labels must be applied.
+See the [OSD topology topic](ceph-cluster-crd.md#osd-topology). This setting only affects OSDs when they are first created, thus OSDs will not be impacted during upgrade.
+The topology settings only apply to bluestore OSDs on raw devices. The topology labels are not applied to directory-based OSDs.
 
 
 ## Known Issues
