@@ -159,7 +159,7 @@ func (c *ObjectStoreController) createOrUpdateStore(objectstore *cephv1.CephObje
 		store:       *objectstore,
 		rookVersion: c.rookImage,
 		clusterSpec: c.clusterSpec,
-		ownerRefs:   c.storeOwners(objectstore),
+		ownerRef:    c.storeOwners(objectstore),
 		DataPathMap: cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, objectstore.Name, c.clusterInfo.Name, c.dataDirHostPath),
 		isUpgrade:   c.isUpgrade,
 	}
@@ -220,14 +220,14 @@ func (c *ObjectStoreController) ParentClusterChanged(cluster cephv1.ClusterSpec,
 	}
 }
 
-func (c *ObjectStoreController) storeOwners(store *cephv1.CephObjectStore) []metav1.OwnerReference {
+func (c *ObjectStoreController) storeOwners(store *cephv1.CephObjectStore) metav1.OwnerReference {
 	// Set the object store CR as the owner
-	return []metav1.OwnerReference{{
+	return metav1.OwnerReference{
 		APIVersion: fmt.Sprintf("%s/%s", ObjectStoreResource.Group, ObjectStoreResource.Version),
 		Kind:       ObjectStoreResource.Kind,
 		Name:       store.Name,
 		UID:        store.UID,
-	}}
+	}
 }
 
 func storeChanged(oldStore, newStore cephv1.ObjectStoreSpec) bool {
