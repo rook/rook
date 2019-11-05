@@ -335,11 +335,13 @@ func clusterChanged(oldCluster, newCluster cephv1.ClusterSpec, clusterRef *clust
 			// resource.Quantity has non-exportable fields, so we use its comparator method
 			resourceQtyComparer := cmp.Comparer(func(x, y resource.Quantity) bool { return x.Cmp(y) == 0 })
 			diff = cmp.Diff(oldCluster, newCluster, resourceQtyComparer)
-			logger.Infof("The Cluster CR has changed. diff=%s", diff)
 		}()
-		return true, diff
-	}
+		if diff != "" {
+			logger.Infof("The Cluster CR has changed. diff=%s", diff)
+			return true, diff
+		}
 
+	}
 	return false, ""
 }
 
