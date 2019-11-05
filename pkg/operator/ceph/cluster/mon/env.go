@@ -16,11 +16,7 @@ limitations under the License.
 
 package mon
 
-import (
-	"strconv"
-
-	v1 "k8s.io/api/core/v1"
-)
+import v1 "k8s.io/api/core/v1"
 
 // ClusterNameEnvVar is the cluster name environment var
 func ClusterNameEnvVar(name string) v1.EnvVar {
@@ -43,9 +39,4 @@ func SecretEnvVar() v1.EnvVar {
 func AdminSecretEnvVar() v1.EnvVar {
 	ref := &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: AppName}, Key: adminSecretName}
 	return v1.EnvVar{Name: "ROOK_ADMIN_SECRET", ValueFrom: &v1.EnvVarSource{SecretKeyRef: ref}}
-}
-
-// ClusterHostNetworking is the value of the hostnetworking spec
-func ClusterHostNetworking(name bool) v1.EnvVar {
-	return v1.EnvVar{Name: "ROOK_HOST_NETWORKING", Value: strconv.FormatBool(name)}
 }

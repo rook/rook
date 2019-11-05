@@ -18,9 +18,6 @@ package osd
 
 import (
 	"fmt"
-	"io/ioutil"
-	"os"
-	"strings"
 	"testing"
 
 	"github.com/rook/rook/pkg/clusterd"
@@ -313,47 +310,4 @@ func TestSanitizeOSDsPerDevice(t *testing.T) {
 func TestGetDatabaseSize(t *testing.T) {
 	assert.Equal(t, 0, getDatabaseSize(0, 0))
 	assert.Equal(t, 2048, getDatabaseSize(4096, 2048))
-}
-
-func TestHideRestoreconCommand(t *testing.T) {
-	os.Setenv("ROOK_HOST_NETWORKING", "false")
-	defer os.Setenv("ROOK_HOST_NETWORKING", "")
-
-	// Should not run if ROOK_HOST_NETWORKING is false
-	err := replaceRestoreconCommand()
-	assert.NoError(t, err)
-
-	// Should not run if /etc/redhat-release does not exist
-	os.Setenv("ROOK_HOST_NETWORKING", "true")
-	err = replaceRestoreconCommand()
-	assert.NoError(t, err)
-
-	// Should run now
-	// Fake redhat-release file
-	f, err := ioutil.TempFile("", "redhat-release")
-	assert.NoError(t, err)
-	defer f.Close()
-	defer os.Remove(f.Name())
-	redHatReleaseFile = f.Name()
-	assert.FileExists(t, redHatReleaseFile)
-
-	// Fake restorecon command
-	ff, err := ioutil.TempFile("", "restorecon")
-	defer ff.Close()
-	defer os.Remove(ff.Name())
-	assert.NoError(t, err)
-	restoreconPath = ff.Name()
-	assert.FileExists(t, restoreconPath)
-
-	restoreconPathNewPath = restoreconPath + ".old"
-	defer os.Remove(restoreconPathNewPath)
-	err = replaceRestoreconCommand()
-	assert.NoError(t, err)
-	assert.FileExists(t, restoreconPathNewPath, "restoreconPath is %q and restoreconPathNewPath is %q", restoreconPath, restoreconPathNewPath)
-
-	r, err := ioutil.ReadFile(restoreconPath)
-	assert.NoError(t, err)
-
-	b := strings.Contains(string(r), "restorecon command was replaced with a no-op")
-	assert.True(t, b, restoreconPath)
 }
