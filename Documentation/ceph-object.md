@@ -20,7 +20,7 @@ The below sample will create a `CephObjectStore` that starts the RGW service in 
 
 The OSDs must be located on different nodes, because the [`failureDomain`](ceph-pool-crd.md#spec) is set to `host` and the `erasureCoded` chunk settings require at least 3 different OSDs (2 `dataChunks` + 1 `codingChunks`).
 
-See the [Object Store CRD](ceph-object-store-crd.md#object-store-settings), for more detail on the settings availabe for a `CephObjectStore`. 
+See the [Object Store CRD](ceph-object-store-crd.md#object-store-settings), for more detail on the settings availabe for a `CephObjectStore`.
 
 ```yaml
 apiVersion: ceph.rook.io/v1
@@ -56,72 +56,73 @@ kubectl create -f object.yaml
 kubectl -n rook-ceph get pod -l app=rook-ceph-rgw
 ```
 
-## Create a User
-
-Next, create a `CephObjectStoreUser`, which will be used to connect to the RGW service in the cluster using the S3 API.
-
-See the [Object Store User CRD](ceph-object-store-user-crd.md) for more detail on the settings available for a `CephObjectStoreUser`.
+## Create a Bucket
+Now that the object store is configured, next we need to create a bucket where a client can read and write objects. A bucket can be created by defining a storage class, similar to the pattern used by block and file storage.
+First, define the storage class that will allow object clients to create a bucket.
+The storage class defines the object storage system, the bucket retention policy, and other properties required by the administrator. Save the following as `storageclass-bucket-delete.yaml` (the example is named as such due to the `Delete` reclaim policy).
 
 ```yaml
-apiVersion: ceph.rook.io/v1
-kind: CephObjectStoreUser
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
 metadata:
-  name: my-user
-  namespace: rook-ceph
+   name: rook-ceph-bucket
+provisioner: ceph.rook.io/bucket
+reclaimPolicy: Delete
+parameters:
+  objectStoreName: my-store
+  objectStoreNamespace: rook-ceph
+  region: us-east-1
+```
+```bash
+kubectl create -f storageclass-bucket-delete.yaml
+```
+
+Based on this storage class, an object client can now request a bucket by creating an Object Bucket Claim (OBC).
+When the OBC is created, the Rook-Ceph bucket provisioner will create a new bucket. Notice that the OBC
+references the storage class that was created above.
+Save the following as `object-bucket-claim-delete.yaml` (the example is named as such due to the `Delete` reclaim policy):
+
+```yaml
+apiVersion: objectbucket.io/v1alpha1
+kind: ObjectBucketClaim
+metadata:
+  name: ceph-bucket
 spec:
-  store: my-store
-  displayName: "my display name"
+  generateBucketName: ceph-bkt
+  storageClassName: rook-ceph-bucket
 ```
+```bash
+kubectl create -f object-bucket-claim-delete.yaml
+```
+Now that the claim is created, the operator will create the bucket as well as generate other artifacts to enable access to the bucket. A secret and ConfigMap are created with the same name as the OBC and in the same namespace.
+The secret contains credentials used by the application pod to access the bucket.
+The ConfigMap contains bucket endpoint information and is also consumed by the pod.
+See the [Object Bucket Claim Documentation](ceph-object-bucket-claim.md) for more details on the `CephObjectBucketClaims`.
 
-When the `CephObjectStoreUser` is created, the Rook operator will then create the RGW user on the specified `CephObjectStore` and store the Access Key and Secret Key in a kubernetes secret in the same namespace as the `CephObjectStoreUser`.
+### Client Connections
+
+The following commands extract key pieces of information from the secret and configmap:"
 
 ```bash
-# Create the object store user
-kubectl create -f object-user.yaml
-
-# To confirm the object store user is configured, describe the secret
-kubectl -n rook-ceph describe secret rook-ceph-object-user-my-store-my-user
-
-Name:		rook-ceph-object-user-my-store-my-user
-Namespace:	rook-ceph
-Labels:			app=rook-ceph-rgw
-			      rook_cluster=rook-ceph
-			      rook_object_store=my-store
-Annotations:	<none>
-
-Type:	kubernetes.io/rook
-
-Data
-====
-AccessKey:	20 bytes
-SecretKey:	40 bytes
-```
-
-The AccessKey and SecretKey data fields can be mounted in a pod as an environment variable. More information on consuming
-kubernetes secrets can be found in the [K8s secret documentation](https://kubernetes.io/docs/concepts/configuration/secret/)
-
-To directly retrieve the secrets:
-```bash
-kubectl -n rook-ceph get secret rook-ceph-object-user-my-store-my-user -o yaml | grep AccessKey | awk '{print $2}' | base64 --decode
-kubectl -n rook-ceph get secret rook-ceph-object-user-my-store-my-user -o yaml | grep SecretKey | awk '{print $2}' | base64 --decode
+#config-map, secret, OBC will part of default if no specific name space mentioned
+export AWS_HOST=$(kubectl -n default get cm ceph-bucket -o yaml | grep BUCKET_HOST | awk '{print $2}')
+export AWS_ACCESS_KEY_ID=$(kubectl -n default get secret ceph-bucket -o yaml | grep AWS_ACCESS_KEY_ID | awk '{print $2}' | base64 --decode)
+export AWS_SECRET_ACCESS_KEY=$(kubectl -n default get secret ceph-bucket -o yaml | grep AWS_SECRET_ACCESS_KEY | awk '{print $2}' | base64 --decode)
 ```
 
 ## Consume the Object Storage
 
-Use an S3 compatible client to create a bucket in the `CephObjectStore`.
+Now that you have the object store configured and a bucket created, you can consume the
+object storage from an S3 client.
 
-This section will allow you to test connecting to the `CephObjectStore` and uploading and downloading from it. Run the following commands after you have connected to the [Rook toolbox](ceph-toolbox.md).
-
-### Install s3cmd
-
-To test the `CephObjectStore` we will install the `s3cmd` tool into the toobox pod.
-```bash
-yum --assumeyes install s3cmd
-```
+This section will guide you through testing the connection to the `CephObjectStore` and uploading and downloading from it.
+Run the following commands after you have connected to the [Rook toolbox](ceph-toolbox.md).
 
 ### Connection Environment Variables
 
-To simplify the s3 client commands, you will want to set the four environment variables for use by your client (ie. inside the toolbox):
+To simplify the s3 client commands, you will want to set the four environment variables for use by your client (ie. inside the toolbox).
+See above for retrieving the variables for a bucket created by an `ObjectBucketClaim`.
+
 ```bash
 export AWS_HOST=<host>
 export AWS_ENDPOINT=<endpoint>
@@ -134,7 +135,8 @@ export AWS_SECRET_ACCESS_KEY=<secretKey>
 - `Access key`: The user's `access_key` as printed above
 - `Secret key`: The user's `secret_key` as printed above
 
-The variables for the user generated in this example would be:
+The variables for the user generated in this example might be:
+
 ```bash
 export AWS_HOST=rook-ceph-rgw-my-store.rook-ceph
 export AWS_ENDPOINT=10.104.35.31:80
@@ -142,23 +144,15 @@ export AWS_ACCESS_KEY_ID=XEZDB3UJ6X7HVBE7X7MA
 export AWS_SECRET_ACCESS_KEY=7yGIZON7EhFORz0I40BFniML36D2rl8CQQ5kXU6l
 ```
 
-The access key and secret key can be retrieved as described in the section above on [creating a user](#create-a-user).
+The access key and secret key can be retrieved as described in the section above on [client connections](#client-connections) or
+below in the section [creating a user](#create-a-user) if you are not creating the buckets with an `ObjectBucketClaim`.
 
-### Create a bucket
+### Install s3cmd
 
-Now that the user connection variables were set above, we can proceed to perform operations such as creating buckets.
-
-Create a bucket in the `CephObjectStore`
-
-   ```bash
-   s3cmd mb --no-ssl --host=${AWS_HOST} --region=":default-placement" --host-bucket="" s3://rookbucket
-   ```
-
-List buckets in the `CephObjectStore`
-
-   ```bash
-   s3cmd ls --no-ssl --host=${AWS_HOST}
-   ```
+To test the `CephObjectStore` we will install the `s3cmd` tool into the toolbox pod.
+```bash
+yum --assumeyes install s3cmd
+```
 
 ### PUT or GET an object
 
@@ -229,3 +223,56 @@ rook-ceph-rgw-my-store-external   NodePort    10.111.113.237   <none>        80:
 ```
 
 Internally the rgw service is running on port `80`. The external port in this case is `31536`. Now you can access the `CephObjectStore` from anywhere! All you need is the hostname for any machine in the cluster, the external port, and the user credentials.
+
+## Create a User
+
+If you need to create an independent set of user credentials to access the S3 endpoint,
+create a `CephObjectStoreUser`. The user will be used to connect to the RGW service in the cluster using the S3 API.
+The user will be independent of any object bucket claims that you might have created in the earlier
+instructions in this document.
+
+See the [Object Store User CRD](ceph-object-store-user-crd.md) for more detail on the settings available for a `CephObjectStoreUser`.
+
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStoreUser
+metadata:
+  name: my-user
+  namespace: rook-ceph
+spec:
+  store: my-store
+  displayName: "my display name"
+```
+
+When the `CephObjectStoreUser` is created, the Rook operator will then create the RGW user on the specified `CephObjectStore` and store the Access Key and Secret Key in a kubernetes secret in the same namespace as the `CephObjectStoreUser`.
+
+```bash
+# Create the object store user
+kubectl create -f object-user.yaml
+
+# To confirm the object store user is configured, describe the secret
+kubectl -n rook-ceph describe secret rook-ceph-object-user-my-store-my-user
+
+Name:		rook-ceph-object-user-my-store-my-user
+Namespace:	rook-ceph
+Labels:			app=rook-ceph-rgw
+			      rook_cluster=rook-ceph
+			      rook_object_store=my-store
+Annotations:	<none>
+
+Type:	kubernetes.io/rook
+
+Data
+====
+AccessKey:	20 bytes
+SecretKey:	40 bytes
+```
+
+The AccessKey and SecretKey data fields can be mounted in a pod as an environment variable. More information on consuming
+kubernetes secrets can be found in the [K8s secret documentation](https://kubernetes.io/docs/concepts/configuration/secret/)
+
+To directly retrieve the secrets:
+```bash
+kubectl -n rook-ceph get secret rook-ceph-object-user-my-store-my-user -o yaml | grep AccessKey | awk '{print $2}' | base64 --decode
+kubectl -n rook-ceph get secret rook-ceph-object-user-my-store-my-user -o yaml | grep SecretKey | awk '{print $2}' | base64 --decode
+```
