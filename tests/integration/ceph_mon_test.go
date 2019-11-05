@@ -17,24 +17,41 @@ limitations under the License.
 package integration
 
 import (
+	"strings"
 	"time"
+
+	appsv1 "k8s.io/api/apps/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+func (suite *SmokeSuite) getNonCanaryMonDeployments() ([]appsv1.Deployment, error) {
+	opts := metav1.ListOptions{LabelSelector: "app=rook-ceph-mon"}
+	deployments, err := suite.k8sh.Clientset.AppsV1().Deployments(suite.namespace).List(opts)
+	if err != nil {
+		return nil, err
+	}
+	nonCanaryMonDeployments := []appsv1.Deployment{}
+	for _, deployment := range deployments.Items {
+		if !strings.HasSuffix(deployment.GetName(), "-canary") {
+			nonCanaryMonDeployments = append(nonCanaryMonDeployments, deployment)
+		}
+	}
+	return nonCanaryMonDeployments, nil
+}
 
 // Smoke Test for Mon failover - Test check the following operations for the Mon failover in order
 // Delete mon pod, Wait for new mon pod
 func (suite *SmokeSuite) TestMonFailover() {
 	logger.Infof("Mon Failover Smoke Test")
 
-	opts := metav1.ListOptions{LabelSelector: "app=rook-ceph-mon"}
-	deployments, err := suite.k8sh.Clientset.AppsV1().Deployments(suite.namespace).List(opts)
+	deployments, err := suite.getNonCanaryMonDeployments()
 	require.Nil(suite.T(), err)
-	require.Equal(suite.T(), 3, len(deployments.Items))
+	require.Equal(suite.T(), 3, len(deployments))
 
-	monToKill := deployments.Items[0].Name
+	monToKill := deployments[0].Name
 	logger.Infof("Killing mon %s", monToKill)
 	propagation := metav1.DeletePropagationForeground
 	delOptions := &metav1.DeleteOptions{PropagationPolicy: &propagation}
@@ -44,12 +61,12 @@ func (suite *SmokeSuite) TestMonFailover() {
 	// Wait for the health check to start a new monitor
 	originalMonDeleted := false
 	for i := 0; i < 30; i++ {
-		deployments, err := suite.k8sh.Clientset.AppsV1().Deployments(suite.namespace).List(opts)
+		deployments, err := suite.getNonCanaryMonDeployments()
 		require.Nil(suite.T(), err)
 
 		// Make sure the old mon is not still alive
 		foundOldMon := false
-		for _, mon := range deployments.Items {
+		for _, mon := range deployments {
 			if mon.Name == monToKill {
 				foundOldMon = true
 			}
@@ -68,16 +85,16 @@ func (suite *SmokeSuite) TestMonFailover() {
 		} else {
 			logger.Infof("Waiting for a new monitor to start")
 			originalMonDeleted = true
-			if len(deployments.Items) == 3 {
+			if len(deployments) == 3 {
 				var newMons []string
-				for _, mon := range deployments.Items {
+				for _, mon := range deployments {
 					newMons = append(newMons, mon.Name)
 				}
 				logger.Infof("Found a new monitor! monitors=%v", newMons)
 				return
 			}
 
-			assert.Equal(suite.T(), 2, len(deployments.Items))
+			assert.Equal(suite.T(), 2, len(deployments))
 		}
 
 		time.Sleep(5 * time.Second)
