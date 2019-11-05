@@ -257,11 +257,35 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 			Name:      "run-udev",
 			MountPath: "/run/udev"})
 
+<<<<<<< HEAD
 		// Activate verbose mode for ceph-volume on activate
 		envVars = append(envVars, []v1.EnvVar{
 			{Name: "CEPH_VOLUME_DEBUG", Value: "1"},
 		}...)
 
+=======
+	} else if osd.IsDirectory {
+		// config for dir-based osds is gotten from the commandline or from the mon database
+		doConfigInit = false
+		doBinaryCopyInit = false
+
+		storeType := "bluestore"
+		if osd.IsFileStore {
+			storeType = "filestore"
+		}
+
+		command = []string{"ceph-osd"}
+		args = append(
+			opspec.DaemonFlags(c.clusterInfo, osdID),
+			"--foreground",
+			"--osd-data", osd.DataPath,
+			"--osd-uuid", osd.UUID,
+			"--osd-objectstore", storeType,
+			"--osd-max-object-name-len", "256",
+			"--osd-max-object-namespace-len", "64",
+			"--crush-location", fmt.Sprintf("root=default host=%s", osdProps.crushHostname),
+		)
+>>>>>>> a0fdf1bb5... ceph: add CEPH_VOLUME_SKIP_RESTORECON env var
 	} else {
 		// other osds can launch the osd daemon directly
 		command = []string{"ceph-osd"}
@@ -520,13 +544,18 @@ func (c *Cluster) getConfigEnvVars(storeConfig config.StoreConfig, dataDir, node
 				Key:                  "fsid",
 			},
 		}},
-		{Name: "CEPH_VOLUME_DEBUG", Value: "1"},
 		k8sutil.NodeEnvVar(),
 	}
+<<<<<<< HEAD
 	// pass on the topologyAware flag to the provion pod so that portable OSDs can reconcile zone/region
 	if c.DesiredStorage.TopologyAware {
 		envVars = append(envVars, topologyAwareEnvVar("true"))
 	}
+=======
+
+	// Append ceph-volume environment variables
+	envVars = append(envVars, cephVolumeEnvVar()...)
+>>>>>>> a0fdf1bb5... ceph: add CEPH_VOLUME_SKIP_RESTORECON env var
 
 	if storeConfig.StoreType != "" {
 		envVars = append(envVars, v1.EnvVar{Name: osdStoreEnvVarName, Value: storeConfig.StoreType})
@@ -836,5 +865,12 @@ func (c *Cluster) osdPrepareResources(osdClaimName string) v1.ResourceRequiremen
 			v1.ResourceCPU:    *resource.NewMilliQuantity(cpuRequest, resource.DecimalSI),
 			v1.ResourceMemory: *resource.NewQuantity(memoryRequest, resource.BinarySI),
 		},
+	}
+}
+
+func cephVolumeEnvVar() []v1.EnvVar {
+	return []v1.EnvVar{
+		{Name: "CEPH_VOLUME_DEBUG", Value: "1"},
+		{Name: "CEPH_VOLUME_SKIP_RESTORECON", Value: "1"},
 	}
 }
