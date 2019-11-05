@@ -51,7 +51,7 @@ func createFilesystem(
 	fs cephv1.CephFilesystem,
 	rookVersion string,
 	clusterSpec *cephv1.ClusterSpec,
-	ownerRefs []metav1.OwnerReference,
+	ownerRefs metav1.OwnerReference,
 	dataDirHostPath string,
 	isUpgrade bool,
 ) error {
