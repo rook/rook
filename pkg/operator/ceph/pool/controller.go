@@ -229,12 +229,10 @@ func ValidatePool(context *clusterd.Context, p *cephv1.CephBlockPool) error {
 	return nil
 }
 
+// ValidatePoolSpec validates the Ceph block pool spec CR
 func ValidatePoolSpec(context *clusterd.Context, namespace string, p *cephv1.PoolSpec) error {
 	if p.Replication() != nil && p.ErasureCode() != nil {
 		return fmt.Errorf("both replication and erasure code settings cannot be specified")
-	}
-	if p.Replication() == nil && p.ErasureCode() == nil {
-		return fmt.Errorf("neither replication nor erasure code settings were specified")
 	}
 
 	var crush ceph.CrushMap

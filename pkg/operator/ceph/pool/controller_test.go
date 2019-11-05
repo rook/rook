@@ -30,10 +30,10 @@ import (
 func TestValidatePool(t *testing.T) {
 	context := &clusterd.Context{Executor: &exectest.MockExecutor{}}
 
-	// must specify some replication or EC settings
+	// not specifying some replication or EC settings is fine
 	p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
 	err := ValidatePool(context, &p)
-	assert.NotNil(t, err)
+	assert.Nil(t, err)
 
 	// must specify name
 	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Namespace: "myns"}}
