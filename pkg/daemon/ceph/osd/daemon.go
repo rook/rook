@@ -57,11 +57,6 @@ func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID, lvPath string,
 		return fmt.Errorf("failed to update lvm configuration file, %+v", err) // fail return here as validation provided by ceph-volume
 	}
 
-	// Hide restorecon command, only when hostnetworking is enabled
-	if err := replaceRestoreconCommand(); err != nil {
-		return fmt.Errorf("failed to hide 'restorecon' command. %+v", err)
-	}
-
 	var volumeGroupName string
 	if pvcBackedOSD {
 		volumeGroupName, err = getVolumeGroupName(lvPath)

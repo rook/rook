@@ -555,7 +555,6 @@ func (c *Cluster) getConfigEnvVars(storeConfig config.StoreConfig, dataDir, node
 		opmon.EndpointEnvVar(),
 		opmon.SecretEnvVar(),
 		opmon.AdminSecretEnvVar(),
-		opmon.ClusterHostNetworking(c.Network.IsHost()),
 		k8sutil.ConfigDirEnvVar(dataDir),
 		k8sutil.ConfigOverrideEnvVar(),
 		{Name: "ROOK_FSID", ValueFrom: &v1.EnvVarSource{
