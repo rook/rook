@@ -145,6 +145,8 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 				},
 			},
 			InitialDelaySeconds: 10,
+			TimeoutSeconds:      2,
+			PeriodSeconds:       10,
 		},
 		SecurityContext: mon.PodSecurityContext(),
 	}
