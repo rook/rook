@@ -267,12 +267,6 @@ func RookNodesMatchingKubernetesNodes(rookStorage rookalpha.StorageScopeSpec, ku
 		for _, rn := range rookStorage.Nodes {
 			if rookNodeMatchesKubernetesNode(rn, kn) {
 				rn.Name = normalizeHostname(kn)
-
-				// modify the node Location if topology awareness enabled
-				if rookStorage.TopologyAware == true {
-					rn.Location = nodeTopologyLocation(kn, rn.Location)
-				}
-
 				nodes = append(nodes, rn)
 			}
 		}

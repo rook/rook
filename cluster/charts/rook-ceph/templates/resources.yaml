@@ -129,13 +129,11 @@ spec:
                             name:
                               type: string
                             config: {}
-                      location: {}
                       resources: {}
                   type: array
                 useAllDevices:
                   type: boolean
                 deviceFilter: {}
-                location: {}
                 directories:
                   type: array
                   items:
@@ -143,8 +141,6 @@ spec:
                       path:
                         type: string
                 config: {}
-                topologyAware:
-                  type: boolean
                 storageClassDeviceSets: {}
             monitoring:
               properties:

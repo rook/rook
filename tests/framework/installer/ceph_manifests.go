@@ -202,13 +202,11 @@ spec:
                             name:
                               type: string
                             config: {}
-                      location: {}
                       resources: {}
                   type: array
                 useAllDevices:
                   type: boolean
                 deviceFilter: {}
-                location: {}
                 directories:
                   type: array
                   items:
@@ -216,8 +214,6 @@ spec:
                       path:
                         type: string
                 config: {}
-                topologyAware:
-                  type: boolean
                 storageClassDeviceSets: {}
             monitoring:
               properties:
@@ -783,20 +779,6 @@ rules:
   - get
   - list
 ---
-# Allow the ceph osd to access cluster-wide resources necessary for determining their topology location
-kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-osd
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: rook-ceph-osd
-subjects:
-- kind: ServiceAccount
-  name: rook-ceph-osd
-  namespace: ` + namespace + `
----
 # Aspects of Rook Ceph Agent that require access to secrets
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
@@ -832,7 +814,6 @@ kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-ceph-mgr-system
-  namespace: ` + namespace + `
 aggregationRule:
   clusterRoleSelectors:
   - matchLabels:
@@ -843,7 +824,6 @@ kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-ceph-mgr-system-rules
-  namespace: ` + namespace + `
   labels:
     rbac.ceph.rook.io/aggregate-to-rook-ceph-mgr-system: "true"
 rules:
@@ -855,6 +835,50 @@ rules:
   - get
   - list
   - watch
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-object-bucket
+  labels:
+    operator: rook
+    storage-backend: ceph
+    rbac.ceph.rook.io/aggregate-to-rook-ceph-mgr-cluster: "true"
+rules:
+- apiGroups:
+  - ""
+  verbs:
+  - "*"
+  resources:
+  - secrets
+  - configmaps
+- apiGroups:
+    - storage.k8s.io
+  resources:
+    - storageclasses
+  verbs:
+    - get
+    - list
+    - watch
+- apiGroups:
+  - "objectbucket.io"
+  verbs:
+  - "*"
+  resources:
+  - "*"
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-object-bucket
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-object-bucket
+subjects:
+  - kind: ServiceAccount
+    name: rook-ceph-system
+    namespace: ` + namespace + `
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -899,26 +923,11 @@ subjects:
   name: rook-ceph-system
   namespace: ` + namespace + `
 ---
-# Allow the ceph mgr to access cluster-wide resources necessary for the mgr modules
-kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-mgr-cluster
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: rook-ceph-mgr-cluster
-subjects:
-- kind: ServiceAccount
-  name: rook-ceph-mgr
-  namespace: ` + namespace + `
----
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: rook-csi-rbd-plugin-sa
   namespace: ` + namespace + `
-
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
@@ -955,7 +964,6 @@ rules:
   - apiGroups: [""]
     resources: ["secrets"]
     verbs: ["get", "list"]
-
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
@@ -975,7 +983,6 @@ kind: ServiceAccount
 metadata:
   name: rook-csi-rbd-provisioner-sa
   namespace: ` + namespace + `
-
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
@@ -1030,7 +1037,6 @@ rules:
   - apiGroups: ["storage.k8s.io"]
     resources: ["volumeattachments"]
     verbs: ["get", "list", "watch", "update"]
-
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
@@ -1216,9 +1222,7 @@ roleRef:
   kind: Role
   name: cephfs-external-provisioner-cfg
   apiGroup: rbac.authorization.k8s.io
-
 ---
-
 apiVersion: policy/v1beta1
 kind: PodSecurityPolicy
 metadata:
@@ -1361,9 +1365,7 @@ subjects:
   - kind: ServiceAccount
     name: rook-csi-cephfs-plugin-sa
     namespace: ` + namespace + `
-
 ---
-
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -1416,50 +1418,6 @@ spec:
           value: "true"
         - name: ROOK_CSI_ENABLE_GRPC_METRICS
           value: "true"
----
-kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-object-bucket
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: rook-ceph-object-bucket
-subjects:
-  - kind: ServiceAccount
-    name: rook-ceph-system
-    namespace: ` + namespace + `
----
-kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-object-bucket
-  labels:
-    operator: rook
-    storage-backend: ceph
-    rbac.ceph.rook.io/aggregate-to-rook-ceph-mgr-cluster: "true"
-rules:
-- apiGroups:
-  - ""
-  verbs:
-  - "*"
-  resources:
-  - secrets
-  - configmaps
-- apiGroups:
-    - storage.k8s.io
-  resources:
-    - storageclasses
-  verbs:
-    - get
-    - list
-    - watch
-- apiGroups:
-  - "objectbucket.io"
-  verbs:
-  - "*"
-  resources:
-  - "*"
 `
 }
 
@@ -1529,6 +1487,34 @@ rules:
   - "*"
   verbs:
   - "*"
+---
+# Allow the ceph osd to access cluster-wide resources necessary for determining their topology location
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-osd-` + namespace + `
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-osd
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-osd
+  namespace: ` + namespace + `
+---
+# Allow the ceph mgr to access cluster-wide resources necessary for the mgr modules
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr-cluster-` + namespace + `
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-mgr-cluster
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-mgr
+  namespace: ` + namespace + `
 ---
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1beta1
@@ -1709,7 +1695,6 @@ spec:
     directories:
     - path: ` + settings.DataDirHostPath + /* simulate legacy fallback osd behavior so existing tests still work */ `
     deviceFilter:
-    location:
     config:
       storeType: "` + settings.StoreType + `"
       databaseSizeMB: "1024"

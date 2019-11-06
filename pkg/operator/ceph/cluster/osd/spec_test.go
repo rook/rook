@@ -100,7 +100,6 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 		selection:     n.Selection,
 		resources:     v1.ResourceRequirements{},
 		storeConfig:   config.StoreConfig{},
-		location:      n.Location,
 	}
 	deployment, err := c.makeDeployment(osdProp, osd)
 	assert.Nil(t, err)
@@ -189,7 +188,6 @@ func TestStorageSpecDevicesAndDirectories(t *testing.T) {
 		selection:     n.Selection,
 		resources:     v1.ResourceRequirements{},
 		storeConfig:   config.StoreConfig{},
-		location:      n.Location,
 	}
 
 	deployment, err := c.makeDeployment(osdProp, osd)
@@ -219,8 +217,7 @@ func TestStorageSpecConfig(t *testing.T) {
 	storageSpec := rookalpha.StorageScopeSpec{
 		Nodes: []rookalpha.Node{
 			{
-				Name:     "node1",
-				Location: "rack=foo",
+				Name: "node1",
 				Config: map[string]string{
 					"storeType":      "bluestore",
 					"databaseSizeMB": "10",
@@ -263,7 +260,6 @@ func TestStorageSpecConfig(t *testing.T) {
 		resources:      c.DesiredStorage.Nodes[0].Resources,
 		storeConfig:    storeConfig,
 		metadataDevice: metadataDevice,
-		location:       n.Location,
 	}
 	job, err := c.makeJob(osdProp)
 	assert.NotNil(t, job)
@@ -277,7 +273,6 @@ func TestStorageSpecConfig(t *testing.T) {
 	verifyEnvVar(t, container.Env, "ROOK_OSD_DATABASE_SIZE", "10", true)
 	verifyEnvVar(t, container.Env, "ROOK_OSD_WAL_SIZE", "20", true)
 	verifyEnvVar(t, container.Env, "ROOK_OSD_JOURNAL_SIZE", "30", true)
-	verifyEnvVar(t, container.Env, "ROOK_LOCATION", "rack=foo", true)
 	verifyEnvVar(t, container.Env, "ROOK_METADATA_DEVICE", "nvme093", true)
 
 	// verify that osd config can be discovered from the container and matches the original config from the spec
@@ -291,8 +286,7 @@ func TestHostNetwork(t *testing.T) {
 	storageSpec := rookalpha.StorageScopeSpec{
 		Nodes: []rookalpha.Node{
 			{
-				Name:     "node1",
-				Location: "rack=foo",
+				Name: "node1",
 				Config: map[string]string{
 					"storeType":      "bluestore",
 					"databaseSizeMB": "10",
@@ -321,7 +315,6 @@ func TestHostNetwork(t *testing.T) {
 		selection:     n.Selection,
 		resources:     c.DesiredStorage.Nodes[0].Resources,
 		storeConfig:   config.StoreConfig{},
-		location:      n.Location,
 	}
 
 	r, err := c.makeDeployment(osdProp, osd)

@@ -25,7 +25,7 @@ import (
 	"github.com/rook/rook/pkg/operator/edgefs/cluster/target/config"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -40,8 +40,7 @@ func TestStorageSpecConfig(t *testing.T) {
 		},
 		Nodes: []rookalpha.Node{
 			{
-				Name:     "node1",
-				Location: "zone1",
+				Name: "node1",
 				Config: map[string]string{
 					"rtTransport":        edgefsv1.DeploymentRtrd,
 					"useAllSSD":          "true",
