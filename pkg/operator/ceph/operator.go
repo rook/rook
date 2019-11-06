@@ -106,7 +106,7 @@ func (o *Operator) Run() error {
 
 	if EnableDiscoveryDaemon {
 		rookDiscover := discover.New(o.context.Clientset)
-		if err := rookDiscover.Start(o.operatorNamespace, o.rookImage, o.securityAccount); err != nil {
+		if err := rookDiscover.Start(o.operatorNamespace, o.rookImage, o.securityAccount, true); err != nil {
 			return fmt.Errorf("error starting device discovery daemonset. %+v", err)
 		}
 	}

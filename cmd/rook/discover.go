@@ -32,10 +32,14 @@ var (
 
 	// interval between discovering devices
 	discoverDevicesInterval time.Duration
+
+	// Uses ceph-volume inventory to extend devices information
+	usesCVInventory bool
 )
 
 func init() {
 	discoverCmd.Flags().DurationVar(&discoverDevicesInterval, "discover-interval", 60*time.Minute, "interval between discovering devices (default 60m)")
+	discoverCmd.Flags().BoolVar(&usesCVInventory, "use-ceph-volume", false, "Use ceph-volume inventory to extend storage devices information (default false)")
 
 	flags.SetFlagsFromEnv(discoverCmd.Flags(), rook.RookEnvVarPrefix)
 	discoverCmd.RunE = startDiscover
@@ -48,7 +52,7 @@ func startDiscover(cmd *cobra.Command, args []string) error {
 
 	context := rook.NewContext()
 
-	err := discover.Run(context, discoverDevicesInterval)
+	err := discover.Run(context, discoverDevicesInterval, usesCVInventory)
 	if err != nil {
 		rook.TerminateFatal(err)
 	}

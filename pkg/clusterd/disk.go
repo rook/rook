@@ -43,7 +43,6 @@ func ignoreDevice(d string) bool {
 
 // Discover all the details of devices available on the local node
 func DiscoverDevices(executor exec.Executor) ([]*sys.LocalDisk, error) {
-
 	var disks []*sys.LocalDisk
 	devices, err := sys.ListDevices(executor)
 	if err != nil {
