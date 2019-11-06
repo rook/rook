@@ -127,11 +127,23 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 			}
 		}
 	}
+	controllerBool := false
+	blockOwnerDeletionBool := false
 	// Create or Update the deployment default/foo
 	deploy := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      k8sutil.TruncateNodeName(fmt.Sprintf("%s-%%s", CanaryAppName), nodeHostnameLabel),
 			Namespace: r.context.OperatorNamespace,
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion:         node.APIVersion,
+					Kind:               node.Kind,
+					UID:                node.GetUID(),
+					Name:               node.GetName(),
+					Controller:         &controllerBool,
+					BlockOwnerDeletion: &blockOwnerDeletionBool,
+				},
+			},
 		},
 	}
 
