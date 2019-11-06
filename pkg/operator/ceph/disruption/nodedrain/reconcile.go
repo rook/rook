@@ -19,6 +19,7 @@ package nodedrain
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/coreos/pkg/capnslog"
 
@@ -27,6 +28,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -127,6 +129,7 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 			}
 		}
 	}
+
 	// Create or Update the deployment default/foo
 	deploy := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -154,6 +157,26 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 				MatchLabels: selectorLabels,
 			}
 		}
+
+		ownerReferences := []metav1.OwnerReference{}
+		// get the operator Deployment to use as an owner refreence
+		operatorPodKey := types.NamespacedName{Name: os.Getenv(k8sutil.PodNameEnvVar), Namespace: r.context.OperatorNamespace}
+		operatorDeployment, err := getDeploymentForPod(r.client, operatorPodKey)
+		if err != nil {
+			logger.Errorf("could not find rook operator deployment for pod %+v: %+v", operatorPodKey, err)
+		} else {
+			operatorDeployment := operatorDeployment
+			controllerBool := true
+			operatorOwnerRef := metav1.OwnerReference{
+				APIVersion: operatorDeployment.APIVersion,
+				Kind:       operatorDeployment.Kind,
+				UID:        operatorDeployment.GetUID(),
+				Name:       operatorDeployment.GetName(),
+				Controller: &controllerBool,
+			}
+			ownerReferences = append(ownerReferences, operatorOwnerRef)
+		}
+		deploy.ObjectMeta.OwnerReferences = ownerReferences
 
 		// update the deployment labels
 		topology, _ := osd.ExtractRookTopologyFromLabels(node.GetLabels())
@@ -194,4 +217,36 @@ func newDoNothingContainers(rookImage string) []corev1.Container {
 		Command: []string{"/tini"},
 		Args:    []string{"--", "sleep", "infinity"},
 	}}
+}
+
+func getDeploymentForPod(client client.Client, podKey types.NamespacedName) (*appsv1.Deployment, error) {
+	// get pod
+	operatorPod := &corev1.Pod{}
+	err := client.Get(context.TODO(), podKey, operatorPod)
+	if err != nil {
+		return nil, fmt.Errorf("could not get pod %+v: %+v", podKey, err)
+	} else {
+		for _, rsRef := range operatorPod.ObjectMeta.OwnerReferences {
+			if *rsRef.Controller {
+				// get rs
+				replicaSet := &appsv1.ReplicaSet{}
+				replicaSetKey := types.NamespacedName{Name: rsRef.Name, Namespace: podKey.Namespace}
+				err := client.Get(context.TODO(), replicaSetKey, replicaSet)
+				if err != nil {
+					return nil, fmt.Errorf("could not get replicaset %+v: %+v", replicaSetKey, err)
+				} else {
+					for _, depRef := range replicaSet.ObjectMeta.OwnerReferences {
+						if *depRef.Controller {
+							// get deployment
+							operatorDeployment := &appsv1.Deployment{}
+							operatorDeploymentKey := types.NamespacedName{Name: depRef.Name, Namespace: podKey.Namespace}
+							err := client.Get(context.TODO(), operatorDeploymentKey, operatorDeployment)
+							return operatorDeployment, err
+						}
+					}
+				}
+			}
+		}
+	}
+	return nil, fmt.Errorf("could not get deployment for pod %+v", podKey)
 }

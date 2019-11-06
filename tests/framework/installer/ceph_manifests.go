@@ -697,6 +697,7 @@ rules:
   - poddisruptionbudgets
   #this is for both clusterdisruption and nodedrain controllers
   - deployments
+  - replicasets
   verbs:
   - "*"
 - apiGroups:

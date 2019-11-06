@@ -77,9 +77,7 @@ func ExtractRookTopologyFromLabels(labels map[string]string) (map[string]string,
 				if topologyType == validTopologyType {
 					topology[validTopologyType] = client.NormalizeCrushName(labelValue)
 				}
-
 			}
-
 		}
 	}
 	return topology, invalidEncountered
