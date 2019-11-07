@@ -301,37 +301,14 @@ func getLocation(clientset kubernetes.Interface) (string, error) {
 }
 
 func updateLocationWithNodeLabels(location *[]string, nodeLabels map[string]string) {
-	// get zone
-	zone, ok := nodeLabels[corev1.LabelZoneFailureDomain]
-	if ok {
-		client.UpdateCrushMapValue(location, "zone", client.NormalizeCrushName(zone))
-	}
-	// get region
-	region, ok := nodeLabels[corev1.LabelZoneRegion]
-	if ok {
-		client.UpdateCrushMapValue(location, "region", client.NormalizeCrushName(region))
-	}
 
-	// get the labels corresponding to other levels the CRUSH map such as topology.rook.io/rack
-	for label, value := range nodeLabels {
-		if strings.HasPrefix(label, k8sutil.TopologyLabelPrefix) {
-			keys := strings.Split(label, "/")
-			if len(keys) != 2 {
-				logger.Warningf("ignored invalid node label %q", label)
-				continue
-			}
-			crushType := keys[1]
-			validDomain := false
-			for _, domain := range oposd.CRUSHTopologyLabels {
-				if domain == crushType {
-					validDomain = true
-					client.UpdateCrushMapValue(location, crushType, client.NormalizeCrushName(value))
-					break
-				}
-			}
-			if !validDomain {
-				logger.Warningf("ignored invalid crush type %q in label %q", crushType, label)
-			}
+	topology, invalidLabels := oposd.ExtractRookTopologyFromLabels(nodeLabels)
+	if len(invalidLabels) > 0 {
+		logger.Warningf("ignored invalid node topology labels: %v", invalidLabels)
+	}
+	for topologyType, value := range topology {
+		if topologyType != "host" {
+			client.UpdateCrushMapValue(location, topologyType, value)
 		}
 	}
 }
