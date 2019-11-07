@@ -127,6 +127,7 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 			}
 		}
 	}
+
 	controllerBool := false
 	blockOwnerDeletionBool := false
 	// Create or Update the deployment default/foo
