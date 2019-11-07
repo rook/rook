@@ -263,13 +263,41 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig) {
 			continue
 		}
 
+		//Skip OSD prepare if deployment already exists for the PVC
+		listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s,%s=%s",
+			k8sutil.AppAttr, AppName,
+			OSDOverPVCLabelKey, volume.PersistentVolumeClaimSource.ClaimName,
+		)}
+
+		osdDeployments, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).List(listOpts)
+		if err != nil {
+			config.addError("failed to check if OSD daemon exists for pvc %q. %+v", osdProps.crushHostname, err)
+			continue
+		}
+
+		if len(osdDeployments.Items) != 0 {
+			logger.Infof("skip OSD prepare pod creation as OSD daemon already exists for %q", osdProps.crushHostname)
+			osds, err := getOSDInfo(&osdDeployments.Items[0])
+			if err != nil {
+				config.addError("failed to get osdInfo for pvc %q. %+v", osdProps.crushHostname, err)
+				continue
+			}
+			// update the orchestration status of this pvc to the completed state
+			status = OrchestrationStatus{OSDs: osds, Status: OrchestrationStatusCompleted, PvcBackedOSD: true}
+			if err := c.updateOSDStatus(osdProps.crushHostname, status); err != nil {
+				config.addError("failed to update pvc %q status. %+v", osdProps.crushHostname, err)
+				continue
+			}
+			continue
+		}
+
 		job, err := c.makeJob(osdProps)
 		if err != nil {
 			message := fmt.Sprintf("failed to create prepare job for pvc %s: %v", osdProps.crushHostname, err)
 			config.addError(message)
 			status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: message, PvcBackedOSD: true}
 			if err := c.updateOSDStatus(osdProps.crushHostname, status); err != nil {
-				config.addError("failed to update pvc %s status. %+v", osdProps.crushHostname, err)
+				config.addError("failed to update pvc %q status. %+v", osdProps.crushHostname, err)
 				continue
 			}
 		}
@@ -780,4 +808,41 @@ func (c *Cluster) getPVCHostName(pvcName string) (string, error) {
 		return name, nil
 	}
 	return "", err
+}
+
+func getOSDInfo(d *apps.Deployment) ([]OSDInfo, error) {
+	container := d.Spec.Template.Spec.Containers[0]
+	var osd OSDInfo
+
+	osdID, err := strconv.Atoi(d.Labels[OsdIdLabelKey])
+	if err != nil {
+		return []OSDInfo{}, fmt.Errorf("error parsing ceph-osd-id. %+v", err)
+	}
+	osd.ID = osdID
+
+	for _, envVar := range d.Spec.Template.Spec.Containers[0].Env {
+		if envVar.Name == "ROOK_OSD_UUID" {
+			osd.UUID = envVar.Value
+		}
+		if envVar.Name == "ROOK_LV_PATH" {
+			osd.LVPath = envVar.Value
+		}
+	}
+
+	for i, a := range container.Args {
+		if strings.HasPrefix(a, "--setuser-match-path") {
+			if len(container.Args) >= i+1 {
+				osd.DataPath = container.Args[i+1]
+				break
+			}
+		}
+	}
+
+	osd.CephVolumeInitiated = true
+
+	if osd.DataPath == "" || osd.UUID == "" || osd.LVPath == "" {
+		return []OSDInfo{}, fmt.Errorf("failed to get required osdInfo. %+v", osd)
+	}
+
+	return []OSDInfo{osd}, nil
 }

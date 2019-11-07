@@ -362,3 +362,30 @@ func TestAddNodeFailure(t *testing.T) {
 	assert.True(t, startCompleted)
 	assert.NotNil(t, startErr)
 }
+
+func TestGetOSDInfo(t *testing.T) {
+	c := New(&cephconfig.ClusterInfo{}, &clusterd.Context{}, "ns", "myversion", cephv1.CephVersionSpec{},
+		rookalpha.StorageScopeSpec{}, "", rookalpha.Placement{}, rookalpha.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, metav1.OwnerReference{}, false, false)
+
+	node := "n1"
+	osd1 := OSDInfo{ID: 3, UUID: "osd-uuid", LVPath: "dev/logical-volume-path", DataPath: "/rook/path", CephVolumeInitiated: true}
+	osd2 := OSDInfo{ID: 3, UUID: "osd-uuid", LVPath: "", DataPath: "/rook/path", CephVolumeInitiated: true}
+	osdProp := osdProperties{
+		crushHostname: node,
+		pvc:           v1.PersistentVolumeClaimVolumeSource{ClaimName: "pvc"},
+		selection:     rookalpha.Selection{},
+		resources:     v1.ResourceRequirements{},
+		storeConfig:   config.StoreConfig{},
+	}
+	d1, _ := c.makeDeployment(osdProp, osd1)
+	osds1, _ := getOSDInfo(d1)
+	assert.Equal(t, 1, len(osds1))
+	assert.Equal(t, osd1.ID, osds1[0].ID)
+	assert.Equal(t, osd1.LVPath, osds1[0].LVPath)
+
+	d2, _ := c.makeDeployment(osdProp, osd2)
+	osds2, err := getOSDInfo(d2)
+	assert.Equal(t, 0, len(osds2))
+	assert.NotNil(t, err)
+
+}
