@@ -19,7 +19,18 @@ limitations under the License.
 // flags.
 package osd
 
+import (
+	"fmt"
+	"strings"
+
+	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/k8sutil"
+
+	corev1 "k8s.io/api/core/v1"
+)
+
 var (
+
 	// The labels that can be specified with the K8s labels such as failure-domain.beta.kubernetes.io/zone
 	// These are all at the top layers of the CRUSH map.
 	KubernetesTopologyLabels = []string{"zone", "region"}
@@ -31,10 +42,16 @@ var (
 	CRUSHMapLevelsOrdered = append([]string{"host"}, append(CRUSHTopologyLabels, KubernetesTopologyLabels...)...)
 )
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 
 // ExtractRookTopologyFromLabels extracts rook topology from labels and returns a map from topology type to value,
 // and an array of any invalid labels with a topology prefix.
+=======
+
+// ExtractRookTopologyFromLabels extracts rook topology from labels and returns a map from topology type to value,
+// and a bool indicating if there any invalid labels with a  topology prefix.
+>>>>>>> 4d7c6df03... Ceph: Fix topologyAware in clusterdisruption package does not respect the rook topolgy prefix.
 func ExtractRookTopologyFromLabels(labels map[string]string) (map[string]string, []string) {
 	topology := make(map[string]string)
 
@@ -68,9 +85,18 @@ func ExtractRookTopologyFromLabels(labels map[string]string) (map[string]string,
 				if topologyType == validTopologyType {
 					topology[validTopologyType] = client.NormalizeCrushName(labelValue)
 				}
+<<<<<<< HEAD
 			}
+=======
+
+			}
+
+>>>>>>> 4d7c6df03... Ceph: Fix topologyAware in clusterdisruption package does not respect the rook topolgy prefix.
 		}
 	}
 	return topology, invalidEncountered
 }
+<<<<<<< HEAD
 >>>>>>> dd3f0ca63... Ceph: Set the drain-canaries deployment ownerReference to the rook operator.
+=======
+>>>>>>> 4d7c6df03... Ceph: Fix topologyAware in clusterdisruption package does not respect the rook topolgy prefix.

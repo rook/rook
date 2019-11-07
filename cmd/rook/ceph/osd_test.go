@@ -106,16 +106,23 @@ func TestDetectCrushLocation(t *testing.T) {
 		"topology.rook.io/rack":                    "rack1",
 		"topology.rook.io/row":                     "row1",
 	}
+	expected := map[string]string{
+		"host":   "foo",
+		"region": "region1",
+		"zone":   "zone1",
+		"rack":   "rack1",
+		"row":    "row1",
+	}
 	updateLocationWithNodeLabels(&location, nodeLabels)
 	assert.Equal(t, 5, len(location))
-	assert.Equal(t, "host=foo", location[0])
-	assert.Equal(t, "zone=zone1", location[1])
-	assert.Equal(t, "region=region1", location[2])
-	if strings.HasPrefix(location[3], "rack") {
-		assert.Equal(t, "rack=rack1", location[3])
-		assert.Equal(t, "row=row1", location[4])
-	} else {
-		assert.Equal(t, "rack=rack1", location[4])
-		assert.Equal(t, "row=row1", location[3])
+	for _, locString := range location {
+		split := strings.Split(locString, "=")
+		assert.Len(t, split, 2)
+		prefix := split[0]
+		value := split[1]
+		expectedValue, ok := expected[prefix]
+		assert.True(t, ok)
+		assert.Equal(t, expectedValue, value)
 	}
+
 }
