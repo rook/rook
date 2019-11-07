@@ -85,7 +85,6 @@ func TestMonitoredRestart(t *testing.T) {
 			return cmd, errors.New("test failure")
 		case commands == 2:
 			assert.Equal(t, 1, proc.retries)
-			break
 		}
 		return cmd, nil
 	}
@@ -100,7 +99,6 @@ func TestMonitoredRestart(t *testing.T) {
 			assert.True(t, proc.monitor)
 			logger.Debugf("stop monitoring")
 			proc.monitor = false
-			break
 		}
 		iter++
 	}
