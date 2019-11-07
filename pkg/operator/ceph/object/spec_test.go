@@ -143,10 +143,10 @@ func TestValidateSpec(t *testing.T) {
 	err = validateStore(context, s)
 	assert.Nil(t, err)
 
-	// no replication or EC
+	// no replication or EC is valid
 	s.Spec.MetadataPool.Replicated.Size = 0
 	err = validateStore(context, s)
-	assert.NotNil(t, err)
+	assert.Nil(t, err)
 	s.Spec.MetadataPool.Replicated.Size = 1
 	err = validateStore(context, s)
 	assert.Nil(t, err)
