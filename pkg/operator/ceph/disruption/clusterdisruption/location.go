@@ -50,7 +50,7 @@ func (r *ReconcileClusterDisruption) getOsdDataList(request reconcile.Request, p
 		labels := deployment.Spec.Template.ObjectMeta.GetLabels()
 		osdID, ok := labels[osd.OsdIdLabelKey]
 		if !ok {
-			return nil, fmt.Errorf("osd %q was not labeled", deployment.ObjectMeta.Name)
+			return nil, fmt.Errorf("osd %q was not labeled with %q", deployment.GetName(), osd.OsdIdLabelKey)
 		}
 		osdIDInt, err := strconv.Atoi(osdID)
 		if err != nil {
@@ -182,8 +182,13 @@ func getOSDsForNodes(osdDataList []OsdData, nodeList []*corev1.Node, failureDoma
 		for _, osdData := range osdDataList {
 			secondaryCrushHostname := osdData.CrushMeta.Host
 			crushFailureDomain, ok := osdData.CrushMeta.Location[failureDomainType]
+<<<<<<< HEAD
 			if !ok && secondaryCrushHostname == "" {
 				return nil, fmt.Errorf("could not find the CrushFindResult.Location[%q] for %q", failureDomainType, osdData.Deployment.ObjectMeta.Name)
+=======
+			if !ok {
+				return nil, fmt.Errorf("could not find the CrushFindResult.Location[%q] for %q", failureDomainType, osdData.Deployment.GetName())
+>>>>>>> 1ba2633c2... Ceph: Clean up canaries on nodes that no longer have OSDs or when the node is deleted.
 			}
 			nodeFailureDomain, ok := nodeLabels[failureDomainLabel]
 			if !ok {
@@ -204,7 +209,7 @@ func getFailureDomainMapForOsds(osdDataList []OsdData, failureDomainType string)
 	for _, osdData := range osdDataList {
 		failureDomainValue, ok := osdData.CrushMeta.Location[failureDomainType]
 		if !ok {
-			logger.Errorf("failureDomain type %q not associated with %q", failureDomainType, osdData.Deployment.ObjectMeta.Name)
+			logger.Errorf("failureDomain type %q not associated with %q", failureDomainType, osdData.Deployment.GetName())
 			unfoundOSDs = append(unfoundOSDs, osdData.Deployment.ObjectMeta.Name)
 		} else {
 			if len(failureDomainMap[failureDomainValue]) == 0 {
@@ -214,7 +219,7 @@ func getFailureDomainMapForOsds(osdDataList []OsdData, failureDomainType string)
 		}
 	}
 	if len(unfoundOSDs) > 0 {
-		err = fmt.Errorf("failure domain type %q not associated with osds: %q", failureDomainType, strings.Join(unfoundOSDs, ","))
+		err = fmt.Errorf("failure domain type %q not associated with osds: [%q]", failureDomainType, strings.Join(unfoundOSDs, ","))
 	}
 	return failureDomainMap, err
 }
