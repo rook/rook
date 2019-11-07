@@ -303,6 +303,12 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 	// Everything went well so let's update the CR's status to "connected"
 	c.updateClusterStatus(namespace, name, cephv1.ClusterStateConnected, "")
 
+	// Create CSI Secrets
+	err = csi.CreateCSISecrets(c.context, namespace, &cluster.ownerRef)
+	if err != nil {
+		return fmt.Errorf("failed to create csi kubernetes secrets. %+v", err)
+	}
+
 	// Mark initialization has done
 	cluster.initCompleted = true
 
