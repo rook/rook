@@ -387,7 +387,7 @@ func parseUUID(device, output string) (string, error) {
 	// find the line with the uuid
 	lines := strings.Split(output, "\n")
 	for _, line := range lines {
-		if strings.Index(line, "Disk identifier (GUID)") != -1 {
+		if strings.Contains(line, "Disk identifier (GUID)") {
 			words := strings.Split(line, " ")
 			for _, word := range words {
 				// we expect most words in the line not to be a uuid, but will return the first one that is

@@ -103,7 +103,7 @@ func (*CommandExecutor) ExecuteCommandWithTimeout(debug bool, timeout time.Durat
 				} else {
 					e = fmt.Errorf("Timeout waiting for the command %s to return", command)
 				}
-				return strings.TrimSpace(string(b.Bytes())), createCommandError(e, command)
+				return strings.TrimSpace(b.String()), createCommandError(e, command)
 			}
 
 			logger.Infof("Timeout waiting for process %s to return. Sending interrupt signal to the process", command)
@@ -114,13 +114,13 @@ func (*CommandExecutor) ExecuteCommandWithTimeout(debug bool, timeout time.Durat
 			interrupSent = true
 		case err := <-done:
 			if err != nil {
-				return strings.TrimSpace(string(b.Bytes())), createCommandError(err, command)
+				return strings.TrimSpace(b.String()), createCommandError(err, command)
 			}
 			if interrupSent {
 				e := fmt.Errorf("Timeout waiting for the command %s to return", command)
-				return strings.TrimSpace(string(b.Bytes())), createCommandError(e, command)
+				return strings.TrimSpace(b.String()), createCommandError(e, command)
 			}
-			return strings.TrimSpace(string(b.Bytes())), nil
+			return strings.TrimSpace(b.String()), nil
 		}
 	}
 }
