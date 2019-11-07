@@ -323,11 +323,12 @@ func (c *Cluster) handleExternalMonStatus(status client.MonStatusResponse) error
 
 func (c *Cluster) addOrRemoveExternalMonitor(status client.MonStatusResponse) (bool, error) {
 	var changed bool
-	// Populate a map with the current monitor from ClusterInfo
-	monsNotFound := map[string]interface{}{}
-	for _, mon := range c.ClusterInfo.Monitors {
-		monsNotFound[mon.Name] = struct{}{}
+	// clearing the content of clusterinfo monitors, it'll get populated in the next iteration
+	for mon := range c.ClusterInfo.Monitors {
+		delete(c.ClusterInfo.Monitors, mon)
 	}
+	logger.Infof("ClusterInfo is now Empty, refilling it from status.MonMap.Mons")
+	monsNotFound := map[string]interface{}{}
 
 	monCount := len(status.MonMap.Mons)
 	if monCount%2 == 0 {
@@ -373,71 +374,6 @@ func (c *Cluster) addOrRemoveExternalMonitor(status client.MonStatusResponse) (b
 		logger.Debugf("everything is fine mon %s in the clusterInfo and its quorum status is %v", mon.Name, inQuorum)
 	}
 
-	// Let's do a new iteration, over ClusterInfo this time to catch mon that might have disappeared
-	for _, mon := range c.ClusterInfo.Monitors {
-		// if the mon does not exist in the monmap
-		monInMonMap := isMonInMonMap(mon.Name, status.MonMap.Mons)
-		if !monInMonMap {
-			// mon is in clusterInfo but not part of the quorum removing it
-			logger.Infof("monitor %s disappeared from the external cluster monitor map, removing it", mon.Name)
-			delete(c.ClusterInfo.Monitors, mon.Name)
-			changed = true
-		} else {
-			// it's in the mon map but is it part of the quorum?
-			logger.Debug("need to check is the mon not in ClusterInfo is part of a quorum or not")
-			monInQuorum := isMonInQuorum(mon.Name, status.MonMap.Mons, status.Quorum)
-			if !monInQuorum {
-				logger.Infof("external mon %s in the mon map but not in quorum, removing it", mon.Name)
-				delete(c.ClusterInfo.Monitors, mon.Name)
-				changed = true
-			}
-		}
-		logger.Debugf("mon %s endpoint is %s", mon.Name, mon.Endpoint)
-	}
-
 	logger.Debugf("ClusterInfo.Monitors is %+v", c.ClusterInfo.Monitors)
 	return changed, nil
-}
-
-func isMonInMonMap(monToTest string, Mons []client.MonMapEntry) bool {
-	for _, m := range Mons {
-		if m.Name == monToTest {
-			logger.Debugf("mon %s is in the monmap!", monToTest)
-			return true
-		}
-	}
-
-	return false
-}
-
-func isMonInQuorum(monToTest string, Mons []client.MonMapEntry, quorum []int) bool {
-	monRank := getMonRank(monToTest, Mons)
-	if monRank == -1 {
-		// this is an error, we can't find the rank
-		// so we just return false and the mon will get deleted
-		logger.Debugf("mon %s rank is %d", monToTest, monRank)
-		return false
-	}
-
-	for _, rank := range quorum {
-		logger.Debugf("rank is %d, monRank is %d", rank, monRank)
-		if rank == monRank {
-			logger.Debugf("mon %s is part of the quorum", monToTest)
-			return true
-		}
-	}
-
-	logger.Debugf("could not find the rank %d for %s", monRank, monToTest)
-	return false
-}
-
-func getMonRank(monToTest string, Mons []client.MonMapEntry) int {
-	for _, m := range Mons {
-		if m.Name == monToTest {
-			logger.Debugf("mon rank is %d", m.Rank)
-			return m.Rank
-		}
-	}
-
-	return -1
 }
