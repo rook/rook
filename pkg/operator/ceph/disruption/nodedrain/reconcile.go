@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"os"
 
+	"k8s.io/apimachinery/pkg/api/errors"
+
 	"github.com/coreos/pkg/capnslog"
 
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
@@ -73,10 +75,22 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 
 	logger.Debugf("reconciling node: %s", request.Name)
 
+	// Create or Update the deployment default/foo
+	deploy := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      k8sutil.TruncateNodeName(fmt.Sprintf("%s-%%s", CanaryAppName), request.Name),
+			Namespace: r.context.OperatorNamespace,
+		},
+	}
+
 	node := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: request.Name}}
 
 	err := r.client.Get(context.TODO(), request.NamespacedName, node)
-	if err != nil {
+	if errors.IsNotFound(err) {
+		// delete any canary deployments if the node doesn't exist
+		r.client.Delete(context.TODO(), deploy)
+		return reconcile.Result{}, nil
+	} else if err != nil {
 		return reconcile.Result{}, fmt.Errorf("Could not get node %s", request.NamespacedName)
 	}
 
@@ -128,14 +142,6 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 				}
 			}
 		}
-	}
-
-	// Create or Update the deployment default/foo
-	deploy := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      k8sutil.TruncateNodeName(fmt.Sprintf("%s-%%s", CanaryAppName), nodeHostnameLabel),
-			Namespace: r.context.OperatorNamespace,
-		},
 	}
 
 	// CreateOrUpdate the deployment
@@ -205,6 +211,25 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 		logger.Debugf("deployment successfully reconciled for node %s. operation: %s", request.Name, op)
 	} else {
 		logger.Debugf("not watching for drains on node %s as there are no osds running there.", request.Name)
+
+		// get the canary deployment
+		canarayDeployment := &appsv1.Deployment{}
+		key := types.NamespacedName{Name: deploy.GetName(), Namespace: deploy.GetNamespace()}
+		err := r.client.Get(context.TODO(), key, canarayDeployment)
+		if err != nil && !errors.IsNotFound(err) {
+			return reconcile.Result{}, fmt.Errorf("could not fetch deployment %q: %+v", key, err)
+		} else if errors.IsNotFound(err) {
+			return reconcile.Result{}, nil
+		}
+
+		// delete the canary deployments that aren't triggered by drains, but are on nodes that aren't occupied by OSDs
+		// if it's on a draining node, we don't want to kill the canary.
+		if canarayDeployment.Status.ReadyReplicas > 0 {
+			err := r.client.Delete(context.TODO(), canarayDeployment)
+			if err != nil {
+				return reconcile.Result{}, fmt.Errorf("could not delete deployment %q: %+v", key, err)
+			}
+		}
 	}
 	return reconcile.Result{}, nil
 }
