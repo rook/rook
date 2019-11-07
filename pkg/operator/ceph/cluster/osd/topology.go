@@ -43,7 +43,7 @@ var (
 )
 
 // ExtractRookTopologyFromLabels extracts rook topology from labels and returns a map from topology type to value,
-// and a bool indicating if there any invalid labels with a  topology prefix.
+// and an array of any invalid labels with a topology prefix.
 func ExtractRookTopologyFromLabels(labels map[string]string) (map[string]string, []string) {
 	topology := make(map[string]string)
 
