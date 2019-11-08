@@ -58,6 +58,15 @@ func (r *ReconcileClusterDisruption) getOsdDataList(request reconcile.Request, p
 		}
 		crushMeta, err := r.osdCrushLocationMap.Get(request.Namespace, osdIDInt)
 		if err != nil {
+			// If the error contains that message, this means the cluster is not up and running
+			// No monitors are present and thus no ceph configuration has been created
+			//
+			// Or this means the ceph config hasn't been written on the operator yet
+			// The controller starts before we run WriteConnectionConfig()
+			if strings.Contains(err.Error(), "error calling conf_read_file") {
+				logger.Debugf("Ceph %q cluster is not ready, cannot check osd location yet.", request.Namespace)
+				return nil, nil
+			}
 			return nil, fmt.Errorf("could not fetch info from ceph for osd %q. %+v", osdID, err)
 		}
 		// bypass the cache if the topology location is not populated in the cache
