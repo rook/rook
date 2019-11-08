@@ -129,7 +129,7 @@ func (o *OSDCrushLocationMap) Get(clusterNamespace string, id int) (*cephClient.
 	if !ok {
 		osdResult, err := o.get(clusterNamespace, id)
 		if err != nil {
-			return nil, fmt.Errorf("failed to run `find` on osd %d in cluster %s: %v", id, clusterNamespace, err)
+			return nil, fmt.Errorf("failed to run `find` on osd %d in cluster %s. %+v", id, clusterNamespace, err)
 		}
 		o.clusterLocationMap[clusterNamespace][id] = cachedOSDLocation{result: osdResult, lastSynced: time.Now()}
 		return osdResult, nil
@@ -139,7 +139,7 @@ func (o *OSDCrushLocationMap) Get(clusterNamespace string, id int) (*cephClient.
 	if time.Since(osdLocation.lastSynced) > o.ResyncPeriod {
 		osdResult, err := o.get(clusterNamespace, id)
 		if err != nil {
-			return nil, fmt.Errorf("failed to run `find` on osd %d in cluster %s: %v", id, clusterNamespace, err)
+			return nil, fmt.Errorf("failed to run `find` on osd %d in cluster %s. %+v", id, clusterNamespace, err)
 		}
 		o.clusterLocationMap[clusterNamespace][id] = cachedOSDLocation{result: osdResult, lastSynced: time.Now()}
 		return osdResult, nil
