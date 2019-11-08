@@ -50,7 +50,7 @@ func (r *ReconcileClusterDisruption) getOsdDataList(request reconcile.Request, p
 		labels := deployment.Spec.Template.ObjectMeta.GetLabels()
 		osdID, ok := labels[osd.OsdIdLabelKey]
 		if !ok {
-			return nil, fmt.Errorf("osd %s was not labeled with ", deployment.ObjectMeta.Name)
+			return nil, fmt.Errorf("osd %q was not labeled", deployment.ObjectMeta.Name)
 		}
 		osdIDInt, err := strconv.Atoi(osdID)
 		if err != nil {
