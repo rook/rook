@@ -213,7 +213,19 @@ func (c *ObjectStoreUserController) createUser(context *clusterd.Context, u *cep
 
 	user, rgwerr, err := object.CreateUser(objContext, userConfig)
 	if err != nil {
-		return fmt.Errorf("failed to create user %s. RadosGW returned error %d: %+v", u.Name, rgwerr, err)
+		pollErr := wait.Poll(time.Second*15, time.Minute*5, func() (ok bool, err error) {
+			user, rgwerr, err = object.CreateUser(objContext, userConfig)
+			if err != nil {
+				if rgwerr == object.RGWErrorBadData {
+					return true, fmt.Errorf("failed to create rgw user %q. error code %d. %+v", u.Name, rgwerr, err)
+				}
+				return false, nil
+			}
+			return true, nil
+		})
+		if pollErr != nil {
+			return fmt.Errorf("err or timed out while waiting for objectuser %q to be created. %+v", u.Name, pollErr)
+		}
 	}
 
 	// Store the keys in a secret
