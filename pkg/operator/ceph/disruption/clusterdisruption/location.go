@@ -54,18 +54,18 @@ func (r *ReconcileClusterDisruption) getOsdDataList(request reconcile.Request, p
 		}
 		osdIDInt, err := strconv.Atoi(osdID)
 		if err != nil {
-			return nil, fmt.Errorf("osd id not an int: %s", osdID)
+			return nil, fmt.Errorf("failed to convert osd id %q in an int. %+v", osdID, err)
 		}
 		crushMeta, err := r.osdCrushLocationMap.Get(request.Namespace, osdIDInt)
 		if err != nil {
-			return nil, fmt.Errorf("could not fetch info from ceph for osd %s", osdID)
+			return nil, fmt.Errorf("could not fetch info from ceph for osd %q. %+v", osdID, err)
 		}
 		// bypass the cache if the topology location is not populated in the cache
 		_, failureDomainKnown := crushMeta.Location[poolFailureDomain]
 		if !failureDomainKnown {
 			crushMeta, err = r.osdCrushLocationMap.get(request.Namespace, osdIDInt)
 			if err != nil {
-				return nil, fmt.Errorf("could not fetch info from ceph for osd %s", osdID)
+				return nil, fmt.Errorf("could not fetch info from ceph for osd %q. %+v", osdID, err)
 			}
 		}
 
