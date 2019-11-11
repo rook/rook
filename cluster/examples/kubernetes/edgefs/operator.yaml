@@ -222,9 +222,17 @@ spec:
               pattern: ^(send|receive|send\+receive)$
             remoteURL:
               type: string
+            config:
+              type: object
+              properties:
+                server:
+                  type: string
+                clients:
+                  type: array
+                  items:
+                    type: string
           required:
           - direction
-          - remoteURL
   additionalPrinterColumns:
     - name: Direction
       type: string
@@ -234,6 +242,14 @@ spec:
       type: string
       description: Remote ISGW service endpoint
       JSONPath: .spec.remoteURL
+    - name: Server
+      type: string
+      JSONPath: .spec.config.server
+      description: ISGW server' service name
+    - name: Clients
+      type: string
+      JSONPath: .spec.config.clients
+      description: ISGW client' service names
 ---
 # The cluster role for managing all the cluster-specific resources in a namespace
 apiVersion: rbac.authorization.k8s.io/v1beta1
