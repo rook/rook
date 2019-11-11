@@ -1034,8 +1034,24 @@ func (c *ClusterController) SetCondition(namespace, name string, conditions *[]c
 			logger.Errorf("failed to update cluster %s condition: %+v", namespace, err)
 		}
 		return
+<<<<<<< HEAD
 	}
 
+	if existingCondition.Status != newCondition.Status {
+		existingCondition.Status = newCondition.Status
+		existingCondition.LastTransitionTime = metav1.NewTime(time.Now())
+		if newCondition.Reason != "" {
+			existingCondition.Reason = newCondition.Reason
+			existingCondition.Message = newCondition.Message
+			existingCondition.LastHeartbeatTime = metav1.NewTime(time.Now())
+		}
+=======
+>>>>>>> 2daa959325531fe75cc173ea2a54348eea03ecac
+	}
+}
+
+<<<<<<< HEAD
+=======
 	if existingCondition.Status != newCondition.Status {
 		existingCondition.Status = newCondition.Status
 		existingCondition.LastTransitionTime = metav1.NewTime(time.Now())
@@ -1047,6 +1063,7 @@ func (c *ClusterController) SetCondition(namespace, name string, conditions *[]c
 	}
 }
 
+>>>>>>> 2daa959325531fe75cc173ea2a54348eea03ecac
 //FindStatusCondition is used to find the already exisiting Condition Type.
 func FindStatusCondition(conditions []cephv1.RookConditions, conditionType cephv1.ConditionType) *cephv1.RookConditions {
 	for i := range conditions {
