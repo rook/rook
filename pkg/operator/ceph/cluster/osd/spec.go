@@ -260,11 +260,6 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 			Name:      "run-udev",
 			MountPath: "/run/udev"})
 
-		// Activate verbose mode for ceph-volume on activate
-		envVars = append(envVars, []v1.EnvVar{
-			{Name: "CEPH_VOLUME_DEBUG", Value: "1"},
-		}...)
-
 	} else if osd.IsDirectory {
 		// config for dir-based osds is gotten from the commandline or from the mon database
 		doConfigInit = false
@@ -555,7 +550,6 @@ func (c *Cluster) getConfigEnvVars(storeConfig config.StoreConfig, dataDir, node
 		opmon.EndpointEnvVar(),
 		opmon.SecretEnvVar(),
 		opmon.AdminSecretEnvVar(),
-		opmon.ClusterHostNetworking(c.Network.IsHost()),
 		k8sutil.ConfigDirEnvVar(dataDir),
 		k8sutil.ConfigOverrideEnvVar(),
 		{Name: "ROOK_FSID", ValueFrom: &v1.EnvVarSource{
@@ -564,9 +558,12 @@ func (c *Cluster) getConfigEnvVars(storeConfig config.StoreConfig, dataDir, node
 				Key:                  "fsid",
 			},
 		}},
-		{Name: "CEPH_VOLUME_DEBUG", Value: "1"},
 		k8sutil.NodeEnvVar(),
 	}
+
+	// Append ceph-volume environment variables
+	envVars = append(envVars, cephVolumeEnvVar()...)
+
 	if storeConfig.StoreType != "" {
 		envVars = append(envVars, v1.EnvVar{Name: osdStoreEnvVarName, Value: storeConfig.StoreType})
 	}
@@ -867,5 +864,12 @@ func (c *Cluster) osdPrepareResources(osdClaimName string) v1.ResourceRequiremen
 			v1.ResourceCPU:    *resource.NewMilliQuantity(cpuRequest, resource.DecimalSI),
 			v1.ResourceMemory: *resource.NewQuantity(memoryRequest, resource.BinarySI),
 		},
+	}
+}
+
+func cephVolumeEnvVar() []v1.EnvVar {
+	return []v1.EnvVar{
+		{Name: "CEPH_VOLUME_DEBUG", Value: "1"},
+		{Name: "CEPH_VOLUME_SKIP_RESTORECON", Value: "1"},
 	}
 }
