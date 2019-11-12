@@ -400,3 +400,11 @@ func TestOsdPrepareResources(t *testing.T) {
 	assert.Equal(t, "0", r.Limits.Memory().String())
 	assert.Equal(t, "250", r.Requests.Memory().String())
 }
+
+func TestCephVolumeEnvVar(t *testing.T) {
+	cvEnv := cephVolumeEnvVar()
+	assert.Equal(t, "CEPH_VOLUME_DEBUG", cvEnv[0].Name)
+	assert.Equal(t, "1", cvEnv[0].Value)
+	assert.Equal(t, "CEPH_VOLUME_SKIP_RESTORECON", cvEnv[1].Name)
+	assert.Equal(t, "1", cvEnv[1].Value)
+}

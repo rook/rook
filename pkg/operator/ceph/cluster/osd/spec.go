@@ -257,11 +257,6 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 			Name:      "run-udev",
 			MountPath: "/run/udev"})
 
-		// Activate verbose mode for ceph-volume on activate
-		envVars = append(envVars, []v1.EnvVar{
-			{Name: "CEPH_VOLUME_DEBUG", Value: "1"},
-		}...)
-
 	} else {
 		// other osds can launch the osd daemon directly
 		command = []string{"ceph-osd"}
@@ -512,7 +507,6 @@ func (c *Cluster) getConfigEnvVars(storeConfig config.StoreConfig, dataDir, node
 		opmon.EndpointEnvVar(),
 		opmon.SecretEnvVar(),
 		opmon.AdminSecretEnvVar(),
-		opmon.ClusterHostNetworking(c.Network.IsHost()),
 		k8sutil.ConfigDirEnvVar(dataDir),
 		k8sutil.ConfigOverrideEnvVar(),
 		{Name: "ROOK_FSID", ValueFrom: &v1.EnvVarSource{
@@ -521,9 +515,12 @@ func (c *Cluster) getConfigEnvVars(storeConfig config.StoreConfig, dataDir, node
 				Key:                  "fsid",
 			},
 		}},
-		{Name: "CEPH_VOLUME_DEBUG", Value: "1"},
 		k8sutil.NodeEnvVar(),
 	}
+
+	// Append ceph-volume environment variables
+	envVars = append(envVars, cephVolumeEnvVar()...)
+
 	// pass on the topologyAware flag to the provion pod so that portable OSDs can reconcile zone/region
 	if c.DesiredStorage.TopologyAware {
 		envVars = append(envVars, topologyAwareEnvVar("true"))
@@ -837,5 +834,12 @@ func (c *Cluster) osdPrepareResources(osdClaimName string) v1.ResourceRequiremen
 			v1.ResourceCPU:    *resource.NewMilliQuantity(cpuRequest, resource.DecimalSI),
 			v1.ResourceMemory: *resource.NewQuantity(memoryRequest, resource.BinarySI),
 		},
+	}
+}
+
+func cephVolumeEnvVar() []v1.EnvVar {
+	return []v1.EnvVar{
+		{Name: "CEPH_VOLUME_DEBUG", Value: "1"},
+		{Name: "CEPH_VOLUME_SKIP_RESTORECON", Value: "1"},
 	}
 }
