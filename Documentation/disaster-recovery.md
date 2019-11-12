@@ -203,11 +203,13 @@ kubectl -n rook-ceph patch secret rook-ceph-config -p '{"stringData": {"mon_host
 
 ### Restart the mon
 
-You will need to "restart" the good mon pod to pick up the changes. For this run `kubectl replace` on the backup of the mon deployment yaml:
+You will need to "restart" the good mon pod with the original `ceph-mon` command to pick up the changes. For this run `kubectl replace` on the backup of the mon deployment yaml:
 
 ```console
-kubectl replace -f rook-ceph-mon-b-deployment.yaml
+kubectl replace --force -f rook-ceph-mon-b-deployment.yaml
 ```
+
+> **NOTE**: Option `--force` will delete the deployment and create a new one
 
 Start the rook [toolbox](/Documentation/ceph-toolbox.md) and verify the status of the cluster.
 
