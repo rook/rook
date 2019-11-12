@@ -196,18 +196,20 @@ The following `kubectl patch` command is an easy way to do that. In the end it p
 
 ```console
 mon_host=$(kubectl -n rook-ceph get svc rook-ceph-mon-b -o jsonpath='{.spec.clusterIP}')
-kubectl -n rook-ceph edit secret rook-ceph-config -p '{"stringData": {"mon_host": "[v2:'"${mon_host}"':3300,v1:'"${mon_host}"':6789]", "mon_initial_members": "'"${good_mon_id}"'"}}'
+kubectl -n rook-ceph patch secret rook-ceph-config -p '{"stringData": {"mon_host": "[v2:'"${mon_host}"':3300,v1:'"${mon_host}"':6789]", "mon_initial_members": "'"${good_mon_id}"'"}}'
 ```
 
 > **NOTE**: If you are using `hostNetwork: true`, you need to replace the `mon_host` var with the node IP the mon is pinned to (`nodeSelector`). This is because there is no `rook-ceph-mon-*` service created in that "mode".
 
 ### Restart the mon
 
-You will need to "restart" the good mon pod to pick up the changes. For this run `kubectl replace` on the backup of the mon deployment yaml:
+You will need to "restart" the good mon pod with the original `ceph-mon` command to pick up the changes. For this run `kubectl replace` on the backup of the mon deployment yaml:
 
 ```console
-kubectl replace -f rook-ceph-mon-b-deployment.yaml
+kubectl replace --force -f rook-ceph-mon-b-deployment.yaml
 ```
+
+> **NOTE**: Option `--force` will delete the deployment and create a new one
 
 Start the rook [toolbox](/Documentation/ceph-toolbox.md) and verify the status of the cluster.
 
