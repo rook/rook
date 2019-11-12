@@ -22,7 +22,6 @@ import (
 
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	apps "k8s.io/api/apps/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -51,15 +50,6 @@ func (c *Cluster) generateKeyring(osdID int) (string, error) {
 }
 
 func (c *Cluster) associateKeyring(existingKeyring string, d *apps.Deployment) error {
-	resourceName := d.GetName()
-
-	ownerRef := &metav1.OwnerReference{
-		UID:        d.UID,
-		APIVersion: "v1",
-		Kind:       "deployment",
-		Name:       resourceName,
-	}
-	s := keyring.GetSecretStore(c.context, c.Namespace, ownerRef)
-
-	return s.CreateOrUpdate(resourceName, existingKeyring)
+	s := keyring.GetSecretStoreForDeployment(c.context, d)
+	return s.CreateOrUpdate(d.GetName(), existingKeyring)
 }

@@ -26,6 +26,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -50,6 +51,21 @@ func GetSecretStore(context *clusterd.Context, namespace string, ownerRef *metav
 	return &SecretStore{
 		context:   context,
 		namespace: namespace,
+		ownerRef:  ownerRef,
+	}
+}
+
+// GetSecretStoreForDeployment returns a new SecretStore struct owned by the provided Deployment.
+func GetSecretStoreForDeployment(context *clusterd.Context, d *apps.Deployment) *SecretStore {
+	ownerRef := &metav1.OwnerReference{
+		UID:        d.UID,
+		APIVersion: "v1",
+		Kind:       "deployment",
+		Name:       d.GetName(),
+	}
+	return &SecretStore{
+		context:   context,
+		namespace: d.GetNamespace(),
 		ownerRef:  ownerRef,
 	}
 }
