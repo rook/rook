@@ -30,7 +30,7 @@ func (m *Mirroring) makeDeployment(daemonConfig *daemonConfig) *apps.Deployment 
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   daemonConfig.ResourceName,
-			Labels: opspec.PodLabels(appName, m.Namespace, string(config.RbdMirrorType), daemonConfig.DaemonID),
+			Labels: opspec.PodLabels(AppName, m.Namespace, string(config.RbdMirrorType), daemonConfig.DaemonID),
 		},
 		Spec: v1.PodSpec{
 			InitContainers: []v1.Container{
@@ -55,7 +55,7 @@ func (m *Mirroring) makeDeployment(daemonConfig *daemonConfig) *apps.Deployment 
 			Name:        daemonConfig.ResourceName,
 			Namespace:   m.Namespace,
 			Annotations: m.annotations,
-			Labels:      opspec.PodLabels(appName, m.Namespace, string(config.RbdMirrorType), daemonConfig.DaemonID),
+			Labels:      opspec.PodLabels(AppName, m.Namespace, string(config.RbdMirrorType), daemonConfig.DaemonID),
 		},
 		Spec: apps.DeploymentSpec{
 			Selector: &metav1.LabelSelector{

@@ -32,6 +32,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
+	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -44,7 +45,10 @@ func TestPodContainer(t *testing.T) {
 		resources:     v1.ResourceRequirements{},
 		storeConfig:   config.StoreConfig{},
 	}
-	c, err := cluster.provisionPodTemplateSpec(osdProps, v1.RestartPolicyAlways)
+	dataPathMap := &provisionConfig{
+		DataPathMap: opconfig.NewDatalessDaemonDataPathMap(cluster.Namespace, "/var/lib/rook"),
+	}
+	c, err := cluster.provisionPodTemplateSpec(osdProps, v1.RestartPolicyAlways, dataPathMap)
 	assert.NotNil(t, c)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(c.Spec.InitContainers))
@@ -101,7 +105,12 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 		resources:     v1.ResourceRequirements{},
 		storeConfig:   config.StoreConfig{},
 	}
-	deployment, err := c.makeDeployment(osdProp, osd)
+
+	dataPathMap := &provisionConfig{
+		DataPathMap: opconfig.NewDatalessDaemonDataPathMap(c.Namespace, "/var/lib/rook"),
+	}
+
+	deployment, err := c.makeDeployment(osdProp, osd, dataPathMap)
 	assert.Nil(t, err)
 	assert.NotNil(t, deployment)
 	assert.Equal(t, "rook-ceph-osd-0", deployment.Name)
@@ -111,10 +120,10 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, "node1", deployment.Spec.Template.Spec.NodeSelector[v1.LabelHostname])
 	assert.Equal(t, v1.RestartPolicyAlways, deployment.Spec.Template.Spec.RestartPolicy)
 	if devMountNeeded && len(dataDir) > 0 {
-		assert.Equal(t, 5, len(deployment.Spec.Template.Spec.Volumes))
+		assert.Equal(t, 6, len(deployment.Spec.Template.Spec.Volumes))
 	}
 	if devMountNeeded && len(dataDir) == 0 {
-		assert.Equal(t, 5, len(deployment.Spec.Template.Spec.Volumes))
+		assert.Equal(t, 6, len(deployment.Spec.Template.Spec.Volumes))
 	}
 	if !devMountNeeded && len(dataDir) > 0 {
 		assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Volumes))
@@ -131,12 +140,12 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	initCont := deployment.Spec.Template.Spec.InitContainers[0]
 	assert.Equal(t, "rook/rook:myversion", initCont.Image)
 	assert.Equal(t, "config-init", initCont.Name)
-	assert.Equal(t, 3, len(initCont.VolumeMounts))
+	assert.Equal(t, 4, len(initCont.VolumeMounts))
 
 	assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Containers))
 	cont := deployment.Spec.Template.Spec.Containers[0]
 	assert.Equal(t, cephVersion.Image, cont.Image)
-	assert.Equal(t, 5, len(cont.VolumeMounts))
+	assert.Equal(t, 6, len(cont.VolumeMounts))
 	assert.Equal(t, "ceph-osd", cont.Command[0])
 }
 
@@ -190,7 +199,11 @@ func TestStorageSpecDevicesAndDirectories(t *testing.T) {
 		storeConfig:   config.StoreConfig{},
 	}
 
-	deployment, err := c.makeDeployment(osdProp, osd)
+	dataPathMap := &provisionConfig{
+		DataPathMap: opconfig.NewDatalessDaemonDataPathMap(c.Namespace, "/var/lib/rook"),
+	}
+
+	deployment, err := c.makeDeployment(osdProp, osd, dataPathMap)
 	assert.NotNil(t, deployment)
 	assert.Nil(t, err)
 	// pod spec should have a volume for the given dir in the main container and the init container
@@ -204,7 +217,7 @@ func TestStorageSpecDevicesAndDirectories(t *testing.T) {
 		IsDirectory: true,
 		DataPath:    "/var/lib/rook/osd1",
 	}
-	deployment, err = c.makeDeployment(osdProp, osd)
+	deployment, err = c.makeDeployment(osdProp, osd, dataPathMap)
 	assert.NotNil(t, deployment)
 	assert.Nil(t, err)
 	// pod spec should have a volume for the given dir in the main container and the init container
@@ -261,7 +274,12 @@ func TestStorageSpecConfig(t *testing.T) {
 		storeConfig:    storeConfig,
 		metadataDevice: metadataDevice,
 	}
-	job, err := c.makeJob(osdProp)
+
+	dataPathMap := &provisionConfig{
+		DataPathMap: opconfig.NewDatalessDaemonDataPathMap(c.Namespace, "/var/lib/rook"),
+	}
+
+	job, err := c.makeJob(osdProp, dataPathMap)
 	assert.NotNil(t, job)
 	assert.Nil(t, err)
 	assert.Equal(t, "rook-ceph-osd-prepare-node1", job.ObjectMeta.Name)
@@ -317,7 +335,11 @@ func TestHostNetwork(t *testing.T) {
 		storeConfig:   config.StoreConfig{},
 	}
 
-	r, err := c.makeDeployment(osdProp, osd)
+	dataPathMap := &provisionConfig{
+		DataPathMap: opconfig.NewDatalessDaemonDataPathMap(c.Namespace, "/var/lib/rook"),
+	}
+
+	r, err := c.makeDeployment(osdProp, osd, dataPathMap)
 	assert.NotNil(t, r)
 	assert.Nil(t, err)
 

@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
 	apps "k8s.io/api/apps/v1"
@@ -47,10 +48,13 @@ const (
 
 type provisionConfig struct {
 	errorMessages []string
+	DataPathMap   *config.DataPathMap // location to store data in container
 }
 
-func newProvisionConfig() *provisionConfig {
-	return &provisionConfig{}
+func (c *Cluster) newProvisionConfig() *provisionConfig {
+	return &provisionConfig{
+		DataPathMap: config.NewDatalessDaemonDataPathMap(c.Namespace, c.dataDirHostPath),
+	}
 }
 
 func (c *provisionConfig) addError(message string, args ...interface{}) {

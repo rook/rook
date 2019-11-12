@@ -16,6 +16,7 @@
   - The on-host log directory for OSDs was set incorrectly to `<dataDirHostPath>/<namespace>/log`;
     fix this to be `<dataDirHostPath>/log/<namespace>`, the same as other daemons.
   - Use the mon configuration database for directory-based OSDs, and do not generate a config
+- A new ceph-crashcollector controller has been added, that new pod will run on any node where a Ceph pod is running. Read more about this in the [doc](Documentation/ceph-cluster-crd.html#cluster-wide-resources-configuration-settings)
 
 
 ### EdgeFS
