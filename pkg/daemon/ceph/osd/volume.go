@@ -155,7 +155,11 @@ func updateLVMConfig(context *clusterd.Context, onPVC bool) error {
 		output = bytes.Replace(output, []byte(`scan = [ "/dev" ]`), []byte(`scan = [ "/dev", "/mnt" ]`), 1)
 		// Only filter blocks in /mnt, when running on PVC we copy the PVC claim path to /mnt
 		// And reject everything else
+		// We have 2 different regex depending on the version of LVM present in the container...
+		// Since https://github.com/lvmteam/lvm2/commit/08396b4bce45fb8311979250623f04ec0ddb628c#diff-13c602a6258e57ce666a240e67c44f38
+		// the content changed, so depending which version is installled one of the two replace will work
 		output = bytes.Replace(output, []byte(`# filter = [ "a|.*/|" ]`), []byte(`filter = [ "a|^/mnt/.*|", "r|.*|" ]`), 1)
+		output = bytes.Replace(output, []byte(`# filter = [ "a|.*|" ]`), []byte(`filter = [ "a|^/mnt/.*|", "r|.*|" ]`), 1)
 	}
 
 	if err = ioutil.WriteFile(lvmConfPath, output, 0644); err != nil {
