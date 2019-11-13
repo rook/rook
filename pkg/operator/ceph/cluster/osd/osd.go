@@ -52,11 +52,12 @@ const (
 	// AppName is the "app" label on osd pods
 	AppName = "rook-ceph-osd"
 	// FailureDomainKey is the label key whose value is the failure domain of the OSD
-	FailureDomainKey                    = "failure-domain"
-	prepareAppName                      = "rook-ceph-osd-prepare"
-	prepareAppNameFmt                   = "rook-ceph-osd-prepare-%s"
-	legacyAppNameFmt                    = "rook-ceph-osd-id-%d"
-	osdAppNameFmt                       = "rook-ceph-osd-%d"
+	FailureDomainKey  = "failure-domain"
+	prepareAppName    = "rook-ceph-osd-prepare"
+	prepareAppNameFmt = "rook-ceph-osd-prepare-%s"
+	legacyAppNameFmt  = "rook-ceph-osd-id-%d"
+	osdAppNameFmt     = "rook-ceph-osd-%d"
+	// OsdIdLabelKey is the OSD label key
 	OsdIdLabelKey                       = "ceph-osd-id"
 	clusterAvailableSpaceReserve        = 0.05
 	serviceAccountName                  = "rook-ceph-osd"
@@ -128,6 +129,7 @@ func New(
 	}
 }
 
+// OSDInfo represent all the properties of a given OSD
 type OSDInfo struct {
 	ID                  int    `json:"id"`
 	DataPath            string `json:"data-path"`
@@ -147,6 +149,7 @@ type OSDInfo struct {
 	LVBackedPV    bool   `json:"lv-backed-pv"`
 }
 
+// OrchestrationStatus represents the status of an OSD orchestration
 type OrchestrationStatus struct {
 	OSDs         []OSDInfo `json:"osds"`
 	Status       string    `json:"status"`
@@ -156,16 +159,17 @@ type OrchestrationStatus struct {
 
 type osdProperties struct {
 	//crushHostname refers to the hostname or PVC name when the OSD is provisioned on Nodes or PVC block device, respectively.
-	crushHostname  string
-	devices        []rookalpha.Device
-	pvc            v1.PersistentVolumeClaimVolumeSource
-	selection      rookalpha.Selection
-	resources      v1.ResourceRequirements
-	storeConfig    osdconfig.StoreConfig
-	placement      rookalpha.Placement
-	metadataDevice string
-	location       string
-	portable       bool
+	crushHostname       string
+	devices             []rookalpha.Device
+	pvc                 v1.PersistentVolumeClaimVolumeSource
+	selection           rookalpha.Selection
+	resources           v1.ResourceRequirements
+	storeConfig         osdconfig.StoreConfig
+	placement           rookalpha.Placement
+	metadataDevice      string
+	location            string
+	portable            bool
+	tuneSlowDeviceClass bool
 }
 
 // Start the osd management
@@ -654,11 +658,12 @@ func (c *Cluster) getOSDPropsForPVC(pvcName string) (osdProperties, error) {
 	for _, volumeSource := range c.ValidStorage.VolumeSources {
 		if pvcName == volumeSource.PersistentVolumeClaimSource.ClaimName {
 			osdProps := osdProperties{
-				crushHostname: volumeSource.PersistentVolumeClaimSource.ClaimName,
-				pvc:           volumeSource.PersistentVolumeClaimSource,
-				resources:     volumeSource.Resources,
-				placement:     volumeSource.Placement,
-				portable:      volumeSource.Portable,
+				crushHostname:       volumeSource.PersistentVolumeClaimSource.ClaimName,
+				pvc:                 volumeSource.PersistentVolumeClaimSource,
+				resources:           volumeSource.Resources,
+				placement:           volumeSource.Placement,
+				portable:            volumeSource.Portable,
+				tuneSlowDeviceClass: volumeSource.TuneSlowDeviceClass,
 			}
 			// If OSD isn't portable, we're getting the host name of the pod where the osd prepare job pod prepared the OSD.
 			if !volumeSource.Portable {
