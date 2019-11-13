@@ -22,11 +22,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rook/rook/pkg/operator/ceph/disruption/nodedrain"
+
 	cephClient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -187,6 +190,27 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 	err = r.client.Update(context.TODO(), pdbStateMap)
 	if err != nil {
 		return fmt.Errorf("could not update %s in cluster %s: %+v", pdbStateMapName, request, err)
+	}
+	drainingFailureDomain, ok := pdbStateMap.Data[disabledPDBKey]
+	if ok && clean && len(drainingFailureDomain) > 0 {
+
+		canaryLabels := client.MatchingLabels{k8sutil.AppAttr: nodedrain.CanaryAppName, poolFailureDomain: drainingFailureDomain}
+
+		// list and delete only if it's old
+		drainingCanaryList := &appsv1.DeploymentList{}
+		err := r.client.List(context.TODO(), drainingCanaryList, canaryLabels, client.InNamespace(r.context.OperatorNamespace))
+		if err != nil {
+			return fmt.Errorf("could not list canary pods by labels %q: %+v", canaryLabels, err)
+		}
+		// refresh old canaries in draining failure domain
+		for _, drainingCanary := range drainingCanaryList.Items {
+			if time.Since(drainingCanary.GetCreationTimestamp().Time) > time.Minute && drainingCanary.Status.ReadyReplicas < 1 {
+				err := r.client.Delete(context.TODO(), &drainingCanary)
+				if err != nil {
+					logger.Warningf("could not delete canary deployment %q in namespace %q: %+v", drainingCanary.GetName(), drainingCanary.GetNamespace(), err)
+				}
+			}
+		}
 	}
 	for failureDomain, osdDataList := range allFailureDomainsMap {
 		for _, osdData := range osdDataList {

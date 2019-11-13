@@ -19,7 +19,18 @@ limitations under the License.
 // flags.
 package osd
 
+import (
+	"fmt"
+	"strings"
+
+	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/k8sutil"
+
+	corev1 "k8s.io/api/core/v1"
+)
+
 var (
+
 	// The labels that can be specified with the K8s labels such as failure-domain.beta.kubernetes.io/zone
 	// These are all at the top layers of the CRUSH map.
 	KubernetesTopologyLabels = []string{"zone", "region"}
@@ -30,3 +41,44 @@ var (
 	// The list of supported failure domains in the CRUSH map, ordered from lowest to highest
 	CRUSHMapLevelsOrdered = append([]string{"host"}, append(CRUSHTopologyLabels, KubernetesTopologyLabels...)...)
 )
+
+// ExtractRookTopologyFromLabels extracts rook topology from labels and returns a map from topology type to value,
+// and an array of any invalid labels with a topology prefix.
+func ExtractRookTopologyFromLabels(labels map[string]string) (map[string]string, []string) {
+	topology := make(map[string]string)
+
+	// get zone
+	zone, ok := labels[corev1.LabelZoneFailureDomain]
+	if ok {
+		topology["zone"] = client.NormalizeCrushName(zone)
+	}
+	// get region
+	region, ok := labels[corev1.LabelZoneRegion]
+	if ok {
+		topology["region"] = client.NormalizeCrushName(region)
+	}
+
+	// get host
+	host, ok := labels[corev1.LabelHostname]
+	if ok {
+		topology["host"] = client.NormalizeCrushName(host)
+	}
+
+	invalidEncountered := make([]string, 0)
+	for labelKey, labelValue := range labels {
+		for _, validTopologyType := range CRUSHTopologyLabels {
+			if strings.HasPrefix(labelKey, k8sutil.TopologyLabelPrefix) {
+				s := strings.Split(labelKey, "/")
+				if len(s) != 2 {
+					invalidEncountered = append(invalidEncountered, fmt.Sprintf("%s=%s", labelKey, labelValue))
+					continue
+				}
+				topologyType := s[1]
+				if topologyType == validTopologyType {
+					topology[validTopologyType] = client.NormalizeCrushName(labelValue)
+				}
+			}
+		}
+	}
+	return topology, invalidEncountered
+}
