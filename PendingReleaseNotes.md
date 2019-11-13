@@ -39,6 +39,7 @@ To remove OSDs manually, see the new doc on [OSD Management](Documentation/ceph-
       - New OSDs created in directories are always `Filestore` type
       - New OSDs created on disks are always `Bluestore` type
     - Preexisting disks provisioned as `Filestore` OSDs will remain as `Filestore` OSDs
+  - When running on PVC, the OSD can be on a slow device class, Rook can adapt to that by tuning the OSD. This can be enabled by the CR setting `tuneSlowDeviceClass`
 - RGWs:
   - Ceph Object Gateway are automatically configured to not run on the same host if hostNetwork is activated
 
@@ -52,10 +53,10 @@ To remove OSDs manually, see the new doc on [OSD Management](Documentation/ceph-
 
 ### YugabyteDB
 
-
 ## Breaking Changes
 
 ### Ceph
+
 - The `topology` setting has been removed from the CephCluster CR. To configure the OSD topology, node labels must be applied.
 See the [OSD topology topic](ceph-cluster-crd.md#osd-topology). This setting only affects OSDs when they are first created, thus OSDs will not be impacted during upgrade.
 The topology settings only apply to bluestore OSDs on raw devices. The topology labels are not applied to directory-based OSDs.
