@@ -221,6 +221,12 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	err = s.k8sh.WaitForLabeledDeploymentsToBeReady(mdsesNotOldVersion, s.namespace)
 	require.NoError(s.T(), err)
 
+	rgwsNotOldVersion = fmt.Sprintf("app=rook-ceph-rgw,rook-version!=%s", oldRookVersion)
+	err = s.k8sh.WaitForDeploymentCount(rgwsNotOldVersion, s.namespace, 1 /* always expect 1 rgw */)
+	require.NoError(s.T(), err)
+	err = s.k8sh.WaitForLabeledDeploymentsToBeReady(rgwsNotOldVersion, s.namespace)
+	require.NoError(s.T(), err)
+
 	logger.Infof("Done with automatic upgrade to master")
 
 	// Give a few seconds for the daemons to settle down after the upgrade
