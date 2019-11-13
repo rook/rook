@@ -194,7 +194,7 @@ func getOSDsForNodes(osdDataList []OsdData, nodeList []*corev1.Node, failureDoma
 			}
 
 			// check if the node and osd have the same crush location value for this particular crush location type
-			if cephClient.IsNormalizedCrushNameEqual(nodeFailureDomain, crushFailureDomain) {
+			if cephClient.IsNormalizedCrushNameEqual(nodeFailureDomain, crushFailureDomain) || (failureDomainType == "host" && cephClient.IsNormalizedCrushNameEqual(node.GetName(), crushFailureDomain)) {
 				nodeOsdDataList = append(nodeOsdDataList, osdData)
 			}
 
