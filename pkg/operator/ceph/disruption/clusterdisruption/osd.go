@@ -178,7 +178,7 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 		if clean {
 			pdbStateMap.Data[disabledPDBKey] = drainingFailureDomains[0]
 		}
-	} else {
+	} else if clean {
 		pdbStateMap.Data[disabledPDBKey] = ""
 	}
 

@@ -183,8 +183,8 @@ func (r *ReconcileClusterDisruption) reconcile(request reconcile.Request) (recon
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-	_, ok := pdbStateMap.Data[disabledPDBKey]
-	if ok {
+	disabledPDB, ok := pdbStateMap.Data[disabledPDBKey]
+	if ok && len(disabledPDB) > 0 {
 		return reconcile.Result{Requeue: true, RequeueAfter: 30 * time.Second}, nil
 	}
 	return reconcile.Result{}, nil
