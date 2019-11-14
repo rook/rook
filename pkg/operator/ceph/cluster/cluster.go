@@ -56,6 +56,7 @@ type cluster struct {
 	Namespace            string
 	Spec                 *cephv1.ClusterSpec
 	crdName              string
+	condition            *cephv1.ClusterStatus
 	mons                 *mon.Cluster
 	initCompleted        bool
 	stopCh               chan struct{}
