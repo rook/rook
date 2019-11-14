@@ -178,7 +178,7 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 		if clean {
 			pdbStateMap.Data[disabledPDBKey] = drainingFailureDomains[0]
 		}
-	} else {
+	} else if clean {
 		pdbStateMap.Data[disabledPDBKey] = ""
 	}
 
@@ -236,16 +236,17 @@ func (r *ReconcileClusterDisruption) updateNoout(pdbStateMap *corev1.ConfigMap, 
 	if err != nil {
 		return fmt.Errorf("could not get osddump for reconciling maintenance noout in namespace %s: %+v", namespace, err)
 	}
-	disabledFailureDomainTimeStampKey := fmt.Sprintf("%s-noout-set-at", disabledFailureDomain)
 	for failureDomain := range allFailureDomainsMap {
+		disabledFailureDomainTimeStampKey := fmt.Sprintf("%s-noout-last-set-at", failureDomain)
 		if disabledFailureDomain == failureDomain {
+
+			// get the time stamp
 			nooutSetTimeString, ok := pdbStateMap.Data[disabledFailureDomainTimeStampKey]
-			if !ok {
-				pdbStateMap.Data[disabledFailureDomainTimeStampKey] = time.Now().Format(time.RFC3339)
-			} else if len(nooutSetTimeString) == 0 {
+			if !ok || len(nooutSetTimeString) == 0 {
+				// initialize it if it's not set
 				pdbStateMap.Data[disabledFailureDomainTimeStampKey] = time.Now().Format(time.RFC3339)
 			}
-
+			// parse the timestamp
 			nooutSetTime, err := time.Parse(time.RFC3339, pdbStateMap.Data[disabledFailureDomainTimeStampKey])
 			if err != nil {
 				return fmt.Errorf("could not parse timestamp %s for failureDomain %s", pdbStateMap.Data[disabledFailureDomainTimeStampKey], nooutSetTime)
@@ -259,15 +260,10 @@ func (r *ReconcileClusterDisruption) updateNoout(pdbStateMap *corev1.ConfigMap, 
 			}
 
 		} else {
-			delete(pdbStateMap.Data, disabledFailureDomainTimeStampKey)
 			// ensure noout unset
 			osdDump.UpdateFlagOnCrushUnit(r.context.ClusterdContext, false, namespace, failureDomain, nooutFlag)
-		}
-		// cleanup
-		for key := range pdbStateMap.Data {
-			if key != disabledPDBKey && key != disabledFailureDomainTimeStampKey {
-				delete(pdbStateMap.Data, key)
-			}
+			// delete the timestamp
+			delete(pdbStateMap.Data, disabledFailureDomainTimeStampKey)
 		}
 	}
 	return nil
