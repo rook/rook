@@ -92,22 +92,10 @@ func New(
 	cmd, args []string,
 	rookImage, runImage string,
 ) (*CmdReporter, error) {
-	if clientset == nil || ownerRef == nil {
-		return nil, fmt.Errorf("clientset [%+v] and owner reference [%+v] must be specified", clientset, ownerRef)
-	}
-	if appName == "" || jobName == "" || jobNamespace == "" {
-		return nil, fmt.Errorf("app name [%s], job name [%s], and job namespace [%s] must be specified", appName, jobName, jobNamespace)
-	}
-	// at least one command must be set, and it cannot be an empty string
-	if len(cmd) == 0 || cmd[0] == "" {
-		return nil, fmt.Errorf("command [%+v] must be specified", cmd)
-	}
-	if rookImage == "" || runImage == "" {
-		return nil, fmt.Errorf("Rook image [%s] and run image [%s] must be specified", rookImage, runImage)
-	}
 	cfg := &cmdReporterCfg{
 		clientset:    clientset,
 		ownerRef:     ownerRef,
+		appName:      appName,
 		jobName:      jobName,
 		jobNamespace: jobNamespace,
 		cmd:          cmd,
@@ -116,12 +104,28 @@ func New(
 		runImage:     runImage,
 	}
 
+	// Validate contents of config struct, not inputs to function to catch any developer errors
+	// mis-assigning config items to the struct.
+	if cfg.clientset == nil || cfg.ownerRef == nil {
+		return nil, fmt.Errorf("clientset [%+v] and owner reference [%+v] must be specified", cfg.clientset, cfg.ownerRef)
+	}
+	if cfg.appName == "" || cfg.jobName == "" || cfg.jobNamespace == "" {
+		return nil, fmt.Errorf("app name [%s], job name [%s], and job namespace [%s] must be specified", cfg.appName, cfg.jobName, cfg.jobNamespace)
+	}
+	// at least one command must be set, and it cannot be an empty string
+	if len(cfg.cmd) == 0 || cfg.cmd[0] == "" {
+		return nil, fmt.Errorf("command [%+v] must be specified", cfg.cmd)
+	}
+	if cfg.rookImage == "" || cfg.runImage == "" {
+		return nil, fmt.Errorf("Rook image [%s] and run image [%s] must be specified", cfg.rookImage, cfg.runImage)
+	}
+
 	job, err := cfg.initJobSpec()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Kubernetes job spec for CmdReporter job %s. %+v", jobName, err)
 	}
 	return &CmdReporter{
-		clientset: clientset,
+		clientset: cfg.clientset,
 		job:       job,
 	}, nil
 }
