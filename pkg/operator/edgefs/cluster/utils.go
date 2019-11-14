@@ -100,6 +100,7 @@ func (c *cluster) getClusterNodes() ([]rookv1alpha2.Node, error) {
 			}
 			c.Spec.Storage.Nodes = append(c.Spec.Storage.Nodes, storageNode)
 		}
+		logger.Warningf("UseAllNodes prevents future cluster changes! Specify nodes to deploy via `nodes:` collection.")
 	}
 	validNodes := k8sutil.GetValidNodes(c.Spec.Storage, c.context.Clientset, edgefsv1.GetTargetPlacement(c.Spec.Placement))
 	c.Spec.Storage.Nodes = validNodes

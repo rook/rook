@@ -322,6 +322,11 @@ type ISGWList struct {
 	Items           []ISGW `json:"items"`
 }
 
+type ISGWConfig struct {
+	Server  string   `json:"server,omitempty"`
+	Clients []string `json:"clients,omitempty"`
+}
+
 // ISGWSpec represent the spec of a isgw service
 type ISGWSpec struct {
 	// The annotations-related configuration to add/set on each Pod related object.
@@ -338,6 +343,8 @@ type ISGWSpec struct {
 	RemoteURL string `json:"remoteURL,omitempty"`
 	// ISGW ServiceType (default is ClusterIP)
 	ServiceType string `json:"serviceType,omitempty"`
+	// ISGW Relay config
+	Config ISGWConfig `json:"config,omitempty"`
 	// ISGW external port
 	ExternalPort uint `json:"externalPort,omitempty"`
 	// ISGW Replication Type

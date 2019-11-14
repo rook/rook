@@ -54,6 +54,9 @@ spec:
   #localAddr: 0.0.0.0:10000
   #useEncryptedTunnel: true
   #chunkCacheSize: 1Gi
+  #config:
+  #   server: "isgws"
+  #   clients: ["isgwc1", "isgwc2"]
   #placement:
   #  nodeAffinity:
   #    requiredDuringSchedulingIgnoredDuringExecution:
@@ -93,6 +96,7 @@ spec:
 * `localAddr`: Defines local cluster pod service address and port. Used by ISGW link endpoint. Kubernetes ExternalIP will be automatically constructed if address is provided. Default is 0.0.0.0:14000.
 * `useEncryptedTunnel`: If true, enables usage of encrypted SSH tunnel. By default, transferred metadata and data chunks are just compressed but unencrypted. Enable encryption if ISGW links crossing boundaries of single data center or multiple clouds.
 * `chunkCacheSize`: Limit amount of memory allocated for dynamic chunk cache. By default ISGW pod uses up to 75% of available memory as chunk caching area. This option can influence this allocation strategy.
+* `config`: Advanced ISGW services configurations - one kubernetes service per many EdgeFS services. `Server` is EdgeFS ISGW server service name, `Clients` array of ISGW client services names. When `config` option is defined the `remoteURL` is optional.
 * `annotations`: Key value pair list of annotations to add.
 * `placement`: The ISGW pods can be given standard Kubernetes placement restrictions with `nodeAffinity`, `tolerations`, `podAffinity`, and `podAntiAffinity` similar to placement defined for daemons configured by the [cluster CRD](/cluster/examples/kubernetes/edgefs/cluster.yaml).
 * `resourceProfile`: ISGW pod resource utilization profile (Memory and CPU). Can be `embedded` or `performance` (default). In case of `performance` an ISGW pod trying to increase amount of internal I/O resources that results in higher performance at the cost of additional memory allocation and more CPU load. In `embedded` profile case, ISGW pod gives preference to preserving memory over I/O and limiting chunk cache (see `chunkCacheSize` option). The `performance` profile is the default unless cluster wide `embedded` option is defined.
