@@ -116,6 +116,7 @@ func (r *ReconcileClusterDisruption) reconcile(request reconcile.Request) (recon
 	r.maintenanceTimeout = cephCluster.Spec.DisruptionManagement.OSDMaintenanceTimeout
 	if r.maintenanceTimeout == 0 {
 		r.maintenanceTimeout = DefaultMaintenanceTimeout
+		logger.Debugf("Using default maintenance timeout: %v", r.maintenanceTimeout)
 	}
 
 	//  reconcile the pools and get the failure domain
