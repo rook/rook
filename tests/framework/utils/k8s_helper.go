@@ -33,6 +33,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/stretchr/testify/require"
+	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -54,7 +55,7 @@ type K8sHelper struct {
 
 const (
 	// RetryLoop params for tests.
-	RetryLoop = 40
+	RetryLoop = 80
 	// RetryInterval param for test - wait time while in RetryLoop
 	RetryInterval = 5
 	// TestMountPath is the path inside a test pod where storage is mounted
@@ -1618,4 +1619,46 @@ func (k8sh *K8sHelper) WaitForDeploymentCount(label, namespace string, count int
 		time.Sleep(RetryInterval * time.Second)
 	}
 	return fmt.Errorf("giving up waiting for %d deployments with label %s in namespace %s", count, label, namespace)
+}
+
+// WaitForLabeledDeploymentsToBeReady waits for all deployments matching the given label selector to
+// be fully ready with a default timeout.
+func (k8sh *K8sHelper) WaitForLabeledDeploymentsToBeReady(label, namespace string) error {
+	return k8sh.WaitForLabeledDeploymentsToBeReadyWithRetries(label, namespace, RetryLoop)
+}
+
+// WaitForLabeledDeploymentsToBeReadyWithRetries waits for all deployments matching the given label
+// selector to be fully ready. Retry the number of times given.
+func (k8sh *K8sHelper) WaitForLabeledDeploymentsToBeReadyWithRetries(label, namespace string, retries int) error {
+	listOpts := metav1.ListOptions{LabelSelector: label}
+	var lastDep apps.Deployment
+	for i := 0; i < retries; i++ {
+		deps, err := k8sh.Clientset.AppsV1().Deployments(namespace).List(listOpts)
+		ready := 0
+		if err == nil && len(deps.Items) > 0 {
+			for _, dep := range deps.Items {
+				if dep.Status.Replicas == dep.Status.ReadyReplicas {
+					ready++
+				} else {
+					lastDep = dep // make it the last non-ready dep
+				}
+				if ready == len(deps.Items) {
+					logger.Infof("all %d deployments with label %s are running", len(deps.Items), label)
+					return nil
+				}
+			}
+		}
+		logger.Infof("waiting for deployment(s) with label %s in namespace %s to be running. ready=%d/%d, err=%+v",
+			label, namespace, ready, len(deps.Items), err)
+		time.Sleep(RetryInterval * time.Second)
+	}
+	if len(lastDep.Name) == 0 {
+		logger.Infof("no deployment was found with label %s", label)
+	} else {
+		r, err := k8sh.Kubectl("-n", namespace, "get", "-o", "yaml", "deployments", "--selector", label)
+		if err != nil {
+			logger.Infof("deployments with label %s:\n%s", label, r)
+		}
+	}
+	return fmt.Errorf("giving up waiting for deployment(s) with label %s in namespace %s to be ready", label, namespace)
 }

@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
@@ -191,7 +192,12 @@ func (o MCTestOperations) Teardown() {
 
 func (o MCTestOperations) startCluster(namespace, store string) error {
 	logger.Infof("starting cluster %s", namespace)
-	if err := o.installer.CreateK8sRookCluster(namespace, o.systemNamespace, store); err != nil {
+	useDevices := false
+	// do not use disks for this cluster, otherwise the 2 test clusters will each try to use the
+	// same disks.
+	err := o.installer.CreateK8sRookClusterWithHostPathAndDevices(namespace, o.systemNamespace, store,
+		useDevices, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, true, 1, installer.NautilusVersion)
+	if err != nil {
 		o.T().Fail()
 		o.installer.GatherAllRookLogs(o.T().Name(), namespace, o.systemNamespace)
 		return fmt.Errorf("failed to create cluster %s. %+v", namespace, err)

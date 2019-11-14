@@ -29,11 +29,13 @@ import (
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -176,14 +178,7 @@ func (h *CephInstaller) CreateK8sRookToolbox(namespace string) (err error) {
 	return nil
 }
 
-func (h *CephInstaller) CreateK8sRookCluster(namespace, systemNamespace string, storeType string) (err error) {
-	return h.CreateK8sRookClusterWithHostPathAndDevices(namespace, systemNamespace, storeType, false,
-		cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, true, /* startWithAllNodes */
-		1, /* rbd workers */
-		NautilusVersion)
-}
-
-// CreateK8sRookCluster creates rook cluster via kubectl
+// CreateK8sRookClusterWithHostPathAndDevices creates rook cluster via kubectl
 func (h *CephInstaller) CreateK8sRookClusterWithHostPathAndDevices(namespace, systemNamespace, storeType string,
 	useAllDevices bool, mon cephv1.MonSpec, startWithAllNodes bool, rbdMirrorWorkers int, cephVersion cephv1.CephVersionSpec) error {
 
@@ -208,6 +203,10 @@ func (h *CephInstaller) CreateK8sRookClusterWithHostPathAndDevices(namespace, sy
 		if _, err := h.k8shelper.KubectlWithStdin(roles, createFromStdinArgs...); err != nil {
 			return fmt.Errorf("Failed to create cluster roles. %+v", err)
 		}
+	}
+
+	if err := h.WipeClusterDisks(namespace); err != nil {
+		return fmt.Errorf("failed to wipe cluster disks. %+v", err)
 	}
 
 	logger.Infof("Starting Rook Cluster with yaml")
@@ -258,6 +257,7 @@ func (h *CephInstaller) initTestDir(namespace string) (string, error) {
 	return testDir, nil
 }
 
+// GetNodeHostnames returns the list of nodes in the k8s cluster
 func (h *CephInstaller) GetNodeHostnames() ([]string, error) {
 	nodes, err := h.k8shelper.Clientset.CoreV1().Nodes().List(metav1.ListOptions{})
 	if err != nil {
@@ -276,7 +276,7 @@ func (h *CephInstaller) InstallRookOnK8sWithHostPathAndDevices(namespace, storeT
 	useDevices bool, mon cephv1.MonSpec, startWithAllNodes bool, rbdMirrorWorkers int) (bool, error) {
 
 	var err error
-	// flag used for local debuggin purpose, when rook is pre-installed
+	// flag used for local debugging purpose, when rook is pre-installed
 	if Env.SkipInstallRook {
 		return true, nil
 	}
@@ -314,15 +314,6 @@ func (h *CephInstaller) InstallRookOnK8sWithHostPathAndDevices(namespace, storeT
 		return false, err
 	}
 
-	if forceUseDevices {
-		logger.Infof("Forcing the use of devices")
-		useDevices = true
-	} else if useDevices {
-		// This check only looks at the local machine for devices. If you want to force using devices,
-		// set the forceUseDevices flag
-		useDevices = IsAdditionalDeviceAvailableOnCluster()
-	}
-
 	// Create rook cluster
 	err = h.CreateK8sRookClusterWithHostPathAndDevices(namespace, onamespace, storeType,
 		useDevices, cephv1.MonSpec{Count: mon.Count, AllowMultiplePerNode: mon.AllowMultiplePerNode}, startWithAllNodes,
@@ -351,12 +342,12 @@ func (h *CephInstaller) InstallRookOnK8sWithHostPathAndDevices(namespace, storeT
 	return true, nil
 }
 
-// UninstallRookFromK8s uninstalls rook from k8s
+// UninstallRook uninstalls rook from k8s
 func (h *CephInstaller) UninstallRook(namespace string, gatherLogs bool) {
 	h.UninstallRookFromMultipleNS(gatherLogs, SystemNamespace(namespace), namespace)
 }
 
-// UninstallRookFromK8s uninstalls rook from multiple namespaces in k8s
+// UninstallRookFromMultipleNS uninstalls rook from multiple namespaces in k8s
 func (h *CephInstaller) UninstallRookFromMultipleNS(gatherLogs bool, systemNamespace string, namespaces ...string) {
 	// flag used for local debugging purpose, when rook is pre-installed
 	if Env.SkipInstallRook {
@@ -601,4 +592,138 @@ func NewCephInstaller(t func() *testing.T, clientset *kubernetes.Clientset, useH
 	}
 	flag.Parse()
 	return h
+}
+
+// WipeClusterDisks runs a disk wipe job on all nodes in the k8s cluster.
+func (h *CephInstaller) WipeClusterDisks(namespace string) error {
+	wipeJobName := func(node string) string {
+		return k8sutil.TruncateNodeName("rook-ceph-disk-wipe-%s", node)
+	}
+
+	// Wipe clean disks on all nodes
+	nodes, err := h.GetNodeHostnames()
+	if err != nil {
+		return fmt.Errorf("failed to get node hostnames. %+v", err)
+	}
+	for _, node := range nodes {
+		job := h.GetDiskWipeJob(node, wipeJobName(node), namespace)
+		_, err := h.k8shelper.KubectlWithStdin(job, createFromStdinArgs...)
+		if err != nil {
+			return fmt.Errorf("failed to create disk wipe job for host %s. %+v", node, err)
+		}
+	}
+
+	allJobsAreComplete := func() (done bool, err error) {
+		for _, node := range nodes {
+			j, err := h.k8shelper.Clientset.BatchV1().Jobs(namespace).Get(wipeJobName(node), metav1.GetOptions{})
+			if err != nil {
+				return false, nil
+			}
+			if j.Status.Failed > 0 {
+				return false, fmt.Errorf("job %s failed", wipeJobName(node))
+			}
+			if j.Status.Succeeded == 0 {
+				return false, nil
+			}
+		}
+		return true, nil
+	}
+
+	if err = wait.Poll(5*time.Second, 90*time.Second, allJobsAreComplete); err != nil {
+		return fmt.Errorf("failed to wait for wipe jobs to complete. %+v", err)
+	}
+
+	for _, node := range nodes {
+		// if delete fails, don't worry about the error; delete only on best-effort basis
+		h.k8shelper.Clientset.BatchV1().Jobs(namespace).Delete(wipeJobName(node), &metav1.DeleteOptions{})
+	}
+
+	return nil
+}
+
+// GetDiskWipeJob returns a YAML manifest string for a job which will wipe clean the extra
+// (non-boot) disks on a node, allowing Ceph to use the disk(s) during its testing.
+func (h *CephInstaller) GetDiskWipeJob(nodeName, jobName, namespace string) string {
+	// put the wipe job in the cluster namespace so that logs get picked up in failure conditions
+	return `apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ` + jobName + `
+  namespace: ` + namespace + `
+spec:
+    template:
+      spec:
+          restartPolicy: OnFailure
+          containers:
+              - name: disk-wipe
+                image: ` + h.CephVersion.Image + `
+                securityContext:
+                    privileged: true
+                volumeMounts:
+                    - name: dev
+                      mountPath: /dev
+                    - name: run-udev
+                      mountPath: /run/udev
+                command:
+                    - "sh"
+                    - "-c"
+                    - |
+                      set -xEeuo pipefail
+                      # Wipe LVM data from disks
+                      #
+                      udevadm trigger || true
+                      vgimport -a || true
+                      for vg in $(vgs --noheadings --readonly --separator=' ' -o vg_name); do
+                        lvremove --yes --force "$vg"
+                        vgremove --yes --force "$vg"
+                      done
+                      for pv in $(pvs --noheadings --readonly --separator=' ' -o pv_name); do
+                        pvremove --yes --force "$pv"
+                      done
+                      #
+                      # we CANNOT wipe the boot disk if it exists
+                      fdisk -l # show the output here for helping debug log output
+                      lsblk
+                      parted --script --list
+                      df /
+                      boot_disk=""
+                      all_disks="$(lsblk --paths --nodeps --output=NAME --noheadings)"
+                      for disk in ${all_disks}; do
+                        # parted returns an error if the disk has an unknown label, which we don't
+                        # care about. ceph containers have a very old version of lsblk which makes
+                        # it difficult to ascertain the boot disk programmatically, so part is used
+                        if (parted --script ${disk} print || true) | grep boot; then
+                            boot_disk="${disk}"
+                            break
+                        fi
+                      done
+                      # in cloud environments, the disk could possibly be xvd[a-z]
+                      rook_disks="$(find /dev -regex '/dev/x?[vs]d[a-z]+$' -and -not -wholename "${boot_disk}")"
+                      #
+                      # zap the disks to a fresh, usable state after LVM info is deleted
+                      # (zap-all is important, b/c MBR has to be clean)
+                      for disk in ${rook_disks}; do
+                        wipefs --all "${disk}"
+                        # lvm metadata can be a lot of sectors
+                        dd if=/dev/zero of="${disk}" bs=512 count=2500
+                        sgdisk --zap-all "${disk}"
+                      done
+                      #
+                      # some devices might still be mapped that lock the disks
+                      # this can fail with long-gone vestigial devices, so just assume this is successful
+                      ls /dev/mapper/ceph-* | xargs -I% -- dmsetup remove --force % || true
+                      rm -rf /dev/mapper/ceph-*  # clutter
+                      #
+                      # ceph-volume setup also leaves ceph-UUID directories in /dev (just clutter)
+                      rm -rf /dev/ceph-*
+          nodeSelector:
+            kubernetes.io/hostname: ` + nodeName + `
+          volumes:
+              - name: dev
+                hostPath:
+                  path: /dev
+              - name: run-udev
+                hostPath:
+                  path: /run/udev
+`
 }
