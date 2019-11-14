@@ -17,6 +17,6 @@ limitations under the License.
 /*
 Package nodedrain implements the controller for ensuring that drain detection deployments exist.
 The design and purpose for drain detection is found at:
-https://github.com/rook/rook/blob/master/design/ceph-managed-disruptionbudgets.md
+https://github.com/rook/rook/blob/master/design/ceph/ceph-managed-disruptionbudgets.md
 */
 package nodedrain
