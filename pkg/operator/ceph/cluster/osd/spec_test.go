@@ -394,4 +394,6 @@ func TestCephVolumeEnvVar(t *testing.T) {
 	assert.Equal(t, "1", cvEnv[0].Value)
 	assert.Equal(t, "CEPH_VOLUME_SKIP_RESTORECON", cvEnv[1].Name)
 	assert.Equal(t, "1", cvEnv[1].Value)
+	assert.Equal(t, "DM_DISABLE_UDEV", cvEnv[2].Name)
+	assert.Equal(t, "1", cvEnv[1].Value)
 }
