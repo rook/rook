@@ -141,7 +141,7 @@ func updateLVMConfig(context *clusterd.Context, onPVC bool) error {
 
 	input, err := ioutil.ReadFile(lvmConfPath)
 	if err != nil {
-		return fmt.Errorf("failed to read lvm config file. %+v", err)
+		return fmt.Errorf("failed to read lvm config file %q. %+v", lvmConfPath, err)
 	}
 
 	output := bytes.Replace(input, []byte("udev_sync = 1"), []byte("udev_sync = 0"), 1)
@@ -163,10 +163,10 @@ func updateLVMConfig(context *clusterd.Context, onPVC bool) error {
 	}
 
 	if err = ioutil.WriteFile(lvmConfPath, output, 0644); err != nil {
-		return fmt.Errorf("failed to update lvm config file. %+v", err)
+		return fmt.Errorf("failed to update lvm config file %q. %+v", lvmConfPath, err)
 	}
 
-	logger.Info("Successfully updated lvm config file")
+	logger.Infof("Successfully updated lvm config file %q", lvmConfPath)
 	return nil
 }
 
