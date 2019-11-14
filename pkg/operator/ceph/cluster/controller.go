@@ -274,7 +274,8 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 		return errors.Wrapf(err, "failed to validate external cluster specs")
 	}
 
-	c.updateClusterStatus(namespace, name, cephv1.ClusterStateConnecting, "")
+	config.ConditionExport(c.context, namespace, name,
+		cephv1.ConditionConnecting, v1.ConditionTrue, "ClusterConnecting", "Cluster is connecting")
 
 	// loop until we find the secret necessary to connect to the external cluster
 	// then populate clusterInfo
@@ -314,7 +315,8 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 	logger.Info("cluster identity established.")
 
 	// Everything went well so let's update the CR's status to "connected"
-	c.updateClusterStatus(namespace, name, cephv1.ClusterStateConnected, "")
+	config.ConditionExport(c.context, namespace, name,
+		cephv1.ConditionConnected, v1.ConditionTrue, "ClusterConnected", "Cluster connected successfully")
 
 	// Create CSI Secrets
 	err = csi.CreateCSISecrets(c.context, namespace, &cluster.ownerRef)
@@ -353,7 +355,6 @@ func (c *ClusterController) configureLocalCephCluster(namespace, name string, cl
 
 	// Start the Rook cluster components. Retry several times in case of failure.
 	failedMessage := ""
-	state := cephv1.ClusterStateError
 
 	err := wait.Poll(clusterCreateInterval, clusterCreateTimeout,
 		func() (bool, error) {
@@ -367,8 +368,9 @@ func (c *ClusterController) configureLocalCephCluster(namespace, name string, cl
 				}
 				return false, nil
 			}
-
-			c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1.ClusterStateCreating, "")
+			message := config.CheckConditionReady(c.context, namespace, name)
+			config.ConditionExport(c.context, namespace, name,
+				cephv1.ConditionProgressing, v1.ConditionTrue, "ClusterProgressing", message)
 
 			err = cluster.createInstance(c.rookImage, *cephVersion)
 			if err != nil {
@@ -376,21 +378,21 @@ func (c *ClusterController) configureLocalCephCluster(namespace, name string, cl
 				logger.Errorf(failedMessage)
 				return false, nil
 			}
-
-			state = cephv1.ClusterStateCreated
+			config.ConditionExport(c.context, namespace, name,
+				cephv1.ConditionReady, v1.ConditionTrue, "ClusterCreated", "Cluster created successfully")
 			failedMessage = ""
 			return true, nil
 		})
 
 	if err != nil {
+		config.ConditionExport(c.context, namespace, name,
+			cephv1.ConditionFailure, v1.ConditionTrue, "ClusterFailure", "Giving up waiting for cluster creating")
 		return errors.Wrapf(err, "giving up waiting for cluster creating")
 	}
 
-	c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, state, failedMessage)
-
-	if state == cephv1.ClusterStateError {
-		// the cluster could not be initialized
-		return errors.New("failed to initialized the cluster")
+	msg := config.ErrorMapping()
+	if msg != nil {
+		return errors.Wrapf(msg, "failed to create the cluster")
 	}
 
 	return nil
@@ -407,7 +409,7 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 			return
 		}
 	}
-
+	config.ConditionInitialize(c.context, clusterObj.Namespace, clusterObj.Name)
 	if !cluster.Spec.External.Enable {
 		if err := c.configureLocalCephCluster(clusterObj.Namespace, clusterObj.Name, cluster, clusterObj); err != nil {
 			logger.Errorf("failed to configure local ceph cluster. %v", err)
@@ -594,6 +596,9 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 
 	logger.Infof("update event for cluster %q is supported, orchestrating update now", newClust.Namespace)
 
+	config.ConditionExport(c.context, newClust.Namespace, newClust.Name,
+		cephv1.ConditionUpdating, v1.ConditionTrue, "ClusterUpdating", "Cluster is updating")
+
 	if oldClust.Spec.RemoveOSDsIfOutAndSafeToRemove != newClust.Spec.RemoveOSDsIfOutAndSafeToRemove {
 		logger.Infof("removeOSDsIfOutAndSafeToRemove is set to %t", newClust.Spec.RemoveOSDsIfOutAndSafeToRemove)
 		c.osdChecker.Update(newClust.Spec.RemoveOSDsIfOutAndSafeToRemove)
@@ -651,6 +656,10 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 					return
 				}
 			}
+			// If Ceph is healthy let's start the upgrade!
+			config.ConditionExport(c.context, newClust.Namespace, newClust.Name,
+				cephv1.ConditionUpgrading, v1.ConditionTrue, "ClusterUpgrading", "Cluster is upgrading")
+			cluster.isUpgrade = true
 		}
 		// If Ceph is healthy let's start the upgrade!
 		cluster.isUpgrade = true
@@ -669,13 +678,16 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 		return c.handleUpdate(newClust.Name, cluster)
 	})
 	if err != nil {
-		c.updateClusterStatus(newClust.Namespace, newClust.Name, cephv1.ClusterStateError,
+		config.ConditionExport(c.context, newClust.Namespace, newClust.Name, cephv1.ConditionUpgrading, v1.ConditionFalse, "ClusterUpgradeFailure",
 			fmt.Sprintf("giving up trying to update cluster in namespace %q after %q. %v", cluster.Namespace, updateClusterTimeout, err))
 		return
 	}
 
 	// Display success after upgrade
 	if versionChanged {
+		message := "Cluster upgraded successfully"
+		config.ConditionExport(c.context, newClust.Namespace, newClust.Name,
+			cephv1.ConditionReady, v1.ConditionTrue, "ClusterReady", message)
 		printOverallCephVersion(c.context, cluster.Namespace)
 	}
 }
@@ -693,16 +705,16 @@ func (c *ClusterController) detectAndValidateCephVersion(cluster *cluster, image
 }
 
 func (c *ClusterController) handleUpdate(crdName string, cluster *cluster) (bool, error) {
-	c.updateClusterStatus(cluster.Namespace, crdName, cephv1.ClusterStateUpdating, "")
 
+	config.ConditionExport(c.context, cluster.Namespace, crdName,
+		cephv1.ConditionUpdating, v1.ConditionTrue, "ClusterUpdating", "Cluster is updating")
 	if err := cluster.createInstance(c.rookImage, cluster.Info.CephVersion); err != nil {
 		logger.Errorf("failed to update cluster in namespace %q. %v", cluster.Namespace, err)
 		return false, nil
 	}
-
-	c.updateClusterStatus(cluster.Namespace, crdName, cephv1.ClusterStateCreated, "")
-
-	logger.Infof("succeeded updating cluster in namespace %s", cluster.Namespace)
+	config.ConditionExport(c.context, cluster.Namespace, crdName,
+		cephv1.ConditionReady, v1.ConditionTrue, "ClusterUpdated", "Cluster updated successfully")
+	logger.Infof("succeeded updating cluster in namespace %q", cluster.Namespace)
 	return true, nil
 }
 
@@ -773,6 +785,9 @@ func (c *ClusterController) onDelete(obj interface{}) {
 		return
 	}
 
+	config.ConditionExport(c.context, clust.Namespace, clust.Name,
+		cephv1.ConditionDeleting, v1.ConditionTrue, "ClusterDeleting", "Cluster is deleting")
+
 	if existing, ok := c.clusterMap[clust.Namespace]; ok && existing.crdName != clust.Name {
 		logger.Errorf("Skipping deletion of cluster cr %q in namespace %q. Cluster cr %q already exists in this namespace. Only one cluster cr per namespace is supported.",
 			clust.Name, clust.Namespace, existing.crdName)
@@ -783,6 +798,8 @@ func (c *ClusterController) onDelete(obj interface{}) {
 
 	err = c.handleDelete(clust, time.Duration(clusterDeleteRetryInterval)*time.Second)
 	if err != nil {
+		config.ConditionExport(c.context, clust.Namespace, clust.Name,
+			cephv1.ConditionDeleting, v1.ConditionTrue, "ClusterDeleting", "Failed to delete cluster")
 		logger.Errorf("failed to delete cluster. %v", err)
 	}
 
@@ -805,7 +822,9 @@ func (c *ClusterController) onDelete(obj interface{}) {
 	if clust.Spec.External.Enable {
 		err := purgeExternalCluster(c.context.Clientset, clust.Namespace)
 		if err != nil {
-			logger.Errorf("failed to purge external cluster ressources. %v", err)
+			config.ConditionExport(c.context, clust.Namespace, clust.Name,
+				cephv1.ConditionDeleting, v1.ConditionTrue, "ClusterDeleting", "Failed to purge external cluster resources")
+			logger.Errorf("failed to purge external cluster resources. %v", err)
 		}
 		return
 	}
@@ -1032,25 +1051,6 @@ func (c *ClusterController) removeFinalizer(obj interface{}) {
 	}
 
 	logger.Warningf("giving up from removing the %s cluster finalizer", finalizerName)
-}
-
-// updateClusterStatus updates the status of the cluster custom resource, whether it is being updated or is completed
-func (c *ClusterController) updateClusterStatus(namespace, name string, state cephv1.ClusterState, message string) {
-	logger.Infof("CephCluster %q status: %q. %s", namespace, state, message)
-
-	// get the most recent cluster CRD object
-	cluster, err := c.context.RookClientset.CephV1().CephClusters(namespace).Get(name, metav1.GetOptions{})
-	if err != nil {
-		logger.Errorf("failed to get cluster from namespace %q prior to updating its status to %q. %v", namespace, state, err)
-	}
-
-	// update the status on the retrieved cluster object
-	// do not overwrite the ceph status that is updated in a separate goroutine
-	cluster.Status.State = state
-	cluster.Status.Message = message
-	if _, err := c.context.RookClientset.CephV1().CephClusters(namespace).Update(cluster); err != nil {
-		logger.Errorf("failed to update cluster %q status: %v", namespace, err)
-	}
 }
 
 func (c *ClusterController) updateClusterCephVersion(namespace string, name string, image string, cephVersion cephver.CephVersion) {
