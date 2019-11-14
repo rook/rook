@@ -30,6 +30,7 @@ import (
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	osdconfig "github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
+	statcondition "github.com/rook/rook/pkg/operator/ceph/cluster/status"
 	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
@@ -70,6 +71,7 @@ type Cluster struct {
 	clusterInfo       *cephconfig.ClusterInfo
 	context           *clusterd.Context
 	Namespace         string
+	statuscondition   *cephv1.ClusterStatus
 	placement         rookalpha.Placement
 	annotations       rookalpha.Annotations
 	Keyring           string
@@ -92,6 +94,7 @@ func New(
 	clusterInfo *cephconfig.ClusterInfo,
 	context *clusterd.Context,
 	namespace string,
+	statuscondition *cephv1.ClusterStatus,
 	rookVersion string,
 	cephVersion cephv1.CephVersionSpec,
 	storageSpec rookalpha.StorageScopeSpec,
@@ -109,6 +112,7 @@ func New(
 		clusterInfo:       clusterInfo,
 		context:           context,
 		Namespace:         namespace,
+		statuscondition:   statuscondition,
 		placement:         placement,
 		annotations:       annotations,
 		rookVersion:       rookVersion,
@@ -173,15 +177,14 @@ func (c *Cluster) Start() error {
 	if err != nil {
 		return fmt.Errorf("%v", err)
 	}
-
 	logger.Infof("start running osds in namespace %s", c.Namespace)
+	statcondition.ConditionExpanding(c.context, &c.statuscondition.Condition, "ClusterExpanding", "Cluster is Expanding")
 
 	if c.DesiredStorage.UseAllNodes == false && len(c.DesiredStorage.Nodes) == 0 && len(c.DesiredStorage.VolumeSources) == 0 && len(c.DesiredStorage.StorageClassDeviceSets) == 0 {
 		logger.Warningf("useAllNodes is set to false and no nodes, storageClassDevicesets or volumeSources are specified, no OSD pods are going to be created")
 	}
 
 	// start the jobs to provision the OSD devices and directories
-
 	logger.Infof("start provisioning the osds on pvcs, if needed")
 	c.startProvisioningOverPVCs(config)
 
@@ -219,8 +222,8 @@ func (c *Cluster) Start() error {
 			}
 		}
 	}
-
 	logger.Infof("completed running osds in namespace %s", c.Namespace)
+	statcondition.ConditionAvailable(c.context, &c.statuscondition.Condition, "ClusterAvailable", "Cluster is Available to use")
 	return nil
 }
 
@@ -430,7 +433,7 @@ func (c *Cluster) runJob(job *batch.Job, nodeName string, config *provisionConfi
 	return true
 }
 
-func (c *Cluster) startOSDDaemonsOnPVC(pvcName string, config *provisionConfig, configMap *v1.ConfigMap, status *OrchestrationStatus) {
+func (c *Cluster) startOSDDaemonsOnPVC(pvcName string, config *provisionConfig, configMap *v1.ConfigMap, status *OrchestrationStatus, name string) {
 	osds := status.OSDs
 	logger.Infof("starting %d osd daemons on pvc %s", len(osds), pvcName)
 	conf := make(map[string]string)
@@ -508,7 +511,7 @@ func (c *Cluster) startOSDDaemonsOnPVC(pvcName string, config *provisionConfig, 
 	}
 }
 
-func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig, configMap *v1.ConfigMap, status *OrchestrationStatus) {
+func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig, configMap *v1.ConfigMap, status *OrchestrationStatus, name string) {
 
 	osds := status.OSDs
 	logger.Infof("starting %d osd daemons on node %s", len(osds), nodeName)

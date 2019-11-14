@@ -191,10 +191,14 @@ spec:
     - name: Age
       type: date
       JSONPath: .metadata.creationTimestamp
-    - name: State
+    - name: Condition
       type: string
-      description: Current State
-      JSONPath: .status.state
+      description: Final Condition
+      JSONPath: .status.finalcondition
+    - name: Message
+      type: string
+      description: Message
+      JSONPath: .status.message
     - name: Health
       type: string
       description: Ceph Health

@@ -86,7 +86,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	clusterInfo := &cephconfig.ClusterInfo{
 		CephVersion: cephver.Nautilus,
 	}
-	c := New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", cephVersion,
+	c := New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", &cephv1.ClusterStatus{}, "rook/rook:myversion", cephVersion,
 		storageSpec, dataDir, rookalpha.Placement{}, rookalpha.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, metav1.OwnerReference{}, false, false)
 
 	devMountNeeded := deviceName != "" || allDevices
@@ -182,7 +182,7 @@ func TestStorageSpecDevicesAndDirectories(t *testing.T) {
 	clusterInfo := &cephconfig.ClusterInfo{
 		CephVersion: cephver.Nautilus,
 	}
-	c := New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", cephv1.CephVersionSpec{},
+	c := New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", &cephv1.ClusterStatus{}, "rook/rook:myversion", cephv1.CephVersionSpec{},
 		storageSpec, "/var/lib/rook", rookalpha.Placement{}, rookalpha.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, metav1.OwnerReference{}, false, false)
 
 	n := c.DesiredStorage.ResolveNode(storageSpec.Nodes[0].Name)
@@ -259,7 +259,7 @@ func TestStorageSpecConfig(t *testing.T) {
 	clusterInfo := &cephconfig.ClusterInfo{
 		CephVersion: cephver.Nautilus,
 	}
-	c := New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", cephv1.CephVersionSpec{},
+	c := New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", &cephv1.ClusterStatus{}, "rook/rook:myversion", cephv1.CephVersionSpec{},
 		storageSpec, "", rookalpha.Placement{}, rookalpha.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, metav1.OwnerReference{}, false, false)
 
 	n := c.DesiredStorage.ResolveNode(storageSpec.Nodes[0].Name)
@@ -319,7 +319,7 @@ func TestHostNetwork(t *testing.T) {
 	clusterInfo := &cephconfig.ClusterInfo{
 		CephVersion: cephver.Nautilus,
 	}
-	c := New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "myversion", cephv1.CephVersionSpec{},
+	c := New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", &cephv1.ClusterStatus{}, "myversion", cephv1.CephVersionSpec{},
 		storageSpec, "", rookalpha.Placement{}, rookalpha.Annotations{}, cephv1.NetworkSpec{HostNetwork: true}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, metav1.OwnerReference{}, false, false)
 
 	n := c.DesiredStorage.ResolveNode(storageSpec.Nodes[0].Name)
@@ -367,7 +367,7 @@ func TestOsdPrepareResources(t *testing.T) {
 	var osdClaimName string
 
 	clientset := fake.NewSimpleClientset()
-	c := New(&cephconfig.ClusterInfo{}, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "myversion", cephv1.CephVersionSpec{},
+	c := New(&cephconfig.ClusterInfo{}, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", &cephv1.ClusterStatus{}, "myversion", cephv1.CephVersionSpec{},
 		rookalpha.StorageScopeSpec{}, "", rookalpha.Placement{}, rookalpha.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, metav1.OwnerReference{}, false, false)
 
 	// TEST 2: NOT running on PVC and some prepareResources are specificied

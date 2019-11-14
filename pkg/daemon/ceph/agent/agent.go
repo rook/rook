@@ -32,7 +32,7 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/manager/ceph"
 	"github.com/rook/rook/pkg/operator/ceph/agent"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "rook-ceph-agent")

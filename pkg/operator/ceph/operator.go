@@ -93,7 +93,8 @@ func New(context *clusterd.Context, volumeAttachmentWrapper attachment.Attachmen
 	callbacks := []func(*cephv1.ClusterSpec) error{
 		o.startSystemDaemons,
 	}
-	o.clusterController = cluster.NewClusterController(context, rookImage, volumeAttachmentWrapper, callbacks)
+	status := &cephv1.ClusterStatus{}
+	o.clusterController = cluster.NewClusterController(context, status, rookImage, volumeAttachmentWrapper, callbacks)
 	return o
 }
 

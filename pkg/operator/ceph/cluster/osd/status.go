@@ -265,9 +265,9 @@ func (c *Cluster) handleStatusConfigMapStatus(nodeName string, config *provision
 	if status.Status == OrchestrationStatusCompleted {
 		if configOSDs {
 			if status.PvcBackedOSD {
-				c.startOSDDaemonsOnPVC(nodeName, config, configMap, status)
+				c.startOSDDaemonsOnPVC(nodeName, config, configMap, status, c.clusterInfo.Name)
 			} else {
-				c.startOSDDaemonsOnNode(nodeName, config, configMap, status)
+				c.startOSDDaemonsOnNode(nodeName, config, configMap, status, c.clusterInfo.Name)
 			}
 			// remove the status configmap that indicated the progress
 			c.kv.ClearStore(fmt.Sprintf(orchestrationStatusMapName, nodeName))

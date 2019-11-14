@@ -41,7 +41,7 @@ func TestOrchestrationStatus(t *testing.T) {
 	clusterInfo := &cephconfig.ClusterInfo{
 		CephVersion: cephver.Nautilus,
 	}
-	c := New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "myversion", cephv1.CephVersionSpec{},
+	c := New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", &cephv1.ClusterStatus{}, "myversion", cephv1.CephVersionSpec{},
 		rookalpha.StorageScopeSpec{}, "", rookalpha.Placement{}, rookalpha.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, metav1.OwnerReference{}, false, false)
 	kv := k8sutil.NewConfigMapKVStore(c.Namespace, clientset, metav1.OwnerReference{})
 	nodeName := "mynode"

@@ -36,6 +36,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/rbd"
+	statcondition "github.com/rook/rook/pkg/operator/ceph/cluster/status"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
 	cephspec "github.com/rook/rook/pkg/operator/ceph/spec"
@@ -54,6 +55,7 @@ type cluster struct {
 	Namespace            string
 	Spec                 *cephv1.ClusterSpec
 	crdName              string
+	statuscondition      *cephv1.ClusterStatus
 	mons                 *mon.Cluster
 	initCompleted        bool
 	stopCh               chan struct{}
@@ -214,7 +216,7 @@ func (c *cluster) initialized() bool {
 	return c.initCompleted
 }
 
-func (c *cluster) createInstance(rookImage string, cephVersion cephver.CephVersion) error {
+func (c *cluster) createInstance(rookImage string, cephVersion cephver.CephVersion, status *cephv1.ClusterStatus) error {
 	var err error
 	c.setOrchestrationNeeded()
 
@@ -228,7 +230,7 @@ func (c *cluster) createInstance(rookImage string, cephVersion cephver.CephVersi
 		// Use a DeepCopy of the spec to avoid using an inconsistent data-set
 		spec := c.Spec.DeepCopy()
 
-		err = c.doOrchestration(rookImage, cephVersion, spec)
+		err = c.doOrchestration(rookImage, cephVersion, spec, status)
 
 		c.unsetOrchestrationStatus()
 	}
@@ -236,7 +238,7 @@ func (c *cluster) createInstance(rookImage string, cephVersion cephver.CephVersi
 	return err
 }
 
-func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVersion, spec *cephv1.ClusterSpec) error {
+func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVersion, spec *cephv1.ClusterSpec, status *cephv1.ClusterStatus) error {
 	// Create a configmap for overriding ceph config settings
 	// These settings should only be modified by a user after they are initialized
 	err := populateConfigOverrideConfigMap(c.context, c.Namespace, c.ownerRef)
@@ -285,8 +287,10 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 			return fmt.Errorf("failed to start the ceph mgr. %+v", err)
 		}
 
+		statcondition.ConditionReady(c.context, &status.Condition, "ClusterCreated", "Succesfully Created the Cluster")
+		statcondition.ClusterInfo(c.Namespace, c.crdName)
 		// Start the OSDs
-		osds := osd.New(c.Info, c.context, c.Namespace, rookImage, spec.CephVersion, spec.Storage, spec.DataDirHostPath,
+		osds := osd.New(c.Info, c.context, c.Namespace, status, rookImage, spec.CephVersion, spec.Storage, spec.DataDirHostPath,
 			cephv1.GetOSDPlacement(spec.Placement), cephv1.GetOSDAnnotations(spec.Annotations), spec.Network,
 			cephv1.GetOSDResources(spec.Resources), cephv1.GetPrepareOSDResources(spec.Resources), c.ownerRef, c.isUpgrade, c.Spec.SkipUpgradeChecks)
 		err = osds.Start()

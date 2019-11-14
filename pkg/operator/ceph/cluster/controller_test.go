@@ -49,6 +49,7 @@ func TestClusterDeleteFlexEnabled(t *testing.T) {
 	context := &clusterd.Context{
 		Clientset: clientset,
 	}
+	status := &cephv1.ClusterStatus{}
 
 	listCount := 0
 	volumeAttachmentController := &attachment.MockAttachment{
@@ -88,7 +89,7 @@ func TestClusterDeleteFlexEnabled(t *testing.T) {
 	}
 
 	// create the cluster controller and tell it that the cluster has been deleted
-	controller := NewClusterController(context, "", volumeAttachmentController, callbacks)
+	controller := NewClusterController(context, status, "", volumeAttachmentController, callbacks)
 	clusterToDelete := &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: clusterName}}
 	controller.handleDelete(clusterToDelete, time.Microsecond)
 
@@ -110,7 +111,7 @@ func TestClusterDeleteFlexDisabled(t *testing.T) {
 	context := &clusterd.Context{
 		Clientset: clientset,
 	}
-
+	status := &cephv1.ClusterStatus{}
 	listCount := 0
 	volumeAttachmentController := &attachment.MockAttachment{
 		MockList: func(namespace string) (*rookalpha.VolumeList, error) {
@@ -130,7 +131,7 @@ func TestClusterDeleteFlexDisabled(t *testing.T) {
 	}
 
 	// create the cluster controller and tell it that the cluster has been deleted
-	controller := NewClusterController(context, "", volumeAttachmentController, callbacks)
+	controller := NewClusterController(context, status, "", volumeAttachmentController, callbacks)
 	clusterToDelete := &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: clusterName}}
 	controller.handleDelete(clusterToDelete, time.Microsecond)
 
@@ -201,6 +202,7 @@ func TestRemoveFinalizer(t *testing.T) {
 		Clientset:     clientset,
 		RookClientset: rookfake.NewSimpleClientset(),
 	}
+	status := &cephv1.ClusterStatus{}
 	callbacks := []func(clusterSpec *cephv1.ClusterSpec) error{
 		func(clusterSpec *cephv1.ClusterSpec) error {
 			logger.Infof("test success callback")
@@ -208,7 +210,7 @@ func TestRemoveFinalizer(t *testing.T) {
 		},
 	}
 
-	controller := NewClusterController(context, "", &attachment.MockAttachment{}, callbacks)
+	controller := NewClusterController(context, status, "", &attachment.MockAttachment{}, callbacks)
 
 	// *****************************************
 	// start with a current version ceph cluster
