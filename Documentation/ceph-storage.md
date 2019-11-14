@@ -18,7 +18,7 @@ automates configuration of storage components and monitors the cluster to ensure
 and healthy.
 
 The Rook operator is a simple container that has all that is needed to bootstrap
-and monitor the storage cluster. The operator will start and monitor [Ceph monitor pods](https://github.com/rook/rook/blob/master/design/mon-health.md), the Ceph OSD daemons to provide RADOS storage, as well as start and manage other Ceph daemons. The operator manages CRDs for pools, object stores (S3/Swift), and filesystems by initializing the pods and other artifacts necessary to run the services.
+and monitor the storage cluster. The operator will start and monitor [Ceph monitor pods](https://github.com/rook/rook/blob/master/design/ceph/mon-health.md), the Ceph OSD daemons to provide RADOS storage, as well as start and manage other Ceph daemons. The operator manages CRDs for pools, object stores (S3/Swift), and filesystems by initializing the pods and other artifacts necessary to run the services.
 
 The operator will monitor the storage daemons to ensure the cluster is healthy. Ceph mons will be started or failed over when necessary, and
 other adjustments are made as the cluster grows or shrinks.  The operator will also watch for desired state changes

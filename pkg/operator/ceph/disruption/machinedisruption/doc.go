@@ -17,7 +17,7 @@ limitations under the License.
 /*
 Package machinedisruption ensures that openshift fencing doesn't interfere with running ceph resources in a way that results in data loss/unavailability.
 The design and purpose for machinedisruption management is found at:
-https://github.com/rook/rook/blob/master/design/ceph-openshift-fencing-mitigation.md
+https://github.com/rook/rook/blob/master/design/ceph/ceph-openshift-fencing-mitigation.md
 */
 
 package machinedisruption

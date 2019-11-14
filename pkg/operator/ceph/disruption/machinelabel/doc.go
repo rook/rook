@@ -17,7 +17,7 @@ limitations under the License.
 /*
 Package machinelabel implements the controller for ensuring that machines are labeled in correct manner for fencing.
 The design and purpose for machine disruption management is found at:
-https://github.com/rook/rook/blob/master/design/ceph-openshift-fencing-mitigation.md
+https://github.com/rook/rook/blob/master/design/ceph/ceph-openshift-fencing-mitigation.md
 */
 
 package machinelabel
