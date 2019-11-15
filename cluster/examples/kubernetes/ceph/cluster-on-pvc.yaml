@@ -43,7 +43,37 @@ spec:
     topologyAware: true
     storageClassDeviceSets:
     - name: set1
+      # The number of OSDs to create from this device set
       count: 3
+      # IMPORTANT: If volumes specified by the storageClassName are not portable across nodes
+      # this needs to be set to false. For example, if using the local storage provisioner
+      # this should be false.
+      portable: true
+      # Since the OSDs could end up on any node, an effort needs to be made to spread the OSDs
+      # across nodes as much as possible. Unfortunately the pod anti-affinity breaks down
+      # as soon as you have more than one OSD per node. If you have more OSDs than nodes, K8s may
+      # choose to schedule many of them on the same node. What we need is the Pod Topology
+      # Spread Constraints, which is alpha in K8s 1.16. This means that a feature gate must be
+      # enabled for this feature, and Rook also still needs to add support for this feature.
+      # Another approach for a small number of OSDs is to create a separate device set for each
+      # zone (or other set of nodes with a common label) so that the OSDs will end up on different
+      # nodes. This would require adding nodeAffinity to the placement here.
+      placement:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - rook-ceph-osd
+                - key: app
+                  operator: In
+                  values:
+                  - rook-ceph-osd-prepare
+              topologyKey: kubernetes.io/hostname
       resources:
       #   limits:
       #     cpu: "500m"
@@ -51,18 +81,6 @@ spec:
       #   requests:
       #     cpu: "500m"
       #     memory: "4Gi"
-      # placement:
-      #   podAntiAffinity:
-      #     preferredDuringSchedulingIgnoredDuringExecution:
-      #     - weight: 100
-      #       podAffinityTerm:
-      #         labelSelector:
-      #           matchExpressions:
-      #           - key: "rook.io/cluster"
-      #             operator: In
-      #             values:
-      #               - cluster1
-      #           topologyKey: "failure-domain.beta.kubernetes.io/zone"
       volumeClaimTemplates:
       - metadata:
           name: data
