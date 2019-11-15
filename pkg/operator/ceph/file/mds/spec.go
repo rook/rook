@@ -18,11 +18,9 @@ package mds
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
-	"github.com/rook/rook/pkg/operator/ceph/config"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
@@ -103,20 +101,6 @@ func (c *Cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
 		opspec.DaemonFlags(c.clusterInfo, mdsConfig.DaemonID),
 		"--foreground",
 	)
-
-	// These flags are obsoleted as of Nautilus
-	if !c.clusterInfo.CephVersion.IsAtLeastNautilus() {
-		args = append(
-			args,
-			config.NewFlag("mds-standby-for-fscid", c.fsID),
-			config.NewFlag("mds-standby-replay", strconv.FormatBool(c.fs.Spec.MetadataServer.ActiveStandby)))
-	}
-
-	// Set mds cache memory limit to the best appropriate value
-	if !c.fs.Spec.MetadataServer.Resources.Limits.Memory().IsZero() {
-		mdsCacheMemoryLimit := float64(c.fs.Spec.MetadataServer.Resources.Limits.Memory().Value()) * mdsCacheMemoryLimitFactor
-		args = append(args, config.NewFlag("mds-cache-memory-limit", strconv.Itoa(int(mdsCacheMemoryLimit))))
-	}
 
 	container := v1.Container{
 		Name: "mds",
