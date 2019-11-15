@@ -13,7 +13,7 @@ The `lib-bucket-provisioner` repo provides a library implementation and design t
 
 The administrator will create StorageClasses and control its visibility to app-owners using RBAC rules.
 
-See https://github.com/yard-turkey/lib-bucket-provisioner/blob/master/deploy/storageClass.yaml 
+See https://github.com/yard-turkey/lib-bucket-provisioner/blob/master/deploy/storageClass.yaml
 
 Example:
 
@@ -32,7 +32,7 @@ parameters:
 
 Applications that require a bucket will create an OBC and refer to a storage class name.
 
-See https://github.com/yard-turkey/lib-bucket-provisioner/blob/master/deploy/example-claim.yaml 
+See https://github.com/yard-turkey/lib-bucket-provisioner/blob/master/deploy/example-claim.yaml
 
 The operator will watch for OBC's and fulfill the claims by create/find existing bucket in NooBaa, and will share a config map and a secret with the application in order to give it all the needed details to work with the bucket.
 

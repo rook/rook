@@ -399,7 +399,7 @@ func resourceName(name string) string {
 }
 
 // scheduleMonitor selects a node for a monitor deployment.
-// see startMon() and design/ceph-mon-pv.md for additional details.
+// see startMon() and design/ceph/ceph-mon-pv.md for additional details.
 func realScheduleMonitor(c *Cluster, mon *monConfig) (SchedulingResult, error) {
 	// target node decision, and deployment/pvc to cleanup
 	result := SchedulingResult{

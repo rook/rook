@@ -113,7 +113,7 @@ If this value is empty, each pod will get an ephemeral directory to store their 
 * `network`: The network settings for the cluster
   * `hostNetwork`: uses network of the hosts instead of using the SDN below the containers.
 * `mon`: contains mon related options [mon settings](#mon-settings)
-For more details on the mons and when to choose a number other than `3`, see the [mon health design doc](https://github.com/rook/rook/blob/master/design/mon-health.md).
+For more details on the mons and when to choose a number other than `3`, see the [mon health design doc](https://github.com/rook/rook/blob/master/design/ceph/mon-health.md).
 * `mgr`: manager top level section
   * `modules`: is the list of Ceph manager modules to enable
 * `rbdMirroring`: The settings for rbd mirror daemon(s). Configuring which pools or images to be mirrored must be completed in the rook toolbox by running the
@@ -132,7 +132,7 @@ For more details on the mons and when to choose a number other than `3`, see the
   * [storage selection settings](#storage-selection-settings)
   * [Storage Class Device Sets](#storage-class-device-sets)
 * `disruptionManagement`: The section for configuring management of daemon disruptions
-  * `managePodBudgets`: if `true`, the operator will create and manage PodDisruptionBudgets for OSD, Mon, RGW, and MDS daemons. OSD PDBs are managed dynamically via the strategy outlined in the [design](https://github.com/rook/rook/blob/master/design/ceph-managed-disruptionbudgets.md). The operator will block eviction of OSDs by default and unblock them safely when drains are detected.
+  * `managePodBudgets`: if `true`, the operator will create and manage PodDisruptionBudgets for OSD, Mon, RGW, and MDS daemons. OSD PDBs are managed dynamically via the strategy outlined in the [design](https://github.com/rook/rook/blob/master/design/ceph/ceph-managed-disruptionbudgets.md). The operator will block eviction of OSDs by default and unblock them safely when drains are detected.
   * `osdMaintenanceTimeout`: is a duration in minutes that determines how long an entire failureDomain like `region/zone/host` will be held in `noout` (in addition to the default DOWN/OUT interval) when it is draining. This is only relevant when  `managePodBudgets` is `true`. The default value is `30` minutes.
   * `manageMachineDisruptionBudgets`: if `true`, the operator will create and manage MachineDisruptionBudgets to ensure OSDs are only fenced when the cluster is healthy. Only available on OpenShift.
   * `machineDisruptionBudgetNamespace`: the namespace in which to watch the MachineDisruptionBudgets.
@@ -284,7 +284,7 @@ A Placement configuration is specified (according to the kubernetes PodSpec) as:
 * `tolerations`: list of kubernetes [Toleration](https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/)
 
 The `mon` pod does not allow `Pod` affinity or anti-affinity. Instead, `mon`s have built-in anti-affinity with each other through the operator. The operator determines which nodes should run a `mon`. Each `mon` is then tied to a node with a node selector using a hostname.
-See the [mon design doc](https://github.com/rook/rook/blob/master/design/mon-health.md) for more details on the `mon` failover design.
+See the [mon design doc](https://github.com/rook/rook/blob/master/design/ceph/mon-health.md) for more details on the `mon` failover design.
 
 The Rook Ceph operator creates a Job called `rook-ceph-detect-version` to detect the full Ceph version used by the given `cephVersion.image`. The placement from the `mon` section is used for the Job.
 
