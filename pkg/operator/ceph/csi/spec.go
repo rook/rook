@@ -330,7 +330,7 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 
 // createCSIDriverInfo Registers CSI driver by creating a CSIDriver object
 func createCSIDriverInfo(clientset kubernetes.Interface, name string) error {
-	attach := false
+	attach := true
 	mountInfo := false
 	// Create CSIDriver object
 	csiDriver := &k8scsi.CSIDriver{

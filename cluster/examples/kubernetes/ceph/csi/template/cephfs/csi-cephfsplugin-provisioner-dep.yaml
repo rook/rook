@@ -16,6 +16,22 @@ spec:
     spec:
       serviceAccount: rook-csi-cephfs-provisioner-sa
       containers:
+        - name: csi-attacher
+          image: {{ .AttacherImage }}
+          args:
+            - "--v=5"
+            - "--csi-address=$(ADDRESS)"
+            - "--leader-election=true"
+            - "--timeout=150s"
+            - "--leader-election-type=leases"
+            - "--leader-election-namespace={{ .Namespace }}"
+          env:
+            - name: ADDRESS
+              value: /csi/csi-provisioner.sock
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
         - name: csi-provisioner
           image: {{ .ProvisionerImage }}
           args:
