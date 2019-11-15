@@ -123,6 +123,21 @@ func (c *clusterConfig) startRGWPods() error {
 			return fmt.Errorf("failed to create rgw keyring. %+v", err)
 		}
 
+		// Check for existing deployment and set the daemon config flags
+		_, err = c.context.Clientset.AppsV1().Deployments(c.store.Namespace).Get(rgwConfig.ResourceName, metav1.GetOptions{})
+		// We don't need to handle any error here
+		if err != nil {
+			// Apply the flag only when the deployment is not found
+			if errors.IsNotFound(err) {
+				logger.Info("setting rgw config flags")
+				err = c.setDefaultFlagsMonConfigStore(rgwConfig.ResourceName)
+				if err != nil {
+					return fmt.Errorf("failed to set default rgw config options. %+v", err)
+				}
+			}
+		}
+
+		// Create deployment
 		deployment := c.createDeployment(rgwConfig)
 		logger.Infof("object store %s deployment %s started", c.store.Name, deployment.Name)
 		createdDeployment, createErr := c.context.Clientset.AppsV1().Deployments(c.store.Namespace).Create(deployment)

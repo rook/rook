@@ -54,18 +54,6 @@ func rgwFrontend(v cephver.CephVersion) string {
 	return rgwFrontendName
 }
 
-// TODO: these should be set in the mon's central kv store for mimic+
-func (c *clusterConfig) defaultFlags() []string {
-	return []string{
-		cephconfig.NewFlag("rgw log nonexistent bucket", "true"),
-		cephconfig.NewFlag("rgw intent log object name utc", "true"),
-		cephconfig.NewFlag("rgw enable usage log", "true"),
-		cephconfig.NewFlag("rgw frontends", fmt.Sprintf("%s %s", rgwFrontend(c.clusterInfo.CephVersion), c.portString(c.clusterInfo.CephVersion))),
-		cephconfig.NewFlag("rgw zone", c.store.Name),
-		cephconfig.NewFlag("rgw zonegroup", c.store.Name),
-	}
-}
-
 func (c *clusterConfig) portString(v cephver.CephVersion) string {
 	var portString string
 
@@ -130,4 +118,26 @@ func (c *clusterConfig) associateKeyring(existingKeyring string, ownerRef *metav
 	s := keyring.GetSecretStore(c.context, c.store.Namespace, ownerRef)
 
 	return s.CreateOrUpdate(resourceName, existingKeyring)
+}
+
+func (c *clusterConfig) setDefaultFlagsMonConfigStore(rgwName string) error {
+	monStore := cephconfig.GetMonStore(c.context, c.store.Namespace)
+	who := generateCephXUser(rgwName)
+	configOptions := make(map[string]string)
+
+	configOptions["rgw_log_nonexistent_bucket"] = "true"
+	configOptions["rgw_log_object_name_utc"] = "true"
+	configOptions["rgw_enable_usage_log"] = "true"
+	configOptions["rgw_frontends"] = fmt.Sprintf("%s %s", rgwFrontend(c.clusterInfo.CephVersion), c.portString(c.clusterInfo.CephVersion))
+	configOptions["rgw_zone"] = c.store.Name
+	configOptions["rgw_zonegroup"] = c.store.Name
+
+	for flag, val := range configOptions {
+		err := monStore.Set(who, flag, val)
+		if err != nil {
+			return fmt.Errorf("failed to set %q to %q on %q. %+v", flag, val, who, err)
+		}
+	}
+
+	return nil
 }
