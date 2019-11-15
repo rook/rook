@@ -226,8 +226,10 @@ The following are the settings for Storage Class Device Sets which can be config
 
 - `name`: A name for the set.
 - `count`: The number of devices in the set.
-- `resources`: The CPU and RAM requests/limits for the devices.(Optional)
-- `placement`: The placement criteria for the devices. Default is no placement criteria.(Optional)
+- `resources`: The CPU and RAM requests/limits for the devices. (Optional)
+- `placement`: The placement criteria for the devices. (Optional) Default is no placement criteria. It is recommended to configure the placement such that the OSDs will be
+as evenly spread across nodes as possible. At a minimum, anti-affinity should be added so at least one OSD will be placed on each available nodes.
+However, if there are more OSDs than nodes, this anti-affinity will not be effective. Another placement scheme to consider is to add labels to the nodes in such a way that the OSDs can be grouped on those nodes, create multiple storageClassDeviceSets, and add node affinity to each of the device sets that will place the OSDs in those sets of nodes.
 - `portable`: If `true`, the OSDs will be allowed to move between nodes during failover. This requires a storage class that supports portability (e.g. `aws-ebs`, but not the local storage provisioner). If `false`, the OSDs will be assigned to a node permanently. Rook will configure Ceph's CRUSH map to support the portability.
 - `volumeClaimTemplates`: A list of PVC templates to use for provisioning the underlying storage devices.
   - `resources.requests.storage`: The desired capacity for the underlying storage devices.
@@ -724,7 +726,7 @@ spec:
 The features available from the external cluster will vary depending on the version of Ceph. The following table shows the minimum version of Ceph for some of the features:
 
 | FEATURE                                      | CEPH VERSION |
-|----------------------------------------------|--------------|
+| -------------------------------------------- | ------------ |
 | Dynamic provisioning RBD                     | 12.2.X       |
 | Configure extra CRDs (object, file, nfs)[^1] | 13.2.3       |
 | Dynamic provisioning CephFS                  | 14.2.3       |
