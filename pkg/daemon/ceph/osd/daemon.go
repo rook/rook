@@ -120,8 +120,14 @@ func killCephOSDProcess(context *clusterd.Context, lvPath string) error {
 
 	// shut down the osd-ceph process so that lvm release does not show device in use error.
 	if pid != "" {
-		if err := context.Executor.ExecuteCommand(false, "", "kill", pid); err != nil {
-			return fmt.Errorf("failed to delete ceph-osd process. %+v", err)
+		// The OSD needs to exit as quickly as possible in order for the IO requests
+		// to be redirected to other OSDs in the cluster. The OSD is designed to tolerate failures
+		// of any kind, including power loss or kill -9. The upstream Ceph tests have for many years
+		// been testing with kill -9 so this is expected to be safe. There is a fix upstream Ceph that will
+		// improve the shutdown time of the OSD. For cleanliness we should consider removing the -9
+		// once it is backported to Nautilus: https://github.com/ceph/ceph/pull/31677.
+		if err := context.Executor.ExecuteCommand(false, "", "kill", "-9", pid); err != nil {
+			return fmt.Errorf("failed to kill ceph-osd process. %+v", err)
 		}
 	}
 
