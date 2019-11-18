@@ -869,5 +869,8 @@ func cephVolumeEnvVar() []v1.EnvVar {
 	return []v1.EnvVar{
 		{Name: "CEPH_VOLUME_DEBUG", Value: "1"},
 		{Name: "CEPH_VOLUME_SKIP_RESTORECON", Value: "1"},
+		// LVM will avoid interaction with udev.
+		// LVM will manage the relevant nodes in /dev directly.
+		{Name: "DM_DISABLE_UDEV", Value: "1"},
 	}
 }
