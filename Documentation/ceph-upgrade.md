@@ -290,9 +290,9 @@ below, which you should change to match where your images are located.
     - name: ROOK_CSI_REGISTRAR_IMAGE
         value: "quay.io/k8scsi/csi-node-driver-registrar:v1.1.0"
     - name: ROOK_CSI_PROVISIONER_IMAGE
-        value: "quay.io/k8scsi/csi-provisioner:v1.3.0"
+        value: "quay.io/k8scsi/csi-provisioner:v1.4.0"
     - name: ROOK_CSI_SNAPSHOTTER_IMAGE
-        value: "quay.io/k8scsi/csi-snapshotter:v1.2.0"
+        value: "quay.io/k8scsi/csi-snapshotter:v1.2.2"
     - name: ROOK_CSI_ATTACHER_IMAGE
         value: "quay.io/k8scsi/csi-attacher:v1.2.0"
 ```
