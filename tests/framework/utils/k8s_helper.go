@@ -55,7 +55,7 @@ type K8sHelper struct {
 
 const (
 	// RetryLoop params for tests.
-	RetryLoop = 40
+	RetryLoop = 60
 	// RetryInterval param for test - wait time while in RetryLoop
 	RetryInterval = 5
 	// TestMountPath is the path inside a test pod where storage is mounted
