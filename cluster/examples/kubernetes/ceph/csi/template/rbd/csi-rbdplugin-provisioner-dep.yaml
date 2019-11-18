@@ -33,6 +33,22 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
+        - name: csi-rbdplugin-attacher
+          image: {{ .AttacherImage }}
+          args:
+            - "--v=5"
+            - "--timeout=150s"
+            - "--csi-address=$(ADDRESS)"
+            - "--leader-election=true"
+            - "--leader-election-type=leases"
+            - "--leader-election-namespace={{ .Namespace }}"
+          env:
+            - name: ADDRESS
+              value: /csi/csi-provisioner.sock
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
         - name: csi-snapshotter
           image:  {{ .SnapshotterImage }}
           args:
