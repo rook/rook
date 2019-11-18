@@ -261,6 +261,7 @@ func applyCondition(context *clusterd.Context, conditions *[]cephv1.RookConditio
 		if err != nil {
 			logger.Errorf("failed to get cluster from namespace %s prior to updating its condition to %s. %+v", namespace, newCondition.Type, err)
 		}
+		newCondition.LastTransitionTime = metav1.NewTime(time.Now())
 		*conditions = append(*conditions, newCondition)
 		cluster.Status.Condition = *conditions
 		cluster.Status.FinalCondition = newCondition.Type
