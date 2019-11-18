@@ -22,6 +22,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/coreos/pkg/capnslog"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -44,9 +45,11 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mgr")
 var prometheusRuleName = "prometheus-ceph-vVERSION-rules"
 
 const (
-	appName                = "rook-ceph-mgr"
+	// AppName is the ceph mgr application name
+	AppName                = "rook-ceph-mgr"
 	serviceAccountName     = "rook-ceph-mgr"
 	prometheusModuleName   = "prometheus"
+	crashModuleName        = "crash"
 	pgautoscalerModuleName = "pg_autoscaler"
 	metricsPort            = 9283
 	monitoringPath         = "/etc/ceph-monitoring/"
@@ -57,24 +60,26 @@ const (
 
 // Cluster represents the Rook and environment configuration settings needed to set up Ceph mgrs.
 type Cluster struct {
-	clusterInfo     *cephconfig.ClusterInfo
-	Namespace       string
-	Replicas        int
-	placement       rookalpha.Placement
-	annotations     rookalpha.Annotations
-	context         *clusterd.Context
-	dataDir         string
-	Network         cephv1.NetworkSpec
-	resources       v1.ResourceRequirements
-	ownerRef        metav1.OwnerReference
-	dashboard       cephv1.DashboardSpec
-	monitoringSpec  cephv1.MonitoringSpec
-	mgrSpec         cephv1.MgrSpec
-	cephVersion     cephv1.CephVersionSpec
-	rookVersion     string
-	exitCode        func(err error) (int, bool)
-	dataDirHostPath string
-	isUpgrade       bool
+	clusterInfo       *cephconfig.ClusterInfo
+	Namespace         string
+	Replicas          int
+	placement         rookalpha.Placement
+	annotations       rookalpha.Annotations
+	context           *clusterd.Context
+	dataDir           string
+	Network           cephv1.NetworkSpec
+	resources         v1.ResourceRequirements
+	ownerRef          metav1.OwnerReference
+	dashboard         cephv1.DashboardSpec
+	monitoringSpec    cephv1.MonitoringSpec
+	mgrSpec           cephv1.MgrSpec
+	cephVersion       cephv1.CephVersionSpec
+	rookVersion       string
+	exitCode          func(err error) (int, bool)
+	dataDirHostPath   string
+	isUpgrade         bool
+	skipUpgradeChecks bool
+	appliedHttpBind   bool
 }
 
 // New creates an instance of the mgr
@@ -93,29 +98,44 @@ func New(
 	ownerRef metav1.OwnerReference,
 	dataDirHostPath string,
 	isUpgrade bool,
+	skipUpgradeChecks bool,
 ) *Cluster {
 	return &Cluster{
-		clusterInfo:     clusterInfo,
-		context:         context,
-		Namespace:       namespace,
-		placement:       placement,
-		rookVersion:     rookVersion,
-		cephVersion:     cephVersion,
-		Replicas:        1,
-		dataDir:         k8sutil.DataDir,
-		dashboard:       dashboard,
-		monitoringSpec:  monitoringSpec,
-		mgrSpec:         mgrSpec,
-		Network:         network,
-		resources:       resources,
-		ownerRef:        ownerRef,
-		exitCode:        getExitCode,
-		dataDirHostPath: dataDirHostPath,
-		isUpgrade:       isUpgrade,
+		clusterInfo:       clusterInfo,
+		context:           context,
+		Namespace:         namespace,
+		placement:         placement,
+		annotations:       annotations,
+		rookVersion:       rookVersion,
+		cephVersion:       cephVersion,
+		Replicas:          1,
+		dataDir:           k8sutil.DataDir,
+		dashboard:         dashboard,
+		monitoringSpec:    monitoringSpec,
+		mgrSpec:           mgrSpec,
+		Network:           network,
+		resources:         resources,
+		ownerRef:          ownerRef,
+		exitCode:          getExitCode,
+		dataDirHostPath:   dataDirHostPath,
+		isUpgrade:         isUpgrade,
+		skipUpgradeChecks: skipUpgradeChecks,
 	}
 }
 
 var updateDeploymentAndWait = mon.UpdateCephDeploymentAndWait
+
+func (c *Cluster) getDaemonIDs() []string {
+	var daemonIDs []string
+	for i := 0; i < c.Replicas; i++ {
+		if i >= 2 {
+			logger.Errorf("cannot have more than 2 mgrs")
+			break
+		}
+		daemonIDs = append(daemonIDs, k8sutil.IndexToName(i))
+	}
+	return daemonIDs
+}
 
 // Start begins the process of running a cluster of Ceph mgrs.
 func (c *Cluster) Start() error {
@@ -126,40 +146,31 @@ func (c *Cluster) Start() error {
 	}
 
 	logger.Infof("start running mgr")
-
-	for i := 0; i < c.Replicas; i++ {
-		if i >= 2 {
-			logger.Errorf("cannot have more than 2 mgrs")
-			break
-		}
-
-		daemonID := k8sutil.IndexToName(i)
-		resourceName := fmt.Sprintf("%s-%s", appName, daemonID)
+	daemonIDs := c.getDaemonIDs()
+	for _, daemonID := range daemonIDs {
+		resourceName := fmt.Sprintf("%s-%s", AppName, daemonID)
 		mgrConfig := &mgrConfig{
-			DaemonID:      daemonID,
-			ResourceName:  resourceName,
-			DashboardPort: c.dashboardPort(),
-			DataPathMap:   config.NewStatelessDaemonDataPathMap(config.MgrType, daemonID, c.Namespace, c.dataDirHostPath),
+			DaemonID:     daemonID,
+			ResourceName: resourceName,
+			DataPathMap:  config.NewStatelessDaemonDataPathMap(config.MgrType, daemonID, c.Namespace, c.dataDirHostPath),
 		}
 
 		// generate keyring specific to this mgr daemon saved to k8s secret
-		if err := c.generateKeyring(mgrConfig); err != nil {
-			return fmt.Errorf("failed to generate keyring for %s. %+v", resourceName, err)
-		}
-
-		if !c.needHttpBindFix() {
-			c.clearHttpBindFix(mgrConfig)
+		keyring, err := c.generateKeyring(mgrConfig)
+		if err != nil {
+			return fmt.Errorf("failed to generate keyring for %q. %+v", resourceName, err)
 		}
 
 		// start the deployment
 		d := c.makeDeployment(mgrConfig)
 		logger.Debugf("starting mgr deployment: %+v", d)
-		_, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Create(d)
+		_, err = c.context.Clientset.AppsV1().Deployments(c.Namespace).Create(d)
 		if err != nil {
 			if !errors.IsAlreadyExists(err) {
 				return fmt.Errorf("failed to create mgr deployment %s. %+v", resourceName, err)
 			}
 			logger.Infof("deployment for mgr %s already exists. updating if needed", resourceName)
+
 			// Always invoke ceph version before an upgrade so we are sure to be up-to-date
 			daemon := string(config.MgrType)
 			var cephVersionToUse cephver.CephVersion
@@ -177,31 +188,28 @@ func (c *Cluster) Start() error {
 				}
 			}
 
-			if err := updateDeploymentAndWait(c.context, d, c.Namespace, daemon, mgrConfig.DaemonID, cephVersionToUse, c.isUpgrade); err != nil {
+			if err := updateDeploymentAndWait(c.context, d, c.Namespace, daemon, mgrConfig.DaemonID, cephVersionToUse, c.isUpgrade, c.skipUpgradeChecks); err != nil {
 				return fmt.Errorf("failed to update mgr deployment %s. %+v", resourceName, err)
 			}
 		}
-
-		if err := c.configureOrchestratorModules(); err != nil {
-			logger.Errorf("failed to enable orchestrator modules. %+v", err)
+		if existingDeployment, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Get(d.GetName(), metav1.GetOptions{}); err != nil {
+			logger.Warningf("failed to find mgr deployment %s for keyring association: %+v", resourceName, err)
+		} else {
+			if err = c.associateKeyring(keyring, existingDeployment); err != nil {
+				logger.Warningf("failed to associate keyring with mgr deployment %s: %+v", resourceName, err)
+			}
 		}
-
-		if err := c.enablePrometheusModule(c.Namespace); err != nil {
-			logger.Errorf("failed to enable mgr prometheus module. %+v", err)
-		}
-
-		if err := c.configureDashboard(mgrConfig); err != nil {
-			logger.Errorf("failed to enable mgr dashboard. %+v", err)
-		}
-
-		if err := c.configureMgrModules(); err != nil {
-			logger.Errorf("failed to enable mgr module(s) from the spec. %+v", err)
-		}
-
 	}
 
+	if err := c.configureDashboardService(); err != nil {
+		logger.Errorf("failed to enable dashboard. %+v", err)
+	}
+
+	// configure the mgr modules
+	c.configureModules(daemonIDs)
+
 	// create the metrics service
-	service := c.makeMetricsService(appName)
+	service := c.makeMetricsService(AppName)
 	if _, err := c.context.Clientset.CoreV1().Services(c.Namespace).Create(service); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create mgr service. %+v", err)
@@ -240,10 +248,48 @@ func (c *Cluster) Start() error {
 	return nil
 }
 
+func (c *Cluster) configureModules(daemonIDs []string) {
+	// Configure the modules asynchronously so we can complete all the configuration much sooner.
+	var wg sync.WaitGroup
+	if !c.needHTTPBindFix() {
+		startModuleConfiguration(&wg, "http bind settings", c.clearHTTPBindFix)
+	}
+
+	startModuleConfiguration(&wg, "orchestrator modules", c.configureOrchestratorModules)
+	startModuleConfiguration(&wg, "prometheus", c.enablePrometheusModule)
+	startModuleConfiguration(&wg, "crash", c.enableCrashModule)
+	startModuleConfiguration(&wg, "mgr module(s) from the spec", c.configureMgrModules)
+	startModuleConfiguration(&wg, "dashboard", c.configureDashboardModules)
+
+	// Wait for the goroutines to complete before continuing
+	wg.Wait()
+}
+
+func startModuleConfiguration(wg *sync.WaitGroup, description string, configureModules func() error) {
+	wg.Add(1)
+	go func() {
+		err := configureModules()
+		if err != nil {
+			logger.Errorf("failed modules: %s. %+v", description, err)
+		} else {
+			logger.Infof("successful modules: %s", description)
+		}
+		wg.Done()
+	}()
+}
+
 // Ceph docs about the prometheus module: http://docs.ceph.com/docs/master/mgr/prometheus/
-func (c *Cluster) enablePrometheusModule(clusterName string) error {
-	if err := client.MgrEnableModule(c.context, clusterName, prometheusModuleName, true); err != nil {
+func (c *Cluster) enablePrometheusModule() error {
+	if err := client.MgrEnableModule(c.context, c.Namespace, prometheusModuleName, true); err != nil {
 		return fmt.Errorf("failed to enable mgr prometheus module. %+v", err)
+	}
+	return nil
+}
+
+// Ceph docs about the crash module: https://docs.ceph.com/docs/master/mgr/crash/
+func (c *Cluster) enableCrashModule() error {
+	if err := client.MgrEnableModule(c.context, c.Namespace, crashModuleName, true); err != nil {
+		return fmt.Errorf("failed to enable mgr crash module. %+v", err)
 	}
 	return nil
 }
@@ -275,6 +321,10 @@ func (c *Cluster) configureMgrModules() error {
 				if err != nil {
 					return fmt.Errorf("failed to enable pg autoscale mode for newly created pools. %+v", err)
 				}
+				err = monStore.Set("global", "mon_pg_warn_min_per_osd", "0")
+				if err != nil {
+					return fmt.Errorf("failed to set minimal number PGs per (in) osd before we warn the admin to 0. %+v", err)
+				}
 			}
 		} else {
 			if err := client.MgrDisableModule(c.context, c.Namespace, module.Name); err != nil {
@@ -300,7 +350,7 @@ func (c *Cluster) moduleMeetsMinVersion(name string) (*cephver.CephVersion, bool
 }
 
 func wellKnownModule(name string) bool {
-	knownModules := []string{rookModuleName, dashboardModuleName, prometheusModuleName}
+	knownModules := []string{rookModuleName, dashboardModuleName, prometheusModuleName, crashModuleName}
 	for _, known := range knownModules {
 		if name == known {
 			return true

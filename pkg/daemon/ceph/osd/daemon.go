@@ -20,8 +20,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path"
+	"os/signal"
 	"regexp"
+	"strconv"
+	"syscall"
+	"time"
 
 	"strings"
 
@@ -49,22 +52,24 @@ func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID, lvPath string,
 		logger.Errorf("failed to create config dir %s. %+v", configDir, err)
 	}
 
+	// Update LVM config at runtime
+	if err := updateLVMConfig(context, pvcBackedOSD); err != nil {
+		return fmt.Errorf("failed to update lvm configuration file, %+v", err) // fail return here as validation provided by ceph-volume
+	}
+
 	var volumeGroupName string
 	if pvcBackedOSD {
 		volumeGroupName, err = getVolumeGroupName(lvPath)
 		if err != nil {
 			return fmt.Errorf("error fetching volume group name for OSD %s. %+v", osdID, err)
 		}
+		go handleTerminate(context, lvPath, volumeGroupName)
 
-		if err := updateLVMConfig(context); err != nil {
-			return fmt.Errorf("sed failure, %+v", err) // fail return here as validation provided by ceph-volume
-		}
-
-		if err := context.Executor.ExecuteCommand(false, "", "/sbin/vgchange", "-an", volumeGroupName); err != nil {
+		if err := context.Executor.ExecuteCommand(false, "", "vgchange", "-an", volumeGroupName); err != nil {
 			return fmt.Errorf("failed to deactivate volume group for lv %+v. Error: %+v", lvPath, err)
 		}
 
-		if err := context.Executor.ExecuteCommand(false, "", "/sbin/vgchange", "-ay", volumeGroupName); err != nil {
+		if err := context.Executor.ExecuteCommand(false, "", "vgchange", "-ay", volumeGroupName); err != nil {
 			return fmt.Errorf("failed to activate volume group for lv %+v. Error: %+v", lvPath, err)
 		}
 	}
@@ -84,7 +89,66 @@ func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID, lvPath string,
 		if err := releaseLVMDevice(context, volumeGroupName); err != nil {
 			return fmt.Errorf("failed to release device from lvm. %+v", err)
 		}
+
 	}
+
+	return nil
+}
+
+func handleTerminate(context *clusterd.Context, lvPath, volumeGroupName string) error {
+	sigc := make(chan os.Signal, 1)
+	signal.Notify(sigc, syscall.SIGTERM)
+	for {
+		select {
+		case <-sigc:
+			logger.Infof("shutdown signal received, exiting...")
+			err := killCephOSDProcess(context, lvPath)
+			if err != nil {
+				return fmt.Errorf("failed to kill ceph-osd process. %+v", err)
+			}
+			if err := releaseLVMDevice(context, volumeGroupName); err != nil {
+				return fmt.Errorf("failed to release device from lvm. %+v", err)
+			}
+			return nil
+		}
+	}
+}
+
+func killCephOSDProcess(context *clusterd.Context, lvPath string) error {
+
+	processKilled := false
+	pid, err := context.Executor.ExecuteCommandWithOutput(false, "", "fuser", "-a", lvPath)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve process ID for - %s. Error %+v", lvPath, err)
+	}
+
+	logger.Debugf("process ID for ceph-osd: %s", pid)
+
+	// shut down the osd-ceph process so that lvm release does not show device in use error.
+	if pid != "" {
+		if err := context.Executor.ExecuteCommand(false, "", "kill", pid); err != nil {
+			return fmt.Errorf("failed to delete ceph-osd process. %+v", err)
+		}
+	} else {
+		return nil
+	}
+
+	pidInt, err := strconv.Atoi(pid)
+	if err != nil {
+		return fmt.Errorf("failed to convert process ID - %s to string. Error %+v ", pid, err)
+	}
+	for !processKilled {
+		_, err := os.FindProcess(int(pidInt))
+		if err != nil {
+			logger.Infof("ceph-osd process deleted successfully")
+			processKilled = true
+		} else {
+			logger.Infof("ceph-osd process still running")
+			time.Sleep(2 * time.Second)
+			continue
+		}
+	}
+
 	return nil
 }
 
@@ -113,12 +177,11 @@ func Provision(context *clusterd.Context, agent *OsdAgent) error {
 		return err
 	}
 
-	// set the crush location in the osd config file
-	cephConfig, err := cephconfig.CreateDefaultCephConfig(context, agent.cluster, path.Join(context.ConfigDir, agent.cluster.Name))
+	// create the ceph.conf with the default settings
+	cephConfig, err := cephconfig.CreateDefaultCephConfig(context, agent.cluster)
 	if err != nil {
 		return fmt.Errorf("failed to create default ceph config. %+v", err)
 	}
-	cephConfig.GlobalConfig.CrushLocation = agent.location
 
 	// write the latest config to the config dir
 	confFilePath, err := cephconfig.GenerateAdminConnectionConfigWithSettings(context, agent.cluster, cephConfig)
@@ -146,7 +209,11 @@ func Provision(context *clusterd.Context, agent *OsdAgent) error {
 		if len(agent.devices) > 1 {
 			return fmt.Errorf("more than one desired device found in case of PVC backed OSDs. we expect exactly one device")
 		}
-		rawDevices = append(rawDevices, clusterd.PopulateDeviceInfo(agent.devices[0].Name, context.Executor))
+		rawDevice, err := clusterd.PopulateDeviceInfo(agent.devices[0].Name, context.Executor)
+		if err != nil {
+			return fmt.Errorf("failed to get device info for %s. %+v", agent.devices[0].Name, err)
+		}
+		rawDevices = append(rawDevices, rawDevice)
 	} else {
 		rawDevices, err = clusterd.DiscoverDevices(context.Executor)
 		if err != nil {
@@ -216,7 +283,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent) error {
 
 	logger.Infof("device osds:%+v\ndir osds: %+v", deviceOSDs, dirOSDs)
 
-	if agent.pvcBacked {
+	if agent.pvcBacked && !deviceOSDs[0].SkipLVRelease {
 		volumeGroupName, err := getVolumeGroupName(deviceOSDs[0].LVPath)
 		if err != nil {
 			return fmt.Errorf("error fetching volume group name. %+v", err)
@@ -435,7 +502,7 @@ func getActiveAndRemovedDirs(
 	return activeDirs, removedDirs
 }
 
-//releaseLVMDevice deativates the LV to release the device.
+//releaseLVMDevice deactivates the LV to release the device.
 func releaseLVMDevice(context *clusterd.Context, volumeGroupName string) error {
 	if err := context.Executor.ExecuteCommand(false, "", "lvchange", "-an", volumeGroupName); err != nil {
 		return fmt.Errorf("failed to deactivate LVM %s. Error: %+v", volumeGroupName, err)

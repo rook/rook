@@ -44,7 +44,7 @@ func TestPodSpec(t *testing.T) {
 		rookalpha.Placement{},
 		rookalpha.Annotations{},
 		cephv1.NetworkSpec{},
-		cephv1.DashboardSpec{},
+		cephv1.DashboardSpec{Port: 1234},
 		cephv1.MonitoringSpec{},
 		cephv1.MgrSpec{},
 		v1.ResourceRequirements{
@@ -60,26 +60,26 @@ func TestPodSpec(t *testing.T) {
 		metav1.OwnerReference{},
 		"/var/lib/rook/",
 		false,
+		false,
 	)
 
 	mgrTestConfig := mgrConfig{
-		DaemonID:      "a",
-		ResourceName:  "rook-ceph-mgr-a",
-		DashboardPort: 1234,
-		DataPathMap:   config.NewStatelessDaemonDataPathMap(config.MgrType, "a", "rook-ceph", "/var/lib/rook/"),
+		DaemonID:     "a",
+		ResourceName: "rook-ceph-mgr-a",
+		DataPathMap:  config.NewStatelessDaemonDataPathMap(config.MgrType, "a", "rook-ceph", "/var/lib/rook/"),
 	}
 
 	d := c.makeDeployment(&mgrTestConfig)
 
 	// Deployment should have Ceph labels
 	cephtest.AssertLabelsContainCephRequirements(t, d.ObjectMeta.Labels,
-		config.MgrType, "a", appName, "ns")
+		config.MgrType, "a", AppName, "ns")
 
 	podTemplate := cephtest.NewPodTemplateSpecTester(t, &d.Spec.Template)
 	podTemplate.Spec().Containers().RequireAdditionalEnvVars(
 		"ROOK_OPERATOR_NAMESPACE", "ROOK_CEPH_CLUSTER_CRD_VERSION", "ROOK_VERSION",
 		"ROOK_CEPH_CLUSTER_CRD_NAME")
-	podTemplate.RunFullSuite(config.MgrType, "a", appName, "ns", "ceph/ceph:myceph",
+	podTemplate.RunFullSuite(config.MgrType, "a", AppName, "ns", "ceph/ceph:myceph",
 		"200", "100", "500", "250" /* resources */)
 	assert.Equal(t, 2, len(d.Spec.Template.Annotations))
 
@@ -103,6 +103,7 @@ func TestServiceSpec(t *testing.T) {
 		metav1.OwnerReference{},
 		"/var/lib/rook/",
 		false,
+		false,
 	)
 
 	s := c.makeMetricsService("rook-mgr")
@@ -122,20 +123,20 @@ func TestHostNetwork(t *testing.T) {
 		rookalpha.Placement{},
 		rookalpha.Annotations{},
 		cephv1.NetworkSpec{HostNetwork: true},
-		cephv1.DashboardSpec{},
+		cephv1.DashboardSpec{Port: 1234},
 		cephv1.MonitoringSpec{},
 		cephv1.MgrSpec{},
 		v1.ResourceRequirements{},
 		metav1.OwnerReference{},
 		"/var/lib/rook/",
 		false,
+		false,
 	)
 
 	mgrTestConfig := mgrConfig{
-		DaemonID:      "a",
-		ResourceName:  "mgr-a",
-		DashboardPort: 1234,
-		DataPathMap:   config.NewStatelessDaemonDataPathMap(config.MgrType, "a", "rook-ceph", "/var/lib/rook/"),
+		DaemonID:     "a",
+		ResourceName: "mgr-a",
+		DataPathMap:  config.NewStatelessDaemonDataPathMap(config.MgrType, "a", "rook-ceph", "/var/lib/rook/"),
 	}
 
 	d := c.makeDeployment(&mgrTestConfig)
@@ -156,20 +157,20 @@ func TestHttpBindFix(t *testing.T) {
 		rookalpha.Placement{},
 		rookalpha.Annotations{},
 		cephv1.NetworkSpec{},
-		cephv1.DashboardSpec{},
+		cephv1.DashboardSpec{Port: 1234},
 		cephv1.MonitoringSpec{},
 		cephv1.MgrSpec{},
 		v1.ResourceRequirements{},
 		metav1.OwnerReference{},
 		"/var/lib/rook/",
 		false,
+		false,
 	)
 
 	mgrTestConfig := mgrConfig{
-		DaemonID:      "a",
-		ResourceName:  "mgr-a",
-		DashboardPort: 1234,
-		DataPathMap:   config.NewStatelessDaemonDataPathMap(config.MgrType, "a", "rook-ceph", "/var/lib/rook/"),
+		DaemonID:     "a",
+		ResourceName: "mgr-a",
+		DataPathMap:  config.NewStatelessDaemonDataPathMap(config.MgrType, "a", "rook-ceph", "/var/lib/rook/"),
 	}
 
 	vers := []struct {
@@ -195,7 +196,7 @@ func TestHttpBindFix(t *testing.T) {
 	for _, test := range vers {
 		c.clusterInfo.CephVersion = test.ver
 
-		expectedInitContainers := 0
+		expectedInitContainers := 1
 		if !test.hasFix {
 			expectedInitContainers += 2
 		}
@@ -205,4 +206,51 @@ func TestHttpBindFix(t *testing.T) {
 		assert.Equal(t, expectedInitContainers,
 			len(d.Spec.Template.Spec.InitContainers))
 	}
+}
+
+func TestApplyPrometheusAnnotations(t *testing.T) {
+	c := New(
+		&cephconfig.ClusterInfo{FSID: "myfsid"},
+		&clusterd.Context{Clientset: optest.New(1)},
+		"ns",
+		"myversion",
+		cephv1.CephVersionSpec{},
+		rookalpha.Placement{},
+		rookalpha.Annotations{},
+		cephv1.NetworkSpec{},
+		cephv1.DashboardSpec{},
+		cephv1.MonitoringSpec{},
+		cephv1.MgrSpec{},
+		v1.ResourceRequirements{},
+		metav1.OwnerReference{},
+		"/var/lib/rook/",
+		false,
+		false,
+	)
+
+	mgrTestConfig := mgrConfig{
+		DaemonID:     "a",
+		ResourceName: "rook-ceph-mgr-a",
+		DataPathMap:  config.NewStatelessDaemonDataPathMap(config.MgrType, "a", "rook-ceph", "/var/lib/rook/"),
+	}
+
+	d := c.makeDeployment(&mgrTestConfig)
+
+	// Test without annotations
+	c.applyPrometheusAnnotations(&d.ObjectMeta)
+	assert.Equal(t, 2, len(d.ObjectMeta.Annotations))
+
+	// Test with existing annotations
+	// applyPrometheusAnnotations() shouldn't do anything
+	// re-initialize "d"
+	d = c.makeDeployment(&mgrTestConfig)
+
+	fakeAnnotations := rookalpha.Annotations{
+		"foo.io/bar": "foobar",
+	}
+	c.annotations = fakeAnnotations
+
+	c.applyPrometheusAnnotations(&d.ObjectMeta)
+	assert.Equal(t, 1, len(c.annotations))
+	assert.Equal(t, 0, len(d.ObjectMeta.Annotations))
 }

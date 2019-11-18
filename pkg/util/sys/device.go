@@ -79,6 +79,8 @@ type LocalDisk struct {
 	WWNVendorExtension string `json:"wwnVendorExtension"`
 	// Empty checks whether the device is completely empty
 	Empty bool `json:"empty"`
+	// Information provided by Ceph Volume Inventory
+	CephVolumeData string `json:"cephVolumeData,omitempty"`
 }
 
 func ListDevices(executor exec.Executor) ([]string, error) {
@@ -134,10 +136,10 @@ func GetDevicePartitions(device string, executor exec.Executor) (partitions []Pa
 			if err != nil {
 				return nil, 0, err
 			}
-			if v, ok := info["ID_PART_ENTRY_NAME"]; ok {
+			if v, ok := info["PARTNAME"]; ok {
 				p.Label = v
 			}
-			if v, ok := info["PARTNAME"]; ok {
+			if v, ok := info["ID_PART_ENTRY_NAME"]; ok {
 				p.Label = v
 			}
 			if v, ok := info["ID_FS_TYPE"]; ok {
@@ -342,9 +344,24 @@ func CheckIfDeviceAvailable(executor exec.Executor, name string, pvcBacked bool)
 			return 0, false, "", fmt.Errorf("failed to get device %s filesystem: %+v", name, err)
 		}
 	} else {
-		devFS = "" //Not checking Filesystem in case of PVC block device.
+		devFS, err = GetPVCDeviceFileSystems(executor, name)
+		if err != nil {
+			return 0, false, "", fmt.Errorf("failed to get pvc device %q filesystem. %+v", name, err)
+		}
 	}
 	return partCount, ownPartitions, devFS, nil
+}
+
+//GetPVCDeviceFileSystems returns the file system on a PVC device.
+func GetPVCDeviceFileSystems(executor exec.Executor, device string) (string, error) {
+	cmd := fmt.Sprintf("get pvc filesystem type for %q", device)
+	output, err := executor.ExecuteCommandWithOutput(false, cmd, "lsblk", device, "--bytes", "--nodeps", "--noheadings", "--output", "FSTYPE")
+	if err != nil {
+		return "", fmt.Errorf("command %q failed. %+v", cmd, err)
+	}
+	logger.Debugf("filesystem on pvc device %q is %q", device, output)
+
+	return output, nil
 }
 
 // RookOwnsPartitions check if all partitions in list are owned by Rook
@@ -370,7 +387,7 @@ func parseUUID(device, output string) (string, error) {
 	// find the line with the uuid
 	lines := strings.Split(output, "\n")
 	for _, line := range lines {
-		if strings.Index(line, "Disk identifier (GUID)") != -1 {
+		if strings.Contains(line, "Disk identifier (GUID)") {
 			words := strings.Split(line, " ")
 			for _, word := range words {
 				// we expect most words in the line not to be a uuid, but will return the first one that is

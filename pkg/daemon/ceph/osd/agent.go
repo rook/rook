@@ -48,7 +48,6 @@ type OsdAgent struct {
 	cluster        *cephconfig.ClusterInfo
 	nodeName       string
 	forceFormat    bool
-	location       string
 	osdProc        map[int]*proc.MonitoredProc
 	devices        []DesiredDevice
 	metadataDevice string
@@ -67,14 +66,13 @@ type device struct {
 }
 
 func NewAgent(context *clusterd.Context, devices []DesiredDevice, metadataDevice, directories string, forceFormat bool,
-	location string, storeConfig config.StoreConfig, cluster *cephconfig.ClusterInfo, nodeName string, kv *k8sutil.ConfigMapKVStore, pvcBacked bool) *OsdAgent {
+	storeConfig config.StoreConfig, cluster *cephconfig.ClusterInfo, nodeName string, kv *k8sutil.ConfigMapKVStore, pvcBacked bool) *OsdAgent {
 
 	return &OsdAgent{
 		devices:        devices,
 		metadataDevice: metadataDevice,
 		directories:    directories,
 		forceFormat:    forceFormat,
-		location:       location,
 		storeConfig:    storeConfig,
 		cluster:        cluster,
 		nodeName:       nodeName,
@@ -166,10 +164,19 @@ func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOs
 	}
 
 	var osds []oposd.OSDInfo
+	var lvPath string
+	var skipLVRelease bool
 	if devices == nil || len(devices.Entries) == 0 {
 		logger.Infof("no more devices to configure")
 		if cvSupported {
-			return getCephVolumeOSDs(context, a.cluster.Name, a.cluster.FSID, "")
+			if a.pvcBacked {
+				lvPath, err = getDeviceLVPath(context, fmt.Sprintf("/mnt/%s", a.nodeName))
+				if err != nil {
+					return osds, fmt.Errorf("failed to get logical volume path. %+v", err)
+				}
+				skipLVRelease = true
+			}
+			return getCephVolumeOSDs(context, a.cluster.Name, a.cluster.FSID, lvPath, skipLVRelease)
 		}
 		return osds, nil
 	}
@@ -216,6 +223,19 @@ func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOs
 	}
 	osds = append(osds, cvOSDs...)
 	return osds, nil
+}
+
+func getDeviceLVPath(context *clusterd.Context, deviceName string) (string, error) {
+	cmd := fmt.Sprintf("get logical volume path for device")
+	output, err := context.Executor.ExecuteCommandWithOutput(false, cmd, "pvdisplay", "-C", "-o", "lvpath", "--noheadings", deviceName)
+	if err != nil {
+		return "", fmt.Errorf("failed to retrieve logical volume path. %+v", err)
+	}
+	logger.Debugf("logical volume path for device %q is %q", deviceName, output)
+	if output == "" {
+		return "", fmt.Errorf("no logical volume path found for device %q", deviceName)
+	}
+	return output, nil
 }
 
 func (a *OsdAgent) removeDevices(context *clusterd.Context, removedDevicesScheme *config.PerfScheme) error {
@@ -467,13 +487,13 @@ func (a *OsdAgent) prepareOSD(context *clusterd.Context, cfg *osdConfig) (*oposd
 		}
 
 		// osd_data_dir/ready does not exist yet, create/initialize the OSD
-		err := initializeOSD(cfg, context, a.cluster, a.location)
+		err := initializeOSD(cfg, context, a.cluster)
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize OSD at %s: %+v", cfg.rootPath, err)
 		}
 	} else {
 		// update the osd config file
-		err := writeConfigFile(cfg, context, a.cluster, a.location)
+		err := writeConfigFile(cfg, context, a.cluster)
 		if err != nil {
 			logger.Warningf("failed to update config file. %+v", err)
 		}

@@ -163,7 +163,7 @@ func Status(context *clusterd.Context, clusterName string, debug bool) (CephStat
 // clean is true if the cluster is clean
 // err is not nil if getting the status failed.
 func IsClusterClean(context *clusterd.Context, clusterName string) (string, bool, error) {
-	status, err := Status(context, clusterName, false)
+	status, err := Status(context, clusterName, true)
 	if err != nil {
 		return "unable to get PG health", false, err
 	}
@@ -203,7 +203,7 @@ func isClusterClean(status CephStatus) (string, bool) {
 	}
 	if cleanPGs == status.PgMap.NumPgs {
 		// all PGs in the cluster are in a clean state
-		logger.Infof("all placement groups have reached a clean state: %+v", status.PgMap.PgsByState)
+		logger.Debugf("all placement groups have reached a clean state: %+v", status.PgMap.PgsByState)
 		return "all PGs in cluster are clean", true
 	}
 

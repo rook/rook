@@ -38,6 +38,8 @@ const (
 var (
 	// Minimum supported version is 13.2.4 where ceph-volume is supported
 	Minimum = CephVersion{13, 2, 4}
+	// Luminous Ceph version
+	Luminous = CephVersion{12, 0, 0}
 	// Mimic Ceph version
 	Mimic = CephVersion{13, 0, 0}
 	// Nautilus Ceph version
@@ -224,9 +226,9 @@ func IsInferior(a, b CephVersion) bool {
 func ValidateCephVersionsBetweenLocalAndExternalClusters(localVersion, externalVersion CephVersion) error {
 	logger.Debugf("local version is %s, external version is %s", localVersion.String(), externalVersion.String())
 
-	// We only support Nautilus or newer
-	if !externalVersion.IsAtLeastNautilus() {
-		return fmt.Errorf("unsupported ceph version %s, need at least nautilus, delete your cluster CR and create a new one with a correct ceph version", externalVersion.String())
+	// We only support Luminous or newer
+	if !externalVersion.IsAtLeast(Luminous) {
+		return fmt.Errorf("unsupported external ceph version %s, need at least luminous", externalVersion.String())
 	}
 
 	// Identical version, regardless if other CRs are running, it's ok!

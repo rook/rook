@@ -26,10 +26,10 @@ spec:
 
 ### Metadata
 
-- `name`: The name of the object store user to create, which will be reflected in the secret and other resource names.
-- `namespace`: The namespace of the Rook cluster where the object store user is created.
+* `name`: The name of the object store user to create, which will be reflected in the secret and other resource names.
+* `namespace`: The namespace of the Rook cluster where the object store user is created.
 
 ### Spec
 
-- `store`: The object store in which the user will be created. This matches the name of the objectstore CRD.
-- `displayName`: The display name which will be passed to the `radosgw-admin user create` command.
+* `store`: The object store in which the user will be created. This matches the name of the objectstore CRD.
+* `displayName`: The display name which will be passed to the `radosgw-admin user create` command.

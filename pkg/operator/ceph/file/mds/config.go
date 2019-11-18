@@ -19,10 +19,11 @@ package mds
 import (
 	"fmt"
 
+	apps "k8s.io/api/apps/v1"
+
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 )
 
 const (
@@ -35,20 +36,16 @@ caps mds = "allow"
 `
 )
 
-func (c *Cluster) generateKeyring(m *mdsConfig, deploymentUID types.UID) error {
+func (c *Cluster) generateKeyring(m *mdsConfig) (string, error) {
 	user := fmt.Sprintf("mds.%s", m.DaemonID)
 	access := []string{"osd", "allow *", "mds", "allow", "mon", "allow profile mds"}
-	ownerRef := &metav1.OwnerReference{
-		UID:        deploymentUID,
-		APIVersion: "v1",
-		Kind:       "deployment",
-		Name:       m.ResourceName,
-	}
-	s := keyring.GetSecretStore(c.context, c.fs.Namespace, ownerRef)
+
+	// At present
+	s := keyring.GetSecretStore(c.context, c.fs.Namespace, &c.ownerRef)
 
 	key, err := s.GenerateKey(user, access)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	// Delete legacy key store for upgrade from Rook v0.9.x to v1.0.x
@@ -62,5 +59,10 @@ func (c *Cluster) generateKeyring(m *mdsConfig, deploymentUID types.UID) error {
 	}
 
 	keyring := fmt.Sprintf(keyringTemplate, m.DaemonID, key)
-	return s.CreateOrUpdate(m.ResourceName, keyring)
+	return keyring, s.CreateOrUpdate(m.ResourceName, keyring)
+}
+
+func (c *Cluster) associateKeyring(existingKeyring string, d *apps.Deployment) error {
+	s := keyring.GetSecretStoreForDeployment(c.context, d)
+	return s.CreateOrUpdate(d.GetName(), existingKeyring)
 }

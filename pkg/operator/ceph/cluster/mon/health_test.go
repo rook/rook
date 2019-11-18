@@ -229,17 +229,13 @@ func TestAddOrRemoveExternalMonitor(t *testing.T) {
 
 	// populate fake monmap
 	fakeResp := client.MonStatusResponse{Quorum: []int{0}}
-	fakeAddrvecEntry := []client.AddrvecEntry{
-		{
-			Addr: "172.17.0.4:3300",
-		},
-	}
+
 	fakeResp.MonMap.Mons = []client.MonMapEntry{
 		{
 			Name: "a",
 		},
 	}
-	fakeResp.MonMap.Mons[0].PublicAddrs.Addrvec = fakeAddrvecEntry
+	fakeResp.MonMap.Mons[0].PublicAddr = "172.17.0.4:3300"
 
 	// populate fake ClusterInfo
 	c := &Cluster{ClusterInfo: &cephconfig.ClusterInfo{}}
@@ -251,7 +247,7 @@ func TestAddOrRemoveExternalMonitor(t *testing.T) {
 	// both clusterInfo and mon map are identical so nil is expected
 	changed, err = c.addOrRemoveExternalMonitor(fakeResp)
 	assert.NoError(t, err)
-	assert.False(t, changed)
+	assert.True(t, changed)
 	assert.Equal(t, 1, len(c.ClusterInfo.Monitors))
 
 	//
@@ -280,110 +276,11 @@ func TestAddOrRemoveExternalMonitor(t *testing.T) {
 			Name: "b",
 		},
 	}
-	fakeAddrvecEntry2 := []client.AddrvecEntry{
-		{
-			Addr: "172.17.0.5:3300",
-		},
-	}
-	fakeResp.MonMap.Mons[1].PublicAddrs.Addrvec = fakeAddrvecEntry2
+	fakeResp.MonMap.Mons[1].PublicAddr = "172.17.0.5:3300"
 	c.ClusterInfo = test.CreateConfigDir(1)
 	changed, err = c.addOrRemoveExternalMonitor(fakeResp)
 	assert.NoError(t, err)
 	assert.True(t, changed)
 	// ClusterInfo should now have 2 monitors
 	assert.Equal(t, 2, len(c.ClusterInfo.Monitors))
-
-	//
-	// TEST 4
-	//
-	// Now let's test the case where the mon is in clusterInfo, part of the monmap but not in quorum!
-	c.ClusterInfo = test.CreateConfigDir(1)
-	fakeResp2 := client.MonStatusResponse{Quorum: []int{1}} // quorum is owned by the mon with the rank 1 and our mon rank is 0
-	fakeAddrvecEntry3 := []client.AddrvecEntry{
-		{
-			Addr: "172.17.0.4:3300",
-		},
-	}
-	fakeResp2.MonMap.Mons = []client.MonMapEntry{
-		{
-			Name: "a",
-			Rank: 0,
-		},
-	}
-	fakeResp2.MonMap.Mons[0].PublicAddrs.Addrvec = fakeAddrvecEntry3
-	changed, err = c.addOrRemoveExternalMonitor(fakeResp2)
-	assert.NoError(t, err)
-	assert.True(t, changed)
-	assert.Equal(t, 0, len(c.ClusterInfo.Monitors))
-
-}
-
-func TestIsMonInMonMapt(t *testing.T) {
-	fakeResp := client.MonStatusResponse{}
-	fakeResp.MonMap.Mons = []client.MonMapEntry{
-		{
-			Name: "a",
-		},
-		{
-			Name: "b",
-		},
-		{
-			Name: "c",
-		},
-	}
-
-	isIT := isMonInMonMap("a", fakeResp.MonMap.Mons)
-	assert.True(t, isIT)
-	isIT = isMonInMonMap("z", fakeResp.MonMap.Mons)
-	assert.False(t, isIT)
-}
-
-func TestGetMonRankt(t *testing.T) {
-	fakeResp := client.MonStatusResponse{}
-	fakeResp.MonMap.Mons = []client.MonMapEntry{
-		{
-			Name: "a",
-			Rank: 0,
-		},
-		{
-			Name: "b",
-			Rank: 1,
-		},
-		{
-			Name: "c",
-			Rank: 2,
-		},
-	}
-
-	isIT := getMonRank("a", fakeResp.MonMap.Mons)
-	assert.Equal(t, 0, isIT)
-	isIT = getMonRank("b", fakeResp.MonMap.Mons)
-	assert.Equal(t, 1, isIT)
-	isIT = getMonRank("z", fakeResp.MonMap.Mons)
-	assert.Equal(t, -1, isIT)
-}
-
-func TestIsMonInQuorum(t *testing.T) {
-	fakeResp := client.MonStatusResponse{Quorum: []int{0, 1}}
-	fakeResp.MonMap.Mons = []client.MonMapEntry{
-		{
-			Name: "a",
-			Rank: 0,
-		},
-		{
-			Name: "b",
-			Rank: 1,
-		},
-		{
-			Name: "c",
-			Rank: 2,
-		},
-	}
-
-	isIT := isMonInQuorum("a", fakeResp.MonMap.Mons, fakeResp.Quorum)
-	assert.True(t, isIT)
-	isIT = isMonInQuorum("c", fakeResp.MonMap.Mons, fakeResp.Quorum)
-	assert.False(t, isIT)
-	isIT = isMonInQuorum("z", fakeResp.MonMap.Mons, fakeResp.Quorum)
-	assert.False(t, isIT)
 }

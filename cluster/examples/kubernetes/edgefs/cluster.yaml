@@ -142,6 +142,8 @@ spec:
   #    broker: "enp2s0f0"
   #skipHostPrepare: true
   #maxContainerCapacity: 132Ti
+  #sysRepCount: 1                  # SystemReplicationCount [1..n](default is 3)
+  #failureDomain: "device"         # Cluster's failureDomain ["device", "host", "zone"] (default is "host")
   #trlogProcessingInterval: 2      # set transaction log processing interval to 2s to speed up ISGW Link delivery
   #trlogKeepDays: 2                # keep up to 2 days of transaction log interval batches to reduce local storage overhead
   #useHostLocalTime: true

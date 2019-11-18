@@ -18,6 +18,7 @@ limitations under the License.
 package discover
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/rook/rook/pkg/clusterd"
@@ -348,4 +349,71 @@ func TestDeviceListsEqual(t *testing.T) {
 			},
 		},
 	))
+}
+
+func TestGetCephVolumeInventory(t *testing.T) {
+	run := 0
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, arg ...string) (string, error) {
+			run++
+			logger.Infof("run %d action %s command %s", run, actionName, command)
+			switch {
+			case run == 1:
+				return `[{"available": true, "rejected_reasons": [], "sys_api": {"scheduler_mode": "noop",
+"rotational": "0", "vendor": "ATA", "human_readable_size": "25.00 GB", "sectors": 0, "sas_device_handle": "",
+"partitions": {}, "rev": "1.0", "sas_address": "", "locked": 0, "sectorsize": "512", "removable": "0", "path": "/dev/sdb",
+"support_discard": "", "model": "VBOX SMART HARDDISK", "ro": "0", "nr_requests": "128", "size": 26843545600.0},
+"lvs": [], "path": "/dev/sdb"}, {"available": false, "rejected_reasons": ["locked"], "sys_api": {"scheduler_mode": "noop",
+ "rotational": "1", "vendor": "ATA", "human_readable_size": "32.00 GB", "sectors": 0, "sas_device_handle": "",
+ "partitions": {"sda2": {"start": "2099200", "holders": ["dm-0", "dm-1"], "sectorsize": 512, "sectors": "65009664",
+ "size": "31.00 GB"}, "sda1": {"start": "2048", "holders": [], "sectorsize": 512, "sectors": "2097152", "size": "1024.00 MB"}},
+ "rev": "1.0", "sas_address": "", "locked": 1, "sectorsize": "512", "removable": "0", "path": "/dev/sda", "support_discard": "",
+ "model": "VBOX HARDDISK", "ro": "0", "nr_requests": "128", "size": 34359738368.0}, "lvs": [{"comment": "not used by ceph", "name": "swap"},
+  {"comment": "not used by ceph", "name": "root"}], "path": "/dev/sda"}]
+				`, nil
+			case run == 2: // No data returned from Ceph Volume
+				return ``, nil
+			case run == 3: // No devices returned from Ceph Volume
+				return `[]`, nil
+			case run == 4: // Error executing Ceph Volume
+				return ``, fmt.Errorf("unexplainable error")
+			case run == 5: // A device without sys_api data
+				return `[{"available": true }]`, nil
+			}
+			return "", nil
+		},
+	}
+
+	context := &clusterd.Context{Executor: executor}
+
+	dev_sda := `{"path":"/dev/sda","available":false,"rejected_reasons":["locked"],"sys_api":{"scheduler_mode":"noop","rotational":"1","vendor":"ATA","human_readable_size":"32.00 GB","sectors":0,"sas_device_handle":"","partitions":{"sda2":{"start":"2099200","holders":["dm-0","dm-1"],"sectorsize":512,"sectors":"65009664","size":"31.00 GB"},"sda1":{"start":"2048","holders":[],"sectorsize":512,"sectors":"2097152","size":"1024.00 MB"}},"rev":"1.0","sas_address":"","locked":1,"sectorsize":"512","removable":"0","path":"/dev/sda","support_discard":"","model":"VBOX HARDDISK","ro":"0","nr_requests":"128","size":34359738368.0},"lvs":[{"comment":"not used by ceph","name":"swap"},{"comment":"not used by ceph","name":"root"}]}`
+	dev_sdb := `{"path":"/dev/sdb","available":true,"rejected_reasons":[],"sys_api":{"scheduler_mode":"noop","rotational":"0","vendor":"ATA","human_readable_size":"25.00 GB","sectors":0,"sas_device_handle":"","partitions":{},"rev":"1.0","sas_address":"","locked":0,"sectorsize":"512","removable":"0","path":"/dev/sdb","support_discard":"","model":"VBOX SMART HARDDISK","ro":"0","nr_requests":"128","size":26843545600.0},"lvs":[]}`
+
+	// Normal execution
+	cvdata, err := getCephVolumeInventory(context)
+
+	assert.Nil(t, err)
+	assert.Equal(t, len(*cvdata), 2)
+	assert.Equal(t, (*cvdata)["/dev/sda"], dev_sda)
+	assert.Equal(t, (*cvdata)["/dev/sdb"], dev_sdb)
+
+	// No data returned from Ceph Volume
+	cvdata, err = getCephVolumeInventory(context)
+	assert.Nil(t, err)
+	assert.Equal(t, len(*cvdata), 0)
+
+	// No devices returned from Ceph Volume
+	cvdata, err = getCephVolumeInventory(context)
+	assert.Nil(t, err)
+	assert.Equal(t, len(*cvdata), 0)
+
+	// Error executing Ceph Volume
+	cvdata, err = getCephVolumeInventory(context)
+	assert.Error(t, err, "unexplainable error")
+	assert.Nil(t, cvdata, 0)
+
+	// // A device without sys_api data
+	cvdata, err = getCephVolumeInventory(context)
+	assert.Nil(t, err)
+	assert.Equal(t, len(*cvdata), 1)
 }

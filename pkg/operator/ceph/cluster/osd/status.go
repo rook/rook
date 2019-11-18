@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
 	apps "k8s.io/api/apps/v1"
@@ -47,10 +48,13 @@ const (
 
 type provisionConfig struct {
 	errorMessages []string
+	DataPathMap   *config.DataPathMap // location to store data in container
 }
 
-func newProvisionConfig() *provisionConfig {
-	return &provisionConfig{}
+func (c *Cluster) newProvisionConfig() *provisionConfig {
+	return &provisionConfig{
+		DataPathMap: config.NewDatalessDaemonDataPathMap(c.Namespace, c.dataDirHostPath),
+	}
 }
 
 func (c *provisionConfig) addError(message string, args ...interface{}) {
@@ -235,6 +239,13 @@ func (c *Cluster) completeOSDsForAllNodes(config *provisionConfig, configOSDs bo
 				currentTimeoutMinutes++
 				if currentTimeoutMinutes == timeoutMinutes {
 					config.addError("timed out waiting for %d nodes: %+v", remainingNodes.Count(), remainingNodes)
+					//start to remove remainingNodes waiting timeout.
+					for remainingNode := range remainingNodes.Iter() {
+						clearNodeName := k8sutil.TruncateNodeName(orchestrationStatusMapName, remainingNode)
+						if err := c.kv.ClearStore(clearNodeName); err != nil {
+							config.addError("failed to clear node %s status with name %s. %+v", remainingNode, clearNodeName, err)
+						}
+					}
 					return false
 				}
 				logger.Infof("waiting on orchestration status update from %d remaining nodes", remainingNodes.Count())

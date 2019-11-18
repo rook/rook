@@ -45,7 +45,9 @@ func (c *Cluster) makeDeployment(mdsConfig *mdsConfig) *apps.Deployment {
 			Labels: c.podLabels(mdsConfig),
 		},
 		Spec: v1.PodSpec{
-			InitContainers: []v1.Container{},
+			InitContainers: []v1.Container{
+				c.makeChownInitContainer(mdsConfig),
+			},
 			Containers: []v1.Container{
 				c.makeMdsDaemonContainer(mdsConfig),
 			},
@@ -81,8 +83,18 @@ func (c *Cluster) makeDeployment(mdsConfig *mdsConfig) *apps.Deployment {
 	k8sutil.AddRookVersionLabelToDeployment(d)
 	c.fs.Spec.MetadataServer.Annotations.ApplyToObjectMeta(&d.ObjectMeta)
 	opspec.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, d)
-	k8sutil.SetOwnerRefs(&d.ObjectMeta, c.ownerRefs)
+	k8sutil.SetOwnerRef(&d.ObjectMeta, &c.ownerRef)
 	return d
+}
+
+func (c *Cluster) makeChownInitContainer(mdsConfig *mdsConfig) v1.Container {
+	return opspec.ChownCephDataDirsInitContainer(
+		*mdsConfig.DataPathMap,
+		c.clusterSpec.CephVersion.Image,
+		opspec.DaemonVolumeMounts(mdsConfig.DataPathMap, mdsConfig.ResourceName),
+		c.fs.Spec.MetadataServer.Resources,
+		mon.PodSecurityContext(),
+	)
 }
 
 func (c *Cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
@@ -117,7 +129,6 @@ func (c *Cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
 			opspec.DaemonEnvVars(c.clusterSpec.CephVersion.Image),
 		),
 		Resources:       c.fs.Spec.MetadataServer.Resources,
-		Lifecycle:       opspec.PodLifeCycle(""),
 		SecurityContext: mon.PodSecurityContext(),
 	}
 

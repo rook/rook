@@ -121,7 +121,8 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 		return nil, err
 	}
 
-	_, _, err = cephObject.SetQuotaUserBucketMax(p.objectContext, p.cephUserName, 0)
+	// need to quota into -1 for restricting creation of new buckets in rgw
+	_, _, err = cephObject.SetQuotaUserBucketMax(p.objectContext, p.cephUserName, -1)
 	if err != nil {
 		return nil, err
 	}
@@ -155,6 +156,7 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 		WithSID(p.cephUserName).
 		ForPrincipals(p.cephUserName).
 		ForResources(p.bucketName).
+		ForSubResources(p.bucketName).
 		Allows().
 		Actions(AllowedActions...)
 	if policy == nil {
@@ -253,12 +255,6 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 			return err
 		}
 		logger.Infof("principal %q ejected from bucket %q policy. Output: %v", p.cephUserName, p.bucketName, output)
-	}
-
-	// unlink user from bucket
-	_, _, err = cephObject.UnlinkUser(p.objectContext, p.cephUserName, p.bucketName)
-	if err != nil {
-		return err
 	}
 
 	// finally, delete unlinked user

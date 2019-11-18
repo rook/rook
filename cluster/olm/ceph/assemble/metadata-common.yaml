@@ -1,4 +1,5 @@
 spec:
+  replaces:  rook-ceph.v1.0.1
   customresourcedefinitions:
     owned:
       - kind: CephCluster
@@ -21,6 +22,11 @@ spec:
         version: v1
         displayName: Ceph Object Store User
         description: Represents a Ceph Object Store User.
+      - kind: CephNFS
+        name: cephnfses.ceph.rook.io
+        version: v1
+        displayName: Ceph NFS
+        description: Represents a cluster of Ceph NFS ganesha gateways.
   displayName: Rook-Ceph
   description: |
 
@@ -89,7 +95,7 @@ metadata:
           },
           "spec": {
             "cephVersion": {
-              "image": "ceph/ceph:v14.2.3-20190904"
+              "image": "ceph/ceph:v14.2.4-20190917"
             },
             "dataDirHostPath": "/var/lib/rook",
             "mon": {
@@ -167,6 +173,26 @@ metadata:
           "spec": {
             "store": "my-store",
             "displayName": "my display name"
+          }
+        },
+        {
+          "apiVersion": "ceph.rook.io/v1",
+          "kind": "CephNFS",
+          "metadata": {
+            "name": "my-nfs",
+            "namespace": "rook-ceph"
+          },
+          "spec": {
+            "rados": {
+              "pool": "myfs-data0",
+              "namespace": "nfs-ns"
+            },
+            "server": {
+              "active": 3,
+              "placement": null,
+              "annotations": null,
+              "resources": null
+            }
           }
         }
       ]

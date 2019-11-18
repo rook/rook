@@ -58,6 +58,18 @@ spec:
             dataDirHostPath:
               pattern: ^/(\S+)
               type: string
+            disruptionManagement:
+              properties:
+                machineDisruptionBudgetNamespace:
+                  type: string
+                managePodBudgets:
+                  type: boolean
+                osdMaintenanceTimeout:
+                  type: integer
+                manageMachineDisruptionBudgets:
+                  type: boolean
+            skipUpgradeChecks:
+              type: boolean
             mon:
               properties:
                 allowMultiplePerNode:
@@ -66,6 +78,7 @@ spec:
                   maximum: 9
                   minimum: 0
                   type: integer
+                volumeClaimTemplate: {}
             mgr:
               properties:
                 modules:
@@ -79,10 +92,15 @@ spec:
               properties:
                 hostNetwork:
                   type: boolean
+                provider:
+                  type: string
+                selectors: {}
             storage:
               properties:
                 disruptionManagement:
                   properties:
+                    machineDisruptionBudgetNamespace:
+                      type: string
                     managePodBudgets:
                       type: boolean
                     osdMaintenanceTimeout:
@@ -130,13 +148,11 @@ spec:
                             name:
                               type: string
                             config: {}
-                      location: {}
                       resources: {}
                   type: array
                 useAllDevices:
                   type: boolean
                 deviceFilter: {}
-                location: {}
                 directories:
                   type: array
                   items:
@@ -144,8 +160,7 @@ spec:
                       path:
                         type: string
                 config: {}
-                topologyAware:
-                  type: boolean
+                storageClassDeviceSets: {}
             monitoring:
               properties:
                 enabled:
@@ -156,6 +171,12 @@ spec:
               properties:
                 workers:
                   type: integer
+            removeOSDsIfOutAndSafeToRemove:
+              type: boolean
+            external:
+              properties:
+                enable:
+                  type: boolean
             placement: {}
             resources: {}
   additionalPrinterColumns:
@@ -202,6 +223,8 @@ spec:
             metadataServer:
               properties:
                 activeCount:
+                  minimum: 1
+                  maximum: 10
                   type: integer
                 activeStandby:
                   type: boolean
@@ -215,6 +238,8 @@ spec:
                 replicated:
                   properties:
                     size:
+                      minimum: 1
+                      maximum: 10
                       type: integer
                 erasureCoded:
                   properties:
@@ -231,6 +256,8 @@ spec:
                   replicated:
                     properties:
                       size:
+                        minimum: 1
+                        maximum: 10
                         type: integer
                   erasureCoded:
                     properties:
@@ -238,6 +265,8 @@ spec:
                         type: integer
                       codingChunks:
                         type: integer
+            preservePoolsOnDelete:
+              type: boolean
   additionalPrinterColumns:
     - name: ActiveMDS
       type: string
@@ -282,7 +311,6 @@ spec:
                 annotations: {}
                 placement: {}
                 resources: {}
-
 # OLM: END CEPH NFS CRD
 # OLM: BEGIN CEPH OBJECT STORE CRD
 ---
@@ -345,6 +373,8 @@ spec:
                       type: integer
                     codingChunks:
                       type: integer
+            preservePoolsOnDelete:
+              type: boolean
 # OLM: END CEPH OBJECT STORE CRD
 # OLM: BEGIN CEPH OBJECT STORE USERS CRD
 ---
@@ -359,6 +389,9 @@ spec:
     listKind: CephObjectStoreUserList
     plural: cephobjectstoreusers
     singular: cephobjectstoreuser
+    shortNames:
+    - rcou
+    - objectuser
   scope: Namespaced
   version: v1
 # OLM: END CEPH OBJECT STORE USERS CRD
@@ -641,6 +674,7 @@ rules:
   - poddisruptionbudgets
   #this is for both clusterdisruption and nodedrain controllers
   - deployments
+  - replicasets
   verbs:
   - "*"
 - apiGroups:
@@ -665,6 +699,12 @@ rules:
   - create
   - update
   - delete
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - csidrivers
+  verbs:
+  - create
 ---
 # Aspects of ceph-mgr that require cluster-wide access
 kind: ClusterRole
@@ -1019,9 +1059,9 @@ subjects:
 - kind: ServiceAccount
   name: rook-ceph-mgr
   namespace: rook-ceph
-  
+
 ---
-# Allow the ceph osd to access cluster-wide resources necessary for determining their topology location 
+# Allow the ceph osd to access cluster-wide resources necessary for determining their topology location
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
@@ -1034,7 +1074,7 @@ subjects:
 - kind: ServiceAccount
   name: rook-ceph-osd
   namespace: rook-ceph
-  
+
 # OLM: END CLUSTER ROLEBINDING
 # OLM: BEGIN CMD REPORTER ROLEBINDING
 ---

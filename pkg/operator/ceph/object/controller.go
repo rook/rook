@@ -96,6 +96,11 @@ func (c *ObjectStoreController) StartWatch(namespace string, stopCh chan struct{
 }
 
 func (c *ObjectStoreController) onAdd(obj interface{}) {
+	if c.clusterSpec.External.Enable && c.clusterSpec.CephVersion.Image == "" {
+		logger.Warningf("Creating object store for an external ceph cluster is disabled because no Ceph image is specified")
+		return
+	}
+
 	objectstore, err := getObjectStoreObject(obj)
 	if err != nil {
 		logger.Errorf("failed to get objectstore object: %+v", err)
@@ -118,6 +123,11 @@ func (c *ObjectStoreController) onAdd(obj interface{}) {
 }
 
 func (c *ObjectStoreController) onUpdate(oldObj, newObj interface{}) {
+	if c.clusterSpec.External.Enable && c.clusterSpec.CephVersion.Image == "" {
+		logger.Warningf("Updating object store for an external ceph cluster is disabled because no Ceph image is specified")
+		return
+	}
+
 	// if the object store spec is modified, update the object store
 	oldStore, err := getObjectStoreObject(oldObj)
 	if err != nil {
@@ -149,7 +159,7 @@ func (c *ObjectStoreController) createOrUpdateStore(objectstore *cephv1.CephObje
 		store:       *objectstore,
 		rookVersion: c.rookImage,
 		clusterSpec: c.clusterSpec,
-		ownerRefs:   c.storeOwners(objectstore),
+		ownerRef:    c.storeOwners(objectstore),
 		DataPathMap: cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, objectstore.Name, c.clusterInfo.Name, c.dataDirHostPath),
 		isUpgrade:   c.isUpgrade,
 	}
@@ -159,6 +169,11 @@ func (c *ObjectStoreController) createOrUpdateStore(objectstore *cephv1.CephObje
 }
 
 func (c *ObjectStoreController) onDelete(obj interface{}) {
+	if c.clusterSpec.External.Enable && c.clusterSpec.CephVersion.Image == "" {
+		logger.Warningf("Deleting object store for an external ceph cluster is disabled because no Ceph image is specified")
+		return
+	}
+
 	objectstore, err := getObjectStoreObject(obj)
 	if err != nil {
 		logger.Errorf("failed to get objectstore object: %+v", err)
@@ -205,12 +220,14 @@ func (c *ObjectStoreController) ParentClusterChanged(cluster cephv1.ClusterSpec,
 	}
 }
 
-func (c *ObjectStoreController) storeOwners(store *cephv1.CephObjectStore) []metav1.OwnerReference {
-	// Only set the cluster crd as the owner of the object store resources.
-	// If the object store crd is deleted, the operator will explicitly remove the object store resources.
-	// If the object store crd still exists when the cluster crd is deleted, this will make sure the object store
-	// resources are cleaned up.
-	return []metav1.OwnerReference{c.ownerRef}
+func (c *ObjectStoreController) storeOwners(store *cephv1.CephObjectStore) metav1.OwnerReference {
+	// Set the object store CR as the owner
+	return metav1.OwnerReference{
+		APIVersion: fmt.Sprintf("%s/%s", ObjectStoreResource.Group, ObjectStoreResource.Version),
+		Kind:       ObjectStoreResource.Kind,
+		Name:       store.Name,
+		UID:        store.UID,
+	}
 }
 
 func storeChanged(oldStore, newStore cephv1.ObjectStoreSpec) bool {

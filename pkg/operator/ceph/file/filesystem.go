@@ -51,7 +51,7 @@ func createFilesystem(
 	fs cephv1.CephFilesystem,
 	rookVersion string,
 	clusterSpec *cephv1.ClusterSpec,
-	ownerRefs []metav1.OwnerReference,
+	ownerRefs metav1.OwnerReference,
 	dataDirHostPath string,
 	isUpgrade bool,
 ) error {
@@ -100,9 +100,10 @@ func createFilesystem(
 	return nil
 }
 
-// deleteFileSystem deletes the filesystem and the metadata servers
+// deleteFileSystem deletes the filesystem from Ceph
 func deleteFilesystem(context *clusterd.Context, cephVersion cephver.CephVersion, fs cephv1.CephFilesystem) error {
 	// The most important part of deletion is that the filesystem gets removed from Ceph
+	// The K8s resources will already be removed with the K8s owner references
 	if err := downFilesystem(context, cephVersion, fs.Namespace, fs.Name); err != nil {
 		// If the fs isn't deleted from Ceph, leave the daemons so it can still be used.
 		return fmt.Errorf("failed to down filesystem %s: %+v", fs.Name, err)
@@ -110,12 +111,11 @@ func deleteFilesystem(context *clusterd.Context, cephVersion cephver.CephVersion
 
 	// Permanently remove the filesystem if it was created by rook
 	if len(fs.Spec.DataPools) != 0 {
-		if err := client.RemoveFilesystem(context, fs.Namespace, fs.Name); err != nil {
+		if err := client.RemoveFilesystem(context, fs.Namespace, fs.Name, fs.Spec.PreservePoolsOnDelete); err != nil {
 			return fmt.Errorf("failed to remove filesystem %s: %+v", fs.Name, err)
 		}
 	}
-
-	return mds.DeleteCluster(context, fs.Namespace, fs.Name)
+	return nil
 }
 
 func validateFilesystem(context *clusterd.Context, f cephv1.CephFilesystem) error {
@@ -151,6 +151,10 @@ func newFS(name string, metadataPool *model.Pool, dataPools []*model.Pool, activ
 	for i, pool := range dataPools {
 		pool.Name = fmt.Sprintf("%s-%s%d", name, dataPoolSuffix, i)
 	}
+
+	// For the filesystem pool we don't want to enable the application pool
+	// since it's being done via 'fs new' already
+	metadataPool.NotEnableAppPool = true
 
 	return &Filesystem{
 		Name:           name,
@@ -189,33 +193,53 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, cephVersion c
 		return fmt.Errorf("Cannot create multiple filesystems. Enable %s env variable to create more than one", client.MultiFsEnv)
 	}
 
-	logger.Infof("Creating filesystem %s", f.Name)
-	err = client.CreatePoolWithProfile(context, clusterName, *f.metadataPool, appName)
+	poolNames, err := client.GetPoolNamesByID(context, clusterName)
 	if err != nil {
-		return fmt.Errorf("failed to create metadata pool '%s': %+v", f.metadataPool.Name, err)
+		return fmt.Errorf("failed to get pool names. %+v", err)
+	}
+
+	logger.Infof("Creating filesystem %s", f.Name)
+
+	// Make easy to locate a pool by name and avoid repeated searches
+	reversedPoolMap := make(map[string]int)
+	for key, value := range poolNames {
+		reversedPoolMap[value] = key
+	}
+
+	poolsCreated := false
+	if _, poolFound := reversedPoolMap[f.metadataPool.Name]; !poolFound {
+		poolsCreated = true
+		err = client.CreatePoolWithProfile(context, clusterName, *f.metadataPool, appName)
+		if err != nil {
+			return fmt.Errorf("failed to create metadata pool '%s': %+v", f.metadataPool.Name, err)
+		}
 	}
 
 	var dataPoolNames []string
 	for _, pool := range f.dataPools {
 		dataPoolNames = append(dataPoolNames, pool.Name)
-		err = client.CreatePoolWithProfile(context, clusterName, *pool, appName)
-		if err != nil {
-			return fmt.Errorf("failed to create data pool %s: %+v", pool.Name, err)
-		}
-		if pool.Type == model.ErasureCoded {
-			// An erasure coded data pool used for a filesystem must allow overwrites
-			if err := client.SetPoolProperty(context, clusterName, pool.Name, "allow_ec_overwrites", "true"); err != nil {
-				logger.Warningf("failed to set ec pool property: %+v", err)
+		if _, poolFound := reversedPoolMap[pool.Name]; !poolFound {
+			poolsCreated = true
+			err = client.CreatePoolWithProfile(context, clusterName, *pool, appName)
+			if err != nil {
+				return fmt.Errorf("failed to create data pool %s: %+v", pool.Name, err)
+			}
+			if pool.Type == model.ErasureCoded {
+				// An erasure coded data pool used for a filesystem must allow overwrites
+				if err := client.SetPoolProperty(context, clusterName, pool.Name, "allow_ec_overwrites", "true"); err != nil {
+					logger.Warningf("failed to set ec pool property: %+v", err)
+				}
 			}
 		}
 	}
 
-	// create the filesystem
-	if err := client.CreateFilesystem(context, clusterName, f.Name, f.metadataPool.Name, dataPoolNames); err != nil {
+	// create the filesystem ('fs new' needs to be forced in order to reuse pre-existing pools)
+	// if only one pool is created new it wont work (to avoid inconsistencies).
+	if err := client.CreateFilesystem(context, clusterName, f.Name, f.metadataPool.Name, dataPoolNames, !poolsCreated); err != nil {
 		return err
 	}
 
-	logger.Infof("created filesystem%s on %d data pool(s) and metadata pool %s", f.Name, len(f.dataPools), f.metadataPool.Name)
+	logger.Infof("created filesystem %s on %d data pool(s) and metadata pool %s", f.Name, len(f.dataPools), f.metadataPool.Name)
 	return nil
 }
 

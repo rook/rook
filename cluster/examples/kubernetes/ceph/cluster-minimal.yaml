@@ -16,7 +16,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v14.2.3-20190904
+    image: ceph/ceph:v14.2.4-20190917
     allowUnsupported: false
   dataDirHostPath: /var/lib/rook
   mon:
@@ -24,6 +24,7 @@ spec:
     allowMultiplePerNode: false
   dashboard:
     enabled: true
+    ssl: true
   monitoring:
     enabled: false  # requires Prometheus to be pre-installed
     rulesNamespace: rook-ceph

@@ -31,6 +31,7 @@ import (
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -61,14 +62,15 @@ func TestStartMGR(t *testing.T) {
 		"myversion",
 		cephv1.CephVersionSpec{},
 		rookalpha.Placement{},
-		rookalpha.Annotations{},
+		rookalpha.Annotations{"my": "annotation"},
 		cephv1.NetworkSpec{},
-		cephv1.DashboardSpec{Enabled: true},
+		cephv1.DashboardSpec{Enabled: true, SSL: true},
 		cephv1.MonitoringSpec{Enabled: true, RulesNamespace: ""},
 		cephv1.MgrSpec{},
 		v1.ResourceRequirements{},
 		metav1.OwnerReference{},
 		"/var/lib/rook/",
+		false,
 		false,
 	)
 	defer os.RemoveAll(c.dataDir)
@@ -106,8 +108,9 @@ func validateStart(t *testing.T, c *Cluster) {
 		}
 		logger.Infof("Looking for cephmgr replica %d", i)
 		daemonName := mgrNames[i]
-		_, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Get(fmt.Sprintf("rook-ceph-mgr-%s", daemonName), metav1.GetOptions{})
+		d, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Get(fmt.Sprintf("rook-ceph-mgr-%s", daemonName), metav1.GetOptions{})
 		assert.Nil(t, err)
+		assert.Equal(t, map[string]string{"my": "annotation"}, d.Spec.Template.Annotations)
 	}
 
 	_, err := c.context.Clientset.CoreV1().Services(c.Namespace).Get("rook-ceph-mgr", metav1.GetOptions{})
@@ -115,7 +118,7 @@ func validateStart(t *testing.T, c *Cluster) {
 
 	ds, err := c.context.Clientset.CoreV1().Services(c.Namespace).Get("rook-ceph-mgr-dashboard", metav1.GetOptions{})
 	if c.dashboard.Enabled {
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		if c.dashboard.Port == 0 {
 			// port=0 -> default port
 			assert.Equal(t, ds.Spec.Ports[0].Port, int32(dashboardPortHTTPS))
@@ -189,8 +192,9 @@ func TestConfigureModules(t *testing.T) {
 	assert.Equal(t, 1, modulesEnabled)
 	assert.Equal(t, 0, modulesDisabled)
 	assert.Equal(t, "pg_autoscaler", lastModuleConfigured)
-	assert.Equal(t, 1, len(configSettings))
+	assert.Equal(t, 2, len(configSettings))
 	assert.Equal(t, "on", configSettings["osd_pool_default_pg_autoscale_mode"])
+	assert.Equal(t, "0", configSettings["mon_pg_warn_min_per_osd"])
 
 	// disable the module
 	modulesEnabled = 0
@@ -202,4 +206,12 @@ func TestConfigureModules(t *testing.T) {
 	assert.Equal(t, 1, modulesDisabled)
 	assert.Equal(t, "pg_autoscaler", lastModuleConfigured)
 	assert.Equal(t, 0, len(configSettings))
+}
+
+func TestMgrDaemons(t *testing.T) {
+	c := &Cluster{Replicas: 3}
+	daemons := c.getDaemonIDs()
+	require.Equal(t, 2, len(daemons))
+	assert.Equal(t, "a", daemons[0])
+	assert.Equal(t, "b", daemons[1])
 }

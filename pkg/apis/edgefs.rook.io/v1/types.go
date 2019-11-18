@@ -73,6 +73,9 @@ type ClusterSpec struct {
 	ChunkCacheSize          resource.Quantity `json:"chunkCacheSize,omitempty"`
 	TrlogProcessingInterval int               `json:"trlogProcessingInterval,omitempty"`
 	TrlogKeepDays           int               `json:"trlogKeepDays,omitempty"`
+	SystemReplicationCount  int               `json:"sysRepCount,omitempty"`
+	FailureDomain           string            `json:"failureDomain,omitempty"`
+	CommitNWait             int               `json:"commitNWait,omitempty"`
 	MaxContainerCapacity    resource.Quantity `json:"maxContainerCapacity,omitempty"`
 	UseHostLocalTime        bool              `json:"useHostLocalTime,omitempty"`
 }
@@ -319,6 +322,11 @@ type ISGWList struct {
 	Items           []ISGW `json:"items"`
 }
 
+type ISGWConfig struct {
+	Server  string   `json:"server,omitempty"`
+	Clients []string `json:"clients,omitempty"`
+}
+
 // ISGWSpec represent the spec of a isgw service
 type ISGWSpec struct {
 	// The annotations-related configuration to add/set on each Pod related object.
@@ -335,6 +343,8 @@ type ISGWSpec struct {
 	RemoteURL string `json:"remoteURL,omitempty"`
 	// ISGW ServiceType (default is ClusterIP)
 	ServiceType string `json:"serviceType,omitempty"`
+	// ISGW Relay config
+	Config ISGWConfig `json:"config,omitempty"`
 	// ISGW external port
 	ExternalPort uint `json:"externalPort,omitempty"`
 	// ISGW Replication Type

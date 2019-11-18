@@ -61,10 +61,13 @@ The table below explains in detail each configuration option that is available i
 *note: if `exports.server.allowedClients.accessMode` and `exports.server.allowedClients.squash` options are specified, `exports.server.accessMode` and `exports.server.squash` are overridden respectively.
 
 Description for `volumes.allowedClients.squash` valid options are:
-1. none     (No user id squashing is performed)
-2. rootId   (uid 0 and gid 0 are squashed to the anonymous uid and anonymous gid)
-3. root     (uid 0 and gid of any value are squashed to the anonymous uid and anonymous gid)
-4. all      (All users are squashed)
+
+| Option   | Description                                                                       |
+| -------- | --------------------------------------------------------------------------------- |
+| `none`   | No user id squashing is performed                                                 |
+| `rootId` | UID `0` and GID `0` are squashed to the anonymous uid and anonymous GID.          |
+| `root`   | UID `0` and GID of any value are squashed to the anonymous uid and anonymous GID. |
+| `all`    | All users are squashed                                                            |
 
 The volume that needs to be exported by NFS must be attached to NFS server pod via PVC. Examples of volume that can be attached are Host Path, AWS Elastic Block Store, GCE Persistent Disk, CephFS, RBD etc. The limitations of these volumes also apply while they are shared by NFS. The limitation and other details about these volumes can be found [here](https://kubernetes.io/docs/concepts/storage/persistent-volumes/).
 
@@ -76,7 +79,9 @@ This section contains some examples for more advanced scenarios and configuratio
 
 This example shows how to share a volume with different options for different clients accessing the share.
 The EBS volume (represented by a PVC) will be exported by the NFS server for client access as `/nfs-share` (note that this PVC must already exist).
+
 The following client groups are allowed to access this share:
+
 * `group1` with IP address `172.17.0.5` will be given Read Only access with the root user squashed.
 * `group2` includes both the network range of `172.17.0.5/16` and a host named `serverX`.  They will all be granted Read/Write permissions with no user squash.
 
@@ -111,6 +116,7 @@ spec:
 This section provides an example of how to share multiple volumes from one NFS server.
 These volumes can all be different types (e.g., Google PD and Ceph RBD).
 Below we will share an Amazon EBS volume as well as a CephFS volume, using differing configuration for the two:
+
 * The EBS volume is named `share1` and is available for all clients with Read Only access and no squash.
 * The CephFS volume is named `share2` and is available for all clients with Read/Write access and no squash.
 

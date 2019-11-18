@@ -53,11 +53,13 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 
 	logger.Infof("Step 0 : Create Object Store")
 	cobsErr := helper.ObjectClient.Create(namespace, storeName, 3)
+	// check that ObjectStore is created
 	require.Nil(s.T(), cobsErr)
 	logger.Infof("Object store created successfully")
 
 	logger.Infof("Step 1 : Create Object Store User")
 	cosuErr := helper.ObjectUserClient.Create(namespace, userid, userdisplayname, storeName)
+	// check that ObjectUser is created
 	require.Nil(s.T(), cosuErr)
 	logger.Infof("Waiting 10 seconds to ensure user was created")
 	time.Sleep(10 * time.Second)
@@ -68,8 +70,8 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 		time.Sleep(5 * time.Second)
 	}
 	assert.True(s.T(), helper.ObjectUserClient.UserSecretExists(namespace, storeName, userid))
-	userInfo, gosuErr := helper.ObjectUserClient.GetUser(namespace, storeName, userid)
-	assert.Nil(s.T(), gosuErr)
+	userInfo, err := helper.ObjectUserClient.GetUser(namespace, storeName, userid)
+	require.NoError(s.T(), err)
 	assert.Equal(s.T(), userid, userInfo.UserID)
 	assert.Equal(s.T(), userdisplayname, *userInfo.DisplayName)
 	logger.Infof("Done creating object store user")

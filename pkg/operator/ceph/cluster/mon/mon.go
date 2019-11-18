@@ -276,26 +276,6 @@ func (c *Cluster) startMons(targetCount int) error {
 		}
 	}
 
-	// Enable Ceph messenger 2 protocol on Nautilus
-	if c.ClusterInfo.CephVersion.IsAtLeastNautilus() {
-		v, err := client.GetCephMonVersion(c.context, c.ClusterInfo.Name)
-		if err != nil {
-			return fmt.Errorf("failed to get ceph mon version. %+v", err)
-		}
-		if v.IsAtLeastNautilus() {
-			versions, err := client.GetAllCephDaemonVersions(c.context, c.ClusterInfo.Name)
-			if err != nil {
-				return fmt.Errorf("failed to get ceph daemons versions. %+v", err)
-			}
-			if len(versions.Mon) == 1 {
-				// If length is one, this clearly indicates that all the mons are running the same version
-				// We are doing this because 'ceph version' might return the Ceph version that a majority of mons has but not all of them
-				// so instead of trying to active msgr2 when mons are not ready, we activate it when we believe that's the right time
-				client.EnableMessenger2(c.context)
-			}
-		}
-	}
-
 	logger.Debugf("mon endpoints used are: %s", FlattenMonEndpoints(c.ClusterInfo.Monitors))
 	return nil
 }
@@ -350,11 +330,11 @@ func (c *Cluster) initClusterInfo(cephVersion cephver.CephVersion) error {
 
 	// get the cluster info from secret
 	c.ClusterInfo, c.maxMonID, c.mapping, err = CreateOrLoadClusterInfo(c.context, c.Namespace, &c.ownerRef)
-	c.ClusterInfo.CephVersion = cephVersion
-
 	if err != nil {
 		return fmt.Errorf("failed to get cluster info. %+v", err)
 	}
+
+	c.ClusterInfo.CephVersion = cephVersion
 
 	// save cluster monitor config
 	if err = c.saveMonConfig(); err != nil {
@@ -419,7 +399,7 @@ func resourceName(name string) string {
 }
 
 // scheduleMonitor selects a node for a monitor deployment.
-// see startMon() and design/ceph-mon-pv.md for additional details.
+// see startMon() and design/ceph/ceph-mon-pv.md for additional details.
 func realScheduleMonitor(c *Cluster, mon *monConfig) (SchedulingResult, error) {
 	// target node decision, and deployment/pvc to cleanup
 	result := SchedulingResult{
@@ -654,20 +634,50 @@ func (c *Cluster) startDeployments(mons []*monConfig, requireAllInQuorum bool) e
 		return fmt.Errorf("cannot start 0 mons")
 	}
 
+	// If all the mon deployments don't exist, allow the mon deployments to all be started without checking for quorum.
+	// This will be the case where:
+	// 1) New clusters where we are starting one deployment at a time. We only need to check for quorum once when we add a new mon.
+	// 2) Clusters being restored where no mon deployments are running. We need to start all the deployments before checking quorum.
+	onlyCheckQuorumOnce := false
+	deployments, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).List(metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", AppName)})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			logger.Infof("0 of %d expected mon deployments exist. creating new deployment(s).", len(mons))
+			onlyCheckQuorumOnce = true
+		} else {
+			logger.Warningf("failed to list mon deployments. attempting to continue. %+v", err)
+		}
+	} else if len(deployments.Items) < len(mons) {
+		logger.Infof("%d of %d expected mon deployments exist. creating new deployment(s).", len(deployments.Items), len(mons))
+		onlyCheckQuorumOnce = true
+	}
+
 	// Ensure each of the mons have been created. If already created, it will be a no-op.
 	for i := 0; i < len(mons); i++ {
 		node, _ := c.mapping.Node[mons[i].DaemonName]
 		err := c.startMon(mons[i], node)
 		if err != nil {
-			return fmt.Errorf("failed to create mon %s. %+v", mons[i].DaemonName, err)
+			if c.isUpgrade {
+				// if we're upgrading, we don't want to risk the health of the cluster by continuing to upgrade
+				// and potentially cause more mons to fail. Therefore, we abort if the mon failed to start after upgrade.
+				return fmt.Errorf("failed to upgrade mon %s. %+v", mons[i].DaemonName, err)
+			}
+			// We will attempt to start all mons, then check for quorum as needed after this. During an operator restart
+			// we need to do everything possible to verify the basic health of a cluster, complete the first orchestration,
+			// and start watching for all the CRs. If mons still have quorum we can continue with the orchestration even
+			// if they aren't all up.
+			logger.Errorf("attempting to continue after failing to start mon %q. %+v", mons[i].DaemonName, err)
 		}
+
 		// For the initial deployment (first creation) it's expected to not have all the monitors in quorum
 		// However, in an event of an update, it's crucial to proceed monitors by monitors
 		// At the end of the method we perform one last check where all the monitors must be in quorum
-		requireAllInQuorum := false
-		err = c.waitForMonsToJoin(mons, requireAllInQuorum)
-		if err != nil {
-			return fmt.Errorf("failed to check mon quorum %s. %+v", mons[i].DaemonName, err)
+		if !onlyCheckQuorumOnce || (onlyCheckQuorumOnce && i == len(mons)-1) {
+			requireAllInQuorum := false
+			err = c.waitForMonsToJoin(mons, requireAllInQuorum)
+			if err != nil {
+				return fmt.Errorf("failed to check mon quorum %s. %+v", mons[i].DaemonName, err)
+			}
 		}
 	}
 
@@ -784,7 +794,7 @@ func (c *Cluster) updateMon(m *monConfig, d *apps.Deployment) error {
 		}
 	}
 
-	err := updateDeploymentAndWait(c.context, d, c.Namespace, daemonType, m.DaemonName, cephVersionToUse, c.isUpgrade)
+	err := updateDeploymentAndWait(c.context, d, c.Namespace, daemonType, m.DaemonName, cephVersionToUse, c.isUpgrade, c.spec.SkipUpgradeChecks)
 	if err != nil {
 		return fmt.Errorf("failed to update mon deployment %s. %+v", m.ResourceName, err)
 	}
@@ -943,23 +953,23 @@ func waitForQuorumWithMons(context *clusterd.Context, clusterName string, mons [
 			continue
 		}
 
-		// get the mon_status response that contains info about all monitors in the mon map and
+		// get the quorum_status response that contains info about all monitors in the mon map and
 		// their quorum status
-		monStatusResp, err := client.GetMonStatus(context, clusterName, false)
+		monQuorumStatusResp, err := client.GetMonQuorumStatus(context, clusterName, false)
 		if err != nil {
-			logger.Debugf("failed to get mon_status, err: %+v", err)
+			logger.Debugf("failed to get quorum_status. %+v", err)
 			continue
 		}
 
 		if !requireAllInQuorum {
-			logQuorumMembers(monStatusResp)
+			logQuorumMembers(monQuorumStatusResp)
 			break
 		}
 
 		// check if each of the initial monitors is in quorum
 		allInQuorum := true
 		for _, name := range mons {
-			if !monFoundInQuorum(name, monStatusResp) {
+			if !monFoundInQuorum(name, monQuorumStatusResp) {
 				// found an initial monitor that is not in quorum, bail out of this retry
 				logger.Warningf("monitor %s is not in quorum list", name)
 				allInQuorum = false
@@ -968,7 +978,7 @@ func waitForQuorumWithMons(context *clusterd.Context, clusterName string, mons [
 		}
 
 		if allInQuorum {
-			logQuorumMembers(monStatusResp)
+			logQuorumMembers(monQuorumStatusResp)
 			break
 		}
 	}
@@ -976,22 +986,22 @@ func waitForQuorumWithMons(context *clusterd.Context, clusterName string, mons [
 	return nil
 }
 
-func logQuorumMembers(monStatusResp client.MonStatusResponse) {
+func logQuorumMembers(monQuorumStatusResp client.MonStatusResponse) {
 	var monsInQuorum []string
-	for _, m := range monStatusResp.MonMap.Mons {
-		if monFoundInQuorum(m.Name, monStatusResp) {
+	for _, m := range monQuorumStatusResp.MonMap.Mons {
+		if monFoundInQuorum(m.Name, monQuorumStatusResp) {
 			monsInQuorum = append(monsInQuorum, m.Name)
 		}
 	}
 	logger.Infof("Monitors in quorum: %v", monsInQuorum)
 }
 
-func monFoundInQuorum(name string, monStatusResp client.MonStatusResponse) bool {
+func monFoundInQuorum(name string, monQuorumStatusResp client.MonStatusResponse) bool {
 	// first get the initial monitors corresponding mon map entry
 	var monMapEntry *client.MonMapEntry
-	for i := range monStatusResp.MonMap.Mons {
-		if name == monStatusResp.MonMap.Mons[i].Name {
-			monMapEntry = &monStatusResp.MonMap.Mons[i]
+	for i := range monQuorumStatusResp.MonMap.Mons {
+		if name == monQuorumStatusResp.MonMap.Mons[i].Name {
+			monMapEntry = &monQuorumStatusResp.MonMap.Mons[i]
 			break
 		}
 	}
@@ -1004,7 +1014,7 @@ func monFoundInQuorum(name string, monStatusResp client.MonStatusResponse) bool 
 
 	// using the current initial monitor's mon map entry, check to see if it's in the quorum list
 	// (a list of monitor rank values)
-	for _, q := range monStatusResp.Quorum {
+	for _, q := range monQuorumStatusResp.Quorum {
 		if monMapEntry.Rank == q {
 			return true
 		}

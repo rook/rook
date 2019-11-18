@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -29,6 +28,7 @@ import (
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
+	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/ceph/version"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
@@ -36,6 +36,7 @@ import (
 	apps "k8s.io/api/apps/v1"
 	batch "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -50,7 +51,6 @@ const (
 	osdMetadataDeviceEnvVarName         = "ROOK_METADATA_DEVICE"
 	pvcBackedOSDVarName                 = "ROOK_PVC_BACKED_OSD"
 	lvPathVarName                       = "ROOK_LV_PATH"
-	topologyAwareEnvVarName             = "ROOK_TOPOLOGY_AWARE"
 	rookBinariesMountPath               = "/rook"
 	rookBinariesVolumeName              = "rook-binaries"
 	blockPVCMapperInitContainer         = "blkdevmapper"
@@ -61,9 +61,9 @@ const (
 	OSDOverPVCLabelKey                  = "ceph.rook.io/pvc"
 )
 
-func (c *Cluster) makeJob(osdProps osdProperties) (*batch.Job, error) {
+func (c *Cluster) makeJob(osdProps osdProperties, provisionConfig *provisionConfig) (*batch.Job, error) {
 
-	podSpec, err := c.provisionPodTemplateSpec(osdProps, v1.RestartPolicyOnFailure)
+	podSpec, err := c.provisionPodTemplateSpec(osdProps, v1.RestartPolicyOnFailure, provisionConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -98,32 +98,32 @@ func (c *Cluster) makeJob(osdProps osdProperties) (*batch.Job, error) {
 	return job, nil
 }
 
-func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Deployment, error) {
-
+func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionConfig *provisionConfig) (*apps.Deployment, error) {
+	deploymentName := fmt.Sprintf(osdAppNameFmt, osd.ID)
 	replicaCount := int32(1)
-	volumeMounts := opspec.CephVolumeMounts(false)
-	configVolumeMounts := opspec.RookVolumeMounts(false)
-	volumes := opspec.PodVolumes(c.dataDirHostPath, c.Namespace, false)
+	volumeMounts := opspec.CephVolumeMounts(provisionConfig.DataPathMap, false)
+	configVolumeMounts := opspec.RookVolumeMounts(provisionConfig.DataPathMap, false)
+	volumes := opspec.PodVolumes(provisionConfig.DataPathMap, c.dataDirHostPath, false)
 	failureDomainValue := osdProps.crushHostname
+	doConfigInit := true     // initialize ceph.conf in init container?
+	doBinaryCopyInit := true // copy tini and rook binaries in an init container?
 
 	var dataDir string
 	if osd.IsDirectory {
 		// Mount the path to the directory-based osd
 		// osd.DataPath includes the osd subdirectory, so we want to mount the parent directory
-		parentDir := filepath.Dir(osd.DataPath)
-		dataDir = parentDir
-		// Skip the mount if this is the default directory being mounted. Inside the container, the path
-		// will be mounted at "/var/lib/rook" even if the dataDirHostPath is a different path on the host.
-		if parentDir != k8sutil.DataDir {
-			volumeName := k8sutil.PathToVolumeName(parentDir)
-			dataDirSource := v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: parentDir}}
-			volumes = append(volumes, v1.Volume{Name: volumeName, VolumeSource: dataDirSource})
-			configVolumeMounts = append(configVolumeMounts, v1.VolumeMount{Name: volumeName, MountPath: parentDir})
-			volumeMounts = append(volumeMounts, v1.VolumeMount{Name: volumeName, MountPath: parentDir})
-		}
+		//parentDir := filepath.Dir(osd.DataPath)
+		//dataDir = parentDir
+		dataDir = osd.DataPath
+		// for directory osds, we completely overwrite the starting point from above.
+		provisionConfig.DataPathMap.HostDataDir = dataDir
+		provisionConfig.DataPathMap.ContainerDataDir = dataDir
+
+		volumes = opspec.DaemonVolumes(provisionConfig.DataPathMap, deploymentName)
+		volumeMounts = opspec.DaemonVolumeMounts(provisionConfig.DataPathMap, deploymentName)
+		configVolumeMounts = opspec.DaemonVolumeMounts(provisionConfig.DataPathMap, deploymentName)
 	} else {
 		dataDir = k8sutil.DataDir
-
 		// Create volume config for /dev so the pod can access devices on the host
 		devVolume := v1.Volume{Name: "devices", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/dev"}}}
 		volumes = append(volumes, devVolume)
@@ -147,17 +147,20 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 
 	osdID := strconv.Itoa(osd.ID)
 	tiniEnvVar := v1.EnvVar{Name: "TINI_SUBREAPER", Value: ""}
-	envVars := []v1.EnvVar{
-		nodeNameEnvVar(osdProps.crushHostname),
-		k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
-		k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
+	envVars := append(c.getConfigEnvVars(osdProps.storeConfig, dataDir, osdProps.crushHostname, osdProps.location), []v1.EnvVar{
 		tiniEnvVar,
-	}
+	}...)
 	envVars = append(envVars, k8sutil.ClusterDaemonEnvVars(c.cephVersion.Image)...)
 	envVars = append(envVars, []v1.EnvVar{
 		{Name: "ROOK_OSD_UUID", Value: osd.UUID},
 		{Name: "ROOK_OSD_ID", Value: osdID},
 		{Name: "ROOK_OSD_STORE_TYPE", Value: storeType},
+		{Name: "ROOK_CEPH_MON_HOST",
+			ValueFrom: &v1.EnvVarSource{
+				SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{
+					Name: "rook-ceph-config"},
+					Key: "mon_host"}}},
+		{Name: "CEPH_ARGS", Value: "-m $(ROOK_CEPH_MON_HOST)"},
 	}...)
 	configEnvVars := append(c.getConfigEnvVars(osdProps.storeConfig, dataDir, osdProps.crushHostname, osdProps.location), []v1.EnvVar{
 		tiniEnvVar,
@@ -170,10 +173,10 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 	}
 
 	// default args when the ceph cluster isn't initialized
+
 	defaultArgs := []string{
 		"--foreground",
 		"--id", osdID,
-		"--conf", osd.Config,
 		"--osd-data", osd.DataPath,
 		"--keyring", osd.KeyringPath,
 		"--cluster", osd.Cluster,
@@ -187,7 +190,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 		// As of Nautilus Ceph auto-tunes its osd_memory_target on the fly so we don't need to force it
 		if !c.clusterInfo.CephVersion.IsAtLeastNautilus() && !c.resources.Limits.Memory().IsZero() {
 			osdMemoryTargetValue := float32(c.resources.Limits.Memory().Value()) * osdMemoryTargetSafetyFactor
-			commonArgs = append(commonArgs, fmt.Sprintf("--osd-memory-target=%f", osdMemoryTargetValue))
+			commonArgs = append(commonArgs, fmt.Sprintf("--osd-memory-target=%d", int(osdMemoryTargetValue)))
 		}
 	}
 
@@ -203,8 +206,10 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 
 	// Add the volume to the spec and the mount to the daemon container
 	copyBinariesVolume, copyBinariesContainer := c.getCopyBinariesContainer()
-	volumes = append(volumes, copyBinariesVolume)
-	volumeMounts = append(volumeMounts, copyBinariesContainer.VolumeMounts[0])
+	if doBinaryCopyInit {
+		volumes = append(volumes, copyBinariesVolume)
+		volumeMounts = append(volumeMounts, copyBinariesContainer.VolumeMounts[0])
+	}
 
 	var command []string
 	var args []string
@@ -233,8 +238,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 			"--",
 			"--foreground",
 			"--id", osdID,
-			"--osd-uuid", osd.UUID,
-			"--conf", osd.Config,
+			"--fsid", c.clusterInfo.FSID,
 			"--cluster", "ceph",
 			"--setuser", "ceph",
 			"--setgroup", "ceph",
@@ -254,6 +258,27 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 			Name:      "run-udev",
 			MountPath: "/run/udev"})
 
+	} else if osd.IsDirectory {
+		// config for dir-based osds is gotten from the commandline or from the mon database
+		doConfigInit = false
+		doBinaryCopyInit = false
+
+		storeType := "bluestore"
+		if osd.IsFileStore {
+			storeType = "filestore"
+		}
+
+		command = []string{"ceph-osd"}
+		args = append(
+			opspec.DaemonFlags(c.clusterInfo, osdID),
+			"--foreground",
+			"--osd-data", osd.DataPath,
+			"--osd-uuid", osd.UUID,
+			"--osd-objectstore", storeType,
+			"--osd-max-object-name-len", "256",
+			"--osd-max-object-namespace-len", "64",
+			"--crush-location", fmt.Sprintf("root=default host=%s", osdProps.crushHostname),
+		)
 	} else {
 		// other osds can launch the osd daemon directly
 		command = []string{"ceph-osd"}
@@ -285,9 +310,39 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 		DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 
+	initContainers := make([]v1.Container, 0, 3)
+	if doConfigInit {
+		initContainers = append(initContainers,
+			v1.Container{
+				Args:            []string{"ceph", "osd", "init"},
+				Name:            opspec.ConfigInitContainerName,
+				Image:           k8sutil.MakeRookImage(c.rookVersion),
+				VolumeMounts:    configVolumeMounts,
+				Env:             configEnvVars,
+				SecurityContext: securityContext,
+			})
+	}
+	if doBinaryCopyInit {
+		initContainers = append(initContainers, *copyBinariesContainer)
+	}
+
+	// Doing a chown in a post start lifecycle hook does not reliably complete before the OSD
+	// process starts, which can cause the pod to fail without the lifecycle hook's chown command
+	// completing. It can take an arbitrarily long time for a pod restart to successfully chown the
+	// directory. This is a race condition for all OSDs; therefore, do this in an init container.
+	// See more discussion here: https://github.com/rook/rook/pull/3594#discussion_r312279176
+	initContainers = append(initContainers,
+		opspec.ChownCephDataDirsInitContainer(
+			opconfig.DataPathMap{ContainerDataDir: osd.DataPath},
+			c.cephVersion.Image,
+			volumeMounts,
+			osdProps.resources,
+			securityContext,
+		))
+
 	deployment := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf(osdAppNameFmt, osd.ID),
+			Name:      deploymentName,
 			Namespace: c.Namespace,
 			Labels:    c.getOSDLabels(osd.ID, failureDomainValue, osdProps.portable),
 		},
@@ -314,17 +369,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 					HostPID:            true,
 					HostIPC:            hostIPC,
 					DNSPolicy:          DNSPolicy,
-					InitContainers: []v1.Container{
-						{
-							Args:            []string{"ceph", "osd", "init"},
-							Name:            opspec.ConfigInitContainerName,
-							Image:           k8sutil.MakeRookImage(c.rookVersion),
-							VolumeMounts:    configVolumeMounts,
-							Env:             configEnvVars,
-							SecurityContext: securityContext,
-						},
-						*copyBinariesContainer,
-					},
+					InitContainers:     initContainers,
 					Containers: []v1.Container{
 						{
 							Command:         command,
@@ -335,7 +380,6 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 							Env:             envVars,
 							Resources:       osdProps.resources,
 							SecurityContext: securityContext,
-							Lifecycle:       opspec.PodLifeCycle(osd.DataPath),
 						},
 					},
 					Volumes: volumes,
@@ -364,6 +408,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo) (*apps.Dep
 	} else {
 		osdProps.placement.ApplyToPodSpec(&deployment.Spec.Template.Spec)
 	}
+
 	return deployment, nil
 }
 
@@ -384,16 +429,16 @@ func (c *Cluster) getCopyBinariesContainer() (v1.Volume, *v1.Container) {
 	}
 }
 
-func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.RestartPolicy) (*v1.PodTemplateSpec, error) {
+func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.RestartPolicy, provisionConfig *provisionConfig) (*v1.PodTemplateSpec, error) {
 
 	copyBinariesVolume, copyBinariesContainer := c.getCopyBinariesContainer()
 
 	// ceph-volume is currently set up to use /etc/ceph/ceph.conf; this means no user config
 	// overrides will apply to ceph-volume, but this is unnecessary anyway
-	volumes := append(opspec.PodVolumes(c.dataDirHostPath, c.Namespace, true), copyBinariesVolume)
+	volumes := append(opspec.PodVolumes(provisionConfig.DataPathMap, c.dataDirHostPath, true), copyBinariesVolume)
 
 	// by default, don't define any volume config unless it is required
-	if len(osdProps.devices) > 0 || osdProps.selection.DeviceFilter != "" || osdProps.selection.GetUseAllDevices() || osdProps.metadataDevice != "" {
+	if len(osdProps.devices) > 0 || osdProps.selection.DeviceFilter != "" || osdProps.selection.GetUseAllDevices() || osdProps.metadataDevice != "" || osdProps.pvc.ClaimName != "" {
 		// create volume config for the data dir and /dev so the pod can access devices on the host
 		devVolume := v1.Volume{Name: "devices", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/dev"}}}
 		volumes = append(volumes, devVolume)
@@ -429,7 +474,7 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 			*copyBinariesContainer,
 		},
 		Containers: []v1.Container{
-			c.provisionOSDContainer(osdProps, copyBinariesContainer.VolumeMounts[0]),
+			c.provisionOSDContainer(osdProps, copyBinariesContainer.VolumeMounts[0], provisionConfig),
 		},
 		RestartPolicy: restart,
 		Volumes:       volumes,
@@ -513,10 +558,9 @@ func (c *Cluster) getConfigEnvVars(storeConfig config.StoreConfig, dataDir, node
 		}},
 		k8sutil.NodeEnvVar(),
 	}
-	// pass on the topologyAware flag to the provion pod so that portable OSDs can reconcile zone/region
-	if c.DesiredStorage.TopologyAware {
-		envVars = append(envVars, topologyAwareEnvVar("true"))
-	}
+
+	// Append ceph-volume environment variables
+	envVars = append(envVars, cephVolumeEnvVar()...)
 
 	if storeConfig.StoreType != "" {
 		envVars = append(envVars, v1.EnvVar{Name: osdStoreEnvVarName, Value: storeConfig.StoreType})
@@ -542,18 +586,17 @@ func (c *Cluster) getConfigEnvVars(storeConfig config.StoreConfig, dataDir, node
 		envVars = append(envVars, v1.EnvVar{Name: encryptedDeviceEnvVarName, Value: "true"})
 	}
 
-	if location != "" {
-		envVars = append(envVars, rookalpha.LocationEnvVar(location))
-	}
-
 	return envVars
 }
 
-func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMount v1.VolumeMount) v1.Container {
+func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMount v1.VolumeMount, provisionConfig *provisionConfig) v1.Container {
 
 	envVars := c.getConfigEnvVars(osdProps.storeConfig, k8sutil.DataDir, osdProps.crushHostname, osdProps.location)
 
 	devMountNeeded := false
+	if osdProps.pvc.ClaimName != "" {
+		devMountNeeded = true
+	}
 	privileged := false
 
 	// only 1 of device list, device filter and use all devices can be specified.  We prioritize in that order.
@@ -605,7 +648,7 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 
 	// ceph-volume is currently set up to use /etc/ceph/ceph.conf; this means no user config
 	// overrides will apply to ceph-volume, but this is unnecessary anyway
-	volumeMounts := append(opspec.CephVolumeMounts(true), copyBinariesMount)
+	volumeMounts := append(opspec.CephVolumeMounts(provisionConfig.DataPathMap, true), copyBinariesMount)
 	if devMountNeeded {
 		devMount := v1.VolumeMount{Name: "devices", MountPath: "/dev"}
 		volumeMounts = append(volumeMounts, devMount)
@@ -658,7 +701,7 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 			RunAsNonRoot:           &runAsNonRoot,
 			ReadOnlyRootFilesystem: &readOnlyRootFilesystem,
 		},
-		Resources: osdProps.resources,
+		Resources: c.osdPrepareResources(osdProps.pvc.ClaimName),
 	}
 
 	return osdProvisionContainer
@@ -722,10 +765,6 @@ func pvcBackedOSDEnvVar(pvcBacked string) v1.EnvVar {
 
 func lvPathEnvVariable(lvPath string) v1.EnvVar {
 	return v1.EnvVar{Name: lvPathVarName, Value: lvPath}
-}
-
-func topologyAwareEnvVar(topologyAware string) v1.EnvVar {
-	return v1.EnvVar{Name: topologyAwareEnvVarName, Value: topologyAware}
 }
 
 func getDirectoriesFromContainer(osdContainer v1.Container) []rookalpha.Directory {
@@ -803,5 +842,32 @@ func (c *Cluster) getOSDLabels(osdID int, failureDomainValue string, portable bo
 		OsdIdLabelKey:       fmt.Sprintf("%d", osdID),
 		FailureDomainKey:    failureDomainValue,
 		portableKey:         strconv.FormatBool(portable),
+	}
+}
+
+func (c *Cluster) osdPrepareResources(osdClaimName string) v1.ResourceRequirements {
+	var cpuLimit, cpuRequest, memoryLimit, memoryRequest int64
+
+	cpuLimit = c.prepareResources.Limits.Cpu().Value()
+	cpuRequest = c.prepareResources.Requests.Cpu().Value()
+	memoryLimit = c.prepareResources.Limits.Memory().Value()
+	memoryRequest = c.prepareResources.Requests.Memory().Value()
+
+	return v1.ResourceRequirements{
+		Limits: v1.ResourceList{
+			v1.ResourceCPU:    *resource.NewMilliQuantity(cpuLimit, resource.DecimalSI),
+			v1.ResourceMemory: *resource.NewQuantity(memoryLimit, resource.BinarySI),
+		},
+		Requests: v1.ResourceList{
+			v1.ResourceCPU:    *resource.NewMilliQuantity(cpuRequest, resource.DecimalSI),
+			v1.ResourceMemory: *resource.NewQuantity(memoryRequest, resource.BinarySI),
+		},
+	}
+}
+
+func cephVolumeEnvVar() []v1.EnvVar {
+	return []v1.EnvVar{
+		{Name: "CEPH_VOLUME_DEBUG", Value: "1"},
+		{Name: "CEPH_VOLUME_SKIP_RESTORECON", Value: "1"},
 	}
 }

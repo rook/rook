@@ -18,6 +18,7 @@ package mgr
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
@@ -32,6 +33,7 @@ func TestOrchestratorModules(t *testing.T) {
 	orchestratorModuleEnabled := false
 	rookModuleEnabled := false
 	rookBackendSet := false
+	backendErrorCount := 0
 	executor.MockExecuteCommandWithOutputFile = func(debug bool, actionName, command, outputFile string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[0] == "mgr" && args[1] == "module" && args[2] == "enable" {
@@ -44,7 +46,15 @@ func TestOrchestratorModules(t *testing.T) {
 				return "", nil
 			}
 		}
+		return "", fmt.Errorf("unexpected ceph command '%v'", args)
+	}
+	executor.MockExecuteCommandWithOutputFileTimeout = func(debug bool, timeout time.Duration, actionName, command, outputFile string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
 		if args[0] == "orchestrator" && args[1] == "set" && args[2] == "backend" && args[3] == "rook" {
+			if backendErrorCount < 5 {
+				backendErrorCount++
+				return "", fmt.Errorf("test simulation failure")
+			}
 			rookBackendSet = true
 			return "", nil
 		}
@@ -56,19 +66,39 @@ func TestOrchestratorModules(t *testing.T) {
 	}
 
 	c := &Cluster{clusterInfo: clusterInfo, context: context}
+	c.exitCode = func(err error) (int, bool) {
+		return invalidArgErrorCode, true
+	}
+	orchestratorInitWaitTime = 0
 
 	// the modules are skipped on mimic
 	c.clusterInfo.CephVersion = cephver.Mimic
 	err := c.configureOrchestratorModules()
-	assert.Nil(t, err)
+	assert.NoError(t, err)
+	err = c.setRookOrchestratorBackend()
+	assert.NoError(t, err)
 	assert.False(t, orchestratorModuleEnabled)
 	assert.False(t, rookModuleEnabled)
 	assert.False(t, rookBackendSet)
+	assert.Equal(t, 0, backendErrorCount)
 
 	// the modules are configured on nautilus
+	// the rook module will fail to be set
 	c.clusterInfo.CephVersion = cephver.Nautilus
 	err = c.configureOrchestratorModules()
-	assert.Nil(t, err)
+	assert.Error(t, err)
+	err = c.setRookOrchestratorBackend()
+	assert.NoError(t, err)
+	assert.True(t, orchestratorModuleEnabled)
+	assert.True(t, rookModuleEnabled)
+	assert.True(t, rookBackendSet)
+	assert.Equal(t, 5, backendErrorCount)
+
+	// the rook module will succeed
+	err = c.configureOrchestratorModules()
+	assert.NoError(t, err)
+	err = c.setRookOrchestratorBackend()
+	assert.NoError(t, err)
 	assert.True(t, orchestratorModuleEnabled)
 	assert.True(t, rookModuleEnabled)
 	assert.True(t, rookBackendSet)

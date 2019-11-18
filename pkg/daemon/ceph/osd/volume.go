@@ -35,7 +35,11 @@ import (
 	"github.com/rook/rook/pkg/util/sys"
 )
 
-var cephConfigDir = "/var/lib/ceph"
+// These are not constants because they are used by the tests
+var (
+	cephConfigDir = "/var/lib/ceph"
+	lvmConfPath   = "/etc/lvm/lvm.conf"
+)
 
 const (
 	osdsPerDeviceFlag    = "--osds-per-device"
@@ -45,7 +49,6 @@ const (
 	dbDeviceFlag         = "--db-devices"
 	cephVolumeCmd        = "ceph-volume"
 	cephVolumeMinDBSize  = 1024 // 1GB
-	lvmConfPath          = "/etc/lvm/lvm.conf"
 )
 
 func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *DeviceOsdMapping) ([]oposd.OSDInfo, error) {
@@ -55,7 +58,7 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 	var err error
 	if len(devices.Entries) == 0 {
 		logger.Infof("no new devices to configure. returning devices already configured with ceph-volume.")
-		osds, err = getCephVolumeOSDs(context, a.cluster.Name, a.cluster.FSID, lv)
+		osds, err = getCephVolumeOSDs(context, a.cluster.Name, a.cluster.FSID, lv, false)
 		if err != nil {
 			logger.Infof("failed to get devices already provisioned by ceph-volume. %+v", err)
 		}
@@ -65,6 +68,10 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 	err = createOSDBootstrapKeyring(context, a.cluster.Name, cephConfigDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate osd keyring. %+v", err)
+	}
+	// Update LVM configuration file
+	if err := updateLVMConfig(context, a.pvcBacked); err != nil {
+		return nil, fmt.Errorf("failed to update lvm configuration file, %+v", err) // fail return here as validation provided by ceph-volume
 	}
 	if a.pvcBacked {
 		if lv, err = a.initializeBlockPVC(context, devices); err != nil {
@@ -76,14 +83,11 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 		}
 	}
 
-	osds, err = getCephVolumeOSDs(context, a.cluster.Name, a.cluster.FSID, lv)
+	osds, err = getCephVolumeOSDs(context, a.cluster.Name, a.cluster.FSID, lv, false)
 	return osds, err
 }
 
 func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *DeviceOsdMapping) (string, error) {
-	if err := updateLVMConfig(context); err != nil {
-		return "", fmt.Errorf("sed failure, %+v", err) // fail return here as validation provided by ceph-volume
-	}
 	baseCommand := "stdbuf"
 	baseArgs := []string{"-oL", cephVolumeCmd, "lvm", "prepare"}
 	var lvpath string
@@ -133,7 +137,7 @@ func getLVPath(op string) string {
 	return ""
 }
 
-func updateLVMConfig(context *clusterd.Context) error {
+func updateLVMConfig(context *clusterd.Context, onPVC bool) error {
 
 	input, err := ioutil.ReadFile(lvmConfPath)
 	if err != nil {
@@ -141,11 +145,22 @@ func updateLVMConfig(context *clusterd.Context) error {
 	}
 
 	output := bytes.Replace(input, []byte("udev_sync = 1"), []byte("udev_sync = 0"), 1)
+	output = bytes.Replace(output, []byte("allow_changes_with_duplicate_pvs = 0"), []byte("allow_changes_with_duplicate_pvs = 1"), 1)
 	output = bytes.Replace(output, []byte("udev_rules = 1"), []byte("udev_rules = 0"), 1)
 	output = bytes.Replace(output, []byte("use_lvmetad = 1"), []byte("use_lvmetad = 0"), 1)
 	output = bytes.Replace(output, []byte("obtain_device_list_from_udev = 1"), []byte("obtain_device_list_from_udev = 0"), 1)
-	output = bytes.Replace(output, []byte(`scan = [ "/dev" ]`), []byte(`scan = [ "/dev", "/mnt" ]`), 1)
-	output = bytes.Replace(output, []byte(`# filter = [ "a|.*/|" ]`), []byte(`filter = [ "a|^/mnt/.*| r|.*/|" ]`), 1)
+
+	// When running on PVC
+	if onPVC {
+		output = bytes.Replace(output, []byte(`scan = [ "/dev" ]`), []byte(`scan = [ "/dev", "/mnt" ]`), 1)
+		// Only filter blocks in /mnt, when running on PVC we copy the PVC claim path to /mnt
+		// And reject everything else
+		// We have 2 different regex depending on the version of LVM present in the container...
+		// Since https://github.com/lvmteam/lvm2/commit/08396b4bce45fb8311979250623f04ec0ddb628c#diff-13c602a6258e57ce666a240e67c44f38
+		// the content changed, so depending which version is installled one of the two replace will work
+		output = bytes.Replace(output, []byte(`# filter = [ "a|.*/|" ]`), []byte(`filter = [ "a|^/mnt/.*|", "r|.*|" ]`), 1)
+		output = bytes.Replace(output, []byte(`# filter = [ "a|.*|" ]`), []byte(`filter = [ "a|^/mnt/.*|", "r|.*|" ]`), 1)
+	}
 
 	if err = ioutil.WriteFile(lvmConfPath, output, 0644); err != nil {
 		return fmt.Errorf("failed to update lvm config file. %+v", err)
@@ -367,7 +382,7 @@ func getCephVolumeSupported(context *clusterd.Context) (bool, error) {
 	return true, nil
 }
 
-func getCephVolumeOSDs(context *clusterd.Context, clusterName string, cephfsid string, lv string) ([]oposd.OSDInfo, error) {
+func getCephVolumeOSDs(context *clusterd.Context, clusterName string, cephfsid string, lv string, skipLVRelease bool) ([]oposd.OSDInfo, error) {
 
 	result, err := context.Executor.ExecuteCommandWithCombinedOutput(false, "", cephVolumeCmd, "lvm", "list", lv, "--format", "json")
 	if err != nil {
@@ -417,11 +432,12 @@ func getCephVolumeOSDs(context *clusterd.Context, clusterName string, cephfsid s
 			CephVolumeInitiated: true,
 			IsFileStore:         isFilestore,
 			LVPath:              lv,
+			SkipLVRelease:       skipLVRelease,
 		}
 		osds = append(osds, osd)
 	}
-
 	logger.Infof("%d ceph-volume osd devices configured on this node", len(osds))
+
 	return osds, nil
 }
 

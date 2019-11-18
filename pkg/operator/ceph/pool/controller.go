@@ -73,13 +73,18 @@ func (c *PoolController) StartWatch(namespace string, stopCh chan struct{}) erro
 		DeleteFunc: c.onDelete,
 	}
 
-	logger.Infof("start watching clusters in all namespaces")
+	logger.Infof("start watching pools in namespace %q", namespace)
 	watcher := opkit.NewWatcher(PoolResource, namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1().RESTClient())
 	go watcher.Watch(&cephv1.CephBlockPool{}, stopCh)
 	return nil
 }
 
 func (c *PoolController) onAdd(obj interface{}) {
+	if c.clusterSpec.External.Enable && c.clusterSpec.CephVersion.Image == "" {
+		logger.Warningf("Creating pools for an external ceph cluster is disabled because no Ceph image is specified")
+		return
+	}
+
 	pool, err := getPoolObject(obj)
 	if err != nil {
 		logger.Errorf("failed to get pool object: %+v", err)
@@ -93,6 +98,11 @@ func (c *PoolController) onAdd(obj interface{}) {
 }
 
 func (c *PoolController) onUpdate(oldObj, newObj interface{}) {
+	if c.clusterSpec.External.Enable && c.clusterSpec.CephVersion.Image == "" {
+		logger.Warningf("Updating pools for an external ceph cluster is disabled because no Ceph image is specified")
+		return
+	}
+
 	oldPool, err := getPoolObject(oldObj)
 	if err != nil {
 		logger.Errorf("failed to get old pool object: %+v", err)
@@ -138,12 +148,16 @@ func poolChanged(old, new cephv1.PoolSpec) bool {
 }
 
 func (c *PoolController) onDelete(obj interface{}) {
+	if c.clusterSpec.External.Enable && c.clusterSpec.CephVersion.Image == "" {
+		logger.Warningf("Deleting pools for an external ceph cluster is disabled because no Ceph image is specified")
+		return
+	}
+
 	pool, err := getPoolObject(obj)
 	if err != nil {
 		logger.Errorf("failed to get pool object: %+v", err)
 		return
 	}
-
 	if err := deletePool(c.context, pool); err != nil {
 		logger.Errorf("failed to delete pool %s. %+v", pool.ObjectMeta.Name, err)
 	}
@@ -215,12 +229,10 @@ func ValidatePool(context *clusterd.Context, p *cephv1.CephBlockPool) error {
 	return nil
 }
 
+// ValidatePoolSpec validates the Ceph block pool spec CR
 func ValidatePoolSpec(context *clusterd.Context, namespace string, p *cephv1.PoolSpec) error {
 	if p.Replication() != nil && p.ErasureCode() != nil {
 		return fmt.Errorf("both replication and erasure code settings cannot be specified")
-	}
-	if p.Replication() == nil && p.ErasureCode() == nil {
-		return fmt.Errorf("neither replication nor erasure code settings were specified")
 	}
 
 	var crush ceph.CrushMap

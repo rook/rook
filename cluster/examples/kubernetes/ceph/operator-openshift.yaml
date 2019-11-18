@@ -200,7 +200,7 @@ spec:
         # Whether to enable the flex driver. By default it is enabled and is fully supported, but will be deprecated in some future release
         # in favor of the CSI driver.
         - name: ROOK_ENABLE_FLEX_DRIVER
-          value: "true"
+          value: "false"
 
         # Whether to start the discovery daemon to watch for raw storage devices on nodes in the cluster.
         # This daemon does not need to run if you are only going to create your OSDs based on StorageClassDeviceSets with PVCs.
@@ -219,7 +219,45 @@ spec:
           value: "true"
         - name: ROOK_CSI_ENABLE_GRPC_METRICS
           value: "true"
-
+        # kubelet directory path, if kubelet configured to use other than /var/lib/kubelet path.
+        #- name: ROOK_CSI_KUBELET_DIR_PATH
+        #  value: "/var/lib/kubelet"
+        # (Optional) Ceph Provisioner NodeAffinity.
+        # - name: CSI_PROVISIONER_NODE_AFFINITY
+        #   value: "role=storage-node; storage=rook, ceph"
+        # (Optional) CEPH CSI provisioner tolerations list. Put here list of taints you want to tolerate in YAML format.
+        # CSI provisioner would be best to start on the same nodes as other ceph daemons.
+        # - name: CSI_PROVISIONER_TOLERATIONS
+        #   value: |
+        #     - effect: NoSchedule
+        #       key: node-role.kubernetes.io/controlplane
+        #       operator: Exists
+        #     - effect: NoExecute
+        #       key: node-role.kubernetes.io/etcd
+        #       operator: Exists
+        # (Optional) Ceph CSI plugin NodeAffinity.
+        # - name: CSI_PLUGIN_NODE_AFFINITY
+        #   value: "role=storage-node; storage=rook, ceph"
+        # (Optional) CEPH CSI plugin tolerations list. Put here list of taints you want to tolerate in YAML format.
+        # CSI plugins need to be started on all the nodes where the clients need to mount the storage.
+        # - name: CSI_PLUGIN_TOLERATIONS
+        #   value: |
+        #     - effect: NoSchedule
+        #       key: node-role.kubernetes.io/controlplane
+        #       operator: Exists
+        #     - effect: NoExecute
+        #       key: node-role.kubernetes.io/etcd
+        #       operator: Exists
+        # Configure CSI cephfs grpc and liveness metrics port
+        #- name: CSI_CEPHFS_GRPC_METRICS_PORT
+        #  value: "9091"
+        #- name: CSI_CEPHFS_LIVENESS_METRICS_PORT
+        #  value: "9081"
+        # Configure CSI rbd grpc and liveness metrics port
+        #- name: CSI_RBD_GRPC_METRICS_PORT
+        #  value: "9090"
+        #- name: CSI_RBD_LIVENESS_METRICS_PORT
+        #  value: "9080"
         - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
           value: "true"
         # The name of the node to pass with the downward API

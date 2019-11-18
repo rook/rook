@@ -52,14 +52,16 @@ func (c *clusterConfig) createDeployment(rgwConfig *rgwConfig) *apps.Deployment 
 	k8sutil.AddRookVersionLabelToDeployment(d)
 	c.store.Spec.Gateway.Annotations.ApplyToObjectMeta(&d.ObjectMeta)
 	opspec.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, d)
-	k8sutil.SetOwnerRefs(&d.ObjectMeta, c.ownerRefs)
+	k8sutil.SetOwnerRef(&d.ObjectMeta, &c.ownerRef)
 
 	return d
 }
 
 func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) v1.PodTemplateSpec {
 	podSpec := v1.PodSpec{
-		InitContainers: []v1.Container{},
+		InitContainers: []v1.Container{
+			c.makeChownInitContainer(rgwConfig),
+		},
 		Containers: []v1.Container{
 			c.makeDaemonContainer(rgwConfig),
 		},
@@ -102,6 +104,16 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) v1.PodTemplateSpec 
 	return podTemplateSpec
 }
 
+func (c *clusterConfig) makeChownInitContainer(rgwConfig *rgwConfig) v1.Container {
+	return opspec.ChownCephDataDirsInitContainer(
+		*c.DataPathMap,
+		c.clusterSpec.CephVersion.Image,
+		opspec.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName),
+		c.store.Spec.Gateway.Resources,
+		mon.PodSecurityContext(),
+	)
+}
+
 func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 	// start the rgw daemon in the foreground
 	container := v1.Container{
@@ -134,7 +146,6 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 			},
 			InitialDelaySeconds: 10,
 		},
-		Lifecycle:       opspec.PodLifeCycle(""),
 		SecurityContext: mon.PodSecurityContext(),
 	}
 
@@ -159,7 +170,7 @@ func (c *clusterConfig) startService() (string, error) {
 			Selector: labels,
 		},
 	}
-	k8sutil.SetOwnerRefs(&svc.ObjectMeta, c.ownerRefs)
+	k8sutil.SetOwnerRef(&svc.ObjectMeta, &c.ownerRef)
 	if c.clusterSpec.Network.IsHost() {
 		svc.Spec.ClusterIP = v1.ClusterIPNone
 	}

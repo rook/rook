@@ -183,3 +183,12 @@ all tests will be executed.
 These options should **not** be used if there are any changes to code which is shared with other
 storage providers. If there is any risk of affecting another storage provider, all tests should
 be executed in the CI.
+
+### [test full]
+
+In master and release builds, all test suites will run on all supported versions of K8s.
+In PR builds, all the test suites will run on some version of K8s. For bigger changes,
+it is recommended to run all test suites on all versions of K8s by using the tag:
+```
+[test full]
+```

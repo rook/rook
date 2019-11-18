@@ -18,6 +18,7 @@ limitations under the License.
 package isgw
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"strconv"
@@ -77,6 +78,11 @@ func (c *ISGWController) CreateOrUpdate(s edgefsv1.ISGW, update bool, ownerRefs 
 		s.Spec.LocalAddr = defaultLocalIPAddr + ":" + strconv.Itoa(defaultLocalPort)
 	}
 
+	configJSON := getISGWConfigJSON(s.Spec)
+	if len(configJSON) == 0 && len(s.Spec.RemoteURL) == 0 {
+		return fmt.Errorf("If no additional configuration specified the RemoteURL should be presented")
+	}
+
 	// check if ISGW service already exists
 	exists, err := serviceExists(c.context, s)
 	if err == nil && exists {
@@ -126,6 +132,17 @@ func getDirection(isgwSpec edgefsv1.ISGWSpec) int {
 		direction = 3
 	}
 	return direction
+}
+
+func getISGWConfigJSON(isgwSpec edgefsv1.ISGWSpec) string {
+	result := ""
+	if len(isgwSpec.Config.Server) > 0 || len(isgwSpec.Config.Clients) > 0 {
+		bytes, _ := json.Marshal(isgwSpec.Config)
+		if string(bytes) != "{}" {
+			result = string(bytes)
+		}
+	}
+	return result
 }
 
 func (c *ISGWController) makeISGWService(name, svcname, namespace string, isgwSpec edgefsv1.ISGWSpec) *v1.Service {
@@ -296,6 +313,8 @@ func (c *ISGWController) isgwContainer(svcname, name, containerImage string, isg
 		volumeMounts = append(volumeMounts, edgefsv1.GetHostLocalTimeVolumeMount())
 	}
 
+	configJSON := getISGWConfigJSON(isgwSpec)
+
 	cont := v1.Container{
 		Name:            name,
 		Image:           containerImage,
@@ -353,6 +372,10 @@ func (c *ISGWController) isgwContainer(svcname, name, containerImage string, isg
 			{
 				Name:  "EFSISGW_METADATA_ONLY",
 				Value: strconv.Itoa(mdonly),
+			},
+			{
+				Name:  "EFSISGW_CONFIGURATION",
+				Value: configJSON,
 			},
 		},
 		SecurityContext: securityContext,

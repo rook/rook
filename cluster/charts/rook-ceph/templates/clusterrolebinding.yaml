@@ -31,7 +31,7 @@ subjects:
   name: rook-ceph-mgr
   namespace: {{ .Release.Namespace }}
 ---
-# Allow the ceph osd to access cluster-wide resources necessary for determining their topology location 
+# Allow the ceph osd to access cluster-wide resources necessary for determining their topology location
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
@@ -98,6 +98,41 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
 
 {{- if .Values.pspEnable }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: rook-ceph-system-psp
+  labels:
+    operator: rook
+    storage-backend: ceph
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: 'psp:rook'
+subjects:
+  - kind: ServiceAccount
+    name: rook-ceph-system
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: rook-ceph-default-psp
+  namespace: {{ .Release.Namespace }}
+  labels:
+    operator: rook
+    storage-backend: ceph
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: 'psp:rook'
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
@@ -180,5 +215,47 @@ roleRef:
   kind: ClusterRole
   name: rbd-csi-nodeplugin
   apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: rook-ceph-osd-psp
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: 'psp:rook'
+subjects:
+  - kind: ServiceAccount
+    name: rook-ceph-osd
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: rook-ceph-mgr-psp
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: 'psp:rook'
+subjects:
+  - kind: ServiceAccount
+    name: rook-ceph-mgr
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: rook-ceph-cmd-reporter-psp
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: 'psp:rook'
+subjects:
+  - kind: ServiceAccount
+    name: rook-ceph-cmd-reporter
+    namespace: {{ .Release.Namespace }}
 {{- end }}
 {{- end }}

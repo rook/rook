@@ -20,13 +20,13 @@ We welcome contributions! In the meantime, features that are not yet implemented
 
 - A Rook storage cluster must be configured and running in Kubernetes. In this example, it is assumed the cluster is in the `rook` namespace.
 - The following resources, or equivilant, need to be created:
-  - [common](cluster/examples/kubernetes/ceph/common.yaml)
-  - [operator](cluster/examples/kubernetes/ceph/operator.yaml)
-  - [cluster](cluster/examples/kubernetes/ceph/cluster-test.yaml)
-  - [object](cluster/examples/kubernetes/ceph/object-test.yaml)
-  - [user](cluster/examples/kubernetes/ceph/object-user.yaml)
-  - [storageclass](cluster/examples/kubernetes/ceph/storageclass-bucket-retain.yaml)
-  - [claim](cluster/examples/kubernetes/ceph/object-bucket-claim-retain.yaml)
+  - [common](/cluster/examples/kubernetes/ceph/common.yaml)
+  - [operator](/cluster/examples/kubernetes/ceph/operator.yaml)
+  - [cluster](/cluster/examples/kubernetes/ceph/cluster-test.yaml)
+  - [object](/cluster/examples/kubernetes/ceph/object-test.yaml)
+  - [user](/cluster/examples/kubernetes/ceph/object-user.yaml)
+  - [storageclass](/cluster/examples/kubernetes/ceph/storageclass-bucket-retain.yaml)
+  - [claim](/cluster/examples/kubernetes/ceph/object-bucket-claim-retain.yaml)
 
 
 ## Object Store Bucket Walkthrough
@@ -62,7 +62,7 @@ kubectl create -f object-store.yaml
 ```
 
 At this point the Rook operator recognizes that a new object store resource needs to be configured. The operator will create all of the resources to start the object store.
-1. Metadata pools are created (`.rgw.root`, `my-store.rgw.control`, `my-store.rgw.meta`, `my-store.rgw.log`, `my-store.rgw.buckets.index`)
+1. Metadata pools are created (`.rgw.root`, `my-store.rgw.control`, `my-store.rgw.meta`, `my-store.rgw.log`, `my-store.rgw.buckets.index`, `my-store.rgw.buckets.non-ec`)
 1. The data pool is created (`my-store.rgw.buckets.data`)
 1. A Ceph realm is created
 1. A Ceph zone group is created in the new realm

@@ -21,6 +21,7 @@ import (
 
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
+	apps "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -37,31 +38,33 @@ const (
 
 // mgrConfig for a single mgr
 type mgrConfig struct {
-	ResourceName  string              // the name rook gives to mgr resources in k8s metadata
-	DaemonID      string              // the ID of the Ceph daemon ("a", "b", ...)
-	DashboardPort int                 // port used by Ceph dashboard
-	DataPathMap   *config.DataPathMap // location to store data in container
+	ResourceName string              // the name rook gives to mgr resources in k8s metadata
+	DaemonID     string              // the ID of the Ceph daemon ("a", "b", ...)
+	DataPathMap  *config.DataPathMap // location to store data in container
 }
 
 func (c *Cluster) dashboardPort() int {
 	if c.dashboard.Port == 0 {
-		// select default port
-		return dashboardPortHTTPS
+		// default port for HTTP/HTTPS
+		if c.dashboard.SSL {
+			return dashboardPortHTTPS
+		} else {
+			return dashboardPortHTTP
+		}
 	}
 	// crd validates port >= 0
 	return c.dashboard.Port
 }
 
-func (c *Cluster) generateKeyring(m *mgrConfig) error {
+func (c *Cluster) generateKeyring(m *mgrConfig) (string, error) {
 	user := fmt.Sprintf("mgr.%s", m.DaemonID)
 	/* TODO: the access string here does not match the access from the keyring template. should they match? */
 	access := []string{"mon", "allow *", "mds", "allow *", "osd", "allow *"}
-	/* TODO: can we change this ownerref to be the deployment or service? */
 	s := keyring.GetSecretStore(c.context, c.Namespace, &c.ownerRef)
 
 	key, err := s.GenerateKey(user, access)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	// Delete legacy key store for upgrade from Rook v0.9.x to v1.0.x
@@ -75,5 +78,10 @@ func (c *Cluster) generateKeyring(m *mgrConfig) error {
 	}
 
 	keyring := fmt.Sprintf(keyringTemplate, m.DaemonID, key)
-	return s.CreateOrUpdate(m.ResourceName, keyring)
+	return keyring, s.CreateOrUpdate(m.ResourceName, keyring)
+}
+
+func (c *Cluster) associateKeyring(existingKeyring string, d *apps.Deployment) error {
+	s := keyring.GetSecretStoreForDeployment(c.context, d)
+	return s.CreateOrUpdate(d.GetName(), existingKeyring)
 }

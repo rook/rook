@@ -17,6 +17,7 @@ limitations under the License.
 package nfs
 
 import (
+	"fmt"
 	"reflect"
 	"sync"
 
@@ -50,7 +51,6 @@ type CephNFSController struct {
 	namespace          string
 	rookImage          string
 	clusterSpec        *cephv1.ClusterSpec
-	ownerRef           metav1.OwnerReference
 	orchestrationMutex sync.Mutex
 	isUpgrade          bool
 }
@@ -64,7 +64,6 @@ func NewCephNFSController(clusterInfo *cephconfig.ClusterInfo, context *clusterd
 		namespace:       namespace,
 		rookImage:       rookImage,
 		clusterSpec:     clusterSpec,
-		ownerRef:        ownerRef,
 	}
 }
 
@@ -85,6 +84,11 @@ func (c *CephNFSController) StartWatch(namespace string, stopCh chan struct{}) e
 }
 
 func (c *CephNFSController) onAdd(obj interface{}) {
+	if c.clusterSpec.External.Enable && c.clusterSpec.CephVersion.Image == "" {
+		logger.Warningf("Creating nfs for an external ceph cluster is disabled because no Ceph image is specified")
+		return
+	}
+
 	nfs := obj.(*cephv1.CephNFS).DeepCopy()
 	if !c.clusterInfo.CephVersion.IsAtLeastNautilus() {
 		logger.Errorf("Ceph NFS is only supported with Nautilus or newer. CRD %s will be ignored.", nfs.Name)
@@ -101,6 +105,11 @@ func (c *CephNFSController) onAdd(obj interface{}) {
 }
 
 func (c *CephNFSController) onUpdate(oldObj, newObj interface{}) {
+	if c.clusterSpec.External.Enable && c.clusterSpec.CephVersion.Image == "" {
+		logger.Warningf("Updating nfs for an external ceph cluster is disabled because no Ceph image is specified")
+		return
+	}
+
 	oldNFS := oldObj.(*cephv1.CephNFS).DeepCopy()
 	newNFS := newObj.(*cephv1.CephNFS).DeepCopy()
 	if !c.clusterInfo.CephVersion.IsAtLeastNautilus() {
@@ -132,6 +141,11 @@ func (c *CephNFSController) onUpdate(oldObj, newObj interface{}) {
 }
 
 func (c *CephNFSController) onDelete(obj interface{}) {
+	if c.clusterSpec.External.Enable && c.clusterSpec.CephVersion.Image == "" {
+		logger.Warningf("Deleting nfs for an external ceph cluster is disabled because no Ceph image is specified")
+		return
+	}
+
 	nfs := obj.(*cephv1.CephNFS).DeepCopy()
 	if !c.clusterInfo.CephVersion.IsAtLeastNautilus() {
 		logger.Errorf("Ceph NFS is only supported with Nautilus or newer. CRD %s cleanup will be ignored.", nfs.Name)
@@ -196,4 +210,14 @@ func (c *CephNFSController) acquireOrchestrationLock() {
 func (c *CephNFSController) releaseOrchestrationLock() {
 	c.orchestrationMutex.Unlock()
 	logger.Debugf("Released lock for nfs orchestration")
+}
+
+func ownerRefs(nfs cephv1.CephNFS) []metav1.OwnerReference {
+	// Set the filesystem CR as the owner
+	return []metav1.OwnerReference{{
+		APIVersion: fmt.Sprintf("%s/%s", CephNFSResource.Group, CephNFSResource.Version),
+		Kind:       CephNFSResource.Kind,
+		Name:       nfs.Name,
+		UID:        nfs.UID,
+	}}
 }

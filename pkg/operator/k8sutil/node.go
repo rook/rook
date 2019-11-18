@@ -31,9 +31,14 @@ import (
 	helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
 )
 
+const (
+	TopologyLabelPrefix = "topology.rook.io/"
+)
+
 var validTopologyLabelKeys = []string{
 	"failure-domain.beta.kubernetes.io",
 	"failure-domain.kubernetes.io",
+	TopologyLabelPrefix,
 }
 
 // ValidNodeNoSched returns true if the node (1) meets Rook's placement terms,
@@ -106,6 +111,19 @@ func GetNodeNameFromHostname(clientset kubernetes.Interface, hostName string) (s
 		return node.Name, nil
 	}
 	return hostName, fmt.Errorf("node not found")
+}
+
+// GetNodeHostName returns the hostname label given the node name.
+func GetNodeHostName(clientset kubernetes.Interface, nodeName string) (string, error) {
+	node, err := clientset.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	hostname, ok := node.Labels[v1.LabelHostname]
+	if !ok {
+		return "", fmt.Errorf("hostname not found on the node")
+	}
+	return hostname, nil
 }
 
 // GetNodeHostNames returns the name of the node resource mapped to their hostname label.
@@ -249,12 +267,6 @@ func RookNodesMatchingKubernetesNodes(rookStorage rookalpha.StorageScopeSpec, ku
 		for _, rn := range rookStorage.Nodes {
 			if rookNodeMatchesKubernetesNode(rn, kn) {
 				rn.Name = normalizeHostname(kn)
-
-				// modify the node Location if topology awareness enabled
-				if rookStorage.TopologyAware == true {
-					rn.Location = nodeTopologyLocation(kn, rn.Location)
-				}
-
 				nodes = append(nodes, rn)
 			}
 		}
@@ -293,8 +305,8 @@ func NodeIsInRookNodeList(targetNodeName string, rookNodes []rookalpha.Node) boo
 	return false
 }
 
-// AddNodeAffinity will return v1.NodeAffinity or error
-func AddNodeAffinity(nodeAffinity string) (*v1.NodeAffinity, error) {
+// GenerateNodeAffinity will return v1.NodeAffinity or error
+func GenerateNodeAffinity(nodeAffinity string) (*v1.NodeAffinity, error) {
 	newNodeAffinity := &v1.NodeAffinity{
 		RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
 			NodeSelectorTerms: []v1.NodeSelectorTerm{

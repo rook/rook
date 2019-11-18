@@ -31,9 +31,10 @@ import (
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
 	k8sutil "github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/sys"
+
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	kserrors "k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -48,6 +49,7 @@ const (
 	deviceInUseAppName                = "rook-claimed-devices"
 	deviceInUseClusterAttr            = "rook.io/cluster"
 	discoverIntervalEnv               = "ROOK_DISCOVER_DEVICES_INTERVAL"
+	defaultDiscoverInterval           = "60m"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-discover")
@@ -65,17 +67,23 @@ func New(clientset kubernetes.Interface) *Discover {
 }
 
 // Start the discover
-func (d *Discover) Start(namespace, discoverImage, securityAccount string) error {
+func (d *Discover) Start(namespace, discoverImage, securityAccount string, useCephVolume bool) error {
 
-	err := d.createDiscoverDaemonSet(namespace, discoverImage, securityAccount)
+	err := d.createDiscoverDaemonSet(namespace, discoverImage, securityAccount, useCephVolume)
 	if err != nil {
 		return fmt.Errorf("Error starting discover daemonset: %v", err)
 	}
 	return nil
 }
 
-func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage, securityAccount string) error {
+func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage, securityAccount string, useCephVolume bool) error {
 	privileged := true
+	discovery_parameters := []string{"discover",
+		"--discover-interval", getEnvVar(discoverIntervalEnv, defaultDiscoverInterval)}
+	if useCephVolume {
+		discovery_parameters = append(discovery_parameters, "--use-ceph-volume")
+	}
+
 	ds := &apps.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: discoverDaemonsetName,
@@ -101,7 +109,7 @@ func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage, securityAcc
 						{
 							Name:  discoverDaemonsetName,
 							Image: discoverImage,
-							Args:  []string{"discover", "--discover-interval", getDiscoverInterval()},
+							Args:  discovery_parameters,
 							SecurityContext: &v1.SecurityContext{
 								Privileged: &privileged,
 							},
@@ -183,7 +191,7 @@ func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage, securityAcc
 	// Add NodeAffinity if any
 	nodeAffinity := os.Getenv(discoverDaemonSetNodeAffinityEnv)
 	if nodeAffinity != "" {
-		v1NodeAffinity, err := k8sutil.AddNodeAffinity(nodeAffinity)
+		v1NodeAffinity, err := k8sutil.GenerateNodeAffinity(nodeAffinity)
 		if err != nil {
 			logger.Errorf("failed to create NodeAffinity. %+v", err)
 		} else {
@@ -195,7 +203,7 @@ func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage, securityAcc
 
 	_, err = d.clientset.AppsV1().DaemonSets(namespace).Create(ds)
 	if err != nil {
-		if !kserrors.IsAlreadyExists(err) {
+		if !k8serrors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create rook-discover daemon set. %+v", err)
 		}
 		logger.Infof("rook-discover daemonset already exists, updating ...")
@@ -210,13 +218,12 @@ func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage, securityAcc
 
 }
 
-func getDiscoverInterval() string {
-	discoverValue := os.Getenv(discoverIntervalEnv)
-	if discoverValue != "" {
-		return discoverValue
+func getEnvVar(varName string, defaultValue string) string {
+	envValue := os.Getenv(varName)
+	if envValue != "" {
+		return envValue
 	}
-	// Default is 60 minutes
-	return "60m"
+	return defaultValue
 }
 
 // ListDevices lists all devices discovered on all nodes or specific node if node name is provided.
@@ -427,7 +434,7 @@ func GetAvailableDevices(context *clusterd.Context, nodeName, clusterName string
 		}
 		_, err = context.Clientset.CoreV1().ConfigMaps(namespace).Create(cm)
 		if err != nil {
-			if !kserrors.IsAlreadyExists(err) {
+			if !k8serrors.IsAlreadyExists(err) {
 				return results, fmt.Errorf("failed to update device in use for cluster %s node %s: %v", clusterName, nodeName, err)
 			}
 			if _, err := context.Clientset.CoreV1().ConfigMaps(namespace).Update(cm); err != nil {

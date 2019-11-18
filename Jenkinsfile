@@ -30,6 +30,13 @@ pipeline {
                     if (body.contains("[all logs]")) {
                           env.getLogs = "all"
                     }
+
+                    if (!body.contains("[test full]")) {
+                        // By default run the min test matrix (all tests run, but will be distributed on different versions of K8s).
+                        // This only affects the PR builds. The master and release builds will always run the full matrix.
+                        env.testArgs = "min-test-matrix"
+                    }
+
                     // extract which specific storage provider to test
                     if (body.contains("[test cassandra]")) {
                         env.testProvider = "cassandra"
@@ -101,11 +108,11 @@ pipeline {
                 stash name: 'repo-amd64',includes: 'ceph-amd64.tar,cockroachdb-amd64.tar,cassandra-amd64.tar,nfs-amd64.tar,yugabytedb-amd64.tar,build/common.sh,_output/tests/linux_amd64/,_output/charts/,tests/scripts/'
                 script{
                     def data = [
-                        "aws_1.11.x": "v1.11.8",
-                        "aws_1.12.x": "v1.12.6",
-                        "aws_1.13.x": "v1.13.7",
-                        "aws_1.14.x": "v1.14.3",
-                        "aws_1.15.x": "v1.15.0"
+                        "aws_1.12.x": "v1.12.10",
+                        "aws_1.13.x": "v1.13.11",
+                        "aws_1.14.x": "v1.14.7",
+                        "aws_1.15.x": "v1.15.4",
+                        "aws_1.16.x": "v1.16.0"
                     ]
                     testruns = [:]
                     for (kv in mapToList(data)) {
@@ -176,9 +183,10 @@ def RunIntegrationTest(k, v) {
                               set -o pipefail
                               export PATH="/tmp/rook-tests-scripts-helm/linux-amd64:$PATH" \
                                   KUBECONFIG=$HOME/admin.conf \
-                                  STORAGE_PROVIDER_TESTS='''+"${env.testProvider}"+'''
+                                  STORAGE_PROVIDER_TESTS='''+"${env.testProvider}"+''' \
+                                  TEST_ARGUMENTS='''+"${env.testArgs}"+'''
                               kubectl config view
-                              _output/tests/linux_amd64/integration -test.v -test.timeout 7200s --host_type '''+"${k}"+''' --logs '''+"${env.getLogs}"+''' --helm /tmp/rook-tests-scripts-helm/linux-amd64/helm 2>&1 | tee _output/tests/integrationTests.log'''
+                              _output/tests/linux_amd64/integration -test.v -test.timeout 7200s --base_test_dir "" --host_type '''+"${k}"+''' --logs '''+"${env.getLogs}"+''' --helm /tmp/rook-tests-scripts-helm/linux-amd64/helm 2>&1 | tee _output/tests/integrationTests.log'''
                     }
                     finally{
                         sh "journalctl -u kubelet > _output/tests/kubelet_${v}.log"

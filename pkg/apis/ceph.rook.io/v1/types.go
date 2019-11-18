@@ -71,6 +71,9 @@ type ClusterSpec struct {
 	// The path on the host where config and data can be persisted.
 	DataDirHostPath string `json:"dataDirHostPath,omitempty"`
 
+	// SkipUpgradeChecks defines if an upgrade should be forced even if one of the check fails
+	SkipUpgradeChecks bool `json:"skipUpgradeChecks,omitempty"`
+
 	// A spec for configuring disruption management.
 	DisruptionManagement DisruptionManagementSpec `json:"disruptionManagement,omitempty"`
 
@@ -92,6 +95,9 @@ type ClusterSpec struct {
 
 	// A spec for mgr related options
 	Mgr MgrSpec `json:"mgr,omitempty"`
+
+	// Remove the OSD that is out and safe to remove only if this option is true
+	RemoveOSDsIfOutAndSafeToRemove bool `json:"removeOSDsIfOutAndSafeToRemove"`
 }
 
 // VersionSpec represents the settings for the Ceph version that Rook is orchestrating.
@@ -204,7 +210,7 @@ type CephBlockPoolList struct {
 
 // PoolSpec represents the spec of ceph pool
 type PoolSpec struct {
-	// The failure domain: osd/host/(region or zone if topologyAware) - technically also any type in the crush map
+	// The failure domain: osd/host/(region or zone if available) - technically also any type in the crush map
 	FailureDomain string `json:"failureDomain"`
 
 	// The root of the crush hierarchy utilized by the pool
@@ -264,6 +270,9 @@ type FilesystemSpec struct {
 	// The data pool settings
 	DataPools []PoolSpec `json:"dataPools,omitempty"`
 
+	// Preserve pools on filesystem deletion
+	PreservePoolsOnDelete bool `json:"preservePoolsOnDelete"`
+
 	// The mds pod info
 	MetadataServer MetadataServerSpec `json:"metadataServer"`
 }
@@ -311,6 +320,9 @@ type ObjectStoreSpec struct {
 
 	// The data pool settings
 	DataPool PoolSpec `json:"dataPool"`
+
+	// Preserve pools on object store deletion
+	PreservePoolsOnDelete bool `json:"preservePoolsOnDelete"`
 
 	// The rgw pod info
 	Gateway GatewaySpec `json:"gateway"`
@@ -423,16 +435,16 @@ type NetworkSpec struct {
 	HostNetwork bool `json:"hostNetwork"`
 }
 
-// DisruptionManagementSpec configures mangement of daemon disruptions
+// DisruptionManagementSpec configures management of daemon disruptions
 type DisruptionManagementSpec struct {
 
 	// This enables management of poddisruptionbudgets
 	ManagePodBudgets bool `json:"managePodBudgets,omitempty"`
 
-	// OSDMaintenenceTimeout sets how many additional minutes the DOWN/OUT interval is for drained failure domains
+	// OSDMaintenanceTimeout sets how many additional minutes the DOWN/OUT interval is for drained failure domains
 	// it only works if managePodBudgetss is true.
 	// the default is 30 minutes
-	OSDMaintenenceTimeout time.Duration `json:"osdMaintenanceTimeout,omitempty"`
+	OSDMaintenanceTimeout time.Duration `json:"osdMaintenanceTimeout,omitempty"`
 
 	// This enables management of machinedisruptionbudgets
 	ManageMachineDisruptionBudgets bool `json:"manageMachineDisruptionBudgets,omitempty"`

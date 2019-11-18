@@ -84,7 +84,7 @@ Copy and paste the full address and port into an internet browser and you will b
 
 To clean up all resources associated with this walk-through, you can run the commands below.
 
-**NOTE** that this will destroy your Minio object store and delete all of its associated data.
+> **NOTE**: This will destroy your Minio object store and delete all of its associated data.
 
 ```console
 kubectl delete -f object-store.yaml

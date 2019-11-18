@@ -33,6 +33,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/stretchr/testify/require"
+	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -54,7 +55,7 @@ type K8sHelper struct {
 
 const (
 	// RetryLoop params for tests.
-	RetryLoop = 40
+	RetryLoop = 80
 	// RetryInterval param for test - wait time while in RetryLoop
 	RetryInterval = 5
 	// TestMountPath is the path inside a test pod where storage is mounted
@@ -98,6 +99,12 @@ func (k8sh *K8sHelper) GetK8sServerVersion() string {
 func (k8sh *K8sHelper) VersionAtLeast(minVersion string) bool {
 	v := version.MustParseSemantic(k8sh.GetK8sServerVersion())
 	return v.AtLeast(version.MustParseSemantic(minVersion))
+}
+
+func (k8sh *K8sHelper) VersionMinorMatches(minVersion string) bool {
+	v := version.MustParseSemantic(k8sh.GetK8sServerVersion())
+	requestedVersion := version.MustParseSemantic(minVersion)
+	return v.Major() == requestedVersion.Major() && v.Minor() == requestedVersion.Minor()
 }
 
 func (k8sh *K8sHelper) MakeContext() *clusterd.Context {
@@ -305,7 +312,7 @@ func (k8sh *K8sHelper) ResourceOperationFromTemplate(action string, podDefinitio
 // ResourceOperation performs a kubectl action on a pod definition
 func (k8sh *K8sHelper) ResourceOperation(action string, manifest string) error {
 	args := []string{action, "-f", "-"}
-	logger.Infof("kubectl create manifest:\n%s", manifest)
+	logger.Infof("kubectl %s manifest:\n%s", action, manifest)
 	_, err := k8sh.KubectlWithStdin(manifest, args...)
 	if err == nil {
 		return nil
@@ -591,6 +598,8 @@ func (k8sh *K8sHelper) IsPodRunning(name string, namespace string) bool {
 		logger.Infof("waiting for pod %s in namespace %s to be running", name, namespace)
 
 	}
+	pod, _ := k8sh.Clientset.CoreV1().Pods(namespace).Get(name, getOpts)
+	k8sh.PrintPodDescribe(namespace, pod.Name)
 	logger.Infof("Giving up waiting for pod %s in namespace %s to be running", name, namespace)
 	return false
 }
@@ -610,7 +619,7 @@ func (k8sh *K8sHelper) IsPodTerminatedWithOpts(name string, namespace string, ge
 			k8slogger.Infof("Pod  %s in namespace %s terminated ", name, namespace)
 			return true
 		}
-		k8slogger.Infof("waiting for Pod %s in namespace %s to terminate, status : %v", name, namespace, pod.Status.Phase)
+		k8slogger.Infof("waiting for Pod %s in namespace %s to terminate, status : %+v", name, namespace, pod.Status)
 		time.Sleep(RetryInterval * time.Second)
 		inc++
 	}
@@ -1588,4 +1597,68 @@ func (k8sh *K8sHelper) ScaleStatefulSet(statefulSetName, namespace string, repli
 
 func IsKubectlErrorNotFound(output string, err error) bool {
 	return err != nil && strings.Contains(output, "Error from server (NotFound)")
+}
+
+// WaitForDeploymentCount waits until the desired number of deployments with the label exist. The
+// deployments are not guaranteed to be running, only existing.
+func (k8sh *K8sHelper) WaitForDeploymentCount(label, namespace string, count int) error {
+	options := metav1.ListOptions{LabelSelector: label}
+	for i := 0; i < RetryLoop; i++ {
+		deps, err := k8sh.Clientset.AppsV1().Deployments(namespace).List(options)
+		numDeps := 0
+		if err == nil {
+			numDeps = len(deps.Items)
+		}
+
+		if numDeps >= count {
+			logger.Infof("found %d of %d deployments with label %s in namespace %s", numDeps, count, label, namespace)
+			return nil
+		}
+
+		logger.Infof("waiting for %d deployments (found %d) with label %s in namespace %s", count, numDeps, label, namespace)
+		time.Sleep(RetryInterval * time.Second)
+	}
+	return fmt.Errorf("giving up waiting for %d deployments with label %s in namespace %s", count, label, namespace)
+}
+
+// WaitForLabeledDeploymentsToBeReady waits for all deployments matching the given label selector to
+// be fully ready with a default timeout.
+func (k8sh *K8sHelper) WaitForLabeledDeploymentsToBeReady(label, namespace string) error {
+	return k8sh.WaitForLabeledDeploymentsToBeReadyWithRetries(label, namespace, RetryLoop)
+}
+
+// WaitForLabeledDeploymentsToBeReadyWithRetries waits for all deployments matching the given label
+// selector to be fully ready. Retry the number of times given.
+func (k8sh *K8sHelper) WaitForLabeledDeploymentsToBeReadyWithRetries(label, namespace string, retries int) error {
+	listOpts := metav1.ListOptions{LabelSelector: label}
+	var lastDep apps.Deployment
+	for i := 0; i < retries; i++ {
+		deps, err := k8sh.Clientset.AppsV1().Deployments(namespace).List(listOpts)
+		ready := 0
+		if err == nil && len(deps.Items) > 0 {
+			for _, dep := range deps.Items {
+				if dep.Status.Replicas == dep.Status.ReadyReplicas {
+					ready++
+				} else {
+					lastDep = dep // make it the last non-ready dep
+				}
+				if ready == len(deps.Items) {
+					logger.Infof("all %d deployments with label %s are running", len(deps.Items), label)
+					return nil
+				}
+			}
+		}
+		logger.Infof("waiting for deployment(s) with label %s in namespace %s to be running. ready=%d/%d, err=%+v",
+			label, namespace, ready, len(deps.Items), err)
+		time.Sleep(RetryInterval * time.Second)
+	}
+	if len(lastDep.Name) == 0 {
+		logger.Infof("no deployment was found with label %s", label)
+	} else {
+		r, err := k8sh.Kubectl("-n", namespace, "get", "-o", "yaml", "deployments", "--selector", label)
+		if err != nil {
+			logger.Infof("deployments with label %s:\n%s", label, r)
+		}
+	}
+	return fmt.Errorf("giving up waiting for deployment(s) with label %s in namespace %s to be ready", label, namespace)
 }

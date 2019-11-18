@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	rookcephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
@@ -48,7 +49,9 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
 			Labels: c.getPodLabels(mgrConfig.DaemonID),
 		},
 		Spec: v1.PodSpec{
-			InitContainers: []v1.Container{},
+			InitContainers: []v1.Container{
+				c.makeChownInitContainer(mgrConfig),
+			},
 			Containers: []v1.Container{
 				c.makeMgrDaemonContainer(mgrConfig),
 			},
@@ -64,11 +67,11 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
 	// be equal to the pod's IP address. Note that when the fix is not needed,
 	// there is additional work done to clear fixes after upgrades. See
 	// clearHttpBindFix() method for more details.
-	if c.needHttpBindFix() {
-		podSpec.Spec.InitContainers = []v1.Container{
+	if c.needHTTPBindFix() {
+		podSpec.Spec.InitContainers = append(podSpec.Spec.InitContainers, []v1.Container{
 			c.makeSetServerAddrInitContainer(mgrConfig, "dashboard"),
 			c.makeSetServerAddrInitContainer(mgrConfig, "prometheus"),
-		}
+		}...)
 		// ceph config set commands want admin keyring
 		podSpec.Spec.Volumes = append(podSpec.Spec.Volumes,
 			keyring.Volume().Admin())
@@ -78,16 +81,11 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 	c.annotations.ApplyToObjectMeta(&podSpec.ObjectMeta)
+	c.applyPrometheusAnnotations(&podSpec.ObjectMeta)
 	c.placement.ApplyToPodSpec(&podSpec.Spec)
 
 	replicas := int32(1)
-	if len(c.annotations) == 0 {
-		prometheusAnnotations := map[string]string{
-			"prometheus.io/scrape": "true",
-			"prometheus.io/port":   strconv.Itoa(metricsPort),
-		}
-		podSpec.ObjectMeta.Annotations = prometheusAnnotations
-	}
+
 	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      mgrConfig.ResourceName,
@@ -111,7 +109,7 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
 	return d
 }
 
-func (c *Cluster) needHttpBindFix() bool {
+func (c *Cluster) needHTTPBindFix() bool {
 	needed := true
 
 	// if mimic and >= 13.2.6
@@ -137,47 +135,39 @@ func (c *Cluster) needHttpBindFix() bool {
 // always do this and (b) make sure that all forms of the configuration option
 // are removed (see the init container factory method). Once the minimum
 // supported version of Rook contains the fix, all of this can be removed.
-func (c *Cluster) clearHttpBindFix(mgrConfig *mgrConfig) {
-	for _, module := range []string{"dashboard", "prometheus"} {
-		// there are two forms of the configuration key that might exist which
-		// depends not on the current version, but on the version that may be
-		// the version being upgraded from.
-		for _, ver := range []cephver.CephVersion{cephver.Mimic} {
-			changed, err := client.MgrSetConfig(c.context, c.Namespace, mgrConfig.DaemonID, ver,
-				fmt.Sprintf("mgr/%s/server_addr", module), "", false)
-			logger.Infof("clearing http bind fix mod=%s ver=%s changed=%t err=%+v", module, &ver, changed, err)
+func (c *Cluster) clearHTTPBindFix() error {
+	// We only need to apply these changes once. No harm in once each time the operator restarts.
+	if c.appliedHttpBind {
+		return nil
+	}
+	for _, daemonID := range c.getDaemonIDs() {
+		for _, module := range []string{"dashboard", "prometheus"} {
+			// there are two forms of the configuration key that might exist which
+			// depends not on the current version, but on the version that may be
+			// the version being upgraded from.
+			for _, ver := range []cephver.CephVersion{cephver.Mimic} {
+				client.MgrSetConfig(c.context, c.Namespace, daemonID, ver,
+					fmt.Sprintf("mgr/%s/server_addr", module), "", false)
 
-			// this is for the format used in v1.0
-			// https://github.com/rook/rook/commit/11d318fb2f77a6ac9a8f2b9be42c826d3b4a93c3
-			changed, err = client.MgrSetConfig(c.context, c.Namespace, mgrConfig.DaemonID, ver,
-				fmt.Sprintf("mgr/%s/%s/server_addr", module, mgrConfig.DaemonID), "", false)
-			logger.Infof("clearing http bind fix mod=%s ver=%s changed=%t err=%+v", module, &ver, changed, err)
+				// this is for the format used in v1.0
+				// https://github.com/rook/rook/commit/11d318fb2f77a6ac9a8f2b9be42c826d3b4a93c3
+				client.MgrSetConfig(c.context, c.Namespace, daemonID, ver,
+					fmt.Sprintf("mgr/%s/%s/server_addr", module, daemonID), "", false)
+			}
 		}
 	}
+	c.appliedHttpBind = true
+	return nil
 }
 
-func (c *Cluster) makeCopyKeyringInitContainer(mgrConfig *mgrConfig) v1.Container {
-	// mgr does not obey `--keyring=/etc/ceph/keyring-store/keyring` flag, and always reports:
-	// "unable to find a keyring on /var/lib/ceph/mgr/ceph-a/keyring: (2) No such file or directory"
-	// Workaround: copy the keyring to the container data dir
-	container := v1.Container{
-		Name: "init-copy-keyring-to-data-dir",
-		Command: []string{
-			"cp",
-		},
-		Args: []string{
-			"--verbose",
-			"--preserve=all",
-			"--force", // overwrite existing keyring if exists
-			keyring.VolumeMount().KeyringFilePath(),
-			mgrConfig.DataPathMap.ContainerDataDir,
-		},
-		Image:        c.cephVersion.Image,
-		VolumeMounts: opspec.DaemonVolumeMounts(mgrConfig.DataPathMap, mgrConfig.ResourceName),
-		// no env vars needed
-		Resources: c.resources,
-	}
-	return container
+func (c *Cluster) makeChownInitContainer(mgrConfig *mgrConfig) v1.Container {
+	return opspec.ChownCephDataDirsInitContainer(
+		*mgrConfig.DataPathMap,
+		c.cephVersion.Image,
+		opspec.DaemonVolumeMounts(mgrConfig.DataPathMap, mgrConfig.ResourceName),
+		c.resources,
+		mon.PodSecurityContext(),
+	)
 }
 
 func (c *Cluster) makeSetServerAddrInitContainer(mgrConfig *mgrConfig, mgrModule string) v1.Container {
@@ -249,7 +239,7 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 			},
 			{
 				Name:          "dashboard",
-				ContainerPort: int32(mgrConfig.DashboardPort),
+				ContainerPort: int32(c.dashboardPort()),
 				Protocol:      v1.ProtocolTCP,
 			},
 		},
@@ -267,7 +257,6 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 			},
 			InitialDelaySeconds: 60,
 		},
-		Lifecycle:       opspec.PodLifeCycle(""),
 		SecurityContext: mon.PodSecurityContext(),
 	}
 
@@ -283,7 +272,7 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 }
 
 func (c *Cluster) makeMetricsService(name string) *v1.Service {
-	labels := opspec.AppLabels(appName, c.Namespace)
+	labels := opspec.AppLabels(AppName, c.Namespace)
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -307,8 +296,12 @@ func (c *Cluster) makeMetricsService(name string) *v1.Service {
 	return svc
 }
 
-func (c *Cluster) makeDashboardService(name string, port int) *v1.Service {
-	labels := opspec.AppLabels(appName, c.Namespace)
+func (c *Cluster) makeDashboardService(name string) *v1.Service {
+	labels := opspec.AppLabels(AppName, c.Namespace)
+	portName := "https-dashboard"
+	if !c.dashboard.SSL {
+		portName = "dashboard"
+	}
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-dashboard", name),
@@ -320,8 +313,8 @@ func (c *Cluster) makeDashboardService(name string, port int) *v1.Service {
 			Type:     v1.ServiceTypeClusterIP,
 			Ports: []v1.ServicePort{
 				{
-					Name:     "https-dashboard",
-					Port:     int32(port),
+					Name:     portName,
+					Port:     int32(c.dashboardPort()),
 					Protocol: v1.ProtocolTCP,
 				},
 			},
@@ -332,10 +325,23 @@ func (c *Cluster) makeDashboardService(name string, port int) *v1.Service {
 }
 
 func (c *Cluster) getPodLabels(daemonName string) map[string]string {
-	labels := opspec.PodLabels(appName, c.Namespace, "mgr", daemonName)
+	labels := opspec.PodLabels(AppName, c.Namespace, "mgr", daemonName)
 	// leave "instance" key for legacy usage
 	labels["instance"] = daemonName
 	return labels
+}
+
+func (c *Cluster) applyPrometheusAnnotations(objectMeta *metav1.ObjectMeta) error {
+	if len(c.annotations) == 0 {
+		t := rookalpha.Annotations{
+			"prometheus.io/scrape": "true",
+			"prometheus.io/port":   strconv.Itoa(metricsPort),
+		}
+
+		t.ApplyToObjectMeta(objectMeta)
+	}
+
+	return nil
 }
 
 func (c *Cluster) cephMgrOrchestratorModuleEnvs() []v1.EnvVar {

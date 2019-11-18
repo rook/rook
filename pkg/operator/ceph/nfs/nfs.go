@@ -25,6 +25,7 @@ import (
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
@@ -73,9 +74,9 @@ func (c *CephNFSController) upCephNFS(n cephv1.CephNFS, oldActive int) error {
 			ID:              id,
 			ConfigConfigMap: configName,
 			DataPathMap: &config.DataPathMap{
-				HostDataDir:      "",                          // nfs daemon does not store data on host, ...
-				ContainerDataDir: cephconfig.DefaultConfigDir, // does share data in containers using emptyDir, ...
-				HostLogDir:       "",                          // and does not log to /var/log/ceph dir
+				HostDataDir:        "",                          // nfs daemon does not store data on host, ...
+				ContainerDataDir:   cephconfig.DefaultConfigDir, // does share data in containers using emptyDir, ...
+				HostLogAndCrashDir: "",                          // and does not log to /var/log/ceph dir
 			},
 		}
 
@@ -88,7 +89,7 @@ func (c *CephNFSController) upCephNFS(n cephv1.CephNFS, oldActive int) error {
 			}
 			logger.Infof("ganesha deployment %s already exists. updating if needed", deployment.Name)
 			// We don't invoke ceph versions here since nfs do not show up in the service map (yet?)
-			if err := updateDeploymentAndWait(c.context, deployment, n.Namespace, "nfs", id, c.clusterInfo.CephVersion, c.isUpgrade); err != nil {
+			if err := updateDeploymentAndWait(c.context, deployment, n.Namespace, "nfs", id, c.clusterInfo.CephVersion, c.isUpgrade, c.clusterSpec.SkipUpgradeChecks); err != nil {
 				return fmt.Errorf("failed to update ganesha deployment %s. %+v", deployment.Name, err)
 			}
 		} else {
@@ -199,16 +200,6 @@ func (c *CephNFSController) downCephNFS(n cephv1.CephNFS, newActive int) error {
 
 		// Remove from grace db
 		c.removeServerFromDatabase(n, name)
-
-		// Delete the mds deployment
-		k8sutil.DeleteDeployment(c.context.Clientset, n.Namespace, instanceName(n, name))
-
-		// Delete the ganesha service
-		options := &metav1.DeleteOptions{}
-		err := c.context.Clientset.CoreV1().Services(n.Namespace).Delete(instanceName(n, name), options)
-		if err != nil && !errors.IsNotFound(err) {
-			logger.Warningf("failed to delete ganesha service. %+v", err)
-		}
 	}
 
 	return nil
@@ -238,6 +229,13 @@ func validateGanesha(context *clusterd.Context, n cephv1.CephNFS) error {
 	// Ganesha server properties
 	if n.Spec.Server.Active == 0 {
 		return fmt.Errorf("at least one active server required")
+	}
+
+	// We cannot run an NFS server if no MDS is running
+	// The existence of the pool provided in n.Spec.RADOS.Pool is necessary otherwise addRADOSConfigFile() will fail
+	_, err := client.GetPoolDetails(context, n.Namespace, n.Spec.RADOS.Pool)
+	if err != nil {
+		return fmt.Errorf("pool %s not found, did the filesystem cr successfully complete? %+v", n.Spec.RADOS.Pool, err)
 	}
 
 	return nil

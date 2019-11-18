@@ -113,6 +113,15 @@ func (ps *PodSpecTester) AssertRestartPolicyAlways() {
 	assert.Equal(ps.t, v1.RestartPolicyAlways, ps.spec.RestartPolicy)
 }
 
+// AssertChownContainer ensures that the init container to chown the Ceph data dir is present for
+// Ceph daemons.
+func (ps *PodSpecTester) AssertChownContainer(daemonType config.DaemonType) {
+	switch daemonType {
+	case config.MonType, config.MgrType, config.OsdType, config.MdsType, config.RgwType, config.RbdMirrorType:
+		assert.True(ps.t, containerExists("chown-container-data-dir", ps.spec))
+	}
+}
+
 // RunFullSuite runs all assertion tests for the PodSpec under test and its sub-resources.
 func (ps *PodSpecTester) RunFullSuite(
 	daemonType config.DaemonType,
@@ -129,9 +138,19 @@ func (ps *PodSpecTester) RunFullSuite(
 
 	ps.AssertVolumesMeetCephRequirements(daemonType, resourceName)
 	ps.AssertRestartPolicyAlways()
+	ps.AssertChownContainer(daemonType)
 	ps.Containers().RunFullSuite(cephImage, cpuResourceLimit, cpuResourceRequest, memoryResourceLimit, memoryResourceRequest)
 }
 
 func allContainers(p *v1.PodSpec) []v1.Container {
 	return append(p.InitContainers, p.Containers...)
+}
+
+func containerExists(containerName string, p *v1.PodSpec) bool {
+	for _, c := range p.InitContainers {
+		if c.Name == containerName {
+			return true
+		}
+	}
+	return false
 }

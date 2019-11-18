@@ -120,16 +120,16 @@ func NewCluster(c *yugabytedbv1alpha1.YBCluster, context *clusterd.Context) *clu
 		namespace:   c.Namespace,
 		spec:        c.Spec,
 		annotations: c.Spec.Annotations,
-		ownerRef:    clusterOwnerRef(c.Namespace, string(c.UID)),
+		ownerRef:    clusterOwnerRef(c.Name, string(c.UID)),
 	}
 }
 
-func clusterOwnerRef(namespace, clusterID string) metav1.OwnerReference {
+func clusterOwnerRef(name, clusterID string) metav1.OwnerReference {
 	blockOwner := true
 	return metav1.OwnerReference{
 		APIVersion:         fmt.Sprintf("%s/%s", ClusterResource.Group, ClusterResource.Version),
 		Kind:               ClusterResource.Kind,
-		Name:               namespace,
+		Name:               name,
 		UID:                types.UID(clusterID),
 		BlockOwnerDeletion: &blockOwner,
 	}

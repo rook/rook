@@ -26,6 +26,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -50,6 +51,21 @@ func GetSecretStore(context *clusterd.Context, namespace string, ownerRef *metav
 	return &SecretStore{
 		context:   context,
 		namespace: namespace,
+		ownerRef:  ownerRef,
+	}
+}
+
+// GetSecretStoreForDeployment returns a new SecretStore struct owned by the provided Deployment.
+func GetSecretStoreForDeployment(context *clusterd.Context, d *apps.Deployment) *SecretStore {
+	ownerRef := &metav1.OwnerReference{
+		UID:        d.UID,
+		APIVersion: "v1",
+		Kind:       "deployment",
+		Name:       d.GetName(),
+	}
+	return &SecretStore{
+		context:   context,
+		namespace: d.GetNamespace(),
 		ownerRef:  ownerRef,
 	}
 }
@@ -85,7 +101,7 @@ func (k *SecretStore) GenerateKey(user string, access []string) (string, error) 
 
 // CreateOrUpdate creates or updates the keyring secret for the resource with the keyring specified.
 // WARNING: Do not use "rook-ceph-admin" as the resource name; conflicts with the AdminStore.
-func (k *SecretStore) CreateOrUpdate(resourceName, keyring string) error {
+func (k *SecretStore) CreateOrUpdate(resourceName string, keyring string) error {
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      keyringSecretName(resourceName),
@@ -98,7 +114,7 @@ func (k *SecretStore) CreateOrUpdate(resourceName, keyring string) error {
 	}
 	k8sutil.SetOwnerRef(&secret.ObjectMeta, k.ownerRef)
 
-	return k.createSecret(secret)
+	return k.CreateSecret(secret)
 }
 
 // Delete deletes the keyring secret for the resource.
@@ -112,7 +128,8 @@ func (k *SecretStore) Delete(resourceName string) error {
 	return nil
 }
 
-func (k *SecretStore) createSecret(secret *v1.Secret) error {
+// CreateSecret creates or update a kubernetes secret
+func (k *SecretStore) CreateSecret(secret *v1.Secret) error {
 	secretName := secret.ObjectMeta.Name
 	_, err := k.context.Clientset.CoreV1().Secrets(k.namespace).Get(secretName, metav1.GetOptions{})
 	if err != nil {
@@ -125,6 +142,7 @@ func (k *SecretStore) createSecret(secret *v1.Secret) error {
 		}
 		return fmt.Errorf("failed to get secret for %s. %+v", secretName, err)
 	}
+
 	logger.Debugf("updating secret for %s", secretName)
 	if _, err := k.context.Clientset.CoreV1().Secrets(k.namespace).Update(secret); err != nil {
 		return fmt.Errorf("failed to update secret for %s. %+v", secretName, err)

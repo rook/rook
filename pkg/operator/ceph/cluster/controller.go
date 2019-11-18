@@ -20,9 +20,12 @@ package cluster
 import (
 	"fmt"
 	"os"
+	"path"
 	"reflect"
 	"sync"
 	"time"
+
+	"github.com/rook/rook/pkg/operator/ceph/csi"
 
 	"github.com/coreos/pkg/capnslog"
 	opkit "github.com/rook/operator-kit"
@@ -43,6 +46,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/pool"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+
 	v1 "k8s.io/api/core/v1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -57,6 +61,7 @@ import (
 const (
 	crushConfigMapName       = "rook-crush-config"
 	crushmapCreatedKey       = "initialCrushMapCreated"
+	enableFlexDriver         = "ROOK_ENABLE_FLEX_DRIVER"
 	clusterCreateInterval    = 6 * time.Second
 	clusterCreateTimeout     = 60 * time.Minute
 	updateClusterInterval    = 30 * time.Second
@@ -77,8 +82,11 @@ const (
 var (
 	logger        = capnslog.NewPackageLogger("github.com/rook/rook", "op-cluster")
 	finalizerName = fmt.Sprintf("%s.%s", ClusterResource.Name, ClusterResource.Group)
+	// disallowedHostDirectories directories which are not allowed to be used
+	disallowedHostDirectories = []string{"/etc/ceph", "/rook", "/var/log/ceph"}
 )
 
+// ClusterResource operator-kit Custom Resource Definition
 var ClusterResource = opkit.CustomResource{
 	Name:    "cephcluster",
 	Plural:  "cephclusters",
@@ -98,6 +106,7 @@ type ClusterController struct {
 	addClusterCallbacks []func(*cephv1.ClusterSpec) error
 	csiConfigMutex      *sync.Mutex
 	nodeStore           cache.Store
+	osdChecker          *osd.Monitor
 }
 
 // NewClusterController create controller for watching cluster custom resources created
@@ -259,29 +268,30 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 	// then populate clusterInfo
 	cluster.Info = populateExternalClusterInfo(c.context, namespace)
 
+	// Write connection info (ceph config file and keyring) for ceph commands
+	if cluster.Spec.CephVersion.Image == "" {
+		err = mon.WriteConnectionConfig(c.context, cluster.Info)
+		if err != nil {
+			logger.Errorf("failed to write config. Attempting to continue. %+v", err)
+		}
+	}
+
 	// Validate versions (local and external)
-	_, _, err = c.detectAndValidateCephVersion(cluster, cluster.Spec.CephVersion.Image)
-	if err != nil {
-		return fmt.Errorf("failed to detect and validate ceph version. %+v", err)
-	}
+	// If no image is specified we don't perform any checks
+	if cluster.Spec.CephVersion.Image != "" {
+		_, _, err = c.detectAndValidateCephVersion(cluster, cluster.Spec.CephVersion.Image)
+		if err != nil {
+			return fmt.Errorf("failed to detect and validate ceph version. %+v", err)
+		}
 
-	err = populateConfigOverrideConfigMap(cluster.context, namespace, cluster.ownerRef)
-	if err != nil {
-		return fmt.Errorf("failed to populate config override config map. %+v", err)
-	}
-
-	// Write the rook-ceph-config configmap (used by various daemons to apply config overrides)
-	// If we don't do this, daemons will never start, waiting forever for this configmap to be present
-	err = config.GetStore(cluster.context, namespace, &cluster.ownerRef).CreateOrUpdate(cluster.Info)
-	if err != nil {
-		return err
-	}
-
-	// Apply CRD ConfigOverrideName to the external cluster
-	err = config.SetDefaultConfigs(cluster.context, namespace, cluster.Info)
-	if err != nil {
-		// Mons are up, so something else is wrong
-		return fmt.Errorf("failed to set Rook and/or user-defined Ceph config options on the external cluster monitors. %+v", err)
+		// Write the rook-ceph-config configmap (used by various daemons to apply config overrides)
+		// If we don't do this, daemons will never start, waiting forever for this configmap to be present
+		//
+		// Only do this when doing a bit of management...
+		err = config.GetStore(cluster.context, namespace, &cluster.ownerRef).CreateOrUpdate(cluster.Info)
+		if err != nil {
+			return err
+		}
 	}
 
 	// The cluster Identity must be established at this point
@@ -292,6 +302,12 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 
 	// Everything went well so let's update the CR's status to "connected"
 	c.updateClusterStatus(namespace, name, cephv1.ClusterStateConnected, "")
+
+	// Create CSI Secrets
+	err = csi.CreateCSISecrets(c.context, namespace, &cluster.ownerRef)
+	if err != nil {
+		return fmt.Errorf("failed to create csi kubernetes secrets. %+v", err)
+	}
 
 	// Mark initialization has done
 	cluster.initCompleted = true
@@ -365,6 +381,15 @@ func (c *ClusterController) configureLocalCephCluster(namespace, name string, cl
 func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *cephv1.CephCluster) {
 	cluster.Spec = &clusterObj.Spec
 
+	// Check if the dataDirHostPath is located in the disallowed paths list
+	cleanDataDirHostPath := path.Clean(cluster.Spec.DataDirHostPath)
+	for _, b := range disallowedHostDirectories {
+		if cleanDataDirHostPath == b {
+			logger.Errorf("dataDirHostPath (given: %s) must not be used, conflicts with %s internal path", cluster.Spec.DataDirHostPath, b)
+			return
+		}
+	}
+
 	if !cluster.Spec.External.Enable {
 		if err := c.configureLocalCephCluster(clusterObj.Namespace, clusterObj.Name, cluster, clusterObj); err != nil {
 			logger.Errorf("failed to configure local ceph cluster. %+v", err)
@@ -421,8 +446,8 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 
 	if !cluster.Spec.External.Enable {
 		// Start the osd health checker only if running OSDs in the local ceph cluster
-		osdChecker := osd.NewMonitor(c.context, cluster.Namespace)
-		go osdChecker.Start(cluster.stopCh)
+		c.osdChecker = osd.NewMonitor(c.context, cluster.Namespace, cluster.Spec.RemoveOSDsIfOutAndSafeToRemove)
+		go c.osdChecker.Start(cluster.stopCh)
 	}
 
 	// Start the ceph status checker
@@ -547,6 +572,11 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 
 	logger.Infof("update event for cluster %s is supported, orchestrating update now", newClust.Namespace)
 
+	if oldClust.Spec.RemoveOSDsIfOutAndSafeToRemove != newClust.Spec.RemoveOSDsIfOutAndSafeToRemove {
+		logger.Infof("removeOSDsIfOutAndSafeToRemove is set to %t", newClust.Spec.RemoveOSDsIfOutAndSafeToRemove)
+		c.osdChecker.Update(newClust.Spec.RemoveOSDsIfOutAndSafeToRemove)
+	}
+
 	// if the image changed, we need to detect the new image version
 	versionChanged := false
 	if oldClust.Spec.CephVersion.Image != newClust.Spec.CephVersion.Image {
@@ -591,8 +621,12 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 			// check ceph's status, if not healthy we fail
 			cephStatus := client.IsCephHealthy(c.context, cluster.Namespace)
 			if !cephStatus {
-				logger.Errorf("ceph status in namespace %s is not healthy, refusing to upgrade. fix the cluster and re-edit the cluster CR to trigger a new orchestation update", cluster.Namespace)
-				return
+				if cluster.Spec.SkipUpgradeChecks {
+					logger.Warning("ceph is not healthy but SkipUpgradeChecks is set, forcing upgrade.")
+				} else {
+					logger.Errorf("ceph status in namespace %s is not healthy, refusing to upgrade. fix the cluster and re-edit the cluster CR to trigger a new orchestation update", cluster.Namespace)
+					return
+				}
 			}
 			// If Ceph is healthy let's start the upgrade!
 			cluster.isUpgrade = true
@@ -691,6 +725,10 @@ func (c *ClusterController) onDeviceCMUpdate(oldObj, newObj interface{}) {
 			logger.Infof("Cluster %s is not ready. Skipping orchestration on device change", cluster.Namespace)
 			continue
 		}
+		if len(cluster.Spec.Storage.StorageClassDeviceSets) > 0 {
+			logger.Info("skip orchestration on device config map update for OSDs on PVC")
+			continue
+		}
 		logger.Infof("Running orchestration for namespace %s after device change", cluster.Namespace)
 		err := cluster.createInstance(c.rookImage, cluster.Info.CephVersion)
 		if err != nil {
@@ -741,9 +779,7 @@ func (c *ClusterController) onDelete(obj interface{}) {
 	}
 }
 
-func (c *ClusterController) handleDelete(cluster *cephv1.CephCluster, retryInterval time.Duration) error {
-
-	operatorNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
+func (c *ClusterController) waitForFlexVolumeCleanup(cluster *cephv1.CephCluster, operatorNamespace string, retryInterval time.Duration) error {
 	retryCount := 0
 	for {
 		// TODO: filter this List operation by cluster namespace on the server side
@@ -780,11 +816,82 @@ func (c *ClusterController) handleDelete(cluster *cephv1.CephCluster, retryInter
 		}
 
 		logger.Infof("waiting for volume attachments in cluster %s to be cleaned up. Retrying in %s.",
-			cluster.Namespace, retryInterval)
+			cluster.Namespace, retryInterval.String())
 		<-time.After(retryInterval)
 	}
-
 	return nil
+}
+
+func (c *ClusterController) checkPVPresentInCluster(drivers []string, clusterID string) (bool, error) {
+	pv, err := c.context.Clientset.CoreV1().PersistentVolumes().List(metav1.ListOptions{})
+	if err != nil {
+		return false, fmt.Errorf("failed to list PV. %+v", err)
+	}
+
+	for _, p := range pv.Items {
+		if p.Spec.CSI == nil {
+			logger.Errorf("Spec.CSI is nil for PV %s", p.Name)
+			continue
+		}
+		if p.Spec.CSI.VolumeAttributes["clusterID"] == clusterID {
+			//check PV is created by drivers deployed by rook
+			for _, d := range drivers {
+				if d == p.Spec.CSI.Driver {
+					return true, nil
+				}
+			}
+
+		}
+	}
+	return false, nil
+}
+
+func (c *ClusterController) waitForCSIVolumeCleanup(cluster *cephv1.CephCluster, retryInterval time.Duration) error {
+	retryCount := 0
+	drivers := []string{csi.CephFSDriverName, csi.RBDDriverName}
+	for {
+		logger.Infof("checking any PVC created by drivers %s and %s with clusterID %s", csi.CephFSDriverName, csi.RBDDriverName, cluster.Namespace)
+		// check any PV is created in this cluster
+		attachmentsExist, err := c.checkPVPresentInCluster(drivers, cluster.Namespace)
+		if err != nil {
+			return fmt.Errorf("failed to list PersistentVolumes. %+v", err)
+		}
+		// no PVC created in this cluster
+		if !attachmentsExist {
+			logger.Infof("no volume attachments for cluster %s", cluster.Namespace)
+			break
+		}
+
+		retryCount++
+		if retryCount == clusterDeleteMaxRetries {
+			logger.Warningf(
+				"exceeded retry count while waiting for volume attachments for cluster %s to be cleaned up", cluster.Namespace)
+			break
+		}
+
+		logger.Infof("waiting for volume attachments in cluster %s to be cleaned up. Retrying in %s",
+			cluster.Namespace, retryInterval.String())
+		<-time.After(retryInterval)
+	}
+	return nil
+}
+
+func (c *ClusterController) handleDelete(cluster *cephv1.CephCluster, retryInterval time.Duration) error {
+	if csi.CSIEnabled() {
+		err := c.waitForCSIVolumeCleanup(cluster, retryInterval)
+		if err != nil {
+			return fmt.Errorf("failed to wait for the csi volume cleanup. %+v", err)
+		}
+	}
+	operatorNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
+	flexDriverEnabled := os.Getenv(enableFlexDriver) != "false"
+	if !flexDriverEnabled {
+		logger.Debugf("Flex driver disabled: no volume attachments for cluster %s (operator namespace: %s)",
+			cluster.Namespace, operatorNamespace)
+		return nil
+	}
+	err := c.waitForFlexVolumeCleanup(cluster, operatorNamespace, retryInterval)
+	return err
 }
 
 func purgeExternalCluster(clientset kubernetes.Interface, namespace string) error {
@@ -848,29 +955,11 @@ func (c *ClusterController) addFinalizer(namespace, name string) error {
 }
 
 func (c *ClusterController) removeFinalizer(obj interface{}) {
-	var fname string
-	var objectMeta *metav1.ObjectMeta
-
 	// first determine what type/version of cluster we are dealing with
-	if cl, ok := obj.(*cephv1.CephCluster); ok {
-		fname = finalizerName
-		objectMeta = &cl.ObjectMeta
-	} else {
-		logger.Warningf("cannot remove finalizer from object that is not a cluster: %+v", obj)
-		return
-	}
 
-	// remove the finalizer from the slice if it exists
-	found := false
-	for i, finalizer := range objectMeta.Finalizers {
-		if finalizer == fname {
-			objectMeta.Finalizers = append(objectMeta.Finalizers[:i], objectMeta.Finalizers[i+1:]...)
-			found = true
-			break
-		}
-	}
-	if !found {
-		logger.Infof("finalizer %s not found in the cluster crd '%s'", fname, objectMeta.Name)
+	cl, ok := obj.(*cephv1.CephCluster)
+	if !ok {
+		logger.Warningf("cannot remove finalizer from object that is not a cluster: %+v", obj)
 		return
 	}
 
@@ -878,21 +967,39 @@ func (c *ClusterController) removeFinalizer(obj interface{}) {
 	maxRetries := 5
 	retrySeconds := 5 * time.Second
 	for i := 0; i < maxRetries; i++ {
-		var err error
-		if cluster, ok := obj.(*cephv1.CephCluster); ok {
-			_, err = c.context.RookClientset.CephV1().CephClusters(cluster.Namespace).Update(cluster)
+		// Get the latest cluster instead of using the same instance in case it has been changed
+		cluster, err := c.context.RookClientset.CephV1().CephClusters(cl.Namespace).Get(cl.Name, metav1.GetOptions{})
+		if err != nil {
+			logger.Errorf("failed to remove finalizer. failed to get cluster. %+v", err)
+			return
+		}
+		objectMeta := &cluster.ObjectMeta
+
+		// remove the finalizer from the slice if it exists
+		found := false
+		for i, finalizer := range objectMeta.Finalizers {
+			if finalizer == finalizerName {
+				objectMeta.Finalizers = append(objectMeta.Finalizers[:i], objectMeta.Finalizers[i+1:]...)
+				found = true
+				break
+			}
+		}
+		if !found {
+			logger.Infof("finalizer %s not found in the cluster crd '%s'", finalizerName, objectMeta.Name)
+			return
 		}
 
+		_, err = c.context.RookClientset.CephV1().CephClusters(cluster.Namespace).Update(cluster)
 		if err != nil {
-			logger.Errorf("failed to remove finalizer %s from cluster %s. %+v", fname, objectMeta.Name, err)
+			logger.Errorf("failed to remove finalizer %s from cluster %s. %+v", finalizerName, objectMeta.Name, err)
 			time.Sleep(retrySeconds)
 			continue
 		}
-		logger.Infof("removed finalizer %s from cluster %s", fname, objectMeta.Name)
+		logger.Infof("removed finalizer %s from cluster %s", finalizerName, objectMeta.Name)
 		return
 	}
 
-	logger.Warningf("giving up from removing the %s cluster finalizer", fname)
+	logger.Warningf("giving up from removing the %s cluster finalizer", finalizerName)
 }
 
 // updateClusterStatus updates the status of the cluster custom resource, whether it is being updated or is completed
@@ -951,9 +1058,6 @@ func printOverallCephVersion(context *clusterd.Context, namespace string) {
 func validateExternalClusterSpec(cluster *cluster) error {
 	if cluster.Spec.DataDirHostPath == "" {
 		return fmt.Errorf("dataDirHostPath must be specified")
-	}
-	if cluster.Spec.CephVersion.Image == "" {
-		return fmt.Errorf("spec image must be specified")
 	}
 
 	return nil

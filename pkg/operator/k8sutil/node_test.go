@@ -299,34 +299,6 @@ func TestRookNodesMatchingKubernetesNodes(t *testing.T) {
 	// no k8s nodes specified
 	retNodes = RookNodesMatchingKubernetesNodes(rookStorage, []v1.Node{})
 	assert.Len(t, retNodes, 0)
-
-	// topology awareness
-	rookStorage.Nodes = []rookalpha.Node{
-		{Name: "node0"},
-		{Name: "node1"},
-		{Name: "node2"}}
-	rookStorage.TopologyAware = true
-
-	k8sNodes[0].ObjectMeta.Labels = map[string]string{
-		"failure-domain.beta.kubernetes.io/region": "region1",
-		"failure-domain.beta.kubernetes.io/zone":   "zone1",
-	}
-	k8sNodes[1].ObjectMeta.Labels = map[string]string{
-		"failure-domain.beta.kubernetes.io/region": "region1",
-		"failure-domain.beta.kubernetes.io/zone":   "zone2",
-		"foo":                                      "bar",
-	}
-	k8sNodes[2].ObjectMeta.Labels = map[string]string{}
-
-	retNodes = RookNodesMatchingKubernetesNodes(rookStorage, k8sNodes)
-	assert.Contains(t, retNodes[0].Location, "region=region1")
-	assert.Contains(t, retNodes[0].Location, "zone=zone1")
-	assert.Contains(t, retNodes[1].Location, "region=region1")
-	assert.Contains(t, retNodes[1].Location, "zone=zone2")
-	assert.NotContains(t, retNodes[1].Location, "foo=bar")
-	assert.NotContains(t, retNodes[2].Location, "region")
-	assert.NotContains(t, retNodes[2].Location, "zone")
-
 }
 
 func TestNodeIsInRookList(t *testing.T) {
@@ -342,7 +314,7 @@ func TestNodeIsInRookList(t *testing.T) {
 	assert.True(t, NodeIsInRookNodeList("node0-hostname", rookNodes))
 }
 
-func TestAddNodeAffinity(t *testing.T) {
+func TestGenerateNodeAffinity(t *testing.T) {
 	type args struct {
 		nodeAffinity string
 	}
@@ -353,7 +325,7 @@ func TestAddNodeAffinity(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "AddNodeAffinity",
+			name: "GenerateNodeAffinity",
 			args: args{
 				nodeAffinity: "rook.io/ceph=true",
 			},
@@ -375,7 +347,7 @@ func TestAddNodeAffinity(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "FailAddNodeAffinity",
+			name: "FailGenerateNodeAffinity",
 			args: args{
 				nodeAffinity: "rook.io/ceph,minio=true",
 			},
@@ -383,7 +355,7 @@ func TestAddNodeAffinity(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "AddNodeAffinityWithKeyOnly",
+			name: "GenerateNodeAffinityWithKeyOnly",
 			args: args{
 				nodeAffinity: "rook.io/ceph",
 			},
@@ -406,13 +378,13 @@ func TestAddNodeAffinity(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := AddNodeAffinity(tt.args.nodeAffinity)
+			got, err := GenerateNodeAffinity(tt.args.nodeAffinity)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("AddNodeAffinity() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("GenerateNodeAffinity() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("AddNodeAffinity() = %v, want %v", got, tt.want)
+				t.Errorf("GenerateNodeAffinity() = %v, want %v", got, tt.want)
 			}
 		})
 	}

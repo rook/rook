@@ -21,6 +21,8 @@ spec:
     - erasureCoded:
         dataChunks: 2
         codingChunks: 1
+  # Whether to preserve metadata and data pools on filesystem deletion
+  preservePoolsOnDelete: true
   # The metadata service (mds) configuration
   metadataServer:
     # The number of active MDS instances

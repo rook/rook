@@ -19,7 +19,6 @@ package installer
 import (
 	"fmt"
 	"os"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -31,8 +30,8 @@ import (
 const (
 	// Version tag for the latest manifests
 	VersionMaster = "master"
-	// Version tag for Rook v0.9
-	Version1_0 = "v1.0.1"
+	// Version tag for Rook v1.0
+	Version1_0 = "v1.0.6"
 	// test suite names
 	CassandraTestSuite   = "cassandra"
 	CephTestSuite        = "ceph"
@@ -45,11 +44,10 @@ const (
 var (
 	// ** Variables that might need to be changed depending on the dev environment. The init function below will modify some of them automatically. **
 	baseTestDir       string
-	forceUseDevices   = false
 	createBaseTestDir = true
 	// ** end of Variables to modify
 	logger              = capnslog.NewPackageLogger("github.com/rook/rook", "installer")
-	createArgs          = []string{"apply", "-f"}
+	createArgs          = []string{"create", "-f"}
 	createFromStdinArgs = append(createArgs, "-")
 	deleteArgs          = []string{"delete", "-f"}
 	deleteFromStdinArgs = append(deleteArgs, "-")
@@ -77,14 +75,13 @@ func SkipTestSuite(name string) bool {
 }
 
 func init() {
-	// this default will only work if running kubernetes on the local machine
-	baseTestDir, _ = os.Getwd()
-
-	// The following settings could apply to any environment when the kube context is running on the host and the tests are running inside a
-	// VM such as minikube. This is a cheap test for this condition, we need to find a better way to automate these settings.
-	if runtime.GOOS == "darwin" {
+	// If the base test directory is actively set to empty (as in CI), we use the current working directory.
+	baseTestDir = Env.BaseTestDir
+	if baseTestDir == "" {
+		baseTestDir, _ = os.Getwd()
+	}
+	if baseTestDir == "/data" {
 		createBaseTestDir = false
-		baseTestDir = "/data"
 	}
 }
 

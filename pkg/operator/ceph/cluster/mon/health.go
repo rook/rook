@@ -18,6 +18,7 @@ package mon
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -82,13 +83,13 @@ func (c *Cluster) checkHealth() error {
 
 	// connect to the mons
 	// get the status and check for quorum
-	status, err := client.GetMonStatus(c.context, c.ClusterInfo.Name, true)
+	quorumStatus, err := client.GetMonQuorumStatus(c.context, c.ClusterInfo.Name, true)
 	if err != nil {
-		return fmt.Errorf("failed to get mon status. %+v", err)
+		return fmt.Errorf("failed to get mon quorum status. %+v", err)
 	}
-	logger.Debugf("Mon status: %+v", status)
+	logger.Debugf("Mon quorum status: %+v", quorumStatus)
 	if c.spec.External.Enable {
-		return c.handleExternalMonStatus(status)
+		return c.handleExternalMonStatus(quorumStatus)
 	}
 
 	// Use a local mon count in case the user updates the crd in another goroutine.
@@ -105,8 +106,8 @@ func (c *Cluster) checkHealth() error {
 	// first handle mons that are not in quorum but in the ceph mon map
 	// failover the unhealthy mons
 	allMonsInQuorum := true
-	for _, mon := range status.MonMap.Mons {
-		inQuorum := monInQuorum(mon, status.Quorum)
+	for _, mon := range quorumStatus.MonMap.Mons {
+		inQuorum := monInQuorum(mon, quorumStatus.Quorum)
 		// if the mon is in quorum remove it from our check for "existence"
 		// else see below condition
 		if _, ok := monsNotFound[mon.Name]; ok {
@@ -114,7 +115,7 @@ func (c *Cluster) checkHealth() error {
 		} else {
 			// when the mon isn't in the clusterInfo, but is in quorum and there are
 			// enough mons, remove it else remove it on the next run
-			if inQuorum && len(status.MonMap.Mons) > desiredMonCount {
+			if inQuorum && len(quorumStatus.MonMap.Mons) > desiredMonCount {
 				logger.Warningf("mon %s not in source of truth but in quorum, removing", mon.Name)
 				c.removeMon(mon.Name)
 			} else {
@@ -122,7 +123,7 @@ func (c *Cluster) checkHealth() error {
 					"mon %s not in source of truth and not in quorum, not enough mons to remove now (wanted: %d, current: %d)",
 					mon.Name,
 					desiredMonCount,
-					len(status.MonMap.Mons),
+					len(quorumStatus.MonMap.Mons),
 				)
 			}
 		}
@@ -135,7 +136,7 @@ func (c *Cluster) checkHealth() error {
 				logger.Infof("mon %s is back in quorum, removed from mon out timeout list", mon.Name)
 			}
 		} else {
-			logger.Debugf("mon %s NOT found in quorum. Mon status: %+v", mon.Name, status)
+			logger.Debugf("mon %s NOT found in quorum. Mon quorum status: %+v", mon.Name, quorumStatus)
 			allMonsInQuorum = false
 
 			// If not yet set, add the current time, for the timeout
@@ -152,7 +153,7 @@ func (c *Cluster) checkHealth() error {
 			}
 
 			logger.Warningf("mon %s NOT found in quorum and timeout exceeded, mon will be failed over", mon.Name)
-			c.failMon(len(status.MonMap.Mons), desiredMonCount, mon.Name)
+			c.failMon(len(quorumStatus.MonMap.Mons), desiredMonCount, mon.Name)
 			// only deal with one unhealthy mon per health check
 			return nil
 		}
@@ -168,18 +169,18 @@ func (c *Cluster) checkHealth() error {
 	}
 
 	// create/start new mons when there are fewer mons than the desired count in the CRD
-	if len(status.MonMap.Mons) < desiredMonCount {
-		logger.Infof("adding mons. currently %d mons are in quorum and the desired count is %d.", len(status.MonMap.Mons), desiredMonCount)
+	if len(quorumStatus.MonMap.Mons) < desiredMonCount {
+		logger.Infof("adding mons. currently %d mons are in quorum and the desired count is %d.", len(quorumStatus.MonMap.Mons), desiredMonCount)
 		return c.startMons(desiredMonCount)
 	}
 
 	// remove extra mons if the desired count has decreased in the CRD and all the mons are currently healthy
-	if allMonsInQuorum && len(status.MonMap.Mons) > desiredMonCount {
-		if desiredMonCount < 2 && len(status.MonMap.Mons) == 2 {
+	if allMonsInQuorum && len(quorumStatus.MonMap.Mons) > desiredMonCount {
+		if desiredMonCount < 2 && len(quorumStatus.MonMap.Mons) == 2 {
 			logger.Warningf("cannot reduce mon quorum size from 2 to 1")
 		} else {
-			logger.Infof("removing an extra mon. currently %d are in quorum and only %d are desired", len(status.MonMap.Mons), desiredMonCount)
-			return c.removeMon(status.MonMap.Mons[0].Name)
+			logger.Infof("removing an extra mon. currently %d are in quorum and only %d are desired", len(quorumStatus.MonMap.Mons), desiredMonCount)
+			return c.removeMon(quorumStatus.MonMap.Mons[0].Name)
 		}
 	}
 
@@ -297,9 +298,12 @@ func removeMonitorFromQuorum(context *clusterd.Context, clusterName, name string
 }
 
 func (c *Cluster) handleExternalMonStatus(status client.MonStatusResponse) error {
-	_, err := cephspec.ValidateCephVersionsBetweenLocalAndExternalClusters(c.context, c.Namespace, c.ClusterInfo.CephVersion)
-	if err != nil {
-		return fmt.Errorf("failed to validate external ceph version. %+v", err)
+	// We don't need to validate Ceph version if no image is present
+	if c.spec.CephVersion.Image == "" {
+		_, err := cephspec.ValidateCephVersionsBetweenLocalAndExternalClusters(c.context, c.Namespace, c.ClusterInfo.CephVersion)
+		if err != nil {
+			return fmt.Errorf("failed to validate external ceph version. %+v", err)
+		}
 	}
 
 	changed, err := c.addOrRemoveExternalMonitor(status)
@@ -318,13 +322,13 @@ func (c *Cluster) handleExternalMonStatus(status client.MonStatusResponse) error
 }
 
 func (c *Cluster) addOrRemoveExternalMonitor(status client.MonStatusResponse) (bool, error) {
-	// func addOrRemoveExternalMonitor(status client.MonStatusResponse) (bool, error) {
 	var changed bool
-	// Populate a map with the current monitor from ClusterInfo
-	monsNotFound := map[string]interface{}{}
-	for _, mon := range c.ClusterInfo.Monitors {
-		monsNotFound[mon.Name] = struct{}{}
+	// clearing the content of clusterinfo monitors, it'll get populated in the next iteration
+	for mon := range c.ClusterInfo.Monitors {
+		delete(c.ClusterInfo.Monitors, mon)
 	}
+	logger.Infof("ClusterInfo is now Empty, refilling it from status.MonMap.Mons")
+	monsNotFound := map[string]interface{}{}
 
 	monCount := len(status.MonMap.Mons)
 	if monCount%2 == 0 {
@@ -343,14 +347,11 @@ func (c *Cluster) addOrRemoveExternalMonitor(status client.MonStatusResponse) (b
 			// If the mon is part of the quorum
 			if inQuorum {
 				// let's add it to ClusterInfo
-				// Always pick the v1 endpoint, that's the easier thing to do since some people might not have activated msgr2
-				// We must run on at least Nautilus so we are 100% certain that will have a field mon.PublicAddrs.Addrvec with 'v1' in it
-				var endpoint string
-				for i := range mon.PublicAddrs.Addrvec {
-					if mon.PublicAddrs.Addrvec[i].Type == "v1" {
-						endpoint = mon.PublicAddrs.Addrvec[i].Addr
-					}
-				}
+				// FYI mon.PublicAddr is "10.97.171.131:6789/0"
+				// so we need to remove '/0'
+				endpointSlash := strings.Split(mon.PublicAddr, "/")
+				endpoint := endpointSlash[0]
+
 				// find IP and Port of that Mon
 				monIP := cephutil.GetIPFromEndpoint(endpoint)
 				monPort := cephutil.GetPortFromEndpoint(endpoint)
@@ -373,71 +374,6 @@ func (c *Cluster) addOrRemoveExternalMonitor(status client.MonStatusResponse) (b
 		logger.Debugf("everything is fine mon %s in the clusterInfo and its quorum status is %v", mon.Name, inQuorum)
 	}
 
-	// Let's do a new iteration, over ClusterInfo this time to catch mon that might have disappeared
-	for _, mon := range c.ClusterInfo.Monitors {
-		// if the mon does not exist in the monmap
-		monInMonMap := isMonInMonMap(mon.Name, status.MonMap.Mons)
-		if !monInMonMap {
-			// mon is in clusterInfo but not part of the quorum removing it
-			logger.Infof("monitor %s disappeared from the external cluster monitor map, removing it", mon.Name)
-			delete(c.ClusterInfo.Monitors, mon.Name)
-			changed = true
-		} else {
-			// it's in the mon map but is it part of the quorum?
-			logger.Debug("need to check is the mon not in ClusterInfo is part of a quorum or not")
-			monInQuorum := isMonInQuorum(mon.Name, status.MonMap.Mons, status.Quorum)
-			if !monInQuorum {
-				logger.Infof("external mon %s in the mon map but not in quorum, removing it", mon.Name)
-				delete(c.ClusterInfo.Monitors, mon.Name)
-				changed = true
-			}
-		}
-		logger.Debugf("mon %s endpoint is %s", mon.Name, mon.Endpoint)
-	}
-
 	logger.Debugf("ClusterInfo.Monitors is %+v", c.ClusterInfo.Monitors)
 	return changed, nil
-}
-
-func isMonInMonMap(monToTest string, Mons []client.MonMapEntry) bool {
-	for _, m := range Mons {
-		if m.Name == monToTest {
-			logger.Debugf("mon %s is in the monmap!", monToTest)
-			return true
-		}
-	}
-
-	return false
-}
-
-func isMonInQuorum(monToTest string, Mons []client.MonMapEntry, quorum []int) bool {
-	monRank := getMonRank(monToTest, Mons)
-	if monRank == -1 {
-		// this is an error, we can't find the rank
-		// so we just return false and the mon will get deleted
-		logger.Debugf("mon %s rank is %d", monToTest, monRank)
-		return false
-	}
-
-	for _, rank := range quorum {
-		logger.Debugf("rank is %d, monRank is %d", rank, monRank)
-		if rank == monRank {
-			logger.Debugf("mon %s is part of the quorum", monToTest)
-			return true
-		}
-	}
-
-	logger.Debugf("could not find the rank %d for %s", monRank, monToTest)
-	return false
-}
-
-func getMonRank(monToTest string, Mons []client.MonMapEntry) int {
-	for _, m := range Mons {
-		if m.Name == monToTest {
-			logger.Debugf("mon rank is %d", m.Rank)
-			return m.Rank
-		}
-	}
-
-	return -1
 }

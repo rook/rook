@@ -102,6 +102,8 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig config.StoreConfig,
 	}
 	defer os.RemoveAll(configDir)
 	cephConfigDir = configDir
+	lvmConfPath = path.Join(configDir, "lvm.conf")
+	os.Create(lvmConfPath)
 
 	agent, executor, _ := createTestAgent(t, "sdx,sdy", configDir, "node1891", &storeConfig)
 
@@ -261,19 +263,19 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig config.StoreConfig,
 
 	if !legacyProvisioner {
 		if storeConfig.StoreType == config.Bluestore {
-			assert.Equal(t, 7, outputExecCount)
+			assert.Equal(t, 5, outputExecCount)
 			assert.Equal(t, 3, execCount)
 		} else {
-			assert.Equal(t, 6, outputExecCount)
+			assert.Equal(t, 5, outputExecCount)
 			// filestore on a device has two more calls than bluestore because of the mount/unmount commands of the legacy sdx device
 			// where sdy is created as the new c-v osd
 			assert.Equal(t, 5, execCount)
 		}
 	} else if storeConfig.StoreType == config.Bluestore {
-		assert.Equal(t, 12, outputExecCount) // Bluestore has 2 extra output exec calls to get device properties of each device to determine CRUSH weight
-		assert.Equal(t, 5, execCount)        // 1 osd mkfs for sdx, 3 partition steps for sdy, 1 osd mkfs for sdy
+		assert.Equal(t, 8, outputExecCount) // Bluestore has 2 extra output exec calls to get device properties of each device to determine CRUSH weight
+		assert.Equal(t, 5, execCount)       // 1 osd mkfs for sdx, 3 partition steps for sdy, 1 osd mkfs for sdy
 	} else {
-		assert.Equal(t, 10, outputExecCount)
+		assert.Equal(t, 8, outputExecCount)
 		assert.Equal(t, 10, execCount) // 1 for remount sdx, 1 osd mkfs for sdx, 3 partition steps for sdy, 1 mkfs for sdy, 1 mount for sdy, 1 osd mkfs for sdy
 	}
 }
@@ -333,7 +335,7 @@ func TestOSDAgentNoDevices(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 2, runCount)
 	assert.Equal(t, 0, startCount)
-	assert.Equal(t, 6, execWithOutputFileCount)
+	assert.Equal(t, 4, execWithOutputFileCount)
 	assert.Equal(t, 2, execWithOutputCount)
 }
 
@@ -374,7 +376,6 @@ func TestRemoveDevices(t *testing.T) {
 }
 
 func createTestAgent(t *testing.T, devices, configDir, nodeName string, storeConfig *config.StoreConfig) (*OsdAgent, *exectest.MockExecutor, *clusterd.Context) {
-	location := "root=here"
 	forceFormat := false
 	if storeConfig == nil {
 		storeConfig = &config.StoreConfig{StoreType: config.Bluestore}
@@ -403,7 +404,7 @@ func createTestAgent(t *testing.T, devices, configDir, nodeName string, storeCon
 	}
 	cluster := &cephconfig.ClusterInfo{Name: "myclust"}
 	context := &clusterd.Context{ConfigDir: configDir, Executor: executor, Clientset: testop.New(1)}
-	agent := NewAgent(context, desiredDevices, "", "", forceFormat, location, *storeConfig,
+	agent := NewAgent(context, desiredDevices, "", "", forceFormat, *storeConfig,
 		cluster, nodeName, mockKVStore(), false)
 
 	return agent, executor, context

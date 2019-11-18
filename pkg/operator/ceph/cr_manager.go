@@ -17,6 +17,7 @@ limitations under the License.
 package operator
 
 import (
+	"github.com/rook/rook/pkg/operator/ceph/cluster"
 	controllers "github.com/rook/rook/pkg/operator/ceph/disruption"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
 
@@ -36,13 +37,19 @@ func (o *Operator) startManager(stopCh <-chan struct{}) {
 		logger.Errorf("unable to set up overall controller-runtime manager: %+v", err)
 		return
 	}
+
+	// Add the registered controllers to the manager (entrypoint for controllers)
+	err = cluster.AddToManager(mgr)
+	if err != nil {
+		logger.Errorf("Can't add controllers to controller-runtime manager: %+v", err)
+	}
 	// options to pass to the controllers
 	controllerOpts := &controllerconfig.Context{
+		RookImage:         o.rookImage,
 		ClusterdContext:   o.context,
 		OperatorNamespace: o.operatorNamespace,
 		ReconcileCanaries: &controllerconfig.LockingBool{},
 	}
-
 	// Add the registered controllers to the manager (entrypoint for controllers)
 	err = controllers.AddToManager(mgr, controllerOpts)
 	if err != nil {

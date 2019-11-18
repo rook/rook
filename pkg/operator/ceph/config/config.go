@@ -21,6 +21,7 @@ package config
 
 import (
 	"fmt"
+	"path"
 	"strings"
 
 	"github.com/coreos/pkg/capnslog"
@@ -52,6 +53,9 @@ const (
 	// RbdMirrorType defines the rbd-mirror DaemonType
 	RbdMirrorType DaemonType = "rbd-mirror"
 
+	// CrashType defines the crash collector DaemonType
+	CrashType DaemonType = "crashcollector"
+
 	// CephUser is the Linux Ceph username
 	CephUser = "ceph"
 
@@ -72,12 +76,8 @@ var (
 	// may be needed to send data intended for /var/log/ceph to a temporary test dir.
 	VarLogCephDir = "/var/log/ceph"
 
-	// chownUserGroup represents ceph:ceph
-	chownUserGroup = CephUser + ":" + CephGroup
-
-	// ContainerPostStartCmd is the command we run before starting any Ceph daemon
-	// It makes sure Ceph directories are owned by 'ceph'
-	ContainerPostStartCmd = []string{"chown", "--recursive", chownUserGroup, VarLogCephDir}
+	// VarLibCephCrashDir defines Ceph crash reports directory.
+	VarLibCephCrashDir = path.Join(VarLibCephDir, "crash")
 )
 
 // normalizeKey converts a key in any format to a key with underscores.

@@ -112,14 +112,27 @@ spec:
             dataDirHostPath:
               pattern: ^/(\S+)
               type: string
+            disruptionManagement:
+              properties:
+                machineDisruptionBudgetNamespace:
+                  type: string
+                managePodBudgets:
+                  type: boolean
+                osdMaintenanceTimeout:
+                  type: integer
+                manageMachineDisruptionBudgets:
+                  type: boolean
+            skipUpgradeChecks:
+              type: boolean
             mon:
               properties:
                 allowMultiplePerNode:
                   type: boolean
                 count:
                   maximum: 9
-                  minimum: 1
+                  minimum: 0
                   type: integer
+                volumeClaimTemplate: {}
             mgr:
               properties:
                 modules:
@@ -133,10 +146,15 @@ spec:
               properties:
                 hostNetwork:
                   type: boolean
+                provider:
+                  type: string
+                selectors: {}
             storage:
               properties:
                 disruptionManagement:
                   properties:
+                    machineDisruptionBudgetNamespace:
+                      type: string
                     managePodBudgets:
                       type: boolean
                     osdMaintenanceTimeout:
@@ -184,13 +202,11 @@ spec:
                             name:
                               type: string
                             config: {}
-                      location: {}
                       resources: {}
                   type: array
                 useAllDevices:
                   type: boolean
                 deviceFilter: {}
-                location: {}
                 directories:
                   type: array
                   items:
@@ -198,8 +214,7 @@ spec:
                       path:
                         type: string
                 config: {}
-                topologyAware:
-                  type: boolean
+                storageClassDeviceSets: {}
             monitoring:
               properties:
                 enabled:
@@ -210,10 +225,14 @@ spec:
               properties:
                 workers:
                   type: integer
+            removeOSDsIfOutAndSafeToRemove:
+              type: boolean
+            external:
+              properties:
+                enable:
+                  type: boolean
             placement: {}
             resources: {}
-          required:
-          - mon
   additionalPrinterColumns:
     - name: DataDirHostPath
       type: string
@@ -256,6 +275,8 @@ spec:
             metadataServer:
               properties:
                 activeCount:
+                  minimum: 1
+                  maximum: 10
                   type: integer
                 activeStandby:
                   type: boolean
@@ -269,6 +290,8 @@ spec:
                 replicated:
                   properties:
                     size:
+                      minimum: 1
+                      maximum: 10
                       type: integer
                 erasureCoded:
                   properties:
@@ -285,6 +308,8 @@ spec:
                   replicated:
                     properties:
                       size:
+                        minimum: 1
+                        maximum: 10
                         type: integer
                   erasureCoded:
                     properties:
@@ -292,6 +317,8 @@ spec:
                         type: integer
                       codingChunks:
                         type: integer
+            preservePoolsOnDelete:
+              type: boolean
   additionalPrinterColumns:
     - name: ActiveMDS
       type: string
@@ -394,6 +421,8 @@ spec:
                       type: integer
                     codingChunks:
                       type: integer
+            preservePoolsOnDelete:
+              type: boolean
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -406,6 +435,9 @@ spec:
     listKind: CephObjectStoreUserList
     plural: cephobjectstoreusers
     singular: cephobjectstoreuser
+    shortNames:
+    - rcou
+    - objectuser
   scope: Namespaced
   version: v1
 ---
@@ -434,6 +466,8 @@ spec:
     listKind: VolumeList
     plural: volumes
     singular: volume
+    shortNames:
+    - rv
   scope: Namespaced
   version: v1alpha2
 ---
@@ -663,6 +697,7 @@ rules:
   - poddisruptionbudgets
   #this is for both clusterdisruption and nodedrain controllers
   - deployments
+  - replicasets
   verbs:
   - "*"
 - apiGroups:
@@ -687,6 +722,12 @@ rules:
   - create
   - update
   - delete
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - csidrivers
+  verbs:
+  - create
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
@@ -739,20 +780,6 @@ rules:
   - get
   - list
 ---
-# Allow the ceph osd to access cluster-wide resources necessary for determining their topology location 
-kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-osd
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: rook-ceph-osd
-subjects:
-- kind: ServiceAccount
-  name: rook-ceph-osd
-  namespace: ` + namespace + `
----
 # Aspects of Rook Ceph Agent that require access to secrets
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
@@ -788,7 +815,6 @@ kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-ceph-mgr-system
-  namespace: ` + namespace + `
 aggregationRule:
   clusterRoleSelectors:
   - matchLabels:
@@ -799,7 +825,6 @@ kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-ceph-mgr-system-rules
-  namespace: ` + namespace + `
   labels:
     rbac.ceph.rook.io/aggregate-to-rook-ceph-mgr-system: "true"
 rules:
@@ -811,6 +836,50 @@ rules:
   - get
   - list
   - watch
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-object-bucket
+  labels:
+    operator: rook
+    storage-backend: ceph
+    rbac.ceph.rook.io/aggregate-to-rook-ceph-mgr-cluster: "true"
+rules:
+- apiGroups:
+  - ""
+  verbs:
+  - "*"
+  resources:
+  - secrets
+  - configmaps
+- apiGroups:
+    - storage.k8s.io
+  resources:
+    - storageclasses
+  verbs:
+    - get
+    - list
+    - watch
+- apiGroups:
+  - "objectbucket.io"
+  verbs:
+  - "*"
+  resources:
+  - "*"
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-object-bucket
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-object-bucket
+subjects:
+  - kind: ServiceAccount
+    name: rook-ceph-system
+    namespace: ` + namespace + `
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -855,26 +924,11 @@ subjects:
   name: rook-ceph-system
   namespace: ` + namespace + `
 ---
-# Allow the ceph mgr to access cluster-wide resources necessary for the mgr modules
-kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-mgr-cluster
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: rook-ceph-mgr-cluster
-subjects:
-- kind: ServiceAccount
-  name: rook-ceph-mgr
-  namespace: ` + namespace + `
----
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: rook-csi-rbd-plugin-sa
   namespace: ` + namespace + `
-
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
@@ -911,7 +965,6 @@ rules:
   - apiGroups: [""]
     resources: ["secrets"]
     verbs: ["get", "list"]
-
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
@@ -931,7 +984,6 @@ kind: ServiceAccount
 metadata:
   name: rook-csi-rbd-provisioner-sa
   namespace: ` + namespace + `
-
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
@@ -986,7 +1038,6 @@ rules:
   - apiGroups: ["storage.k8s.io"]
     resources: ["volumeattachments"]
     verbs: ["get", "list", "watch", "update"]
-
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
@@ -1172,9 +1223,7 @@ roleRef:
   kind: Role
   name: cephfs-external-provisioner-cfg
   apiGroup: rbac.authorization.k8s.io
-
 ---
-
 apiVersion: policy/v1beta1
 kind: PodSecurityPolicy
 metadata:
@@ -1317,9 +1366,7 @@ subjects:
   - kind: ServiceAccount
     name: rook-csi-cephfs-plugin-sa
     namespace: ` + namespace + `
-
 ---
-
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -1364,56 +1411,14 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
+        - name: ROOK_ENABLE_FLEX_DRIVER
+          value: "true"
         - name: ROOK_CSI_ENABLE_CEPHFS
           value: "true"
         - name: ROOK_CSI_ENABLE_RBD
           value: "true"
         - name: ROOK_CSI_ENABLE_GRPC_METRICS
           value: "true"
----
-kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-object-bucket
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: rook-ceph-object-bucket
-subjects:
-  - kind: ServiceAccount
-    name: rook-ceph-system
-    namespace: ` + namespace + `
----
-kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-object-bucket
-  labels:
-    operator: rook
-    storage-backend: ceph
-    rbac.ceph.rook.io/aggregate-to-rook-ceph-mgr-cluster: "true"
-rules:
-- apiGroups:
-  - ""
-  verbs:
-  - "*"
-  resources:
-  - secrets
-  - configmaps
-- apiGroups:
-    - storage.k8s.io
-  resources:
-    - storageclasses
-  verbs:
-    - get
-    - list
-    - watch
-- apiGroups:
-  - "objectbucket.io"
-  verbs:
-  - "*"
-  resources:
-  - "*"
 `
 }
 
@@ -1483,6 +1488,34 @@ rules:
   - "*"
   verbs:
   - "*"
+---
+# Allow the ceph osd to access cluster-wide resources necessary for determining their topology location
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-osd-` + namespace + `
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-osd
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-osd
+  namespace: ` + namespace + `
+---
+# Allow the ceph mgr to access cluster-wide resources necessary for the mgr modules
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-mgr-cluster-` + namespace + `
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-mgr-cluster
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-mgr
+  namespace: ` + namespace + `
 ---
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1beta1
@@ -1637,6 +1670,11 @@ subjects:
 
 // GetRookCluster returns rook-cluster manifest
 func (m *CephManifestsMaster) GetRookCluster(settings *ClusterSettings) string {
+	store := "# storeType not specified; Rook will use default store types"
+	if settings.StoreType != "" {
+		store = `storeType: "` + settings.StoreType + `"`
+	}
+
 	return `apiVersion: ceph.rook.io/v1
 kind: CephCluster
 metadata:
@@ -1663,9 +1701,8 @@ spec:
     directories:
     - path: ` + settings.DataDirHostPath + /* simulate legacy fallback osd behavior so existing tests still work */ `
     deviceFilter:
-    location:
     config:
-      storeType: "` + settings.StoreType + `"
+      ` + store + `
       databaseSizeMB: "1024"
       journalSizeMB: "1024"
   mgr:

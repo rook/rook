@@ -18,6 +18,8 @@ package integration
 
 import (
 	"fmt"
+	"os"
+	"strings"
 	"time"
 
 	"testing"
@@ -34,6 +36,14 @@ import (
 
 const (
 	defaultNamespace = "default"
+	// UPDATE these versions when the integration test matrix changes
+	// These versions are for running a minimal test suite for more efficient tests across different versions of K8s
+	// instead of running all suites on all versions
+	blockMinimalTestVersion        = "1.12.0"
+	multiClusterMinimalTestVersion = "1.13.0"
+	helmMinimalTestVersion         = "1.14.0"
+	upgradeMinimalTestVersion      = "1.15.0"
+	smokeSuiteMinimalTestVersion   = "1.16.0"
 )
 
 var (
@@ -45,14 +55,14 @@ func checkIfRookClusterIsInstalled(s suite.Suite, k8sh *utils.K8sHelper, opNames
 	logger.Infof("Make sure all Pods in Rook Cluster %s are running", clusterNamespace)
 	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-ceph-operator", opNamespace, 1, "Running"),
 		"Make sure there is 1 rook-operator present in Running state")
-	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-ceph-agent", opNamespace, 1, "Running"),
-		"Make sure there is 1 rook-ceph-agent present in Running state")
 	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-ceph-mgr", clusterNamespace, 1, "Running"),
 		"Make sure there is 1 rook-ceph-mgr present in Running state")
 	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-ceph-osd", clusterNamespace, 1, "Running"),
 		"Make sure there is at lest 1 rook-ceph-osd present in Running state")
 	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-ceph-mon", clusterNamespace, mons, "Running"),
 		fmt.Sprintf("Make sure there are %d rook-ceph-mon present in Running state", mons))
+	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-ceph-crashcollector", clusterNamespace, 1, "Running"),
+		"Make sure there is at lest 1 rook-ceph-crash present in Running state")
 }
 
 func checkIfRookClusterIsHealthy(s suite.Suite, testClient *clients.TestClient, clusterNamespace string) {
@@ -97,12 +107,26 @@ type TestCluster struct {
 	rbdMirrorWorkers int
 }
 
+func checkIfShouldRunForMinimalTestMatrix(t func() *testing.T, k8sh *utils.K8sHelper, version string) {
+	testArgs := os.Getenv("TEST_ARGUMENTS")
+	if !strings.Contains(testArgs, "min-test-matrix") {
+		logger.Infof("running all tests")
+		return
+	}
+	if !k8sh.VersionMinorMatches(version) {
+		logger.Infof("Skipping test suite since kube version is not minor version %s", version)
+		t().Skip()
+	}
+	logger.Infof("Running test suite since kube version is minor version %s", version)
+}
+
 // StartTestCluster creates new instance of TestCluster struct
-func StartTestCluster(t func() *testing.T, namespace, storeType string, useHelm, useDevices bool, mons,
+func StartTestCluster(t func() *testing.T, minimalMatrixK8sVersion, namespace, storeType string, useHelm, useDevices bool, mons,
 	rbdMirrorWorkers int, rookVersion string, cephVersion cephv1.CephVersionSpec) (*TestCluster, *utils.K8sHelper) {
 
 	kh, err := utils.CreateK8sHelper(t)
 	require.NoError(t(), err)
+	checkIfShouldRunForMinimalTestMatrix(t, kh, minimalMatrixK8sVersion)
 
 	i := installer.NewCephInstaller(t, kh.Clientset, useHelm, rookVersion, cephVersion)
 

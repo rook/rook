@@ -64,7 +64,7 @@ spec:
             - "--drivername={{ .DriverNamePrefix }}cephfs.csi.ceph.com"
             - "--metadatastorage=k8s_configmap"
             - "--pidlimit=-1"
-            - "--metricsport=9091"
+            - "--metricsport={{ .CephFSGRPCMetricsPort }}"
             - "--metricspath=/metrics"
             - "--enablegrpcmetrics={{ .EnableCSIGRPCMetrics }}"
           env:
@@ -102,13 +102,13 @@ spec:
           args:
             - "--type=liveness"
             - "--endpoint=$(CSI_ENDPOINT)"
-            - "--metricsport=9081"
+            - "--metricsport={{ .CephFSLivenessMetricsPort }}"
             - "--metricspath=/metrics"
             - "--polltime=60s"
             - "--timeout=3s"
           env:
             - name: CSI_ENDPOINT
-              value: unix:///csi/csi.sock
+              value: unix:///csi/csi-provisioner.sock
             - name: POD_IP
               valueFrom:
                 fieldRef:
@@ -120,7 +120,7 @@ spec:
       volumes:
         - name: socket-dir
           hostPath:
-            path: /var/lib/kubelet/plugins/{{ .DriverNamePrefix }}cephfs.csi.ceph.com
+            path: "{{ .KubeletDirPath }}/plugins/{{ .DriverNamePrefix }}cephfs.csi.ceph.com"
             type: DirectoryOrCreate
         - name: host-sys
           hostPath:

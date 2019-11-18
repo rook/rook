@@ -77,7 +77,6 @@ storage:
 		},
 		Storage: rookalpha.StorageScopeSpec{
 			UseAllNodes: false,
-			Location:    "region=us-west,datacenter=delmar",
 			Selection: rookalpha.Selection{
 				UseAllDevices: &useAllDevices,
 				DeviceFilter:  "^sd.",

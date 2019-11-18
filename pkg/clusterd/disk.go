@@ -16,6 +16,8 @@ limitations under the License.
 package clusterd
 
 import (
+	"errors"
+	"fmt"
 	"regexp"
 	"strconv"
 
@@ -41,7 +43,6 @@ func ignoreDevice(d string) bool {
 
 // Discover all the details of devices available on the local node
 func DiscoverDevices(executor exec.Executor) ([]*sys.LocalDisk, error) {
-
 	var disks []*sys.LocalDisk
 	devices, err := sys.ListDevices(executor)
 	if err != nil {
@@ -54,33 +55,37 @@ func DiscoverDevices(executor exec.Executor) ([]*sys.LocalDisk, error) {
 			// skip device
 			continue
 		}
-		disk := PopulateDeviceInfo(d, executor)
-		if disk == nil {
+		disk, err := PopulateDeviceInfo(d, executor)
+		if err != nil {
+			// skip device
+			logger.Warningf("skipping device %s: %+v", d, err)
 			continue
 		}
-		disk = PopulateDeviceUdevInfo(d, executor, disk)
+		disk, err = PopulateDeviceUdevInfo(d, executor, disk)
+		if err != nil {
+			// go on without udev info
+			logger.Warningf("failed to get udev info for device %s: %+v", d, err)
+		}
 		disks = append(disks, disk)
 	}
 
 	return disks, nil
 }
 
-func PopulateDeviceInfo(d string, executor exec.Executor) *sys.LocalDisk {
+// PopulateDeviceInfo returns the information of the specified block device
+func PopulateDeviceInfo(d string, executor exec.Executor) (*sys.LocalDisk, error) {
 	diskProps, err := sys.GetDeviceProperties(d, executor)
 	if err != nil {
-		logger.Warningf("skipping device %s: %+v", d, err)
-		return nil
+		return nil, err
 	}
 
 	diskType, ok := diskProps["TYPE"]
 	if !ok || (diskType != sys.SSDType && diskType != sys.CryptType && diskType != sys.DiskType && diskType != sys.PartType && diskType != sys.LinearType) {
 		if !ok {
-			logger.Warningf("skipping device %s: diskType is empty", d)
+			return nil, errors.New("diskType is empty")
 		} else {
-			logger.Warningf("skipping device %s: unsupported diskType %+s", d, diskType)
+			return nil, fmt.Errorf("unsupported diskType %+s", diskType)
 		}
-		// unsupported disk type, just continue
-		return nil
 	}
 
 	// get the UUID for disks
@@ -88,8 +93,7 @@ func PopulateDeviceInfo(d string, executor exec.Executor) *sys.LocalDisk {
 	if diskType != sys.PartType {
 		diskUUID, err = sys.GetDiskUUID(d, executor)
 		if err != nil {
-			logger.Warningf("device %s has an unknown uuid. %+v", d, err)
-			return nil
+			return nil, err
 		}
 	}
 
@@ -117,14 +121,14 @@ func PopulateDeviceInfo(d string, executor exec.Executor) *sys.LocalDisk {
 		disk.Parent = val
 	}
 
-	return disk
+	return disk, nil
 }
 
-func PopulateDeviceUdevInfo(d string, executor exec.Executor, disk *sys.LocalDisk) *sys.LocalDisk {
+// PopulateDeviceUdevInfo fills the udev info into the block device information
+func PopulateDeviceUdevInfo(d string, executor exec.Executor, disk *sys.LocalDisk) (*sys.LocalDisk, error) {
 	udevInfo, err := sys.GetUdevInfo(d, executor)
 	if err != nil {
-		logger.Warningf("failed to get udev info for device %s: %+v", d, err)
-		return disk
+		return disk, err
 	}
 	// parse udev info output
 	if val, ok := udevInfo["DEVLINKS"]; ok {
@@ -153,5 +157,5 @@ func PopulateDeviceUdevInfo(d string, executor exec.Executor, disk *sys.LocalDis
 		disk.WWN = val
 	}
 
-	return disk
+	return disk, nil
 }

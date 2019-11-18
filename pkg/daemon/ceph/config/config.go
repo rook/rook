@@ -58,7 +58,6 @@ var (
 type GlobalConfig struct {
 	EnableExperimental       string `ini:"enable experimental unrecoverable data corrupting features,omitempty"`
 	FSID                     string `ini:"fsid,omitempty"`
-	RunDir                   string `ini:"run dir,omitempty"`
 	MonMembers               string `ini:"mon initial members,omitempty"`
 	MonHost                  string `ini:"mon host"`
 	LogFile                  string `ini:"log file,omitempty"`
@@ -88,7 +87,6 @@ type GlobalConfig struct {
 	OsdMaxObjectNameLen      int    `ini:"osd max object name len,omitempty"`
 	OsdMaxObjectNamespaceLen int    `ini:"osd max object namespace len,omitempty"`
 	OsdObjectStore           string `ini:"osd objectstore,omitempty"`
-	CrushLocation            string `ini:"crush location,omitempty"`
 	RbdDefaultFeatures       int    `ini:"rbd_default_features,omitempty"`
 	FatalSignalHandlers      string `ini:"fatal signal handlers"`
 }
@@ -146,7 +144,7 @@ func GenerateConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoo
 		logger.Warningf("failed to create config directory at %s: %+v", pathRoot, err)
 	}
 
-	configFile, err := createGlobalConfigFileSection(context, cluster, pathRoot, globalConfig)
+	configFile, err := createGlobalConfigFileSection(context, cluster, globalConfig)
 	if err != nil {
 		return "", fmt.Errorf("failed to create global config section, %+v", err)
 	}
@@ -176,7 +174,7 @@ func getQualifiedUser(user string) string {
 }
 
 // CreateDefaultCephConfig creates a default ceph config file.
-func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, runDir string) (*CephConfig, error) {
+func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo) (*CephConfig, error) {
 
 	cephVersionEnv := os.Getenv("ROOK_CEPH_VERSION")
 	if cephVersionEnv != "" {
@@ -197,7 +195,7 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, ru
 		monIP := cephutil.GetIPFromEndpoint(monitor.Endpoint)
 
 		// This tries to detect the current port if the mon already exists
-		// This basically handles the transtion between monitors running on 6790 to msgr2
+		// This basically handles the transition between monitors running on 6790 to msgr2
 		// So whatever the previous monitor port was we keep it
 		currentMonPort := cephutil.GetPortFromEndpoint(monitor.Endpoint)
 
@@ -214,7 +212,7 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, ru
 		// The operator always fails this test since it does not have the env var 'ROOK_CEPH_VERSION'
 		podName := os.Getenv("POD_NAME")
 		if cluster.CephVersion.IsAtLeastNautilus() {
-			monHosts[i] = "v1:" + msgr1Endpoint
+			monHosts[i] = msgr1Prefix + msgr1Endpoint
 		} else if podName != "" && strings.Contains(podName, "operator") {
 			// This is an operator and its version is always based on Nautilus
 			// so it knows how to parse both msgr1 and msgr2 syntax
@@ -232,7 +230,6 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, ru
 	conf := &CephConfig{
 		GlobalConfig: &GlobalConfig{
 			FSID:                   cluster.FSID,
-			RunDir:                 runDir,
 			MonMembers:             strings.Join(monMembers, " "),
 			MonHost:                strings.Join(monHosts, ","),
 			PublicAddr:             context.NetworkInfo.PublicAddr,
@@ -263,9 +260,9 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, ru
 	}
 
 	// Everything before 14.2.1
-	// These new flags control Ceph's daemon logging behaviour to files
+	// These new flags control Ceph's daemon logging behavior to files
 	// By default we set them to False so no logs get written on file
-	// However they can be actived at any time via the centralized config store
+	// However they can be activated at any time via the centralized config store
 	if !cluster.CephVersion.IsAtLeast(cephver.CephVersion{Major: 14, Minor: 2, Extra: 1}) {
 		conf.LogFile = "/dev/stderr"
 		conf.MonClusterLogFile = "/dev/stderr"
@@ -275,7 +272,7 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, ru
 }
 
 // create a config file with global settings configured, and return an ini file
-func createGlobalConfigFileSection(context *clusterd.Context, cluster *ClusterInfo, runDir string, userConfig *CephConfig) (*ini.File, error) {
+func createGlobalConfigFileSection(context *clusterd.Context, cluster *ClusterInfo, userConfig *CephConfig) (*ini.File, error) {
 
 	var ceph *CephConfig
 
@@ -284,7 +281,7 @@ func createGlobalConfigFileSection(context *clusterd.Context, cluster *ClusterIn
 		ceph = userConfig
 	} else {
 		var err error
-		ceph, err = CreateDefaultCephConfig(context, cluster, runDir)
+		ceph, err = CreateDefaultCephConfig(context, cluster)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create default ceph config. %+v", err)
 		}

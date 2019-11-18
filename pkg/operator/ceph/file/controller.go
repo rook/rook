@@ -97,6 +97,12 @@ func (c *FilesystemController) StartWatch(namespace string, stopCh chan struct{}
 }
 
 func (c *FilesystemController) onAdd(obj interface{}) {
+
+	if c.clusterSpec.External.Enable && c.clusterSpec.CephVersion.Image == "" {
+		logger.Warningf("Creating filesystems for an external ceph cluster is disabled because no Ceph image is specified")
+		return
+	}
+
 	filesystem, err := getFilesystemObject(obj)
 	if err != nil {
 		logger.Errorf("failed to get filesystem object: %+v", err)
@@ -116,13 +122,18 @@ func (c *FilesystemController) onAdd(obj interface{}) {
 		}
 	}
 
-	err = createFilesystem(c.clusterInfo, c.context, *filesystem, c.rookVersion, c.clusterSpec, c.filesystemOwners(filesystem), c.clusterSpec.DataDirHostPath, c.isUpgrade)
+	err = createFilesystem(c.clusterInfo, c.context, *filesystem, c.rookVersion, c.clusterSpec, c.filesystemOwner(filesystem), c.clusterSpec.DataDirHostPath, c.isUpgrade)
 	if err != nil {
 		logger.Errorf("failed to create filesystem %s: %+v", filesystem.Name, err)
 	}
 }
 
 func (c *FilesystemController) onUpdate(oldObj, newObj interface{}) {
+	if c.clusterSpec.External.Enable && c.clusterSpec.CephVersion.Image == "" {
+		logger.Warningf("Updating filesystems for an external ceph cluster is disabled because no Ceph image is specified")
+		return
+	}
+
 	oldFS, err := getFilesystemObject(oldObj)
 	if err != nil {
 		logger.Errorf("failed to get old filesystem object: %+v", err)
@@ -144,7 +155,7 @@ func (c *FilesystemController) onUpdate(oldObj, newObj interface{}) {
 
 	// if the filesystem is modified, allow the filesystem to be created if it wasn't already
 	logger.Infof("updating filesystem %s", newFS.Name)
-	err = createFilesystem(c.clusterInfo, c.context, *newFS, c.rookVersion, c.clusterSpec, c.filesystemOwners(newFS), c.clusterSpec.DataDirHostPath, c.isUpgrade)
+	err = createFilesystem(c.clusterInfo, c.context, *newFS, c.rookVersion, c.clusterSpec, c.filesystemOwner(newFS), c.clusterSpec.DataDirHostPath, c.isUpgrade)
 	if err != nil {
 		logger.Errorf("failed to create (modify) filesystem %s: %+v", newFS.Name, err)
 	}
@@ -172,7 +183,7 @@ func (c *FilesystemController) ParentClusterChanged(cluster cephv1.ClusterSpec, 
 	}
 	for _, fs := range filesystems.Items {
 		logger.Infof("updating the ceph version for filesystem %s to %s", fs.Name, c.clusterSpec.CephVersion.Image)
-		err = createFilesystem(c.clusterInfo, c.context, fs, c.rookVersion, c.clusterSpec, c.filesystemOwners(&fs), c.clusterSpec.DataDirHostPath, c.isUpgrade)
+		err = createFilesystem(c.clusterInfo, c.context, fs, c.rookVersion, c.clusterSpec, c.filesystemOwner(&fs), c.clusterSpec.DataDirHostPath, c.isUpgrade)
 		if err != nil {
 			logger.Errorf("failed to update filesystem %s. %+v", fs.Name, err)
 		} else {
@@ -182,6 +193,11 @@ func (c *FilesystemController) ParentClusterChanged(cluster cephv1.ClusterSpec, 
 }
 
 func (c *FilesystemController) onDelete(obj interface{}) {
+	if c.clusterSpec.External.Enable && c.clusterSpec.CephVersion.Image == "" {
+		logger.Warningf("Deleting filesystems for an external ceph cluster is disabled because no Ceph image is specified")
+		return
+	}
+
 	filesystem, err := getFilesystemObject(obj)
 	if err != nil {
 		logger.Errorf("failed to get filesystem object: %+v", err)
@@ -197,12 +213,14 @@ func (c *FilesystemController) onDelete(obj interface{}) {
 	}
 }
 
-func (c *FilesystemController) filesystemOwners(fs *cephv1.CephFilesystem) []metav1.OwnerReference {
-	// Only set the cluster crd as the owner of the filesystem resources.
-	// If the filesystem crd is deleted, the operator will explicitly remove the filesystem resources.
-	// If the filesystem crd still exists when the cluster crd is deleted, this will make sure the filesystem
-	// resources are cleaned up.
-	return []metav1.OwnerReference{c.ownerRef}
+func (c *FilesystemController) filesystemOwner(fs *cephv1.CephFilesystem) metav1.OwnerReference {
+	// Set the filesystem CR as the owner
+	return metav1.OwnerReference{
+		APIVersion: fmt.Sprintf("%s/%s", FilesystemResource.Group, FilesystemResource.Version),
+		Kind:       FilesystemResource.Kind,
+		Name:       fs.Name,
+		UID:        fs.UID,
+	}
 }
 
 func filesystemChanged(oldFS, newFS cephv1.FilesystemSpec) bool {
@@ -217,6 +235,11 @@ func filesystemChanged(oldFS, newFS cephv1.FilesystemSpec) bool {
 	if oldFS.MetadataServer.ActiveStandby != newFS.MetadataServer.ActiveStandby {
 		logger.Infof("mds active standby changed from %t to %t", oldFS.MetadataServer.ActiveStandby, newFS.MetadataServer.ActiveStandby)
 		return true
+	}
+	if oldFS.PreservePoolsOnDelete != newFS.PreservePoolsOnDelete {
+		logger.Infof("value of Preserve pools setting changed from %t to %t", oldFS.PreservePoolsOnDelete, newFS.PreservePoolsOnDelete)
+		// This setting only will be used when the filesystem will be deleted
+		return false
 	}
 	return false
 }

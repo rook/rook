@@ -30,10 +30,12 @@ func (m *Mirroring) makeDeployment(daemonConfig *daemonConfig) *apps.Deployment 
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   daemonConfig.ResourceName,
-			Labels: opspec.PodLabels(appName, m.Namespace, string(config.RbdMirrorType), daemonConfig.DaemonID),
+			Labels: opspec.PodLabels(AppName, m.Namespace, string(config.RbdMirrorType), daemonConfig.DaemonID),
 		},
 		Spec: v1.PodSpec{
-			InitContainers: []v1.Container{},
+			InitContainers: []v1.Container{
+				m.makeChownInitContainer(daemonConfig),
+			},
 			Containers: []v1.Container{
 				m.makeMirroringDaemonContainer(daemonConfig),
 			},
@@ -53,7 +55,7 @@ func (m *Mirroring) makeDeployment(daemonConfig *daemonConfig) *apps.Deployment 
 			Name:        daemonConfig.ResourceName,
 			Namespace:   m.Namespace,
 			Annotations: m.annotations,
-			Labels:      opspec.PodLabels(appName, m.Namespace, string(config.RbdMirrorType), daemonConfig.DaemonID),
+			Labels:      opspec.PodLabels(AppName, m.Namespace, string(config.RbdMirrorType), daemonConfig.DaemonID),
 		},
 		Spec: apps.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
@@ -67,6 +69,16 @@ func (m *Mirroring) makeDeployment(daemonConfig *daemonConfig) *apps.Deployment 
 	opspec.AddCephVersionLabelToDeployment(m.ClusterInfo.CephVersion, d)
 	k8sutil.SetOwnerRef(&d.ObjectMeta, &m.ownerRef)
 	return d
+}
+
+func (m *Mirroring) makeChownInitContainer(daemonConfig *daemonConfig) v1.Container {
+	return opspec.ChownCephDataDirsInitContainer(
+		*daemonConfig.DataPathMap,
+		m.cephVersion.Image,
+		opspec.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName),
+		m.resources,
+		mon.PodSecurityContext(),
+	)
 }
 
 func (m *Mirroring) makeMirroringDaemonContainer(daemonConfig *daemonConfig) v1.Container {
@@ -84,7 +96,6 @@ func (m *Mirroring) makeMirroringDaemonContainer(daemonConfig *daemonConfig) v1.
 		VolumeMounts:    opspec.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName),
 		Env:             opspec.DaemonEnvVars(m.cephVersion.Image),
 		Resources:       m.resources,
-		Lifecycle:       opspec.PodLifeCycle(""),
 		SecurityContext: mon.PodSecurityContext(),
 	}
 	return container

@@ -37,6 +37,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/rbd"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/csi"
 	cephspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -104,6 +105,9 @@ func (c *cluster) detectCephVersion(rookImage, cephImage string, timeout time.Du
 	job := versionReporter.Job()
 	job.Spec.Template.Spec.ServiceAccountName = "rook-ceph-cmd-reporter"
 
+	// Apply the same node selector and tolerations for the ceph version detection as the mon daemons
+	cephv1.GetMonPlacement(c.Spec.Placement).ApplyToPodSpec(&job.Spec.Template.Spec)
+
 	stdout, stderr, retcode, err := versionReporter.Run(timeout)
 	if err != nil {
 		return nil, fmt.Errorf("failed to complete ceph version job. %+v", err)
@@ -123,7 +127,6 @@ func (c *cluster) detectCephVersion(rookImage, cephImage string, timeout time.Du
 }
 
 func (c *cluster) validateCephVersion(version *cephver.CephVersion) error {
-	// The external has its own supported versions
 	if !c.Spec.External.Enable {
 		if !version.IsAtLeast(cephver.Minimum) {
 			return fmt.Errorf("the version does not meet the minimum version: %s", cephver.Minimum.String())
@@ -136,6 +139,7 @@ func (c *cluster) validateCephVersion(version *cephver.CephVersion) error {
 			}
 		}
 	}
+
 	// The following tries to determine if the operator can proceed with an upgrade because we come from an OnAdd() call
 	// If the cluster was unhealthy and someone injected a new image version, an upgrade was triggered but failed because the cluster is not healthy
 	// Then after this, if the operator gets restarted we are not able to fail if the cluster is not healthy, the following tries to determine the
@@ -157,11 +161,18 @@ func (c *cluster) validateCephVersion(version *cephver.CephVersion) error {
 		return nil
 	}
 
-	if c.Spec.External.Enable {
+	if c.Spec.External.Enable && c.Spec.CephVersion.Image != "" {
 		c.Info.CephVersion, err = cephspec.ValidateCephVersionsBetweenLocalAndExternalClusters(c.context, c.Namespace, *version)
 		if err != nil {
 			return fmt.Errorf("failed to validate ceph version between external and local. %+v", err)
 		}
+	}
+
+	// On external cluster setup, if we don't bootstrap any resources in the Kubernetes cluster then
+	// there is no need to validate the Ceph image further
+	if c.Spec.External.Enable && c.Spec.CephVersion.Image == "" {
+		logger.Debug("no spec image specified on external cluster, not validating Ceph version.")
+		return nil
 	}
 
 	// Get cluster running versions
@@ -186,7 +197,11 @@ func (c *cluster) validateCephVersion(version *cephver.CephVersion) error {
 		// check ceph's status, if not healthy we fail
 		cephHealthy := client.IsCephHealthy(c.context, c.Namespace)
 		if !cephHealthy {
-			return fmt.Errorf("ceph status in namespace %s is not healthy, refusing to upgrade. fix the cluster and re-edit the cluster CR to trigger a new orchestation update", c.Namespace)
+			if c.Spec.SkipUpgradeChecks {
+				logger.Warning("ceph is not healthy but SkipUpgradeChecks is set, forcing upgrade.")
+			} else {
+				return fmt.Errorf("ceph status in namespace %s is not healthy, refusing to upgrade. fix the cluster and re-edit the cluster CR to trigger a new orchestation update", c.Namespace)
+			}
 		}
 		c.isUpgrade = true
 	}
@@ -255,9 +270,16 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 			return fmt.Errorf("the cluster identity was not established: %+v", c.Info)
 		}
 
+		// Execute actions after the monitors are up and running
+		logger.Debug("monitors are up and running, executing post actions")
+		err = c.postMonStartupActions()
+		if err != nil {
+			return fmt.Errorf("failed to execute post actions after all the monitors started. %+v", err)
+		}
+
 		mgrs := mgr.New(c.Info, c.context, c.Namespace, rookImage,
 			spec.CephVersion, cephv1.GetMgrPlacement(spec.Placement), cephv1.GetMgrAnnotations(c.Spec.Annotations),
-			spec.Network, spec.Dashboard, spec.Monitoring, spec.Mgr, cephv1.GetMgrResources(spec.Resources), c.ownerRef, c.Spec.DataDirHostPath, c.isUpgrade)
+			spec.Network, spec.Dashboard, spec.Monitoring, spec.Mgr, cephv1.GetMgrResources(spec.Resources), c.ownerRef, c.Spec.DataDirHostPath, c.isUpgrade, c.Spec.SkipUpgradeChecks)
 		err = mgrs.Start()
 		if err != nil {
 			return fmt.Errorf("failed to start the ceph mgr. %+v", err)
@@ -266,7 +288,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 		// Start the OSDs
 		osds := osd.New(c.Info, c.context, c.Namespace, rookImage, spec.CephVersion, spec.Storage, spec.DataDirHostPath,
 			cephv1.GetOSDPlacement(spec.Placement), cephv1.GetOSDAnnotations(spec.Annotations), spec.Network,
-			cephv1.GetOSDResources(spec.Resources), c.ownerRef, c.isUpgrade)
+			cephv1.GetOSDResources(spec.Resources), cephv1.GetPrepareOSDResources(spec.Resources), c.ownerRef, c.isUpgrade, c.Spec.SkipUpgradeChecks)
 		err = osds.Start()
 		if err != nil {
 			return fmt.Errorf("failed to start the osds. %+v", err)
@@ -275,7 +297,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 		// Start the rbd mirroring daemon(s)
 		rbdmirror := rbd.New(c.Info, c.context, c.Namespace, rookImage, spec.CephVersion, cephv1.GetRBDMirrorPlacement(spec.Placement),
 			cephv1.GetRBDMirrorAnnotations(spec.Annotations), spec.Network, spec.RBDMirroring,
-			cephv1.GetRBDMirrorResources(spec.Resources), c.ownerRef, c.Spec.DataDirHostPath, c.isUpgrade)
+			cephv1.GetRBDMirrorResources(spec.Resources), c.ownerRef, c.Spec.DataDirHostPath, c.isUpgrade, c.Spec.SkipUpgradeChecks)
 		err = rbdmirror.Start()
 		if err != nil {
 			return fmt.Errorf("failed to start the rbd mirrors. %+v", err)
@@ -286,7 +308,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 	}
 
 	// Notify the child controllers that the cluster spec might have changed
-	logger.Debug("notifying CR childs of the potential upgrade")
+	logger.Debug("notifying CR child of the potential upgrade")
 	for _, child := range c.childControllers {
 		child.ParentClusterChanged(*c.Spec, c.Info, c.isUpgrade)
 	}
@@ -313,11 +335,13 @@ func clusterChanged(oldCluster, newCluster cephv1.ClusterSpec, clusterRef *clust
 			// resource.Quantity has non-exportable fields, so we use its comparator method
 			resourceQtyComparer := cmp.Comparer(func(x, y resource.Quantity) bool { return x.Cmp(y) == 0 })
 			diff = cmp.Diff(oldCluster, newCluster, resourceQtyComparer)
-			logger.Infof("The Cluster CR has changed. diff=%s", diff)
 		}()
-		return true, diff
-	}
+		if diff != "" {
+			logger.Infof("The Cluster CR has changed. diff=%s", diff)
+			return true, diff
+		}
 
+	}
 	return false, ""
 }
 
@@ -355,12 +379,12 @@ func (c *cluster) checkSetOrchestrationStatus() bool {
 func diffImageSpecAndClusterRunningVersion(imageSpecVersion cephver.CephVersion, runningVersions client.CephDaemonsVersions) (bool, error) {
 	numberOfCephVersions := len(runningVersions.Overall)
 	if numberOfCephVersions == 0 {
-		// let's return immediatly
+		// let's return immediately
 		return false, fmt.Errorf("no 'overall' section in the ceph versions. %+v", runningVersions.Overall)
 	}
 
 	if numberOfCephVersions > 1 {
-		// let's return immediatly
+		// let's return immediately
 		logger.Warningf("it looks like we have more than one ceph version running. triggering upgrade. %+v:", runningVersions.Overall)
 		return true, nil
 	}
@@ -392,4 +416,37 @@ func diffImageSpecAndClusterRunningVersion(imageSpecVersion cephver.CephVersion,
 	}
 
 	return false, nil
+}
+
+// postMonStartupActions is a collection of actions to run once the monitors are up and running
+// It gets executed right after the main mon Start() method
+// Basically, it is executed between the monitors and the manager sequence
+func (c *cluster) postMonStartupActions() error {
+	// Create CSI Kubernetes Secrets
+	err := csi.CreateCSISecrets(c.context, c.Namespace, &c.ownerRef)
+	if err != nil {
+		return fmt.Errorf("failed to create csi kubernetes secrets. %+v", err)
+	}
+
+	// Enable Ceph messenger 2 protocol on Nautilus
+	if c.Info.CephVersion.IsAtLeastNautilus() {
+		v, err := client.GetCephMonVersion(c.context, c.Info.Name)
+		if err != nil {
+			return fmt.Errorf("failed to get ceph mon version. %+v", err)
+		}
+		if v.IsAtLeastNautilus() {
+			versions, err := client.GetAllCephDaemonVersions(c.context, c.Info.Name)
+			if err != nil {
+				return fmt.Errorf("failed to get ceph daemons versions. %+v", err)
+			}
+			if len(versions.Mon) == 1 {
+				// If length is one, this clearly indicates that all the mons are running the same version
+				// We are doing this because 'ceph version' might return the Ceph version that a majority of mons has but not all of them
+				// so instead of trying to active msgr2 when mons are not ready, we activate it when we believe that's the right time
+				client.EnableMessenger2(c.context, c.Namespace)
+			}
+		}
+	}
+
+	return nil
 }

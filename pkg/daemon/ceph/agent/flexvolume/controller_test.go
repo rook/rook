@@ -18,11 +18,6 @@ limitations under the License.
 package flexvolume
 
 import (
-	"bytes"
-	"encoding/json"
-	"io"
-	"io/ioutil"
-	"net/http"
 	"os"
 	"testing"
 
@@ -34,11 +29,10 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 )
 
 func TestAttach(t *testing.T) {
@@ -509,10 +503,16 @@ func TestOrphanAttachOriginalPodNameSame(t *testing.T) {
 		volumeManager:    &manager.FakeVolumeManager{},
 	}
 
-	// Attach should succeed and the stale volumeattachment record should be updated to reflect the new pod information
+	// Attach should fail because the pod is on a different node
 	devicePath := ""
 	err = controller.Attach(opts, &devicePath)
-	assert.Nil(t, err)
+	assert.Error(t, err)
+
+	// Attach should succeed and the stale volumeattachment record should be updated to reflect the new pod information
+	// since the pod is restarting on the same node
+	os.Setenv(k8sutil.NodeNameEnvVar, "otherNode")
+	err = controller.Attach(opts, &devicePath)
+	assert.NoError(t, err)
 
 	volAtt, err := context.RookClientset.RookV1alpha2().Volumes("rook-system").Get("pvc-123", metav1.GetOptions{})
 	assert.Nil(t, err)
@@ -524,7 +524,7 @@ func TestOrphanAttachOriginalPodNameSame(t *testing.T) {
 			PodName:      opts.Pod,
 			MountDir:     opts.MountDir,
 			ReadOnly:     false,
-			Node:         "node1",
+			Node:         "otherNode",
 		}, volAtt.Attachments,
 	), "Volume crd does not contain expected attachment")
 }
@@ -825,20 +825,6 @@ func TestGetCRDNameFromMountDirInvalid(t *testing.T) {
 	mountDir := "volumes/rook.io~rook/pvc-b8aea7f4-99ea-11e7-8994-0800277c89a7"
 	_, _, err := getPodAndPVNameFromMountDir(mountDir)
 	assert.NotNil(t, err)
-}
-
-func defaultHeader() http.Header {
-	header := http.Header{}
-	header.Set("Content-Type", runtime.ContentTypeJSON)
-	return header
-}
-
-func objBody(object interface{}) io.ReadCloser {
-	output, err := json.MarshalIndent(object, "", "")
-	if err != nil {
-		panic(err)
-	}
-	return ioutil.NopCloser(bytes.NewReader([]byte(output)))
 }
 
 func containsAttachment(attachment rookalpha.Attachment, attachments []rookalpha.Attachment) bool {

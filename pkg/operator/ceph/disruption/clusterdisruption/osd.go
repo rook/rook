@@ -19,13 +19,17 @@ package clusterdisruption
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
+
+	"github.com/rook/rook/pkg/operator/ceph/disruption/nodedrain"
 
 	cephClient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -156,6 +160,12 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 
 	pgHealthMsg, clean, err := cephClient.IsClusterClean(r.context.ClusterdContext, request.Namespace)
 	if err != nil {
+		// If the error contains that message, this means the cluster is not up and running
+		// No monitors are present and thus no ceph configuration has been created
+		if strings.Contains(err.Error(), "error calling conf_read_file") {
+			logger.Debugf("Ceph %q cluster not ready, cannot check Ceph status yet.", request.Namespace)
+			return nil
+		}
 		return fmt.Errorf("could not check cluster health: %+v", err)
 	}
 	_, ok := pdbStateMap.Data[disabledPDBKey]
@@ -168,7 +178,7 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 		if clean {
 			pdbStateMap.Data[disabledPDBKey] = drainingFailureDomains[0]
 		}
-	} else {
+	} else if clean {
 		pdbStateMap.Data[disabledPDBKey] = ""
 	}
 
@@ -180,6 +190,27 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 	err = r.client.Update(context.TODO(), pdbStateMap)
 	if err != nil {
 		return fmt.Errorf("could not update %s in cluster %s: %+v", pdbStateMapName, request, err)
+	}
+	drainingFailureDomain, ok := pdbStateMap.Data[disabledPDBKey]
+	if ok && clean && len(drainingFailureDomain) > 0 {
+
+		canaryLabels := client.MatchingLabels{k8sutil.AppAttr: nodedrain.CanaryAppName, poolFailureDomain: drainingFailureDomain}
+
+		// list and delete only if it's old
+		drainingCanaryList := &appsv1.DeploymentList{}
+		err := r.client.List(context.TODO(), drainingCanaryList, canaryLabels, client.InNamespace(r.context.OperatorNamespace))
+		if err != nil {
+			return fmt.Errorf("could not list canary pods by labels %q: %+v", canaryLabels, err)
+		}
+		// refresh old canaries in draining failure domain
+		for _, drainingCanary := range drainingCanaryList.Items {
+			if time.Since(drainingCanary.GetCreationTimestamp().Time) > time.Minute && drainingCanary.Status.ReadyReplicas < 1 {
+				err := r.client.Delete(context.TODO(), &drainingCanary)
+				if err != nil {
+					logger.Warningf("could not delete canary deployment %q in namespace %q: %+v", drainingCanary.GetName(), drainingCanary.GetNamespace(), err)
+				}
+			}
+		}
 	}
 	for failureDomain, osdDataList := range allFailureDomainsMap {
 		for _, osdData := range osdDataList {
@@ -205,16 +236,17 @@ func (r *ReconcileClusterDisruption) updateNoout(pdbStateMap *corev1.ConfigMap, 
 	if err != nil {
 		return fmt.Errorf("could not get osddump for reconciling maintenance noout in namespace %s: %+v", namespace, err)
 	}
-	disabledFailureDomainTimeStampKey := fmt.Sprintf("%s-noout-set-at", disabledFailureDomain)
 	for failureDomain := range allFailureDomainsMap {
+		disabledFailureDomainTimeStampKey := fmt.Sprintf("%s-noout-last-set-at", failureDomain)
 		if disabledFailureDomain == failureDomain {
+
+			// get the time stamp
 			nooutSetTimeString, ok := pdbStateMap.Data[disabledFailureDomainTimeStampKey]
-			if !ok {
-				pdbStateMap.Data[disabledFailureDomainTimeStampKey] = time.Now().Format(time.RFC3339)
-			} else if len(nooutSetTimeString) == 0 {
+			if !ok || len(nooutSetTimeString) == 0 {
+				// initialize it if it's not set
 				pdbStateMap.Data[disabledFailureDomainTimeStampKey] = time.Now().Format(time.RFC3339)
 			}
-
+			// parse the timestamp
 			nooutSetTime, err := time.Parse(time.RFC3339, pdbStateMap.Data[disabledFailureDomainTimeStampKey])
 			if err != nil {
 				return fmt.Errorf("could not parse timestamp %s for failureDomain %s", pdbStateMap.Data[disabledFailureDomainTimeStampKey], nooutSetTime)
@@ -228,15 +260,10 @@ func (r *ReconcileClusterDisruption) updateNoout(pdbStateMap *corev1.ConfigMap, 
 			}
 
 		} else {
-			delete(pdbStateMap.Data, disabledFailureDomainTimeStampKey)
 			// ensure noout unset
 			osdDump.UpdateFlagOnCrushUnit(r.context.ClusterdContext, false, namespace, failureDomain, nooutFlag)
-		}
-		// cleanup
-		for key := range pdbStateMap.Data {
-			if key != disabledPDBKey && key != disabledFailureDomainTimeStampKey {
-				delete(pdbStateMap.Data, key)
-			}
+			// delete the timestamp
+			delete(pdbStateMap.Data, disabledFailureDomainTimeStampKey)
 		}
 	}
 	return nil

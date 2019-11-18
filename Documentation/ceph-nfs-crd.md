@@ -6,8 +6,8 @@ indent: true
 
 # Ceph NFS Gateway CRD
 
-
 ## Overview
+
 Rook allows exporting NFS shares of the filesystem or object store through the CephNFS custom resource definition. This will spin up a cluster of [NFS Ganesha](https://github.com/nfs-ganesha/nfs-ganesha) servers that coordinate with one another via shared RADOS objects. The servers will be configured for NFSv4.1+ access, as serving earlier protocols can inhibit responsiveness after a server restart.
 
 ## Samples
@@ -64,15 +64,15 @@ spec:
 
 ### RADOS Settings
 
-- `pool`: The pool where ganesha recovery backend and supplemental configuration objects will be stored
-- `namespace`: The namespace in `pool` where ganesha recovery backend and supplemental configuration objects will be stored
+* `pool`: The pool where ganesha recovery backend and supplemental configuration objects will be stored
+* `namespace`: The namespace in `pool` where ganesha recovery backend and supplemental configuration objects will be stored
 
 ## EXPORT Block Configuration
 
 Each daemon will have a stock configuration with no exports defined, and that includes a RADOS object via:
 
-```
-%url	rados://<pool>/<namespace>/conf-<nodeid>
+```ini
+%url  rados://<pool>/<namespace>/conf-<nodeid>
 ```
 
 The pool and namespace are configured via the spec's RADOS block. The nodeid is a value automatically assigned internally by rook. Nodeids start with "a" and go through "z", at which point they become two letters ("aa" to "az").

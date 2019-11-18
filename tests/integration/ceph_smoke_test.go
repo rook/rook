@@ -74,7 +74,7 @@ func (suite *SmokeSuite) SetupSuite() {
 	useDevices := true
 	mons := 3
 	rbdMirrorWorkers := 1
-	suite.op, suite.k8sh = StartTestCluster(suite.T, suite.namespace, "bluestore", false, useDevices, mons, rbdMirrorWorkers, installer.VersionMaster, installer.NautilusVersion)
+	suite.op, suite.k8sh = StartTestCluster(suite.T, smokeSuiteMinimalTestVersion, suite.namespace, "bluestore", false, useDevices, mons, rbdMirrorWorkers, installer.VersionMaster, installer.NautilusVersion)
 	suite.helper = clients.CreateTestClient(suite.k8sh, suite.op.installer.Manifests)
 }
 
@@ -96,10 +96,6 @@ func (suite *SmokeSuite) TestBlockStorage_SmokeTest() {
 
 func (suite *SmokeSuite) TestFileStorage_SmokeTest() {
 	runFileE2ETest(suite.helper, suite.k8sh, suite.Suite, suite.namespace, "smoke-test-fs")
-}
-
-func (suite *SmokeSuite) TestFileStorageMountUser_SmokeTest() {
-	runFileMountUserE2ETest(suite.helper, suite.k8sh, suite.Suite, suite.namespace, "smoke-test-fs-mountuser")
 }
 
 func (suite *SmokeSuite) TestObjectStorage_SmokeTest() {

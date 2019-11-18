@@ -20,10 +20,14 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"os"
+	"strconv"
+	"strings"
 	"text/template"
 
-	"github.com/ghodss/yaml"
+	k8sutil "github.com/rook/rook/pkg/operator/k8sutil"
 
+	"github.com/ghodss/yaml"
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -98,4 +102,74 @@ func templateToDeployment(name, templatePath string, p templateParam) (*apps.Dep
 		return nil, fmt.Errorf("failed to unmarshal deployment template %+v", err)
 	}
 	return &ds, nil
+}
+
+func getToleration(provisioner bool) []corev1.Toleration {
+	// Add toleration if any
+	tolerations := []corev1.Toleration{}
+	var err error
+	tolerationsRaw := ""
+	if provisioner {
+		tolerationsRaw = os.Getenv(provisionerTolerationsEnv)
+	} else {
+		tolerationsRaw = os.Getenv(pluginTolerationsEnv)
+	}
+	if tolerationsRaw != "" {
+		tolerations, err = k8sutil.YamlToTolerations(tolerationsRaw)
+		if err != nil {
+			logger.Warningf("failed to parse %s. %+v", tolerationsRaw, err)
+		}
+	}
+	for i := range tolerations {
+		if tolerations[i].Key == "" {
+			tolerations[i].Operator = corev1.TolerationOpExists
+		}
+
+		if tolerations[i].Operator == corev1.TolerationOpExists {
+			tolerations[i].Value = ""
+		}
+	}
+	return tolerations
+}
+
+func getNodeAffinity(provisioner bool) *corev1.NodeAffinity {
+	// Add NodeAffinity if any
+	nodeAffinity := ""
+	if provisioner {
+		nodeAffinity = os.Getenv(provisionerNodeAffinityEnv)
+	} else {
+		nodeAffinity = os.Getenv(pluginNodeAffinityEnv)
+	}
+	if nodeAffinity != "" {
+		v1NodeAffinity, err := k8sutil.GenerateNodeAffinity(nodeAffinity)
+		if err != nil {
+			logger.Warningf("failed to parse %s. %+v", nodeAffinity, err)
+		}
+		return v1NodeAffinity
+	}
+	return nil
+}
+
+func applyToPodSpec(pod *corev1.PodSpec, n *corev1.NodeAffinity, t []corev1.Toleration) {
+	pod.Tolerations = t
+	pod.Affinity = &corev1.Affinity{
+		NodeAffinity: n,
+	}
+}
+
+func getPortFromENV(env string, defaultPort uint16) uint16 {
+	port := os.Getenv(env)
+	if strings.TrimSpace(port) == "" {
+		return defaultPort
+	}
+	p, err := strconv.ParseUint(port, 10, 64)
+	if err != nil {
+		logger.Debugf("failed to parse port value for env %s. using default port %d. %+v", env, defaultPort, err)
+		return defaultPort
+	}
+	if p > 65535 {
+		logger.Debugf("%s port value is greater than 65535. using default port %d for %s", port, defaultPort, env)
+		return defaultPort
+	}
+	return uint16(p)
 }

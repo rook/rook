@@ -39,6 +39,7 @@ var (
 		"rgw.meta",
 		"rgw.log",
 		"rgw.buckets.index",
+		"rgw.buckets.non-ec",
 	}
 	dataPools = []string{
 		"rgw.buckets.data",
@@ -66,7 +67,7 @@ func createObjectStore(context *Context, metadataSpec, dataSpec model.Pool, serv
 	return nil
 }
 
-func deleteRealmAndPools(context *Context) error {
+func deleteRealmAndPools(context *Context, preservePoolsOnDelete bool) error {
 	stores, err := getObjectStores(context)
 	if err != nil {
 		return fmt.Errorf("failed to detect object stores during deletion. %+v", err)
@@ -83,9 +84,13 @@ func deleteRealmAndPools(context *Context) error {
 		lastStore = true
 	}
 
-	err = deletePools(context, lastStore)
-	if err != nil {
-		return fmt.Errorf("failed to delete object store pools. %+v", err)
+	if !preservePoolsOnDelete {
+		err = deletePools(context, lastStore)
+		if err != nil {
+			return fmt.Errorf("failed to delete object store pools. %+v", err)
+		}
+	} else {
+		logger.Infof("PreservePoolsOnDelete is set in object store %s. Pools not deleted", context.Name)
 	}
 	return nil
 }

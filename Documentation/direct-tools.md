@@ -19,7 +19,8 @@ This example will show how the Ceph rbd volume can be mounted in the toolbox pod
 After you have started and connected to the [Rook toolbox](ceph-toolbox.md), proceed with the following commands in the toolbox.
 
 Create a volume image (10MB):
-```bash
+
+```console
 rbd create replicapool/test --size 10
 rbd info replicapool/test
 
@@ -28,7 +29,8 @@ rbd feature disable replicapool/test fast-diff deep-flatten object-map
 ```
 
 Map the block volume and format it and mount it:
-```bash
+
+```console
 # Map the rbd device. If the toolbox was started with "hostNetwork: false" this hangs and you have to stop it with Ctrl-C,
 # however the command still succeeds; see https://github.com/rook/rook/issues/2021
 rbd map replicapool/test
@@ -45,7 +47,8 @@ mount /dev/rbd0 /tmp/rook-volume
 ```
 
 Write and read a file:
-```bash
+
+```console
 echo "Hello Rook" > /tmp/rook-volume/hello
 cat /tmp/rook-volume/hello
 ```
@@ -53,20 +56,21 @@ cat /tmp/rook-volume/hello
 ### Unmount the Block device
 
 Unmount the volume and unmap the kernel device:
-```bash
+
+```console
 umount /tmp/rook-volume
 rbd unmap /dev/rbd0
 ```
 
 ## Shared Filesystem Tools
 
-After you have created a file system as described in the [Shared Filesystem](ceph-filesystem.md) topic, you can mount the filesystem from multiple pods.
-The the other topic you may have mounted the filesystem already in the registry pod. Now we will mount the same file system in the toolbox pod.
-This is just a simple way to validate the Ceph file system and is not recommended for production Kubernetes pods.
+After you have created a filesystem as described in the [Shared Filesystem](ceph-filesystem.md) topic, you can mount the filesystem from multiple pods.
+The the other topic you may have mounted the filesystem already in the registry pod. Now we will mount the same filesystem in the toolbox pod.
+This is just a simple way to validate the Ceph filesystem and is not recommended for production Kubernetes pods.
 
 After you have started and connected to the [Rook toolbox](ceph-toolbox.md), proceed with the following commands in the toolbox.
 
-```bash
+```console
 # Create the directory
 mkdir /tmp/registry
 
@@ -74,21 +78,22 @@ mkdir /tmp/registry
 mon_endpoints=$(grep mon_host /etc/ceph/ceph.conf | awk '{print $3}')
 my_secret=$(grep key /etc/ceph/keyring | awk '{print $3}')
 
-# Mount the file system
+# Mount the filesystem
 mount -t ceph -o mds_namespace=myfs,name=admin,secret=$my_secret $mon_endpoints:/ /tmp/registry
 
-# See your mounted file system
+# See your mounted filesystem
 df -h
 ```
 
-Now you should have a mounted file system. If you have pushed images to the registry you will see a directory called `docker`.
-```
+Now you should have a mounted filesystem. If you have pushed images to the registry you will see a directory called `docker`.
+
+```console
 ls /tmp/registry
 ```
 
-Try writing and reading a file to the shared file system.
+Try writing and reading a file to the shared filesystem.
 
-```bash
+```console
 echo "Hello Rook" > /tmp/registry/hello
 cat /tmp/registry/hello
 
@@ -98,10 +103,11 @@ rm -f /tmp/registry/hello
 
 ### Unmount the Filesystem
 
-To unmount the shared file system from the toolbox pod:
-```bash
+To unmount the shared filesystem from the toolbox pod:
+
+```console
 umount /tmp/registry
 rmdir /tmp/registry
 ```
 
-No data will be deleted by unmounting the file system.
+No data will be deleted by unmounting the filesystem.

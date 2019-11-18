@@ -16,11 +16,11 @@ This guide assumes a Rook cluster as explained in the [Quickstart](ceph-quicksta
 
 The below sample will create a `CephObjectStore` that starts the RGW service in the cluster with an S3 API.
 
-**NOTE:** This sample requires *at least 3 bluestore OSDs*, with each OSD located on a *different node*.
+> **NOTE**: This sample requires *at least 3 bluestore OSDs*, with each OSD located on a *different node*.
 
 The OSDs must be located on different nodes, because the [`failureDomain`](ceph-pool-crd.md#spec) is set to `host` and the `erasureCoded` chunk settings require at least 3 different OSDs (2 `dataChunks` + 1 `codingChunks`).
 
-See the [Object Store CRD](ceph-object-store-crd.md#object-store-settings), for more detail on the settings availabe for a `CephObjectStore`. 
+See the [Object Store CRD](ceph-object-store-crd.md#object-store-settings), for more detail on the settings available for a `CephObjectStore`.
 
 ```yaml
 apiVersion: ceph.rook.io/v1
@@ -38,6 +38,7 @@ spec:
     erasureCoded:
       dataChunks: 2
       codingChunks: 1
+  preservePoolsOnDelete: true
   gateway:
     type: s3
     sslCertificateRef:
@@ -48,7 +49,7 @@ spec:
 
 After the `CephObjectStore` is created, the Rook operator will then create all the pools and other resources necessary to start the service. This may take a minute to complete.
 
-```bash
+```console
 # Create the object store
 kubectl create -f object.yaml
 
@@ -56,9 +57,182 @@ kubectl create -f object.yaml
 kubectl -n rook-ceph get pod -l app=rook-ceph-rgw
 ```
 
+## Create a Bucket
+Now that the object store is configured, next we need to create a bucket where a client can read and write objects. A bucket can be created by defining a storage class, similar to the pattern used by block and file storage.
+First, define the storage class that will allow object clients to create a bucket.
+The storage class defines the object storage system, the bucket retention policy, and other properties required by the administrator. Save the following as `storageclass-bucket-delete.yaml` (the example is named as such due to the `Delete` reclaim policy).
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+   name: rook-ceph-bucket
+provisioner: ceph.rook.io/bucket
+reclaimPolicy: Delete
+parameters:
+  objectStoreName: my-store
+  objectStoreNamespace: rook-ceph
+  region: us-east-1
+```
+```bash
+kubectl create -f storageclass-bucket-delete.yaml
+```
+
+Based on this storage class, an object client can now request a bucket by creating an Object Bucket Claim (OBC).
+When the OBC is created, the Rook-Ceph bucket provisioner will create a new bucket. Notice that the OBC
+references the storage class that was created above.
+Save the following as `object-bucket-claim-delete.yaml` (the example is named as such due to the `Delete` reclaim policy):
+
+```yaml
+apiVersion: objectbucket.io/v1alpha1
+kind: ObjectBucketClaim
+metadata:
+  name: ceph-bucket
+spec:
+  generateBucketName: ceph-bkt
+  storageClassName: rook-ceph-bucket
+```
+```bash
+kubectl create -f object-bucket-claim-delete.yaml
+```
+Now that the claim is created, the operator will create the bucket as well as generate other artifacts to enable access to the bucket. A secret and ConfigMap are created with the same name as the OBC and in the same namespace.
+The secret contains credentials used by the application pod to access the bucket.
+The ConfigMap contains bucket endpoint information and is also consumed by the pod.
+See the [Object Bucket Claim Documentation](ceph-object-bucket-claim.md) for more details on the `CephObjectBucketClaims`.
+
+### Client Connections
+
+The following commands extract key pieces of information from the secret and configmap:"
+
+```bash
+#config-map, secret, OBC will part of default if no specific name space mentioned
+export AWS_HOST=$(kubectl -n default get cm ceph-bucket -o yaml | grep BUCKET_HOST | awk '{print $2}')
+export AWS_ACCESS_KEY_ID=$(kubectl -n default get secret ceph-bucket -o yaml | grep AWS_ACCESS_KEY_ID | awk '{print $2}' | base64 --decode)
+export AWS_SECRET_ACCESS_KEY=$(kubectl -n default get secret ceph-bucket -o yaml | grep AWS_SECRET_ACCESS_KEY | awk '{print $2}' | base64 --decode)
+```
+
+## Consume the Object Storage
+
+Now that you have the object store configured and a bucket created, you can consume the
+object storage from an S3 client.
+
+This section will guide you through testing the connection to the `CephObjectStore` and uploading and downloading from it.
+Run the following commands after you have connected to the [Rook toolbox](ceph-toolbox.md).
+
+### Connection Environment Variables
+
+To simplify the s3 client commands, you will want to set the four environment variables for use by your client (ie. inside the toolbox).
+See above for retrieving the variables for a bucket created by an `ObjectBucketClaim`.
+
+```bash
+export AWS_HOST=<host>
+export AWS_ENDPOINT=<endpoint>
+export AWS_ACCESS_KEY_ID=<accessKey>
+export AWS_SECRET_ACCESS_KEY=<secretKey>
+```
+
+* `Host`: The DNS host name where the rgw service is found in the cluster. Assuming you are using the default `rook-ceph` cluster, it will be `rook-ceph-rgw-my-store.rook-ceph`.
+* `Endpoint`: The endpoint where the rgw service is listening. Run `kubectl -n rook-ceph get svc rook-ceph-rgw-my-store`, then combine the clusterIP and the port.
+* `Access key`: The user's `access_key` as printed above
+* `Secret key`: The user's `secret_key` as printed above
+
+The variables for the user generated in this example might be:
+
+```bash
+export AWS_HOST=rook-ceph-rgw-my-store.rook-ceph
+export AWS_ENDPOINT=10.104.35.31:80
+export AWS_ACCESS_KEY_ID=XEZDB3UJ6X7HVBE7X7MA
+export AWS_SECRET_ACCESS_KEY=7yGIZON7EhFORz0I40BFniML36D2rl8CQQ5kXU6l
+```
+
+The access key and secret key can be retrieved as described in the section above on [client connections](#client-connections) or
+below in the section [creating a user](#create-a-user) if you are not creating the buckets with an `ObjectBucketClaim`.
+
+### Install s3cmd
+
+To test the `CephObjectStore` we will install the `s3cmd` tool into the toolbox pod.
+```bash
+yum --assumeyes install s3cmd
+```
+
+### PUT or GET an object
+
+Upload a file to the newly created bucket
+
+```console
+echo "Hello Rook" > /tmp/rookObj
+s3cmd put /tmp/rookObj --no-ssl --host=${AWS_HOST} --host-bucket=  s3://rookbucket
+```
+
+Download and verify the file from the bucket
+
+```console
+s3cmd get s3://rookbucket/rookObj /tmp/rookObj-download --no-ssl --host=${AWS_HOST} --host-bucket=
+cat /tmp/rookObj-download
+```
+
+## Access External to the Cluster
+
+Rook sets up the object storage so pods will have access internal to the cluster. If your applications are running outside the cluster,
+you will need to setup an external service through a `NodePort`.
+
+First, note the service that exposes RGW internal to the cluster. We will leave this service intact and create a new service for external access.
+
+```console
+$ kubectl -n rook-ceph get service rook-ceph-rgw-my-store
+NAME                     CLUSTER-IP   EXTERNAL-IP   PORT(S)     AGE
+rook-ceph-rgw-my-store   10.3.0.177   <none>        80/TCP      2m
+```
+
+Save the external service as `rgw-external.yaml`:
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: rook-ceph-rgw-my-store-external
+  namespace: rook-ceph
+  labels:
+    app: rook-ceph-rgw
+    rook_cluster: rook-ceph
+    rook_object_store: my-store
+spec:
+  ports:
+  - name: rgw
+    port: 80
+    protocol: TCP
+    targetPort: 80
+  selector:
+    app: rook-ceph-rgw
+    rook_cluster: rook-ceph
+    rook_object_store: my-store
+  sessionAffinity: None
+  type: NodePort
+```
+
+Now create the external service.
+
+```console
+kubectl create -f rgw-external.yaml
+```
+
+See both rgw services running and notice what port the external service is running on:
+
+```console
+$ kubectl -n rook-ceph get service rook-ceph-rgw-my-store rook-ceph-rgw-my-store-external
+NAME                              TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)        AGE
+rook-ceph-rgw-my-store            ClusterIP   10.104.82.228    <none>        80/TCP         4m
+rook-ceph-rgw-my-store-external   NodePort    10.111.113.237   <none>        80:31536/TCP   39s
+```
+
+Internally the rgw service is running on port `80`. The external port in this case is `31536`. Now you can access the `CephObjectStore` from anywhere! All you need is the hostname for any machine in the cluster, the external port, and the user credentials.
+
 ## Create a User
 
-Next, create a `CephObjectStoreUser`, which will be used to connect to the RGW service in the cluster using the S3 API.
+If you need to create an independent set of user credentials to access the S3 endpoint,
+create a `CephObjectStoreUser`. The user will be used to connect to the RGW service in the cluster using the S3 API.
+The user will be independent of any object bucket claims that you might have created in the earlier
+instructions in this document.
 
 See the [Object Store User CRD](ceph-object-store-user-crd.md) for more detail on the settings available for a `CephObjectStoreUser`.
 
@@ -105,127 +279,3 @@ To directly retrieve the secrets:
 kubectl -n rook-ceph get secret rook-ceph-object-user-my-store-my-user -o yaml | grep AccessKey | awk '{print $2}' | base64 --decode
 kubectl -n rook-ceph get secret rook-ceph-object-user-my-store-my-user -o yaml | grep SecretKey | awk '{print $2}' | base64 --decode
 ```
-
-## Consume the Object Storage
-
-Use an S3 compatible client to create a bucket in the `CephObjectStore`.
-
-This section will allow you to test connecting to the `CephObjectStore` and uploading and downloading from it. Run the following commands after you have connected to the [Rook toolbox](ceph-toolbox.md).
-
-### Install s3cmd
-
-To test the `CephObjectStore` we will install the `s3cmd` tool into the toobox pod.
-```bash
-yum --assumeyes install s3cmd
-```
-
-### Connection Environment Variables
-
-To simplify the s3 client commands, you will want to set the four environment variables for use by your client (ie. inside the toolbox):
-```bash
-export AWS_HOST=<host>
-export AWS_ENDPOINT=<endpoint>
-export AWS_ACCESS_KEY_ID=<accessKey>
-export AWS_SECRET_ACCESS_KEY=<secretKey>
-```
-
-- `Host`: The DNS host name where the rgw service is found in the cluster. Assuming you are using the default `rook-ceph` cluster, it will be `rook-ceph-rgw-my-store.rook-ceph`.
-- `Endpoint`: The endpoint where the rgw service is listening. Run `kubectl -n rook-ceph get svc rook-ceph-rgw-my-store`, then combine the clusterIP and the port.
-- `Access key`: The user's `access_key` as printed above
-- `Secret key`: The user's `secret_key` as printed above
-
-The variables for the user generated in this example would be:
-```bash
-export AWS_HOST=rook-ceph-rgw-my-store.rook-ceph
-export AWS_ENDPOINT=10.104.35.31:80
-export AWS_ACCESS_KEY_ID=XEZDB3UJ6X7HVBE7X7MA
-export AWS_SECRET_ACCESS_KEY=7yGIZON7EhFORz0I40BFniML36D2rl8CQQ5kXU6l
-```
-
-The access key and secret key can be retrieved as described in the section above on [creating a user](#create-a-user).
-
-### Create a bucket
-
-Now that the user connection variables were set above, we can proceed to perform operations such as creating buckets.
-
-Create a bucket in the `CephObjectStore`
-
-   ```bash
-   s3cmd mb --no-ssl --host=${AWS_HOST} --region=":default-placement" --host-bucket="" s3://rookbucket
-   ```
-
-List buckets in the `CephObjectStore`
-
-   ```bash
-   s3cmd ls --no-ssl --host=${AWS_HOST}
-   ```
-
-### PUT or GET an object
-
-Upload a file to the newly created bucket
-
-   ```bash
-   echo "Hello Rook" > /tmp/rookObj
-   s3cmd put /tmp/rookObj --no-ssl --host=${AWS_HOST} --host-bucket=  s3://rookbucket
-   ```
-
-Download and verify the file from the bucket
-
-   ```bash
-   s3cmd get s3://rookbucket/rookObj /tmp/rookObj-download --no-ssl --host=${AWS_HOST} --host-bucket=
-   cat /tmp/rookObj-download
-   ```
-
-## Access External to the Cluster
-
-Rook sets up the object storage so pods will have access internal to the cluster. If your applications are running outside the cluster,
-you will need to setup an external service through a `NodePort`.
-
-First, note the service that exposes RGW internal to the cluster. We will leave this service intact and create a new service for external access.
-```bash
-$ kubectl -n rook-ceph get service rook-ceph-rgw-my-store
-NAME                     CLUSTER-IP   EXTERNAL-IP   PORT(S)     AGE
-rook-ceph-rgw-my-store   10.3.0.177   <none>        80/TCP      2m
-```
-
-Save the external service as `rgw-external.yaml`:
-
-```yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: rook-ceph-rgw-my-store-external
-  namespace: rook-ceph
-  labels:
-    app: rook-ceph-rgw
-    rook_cluster: rook-ceph
-    rook_object_store: my-store
-spec:
-  ports:
-  - name: rgw
-    port: 80
-    protocol: TCP
-    targetPort: 80
-  selector:
-    app: rook-ceph-rgw
-    rook_cluster: rook-ceph
-    rook_object_store: my-store
-  sessionAffinity: None
-  type: NodePort
-```
-
-Now create the external service.
-
-```bash
-kubectl create -f rgw-external.yaml
-```
-
-See both rgw services running and notice what port the external service is running on:
-```bash
-$ kubectl -n rook-ceph get service rook-ceph-rgw-my-store rook-ceph-rgw-my-store-external
-NAME                              TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)        AGE
-rook-ceph-rgw-my-store            ClusterIP   10.104.82.228    <none>        80/TCP         4m
-rook-ceph-rgw-my-store-external   NodePort    10.111.113.237   <none>        80:31536/TCP   39s
-```
-
-Internally the rgw service is running on port `80`. The external port in this case is `31536`. Now you can access the `CephObjectStore` from anywhere! All you need is the hostname for any machine in the cluster, the external port, and the user credentials.

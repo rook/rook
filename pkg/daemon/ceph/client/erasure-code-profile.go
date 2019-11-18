@@ -113,11 +113,12 @@ func DeleteErasureCodeProfile(context *clusterd.Context, clusterName string, era
 
 func ModelPoolToCephPool(modelPool model.Pool) CephStoragePoolDetails {
 	pool := CephStoragePoolDetails{
-		Name:          modelPool.Name,
-		Number:        modelPool.Number,
-		FailureDomain: modelPool.FailureDomain,
-		CrushRoot:     modelPool.CrushRoot,
-		DeviceClass:   modelPool.DeviceClass,
+		Name:             modelPool.Name,
+		Number:           modelPool.Number,
+		FailureDomain:    modelPool.FailureDomain,
+		CrushRoot:        modelPool.CrushRoot,
+		DeviceClass:      modelPool.DeviceClass,
+		NotEnableAppPool: modelPool.NotEnableAppPool,
 	}
 
 	if modelPool.Type == model.Replicated {

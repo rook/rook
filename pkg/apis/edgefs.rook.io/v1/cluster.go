@@ -23,6 +23,7 @@ const (
 	DeploymentRtlfs     = "rtlfs"
 	DeploymentRtrd      = "rtrd"
 	DeploymentAutoRtlfs = "autoRtlfs"
+	DeploymentRtkvs     = "rtkvs"
 )
 
 type ClusterDeploymentConfig struct {
@@ -44,6 +45,55 @@ func (deploymentConfig *ClusterDeploymentConfig) GetRtlfsDevices() []RtlfsDevice
 		}
 	}
 	return rtlfsDevices
+}
+
+func (deploymentConfig *ClusterDeploymentConfig) GetRtkvsDevicesCount() int {
+	rtkvsDevicesCount := 0
+	for _, devConfig := range deploymentConfig.DevConfig {
+		if devConfig.IsGatewayNode {
+			continue
+		}
+		rtkvsDevicesCount += len(devConfig.Rtkvs.Devices)
+	}
+	return rtkvsDevicesCount
+}
+
+func (deploymentConfig *ClusterDeploymentConfig) GetRtrdDevicesCount() int {
+	rtrdsDevicesCount := 0
+	for _, devConfig := range deploymentConfig.DevConfig {
+		if devConfig.IsGatewayNode {
+			continue
+		}
+		rtrdsDevicesCount += len(devConfig.Rtrd.Devices)
+		for _, slave := range devConfig.RtrdSlaves {
+			rtrdsDevicesCount += len(slave.Devices)
+		}
+	}
+	return rtrdsDevicesCount
+}
+
+func (deploymentConfig *ClusterDeploymentConfig) GetTargetsCount() int {
+	targets := 0
+	for _, devConfig := range deploymentConfig.DevConfig {
+		if devConfig.IsGatewayNode {
+			continue
+		}
+		targets++
+	}
+	return targets
+}
+
+func (deploymentConfig *ClusterDeploymentConfig) GetRtrdContainersCount() int {
+
+	containers := 0
+	for _, devConfig := range deploymentConfig.DevConfig {
+		if devConfig.IsGatewayNode {
+			continue
+		}
+		// 1 is main target container
+		containers += 1 + len(devConfig.RtrdSlaves)
+	}
+	return containers
 }
 
 func (deploymentConfig *ClusterDeploymentConfig) CompatibleWith(newConfig ClusterDeploymentConfig) (bool, error) {
@@ -78,6 +128,7 @@ type DevicesConfig struct {
 	Rtrd          RTDevices
 	RtrdSlaves    []RTDevices
 	Rtlfs         RtlfsDevices
+	Rtkvs         RtkvsDevices
 	Zone          int
 	IsGatewayNode bool
 }

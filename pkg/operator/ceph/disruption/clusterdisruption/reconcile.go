@@ -113,9 +113,10 @@ func (r *ReconcileClusterDisruption) reconcile(request reconcile.Request) (recon
 	}
 	//signal to the nodedrain controller to start
 	r.context.ReconcileCanaries.Update(true)
-	r.maintenanceTimeout = cephCluster.Spec.DisruptionManagement.OSDMaintenenceTimeout
+	r.maintenanceTimeout = cephCluster.Spec.DisruptionManagement.OSDMaintenanceTimeout
 	if r.maintenanceTimeout == 0 {
 		r.maintenanceTimeout = DefaultMaintenanceTimeout
+		logger.Debugf("Using default maintenance timeout: %v", r.maintenanceTimeout)
 	}
 
 	//  reconcile the pools and get the failure domain
@@ -183,8 +184,8 @@ func (r *ReconcileClusterDisruption) reconcile(request reconcile.Request) (recon
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-	_, ok := pdbStateMap.Data[disabledPDBKey]
-	if ok {
+	disabledPDB, ok := pdbStateMap.Data[disabledPDBKey]
+	if ok && len(disabledPDB) > 0 {
 		return reconcile.Result{Requeue: true, RequeueAfter: 30 * time.Second}, nil
 	}
 	return reconcile.Result{}, nil

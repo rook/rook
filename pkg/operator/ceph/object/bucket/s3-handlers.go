@@ -203,6 +203,7 @@ var AllowedActions = []action{
 	PutBucketWebsite,
 	PutBucketVersioning,
 	PutLifecycleConfiguration,
+	PutObject,
 	PutObjectAcl,
 	PutObjectVersionAcl,
 	PutReplicationConfiguration,
@@ -225,11 +226,12 @@ type PolicyStatement struct {
 	// Effect determins whether the Action(s) are 'Allow'ed or 'Deny'ed.
 	Effect effect `json:"Effect"`
 	// Principle is/are the Ceph user names affected by this PolicyStatement
+	// Must be in the format of 'arn:aws:iam:::user/<ceph-user>'
 	Principal map[string][]string `json:"Principal"`
 	// Action is a list of s3:* actions
 	Action []action `json:"Action"`
 	// Resource is the ARN identifier for the S3 resource (bucket)
-	// Must be in the format of 'arn:aws:s3:::<bucket>
+	// Must be in the format of 'arn:aws:s3:::<bucket>'
 	Resource []string `json:"Resource"`
 }
 
@@ -314,18 +316,33 @@ func (ps *PolicyStatement) WithSID(sid string) *PolicyStatement {
 }
 
 const awsPrinciple = "AWS"
+const arnPrefixPrinciple = "arn:aws:iam:::user/%s"
+const arnPrefixResource = "arn:aws:s3:::%s"
 
 // ForPrincipals adds users to the PolicyStatement
 func (ps *PolicyStatement) ForPrincipals(users ...string) *PolicyStatement {
-	ps.Principal[awsPrinciple] = users
+	principals := ps.Principal[awsPrinciple]
+	for _, u := range users {
+		principals = append(principals, fmt.Sprintf(arnPrefixPrinciple, u))
+	}
+	ps.Principal[awsPrinciple] = principals
 	return ps
 }
 
 // ForResources adds resources (buckets) to the PolicyStatement with the appropriate ARN prefix
 func (ps *PolicyStatement) ForResources(resources ...string) *PolicyStatement {
-	const arnPrefix = "arn:aws:s3:::%s"
 	for _, v := range resources {
-		ps.Resource = append(ps.Resource, fmt.Sprintf(arnPrefix, v))
+		ps.Resource = append(ps.Resource, fmt.Sprintf(arnPrefixResource, v))
+	}
+	return ps
+}
+
+// ForSubResources add contents inside the bucket to the PolicyStatement with the appropriate ARN prefix
+func (ps *PolicyStatement) ForSubResources(resources ...string) *PolicyStatement {
+	var subresource string
+	for _, v := range resources {
+		subresource = fmt.Sprintf("%s/*", v)
+		ps.Resource = append(ps.Resource, fmt.Sprintf(arnPrefixResource, subresource))
 	}
 	return ps
 }

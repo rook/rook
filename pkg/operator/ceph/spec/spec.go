@@ -19,7 +19,6 @@ package spec
 
 import (
 	"fmt"
-	"path"
 
 	"github.com/coreos/pkg/capnslog"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
@@ -36,6 +35,7 @@ const (
 	ConfigInitContainerName = "config-init"
 	logVolumeName           = "rook-ceph-log"
 	volumeMountSubPath      = "data"
+	crashVolumeName         = "rook-ceph-crash"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "ceph-spec")
@@ -90,7 +90,8 @@ func confGeneratedInPodVolumeAndMount() (v1.Volume, v1.VolumeMount) {
 
 // PodVolumes fills in the volumes parameter with the common list of Kubernetes volumes for use in Ceph pods.
 // This function is only used for OSDs.
-func PodVolumes(dataDirHostPath, namespace string, confGeneratedInPod bool) []v1.Volume {
+func PodVolumes(dataPaths *config.DataPathMap, dataDirHostPath string, confGeneratedInPod bool) []v1.Volume {
+
 	dataDirSource := v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}
 	if dataDirHostPath != "" {
 		dataDirSource = v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: dataDirHostPath}}
@@ -99,32 +100,39 @@ func PodVolumes(dataDirHostPath, namespace string, confGeneratedInPod bool) []v1
 	if confGeneratedInPod {
 		configVolume, _ = confGeneratedInPodVolumeAndMount()
 	}
-	return []v1.Volume{
+
+	v := []v1.Volume{
 		{Name: k8sutil.DataDirVolume, VolumeSource: dataDirSource},
 		configVolume,
-		StoredLogVolume(path.Join(dataDirHostPath, "log", namespace)),
 	}
+	v = append(v, StoredLogAndCrashVolume(dataPaths.HostLogDir(), dataPaths.HostCrashDir())...)
+
+	return v
 }
 
 // CephVolumeMounts returns the common list of Kubernetes volume mounts for Ceph containers.
 // This function is only used for OSDs.
-func CephVolumeMounts(confGeneratedInPod bool) []v1.VolumeMount {
+func CephVolumeMounts(dataPaths *config.DataPathMap, confGeneratedInPod bool) []v1.VolumeMount {
 	_, configMount := configOverrideConfigMapVolumeAndMount()
 	if confGeneratedInPod {
 		_, configMount = confGeneratedInPodVolumeAndMount()
 	}
-	return []v1.VolumeMount{
+
+	v := []v1.VolumeMount{
 		{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
 		configMount,
-		StoredLogVolumeMount(),
+		// Rook doesn't run in ceph containers, so it doesn't need the config override mounted
 	}
+	v = append(v, StoredLogAndCrashVolumeMount(dataPaths.ContainerLogDir(), dataPaths.ContainerCrashDir())...)
+
+	return v
 }
 
 // RookVolumeMounts returns the common list of Kubernetes volume mounts for Rook containers.
 // This function is only used by OSDs.
-func RookVolumeMounts(confGeneratedInPod bool) []v1.VolumeMount {
+func RookVolumeMounts(dataPaths *config.DataPathMap, confGeneratedInPod bool) []v1.VolumeMount {
 	return append(
-		CephVolumeMounts(confGeneratedInPod),
+		CephVolumeMounts(dataPaths, confGeneratedInPod),
 	)
 }
 
@@ -137,9 +145,9 @@ func DaemonVolumesBase(dataPaths *config.DataPathMap, keyringResourceName string
 	if keyringResourceName != "" {
 		vols = append(vols, keyring.Volume().Resource(keyringResourceName))
 	}
-	if dataPaths.HostLogDir != "" {
+	if dataPaths.HostLogAndCrashDir != "" {
 		// logs are not persisted to host
-		vols = append(vols, StoredLogVolume(dataPaths.HostLogDir))
+		vols = append(vols, StoredLogAndCrashVolume(dataPaths.HostLogDir(), dataPaths.HostCrashDir())...)
 	}
 	return vols
 }
@@ -203,9 +211,9 @@ func DaemonVolumeMounts(dataPaths *config.DataPathMap, keyringResourceName strin
 	if keyringResourceName != "" {
 		mounts = append(mounts, keyring.VolumeMount().Resource(keyringResourceName))
 	}
-	if dataPaths.HostLogDir != "" {
+	if dataPaths.HostLogAndCrashDir != "" {
 		// logs are not persisted to host, so no mount is needed
-		mounts = append(mounts, StoredLogVolumeMount())
+		mounts = append(mounts, StoredLogAndCrashVolumeMount(dataPaths.ContainerLogDir(), dataPaths.ContainerCrashDir())...)
 	}
 	if dataPaths.ContainerDataDir == "" {
 		// no data is stored in container, so there are no more mounts
@@ -334,44 +342,73 @@ func CheckPodMemory(resources v1.ResourceRequirements, cephPodMinimumMemory uint
 	return nil
 }
 
-// StoredLogVolume returns a pod volume sourced from the stored log files.
-func StoredLogVolume(HostLogDir string) v1.Volume {
-	return v1.Volume{
-		Name: logVolumeName,
-		VolumeSource: v1.VolumeSource{
-			HostPath: &v1.HostPathVolumeSource{Path: HostLogDir},
+// ChownCephDataDirsInitContainer returns an init container which `chown`s the given data
+// directories as the `ceph:ceph` user in the container. It also `chown`s the Ceph log dir in the
+// container automatically.
+// Doing a chown in a post start lifecycle hook does not reliably complete before the OSD
+// process starts, which can cause the pod to fail without the lifecycle hook's chown command
+// completing. It can take an arbitrarily long time for a pod restart to successfully chown the
+// directory. This is a race condition for all daemons; therefore, do this in an init container.
+// See more discussion here: https://github.com/rook/rook/pull/3594#discussion_r312279176
+func ChownCephDataDirsInitContainer(
+	dpm config.DataPathMap,
+	containerImage string,
+	volumeMounts []v1.VolumeMount,
+	resources v1.ResourceRequirements,
+	securityContext *v1.SecurityContext,
+) v1.Container {
+	args := make([]string, 0, 5)
+	args = append(args,
+		"--verbose",
+		"--recursive",
+		"ceph:ceph",
+		config.VarLogCephDir,
+		config.VarLibCephCrashDir,
+	)
+	if dpm.ContainerDataDir != "" {
+		args = append(args, dpm.ContainerDataDir)
+	}
+	return v1.Container{
+		Name:            "chown-container-data-dir",
+		Command:         []string{"chown"},
+		Args:            args,
+		Image:           containerImage,
+		VolumeMounts:    volumeMounts,
+		Resources:       resources,
+		SecurityContext: securityContext,
+	}
+}
+
+// StoredLogAndCrashVolume returns a pod volume sourced from the stored log and crashes files.
+func StoredLogAndCrashVolume(hostLogDir, hostCrashDir string) []v1.Volume {
+	return []v1.Volume{
+		{
+			Name: logVolumeName,
+			VolumeSource: v1.VolumeSource{
+				HostPath: &v1.HostPathVolumeSource{Path: hostLogDir},
+			},
+		},
+		{
+			Name: crashVolumeName,
+			VolumeSource: v1.VolumeSource{
+				HostPath: &v1.HostPathVolumeSource{Path: hostCrashDir},
+			},
 		},
 	}
 }
 
-// StoredLogVolumeMount returns a pod volume sourced from the stored log files.
-func StoredLogVolumeMount() v1.VolumeMount {
-	return v1.VolumeMount{
-		Name:      logVolumeName,
-		ReadOnly:  false,
-		MountPath: config.VarLogCephDir,
-	}
-}
-
-func generateLifeCycleCmd(dataDirHostPath string) []string {
-	cmd := config.ContainerPostStartCmd
-
-	if dataDirHostPath != "" {
-		cmd = append(cmd, dataDirHostPath)
-	}
-
-	return cmd
-}
-
-// PodLifeCycle returns a pod lifecycle resource to execute actions before a pod starts
-func PodLifeCycle(dataDirHostPath string) *v1.Lifecycle {
-	cmd := generateLifeCycleCmd(dataDirHostPath)
-
-	return &v1.Lifecycle{
-		PostStart: &v1.Handler{
-			Exec: &v1.ExecAction{
-				Command: cmd,
-			},
+// StoredLogAndCrashVolumeMount returns a pod volume sourced from the stored log and crashes files.
+func StoredLogAndCrashVolumeMount(varLogCephDir, varLibCephCrashDir string) []v1.VolumeMount {
+	return []v1.VolumeMount{
+		{
+			Name:      logVolumeName,
+			ReadOnly:  false,
+			MountPath: varLogCephDir,
+		},
+		{
+			Name:      crashVolumeName,
+			ReadOnly:  false,
+			MountPath: varLibCephCrashDir,
 		},
 	}
 }

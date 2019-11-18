@@ -41,6 +41,18 @@ spec:
             dataDirHostPath:
               pattern: ^/(\S+)
               type: string
+            disruptionManagement:
+              properties:
+                machineDisruptionBudgetNamespace:
+                  type: string
+                managePodBudgets:
+                  type: boolean
+                osdMaintenanceTimeout:
+                  type: integer
+                manageMachineDisruptionBudgets:
+                  type: boolean
+            skipUpgradeChecks:
+              type: boolean
             mon:
               properties:
                 allowMultiplePerNode:
@@ -49,6 +61,7 @@ spec:
                   maximum: 9
                   minimum: 0
                   type: integer
+                volumeClaimTemplate: {}
             mgr:
               properties:
                 modules:
@@ -62,10 +75,15 @@ spec:
               properties:
                 hostNetwork:
                   type: boolean
+                provider:
+                  type: string
+                selectors: {}
             storage:
               properties:
                 disruptionManagement:
                   properties:
+                    machineDisruptionBudgetNamespace:
+                      type: string
                     managePodBudgets:
                       type: boolean
                     osdMaintenanceTimeout:
@@ -127,8 +145,7 @@ spec:
                       path:
                         type: string
                 config: {}
-                topologyAware:
-                  type: boolean
+                storageClassDeviceSets: {}
             monitoring:
               properties:
                 enabled:
@@ -139,6 +156,10 @@ spec:
               properties:
                 workers:
                   type: integer
+            external:
+              properties:
+                enable:
+                  type: boolean
             placement: {}
             resources: {}
   additionalPrinterColumns:
@@ -334,6 +355,9 @@ spec:
     listKind: CephObjectStoreUserList
     plural: cephobjectstoreusers
     singular: cephobjectstoreuser
+    shortNames:
+    - rcou
+    - objectuser
   scope: Namespaced
   version: v1
 ---

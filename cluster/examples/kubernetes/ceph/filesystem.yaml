@@ -19,6 +19,8 @@ spec:
     - failureDomain: host
       replicated:
         size: 3
+  # Whether to preserve metadata and data pools on filesystem deletion
+  preservePoolsOnDelete: true
   # The metadata service (mds) configuration
   metadataServer:
     # The number of active MDS instances

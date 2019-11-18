@@ -17,7 +17,8 @@ Rook EdgeFS Operator enables the dashboard by default.
 A K8s service will be created to expose HTTP/S ports inside the cluster.
 
 This example shows what ports was configured for EdgeFS right after successful cluster deployment:
-```bash
+
+```console
 # kubectl get svc -n rook-edgefs
 NAME                  TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)                                        AGE
 rook-edgefs-restapi   NodePort    10.105.177.93   <none>        8881:32135/TCP,8080:31363/TCP,4443:31485/TCP   3h14m

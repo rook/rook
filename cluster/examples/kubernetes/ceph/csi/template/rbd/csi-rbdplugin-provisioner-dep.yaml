@@ -60,7 +60,7 @@ spec:
           env:
             - name: ADDRESS
               value: unix:///csi/csi-provisioner.sock
-          imagePullPolicy: Always
+          imagePullPolicy: "IfNotPresent"
           securityContext:
             privileged: true
           volumeMounts:
@@ -79,9 +79,8 @@ spec:
             - "--type=rbd"
             - "--controllerserver=true"
             - "--drivername={{ .DriverNamePrefix }}rbd.csi.ceph.com"
-            - "--containerized=true"
             - "--pidlimit=-1"
-            - "--metricsport=9090"
+            - "--metricsport={{ .RBDGRPCMetricsPort }}"
             - "--metricspath=/metrics"
             - "--enablegrpcmetrics={{ .EnableCSIGRPCMetrics }}"
           env:
@@ -89,8 +88,6 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-            - name: HOST_ROOTFS
-              value: "/rootfs"
             - name: NODE_ID
               valueFrom:
                 fieldRef:
@@ -107,8 +104,6 @@ spec:
               mountPath: /csi
             - mountPath: /dev
               name: host-dev
-            - mountPath: /rootfs
-              name: host-rootfs
             - mountPath: /sys
               name: host-sys
             - mountPath: /lib/modules
@@ -123,13 +118,13 @@ spec:
           args:
             - "--type=liveness"
             - "--endpoint=$(CSI_ENDPOINT)"
-            - "--metricsport=9080"
+            - "--metricsport={{ .RBDLivenessMetricsPort }}"
             - "--metricspath=/metrics"
             - "--polltime=60s"
             - "--timeout=3s"
           env:
             - name: CSI_ENDPOINT
-              value: unix:///csi/csi.sock
+              value: unix:///csi/csi-provisioner.sock
             - name: POD_IP
               valueFrom:
                 fieldRef:
@@ -142,9 +137,6 @@ spec:
         - name: host-dev
           hostPath:
             path: /dev
-        - name: host-rootfs
-          hostPath:
-            path: /
         - name: host-sys
           hostPath:
             path: /sys
