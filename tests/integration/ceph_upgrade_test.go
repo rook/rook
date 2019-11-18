@@ -167,7 +167,8 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	require.NoError(s.T(), err)
 
 	osdsNotOldVersion := fmt.Sprintf("app=rook-ceph-osd,ceph-version!=%s", oldCephVersion)
-	err = s.k8sh.WaitForDeploymentCount(osdsNotOldVersion, s.namespace, numOSDs)
+	// It can take a LONG time to update the mgr modules, so wait an extra long time here
+	err = s.k8sh.WaitForDeploymentCountWithRetries(osdsNotOldVersion, s.namespace, numOSDs, utils.RetryLoop*2)
 	require.NoError(s.T(), err)
 	err = s.k8sh.WaitForLabeledDeploymentsToBeReady(osdsNotOldVersion, s.namespace)
 	require.NoError(s.T(), err)
