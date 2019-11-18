@@ -59,6 +59,7 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
 			RestartPolicy:      v1.RestartPolicyAlways,
 			Volumes:            opspec.DaemonVolumes(mgrConfig.DataPathMap, mgrConfig.ResourceName),
 			HostNetwork:        c.Network.IsHost(),
+			PriorityClassName:  c.priorityClassName,
 		},
 	}
 

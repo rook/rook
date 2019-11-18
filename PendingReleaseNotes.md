@@ -17,7 +17,11 @@
     fix this to be `<dataDirHostPath>/log/<namespace>`, the same as other daemons.
   - Use the mon configuration database for directory-based OSDs, and do not generate a config
 - A new ceph-crashcollector controller has been added, that new pod will run on any node where a Ceph pod is running. Read more about this in the [doc](Documentation/ceph-cluster-crd.html#cluster-wide-resources-configuration-settings)
-
+- PriorityClassNames can now be added to the Rook/Ceph components to influence the scheduler's pod preemption.
+  - mgr/mon/osd/rbdmirror: [priority class names configuration settings](Documentation/ceph-cluster-crd.md#priority-class-names-configuration-settings)
+  - filesystem: [metadata server settings](Documentation/ceph-filesystem-crd.md#metadata-server-settings)
+  - rgw: [gateway settings](Documentation/ceph-object-store-crd.md#gateway-settings)    
+  - nfs: [samples](Documentation/ceph-nfs-crd.md#samples)
 
 ### EdgeFS
 

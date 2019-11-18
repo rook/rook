@@ -125,3 +125,4 @@ The metadata server settings correspond to the MDS daemon settings.
 * `annotations`: Key value pair list of annotations to add.
 * `placement`: The mds pods can be given standard Kubernetes placement restrictions with `nodeAffinity`, `tolerations`, `podAffinity`, and `podAntiAffinity` similar to placement defined for daemons configured by the [cluster CRD](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/cluster.yaml).
 * `resources`: Set resource requests/limits for the Filesystem MDS Pod(s), see [Resource Requirements/Limits](ceph-cluster-crd.md#resource-requirementslimits).
+* `priorityClassName`: Set priority class name for the Filesystem MDS Pod(s)

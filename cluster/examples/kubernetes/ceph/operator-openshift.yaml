@@ -131,6 +131,9 @@ spec:
         # (Optional) Rook Agent toleration key. Set this to the key of the taint you want to tolerate
         # - name: AGENT_TOLERATION_KEY
         #   value: "<KeyOfTheTaintToTolerate>"
+        # (Optional) Rook Agent priority class name to set on the pod(s)
+        # - name: AGENT_PRIORITY_CLASS_NAME
+        #   value: "<PriorityClassName>"
         # (Optional) Rook Agent NodeAffinity.
         # - name: AGENT_NODE_AFFINITY
         #   value: "role=storage-node; storage=rook,ceph"
@@ -157,6 +160,9 @@ spec:
         # (Optional) Rook Discover toleration key. Set this to the key of the taint you want to tolerate
         # - name: DISCOVER_TOLERATION_KEY
         #  value: "<KeyOfTheTaintToTolerate>"
+        # (Optional) Rook Discover priority class name to set on the pod(s)
+        # - name: DISCOVER_PRIORITY_CLASS_NAME
+        #   value: "<PriorityClassName>"
         # (Optional) Discover Agent NodeAffinity.
         # - name: DISCOVER_AGENT_NODE_AFFINITY
         #   value: "role=storage-node; storage=rook, ceph"

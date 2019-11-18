@@ -114,6 +114,8 @@ spec:
     #  requests:
     #    cpu: "500m"
     #    memory: "1024Mi"
+    # the priority class to set to influence the scheduler's pod preemption
+    priorityClassName:
 ```
 
 When the  nfs-ganesha.yaml is created the following will happen:

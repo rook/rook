@@ -24,6 +24,7 @@ import (
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	optest "github.com/rook/rook/pkg/operator/test"
+	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,6 +53,7 @@ func TestDeploymentSpec(t *testing.T) {
 						v1.ResourceMemory: *resource.NewQuantity(512.0, resource.BinarySI),
 					},
 				},
+				PriorityClassName: "my-priority-class",
 			},
 		},
 	}
@@ -94,4 +96,5 @@ func TestDeploymentSpec(t *testing.T) {
 			MemoryResourceRequest: "512",
 		},
 	)
+	assert.Equal(t, "my-priority-class", d.Spec.Template.Spec.PriorityClassName)
 }

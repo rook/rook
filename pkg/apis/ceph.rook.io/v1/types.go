@@ -68,6 +68,9 @@ type ClusterSpec struct {
 	// Resources set resource requests and limits
 	Resources rook.ResourceSpec `json:"resources,omitempty"`
 
+	// PriorityClassNames sets priority classes on components
+	PriorityClassNames rook.PriorityClassNamesSpec `json:"priorityClassNames,omitempty"`
+
 	// The path on the host where config and data can be persisted.
 	DataDirHostPath string `json:"dataDirHostPath,omitempty"`
 
@@ -293,6 +296,9 @@ type MetadataServerSpec struct {
 
 	// The resource requirements for the rgw pods
 	Resources v1.ResourceRequirements `json:"resources"`
+
+	// PriorityClassName sets priority classes on components
+	PriorityClassName string `json:"priorityClassName,omitempty"`
 }
 
 // +genclient
@@ -378,6 +384,9 @@ type GatewaySpec struct {
 
 	// The resource requirements for the rgw pods
 	Resources v1.ResourceRequirements `json:"resources"`
+
+	// PriorityClassName sets priority classes on the rgw pods
+	PriorityClassName string `json:"priorityClassName,omitempty"`
 }
 
 // +genclient
@@ -425,6 +434,9 @@ type GaneshaServerSpec struct {
 
 	// Resources set resource requests and limits
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`
+
+	// PriorityClassName sets the priority class on the pods
+	PriorityClassName string `json:"priorityClassName,omitempty"`
 }
 
 // NetworkSpec for Ceph includes backward compatibility code

@@ -241,6 +241,10 @@ func filesystemChanged(oldFS, newFS cephv1.FilesystemSpec) bool {
 		// This setting only will be used when the filesystem will be deleted
 		return false
 	}
+	if oldFS.MetadataServer.PriorityClassName != newFS.MetadataServer.PriorityClassName {
+		logger.Infof("mds priority class name changed from %s to %s", oldFS.MetadataServer.PriorityClassName, newFS.MetadataServer.PriorityClassName)
+		return true
+	}
 	return false
 }
 

@@ -190,8 +190,9 @@ func (c *Cluster) makeMonPod(monConfig *monConfig) *v1.Pod {
 		RestartPolicy: v1.RestartPolicyAlways,
 		// we decide later whether to use a PVC volume or host volumes for mons, so only populate
 		// the base volumes at this point.
-		Volumes:     opspec.DaemonVolumesBase(monConfig.DataPathMap, keyringStoreName),
-		HostNetwork: c.Network.IsHost(),
+		Volumes:           opspec.DaemonVolumesBase(monConfig.DataPathMap, keyringStoreName),
+		HostNetwork:       c.Network.IsHost(),
+		PriorityClassName: cephv1.GetMonPriorityClassName(c.spec.PriorityClassNames),
 	}
 	if c.Network.IsHost() {
 		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet

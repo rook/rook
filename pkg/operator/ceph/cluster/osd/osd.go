@@ -81,6 +81,7 @@ type Cluster struct {
 	Network           cephv1.NetworkSpec
 	resources         v1.ResourceRequirements
 	prepareResources  v1.ResourceRequirements
+	priorityClassName string
 	ownerRef          metav1.OwnerReference
 	kv                *k8sutil.ConfigMapKVStore
 	isUpgrade         bool
@@ -101,6 +102,7 @@ func New(
 	network cephv1.NetworkSpec,
 	resources v1.ResourceRequirements,
 	prepareResources v1.ResourceRequirements,
+	priorityClassName string,
 	ownerRef metav1.OwnerReference,
 	isUpgrade bool,
 	skipUpgradeChecks bool,
@@ -118,6 +120,7 @@ func New(
 		Network:           network,
 		resources:         resources,
 		prepareResources:  prepareResources,
+		priorityClassName: priorityClassName,
 		ownerRef:          ownerRef,
 		kv:                k8sutil.NewConfigMapKVStore(namespace, context.Clientset, ownerRef),
 		isUpgrade:         isUpgrade,

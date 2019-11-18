@@ -369,6 +369,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 					HostPID:            true,
 					HostIPC:            hostIPC,
 					DNSPolicy:          DNSPolicy,
+					PriorityClassName:  c.priorityClassName,
 					InitContainers:     initContainers,
 					Containers: []v1.Container{
 						{
@@ -476,9 +477,10 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 		Containers: []v1.Container{
 			c.provisionOSDContainer(osdProps, copyBinariesContainer.VolumeMounts[0], provisionConfig),
 		},
-		RestartPolicy: restart,
-		Volumes:       volumes,
-		HostNetwork:   c.Network.IsHost(),
+		RestartPolicy:     restart,
+		Volumes:           volumes,
+		HostNetwork:       c.Network.IsHost(),
+		PriorityClassName: c.priorityClassName,
 	}
 	if c.Network.IsHost() {
 		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet

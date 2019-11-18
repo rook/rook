@@ -53,6 +53,7 @@ func testDeploymentObject(network cephv1.NetworkSpec) *apps.Deployment {
 						v1.ResourceMemory: *resource.NewQuantity(2169.0, resource.BinarySI),
 					},
 				},
+				PriorityClassName: "my-priority-class",
 			},
 		},
 	}
@@ -95,7 +96,8 @@ func TestPodSpecs(t *testing.T) {
 
 	podTemplate := cephtest.NewPodTemplateSpecTester(t, &d.Spec.Template)
 	podTemplate.RunFullSuite(config.MdsType, "myfs-a", "rook-ceph-mds", "ns", "ceph/ceph:testversion",
-		"500", "250", "4337", "2169" /* resources */)
+		"500", "250", "4337", "2169", /* resources */
+		"my-priority-class")
 }
 
 func TestHostNetwork(t *testing.T) {

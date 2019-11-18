@@ -122,6 +122,7 @@ For more details on the mons and when to choose a number other than `3`, see the
 * `annotations`: [annotations configuration settings](#annotations-configuration-settings)
 * `placement`: [placement configuration settings](#placement-configuration-settings)
 * `resources`: [resources configuration settings](#cluster-wide-resources-configuration-settings)
+* `priorityClassNames`: [priority class names configuration settings](#priority-class-names-configuration-settings)
 * `storage`: Storage selection and configuration that will be used across the cluster.  Note that these settings can be overridden for specific nodes.
   * `useAllNodes`: `true` or `false`, indicating if all nodes in the cluster should be used for storage according to the cluster level storage selection and configuration values.
   If individual nodes are specified under the `nodes` field, then `useAllNodes` must be set to `false`.
@@ -264,7 +265,7 @@ The following storage selection settings are specific to Ceph and do not apply t
 
 Annotations can be specified so that the Rook components will have those annotations added to them.
 
-You can set annotations for Rook components through the a list of key value pairs:
+You can set annotations for Rook components for the list of key value pairs:
 
 * `all`: Set annotations for all components
 * `mgr`: Set annotations for MGRs
@@ -331,6 +332,20 @@ For more information on resource requests/limits see the official Kubernetes doc
 * `limits`: Limits for cpu or memory.
   * `cpu`: Limit for CPU (example: one CPU core `1`, 50% of one CPU core `500m`).
   * `memory`: Limit for Memory (example: one gigabyte of memory `1Gi`, half a gigabyte of memory `512Mi`).
+
+### Priority Class Names Configuration Settings
+Priority class names can be specified so that the Rook components will have those priority class names added to them.
+
+You can set priority class names for Rook components for the list of key value pairs:
+
+- `all`: Set priority class names for MGRs, Mons, OSDs, and RBD Mirrors.
+- `mgr`: Set priority class names for MGRs.
+- `mon`: Set priority class names for Mons.
+- `osd`: Set priority class names for OSDs.
+- `rbdmirror`: Set priority class names for RBD Mirrors.
+
+The specific component keys will act as overrides to `all`.
+
 
 ## Samples
 

@@ -40,16 +40,17 @@ import (
 )
 
 const (
-	discoverDaemonsetName             = "rook-discover"
-	discoverDaemonsetTolerationEnv    = "DISCOVER_TOLERATION"
-	discoverDaemonsetTolerationKeyEnv = "DISCOVER_TOLERATION_KEY"
-	discoverDaemonsetTolerationsEnv   = "DISCOVER_TOLERATIONS"
-	discoverDaemonSetNodeAffinityEnv  = "DISCOVER_AGENT_NODE_AFFINITY"
-	deviceInUseCMName                 = "local-device-in-use-cluster-%s-node-%s"
-	deviceInUseAppName                = "rook-claimed-devices"
-	deviceInUseClusterAttr            = "rook.io/cluster"
-	discoverIntervalEnv               = "ROOK_DISCOVER_DEVICES_INTERVAL"
-	defaultDiscoverInterval           = "60m"
+	discoverDaemonsetName                 = "rook-discover"
+	discoverDaemonsetPriorityClassNameEnv = "DISCOVER_PRIORITY_CLASS_NAME"
+	discoverDaemonsetTolerationEnv        = "DISCOVER_TOLERATION"
+	discoverDaemonsetTolerationKeyEnv     = "DISCOVER_TOLERATION_KEY"
+	discoverDaemonsetTolerationsEnv       = "DISCOVER_TOLERATIONS"
+	discoverDaemonSetNodeAffinityEnv      = "DISCOVER_AGENT_NODE_AFFINITY"
+	deviceInUseCMName                     = "local-device-in-use-cluster-%s-node-%s"
+	deviceInUseAppName                    = "rook-claimed-devices"
+	deviceInUseClusterAttr                = "rook.io/cluster"
+	discoverIntervalEnv                   = "ROOK_DISCOVER_DEVICES_INTERVAL"
+	defaultDiscoverInterval               = "60m"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-discover")
@@ -163,7 +164,8 @@ func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage, securityAcc
 							},
 						},
 					},
-					HostNetwork: false,
+					HostNetwork:       false,
+					PriorityClassName: os.Getenv(discoverDaemonsetPriorityClassNameEnv),
 				},
 			},
 		},
