@@ -43,10 +43,10 @@ With this upgrade guide, there are a few notes to consider:
 
 ## Patch Release Upgrades
 Unless otherwise noted due to extenuating requirements, upgrades from one patch release of Rook to
-another are as simple as updating the image of the Rook operator. For example, when Rook v1.1.6 is
+another are as simple as updating the image of the Rook operator. For example, when Rook v1.1.7 is
 released, the process of updating from v1.1.0 is as simple as running the following:
 ```
-kubectl -n rook-ceph set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.1.6
+kubectl -n rook-ceph set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.1.7
 ```
 
 ## Upgrading from v1.0 to v1.1
