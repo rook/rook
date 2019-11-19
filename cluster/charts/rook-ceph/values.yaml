@@ -24,6 +24,9 @@ nodeSelector:
 # Tolerations for the rook-ceph-operator to allow it to run on nodes with particular taints
 tolerations: []
 
+# Delay to use in node.kubernetes.io/unreachable toleration
+unreachableNodeTolerationSeconds: 5
+
 # Whether rook watches its current namespace for CRDs or the entire cluster, defaults to false
 currentNamespaceOnly: false
 
