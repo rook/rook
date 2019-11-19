@@ -140,7 +140,7 @@ func getCrashChownInitContainer(cephCluster cephv1.CephCluster) corev1.Container
 		cephCluster.Spec.CephVersion.Image,
 		opspec.DaemonVolumeMounts(dataPathMap, ""),
 		cephv1.GetCrashCollectorResources(cephCluster.Spec.Resources),
-		&corev1.SecurityContext{},
+		mon.PodSecurityContext(),
 	)
 }
 
