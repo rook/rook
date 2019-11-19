@@ -22,6 +22,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -117,6 +118,39 @@ func GetSpecContainerImage(spec v1.PodSpec, name string, initContainer bool) (st
 		return "", err
 	}
 	return image.Image, nil
+}
+
+// Replaces the pod default toleration of 300s used when the node controller
+// detect a not ready node (node.kubernetes.io/unreachable)
+func AddUnreachableNodeToleration(podSpec *v1.PodSpec) {
+	// The amount of time for this pod toleration can be modified by users
+	// changing the value of <ROOK_UNREACHABLE_NODE_TOLERATION_SECONDS> Rook operator
+	// variable.
+	// Node controller will wait 40 seconds by default before mark a node as
+	// unreachable. After 40s + ROOK_UNREACHABLE_NODE_TOLERATION_SECONDS the pod
+	// will be scheduled in other node
+	// Only one <toleration> to <unreachable> nodes can be added
+	var tolerationSeconds int64 = 5
+	urTolerationSeconds := os.Getenv("ROOK_UNREACHABLE_NODE_TOLERATION_SECONDS")
+	if urTolerationSeconds != "" {
+		if duration, err := strconv.ParseInt(urTolerationSeconds, 10, 64); err != nil {
+			logger.Warningf("using default value for <node.kubernetes.io/unreachable> toleration: %v seconds", tolerationSeconds)
+		} else {
+			tolerationSeconds = duration
+		}
+	}
+	urToleration := v1.Toleration{Key: "node.kubernetes.io/unreachable",
+		Operator:          "Exists",
+		Effect:            "NoExecute",
+		TolerationSeconds: &tolerationSeconds}
+
+	for index, item := range podSpec.Tolerations {
+		if item.Key == "node.kubernetes.io/unreachable" {
+			podSpec.Tolerations[index] = urToleration
+			return
+		}
+	}
+	podSpec.Tolerations = append(podSpec.Tolerations, urToleration)
 }
 
 // GetRunningPod reads the name and namespace of a pod from the

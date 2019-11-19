@@ -281,6 +281,21 @@ spec:
         #  value: "9080"
         - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
           value: "true"
+
+        # Time to wait until the node controller will move Rook pods to other
+        # nodes after detecting an unreachable node.
+        # Pods affected by this setting are:
+        # mgr, rbd, mds, rgw, nfs, PVC based mons and osds, and ceph toolbox
+        # The value used in this variable replaces the default value of 300 secs
+        # added automatically by k8s as Toleration for
+        # <node.kubernetes.io/unreachable>
+        # The total amount of time to reschedule Rook pods in healthy nodes
+        # before detecting a <not ready node> condition will be the sum of:
+        #  --> node-monitor-grace-period: 40 seconds (k8s kube-controller-manager flag)
+        #  --> ROOK_UNREACHABLE_NODE_TOLERATION_SECONDS: 5 seconds
+        - name: ROOK_UNREACHABLE_NODE_TOLERATION_SECONDS
+          value: "5"
+
         # The name of the node to pass with the downward API
         - name: NODE_NAME
           valueFrom:

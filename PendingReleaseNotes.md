@@ -42,6 +42,8 @@ To remove OSDs manually, see the new doc on [OSD Management](Documentation/ceph-
   - When running on PVC, the OSD can be on a slow device class, Rook can adapt to that by tuning the OSD. This can be enabled by the CR setting `tuneSlowDeviceClass`
 - RGWs:
   - Ceph Object Gateway are automatically configured to not run on the same host if hostNetwork is activated
+- New CR property available in the Operator: `ROOK_UNREACHABLE_NODE_TOLERATION_SECONDS` (5 seconds by default). Represents the time to wait until the node controller will move Rook pods to other nodes after detecting an unreachable node. Pods affected by this setting are: mgr, rbd, mds, rgw, nfs, PVC based mons and osds, and ceph toolbox. The value used in this variable replaces the default value of 300 seconds added automatically by k8s as Pod Toleration for `node.kubernetes.io/unreachable`.
+Now the total amount of time to reschedule Rook pods in healthy nodes before detecting a `not ready node` condition will be the sum of `node-monitor-grace-period` (k8s kube-controller-manager flag, 40 seconds by default) and `ROOK_UNREACHABLE_NODE_TOLERATION_SECONDS` (5 seconds by default)
 
 ### EdgeFS
 
