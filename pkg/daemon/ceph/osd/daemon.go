@@ -22,9 +22,7 @@ import (
 	"os"
 	"os/signal"
 	"regexp"
-	"strconv"
 	"syscall"
-	"time"
 
 	"strings"
 
@@ -82,14 +80,14 @@ func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID, lvPath string,
 
 	// run the ceph-osd daemon
 	if err := context.Executor.ExecuteCommand(false, "", "ceph-osd", cephArgs...); err != nil {
-		return fmt.Errorf("failed to start osd. %+v", err)
+		// Instead of returning, we want to allow the lvm release to happen below, so we just log the err
+		logger.Errorf("failed to start osd or shutting down. %+v", err)
 	}
 
 	if pvcBackedOSD {
 		if err := releaseLVMDevice(context, volumeGroupName); err != nil {
 			return fmt.Errorf("failed to release device from lvm. %+v", err)
 		}
-
 	}
 
 	return nil
@@ -106,9 +104,6 @@ func handleTerminate(context *clusterd.Context, lvPath, volumeGroupName string) 
 			if err != nil {
 				return fmt.Errorf("failed to kill ceph-osd process. %+v", err)
 			}
-			if err := releaseLVMDevice(context, volumeGroupName); err != nil {
-				return fmt.Errorf("failed to release device from lvm. %+v", err)
-			}
 			return nil
 		}
 	}
@@ -116,36 +111,23 @@ func handleTerminate(context *clusterd.Context, lvPath, volumeGroupName string) 
 
 func killCephOSDProcess(context *clusterd.Context, lvPath string) error {
 
-	processKilled := false
 	pid, err := context.Executor.ExecuteCommandWithOutput(false, "", "fuser", "-a", lvPath)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve process ID for - %s. Error %+v", lvPath, err)
 	}
 
-	logger.Debugf("process ID for ceph-osd: %s", pid)
+	logger.Infof("process ID for ceph-osd: %s", pid)
 
 	// shut down the osd-ceph process so that lvm release does not show device in use error.
 	if pid != "" {
-		if err := context.Executor.ExecuteCommand(false, "", "kill", pid); err != nil {
-			return fmt.Errorf("failed to delete ceph-osd process. %+v", err)
-		}
-	} else {
-		return nil
-	}
-
-	pidInt, err := strconv.Atoi(pid)
-	if err != nil {
-		return fmt.Errorf("failed to convert process ID - %s to string. Error %+v ", pid, err)
-	}
-	for !processKilled {
-		_, err := os.FindProcess(int(pidInt))
-		if err != nil {
-			logger.Infof("ceph-osd process deleted successfully")
-			processKilled = true
-		} else {
-			logger.Infof("ceph-osd process still running")
-			time.Sleep(2 * time.Second)
-			continue
+		// The OSD needs to exit as quickly as possible in order for the IO requests
+		// to be redirected to other OSDs in the cluster. The OSD is designed to tolerate failures
+		// of any kind, including power loss or kill -9. The upstream Ceph tests have for many years
+		// been testing with kill -9 so this is expected to be safe. There is a fix upstream Ceph that will
+		// improve the shutdown time of the OSD. For cleanliness we should consider removing the -9
+		// once it is backported to Nautilus: https://github.com/ceph/ceph/pull/31677.
+		if err := context.Executor.ExecuteCommand(false, "", "kill", "-9", pid); err != nil {
+			return fmt.Errorf("failed to kill ceph-osd process. %+v", err)
 		}
 	}
 
