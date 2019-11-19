@@ -178,16 +178,10 @@ spec:
     image: krallin/ubuntu-tini
     command:
         - "/usr/local/bin/tini"
+        - "-g"
         - "--"
-        - "bash"
-        - "-c"
-        - |
-          pid=
-          trap 'exit 0' SIGTERM
-          trap '[[ $pid ]] && kill "$pid"' EXIT
-          sleep 1800 & pid=$!
-          wait $pid
-          pid=
+        - "sleep"
+        - "1800"
     imagePullPolicy: IfNotPresent
     env:
     volumeMounts:
