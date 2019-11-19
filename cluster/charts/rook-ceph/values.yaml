@@ -78,9 +78,9 @@ csi:
   #registrar:
     #image: quay.io/k8scsi/csi-node-driver-registrar:v1.1.0
   #provisioner:
-    #image: quay.io/k8scsi/csi-provisioner:v1.3.0
+    #image: quay.io/k8scsi/csi-provisioner:v1.4.0
   #snapshotter:
-    #image: quay.io/k8scsi/csi-snapshotter:v1.2.0
+    #image: quay.io/k8scsi/csi-snapshotter:v1.2.2
   #attacher:
     #image: quay.io/k8scsi/csi-attacher:v1.2.0
 
