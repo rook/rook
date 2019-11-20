@@ -32,6 +32,7 @@ import (
 const (
 	// DefaultContainerMaxCapacity - max allowed container disks capacity, if exeeded then new new container will be added
 	DefaultContainerMaxCapacity = "132Ti"
+	S3PayloadSecretsPath        = "/opt/nedge/etc/secrets/"
 )
 
 // CreateQualifiedHeadlessServiceName creates a qualified name of the headless service for a given replica id and namespace,
@@ -187,6 +188,14 @@ func getRTDevices(cntDevs ContainerDevices, storeConfig *config.StoreConfig) (rt
 		walDisabled = 1
 	}
 
+	if len(storeConfig.PayloadS3URL) > 0 {
+		if storeConfig.UseMetadataOffload {
+			return rtDevices, fmt.Errorf("payload S3 mode is not supported in mixed HDD/SSD configuration (UseMetadataOffload=true)")
+		}
+		if len(storeConfig.PayloadS3Secret) == 0 {
+			return rtDevices, fmt.Errorf("payloadS3Secret has to be defined to enable the payload S3 feature")
+		}
+	}
 	if storeConfig.UseAllSSD {
 		//
 		// All flush media case (High Performance)
@@ -208,6 +217,14 @@ func getRTDevices(cntDevs ContainerDevices, storeConfig *config.StoreConfig) (rt
 			}
 			if storeConfig.RtPLevelOverride != 0 {
 				rtdev.PlevelOverride = storeConfig.RtPLevelOverride
+			}
+			if len(storeConfig.PayloadS3URL) > 0 {
+				rtdev.PayloadS3URL = storeConfig.PayloadS3URL
+				rtdev.PayloadS3Region = storeConfig.PayloadS3Region
+				rtdev.PayloadS3MinKb = storeConfig.PayloadS3MinKb
+				rtdev.PayloadS3Capacity = storeConfig.PayloadS3Capacity
+				rtdev.PayloadS3Secret = S3PayloadSecretsPath + storeConfig.PayloadS3Secret + "/secret.key"
+				rtdev.PayloadS3SyncGet = storeConfig.PayloadS3SyncGetMax
 			}
 			rtDevices = append(rtDevices, rtdev)
 		}
@@ -234,6 +251,13 @@ func getRTDevices(cntDevs ContainerDevices, storeConfig *config.StoreConfig) (rt
 			}
 			if storeConfig.RtPLevelOverride != 0 {
 				rtdev.PlevelOverride = storeConfig.RtPLevelOverride
+			}
+			if len(storeConfig.PayloadS3URL) > 0 {
+				rtdev.PayloadS3URL = storeConfig.PayloadS3URL
+				rtdev.PayloadS3Region = storeConfig.PayloadS3Region
+				rtdev.PayloadS3MinKb = storeConfig.PayloadS3MinKb
+				rtdev.PayloadS3Capacity = storeConfig.PayloadS3Capacity
+				rtdev.PayloadS3Secret = S3PayloadSecretsPath + storeConfig.PayloadS3Secret + "/secret.key"
 			}
 			rtDevices = append(rtDevices, rtdev)
 		}

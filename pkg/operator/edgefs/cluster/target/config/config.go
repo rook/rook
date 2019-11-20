@@ -36,22 +36,28 @@ func GetConfigStoreName(nodeName string) string {
 }
 
 const (
-	RtVerifyChidKey       = "rtVerifyChid"
-	MaxSizeGB             = "maxSizeGB"
-	MDReserved            = "mdReserved"
-	HDDReadAhead          = "hddReadAhead"
-	LmdbPageSizeKey       = "lmdbPageSize"
-	LmdbMdPageSizeKey     = "lmdbMdPageSize"
-	UseBcacheKey          = "useBCache"
-	UseBcacheWBKey        = "useBCacheWB"
-	UseMetadataMaskKey    = "useMetadataMask"
-	UseMetadataOffloadKey = "useMetadataOffload"
-	UseAllSSDKey          = "useAllSSD"
-	RtPlevelOverrideKey   = "rtPLevelOverride"
-	SyncKey               = "sync"
-	ZoneKey               = "zone"
-	UseRtkvsBackendKey    = "useRtkvsBackend"
-	WalModeKey            = "walMode"
+	RtVerifyChidKey        = "rtVerifyChid"
+	MaxSizeGB              = "maxSizeGB"
+	MDReserved             = "mdReserved"
+	HDDReadAhead           = "hddReadAhead"
+	LmdbPageSizeKey        = "lmdbPageSize"
+	LmdbMdPageSizeKey      = "lmdbMdPageSize"
+	UseBcacheKey           = "useBCache"
+	UseBcacheWBKey         = "useBCacheWB"
+	UseMetadataMaskKey     = "useMetadataMask"
+	UseMetadataOffloadKey  = "useMetadataOffload"
+	UseAllSSDKey           = "useAllSSD"
+	RtPlevelOverrideKey    = "rtPLevelOverride"
+	SyncKey                = "sync"
+	ZoneKey                = "zone"
+	UseRtkvsBackendKey     = "useRtkvsBackend"
+	WalModeKey             = "walMode"
+	PayloadS3URLKey        = "payloadS3URL"
+	PayloadS3RegionKey     = "payloadS3Region"
+	PayloadS3MinKbKey      = "payloadS3MinKb"
+	PayloadS3CapacityKey   = "payloadS3CapacityGB"
+	PayloadS3SecretKey     = "payloadS3Secret"
+	PayloadS3SyncGetMaxKey = "payloadS3SyncGetMax"
 )
 
 type StoreConfig struct {
@@ -87,25 +93,43 @@ type StoreConfig struct {
 	UseRtkvsBackend string `json:"useRtkvsBackend,omitempty"`
 	// Write-ahead-log mode
 	WalMode int `json:"walMode,omitempty"`
+	// S3 payload bucket's URL
+	PayloadS3URL string `json:"payloadS3URL,omitempty"`
+	// S3 pyaload bucket's region
+	PayloadS3Region string `json:"payloadS3Region,omitempty"`
+	// Minimal payload size to be stored in a S3 bucket
+	PayloadS3MinKb int `json:"payloadS3MinKb,omitempty"`
+	// Capacity of the S3 paylod bucket
+	PayloadS3Capacity int `json:"payloadS3Capacity,omitempty"`
+	// k8s secret name to be used as a S3 secret file
+	PayloadS3Secret string `json:"payloadS3Secret,omitempty"`
+	// Maximum number of simultaneous S3 GET requests per node
+	PayloadS3SyncGetMax int `json:"payloadS3SyncGetMax,omitempty"`
 }
 
 func DefaultStoreConfig() StoreConfig {
 	return StoreConfig{
-		RtVerifyChid:       1,
-		LmdbPageSize:       16384,
-		LmdbMdPageSize:     8192,
-		MDReserved:         0,
-		HDDReadAhead:       0,
-		UseBCache:          false,
-		UseBCacheWB:        false,
-		UseMetadataMask:    "0xff",
-		UseMetadataOffload: false,
-		UseAllSSD:          false,
-		RtPLevelOverride:   0,
-		Sync:               1,
-		Zone:               0,
-		UseRtkvsBackend:    "",
-		WalMode:            0,
+		RtVerifyChid:        1,
+		LmdbPageSize:        16384,
+		LmdbMdPageSize:      8192,
+		MDReserved:          0,
+		HDDReadAhead:        0,
+		UseBCache:           false,
+		UseBCacheWB:         false,
+		UseMetadataMask:     "0xff",
+		UseMetadataOffload:  false,
+		UseAllSSD:           false,
+		RtPLevelOverride:    0,
+		Sync:                1,
+		Zone:                0,
+		UseRtkvsBackend:     "",
+		WalMode:             0,
+		PayloadS3URL:        "",
+		PayloadS3Region:     "us-east-1",
+		PayloadS3MinKb:      0,
+		PayloadS3Capacity:   0,
+		PayloadS3Secret:     "",
+		PayloadS3SyncGetMax: 0,
 	}
 }
 
@@ -199,6 +223,27 @@ func ToStoreConfig(config map[string]string) StoreConfig {
 				logger.Warningf("Incorrect 'walMode' value %s ignored", v)
 			} else {
 				storeConfig.WalMode = val
+			}
+		case PayloadS3URLKey:
+			storeConfig.PayloadS3URL = v
+		case PayloadS3SecretKey:
+			storeConfig.PayloadS3Secret = v
+		case PayloadS3RegionKey:
+			storeConfig.PayloadS3Region = v
+		case PayloadS3MinKbKey:
+			value := convertToIntIgnoreErr(v)
+			if value > 0 {
+				storeConfig.PayloadS3MinKb = value
+			}
+		case PayloadS3CapacityKey:
+			value := convertToIntIgnoreErr(v)
+			if value > 0 {
+				storeConfig.PayloadS3Capacity = value
+			}
+		case PayloadS3SyncGetMaxKey:
+			value := convertToIntIgnoreErr(v)
+			if value > 0 {
+				storeConfig.PayloadS3SyncGetMax = value
 			}
 		}
 	}
