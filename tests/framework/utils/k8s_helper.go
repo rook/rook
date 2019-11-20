@@ -542,7 +542,7 @@ func (k8sh *K8sHelper) GetPodDescribeFromNamespace(namespace, testName, platform
 }
 
 func (k8sh *K8sHelper) appendPodDescribe(file *os.File, namespace, name string) {
-	description := k8sh.getPodDescribe(namespace, name)
+	description := k8sh.getDescribeOutput(namespace, "pod", name)
 	if description == "" {
 		return
 	}
@@ -552,21 +552,29 @@ func (k8sh *K8sHelper) appendPodDescribe(file *os.File, namespace, name string) 
 }
 
 func (k8sh *K8sHelper) PrintPodDescribe(namespace string, args ...string) {
-	description := k8sh.getPodDescribe(namespace, args...)
+	description := k8sh.getDescribeOutput(namespace, "pod", args...)
 	if description == "" {
 		return
 	}
 	logger.Infof("POD Description:\n%s", description)
 }
 
-func (k8sh *K8sHelper) getPodDescribe(namespace string, args ...string) string {
-	args = append([]string{"describe", "pod", "-n", namespace}, args...)
+func (k8sh *K8sHelper) getDescribeOutput(namespace, resource string, args ...string) string {
+	args = append([]string{"describe", resource, "-n", namespace}, args...)
 	description, err := k8sh.Kubectl(args...)
 	if err != nil {
-		logger.Errorf("failed to describe pod. %v %+v", args, err)
+		logger.Errorf("failed to describe %s. %v %+v", resource, args, err)
 		return ""
 	}
 	return description
+}
+
+func (k8sh *K8sHelper) PrintPVCDescribe(namespace string, args ...string) {
+	description := k8sh.getDescribeOutput(namespace, "pvc", args...)
+	if description == "" {
+		return
+	}
+	logger.Infof("PVC Description:\n%s", description)
 }
 
 func (k8sh *K8sHelper) PrintEventsForNamespace(namespace string) {
