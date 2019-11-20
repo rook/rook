@@ -39,8 +39,6 @@ const (
 	csiSCCephFS                = "ceph-csi-cephfs"
 	csiPoolRBD                 = "csi-rbd"
 	csiPoolCephFS              = "csi-cephfs"
-	csiTestRBDPodName          = "csi-test-rbd"
-	csiTestCephFSPodName       = "csi-test-cephfs"
 )
 
 func runCephCSIE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, t *testing.T, namespace string) {
@@ -138,33 +136,16 @@ spec:
 	return pvc
 }
 
-func deleteCSIStorageClass(k8sh *utils.K8sHelper, namespace string) {
-	err := k8sh.Clientset.StorageV1().StorageClasses().Delete(csiSCRBD, &metav1.DeleteOptions{})
-	if err != nil {
-		logger.Errorf("failed to delete rbd storage class %s with error %v", csiSCRBD, err)
-	}
-	err = k8sh.Clientset.StorageV1().StorageClasses().Delete(csiSCCephFS, &metav1.DeleteOptions{})
-	if err != nil {
-		logger.Errorf("failed to delete cephfs storage class %s with error %v", csiSCCephFS, err)
-		return
-	}
-	logger.Info("Deleted rbd and cephfs storageclass")
-}
-
-func createAndDeleteCSIRBDTestPod(k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
-	pvcName := "test-rbd-pvc"
-	size := "1Gi"
-	accessMode := string(corev1.ReadWriteOnce)
-	pvc := generatePVC(pvcName, namespace, size, csiSCRBD, accessMode)
+func generatePodTemplate(name, namespace, pvcName string) string {
 	pod := `
 apiVersion: v1
 kind: Pod
 metadata:
-  name: ` + csiTestRBDPodName + `
+  name: ` + name + `
   namespace: ` + namespace + `
 spec:
   containers:
-  - name: ` + csiTestRBDPodName + `
+  - name: ` + name + `
     image: busybox
     command:
         - sh
@@ -182,6 +163,32 @@ spec:
        readOnly: false
   restartPolicy: Never
 `
+	return pod
+}
+
+func deleteCSIStorageClass(k8sh *utils.K8sHelper, namespace string) {
+	err := k8sh.Clientset.StorageV1().StorageClasses().Delete(csiSCRBD, &metav1.DeleteOptions{})
+	if err != nil {
+		logger.Errorf("failed to delete rbd storage class %s with error %v", csiSCRBD, err)
+	}
+	err = k8sh.Clientset.StorageV1().StorageClasses().Delete(csiSCCephFS, &metav1.DeleteOptions{})
+	if err != nil {
+		logger.Errorf("failed to delete cephfs storage class %s with error %v", csiSCCephFS, err)
+		return
+	}
+	logger.Info("Deleted rbd and cephfs storageclass")
+}
+
+func createAndDeleteCSIRBDTestPod(k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
+	var (
+		pvcName    = "test-rbd-pvc"
+		size       = "1Gi"
+		accessMode = string(corev1.ReadWriteOnce)
+		podName    = "csi-test-rbd"
+	)
+	pvc := generatePVC(pvcName, namespace, size, csiSCRBD, accessMode)
+	pod := generatePodTemplate(podName, namespace, pvcName)
+
 	err := k8sh.ResourceOperation("create", pvc)
 	assert.NoError(s.T(), err)
 	bound := k8sh.WaitUntilPVCIsBound(namespace, pvcName)
@@ -192,9 +199,9 @@ spec:
 
 	err = k8sh.ResourceOperation("apply", pod)
 	require.Nil(s.T(), err)
-	isPodRunning := k8sh.IsPodRunning(csiTestRBDPodName, namespace)
+	isPodRunning := k8sh.IsPodRunning(podName, namespace)
 	if !isPodRunning {
-		k8sh.PrintPodDescribe(namespace, csiTestRBDPodName)
+		k8sh.PrintPodDescribe(namespace, podName)
 		k8sh.PrintPodStatus(namespace)
 	}
 	// cleanup the pod and pvc
@@ -210,36 +217,15 @@ spec:
 }
 
 func createAndDeleteCSICephFSTestPod(k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
-	pvcName := "cephfs-pvc-csi"
-	size := "1Gi"
-	accessMode := string(corev1.ReadWriteOnce)
+	var (
+		pvcName    = "cephfs-pvc-csi"
+		size       = "1Gi"
+		accessMode = string(corev1.ReadWriteOnce)
+		podName    = "csi-test-cephfs"
+	)
 	pvc := generatePVC(pvcName, namespace, size, csiSCCephFS, accessMode)
-	pod := `
-apiVersion: v1
-kind: Pod
-metadata:
-  name: ` + csiTestCephFSPodName + `
-  namespace: ` + namespace + `
-spec:
-  containers:
-  - name: ` + csiTestCephFSPodName + `
-    image: busybox
-    command:
-        - sh
-        - "-c"
-        - "touch /test/csi.test && sleep 3600"
-    imagePullPolicy: IfNotPresent
-    env:
-    volumeMounts:
-    - mountPath: /test
-      name: csivol
-  volumes:
-  - name: csivol
-    persistentVolumeClaim:
-       claimName: ` + pvcName + `
-       readOnly: false
-  restartPolicy: Never
-`
+	pod := generatePodTemplate(podName, namespace, pvcName)
+
 	err := k8sh.ResourceOperation("create", pvc)
 	assert.NoError(s.T(), err)
 	bound := k8sh.WaitUntilPVCIsBound(namespace, pvcName)
@@ -250,9 +236,9 @@ spec:
 
 	err = k8sh.ResourceOperation("apply", pod)
 	require.Nil(s.T(), err)
-	isPodRunning := k8sh.IsPodRunning(csiTestCephFSPodName, namespace)
+	isPodRunning := k8sh.IsPodRunning(podName, namespace)
 	if !isPodRunning {
-		k8sh.PrintPodDescribe(namespace, csiTestCephFSPodName)
+		k8sh.PrintPodDescribe(namespace, podName)
 		k8sh.PrintPodStatus(namespace)
 	}
 	// cleanup the pod and pvc
