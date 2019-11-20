@@ -18,6 +18,7 @@ package integration
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/rook/rook/tests/framework/clients"
@@ -51,9 +52,12 @@ func runCephCSIE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suit
 	logger.Info("test Ceph CSI driver")
 	createCephPools(helper, s, namespace)
 	createCSIStorageClass(k8sh, s, namespace)
-	createAndDeleteCSIRBDTestPod(k8sh, s, namespace)
-	createAndDeleteCSICephFSTestPod(k8sh, s, namespace)
-
+	// test RWO PVC
+	createAndDeleteCSIRBDTestPod(k8sh, s, namespace, corev1.ReadWriteOnce)
+	createAndDeleteCSICephFSTestPod(k8sh, s, namespace, corev1.ReadWriteOnce)
+	// test RWX PVC
+	createAndDeleteCSIRBDTestPod(k8sh, s, namespace, corev1.ReadWriteMany)
+	createAndDeleteCSICephFSTestPod(k8sh, s, namespace, corev1.ReadWriteMany)
 	//cleanup resources created
 	deleteCephPools(helper, namespace)
 	deleteCSIStorageClass(k8sh, namespace)
@@ -118,7 +122,7 @@ parameters:
 	require.Nil(s.T(), err)
 }
 
-func generatePVC(name, ns, size, scName, accessMode string) string {
+func generatePVCTemplate(name, ns, size, scName, accessMode string) string {
 	pvc := `
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -136,7 +140,7 @@ spec:
 	return pvc
 }
 
-func generatePodTemplate(name, namespace, pvcName string) string {
+func generatePodTemplate(name, namespace, pvcName, nodeName string) string {
 	pod := `
 apiVersion: v1
 kind: Pod
@@ -144,6 +148,7 @@ metadata:
   name: ` + name + `
   namespace: ` + namespace + `
 spec:
+  nodeName: ` + nodeName + `
   containers:
   - name: ` + name + `
     image: busybox
@@ -217,15 +222,18 @@ func (c csiConfig) deleteTestPod() {
 	assert.True(c.s.T(), c.isPodRunning, "csi rbd test pod fails to run")
 }
 
-func createAndDeleteCSIRBDTestPod(k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
+func createAndDeleteCSIRBDTestPod(k8sh *utils.K8sHelper, s suite.Suite, namespace string, accessMode corev1.PersistentVolumeAccessMode) {
 	var (
-		pvcName    = "test-rbd-pvc"
-		size       = "1Gi"
-		accessMode = string(corev1.ReadWriteOnce)
-		podName    = "csi-test-rbd"
+		pvcName = "test-rbd-pvc"
+		size    = "1Gi"
+		podName = "csi-test-rbd"
+		node1   = ""
+		node2   = ""
 	)
-	pvc := generatePVC(pvcName, namespace, size, csiSCRBD, accessMode)
-	pod := generatePodTemplate(podName, namespace, pvcName)
+
+	node1, node2 = getTwoNodeNamesFromCluster(k8sh, s)
+	pvc := generatePVCTemplate(pvcName, namespace, size, csiSCRBD, string(accessMode))
+	pod := generatePodTemplate(podName, namespace, pvcName, node1)
 
 	c := &csiConfig{
 		k8sh:      k8sh,
@@ -237,20 +245,71 @@ func createAndDeleteCSIRBDTestPod(k8sh *utils.K8sHelper, s suite.Suite, namespac
 		podName:   podName,
 	}
 	c.createTestPod()
+	// schedule pod on node2 if access mode is ReadWriteOnce pod should not go
+	// to running state, if access mode is ReadWriteMany pod should go
+	// to running state
+	if node2 != "" {
+		podName = "csi-test-rbd-pod"
+		pod2 := generatePodTemplate(podName, namespace, pvcName, node2)
+		err := k8sh.ResourceOperation("apply", pod2)
+		require.Nil(s.T(), err)
+		isPodRunning := k8sh.IsPodRunning(pod2, namespace)
+		err = c.k8sh.ResourceOperation("delete", pod2)
+		assert.NoError(s.T(), err)
+		if accessMode == corev1.ReadWriteOnce {
+			assert.False(s.T(), isPodRunning, "csi rbd test pod fails to run")
+		} else if accessMode == corev1.ReadWriteMany {
+			assert.True(s.T(), isPodRunning, "csi rbd test pod fails to run")
+		}
+	}
+
 	// cleanup the pod and pvc
 	c.deleteTestPod()
-
 }
 
-func createAndDeleteCSICephFSTestPod(k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
+func getTwoNodeNamesFromCluster(k8sh *utils.K8sHelper, s suite.Suite) (string, string) {
 	var (
-		pvcName    = "cephfs-pvc-csi"
-		size       = "1Gi"
-		accessMode = string(corev1.ReadWriteOnce)
-		podName    = "csi-test-cephfs"
+		node1 = ""
+		node2 = ""
 	)
-	pvc := generatePVC(pvcName, namespace, size, csiSCCephFS, accessMode)
-	pod := generatePodTemplate(podName, namespace, pvcName)
+	nodes, err := k8sh.Clientset.CoreV1().Nodes().List(metav1.ListOptions{})
+	assert.NoError(s.T(), err)
+	for _, node := range nodes.Items {
+		if isMasterNode(&node) {
+			continue
+		}
+		if node1 == "" {
+			node1 = node.Name
+			continue
+		}
+		if node2 == "" && node1 != node.Name {
+			node2 = node.Name
+		}
+	}
+	return node1, node2
+}
+
+func isMasterNode(node *corev1.Node) bool {
+	for k := range node.Labels {
+		switch {
+		case strings.HasPrefix(k, "node-role.kubernetes.io/master"):
+			return true
+		}
+	}
+	return false
+}
+
+func createAndDeleteCSICephFSTestPod(k8sh *utils.K8sHelper, s suite.Suite, namespace string, accessMode corev1.PersistentVolumeAccessMode) {
+	var (
+		pvcName = "cephfs-pvc-csi"
+		size    = "1Gi"
+		podName = "csi-test-cephfs"
+		node1   = ""
+		node2   = ""
+	)
+	node1, node2 = getTwoNodeNamesFromCluster(k8sh, s)
+	pvc := generatePVCTemplate(pvcName, namespace, size, csiSCCephFS, string(accessMode))
+	pod := generatePodTemplate(podName, namespace, pvcName, node1)
 
 	c := &csiConfig{
 		k8sh:      k8sh,
@@ -262,6 +321,23 @@ func createAndDeleteCSICephFSTestPod(k8sh *utils.K8sHelper, s suite.Suite, names
 		podName:   podName,
 	}
 	c.createTestPod()
+	// schedule pod on node2 if access mode is ReadWriteOnce pod should not go
+	// to running state, if access mode is ReadWriteMany pod should go
+	// to running state
+	if node2 != "" {
+		podName = "csi-test-cephfs-pod"
+		pod2 := generatePodTemplate(podName, namespace, pvcName, node2)
+		err := k8sh.ResourceOperation("apply", pod2)
+		require.Nil(s.T(), err)
+		isPodRunning := k8sh.IsPodRunning(pod2, namespace)
+		err = c.k8sh.ResourceOperation("delete", pod2)
+		assert.NoError(s.T(), err)
+		if accessMode == corev1.ReadWriteOnce {
+			assert.False(s.T(), isPodRunning, "csi cephfs test pod fails to run")
+		} else if accessMode == corev1.ReadWriteMany {
+			assert.True(s.T(), isPodRunning, "csi cephfs test pod fails to run")
+		}
+	}
 	// cleanup the pod and pvc
 	c.deleteTestPod()
 }
