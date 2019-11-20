@@ -179,6 +179,44 @@ func deleteCSIStorageClass(k8sh *utils.K8sHelper, namespace string) {
 	logger.Info("Deleted rbd and cephfs storageclass")
 }
 
+type csiConfig struct {
+	k8sh         *utils.K8sHelper
+	s            suite.Suite
+	namespace    string
+	pvc          string
+	pod          string
+	pvcName      string
+	podName      string
+	isPodRunning bool
+}
+
+func (c *csiConfig) createTestPod() {
+	err := c.k8sh.ResourceOperation("create", c.pvc)
+	assert.NoError(c.s.T(), err)
+	isPVCBound := c.k8sh.WaitUntilPVCIsBound(c.namespace, c.pvcName)
+	if !isPVCBound {
+		c.k8sh.PrintPVCDescribe(c.namespace, c.pvcName)
+	}
+	assert.True(c.s.T(), isPVCBound, fmt.Sprintf("%s failed to get bound", c.pvcName))
+	err = c.k8sh.ResourceOperation("apply", c.pod)
+	require.Nil(c.s.T(), err)
+	isPodRunning := c.k8sh.IsPodRunning(c.podName, c.namespace)
+	if !isPodRunning {
+		c.k8sh.PrintPodDescribe(c.namespace, c.podName)
+		c.k8sh.PrintPodStatus(c.namespace)
+	}
+}
+
+func (c csiConfig) deleteTestPod() {
+	err := c.k8sh.ResourceOperation("delete", c.pod)
+	assert.NoError(c.s.T(), err)
+	err = c.k8sh.ResourceOperation("delete", c.pvc)
+	assert.NoError(c.s.T(), err)
+	delete := c.k8sh.WaitUntilPVCIsDeleted(c.namespace, c.pvcName)
+	assert.True(c.s.T(), delete, fmt.Sprintf("failed to delete %s", c.pvcName))
+	assert.True(c.s.T(), c.isPodRunning, "csi rbd test pod fails to run")
+}
+
 func createAndDeleteCSIRBDTestPod(k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
 	var (
 		pvcName    = "test-rbd-pvc"
@@ -189,30 +227,18 @@ func createAndDeleteCSIRBDTestPod(k8sh *utils.K8sHelper, s suite.Suite, namespac
 	pvc := generatePVC(pvcName, namespace, size, csiSCRBD, accessMode)
 	pod := generatePodTemplate(podName, namespace, pvcName)
 
-	err := k8sh.ResourceOperation("create", pvc)
-	assert.NoError(s.T(), err)
-	bound := k8sh.WaitUntilPVCIsBound(namespace, pvcName)
-	if !bound {
-		k8sh.PrintPVCDescribe(namespace, pvcName)
+	c := &csiConfig{
+		k8sh:      k8sh,
+		s:         s,
+		pvc:       pvc,
+		pod:       pod,
+		namespace: namespace,
+		pvcName:   pvcName,
+		podName:   podName,
 	}
-	assert.True(s.T(), bound, fmt.Sprintf("%s failed to get bound", pvcName))
-
-	err = k8sh.ResourceOperation("apply", pod)
-	require.Nil(s.T(), err)
-	isPodRunning := k8sh.IsPodRunning(podName, namespace)
-	if !isPodRunning {
-		k8sh.PrintPodDescribe(namespace, podName)
-		k8sh.PrintPodStatus(namespace)
-	}
+	c.createTestPod()
 	// cleanup the pod and pvc
-	err = k8sh.ResourceOperation("delete", pod)
-	assert.NoError(s.T(), err)
-	assert.True(s.T(), isPodRunning, "csi rbd test pod fails to run")
-
-	err = k8sh.ResourceOperation("delete", pvc)
-	assert.NoError(s.T(), err)
-	delete := k8sh.WaitUntilPVCIsDeleted(namespace, pvcName)
-	assert.True(s.T(), delete, fmt.Sprintf("failed to delete %s", pvcName))
+	c.deleteTestPod()
 
 }
 
@@ -226,28 +252,16 @@ func createAndDeleteCSICephFSTestPod(k8sh *utils.K8sHelper, s suite.Suite, names
 	pvc := generatePVC(pvcName, namespace, size, csiSCCephFS, accessMode)
 	pod := generatePodTemplate(podName, namespace, pvcName)
 
-	err := k8sh.ResourceOperation("create", pvc)
-	assert.NoError(s.T(), err)
-	bound := k8sh.WaitUntilPVCIsBound(namespace, pvcName)
-	assert.True(s.T(), bound, fmt.Sprintf("%s failed to get bound", pvcName))
-	if !bound {
-		k8sh.PrintPVCDescribe(namespace, pvcName)
+	c := &csiConfig{
+		k8sh:      k8sh,
+		s:         s,
+		pvc:       pvc,
+		pod:       pod,
+		namespace: namespace,
+		pvcName:   pvcName,
+		podName:   podName,
 	}
-
-	err = k8sh.ResourceOperation("apply", pod)
-	require.Nil(s.T(), err)
-	isPodRunning := k8sh.IsPodRunning(podName, namespace)
-	if !isPodRunning {
-		k8sh.PrintPodDescribe(namespace, podName)
-		k8sh.PrintPodStatus(namespace)
-	}
+	c.createTestPod()
 	// cleanup the pod and pvc
-	err = k8sh.ResourceOperation("delete", pod)
-	assert.NoError(s.T(), err)
-	assert.True(s.T(), isPodRunning, "csi cephfs test pod fails to run")
-
-	err = k8sh.ResourceOperation("delete", pvc)
-	assert.NoError(s.T(), err)
-	delete := k8sh.WaitUntilPVCIsDeleted(namespace, pvcName)
-	assert.True(s.T(), delete, fmt.Sprintf("failed to delete %s", pvcName))
+	c.deleteTestPod()
 }
