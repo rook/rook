@@ -185,6 +185,9 @@ spec:
 	err := k8sh.ResourceOperation("create", pvc)
 	assert.NoError(s.T(), err)
 	bound := k8sh.WaitUntilPVCIsBound(namespace, pvcName)
+	if !bound {
+		k8sh.PrintPVCDescribe(namespace, pvcName)
+	}
 	assert.True(s.T(), bound, fmt.Sprintf("%s failed to get bound", pvcName))
 
 	err = k8sh.ResourceOperation("apply", pod)
@@ -241,6 +244,9 @@ spec:
 	assert.NoError(s.T(), err)
 	bound := k8sh.WaitUntilPVCIsBound(namespace, pvcName)
 	assert.True(s.T(), bound, fmt.Sprintf("%s failed to get bound", pvcName))
+	if !bound {
+		k8sh.PrintPVCDescribe(namespace, pvcName)
+	}
 
 	err = k8sh.ResourceOperation("apply", pod)
 	require.Nil(s.T(), err)
