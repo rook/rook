@@ -17,6 +17,7 @@ limitations under the License.
 package integration
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/rook/rook/tests/framework/clients"
@@ -25,6 +26,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -118,6 +120,24 @@ parameters:
 	require.Nil(s.T(), err)
 }
 
+func generatePVC(name, ns, size, scName, accessMode string) string {
+	pvc := `
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+   name: ` + name + `
+   namespace: ` + ns + `
+spec:
+   accessModes:
+   - ` + accessMode + `
+   resources:
+      requests:
+         storage: ` + size + `
+   storageClassName: ` + scName + `
+`
+	return pvc
+}
+
 func deleteCSIStorageClass(k8sh *utils.K8sHelper, namespace string) {
 	err := k8sh.Clientset.StorageV1().StorageClasses().Delete(csiSCRBD, &metav1.DeleteOptions{})
 	if err != nil {
@@ -132,20 +152,11 @@ func deleteCSIStorageClass(k8sh *utils.K8sHelper, namespace string) {
 }
 
 func createAndDeleteCSIRBDTestPod(k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
+	pvcName := "test-rbd-pvc"
+	size := "1Gi"
+	accessMode := string(corev1.ReadWriteOnce)
+	pvc := generatePVC(pvcName, namespace, size, csiSCRBD, accessMode)
 	pod := `
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: rbd-pvc-csi
-  namespace: ` + namespace + `
-spec:
-  accessModes:
-  - ReadWriteOnce
-  resources:
-    requests:
-      storage: 1Gi
-  storageClassName: ` + csiSCRBD + `
----
 apiVersion: v1
 kind: Pod
 metadata:
@@ -167,11 +178,16 @@ spec:
   volumes:
   - name: csivol
     persistentVolumeClaim:
-       claimName: rbd-pvc-csi
+       claimName: ` + pvcName + `
        readOnly: false
   restartPolicy: Never
 `
-	err := k8sh.ResourceOperation("apply", pod)
+	err := k8sh.ResourceOperation("create", pvc)
+	assert.NoError(s.T(), err)
+	bound := k8sh.WaitUntilPVCIsBound(namespace, pvcName)
+	assert.True(s.T(), bound, fmt.Sprintf("%s failed to get bound", pvcName))
+
+	err = k8sh.ResourceOperation("apply", pod)
 	require.Nil(s.T(), err)
 	isPodRunning := k8sh.IsPodRunning(csiTestRBDPodName, namespace)
 	if !isPodRunning {
@@ -182,23 +198,20 @@ spec:
 	err = k8sh.ResourceOperation("delete", pod)
 	assert.NoError(s.T(), err)
 	assert.True(s.T(), isPodRunning, "csi rbd test pod fails to run")
+
+	err = k8sh.ResourceOperation("delete", pvc)
+	assert.NoError(s.T(), err)
+	delete := k8sh.WaitUntilPVCIsDeleted(namespace, pvcName)
+	assert.True(s.T(), delete, fmt.Sprintf("failed to delete %s", pvcName))
+
 }
 
 func createAndDeleteCSICephFSTestPod(k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
+	pvcName := "cephfs-pvc-csi"
+	size := "1Gi"
+	accessMode := string(corev1.ReadWriteOnce)
+	pvc := generatePVC(pvcName, namespace, size, csiSCCephFS, accessMode)
 	pod := `
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: cephfs-pvc-csi
-  namespace: ` + namespace + `
-spec:
-  accessModes:
-  - ReadWriteOnce
-  resources:
-    requests:
-      storage: 1Gi
-  storageClassName: ` + csiSCCephFS + `
----
 apiVersion: v1
 kind: Pod
 metadata:
@@ -220,11 +233,16 @@ spec:
   volumes:
   - name: csivol
     persistentVolumeClaim:
-       claimName: cephfs-pvc-csi
+       claimName: ` + pvcName + `
        readOnly: false
   restartPolicy: Never
 `
-	err := k8sh.ResourceOperation("apply", pod)
+	err := k8sh.ResourceOperation("create", pvc)
+	assert.NoError(s.T(), err)
+	bound := k8sh.WaitUntilPVCIsBound(namespace, pvcName)
+	assert.True(s.T(), bound, fmt.Sprintf("%s failed to get bound", pvcName))
+
+	err = k8sh.ResourceOperation("apply", pod)
 	require.Nil(s.T(), err)
 	isPodRunning := k8sh.IsPodRunning(csiTestCephFSPodName, namespace)
 	if !isPodRunning {
@@ -235,4 +253,9 @@ spec:
 	err = k8sh.ResourceOperation("delete", pod)
 	assert.NoError(s.T(), err)
 	assert.True(s.T(), isPodRunning, "csi cephfs test pod fails to run")
+
+	err = k8sh.ResourceOperation("delete", pvc)
+	assert.NoError(s.T(), err)
+	delete := k8sh.WaitUntilPVCIsDeleted(namespace, pvcName)
+	assert.True(s.T(), delete, fmt.Sprintf("failed to delete %s", pvcName))
 }
