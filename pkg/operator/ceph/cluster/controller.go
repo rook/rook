@@ -188,6 +188,10 @@ func (c *ClusterController) StopWatch() {
 	c.clusterMap = make(map[string]*cluster)
 }
 
+func (c *ClusterController) GetClusterCount() int {
+	return len(c.clusterMap)
+}
+
 // ************************************************************************************************
 // Add event functions
 // ************************************************************************************************
@@ -244,8 +248,12 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	}
 
 	cluster := newCluster(clusterObj, c.context, c.csiConfigMutex)
-	c.clusterMap[cluster.Namespace] = cluster
 
+	// Note that this lock is held through the callback process, as this creates CSI resources, but we must lock in
+	// this scope as the clusterMap is authoritative on cluster count and thus involved in the check for CSI resource
+	// deletion. If we ever add additional callback functions, we should tighten this lock.
+	c.csiConfigMutex.Lock()
+	c.clusterMap[cluster.Namespace] = cluster
 	logger.Infof("starting cluster in namespace %s", cluster.Namespace)
 
 	for _, callback := range c.addClusterCallbacks {
@@ -253,6 +261,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 			logger.Errorf("%+v", err)
 		}
 	}
+	c.csiConfigMutex.Unlock()
 
 	c.initializeCluster(cluster, clusterObj)
 }
@@ -763,6 +772,11 @@ func (c *ClusterController) onDelete(obj interface{}) {
 	if err != nil {
 		logger.Errorf("failed to delete cluster. %+v", err)
 	}
+
+	// Note that this lock is held through the callback process, as this deletes CSI resources, but we must lock in
+	// this scope as the clusterMap is authoritative on cluster count. If we ever add additional callback functions,
+	// we should tighten this lock.
+	c.csiConfigMutex.Lock()
 	if cluster, ok := c.clusterMap[clust.Namespace]; ok {
 		close(cluster.stopCh)
 		delete(c.clusterMap, clust.Namespace)
@@ -772,6 +786,7 @@ func (c *ClusterController) onDelete(obj interface{}) {
 			logger.Errorf("%+v", err)
 		}
 	}
+	c.csiConfigMutex.Unlock()
 
 	// Only valid when the cluster is not external
 	if !clust.Spec.External.Enable {
