@@ -42,8 +42,9 @@ import (
 
 const (
 	// PDBAppName is that app label value for pdbs targeting osds
-	PDBAppName     = "rook-ceph-osd-pdb"
-	disabledPDBKey = "disabled-pdb"
+	PDBAppName         = "rook-ceph-osd-pdb"
+	disabledPDBKey     = "disabled-pdb"
+	disabledPDBTimeKey = "pdb-disabled-at"
 	// DefaultMaintenanceTimeout is the period for which a drained failure domain will remain in noout
 	DefaultMaintenanceTimeout = 30 * time.Minute
 	nooutFlag                 = "noout"
@@ -168,18 +169,37 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 		}
 		return fmt.Errorf("could not check cluster health: %+v", err)
 	}
+	if pdbStateMap.Data == nil {
+		pdbStateMap.Data = make(map[string]string)
+	}
 	_, ok := pdbStateMap.Data[disabledPDBKey]
 	if !ok {
 		pdbStateMap.Data[disabledPDBKey] = ""
 	}
-	if len(drainingFailureDomains) != 0 {
-		logger.Infof("pg health: %s. detected drains on %ss: %v", pgHealthMsg, poolFailureDomain, drainingFailureDomains)
-		// change only when clean
-		if clean {
-			pdbStateMap.Data[disabledPDBKey] = drainingFailureDomains[0]
+	var disabledPDBTime time.Time
+	timeString, disabledPDBTimeSet := pdbStateMap.Data[disabledPDBTimeKey]
+	if disabledPDBTimeSet {
+		disabledPDBTime, err = time.Parse(time.RFC3339, timeString)
+		if err != nil {
+			logger.Errorf("Could not parse timestamp %v: %v", disabledPDBTime, err)
+			disabledPDBTime = time.Now()
+			pdbStateMap.Data[disabledPDBTimeKey] = disabledPDBTime.Format(time.RFC3339)
 		}
-	} else if clean {
-		pdbStateMap.Data[disabledPDBKey] = ""
+	}
+	recentlyChanged := disabledPDBTimeSet && time.Since(disabledPDBTime) < time.Minute
+	shouldChange := clean && !recentlyChanged
+	activeDrains := len(drainingFailureDomains) != 0
+	if activeDrains {
+		logger.Infof("pg health: %s. detected drains on %ss: %v", pgHealthMsg, poolFailureDomain, drainingFailureDomains)
+	}
+	if shouldChange {
+		if activeDrains {
+			pdbStateMap.Data[disabledPDBKey] = drainingFailureDomains[0]
+			pdbStateMap.Data[disabledPDBTimeKey] = time.Now().Format(time.RFC3339)
+		} else {
+			pdbStateMap.Data[disabledPDBKey] = ""
+			delete(pdbStateMap.Data, disabledPDBTimeKey)
+		}
 	}
 
 	err = r.updateNoout(pdbStateMap, allFailureDomainsMap)
