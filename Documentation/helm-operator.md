@@ -120,7 +120,7 @@ The following tables lists the configurable parameters of the rook-operator char
 | `csi.rbdGrpcMetricsPort`        | Ceph CSI RBD driver GRPC metrics port.                                                                  | `9090`                                                 |
 | `csi.rbdLivenessMetricsPort`    | Ceph CSI RBD driver metrics port.                                                                       | `8080`                                                 |
 | `csi.kubeletDirPath`            | Kubelet root directory path (if the Kubelet uses a different path for the `--root-dir` flag)            | `/var/lib/kubelet`                                     |
-| `csi.cephcsi.image`             | Ceph CSI image.                                                                                         | `quay.io/cephcsi/cephcsi:v1.2.1`                       |
+| `csi.cephcsi.image`             | Ceph CSI image.                                                                                         | `quay.io/cephcsi/cephcsi:v1.2.2`                       |
 | `csi.registrar.image`           | Kubernetes CSI registrar image.                                                                         | `quay.io/k8scsi/csi-node-driver-registrar:v1.1.0`      |
 | `csi.provisioner.image`         | Kubernetes CSI provisioner image.                                                                       | `quay.io/k8scsi/csi-provisioner:v1.3.0`                |
 | `csi.snapshotter.image`         | Kubernetes CSI snapshotter image.                                                                       | `quay.io/k8scsi/csi-snapshotter:v1.2.0`                |
