@@ -119,8 +119,9 @@ func UpdateCsiClusterConfig(
 }
 
 // CreateCsiConfigMap creates an empty config map that will be later used
-// to provide cluster configuration to ceph-csi.
-func CreateCsiConfigMap(namespace string, clientset kubernetes.Interface) error {
+// to provide cluster configuration to ceph-csi. If a config map already
+// exists, it will return it.
+func CreateCsiConfigMap(namespace string, clientset kubernetes.Interface) (*v1.ConfigMap, error) {
 	configMap := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ConfigName,
@@ -131,14 +132,25 @@ func CreateCsiConfigMap(namespace string, clientset kubernetes.Interface) error 
 		ConfigKey: "[]",
 	}
 
-	if _, err := clientset.CoreV1().ConfigMaps(namespace).Create(configMap); err != nil {
+	created, err := clientset.CoreV1().ConfigMaps(namespace).Create(configMap)
+	if err != nil {
 		if !k8serrors.IsAlreadyExists(err) {
-			return fmt.Errorf(
+			return nil, fmt.Errorf(
 				"failed to create initial csi config map %v (in %v). %+v",
 				configMap.Name, namespace, err)
 		}
+		return getCsiConfigMap(namespace, clientset)
 	}
-	return nil
+	return created, nil
+}
+
+func getCsiConfigMap(namespace string, clientset kubernetes.Interface) (*v1.ConfigMap, error) {
+	found, err := clientset.CoreV1().ConfigMaps(namespace).Get(ConfigName, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get pre-existing csi config map %v (in %v). %+v",
+			ConfigName, namespace, err)
+	}
+	return found, err
 }
 
 // SaveClusterConfig updates the config map used to provide ceph-csi with
