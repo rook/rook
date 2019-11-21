@@ -98,26 +98,28 @@ var ClusterResource = opkit.CustomResource{
 
 // ClusterController controls an instance of a Rook cluster
 type ClusterController struct {
-	context             *clusterd.Context
-	volumeAttachment    attachment.Attachment
-	devicesInUse        bool
-	rookImage           string
-	clusterMap          map[string]*cluster
-	addClusterCallbacks []func(*cephv1.ClusterSpec) error
-	csiConfigMutex      *sync.Mutex
-	nodeStore           cache.Store
-	osdChecker          *osd.Monitor
+	context                *clusterd.Context
+	volumeAttachment       attachment.Attachment
+	devicesInUse           bool
+	rookImage              string
+	clusterMap             map[string]*cluster
+	addClusterCallbacks    []func(*cephv1.ClusterSpec) error
+	removeClusterCallbacks []func() error
+	csiConfigMutex         *sync.Mutex
+	nodeStore              cache.Store
+	osdChecker             *osd.Monitor
 }
 
 // NewClusterController create controller for watching cluster custom resources created
-func NewClusterController(context *clusterd.Context, rookImage string, volumeAttachment attachment.Attachment, addClusterCallbacks []func(*cephv1.ClusterSpec) error) *ClusterController {
+func NewClusterController(context *clusterd.Context, rookImage string, volumeAttachment attachment.Attachment, addClusterCallbacks []func(*cephv1.ClusterSpec) error, removeClusterCallbacks []func() error) *ClusterController {
 	return &ClusterController{
-		context:             context,
-		volumeAttachment:    volumeAttachment,
-		rookImage:           rookImage,
-		clusterMap:          make(map[string]*cluster),
-		addClusterCallbacks: addClusterCallbacks,
-		csiConfigMutex:      &sync.Mutex{},
+		context:                context,
+		volumeAttachment:       volumeAttachment,
+		rookImage:              rookImage,
+		clusterMap:             make(map[string]*cluster),
+		addClusterCallbacks:    addClusterCallbacks,
+		removeClusterCallbacks: removeClusterCallbacks,
+		csiConfigMutex:         &sync.Mutex{},
 	}
 }
 
@@ -765,6 +767,12 @@ func (c *ClusterController) onDelete(obj interface{}) {
 		close(cluster.stopCh)
 		delete(c.clusterMap, clust.Namespace)
 	}
+	for _, callback := range c.removeClusterCallbacks {
+		if err := callback(); err != nil {
+			logger.Errorf("%+v", err)
+		}
+	}
+
 	// Only valid when the cluster is not external
 	if !clust.Spec.External.Enable {
 		if clust.Spec.Storage.AnyUseAllDevices() {

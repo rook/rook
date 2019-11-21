@@ -90,10 +90,11 @@ func New(context *clusterd.Context, volumeAttachmentWrapper attachment.Attachmen
 		rookImage:         rookImage,
 		securityAccount:   securityAccount,
 	}
-	callbacks := []func(*cephv1.ClusterSpec) error{
+	addCallbacks := []func(*cephv1.ClusterSpec) error{
 		o.startSystemDaemons,
 	}
-	o.clusterController = cluster.NewClusterController(context, rookImage, volumeAttachmentWrapper, callbacks)
+	var removeCallbacks []func() error
+	o.clusterController = cluster.NewClusterController(context, rookImage, volumeAttachmentWrapper, addCallbacks, removeCallbacks)
 	return o
 }
 
