@@ -286,7 +286,7 @@ below, which you should change to match where your images are located.
 ```yaml
   env:
     - name: ROOK_CSI_CEPH_IMAGE
-        value: "quay.io/cephcsi/cephcsi:v1.2.1"
+        value: "quay.io/cephcsi/cephcsi:v1.2.2"
     - name: ROOK_CSI_REGISTRAR_IMAGE
         value: "quay.io/k8scsi/csi-node-driver-registrar:v1.1.0"
     - name: ROOK_CSI_PROVISIONER_IMAGE
