@@ -231,7 +231,11 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	}
 
 	if osd.IsFileStore {
-		commonArgs = append(commonArgs, fmt.Sprintf("--osd-journal=%s", osd.Journal))
+		commonArgs = append(commonArgs,
+			"--osd-journal", osd.Journal,
+			"--osd-max-object-name-len", "256",
+			"--osd-max-object-namespace-len", "64",
+		)
 	}
 
 	if c.clusterInfo.CephVersion.IsAtLeast(version.CephVersion{Major: 14, Minor: 2, Extra: 1}) {
