@@ -682,6 +682,7 @@ func (c *ClusterController) detectAndValidateCephVersion(cluster *cluster, image
 	if err := cluster.validateCephVersion(version); err != nil {
 		return nil, false, err
 	}
+	cephver.RegisterImageVersion(image, *version)
 	return version, false, nil
 }
 

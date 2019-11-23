@@ -28,6 +28,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
+	"github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
@@ -50,7 +51,7 @@ var clusterResource = opkit.CustomResource{
 }
 
 // createOrUpdateCephCrash is a wrapper around controllerutil.CreateOrUpdate
-func (r *ReconcileNode) createOrUpdateCephCrash(node corev1.Node, tolerations []corev1.Toleration, cephCluster cephv1.CephCluster) (controllerutil.OperationResult, error) {
+func (r *ReconcileNode) createOrUpdateCephCrash(node corev1.Node, tolerations []corev1.Toleration, cephCluster cephv1.CephCluster, cephVersion *version.CephVersion) (controllerutil.OperationResult, error) {
 	// Create or Update the deployment default/foo
 	nodeHostnameLabel, ok := node.ObjectMeta.Labels[corev1.LabelHostname]
 	if !ok {
@@ -86,6 +87,10 @@ func (r *ReconcileNode) createOrUpdateCephCrash(node corev1.Node, tolerations []
 		}
 
 		deploy.ObjectMeta.Labels = deploymentLabels
+		k8sutil.AddRookVersionLabelToDeployment(deploy)
+		if cephVersion != nil {
+			opspec.AddCephVersionLabelToDeployment(*cephVersion, deploy)
+		}
 		deploy.Spec.Template = corev1.PodTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: deploymentLabels,
