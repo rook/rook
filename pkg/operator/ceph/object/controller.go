@@ -29,6 +29,7 @@ import (
 	daemonconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	cephspec "github.com/rook/rook/pkg/operator/ceph/spec"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
@@ -102,7 +103,7 @@ func (c *ObjectStoreController) onAdd(obj interface{}) {
 		return
 	}
 
-	objectstore, err := getObjectStoreObject(obj)
+	objectStore, err := getObjectStoreObject(obj)
 	if err != nil {
 		logger.Errorf("failed to get objectstore object. %v", err)
 		return
@@ -110,6 +111,7 @@ func (c *ObjectStoreController) onAdd(obj interface{}) {
 
 	c.acquireOrchestrationLock()
 	defer c.releaseOrchestrationLock()
+	updateCephObjectStoreStatus(objectStore.GetName(), objectStore.GetNamespace(), k8sutil.ProcessingStatus, c.context)
 
 	if c.clusterSpec.External.Enable {
 		_, err := cephspec.ValidateCephVersionsBetweenLocalAndExternalClusters(c.context, c.namespace, c.clusterInfo.CephVersion)
@@ -117,10 +119,12 @@ func (c *ObjectStoreController) onAdd(obj interface{}) {
 			// This handles the case where the operator is running, the external cluster has been upgraded and a CR creation is called
 			// If that's a major version upgrade we fail, if it's a minor version, we continue, it's not ideal but not critical
 			logger.Errorf("refusing to run new crd. %v", err)
+			updateCephObjectStoreStatus(objectStore.GetName(), objectStore.GetNamespace(), k8sutil.FailedStatus, c.context)
 			return
 		}
 	}
-	c.createOrUpdateStore(objectstore)
+	c.createOrUpdateStore(objectStore)
+	updateCephObjectStoreStatus(objectStore.GetName(), objectStore.GetNamespace(), k8sutil.ReadyStatus, c.context)
 }
 
 func (c *ObjectStoreController) onUpdate(oldObj, newObj interface{}) {
@@ -149,7 +153,9 @@ func (c *ObjectStoreController) onUpdate(oldObj, newObj interface{}) {
 	c.acquireOrchestrationLock()
 	defer c.releaseOrchestrationLock()
 
+	updateCephObjectStoreStatus(newStore.GetName(), newStore.GetNamespace(), k8sutil.ProcessingStatus, c.context)
 	c.createOrUpdateStore(newStore)
+	updateCephObjectStoreStatus(newStore.GetName(), newStore.GetNamespace(), k8sutil.ReadyStatus, c.context)
 }
 
 func (c *ObjectStoreController) createOrUpdateStore(objectstore *cephv1.CephObjectStore) {
@@ -283,4 +289,23 @@ func (c *ObjectStoreController) acquireOrchestrationLock() {
 func (c *ObjectStoreController) releaseOrchestrationLock() {
 	c.orchestrationMutex.Unlock()
 	logger.Debugf("Released lock for object store orchestration")
+}
+
+func updateCephObjectStoreStatus(name, namespace, status string, context *clusterd.Context) {
+	updatedCephObjectStore, err := context.RookClientset.CephV1().CephObjectStores(namespace).Get(name, metav1.GetOptions{})
+	if err != nil {
+		logger.Errorf("Unable to update the cephObjectStore %s status %v", updatedCephObjectStore.GetName(), err)
+		return
+	}
+	if updatedCephObjectStore.Status == nil {
+		updatedCephObjectStore.Status = &cephv1.Status{}
+	} else if updatedCephObjectStore.Status.Phase == status {
+		return
+	}
+	updatedCephObjectStore.Status.Phase = status
+	_, err = context.RookClientset.CephV1().CephObjectStores(updatedCephObjectStore.Namespace).Update(updatedCephObjectStore)
+	if err != nil {
+		logger.Errorf("Unable to update the cephObjectStore %s status %v", updatedCephObjectStore.GetName(), err)
+		return
+	}
 }
