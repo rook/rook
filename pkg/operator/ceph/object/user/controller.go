@@ -100,10 +100,18 @@ func (c *ObjectStoreUserController) onAdd(obj interface{}) {
 		logger.Errorf("failed to get objectstoreuser object: %+v", err)
 		return
 	}
+	updateCephObjectStoreUserStatus(user.GetName(), user.GetNamespace(), k8sutil.ProcessingStatus, c.context)
 
 	if err = c.createUser(c.context, user); err != nil {
+<<<<<<< HEAD
 		logger.Errorf("failed to create object store user %s. %+v", user.Name, err)
+=======
+		logger.Errorf("failed to create object store user %q. %v", user.Name, err)
+		updateCephObjectStoreUserStatus(user.GetName(), user.GetNamespace(), k8sutil.FailedStatus, c.context)
+
+>>>>>>> 8274aa242... enhance(ceph): Adds status field for ceph related CRs
 	}
+	updateCephObjectStoreUserStatus(user.GetName(), user.GetNamespace(), k8sutil.ReadyStatus, c.context)
 }
 
 func (c *ObjectStoreUserController) onUpdate(oldObj, newObj interface{}) {
@@ -302,4 +310,23 @@ func ValidateUser(context *clusterd.Context, u *cephv1.CephObjectStoreUser) erro
 		return errors.New("missing store")
 	}
 	return nil
+}
+
+func updateCephObjectStoreUserStatus(name, namespace, status string, context *clusterd.Context) {
+	updatedCephObjectStoreUser, err := context.RookClientset.CephV1().CephObjectStoreUsers(namespace).Get(name, metav1.GetOptions{})
+	if err != nil {
+		logger.Errorf("Unable to update the cephObjectStoreUser %s status %v", updatedCephObjectStoreUser.GetName(), err)
+		return
+	}
+	if updatedCephObjectStoreUser.Status == nil {
+		updatedCephObjectStoreUser.Status = &cephv1.Status{}
+	} else if updatedCephObjectStoreUser.Status.Phase == status {
+		return
+	}
+	updatedCephObjectStoreUser.Status.Phase = status
+	_, err = context.RookClientset.CephV1().CephObjectStoreUsers(updatedCephObjectStoreUser.Namespace).Update(updatedCephObjectStoreUser)
+	if err != nil {
+		logger.Errorf("Unable to update the cephObjectStoreUser %s status %v", updatedCephObjectStoreUser.GetName(), err)
+		return
+	}
 }

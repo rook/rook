@@ -29,6 +29,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	cephspec "github.com/rook/rook/pkg/operator/ceph/spec"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
@@ -122,11 +123,18 @@ func (c *FilesystemController) onAdd(obj interface{}) {
 			return
 		}
 	}
+	updateCephFilesystemStatus(filesystem.GetName(), filesystem.GetNamespace(), k8sutil.ProcessingStatus, c.context)
 
 	err = createFilesystem(c.clusterInfo, c.context, *filesystem, c.rookVersion, c.clusterSpec, c.filesystemOwner(filesystem), c.clusterSpec.DataDirHostPath, c.isUpgrade)
 	if err != nil {
+<<<<<<< HEAD
 		logger.Errorf("failed to create filesystem %s: %+v", filesystem.Name, err)
+=======
+		logger.Errorf("failed to create filesystem %q. %v", filesystem.Name, err)
+		updateCephFilesystemStatus(filesystem.GetName(), filesystem.GetNamespace(), k8sutil.FailedStatus, c.context)
+>>>>>>> 8274aa242... enhance(ceph): Adds status field for ceph related CRs
 	}
+	updateCephFilesystemStatus(filesystem.GetName(), filesystem.GetNamespace(), k8sutil.ReadyStatus, c.context)
 }
 
 func (c *FilesystemController) onUpdate(oldObj, newObj interface{}) {
@@ -156,10 +164,17 @@ func (c *FilesystemController) onUpdate(oldObj, newObj interface{}) {
 
 	// if the filesystem is modified, allow the filesystem to be created if it wasn't already
 	logger.Infof("updating filesystem %s", newFS.Name)
+	updateCephFilesystemStatus(newFS.GetName(), newFS.GetNamespace(), k8sutil.ProcessingStatus, c.context)
 	err = createFilesystem(c.clusterInfo, c.context, *newFS, c.rookVersion, c.clusterSpec, c.filesystemOwner(newFS), c.clusterSpec.DataDirHostPath, c.isUpgrade)
 	if err != nil {
+<<<<<<< HEAD
 		logger.Errorf("failed to create (modify) filesystem %s: %+v", newFS.Name, err)
+=======
+		logger.Errorf("failed to create (modify) filesystem %q. %v", newFS.Name, err)
+		updateCephFilesystemStatus(newFS.GetName(), newFS.GetNamespace(), k8sutil.FailedStatus, c.context)
+>>>>>>> 8274aa242... enhance(ceph): Adds status field for ceph related CRs
 	}
+	updateCephFilesystemStatus(newFS.GetName(), newFS.GetNamespace(), k8sutil.ReadyStatus, c.context)
 }
 
 // ParentClusterChanged determines wether or not a CR update has been sent
@@ -269,4 +284,23 @@ func (c *FilesystemController) acquireOrchestrationLock() {
 func (c *FilesystemController) releaseOrchestrationLock() {
 	c.orchestrationMutex.Unlock()
 	logger.Debugf("Released lock for filesystem orchestration")
+}
+
+func updateCephFilesystemStatus(name, namespace, status string, context *clusterd.Context) {
+	updatedCephFilesystem, err := context.RookClientset.CephV1().CephFilesystems(namespace).Get(name, metav1.GetOptions{})
+	if err != nil {
+		logger.Errorf("Unable to update the cephObjectStore %s status %v", updatedCephFilesystem.GetName(), err)
+		return
+	}
+	if updatedCephFilesystem.Status == nil {
+		updatedCephFilesystem.Status = &cephv1.Status{}
+	} else if updatedCephFilesystem.Status.Phase == status {
+		return
+	}
+	updatedCephFilesystem.Status.Phase = status
+	_, err = context.RookClientset.CephV1().CephFilesystems(updatedCephFilesystem.Namespace).Update(updatedCephFilesystem)
+	if err != nil {
+		logger.Errorf("Unable to update the cephObjectStore %s status %v", updatedCephFilesystem.GetName(), err)
+		return
+	}
 }
