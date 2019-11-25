@@ -26,6 +26,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
@@ -98,10 +99,14 @@ func (c *CephNFSController) onAdd(obj interface{}) {
 	c.acquireOrchestrationLock()
 	defer c.releaseOrchestrationLock()
 
+	updateCephNFSStatus(nfs.GetName(), nfs.GetNamespace(), k8sutil.ProcessingStatus, c.context)
+
 	err := c.upCephNFS(*nfs, 0)
 	if err != nil {
 		logger.Errorf("failed to create NFS Ganesha %q. %v", nfs.Name, err)
+		updateCephNFSStatus(nfs.GetName(), nfs.GetNamespace(), k8sutil.FailedStatus, c.context)
 	}
+	updateCephNFSStatus(nfs.GetName(), nfs.GetNamespace(), k8sutil.ReadyStatus, c.context)
 }
 
 func (c *CephNFSController) onUpdate(oldObj, newObj interface{}) {
@@ -126,18 +131,23 @@ func (c *CephNFSController) onUpdate(oldObj, newObj interface{}) {
 	defer c.releaseOrchestrationLock()
 
 	logger.Infof("Updating the ganesha server from %d to %d active count", oldNFS.Spec.Server.Active, newNFS.Spec.Server.Active)
+
+	updateCephNFSStatus(newNFS.GetName(), newNFS.GetNamespace(), k8sutil.ProcessingStatus, c.context)
+
 	if oldNFS.Spec.Server.Active < newNFS.Spec.Server.Active {
 		err := c.upCephNFS(*newNFS, oldNFS.Spec.Server.Active)
 		if err != nil {
 			logger.Errorf("Failed to start daemons for CephNFS %q. %v", newNFS.Name, err)
+			updateCephNFSStatus(newNFS.GetName(), newNFS.GetNamespace(), k8sutil.FailedStatus, c.context)
 		}
 	} else {
 		err := c.downCephNFS(*oldNFS, newNFS.Spec.Server.Active)
 		if err != nil {
 			logger.Errorf("Failed to stop daemons for CephNFS %q. %v", newNFS.Name, err)
+			updateCephNFSStatus(newNFS.GetName(), newNFS.GetNamespace(), k8sutil.FailedStatus, c.context)
 		}
 	}
-
+	updateCephNFSStatus(newNFS.GetName(), newNFS.GetNamespace(), k8sutil.ReadyStatus, c.context)
 }
 
 func (c *CephNFSController) onDelete(obj interface{}) {
@@ -220,4 +230,23 @@ func ownerRefs(nfs cephv1.CephNFS) []metav1.OwnerReference {
 		Name:       nfs.Name,
 		UID:        nfs.UID,
 	}}
+}
+
+func updateCephNFSStatus(name, namespace, status string, context *clusterd.Context) {
+	updatedCephNFS, err := context.RookClientset.CephV1().CephNFSes(namespace).Get(name, metav1.GetOptions{})
+	if err != nil {
+		logger.Errorf("Unable to update the cephNFS %s status %v", updatedCephNFS.GetName(), err)
+		return
+	}
+	if updatedCephNFS.Status == nil {
+		updatedCephNFS.Status = &cephv1.Status{}
+	} else if updatedCephNFS.Status.Phase == status {
+		return
+	}
+	updatedCephNFS.Status.Phase = status
+	_, err = context.RookClientset.CephV1().CephNFSes(updatedCephNFS.Namespace).Update(updatedCephNFS)
+	if err != nil {
+		logger.Errorf("Unable to update the cephNFS %s status %v", updatedCephNFS.GetName(), err)
+		return
+	}
 }

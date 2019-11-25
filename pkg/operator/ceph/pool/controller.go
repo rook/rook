@@ -28,7 +28,9 @@ import (
 	ceph "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/daemon/ceph/model"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -90,11 +92,14 @@ func (c *PoolController) onAdd(obj interface{}) {
 		logger.Errorf("failed to get pool object. %v", err)
 		return
 	}
-
+	updateCephBlockPoolStatus(pool.GetName(), pool.GetNamespace(), k8sutil.ProcessingStatus, c.context)
 	err = createPool(c.context, pool)
 	if err != nil {
 		logger.Errorf("failed to create pool %q. %v", pool.ObjectMeta.Name, err)
+		updateCephBlockPoolStatus(pool.GetName(), pool.GetNamespace(), k8sutil.FailedStatus, c.context)
+		return
 	}
+	updateCephBlockPoolStatus(pool.GetName(), pool.GetNamespace(), k8sutil.ReadyStatus, c.context)
 }
 
 func (c *PoolController) onUpdate(oldObj, newObj interface{}) {
@@ -116,22 +121,28 @@ func (c *PoolController) onUpdate(oldObj, newObj interface{}) {
 
 	if oldPool.Name != pool.Name {
 		logger.Errorf("failed to update pool %q. name update not allowed", pool.Name)
+		updateCephBlockPoolStatus(pool.GetName(), pool.GetNamespace(), k8sutil.FailedStatus, c.context)
 		return
 	}
 	if pool.Spec.ErasureCoded.CodingChunks != 0 && pool.Spec.ErasureCoded.DataChunks != 0 {
 		logger.Errorf("failed to update pool %q. erasurecoded update not allowed", pool.Name)
+		updateCephBlockPoolStatus(pool.GetName(), pool.GetNamespace(), k8sutil.FailedStatus, c.context)
 		return
 	}
 	if !poolChanged(oldPool.Spec, pool.Spec) {
 		logger.Debugf("pool %q not changed", pool.Name)
 		return
 	}
+	updateCephBlockPoolStatus(pool.GetName(), pool.GetNamespace(), k8sutil.ProcessingStatus, c.context)
 
 	// if the pool is modified, allow the pool to be created if it wasn't already
 	logger.Infof("updating pool %q", pool.Name)
 	if err := createPool(c.context, pool); err != nil {
 		logger.Errorf("failed to create (modify) pool %q. %v", pool.ObjectMeta.Name, err)
+		updateCephBlockPoolStatus(pool.GetName(), pool.GetNamespace(), k8sutil.FailedStatus, c.context)
+		return
 	}
+	updateCephBlockPoolStatus(pool.GetName(), pool.GetNamespace(), k8sutil.ReadyStatus, c.context)
 }
 
 // ParentClusterChanged determines wether or not a CR update has been sent
@@ -284,4 +295,23 @@ func getPoolObject(obj interface{}) (pool *cephv1.CephBlockPool, err error) {
 	}
 
 	return nil, errors.Errorf("not a known pool object %+v", obj)
+}
+
+func updateCephBlockPoolStatus(name, namespace, status string, context *clusterd.Context) {
+	updatedCephBlockPool, err := context.RookClientset.CephV1().CephBlockPools(namespace).Get(name, metav1.GetOptions{})
+	if err != nil {
+		logger.Errorf("Unable to update the cephBlockPool %s status %v", updatedCephBlockPool.GetName(), err)
+		return
+	}
+	if updatedCephBlockPool.Status == nil {
+		updatedCephBlockPool.Status = &cephv1.Status{}
+	} else if updatedCephBlockPool.Status.Phase == status {
+		return
+	}
+	updatedCephBlockPool.Status.Phase = status
+	_, err = context.RookClientset.CephV1().CephBlockPools(updatedCephBlockPool.Namespace).Update(updatedCephBlockPool)
+	if err != nil {
+		logger.Errorf("Unable to update the cephBlockPool %s status %v", updatedCephBlockPool.GetName(), err)
+		return
+	}
 }
