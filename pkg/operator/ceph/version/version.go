@@ -118,7 +118,7 @@ func ExtractCephVersion(src string) (*CephVersion, error) {
 	if mm != nil {
 		build, err = strconv.Atoi(mm[4])
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse version build number part: %q", mm[3])
+			logger.Warningf("failed to convert version build number part %q to an integer, ignoring", mm[4])
 		}
 	}
 
