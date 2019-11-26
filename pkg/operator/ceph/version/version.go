@@ -29,6 +29,7 @@ type CephVersion struct {
 	Major int
 	Minor int
 	Extra int
+	Build int
 }
 
 const (
@@ -37,15 +38,15 @@ const (
 
 var (
 	// Minimum supported version is 13.2.4 where ceph-volume is supported
-	Minimum = CephVersion{13, 2, 4}
+	Minimum = CephVersion{13, 2, 4, 0}
 	// Luminous Ceph version
-	Luminous = CephVersion{12, 0, 0}
+	Luminous = CephVersion{12, 0, 0, 0}
 	// Mimic Ceph version
-	Mimic = CephVersion{13, 0, 0}
+	Mimic = CephVersion{13, 0, 0, 0}
 	// Nautilus Ceph version
-	Nautilus = CephVersion{14, 0, 0}
+	Nautilus = CephVersion{14, 0, 0, 0}
 	// Octopus Ceph version
-	Octopus = CephVersion{15, 0, 0}
+	Octopus = CephVersion{15, 0, 0, 0}
 
 	// supportedVersions are production-ready versions that rook supports
 	supportedVersions   = []CephVersion{Mimic, Nautilus}
@@ -55,6 +56,10 @@ var (
 
 	// for parsing the output of `ceph --version`
 	versionPattern = regexp.MustCompile(`ceph version (\d+)\.(\d+)\.(\d+)`)
+
+	// For a build release the output is "ceph version 14.2.4-64.el8cp"
+	// So we need to detect the build version change
+	buildVersionPattern = regexp.MustCompile(`ceph version (\d+)\.(\d+)\.(\d+)\-(\d+)`)
 
 	logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephver")
 )
@@ -86,9 +91,10 @@ func (v *CephVersion) ReleaseName() string {
 
 // ExtractCephVersion extracts the major, minor and extra digit of a Ceph release
 func ExtractCephVersion(src string) (*CephVersion, error) {
+	var build int
 	m := versionPattern.FindStringSubmatch(src)
 	if m == nil {
-		return nil, fmt.Errorf("failed to parse version from: %s", src)
+		return nil, fmt.Errorf("failed to parse version from: %q", src)
 	}
 
 	major, err := strconv.Atoi(m[1])
@@ -106,7 +112,17 @@ func ExtractCephVersion(src string) (*CephVersion, error) {
 		return nil, fmt.Errorf("failed to parse version extra part: %s", m[2])
 	}
 
-	return &CephVersion{major, minor, extra}, nil
+	// See if we are running on a build release
+	mm := buildVersionPattern.FindStringSubmatch(src)
+	// We don't need to handle any error here, so let's jump in only when "mm" has content
+	if mm != nil {
+		build, err = strconv.Atoi(mm[4])
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse version build number part: %q", mm[3])
+		}
+	}
+
+	return &CephVersion{major, minor, extra, build}, nil
 }
 
 // Supported checks if a given release is supported
@@ -171,7 +187,9 @@ func IsIdentical(a, b CephVersion) bool {
 	if a.Major == b.Major {
 		if a.Minor == b.Minor {
 			if a.Extra == b.Extra {
-				return true
+				if a.Build == b.Build {
+					return true
+				}
 			}
 		}
 	}
@@ -196,6 +214,15 @@ func IsSuperior(a, b CephVersion) bool {
 			}
 		}
 	}
+	if a.Major == b.Major {
+		if a.Minor == b.Minor {
+			if a.Extra == b.Extra {
+				if a.Build > b.Build {
+					return true
+				}
+			}
+		}
+	}
 
 	return false
 }
@@ -214,6 +241,15 @@ func IsInferior(a, b CephVersion) bool {
 		if a.Minor == b.Minor {
 			if a.Extra < b.Extra {
 				return true
+			}
+		}
+	}
+	if a.Major == b.Major {
+		if a.Minor == b.Minor {
+			if a.Extra == b.Extra {
+				if a.Build < b.Build {
+					return true
+				}
 			}
 		}
 	}
