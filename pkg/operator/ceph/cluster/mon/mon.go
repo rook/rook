@@ -781,7 +781,7 @@ func (c *Cluster) updateMon(m *monConfig, d *apps.Deployment) error {
 	daemonType := string(config.MonType)
 	var cephVersionToUse cephver.CephVersion
 
-	// If this is not an upgrade there is no need to check the ceph version
+	// If this is not a Ceph upgrade there is no need to check the ceph version
 	if c.isUpgrade {
 		currentCephVersion, err := client.LeastUptodateDaemonVersion(c.context, c.ClusterInfo.Name, daemonType)
 		if err != nil {

@@ -330,13 +330,13 @@ func UpdateCephDeploymentAndWait(context *clusterd.Context, deployment *apps.Dep
 
 	callback := func(action string) error {
 		if !isUpgrade {
-			logger.Info("this is not an upgrade, not performing upgrade checks")
+			logger.Info("this is not a Ceph upgrade, not performing upgrade checks")
 			return nil
 		}
 
 		// At this point, we are in an upgrade
 		if skipUpgradeChecks {
-			logger.Warningf("this is an upgrade, not performing upgrade checks because skipUpgradeChecks is %t", skipUpgradeChecks)
+			logger.Warningf("this is a Ceph upgrade, not performing upgrade checks because skipUpgradeChecks is %t", skipUpgradeChecks)
 			return nil
 		}
 
