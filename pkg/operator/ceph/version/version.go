@@ -99,17 +99,17 @@ func ExtractCephVersion(src string) (*CephVersion, error) {
 
 	major, err := strconv.Atoi(m[1])
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse version major part: %s", m[0])
+		return nil, fmt.Errorf("failed to convert version major part %q to an integer", m[1])
 	}
 
 	minor, err := strconv.Atoi(m[2])
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse version minor part: %s", m[1])
+		return nil, fmt.Errorf("failed to convert version minor part %q to an integer", m[2])
 	}
 
 	extra, err := strconv.Atoi(m[3])
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse version extra part: %s", m[2])
+		return nil, fmt.Errorf("failed to convert version extra part %q to an integer", m[3])
 	}
 
 	// See if we are running on a build release
