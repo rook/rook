@@ -201,7 +201,7 @@ We can then use the busybox writer pod we launched before to check that nginx is
 In the below 1-liner command, we use `kubectl exec` to run a command in the busybox writer pod that uses `wget` to retrieve the web page that the web server pod is hosting. As the busybox writer pod continues to write a new timestamp, we should see the returned output also update every ~10 seconds or so.
 
 ```console
-> echo; kubectl exec $(kubectl get pod -l name=nfs-busybox -o jsonpath='{.items[0].metadata.name}') -- wget -qO- http://$(kubectl get services nfs-web -o jsonpath='{.spec.clusterIP}'); echo
+> echo; kubectl exec $(kubectl get pod -l app=nfs-demo,role=busybox -o jsonpath='{.items[0].metadata.name}') -- wget -qO- http://$(kubectl get services nfs-web -o jsonpath='{.spec.clusterIP}'); echo
 
 Thu Oct 22 19:28:55 UTC 2015
 nfs-busybox-w3s4t
