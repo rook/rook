@@ -78,7 +78,7 @@ func TestPodSpec(t *testing.T) {
 
 	podTemplate := cephtest.NewPodTemplateSpecTester(t, &d.Spec.Template)
 	podTemplate.Spec().Containers().RequireAdditionalEnvVars(
-		"ROOK_OPERATOR_NAMESPACE", "ROOK_CEPH_CLUSTER_CRD_VERSION", "ROOK_VERSION",
+		"ROOK_OPERATOR_NAMESPACE", "ROOK_CEPH_CLUSTER_CRD_VERSION",
 		"ROOK_CEPH_CLUSTER_CRD_NAME")
 	podTemplate.RunFullSuite(config.MgrType, "a", AppName, "ns", "ceph/ceph:myceph",
 		"200", "100", "500", "250", /* resources */

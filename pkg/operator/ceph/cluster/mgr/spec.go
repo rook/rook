@@ -31,7 +31,6 @@ import (
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	rookversion "github.com/rook/rook/pkg/version"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -350,7 +349,6 @@ func (c *Cluster) cephMgrOrchestratorModuleEnvs() []v1.EnvVar {
 	envVars := []v1.EnvVar{
 		{Name: "ROOK_OPERATOR_NAMESPACE", Value: operatorNamespace},
 		{Name: "ROOK_CEPH_CLUSTER_CRD_VERSION", Value: rookcephv1.Version},
-		{Name: "ROOK_VERSION", Value: rookversion.Version},
 		{Name: "ROOK_CEPH_CLUSTER_CRD_NAME", Value: c.clusterInfo.Name},
 		k8sutil.PodIPEnvVar(podIPEnvVar),
 	}
