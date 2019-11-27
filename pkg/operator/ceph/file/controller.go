@@ -164,7 +164,7 @@ func (c *FilesystemController) onUpdate(oldObj, newObj interface{}) {
 // ParentClusterChanged determines wether or not a CR update has been sent
 func (c *FilesystemController) ParentClusterChanged(cluster cephv1.ClusterSpec, clusterInfo *cephconfig.ClusterInfo, isUpgrade bool) {
 	c.clusterInfo = clusterInfo
-	if !isUpgrade {
+	if cluster.CephVersion.Image == c.clusterSpec.CephVersion.Image {
 		logger.Debugf("No need to update the file system after the parent cluster changed")
 		return
 	}
