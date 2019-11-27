@@ -12,10 +12,10 @@ A Rook storage cluster must be configured and running in Kubernetes. In this exa
 
 ## Object Store Walkthrough
 
-When the storage admin is ready to create an object storage, he will specify his desired configuration settings in a yaml file such as the following `object-store.yaml`. This example is a simple object store with metadata that is replicated across different hosts, and the data is erasure coded across multiple devices in the cluster.
+When the storage admin is ready to create an object storage, the admin will specify his desired configuration settings in a yaml file such as the following `object-store.yaml`. This example is a simple object store with metadata that is replicated across different hosts, and the data is erasure coded across multiple devices in the cluster.
 ```yaml
 apiVersion: ceph.rook.io/v1alpha1
-kind: ObjectStore
+kind: CephObjectStore
 metadata:
   name: my-store
   namespace: rook-ceph
@@ -43,13 +43,10 @@ kubectl create -f object-store.yaml
 
 At this point the Rook operator recognizes that a new object store resource needs to be configured. The operator will create all of the resources to start the object store.
 1. Metadata pools are created (`.rgw.root`, `my-store.rgw.control`, `my-store.rgw.meta`, `my-store.rgw.log`, `my-store.rgw.buckets.index`)
-1. The data pool is created (`my-store.rgw.buckets.data`)
-1. A Ceph realm is created
-1. A Ceph zone group is created in the new realm
-1. A Ceph zone is created in the new zone group
-1. A cephx key is created for the rgw daemon
-1. A Kubernetes service is created to provide load balancing for the RGW pod(s)
-1. A Kubernetes deployment is created to start the RGW pod(s) with the settings for the new zone
+2. The data pool is created (`my-store.rgw.buckets.data`)
+3. A Kubernetes service is created to provide load balancing for the RGW pod(s)
+4. A Kubernetes deployment is created to start the RGW pod(s) with the settings for the new zone
+5. The zone is modified to add the RGW pod endpoint(s) if zone is mentioned in the configuration
 
 When the RGW pods start, the object store is ready to receive the http or https requests as configured.
 
@@ -62,6 +59,8 @@ The object store settings are exposed to Rook as a Custom Resource Definition (C
 
 The pools are the backing data store for the object store and are created with specific names to be private to an object store. Pools can be configured with all of the settings that can be specified in the [Pool CRD](/Documentation/ceph-pool-crd.md). The underlying schema for pools defined by a pool CRD is the same as the schema under the `metadataPool` and `dataPool` elements of the object store CRD. All metadata pools are created with the same settings, while the data pool can be created with independent settings. The metadata pools must use replication, while the data pool can use replication or erasure coding.
 
+If `preservePoolsOnDelete` is set to 'true' the pools used to support the object store will remain when the object store will be deleted. This is a security measure to avoid accidental loss of data. It is set to 'false' by default. If not specified is also deemed as 'false'.
+
 ```yaml
   metadataPool:
     failureDomain: host
@@ -72,7 +71,10 @@ The pools are the backing data store for the object store and are created with s
     erasureCoded:
       dataChunks: 6
       codingChunks: 2
+  preservePoolsOnDelete: true
 ```
+
+If there is a `zone` section in object-store configuration, then the pool section in the ceph-object-zone resource will be used to define the pools.
 
 ### Gateway
 
@@ -95,51 +97,19 @@ The RGW service can be configured to listen on both http and https by specifying
     instances: 1
 ```
 
-### Realms, Zone Groups, and Zones
+### Multisite
 
-By default, the object store will be created independently from any other object stores and replication to another object store will not be configured. This done by creating a new realm, zone group, and zone all with the name of the new object store. The zone group and zone are tagged as the `master`. If this is the first object store in the cluster, the realm, zone group, and zone will also be marked as the default.
+By default, the object store will be created independently from any other object stores and replication to another object store will not be configured. This done by creating a new Ceph realm, zone group, and zone all with the name of the new object store.
 
-By implementing on the independent realms, zone groups, and zones, Rook supports multiple objects stores in a cluster. The set of users with access to the object store, the metadata, and the data are isolated from other object stores.
+If desired to configure the object store to replicate and sync data amongst object-store or Ceph clusters, the `zone` section would be required.
 
-If desired to configure the object store to replicate from another cluster or zone, the following settings would be specified on a new object store that is *not* the master. (This feature is not yet implemented.)
-- `realm`: If specified, the new zone will be created in the existing realm with that name
-- `group`: If specified, the new zone will be created in the existing zone group with that name
-- `master`: If specified, settings indicate the RGW endpoint where this object store will need to connect to the master zone in order to initialize the replication. The Rook operator will execute `pull` commands for the realm and zone group as necessary.
+This section enables the the object store to be part of a specified ceph-object-zone.
+
+Specifying this section also ensures that the pool section in the ceph-object-zone is used, not the pool section in the object-store.
+
+- `name`: name of the [ceph-object-zone](/design/ceph/object/ceph-object-zone.md) the object store is in. This name must be of a ceph-object-zone resource not just of a zone that has been already created.
+
 ```yaml
   zone:
-    realm: myrealm
-    group: mygroup
-    master:
-      url: https://my-master-zone-gateway:443/
-      accessKey: my-master-zone-access-key
-      secret: my-master-zone-secret
-```
-
-Failing over the master could be handled by updating the affected object store CRDs, although more design is needed here.
-
-See the ceph docs [here](http://docs.ceph.com/docs/master/radosgw/multisite/) on the concepts around zones and replicating between zones. For reference, a diagram of two zones working across different cluster can be found on page 5 of [this doc](http://ceph.com/wp-content/uploads/2017/01/Understanding-a-Multi-Site-Ceph-Gateway-Installation-170119.pdf).
-
-
-### Ceph multi-site object store data model
-
-For reference, here is a description of the underlying Ceph data model.
-
-```
-A cluster has one or more realms
-
-A realm spans one or more clusters
-A realm has one or more zone groups
-A realm has one master zone group
-A realm defined in another cluster is replicated with the pull command
-
-A zone group has one or more zones
-A zone group has one master zone
-A zone group spans one or more clusters
-A zone group defined in another cluster is replicated with the pull command
-A zone group defines a namespace for object IDs unique across its zones
-Zone group metadata is replicated to other zone groups in the realm
-
-A zone belongs to one cluster
-A zone has a set of pools that store the user and object metadata and object data
-Zone data and metadata is replicated to other zones in the zone group
+    name: "name"
 ```
