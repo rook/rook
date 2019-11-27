@@ -143,6 +143,7 @@ type OSDInfo struct {
 	//LVPath is the logical Volume path for an OSD created by Ceph-volume with format '/dev/<Volume Group>/<Logical Volume>'
 	LVPath        string `json:"lv-path"`
 	SkipLVRelease bool   `json:"skip-lv-release"`
+	Location      string `json:"location"`
 }
 
 type OrchestrationStatus struct {

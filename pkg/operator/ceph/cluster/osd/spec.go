@@ -245,6 +245,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 			// Set '--setuser-match-path' so that existing directory owned by root won't affect the daemon startup.
 			// For existing data store owned by root, the daemon will continue to run as root
 			"--setuser-match-path", osd.DataPath,
+			fmt.Sprintf("--crush-location=%s", osd.Location),
 		}
 
 		// mount /run/udev in the container so ceph-volume (via `lvs`)

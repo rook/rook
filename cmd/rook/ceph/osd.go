@@ -149,14 +149,8 @@ func startOSD(cmd *cobra.Command, args []string) error {
 
 	context := createContext()
 
-	crushLocation, err := getLocation(context.Clientset)
-	if err != nil {
-		rook.TerminateFatal(err)
-	}
-	args = append(args, fmt.Sprintf("--crush-location=%s", crushLocation))
-
 	// Run OSD start sequence
-	err = osddaemon.StartOSD(context, osdStoreType, osdStringID, osdUUID, lvPath, pvcBackedOSD, args)
+	err := osddaemon.StartOSD(context, osdStoreType, osdStringID, osdUUID, lvPath, pvcBackedOSD, args)
 	if err != nil {
 		rook.TerminateFatal(err)
 	}
@@ -257,7 +251,7 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 	agent := osddaemon.NewAgent(context, dataDevices, cfg.metadataDevice, cfg.directories, forceFormat,
 		cfg.storeConfig, &clusterInfo, cfg.nodeName, kv, cfg.pvcBacked)
 
-	err = osddaemon.Provision(context, agent)
+	err = osddaemon.Provision(context, agent, crushLocation)
 	if err != nil {
 		// something failed in the OSD orchestration, update the status map with failure details
 		status := oposd.OrchestrationStatus{

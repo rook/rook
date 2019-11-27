@@ -77,7 +77,8 @@ func TestRunDaemon(t *testing.T) {
 
 	agent.pvcBacked = false
 	logger.Infof("Agent %+v", agent)
-	err := Provision(context, agent)
+	crushLocation := "root=default host=foo"
+	err := Provision(context, agent, crushLocation)
 	assert.Nil(t, err)
 }
 
