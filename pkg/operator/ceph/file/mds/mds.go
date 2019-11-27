@@ -141,6 +141,20 @@ func (c *Cluster) Start() error {
 			return fmt.Errorf("failed to generate keyring for %q. %+v", resourceName, err)
 		}
 
+		// Check for existing deployment and set the daemon config flags
+		_, err = c.context.Clientset.AppsV1().Deployments(c.fs.Namespace).Get(mdsConfig.ResourceName, metav1.GetOptions{})
+		// We don't need to handle any error here
+		if err != nil {
+			// Apply the flag only when the deployment is not found
+			if errors.IsNotFound(err) {
+				logger.Info("setting mds config flags")
+				err = c.setDefaultFlagsMonConfigStore(mdsConfig.DaemonID)
+				if err != nil {
+					return fmt.Errorf("failed to set default mds config options. %+v", err)
+				}
+			}
+		}
+
 		// start the deployment
 		d := c.makeDeployment(mdsConfig)
 		logger.Debugf("starting mds: %+v", d)

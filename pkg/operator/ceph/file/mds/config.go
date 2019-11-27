@@ -18,9 +18,11 @@ package mds
 
 import (
 	"fmt"
+	"strconv"
 
 	apps "k8s.io/api/apps/v1"
 
+	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -65,4 +67,31 @@ func (c *Cluster) generateKeyring(m *mdsConfig) (string, error) {
 func (c *Cluster) associateKeyring(existingKeyring string, d *apps.Deployment) error {
 	s := keyring.GetSecretStoreForDeployment(c.context, d)
 	return s.CreateOrUpdate(d.GetName(), existingKeyring)
+}
+
+func (c *Cluster) setDefaultFlagsMonConfigStore(mdsID string) error {
+	monStore := config.GetMonStore(c.context, c.fs.Namespace)
+	who := fmt.Sprintf("mds.%s", mdsID)
+	configOptions := make(map[string]string)
+
+	// Set mds cache memory limit to the best appropriate value
+	if !c.fs.Spec.MetadataServer.Resources.Limits.Memory().IsZero() {
+		mdsCacheMemoryLimit := float64(c.fs.Spec.MetadataServer.Resources.Limits.Memory().Value()) * mdsCacheMemoryLimitFactor
+		configOptions["mds_cache_memory_limit"] = strconv.Itoa(int(mdsCacheMemoryLimit))
+	}
+
+	// These flags are obsoleted as of Nautilus
+	if !c.clusterInfo.CephVersion.IsAtLeastNautilus() {
+		configOptions["mds_standby_for_fscid"] = c.fsID
+		configOptions["mds_standby_replay"] = strconv.FormatBool(c.fs.Spec.MetadataServer.ActiveStandby)
+	}
+
+	for flag, val := range configOptions {
+		err := monStore.Set(who, flag, val)
+		if err != nil {
+			return fmt.Errorf("failed to set %q to %q on %q. %+v", flag, val, who, err)
+		}
+	}
+
+	return nil
 }

@@ -130,7 +130,7 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 				cephconfig.NewFlag("name", generateCephXUser(rgwConfig.ResourceName)),
 				cephconfig.NewFlag("host", opspec.ContainerEnvVarReference("POD_NAME")),
 				cephconfig.NewFlag("rgw-mime-types-file", mimeTypesMountPath()),
-			), c.defaultFlags()..., // use default settings as flags until mon kv store supported
+			),
 		),
 		VolumeMounts: append(
 			opspec.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName),
