@@ -126,7 +126,6 @@ spec:
   storage: # cluster level storage configuration and selection
     useAllNodes: true
     useAllDevices: true
-    topologyAware: true
     deviceFilter:
     config:
       # The default and recommended storeType is dynamically set to bluestore for devices and filestore for directories.

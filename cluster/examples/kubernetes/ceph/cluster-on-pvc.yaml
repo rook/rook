@@ -40,7 +40,6 @@ spec:
   network:
     hostNetwork: false
   storage:
-    topologyAware: true
     storageClassDeviceSets:
     - name: set1
       # The number of OSDs to create from this device set
