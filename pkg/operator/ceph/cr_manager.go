@@ -21,6 +21,7 @@ import (
 	controllers "github.com/rook/rook/pkg/operator/ceph/disruption"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
 
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
@@ -32,7 +33,12 @@ func (o *Operator) startManager(stopCh <-chan struct{}) {
 	}
 
 	logger.Info("setting up the controller-runtime manager")
-	mgr, err := manager.New(o.context.KubeConfig, mgrOpts)
+	kubeConfig, err := config.GetConfig()
+	if err != nil {
+		logger.Errorf("unable to get client config for controller-runtime manager: %+v", err)
+		return
+	}
+	mgr, err := manager.New(kubeConfig, mgrOpts)
 	if err != nil {
 		logger.Errorf("unable to set up overall controller-runtime manager: %+v", err)
 		return

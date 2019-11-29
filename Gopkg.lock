@@ -1414,13 +1414,14 @@
 
 [[projects]]
   branch = "release-0.2"
-  digest = "1:9f0ef29c01f23bbd2913084e7d9c692115c6c480ef6d1d5807773f077a1c57d3"
+  digest = "1:a8b792e14d6900b58c297ad1d754b8c0d677ba692a04d707594b00bf0cf7a936"
   name = "sigs.k8s.io/controller-runtime"
   packages = [
     "pkg/cache",
     "pkg/cache/internal",
     "pkg/client",
     "pkg/client/apiutil",
+    "pkg/client/config",
     "pkg/controller",
     "pkg/controller/controllerutil",
     "pkg/event",
@@ -1575,6 +1576,7 @@
     "k8s.io/kubernetes/pkg/util/mount",
     "k8s.io/kubernetes/pkg/volume/flexvolume",
     "sigs.k8s.io/controller-runtime/pkg/client",
+    "sigs.k8s.io/controller-runtime/pkg/client/config",
     "sigs.k8s.io/controller-runtime/pkg/controller",
     "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil",
     "sigs.k8s.io/controller-runtime/pkg/event",
