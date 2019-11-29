@@ -72,6 +72,8 @@ csi:
   #cephfsGrpcMetricsPort: 9091
   #cephfsLivenessMetricsPort: 9081
   #rbdGrpcMetricsPort: 9090
+  # Enable Ceph Kernel clients on kernel < 4.17 which support quotas for Cephfs
+  #forceCephFSKernelClient: true
   #rbdLivenessMetricsPort: 9080
   #kubeletDirPath: /var/lib/kubelet
   #cephcsi:
