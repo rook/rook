@@ -44,6 +44,7 @@ type Param struct {
 	EnableSnapshotter         string
 	EnableCSIGRPCMetrics      string
 	KubeletDirPath            string
+	ForceCephFSKernelClient   string
 	CephFSGRPCMetricsPort     uint16
 	CephFSLivenessMetricsPort uint16
 	RBDGRPCMetricsPort        uint16
@@ -203,6 +204,12 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 
 	tp.EnableCSIGRPCMetrics = fmt.Sprintf("%t", EnableCSIGRPCMetrics)
 
+	kClinet := os.Getenv("CSI_FORCE_CEPHFS_KERNEL_CLIENT")
+	if strings.EqualFold(kClinet, "true") {
+		tp.ForceCephFSKernelClient = "true"
+	} else {
+		tp.ForceCephFSKernelClient = "false"
+	}
 	// parse GRPC and Liveness ports
 	tp.CephFSGRPCMetricsPort = getPortFromENV("CSI_CEPHFS_GRPC_METRICS_PORT", DefaultCephFSGRPCMerticsPort)
 	tp.CephFSLivenessMetricsPort = getPortFromENV("CSI_CEPHFS_LIVENESS_METRICS_PORT", DefaultCephFSLivenessMerticsPort)
