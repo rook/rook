@@ -50,7 +50,7 @@ Now that your operator is running, let's create your Ceph storage cluster:
 See the [Cluster CRD](ceph-cluster-crd.md) topic for more details on the settings.
 
 Monitors may be configured to run on PVC storage. Details on [how to set this up
-and some minor restrctions are described here](ceph-cluster-crd.md#mon-settings).
+and some minor restrctions are described here](ceph-cluster-crd#mon-settings).
 
 ## Setting up consumable storage
 
