@@ -192,7 +192,7 @@ func (c *ObjectStoreController) onDelete(obj interface{}) {
 // ParentClusterChanged determines wether or not a CR update has been sent
 func (c *ObjectStoreController) ParentClusterChanged(cluster cephv1.ClusterSpec, clusterInfo *daemonconfig.ClusterInfo, isUpgrade bool) {
 	c.clusterInfo = clusterInfo
-	if cluster.CephVersion.Image == c.clusterSpec.CephVersion.Image {
+	if !isUpgrade {
 		logger.Debugf("No need to update the object store after the parent cluster changed")
 		return
 	}
