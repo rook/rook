@@ -109,7 +109,7 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 
 	m, err = diffImageSpecAndClusterRunningVersion(fakeImageVersion, dummyRunningVersions5)
 	assert.NoError(t, err)
-	assert.False(t, m)
+	assert.True(t, m)
 }
 
 func TestMinVersion(t *testing.T) {
