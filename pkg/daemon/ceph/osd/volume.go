@@ -154,7 +154,7 @@ func updateLVMConfig(context *clusterd.Context, onPVC bool) error {
 	// When running on PVC
 	if onPVC {
 		output = bytes.Replace(output, []byte(`scan = [ "/dev" ]`), []byte(`scan = [ "/dev", "/mnt" ]`), 1)
-		output = append(output, []byte(lvmFilter)...)
+		output = append(output, []byte(lvmFilter+"\n")...)
 	}
 
 	if err = ioutil.WriteFile(lvmConfPath, output, 0644); err != nil {
