@@ -348,7 +348,6 @@ func UpdateCephDeploymentAndWait(context *clusterd.Context, deployment *apps.Dep
 
 	callback := func(action string) error {
 		if !isUpgrade {
-			logger.Info("this is not a Ceph upgrade, not performing upgrade checks")
 			return nil
 		}
 

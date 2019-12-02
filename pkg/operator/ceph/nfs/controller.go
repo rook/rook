@@ -165,7 +165,7 @@ func (c *CephNFSController) onDelete(obj interface{}) {
 // cluster has changed.
 func (c *CephNFSController) ParentClusterChanged(cluster cephv1.ClusterSpec, clusterInfo *cephconfig.ClusterInfo, isUpgrade bool) {
 	c.clusterInfo = clusterInfo
-	if cluster.CephVersion.Image == c.clusterSpec.CephVersion.Image || !c.clusterInfo.CephVersion.IsAtLeastNautilus() {
+	if !isUpgrade || !c.clusterInfo.CephVersion.IsAtLeastNautilus() {
 		logger.Debugf("No need to update the nfs daemons after the parent cluster changed")
 		return
 	}
