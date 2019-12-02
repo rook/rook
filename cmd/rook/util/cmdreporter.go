@@ -18,7 +18,6 @@ package util
 
 import (
 	"fmt"
-
 	"github.com/rook/rook/pkg/daemon/util"
 
 	"github.com/rook/rook/cmd/rook/rook"
@@ -38,13 +37,13 @@ will be overwritten.
 
 If cmd-reporter succeeds in running the command to completion, no error is
 reported, even if the command's return code is nonzero (failure). Run will
-return an error if the command could not be run for any reason or if there was
-an error storing the command results into the ConfigMap. An application label
-is applied to the ConfigMap, and if the label already exists and has a
-different application's name name, this returns an error, as this may indicate
-that it is not safe for cmd-reporter to edit the ConfigMap.`,
+terminate if the command could not be run for any reason or if there was an
+error storing the command results into the ConfigMap. An application label
+is applied to the ConfigMap. Run will also terminate if the label already
+exists and has a different application's name name; this may indicate that
+it is not safe for cmd-reporter to edit the ConfigMap.`,
 	Args: cobra.NoArgs,
-	RunE: runCmdReporter,
+	Run:  runCmdReporter,
 }
 
 var (
@@ -71,7 +70,7 @@ func init() {
 	CmdReporterCmd.MarkFlagRequired("namespace")
 }
 
-func runCmdReporter(cCmd *cobra.Command, cArgs []string) error {
+func runCmdReporter(cCmd *cobra.Command, cArgs []string) {
 	cmd, args, err := util.CmdReporterFlagArgumentToCommand(commandString)
 	if err != nil {
 		rook.TerminateFatal(fmt.Errorf("failed to parse '--command' argument [%s]. %+v", commandString, err))
@@ -82,5 +81,8 @@ func runCmdReporter(cCmd *cobra.Command, cArgs []string) error {
 	if err != nil {
 		rook.TerminateFatal(fmt.Errorf("cannot start command-reporter. %+v", err))
 	}
-	return reporter.Run()
+	err = reporter.Run()
+	if err != nil {
+		rook.TerminateFatal(err)
+	}
 }
