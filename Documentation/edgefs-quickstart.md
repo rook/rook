@@ -17,6 +17,8 @@ EdgeFS operator, CSI plugin and CRDs were tested with Kubernetes **v1.11** or hi
 
 To make sure you have a Kubernetes cluster that is ready for `Rook`, you can [follow these instructions](k8s-pre-reqs.md).
 
+A minimum of 3 storage devices are required with the default data replication count of 3. (To test EdgeFS on a single-node cluster with only one device or storage directory, set `sysRepCount` to `1` under the `rook-edgefs` `Cluster` object manifest in `cluster/examples/kubernetes/edgefs/cluster.yml`)
+
 To operate efficiently EdgeFS requires 1 CPU core and 1GB of memory per storage device. Minimal memory requirement for EdgeFS target pod is 4GB. To get maximum out of SSD/NVMe device we recommend to double requirements to 2 CPU and 2GB per device.
 
 If you are using `dataDirHostPath` to persist rook data on kubernetes hosts, make sure your host has at least 5GB of space available on the specified path.
