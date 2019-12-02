@@ -56,6 +56,17 @@ Anyone who wants to discuss the direction of the project, design and implementat
 - [Current agenda and past meeting notes](https://docs.google.com/document/d/1exd8_IG6DkdvyA0eiTtL2z5K2Ra-y68VByUUgwP7I9A/edit?usp=sharing)
 - [Past meeting recordings](https://www.youtube.com/playlist?list=PLP0uDo-ZFnQP6NAgJWAtR9jaRcgqyQKVy)
 
+## Security
+
+### Reporting Security Vulnerabilities
+
+If you find a vulnerability or a potential vulnerability in Rook please let us know immediately at
+[security@rook.io](mailto:security@rook.io). We'll send a confirmation email to acknowledge your
+report, and we'll send an additional email when we've identified the issues positively or
+negatively.
+
+For further details, please see the complete [security release process](SECURITY.md).
+
 ## Project Status
 
 The status of each storage provider supported by Rook can be found in the table below.
