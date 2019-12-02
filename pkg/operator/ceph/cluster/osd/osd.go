@@ -463,7 +463,7 @@ func (c *Cluster) startOSDDaemonsOnPVC(pvcName string, config *provisionConfig, 
 			daemon := string(opconfig.OsdType)
 			var cephVersionToUse cephver.CephVersion
 
-			// If this is not an upgrade there is no need to check the ceph version
+			// If this is not a Ceph upgrade there is no need to check the ceph version
 			if c.isUpgrade {
 				currentCephVersion, err := client.LeastUptodateDaemonVersion(c.context, c.clusterInfo.Name, daemon)
 				if err != nil {
@@ -530,7 +530,7 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 			daemon := string(opconfig.OsdType)
 			var cephVersionToUse cephver.CephVersion
 
-			// If this is not an upgrade there is no need to check the ceph version
+			// If this is not a Ceph upgrade there is no need to check the ceph version
 			if c.isUpgrade {
 				currentCephVersion, err := client.LeastUptodateDaemonVersion(c.context, c.clusterInfo.Name, daemon)
 				if err != nil {

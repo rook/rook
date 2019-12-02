@@ -133,7 +133,7 @@ func (m *Mirroring) Start() error {
 			daemon := string(config.RbdMirrorType)
 			var cephVersionToUse cephver.CephVersion
 
-			// If this is not an upgrade there is no need to check the ceph version
+			// If this is not a Ceph upgrade there is no need to check the ceph version
 			if m.isUpgrade {
 				currentCephVersion, err := client.LeastUptodateDaemonVersion(m.context, m.ClusterInfo.Name, daemon)
 				if err != nil {
