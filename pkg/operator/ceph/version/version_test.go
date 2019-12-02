@@ -24,16 +24,16 @@ import (
 )
 
 func TestToString(t *testing.T) {
-	assert.Equal(t, "14.0.0 nautilus", fmt.Sprintf("%s", &Nautilus))
-	assert.Equal(t, "13.0.0 mimic", fmt.Sprintf("%s", &Mimic))
+	assert.Equal(t, "14.0.0-0 nautilus", fmt.Sprintf("%s", &Nautilus))
+	assert.Equal(t, "13.0.0-0 mimic", fmt.Sprintf("%s", &Mimic))
 
-	expected := fmt.Sprintf("-1.0.0 %s", unknownVersionString)
+	expected := fmt.Sprintf("-1.0.0-0 %s", unknownVersionString)
 	assert.Equal(t, expected, fmt.Sprintf("%s", &CephVersion{-1, 0, 0, 0}))
 }
 
 func TestCephVersionFormatted(t *testing.T) {
-	assert.Equal(t, "ceph version 14.0.0 nautilus", Nautilus.CephVersionFormatted())
-	assert.Equal(t, "ceph version 13.0.0 mimic", Mimic.CephVersionFormatted())
+	assert.Equal(t, "ceph version 14.0.0-0 nautilus", Nautilus.CephVersionFormatted())
+	assert.Equal(t, "ceph version 13.0.0-0 mimic", Mimic.CephVersionFormatted())
 }
 
 func TestReleaseName(t *testing.T) {
