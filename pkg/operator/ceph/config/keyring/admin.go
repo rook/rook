@@ -23,8 +23,8 @@ import (
 )
 
 const (
-	adminKeyringResourceName = "rook-ceph-admin"
-	adminKeyringFileName     = "ceph.client.admin.keyring"
+	adminKeyringResourceName          = "rook-ceph-admin"
+	crashCollectorKeyringResourceName = "rook-ceph-crash-collector"
 
 	adminKeyringTemplate = `
 [client.admin]
