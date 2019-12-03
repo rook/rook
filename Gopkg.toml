@@ -60,35 +60,56 @@ ignored = [
 
 [[constraint]]
   name = "k8s.io/kubernetes"
-  version = "=v1.14.1"
+  version = "=v1.16.3"
 
 [[constraint]]
   name = "k8s.io/kube-controller-manager"
-  version = "kubernetes-1.14.1"
+  version = "kubernetes-1.16.3"
 
 [[constraint]]
   name = "k8s.io/api"
-  version = "kubernetes-1.14.1"
+  version = "kubernetes-1.16.3"
 
 [[constraint]]
   name = "k8s.io/apiserver"
-  version = "kubernetes-1.14.1"
+  version = "kubernetes-1.16.3"
 
 [[constraint]]
   name = "k8s.io/apiextensions-apiserver"
-  version = "kubernetes-1.14.1"
+  version = "kubernetes-1.16.3"
 
 [[constraint]]
   name = "k8s.io/apimachinery"
-  version = "kubernetes-1.14.1"
+  version = "kubernetes-1.16.3"
 
 [[constraint]]
   name = "k8s.io/code-generator"
-  version = "kubernetes-1.14.1"
+  version = "kubernetes-1.16.3"
 
 [[constraint]]
   name = "k8s.io/client-go"
-  version = "v11.0.0"
+  version = "kubernetes-1.16.3"
+
+[[override]]
+  name = "k8s.io/apimachinery"
+  version = "kubernetes-1.16.3"
+
+[[override]]
+  name = "k8s.io/client-go"
+  version = "kubernetes-1.16.3"
+
+# The utils repo does not have version tags or branches so we go with a hash from the time 1.16 was released
+[[override]]
+  name = "k8s.io/utils"
+  revision = "05cf07c599ab9786f20c502bb8d743d37966304b"
+
+[[override]]
+  name = "k8s.io/kube-openapi"
+  revision = "cebd569f1be4ab5e01a9a2388f091371bf067bbe"
+
+[[override]]
+  name = "github.com/coreos/prometheus-operator"
+  branch = "release-0.34"
 
 [[constraint]]
   name = "sigs.k8s.io/sig-storage-lib-external-provisioner"
@@ -101,7 +122,7 @@ ignored = [
 
 [[override]]
   name = "sigs.k8s.io/structured-merge-diff"
-  revision = "e85c7b244fd2cc57bb829d73a061f93a441e63ce"
+  branch = "release-1.0"
 
 # kubernetes requires an older version of docker distribution
 [[override]]
@@ -118,19 +139,17 @@ ignored = [
   name = "gopkg.in/fsnotify.v1"
   source = "https://github.com/fsnotify/fsnotify.git"
 
-[[override]]
-  name = "k8s.io/apimachinery"
-  version = "kubernetes-1.14.1"
-
-[[override]]
-  name = "k8s.io/client-go"
-  version = "v11.0.0"
-
 # external bucket provisioner library
 [[constraint]]
-  branch = "master"
+  branch = "k8s-1.16"
   name = "github.com/kube-object-storage/lib-bucket-provisioner"
+  source = "github.com/travisn/lib-bucket-provisioner.git"
 
 [[override]]
   name = "github.com/openshift/machine-api-operator"
   revision = "a0949226d20ea454cf08252a182a8e32054027c3"
+
+[[override]]
+  name = "github.com/rook/operator-kit"
+  source = "github.com/travisn/operator-kit.git"
+  branch = "k8s-1.16-client"
