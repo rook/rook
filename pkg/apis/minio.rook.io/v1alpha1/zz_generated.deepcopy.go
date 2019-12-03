@@ -56,7 +56,7 @@ func (in *ObjectStore) DeepCopyObject() runtime.Object {
 func (in *ObjectStoreList) DeepCopyInto(out *ObjectStoreList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]ObjectStore, len(*in))

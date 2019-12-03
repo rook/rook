@@ -57,7 +57,7 @@ func (in *CephBlockPool) DeepCopyObject() runtime.Object {
 func (in *CephBlockPoolList) DeepCopyInto(out *CephBlockPoolList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]CephBlockPool, len(*in))
@@ -118,7 +118,7 @@ func (in *CephCluster) DeepCopyObject() runtime.Object {
 func (in *CephClusterList) DeepCopyInto(out *CephClusterList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]CephCluster, len(*in))
@@ -178,7 +178,7 @@ func (in *CephFilesystem) DeepCopyObject() runtime.Object {
 func (in *CephFilesystemList) DeepCopyInto(out *CephFilesystemList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]CephFilesystem, len(*in))
@@ -254,7 +254,7 @@ func (in *CephNFS) DeepCopyObject() runtime.Object {
 func (in *CephNFSList) DeepCopyInto(out *CephNFSList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]CephNFS, len(*in))
@@ -314,7 +314,7 @@ func (in *CephObjectStore) DeepCopyObject() runtime.Object {
 func (in *CephObjectStoreList) DeepCopyInto(out *CephObjectStoreList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]CephObjectStore, len(*in))
@@ -374,7 +374,7 @@ func (in *CephObjectStoreUser) DeepCopyObject() runtime.Object {
 func (in *CephObjectStoreUserList) DeepCopyInto(out *CephObjectStoreUserList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]CephObjectStoreUser, len(*in))
@@ -477,13 +477,6 @@ func (in *ClusterSpec) DeepCopyInto(out *ClusterSpec) {
 		*out = make(v1alpha2.ResourceSpec, len(*in))
 		for key, val := range *in {
 			(*out)[key] = *val.DeepCopy()
-		}
-	}
-	if in.PriorityClassNames != nil {
-		in, out := &in.PriorityClassNames, &out.PriorityClassNames
-		*out = make(v1alpha2.PriorityClassNamesSpec, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
 		}
 	}
 	out.DisruptionManagement = in.DisruptionManagement

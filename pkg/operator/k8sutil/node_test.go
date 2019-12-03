@@ -199,11 +199,11 @@ func TestNodeIsReady(t *testing.T) {
 	}}}))
 	// if `Ready` condition does not exist, must assume that node is not ready
 	assert.False(t, NodeIsReady(v1.Node{Status: v1.NodeStatus{Conditions: []v1.NodeCondition{
-		{Type: v1.NodeOutOfDisk, Status: v1.ConditionTrue},
+		{Type: v1.NodeDiskPressure, Status: v1.ConditionTrue},
 	}}}))
 	// if `Ready` condition is not accompanied by a status, must assume that node is not ready
 	assert.False(t, NodeIsReady(v1.Node{Status: v1.NodeStatus{Conditions: []v1.NodeCondition{
-		{Type: v1.NodeOutOfDisk},
+		{Type: v1.NodeDiskPressure},
 	}}}))
 }
 

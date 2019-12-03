@@ -69,7 +69,7 @@ func getDriverDir() (string, error) {
 func getMounter() *k8smount.SafeFormatAndMount {
 	return &k8smount.SafeFormatAndMount{
 		Interface: k8smount.New("" /* default mount path */),
-		Exec:      k8smount.NewOsExec(),
+		Exec:      k8smount.NewOSExec(),
 	}
 }
 
