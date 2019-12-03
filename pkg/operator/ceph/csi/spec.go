@@ -318,3 +318,34 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 	}
 	return nil
 }
+<<<<<<< HEAD
+=======
+
+// createCSIDriverInfo Registers CSI driver by creating a CSIDriver object
+func createCSIDriverInfo(clientset kubernetes.Interface, name string) error {
+	attach := true
+	mountInfo := false
+	// Create CSIDriver object
+	csiDriver := &k8scsi.CSIDriver{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: k8scsi.CSIDriverSpec{
+			AttachRequired: &attach,
+			PodInfoOnMount: &mountInfo,
+		},
+	}
+	csidrivers := clientset.StorageV1beta1().CSIDrivers()
+	_, err := csidrivers.Create(csiDriver)
+	if err == nil {
+		logger.Infof("CSIDriver object created for driver %q", name)
+		return nil
+	}
+	if apierrors.IsAlreadyExists(err) {
+		logger.Infof("CSIDriver CRD already had been registered for %q", name)
+		return nil
+	}
+
+	return err
+}
+>>>>>>> 6a2c0bad8... CSI: Fix logging in csiDriver object creation
