@@ -356,7 +356,7 @@ func createCSIDriverInfo(clientset kubernetes.Interface, name string) error {
 		return nil
 	}
 	if apierrors.IsAlreadyExists(err) {
-		logger.Info("CSIDriver CRD already had been registered for %q", name)
+		logger.Infof("CSIDriver CRD already had been registered for %q", name)
 		return nil
 	}
 
