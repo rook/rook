@@ -98,6 +98,8 @@ spec:
           value: {{ .Values.csi.enableRbdDriver | quote }}
         - name: ROOK_CSI_ENABLE_CEPHFS
           value: {{ .Values.csi.enableCephfsDriver | quote }}
+        - name: CSI_ENABLE_SNAPSHOTTER
+          value: {{ .Values.csi.enableSnapshotter | quote }}
 {{- if .Values.csi.kubeletDirPath }}
         - name: ROOK_CSI_KUBELET_DIR_PATH
           value: {{ .Values.csi.kubeletDirPath | quote }}
