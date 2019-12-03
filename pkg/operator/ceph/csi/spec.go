@@ -19,6 +19,8 @@ package csi
 import (
 	"errors"
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/rook/rook/pkg/operator/k8sutil"
 
@@ -38,6 +40,7 @@ type Param struct {
 	AttacherImage             string
 	SnapshotterImage          string
 	DriverNamePrefix          string
+	EnableSnapshotter         string
 	EnableCSIGRPCMetrics      string
 	KubeletDirPath            string
 	CephFSGRPCMetricsPort     uint16
@@ -199,6 +202,10 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 	tp.RBDGRPCMetricsPort = getPortFromENV("CSI_RBD_GRPC_METRICS_PORT", DefaultRBDGRPCMerticsPort)
 	tp.RBDLivenessMetricsPort = getPortFromENV("CSI_RBD_LIVENESS_METRICS_PORT", DefaultRBDLivenessMerticsPort)
 
+	enableSnap := os.Getenv("CSI_ENABLE_SNAPSHOTTER")
+	if !strings.EqualFold(enableSnap, "false") {
+		tp.EnableSnapshotter = "true"
+	}
 	if ver.Major > KubeMinMajor || (ver.Major == KubeMinMajor && ver.Minor < provDeploymentSuppVersion) {
 		deployProvSTS = true
 	}

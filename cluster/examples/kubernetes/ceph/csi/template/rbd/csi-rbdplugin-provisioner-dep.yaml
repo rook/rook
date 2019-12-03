@@ -49,6 +49,7 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
+        {{ if .EnableSnapshotter }}
         - name: csi-snapshotter
           image:  {{ .SnapshotterImage }}
           args:
@@ -66,6 +67,7 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
+        {{ end }}
         - name: csi-rbdplugin
           securityContext:
             privileged: true
