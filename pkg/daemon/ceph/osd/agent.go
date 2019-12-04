@@ -92,10 +92,13 @@ func (a *OsdAgent) configureDirs(context *clusterd.Context, dirs map[string]int)
 	succeeded := 0
 	var lastErr error
 	for dirPath, osdID := range dirs {
-		config := &osdConfig{id: osdID, configRoot: dirPath, dir: true, storeConfig: a.storeConfig,
+		cfg := &osdConfig{id: osdID, configRoot: dirPath, dir: true, storeConfig: a.storeConfig,
 			kv: a.kv, storeName: config.GetConfigStoreName(a.nodeName)}
 
-		if config.id == unassignedOSDID {
+		// Force all new directory-based OSDs to be filestore
+		cfg.storeConfig.StoreType = config.Filestore
+
+		if cfg.id == unassignedOSDID {
 			// the osd hasn't been registered with ceph yet, do so now to give it a cluster wide ID
 			osdID, osdUUID, err := registerOSD(context, a.cluster.Name)
 			if err != nil {
@@ -103,11 +106,11 @@ func (a *OsdAgent) configureDirs(context *clusterd.Context, dirs map[string]int)
 			}
 
 			dirs[dirPath] = *osdID
-			config.id = *osdID
-			config.uuid = *osdUUID
+			cfg.id = *osdID
+			cfg.uuid = *osdUUID
 		}
 
-		osd, err := a.prepareOSD(context, config)
+		osd, err := a.prepareOSD(context, cfg)
 		if err != nil {
 			logger.Errorf("failed to config osd in path %s. %+v", dirPath, err)
 			lastErr = err
@@ -200,9 +203,14 @@ func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOs
 	succeeded := 0
 	nonCVTotal := len(scheme.Entries)
 	for _, entry := range scheme.Entries {
-		config := &osdConfig{id: entry.ID, uuid: entry.OsdUUID, configRoot: context.ConfigDir,
+		cfg := &osdConfig{id: entry.ID, uuid: entry.OsdUUID, configRoot: context.ConfigDir,
 			partitionScheme: entry, storeConfig: a.storeConfig, kv: a.kv, storeName: config.GetConfigStoreName(a.nodeName)}
-		osd, err := a.prepareOSD(context, config)
+
+		// Force all new disk-based OSDs to be bluestore. This is a quick way to deprecate creation
+		// of new disk-based filestore OSDs without major changes to the OSD plumbing code.
+		cfg.storeConfig.StoreType = config.Bluestore
+
+		osd, err := a.prepareOSD(context, cfg)
 		if err != nil {
 			return osds, fmt.Errorf("failed to config osd %d. %+v", entry.ID, err)
 		}
@@ -615,8 +623,9 @@ func isBluestoreDevice(cfg *osdConfig) bool {
 }
 
 func isBluestoreDir(cfg *osdConfig) bool {
-	// A dir will use filestore unless explicitly requested to be bluestore
-	return cfg.dir && cfg.storeConfig.StoreType == config.Bluestore
+	// All directory OSDs are filestore
+	// TODO: is this change safe?
+	return false
 }
 
 func isFilestore(cfg *osdConfig) bool {
@@ -629,6 +638,7 @@ func isFilestoreDevice(cfg *osdConfig) bool {
 }
 
 func isFilestoreDir(cfg *osdConfig) bool {
-	// A dir will use filestore unless explicitly requested to be bluestore (the default is blank)
-	return cfg.dir && cfg.storeConfig.StoreType != config.Bluestore
+	// All directory OSDs are filestore
+	// TODO: is this change safe?
+	return cfg.dir
 }

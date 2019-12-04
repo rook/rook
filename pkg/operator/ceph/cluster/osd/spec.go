@@ -707,9 +707,8 @@ func (c *Cluster) getConfigEnvVars(storeConfig config.StoreConfig, dataDir, node
 	// Append ceph-volume environment variables
 	envVars = append(envVars, cephVolumeEnvVar()...)
 
-	if storeConfig.StoreType != "" {
-		envVars = append(envVars, v1.EnvVar{Name: osdStoreEnvVarName, Value: storeConfig.StoreType})
-	}
+	// deliberately skip setting osdStoreEnvVarName (ROOK_OSD_STORE) as a quick means to deprecate
+	// creating new disk-based Filestore OSDs
 
 	if storeConfig.DatabaseSizeMB != 0 {
 		envVars = append(envVars, v1.EnvVar{Name: osdDatabaseSizeEnvVarName, Value: strconv.Itoa(storeConfig.DatabaseSizeMB)})

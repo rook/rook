@@ -52,12 +52,12 @@ func TestStoreTypeDefaults(t *testing.T) {
 
 	// A bluestore dir
 	cfg = &osdConfig{dir: true, storeConfig: config.StoreConfig{StoreType: "bluestore"}}
-	assert.False(t, isFilestore(cfg))
+	assert.True(t, isFilestore(cfg)) // all dir osds are filestore
 	assert.False(t, isFilestoreDevice(cfg))
-	assert.False(t, isFilestoreDir(cfg))
-	assert.True(t, isBluestore(cfg))
+	assert.True(t, isFilestoreDir(cfg)) // all dir osds are filestore
+	assert.False(t, isBluestore(cfg))   // all dir osds are filestore
 	assert.False(t, isBluestoreDevice(cfg))
-	assert.True(t, isBluestoreDir(cfg))
+	assert.False(t, isBluestoreDir(cfg)) // all dir osds are filestore
 
 	// a bluestore device
 	cfg = &osdConfig{dir: false, partitionScheme: &config.PerfSchemeEntry{StoreType: ""}}
