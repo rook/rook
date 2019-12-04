@@ -25,7 +25,7 @@ spec:
           args:
             - "--v=5"
             - "--csi-address=/csi/csi.sock"
-            - "--kubelet-registration-path={{ .KubeletDirPath }}/plugins/{{ .DriverNamePrefix }}rbd.csi.ceph.com/csi.sock"
+            - "--kubelet-registration-path=/var/lib/csi/plugins/{{ .DriverNamePrefix }}rbd.csi.ceph.com/csi.sock"
           lifecycle:
             preStop:
               exec:
@@ -36,7 +36,7 @@ spec:
                 fieldRef:
                   fieldPath: spec.nodeName
           volumeMounts:
-            - name: plugin-dir
+            - name: socket-dir
               mountPath: /csi
             - name: registration-dir
               mountPath: /registration
@@ -76,7 +76,7 @@ spec:
               value: unix:///csi/csi.sock
           imagePullPolicy: "IfNotPresent"
           volumeMounts:
-            - name: plugin-dir
+            - name: socket-dir
               mountPath: /csi
             - name: pods-mount-dir
               mountPath: "{{ .KubeletDirPath }}/pods"
@@ -112,13 +112,13 @@ spec:
                 fieldRef:
                   fieldPath: status.podIP
           volumeMounts:
-            - name: plugin-dir
+            - name: socket-dir
               mountPath: /csi
           imagePullPolicy: "IfNotPresent"
       volumes:
-        - name: plugin-dir
+        - name: socket-dir
           hostPath:
-            path: "{{ .KubeletDirPath }}/plugins/{{ .DriverNamePrefix }}rbd.csi.ceph.com"
+            path: "/var/lib/csi/plugins/{{ .DriverNamePrefix }}rbd.csi.ceph.com"
             type: DirectoryOrCreate
         - name: plugin-mount-dir
           hostPath:

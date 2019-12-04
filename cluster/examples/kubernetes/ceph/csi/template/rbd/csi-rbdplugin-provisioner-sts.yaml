@@ -140,7 +140,7 @@ spec:
             path: /lib/modules
         - name: socket-dir
           hostPath:
-            path: "{{ .KubeletDirPath }}/plugins/{{ .DriverNamePrefix }}rbd.csi.ceph.com"
+            path: "/var/lib/csi/plugins/{{ .DriverNamePrefix }}rbd.csi.ceph.com"
             type: DirectoryOrCreate
         - name: ceph-csi-config
           configMap:
