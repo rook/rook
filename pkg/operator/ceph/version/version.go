@@ -65,14 +65,14 @@ var (
 )
 
 func (v *CephVersion) String() string {
-	return fmt.Sprintf("%d.%d.%d %s",
-		v.Major, v.Minor, v.Extra, v.ReleaseName())
+	return fmt.Sprintf("%d.%d.%d-%d %s",
+		v.Major, v.Minor, v.Extra, v.Build, v.ReleaseName())
 }
 
 // CephVersionFormatted returns the Ceph version in a human readable format
 func (v *CephVersion) CephVersionFormatted() string {
-	return fmt.Sprintf("ceph version %d.%d.%d %s",
-		v.Major, v.Minor, v.Extra, v.ReleaseName())
+	return fmt.Sprintf("ceph version %d.%d.%d-%d %s",
+		v.Major, v.Minor, v.Extra, v.Build, v.ReleaseName())
 }
 
 // ReleaseName is the name of the Ceph release
