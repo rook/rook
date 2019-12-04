@@ -352,11 +352,10 @@ func (c *Cluster) startProvisioningOverNodes(config *provisionConfig) {
 
 	// no valid node is ready to run an osd
 	if len(validNodes) == 0 {
-		logger.Warningf("no valid nodes available to run an osd in namespace %s. "+
-			"Rook will not create any new OSD nodes and will skip checking for removed nodes since "+
-			"removing all OSD nodes without destroying the Rook cluster is unlikely to be intentional", c.Namespace)
+		logger.Warningf("no valid nodes available to run osds on nodes in namespace %s", c.Namespace)
 		return
 	}
+
 	// start with nodes currently in the storage spec
 	for _, node := range c.ValidStorage.Nodes {
 		// fully resolve the storage config and resources for this node
@@ -481,8 +480,7 @@ func (c *Cluster) startOSDDaemonsOnPVC(pvcName string, config *provisionConfig, 
 
 		err = c.associateKeyring(keyring, createdDeployment)
 		if err != nil {
-			errMsg := fmt.Sprintf("failed to associate keyring for pvc %s, osd %v: %+v", osdProps.pvc.ClaimName, osd, err)
-			config.addError(errMsg)
+			logger.Errorf("failed to associate keyring for pvc %s, osd %v: %+v", osdProps.pvc.ClaimName, osd, err)
 		}
 
 		if createErr != nil && errors.IsAlreadyExists(createErr) {
@@ -504,7 +502,7 @@ func (c *Cluster) startOSDDaemonsOnPVC(pvcName string, config *provisionConfig, 
 			}
 
 			if err = updateDeploymentAndWait(c.context, dp, c.Namespace, daemon, strconv.Itoa(osd.ID), cephVersionToUse, c.isUpgrade, c.skipUpgradeChecks); err != nil {
-				config.addError(fmt.Sprintf("failed to update osd deployment %d. %+v", osd.ID, err))
+				logger.Errorf("failed to update osd deployment %d. %+v", osd.ID, err)
 			}
 		}
 		logger.Infof("started deployment for osd %d (dir=%t, type=%s)", osd.ID, osd.IsDirectory, storeConfig.StoreType)
@@ -571,8 +569,7 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 
 		err = c.associateKeyring(keyring, createdDeployment)
 		if err != nil {
-			errMsg := fmt.Sprintf("failed to associate keyring for node %s, osd %v: %+v", n.Name, osd, err)
-			config.addError(errMsg)
+			logger.Errorf("failed to associate keyring for node %s, osd %v: %+v", n.Name, osd, err)
 		}
 
 		if createErr != nil && errors.IsAlreadyExists(createErr) {
@@ -594,7 +591,7 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 			}
 
 			if err = updateDeploymentAndWait(c.context, dp, c.Namespace, daemon, strconv.Itoa(osd.ID), cephVersionToUse, c.isUpgrade, c.skipUpgradeChecks); err != nil {
-				config.addError(fmt.Sprintf("failed to update osd deployment %d. %+v", osd.ID, err))
+				logger.Errorf("failed to update osd deployment %d. %+v", osd.ID, err)
 			}
 		}
 		logger.Infof("started deployment for osd %d (dir=%t, type=%s)", osd.ID, osd.IsDirectory, storeConfig.StoreType)
