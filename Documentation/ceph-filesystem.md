@@ -87,7 +87,7 @@ Save this storage class definition as `storageclass.yaml`:
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: rook-cephfs
+  name: csi-cephfs
 # Change "rook-ceph" provisioner prefix to match the operator namespace if needed
 provisioner: rook-ceph.cephfs.csi.ceph.com
 parameters:
