@@ -182,7 +182,7 @@ func (c *Cluster) Start() error {
 			}
 
 			if err := updateDeploymentAndWait(c.context, d, c.Namespace, daemon, mgrConfig.DaemonID, cephVersionToUse, c.isUpgrade, c.skipUpgradeChecks); err != nil {
-				return fmt.Errorf("failed to update mgr deployment %s. %+v", resourceName, err)
+				logger.Errorf("failed to update mgr deployment %s. %+v", resourceName, err)
 			}
 		}
 
