@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/rook/rook/pkg/clusterd"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testexec "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -83,8 +84,12 @@ func TestOSDStatus(t *testing.T) {
 	dp, _ := context.Clientset.AppsV1().Deployments(cluster).List(metav1.ListOptions{LabelSelector: fmt.Sprintf("%v=%d", OsdIdLabelKey, 0)})
 	assert.Equal(t, 1, len(dp.Items))
 
+	cephVersion := cephver.CephVersion{
+		Major: 14,
+	}
+
 	// Initializing an OSD monitoring
-	osdMon := NewMonitor(context, cluster, true)
+	osdMon := NewMonitor(context, cluster, true, cephVersion)
 
 	// Run OSD monitoring routine
 	err := osdMon.osdStatus()
@@ -98,8 +103,12 @@ func TestOSDStatus(t *testing.T) {
 }
 
 func TestMonitorStart(t *testing.T) {
+	cephVersion := cephver.CephVersion{
+		Major: 14,
+	}
+
 	stopCh := make(chan struct{})
-	osdMon := NewMonitor(&clusterd.Context{}, "cluster", true)
+	osdMon := NewMonitor(&clusterd.Context{}, "cluster", true, cephVersion)
 	logger.Infof("starting osd monitor")
 	go osdMon.Start(stopCh)
 	close(stopCh)
