@@ -33,6 +33,7 @@ The following fields will be **supported** for updates:
   * `count`: The number of monitors can be updated and the operator will ensure that as monitors are scaled up or down the cluster remains in quorum.
   * `allowMultiplePerNode`: The policy to allow multiple mons to be placed on one node can be toggled.
 * `deviceFilter`: The regex filter for devices allowed to be used for storage can be updated and OSDs will be added or removed to match the new filter pattern.
+* `devicePathFilter`: The regex filter for paths of devices allowed to be used for storage can be updated and OSDs will be added or removed to match the new filter pattern.
 * `useAllDevices`: If this value is updated to `true`, then OSDs will be added to start using all devices on nodes.
 However, if this value is updated to `false`, the operator will only allow OSDs to be removed if there is a value set for `deviceFilter`.
 This is to prevent an unintentional action by the user that would effectively remove all data in the cluster.

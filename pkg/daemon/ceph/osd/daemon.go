@@ -21,6 +21,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"regexp"
 	"syscall"
 
@@ -301,12 +302,12 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 		}
 		partCount, ownPartitions, fs, err := sys.CheckIfDeviceAvailable(context.Executor, device.Name, pvcBacked)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get device %s info. %+v", device.Name, err)
+			return nil, fmt.Errorf("failed to get device %q info. %+v", device.Name, err)
 		}
 
 		if fs != "" || !ownPartitions {
 			// not OK to use the device because it has a filesystem or rook doesn't own all its partitions
-			logger.Infof("skipping device %s that is in use (not by rook). fs: %s, ownPartitions: %t", device.Name, fs, ownPartitions)
+			logger.Infof("skipping device %q that is in use (not by rook). fs: %s, ownPartitions: %t", device.Name, fs, ownPartitions)
 			continue
 		}
 
@@ -326,12 +327,25 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 					// the desired devices is a regular expression
 					matched, err = regexp.Match(desiredDevice.Name, []byte(device.Name))
 					if err != nil {
-						logger.Errorf("regex failed on device %s and filter %s. %+v", device.Name, desiredDevice.Name, err)
+						logger.Errorf("regex failed on device %q and filter %q. %+v", device.Name, desiredDevice.Name, err)
 						continue
 					}
-					logger.Infof("device %s matches device filter %s: %t", device.Name, desiredDevice.Name, matched)
+					logger.Infof("device %q matches device filter %q: %t", device.Name, desiredDevice.Name, matched)
+				} else if desiredDevice.IsDevicePathFilter {
+					pathnames := append(strings.Fields(device.DevLinks), filepath.Join("/dev", device.Name))
+					for _, pathname := range pathnames {
+						matched, err = regexp.Match(desiredDevice.Name, []byte(pathname))
+						if err != nil {
+							logger.Errorf("regex failed on device %q and filter %q. %+v", device.Name, desiredDevice.Name, err)
+							continue
+						}
+						if matched {
+							break
+						}
+					}
+					logger.Infof("device %q (aliases: %q) matches device path filter %q: %t", device.Name, device.DevLinks, desiredDevice.Name, matched)
 				} else if device.Name == desiredDevice.Name {
-					logger.Infof("%s found in the desired devices", device.Name)
+					logger.Infof("%q found in the desired devices", device.Name)
 					matched = true
 				}
 				matchedDevice = desiredDevice
@@ -342,12 +356,13 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 
 			if err == nil && matched {
 				// the current device matches the user specifies filter/list, use it for data
-				deviceInfo = &DeviceOsdIDEntry{Data: unassignedOSDID, Config: matchedDevice}
+				logger.Infof("device %q is selected by the device filter/name %q", device.Name, matchedDevice.Name)
+				deviceInfo = &DeviceOsdIDEntry{Data: unassignedOSDID, Config: matchedDevice, PersistentDevicePaths: strings.Fields(device.DevLinks)}
 			} else {
-				logger.Infof("skipping device %s that does not match the device filter/list (%v). %+v", device.Name, desiredDevices, err)
+				logger.Infof("skipping device %q that does not match the device filter/list (%v). %+v", device.Name, desiredDevices, err)
 			}
 		} else {
-			logger.Infof("skipping device %s until the admin specifies it can be used by an osd", device.Name)
+			logger.Infof("skipping device %q until the admin specifies it can be used by an osd", device.Name)
 		}
 
 		if deviceInfo != nil {

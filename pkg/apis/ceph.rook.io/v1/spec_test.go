@@ -38,6 +38,7 @@ storage:
   useAllNodes: false
   useAllDevices: false
   deviceFilter: "^sd."
+  devicePathFilter: "^/dev/disk/by-path/pci-.*"
   location: "region=us-west,datacenter=delmar"
   config:
     metadataDevice: "nvme01"
@@ -52,7 +53,8 @@ storage:
     directories:
     - path: "/rook/dir1"
   - name: "node2"
-    deviceFilter: "^foo*"`)
+    deviceFilter: "^foo*"
+    devicePathFilter: "^/dev/disk/by-id/.*foo.*"`)
 
 	// convert the raw spec yaml into JSON
 	rawJSON, err := yaml.YAMLToJSON(specYaml)
@@ -78,9 +80,10 @@ storage:
 		Storage: rookalpha.StorageScopeSpec{
 			UseAllNodes: false,
 			Selection: rookalpha.Selection{
-				UseAllDevices: &useAllDevices,
-				DeviceFilter:  "^sd.",
-				Directories:   []rookalpha.Directory{{Path: "/rook/dir2"}},
+				UseAllDevices:    &useAllDevices,
+				DeviceFilter:     "^sd.",
+				DevicePathFilter: "^/dev/disk/by-path/pci-.*",
+				Directories:      []rookalpha.Directory{{Path: "/rook/dir2"}},
 			},
 			Config: map[string]string{
 				"metadataDevice": "nvme01",
@@ -100,7 +103,8 @@ storage:
 				{
 					Name: "node2",
 					Selection: rookalpha.Selection{
-						DeviceFilter: "^foo*",
+						DeviceFilter:     "^foo*",
+						DevicePathFilter: "^/dev/disk/by-id/.*foo.*",
 					},
 				},
 			},

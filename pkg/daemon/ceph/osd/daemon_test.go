@@ -206,11 +206,11 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 
 	context := &clusterd.Context{Executor: executor}
 	context.Devices = []*sys.LocalDisk{
-		{Name: "sda"},
-		{Name: "sdb"},
-		{Name: "sdc"},
-		{Name: "sdd"},
-		{Name: "nvme01"},
+		{Name: "sda", DevLinks: "/dev/disk/by-id/scsi-0123 /dev/disk/by-path/pci-0:1:2:3-scsi-1"},
+		{Name: "sdb", DevLinks: "/dev/disk/by-id/scsi-4567 /dev/disk/by-path/pci-4:5:6:7-scsi-1"},
+		{Name: "sdc", DevLinks: "/dev/disk/by-id/scsi-89ab /dev/disk/by-path/pci-8:9:a:b-scsi-1"},
+		{Name: "sdd", DevLinks: "/dev/disk/by-id/scsi-cdef /dev/disk/by-path/pci-c:d:e:f-scsi-1"},
+		{Name: "nvme01", DevLinks: "/dev/disk/by-id/nvme-0246 /dev/disk/by-path/pci-0:2:4:6-nvme-1"},
 		{Name: "rda"},
 		{Name: "rdb"},
 	}
@@ -257,6 +257,20 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	assert.Equal(t, -1, mapping.Entries["rda"].Data)
 	assert.Equal(t, -1, mapping.Entries["rdb"].Data)
 	assert.Equal(t, -1, mapping.Entries["nvme01"].Data)
+
+	// select the sd* devices by path names
+	mapping, err = getAvailableDevices(context, []DesiredDevice{{Name: "^/dev/sd.$", IsDevicePathFilter: true}}, "", pvcBackedOSD)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(mapping.Entries))
+	assert.Equal(t, -1, mapping.Entries["sda"].Data)
+	assert.Equal(t, -1, mapping.Entries["sdd"].Data)
+
+	// select the SCSI devices
+	mapping, err = getAvailableDevices(context, []DesiredDevice{{Name: "^/dev/disk/by-path/.*-scsi-.*", IsDevicePathFilter: true}}, "", pvcBackedOSD)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(mapping.Entries))
+	assert.Equal(t, -1, mapping.Entries["sda"].Data)
+	assert.Equal(t, -1, mapping.Entries["sdd"].Data)
 }
 
 func TestGetRemovedDevices(t *testing.T) {

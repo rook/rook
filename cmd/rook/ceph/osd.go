@@ -61,18 +61,19 @@ var osdStartCmd = &cobra.Command{
 }
 
 var (
-	osdDataDeviceFilter string
-	ownerRefID          string
-	mountSourcePath     string
-	mountPath           string
-	osdID               int
-	copyBinariesPath    string
-	osdStoreType        string
-	osdStringID         string
-	osdUUID             string
-	osdIsDevice         bool
-	pvcBackedOSD        bool
-	lvPath              string
+	osdDataDeviceFilter     string
+	osdDataDevicePathFilter string
+	ownerRefID              string
+	mountSourcePath         string
+	mountPath               string
+	osdID                   int
+	copyBinariesPath        string
+	osdStoreType            string
+	osdStringID             string
+	osdUUID                 string
+	osdIsDevice             bool
+	pvcBackedOSD            bool
+	lvPath                  string
 )
 
 func addOSDFlags(command *cobra.Command) {
@@ -82,6 +83,7 @@ func addOSDFlags(command *cobra.Command) {
 	// flags specific to provisioning
 	provisionCmd.Flags().StringVar(&cfg.devices, "data-devices", "", "comma separated list of devices to use for storage")
 	provisionCmd.Flags().StringVar(&osdDataDeviceFilter, "data-device-filter", "", "a regex filter for the device names to use, or \"all\"")
+	provisionCmd.Flags().StringVar(&osdDataDevicePathFilter, "data-device-path-filter", "", "a regex filter for the device path names to use")
 	provisionCmd.Flags().StringVar(&cfg.directories, "data-directories", "", "comma separated list of directory paths to use for storage")
 	provisionCmd.Flags().StringVar(&cfg.metadataDevice, "metadata-device", "", "device to use for metadata (e.g. a high performance SSD/NVMe device)")
 	provisionCmd.Flags().BoolVar(&cfg.forceFormat, "force-format", false,
@@ -228,12 +230,20 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 
 	var dataDevices []osddaemon.DesiredDevice
 	if osdDataDeviceFilter != "" {
-		if cfg.devices != "" {
-			return fmt.Errorf("Only one of --data-devices and --data-device-filter can be specified.")
+		if cfg.devices != "" || osdDataDevicePathFilter != "" {
+			return fmt.Errorf("Only one of --data-devices, --data-device-filter and --data-device-path-filter can be specified.")
 		}
 
 		dataDevices = []osddaemon.DesiredDevice{
 			{Name: osdDataDeviceFilter, IsFilter: true, OSDsPerDevice: cfg.storeConfig.OSDsPerDevice},
+		}
+	} else if osdDataDevicePathFilter != "" {
+		if cfg.devices != "" {
+			return fmt.Errorf("Only one of --data-devices, --data-device-filter and --data-device-path-filter can be specified.")
+		}
+
+		dataDevices = []osddaemon.DesiredDevice{
+			{Name: osdDataDevicePathFilter, IsDevicePathFilter: true, OSDsPerDevice: cfg.storeConfig.OSDsPerDevice},
 		}
 	} else {
 		var err error

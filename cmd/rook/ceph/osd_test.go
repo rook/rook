@@ -37,6 +37,9 @@ func TestParseDesiredDevices(t *testing.T) {
 	assert.False(t, result[0].IsFilter)
 	assert.False(t, result[1].IsFilter)
 	assert.False(t, result[2].IsFilter)
+	assert.False(t, result[0].IsDevicePathFilter)
+	assert.False(t, result[1].IsDevicePathFilter)
+	assert.False(t, result[2].IsDevicePathFilter)
 
 	// negative osd count is not allowed
 	devices = "nvme01:-5"
@@ -77,6 +80,10 @@ func TestParseDesiredDevices(t *testing.T) {
 	assert.False(t, result[1].IsFilter)
 	assert.False(t, result[2].IsFilter)
 	assert.False(t, result[3].IsFilter)
+	assert.False(t, result[0].IsDevicePathFilter)
+	assert.False(t, result[1].IsDevicePathFilter)
+	assert.False(t, result[2].IsDevicePathFilter)
+	assert.False(t, result[3].IsDevicePathFilter)
 
 }
 
