@@ -108,6 +108,9 @@ workflow would look something like this:
 1. Run an OsdPrepare Job on all unused and uninitialized PVCs
     * This would be one Job per PVC
 1. Create an OSD Deployment for each unused but initialized PVC
+    * Deploy OSD with `ceph-volume` if available.
+       * If PV is not backed by LV, create a LV in this PV.
+       * If PV is backed by LV, use this PV as is.
 
 ### Additional considerations for local storage
 

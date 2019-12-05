@@ -186,6 +186,18 @@ func GetDevicePropertiesFromPath(devicePath string, executor exec.Executor) (map
 	return parseKeyValuePairString(output), nil
 }
 
+func IsLV(devicePath string, executor exec.Executor) (bool, error) {
+	devProps, err := GetDevicePropertiesFromPath(devicePath, executor)
+	if err != nil {
+		return false, fmt.Errorf("failed to get device properties for %q: %+v", devicePath, err)
+	}
+	diskType, ok := devProps["TYPE"]
+	if !ok {
+		return false, fmt.Errorf("TYPE property is not found for %q", devicePath)
+	}
+	return diskType == LVMType, nil
+}
+
 func GetUdevInfo(device string, executor exec.Executor) (map[string]string, error) {
 	cmd := fmt.Sprintf("udevadm info %s", device)
 	output, err := executor.ExecuteCommandWithOutput(false, cmd, "udevadm", "info", "--query=property", fmt.Sprintf("/dev/%s", device))

@@ -42,7 +42,7 @@ var (
 )
 
 // StartOSD starts an OSD on a device that was provisioned by ceph-volume
-func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID, lvPath string, pvcBackedOSD bool, cephArgs []string) error {
+func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID, lvPath string, pvcBackedOSD, lvBackedPV bool, cephArgs []string) error {
 
 	// ensure the config mount point exists
 	configDir := fmt.Sprintf("/var/lib/ceph/osd/ceph-%s", osdID)
@@ -52,12 +52,12 @@ func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID, lvPath string,
 	}
 
 	// Update LVM config at runtime
-	if err := updateLVMConfig(context, pvcBackedOSD); err != nil {
+	if err := updateLVMConfig(context, pvcBackedOSD, lvBackedPV); err != nil {
 		return fmt.Errorf("failed to update lvm configuration file, %+v", err) // fail return here as validation provided by ceph-volume
 	}
 
 	var volumeGroupName string
-	if pvcBackedOSD {
+	if pvcBackedOSD && !lvBackedPV {
 		volumeGroupName, err = getVolumeGroupName(lvPath)
 		if err != nil {
 			return fmt.Errorf("error fetching volume group name for OSD %s. %+v", osdID, err)
@@ -85,7 +85,7 @@ func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID, lvPath string,
 		logger.Errorf("failed to start osd or shutting down. %+v", err)
 	}
 
-	if pvcBackedOSD {
+	if pvcBackedOSD && !lvBackedPV {
 		if err := releaseLVMDevice(context, volumeGroupName); err != nil {
 			return fmt.Errorf("failed to release device from lvm. %+v", err)
 		}
@@ -272,7 +272,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 
 	logger.Infof("device osds:%+v\ndir osds: %+v", deviceOSDs, dirOSDs)
 
-	if agent.pvcBacked && !deviceOSDs[0].SkipLVRelease {
+	if agent.pvcBacked && !deviceOSDs[0].SkipLVRelease && !deviceOSDs[0].LVBackedPV {
 		volumeGroupName, err := getVolumeGroupName(deviceOSDs[0].LVPath)
 		if err != nil {
 			return fmt.Errorf("error fetching volume group name. %+v", err)
