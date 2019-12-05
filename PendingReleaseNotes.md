@@ -21,8 +21,9 @@
 - PriorityClassNames can now be added to the Rook/Ceph components to influence the scheduler's pod preemption.
   - mgr/mon/osd/rbdmirror: [priority class names configuration settings](Documentation/ceph-cluster-crd.md#priority-class-names-configuration-settings)
   - filesystem: [metadata server settings](Documentation/ceph-filesystem-crd.md#metadata-server-settings)
-  - rgw: [gateway settings](Documentation/ceph-object-store-crd.md#gateway-settings)    
+  - rgw: [gateway settings](Documentation/ceph-object-store-crd.md#gateway-settings)
   - nfs: [samples](Documentation/ceph-nfs-crd.md#samples)
+- When the operator is upgraded, the mgr and osd (not running on PVC) won't be restarted if the Rook binary version changes
 
 ### EdgeFS
 

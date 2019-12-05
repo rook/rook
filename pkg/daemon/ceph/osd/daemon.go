@@ -153,7 +153,8 @@ func RunFilestoreOnDevice(context *clusterd.Context, mountSourcePath, mountPath 
 	return nil
 }
 
-func Provision(context *clusterd.Context, agent *OsdAgent) error {
+// Provision provisions an OSD
+func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string) error {
 	// set the initial orchestration status
 	status := oposd.OrchestrationStatus{Status: oposd.OrchestrationStatusComputingDiff}
 	if err := oposd.UpdateNodeStatus(agent.kv, agent.nodeName, status); err != nil {
@@ -231,6 +232,11 @@ func Provision(context *clusterd.Context, agent *OsdAgent) error {
 	deviceOSDs, err := agent.configureDevices(context, devices)
 	if err != nil {
 		return fmt.Errorf("failed to configure devices. %+v", err)
+	}
+
+	// Populate CRUSH location for each OSD on the host
+	for i := range deviceOSDs {
+		deviceOSDs[i].Location = crushLocation
 	}
 
 	// determine the set of directories that can/should be used for OSDs, with the default dir if no devices were specified. save off the node's crush name if needed.

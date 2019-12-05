@@ -53,12 +53,46 @@ const (
 	lvPathVarName                       = "ROOK_LV_PATH"
 	rookBinariesMountPath               = "/rook"
 	rookBinariesVolumeName              = "rook-binaries"
+	activateOSDVolumeName               = "activate-osd"
+	activateOSDMountPath                = "/var/lib/ceph/osd/ceph-"
 	blockPVCMapperInitContainer         = "blkdevmapper"
 	osdMemoryTargetSafetyFactor float32 = 0.8
 	CephDeviceSetLabelKey               = "ceph.rook.io/DeviceSet"
 	CephSetIndexLabelKey                = "ceph.rook.io/setIndex"
 	CephDeviceSetPVCIDLabelKey          = "ceph.rook.io/DeviceSetPVCId"
 	OSDOverPVCLabelKey                  = "ceph.rook.io/pvc"
+)
+
+const (
+	activateOSDCode = `
+set -ex
+
+OSD_ID=%s
+OSD_UUID=%s
+OSD_STORE_FLAG="%s"
+TMP_DIR=$(mktemp -d)
+OSD_DATA_DIR=/var/lib/ceph/osd/ceph-"$OSD_ID"
+
+# active the osd with ceph-volume
+ceph-volume lvm activate --no-systemd "$OSD_STORE_FLAG" "$OSD_ID" "$OSD_UUID"
+
+# copy the tmpfs directory to a temporary directory
+# this is needed because when the init container exits, the tmpfs goes away and its content with it
+# this will result in the emptydir to be empty when accessed by the main osd container
+cp --verbose --no-dereference "$OSD_DATA_DIR"/* "$TMP_DIR"/
+
+# unmount the tmpfs since we don't need it anymore
+umount "$OSD_DATA_DIR"
+
+# copy back the content of the tmpfs into the original osd directory
+cp --verbose --no-dereference "$TMP_DIR"/* "$OSD_DATA_DIR"
+
+# retain ownership of files to the ceph user/group
+chown --verbose --recursive ceph:ceph "$OSD_DATA_DIR"
+
+# remove the temporary directory
+rm --recursive --force "$TMP_DIR"
+`
 )
 
 func (c *Cluster) makeJob(osdProps osdProperties, provisionConfig *provisionConfig) (*batch.Job, error) {
@@ -105,8 +139,9 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	configVolumeMounts := opspec.RookVolumeMounts(provisionConfig.DataPathMap, false)
 	volumes := opspec.PodVolumes(provisionConfig.DataPathMap, c.dataDirHostPath, false)
 	failureDomainValue := osdProps.crushHostname
-	doConfigInit := true     // initialize ceph.conf in init container?
-	doBinaryCopyInit := true // copy tini and rook binaries in an init container?
+	doConfigInit := true       // initialize ceph.conf in init container?
+	doBinaryCopyInit := true   // copy tini and rook binaries in an init container?
+	doActivateOSDInit := false // run an init container to activate the osd?
 
 	var dataDir string
 	if osd.IsDirectory {
@@ -204,13 +239,6 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 
 	commonArgs = append(commonArgs, osdOnSDNFlag(c.Network, c.clusterInfo.CephVersion)...)
 
-	// Add the volume to the spec and the mount to the daemon container
-	copyBinariesVolume, copyBinariesContainer := c.getCopyBinariesContainer()
-	if doBinaryCopyInit {
-		volumes = append(volumes, copyBinariesVolume)
-		volumeMounts = append(volumeMounts, copyBinariesContainer.VolumeMounts[0])
-	}
-
 	var command []string
 	var args []string
 	if !osd.IsDirectory && osd.IsFileStore && !osd.CephVolumeInitiated {
@@ -229,7 +257,27 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 			"--"},
 			defaultArgs...)
 
-	} else if osd.CephVolumeInitiated {
+		// If the Bluestore OSD was prepared with ceph-volume and not running on PVC
+	} else if osd.CephVolumeInitiated && osdProps.pvc.ClaimName == "" && !osd.IsFileStore {
+		doBinaryCopyInit = false
+		doConfigInit = false
+		doActivateOSDInit = true
+		command = []string{"ceph-osd"}
+		args = []string{
+			"--foreground",
+			"--id", osdID,
+			"--fsid", c.clusterInfo.FSID,
+			"--setuser", "ceph",
+			"--setgroup", "ceph",
+			fmt.Sprintf("--crush-location=%s", osd.Location),
+		}
+
+		// Needed so that the init chown container won't chown something that does not exist
+		// We don't need this directory, it's empty
+		osd.DataPath = ""
+
+		// If the OSD was prepared with ceph-volume and running on PVC
+	} else if osd.CephVolumeInitiated && osdProps.pvc.ClaimName != "" {
 		// if the osd was provisioned by ceph-volume, we need to launch it with rook as the parent process
 		command = []string{path.Join(rookBinariesMountPath, "tini")}
 		args = []string{
@@ -245,6 +293,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 			// Set '--setuser-match-path' so that existing directory owned by root won't affect the daemon startup.
 			// For existing data store owned by root, the daemon will continue to run as root
 			"--setuser-match-path", osd.DataPath,
+			fmt.Sprintf("--crush-location=%s", osd.Location),
 		}
 
 		// mount /run/udev in the container so ceph-volume (via `lvs`)
@@ -283,6 +332,23 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		// other osds can launch the osd daemon directly
 		command = []string{"ceph-osd"}
 		args = defaultArgs
+	}
+
+	// Add the volume to the spec and the mount to the daemon container
+	copyBinariesVolume, copyBinariesContainer := c.getCopyBinariesContainer()
+	if doBinaryCopyInit {
+		volumes = append(volumes, copyBinariesVolume)
+		volumeMounts = append(volumeMounts, copyBinariesContainer.VolumeMounts[0])
+	}
+
+	// Add the volume to the spec and the mount to the daemon container
+	// so that it can pick the already mounted/activated osd metadata path
+	// This container will activate the OSD and place the activated filesinto an empty dir
+	// The empty dir will be shared by the "activate-osd" pod and the "osd" main pod
+	activateOSDVolume, activateOSDContainer := c.getActivateOSDInitContainer(osdID, osd.UUID, osd.IsFileStore, osdProps)
+	if doActivateOSDInit {
+		volumes = append(volumes, activateOSDVolume)
+		volumeMounts = append(volumeMounts, activateOSDContainer.VolumeMounts[0])
 	}
 
 	args = append(args, commonArgs...)
@@ -324,6 +390,9 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	}
 	if doBinaryCopyInit {
 		initContainers = append(initContainers, *copyBinariesContainer)
+	}
+	if doActivateOSDInit {
+		initContainers = append(initContainers, *activateOSDContainer)
 	}
 
 	// Doing a chown in a post start lifecycle hook does not reliably complete before the OSD
@@ -427,6 +496,43 @@ func (c *Cluster) getCopyBinariesContainer() (v1.Volume, *v1.Container) {
 		Name:         "copy-bins",
 		Image:        k8sutil.MakeRookImage(c.rookVersion),
 		VolumeMounts: []v1.VolumeMount{mount},
+	}
+}
+
+// This container runs all the actions needed to activate an OSD before we can run the OSD process
+func (c *Cluster) getActivateOSDInitContainer(osdID, osdUUID string, isFilestore bool, osdProps osdProperties) (v1.Volume, *v1.Container) {
+	volume := v1.Volume{Name: activateOSDVolumeName, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}}
+	envVars := cephVolumeEnvVar()
+	osdStore := "--bluestore"
+	if isFilestore {
+		osdStore = "--filestore"
+	}
+
+	// Build empty dir osd path to something like "/var/lib/ceph/osd/ceph-0"
+	activateOSDMountPathID := activateOSDMountPath + osdID
+
+	volMounts := []v1.VolumeMount{
+		{Name: activateOSDVolumeName, MountPath: activateOSDMountPathID},
+		{Name: "devices", MountPath: "/dev"},
+	}
+
+	privileged := true
+	securityContext := &v1.SecurityContext{
+		Privileged: &privileged,
+	}
+
+	return volume, &v1.Container{
+		Command: []string{
+			"/bin/bash",
+			"-c",
+			fmt.Sprintf(activateOSDCode, osdID, osdUUID, osdStore),
+		},
+		Name:            "activate-osd",
+		Image:           c.cephVersion.Image,
+		VolumeMounts:    volMounts,
+		SecurityContext: securityContext,
+		Env:             envVars,
+		Resources:       osdProps.resources,
 	}
 }
 
