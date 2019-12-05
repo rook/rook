@@ -210,6 +210,9 @@ spec:
 {{- end }}
         resources:
 {{ toYaml .Values.resources | indent 10 }}
+{{- if .Values.useOperatorHostNetwork }}
+      hostNetwork: true
+{{- end }}
 {{- if .Values.nodeSelector }}
       nodeSelector:
 {{ toYaml .Values.nodeSelector | indent 8 }}
