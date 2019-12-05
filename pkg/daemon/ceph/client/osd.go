@@ -22,6 +22,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 )
 
 type OSDUsage struct {
@@ -259,7 +260,11 @@ func OSDRemove(context *clusterd.Context, clusterName string, osdID int) (string
 	return string(buf), err
 }
 
-func OsdSafeToDestroy(context *clusterd.Context, clusterName string, osdID int) (bool, error) {
+func OsdSafeToDestroy(context *clusterd.Context, clusterName string, osdID int, cephVersion cephver.CephVersion) (bool, error) {
+	if !cephVersion.IsAtLeastNautilus() {
+		logger.Debugf("failed to get safe-to-destroy status: ceph version in lower than Nautilus")
+		return false, nil
+	}
 	args := []string{"osd", "safe-to-destroy", strconv.Itoa(osdID)}
 	cmd := NewCephCommand(context, clusterName, args)
 	buf, err := cmd.Run()
