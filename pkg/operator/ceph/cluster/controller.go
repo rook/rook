@@ -98,26 +98,28 @@ var ClusterResource = opkit.CustomResource{
 
 // ClusterController controls an instance of a Rook cluster
 type ClusterController struct {
-	context             *clusterd.Context
-	volumeAttachment    attachment.Attachment
-	devicesInUse        bool
-	rookImage           string
-	clusterMap          map[string]*cluster
-	addClusterCallbacks []func(*cephv1.ClusterSpec) error
-	csiConfigMutex      *sync.Mutex
-	nodeStore           cache.Store
-	osdChecker          *osd.Monitor
+	context                *clusterd.Context
+	volumeAttachment       attachment.Attachment
+	devicesInUse           bool
+	rookImage              string
+	clusterMap             map[string]*cluster
+	addClusterCallbacks    []func(*cephv1.ClusterSpec) error
+	removeClusterCallbacks []func() error
+	csiConfigMutex         *sync.Mutex
+	nodeStore              cache.Store
+	osdChecker             *osd.Monitor
 }
 
 // NewClusterController create controller for watching cluster custom resources created
-func NewClusterController(context *clusterd.Context, rookImage string, volumeAttachment attachment.Attachment, addClusterCallbacks []func(*cephv1.ClusterSpec) error) *ClusterController {
+func NewClusterController(context *clusterd.Context, rookImage string, volumeAttachment attachment.Attachment, addClusterCallbacks []func(*cephv1.ClusterSpec) error, removeClusterCallbacks []func() error) *ClusterController {
 	return &ClusterController{
-		context:             context,
-		volumeAttachment:    volumeAttachment,
-		rookImage:           rookImage,
-		clusterMap:          make(map[string]*cluster),
-		addClusterCallbacks: addClusterCallbacks,
-		csiConfigMutex:      &sync.Mutex{},
+		context:                context,
+		volumeAttachment:       volumeAttachment,
+		rookImage:              rookImage,
+		clusterMap:             make(map[string]*cluster),
+		addClusterCallbacks:    addClusterCallbacks,
+		removeClusterCallbacks: removeClusterCallbacks,
+		csiConfigMutex:         &sync.Mutex{},
 	}
 }
 
@@ -186,6 +188,10 @@ func (c *ClusterController) StopWatch() {
 	c.clusterMap = make(map[string]*cluster)
 }
 
+func (c *ClusterController) GetClusterCount() int {
+	return len(c.clusterMap)
+}
+
 // ************************************************************************************************
 // Add event functions
 // ************************************************************************************************
@@ -242,8 +248,12 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	}
 
 	cluster := newCluster(clusterObj, c.context, c.csiConfigMutex)
-	c.clusterMap[cluster.Namespace] = cluster
 
+	// Note that this lock is held through the callback process, as this creates CSI resources, but we must lock in
+	// this scope as the clusterMap is authoritative on cluster count and thus involved in the check for CSI resource
+	// deletion. If we ever add additional callback functions, we should tighten this lock.
+	c.csiConfigMutex.Lock()
+	c.clusterMap[cluster.Namespace] = cluster
 	logger.Infof("starting cluster in namespace %s", cluster.Namespace)
 
 	for _, callback := range c.addClusterCallbacks {
@@ -251,6 +261,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 			logger.Errorf("%+v", err)
 		}
 	}
+	c.csiConfigMutex.Unlock()
 
 	c.initializeCluster(cluster, clusterObj)
 }
@@ -761,10 +772,22 @@ func (c *ClusterController) onDelete(obj interface{}) {
 	if err != nil {
 		logger.Errorf("failed to delete cluster. %+v", err)
 	}
+
+	// Note that this lock is held through the callback process, as this deletes CSI resources, but we must lock in
+	// this scope as the clusterMap is authoritative on cluster count. If we ever add additional callback functions,
+	// we should tighten this lock.
+	c.csiConfigMutex.Lock()
 	if cluster, ok := c.clusterMap[clust.Namespace]; ok {
 		close(cluster.stopCh)
 		delete(c.clusterMap, clust.Namespace)
 	}
+	for _, callback := range c.removeClusterCallbacks {
+		if err := callback(); err != nil {
+			logger.Errorf("%+v", err)
+		}
+	}
+	c.csiConfigMutex.Unlock()
+
 	// Only valid when the cluster is not external
 	if !clust.Spec.External.Enable {
 		if clust.Spec.Storage.AnyUseAllDevices() {

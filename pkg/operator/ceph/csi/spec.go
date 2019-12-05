@@ -176,8 +176,15 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 
 	// create an empty config map. config map will be filled with data
 	// later when clusters have mons
-	if err := CreateCsiConfigMap(namespace, clientset); err != nil {
+	configMap, err := CreateCsiConfigMap(namespace, clientset)
+	if err != nil {
 		return fmt.Errorf("failed creating csi config map. %+v", err)
+	}
+	ownerRef := metav1.OwnerReference{
+		APIVersion: "v1",
+		Kind:       "ConfigMap",
+		Name:       configMap.Name,
+		UID:        configMap.UID,
 	}
 
 	tp := templateParam{
@@ -260,6 +267,7 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 	pluginNodeAffinity := getNodeAffinity(false)
 	if rbdPlugin != nil {
 		applyToPodSpec(&rbdPlugin.Spec.Template.Spec, pluginNodeAffinity, pluginTolerations)
+		k8sutil.SetOwnerRef(&rbdPlugin.ObjectMeta, &ownerRef)
 		err = k8sutil.CreateDaemonSet("csi-rbdplugin", namespace, clientset, rbdPlugin)
 		if err != nil {
 			return fmt.Errorf("failed to start rbdplugin daemonset: %+v\n%+v", err, rbdPlugin)
@@ -269,6 +277,7 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 
 	if rbdProvisionerSTS != nil {
 		applyToPodSpec(&rbdProvisionerSTS.Spec.Template.Spec, provisionerNodeAffinity, provisionerTolerations)
+		k8sutil.SetOwnerRef(&rbdProvisionerSTS.ObjectMeta, &ownerRef)
 		err = k8sutil.CreateStatefulSet("csi-rbdplugin-provisioner", namespace, clientset, rbdProvisionerSTS)
 		if err != nil {
 			return fmt.Errorf("failed to start rbd provisioner statefulset: %+v\n%+v", err, rbdProvisionerSTS)
@@ -276,6 +285,7 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 		k8sutil.AddRookVersionLabelToStatefulSet(rbdProvisionerSTS)
 	} else if rbdProvisionerDeployment != nil {
 		applyToPodSpec(&rbdProvisionerDeployment.Spec.Template.Spec, provisionerNodeAffinity, provisionerTolerations)
+		k8sutil.SetOwnerRef(&rbdProvisionerDeployment.ObjectMeta, &ownerRef)
 		err = k8sutil.CreateDeployment("csi-rbdplugin-provisioner", namespace, clientset, rbdProvisionerDeployment)
 		if err != nil {
 			return fmt.Errorf("failed to start rbd provisioner deployment: %+v\n%+v", err, rbdProvisionerDeployment)
@@ -284,6 +294,7 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 	}
 
 	if rbdService != nil {
+		k8sutil.SetOwnerRef(&rbdService.ObjectMeta, &ownerRef)
 		_, err = k8sutil.CreateOrUpdateService(clientset, namespace, rbdService)
 		if err != nil {
 			return fmt.Errorf("failed to create rbd service: %+v\n%+v", err, rbdService)
@@ -292,6 +303,7 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 
 	if cephfsPlugin != nil {
 		applyToPodSpec(&cephfsPlugin.Spec.Template.Spec, pluginNodeAffinity, pluginTolerations)
+		k8sutil.SetOwnerRef(&cephfsPlugin.ObjectMeta, &ownerRef)
 		err = k8sutil.CreateDaemonSet("csi-cephfsplugin", namespace, clientset, cephfsPlugin)
 		if err != nil {
 			return fmt.Errorf("failed to start cephfs plugin daemonset: %+v\n%+v", err, cephfsPlugin)
@@ -301,6 +313,7 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 
 	if cephfsProvisionerSTS != nil {
 		applyToPodSpec(&cephfsProvisionerSTS.Spec.Template.Spec, provisionerNodeAffinity, provisionerTolerations)
+		k8sutil.SetOwnerRef(&cephfsProvisionerSTS.ObjectMeta, &ownerRef)
 		err = k8sutil.CreateStatefulSet("csi-cephfsplugin-provisioner", namespace, clientset, cephfsProvisionerSTS)
 		if err != nil {
 			return fmt.Errorf("failed to start cephfs provisioner statefulset: %+v\n%+v", err, cephfsProvisionerSTS)
@@ -309,6 +322,7 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 
 	} else if cephfsProvisionerDeployment != nil {
 		applyToPodSpec(&cephfsProvisionerDeployment.Spec.Template.Spec, provisionerNodeAffinity, provisionerTolerations)
+		k8sutil.SetOwnerRef(&cephfsProvisionerDeployment.ObjectMeta, &ownerRef)
 		err = k8sutil.CreateDeployment("csi-cephfsplugin-provisioner", namespace, clientset, cephfsProvisionerDeployment)
 		if err != nil {
 			return fmt.Errorf("failed to start cephfs provisioner deployment: %+v\n%+v", err, cephfsProvisionerDeployment)
@@ -316,6 +330,7 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 		k8sutil.AddRookVersionLabelToDeployment(cephfsProvisionerDeployment)
 	}
 	if cephfsService != nil {
+		k8sutil.SetOwnerRef(&cephfsService.ObjectMeta, &ownerRef)
 		_, err = k8sutil.CreateOrUpdateService(clientset, namespace, cephfsService)
 		if err != nil {
 			return fmt.Errorf("failed to create rbd service: %+v\n%+v", err, cephfsService)
@@ -323,11 +338,11 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 	}
 
 	if ver.Major > KubeMinMajor || (ver.Major == KubeMinMajor && ver.Minor >= provDeploymentSuppVersion) {
-		err = createCSIDriverInfo(clientset, RBDDriverName)
+		err = createCSIDriverInfo(clientset, RBDDriverName, ownerRef)
 		if err != nil {
 			return fmt.Errorf("failed to create CSI driver object for %q: %+v", RBDDriverName, err)
 		}
-		err = createCSIDriverInfo(clientset, CephFSDriverName)
+		err = createCSIDriverInfo(clientset, CephFSDriverName, ownerRef)
 		if err != nil {
 			return fmt.Errorf("failed to create CSI driver object for %q: %+v", CephFSDriverName, err)
 		}
@@ -335,8 +350,13 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 	return nil
 }
 
+func StopCSIDrivers(namespace string, clientset kubernetes.Interface) error {
+	// As we have placed ownerRefs to the ConfigMap for all CSI resources, we delegate entirely to its deletion method.
+	return DeleteCsiConfigMap(namespace, clientset)
+}
+
 // createCSIDriverInfo Registers CSI driver by creating a CSIDriver object
-func createCSIDriverInfo(clientset kubernetes.Interface, name string) error {
+func createCSIDriverInfo(clientset kubernetes.Interface, name string, ownerRef metav1.OwnerReference) error {
 	attach := true
 	mountInfo := false
 	// Create CSIDriver object
@@ -350,6 +370,7 @@ func createCSIDriverInfo(clientset kubernetes.Interface, name string) error {
 		},
 	}
 	csidrivers := clientset.StorageV1beta1().CSIDrivers()
+	k8sutil.SetOwnerRef(&csiDriver.ObjectMeta, &ownerRef)
 	_, err := csidrivers.Create(csiDriver)
 	if err == nil {
 		logger.Infof("CSIDriver object created for driver %q", name)
