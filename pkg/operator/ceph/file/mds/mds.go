@@ -61,7 +61,6 @@ type Cluster struct {
 	fsID            string
 	ownerRef        metav1.OwnerReference
 	dataDirHostPath string
-	isUpgrade       bool
 }
 
 type mdsConfig struct {
@@ -80,7 +79,6 @@ func NewCluster(
 	fsdetails *client.CephFilesystemDetails,
 	ownerRef metav1.OwnerReference,
 	dataDirHostPath string,
-	isUpgrade bool,
 ) *Cluster {
 	return &Cluster{
 		clusterInfo:     clusterInfo,
@@ -91,7 +89,6 @@ func NewCluster(
 		fsID:            strconv.Itoa(fsdetails.ID),
 		ownerRef:        ownerRef,
 		dataDirHostPath: dataDirHostPath,
-		isUpgrade:       isUpgrade,
 	}
 }
 
@@ -184,14 +181,14 @@ func (c *Cluster) Start() error {
 			currentCephVersion, err := client.LeastUptodateDaemonVersion(c.context, c.clusterInfo.Name, daemon)
 			if err != nil {
 				logger.Warningf("failed to retrieve current ceph %q version. %v", daemon, err)
-				logger.Debug("could not detect ceph version during update, this is likely an initial bootstrap, proceeding with c.clusterInfo.CephVersion")
+				logger.Debug("could not detect ceph version during update, this is likely an initial bootstrap, proceeding with %+v", c.clusterInfo.CephVersion)
 				cephVersionToUse = c.clusterInfo.CephVersion
 
 			} else {
 				logger.Debugf("current cluster version for mdss before upgrading is: %+v", currentCephVersion)
 				cephVersionToUse = currentCephVersion
 			}
-			if err = UpdateDeploymentAndWait(c.context, d, c.fs.Namespace, daemon, daemonLetterID, cephVersionToUse, c.isUpgrade, c.clusterSpec.SkipUpgradeChecks, false); err != nil {
+			if err = UpdateDeploymentAndWait(c.context, d, c.fs.Namespace, daemon, daemonLetterID, cephVersionToUse, c.clusterSpec.SkipUpgradeChecks, false); err != nil {
 				return errors.Wrapf(err, "failed to update mds deployment %s", d.Name)
 			}
 		}

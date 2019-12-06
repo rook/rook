@@ -50,7 +50,6 @@ type CephNFSController struct {
 	rookImage          string
 	clusterSpec        *cephv1.ClusterSpec
 	orchestrationMutex sync.Mutex
-	isUpgrade          bool
 }
 
 // NewCephNFSController create controller for watching NFS custom resources created
@@ -175,10 +174,6 @@ func (c *CephNFSController) ParentClusterChanged(cluster cephv1.ClusterSpec, clu
 		logger.Debugf("No need to update the nfs daemons after the parent cluster changed")
 		return
 	}
-
-	// This is mostly a placeholder since we don't perform any upgrade checks for nfs since it's not in Ceph's servicemap yet
-	// This is an upgrade so let's activate the flag
-	c.isUpgrade = isUpgrade
 
 	c.acquireOrchestrationLock()
 	defer c.releaseOrchestrationLock()

@@ -57,7 +57,6 @@ func TestPodSpec(t *testing.T) {
 		metav1.OwnerReference{},
 		"/var/lib/rook/",
 		false,
-		false,
 	)
 	daemonConf := daemonConfig{
 		DaemonID:     "a",
