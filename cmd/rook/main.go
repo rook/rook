@@ -22,7 +22,6 @@ import (
 	"github.com/rook/rook/cmd/rook/ceph"
 	"github.com/rook/rook/cmd/rook/cockroachdb"
 	"github.com/rook/rook/cmd/rook/edgefs"
-	"github.com/rook/rook/cmd/rook/minio"
 	"github.com/rook/rook/cmd/rook/nfs"
 	rook "github.com/rook/rook/cmd/rook/rook"
 	"github.com/rook/rook/cmd/rook/util"
@@ -45,7 +44,6 @@ func addCommands() {
 		// backend commands
 		ceph.Cmd,
 		cockroachdb.Cmd,
-		minio.Cmd,
 		edgefs.Cmd,
 		nfs.Cmd,
 		cassandra.Cmd,
