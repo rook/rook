@@ -126,7 +126,7 @@ spec:
   storage: # cluster level storage configuration and selection
     useAllNodes: true
     useAllDevices: true
-    deviceFilter:
+    #deviceFilter:
     config:
       # The default and recommended storeType is dynamically set to bluestore for devices and filestore for directories.
       # Set the storeType explicitly only if it is required not to use the default.
