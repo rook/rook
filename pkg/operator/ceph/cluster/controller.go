@@ -429,7 +429,7 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 	poolController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start object store CRD watcher
-	objectStoreController := object.NewObjectStoreController(cluster.Info, c.context, cluster.Namespace, c.rookImage, cluster.Spec, cluster.ownerRef, cluster.Spec.DataDirHostPath, cluster.isUpgrade)
+	objectStoreController := object.NewObjectStoreController(cluster.Info, c.context, cluster.Namespace, c.rookImage, cluster.Spec, cluster.ownerRef, cluster.Spec.DataDirHostPath)
 	objectStoreController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start object store user CRD watcher
@@ -444,7 +444,7 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 	go bucketController.Run(cluster.stopCh)
 
 	// Start file system CRD watcher
-	fileController := file.NewFilesystemController(cluster.Info, c.context, cluster.Namespace, c.rookImage, cluster.Spec, cluster.ownerRef, cluster.Spec.DataDirHostPath, cluster.isUpgrade)
+	fileController := file.NewFilesystemController(cluster.Info, c.context, cluster.Namespace, c.rookImage, cluster.Spec, cluster.ownerRef, cluster.Spec.DataDirHostPath)
 	fileController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start nfs ganesha CRD watcher

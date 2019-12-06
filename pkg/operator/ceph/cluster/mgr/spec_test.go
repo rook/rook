@@ -61,7 +61,6 @@ func TestPodSpec(t *testing.T) {
 		metav1.OwnerReference{},
 		"/var/lib/rook/",
 		false,
-		false,
 	)
 
 	mgrTestConfig := mgrConfig{
@@ -106,7 +105,6 @@ func TestServiceSpec(t *testing.T) {
 		metav1.OwnerReference{},
 		"/var/lib/rook/",
 		false,
-		false,
 	)
 
 	s := c.makeMetricsService("rook-mgr")
@@ -133,7 +131,6 @@ func TestHostNetwork(t *testing.T) {
 		"my-priority-class",
 		metav1.OwnerReference{},
 		"/var/lib/rook/",
-		false,
 		false,
 	)
 
@@ -168,7 +165,6 @@ func TestHttpBindFix(t *testing.T) {
 		"my-priority-class",
 		metav1.OwnerReference{},
 		"/var/lib/rook/",
-		false,
 		false,
 	)
 
@@ -230,7 +226,6 @@ func TestApplyPrometheusAnnotations(t *testing.T) {
 		"my-priority-class",
 		metav1.OwnerReference{},
 		"/var/lib/rook/",
-		false,
 		false,
 	)
 

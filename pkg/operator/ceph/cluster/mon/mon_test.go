@@ -149,13 +149,13 @@ func TestStartMonPods(t *testing.T) {
 	c := newCluster(context, namespace, cephv1.NetworkSpec{}, true, v1.ResourceRequirements{})
 
 	// start a basic cluster
-	_, err := c.Start(c.ClusterInfo, c.rookVersion, cephver.Mimic, c.spec, false)
+	_, err := c.Start(c.ClusterInfo, c.rookVersion, cephver.Mimic, c.spec)
 	assert.Nil(t, err)
 
 	validateStart(t, c)
 
 	// starting again should be a no-op, but still results in an error
-	_, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Mimic, c.spec, false)
+	_, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Mimic, c.spec)
 	assert.Nil(t, err)
 
 	validateStart(t, c)
@@ -169,7 +169,7 @@ func TestOperatorRestart(t *testing.T) {
 	c.ClusterInfo = test.CreateConfigDir(1)
 
 	// start a basic cluster
-	info, err := c.Start(c.ClusterInfo, c.rookVersion, cephver.Mimic, c.spec, false)
+	info, err := c.Start(c.ClusterInfo, c.rookVersion, cephver.Mimic, c.spec)
 	assert.Nil(t, err)
 	assert.True(t, info.IsInitialized())
 
@@ -178,7 +178,7 @@ func TestOperatorRestart(t *testing.T) {
 	c = newCluster(context, namespace, cephv1.NetworkSpec{}, true, v1.ResourceRequirements{})
 
 	// starting again should be a no-op, but will not result in an error
-	info, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Mimic, c.spec, false)
+	info, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Mimic, c.spec)
 	assert.Nil(t, err)
 	assert.True(t, info.IsInitialized())
 
@@ -196,7 +196,7 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 	c.ClusterInfo = test.CreateConfigDir(1)
 
 	// start a basic cluster
-	info, err := c.Start(c.ClusterInfo, c.rookVersion, cephver.Mimic, c.spec, false)
+	info, err := c.Start(c.ClusterInfo, c.rookVersion, cephver.Mimic, c.spec)
 	assert.Nil(t, err)
 	assert.True(t, info.IsInitialized())
 
@@ -206,7 +206,7 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 	c = newCluster(context, namespace, cephv1.NetworkSpec{HostNetwork: true}, false, v1.ResourceRequirements{})
 
 	// starting again should be a no-op, but still results in an error
-	info, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Mimic, c.spec, false)
+	info, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Mimic, c.spec)
 	assert.Nil(t, err)
 	assert.True(t, info.IsInitialized(), info)
 
@@ -227,7 +227,7 @@ func TestSaveMonEndpoints(t *testing.T) {
 	clientset := test.New(1)
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
-	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: configDir}, "ns", "", cephv1.NetworkSpec{}, metav1.OwnerReference{}, &sync.Mutex{}, false)
+	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: configDir}, "ns", "", cephv1.NetworkSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
 	setCommonMonProperties(c, 1, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 
 	// create the initial config map
