@@ -29,7 +29,6 @@ import (
 	cockroachdbrookio "github.com/rook/rook/pkg/client/informers/externalversions/cockroachdb.rook.io"
 	edgefsrookio "github.com/rook/rook/pkg/client/informers/externalversions/edgefs.rook.io"
 	internalinterfaces "github.com/rook/rook/pkg/client/informers/externalversions/internalinterfaces"
-	miniorookio "github.com/rook/rook/pkg/client/informers/externalversions/minio.rook.io"
 	nfsrookio "github.com/rook/rook/pkg/client/informers/externalversions/nfs.rook.io"
 	rookio "github.com/rook/rook/pkg/client/informers/externalversions/rook.io"
 	yugabytedbrookio "github.com/rook/rook/pkg/client/informers/externalversions/yugabytedb.rook.io"
@@ -183,7 +182,6 @@ type SharedInformerFactory interface {
 	Ceph() cephrookio.Interface
 	Cockroachdb() cockroachdbrookio.Interface
 	Edgefs() edgefsrookio.Interface
-	Minio() miniorookio.Interface
 	Nfs() nfsrookio.Interface
 	Rook() rookio.Interface
 	Yugabytedb() yugabytedbrookio.Interface
@@ -203,10 +201,6 @@ func (f *sharedInformerFactory) Cockroachdb() cockroachdbrookio.Interface {
 
 func (f *sharedInformerFactory) Edgefs() edgefsrookio.Interface {
 	return edgefsrookio.New(f, f.namespace, f.tweakListOptions)
-}
-
-func (f *sharedInformerFactory) Minio() miniorookio.Interface {
-	return miniorookio.New(f, f.namespace, f.tweakListOptions)
 }
 
 func (f *sharedInformerFactory) Nfs() nfsrookio.Interface {

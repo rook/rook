@@ -349,7 +349,7 @@ func TestGenerateNodeAffinity(t *testing.T) {
 		{
 			name: "FailGenerateNodeAffinity",
 			args: args{
-				nodeAffinity: "rook.io/ceph,minio=true",
+				nodeAffinity: "rook.io/ceph,cassandra=true",
 			},
 			want:    nil,
 			wantErr: true,

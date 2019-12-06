@@ -59,10 +59,6 @@ We use the [milestone](https://github.com/rook/rook/milestones) feature in Githu
   * Cluster-wide FailureDomain support to enable single node deployments with FailureDomain="device"
   * Support for payload on external S3 server [#4431](https://github.com/rook/rook/issues/4431)
   * Support for rtkvs disk engine and Samsung KVSSD [#3997](https://github.com/rook/rook/issues/3997)
-* Minio
-  * Helm chart deployment [#1814](https://github.com/rook/rook/issues/1814)
-  * End-to-end integration tests [#1804](https://github.com/rook/rook/issues/1804)
-  * Graduate CRDs to beta
 * NFS
   * Client access control [#2283](https://github.com/rook/rook/issues/2283)
   * Dynamic NFS provisioning [#2062](https://github.com/rook/rook/issues/2062)

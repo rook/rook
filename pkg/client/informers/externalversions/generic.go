@@ -25,7 +25,6 @@ import (
 	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cockroachdbrookiov1alpha1 "github.com/rook/rook/pkg/apis/cockroachdb.rook.io/v1alpha1"
 	edgefsrookiov1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
-	miniorookiov1alpha1 "github.com/rook/rook/pkg/apis/minio.rook.io/v1alpha1"
 	nfsrookiov1alpha1 "github.com/rook/rook/pkg/apis/nfs.rook.io/v1alpha1"
 	v1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	yugabytedbrookiov1alpha1 "github.com/rook/rook/pkg/apis/yugabytedb.rook.io/v1alpha1"
@@ -98,10 +97,6 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Edgefs().V1().S3Xs().Informer()}, nil
 	case edgefsrookiov1.SchemeGroupVersion.WithResource("swifts"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Edgefs().V1().SWIFTs().Informer()}, nil
-
-		// Group=minio.rook.io, Version=v1alpha1
-	case miniorookiov1alpha1.SchemeGroupVersion.WithResource("objectstores"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Minio().V1alpha1().ObjectStores().Informer()}, nil
 
 		// Group=nfs.rook.io, Version=v1alpha1
 	case nfsrookiov1alpha1.SchemeGroupVersion.WithResource("nfsservers"):

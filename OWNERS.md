@@ -12,7 +12,7 @@ This page lists all active maintainers and their areas of expertise. This can be
 * Travis Nielsen <tnielsen@redhat.com> ([travisn](https://github.com/travisn))
   * Ceph, Operators/Orchestration, Test automation
 * Jared Watts <jared@upbound.io> ([jbw976](https://github.com/jbw976))
-  * Framework, APIs, CockroachDB, Minio
+  * Framework, APIs, CockroachDB
 
 ## Maintainers
 

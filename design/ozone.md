@@ -34,7 +34,7 @@ The CSI interface requires two additional daemons:
 
   * CSI Controller service
   * CSI Node service
-  
+
 Ozone uses `StatefulSet` for the master servers (Storage Container Manager, Ozone Manager, S3 gateway, Recon Server) and slave servers (datanode)
 
 ![Ozone components](ozone-architecture.png)
@@ -46,13 +46,13 @@ In a real world setup Ozone use the following components:
 
 ## Storage requirements
 
-Similar to other Software Defined Storage, Ozone is the gateway between the local storage and network storage. 
+Similar to other Software Defined Storage, Ozone is the gateway between the local storage and network storage.
 
 It's suggested to use local storage. Ozone suggests to use SSD or NVMe, for the metadata store and spinning disk for the real data.
 
 ## Implementation
 
-The initial implementation of the Operator should be based on the available examples. The main behavior will be similar to the Minio operator (alpha), it will install Ozone cluster based on a custom CRD. Some notable differences.
+The initial implementation of the Operator should be based on the available examples. The main behavior will be similar to the CockroachDB operator (alpha), it will install Ozone cluster based on a custom CRD. Some notable differences.
 
  * Versioning support (see the next section)
  * Kubernetes resources are generated from the original k8s template files provided by the Ozone project (it is an advanced version of the existing Ceph/CSI example)
@@ -61,7 +61,7 @@ The initial implementation of the Operator should be based on the available exam
 
 By default, Ozone tools are not required by the operator. The only reason is to use the `apache/ozone` container image as the base image is to have all the required k8s resources templates.
 
-The version of Ozone can be decoupled from the version of the Operator similar to the [CSI version decoupling](https://github.com/rook/rook/blob/master/design/decouple-ceph-version.md). The default version will be defined by the Rook operator version but other version can be used based on CRD entry. 
+The version of Ozone can be decoupled from the version of the Operator similar to the [CSI version decoupling](https://github.com/rook/rook/blob/master/design/decouple-ceph-version.md). The default version will be defined by the Rook operator version but other version can be used based on CRD entry.
 
 ### Kubernetes resource generation
 
@@ -139,7 +139,7 @@ After this step, you can use it as
 type: ozone/prometheus
 ```
 
-Or from golang API: 
+Or from golang API:
 
 ```golang
 
@@ -171,7 +171,7 @@ The main difference here is that before the final adjustment we can reuse the ba
 
 At the end of the transformations we will have a list of real K8s resources object, where we can do any final adjustment on the API object and send them to the k8s API services.
 
-The main logic is the following: 
+The main logic is the following:
 
  * The resource generator can be initialized with the main k8s definition directory (which is included in the Ozone release, and included in the Rook operator image)
  * The transformations can be enabled from the API based on CRD properties
@@ -208,7 +208,7 @@ spec:
      recon:
         enable: true
         placement: #see rook.io/v1alpha1 PlacementSpec
-     s3g: 
+     s3g:
         enable: true
         placement: #see rook.io/v1alpha1 PlacementSpec
      scm:
@@ -217,7 +217,6 @@ spec:
      om:
         #required component, always enabled
         placement: #see rook.io/v1alpha1 PlacementSpec
-
   features: # these are not components but confiuration groups
      prometheus: true
      tracing: true
@@ -237,7 +236,6 @@ spec:
       path: ["metadata", "labels"]
       value:
          generated-with: rook
-    
 ```
 
 The type of the `storage` attribute is `StorageScopeSpec` which is a [common Rook type](https://github.com/rook/rook/blob/818ad9c7ca4d352a9bed202e619d47b05f1a4dab/pkg/apis/rook.io/v1alpha2/types.go), and can be used to specifiy the details of the storage (eg. volumeClaimTemplates, nodeCounts, etc.)
@@ -247,7 +245,7 @@ The type of the `storage` attribute is `StorageScopeSpec` which is a [common Roo
 The main benefit to use an operator is to provide additional functionalities based on the current state of the runtime environment. The power of the operator based on the runtime information which is not available for any other installer tool.
 
 Some option which can be implemented as part of the Operator:
- 
+
  * Use emptyDir instead of Persistent Volumes in case of the dev cluster (_opt-in_ only, it should be configured, for example by an environment variable on the operator side.)
  * Connection Kubernetes decommissioning and Ozone decommissioning
  * Configure local persistence based on the available disks

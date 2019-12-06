@@ -41,11 +41,6 @@ function copy_images() {
       copy_image_to_cluster "${BUILD_REGISTRY}/cassandra-amd64" rook/cassandra:master
     fi
 
-    if [[ "$1" == "" || "$1" == "minio" ]]; then
-      echo "copying minio image"
-      copy_image_to_cluster "${BUILD_REGISTRY}/minio-amd64" rook/minio:master
-    fi
-
     if [[ "$1" == "" || "$1" == "nfs" ]]; then
         echo "copying nfs image"
         copy_image_to_cluster "${BUILD_REGISTRY}/nfs-amd64" rook/nfs:master
@@ -100,18 +95,17 @@ case "${1:-}" in
     echo " copying rook image for helm"
     helm_tag="$(cat _output/version)"
     copy_image_to_cluster "${BUILD_REGISTRY}/ceph-amd64" "rook/ceph:${helm_tag}"
-    copy_image_to_cluster "${BUILD_REGISTRY}/minio-amd64" "rook/minio:${helm_tag}"
     ;;
   clean)
     minikube delete
     ;;
   *)
     echo "usage:" >&2
-    echo "  $0 up [ceph | cockroachdb | cassandra | minio | nfs | yugabytedb]" >&2
+    echo "  $0 up [ceph | cockroachdb | cassandra | nfs | yugabytedb]" >&2
     echo "  $0 down" >&2
     echo "  $0 clean" >&2
     echo "  $0 ssh" >&2
-    echo "  $0 update [ceph | cockroachdb | cassandra | minio | nfs | yugabytedb]" >&2
+    echo "  $0 update [ceph | cockroachdb | cassandra | nfs | yugabytedb]" >&2
     echo "  $0 wordpress" >&2
     echo "  $0 cockroachdb-loadgen" >&2
     echo "  $0 helm" >&2
