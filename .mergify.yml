@@ -1,10 +1,11 @@
 pull_request_rules:
   # automerge backports if CI successfully ran
+  # release-1.1 branch
   - name: automerge backport release-1.1
     conditions:
       - author=mergify[bot]
       - base=release-1.1
-      - label!=no-not-merge
+      - label!=do-not-merge
       - 'status-success=DCO'
       - 'status-success=continuous-integration/jenkins/pr-head'
     actions:
@@ -13,7 +14,22 @@ pull_request_rules:
         strict: false
       dismiss_reviews: {}
       delete_head_branch: {}
-# Trigger backport PRs based on label
+  # release-1.2 branch
+  - name: automerge backport release-1.2
+    conditions:
+      - author=mergify[bot]
+      - base=release-1.2
+      - label!=do-not-merge
+      - 'status-success=DCO'
+      - 'status-success=continuous-integration/jenkins/pr-head'
+    actions:
+      merge:
+        method: merge
+        strict: false
+      dismiss_reviews: {}
+      delete_head_branch: {}
+  # Trigger backport PRs based on label
+  # release-1.1 branch
   - actions:
       backport:
         branches:
@@ -21,3 +37,11 @@ pull_request_rules:
     conditions:
       - label=backport-release-1.1
     name: backport release-1.1
+  # release-1.2 branch
+  - actions:
+      backport:
+        branches:
+        - release-1.2
+    conditions:
+      - label=backport-release-1.2
+    name: backport release-1.2
