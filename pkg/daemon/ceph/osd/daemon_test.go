@@ -93,30 +93,26 @@ func TestGetDataDirs(t *testing.T) {
 	nodeName := "node6046"
 
 	// user has specified devices to use, no dirs should be returned
-	dirMap, removedDirMap, err := getDataDirs(context, kv, "", true, nodeName)
+	dirMap, err := getDataDirs(context, kv, "", true, nodeName)
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(dirMap))
-	assert.Equal(t, 0, len(removedDirMap))
 
 	// user has no devices specified, should NO LONGER return default dir
-	dirMap, removedDirMap, err = getDataDirs(context, kv, "", false, nodeName)
+	dirMap, err = getDataDirs(context, kv, "", false, nodeName)
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(dirMap))
-	assert.Equal(t, 0, len(removedDirMap))
 
 	// user has no devices specified but does specify dirs, those should be returned
-	dirMap, removedDirMap, err = getDataDirs(context, kv, "/rook/dir1", false, nodeName)
+	dirMap, err = getDataDirs(context, kv, "/rook/dir1", false, nodeName)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(dirMap))
 	assert.Equal(t, unassignedOSDID, dirMap["/rook/dir1"])
-	assert.Equal(t, 0, len(removedDirMap))
 
 	// user has devices specified and also specifies dirs, those should be returned
-	dirMap, removedDirMap, err = getDataDirs(context, kv, "/rook/dir1", true, nodeName)
+	dirMap, err = getDataDirs(context, kv, "/rook/dir1", true, nodeName)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(dirMap))
 	assert.Equal(t, unassignedOSDID, dirMap["/rook/dir1"])
-	assert.Equal(t, 0, len(removedDirMap))
 
 	// simulate an OSD ID being assigned to the dir
 	dirMap["/rook/dir1"] = 1
@@ -125,12 +121,11 @@ func TestGetDataDirs(t *testing.T) {
 	assert.Nil(t, err)
 
 	// user has specified devices and also a new directory to use.  it should be added to the dir map
-	dirMap, removedDirMap, err = getDataDirs(context, kv, "/rook/dir1,/tmp/mydir", true, nodeName)
+	dirMap, err = getDataDirs(context, kv, "/rook/dir1,/tmp/mydir", true, nodeName)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(dirMap))
 	assert.Equal(t, 1, dirMap["/rook/dir1"])
 	assert.Equal(t, unassignedOSDID, dirMap["/tmp/mydir"])
-	assert.Equal(t, 0, len(removedDirMap))
 
 	// simulate that the user's dir got an OSD by assigning it an ID
 	dirMap["/tmp/mydir"] = 23
@@ -138,20 +133,17 @@ func TestGetDataDirs(t *testing.T) {
 	assert.Nil(t, err)
 
 	// user is still specifying the 2 directories, we should get back their IDs
-	dirMap, removedDirMap, err = getDataDirs(context, kv, "/rook/dir1,/tmp/mydir", true, nodeName)
+	dirMap, err = getDataDirs(context, kv, "/rook/dir1,/tmp/mydir", true, nodeName)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(dirMap))
 	assert.Equal(t, 1, dirMap["/rook/dir1"])
 	assert.Equal(t, 23, dirMap["/tmp/mydir"])
-	assert.Equal(t, 0, len(removedDirMap))
 
 	// user is now only specifying 1 of the dirs, the other 1 should be returned as removed
-	dirMap, removedDirMap, err = getDataDirs(context, kv, "/rook/dir1", true, nodeName)
+	dirMap, err = getDataDirs(context, kv, "/rook/dir1", true, nodeName)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(dirMap))
 	assert.Equal(t, 1, dirMap["/rook/dir1"])
-	assert.Equal(t, 1, len(removedDirMap))
-	assert.Equal(t, 23, removedDirMap["/tmp/mydir"])
 
 	// clear the dir map and simulate the scenario where an OSD has been created in the default dir
 	kv.ClearStore(config.GetConfigStoreName(nodeName))
@@ -162,18 +154,10 @@ func TestGetDataDirs(t *testing.T) {
 
 	// when an OSD has been created in the default dir, no dirs are specified, and no devices are specified,
 	// the default dir should still be in use (it should not come back as removed!)
-	dirMap, removedDirMap, err = getDataDirs(context, kv, "", false, nodeName)
+	dirMap, err = getDataDirs(context, kv, "", false, nodeName)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(dirMap))
 	assert.Equal(t, osdID, dirMap[context.ConfigDir])
-	assert.Equal(t, 0, len(removedDirMap))
-
-	// if devices are specified (but no dirs), the existing osd in the default dir will not be preserved
-	dirMap, removedDirMap, err = getDataDirs(context, kv, "", true, nodeName)
-	assert.Nil(t, err)
-	assert.Equal(t, 0, len(dirMap))
-	assert.Equal(t, 1, len(removedDirMap))
-	assert.Equal(t, osdID, removedDirMap[context.ConfigDir])
 }
 
 func TestAvailableDevices(t *testing.T) {
@@ -272,41 +256,6 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	assert.Equal(t, 2, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["sda"].Data)
 	assert.Equal(t, -1, mapping.Entries["sdd"].Data)
-}
-
-func TestGetRemovedDevices(t *testing.T) {
-	testGetRemovedDevicesHelper(t, &config.StoreConfig{StoreType: config.Bluestore})
-	testGetRemovedDevicesHelper(t, &config.StoreConfig{StoreType: config.Filestore})
-}
-
-func testGetRemovedDevicesHelper(t *testing.T, storeConfig *config.StoreConfig) {
-	configDir, _ := ioutil.TempDir("", "")
-	defer os.RemoveAll(configDir)
-	os.MkdirAll(configDir, 0755)
-	nodeName := "node3391"
-	agent, _, _ := createTestAgent(t, "none", configDir, nodeName, storeConfig)
-	agent.devices[0].IsFilter = true
-
-	// mock the pre-existence of osd 1 on device sdx
-	_, _, _ = mockPartitionSchemeEntry(t, 1, "sdx", &agent.storeConfig, agent.kv, nodeName)
-
-	// get the removed devices for this configuration (note we said to use devices "none" above),
-	// it should be osd 1 on device sdx
-	scheme, mapping, err := getRemovedDevices(agent)
-	assert.Nil(t, err)
-	assert.Equal(t, 1, len(mapping.Entries))
-	assert.Equal(t, 1, len(scheme.Entries))
-
-	// assert the scheme has an entry for osd 1 and its data partition is on sdx
-	schemeEntry := scheme.Entries[0]
-	assert.Equal(t, 1, schemeEntry.ID)
-	assert.Equal(t, "sdx", schemeEntry.Partitions[schemeEntry.GetDataPartitionType()].Device)
-
-	// assert the removed device mapping has an entry for device sdx and it points to osd 1
-	mappingEntry, ok := mapping.Entries["sdx"]
-	assert.True(t, ok)
-	assert.NotNil(t, mappingEntry)
-	assert.Equal(t, 1, mappingEntry.Data)
 }
 
 func TestGetVolumeGroupName(t *testing.T) {

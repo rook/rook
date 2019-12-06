@@ -822,10 +822,7 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 			}
 			volumeMounts = append(volumeMounts, v1.VolumeMount{Name: k8sutil.PathToVolumeName(dpath), MountPath: dpath})
 		}
-
-		if !IsRemovingNode(osdProps.selection.DeviceFilter) {
-			envVars = append(envVars, dataDirectoriesEnvVar(strings.Join(dirPaths, ",")))
-		}
+		envVars = append(envVars, dataDirectoriesEnvVar(strings.Join(dirPaths, ",")))
 	}
 
 	// elevate to be privileged if it is going to mount devices or if running in a restricted environment such as openshift
