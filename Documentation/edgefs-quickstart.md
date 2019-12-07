@@ -71,8 +71,6 @@ kubectl create -f operator.yaml
 kubectl -n rook-edgefs-system get pod
 ```
 
-You can also deploy the operator with the [Rook EdgeFS Helm Chart](edgefs-helm-operator.md).
-
 ## Create a Rook Cluster
 
 Now that the Rook operator, and discover pods are running, we can create the Rook cluster. For the cluster to survive reboots,
