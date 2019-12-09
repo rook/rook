@@ -82,6 +82,37 @@ func AuthUpdateCaps(context *clusterd.Context, clusterName, name string, caps []
 	return err
 }
 
+// AuthGetCaps gets the capabilities for the given user.
+func AuthGetCaps(context *clusterd.Context, clusterName, name string) (caps map[string]string, error error) {
+	args := append([]string{"auth", "get", name})
+	output, err := NewCephCommand(context, clusterName, args).Run()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get caps for %s. %+v", name, err)
+	}
+
+	var data []map[string]interface{}
+	err = json.Unmarshal(output, &data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal auth get response: %+v", err)
+	}
+	caps = make(map[string]string)
+
+	if data[0]["caps"].(map[string]interface{})["mon"] != nil {
+		caps["mon"] = data[0]["caps"].(map[string]interface{})["mon"].(string)
+	}
+	if data[0]["caps"].(map[string]interface{})["mds"] != nil {
+		caps["mds"] = data[0]["caps"].(map[string]interface{})["mds"].(string)
+	}
+	if data[0]["caps"].(map[string]interface{})["mgr"] != nil {
+		caps["mgr"] = data[0]["caps"].(map[string]interface{})["mgr"].(string)
+	}
+	if data[0]["caps"].(map[string]interface{})["osd"] != nil {
+		caps["osd"] = data[0]["caps"].(map[string]interface{})["osd"].(string)
+	}
+
+	return caps, err
+}
+
 // AuthDelete will delete the given user.
 func AuthDelete(context *clusterd.Context, clusterName, name string) error {
 	args := []string{"auth", "del", name}

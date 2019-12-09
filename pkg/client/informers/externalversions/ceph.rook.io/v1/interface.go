@@ -26,6 +26,8 @@ import (
 type Interface interface {
 	// CephBlockPools returns a CephBlockPoolInformer.
 	CephBlockPools() CephBlockPoolInformer
+	// CephClients returns a CephClientInformer.
+	CephClients() CephClientInformer
 	// CephClusters returns a CephClusterInformer.
 	CephClusters() CephClusterInformer
 	// CephFilesystems returns a CephFilesystemInformer.
@@ -52,6 +54,11 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 // CephBlockPools returns a CephBlockPoolInformer.
 func (v *version) CephBlockPools() CephBlockPoolInformer {
 	return &cephBlockPoolInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// CephClients returns a CephClientInformer.
+func (v *version) CephClients() CephClientInformer {
+	return &cephClientInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // CephClusters returns a CephClusterInformer.

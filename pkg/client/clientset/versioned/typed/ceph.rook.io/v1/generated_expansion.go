@@ -20,6 +20,8 @@ package v1
 
 type CephBlockPoolExpansion interface{}
 
+type CephClientExpansion interface{}
+
 type CephClusterExpansion interface{}
 
 type CephFilesystemExpansion interface{}
