@@ -29,6 +29,7 @@
 - Device Filtering made configurable for the user by adding an environment variable, and also by keeping the default filters intact
   - A new environment variable `DISCOVER_DAEMON_UDEV_BLACKLIST` is added through which the user can blacklist the devices
   - If no device is specified, the default values will be used to blacklist the devices
+- Ceph Object Gateway are automatically configured to not run on the same host if hostNetwork is activated
 
 ### EdgeFS
 
