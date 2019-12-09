@@ -18,6 +18,7 @@ package object
 
 import (
 	"github.com/pkg/errors"
+	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
@@ -90,7 +91,7 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) v1.PodTemplateSpec 
 					}}}}
 		podSpec.Volumes = append(podSpec.Volumes, certVol)
 	}
-	c.store.Spec.Gateway.Placement.ApplyToPodSpec(&podSpec)
+	c.setPodPlacement(&podSpec, c.store.Spec.Gateway.Placement)
 
 	podTemplateSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
@@ -102,6 +103,31 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) v1.PodTemplateSpec 
 	c.store.Spec.Gateway.Annotations.ApplyToObjectMeta(&podTemplateSpec.ObjectMeta)
 
 	return podTemplateSpec
+}
+
+func (c *clusterConfig) setPodPlacement(pod *v1.PodSpec, p rook.Placement) {
+	p.ApplyToPodSpec(pod)
+
+	// label selector for gateways used in anti-affinity rules
+	podAntiAffinity := v1.PodAffinityTerm{
+		LabelSelector: &metav1.LabelSelector{
+			MatchLabels: c.getLabels(),
+		},
+		TopologyKey: v1.LabelHostname,
+	}
+
+	// ApplyToPodSpec ensures that pod.Affinity is non-nil
+	if pod.Affinity.PodAntiAffinity == nil {
+		pod.Affinity.PodAntiAffinity = &v1.PodAntiAffinity{}
+	}
+	paa := pod.Affinity.PodAntiAffinity
+
+	// Set gateways pod anti-affinity rules when gateways should never be
+	// co-located (e.g. HostNetworking)
+	if c.clusterSpec.Network.IsHost() {
+		paa.RequiredDuringSchedulingIgnoredDuringExecution =
+			append(paa.RequiredDuringSchedulingIgnoredDuringExecution, podAntiAffinity)
+	}
 }
 
 func (c *clusterConfig) makeChownInitContainer(rgwConfig *rgwConfig) v1.Container {
