@@ -17,13 +17,14 @@ include ../image.mk
 # ====================================================================================
 # Image Build Options
 
-CEPH_VERSION = v14.2.4-20190917
-BASEIMAGE = ceph/ceph-$(GOARCH):$(CEPH_VERSION)
+CEPH_VERSION = v14.2.4
+BASEIMAGE = ceph/ceph:$(CEPH_VERSION)
 CEPH_IMAGE = $(BUILD_REGISTRY)/ceph-$(GOARCH)
 OPERATOR_SDK_VERSION = v0.10.0
 GOHOST := GOOS=$(GOHOSTOS) GOARCH=$(GOHOSTARCH) go
 
 TEMP := $(shell mktemp -d)
+DOCKER_CONFIG := /etc/docker/daemon.json
 
 ifeq ($(HOST_PLATFORM),linux_amd64)
 OPERATOR_SDK_PLATFORM = x86_64-linux-gnu
@@ -32,14 +33,33 @@ endif
 
 OPERATOR_SDK := $(TOOLS_HOST_DIR)/operator-sdk-$(OPERATOR_SDK_VERSION)
 YQ := $(TOOLS_HOST_DIR)/yq
+IS_DOCKER_EXPERIMENTAL := $(shell docker version -f '{{.Server.Experimental}}')
 
 # ====================================================================================
 # Build Rook
 
 do.build: generate-csv-ceph-templates
-	@echo === docker build $(CEPH_IMAGE)
+	@echo === docker build --platform linux/$(GOARCH) $(CEPH_IMAGE)
 	@cp Dockerfile $(TEMP)
 	@cp toolbox.sh $(TEMP)
+	@if [[ $(IS_DOCKER_EXPERIMENTAL) == "false" ]]; then\
+		if [[ $(GOOS) == "linux" ]]; then\
+			echo "enabling Docker experimental features for --platform flag";\
+			if [ -f $(DOCKER_CONFIG) ]; then\
+				sudo sed -i '$$i,"{experimental": true}' $(DOCKER_CONFIG);\
+			else\
+				sudo mkdir -p /etc/docker;\
+				echo '{"experimental": true}' | sudo tee $(DOCKER_CONFIG);\
+			fi;\
+			systemctl restart docker # sudoless is required;\
+		else\
+			echo "please enable Docker experimental feature";\
+			echo "see: https://github.com/docker/docker-ce/blob/master/components/cli/experimental/README.md";\
+			echo "if running on Windows or OSX, edit your daemon configuration via the Docker UI";\
+			exit 1;\
+		fi;\
+	fi
+	@docker version
 	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rook $(TEMP)
 	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rookflex $(TEMP)
 	@cp -r ../../cluster/examples/kubernetes/ceph/csi/template $(TEMP)/ceph-csi
@@ -53,6 +73,7 @@ do.build: generate-csv-ceph-templates
 	@$(DOCKERCMD) build $(BUILD_ARGS) \
 		--build-arg ARCH=$(GOARCH) \
 		--build-arg TINI_VERSION=$(TINI_VERSION) \
+		--platform linux/$(GOARCH) \
 		-t $(CEPH_IMAGE) \
 		$(TEMP)
 	@rm -fr $(TEMP)
