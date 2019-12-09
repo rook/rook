@@ -170,6 +170,9 @@ NAME="sda3" SIZE="1073741824" TYPE="part" PKNAME="sda"
 NAME="usr" SIZE="1065345024" TYPE="crypt" PKNAME="sda3"
 NAME="sda1" SIZE="134217728" TYPE="part" PKNAME="sda"
 NAME="sda6" SIZE="134217728" TYPE="part" PKNAME="sda"`, nil
+			case run == 14:
+				return `NAME="dm-0" SIZE="100000" TYPE="lvm" PKNAME=""
+NAME="ceph--89fa04fa--b93a--4874--9364--c95be3ec01c6-osd--data--70847bdb--2ec1--4874--98ba--d87d4860a70d" SIZE="31138512896" TYPE="lvm" PKNAME=""`, nil
 			}
 			return "", nil
 		},
@@ -192,6 +195,10 @@ NAME="sda6" SIZE="134217728" TYPE="part" PKNAME="sda"`, nil
 	assert.Nil(t, err)
 	assert.Equal(t, uint64(0x400000), unused)
 	assert.Equal(t, 7, len(partitions))
+
+	partitions, unused, err = GetDevicePartitions("dm-0", executor)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(partitions))
 
 	partitions, unused, err = GetDevicePartitions("sdx", executor)
 	assert.Nil(t, err)
