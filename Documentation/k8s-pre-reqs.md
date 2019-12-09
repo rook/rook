@@ -18,6 +18,8 @@ setting up Rook in a Kubernetes cluster with Pod Security Policies enabled.
 
 ## Flexvolume Configuration
 
+**NOTE** This configuration is only needed when using the FlexVolume driver (required for Kubernetes 1.12 or earlier). The Ceph-CSI RBD driver or the Ceph-CSI CephFS driver are recommended for Kubernetes 1.13 and newer, making FlexVolume configuration redundant.  
+
 The Rook agent requires setup as a Flex volume plugin to manage the storage attachments in your cluster.
 See the [Flex Volume Configuration](flexvolume.md) topic to configure your Kubernetes deployment to load the Rook volume plugin.
 
