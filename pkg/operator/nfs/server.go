@@ -25,7 +25,6 @@ import (
 
 const (
 	ganeshaLog     = "/dev/stdout"
-	ganeshaPid     = "/var/run/ganesha/ganesha.pid"
 	ganeshaOptions = "NIV_DEBUG"
 )
 
@@ -67,7 +66,7 @@ func Setup(ganeshaConfig string) error {
 func Run(ganeshaConfig string) error {
 	// Start ganesha.nfsd
 	logger.Infof("Running NFS server!")
-	cmd := exec.Command("ganesha.nfsd", "-p", ganeshaPid, "-F", "-L", ganeshaLog, "-f", ganeshaConfig, "-N", ganeshaOptions)
+	cmd := exec.Command("ganesha.nfsd", "-F", "-L", ganeshaLog, "-f", ganeshaConfig, "-N", ganeshaOptions)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("ganesha.nfsd failed with error: %v, output: %s", err, out)
 	}
