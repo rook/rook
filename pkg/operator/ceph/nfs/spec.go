@@ -36,6 +36,7 @@ const (
 	appName             = "rook-ceph-nfs"
 	ganeshaConfigVolume = "ganesha-config"
 	nfsPort             = 2049
+	ganeshaPid          = "/var/run/ganesha/ganesha.pid"
 )
 
 func (c *CephNFSController) createCephNFSService(nfs cephv1.CephNFS, cfg daemonConfig) error {
@@ -176,6 +177,7 @@ func (c *CephNFSController) daemonContainer(nfs cephv1.CephNFS, cfg daemonConfig
 		Args: []string{
 			"-F",           // foreground
 			"-L", "STDERR", // log to stderr
+			"-p", ganeshaPid, // PID file location
 		},
 		Image: c.clusterSpec.CephVersion.Image,
 		VolumeMounts: []v1.VolumeMount{
