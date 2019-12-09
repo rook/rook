@@ -22,12 +22,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rook/rook/pkg/operator/ceph/disruption/nodedrain"
-
+	"github.com/pkg/errors"
 	cephClient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
+	"github.com/rook/rook/pkg/operator/ceph/disruption/nodedrain"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -56,11 +56,11 @@ func (r *ReconcileClusterDisruption) createPDBForOSD(deployment appsv1.Deploymen
 	namespace := deployment.ObjectMeta.Namespace
 	osdIDLabel, ok := deploymentLabels[osd.OsdIdLabelKey]
 	if !ok {
-		return fmt.Errorf("could not find id label on osd %s/%s", namespace, deploymentName)
+		return errors.Errorf("could not find id label on osd %s/%s", namespace, deploymentName)
 	}
 	cephCluster, ok := r.clusterMap.GetCluster(namespace)
 	if !ok {
-		return fmt.Errorf("the namespace %s was not found in the clustermap", namespace)
+		return errors.Errorf("the namespace %s was not found in the clustermap", namespace)
 	}
 
 	pdb := &policyv1beta1.PodDisruptionBudget{
@@ -87,8 +87,8 @@ func (r *ReconcileClusterDisruption) createPDBForOSD(deployment appsv1.Deploymen
 	}
 
 	err := r.client.Create(context.TODO(), pdb)
-	if err != nil && !errors.IsAlreadyExists(err) {
-		return fmt.Errorf("could not create pdb for osd: %s in namespace %s: %+v", osdIDLabel, namespace, err)
+	if err != nil && !kerrors.IsAlreadyExists(err) {
+		return errors.Wrapf(err, "could not create pdb for osd: %s in namespace %s", osdIDLabel, namespace)
 	}
 	return nil
 }
@@ -100,7 +100,7 @@ func (r *ReconcileClusterDisruption) deletePDB(deployment appsv1.Deployment) err
 
 	osdIDLabel, ok := deploymentLabels[osd.OsdIdLabelKey]
 	if !ok {
-		return fmt.Errorf("could not find id label on osd %s/%s", namespace, deploymentName)
+		return errors.Errorf("could not find id label on osd %s/%s", namespace, deploymentName)
 	}
 	pdb := &policyv1beta1.PodDisruptionBudget{
 		ObjectMeta: metav1.ObjectMeta{
@@ -109,8 +109,8 @@ func (r *ReconcileClusterDisruption) deletePDB(deployment appsv1.Deployment) err
 		},
 	}
 	err := r.client.Delete(context.TODO(), pdb)
-	if err != nil && !errors.IsNotFound(err) {
-		return fmt.Errorf("could not delete pdb for osd: %s in namespace %s: %+v", osdIDLabel, namespace, err)
+	if err != nil && !kerrors.IsNotFound(err) {
+		return errors.Wrapf(err, "could not delete pdb for osd: %s in namespace %s", osdIDLabel, namespace)
 	}
 	return nil
 }
@@ -128,24 +128,24 @@ func (r *ReconcileClusterDisruption) initializePDBState(request reconcile.Reques
 	}
 	err := r.client.Get(context.TODO(), pdbStateMapRequest, pdbStateMap)
 
-	if errors.IsNotFound(err) {
+	if kerrors.IsNotFound(err) {
 		// create configmap and PDBs for all nodes labeled by failuredomain
 		logger.Infof("inititalizing pod disruption budgets for osds")
 		// one pdb is created per OSD, but after initialization they are created/deleted in failuredomain groups
 		for _, osdData := range osdDataList {
 			err := r.createPDBForOSD(osdData.Deployment)
 			if err != nil {
-				return pdbStateMap, fmt.Errorf("failed to create pdb for osd deployment %s. %+v", osdData.Deployment.ObjectMeta.GetName(), err)
+				return pdbStateMap, errors.Wrapf(err, "failed to create pdb for osd deployment %s. %+v", osdData.Deployment.ObjectMeta.GetName(), err)
 			}
 		}
 		pdbStateMap.Data = map[string]string{disabledPDBKey: ""}
 		// create configmap
 		err := r.client.Create(context.TODO(), pdbStateMap)
 		if err != nil {
-			return pdbStateMap, fmt.Errorf("could not create the PDB state map %s, %+v", pdbStateMapRequest, err)
+			return pdbStateMap, errors.Wrapf(err, "could not create the PDB state map %s", pdbStateMapRequest)
 		}
 	} else if err != nil {
-		return pdbStateMap, fmt.Errorf("could not get the pdbStateMap %s", pdbStateMapRequest)
+		return pdbStateMap, errors.Wrapf(err, "could not get the pdbStateMap %s", pdbStateMapRequest)
 	}
 	return pdbStateMap, nil
 }
@@ -167,7 +167,7 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 			logger.Debugf("Ceph %q cluster not ready, cannot check Ceph status yet.", request.Namespace)
 			return nil
 		}
-		return fmt.Errorf("could not check cluster health: %+v", err)
+		return errors.Wrapf(err, "could not check cluster health")
 	}
 	if pdbStateMap.Data == nil {
 		pdbStateMap.Data = make(map[string]string)
@@ -209,7 +209,7 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 
 	err = r.client.Update(context.TODO(), pdbStateMap)
 	if err != nil {
-		return fmt.Errorf("could not update %s in cluster %s: %+v", pdbStateMapName, request, err)
+		return errors.Wrapf(err, "could not update %s in cluster %s", pdbStateMapName, request)
 	}
 	drainingFailureDomain, ok := pdbStateMap.Data[disabledPDBKey]
 	if ok && clean && len(drainingFailureDomain) > 0 {
@@ -220,7 +220,7 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 		drainingCanaryList := &appsv1.DeploymentList{}
 		err := r.client.List(context.TODO(), drainingCanaryList, canaryLabels, client.InNamespace(r.context.OperatorNamespace))
 		if err != nil {
-			return fmt.Errorf("could not list canary pods by labels %q: %+v", canaryLabels, err)
+			return errors.Wrapf(err, "could not list canary pods by labels %q", canaryLabels)
 		}
 		// refresh old canaries in draining failure domain
 		for _, drainingCanary := range drainingCanaryList.Items {
@@ -241,7 +241,7 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 				err = r.createPDBForOSD(osdData.Deployment)
 			}
 			if err != nil {
-				return fmt.Errorf("failed to reconcile pdb for osd deployment %s. %+v", osdData.Deployment.ObjectMeta.GetName(), err)
+				return errors.Wrapf(err, "failed to reconcile pdb for osd deployment %s. %+v", osdData.Deployment.ObjectMeta.GetName(), err)
 			}
 		}
 	}
@@ -254,7 +254,7 @@ func (r *ReconcileClusterDisruption) updateNoout(pdbStateMap *corev1.ConfigMap, 
 	namespace := pdbStateMap.ObjectMeta.Namespace
 	osdDump, err := cephClient.GetOSDDump(r.context.ClusterdContext, namespace)
 	if err != nil {
-		return fmt.Errorf("could not get osddump for reconciling maintenance noout in namespace %s: %+v", namespace, err)
+		return errors.Wrapf(err, "could not get osddump for reconciling maintenance noout in namespace %s", namespace)
 	}
 	for failureDomain := range allFailureDomainsMap {
 		disabledFailureDomainTimeStampKey := fmt.Sprintf("%s-noout-last-set-at", failureDomain)
@@ -269,7 +269,7 @@ func (r *ReconcileClusterDisruption) updateNoout(pdbStateMap *corev1.ConfigMap, 
 			// parse the timestamp
 			nooutSetTime, err := time.Parse(time.RFC3339, pdbStateMap.Data[disabledFailureDomainTimeStampKey])
 			if err != nil {
-				return fmt.Errorf("could not parse timestamp %s for failureDomain %s", pdbStateMap.Data[disabledFailureDomainTimeStampKey], nooutSetTime)
+				return errors.Wrapf(err, "could not parse timestamp %s for failureDomain %s", pdbStateMap.Data[disabledFailureDomainTimeStampKey], nooutSetTime)
 			}
 			if time.Since(nooutSetTime) >= r.maintenanceTimeout {
 				// noout expired

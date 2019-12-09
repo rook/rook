@@ -23,6 +23,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -80,13 +81,13 @@ func ListFilesystems(context *clusterd.Context, clusterName string) ([]CephFiles
 	args := []string{"fs", "ls"}
 	buf, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
-		return nil, fmt.Errorf("failed to list filesystems: %+v", err)
+		return nil, errors.Wrapf(err, "failed to list filesystems")
 	}
 
 	var filesystems []CephFilesystem
 	err = json.Unmarshal(buf, &filesystems)
 	if err != nil {
-		return nil, fmt.Errorf("unmarshal failed: %+v.  raw buffer response: %s", err, string(buf))
+		return nil, errors.Wrapf(err, "unmarshal failed raw buffer response %s", string(buf))
 	}
 
 	return filesystems, nil
@@ -97,13 +98,13 @@ func GetFilesystem(context *clusterd.Context, clusterName string, fsName string)
 	args := []string{"fs", "get", fsName}
 	buf, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get file system %s: %+v", fsName, err)
+		return nil, errors.Wrapf(err, "failed to get file system %s", fsName)
 	}
 
 	var fs CephFilesystemDetails
 	err = json.Unmarshal(buf, &fs)
 	if err != nil {
-		return nil, fmt.Errorf("unmarshal failed: %+v.  raw buffer response: %s", err, string(buf))
+		return nil, errors.Wrapf(err, "unmarshal failed raw buffer response %s", string(buf))
 	}
 
 	return &fs, nil
@@ -114,7 +115,7 @@ func AllowStandbyReplay(context *clusterd.Context, clusterName string, fsName st
 	args := []string{"fs", "set", fsName, "allow_standby_replay", strconv.FormatBool(allowStandbyReplay)}
 	_, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
-		return fmt.Errorf("failed to set allow_standby_replay to filesystem %s: %+v", fsName, err)
+		return errors.Wrapf(err, "failed to set allow_standby_replay to filesystem %s", fsName)
 	}
 
 	return nil
@@ -123,7 +124,7 @@ func AllowStandbyReplay(context *clusterd.Context, clusterName string, fsName st
 // CreateFilesystem performs software configuration steps for Ceph to provide a new filesystem.
 func CreateFilesystem(context *clusterd.Context, clusterName, name, metadataPool string, dataPools []string, force bool) error {
 	if len(dataPools) == 0 {
-		return fmt.Errorf("at least one data pool is required")
+		return errors.New("at least one data pool is required")
 	}
 
 	args := []string{}
@@ -148,7 +149,7 @@ func CreateFilesystem(context *clusterd.Context, clusterName, name, metadataPool
 	}
 	_, err = NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
-		return fmt.Errorf("failed enabling ceph fs %s. %+v", name, err)
+		return errors.Wrapf(err, "failed enabling ceph fs %s", name)
 	}
 
 	// add each additional pool
@@ -188,8 +189,7 @@ func SetNumMDSRanks(context *clusterd.Context, cephVersion cephver.CephVersion, 
 	// Always tell Ceph to set the new max_mds value
 	args := []string{"fs", "set", fsName, "max_mds", strconv.Itoa(int(activeMDSCount))}
 	if _, err := NewCephCommand(context, clusterName, args).Run(); err != nil {
-		return fmt.Errorf("failed to set filesystem %s num mds ranks (max_mds) to %d: %v",
-			fsName, activeMDSCount, err)
+		return errors.Wrapf(err, "failed to set filesystem %s num mds ranks (max_mds) to %d", fsName, activeMDSCount)
 	}
 
 	if cephVersion.IsAtLeastMimic() {
@@ -199,9 +199,9 @@ func SetNumMDSRanks(context *clusterd.Context, cephVersion cephver.CephVersion, 
 	// ** Noted section 2 - See note at top of function
 	// Now check the error to see if we can even determine whether we should reduce or not
 	if errAtStart != nil {
-		return fmt.Errorf(`failed to get filesystem %s info needed to ensure mds rank can be changed correctly,
-if num active mdses (max_mds) was lowered, USER should deactivate extra active mdses manually: %+v`,
-			fsName, errAtStart)
+		return errors.Wrapf(errAtStart, `failed to get filesystem %s info needed to ensure mds rank can be changed correctly,
+if num active mdses (max_mds) was lowered, USER should deactivate extra active mdses manually`,
+			fsName)
 	}
 	if int(activeMDSCount) > fsAtStart.MDSMap.MaxMDS {
 		return nil // No need to deactivate mdses if we are raising max_mds
@@ -243,7 +243,7 @@ func deactivateMdsWithRetry(context *clusterd.Context, mdsGid int, namespace, fs
 		time.Sleep(retrySleep)
 	}
 	// report most recent error with additional err info
-	return fmt.Errorf("failed to deactivate mds w/ gid %d for filesystem %s: %+v", mdsGid, fsName, err)
+	return errors.Wrapf(err, "failed to deactivate mds w/ gid %d for filesystem %s", mdsGid, fsName)
 }
 
 // WaitForActiveRanks waits for the filesystem's number of active ranks to equal the desired count.
@@ -281,7 +281,7 @@ func WaitForActiveRanks(
 		return false, nil
 	})
 	if err != nil {
-		return fmt.Errorf("timeout waiting for number active mds daemons for filesystem %s to become %s",
+		return errors.Errorf("timeout waiting for number active mds daemons for filesystem %s to become %s",
 			fsName, countText)
 	}
 	return nil
@@ -299,7 +299,7 @@ func MarkFilesystemAsDown(context *clusterd.Context, clusterName string, fsName 
 	args := []string{"fs", "set", fsName, "cluster_down", "true"}
 	_, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
-		return fmt.Errorf("failed to set file system %s to cluster_down: %+v", fsName, err)
+		return errors.Wrapf(err, "failed to set file system %s to cluster_down", fsName)
 	}
 	return nil
 }
@@ -309,7 +309,7 @@ func FailMDS(context *clusterd.Context, clusterName string, gid int) error {
 	args := []string{"mds", "fail", strconv.Itoa(gid)}
 	_, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
-		return fmt.Errorf("failed to fail mds %d: %+v", gid, err)
+		return errors.Wrapf(err, "failed to fail mds %d", gid)
 	}
 	return nil
 }
@@ -321,7 +321,7 @@ func FailFilesystem(context *clusterd.Context, clusterName, fsName string) error
 	args := []string{"fs", "fail", fsName}
 	_, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
-		return fmt.Errorf("failed to fail filesystem %s: %+v", fsName, err)
+		return errors.Wrapf(err, "failed to fail filesystem %s", fsName)
 	}
 	return nil
 }
@@ -331,19 +331,19 @@ func FailFilesystem(context *clusterd.Context, clusterName, fsName string) error
 func RemoveFilesystem(context *clusterd.Context, clusterName, fsName string, preservePoolsOnDelete bool) error {
 	fs, err := GetFilesystem(context, clusterName, fsName)
 	if err != nil {
-		return fmt.Errorf("filesystem %s not found. %+v", fsName, err)
+		return errors.Wrapf(err, "filesystem %s not found", fsName)
 	}
 
 	args := []string{"fs", "rm", fsName, confirmFlag}
 	_, err = NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
-		return fmt.Errorf("Failed to delete ceph fs %s. err=%+v", fsName, err)
+		return errors.Wrapf(err, "Failed to delete ceph fs %s", fsName)
 	}
 
 	if !preservePoolsOnDelete {
 		err = deleteFSPools(context, clusterName, fs)
 		if err != nil {
-			return fmt.Errorf("failed to delete fs %s pools. %+v", fsName, err)
+			return errors.Wrapf(err, "failed to delete fs %s pools", fsName)
 		}
 	} else {
 		logger.Infof("PreservePoolsOnDelete is set in filesystem %s. Pools not deleted", fsName)
@@ -355,7 +355,7 @@ func RemoveFilesystem(context *clusterd.Context, clusterName, fsName string, pre
 func deleteFSPools(context *clusterd.Context, clusterName string, fs *CephFilesystemDetails) error {
 	poolNames, err := GetPoolNamesByID(context, clusterName)
 	if err != nil {
-		return fmt.Errorf("failed to get pool names. %+v", err)
+		return errors.Wrapf(err, "failed to get pool names")
 	}
 
 	var lastErr error = nil
@@ -378,7 +378,7 @@ func deleteFSPools(context *clusterd.Context, clusterName string, fs *CephFilesy
 func deleteFSPool(context *clusterd.Context, clusterName string, poolNames map[int]string, id int) error {
 	name, ok := poolNames[id]
 	if !ok {
-		return fmt.Errorf("pool %d not found", id)
+		return errors.Errorf("pool %d not found", id)
 	}
 	return DeletePool(context, clusterName, name)
 }

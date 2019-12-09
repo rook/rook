@@ -17,8 +17,7 @@ limitations under the License.
 package ceph
 
 import (
-	"fmt"
-
+	"github.com/pkg/errors"
 	"github.com/rook/rook/cmd/rook/rook"
 	"github.com/rook/rook/pkg/daemon/ceph/agent"
 	"github.com/rook/rook/pkg/util/flags"
@@ -46,7 +45,7 @@ func startAgent(cmd *cobra.Command, args []string) error {
 	agent := agent.New(context)
 	err := agent.Run()
 	if err != nil {
-		rook.TerminateFatal(fmt.Errorf("failed to run rook ceph agent. %+v\n", err))
+		rook.TerminateFatal(errors.Wrapf(err, "failed to run rook ceph agent\n"))
 	}
 
 	return nil

@@ -18,10 +18,10 @@ limitations under the License.
 package cluster
 
 import (
-	"fmt"
 	"os"
 	"time"
 
+	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
@@ -99,13 +99,13 @@ func (c *cephStatusChecker) updateCephStatus(status *client.CephStatus) error {
 	// get the most recent cluster CRD object
 	cluster, err := c.context.RookClientset.CephV1().CephClusters(c.namespace).Get(c.resourceName, metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to get cluster from namespace %s prior to updating its status: %+v", c.namespace, err)
+		return errors.Wrapf(err, "failed to get cluster from namespace %s prior to updating its status", c.namespace)
 	}
 
 	// translate the ceph status struct to the crd status
 	cluster.Status.CephStatus = toCustomResourceStatus(cluster.Status, status)
 	if _, err := c.context.RookClientset.CephV1().CephClusters(c.namespace).Update(cluster); err != nil {
-		return fmt.Errorf("failed to update cluster %s status: %+v", c.namespace, err)
+		return errors.Wrapf(err, "failed to update cluster %s status", c.namespace)
 	}
 
 	return nil

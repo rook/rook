@@ -1,12 +1,12 @@
 package bucket
 
 import (
-	"fmt"
 	"time"
 
-	"k8s.io/api/core/v1"
+	"github.com/pkg/errors"
+	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
@@ -36,14 +36,14 @@ func (p *Provisioner) getStorageClassWithBackoff(name string) (class *storagev1.
 		if err == nil {
 			return true, nil
 		}
-		if errors.IsNotFound(err) {
+		if kerrors.IsNotFound(err) {
 			return true, err
 		}
 		logger.Errorf("error getting class %s, retrying: %v", name, err)
 		return false, nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("unable to Get storageclass %q: %v", name, err)
+		return nil, errors.Wrapf(err, "unable to Get storageclass %q", name)
 	}
 	return
 }
@@ -52,7 +52,7 @@ func (p *Provisioner) getSecretWithBackoff(namespace, name string) (secret *v1.S
 	logger.Infof("getting secret %q", namespace+"/"+name)
 
 	if len(name) == 0 || len(namespace) == 0 {
-		return nil, fmt.Errorf("secret name and/or namespace is missing")
+		return nil, errors.New("secret name and/or namespace is missing")
 	}
 
 	secretClient := p.context.Clientset.CoreV1().Secrets(namespace)
@@ -62,7 +62,7 @@ func (p *Provisioner) getSecretWithBackoff(namespace, name string) (secret *v1.S
 		if err == nil {
 			return true, nil
 		}
-		if errors.IsNotFound(err) {
+		if kerrors.IsNotFound(err) {
 			return true, err
 		}
 		logger.Errorf("error getting class %s, retrying: %v", name, err)

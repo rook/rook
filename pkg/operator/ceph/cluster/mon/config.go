@@ -26,6 +26,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
@@ -33,7 +34,7 @@ import (
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/sys"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -85,16 +86,16 @@ func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerR
 
 	secrets, err := context.Clientset.CoreV1().Secrets(namespace).Get(AppName, metav1.GetOptions{})
 	if err != nil {
-		if !errors.IsNotFound(err) {
-			return nil, maxMonID, monMapping, fmt.Errorf("failed to get mon secrets. %+v", err)
+		if !kerrors.IsNotFound(err) {
+			return nil, maxMonID, monMapping, errors.Wrapf(err, "failed to get mon secrets")
 		}
 		if ownerRef == nil {
-			return nil, maxMonID, monMapping, fmt.Errorf("not expected to create new cluster info and did not find existing secret")
+			return nil, maxMonID, monMapping, errors.New("not expected to create new cluster info and did not find existing secret")
 		}
 
 		clusterInfo, err = createNamedClusterInfo(context, namespace)
 		if err != nil {
-			return nil, maxMonID, monMapping, fmt.Errorf("failed to create mon secrets. %+v", err)
+			return nil, maxMonID, monMapping, errors.Wrapf(err, "failed to create mon secrets")
 		}
 
 		err = createClusterAccessSecret(context.Clientset, namespace, clusterInfo, ownerRef)
@@ -114,7 +115,7 @@ func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerR
 	// get the existing monitor config
 	clusterInfo.Monitors, maxMonID, monMapping, err = loadMonConfig(context.Clientset, namespace)
 	if err != nil {
-		return nil, maxMonID, monMapping, fmt.Errorf("failed to get mon config. %+v", err)
+		return nil, maxMonID, monMapping, errors.Wrapf(err, "failed to get mon config")
 	}
 
 	return clusterInfo, maxMonID, monMapping, nil
@@ -124,7 +125,7 @@ func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerR
 func WriteConnectionConfig(context *clusterd.Context, clusterInfo *cephconfig.ClusterInfo) error {
 	// write the latest config to the config dir
 	if _, err := cephconfig.GenerateAdminConnectionConfig(context, clusterInfo); err != nil {
-		return fmt.Errorf("failed to write connection config. %+v", err)
+		return errors.Wrapf(err, "failed to write connection config")
 	}
 
 	return nil
@@ -140,7 +141,7 @@ func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string
 
 	cm, err := clientset.CoreV1().ConfigMaps(namespace).Get(EndpointConfigMapName, metav1.GetOptions{})
 	if err != nil {
-		if !errors.IsNotFound(err) {
+		if !kerrors.IsNotFound(err) {
 			return nil, maxMonID, monMapping, err
 		}
 		// If the config map was not found, initialize the empty set of monitors
@@ -198,7 +199,7 @@ func createClusterAccessSecret(clientset kubernetes.Interface, namespace string,
 	}
 	k8sutil.SetOwnerRef(&secret.ObjectMeta, ownerRef)
 	if _, err = clientset.CoreV1().Secrets(namespace).Create(secret); err != nil {
-		return fmt.Errorf("failed to save mon secrets. %+v", err)
+		return errors.Wrapf(err, "failed to save mon secrets")
 	}
 
 	return nil
@@ -213,7 +214,7 @@ func createNamedClusterInfo(context *clusterd.Context, clusterName string) (*cep
 
 	dir := path.Join(context.ConfigDir, clusterName)
 	if err = os.MkdirAll(dir, 0744); err != nil {
-		return nil, fmt.Errorf("failed to create dir %s. %+v", dir, err)
+		return nil, errors.Wrapf(err, "failed to create dir %s", dir)
 	}
 
 	// generate the mon secret
@@ -249,12 +250,12 @@ func genSecret(executor exec.Executor, configDir, name string, args []string) (s
 	args = append(base, args...)
 	_, err := executor.ExecuteCommandWithOutput(false, "gen secret", "ceph-authtool", args...)
 	if err != nil {
-		return "", fmt.Errorf("failed to gen secret. %+v", err)
+		return "", errors.Wrapf(err, "failed to gen secret")
 	}
 
 	contents, err := ioutil.ReadFile(path)
 	if err != nil {
-		return "", fmt.Errorf("failed to read secret file. %+v", err)
+		return "", errors.Wrapf(err, "failed to read secret file")
 	}
 	return extractKey(string(contents))
 }
@@ -266,7 +267,7 @@ func extractKey(contents string) (string, error) {
 		secret = slice[2]
 	}
 	if secret == "" {
-		return "", fmt.Errorf("failed to parse secret")
+		return "", errors.New("failed to parse secret")
 	}
 	return secret, nil
 }

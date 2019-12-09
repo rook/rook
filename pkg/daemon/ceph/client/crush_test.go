@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -233,7 +234,7 @@ func TestGetCrushMap(t *testing.T) {
 		if args[1] == "crush" && args[2] == "dump" {
 			return testCrushMap, nil
 		}
-		return "", fmt.Errorf("unexpected ceph command '%v'", args)
+		return "", errors.Errorf("unexpected ceph command '%v'", args)
 	}
 	crush, err := GetCrushMap(&clusterd.Context{Executor: executor}, "rook")
 

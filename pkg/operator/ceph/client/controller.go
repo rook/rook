@@ -22,6 +22,8 @@ import (
 	"reflect"
 	"regexp"
 
+	"github.com/pkg/errors"
+
 	"github.com/coreos/pkg/capnslog"
 	opkit "github.com/rook/operator-kit"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -31,7 +33,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
 )
@@ -101,7 +103,7 @@ func genClientEntity(p *cephv1.CephClient, context *clusterd.Context) (clientEnt
 
 	// validate the client settings
 	if err := ValidateClient(context, p); err != nil {
-		return clientEntity, caps, fmt.Errorf("invalid client %s arguments. %+v", p.Name, err)
+		return clientEntity, caps, errors.Wrapf(err, "invalid client %q arguments", p.Name)
 	}
 
 	for name, cap := range p.Spec.Caps {
@@ -117,21 +119,21 @@ func createClient(context *clusterd.Context, p *cephv1.CephClient) error {
 
 	clientEntity, caps, err := genClientEntity(p, context)
 	if err != nil {
-		return fmt.Errorf("failed to generate client entity %s. %+v", p.Name, err)
+		return errors.Wrapf(err, "failed to generate client entity %q", p.Name)
 	}
 
-	// Check if client was created manually, create if neccessary or update caps and create secret
+	// Check if client was created manually, create if necessary or update caps and create secret
 	key, err := ceph.AuthGetKey(context, p.Namespace, clientEntity)
 	if err != nil {
 		// Example in pkg/operator/ceph/config/keyring/store.go:65
 		key, err = ceph.AuthGetOrCreateKey(context, p.Namespace, clientEntity, caps)
 		if err != nil {
-			return fmt.Errorf("failed to create client %s. %+v", p.Name, err)
+			return errors.Wrapf(err, "failed to create client %q", p.Name)
 		}
 	} else {
 		err = ceph.AuthUpdateCaps(context, p.Namespace, clientEntity, caps)
 		if err != nil {
-			return fmt.Errorf("client %s exists, failed to update client caps. %+v", p.Name, err)
+			return errors.Wrapf(err, "client %q exists, failed to update client caps", p.Name)
 		}
 	}
 
@@ -149,18 +151,18 @@ func createClient(context *clusterd.Context, p *cephv1.CephClient) error {
 	secretName := secret.ObjectMeta.Name
 	_, err = context.Clientset.CoreV1().Secrets(p.Namespace).Get(secretName, metav1.GetOptions{})
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if kerrors.IsNotFound(err) {
 			logger.Debugf("creating secret for %s", secretName)
 			if _, err := context.Clientset.CoreV1().Secrets(p.Namespace).Create(secret); err != nil {
-				return fmt.Errorf("failed to create secret for %s. %+v", secretName, err)
+				return errors.Wrapf(err, "failed to create secret for %q", secretName)
 			}
 			return nil
 		}
-		return fmt.Errorf("failed to get secret for %s. %+v", secretName, err)
+		return errors.Wrapf(err, "failed to get secret for %q", secretName)
 	}
 	logger.Debugf("updating secret for %s", secretName)
 	if _, err := context.Clientset.CoreV1().Secrets(p.Namespace).Update(secret); err != nil {
-		return fmt.Errorf("failed to update secret for %s. %+v", secretName, err)
+		return errors.Wrapf(err, "failed to update secret for %q", secretName)
 	}
 
 	logger.Infof("created client %s", p.Name)
@@ -172,12 +174,12 @@ func updateClient(context *clusterd.Context, p *cephv1.CephClient) error {
 
 	clientEntity, caps, err := genClientEntity(p, context)
 	if err != nil {
-		return fmt.Errorf("failed to generate client entity %s. %+v", p.Name, err)
+		return errors.Wrapf(err, "failed to generate client entity %q", p.Name)
 	}
 
 	err = ceph.AuthUpdateCaps(context, p.Namespace, clientEntity, caps)
 	if err != nil {
-		return fmt.Errorf("failed to update client %s. %+v", p.Name, err)
+		return errors.Wrapf(err, "failed to update client %q", p.Name)
 	}
 
 	logger.Infof("updated client %s", p.Name)
@@ -242,11 +244,11 @@ func (c *ClientController) onDelete(obj interface{}) {
 func deleteClient(context *clusterd.Context, p *cephv1.CephClient) error {
 	clientEntity := fmt.Sprintf("client.%s", p.Name)
 	if err := ceph.AuthDelete(context, p.Namespace, clientEntity); err != nil {
-		return fmt.Errorf("failed to delete client %s. %+v", p.Name, err)
+		return errors.Wrapf(err, "failed to delete client %q", p.Name)
 	}
 	secretName := fmt.Sprintf("%s-client-key", p.Name)
-	if err := context.Clientset.CoreV1().Secrets(p.Namespace).Delete(secretName, &metav1.DeleteOptions{}); err != nil && !errors.IsNotFound(err) {
-		return fmt.Errorf("failed to remote client %s secret %s", p.Name, secretName)
+	if err := context.Clientset.CoreV1().Secrets(p.Namespace).Delete(secretName, &metav1.DeleteOptions{}); err != nil && !kerrors.IsNotFound(err) {
+		return errors.Errorf("failed to remote client %q secret %q", p.Name, secretName)
 	}
 
 	return nil
@@ -264,14 +266,14 @@ func clientExists(context *clusterd.Context, p *cephv1.CephClient) (bool, error)
 // Validate the client arguments
 func ValidateClient(context *clusterd.Context, p *cephv1.CephClient) error {
 	if p.Name == "" {
-		return fmt.Errorf("missing name")
+		return errors.New("missing name")
 	}
 	reservedNames := regexp.MustCompile("^admin$|^rgw.*$|^rbd-mirror$|^osd.[0-9]*$|^bootstrap-(mds|mgr|mon|osd|rgw|^rbd-mirror)$")
 	if reservedNames.Match([]byte(p.Name)) {
-		return fmt.Errorf("ignoring reserved name %s", p.Name)
+		return errors.Errorf("ignoring reserved name %q", p.Name)
 	}
 	if p.Namespace == "" {
-		return fmt.Errorf("missing namespace")
+		return errors.New("missing namespace")
 	}
 	if err := ValidateClientSpec(context, p.Namespace, &p.Spec); err != nil {
 		return err
@@ -282,11 +284,11 @@ func ValidateClient(context *clusterd.Context, p *cephv1.CephClient) error {
 // ValidateClientSpec checks if caps were passed for new or updated client
 func ValidateClientSpec(context *clusterd.Context, namespace string, p *cephv1.ClientSpec) error {
 	if p.Caps == nil {
-		return fmt.Errorf("no caps specified")
+		return errors.New("no caps specified")
 	}
 	for _, cap := range p.Caps {
 		if cap == "" {
-			return fmt.Errorf("no caps specified")
+			return errors.New("no caps specified")
 		}
 	}
 
@@ -301,5 +303,5 @@ func getClientObject(obj interface{}) (client *cephv1.CephClient, err error) {
 		return client.DeepCopy(), nil
 	}
 
-	return nil, fmt.Errorf("not a known client object: %+v", obj)
+	return nil, errors.Errorf("not a known client object: %+v", obj)
 }

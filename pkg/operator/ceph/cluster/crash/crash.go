@@ -22,6 +22,7 @@ import (
 	"path"
 	"reflect"
 
+	"github.com/pkg/errors"
 	opkit "github.com/rook/operator-kit"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
@@ -53,7 +54,7 @@ func (r *ReconcileNode) createOrUpdateCephCrash(node corev1.Node, tolerations []
 	// Create or Update the deployment default/foo
 	nodeHostnameLabel, ok := node.ObjectMeta.Labels[corev1.LabelHostname]
 	if !ok {
-		return controllerutil.OperationResultNone, fmt.Errorf("label key %q does not exist on node %q", corev1.LabelHostname, node.GetName())
+		return controllerutil.OperationResultNone, errors.Errorf("label key %q does not exist on node %q", corev1.LabelHostname, node.GetName())
 	}
 	deploy := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{

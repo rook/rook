@@ -26,6 +26,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
@@ -68,29 +69,30 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 
 	err = createOSDBootstrapKeyring(context, a.cluster.Name, cephConfigDir)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate osd keyring. %+v", err)
+		return nil, errors.Wrapf(err, "failed to generate osd keyring")
 	}
 	// Update LVM configuration file
 	if a.pvcBacked {
 		for _, device := range devices.Entries {
 			lvBackedPV, err = sys.IsLV(device.Config.Name, context.Executor)
 			if err != nil {
-				return nil, fmt.Errorf("failed to check device type. %+v", err)
+				return nil, errors.Wrapf(err, "ailed to check device type")
+
 			}
 			break
 		}
 	}
 	if err := updateLVMConfig(context, a.pvcBacked, lvBackedPV); err != nil {
-		return nil, fmt.Errorf("failed to update lvm configuration file, %+v", err) // fail return here as validation provided by ceph-volume
+		return nil, errors.Wrapf(err, "failed to update lvm configuration file") // fail return here as validation provided by ceph-volume
 	}
 
 	if a.pvcBacked {
 		if lv, err = a.initializeBlockPVC(context, devices, lvBackedPV); err != nil {
-			return nil, fmt.Errorf("failed to initialize devices. %+v", err)
+			return nil, errors.Wrapf(err, "failed to initialize devices")
 		}
 	} else {
 		if err = a.initializeDevices(context, devices); err != nil {
-			return nil, fmt.Errorf("failed to initialize devices. %+v", err)
+			return nil, errors.Wrapf(err, "failed to initialize devices")
 		}
 	}
 
@@ -115,7 +117,7 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 				// pass 'vg/lv' to ceph-volume
 				deviceArg, err = getLVNameFromDevicePath(context, device.Config.Name)
 				if err != nil {
-					return "", fmt.Errorf("failed to get lv name from device path %q. %+v", device.Config.Name, err)
+					return "", errors.Wrapf(err, "failed to get lv name from device path %q", device.Config.Name)
 				}
 			} else {
 				deviceArg = device.Config.Name
@@ -128,7 +130,7 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 			// execute ceph-volume with the device
 
 			if op, err := context.Executor.ExecuteCommandWithCombinedOutput(false, "", baseCommand, immediateExecuteArgs...); err != nil {
-				return "", fmt.Errorf("failed ceph-volume. %+v", err) // fail return here as validation provided by ceph-volume
+				return "", errors.Wrapf(err, "failed ceph-volume") // fail return here as validation provided by ceph-volume
 			} else {
 				logger.Infof("%v", op)
 				if lvBackedPV {
@@ -136,7 +138,7 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 				} else {
 					lvpath = getLVPath(op)
 					if lvpath == "" {
-						return "", fmt.Errorf("failed to get lvpath from ceph-volume lvm prepare output")
+						return "", errors.New("failed to get lvpath from ceph-volume lvm prepare output")
 					}
 				}
 			}
@@ -167,15 +169,15 @@ func getLVNameFromDevicePath(context *clusterd.Context, devicePath string) (stri
 	devInfo, err := context.Executor.ExecuteCommandWithOutput(true, "",
 		"dmsetup", "info", "-c", "--noheadings", "-o", "name", devicePath)
 	if err != nil {
-		return "", fmt.Errorf("failed dmsetup info. output: %q. %+v", devInfo, err)
+		return "", errors.Wrapf(err, "failed dmsetup info. output: %q", devInfo)
 	}
 	out, err := context.Executor.ExecuteCommandWithOutput(true, "", "dmsetup", "splitname", devInfo, "--noheadings")
 	if err != nil {
-		return "", fmt.Errorf("failed dmsetup splitname %q. %+v", devInfo, err)
+		return "", errors.Wrapf(err, "failed dmsetup splitname %q", devInfo)
 	}
 	split := strings.Split(out, ":")
 	if len(split) < 2 {
-		return "", fmt.Errorf("dmsetup splitname returned unexpected result for %q. output: %q", devInfo, out)
+		return "", errors.Wrapf(err, "dmsetup splitname returned unexpected result for %q. output: %q", devInfo, out)
 	}
 	return fmt.Sprintf("%s/%s", split[0], split[1]), nil
 }
@@ -184,7 +186,7 @@ func updateLVMConfig(context *clusterd.Context, onPVC, lvBackedPV bool) error {
 
 	input, err := ioutil.ReadFile(lvmConfPath)
 	if err != nil {
-		return fmt.Errorf("failed to read lvm config file %q. %+v", lvmConfPath, err)
+		return errors.Wrapf(err, "failed to read lvm config file %q", lvmConfPath)
 	}
 
 	output := bytes.Replace(input, []byte("udev_sync = 1"), []byte("udev_sync = 0"), 1)
@@ -212,7 +214,7 @@ func updateLVMConfig(context *clusterd.Context, onPVC, lvBackedPV bool) error {
 	}
 
 	if err = ioutil.WriteFile(lvmConfPath, output, 0644); err != nil {
-		return fmt.Errorf("failed to update lvm config file %q. %+v", lvmConfPath, err)
+		return errors.Wrapf(err, "failed to update lvm config file %q", lvmConfPath)
 	}
 
 	logger.Infof("Successfully updated lvm config file %q", lvmConfPath)
@@ -270,7 +272,7 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 					// Fail when two devices using the same metadata device have different values for osdsPerDevice
 					metadataDevices[md]["devices"] += " " + deviceArg
 					if deviceOSDCount != metadataDevices[md]["osdsperdevice"] {
-						return fmt.Errorf("metadataDevice (%s) has more than 1 osdsPerDevice value set: %s != %s", md, deviceOSDCount, metadataDevices[md]["osdsperdevice"])
+						return errors.Errorf("metadataDevice (%s) has more than 1 osdsPerDevice value set: %s != %s", md, deviceOSDCount, metadataDevices[md]["osdsperdevice"])
 					}
 				} else {
 					metadataDevices[md] = make(map[string]string)
@@ -289,7 +291,7 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 						dbSizeString := strconv.FormatUint(display.MbTob(uint64(deviceDBSizeMB)), 10)
 						if _, ok := metadataDevices[md]["databasesizemb"]; ok {
 							if metadataDevices[md]["databasesizemb"] != dbSizeString {
-								return fmt.Errorf("metadataDevice (%s) has more than 1 databaseSizeMB value set: %s != %s", md, metadataDevices[md]["databasesizemb"], dbSizeString)
+								return errors.Errorf("metadataDevice (%s) has more than 1 databaseSizeMB value set: %s != %s", md, metadataDevices[md]["databasesizemb"], dbSizeString)
 							}
 						} else {
 							metadataDevices[md]["databasesizemb"] = dbSizeString
@@ -319,12 +321,12 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 				logger.Infof("immediateReportArgs - %+v", baseCommand)
 				logger.Infof("immediateExecuteArgs - %+v", immediateExecuteArgs)
 				if err := context.Executor.ExecuteCommand(false, "", baseCommand, immediateReportArgs...); err != nil {
-					return fmt.Errorf("failed ceph-volume report. %+v", err) // fail return here as validation provided by ceph-volume
+					return errors.Wrapf(err, "failed ceph-volume report") // fail return here as validation provided by ceph-volume
 				}
 
 				// execute ceph-volume immediately with the device-specific setting instead of batching up multiple devices together
 				if err := context.Executor.ExecuteCommand(false, "", baseCommand, immediateExecuteArgs...); err != nil {
-					return fmt.Errorf("failed ceph-volume. %+v", err)
+					return errors.Wrapf(err, "failed ceph-volume")
 				}
 
 			}
@@ -371,7 +373,7 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 		}...)
 
 		if err := context.Executor.ExecuteCommand(false, "", baseCommand, reportArgs...); err != nil {
-			return fmt.Errorf("failed ceph-volume report. %+v", err) // fail return here as validation provided by ceph-volume
+			return errors.Wrapf(err, "failed ceph-volume report") // fail return here as validation provided by ceph-volume
 		}
 
 		reportArgs = append(reportArgs, []string{
@@ -381,23 +383,23 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 
 		cvOut, err := context.Executor.ExecuteCommandWithCombinedOutput(false, "", baseCommand, reportArgs...)
 		if err != nil {
-			return fmt.Errorf("failed ceph-volume json report. %+v", err) // fail return here as validation provided by ceph-volume
+			return errors.Wrapf(err, "failed ceph-volume json report") // fail return here as validation provided by ceph-volume
 		}
 
 		logger.Debugf("ceph-volume report: %+v", cvOut)
 
 		var cvReport cephVolReport
 		if err = json.Unmarshal([]byte(cvOut), &cvReport); err != nil {
-			return fmt.Errorf("failed to unmarshal ceph-volume report json. %+v", err)
+			return errors.Wrapf(err, "failed to unmarshal ceph-volume report json")
 		}
 
 		if path.Join("/dev", md) != cvReport.Vg.Devices {
-			return fmt.Errorf("ceph-volume did not use the expected metadataDevice [%s]", md)
+			return errors.Errorf("ceph-volume did not use the expected metadataDevice [%s]", md)
 		}
 
 		// execute ceph-volume batching up multiple devices
 		if err := context.Executor.ExecuteCommand(false, "", baseCommand, mdArgs...); err != nil {
-			return fmt.Errorf("failed ceph-volume. %+v", err) // fail return here as validation provided by ceph-volume
+			return errors.Wrapf(err, "failed ceph-volume") // fail return here as validation provided by ceph-volume
 		}
 	}
 
@@ -429,9 +431,9 @@ func getCephVolumeSupported(context *clusterd.Context) (bool, error) {
 				logger.Infof("supported version of ceph-volume not available")
 				return false, nil
 			}
-			return false, fmt.Errorf("unknown return code from ceph-volume when checking for compatibility: %d", exitStatus)
+			return false, errors.Errorf("unknown return code from ceph-volume when checking for compatibility: %d", exitStatus)
 		}
-		return false, fmt.Errorf("unknown ceph-volume failure. %+v", err)
+		return false, errors.Wrapf(err, "unknown ceph-volume failure")
 	}
 
 	return true, nil
@@ -441,14 +443,14 @@ func getCephVolumeOSDs(context *clusterd.Context, clusterName string, cephfsid s
 
 	result, err := context.Executor.ExecuteCommandWithCombinedOutput(false, "", cephVolumeCmd, "lvm", "list", lv, "--format", "json")
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve ceph-volume results. %+v", err)
+		return nil, errors.Wrapf(err, "failed to retrieve ceph-volume results")
 	}
 	logger.Debug(result)
 
 	var cephVolumeResult map[string][]osdInfo
 	err = json.Unmarshal([]byte(result), &cephVolumeResult)
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve ceph-volume results. %+v", err)
+		return nil, errors.Wrapf(err, "failed to retrieve ceph-volume results")
 	}
 
 	var osds []oposd.OSDInfo

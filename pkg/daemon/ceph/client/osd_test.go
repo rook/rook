@@ -17,9 +17,9 @@ limitations under the License.
 package client
 
 import (
-	"fmt"
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -70,7 +70,7 @@ func TestHostTree(t *testing.T) {
 			}
 			return fakeOsdTree, nil
 		}
-		return "", fmt.Errorf("unexpected ceph command '%v'", args)
+		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
 
 	tree, err := HostTree(&clusterd.Context{Executor: executor}, "rook")
@@ -98,7 +98,7 @@ func TestOsdListNum(t *testing.T) {
 			}
 			return fakeOSdList, nil
 		}
-		return "", fmt.Errorf("unexpected ceph command '%v'", args)
+		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
 
 	list, err := OsdListNum(&clusterd.Context{Executor: executor}, "rook")

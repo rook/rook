@@ -25,6 +25,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
@@ -261,7 +262,7 @@ func TestClusterDeleteMultiAttachmentRace(t *testing.T) {
 			if removeCount%2 == 0 {
 				// every other time, simulate a failure to remove the attachment, e.g., someone else
 				// updated it before we could.
-				return fmt.Errorf("mock error for failing to remove the volume attachment")
+				return errors.New("mock error for failing to remove the volume attachment")
 			}
 
 			return nil

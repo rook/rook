@@ -17,8 +17,8 @@ package client
 
 import (
 	"encoding/json"
-	"fmt"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 )
 
@@ -35,12 +35,12 @@ func Usage(context *clusterd.Context, clusterName string) (*CephUsage, error) {
 	args := []string{"df", "detail"}
 	buf, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get usage: %+v", err)
+		return nil, errors.Wrapf(err, "failed to get usage")
 	}
 
 	var usage CephUsage
 	if err := json.Unmarshal(buf, &usage); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal usage response: %+v", err)
+		return nil, errors.Wrapf(err, "failed to unmarshal usage response")
 	}
 
 	return &usage, nil

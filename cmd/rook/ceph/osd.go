@@ -24,6 +24,7 @@ import (
 
 	"k8s.io/client-go/kubernetes"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/cmd/rook/rook"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	osddaemon "github.com/rook/rook/pkg/daemon/ceph/osd"
@@ -35,7 +36,7 @@ import (
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -200,7 +201,7 @@ func writeOSDConfig(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	if osdID == -1 {
-		return fmt.Errorf("osd id not specified")
+		return errors.New("osd id not specified")
 	}
 
 	context := createContext()
@@ -208,7 +209,7 @@ func writeOSDConfig(cmd *cobra.Command, args []string) error {
 	kv := k8sutil.NewConfigMapKVStore(clusterInfo.Name, context.Clientset, metav1.OwnerReference{})
 
 	if err := osddaemon.WriteConfigFile(context, &clusterInfo, kv, osdID, osdIsDevice, cfg.storeConfig, cfg.nodeName); err != nil {
-		rook.TerminateFatal(fmt.Errorf("failed to write osd config file. %+v", err))
+		rook.TerminateFatal(errors.Wrapf(err, "failed to write osd config file"))
 	}
 
 	return nil
@@ -227,7 +228,7 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 	var dataDevices []osddaemon.DesiredDevice
 	if osdDataDeviceFilter != "" {
 		if cfg.devices != "" || osdDataDevicePathFilter != "" {
-			return fmt.Errorf("Only one of --data-devices, --data-device-filter and --data-device-path-filter can be specified.")
+			return errors.New("only one of --data-devices, --data-device-filter and --data-device-path-filter can be specified")
 		}
 
 		dataDevices = []osddaemon.DesiredDevice{
@@ -235,7 +236,7 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 		}
 	} else if osdDataDevicePathFilter != "" {
 		if cfg.devices != "" {
-			return fmt.Errorf("Only one of --data-devices, --data-device-filter and --data-device-path-filter can be specified.")
+			return errors.New("only one of --data-devices, --data-device-filter and --data-device-path-filter can be specified")
 		}
 
 		dataDevices = []osddaemon.DesiredDevice{
@@ -245,7 +246,7 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 		var err error
 		dataDevices, err = parseDevices(cfg.devices)
 		if err != nil {
-			rook.TerminateFatal(fmt.Errorf("failed to parse device list (%s). %+v", cfg.devices, err))
+			rook.TerminateFatal(errors.Wrapf(err, "failed to parse device list (%q)", cfg.devices))
 		}
 	}
 
@@ -296,7 +297,7 @@ func getLocation(clientset kubernetes.Interface) (string, error) {
 	nodeName := os.Getenv(k8sutil.NodeNameEnvVar)
 	node, err := getNode(clientset, nodeName)
 	if err != nil {
-		return "", fmt.Errorf("could not get the node for topology labels: %+v", err)
+		return "", errors.Wrapf(err, "could not get the node for topology labels")
 	}
 	nodeLabels := node.GetLabels()
 	updateLocationWithNodeLabels(&locArgs, nodeLabels)
@@ -326,15 +327,15 @@ func getNode(clientset kubernetes.Interface, nodeName string) (*corev1.Node, err
 	var err error
 	// try to find by the node by matching the provided nodeName
 	node, err = clientset.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
-	if errors.IsNotFound(err) {
-		listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", corev1.LabelHostname, nodeName)}
+	if kerrors.IsNotFound(err) {
+		listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%q=%q", corev1.LabelHostname, nodeName)}
 		nodeList, err := clientset.CoreV1().Nodes().List(listOpts)
 		if err != nil || len(nodeList.Items) < 1 {
-			return nil, fmt.Errorf("could not find node '%s' hostname label: %+v", nodeName, err)
+			return nil, errors.Wrapf(err, "could not find node %q hostname label", nodeName)
 		}
 		return &nodeList.Items[0], nil
 	} else if err != nil {
-		return nil, fmt.Errorf("could not find node '%s' by name: %+v", nodeName, err)
+		return nil, errors.Wrapf(err, "could not find node %q by name", nodeName)
 	}
 
 	return node, nil
@@ -355,17 +356,17 @@ func parseDevices(devices string) ([]osddaemon.DesiredDevice, error) {
 		if len(parts) > 1 {
 			count, err := strconv.Atoi(parts[1])
 			if err != nil {
-				return nil, fmt.Errorf("error parsing count from devices (%s). %+v", devices, err)
+				return nil, errors.Wrapf(err, "error parsing count from devices (%q)", devices)
 			}
 			if count < 1 {
-				return nil, fmt.Errorf("osds per device should be greater than 0 (%s)", parts[1])
+				return nil, errors.Errorf("osds per device should be greater than 0 (%q)", parts[1])
 			}
 			d.OSDsPerDevice = count
 		}
 		if len(parts) > 2 && parts[2] != "" {
 			size, err := strconv.Atoi(parts[2])
 			if err != nil {
-				return nil, fmt.Errorf("error DatabaseSizeMB (%s) to int. %+v", parts[2], err)
+				return nil, errors.Wrapf(err, "error DatabaseSizeMB (%q) to int", parts[2])
 			}
 			d.DatabaseSizeMB = size
 		}

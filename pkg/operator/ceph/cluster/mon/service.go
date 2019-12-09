@@ -17,9 +17,9 @@ limitations under the License.
 package mon
 
 import (
-	"fmt"
 	"strconv"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -56,7 +56,7 @@ func (c *Cluster) createService(mon *monConfig) (string, error) {
 
 	s, err := k8sutil.CreateOrUpdateService(c.context.Clientset, c.Namespace, svcDef)
 	if err != nil {
-		return "", fmt.Errorf("failed to create service for mon %s. %+v", mon.DaemonName, err)
+		return "", errors.Wrapf(err, "failed to create service for mon %s", mon.DaemonName)
 	}
 
 	if s == nil {

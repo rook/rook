@@ -17,10 +17,11 @@ limitations under the License.
 package csi
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/pkg/errors"
 
 	"github.com/rook/rook/pkg/operator/k8sutil"
 
@@ -155,7 +156,7 @@ func ValidateCSIParam() error {
 
 	if EnableCephFS {
 		if len(CephFSPluginTemplatePath) == 0 {
-			return fmt.Errorf("missing cephfs plugin template path")
+			return errors.New("missing cephfs plugin template path")
 		}
 		if len(CephFSProvisionerSTSTemplatePath) == 0 && len(CephFSProvisionerDepTemplatePath) == 0 {
 			return errors.New("missing ceph provisioner template path")
@@ -178,7 +179,7 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 	// later when clusters have mons
 	configMap, err := CreateCsiConfigMap(namespace, clientset)
 	if err != nil {
-		return fmt.Errorf("failed creating csi config map. %+v", err)
+		return errors.Wrapf(err, "failed creating csi config map")
 	}
 	ownerRef := metav1.OwnerReference{
 		APIVersion: "v1",
@@ -220,43 +221,43 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 	if EnableRBD {
 		rbdPlugin, err = templateToDaemonSet("rbdplugin", RBDPluginTemplatePath, tp)
 		if err != nil {
-			return fmt.Errorf("failed to load rbdplugin template: %+v", err)
+			return errors.Wrapf(err, "failed to load rbdplugin template")
 		}
 		if deployProvSTS {
 			rbdProvisionerSTS, err = templateToStatefulSet("rbd-provisioner", RBDProvisionerSTSTemplatePath, tp)
 			if err != nil {
-				return fmt.Errorf("failed to load rbd provisioner statefulset template: %+v", err)
+				return errors.Wrapf(err, "failed to load rbd provisioner statefulset template")
 			}
 		} else {
 			rbdProvisionerDeployment, err = templateToDeployment("rbd-provisioner", RBDProvisionerDepTemplatePath, tp)
 			if err != nil {
-				return fmt.Errorf("failed to load rbd provisioner deployment template: %+v", err)
+				return errors.Wrapf(err, "failed to load rbd provisioner deployment template")
 			}
 		}
 		rbdService, err = templateToService("rbd-service", DefaultRBDPluginServiceTemplatePath, tp)
 		if err != nil {
-			return fmt.Errorf("failed to load rbd plugin service template: %+v", err)
+			return errors.Wrapf(err, "failed to load rbd plugin service template")
 		}
 	}
 	if EnableCephFS {
 		cephfsPlugin, err = templateToDaemonSet("cephfsplugin", CephFSPluginTemplatePath, tp)
 		if err != nil {
-			return fmt.Errorf("failed to load CephFS plugin template: %+v", err)
+			return errors.Wrapf(err, "failed to load CephFS plugin template")
 		}
 		if deployProvSTS {
 			cephfsProvisionerSTS, err = templateToStatefulSet("cephfs-provisioner", CephFSProvisionerSTSTemplatePath, tp)
 			if err != nil {
-				return fmt.Errorf("failed to load CephFS provisioner statefulset template: %+v", err)
+				return errors.Wrapf(err, "failed to load CephFS provisioner statefulset template")
 			}
 		} else {
 			cephfsProvisionerDeployment, err = templateToDeployment("cephfs-provisioner", CephFSProvisionerDepTemplatePath, tp)
 			if err != nil {
-				return fmt.Errorf("failed to load rbd provisioner deployment template: %+v", err)
+				return errors.Wrapf(err, "failed to load rbd provisioner deployment template")
 			}
 		}
 		cephfsService, err = templateToService("cephfs-service", DefaultCephFSPluginServiceTemplatePath, tp)
 		if err != nil {
-			return fmt.Errorf("failed to load cephfs plugin service template: %+v", err)
+			return errors.Wrapf(err, "failed to load cephfs plugin service template")
 		}
 	}
 	// get provisioner toleration and node affinity
@@ -270,7 +271,7 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 		k8sutil.SetOwnerRef(&rbdPlugin.ObjectMeta, &ownerRef)
 		err = k8sutil.CreateDaemonSet("csi-rbdplugin", namespace, clientset, rbdPlugin)
 		if err != nil {
-			return fmt.Errorf("failed to start rbdplugin daemonset: %+v\n%+v", err, rbdPlugin)
+			return errors.Wrapf(err, "failed to start rbdplugin daemonset: %+v", rbdPlugin)
 		}
 		k8sutil.AddRookVersionLabelToDaemonSet(rbdPlugin)
 	}
@@ -280,7 +281,7 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 		k8sutil.SetOwnerRef(&rbdProvisionerSTS.ObjectMeta, &ownerRef)
 		err = k8sutil.CreateStatefulSet("csi-rbdplugin-provisioner", namespace, clientset, rbdProvisionerSTS)
 		if err != nil {
-			return fmt.Errorf("failed to start rbd provisioner statefulset: %+v\n%+v", err, rbdProvisionerSTS)
+			return errors.Wrapf(err, "failed to start rbd provisioner statefulset: %+v", rbdProvisionerSTS)
 		}
 		k8sutil.AddRookVersionLabelToStatefulSet(rbdProvisionerSTS)
 	} else if rbdProvisionerDeployment != nil {
@@ -288,7 +289,7 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 		k8sutil.SetOwnerRef(&rbdProvisionerDeployment.ObjectMeta, &ownerRef)
 		err = k8sutil.CreateDeployment("csi-rbdplugin-provisioner", namespace, clientset, rbdProvisionerDeployment)
 		if err != nil {
-			return fmt.Errorf("failed to start rbd provisioner deployment: %+v\n%+v", err, rbdProvisionerDeployment)
+			return errors.Wrapf(err, "failed to start rbd provisioner deployment: %+v", rbdProvisionerDeployment)
 		}
 		k8sutil.AddRookVersionLabelToDeployment(rbdProvisionerDeployment)
 	}
@@ -297,7 +298,7 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 		k8sutil.SetOwnerRef(&rbdService.ObjectMeta, &ownerRef)
 		_, err = k8sutil.CreateOrUpdateService(clientset, namespace, rbdService)
 		if err != nil {
-			return fmt.Errorf("failed to create rbd service: %+v\n%+v", err, rbdService)
+			return errors.Wrapf(err, "failed to create rbd service: %+v", rbdService)
 		}
 	}
 
@@ -306,7 +307,7 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 		k8sutil.SetOwnerRef(&cephfsPlugin.ObjectMeta, &ownerRef)
 		err = k8sutil.CreateDaemonSet("csi-cephfsplugin", namespace, clientset, cephfsPlugin)
 		if err != nil {
-			return fmt.Errorf("failed to start cephfs plugin daemonset: %+v\n%+v", err, cephfsPlugin)
+			return errors.Wrapf(err, "failed to start cephfs plugin daemonset: %+v", cephfsPlugin)
 		}
 		k8sutil.AddRookVersionLabelToDaemonSet(cephfsPlugin)
 	}
@@ -316,7 +317,7 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 		k8sutil.SetOwnerRef(&cephfsProvisionerSTS.ObjectMeta, &ownerRef)
 		err = k8sutil.CreateStatefulSet("csi-cephfsplugin-provisioner", namespace, clientset, cephfsProvisionerSTS)
 		if err != nil {
-			return fmt.Errorf("failed to start cephfs provisioner statefulset: %+v\n%+v", err, cephfsProvisionerSTS)
+			return errors.Wrapf(err, "failed to start cephfs provisioner statefulset: %+v", cephfsProvisionerSTS)
 		}
 		k8sutil.AddRookVersionLabelToStatefulSet(cephfsProvisionerSTS)
 
@@ -325,7 +326,7 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 		k8sutil.SetOwnerRef(&cephfsProvisionerDeployment.ObjectMeta, &ownerRef)
 		err = k8sutil.CreateDeployment("csi-cephfsplugin-provisioner", namespace, clientset, cephfsProvisionerDeployment)
 		if err != nil {
-			return fmt.Errorf("failed to start cephfs provisioner deployment: %+v\n%+v", err, cephfsProvisionerDeployment)
+			return errors.Wrapf(err, "failed to start cephfs provisioner deployment: %+v", cephfsProvisionerDeployment)
 		}
 		k8sutil.AddRookVersionLabelToDeployment(cephfsProvisionerDeployment)
 	}
@@ -333,18 +334,18 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 		k8sutil.SetOwnerRef(&cephfsService.ObjectMeta, &ownerRef)
 		_, err = k8sutil.CreateOrUpdateService(clientset, namespace, cephfsService)
 		if err != nil {
-			return fmt.Errorf("failed to create rbd service: %+v\n%+v", err, cephfsService)
+			return errors.Wrapf(err, "failed to create rbd service: %+v", cephfsService)
 		}
 	}
 
 	if ver.Major > KubeMinMajor || (ver.Major == KubeMinMajor && ver.Minor >= provDeploymentSuppVersion) {
 		err = createCSIDriverInfo(clientset, RBDDriverName, ownerRef)
 		if err != nil {
-			return fmt.Errorf("failed to create CSI driver object for %q: %+v", RBDDriverName, err)
+			return errors.Wrapf(err, "failed to create CSI driver object for %q", RBDDriverName)
 		}
 		err = createCSIDriverInfo(clientset, CephFSDriverName, ownerRef)
 		if err != nil {
-			return fmt.Errorf("failed to create CSI driver object for %q: %+v", CephFSDriverName, err)
+			return errors.Wrapf(err, "failed to create CSI driver object for %q", CephFSDriverName)
 		}
 	}
 	return nil

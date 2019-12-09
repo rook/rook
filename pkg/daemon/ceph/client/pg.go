@@ -17,8 +17,8 @@ package client
 
 import (
 	"encoding/json"
-	"fmt"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 )
 
@@ -41,12 +41,12 @@ func GetPGDumpBrief(context *clusterd.Context, clusterName string, isNautilusOrN
 	args := []string{"pg", "dump", "pgs_brief"}
 	buf, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get pg dump: %+v", err)
+		return nil, errors.Wrapf(err, "failed to get pg dump")
 	}
 
 	if !isNautilusOrNewer {
 		if err := json.Unmarshal(buf, &pgStats); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal pg dump response: %+v", err)
+			return nil, errors.Wrapf(err, "failed to unmarshal pg dump response")
 		}
 		pgDump = PGDumpBrief{
 			PgStats: pgStats,
@@ -55,7 +55,7 @@ func GetPGDumpBrief(context *clusterd.Context, clusterName string, isNautilusOrN
 	}
 
 	if err := json.Unmarshal(buf, &pgDump); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal pg dump response: %+v", err)
+		return nil, errors.Wrapf(err, "failed to unmarshal pg dump response")
 	}
 
 	return &pgDump, nil

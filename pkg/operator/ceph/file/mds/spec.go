@@ -19,6 +19,7 @@ package mds
 import (
 	"fmt"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
@@ -130,7 +131,7 @@ func getMdsDeployments(context *clusterd.Context, namespace, fsName string) (*ap
 	fsLabelSelector := fmt.Sprintf("rook_file_system=%s", fsName)
 	deps, err := k8sutil.GetDeployments(context.Clientset, namespace, fsLabelSelector)
 	if err != nil {
-		return nil, fmt.Errorf("could not get deployments for filesystem %s (matching label selector '%s'): %+v", fsName, fsLabelSelector, err)
+		return nil, errors.Wrapf(err, "could not get deployments for filesystem %s (matching label selector %q)", fsName, fsLabelSelector)
 	}
 	return deps, nil
 }
@@ -142,7 +143,7 @@ func deleteMdsDeployment(context *clusterd.Context, namespace string, deployment
 	propagation := metav1.DeletePropagationForeground
 	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
 	if err := context.Clientset.AppsV1().Deployments(namespace).Delete(deployment.GetName(), options); err != nil {
-		return fmt.Errorf("failed to delete mds deployment %s: %+v", deployment.GetName(), err)
+		return errors.Wrapf(err, "failed to delete mds deployment %s", deployment.GetName())
 	}
 	return nil
 }

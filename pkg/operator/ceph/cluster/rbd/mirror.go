@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
@@ -32,7 +33,7 @@ import (
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -107,7 +108,7 @@ func (m *Mirroring) Start() error {
 	// Validate pod's memory if specified
 	err := opspec.CheckPodMemory(m.resources, cephRbdMirrorPodMinimumMemory)
 	if err != nil {
-		return fmt.Errorf("%+v", err)
+		return errors.Wrap(err, "error checking pod memory")
 	}
 
 	logger.Infof("configure rbd-mirroring with %d workers", m.spec.Workers)
@@ -123,14 +124,14 @@ func (m *Mirroring) Start() error {
 
 		keyring, err := m.generateKeyring(daemonConf)
 		if err != nil {
-			return fmt.Errorf("failed to generate keyring for %s. %+v", resourceName, err)
+			return errors.Wrapf(err, "failed to generate keyring for %q", resourceName)
 		}
 
 		// Start the deployment
 		d := m.makeDeployment(daemonConf)
 		if _, err := m.context.Clientset.AppsV1().Deployments(m.Namespace).Create(d); err != nil {
-			if !errors.IsAlreadyExists(err) {
-				return fmt.Errorf("failed to create %s deployment. %+v", resourceName, err)
+			if !kerrors.IsAlreadyExists(err) {
+				return errors.Wrapf(err, "failed to create %s deployment", resourceName)
 			}
 			logger.Infof("deployment for rbd-mirror %s already exists. updating if needed", resourceName)
 
@@ -157,10 +158,10 @@ func (m *Mirroring) Start() error {
 				logger.Debugf("updateDeploymentAndWait failed for rbd-mirror %s. Attempting del-and-recreate. %+v", resourceName, err)
 				err = m.context.Clientset.AppsV1().Deployments(m.Namespace).Delete(d.Name, &metav1.DeleteOptions{})
 				if err != nil {
-					return fmt.Errorf("failed to delete rbd-mirror %s during del-and-recreate update attempt. %+v", resourceName, err)
+					return errors.Wrapf(err, "failed to delete rbd-mirror %s during del-and-recreate update attempt", resourceName)
 				}
 				if _, err := m.context.Clientset.AppsV1().Deployments(m.Namespace).Create(d); err != nil {
-					return fmt.Errorf("failed to recreate rbd-mirror deployment %s during del-and-recreate update attempt. %+v", resourceName, err)
+					return errors.Wrapf(err, "failed to recreate rbd-mirror deployment %s during del-and-recreate update attempt", resourceName)
 				}
 			}
 		}
@@ -188,7 +189,7 @@ func (m *Mirroring) removeExtraMirrors() error {
 	opts := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", AppName)}
 	d, err := m.context.Clientset.AppsV1().Deployments(m.Namespace).List(opts)
 	if err != nil {
-		return fmt.Errorf("failed to get mirrors. %+v", err)
+		return errors.Wrapf(err, "failed to get mirrors")
 	}
 
 	if len(d.Items) <= m.spec.Workers {

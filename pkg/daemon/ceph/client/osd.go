@@ -17,10 +17,10 @@ package client
 
 import (
 	"encoding/json"
-	"fmt"
 	"strconv"
 	"strings"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 )
 
@@ -120,7 +120,7 @@ func SetFlagOnCrushUnit(context *clusterd.Context, clusterName, crushUnit, flag 
 	cmd := NewCephCommand(context, clusterName, args)
 	_, err := cmd.Run()
 	if err != nil {
-		return fmt.Errorf("failed to set flag %s on %s: %+v", crushUnit, flag, err)
+		return errors.Wrapf(err, "failed to set flag %s on %s", crushUnit, flag)
 	}
 	return nil
 }
@@ -131,7 +131,7 @@ func UnsetFlagOnCrushUnit(context *clusterd.Context, clusterName, crushUnit, fla
 	cmd := NewCephCommand(context, clusterName, args)
 	_, err := cmd.Run()
 	if err != nil {
-		return fmt.Errorf("failed to unset flag %s on %s: %+v", crushUnit, flag, err)
+		return errors.Wrapf(err, "failed to unset flag %s on %s", crushUnit, flag)
 	}
 	return nil
 }
@@ -197,19 +197,19 @@ func (dump *OSDDump) StatusByID(id int64) (int64, int64, error) {
 		}
 	}
 
-	return 0, 0, fmt.Errorf("not found osd.%d in OSDDump", id)
+	return 0, 0, errors.Errorf("not found osd.%d in OSDDump", id)
 }
 
 func GetOSDUsage(context *clusterd.Context, clusterName string) (*OSDUsage, error) {
 	args := []string{"osd", "df"}
 	buf, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get osd df: %+v", err)
+		return nil, errors.Wrapf(err, "failed to get osd df")
 	}
 
 	var osdUsage OSDUsage
 	if err := json.Unmarshal(buf, &osdUsage); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal osd df response: %+v", err)
+		return nil, errors.Wrapf(err, "failed to unmarshal osd df response")
 	}
 
 	return &osdUsage, nil
@@ -219,12 +219,12 @@ func GetOSDPerfStats(context *clusterd.Context, clusterName string) (*OSDPerfSta
 	args := []string{"osd", "perf"}
 	buf, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get osd perf: %+v", err)
+		return nil, errors.Wrapf(err, "failed to get osd perf")
 	}
 
 	var osdPerfStats OSDPerfStats
 	if err := json.Unmarshal(buf, &osdPerfStats); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal osd perf response: %+v", err)
+		return nil, errors.Wrapf(err, "failed to unmarshal osd perf response")
 	}
 
 	return &osdPerfStats, nil
@@ -236,12 +236,12 @@ func GetOSDDump(context *clusterd.Context, clusterName string) (*OSDDump, error)
 	cmd.Debug = true
 	buf, err := cmd.Run()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get osd dump: %+v", err)
+		return nil, errors.Wrapf(err, "failed to get osd dump")
 	}
 
 	var osdDump OSDDump
 	if err := json.Unmarshal(buf, &osdDump); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal osd dump response: %+v", err)
+		return nil, errors.Wrapf(err, "failed to unmarshal osd dump response")
 	}
 
 	return &osdDump, nil
@@ -264,12 +264,12 @@ func OsdSafeToDestroy(context *clusterd.Context, clusterName string, osdID int) 
 	cmd := NewCephCommand(context, clusterName, args)
 	buf, err := cmd.Run()
 	if err != nil {
-		return false, fmt.Errorf("failed to get safe-to-destroy status: %+v", err)
+		return false, errors.Wrapf(err, "failed to get safe-to-destroy status")
 	}
 
 	var output SafeToDestroyStatus
 	if err := json.Unmarshal(buf, &output); err != nil {
-		return false, fmt.Errorf("failed to unmarshal safe-to-destroy response: %+v", err)
+		return false, errors.Wrapf(err, "failed to unmarshal safe-to-destroy response")
 	}
 	if len(output.SafeToDestroy) != 0 && output.SafeToDestroy[0] == osdID {
 		return true, nil
@@ -294,12 +294,12 @@ func HostTree(context *clusterd.Context, clusterName string) (OsdTree, error) {
 	args := []string{"osd", "tree"}
 	buf, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
-		return output, fmt.Errorf("failed to get osd tree: %+v", err)
+		return output, errors.Wrapf(err, "failed to get osd tree")
 	}
 
 	err = json.Unmarshal(buf, &output)
 	if err != nil {
-		return output, fmt.Errorf("failed to unmarshal 'osd tree' response: %+v", err)
+		return output, errors.Wrapf(err, "failed to unmarshal 'osd tree' response")
 	}
 
 	return output, nil
@@ -312,12 +312,12 @@ func OsdListNum(context *clusterd.Context, clusterName string) (OsdList, error) 
 	args := []string{"osd", "ls"}
 	buf, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
-		return output, fmt.Errorf("failed to get osd list: %+v", err)
+		return output, errors.Wrapf(err, "failed to get osd list")
 	}
 
 	err = json.Unmarshal(buf, &output)
 	if err != nil {
-		return output, fmt.Errorf("failed to unmarshal 'osd ls' response: %+v", err)
+		return output, errors.Wrapf(err, "failed to unmarshal 'osd ls' response")
 	}
 
 	return output, nil

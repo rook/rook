@@ -18,9 +18,9 @@ package client
 
 import (
 	"encoding/json"
-	"fmt"
 	"testing"
 
+	"github.com/pkg/errors"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 
 	"github.com/rook/rook/pkg/clusterd"
@@ -147,7 +147,7 @@ func TestFilesystemRemove(t *testing.T) {
 				return "", nil
 			}
 		}
-		return "", fmt.Errorf("unexpected ceph command '%v'", args)
+		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
 	executor.MockExecuteCommandWithOutput = func(debug bool, actionName string, command string, args ...string) (string, error) {
 		emptyPool := "{\"images\":{\"count\":0,\"provisioned_bytes\":0,\"snap_count\":0},\"trash\":{\"count\":1,\"provisioned_bytes\":2048,\"snap_count\":0}}"
@@ -157,7 +157,7 @@ func TestFilesystemRemove(t *testing.T) {
 				return emptyPool, nil
 			}
 		}
-		return "", fmt.Errorf("unexpected rbd command '%v'", args)
+		return "", errors.Errorf("unexpected rbd command %q", args)
 	}
 
 	err := RemoveFilesystem(context, "ns", fs.MDSMap.FilesystemName, false)

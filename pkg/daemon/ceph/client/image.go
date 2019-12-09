@@ -24,6 +24,7 @@ import (
 
 	"regexp"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/util/display"
 	"github.com/rook/rook/pkg/util/exec"
@@ -46,7 +47,7 @@ func ListImages(context *clusterd.Context, clusterName, poolName string) ([]Ceph
 	cmd.JsonOutput = true
 	buf, err := cmd.Run()
 	if err != nil {
-		return nil, fmt.Errorf("failed to list images for pool %s: %+v", poolName, err)
+		return nil, errors.Wrapf(err, "failed to list images for pool %s", poolName)
 	}
 
 	//The regex expression captures the json result at the end buf
@@ -61,7 +62,7 @@ func ListImages(context *clusterd.Context, clusterName, poolName string) ([]Ceph
 
 	var images []CephBlockImage
 	if err = json.Unmarshal(buf, &images); err != nil {
-		return nil, fmt.Errorf("unmarshal failed, raw buffer response: %s, err: %+v", string(buf), err)
+		return nil, errors.Wrapf(err, "unmarshal failed, raw buffer response: %s", string(buf))
 	}
 
 	return images, nil
@@ -99,8 +100,8 @@ func CreateImage(context *clusterd.Context, clusterName, name, poolName, dataPoo
 			// Image with the same name already exists in the given rbd pool. Continuing with the link to PV.
 			logger.Warningf("Requested image %s exists in pool %s. Continuing", name, poolName)
 		} else {
-			return nil, fmt.Errorf("failed to create image %s in pool %s of size %d, output: %s, err: %+v",
-				name, poolName, size, string(buf), err)
+			return nil, errors.Wrapf(err, "failed to create image %s in pool %s of size %d, output: %s",
+				name, poolName, size, string(buf))
 		}
 	}
 
@@ -120,8 +121,8 @@ func DeleteImage(context *clusterd.Context, clusterName, name, poolName string) 
 	args := []string{"rm", imageSpec}
 	buf, err := NewRBDCommand(context, clusterName, args).Run()
 	if err != nil {
-		return fmt.Errorf("failed to delete image %s in pool %s, output: %s, err: %+v",
-			name, poolName, string(buf), err)
+		return errors.Wrapf(err, "failed to delete image %s in pool %s, output: %s",
+			name, poolName, string(buf))
 	}
 
 	return nil
@@ -139,7 +140,7 @@ func ExpandImage(context *clusterd.Context, clusterName, name, poolName, monitor
 	}
 	output, err := ExecuteRBDCommandWithTimeout(context, clusterName, args)
 	if err != nil {
-		return fmt.Errorf("failed to resize image %s in pool %s, output: %s, err: %+v", name, poolName, string(output), err)
+		return errors.Wrapf(err, "failed to resize image %s in pool %s, output: %s", name, poolName, string(output))
 	}
 	return nil
 }
@@ -159,7 +160,7 @@ func MapImage(context *clusterd.Context, imageName, poolName, id, keyring, clust
 
 	output, err := ExecuteRBDCommandWithTimeout(context, clusterName, args)
 	if err != nil {
-		return fmt.Errorf("failed to map image %s, output: %s, err: %+v", imageSpec, output, err)
+		return errors.Wrapf(err, "failed to map image %s, output: %s", imageSpec, output)
 	}
 
 	return nil
@@ -184,7 +185,7 @@ func UnMapImage(context *clusterd.Context, imageName, poolName, id, keyring, clu
 
 	output, err := ExecuteRBDCommandWithTimeout(context, clusterName, args)
 	if err != nil {
-		return fmt.Errorf("failed to unmap image %s, output: %s,  err: %+v", deviceImage, output, err)
+		return errors.Wrapf(err, "failed to unmap image %s, output: %s", deviceImage, output)
 	}
 
 	return nil

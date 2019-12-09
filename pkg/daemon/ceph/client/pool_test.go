@@ -16,10 +16,10 @@ limitations under the License.
 package client
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/daemon/ceph/model"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -58,7 +58,7 @@ func TestCreateECPoolWithOverwrites(t *testing.T) {
 				return "", nil
 			}
 		}
-		return "", fmt.Errorf("unexpected ceph command '%v'", args)
+		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
 
 	err := CreateECPoolForApp(context, "myns", p, "myapp", true, model.ErasureCodedPoolConfig{DataChunkCount: 1})
@@ -91,7 +91,7 @@ func TestCreateECPoolWithoutOverwrites(t *testing.T) {
 				return "", nil
 			}
 		}
-		return "", fmt.Errorf("unexpected ceph command '%v'", args)
+		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
 
 	err := CreateECPoolForApp(context, "myns", p, "myapp", false, model.ErasureCodedPoolConfig{DataChunkCount: 1})
@@ -156,7 +156,7 @@ func testCreateReplicaPool(t *testing.T, failureDomain, crushRoot, deviceClass s
 			}
 			return "", nil
 		}
-		return "", fmt.Errorf("unexpected ceph command '%v'", args)
+		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
 
 	p := CephStoragePoolDetails{Name: "mypool", Size: 12345, FailureDomain: failureDomain, CrushRoot: crushRoot, DeviceClass: deviceClass}
@@ -193,11 +193,11 @@ func TestGetPoolStatistics(t *testing.T) {
 				if args[2] == "replicapool" {
 					return a, nil
 				}
-				return "", fmt.Errorf("rbd:error opening pool '%s': (2) No such file or directory", args[3])
+				return "", errors.Errorf("rbd:error opening pool '%s': (2) No such file or directory", args[3])
 
 			}
 		}
-		return "", fmt.Errorf("unexpected rbd command '%v'", args)
+		return "", errors.Errorf("unexpected rbd command %q", args)
 	}
 
 	stats, err := GetPoolStatistics(context, "replicapool", "cluster")

@@ -17,10 +17,10 @@ limitations under the License.
 package ceph
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/cmd/rook/rook"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/util"
@@ -60,15 +60,15 @@ func initConfig(cmd *cobra.Command, args []string) error {
 	rook.LogStartupInfo(configCmd.Flags())
 
 	if keyring == "" {
-		rook.TerminateFatal(fmt.Errorf("keyring is empty string"))
+		rook.TerminateFatal(errors.New("keyring is empty string"))
 	}
 	if username == "" {
-		rook.TerminateFatal(fmt.Errorf("username is empty string"))
+		rook.TerminateFatal(errors.New("username is empty string"))
 	}
 
 	monHost := os.Getenv("ROOK_CEPH_MON_HOST")
 	if monHost == "" {
-		rook.TerminateFatal(fmt.Errorf("ROOK_CEPH_MON_HOST is not set or is empty string"))
+		rook.TerminateFatal(errors.New("ROOK_CEPH_MON_HOST is not set or is empty string"))
 	}
 
 	cfg := `
@@ -82,7 +82,7 @@ keyring = ` + keyring + `
 	var fileMode os.FileMode = 0444 // read-only
 	err := ioutil.WriteFile(cephconfig.DefaultConfigFilePath(), []byte(cfg), fileMode)
 	if err != nil {
-		rook.TerminateFatal(fmt.Errorf("failed to write config file. %+v", err))
+		rook.TerminateFatal(errors.Wrapf(err, "failed to write config file"))
 	}
 
 	util.WriteFileToLog(logger, cephconfig.DefaultConfigFilePath())

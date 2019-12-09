@@ -16,10 +16,10 @@ limitations under the License.
 package osd
 
 import (
-	"fmt"
 	"os"
 	"testing"
 
+	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
@@ -211,7 +211,7 @@ func TestAddRemoveNode(t *testing.T) {
 				assert.Equal(t, "osd.1", args[2])
 				return "", nil
 			}
-			return "", fmt.Errorf("unexpected ceph command '%v'", args)
+			return "", errors.Errorf("unexpected ceph command %q", args)
 		},
 	}
 
@@ -346,7 +346,7 @@ func TestAddNodeFailure(t *testing.T) {
 	// create a fake clientset that will return an error when the operator tries to create a job
 	clientset := fake.NewSimpleClientset()
 	clientset.PrependReactor("create", "jobs", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
-		return true, nil, fmt.Errorf("mock failed to create jobs")
+		return true, nil, errors.New("mock failed to create jobs")
 	})
 	nodeErr := createNode(nodeName, v1.NodeReady, clientset)
 	assert.Nil(t, nodeErr)

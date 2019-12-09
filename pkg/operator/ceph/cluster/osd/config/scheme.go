@@ -20,7 +20,8 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"k8s.io/apimachinery/pkg/api/errors"
+	"github.com/pkg/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/rook/rook/pkg/operator/k8sutil"
 )
@@ -110,7 +111,7 @@ func NewMetadataDeviceInfo(device string) *MetadataDeviceInfo {
 func LoadScheme(kv *k8sutil.ConfigMapKVStore, storeName string) (*PerfScheme, error) {
 	schemeRaw, err := kv.GetValue(storeName, schemeKeyName)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if kerrors.IsNotFound(err) {
 			// the scheme key doesn't exist yet, just return a new empty scheme with no error
 			return NewPerfScheme(), nil
 		}
@@ -145,13 +146,13 @@ func (s *PerfScheme) SaveScheme(kv *k8sutil.ConfigMapKVStore, storeName string) 
 func RemoveFromScheme(e *PerfSchemeEntry, kv *k8sutil.ConfigMapKVStore, storeName string) error {
 	savedScheme, err := LoadScheme(kv, storeName)
 	if err != nil {
-		return fmt.Errorf("failed to load the saved partition scheme: %+v", err)
+		return errors.Wrapf(err, "failed to load the saved partition scheme")
 	}
 	if err := savedScheme.DeleteSchemeEntry(e); err != nil {
-		return fmt.Errorf("failed to delete partition scheme entry: %+v", err)
+		return errors.Wrapf(err, "failed to delete partition scheme entry")
 	}
 	if err := savedScheme.SaveScheme(kv, storeName); err != nil {
-		return fmt.Errorf("failed to save partition scheme: %+v", err)
+		return errors.Wrapf(err, "failed to save partition scheme")
 	}
 
 	return nil
@@ -178,7 +179,7 @@ func (s *PerfScheme) DeleteSchemeEntry(e *PerfSchemeEntry) error {
 
 func (s *PerfScheme) doSchemeEntryAction(entry *PerfSchemeEntry, action func(*PerfScheme, int, *PerfSchemeEntry)) error {
 	if entry == nil {
-		return fmt.Errorf("cannot update a nil entry")
+		return errors.New("cannot update a nil entry")
 	}
 
 	foundEntry := false
@@ -192,7 +193,7 @@ func (s *PerfScheme) doSchemeEntryAction(entry *PerfSchemeEntry, action func(*Pe
 	}
 
 	if !foundEntry {
-		return fmt.Errorf("failed to find entry %+v from entries %+v", entry, s.Entries)
+		return errors.Errorf("failed to find entry %+v from entries %+v", entry, s.Entries)
 	}
 
 	return nil
@@ -271,7 +272,7 @@ func PopulateDistributedPerfSchemeEntry(entry *PerfSchemeEntry, device string, m
 
 	if storeConfig.StoreType == Filestore {
 		// TODO: support separate metadata device for filestore
-		return fmt.Errorf("filestore not yet supported for distributed partition scheme")
+		return errors.New("filestore not yet supported for distributed partition scheme")
 	}
 
 	diskUUID, walUUID, dbUUID, blockUUID, err := createBluestoreUUIDs()
@@ -295,7 +296,7 @@ func PopulateDistributedPerfSchemeEntry(entry *PerfSchemeEntry, device string, m
 		// the metadata device hasn't been used yet, create a disk UUID for it
 		u, err := uuid.NewRandom()
 		if err != nil {
-			return fmt.Errorf("failed to get metadata disk uuid. %+v", err)
+			return errors.Wrapf(err, "failed to get metadata disk uuid")
 		}
 		metadataInfo.DiskUUID = u.String()
 	} else {
@@ -474,22 +475,22 @@ func getPartitionLabel(id int, partType PartitionType) string {
 func createBluestoreUUIDs() (*uuid.UUID, *uuid.UUID, *uuid.UUID, *uuid.UUID, error) {
 	diskUUID, err := uuid.NewRandom()
 	if err != nil {
-		return nil, nil, nil, nil, fmt.Errorf("failed to get disk uuid. %+v", err)
+		return nil, nil, nil, nil, errors.Wrapf(err, "failed to get disk uuid")
 	}
 
 	walUUID, err := uuid.NewRandom()
 	if err != nil {
-		return nil, nil, nil, nil, fmt.Errorf("failed to get wal uuid. %+v", err)
+		return nil, nil, nil, nil, errors.Wrapf(err, "failed to get wal uuid")
 	}
 
 	dbUUID, err := uuid.NewRandom()
 	if err != nil {
-		return nil, nil, nil, nil, fmt.Errorf("failed to get db uuid. %+v", err)
+		return nil, nil, nil, nil, errors.Wrapf(err, "failed to get db uuid")
 	}
 
 	blockUUID, err := uuid.NewRandom()
 	if err != nil {
-		return nil, nil, nil, nil, fmt.Errorf("failed to get block uuid. %+v", err)
+		return nil, nil, nil, nil, errors.Wrapf(err, "failed to get block uuid")
 	}
 
 	return &diskUUID, &walUUID, &dbUUID, &blockUUID, nil
@@ -498,17 +499,17 @@ func createBluestoreUUIDs() (*uuid.UUID, *uuid.UUID, *uuid.UUID, *uuid.UUID, err
 func createFilestoreUUIDs() (*uuid.UUID, *uuid.UUID, *uuid.UUID, error) {
 	diskUUID, err := uuid.NewRandom()
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to get disk uuid. %+v", err)
+		return nil, nil, nil, errors.Wrapf(err, "failed to get disk uuid")
 	}
 
 	dataUUID, err := uuid.NewRandom()
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to get data uuid. %+v", err)
+		return nil, nil, nil, errors.Wrapf(err, "failed to get data uuid")
 	}
 
 	journalUUID, err := uuid.NewRandom()
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to get journal uuid. %+v", err)
+		return nil, nil, nil, errors.Wrapf(err, "failed to get journal uuid")
 	}
 
 	return &diskUUID, &dataUUID, &journalUUID, nil

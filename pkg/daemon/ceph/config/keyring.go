@@ -22,6 +22,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 )
@@ -63,13 +64,13 @@ func CreateKeyring(context *clusterd.Context, clusterName, username, keyringPath
 		return nil
 	} else if !os.IsNotExist(err) {
 		// some other error besides "does not exist", bail out with error
-		return fmt.Errorf("failed to stat %s: %+v", keyringPath, err)
+		return errors.Wrapf(err, "failed to stat %s", keyringPath)
 	}
 
 	// get-or-create-key for the user account
 	key, err := client.AuthGetOrCreateKey(context, clusterName, username, access)
 	if err != nil {
-		return fmt.Errorf("failed to get or create auth key for %s. %+v", username, err)
+		return errors.Wrapf(err, "failed to get or create auth key for %s", username)
 	}
 
 	return WriteKeyring(keyringPath, key, generateContents)
@@ -80,10 +81,10 @@ func CreateKeyring(context *clusterd.Context, clusterName, username, keyringPath
 func writeKeyring(keyring, keyringPath string) error {
 	// save the keyring to the given path
 	if err := os.MkdirAll(filepath.Dir(keyringPath), 0744); err != nil {
-		return fmt.Errorf("failed to create keyring directory for %s: %+v", keyringPath, err)
+		return errors.Wrapf(err, "failed to create keyring directory for %s", keyringPath)
 	}
 	if err := ioutil.WriteFile(keyringPath, []byte(keyring), 0644); err != nil {
-		return fmt.Errorf("failed to write monitor keyring to %s: %+v", keyringPath, err)
+		return errors.Wrapf(err, "failed to write monitor keyring to %s", keyringPath)
 	}
 	return nil
 }

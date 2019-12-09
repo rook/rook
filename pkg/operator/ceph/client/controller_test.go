@@ -18,10 +18,10 @@ package client
 
 import (
 	"bytes"
-	"fmt"
 	"strings"
 	"testing"
 
+	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	testop "github.com/rook/rook/pkg/operator/test"
@@ -107,7 +107,7 @@ func TestCreateClient(t *testing.T) {
 			if command == "ceph" && args[1] == "get-or-create-key" {
 				return `{"key":"AQC7ilJdAPijOBAABp+YAzg2QupRAWdnIh7w/Q=="}`, nil
 			}
-			return "", fmt.Errorf("unexpected ceph command '%v'", args)
+			return "", errors.Errorf("unexpected ceph command '%v'", args)
 		},
 	}
 	context := &clusterd.Context{Executor: executor, Clientset: clientset}
@@ -188,7 +188,7 @@ func TestDeleteClient(t *testing.T) {
 			if command == "ceph" && args[1] == "del" {
 				return "updated", nil
 			}
-			return "", fmt.Errorf("unexpected ceph command '%v'", args)
+			return "", errors.Errorf("unexpected ceph command '%v'", args)
 		},
 	}
 	context := &clusterd.Context{Executor: executor, Clientset: clientset}

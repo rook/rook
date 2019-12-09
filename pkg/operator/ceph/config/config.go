@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 )
@@ -111,11 +112,11 @@ func SetDefaultConfigs(
 	monStore := GetMonStore(context, namespace)
 
 	if err := monStore.SetAll(DefaultCentralizedConfigs(clusterInfo.CephVersion)...); err != nil {
-		return fmt.Errorf("failed to apply default Ceph configurations. %+v", err)
+		return errors.Wrapf(err, "failed to apply default Ceph configurations")
 	}
 
 	if err := monStore.SetAll(DefaultLegacyConfigs()...); err != nil {
-		return fmt.Errorf("failed to apply legacy config overrides. %+v", err)
+		return errors.Wrapf(err, "failed to apply legacy config overrides")
 	}
 
 	return nil

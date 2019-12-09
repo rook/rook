@@ -19,12 +19,12 @@ package agent
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"strconv"
 	"strings"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/pkg/errors"
 	k8sutil "github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -69,7 +69,7 @@ func New(clientset kubernetes.Interface) *Agent {
 func (a *Agent) Start(namespace, agentImage, serviceAccount string) error {
 	err := a.createAgentDaemonSet(namespace, agentImage, serviceAccount)
 	if err != nil {
-		return fmt.Errorf("error starting agent daemonset: %v", err)
+		return errors.Wrapf(err, "error starting agent daemonset")
 	}
 	return nil
 }
@@ -88,7 +88,7 @@ func (a *Agent) createAgentDaemonSet(namespace, agentImage, serviceAccount strin
 		agentMountSecurityMode = MountSecurityModeAny
 	}
 	if agentMountSecurityMode != MountSecurityModeAny && agentMountSecurityMode != MountSecurityModeRestricted {
-		return fmt.Errorf("invalid agent mount security mode specified (given: %s)", agentMountSecurityMode)
+		return errors.Errorf("invalid agent mount security mode specified (given: %s)", agentMountSecurityMode)
 	}
 
 	rookEnableSelinuxRelabeling := os.Getenv(RookEnableSelinuxRelabelingEnv)
@@ -210,12 +210,12 @@ func (a *Agent) createAgentDaemonSet(namespace, agentImage, serviceAccount strin
 		for _, mount := range mounts {
 			mountdef := strings.Split(mount, "=")
 			if len(mountdef) != 2 {
-				return fmt.Errorf("badly formatted AGENT_MOUNTS '%s'. The format should be 'mountname=/host/path:/container/path,mountname2=/host/path2:/container/path2'", agentMounts)
+				return errors.Errorf("badly formatted AGENT_MOUNTS %q. The format should be 'mountname=/host/path:/container/path,mountname2=/host/path2:/container/path2'", agentMounts)
 			}
 			mountname := mountdef[0]
 			paths := strings.Split(mountdef[1], ":")
 			if len(paths) != 2 {
-				return fmt.Errorf("badly formatted AGENT_MOUNTS '%s'. The format should be 'mountname=/host/path:/container/path,mountname2=/host/path2:/container/path2'", agentMounts)
+				return errors.Errorf("badly formatted AGENT_MOUNTS %q. The format should be 'mountname=/host/path:/container/path,mountname2=/host/path2:/container/path2'", agentMounts)
 			}
 			ds.Spec.Template.Spec.Containers[0].VolumeMounts = append(ds.Spec.Template.Spec.Containers[0].VolumeMounts, v1.VolumeMount{
 				Name:      mountname,
@@ -267,12 +267,12 @@ func (a *Agent) createAgentDaemonSet(namespace, agentImage, serviceAccount strin
 	_, err = a.clientset.AppsV1().DaemonSets(namespace).Create(ds)
 	if err != nil {
 		if !k8serrors.IsAlreadyExists(err) {
-			return fmt.Errorf("failed to create rook-ceph-agent daemon set. %+v", err)
+			return errors.Wrapf(err, "failed to create rook-ceph-agent daemon set")
 		}
 		logger.Infof("rook-ceph-agent daemonset already exists, updating ...")
 		_, err = a.clientset.AppsV1().DaemonSets(namespace).Update(ds)
 		if err != nil {
-			return fmt.Errorf("failed to update rook-ceph-agent daemon set. %+v", err)
+			return errors.Wrapf(err, "failed to update rook-ceph-agent daemon set")
 		}
 	} else {
 		logger.Infof("rook-ceph-agent daemonset started")

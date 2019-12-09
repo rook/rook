@@ -18,16 +18,16 @@ package machinelabel
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/coreos/pkg/capnslog"
 	mapiv1 "github.com/openshift/cluster-api/pkg/apis/machine/v1beta1"
+	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -79,11 +79,11 @@ func (r *ReconcileMachineLabel) reconcile(request reconcile.Request) (reconcile.
 	// Fetching the cephCluster
 	cephClusterInstance := &cephv1.CephCluster{}
 	err = r.client.Get(context.TODO(), request.NamespacedName, cephClusterInstance)
-	if errors.IsNotFound(err) {
+	if kerrors.IsNotFound(err) {
 		logger.Infof("cephCluster instance not found for %s", request.NamespacedName)
 		return reconcile.Result{}, nil
 	} else if err != nil {
-		return reconcile.Result{}, fmt.Errorf("failed to fetch cephCluster %s: %+v", request.NamespacedName, err)
+		return reconcile.Result{}, errors.Wrapf(err, "failed to fetch cephCluster %s", request.NamespacedName)
 	}
 
 	// skipping the reconcile since the feature is switched off
@@ -96,7 +96,7 @@ func (r *ReconcileMachineLabel) reconcile(request reconcile.Request) (reconcile.
 	machines := &mapiv1.MachineList{}
 	err = r.client.List(context.TODO(), machines, client.InNamespace(cephClusterInstance.Spec.DisruptionManagement.MachineDisruptionBudgetNamespace))
 	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("failed tp fetch machine list %+v", err)
+		return reconcile.Result{}, errors.Wrapf(err, "failed tp fetch machine list")
 	}
 
 	nodeMachineMap := map[string]machine{}
@@ -130,7 +130,7 @@ func (r *ReconcileMachineLabel) reconcile(request reconcile.Request) (reconcile.
 			machine.RawMachine.SetLabels(labels)
 			err = r.client.Update(context.TODO(), &machine.RawMachine)
 			if err != nil {
-				return reconcile.Result{}, fmt.Errorf("failed to update machine %s: %+v", machine.RawMachine.GetName(), err)
+				return reconcile.Result{}, errors.Wrapf(err, "failed to update machine %s", machine.RawMachine.GetName())
 			}
 			logger.Infof("Successfully updated the Machine %s", machine.RawMachine.GetName())
 		} else {
@@ -142,7 +142,7 @@ func (r *ReconcileMachineLabel) reconcile(request reconcile.Request) (reconcile.
 			machine.RawMachine.SetLabels(labels)
 			err = r.client.Update(context.TODO(), &machine.RawMachine)
 			if err != nil {
-				return reconcile.Result{}, fmt.Errorf("failed to update machine %s: %+v", machine.RawMachine.GetName(), err)
+				return reconcile.Result{}, errors.Wrapf(err, "failed to update machine %s", machine.RawMachine.GetName())
 			}
 			logger.Infof("Successfully updated the Machine %s", machine.RawMachine.GetName())
 		}

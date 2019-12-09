@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 )
@@ -56,7 +57,7 @@ func MgrSetConfig(context *clusterd.Context, clusterName, mgrName string, cephVe
 	}
 
 	if _, err := NewCephCommand(context, clusterName, setArgs).Run(); err != nil {
-		return false, fmt.Errorf("failed to set mgr config key %s to \"%s\": %+v", key, val, err)
+		return false, errors.Wrapf(err, "failed to set mgr config key %s to \"%s\"", key, val)
 	}
 
 	hasChanged := prevVal != val
@@ -70,7 +71,7 @@ func enableModule(context *clusterd.Context, clusterName, name string, force boo
 	}
 	_, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
-		return fmt.Errorf("failed to mgr module enable for %s: %+v", name, err)
+		return errors.Wrapf(err, "failed to mgr module enable for %s", name)
 	}
 
 	return nil

@@ -17,8 +17,7 @@ limitations under the License.
 package config
 
 import (
-	"fmt"
-
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 )
@@ -57,8 +56,8 @@ func (m *MonStore) Set(who, option, value string) error {
 	cephCmd := client.NewCephCommand(m.context, m.namespace, args)
 	out, err := cephCmd.Run()
 	if err != nil {
-		return fmt.Errorf("failed to set Ceph config in the centralized mon configuration database; "+
-			"you may need to use the rook-config-override ConfigMap. output: %s. %+v", string(out), err)
+		return errors.Wrapf(err, "failed to set ceph config in the centralized mon configuration database; "+
+			"you may need to use the rook-config-override ConfigMap. output: %s", string(out))
 	}
 	return nil
 }
@@ -74,9 +73,9 @@ func (m *MonStore) SetAll(options ...Option) error {
 		}
 	}
 	if len(errs) > 0 {
-		retErr := fmt.Errorf("failed to set one or more Ceph configs")
+		retErr := errors.New("failed to set one or more Ceph configs")
 		for _, err := range errs {
-			retErr = fmt.Errorf("%+v. %+v", retErr, err)
+			retErr = errors.Wrapf(err, "%+v", retErr)
 		}
 		return retErr
 	}

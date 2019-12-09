@@ -26,6 +26,7 @@ import (
 	apibkt "github.com/kube-object-storage/lib-bucket-provisioner/pkg/provisioner/api"
 	storagev1 "k8s.io/api/storage/v1"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	cephObject "github.com/rook/rook/pkg/operator/ceph/object"
 )
@@ -74,7 +75,7 @@ func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.Obje
 	// dynamically create a new ceph user
 	p.accessKeyID, p.secretAccessKey, err = p.createCephUser("")
 	if err != nil {
-		return nil, fmt.Errorf("Provision: can't create ceph user: %v", err)
+		return nil, errors.Wrapf(err, "Provision: can't create ceph user")
 	}
 
 	s3svc, err := NewS3Agent(p.accessKeyID, p.secretAccessKey, p.storeDomainName)
@@ -85,7 +86,7 @@ func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.Obje
 	// create the bucket
 	err = s3svc.CreateBucket(p.bucketName)
 	if err != nil {
-		err = fmt.Errorf("error creating bucket %q. %+v", p.bucketName, err)
+		err = errors.Wrapf(err, "error creating bucket %q", p.bucketName)
 		logger.Errorf(err.Error())
 		return nil, err
 	}
@@ -113,7 +114,7 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 	// check and make sure the bucket exists
 	logger.Infof("Checking for existing bucket %q", p.bucketName)
 	if exists, err := p.bucketExists(p.bucketName); !exists {
-		return nil, fmt.Errorf("bucket %s does not exist: %v", p.bucketName, err)
+		return nil, errors.Wrapf(err, "bucket %s does not exist", p.bucketName)
 	}
 
 	p.accessKeyID, p.secretAccessKey, err = p.createCephUser("")
@@ -130,11 +131,11 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 	// get the bucket's owner via the bucket metadata
 	stats, _, err := cephObject.GetBucket(p.objectContext, p.bucketName)
 	if err != nil {
-		return nil, fmt.Errorf("could not get bucket stats (bucket: %s): %v", p.bucketName, err)
+		return nil, errors.Wrapf(err, "could not get bucket stats (bucket: %s)", p.bucketName)
 	}
 	objectUser, _, err := cephObject.GetUser(p.objectContext, stats.Owner)
 	if err != nil {
-		return nil, fmt.Errorf("could not get user (user: %s): %v", stats.Owner, err)
+		return nil, errors.Wrapf(err, "could not get user (user: %s)", stats.Owner)
 	}
 
 	s3svc, err := NewS3Agent(*objectUser.AccessKey, *objectUser.SecretKey, p.storeDomainName)
@@ -216,7 +217,7 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 		return err
 	}
 	if bucket.Owner == "" {
-		return fmt.Errorf("cannot find bucket owner")
+		return errors.New("cannot find bucket owner")
 	}
 
 	user, code, err := cephObject.GetUser(p.objectContext, bucket.Owner)
@@ -225,7 +226,7 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 	if err != nil && code != cephObject.RGWErrorNotFound {
 		return err
 	} else if user == nil {
-		return fmt.Errorf("querying user %q returned nil", p.cephUserName)
+		return errors.Errorf("querying user %q returned nil", p.cephUserName)
 	}
 
 	s3svc, err := NewS3Agent(*user.AccessKey, *user.SecretKey, p.storeDomainName)
@@ -310,7 +311,7 @@ func (p *Provisioner) initializeDeleteOrRevoke(ob *bktv1alpha1.ObjectBucket) err
 
 	sc, err := p.getStorageClassWithBackoff(ob.Spec.StorageClassName)
 	if err != nil {
-		return fmt.Errorf("failed to get storage class for OB %q: %v", ob.Name, err)
+		return errors.Wrapf(err, "failed to get storage class for OB %q", ob.Name)
 	}
 
 	// set receiver fields from OB data
@@ -361,9 +362,9 @@ func (p *Provisioner) composeObjectBucket() *bktv1alpha1.ObjectBucket {
 func (p *Provisioner) setObjectContext() error {
 	msg := "error building object.Context: store %s cannot be empty"
 	if p.objectStoreName == "" {
-		return fmt.Errorf(msg, "name")
+		return errors.Errorf(msg, "name")
 	} else if p.objectStoreNamespace == "" {
-		return fmt.Errorf(msg, "namespace")
+		return errors.Errorf(msg, "namespace")
 	}
 	p.objectContext = cephObject.NewContext(p.context, p.objectStoreName, p.objectStoreNamespace)
 	return nil

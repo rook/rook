@@ -26,12 +26,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
+	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephClient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephCluster "github.com/rook/rook/pkg/operator/ceph/cluster"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/machinelabel"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -71,11 +72,11 @@ func (r *MachineDisruptionReconciler) reconcile(request reconcile.Request) (reco
 	// Fetching the cephCluster
 	cephClusterInstance := &cephv1.CephCluster{}
 	err := r.client.Get(context.TODO(), request.NamespacedName, cephClusterInstance)
-	if errors.IsNotFound(err) {
+	if kerrors.IsNotFound(err) {
 		logger.Infof("cephCluster instance not found for %s", request.NamespacedName)
 		return reconcile.Result{}, nil
 	} else if err != nil {
-		return reconcile.Result{}, fmt.Errorf("could not fetch cephCluster %s: %+v", request.Name, err)
+		return reconcile.Result{}, errors.Wrapf(err, "could not fetch cephCluster %s", request.Name)
 	}
 
 	// skipping the reconcile since the feature is switched off
@@ -92,7 +93,7 @@ func (r *MachineDisruptionReconciler) reconcile(request reconcile.Request) (reco
 	}
 
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: mdb.GetName(), Namespace: mdb.GetNamespace()}, mdb)
-	if errors.IsNotFound(err) {
+	if kerrors.IsNotFound(err) {
 		// If the MDB is not found creating the MDB for the cephCluster
 		maxUnavailable := int32(0)
 		// Generating the MDB instance for the cephCluster
@@ -118,7 +119,7 @@ func (r *MachineDisruptionReconciler) reconcile(request reconcile.Request) (reco
 		}
 		err = r.client.Create(context.TODO(), newMDB)
 		if err != nil {
-			return reconcile.Result{}, fmt.Errorf("failed to create mdb %s: %+v", mdb.GetName(), err)
+			return reconcile.Result{}, errors.Wrapf(err, "failed to create mdb %s", mdb.GetName())
 		}
 		return reconcile.Result{}, nil
 	} else if err != nil {
@@ -135,23 +136,23 @@ func (r *MachineDisruptionReconciler) reconcile(request reconcile.Request) (reco
 		mdb.Spec.MaxUnavailable = &maxUnavailable
 		err = r.client.Update(context.TODO(), mdb)
 		if err != nil {
-			return reconcile.Result{}, fmt.Errorf("failed to update mdb %s: %+v", mdb.GetName(), err)
+			return reconcile.Result{}, errors.Wrapf(err, "failed to update mdb %s", mdb.GetName())
 		}
-		return reconcile.Result{}, fmt.Errorf("failed to get cephCluster %s status %+v", request.NamespacedName, err)
+		return reconcile.Result{}, errors.Wrapf(err, "failed to get cephCluster %s status", request.NamespacedName)
 	}
 	if isClean && *mdb.Spec.MaxUnavailable != 1 {
 		maxUnavailable := int32(1)
 		mdb.Spec.MaxUnavailable = &maxUnavailable
 		err = r.client.Update(context.TODO(), mdb)
 		if err != nil {
-			return reconcile.Result{}, fmt.Errorf("failed to update mdb %s: %+v", mdb.GetName(), err)
+			return reconcile.Result{}, errors.Wrapf(err, "failed to update mdb %s", mdb.GetName())
 		}
 	} else if !isClean && *mdb.Spec.MaxUnavailable != 0 {
 		maxUnavailable := int32(0)
 		mdb.Spec.MaxUnavailable = &maxUnavailable
 		err = r.client.Update(context.TODO(), mdb)
 		if err != nil {
-			return reconcile.Result{}, fmt.Errorf("failed to update mdb %s: %+v", mdb.GetName(), err)
+			return reconcile.Result{}, errors.Wrapf(err, "failed to update mdb %s", mdb.GetName())
 		}
 	}
 	return reconcile.Result{Requeue: true, RequeueAfter: time.Minute}, nil

@@ -22,13 +22,14 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/exec"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -51,30 +52,30 @@ func (c *Cluster) removeOSD(deploymentName string, id int) error {
 		if ok && cmdErr.ExitStatus() == int(syscall.ENOENT) {
 			alreadyPurged = true
 		} else {
-			return fmt.Errorf("failed to reweight osd.%d to 0.0: %+v. %s", id, err, o)
+			return errors.Wrapf(err, "failed to reweight osd.%d to 0.0: %s", id, o)
 		}
 	}
 
 	if !alreadyPurged {
 		// mark the OSD as out
 		if err := markOSDOut(c.context, c.Namespace, id); err != nil {
-			return fmt.Errorf("failed to mark osd.%d out: %+v", id, err)
+			return errors.Wrapf(err, "failed to mark osd.%d out", id)
 		}
 
 		// wait for the OSDs data to be migrated
 		if err := waitForRebalance(c.context, c.Namespace, id, initialUsage, c.clusterInfo.CephVersion.IsAtLeastNautilus()); err != nil {
-			return fmt.Errorf("failed to wait for cluster rebalancing after removing osd.%d: %+v", id, err)
+			return errors.Wrapf(err, "failed to wait for cluster rebalancing after removing osd.%d", id)
 		}
 	}
 
 	// data is migrated off the osd, we can delete the deployment now
 	if err := k8sutil.DeleteDeployment(c.context.Clientset, c.Namespace, deploymentName); err != nil {
-		return fmt.Errorf("failed to delete deployment %s: %+v", deploymentName, err)
+		return errors.Wrapf(err, "failed to delete deployment %s", deploymentName)
 	}
 
 	// purge the OSD from the cluster
 	if err := purgeOSD(c.context, c.Namespace, id); err != nil {
-		return fmt.Errorf("failed to purge osd.%d from the cluster: %+v", id, err)
+		return errors.Wrapf(err, "failed to purge osd.%d from the cluster", id)
 	}
 
 	// delete any backups of the OSD filesystem
@@ -98,7 +99,7 @@ func waitForRebalance(context *clusterd.Context, namespace string, osdID int, in
 			curr := currUsage.ByID(osdID)
 
 			if init == nil || curr == nil {
-				return fmt.Errorf("initial OSD usage or current OSD usage for osd.%d not found. init: %+v, curr: %+v",
+				return errors.Errorf("initial OSD usage or current OSD usage for osd.%d not found. init: %+v, curr: %+v",
 					osdID, initialUsage, currUsage)
 			}
 
@@ -106,13 +107,13 @@ func waitForRebalance(context *clusterd.Context, namespace string, osdID int, in
 			if init.UsedKB != "" {
 				initUsedKB, err = init.UsedKB.Int64()
 				if err != nil {
-					return fmt.Errorf("error converting init used KB to int64. %+v", err)
+					return errors.Wrapf(err, "error converting init used KB to int")
 				}
 			}
 			if init.Pgs != "" {
 				initPGs, err = init.Pgs.Int64()
 				if err != nil {
-					return fmt.Errorf("error converting init PGs to int64. %+v", err)
+					return errors.Wrapf(err, "error converting init PGs to int")
 				}
 			}
 
@@ -126,14 +127,14 @@ func waitForRebalance(context *clusterd.Context, namespace string, osdID int, in
 			if curr.UsedKB != "" {
 				currUsedKB, err = curr.UsedKB.Int64()
 				if err != nil {
-					return fmt.Errorf("error converting current used KB to int64. %+v", err)
+					return errors.Wrapf(err, "error converting current used KB to int")
 				}
 			}
 
 			if curr.Pgs != "" {
 				currPGs, err = curr.Pgs.Int64()
 				if err != nil {
-					return fmt.Errorf("error converting current PGs to int64. %+v", err)
+					return errors.Wrapf(err, "error converting current PGs to int")
 				}
 			}
 
@@ -142,7 +143,7 @@ func waitForRebalance(context *clusterd.Context, namespace string, osdID int, in
 			}
 
 			if currUsedKB >= initUsedKB && currPGs >= initPGs {
-				return fmt.Errorf("current used space and pg count for osd.%d has not decreased still. curr=%+v", osdID, curr)
+				return errors.Errorf("current used space and pg count for osd.%d has not decreased still. curr=%+v", osdID, curr)
 			}
 
 			// either the used space or the number of PGs has decreased for the OSD, data rebalancing has started
@@ -164,19 +165,19 @@ func waitForRebalance(context *clusterd.Context, namespace string, osdID int, in
 		// ensure that the given OSD is no longer assigned to any placement groups
 		for _, pgStat := range pgDump.PgStats {
 			if pgStat.UpPrimaryID == osdID {
-				return fmt.Errorf("osd.%d is still up primary for pg %s", osdID, pgStat.ID)
+				return errors.Errorf("osd.%d is still up primary for pg %s", osdID, pgStat.ID)
 			}
 			if pgStat.ActingPrimaryID == osdID {
-				return fmt.Errorf("osd.%d is still acting primary for pg %s", osdID, pgStat.ID)
+				return errors.Errorf("osd.%d is still acting primary for pg %s", osdID, pgStat.ID)
 			}
 			for _, id := range pgStat.UpOsdIDs {
 				if id == osdID {
-					return fmt.Errorf("osd.%d is still up for pg %s", osdID, pgStat.ID)
+					return errors.Errorf("osd.%d is still up for pg %s", osdID, pgStat.ID)
 				}
 			}
 			for _, id := range pgStat.ActingOsdIDs {
 				if id == osdID {
-					return fmt.Errorf("osd.%d is still acting for pg %s", osdID, pgStat.ID)
+					return errors.Errorf("osd.%d is still acting for pg %s", osdID, pgStat.ID)
 				}
 			}
 		}
@@ -200,7 +201,7 @@ func purgeOSD(context *clusterd.Context, namespace string, id int) error {
 	// remove the OSD from the crush map
 	_, err := client.CrushRemove(context, namespace, fmt.Sprintf("osd.%d", id))
 	if err != nil {
-		return fmt.Errorf("failed to remove osd.%d from crush map. %v", id, err)
+		return errors.Wrapf(err, "failed to remove osd.%d from crush map", id)
 	}
 
 	// delete the auth for the OSD
@@ -212,7 +213,7 @@ func purgeOSD(context *clusterd.Context, namespace string, id int) error {
 	// delete the OSD from the cluster
 	_, err = client.OSDRemove(context, namespace, id)
 	if err != nil {
-		return fmt.Errorf("failed to rm osd.%d. %v", id, err)
+		return errors.Wrapf(err, "failed to rm osd.%d", id)
 	}
 	return nil
 }
@@ -221,7 +222,7 @@ func deleteOSDFileSystem(clientset kubernetes.Interface, namespace string, id in
 	logger.Infof("Deleting OSD %d file system", id)
 	storeName := fmt.Sprintf(config.OSDFSStoreNameFmt, id)
 	err := clientset.CoreV1().ConfigMaps(namespace).Delete(storeName, &metav1.DeleteOptions{})
-	if err != nil && !errors.IsNotFound(err) {
+	if err != nil && !kerrors.IsNotFound(err) {
 		return err
 	}
 	return nil
@@ -232,7 +233,7 @@ func (c *Cluster) cleanUpNodeResources(nodeName, nodeCrushName string) error {
 	if nodeCrushName != "" {
 		// we have the crush name for this node, meaning we should remove it from the crush map
 		if o, err := client.CrushRemove(c.context, c.Namespace, nodeCrushName); err != nil {
-			return fmt.Errorf("failed to remove node %s from crush map.  %+v.  %s", nodeCrushName, err, o)
+			return errors.Wrapf(err, "failed to remove node %s from crush map. %s", nodeCrushName, o)
 		}
 	}
 

@@ -22,6 +22,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pkg/errors"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
@@ -135,7 +136,7 @@ func (c *clusterConfig) setDefaultFlagsMonConfigStore(rgwName string) error {
 	for flag, val := range configOptions {
 		err := monStore.Set(who, flag, val)
 		if err != nil {
-			return fmt.Errorf("failed to set %q to %q on %q. %+v", flag, val, who, err)
+			return errors.Wrapf(err, "failed to set %q to %q on %q", flag, val, who)
 		}
 	}
 

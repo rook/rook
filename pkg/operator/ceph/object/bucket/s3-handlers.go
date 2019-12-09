@@ -24,7 +24,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/kube-object-storage/lib-bucket-provisioner/pkg/provisioner/api/errors"
+	oerrors "github.com/kube-object-storage/lib-bucket-provisioner/pkg/provisioner/api/errors"
+	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/util/json"
 )
 
@@ -67,14 +68,14 @@ func (s S3Agent) CreateBucket(name string) error {
 			case s3.ErrCodeBucketAlreadyExists:
 				msg := fmt.Sprintf("Bucket %q already exists", name)
 				logger.Errorf(msg)
-				return errors.NewBucketExistsError(msg)
+				return oerrors.NewBucketExistsError(msg)
 			case s3.ErrCodeBucketAlreadyOwnedByYou:
 				msg := fmt.Sprintf("Bucket %q already owned by you", name)
 				logger.Errorf(msg)
-				return errors.NewBucketExistsError(msg)
+				return oerrors.NewBucketExistsError(msg)
 			}
 		}
-		return fmt.Errorf("Bucket %q could not be created: %v", name, err)
+		return errors.Wrapf(err, "bucket %q could not be created", name)
 	}
 
 	logger.Infof("successfully created bucket %q", name)

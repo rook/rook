@@ -21,6 +21,7 @@ import (
 	"os"
 	"path"
 
+	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
@@ -344,14 +345,14 @@ func UpdateCephDeploymentAndWait(context *clusterd.Context, deployment *apps.Dep
 		if action == "stop" {
 			err := client.OkToStop(context, namespace, deployment.Name, daemonType, daemonName, cephVersion)
 			if err != nil {
-				return fmt.Errorf("failed to check if we can %s the deployment %s: %+v", action, deployment.Name, err)
+				return errors.Wrapf(err, "failed to check if we can %s the deployment %s", action, deployment.Name)
 			}
 		}
 
 		if action == "continue" {
 			err := client.OkToContinue(context, namespace, deployment.Name, daemonType, daemonName)
 			if err != nil {
-				return fmt.Errorf("failed to check if we can %s the deployment %s: %+v", action, deployment.Name, err)
+				return errors.Wrapf(err, "failed to check if we can %s the deployment %s", action, deployment.Name)
 			}
 		}
 

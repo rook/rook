@@ -16,10 +16,10 @@ limitations under the License.
 package mgr
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
@@ -46,19 +46,19 @@ func TestOrchestratorModules(t *testing.T) {
 				return "", nil
 			}
 		}
-		return "", fmt.Errorf("unexpected ceph command '%v'", args)
+		return "", errors.Errorf("unexpected ceph command '%v'", args)
 	}
 	executor.MockExecuteCommandWithOutputFileTimeout = func(debug bool, timeout time.Duration, actionName, command, outputFile string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[0] == "orchestrator" && args[1] == "set" && args[2] == "backend" && args[3] == "rook" {
 			if backendErrorCount < 5 {
 				backendErrorCount++
-				return "", fmt.Errorf("test simulation failure")
+				return "", errors.New("test simulation failure")
 			}
 			rookBackendSet = true
 			return "", nil
 		}
-		return "", fmt.Errorf("unexpected ceph command '%v'", args)
+		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
 
 	clusterInfo := &cephconfig.ClusterInfo{

@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
@@ -41,7 +42,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
@@ -189,20 +190,20 @@ func (c *Cluster) Start(clusterInfo *cephconfig.ClusterInfo, rookVersion string,
 
 	// fail if we were instructed to deploy more than one mon on the same machine with host networking
 	if c.Network.IsHost() && c.spec.Mon.AllowMultiplePerNode && c.spec.Mon.Count > 1 {
-		return nil, fmt.Errorf("refusing to deploy %d monitors on the same host since hostNetwork is %v and allowMultiplePerNode is %v. Only one monitor per node is allowed", c.spec.Mon.Count, c.Network, c.spec.Mon.AllowMultiplePerNode)
+		return nil, errors.Errorf("refusing to deploy %d monitors on the same host since hostNetwork is %+v and allowMultiplePerNode is %t. only one monitor per node is allowed", c.spec.Mon.Count, c.Network, c.spec.Mon.AllowMultiplePerNode)
 	}
 
 	// Validate pod's memory if specified
 	err := opspec.CheckPodMemory(cephv1.GetMonResources(c.spec.Resources), cephMonPodMinimumMemory)
 	if err != nil {
-		return nil, fmt.Errorf("%v", err)
+		return nil, errors.Wrap(err, "error checking pod memory")
 	}
 
 	logger.Infof("start running mons")
 
 	logger.Debugf("establishing ceph cluster info")
 	if err := c.initClusterInfo(cephVersion); err != nil {
-		return nil, fmt.Errorf("failed to initialize ceph cluster info. %+v", err)
+		return nil, errors.Wrapf(err, "failed to initialize ceph cluster info")
 	}
 
 	logger.Infof("targeting the mon count %d", c.spec.Mon.Count)
@@ -217,7 +218,7 @@ func (c *Cluster) startMons(targetCount int) error {
 
 	// Assign the mons to nodes
 	if err := c.assignMons(mons); err != nil {
-		return fmt.Errorf("failed to assign pods to mons. %+v", err)
+		return errors.Wrapf(err, "failed to assign pods to mons")
 	}
 
 	// The centralized mon config database can only be used if there is at least one mon
@@ -249,7 +250,7 @@ func (c *Cluster) startMons(targetCount int) error {
 			if existingCount == 0 {
 				err := config.SetDefaultConfigs(c.context, c.Namespace, c.ClusterInfo)
 				if err != nil {
-					return fmt.Errorf("failed to set Rook and/or user-defined Ceph config options after creating the first mon. %+v", err)
+					return errors.Wrapf(err, "failed to set Rook and/or user-defined Ceph config options after creating the first mon")
 				}
 			} else if setConfigsNeedsRetry && i == existingCount {
 				// Or if we need to retry, only do this when we are on the first iteration of the
@@ -257,7 +258,7 @@ func (c *Cluster) startMons(targetCount int) error {
 				// different error message.
 				err := config.SetDefaultConfigs(c.context, c.Namespace, c.ClusterInfo)
 				if err != nil {
-					return fmt.Errorf("failed to set Rook and/or user-defined Ceph config options after updating the existing mons. %+v", err)
+					return errors.Wrapf(err, "failed to set Rook and/or user-defined Ceph config options after updating the existing mons")
 				}
 			}
 		}
@@ -271,7 +272,7 @@ func (c *Cluster) startMons(targetCount int) error {
 		if setConfigsNeedsRetry {
 			err := config.SetDefaultConfigs(c.context, c.Namespace, c.ClusterInfo)
 			if err != nil {
-				return fmt.Errorf("failed to set Rook and/or user-defined Ceph config options after forcefully updating the existing mons. %+v", err)
+				return errors.Wrapf(err, "failed to set Rook and/or user-defined Ceph config options after forcefully updating the existing mons")
 			}
 		}
 	}
@@ -302,12 +303,12 @@ func (c *Cluster) ensureMonsRunning(mons []*monConfig, i, targetCount int, requi
 
 	// Init the mon IPs
 	if err := c.initMonIPs(mons[0:expectedMonCount]); err != nil {
-		return fmt.Errorf("failed to init mon services. %+v", err)
+		return errors.Wrapf(err, "failed to init mon services")
 	}
 
 	// save the mon config after we have "initiated the IPs"
 	if err := c.saveMonConfig(); err != nil {
-		return fmt.Errorf("failed to save mons. %+v", err)
+		return errors.Wrapf(err, "failed to save mons")
 	}
 
 	// make sure we have the connection info generated so connections can happen
@@ -317,7 +318,7 @@ func (c *Cluster) ensureMonsRunning(mons []*monConfig, i, targetCount int, requi
 
 	// Start the deployment
 	if err := c.startDeployments(mons[0:expectedMonCount], requireAllInQuorum); err != nil {
-		return fmt.Errorf("failed to start mon pods. %+v", err)
+		return errors.Wrapf(err, "failed to start mon pods")
 	}
 
 	return nil
@@ -331,24 +332,24 @@ func (c *Cluster) initClusterInfo(cephVersion cephver.CephVersion) error {
 	// get the cluster info from secret
 	c.ClusterInfo, c.maxMonID, c.mapping, err = CreateOrLoadClusterInfo(c.context, c.Namespace, &c.ownerRef)
 	if err != nil {
-		return fmt.Errorf("failed to get cluster info. %+v", err)
+		return errors.Wrapf(err, "failed to get cluster info")
 	}
 
 	c.ClusterInfo.CephVersion = cephVersion
 
 	// save cluster monitor config
 	if err = c.saveMonConfig(); err != nil {
-		return fmt.Errorf("failed to save mons. %+v", err)
+		return errors.Wrapf(err, "failed to save mons")
 	}
 
 	k := keyring.GetSecretStore(c.context, c.Namespace, &c.ownerRef)
 	// store the keyring which all mons share
 	if err := k.CreateOrUpdate(keyringStoreName, c.genMonSharedKeyring()); err != nil {
-		return fmt.Errorf("failed to save mon keyring secret. %+v", err)
+		return errors.Wrapf(err, "failed to save mon keyring secret")
 	}
 	// also store the admin keyring for other daemons that might need it during init
 	if err := k.Admin().CreateOrUpdate(c.ClusterInfo); err != nil {
-		return fmt.Errorf("failed to save admin keyring secret. %+v", err)
+		return errors.Wrapf(err, "failed to save admin keyring secret")
 	}
 
 	return nil
@@ -438,7 +439,7 @@ func realScheduleMonitor(c *Cluster, mon *monConfig) (SchedulingResult, error) {
 		// to the real monitor deployment.
 		pvc, err := c.makeDeploymentPVC(mon)
 		if err != nil {
-			return result, fmt.Errorf("sched-mon: failed to make monitor %s pvc. %+v", d.Name, err)
+			return result, errors.Wrapf(err, "sched-mon: failed to make monitor %s pvc", d.Name)
 		}
 
 		_, err = c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).Create(pvc)
@@ -446,10 +447,10 @@ func realScheduleMonitor(c *Cluster, mon *monConfig) (SchedulingResult, error) {
 			pvcName = pvc.Name
 			logger.Infof("sched-mon: created canary monitor %s pvc %s", d.Name, pvc.Name)
 		} else {
-			if errors.IsAlreadyExists(err) {
+			if kerrors.IsAlreadyExists(err) {
 				logger.Debugf("sched-mon: creating mon %s pvc %s: already exists.", d.Name, pvc.Name)
 			} else {
-				return result, fmt.Errorf("sched-mon: error creating mon %s pvc %s. %+v", d.Name, pvc.Name, err)
+				return result, errors.Wrapf(err, "sched-mon: error creating mon %s pvc %s", d.Name, pvc.Name)
 			}
 		}
 
@@ -471,20 +472,20 @@ func realScheduleMonitor(c *Cluster, mon *monConfig) (SchedulingResult, error) {
 			createdDeployment = true
 			logger.Infof("sched-mon: created canary deployment %s", d.Name)
 			break
-		} else if errors.IsAlreadyExists(err) {
+		} else if kerrors.IsAlreadyExists(err) {
 			if err := k8sutil.DeleteDeployment(c.context.Clientset, c.Namespace, d.Name); err != nil {
-				return result, fmt.Errorf("sched-mon: error deleting canary deployment %s. %+v", d.Name, err)
+				return result, errors.Wrapf(err, "sched-mon: error deleting canary deployment %s", d.Name)
 			}
 			logger.Infof("sched-mon: deleted existing canary deployment %s", d.Name)
 			time.Sleep(time.Second * canaryRetryDelaySeconds)
 		} else {
-			return result, fmt.Errorf("sched-mon: error creating canary monitor deployment %s. %+v", d.Name, err)
+			return result, errors.Wrapf(err, "sched-mon: error creating canary monitor deployment %s", d.Name)
 		}
 	}
 
 	// failed after retrying
 	if !createdDeployment {
-		return result, fmt.Errorf("sched-mon: failed to create canary deployment %s", d.Name)
+		return result, errors.Errorf("sched-mon: failed to create canary deployment %s", d.Name)
 	}
 
 	// caller should arrange for the deployment to be removed
@@ -498,7 +499,7 @@ func realScheduleMonitor(c *Cluster, mon *monConfig) (SchedulingResult, error) {
 
 		pods, err := c.context.Clientset.CoreV1().Pods(c.Namespace).List(listOptions)
 		if err != nil {
-			return result, fmt.Errorf("sched-mon: error listing canary pods %s. %+v", d.Name, err)
+			return result, errors.Wrapf(err, "sched-mon: error listing canary pods %s", d.Name)
 		}
 
 		if len(pods.Items) == 0 {
@@ -516,7 +517,7 @@ func realScheduleMonitor(c *Cluster, mon *monConfig) (SchedulingResult, error) {
 
 		node, err := c.context.Clientset.CoreV1().Nodes().Get(pod.Spec.NodeName, metav1.GetOptions{})
 		if err != nil {
-			return result, fmt.Errorf("sched-mon: error getting node %s. %+v", pod.Spec.NodeName, err)
+			return result, errors.Wrapf(err, "sched-mon: error getting node %s", pod.Spec.NodeName)
 		}
 
 		result.Node = node
@@ -525,7 +526,7 @@ func realScheduleMonitor(c *Cluster, mon *monConfig) (SchedulingResult, error) {
 		return result, nil
 	}
 
-	return result, fmt.Errorf("sched-mon: canary pod scheduling failed retries")
+	return result, errors.New("sched-mon: canary pod scheduling failed retries")
 }
 
 func (c *Cluster) initMonIPs(mons []*monConfig) error {
@@ -534,13 +535,13 @@ func (c *Cluster) initMonIPs(mons []*monConfig) error {
 			logger.Infof("setting mon endpoints for hostnetwork mode")
 			node, ok := c.mapping.Node[m.DaemonName]
 			if !ok {
-				return fmt.Errorf("mon doesn't exist in assignment map")
+				return errors.New("mon doesn't exist in assignment map")
 			}
 			m.PublicIP = node.Address
 		} else {
 			serviceIP, err := c.createService(m)
 			if err != nil {
-				return fmt.Errorf("failed to create mon service. %+v", err)
+				return errors.Wrapf(err, "failed to create mon service")
 			}
 			m.PublicIP = serviceIP
 		}
@@ -599,12 +600,12 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 		canaryCleanup = append(canaryCleanup, result)
 
 		if err != nil {
-			return fmt.Errorf("assignmon: error scheduling monitor: %+v", err)
+			return errors.Wrapf(err, "assignmon: error scheduling monitor")
 		}
 
 		nodeChoice := result.Node
 		if nodeChoice == nil {
-			return fmt.Errorf("assignmon: could not schedule monitor %s", mon.DaemonName)
+			return errors.Errorf("assignmon: could not schedule monitor %s", mon.DaemonName)
 		}
 
 		// store nil in the node mapping to indicate that an explicit node
@@ -615,8 +616,7 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 			logger.Infof("assignmon: mon %s assigned to node %s", mon.DaemonName, nodeChoice.Name)
 			nodeInfo, err = getNodeInfoFromNode(*nodeChoice)
 			if err != nil {
-				return fmt.Errorf("assignmon: couldn't get node info for node %s. %+v",
-					nodeChoice.Name, err)
+				return errors.Wrapf(err, "assignmon: couldn't get node info for node %s", nodeChoice.Name)
 			}
 		} else {
 			logger.Infof("assignmon: mon %s placement using native scheduler", mon.DaemonName)
@@ -631,7 +631,7 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 
 func (c *Cluster) startDeployments(mons []*monConfig, requireAllInQuorum bool) error {
 	if len(mons) == 0 {
-		return fmt.Errorf("cannot start 0 mons")
+		return errors.New("cannot start 0 mons")
 	}
 
 	// If all the mon deployments don't exist, allow the mon deployments to all be started without checking for quorum.
@@ -641,7 +641,7 @@ func (c *Cluster) startDeployments(mons []*monConfig, requireAllInQuorum bool) e
 	onlyCheckQuorumOnce := false
 	deployments, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).List(metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", AppName)})
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if kerrors.IsNotFound(err) {
 			logger.Infof("0 of %d expected mon deployments exist. creating new deployment(s).", len(mons))
 			onlyCheckQuorumOnce = true
 		} else {
@@ -660,7 +660,7 @@ func (c *Cluster) startDeployments(mons []*monConfig, requireAllInQuorum bool) e
 			if c.isUpgrade {
 				// if we're upgrading, we don't want to risk the health of the cluster by continuing to upgrade
 				// and potentially cause more mons to fail. Therefore, we abort if the mon failed to start after upgrade.
-				return fmt.Errorf("failed to upgrade mon %s. %+v", mons[i].DaemonName, err)
+				return errors.Wrapf(err, "failed to upgrade mon %q.", mons[i].DaemonName)
 			}
 			// We will attempt to start all mons, then check for quorum as needed after this. During an operator restart
 			// we need to do everything possible to verify the basic health of a cluster, complete the first orchestration,
@@ -676,7 +676,7 @@ func (c *Cluster) startDeployments(mons []*monConfig, requireAllInQuorum bool) e
 			requireAllInQuorum := false
 			err = c.waitForMonsToJoin(mons, requireAllInQuorum)
 			if err != nil {
-				return fmt.Errorf("failed to check mon quorum %s. %+v", mons[i].DaemonName, err)
+				return errors.Wrapf(err, "failed to check mon quorum %s", mons[i].DaemonName)
 			}
 		}
 	}
@@ -710,7 +710,7 @@ func (c *Cluster) waitForMonsToJoin(mons []*monConfig, requireAllInQuorum bool) 
 	sleepTime := 5
 	err := waitForQuorumWithMons(c.context, c.ClusterInfo.Name, starting, sleepTime, requireAllInQuorum)
 	if err != nil {
-		return fmt.Errorf("failed to wait for mon quorum. %+v", err)
+		return errors.Wrapf(err, "failed to wait for mon quorum")
 	}
 
 	return nil
@@ -727,13 +727,13 @@ func (c *Cluster) saveMonConfig() error {
 
 	monMapping, err := json.Marshal(c.mapping)
 	if err != nil {
-		return fmt.Errorf("failed to marshal mon mapping. %+v", err)
+		return errors.Wrapf(err, "failed to marshal mon mapping")
 	}
 
 	csiConfigValue, err := csi.FormatCsiClusterConfig(
 		c.Namespace, c.ClusterInfo.Monitors)
 	if err != nil {
-		return fmt.Errorf("failed to format csi config: %+v", err)
+		return errors.Wrapf(err, "failed to format csi config")
 	}
 
 	configMap.Data = map[string]string{
@@ -744,13 +744,13 @@ func (c *Cluster) saveMonConfig() error {
 	}
 
 	if _, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(configMap); err != nil {
-		if !errors.IsAlreadyExists(err) {
-			return fmt.Errorf("failed to create mon endpoint config map. %+v", err)
+		if !kerrors.IsAlreadyExists(err) {
+			return errors.Wrapf(err, "failed to create mon endpoint config map")
 		}
 
 		logger.Debugf("updating config map %s that already exists", configMap.Name)
 		if _, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Update(configMap); err != nil {
-			return fmt.Errorf("failed to update mon endpoint config map. %+v", err)
+			return errors.Wrapf(err, "failed to update mon endpoint config map")
 		}
 	}
 
@@ -762,11 +762,11 @@ func (c *Cluster) saveMonConfig() error {
 
 	// write the latest config to the config dir
 	if err := WriteConnectionConfig(c.context, c.ClusterInfo); err != nil {
-		return fmt.Errorf("failed to write connection config for new mons. %+v", err)
+		return errors.Wrapf(err, "failed to write connection config for new mons")
 	}
 
 	if err := csi.SaveClusterConfig(c.context.Clientset, c.Namespace, c.ClusterInfo, c.csiConfigMutex); err != nil {
-		return fmt.Errorf("failed to update csi cluster config: %+v", err)
+		return errors.Wrapf(err, "failed to update csi cluster config")
 	}
 
 	return nil
@@ -796,7 +796,7 @@ func (c *Cluster) updateMon(m *monConfig, d *apps.Deployment) error {
 
 	err := updateDeploymentAndWait(c.context, d, c.Namespace, daemonType, m.DaemonName, cephVersionToUse, c.isUpgrade, c.spec.SkipUpgradeChecks)
 	if err != nil {
-		return fmt.Errorf("failed to update mon deployment %s. %+v", m.ResourceName, err)
+		return errors.Wrapf(err, "failed to update mon deployment %s", m.ResourceName)
 	}
 
 	return nil
@@ -842,8 +842,8 @@ func (c *Cluster) startMon(m *monConfig, node *NodeInfo) error {
 	if err == nil {
 		deploymentExists = true
 		pvcExists = opspec.DaemonVolumesContainsPVC(existingDeployment.Spec.Template.Spec.Volumes)
-	} else if !errors.IsNotFound(err) {
-		return fmt.Errorf("failed to get mon deployment %s. %+v", d.Name, err)
+	} else if !kerrors.IsNotFound(err) {
+		return errors.Wrapf(err, "failed to get mon deployment %s", d.Name)
 	}
 
 	// persistent storage is not altered after the deployment is created. this
@@ -884,14 +884,14 @@ func (c *Cluster) startMon(m *monConfig, node *NodeInfo) error {
 	if c.spec.Mon.VolumeClaimTemplate != nil {
 		pvc, err := c.makeDeploymentPVC(m)
 		if err != nil {
-			return fmt.Errorf("failed to make mon %s pvc. %+v", d.Name, err)
+			return errors.Wrapf(err, "failed to make mon %s pvc", d.Name)
 		}
 		_, err = c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).Create(pvc)
 		if err != nil {
-			if errors.IsAlreadyExists(err) {
+			if kerrors.IsAlreadyExists(err) {
 				logger.Debugf("cannot create mon %s pvc %s: already exists.", d.Name, pvc.Name)
 			} else {
-				return fmt.Errorf("failed to create mon %s pvc %s. %+v", d.Name, pvc.Name, err)
+				return errors.Wrapf(err, "failed to create mon %s pvc %s", d.Name, pvc.Name)
 			}
 		}
 	}
@@ -908,7 +908,7 @@ func (c *Cluster) startMon(m *monConfig, node *NodeInfo) error {
 	logger.Debugf("Starting mon: %+v", d.Name)
 	_, err = c.context.Clientset.AppsV1().Deployments(c.Namespace).Create(d)
 	if err != nil {
-		return fmt.Errorf("failed to create mon deployment %s. %+v", d.Name, err)
+		return errors.Wrapf(err, "failed to create mon deployment %s", d.Name)
 	}
 
 	return nil
@@ -923,7 +923,7 @@ func waitForQuorumWithMons(context *clusterd.Context, clusterName string, mons [
 	for {
 		retryCount++
 		if retryCount > retryMax {
-			return fmt.Errorf("exceeded max retry count waiting for monitors to reach quorum")
+			return errors.New("exceeded max retry count waiting for monitors to reach quorum")
 		}
 
 		if retryCount > 1 {

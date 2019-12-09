@@ -17,16 +17,16 @@ limitations under the License.
 package bucket
 
 import (
-	"fmt"
 	"math/rand"
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
 	bktv1alpha1 "github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
 	"github.com/kube-object-storage/lib-bucket-provisioner/pkg/provisioner"
-	"k8s.io/api/core/v1"
+	"github.com/pkg/errors"
+	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -98,10 +98,10 @@ func getObjectStore(c cephclientset.CephV1Interface, namespace, name string) (*c
 	// Verify the object store API object actually exists
 	store, err := c.CephObjectStores(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
-		if errors.IsNotFound(err) {
-			return nil, fmt.Errorf("cephObjectStore not found: %v", err)
+		if kerrors.IsNotFound(err) {
+			return nil, errors.Wrapf(err, "cephObjectStore not found")
 		}
-		return nil, fmt.Errorf("error getting cephObjectStore: %v", err)
+		return nil, errors.Wrapf(err, "error getting cephObjectStore")
 	}
 	return store, err
 }
@@ -110,10 +110,10 @@ func getService(c kubernetes.Interface, namespace, name string) (*v1.Service, er
 	// Verify the object store's service actually exists
 	svc, err := c.CoreV1().Services(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
-		if errors.IsNotFound(err) {
-			return nil, fmt.Errorf("cephObjectStore service not found: %v", err)
+		if kerrors.IsNotFound(err) {
+			return nil, errors.Wrapf(err, "cephObjectStore service not found")
 		}
-		return nil, fmt.Errorf("error getting cephObjectStore service: %v", err)
+		return nil, errors.Wrapf(err, "error getting cephObjectStore service")
 	}
 	return svc, nil
 }

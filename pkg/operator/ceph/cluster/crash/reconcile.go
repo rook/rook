@@ -18,8 +18,8 @@ package crash
 
 import (
 	"context"
-	"fmt"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/rbd"
@@ -75,7 +75,7 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 	node := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: request.Name}}
 	err := r.client.Get(context.TODO(), request.NamespacedName, node)
 	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("could not get node %q", request.NamespacedName)
+		return reconcile.Result{}, errors.Errorf("could not get node %q", request.NamespacedName)
 	}
 
 	// Get the list of all the Ceph pods
@@ -84,7 +84,7 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 		if len(cephPods) == 0 {
 			return reconcile.Result{}, nil
 		}
-		return reconcile.Result{}, fmt.Errorf("failed to list all ceph pods. %+v", err)
+		return reconcile.Result{}, errors.Wrapf(err, "failed to list all ceph pods")
 	}
 
 	namespaceToPodList := make(map[string][]corev1.Pod)
@@ -105,7 +105,7 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 		cephClusters := &cephv1.CephClusterList{}
 		err := r.client.List(context.TODO(), cephClusters, client.InNamespace(namespace))
 		if err != nil {
-			return reconcile.Result{}, fmt.Errorf("could not get cephcluster in namespaces %q. %+v", namespace, err)
+			return reconcile.Result{}, errors.Wrapf(err, "could not get cephcluster in namespaces %q", namespace)
 		}
 		if len(cephClusters.Items) < 1 {
 			logger.Debugf("no CephCluster found in the namespace %q", namespace)
@@ -134,7 +134,7 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 			tolerations := uniqueTolerations.ToList()
 			op, err := r.createOrUpdateCephCrash(*node, tolerations, cephCluster)
 			if err != nil {
-				return reconcile.Result{}, fmt.Errorf("node reconcile failed on op %q. %+v", op, err)
+				return reconcile.Result{}, errors.Wrapf(err, "node reconcile failed on op %q", op)
 			}
 			logger.Debugf("deployment successfully reconciled for node %q. operation: %q", request.Name, op)
 		}
@@ -151,7 +151,7 @@ func (r *ReconcileNode) cephPodList() ([]corev1.Pod, error) {
 		podList := &corev1.PodList{}
 		err := r.client.List(context.TODO(), podList, client.MatchingLabels{k8sutil.AppAttr: app})
 		if err != nil {
-			return cephPods, fmt.Errorf("could not list the %q pods. %+v", app, err)
+			return cephPods, errors.Wrapf(err, "could not list the %q pods", app)
 		}
 
 		cephPods = append(cephPods, podList.Items...)

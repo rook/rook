@@ -22,6 +22,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	osdconfig "github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
@@ -42,17 +43,17 @@ func createOSDFileSystem(context *clusterd.Context, clusterName string, config *
 	// get the current monmap, it will be needed for creating the OSD file system
 	monMap, err := getMonMap(context, clusterName)
 	if err != nil {
-		return fmt.Errorf("failed to get mon map: %+v", err)
+		return errors.Wrapf(err, "failed to get mon map")
 	}
 
 	// the current monmap is needed to create the OSD, save it to a temp location so it is accessible
 	monMapTmpPath := getOSDTempMonMapPath(config.rootPath)
 	monMapTmpDir := filepath.Dir(monMapTmpPath)
 	if err := os.MkdirAll(monMapTmpDir, 0744); err != nil {
-		return fmt.Errorf("failed to create monmap tmp file directory at %s: %+v", monMapTmpDir, err)
+		return errors.Wrapf(err, "failed to create monmap tmp file directory at %s", monMapTmpDir)
 	}
 	if err := ioutil.WriteFile(monMapTmpPath, monMap, 0644); err != nil {
-		return fmt.Errorf("failed to write mon map to tmp file %s, %+v", monMapTmpPath, err)
+		return errors.Wrapf(err, "failed to write mon map to tmp file %s", monMapTmpPath)
 	}
 
 	options := []string{
@@ -73,14 +74,14 @@ func createOSDFileSystem(context *clusterd.Context, clusterName string, config *
 	// create the file system
 	logName := fmt.Sprintf("mkfs-osd%d", config.id)
 	if err = context.Executor.ExecuteCommand(false, logName, "ceph-osd", options...); err != nil {
-		return fmt.Errorf("failed osd mkfs for OSD ID %d, UUID %s, dataDir %s: %+v",
-			config.id, config.uuid.String(), config.rootPath, err)
+		return errors.Wrapf(err, "failed osd mkfs for OSD ID %d, UUID %s, dataDir %s",
+			config.id, config.uuid.String(), config.rootPath)
 	}
 
 	// now that the OSD filesystem has been created, back it up so it can be restored/repaired
 	// later on if needed.
 	if err := backupOSDFileSystem(config, clusterName); err != nil {
-		return fmt.Errorf("failed to backup OSD filesystem: %+v", err)
+		return errors.Wrapf(err, "failed to backup OSD filesystem")
 	}
 
 	// update the scheme to indicate the OSD's filesystem has been created and backed up.
@@ -110,17 +111,17 @@ func markOSDFileSystemCreated(cfg *osdConfig) error {
 
 	savedScheme, err := osdconfig.LoadScheme(cfg.kv, cfg.storeName)
 	if err != nil {
-		return fmt.Errorf("failed to load the saved partition scheme: %+v", err)
+		return errors.Wrapf(err, "failed to load the saved partition scheme")
 	}
 
 	// mark the OSD's filesystem as created and backed up.
 	cfg.partitionScheme.FSCreated = true
 	if err := savedScheme.UpdateSchemeEntry(cfg.partitionScheme); err != nil {
-		return fmt.Errorf("failed to update partition scheme entry %+v", cfg.partitionScheme)
+		return errors.Wrapf(err, "failed to update partition scheme entry %+v", cfg.partitionScheme)
 	}
 
 	if err := savedScheme.SaveScheme(cfg.kv, cfg.storeName); err != nil {
-		return fmt.Errorf("failed to save partition scheme: %+v", err)
+		return errors.Wrapf(err, "failed to save partition scheme")
 	}
 
 	return nil
@@ -235,7 +236,7 @@ func repairOSDFileSystem(config *osdConfig) error {
 func createBluestoreSymlink(config *osdConfig, targetPath, symlinkName string) error {
 	symlinkPath := filepath.Join(config.rootPath, symlinkName)
 	if err := os.Symlink(targetPath, symlinkPath); err != nil {
-		return fmt.Errorf("failed to create symlink from %s to %s", symlinkPath, targetPath)
+		return errors.Errorf("failed to create symlink from %s to %s", symlinkPath, targetPath)
 	}
 
 	return nil

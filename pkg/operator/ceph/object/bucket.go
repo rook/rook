@@ -18,9 +18,10 @@ package object
 
 import (
 	"encoding/json"
-	"fmt"
 	"strings"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 type ObjectBucketMetadata struct {
@@ -78,15 +79,15 @@ func GetBucketStats(c *Context, bucketName string) (*ObjectBucketStats, bool, er
 
 	if err != nil {
 		if strings.Contains(err.Error(), "No such file or directory") {
-			return nil, true, fmt.Errorf("not found")
+			return nil, true, errors.New("not found")
 		} else {
-			return nil, false, fmt.Errorf("failed to get bucket stats: %+v", err)
+			return nil, false, errors.Wrapf(err, "failed to get bucket stats")
 		}
 	}
 
 	var rgwStats rgwBucketStats
 	if err := json.Unmarshal([]byte(result), &rgwStats); err != nil {
-		return nil, false, fmt.Errorf("failed to read buckets stats. %+v, result=%s", err, result)
+		return nil, false, errors.Wrapf(err, "failed to read buckets stats result=%s", result)
 	}
 
 	stat := bucketStatsFromRGW(rgwStats)
@@ -99,12 +100,12 @@ func GetBucketsStats(c *Context) (map[string]ObjectBucketStats, error) {
 		"bucket",
 		"stats")
 	if err != nil {
-		return nil, fmt.Errorf("failed to list buckets: %+v", err)
+		return nil, errors.Wrapf(err, "failed to list buckets")
 	}
 
 	var rgwStats []rgwBucketStats
 	if err := json.Unmarshal([]byte(result), &rgwStats); err != nil {
-		return nil, fmt.Errorf("failed to read buckets stats. %+v, result=%s", err, result)
+		return nil, errors.Wrapf(err, "failed to read buckets stats result=%s", result)
 	}
 
 	stats := map[string]ObjectBucketStats{}
@@ -122,11 +123,11 @@ func getBucketMetadata(c *Context, bucket string) (*ObjectBucketMetadata, bool, 
 		"get",
 		"bucket:"+bucket)
 	if err != nil {
-		return nil, false, fmt.Errorf("failed to list buckets: %+v", err)
+		return nil, false, errors.Wrapf(err, "failed to list buckets")
 	}
 
 	if strings.Contains(result, "can't get key") {
-		return nil, true, fmt.Errorf("not found")
+		return nil, true, errors.New("not found")
 	}
 
 	var s struct {
@@ -136,12 +137,12 @@ func getBucketMetadata(c *Context, bucket string) (*ObjectBucketMetadata, bool, 
 		} `json:"data"`
 	}
 	if err := json.Unmarshal([]byte(result), &s); err != nil {
-		return nil, false, fmt.Errorf("failed to read buckets list. %+v, result=%s", err, result)
+		return nil, false, errors.Wrapf(err, "failed to read buckets list result=%s", result)
 	}
 
 	createdAt, err := time.Parse("2006-01-02 15:04:05.999999999Z", s.Data.CreationTime)
 	if err != nil {
-		return nil, false, fmt.Errorf("Error parsing date (%s): %+v", s.Data.CreationTime, err)
+		return nil, false, errors.Wrapf(err, "Error parsing date (%s)", s.Data.CreationTime)
 	}
 
 	return &ObjectBucketMetadata{Owner: s.Data.Owner, CreatedAt: createdAt}, false, nil
@@ -152,7 +153,7 @@ func ListBuckets(c *Context) ([]ObjectBucket, error) {
 
 	stats, err := GetBucketsStats(c)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get bucket stats: %+v", err)
+		return nil, errors.Wrapf(err, "Failed to get bucket stats")
 	}
 
 	buckets := []ObjectBucket{}
@@ -172,16 +173,16 @@ func ListBuckets(c *Context) ([]ObjectBucket, error) {
 func GetBucket(c *Context, bucket string) (*ObjectBucket, int, error) {
 	stat, notFound, err := GetBucketStats(c, bucket)
 	if notFound {
-		return nil, RGWErrorNotFound, fmt.Errorf("Bucket not found")
+		return nil, RGWErrorNotFound, errors.New("Bucket not found")
 	}
 
 	if err != nil {
-		return nil, RGWErrorUnknown, fmt.Errorf("Failed to get bucket stats: %+v", err)
+		return nil, RGWErrorUnknown, errors.Wrapf(err, "Failed to get bucket stats")
 	}
 
 	metadata, notFound, err := getBucketMetadata(c, bucket)
 	if notFound {
-		return nil, RGWErrorNotFound, fmt.Errorf("Bucket not found")
+		return nil, RGWErrorNotFound, errors.New("Bucket not found")
 	}
 
 	if err != nil {
@@ -199,7 +200,7 @@ func DeleteBucket(c *Context, bucketName string, purge bool) (int, error) {
 
 	result, err := runAdminCommand(c, options...)
 	if err != nil {
-		return RGWErrorUnknown, fmt.Errorf("failed to delete bucket: %+v", err)
+		return RGWErrorUnknown, errors.Wrapf(err, "failed to delete bucket")
 	}
 
 	if result == "" {
@@ -207,8 +208,8 @@ func DeleteBucket(c *Context, bucketName string, purge bool) (int, error) {
 	}
 
 	if strings.Contains(result, "could not get bucket info for bucket=") {
-		return RGWErrorNotFound, fmt.Errorf("Bucket not found")
+		return RGWErrorNotFound, errors.New("Bucket not found")
 	}
 
-	return RGWErrorUnknown, fmt.Errorf("failed to delete bucket: %+v", err)
+	return RGWErrorUnknown, errors.Wrapf(err, "failed to delete bucket")
 }

@@ -18,9 +18,9 @@ package client
 
 import (
 	"encoding/json"
-	"fmt"
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -85,7 +85,7 @@ func TestOkToStopDaemon(t *testing.T) {
 		case args[0] == "mon" && args[1] == "ok-to-stop" && args[2] == "a":
 			return "", nil
 		}
-		return "", fmt.Errorf("unexpected ceph command '%v'", args)
+		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
 	context := &clusterd.Context{Executor: executor}
 

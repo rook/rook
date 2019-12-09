@@ -20,10 +20,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 const (
@@ -118,15 +119,15 @@ func (m *Monitor) handleOSDMarkedOut(outOSDid int) error {
 	label := fmt.Sprintf("ceph-osd-id=%d", outOSDid)
 	dp, err := k8sutil.GetDeployments(m.context.Clientset, m.clusterName, label)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if kerrors.IsNotFound(err) {
 			return nil
 		}
-		return fmt.Errorf("failed to get osd deployment of osd id %d: %+v", outOSDid, err)
+		return errors.Wrapf(err, "failed to get osd deployment of osd id %d", outOSDid)
 	}
 	if len(dp.Items) != 0 {
 		safeToDestroyOSD, err := client.OsdSafeToDestroy(m.context, m.clusterName, outOSDid)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "failed to get osd deployment of osd id %d", outOSDid)
 		}
 
 		if safeToDestroyOSD {
@@ -136,7 +137,7 @@ func (m *Monitor) handleOSDMarkedOut(outOSDid int) error {
 			if podDeletionTimeStamp.Before(currentTime) {
 				logger.Infof("osd.%d is 'safe-to-destroy'. removing the osd deployment.", outOSDid)
 				if err := k8sutil.DeleteDeployment(m.context.Clientset, dp.Items[0].Namespace, dp.Items[0].Name); err != nil {
-					return fmt.Errorf("failed to delete osd deployment %s: %+v", dp.Items[0].Name, err)
+					return errors.Wrapf(err, "failed to delete osd deployment %s", dp.Items[0].Name)
 				}
 			}
 		}
