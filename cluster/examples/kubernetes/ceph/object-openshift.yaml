@@ -22,7 +22,7 @@ spec:
       size: 3
   # Whether to preserve metadata and data pools on object store deletion
   preservePoolsOnDelete: true
-  # The gaeteway service configuration
+  # The gateway service configuration
   gateway:
     # type of the gateway (s3)
     type: s3
