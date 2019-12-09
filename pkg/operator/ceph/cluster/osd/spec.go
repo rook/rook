@@ -144,8 +144,10 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	doConfigInit := true       // initialize ceph.conf in init container?
 	doBinaryCopyInit := true   // copy tini and rook binaries in an init container?
 	doActivateOSDInit := false // run an init container to activate the osd?
+	doChownDataPath := true    // chown the data path in an init container?
 
 	var dataDir string
+	var sourcePath string
 	if osd.IsDirectory {
 		// Mount the path to the directory-based osd
 		// osd.DataPath includes the osd subdirectory, so we want to mount the parent directory
@@ -155,6 +157,16 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		// for directory osds, we completely overwrite the starting point from above.
 		provisionConfig.DataPathMap.HostDataDir = dataDir
 		provisionConfig.DataPathMap.ContainerDataDir = dataDir
+
+		volumes = opspec.DaemonVolumes(provisionConfig.DataPathMap, deploymentName)
+		volumeMounts = opspec.DaemonVolumeMounts(provisionConfig.DataPathMap, deploymentName)
+		configVolumeMounts = opspec.DaemonVolumeMounts(provisionConfig.DataPathMap, deploymentName)
+	} else if !osd.IsDirectory && osd.IsFileStore && !osd.CephVolumeInitiated {
+		// for legacy filestore osds, sourcePath is mounted to the dataDir in the container.
+		dataDir = osd.DataPath
+		sourcePath = path.Join("/dev/disk/by-partuuid", osd.DevicePartUUID)
+		provisionConfig.DataPathMap.HostDataDir = sourcePath
+		provisionConfig.DataPathMap.ContainerDataDir = sourcePath
 
 		volumes = opspec.DaemonVolumes(provisionConfig.DataPathMap, deploymentName)
 		volumeMounts = opspec.DaemonVolumeMounts(provisionConfig.DataPathMap, deploymentName)
@@ -231,10 +243,6 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		}
 	}
 
-	if osd.IsFileStore {
-		commonArgs = append(commonArgs, fmt.Sprintf("--osd-journal=%s", osd.Journal))
-	}
-
 	if c.clusterInfo.CephVersion.IsAtLeast(version.CephVersion{Major: 14, Minor: 2, Extra: 1}) {
 		commonArgs = append(commonArgs, "--default-log-to-file", "false")
 	}
@@ -244,20 +252,39 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	var command []string
 	var args []string
 	if !osd.IsDirectory && osd.IsFileStore && !osd.CephVolumeInitiated {
+		doConfigInit = false
 		// All scenarios except one can call the ceph-osd daemon directly. The one different scenario is when
 		// filestore is running on a device. Rook needs to mount the device, run the ceph-osd daemon, and then
 		// when the daemon exits, rook needs to unmount the device. Since rook needs to be in the container
 		// for this scenario, we will copy the binaries necessary to a mount, which will then be mounted
 		// to the daemon container.
-		sourcePath := path.Join("/dev/disk/by-partuuid", osd.DevicePartUUID)
+		doBinaryCopyInit = true
+		// Since the data path is mounted from a different source for filestore disks, don't chown it
+		doChownDataPath = false
+
 		command = []string{path.Join(k8sutil.BinariesMountPath, "tini")}
-		args = append([]string{
+		args = []string{
 			"--", path.Join(k8sutil.BinariesMountPath, "rook"),
 			"ceph", "osd", "filestore-device",
 			"--source-path", sourcePath,
 			"--mount-path", osd.DataPath,
-			"--"},
-			defaultArgs...)
+			"--",
+		}
+		args = append(args,
+			opspec.DaemonFlags(c.clusterInfo, osdID)...,
+		)
+		args = append(args,
+			"--foreground",
+			"--osd-data", osd.DataPath,
+			"--osd-uuid", osd.UUID,
+			"--osd-objectstore", storeType,
+			"--osd-max-object-name-len", "256",
+			"--osd-max-object-namespace-len", "64",
+			"--crush-location", fmt.Sprintf("root=default host=%s", osdProps.crushHostname),
+			// Set '--setuser-match-path' so that existing directory owned by root won't affect the daemon startup.
+			// For existing data store owned by root, the daemon will continue to run as root
+			"--setuser-match-path", osd.DataPath,
+		)
 
 		// If the Bluestore OSD was prepared with ceph-volume and not running on PVC
 	} else if osd.CephVolumeInitiated && osdProps.pvc.ClaimName == "" && !osd.IsFileStore {
@@ -336,6 +363,10 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		args = defaultArgs
 	}
 
+	if osd.IsFileStore {
+		args = append(args, fmt.Sprintf("--osd-journal=%s", osd.Journal))
+	}
+
 	// Add the volume to the spec and the mount to the daemon container
 	copyBinariesVolume, copyBinariesContainer := c.getCopyBinariesContainer()
 	if doBinaryCopyInit {
@@ -403,9 +434,13 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	// completing. It can take an arbitrarily long time for a pod restart to successfully chown the
 	// directory. This is a race condition for all OSDs; therefore, do this in an init container.
 	// See more discussion here: https://github.com/rook/rook/pull/3594#discussion_r312279176
+	dataPath := ""
+	if doChownDataPath {
+		dataPath = osd.DataPath
+	}
 	initContainers = append(initContainers,
 		opspec.ChownCephDataDirsInitContainer(
-			opconfig.DataPathMap{ContainerDataDir: osd.DataPath},
+			opconfig.DataPathMap{ContainerDataDir: dataPath},
 			c.cephVersion.Image,
 			volumeMounts,
 			osdProps.resources,
@@ -673,9 +708,8 @@ func (c *Cluster) getConfigEnvVars(storeConfig config.StoreConfig, dataDir, node
 	// Append ceph-volume environment variables
 	envVars = append(envVars, cephVolumeEnvVar()...)
 
-	if storeConfig.StoreType != "" {
-		envVars = append(envVars, v1.EnvVar{Name: osdStoreEnvVarName, Value: storeConfig.StoreType})
-	}
+	// deliberately skip setting osdStoreEnvVarName (ROOK_OSD_STORE) as a quick means to deprecate
+	// creating new disk-based Filestore OSDs
 
 	if storeConfig.DatabaseSizeMB != 0 {
 		envVars = append(envVars, v1.EnvVar{Name: osdDatabaseSizeEnvVarName, Value: strconv.Itoa(storeConfig.DatabaseSizeMB)})

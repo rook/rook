@@ -23,9 +23,8 @@ import (
 	"os/signal"
 	"path/filepath"
 	"regexp"
-	"syscall"
-
 	"strings"
+	"syscall"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
@@ -136,6 +135,9 @@ func killCephOSDProcess(context *clusterd.Context, lvPath string) error {
 	return nil
 }
 
+// RunFilestoreOnDevice runs a Ceph filestore OSD on a device. For filestore devices, Rook must
+// first mount the filesystem on disk (source path) to a path (mount path) from which the OSD will
+// be run.
 func RunFilestoreOnDevice(context *clusterd.Context, mountSourcePath, mountPath string, cephArgs []string) error {
 	// start the OSD daemon in the foreground with the given config
 	logger.Infof("starting filestore osd on a device")

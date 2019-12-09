@@ -15,7 +15,7 @@
   - Ceph OSD's admin socket is now placed under Ceph's default system location `/run/ceph`.
   - The on-host log directory for OSDs was set incorrectly to `<dataDirHostPath>/<namespace>/log`;
     fix this to be `<dataDirHostPath>/log/<namespace>`, the same as other daemons.
-  - Use the mon configuration database for directory-based OSDs, and do not generate a config
+  - Do not generate a config (during pod init) for directory-based or legacy filestore OSDs
   - Add a new CRD property `devicePathFilter` to support device filtering with path names, e.g. `/dev/disk/by-path/pci-.*-sas-.*`.
   - Support PersistentVolume backed by LVM Logical Volume for "OSD on PVC".
 - A new ceph-crashcollector controller has been added, that new pod will run on any node where a Ceph pod is running. Read more about this in the [doc](Documentation/ceph-cluster-crd.html#cluster-wide-resources-configuration-settings)

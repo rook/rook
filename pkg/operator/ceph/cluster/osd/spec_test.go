@@ -233,7 +233,6 @@ func TestStorageSpecConfig(t *testing.T) {
 			{
 				Name: "node1",
 				Config: map[string]string{
-					"storeType":      "bluestore",
 					"databaseSizeMB": "10",
 					"walSizeMB":      "20",
 					"journalSizeMB":  "30",
@@ -288,7 +287,6 @@ func TestStorageSpecConfig(t *testing.T) {
 	assert.NotNil(t, container)
 	container = job.Spec.Template.Spec.Containers[0]
 	assert.NotNil(t, container)
-	verifyEnvVar(t, container.Env, "ROOK_OSD_STORE", "bluestore", true)
 	verifyEnvVar(t, container.Env, "ROOK_OSD_DATABASE_SIZE", "10", true)
 	verifyEnvVar(t, container.Env, "ROOK_OSD_WAL_SIZE", "20", true)
 	verifyEnvVar(t, container.Env, "ROOK_OSD_JOURNAL_SIZE", "30", true)
@@ -307,7 +305,6 @@ func TestHostNetwork(t *testing.T) {
 			{
 				Name: "node1",
 				Config: map[string]string{
-					"storeType":      "bluestore",
 					"databaseSizeMB": "10",
 					"walSizeMB":      "20",
 					"journalSizeMB":  "30",
