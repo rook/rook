@@ -131,5 +131,5 @@ func TestFrontend(t *testing.T) {
 
 func TestGenerateCephXUser(t *testing.T) {
 	fakeUser := generateCephXUser("rook-ceph-rgw-fake-store-fake-user")
-	assert.Equal(t, "client.fake.store.fake.user", fakeUser)
+	assert.Equal(t, "client.rgw.fake.store.fake.user", fakeUser)
 }
