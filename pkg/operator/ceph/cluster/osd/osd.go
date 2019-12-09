@@ -519,7 +519,7 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 	// fully resolve the storage config and resources for this node
 	n := c.resolveNode(nodeName)
 	if n == nil {
-		config.addError("node %s did not resolve to start osds", nodeName)
+		logger.Errorf("node %s did not resolve to start osds", nodeName)
 		return
 	}
 	storeConfig := osdconfig.ToStoreConfig(n.Config)
