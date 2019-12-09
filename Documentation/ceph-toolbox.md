@@ -37,7 +37,7 @@ spec:
       dnsPolicy: ClusterFirstWithHostNet
       containers:
       - name: rook-ceph-tools
-        image: rook/ceph:master
+        image: rook/ceph:v1.2.0-beta.0
         command: ["/tini"]
         args: ["-g", "--", "/usr/local/bin/toolbox.sh"]
         imagePullPolicy: IfNotPresent
@@ -96,7 +96,7 @@ Once the rook-ceph-tools pod is running, you can connect to it with:
 kubectl -n rook-ceph exec -it $(kubectl -n rook-ceph get pod -l "app=rook-ceph-tools" -o jsonpath='{.items[0].metadata.name}') bash
 ```
 
-All available tools in the toolbox are ready for your troubleshooting needs. 
+All available tools in the toolbox are ready for your troubleshooting needs.
 
 **Example**:
 
