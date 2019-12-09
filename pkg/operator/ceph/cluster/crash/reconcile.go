@@ -18,6 +18,7 @@ package crash
 
 import (
 	"context"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
@@ -25,6 +26,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/rbd"
 	"github.com/rook/rook/pkg/operator/ceph/file/mds"
 	"github.com/rook/rook/pkg/operator/ceph/object"
+	"github.com/rook/rook/pkg/operator/ceph/version"
 
 	"github.com/coreos/pkg/capnslog"
 
@@ -39,6 +41,11 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+const (
+	getVersionRetryInterval = 5
+	getVersionMaxRetries    = 60
 )
 
 var (
@@ -117,6 +124,12 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 			logger.Errorf("more than one CephCluster found in the namespace %q, choosing the first one %q", namespace, cephCluster.GetName())
 		}
 
+		clusterImage := cephCluster.Spec.CephVersion.Image
+		cephVersion, ok := getImageVersion(clusterImage)
+		if !ok {
+			logger.Warningf("ceph version not found for image %q used by cluster %q", clusterImage, cephCluster.Name)
+		}
+
 		uniqueTolerations := controllerconfig.TolerationSet{}
 		hasCephPods := false
 		for _, cephPod := range cephPods {
@@ -132,7 +145,7 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 
 		if hasCephPods {
 			tolerations := uniqueTolerations.ToList()
-			op, err := r.createOrUpdateCephCrash(*node, tolerations, cephCluster)
+			op, err := r.createOrUpdateCephCrash(*node, tolerations, cephCluster, cephVersion)
 			if err != nil {
 				return reconcile.Result{}, errors.Wrapf(err, "node reconcile failed on op %q", op)
 			}
@@ -158,4 +171,16 @@ func (r *ReconcileNode) cephPodList() ([]corev1.Pod, error) {
 	}
 
 	return cephPods, nil
+}
+
+// getImageVersion returns the CephVersion registered for a specified image (if any) and whether any image was found.
+func getImageVersion(image string) (*version.CephVersion, bool) {
+	for i := 0; i < getVersionMaxRetries; i++ {
+		cephVersion, ok := version.GetImageVersion(image)
+		if ok {
+			return cephVersion, true
+		}
+		<-time.After(getVersionRetryInterval)
+	}
+	return nil, false
 }
