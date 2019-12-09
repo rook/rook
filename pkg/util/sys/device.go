@@ -26,14 +26,15 @@ import (
 )
 
 const (
-	DiskType   = "disk"
-	SSDType    = "ssd"
-	PartType   = "part"
-	CryptType  = "crypt"
-	LVMType    = "lvm"
-	LinearType = "linear"
-	sgdisk     = "sgdisk"
-	mountCmd   = "mount"
+	DiskType     = "disk"
+	SSDType      = "ssd"
+	PartType     = "part"
+	CryptType    = "crypt"
+	LVMType      = "lvm"
+	LinearType   = "linear"
+	sgdisk       = "sgdisk"
+	mountCmd     = "mount"
+	cephLVPrefix = "ceph--"
 )
 
 type Partition struct {
@@ -146,6 +147,9 @@ func GetDevicePartitions(device string, executor exec.Executor) (partitions []Pa
 				p.Filesystem = v
 			}
 
+			partitions = append(partitions, p)
+		} else if strings.HasPrefix(name, cephLVPrefix) && props["TYPE"] == LVMType {
+			p := Partition{Name: name}
 			partitions = append(partitions, p)
 		}
 	}
