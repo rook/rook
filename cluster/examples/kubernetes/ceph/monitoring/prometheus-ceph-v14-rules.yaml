@@ -210,8 +210,10 @@ spec:
     rules:
     - alert: CephClusterNearFull
       annotations:
-        description: Storage cluster utilization has crossed 75%.
-        message: Storage cluster is nearing full. Expansion is required.
+        description: Storage cluster utilization has crossed 75%. Free up some space
+          or expand the storage cluster.
+        message: Storage cluster is nearing full. Data deletion or cluster expansion
+          is required.
         severity_level: warning
         storage_type: ceph
       expr: |
@@ -221,8 +223,10 @@ spec:
         severity: warning
     - alert: CephClusterCriticallyFull
       annotations:
-        description: Storage cluster utilization has crossed 85%.
-        message: Storage cluster is critically full and needs immediate expansion
+        description: Storage cluster utilization has crossed 85%. Free up some space
+          or expand the storage cluster immediately.
+        message: Storage cluster is critically full and needs immediate data deletion
+          or cluster expansion.
         severity_level: error
         storage_type: ceph
       expr: |
