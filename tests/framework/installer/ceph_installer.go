@@ -394,6 +394,7 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(gatherLogs bool, systemNames
 		"cephobjectstoreusers.ceph.rook.io",
 		"cephfilesystems.ceph.rook.io",
 		"cephnfses.ceph.rook.io",
+		"cephclients.ceph.rook.io",
 		"volumes.rook.io",
 		"objectbuckets.objectbucket.io",
 		"objectbucketclaims.objectbucket.io")
