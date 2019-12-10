@@ -21,7 +21,7 @@ pipeline {
             steps {
                 // github credentials are not setup to push over https in jenkins. add the github token to the url
                 sh "git config remote.origin.url https://${GITHUB_USR}:${GITHUB_PSW}@\$(git config --get remote.origin.url | sed -e 's/https:\\/\\///')"
-                sh "make -j\$(nproc) -C build/release tag VERSION=${params.version} COMMIT_HASH=${params.commit}"
+                sh "make -j\$(nproc) -C build/release tag VERSION=${params.version} COMMIT_HASH=${params.commit} TAG_WITH_SUFFIX=true"
             }
         }
     }
