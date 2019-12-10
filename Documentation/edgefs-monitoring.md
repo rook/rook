@@ -4,6 +4,8 @@ weight: 4800
 indent: true
 ---
 
+{% include_relative branch.liquid %}
+
 # EdgeFS Monitoring
 
 Each Rook EdgeFS cluster has some built in metrics collectors/exporters for monitoring with [Prometheus](https://prometheus.io/).
@@ -34,6 +36,7 @@ With the Prometheus operator running, we can create a service monitor that will 
 From the root of your locally cloned Rook repo, go the monitoring directory:
 
 ```console
+git clone --single-branch --branch {{ branchName }} https://github.com/rook/rook.git
 cd cluster/examples/kubernetes/edgefs/monitoring
 ```
 

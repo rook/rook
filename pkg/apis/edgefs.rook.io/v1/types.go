@@ -76,8 +76,10 @@ type ClusterSpec struct {
 	SystemReplicationCount  int               `json:"sysRepCount,omitempty"`
 	FailureDomain           string            `json:"failureDomain,omitempty"`
 	CommitNWait             int               `json:"commitNWait,omitempty"`
+	NoIP4Frag               bool              `json:"noIP4Frag,omitempty"`
 	MaxContainerCapacity    resource.Quantity `json:"maxContainerCapacity,omitempty"`
 	UseHostLocalTime        bool              `json:"useHostLocalTime,omitempty"`
+	SysChunkSize            int               `json:"sysMaxChunkSize,omitempty"`
 }
 
 type DashboardSpec struct {

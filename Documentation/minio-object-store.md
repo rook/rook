@@ -4,6 +4,8 @@ weight: 600
 indent: true
 ---
 
+{% include_relative branch.liquid %}
+
 # Minio Object Store Quickstart
 
 Minio is a high performance distributed object storage server, designed for
@@ -20,6 +22,7 @@ To make sure you have a Kubernetes cluster that is ready for `Rook`, you can [fo
 First deploy the Rook Minio operator using the following commands:
 
 ```console
+git clone --single-branch --branch {{ branchName }} https://github.com/rook/rook.git
 cd cluster/examples/kubernetes/minio
 kubectl create -f operator.yaml
 ```

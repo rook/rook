@@ -4,6 +4,8 @@ weight: 550
 indent: true
 ---
 
+{% include_relative branch.liquid %}
+
 # EdgeFS Geo-Transparent Storage Quickstart
 
 This guide will walk you through the basic setup of a EdgeFS cluster namespaces and enable you to consume S3 object, NFS file access, and iSCSI block storage
@@ -44,6 +46,7 @@ To turn off this node adjustment need to enable `skipHostPrepare` option in clus
 If you're feeling lucky, a simple EdgeFS Rook cluster can be created with the following kubectl commands. For the more detailed install, skip to the next section to [deploy the Rook operator](#deploy-the-rook-operator).
 
 ```console
+git clone --single-branch --branch {{ branchName }} https://github.com/rook/rook.git
 cd cluster/examples/kubernetes/edgefs
 kubectl create -f operator.yaml
 kubectl create -f cluster.yaml

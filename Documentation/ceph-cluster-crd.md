@@ -31,7 +31,7 @@ metadata:
 spec:
   cephVersion:
     # see the "Cluster Settings" section below for more details on which image of ceph to run
-    image: ceph/ceph:v14.2.4-20190917
+    image: ceph/ceph:v14.2.5
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -94,7 +94,7 @@ Settings can be specified at the global level to apply to the cluster as a whole
 * `external`:
   * `enable`: if `true`, the cluster will not be managed by Rook but via an external entity. This mode is intended to connect to an existing cluster. In this case, Rook will only consume the external cluster. However, Rook will be able to deploy various daemons in Kubernetes such as object gateways, mds and nfs if an image is provided and will refuse otherwise. If this setting is enabled **all** the other options will be ignored except `cephVersion.image` and `dataDirHostPath`. See [external cluster configuration](#external-cluster). If `cephVersion.image` is left blank, Rook will refuse the creation of extra CRs like object, file and nfs.
 * `cephVersion`: The version information for launching the ceph daemons.
-  * `image`: The image used for running the ceph daemons. For example, `ceph/ceph:v13.2.6-20190604` or `ceph/ceph:v14.2.4-20190917`.
+  * `image`: The image used for running the ceph daemons. For example, `ceph/ceph:v13.2.6-20190604` or `ceph/ceph:v14.2.5`. For more details read the [container images section](#ceph-container-images).
   For the latest ceph images, see the [Ceph DockerHub](https://hub.docker.com/r/ceph/ceph/tags/).
   To ensure a consistent version of the image is running across all nodes in the cluster, it is recommended to use a very specific image version.
   Tags also exist that would give the latest version, but they are only recommended for test environments. For example, the tag `v14` will be updated each time a new nautilus build is released.
@@ -138,6 +138,22 @@ For more details on the mons and when to choose a number other than `3`, see the
   * `manageMachineDisruptionBudgets`: if `true`, the operator will create and manage MachineDisruptionBudgets to ensure OSDs are only fenced when the cluster is healthy. Only available on OpenShift.
   * `machineDisruptionBudgetNamespace`: the namespace in which to watch the MachineDisruptionBudgets.
 * `removeOSDsIfOutAndSafeToRemove`: If `true` the operator will remove the OSDs that are down and whose data has been restored to other OSDs. In Ceph terms, the osds are `out` and `safe-to-destroy` when then would be removed.
+
+### Ceph container images
+
+Official releases of Ceph Container images are available from [Docker Hub](https://hub.docker.com/r/ceph
+).
+
+These are general purpose Ceph container with all necessary daemons and dependencies installed.
+
+| TAG                  | MEANING                                                   |
+|----------------------|-----------------------------------------------------------|
+| vRELNUM              | Latest release in this series (e.g., *v14* = Nautilus)    |
+| vRELNUM.Y            | Latest stable release in this stable series (e.g., v14.2) |
+| vRELNUM.Y.Z          | A specific release (e.g., v14.2.5)                        |
+| vRELNUM.Y.Z-YYYYMMDD | A specific build (e.g., v14.2.5-20191203)                 |
+
+A specific will contain a specific release of Ceph as well as security fixes from the Operating System.
 
 ### Mon Settings
 
@@ -364,7 +380,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v14.2.4-20190917
+    image: ceph/ceph:v14.2.5
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -396,7 +412,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v14.2.4-20190917
+    image: ceph/ceph:v14.2.5
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -439,7 +455,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v14.2.4-20190917
+    image: ceph/ceph:v14.2.5
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -477,7 +493,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v14.2.4-20190917
+    image: ceph/ceph:v14.2.5
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -524,7 +540,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v14.2.4-20190917
+    image: ceph/ceph:v14.2.5
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -620,7 +636,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v14.2.4-20190917
+    image: ceph/ceph:v14.2.5
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -666,7 +682,7 @@ spec:
           requests:
             storage: 10Gi
   cephVersion:
-    image: ceph/ceph:v14.2.4-20190917
+    image: ceph/ceph:v14.2.5
     allowUnsupported: false
   dashboard:
     enabled: true
@@ -765,7 +781,7 @@ spec:
   dataDirHostPath: /var/lib/rook
   # providing an image is optional, do this if you want to create other CRs (rgw, mds, nfs)
   cephVersion:
-    image: ceph/ceph:v14.2.4-20190917 # MUST match external cluster version
+    image: ceph/ceph:v14.2.5 # MUST match external cluster version
 ```
 
 Choose the namespace carefully, if you have an existing cluster managed by Rook, you have likely already injected `common.yaml`.

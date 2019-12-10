@@ -26,6 +26,9 @@
   - nfs: [samples](Documentation/ceph-nfs-crd.md#samples)
 - When the operator is upgraded, the mgr and osd (not running on PVC) won't be restarted if the Rook binary version changes
 - Rook is now able to create and manage Ceph clients [client crd](Documentation/ceph-client-crd.html).
+- Device Filtering made configurable for the user by adding an environment variable, and also by keeping the default filters intact
+  - A new environment variable `DISCOVER_DAEMON_UDEV_BLACKLIST` is added through which the user can blacklist the devices
+  - If no device is specified, the default values will be used to blacklist the devices
 
 ### EdgeFS
 
