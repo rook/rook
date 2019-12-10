@@ -178,9 +178,10 @@ func getImageVersion(image string) (*version.CephVersion, bool) {
 	for i := 0; i < getVersionMaxRetries; i++ {
 		cephVersion, ok := version.GetImageVersion(image)
 		if ok {
+			logger.Debugf("ceph version found %+v", cephVersion)
 			return cephVersion, true
 		}
-		<-time.After(getVersionRetryInterval)
+		<-time.After(time.Second * getVersionRetryInterval)
 	}
 	return nil, false
 }
