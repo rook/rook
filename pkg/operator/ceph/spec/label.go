@@ -38,8 +38,8 @@ const (
 func addCephVersionLabel(cephVersion version.CephVersion, labels map[string]string) {
 	// cephVersion.String() returns a string with a space in it, and labels in k8s are limited to
 	// alphanum characters plus '-', '_', '.'
-	labels[CephVersionLabelKey] = fmt.Sprintf("%d.%d.%d",
-		cephVersion.Major, cephVersion.Minor, cephVersion.Extra)
+	labels[CephVersionLabelKey] = fmt.Sprintf("%d.%d.%d-%d",
+		cephVersion.Major, cephVersion.Minor, cephVersion.Extra, cephVersion.Build)
 }
 
 // AddCephVersionLabelToDeployment adds a label reporting the Ceph version which Rook has detected is
