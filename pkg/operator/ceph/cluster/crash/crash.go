@@ -76,13 +76,19 @@ func (r *ReconcileNode) createOrUpdateCephCrash(node corev1.Node, tolerations []
 		deploymentLabels[string(config.CrashType)] = "crash"
 		deploymentLabels["ceph_daemon_id"] = "crash"
 
+		selectorLabels := map[string]string{
+			corev1.LabelHostname: nodeHostnameLabel,
+			k8sutil.AppAttr:      AppName,
+			NodeNameLabel:        node.GetName(),
+		}
+
 		nodeSelector := map[string]string{corev1.LabelHostname: nodeHostnameLabel}
 
 		// Deployment selector is immutable so we set this value only if
 		// a new object is going to be created
 		if deploy.ObjectMeta.CreationTimestamp.IsZero() {
 			deploy.Spec.Selector = &metav1.LabelSelector{
-				MatchLabels: deploymentLabels,
+				MatchLabels: selectorLabels,
 			}
 		}
 
