@@ -25,10 +25,9 @@ ifeq ($(filter master release,$(CHANNEL)),)
 $(error invalid channel $(CHANNEL))
 endif
 
-# When a release branch is first created, the tag shows up in the master branch build tags.
-# When that tag has the alpha, beta, or rc suffixes, we want to remove it since it is only
-# relevant to the release tags.
-ifeq ($(CHANNEL),master)
+# When running the tag pipeline or release build we always want to add the alpha, beta, or rc suffix
+# if provided. Otherwise, it's a master build where we don't want to apply the suffix.
+ifneq ($(TAG_WITH_SUFFIX),true)
 override VERSION := $(shell echo "$(VERSION)" | sed -e 's/-alpha.0//' -e 's/-beta.0//' -e 's/-rc.0//')
 endif
 
