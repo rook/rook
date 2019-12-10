@@ -40,6 +40,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	discoverDaemonUdev = "DISCOVER_DAEMON_UDEV_BLACKLIST"
+)
+
 var (
 	logger          = capnslog.NewPackageLogger("github.com/rook/rook", "rook-discover")
 	AppName         = "rook-discover"
@@ -176,13 +180,25 @@ func rawUdevBlockMonitor(c chan string, matches, exclusions []string) {
 // only one event is emitted per period in order to deal with flapping.
 func udevBlockMonitor(c chan string, period time.Duration) {
 	defer close(c)
+	var udevFilter []string
 
 	// return any add or remove events, but none that match device mapper
 	// events. string matching is case-insensitve
 	events := make(chan string)
+
+	// get discoverDaemonUdevBlacklist from the enviornment variable
+	// if user doesnt provide any regex; generate the default regex
+	// else use the regex provided by user
+	discoverUdev := os.Getenv(discoverDaemonUdev)
+	if discoverUdev == "" {
+		discoverUdev = "(?i)dm-[0-9]+,(?i)rbd[0-9]+,(?i)nbd[0-9]+"
+	}
+	udevFilter = strings.Split(discoverUdev, ",")
+	logger.Infof("using the regular expressions %q", udevFilter)
+
 	go rawUdevBlockMonitor(events,
 		[]string{"(?i)add", "(?i)remove"},
-		[]string{"(?i)dm-[0-9]+", "(?i)rbd[0-9]+", "(?i)nbd[0-9]+"})
+		udevFilter)
 
 	for {
 		event, ok := <-events
