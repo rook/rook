@@ -17,7 +17,7 @@ include ../image.mk
 # ====================================================================================
 # Image Build Options
 
-CEPH_VERSION = v14.2.4-20190917
+CEPH_VERSION = v14.2.5-20191210
 BASEIMAGE = ceph/ceph-$(GOARCH):$(CEPH_VERSION)
 CEPH_IMAGE = $(BUILD_REGISTRY)/ceph-$(GOARCH)
 OPERATOR_SDK_VERSION = v0.10.0
