@@ -141,6 +141,10 @@ func (c *cluster) createClusterConfigMap(deploymentConfig edgefsv1.ClusterDeploy
 		if c.Spec.CommitNWait > 0 {
 			commitWait = 0
 		}
+		noIpFrag := 0
+		if c.Spec.NoIP4Frag {
+			noIpFrag = 1
+		}
 		nodeConfig := edgefsv1.SetupNode{
 			Ccow: edgefsv1.CcowConf{
 				Trlog: edgefsv1.CcowTrlog{
@@ -153,6 +157,7 @@ func (c *cluster) createClusterConfigMap(deploymentConfig edgefsv1.ClusterDeploy
 				Network: edgefsv1.CcowNetwork{
 					BrokerInterfaces: brokerIfName,
 					ServerUnixSocket: "/opt/nedge/var/run/sock/ccowd.sock",
+					NoIP4Frag:        noIpFrag,
 				},
 			},
 			Ccowd: edgefsv1.CcowdConf{
@@ -164,6 +169,7 @@ func (c *cluster) createClusterConfigMap(deploymentConfig edgefsv1.ClusterDeploy
 				Network: edgefsv1.CcowdNetwork{
 					ServerInterfaces: serverIfName,
 					ServerUnixSocket: "/opt/nedge/var/run/sock/ccowd.sock",
+					NoIP4Frag:        noIpFrag,
 				},
 				Transport: []string{deploymentConfig.TransportKey},
 			},
@@ -197,6 +203,10 @@ func (c *cluster) createClusterConfigMap(deploymentConfig edgefsv1.ClusterDeploy
 			nodeConfig.Ccow.Tenant.ReplicationCount = c.Spec.SystemReplicationCount
 			nodeConfig.Ccow.Tenant.SyncPut = c.Spec.SystemReplicationCount
 			nodeConfig.Ccow.Tenant.SyncPutNamed = c.Spec.SystemReplicationCount
+		}
+
+		if c.Spec.SysChunkSize > 0 {
+			nodeConfig.Ccow.Tenant.ChunkSize = c.Spec.SysChunkSize
 		}
 
 		cm[nodeName] = nodeConfig

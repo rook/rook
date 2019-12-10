@@ -34,6 +34,12 @@ type RTDevice struct {
 	PlevelOverride    int    `json:"plevel_override,omitempty"`
 	Sync              int    `json:"sync"`
 	WalDisabled       int    `json:"wal_disabled,omitempty"`
+	PayloadS3URL      string `json:"payload_s3_bucket_url"`
+	PayloadS3Region   string `json:"payload_s3_region"`
+	PayloadS3MinKb    int    `json:"payload_s3_min_kb"`
+	PayloadS3Capacity int    `json:"payload_s3_capacity"`
+	PayloadS3Secret   string `json:"payload_s3_key_file"`
+	PayloadS3SyncGet  int    `json:"payload_s3_sync_get_max,omitempty"`
 }
 
 type RtlfsDevices struct {
@@ -74,6 +80,7 @@ type CcowTenant struct {
 	SyncPut          int `json:"sync_put,omitempty"`
 	SyncPutNamed     int `json:"sync_put_named"`
 	CommitWait       int `json:"sync_put_commit_wait"`
+	ChunkSize        int `json:"chunkmap_chunk_size,omitempty"`
 }
 
 type CcowNetwork struct {
@@ -81,6 +88,7 @@ type CcowNetwork struct {
 	ServerUnixSocket string `json:"server_unix_socket"`
 	BrokerIP4addr    string `json:"broker_ip4addr,omitempty"`
 	ServerIP4addr    string `json:"server_ip4addr,omitempty"`
+	NoIP4Frag        int    `json:"no_ipfrag,omitempty"`
 }
 
 type CcowTrlog struct {
@@ -98,6 +106,7 @@ type CcowdNetwork struct {
 	ServerInterfaces string `json:"server_interfaces"`
 	ServerUnixSocket string `json:"server_unix_socket"`
 	ServerIP4addr    string `json:"server_ip4addr,omitempty"`
+	NoIP4Frag        int    `json:"no_ipfrag,omitempty"`
 }
 
 type CcowdBgConfig struct {
