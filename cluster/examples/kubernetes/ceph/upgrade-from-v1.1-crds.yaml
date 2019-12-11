@@ -117,7 +117,10 @@ spec:
                             pattern: ^(true|false)$
                       useAllDevices:
                         type: boolean
-                      deviceFilter: {}
+                      deviceFilter:
+                        type: string
+                      devicePathFilter:
+                        type: string
                       directories:
                         type: array
                         items:
@@ -131,13 +134,14 @@ spec:
                             name:
                               type: string
                             config: {}
-                      location: {}
                       resources: {}
                   type: array
                 useAllDevices:
                   type: boolean
-                deviceFilter: {}
-                location: {}
+                deviceFilter:
+                  type: string
+                devicePathFilter:
+                  type: string
                 directories:
                   type: array
                   items:
@@ -156,6 +160,8 @@ spec:
               properties:
                 workers:
                   type: integer
+            removeOSDsIfOutAndSafeToRemove:
+              type: boolean
             external:
               properties:
                 enable:
@@ -186,6 +192,27 @@ spec:
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
+  name: cephclients.ceph.rook.io
+spec:
+  group: ceph.rook.io
+  names:
+    kind: CephClient
+    listKind: CephClientList
+    plural: cephclients
+    singular: cephclient
+  scope: Namespaced
+  version: v1
+  validation:
+    openAPIV3Schema:
+      properties:
+        spec:
+          properties:
+            caps:
+              type: object
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
   name: cephfilesystems.ceph.rook.io
 spec:
   group: ceph.rook.io
@@ -204,6 +231,8 @@ spec:
             metadataServer:
               properties:
                 activeCount:
+                  minimum: 1
+                  maximum: 10
                   type: integer
                 activeStandby:
                   type: boolean
@@ -217,6 +246,8 @@ spec:
                 replicated:
                   properties:
                     size:
+                      minimum: 1
+                      maximum: 10
                       type: integer
                 erasureCoded:
                   properties:
@@ -233,6 +264,8 @@ spec:
                   replicated:
                     properties:
                       size:
+                        minimum: 1
+                        maximum: 10
                         type: integer
                   erasureCoded:
                     properties:
@@ -240,6 +273,8 @@ spec:
                         type: integer
                       codingChunks:
                         type: integer
+            preservePoolsOnDelete:
+              type: boolean
   additionalPrinterColumns:
     - name: ActiveMDS
       type: string
@@ -282,7 +317,6 @@ spec:
                 annotations: {}
                 placement: {}
                 resources: {}
-
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -343,6 +377,8 @@ spec:
                       type: integer
                     codingChunks:
                       type: integer
+            preservePoolsOnDelete:
+              type: boolean
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
