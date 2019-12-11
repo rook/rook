@@ -129,7 +129,6 @@ func (c *clusterConfig) setDefaultFlagsMonConfigStore(rgwName string) error {
 	configOptions["rgw_log_nonexistent_bucket"] = "true"
 	configOptions["rgw_log_object_name_utc"] = "true"
 	configOptions["rgw_enable_usage_log"] = "true"
-	configOptions["rgw_frontends"] = fmt.Sprintf("%s %s", rgwFrontend(c.clusterInfo.CephVersion), c.portString(c.clusterInfo.CephVersion))
 	configOptions["rgw_zone"] = c.store.Name
 	configOptions["rgw_zonegroup"] = c.store.Name
 
