@@ -17,6 +17,8 @@ limitations under the License.
 package object
 
 import (
+	"fmt"
+
 	"github.com/pkg/errors"
 	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
@@ -152,6 +154,7 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 			append(
 				opspec.DaemonFlags(c.clusterInfo, c.store.Name),
 				"--foreground",
+				cephconfig.NewFlag("rgw frontends", fmt.Sprintf("%s %s", rgwFrontend(c.clusterInfo.CephVersion), c.portString(c.clusterInfo.CephVersion))),
 				cephconfig.NewFlag("name", generateCephXUser(rgwConfig.ResourceName)),
 				cephconfig.NewFlag("host", opspec.ContainerEnvVarReference("POD_NAME")),
 				cephconfig.NewFlag("rgw-mime-types-file", mimeTypesMountPath()),
