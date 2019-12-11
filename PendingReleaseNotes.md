@@ -5,7 +5,11 @@
 ## Notable Features
 
 - Added K8s 1.16 to the test matrix and removed K8s 1.11 from the test matrix.
-- When the Storage Operator is deleted, the Discover Daemon will also be deleted, as well as its Config Map
+- Discover daemon:
+  - When the Storage Operator is deleted, the Discover Daemon will also be deleted, as well as its Config Map
+  - Device filtering is now configurable for the user by adding an environment variable
+    - A new environment variable `DISCOVER_DAEMON_UDEV_BLACKLIST` is added through which the user can blacklist the devices
+    - If no device is specified, the default values will be used to blacklist the devices
 
 ### Ceph
 
@@ -13,6 +17,14 @@
 - A new CR property `skipUpgradeChecks` has been added, which allows you force an upgrade by skipping daemon checks. Use this at **YOUR OWN RISK**, only if you know what you're doing. To understand Rook's upgrade process of Ceph, read the [upgrade doc](Documentation/ceph-upgrade.html#ceph-version-upgrades).
 - Mon Quorum Disaster Recovery guide has been updated to work with the latest Rook and Ceph release.
 - A new CRD property `PreservePoolsOnDelete` has been added to Filesystem(fs) and Object Store(os) resources in order to increase protection against data loss. if it is set to `true`, associated pools won't be deleted when the main resource(fs/os) is deleted. Creating again the deleted fs/os with the same name will reuse the preserved pools.
+- A new ceph-crashcollector controller has been added. These new deployments will run on any node where a Ceph pod is running. Read more about this in the [doc](Documentation/ceph-cluster-crd.html#cluster-wide-resources-configuration-settings)
+- PriorityClassNames can now be added to the Rook/Ceph components to influence the scheduler's pod preemption.
+  - mgr/mon/osd/rbdmirror: [priority class names configuration settings](Documentation/ceph-cluster-crd.md#priority-class-names-configuration-settings)
+  - filesystem: [metadata server settings](Documentation/ceph-filesystem-crd.md#metadata-server-settings)
+  - rgw: [gateway settings](Documentation/ceph-object-store-crd.md#gateway-settings)
+  - nfs: [samples](Documentation/ceph-nfs-crd.md#samples)
+- When the operator is upgraded, the mgr and OSDs (not running on PVC) won't be restarted if the Rook binary version changes
+- Rook is now able to create and manage Ceph clients [client crd](Documentation/ceph-client-crd.html).
 - OSDs:
   - Ceph OSD's admin socket is now placed under Ceph's default system location `/run/ceph`.
   - The on-host log directory for OSDs was set incorrectly to `<dataDirHostPath>/<namespace>/log`;
@@ -20,24 +32,18 @@
   - Do not generate a config (during pod init) for directory-based or legacy filestore OSDs
   - Add a new CRD property `devicePathFilter` to support device filtering with path names, e.g. `/dev/disk/by-path/pci-.*-sas-.*`.
   - Support PersistentVolume backed by LVM Logical Volume for "OSD on PVC".
-- A new ceph-crashcollector controller has been added, that new pod will run on any node where a Ceph pod is running. Read more about this in the [doc](Documentation/ceph-cluster-crd.html#cluster-wide-resources-configuration-settings)
-- PriorityClassNames can now be added to the Rook/Ceph components to influence the scheduler's pod preemption.
-  - mgr/mon/osd/rbdmirror: [priority class names configuration settings](Documentation/ceph-cluster-crd.md#priority-class-names-configuration-settings)
-  - filesystem: [metadata server settings](Documentation/ceph-filesystem-crd.md#metadata-server-settings)
-  - rgw: [gateway settings](Documentation/ceph-object-store-crd.md#gateway-settings)
-  - nfs: [samples](Documentation/ceph-nfs-crd.md#samples)
-- When the operator is upgraded, the mgr and osd (not running on PVC) won't be restarted if the Rook binary version changes
-- Rook is now able to create and manage Ceph clients [client crd](Documentation/ceph-client-crd.html).
-- Device Filtering made configurable for the user by adding an environment variable, and also by keeping the default filters intact
-  - A new environment variable `DISCOVER_DAEMON_UDEV_BLACKLIST` is added through which the user can blacklist the devices
-  - If no device is specified, the default values will be used to blacklist the devices
-- Ceph Object Gateway are automatically configured to not run on the same host if hostNetwork is activated
+  - Creation of new `Filestore` OSDs on disks is now deprecated. `Filestore` is in sustaining mode in Ceph.
+    - The `storeType` storage config setting is now ignored
+      - New OSDs created in directories are always `Filestore` type
+      - New OSDs created on disks are always `Bluestore` type
+    - Preexisting disks provisioned as `Filestore` OSDs will remain as `Filestore` OSDs
+- RGWs:
+  - Ceph Object Gateway are automatically configured to not run on the same host if hostNetwork is activated
 
 ### EdgeFS
 
 
 ### YugabyteDB
-
 
 
 ## Breaking Changes
