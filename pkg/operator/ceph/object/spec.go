@@ -18,6 +18,7 @@ package object
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
@@ -126,10 +127,9 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 		},
 		Args: append(
 			append(
-				opspec.DaemonFlags(c.clusterInfo, c.store.Name),
+				opspec.DaemonFlags(c.clusterInfo, strings.TrimPrefix(generateCephXUser(rgwConfig.ResourceName), "client.")),
 				"--foreground",
 				cephconfig.NewFlag("rgw frontends", fmt.Sprintf("%s %s", rgwFrontend(c.clusterInfo.CephVersion), c.portString(c.clusterInfo.CephVersion))),
-				cephconfig.NewFlag("name", generateCephXUser(rgwConfig.ResourceName)),
 				cephconfig.NewFlag("host", opspec.ContainerEnvVarReference("POD_NAME")),
 				cephconfig.NewFlag("rgw-mime-types-file", mimeTypesMountPath()),
 			),
