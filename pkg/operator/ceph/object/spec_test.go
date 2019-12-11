@@ -78,6 +78,11 @@ func TestPodSpecs(t *testing.T) {
 		c.getLabels(),
 		s.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[0].LabelSelector.MatchLabels)
 
+	// Check liveness timeout
+	assert.Equal(t,
+		int32(10),
+		s.Spec.Containers[0].LivenessProbe.TimeoutSeconds)
+
 	podTemplate := cephtest.NewPodTemplateSpecTester(t, &s)
 	podTemplate.RunFullSuite(cephconfig.RgwType, "default", "rook-ceph-rgw", "mycluster", "ceph/ceph:myversion",
 		"200", "100", "1337", "500", /* resources */
