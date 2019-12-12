@@ -145,6 +145,7 @@ func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage, securityAcc
 							Env: []v1.EnvVar{
 								k8sutil.NamespaceEnvVar(),
 								k8sutil.NodeEnvVar(),
+								k8sutil.NameEnvVar(),
 							},
 						},
 					},
