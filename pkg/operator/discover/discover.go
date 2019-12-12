@@ -25,6 +25,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/coreos/pkg/capnslog"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
@@ -85,9 +87,17 @@ func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage, securityAcc
 		discovery_parameters = append(discovery_parameters, "--use-ceph-volume")
 	}
 
+	// Get the operator pod details
+	// So that we can attach the owner reference to the discover daemon set
+	operatorPod, err := k8sutil.GetRunningPod(d.clientset)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get operator pod")
+	}
+
 	ds := &apps.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: discoverDaemonsetName,
+			Name:            discoverDaemonsetName,
+			OwnerReferences: operatorPod.OwnerReferences,
 		},
 		Spec: apps.DaemonSetSpec{
 			Selector: &metav1.LabelSelector{
