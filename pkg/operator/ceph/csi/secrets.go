@@ -152,7 +152,7 @@ func createOrUpdateCSISecret(namespace, csiRBDProvisionerSecretKey, csiRBDNodeSe
 		// Create Kubernetes Secret
 		err := k.CreateSecret(s)
 		if err != nil {
-			return errors.Errorf("failed to create kubernetes secret %q for cluster %q", secret, namespace)
+			return errors.Wrapf(err, "failed to create kubernetes secret %q for cluster %q", secret, namespace)
 		}
 
 	}

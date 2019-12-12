@@ -3,7 +3,7 @@ package keyring
 import (
 	"path"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 )
 
 const (
@@ -11,7 +11,8 @@ const (
 
 	// admin keyring path must be different from keyring path so that the two keyrings can be
 	// mounted independently
-	adminKeyringDir = "/etc/ceph/admin-keyring-store/"
+	adminKeyringDir          = "/etc/ceph/admin-keyring-store/"
+	crashCollectorKeyringDir = "/etc/ceph/crash-collector-keyring-store/"
 )
 
 // VolumeBuilder is a helper for creating Kubernetes pod volumes with content sourced by keyrings
@@ -41,6 +42,11 @@ func (v *VolumeBuilder) Admin() v1.Volume {
 	return v.Resource(adminKeyringResourceName)
 }
 
+// CrashCollector returns a kubernetes pod volume whose content is sourced by the SecretStore crash collector keyring.
+func (v *VolumeBuilder) CrashCollector() v1.Volume {
+	return v.Resource(crashCollectorKeyringResourceName)
+}
+
 // VolumeMount returns a VolumeMountBuilder.
 func VolumeMount() *VolumeMountBuilder { return &VolumeMountBuilder{} }
 
@@ -64,6 +70,16 @@ func (*VolumeMountBuilder) Admin() v1.VolumeMount {
 	}
 }
 
+// CrashCollector returns a Kubernetes container volume mount that mounts the content from the matching
+// VolumeBuilder Crash Collector volume.
+func (*VolumeMountBuilder) CrashCollector() v1.VolumeMount {
+	return v1.VolumeMount{
+		Name:      keyringSecretName(crashCollectorKeyringResourceName),
+		ReadOnly:  true, // should be no reason to write to the keyring in pods, so enforce this
+		MountPath: crashCollectorKeyringDir,
+	}
+}
+
 // KeyringFilePath returns the full path to the regular keyring file within a container.
 func (*VolumeMountBuilder) KeyringFilePath() string {
 	return path.Join(keyringDir, keyringFileName)
@@ -72,4 +88,9 @@ func (*VolumeMountBuilder) KeyringFilePath() string {
 // AdminKeyringFilePath returns the full path to the admin keyring file within a container.
 func (*VolumeMountBuilder) AdminKeyringFilePath() string {
 	return path.Join(adminKeyringDir, keyringFileName)
+}
+
+// CrashCollectorKeyringFilePath returns the full path to the admin keyring file within a container.
+func (*VolumeMountBuilder) CrashCollectorKeyringFilePath() string {
+	return path.Join(crashCollectorKeyringDir, keyringFileName)
 }
