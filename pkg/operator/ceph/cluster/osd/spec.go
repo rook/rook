@@ -871,7 +871,11 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 			} else {
 				devSuffix += ":"
 			}
-			deviceNames[i] = device.Name + devSuffix
+			deviceID := device.Name
+			if device.FullPath != "" {
+				deviceID = device.FullPath
+			}
+			deviceNames[i] = deviceID + devSuffix
 		}
 		envVars = append(envVars, dataDevicesEnvVar(strings.Join(deviceNames, ",")))
 		devMountNeeded = true

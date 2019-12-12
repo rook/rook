@@ -13,6 +13,8 @@
 - OSD on PVC now supports PVC expansion, if the size of the underlying block increases the Bluestore main block and the overall storage capacity will grow up.
 - Ceph Nautilus 14.2.5 is the minimum supported version
 - OSD on PVC doesn't use LVM anymore to configure OSD, but solely relies on the entire block device, done [here](https://github.com/rook/rook/pull/4435).
+- Specific devices for OSDs can now be specified using the full udev path (e.g. /dev/disk/by-id/ata-ST4000DM004-XXXX) instead of the device name.
+
 
 ### EdgeFS
 
