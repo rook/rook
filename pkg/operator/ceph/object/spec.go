@@ -140,7 +140,7 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 		LivenessProbe: &v1.Probe{
 			Handler: v1.Handler{
 				HTTPGet: &v1.HTTPGetAction{
-					Path: "/",
+					Path: "/swift/healthcheck",
 					Port: intstr.FromInt(int(c.store.Spec.Gateway.Port)),
 				},
 			},
