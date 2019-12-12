@@ -19,6 +19,7 @@ package k8sutil
 
 import (
 	"fmt"
+	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"io"
 	"os"
 	"path"
@@ -290,5 +291,44 @@ func ClusterDaemonEnvVars(image string) []v1.EnvVar {
 		// If request.cpu is not set in the pod definition, Kubernetes will use the formula "requests.cpu = limits.cpu" during pods's scheduling
 		// Kubernetes will set this variable to 0 or equal to limits.cpu if set
 		{Name: "POD_CPU_REQUEST", ValueFrom: &v1.EnvVarSource{ResourceFieldRef: &v1.ResourceFieldSelector{Resource: "requests.cpu"}}},
+	}
+}
+
+// SetNodeAntiAffinityForPod assign pod anti-affinity when pod should not be co-located
+func SetNodeAntiAffinityForPod(pod *v1.PodSpec, p rook.Placement, requiredDuringScheduling, preferredDuringScheduling bool,
+	labels, nodeSelector map[string]string) {
+	p.ApplyToPodSpec(pod)
+	pod.NodeSelector = nodeSelector
+
+	// when a node selector is being used, skip the affinity business below
+	if nodeSelector != nil {
+		return
+	}
+
+	// label selector used in anti-affinity rules
+	podAntiAffinity := v1.PodAffinityTerm{
+		LabelSelector: &metav1.LabelSelector{
+			MatchLabels: labels,
+		},
+		TopologyKey: v1.LabelHostname,
+	}
+
+	// Ensures that pod.Affinity is non-nil
+	if pod.Affinity.PodAntiAffinity == nil {
+		pod.Affinity.PodAntiAffinity = &v1.PodAntiAffinity{}
+	}
+	paa := pod.Affinity.PodAntiAffinity
+
+	// Set pod anti-affinity rules when pod should never be
+	// co-located (e.g. HostNetworking, not AllowMultiplePerHost)
+	if requiredDuringScheduling {
+		paa.RequiredDuringSchedulingIgnoredDuringExecution =
+			append(paa.RequiredDuringSchedulingIgnoredDuringExecution, podAntiAffinity)
+	} else if preferredDuringScheduling {
+		paa.PreferredDuringSchedulingIgnoredDuringExecution =
+			append(paa.PreferredDuringSchedulingIgnoredDuringExecution, v1.WeightedPodAffinityTerm{
+				Weight:          50,
+				PodAffinityTerm: podAntiAffinity,
+			})
 	}
 }

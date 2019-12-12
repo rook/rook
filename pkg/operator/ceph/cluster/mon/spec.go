@@ -23,7 +23,6 @@ import (
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config"
@@ -130,52 +129,6 @@ func (c *Cluster) makeDeploymentPVC(m *monConfig) (*v1.PersistentVolumeClaim, er
 	pvc.Spec.Resources.Requests[v1.ResourceStorage] = req
 
 	return pvc, nil
-}
-
-/*
- * Pod spec
- */
-
-func (c *Cluster) setPodPlacement(pod *v1.PodSpec, p rook.Placement, nodeSelector map[string]string) {
-	p.ApplyToPodSpec(pod)
-	pod.NodeSelector = nodeSelector
-
-	// when a node selector is being used, skip the affinity business below
-	if nodeSelector != nil {
-		return
-	}
-
-	// label selector for monitors used in anti-affinity rules
-	monAntiAffinity := v1.PodAffinityTerm{
-		LabelSelector: &metav1.LabelSelector{
-			MatchLabels: map[string]string{
-				k8sutil.AppAttr: AppName,
-			},
-		},
-		TopologyKey: v1.LabelHostname,
-	}
-
-	// set monitor pod anti-affinity rules. when monitors should never be
-	// co-located (e.g. not AllowMultiplePerHost or HostNetworking) then the
-	// anti-affinity rule is made to be required during scheduling, otherwise it
-	// is merely a preferred policy.
-	//
-	// ApplyToPodSpec ensures that pod.Affinity is non-nil
-	if pod.Affinity.PodAntiAffinity == nil {
-		pod.Affinity.PodAntiAffinity = &v1.PodAntiAffinity{}
-	}
-	paa := pod.Affinity.PodAntiAffinity
-
-	if c.Network.IsHost() || !c.spec.Mon.AllowMultiplePerNode {
-		paa.RequiredDuringSchedulingIgnoredDuringExecution =
-			append(paa.RequiredDuringSchedulingIgnoredDuringExecution, monAntiAffinity)
-	} else {
-		paa.PreferredDuringSchedulingIgnoredDuringExecution =
-			append(paa.PreferredDuringSchedulingIgnoredDuringExecution, v1.WeightedPodAffinityTerm{
-				Weight:          50,
-				PodAffinityTerm: monAntiAffinity,
-			})
-	}
 }
 
 func (c *Cluster) makeMonPod(monConfig *monConfig) *v1.Pod {
