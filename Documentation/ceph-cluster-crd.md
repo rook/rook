@@ -482,7 +482,7 @@ spec:
 ### Node Affinity
 
 To control where various services will be scheduled by kubernetes, use the placement configuration sections below.
-The example under 'all' would have all services scheduled on kubernetes nodes labeled with 'role=storage' and
+The example under 'all' would have all services scheduled on kubernetes nodes labeled with 'role=storage-node' and
 tolerate taints with a key of 'storage-node'.
 
 ```yaml
