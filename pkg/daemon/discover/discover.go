@@ -30,13 +30,15 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/sys"
 
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -312,6 +314,14 @@ func DeviceListsEqual(old, new string) (bool, error) {
 }
 
 func updateDeviceCM(context *clusterd.Context) error {
+
+	// Get the discover daemon pod details
+	// So that we can attach the owner reference to the config map
+	discoverPod, err := k8sutil.GetRunningPod(context.Clientset)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get discover pod")
+	}
+
 	logger.Infof("updating device configmap")
 	devices, err := probeDevices(context)
 	if err != nil {
@@ -332,7 +342,7 @@ func updateDeviceCM(context *clusterd.Context) error {
 		lastDevice = cm.Data[LocalDiskCMData]
 		logger.Debugf("last devices %s", lastDevice)
 	} else {
-		if !errors.IsNotFound(err) {
+		if !kerrors.IsNotFound(err) {
 			logger.Infof("failed to get configmap: %v", err)
 			return err
 		}
@@ -349,6 +359,7 @@ func updateDeviceCM(context *clusterd.Context) error {
 					k8sutil.AppAttr: AppName,
 					NodeAttr:        nodeName,
 				},
+				OwnerReferences: discoverPod.OwnerReferences,
 			},
 			Data: data,
 		}
