@@ -30,8 +30,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -314,14 +312,6 @@ func DeviceListsEqual(old, new string) (bool, error) {
 }
 
 func updateDeviceCM(context *clusterd.Context) error {
-
-	// Get the discover daemon pod details
-	// So that we can attach the owner reference to the config map
-	discoverPod, err := k8sutil.GetRunningPod(context.Clientset)
-	if err != nil {
-		return errors.Wrapf(err, "failed to get discover pod")
-	}
-
 	logger.Infof("updating device configmap")
 	devices, err := probeDevices(context)
 	if err != nil {
@@ -359,10 +349,18 @@ func updateDeviceCM(context *clusterd.Context) error {
 					k8sutil.AppAttr: AppName,
 					NodeAttr:        nodeName,
 				},
-				OwnerReferences: discoverPod.OwnerReferences,
 			},
 			Data: data,
 		}
+
+		// Get the discover daemon pod details to attach the owner reference to the config map
+		discoverPod, err := k8sutil.GetRunningPod(context.Clientset)
+		if err != nil {
+			logger.Warningf("failed to get discover pod to set ownerref. %+v", err)
+		} else {
+			k8sutil.SetOwnerRefsWithoutBlockOwner(&cm.ObjectMeta, discoverPod.OwnerReferences)
+		}
+
 		cm, err = context.Clientset.CoreV1().ConfigMaps(namespace).Create(cm)
 		if err != nil {
 			logger.Infof("failed to create configmap: %v", err)
