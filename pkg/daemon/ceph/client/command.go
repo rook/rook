@@ -41,7 +41,7 @@ const (
 	// CrushTool is the name of the CLI tool for 'crushtool'
 	CrushTool             = "crushtool"
 	CmdExecuteTimeout     = 1 * time.Minute
-	cephConnectionTimeout = "15" // in seconds
+	cephConnectionTimeout = "600" // in seconds
 )
 
 // CephConfFilePath returns the location to the cluster's config file in the operator container.

@@ -30,7 +30,7 @@ func TestFinalizeCephCommandArgs(t *testing.T) {
 	args := []string{"quorum_status"}
 	expectedArgs := []string{
 		"quorum_status",
-		"--connect-timeout=15",
+		"--connect-timeout=600",
 		"--cluster=rook",
 		"--conf=/var/lib/rook/rook-ceph/rook/rook.config",
 		"--keyring=/var/lib/rook/rook-ceph/rook/client.admin.keyring",
@@ -85,7 +85,7 @@ func TestFinalizeCephCommandArgsToolBox(t *testing.T) {
 		"--",
 		"ceph",
 		"health",
-		"--connect-timeout=15",
+		"--connect-timeout=600",
 	}
 
 	cmd, args := FinalizeCephCommandArgs(expectedCommand, args, configDir, clusterName)
@@ -101,7 +101,7 @@ func TestFinalizeCephCommandArgsClusterDefaultName(t *testing.T) {
 	args := []string{"quorum_status"}
 	expectedArgs := []string{
 		"quorum_status",
-		"--connect-timeout=15",
+		"--connect-timeout=600",
 	}
 
 	cmd, args := FinalizeCephCommandArgs(expectedCommand, args, configDir, clusterName)

@@ -29,7 +29,7 @@ func TestCephArgs(t *testing.T) {
 	assert.Equal(t, CephTool, command)
 	assert.Equal(t, 4, len(args))
 	assert.Equal(t, 4, len(args))
-	assert.Equal(t, "--connect-timeout=15", args[0])
+	assert.Equal(t, "--connect-timeout=600", args[0])
 	assert.Equal(t, "--cluster=a", args[1])
 	assert.Equal(t, "--conf=/etc/a/a.config", args[2])
 	assert.Equal(t, "--keyring=/etc/a/client.admin.keyring", args[3])
@@ -46,7 +46,7 @@ func TestCephArgs(t *testing.T) {
 	assert.Equal(t, "a", args[4])
 	assert.Equal(t, "--", args[5])
 	assert.Equal(t, CephTool, args[6])
-	assert.Equal(t, "--connect-timeout=15", args[7])
+	assert.Equal(t, "--connect-timeout=600", args[7])
 	RunAllCephCommandsInToolbox = false
 
 	// cluster under /var/lib/rook
