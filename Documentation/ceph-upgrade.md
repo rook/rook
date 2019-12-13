@@ -239,6 +239,20 @@ kubectl apply -f upgrade-from-v1.1-apply.yaml
 The largest portion of the upgrade is triggered when the operator's image is updated to `v1.2.x`.
 When the operator is updated, it will proceed to update all of the Ceph daemons.
 
+If you are using ceph-fuse or nbd-rbd mounter. when upgraded, will cause
+existing mounts to become stale/not-rechable. please add below to the operator
+`env` variables by editing operator deployment.
+
+```yaml
+  env:
+    #  Add CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY env if you are using ceph-fuse mounter in storageclass or kernel is not supporting ceph quota(<4.17)
+    - name: CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY
+      value: "OnDelete"
+     #  Add CSI_RBD_PLUGIN_UPDATE_STRATEGY env if you are using rbd-nbd mounter
+    - name: CSI_RBD_PLUGIN_UPDATE_STRATEGY
+      value: "OnDelete"
+```
+
 ```sh
 kubectl -n $ROOK_SYSTEM_NAMESPACE set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.2.0
 ```

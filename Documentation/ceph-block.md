@@ -27,6 +27,11 @@ Before Rook can provision storage, a [`StorageClass`](https://kubernetes.io/docs
 
 Each OSD must be located on a different node, because the [`failureDomain`](ceph-pool-crd.md#spec) is set to `host` and the `replicated.size` is set to `3`.
 
+> **IMPORTANT**: If you are using rbd-nbd as a mounter in storageclass. During upgrade you will be hitting a ceph-csi
+[bug](https://github.com/ceph/ceph-csi/issues/703) you need to follow
+> [upgrade steps](ceph-upgrade.md#1.-Update-the-Rook-Operator) which requires
+> node draining.
+
 > **NOTE**: This example uses the CSI driver, which is the preferred driver going forward for K8s 1.13 and newer. Examples are found in the [CSI RBD](https://github.com/rook/rook/tree/{{ branchName }}/cluster/examples/kubernetes/ceph/csi/rbd) directory. For an example of a storage class using the flex driver (required for K8s 1.12 or earlier), see the [Flex Driver](#flex-driver) section below, which has examples in the [flex](https://github.com/rook/rook/tree/{{ branchName }}/cluster/examples/kubernetes/ceph/flex) directory.
 
 Save this `StorageClass` definition as `storageclass.yaml`:
