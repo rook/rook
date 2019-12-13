@@ -26,6 +26,8 @@
 - When the operator is upgraded, the mgr and OSDs (not running on PVC) won't be restarted if the Rook binary version changes
 - Rook is now able to create and manage Ceph clients [client crd](Documentation/ceph-client-crd.html).
 - OSDs:
+  - Rook will no longer automatically remove OSDs if nodes are removed from the cluster CR to avoid the risk of destroying OSDs unintentionally.
+To remove OSDs manually, see the new doc on [OSD Management](Documentation/ceph-osd-mgmt.md)
   - Ceph OSD's admin socket is now placed under Ceph's default system location `/run/ceph`.
   - The on-host log directory for OSDs was set incorrectly to `<dataDirHostPath>/<namespace>/log`;
     fix this to be `<dataDirHostPath>/log/<namespace>`, the same as other daemons.

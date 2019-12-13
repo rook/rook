@@ -218,12 +218,6 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 		return errors.Wrapf(err, "failed to get available devices")
 	}
 
-	// determine the set of removed OSDs and the node's crush name (if needed)
-	removedDevicesScheme, _, err := getRemovedDevices(agent)
-	if err != nil {
-		return errors.Wrapf(err, "failed to get removed devices")
-	}
-
 	// orchestration is about to start, update the status
 	status = oposd.OrchestrationStatus{Status: oposd.OrchestrationStatusOrchestrating, PvcBackedOSD: agent.pvcBacked}
 	if err := oposd.UpdateNodeStatus(agent.kv, agent.nodeName, status); err != nil {
@@ -245,7 +239,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 	// determine the set of directories that can/should be used for OSDs, with the default dir if no devices were specified. save off the node's crush name if needed.
 	logger.Infof("devices = %+v", deviceOSDs)
 	devicesConfigured := len(deviceOSDs) > 0
-	dirs, removedDirs, err := getDataDirs(context, agent.kv, agent.directories, devicesConfigured, agent.nodeName)
+	dirs, err := getDataDirs(context, agent.kv, agent.directories, devicesConfigured, agent.nodeName)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get data dirs")
 	}
@@ -255,17 +249,6 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 	dirOSDs, err := agent.configureDirs(context, dirs)
 	if err != nil {
 		return errors.Wrapf(err, "failed to configure dirs %+v", dirs)
-	}
-
-	// now we can start removing OSDs from devices and directories
-	logger.Infof("removing osd devices: %+v", removedDevicesScheme)
-	if err := agent.removeDevices(context, removedDevicesScheme); err != nil {
-		return errors.Wrapf(err, "failed to remove devices")
-	}
-
-	logger.Infof("removing osd dirs: %+v", removedDirs)
-	if err := agent.removeDirs(context, removedDirs); err != nil {
-		return errors.Wrapf(err, "failed to remove dirs")
 	}
 
 	logger.Info("saving osd dir map")
@@ -299,12 +282,6 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevice, metadataDevice string, pvcBacked bool) (*DeviceOsdMapping, error) {
 
 	available := &DeviceOsdMapping{Entries: map[string]*DeviceOsdIDEntry{}}
-
-	if isRemovingNode(desiredDevices) {
-		// the node is being removed, just return an empty set
-		return available, nil
-	}
-
 	for _, device := range context.Devices {
 		if device.Type == sys.PartType {
 			continue
@@ -385,15 +362,8 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 	return available, nil
 }
 
-func isRemovingNode(devices []DesiredDevice) bool {
-	if len(devices) != 1 {
-		return false
-	}
-	return oposd.IsRemovingNode(devices[0].Name)
-}
-
 func getDataDirs(context *clusterd.Context, kv *k8sutil.ConfigMapKVStore, desiredDirs string,
-	devicesSpecified bool, nodeName string) (dirs, removedDirs map[string]int, err error) {
+	devicesSpecified bool, nodeName string) (dirs map[string]int, err error) {
 
 	var dirList []string
 	if desiredDirs != "" {
@@ -405,34 +375,32 @@ func getDataDirs(context *clusterd.Context, kv *k8sutil.ConfigMapKVStore, desire
 	// still important for determining when the fallback osd may be deleted.
 	noDirsOrDevicesSpecified := len(dirList) == 0 && !devicesSpecified
 
-	removedDirs = make(map[string]int)
-
 	dirMap, err := config.LoadOSDDirMap(kv, nodeName)
 	if err == nil {
 		// we have an existing saved dir map, merge the user specified directories into it
 		addDirsToDirMap(dirList, &dirMap)
 
 		// determine which dirs are still active, which should be removed, then return them
-		activeDirs, removedDirs := getActiveAndRemovedDirs(dirList, dirMap, context.ConfigDir, noDirsOrDevicesSpecified)
-		return activeDirs, removedDirs, nil
+		activeDirs := getActiveDirs(dirList, dirMap, context.ConfigDir, noDirsOrDevicesSpecified)
+		return activeDirs, nil
 	}
 
 	if !kerrors.IsNotFound(err) {
 		// real error when trying to load the osd dir map, return the err
-		return nil, nil, errors.Wrapf(err, "failed to load OSD dir map")
+		return nil, errors.Wrapf(err, "failed to load OSD dir map")
 	}
 
 	// the osd dirs map doesn't exist yet
 
 	if len(dirList) == 0 {
 		// no dirs should be used because the user has requested no dirs but they have requested devices
-		return map[string]int{}, removedDirs, nil
+		return map[string]int{}, nil
 	}
 
 	// add the specified dirs to the map and return it
 	dirMap = make(map[string]int, len(dirList))
 	addDirsToDirMap(dirList, &dirMap)
-	return dirMap, removedDirs, nil
+	return dirMap, nil
 }
 
 func addDirsToDirMap(dirList []string, dirMap *map[string]int) {
@@ -444,41 +412,8 @@ func addDirsToDirMap(dirList []string, dirMap *map[string]int) {
 	}
 }
 
-func getRemovedDevices(agent *OsdAgent) (*config.PerfScheme, *DeviceOsdMapping, error) {
-	removedDevicesScheme := config.NewPerfScheme()
-	removedDevicesMapping := &DeviceOsdMapping{Entries: map[string]*DeviceOsdIDEntry{}}
-
-	if !isRemovingNode(agent.devices) {
-		// TODO: support more removed device scenarios beyond just entire node removal
-		return removedDevicesScheme, removedDevicesMapping, nil
-	}
-
-	scheme, err := config.LoadScheme(agent.kv, config.GetConfigStoreName(agent.nodeName))
-	if err != nil {
-		return nil, nil, errors.Wrapf(err, "failed to load agent's partition scheme")
-	}
-
-	for _, entry := range scheme.Entries {
-		// determine which partition the data lives on for this entry
-		dataDetails, ok := entry.Partitions[entry.GetDataPartitionType()]
-		if !ok || dataDetails == nil {
-			return nil, nil, errors.Errorf("failed to find data partition for entry %+v", entry)
-		}
-
-		// add the current scheme entry to the removed devices scheme and its device to the removed
-		// devices mapping
-		removedDevicesScheme.Entries = append(removedDevicesScheme.Entries, entry)
-		removedDevicesMapping.Entries[dataDetails.Device] = &DeviceOsdIDEntry{Data: entry.ID}
-	}
-
-	return removedDevicesScheme, removedDevicesMapping, nil
-}
-
-func getActiveAndRemovedDirs(
-	currentDirList []string, savedDirMap map[string]int, configDir string, noDirsOrDevicesSpecified bool,
-) (activeDirs, removedDirs map[string]int) {
+func getActiveDirs(currentDirList []string, savedDirMap map[string]int, configDir string, noDirsOrDevicesSpecified bool) (activeDirs map[string]int) {
 	activeDirs = map[string]int{}
-	removedDirs = map[string]int{}
 
 	for savedDir, id := range savedDirMap {
 		foundSavedDir := false
@@ -499,13 +434,10 @@ func getActiveAndRemovedDirs(
 		if foundSavedDir {
 			// the saved dir is still active
 			activeDirs[savedDir] = id
-		} else {
-			// the saved dir was not found in the current dir list, meaning the user wants this dir removed
-			removedDirs[savedDir] = id
 		}
 	}
 
-	return activeDirs, removedDirs
+	return activeDirs
 }
 
 //releaseLVMDevice deactivates the LV to release the device.
