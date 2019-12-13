@@ -434,15 +434,6 @@ located.
         value: "quay.io/k8scsi/csi-attacher:v1.2.0"
 ```
 
-If you want to enable Ceph Kernel clients on kernel < 4.17 which support quotas
-for Cephfs please add below to the operator `env` variables.
-
-```yaml
-  env:
-    - name: CSI_FORCE_CEPHFS_KERNEL_CLIENT
-      value: "true"
-```
-
 ### Verifying updates
 You can use the below command to see the CSI images currently being used in the cluster. Once there
 is only a single version of each image and the version is the latest one you expect, the CSI pods

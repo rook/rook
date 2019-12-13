@@ -204,11 +204,12 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 
 	tp.EnableCSIGRPCMetrics = fmt.Sprintf("%t", EnableCSIGRPCMetrics)
 
+	// If not set or set to anything but "false", the kernel client will be enabled
 	kClinet := os.Getenv("CSI_FORCE_CEPHFS_KERNEL_CLIENT")
-	if strings.EqualFold(kClinet, "true") {
-		tp.ForceCephFSKernelClient = "true"
-	} else {
+	if strings.EqualFold(kClinet, "false") {
 		tp.ForceCephFSKernelClient = "false"
+	} else {
+		tp.ForceCephFSKernelClient = "true"
 	}
 	// parse GRPC and Liveness ports
 	tp.CephFSGRPCMetricsPort = getPortFromENV("CSI_CEPHFS_GRPC_METRICS_PORT", DefaultCephFSGRPCMerticsPort)
