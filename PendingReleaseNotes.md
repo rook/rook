@@ -42,6 +42,11 @@
 
 ### EdgeFS
 
+- Rook EdgeFS operator adds support for single node, single device deployments. This is to enable embedded and remote developer use cases.
+- Support for new EdgeFS backend, rtkvs, enables ability to operate on top of any key-value capable interface. Initial integration adds support for Samsung KV-SSD devices.
+- Enhanced support for running EdgeFS in the AWS cloud. It is now possible to store data payload chunks directly in AWS S3 buckets, thus greatly reducing storage billing cost. Metadata chunks still will be in AWS EBS, thus provide low-latency and high-performance.
+- It is now possible to configure ISGW Full-Mesh functionality without the need to create multiple ISGW services. Please read more about ISGW Full-Mesh functionality [here](http://highpeakdata.com).
+- EdgeFS now capable of creating instant snapshots of S3 buckets. It supports billion of objects per-bucket use cases. A snapshot's metadata gets distributed among all the connected EdgeFS segments, such that cloning or accessing of snapshotted objects can be done without the need of full-delta transferring, i.e. on-demand.
 
 ### YugabyteDB
 

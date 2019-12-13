@@ -21,6 +21,9 @@ We use the [milestone](https://github.com/rook/rook/milestones) feature in Githu
   * Expose a Ceph Client CRD to create capabilities for external usage [#3175](https://github.com/rook/rook/issues/3175)
   * Update the Ceph-CSI driver to the latest version (tentatively v2.0)
 * EdgeFS
+  * Improvements for single node clusters
+  * Add support for payloads on external S3 server [#4431](https://github.com/rook/rook/issues/4431)
+  * Add support for rtkvs disk engine and Samsung KVSSD [#3997](https://github.com/rook/rook/issues/3997)
 * YugabyteDB
 
 ## Future improvements
@@ -51,6 +54,11 @@ We use the [milestone](https://github.com/rook/rook/milestones) feature in Githu
   * Secure deployment using certificates [#1809](https://github.com/rook/rook/issues/1809)
   * Graduate CRDs to beta
 * EdgeFS
+  * ISGW support for multi-region configurations [#4293](https://github.com/rook/rook/issues/4293)
+  * Cluster-wide SysRepCount support to enable single node deployments with SysRepCount=1 or 2
+  * Cluster-wide FailureDomain support to enable single node deployments with FailureDomain="device"
+  * Support for payload on external S3 server [#4431](https://github.com/rook/rook/issues/4431)
+  * Support for rtkvs disk engine and Samsung KVSSD [#3997](https://github.com/rook/rook/issues/3997)
 * Minio
   * Helm chart deployment [#1814](https://github.com/rook/rook/issues/1814)
   * End-to-end integration tests [#1804](https://github.com/rook/rook/issues/1804)

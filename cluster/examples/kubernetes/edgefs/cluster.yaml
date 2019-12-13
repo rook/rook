@@ -128,7 +128,7 @@ metadata:
   name: rook-edgefs
   namespace: rook-edgefs
 spec:
-  edgefsImageName: edgefs/edgefs:1.2.64  # specify version here, i.e. edgefs/edgefs:1.1.0 etc
+  edgefsImageName: edgefs/edgefs:latest  # specify version here, i.e. edgefs/edgefs:1.2.117 etc
   serviceAccount: rook-edgefs-cluster
   dataDirHostPath: /var/lib/edgefs
   #dataVolumeSize: 10Gi
