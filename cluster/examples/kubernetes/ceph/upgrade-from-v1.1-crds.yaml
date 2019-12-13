@@ -192,27 +192,6 @@ spec:
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: cephclients.ceph.rook.io
-spec:
-  group: ceph.rook.io
-  names:
-    kind: CephClient
-    listKind: CephClientList
-    plural: cephclients
-    singular: cephclient
-  scope: Namespaced
-  version: v1
-  validation:
-    openAPIV3Schema:
-      properties:
-        spec:
-          properties:
-            caps:
-              type: object
----
-apiVersion: apiextensions.k8s.io/v1beta1
-kind: CustomResourceDefinition
-metadata:
   name: cephfilesystems.ceph.rook.io
 spec:
   group: ceph.rook.io
@@ -287,40 +266,6 @@ spec:
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: cephnfses.ceph.rook.io
-spec:
-  group: ceph.rook.io
-  names:
-    kind: CephNFS
-    listKind: CephNFSList
-    plural: cephnfses
-    singular: cephnfs
-    shortNames:
-    - nfs
-  scope: Namespaced
-  version: v1
-  validation:
-    openAPIV3Schema:
-      properties:
-        spec:
-          properties:
-            rados:
-              properties:
-                pool:
-                  type: string
-                namespace:
-                  type: string
-            server:
-              properties:
-                active:
-                  type: integer
-                annotations: {}
-                placement: {}
-                resources: {}
----
-apiVersion: apiextensions.k8s.io/v1beta1
-kind: CustomResourceDefinition
-metadata:
   name: cephobjectstores.ceph.rook.io
 spec:
   group: ceph.rook.io
@@ -379,94 +324,3 @@ spec:
                       type: integer
             preservePoolsOnDelete:
               type: boolean
----
-apiVersion: apiextensions.k8s.io/v1beta1
-kind: CustomResourceDefinition
-metadata:
-  name: cephobjectstoreusers.ceph.rook.io
-spec:
-  group: ceph.rook.io
-  names:
-    kind: CephObjectStoreUser
-    listKind: CephObjectStoreUserList
-    plural: cephobjectstoreusers
-    singular: cephobjectstoreuser
-    shortNames:
-    - rcou
-    - objectuser
-  scope: Namespaced
-  version: v1
----
-apiVersion: apiextensions.k8s.io/v1beta1
-kind: CustomResourceDefinition
-metadata:
-  name: cephblockpools.ceph.rook.io
-spec:
-  group: ceph.rook.io
-  names:
-    kind: CephBlockPool
-    listKind: CephBlockPoolList
-    plural: cephblockpools
-    singular: cephblockpool
-  scope: Namespaced
-  version: v1
----
-apiVersion: apiextensions.k8s.io/v1beta1
-kind: CustomResourceDefinition
-metadata:
-  name: volumes.rook.io
-spec:
-  group: rook.io
-  names:
-    kind: Volume
-    listKind: VolumeList
-    plural: volumes
-    singular: volume
-    shortNames:
-    - rv
-  scope: Namespaced
-  version: v1alpha2
----
-apiVersion: apiextensions.k8s.io/v1beta1
-kind: CustomResourceDefinition
-metadata:
-  name: objectbuckets.objectbucket.io
-spec:
-  group: objectbucket.io
-  versions:
-    - name: v1alpha1
-      served: true
-      storage: true
-  names:
-    kind: ObjectBucket
-    listKind: ObjectBucketList
-    plural: objectbuckets
-    singular: objectbucket
-    shortNames:
-      - ob
-      - obs
-  scope: Cluster
-  subresources:
-    status: {}
----
-apiVersion: apiextensions.k8s.io/v1beta1
-kind: CustomResourceDefinition
-metadata:
-  name: objectbucketclaims.objectbucket.io
-spec:
-  versions:
-    - name: v1alpha1
-      served: true
-      storage: true
-  group: objectbucket.io
-  names:
-    kind: ObjectBucketClaim
-    listKind: ObjectBucketClaimList
-    plural: objectbucketclaims
-    singular: objectbucketclaim
-    shortNames:
-      - obc
-      - obcs
-  scope: Namespaced
-  subresources:
-    status: {}
