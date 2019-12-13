@@ -7,6 +7,8 @@ spec:
   selector:
     matchLabels:
       app: csi-rbdplugin
+  updateStrategy:
+    type: {{ .RBDPluginUpdateStrategy }}
   template:
     metadata:
       labels:

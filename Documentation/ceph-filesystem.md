@@ -79,6 +79,12 @@ $ ceph status
 Before Rook can start provisioning storage, a StorageClass needs to be created based on the filesystem. This is needed for Kubernetes to interoperate
 with the CSI driver to create persistent volumes.
 
+> **IMPORTANT**: Do not use CephFS CSI driver, if the kernel is not
+supporting ceph quotas (kernel version <4.17)
+ceph-fuse client will be used as the default mounter. During upgrade you will be hitting a ceph-csi
+[bug](https://github.com/ceph/ceph-csi/issues/703). you need to follow
+[upgrade steps](ceph-upgrade.md#1.-Update-the-Rook-Operator) which requires node draining.
+
 > **NOTE**: This example uses the CSI driver, which is the preferred driver going forward for K8s 1.13 and newer. Examples are found in the [CSI CephFS](https://github.com/rook/rook/tree/{{ branchName }}/cluster/examples/kubernetes/ceph/csi/cephfs) directory. For an example of a volume using the flex driver (required for K8s 1.12 and earlier), see the [Flex Driver](#flex-driver) section below.
 
 Save this storage class definition as `storageclass.yaml`:

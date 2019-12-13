@@ -240,6 +240,14 @@ spec:
         # See the upgrade guide: https://rook.io/docs/rook/v1.2/ceph-upgrade.html
         - name: CSI_FORCE_CEPHFS_KERNEL_CLIENT
           value: "true"
+        # CSI CephFS plugin daemonset update strategy, supported values are OnDelete and RollingUpdate.
+        # Default value is RollingUpdate.
+        #- name: CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY
+        #  value: "OnDelete"
+        # CSI Rbd plugin daemonset update strategy, supported values are OnDelete and RollingUpdate.
+        # Default value is RollingUpdate.
+        #- name: CSI_RBD_PLUGIN_UPDATE_STRATEGY
+        #  value: "OnDelete"
         # kubelet directory path, if kubelet configured to use other than /var/lib/kubelet path.
         #- name: ROOK_CSI_KUBELET_DIR_PATH
         #  value: "/var/lib/kubelet"
