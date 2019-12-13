@@ -236,8 +236,10 @@ spec:
         - name: CSI_ENABLE_SNAPSHOTTER
           value: "true"
         # Enable Ceph Kernel clients on kernel < 4.17 which support quotas for Cephfs
-        # - name: CSI_FORCE_CEPHFS_KERNEL_CLIENT
-        #  value: "true"
+        # If you disable the kernel client, your application may be disrupted during upgrade.
+        # See the upgrade guide: https://rook.io/docs/rook/v1.2/ceph-upgrade.html
+        - name: CSI_FORCE_CEPHFS_KERNEL_CLIENT
+          value: "true"
         # kubelet directory path, if kubelet configured to use other than /var/lib/kubelet path.
         #- name: ROOK_CSI_KUBELET_DIR_PATH
         #  value: "/var/lib/kubelet"
