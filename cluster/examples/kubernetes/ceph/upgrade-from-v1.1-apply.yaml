@@ -1,0 +1,128 @@
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: rook-ceph-global-rules
+  labels:
+    operator: rook
+    storage-backend: ceph
+    rbac.ceph.rook.io/aggregate-to-rook-ceph-global: "true"
+rules:
+- apiGroups:
+  - ""
+  resources:
+  # Pod access is needed for fencing
+  - pods
+  # Node access is needed for determining nodes where mons should run
+  - nodes
+  - nodes/proxy
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - events
+    # PVs and PVCs are managed by the Rook provisioner
+  - persistentvolumes
+  - persistentvolumeclaims
+  - endpoints
+  verbs:
+  - get
+  - list
+  - watch
+  - patch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - storageclasses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - ceph.rook.io
+  resources:
+  - "*"
+  verbs:
+  - "*"
+- apiGroups:
+  - rook.io
+  resources:
+  - "*"
+  verbs:
+  - "*"
+- apiGroups:
+  - policy
+  - apps
+  resources:
+  # This is for the clusterdisruption controller
+  - poddisruptionbudgets
+  # This is for both clusterdisruption and nodedrain controllers
+  - deployments
+  - replicasets
+  verbs:
+  - "*"
+- apiGroups:
+  - healthchecking.openshift.io
+  resources:
+  - machinedisruptionbudgets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - machine.openshift.io
+  resources:
+  - machines
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - csidrivers
+  verbs:
+  - create
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: cephclients.ceph.rook.io
+spec:
+  group: ceph.rook.io
+  names:
+    kind: CephClient
+    listKind: CephClientList
+    plural: cephclients
+    singular: cephclient
+  scope: Namespaced
+  version: v1
+  validation:
+    openAPIV3Schema:
+      properties:
+        spec:
+          properties:
+            caps:
+              type: object

@@ -137,9 +137,9 @@ rules:
   - policy
   - apps
   resources:
-  #this is for the clusterdisruption controller
+  # This is for the clusterdisruption controller
   - poddisruptionbudgets
-  #this is for both clusterdisruption and nodedrain controllers
+  # This is for both clusterdisruption and nodedrain controllers
   - deployments
   - replicasets
   verbs:
