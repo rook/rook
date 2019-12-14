@@ -19,7 +19,7 @@ package k8sutil
 
 // MergeResourceRequirements merges two resource requirements together (first overrides second values)
 import (
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -65,6 +65,25 @@ func SetOwnerRef(object *metav1.ObjectMeta, ownerRef *metav1.OwnerReference) {
 		return
 	}
 	SetOwnerRefs(object, []metav1.OwnerReference{*ownerRef})
+}
+
+func SetOwnerRefsWithoutBlockOwner(object *metav1.ObjectMeta, ownerRefs []metav1.OwnerReference) {
+	if ownerRefs == nil {
+		return
+	}
+	newOwners := []metav1.OwnerReference{}
+	for _, ownerRef := range ownerRefs {
+		// Make a new copy of the owner ref so we don't impact existing references to it
+		// but don't add the Controller or BlockOwnerDeletion properties
+		newRef := metav1.OwnerReference{
+			APIVersion: ownerRef.APIVersion,
+			Kind:       ownerRef.Kind,
+			Name:       ownerRef.Name,
+			UID:        ownerRef.UID,
+		}
+		newOwners = append(newOwners, newRef)
+	}
+	SetOwnerRefs(object, newOwners)
 }
 
 func SetOwnerRefs(object *metav1.ObjectMeta, ownerRefs []metav1.OwnerReference) {
