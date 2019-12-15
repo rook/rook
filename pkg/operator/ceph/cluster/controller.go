@@ -463,7 +463,7 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 
 	if !cluster.Spec.External.Enable {
 		// Start the osd health checker only if running OSDs in the local ceph cluster
-		c.osdChecker = osd.NewMonitor(c.context, cluster.Namespace, cluster.Spec.RemoveOSDsIfOutAndSafeToRemove)
+		c.osdChecker = osd.NewMonitor(c.context, cluster.Namespace, cluster.Spec.RemoveOSDsIfOutAndSafeToRemove, cluster.Info.CephVersion)
 		go c.osdChecker.Start(cluster.stopCh)
 	}
 
@@ -594,6 +594,11 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 		c.osdChecker.Update(newClust.Spec.RemoveOSDsIfOutAndSafeToRemove)
 	}
 
+	logger.Debugf("old cluster: %+v", oldClust.Spec)
+	logger.Debugf("new cluster: %+v", newClust.Spec)
+
+	cluster.Spec = &newClust.Spec
+
 	// if the image changed, we need to detect the new image version
 	versionChanged := false
 	if oldClust.Spec.CephVersion.Image != newClust.Spec.CephVersion.Image {
@@ -606,11 +611,6 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 		versionChanged = true
 		cluster.Info.CephVersion = *version
 	}
-
-	logger.Debugf("old cluster: %+v", oldClust.Spec)
-	logger.Debugf("new cluster: %+v", newClust.Spec)
-
-	cluster.Spec = &newClust.Spec
 
 	// Get cluster running versions
 	versions, err := client.GetAllCephDaemonVersions(c.context, cluster.Namespace)

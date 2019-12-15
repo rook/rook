@@ -19,7 +19,6 @@ package s3x
 
 import (
 	"fmt"
-	"strings"
 
 	edgefsv1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -36,7 +35,7 @@ const (
 	/* Volumes definitions */
 	serviceAccountName = "rook-edgefs-cluster"
 	sslCertVolumeName  = "ssl-cert-volume"
-	defaultS3Image     = "edgefs/edgefs-restapi"
+	s3ImagePostfix     = "restapi"
 	sslMountPath       = "/opt/nedge/etc/ssl/"
 	dataVolumeName     = "edgefs-datadir"
 	stateVolumeFolder  = ".state"
@@ -202,21 +201,14 @@ func (c *S3XController) makeDeployment(svcname, namespace, rookImage string, s3x
 		})
 	}
 
-	var rookImageVer string
-	rookImageComponents := strings.Split(c.rookImage, ":")
-	if len(rookImageComponents) == 2 {
-		rookImageVer = rookImageComponents[1]
-	} else {
-		rookImageVer = "latest"
-	}
-
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   name,
 			Labels: getLabels(name, svcname, namespace),
 		},
 		Spec: v1.PodSpec{
-			Containers:         []v1.Container{c.s3xContainer(svcname, name, rookImage, s3xSpec), c.s3ProxyContainer(svcname, "s3-proxy", defaultS3Image+":"+rookImageVer, "s3", s3xSpec)},
+			Containers: []v1.Container{c.s3xContainer(svcname, name, rookImage, s3xSpec),
+				c.s3ProxyContainer(svcname, "s3-proxy", edgefsv1.GetModifiedRookImagePath(rookImage, s3ImagePostfix), "s3", s3xSpec)},
 			RestartPolicy:      v1.RestartPolicyAlways,
 			Volumes:            volumes,
 			HostIPC:            true,

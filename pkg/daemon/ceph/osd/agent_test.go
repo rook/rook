@@ -340,42 +340,6 @@ func TestOSDAgentNoDevices(t *testing.T) {
 	assert.Equal(t, 2, execWithOutputCount)
 }
 
-func TestRemoveDevices(t *testing.T) {
-	configDir, _ := ioutil.TempDir("", "")
-	defer os.RemoveAll(configDir)
-	os.MkdirAll(configDir, 0755)
-
-	nodeName := "node0347"
-	agent, mockExec, context := createTestAgent(t, "none", configDir, nodeName, &config.StoreConfig{StoreType: config.Bluestore})
-	agent.devices[0].IsFilter = true
-
-	_, removedDevices, _ := mockPartitionSchemeEntry(t, 1, "sdx", &agent.storeConfig, agent.kv, nodeName)
-
-	osdUsageCallCount := 0
-	mockExec.MockExecuteCommandWithOutputFile = func(debug bool, actionName, command, outputFile string, args ...string) (string, error) {
-		logger.Infof("Command: %s %+v", command, args)
-		if args[0] == "osd" && args[1] == "df" {
-			osdUsageCallCount++
-			if osdUsageCallCount == 1 {
-				return `{"nodes":[{"id":1,"name":"osd.1","kb_used":100,"pgs":100}]}`, nil
-			}
-			// subsequent times return a value indicating that the OSD is no longer using any space and has no PGs (because its been migrated)
-			return `{"nodes":[{"id":1,"name":"osd.1","kb_used":0,"pgs":0}]}`, nil
-		}
-		if args[0] == "pg" && args[1] == "dump" && args[2] == "pgs_brief" {
-			return `[{"pgid":"1.ef","state":"active+clean","up":[5,6,7],"up_primary":5,"acting":[5,6,7],"acting_primary":5}]`, nil
-		}
-		if args[0] == "status" {
-			return `{"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
-		}
-
-		return "", nil
-	}
-
-	err := agent.removeDevices(context, removedDevices)
-	assert.Nil(t, err)
-}
-
 func createTestAgent(t *testing.T, devices, configDir, nodeName string, storeConfig *config.StoreConfig) (*OsdAgent, *exectest.MockExecutor, *clusterd.Context) {
 	forceFormat := false
 	if storeConfig == nil {

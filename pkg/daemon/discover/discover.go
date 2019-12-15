@@ -36,7 +36,7 @@ import (
 	"github.com/rook/rook/pkg/util/sys"
 
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -332,7 +332,7 @@ func updateDeviceCM(context *clusterd.Context) error {
 		lastDevice = cm.Data[LocalDiskCMData]
 		logger.Debugf("last devices %s", lastDevice)
 	} else {
-		if !errors.IsNotFound(err) {
+		if !kerrors.IsNotFound(err) {
 			logger.Infof("failed to get configmap: %v", err)
 			return err
 		}
@@ -352,6 +352,15 @@ func updateDeviceCM(context *clusterd.Context) error {
 			},
 			Data: data,
 		}
+
+		// Get the discover daemon pod details to attach the owner reference to the config map
+		discoverPod, err := k8sutil.GetRunningPod(context.Clientset)
+		if err != nil {
+			logger.Warningf("failed to get discover pod to set ownerref. %+v", err)
+		} else {
+			k8sutil.SetOwnerRefsWithoutBlockOwner(&cm.ObjectMeta, discoverPod.OwnerReferences)
+		}
+
 		cm, err = context.Clientset.CoreV1().ConfigMaps(namespace).Create(cm)
 		if err != nil {
 			logger.Infof("failed to create configmap: %v", err)

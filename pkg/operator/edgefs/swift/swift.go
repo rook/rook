@@ -19,7 +19,6 @@ package swift
 
 import (
 	"fmt"
-	"strings"
 
 	edgefsv1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -35,7 +34,7 @@ const (
 
 	/* Volumes definitions */
 	serviceAccountName = "rook-edgefs-cluster"
-	defaultSWIFTImage  = "edgefs/edgefs-restapi"
+	swiftImagePostfix  = "restapi"
 	sslCertVolumeName  = "ssl-cert-volume"
 	sslMountPath       = "/opt/nedge/etc/ssl/"
 	dataVolumeName     = "edgefs-datadir"
@@ -80,15 +79,7 @@ func (c *SWIFTController) CreateOrUpdate(s edgefsv1.SWIFT, update bool, ownerRef
 	// all rest APIs coming from edgefs-restapi image, that
 	// includes mgmt, s3, s3s and swift
 	imageArgs := "swift"
-	rookImage := defaultSWIFTImage
-
-	var rookImageVer string
-	rookImageComponents := strings.Split(c.rookImage, ":")
-	if len(rookImageComponents) == 2 {
-		rookImageVer = rookImageComponents[1]
-	} else {
-		rookImageVer = "latest"
-	}
+	rookImage := edgefsv1.GetModifiedRookImagePath(c.rookImage, swiftImagePostfix)
 
 	// check if SWIFT service already exists
 	exists, err := serviceExists(c.context, s)
@@ -101,7 +92,7 @@ func (c *SWIFTController) CreateOrUpdate(s edgefsv1.SWIFT, update bool, ownerRef
 	}
 
 	// start the deployment
-	deployment := c.makeDeployment(s.Name, s.Namespace, rookImage+":"+rookImageVer, imageArgs, s.Spec)
+	deployment := c.makeDeployment(s.Name, s.Namespace, rookImage, imageArgs, s.Spec)
 	if _, err := c.context.Clientset.AppsV1().Deployments(s.Namespace).Create(deployment); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create %s deployment. %+v", appName, err)

@@ -135,6 +135,7 @@ func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage, securityAcc
 							Env: []v1.EnvVar{
 								k8sutil.NamespaceEnvVar(),
 								k8sutil.NodeEnvVar(),
+								k8sutil.NameEnvVar(),
 							},
 						},
 					},
@@ -169,6 +170,13 @@ func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage, securityAcc
 				},
 			},
 		},
+	}
+	// Get the operator pod details to attach the owner reference to the discover daemon set
+	operatorPod, err := k8sutil.GetRunningPod(d.clientset)
+	if err != nil {
+		logger.Errorf("failed to get operator pod. %+v", err)
+	} else {
+		k8sutil.SetOwnerRefsWithoutBlockOwner(&ds.ObjectMeta, operatorPod.OwnerReferences)
 	}
 
 	// Add toleration if any

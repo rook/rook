@@ -19,7 +19,6 @@ package s3
 
 import (
 	"fmt"
-	"strings"
 
 	edgefsv1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -35,7 +34,7 @@ const (
 
 	/* Volumes definitions */
 	serviceAccountName = "rook-edgefs-cluster"
-	defaultS3Image     = "edgefs/edgefs-restapi"
+	s3ImagePostfix     = "restapi"
 	sslCertVolumeName  = "ssl-cert-volume"
 	sslMountPath       = "/opt/nedge/etc/ssl/"
 	dataVolumeName     = "edgefs-datadir"
@@ -78,28 +77,19 @@ func (c *S3Controller) CreateOrUpdate(s edgefsv1.S3, update bool, ownerRefs []me
 	}
 
 	imageArgs := "s3"
-	var rookImage string
+	rookImagePostfix := ""
 	if s.Spec.S3Type == "" {
-		rookImage = defaultS3Image
+		rookImagePostfix = s3ImagePostfix
 	} else if s.Spec.S3Type == "s3" || s.Spec.S3Type == "s3s" {
 		// all rest APIs coming from edgefs-restapi image, that
 		// includes mgmt, s3, s3s and swift
-		rookImage = defaultS3Image
+		rookImagePostfix = s3ImagePostfix
 		imageArgs = s.Spec.S3Type
 	} else if s.Spec.S3Type == "s3g" {
 		// built-in s3 version, limited and experimental coming
 		// as a part of core edgefs image
-		rookImage = c.rookImage
 	} else {
 		return fmt.Errorf("invalid S3 service type %s", s.Spec.S3Type)
-	}
-
-	var rookImageVer string
-	rookImageComponents := strings.Split(c.rookImage, ":")
-	if len(rookImageComponents) == 2 {
-		rookImageVer = rookImageComponents[1]
-	} else {
-		rookImageVer = "latest"
 	}
 
 	// check if S3 service already exists
@@ -113,7 +103,7 @@ func (c *S3Controller) CreateOrUpdate(s edgefsv1.S3, update bool, ownerRefs []me
 	}
 
 	// start the deployment
-	deployment := c.makeDeployment(s.Name, s.Namespace, rookImage+":"+rookImageVer, imageArgs, s.Spec)
+	deployment := c.makeDeployment(s.Name, s.Namespace, edgefsv1.GetModifiedRookImagePath(c.rookImage, rookImagePostfix), imageArgs, s.Spec)
 	if _, err := c.context.Clientset.AppsV1().Deployments(s.Namespace).Create(deployment); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create %s deployment. %+v", appName, err)
@@ -141,6 +131,7 @@ func (c *S3Controller) CreateOrUpdate(s edgefsv1.S3, update bool, ownerRefs []me
 	return nil
 }
 
+// makeS3Service creates k8s service
 func (c *S3Controller) makeS3Service(name, svcname, namespace string, s3Spec edgefsv1.S3Spec) *v1.Service {
 	labels := getLabels(name, svcname, namespace)
 	httpPort := v1.ServicePort{Name: "port", Port: int32(s3Spec.Port), Protocol: v1.ProtocolTCP}

@@ -17,6 +17,97 @@ spec:
         version: v1
         displayName: Ceph Object Store
         description: Represents a Ceph Object Store.
+        specDescriptors:
+          - description: Coding Chunks
+            displayName: Coding Chunks
+            path: dataPool.erasureCoded.codingChunks
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:dataPool'
+              - 'urn:alm:descriptor:com.tectonic.ui:number'
+          - description: Data Chunks
+            displayName: Data Chunks
+            path: dataPool.erasureCoded.dataChunks
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:dataPool'
+              - 'urn:alm:descriptor:com.tectonic.ui:number'
+          - description: failureDomain
+            displayName: failureDomain
+            path: dataPool.failureDomain
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:dataPool'
+              - 'urn:alm:descriptor:com.tectonic.ui:text'
+          - description: Size
+            displayName: Size
+            path: dataPool.replicated.size
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:dataPool'
+              - 'urn:alm:descriptor:com.tectonic.ui:number'
+          - description: Annotations
+            displayName: Annotations
+            path: gateway.annotations
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:gateway'
+              - 'urn:alm:descriptor:io.kubernetes:annotations'
+          - description: Instances
+            displayName: Instances
+            path: gateway.instances
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:gateway'
+              - 'urn:alm:descriptor:com.tectonic.ui:number'
+          - description: Resources
+            displayName: Resources
+            path: gateway.resources
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:gateway'
+              - 'urn:alm:descriptor:com.tectonic.ui:resourceRequirements'
+          - description: placement
+            displayName: placement
+            path: gateway.placement
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:gateway'
+              - 'urn:alm:descriptor:io.kubernetes:placement'
+          - description: securePort
+            displayName: securePort
+            path: gateway.securePort
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:gateway'
+              - 'urn:alm:descriptor:io.kubernetes:securePort'
+          - description: sslCertificateRef
+            displayName: sslCertificateRef
+            path: gateway.sslCertificateRef
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:gateway'
+              - 'urn:alm:descriptor:io.kubernetes:sslCertificateRef'
+          - description: Type
+            displayName: Type
+            path: gateway.type
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:gateway'
+              - 'urn:alm:descriptor:com.tectonic.ui:text'
+          - description: Coding Chunks
+            displayName: Coding Chunks
+            path: metadataPool.erasureCoded.codingChunks
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:metadataPool'
+              - 'urn:alm:descriptor:com.tectonic.ui:number'
+          - description: Data Chunks
+            displayName: Data Chunks
+            path: metadataPool.erasureCoded.dataChunks
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:metadataPool'
+              - 'urn:alm:descriptor:com.tectonic.ui:number'
+          - description: failureDomain
+            displayName: failureDomain
+            path: metadataPool.failureDomain
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:metadataPool'
+              - 'urn:alm:descriptor:com.tectonic.ui:text'
+          - description: Size
+            displayName: Size
+            path: metadataPool.replicated.size
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:metadataPool'
+              - 'urn:alm:descriptor:com.tectonic.ui:number'
       - kind: CephObjectStoreUser
         name: cephobjectstoreusers.ceph.rook.io
         version: v1

@@ -1,11 +1,11 @@
 ---
-title: EdgeFS Storage
+title: EdgeFS Data Fabric
 weight: 4000
 ---
 
-# EdgeFS Storage
+# EdgeFS Data Fabric
 
-EdgeFS is high-performance and fault-tolerant object storage system with Geo-Transparent data access to file, block or object.
+[EdgeFS](http://edgefs.io) is high-performance and fault-tolerant decentralized data fabric with virtualized access to S3 object, NFS file, NoSQL and iSCSI block.
 
 EdgeFS is capable of spanning unlimited number of geographically distributed sites (Geo-site), connected with each other as one global name space data fabric running on top of Kubernetes platform, providing persistent, fault-tolerant and high-performance volumes for stateful Kubernetes Applications.
 

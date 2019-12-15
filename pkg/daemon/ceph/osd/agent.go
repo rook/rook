@@ -126,30 +126,6 @@ func (a *OsdAgent) configureDirs(context *clusterd.Context, dirs map[string]int)
 	return osds, lastErr
 }
 
-func (a *OsdAgent) removeDirs(context *clusterd.Context, removedDirs map[string]int) error {
-	if len(removedDirs) == 0 {
-		return nil
-	}
-
-	// walk through each of the OSD directories and remove them
-	var failedDirs []string
-	for dir, osdID := range removedDirs {
-		if err := a.removeOSDConfigDir(dir, osdID); err != nil {
-			errMsg := fmt.Sprintf("failed to remove osd.%d. %+v", osdID, err)
-			logger.Error(errMsg)
-			failedDirs = append(failedDirs, dir)
-			continue
-		}
-	}
-
-	if len(failedDirs) > 0 {
-		// at least one OSD failed, return an overall error
-		return errors.Errorf("failed to cleanup directories: %+v", failedDirs)
-	}
-
-	return nil
-}
-
 func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOsdMapping) ([]oposd.OSDInfo, error) {
 
 	var cvSupported bool
@@ -246,40 +222,6 @@ func getDeviceLVPath(context *clusterd.Context, deviceName string) (string, erro
 		return "", errors.Errorf("no logical volume path found for device %q", deviceName)
 	}
 	return output, nil
-}
-
-func (a *OsdAgent) removeDevices(context *clusterd.Context, removedDevicesScheme *config.PerfScheme) error {
-	if removedDevicesScheme == nil || len(removedDevicesScheme.Entries) == 0 {
-		return nil
-	}
-
-	var errorMessages []string
-
-	// now start removing each OSD since they should now be running
-	for _, entry := range removedDevicesScheme.Entries {
-
-		if err := a.removeOSDConfigDir(context.ConfigDir, entry.ID); err != nil {
-			errMsg := fmt.Sprintf("failed to remove osd.%d. %+v", entry.ID, err)
-			logger.Error(errMsg)
-			errorMessages = append(errorMessages, errMsg)
-			continue
-		}
-
-		// remove OSD from partition scheme map
-		if err := config.RemoveFromScheme(entry, a.kv, config.GetConfigStoreName(a.nodeName)); err != nil {
-			errMsg := fmt.Sprintf("failed to remove osd.%d from scheme. %+v", entry.ID, err)
-			logger.Error(errMsg)
-			errorMessages = append(errorMessages, errMsg)
-			continue
-		}
-	}
-
-	if len(errorMessages) > 0 {
-		// at least one OSD failed, return an overall error
-		return errors.Errorf("%s", strings.Join(errorMessages, "\n"))
-	}
-
-	return nil
 }
 
 // computes a partitioning scheme for all the given desired devices.  This could be devices already in use,

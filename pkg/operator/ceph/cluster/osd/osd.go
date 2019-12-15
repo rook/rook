@@ -35,7 +35,6 @@ import (
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/util/display"
 	apps "k8s.io/api/apps/v1"
 	batch "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
@@ -411,12 +410,6 @@ func (c *Cluster) startProvisioningOverNodes(config *provisionConfig) {
 	}
 	logger.Infof("start osds after provisioning is completed, if needed")
 	c.completeProvision(config)
-
-	// start the OSD pods, waiting for the provisioning to be completed
-	// handle the removed nodes and rebalance the PGs
-	logger.Infof("checking if any nodes were removed")
-	c.handleRemovedNodes(config)
-
 }
 
 func (c *Cluster) runJob(job *batch.Job, nodeName string, config *provisionConfig, action string) bool {
@@ -601,111 +594,6 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 	}
 }
 
-func (c *Cluster) handleRemovedNodes(config *provisionConfig) {
-	// find all removed nodes (if any) and start orchestration to remove them from the cluster
-	removedNodes, err := c.findRemovedNodes()
-	if err != nil {
-		config.addError("failed to find removed nodes: %+v", err)
-		return
-	}
-	logger.Infof("processing %d removed nodes", len(removedNodes))
-
-	for removedNode, osdDeployments := range removedNodes {
-		logger.Infof("processing removed node %s", removedNode)
-		if err := c.isSafeToRemoveNode(removedNode, osdDeployments); err != nil {
-			logger.Warningf("skipping the removal of node %s because it is not safe to do so: %+v", removedNode, err)
-			continue
-		}
-
-		logger.Infof("removing node %s from the cluster with %d OSDs", removedNode, len(osdDeployments))
-
-		var nodeCrushName string
-		errorOnCurrentNode := false
-		for _, dp := range osdDeployments {
-
-			logger.Infof("processing removed osd %s", dp.Name)
-			id := getIDFromDeployment(dp)
-			if id == unknownID {
-				config.addError("cannot remove unknown osd %s", dp.Name)
-				continue
-			}
-
-			// on the first osd, get the crush name of the host
-			if nodeCrushName == "" {
-				nodeCrushName, err = client.GetCrushHostName(c.context, c.Namespace, id)
-				if err != nil {
-					config.addError("failed to get crush host name for osd.%d: %+v", id, err)
-				}
-			}
-
-			if err := c.removeOSD(dp.Name, id); err != nil {
-				config.addError("failed to remove osd %d. %+v", id, err)
-				errorOnCurrentNode = true
-				continue
-			}
-		}
-
-		if err := c.updateOSDStatus(removedNode, OrchestrationStatus{Status: OrchestrationStatusCompleted}); err != nil {
-			config.addError("failed to set orchestration starting status for removed node %s: %+v", removedNode, err)
-		}
-
-		if errorOnCurrentNode {
-			logger.Warningf("done processing %d osd removals on node %s with an error removing the osds. skipping node cleanup", len(osdDeployments), removedNode)
-		} else {
-			logger.Infof("succeeded processing %d osd removals on node %s. starting cleanup job on the node.", len(osdDeployments), removedNode)
-			c.cleanupRemovedNode(config, removedNode, nodeCrushName)
-		}
-	}
-	logger.Infof("done processing removed nodes")
-}
-
-func (c *Cluster) cleanupRemovedNode(config *provisionConfig, nodeName, crushName string) {
-	// update the orchestration status of this removed node to the starting state
-	if err := c.updateOSDStatus(nodeName, OrchestrationStatus{Status: OrchestrationStatusStarting}); err != nil {
-		config.addError("failed to set orchestration starting status for removed node %s: %+v", nodeName, err)
-		return
-	}
-
-	// trigger orchestration on the removed node by telling it not to use any storage at all.  note that the directories are still passed in
-	// so that the pod will be able to mount them and migrate data from them.
-	osdProps := osdProperties{
-		crushHostname: nodeName,
-		devices:       []rookalpha.Device{},
-		selection:     rookalpha.Selection{DeviceFilter: "none"},
-		resources:     v1.ResourceRequirements{},
-		storeConfig:   osdconfig.StoreConfig{},
-	}
-	job, err := c.makeJob(osdProps, config)
-	if err != nil {
-		message := fmt.Sprintf("failed to create prepare job node %s: %v", nodeName, err)
-		config.addError(message)
-		status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: message}
-		if err := c.updateOSDStatus(nodeName, status); err != nil {
-			config.addError("failed to update node %s status. %+v", nodeName, err)
-		}
-		return
-	}
-
-	if !c.runJob(job, nodeName, config, "remove") {
-		status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: fmt.Sprintf("failed to cleanup osd config on node %s", nodeName)}
-		if err := c.updateOSDStatus(nodeName, status); err != nil {
-			config.addError("failed to update node %s status. %+v", nodeName, err)
-		}
-		return
-	}
-
-	logger.Infof("waiting for removal cleanup on node %s", nodeName)
-	c.completeProvisionSkipOSDStart(config)
-	logger.Infof("done waiting for removal cleanup on node %s", nodeName)
-
-	// after the batch job is finished, clean up all the resources related to the node
-	if crushName != "" {
-		if err := c.cleanUpNodeResources(nodeName, crushName); err != nil {
-			config.addError("failed to cleanup node resources for %s", crushName)
-		}
-	}
-}
-
 // discover nodes which currently have osds scheduled on them. Return a mapping of
 // node names -> a list of osd deployments on the node
 func (c *Cluster) discoverStorageNodes() (map[string][]*apps.Deployment, error) {
@@ -736,63 +624,6 @@ func (c *Cluster) discoverStorageNodes() (map[string][]*apps.Deployment, error) 
 	}
 
 	return discoveredNodes, nil
-}
-
-func (c *Cluster) isSafeToRemoveNode(nodeName string, osdDeployments []*apps.Deployment) error {
-	if err := client.IsClusterCleanError(c.context, c.Namespace); err != nil {
-		// the cluster isn't clean, it's not safe to remove this node
-		return err
-	}
-
-	// get the current used space on all OSDs in the cluster
-	currUsage, err := client.GetOSDUsage(c.context, c.Namespace)
-	if err != nil {
-		return err
-	}
-
-	// sum up the total OSD used space for the node by summing the used space of each OSD on the node
-	nodeUsage := int64(0)
-	for _, osdDeployment := range osdDeployments {
-		id := getIDFromDeployment(osdDeployment)
-		if id == unknownID {
-			continue
-		}
-
-		osdUsage := currUsage.ByID(id)
-		if osdUsage != nil {
-			osdKB, err := osdUsage.UsedKB.Int64()
-			if err != nil {
-				logger.Warningf("osd.%d has invalid usage %+v: %+v", id, osdUsage.UsedKB, err)
-				continue
-			}
-
-			nodeUsage += osdKB * 1024
-		}
-	}
-
-	// check to see if there is sufficient space left in the cluster to absorb all the migrated data from the node to be removed
-	clusterUsage, err := client.Usage(c.context, c.Namespace)
-	if err != nil {
-		return err
-	}
-	clusterAvailableBytes, err := clusterUsage.Stats.TotalAvailBytes.Int64()
-	if err != nil {
-		return err
-	}
-	clusterTotalBytes, err := clusterUsage.Stats.TotalBytes.Int64()
-	if err != nil {
-		return err
-	}
-
-	if (clusterAvailableBytes - nodeUsage) < int64((float64(clusterTotalBytes) * clusterAvailableSpaceReserve)) {
-		// the remaining available space in the cluster after the space that this node is using gets moved elsewhere
-		// would be less than the cluster available space reserve, it's not safe to remove this node
-		return errors.Errorf("insufficient available space in the cluster to remove node %s. node usage: %s, cluster available: %s",
-			nodeName, display.BytesToString(uint64(nodeUsage)), display.BytesToString(uint64(clusterAvailableBytes)))
-	}
-
-	// looks safe to remove the node
-	return nil
 }
 
 func getIDFromDeployment(deployment *apps.Deployment) int {

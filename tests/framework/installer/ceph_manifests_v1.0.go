@@ -1173,6 +1173,8 @@ func (m *CephManifestsV1_0) GetRookCluster(settings *ClusterSettings) string {
 		store = `storeType: "` + settings.StoreType + `"`
 	}
 
+	// disable dashboard of the upgrade test, because upgrading Ceph from Mimic to Nautilus with Rook
+	// v1.0 can stall for a LONG time on updating the mgr module
 	return `apiVersion: ceph.rook.io/v1
 kind: CephCluster
 metadata:
@@ -1189,7 +1191,7 @@ spec:
     count: ` + strconv.Itoa(settings.Mons) + `
     allowMultiplePerNode: true
   dashboard:
-    enabled: true
+    enabled: false
   rbdMirroring:
     workers: ` + strconv.Itoa(settings.RBDMirrorWorkers) + `
   metadataDevice:

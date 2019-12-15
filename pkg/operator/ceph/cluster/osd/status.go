@@ -26,7 +26,6 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
-	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -280,85 +279,6 @@ func (c *Cluster) handleStatusConfigMapStatus(nodeName string, config *provision
 	if status.Status == OrchestrationStatusFailed {
 		config.addError("orchestration for node %s failed: %+v", nodeName, status)
 		return true
-	}
-	return false
-}
-
-func IsRemovingNode(devices string) bool {
-	return devices == "none"
-}
-
-func (c *Cluster) findRemovedNodes() (map[string][]*apps.Deployment, error) {
-	removedNodes := map[string][]*apps.Deployment{}
-
-	// first discover the storage nodes that are still running
-	discoveredNodes, err := c.discoverStorageNodes()
-	if err != nil {
-		return nil, errors.Wrapf(err, "aborting search for removed nodes. failed to discover storage nodes")
-	}
-
-	// c.ValidStorage.Nodes currently in the cluster `c` is only the subset of the user-defined
-	// nodes which are currently valid, and we want a list which can include nodes that are cordoned
-	// for maintenance or have automatic Kubernetes well-known taints added.
-	k8sNodes, err := k8sutil.GetKubernetesNodesMatchingRookNodes(c.DesiredStorage.Nodes, c.context.Clientset)
-	if err != nil {
-		return nil, errors.Wrapf(err, "aborting search for removed nodes. failed to list nodes from Kubernetes")
-	}
-	nodeMap := map[string]v1.Node{}
-	for _, n := range k8sNodes {
-		hostname := n.Labels[v1.LabelHostname]
-		nodeMap[hostname] = n
-	}
-
-	for existingNode, osdDeployments := range discoveredNodes {
-		var nodeRef *v1.Node
-		if n, ok := nodeMap[existingNode]; !ok {
-			nodeRef = nil
-		} else {
-			nodeRef = &n
-		}
-		reason := ""
-		if c.nodeRemovedByUser(existingNode, nodeRef) {
-			logger.Infof("adding node %s to the removed nodes list. %s", existingNode, reason)
-			removedNodes[existingNode] = osdDeployments
-		}
-	}
-
-	return removedNodes, nil
-}
-
-// sample of conditions where we cannot determine if the user wants to remove a node as an osd host:
-//  - if the node is not schedulable, it may be cordoned for maintenance
-//  - if the node is not ready, it could be down temporarily
-func (c *Cluster) nodeRemovedByUser(nodeName string, k8sNode *v1.Node) bool {
-	if c.DesiredStorage.UseAllNodes == false {
-		// for maximum Ceph data safety, when useAllNodes == false, the *only* way to get Rook to
-		// remove a node is by explicit removal from the cluster resource
-		if !c.DesiredStorage.NodeWithNameExists(nodeName) {
-			logger.Debugf("node removed by user. node %s was removed from the cluster definition", nodeName)
-			return true
-		}
-	}
-	if c.DesiredStorage.UseAllNodes == true {
-		// node nil means that the node does not exist in or has been deleted from kubernetes
-		if k8sNode == nil {
-			logger.Debugf("node removed by user. node %s does not exist in Kubernetes", nodeName)
-			return true
-		}
-
-		// without deleting a node from Kubernetes, taints and affinities are the provided
-		// method for users to remove nodes from the cluster when useAllNodes == true
-		ignoreWellKnownTaints := true
-		placeable, err := k8sutil.NodeMeetsPlacementTerms(*k8sNode, c.placement, ignoreWellKnownTaints)
-		if err != nil {
-			logger.Errorf("assuming node is not removed to err on the side of caution."+
-				" failed to determine if node %s meets Rook's placement terms. %+v", nodeName, err)
-			return false
-		}
-		if !placeable {
-			logger.Debugf("node removed by user. node %s has had taints or affinities modified.", nodeName)
-			return true
-		}
 	}
 	return false
 }

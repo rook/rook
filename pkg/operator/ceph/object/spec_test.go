@@ -18,6 +18,7 @@ package object
 
 import (
 	"fmt"
+	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -68,6 +69,14 @@ func TestPodSpecs(t *testing.T) {
 	}
 
 	s := c.makeRGWPodSpec(rgwConfig)
+
+	// Check pod anti affinity is well added to be compliant with HostNetwork setting
+	assert.Equal(t,
+		1,
+		len(s.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution))
+	assert.Equal(t,
+		c.getLabels(),
+		s.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[0].LabelSelector.MatchLabels)
 
 	podTemplate := cephtest.NewPodTemplateSpecTester(t, &s)
 	podTemplate.RunFullSuite(cephconfig.RgwType, "default", "rook-ceph-rgw", "mycluster", "ceph/ceph:myversion",
@@ -154,4 +163,54 @@ func TestValidateSpec(t *testing.T) {
 	s.Spec.MetadataPool.Replicated.Size = 1
 	err = validateStore(context, s)
 	assert.Nil(t, err)
+}
+
+func testPodSpecPlacement(t *testing.T, hostNet bool, req int, placement *rook.Placement) {
+	c := newConfig()
+	c.clusterSpec = &cephv1.ClusterSpec{
+		Network: cephv1.NetworkSpec{HostNetwork: hostNet},
+	}
+
+	d := v1.PodSpec{
+		InitContainers:    []v1.Container{},
+		Containers:        []v1.Container{},
+		RestartPolicy:     v1.RestartPolicyAlways,
+		HostNetwork:       hostNet,
+		PriorityClassName: c.store.Spec.Gateway.PriorityClassName,
+	}
+
+	if placement != nil {
+		c.store.Spec.Gateway.Placement = *placement
+	}
+
+	c.setPodPlacement(&d, c.store.Spec.Gateway.Placement)
+
+	// should have a required anti-affnity
+	assert.Equal(t,
+		req,
+		len(d.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution))
+}
+
+func makePlacement() rook.Placement {
+	return rook.Placement{
+		PodAntiAffinity: &v1.PodAntiAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
+				{
+					TopologyKey: v1.LabelZoneFailureDomain,
+				},
+			},
+		},
+	}
+}
+
+func TestPodSpecPlacement(t *testing.T) {
+	// no placement settings in the crd
+	testPodSpecPlacement(t, true, 1, nil)
+	testPodSpecPlacement(t, false, 0, nil)
+
+	// crd has other preferred and required anti-affinity setting
+	p := makePlacement()
+	testPodSpecPlacement(t, true, 2, &p)
+	p = makePlacement()
+	testPodSpecPlacement(t, false, 1, &p)
 }
