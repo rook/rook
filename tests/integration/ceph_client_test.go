@@ -27,7 +27,12 @@ func (suite *SmokeSuite) TestCreateClient() {
 	logger.Infof("Create Client Smoke Test")
 
 	clientName := "client1"
-	err := suite.helper.UserClient.Create(clientName, suite.namespace)
+	caps := map[string]string{
+		"mon": "allow rwx",
+		"mgr": "allow rwx",
+		"osd": "allow rwx",
+	}
+	err := suite.helper.UserClient.Create(clientName, suite.namespace, caps)
 	require.Nil(suite.T(), err)
 
 	clientFound := false
@@ -49,8 +54,12 @@ func (suite *SmokeSuite) TestCreateClient() {
 	require.Equal(suite.T(), true, clientFound, "client not found")
 
 	logger.Infof("Update Client Smoke Test")
-
-	caps, _ := suite.helper.UserClient.Update(suite.namespace, clientName)
+	newcaps := map[string]string{
+		"mon": "allow r",
+		"mgr": "allow rw",
+		"osd": "allow *",
+	}
+	caps, _ = suite.helper.UserClient.Update(suite.namespace, clientName, newcaps)
 
 	require.Equal(suite.T(), "allow r", caps["mon"], "wrong caps")
 	require.Equal(suite.T(), "allow rw", caps["mgr"], "wrong caps")
