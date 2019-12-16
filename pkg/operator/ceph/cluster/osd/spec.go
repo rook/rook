@@ -59,10 +59,14 @@ const (
 	activateOSDMountPath                = "/var/lib/ceph/osd/ceph-"
 	blockPVCMapperInitContainer         = "blkdevmapper"
 	osdMemoryTargetSafetyFactor float32 = 0.8
-	CephDeviceSetLabelKey               = "ceph.rook.io/DeviceSet"
-	CephSetIndexLabelKey                = "ceph.rook.io/setIndex"
-	CephDeviceSetPVCIDLabelKey          = "ceph.rook.io/DeviceSetPVCId"
-	OSDOverPVCLabelKey                  = "ceph.rook.io/pvc"
+	// CephDeviceSetLabelKey is the Rook device set label key
+	CephDeviceSetLabelKey = "ceph.rook.io/DeviceSet"
+	// CephSetIndexLabelKey is the Rook label key index
+	CephSetIndexLabelKey = "ceph.rook.io/setIndex"
+	// CephDeviceSetPVCIDLabelKey is the Rook PVC ID label key
+	CephDeviceSetPVCIDLabelKey = "ceph.rook.io/DeviceSetPVCId"
+	// OSDOverPVCLabelKey is the Rook PVC label key
+	OSDOverPVCLabelKey = "ceph.rook.io/pvc"
 )
 
 const (
@@ -95,6 +99,13 @@ chown --verbose --recursive ceph:ceph "$OSD_DATA_DIR"
 # remove the temporary directory
 rm --recursive --force "$TMP_DIR"
 `
+)
+
+// OSDs on PVC using a certain storage class need to do some tuning
+const (
+	osdRecoverySleep = "0.1"
+	osdSnapTrimSleep = "2"
+	osdDeleteSleep   = "2"
 )
 
 func (c *Cluster) makeJob(osdProps osdProperties, provisionConfig *provisionConfig) (*batch.Job, error) {
@@ -180,6 +191,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		volumeMounts = append(volumeMounts, devMount)
 	}
 
+	// If the OSD runs on PVC
 	if osdProps.pvc.ClaimName != "" {
 		// Create volume config for PVCs
 		volumes = append(volumes, getPVCOSDVolumes(&osdProps)...)
@@ -222,7 +234,6 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	}
 
 	// default args when the ceph cluster isn't initialized
-
 	defaultArgs := []string{
 		"--foreground",
 		"--id", osdID,
@@ -233,6 +244,15 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	}
 
 	var commonArgs []string
+
+	// If the OSD runs on PVC
+	if osdProps.pvc.ClaimName != "" && osdProps.tuneSlowDeviceClass {
+		// Append tuning flag if necessary
+		err := c.osdRunFlagTuningOnPVC(osd.ID)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to apply tuning on osd %q", strconv.Itoa(osd.ID))
+		}
+	}
 
 	// Set osd memory target to the best appropriate value
 	if !osd.IsFileStore {
@@ -657,8 +677,8 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 	}, nil
 }
 
-// Currently we can't mount a block mode pv directly to a priviliged container
-// So we mount it to a non priviliged init container and then copy it to a common directory mounted inside init container
+// Currently we can't mount a block mode pv directly to a privileged container
+// So we mount it to a non privileged init container and then copy it to a common directory mounted inside init container
 // and the privileged provision container.
 func (c *Cluster) getPVCInitContainer(pvc v1.PersistentVolumeClaimVolumeSource) v1.Container {
 	return v1.Container{
@@ -871,7 +891,7 @@ func getPVCOSDVolumes(osdProps *osdProperties) []v1.Volume {
 			},
 		},
 		{
-			// We need a bridge mount which is basically a common volume mount between the non priviliged init container
+			// We need a bridge mount which is basically a common volume mount between the non privileged init container
 			// and the privileged provision container or osd daemon container
 			// The reason for this is mentioned in the comment for getPVCInitContainer() method
 			Name: fmt.Sprintf("%s-bridge", osdProps.pvc.ClaimName),
@@ -975,7 +995,7 @@ func osdOnSDNFlag(network cephv1.NetworkSpec, v cephver.CephVersion) []string {
 	return args
 }
 
-func makeStorageClassDeviceSetPVCID(storageClassDeviceSetName string, setIndex, pvcIndex int) (pvcId, pvcLabelSelector string) {
+func makeStorageClassDeviceSetPVCID(storageClassDeviceSetName string, setIndex, pvcIndex int) (pvcID, pvcLabelSelector string) {
 	pvcStorageClassDeviceSetPVCId := fmt.Sprintf("%s-%v", storageClassDeviceSetName, setIndex)
 	return pvcStorageClassDeviceSetPVCId, fmt.Sprintf("%s=%s", CephDeviceSetPVCIDLabelKey, pvcStorageClassDeviceSetPVCId)
 }
@@ -1026,4 +1046,27 @@ func cephVolumeEnvVar() []v1.EnvVar {
 		// LVM will manage the relevant nodes in /dev directly.
 		{Name: "DM_DISABLE_UDEV", Value: "1"},
 	}
+}
+
+func (c *Cluster) osdRunFlagTuningOnPVC(osdID int) error {
+	who := fmt.Sprintf("osd.%d", osdID)
+	do := make(map[string]string)
+
+	// Time in seconds to sleep before next recovery or backfill op
+	do["osd_recovery_sleep"] = osdRecoverySleep
+	// Time in seconds to sleep before next snap trim
+	do["osd_snap_trim_sleep"] = osdSnapTrimSleep
+	// Time in seconds to sleep before next removal transaction
+	do["osd_delete_sleep"] = osdDeleteSleep
+
+	monStore := opconfig.GetMonStore(c.context, c.Namespace)
+
+	for flag, val := range do {
+		err := monStore.Set(who, flag, val)
+		if err != nil {
+			return errors.Wrapf(err, "failed to set %q to %q on %q", flag, val, who)
+		}
+	}
+
+	return nil
 }

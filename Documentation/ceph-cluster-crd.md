@@ -66,6 +66,7 @@ spec:
     - name: set1
       count: 3
       portable: false
+      tuneSlowDeviceClass: false
       volumeClaimTemplates:
       - metadata:
           name: data
@@ -256,6 +257,7 @@ The following are the settings for Storage Class Device Sets which can be config
 as evenly spread across nodes as possible. At a minimum, anti-affinity should be added so at least one OSD will be placed on each available nodes.
 However, if there are more OSDs than nodes, this anti-affinity will not be effective. Another placement scheme to consider is to add labels to the nodes in such a way that the OSDs can be grouped on those nodes, create multiple storageClassDeviceSets, and add node affinity to each of the device sets that will place the OSDs in those sets of nodes.
 * `portable`: If `true`, the OSDs will be allowed to move between nodes during failover. This requires a storage class that supports portability (e.g. `aws-ebs`, but not the local storage provisioner). If `false`, the OSDs will be assigned to a node permanently. Rook will configure Ceph's CRUSH map to support the portability.
+* `tuneSlowDeviceClass`: If `true`, because the OSD can be on a slow device class, Rook will adapt to that by tuning the OSD process. This will make Ceph perform better under that slow device.
 * `volumeClaimTemplates`: A list of PVC templates to use for provisioning the underlying storage devices.
   * `resources.requests.storage`: The desired capacity for the underlying storage devices.
   * `storageClassName`: The StorageClass to provision PVCs from. Default would be to use the cluster-default StorageClass. This StorageClass should provide a raw block device or logical volume. Other types are not supported.
@@ -272,7 +274,7 @@ The following storage selection settings are specific to Ceph and do not apply t
 * `walSizeMB`:  The size in MB of a bluestore write ahead log (WAL). Include quotes around the size.
 * `journalSizeMB`:  The size in MB of a filestore journal. Include quotes around the size.
 * `osdsPerDevice`**: The number of OSDs to create on each device. High performance devices such as NVMe can handle running multiple OSDs. If desired, this can be overridden for each node and each device.
-* `encryptedDevice`**: Encrypt OSD volumes using dmcrypt ("true" or "false"). By default this option is disabled. See http://docs.ceph.com/docs/nautilus/ceph-volume/lvm/encryption/ for more information on encryption in Ceph.
+* `encryptedDevice`**: Encrypt OSD volumes using dmcrypt ("true" or "false"). By default this option is disabled. See [encryption](http://docs.ceph.com/docs/nautilus/ceph-volume/lvm/encryption/) for more information on encryption in Ceph.
 
 ** **NOTE**: Depending on the Ceph image running in your cluster, OSDs will be configured differently. Newer images will configure OSDs with `ceph-volume`, which provides support for `osdsPerDevice`, `encryptedDevice`, as well as other features that will be exposed in future Rook releases. OSDs created prior to Rook v0.9 or with older images of Luminous and Mimic are not created with `ceph-volume` and thus would not support the same features. For `ceph-volume`, the following images are supported:
 
@@ -353,18 +355,18 @@ For more information on resource requests/limits see the official Kubernetes doc
   * `memory`: Limit for Memory (example: one gigabyte of memory `1Gi`, half a gigabyte of memory `512Mi`).
 
 ### Priority Class Names Configuration Settings
+
 Priority class names can be specified so that the Rook components will have those priority class names added to them.
 
 You can set priority class names for Rook components for the list of key value pairs:
 
-- `all`: Set priority class names for MGRs, Mons, OSDs, and RBD Mirrors.
-- `mgr`: Set priority class names for MGRs.
-- `mon`: Set priority class names for Mons.
-- `osd`: Set priority class names for OSDs.
-- `rbdmirror`: Set priority class names for RBD Mirrors.
+* `all`: Set priority class names for MGRs, Mons, OSDs, and RBD Mirrors.
+* `mgr`: Set priority class names for MGRs.
+* `mon`: Set priority class names for Mons.
+* `osd`: Set priority class names for OSDs.
+* `rbdmirror`: Set priority class names for RBD Mirrors.
 
 The specific component keys will act as overrides to `all`.
-
 
 ## Samples
 
@@ -584,12 +586,14 @@ topology.rook.io/chassis
 ```
 
 For example, if the following labels were added to a node:
+
 ```console
 kubectl label node mynode failure-domain.beta.kubernetes.io/zone=zone1
 kubectl label node mynode topology.rook.io/rack=rack1
 ```
 
 These labels would result in the following hierarchy for OSDs on that node (this command can be run in the Rook toolbox):
+
 ```console
 [root@mynode /]# ceph osd tree
 ID CLASS WEIGHT  TYPE NAME                 STATUS REWEIGHT PRI-AFF
@@ -693,6 +697,7 @@ spec:
     - name: set1
       count: 3
       portable: false
+      tuneSlowDeviceClass: false
       resources:
         limits:
           cpu: "500m"
@@ -748,7 +753,7 @@ The script will look for the following populated environment variables:
 * `NAMESPACE`: the namespace where the configmap and secrets should be injected
 * `ROOK_EXTERNAL_FSID`: the fsid of the external Ceph cluster, it can be retrieved via the `ceph fsid` command
 * `ROOK_EXTERNAL_ADMIN_SECRET`: the external Ceph cluster admin secret key, it can be retrieved via the `ceph auth get-key client.admin` command
-* `ROOK_EXTERNAL_CEPH_MON_DATA`: is a common-separated list of running monitors IP address along with their ports, e.g: `a=172.17.0.4:6789,b=172.17.0.5:6789,c=172.17.0.6:6789`. You don't need to specify all the monitors, you can simply pass one and the Operator will discover the rest. The name of the monitor is the name that appears in the `ceph status` ouput.
+* `ROOK_EXTERNAL_CEPH_MON_DATA`: is a common-separated list of running monitors IP address along with their ports, e.g: `a=172.17.0.4:6789,b=172.17.0.5:6789,c=172.17.0.6:6789`. You don't need to specify all the monitors, you can simply pass one and the Operator will discover the rest. The name of the monitor is the name that appears in the `ceph status` output.
 
 **Example**:
 
