@@ -130,7 +130,6 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	}
 
 	logger.Infof("starting cluster in namespace %s", cluster.Namespace)
-
 	if c.devicesInUse && cluster.Spec.Storage.AnyUseAllDevices() {
 		c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, edgefsv1.ClusterStateError, "using all devices in more than one namespace is not supported")
 		return
@@ -144,10 +143,10 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	err := wait.Poll(clusterCreateInterval, clusterCreateTimeout, func() (bool, error) {
 		c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, edgefsv1.ClusterStateCreating, "")
 
-		err := cluster.createInstance(c.containerImage, false)
+		done, err := cluster.createInstance(c.containerImage, false)
 		if err != nil {
-			logger.Errorf("failed to create cluster in namespace %s. %+v", cluster.Namespace, err)
-			return false, nil
+			logger.Errorf("%s", err)
+			return done, err
 		}
 
 		// cluster is created, update the cluster CRD status now
@@ -157,7 +156,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	})
 	if err != nil {
 		c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, edgefsv1.ClusterStateError,
-			fmt.Sprintf("giving up creating cluster in namespace %s after %s", cluster.Namespace, clusterCreateTimeout))
+			fmt.Sprintf("giving up creating cluster in namespace %s after %s. Error: %s", cluster.Namespace, clusterCreateTimeout, err.Error()))
 		return
 	}
 
@@ -290,12 +289,15 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 
 	// attempt to update the cluster.  note this is done outside of wait.Poll because that function
 	// will wait for the retry interval before trying for the first time.
-	done, _ := c.handleUpdate(newCluster, cluster)
+	done, err := c.handleUpdate(newCluster, cluster)
 	if done {
+		if err != nil {
+			c.updateClusterStatus(newCluster.Namespace, newCluster.Name, edgefsv1.ClusterStateError, err.Error())
+		}
 		return
 	}
 
-	err := wait.Poll(updateClusterInterval, updateClusterTimeout, func() (bool, error) {
+	err = wait.Poll(updateClusterInterval, updateClusterTimeout, func() (bool, error) {
 		return c.handleUpdate(newCluster, cluster)
 	})
 	if err != nil {
@@ -313,9 +315,10 @@ func (c *ClusterController) handleUpdate(newClust *edgefsv1.Cluster, cluster *cl
 		c.containerImage = newClust.Spec.EdgefsImageName
 	}
 
-	if err := cluster.createInstance(c.containerImage, true); err != nil {
+	done, err := cluster.createInstance(c.containerImage, true)
+	if err != nil {
 		logger.Errorf("failed to update cluster in namespace %s. %+v", newClust.Namespace, err)
-		return false, nil
+		return done, err
 	}
 
 	c.updateClusterStatus(newClust.Namespace, newClust.Name, edgefsv1.ClusterStateCreated, "")
