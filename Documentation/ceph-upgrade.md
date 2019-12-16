@@ -64,16 +64,6 @@ master branch are subject to changes and incompatibilities that will not be supp
 official releases. Builds from the master branch can have functionality changed and even removed at
 any time without compatibility support and without prior notice.
 
-**Users are required to upgrade Ceph to Mimic (v13.2.4 or newer) or Nautilus (v14.2.x) now.** Rook 1.0
-was the last Rook release which will support Ceph's Luminous (v12.x.x) version. These are the only
-supported major versions of Ceph.
-
-Rook documentation for 1.1 has identified some Ceph configuration options that the user is
-advised to consider regarding PG management for pools. See the topic [here](ceph-configuration.md#default-pg-and-pgp-counts).
-While this is not directly related to the upgrade, it could be beneficial to consider these
-options now. If the user determines that these configuration options apply to them, they will be
-able to set the configuration as documented once the Rook operator has been upgraded.
-
 ## Prerequisites
 
 We will do all our work in the Ceph example manifests directory.
@@ -101,8 +91,6 @@ export ROOK_NAMESPACE="rook-ceph"
 
 In order to successfully upgrade a Rook cluster, the following prerequisites must be met:
 
-* The cluster must be running Ceph Mimic (v13.2.3 or newer) or Nautilus (v14.2.x) before upgrading
-  to Rook 1.1; Ceph Luminous (v12.x.x) is no longer supported.
 * The cluster should be in a healthy state with full functionality.
   Review the [health verification section](#health-verification) in order to verify your cluster is
   in a good starting state.
@@ -237,21 +225,25 @@ time without compatibility support and without prior notice.
 
 Let's get started!
 
-> **IMPORTANT**: Ensure that you are using the latest manifests from the `release-1.2` branch. If you
-> have custom configuration options set in your 1.0 manifests, you will need to also alter those
-> values in the 1.1 manifests.
+### 1. Update the RBAC and CRDs
 
-#### 1. Update the Rook Operator
+First update the Ceph Custom Resource Definitions and the privileges (RBAC) needed by the operator.
+A new `CephClient` CRD is included in v1.2 and the CSI driver privileges changed slightly.
+
+```sh
+kubectl apply -f upgrade-from-v1.1-apply.yaml
+```
+
+### 2. Update the Operator
 
 The largest portion of the upgrade is triggered when the operator's image is updated to `v1.2.x`.
 When the operator is updated, it will proceed to update all of the Ceph daemons.
-(If step 1 was completed, this change has already been applied.)
 
 ```sh
 kubectl -n $ROOK_SYSTEM_NAMESPACE set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.2.0
 ```
 
-### 2. Wait for the upgrade to complete
+### 3. Wait for the upgrade to complete
 
 Watch now in amazement as the Ceph mons, mgrs, OSDs, rbd-mirrors, MDSes and RGWs are terminated and
 replaced with updated versions in sequence. The cluster may be offline very briefly as mons update,
@@ -294,20 +286,19 @@ This cluster is finished:
   rook-version=v1.2.0
 ```
 
-### 3. Verify the updated cluster
+### 4. Verify the updated cluster
 
 At this point, your Rook operator should be running version `rook/ceph:v1.2.0`.
 
 Verify the Ceph cluster's health using the [health verification section](#health-verification).
 
-### 4. Update Rook-Ceph custom resource definitions
+### 5. Update Rook-Ceph custom resource definitions
 
 > **IMPORTANT**: Do not perform this step until ALL existing Rook-Ceph clusters are updated!
 
 After all Rook-Ceph clusters have been updated following the steps above, update the Rook-Ceph
-Custom Resource Definitions. This is important to get the latest schema validations that will
-support running external Ceph clusters and will also help with creating or modifying Rook-Ceph
-deployments in the future.
+Custom Resource Definitions. This will help with creating or modifying Rook-Ceph
+deployments in the future with the updated schema validation.
 
 ```sh
 kubectl apply -f upgrade-from-v1.1-crds.yaml
