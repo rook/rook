@@ -54,7 +54,24 @@ func (c *cluster) createClusterReconfigurationSpec(existingConfig edgefsv1.Clust
 		},
 	}
 
-	// Iterate over cluster nodes
+	// In case of Storage.UseAllNodes we should make additional availability test due validNodes will not contains NotReady, Drained nodes
+	if c.Spec.Storage.UseAllNodes {
+		for specNodeName := range existingConfig.DevConfig {
+			isSpecNodeValid := false
+			for _, validNode := range validNodes {
+				if specNodeName == validNode.Name {
+					isSpecNodeValid = true
+					break
+				}
+			}
+
+			if !isSpecNodeValid {
+				return ClusterReconfigureSpec{}, fmt.Errorf("Node '%s' is NOT valid. Check node status.", specNodeName)
+			}
+		}
+	}
+
+	// Iterate over available cluster nodes
 	for _, node := range validNodes {
 		// Copy devices confiruration for already existing devicesConfig
 		// We can't modify devices config for already existing node in config map
@@ -76,9 +93,10 @@ func (c *cluster) createClusterReconfigurationSpec(existingConfig edgefsv1.Clust
 
 	// Calculate nodes to delete from cluster
 	reconfigSpec.ClusterNodesToDelete = existingConfig.NodesDifference(reconfigSpec.DeploymentConfig)
-
+	logger.Debugf("NodesToDelete: %#v", reconfigSpec.ClusterNodesToDelete)
 	// Calculate nodes to add to cluster
 	reconfigSpec.ClusterNodesToAdd = reconfigSpec.DeploymentConfig.NodesDifference(existingConfig)
+	logger.Debugf("NodesToAdd: %#v", reconfigSpec.ClusterNodesToAdd)
 
 	_, err = existingConfig.CompatibleWith(reconfigSpec.DeploymentConfig)
 	if err != nil {

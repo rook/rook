@@ -138,7 +138,7 @@ func (c *Cluster) Start(rookImage string, nodes []rookalpha.Node, dro edgefsv1.D
 
 		if _, err := UpdateStatefulsetAndWait(c.context, statefulSet, c.Namespace); err != nil {
 			logger.Errorf("failed to update statefulset %s. %+v", statefulSet.Name, err)
-			return nil
+			return err
 		}
 	} else {
 		logger.Infof("stateful set %s created in namespace %s", statefulSet.Name, statefulSet.Namespace)
