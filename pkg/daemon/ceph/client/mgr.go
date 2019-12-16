@@ -19,15 +19,34 @@ package client
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 )
 
+var (
+	moduleEnableWaitTime = 5 * time.Second
+)
+
 // MgrEnableModule enables a mgr module
 func MgrEnableModule(context *clusterd.Context, clusterName, name string, force bool) error {
-	return enableModule(context, clusterName, name, force, "enable")
+	retryCount := 5
+	for i := 0; i < retryCount; i++ {
+		err := enableModule(context, clusterName, name, force, "enable")
+		if err != nil {
+			if i < retryCount-1 {
+				logger.Warningf("failed to enable mgr module %q. trying again...", name)
+				time.Sleep(moduleEnableWaitTime)
+				continue
+			} else {
+				return errors.Wrapf(err, "failed to enable mgr module %q even after %d retries", name, retryCount)
+			}
+		}
+		break
+	}
+	return nil
 }
 
 // MgrDisableModule disables a mgr module
@@ -69,9 +88,10 @@ func enableModule(context *clusterd.Context, clusterName, name string, force boo
 	if force {
 		args = append(args, "--force")
 	}
+
 	_, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
-		return errors.Wrapf(err, "failed to mgr module enable for %s", name)
+		return errors.Wrapf(err, "failed to enable mgr module %q", name)
 	}
 
 	return nil
