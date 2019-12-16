@@ -91,7 +91,7 @@ func (c *CephNFSController) onAdd(obj interface{}) {
 
 	nfs := obj.(*cephv1.CephNFS).DeepCopy()
 	if !c.clusterInfo.CephVersion.IsAtLeastNautilus() {
-		logger.Errorf("Ceph NFS is only supported with Nautilus or newer. CRD %s will be ignored.", nfs.Name)
+		logger.Errorf("Ceph NFS is only supported with Nautilus or newer. CRD %q will be ignored.", nfs.Name)
 		return
 	}
 
@@ -100,7 +100,7 @@ func (c *CephNFSController) onAdd(obj interface{}) {
 
 	err := c.upCephNFS(*nfs, 0)
 	if err != nil {
-		logger.Errorf("failed to create NFS Ganesha %s. %+v", nfs.Name, err)
+		logger.Errorf("failed to create NFS Ganesha %q. %v", nfs.Name, err)
 	}
 }
 
@@ -113,12 +113,12 @@ func (c *CephNFSController) onUpdate(oldObj, newObj interface{}) {
 	oldNFS := oldObj.(*cephv1.CephNFS).DeepCopy()
 	newNFS := newObj.(*cephv1.CephNFS).DeepCopy()
 	if !c.clusterInfo.CephVersion.IsAtLeastNautilus() {
-		logger.Errorf("Ceph NFS is only supported with Nautilus or newer. CRD %s will be ignored.", newNFS.Name)
+		logger.Errorf("Ceph NFS is only supported with Nautilus or newer. CRD %q will be ignored.", newNFS.Name)
 		return
 	}
 
 	if !nfsChanged(oldNFS.Spec, newNFS.Spec) {
-		logger.Debugf("nfs ganesha %s not updated", newNFS.Name)
+		logger.Debugf("nfs ganesha %q not updated", newNFS.Name)
 		return
 	}
 
@@ -129,12 +129,12 @@ func (c *CephNFSController) onUpdate(oldObj, newObj interface{}) {
 	if oldNFS.Spec.Server.Active < newNFS.Spec.Server.Active {
 		err := c.upCephNFS(*newNFS, oldNFS.Spec.Server.Active)
 		if err != nil {
-			logger.Errorf("Failed to start daemons for CephNFS %s. %+v", newNFS.Name, err)
+			logger.Errorf("Failed to start daemons for CephNFS %q. %v", newNFS.Name, err)
 		}
 	} else {
 		err := c.downCephNFS(*oldNFS, newNFS.Spec.Server.Active)
 		if err != nil {
-			logger.Errorf("Failed to stop daemons for CephNFS %s. %+v", newNFS.Name, err)
+			logger.Errorf("Failed to stop daemons for CephNFS %q. %v", newNFS.Name, err)
 		}
 	}
 
@@ -148,7 +148,7 @@ func (c *CephNFSController) onDelete(obj interface{}) {
 
 	nfs := obj.(*cephv1.CephNFS).DeepCopy()
 	if !c.clusterInfo.CephVersion.IsAtLeastNautilus() {
-		logger.Errorf("Ceph NFS is only supported with Nautilus or newer. CRD %s cleanup will be ignored.", nfs.Name)
+		logger.Errorf("Ceph NFS is only supported with Nautilus or newer. CRD %q cleanup will be ignored.", nfs.Name)
 		return
 	}
 
@@ -157,7 +157,7 @@ func (c *CephNFSController) onDelete(obj interface{}) {
 
 	err := c.downCephNFS(*nfs, 0)
 	if err != nil {
-		logger.Errorf("failed to delete file system %s. %+v", nfs.Name, err)
+		logger.Errorf("failed to delete file system %s. %v", nfs.Name, err)
 	}
 }
 
@@ -180,16 +180,16 @@ func (c *CephNFSController) ParentClusterChanged(cluster cephv1.ClusterSpec, clu
 	c.clusterSpec.CephVersion = cluster.CephVersion
 	nfses, err := c.context.RookClientset.CephV1().CephNFSes(c.namespace).List(metav1.ListOptions{})
 	if err != nil {
-		logger.Errorf("failed to retrieve NFSes to update the ceph version. %+v", err)
+		logger.Errorf("failed to retrieve NFSes to update the ceph version. %v", err)
 		return
 	}
 	for _, nfs := range nfses.Items {
-		logger.Infof("updating the ceph version for nfs %s to %s", nfs.Name, c.clusterSpec.CephVersion.Image)
+		logger.Infof("updating the ceph version for nfs %q to %q", nfs.Name, c.clusterSpec.CephVersion.Image)
 		err := c.upCephNFS(nfs, 0)
 		if err != nil {
-			logger.Errorf("failed to update nfs %s. %+v", nfs.Name, err)
+			logger.Errorf("failed to update nfs %q. %v", nfs.Name, err)
 		} else {
-			logger.Infof("updated nfs %s to ceph version %s", nfs.Name, c.clusterSpec.CephVersion.Image)
+			logger.Infof("updated nfs %q to ceph version %q", nfs.Name, c.clusterSpec.CephVersion.Image)
 		}
 	}
 }

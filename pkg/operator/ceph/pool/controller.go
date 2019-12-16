@@ -87,13 +87,13 @@ func (c *PoolController) onAdd(obj interface{}) {
 
 	pool, err := getPoolObject(obj)
 	if err != nil {
-		logger.Errorf("failed to get pool object: %+v", err)
+		logger.Errorf("failed to get pool object. %v", err)
 		return
 	}
 
 	err = createPool(c.context, pool)
 	if err != nil {
-		logger.Errorf("failed to create pool %s. %+v", pool.ObjectMeta.Name, err)
+		logger.Errorf("failed to create pool %q. %v", pool.ObjectMeta.Name, err)
 	}
 }
 
@@ -105,32 +105,32 @@ func (c *PoolController) onUpdate(oldObj, newObj interface{}) {
 
 	oldPool, err := getPoolObject(oldObj)
 	if err != nil {
-		logger.Errorf("failed to get old pool object: %+v", err)
+		logger.Errorf("failed to get old pool object. %v", err)
 		return
 	}
 	pool, err := getPoolObject(newObj)
 	if err != nil {
-		logger.Errorf("failed to get new pool object: %+v", err)
+		logger.Errorf("failed to get new pool object. %v", err)
 		return
 	}
 
 	if oldPool.Name != pool.Name {
-		logger.Errorf("failed to update pool %s. name update not allowed", pool.Name)
+		logger.Errorf("failed to update pool %q. name update not allowed", pool.Name)
 		return
 	}
 	if pool.Spec.ErasureCoded.CodingChunks != 0 && pool.Spec.ErasureCoded.DataChunks != 0 {
-		logger.Errorf("failed to update pool %s. erasurecoded update not allowed", pool.Name)
+		logger.Errorf("failed to update pool %q. erasurecoded update not allowed", pool.Name)
 		return
 	}
 	if !poolChanged(oldPool.Spec, pool.Spec) {
-		logger.Debugf("pool %s not changed", pool.Name)
+		logger.Debugf("pool %q not changed", pool.Name)
 		return
 	}
 
 	// if the pool is modified, allow the pool to be created if it wasn't already
-	logger.Infof("updating pool %s", pool.Name)
+	logger.Infof("updating pool %q", pool.Name)
 	if err := createPool(c.context, pool); err != nil {
-		logger.Errorf("failed to create (modify) pool %s. %+v", pool.ObjectMeta.Name, err)
+		logger.Errorf("failed to create (modify) pool %q. %v", pool.ObjectMeta.Name, err)
 	}
 }
 
@@ -155,11 +155,11 @@ func (c *PoolController) onDelete(obj interface{}) {
 
 	pool, err := getPoolObject(obj)
 	if err != nil {
-		logger.Errorf("failed to get pool object: %+v", err)
+		logger.Errorf("failed to get pool object. %v", err)
 		return
 	}
 	if err := deletePool(c.context, pool); err != nil {
-		logger.Errorf("failed to delete pool %s. %+v", pool.ObjectMeta.Name, err)
+		logger.Errorf("failed to delete pool %q. %v", pool.ObjectMeta.Name, err)
 	}
 }
 
@@ -167,16 +167,16 @@ func (c *PoolController) onDelete(obj interface{}) {
 func createPool(context *clusterd.Context, p *cephv1.CephBlockPool) error {
 	// validate the pool settings
 	if err := ValidatePool(context, p); err != nil {
-		return errors.Wrapf(err, "invalid pool %s arguments", p.Name)
+		return errors.Wrapf(err, "invalid pool %q arguments", p.Name)
 	}
 
 	// create the pool
-	logger.Infof("creating pool %s in namespace %s", p.Name, p.Namespace)
+	logger.Infof("creating pool %q in namespace %q", p.Name, p.Namespace)
 	if err := ceph.CreatePoolWithProfile(context, p.Namespace, *p.Spec.ToModel(p.Name), poolApplicationNameRBD); err != nil {
-		return errors.Wrapf(err, "failed to create pool %s", p.Name)
+		return errors.Wrapf(err, "failed to create pool %q", p.Name)
 	}
 
-	logger.Infof("created pool %s", p.Name)
+	logger.Infof("created pool %q", p.Name)
 	return nil
 }
 

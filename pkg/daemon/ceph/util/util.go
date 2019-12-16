@@ -68,7 +68,7 @@ func FindRBDMappedFile(imageName, poolName, sysBusDir string) (string, error) {
 func GetIPFromEndpoint(endpoint string) string {
 	host, _, err := net.SplitHostPort(endpoint)
 	if err != nil {
-		logger.Errorf("failed to split ip and port for endpoint %s", endpoint)
+		logger.Errorf("failed to split ip and port for endpoint %q. %v", endpoint, err)
 	}
 	return host
 }
@@ -78,11 +78,11 @@ func GetPortFromEndpoint(endpoint string) int32 {
 	var port int
 	_, portString, err := net.SplitHostPort(endpoint)
 	if err != nil {
-		logger.Errorf("failed to split host and port for endpoint %s, assuming default Ceph port %s", endpoint, portString)
+		logger.Errorf("failed to split host and port for endpoint %q, assuming default Ceph port %q. %v", endpoint, portString, err)
 	} else {
 		port, err = strconv.Atoi(portString)
 		if err != nil {
-			logger.Errorf("failed to convert %s to integer", portString)
+			logger.Errorf("failed to convert %q to integer. %v", portString, err)
 		}
 	}
 	return int32(port)

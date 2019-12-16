@@ -207,7 +207,7 @@ func (c *Cluster) Start() error {
 	if c.clusterInfo.CephVersion.IsAtLeastNautilus() {
 		versions, err := client.GetAllCephDaemonVersions(c.context, c.clusterInfo.Name)
 		if err != nil {
-			logger.Warningf("failed to get ceph daemons versions; this likely means there are no osds yet. %+v", err)
+			logger.Warningf("failed to get ceph daemons versions; this likely means there are no osds yet. %v", err)
 		} else {
 			// If length is one, this clearly indicates that all the osds are running the same version
 			// If this is the first time we are creating a cluster length will be 0
@@ -248,7 +248,7 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig) {
 	//check k8s version
 	k8sVersion, err := k8sutil.GetK8SVersion(c.context.Clientset)
 	if err != nil {
-		config.addError("error finding Kubernetes version. %+v", err)
+		config.addError("error finding Kubernetes version. %v", err)
 		return
 	}
 	if !k8sVersion.AtLeast(version.MustParseSemantic("v1.13.0")) {
@@ -268,7 +268,7 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig) {
 		// update the orchestration status of this pvc to the starting state
 		status := OrchestrationStatus{Status: OrchestrationStatusStarting, PvcBackedOSD: true}
 		if err := c.updateOSDStatus(osdProps.crushHostname, status); err != nil {
-			config.addError("failed to set orchestration starting status for pvc %s: %+v", osdProps.crushHostname, err)
+			config.addError("failed to set orchestration starting status for pvc %q. %v", osdProps.crushHostname, err)
 			continue
 		}
 
@@ -280,7 +280,7 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig) {
 
 		osdDeployments, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).List(listOpts)
 		if err != nil {
-			config.addError("failed to check if OSD daemon exists for pvc %q. %+v", osdProps.crushHostname, err)
+			config.addError("failed to check if OSD daemon exists for pvc %q. %v", osdProps.crushHostname, err)
 			continue
 		}
 
@@ -288,13 +288,13 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig) {
 			logger.Infof("skip OSD prepare pod creation as OSD daemon already exists for %q", osdProps.crushHostname)
 			osds, err := getOSDInfo(&osdDeployments.Items[0])
 			if err != nil {
-				config.addError("failed to get osdInfo for pvc %q. %+v", osdProps.crushHostname, err)
+				config.addError("failed to get osdInfo for pvc %q. %v", osdProps.crushHostname, err)
 				continue
 			}
 			// update the orchestration status of this pvc to the completed state
 			status = OrchestrationStatus{OSDs: osds, Status: OrchestrationStatusCompleted, PvcBackedOSD: true}
 			if err := c.updateOSDStatus(osdProps.crushHostname, status); err != nil {
-				config.addError("failed to update pvc %q status. %+v", osdProps.crushHostname, err)
+				config.addError("failed to update pvc %q status. %v", osdProps.crushHostname, err)
 				continue
 			}
 			continue
@@ -306,7 +306,7 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig) {
 			config.addError(message)
 			status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: message, PvcBackedOSD: true}
 			if err := c.updateOSDStatus(osdProps.crushHostname, status); err != nil {
-				config.addError("failed to update pvc %q status. %+v", osdProps.crushHostname, err)
+				config.addError("failed to update pvc %q status. %v", osdProps.crushHostname, err)
 				continue
 			}
 		}
@@ -318,7 +318,7 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig) {
 				PvcBackedOSD: true,
 			}
 			if err := c.updateOSDStatus(osdProps.crushHostname, status); err != nil {
-				config.addError("failed to update osd %s status. %+v", osdProps.crushHostname, err)
+				config.addError("failed to update osd %q status. %v", osdProps.crushHostname, err)
 			}
 		}
 	}
@@ -379,7 +379,7 @@ func (c *Cluster) startProvisioningOverNodes(config *provisionConfig) {
 		// update the orchestration status of this node to the starting state
 		status := OrchestrationStatus{Status: OrchestrationStatusStarting}
 		if err := c.updateOSDStatus(n.Name, status); err != nil {
-			config.addError("failed to set orchestration starting status for node %s: %+v", n.Name, err)
+			config.addError("failed to set orchestration starting status for node %q. %v", n.Name, err)
 			continue
 		}
 
@@ -396,11 +396,11 @@ func (c *Cluster) startProvisioningOverNodes(config *provisionConfig) {
 		}
 		job, err := c.makeJob(osdProps, config)
 		if err != nil {
-			message := fmt.Sprintf("failed to create prepare job node %s: %v", n.Name, err)
+			message := fmt.Sprintf("failed to create prepare job node %q. %v", n.Name, err)
 			config.addError(message)
 			status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: message}
 			if err := c.updateOSDStatus(n.Name, status); err != nil {
-				config.addError("failed to update node %s status. %+v", n.Name, err)
+				config.addError("failed to update node %q status. %v", n.Name, err)
 				continue
 			}
 		}
@@ -408,7 +408,7 @@ func (c *Cluster) startProvisioningOverNodes(config *provisionConfig) {
 		if !c.runJob(job, n.Name, config, "provision") {
 			status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: fmt.Sprintf("failed to start osd provisioning on node %s", n.Name)}
 			if err := c.updateOSDStatus(n.Name, status); err != nil {
-				config.addError("failed to update node %s status. %+v", n.Name, err)
+				config.addError("failed to update node %q status. %v", n.Name, err)
 			}
 		}
 	}
@@ -420,7 +420,7 @@ func (c *Cluster) runJob(job *batch.Job, nodeName string, config *provisionConfi
 	if err := k8sutil.RunReplaceableJob(c.context.Clientset, job, false); err != nil {
 		if !kerrors.IsAlreadyExists(err) {
 			// we failed to create job, update the orchestration status for this node
-			message := fmt.Sprintf("failed to create %s job for node %s. %+v", action, nodeName, err)
+			message := fmt.Sprintf("failed to create %q job for node %q. %v", action, nodeName, err)
 			c.handleOrchestrationFailure(config, nodeName, message)
 			return false
 		}
@@ -439,7 +439,7 @@ func (c *Cluster) startOSDDaemonsOnPVC(pvcName string, config *provisionConfig, 
 	storeConfig := osdconfig.ToStoreConfig(conf)
 	osdProps, err := c.getOSDPropsForPVC(pvcName)
 	if err != nil {
-		config.addError(fmt.Sprintf("%+v", err))
+		config.addError(fmt.Sprintf("%v", err))
 		return
 	}
 
@@ -451,7 +451,7 @@ func (c *Cluster) startOSDDaemonsOnPVC(pvcName string, config *provisionConfig, 
 		// in intermittent failure of first-attempt OSD pods.
 		keyring, err := c.generateKeyring(osd.ID)
 		if err != nil {
-			errMsg := fmt.Sprintf("failed to create keyring for pvc %s, osd %v: %+v", osdProps.crushHostname, osd, err)
+			errMsg := fmt.Sprintf("failed to create keyring for pvc %q, osd %v. %v", osdProps.crushHostname, osd, err)
 			config.addError(errMsg)
 			continue
 		}
@@ -467,20 +467,20 @@ func (c *Cluster) startOSDDaemonsOnPVC(pvcName string, config *provisionConfig, 
 		if createErr != nil {
 			if !kerrors.IsAlreadyExists(createErr) {
 				// we failed to create job, update the orchestration status for this pvc
-				logger.Warningf("failed to create osd deployment for pvc %s, osd %v: %+v", osdProps.pvc.ClaimName, osd, createErr)
+				logger.Warningf("failed to create osd deployment for pvc %q, osd %v. %v", osdProps.pvc.ClaimName, osd, createErr)
 				continue
 			}
 			logger.Infof("deployment for osd %d already exists. updating if needed", osd.ID)
 			createdDeployment, err = c.context.Clientset.AppsV1().Deployments(c.Namespace).Get(dp.Name, metav1.GetOptions{})
 			if err != nil {
-				logger.Warningf("failed to get existing OSD deployment %q for update: %+v", dp.Name, err)
+				logger.Warningf("failed to get existing OSD deployment %q for update. %v", dp.Name, err)
 				continue
 			}
 		}
 
 		err = c.associateKeyring(keyring, createdDeployment)
 		if err != nil {
-			logger.Errorf("failed to associate keyring for pvc %s, osd %v: %+v", osdProps.pvc.ClaimName, osd, err)
+			logger.Errorf("failed to associate keyring for pvc %q, osd %v. %v", osdProps.pvc.ClaimName, osd, err)
 		}
 
 		if createErr != nil && kerrors.IsAlreadyExists(createErr) {
@@ -492,7 +492,7 @@ func (c *Cluster) startOSDDaemonsOnPVC(pvcName string, config *provisionConfig, 
 			if c.isUpgrade {
 				currentCephVersion, err := client.LeastUptodateDaemonVersion(c.context, c.clusterInfo.Name, daemon)
 				if err != nil {
-					logger.Warningf("failed to retrieve current ceph %s version. %+v", daemon, err)
+					logger.Warningf("failed to retrieve current ceph %q version. %v", daemon, err)
 					logger.Debug("could not detect ceph version during update, this is likely an initial bootstrap, proceeding with c.clusterInfo.CephVersion")
 					cephVersionToUse = c.clusterInfo.CephVersion
 				} else {
@@ -502,7 +502,7 @@ func (c *Cluster) startOSDDaemonsOnPVC(pvcName string, config *provisionConfig, 
 			}
 
 			if err = updateDeploymentAndWait(c.context, dp, c.Namespace, daemon, strconv.Itoa(osd.ID), cephVersionToUse, c.isUpgrade, c.skipUpgradeChecks); err != nil {
-				logger.Errorf("failed to update osd deployment %d. %+v", osd.ID, err)
+				logger.Errorf("failed to update osd deployment %d. %v", osd.ID, err)
 			}
 		}
 		logger.Infof("started deployment for osd %d (dir=%t, type=%s)", osd.ID, osd.IsDirectory, storeConfig.StoreType)
@@ -517,7 +517,7 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 	// fully resolve the storage config and resources for this node
 	n := c.resolveNode(nodeName)
 	if n == nil {
-		logger.Errorf("node %s did not resolve to start osds", nodeName)
+		logger.Errorf("node %q did not resolve to start osds", nodeName)
 		return
 	}
 	storeConfig := osdconfig.ToStoreConfig(n.Config)
@@ -540,7 +540,7 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 		// in intermittent failure of first-attempt OSD pods.
 		keyring, err := c.generateKeyring(osd.ID)
 		if err != nil {
-			errMsg := fmt.Sprintf("failed to create keyring for node %s, osd %v: %+v", n.Name, osd, err)
+			errMsg := fmt.Sprintf("failed to create keyring for node %q, osd %v. %v", n.Name, osd, err)
 			config.addError(errMsg)
 			continue
 		}
@@ -556,20 +556,20 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 		if createErr != nil {
 			if !kerrors.IsAlreadyExists(createErr) {
 				// we failed to create job, update the orchestration status for this node
-				logger.Warningf("failed to create osd deployment for node %s, osd %v: %+v", n.Name, osd, createErr)
+				logger.Warningf("failed to create osd deployment for node %q, osd %+v. %v", n.Name, osd, createErr)
 				continue
 			}
 			logger.Infof("deployment for osd %d already exists. updating if needed", osd.ID)
 			createdDeployment, err = c.context.Clientset.AppsV1().Deployments(c.Namespace).Get(dp.Name, metav1.GetOptions{})
 			if err != nil {
-				logger.Warningf("failed to get existing OSD deployment %s for update: %+v", dp.Name, err)
+				logger.Warningf("failed to get existing OSD deployment %q for update. %v", dp.Name, err)
 				continue
 			}
 		}
 
 		err = c.associateKeyring(keyring, createdDeployment)
 		if err != nil {
-			logger.Errorf("failed to associate keyring for node %s, osd %v: %+v", n.Name, osd, err)
+			logger.Errorf("failed to associate keyring for node %q, osd %v. %v", n.Name, osd, err)
 		}
 
 		if createErr != nil && kerrors.IsAlreadyExists(createErr) {
@@ -581,7 +581,7 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 			if c.isUpgrade {
 				currentCephVersion, err := client.LeastUptodateDaemonVersion(c.context, c.clusterInfo.Name, daemon)
 				if err != nil {
-					logger.Warningf("failed to retrieve current ceph %s version. %+v", daemon, err)
+					logger.Warningf("failed to retrieve current ceph %q version. %v", daemon, err)
 					logger.Debug("could not detect ceph version during update, this is likely an initial bootstrap, proceeding with c.clusterInfo.CephVersion")
 					cephVersionToUse = c.clusterInfo.CephVersion
 				} else {
@@ -591,7 +591,7 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 			}
 
 			if err = updateDeploymentAndWait(c.context, dp, c.Namespace, daemon, strconv.Itoa(osd.ID), cephVersionToUse, c.isUpgrade, c.skipUpgradeChecks); err != nil {
-				logger.Errorf("failed to update osd deployment %d. %+v", osd.ID, err)
+				logger.Errorf("failed to update osd deployment %d. %v", osd.ID, err)
 			}
 		}
 		logger.Infof("started deployment for osd %d (dir=%t, type=%s)", osd.ID, osd.IsDirectory, storeConfig.StoreType)
@@ -634,12 +634,12 @@ func getIDFromDeployment(deployment *apps.Deployment) int {
 	if idstr, ok := deployment.Labels[OsdIdLabelKey]; ok {
 		id, err := strconv.Atoi(idstr)
 		if err != nil {
-			logger.Errorf("unknown osd id from label %s", idstr)
+			logger.Errorf("unknown osd id from label %q", idstr)
 			return unknownID
 		}
 		return id
 	}
-	logger.Errorf("unknown osd id for deployment %s", deployment.Name)
+	logger.Errorf("unknown osd id for deployment %q", deployment.Name)
 	return unknownID
 }
 

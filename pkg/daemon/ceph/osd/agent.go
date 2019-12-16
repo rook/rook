@@ -114,7 +114,7 @@ func (a *OsdAgent) configureDirs(context *clusterd.Context, dirs map[string]int)
 
 		osd, err := a.prepareOSD(context, cfg)
 		if err != nil {
-			logger.Errorf("failed to config osd in path %s. %+v", dirPath, err)
+			logger.Errorf("failed to config osd in path %q. %v", dirPath, err)
 			lastErr = err
 		} else {
 			succeeded++
@@ -135,7 +135,7 @@ func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOs
 	} else {
 		cvSupported, err = getCephVolumeSupported(context)
 		if err != nil {
-			logger.Errorf("failed to detect if ceph-volume is available. %+v", err)
+			logger.Errorf("failed to detect if ceph-volume is available. %v", err)
 		}
 	}
 
@@ -167,7 +167,7 @@ func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOs
 
 	// compute an OSD layout scheme that will optimize performance
 	scheme, cvDevices, err := a.getPartitionPerfScheme(context, devices, cvSupported)
-	logger.Debugf("partition scheme: %+v, err: %+v", scheme, err)
+	logger.Debugf("partition scheme: %+v. %v", scheme, err)
 	if err != nil {
 		return osds, errors.Wrapf(err, "failed to get OSD partition scheme")
 	}
@@ -447,7 +447,7 @@ func (a *OsdAgent) prepareOSD(context *clusterd.Context, cfg *osdConfig) (*oposd
 		// update the osd config file
 		err := writeConfigFile(cfg, context, a.cluster)
 		if err != nil {
-			logger.Warningf("failed to update config file. %+v", err)
+			logger.Warningf("failed to update config file. %v", err)
 		}
 
 		// osd_data_dir/ready already exists, meaning the OSD is already set up.
@@ -478,7 +478,7 @@ func prepareOSDRoot(cfg *osdConfig) (newOSD bool, err error) {
 	// osd is new (it's not ready), make sure there is no stale state in the OSD dir by deleting the entire thing
 	logger.Infof("osd.%d appears to be new, cleaning the root dir at %s", cfg.id, cfg.rootPath)
 	if err := os.RemoveAll(cfg.rootPath); err != nil {
-		logger.Warningf("failed to clean osd.%d root dir at %s, will proceed with starting osd: %+v", cfg.id, cfg.rootPath, err)
+		logger.Warningf("failed to clean osd.%d root dir at %q, will proceed with starting osd. %v", cfg.id, cfg.rootPath, err)
 	}
 
 	// prepare the osd dir by creating it now
@@ -517,7 +517,7 @@ func (a *OsdAgent) removeOSDConfigDir(configRoot string, id int) error {
 	osdRootDir := getOSDRootDir(configRoot, id)
 	logger.Infof("deleting osd dir: %s", osdRootDir)
 	if err := os.RemoveAll(osdRootDir); err != nil {
-		logger.Warningf("failed to delete osd.%d root dir from %s, it may need to be cleaned up manually: %+v",
+		logger.Warningf("failed to delete osd.%d root dir from %q, it may need to be cleaned up manually. %v",
 			id, osdRootDir, err)
 	}
 

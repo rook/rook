@@ -64,10 +64,10 @@ func (c *crd) Create(volumeAttachment *rookalpha.Volume) error {
 func (c *crd) Update(volumeAttachment *rookalpha.Volume) error {
 	_, err := c.context.RookClientset.RookV1alpha2().Volumes(volumeAttachment.Namespace).Update(volumeAttachment)
 	if err != nil {
-		logger.Errorf("failed to update Volume CRD. %+v", err)
+		logger.Errorf("failed to update Volume CRD. %v", err)
 		return err
 	}
-	logger.Infof("updated Volumeattach CRD %s", volumeAttachment.ObjectMeta.Name)
+	logger.Infof("updated Volumeattach CRD %q", volumeAttachment.ObjectMeta.Name)
 	return nil
 }
 

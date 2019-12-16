@@ -80,7 +80,7 @@ func (c *Cluster) removeOSD(deploymentName string, id int) error {
 
 	// delete any backups of the OSD filesystem
 	if err := deleteOSDFileSystem(c.context.Clientset, c.Namespace, id); err != nil {
-		logger.Warningf("failed to delete osd.%d filesystem, it may need to be cleaned up manually: %+v", id, err)
+		logger.Warningf("failed to delete osd.%d filesystem, it may need to be cleaned up manually. %v", id, err)
 	}
 
 	return nil
@@ -240,7 +240,7 @@ func (c *Cluster) cleanUpNodeResources(nodeName, nodeCrushName string) error {
 	// clean up node config store
 	configStoreName := config.GetConfigStoreName(nodeName)
 	if err := c.kv.ClearStore(configStoreName); err != nil {
-		logger.Warningf("failed to delete node config store %s, may need to be cleaned up manually: %+v", configStoreName, err)
+		logger.Warningf("failed to delete node config store %q, may need to be cleaned up manually. %v", configStoreName, err)
 	}
 
 	return nil

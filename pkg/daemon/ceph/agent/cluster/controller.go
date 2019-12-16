@@ -82,12 +82,12 @@ func (c *ClusterController) onDelete(obj interface{}) {
 func (c *ClusterController) handleClusterDelete(cluster *cephv1.CephCluster, retryInterval time.Duration) {
 	node := os.Getenv(k8sutil.NodeNameEnvVar)
 	agentNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
-	logger.Infof("cluster in namespace %s is being deleted, agent on node %s will attempt to clean up.", cluster.Namespace, node)
+	logger.Infof("cluster in namespace %q is being deleted, agent on node %q will attempt to clean up.", cluster.Namespace, node)
 
 	// TODO: filter this List operation by node name and cluster namespace on the server side
 	vols, err := c.volumeAttachment.List(agentNamespace)
 	if err != nil {
-		logger.Errorf("failed to get volume attachments for agent namespace %s: %+v", agentNamespace, err)
+		logger.Errorf("failed to get volume attachments for agent namespace %s. %v", agentNamespace, err)
 	}
 
 	var waitGroup sync.WaitGroup
@@ -97,7 +97,7 @@ func (c *ClusterController) handleClusterDelete(cluster *cephv1.CephCluster, ret
 	for _, vol := range vols.Items {
 		for _, a := range vol.Attachments {
 			if a.Node == node && a.ClusterName == cluster.Namespace {
-				logger.Infof("volume %s has an attachment belonging to deleted cluster %s, will clean it up now. mountDir: %s",
+				logger.Infof("volume %q has an attachment belonging to deleted cluster %q, will clean it up now. mountDir: %q",
 					vol.Name, cluster.Namespace, a.MountDir)
 
 				// we will perform all the cleanup asynchronously later on.  Right now, just add this one
@@ -115,9 +115,9 @@ func (c *ClusterController) handleClusterDelete(cluster *cephv1.CephCluster, ret
 		go func(mountDir string) {
 			defer waitGroup.Done()
 			if err := c.cleanupVolumeAttachment(mountDir, retryInterval); err != nil {
-				logger.Errorf("failed to clean up attachment for mountDir %s: %+v", mountDir, err)
+				logger.Errorf("failed to clean up attachment for mountDir %q. %v", mountDir, err)
 			} else {
-				logger.Infof("cleaned up attachment for mountDir %s", mountDir)
+				logger.Infof("cleaned up attachment for mountDir %q", mountDir)
 			}
 		}(cleanupList[i])
 	}

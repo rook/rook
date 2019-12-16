@@ -112,7 +112,7 @@ func (c *Cluster) Start() error {
 	defer func() {
 		if fsPreparedForUpgrade {
 			if err := finishedWithDaemonUpgrade(c.context, c.clusterInfo.CephVersion, c.fs.Namespace, c.fs.Name, c.fs.Spec.MetadataServer.ActiveCount); err != nil {
-				logger.Errorf("for filesystem %s, USER should make sure the Ceph fs max_mds property is set to %d: %+v",
+				logger.Errorf("for filesystem %q, USER should make sure the Ceph fs max_mds property is set to %d. %v",
 					c.fs.Name, c.fs.Spec.MetadataServer.ActiveCount, err)
 			}
 		}
@@ -172,7 +172,7 @@ func (c *Cluster) Start() error {
 		}
 
 		if err := c.associateKeyring(keyring, createdDeployment); err != nil {
-			logger.Warningf("failed to associate keyring with deployment for %q. %+v", resourceName, err)
+			logger.Warningf("failed to associate keyring with deployment for %q. %v", resourceName, err)
 		}
 
 		// keyring must be generated before update-and-wait since no keyring will prevent the
@@ -183,7 +183,7 @@ func (c *Cluster) Start() error {
 			var cephVersionToUse cephver.CephVersion
 			currentCephVersion, err := client.LeastUptodateDaemonVersion(c.context, c.clusterInfo.Name, daemon)
 			if err != nil {
-				logger.Warningf("failed to retrieve current ceph %s version. %+v", daemon, err)
+				logger.Warningf("failed to retrieve current ceph %q version. %v", daemon, err)
 				logger.Debug("could not detect ceph version during update, this is likely an initial bootstrap, proceeding with c.clusterInfo.CephVersion")
 				cephVersionToUse = c.clusterInfo.CephVersion
 
@@ -236,13 +236,13 @@ func (c *Cluster) scaleDownDeployments(replicas int32, desiredDeployments map[st
 					"number of active mds ranks is not as desired. it is potentially unsafe to continue with extraneous mds deletion, so stopping. " +
 						fmt.Sprintf("USER should delete undesired mds daemons once filesystem %s is healthy. ", c.fs.Name) +
 						fmt.Sprintf("desired mds deployments for this filesystem are %+v", desiredDeployments) +
-						fmt.Sprintf(": %+v", err),
+						fmt.Sprintf(". %v", err),
 				)
 				break // stop trying to delete daemons, but continue to reporting any errors below
 			}
 			if err := deleteMdsDeployment(c.context, c.fs.Namespace, &d); err != nil {
 				errCount++
-				logger.Errorf("error during deletion of extraneous mds deployments: %+v", err)
+				logger.Errorf("error during deletion of extraneous mds deployments. %v", err)
 			}
 		}
 	}

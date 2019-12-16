@@ -96,7 +96,7 @@ func (c *Cluster) configureDashboardModules() error {
 		}
 	} else {
 		if err := client.MgrDisableModule(c.context, c.Namespace, dashboardModuleName); err != nil {
-			logger.Errorf("failed to disable mgr dashboard module. %+v", err)
+			logger.Errorf("failed to disable mgr dashboard module. %v", err)
 		}
 		return nil
 	}

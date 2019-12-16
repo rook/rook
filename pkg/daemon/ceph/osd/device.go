@@ -274,7 +274,7 @@ func prepareFilestoreDevice(context *clusterd.Context, cfg *osdConfig, doFormat 
 	if doFormat {
 		// perform the format and retry if needed
 		if err = sys.FormatDevice(dataPartPath, context.Executor); err != nil {
-			logger.Warningf("first attempt to format partition %s on device %s failed.  Waiting 2 seconds then retrying: %+v",
+			logger.Warningf("first attempt to format partition %q on device %q failed.  Waiting 2 seconds then retrying. %v",
 				dataPartDetails.PartitionUUID, dataPartDetails.Device, err)
 			<-time.After(2 * time.Second)
 			if err = sys.FormatDevice(dataPartPath, context.Executor); err != nil {

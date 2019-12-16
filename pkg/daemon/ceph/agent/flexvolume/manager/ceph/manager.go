@@ -82,7 +82,7 @@ func (vm *VolumeManager) Init() error {
 	// check to see if the rbd kernel module has single_major support
 	hasSingleMajor, err := sys.CheckKernelModuleParam(rbdKernelModuleName, "single_major", vm.context.Executor)
 	if err != nil {
-		logger.Noticef("failed %s single_major check, assuming it's unsupported: %+v", rbdKernelModuleName, err)
+		logger.Noticef("failed %q single_major check, assuming it's unsupported. %v", rbdKernelModuleName, err)
 		hasSingleMajor = false
 	}
 
@@ -93,7 +93,7 @@ func (vm *VolumeManager) Init() error {
 
 	// load the rbd kernel module with options
 	if err := sys.LoadKernelModule(rbdKernelModuleName, opts, vm.context.Executor); err != nil {
-		logger.Noticef("failed to load kernel module %s: %+v", rbdKernelModuleName, err)
+		logger.Noticef("failed to load kernel module %q. %v", rbdKernelModuleName, err)
 		return err
 	}
 
@@ -157,7 +157,7 @@ func (vm *VolumeManager) Attach(image, pool, id, key, clusterNamespace string) (
 			return "", errors.Wrapf(err, "exceeded retry count while finding device path")
 		}
 
-		logger.Infof("failed to find device path, sleeping 1 second: %+v", err)
+		logger.Infof("failed to find device path, sleeping 1 second. %v", err)
 		<-time.After(time.Second)
 	}
 }

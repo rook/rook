@@ -136,7 +136,7 @@ func CreateFilesystem(context *clusterd.Context, clusterName, name, metadataPool
 		_, err = NewCephCommand(context, clusterName, args).Run()
 		if err != nil {
 			// continue if this fails
-			logger.Warning("failed enabling multiple file systems. %+v", err)
+			logger.Warning("failed enabling multiple file systems. %v", err)
 		}
 	}
 
@@ -145,11 +145,11 @@ func CreateFilesystem(context *clusterd.Context, clusterName, name, metadataPool
 	// Force to use pre-existing pools
 	if force {
 		args = append(args, "--force")
-		logger.Infof("Filesystem %s will reuse pre-existing pools", name)
+		logger.Infof("Filesystem %q will reuse pre-existing pools", name)
 	}
 	_, err = NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
-		return errors.Wrapf(err, "failed enabling ceph fs %s", name)
+		return errors.Wrapf(err, "failed enabling ceph fs %q", name)
 	}
 
 	// add each additional pool
@@ -158,7 +158,7 @@ func CreateFilesystem(context *clusterd.Context, clusterName, name, metadataPool
 		args = []string{"fs", "add_data_pool", name, poolName}
 		_, err = NewCephCommand(context, clusterName, args).Run()
 		if err != nil {
-			logger.Errorf("failed to add pool %s to file system %s. %+v", poolName, name, err)
+			logger.Errorf("failed to add pool %q to file system %q. %v", poolName, name, err)
 		}
 	}
 
@@ -243,7 +243,7 @@ func deactivateMdsWithRetry(context *clusterd.Context, mdsGid int, namespace, fs
 		time.Sleep(retrySleep)
 	}
 	// report most recent error with additional err info
-	return errors.Wrapf(err, "failed to deactivate mds w/ gid %d for filesystem %s", mdsGid, fsName)
+	return errors.Wrapf(err, "failed to deactivate mds w/ gid %d for filesystem %q", mdsGid, fsName)
 }
 
 // WaitForActiveRanks waits for the filesystem's number of active ranks to equal the desired count.
@@ -266,14 +266,14 @@ func WaitForActiveRanks(
 		fs, err := GetFilesystem(context, clusterName, fsName)
 		if err != nil {
 			logger.Errorf(
-				"Error getting filesystem %s details while waiting for num mds ranks to become %d: %+v",
+				"Error getting filesystem %q details while waiting for num mds ranks to become %d. %v",
 				fsName, desiredActiveRanks, err)
 		} else if fs.MDSMap.MaxMDS == int(desiredActiveRanks) &&
 			activeRanksSuccess(len(fs.MDSMap.Up), int(desiredActiveRanks), moreIsOkay) {
 			// Both max_mds and number of up MDS daemons must equal desired number of ranks to
 			// prevent a false positive when Ceph has got the correct number of mdses up but is
 			// trying to change the number of mdses up to an undesired number.
-			logger.Debugf("mds ranks for filesystem %s successfully became %d", fsName, desiredActiveRanks)
+			logger.Debugf("mds ranks for filesystem %q successfully became %d", fsName, desiredActiveRanks)
 			return true, nil
 			// continue to inf loop after send ready; only return when get quit signal to
 			// prevent deadlock
@@ -281,7 +281,7 @@ func WaitForActiveRanks(
 		return false, nil
 	})
 	if err != nil {
-		return errors.Errorf("timeout waiting for number active mds daemons for filesystem %s to become %s",
+		return errors.Errorf("timeout waiting for number active mds daemons for filesystem %q to become %q",
 			fsName, countText)
 	}
 	return nil

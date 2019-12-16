@@ -243,7 +243,7 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 			logger.Errorf("no bucket policy for bucket %q, so no need to drop policy", p.bucketName)
 
 		} else {
-			logger.Errorf("error getting policy for bucket %q: %v", p.bucketName, err)
+			logger.Errorf("error getting policy for bucket %q. %v", p.bucketName, err)
 			return err
 		}
 	}
@@ -277,7 +277,7 @@ func (p *Provisioner) initializeCreateOrGrant(options *apibkt.BucketOptions) err
 	scName := options.ObjectBucketClaim.Spec.StorageClassName
 	sc, err := p.getStorageClassWithBackoff(scName)
 	if err != nil {
-		logger.Errorf("failed to get storage class for OBC \"%s/%s\": %v", obc.Namespace, obc.Name, err)
+		logger.Errorf("failed to get storage class for OBC %q in namespace %q. %v", obc.Name, obc.Namespace, err)
 		return err
 	}
 

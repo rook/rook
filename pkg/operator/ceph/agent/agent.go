@@ -247,7 +247,7 @@ func (a *Agent) createAgentDaemonSet(namespace, agentImage, serviceAccount strin
 	tolerationsRaw := os.Getenv(agentDaemonsetTolerationsEnv)
 	tolerations, err := k8sutil.YamlToTolerations(tolerationsRaw)
 	if err != nil {
-		logger.Warningf("failed to parse %s. %+v", tolerationsRaw, err)
+		logger.Warningf("failed to parse %q. %v", tolerationsRaw, err)
 	}
 	ds.Spec.Template.Spec.Tolerations = append(ds.Spec.Template.Spec.Tolerations, tolerations...)
 
@@ -256,7 +256,7 @@ func (a *Agent) createAgentDaemonSet(namespace, agentImage, serviceAccount strin
 	if nodeAffinity != "" {
 		v1NodeAffinity, err := k8sutil.GenerateNodeAffinity(nodeAffinity)
 		if err != nil {
-			logger.Errorf("failed to create NodeAffinity. %+v", err)
+			logger.Errorf("failed to create NodeAffinity. %v", err)
 		} else {
 			ds.Spec.Template.Spec.Affinity = &v1.Affinity{
 				NodeAffinity: v1NodeAffinity,
@@ -304,7 +304,7 @@ func (a *Agent) discoverFlexvolumeDir() (flexvolumeDirPath, source string) {
 	// unmarshal to a KubeletConfiguration
 	kubeletConfiguration := KubeletConfiguration{}
 	if err := json.Unmarshal(nodeConfig, &kubeletConfiguration); err != nil {
-		logger.Warningf("unable to parse node config as kubelet configuration: %+v", err)
+		logger.Warningf("unable to parse node config as kubelet configuration. %v", err)
 	} else {
 		flexvolumeDirPath = kubeletConfiguration.KubeletConfig.VolumePluginDir
 	}
