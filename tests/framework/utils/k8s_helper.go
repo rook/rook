@@ -1540,8 +1540,14 @@ func (k8sh *K8sHelper) appendContainerLogs(file *os.File, pod v1.Pod, containerN
 	res := k8sh.Clientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, logOpts).Do()
 	rawData, err := res.Raw()
 	if err != nil {
-		logger.Errorf("Cannot get logs for pod %s and container %s. %v", pod.Name, containerName, err)
-		return
+		// Sometimes we fail to get logs for pods using this method, notably the operator pod. It is
+		// unknown why this happens. Pod logs are VERY important, so try again using kubectl.
+		l, err := k8sh.Kubectl("-n", pod.Namespace, "logs", pod.Name, "-c", containerName)
+		if err != nil {
+			logger.Errorf("Cannot get logs for pod %s and container %s. %v", pod.Name, containerName, err)
+			return
+		}
+		rawData = []byte(l)
 	}
 	if _, err := file.Write(rawData); err != nil {
 		logger.Errorf("Errors while writing logs for pod %s and container %s. %v", pod.Name, containerName, err)
