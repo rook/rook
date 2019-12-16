@@ -62,7 +62,7 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 		logger.Infof("no new devices to configure. returning devices already configured with ceph-volume.")
 		osds, err = getCephVolumeOSDs(context, a.cluster.Name, a.cluster.FSID, lv, false, lvBackedPV)
 		if err != nil {
-			logger.Infof("failed to get devices already provisioned by ceph-volume. %+v", err)
+			logger.Infof("failed to get devices already provisioned by ceph-volume. %v", err)
 		}
 		return osds, nil
 	}
@@ -457,14 +457,14 @@ func getCephVolumeOSDs(context *clusterd.Context, clusterName string, cephfsid s
 	for name, osdInfo := range cephVolumeResult {
 		id, err := strconv.Atoi(name)
 		if err != nil {
-			logger.Errorf("bad osd returned from ceph-volume: %s", name)
+			logger.Errorf("bad osd returned from ceph-volume: %q", name)
 			continue
 		}
 		var osdFSID string
 		isFilestore := false
 		for _, osd := range osdInfo {
 			if osd.Tags.ClusterFSID != cephfsid {
-				logger.Infof("skipping osd%d: %s running on a different ceph cluster: %s", id, osd.Tags.OSDFSID, osd.Tags.ClusterFSID)
+				logger.Infof("skipping osd%d: %q running on a different ceph cluster %q", id, osd.Tags.OSDFSID, osd.Tags.ClusterFSID)
 				continue
 			}
 			osdFSID = osd.Tags.OSDFSID
@@ -473,7 +473,7 @@ func getCephVolumeOSDs(context *clusterd.Context, clusterName string, cephfsid s
 			}
 		}
 		if len(osdFSID) == 0 {
-			logger.Infof("Skipping osd%d as no instances are running on ceph cluster: %s", id, cephfsid)
+			logger.Infof("Skipping osd%d as no instances are running on ceph cluster %q", id, cephfsid)
 			continue
 		}
 		logger.Infof("osdInfo has %d elements. %+v", len(osdInfo), osdInfo)

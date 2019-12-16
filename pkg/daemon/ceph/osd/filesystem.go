@@ -174,12 +174,12 @@ func backupOSDFileSystem(config *osdConfig, clusterName string) error {
 
 		content, err := ioutil.ReadFile(filepath.Join(config.rootPath, fi.Name()))
 		if err != nil {
-			logger.Warningf("failed to read file %s: %+v", fi.Name(), err)
+			logger.Warningf("failed to read file %q. %v", fi.Name(), err)
 			continue
 		}
 
 		if err := config.kv.SetValue(storeName, fi.Name(), string(content)); err != nil {
-			logger.Warningf("failed to backup file %s: %+v", fi.Name(), err)
+			logger.Warningf("failed to backup file %q. %v", fi.Name(), err)
 			continue
 		}
 	}
@@ -207,7 +207,7 @@ func repairOSDFileSystem(config *osdConfig) error {
 	for fileName, content := range store {
 		filePath := filepath.Join(config.rootPath, fileName)
 		if err := ioutil.WriteFile(filePath, []byte(content), 0644); err != nil {
-			logger.Warningf("failed to restore file %s: %+v", filePath, err)
+			logger.Warningf("failed to restore file %q. %v", filePath, err)
 			continue
 		}
 	}

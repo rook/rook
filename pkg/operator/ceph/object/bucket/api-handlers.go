@@ -39,7 +39,7 @@ func (p *Provisioner) getStorageClassWithBackoff(name string) (class *storagev1.
 		if kerrors.IsNotFound(err) {
 			return true, err
 		}
-		logger.Errorf("error getting class %s, retrying: %v", name, err)
+		logger.Errorf("error getting class %q, retrying. %v", name, err)
 		return false, nil
 	})
 	if err != nil {
@@ -65,7 +65,7 @@ func (p *Provisioner) getSecretWithBackoff(namespace, name string) (secret *v1.S
 		if kerrors.IsNotFound(err) {
 			return true, err
 		}
-		logger.Errorf("error getting class %s, retrying: %v", name, err)
+		logger.Errorf("error getting class %q, retrying. %v", name, err)
 		return false, nil
 	})
 	return

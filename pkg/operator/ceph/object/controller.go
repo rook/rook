@@ -104,7 +104,7 @@ func (c *ObjectStoreController) onAdd(obj interface{}) {
 
 	objectstore, err := getObjectStoreObject(obj)
 	if err != nil {
-		logger.Errorf("failed to get objectstore object: %+v", err)
+		logger.Errorf("failed to get objectstore object. %v", err)
 		return
 	}
 
@@ -116,7 +116,7 @@ func (c *ObjectStoreController) onAdd(obj interface{}) {
 		if err != nil {
 			// This handles the case where the operator is running, the external cluster has been upgraded and a CR creation is called
 			// If that's a major version upgrade we fail, if it's a minor version, we continue, it's not ideal but not critical
-			logger.Errorf("refusing to run new crd. %+v", err)
+			logger.Errorf("refusing to run new crd. %v", err)
 			return
 		}
 	}
@@ -132,17 +132,17 @@ func (c *ObjectStoreController) onUpdate(oldObj, newObj interface{}) {
 	// if the object store spec is modified, update the object store
 	oldStore, err := getObjectStoreObject(oldObj)
 	if err != nil {
-		logger.Errorf("failed to get old objectstore object: %+v", err)
+		logger.Errorf("failed to get old objectstore object. %v", err)
 		return
 	}
 	newStore, err := getObjectStoreObject(newObj)
 	if err != nil {
-		logger.Errorf("failed to get new objectstore object: %+v", err)
+		logger.Errorf("failed to get new objectstore object. %v", err)
 		return
 	}
 
 	if !storeChanged(oldStore.Spec, newStore.Spec) {
-		logger.Debugf("object store %s did not change", newStore.Name)
+		logger.Debugf("object store %q did not change", newStore.Name)
 		return
 	}
 
@@ -153,7 +153,7 @@ func (c *ObjectStoreController) onUpdate(oldObj, newObj interface{}) {
 }
 
 func (c *ObjectStoreController) createOrUpdateStore(objectstore *cephv1.CephObjectStore) {
-	logger.Infof("creating object store %s", objectstore.Name)
+	logger.Infof("creating object store %q", objectstore.Name)
 	cfg := clusterConfig{
 		clusterInfo: c.clusterInfo,
 		context:     c.context,
@@ -165,7 +165,7 @@ func (c *ObjectStoreController) createOrUpdateStore(objectstore *cephv1.CephObje
 		isUpgrade:   c.isUpgrade,
 	}
 	if err := cfg.createOrUpdate(); err != nil {
-		logger.Errorf("failed to create or update object store %s. %+v", objectstore.Name, err)
+		logger.Errorf("failed to create or update object store %s. %v", objectstore.Name, err)
 	}
 }
 
@@ -177,7 +177,7 @@ func (c *ObjectStoreController) onDelete(obj interface{}) {
 
 	objectstore, err := getObjectStoreObject(obj)
 	if err != nil {
-		logger.Errorf("failed to get objectstore object: %+v", err)
+		logger.Errorf("failed to get objectstore object. %v", err)
 		return
 	}
 
@@ -186,7 +186,7 @@ func (c *ObjectStoreController) onDelete(obj interface{}) {
 
 	cfg := clusterConfig{context: c.context, store: *objectstore}
 	if err = cfg.deleteStore(); err != nil {
-		logger.Errorf("failed to delete object store %s. %+v", objectstore.Name, err)
+		logger.Errorf("failed to delete object store %q. %v", objectstore.Name, err)
 	}
 }
 
@@ -207,16 +207,16 @@ func (c *ObjectStoreController) ParentClusterChanged(cluster cephv1.ClusterSpec,
 	c.clusterSpec.CephVersion = cluster.CephVersion
 	objectStores, err := c.context.RookClientset.CephV1().CephObjectStores(c.namespace).List(metav1.ListOptions{})
 	if err != nil {
-		logger.Errorf("failed to retrieve object stores to update the ceph version. %+v", err)
+		logger.Errorf("failed to retrieve object stores to update the ceph version. %v", err)
 		return
 	}
 	for _, store := range objectStores.Items {
-		logger.Infof("updating the ceph version for object store %s to %s", store.Name, c.clusterSpec.CephVersion.Image)
+		logger.Infof("updating the ceph version for object store %q to %q", store.Name, c.clusterSpec.CephVersion.Image)
 		c.createOrUpdateStore(&store)
 		if err != nil {
-			logger.Errorf("failed to update object store %s. %+v", store.Name, err)
+			logger.Errorf("failed to update object store %q. %v", store.Name, err)
 		} else {
-			logger.Infof("updated object store %s to ceph version %s", store.Name, c.clusterSpec.CephVersion.Image)
+			logger.Infof("updated object store %q to ceph version %q", store.Name, c.clusterSpec.CephVersion.Image)
 		}
 	}
 }

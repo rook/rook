@@ -48,7 +48,7 @@ func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID, lvPath string,
 	configDir := fmt.Sprintf("/var/lib/ceph/osd/ceph-%s", osdID)
 	err := os.Mkdir(configDir, 0755)
 	if err != nil {
-		logger.Errorf("failed to create config dir %s. %+v", configDir, err)
+		logger.Errorf("failed to create config dir %q. %v", configDir, err)
 	}
 
 	// Update LVM config at runtime
@@ -60,7 +60,7 @@ func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID, lvPath string,
 	if pvcBackedOSD && !lvBackedPV {
 		volumeGroupName, err = getVolumeGroupName(lvPath)
 		if err != nil {
-			return errors.Wrapf(err, "error fetching volume group name for OSD %s", osdID)
+			return errors.Wrapf(err, "error fetching volume group name for OSD %q", osdID)
 		}
 		go handleTerminate(context, lvPath, volumeGroupName)
 
@@ -82,7 +82,7 @@ func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID, lvPath string,
 	// run the ceph-osd daemon
 	if err := context.Executor.ExecuteCommand(false, "", "ceph-osd", cephArgs...); err != nil {
 		// Instead of returning, we want to allow the lvm release to happen below, so we just log the err
-		logger.Errorf("failed to start osd or shutting down. %+v", err)
+		logger.Errorf("failed to start osd or shutting down. %v", err)
 	}
 
 	if pvcBackedOSD && !lvBackedPV {
@@ -114,7 +114,7 @@ func killCephOSDProcess(context *clusterd.Context, lvPath string) error {
 
 	pid, err := context.Executor.ExecuteCommandWithOutput(false, "", "fuser", "-a", lvPath)
 	if err != nil {
-		return errors.Wrapf(err, "failed to retrieve process ID for %s", lvPath)
+		return errors.Wrapf(err, "failed to retrieve process ID for %q", lvPath)
 	}
 
 	logger.Infof("process ID for ceph-osd: %s", pid)
@@ -181,13 +181,13 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 	}
 	err = ioutil.WriteFile(cephconfig.DefaultConfigFilePath(), src, 0444)
 	if err != nil {
-		return errors.Wrapf(err, "failed to copy connection config to /etc/ceph. failed to write %s", cephconfig.DefaultConfigFilePath())
+		return errors.Wrapf(err, "failed to copy connection config to /etc/ceph. failed to write %q", cephconfig.DefaultConfigFilePath())
 	}
 	dst, err := ioutil.ReadFile(cephconfig.DefaultConfigFilePath())
 	if err == nil {
 		logger.Debugf("config file @ %s: %s", cephconfig.DefaultConfigFilePath(), dst)
 	} else {
-		logger.Warningf("wrote and copied config file but failed to read it back from %s for logging. %+v", cephconfig.DefaultConfigFilePath(), err)
+		logger.Warningf("wrote and copied config file but failed to read it back from %s for logging. %v", cephconfig.DefaultConfigFilePath(), err)
 	}
 
 	logger.Infof("discovering hardware")
@@ -313,7 +313,7 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 					// the desired devices is a regular expression
 					matched, err = regexp.Match(desiredDevice.Name, []byte(device.Name))
 					if err != nil {
-						logger.Errorf("regex failed on device %q and filter %q. %+v", device.Name, desiredDevice.Name, err)
+						logger.Errorf("regex failed on device %q and filter %q. %v", device.Name, desiredDevice.Name, err)
 						continue
 					}
 					logger.Infof("device %q matches device filter %q: %t", device.Name, desiredDevice.Name, matched)
@@ -322,7 +322,7 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 					for _, pathname := range pathnames {
 						matched, err = regexp.Match(desiredDevice.Name, []byte(pathname))
 						if err != nil {
-							logger.Errorf("regex failed on device %q and filter %q. %+v", device.Name, desiredDevice.Name, err)
+							logger.Errorf("regex failed on device %q and filter %q. %v", device.Name, desiredDevice.Name, err)
 							continue
 						}
 						if matched {
@@ -345,7 +345,7 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 				logger.Infof("device %q is selected by the device filter/name %q", device.Name, matchedDevice.Name)
 				deviceInfo = &DeviceOsdIDEntry{Data: unassignedOSDID, Config: matchedDevice, PersistentDevicePaths: strings.Fields(device.DevLinks)}
 			} else {
-				logger.Infof("skipping device %q that does not match the device filter/list (%v). %+v", device.Name, desiredDevices, err)
+				logger.Infof("skipping device %q that does not match the device filter/list (%v). %v", device.Name, desiredDevices, err)
 			}
 		} else {
 			logger.Infof("skipping device %q until the admin specifies it can be used by an osd", device.Name)

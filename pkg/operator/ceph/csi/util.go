@@ -117,7 +117,7 @@ func getToleration(provisioner bool) []corev1.Toleration {
 	if tolerationsRaw != "" {
 		tolerations, err = k8sutil.YamlToTolerations(tolerationsRaw)
 		if err != nil {
-			logger.Warningf("failed to parse %s. %+v", tolerationsRaw, err)
+			logger.Warningf("failed to parse %q. %v", tolerationsRaw, err)
 		}
 	}
 	for i := range tolerations {
@@ -143,7 +143,7 @@ func getNodeAffinity(provisioner bool) *corev1.NodeAffinity {
 	if nodeAffinity != "" {
 		v1NodeAffinity, err := k8sutil.GenerateNodeAffinity(nodeAffinity)
 		if err != nil {
-			logger.Warningf("failed to parse %s. %+v", nodeAffinity, err)
+			logger.Warningf("failed to parse %q. %v", nodeAffinity, err)
 		}
 		return v1NodeAffinity
 	}
@@ -164,7 +164,7 @@ func getPortFromENV(env string, defaultPort uint16) uint16 {
 	}
 	p, err := strconv.ParseUint(port, 10, 64)
 	if err != nil {
-		logger.Debugf("failed to parse port value for env %s. using default port %d. %+v", env, defaultPort, err)
+		logger.Debugf("failed to parse port value for env %q. using default port %d. %v", env, defaultPort, err)
 		return defaultPort
 	}
 	if p > 65535 {

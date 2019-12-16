@@ -135,7 +135,7 @@ func (r *ReconcileClusterDisruption) initializePDBState(request reconcile.Reques
 		for _, osdData := range osdDataList {
 			err := r.createPDBForOSD(osdData.Deployment)
 			if err != nil {
-				return pdbStateMap, errors.Wrapf(err, "failed to create pdb for osd deployment %s. %+v", osdData.Deployment.ObjectMeta.GetName(), err)
+				return pdbStateMap, errors.Wrapf(err, "failed to create pdb for osd deployment %q. %v", osdData.Deployment.ObjectMeta.GetName(), err)
 			}
 		}
 		pdbStateMap.Data = map[string]string{disabledPDBKey: ""}
@@ -181,7 +181,7 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 	if disabledPDBTimeSet {
 		disabledPDBTime, err = time.Parse(time.RFC3339, timeString)
 		if err != nil {
-			logger.Errorf("Could not parse timestamp %v: %v", disabledPDBTime, err)
+			logger.Errorf("could not parse timestamp %v. %v", disabledPDBTime, err)
 			disabledPDBTime = time.Now()
 			pdbStateMap.Data[disabledPDBTimeKey] = disabledPDBTime.Format(time.RFC3339)
 		}
@@ -190,7 +190,7 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 	shouldChange := clean && !recentlyChanged
 	activeDrains := len(drainingFailureDomains) != 0
 	if activeDrains {
-		logger.Infof("pg health: %s. detected drains on %ss: %v", pgHealthMsg, poolFailureDomain, drainingFailureDomains)
+		logger.Infof("pg health: %q. detected drains on %q: %v", pgHealthMsg, poolFailureDomain, drainingFailureDomains)
 	}
 	if shouldChange {
 		if activeDrains {
@@ -204,12 +204,12 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 
 	err = r.updateNoout(pdbStateMap, allFailureDomainsMap)
 	if err != nil {
-		logger.Errorf("could not update maintenance noout in cluster %s with ceph image : %+v", request, err)
+		logger.Errorf("could not update maintenance noout in cluster %q with ceph image. %v", request, err)
 	}
 
 	err = r.client.Update(context.TODO(), pdbStateMap)
 	if err != nil {
-		return errors.Wrapf(err, "could not update %s in cluster %s", pdbStateMapName, request)
+		return errors.Wrapf(err, "could not update %q in cluster %q", pdbStateMapName, request)
 	}
 	drainingFailureDomain, ok := pdbStateMap.Data[disabledPDBKey]
 	if ok && clean && len(drainingFailureDomain) > 0 {
@@ -227,7 +227,7 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 			if time.Since(drainingCanary.GetCreationTimestamp().Time) > time.Minute && drainingCanary.Status.ReadyReplicas < 1 {
 				err := r.client.Delete(context.TODO(), &drainingCanary)
 				if err != nil {
-					logger.Warningf("could not delete canary deployment %q in namespace %q: %+v", drainingCanary.GetName(), drainingCanary.GetNamespace(), err)
+					logger.Warningf("could not delete canary deployment %q in namespace %q. %v", drainingCanary.GetName(), drainingCanary.GetNamespace(), err)
 				}
 			}
 		}
@@ -241,7 +241,7 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 				err = r.createPDBForOSD(osdData.Deployment)
 			}
 			if err != nil {
-				return errors.Wrapf(err, "failed to reconcile pdb for osd deployment %s. %+v", osdData.Deployment.ObjectMeta.GetName(), err)
+				return errors.Wrapf(err, "failed to reconcile pdb for osd deployment %q. %v", osdData.Deployment.ObjectMeta.GetName(), err)
 			}
 		}
 	}

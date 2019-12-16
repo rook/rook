@@ -189,29 +189,29 @@ func DeletePool(context *clusterd.Context, clusterName string, name string) erro
 	// check if the pool exists
 	pool, err := GetPoolDetails(context, clusterName, name)
 	if err != nil {
-		logger.Infof("pool %s not found for deletion. %+v", name, err)
+		logger.Infof("pool %q not found for deletion. %v", name, err)
 		return nil
 	}
 
 	err = checkForImagesInPool(context, name, clusterName)
 	if err != nil {
-		return errors.Wrapf(err, "failed to delete pool %s", name)
+		return errors.Wrapf(err, "failed to delete pool %q", name)
 	}
 	logger.Infof("purging pool %s (id=%d)", name, pool.Number)
 	args := []string{"osd", "pool", "delete", name, name, reallyConfirmFlag}
 	_, err = NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
-		return errors.Wrapf(err, "failed to delete pool %s", name)
+		return errors.Wrapf(err, "failed to delete pool %q", name)
 	}
 
 	// remove the crush rule for this pool and ignore the error in case the rule is still in use or not found
 	args = []string{"osd", "crush", "rule", "rm", name}
 	_, err = NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
-		logger.Infof("did not delete crush rule %s. %+v", name, err)
+		logger.Infof("did not delete crush rule %q. %v", name, err)
 	}
 
-	logger.Infof("purge completed for pool %s", name)
+	logger.Infof("purge completed for pool %q", name)
 	return nil
 }
 

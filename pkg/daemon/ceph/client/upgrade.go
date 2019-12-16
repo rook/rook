@@ -277,7 +277,7 @@ func LeastUptodateDaemonVersion(context *clusterd.Context, clusterName, daemonTy
 	// Always invoke ceph version before an upgrade so we are sure to be up-to-date
 	versions, err := GetAllCephDaemonVersions(context, clusterName)
 	if err != nil {
-		logger.Warningf("failed to get ceph daemons versions. %+v, this likely means there is no cluster yet.", err)
+		logger.Warningf("failed to get ceph daemons versions, this likely means there is no cluster yet. %v", err)
 	} else {
 		r, err = daemonMapEntry(versions, daemonType)
 		if err != nil {
@@ -380,7 +380,7 @@ func buildHostListFromTree(tree OsdTree) (OsdTree, error) {
 func osdDoNothing(context *clusterd.Context, clusterName string) bool {
 	versions, err := GetAllCephDaemonVersions(context, clusterName)
 	if err != nil {
-		logger.Warningf("failed to get ceph daemons versions. %+v, this likely means there is no cluster yet.", err)
+		logger.Warningf("failed to get ceph daemons versions, this likely means there is no cluster yet. %v", err)
 		return true
 	}
 

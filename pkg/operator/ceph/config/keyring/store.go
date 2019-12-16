@@ -84,8 +84,8 @@ func (k *SecretStore) GenerateKey(user string, access []string) (string, error) 
 	// get-or-create-key for the user account
 	key, err := client.AuthGetOrCreateKey(k.context, k.namespace, user, access)
 	if err != nil {
-		logger.Infof("Error getting or creating key for %s. "+
-			"Attempting to update capabilities in case the user already exists. %+v", user, err)
+		logger.Infof("Error getting or creating key for %q. "+
+			"Attempting to update capabilities in case the user already exists. %v", user, err)
 		uErr := client.AuthUpdateCaps(k.context, k.namespace, user, access)
 		if uErr != nil {
 			return "", errors.Wrapf(err, "failed to get, create, or update auth key for %s", user)
@@ -121,7 +121,7 @@ func (k *SecretStore) Delete(resourceName string) error {
 	secretName := keyringSecretName(resourceName)
 	err := k.context.Clientset.CoreV1().Secrets(k.namespace).Delete(secretName, &metav1.DeleteOptions{})
 	if err != nil && !kerrors.IsNotFound(err) {
-		logger.Warningf("failed to delete keyring secret for %s. user may need to delete the resource manually. %+v", secretName, err)
+		logger.Warningf("failed to delete keyring secret for %q. user may need to delete the resource manually. %v", secretName, err)
 	}
 
 	return nil

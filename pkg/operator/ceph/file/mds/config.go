@@ -57,7 +57,7 @@ func (c *Cluster) generateKeyring(m *mdsConfig) (string, error) {
 		if kerrors.IsNotFound(err) {
 			logger.Debugf("legacy mds key %s is already removed", m.ResourceName)
 		} else {
-			logger.Warningf("legacy mds key %s could not be removed: %+v", m.ResourceName, err)
+			logger.Warningf("legacy mds key %q could not be removed. %v", m.ResourceName, err)
 		}
 	}
 
