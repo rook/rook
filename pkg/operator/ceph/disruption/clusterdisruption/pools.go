@@ -123,7 +123,7 @@ func (r *ReconcileClusterDisruption) getOngoingDrains(request reconcile.Request)
 		if deployment.Status.ReadyReplicas < 1 {
 			nodeHostname, ok := deployment.Spec.Template.Spec.NodeSelector[corev1.LabelHostname]
 			if !ok {
-				logger.Errorf("could not find a the nodeSelector key %s for canary deployment %s", corev1.LabelHostname, deployment.ObjectMeta.Name)
+				logger.Errorf("could not find a the nodeSelector key %q for canary deployment %q", corev1.LabelHostname, deployment.ObjectMeta.Name)
 				continue
 			}
 

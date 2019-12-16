@@ -75,7 +75,7 @@ func (c *ClientController) StartWatch(stopCh chan struct{}) error {
 		DeleteFunc: c.onDelete,
 	}
 
-	logger.Infof("start watching client resources in namespace %s", c.namespace)
+	logger.Infof("start watching client resources in namespace %q", c.namespace)
 	watcher := opkit.NewWatcher(ClientResource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1().RESTClient())
 	go watcher.Watch(&cephv1.CephClient{}, stopCh)
 
@@ -87,13 +87,13 @@ func (c *ClientController) onAdd(obj interface{}) {
 
 	client, err := getClientObject(obj)
 	if err != nil {
-		logger.Errorf("failed to get client object: %+v", err)
+		logger.Errorf("failed to get client object. %v", err)
 		return
 	}
 
 	err = createClient(c.context, client)
 	if err != nil {
-		logger.Errorf("failed to create client %s. %+v", client.ObjectMeta.Name, err)
+		logger.Errorf("failed to create client %q. %v", client.ObjectMeta.Name, err)
 	}
 }
 
@@ -189,27 +189,27 @@ func updateClient(context *clusterd.Context, p *cephv1.CephClient) error {
 func (c *ClientController) onUpdate(oldObj, newObj interface{}) {
 	oldClient, err := getClientObject(oldObj)
 	if err != nil {
-		logger.Errorf("failed to get old client object: %+v", err)
+		logger.Errorf("failed to get old client object. %v", err)
 		return
 	}
 	client, err := getClientObject(newObj)
 	if err != nil {
-		logger.Errorf("failed to get new client object: %+v", err)
+		logger.Errorf("failed to get new client object. %v", err)
 		return
 	}
 
 	if oldClient.Name != client.Name {
-		logger.Errorf("failed to update client %s. name update not allowed", client.Name)
+		logger.Errorf("failed to update client %q. name update not allowed", client.Name)
 		return
 	}
 	if !clientChanged(oldClient.Spec, client.Spec) {
-		logger.Debugf("client %s not changed", client.Name)
+		logger.Debugf("client %q not changed", client.Name)
 		return
 	}
 
 	logger.Infof("updating client %s", client.Name)
 	if err := updateClient(c.context, client); err != nil {
-		logger.Errorf("failed to update client %s. %+v", client.ObjectMeta.Name, err)
+		logger.Errorf("failed to update client %q. %v", client.ObjectMeta.Name, err)
 	}
 }
 
@@ -229,13 +229,13 @@ func clientChanged(old, new cephv1.ClientSpec) bool {
 func (c *ClientController) onDelete(obj interface{}) {
 	client, err := getClientObject(obj)
 	if err != nil {
-		logger.Errorf("failed to get client object: %+v", err)
+		logger.Errorf("failed to get client object. %v", err)
 		return
 	}
 
 	logger.Infof("Going to remove client object %s", client.Name)
 	if err := deleteClient(c.context, client); err != nil {
-		logger.Errorf("failed to delete client %s. %+v", client.ObjectMeta.Name, err)
+		logger.Errorf("failed to delete client %q. %v", client.ObjectMeta.Name, err)
 	}
 	logger.Infof("Removed client %s", client.Name)
 }

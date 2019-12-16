@@ -171,17 +171,17 @@ func deleteRealm(context *Context) error {
 	//  <name>
 	_, err := runAdminCommand(context, "realm", "delete", "--rgw-realm", context.Name)
 	if err != nil {
-		logger.Warningf("failed to delete rgw realm %s. %+v", context.Name, err)
+		logger.Warningf("failed to delete rgw realm %q. %v", context.Name, err)
 	}
 
 	_, err = runAdminCommand(context, "zonegroup", "delete", "--rgw-zonegroup", context.Name)
 	if err != nil {
-		logger.Warningf("failed to delete rgw zonegroup %s. %+v", context.Name, err)
+		logger.Warningf("failed to delete rgw zonegroup %q. %v", context.Name, err)
 	}
 
 	_, err = runAdminCommand(context, "zone", "delete", "--rgw-zone", context.Name)
 	if err != nil {
-		logger.Warningf("failed to delete rgw zone %s. %+v", context.Name, err)
+		logger.Warningf("failed to delete rgw zone %q. %v", context.Name, err)
 	}
 
 	return nil
@@ -224,7 +224,7 @@ func deletePools(context *Context, lastStore bool) error {
 	for _, pool := range pools {
 		name := poolName(context.Name, pool)
 		if err := ceph.DeletePool(context.Context, context.ClusterName, name); err != nil {
-			logger.Warningf("failed to delete pool %s. %+v", name, err)
+			logger.Warningf("failed to delete pool %q. %v", name, err)
 		}
 	}
 

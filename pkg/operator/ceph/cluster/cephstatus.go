@@ -83,13 +83,13 @@ func (c *cephStatusChecker) checkStatus() {
 	logger.Debugf("checking health of cluster")
 	status, err := client.Status(c.context, c.namespace, true)
 	if err != nil {
-		logger.Errorf("failed to get ceph status. %+v", err)
+		logger.Errorf("failed to get ceph status. %v", err)
 		return
 	}
 
 	logger.Debugf("Cluster status: %+v", status)
 	if err := c.updateCephStatus(&status); err != nil {
-		logger.Errorf("failed to query cluster status in namespace %s", c.namespace)
+		logger.Errorf("failed to query cluster status in namespace %q. %v", c.namespace, err)
 	}
 }
 

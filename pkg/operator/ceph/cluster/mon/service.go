@@ -60,7 +60,7 @@ func (c *Cluster) createService(mon *monConfig) (string, error) {
 	}
 
 	if s == nil {
-		logger.Errorf("service ip not found for mon %s. if this is not a unit test, this is an error", mon.ResourceName)
+		logger.Errorf("service ip not found for mon %q. if this is not a unit test, this is an error", mon.ResourceName)
 		return "", nil
 	}
 
@@ -68,9 +68,9 @@ func (c *Cluster) createService(mon *monConfig) (string, error) {
 	// however it's interesting to show that monitors can be addressed via 2 different ports
 	// in the end the service has msgr1 and msgr2 ports configured so it's not entirely wrong
 	if c.ClusterInfo.CephVersion.IsAtLeastNautilus() {
-		logger.Infof("mon %s endpoint are [v2:%s:%s,v1:%s:%d]", mon.DaemonName, s.Spec.ClusterIP, strconv.Itoa(int(DefaultMsgr2Port)), s.Spec.ClusterIP, mon.Port)
+		logger.Infof("mon %q endpoint are [v2:%s:%s,v1:%s:%d]", mon.DaemonName, s.Spec.ClusterIP, strconv.Itoa(int(DefaultMsgr2Port)), s.Spec.ClusterIP, mon.Port)
 	} else {
-		logger.Infof("mon %s endpoint is %s:%d", mon.DaemonName, s.Spec.ClusterIP, mon.Port)
+		logger.Infof("mon %q endpoint is %s:%d", mon.DaemonName, s.Spec.ClusterIP, mon.Port)
 	}
 	return s.Spec.ClusterIP, nil
 }

@@ -69,7 +69,7 @@ func (hc *HealthChecker) Check(stopCh chan struct{}) {
 			logger.Debugf("checking health of mons")
 			err := hc.monCluster.checkHealth()
 			if err != nil {
-				logger.Warningf("failed to check mon health. %+v", err)
+				logger.Warningf("failed to check mon health. %v", err)
 			}
 		}
 	}
@@ -192,18 +192,18 @@ func (c *Cluster) failMon(monCount, desiredMonCount int, name string) {
 	if monCount > desiredMonCount {
 		// no need to create a new mon since we have an extra
 		if err := c.removeMon(name); err != nil {
-			logger.Errorf("failed to remove mon %s. %+v", name, err)
+			logger.Errorf("failed to remove mon %q. %v", name, err)
 		}
 	} else {
 		// bring up a new mon to replace the unhealthy mon
 		if err := c.failoverMon(name); err != nil {
-			logger.Errorf("failed to failover mon %s. %+v", name, err)
+			logger.Errorf("failed to failover mon %q. %v", name, err)
 		}
 	}
 }
 
 func (c *Cluster) failoverMon(name string) error {
-	logger.Infof("Failing over monitor %s", name)
+	logger.Infof("Failing over monitor %q", name)
 
 	// Start a new monitor
 	m := c.newMonConfig(c.maxMonID + 1)

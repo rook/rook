@@ -75,7 +75,7 @@ func (m *MonStore) SetAll(options ...Option) error {
 	if len(errs) > 0 {
 		retErr := errors.New("failed to set one or more Ceph configs")
 		for _, err := range errs {
-			retErr = errors.Wrapf(err, "%+v", retErr)
+			retErr = errors.Wrapf(err, "%v", retErr)
 		}
 		return retErr
 	}
