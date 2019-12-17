@@ -90,7 +90,7 @@ func (c *Cluster) handleOrchestrationFailure(config *provisionConfig, nodeName, 
 	config.addError(message)
 	status := OrchestrationStatus{Status: OrchestrationStatusFailed, Message: message}
 	if err := c.updateOSDStatus(nodeName, status); err != nil {
-		config.addError("failed to update status for node %s. %+v", nodeName, err)
+		config.addError("failed to update status for node %q. %v", nodeName, err)
 	}
 }
 
@@ -111,7 +111,7 @@ func parseOrchestrationStatus(data map[string]string) *OrchestrationStatus {
 	// we have status for this node, unmarshal it
 	var status OrchestrationStatus
 	if err := json.Unmarshal([]byte(statusRaw), &status); err != nil {
-		logger.Warningf("failed to unmarshal orchestration status. status: %s. %+v", statusRaw, err)
+		logger.Warningf("failed to unmarshal orchestration status. status: %s. %v", statusRaw, err)
 		return nil
 	}
 
@@ -136,7 +136,7 @@ func (c *Cluster) checkNodesCompleted(selector string, config *provisionConfig, 
 	statuses, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).List(opts)
 	if err != nil {
 		if !kerrors.IsNotFound(err) {
-			config.addError("failed to get config status. %+v", err)
+			config.addError("failed to get config status. %v", err)
 			return 0, remainingNodes, false, statuses, err
 		}
 		// the status map doesn't exist yet, watching below is still an OK thing to do
@@ -185,7 +185,7 @@ func (c *Cluster) completeOSDsForAllNodes(config *provisionConfig, configOSDs bo
 
 		w, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Watch(opts)
 		if err != nil {
-			logger.Warningf("failed to start watch on osd status, trying again. %+v", err)
+			logger.Warningf("failed to start watch on osd status, trying again. %v", err)
 			time.Sleep(5 * time.Second)
 			continue
 		}
@@ -243,7 +243,7 @@ func (c *Cluster) completeOSDsForAllNodes(config *provisionConfig, configOSDs bo
 					for remainingNode := range remainingNodes.Iter() {
 						clearNodeName := k8sutil.TruncateNodeName(orchestrationStatusMapName, remainingNode)
 						if err := c.kv.ClearStore(clearNodeName); err != nil {
-							config.addError("failed to clear node %s status with name %s. %+v", remainingNode, clearNodeName, err)
+							config.addError("failed to clear node %q status with name %q. %v", remainingNode, clearNodeName, err)
 						}
 					}
 					return false

@@ -121,12 +121,12 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 			var deployment appsv1.Deployment
 			err := r.client.List(context.TODO(), deploymentList, client.MatchingLabels(labelSelector), client.InNamespace(osdPod.GetNamespace()))
 			if err != nil || len(deploymentList.Items) < 1 {
-				logger.Errorf("Cannot find deployment for osd id %s in namespace %s", labels[osd.OsdIdLabelKey], osdPod.GetNamespace())
+				logger.Errorf("cannot find deployment for osd id %q in namespace %q", labels[osd.OsdIdLabelKey], osdPod.GetNamespace())
 			} else {
 				deployment = deploymentList.Items[0]
 			}
 			if len(deploymentList.Items) > 1 {
-				logger.Errorf("Found multiple deployments for osd id %s in namespace %s: %+v", labels[osd.OsdIdLabelKey], osdPod.GetNamespace(), deploymentList)
+				logger.Errorf("found multiple deployments for osd id %q in namespace %q: %+v", labels[osd.OsdIdLabelKey], osdPod.GetNamespace(), deploymentList)
 			}
 
 			occupiedByOSD = true
@@ -134,7 +134,7 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 			for _, osdToleration := range deployment.Spec.Template.Spec.Tolerations {
 				if osdToleration.Key == "node.kubernetes.io/unschedulable" {
 					logger.Errorf(
-						"osd %s in namespace %s tolerates the drain taint, but the drain canary will not.",
+						"osd %q in namespace %q tolerates the drain taint, but the drain canary will not.",
 						labels[osd.OsdIdLabelKey],
 						labels[k8sutil.ClusterAttr],
 					)
@@ -166,11 +166,11 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 		}
 
 		ownerReferences := []metav1.OwnerReference{}
-		// get the operator Deployment to use as an owner refreence
+		// get the operator Deployment to use as an owner reference
 		operatorPodKey := types.NamespacedName{Name: os.Getenv(k8sutil.PodNameEnvVar), Namespace: r.context.OperatorNamespace}
 		operatorDeployment, err := getDeploymentForPod(r.client, operatorPodKey)
 		if err != nil {
-			logger.Errorf("could not find rook operator deployment for pod %+v: %+v", operatorPodKey, err)
+			logger.Errorf("could not find rook operator deployment for pod %+v. %v", operatorPodKey, err)
 		} else {
 			operatorDeployment := operatorDeployment
 			controllerBool := true

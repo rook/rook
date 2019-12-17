@@ -34,7 +34,7 @@ func (c *Cluster) prepareStorageClassDeviceSets(config *provisionConfig) []rooka
 		for i := 0; i < storageClassDeviceSet.Count; i++ {
 			pvc, err := c.createStorageClassDeviceSetPVC(storageClassDeviceSet, i)
 			if err != nil {
-				config.addError("%+v", err)
+				config.addError("%v", err)
 				config.addError("OSD creation for storageClassDeviceSet %v failed for count %v", storageClassDeviceSet.Name, i)
 				continue
 			}

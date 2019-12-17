@@ -24,6 +24,9 @@ nodeSelector:
 # Tolerations for the rook-ceph-operator to allow it to run on nodes with particular taints
 tolerations: []
 
+# Delay to use in node.kubernetes.io/unreachable toleration
+unreachableNodeTolerationSeconds: 5
+
 # Whether rook watches its current namespace for CRDs or the entire cluster, defaults to false
 currentNamespaceOnly: false
 
@@ -55,6 +58,13 @@ csi:
   enableCephfsDriver: true
   enableGrpcMetrics: true
   enableSnapshotter: true
+  # CSI CephFS plugin daemonset update strategy, supported values are OnDelete and RollingUpdate.
+  # Default value is RollingUpdate.
+  #rbdPluginUpdateStrategy: OnDelete
+  # CSI Rbd plugin daemonset update strategy, supported values are OnDelete and RollingUpdate.
+  # Default value is RollingUpdate.
+  #cephFSPluginUpdateStrategy: OnDelete
+
   # Set provisonerTolerations and provisionerNodeAffinity for provisioner pod.
   # The CSI provisioner would be best to start on the same nodes as other ceph daemons.
   # provisionerTolerations:
@@ -72,6 +82,10 @@ csi:
   #cephfsGrpcMetricsPort: 9091
   #cephfsLivenessMetricsPort: 9081
   #rbdGrpcMetricsPort: 9090
+  # Enable Ceph Kernel clients on kernel < 4.17. If your kernel does not support quotas for CephFS
+  # you may want to disable this setting. However, this will cause an issue during upgrades
+  # with the FUSE client. See the upgrade guide: https://rook.io/docs/rook/v1.2/ceph-upgrade.html
+  forceCephFSKernelClient: true
   #rbdLivenessMetricsPort: 9080
   #kubeletDirPath: /var/lib/kubelet
   #cephcsi:
@@ -138,8 +152,8 @@ hostpathRequiresPrivileged: false
 # Disable automatic orchestration when new devices are discovered.
 disableDeviceHotplug: false
 
-# Blacklist certain disks according to the regex provided. 
-discoverDaemonUdev: 
+# Blacklist certain disks according to the regex provided.
+discoverDaemonUdev:
 
 # imagePullSecrets option allow to pull docker images from private docker registry. Option will be passed to all service accounts.
 # imagePullSecrets:

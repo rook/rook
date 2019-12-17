@@ -29,6 +29,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	cephspec "github.com/rook/rook/pkg/operator/ceph/spec"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
@@ -106,7 +107,7 @@ func (c *FilesystemController) onAdd(obj interface{}) {
 
 	filesystem, err := getFilesystemObject(obj)
 	if err != nil {
-		logger.Errorf("failed to get filesystem object: %+v", err)
+		logger.Errorf("failed to get filesystem object. %v", err)
 		return
 	}
 
@@ -118,15 +119,18 @@ func (c *FilesystemController) onAdd(obj interface{}) {
 		if err != nil {
 			// This handles the case where the operator is running, the external cluster has been upgraded and a CR creation is called
 			// If that's a major version upgrade we fail, if it's a minor version, we continue, it's not ideal but not critical
-			logger.Errorf("refusing to run new crd. %+v", err)
+			logger.Errorf("refusing to run new crd. %v", err)
 			return
 		}
 	}
+	updateCephFilesystemStatus(filesystem.GetName(), filesystem.GetNamespace(), k8sutil.ProcessingStatus, c.context)
 
 	err = createFilesystem(c.clusterInfo, c.context, *filesystem, c.rookVersion, c.clusterSpec, c.filesystemOwner(filesystem), c.clusterSpec.DataDirHostPath, c.isUpgrade)
 	if err != nil {
-		logger.Errorf("failed to create filesystem %s: %+v", filesystem.Name, err)
+		logger.Errorf("failed to create filesystem %q. %v", filesystem.Name, err)
+		updateCephFilesystemStatus(filesystem.GetName(), filesystem.GetNamespace(), k8sutil.FailedStatus, c.context)
 	}
+	updateCephFilesystemStatus(filesystem.GetName(), filesystem.GetNamespace(), k8sutil.ReadyStatus, c.context)
 }
 
 func (c *FilesystemController) onUpdate(oldObj, newObj interface{}) {
@@ -137,12 +141,12 @@ func (c *FilesystemController) onUpdate(oldObj, newObj interface{}) {
 
 	oldFS, err := getFilesystemObject(oldObj)
 	if err != nil {
-		logger.Errorf("failed to get old filesystem object: %+v", err)
+		logger.Errorf("failed to get old filesystem object. %v", err)
 		return
 	}
 	newFS, err := getFilesystemObject(newObj)
 	if err != nil {
-		logger.Errorf("failed to get new filesystem object: %+v", err)
+		logger.Errorf("failed to get new filesystem object. %v", err)
 		return
 	}
 
@@ -156,10 +160,13 @@ func (c *FilesystemController) onUpdate(oldObj, newObj interface{}) {
 
 	// if the filesystem is modified, allow the filesystem to be created if it wasn't already
 	logger.Infof("updating filesystem %s", newFS.Name)
+	updateCephFilesystemStatus(newFS.GetName(), newFS.GetNamespace(), k8sutil.ProcessingStatus, c.context)
 	err = createFilesystem(c.clusterInfo, c.context, *newFS, c.rookVersion, c.clusterSpec, c.filesystemOwner(newFS), c.clusterSpec.DataDirHostPath, c.isUpgrade)
 	if err != nil {
-		logger.Errorf("failed to create (modify) filesystem %s: %+v", newFS.Name, err)
+		logger.Errorf("failed to create (modify) filesystem %q. %v", newFS.Name, err)
+		updateCephFilesystemStatus(newFS.GetName(), newFS.GetNamespace(), k8sutil.FailedStatus, c.context)
 	}
+	updateCephFilesystemStatus(newFS.GetName(), newFS.GetNamespace(), k8sutil.ReadyStatus, c.context)
 }
 
 // ParentClusterChanged determines wether or not a CR update has been sent
@@ -179,16 +186,16 @@ func (c *FilesystemController) ParentClusterChanged(cluster cephv1.ClusterSpec, 
 	c.clusterSpec.CephVersion = cluster.CephVersion
 	filesystems, err := c.context.RookClientset.CephV1().CephFilesystems(c.namespace).List(metav1.ListOptions{})
 	if err != nil {
-		logger.Errorf("failed to retrieve filesystems to update the ceph version. %+v", err)
+		logger.Errorf("failed to retrieve filesystems to update the ceph version. %v", err)
 		return
 	}
 	for _, fs := range filesystems.Items {
 		logger.Infof("updating the ceph version for filesystem %s to %s", fs.Name, c.clusterSpec.CephVersion.Image)
 		err = createFilesystem(c.clusterInfo, c.context, fs, c.rookVersion, c.clusterSpec, c.filesystemOwner(&fs), c.clusterSpec.DataDirHostPath, c.isUpgrade)
 		if err != nil {
-			logger.Errorf("failed to update filesystem %s. %+v", fs.Name, err)
+			logger.Errorf("failed to update filesystem %q. %v", fs.Name, err)
 		} else {
-			logger.Infof("updated filesystem %s to ceph version %s", fs.Name, c.clusterSpec.CephVersion.Image)
+			logger.Infof("updated filesystem %q to ceph version %q", fs.Name, c.clusterSpec.CephVersion.Image)
 		}
 	}
 }
@@ -201,7 +208,7 @@ func (c *FilesystemController) onDelete(obj interface{}) {
 
 	filesystem, err := getFilesystemObject(obj)
 	if err != nil {
-		logger.Errorf("failed to get filesystem object: %+v", err)
+		logger.Errorf("failed to get filesystem object. %v", err)
 		return
 	}
 
@@ -210,7 +217,7 @@ func (c *FilesystemController) onDelete(obj interface{}) {
 
 	err = deleteFilesystem(c.context, c.clusterInfo.CephVersion, *filesystem)
 	if err != nil {
-		logger.Errorf("failed to delete filesystem %s: %+v", filesystem.Name, err)
+		logger.Errorf("failed to delete filesystem %q. %v", filesystem.Name, err)
 	}
 }
 
@@ -269,4 +276,23 @@ func (c *FilesystemController) acquireOrchestrationLock() {
 func (c *FilesystemController) releaseOrchestrationLock() {
 	c.orchestrationMutex.Unlock()
 	logger.Debugf("Released lock for filesystem orchestration")
+}
+
+func updateCephFilesystemStatus(name, namespace, status string, context *clusterd.Context) {
+	updatedCephFilesystem, err := context.RookClientset.CephV1().CephFilesystems(namespace).Get(name, metav1.GetOptions{})
+	if err != nil {
+		logger.Errorf("Unable to update the cephObjectStore %s status %v", updatedCephFilesystem.GetName(), err)
+		return
+	}
+	if updatedCephFilesystem.Status == nil {
+		updatedCephFilesystem.Status = &cephv1.Status{}
+	} else if updatedCephFilesystem.Status.Phase == status {
+		return
+	}
+	updatedCephFilesystem.Status.Phase = status
+	_, err = context.RookClientset.CephV1().CephFilesystems(updatedCephFilesystem.Namespace).Update(updatedCephFilesystem)
+	if err != nil {
+		logger.Errorf("Unable to update the cephObjectStore %s status %v", updatedCephFilesystem.GetName(), err)
+		return
+	}
 }

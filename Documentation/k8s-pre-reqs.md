@@ -21,9 +21,20 @@ setting up Rook in a Kubernetes cluster with Pod Security Policies enabled.
 The Rook agent requires setup as a Flex volume plugin to manage the storage attachments in your cluster.
 See the [Flex Volume Configuration](flexvolume.md) topic to configure your Kubernetes deployment to load the Rook volume plugin.
 
-## Kernel with RBD module
+## Kernel
 
-Rook Ceph requires a Linux kernel built with the RBD module. Many distributions of Linux have this module but some don't, e.g. the GKE Container-Optimised OS (COS) does not have RBD. You can test your Kubernetes nodes by running `modprobe rbd`. If it says 'not found', you may have to [rebuild your kernel](https://rook.io/docs/rook/master/common-issues.html#rook-agent-rbd-module-missing-error) or choose a different Linux distribution.
+### RBD
+
+Rook Ceph requires a Linux kernel built with the RBD module. Many distributions of Linux have this module but some don't,
+e.g. the GKE Container-Optimised OS (COS) does not have RBD. You can test your Kubernetes nodes by running `modprobe rbd`.
+If it says 'not found', you may have to [rebuild your kernel](https://rook.io/docs/rook/master/common-issues.html#rook-agent-rbd-module-missing-error)
+or choose a different Linux distribution.
+
+### CephFS
+
+If you will be creating volumes from a Ceph shared file system (CephFS), the recommended minimum kernel version is 4.17.
+If you have a kernel version less than 4.17, the requested PVC sizes will not be enforced. Storage quotas will only be
+enforced on newer kernels.
 
 ## Kernel modules directory configuration
 

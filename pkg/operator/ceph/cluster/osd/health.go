@@ -60,7 +60,7 @@ func (m *Monitor) Start(stopCh chan struct{}) {
 			logger.Debug("Checking osd processes status.")
 			err := m.osdStatus()
 			if err != nil {
-				logger.Warningf("Failed OSD status check: %+v", err)
+				logger.Warningf("failed OSD status check. %v", err)
 			}
 
 		case <-stopCh:
@@ -108,7 +108,7 @@ func (m *Monitor) osdStatus() error {
 			logger.Debugf("osd.%d is marked 'OUT'", id)
 			if m.removeOSDsIfOUTAndSafeToRemove {
 				if err := m.handleOSDMarkedOut(id); err != nil {
-					logger.Errorf("Error handling marked out osd osd.%d: %v", id, err)
+					logger.Errorf("error handling marked out osd osd.%d. %v", id, err)
 				}
 			}
 		}

@@ -126,6 +126,17 @@ Create the storage class.
 kubectl create -f cluster/examples/kubernetes/ceph/csi/cephfs/storageclass.yaml
 ```
 
+## Quotas
+
+> **IMPORTANT**: The CephFS CSI driver uses quotas to enforce the PVC size requested.
+Only newer kernels support CephFS quotas (kernel version of at least 4.17).
+If you require quotas to be enforced and the kernel driver does not support it, you can disable the kernel driver
+and use the FUSE client. This can be done by setting `CSI_FORCE_CEPHFS_KERNEL_CLIENT: false`
+in the operator deployment (`operator.yaml`). However, it is important to know that when
+the FUSE client is enabled, there is an issue that during upgrade the application pods will be
+disconnected from the mount and will need to be restarted. See the [upgrade guide](ceph-upgrade.md)
+for more details.
+
 ## Consume the Shared Filesystem: K8s Registry Sample
 
 As an example, we will start the kube-registry pod with the shared filesystem as the backing store.

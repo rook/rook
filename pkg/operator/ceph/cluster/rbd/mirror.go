@@ -143,7 +143,7 @@ func (m *Mirroring) Start() error {
 			if m.isUpgrade {
 				currentCephVersion, err := client.LeastUptodateDaemonVersion(m.context, m.ClusterInfo.Name, daemon)
 				if err != nil {
-					logger.Warningf("failed to retrieve current ceph %s version. %+v", daemon, err)
+					logger.Warningf("failed to retrieve current ceph %q version. %v", daemon, err)
 					logger.Debug("could not detect ceph version during update, this is likely an initial bootstrap, proceeding with m.ClusterInfo.CephVersion")
 					cephVersionToUse = m.ClusterInfo.CephVersion
 
@@ -155,7 +155,7 @@ func (m *Mirroring) Start() error {
 
 			if err := updateDeploymentAndWait(m.context, d, m.Namespace, daemon, daemonConf.DaemonID, cephVersionToUse, m.isUpgrade, m.skipUpgradeChecks); err != nil {
 				// fail could be an issue updating label selector (immutable), so try del and recreate
-				logger.Debugf("updateDeploymentAndWait failed for rbd-mirror %s. Attempting del-and-recreate. %+v", resourceName, err)
+				logger.Debugf("updateDeploymentAndWait failed for rbd-mirror %q. Attempting del-and-recreate. %v", resourceName, err)
 				err = m.context.Clientset.AppsV1().Deployments(m.Namespace).Delete(d.Name, &metav1.DeleteOptions{})
 				if err != nil {
 					return errors.Wrapf(err, "failed to delete rbd-mirror %s during del-and-recreate update attempt", resourceName)
@@ -167,10 +167,10 @@ func (m *Mirroring) Start() error {
 		}
 
 		if existingDeployment, err := m.context.Clientset.AppsV1().Deployments(m.Namespace).Get(d.GetName(), metav1.GetOptions{}); err != nil {
-			logger.Warningf("failed to find rbd-mirror deployment %s for keyring association: %+v", resourceName, err)
+			logger.Warningf("failed to find rbd-mirror deployment %q for keyring association. %v", resourceName, err)
 		} else {
 			if err = m.associateKeyring(keyring, existingDeployment); err != nil {
-				logger.Warningf("failed to associate keyring with rbd-mirror deployment %s: %+v", resourceName, err)
+				logger.Warningf("failed to associate keyring with rbd-mirror deployment %q. %v", resourceName, err)
 			}
 		}
 		logger.Infof("%s deployment started", resourceName)
@@ -179,7 +179,7 @@ func (m *Mirroring) Start() error {
 	// Remove extra rbd-mirror deployments if necessary
 	err = m.removeExtraMirrors()
 	if err != nil {
-		logger.Errorf("failed to remove extra mirrors. %+v", err)
+		logger.Errorf("failed to remove extra mirrors. %v", err)
 	}
 
 	return nil
@@ -214,7 +214,7 @@ func (m *Mirroring) removeExtraMirrors() error {
 			propagation := metav1.DeletePropagationForeground
 			deleteOpts := metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
 			if err = m.context.Clientset.AppsV1().Deployments(m.Namespace).Delete(deploy.Name, &deleteOpts); err != nil {
-				logger.Warningf("failed to delete rbd-mirror %s. %+v", daemonName, err)
+				logger.Warningf("failed to delete rbd-mirror %q. %v", daemonName, err)
 			}
 
 			logger.Infof("removed rbd-mirror %s", daemonName)

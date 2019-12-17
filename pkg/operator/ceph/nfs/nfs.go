@@ -134,15 +134,15 @@ func (c *CephNFSController) addServerToDatabase(nfs cephv1.CephNFS, name string)
 	logger.Infof("Adding ganesha %s to grace db", name)
 
 	if err := c.runGaneshaRadosGrace(nfs, name, "add"); err != nil {
-		logger.Errorf("failed to add %s to grace db. %+v", name, err)
+		logger.Errorf("failed to add %q to grace db. %v", name, err)
 	}
 }
 
 func (c *CephNFSController) removeServerFromDatabase(nfs cephv1.CephNFS, name string) {
-	logger.Infof("Removing ganesha %s from grace db", name)
+	logger.Infof("Removing ganesha %q from grace db", name)
 
 	if err := c.runGaneshaRadosGrace(nfs, name, "remove"); err != nil {
-		logger.Errorf("failed to remove %s from grace db. %+v", name, err)
+		logger.Errorf("failed to remove %q from grace db. %v", name, err)
 	}
 }
 

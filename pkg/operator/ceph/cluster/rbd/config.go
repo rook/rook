@@ -56,9 +56,9 @@ func (m *Mirroring) generateKeyring(daemonConfig *daemonConfig) (string, error) 
 	err = m.context.Clientset.CoreV1().Secrets(m.Namespace).Delete(daemonConfig.ResourceName, &metav1.DeleteOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
-			logger.Debugf("legacy rbd-mirror key %s is already removed", daemonConfig.ResourceName)
+			logger.Debugf("legacy rbd-mirror key %q is already removed", daemonConfig.ResourceName)
 		} else {
-			logger.Warningf("legacy rbd-mirror key %s could not be removed: %+v", daemonConfig.ResourceName, err)
+			logger.Warningf("legacy rbd-mirror key %q could not be removed. %v", daemonConfig.ResourceName, err)
 		}
 	}
 

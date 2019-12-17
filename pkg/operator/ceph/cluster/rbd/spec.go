@@ -45,6 +45,9 @@ func (m *Mirroring) makeDeployment(daemonConfig *daemonConfig) *apps.Deployment 
 			PriorityClassName: m.priorityClassName,
 		},
 	}
+	// Replace default unreachable node toleration
+	k8sutil.AddUnreachableNodeToleration(&podSpec.Spec)
+
 	if m.Network.IsHost() {
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}

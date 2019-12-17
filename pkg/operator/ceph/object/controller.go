@@ -29,6 +29,7 @@ import (
 	daemonconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	cephspec "github.com/rook/rook/pkg/operator/ceph/spec"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
@@ -102,25 +103,28 @@ func (c *ObjectStoreController) onAdd(obj interface{}) {
 		return
 	}
 
-	objectstore, err := getObjectStoreObject(obj)
+	objectStore, err := getObjectStoreObject(obj)
 	if err != nil {
-		logger.Errorf("failed to get objectstore object: %+v", err)
+		logger.Errorf("failed to get objectstore object. %v", err)
 		return
 	}
 
 	c.acquireOrchestrationLock()
 	defer c.releaseOrchestrationLock()
+	updateCephObjectStoreStatus(objectStore.GetName(), objectStore.GetNamespace(), k8sutil.ProcessingStatus, c.context)
 
 	if c.clusterSpec.External.Enable {
 		_, err := cephspec.ValidateCephVersionsBetweenLocalAndExternalClusters(c.context, c.namespace, c.clusterInfo.CephVersion)
 		if err != nil {
 			// This handles the case where the operator is running, the external cluster has been upgraded and a CR creation is called
 			// If that's a major version upgrade we fail, if it's a minor version, we continue, it's not ideal but not critical
-			logger.Errorf("refusing to run new crd. %+v", err)
+			logger.Errorf("refusing to run new crd. %v", err)
+			updateCephObjectStoreStatus(objectStore.GetName(), objectStore.GetNamespace(), k8sutil.FailedStatus, c.context)
 			return
 		}
 	}
-	c.createOrUpdateStore(objectstore)
+	c.createOrUpdateStore(objectStore)
+	updateCephObjectStoreStatus(objectStore.GetName(), objectStore.GetNamespace(), k8sutil.ReadyStatus, c.context)
 }
 
 func (c *ObjectStoreController) onUpdate(oldObj, newObj interface{}) {
@@ -132,28 +136,30 @@ func (c *ObjectStoreController) onUpdate(oldObj, newObj interface{}) {
 	// if the object store spec is modified, update the object store
 	oldStore, err := getObjectStoreObject(oldObj)
 	if err != nil {
-		logger.Errorf("failed to get old objectstore object: %+v", err)
+		logger.Errorf("failed to get old objectstore object. %v", err)
 		return
 	}
 	newStore, err := getObjectStoreObject(newObj)
 	if err != nil {
-		logger.Errorf("failed to get new objectstore object: %+v", err)
+		logger.Errorf("failed to get new objectstore object. %v", err)
 		return
 	}
 
 	if !storeChanged(oldStore.Spec, newStore.Spec) {
-		logger.Debugf("object store %s did not change", newStore.Name)
+		logger.Debugf("object store %q did not change", newStore.Name)
 		return
 	}
 
 	c.acquireOrchestrationLock()
 	defer c.releaseOrchestrationLock()
 
+	updateCephObjectStoreStatus(newStore.GetName(), newStore.GetNamespace(), k8sutil.ProcessingStatus, c.context)
 	c.createOrUpdateStore(newStore)
+	updateCephObjectStoreStatus(newStore.GetName(), newStore.GetNamespace(), k8sutil.ReadyStatus, c.context)
 }
 
 func (c *ObjectStoreController) createOrUpdateStore(objectstore *cephv1.CephObjectStore) {
-	logger.Infof("creating object store %s", objectstore.Name)
+	logger.Infof("creating object store %q", objectstore.Name)
 	cfg := clusterConfig{
 		clusterInfo: c.clusterInfo,
 		context:     c.context,
@@ -165,7 +171,7 @@ func (c *ObjectStoreController) createOrUpdateStore(objectstore *cephv1.CephObje
 		isUpgrade:   c.isUpgrade,
 	}
 	if err := cfg.createOrUpdate(); err != nil {
-		logger.Errorf("failed to create or update object store %s. %+v", objectstore.Name, err)
+		logger.Errorf("failed to create or update object store %s. %v", objectstore.Name, err)
 	}
 }
 
@@ -177,7 +183,7 @@ func (c *ObjectStoreController) onDelete(obj interface{}) {
 
 	objectstore, err := getObjectStoreObject(obj)
 	if err != nil {
-		logger.Errorf("failed to get objectstore object: %+v", err)
+		logger.Errorf("failed to get objectstore object. %v", err)
 		return
 	}
 
@@ -186,7 +192,7 @@ func (c *ObjectStoreController) onDelete(obj interface{}) {
 
 	cfg := clusterConfig{context: c.context, store: *objectstore}
 	if err = cfg.deleteStore(); err != nil {
-		logger.Errorf("failed to delete object store %s. %+v", objectstore.Name, err)
+		logger.Errorf("failed to delete object store %q. %v", objectstore.Name, err)
 	}
 }
 
@@ -207,16 +213,16 @@ func (c *ObjectStoreController) ParentClusterChanged(cluster cephv1.ClusterSpec,
 	c.clusterSpec.CephVersion = cluster.CephVersion
 	objectStores, err := c.context.RookClientset.CephV1().CephObjectStores(c.namespace).List(metav1.ListOptions{})
 	if err != nil {
-		logger.Errorf("failed to retrieve object stores to update the ceph version. %+v", err)
+		logger.Errorf("failed to retrieve object stores to update the ceph version. %v", err)
 		return
 	}
 	for _, store := range objectStores.Items {
-		logger.Infof("updating the ceph version for object store %s to %s", store.Name, c.clusterSpec.CephVersion.Image)
+		logger.Infof("updating the ceph version for object store %q to %q", store.Name, c.clusterSpec.CephVersion.Image)
 		c.createOrUpdateStore(&store)
 		if err != nil {
-			logger.Errorf("failed to update object store %s. %+v", store.Name, err)
+			logger.Errorf("failed to update object store %q. %v", store.Name, err)
 		} else {
-			logger.Infof("updated object store %s to ceph version %s", store.Name, c.clusterSpec.CephVersion.Image)
+			logger.Infof("updated object store %q to ceph version %q", store.Name, c.clusterSpec.CephVersion.Image)
 		}
 	}
 }
@@ -283,4 +289,23 @@ func (c *ObjectStoreController) acquireOrchestrationLock() {
 func (c *ObjectStoreController) releaseOrchestrationLock() {
 	c.orchestrationMutex.Unlock()
 	logger.Debugf("Released lock for object store orchestration")
+}
+
+func updateCephObjectStoreStatus(name, namespace, status string, context *clusterd.Context) {
+	updatedCephObjectStore, err := context.RookClientset.CephV1().CephObjectStores(namespace).Get(name, metav1.GetOptions{})
+	if err != nil {
+		logger.Errorf("Unable to update the cephObjectStore %s status %v", updatedCephObjectStore.GetName(), err)
+		return
+	}
+	if updatedCephObjectStore.Status == nil {
+		updatedCephObjectStore.Status = &cephv1.Status{}
+	} else if updatedCephObjectStore.Status.Phase == status {
+		return
+	}
+	updatedCephObjectStore.Status.Phase = status
+	_, err = context.RookClientset.CephV1().CephObjectStores(updatedCephObjectStore.Namespace).Update(updatedCephObjectStore)
+	if err != nil {
+		logger.Errorf("Unable to update the cephObjectStore %s status %v", updatedCephObjectStore.GetName(), err)
+		return
+	}
 }

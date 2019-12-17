@@ -97,13 +97,17 @@ func (c *ObjectStoreUserController) onAdd(obj interface{}) {
 
 	user, err := getObjectStoreUserObject(obj)
 	if err != nil {
-		logger.Errorf("failed to get objectstoreuser object: %+v", err)
+		logger.Errorf("failed to get objectstoreuser object. %v", err)
 		return
 	}
+	updateCephObjectStoreUserStatus(user.GetName(), user.GetNamespace(), k8sutil.ProcessingStatus, c.context)
 
 	if err = c.createUser(c.context, user); err != nil {
-		logger.Errorf("failed to create object store user %s. %+v", user.Name, err)
+		logger.Errorf("failed to create object store user %q. %v", user.Name, err)
+		updateCephObjectStoreUserStatus(user.GetName(), user.GetNamespace(), k8sutil.FailedStatus, c.context)
+
 	}
+	updateCephObjectStoreUserStatus(user.GetName(), user.GetNamespace(), k8sutil.ReadyStatus, c.context)
 }
 
 func (c *ObjectStoreUserController) onUpdate(oldObj, newObj interface{}) {
@@ -122,12 +126,12 @@ func (c *ObjectStoreUserController) onDelete(obj interface{}) {
 
 	user, err := getObjectStoreUserObject(obj)
 	if err != nil {
-		logger.Errorf("failed to get objectstoreuser object: %+v", err)
+		logger.Errorf("failed to get objectstoreuser object. %v", err)
 		return
 	}
 
 	if err = deleteUser(c.context, user); err != nil {
-		logger.Errorf("failed to delete object store user %s. %+v", user.Name, err)
+		logger.Errorf("failed to delete object store user %q. %v", user.Name, err)
 	}
 }
 
@@ -176,7 +180,7 @@ func (c *ObjectStoreUserController) createUser(context *clusterd.Context, u *cep
 
 	initialized, err := objectStoreInitialized(objContext)
 	if err != nil {
-		logger.Errorf("failed to detect if object store is initialized. %+v", err)
+		logger.Errorf("failed to detect if object store is initialized. %v", err)
 	} else if !initialized {
 		err := wait.Poll(time.Second*15, time.Minute*5, func() (ok bool, err error) {
 			initialized, err := objectStoreInitialized(objContext)
@@ -186,7 +190,7 @@ func (c *ObjectStoreUserController) createUser(context *clusterd.Context, u *cep
 			return initialized, nil
 		})
 		if err != nil {
-			logger.Errorf("err or timed out while waiting for objectstore %s to be ready. %+v", u.Spec.Store, err)
+			logger.Errorf("err or timed out while waiting for objectstore %q to be ready. %v", u.Spec.Store, err)
 		}
 	}
 
@@ -241,7 +245,7 @@ func objectStoreInitialized(context *object.Context) (bool, error) {
 	_, err := context.Context.RookClientset.CephV1().CephObjectStores(context.ClusterName).Get(context.Name, metav1.GetOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			logger.Warningf("CephObjectStore %s could not be found. %+v", context.Name, err)
+			logger.Warningf("CephObjectStore %s could not be found. %v", context.Name, err)
 			return false, nil
 		}
 		return false, err
@@ -283,7 +287,7 @@ func deleteUser(context *clusterd.Context, u *cephv1.CephObjectStoreUser) error 
 
 	err = context.Clientset.CoreV1().Secrets(u.Namespace).Delete(fmt.Sprintf("rook-ceph-object-user-%s-%s", u.Spec.Store, u.Name), &metav1.DeleteOptions{})
 	if err != nil {
-		logger.Warningf("failed to delete user %s secret. %+v", fmt.Sprintf("rook-ceph-object-user-%s-%s", u.Spec.Store, u.Name), err)
+		logger.Warningf("failed to delete user %s secret. %v", fmt.Sprintf("rook-ceph-object-user-%s-%s", u.Spec.Store, u.Name), err)
 	}
 
 	logger.Infof("user %s deleted successfully", u.Name)
@@ -302,4 +306,23 @@ func ValidateUser(context *clusterd.Context, u *cephv1.CephObjectStoreUser) erro
 		return errors.New("missing store")
 	}
 	return nil
+}
+
+func updateCephObjectStoreUserStatus(name, namespace, status string, context *clusterd.Context) {
+	updatedCephObjectStoreUser, err := context.RookClientset.CephV1().CephObjectStoreUsers(namespace).Get(name, metav1.GetOptions{})
+	if err != nil {
+		logger.Errorf("Unable to update the cephObjectStoreUser %s status %v", updatedCephObjectStoreUser.GetName(), err)
+		return
+	}
+	if updatedCephObjectStoreUser.Status == nil {
+		updatedCephObjectStoreUser.Status = &cephv1.Status{}
+	} else if updatedCephObjectStoreUser.Status.Phase == status {
+		return
+	}
+	updatedCephObjectStoreUser.Status.Phase = status
+	_, err = context.RookClientset.CephV1().CephObjectStoreUsers(updatedCephObjectStoreUser.Namespace).Update(updatedCephObjectStoreUser)
+	if err != nil {
+		logger.Errorf("Unable to update the cephObjectStoreUser %s status %v", updatedCephObjectStoreUser.GetName(), err)
+		return
+	}
 }

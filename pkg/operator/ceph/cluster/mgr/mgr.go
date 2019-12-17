@@ -183,7 +183,7 @@ func (c *Cluster) Start() error {
 			if c.isUpgrade {
 				currentCephVersion, err := client.LeastUptodateDaemonVersion(c.context, c.clusterInfo.Name, daemon)
 				if err != nil {
-					logger.Warningf("failed to retrieve current ceph %s version. %+v", daemon, err)
+					logger.Warningf("failed to retrieve current ceph %q version. %v", daemon, err)
 					logger.Debug("could not detect ceph version during update, this is likely an initial bootstrap, proceeding with c.clusterInfo.CephVersion")
 					cephVersionToUse = c.clusterInfo.CephVersion
 				} else {
@@ -193,20 +193,20 @@ func (c *Cluster) Start() error {
 			}
 
 			if err := updateDeploymentAndWait(c.context, d, c.Namespace, daemon, mgrConfig.DaemonID, cephVersionToUse, c.isUpgrade, c.skipUpgradeChecks); err != nil {
-				logger.Errorf("failed to update mgr deployment %q. %+v", resourceName, err)
+				logger.Errorf("failed to update mgr deployment %q. %v", resourceName, err)
 			}
 		}
 		if existingDeployment, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Get(d.GetName(), metav1.GetOptions{}); err != nil {
-			logger.Warningf("failed to find mgr deployment %s for keyring association: %+v", resourceName, err)
+			logger.Warningf("failed to find mgr deployment %q for keyring association. %v", resourceName, err)
 		} else {
 			if err = c.associateKeyring(keyring, existingDeployment); err != nil {
-				logger.Warningf("failed to associate keyring with mgr deployment %s: %+v", resourceName, err)
+				logger.Warningf("failed to associate keyring with mgr deployment %q. %v", resourceName, err)
 			}
 		}
 	}
 
 	if err := c.configureDashboardService(); err != nil {
-		logger.Errorf("failed to enable dashboard. %+v", err)
+		logger.Errorf("failed to enable dashboard. %v", err)
 	}
 
 	// configure the mgr modules
@@ -229,7 +229,7 @@ func (c *Cluster) Start() error {
 			logger.Infof("starting monitoring deployment")
 			// servicemonitor takes some metadata from the service for easy mapping
 			if err := c.enableServiceMonitor(service); err != nil {
-				logger.Errorf("failed to enable service monitor. %+v", err)
+				logger.Errorf("failed to enable service monitor. %v", err)
 			} else {
 				logger.Infof("servicemonitor enabled")
 			}
@@ -240,7 +240,7 @@ func (c *Cluster) Start() error {
 				namespace = c.Namespace
 			}
 			if err := c.deployPrometheusRule(prometheusRuleName, namespace); err != nil {
-				logger.Errorf("failed to deploy prometheus rule. %+v", err)
+				logger.Errorf("failed to deploy prometheus rule. %v", err)
 			} else {
 				logger.Infof("prometheusRule deployed")
 			}
@@ -274,7 +274,7 @@ func startModuleConfiguration(wg *sync.WaitGroup, description string, configureM
 	go func() {
 		err := configureModules()
 		if err != nil {
-			logger.Errorf("failed modules: %s. %+v", description, err)
+			logger.Errorf("failed modules: %q. %v", description, err)
 		} else {
 			logger.Infof("successful modules: %s", description)
 		}

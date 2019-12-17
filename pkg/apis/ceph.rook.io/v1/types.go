@@ -201,10 +201,10 @@ type CephBlockPool struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 	Spec              PoolSpec `json:"spec"`
+	Status            *Status  `json:"status"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
 type CephBlockPoolList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
@@ -227,6 +227,10 @@ type PoolSpec struct {
 
 	// The erasure code settings
 	ErasureCoded ErasureCodedSpec `json:"erasureCoded"`
+}
+
+type Status struct {
+	Phase string `json:"phase,omitempty"`
 }
 
 // ReplicationSpec represents the spec for replication in a pool
@@ -255,6 +259,7 @@ type CephFilesystem struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 	Spec              FilesystemSpec `json:"spec"`
+	Status            *Status        `json:"status"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -309,6 +314,7 @@ type CephObjectStore struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 	Spec              ObjectStoreSpec `json:"spec"`
+	Status            *Status         `json:"status"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -342,6 +348,7 @@ type CephObjectStoreUser struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 	Spec              ObjectStoreUserSpec `json:"spec"`
+	Status            *Status             `json:"status"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -397,6 +404,7 @@ type CephNFS struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 	Spec              NFSGaneshaSpec `json:"spec"`
+	Status            *Status        `json:"status"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

@@ -198,6 +198,10 @@ func (c *Cluster) makeMonPod(monConfig *monConfig) *v1.Pod {
 	if c.Network.IsHost() {
 		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
+	// Replace default unreachable node toleration
+	if c.spec.Mon.VolumeClaimTemplate != nil {
+		k8sutil.AddUnreachableNodeToleration(&podSpec)
+	}
 
 	pod := &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{

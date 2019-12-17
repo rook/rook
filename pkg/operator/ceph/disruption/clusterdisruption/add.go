@@ -67,7 +67,7 @@ func Add(mgr manager.Manager, context *controllerconfig.Context) error {
 			// The name will be populated in the reconcile
 			namespace := obj.Meta.GetNamespace()
 			if len(namespace) == 0 {
-				logger.Errorf("enqueByNamespace recieved an obj without a namespace: %+v", obj)
+				logger.Errorf("enqueByNamespace received an obj without a namespace. %+v", obj)
 				return []reconcile.Request{}
 			}
 			req := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace}}
@@ -89,7 +89,7 @@ func Add(mgr manager.Manager, context *controllerconfig.Context) error {
 				_, ok := obj.Object.(*policyv1beta1.PodDisruptionBudget)
 				if !ok {
 					// not a pdb, returning empty
-					logger.Errorf("PDB handler recieved non-PDB")
+					logger.Errorf("PDB handler received non-PDB")
 					return []reconcile.Request{}
 				}
 				labels := obj.Meta.GetLabels()
@@ -119,7 +119,7 @@ func Add(mgr manager.Manager, context *controllerconfig.Context) error {
 				_, ok := obj.Object.(*appsv1.Deployment)
 				if !ok {
 					// not a Deployment, returning empty
-					logger.Errorf("Deployment handler recieved non-Deployment")
+					logger.Errorf("deployment handler received non-Deployment")
 					return []reconcile.Request{}
 				}
 

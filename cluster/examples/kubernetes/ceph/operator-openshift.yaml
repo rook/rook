@@ -235,6 +235,19 @@ spec:
         # Enable deployment of snapshotter container in ceph-csi provisioner
         - name: CSI_ENABLE_SNAPSHOTTER
           value: "true"
+        # Enable Ceph Kernel clients on kernel < 4.17 which support quotas for Cephfs
+        # If you disable the kernel client, your application may be disrupted during upgrade.
+        # See the upgrade guide: https://rook.io/docs/rook/v1.2/ceph-upgrade.html
+        - name: CSI_FORCE_CEPHFS_KERNEL_CLIENT
+          value: "true"
+        # CSI CephFS plugin daemonset update strategy, supported values are OnDelete and RollingUpdate.
+        # Default value is RollingUpdate.
+        #- name: CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY
+        #  value: "OnDelete"
+        # CSI Rbd plugin daemonset update strategy, supported values are OnDelete and RollingUpdate.
+        # Default value is RollingUpdate.
+        #- name: CSI_RBD_PLUGIN_UPDATE_STRATEGY
+        #  value: "OnDelete"
         # kubelet directory path, if kubelet configured to use other than /var/lib/kubelet path.
         #- name: ROOK_CSI_KUBELET_DIR_PATH
         #  value: "/var/lib/kubelet"
@@ -276,6 +289,21 @@ spec:
         #  value: "9080"
         - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
           value: "true"
+
+        # Time to wait until the node controller will move Rook pods to other
+        # nodes after detecting an unreachable node.
+        # Pods affected by this setting are:
+        # mgr, rbd, mds, rgw, nfs, PVC based mons and osds, and ceph toolbox
+        # The value used in this variable replaces the default value of 300 secs
+        # added automatically by k8s as Toleration for
+        # <node.kubernetes.io/unreachable>
+        # The total amount of time to reschedule Rook pods in healthy nodes
+        # before detecting a <not ready node> condition will be the sum of:
+        #  --> node-monitor-grace-period: 40 seconds (k8s kube-controller-manager flag)
+        #  --> ROOK_UNREACHABLE_NODE_TOLERATION_SECONDS: 5 seconds
+        - name: ROOK_UNREACHABLE_NODE_TOLERATION_SECONDS
+          value: "5"
+
         # The name of the node to pass with the downward API
         - name: NODE_NAME
           valueFrom:

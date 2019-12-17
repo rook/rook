@@ -157,7 +157,7 @@ func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string
 	if id, ok := cm.Data[MaxMonIDKey]; ok {
 		maxMonID, err = strconv.Atoi(id)
 		if err != nil {
-			logger.Errorf("invalid max mon id %s. %+v", id, err)
+			logger.Errorf("invalid max mon id %q. %v", id, err)
 		}
 	}
 
@@ -171,7 +171,7 @@ func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string
 
 	err = json.Unmarshal([]byte(cm.Data[MappingKey]), &monMapping)
 	if err != nil {
-		logger.Errorf("invalid JSON in mon mapping. %+v", err)
+		logger.Errorf("invalid JSON in mon mapping. %v", err)
 	}
 
 	logger.Infof("loaded: maxMonID=%d, mons=%+v, mapping=%+v", maxMonID, monEndpointMap, monMapping)

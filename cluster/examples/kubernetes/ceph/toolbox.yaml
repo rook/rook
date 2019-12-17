@@ -42,3 +42,8 @@ spec:
               path: mon-endpoints
         - name: ceph-config
           emptyDir: {}
+      tolerations:
+        - key: "node.kubernetes.io/unreachable"
+          operator: "Exists"
+          effect: "NoExecute"
+          tolerationSeconds: 5

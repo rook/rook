@@ -142,7 +142,7 @@ func GenerateConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoo
 
 	// create the config directory
 	if err := os.MkdirAll(pathRoot, 0744); err != nil {
-		logger.Warningf("failed to create config directory at %s: %+v", pathRoot, err)
+		logger.Warningf("failed to create config directory at %q. %v", pathRoot, err)
 	}
 
 	configFile, err := createGlobalConfigFileSection(context, cluster, globalConfig)

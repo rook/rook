@@ -7,6 +7,8 @@ spec:
   selector:
     matchLabels:
       app: csi-cephfsplugin
+  updateStrategy:
+    type: {{ .CephFSPluginUpdateStrategy }}
   template:
     metadata:
       labels:
@@ -57,6 +59,7 @@ spec:
             - "--mountcachedir=/mount-cache-dir"
             - "--pidlimit=-1"
             - "--metricsport={{ .CephFSGRPCMetricsPort }}"
+            - "--forcecephkernelclient={{ .ForceCephFSKernelClient }}"
             - "--metricspath=/metrics"
             - "--enablegrpcmetrics={{ .EnableCSIGRPCMetrics }}"
           env:

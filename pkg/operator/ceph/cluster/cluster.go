@@ -153,7 +153,7 @@ func (c *cluster) validateCephVersion(version *cephver.CephVersion) error {
 		// Write connection info (ceph config file and keyring) for ceph commands
 		err = mon.WriteConnectionConfig(c.context, clusterInfo)
 		if err != nil {
-			logger.Errorf("failed to write config. Attempting to continue. %+v", err)
+			logger.Errorf("failed to write config. attempting to continue. %v", err)
 		}
 	}
 
@@ -180,14 +180,14 @@ func (c *cluster) validateCephVersion(version *cephver.CephVersion) error {
 	// Get cluster running versions
 	versions, err := client.GetAllCephDaemonVersions(c.context, c.Namespace)
 	if err != nil {
-		logger.Errorf("failed to get ceph daemons versions. %+v", err)
+		logger.Errorf("failed to get ceph daemons versions. %v", err)
 		return nil
 	}
 
 	runningVersions := *versions
 	differentImages, err := diffImageSpecAndClusterRunningVersion(*version, runningVersions)
 	if err != nil {
-		logger.Errorf("failed to determine if we should upgrade or not. %+v", err)
+		logger.Errorf("failed to determine if we should upgrade or not. %v", err)
 		// we shouldn't block the orchestration if we can't determine the version of the image spec, we proceed anyway in best effort
 		// we won't be able to check if there is an update or not and what to do, so we don't check the cluster status either
 		// This will happen if someone uses ceph/daemon:latest-master for instance
@@ -225,7 +225,7 @@ func (c *cluster) createInstance(rookImage string, cephVersion cephver.CephVersi
 	// while no other goroutine is already running a cluster update
 	for c.checkSetOrchestrationStatus() == true {
 		if err != nil {
-			logger.Errorf("There was an orchestration error, but there is another orchestration pending; proceeding with next orchestration run (which may succeed). %+v", err)
+			logger.Errorf("There was an orchestration error, but there is another orchestration pending; proceeding with next orchestration run (which may succeed). %v", err)
 		}
 		// Use a DeepCopy of the spec to avoid using an inconsistent data-set
 		spec := c.Spec.DeepCopy()
@@ -397,7 +397,7 @@ func diffImageSpecAndClusterRunningVersion(imageSpecVersion cephver.CephVersion,
 		for v := range runningVersions.Overall {
 			version, err := cephver.ExtractCephVersion(v)
 			if err != nil {
-				logger.Errorf("failed to extract ceph version. %+v", err)
+				logger.Errorf("failed to extract ceph version. %v", err)
 				return false, err
 			}
 			clusterRunningVersion := *version

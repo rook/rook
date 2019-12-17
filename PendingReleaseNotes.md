@@ -25,6 +25,7 @@
   - nfs: [samples](Documentation/ceph-nfs-crd.md#samples)
 - When the operator is upgraded, the mgr and OSDs (not running on PVC) won't be restarted if the Rook binary version changes
 - Rook is now able to create and manage Ceph clients [client crd](Documentation/ceph-client-crd.html).
+- The `Status.Phase` property has been introduced for Rook-Ceph CRDs. The current possible values of status are `Processing`, `Ready` and `Failed`. If the operator is performing any task regarding a Ceph related CR, its status will be reflected as `Processing`. The Status will be changed to `Failed` if the operator fails at some task related to the CR and will change to `Ready` once the Rook-Ceph operator finishes all the tasks related to the CR.
 - OSDs:
   - Rook will no longer automatically remove OSDs if nodes are removed from the cluster CR to avoid the risk of destroying OSDs unintentionally.
 To remove OSDs manually, see the new doc on [OSD Management](Documentation/ceph-osd-mgmt.md)
@@ -39,8 +40,11 @@ To remove OSDs manually, see the new doc on [OSD Management](Documentation/ceph-
       - New OSDs created in directories are always `Filestore` type
       - New OSDs created on disks are always `Bluestore` type
     - Preexisting disks provisioned as `Filestore` OSDs will remain as `Filestore` OSDs
+  - When running on PVC, the OSD can be on a slow device class, Rook can adapt to that by tuning the OSD. This can be enabled by the CR setting `tuneSlowDeviceClass`
 - RGWs:
   - Ceph Object Gateway are automatically configured to not run on the same host if hostNetwork is activated
+- New CR property available in the Operator: `ROOK_UNREACHABLE_NODE_TOLERATION_SECONDS` (5 seconds by default). Represents the time to wait until the node controller will move Rook pods to other nodes after detecting an unreachable node. Pods affected by this setting are: mgr, rbd, mds, rgw, nfs, PVC based mons and osds, and ceph toolbox. The value used in this variable replaces the default value of 300 seconds added automatically by k8s as Pod Toleration for `node.kubernetes.io/unreachable`.
+Now the total amount of time to reschedule Rook pods in healthy nodes before detecting a `not ready node` condition will be the sum of `node-monitor-grace-period` (k8s kube-controller-manager flag, 40 seconds by default) and `ROOK_UNREACHABLE_NODE_TOLERATION_SECONDS` (5 seconds by default)
 
 ### EdgeFS
 
@@ -52,10 +56,10 @@ To remove OSDs manually, see the new doc on [OSD Management](Documentation/ceph-
 
 ### YugabyteDB
 
-
 ## Breaking Changes
 
 ### Ceph
+
 - The `topology` setting has been removed from the CephCluster CR. To configure the OSD topology, node labels must be applied.
 See the [OSD topology topic](ceph-cluster-crd.md#osd-topology). This setting only affects OSDs when they are first created, thus OSDs will not be impacted during upgrade.
 The topology settings only apply to bluestore OSDs on raw devices. The topology labels are not applied to directory-based OSDs.

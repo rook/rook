@@ -65,6 +65,7 @@ spec:
             - "--metadatastorage=k8s_configmap"
             - "--pidlimit=-1"
             - "--metricsport={{ .CephFSGRPCMetricsPort }}"
+            - "--forcecephkernelclient={{ .ForceCephFSKernelClient }}"
             - "--metricspath=/metrics"
             - "--enablegrpcmetrics={{ .EnableCSIGRPCMetrics }}"
           env:

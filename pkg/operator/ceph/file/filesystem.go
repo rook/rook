@@ -88,7 +88,7 @@ func createFilesystem(
 	// set the number of active mds instances
 	if fs.Spec.MetadataServer.ActiveCount > 1 {
 		if err = client.SetNumMDSRanks(context, clusterInfo.CephVersion, fs.Namespace, fs.Name, fs.Spec.MetadataServer.ActiveCount); err != nil {
-			logger.Warningf("failed setting active mds count to %d. %+v", fs.Spec.MetadataServer.ActiveCount, err)
+			logger.Warningf("failed setting active mds count to %d. %v", fs.Spec.MetadataServer.ActiveCount, err)
 		}
 	}
 
@@ -177,7 +177,7 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, cephVersion c
 				fmt.Sprintf("failed to set num mds ranks (max_mds) to %d for filesystem %s, still continuing. ", f.activeMDSCount, f.Name) +
 					"this error is not critical, but mdses may not be as failure tolerant as desired. " +
 					fmt.Sprintf("USER should verify that the number of active mdses is %d with 'ceph fs get %s'", f.activeMDSCount, f.Name) +
-					fmt.Sprintf(": %+v", err),
+					fmt.Sprintf(". %v", err),
 			)
 		}
 		return nil
@@ -228,7 +228,7 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, cephVersion c
 			if pool.Type == model.ErasureCoded {
 				// An erasure coded data pool used for a filesystem must allow overwrites
 				if err := client.SetPoolProperty(context, clusterName, pool.Name, "allow_ec_overwrites", "true"); err != nil {
-					logger.Warningf("failed to set ec pool property: %+v", err)
+					logger.Warningf("failed to set ec pool property. %v", err)
 				}
 			}
 		}

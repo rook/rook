@@ -77,15 +77,16 @@ type childController interface {
 	ParentClusterChanged(cluster edgefsv1.ClusterSpec)
 }
 
-func (c *cluster) createInstance(rookImage string, isClusterUpdate bool) error {
+// createInstance returns done [true - no need to polling status, false continue polling]
+func (c *cluster) createInstance(rookImage string, isClusterUpdate bool) (bool, error) {
 
 	logger.Debugf("Cluster [%s] spec: %+v", c.Namespace, c.Spec)
-	//
+
 	// Validate Cluster CRD
 	//
 	if err := c.validateClusterSpec(); err != nil {
 		logger.Errorf("Invalid cluster [%s] spec. Error: %+v", c.Namespace, err)
-		return err
+		return false, err
 	}
 	// Create a configmap for overriding edgefs config settings
 	// These settings should only be modified by a user after they are initialized
@@ -105,17 +106,35 @@ func (c *cluster) createInstance(rookImage string, isClusterUpdate bool) error {
 			// Cluster already exists, do not do anything
 			if !isClusterUpdate {
 				logger.Infof("Cluster [%s] already exists. Skipping creation...", c.Namespace)
-				return nil
+				return true, nil
 			}
 			// in case of update just skip checking
 		} else {
-			return fmt.Errorf("Failed to create override configmap %s. %+v", c.Namespace, err)
+			return true, fmt.Errorf("Failed to create override configmap %s. %+v", c.Namespace, err)
 		}
 	}
 
+	// copy original Cluster nodes spec. c.getClusterNodes mutates available nodes specification
+	originalSpecNodes := c.Spec.Storage.Nodes
 	clusterNodes, err := c.getClusterNodes()
 	if err != nil {
-		return fmt.Errorf("Failed to get nodes for cluster [%s]. Error: %s", c.Namespace, err)
+		return true, fmt.Errorf("Failed to get nodes for cluster [%s]. Error: %s", c.Namespace, err)
+	}
+
+	// check Spec.Storage.Nodes for availability, if not return error and stop deployment/update
+	for _, specNode := range originalSpecNodes {
+		isSpecNodeValid := false
+		specNodeName := specNode.Name
+		for _, validNode := range clusterNodes {
+			if specNodeName == validNode.Name {
+				isSpecNodeValid = true
+				break
+			}
+		}
+
+		if !isSpecNodeValid {
+			return true, fmt.Errorf("Node '%s' is NOT valid. Check node status.", specNodeName)
+		}
 	}
 
 	dro := ParseDevicesResurrectMode(c.Spec.DevicesResurrectMode)
@@ -124,15 +143,15 @@ func (c *cluster) createInstance(rookImage string, isClusterUpdate bool) error {
 	// Retrive existing cluster config from Kubernetes ConfigMap
 	existingConfig, err := c.retrieveDeploymentConfig()
 	if err != nil {
-		return fmt.Errorf("Failed to retrive DeploymentConfig for cluster [%s]. Error: %s", c.Namespace, err)
+		return true, fmt.Errorf("Failed to retrive DeploymentConfig for cluster [%s]. Error: %s", c.Namespace, err)
 	}
 
 	clusterReconfiguration, err := c.createClusterReconfigurationSpec(existingConfig, clusterNodes, dro)
 	if err != nil {
 		if isClusterUpdate {
-			return fmt.Errorf("Failed to update [%s] EdgeFS cluster configuration. Error: %s", c.Namespace, err)
+			return true, fmt.Errorf("Failed to update [%s] EdgeFS cluster configuration. Error: %s", c.Namespace, err)
 		} else {
-			return fmt.Errorf("Failed to create [%s] EdgeFS cluster configuration. Error: %s", c.Namespace, err)
+			return true, fmt.Errorf("Failed to create [%s] EdgeFS cluster configuration. Error: %s", c.Namespace, err)
 		}
 	}
 
@@ -154,7 +173,7 @@ func (c *cluster) createInstance(rookImage string, isClusterUpdate bool) error {
 
 	if err := c.createClusterConfigMap(clusterReconfiguration.DeploymentConfig, dro.NeedToResurrect); err != nil {
 		logger.Errorf("Failed to create/update Edgefs [%s] cluster configuration: %+v", c.Namespace, err)
-		return err
+		return true, err
 	}
 
 	//
@@ -173,7 +192,7 @@ func (c *cluster) createInstance(rookImage string, isClusterUpdate bool) error {
 
 	if err := c.createClusterConfigMap(clusterReconfiguration.DeploymentConfig, dro.NeedToResurrect); err != nil {
 		logger.Errorf("Failed to create/update [%s] Edgefs cluster configuration: %+v", c.Namespace, err)
-		return err
+		return true, err
 	}
 
 	//
@@ -190,7 +209,7 @@ func (c *cluster) createInstance(rookImage string, isClusterUpdate bool) error {
 
 		err = c.targets.Start(rookImage, clusterNodes, dro)
 		if err != nil {
-			return fmt.Errorf("Failed to start the targets of [%s] cluster. %+v", c.Namespace, err)
+			return false, fmt.Errorf("Failed to start the targets of [%s] cluster. %+v", c.Namespace, err)
 		}
 
 	}
@@ -203,7 +222,7 @@ func (c *cluster) createInstance(rookImage string, isClusterUpdate bool) error {
 
 	err = c.mgrs.Start(rookImage)
 	if err != nil {
-		return fmt.Errorf("failed to start the [%s] edgefs mgr. %+v", c.Namespace, err)
+		return false, fmt.Errorf("failed to start the [%s] edgefs mgr. %+v", c.Namespace, err)
 	}
 
 	logger.Infof("Done creating [%s] Edgefs cluster instance", c.Namespace)
@@ -213,7 +232,7 @@ func (c *cluster) createInstance(rookImage string, isClusterUpdate bool) error {
 		child.ParentClusterChanged(c.Spec)
 	}
 
-	return nil
+	return true, nil
 }
 
 func (c *cluster) prepareHostNodes(rookImage string, deploymentConfig edgefsv1.ClusterDeploymentConfig) error {

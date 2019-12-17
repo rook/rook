@@ -64,16 +64,6 @@ master branch are subject to changes and incompatibilities that will not be supp
 official releases. Builds from the master branch can have functionality changed and even removed at
 any time without compatibility support and without prior notice.
 
-**Users are required to upgrade Ceph to Mimic (v13.2.4 or newer) or Nautilus (v14.2.x) now.** Rook 1.0
-was the last Rook release which will support Ceph's Luminous (v12.x.x) version. These are the only
-supported major versions of Ceph.
-
-Rook documentation for 1.1 has identified some Ceph configuration options that the user is
-advised to consider regarding PG management for pools. See the topic [here](ceph-configuration.md#default-pg-and-pgp-counts).
-While this is not directly related to the upgrade, it could be beneficial to consider these
-options now. If the user determines that these configuration options apply to them, they will be
-able to set the configuration as documented once the Rook operator has been upgraded.
-
 ## Prerequisites
 
 We will do all our work in the Ceph example manifests directory.
@@ -101,8 +91,6 @@ export ROOK_NAMESPACE="rook-ceph"
 
 In order to successfully upgrade a Rook cluster, the following prerequisites must be met:
 
-* The cluster must be running Ceph Mimic (v13.2.3 or newer) or Nautilus (v14.2.x) before upgrading
-  to Rook 1.1; Ceph Luminous (v12.x.x) is no longer supported.
 * The cluster should be in a healthy state with full functionality.
   Review the [health verification section](#health-verification) in order to verify your cluster is
   in a good starting state.
@@ -237,11 +225,60 @@ time without compatibility support and without prior notice.
 
 Let's get started!
 
-> **IMPORTANT**: Ensure that you are using the latest manifests from the `release-1.2` branch. If you
-> have custom configuration options set in your 1.0 manifests, you will need to also alter those
-> values in the 1.1 manifests.
+### 1. Update the RBAC and CRDs
 
-#### 1. Update the Rook Operator
+First update the Ceph Custom Resource Definitions and the privileges (RBAC) needed by the operator.
+A new `CephClient` CRD is included in v1.2 and the CSI driver privileges changed slightly.
+
+```sh
+kubectl apply -f upgrade-from-v1.1-apply.yaml
+```
+
+### 2. CSI upgrade pre-requisites
+
+In some scenarios there is an issue in the CSI driver that will cause application pods to be
+disconnected from their mounts when the CSI driver is restarted. Since the upgrade would cause the CSI
+driver to restart if it is updated, you need to be aware of whether this affects your applications.
+This issue will happen when using the Ceph `fuse` client or `rbd-nbd`:
+- CephFS: If you are provision volumes for CephFS and have a kernel less than version 4.17,
+The CSI driver will fall back to use the FUSE client.
+- RBD: If you have set the `mounter: rbd-nbd` option in the
+[RBD storage class](https://github.com/rook/rook/blob/release-1.2/cluster/examples/kubernetes/ceph/csi/rbd/storageclass.yaml#L40),
+the NBD mounter will have this issue. This setting is **not** enabled by default.
+
+If you are affected by this issue, you will need to proceed carefully during the upgrade to restart
+your application pods. The first recommended step is to modify the update strategy of the
+CSI driver so that you can control when the CSI driver pods are restarted on each node.
+As seen in the example below, set `CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY` and `CSI_RBD_PLUGIN_UPDATE_STRATEGY`
+values to `OnDelete`.
+
+To avoid this issue in future upgrades, we recommend that you **do not** use the `fuse` client or `rbd-nbd`.
+The `fuse` client can be avoided by setting the following environment variables in the operator now before this upgrade.
+The side effect of this setting is that the PVC size will not be enforced if the CephFS quotas are not supported in your kernel version.
+To enable this option and avoid this upgrade issue in the future, set `CSI_FORCE_CEPHFS_KERNEL_CLIENT` to `true`.
+
+```console
+kubectl -n $ROOK_SYSTEM_NAMESPACE edit deploy rook-ceph-operator
+```
+```yaml
+  # If you set this image at the same time as the env variables, you can skip step 3 of this guide and avoid a second operator restart
+  image: rook/ceph:v1.2.0
+  env:
+    # Change the update strategy for the CephFS driver if your cluster is affected
+    - name: CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY
+      value: "OnDelete"
+    # Change the update strategy for the RBD driver if your cluster is affected
+    - name: CSI_RBD_PLUGIN_UPDATE_STRATEGY
+      value: "OnDelete"
+    # To avoid this upgrade issue in the future for CephFS, force enable the kernel client
+    - name: CSI_FORCE_CEPHFS_KERNEL_CLIENT
+      value: "true"
+```
+
+After the operator and cluster are updated, we will continue with the CSI and application
+pod restarts in Step 5.
+
+### 3. Update the Rook Operator
 
 The largest portion of the upgrade is triggered when the operator's image is updated to `v1.2.x`.
 When the operator is updated, it will proceed to update all of the Ceph daemons.
@@ -251,7 +288,7 @@ When the operator is updated, it will proceed to update all of the Ceph daemons.
 kubectl -n $ROOK_SYSTEM_NAMESPACE set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.2.0
 ```
 
-### 2. Wait for the upgrade to complete
+### 4. Wait for the upgrade to complete
 
 Watch now in amazement as the Ceph mons, mgrs, OSDs, rbd-mirrors, MDSes and RGWs are terminated and
 replaced with updated versions in sequence. The cluster may be offline very briefly as mons update,
@@ -294,20 +331,36 @@ This cluster is finished:
   rook-version=v1.2.0
 ```
 
-### 3. Verify the updated cluster
+### 5. Verify the updated cluster
 
 At this point, your Rook operator should be running version `rook/ceph:v1.2.0`.
 
 Verify the Ceph cluster's health using the [health verification section](#health-verification).
 
-### 4. Update Rook-Ceph custom resource definitions
+### 6. CSI Manual Update (optional)
+
+If you determined in step 1 that you were affected by the CSI driver restart issue that disconnects
+the application pods from their mounts, continue with this section. Otherwise, you can skip to step 7.
+
+Your cluster should now be in a state where Rook has upgraded everything except the CSI driver.
+The CSI driver pods will not be updated until you delete them manually. This allows you to control
+when your application pods will be affected by the CSI driver restart.
+
+For each node:
+- Drain your application pods from the node
+- Delete the CSI driver pods on the node
+  - The pods to delete will be named with a `csi-cephfsplugin` or `csi-rbdplugin` prefix and have a random suffix on each node.
+    However, no need to delete the provisioner pods: `csi-cephfsplugin-provisioner-*` or `csi-rbdplugin-provisioner-*`
+  - The pod deletion causes the pods to be restarted and updated automatically on the node
+
+
+### 7. Update Rook-Ceph custom resource definitions
 
 > **IMPORTANT**: Do not perform this step until ALL existing Rook-Ceph clusters are updated!
 
 After all Rook-Ceph clusters have been updated following the steps above, update the Rook-Ceph
-Custom Resource Definitions. This is important to get the latest schema validations that will
-support running external Ceph clusters and will also help with creating or modifying Rook-Ceph
-deployments in the future.
+Custom Resource Definitions. This will help with creating or modifying Rook-Ceph
+deployments in the future with the updated schema validation.
 
 ```sh
 kubectl apply -f upgrade-from-v1.1-crds.yaml
