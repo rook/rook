@@ -524,6 +524,10 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	if !osdProps.portable {
 		deployment.Spec.Template.Spec.NodeSelector = map[string]string{v1.LabelHostname: osdProps.crushHostname}
 	}
+	// Replace default unreachable node toleration if the osd pod is portable and based in PVC
+	if osdProps.pvc.ClaimName != "" && osdProps.portable {
+		k8sutil.AddUnreachableNodeToleration(&deployment.Spec.Template.Spec)
+	}
 
 	k8sutil.AddRookVersionLabelToDeployment(deployment)
 	c.annotations.ApplyToObjectMeta(&deployment.ObjectMeta)

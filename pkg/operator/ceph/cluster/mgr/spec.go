@@ -42,6 +42,7 @@ const (
 )
 
 func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
+	logger.Debugf("mgrConfig: %+v", mgrConfig)
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   mgrConfig.ResourceName,
@@ -61,6 +62,9 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
 			PriorityClassName:  c.priorityClassName,
 		},
 	}
+
+	// Replace default unreachable node toleration
+	k8sutil.AddUnreachableNodeToleration(&podSpec.Spec)
 
 	// if the fix is needed, then the following init containers are created
 	// which explicitly configure the server_addr Ceph configuration option to

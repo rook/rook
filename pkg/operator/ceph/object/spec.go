@@ -76,6 +76,9 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) v1.PodTemplateSpec 
 		HostNetwork:       c.clusterSpec.Network.IsHost(),
 		PriorityClassName: c.store.Spec.Gateway.PriorityClassName,
 	}
+	// Replace default unreachable node toleration
+	k8sutil.AddUnreachableNodeToleration(&podSpec)
+
 	if c.clusterSpec.Network.IsHost() {
 		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
