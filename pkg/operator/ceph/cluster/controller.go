@@ -607,6 +607,7 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 	// Also we make sure there is actually an upgrade to perform
 	// It's not because the image spec changed that the ceph version did
 	// Someone could use the same Ceph version but with a different base OS content
+	cluster.isUpgrade = false
 	if versionChanged {
 		// we compare against cluster.Info.CephVersion since it received the new spec version earlier
 		// so don't get confused by the name of the function and its arguments
@@ -628,9 +629,9 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 					return
 				}
 			}
-			// If Ceph is healthy let's start the upgrade!
-			cluster.isUpgrade = true
 		}
+		// If Ceph is healthy let's start the upgrade!
+		cluster.isUpgrade = true
 	} else {
 		logger.Infof("ceph daemons running versions are: %+v", runningVersions)
 	}

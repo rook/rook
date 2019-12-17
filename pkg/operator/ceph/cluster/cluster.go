@@ -375,7 +375,7 @@ func (c *cluster) checkSetOrchestrationStatus() bool {
 }
 
 // This function compare the Ceph spec image and the cluster running version
-// It returns false if the image is different and true if identical
+// It returns true if the image is different and false if identical
 func diffImageSpecAndClusterRunningVersion(imageSpecVersion cephver.CephVersion, runningVersions client.CephDaemonsVersions) (bool, error) {
 	numberOfCephVersions := len(runningVersions.Overall)
 	if numberOfCephVersions == 0 {
@@ -399,10 +399,9 @@ func diffImageSpecAndClusterRunningVersion(imageSpecVersion cephver.CephVersion,
 			clusterRunningVersion := *version
 
 			// If this is the same version
-			// We return 'true' so that we restart using the Ceph checks
 			if cephver.IsIdentical(clusterRunningVersion, imageSpecVersion) {
 				logger.Debugf("both cluster and image spec versions are identical, doing nothing %s", imageSpecVersion.String())
-				return true, nil
+				return false, nil
 			}
 
 			if cephver.IsSuperior(imageSpecVersion, clusterRunningVersion) {
