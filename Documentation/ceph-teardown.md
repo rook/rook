@@ -29,7 +29,7 @@ kubectl delete -f ../mysql.yaml
 kubectl delete -n rook-ceph cephblockpool replicapool
 kubectl delete storageclass rook-ceph-block
 kubectl delete -f csi/cephfs/kube-registry.yaml
-kubectl delete storageclass rook-cephfs
+kubectl delete storageclass csi-cephfs
 ```
 
 ## Delete the CephCluster CRD
