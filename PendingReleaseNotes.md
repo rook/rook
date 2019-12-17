@@ -25,6 +25,7 @@
   - nfs: [samples](Documentation/ceph-nfs-crd.md#samples)
 - When the operator is upgraded, the mgr and OSDs (not running on PVC) won't be restarted if the Rook binary version changes
 - Rook is now able to create and manage Ceph clients [client crd](Documentation/ceph-client-crd.html).
+- The `Status.Phase` property has been introduced for Rook-Ceph CRDs. The current possible values of status are `Processing`, `Ready` and `Failed`. If the operator is performing any task regarding a Ceph related CR, its status will be reflected as `Processing`. The Status will be changed to `Failed` if the operator fails at some task related to the CR and will change to `Ready` once the Rook-Ceph operator finishes all the tasks related to the CR.
 - OSDs:
   - Rook will no longer automatically remove OSDs if nodes are removed from the cluster CR to avoid the risk of destroying OSDs unintentionally.
 To remove OSDs manually, see the new doc on [OSD Management](Documentation/ceph-osd-mgmt.md)
