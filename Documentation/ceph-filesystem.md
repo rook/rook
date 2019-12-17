@@ -79,12 +79,6 @@ $ ceph status
 Before Rook can start provisioning storage, a StorageClass needs to be created based on the filesystem. This is needed for Kubernetes to interoperate
 with the CSI driver to create persistent volumes.
 
-> **IMPORTANT**: Do not use CephFS CSI driver, if the kernel is not
-supporting ceph quotas (kernel version <4.17)
-ceph-fuse client will be used as the default mounter. During upgrade you will be hitting a ceph-csi
-[bug](https://github.com/ceph/ceph-csi/issues/703). you need to follow
-[upgrade steps](ceph-upgrade.md#1.-Update-the-Rook-Operator) which requires node draining.
-
 > **NOTE**: This example uses the CSI driver, which is the preferred driver going forward for K8s 1.13 and newer. Examples are found in the [CSI CephFS](https://github.com/rook/rook/tree/{{ branchName }}/cluster/examples/kubernetes/ceph/csi/cephfs) directory. For an example of a volume using the flex driver (required for K8s 1.12 and earlier), see the [Flex Driver](#flex-driver) section below.
 
 Save this storage class definition as `storageclass.yaml`:
@@ -131,6 +125,17 @@ Create the storage class.
 ```console
 kubectl create -f cluster/examples/kubernetes/ceph/csi/cephfs/storageclass.yaml
 ```
+
+## Quotas
+
+> **IMPORTANT**: The CephFS CSI driver uses quotas to enforce the PVC size requested.
+Only newer kernels support CephFS quotas (kernel version of at least 4.17).
+If you require quotas to be enforced and the kernel driver does not support it, you can disable the kernel driver
+and use the FUSE client. This can be done by setting `CSI_FORCE_CEPHFS_KERNEL_CLIENT: false`
+in the operator deployment (`operator.yaml`). However, it is important to know that when
+the FUSE client is enabled, there is an issue that during upgrade the application pods will be
+disconnected from the mount and will need to be restarted. See the [upgrade guide](ceph-upgrade.md)
+for more details.
 
 ## Consume the Shared Filesystem: K8s Registry Sample
 
