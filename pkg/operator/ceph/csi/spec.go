@@ -35,20 +35,22 @@ import (
 )
 
 type Param struct {
-	CSIPluginImage            string
-	RegistrarImage            string
-	ProvisionerImage          string
-	AttacherImage             string
-	SnapshotterImage          string
-	DriverNamePrefix          string
-	EnableSnapshotter         string
-	EnableCSIGRPCMetrics      string
-	KubeletDirPath            string
-	ForceCephFSKernelClient   string
-	CephFSGRPCMetricsPort     uint16
-	CephFSLivenessMetricsPort uint16
-	RBDGRPCMetricsPort        uint16
-	RBDLivenessMetricsPort    uint16
+	CSIPluginImage             string
+	RegistrarImage             string
+	ProvisionerImage           string
+	AttacherImage              string
+	SnapshotterImage           string
+	DriverNamePrefix           string
+	EnableSnapshotter          string
+	EnableCSIGRPCMetrics       string
+	KubeletDirPath             string
+	ForceCephFSKernelClient    string
+	CephFSPluginUpdateStrategy string
+	RBDPluginUpdateStrategy    string
+	CephFSGRPCMetricsPort      uint16
+	CephFSLivenessMetricsPort  uint16
+	RBDGRPCMetricsPort         uint16
+	RBDLivenessMetricsPort     uint16
 }
 
 type templateParam struct {
@@ -222,6 +224,21 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 	if !strings.EqualFold(enableSnap, "false") {
 		tp.EnableSnapshotter = "true"
 	}
+
+	updateStrategy := os.Getenv("CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY")
+	if strings.EqualFold(updateStrategy, "ondelete") {
+		tp.CephFSPluginUpdateStrategy = "OnDelete"
+	} else {
+		tp.CephFSPluginUpdateStrategy = "RollingUpdate"
+	}
+
+	updateStrategy = os.Getenv("CSI_RBD_PLUGIN_UPDATE_STRATEGY")
+	if strings.EqualFold(updateStrategy, "ondelete") {
+		tp.RBDPluginUpdateStrategy = "OnDelete"
+	} else {
+		tp.RBDPluginUpdateStrategy = "RollingUpdate"
+	}
+
 	if ver.Major > KubeMinMajor || (ver.Major == KubeMinMajor && ver.Minor < provDeploymentSuppVersion) {
 		deployProvSTS = true
 	}
