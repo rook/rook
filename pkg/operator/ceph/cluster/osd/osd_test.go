@@ -385,7 +385,8 @@ func TestGetOSDInfo(t *testing.T) {
 		v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false)
 
 	node := "n1"
-	osd1 := OSDInfo{ID: 3, UUID: "osd-uuid", LVPath: "dev/logical-volume-path", DataPath: "/rook/path", CephVolumeInitiated: true}
+	location := "root=default host=myhost zone=myzone"
+	osd1 := OSDInfo{ID: 3, UUID: "osd-uuid", LVPath: "dev/logical-volume-path", DataPath: "/rook/path", CephVolumeInitiated: true, Location: location}
 	osd2 := OSDInfo{ID: 3, UUID: "osd-uuid", LVPath: "", DataPath: "/rook/path", CephVolumeInitiated: true}
 	osdProp := osdProperties{
 		crushHostname: node,
@@ -402,10 +403,10 @@ func TestGetOSDInfo(t *testing.T) {
 	assert.Equal(t, 1, len(osds1))
 	assert.Equal(t, osd1.ID, osds1[0].ID)
 	assert.Equal(t, osd1.LVPath, osds1[0].LVPath)
+	assert.Equal(t, location, osds1[0].Location)
 
 	d2, _ := c.makeDeployment(osdProp, osd2, dataPathMap)
 	osds2, err := getOSDInfo(d2)
 	assert.Equal(t, 0, len(osds2))
 	assert.NotNil(t, err)
-
 }
