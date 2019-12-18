@@ -719,8 +719,13 @@ func getOSDInfo(d *apps.Deployment) ([]OSDInfo, error) {
 		if strings.HasPrefix(a, "--setuser-match-path") {
 			if len(container.Args) >= i+1 {
 				osd.DataPath = container.Args[i+1]
-				break
 			}
+		}
+		locationPrefix := "--crush-location="
+		if strings.HasPrefix(a, locationPrefix) {
+			// Extract the same CRUSH location as originally determined by the OSD prepare pod
+			// by cutting off the prefix: --crush-location=
+			osd.Location = a[len(locationPrefix):]
 		}
 	}
 
