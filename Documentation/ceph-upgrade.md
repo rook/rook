@@ -225,7 +225,7 @@ time without compatibility support and without prior notice.
 
 Let's get started!
 
-### 1. Update the RBAC and CRDs
+## 1. Update the RBAC and CRDs
 
 First update the Ceph Custom Resource Definitions and the privileges (RBAC) needed by the operator.
 A new `CephClient` CRD is included in v1.2 and the CSI driver privileges changed slightly.
@@ -234,7 +234,7 @@ A new `CephClient` CRD is included in v1.2 and the CSI driver privileges changed
 kubectl apply -f upgrade-from-v1.1-apply.yaml
 ```
 
-### 2. CSI upgrade pre-requisites
+## 2. CSI upgrade pre-requisites
 
 In some scenarios there is an issue in the CSI driver that will cause application pods to be
 disconnected from their mounts when the CSI driver is restarted. Since the upgrade would cause the CSI
@@ -278,7 +278,7 @@ kubectl -n $ROOK_SYSTEM_NAMESPACE edit deploy rook-ceph-operator
 After the operator and cluster are updated, we will continue with the CSI and application
 pod restarts in Step 5.
 
-### 3. Update the Rook Operator
+## 3. Update the Rook Operator
 
 The largest portion of the upgrade is triggered when the operator's image is updated to `v1.2.x`.
 When the operator is updated, it will proceed to update all of the Ceph daemons.
@@ -288,7 +288,7 @@ When the operator is updated, it will proceed to update all of the Ceph daemons.
 kubectl -n $ROOK_SYSTEM_NAMESPACE set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.2.0
 ```
 
-### 4. Wait for the upgrade to complete
+## 4. Wait for the upgrade to complete
 
 Watch now in amazement as the Ceph mons, mgrs, OSDs, rbd-mirrors, MDSes and RGWs are terminated and
 replaced with updated versions in sequence. The cluster may be offline very briefly as mons update,
@@ -331,13 +331,13 @@ This cluster is finished:
   rook-version=v1.2.0
 ```
 
-### 5. Verify the updated cluster
+## 5. Verify the updated cluster
 
 At this point, your Rook operator should be running version `rook/ceph:v1.2.0`.
 
 Verify the Ceph cluster's health using the [health verification section](#health-verification).
 
-### 6. CSI Manual Update (optional)
+## 6. CSI Manual Update (optional)
 
 If you determined in step 1 that you were affected by the CSI driver restart issue that disconnects
 the application pods from their mounts, continue with this section. Otherwise, you can skip to step 7.
@@ -354,7 +354,7 @@ For each node:
   - The pod deletion causes the pods to be restarted and updated automatically on the node
 
 
-### 7. Update Rook-Ceph custom resource definitions
+## 7. Update Rook-Ceph custom resource definitions
 
 > **IMPORTANT**: Do not perform this step until ALL existing Rook-Ceph clusters are updated!
 
