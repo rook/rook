@@ -74,7 +74,7 @@ The majority of the upgrade will be handled by the Rook operator. Begin the upgr
 EdgeFS image field in the cluster CRD (`spec:edgefsImageName`).
 
 ```console
-NEW_EDGEFS_IMAGE='edgefs/edgefs:1.2.64'
+NEW_EDGEFS_IMAGE='edgefs/edgefs:latest'
 kubectl -n $CLUSTER_NAME patch Cluster $CLUSTER_NAME --type=merge \
   -p "{\"spec\": {\"edgefsImageName\": \"$NEW_EDGEFS_IMAGE\"}}"
 ```

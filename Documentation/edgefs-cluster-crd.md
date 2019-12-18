@@ -19,18 +19,11 @@ metadata:
   name: rook-edgefs
   namespace: rook-edgefs
 spec:
-  edgefsImageName: edgefs/edgefs:1.2.64
+  edgefsImageName: edgefs/edgefs:latest
   serviceAccount: rook-edgefs-cluster
   dataDirHostPath: /data
   storage:
-    useAllNodes: true
-  # A key/value list of annotations
-  annotations:
-  #  all:
-  #    key: value
-  #  prepare:
-  #  mgr:
-  #  target:
+    useAllNodes: true   # use only for test deployments
 ```
 
 or if you have raw block devices provisioned, it can dynamically detect, format and utilize all raw devices on all nodes with simple CRD as below:
@@ -42,19 +35,61 @@ metadata:
   name: rook-edgefs
   namespace: rook-edgefs
 spec:
-  edgefsImageName: edgefs/edgefs:1.2.64
+  edgefsImageName: edgefs/edgefs:latest
   serviceAccount: rook-edgefs-cluster
   dataDirHostPath: /data
   storage:
-    useAllNodes: true
+    useAllNodes: true   # use only for test deployments
     useAllDevices: true
-  # A key/value list of annotations
-  annotations:
-  #  all:
-  #    key: value
-  #  prepare:
-  #  mgr:
-  #  target:
+```
+
+or if you want to just install it on **single node1, single SSD device /dev/sdb**, use this sample:
+
+```yaml
+apiVersion: edgefs.rook.io/v1
+kind: Cluster
+metadata:
+  name: rook-edgefs
+  namespace: rook-edgefs
+spec:
+  edgefsImageName: edgefs/edgefs:latest
+  serviceAccount: rook-edgefs-cluster
+  dataDirHostPath: /data
+  sysRepCount: 1
+  failureDomain: "device"
+  storage:
+    useAllNodes: false
+    useAllDevices: false
+    config:
+      useAllSSD: "true"
+      useMetadataOffload: "false"
+    nodes:
+    - name: "node1"
+      devices:
+      - name: "sdb"
+```
+
+or if you want to just install it on **single node1, single directory /media**, use this sample:
+
+```yaml
+apiVersion: edgefs.rook.io/v1
+kind: Cluster
+metadata:
+  name: rook-edgefs
+  namespace: rook-edgefs
+spec:
+  edgefsImageName: edgefs/edgefs:latest
+  serviceAccount: rook-edgefs-cluster
+  dataDirHostPath: /data
+  sysRepCount: 1
+  failureDomain: "device"
+  storage:
+    useAllNodes: false
+    useAllDevices: false
+    directories:
+    - path: /media   # global for all nodes, cannot be per-node!
+    nodes:
+    - name: "node1"
 ```
 
 In addition to the CRD, you will also need to create a namespace, role, and role binding as seen in the [common cluster resources](#common-cluster-resources) below.
@@ -67,7 +102,7 @@ Settings can be specified at the global level to apply to the cluster as a whole
 
 - `name`: The name that will be used internally for the EdgeFS cluster. Most commonly the name is the same as the namespace since multiple clusters are not supported in the same namespace.
 - `namespace`: The Kubernetes namespace that will be created for the Rook cluster. The services, pods, and other resources created by the operator will be added to this namespace. The common scenario is to create a single Rook cluster. If multiple clusters are created, they must not have conflicting devices or host paths.
-- `edgefsImageName`: EdgeFS image to use. If not specified then `edgefs/edgefs:latest` is used. We recommend to specify particular image version for production use, for example `edgefs/edgefs:1.2.64`.
+- `edgefsImageName`: EdgeFS image to use. If not specified then `edgefs/edgefs:latest` is used. We recommend to specify particular image version for production use, for example `edgefs/edgefs:1.2.124`.
 
 ### Cluster Settings
 
@@ -239,7 +274,7 @@ metadata:
   name: rook-edgefs
   namespace: rook-edgefs
 spec:
-  edgefsImageName: edgefs/edgefs:1.2.64
+  edgefsImageName: edgefs/edgefs:latest
   dataDirHostPath: /var/lib/rook
   serviceAccount: rook-edgefs-cluster
   # cluster level storage configuration and selection
@@ -264,7 +299,7 @@ metadata:
   name: rook-edgefs
   namespace: rook-edgefs
 spec:
-  edgefsImageName: edgefs/edgefs:1.2.64
+  edgefsImageName: edgefs/edgefs:latest
   dataDirHostPath: /var/lib/rook
   serviceAccount: rook-edgefs-cluster
   # cluster level storage configuration and selection
@@ -409,7 +444,7 @@ metadata:
   name: rook-edgefs
   namespace: rook-edgefs
 spec:
-  edgefsImageName: edgefs/edgefs:1.2.64
+  edgefsImageName: edgefs/edgefs:latest
   dataDirHostPath: /var/lib/rook
   serviceAccount: rook-edgefs-cluster
   placement:
@@ -445,7 +480,7 @@ metadata:
   name: rook-edgefs
   namespace: rook-edgefs
 spec:
-  edgefsImageName: edgefs/edgefs:1.2.64
+  edgefsImageName: edgefs/edgefs:latest
   dataDirHostPath: /var/lib/rook
   serviceAccount: rook-edgefs-cluster
   # cluster level resource requests/limits configuration
@@ -474,7 +509,7 @@ metadata:
   name: rook-edgefs
   namespace: rook-edgefs
 spec:
-  edgefsImageName: edgefs/edgefs:1.2.64
+  edgefsImageName: edgefs/edgefs:latest
   dataDirHostPath: /var/lib/rook
   serviceAccount: rook-edgefs-cluster
   network:
