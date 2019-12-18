@@ -9,6 +9,19 @@ indent: true
 These examples show how to perform advanced configuration tasks on your Rook
 storage cluster.
 
+* [Prerequisites](#prerequisites)
+* [Use custom Ceph user and secret for mounting](#use-custom-ceph-user-and-secret-for-mounting)
+* [Log Collection](#log-collection)
+* [OSD Information](#osd-information)
+* [Separate Storage Groups](#separate-storage-groups)
+* [Configuring Pools](#configuring-pools)
+* [Custom ceph.conf Settings](#custom-cephconf-settings)
+* [OSD CRUSH Settings](#osd-crush-settings)
+* [OSD Dedicated Network](#osd-dedicated-network)
+* [Phantom OSD Removal](#phantom-osd-removal)
+* [Change Failure Domain](#change-failure-domain)
+* [Monitor placement](#monitor-placement)
+
 ## Prerequisites
 
 Most of the examples make use of the `ceph` client command.  A quick way to use
@@ -37,6 +50,7 @@ kubectl create secret generic ceph-user1-secret --from-literal=key=YOUR_CEPH_KEY
 ```
 
 > **NOTE**: This secret with the same name must be created in each namespace where the StorageClass will be used.
+
 In addition to this Secret you must create a RoleBinding to allow the Rook Ceph agent to get the secret from each namespace.
 The RoleBinding is optional if you are using a ClusterRoleBinding for the Rook Ceph agent secret access.
 A ClusterRole which contains the permissions which are needed and used for the Bindings are shown as an example after the next step.
