@@ -1,15 +1,17 @@
 ---
-title: EdgeFS Geo-Transparent Storage
+title: EdgeFS Data Fabric
 weight: 550
 indent: true
 ---
 
 {% include_relative branch.liquid %}
 
-# EdgeFS Geo-Transparent Storage Quickstart
+# EdgeFS Data Fabric Quickstart
+
+EdgeFS Data Fabric virtualzing common storage protocols and enables multi-cluster, multi-region data flow topologies.
 
 This guide will walk you through the basic setup of a EdgeFS cluster namespaces and enable you to consume S3 object, NFS file access, and iSCSI block storage
-from other pods running in your cluster, in Geo-Transparent and distributed ways.
+from other pods running in your cluster, in decentralized ways.
 
 ## Minimum Version
 
