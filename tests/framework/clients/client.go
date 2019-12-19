@@ -18,6 +18,7 @@ package clients
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/tests/framework/installer"
@@ -38,9 +39,9 @@ func CreateClientOperation(k8sh *utils.K8sHelper, manifests installer.CephManife
 }
 
 // Create creates a client in Rook
-func (c *ClientOperation) Create(name, namespace string) error {
+func (c *ClientOperation) Create(name, namespace string, caps map[string]string) error {
 	logger.Infof("creating the client via CRD")
-	if err := c.k8sh.ResourceOperation("apply", c.manifests.GetClient(namespace, name)); err != nil {
+	if err := c.k8sh.ResourceOperation("apply", c.manifests.GetClient(namespace, name, caps)); err != nil {
 		return err
 	}
 	return nil
@@ -70,13 +71,22 @@ func (c *ClientOperation) Get(namespace string, clientName string) (key string, 
 }
 
 // Update updates provided user capabilities
-func (c *ClientOperation) Update(namespace string, clientName string) (caps map[string]string, error error) {
+func (c *ClientOperation) Update(namespace string, clientName string, caps map[string]string) (updatedcaps map[string]string, error error) {
 	context := c.k8sh.MakeContext()
 	logger.Infof("updating the client via CRD")
-	if err := c.k8sh.ResourceOperation("apply", c.manifests.UpdateClient(namespace, clientName)); err != nil {
+	if err := c.k8sh.ResourceOperation("apply", c.manifests.GetClient(namespace, clientName, caps)); err != nil {
 		return nil, err
 	}
 
-	caps, _ = client.AuthGetCaps(context, namespace, "client."+clientName)
-	return caps, nil
+	for i := 0; i < 30; i++ {
+		updatedcaps, _ = client.AuthGetCaps(context, namespace, "client."+clientName)
+		if caps["mon"] == updatedcaps["mon"] {
+			logger.Infof("Finished updating the client via CRD")
+			return updatedcaps, nil
+		}
+		logger.Info("Waiting for client CRD to finish updating caps")
+		time.Sleep(2 * time.Second)
+	}
+
+	return nil, fmt.Errorf("Unable to update client")
 }

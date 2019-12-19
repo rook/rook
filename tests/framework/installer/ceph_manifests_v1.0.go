@@ -1416,10 +1416,6 @@ func (m *CephManifestsV1_0) GetObc(claimName string, storageClassName string, ob
 	panic("upgrade test not supported for object bucket claim")
 }
 
-func (m *CephManifestsV1_0) GetClient(claimName string, namespace string) string {
-	panic("upgrade test not supported for client")
-}
-
-func (m *CephManifestsV1_0) UpdateClient(claimName string, namespace string) string {
+func (m *CephManifestsV1_0) GetClient(claimName string, namespace string, caps map[string]string) string {
 	panic("upgrade test not supported for client")
 }

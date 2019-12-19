@@ -19,6 +19,7 @@ package installer
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/google/uuid"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -42,8 +43,7 @@ type CephManifests interface {
 	GetObjectStoreUser(namespace, name string, displayName string, store string) string
 	GetBucketStorageClass(namespace string, storeName string, storageClassName string, reclaimPolicy string, region string) string
 	GetObc(obcName string, storageClassName string, bucketName string, createBucket bool) string
-	GetClient(namespace string, name string) string
-	UpdateClient(namespace string, name string) string
+	GetClient(namespace string, name string, caps map[string]string) string
 }
 
 type ClusterSettings struct {
@@ -1971,7 +1971,12 @@ spec:
 }
 
 //GetClient returns the manifest to create client CRD
-func (m *CephManifestsMaster) GetClient(namespace string, claimName string) string {
+func (m *CephManifestsMaster) GetClient(namespace string, claimName string, caps map[string]string) string {
+	clientCaps := []string{}
+	for name, cap := range caps {
+		str := name + ": " + cap
+		clientCaps = append(clientCaps, str)
+	}
 	return `apiVersion: ceph.rook.io/v1
 kind: CephClient
 metadata:
@@ -1979,21 +1984,5 @@ metadata:
   namespace: ` + namespace + `
 spec:
   caps:
-    mon: allow rwx
-    mgr: allow rwx
-    osd: allow rwx`
-}
-
-//UpdateClient returns the manifest to create client CRD
-func (m *CephManifestsMaster) UpdateClient(namespace string, claimName string) string {
-	return `apiVersion: ceph.rook.io/v1
-kind: CephClient
-metadata:
-  name: ` + claimName + `
-  namespace: ` + namespace + `
-spec:
-  caps:
-    mon: allow r
-    mgr: allow rw
-    osd: allow *`
+    ` + strings.Join(clientCaps, "\n    ")
 }
