@@ -88,7 +88,7 @@ const (
 
 	// canary pod scheduling uses retry loops when cleaning up previous canary
 	// pods and waiting for kubernetes scheduling to complete.
-	canaryRetries           = 180
+	canaryRetries           = 30
 	canaryRetryDelaySeconds = 5
 )
 
@@ -410,7 +410,7 @@ func realScheduleMonitor(c *Cluster, mon *monConfig) (SchedulingResult, error) {
 	}
 
 	// build the canary deployment.
-	d := c.makeDeployment(mon)
+	d := c.makeDeployment(mon, true)
 	d.Name += "-canary"
 	d.Spec.Template.ObjectMeta.Name += "-canary"
 
@@ -437,7 +437,7 @@ func realScheduleMonitor(c *Cluster, mon *monConfig) (SchedulingResult, error) {
 	} else {
 		// the pvc that is created here won't be deleted: it will be reattached
 		// to the real monitor deployment.
-		pvc, err := c.makeDeploymentPVC(mon)
+		pvc, err := c.makeDeploymentPVC(mon, true)
 		if err != nil {
 			return result, errors.Wrapf(err, "sched-mon: failed to make monitor %s pvc", d.Name)
 		}
@@ -551,33 +551,41 @@ func (c *Cluster) initMonIPs(mons []*monConfig) error {
 	return nil
 }
 
-func (c *Cluster) assignMons(mons []*monConfig) error {
-	// when monitors are scheduling below by invoking scheduleMonitor() a canary
-	// deployment and optional canary PVC are created. in order for the
-	// anti-affinity rules to be effective, we leave the canary pods in place
-	// until all of the canaries have been scheduled. only after the
-	// monitor/node assignment process is complete are the canary deployments
-	// and pvcs removed here.
-	canaryCleanup := []SchedulingResult{}
-	defer func() {
-		for _, result := range canaryCleanup {
-			logger.Infof("assignmon: cleaning up canary deployment %s and canary pvc %s", result.CanaryDeployment, result.CanaryPVC)
-			if result.CanaryDeployment != "" {
-				if err := k8sutil.DeleteDeployment(c.context.Clientset, c.Namespace, result.CanaryDeployment); err != nil {
-					logger.Infof("assignmon: error deleting canary deployment %s. %v", result.CanaryDeployment, err)
-				}
-			}
-			if result.CanaryPVC != "" {
-				var gracePeriod int64 // delete immediately
-				propagation := metav1.DeletePropagationForeground
-				options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
-				err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).Delete(result.CanaryPVC, options)
-				if err != nil {
-					logger.Infof("assignmon: error removing canary monitor %s pvc %s. %v", result.CanaryDeployment, result.CanaryPVC, err)
-				}
+// Delete mon canary deployments (and associated PVCs) using deployment labels
+// to select this kind of temporary deployments
+func (c *Cluster) removeCanaryDeployments() {
+	canaryDeployments, err := k8sutil.GetDeployments(c.context.Clientset, c.Namespace, "app=rook-ceph-mon,mon_canary=true")
+	if err != nil {
+		logger.Warningf("failed to get the list of monitor canary deployments. %v", err)
+		return
+	}
+
+	for _, canary := range canaryDeployments.Items {
+		logger.Infof("cleaning up canary monitor deployment %q and canary pvc %q.", canary.Name, canary.Labels["pvc_name"])
+		if err := k8sutil.DeleteDeployment(c.context.Clientset, c.Namespace, canary.Name); err != nil {
+			logger.Warningf("failed to delete canary monitor deployment %q. %v", canary.Name, err)
+		}
+
+		if canary.Labels["pvc_name"] != "" {
+			var gracePeriod int64 // delete immediately
+			propagation := metav1.DeletePropagationForeground
+			options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
+			err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).Delete(canary.Labels["pvc_name"], options)
+			if err != nil {
+				logger.Warningf("failed to delete canary monitor %q pvc %q. %v", canary.Name, canary.Labels["pvc_name"], err)
 			}
 		}
-	}()
+	}
+}
+
+func (c *Cluster) assignMons(mons []*monConfig) error {
+	// when monitors are scheduling below by invoking scheduleMonitor() a canary
+	// deployment and optional canary PVC are created. In order for the
+	// anti-affinity rules to be effective, we leave the canary pods in place
+	// until all of the canaries have been scheduled. Only after the
+	// monitor/node assignment process is complete are the canary deployments
+	// and pvcs removed here.
+	defer c.removeCanaryDeployments()
 
 	// ensure that all monitors have either (1) a node assignment that will be
 	// enforced using a node selector, or (2) configuration permits k8s to handle
@@ -595,9 +603,6 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 		// non-optimal, but it is convenient to catch some failures early,
 		// before a decision is stored in the node mapping.
 		result, err := scheduleMonitor(c, mon)
-
-		// even if an error occurs cleanup may be necessary
-		canaryCleanup = append(canaryCleanup, result)
 
 		if err != nil {
 			return errors.Wrapf(err, "assignmon: error scheduling monitor")
@@ -849,7 +854,8 @@ func (c *Cluster) startMon(m *monConfig, node *NodeInfo) error {
 	// exist, also determine if it using pvc storage.
 	pvcExists := false
 	deploymentExists := false
-	d := c.makeDeployment(m)
+	d := c.makeDeployment(m, false)
+
 	existingDeployment, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Get(d.Name, metav1.GetOptions{})
 	if err == nil {
 		deploymentExists = true
@@ -894,7 +900,7 @@ func (c *Cluster) startMon(m *monConfig, node *NodeInfo) error {
 	}
 
 	if c.spec.Mon.VolumeClaimTemplate != nil {
-		pvc, err := c.makeDeploymentPVC(m)
+		pvc, err := c.makeDeploymentPVC(m, false)
 		if err != nil {
 			return errors.Wrapf(err, "failed to make mon %s pvc", d.Name)
 		}

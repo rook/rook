@@ -45,21 +45,28 @@ const (
 	monmapFile = "monmap"
 )
 
-func (c *Cluster) getLabels(daemonName string) map[string]string {
+func (c *Cluster) getLabels(daemonName string, canary bool, pvcName string) map[string]string {
 	// Mons have a service for each mon, so the additional pod data is relevant for its services
 	// Use pod labels to keep "mon: id" for legacy
 	labels := opspec.PodLabels(AppName, c.Namespace, "mon", daemonName)
 	// Add "mon_cluster: <namespace>" for legacy
 	labels[monClusterAttr] = c.Namespace
+	if canary {
+		labels["mon_canary"] = "true"
+	}
+	if pvcName != "" {
+		labels["pvc_name"] = pvcName
+	}
+
 	return labels
 }
 
-func (c *Cluster) makeDeployment(monConfig *monConfig) *apps.Deployment {
+func (c *Cluster) makeDeployment(monConfig *monConfig, canary bool) *apps.Deployment {
 	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      monConfig.ResourceName,
 			Namespace: c.Namespace,
-			Labels:    c.getLabels(monConfig.DaemonName),
+			Labels:    c.getLabels(monConfig.DaemonName, canary, ""),
 		},
 	}
 	k8sutil.AddRookVersionLabelToDeployment(d)
@@ -67,11 +74,11 @@ func (c *Cluster) makeDeployment(monConfig *monConfig) *apps.Deployment {
 	opspec.AddCephVersionLabelToDeployment(c.ClusterInfo.CephVersion, d)
 	k8sutil.SetOwnerRef(&d.ObjectMeta, &c.ownerRef)
 
-	pod := c.makeMonPod(monConfig)
+	pod := c.makeMonPod(monConfig, canary, "")
 	replicaCount := int32(1)
 	d.Spec = apps.DeploymentSpec{
 		Selector: &metav1.LabelSelector{
-			MatchLabels: c.getLabels(monConfig.DaemonName),
+			MatchLabels: c.getLabels(monConfig.DaemonName, canary, ""),
 		},
 		Template: v1.PodTemplateSpec{
 			ObjectMeta: pod.ObjectMeta,
@@ -86,14 +93,14 @@ func (c *Cluster) makeDeployment(monConfig *monConfig) *apps.Deployment {
 	return d
 }
 
-func (c *Cluster) makeDeploymentPVC(m *monConfig) (*v1.PersistentVolumeClaim, error) {
+func (c *Cluster) makeDeploymentPVC(m *monConfig, canary bool) (*v1.PersistentVolumeClaim, error) {
 	template := c.spec.Mon.VolumeClaimTemplate
 	volumeMode := v1.PersistentVolumeFilesystem
 	pvc := &v1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      m.ResourceName,
 			Namespace: c.Namespace,
-			Labels:    c.getLabels(m.DaemonName),
+			Labels:    c.getLabels(m.DaemonName, canary, m.ResourceName),
 		},
 		Spec: v1.PersistentVolumeClaimSpec{
 			AccessModes: []v1.PersistentVolumeAccessMode{
@@ -178,7 +185,7 @@ func (c *Cluster) setPodPlacement(pod *v1.PodSpec, p rook.Placement, nodeSelecto
 	}
 }
 
-func (c *Cluster) makeMonPod(monConfig *monConfig) *v1.Pod {
+func (c *Cluster) makeMonPod(monConfig *monConfig, canary bool, PVCName string) *v1.Pod {
 	logger.Debugf("monConfig: %+v", monConfig)
 	podSpec := v1.PodSpec{
 		InitContainers: []v1.Container{
@@ -207,7 +214,7 @@ func (c *Cluster) makeMonPod(monConfig *monConfig) *v1.Pod {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      monConfig.ResourceName,
 			Namespace: c.Namespace,
-			Labels:    c.getLabels(monConfig.DaemonName),
+			Labels:    c.getLabels(monConfig.DaemonName, canary, PVCName),
 		},
 		Spec: podSpec,
 	}
