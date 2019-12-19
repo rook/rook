@@ -55,6 +55,48 @@ The tags allow for a progression of pre-releases such as:
 
 The release tags should be agreed on by the release team.
 
+## Bulk backporting master changes to a release branch
+During the short weeks leading up to release, the release branch will exist with betas released
+periodically. Betas will generally include all commits in master; that is, all commits in master are
+likely to be backported to the release branch. Here are instructions for how to bulk backport the
+master branch's commits to a release branch.
+
+Let's parameterize these instructions slightly
+```sh
+RELEASE_BRANCH='release-1.2'
+```
+
+The following views may be useful. Open them side-by-side.
+- **A :** `git log --format=oneline --no-merges --topo-order $RELEASE_BRANCH`
+- **B :** `git log --format=oneline --no-merges --topo-order master`
+
+Open a new window with the following view to list the commits which are part of the `master` branch
+and not part of the release branch. These will be in alphabetical sorted order rather than commit
+topological order.
+- **C :** `comm -1 -3 <(git log --format=format:'%s' --no-merges --topo-order release-1.2 | sort) <(git log --format=format:'%s' --no-merges --topo-order master | sort)`
+
+Open a fourth window to be our working window.
+1. Make sure the `rook` repo `master` and `$RELEASE_BRANCH` branches are up to date with upstream.
+2. `git checkout master`
+3. `git checkout -b working-branch-for-$RELEASE_BRANCH` to make a working branch equivalent with `master`
+4. `git rebase --interactive $RELEASE_BRANCH` to rebase `master` changes on *top* of the release branch
+5. Compare the output in **C** to the commits here. git is not perfect and sometimes tries to rebase
+   commits which already exist.
+   - make sure the rebase here and **C** have the same number of commits
+   - if the commits are not the same, remove commits from the rebase that are not in **C**
+   - it is helpful to compare **A** and **B** to determine which commits were added by `git rebase`
+     unnecessarily or to resolve unexpected commits in the rebase
+6. Update Rook's manifest tags to the new release tag, and add them with the following commit message
+   > ```
+   > release: update manifest tags to $RELEASE_BRANCH
+   >
+   > Update the tags in the manifests to use the $RELEASE_BRANCH release
+   >
+   > Signed-off-by: <author>
+   > ```
+7. `git push -u origin working-branch-for-$RELEASE_BRANCH`
+8. Create a pull request against Rook's `$RELEASE_BRANCH` branch. The PR should usually have the
+   same number of commits from the output of **C** plus one from the commit immediately above.
 
 ## Tagging a new release
 
