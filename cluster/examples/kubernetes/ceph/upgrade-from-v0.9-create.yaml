@@ -152,6 +152,43 @@ rules:
 
 ---
 
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: rook-ceph-system
+  labels:
+    operator: rook
+    storage-backend: ceph
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+      - configmaps
+      - services
+    verbs:
+      - get
+      - list
+      - watch
+      - patch
+      - create
+      - update
+      - delete
+  - apiGroups:
+      - apps  # upgrade note: changed from 'extensions' to 'apps' in Rook 1.0
+    resources:
+      - daemonsets
+      - statefulsets  # upgrade note: added in Rook 1.0 to support CSI
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - delete
+
+---
+
 # Aspects of ceph-mgr that require access to the system namespace
 kind: ClusterRole  # upgrade note: changed from a Role to a ClusterRole in 1.0
 apiVersion: rbac.authorization.k8s.io/v1beta1
@@ -167,6 +204,22 @@ rules:
   - get
   - list
   - watch
+
+---
+
+
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-system
+subjects:
+  - kind: ServiceAccount
+    name: rook-ceph-system
+    namespace: rook-ceph-system
 
 ---
 
