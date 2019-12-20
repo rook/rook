@@ -11,10 +11,10 @@ image:
 resources:
   limits:
     cpu: 500m
-    memory: 128Mi
+    memory: 256Mi
   requests:
     cpu: 100m
-    memory: 128Mi
+    memory: 256Mi
 
 nodeSelector:
 # Constraint rook-ceph-operator Deployment to nodes with label `disktype: ssd`.

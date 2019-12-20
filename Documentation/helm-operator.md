@@ -182,10 +182,10 @@ image:
 resources:
   limits:
     cpu: 100m
-    memory: 128Mi
+    memory: 256Mi
   requests:
     cpu: 100m
-    memory: 128Mi
+    memory: 256Mi
 
 rbacEnable: true
 pspEnable: true
