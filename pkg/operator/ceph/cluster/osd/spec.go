@@ -564,9 +564,7 @@ func (c *Cluster) getCopyBinariesContainer() (v1.Volume, *v1.Container) {
 // This container runs all the actions needed to activate an OSD before we can run the OSD process
 func (c *Cluster) getActivateOSDInitContainer(osdID, osdUUID string, isFilestore bool, osdProps osdProperties) (v1.Volume, *v1.Container) {
 	volume := v1.Volume{Name: activateOSDVolumeName, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}}
-	envVars := cephVolumeEnvVar()
-	envVars = append(envVars, v1.EnvVar{Name: "CEPH_ARGS", Value: "-m $(ROOK_CEPH_MON_HOST)"})
-
+	envVars := osdActivateEnvVar()
 	osdStore := "--bluestore"
 	if isFilestore {
 		osdStore = "--filestore"
@@ -1053,6 +1051,19 @@ func cephVolumeEnvVar() []v1.EnvVar {
 		// LVM will manage the relevant nodes in /dev directly.
 		{Name: "DM_DISABLE_UDEV", Value: "1"},
 	}
+}
+
+func osdActivateEnvVar() []v1.EnvVar {
+	monEnvVars := []v1.EnvVar{
+		{Name: "ROOK_CEPH_MON_HOST",
+			ValueFrom: &v1.EnvVarSource{
+				SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{
+					Name: "rook-ceph-config"},
+					Key: "mon_host"}}},
+		{Name: "CEPH_ARGS", Value: "-m $(ROOK_CEPH_MON_HOST)"},
+	}
+
+	return append(cephVolumeEnvVar(), monEnvVars...)
 }
 
 func (c *Cluster) osdRunFlagTuningOnPVC(osdID int) error {
