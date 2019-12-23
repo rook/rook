@@ -395,3 +395,17 @@ func TestCephVolumeEnvVar(t *testing.T) {
 	assert.Equal(t, "DM_DISABLE_UDEV", cvEnv[2].Name)
 	assert.Equal(t, "1", cvEnv[1].Value)
 }
+
+func TestOsdActivateEnvVar(t *testing.T) {
+	osdActivateEnv := osdActivateEnvVar()
+	assert.Equal(t, 5, len(osdActivateEnv))
+	assert.Equal(t, "CEPH_VOLUME_DEBUG", osdActivateEnv[0].Name)
+	assert.Equal(t, "1", osdActivateEnv[0].Value)
+	assert.Equal(t, "CEPH_VOLUME_SKIP_RESTORECON", osdActivateEnv[1].Name)
+	assert.Equal(t, "1", osdActivateEnv[1].Value)
+	assert.Equal(t, "DM_DISABLE_UDEV", osdActivateEnv[2].Name)
+	assert.Equal(t, "1", osdActivateEnv[1].Value)
+	assert.Equal(t, "ROOK_CEPH_MON_HOST", osdActivateEnv[3].Name)
+	assert.Equal(t, "CEPH_ARGS", osdActivateEnv[4].Name)
+	assert.Equal(t, "-m $(ROOK_CEPH_MON_HOST)", osdActivateEnv[4].Value)
+}
