@@ -201,6 +201,7 @@ func (c *ClusterController) onK8sNodeAdd(obj interface{}) {
 	newNode, ok := obj.(*v1.Node)
 	if !ok {
 		logger.Warningf("Expected NodeList but handler received %#v", obj)
+		return
 	}
 
 	if k8sutil.GetNodeSchedulable(*newNode) == false {
