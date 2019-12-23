@@ -18,7 +18,8 @@ limitations under the License.
 package k8sutil
 
 import (
-	"crypto/md5"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"regexp"
 	"strings"
@@ -75,9 +76,10 @@ func GetK8SVersion(clientset kubernetes.Interface) (*version.Version, error) {
 	return version.MustParseSemantic(serverVersion.GitVersion), nil
 }
 
-// Hash MD5 hash a given string
+// Hash stableName computes a stable pseudorandom string suitable for inclusion in a Kubernetes object name from the given seed string.
 func Hash(s string) string {
-	return fmt.Sprintf("%x", md5.Sum([]byte(s)))
+	h := sha256.Sum256([]byte(s))
+	return hex.EncodeToString(h[:16])
 }
 
 // TruncateNodeName hashes the nodeName in case it would case the name to be longer than 63 characters
