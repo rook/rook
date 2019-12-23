@@ -565,6 +565,8 @@ func (c *Cluster) getCopyBinariesContainer() (v1.Volume, *v1.Container) {
 func (c *Cluster) getActivateOSDInitContainer(osdID, osdUUID string, isFilestore bool, osdProps osdProperties) (v1.Volume, *v1.Container) {
 	volume := v1.Volume{Name: activateOSDVolumeName, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}}
 	envVars := cephVolumeEnvVar()
+	envVars = append(envVars, v1.EnvVar{Name: "CEPH_ARGS", Value: "-m $(ROOK_CEPH_MON_HOST)"})
+
 	osdStore := "--bluestore"
 	if isFilestore {
 		osdStore = "--filestore"
@@ -576,6 +578,7 @@ func (c *Cluster) getActivateOSDInitContainer(osdID, osdUUID string, isFilestore
 	volMounts := []v1.VolumeMount{
 		{Name: activateOSDVolumeName, MountPath: activateOSDMountPathID},
 		{Name: "devices", MountPath: "/dev"},
+		{Name: k8sutil.ConfigOverrideName, ReadOnly: true, MountPath: opconfig.EtcCephDir},
 	}
 
 	privileged := true
