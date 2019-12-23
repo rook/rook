@@ -199,9 +199,7 @@ func (c *Cluster) completeOSDsForAllNodes(config *provisionConfig, configOSDs bo
 					logger.Infof("orchestration status config map result channel closed, will restart watch.")
 					w.Stop()
 					<-time.After(5 * time.Second)
-					leftNodes := 0
-					leftRemainingNodes := util.NewSet()
-					leftNodes, leftRemainingNodes, completed, statuses, err = c.checkNodesCompleted(selector, config, configOSDs)
+					leftNodes, leftRemainingNodes, completed, _, err := c.checkNodesCompleted(selector, config, configOSDs)
 					if err == nil {
 						if completed {
 							logger.Infof("additional %d/%d node(s) completed osd provisioning", leftNodes, originalNodes)

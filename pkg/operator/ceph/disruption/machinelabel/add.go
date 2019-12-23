@@ -18,6 +18,7 @@ package machinelabel
 
 import (
 	mapiv1 "github.com/openshift/cluster-api/pkg/apis/machine/v1beta1"
+	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
 	corev1 "k8s.io/api/core/v1"
@@ -53,7 +54,7 @@ func Add(mgr manager.Manager, context *controllerconfig.Context) error {
 	// create a new controller
 	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: reconciler})
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "could not create controller %q", controllerName)
 	}
 
 	// Watch for the machines and enqueue the machineRequests if the machine is occupied by the osd pods
@@ -71,6 +72,9 @@ func Add(mgr manager.Manager, context *controllerconfig.Context) error {
 			return []reconcile.Request{req}
 		}),
 	})
+	if err != nil {
+		return errors.Wrap(err, "could not watch machines")
+	}
 
 	// Watch for the osd pods and enqueue the CephCluster in the namespace from the pods
 	return c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestsFromMapFunc{
