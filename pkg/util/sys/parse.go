@@ -22,13 +22,11 @@ import (
 
 // grep finds the *first* line that matches, rather than multiple lines
 func Grep(input, searchFor string) string {
-	logger.Debugf("grep. search=%s, input=%s", searchFor, input)
 	if input == "" || searchFor == "" {
 		return ""
 	}
 	for _, line := range strings.Split(input, "\n") {
 		if matched, _ := regexp.MatchString(searchFor, line); matched {
-			logger.Debugf("grep found line: %s", line)
 			return line
 		}
 	}
