@@ -26,7 +26,7 @@ import (
 func TestTruncateNodeName(t *testing.T) {
 	// An entry's key is the result. The first value in the []string is the format and the second is the nodeName
 	tests := map[string][]string{
-		"rook-ceph-osd-prepare-47d1eb58e063be11c11c995b74cc5fbe-config": { // 61 chars
+		"rook-ceph-osd-prepare-801a3ba95fe6ce6a3bd879552ca2a8b0-config": { // 61 chars
 			"rook-ceph-osd-prepare-%s-config",                                      // 29 chars (without format)
 			"k8s-worker-1234567890.this.is.a.very.very.long.node.name.example.com", // 68 chars
 		},
@@ -38,11 +38,11 @@ func TestTruncateNodeName(t *testing.T) {
 			"rook-ceph-osd-prepare-%s",                  // 22 chars (without format)
 			"k8s-worker-500.this.is.a.not.so.long.name", // 41 chars
 		},
-		"47d1eb58e063be11c11c995b74cc5fbe": { // 32 chars
+		"801a3ba95fe6ce6a3bd879552ca2a8b0": { // 32 chars
 			"%s", // 0 chars (without format)
 			"k8s-worker-1234567890.this.is.a.very.very.long.node.name.example.com", // 68 chars
 		},
-		"rook-ceph-osd-prepare-test-very-long-name-47d1eb58e063be11c11c995b74cc5fbe": { // 74 chars
+		"rook-ceph-osd-prepare-test-very-long-name-801a3ba95fe6ce6a3bd879552ca2a8b0": { // 74 chars
 			"rook-ceph-osd-prepare-test-very-long-name-%s",                         // 42 chars (without format)
 			"k8s-worker-1234567890.this.is.a.very.very.long.node.name.example.com", // 68 chars
 		},
