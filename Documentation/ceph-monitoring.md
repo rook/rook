@@ -23,6 +23,8 @@ A full explanation can be found in the [Prometheus operator repository on GitHub
 ```console
 kubectl apply -f https://raw.githubusercontent.com/coreos/prometheus-operator/v0.26.0/bundle.yaml
 ```
+> **NOTE**: If your rook-ceph cluster is deployed on Kubernetes 1.16+ then `v0.26.0/bundle.yaml` of prometheus-operator
+> will not work. Use [v0.34.0/bundle.yaml](https://raw.githubusercontent.com/coreos/prometheus-operator/v0.34.0/bundle.yaml) which supports Kubernetes 1.16+.
 
 This will start the Prometheus operator, but before moving on, wait until the operator is in the `Running` state:
 
