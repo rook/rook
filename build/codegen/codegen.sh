@@ -17,9 +17,17 @@
 # shellcheck disable=SC2086,SC2089,SC2090
 # Disables quote checks, which is needed because of the SED variable here.
 
+KUBE_CODE_GEN_VERSION="kubernetes-1.16.4"
+
 scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-cd "${scriptdir}/../../vendor/k8s.io/code-generator" && ./generate-groups.sh \
+# TODO Should we clone the k8s.io/code-generator repository to the `.cache` dir?
+GO111MODULE=off go get -u k8s.io/code-generator/cmd/client-gen
+cd "${GOPATH}/src/k8s.io/code-generator" || { echo ""; exit 1; }
+git reset --hard
+git checkout "${KUBE_CODE_GEN_VERSION}"
+
+./generate-groups.sh \
     all \
     github.com/rook/rook/pkg/client \
     github.com/rook/rook/pkg/apis \
