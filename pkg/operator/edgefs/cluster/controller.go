@@ -443,12 +443,16 @@ func (c *ClusterController) removeFinalizer(obj interface{}) {
 	maxRetries := 5
 	retrySeconds := 5 * time.Second
 	for i := 0; i < maxRetries; i++ {
-		var err error
+		var (
+			okCheck bool
+			err     error
+		)
 		if cluster, ok := obj.(*edgefsv1.Cluster); ok {
 			_, err = c.context.RookClientset.EdgefsV1().Clusters(cluster.Namespace).Update(cluster)
+			okCheck = true
 		}
 
-		if err != nil {
+		if okCheck != true || err != nil {
 			logger.Errorf("failed to remove finalizer %s from cluster %s. %+v", fname, objectMeta.Name, err)
 			time.Sleep(retrySeconds)
 			continue
