@@ -239,8 +239,39 @@ go tool cover -html=coverage.out -o coverage.html
 ```
 
 #### Running the Integration Tests
+
 For instructions on how to execute the end to end smoke test suite,
 follow the [test instructions](https://github.com/rook/rook/blob/master/tests/README.md).
+
+### Commit structure
+
+Rook maintainers value clear, lengthy and explanatory commit messages. So by default each of your commits must:
+
+* be prefixed by the component it's affecting, if Ceph, then the title of the commit message should be `ceph: my commit title`. If not the commit-lint bot will complain.
+* contain a commit message which explains the original issue and how it was fixed if a bug.
+If a feature it is a full description of the new functionality.
+* refer to the issue it's closing, this is mandatory when fixing a bug
+* have a sign-off, this is achieved by adding `-s` when committing so in practice run `git commit -s`. If not the DCO bot will complain.
+If you forgot to add the sign-off you can also amend a previous commit with the sign-off by running `git commit --amend -s`.
+If you've pushed your changes to Github already you'll need to force push your branch with `git push -f`.
+
+Here is an example of an acceptable commit message:
+
+```text
+component: commit title
+
+This is the commit message, here I'm explaining, what the bug was along with its root cause.
+Then I'm explaining how I fixed it.
+
+Closes: https://github.com/rook/rook/issues/<NUMBER>
+Signed-off-by: First Name Last Name <email address>
+```
+
+Note: sometimes you will feel like there is not so much to say, for instance if you are fixing a typo in a text.
+In that case, it is acceptable to shorten the commit message.
+Also, you don't always need to close an issue, again for a very small fix.
+
+You can read more about [conventional commits](https://www.conventionalcommits.org/en/v1.0.0-beta.2/).
 
 ### Commit History
 
@@ -264,6 +295,9 @@ Once your commit history is clean, ensure you have based on the [latest upstream
 Go to the [Rook github](https://www.github.com/rook/rook) to open the PR. If you have pushed recently, you should see an obvious link to open the PR. If you have not pushed recently, go to the Pull Request tab and select your fork and branch for the PR.
 
 After the PR is open, you can make changes simply by pushing new commits. Your PR will track the changes in your fork and update automatically.
+
+**Never** open a pull request against a released branch (e.g. release-1.2) unless the content you are editing is gone from master and only exists in the released branch.
+By default, you should always open a pull request against master.
 
 ### Backport a Fix to a Release Branch
 
