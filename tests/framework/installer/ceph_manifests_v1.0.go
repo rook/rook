@@ -17,14 +17,25 @@ limitations under the License.
 package installer
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/google/uuid"
 )
 
-// CephManifestsV1_0 wraps rook yaml definitions
+const (
+	// Version tag for Rook v1.0
+	Version1_0 = "v1.0.6"
+)
+
+// CephManifestsV1_0 wraps rook yaml definitions for Rook-Ceph v1.0 manifests
 type CephManifestsV1_0 struct {
 	imageTag string
+}
+
+// RookImage returns the rook image under test for v1.0
+func (m *CephManifestsV1_0) RookImage() string {
+	return fmt.Sprintf("rook/ceph:%s", Version1_0)
 }
 
 func (m *CephManifestsV1_0) GetRookCRDs() string {
