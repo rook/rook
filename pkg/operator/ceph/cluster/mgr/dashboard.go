@@ -19,7 +19,7 @@ package mgr
 
 import (
 	"context"
-	"math/rand"
+	"crypto/rand"
 	"os/exec"
 	"strconv"
 	"syscall"
@@ -40,7 +40,7 @@ const (
 	dashboardPortHTTP              = 7000
 	dashboardUsername              = "admin"
 	dashboardPasswordName          = "rook-ceph-dashboard-password"
-	passwordLength                 = 10
+	passwordLength                 = 20
 	passwordKeyName                = "password"
 	certAlreadyConfiguredErrorCode = 5
 	invalidArgErrorCode            = int(syscall.EINVAL)
@@ -49,10 +49,6 @@ const (
 var (
 	dashboardInitWaitTime = 5 * time.Second
 )
-
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
 
 func (c *Cluster) configureDashboardService() error {
 	dashboardService := c.makeDashboardService(AppName)
@@ -253,7 +249,10 @@ func (c *Cluster) getOrGenerateDashboardPassword() (string, error) {
 	}
 
 	// Generate a password
-	password := generatePassword(passwordLength)
+	password, err := generatePassword(passwordLength)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to generate password")
+	}
 
 	// Store the keyring in a secret
 	secrets := map[string][]byte{
@@ -276,15 +275,26 @@ func (c *Cluster) getOrGenerateDashboardPassword() (string, error) {
 	return password, nil
 }
 
-func generatePassword(length int) string {
-	const passwordChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	passwd := make([]byte, length)
-	for i := range passwd {
-		passwd[i] = passwordChars[rand.Intn(len(passwordChars))]
+func generatePassword(length int) (string, error) {
+	const passwordChars = "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+	passwd, err := generateRandomBytes(length)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to generate password")
 	}
-	return string(passwd)
+	for i, pass := range passwd {
+		passwd[i] = passwordChars[pass%byte(len(passwordChars))]
+	}
+	return string(passwd), nil
 }
 
+// generateRandomBytes returns securely generated random bytes.
+func generateRandomBytes(length int) ([]byte, error) {
+	bytes := make([]byte, length)
+	if _, err := rand.Read(bytes); err != nil {
+		return nil, errors.Wrapf(err, "failed to generate random bytes")
+	}
+	return bytes, nil
+}
 func decodeSecret(secret *v1.Secret) (string, error) {
 	password, ok := secret.Data[passwordKeyName]
 	if !ok {
