@@ -282,9 +282,10 @@ Assuming `dataHostPathData` is `/var/lib/rook`, and the `CephCluster` trying to 
     1. Remove `/var/lib/rook/mon-a`
     2. Pick a healthy `rook-ceph-mon-ID` directory (`/var/lib/rook/mon-ID`) in the previous backup, copy to `/var/lib/rook/mon-a`. `ID` is any healthy mon node ID of the old cluster.
     3. Replace `/var/lib/rook/mon-a/keyring` with the saved keyring, preserving only the `[mon.]` section, remove `[client.admin]` section.
-    4. Run `docker run -it --rm -v /var/lib/rook:/var/lib/rook ceph/ceph:v14.2.1-20190430 bash`. The Docker image tag should match the Ceph version used in the Rook cluster.
+    4. Run `docker run -it --rm -v /var/lib/rook:/var/lib/rook ceph/ceph:v14.2.1-20190430 bash`. The Docker image tag should match the Ceph version used in the Rook cluster. The `/etc/ceph/ceph.conf` file needs to exist for `ceph-mon` to work.
 
         ```shell
+        container# touch /etc/ceph/ceph.conf
         container# cd /var/lib/rook
         container# ceph-mon --extract-monmap monmap --mon-data ./mon-a/data  # Extract monmap from old ceph-mon db and save as monmap
         container# monmaptool --print monmap  # Print the monmap content, which reflects the old cluster ceph-mon configuration.
@@ -299,7 +300,12 @@ Assuming `dataHostPathData` is `/var/lib/rook`, and the `CephCluster` trying to 
         container# exit
         ```
 
-1. Tell Rook to run as old cluster by running `kubectl -n rook-ceph edit secret/rook-ceph-mon` and changing `fsid` to the original `fsid`.
+1. Tell Rook to run as old cluster by running `kubectl -n rook-ceph edit secret/rook-ceph-mon` and changing `fsid` to the original `fsid`. Note that the `fsid` is base64 encoded and must not contain a trailing carriage return. For example:
+
+    ```shell
+    echo -n a811f99a-d865-46b7-8f2c-f94c064e4356 | base64  # Replace with the fsid from your old cluster.
+    ```
+
 1. Disable authentication by running `kubectl -n rook-ceph edit cm/rook-config-override` and adding content below:
 
     ```yaml
