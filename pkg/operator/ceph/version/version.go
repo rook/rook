@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
-	"sync"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
@@ -58,9 +57,6 @@ var (
 
 	// for parsing the output of `ceph --version`
 	versionPattern = regexp.MustCompile(`ceph version (\d+)\.(\d+)\.(\d+)`)
-	// for storage of the versions of images for access in managed reconciliations
-	imageToVersionMap     = map[string]CephVersion{}
-	imageToVersionMapLock = &sync.Mutex{}
 
 	// For a build release the output is "ceph version 14.2.4-64.el8cp"
 	// So we need to detect the build version change
@@ -297,19 +293,4 @@ func ValidateCephVersionsBetweenLocalAndExternalClusters(localVersion, externalV
 	}
 
 	return nil
-}
-
-// RegisterImageVersion stores the CephVersion detected for a specified image for global access.
-func RegisterImageVersion(image string, version CephVersion) {
-	imageToVersionMapLock.Lock()
-	imageToVersionMap[image] = version
-	imageToVersionMapLock.Unlock()
-}
-
-// GetImageVersion returns the CephVersion registered for a specified image (if any) and whether any image was found.
-func GetImageVersion(image string) (*CephVersion, bool) {
-	imageToVersionMapLock.Lock()
-	version, ok := imageToVersionMap[image]
-	imageToVersionMapLock.Unlock()
-	return &version, ok
 }

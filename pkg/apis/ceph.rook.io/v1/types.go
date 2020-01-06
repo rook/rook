@@ -142,9 +142,10 @@ type MonitoringSpec struct {
 }
 
 type ClusterStatus struct {
-	State      ClusterState `json:"state,omitempty"`
-	Message    string       `json:"message,omitempty"`
-	CephStatus *CephStatus  `json:"ceph,omitempty"`
+	State       ClusterState    `json:"state,omitempty"`
+	Message     string          `json:"message,omitempty"`
+	CephStatus  *CephStatus     `json:"ceph,omitempty"`
+	CephVersion *ClusterVersion `json:"version,omitempty"`
 }
 
 type CephStatus struct {
@@ -153,6 +154,11 @@ type CephStatus struct {
 	LastChecked    string                       `json:"lastChecked,omitempty"`
 	LastChanged    string                       `json:"lastChanged,omitempty"`
 	PreviousHealth string                       `json:"previousHealth,omitempty"`
+}
+
+type ClusterVersion struct {
+	Image   string `json:"image,omitempty"`
+	Version string `json:"version,omitempty"`
 }
 
 type CephHealthMessage struct {
