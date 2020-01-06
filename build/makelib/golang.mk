@@ -65,7 +65,7 @@ endif
 GOPATH := $(shell go env GOPATH)
 
 # setup tools used during the build
-DEP_VERSION=v0.5.0
+DEP_VERSION=v0.5.4
 DEP := $(TOOLS_HOST_DIR)/dep-$(DEP_VERSION)
 GOLINT := $(TOOLS_HOST_DIR)/golint
 GOJUNIT := $(TOOLS_HOST_DIR)/go-junit-report
@@ -195,12 +195,7 @@ go.vendor.update: $(DEP)
 $(DEP):
 	@echo === installing dep
 	@mkdir -p $(TOOLS_HOST_DIR)/tmp
-	@if [ "$(GOHOSTARCH)" = "arm64" ]; then\
-		GOPATH=$(TOOLS_HOST_DIR)/tmp GOBIN=$(TOOLS_HOST_DIR) $(GOHOST) get -u github.com/golang/dep/cmd/dep;\
-		mv $(TOOLS_HOST_DIR)/dep $@;\
-	else \
-		curl -sL -o $(DEP) https://github.com/golang/dep/releases/download/$(DEP_VERSION)/dep-$(GOHOSTOS)-$(GOHOSTARCH);\
-	fi
+	@curl -sL -o $(DEP) https://github.com/golang/dep/releases/download/$(DEP_VERSION)/dep-$(GOHOSTOS)-$(GOHOSTARCH)
 	@chmod +x $(DEP)
 	@rm -fr $(TOOLS_HOST_DIR)/tmp
 
