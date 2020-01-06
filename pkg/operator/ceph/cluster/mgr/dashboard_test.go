@@ -33,14 +33,17 @@ import (
 )
 
 func TestGeneratePassword(t *testing.T) {
-	password := generatePassword(0)
+	password, err := generatePassword(0)
+	require.Nil(t, err)
 	assert.Equal(t, "", password)
 
-	password = generatePassword(1)
+	password, err = generatePassword(1)
+	require.Nil(t, err)
 	assert.Equal(t, 1, len(password))
 	logger.Infof("password: %s", password)
 
-	password = generatePassword(10)
+	password, err = generatePassword(10)
+	require.Nil(t, err)
 	assert.Equal(t, 10, len(password))
 	logger.Infof("password: %s", password)
 }
