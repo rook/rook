@@ -25,14 +25,12 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/coreos/pkg/capnslog"
-	opkit "github.com/rook/operator-kit"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	ceph "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
-	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
@@ -43,12 +41,11 @@ const ClientSecretName = "-client-key"
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-client")
 
 // ClientResource represents the Client custom resource object
-var ClientResource = opkit.CustomResource{
+var ClientResource = k8sutil.CustomResource{
 	Name:    "cephclient",
 	Plural:  "cephclients",
 	Group:   cephv1.CustomResourceGroup,
 	Version: cephv1.Version,
-	Scope:   apiextensionsv1beta1.NamespaceScoped,
 	Kind:    reflect.TypeOf(cephv1.CephClient{}).Name(),
 }
 
@@ -76,8 +73,7 @@ func (c *ClientController) StartWatch(stopCh chan struct{}) error {
 	}
 
 	logger.Infof("start watching client resources in namespace %q", c.namespace)
-	watcher := opkit.NewWatcher(ClientResource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1().RESTClient())
-	go watcher.Watch(&cephv1.CephClient{}, stopCh)
+	go k8sutil.WatchCR(ClientResource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1().RESTClient(), &cephv1.CephClient{}, stopCh)
 
 	return nil
 }

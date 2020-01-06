@@ -23,12 +23,11 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/google/go-cmp/cmp"
-	opkit "github.com/rook/operator-kit"
 	edgefsv1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
-	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
@@ -42,12 +41,11 @@ const (
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "edgefs-op-s3")
 
 // S3Resource represents the s3 custom resource
-var S3Resource = opkit.CustomResource{
+var S3Resource = k8sutil.CustomResource{
 	Name:    customResourceName,
 	Plural:  customResourceNamePlural,
 	Group:   edgefsv1.CustomResourceGroup,
 	Version: edgefsv1.Version,
-	Scope:   apiextensionsv1beta1.NamespaceScoped,
 	Kind:    reflect.TypeOf(edgefsv1.S3{}).Name(),
 }
 
@@ -106,8 +104,7 @@ func (c *S3Controller) StartWatch(stopCh chan struct{}) error {
 	}
 
 	logger.Infof("start watching s3 resources in namespace %s", c.namespace)
-	watcher := opkit.NewWatcher(S3Resource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1().RESTClient())
-	go watcher.Watch(&edgefsv1.S3{}, stopCh)
+	go k8sutil.WatchCR(S3Resource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1().RESTClient(), &edgefsv1.S3{}, stopCh)
 
 	return nil
 }

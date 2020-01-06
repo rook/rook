@@ -23,16 +23,16 @@ import (
 	"syscall"
 
 	"github.com/coreos/pkg/capnslog"
-	opkit "github.com/rook/operator-kit"
 	"github.com/rook/rook/pkg/clusterd"
-	"k8s.io/api/core/v1"
+	"github.com/rook/rook/pkg/operator/k8sutil"
+	v1 "k8s.io/api/core/v1"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "cockroachdb-operator")
 
 type Operator struct {
 	context           *clusterd.Context
-	resources         []opkit.CustomResource
+	resources         []k8sutil.CustomResource
 	rookImage         string
 	clusterController *ClusterController
 }
@@ -41,7 +41,7 @@ type Operator struct {
 func New(context *clusterd.Context, rookImage string) *Operator {
 	clusterController := NewClusterController(context, rookImage)
 
-	schemes := []opkit.CustomResource{ClusterResource}
+	schemes := []k8sutil.CustomResource{ClusterResource}
 	return &Operator{
 		context:           context,
 		clusterController: clusterController,
