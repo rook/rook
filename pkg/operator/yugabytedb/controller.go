@@ -20,13 +20,11 @@ import (
 	"fmt"
 	"reflect"
 
-	opkit "github.com/rook/operator-kit"
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	yugabytedbv1alpha1 "github.com/rook/rook/pkg/apis/yugabytedb.rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
-	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -75,12 +73,11 @@ const (
 	yugabyteDBImageName         = "yugabytedb/yugabyte:1.3.1.0-b16"
 )
 
-var ClusterResource = opkit.CustomResource{
+var ClusterResource = k8sutil.CustomResource{
 	Name:    customResourceName,
 	Plural:  customResourceNamePlural,
 	Group:   yugabytedbv1alpha1.CustomResourceGroup,
 	Version: yugabytedbv1alpha1.Version,
-	Scope:   apiextensionsv1beta1.NamespaceScoped,
 	Kind:    reflect.TypeOf(yugabytedbv1alpha1.YBCluster{}).Name(),
 }
 
@@ -143,8 +140,7 @@ func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) e
 	}
 
 	logger.Infof("start watching yugabytedb clusters in all namespaces")
-	watcher := opkit.NewWatcher(ClusterResource, namespace, resourceHandlerFuncs, c.context.RookClientset.YugabytedbV1alpha1().RESTClient())
-	go watcher.Watch(&yugabytedbv1alpha1.YBCluster{}, stopCh)
+	go k8sutil.WatchCR(ClusterResource, namespace, resourceHandlerFuncs, c.context.RookClientset.YugabytedbV1alpha1().RESTClient(), &yugabytedbv1alpha1.YBCluster{}, stopCh)
 
 	return nil
 }

@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
-	opkit "github.com/rook/operator-kit"
 	edgefsv1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/edgefs/iscsi"
@@ -34,7 +33,7 @@ import (
 	"github.com/rook/rook/pkg/operator/edgefs/s3"
 	"github.com/rook/rook/pkg/operator/edgefs/s3x"
 	"github.com/rook/rook/pkg/operator/edgefs/swift"
-	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -59,12 +58,11 @@ const (
 	defaultEdgefsImageName     = "edgefs/edgefs:latest"
 )
 
-var ClusterResource = opkit.CustomResource{
+var ClusterResource = k8sutil.CustomResource{
 	Name:    CustomResourceName,
 	Plural:  CustomResourceNamePlural,
 	Group:   edgefsv1.CustomResourceGroup,
 	Version: edgefsv1.Version,
-	Scope:   apiextensionsv1beta1.NamespaceScoped,
 	Kind:    reflect.TypeOf(edgefsv1.Cluster{}).Name(),
 }
 
@@ -103,8 +101,7 @@ func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) e
 	}
 
 	logger.Infof("start watching edgefs clusters in all namespaces")
-	watcher := opkit.NewWatcher(ClusterResource, namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1().RESTClient())
-	go watcher.Watch(&edgefsv1.Cluster{}, stopCh)
+	go k8sutil.WatchCR(ClusterResource, namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1().RESTClient(), &edgefsv1.Cluster{}, stopCh)
 
 	return nil
 }

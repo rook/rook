@@ -20,9 +20,8 @@ package attachment
 import (
 	"reflect"
 
-	opkit "github.com/rook/operator-kit"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
-	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 )
 
 const (
@@ -31,11 +30,10 @@ const (
 )
 
 // VolumeResource represents the Volume custom resource object
-var VolumeResource = opkit.CustomResource{
+var VolumeResource = k8sutil.CustomResource{
 	Name:    CustomResourceName,
 	Plural:  CustomResourceNamePlural,
 	Group:   rookalpha.CustomResourceGroup,
 	Version: rookalpha.Version,
-	Scope:   apiextensionsv1beta1.NamespaceScoped,
 	Kind:    reflect.TypeOf(rookalpha.Volume{}).Name(),
 }

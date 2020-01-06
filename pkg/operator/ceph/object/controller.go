@@ -23,14 +23,12 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
-	opkit "github.com/rook/operator-kit"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	daemonconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	cephspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
 )
@@ -38,12 +36,11 @@ import (
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-object")
 
 // ObjectStoreResource represents the object store custom resource
-var ObjectStoreResource = opkit.CustomResource{
+var ObjectStoreResource = k8sutil.CustomResource{
 	Name:    "cephobjectstore",
 	Plural:  "cephobjectstores",
 	Group:   cephv1.CustomResourceGroup,
 	Version: cephv1.Version,
-	Scope:   apiextensionsv1beta1.NamespaceScoped,
 	Kind:    reflect.TypeOf(cephv1.CephObjectStore{}).Name(),
 }
 
@@ -92,8 +89,7 @@ func (c *ObjectStoreController) StartWatch(namespace string, stopCh chan struct{
 	}
 
 	logger.Infof("start watching object store resources in namespace %s", c.namespace)
-	watcher := opkit.NewWatcher(ObjectStoreResource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1().RESTClient())
-	go watcher.Watch(&cephv1.CephObjectStore{}, stopCh)
+	go k8sutil.WatchCR(ObjectStoreResource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1().RESTClient(), &cephv1.CephObjectStore{}, stopCh)
 	return nil
 }
 

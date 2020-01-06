@@ -24,7 +24,6 @@ import (
 	"syscall"
 
 	"github.com/coreos/pkg/capnslog"
-	opkit "github.com/rook/operator-kit"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/discover"
 	"github.com/rook/rook/pkg/operator/edgefs/cluster"
@@ -36,7 +35,7 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "edgefs-operator"
 
 type Operator struct {
 	context           *clusterd.Context
-	resources         []opkit.CustomResource
+	resources         []k8sutil.CustomResource
 	rookImage         string
 	securityAccount   string
 	clusterController *cluster.ClusterController
@@ -46,7 +45,7 @@ type Operator struct {
 func New(context *clusterd.Context, rookImage string, securityAccount string) *Operator {
 	clusterController := cluster.NewClusterController(context, rookImage)
 
-	schemes := []opkit.CustomResource{cluster.ClusterResource}
+	schemes := []k8sutil.CustomResource{cluster.ClusterResource}
 	return &Operator{
 		context:           context,
 		clusterController: clusterController,

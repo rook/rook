@@ -565,14 +565,6 @@
   revision = "bf6a532e95b1f7a62adf0ab5050a5bb2237ad2f4"
 
 [[projects]]
-  branch = "master"
-  digest = "1:1ae8472d770851e687463105821ccddad62766c66202f95693dc6970cd1269ab"
-  name = "github.com/rook/operator-kit"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "5ae9623aed20e249092e0ba99e0dd126c3173a29"
-
-[[projects]]
   digest = "1:d707dbc1330c0ed177d4642d6ae102d5e2c847ebd0eb84562d0dc4f024531cfc"
   name = "github.com/spf13/afero"
   packages = [
@@ -1511,7 +1503,6 @@
     "github.com/openshift/cluster-api/pkg/apis/machine/v1beta1",
     "github.com/openshift/machine-api-operator/pkg/apis/healthchecking/v1alpha1",
     "github.com/pkg/errors",
-    "github.com/rook/operator-kit",
     "github.com/spf13/cobra",
     "github.com/spf13/pflag",
     "github.com/stretchr/testify/assert",
@@ -1524,7 +1515,6 @@
     "k8s.io/api/policy/v1beta1",
     "k8s.io/api/storage/v1",
     "k8s.io/api/storage/v1beta1",
-    "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1",
     "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset",
     "k8s.io/apimachinery/pkg/api/errors",
     "k8s.io/apimachinery/pkg/api/resource",

@@ -23,13 +23,11 @@ import (
 	s "strings"
 
 	"github.com/coreos/pkg/capnslog"
-	opkit "github.com/rook/operator-kit"
 	nfsv1alpha1 "github.com/rook/rook/pkg/apis/nfs.rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -49,12 +47,11 @@ const (
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "nfs-operator")
 
 // NFSResource represents the nfs export custom resource
-var NFSResource = opkit.CustomResource{
+var NFSResource = k8sutil.CustomResource{
 	Name:    customResourceName,
 	Plural:  customResourceNamePlural,
 	Group:   nfsv1alpha1.CustomResourceGroup,
 	Version: nfsv1alpha1.Version,
-	Scope:   apiextensionsv1beta1.NamespaceScoped,
 	Kind:    reflect.TypeOf(nfsv1alpha1.NFSServer{}).Name(),
 }
 
@@ -81,8 +78,7 @@ func (c *Controller) StartWatch(namespace string, stopCh chan struct{}) error {
 	}
 
 	logger.Infof("start watching nfs server resources in namespace %s", namespace)
-	watcher := opkit.NewWatcher(NFSResource, namespace, resourceHandlerFuncs, c.context.RookClientset.NfsV1alpha1().RESTClient())
-	go watcher.Watch(&nfsv1alpha1.NFSServer{}, stopCh)
+	go k8sutil.WatchCR(NFSResource, namespace, resourceHandlerFuncs, c.context.RookClientset.NfsV1alpha1().RESTClient(), &nfsv1alpha1.NFSServer{}, stopCh)
 
 	return nil
 }
