@@ -153,7 +153,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 	if err != nil {
 		return errors.Wrapf(err, "failed to write connection config")
 	}
-	src, err := ioutil.ReadFile(confFilePath)
+	src, err := ioutil.ReadFile(filepath.Clean(confFilePath))
 	if err != nil {
 		return errors.Wrapf(err, "failed to copy connection config to /etc/ceph. failed to read the connection config")
 	}

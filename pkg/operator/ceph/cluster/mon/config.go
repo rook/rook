@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -253,7 +254,7 @@ func genSecret(executor exec.Executor, configDir, name string, args []string) (s
 		return "", errors.Wrapf(err, "failed to gen secret")
 	}
 
-	contents, err := ioutil.ReadFile(path)
+	contents, err := ioutil.ReadFile(filepath.Clean(path))
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to read secret file")
 	}

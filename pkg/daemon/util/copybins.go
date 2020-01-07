@@ -21,6 +21,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 )
 
 // override these for unit testing
@@ -52,13 +53,13 @@ func copyBinary(sourceDir, targetDir, filename string) error {
 		return nil
 	}
 
-	sourceFile, err := os.Open(sourcePath)
+	sourceFile, err := os.Open(filepath.Clean(sourcePath))
 	if err != nil {
 		return err
 	}
 	defer sourceFile.Close()
 
-	destinationFile, err := os.Create(targetPath)
+	destinationFile, err := os.Create(filepath.Clean(targetPath))
 	if err != nil {
 		return err
 	}
