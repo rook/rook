@@ -36,7 +36,7 @@ func Retry(maxRetries int, delay time.Duration, f func() error) error {
 			return fmt.Errorf("max retries exceeded, last err: %+v", err)
 		}
 
-		logger.Infof("retrying after %v, last error: %+v", delay, err)
+		logger.Infof("retrying after %v, last error: %v", delay, err)
 		<-time.After(delay)
 	}
 }
