@@ -19,13 +19,13 @@ package test
 import (
 	"fmt"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
 // New creates a fake K8s cluster
-func New(nodes int) *fake.Clientset {
+func New(nodes int) (*fake.Clientset, error) {
 	clientset := fake.NewSimpleClientset()
 	for i := 0; i < nodes; i++ {
 		ready := v1.NodeCondition{Type: v1.NodeReady, Status: v1.ConditionTrue}
@@ -46,7 +46,9 @@ func New(nodes int) *fake.Clientset {
 				},
 			},
 		}
-		clientset.CoreV1().Nodes().Create(n)
+		if _, err := clientset.CoreV1().Nodes().Create(n); err != nil {
+			return nil, fmt.Errorf("failed to create fake K8s cluster. %v", err)
+		}
 	}
-	return clientset
+	return clientset, nil
 }

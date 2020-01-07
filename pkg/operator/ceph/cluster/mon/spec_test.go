@@ -41,7 +41,8 @@ func TestPodSpecs(t *testing.T) {
 }
 
 func testPodSpec(t *testing.T, monID string, pvc bool) {
-	clientset := testop.New(1)
+	clientset, err := testop.New(1)
+	assert.Nil(t, err)
 	c := New(
 		&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook"},
 		"ns",
@@ -90,7 +91,8 @@ func testPodSpec(t *testing.T, monID string, pvc bool) {
 }
 
 func TestDeploymentPVCSpec(t *testing.T) {
-	clientset := testop.New(1)
+	clientset, err := testop.New(1)
+	assert.Nil(t, err)
 	c := New(
 		&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook"},
 		"ns",

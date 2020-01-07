@@ -32,8 +32,12 @@ import (
 // https://godoc.org/github.com/kubernetes-sigs/controller-runtime/pkg
 func Add(mgr manager.Manager, context *controllerconfig.Context) error {
 	mgrScheme := mgr.GetScheme()
-	healthchecking.AddToScheme(mgrScheme)
-	cephv1.AddToScheme(mgrScheme)
+	if err := healthchecking.AddToScheme(mgrScheme); err != nil {
+		logger.Errorf("failed to add to healthchecking scheme. %v", err)
+	}
+	if err := cephv1.AddToScheme(mgrScheme); err != nil {
+		logger.Errorf("failed to add to ceph scheme. %v", err)
+	}
 
 	reconcileMachineDisruption := &MachineDisruptionReconciler{
 		client:  mgr.GetClient(),

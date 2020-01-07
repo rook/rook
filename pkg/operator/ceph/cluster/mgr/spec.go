@@ -85,7 +85,9 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 	c.annotations.ApplyToObjectMeta(&podSpec.ObjectMeta)
-	c.applyPrometheusAnnotations(&podSpec.ObjectMeta)
+	if err := c.applyPrometheusAnnotations(&podSpec.ObjectMeta); err != nil {
+		logger.Errorf("failed to apply prometheus annotations. %v", err)
+	}
 	c.placement.ApplyToPodSpec(&podSpec.Spec)
 
 	replicas := int32(1)
@@ -150,13 +152,18 @@ func (c *Cluster) clearHTTPBindFix() error {
 			// depends not on the current version, but on the version that may be
 			// the version being upgraded from.
 			for _, ver := range []cephver.CephVersion{cephver.Mimic} {
-				client.MgrSetConfig(c.context, c.Namespace, daemonID, ver,
+				_, err := client.MgrSetConfig(c.context, c.Namespace, daemonID, ver,
 					fmt.Sprintf("mgr/%s/server_addr", module), "", false)
+				if err != nil {
+					logger.Errorf("failed to set config for an mgr daemon using v2 format. %v", err)
+				}
 
 				// this is for the format used in v1.0
 				// https://github.com/rook/rook/commit/11d318fb2f77a6ac9a8f2b9be42c826d3b4a93c3
-				client.MgrSetConfig(c.context, c.Namespace, daemonID, ver,
-					fmt.Sprintf("mgr/%s/%s/server_addr", module, daemonID), "", false)
+				if _, err := client.MgrSetConfig(c.context, c.Namespace, daemonID, ver,
+					fmt.Sprintf("mgr/%s/%s/server_addr", module, daemonID), "", false); err != nil {
+					logger.Errorf("failed to set config for an mgr daemon using v1 format. %v", err)
+				}
 			}
 		}
 	}

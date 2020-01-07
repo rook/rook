@@ -31,6 +31,8 @@ import (
 )
 
 func TestOSDStatus(t *testing.T) {
+	clientset, err := testexec.New(2)
+	assert.Nil(t, err)
 	cluster := "fake"
 
 	var execCount = 0
@@ -60,7 +62,7 @@ func TestOSDStatus(t *testing.T) {
 	// Setting up objects needed to create OSD
 	context := &clusterd.Context{
 		Executor:  executor,
-		Clientset: testexec.New(2),
+		Clientset: clientset,
 	}
 
 	labels := map[string]string{
@@ -92,7 +94,7 @@ func TestOSDStatus(t *testing.T) {
 	osdMon := NewMonitor(context, cluster, true, cephVersion)
 
 	// Run OSD monitoring routine
-	err := osdMon.osdStatus()
+	err = osdMon.osdStatus()
 	assert.Nil(t, err)
 	// After creating an OSD, the dump has 1 mocked cmd and safe to destroy has 1 mocked cmd
 	assert.Equal(t, 2, execCount)

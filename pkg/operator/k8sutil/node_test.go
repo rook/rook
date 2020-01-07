@@ -208,7 +208,8 @@ func TestNodeIsReady(t *testing.T) {
 }
 
 func TestGetRookNodesMatchingKubernetesNodes(t *testing.T) {
-	clientset := optest.New(3) // create nodes 0, 1, and 2
+	clientset, err := optest.New(3) // create nodes 0, 1, and 2
+	assert.Nil(t, err)
 	rookNodes := []rookalpha.Node{}
 
 	getNode := func(name string) v1.Node {
@@ -246,14 +247,16 @@ func TestGetRookNodesMatchingKubernetesNodes(t *testing.T) {
 	assert.Contains(t, nodes, getNode("node2"))
 
 	// no k8s nodes exist
-	clientset = optest.New(0)
+	clientset, err = optest.New(0)
+	assert.Nil(t, err)
 	nodes, err = GetKubernetesNodesMatchingRookNodes(rookNodes, clientset)
 	assert.NoError(t, err)
 	assert.Len(t, nodes, 0)
 }
 
 func TestRookNodesMatchingKubernetesNodes(t *testing.T) {
-	clientset := optest.New(3) // create nodes 0, 1, and 2
+	clientset, err := optest.New(3) // create nodes 0, 1, and 2
+	assert.Nil(t, err)
 
 	getNode := func(name string) v1.Node {
 		n, err := clientset.CoreV1().Nodes().Get(name, metav1.GetOptions{})

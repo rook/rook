@@ -40,8 +40,12 @@ const (
 // https://godoc.org/github.com/kubernetes-sigs/controller-runtime/pkg
 func Add(mgr manager.Manager, context *controllerconfig.Context) error {
 	mgrScheme := mgr.GetScheme()
-	cephv1.AddToScheme(mgrScheme)
-	mapiv1.AddToScheme(mgrScheme)
+	if err := cephv1.AddToScheme(mgrScheme); err != nil {
+		logger.Errorf("failed to add scheme to ceph. %v", err)
+	}
+	if err := mapiv1.AddToScheme(mgrScheme); err != nil {
+		logger.Errorf("failed to add scheme to mapi. %v", err)
+	}
 
 	reconcileMachineLabel := &ReconcileMachineLabel{
 		client:  mgr.GetClient(),

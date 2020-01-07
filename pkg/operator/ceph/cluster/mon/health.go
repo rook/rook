@@ -117,7 +117,9 @@ func (c *Cluster) checkHealth() error {
 			// enough mons, remove it else remove it on the next run
 			if inQuorum && len(quorumStatus.MonMap.Mons) > desiredMonCount {
 				logger.Warningf("mon %s not in source of truth but in quorum, removing", mon.Name)
-				c.removeMon(mon.Name)
+				if err := c.removeMon(mon.Name); err != nil {
+					logger.Warningf("failed to remove. %v", err)
+				}
 			} else {
 				logger.Warningf(
 					"mon %s not in source of truth and not in quorum, not enough mons to remove now (wanted: %d, current: %d)",

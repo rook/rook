@@ -780,7 +780,9 @@ func (c *Cluster) saveMonConfig() error {
 
 	// Every time the mon config is updated, must also update the global config so that all daemons
 	// have the most updated version if they restart.
-	config.GetStore(c.context, c.Namespace, &c.ownerRef).CreateOrUpdate(c.ClusterInfo)
+	if err := config.GetStore(c.context, c.Namespace, &c.ownerRef).CreateOrUpdate(c.ClusterInfo); err != nil {
+		logger.Errorf("failed to update the global config. %v", err)
+	}
 
 	// write the latest config to the config dir
 	if err := WriteConnectionConfig(c.context, c.ClusterInfo); err != nil {

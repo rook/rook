@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
@@ -113,7 +114,8 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 }
 
 func TestMinVersion(t *testing.T) {
-	c := testSpec()
+	c, err := testSpec()
+	assert.Nil(t, err)
 	c.Spec.CephVersion.AllowUnsupported = true
 
 	// All versions less than 13.2.4 are invalid
@@ -132,7 +134,8 @@ func TestMinVersion(t *testing.T) {
 }
 
 func TestSupportedVersion(t *testing.T) {
-	c := testSpec()
+	c, err := testSpec()
+	assert.Nil(t, err)
 
 	// Supported versions are valid
 	v := &cephver.CephVersion{Major: 14, Minor: 2, Extra: 0}
@@ -147,10 +150,13 @@ func TestSupportedVersion(t *testing.T) {
 	assert.NoError(t, c.validateCephVersion(v))
 }
 
-func testSpec() cluster {
-	clientset := testop.New(1)
+func testSpec() (*cluster, error) {
+	clientset, err := testop.New(1)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to test spec.")
+	}
 	context := &clusterd.Context{
 		Clientset: clientset,
 	}
-	return cluster{Spec: &cephv1.ClusterSpec{}, context: context}
+	return &cluster{Spec: &cephv1.ClusterSpec{}, context: context}, nil
 }

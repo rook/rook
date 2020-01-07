@@ -39,7 +39,8 @@ func TestClusterDelete(t *testing.T) {
 	os.Setenv(k8sutil.PodNamespaceEnvVar, rookSystemNamespace)
 	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
 
-	clientset := testop.New(3)
+	clientset, err := testop.New(3)
+	assert.Nil(t, err)
 	context := &clusterd.Context{
 		Clientset: clientset,
 	}
@@ -92,7 +93,8 @@ func TestClusterChanged(t *testing.T) {
 }
 
 func TestRemoveFinalizer(t *testing.T) {
-	clientset := testop.New(3)
+	clientset, err := testop.New(3)
+	assert.Nil(t, err)
 	context := &clusterd.Context{
 		Clientset:     clientset,
 		RookClientset: rookfake.NewSimpleClientset(),
@@ -111,7 +113,7 @@ func TestRemoveFinalizer(t *testing.T) {
 	}
 
 	// create the cluster initially so it exists in the k8s api
-	cluster, err := context.RookClientset.EdgefsV1().Clusters(cluster.Namespace).Create(cluster)
+	cluster, err = context.RookClientset.EdgefsV1().Clusters(cluster.Namespace).Create(cluster)
 	assert.NoError(t, err)
 	assert.Len(t, cluster.Finalizers, 1)
 

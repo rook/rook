@@ -170,7 +170,9 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		cluster.Spec.ResourceProfile,
 		cluster.ownerRef,
 		cluster.Spec.UseHostLocalTime)
-	NFSController.StartWatch(cluster.stopCh)
+	if err := NFSController.StartWatch(cluster.stopCh); err != nil {
+		logger.Errorf("failed to start watch for nfs service CRD. %v", err)
+	}
 
 	// Start S3 service CRD watcher
 	S3Controller := s3.NewS3Controller(c.context,
@@ -183,7 +185,9 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		cluster.Spec.ResourceProfile,
 		cluster.ownerRef,
 		cluster.Spec.UseHostLocalTime)
-	S3Controller.StartWatch(cluster.stopCh)
+	if err := S3Controller.StartWatch(cluster.stopCh); err != nil {
+		logger.Errorf("failed to start watch for s3 service CRD. %v", err)
+	}
 
 	// Start SWIFT service CRD watcher
 	SWIFTController := swift.NewSWIFTController(c.context,
@@ -196,7 +200,9 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		cluster.Spec.ResourceProfile,
 		cluster.ownerRef,
 		cluster.Spec.UseHostLocalTime)
-	SWIFTController.StartWatch(cluster.stopCh)
+	if err := SWIFTController.StartWatch(cluster.stopCh); err != nil {
+		logger.Errorf("failed to start watch for SWIFT service CRD. %v", err)
+	}
 
 	// Start S3X service CRD watcher
 	S3XController := s3x.NewS3XController(c.context,
@@ -209,7 +215,9 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		cluster.Spec.ResourceProfile,
 		cluster.ownerRef,
 		cluster.Spec.UseHostLocalTime)
-	S3XController.StartWatch(cluster.stopCh)
+	if err := S3XController.StartWatch(cluster.stopCh); err != nil {
+		logger.Errorf("failed to start watch for s3xcontroller service CRD. %v", err)
+	}
 
 	// Start ISCSI service CRD watcher
 	ISCSIController := iscsi.NewISCSIController(c.context,
@@ -222,7 +230,9 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		cluster.Spec.ResourceProfile,
 		cluster.ownerRef,
 		cluster.Spec.UseHostLocalTime)
-	ISCSIController.StartWatch(cluster.stopCh)
+	if err := ISCSIController.StartWatch(cluster.stopCh); err != nil {
+		logger.Errorf("failed to start watch for ISCSI service CRD. %v", err)
+	}
 
 	// Start ISGW service CRD watcher
 	ISGWController := isgw.NewISGWController(c.context,
@@ -235,7 +245,9 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		cluster.Spec.ResourceProfile,
 		cluster.ownerRef,
 		cluster.Spec.UseHostLocalTime)
-	ISGWController.StartWatch(cluster.stopCh)
+	if err := ISGWController.StartWatch(cluster.stopCh); err != nil {
+		logger.Errorf("failed to start watch for ISGW service CRD. %v", err)
+	}
 
 	cluster.childControllers = []childController{
 		NFSController, S3Controller, S3XController, SWIFTController, ISCSIController, ISGWController,
@@ -244,14 +256,14 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	// add the finalizer to the crd
 	err = c.addFinalizer(clusterObj)
 	if err != nil {
-		logger.Errorf("failed to add finalizer to cluster crd. %+v", err)
+		logger.Errorf("failed to add finalizer to cluster crd. %v", err)
 	}
 }
 
 func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 	oldCluster := oldObj.(*edgefsv1.Cluster).DeepCopy()
 	newCluster := newObj.(*edgefsv1.Cluster).DeepCopy()
-	logger.Infof("update event for cluster %s", newCluster.Namespace)
+	logger.Infof("update event for cluster %q", newCluster.Namespace)
 
 	// Check if the cluster is being deleted. This code path is called when a finalizer is specified in the crd.
 	// When a cluster is requested for deletion, K8s will only set the deletion timestamp if there are any finalizers in the list.
@@ -260,7 +272,7 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 		logger.Infof("cluster %s has a deletion timestamp", newCluster.Namespace)
 		err := c.handleDelete(newCluster, time.Duration(clusterDeleteRetryInterval)*time.Second)
 		if err != nil {
-			logger.Errorf("failed finalizer for cluster. %+v", err)
+			logger.Errorf("failed finalizer for cluster. %v", err)
 			return
 		}
 		// remove the finalizer from the crd, which indicates to k8s that the resource can safely be deleted

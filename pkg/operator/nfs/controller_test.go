@@ -113,7 +113,8 @@ func TestOnAdd(t *testing.T) {
 	}
 
 	// initialize the controller and its dependencies
-	clientset := testop.New(3)
+	clientset, err := testop.New(3)
+	assert.Nil(t, err)
 	context := &clusterd.Context{Clientset: clientset}
 	controller := NewController(context, "rook/nfs:mockTag")
 

@@ -77,6 +77,5 @@ func getDeviceLVPath(context *clusterd.Context, deviceName string) string {
 		return ""
 	}
 	logger.Debugf("logical volume path for device %q is %q", deviceName, output)
-
 	return output
 }

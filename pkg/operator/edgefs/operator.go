@@ -73,7 +73,9 @@ func (o *Operator) Run() error {
 	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 
 	// watch for changes to the edgefs clusters
-	o.clusterController.StartWatch(v1.NamespaceAll, stopChan)
+	if err := o.clusterController.StartWatch(v1.NamespaceAll, stopChan); err != nil {
+		logger.Errorf("failed to start watch for edgefs clusters. %v", err)
+	}
 
 	for {
 		select {

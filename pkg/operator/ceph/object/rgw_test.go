@@ -32,7 +32,8 @@ import (
 )
 
 func TestStartRGW(t *testing.T) {
-	clientset := testop.New(3)
+	clientset, err := testop.New(3)
+	assert.Nil(t, err)
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
 			return `{"key":"mysecurekey"}`, nil
@@ -53,7 +54,7 @@ func TestStartRGW(t *testing.T) {
 
 	// start a basic cluster
 	c := &clusterConfig{info, context, store, version, &cephv1.ClusterSpec{}, metav1.OwnerReference{}, data, false}
-	err := c.startRGWPods()
+	err = c.startRGWPods()
 	assert.Nil(t, err)
 
 	validateStart(t, c, clientset)
@@ -88,14 +89,15 @@ func TestCreateObjectStore(t *testing.T) {
 	}
 
 	store := simpleStore()
-	clientset := testop.New(3)
+	clientset, err := testop.New(3)
+	assert.Nil(t, err)
 	context := &clusterd.Context{Executor: executor, Clientset: clientset}
 	info := testop.CreateConfigDir(1)
 	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "my-fs", "rook-ceph", "/var/lib/rook/")
 
 	// create the pools
 	c := &clusterConfig{info, context, store, "1.2.3.4", &cephv1.ClusterSpec{}, metav1.OwnerReference{}, data, false}
-	err := c.createOrUpdate()
+	err = c.createOrUpdate()
 	assert.Nil(t, err)
 }
 

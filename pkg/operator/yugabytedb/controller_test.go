@@ -328,7 +328,8 @@ func TestOnAdd(t *testing.T) {
 	namespace := "rook-yugabytedb"
 
 	// initialize the controller and its dependencies
-	clientset := testop.New(3)
+	clientset, err := testop.New(3)
+	assert.Nil(t, err)
 	context := &clusterd.Context{Clientset: clientset}
 	controller := NewClusterController(context, "rook/yugabytedb:mockTag")
 	controllerSet := &ControllerSet{
@@ -527,7 +528,8 @@ func TestOnAddWithTServerUI(t *testing.T) {
 	namespace := "rook-yugabytedb"
 
 	// initialize the controller and its dependencies
-	clientset := testop.New(3)
+	clientset, err := testop.New(3)
+	assert.Nil(t, err)
 	context := &clusterd.Context{Clientset: clientset}
 	controller := NewClusterController(context, "rook/yugabytedb:mockTag")
 	controllerSet := &ControllerSet{
@@ -572,7 +574,8 @@ func TestOnUpdate_replicaCount(t *testing.T) {
 	// initialize the controller and its dependencies
 	namespace := "rook-yugabytedb"
 	initialReplicatCount := 3
-	clientset := testop.New(initialReplicatCount)
+	clientset, err := testop.New(initialReplicatCount)
+	assert.Nil(t, err)
 	context := &clusterd.Context{Clientset: clientset}
 	controller := NewClusterController(context, "rook/yugabytedb:mockTag")
 	controllerSet := &ControllerSet{
@@ -641,7 +644,8 @@ func TestOnUpdate_volumeClaimTemplate(t *testing.T) {
 	// initialize the controller and its dependencies
 	namespace := "rook-yugabytedb"
 	initialReplicatCount := 3
-	clientset := testop.New(initialReplicatCount)
+	clientset, err := testop.New(initialReplicatCount)
+	assert.Nil(t, err)
 	context := &clusterd.Context{Clientset: clientset}
 	controller := NewClusterController(context, "rook/yugabytedb:mockTag")
 	controllerSet := &ControllerSet{
@@ -711,7 +715,8 @@ func TestOnUpdate_updateNetworkPorts(t *testing.T) {
 	// initialize the controller and its dependencies
 	namespace := "rook-yugabytedb"
 	initialReplicatCount := 3
-	clientset := testop.New(initialReplicatCount)
+	clientset, err := testop.New(initialReplicatCount)
+	assert.Nil(t, err)
 	context := &clusterd.Context{Clientset: clientset}
 	controller := NewClusterController(context, "rook/yugabytedb:mockTag")
 	controllerSet := &ControllerSet{
@@ -799,7 +804,8 @@ func TestOnUpdate_addTServerUIPort(t *testing.T) {
 	// initialize the controller and its dependencies
 	namespace := "rook-yugabytedb"
 	initialReplicatCount := 3
-	clientset := testop.New(initialReplicatCount)
+	clientset, err := testop.New(initialReplicatCount)
+	assert.Nil(t, err)
 	context := &clusterd.Context{Clientset: clientset}
 	controller := NewClusterController(context, "rook/yugabytedb:mockTag")
 	controllerSet := &ControllerSet{
@@ -896,7 +902,8 @@ func TestOnUpdate_removeTServerUIPort(t *testing.T) {
 	// initialize the controller and its dependencies
 	namespace := "rook-yugabytedb"
 	initialReplicatCount := 3
-	clientset := testop.New(initialReplicatCount)
+	clientset, err := testop.New(initialReplicatCount)
+	assert.Nil(t, err)
 	context := &clusterd.Context{Clientset: clientset}
 	controller := NewClusterController(context, "rook/yugabytedb:mockTag")
 	controllerSet := &ControllerSet{

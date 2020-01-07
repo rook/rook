@@ -148,7 +148,9 @@ func (o *Operator) Run() error {
 	go o.startManager(stopChan)
 
 	// watch for changes to the rook clusters
-	o.clusterController.StartWatch(namespaceToWatch, stopChan)
+	if err := o.clusterController.StartWatch(namespaceToWatch, stopChan); err != nil {
+		logger.Errorf("failed to start watch for Ceph clusters. %v", err)
+	}
 
 	for {
 		select {

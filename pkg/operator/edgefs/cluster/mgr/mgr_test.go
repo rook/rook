@@ -41,16 +41,18 @@ func TestStartMGR(t *testing.T) {
 
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
+	clientset, err := testop.New(3)
+	assert.Nil(t, err)
 	context := &clusterd.Context{
 		Executor:  executor,
 		ConfigDir: configDir,
-		Clientset: testop.New(3)}
+		Clientset: clientset}
 	volSize := resource.NewQuantity(100000.0, resource.BinarySI)
 	c := New(context, "ns", "myversion", "", "", *volSize, rookalpha.Annotations{}, rookalpha.Placement{}, rookalpha.NetworkSpec{},
 		edgefsv1.DashboardSpec{}, v1.ResourceRequirements{}, "", metav1.OwnerReference{}, false)
 
 	// start a basic service
-	err := c.Start("edgefs")
+	err = c.Start("edgefs")
 	assert.Nil(t, err)
 	validateStart(t, c)
 }
@@ -65,8 +67,10 @@ func validateStart(t *testing.T, c *Cluster) {
 }
 
 func TestPodSpec(t *testing.T) {
+	clientset, err := testop.New(1)
+	assert.Nil(t, err)
 	volSize := resource.NewQuantity(100000.0, resource.BinarySI)
-	c := New(&clusterd.Context{Clientset: testop.New(1)}, "ns", "rook/rook:myversion", "", "", *volSize, rookalpha.Annotations{}, rookalpha.Placement{},
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "rook/rook:myversion", "", "", *volSize, rookalpha.Annotations{}, rookalpha.Placement{},
 		rookalpha.NetworkSpec{}, edgefsv1.DashboardSpec{}, v1.ResourceRequirements{
 			Limits: v1.ResourceList{
 				v1.ResourceCPU: *resource.NewQuantity(100.0, resource.BinarySI),
@@ -119,6 +123,8 @@ func TestServiceSpec(t *testing.T) {
 }
 
 func TestHostNetwork(t *testing.T) {
+	clientset, err := testop.New(1)
+	assert.Nil(t, err)
 	volSize := resource.NewQuantity(100000.0, resource.BinarySI)
 	net := rookalpha.NetworkSpec{
 		Provider: "host",
@@ -126,7 +132,7 @@ func TestHostNetwork(t *testing.T) {
 			"server": "eth0",
 		},
 	}
-	c := New(&clusterd.Context{Clientset: testop.New(1)}, "ns", "myversion", "", "", *volSize, rookalpha.Annotations{}, rookalpha.Placement{},
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "myversion", "", "", *volSize, rookalpha.Annotations{}, rookalpha.Placement{},
 		net, edgefsv1.DashboardSpec{}, v1.ResourceRequirements{},
 		"", metav1.OwnerReference{}, false)
 

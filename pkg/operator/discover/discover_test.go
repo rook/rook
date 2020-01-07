@@ -34,7 +34,8 @@ import (
 )
 
 func TestStartDiscoveryDaemonset(t *testing.T) {
-	clientset := test.New(3)
+	clientset, err := test.New(3)
+	assert.Nil(t, err)
 
 	os.Setenv(k8sutil.PodNamespaceEnvVar, "rook-system")
 	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
@@ -66,7 +67,7 @@ func TestStartDiscoveryDaemonset(t *testing.T) {
 	clientset.CoreV1().Pods("rook-system").Create(&pod)
 
 	// start a basic cluster
-	err := a.Start(namespace, "rook/rook:myversion", "mysa", false)
+	err = a.Start(namespace, "rook/rook:myversion", "mysa", false)
 	assert.Nil(t, err)
 
 	// check daemonset parameters
@@ -89,7 +90,8 @@ func TestStartDiscoveryDaemonset(t *testing.T) {
 }
 
 func TestGetAvailableDevices(t *testing.T) {
-	clientset := test.New(3)
+	clientset, err := test.New(3)
+	assert.Nil(t, err)
 	pvcBackedOSD := false
 	ns := "rook-system"
 	nodeName := "node123"
@@ -112,7 +114,7 @@ func TestGetAvailableDevices(t *testing.T) {
 		},
 		Data: data,
 	}
-	_, err := clientset.CoreV1().ConfigMaps(ns).Create(cm)
+	_, err = clientset.CoreV1().ConfigMaps(ns).Create(cm)
 	assert.Nil(t, err)
 	context := &clusterd.Context{
 		Clientset: clientset,

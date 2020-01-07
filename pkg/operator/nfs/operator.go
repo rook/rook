@@ -23,7 +23,7 @@ import (
 	"syscall"
 
 	"github.com/rook/rook/pkg/clusterd"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 )
 
 // Operator type for managing NFS Server.
@@ -51,7 +51,9 @@ func (o *Operator) Run() error {
 	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 
 	// Watch for changes to the nfs server.
-	o.controller.StartWatch(v1.NamespaceAll, stopChan)
+	if err := o.controller.StartWatch(v1.NamespaceAll, stopChan); err != nil {
+		logger.Errorf("failed to start watch for nfs server. %v", err)
+	}
 	logger.Infof("Started watch for NFS Servers")
 
 	for {

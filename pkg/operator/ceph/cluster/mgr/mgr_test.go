@@ -48,12 +48,14 @@ func TestStartMGR(t *testing.T) {
 		},
 	}
 
+	clientset, err := testop.New(3)
+	assert.Nil(t, err)
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
 	context := &clusterd.Context{
 		Executor:  executor,
 		ConfigDir: configDir,
-		Clientset: testop.New(3)}
+		Clientset: clientset}
 	clusterInfo := &cephconfig.ClusterInfo{FSID: "myfsid"}
 	c := New(
 		clusterInfo,
@@ -76,7 +78,7 @@ func TestStartMGR(t *testing.T) {
 	defer os.RemoveAll(c.dataDir)
 
 	// start a basic service
-	err := c.Start()
+	err = c.Start()
 	assert.Nil(t, err)
 	validateStart(t, c)
 	assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
@@ -158,7 +160,9 @@ func TestConfigureModules(t *testing.T) {
 		},
 	}
 
-	context := &clusterd.Context{Executor: executor, Clientset: testop.New(3)}
+	clientset, err := testop.New(3)
+	assert.Nil(t, err)
+	context := &clusterd.Context{Executor: executor, Clientset: clientset}
 	clusterInfo := &cephconfig.ClusterInfo{}
 	c := &Cluster{
 		clusterInfo: clusterInfo,

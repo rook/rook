@@ -49,8 +49,10 @@ func TestGeneratePassword(t *testing.T) {
 }
 
 func TestGetOrGeneratePassword(t *testing.T) {
-	c := &Cluster{context: &clusterd.Context{Clientset: test.New(3)}, Namespace: "myns"}
-	_, err := c.context.Clientset.CoreV1().Secrets(c.Namespace).Get(dashboardPasswordName, metav1.GetOptions{})
+	clientset, err := test.New(3)
+	assert.Nil(t, err)
+	c := &Cluster{context: &clusterd.Context{Clientset: clientset}, Namespace: "myns"}
+	_, err = c.context.Clientset.CoreV1().Secrets(c.Namespace).Get(dashboardPasswordName, metav1.GetOptions{})
 	assert.True(t, kerrors.IsNotFound(err))
 
 	// Generate a password
@@ -75,6 +77,8 @@ func TestStartSecureDashboard(t *testing.T) {
 	disables := 0
 	moduleRetries := 0
 	exitCodeResponse := 0
+	clientset, err := test.New(3)
+	assert.Nil(t, err)
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
 			logger.Infof("command: %s %v", command, args)
@@ -104,7 +108,7 @@ func TestStartSecureDashboard(t *testing.T) {
 	clusterInfo := &cephconfig.ClusterInfo{
 		CephVersion: cephver.Mimic,
 	}
-	c := &Cluster{clusterInfo: clusterInfo, context: &clusterd.Context{Clientset: test.New(3), Executor: executor}, Namespace: "myns",
+	c := &Cluster{clusterInfo: clusterInfo, context: &clusterd.Context{Clientset: clientset, Executor: executor}, Namespace: "myns",
 		dashboard: cephv1.DashboardSpec{Port: dashboardPortHTTP, Enabled: true, SSL: true}, cephVersion: cephv1.CephVersionSpec{Image: "ceph/ceph:v13.2.2"}}
 	c.exitCode = func(err error) (int, bool) {
 		if exitCodeResponse != 0 {
@@ -114,7 +118,7 @@ func TestStartSecureDashboard(t *testing.T) {
 	}
 
 	dashboardInitWaitTime = 0
-	err := c.configureDashboardService()
+	err = c.configureDashboardService()
 	assert.NoError(t, err)
 	err = c.configureDashboardModules()
 	assert.NoError(t, err)

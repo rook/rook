@@ -89,7 +89,9 @@ func (s *FlexvolumeServer) Start(driverVendor, driverName string) error {
 	// remove unix socket if it existed previously
 	if _, err := os.Stat(unixSocketFile); !os.IsNotExist(err) {
 		logger.Info("Deleting unix domain socket file.")
-		os.Remove(unixSocketFile)
+		if err := os.Remove(unixSocketFile); err != nil {
+			logger.Errorf("failed to remove unix socket file. %v", err)
+		}
 	}
 
 	listener, err := net.Listen("unix", unixSocketFile)
@@ -119,7 +121,9 @@ func (s *FlexvolumeServer) StopAll() {
 		// closing the listener should remove the unix socket file. But lets try it remove it just in case.
 		if _, err := os.Stat(unixSocketFile); !os.IsNotExist(err) {
 			logger.Infof("deleting unix domain socket file %q.", unixSocketFile)
-			os.Remove(unixSocketFile)
+			if err := os.Remove(unixSocketFile); err != nil {
+				logger.Errorf("failed to delete unix domain socker file. %v", err)
+			}
 		}
 	}
 	s.listeners = make(map[string]net.Listener)

@@ -45,7 +45,8 @@ func TestClusterDeleteFlexEnabled(t *testing.T) {
 	defer os.Unsetenv("ROOK_ENABLE_FLEX_DRIVER")
 	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
 
-	clientset := testop.New(3)
+	clientset, err := testop.New(3)
+	assert.Nil(t, err)
 	context := &clusterd.Context{
 		Clientset: clientset,
 	}
@@ -111,7 +112,8 @@ func TestClusterDeleteFlexDisabled(t *testing.T) {
 	defer os.Unsetenv("ROOK_ENABLE_FLEX_DRIVER")
 	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
 
-	clientset := testop.New(3)
+	clientset, err := testop.New(3)
+	assert.Nil(t, err)
 	context := &clusterd.Context{
 		Clientset: clientset,
 	}
@@ -206,7 +208,8 @@ func TestClusterChanged(t *testing.T) {
 }
 
 func TestRemoveFinalizer(t *testing.T) {
-	clientset := testop.New(3)
+	clientset, err := testop.New(3)
+	assert.Nil(t, err)
 	context := &clusterd.Context{
 		Clientset:     clientset,
 		RookClientset: rookfake.NewSimpleClientset(),
@@ -238,7 +241,7 @@ func TestRemoveFinalizer(t *testing.T) {
 	}
 
 	// create the cluster initially so it exists in the k8s api
-	cluster, err := context.RookClientset.CephV1().CephClusters(cluster.Namespace).Create(cluster)
+	cluster, err = context.RookClientset.CephV1().CephClusters(cluster.Namespace).Create(cluster)
 	assert.NoError(t, err)
 	assert.Len(t, cluster.Finalizers, 1)
 

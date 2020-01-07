@@ -25,12 +25,13 @@ import (
 	"github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestStartAgentDaemonset(t *testing.T) {
-	clientset := test.New(3)
+	clientset, err := test.New(3)
+	assert.Nil(t, err)
 
 	os.Setenv(k8sutil.PodNamespaceEnvVar, "rook-system")
 	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
@@ -61,7 +62,7 @@ func TestStartAgentDaemonset(t *testing.T) {
 	a := New(clientset)
 
 	// start a basic cluster
-	err := a.Start(namespace, "rook/rook:myversion", "mysa")
+	err = a.Start(namespace, "rook/rook:myversion", "mysa")
 	assert.Nil(t, err)
 
 	// check daemonset parameters
@@ -84,7 +85,8 @@ func TestStartAgentDaemonset(t *testing.T) {
 }
 
 func TestGetContainerImage(t *testing.T) {
-	clientset := test.New(3)
+	clientset, err := test.New(3)
+	assert.Nil(t, err)
 
 	os.Setenv(k8sutil.PodNamespaceEnvVar, "Default")
 	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
@@ -143,7 +145,8 @@ func TestGetContainerImageMultipleContainers(t *testing.T) {
 }
 
 func TestStartAgentDaemonsetWithToleration(t *testing.T) {
-	clientset := test.New(3)
+	clientset, err := test.New(3)
+	assert.Nil(t, err)
 
 	os.Setenv(k8sutil.PodNamespaceEnvVar, "rook-system")
 	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
@@ -177,7 +180,7 @@ func TestStartAgentDaemonsetWithToleration(t *testing.T) {
 	a := New(clientset)
 
 	// start a basic cluster
-	err := a.Start(namespace, "rook/test", "mysa")
+	err = a.Start(namespace, "rook/test", "mysa")
 	assert.Nil(t, err)
 
 	// check daemonset toleration

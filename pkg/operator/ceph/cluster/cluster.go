@@ -456,7 +456,9 @@ func (c *cluster) postMonStartupActions() error {
 				// If length is one, this clearly indicates that all the mons are running the same version
 				// We are doing this because 'ceph version' might return the Ceph version that a majority of mons has but not all of them
 				// so instead of trying to active msgr2 when mons are not ready, we activate it when we believe that's the right time
-				client.EnableMessenger2(c.context, c.Namespace)
+				if err := client.EnableMessenger2(c.context, c.Namespace); err != nil {
+					logger.Errorf("failed to enable Ceph messenger version 2. %v", err)
+				}
 			}
 		}
 	}

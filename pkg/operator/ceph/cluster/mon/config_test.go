@@ -32,7 +32,8 @@ import (
 )
 
 func TestCreateClusterSecrets(t *testing.T) {
-	clientset := test.New(1)
+	clientset, err := test.New(1)
+	assert.Nil(t, err)
 	configDir := "ns"
 	os.MkdirAll(configDir, 0755)
 	defer os.RemoveAll(configDir)

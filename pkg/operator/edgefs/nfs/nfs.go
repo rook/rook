@@ -180,7 +180,9 @@ func (c *NFSController) makeDeployment(svcname, namespace, rookImage string, nfs
 	if c.NetworkSpec.IsHost() {
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	} else if c.NetworkSpec.IsMultus() {
-		k8sutil.ApplyMultus(c.NetworkSpec, &podSpec.ObjectMeta)
+		if err := k8sutil.ApplyMultus(c.NetworkSpec, &podSpec.ObjectMeta); err != nil {
+			logger.Errorf("failed to apply multus spec to podspec metadata for nfs. %v", err)
+		}
 	}
 	nfsSpec.Annotations.ApplyToObjectMeta(&podSpec.ObjectMeta)
 

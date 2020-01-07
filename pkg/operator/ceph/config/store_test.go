@@ -29,7 +29,8 @@ import (
 )
 
 func TestStore(t *testing.T) {
-	clientset := testop.New(1)
+	clientset, err := testop.New(1)
+	assert.Nil(t, err)
 	ctx := &clusterd.Context{
 		Clientset: clientset,
 	}
@@ -63,7 +64,8 @@ func TestStore(t *testing.T) {
 }
 
 func TestEnvVarsAndFlags(t *testing.T) {
-	clientset := testop.New(1)
+	clientset, err := testop.New(1)
+	assert.Nil(t, err)
 	ctx := &clusterd.Context{
 		Clientset: clientset,
 	}

@@ -33,7 +33,8 @@ import (
 )
 
 func TestNodeAffinity(t *testing.T) {
-	clientset := test.New(4)
+	clientset, err := test.New(4)
+	assert.Nil(t, err)
 	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", cephv1.NetworkSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 
@@ -72,21 +73,21 @@ func TestNodeAffinity(t *testing.T) {
 // this tests can 3 mons with hostnetworking on the same host is rejected
 func TestHostNetworkSameNode(t *testing.T) {
 	namespace := "ns"
-	context := newTestStartCluster(namespace)
-
+	context, err := newTestStartCluster(namespace)
+	assert.Nil(t, err)
 	// cluster host networking
 	c := newCluster(context, namespace, cephv1.NetworkSpec{HostNetwork: true}, true, v1.ResourceRequirements{})
 	c.ClusterInfo = test.CreateConfigDir(1)
 
 	// start a basic cluster
-	_, err := c.Start(c.ClusterInfo, c.rookVersion, cephver.Mimic, c.spec)
+	_, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Mimic, c.spec)
 	assert.Error(t, err)
 }
 
 func TestPodMemory(t *testing.T) {
 	namespace := "ns"
-	context := newTestStartCluster(namespace)
-
+	context, err := newTestStartCluster(namespace)
+	assert.Nil(t, err)
 	// Test memory limit alone
 	r := v1.ResourceRequirements{
 		Limits: v1.ResourceList{
@@ -97,7 +98,7 @@ func TestPodMemory(t *testing.T) {
 	c := newCluster(context, namespace, cephv1.NetworkSpec{}, true, r)
 	c.ClusterInfo = test.CreateConfigDir(1)
 	// start a basic cluster
-	_, err := c.Start(c.ClusterInfo, c.rookVersion, cephver.Mimic, c.spec)
+	_, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Mimic, c.spec)
 	assert.Error(t, err)
 
 	// Test REQUEST == LIMIT
@@ -159,7 +160,8 @@ func TestPodMemory(t *testing.T) {
 }
 
 func TestHostNetwork(t *testing.T) {
-	clientset := test.New(3)
+	clientset, err := test.New(3)
+	assert.Nil(t, err)
 	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", cephv1.NetworkSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 
@@ -197,7 +199,8 @@ func extractArgValue(args []string, name string) (string, string) {
 }
 
 func TestGetNodeInfoFromNode(t *testing.T) {
-	clientset := test.New(1)
+	clientset, err := test.New(1)
+	assert.Nil(t, err)
 	node, err := clientset.CoreV1().Nodes().Get("node0", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.NotNil(t, node)

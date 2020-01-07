@@ -113,7 +113,9 @@ func (a *Agent) Run() error {
 		flexvolumeController,
 		volumeAttachmentController)
 	stopChan := make(chan struct{})
-	clusterController.StartWatch(v1.NamespaceAll, stopChan)
+	if err := clusterController.StartWatch(v1.NamespaceAll, stopChan); err != nil {
+		logger.Errorf("failed to start watch cluster controller . %v", err)
+	}
 	go periodicallyRefreshFlexDrivers(driverName, stopChan)
 
 	sigc := make(chan os.Signal, 1)

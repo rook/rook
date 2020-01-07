@@ -424,19 +424,27 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 
 	// Start client CRD watcher
 	clientController := cephclient.NewClientController(c.context, cluster.Namespace)
-	clientController.StartWatch(cluster.stopCh)
+	if err := clientController.StartWatch(cluster.stopCh); err != nil {
+		logger.Errorf("failed to start client CRD watcher. %v", err)
+	}
 
 	// Start pool CRD watcher
 	poolController := pool.NewPoolController(c.context, cluster.Spec)
-	poolController.StartWatch(cluster.Namespace, cluster.stopCh)
+	if err := poolController.StartWatch(cluster.Namespace, cluster.stopCh); err != nil {
+		logger.Errorf("failed to start pool CRD watcher. %v", err)
+	}
 
 	// Start object store CRD watcher
 	objectStoreController := object.NewObjectStoreController(cluster.Info, c.context, cluster.Namespace, c.rookImage, cluster.Spec, cluster.ownerRef, cluster.Spec.DataDirHostPath)
-	objectStoreController.StartWatch(cluster.Namespace, cluster.stopCh)
+	if err := objectStoreController.StartWatch(cluster.Namespace, cluster.stopCh); err != nil {
+		logger.Errorf("failed to start object store CRD watcher. %v", err)
+	}
 
 	// Start object store user CRD watcher
 	objectStoreUserController := objectuser.NewObjectStoreUserController(c.context, cluster.Spec, cluster.Namespace, cluster.ownerRef)
-	objectStoreUserController.StartWatch(cluster.stopCh)
+	if err := objectStoreUserController.StartWatch(cluster.stopCh); err != nil {
+		logger.Errorf("failed to start object store user CRD watcher. %v", err)
+	}
 
 	// Start the object bucket provisioner
 	bucketProvisioner := bucket.NewProvisioner(c.context, cluster.Namespace)
@@ -447,11 +455,15 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 
 	// Start file system CRD watcher
 	fileController := file.NewFilesystemController(cluster.Info, c.context, cluster.Namespace, c.rookImage, cluster.Spec, cluster.ownerRef, cluster.Spec.DataDirHostPath)
-	fileController.StartWatch(cluster.Namespace, cluster.stopCh)
+	if err := fileController.StartWatch(cluster.Namespace, cluster.stopCh); err != nil {
+		logger.Errorf("failed to start file system CRD watcher. %v", err)
+	}
 
 	// Start nfs ganesha CRD watcher
 	ganeshaController := nfs.NewCephNFSController(cluster.Info, c.context, cluster.Spec.DataDirHostPath, cluster.Namespace, c.rookImage, cluster.Spec, cluster.ownerRef)
-	ganeshaController.StartWatch(cluster.Namespace, cluster.stopCh)
+	if err := ganeshaController.StartWatch(cluster.Namespace, cluster.stopCh); err != nil {
+		logger.Errorf("failed to start nfs ganesha CRD watcher. %v", err)
+	}
 
 	// Populate childControllers
 	logger.Debug("populating child controllers, so cluster CR spec updates will be propagaged to other CR")

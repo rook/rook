@@ -26,7 +26,8 @@ import (
 )
 
 func TestOperator(t *testing.T) {
-	clientset := test.New(3)
+	clientset, err := test.New(3)
+	assert.Nil(t, err)
 	context := &clusterd.Context{Clientset: clientset}
 	o := New(context, "", "")
 

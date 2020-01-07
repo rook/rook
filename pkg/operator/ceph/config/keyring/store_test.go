@@ -31,7 +31,8 @@ import (
 )
 
 func TestGenerateKey(t *testing.T) {
-	clientset := testop.New(1)
+	clientset, err := testop.New(1)
+	assert.Nil(t, err)
 	var generateKey = ""
 	var failGenerateKey = false
 	executor := &exectest.MockExecutor{
@@ -70,7 +71,8 @@ func TestGenerateKey(t *testing.T) {
 }
 
 func TestKeyringStore(t *testing.T) {
-	clientset := testop.New(1)
+	clientset, err := testop.New(1)
+	assert.Nil(t, err)
 	ctx := &clusterd.Context{
 		Clientset: clientset,
 	}
@@ -112,7 +114,8 @@ func TestKeyringStore(t *testing.T) {
 }
 
 func TestResourceVolumeAndMount(t *testing.T) {
-	clientset := testop.New(1)
+	clientset, err := testop.New(1)
+	assert.Nil(t, err)
 	ctx := &clusterd.Context{
 		Clientset: clientset,
 	}

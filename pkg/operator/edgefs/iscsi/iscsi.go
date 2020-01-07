@@ -176,7 +176,9 @@ func (c *ISCSIController) makeDeployment(svcname, namespace, rookImage string, i
 	if c.NetworkSpec.IsHost() {
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	} else if c.NetworkSpec.IsMultus() {
-		k8sutil.ApplyMultus(c.NetworkSpec, &podSpec.ObjectMeta)
+		if err := k8sutil.ApplyMultus(c.NetworkSpec, &podSpec.ObjectMeta); err != nil {
+			logger.Errorf("failed to apply multus spec to podspec metadata iscsi. %v", err)
+		}
 	}
 
 	iscsiSpec.Annotations.ApplyToObjectMeta(&podSpec.ObjectMeta)

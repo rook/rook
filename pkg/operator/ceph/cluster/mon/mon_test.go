@@ -72,21 +72,25 @@ func testGenMonConfig(monID string) *monConfig {
 	}
 }
 
-func newTestStartCluster(namespace string) *clusterd.Context {
+func newTestStartCluster(namespace string) (*clusterd.Context, error) {
 	monResponse := func() (string, error) {
 		return clienttest.MonInQuorumResponseMany(3), nil
 	}
 	return newTestStartClusterWithQuorumResponse(namespace, monResponse)
 }
 
-func newTestStartClusterWithQuorumResponse(namespace string, monResponse func() (string, error)) *clusterd.Context {
-	clientset := test.New(3)
+func newTestStartClusterWithQuorumResponse(namespace string, monResponse func() (string, error)) (*clusterd.Context, error) {
+	clientset, err := test.New(3)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to test start cluster with quorum response")
+	}
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
 			if strings.Contains(command, "ceph-authtool") {
-				cephtest.CreateConfigDir(path.Join(configDir, namespace))
+				err := cephtest.CreateConfigDir(path.Join(configDir, namespace))
+				return "", errors.Wrapf(err, "failed testing of start cluster without quorum response")
 			}
 			return "", nil
 		},
@@ -99,7 +103,7 @@ func newTestStartClusterWithQuorumResponse(namespace string, monResponse func() 
 		Clientset: clientset,
 		Executor:  executor,
 		ConfigDir: configDir,
-	}
+	}, nil
 }
 
 func newCluster(context *clusterd.Context, namespace string, network cephv1.NetworkSpec, allowMultiplePerNode bool, resources v1.ResourceRequirements) *Cluster {
@@ -145,11 +149,12 @@ func TestResourceName(t *testing.T) {
 func TestStartMonPods(t *testing.T) {
 
 	namespace := "ns"
-	context := newTestStartCluster(namespace)
+	context, err := newTestStartCluster(namespace)
+	assert.Nil(t, err)
 	c := newCluster(context, namespace, cephv1.NetworkSpec{}, true, v1.ResourceRequirements{})
 
 	// start a basic cluster
-	_, err := c.Start(c.ClusterInfo, c.rookVersion, cephver.Mimic, c.spec)
+	_, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Mimic, c.spec)
 	assert.Nil(t, err)
 
 	validateStart(t, c)
@@ -164,7 +169,8 @@ func TestStartMonPods(t *testing.T) {
 func TestOperatorRestart(t *testing.T) {
 
 	namespace := "ns"
-	context := newTestStartCluster(namespace)
+	context, err := newTestStartCluster(namespace)
+	assert.Nil(t, err)
 	c := newCluster(context, namespace, cephv1.NetworkSpec{}, true, v1.ResourceRequirements{})
 	c.ClusterInfo = test.CreateConfigDir(1)
 
@@ -189,7 +195,8 @@ func TestOperatorRestart(t *testing.T) {
 func TestOperatorRestartHostNetwork(t *testing.T) {
 
 	namespace := "ns"
-	context := newTestStartCluster(namespace)
+	context, err := newTestStartCluster(namespace)
+	assert.Nil(t, err)
 
 	// cluster without host networking
 	c := newCluster(context, namespace, cephv1.NetworkSpec{}, false, v1.ResourceRequirements{})
@@ -224,14 +231,15 @@ func validateStart(t *testing.T, c *Cluster) {
 }
 
 func TestSaveMonEndpoints(t *testing.T) {
-	clientset := test.New(1)
+	clientset, err := test.New(1)
+	assert.Nil(t, err)
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
 	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: configDir}, "ns", "", cephv1.NetworkSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
 	setCommonMonProperties(c, 1, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 
 	// create the initial config map
-	err := c.saveMonConfig()
+	err = c.saveMonConfig()
 	assert.Nil(t, err)
 
 	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(EndpointConfigMapName, metav1.GetOptions{})
@@ -311,10 +319,10 @@ func TestWaitForQuorum(t *testing.T) {
 		// a successful response indicates that we have quorum, even if we didn't check which specific mons were in quorum
 		return clienttest.MonInQuorumResponseFromMons(mons), nil
 	}
-	context := newTestStartClusterWithQuorumResponse(namespace, quorumResponse)
+	context, err := newTestStartClusterWithQuorumResponse(namespace, quorumResponse)
 	requireAllInQuorum := false
 	expectedMons := []string{"a"}
-	err := waitForQuorumWithMons(context, namespace, expectedMons, 0, requireAllInQuorum)
+	err = waitForQuorumWithMons(context, namespace, expectedMons, 0, requireAllInQuorum)
 	assert.Nil(t, err)
 }
 

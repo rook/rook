@@ -36,7 +36,8 @@ import (
 )
 
 func TestAttach(t *testing.T) {
-	clientset := test.New(3)
+	clientset, err := test.New(3)
+	assert.Nil(t, err)
 
 	os.Setenv(k8sutil.PodNamespaceEnvVar, "rook-system")
 	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
@@ -87,7 +88,8 @@ func TestAttach(t *testing.T) {
 }
 
 func TestAttachAlreadyExist(t *testing.T) {
-	clientset := test.New(3)
+	clientset, err := test.New(3)
+	assert.Nil(t, err)
 
 	os.Setenv(k8sutil.PodNamespaceEnvVar, "rook-system")
 	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
@@ -158,7 +160,8 @@ func TestAttachAlreadyExist(t *testing.T) {
 }
 
 func TestAttachReadOnlyButRWAlreadyExist(t *testing.T) {
-	clientset := test.New(3)
+	clientset, err := test.New(3)
+	assert.Nil(t, err)
 
 	os.Setenv(k8sutil.PodNamespaceEnvVar, "rook-system")
 	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
@@ -228,7 +231,8 @@ func TestAttachReadOnlyButRWAlreadyExist(t *testing.T) {
 }
 
 func TestAttachRWButROAlreadyExist(t *testing.T) {
-	clientset := test.New(3)
+	clientset, err := test.New(3)
+	assert.Nil(t, err)
 
 	os.Setenv(k8sutil.PodNamespaceEnvVar, "rook-system")
 	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
@@ -286,7 +290,8 @@ func TestAttachRWButROAlreadyExist(t *testing.T) {
 }
 
 func TestMultipleAttachReadOnly(t *testing.T) {
-	clientset := test.New(3)
+	clientset, err := test.New(3)
+	assert.Nil(t, err)
 
 	os.Setenv(k8sutil.PodNamespaceEnvVar, "rook-system")
 	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
@@ -362,7 +367,8 @@ func TestMultipleAttachReadOnly(t *testing.T) {
 }
 
 func TestOrphanAttachOriginalPodDoesntExist(t *testing.T) {
-	clientset := test.New(3)
+	clientset, err := test.New(3)
+	assert.Nil(t, err)
 
 	os.Setenv(k8sutil.PodNamespaceEnvVar, "rook-system")
 	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
@@ -433,7 +439,8 @@ func TestOrphanAttachOriginalPodDoesntExist(t *testing.T) {
 }
 
 func TestOrphanAttachOriginalPodNameSame(t *testing.T) {
-	clientset := test.New(3)
+	clientset, err := test.New(3)
+	assert.Nil(t, err)
 
 	os.Setenv(k8sutil.PodNamespaceEnvVar, "rook-system")
 	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
@@ -533,7 +540,8 @@ func TestOrphanAttachOriginalPodNameSame(t *testing.T) {
 // If the Volume record was previously created for this pod
 // and the attach flow should continue.
 func TestVolumeExistAttach(t *testing.T) {
-	clientset := test.New(3)
+	clientset, err := test.New(3)
+	assert.Nil(t, err)
 
 	os.Setenv(k8sutil.PodNamespaceEnvVar, "rook-system")
 	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
@@ -596,7 +604,8 @@ func TestVolumeExistAttach(t *testing.T) {
 }
 
 func TestDetach(t *testing.T) {
-	clientset := test.New(3)
+	clientset, err := test.New(3)
+	assert.Nil(t, err)
 
 	os.Setenv(k8sutil.PodNamespaceEnvVar, "rook-system")
 	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
@@ -643,7 +652,8 @@ func TestDetach(t *testing.T) {
 }
 
 func TestDetachWithAttachmentLeft(t *testing.T) {
-	clientset := test.New(3)
+	clientset, err := test.New(3)
+	assert.Nil(t, err)
 
 	os.Setenv(k8sutil.PodNamespaceEnvVar, "rook-system")
 	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
@@ -697,7 +707,8 @@ func TestDetachWithAttachmentLeft(t *testing.T) {
 }
 
 func TestGetAttachInfoFromMountDir(t *testing.T) {
-	clientset := test.New(3)
+	clientset, err := test.New(3)
+	assert.Nil(t, err)
 
 	os.Setenv(k8sutil.PodNamespaceEnvVar, "rook-system")
 	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
@@ -766,7 +777,7 @@ func TestGetAttachInfoFromMountDir(t *testing.T) {
 		volumeManager: &manager.FakeVolumeManager{},
 	}
 
-	err := controller.GetAttachInfoFromMountDir(opts.MountDir, &opts)
+	err = controller.GetAttachInfoFromMountDir(opts.MountDir, &opts)
 	assert.Nil(t, err)
 
 	assert.Equal(t, "pod123", opts.PodID)
@@ -788,7 +799,8 @@ func TestParseClusterName(t *testing.T) {
 }
 
 func testParseClusterNamespace(t *testing.T, namespaceParameter string) {
-	clientset := test.New(3)
+	clientset, err := test.New(3)
+	assert.Nil(t, err)
 
 	context := &clusterd.Context{
 		Clientset:     clientset,

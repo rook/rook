@@ -46,7 +46,8 @@ func TestCheckHealth(t *testing.T) {
 			return clienttest.MonInQuorumResponse(), nil
 		},
 	}
-	clientset := test.New(1)
+	clientset, err := test.New(1)
+	assert.Nil(t, err)
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
 	context := &clusterd.Context{
@@ -72,7 +73,7 @@ func TestCheckHealth(t *testing.T) {
 		return SchedulingResult{Node: node}, nil
 	}
 
-	err := c.checkHealth()
+	err = c.checkHealth()
 	assert.Nil(t, err)
 	logger.Infof("mons after checkHealth: %v", c.ClusterInfo.Monitors)
 	assert.ElementsMatch(t, []string{"rook-ceph-mon-a", "rook-ceph-mon-f"}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
@@ -101,7 +102,8 @@ func TestCheckHealthNotFound(t *testing.T) {
 			return clienttest.MonInQuorumResponse(), nil
 		},
 	}
-	clientset := test.New(1)
+	clientset, err := test.New(1)
+	assert.Nil(t, err)
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
 	context := &clusterd.Context{
@@ -157,7 +159,8 @@ func TestAddRemoveMons(t *testing.T) {
 			return monQuorumResponse, nil
 		},
 	}
-	clientset := test.New(1)
+	clientset, err := test.New(1)
+	assert.Nil(t, err)
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
 	context := &clusterd.Context{
@@ -172,7 +175,7 @@ func TestAddRemoveMons(t *testing.T) {
 	defer os.RemoveAll(c.context.ConfigDir)
 
 	// checking the health will increase the mons as desired all in one go
-	err := c.checkHealth()
+	err = c.checkHealth()
 	assert.Nil(t, err)
 	assert.Equal(t, 5, len(c.ClusterInfo.Monitors), fmt.Sprintf("mons: %v", c.ClusterInfo.Monitors))
 	assert.ElementsMatch(t, []string{

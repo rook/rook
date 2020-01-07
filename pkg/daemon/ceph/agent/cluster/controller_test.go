@@ -49,7 +49,8 @@ func TestClusterDeleteSingleAttachment(t *testing.T) {
 	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
 	defer os.Unsetenv(k8sutil.NodeNameEnvVar)
 
-	clientset := test.New(3)
+	clientset, err := test.New(3)
+	assert.Nil(t, err)
 	context := &clusterd.Context{
 		Clientset: clientset,
 	}
@@ -133,7 +134,8 @@ func TestClusterDeleteAttachedToOtherNode(t *testing.T) {
 	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
 	defer os.Unsetenv(k8sutil.NodeNameEnvVar)
 
-	clientset := test.New(3)
+	clientset, err := test.New(3)
+	assert.Nil(t, err)
 	context := &clusterd.Context{
 		Clientset: clientset,
 	}
@@ -195,7 +197,8 @@ func TestClusterDeleteMultiAttachmentRace(t *testing.T) {
 	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
 	defer os.Unsetenv(k8sutil.NodeNameEnvVar)
 
-	clientset := test.New(3)
+	clientset, err := test.New(3)
+	assert.Nil(t, err)
 	context := &clusterd.Context{
 		Clientset: clientset,
 	}

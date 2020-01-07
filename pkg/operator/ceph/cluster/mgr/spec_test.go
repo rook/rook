@@ -34,10 +34,12 @@ import (
 )
 
 func TestPodSpec(t *testing.T) {
+	clientset, err := optest.New(1)
+	assert.Nil(t, err)
 	clusterInfo := &cephconfig.ClusterInfo{FSID: "myfsid"}
 	c := New(
 		clusterInfo,
-		&clusterd.Context{Clientset: optest.New(1)},
+		&clusterd.Context{Clientset: clientset},
 		"ns",
 		"rook/rook:myversion",
 		cephv1.CephVersionSpec{Image: "ceph/ceph:myceph"},
@@ -87,10 +89,12 @@ func TestPodSpec(t *testing.T) {
 }
 
 func TestServiceSpec(t *testing.T) {
+	clientset, err := optest.New(1)
+	assert.Nil(t, err)
 	clusterInfo := &cephconfig.ClusterInfo{FSID: "myfsid"}
 	c := New(
 		clusterInfo,
-		&clusterd.Context{Clientset: optest.New(1)},
+		&clusterd.Context{Clientset: clientset},
 		"ns",
 		"myversion",
 		cephv1.CephVersionSpec{},
@@ -114,10 +118,12 @@ func TestServiceSpec(t *testing.T) {
 }
 
 func TestHostNetwork(t *testing.T) {
+	clientset, err := optest.New(1)
+	assert.Nil(t, err)
 	clusterInfo := &cephconfig.ClusterInfo{FSID: "myfsid"}
 	c := New(
 		clusterInfo,
-		&clusterd.Context{Clientset: optest.New(1)},
+		&clusterd.Context{Clientset: clientset},
 		"ns",
 		"myversion",
 		cephv1.CephVersionSpec{},
@@ -148,10 +154,12 @@ func TestHostNetwork(t *testing.T) {
 }
 
 func TestHttpBindFix(t *testing.T) {
+	clientset, err := optest.New(1)
+	assert.Nil(t, err)
 	clusterInfo := &cephconfig.ClusterInfo{FSID: "myfsid"}
 	c := New(
 		clusterInfo,
-		&clusterd.Context{Clientset: optest.New(1)},
+		&clusterd.Context{Clientset: clientset},
 		"ns",
 		"myversion",
 		cephv1.CephVersionSpec{},
@@ -210,9 +218,11 @@ func TestHttpBindFix(t *testing.T) {
 }
 
 func TestApplyPrometheusAnnotations(t *testing.T) {
+	clientset, err := optest.New(1)
+	assert.Nil(t, err)
 	c := New(
 		&cephconfig.ClusterInfo{FSID: "myfsid"},
-		&clusterd.Context{Clientset: optest.New(1)},
+		&clusterd.Context{Clientset: clientset},
 		"ns",
 		"myversion",
 		cephv1.CephVersionSpec{},

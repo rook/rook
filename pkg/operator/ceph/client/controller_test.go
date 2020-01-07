@@ -60,7 +60,8 @@ func TestValidateClient(t *testing.T) {
 }
 
 func TestGenerateClient(t *testing.T) {
-	clientset := testop.New(1)
+	clientset, err := testop.New(1)
+	assert.Nil(t, err)
 	context := &clusterd.Context{Clientset: clientset}
 
 	p := &cephv1.CephClient{ObjectMeta: metav1.ObjectMeta{Name: "client1", Namespace: "myns"},
@@ -100,7 +101,8 @@ func TestGenerateClient(t *testing.T) {
 }
 
 func TestCreateClient(t *testing.T) {
-	clientset := testop.New(1)
+	clientset, err := testop.New(1)
+	assert.Nil(t, err)
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command, outfileArg string, args ...string) (string, error) {
 			logger.Infof("Command: %s %v", command, args)
@@ -124,7 +126,7 @@ func TestCreateClient(t *testing.T) {
 
 	exists, _ := clientExists(context, p)
 	assert.False(t, exists)
-	err := createClient(context, p)
+	err = createClient(context, p)
 	assert.Nil(t, err)
 
 	// fail if caps are empty
@@ -144,7 +146,8 @@ func TestCreateClient(t *testing.T) {
 }
 
 func TestUpdateClient(t *testing.T) {
-	clientset := testop.New(1)
+	clientset, err := testop.New(1)
+	assert.Nil(t, err)
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command, outfileArg string, args ...string) (string, error) {
 			logger.Infof("Command: %s %v", command, args)
@@ -161,7 +164,7 @@ func TestUpdateClient(t *testing.T) {
 		},
 	}
 
-	err := updateClient(context, new)
+	err = updateClient(context, new)
 	assert.Nil(t, err)
 
 	new = &cephv1.CephClient{ObjectMeta: metav1.ObjectMeta{Name: "client1", Namespace: "myns"},
@@ -178,7 +181,8 @@ func TestUpdateClient(t *testing.T) {
 }
 
 func TestDeleteClient(t *testing.T) {
-	clientset := testop.New(2)
+	clientset, err := testop.New(2)
+	assert.Nil(t, err)
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command, outfileArg string, args ...string) (string, error) {
 			logger.Infof("Command: %s %v", command, args)

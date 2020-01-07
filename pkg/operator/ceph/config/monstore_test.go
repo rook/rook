@@ -29,8 +29,10 @@ import (
 
 func TestMonStore_Set(t *testing.T) {
 	executor := &exectest.MockExecutor{}
+	clientset, err := testop.New(1)
+	assert.Nil(t, err)
 	ctx := &clusterd.Context{
-		Clientset: testop.New(1),
+		Clientset: clientset,
 		Executor:  executor,
 	}
 
@@ -72,9 +74,11 @@ func TestMonStore_Set(t *testing.T) {
 }
 
 func TestMonStore_SetAll(t *testing.T) {
+	clientset, err := testop.New(1)
+	assert.Nil(t, err)
 	executor := &exectest.MockExecutor{}
 	ctx := &clusterd.Context{
-		Clientset: testop.New(1),
+		Clientset: clientset,
 		Executor:  executor,
 	}
 

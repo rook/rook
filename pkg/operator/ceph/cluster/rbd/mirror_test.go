@@ -31,7 +31,8 @@ import (
 )
 
 func TestRBDMirror(t *testing.T) {
-	clientset := testop.New(1)
+	clientset, err := testop.New(1)
+	assert.Nil(t, err)
 	keysCreated := map[string]bool{}
 	executor := &exectest.MockExecutor{}
 	executor.MockExecuteCommandWithOutputFile = func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
@@ -61,7 +62,7 @@ func TestRBDMirror(t *testing.T) {
 		false,
 	)
 
-	err := c.Start()
+	err = c.Start()
 	assert.Nil(t, err)
 	assert.True(t, keysCreated[fullDaemonName("a")])
 	assert.True(t, keysCreated[fullDaemonName("b")])

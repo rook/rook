@@ -305,7 +305,11 @@ func decodeSecret(secret *v1.Secret) (string, error) {
 
 func (c *Cluster) restartDashboard() error {
 	logger.Infof("restarting the mgr module")
-	client.MgrDisableModule(c.context, c.Namespace, dashboardModuleName)
-	client.MgrEnableModule(c.context, c.Namespace, dashboardModuleName, true)
+	if err := client.MgrDisableModule(c.context, c.Namespace, dashboardModuleName); err != nil {
+		logger.Errorf("failed to disable mgr module %q. %v", dashboardModuleName, err)
+	}
+	if err := client.MgrEnableModule(c.context, c.Namespace, dashboardModuleName, true); err != nil {
+		logger.Errorf("failed to enable mgr module %q. %v", dashboardModuleName, err)
+	}
 	return nil
 }

@@ -89,7 +89,9 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 	err := r.client.Get(context.TODO(), request.NamespacedName, node)
 	if kerrors.IsNotFound(err) {
 		// delete any canary deployments if the node doesn't exist
-		r.client.Delete(context.TODO(), deploy)
+		if err := r.client.Delete(context.TODO(), deploy); err != nil {
+			logger.Errorf("failed to delete canary deployment. %v", err)
+		}
 		return reconcile.Result{}, nil
 	} else if err != nil {
 		return reconcile.Result{}, errors.Errorf("could not get node %q", request.NamespacedName)
