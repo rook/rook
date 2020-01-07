@@ -18,6 +18,9 @@ package controller
 
 import (
 	"fmt"
+	"reflect"
+	"time"
+
 	"github.com/coreos/pkg/capnslog"
 	"github.com/davecgh/go-spew/spew"
 	cassandrav1alpha1 "github.com/rook/rook/pkg/apis/cassandra.rook.io/v1alpha1"
@@ -42,8 +45,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
-	"reflect"
-	"time"
 )
 
 const (
@@ -91,7 +92,9 @@ func New(
 
 	// Add sample-controller types to the default Kubernetes Scheme so Events can be
 	// logged for sample-controller types.
-	rookScheme.AddToScheme(scheme.Scheme)
+	if err := rookScheme.AddToScheme(scheme.Scheme); err != nil {
+		logger.Errorf("failed to add to the default kubernetes scheme. %v", err)
+	}
 	// Create event broadcaster
 	logger.Infof("creating event broadcaster...")
 	eventBroadcaster := record.NewBroadcaster()

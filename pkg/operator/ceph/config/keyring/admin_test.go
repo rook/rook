@@ -29,7 +29,7 @@ import (
 )
 
 func TestAdminKeyringStore(t *testing.T) {
-	clientset := testop.New(1)
+	clientset := testop.New(t, 1)
 	ctx := &clusterd.Context{
 		Clientset: clientset,
 	}
@@ -58,7 +58,7 @@ func TestAdminKeyringStore(t *testing.T) {
 }
 
 func TestAdminVolumeAndMount(t *testing.T) {
-	clientset := testop.New(1)
+	clientset := testop.New(t, 1)
 	ctx := &clusterd.Context{
 		Clientset: clientset,
 	}

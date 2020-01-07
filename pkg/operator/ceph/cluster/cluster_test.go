@@ -113,7 +113,7 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 }
 
 func TestMinVersion(t *testing.T) {
-	c := testSpec()
+	c := testSpec(t)
 	c.Spec.CephVersion.AllowUnsupported = true
 
 	// All versions less than 14.2.5 are invalid
@@ -132,7 +132,7 @@ func TestMinVersion(t *testing.T) {
 }
 
 func TestSupportedVersion(t *testing.T) {
-	c := testSpec()
+	c := testSpec(t)
 
 	// Supported versions are valid
 	v := &cephver.CephVersion{Major: 14, Minor: 2, Extra: 5}
@@ -147,10 +147,10 @@ func TestSupportedVersion(t *testing.T) {
 	assert.NoError(t, c.validateCephVersion(v))
 }
 
-func testSpec() cluster {
-	clientset := testop.New(1)
+func testSpec(t *testing.T) *cluster {
+	clientset := testop.New(t, 1)
 	context := &clusterd.Context{
 		Clientset: clientset,
 	}
-	return cluster{Spec: &cephv1.ClusterSpec{}, context: context}
+	return &cluster{Spec: &cephv1.ClusterSpec{}, context: context}
 }

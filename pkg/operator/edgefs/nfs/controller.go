@@ -95,7 +95,7 @@ func NewNFSController(
 }
 
 // StartWatch watches for instances of NFS custom resources and acts on them
-func (c *NFSController) StartWatch(stopCh chan struct{}) error {
+func (c *NFSController) StartWatch(stopCh chan struct{}) {
 
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
@@ -106,7 +106,6 @@ func (c *NFSController) StartWatch(stopCh chan struct{}) error {
 	logger.Infof("start watching nfs resources in namespace %s", c.namespace)
 	go k8sutil.WatchCR(NFSResource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1().RESTClient(), &edgefsv1.NFS{}, stopCh)
 
-	return nil
 }
 
 func (c *NFSController) onAdd(obj interface{}) {

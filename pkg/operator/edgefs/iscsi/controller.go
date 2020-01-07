@@ -95,7 +95,7 @@ func NewISCSIController(
 }
 
 // StartWatch watches for instances of ISCSI custom resources and acts on them
-func (c *ISCSIController) StartWatch(stopCh chan struct{}) error {
+func (c *ISCSIController) StartWatch(stopCh chan struct{}) {
 
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
@@ -105,8 +105,6 @@ func (c *ISCSIController) StartWatch(stopCh chan struct{}) error {
 
 	logger.Infof("start watching iscsi resources in namespace %s", c.namespace)
 	go k8sutil.WatchCR(ISCSIResource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1().RESTClient(), &edgefsv1.ISCSI{}, stopCh)
-
-	return nil
 }
 
 func (c *ISCSIController) onAdd(obj interface{}) {

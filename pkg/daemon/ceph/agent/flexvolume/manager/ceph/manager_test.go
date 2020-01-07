@@ -30,7 +30,7 @@ import (
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -102,7 +102,7 @@ func TestInitLoadRBDModNoSingleMajor(t *testing.T) {
 }
 
 func TestAttach(t *testing.T) {
-	clientset := test.New(3)
+	clientset := test.New(t, 3)
 	clusterNamespace := "testCluster"
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
@@ -119,7 +119,8 @@ func TestAttach(t *testing.T) {
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
 			if strings.Contains(command, "ceph-authtool") {
-				cephtest.CreateConfigDir(path.Join(configDir, clusterNamespace))
+				err := cephtest.CreateConfigDir(path.Join(configDir, clusterNamespace))
+				assert.Nil(t, err)
 			}
 			return "", nil
 		},
@@ -187,7 +188,7 @@ func TestAttachAlreadyExists(t *testing.T) {
 }
 
 func TestDetach(t *testing.T) {
-	clientset := test.New(3)
+	clientset := test.New(t, 3)
 	clusterNamespace := "testCluster"
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
@@ -202,7 +203,8 @@ func TestDetach(t *testing.T) {
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
 			if strings.Contains(command, "ceph-authtool") {
-				cephtest.CreateConfigDir(path.Join(configDir, clusterNamespace))
+				err := cephtest.CreateConfigDir(path.Join(configDir, clusterNamespace))
+				assert.Nil(t, err)
 			}
 			return "", nil
 		},
@@ -238,7 +240,7 @@ func TestDetach(t *testing.T) {
 }
 
 func TestDetachCustomKeyring(t *testing.T) {
-	clientset := test.New(3)
+	clientset := test.New(t, 3)
 	clusterNamespace := "testCluster"
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
@@ -253,7 +255,8 @@ func TestDetachCustomKeyring(t *testing.T) {
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
 			if strings.Contains(command, "ceph-authtool") {
-				cephtest.CreateConfigDir(path.Join(configDir, clusterNamespace))
+				err := cephtest.CreateConfigDir(path.Join(configDir, clusterNamespace))
+				assert.Nil(t, err)
 			}
 			return "", nil
 		},

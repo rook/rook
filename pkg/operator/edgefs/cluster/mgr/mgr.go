@@ -344,7 +344,9 @@ func (c *Cluster) makeDeployment(name, clusterName, rookImage string, replicas i
 	if c.NetworkSpec.IsHost() {
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	} else if c.NetworkSpec.IsMultus() {
-		k8sutil.ApplyMultus(c.NetworkSpec, &podSpec.ObjectMeta)
+		if err := k8sutil.ApplyMultus(c.NetworkSpec, &podSpec.ObjectMeta); err != nil {
+			logger.Errorf("failed to apply multus spec to pod template metadata. %v", err)
+		}
 	}
 
 	c.annotations.ApplyToObjectMeta(&podSpec.ObjectMeta)

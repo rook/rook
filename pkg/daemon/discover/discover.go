@@ -94,18 +94,21 @@ func Run(context *clusterd.Context, probeInterval time.Duration, useCV bool) err
 
 	udevEvents := make(chan string)
 	go udevBlockMonitor(udevEvents, udevEventPeriod)
-
 	for {
 		select {
 		case <-sigc:
 			logger.Infof("shutdown signal received, exiting...")
 			return nil
 		case <-time.After(probeInterval):
-			updateDeviceCM(context)
+			if err := updateDeviceCM(context); err != nil {
+				logger.Errorf("failed to update device configmap during probe interval. %v", err)
+			}
 		case _, ok := <-udevEvents:
 			if ok {
 				logger.Info("trigger probe from udev event")
-				updateDeviceCM(context)
+				if err := updateDeviceCM(context); err != nil {
+					logger.Errorf("failed to update device configmap triggered from udev event. %v", err)
+				}
 			} else {
 				logger.Warningf("disabling udev monitoring")
 				udevEvents = nil
@@ -395,7 +398,7 @@ func updateDeviceCM(context *clusterd.Context) error {
 func probeDevices(context *clusterd.Context) ([]sys.LocalDisk, error) {
 	devices := make([]sys.LocalDisk, 0)
 	localDevices, err := clusterd.DiscoverDevices(context.Executor)
-	logger.Infof("localdevices - %+v", localDevices)
+	logger.Infof("localdevices: %+v", localDevices)
 	if err != nil {
 		return devices, fmt.Errorf("failed initial hardware discovery. %+v", err)
 	}

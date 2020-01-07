@@ -120,13 +120,16 @@ func (p *ProcManager) Start(name, command, procSearchPattern string, policy Proc
 	return proc, nil
 }
 
-func (p *ProcManager) Shutdown() {
+func (p *ProcManager) Shutdown() error {
 	p.RLock()
 	for _, proc := range p.procs {
-		proc.Stop(false)
+		if err := proc.Stop(false); err != nil {
+			return fmt.Errorf("error while shutting down. %v", err)
+		}
 	}
 	p.procs = nil
 	p.RUnlock()
+	return nil
 }
 
 // Checks if a process exists. If the restart policy indicates the process should be restarted,

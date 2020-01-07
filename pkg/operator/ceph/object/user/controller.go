@@ -71,7 +71,7 @@ func NewObjectStoreUserController(context *clusterd.Context, clusterSpec *cephv1
 }
 
 // StartWatch watches for instances of ObjectStoreUser custom resources and acts on them
-func (c *ObjectStoreUserController) StartWatch(stopCh chan struct{}) error {
+func (c *ObjectStoreUserController) StartWatch(stopCh chan struct{}) {
 
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
@@ -82,7 +82,6 @@ func (c *ObjectStoreUserController) StartWatch(stopCh chan struct{}) error {
 	logger.Infof("start watching object store user resources in namespace %s", c.namespace)
 	go k8sutil.WatchCR(ObjectStoreUserResource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1().RESTClient(), &cephv1.CephObjectStoreUser{}, stopCh)
 
-	return nil
 }
 
 func (c *ObjectStoreUserController) onAdd(obj interface{}) {

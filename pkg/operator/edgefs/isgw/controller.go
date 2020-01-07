@@ -95,7 +95,7 @@ func NewISGWController(
 }
 
 // StartWatch watches for instances of ISGW custom resources and acts on them
-func (c *ISGWController) StartWatch(stopCh chan struct{}) error {
+func (c *ISGWController) StartWatch(stopCh chan struct{}) {
 
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
@@ -105,8 +105,6 @@ func (c *ISGWController) StartWatch(stopCh chan struct{}) error {
 
 	logger.Infof("start watching isgw resources in namespace %s", c.namespace)
 	go k8sutil.WatchCR(ISGWResource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1().RESTClient(), &edgefsv1.ISGW{}, stopCh)
-
-	return nil
 }
 
 func (c *ISGWController) onAdd(obj interface{}) {

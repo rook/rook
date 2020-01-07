@@ -39,7 +39,7 @@ func TestStartCSI(t *testing.T) {
 		AttacherImage:    "image",
 		SnapshotterImage: "image",
 	}
-	clientset := test.New(3)
+	clientset := test.New(t, 3)
 	serverVersion, err := clientset.Discovery().ServerVersion()
 	if err != nil {
 		assert.Nil(t, err)
