@@ -51,6 +51,8 @@ spec:
                   type: boolean
             skipUpgradeChecks:
               type: boolean
+            continueUpgradeAfterChecksEvenIfNotHealthy:
+              type: boolean
             mon:
               properties:
                 allowMultiplePerNode:

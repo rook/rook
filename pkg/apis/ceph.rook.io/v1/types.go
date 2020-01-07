@@ -77,6 +77,9 @@ type ClusterSpec struct {
 	// SkipUpgradeChecks defines if an upgrade should be forced even if one of the check fails
 	SkipUpgradeChecks bool `json:"skipUpgradeChecks,omitempty"`
 
+	// ContinueUpgradeAfterChecksEvenIfNotHealthy defines if an upgrade should continue even if PGs are not clean
+	ContinueUpgradeAfterChecksEvenIfNotHealthy bool `json:"continueUpgradeAfterChecksEvenIfNotHealthy,omitempty"`
+
 	// A spec for configuring disruption management.
 	DisruptionManagement DisruptionManagementSpec `json:"disruptionManagement,omitempty"`
 
