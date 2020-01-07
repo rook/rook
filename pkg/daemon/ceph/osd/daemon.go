@@ -44,7 +44,7 @@ func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID, lvPath string,
 
 	// ensure the config mount point exists
 	configDir := fmt.Sprintf("/var/lib/ceph/osd/ceph-%s", osdID)
-	err := os.Mkdir(configDir, 0755)
+	err := os.Mkdir(configDir, 0750)
 	if err != nil {
 		logger.Errorf("failed to create config dir %q. %v", configDir, err)
 	}

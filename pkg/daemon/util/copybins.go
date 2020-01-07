@@ -67,5 +67,5 @@ func copyBinary(sourceDir, targetDir, filename string) error {
 		return err
 	}
 
-	return os.Chmod(targetPath, 0755)
+	return os.Chmod(targetPath, 0700) // #nosec binaries requires the permission to execute
 }
