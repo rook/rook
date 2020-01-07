@@ -25,14 +25,14 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster"
 	"github.com/rook/rook/pkg/operator/ceph/file"
 	"github.com/rook/rook/pkg/operator/ceph/object"
-	"github.com/rook/rook/pkg/operator/ceph/object/user"
+	objectuser "github.com/rook/rook/pkg/operator/ceph/object/user"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
 	"github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestOperator(t *testing.T) {
-	clientset := test.New(3)
+	clientset := test.New(t, 3)
 	context := &clusterd.Context{Clientset: clientset}
 	o := New(context, &attachment.MockAttachment{}, "", "")
 

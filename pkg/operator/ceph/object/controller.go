@@ -78,7 +78,7 @@ func NewObjectStoreController(
 }
 
 // StartWatch watches for instances of ObjectStore custom resources and acts on them
-func (c *ObjectStoreController) StartWatch(namespace string, stopCh chan struct{}) error {
+func (c *ObjectStoreController) StartWatch(namespace string, stopCh chan struct{}) {
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
 		UpdateFunc: c.onUpdate,
@@ -87,7 +87,6 @@ func (c *ObjectStoreController) StartWatch(namespace string, stopCh chan struct{
 
 	logger.Infof("start watching object store resources in namespace %s", c.namespace)
 	go k8sutil.WatchCR(ObjectStoreResource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1().RESTClient(), &cephv1.CephObjectStore{}, stopCh)
-	return nil
 }
 
 func (c *ObjectStoreController) onAdd(obj interface{}) {

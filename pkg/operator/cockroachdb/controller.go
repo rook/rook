@@ -110,7 +110,7 @@ func clusterOwnerRef(name, clusterID string) metav1.OwnerReference {
 	}
 }
 
-func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) error {
+func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) {
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
 		UpdateFunc: c.onUpdate,
@@ -120,7 +120,6 @@ func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) e
 	logger.Infof("start watching cockroachdb clusters in all namespaces")
 	go k8sutil.WatchCR(ClusterResource, namespace, resourceHandlerFuncs, c.context.RookClientset.CockroachdbV1alpha1().RESTClient(), &cockroachdbv1alpha1.Cluster{}, stopCh)
 
-	return nil
 }
 
 func (c *ClusterController) onAdd(obj interface{}) {

@@ -94,7 +94,7 @@ func NewSWIFTController(
 }
 
 // StartWatch watches for instances of SWIFT custom resources and acts on them
-func (c *SWIFTController) StartWatch(stopCh chan struct{}) error {
+func (c *SWIFTController) StartWatch(stopCh chan struct{}) {
 
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
@@ -104,8 +104,6 @@ func (c *SWIFTController) StartWatch(stopCh chan struct{}) error {
 
 	logger.Infof("start watching swift resources in namespace %s", c.namespace)
 	go k8sutil.WatchCR(SWIFTResource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1().RESTClient(), &edgefsv1.SWIFT{}, stopCh)
-
-	return nil
 }
 
 func (c *SWIFTController) onAdd(obj interface{}) {

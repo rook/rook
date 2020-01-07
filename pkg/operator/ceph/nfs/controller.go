@@ -65,7 +65,7 @@ func NewCephNFSController(clusterInfo *cephconfig.ClusterInfo, context *clusterd
 }
 
 // StartWatch watches for instances of CephNFS custom resources and acts on them
-func (c *CephNFSController) StartWatch(namespace string, stopCh chan struct{}) error {
+func (c *CephNFSController) StartWatch(namespace string, stopCh chan struct{}) {
 
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
@@ -75,8 +75,6 @@ func (c *CephNFSController) StartWatch(namespace string, stopCh chan struct{}) e
 
 	logger.Infof("start watching ceph nfs resource in namespace %s", namespace)
 	go k8sutil.WatchCR(CephNFSResource, namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1().RESTClient(), &cephv1.CephNFS{}, stopCh)
-
-	return nil
 }
 
 func (c *CephNFSController) onAdd(obj interface{}) {

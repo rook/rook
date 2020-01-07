@@ -70,7 +70,7 @@ func NewController(context *clusterd.Context, containerImage string) *Controller
 }
 
 // StartWatch watches for instances of nfsserver custom resources and acts on them
-func (c *Controller) StartWatch(namespace string, stopCh chan struct{}) error {
+func (c *Controller) StartWatch(namespace string, stopCh chan struct{}) {
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
 		UpdateFunc: c.onUpdate,
@@ -79,8 +79,6 @@ func (c *Controller) StartWatch(namespace string, stopCh chan struct{}) error {
 
 	logger.Infof("start watching nfs server resources in namespace %s", namespace)
 	go k8sutil.WatchCR(NFSResource, namespace, resourceHandlerFuncs, c.context.RookClientset.NfsV1alpha1().RESTClient(), &nfsv1alpha1.NFSServer{}, stopCh)
-
-	return nil
 }
 
 type nfsServer struct {

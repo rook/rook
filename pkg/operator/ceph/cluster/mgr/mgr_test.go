@@ -48,12 +48,13 @@ func TestStartMGR(t *testing.T) {
 		},
 	}
 
+	clientset := testop.New(t, 3)
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
 	context := &clusterd.Context{
 		Executor:  executor,
 		ConfigDir: configDir,
-		Clientset: testop.New(3)}
+		Clientset: clientset}
 	clusterInfo := &cephconfig.ClusterInfo{FSID: "myfsid"}
 	c := New(
 		clusterInfo,
@@ -158,7 +159,8 @@ func TestConfigureModules(t *testing.T) {
 		},
 	}
 
-	context := &clusterd.Context{Executor: executor, Clientset: testop.New(3)}
+	clientset := testop.New(t, 3)
+	context := &clusterd.Context{Executor: executor, Clientset: clientset}
 	clusterInfo := &cephconfig.ClusterInfo{}
 	c := &Cluster{
 		clusterInfo: clusterInfo,

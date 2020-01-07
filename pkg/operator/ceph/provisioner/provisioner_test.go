@@ -29,7 +29,7 @@ import (
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	storagebeta "k8s.io/api/storage/v1beta1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,7 +38,7 @@ import (
 )
 
 func TestProvisionImage(t *testing.T) {
-	clientset := test.New(3)
+	clientset := test.New(t, 3)
 	namespace := "ns"
 	configDir, _ := ioutil.TempDir("", "")
 	os.Setenv("POD_NAMESPACE", "rook-ceph")
@@ -47,7 +47,8 @@ func TestProvisionImage(t *testing.T) {
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
 			if strings.Contains(command, "ceph-authtool") {
-				cephtest.CreateConfigDir(path.Join(configDir, namespace))
+				err := cephtest.CreateConfigDir(path.Join(configDir, namespace))
+				assert.Nil(t, err)
 			}
 
 			if command == "rbd" && args[0] == "create" {
@@ -104,7 +105,7 @@ func TestProvisionImage(t *testing.T) {
 }
 
 func TestReclaimPolicyForProvisionedImages(t *testing.T) {
-	clientset := test.New(3)
+	clientset := test.New(t, 3)
 	namespace := "ns"
 	configDir, _ := ioutil.TempDir("", "")
 	os.Setenv("POD_NAMESPACE", "rook-system")
@@ -113,7 +114,8 @@ func TestReclaimPolicyForProvisionedImages(t *testing.T) {
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
 			if strings.Contains(command, "ceph-authtool") {
-				cephtest.CreateConfigDir(path.Join(configDir, namespace))
+				err := cephtest.CreateConfigDir(path.Join(configDir, namespace))
+				assert.Nil(t, err)
 			}
 
 			if command == "rbd" && args[0] == "create" {

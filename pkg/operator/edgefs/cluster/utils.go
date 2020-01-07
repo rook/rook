@@ -281,7 +281,9 @@ func (c *cluster) resolveNode(nodeName string) *rookv1alpha2.Node {
 }
 
 func (c *cluster) LabelTargetNode(nodeName string) {
-	c.AddLabelsToNode(nodeName, map[string]string{c.Namespace: "cluster"})
+	if err := c.AddLabelsToNode(nodeName, map[string]string{c.Namespace: "cluster"}); err != nil {
+		logger.Errorf("failed to add labels to node %q. %v", nodeName, err)
+	}
 }
 
 func (c *cluster) AddLabelsToNode(nodeName string, labels map[string]string) error {
@@ -308,7 +310,9 @@ func (c *cluster) AddLabelsToNode(nodeName string, labels map[string]string) err
 }
 
 func (c *cluster) UnlabelTargetNode(nodeName string) {
-	c.RemoveLabelOffNode(nodeName, []string{c.Namespace})
+	if err := c.RemoveLabelOffNode(nodeName, []string{c.Namespace}); err != nil {
+		logger.Errorf("failed to remove labels from node %q. %v", nodeName, err)
+	}
 }
 
 // RemoveLabelOffNode is for cleaning up labels temporarily added to node,

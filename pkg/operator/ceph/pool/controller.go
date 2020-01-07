@@ -64,7 +64,7 @@ func NewPoolController(context *clusterd.Context, clusterSpec *cephv1.ClusterSpe
 }
 
 // Watch watches for instances of Pool custom resources and acts on them
-func (c *PoolController) StartWatch(namespace string, stopCh chan struct{}) error {
+func (c *PoolController) StartWatch(namespace string, stopCh chan struct{}) {
 
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
@@ -74,7 +74,6 @@ func (c *PoolController) StartWatch(namespace string, stopCh chan struct{}) erro
 
 	logger.Infof("start watching pools in namespace %q", namespace)
 	go k8sutil.WatchCR(PoolResource, namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1().RESTClient(), &cephv1.CephBlockPool{}, stopCh)
-	return nil
 }
 
 func (c *PoolController) onAdd(obj interface{}) {

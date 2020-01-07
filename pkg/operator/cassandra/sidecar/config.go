@@ -429,8 +429,12 @@ func getJmxExporterConfig() string {
 func mergeYAMLs(initialYAML, overrideYAML []byte) ([]byte, error) {
 
 	var initial, override map[string]interface{}
-	yaml.Unmarshal(initialYAML, &initial)
-	yaml.Unmarshal(overrideYAML, &override)
+	if err := yaml.Unmarshal(initialYAML, &initial); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal initial yaml. %v", err)
+	}
+	if err := yaml.Unmarshal(overrideYAML, &override); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal override yaml. %v", err)
+	}
 
 	if initial == nil {
 		initial = make(map[string]interface{})

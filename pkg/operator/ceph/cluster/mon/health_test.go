@@ -46,7 +46,7 @@ func TestCheckHealth(t *testing.T) {
 			return clienttest.MonInQuorumResponse(), nil
 		},
 	}
-	clientset := test.New(1)
+	clientset := test.New(t, 1)
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
 	context := &clusterd.Context{
@@ -101,7 +101,7 @@ func TestCheckHealthNotFound(t *testing.T) {
 			return clienttest.MonInQuorumResponse(), nil
 		},
 	}
-	clientset := test.New(1)
+	clientset := test.New(t, 1)
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
 	context := &clusterd.Context{
@@ -157,7 +157,7 @@ func TestAddRemoveMons(t *testing.T) {
 			return monQuorumResponse, nil
 		},
 	}
-	clientset := test.New(1)
+	clientset := test.New(t, 1)
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
 	context := &clusterd.Context{

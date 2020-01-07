@@ -26,7 +26,7 @@ import (
 )
 
 func TestOperator(t *testing.T) {
-	clientset := test.New(3)
+	clientset := test.New(t, 3)
 	context := &clusterd.Context{Clientset: clientset}
 	o := New(context, "", "")
 
