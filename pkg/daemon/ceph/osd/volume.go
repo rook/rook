@@ -23,6 +23,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -229,7 +230,7 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 	// Create a specific log directory so that each prepare command will have its own log
 	// Only do this if nothing is present so that we don't override existing logs
 	cvLogDir = path.Join(cephLogDir, a.nodeName)
-	err := os.MkdirAll(cvLogDir, 0755)
+	err := os.MkdirAll(cvLogDir, 0750)
 	if err != nil {
 		logger.Errorf("failed to create ceph-volume log directory %q, continue with default %q. %v", cvLogDir, cephLogDir, err)
 		baseArgs = []string{"-oL", cephVolumeCmd, cephVolumeMode, "prepare", "--bluestore"}
@@ -649,8 +650,7 @@ func GetCephVolumeLVMOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 
 func readCVLogContent(cvLogFilePath string) string {
 	// Open c-v log file
-	// #nosec G304 Rook controls File path provided as input
-	cvLogFile, err := os.Open(cvLogFilePath)
+	cvLogFile, err := os.Open(filepath.Clean(cvLogFilePath))
 	if err != nil {
 		logger.Errorf("failed to open ceph-volume log file %q. %v", cvLogFilePath, err)
 		return ""

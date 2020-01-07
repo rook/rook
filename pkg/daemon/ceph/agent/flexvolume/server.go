@@ -101,7 +101,8 @@ func (s *FlexvolumeServer) Start(driverVendor, driverName string) error {
 	}
 	s.listeners[unixSocketFile] = listener
 
-	if err := os.Chmod(unixSocketFile, 0770); err != nil {
+	// #nosec since unixSocketFile needs the permission to execute
+	if err := os.Chmod(unixSocketFile, 0750); err != nil {
 		return errors.Wrapf(err, "unable to set file permission to unix socket %q", unixSocketFile)
 	}
 
@@ -198,7 +199,7 @@ func LoadFlexSettings(directory string) []byte {
 func configureFlexVolume(driverFile, driverDir, driverName string) error {
 	// copying flex volume
 	if _, err := os.Stat(driverDir); os.IsNotExist(err) {
-		err := os.Mkdir(driverDir, 0755)
+		err := os.Mkdir(driverDir, 0750)
 		if err != nil {
 			logger.Errorf("failed to create dir %q. %v", driverDir, err)
 		}
@@ -258,8 +259,8 @@ func copyFile(src, dest string) error {
 	}
 	defer srcFile.Close()
 
-	// #nosec G304 Rook controls the File path provided as input
-	destFile, err := os.OpenFile(dest, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755) // creates if file doesn't exist
+	// #nosec G304 since destFile needs the permission to execute
+	destFile, err := os.OpenFile(dest, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0750) // creates if file doesn't exist
 	if err != nil {
 		return errors.Wrapf(err, "error creating destination file %s", dest)
 	}
