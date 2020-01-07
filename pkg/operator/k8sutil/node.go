@@ -36,8 +36,8 @@ const (
 )
 
 var validTopologyLabelKeys = []string{
-	"failure-domain.beta.kubernetes.io",
-	"failure-domain.kubernetes.io",
+	"failure-domain.beta.kubernetes.io", // deprecated in 1.17
+	"topology.kubernetes.io",
 	TopologyLabelPrefix,
 }
 
