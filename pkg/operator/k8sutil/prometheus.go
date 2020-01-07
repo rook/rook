@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"path/filepath"
 
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	monitoringclient "github.com/coreos/prometheus-operator/pkg/client/versioned"
@@ -41,7 +42,7 @@ func getMonitoringClient() (*monitoringclient.Clientset, error) {
 
 // GetServiceMonitor returns servicemonitor or an error
 func GetServiceMonitor(filePath string) (*monitoringv1.ServiceMonitor, error) {
-	file, err := ioutil.ReadFile(filePath)
+	file, err := ioutil.ReadFile(filepath.Clean(filePath))
 	if err != nil {
 		return nil, fmt.Errorf("servicemonitor file could not be fetched. %v", err)
 	}
@@ -78,7 +79,7 @@ func CreateOrUpdateServiceMonitor(serviceMonitorDefinition *monitoringv1.Service
 
 // GetPrometheusRule returns provided prometheus rules or an error
 func GetPrometheusRule(ruleFilePath string) (*monitoringv1.PrometheusRule, error) {
-	ruleFile, err := ioutil.ReadFile(ruleFilePath)
+	ruleFile, err := ioutil.ReadFile(filepath.Clean(ruleFilePath))
 	if err != nil {
 		return nil, fmt.Errorf("prometheusRules file could not be fetched. %v", err)
 	}
