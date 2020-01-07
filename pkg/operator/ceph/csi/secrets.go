@@ -25,6 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// #nosec because of the word `Secret`
 const (
 	csiKeyringRBDProvisionerUsername = "client.csi-rbd-provisioner"
 	csiKeyringRBDNodeUsername        = "client.csi-rbd-node"
@@ -32,6 +33,7 @@ const (
 	csiRBDProvisionerSecret          = "rook-csi-rbd-provisioner"
 )
 
+// #nosec because of the word `Secret`
 const (
 	csiKeyringCephFSProvisionerUsername = "client.csi-cephfs-provisioner"
 	csiKeyringCephFSNodeUsername        = "client.csi-cephfs-node"
