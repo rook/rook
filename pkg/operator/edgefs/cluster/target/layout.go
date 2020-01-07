@@ -32,7 +32,8 @@ import (
 const (
 	// DefaultContainerMaxCapacity - max allowed container disks capacity, if exeeded then new new container will be added
 	DefaultContainerMaxCapacity = "132Ti"
-	S3PayloadSecretsPath        = "/opt/nedge/etc/secrets/"
+	// #nosec because of the word `Secret`
+	S3PayloadSecretsPath = "/opt/nedge/etc/secrets/"
 )
 
 // CreateQualifiedHeadlessServiceName creates a qualified name of the headless service for a given replica id and namespace,

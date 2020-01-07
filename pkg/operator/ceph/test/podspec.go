@@ -67,9 +67,11 @@ func NewPodSpecTester(t *testing.T, spec *v1.PodSpec) *PodSpecTester {
 func (ps *PodSpecTester) AssertVolumesMeetCephRequirements(
 	daemonType config.DaemonType, daemonID string,
 ) {
+	// #nosec because of the word `Secret`
 	keyringSecretName := fmt.Sprintf("rook-ceph-%s-%s-keyring", daemonType, daemonID)
 	if daemonType == config.MonType {
-		keyringSecretName = "rook-ceph-mons-keyring" // mons share a keyring
+		// #nosec because of the word `Secret`
+		keyringSecretName = "rook-ceph-mons-keyring"
 	}
 	requiredVols := []string{"rook-config-override", keyringSecretName}
 	if daemonType != config.RbdMirrorType {
