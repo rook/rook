@@ -38,14 +38,13 @@ const (
 // to all the nodes in the cluster. This way configuration is simplified and
 // available to all subcomponents at any point it time.
 func (c *cluster) createClusterConfigMap(deploymentConfig edgefsv1.ClusterDeploymentConfig, resurrect bool) error {
-
+	var err error
 	cm := make(map[string]edgefsv1.SetupNode)
 
 	dnsRecords := make([]string, len(deploymentConfig.DevConfig))
 	for i := 0; i < len(deploymentConfig.DevConfig); i++ {
 		dnsRecords[i] = target.CreateQualifiedHeadlessServiceName(i, c.Namespace)
 	}
-
 	serverIfName := defaultServerIfName
 	brokerIfName := defaultBrokerIfName
 
@@ -65,7 +64,6 @@ func (c *cluster) createClusterConfigMap(deploymentConfig edgefsv1.ClusterDeploy
 		}
 	} else if c.Spec.Network.IsMultus() {
 		if serverDefined && brokerDefined {
-			var err error
 			serverIfName, err = k8sutil.GetMultusIfName(serverSelector)
 			if err != nil {
 				return err
@@ -76,14 +74,14 @@ func (c *cluster) createClusterConfigMap(deploymentConfig edgefsv1.ClusterDeploy
 				return err
 			}
 		} else if serverDefined {
-			serverIfName, err := k8sutil.GetMultusIfName(serverSelector)
+			serverIfName, err = k8sutil.GetMultusIfName(serverSelector)
 			if err != nil {
 				return err
 			}
 
 			brokerIfName = serverIfName
 		} else if brokerDefined {
-			serverIfName, err := k8sutil.GetMultusIfName(brokerSelector)
+			serverIfName, err = k8sutil.GetMultusIfName(brokerSelector)
 			if err != nil {
 				return err
 			}
