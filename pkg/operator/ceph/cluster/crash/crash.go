@@ -39,7 +39,7 @@ import (
 
 const (
 	crashCollectorKeyringUsername = "client.crash"
-	crashCollectorSecretName      = "rook-ceph-crash-collector-keyring"
+	crashCollectorKeyName         = "rook-ceph-crash-collector-keyring"
 )
 
 // ClusterResource operator-kit Custom Resource Definition
