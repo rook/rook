@@ -22,14 +22,12 @@ import (
 	"reflect"
 
 	"github.com/coreos/pkg/capnslog"
-	opkit "github.com/rook/operator-kit"
 	miniov1alpha1 "github.com/rook/rook/pkg/apis/minio.rook.io/v1alpha1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -55,12 +53,11 @@ const (
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "minio-op-object")
 
 // ObjectStoreResource represents the object store custom resource
-var ObjectStoreResource = opkit.CustomResource{
+var ObjectStoreResource = k8sutil.CustomResource{
 	Name:    customResourceName,
 	Plural:  customResourceNamePlural,
 	Group:   miniov1alpha1.CustomResourceGroup,
 	Version: miniov1alpha1.Version,
-	Scope:   apiextensionsv1beta1.NamespaceScoped,
 	Kind:    reflect.TypeOf(miniov1alpha1.ObjectStore{}).Name(),
 }
 
@@ -87,9 +84,7 @@ func (c *Controller) StartWatch(namespace string, stopCh chan struct{}) error {
 	}
 
 	logger.Infof("start watching object store resources in namespace %s", namespace)
-	watcher := opkit.NewWatcher(ObjectStoreResource, namespace, resourceHandlerFuncs, c.context.RookClientset.MinioV1alpha1().RESTClient())
-	go watcher.Watch(&miniov1alpha1.ObjectStore{}, stopCh)
-
+	go k8sutil.WatchCR(ObjectStoreResource, namespace, resourceHandlerFuncs, c.context.RookClientset.MinioV1alpha1().RESTClient(), &miniov1alpha1.ObjectStore{}, stopCh)
 	return nil
 }
 

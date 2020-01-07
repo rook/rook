@@ -23,12 +23,11 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/google/go-cmp/cmp"
-	opkit "github.com/rook/operator-kit"
 	edgefsv1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
-	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
@@ -42,12 +41,11 @@ const (
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "edgefs-op-swift")
 
 // SWIFTResource represents the swift custom resource
-var SWIFTResource = opkit.CustomResource{
+var SWIFTResource = k8sutil.CustomResource{
 	Name:    customResourceName,
 	Plural:  customResourceNamePlural,
 	Group:   edgefsv1.CustomResourceGroup,
 	Version: edgefsv1.Version,
-	Scope:   apiextensionsv1beta1.NamespaceScoped,
 	Kind:    reflect.TypeOf(edgefsv1.SWIFT{}).Name(),
 }
 
@@ -105,8 +103,7 @@ func (c *SWIFTController) StartWatch(stopCh chan struct{}) error {
 	}
 
 	logger.Infof("start watching swift resources in namespace %s", c.namespace)
-	watcher := opkit.NewWatcher(SWIFTResource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1().RESTClient())
-	go watcher.Watch(&edgefsv1.SWIFT{}, stopCh)
+	go k8sutil.WatchCR(SWIFTResource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1().RESTClient(), &edgefsv1.SWIFT{}, stopCh)
 
 	return nil
 }

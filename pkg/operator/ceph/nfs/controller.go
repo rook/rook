@@ -22,12 +22,10 @@ import (
 	"sync"
 
 	"github.com/coreos/pkg/capnslog"
-	opkit "github.com/rook/operator-kit"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
 )
@@ -35,12 +33,11 @@ import (
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-nfs")
 
 // CephNFSResource represents the file system custom resource
-var CephNFSResource = opkit.CustomResource{
+var CephNFSResource = k8sutil.CustomResource{
 	Name:    "cephnfs",
 	Plural:  "cephnfses",
 	Group:   cephv1.CustomResourceGroup,
 	Version: cephv1.Version,
-	Scope:   apiextensionsv1beta1.NamespaceScoped,
 	Kind:    reflect.TypeOf(cephv1.CephNFS{}).Name(),
 }
 
@@ -78,8 +75,7 @@ func (c *CephNFSController) StartWatch(namespace string, stopCh chan struct{}) e
 	}
 
 	logger.Infof("start watching ceph nfs resource in namespace %s", namespace)
-	watcher := opkit.NewWatcher(CephNFSResource, namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1().RESTClient())
-	go watcher.Watch(&cephv1.CephNFS{}, stopCh)
+	go k8sutil.WatchCR(CephNFSResource, namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1().RESTClient(), &cephv1.CephNFS{}, stopCh)
 
 	return nil
 }

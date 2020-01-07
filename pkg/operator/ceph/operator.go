@@ -24,7 +24,6 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
-	opkit "github.com/rook/operator-kit"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume"
@@ -67,7 +66,7 @@ var (
 // Operator type for managing storage
 type Operator struct {
 	context           *clusterd.Context
-	resources         []opkit.CustomResource
+	resources         []k8sutil.CustomResource
 	operatorNamespace string
 	rookImage         string
 	securityAccount   string
@@ -79,7 +78,7 @@ type Operator struct {
 
 // New creates an operator instance
 func New(context *clusterd.Context, volumeAttachmentWrapper attachment.Attachment, rookImage, securityAccount string) *Operator {
-	schemes := []opkit.CustomResource{cluster.ClusterResource, pool.PoolResource, object.ObjectStoreResource, objectuser.ObjectStoreUserResource,
+	schemes := []k8sutil.CustomResource{cluster.ClusterResource, pool.PoolResource, object.ObjectStoreResource, objectuser.ObjectStoreUserResource,
 		file.FilesystemResource, attachment.VolumeResource}
 
 	operatorNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
