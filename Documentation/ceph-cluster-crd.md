@@ -106,6 +106,7 @@ Settings can be specified at the global level to apply to the cluster as a whole
   * **WARNING**: For test scenarios, if you delete a cluster and start a new cluster on the same hosts, the path used by `dataDirHostPath` must be deleted. Otherwise, stale keys and other config will remain from the previous cluster and the new mons will fail to start.
 If this value is empty, each pod will get an ephemeral directory to store their config files that is tied to the lifetime of the pod running on that node. More details can be found in the Kubernetes [empty dir docs](https://kubernetes.io/docs/concepts/storage/volumes/#emptydir).
 * `skipUpgradeChecks`: if set to true Rook won't perform any upgrade checks on Ceph daemons during an upgrade. Use this at **YOUR OWN RISK**, only if you know what you're doing. To understand Rook's upgrade process of Ceph, read the [upgrade doc](Documentation/ceph-upgrade.html#ceph-version-upgrades).
+* `continueUpgradeAfterChecksEvenIfNotHealthy`: if set to true Rook will continue the OSD daemon upgrade process even if the PGs are not clean, or continue with the MDS upgrade even the file system is not healthy.
 * `dashboard`: Settings for the Ceph dashboard. To view the dashboard in your browser see the [dashboard guide](ceph-dashboard.md).
   * `enabled`: Whether to enable the dashboard to view cluster status
   * `urlPrefix`: Allows to serve the dashboard under a subpath (useful when you are accessing the dashboard via a reverse proxy)
@@ -148,7 +149,7 @@ Official releases of Ceph Container images are available from [Docker Hub](https
 These are general purpose Ceph container with all necessary daemons and dependencies installed.
 
 | TAG                  | MEANING                                                   |
-|----------------------|-----------------------------------------------------------|
+| -------------------- | --------------------------------------------------------- |
 | vRELNUM              | Latest release in this series (e.g., *v14* = Nautilus)    |
 | vRELNUM.Y            | Latest stable release in this stable series (e.g., v14.2) |
 | vRELNUM.Y.Z          | A specific release (e.g., v14.2.5)                        |

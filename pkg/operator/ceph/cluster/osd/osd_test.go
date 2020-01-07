@@ -48,7 +48,7 @@ func TestStart(t *testing.T) {
 		CephVersion: cephver.Nautilus,
 	}
 	c := New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "myversion", cephv1.CephVersionSpec{},
-		rookalpha.StorageScopeSpec{}, "", rookalpha.Placement{}, rookalpha.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false)
+		rookalpha.StorageScopeSpec{}, "", rookalpha.Placement{}, rookalpha.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false, false)
 
 	// Start the first time
 	err := c.Start()
@@ -133,7 +133,7 @@ func TestAddRemoveNode(t *testing.T) {
 	}
 
 	c := New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: executor}, "ns-add-remove", "myversion", cephv1.CephVersionSpec{},
-		storageSpec, "/foo", rookalpha.Placement{}, rookalpha.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false)
+		storageSpec, "/foo", rookalpha.Placement{}, rookalpha.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false, false)
 
 	// kick off the start of the orchestration in a goroutine
 	var startErr error
@@ -218,7 +218,7 @@ func TestAddRemoveNode(t *testing.T) {
 	// modify the storage spec to remove the node from the cluster
 	storageSpec.Nodes = []rookalpha.Node{}
 	c = New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: mockExec}, "ns-add-remove", "myversion", cephv1.CephVersionSpec{},
-		storageSpec, "", rookalpha.Placement{}, rookalpha.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false)
+		storageSpec, "", rookalpha.Placement{}, rookalpha.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false, false)
 
 	// reset the orchestration status watcher
 	statusMapWatcher = watch.NewFake()
@@ -270,7 +270,7 @@ func TestDiscoverOSDs(t *testing.T) {
 		Executor: executor,
 	}
 	c := New(clusterInfo, context, "ns", "myversion", cephv1.CephVersionSpec{},
-		rookalpha.StorageScopeSpec{}, "", rookalpha.Placement{}, rookalpha.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false)
+		rookalpha.StorageScopeSpec{}, "", rookalpha.Placement{}, rookalpha.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false, false)
 	node1 := "n1"
 	node2 := "n2"
 
@@ -361,7 +361,7 @@ func TestAddNodeFailure(t *testing.T) {
 		CephVersion: cephver.Nautilus,
 	}
 	c := New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns-add-remove", "myversion", cephv1.CephVersionSpec{},
-		storageSpec, "/foo", rookalpha.Placement{}, rookalpha.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false)
+		storageSpec, "/foo", rookalpha.Placement{}, rookalpha.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false, false)
 
 	// kick off the start of the orchestration in a goroutine
 	var startErr error
@@ -382,7 +382,7 @@ func TestAddNodeFailure(t *testing.T) {
 func TestGetOSDInfo(t *testing.T) {
 	c := New(&cephconfig.ClusterInfo{}, &clusterd.Context{}, "ns", "myversion", cephv1.CephVersionSpec{},
 		rookalpha.StorageScopeSpec{}, "", rookalpha.Placement{}, rookalpha.Annotations{}, cephv1.NetworkSpec{},
-		v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false)
+		v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false, false)
 
 	node := "n1"
 	location := "root=default host=myhost zone=myzone"

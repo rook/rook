@@ -191,7 +191,7 @@ func (c *Cluster) Start() error {
 				logger.Debugf("current cluster version for mdss before upgrading is: %+v", currentCephVersion)
 				cephVersionToUse = currentCephVersion
 			}
-			if err = UpdateDeploymentAndWait(c.context, d, c.fs.Namespace, daemon, daemonLetterID, cephVersionToUse, c.isUpgrade, c.clusterSpec.SkipUpgradeChecks); err != nil {
+			if err = UpdateDeploymentAndWait(c.context, d, c.fs.Namespace, daemon, daemonLetterID, cephVersionToUse, c.isUpgrade, c.clusterSpec.SkipUpgradeChecks, false); err != nil {
 				return errors.Wrapf(err, "failed to update mds deployment %s", d.Name)
 			}
 		}

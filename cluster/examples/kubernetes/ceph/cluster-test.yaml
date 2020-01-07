@@ -18,6 +18,7 @@ spec:
     allowUnsupported: true
   dataDirHostPath: /var/lib/rook
   skipUpgradeChecks: false
+  continueUpgradeAfterChecksEvenIfNotHealthy: false
   mon:
     count: 1
     allowMultiplePerNode: true

@@ -794,7 +794,7 @@ func (c *Cluster) updateMon(m *monConfig, d *apps.Deployment) error {
 		}
 	}
 
-	err := updateDeploymentAndWait(c.context, d, c.Namespace, daemonType, m.DaemonName, cephVersionToUse, c.isUpgrade, c.spec.SkipUpgradeChecks)
+	err := updateDeploymentAndWait(c.context, d, c.Namespace, daemonType, m.DaemonName, cephVersionToUse, c.isUpgrade, c.spec.SkipUpgradeChecks, false)
 	if err != nil {
 		return errors.Wrapf(err, "failed to update mon deployment %s", m.ResourceName)
 	}
