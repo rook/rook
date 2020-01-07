@@ -68,25 +68,26 @@ const (
 
 // Cluster keeps track of the OSDs
 type Cluster struct {
-	clusterInfo       *cephconfig.ClusterInfo
-	context           *clusterd.Context
-	Namespace         string
-	placement         rookalpha.Placement
-	annotations       rookalpha.Annotations
-	Keyring           string
-	rookVersion       string
-	cephVersion       cephv1.CephVersionSpec
-	DesiredStorage    rookalpha.StorageScopeSpec // user-defined storage scope spec
-	ValidStorage      rookalpha.StorageScopeSpec // valid subset of `Storage`, computed at runtime
-	dataDirHostPath   string
-	Network           cephv1.NetworkSpec
-	resources         v1.ResourceRequirements
-	prepareResources  v1.ResourceRequirements
-	priorityClassName string
-	ownerRef          metav1.OwnerReference
-	kv                *k8sutil.ConfigMapKVStore
-	isUpgrade         bool
-	skipUpgradeChecks bool
+	clusterInfo                                *cephconfig.ClusterInfo
+	context                                    *clusterd.Context
+	Namespace                                  string
+	placement                                  rookalpha.Placement
+	annotations                                rookalpha.Annotations
+	Keyring                                    string
+	rookVersion                                string
+	cephVersion                                cephv1.CephVersionSpec
+	DesiredStorage                             rookalpha.StorageScopeSpec // user-defined storage scope spec
+	ValidStorage                               rookalpha.StorageScopeSpec // valid subset of `Storage`, computed at runtime
+	dataDirHostPath                            string
+	Network                                    cephv1.NetworkSpec
+	resources                                  v1.ResourceRequirements
+	prepareResources                           v1.ResourceRequirements
+	priorityClassName                          string
+	ownerRef                                   metav1.OwnerReference
+	kv                                         *k8sutil.ConfigMapKVStore
+	isUpgrade                                  bool
+	skipUpgradeChecks                          bool
+	continueUpgradeAfterChecksEvenIfNotHealthy bool
 }
 
 // New creates an instance of the OSD manager
@@ -107,6 +108,7 @@ func New(
 	ownerRef metav1.OwnerReference,
 	isUpgrade bool,
 	skipUpgradeChecks bool,
+	continueUpgradeAfterChecksEvenIfNotHealthy bool,
 ) *Cluster {
 	return &Cluster{
 		clusterInfo:       clusterInfo,
@@ -126,6 +128,7 @@ func New(
 		kv:                k8sutil.NewConfigMapKVStore(namespace, context.Clientset, ownerRef),
 		isUpgrade:         isUpgrade,
 		skipUpgradeChecks: skipUpgradeChecks,
+		continueUpgradeAfterChecksEvenIfNotHealthy: continueUpgradeAfterChecksEvenIfNotHealthy,
 	}
 }
 
@@ -501,7 +504,7 @@ func (c *Cluster) startOSDDaemonsOnPVC(pvcName string, config *provisionConfig, 
 				}
 			}
 
-			if err = updateDeploymentAndWait(c.context, dp, c.Namespace, daemon, strconv.Itoa(osd.ID), cephVersionToUse, c.isUpgrade, c.skipUpgradeChecks); err != nil {
+			if err = updateDeploymentAndWait(c.context, dp, c.Namespace, daemon, strconv.Itoa(osd.ID), cephVersionToUse, c.isUpgrade, c.skipUpgradeChecks, c.continueUpgradeAfterChecksEvenIfNotHealthy); err != nil {
 				logger.Errorf("failed to update osd deployment %d. %v", osd.ID, err)
 			}
 		}
@@ -590,7 +593,7 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 				}
 			}
 
-			if err = updateDeploymentAndWait(c.context, dp, c.Namespace, daemon, strconv.Itoa(osd.ID), cephVersionToUse, c.isUpgrade, c.skipUpgradeChecks); err != nil {
+			if err = updateDeploymentAndWait(c.context, dp, c.Namespace, daemon, strconv.Itoa(osd.ID), cephVersionToUse, c.isUpgrade, c.skipUpgradeChecks, c.continueUpgradeAfterChecksEvenIfNotHealthy); err != nil {
 				logger.Errorf("failed to update osd deployment %d. %v", osd.ID, err)
 			}
 		}

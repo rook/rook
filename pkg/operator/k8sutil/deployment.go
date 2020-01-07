@@ -97,7 +97,7 @@ func UpdateDeploymentAndWait(context *clusterd.Context, deployment *apps.Deploym
 			// Now we check if we can go to the next daemon
 			err = verifyCallback("continue")
 			if err != nil {
-				return nil, fmt.Errorf("failed to check if deployment %s can be updated: %+v", deployment.Name, err)
+				return nil, fmt.Errorf("failed to check if deployment %s can continue: %+v", deployment.Name, err)
 			}
 
 			return d, nil
