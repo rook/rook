@@ -292,15 +292,17 @@ func createPodSpec(cluster *cluster, containerImage string, isTServerStatefulset
 
 func createContainer(cluster *cluster, containerImage string, isTServerStatefulset bool, name, serviceName string) v1.Container {
 	ports, _ := getPortsFromSpec(cluster.spec.Master.Network)
-	command := createMasterContainerCommand(cluster.namespace, serviceName, ports.masterPorts.rpc, cluster.spec.Master.Replicas)
+	masterCompleteName := cluster.addCRNameSuffix(masterName)
+	command := createMasterContainerCommand(cluster.namespace, serviceName, masterCompleteName, ports.masterPorts.rpc, cluster.spec.Master.Replicas)
 	containerPorts := createMasterContainerPortsList(ports)
 	volumeMountName := cluster.addCRNameSuffix(cluster.spec.Master.VolumeClaimTemplate.Name)
 
 	if isTServerStatefulset {
 		masterServiceName := cluster.addCRNameSuffix(masterNamePlural)
+		masterCompleteName := cluster.addCRNameSuffix(masterName)
 		masterRPCPort := ports.masterPorts.rpc
 		ports, _ = getPortsFromSpec(cluster.spec.TServer.Network)
-		command = createTServerContainerCommand(cluster.namespace, serviceName, masterServiceName, masterRPCPort, ports.tserverPorts.rpc, ports.tserverPorts.postgres, cluster.spec.TServer.Replicas)
+		command = createTServerContainerCommand(cluster.namespace, serviceName, masterServiceName, masterCompleteName, masterRPCPort, ports.tserverPorts.rpc, ports.tserverPorts.postgres, cluster.spec.TServer.Replicas)
 		containerPorts = createTServerContainerPortsList(ports)
 		volumeMountName = cluster.addCRNameSuffix(cluster.spec.TServer.VolumeClaimTemplate.Name)
 	}
