@@ -82,7 +82,6 @@ type GlobalConfig struct {
 	OsdPgBits                int    `ini:"osd pg bits,omitempty"`
 	OsdPgpBits               int    `ini:"osd pgp bits,omitempty"`
 	OsdPoolDefaultSize       int    `ini:"osd pool default size,omitempty"`
-	OsdPoolDefaultMinSize    int    `ini:"osd pool default min size,omitempty"`
 	OsdPoolDefaultPgNum      int    `ini:"osd pool default pg num,omitempty"`
 	OsdPoolDefaultPgpNum     int    `ini:"osd pool default pgp num,omitempty"`
 	OsdMaxObjectNameLen      int    `ini:"osd max object name len,omitempty"`
@@ -252,7 +251,6 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo) (*
 			OsdPgBits:              11,
 			OsdPgpBits:             11,
 			OsdPoolDefaultSize:     1,
-			OsdPoolDefaultMinSize:  1,
 			OsdPoolDefaultPgNum:    100,
 			OsdPoolDefaultPgpNum:   100,
 			RbdDefaultFeatures:     3,
