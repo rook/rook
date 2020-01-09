@@ -69,10 +69,6 @@ spec:
               mountPath: /csi
         {{ end }}
         - name: csi-rbdplugin
-          securityContext:
-            privileged: true
-            capabilities:
-              add: ["SYS_ADMIN"]
           image: {{ .CSIPluginImage }}
           args :
             - "--nodeid=$(NODE_ID)"
