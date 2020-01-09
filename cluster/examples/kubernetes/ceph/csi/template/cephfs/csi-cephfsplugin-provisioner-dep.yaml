@@ -119,9 +119,9 @@ spec:
           imagePullPolicy: "IfNotPresent"
       volumes:
         - name: socket-dir
-          hostPath:
-            path: "{{ .KubeletDirPath }}/plugins/{{ .DriverNamePrefix }}cephfs.csi.ceph.com"
-            type: DirectoryOrCreate
+          emptyDir: {
+            medium: "Memory"
+          }
         - name: host-sys
           hostPath:
             path: /sys
