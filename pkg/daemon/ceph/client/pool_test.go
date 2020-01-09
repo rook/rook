@@ -45,10 +45,6 @@ func TestCreateECPoolWithOverwrites(t *testing.T) {
 					assert.Equal(t, "mypool", args[3])
 					assert.Equal(t, "true", args[5])
 					return "", nil
-				} else if args[4] == "min_size" {
-					assert.Equal(t, "mypool", args[3])
-					assert.Equal(t, "1", args[5])
-					return "", nil
 				}
 			}
 			if args[2] == "application" {
@@ -80,8 +76,7 @@ func TestCreateECPoolWithoutOverwrites(t *testing.T) {
 			}
 			if args[2] == "set" {
 				assert.Equal(t, "mypool", args[3])
-				assert.Equal(t, "min_size", args[4])
-				assert.Equal(t, "1", args[5])
+				assert.Equal(t, "1", args[4])
 				return "", nil
 			}
 			if args[2] == "application" {
