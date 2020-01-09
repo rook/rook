@@ -20,6 +20,11 @@ spec:
       dnsPolicy: ClusterFirstWithHostNet
       containers:
         - name: driver-registrar
+          # This is necessary only for systems with SELinux, where
+          # non-privileged sidecar containers cannot access unix domain socket
+          # created by privileged CSI driver container.
+          securityContext:
+            privileged: true
           image: {{ .RegistrarImage }}
           args:
             - "--v=5"
@@ -98,6 +103,8 @@ spec:
             - name: keys-tmp-dir
               mountPath: /tmp/csi/keys
         - name: liveness-prometheus
+          securityContext:
+            privileged: true
           image: {{ .CSIPluginImage }}
           args:
             - "--type=liveness"
