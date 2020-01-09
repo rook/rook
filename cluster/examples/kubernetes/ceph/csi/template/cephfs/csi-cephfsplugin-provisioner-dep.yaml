@@ -17,6 +17,11 @@ spec:
       serviceAccount: rook-csi-cephfs-provisioner-sa
       containers:
         - name: csi-attacher
+          # This is necessary only for systems with SELinux, where
+          # non-privileged sidecar containers cannot access unix domain socket
+          # created by privileged CSI driver container.
+          securityContext:
+            privileged: true
           image: {{ .AttacherImage }}
           args:
             - "--v=5"
@@ -33,6 +38,8 @@ spec:
             - name: socket-dir
               mountPath: /csi
         - name: csi-provisioner
+          securityContext:
+            privileged: true
           image: {{ .ProvisionerImage }}
           args:
             - "--csi-address=$(ADDRESS)"
@@ -99,6 +106,8 @@ spec:
             - name: keys-tmp-dir
               mountPath: /tmp/csi/keys
         - name: liveness-prometheus
+          securityContext:
+            privileged: true
           image: {{ .CSIPluginImage }}
           args:
             - "--type=liveness"

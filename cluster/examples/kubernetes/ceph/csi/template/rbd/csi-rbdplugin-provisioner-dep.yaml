@@ -17,6 +17,11 @@ spec:
       serviceAccount: rook-csi-rbd-provisioner-sa
       containers:
         - name: csi-provisioner
+          # This is necessary only for systems with SELinux, where
+          # non-privileged sidecar containers cannot access unix domain socket
+          # created by privileged CSI driver container.
+          securityContext:
+            privileged: true
           image: {{ .ProvisionerImage }}
           args:
             - "--csi-address=$(ADDRESS)"
@@ -34,6 +39,8 @@ spec:
             - name: socket-dir
               mountPath: /csi
         - name: csi-rbdplugin-attacher
+          securityContext:
+            privileged: true
           image: {{ .AttacherImage }}
           args:
             - "--v=5"
@@ -51,6 +58,8 @@ spec:
               mountPath: /csi
         {{ if .EnableSnapshotter }}
         - name: csi-snapshotter
+          securityContext:
+            privileged: true
           image:  {{ .SnapshotterImage }}
           args:
             - "--csi-address=$(ADDRESS)"
@@ -116,6 +125,8 @@ spec:
             - name: keys-tmp-dir
               mountPath: /tmp/csi/keys
         - name: liveness-prometheus
+          securityContext:
+            privileged: true
           image: {{ .CSIPluginImage }}
           args:
             - "--type=liveness"
