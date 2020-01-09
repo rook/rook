@@ -137,9 +137,9 @@ const (
               hostPath:
                 path: /lib/modules
             - name: socket-dir
-              hostPath:
-                path: /var/lib/kubelet/plugins/{{ .DriverNamePrefix }}rbd.csi.ceph.com
-                type: DirectoryOrCreate
+              emptyDir: {
+                medium: "Memory"
+              }
             - name: ceph-csi-config
               configMap:
                 name: rook-ceph-csi-config
@@ -371,9 +371,9 @@ const (
                   mountPath: /tmp/csi/keys
           volumes:
             - name: socket-dir
-              hostPath:
-                path: /var/lib/kubelet/plugins/{{ .DriverNamePrefix }}cephfs.csi.ceph.com
-                type: DirectoryOrCreate
+              emptyDir: {
+                medium: "Memory"
+              }
             - name: host-sys
               hostPath:
                 path: /sys
