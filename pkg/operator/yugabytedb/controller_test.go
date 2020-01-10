@@ -261,6 +261,40 @@ func TestGetPortsFromSpec(t *testing.T) {
 func TestCreateMasterContainerCommand(t *testing.T) {
 	replicationFactor := int32(3)
 
+	expectedCommand := getMasterContainerCommand(replicationFactor)
+	actualCommand := createMasterContainerCommand("default", masterNamePlural, masterName, int32(7100), replicationFactor)
+
+	assert.Equal(t, expectedCommand, actualCommand)
+}
+
+func TestCreateTServerContainerCommand(t *testing.T) {
+	replicationFactor := int32(3)
+
+	expectedCommand := getTserverContainerCommand(replicationFactor)
+	actualCommand := createTServerContainerCommand("default", tserverNamePlural, masterNamePlural, masterName, int32(7100), int32(9100), int32(5433), replicationFactor)
+
+	assert.Equal(t, expectedCommand, actualCommand)
+}
+
+func TestCreateMasterContainerCommandRF1(t *testing.T) {
+	replicationFactor := int32(1)
+
+	expectedCommand := getMasterContainerCommand(replicationFactor)
+	actualCommand := createMasterContainerCommand("default", masterNamePlural, masterName, int32(7100), replicationFactor)
+
+	assert.Equal(t, expectedCommand, actualCommand)
+}
+
+func TestCreateTServerContainerCommandRF1(t *testing.T) {
+	replicationFactor := int32(1)
+
+	expectedCommand := getTserverContainerCommand(replicationFactor)
+	actualCommand := createTServerContainerCommand("default", tserverNamePlural, masterNamePlural, masterName, int32(7100), int32(9100), int32(5433), replicationFactor)
+
+	assert.Equal(t, expectedCommand, actualCommand)
+}
+
+func getMasterContainerCommand(replicationFactor int32) []string {
 	expectedCommand := []string{
 		"/home/yugabyte/bin/yb-master",
 		"--fs_data_dirs=/mnt/data0",
@@ -272,15 +306,10 @@ func TestCreateMasterContainerCommand(t *testing.T) {
 		fmt.Sprintf("--replication_factor=%d", replicationFactor),
 		"--logtostderr",
 	}
-
-	actualCommand := createMasterContainerCommand("default", masterNamePlural, masterName, int32(7100), replicationFactor)
-
-	assert.Equal(t, expectedCommand, actualCommand)
+	return expectedCommand
 }
 
-func TestCreateTServerContainerCommand(t *testing.T) {
-	replicationFactor := int32(3)
-
+func getTserverContainerCommand(replicationFactor int32) []string {
 	expectedCommand := []string{
 		"/home/yugabyte/bin/yb-tserver",
 		"--fs_data_dirs=/mnt/data0",
@@ -292,10 +321,7 @@ func TestCreateTServerContainerCommand(t *testing.T) {
 		"--enable_ysql=true",
 		"--logtostderr",
 	}
-
-	actualCommand := createTServerContainerCommand("default", tserverNamePlural, masterNamePlural, masterName, int32(7100), int32(9100), int32(5433), replicationFactor)
-
-	assert.Equal(t, expectedCommand, actualCommand)
+	return expectedCommand
 }
 
 func TestOnAdd(t *testing.T) {
