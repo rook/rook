@@ -16,6 +16,9 @@
 
 ### <Storage Provider>
 
+### Minio
+- The minio operator was removed from Rook
+
 
 ## Known Issues
 
