@@ -31,7 +31,7 @@ metadata:
 spec:
   cephVersion:
     # see the "Cluster Settings" section below for more details on which image of ceph to run
-    image: ceph/ceph:v14.2.5
+    image: ceph/ceph:v14.2.6
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -383,7 +383,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v14.2.5
+    image: ceph/ceph:v14.2.6
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -415,7 +415,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v14.2.5
+    image: ceph/ceph:v14.2.6
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -458,7 +458,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v14.2.5
+    image: ceph/ceph:v14.2.6
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -496,7 +496,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v14.2.5
+    image: ceph/ceph:v14.2.6
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -543,7 +543,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v14.2.5
+    image: ceph/ceph:v14.2.6
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -641,7 +641,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v14.2.5
+    image: ceph/ceph:v14.2.6
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -687,7 +687,7 @@ spec:
           requests:
             storage: 10Gi
   cephVersion:
-    image: ceph/ceph:v14.2.5
+    image: ceph/ceph:v14.2.6
     allowUnsupported: false
   dashboard:
     enabled: true
@@ -787,7 +787,7 @@ spec:
   dataDirHostPath: /var/lib/rook
   # providing an image is optional, do this if you want to create other CRs (rgw, mds, nfs)
   cephVersion:
-    image: ceph/ceph:v14.2.5 # MUST match external cluster version
+    image: ceph/ceph:v14.2.6 # MUST match external cluster version
 ```
 
 Choose the namespace carefully, if you have an existing cluster managed by Rook, you have likely already injected `common.yaml`.
