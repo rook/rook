@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 
@@ -232,7 +233,7 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 			}
 		}
 	}
-	return reconcile.Result{}, nil
+	return reconcile.Result{Requeue: true, RequeueAfter: time.Minute * 15}, nil
 }
 
 // returns a container that does nothing
