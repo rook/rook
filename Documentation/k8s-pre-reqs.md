@@ -5,11 +5,13 @@ weight: 1000
 
 # Prerequisites
 
-Rook can be installed on any existing Kubernetes clusters as long as it meets the minimum version and have the required privilege to run in the cluster (see below for more information). If you dont have a Kubernetes cluster, you can quickly set one up using [Minikube](#minikube), [Kubeadm](#kubeadm) or [CoreOS/Vagrant](#new-local-kubernetes-cluster-with-vagrant).
+Rook can be installed on any existing Kubernetes cluster as long as it meets the minimum version
+and Rook is granted the required privileges (see below for more information). If you don't have a Kubernetes cluster,
+you can quickly set one up using [Minikube](#minikube), [Kubeadm](#kubeadm) or [CoreOS/Vagrant](#new-local-kubernetes-cluster-with-vagrant).
 
 ## Minimum Version
 
-Kubernetes v1.10 or higher is supported by Rook.
+Kubernetes v1.13 or higher is supported by Rook.
 
 ## Privileges and RBAC
 
