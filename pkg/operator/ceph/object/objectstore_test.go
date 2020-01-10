@@ -33,6 +33,32 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 )
 
+const (
+	dashboardAdminCreateJSON = `{
+    "user_id": "dashboard-admin",
+    "display_name": "dashboard-admin",
+    "email": "",
+    "suspended": 0,
+    "max_buckets": 1000,
+    "subusers": [],
+    "keys": [
+        {
+            "user": "dashboard-admin",
+            "access_key": "VFKF8SSU9L3L2UR03Z8C",
+            "secret_key": "5U4e2MkXHgXstfWkxGZOI6AXDfVUkDDHM7Dwc3mY"
+        }
+    ],
+    "swift_keys": [],
+    "caps": [],
+    "op_mask": "read, write, delete",
+    "system": "true",
+    "temp_url_keys": [],
+    "type": "rgw",
+    "mfa_ids": []
+}`
+	access_key = "VFKF8SSU9L3L2UR03Z8C"
+)
+
 func TestReconcileRealm(t *testing.T) {
 	executorFunc := func(command string, args ...string) (string, error) {
 		idResponse := `{"id":"test-id"}`
@@ -199,4 +225,38 @@ func TestGetObjectBucketProvisioner(t *testing.T) {
 
 	bktprovisioner = GetObjectBucketProvisioner(context, testNamespace)
 	assert.Equal(t, bucketProvisionerName, bktprovisioner)
+}
+
+func TestDashboard(t *testing.T) {
+	storeName := "myobject"
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
+			return "", nil
+		},
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			if args[0] == "user" {
+				return dashboardAdminCreateJSON, nil
+			}
+			return "", nil
+		},
+	}
+	context := &clusterd.Context{Executor: executor}
+	objContext := NewContext(context, &client.ClusterInfo{Namespace: "mycluster"}, storeName)
+	checkdashboard, err := checkDashboardUser(objContext)
+	assert.False(t, checkdashboard)
+	err = enableRGWDashboard(objContext)
+	assert.Nil(t, err)
+	executor = &exectest.MockExecutor{
+		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
+			if args[0] == "dashboard" && args[1] == "get-rgw-api-access-key" {
+				return access_key, nil
+			}
+			return "", nil
+		},
+	}
+	objContext.Context.Executor = executor
+	checkdashboard, err = checkDashboardUser(objContext)
+	assert.True(t, checkdashboard)
+	err = disableRGWDashboard(objContext)
+	assert.Nil(t, err)
 }

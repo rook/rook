@@ -71,6 +71,12 @@ func (c *clusterConfig) createOrUpdateStore(realmName, zoneGroupName, zoneName s
 		return errors.Wrap(err, "failed to start rgw pods")
 	}
 
+	objContext := NewContext(c.context, c.clusterInfo, c.store.Namespace)
+	err := enableRGWDashboard(objContext)
+	if err != nil {
+		logger.Warningf("failed to enable dashboard for rgw. %v", err)
+	}
+
 	logger.Infof("created object store %q in namespace %q", c.store.Name, c.store.Namespace)
 	return nil
 }
@@ -286,6 +292,11 @@ func (c *clusterConfig) deleteStore() error {
 		}
 
 		objContext.Endpoint = c.store.Status.Info["endpoint"]
+
+		err = disableRGWDashboard(objContext)
+		if err != nil {
+			logger.Warningf("failed to disable dashboard for rgw. %v", err)
+		}
 
 		err = deleteRealmAndPools(objContext, c.store.Spec)
 		if err != nil {

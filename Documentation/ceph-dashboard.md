@@ -40,6 +40,8 @@ If you are on a node in the cluster, you will be able to connect to the dashboar
 DNS name of the service at `https://rook-ceph-mgr-dashboard-https:8443` or by connecting to the cluster IP,
 in this example at `https://10.110.113.240:8443`.
 
+> **IMPORTANT:** Please note the dashboard will only be enabled for the first Ceph object store created by Rook.
+
 ### Login Credentials
 
 After you connect to the dashboard you will need to login for secure access. Rook creates a default user named
@@ -222,23 +224,3 @@ rook-ceph.example.com      kubernetes.io/tls   2         4m
 ```
 
 You can now browse to `https://rook-ceph.example.com/` to log into the dashboard.
-
-## Enabling Dashboard Object Gateway management
-
-Provided you have deployed the [Ceph Toolbox](ceph-toolbox.md), created an [Object Store](ceph-object.md) and a user, you can enable
-[Object Gateway management](http://docs.ceph.com/docs/master/mgr/dashboard/#enabling-the-object-gateway-management-frontend) by providing the user credentials to the dashboard:
-
-```console
-# Access toolbox CLI:
-kubectl -n rook-ceph exec -it $(kubectl -n rook-ceph get pod -l "app=rook-ceph-tools" -o jsonpath='{.items[0].metadata.name}') bash
-
-# Enable system flag on the user:
-radosgw-admin user modify --uid=my-user --system
-
-# Provide the user credentials:
-ceph dashboard set-rgw-api-user-id my-user
-ceph dashboard set-rgw-api-access-key <access-key>
-ceph dashboard set-rgw-api-secret-key <secret-key>
-```
-
-Now you can access the *Object Gateway* menu items.
