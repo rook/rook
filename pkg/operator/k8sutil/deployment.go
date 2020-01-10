@@ -79,11 +79,11 @@ func UpdateDeploymentAndWait(context *clusterd.Context, deployment *apps.Deploym
 	}
 
 	// wait for the deployment to be restarted
-	sleepTime := 2
-	attempts := 30
+	sleepTime := 1
+	attempts := 60
 	if original.Spec.ProgressDeadlineSeconds != nil {
 		// make the attempts double the progress deadline since the pod is both stopping and starting
-		attempts = 2 * (int(*original.Spec.ProgressDeadlineSeconds) / sleepTime)
+		attempts = 2 * (int(*original.Spec.ProgressDeadlineSeconds) / 2)
 	}
 	for i := 0; i < attempts; i++ {
 		// check for the status of the deployment
