@@ -208,7 +208,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 
 	osdID := strconv.Itoa(osd.ID)
 	tiniEnvVar := v1.EnvVar{Name: "TINI_SUBREAPER", Value: ""}
-	envVars := append(c.getConfigEnvVars(osdProps.storeConfig, dataDir, osdProps.crushHostname, osdProps.location), []v1.EnvVar{
+	envVars := append(c.getConfigEnvVars(osdProps, dataDir), []v1.EnvVar{
 		tiniEnvVar,
 	}...)
 	envVars = append(envVars, k8sutil.ClusterDaemonEnvVars(c.cephVersion.Image)...)
@@ -223,7 +223,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 					Key: "mon_host"}}},
 		{Name: "CEPH_ARGS", Value: "-m $(ROOK_CEPH_MON_HOST)"},
 	}...)
-	configEnvVars := append(c.getConfigEnvVars(osdProps.storeConfig, dataDir, osdProps.crushHostname, osdProps.location), []v1.EnvVar{
+	configEnvVars := append(c.getConfigEnvVars(osdProps, dataDir), []v1.EnvVar{
 		tiniEnvVar,
 		{Name: "ROOK_OSD_ID", Value: osdID},
 		{Name: "ROOK_CEPH_VERSION", Value: c.clusterInfo.CephVersion.CephVersionFormatted()},
@@ -709,9 +709,9 @@ func (c *Cluster) getPVCInitContainer(pvc v1.PersistentVolumeClaimVolumeSource) 
 	}
 }
 
-func (c *Cluster) getConfigEnvVars(storeConfig config.StoreConfig, dataDir, nodeName, location string) []v1.EnvVar {
+func (c *Cluster) getConfigEnvVars(osdProps osdProperties, dataDir string) []v1.EnvVar {
 	envVars := []v1.EnvVar{
-		nodeNameEnvVar(nodeName),
+		nodeNameEnvVar(osdProps.crushHostname),
 		{Name: "ROOK_CLUSTER_ID", Value: string(c.ownerRef.UID)},
 		k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
 		k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
@@ -736,23 +736,23 @@ func (c *Cluster) getConfigEnvVars(storeConfig config.StoreConfig, dataDir, node
 	// deliberately skip setting osdStoreEnvVarName (ROOK_OSD_STORE) as a quick means to deprecate
 	// creating new disk-based Filestore OSDs
 
-	if storeConfig.DatabaseSizeMB != 0 {
-		envVars = append(envVars, v1.EnvVar{Name: osdDatabaseSizeEnvVarName, Value: strconv.Itoa(storeConfig.DatabaseSizeMB)})
+	if osdProps.storeConfig.DatabaseSizeMB != 0 {
+		envVars = append(envVars, v1.EnvVar{Name: osdDatabaseSizeEnvVarName, Value: strconv.Itoa(osdProps.storeConfig.DatabaseSizeMB)})
 	}
 
-	if storeConfig.WalSizeMB != 0 {
-		envVars = append(envVars, v1.EnvVar{Name: osdWalSizeEnvVarName, Value: strconv.Itoa(storeConfig.WalSizeMB)})
+	if osdProps.storeConfig.WalSizeMB != 0 {
+		envVars = append(envVars, v1.EnvVar{Name: osdWalSizeEnvVarName, Value: strconv.Itoa(osdProps.storeConfig.WalSizeMB)})
 	}
 
-	if storeConfig.JournalSizeMB != 0 {
-		envVars = append(envVars, v1.EnvVar{Name: osdJournalSizeEnvVarName, Value: strconv.Itoa(storeConfig.JournalSizeMB)})
+	if osdProps.storeConfig.JournalSizeMB != 0 {
+		envVars = append(envVars, v1.EnvVar{Name: osdJournalSizeEnvVarName, Value: strconv.Itoa(osdProps.storeConfig.JournalSizeMB)})
 	}
 
-	if storeConfig.OSDsPerDevice != 0 {
-		envVars = append(envVars, v1.EnvVar{Name: osdsPerDeviceEnvVarName, Value: strconv.Itoa(storeConfig.OSDsPerDevice)})
+	if osdProps.storeConfig.OSDsPerDevice != 0 {
+		envVars = append(envVars, v1.EnvVar{Name: osdsPerDeviceEnvVarName, Value: strconv.Itoa(osdProps.storeConfig.OSDsPerDevice)})
 	}
 
-	if storeConfig.EncryptedDevice {
+	if osdProps.storeConfig.EncryptedDevice {
 		envVars = append(envVars, v1.EnvVar{Name: encryptedDeviceEnvVarName, Value: "true"})
 	}
 
@@ -761,7 +761,7 @@ func (c *Cluster) getConfigEnvVars(storeConfig config.StoreConfig, dataDir, node
 
 func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMount v1.VolumeMount, provisionConfig *provisionConfig) v1.Container {
 
-	envVars := c.getConfigEnvVars(osdProps.storeConfig, k8sutil.DataDir, osdProps.crushHostname, osdProps.location)
+	envVars := c.getConfigEnvVars(osdProps, k8sutil.DataDir)
 
 	devMountNeeded := false
 	if osdProps.pvc.ClaimName != "" {
