@@ -340,7 +340,6 @@ func (p *Provisioner) composeObjectBucket() *bktv1alpha1.ObjectBucket {
 			BucketPort: int(p.storePort),
 			BucketName: p.bucketName,
 			Region:     p.region,
-			SSL:        false,
 		},
 		Authentication: &bktv1alpha1.Authentication{
 			AccessKeys: &bktv1alpha1.AccessKeys{

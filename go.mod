@@ -15,9 +15,9 @@ require (
 	github.com/google/uuid v1.1.1
 	github.com/icrowley/fake v0.0.0-20180203215853-4178557ae428
 	github.com/jbw976/go-ps v0.0.0-20170713234100-82859aed1b5d
-	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20191209225510-8423df408133
+	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20200107223247-51020689f1fb
 	github.com/openshift/cluster-api v0.0.0-20191129101638-b09907ac6668
-	github.com/openshift/machine-api-operator v0.2.0
+	github.com/openshift/machine-api-operator v0.2.1-0.20190903202259-474e14e4965a
 	github.com/pkg/errors v0.8.1
 	github.com/spf13/cobra v0.0.5
 	github.com/spf13/pflag v1.0.5
@@ -26,7 +26,7 @@ require (
 	gopkg.in/ini.v1 v1.51.1 // indirect
 	k8s.io/api v0.0.0
 	k8s.io/apiextensions-apiserver v0.0.0
-	k8s.io/apimachinery v0.0.0
+	k8s.io/apimachinery v0.16.5-beta.1
 	k8s.io/apiserver v0.0.0
 	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/kube-controller-manager v0.0.0
@@ -55,7 +55,7 @@ replace k8s.io/cluster-bootstrap => k8s.io/cluster-bootstrap v0.0.0-201911141117
 
 replace k8s.io/code-generator => k8s.io/code-generator v0.16.5-beta.1
 
-replace k8s.io/component-base => k8s.io/component-base v0.0.0-20191114102325-35a9586014f7
+replace k8s.io/component-base => k8s.io/component-base v0.16.5-beta.1
 
 replace k8s.io/cri-api => k8s.io/cri-api v0.16.5-beta.1
 
