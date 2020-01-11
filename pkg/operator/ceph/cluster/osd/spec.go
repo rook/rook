@@ -730,6 +730,14 @@ func (c *Cluster) getConfigEnvVars(osdProps osdProperties, dataDir string) []v1.
 		k8sutil.NodeEnvVar(),
 	}
 
+	// Give a hint to the prepare pod for what the host in the CRUSH map should be
+	crushmapHostname := osdProps.crushHostname
+	if !osdProps.portable && osdProps.pvc.ClaimName != "" {
+		// If it's a pvc that's not portable we only know what the host name should be when inside the osd prepare pod
+		crushmapHostname = ""
+	}
+	envVars = append(envVars, v1.EnvVar{Name: "ROOK_CRUSHMAP_HOSTNAME", Value: crushmapHostname})
+
 	// Append ceph-volume environment variables
 	envVars = append(envVars, cephVolumeEnvVar()...)
 
