@@ -399,14 +399,14 @@ func TestGetOSDInfo(t *testing.T) {
 		DataPathMap: opconfig.NewDatalessDaemonDataPathMap(c.Namespace, c.dataDirHostPath),
 	}
 	d1, _ := c.makeDeployment(osdProp, osd1, dataPathMap)
-	osds1, _ := getOSDInfo(d1)
+	osds1, _ := c.getOSDInfo(d1)
 	assert.Equal(t, 1, len(osds1))
 	assert.Equal(t, osd1.ID, osds1[0].ID)
 	assert.Equal(t, osd1.LVPath, osds1[0].LVPath)
 	assert.Equal(t, location, osds1[0].Location)
 
 	d2, _ := c.makeDeployment(osdProp, osd2, dataPathMap)
-	osds2, err := getOSDInfo(d2)
+	osds2, err := c.getOSDInfo(d2)
 	assert.Equal(t, 0, len(osds2))
 	assert.NotNil(t, err)
 }
