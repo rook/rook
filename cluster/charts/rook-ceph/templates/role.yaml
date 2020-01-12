@@ -35,6 +35,18 @@ rules:
   - create
   - update
   - delete
+- apiGroups:
+  - monitoring.coreos.com
+  resources:
+  - prometheusrules
+  - servicemonitors
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
 ---
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1beta1
