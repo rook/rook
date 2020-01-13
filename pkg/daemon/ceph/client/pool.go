@@ -233,10 +233,6 @@ func CreateECPoolForApp(context *clusterd.Context, clusterName string, newPool C
 		return errors.Wrapf(err, "failed to create EC pool %s", newPool.Name)
 	}
 
-	if err = SetPoolProperty(context, clusterName, newPool.Name, "min_size", strconv.FormatUint(uint64(erasureCodedConfig.DataChunkCount), 10)); err != nil {
-		return errors.Wrapf(err, "failed to set min size to %d for pool %s", erasureCodedConfig.DataChunkCount, newPool.Name)
-	}
-
 	if enableECOverwrite {
 		if err = SetPoolProperty(context, clusterName, newPool.Name, "allow_ec_overwrites", "true"); err != nil {
 			return errors.Wrapf(err, "failed to allow EC overwrite for pool %s", newPool.Name)
