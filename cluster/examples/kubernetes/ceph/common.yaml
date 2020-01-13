@@ -370,7 +370,13 @@ spec:
                 sslCertificateRef: {}
                 port:
                   type: integer
-                securePort: {}
+                  minimum: 1
+                  maximum: 65535
+                securePort:
+                  type: integer
+                  minimum: 1
+                  maximum: 65535
+                  nullable: true
                 instances:
                   type: integer
                 annotations: {}
