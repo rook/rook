@@ -120,7 +120,7 @@ spec:
           name: default-config-dir
         env:
         - name: ROOK_CURRENT_NAMESPACE_ONLY
-          value: "true"
+          value: "false"
         # To disable RBAC, uncomment the following:
         # - name: RBAC_ENABLED
         #  value: "false"
