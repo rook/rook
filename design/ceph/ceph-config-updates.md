@@ -127,7 +127,6 @@ spec:
       # The below "osd_pool_default..." settings make the default pools created have no replication
       # and should be removed for production clusters, as this could impact data fault tolerance.
       osd_pool_default_size: 1
-      osd_pool_default_min_size: 1
     # mon will add/override config for all mons
     mon:
       mon_cluster_log_file: "/dev/stderr"
