@@ -101,10 +101,11 @@ func (k8sh *K8sHelper) VersionAtLeast(minVersion string) bool {
 	return v.AtLeast(version.MustParseSemantic(minVersion))
 }
 
-func (k8sh *K8sHelper) VersionMinorMatches(minVersion string) bool {
-	v := version.MustParseSemantic(k8sh.GetK8sServerVersion())
+func (k8sh *K8sHelper) VersionMinorMatches(minVersion string) (string, bool) {
+	kubeVersion := k8sh.GetK8sServerVersion()
+	v := version.MustParseSemantic(kubeVersion)
 	requestedVersion := version.MustParseSemantic(minVersion)
-	return v.Major() == requestedVersion.Major() && v.Minor() == requestedVersion.Minor()
+	return kubeVersion, v.Major() == requestedVersion.Major() && v.Minor() == requestedVersion.Minor()
 }
 
 func (k8sh *K8sHelper) MakeContext() *clusterd.Context {
