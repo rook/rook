@@ -14,7 +14,7 @@ from other pods running in your cluster.
 
 ## Minimum Version
 
-Kubernetes **v1.10** or higher is supported by Rook.
+Kubernetes **v1.11** or higher is supported by Rook.
 
 ## Prerequisites
 
