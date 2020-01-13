@@ -45,10 +45,6 @@ spec:
             - name: socket-dir
               mountPath: /csi
         - name: csi-cephfsplugin
-          securityContext:
-            privileged: true
-            capabilities:
-              add: ["SYS_ADMIN"]
           image: {{ .CSIPluginImage }}
           args:
             - "--nodeid=$(NODE_ID)"

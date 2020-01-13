@@ -55,17 +55,11 @@ spec:
             - name: ADDRESS
               value: unix:///csi/csi-provisioner.sock
           imagePullPolicy: "IfNotPresent"
-          securityContext:
-            privileged: true
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
         {{ end }}
         - name: csi-rbdplugin
-          securityContext:
-            privileged: true
-            capabilities:
-              add: ["SYS_ADMIN"]
           image: {{ .CSIPluginImage }}
           args :
             - "--nodeid=$(NODE_ID)"
