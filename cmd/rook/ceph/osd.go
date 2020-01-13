@@ -287,18 +287,32 @@ func commonOSDInit(cmd *cobra.Command) {
 	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
 }
 
+// use zone/region/hostname labels in the crushmap
 func getLocation(clientset kubernetes.Interface) (string, error) {
-	// Start with the host name in the CRUSH map
-	// Keep the fully qualified host name in the crush map, but replace the dots with dashes to satisfy ceph
-	hostName := client.NormalizeCrushName(cfg.nodeName)
-	locArgs := []string{"root=default", fmt.Sprintf("host=%s", hostName)}
-
-	// use zone/region/hostname labels in the crushmap
+	// Get the node based on the immutable k8s node name
 	nodeName := os.Getenv(k8sutil.NodeNameEnvVar)
 	node, err := getNode(clientset, nodeName)
 	if err != nil {
 		return "", errors.Wrapf(err, "could not get the node for topology labels")
 	}
+
+	// get the value the operator instructed to use as the host name in the CRUSH map
+	hostNameLabel := os.Getenv("ROOK_CRUSHMAP_HOSTNAME")
+
+	// If the operator did not pass a host name, look up the hostname label.
+	// This happens when the operator doesn't know on what node the osd will be assigned (non-portable PVCs).
+	if hostNameLabel == "" {
+		hostNameLabel, err = k8sutil.GetNodeHostNameLabel(node)
+		if err != nil {
+			return "", errors.Wrapf(err, "failed to get the host name label for node %q", node.Name)
+		}
+	}
+
+	// Start with the host name in the CRUSH map
+	// Keep the fully qualified host name in the crush map, but replace the dots with dashes to satisfy ceph
+	hostName := client.NormalizeCrushName(hostNameLabel)
+	locArgs := []string{"root=default", fmt.Sprintf("host=%s", hostName)}
+
 	nodeLabels := node.GetLabels()
 	updateLocationWithNodeLabels(&locArgs, nodeLabels)
 
