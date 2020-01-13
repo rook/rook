@@ -168,8 +168,8 @@ for easy sharing.  Note that instead of `gzip`, you could instead pipe to `less`
 
 ## OSD Information
 
-Keeping track of OSDs and their underlying storage devices/directories can be
-difficult.  The following scripts will clear things up quickly.
+Keeping track of OSDs and their underlying storage devices can be
+difficult. The following scripts will clear things up quickly.
 
 ### Kubernetes
 

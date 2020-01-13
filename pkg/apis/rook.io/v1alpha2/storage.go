@@ -88,10 +88,6 @@ func (s *StorageScopeSpec) resolveNodeSelection(node *Node) {
 		node.Selection.Devices = s.Devices
 	}
 
-	if len(node.Selection.Directories) == 0 {
-		node.Selection.Directories = s.Directories
-	}
-
 	if len(node.Selection.VolumeClaimTemplates) == 0 {
 		node.Selection.VolumeClaimTemplates = s.VolumeClaimTemplates
 	}

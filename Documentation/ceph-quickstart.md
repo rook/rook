@@ -31,7 +31,7 @@ git clone --single-branch --branch {{ branchName }} https://github.com/rook/rook
 cd cluster/examples/kubernetes/ceph
 kubectl create -f common.yaml
 kubectl create -f operator.yaml
-kubectl create -f cluster-test.yaml
+kubectl create -f cluster.yaml
 ```
 
 After the cluster is running, you can create [block, object, or file](#storage) storage to be consumed by other applications in your cluster.
@@ -39,10 +39,8 @@ After the cluster is running, you can create [block, object, or file](#storage) 
 ### Production Environments
 
 For production environments it is required to have local storage devices attached to your nodes.
-In this walkthrough, the requirement of local storage devices is relaxed so you can get a cluster up and running
-as a "test" environment to experiment with Rook. A Ceph filestore OSD will be created in a `directory` instead
-of requiring a device. For production environments, you will want to follow the example in `cluster.yaml` instead of
-`cluster-test.yaml` in order to configure the devices instead of test directories. See the [Ceph examples](ceph-examples.md) for more details.
+In this walk-through, the requirement of local storage devices is relaxed so you can get a cluster up and running
+as a "test" environment to experiment with Rook. See the [Ceph examples](ceph-examples.md) for more details.
 
 ## Deploy the Rook Operator
 
@@ -64,41 +62,15 @@ You can also deploy the operator with the [Rook Helm Chart](helm-operator.md).
 Now that the Rook operator is running we can create the Ceph cluster. For the cluster to survive reboots,
 make sure you set the `dataDirHostPath` property that is valid for your hosts. For more settings, see the documentation on [configuring the cluster](ceph-cluster-crd.md).
 
-Save the cluster spec as `cluster-test.yaml`:
-
-```yaml
-apiVersion: ceph.rook.io/v1
-kind: CephCluster
-metadata:
-  name: rook-ceph
-  namespace: rook-ceph
-spec:
-  cephVersion:
-    # For the latest ceph images, see https://hub.docker.com/r/ceph/ceph/tags
-    image: ceph/ceph:v14.2.6
-  dataDirHostPath: /var/lib/rook
-  mon:
-    count: 3
-  dashboard:
-    enabled: true
-  storage:
-    useAllNodes: true
-    useAllDevices: false
-    # Important: Directories should only be used in pre-production environments
-    directories:
-    - path: /var/lib/rook
-
-```
-
 Create the cluster:
 
 ```console
-kubectl create -f cluster-test.yaml
+kubectl create -f cluster.yaml
 ```
 
 Use `kubectl` to list pods in the `rook-ceph` namespace. You should be able to see the following pods once they are all running.
-The number of osd pods will depend on the number of nodes in the cluster and the number of devices and directories configured.
-If you did not modify the `cluster-test.yaml` above, it is expected that one OSD will be created per node.
+The number of osd pods will depend on the number of nodes in the cluster and the number of devices configured.
+If you did not modify the `cluster.yaml` above, it is expected that one OSD will be created per node.
 The `rook-ceph-agent` and `rook-discover` pods are also optional depending on your settings.
 
 ```console

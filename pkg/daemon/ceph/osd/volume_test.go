@@ -29,7 +29,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var cephVolumeTestResult = `{
+var cephVolumeLVMTestResult = `{
     "0": [
         {
             "devices": [
@@ -151,6 +151,7 @@ var cephVolumeTestResultMultiCluster = `{
     ]
 }
 `
+
 var cephVolumeTestResultMultiClusterMultiOSD = `{
     "0": [
         {
@@ -241,21 +242,57 @@ var cephVolumeTestResultMultiClusterMultiOSD = `{
 }
 `
 
-func TestParseCephVolumeResult(t *testing.T) {
+var cephVolumeRAWTestResult = `{
+    "0": {
+        "ceph_fsid": "4bfe8b72-5e69-4330-b6c0-4d914db8ab89",
+        "device": "/dev/vdb",
+        "osd_id": 0,
+        "osd_uuid": "c03d7353-96e5-4a41-98de-830dfff97d06",
+        "type": "bluestore"
+    },
+    "1": {
+        "ceph_fsid": "4bfe8b72-5e69-4330-b6c0-4d914db8ab89",
+        "device": "/dev/vdc",
+        "osd_id": 1,
+        "osd_uuid": "62132914-e779-48cf-8f55-fbc9692c8ce5",
+        "type": "bluestore"
+    }
+}
+`
+
+func TestParseCephVolumeLVMResult(t *testing.T) {
 	executor := &exectest.MockExecutor{}
-	// set up a mock function to return "rook owned" partitions on the device and it does not have a filesystem
-	executor.MockExecuteCommandWithCombinedOutput = func(debug bool, name string, command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(debug bool, name string, command string, args ...string) (string, error) {
 		logger.Infof("%s %+v", command, args)
 
 		if command == "ceph-volume" {
-			return cephVolumeTestResult, nil
+			return cephVolumeLVMTestResult, nil
 		}
 
 		return "", errors.Errorf("unknown command %s %s", command, args)
 	}
 
 	context := &clusterd.Context{Executor: executor}
-	osds, err := getCephVolumeOSDs(context, "rook", "4bfe8b72-5e69-4330-b6c0-4d914db8ab89", "", false, false)
+	osds, err := getCephVolumeLVMOSDs(context, "rook", "4bfe8b72-5e69-4330-b6c0-4d914db8ab89", "", false, false)
+	assert.Nil(t, err)
+	require.NotNil(t, osds)
+	assert.Equal(t, 2, len(osds))
+}
+
+func TestParseCephVolumeRawResult(t *testing.T) {
+	executor := &exectest.MockExecutor{}
+	executor.MockExecuteCommandWithOutput = func(debug bool, name string, command string, args ...string) (string, error) {
+		logger.Infof("%s %+v", command, args)
+
+		if command == "ceph-volume" {
+			return cephVolumeRAWTestResult, nil
+		}
+
+		return "", errors.Errorf("unknown command %s %s", command, args)
+	}
+
+	context := &clusterd.Context{Executor: executor}
+	osds, err := getCephVolumeRawOSDs(context, "rook", "4bfe8b72-5e69-4330-b6c0-4d914db8ab89", "", false)
 	assert.Nil(t, err)
 	require.NotNil(t, osds)
 	assert.Equal(t, 2, len(osds))
@@ -264,7 +301,7 @@ func TestParseCephVolumeResult(t *testing.T) {
 func TestCephVolumeResultMultiClusterSingleOSD(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	// set up a mock function to return "rook owned" partitions on the device and it does not have a filesystem
-	executor.MockExecuteCommandWithCombinedOutput = func(debug bool, name string, command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(debug bool, name string, command string, args ...string) (string, error) {
 		logger.Infof("%s %+v", command, args)
 
 		if command == "ceph-volume" {
@@ -275,7 +312,7 @@ func TestCephVolumeResultMultiClusterSingleOSD(t *testing.T) {
 	}
 
 	context := &clusterd.Context{Executor: executor}
-	osds, err := getCephVolumeOSDs(context, "rook", "451267e6-883f-4936-8dff-080d781c67d5", "", false, false)
+	osds, err := getCephVolumeLVMOSDs(context, "rook", "451267e6-883f-4936-8dff-080d781c67d5", "", false, false)
 	assert.Nil(t, err)
 	require.NotNil(t, osds)
 	assert.Equal(t, 1, len(osds))
@@ -285,7 +322,7 @@ func TestCephVolumeResultMultiClusterSingleOSD(t *testing.T) {
 func TestCephVolumeResultMultiClusterMultiOSD(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	// set up a mock function to return "rook owned" partitions on the device and it does not have a filesystem
-	executor.MockExecuteCommandWithCombinedOutput = func(debug bool, name string, command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(debug bool, name string, command string, args ...string) (string, error) {
 		logger.Infof("%s %+v", command, args)
 
 		if command == "ceph-volume" {
@@ -296,7 +333,7 @@ func TestCephVolumeResultMultiClusterMultiOSD(t *testing.T) {
 	}
 
 	context := &clusterd.Context{Executor: executor}
-	osds, err := getCephVolumeOSDs(context, "rook", "451267e6-883f-4936-8dff-080d781c67d5", "", false, false)
+	osds, err := getCephVolumeLVMOSDs(context, "rook", "451267e6-883f-4936-8dff-080d781c67d5", "", false, false)
 	assert.Nil(t, err)
 	require.NotNil(t, osds)
 	assert.Equal(t, 1, len(osds))

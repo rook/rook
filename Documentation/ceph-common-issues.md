@@ -437,7 +437,7 @@ please review your [cluster.yaml](eph-cluster-crd.html#storage-selection-setting
 The common misconfigurations include:
 
 * If `useAllDevices: true`, Rook expects to find local devices attached to the nodes. If no devices are found, no OSDs will be created.
-* If `useAllDevices: false`, OSDs will only be created if `directories` or a `deviceFilter` are specified.
+* If `useAllDevices: false`, OSDs will only be created if `deviceFilter` is specified.
 * Only local devices attached to the nodes will be configurable by Rook. In other words, the devices must show up under `/dev`.
   * The devices must not have any partitions or filesystems on them. Rook will only configure raw devices. Partitions are not yet supported.
 

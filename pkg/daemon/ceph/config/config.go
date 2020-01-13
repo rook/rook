@@ -75,10 +75,8 @@ type GlobalConfig struct {
 	DebugLogMonLevel         int    `ini:"debug mon"`
 	DebugLogOSDLevel         int    `ini:"debug osd"`
 	DebugLogBluestoreLevel   int    `ini:"debug bluestore"`
-	DebugLogFilestoreLevel   int    `ini:"debug filestore"`
 	DebugLogJournalLevel     int    `ini:"debug journal"`
 	DebugLogLevelDBLevel     int    `ini:"debug leveldb"`
-	FileStoreOmapBackend     string `ini:"filestore_omap_backend"`
 	OsdPgBits                int    `ini:"osd pg bits,omitempty"`
 	OsdPgpBits               int    `ini:"osd pgp bits,omitempty"`
 	OsdPoolDefaultSize       int    `ini:"osd pool default size,omitempty"`
@@ -244,10 +242,8 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo) (*
 			DebugLogMonLevel:       cephLogLevel,
 			DebugLogOSDLevel:       cephLogLevel,
 			DebugLogBluestoreLevel: cephLogLevel,
-			DebugLogFilestoreLevel: cephLogLevel,
 			DebugLogJournalLevel:   cephLogLevel,
 			DebugLogLevelDBLevel:   cephLogLevel,
-			FileStoreOmapBackend:   "rocksdb",
 			OsdPgBits:              11,
 			OsdPgpBits:             11,
 			OsdPoolDefaultSize:     1,

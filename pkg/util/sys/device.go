@@ -13,9 +13,11 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package sys
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path"
@@ -27,17 +29,36 @@ import (
 )
 
 const (
-	DiskType     = "disk"
-	SSDType      = "ssd"
-	PartType     = "part"
-	CryptType    = "crypt"
-	LVMType      = "lvm"
-	LinearType   = "linear"
-	sgdisk       = "sgdisk"
-	mountCmd     = "mount"
-	cephLVPrefix = "ceph--"
+	// DiskType is a disk type
+	DiskType = "disk"
+	// SSDType is an sdd type
+	SSDType = "ssd"
+	// PartType is a partition type
+	PartType = "part"
+	// CryptType is an encrypted type
+	CryptType = "crypt"
+	// LVMType is an LVM type
+	LVMType = "lvm"
+	// LinearType is a linear type
+	LinearType = "linear"
+	sgdisk     = "sgdisk"
+	mountCmd   = "mount"
+	// CephLVPrefix is the prefix of a LV owned by ceph-volume
+	CephLVPrefix = "ceph--"
+	// DeviceMapperPrefix is the prefix of a LV from the device mapper interface
+	DeviceMapperPrefix = "dm-"
 )
 
+// CephVolumeInventory represents the output of the ceph-volume inventory command
+type CephVolumeInventory struct {
+	Path            string          `json:"path"`
+	Available       bool            `json:"available"`
+	RejectedReasons json.RawMessage `json:"rejected_reasons"`
+	SysAPI          json.RawMessage `json:"sys_api"`
+	LVS             json.RawMessage `json:"lvs"`
+}
+
+// Partition represents a partition metadata
 type Partition struct {
 	Name       string
 	Size       uint64
@@ -45,7 +66,7 @@ type Partition struct {
 	Filesystem string
 }
 
-// LocalDevice contains information about an unformatted block device
+// LocalDisk contains information about an unformatted block device
 type LocalDisk struct {
 	// Name is the device name
 	Name string `json:"name"`
@@ -83,8 +104,11 @@ type LocalDisk struct {
 	Empty bool `json:"empty"`
 	// Information provided by Ceph Volume Inventory
 	CephVolumeData string `json:"cephVolumeData,omitempty"`
+	// RealName is the device behind the PVC, behind /mnt/<pvc>/name
+	RealName string `json:"real-name,omitempty"`
 }
 
+// ListDevices list all devices available on a machine
 func ListDevices(executor exec.Executor) ([]string, error) {
 	cmd := "lsblk all"
 	devices, err := executor.ExecuteCommandWithOutput(false, cmd, "lsblk", "--all", "--noheadings", "--list", "--output", "KNAME")
@@ -95,6 +119,7 @@ func ListDevices(executor exec.Executor) ([]string, error) {
 	return strings.Split(devices, "\n"), nil
 }
 
+// GetDevicePartitions gets partitions on a given device
 func GetDevicePartitions(device string, executor exec.Executor) (partitions []Partition, unusedSpace uint64, err error) {
 
 	var devicePath string
@@ -149,7 +174,7 @@ func GetDevicePartitions(device string, executor exec.Executor) (partitions []Pa
 			}
 
 			partitions = append(partitions, p)
-		} else if strings.HasPrefix(name, cephLVPrefix) && props["TYPE"] == LVMType {
+		} else if strings.HasPrefix(name, CephLVPrefix) && props["TYPE"] == LVMType {
 			p := Partition{Name: name}
 			partitions = append(partitions, p)
 		}
@@ -161,6 +186,7 @@ func GetDevicePartitions(device string, executor exec.Executor) (partitions []Pa
 	return partitions, unusedSpace, nil
 }
 
+// GetDeviceProperties gets device properties
 func GetDeviceProperties(device string, executor exec.Executor) (map[string]string, error) {
 	// As we are mounting the block mode PVs on /mnt we use the entire path,
 	// e.g., if the device path is /mnt/example-pvc then its taken completely
@@ -172,10 +198,11 @@ func GetDeviceProperties(device string, executor exec.Executor) (map[string]stri
 	return GetDevicePropertiesFromPath(device, executor)
 }
 
+// GetDevicePropertiesFromPath gets a device property from a path
 func GetDevicePropertiesFromPath(devicePath string, executor exec.Executor) (map[string]string, error) {
 	cmd := fmt.Sprintf("lsblk %s", devicePath)
 	output, err := executor.ExecuteCommandWithOutput(false, cmd, "lsblk", devicePath,
-		"--bytes", "--nodeps", "--pairs", "--output", "SIZE,ROTA,RO,TYPE,PKNAME")
+		"--bytes", "--nodeps", "--pairs", "--output", "SIZE,ROTA,RO,TYPE,PKNAME,NAME")
 	if err != nil {
 		// try to get more information about the command error
 		cmdErr, ok := err.(*exec.CommandError)
@@ -191,6 +218,7 @@ func GetDevicePropertiesFromPath(devicePath string, executor exec.Executor) (map
 	return parseKeyValuePairString(output), nil
 }
 
+// IsLV returns if a device is owned by LVM, is a logical volume
 func IsLV(devicePath string, executor exec.Executor) (bool, error) {
 	devProps, err := GetDevicePropertiesFromPath(devicePath, executor)
 	if err != nil {
@@ -203,6 +231,7 @@ func IsLV(devicePath string, executor exec.Executor) (bool, error) {
 	return diskType == LVMType, nil
 }
 
+// GetUdevInfo gets udev information
 func GetUdevInfo(device string, executor exec.Executor) (map[string]string, error) {
 	cmd := fmt.Sprintf("udevadm info %s", device)
 	output, err := executor.ExecuteCommandWithOutput(false, cmd, "udevadm", "info", "--query=property", fmt.Sprintf("/dev/%s", device))
@@ -213,7 +242,7 @@ func GetUdevInfo(device string, executor exec.Executor) (map[string]string, erro
 	return parseUdevInfo(output), nil
 }
 
-// get the file systems available
+// GetDeviceFilesystems get the file systems available
 func GetDeviceFilesystems(device string, executor exec.Executor) (string, error) {
 	devicePath := strings.Split(device, "/")
 	if len(devicePath) == 1 {
@@ -228,37 +257,7 @@ func GetDeviceFilesystems(device string, executor exec.Executor) (string, error)
 	return parseFS(output), nil
 }
 
-func RemovePartitions(device string, executor exec.Executor) error {
-	cmd := fmt.Sprintf("zap %s", device)
-	err := executor.ExecuteCommand(false, cmd, sgdisk, "--zap-all", "/dev/"+device)
-	if err != nil {
-		return fmt.Errorf("failed to zap partitions on /dev/%s: %+v", device, err)
-	}
-
-	cmd = fmt.Sprintf("clear %s", device)
-	err = executor.ExecuteCommand(false, cmd, sgdisk, "--clear", "--mbrtogpt", "/dev/"+device)
-	if err != nil {
-		return fmt.Errorf("failed to clear partitions on /dev/%s: %+v", device, err)
-	}
-
-	return nil
-}
-
-func CreatePartitions(device string, args []string, executor exec.Executor) error {
-	cmd := fmt.Sprintf("partition %s", device)
-	return executor.ExecuteCommand(false, cmd, sgdisk, args...)
-}
-
-func FormatDevice(devicePath string, executor exec.Executor) error {
-	cmd := fmt.Sprintf("mkfs.ext4 %s", devicePath)
-	if err := executor.ExecuteCommand(false, cmd, "mkfs.ext4", devicePath); err != nil {
-		return fmt.Errorf("command %s failed: %+v", cmd, err)
-	}
-
-	return nil
-}
-
-// look up the UUID for a disk.
+// GetDiskUUID look up the UUID for a disk.
 func GetDiskUUID(device string, executor exec.Executor) (string, error) {
 	if _, err := os.Stat("/usr/sbin/sgdisk"); err != nil {
 		logger.Warningf("sgdisk not found. skipping disk UUID.")
@@ -281,121 +280,15 @@ func GetDiskUUID(device string, executor exec.Executor) (string, error) {
 	return parseUUID(device, output)
 }
 
-func GetPartitionLabel(deviceName string, executor exec.Executor) (string, error) {
-	// look up the partition's label with blkid because lsblk relies on udev which is
-	// not available in containers
-	devicePath := fmt.Sprintf("/dev/%s", deviceName)
-	cmd := fmt.Sprintf("udevadm %s", devicePath)
-	output, err := executor.ExecuteCommandWithOutput(false, cmd,
-		"udevadm", "info", "--query=property", devicePath)
-	if err != nil {
-		return "", fmt.Errorf("failed to get partition label for device %s: %+v", deviceName, err)
-	}
-
-	return parsePartLabel(output), nil
-}
-
-func MountDevice(devicePath, mountPath string, executor exec.Executor) error {
-	return MountDeviceWithOptions(devicePath, mountPath, "", "", executor)
-}
-
-// comma-separated list of mount options passed directly to mount command
-func MountDeviceWithOptions(devicePath, mountPath, fstype, options string, executor exec.Executor) error {
-	args := []string{}
-
-	if fstype != "" {
-		args = append(args, "-t", fstype)
-	}
-
-	if options != "" {
-		args = append(args, "-o", options)
-	}
-
-	// device path and mount path are always the last 2 args
-	args = append(args, devicePath, mountPath)
-
-	os.MkdirAll(mountPath, 0755)
-	cmd := fmt.Sprintf("mount %s", devicePath)
-	if err := executor.ExecuteCommand(false, cmd, mountCmd, args...); err != nil {
-		return fmt.Errorf("command %s failed: %+v", cmd, err)
-	}
-
-	return nil
-}
-
-func UnmountDevice(devicePath string, executor exec.Executor) error {
-	cmd := fmt.Sprintf("umount %s", devicePath)
-	if err := executor.ExecuteCommand(false, cmd, "umount", devicePath); err != nil {
-		cmdErr, ok := err.(*exec.CommandError)
-		if ok && cmdErr.ExitStatus() == 32 {
-			logger.Infof("ignoring exit status 32 from unmount of device %s, err:%+v", devicePath, cmdErr)
-		} else {
-			return fmt.Errorf("command %s failed: %+v", cmd, err)
-		}
-	}
-
-	return nil
-}
-
 // CheckIfDeviceAvailable checks if a device is available for consumption. The caller
-// needs to decide based on the return values whether it is available. The return values are
-// the number of partitions, whether Rook has created partitions on the device in the past
-// possibly from the same or a previous cluster, the filesystem found, or an err if failed
-// to retrieve the properties.
-func CheckIfDeviceAvailable(executor exec.Executor, name string, pvcBacked bool) (int, bool, string, error) {
-	ownPartitions := true
-	partitions, _, err := GetDevicePartitions(name, executor)
+// needs to decide based on the return values whether it is available.
+func CheckIfDeviceAvailable(executor exec.Executor, name string, pvcBacked bool) (bool, string, error) {
+	isAvailable, rejectedReason, err := isDeviceAvailable(executor, name)
 	if err != nil {
-		return 0, false, "", fmt.Errorf("failed to get %s partitions. %+v", name, err)
-	}
-	partCount := len(partitions)
-	if !RookOwnsPartitions(partitions) {
-		ownPartitions = false
+		return false, "", fmt.Errorf("failed to determine if the device was available. %v", err)
 	}
 
-	var devFS string
-	if !pvcBacked {
-		// check if there is a file system on the device
-		devFS, err = GetDeviceFilesystems(name, executor)
-		if err != nil {
-			return 0, false, "", fmt.Errorf("failed to get device %s filesystem: %+v", name, err)
-		}
-	} else {
-		devFS, err = GetPVCDeviceFileSystems(executor, name)
-		if err != nil {
-			return 0, false, "", fmt.Errorf("failed to get pvc device %q filesystem. %+v", name, err)
-		}
-	}
-	return partCount, ownPartitions, devFS, nil
-}
-
-//GetPVCDeviceFileSystems returns the file system on a PVC device.
-func GetPVCDeviceFileSystems(executor exec.Executor, device string) (string, error) {
-	cmd := fmt.Sprintf("get pvc filesystem type for %q", device)
-	output, err := executor.ExecuteCommandWithOutput(false, cmd, "lsblk", device, "--bytes", "--nodeps", "--noheadings", "--output", "FSTYPE")
-	if err != nil {
-		return "", fmt.Errorf("command %q failed. %+v", cmd, err)
-	}
-	logger.Debugf("filesystem on pvc device %q is %q", device, output)
-
-	return output, nil
-}
-
-// RookOwnsPartitions check if all partitions in list are owned by Rook
-func RookOwnsPartitions(partitions []Partition) bool {
-	// if there are partitions, they must all have the rook osd label
-	ownPartitions := true
-	for _, p := range partitions {
-		if strings.HasPrefix(p.Label, "ROOK-OSD") {
-			logger.Infof("rook partition: %s", p.Label)
-		} else {
-			logger.Infof("non-rook partition: %s", p.Label)
-			ownPartitions = false
-		}
-	}
-
-	// if there are no partitions, or the partitions are all from rook OSDs, then rook owns the device
-	return ownPartitions
+	return isAvailable, rejectedReason, nil
 }
 
 // finds the disk uuid in the output of sgdisk
@@ -450,27 +343,6 @@ func parseFS(output string) string {
 	return ""
 }
 
-// find fs from udevadm info
-func parseFSUUID(output string) string {
-	m := parseUdevInfo(output)
-	if v, ok := m["ID_FS_UUID"]; ok {
-		return v
-	}
-	return ""
-}
-
-// find partition label from udevadm info
-func parsePartLabel(output string) string {
-	m := parseUdevInfo(output)
-	if v, ok := m["ID_PART_ENTRY_NAME"]; ok {
-		return v
-	}
-	if v, ok := m["PARTNAME"]; ok {
-		return v
-	}
-	return ""
-}
-
 func parseUdevInfo(output string) map[string]string {
 	lines := strings.Split(output, "\n")
 	result := make(map[string]string, len(lines))
@@ -483,13 +355,45 @@ func parseUdevInfo(output string) map[string]string {
 	return result
 }
 
+func isDeviceAvailable(executor exec.Executor, device string) (bool, string, error) {
+	CVInventory, err := inventoryDevice(executor, device)
+	if err != nil {
+		return false, "", fmt.Errorf("failed to determine if the device %q is available. %v", device, err)
+	}
+
+	if CVInventory.Available {
+		return true, "", nil
+	}
+
+	return false, string(CVInventory.RejectedReasons), nil
+}
+
+func inventoryDevice(executor exec.Executor, dev string) (CephVolumeInventory, error) {
+	var CVInventory CephVolumeInventory
+	device := path.Join("/dev", dev)
+
+	args := []string{"inventory", "--format", "json", device}
+	inventory, err := executor.ExecuteCommandWithOutput(false, "", "ceph-volume", args...)
+	if err != nil {
+		return CVInventory, fmt.Errorf("failed to execute ceph-volume inventory on disk %q. %v", err, device)
+	}
+
+	bInventory := []byte(inventory)
+	err = json.Unmarshal(bInventory, &CVInventory)
+	if err != nil {
+		return CVInventory, fmt.Errorf("error unmarshalling json data coming from ceph-volume inventory %q. %v", err, device)
+	}
+
+	return CVInventory, nil
+}
+
 // ListDevicesChild list all child available on a device
 func ListDevicesChild(executor exec.Executor, device string) ([]string, error) {
 	cmd := "lsblk for child"
 
 	childListRaw, err := executor.ExecuteCommandWithOutput(false, cmd, "lsblk", "--noheadings", "--pairs", path.Join("/dev", device))
 	if err != nil {
-		return []string{}, fmt.Errorf("failed to list child devices of %q. %+v", device, err)
+		return []string{}, fmt.Errorf("failed to list child devices of %q. %v", device, err)
 	}
 
 	return strings.Split(childListRaw, "\n"), nil

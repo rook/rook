@@ -34,7 +34,6 @@ import (
 
 	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestPodContainer(t *testing.T) {
@@ -137,11 +136,11 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, c.Namespace, deployment.Spec.Template.ObjectMeta.Labels["rook_cluster"])
 	assert.Equal(t, 0, len(deployment.Spec.Template.ObjectMeta.Annotations))
 
-	assert.Equal(t, 3, len(deployment.Spec.Template.Spec.InitContainers))
+	assert.Equal(t, 2, len(deployment.Spec.Template.Spec.InitContainers))
 	initCont := deployment.Spec.Template.Spec.InitContainers[0]
-	assert.Equal(t, "rook/rook:myversion", initCont.Image)
-	assert.Equal(t, "config-init", initCont.Name)
-	assert.Equal(t, 4, len(initCont.VolumeMounts))
+	assert.Equal(t, "ceph/ceph:v12.2.8", initCont.Image)
+	assert.Equal(t, "activate-osd", initCont.Name)
+	assert.Equal(t, 3, len(initCont.VolumeMounts))
 
 	assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Containers))
 	cont := deployment.Spec.Template.Spec.Containers[0]
@@ -163,70 +162,6 @@ func verifyEnvVar(t *testing.T, envVars []v1.EnvVar, expectedName, expectedValue
 	assert.Equal(t, expectedFound, found)
 }
 
-func TestStorageSpecDevicesAndDirectories(t *testing.T) {
-	storageSpec := rookalpha.StorageScopeSpec{
-		Selection: rookalpha.Selection{
-			Directories: []rookalpha.Directory{{Path: "/rook/dir2"}},
-		},
-		Nodes: []rookalpha.Node{
-			{
-				Name: "node1",
-				Selection: rookalpha.Selection{
-					Devices:     []rookalpha.Device{{Name: "sda"}},
-					Directories: []rookalpha.Directory{{Path: "/rook/dir1"}},
-				},
-			},
-		},
-	}
-
-	clientset := fake.NewSimpleClientset()
-	clusterInfo := &cephconfig.ClusterInfo{
-		CephVersion: cephver.Nautilus,
-	}
-	c := New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", cephv1.CephVersionSpec{},
-		storageSpec, "/var/lib/rook", rookalpha.Placement{}, rookalpha.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false, false)
-
-	n := c.DesiredStorage.ResolveNode(storageSpec.Nodes[0].Name)
-	osd := OSDInfo{
-		ID:          0,
-		IsDirectory: true,
-		DataPath:    "/my/root/path/osd1",
-	}
-
-	osdProp := osdProperties{
-		crushHostname: n.Name,
-		selection:     n.Selection,
-		resources:     v1.ResourceRequirements{},
-		storeConfig:   config.StoreConfig{},
-	}
-
-	dataPathMap := &provisionConfig{
-		DataPathMap: opconfig.NewDatalessDaemonDataPathMap(c.Namespace, "/var/lib/rook"),
-	}
-
-	deployment, err := c.makeDeployment(osdProp, osd, dataPathMap)
-	assert.NotNil(t, deployment)
-	assert.Nil(t, err)
-	// pod spec should have a volume for the given dir in the main container and the init container
-	podSpec := deployment.Spec.Template.Spec
-	require.Equal(t, 1, len(podSpec.Containers))
-	require.Equal(t, 1, len(podSpec.InitContainers))
-
-	// the default osd created on a node will be under /var/lib/rook, which won't need an extra mount
-	osd = OSDInfo{
-		ID:          1,
-		IsDirectory: true,
-		DataPath:    "/var/lib/rook/osd1",
-	}
-	deployment, err = c.makeDeployment(osdProp, osd, dataPathMap)
-	assert.NotNil(t, deployment)
-	assert.Nil(t, err)
-	// pod spec should have a volume for the given dir in the main container and the init container
-	podSpec = deployment.Spec.Template.Spec
-	require.Equal(t, 1, len(podSpec.Containers))
-	require.Equal(t, 1, len(podSpec.InitContainers))
-}
-
 func TestStorageSpecConfig(t *testing.T) {
 	storageSpec := rookalpha.StorageScopeSpec{
 		Nodes: []rookalpha.Node{
@@ -235,12 +170,9 @@ func TestStorageSpecConfig(t *testing.T) {
 				Config: map[string]string{
 					"databaseSizeMB": "10",
 					"walSizeMB":      "20",
-					"journalSizeMB":  "30",
 					"metadataDevice": "nvme093",
 				},
-				Selection: rookalpha.Selection{
-					Directories: []rookalpha.Directory{{Path: "/rook/storageDir472"}},
-				},
+				Selection: rookalpha.Selection{},
 				Resources: v1.ResourceRequirements{
 					Limits: v1.ResourceList{
 						v1.ResourceCPU:    *resource.NewQuantity(1024.0, resource.BinarySI),
@@ -289,14 +221,7 @@ func TestStorageSpecConfig(t *testing.T) {
 	assert.NotNil(t, container)
 	verifyEnvVar(t, container.Env, "ROOK_OSD_DATABASE_SIZE", "10", true)
 	verifyEnvVar(t, container.Env, "ROOK_OSD_WAL_SIZE", "20", true)
-	verifyEnvVar(t, container.Env, "ROOK_OSD_JOURNAL_SIZE", "30", true)
 	verifyEnvVar(t, container.Env, "ROOK_METADATA_DEVICE", "nvme093", true)
-
-	// verify that osd config can be discovered from the container and matches the original config from the spec
-	discoveredConfig := getConfigFromContainer(container)
-	assert.Equal(t, n.Config, discoveredConfig)
-	discoveredDirs := getDirectoriesFromContainer(container)
-	assert.Equal(t, n.Directories, discoveredDirs)
 }
 
 func TestHostNetwork(t *testing.T) {
@@ -307,7 +232,6 @@ func TestHostNetwork(t *testing.T) {
 				Config: map[string]string{
 					"databaseSizeMB": "10",
 					"walSizeMB":      "20",
-					"journalSizeMB":  "30",
 				},
 			},
 		},
