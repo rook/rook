@@ -169,8 +169,6 @@ func (o MCTestOperations) Setup() {
 	logger.Infof("starting two clusters in parallel")
 	err = o.startCluster(o.namespace1, "bluestore")
 	require.NoError(o.T(), err)
-	err = o.startCluster(o.namespace2, "filestore")
-	require.NoError(o.T(), err)
 
 	require.True(o.T(), o.kh.IsPodInExpectedState("rook-ceph-agent", o.systemNamespace, "Running"),
 		"Make sure rook-ceph-agent is in running state")

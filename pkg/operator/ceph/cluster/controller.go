@@ -346,6 +346,9 @@ func (c *ClusterController) configureLocalCephCluster(namespace, name string, cl
 	if cluster.Spec.Mon.Count%2 == 0 {
 		logger.Warningf("mon count is even (given: %d), should be uneven, continuing", cluster.Spec.Mon.Count)
 	}
+	if len(cluster.Spec.Storage.Directories) != 0 {
+		logger.Warning("running osds on directory is not supported anymore, use devices instead.")
+	}
 
 	// Start the Rook cluster components. Retry several times in case of failure.
 	failedMessage := ""

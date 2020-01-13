@@ -45,10 +45,14 @@ const (
 )
 
 var (
-	logger          = capnslog.NewPackageLogger("github.com/rook/rook", "rook-discover")
-	AppName         = "rook-discover"
-	NodeAttr        = "rook.io/node"
+	logger = capnslog.NewPackageLogger("github.com/rook/rook", "rook-discover")
+	// AppName is the name of the pod
+	AppName = "rook-discover"
+	// NodeAttr is the attribute of that node
+	NodeAttr = "rook.io/node"
+	// LocalDiskCMData is the data name of the config map storing devices
 	LocalDiskCMData = "devices"
+	// LocalDiskCMName is name of the config map storing devices
 	LocalDiskCMName = "local-device-%s"
 	nodeName        string
 	namespace       string
@@ -59,6 +63,7 @@ var (
 	useCVInventory  bool
 )
 
+// CephVolumeInventory is the Go struct representation of the json output
 type CephVolumeInventory struct {
 	Path            string          `json:"path"`
 	Available       bool            `json:"available"`
@@ -67,6 +72,7 @@ type CephVolumeInventory struct {
 	LVS             json.RawMessage `json:"lvs"`
 }
 
+// Run is the entry point of that package execution
 func Run(context *clusterd.Context, probeInterval time.Duration, useCV bool) error {
 	if context == nil {
 		return fmt.Errorf("nil context")
@@ -183,11 +189,11 @@ func udevBlockMonitor(c chan string, period time.Duration) {
 	var udevFilter []string
 
 	// return any add or remove events, but none that match device mapper
-	// events. string matching is case-insensitve
+	// events. string matching is case-insensitive
 	events := make(chan string)
 
-	// get discoverDaemonUdevBlacklist from the enviornment variable
-	// if user doesnt provide any regex; generate the default regex
+	// get discoverDaemonUdevBlacklist from the environment variable
+	// if user doesn't provide any regex; generate the default regex
 	// else use the regex provided by user
 	discoverUdev := os.Getenv(discoverDaemonUdev)
 	if discoverUdev == "" {
@@ -294,6 +300,7 @@ func checkDeviceListsEqual(oldDevs, newDevs []sys.LocalDisk) bool {
 	return true
 }
 
+// DeviceListsEqual checks whether 2 lists are equal or not
 func DeviceListsEqual(old, new string) (bool, error) {
 	var oldDevs []sys.LocalDisk
 	var newDevs []sys.LocalDisk
@@ -318,13 +325,13 @@ func updateDeviceCM(context *clusterd.Context) error {
 		logger.Infof("failed to probe devices: %v", err)
 		return err
 	}
-	deviceJson, err := json.Marshal(devices)
+	deviceJSON, err := json.Marshal(devices)
 	if err != nil {
 		logger.Infof("failed to marshal: %v", err)
 		return err
 	}
 
-	deviceStr := string(deviceJson)
+	deviceStr := string(deviceJSON)
 	if cm == nil {
 		cm, err = context.Clientset.CoreV1().ConfigMaps(namespace).Get(cmName, metav1.GetOptions{})
 	}

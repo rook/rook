@@ -51,7 +51,6 @@ type StoreConfig struct {
 	StoreType       string `json:"storeType,omitempty"`
 	WalSizeMB       int    `json:"walSizeMB,omitempty"`
 	DatabaseSizeMB  int    `json:"databaseSizeMB,omitempty"`
-	JournalSizeMB   int    `json:"journalSizeMB,omitempty"`
 	OSDsPerDevice   int    `json:"osdsPerDevice,omitempty"`
 	EncryptedDevice bool   `json:"encryptedDevice,omitempty"`
 	DeviceClass     string `json:"deviceClass,omitempty"`
@@ -67,8 +66,6 @@ func ToStoreConfig(config map[string]string) StoreConfig {
 			storeConfig.WalSizeMB = convertToIntIgnoreErr(v)
 		case DatabaseSizeMBKey:
 			storeConfig.DatabaseSizeMB = convertToIntIgnoreErr(v)
-		case JournalSizeMBKey:
-			storeConfig.JournalSizeMB = convertToIntIgnoreErr(v)
 		case OSDsPerDeviceKey:
 			storeConfig.OSDsPerDevice = convertToIntIgnoreErr(v)
 		case EncryptedDeviceKey:

@@ -23,6 +23,7 @@ import (
 	"github.com/rook/rook/pkg/util/sys"
 )
 
+// IsAdditionalDeviceAvailableOnCluster checks whether a given device is available to become an OSD
 func IsAdditionalDeviceAvailableOnCluster() bool {
 	executor := &exec.CommandExecutor{}
 	devices, err := sys.ListDevices(executor)
@@ -41,24 +42,20 @@ func IsAdditionalDeviceAvailableOnCluster() bool {
 		}
 
 		pvcBackedOSD := false
-		_, ownPartitions, fs, err := sys.CheckIfDeviceAvailable(executor, device, pvcBackedOSD)
+		isAvailable, rejectedReason, err := sys.CheckIfDeviceAvailable(executor, device, pvcBackedOSD)
 		if err != nil {
-			logger.Warningf("failed to detect device %s availability. %+v", device, err)
+			logger.Warningf("failed to detect device %q availability. %v", device, err)
 			continue
 		}
-		if !ownPartitions {
-			logger.Infof("skipping device %s since don't own partitions", device)
-			continue
-		}
-		if fs != "" {
-			logger.Infof("skipping device %s since it has file system %s", device, fs)
+		if !isAvailable {
+			logger.Infof("skipping device %q because %s", device, rejectedReason)
 			continue
 		}
 		if strings.HasPrefix(device, "rbd") {
-			logger.Infof("skipping unexpected rbd device: %s", device)
+			logger.Infof("skipping unexpected rbd device %q", device)
 			continue
 		}
-		logger.Infof("available device: %s", device)
+		logger.Infof("available device %q", device)
 		disks++
 	}
 	if disks > 0 {

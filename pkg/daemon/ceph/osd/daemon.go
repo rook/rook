@@ -31,10 +31,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
-	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
-	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/sys"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 var (
@@ -58,10 +55,11 @@ func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID, lvPath string,
 
 	var volumeGroupName string
 	if pvcBackedOSD && !lvBackedPV {
-		volumeGroupName, err = getVolumeGroupName(lvPath)
-		if err != nil {
+		volumeGroupName := getVolumeGroupName(lvPath)
+		if volumeGroupName == "" {
 			return errors.Wrapf(err, "error fetching volume group name for OSD %q", osdID)
 		}
+
 		go handleTerminate(context, lvPath, volumeGroupName)
 
 		if err := context.Executor.ExecuteCommand(false, "", "vgchange", "-an", volumeGroupName); err != nil {
@@ -135,27 +133,6 @@ func killCephOSDProcess(context *clusterd.Context, lvPath string) error {
 	return nil
 }
 
-// RunFilestoreOnDevice runs a Ceph filestore OSD on a device. For filestore devices, Rook must
-// first mount the filesystem on disk (source path) to a path (mount path) from which the OSD will
-// be run.
-func RunFilestoreOnDevice(context *clusterd.Context, mountSourcePath, mountPath string, cephArgs []string) error {
-	// start the OSD daemon in the foreground with the given config
-	logger.Infof("starting filestore osd on a device")
-
-	if err := sys.MountDevice(mountSourcePath, mountPath, context.Executor); err != nil {
-		return errors.Wrapf(err, "failed to mount device")
-	}
-	// unmount the device before exit
-	defer sys.UnmountDevice(mountPath, context.Executor)
-
-	// run the ceph-osd daemon
-	if err := context.Executor.ExecuteCommand(false, "", "ceph-osd", cephArgs...); err != nil {
-		return errors.Wrapf(err, "failed to start osd")
-	}
-
-	return nil
-}
-
 // Provision provisions an OSD
 func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string) error {
 	// set the initial orchestration status
@@ -202,6 +179,10 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 		}
 		rawDevices = append(rawDevices, rawDevice)
 	} else {
+		// We still need to use 'lsblk' as the underlaying way to discover devices
+		// Ideally, we would use the "ceph-volume inventory" command instead
+		// However, it suffers from some limitation such as exposing available partitions and LVs
+		// See: https://tracker.ceph.com/issues/43579
 		rawDevices, err = clusterd.DiscoverDevices(context.Executor)
 		if err != nil {
 			return errors.Wrapf(err, "failed initial hardware discovery")
@@ -210,12 +191,12 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 
 	context.Devices = rawDevices
 
-	logger.Infof("creating and starting the osds")
+	logger.Info("creating and starting the osds")
 
 	// determine the set of devices that can/should be used for OSDs.
 	devices, err := getAvailableDevices(context, agent.devices, agent.metadataDevice, agent.pvcBacked)
 	if err != nil {
-		return errors.Wrapf(err, "failed to get available devices")
+		return errors.Wrap(err, "failed to get available devices")
 	}
 
 	// orchestration is about to start, update the status
@@ -226,49 +207,46 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 
 	// start the desired OSDs on devices
 	logger.Infof("configuring osd devices: %+v", devices)
-	deviceOSDs, err := agent.configureDevices(context, devices)
+
+	deviceOSDs, err := agent.configureCVDevices(context, devices)
 	if err != nil {
-		return errors.Wrapf(err, "failed to configure devices")
+		return errors.Wrap(err, "failed to configure devices")
 	}
+
+	logger.Infof("devices = %+v", deviceOSDs)
 
 	// Populate CRUSH location for each OSD on the host
 	for i := range deviceOSDs {
 		deviceOSDs[i].Location = crushLocation
 	}
 
-	// determine the set of directories that can/should be used for OSDs, with the default dir if no devices were specified. save off the node's crush name if needed.
-	logger.Infof("devices = %+v", deviceOSDs)
-	devicesConfigured := len(deviceOSDs) > 0
-	dirs, err := getDataDirs(context, agent.kv, agent.directories, devicesConfigured, agent.nodeName)
-	if err != nil {
-		return errors.Wrapf(err, "failed to get data dirs")
-	}
-
-	// start up the OSDs for directories
-	logger.Infof("configuring osd dirs: %+v", dirs)
-	dirOSDs, err := agent.configureDirs(context, dirs)
-	if err != nil {
-		return errors.Wrapf(err, "failed to configure dirs %+v", dirs)
-	}
-
-	logger.Info("saving osd dir map")
-	if err := config.SaveOSDDirMap(agent.kv, agent.nodeName, dirs); err != nil {
-		return errors.Wrapf(err, "failed to save osd dir map")
-	}
-
-	logger.Infof("device osds:%+v\ndir osds: %+v", deviceOSDs, dirOSDs)
-
+	// Since we are done configuring the PVC we need to release it from LVM
+	// If we don't do this, the device will remain hold by LVM and we won't be able to detach it
+	// When running on PVC, the device is:
+	//  * attached on the prepare pod
+	//  * osd is mkfs
+	//  * detached from the prepare pod
+	//  * attached to the activate pod
+	//  * then the OSD runs
 	if agent.pvcBacked && !deviceOSDs[0].SkipLVRelease && !deviceOSDs[0].LVBackedPV {
-		volumeGroupName, err := getVolumeGroupName(deviceOSDs[0].LVPath)
-		if err != nil {
-			return errors.Wrapf(err, "error fetching volume group name")
-		}
-		if err := releaseLVMDevice(context, volumeGroupName); err != nil {
-			return errors.Wrapf(err, "failed to release device from lvm")
+		// Try to discover the VG of that LV
+		volumeGroupName := getVolumeGroupName(deviceOSDs[0].BlockPath)
+
+		// If empty the osd is using the ceph-volume raw mode
+		// so it's consumming a raw block device and LVM is not used
+		// so there is nothing to de-activate
+		if volumeGroupName != "" {
+			if err := releaseLVMDevice(context, volumeGroupName); err != nil {
+				return errors.Wrap(err, "failed to release device from lvm")
+			}
+		} else {
+			// TODO
+			// don't assume this and run a bluestore check on the device to be sure?
+			logger.Infof("ceph-volume raw mode used by block %q, no VG to de-activate", deviceOSDs[0].BlockPath)
 		}
 	}
 
-	osds := append(deviceOSDs, dirOSDs...)
+	osds := deviceOSDs
 
 	// orchestration is completed, update the status
 	status = oposd.OrchestrationStatus{OSDs: osds, Status: oposd.OrchestrationStatusCompleted, PvcBackedOSD: agent.pvcBacked}
@@ -283,26 +261,46 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 
 	available := &DeviceOsdMapping{Entries: map[string]*DeviceOsdIDEntry{}}
 	for _, device := range context.Devices {
-		var partCount int
-		var ownPartitions bool
-		var err error
-		var fs string
-		if device.Type != sys.PartType {
-			partCount, ownPartitions, fs, err = sys.CheckIfDeviceAvailable(context.Executor, device.Name, pvcBacked)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to get device %q info", device.Name)
-			}
-
-			if fs != "" || !ownPartitions {
-				// not OK to use the device because it has a filesystem or rook doesn't own all its partitions
-				logger.Infof("skipping device %q that is in use (not by rook). fs: %s, ownPartitions: %t", device.Name, fs, ownPartitions)
-				continue
-			}
+		// Ignore 'dm' device since they are not handled by c-v properly
+		// see: https://tracker.ceph.com/issues/43209
+		if strings.HasPrefix(device.Name, sys.DeviceMapperPrefix) && device.Type == sys.LVMType {
+			logger.Infof("skipping 'dm' device %q", device.Name)
+			continue
 		}
 
+		// Ignore device with filesystem signature since c-v inventory
+		// cannot detect that correctly
+		// see: https://tracker.ceph.com/issues/43585
 		if device.Filesystem != "" {
 			logger.Infof("skipping device %q because it contains a filesystem %q", device.Name, device.Filesystem)
 			continue
+		}
+
+		// We need to swap the device name
+		// We need to use the /dev path, provided by the NAME property from lsblk
+		// instead of the /mnt/<block name>
+		deviceToCheck := device.Name
+		if pvcBacked {
+			deviceToCheck = device.RealName
+		}
+
+		// Check if the desired device is available
+		// When running on PVC we use the real device name instead of the Kubernetes mountpoint
+		// Otherwise ceph-volume inventory will fail on the udevadm check
+		// udevadm does not support device path different than /dev or /sys
+		//
+		// So earlier lsblk extracted the '/dev' path, hence the device.Name property
+		// device.Name can be 'xvdca', later this is formated to '/dev/xvdca'
+		isAvailable, rejectedReason, err := sys.CheckIfDeviceAvailable(context.Executor, deviceToCheck, pvcBacked)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get device %q info", device.Name)
+		}
+
+		if !isAvailable {
+			logger.Infof("skipping device %q: %s.", device.Name, rejectedReason)
+			continue
+		} else {
+			logger.Infof("device %q is available.", device.Name)
 		}
 
 		var deviceInfo *DeviceOsdIDEntry
@@ -363,9 +361,6 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 		}
 
 		if deviceInfo != nil {
-			if partCount > 0 {
-				deviceInfo.LegacyPartitionsFound = ownPartitions
-			}
 			available.Entries[device.Name] = deviceInfo
 		}
 	}
@@ -373,85 +368,7 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 	return available, nil
 }
 
-func getDataDirs(context *clusterd.Context, kv *k8sutil.ConfigMapKVStore, desiredDirs string,
-	devicesSpecified bool, nodeName string) (dirs map[string]int, err error) {
-
-	var dirList []string
-	if desiredDirs != "" {
-		dirList = strings.Split(desiredDirs, ",")
-	}
-
-	// when user has not specified any dirs or any devices, legacy behavior was to give them the
-	// default dir. no longer automatically create this fallback osd. the legacy conditional is
-	// still important for determining when the fallback osd may be deleted.
-	noDirsOrDevicesSpecified := len(dirList) == 0 && !devicesSpecified
-
-	dirMap, err := config.LoadOSDDirMap(kv, nodeName)
-	if err == nil {
-		// we have an existing saved dir map, merge the user specified directories into it
-		addDirsToDirMap(dirList, &dirMap)
-
-		// determine which dirs are still active, which should be removed, then return them
-		activeDirs := getActiveDirs(dirList, dirMap, context.ConfigDir, noDirsOrDevicesSpecified)
-		return activeDirs, nil
-	}
-
-	if !kerrors.IsNotFound(err) {
-		// real error when trying to load the osd dir map, return the err
-		return nil, errors.Wrapf(err, "failed to load OSD dir map")
-	}
-
-	// the osd dirs map doesn't exist yet
-
-	if len(dirList) == 0 {
-		// no dirs should be used because the user has requested no dirs but they have requested devices
-		return map[string]int{}, nil
-	}
-
-	// add the specified dirs to the map and return it
-	dirMap = make(map[string]int, len(dirList))
-	addDirsToDirMap(dirList, &dirMap)
-	return dirMap, nil
-}
-
-func addDirsToDirMap(dirList []string, dirMap *map[string]int) {
-	for _, d := range dirList {
-		if _, ok := (*dirMap)[d]; !ok {
-			// the users dir isn't already in the map, add it with an unassigned ID
-			(*dirMap)[d] = unassignedOSDID
-		}
-	}
-}
-
-func getActiveDirs(currentDirList []string, savedDirMap map[string]int, configDir string, noDirsOrDevicesSpecified bool) (activeDirs map[string]int) {
-	activeDirs = map[string]int{}
-
-	for savedDir, id := range savedDirMap {
-		foundSavedDir := false
-
-		// If a legacy 'fallback' osd and no dirs/devices are yet specified, keep it to preserve
-		// legacy behavior for migrated clusters.
-		if savedDir == configDir && noDirsOrDevicesSpecified {
-			foundSavedDir = true
-		}
-
-		for _, dir := range currentDirList {
-			if dir == savedDir {
-				foundSavedDir = true
-				break
-			}
-		}
-
-		if foundSavedDir {
-			// the saved dir is still active
-			activeDirs[savedDir] = id
-		}
-	}
-
-	return activeDirs
-}
-
-//releaseLVMDevice deactivates the LV to release the device.
+// releaseLVMDevice deactivates the LV to release the device.
 func releaseLVMDevice(context *clusterd.Context, volumeGroupName string) error {
 	if err := context.Executor.ExecuteCommand(false, "", "lvchange", "-an", volumeGroupName); err != nil {
 		return errors.Wrapf(err, "failed to deactivate LVM %s", volumeGroupName)
@@ -460,17 +377,14 @@ func releaseLVMDevice(context *clusterd.Context, volumeGroupName string) error {
 	return nil
 }
 
-//getVolumeGroupName returns the Volume group name from the given Logical Volume Path
-func getVolumeGroupName(lvPath string) (string, error) {
-	if lvPath == "" {
-		return "", errors.Errorf("empty LV Path : %s", lvPath)
-	}
-
+// getVolumeGroupName returns the Volume group name from the given Logical Volume Path
+func getVolumeGroupName(lvPath string) string {
 	vgSlice := strings.Split(lvPath, "/")
-	//Assert that lvpath is in correct format `/dev/<vg name>/<lv name>` before extracting the vg name
+	// Assert that lvpath is in correct format `/dev/<vg name>/<lv name>` before extracting the vg name
 	if len(vgSlice) != 4 || vgSlice[2] == "" {
-		return "", errors.Errorf("invalid LV Path : %s", lvPath)
+		logger.Warningf("invalid LV Path: %q", lvPath)
+		return ""
 	}
 
-	return vgSlice[2], nil
+	return vgSlice[2]
 }

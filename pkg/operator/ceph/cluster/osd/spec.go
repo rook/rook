@@ -26,7 +26,6 @@ import (
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
@@ -41,7 +40,6 @@ import (
 )
 
 const (
-	dataDirsEnvVarName                  = "ROOK_DATA_DIRECTORIES"
 	osdStoreEnvVarName                  = "ROOK_OSD_STORE"
 	osdDatabaseSizeEnvVarName           = "ROOK_OSD_DATABASE_SIZE"
 	osdWalSizeEnvVarName                = "ROOK_OSD_WAL_SIZE"
@@ -50,7 +48,8 @@ const (
 	encryptedDeviceEnvVarName           = "ROOK_ENCRYPTED_DEVICE"
 	osdMetadataDeviceEnvVarName         = "ROOK_METADATA_DEVICE"
 	pvcBackedOSDVarName                 = "ROOK_PVC_BACKED_OSD"
-	lvPathVarName                       = "ROOK_LV_PATH"
+	blockPathVarName                    = "ROOK_BLOCK_PATH"
+	cvModeVarName                       = "ROOK_CV_MODE"
 	lvBackedPVVarName                   = "ROOK_LV_BACKED_PV"
 	rookBinariesMountPath               = "/rook"
 	rookBinariesVolumeName              = "rook-binaries"
@@ -75,28 +74,38 @@ set -ex
 OSD_ID=%s
 OSD_UUID=%s
 OSD_STORE_FLAG="%s"
-TMP_DIR=$(mktemp -d)
 OSD_DATA_DIR=/var/lib/ceph/osd/ceph-"$OSD_ID"
+CV_MODE=%s
+DEVICE=%s
 
 # active the osd with ceph-volume
-ceph-volume lvm activate --no-systemd "$OSD_STORE_FLAG" "$OSD_ID" "$OSD_UUID"
+if [[ "$CV_MODE" == "lvm" ]]; then
+	TMP_DIR=$(mktemp -d)
 
-# copy the tmpfs directory to a temporary directory
-# this is needed because when the init container exits, the tmpfs goes away and its content with it
-# this will result in the emptydir to be empty when accessed by the main osd container
-cp --verbose --no-dereference "$OSD_DATA_DIR"/* "$TMP_DIR"/
+	# activate osd
+	ceph-volume "$CV_MODE" activate --no-systemd "$OSD_STORE_FLAG" "$OSD_ID" "$OSD_UUID"
 
-# unmount the tmpfs since we don't need it anymore
-umount "$OSD_DATA_DIR"
+	# copy the tmpfs directory to a temporary directory
+	# this is needed because when the init container exits, the tmpfs goes away and its content with it
+	# this will result in the emptydir to be empty when accessed by the main osd container
+	cp --verbose --no-dereference "$OSD_DATA_DIR"/* "$TMP_DIR"/
 
-# copy back the content of the tmpfs into the original osd directory
-cp --verbose --no-dereference "$TMP_DIR"/* "$OSD_DATA_DIR"
+	# unmount the tmpfs since we don't need it anymore
+	umount "$OSD_DATA_DIR"
 
-# retain ownership of files to the ceph user/group
-chown --verbose --recursive ceph:ceph "$OSD_DATA_DIR"
+	# copy back the content of the tmpfs into the original osd directory
+	cp --verbose --no-dereference "$TMP_DIR"/* "$OSD_DATA_DIR"
 
-# remove the temporary directory
-rm --recursive --force "$TMP_DIR"
+	# retain ownership of files to the ceph user/group
+	chown --verbose --recursive ceph:ceph "$OSD_DATA_DIR"
+
+	# remove the temporary directory
+	rm --recursive --force "$TMP_DIR"
+else
+	# ceph-volume raw mode only supports bluestore so we don't need to pass a store flag
+	ceph-volume "$CV_MODE" activate --device "$DEVICE" --no-systemd --no-tmpfs
+fi
+
 `
 )
 
@@ -154,44 +163,23 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	doConfigInit := true       // initialize ceph.conf in init container?
 	doBinaryCopyInit := true   // copy tini and rook binaries in an init container?
 	doActivateOSDInit := false // run an init container to activate the osd?
-	doChownDataPath := true    // chown the data path in an init container?
+	osdOnPVC := osdProps.pvc.ClaimName != ""
 
-	var dataDir string
-	var sourcePath string
-	if osd.IsDirectory {
-		// Mount the path to the directory-based osd
-		// osd.DataPath includes the osd subdirectory, so we want to mount the parent directory
-		//parentDir := filepath.Dir(osd.DataPath)
-		//dataDir = parentDir
-		dataDir = osd.DataPath
-		// for directory osds, we completely overwrite the starting point from above.
-		provisionConfig.DataPathMap.HostDataDir = dataDir
-		provisionConfig.DataPathMap.ContainerDataDir = dataDir
-
-		volumes = opspec.DaemonVolumes(provisionConfig.DataPathMap, deploymentName)
-		volumeMounts = opspec.DaemonVolumeMounts(provisionConfig.DataPathMap, deploymentName)
-		configVolumeMounts = opspec.DaemonVolumeMounts(provisionConfig.DataPathMap, deploymentName)
-	} else if !osd.IsDirectory && osd.IsFileStore && !osd.CephVolumeInitiated {
-		// for legacy filestore osds, sourcePath is mounted to the dataDir in the container.
-		dataDir = osd.DataPath
-		sourcePath = path.Join("/dev/disk/by-partuuid", osd.DevicePartUUID)
-		provisionConfig.DataPathMap.HostDataDir = sourcePath
-		provisionConfig.DataPathMap.ContainerDataDir = sourcePath
-
-		volumes = opspec.DaemonVolumes(provisionConfig.DataPathMap, deploymentName)
-		volumeMounts = opspec.DaemonVolumeMounts(provisionConfig.DataPathMap, deploymentName)
-		configVolumeMounts = opspec.DaemonVolumeMounts(provisionConfig.DataPathMap, deploymentName)
-	} else {
-		dataDir = k8sutil.DataDir
-		// Create volume config for /dev so the pod can access devices on the host
-		devVolume := v1.Volume{Name: "devices", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/dev"}}}
-		volumes = append(volumes, devVolume)
-		devMount := v1.VolumeMount{Name: "devices", MountPath: "/dev"}
-		volumeMounts = append(volumeMounts, devMount)
+	// If CVMode is empty, this likely means we upgraded Rook
+	// This property did not exist before so we need to initialize it
+	if osdOnPVC && osd.CVMode == "" {
+		osd.CVMode = "lvm"
 	}
 
+	dataDir := k8sutil.DataDir
+	// Create volume config for /dev so the pod can access devices on the host
+	devVolume := v1.Volume{Name: "devices", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/dev"}}}
+	volumes = append(volumes, devVolume)
+	devMount := v1.VolumeMount{Name: "devices", MountPath: "/dev"}
+	volumeMounts = append(volumeMounts, devMount)
+
 	// If the OSD runs on PVC
-	if osdProps.pvc.ClaimName != "" {
+	if osdOnPVC {
 		// Create volume config for PVCs
 		volumes = append(volumes, getPVCOSDVolumes(&osdProps)...)
 	}
@@ -201,10 +189,6 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	}
 
 	storeType := config.Bluestore
-	if osd.IsFileStore {
-		storeType = config.Filestore
-	}
-
 	osdID := strconv.Itoa(osd.ID)
 	tiniEnvVar := v1.EnvVar{Name: "TINI_SUBREAPER", Value: ""}
 	envVars := append(c.getConfigEnvVars(osdProps, dataDir), []v1.EnvVar{
@@ -226,26 +210,13 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		tiniEnvVar,
 		{Name: "ROOK_OSD_ID", Value: osdID},
 		{Name: "ROOK_CEPH_VERSION", Value: c.clusterInfo.CephVersion.CephVersionFormatted()},
+		{Name: "ROOK_IS_DEVICE", Value: "true"},
 	}...)
-
-	if !osd.IsDirectory {
-		configEnvVars = append(configEnvVars, v1.EnvVar{Name: "ROOK_IS_DEVICE", Value: "true"})
-	}
-
-	// default args when the ceph cluster isn't initialized
-	defaultArgs := []string{
-		"--foreground",
-		"--id", osdID,
-		"--osd-data", osd.DataPath,
-		"--keyring", osd.KeyringPath,
-		"--cluster", osd.Cluster,
-		"--osd-uuid", osd.UUID,
-	}
 
 	var commonArgs []string
 
 	// If the OSD runs on PVC
-	if osdProps.pvc.ClaimName != "" && osdProps.tuneSlowDeviceClass {
+	if osdOnPVC && osdProps.tuneSlowDeviceClass {
 		// Append tuning flag if necessary
 		err := c.osdRunFlagTuningOnPVC(osd.ID)
 		if err != nil {
@@ -253,13 +224,10 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		}
 	}
 
-	// Set osd memory target to the best appropriate value
-	if !osd.IsFileStore {
-		// As of Nautilus Ceph auto-tunes its osd_memory_target on the fly so we don't need to force it
-		if !c.clusterInfo.CephVersion.IsAtLeastNautilus() && !c.resources.Limits.Memory().IsZero() {
-			osdMemoryTargetValue := float32(c.resources.Limits.Memory().Value()) * osdMemoryTargetSafetyFactor
-			commonArgs = append(commonArgs, fmt.Sprintf("--osd-memory-target=%d", int(osdMemoryTargetValue)))
-		}
+	// As of Nautilus Ceph auto-tunes its osd_memory_target on the fly so we don't need to force it
+	if !c.clusterInfo.CephVersion.IsAtLeastNautilus() && !c.resources.Limits.Memory().IsZero() {
+		osdMemoryTargetValue := float32(c.resources.Limits.Memory().Value()) * osdMemoryTargetSafetyFactor
+		commonArgs = append(commonArgs, fmt.Sprintf("--osd-memory-target=%d", int(osdMemoryTargetValue)))
 	}
 
 	if c.clusterInfo.CephVersion.IsAtLeast(version.CephVersion{Major: 14, Minor: 2, Extra: 1}) {
@@ -270,62 +238,8 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 
 	var command []string
 	var args []string
-	if !osd.IsDirectory && osd.IsFileStore && !osd.CephVolumeInitiated {
-		doConfigInit = false
-		// All scenarios except one can call the ceph-osd daemon directly. The one different scenario is when
-		// filestore is running on a device. Rook needs to mount the device, run the ceph-osd daemon, and then
-		// when the daemon exits, rook needs to unmount the device. Since rook needs to be in the container
-		// for this scenario, we will copy the binaries necessary to a mount, which will then be mounted
-		// to the daemon container.
-		doBinaryCopyInit = true
-		// Since the data path is mounted from a different source for filestore disks, don't chown it
-		doChownDataPath = false
-
-		command = []string{path.Join(k8sutil.BinariesMountPath, "tini")}
-		args = []string{
-			"--", path.Join(k8sutil.BinariesMountPath, "rook"),
-			"ceph", "osd", "filestore-device",
-			"--source-path", sourcePath,
-			"--mount-path", osd.DataPath,
-			"--",
-		}
-		args = append(args,
-			opspec.DaemonFlags(c.clusterInfo, osdID)...,
-		)
-		args = append(args,
-			"--foreground",
-			"--osd-data", osd.DataPath,
-			"--osd-uuid", osd.UUID,
-			"--osd-objectstore", storeType,
-			"--osd-max-object-name-len", "256",
-			"--osd-max-object-namespace-len", "64",
-			"--crush-location", fmt.Sprintf("root=default host=%s", osdProps.crushHostname),
-			// Set '--setuser-match-path' so that existing directory owned by root won't affect the daemon startup.
-			// For existing data store owned by root, the daemon will continue to run as root
-			"--setuser-match-path", osd.DataPath,
-		)
-
-		// If the Bluestore OSD was prepared with ceph-volume and not running on PVC
-	} else if osd.CephVolumeInitiated && osdProps.pvc.ClaimName == "" && !osd.IsFileStore {
-		doBinaryCopyInit = false
-		doConfigInit = false
-		doActivateOSDInit = true
-		command = []string{"ceph-osd"}
-		args = []string{
-			"--foreground",
-			"--id", osdID,
-			"--fsid", c.clusterInfo.FSID,
-			"--setuser", "ceph",
-			"--setgroup", "ceph",
-			fmt.Sprintf("--crush-location=%s", osd.Location),
-		}
-
-		// Needed so that the init chown container won't chown something that does not exist
-		// We don't need this directory, it's empty
-		osd.DataPath = ""
-
-		// If the OSD was prepared with ceph-volume and running on PVC
-	} else if osd.CephVolumeInitiated && osdProps.pvc.ClaimName != "" {
+	// If the OSD was prepared with ceph-volume and running on PVC and using the LVM mode
+	if osdOnPVC && osd.CVMode == "lvm" {
 		// if the osd was provisioned by ceph-volume, we need to launch it with rook as the parent process
 		command = []string{path.Join(rookBinariesMountPath, "tini")}
 		args = []string{
@@ -338,9 +252,6 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 			"--cluster", "ceph",
 			"--setuser", "ceph",
 			"--setgroup", "ceph",
-			// Set '--setuser-match-path' so that existing directory owned by root won't affect the daemon startup.
-			// For existing data store owned by root, the daemon will continue to run as root
-			"--setuser-match-path", osd.DataPath,
 			fmt.Sprintf("--crush-location=%s", osd.Location),
 		}
 
@@ -355,35 +266,19 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 			Name:      "run-udev",
 			MountPath: "/run/udev"})
 
-	} else if osd.IsDirectory {
-		// config for dir-based osds is gotten from the commandline or from the mon database
-		doConfigInit = false
-		doBinaryCopyInit = false
-
-		storeType := "bluestore"
-		if osd.IsFileStore {
-			storeType = "filestore"
-		}
-
-		command = []string{"ceph-osd"}
-		args = append(
-			opspec.DaemonFlags(c.clusterInfo, osdID),
-			"--foreground",
-			"--osd-data", osd.DataPath,
-			"--osd-uuid", osd.UUID,
-			"--osd-objectstore", storeType,
-			"--osd-max-object-name-len", "256",
-			"--osd-max-object-namespace-len", "64",
-			"--crush-location", fmt.Sprintf("root=default host=%s", osdProps.crushHostname),
-		)
 	} else {
-		// other osds can launch the osd daemon directly
+		doBinaryCopyInit = false
+		doConfigInit = false
+		doActivateOSDInit = true
 		command = []string{"ceph-osd"}
-		args = defaultArgs
-	}
-
-	if osd.IsFileStore {
-		args = append(args, fmt.Sprintf("--osd-journal=%s", osd.Journal))
+		args = []string{
+			"--foreground",
+			"--id", osdID,
+			"--fsid", c.clusterInfo.FSID,
+			"--setuser", "ceph",
+			"--setgroup", "ceph",
+			fmt.Sprintf("--crush-location=%s", osd.Location),
+		}
 	}
 
 	// Add the volume to the spec and the mount to the daemon container
@@ -397,7 +292,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	// so that it can pick the already mounted/activated osd metadata path
 	// This container will activate the OSD and place the activated filesinto an empty dir
 	// The empty dir will be shared by the "activate-osd" pod and the "osd" main pod
-	activateOSDVolume, activateOSDContainer := c.getActivateOSDInitContainer(osdID, osd.UUID, osd.IsFileStore, osdProps)
+	activateOSDVolume, activateOSDContainer := c.getActivateOSDInitContainer(osdID, osd, osdProps)
 	if doActivateOSDInit {
 		volumes = append(volumes, activateOSDVolume)
 		volumeMounts = append(volumeMounts, activateOSDContainer.VolumeMounts[0])
@@ -405,10 +300,11 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 
 	args = append(args, commonArgs...)
 
-	if osdProps.pvc.ClaimName != "" {
+	if osdOnPVC {
 		volumeMounts = append(volumeMounts, getPvcOSDBridgeMount(osdProps.pvc.ClaimName))
 		envVars = append(envVars, pvcBackedOSDEnvVar("true"))
-		envVars = append(envVars, lvPathEnvVariable(osd.LVPath))
+		envVars = append(envVars, blockPathEnvVariable(osd.BlockPath))
+		envVars = append(envVars, cvModeEnvVariable(osd.CVMode))
 		envVars = append(envVars, lvBackedPVEnvVar(strconv.FormatBool(osd.LVBackedPV)))
 	}
 
@@ -444,6 +340,9 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	if doBinaryCopyInit {
 		initContainers = append(initContainers, *copyBinariesContainer)
 	}
+	if osdOnPVC {
+		initContainers = append(initContainers, c.getPVCInitContainer(osdProps.pvc))
+	}
 	if doActivateOSDInit {
 		initContainers = append(initContainers, *activateOSDContainer)
 	}
@@ -454,9 +353,6 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	// directory. This is a race condition for all OSDs; therefore, do this in an init container.
 	// See more discussion here: https://github.com/rook/rook/pull/3594#discussion_r312279176
 	dataPath := ""
-	if doChownDataPath {
-		dataPath = osd.DataPath
-	}
 	initContainers = append(initContainers,
 		opspec.ChownCephDataDirsInitContainer(
 			opconfig.DataPathMap{ContainerDataDir: dataPath},
@@ -515,8 +411,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 			Replicas: &replicaCount,
 		},
 	}
-	if osdProps.pvc.ClaimName != "" {
-		deployment.Spec.Template.Spec.InitContainers = append(deployment.Spec.Template.Spec.InitContainers, c.getPVCInitContainer(osdProps.pvc))
+	if osdOnPVC {
 		k8sutil.AddLabelToDeployement(OSDOverPVCLabelKey, osdProps.pvc.ClaimName, deployment)
 		k8sutil.AddLabelToPod(OSDOverPVCLabelKey, osdProps.pvc.ClaimName, &deployment.Spec.Template)
 	}
@@ -524,7 +419,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		deployment.Spec.Template.Spec.NodeSelector = map[string]string{v1.LabelHostname: osdProps.crushHostname}
 	}
 	// Replace default unreachable node toleration if the osd pod is portable and based in PVC
-	if osdProps.pvc.ClaimName != "" && osdProps.portable {
+	if osdOnPVC && osdProps.portable {
 		k8sutil.AddUnreachableNodeToleration(&deployment.Spec.Template.Spec)
 	}
 
@@ -534,7 +429,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	opspec.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, deployment)
 	opspec.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, deployment)
 	k8sutil.SetOwnerRef(&deployment.ObjectMeta, &c.ownerRef)
-	if len(osdProps.pvc.ClaimName) == 0 {
+	if !osdOnPVC {
 		c.placement.ApplyToPodSpec(&deployment.Spec.Template.Spec)
 	} else {
 		osdProps.placement.ApplyToPodSpec(&deployment.Spec.Template.Spec)
@@ -561,13 +456,10 @@ func (c *Cluster) getCopyBinariesContainer() (v1.Volume, *v1.Container) {
 }
 
 // This container runs all the actions needed to activate an OSD before we can run the OSD process
-func (c *Cluster) getActivateOSDInitContainer(osdID, osdUUID string, isFilestore bool, osdProps osdProperties) (v1.Volume, *v1.Container) {
+func (c *Cluster) getActivateOSDInitContainer(osdID string, osdInfo OSDInfo, osdProps osdProperties) (v1.Volume, *v1.Container) {
 	volume := v1.Volume{Name: activateOSDVolumeName, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}}
 	envVars := osdActivateEnvVar()
 	osdStore := "--bluestore"
-	if isFilestore {
-		osdStore = "--filestore"
-	}
 
 	// Build empty dir osd path to something like "/var/lib/ceph/osd/ceph-0"
 	activateOSDMountPathID := activateOSDMountPath + osdID
@@ -576,6 +468,10 @@ func (c *Cluster) getActivateOSDInitContainer(osdID, osdUUID string, isFilestore
 		{Name: activateOSDVolumeName, MountPath: activateOSDMountPathID},
 		{Name: "devices", MountPath: "/dev"},
 		{Name: k8sutil.ConfigOverrideName, ReadOnly: true, MountPath: opconfig.EtcCephDir},
+	}
+
+	if osdProps.pvc.ClaimName != "" {
+		volMounts = append(volMounts, getPvcOSDBridgeMount(osdProps.pvc.ClaimName))
 	}
 
 	privileged := true
@@ -587,7 +483,7 @@ func (c *Cluster) getActivateOSDInitContainer(osdID, osdUUID string, isFilestore
 		Command: []string{
 			"/bin/bash",
 			"-c",
-			fmt.Sprintf(activateOSDCode, osdID, osdUUID, osdStore),
+			fmt.Sprintf(activateOSDCode, osdID, osdInfo.UUID, osdStore, osdInfo.CVMode, osdInfo.BlockPath),
 		},
 		Name:            "activate-osd",
 		Image:           c.cephVersion.Image,
@@ -618,19 +514,6 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 	if osdProps.pvc.ClaimName != "" {
 		// Create volume config for PVCs
 		volumes = append(volumes, getPVCOSDVolumes(&osdProps)...)
-	}
-
-	// add each OSD directory as another host path volume source
-	for _, d := range osdProps.selection.Directories {
-		if c.skipVolumeForDirectory(d.Path) {
-			// the dataDirHostPath has already been added as a volume
-			continue
-		}
-		dirVolume := v1.Volume{
-			Name:         k8sutil.PathToVolumeName(d.Path),
-			VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: d.Path}},
-		}
-		volumes = append(volumes, dirVolume)
 	}
 
 	if len(volumes) == 0 {
@@ -740,19 +623,12 @@ func (c *Cluster) getConfigEnvVars(osdProps osdProperties, dataDir string) []v1.
 	// Append ceph-volume environment variables
 	envVars = append(envVars, cephVolumeEnvVar()...)
 
-	// deliberately skip setting osdStoreEnvVarName (ROOK_OSD_STORE) as a quick means to deprecate
-	// creating new disk-based Filestore OSDs
-
 	if osdProps.storeConfig.DatabaseSizeMB != 0 {
 		envVars = append(envVars, v1.EnvVar{Name: osdDatabaseSizeEnvVarName, Value: strconv.Itoa(osdProps.storeConfig.DatabaseSizeMB)})
 	}
 
 	if osdProps.storeConfig.WalSizeMB != 0 {
 		envVars = append(envVars, v1.EnvVar{Name: osdWalSizeEnvVarName, Value: strconv.Itoa(osdProps.storeConfig.WalSizeMB)})
-	}
-
-	if osdProps.storeConfig.JournalSizeMB != 0 {
-		envVars = append(envVars, v1.EnvVar{Name: osdJournalSizeEnvVarName, Value: strconv.Itoa(osdProps.storeConfig.JournalSizeMB)})
 	}
 
 	if osdProps.storeConfig.OSDsPerDevice != 0 {
@@ -842,21 +718,6 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 		envVars = append(envVars, pvcBackedOSDEnvVar("true"))
 	}
 
-	if len(osdProps.selection.Directories) > 0 {
-		// for each directory the user has specified, create a volume mount and pass it to the pod via cmd line arg
-		dirPaths := make([]string, len(osdProps.selection.Directories))
-		for i := range osdProps.selection.Directories {
-			dpath := osdProps.selection.Directories[i].Path
-			dirPaths[i] = dpath
-			if c.skipVolumeForDirectory(dpath) {
-				// the dataDirHostPath has already been added as a volume mount
-				continue
-			}
-			volumeMounts = append(volumeMounts, v1.VolumeMount{Name: k8sutil.PathToVolumeName(dpath), MountPath: dpath})
-		}
-		envVars = append(envVars, dataDirectoriesEnvVar(strings.Join(dirPaths, ",")))
-	}
-
 	// elevate to be privileged if it is going to mount devices or if running in a restricted environment such as openshift
 	if devMountNeeded || os.Getenv("ROOK_HOSTPATH_REQUIRES_PRIVILEGED") == "true" || osdProps.pvc.ClaimName != "" {
 		privileged = true
@@ -936,62 +797,20 @@ func metadataDeviceEnvVar(metadataDevice string) v1.EnvVar {
 	return v1.EnvVar{Name: osdMetadataDeviceEnvVarName, Value: metadataDevice}
 }
 
-func dataDirectoriesEnvVar(dataDirectories string) v1.EnvVar {
-	return v1.EnvVar{Name: dataDirsEnvVarName, Value: dataDirectories}
-}
-
 func pvcBackedOSDEnvVar(pvcBacked string) v1.EnvVar {
 	return v1.EnvVar{Name: pvcBackedOSDVarName, Value: pvcBacked}
 }
 
-func lvPathEnvVariable(lvPath string) v1.EnvVar {
-	return v1.EnvVar{Name: lvPathVarName, Value: lvPath}
+func blockPathEnvVariable(lvPath string) v1.EnvVar {
+	return v1.EnvVar{Name: blockPathVarName, Value: lvPath}
+}
+
+func cvModeEnvVariable(cvMode string) v1.EnvVar {
+	return v1.EnvVar{Name: cvModeVarName, Value: cvMode}
 }
 
 func lvBackedPVEnvVar(lvBackedPV string) v1.EnvVar {
 	return v1.EnvVar{Name: lvBackedPVVarName, Value: lvBackedPV}
-}
-
-func getDirectoriesFromContainer(osdContainer v1.Container) []rookalpha.Directory {
-	var dirsArg string
-	for _, envVar := range osdContainer.Env {
-		if envVar.Name == dataDirsEnvVarName {
-			dirsArg = envVar.Value
-		}
-	}
-
-	var dirsList []string
-	if dirsArg != "" {
-		dirsList = strings.Split(dirsArg, ",")
-	}
-
-	dirs := make([]rookalpha.Directory, len(dirsList))
-	for dirNum, dir := range dirsList {
-		dirs[dirNum] = rookalpha.Directory{Path: dir}
-	}
-
-	return dirs
-}
-
-func getConfigFromContainer(osdContainer v1.Container) map[string]string {
-	cfg := map[string]string{}
-
-	for _, envVar := range osdContainer.Env {
-		switch envVar.Name {
-		case osdStoreEnvVarName:
-			cfg[config.StoreTypeKey] = envVar.Value
-		case osdDatabaseSizeEnvVarName:
-			cfg[config.DatabaseSizeMBKey] = envVar.Value
-		case osdWalSizeEnvVarName:
-			cfg[config.WalSizeMBKey] = envVar.Value
-		case osdJournalSizeEnvVarName:
-			cfg[config.JournalSizeMBKey] = envVar.Value
-		case osdMetadataDeviceEnvVarName:
-			cfg[config.MetadataDeviceKey] = envVar.Value
-		}
-	}
-
-	return cfg
 }
 
 func osdOnSDNFlag(network cephv1.NetworkSpec, v cephver.CephVersion) []string {
