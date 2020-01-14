@@ -259,44 +259,69 @@ func TestGetPortsFromSpec(t *testing.T) {
 }
 
 func TestCreateMasterContainerCommand(t *testing.T) {
-	replicationFactor := 3
+	replicationFactor := int32(3)
 
+	expectedCommand := getMasterContainerCommand(replicationFactor)
+	actualCommand := createMasterContainerCommand("default", masterNamePlural, masterName, int32(7100), replicationFactor)
+
+	assert.Equal(t, expectedCommand, actualCommand)
+}
+
+func TestCreateTServerContainerCommand(t *testing.T) {
+	replicationFactor := int32(3)
+
+	expectedCommand := getTserverContainerCommand(replicationFactor)
+	actualCommand := createTServerContainerCommand("default", tserverNamePlural, masterNamePlural, masterName, int32(7100), int32(9100), int32(5433), replicationFactor)
+
+	assert.Equal(t, expectedCommand, actualCommand)
+}
+
+func TestCreateMasterContainerCommandRF1(t *testing.T) {
+	replicationFactor := int32(1)
+
+	expectedCommand := getMasterContainerCommand(replicationFactor)
+	actualCommand := createMasterContainerCommand("default", masterNamePlural, masterName, int32(7100), replicationFactor)
+
+	assert.Equal(t, expectedCommand, actualCommand)
+}
+
+func TestCreateTServerContainerCommandRF1(t *testing.T) {
+	replicationFactor := int32(1)
+
+	expectedCommand := getTserverContainerCommand(replicationFactor)
+	actualCommand := createTServerContainerCommand("default", tserverNamePlural, masterNamePlural, masterName, int32(7100), int32(9100), int32(5433), replicationFactor)
+
+	assert.Equal(t, expectedCommand, actualCommand)
+}
+
+func getMasterContainerCommand(replicationFactor int32) []string {
 	expectedCommand := []string{
 		"/home/yugabyte/bin/yb-master",
 		"--fs_data_dirs=/mnt/data0",
 		fmt.Sprintf("--rpc_bind_addresses=$(POD_IP):%d", masterRPCPortDefault),
 		fmt.Sprintf("--server_broadcast_addresses=$(POD_NAME).yb-masters:%d", masterRPCPortDefault),
 		"--use_private_ip=never",
-		fmt.Sprintf("--master_addresses=yb-masters.default.svc.cluster.local:%d", masterRPCPortDefault),
-		"--use_initial_sys_catalog_snapshot=true",
-		fmt.Sprintf("--master_replication_factor=%d", replicationFactor),
+		fmt.Sprintf("--master_addresses=%s", getMasterAddresses(masterName, masterNamePlural, "default", replicationFactor, int32(7100))),
+		"--enable_ysql=true",
+		fmt.Sprintf("--replication_factor=%d", replicationFactor),
 		"--logtostderr",
 	}
-
-	actualCommand := createMasterContainerCommand("default", masterNamePlural, int32(7100), int32(3))
-
-	assert.Equal(t, expectedCommand, actualCommand)
+	return expectedCommand
 }
 
-func TestCreateTServerContainerCommand(t *testing.T) {
-	replicationFactor := 3
-
+func getTserverContainerCommand(replicationFactor int32) []string {
 	expectedCommand := []string{
 		"/home/yugabyte/bin/yb-tserver",
 		"--fs_data_dirs=/mnt/data0",
 		fmt.Sprintf("--rpc_bind_addresses=$(POD_IP):%d", tserverRPCPortDefault),
 		fmt.Sprintf("--server_broadcast_addresses=$(POD_NAME).yb-tservers:%d", tserverRPCPortDefault),
-		"--start_pgsql_proxy",
 		fmt.Sprintf("--pgsql_proxy_bind_address=$(POD_IP):%d", tserverPostgresPortDefault),
 		"--use_private_ip=never",
-		fmt.Sprintf("--tserver_master_addrs=yb-masters.default.svc.cluster.local:%d", masterRPCPortDefault),
-		fmt.Sprintf("--tserver_master_replication_factor=%d", replicationFactor),
+		fmt.Sprintf("--tserver_master_addrs=%s", getMasterAddresses(masterName, masterNamePlural, "default", replicationFactor, int32(7100))),
+		"--enable_ysql=true",
 		"--logtostderr",
 	}
-
-	actualCommand := createTServerContainerCommand("default", tserverNamePlural, masterNamePlural, int32(7100), int32(9100), int32(5433), int32(3))
-
-	assert.Equal(t, expectedCommand, actualCommand)
+	return expectedCommand
 }
 
 func TestOnAdd(t *testing.T) {
@@ -411,9 +436,9 @@ func TestOnAdd(t *testing.T) {
 		"--rpc_bind_addresses=$(POD_IP):7100",
 		fmt.Sprintf("--server_broadcast_addresses=$(POD_NAME).%s:7100", addCRNameSuffix(masterNamePlural)),
 		"--use_private_ip=never",
-		fmt.Sprintf("--master_addresses=%s.%s.svc.cluster.local:7100", addCRNameSuffix(masterNamePlural), namespace),
-		"--use_initial_sys_catalog_snapshot=true",
-		"--master_replication_factor=3",
+		fmt.Sprintf("--master_addresses=%s", getMasterAddresses(addCRNameSuffix(masterName), addCRNameSuffix(masterNamePlural), namespace, int32(3), int32(7100))),
+		"--enable_ysql=true",
+		"--replication_factor=3",
 		"--logtostderr",
 	}
 	assert.Equal(t, expectedCommand, container.Command)
@@ -481,11 +506,10 @@ func TestOnAdd(t *testing.T) {
 		"--fs_data_dirs=/mnt/data0",
 		"--rpc_bind_addresses=$(POD_IP):9100",
 		fmt.Sprintf("--server_broadcast_addresses=$(POD_NAME).%s:9100", addCRNameSuffix(tserverNamePlural)),
-		"--start_pgsql_proxy",
 		"--pgsql_proxy_bind_address=$(POD_IP):5433",
 		"--use_private_ip=never",
-		fmt.Sprintf("--tserver_master_addrs=%s.%s.svc.cluster.local:7100", addCRNameSuffix(masterNamePlural), namespace),
-		"--tserver_master_replication_factor=3",
+		fmt.Sprintf("--tserver_master_addrs=%s", getMasterAddresses(addCRNameSuffix(masterName), addCRNameSuffix(masterNamePlural), namespace, int32(3), int32(7100))),
+		"--enable_ysql=true",
 		"--logtostderr",
 	}
 	assert.Equal(t, expectedCommand, container.Command)
