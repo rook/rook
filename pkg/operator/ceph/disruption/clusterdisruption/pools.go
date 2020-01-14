@@ -135,9 +135,8 @@ func (r *ReconcileClusterDisruption) getOngoingDrains(request reconcile.Request)
 				logger.Infof("node %s does not exist, deleting corresponding drain-canary", nodeHostname)
 				err = r.client.DeleteAllOf(context.TODO(), &appsv1.Deployment{}, client.MatchingLabels{corev1.LabelHostname: nodeHostname, k8sutil.AppAttr: nodedrain.CanaryAppName})
 				if err != nil {
-					logger.Errorf("could not delete drain-canary for host %s: %+v", nodeHostname, err)
+					return nil, fmt.Errorf("could not delete drain-canary for host %s: %+v", nodeHostname, err)
 				}
-
 			} else if len(nodeList.Items) > 1 {
 				logger.Warningf("found more than one node with %s=%s", corev1.LabelHostname, nodeHostname)
 			}
