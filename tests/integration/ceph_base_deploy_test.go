@@ -39,6 +39,7 @@ const (
 	// UPDATE these versions when the integration test matrix changes
 	// These versions are for running a minimal test suite for more efficient tests across different versions of K8s
 	// instead of running all suites on all versions
+	// To run on multiple versions, add a comma separate list such as 1.16.0,1.17.0
 	blockMinimalTestVersion        = "1.12.0"
 	multiClusterMinimalTestVersion = "1.13.0"
 	helmMinimalTestVersion         = "1.14.0"
@@ -113,11 +114,21 @@ func checkIfShouldRunForMinimalTestMatrix(t func() *testing.T, k8sh *utils.K8sHe
 		logger.Infof("running all tests")
 		return
 	}
-	if !k8sh.VersionMinorMatches(version) {
-		logger.Infof("Skipping test suite since kube version is not minor version %s", version)
+	versions := strings.Split(version, ",")
+	logger.Infof("checking if tests are running on k8s %q", version)
+	matchedVersion := false
+	kubeVersion := ""
+	for _, v := range versions {
+		kubeVersion, matchedVersion = k8sh.VersionMinorMatches(v)
+		if matchedVersion {
+			break
+		}
+	}
+	if !matchedVersion {
+		logger.Infof("Skipping test suite since kube version %q does not match", kubeVersion)
 		t().Skip()
 	}
-	logger.Infof("Running test suite since kube version is minor version %s", version)
+	logger.Infof("Running test suite since kube version is %q", kubeVersion)
 }
 
 // StartTestCluster creates new instance of TestCluster struct
