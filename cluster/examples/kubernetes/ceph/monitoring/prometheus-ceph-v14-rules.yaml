@@ -86,13 +86,13 @@ spec:
         severity: critical
     - alert: CephMonHighNumberOfLeaderChanges
       annotations:
-        description: 'Ceph Monitor "{{ $labels.job }}": instance {{ $labels.instance
-          }} has seen {{ $value | printf "%.2f" }} leader changes per minute recently.'
+        description: Ceph Monitor {{ $labels.ceph_daemon }} on host {{ $labels.hostname
+          }} has seen {{ $value | printf "%.2f" }} leader changes per minute recently.
         message: Storage Cluster has seen many leader changes recently.
         severity_level: warning
         storage_type: ceph
       expr: |
-        rate(ceph_mon_num_elections{job="rook-ceph-mgr"}[5m]) * 60 > 0.95
+        (ceph_mon_metadata{job="rook-ceph-mgr"} * on (ceph_daemon) group_left() (rate(ceph_mon_num_elections{job="rook-ceph-mgr"}[5m]) * 60)) > 0.95
       for: 5m
       labels:
         severity: warning
