@@ -118,7 +118,7 @@ The model for approving changes is largely based on the [Kubernetes code review 
 where a set of roles are defined for different portions of the code base and have different responsibilities:
 
 * **Reviewers** are able to review code for quality and correctness on some part of the project, but cannot merge changes.
-* **Approvers** are able to both review and approve code contributions. While code review is focused on code quality and correctness, approval is focused on holistic acceptance of a contribution. Approvers can merge changes.
+* **Maintainers** are able to both review and approve code contributions. While code review is focused on code quality and correctness, approval is focused on holistic acceptance of a contribution. Maintainers can merge changes. (A Rook maintainer is similar in scope to a K8s approver in the link above.)
 
 Both of these roles will require a time commitment to the project in order to keep the change approval process moving forward at a reasonable pace.
 When automation is implemented to auto assign members to review pull requests, it will be done in a round-robin fashion, so all members must be able to dedicate the time needed.
@@ -130,11 +130,11 @@ Note that neither of these roles have voting powers in conflict resolution, thes
 The general flow for a pull request approval process is as follows:
 
 1. Author submits the pull request
-1. Reviewers and approvers for the applicable code areas review the pull request and provide feedback that the author integrates
-1. Reviewers and/or approvers signify their LGTM on the pull request
-1. An approver approves the pull request based on at least one LGTM from the previous step
-    1. Note that the approver can heavily lean on the reviewer for examining the pull request at a finely grained detailed level. The reviewers are trusted members and approvers can leverage their efforts to reduce their own review burden.
-1. An approver merges the pull request into the target branch (master, release, etc.)
+1. Reviewers and maintainers for the applicable code areas review the pull request and provide feedback that the author integrates
+1. Reviewers and/or maintainers signify their LGTM on the pull request
+1. A maintainer approves the pull request based on at least one LGTM from the previous step
+    1. Note that the maintainer can heavily lean on the reviewer for examining the pull request at a finely grained detailed level. The reviewers are trusted members and maintainers can leverage their efforts to reduce their own review burden.
+1. A maintainer merges the pull request into the target branch (master, release, etc.)
 
 ### Role Assignments
 
@@ -144,12 +144,12 @@ All roles will be assigned by the usage of [`CODE-OWNERS`](CODE-OWNERS) files co
 These assignments will be initially be defined in a single file at the root of the repo and it will describe all assigned roles for the entire code base.
 As we incorporate automation (i.e. bots) into this change acceptance process in the future, we can reorganize this initial single owners file into separate files amongst the codebase as the automation necessitates.
 
-The format of the file can start with simply listing the reviewers and approvers for areas of the code base using a YAML format:
+The format of the file can start with simply listing the reviewers and maintainers for areas of the code base using a YAML format:
 
 ```yaml
 areas:
   feature-foo:
-    approvers:
+    maintainers:
     - alice
     - bob
     reviewers:
@@ -158,22 +158,22 @@ areas:
 
 #### Update Process
 
-The process for adding or removing reviewers/approvers is described in the [project governance](GOVERNANCE.md#updating-change-approval-roles).
+The process for adding or removing reviewers/maintainers is described in the [project governance](GOVERNANCE.md#updating-change-approval-roles).
 
 ### Permissions
 
 Role assignees will be made part of the following Rook organization teams with the given permissions:
 
 * **Reviewers:** added to a new Reviewers team so they have write permissions to the repo to assign issues, add labels to issues, add issues to milestones and projects, etc. but cannot merge to protected branches such as `master` and `release-*`.
-* **Approvers:** added to a new Approvers team that will have access to merge to protected branches.
+* **Maintainers:** added to a Maintainers team that has access to merge to protected branches.
 
 ### Automation
 
-This process can be further improved by automation and bots to automatically assign the PR to reviewers/approvers, add labels to the PR, and merge the PR.
+This process can be further improved by automation and bots to automatically assign the PR to reviewers/maintainers, add labels to the PR, and merge the PR.
 We should explore this further with some experimentation and potentially leveraging what Kubernetes has done, but automation isn’t strictly required to adopt and implement this model.
 
 ### Alternatives Considered
 
 The built in support in Github for [`CODEOWNERS`](https://help.github.com/en/articles/about-code-owners) files was considered.
 However, this only supports the automated assignment of reviewers to pull requests.
-It has no tiering or differentiation between roles like the proposed approvers/reviewers model has and is therefore not a good fit.
+It has no tiering or differentiation between roles like the proposed maintainers/reviewers model has and is therefore not a good fit.
