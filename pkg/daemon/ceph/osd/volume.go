@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path"
 	"strconv"
 	"strings"
@@ -39,7 +40,9 @@ import (
 // These are not constants because they are used by the tests
 var (
 	cephConfigDir = "/var/lib/ceph"
+	cephLogDir    = "/var/log/ceph"
 	lvmConfPath   = "/etc/lvm/lvm.conf"
+	cvLogDir      = ""
 )
 
 const (
@@ -102,7 +105,24 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 
 func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *DeviceOsdMapping, lvBackedPV bool) (string, error) {
 	baseCommand := "stdbuf"
-	baseArgs := []string{"-oL", cephVolumeCmd, "lvm", "prepare"}
+	var baseArgs []string
+
+	// Create a specific log directory so that each prepare command will have its own log
+	// Only do this if nothing is present so that we don't override existing logs
+	cvLogDir = path.Join(cephLogDir, a.nodeName)
+	err := os.MkdirAll(cvLogDir, 0755)
+	if err != nil {
+		logger.Errorf("failed to create ceph-volume log directory %q, continue with default %q. %v", cvLogDir, cephLogDir, err)
+		baseArgs = []string{"-oL", cephVolumeCmd}
+	} else {
+		baseArgs = []string{"-oL", cephVolumeCmd, "--log-path", cvLogDir}
+	}
+
+	baseArgs = append(baseArgs, []string{
+		"lvm",
+		"prepare",
+	}...)
+
 	var lvpath string
 	for name, device := range devices.Entries {
 		if device.LegacyPartitionsFound {
@@ -127,21 +147,31 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 				"--data",
 				deviceArg,
 			}...)
-			// execute ceph-volume with the device
 
-			if op, err := context.Executor.ExecuteCommandWithCombinedOutput(false, "", baseCommand, immediateExecuteArgs...); err != nil {
+			// execute ceph-volume with the device
+			op, err := context.Executor.ExecuteCommandWithCombinedOutput(false, "", baseCommand, immediateExecuteArgs...)
+			if err != nil {
+				cvLogFilePath := path.Join(cvLogDir, "ceph-volume.log")
+
+				// Print c-v log before exiting
+				cvLog := readCVLogContent(cvLogFilePath)
+				if cvLog != "" {
+					logger.Errorf("%s", cvLog)
+				}
+
+				// Return failure
 				return "", errors.Wrapf(err, "failed ceph-volume") // fail return here as validation provided by ceph-volume
+			}
+			logger.Infof("%v", op)
+			if lvBackedPV {
+				lvpath = deviceArg
 			} else {
-				logger.Infof("%v", op)
-				if lvBackedPV {
-					lvpath = deviceArg
-				} else {
-					lvpath = getLVPath(op)
-					if lvpath == "" {
-						return "", errors.New("failed to get lvpath from ceph-volume lvm prepare output")
-					}
+				lvpath = getLVPath(op)
+				if lvpath == "" {
+					return "", errors.New("failed to get lvpath from ceph-volume lvm prepare output")
 				}
 			}
+
 		} else {
 			logger.Infof("skipping device %s with osd %d already configured", name, device.Data)
 		}
@@ -497,6 +527,25 @@ func getCephVolumeOSDs(context *clusterd.Context, clusterName string, cephfsid s
 	logger.Infof("%d ceph-volume osd devices configured on this node", len(osds))
 
 	return osds, nil
+}
+
+func readCVLogContent(cvLogFilePath string) string {
+	// Open c-v log file
+	cvLogFile, err := os.Open(cvLogFilePath)
+	if err != nil {
+		logger.Errorf("failed to open ceph-volume log file %q. %v", cvLogFilePath, err)
+		return ""
+	}
+	defer cvLogFile.Close()
+
+	// Read c-v log file
+	b, err := ioutil.ReadAll(cvLogFile)
+	if err != nil {
+		logger.Errorf("failed to read ceph-volume log file %q. %v", cvLogFilePath, err)
+		return ""
+	}
+
+	return string(b)
 }
 
 type osdInfo struct {
