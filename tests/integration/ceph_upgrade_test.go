@@ -32,6 +32,11 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
+const (
+	rbdPodName        = "test-pod-upgrade"
+	operatorContainer = "rook-ceph-operator"
+)
+
 // ************************************************
 // *** Major scenarios tested by the UpgradeSuite ***
 // Setup
@@ -92,15 +97,16 @@ func (s *UpgradeSuite) TearDownSuite() {
 func (s *UpgradeSuite) TestUpgradeToMaster() {
 	systemNamespace := installer.SystemNamespace(s.namespace)
 
-	// Create block, object, and file storage on 0.8 before the upgrade
+	//
+	// Create block, object, and file storage on 1.0 before the upgrade
+	//
 	poolName := "upgradepool"
 	storageClassName := "block-upgrade"
 	blockName := "block-claim-upgrade"
-	podName := "test-pod-upgrade"
 	logger.Infof("Initializing block before the upgrade")
-	setupBlockLite(s.helper, s.k8sh, s.Suite, s.namespace, poolName, storageClassName, blockName, podName, s.op.installer.CephVersion)
-	createPodWithBlock(s.helper, s.k8sh, s.Suite, s.namespace, blockName, podName)
-	defer blockTestDataCleanUp(s.helper, s.k8sh, s.Suite, s.namespace, poolName, storageClassName, blockName, podName)
+	setupBlockLite(s.helper, s.k8sh, s.Suite, s.namespace, poolName, storageClassName, blockName, rbdPodName, s.op.installer.CephVersion)
+	createPodWithBlock(s.helper, s.k8sh, s.Suite, s.namespace, blockName, rbdPodName)
+	defer blockTestDataCleanUp(s.helper, s.k8sh, s.Suite, s.namespace, poolName, storageClassName, blockName, rbdPodName)
 
 	logger.Infof("Initializing file before the upgrade")
 	filesystemName := "upgrade-test-fs"
@@ -116,17 +122,17 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	runObjectE2ETestLite(s.helper, s.k8sh, s.Suite, s.namespace, objectStoreName, 1)
 
 	// verify that we're actually running the right pre-upgrade image
-	operatorContainer := "rook-ceph-operator"
-	version, err := k8sutil.GetDeploymentImage(s.k8sh.Clientset, systemNamespace, operatorContainer, operatorContainer)
-	assert.NoError(s.T(), err)
-	assert.Equal(s.T(), "rook/ceph:"+installer.Version1_0, version)
+	s.VerifyOperatorImage("rook/ceph:" + installer.Version1_0)
 
 	message := "my simple message"
 	preFilename := "pre-upgrade-file"
-	assert.NoError(s.T(), s.k8sh.WriteToPod("", podName, preFilename, message))
-	assert.NoError(s.T(), s.k8sh.ReadFromPod("", podName, preFilename, message))
+	assert.NoError(s.T(), s.k8sh.WriteToPod("", rbdPodName, preFilename, message))
+	assert.NoError(s.T(), s.k8sh.ReadFromPod("", rbdPodName, preFilename, message))
 	assert.NoError(s.T(), s.k8sh.WriteToPod(s.namespace, filePodName, preFilename, message))
 	assert.NoError(s.T(), s.k8sh.ReadFromPod(s.namespace, filePodName, preFilename, message))
+
+	// we will keep appending to this to continue verifying old files through the upgrades
+	oldFilesToRead := []string{preFilename}
 
 	// Gather logs before Ceph upgrade to help with debugging
 	if installer.Env.Logs == "all" {
@@ -147,14 +153,11 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	numOSDs := len(osdDeps) // there should be this many upgraded OSDs
 	require.True(s.T(), numOSDs > 0)
 	d := osdDeps[0]
-	oldRookVersion := d.Labels["rook-version"] // upgraded OSDs should not have this version label
 	oldCephVersion := d.Labels["ceph-version"] // upgraded OSDs should not have this version label
 
-	// Update to the next version of cluster roles before the operator is restarted
-	err = s.updateClusterRoles()
-	require.NoError(s.T(), err)
-
-	// Upgrade Ceph version
+	//
+	// Upgrade Ceph version from Mimic to Nautilus before upgrading to Rook v1.1
+	//
 	s.k8sh.Kubectl("-n", s.namespace, "patch", "CephCluster", s.namespace, "--type=merge",
 		"-p", fmt.Sprintf(`{"spec": {"cephVersion": {"image": "%s"}}}`, installer.NautilusVersion.Image))
 
@@ -192,144 +195,140 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	n = strings.Replace(s.T().Name(), "/", "_", -1) + "_after_ceph_upgrade"
 	s.op.installer.GatherAllRookLogs(n, systemNamespace, s.namespace)
 
-	// Upgrade Rook to master
-	require.NoError(s.T(), s.k8sh.SetDeploymentVersion(systemNamespace, operatorContainer, operatorContainer, installer.VersionMaster))
+	//
+	// Upgrade Rook from v1.0 to v1.1
+	//
+	m1 := installer.CephManifestsV1_1{
+		K8sh:              s.k8sh,
+		Namespace:         s.namespace,
+		SystemNamespace:   systemNamespace,
+		OperatorContainer: operatorContainer,
+		T:                 s.T,
+	}
+	m1.UpgradeToV1_1()
+
+	s.VerifyOperatorImage(m1.RookImage())
+	s.VerifyRookUpgrade(numMons, numOSDs)
+	logger.Infof("Done with automatic upgrade from v1.0 to v1.1")
+	newFile := "post-upgrade-1_0-to-1_1-file"
+	s.VerifyFilesAfterUpgrade(filesystemName, newFile, message, oldFilesToRead)
+	oldFilesToRead = append(oldFilesToRead, newFile)
+	logger.Infof("Verified upgrade from v1.0 to v1.1")
+
+	//
+	// Upgrade Rook from v1.1 to v1.2
+	//
+	m2 := installer.CephManifestsV1_2{
+		K8sh:              s.k8sh,
+		Namespace:         s.namespace,
+		SystemNamespace:   systemNamespace,
+		OperatorContainer: operatorContainer,
+		T:                 s.T,
+	}
+	m2.UpgradeToV1_2()
+
+	s.VerifyOperatorImage(m2.RookImage())
+	s.VerifyRookUpgrade(numMons, numOSDs)
+	logger.Infof("Done with automatic upgrade from v1.1 to v1.2")
+	newFile = "post-upgrade-1_1-to-1_2-file"
+	s.VerifyFilesAfterUpgrade(filesystemName, newFile, message, oldFilesToRead)
+	oldFilesToRead = append(oldFilesToRead, newFile)
+	logger.Infof("Verified upgrade from v1.1 to v1.2")
+
+	//
+	// Upgrade Rook from v1.2 to v1.3 (master)
+	//
+	m3 := installer.CephManifestsV1_3{
+		K8sh:              s.k8sh,
+		Namespace:         s.namespace,
+		SystemNamespace:   systemNamespace,
+		OperatorContainer: operatorContainer,
+		T:                 s.T,
+	}
+	m3.UpgradeToV1_3()
+
+	s.VerifyOperatorImage(m3.RookImage())
+	s.VerifyRookUpgrade(numMons, numOSDs)
+	logger.Infof("Done with automatic upgrade from v1.2 to v1.3")
+	newFile = "post-upgrade-1_2-to-1_3-file"
+	s.VerifyFilesAfterUpgrade(filesystemName, newFile, message, oldFilesToRead)
+	oldFilesToRead = append(oldFilesToRead, newFile)
+	logger.Infof("Verified upgrade from v1.2 to v1.3")
+}
+
+func (s *UpgradeSuite) VerifyOperatorImage(expectedImage string) {
+	systemNamespace := installer.SystemNamespace(s.namespace)
 
 	// verify that the operator spec is updated
-	version, err = k8sutil.GetDeploymentImage(s.k8sh.Clientset, systemNamespace, operatorContainer, operatorContainer)
+	version, err := k8sutil.GetDeploymentImage(s.k8sh.Clientset, systemNamespace, operatorContainer, operatorContainer)
 	assert.NoError(s.T(), err)
-	assert.Equal(s.T(), "rook/ceph:"+installer.VersionMaster, version)
+	assert.Equal(s.T(), expectedImage, version)
+}
 
-	// wait for the mon pods to be running. we can no longer check a version in the pod spec, so we just wait a bit.
-	time.Sleep(15 * time.Second)
+func (s *UpgradeSuite) VerifyRookUpgrade(numMons, numOSDs int) {
+	// Get some info about the currently deployed mons to determine later if they are all updated
+	monDepList, err := k8sutil.GetDeployments(s.k8sh.Clientset, s.namespace, "app=rook-ceph-mon")
+	require.NoError(s.T(), err)
+	require.Equal(s.T(), numMons, len(monDepList.Items))
 
-	monsNotOldVersion = fmt.Sprintf("app=rook-ceph-mon,rook-version!=%s", oldRookVersion)
+	// Get some info about the currently deployed OSDs to determine later if they are all updated
+	osdDepList, err := k8sutil.GetDeployments(s.k8sh.Clientset, s.namespace, "app=rook-ceph-osd")
+	require.NoError(s.T(), err)
+	require.NotZero(s.T(), len(osdDepList.Items))
+	require.Equal(s.T(), numOSDs, len(osdDepList.Items))
+
+	d := osdDepList.Items[0]
+	oldRookVersion := d.Labels["rook-version"] // upgraded OSDs should not have this version label
+
+	monsNotOldVersion := fmt.Sprintf("app=rook-ceph-mon,rook-version!=%s", oldRookVersion)
 	err = s.k8sh.WaitForDeploymentCount(monsNotOldVersion, s.namespace, numMons)
 	require.NoError(s.T(), err)
 	err = s.k8sh.WaitForLabeledDeploymentsToBeReady(monsNotOldVersion, s.namespace)
 	require.NoError(s.T(), err)
 
 	// wait for the osd pods to be updated
-	osdsNotOldVersion = fmt.Sprintf("app=rook-ceph-osd,rook-version!=%s", oldRookVersion)
+	osdsNotOldVersion := fmt.Sprintf("app=rook-ceph-osd,rook-version!=%s", oldRookVersion)
 	err = s.k8sh.WaitForDeploymentCount(osdsNotOldVersion, s.namespace, numOSDs)
 	require.NoError(s.T(), err)
 	err = s.k8sh.WaitForLabeledDeploymentsToBeReady(osdsNotOldVersion, s.namespace)
 	require.NoError(s.T(), err)
 
-	mdsesNotOldVersion = fmt.Sprintf("app=rook-ceph-mds,rook-version!=%s", oldRookVersion)
+	mdsesNotOldVersion := fmt.Sprintf("app=rook-ceph-mds,rook-version!=%s", oldRookVersion)
 	err = s.k8sh.WaitForDeploymentCount(mdsesNotOldVersion, s.namespace, 4 /* always expect 4 mdses */)
 	require.NoError(s.T(), err)
 	err = s.k8sh.WaitForLabeledDeploymentsToBeReady(mdsesNotOldVersion, s.namespace)
 	require.NoError(s.T(), err)
 
-	logger.Infof("Done with automatic upgrade to master")
+	// rgwsNotOldVersion
+	// There is an unlikely corner case with RGWs where the upgrade will fail on upgrades regarding
+	// a pool added for erasure coding. This hasn't been observed by users, so we ignore this
+	// currently.
 
 	// Give a few seconds for the daemons to settle down after the upgrade
 	time.Sleep(5 * time.Second)
-
-	// wait for filesystem to be active
-	err = waitForFilesystemActive(s.k8sh, s.namespace, filesystemName)
-	require.NoError(s.T(), err)
-
-	// Test writing and reading from the pod with cephfs mounted that was created before the upgrade.
-	postFilename := "post-upgrade-file"
-	assert.NoError(s.T(), s.k8sh.ReadFromPodRetry(s.namespace, filePodName, preFilename, message, 5))
-	assert.NoError(s.T(), s.k8sh.WriteToPodRetry(s.namespace, filePodName, postFilename, message, 5))
-	assert.NoError(s.T(), s.k8sh.ReadFromPodRetry(s.namespace, filePodName, postFilename, message, 5))
-
-	// Test writing and reading from the pod with rbd mounted that was created before the upgrade.
-	// There is some unreliability right after the upgrade when there is only one osd, so we will retry if needed
-	assert.NoError(s.T(), s.k8sh.ReadFromPodRetry("", podName, preFilename, message, 5))
-	assert.NoError(s.T(), s.k8sh.WriteToPodRetry("", podName, postFilename, message, 5))
-	assert.NoError(s.T(), s.k8sh.ReadFromPodRetry("", podName, postFilename, message, 5))
 }
 
-// Update the clusterroles that have been modified in master from the previous release
-func (s *UpgradeSuite) updateClusterRoles() error {
-	logger.Infof("Placeholder: create the new resources that have been added since 1.0")
-	namespace := s.namespace
-	newResources := `
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: rook-ceph-cmd-reporter
-  namespace: ` + namespace + `
----
-kind: Role
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-cmd-reporter
-  namespace: ` + namespace + `
-rules:
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  - configmaps
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - delete
----
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-cmd-reporter
-  namespace: ` + namespace + `
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: rook-ceph-cmd-reporter
-subjects:
-- kind: ServiceAccount
-  name: rook-ceph-cmd-reporter
-  namespace: ` + namespace + `
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: rook-ceph-cmd-reporter-psp
-  namespace: ` + namespace + `
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: psp:rook
-subjects:
-- kind: ServiceAccount
-  name: rook-ceph-cmd-reporter
-  namespace: ` + namespace + `
----
-kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-osd
-rules:
-- apiGroups:
-  - ""
-  resources:
-  - nodes
-  verbs:
-  - get
-  - list
----
-# Allow the ceph osd to access cluster-wide resources necessary for determining their topology location
-kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-osd
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: rook-ceph-osd
-subjects:
-- kind: ServiceAccount
-  name: rook-ceph-osd
-  namespace: ` + namespace + `
-`
-	logger.Infof("creating the new resources that have been added since 1.0")
-	return s.k8sh.ResourceOperation("apply", newResources)
+func (s *UpgradeSuite) VerifyFilesAfterUpgrade(fsName, newFileToWrite, messageForAllFiles string, oldFilesToRead []string) {
+	retryCount := 5
+
+	// wait for filesystem to be active
+	err := waitForFilesystemActive(s.k8sh, s.namespace, fsName)
+	require.NoError(s.T(), err)
+
+	for _, file := range oldFilesToRead {
+		// test reading preexisting files in the pod with cephfs mounted
+		assert.NoError(s.T(), s.k8sh.ReadFromPodRetry(s.namespace, filePodName, file, messageForAllFiles, retryCount))
+
+		// test reading preexisting files in the pod with rbd mounted
+		// There is some unreliability right after the upgrade when there is only one osd, so we will retry if needed
+		assert.NoError(s.T(), s.k8sh.ReadFromPodRetry("", rbdPodName, file, messageForAllFiles, retryCount))
+	}
+
+	// test writing and reading a new file in the pod with cephfs mounted
+	assert.NoError(s.T(), s.k8sh.WriteToPodRetry(s.namespace, filePodName, newFileToWrite, messageForAllFiles, retryCount))
+	assert.NoError(s.T(), s.k8sh.ReadFromPodRetry(s.namespace, filePodName, newFileToWrite, messageForAllFiles, retryCount))
+
+	// test writing and reading a new file in the pod with rbd mounted
+	assert.NoError(s.T(), s.k8sh.WriteToPodRetry("", rbdPodName, newFileToWrite, messageForAllFiles, retryCount))
+	assert.NoError(s.T(), s.k8sh.ReadFromPodRetry("", rbdPodName, newFileToWrite, messageForAllFiles, retryCount))
 }
