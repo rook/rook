@@ -99,7 +99,6 @@ var ClusterResource = k8sutil.CustomResource{
 type ClusterController struct {
 	context                *clusterd.Context
 	volumeAttachment       attachment.Attachment
-	devicesInUse           bool
 	rookImage              string
 	clusterMap             map[string]*cluster
 	addClusterCallbacks    []func(*cephv1.ClusterSpec) error
@@ -332,15 +331,6 @@ func (c *ClusterController) configureLocalCephCluster(namespace, name string, cl
 	}
 	if cluster.Spec.Mon.Count%2 == 0 {
 		logger.Warningf("mon count is even (given: %d), should be uneven, continuing", cluster.Spec.Mon.Count)
-	}
-
-	if c.devicesInUse && cluster.Spec.Storage.AnyUseAllDevices() {
-		c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1.ClusterStateError, "using all devices in more than one namespace is not supported")
-		return errors.New("using all devices in more than one namespace is not supported")
-	}
-
-	if cluster.Spec.Storage.AnyUseAllDevices() {
-		c.devicesInUse = true
 	}
 
 	// Start the Rook cluster components. Retry several times in case of failure.
@@ -794,11 +784,7 @@ func (c *ClusterController) onDelete(obj interface{}) {
 	c.csiConfigMutex.Unlock()
 
 	// Only valid when the cluster is not external
-	if !clust.Spec.External.Enable {
-		if clust.Spec.Storage.AnyUseAllDevices() {
-			c.devicesInUse = false
-		}
-	} else {
+	if clust.Spec.External.Enable {
 		err := purgeExternalCluster(c.context.Clientset, clust.Namespace)
 		if err != nil {
 			logger.Errorf("failed to purge external cluster ressources. %v", err)
