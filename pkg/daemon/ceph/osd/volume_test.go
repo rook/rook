@@ -17,6 +17,9 @@ limitations under the License.
 package osd
 
 import (
+	"io/ioutil"
+	"os"
+	"path"
 	"testing"
 
 	"github.com/pkg/errors"
@@ -310,4 +313,30 @@ func TestSanitizeOSDsPerDevice(t *testing.T) {
 func TestGetDatabaseSize(t *testing.T) {
 	assert.Equal(t, 0, getDatabaseSize(0, 0))
 	assert.Equal(t, 2048, getDatabaseSize(4096, 2048))
+}
+
+func TestPrintCVLogContent(t *testing.T) {
+	tmp, err := ioutil.TempFile("", "cv-log")
+	assert.Nil(t, err)
+
+	defer os.Remove(tmp.Name())
+
+	nodeName := "set1-2-data-jmxdx"
+	cvLogDir = path.Join(tmp.Name(), nodeName)
+	assert.Equal(t, path.Join(tmp.Name(), nodeName), cvLogDir)
+
+	cvLogFilePath := path.Join(cvLogDir, "ceph-volume.log")
+	assert.Equal(t, path.Join(cvLogDir, "ceph-volume.log"), cvLogFilePath)
+
+	// Print c-v log, it is empty so this is similating a failure (e,g: the file does not exist)
+	cvLog := readCVLogContent(tmp.Name())
+	assert.Empty(t, cvLog, cvLog)
+
+	// Write content in the file
+	cvDummyLog := []byte(`dummy log`)
+	_, err = tmp.Write(cvDummyLog)
+	assert.NoError(t, err)
+	// Print again, now there is content
+	cvLog = readCVLogContent(tmp.Name())
+	assert.NotEmpty(t, cvLog, cvLog)
 }
