@@ -26,7 +26,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/cmd/rook/rook"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 	osddaemon "github.com/rook/rook/pkg/daemon/ceph/osd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
@@ -35,8 +34,6 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
-	corev1 "k8s.io/api/core/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -289,70 +286,18 @@ func commonOSDInit(cmd *cobra.Command) {
 
 // use zone/region/hostname labels in the crushmap
 func getLocation(clientset kubernetes.Interface) (string, error) {
-	// Get the node based on the immutable k8s node name
-	nodeName := os.Getenv(k8sutil.NodeNameEnvVar)
-	node, err := getNode(clientset, nodeName)
-	if err != nil {
-		return "", errors.Wrapf(err, "could not get the node for topology labels")
-	}
-
 	// get the value the operator instructed to use as the host name in the CRUSH map
 	hostNameLabel := os.Getenv("ROOK_CRUSHMAP_HOSTNAME")
 
-	// If the operator did not pass a host name, look up the hostname label.
-	// This happens when the operator doesn't know on what node the osd will be assigned (non-portable PVCs).
-	if hostNameLabel == "" {
-		hostNameLabel, err = k8sutil.GetNodeHostNameLabel(node)
-		if err != nil {
-			return "", errors.Wrapf(err, "failed to get the host name label for node %q", node.Name)
-		}
+	loc, err := oposd.GetLocationWithNode(clientset, os.Getenv(k8sutil.NodeNameEnvVar), hostNameLabel)
+	if err != nil {
+		return "", err
 	}
-
-	// Start with the host name in the CRUSH map
-	// Keep the fully qualified host name in the crush map, but replace the dots with dashes to satisfy ceph
-	hostName := client.NormalizeCrushName(hostNameLabel)
-	locArgs := []string{"root=default", fmt.Sprintf("host=%s", hostName)}
-
-	nodeLabels := node.GetLabels()
-	updateLocationWithNodeLabels(&locArgs, nodeLabels)
-
-	loc := strings.Join(locArgs, " ")
-	logger.Infof("CRUSH location=%s", loc)
 	return loc, nil
 }
 
 func updateLocationWithNodeLabels(location *[]string, nodeLabels map[string]string) {
-
-	topology, invalidLabels := oposd.ExtractRookTopologyFromLabels(nodeLabels)
-	if len(invalidLabels) > 0 {
-		logger.Warningf("ignored invalid node topology labels: %v", invalidLabels)
-	}
-	for topologyType, value := range topology {
-		if topologyType != "host" {
-			client.UpdateCrushMapValue(location, topologyType, value)
-		}
-	}
-}
-
-// getNode will try to get the node object for the provided nodeName
-// it will try using the node's name it's hostname label
-func getNode(clientset kubernetes.Interface, nodeName string) (*corev1.Node, error) {
-	var node *corev1.Node
-	var err error
-	// try to find by the node by matching the provided nodeName
-	node, err = clientset.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
-	if kerrors.IsNotFound(err) {
-		listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%q=%q", corev1.LabelHostname, nodeName)}
-		nodeList, err := clientset.CoreV1().Nodes().List(listOpts)
-		if err != nil || len(nodeList.Items) < 1 {
-			return nil, errors.Wrapf(err, "could not find node %q hostname label", nodeName)
-		}
-		return &nodeList.Items[0], nil
-	} else if err != nil {
-		return nil, errors.Wrapf(err, "could not find node %q by name", nodeName)
-	}
-
-	return node, nil
+	oposd.UpdateLocationWithNodeLabels(location, nodeLabels)
 }
 
 // Parse the devices, which are comma separated. A colon indicates a non-default number of osds per device
