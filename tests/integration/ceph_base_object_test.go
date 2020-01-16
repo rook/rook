@@ -50,20 +50,30 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	logger.Infof("Object Storage End To End Integration Test - Create Object Store, User,Bucket and read/write to bucket")
 	logger.Infof("Running on Rook Cluster %s", namespace)
 
-	logger.Infof("Step 0 : Create Object Store")
+	logger.Infof("Step 0 : Create Object Store User")
+	cosuErr := helper.ObjectUserClient.Create(namespace, userid, userdisplayname, storeName)
+	require.Nil(s.T(), cosuErr)
+
+	logger.Infof("Step 1 : Create Object Store")
 	cobsErr := helper.ObjectClient.Create(namespace, storeName, 3)
-	// check that ObjectStore is created
 	require.Nil(s.T(), cobsErr)
+
+	// check that ObjectStore is created
+	logger.Infof("Check that RGW pods are Running")
+	i := 0
+	for i = 0; i < 24 && k8sh.CheckPodCountAndState("rook-ceph-rgw", namespace, 1, "Running") == false; i++ {
+		logger.Infof("(%d) RGW pod check sleeping for 5 seconds ...", i)
+		time.Sleep(5 * time.Second)
+	}
+	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-ceph-rgw", namespace, 1, "Running"))
+	logger.Infof("RGW pods are running")
 	logger.Infof("Object store created successfully")
 
-	logger.Infof("Step 1 : Create Object Store User")
-	cosuErr := helper.ObjectUserClient.Create(namespace, userid, userdisplayname, storeName)
 	// check that ObjectUser is created
-	require.Nil(s.T(), cosuErr)
 	logger.Infof("Waiting 10 seconds to ensure user was created")
 	time.Sleep(10 * time.Second)
 	logger.Infof("Checking to see if the user secret has been created")
-	i := 0
+	i = 0
 	for i = 0; i < 4 && helper.ObjectUserClient.UserSecretExists(namespace, storeName, userid) == false; i++ {
 		logger.Infof("(%d) secret check sleeping for 5 seconds ...", i)
 		time.Sleep(5 * time.Second)
