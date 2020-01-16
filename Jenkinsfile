@@ -112,7 +112,7 @@ pipeline {
                         "aws_1.14.x": "v1.14.10",
                         "aws_1.15.x": "v1.15.7",
                         "aws_1.16.x": "v1.16.4",
-                        "aws_1.17.x": "v1.17.0"
+                        "aws_1.17.x": "v1.17.1"
                     ]
                     testruns = [:]
                     for (kv in mapToList(data)) {
