@@ -647,8 +647,20 @@ func (c *Cluster) startDeployments(mons []*monConfig, requireAllInQuorum bool) e
 		} else {
 			logger.Warningf("failed to list mon deployments. attempting to continue. %v", err)
 		}
-	} else if len(deployments.Items) < len(mons) {
+	}
+
+	readyReplicas := 0
+	// Ensuring the mon deployments should be ready
+	for _, deploy := range deployments.Items {
+		if deploy.Status.AvailableReplicas > 0 {
+			readyReplicas++
+		}
+	}
+	if len(deployments.Items) < len(mons) {
 		logger.Infof("%d of %d expected mon deployments exist. creating new deployment(s).", len(deployments.Items), len(mons))
+		onlyCheckQuorumOnce = true
+	} else if readyReplicas == 0 {
+		logger.Infof("%d of %d expected mons are ready. creating or updating deployments without checking quorum in attempt to achieve a healthy mon cluster", readyReplicas, len(mons))
 		onlyCheckQuorumOnce = true
 	}
 
