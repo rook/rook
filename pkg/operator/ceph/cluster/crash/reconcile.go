@@ -24,6 +24,9 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/rbd"
+	appsv1 "k8s.io/api/apps/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+
 	"github.com/rook/rook/pkg/operator/ceph/file/mds"
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/ceph/version"
@@ -124,6 +127,31 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 			logger.Errorf("more than one CephCluster found in the namespace %q, choosing the first one %q", namespace, cephCluster.GetName())
 		}
 
+		// If the crash controller is disabled in the spec let's do a noop
+		if cephCluster.Spec.CrashCollector.Disable {
+			deploymentList := &appsv1.DeploymentList{}
+			namespaceListOpts := client.InNamespace(request.Namespace)
+
+			// Try to fetch the list of existing deployment and remove them
+			err := r.client.List(context.TODO(), deploymentList, client.MatchingLabels{k8sutil.AppAttr: AppName}, namespaceListOpts)
+			if err != nil {
+				logger.Errorf("failed to list crash collector deployments, delete it/them manually. %v", err)
+				return reconcile.Result{}, nil
+			}
+
+			//  Try to delete all the crash deployments
+			for _, d := range deploymentList.Items {
+				err := r.deleteCrashCollector(d)
+				if err != nil {
+					logger.Errorf("failed to delete crash collector deployment %q, delete it manually. %v", d.Name, err)
+					continue
+				}
+				logger.Infof("crash collector deployment %q successfully removed", d.Name)
+			}
+
+			return reconcile.Result{}, nil
+		}
+
 		clusterImage := cephCluster.Spec.CephVersion.Image
 		cephVersion, ok := getImageVersion(clusterImage)
 		if !ok {
@@ -184,4 +212,22 @@ func getImageVersion(image string) (*version.CephVersion, bool) {
 		<-time.After(time.Second * getVersionRetryInterval)
 	}
 	return nil, false
+}
+
+func (r *ReconcileNode) deleteCrashCollector(deployment appsv1.Deployment) error {
+	deploymentName := deployment.ObjectMeta.Name
+	namespace := deployment.ObjectMeta.Namespace
+	dep := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      deploymentName,
+			Namespace: namespace,
+		},
+	}
+
+	err := r.client.Delete(context.TODO(), dep)
+	if err != nil && !kerrors.IsNotFound(err) {
+		return errors.Wrapf(err, "could not delete crash collector deployment %q", deploymentName)
+	}
+
+	return nil
 }
