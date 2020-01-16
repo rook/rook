@@ -1711,6 +1711,7 @@ spec:
     allowMultiplePerNode: true
   dashboard:
     enabled: true
+  skipUpgradeChecks: true
   rbdMirroring:
     workers: ` + strconv.Itoa(settings.RBDMirrorWorkers) + `
   metadataDevice:
