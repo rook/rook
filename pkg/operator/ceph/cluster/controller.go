@@ -326,10 +326,12 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 
 	// Create Crash Collector Secret
 	// In 14.2.5 the crash daemon will read the client.crash key instead of the admin key
-	if cluster.Info.CephVersion.IsAtLeast(version.CephVersion{Major: 14, Minor: 2, Extra: 5}) {
-		err = crash.CreateCrashCollectorSecret(c.context, namespace, &cluster.ownerRef)
-		if err != nil {
-			return errors.Wrap(err, "failed to create crash collector kubernetes secret")
+	if !cluster.Spec.CrashCollector.Disable {
+		if cluster.Info.CephVersion.IsAtLeast(version.CephVersion{Major: 14, Minor: 2, Extra: 5}) {
+			err = crash.CreateCrashCollectorSecret(c.context, namespace, &cluster.ownerRef)
+			if err != nil {
+				return errors.Wrap(err, "failed to create crash collector kubernetes secret")
+			}
 		}
 	}
 
