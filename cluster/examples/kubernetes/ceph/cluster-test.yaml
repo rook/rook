@@ -32,6 +32,8 @@ spec:
     hostNetwork: false
   rbdMirroring:
     workers: 0
+  crashCollector:
+    disable: false
   mgr:
     modules:
     # the pg_autoscaler is only available on nautilus or newer. remove this if testing mimic.

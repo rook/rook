@@ -121,6 +121,8 @@ For more details on the mons and when to choose a number other than `3`, see the
 * `rbdMirroring`: The settings for rbd mirror daemon(s). Configuring which pools or images to be mirrored must be completed in the rook toolbox by running the
 [rbd mirror](http://docs.ceph.com/docs/mimic/rbd/rbd-mirroring/) command.
   * `workers`: The number of rbd daemons to perform the rbd mirroring between clusters.
+* `crashCollector`: The settings for crash collector daemon(s).
+  * `disable`: is set to `true`, the crash collector will not run on any node where a Ceph daemon runs
 * `annotations`: [annotations configuration settings](#annotations-configuration-settings)
 * `placement`: [placement configuration settings](#placement-configuration-settings)
 * `resources`: [resources configuration settings](#cluster-wide-resources-configuration-settings)

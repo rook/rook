@@ -41,6 +41,8 @@ spec:
     ssl: true
   network:
     hostNetwork: false
+  crashCollector:
+    disable: false
   storage:
     storageClassDeviceSets:
     - name: set1
