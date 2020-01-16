@@ -89,6 +89,9 @@ type ClusterSpec struct {
 	// A spec for rbd mirroring
 	RBDMirroring RBDMirroringSpec `json:"rbdMirroring"`
 
+	// A spec for the crash controller
+	CrashCollector CrashCollectorSpec `json:"crashCollector"`
+
 	// Dashboard settings
 	Dashboard DashboardSpec `json:"dashboard,omitempty"`
 
@@ -194,6 +197,11 @@ type ExternalSpec struct {
 
 type RBDMirroringSpec struct {
 	Workers int `json:"workers"`
+}
+
+// CrashCollectorSpec represents options to configure the crash controller
+type CrashCollectorSpec struct {
+	Disable bool `json:"disable"`
 }
 
 // +genclient
