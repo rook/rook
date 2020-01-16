@@ -158,10 +158,11 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	oldCephVersion := d.Labels["ceph-version"] // upgraded OSDs should not have this version label
 
 	//
-	// Upgrade Ceph version from Mimic to Nautilus before upgrading to Rook v1.1
+	// Upgrade Ceph version from Mimic to Nautilus before upgrading to Rook v1.1.
+	// Set the skipUpgradeChecks flag since we're not fully waiting for Ceph health during the tests.
 	//
 	s.k8sh.Kubectl("-n", s.namespace, "patch", "CephCluster", s.namespace, "--type=merge",
-		"-p", fmt.Sprintf(`{"spec": {"cephVersion": {"image": "%s"}}}`, installer.NautilusVersion.Image))
+		"-p", fmt.Sprintf(`{"spec": {"cephVersion": {"image": "%s"}, "skipUpgradeChecks": "true"}}`, installer.NautilusVersion.Image))
 
 	// we need to make sure Ceph is fully updated (including RGWs and MDSes) before proceeding to
 	// upgrade rook; we do not support upgrading Ceph simultaneously with Rook upgrade
