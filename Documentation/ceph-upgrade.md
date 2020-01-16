@@ -49,11 +49,11 @@ With this upgrade guide, there are a few notes to consider:
 ## Patch Release Upgrades
 
 Unless otherwise noted due to extenuating requirements, upgrades from one patch release of Rook to
-another are as simple as updating the image of the Rook operator. For example, when Rook v1.2.1 is
+another are as simple as updating the image of the Rook operator. For example, when Rook v1.2.2 is
 released, the process of updating from v1.2.0 is as simple as running the following:
 
 ```console
-kubectl -n rook-ceph set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.2.1
+kubectl -n rook-ceph set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.2.2
 ```
 
 ## Upgrading from v1.1 to v1.2
@@ -211,8 +211,8 @@ Any pod that is using a Rook volume should also remain healthy:
 
 ## Rook Operator Upgrade Process
 
-In the examples given in this guide, we will be upgrading a live Rook cluster running `v1.1.7` to
-the version `v1.2.1`. This upgrade should work from any official patch release of Rook v1.1 to any
+In the examples given in this guide, we will be upgrading a live Rook cluster running `v1.1.9` to
+the version `v1.2.2`. This upgrade should work from any official patch release of Rook v1.1 to any
 official patch release of v1.2. We will further assume that your previous cluster was created using
 an earlier version of this guide and manifests. If you have created custom manifests, these steps
 may not work as written.
@@ -262,7 +262,7 @@ kubectl -n $ROOK_SYSTEM_NAMESPACE edit deploy rook-ceph-operator
 ```
 ```yaml
   # If you set this image at the same time as the env variables, you can skip step 3 of this guide and avoid a second operator restart
-  image: rook/ceph:v1.2.1
+  image: rook/ceph:v1.2.2
   env:
     # Change the update strategy for the CephFS driver if your cluster is affected
     - name: CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY
@@ -285,7 +285,7 @@ When the operator is updated, it will proceed to update all of the Ceph daemons.
 (If step 1 was completed, this change has already been applied.)
 
 ```sh
-kubectl -n $ROOK_SYSTEM_NAMESPACE set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.2.1
+kubectl -n $ROOK_SYSTEM_NAMESPACE set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.2.2
 ```
 
 ## 4. Wait for the upgrade to complete
@@ -303,19 +303,19 @@ watch --exec kubectl -n $ROOK_NAMESPACE get deployments -l rook_cluster=$ROOK_NA
 ```
 
 As an example, this cluster is midway through updating the OSDs from v1.1 to v1.2. When all
-deployments report `1/1/1` availability and `rook-version=v1.2.1`, the Ceph cluster's core
+deployments report `1/1/1` availability and `rook-version=v1.2.2`, the Ceph cluster's core
 components are fully updated.
 
 ```console
 Every 2.0s: kubectl -n rook-ceph get deployment -o j...
 
-rook-ceph-mgr-a         req/upd/avl: 1/1/1      rook-version=v1.2.1
-rook-ceph-mon-a         req/upd/avl: 1/1/1      rook-version=v1.2.1
-rook-ceph-mon-b         req/upd/avl: 1/1/1      rook-version=v1.2.1
-rook-ceph-mon-c         req/upd/avl: 1/1/1      rook-version=v1.2.1
-rook-ceph-osd-0         req/upd/avl: 1//        rook-version=v1.2.1
-rook-ceph-osd-1         req/upd/avl: 1/1/1      rook-version=v1.1.7
-rook-ceph-osd-2         req/upd/avl: 1/1/1      rook-version=v1.1.7
+rook-ceph-mgr-a         req/upd/avl: 1/1/1      rook-version=v1.2.2
+rook-ceph-mon-a         req/upd/avl: 1/1/1      rook-version=v1.2.2
+rook-ceph-mon-b         req/upd/avl: 1/1/1      rook-version=v1.2.2
+rook-ceph-mon-c         req/upd/avl: 1/1/1      rook-version=v1.2.2
+rook-ceph-osd-0         req/upd/avl: 1//        rook-version=v1.2.2
+rook-ceph-osd-1         req/upd/avl: 1/1/1      rook-version=v1.1.9
+rook-ceph-osd-2         req/upd/avl: 1/1/1      rook-version=v1.1.9
 ```
 
 The MDSes and RGWs are the last daemons to update. An easy check to see if the upgrade is totally
@@ -325,15 +325,15 @@ to proceed with the next step before the MDSes and RGWs are finished updating.
 ```console
 # kubectl -n $ROOK_NAMESPACE get deployment -l rook_cluster=$ROOK_NAMESPACE -o jsonpath='{range .items[*]}{"rook-version="}{.metadata.labels.rook-version}{"\n"}{end}' | sort | uniq
 This cluster is not yet finished:
-  rook-version=v1.1.7
-  rook-version=v1.2.1
+  rook-version=v1.1.9
+  rook-version=v1.2.2
 This cluster is finished:
-  rook-version=v1.2.1
+  rook-version=v1.2.2
 ```
 
 ## 5. Verify the updated cluster
 
-At this point, your Rook operator should be running version `rook/ceph:v1.2.1`.
+At this point, your Rook operator should be running version `rook/ceph:v1.2.2`.
 
 Verify the Ceph cluster's health using the [health verification section](#health-verification).
 
