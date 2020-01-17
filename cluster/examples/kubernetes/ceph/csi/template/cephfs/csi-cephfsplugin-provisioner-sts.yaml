@@ -20,7 +20,7 @@ spec:
         - name: csi-attacher
           image: {{ .AttacherImage }}
           args:
-            - "--v=5"
+            - "--v={{ .LogLevel }}"
             - "--timeout=150s"
             - "--csi-address=$(ADDRESS)"
           env:
@@ -34,7 +34,7 @@ spec:
           image: {{ .ProvisionerImage }}
           args:
             - "--csi-address=$(ADDRESS)"
-            - "--v=5"
+            - "--v={{ .LogLevel }}"
             - "--timeout=150s"
             - "--retry-interval-start=500ms"
           env:
@@ -50,7 +50,7 @@ spec:
             - "--nodeid=$(NODE_ID)"
             - "--type=cephfs"
             - "--endpoint=$(CSI_ENDPOINT)"
-            - "--v=5"
+            - "--v={{ .LogLevel }}"
             - "--controllerserver=true"
             - "--drivername={{ .DriverNamePrefix }}cephfs.csi.ceph.com"
             - "--metadatastorage=k8s_configmap"

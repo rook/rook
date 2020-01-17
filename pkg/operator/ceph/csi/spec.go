@@ -19,6 +19,7 @@ package csi
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -48,6 +49,7 @@ type Param struct {
 	ForceCephFSKernelClient    string
 	CephFSPluginUpdateStrategy string
 	RBDPluginUpdateStrategy    string
+	LogLevel                   uint8
 	CephFSGRPCMetricsPort      uint16
 	CephFSLivenessMetricsPort  uint16
 	RBDGRPCMetricsPort         uint16
@@ -131,6 +133,9 @@ const (
 	DefaultCephFSLivenessMerticsPort uint16 = 9081
 	DefaultRBDGRPCMerticsPort        uint16 = 9090
 	DefaultRBDLivenessMerticsPort    uint16 = 9080
+
+	// default log level for csi containers
+	defaultLogLevel uint8 = 0
 )
 
 func CSIEnabled() bool {
@@ -257,6 +262,17 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 	}
 	if ver.Major < KubeMinMajor || ver.Major == KubeMinMajor && ver.Minor < kubeMinVerForBlockRestore {
 		logger.Warning("CSI Block volume expansion requires Kubernetes version >=1.16.0")
+	}
+
+	logLevel := os.Getenv("CSI_LOG_LEVEL")
+	tp.LogLevel = defaultLogLevel
+	if logLevel != "" {
+		l, err := strconv.ParseUint(logLevel, 10, 8)
+		if err != nil {
+			logger.Errorf("failed to parse CSI_LOG_LEVEL. Defaulting to %d. %v", defaultLogLevel, err)
+		} else {
+			tp.LogLevel = uint8(l)
+		}
 	}
 
 	if EnableRBD {

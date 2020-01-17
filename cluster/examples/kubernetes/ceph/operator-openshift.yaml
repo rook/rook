@@ -235,6 +235,10 @@ spec:
         # Enable deployment of snapshotter container in ceph-csi provisioner
         - name: CSI_ENABLE_SNAPSHOTTER
           value: "true"
+        # Set logging level for csi containers.
+        # Supported values from 0 to 5. 0 for general useful logs, 5 for trace level verbosity.
+        #- name: CSI_LOG_LEVEL
+        #  value: "0"
         # Enable Ceph Kernel clients on kernel < 4.17 which support quotas for Cephfs
         # If you disable the kernel client, your application may be disrupted during upgrade.
         # See the upgrade guide: https://rook.io/docs/rook/v1.2/ceph-upgrade.html

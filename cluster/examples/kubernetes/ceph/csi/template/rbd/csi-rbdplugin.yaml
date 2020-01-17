@@ -30,7 +30,7 @@ spec:
             privileged: true
           image: {{ .RegistrarImage }}
           args:
-            - "--v=5"
+            - "--v={{ .LogLevel }}"
             - "--csi-address=/csi/csi.sock"
             - "--kubelet-registration-path={{ .KubeletDirPath }}/plugins/{{ .DriverNamePrefix }}rbd.csi.ceph.com/csi.sock"
           lifecycle:
@@ -57,7 +57,7 @@ spec:
           args :
             - "--nodeid=$(NODE_ID)"
             - "--endpoint=$(CSI_ENDPOINT)"
-            - "--v=5"
+            - "--v={{ .LogLevel }}"
             - "--type=rbd"
             - "--nodeserver=true"
             - "--drivername={{ .DriverNamePrefix }}rbd.csi.ceph.com"

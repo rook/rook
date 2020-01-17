@@ -29,7 +29,7 @@ spec:
             privileged: true
           image: {{ .RegistrarImage }}
           args:
-            - "--v=5"
+            - "--v={{ .LogLevel }}"
             - "--csi-address=/csi/csi.sock"
             - "--kubelet-registration-path={{ .KubeletDirPath }}/plugins/{{ .DriverNamePrefix }}cephfs.csi.ceph.com/csi.sock"
           lifecycle:
@@ -57,7 +57,7 @@ spec:
             - "--nodeid=$(NODE_ID)"
             - "--type=cephfs"
             - "--endpoint=$(CSI_ENDPOINT)"
-            - "--v=5"
+            - "--v={{ .LogLevel }}"
             - "--nodeserver=true"
             - "--drivername={{ .DriverNamePrefix }}cephfs.csi.ceph.com"
             - "--metadatastorage=k8s_configmap"
