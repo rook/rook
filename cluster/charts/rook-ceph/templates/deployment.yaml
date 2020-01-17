@@ -194,6 +194,10 @@ spec:
         - name: CSI_FORCE_CEPHFS_KERNEL_CLIENT
           value: {{ .Values.csi.forceCephFSKernelClient | quote }}
 {{- end }}
+{{- if .Values.csi.logLevel }}
+        - name: CSI_LOG_LEVEL
+          value: {{ .Values.csi.logLevel | quote }}
+{{- end }}
 {{- end }}
         - name: ROOK_ENABLE_FLEX_DRIVER
           value: "{{ .Values.enableFlexDriver }}"
