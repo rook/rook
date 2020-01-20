@@ -424,7 +424,9 @@ func realScheduleMonitor(c *Cluster, mon *monConfig) (SchedulingResult, error) {
 
 	// setup affinity settings for pod scheduling
 	p := cephv1.GetMonPlacement(c.spec.Placement)
-	c.setPodPlacement(&d.Spec.Template.Spec, p, nil)
+	if !c.spec.Mon.AllowMultiplePerNode {
+		c.setPodPlacement(&d.Spec.Template.Spec, p, nil)
+	}
 
 	// setup storage on the canary since scheduling will be affected when
 	// monitors are configured to use persistent volumes. the pvcName is set to
