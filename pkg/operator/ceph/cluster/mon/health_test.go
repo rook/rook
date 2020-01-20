@@ -247,7 +247,7 @@ func TestAddOrRemoveExternalMonitor(t *testing.T) {
 	// both clusterInfo and mon map are identical so nil is expected
 	changed, err = c.addOrRemoveExternalMonitor(fakeResp)
 	assert.NoError(t, err)
-	assert.True(t, changed)
+	assert.False(t, changed)
 	assert.Equal(t, 1, len(c.ClusterInfo.Monitors))
 
 	//
