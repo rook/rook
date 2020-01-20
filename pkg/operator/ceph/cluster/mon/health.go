@@ -323,12 +323,15 @@ func (c *Cluster) handleExternalMonStatus(status client.MonStatusResponse) error
 
 func (c *Cluster) addOrRemoveExternalMonitor(status client.MonStatusResponse) (bool, error) {
 	var changed bool
-	// clearing the content of clusterinfo monitors, it'll get populated in the next iteration
-	for mon := range c.ClusterInfo.Monitors {
-		delete(c.ClusterInfo.Monitors, mon)
+	oldClusterInfoMonitors := map[string]*cephconfig.MonInfo{}
+	// clearing the content of clusterinfo monitors
+	// and populate oldClusterInfoMonitors with monitors from clusterinfo
+	// later c.ClusterInfo.Monitors get populated again
+	for monName, mon := range c.ClusterInfo.Monitors {
+		oldClusterInfoMonitors[mon.Name] = mon
+		delete(c.ClusterInfo.Monitors, monName)
 	}
-	logger.Infof("ClusterInfo is now Empty, refilling it from status.MonMap.Mons")
-	monsNotFound := map[string]interface{}{}
+	logger.Debugf("ClusterInfo is now Empty, refilling it from status.MonMap.Mons")
 
 	monCount := len(status.MonMap.Mons)
 	if monCount%2 == 0 {
@@ -342,8 +345,8 @@ func (c *Cluster) addOrRemoveExternalMonitor(status client.MonStatusResponse) (b
 	// Iterate over the mons first and compare it with ClusterInfo
 	for _, mon := range status.MonMap.Mons {
 		inQuorum := monInQuorum(mon, status.Quorum)
-		// if the mon is not in clusterInfo
-		if _, ok := monsNotFound[mon.Name]; !ok {
+		// if the mon was not in clusterInfo
+		if _, ok := oldClusterInfoMonitors[mon.Name]; !ok {
 			// If the mon is part of the quorum
 			if inQuorum {
 				// let's add it to ClusterInfo
@@ -355,23 +358,39 @@ func (c *Cluster) addOrRemoveExternalMonitor(status client.MonStatusResponse) (b
 				// find IP and Port of that Mon
 				monIP := cephutil.GetIPFromEndpoint(endpoint)
 				monPort := cephutil.GetPortFromEndpoint(endpoint)
-				logger.Infof("new external mon %s found: %s, adding it", mon.Name, endpoint)
+				logger.Infof("new external mon %q found: %s, adding it", mon.Name, endpoint)
 				c.ClusterInfo.Monitors[mon.Name] = cephconfig.NewMonInfo(mon.Name, monIP, monPort)
-				changed = true
+			} else {
+				logger.Debugf("mon %q is not in quorum and not in ClusterInfo", mon.Name)
 			}
-			logger.Debugf("mon %s is not in quorum and not in ClusterInfo", mon.Name)
+			changed = true
 		} else {
 			// mon is in ClusterInfo
-			logger.Debugf("mon %s is in ClusterInfo, let's test if it's in quorum", mon.Name)
+			logger.Debugf("mon %q is in ClusterInfo, let's test if it's in quorum", mon.Name)
 			if !inQuorum {
-				// this mon was in clusterInfo but not part of the quorum anymore
-				// let's remove it from ClusterInfo
-				logger.Infof("monitor %s is not part of the external cluster monitor quorum, removing it", mon.Name)
-				delete(c.ClusterInfo.Monitors, mon.Name)
+				// this mon was in clusterInfo but is not part of the quorum anymore
+				// thus don't add it again to ClusterInfo
+				logger.Infof("monitor %q is not part of the external cluster monitor quorum, removing it", mon.Name)
+				changed = true
+			} else {
+				// this mon was in clusterInfo and is still in the quorum
+				// add it again
+				c.ClusterInfo.Monitors[mon.Name] = oldClusterInfoMonitors[mon.Name]
+				logger.Debugf("everything is fine mon %q in the clusterInfo and its quorum status is %v", mon.Name, inQuorum)
+			}
+		}
+	}
+	// compare old clusterInfo with new ClusterInfo
+	// if length differ -> the are different
+	// then check if all elements are the same
+	if len(oldClusterInfoMonitors) != len(c.ClusterInfo.Monitors) {
+		changed = true
+	} else {
+		for _, mon := range c.ClusterInfo.Monitors {
+			if old, ok := oldClusterInfoMonitors[mon.Name]; !ok || *old != *mon {
 				changed = true
 			}
 		}
-		logger.Debugf("everything is fine mon %s in the clusterInfo and its quorum status is %v", mon.Name, inQuorum)
 	}
 
 	logger.Debugf("ClusterInfo.Monitors is %+v", c.ClusterInfo.Monitors)
