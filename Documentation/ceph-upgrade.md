@@ -476,7 +476,7 @@ located.
 ```yaml
   env:
     - name: ROOK_CSI_CEPH_IMAGE
-        value: "quay.io/cephcsi/cephcsi:v1.2.2"
+        value: "quay.io/cephcsi/cephcsi:v2.0.0"
     - name: ROOK_CSI_REGISTRAR_IMAGE
         value: "quay.io/k8scsi/csi-node-driver-registrar:v1.1.0"
     - name: ROOK_CSI_PROVISIONER_IMAGE
@@ -494,7 +494,7 @@ are updated.
 
 ```console
 # kubectl --namespace rook-ceph get pod -o jsonpath='{range .items[*]}{range .spec.containers[*]}{.image}{"\n"}' -l 'app in (csi-rbdplugin,csi-rbdplugin-provisioner,csi-cephfsplugin,csi-cephfsplugin-provisioner)' | sort | uniq
-quay.io/cephcsi/cephcsi:v1.2.2
+quay.io/cephcsi/cephcsi:v2.0.0
 quay.io/k8scsi/csi-attacher:v1.2.0
 quay.io/k8scsi/csi-node-driver-registrar:v1.1.0
 quay.io/k8scsi/csi-provisioner:v1.4.0
