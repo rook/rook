@@ -19,8 +19,6 @@ For documentation on consuming the storage:
 * RBD: See the [Block Storage](ceph-block.md) topic
 * CephFS: See the [Shared Filesystem](ceph-filesystem.md) topic
 
-The remainder of this topic is on the snapshotting feature of the RBD driver.
-
 ## RBD Snapshots
 
 Since this feature is still in [alpha
@@ -138,3 +136,22 @@ csi_liveness 1
 
 Check the [monitoring doc](ceph-monitoring.md) to see how to integrate CSI
 liveness and grpc metrics into ceph monitoring.
+
+## Dynamically Expand Volume
+
+### Prerequisite
+
+* For filesystem resize to be supported for your Kubernetes cluster, the
+  kubernetes version running in your cluster should be >= v1.15 and for block
+  volume resize support the Kubernetes version should be >= v1.16. Also,
+  `ExpandCSIVolumes` feature gate has to be enabled for the volume resize
+  functionality to work.
+
+To expand the PVC the controlling StorageClass must have `allowVolumeExpansion`
+set to `true`. `csi.storage.k8s.io/controller-expand-secret-name` and
+`csi.storage.k8s.io/controller-expand-secret-namespace` values set in
+storageclass. Now expand the PVC by editing the PVC
+`pvc.spec.resource.requests.storage` to a higher values than the current size.
+Once PVC is expanded on backend and same is reflected size is reflected on
+application mountpoint, the status capacity `pvc.status.capacity.storage` of
+PVC will be updated to new size.
