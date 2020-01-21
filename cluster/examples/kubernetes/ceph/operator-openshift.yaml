@@ -247,6 +247,8 @@ spec:
         #  value: "quay.io/cephcsi/cephcsi:v2.0.0"
         #- name: ROOK_CSI_REGISTRAR_IMAGE
         #  value: "quay.io/k8scsi/csi-node-driver-registrar:v1.2.0"
+        #- name: ROOK_CSI_RESIZER_IMAGE
+        #  value: "quay.io/k8scsi/csi-resizer:v0.4.0"
         #- name: ROOK_CSI_PROVISIONER_IMAGE
         #  value: "quay.io/k8scsi/csi-provisioner:v1.4.0"
         #- name: ROOK_CSI_SNAPSHOTTER_IMAGE

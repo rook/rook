@@ -40,6 +40,7 @@ type Param struct {
 	ProvisionerImage           string
 	AttacherImage              string
 	SnapshotterImage           string
+	ResizerImage               string
 	DriverNamePrefix           string
 	EnableSnapshotter          string
 	EnableCSIGRPCMetrics       string
@@ -95,6 +96,7 @@ var (
 	DefaultProvisionerImage = "quay.io/k8scsi/csi-provisioner:v1.4.0"
 	DefaultAttacherImage    = "quay.io/k8scsi/csi-attacher:v2.1.0"
 	DefaultSnapshotterImage = "quay.io/k8scsi/csi-snapshotter:v1.2.2"
+	defaultResizerImage     = "quay.io/k8scsi/csi-resizer:v0.4.0"
 )
 
 const (
@@ -241,6 +243,11 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 
 	if ver.Major > KubeMinMajor || (ver.Major == KubeMinMajor && ver.Minor < provDeploymentSuppVersion) {
 		deployProvSTS = true
+	}
+
+	tp.ResizerImage = os.Getenv("ROOK_CSI_RESIZER_IMAGE")
+	if tp.ResizerImage == "" {
+		tp.ResizerImage = defaultResizerImage
 	}
 
 	if EnableRBD {

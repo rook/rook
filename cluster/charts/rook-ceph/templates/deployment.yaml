@@ -152,6 +152,12 @@ spec:
           value: {{ .Values.csi.attacher.image | quote }}
 {{- end }}
 {{- end }}
+{{- if .Values.csi.resizer }}
+{{- if .Values.csi.resizer.image }}
+        - name: ROOK_CSI_RESIZER_IMAGE
+          value: {{ .Values.csi.resizer.image | quote }}
+{{- end }}
+{{- end }}
 {{- if .Values.csi.provisionerTolerations }}
         - name: CSI_PROVISIONER_TOLERATIONS
           value: {{ toYaml .Values.csi.provisionerTolerations | quote }}
