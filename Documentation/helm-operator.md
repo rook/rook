@@ -133,7 +133,7 @@ The following tables lists the configurable parameters of the rook-operator char
 | `csi.cephcsi.image`              | Ceph CSI image.                                                                                         | `quay.io/cephcsi/cephcsi:v2.0.0`                       |
 | `csi.rbdPluginUpdateStrategy`    | CSI Rbd plugin daemonset update strategy, supported values are OnDelete and RollingUpdate.              | `OnDelete`                                             |
 | `csi.cephFSPluginUpdateStrategy` | CSI CephFS plugin daemonset update strategy, supported values are OnDelete and RollingUpdate.           | `OnDelete`                                             |
-| `csi.registrar.image`            | Kubernetes CSI registrar image.                                                                         | `quay.io/k8scsi/csi-node-driver-registrar:v1.1.0`      |
+| `csi.registrar.image`            | Kubernetes CSI registrar image.                                                                         | `quay.io/k8scsi/csi-node-driver-registrar:v1.2.0`      |
 | `csi.provisioner.image`          | Kubernetes CSI provisioner image.                                                                       | `quay.io/k8scsi/csi-provisioner:v1.4.0`                |
 | `csi.snapshotter.image`          | Kubernetes CSI snapshotter image.                                                                       | `quay.io/k8scsi/csi-snapshotter:v1.2.2`                |
 | `csi.attacher.image`             | Kubernetes CSI Attacher image.                                                                          | `quay.io/k8scsi/csi-attacher:v2.1.0`                   |
