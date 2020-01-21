@@ -18,7 +18,12 @@ parameters:
     # If you change this namespace, also change the namespace below where the secret namespaces are defined
     clusterID: rook-ceph
 
-    # Ceph pool into which the RBD image shall be created
+    # If you want to use erasure coded pool with RBD, you need to create
+    # two pools. one erasure coded and one replicated.
+    # You need to specify the replicated pool here in the `pool` parameter, it is
+    # used for the metadata of the images.
+    # The erasure coded pool must be set as the `dataPool` parameter below.
+    #dataPool: ec-data-pool
     pool: replicapool
 
     # RBD image format. Defaults to "2".
