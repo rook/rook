@@ -511,7 +511,7 @@ located.
     - name: ROOK_CSI_CEPH_IMAGE
         value: "quay.io/cephcsi/cephcsi:v1.2.2"
     - name: ROOK_CSI_REGISTRAR_IMAGE
-        value: "quay.io/k8scsi/csi-node-driver-registrar:v1.1.0"
+        value: "quay.io/k8scsi/csi-node-driver-registrar:v1.2.0"
     - name: ROOK_CSI_PROVISIONER_IMAGE
         value: "quay.io/k8scsi/csi-provisioner:v1.4.0"
     - name: ROOK_CSI_SNAPSHOTTER_IMAGE
@@ -529,7 +529,7 @@ are updated.
 # kubectl --namespace rook-ceph get pod -o jsonpath='{range .items[*]}{range .spec.containers[*]}{.image}{"\n"}' -l 'app in (csi-rbdplugin,csi-rbdplugin-provisioner,csi-cephfsplugin,csi-cephfsplugin-provisioner)' | sort | uniq
 quay.io/cephcsi/cephcsi:v1.2.2
 quay.io/k8scsi/csi-attacher:v1.2.0
-quay.io/k8scsi/csi-node-driver-registrar:v1.1.0
+quay.io/k8scsi/csi-node-driver-registrar:v1.2.0
 quay.io/k8scsi/csi-provisioner:v1.4.0
 quay.io/k8scsi/csi-snapshotter:v1.2.2
 ```
