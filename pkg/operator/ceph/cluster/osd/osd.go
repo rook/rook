@@ -19,6 +19,7 @@ package osd
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -831,9 +832,16 @@ func UpdateLocationWithNodeLabels(location *[]string, nodeLabels map[string]stri
 	if len(invalidLabels) > 0 {
 		logger.Warningf("ignored invalid node topology labels: %v", invalidLabels)
 	}
-	for topologyType, value := range topology {
+
+	keys := make([]string, 0, len(topology))
+	for k := range topology {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, topologyType := range keys {
 		if topologyType != "host" {
-			client.UpdateCrushMapValue(location, topologyType, value)
+			client.UpdateCrushMapValue(location, topologyType, topology[topologyType])
 		}
 	}
 }

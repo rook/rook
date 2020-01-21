@@ -17,7 +17,6 @@ limitations under the License.
 package ceph
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -113,23 +112,18 @@ func TestDetectCrushLocation(t *testing.T) {
 		"topology.rook.io/rack":                    "rack1",
 		"topology.rook.io/row":                     "row1",
 	}
-	expected := map[string]string{
-		"host":   "foo",
-		"region": "region1",
-		"zone":   "zone1",
-		"rack":   "rack1",
-		"row":    "row1",
+
+	expected := []string{
+		"host=foo",
+		"rack=rack1",
+		"region=region1",
+		"row=row1",
+		"zone=zone1",
 	}
 	updateLocationWithNodeLabels(&location, nodeLabels)
-	assert.Equal(t, 5, len(location))
-	for _, locString := range location {
-		split := strings.Split(locString, "=")
-		assert.Len(t, split, 2)
-		prefix := split[0]
-		value := split[1]
-		expectedValue, ok := expected[prefix]
-		assert.True(t, ok)
-		assert.Equal(t, expectedValue, value)
-	}
 
+	assert.Equal(t, 5, len(location))
+	for i, locString := range location {
+		assert.Equal(t, locString, expected[i])
+	}
 }
