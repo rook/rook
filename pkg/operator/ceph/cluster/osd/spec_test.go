@@ -377,8 +377,6 @@ func TestOsdOnSDNFlag(t *testing.T) {
 }
 
 func TestOsdPrepareResources(t *testing.T) {
-	var osdClaimName string
-
 	clientset := fake.NewSimpleClientset()
 	c := New(&cephconfig.ClusterInfo{}, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "myversion", cephv1.CephVersionSpec{},
 		rookalpha.StorageScopeSpec{}, "", rookalpha.Placement{}, rookalpha.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, metav1.OwnerReference{}, false, false)
@@ -394,8 +392,8 @@ func TestOsdPrepareResources(t *testing.T) {
 	}
 
 	c.prepareResources = rr
-	r := c.osdPrepareResources(osdClaimName)
-	assert.Equal(t, "2", r.Limits.Cpu().String(), rr.Limits.Cpu().String())
+	r := c.prepareResources
+	assert.Equal(t, "2000", r.Limits.Cpu().String(), rr.Limits.Cpu().String())
 	assert.Equal(t, "0", r.Requests.Cpu().String())
 	assert.Equal(t, "0", r.Limits.Memory().String())
 	assert.Equal(t, "250", r.Requests.Memory().String())
