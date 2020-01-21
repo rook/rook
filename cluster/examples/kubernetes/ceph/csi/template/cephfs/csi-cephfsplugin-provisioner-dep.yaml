@@ -23,7 +23,6 @@ spec:
             - "--csi-address=$(ADDRESS)"
             - "--leader-election=true"
             - "--timeout=150s"
-            - "--leader-election-type=leases"
             - "--leader-election-namespace={{ .Namespace }}"
           env:
             - name: ADDRESS

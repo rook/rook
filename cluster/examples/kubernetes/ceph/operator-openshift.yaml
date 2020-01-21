@@ -252,7 +252,7 @@ spec:
         #- name: ROOK_CSI_SNAPSHOTTER_IMAGE
         #  value: "quay.io/k8scsi/csi-snapshotter:v1.2.2"
         #- name: ROOK_CSI_ATTACHER_IMAGE
-        #  value: "quay.io/k8scsi/csi-attacher:v1.2.0"
+        #  value: "quay.io/k8scsi/csi-attacher:v2.1.0"
         # CSI CephFS plugin daemonset update strategy, supported values are OnDelete and RollingUpdate.
         # Default value is RollingUpdate.
         #- name: CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY
