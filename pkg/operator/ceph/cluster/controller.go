@@ -298,13 +298,14 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 			return errors.Wrapf(err, "failed to detect and validate ceph version")
 		}
 
-		// Write the rook-ceph-config configmap (used by various daemons to apply config overrides)
+		// Write the rook-config-override configmap (used by various daemons to apply config overrides)
 		// If we don't do this, daemons will never start, waiting forever for this configmap to be present
 		//
 		// Only do this when doing a bit of management...
-		err = config.GetStore(cluster.context, namespace, &cluster.ownerRef).CreateOrUpdate(cluster.Info)
+		logger.Info("creating 'rook-ceph-config' configmap.")
+		err = populateConfigOverrideConfigMap(cluster.context, namespace, cluster.ownerRef)
 		if err != nil {
-			return errors.Wrapf(err, "failed to set config store")
+			return errors.Wrapf(err, "failed to populate config override config map")
 		}
 	}
 
