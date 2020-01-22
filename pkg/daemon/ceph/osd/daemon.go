@@ -323,7 +323,10 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 						logger.Errorf("regex failed on device %q and filter %q. %v", device.Name, desiredDevice.Name, err)
 						continue
 					}
-					logger.Infof("device %q matches device filter %q: %t", device.Name, desiredDevice.Name, matched)
+
+					if matched {
+						logger.Infof("device %q matches device filter %q", device.Name, desiredDevice.Name)
+					}
 				} else if desiredDevice.IsDevicePathFilter {
 					pathnames := append(strings.Fields(device.DevLinks), filepath.Join("/dev", device.Name))
 					for _, pathname := range pathnames {
@@ -332,11 +335,12 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 							logger.Errorf("regex failed on device %q and filter %q. %v", device.Name, desiredDevice.Name, err)
 							continue
 						}
+
 						if matched {
+							logger.Infof("device %q (aliases: %q) matches device path filter %q", device.Name, device.DevLinks, desiredDevice.Name)
 							break
 						}
 					}
-					logger.Infof("device %q (aliases: %q) matches device path filter %q: %t", device.Name, device.DevLinks, desiredDevice.Name, matched)
 				} else if device.Name == desiredDevice.Name {
 					logger.Infof("%q found in the desired devices", device.Name)
 					matched = true
