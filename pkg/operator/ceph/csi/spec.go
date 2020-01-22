@@ -100,9 +100,11 @@ var (
 )
 
 const (
-	KubeMinMajor              = "1"
-	KubeMinMinor              = "13"
-	provDeploymentSuppVersion = "14"
+	KubeMinMajor                   = "1"
+	KubeMinMinor                   = "13"
+	provDeploymentSuppVersion      = "14"
+	kubeMinVerForFilesystemRestore = "15"
+	kubeMinVerForBlockRestore      = "16"
 
 	// toleration and node affinity
 	provisionerTolerationsEnv  = "CSI_PROVISIONER_TOLERATIONS"
@@ -248,6 +250,13 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 	tp.ResizerImage = os.Getenv("ROOK_CSI_RESIZER_IMAGE")
 	if tp.ResizerImage == "" {
 		tp.ResizerImage = defaultResizerImage
+	}
+
+	if ver.Major < KubeMinMajor || ver.Major == KubeMinMajor && ver.Minor < kubeMinVerForFilesystemRestore {
+		logger.Warning("CSI Filesystem volume expansion requires Kubernetes version >=1.15.0")
+	}
+	if ver.Major < KubeMinMajor || ver.Major == KubeMinMajor && ver.Minor < kubeMinVerForBlockRestore {
+		logger.Warning("CSI Block volume expansion requires Kubernetes version >=1.16.0")
 	}
 
 	if EnableRBD {
