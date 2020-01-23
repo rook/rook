@@ -151,8 +151,10 @@ func TestVersionAtLeastX(t *testing.T) {
 	assert.True(t, Nautilus.IsAtLeastNautilus())
 	assert.True(t, Nautilus.IsAtLeastMimic())
 	assert.True(t, Mimic.IsAtLeastMimic())
+	assert.True(t, Pacific.IsAtLeastPacific())
 	assert.False(t, Mimic.IsAtLeastNautilus())
 	assert.False(t, Nautilus.IsAtLeastOctopus())
+	assert.False(t, Nautilus.IsAtLeastPacific())
 }
 
 func TestIsIdentical(t *testing.T) {

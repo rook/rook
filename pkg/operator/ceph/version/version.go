@@ -49,10 +49,12 @@ var (
 	Nautilus = CephVersion{14, 0, 0, 0}
 	// Octopus Ceph version
 	Octopus = CephVersion{15, 0, 0, 0}
+	// Pacific Ceph version
+	Pacific = CephVersion{16, 0, 0, 0}
 
 	// supportedVersions are production-ready versions that rook supports
 	supportedVersions   = []CephVersion{Mimic, Nautilus}
-	unsupportedVersions = []CephVersion{Octopus}
+	unsupportedVersions = []CephVersion{Octopus, Pacific}
 	// allVersions includes all supportedVersions as well as unreleased versions that are being tested with rook
 	allVersions = append(supportedVersions, unsupportedVersions...)
 
@@ -170,6 +172,11 @@ func (v *CephVersion) IsAtLeast(other CephVersion) bool {
 	}
 	// If we arrive here then both versions are identical
 	return true
+}
+
+// IsAtLeastPacific check that the Ceph version is at least Pacific
+func (v *CephVersion) IsAtLeastPacific() bool {
+	return v.IsAtLeast(Pacific)
 }
 
 // IsAtLeastOctopus check that the Ceph version is at least Octopus
