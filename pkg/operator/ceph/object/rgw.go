@@ -342,6 +342,10 @@ func validateStore(context *clusterd.Context, s cephv1.CephObjectStore) error {
 	if s.Namespace == "" {
 		return errors.New("missing namespace")
 	}
+	securePort := s.Spec.Gateway.SecurePort
+	if securePort < 0 || securePort > 65535 {
+		return errors.Errorf("securePort value of %d must be between 0 and 65535", securePort)
+	}
 	if err := pool.ValidatePoolSpec(context, s.Namespace, &s.Spec.MetadataPool); err != nil {
 		return errors.Wrapf(err, "invalid metadata pool spec")
 	}

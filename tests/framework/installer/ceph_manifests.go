@@ -391,11 +391,7 @@ spec:
                   type: integer
                   minimum: 1
                   maximum: 65535
-                securePort:
-                  type: integer
-                  minimum: 1
-                  maximum: 65535
-                  nullable: true
+                securePort: {}
                 instances:
                   type: integer
                 annotations: {}
