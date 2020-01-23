@@ -1,0 +1,7 @@
+pytest
+requests
+pyyaml
+markdown
+-e git+https://github.com/ryneeverett/mkcodes.git#egg=mkcodes
+docopt
+tox

@@ -52,3 +52,6 @@ find "${scriptdir}/../../pkg/client" -name "*.go" -exec \
 find "${scriptdir}/../../pkg/client" -name "*.go" -exec \
     $SED 's/cephNFSs/cephNFSes/g' {} +
 find "${scriptdir}/../../pkg/client" -name "*.go.bak" -delete
+
+# Generate and test the Rook Python client libraries
+"${scriptdir}"/python/generate.sh

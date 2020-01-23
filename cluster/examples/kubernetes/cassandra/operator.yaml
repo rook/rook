@@ -38,41 +38,39 @@ spec:
                   description: "Datacenter Name"
                 racks:
                   type: array
-                  properties:
-                    name:
-                      type: string
-                    members:
-                      type: integer
-                    configMapName:
-                      type: string
-                    storage:
-                      type: object
-                      properties:
-                        volumeClaimTemplates:
-                          type: object
+                  items:
+                    properties:
+                      name:
+                        type: string
+                      members:
+                        type: integer
+                      configMapName:
+                        type: string
+                      storage:
+                        type: object
+                        properties:
+                          volumeClaimTemplates:
+                            type: object
+                            # TODO: Check if we can ref the already existing schema
+                        required:
+                         - "volumeClaimTemplates"
+                      placement:
+                        type: object
+                      resources:
+                        type: object
+                        properties:
                           # TODO: Check if we can ref the already existing schema
-                      required:
-                       - "volumeClaimTemplates"
-                    placement:
-                      type: object
-                    resources:
-                      type: object
-                      properties:
-                        # TODO: Check if we can ref the already existing schema
-                        cassandra:
-                          type: object
-                        sidecar:
-                          type: object
-                      required:
-                        - "cassandra"
-                        - "sidecar"
-                    sidecarImage:
-                      type: object
-                  required:
-                    - "name"
-                    - "members"
-                    - "storage"
-                    - "resources"
+                          cassandra:
+                            type: object
+                          sidecar:
+                            type: object
+                      sidecarImage:
+                        type: object
+                    required:
+                      - "name"
+                      - "members"
+                      - "storage"
+                      - "resources"
               required:
                 - "name"
           required:

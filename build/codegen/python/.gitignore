@@ -1,0 +1,10 @@
+.tox
+.eggs/
+.idea/
+.mypy_cache/
+rook_client.egg-info/
+venv/
+build/
+__pycache__
+*.pyc
+rook_client/tests/test_README.py
