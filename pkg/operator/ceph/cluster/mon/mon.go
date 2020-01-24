@@ -27,6 +27,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -845,6 +846,13 @@ func (c *Cluster) startMon(m *monConfig, node *NodeInfo) error {
 	pvcExists := false
 	deploymentExists := false
 	d := c.makeDeployment(m)
+
+	// Set the deployment hash as an annotation
+	err := patch.DefaultAnnotator.SetLastAppliedAnnotation(d)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set annotation for deployment %q", d.Name)
+	}
+
 	existingDeployment, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Get(d.Name, metav1.GetOptions{})
 	if err == nil {
 		deploymentExists = true

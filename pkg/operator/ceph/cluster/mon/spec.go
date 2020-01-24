@@ -348,9 +348,8 @@ func UpdateCephDeploymentAndWait(context *clusterd.Context, deployment *apps.Dep
 				if continueUpgradeAfterChecksEvenIfNotHealthy {
 					logger.Infof("The %s daemon %s is not ok-to-stop but 'continueUpgradeAfterChecksEvenIfNotHealthy' is true, so proceeding to stop...", daemonType, daemonName)
 					return nil
-				} else {
-					return errors.Wrapf(err, "failed to check if we can %s the deployment %s", action, deployment.Name)
 				}
+				return errors.Wrapf(err, "failed to check if we can %s the deployment %s", action, deployment.Name)
 			}
 		}
 
@@ -360,9 +359,8 @@ func UpdateCephDeploymentAndWait(context *clusterd.Context, deployment *apps.Dep
 				if continueUpgradeAfterChecksEvenIfNotHealthy {
 					logger.Infof("The %s daemon %s is not ok-to-stop but 'continueUpgradeAfterChecksEvenIfNotHealthy' is true, so continuing...", daemonType, daemonName)
 					return nil
-				} else {
-					return errors.Wrapf(err, "failed to check if we can %s the deployment %s", action, deployment.Name)
 				}
+				return errors.Wrapf(err, "failed to check if we can %s the deployment %s", action, deployment.Name)
 			}
 		}
 

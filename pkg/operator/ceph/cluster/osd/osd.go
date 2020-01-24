@@ -25,6 +25,7 @@ import (
 
 	"k8s.io/client-go/kubernetes"
 
+	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -540,6 +541,14 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 		dp, err := c.makeDeployment(osdProps, osd, config)
 		if err != nil {
 			errMsg := fmt.Sprintf("failed to create deployment for node %s: %v", n.Name, err)
+			config.addError(errMsg)
+			continue
+		}
+
+		// Set the deployment hash as an annotation
+		err = patch.DefaultAnnotator.SetLastAppliedAnnotation(dp)
+		if err != nil {
+			errMsg := fmt.Sprintf("failed to set annotation for deployment %q. %v", dp.Name, err)
 			config.addError(errMsg)
 			continue
 		}

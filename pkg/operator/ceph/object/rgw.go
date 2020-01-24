@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -140,6 +141,13 @@ func (c *clusterConfig) startRGWPods() error {
 		// Create deployment
 		deployment := c.createDeployment(rgwConfig)
 		logger.Infof("object store %s deployment %s started", c.store.Name, deployment.Name)
+
+		// Set the deployment hash as an annotation
+		err = patch.DefaultAnnotator.SetLastAppliedAnnotation(deployment)
+		if err != nil {
+			return errors.Wrapf(err, "failed to set annotation for deployment %q", deployment.Name)
+		}
+
 		createdDeployment, createErr := c.context.Clientset.AppsV1().Deployments(c.store.Namespace).Create(deployment)
 		if createErr != nil {
 			if !kerrors.IsAlreadyExists(createErr) {

@@ -69,6 +69,14 @@
   version = "v1.16.22"
 
 [[projects]]
+  digest = "1:ce8e1e0bd3eb4b6d38240414955fb492cb3499a253525eb31babc4c43dda1bed"
+  name = "github.com/banzaicloud/k8s-objectmatcher"
+  packages = ["patch"]
+  pruneopts = "UT"
+  revision = "cf8ca3ded3b2b3a27a54c086e935bf228be9b416"
+  version = "v1.1.0"
+
+[[projects]]
   branch = "master"
   digest = "1:d6afaeed1502aa28e80a4ed0981d570ad91b2579193404256ce672ed0a609e0d"
   name = "github.com/beorn7/perks"
@@ -317,6 +325,14 @@
   pruneopts = "UT"
   revision = "7c663266750e7d82587642f65e60bc4083f1f84e"
   version = "v0.2.0"
+
+[[projects]]
+  digest = "1:d8b04ac65ed598214a3fa5069577aedb5ff6a92cbc3d6650bd14e42e13e685ba"
+  name = "github.com/goph/emperror"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "9727b49dc9d66225368645198434124e02b7e355"
+  version = "v0.17.2"
 
 [[projects]]
   digest = "1:9b7a07ac7577787a8ecc1334cb9f34df1c76ed82a917d556c5713d3ab84fbc43"
@@ -899,7 +915,7 @@
   version = "kubernetes-1.14.1"
 
 [[projects]]
-  digest = "1:12e1193fca56eef2efa8e94239f96011a2ac8f60cba50f04da1babad5029de99"
+  digest = "1:bea5cdc22cf065a1b485bb725697cd39c3f940190691a39a8325234035bfe42f"
   name = "k8s.io/apimachinery"
   packages = [
     "pkg/api/equality",
@@ -934,6 +950,7 @@
     "pkg/util/framer",
     "pkg/util/intstr",
     "pkg/util/json",
+    "pkg/util/jsonmergepatch",
     "pkg/util/mergepatch",
     "pkg/util/naming",
     "pkg/util/net",
@@ -1484,6 +1501,7 @@
     "github.com/aws/aws-sdk-go/aws/credentials",
     "github.com/aws/aws-sdk-go/aws/session",
     "github.com/aws/aws-sdk-go/service/s3",
+    "github.com/banzaicloud/k8s-objectmatcher/patch",
     "github.com/coreos/pkg/capnslog",
     "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1",
     "github.com/coreos/prometheus-operator/pkg/client/versioned",

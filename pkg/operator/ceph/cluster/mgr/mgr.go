@@ -24,6 +24,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -165,6 +166,13 @@ func (c *Cluster) Start() error {
 		// start the deployment
 		d := c.makeDeployment(mgrConfig)
 		logger.Debugf("starting mgr deployment: %+v", d)
+
+		// Set the deployment hash as an annotation
+		err = patch.DefaultAnnotator.SetLastAppliedAnnotation(d)
+		if err != nil {
+			return errors.Wrapf(err, "failed to set annotation for deployment %q", d.Name)
+		}
+
 		_, err = c.context.Clientset.AppsV1().Deployments(c.Namespace).Create(d)
 		if err != nil {
 			if !kerrors.IsAlreadyExists(err) {
