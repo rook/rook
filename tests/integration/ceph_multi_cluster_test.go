@@ -46,10 +46,9 @@ import (
 // - Create the object store via the CRD
 // *************************************************************
 func TestCephMultiClusterDeploySuite(t *testing.T) {
-	// if installer.SkipTestSuite(installer.CephTestSuite) {
-	logger.Infof("Skipping Ceph Multi Cluster Suite until we decide whether this scenario makes sense or not anymore")
-	t.Skip()
-	// }
+	if installer.SkipTestSuite(installer.CephTestSuite) {
+		t.Skip()
+	}
 
 	s := new(MultiClusterDeploySuite)
 	defer func(s *MultiClusterDeploySuite) {
