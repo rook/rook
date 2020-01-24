@@ -29,7 +29,9 @@ type CephManifests interface {
 	GetRookCRDs() string
 	GetRookOperator(namespace string) string
 	GetClusterRoles(namespace, systemNamespace string) string
+	GetClusterExternalRoles(namespace, systemNamespace string) string
 	GetRookCluster(settings *ClusterSettings) string
+	GetRookExternalCluster(settings *ClusterExternalSettings) string
 	GetRookToolBox(namespace string) string
 	GetCleanupPod(node, removalDir string) string
 	GetBlockPoolDef(poolName string, namespace string, replicaSize string) string
@@ -54,6 +56,12 @@ type ClusterSettings struct {
 	Mons             int
 	RBDMirrorWorkers int
 	CephVersion      cephv1.CephVersionSpec
+}
+
+// ClusterExternalSettings represents the settings of an external cluster
+type ClusterExternalSettings struct {
+	Namespace       string
+	DataDirHostPath string
 }
 
 // CephManifestsMaster wraps rook yaml definitions
@@ -1443,6 +1451,8 @@ spec:
           value: "true"
         - name: ROOK_CSI_ENABLE_GRPC_METRICS
           value: "true"
+        - name: ROOK_CURRENT_NAMESPACE_ONLY
+          value: "false"
 `
 }
 
@@ -1732,6 +1742,76 @@ spec:
     modules:
     - name: pg_autoscaler
       enabled: true`
+}
+
+// GetClusterExternalRoles returns rook-cluster-external manifest
+func (m *CephManifestsMaster) GetClusterExternalRoles(namespace, firstClusterNamespace string) string {
+	return `apiVersion: v1
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-cluster-mgmt
+  namespace: ` + namespace + `
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-cluster-mgmt
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-system
+  namespace: ` + firstClusterNamespace + `
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-cmd-reporter
+  namespace: ` + namespace + `
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-ceph-cmd-reporter
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-cmd-reporter
+  namespace: ` + namespace + `
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-ceph-cmd-reporter
+  namespace: ` + namespace + `
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-cmd-reporter
+  namespace: ` + namespace + `
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete`
+}
+
+// GetRookExternalCluster returns rook-cluster-external manifest
+func (m *CephManifestsMaster) GetRookExternalCluster(settings *ClusterExternalSettings) string {
+	return `apiVersion: ceph.rook.io/v1
+kind: CephCluster
+metadata:
+  name: ` + settings.Namespace + `
+  namespace: ` + settings.Namespace + `
+spec:
+  external:
+    enable: true
+  dataDirHostPath: ` + settings.DataDirHostPath + ``
 }
 
 // GetRookToolBox returns rook-toolbox manifest
