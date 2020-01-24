@@ -23,6 +23,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -81,8 +82,16 @@ func (c *CephNFSController) upCephNFS(n cephv1.CephNFS, oldActive int) error {
 			},
 		}
 
-		// start the deployment
+		// create the deployment
 		deployment := c.makeDeployment(n, cfg)
+
+		// Set the deployment hash as an annotation
+		err = patch.DefaultAnnotator.SetLastAppliedAnnotation(deployment)
+		if err != nil {
+			return errors.Wrapf(err, "failed to set annotation for deployment %q", deployment.Name)
+		}
+
+		// start the deployment
 		_, err = c.context.Clientset.AppsV1().Deployments(n.Namespace).Create(deployment)
 		if err != nil {
 			if !kerrors.IsAlreadyExists(err) {

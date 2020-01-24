@@ -20,6 +20,7 @@ package rbd
 import (
 	"fmt"
 
+	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -126,6 +127,13 @@ func (m *Mirroring) Start() error {
 
 		// Start the deployment
 		d := m.makeDeployment(daemonConf)
+
+		// Set the deployment hash as an annotation
+		err = patch.DefaultAnnotator.SetLastAppliedAnnotation(d)
+		if err != nil {
+			return errors.Wrapf(err, "failed to set annotation for deployment %q", d.Name)
+		}
+
 		if _, err := m.context.Clientset.AppsV1().Deployments(m.Namespace).Create(d); err != nil {
 			if !kerrors.IsAlreadyExists(err) {
 				return errors.Wrapf(err, "failed to create %s deployment", resourceName)
