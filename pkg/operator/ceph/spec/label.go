@@ -38,8 +38,18 @@ const (
 func addCephVersionLabel(cephVersion version.CephVersion, labels map[string]string) {
 	// cephVersion.String() returns a string with a space in it, and labels in k8s are limited to
 	// alphanum characters plus '-', '_', '.'
-	labels[CephVersionLabelKey] = fmt.Sprintf("%d.%d.%d-%d",
+	labels[CephVersionLabelKey] = GetCephVersionLabel(cephVersion)
+}
+
+// GetCephVersionLabel returns a formatted serialization of a provided CephVersion for use in resource labels.
+func GetCephVersionLabel(cephVersion version.CephVersion) string {
+	return fmt.Sprintf("%d.%d.%d-%d",
 		cephVersion.Major, cephVersion.Minor, cephVersion.Extra, cephVersion.Build)
+}
+
+// ExtractCephVersionFromLabel returns a CephVersion struct deserialized from a provided version label.
+func ExtractCephVersionFromLabel(labelVersion string) (*version.CephVersion, error) {
+	return version.ExtractCephVersion(fmt.Sprintf("ceph version %s", labelVersion))
 }
 
 // AddCephVersionLabelToDeployment adds a label reporting the Ceph version which Rook has detected is

@@ -29,6 +29,7 @@ import (
 
 	"github.com/rook/rook/pkg/operator/ceph/file/mds"
 	"github.com/rook/rook/pkg/operator/ceph/object"
+	"github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/ceph/version"
 
 	"github.com/coreos/pkg/capnslog"
@@ -153,9 +154,10 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 		}
 
 		clusterImage := cephCluster.Spec.CephVersion.Image
-		cephVersion, ok := getImageVersion(clusterImage)
-		if !ok {
-			logger.Warningf("ceph version not found for image %q used by cluster %q", clusterImage, cephCluster.Name)
+		cephVersion, err := getImageVersion(cephCluster)
+		if err != nil {
+			logger.Errorf("ceph version not found for image %q used by cluster %q. %v", clusterImage, cephCluster.Name, err)
+			return reconcile.Result{}, nil
 		}
 
 		uniqueTolerations := controllerconfig.TolerationSet{}
@@ -202,16 +204,17 @@ func (r *ReconcileNode) cephPodList() ([]corev1.Pod, error) {
 }
 
 // getImageVersion returns the CephVersion registered for a specified image (if any) and whether any image was found.
-func getImageVersion(image string) (*version.CephVersion, bool) {
+func getImageVersion(cephCluster cephv1.CephCluster) (*version.CephVersion, error) {
 	for i := 0; i < getVersionMaxRetries; i++ {
-		cephVersion, ok := version.GetImageVersion(image)
-		if ok {
-			logger.Debugf("ceph version found %+v", cephVersion)
-			return cephVersion, true
+		// If the Ceph cluster has not yet recorded the image and version for the current image in its spec, then the Crash
+		// controller should wait for the version to be detected.
+		if cephCluster.Spec.CephVersion.Image == cephCluster.Status.CephVersion.Image {
+			logger.Debugf("ceph version found %q", cephCluster.Status.CephVersion.Version)
+			return spec.ExtractCephVersionFromLabel(cephCluster.Status.CephVersion.Version)
 		}
 		<-time.After(time.Second * getVersionRetryInterval)
 	}
-	return nil, false
+	return nil, errors.New("attempt to determine ceph version for the current cluster image timed out")
 }
 
 func (r *ReconcileNode) deleteCrashCollector(deployment appsv1.Deployment) error {
