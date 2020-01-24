@@ -41,7 +41,6 @@ func TestResolveNodeDefaultValues(t *testing.T) {
 	assert.Equal(t, "", node.Selection.DeviceFilter)
 	assert.Equal(t, "", node.Selection.DevicePathFilter)
 	assert.False(t, node.Selection.GetUseAllDevices())
-	assert.Equal(t, storageSpec.Directories, node.Directories)
 	assert.Equal(t, storageSpec.Devices, node.Devices)
 }
 
@@ -51,7 +50,6 @@ func TestResolveNodeInherentFromCluster(t *testing.T) {
 		Selection: Selection{
 			DeviceFilter:     "^sd.",
 			DevicePathFilter: "^/dev/disk/by-path/pci-.*",
-			Directories:      []Directory{{Path: "/rook/datadir1"}},
 			Devices:          []Device{{Name: "sda"}},
 		},
 		Config: map[string]string{
@@ -68,7 +66,6 @@ func TestResolveNodeInherentFromCluster(t *testing.T) {
 	assert.Equal(t, "^/dev/disk/by-path/pci-.*", node.Selection.DevicePathFilter)
 	assert.False(t, node.Selection.GetUseAllDevices())
 	assert.Equal(t, "bar", node.Config["foo"])
-	assert.Equal(t, []Directory{{Path: "/rook/datadir1"}}, node.Directories)
 	assert.Equal(t, []Device{{Name: "sda"}}, node.Devices)
 }
 
@@ -78,7 +75,6 @@ func TestResolveNodeSpecificProperties(t *testing.T) {
 		Selection: Selection{
 			DeviceFilter:     "^sd.",
 			DevicePathFilter: "^/dev/disk/by-path/pci-.*",
-			Directories:      []Directory{{Path: "/rook/datadir1"}},
 		},
 		Config: map[string]string{
 			"foo": "bar",
@@ -90,7 +86,6 @@ func TestResolveNodeSpecificProperties(t *testing.T) {
 				Selection: Selection{
 					DeviceFilter:     "nvme.*",
 					DevicePathFilter: "^/dev/disk/by-id/.*foo.*",
-					Directories:      []Directory{{Path: "/rook/node1data"}},
 					Devices:          []Device{{Name: "device026"}},
 				},
 				Config: map[string]string{
@@ -105,7 +100,6 @@ func TestResolveNodeSpecificProperties(t *testing.T) {
 	assert.False(t, node.Selection.GetUseAllDevices())
 	assert.Equal(t, "nvme.*", node.Selection.DeviceFilter)
 	assert.Equal(t, "^/dev/disk/by-id/.*foo.*", node.Selection.DevicePathFilter)
-	assert.Equal(t, []Directory{{Path: "/rook/node1data"}}, node.Directories)
 	assert.Equal(t, []Device{{Name: "device026"}}, node.Devices)
 	assert.Equal(t, "node1bar", node.Config["foo"])
 	assert.Equal(t, "biz", node.Config["baz"])
@@ -175,14 +169,12 @@ func TestClusterDirsDevsInherit(t *testing.T) {
 	}
 	node := storageSpec.ResolveNode("node1")
 	assert.NotNil(t, node)
-	assert.Equal(t, storageSpec.Directories, node.Directories)
 	assert.Equal(t, storageSpec.Devices, node.Devices)
 
-	// test if cluster wide directories and devices are inherited to no-directories/devices node
+	// test if cluster wide devices are inherited to no-directories/devices node
 	storageSpec = StorageScopeSpec{
 		Selection: Selection{
-			Directories: []Directory{{Path: "/rook/datadir1"}},
-			Devices:     []Device{{Name: "device1"}},
+			Devices: []Device{{Name: "device1"}},
 		},
 		Nodes: []Node{
 			{
@@ -192,7 +184,6 @@ func TestClusterDirsDevsInherit(t *testing.T) {
 	}
 	node = storageSpec.ResolveNode("node1")
 	assert.NotNil(t, node)
-	assert.Equal(t, []Directory{{Path: "/rook/datadir1"}}, node.Directories)
 	assert.Equal(t, []Device{{Name: "device1"}}, node.Devices)
 
 	// test if node directories and devices are used
@@ -201,29 +192,25 @@ func TestClusterDirsDevsInherit(t *testing.T) {
 			{
 				Name: "node1",
 				Selection: Selection{
-					Directories: []Directory{{Path: "/rook/datadir2"}},
-					Devices:     []Device{{Name: "device2"}},
+					Devices: []Device{{Name: "device2"}},
 				},
 			},
 		},
 	}
 	node = storageSpec.ResolveNode("node1")
 	assert.NotNil(t, node)
-	assert.Equal(t, []Directory{{Path: "/rook/datadir2"}}, node.Directories)
 	assert.Equal(t, []Device{{Name: "device2"}}, node.Devices)
 
-	// test if cluster wide directories/devices are and aren't inherited to nodes with and without directories/devices
+	// test if cluster wide devices are and aren't inherited to nodes with and without directories/devices
 	storageSpec = StorageScopeSpec{
 		Selection: Selection{
-			Directories: []Directory{{Path: "/rook/datadir4"}},
-			Devices:     []Device{{Name: "device4"}},
+			Devices: []Device{{Name: "device4"}},
 		},
 		Nodes: []Node{
 			{
 				Name: "node1",
 				Selection: Selection{
-					Directories: []Directory{{Path: "/rook/datadir3"}},
-					Devices:     []Device{{Name: "device3"}},
+					Devices: []Device{{Name: "device3"}},
 				},
 			},
 			{
@@ -231,16 +218,14 @@ func TestClusterDirsDevsInherit(t *testing.T) {
 			},
 		},
 	}
-	// node1 keeps its specified dirs/devices
+	// node1 keeps its specified devices
 	node = storageSpec.ResolveNode("node1")
 	assert.NotNil(t, node)
-	assert.Equal(t, []Directory{{Path: "/rook/datadir3"}}, node.Directories)
 	assert.Equal(t, []Device{{Name: "device3"}}, node.Devices)
 
-	// node2 inherits the cluster wide dirs/devices since it specified none of its own
+	// node2 inherits the cluster wide devices since it specified none of its own
 	node = storageSpec.ResolveNode("node2")
 	assert.NotNil(t, node)
-	assert.Equal(t, []Directory{{Path: "/rook/datadir4"}}, node.Directories)
 	assert.Equal(t, []Device{{Name: "device4"}}, node.Devices)
 }
 

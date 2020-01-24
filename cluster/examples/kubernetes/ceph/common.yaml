@@ -140,12 +140,6 @@ spec:
                         type: string
                       devicePathFilter:
                         type: string
-                      directories:
-                        type: array
-                        items:
-                          properties:
-                            path:
-                              type: string
                       devices:
                         type: array
                         items:
@@ -161,12 +155,6 @@ spec:
                   type: string
                 devicePathFilter:
                   type: string
-                directories:
-                  type: array
-                  items:
-                    properties:
-                      path:
-                        type: string
                 config: {}
                 storageClassDeviceSets: {}
             monitoring:

@@ -93,7 +93,7 @@ func (s *CephBlockSuite) SetupSuite() {
 	useDevices := true
 	mons := 1
 	rbdMirrorWorkers := 1
-	s.op, s.kh = StartTestCluster(s.T, blockMinimalTestVersion, s.namespace, "filestore", useHelm, useDevices, mons, rbdMirrorWorkers, installer.VersionMaster, installer.NautilusVersion)
+	s.op, s.kh = StartTestCluster(s.T, blockMinimalTestVersion, s.namespace, "bluestore", useHelm, useDevices, mons, rbdMirrorWorkers, installer.VersionMaster, installer.NautilusVersion)
 	s.testClient = clients.CreateTestClient(s.kh, s.op.installer.Manifests)
 	s.bc = s.testClient.BlockClient
 }

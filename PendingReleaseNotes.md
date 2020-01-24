@@ -8,6 +8,8 @@
 
 ### Ceph
 
+- OSD refactor: drop support for Rook legacy OSD, directory OSD and Filestore OSD. For more details refer to the [corresponding issue](https://github.com/rook/rook/issues/4724).
+
 ### EdgeFS
 
 ### YugabyteDB

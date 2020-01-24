@@ -41,7 +41,6 @@ var (
 
 type config struct {
 	devices            string
-	directories        string
 	metadataDevice     string
 	dataDir            string
 	forceFormat        bool

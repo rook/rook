@@ -44,14 +44,7 @@ storage:
     metadataDevice: "nvme01"
     journalSizeMB: "1024"
     databaseSizeMB: "1024"
-  directories:
-  - path: "/rook/dir2"
   nodes:
-  - name: "node1"
-    config:
-      storeType: filestore
-    directories:
-    - path: "/rook/dir1"
   - name: "node2"
     deviceFilter: "^foo*"
     devicePathFilter: "^/dev/disk/by-id/.*foo.*"`)
@@ -83,7 +76,6 @@ storage:
 				UseAllDevices:    &useAllDevices,
 				DeviceFilter:     "^sd.",
 				DevicePathFilter: "^/dev/disk/by-path/pci-.*",
-				Directories:      []rookalpha.Directory{{Path: "/rook/dir2"}},
 			},
 			Config: map[string]string{
 				"metadataDevice": "nvme01",
@@ -91,15 +83,6 @@ storage:
 				"databaseSizeMB": "1024",
 			},
 			Nodes: []rookalpha.Node{
-				{
-					Name: "node1",
-					Selection: rookalpha.Selection{
-						Directories: []rookalpha.Directory{{Path: "/rook/dir1"}},
-					},
-					Config: map[string]string{
-						"storeType": "filestore",
-					},
-				},
 				{
 					Name: "node2",
 					Selection: rookalpha.Selection{

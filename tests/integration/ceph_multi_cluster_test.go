@@ -46,9 +46,10 @@ import (
 // - Create the object store via the CRD
 // *************************************************************
 func TestCephMultiClusterDeploySuite(t *testing.T) {
-	if installer.SkipTestSuite(installer.CephTestSuite) {
-		t.Skip()
-	}
+	// if installer.SkipTestSuite(installer.CephTestSuite) {
+	logger.Infof("Skipping Ceph Multi Cluster Suite until we decide whether this scenario makes sense or not anymore")
+	t.Skip()
+	// }
 
 	s := new(MultiClusterDeploySuite)
 	defer func(s *MultiClusterDeploySuite) {
@@ -168,8 +169,6 @@ func (o MCTestOperations) Setup() {
 	// start the two clusters in parallel
 	logger.Infof("starting two clusters in parallel")
 	err = o.startCluster(o.namespace1, "bluestore")
-	require.NoError(o.T(), err)
-	err = o.startCluster(o.namespace2, "filestore")
 	require.NoError(o.T(), err)
 
 	require.True(o.T(), o.kh.IsPodInExpectedState("rook-ceph-agent", o.systemNamespace, "Running"),

@@ -82,11 +82,8 @@ func mockNodeOrchestrationCompletion(c *Cluster, nodeName string, statusMapWatch
 				status = &OrchestrationStatus{
 					OSDs: []OSDInfo{
 						{
-							ID:          1,
-							DataPath:    "/tmp",
-							Config:      "/foo/bar/ceph.conf",
-							Cluster:     "rook",
-							KeyringPath: "/foo/bar/key",
+							ID:      1,
+							Cluster: "rook",
 						},
 					},
 					Status: OrchestrationStatusCompleted,

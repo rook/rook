@@ -44,7 +44,6 @@ Settings for the operator are configured through environment variables on the op
 Now that your operator is running, let's create your Ceph storage cluster:
 
 * `cluster.yaml`: This file contains common settings for a production storage cluster. Requires at least three nodes.
-* `cluster-test.yaml`: Settings for a test cluster where redundancy is not configured. Requires only a single node.
 * `cluster-minimal.yaml`: Brings up a cluster with only one [ceph-mon](http://docs.ceph.com/docs/nautilus/man/8/ceph-mon/) and a [ceph-mgr](http://docs.ceph.com/docs/nautilus/mgr/) so the Ceph dashboard can be used for the remaining cluster configuration.
 
 See the [Cluster CRD](ceph-cluster-crd.md) topic for more details on the settings.

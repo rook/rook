@@ -176,7 +176,7 @@ spec:
                             type: string
                           storeType:
                             type: string
-                            pattern: ^(filestore|bluestore)$
+                            pattern: ^(bluestore)$
                           databaseSizeMB:
                             type: string
                           walSizeMB:
@@ -191,12 +191,6 @@ spec:
                       useAllDevices:
                         type: boolean
                       deviceFilter: {}
-                      directories:
-                        type: array
-                        items:
-                          properties:
-                            path:
-                              type: string
                       devices:
                         type: array
                         items:
@@ -209,12 +203,6 @@ spec:
                 useAllDevices:
                   type: boolean
                 deviceFilter: {}
-                directories:
-                  type: array
-                  items:
-                    properties:
-                      path:
-                        type: string
                 config: {}
                 storageClassDeviceSets: {}
             monitoring:
@@ -1733,8 +1721,6 @@ spec:
   storage:
     useAllNodes: true
     useAllDevices: ` + strconv.FormatBool(settings.UseAllDevices) + `
-    directories:
-    - path: ` + settings.DataDirHostPath + /* simulate legacy fallback osd behavior so existing tests still work */ `
     deviceFilter:
     config:
       ` + store + `

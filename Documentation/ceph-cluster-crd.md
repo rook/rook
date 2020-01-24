@@ -139,7 +139,7 @@ For more details on the mons and when to choose a number other than `3`, see the
   * `nodes`: Names of individual nodes in the cluster that should have their storage included in accordance with either the cluster level configuration specified above or any node specific overrides described in the next section below.
   `useAllNodes` must be set to `false` to use specific nodes and their config.
   See [node settings](#node-settings) below.
-  * `config`: Config settings applied to all OSDs on the node unless overridden by `devices` or `directories`. See the [config settings](#osd-configuration-settings) below.
+  * `config`: Config settings applied to all OSDs on the node unless overridden by `devices`. See the [config settings](#osd-configuration-settings) below.
   * [storage selection settings](#storage-selection-settings)
   * [Storage Class Device Sets](#storage-class-device-sets)
 * `disruptionManagement`: The section for configuring management of daemon disruptions
@@ -207,7 +207,7 @@ In addition to the cluster level settings specified above, each individual node 
 If a node does not specify any configuration then it will inherit the cluster level settings.
 
 * `name`: The name of the node, which should match its `kubernetes.io/hostname` label.
-* `config`: Config settings applied to all OSDs on the node unless overridden by `devices` or `directories`. See the [config settings](#osd-configuration-settings) below.
+* `config`: Config settings applied to all OSDs on the node unless overridden by `devices`. See the [config settings](#osd-configuration-settings) below.
 * [storage selection settings](#storage-selection-settings)
 
 When `useAllNodes` is set to `true`, Rook attempts to make Ceph cluster management as hands-off as
@@ -250,9 +250,6 @@ Below are the settings available, both at the cluster and individual node level,
 * `devices`: A list of individual device names belonging to this node to include in the storage cluster.
   * `name`: The name of the device (e.g., `sda`)
   * `config`: Device-specific config settings. See the [config settings](#osd-configuration-settings) below
-* `directories`:  A list of directory paths that will be included in the storage cluster. Note that using two directories on the same physical device can cause a negative performance impact. Following paths and any of their subpaths **must not be used**: `/etc/ceph`, `/rook` or `/var/log/ceph`.
-  * `path`: The path on disk of the directory (e.g., `/rook/storage-dir`)
-  * `config`: Directory-specific config settings. See the [config settings](#osd-configuration-settings) below
 * `storageClassDeviceSets`: Explained in [Storage Class Device Sets](#storage-class-device-sets)
 
 ### Storage Class Device Sets
@@ -278,10 +275,9 @@ However, if there are more OSDs than nodes, this anti-affinity will not be effec
 The following storage selection settings are specific to Ceph and do not apply to other backends. All variables are key-value pairs represented as strings.
 
 * `metadataDevice`: Name of a device to use for the metadata of OSDs on each node.  Performance can be improved by using a low latency device (such as SSD or NVMe) as the metadata device, while other spinning platter (HDD) devices on a node are used to store data. Provisioning will fail if the user specifies a `metadataDevice` but that device is not used as a metadata device by Ceph. Notably, `ceph-volume` will not use a device of the same device class (HDD, SSD, NVMe) as OSD devices for metadata, resulting in this failure.
-* `storeType`: `filestore` or `bluestore`, the underlying storage format to use for each OSD. The default is set dynamically to `bluestore` for devices, while `filestore` is the default for directories. Set this store type explicitly to override the default. Warning: Bluestore is **not** recommended for directories in production. Bluestore does not purge data from the directory and over time will grow without the ability to compact or shrink.
+* `storeType`: `bluestore`, the underlying storage format to use for each OSD. The default is set dynamically to `bluestore` for devices and is the only supported format at this point.
 * `databaseSizeMB`:  The size in MB of a bluestore database. Include quotes around the size.
 * `walSizeMB`:  The size in MB of a bluestore write ahead log (WAL). Include quotes around the size.
-* `journalSizeMB`:  The size in MB of a filestore journal. Include quotes around the size.
 * `osdsPerDevice`**: The number of OSDs to create on each device. High performance devices such as NVMe can handle running multiple OSDs. If desired, this can be overridden for each node and each device.
 * `encryptedDevice`**: Encrypt OSD volumes using dmcrypt ("true" or "false"). By default this option is disabled. See [encryption](http://docs.ceph.com/docs/nautilus/ceph-volume/lvm/encryption/) for more information on encryption in Ceph.
 
@@ -440,11 +436,7 @@ spec:
     config:
       metadataDevice:
       databaseSizeMB: "1024" # this value can be removed for environments with normal sized disks (100 GB or larger)
-      journalSizeMB: "1024"  # this value can be removed for environments with normal sized disks (20 GB or larger)
     nodes:
-    - name: "172.17.4.101"
-      directories:         # specific directories to use for storage can be specified for each node
-      - path: "/rook/storage-dir"
     - name: "172.17.4.201"
       devices:             # specific devices to use for storage can be specified for each node
       - name: "sdb"
@@ -453,43 +445,6 @@ spec:
         storeType: bluestore
     - name: "172.17.4.301"
       deviceFilter: "^sd."
-```
-
-### Storage Configuration: Cluster wide Directories
-
-This example is based on the [Storage Configuration: Specific devices](#storage-configuration-specific-devices).
-Individual nodes can override the cluster wide specified directories list.
-
-```yaml
-apiVersion: ceph.rook.io/v1
-kind: CephCluster
-metadata:
-  name: rook-ceph
-  namespace: rook-ceph
-spec:
-  cephVersion:
-    image: ceph/ceph:v14.2.6
-  dataDirHostPath: /var/lib/rook
-  mon:
-    count: 3
-    allowMultiplePerNode: true
-  dashboard:
-    enabled: true
-  # cluster level storage configuration and selection
-  storage:
-    useAllNodes: false
-    useAllDevices: false
-    config:
-      databaseSizeMB: "1024" # this value can be removed for environments with normal sized disks (100 GB or larger)
-      journalSizeMB: "1024"  # this value can be removed for environments with normal sized disks (20 GB or larger)
-    directories:
-    - path: "/rook/storage-dir"
-    nodes:
-    - name: "172.17.4.101"
-      directories: # specific directories to use for storage can be specified for each node
-      # overrides the above `directories` values for this node
-      - path: "/rook/my-node-storage-dir"
-    - name: "172.17.4.201"
 ```
 
 ### Node Affinity

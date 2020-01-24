@@ -103,7 +103,7 @@ spec:
                             type: string
                           storeType:
                             type: string
-                            pattern: ^(filestore|bluestore)$
+                            pattern: ^(bluestore)$
                           databaseSizeMB:
                             type: string
                           walSizeMB:
@@ -118,12 +118,6 @@ spec:
                       useAllDevices:
                         type: boolean
                       deviceFilter: {}
-                      directories:
-                        type: array
-                        items:
-                          properties:
-                            path:
-                              type: string
                       devices:
                         type: array
                         items:
@@ -136,12 +130,6 @@ spec:
                 useAllDevices:
                   type: boolean
                 deviceFilter: {}
-                directories:
-                  type: array
-                  items:
-                    properties:
-                      path:
-                        type: string
                 config: {}
                 storageClassDeviceSets: {}
             monitoring:
