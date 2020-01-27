@@ -19,7 +19,6 @@ package spec
 
 import (
 	"fmt"
-
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"

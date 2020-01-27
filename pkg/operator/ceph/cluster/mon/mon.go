@@ -91,6 +91,11 @@ const (
 	// pods and waiting for kubernetes scheduling to complete.
 	canaryRetries           = 180
 	canaryRetryDelaySeconds = 5
+
+	// Fallback pod anti affinity for mon pods to PreferredDuringSchedulingIgnoredDuringExecution
+	// if not in a case (e.g. HostNetworking, not AllowMultiplePerHost)
+	// needing RequiredDuringSchedulingIgnoredDuringExecution pod anti-affinity
+	PreferredDuringScheduling = true
 )
 
 var (
@@ -423,7 +428,8 @@ func realScheduleMonitor(c *Cluster, mon *monConfig) (SchedulingResult, error) {
 
 	// setup affinity settings for pod scheduling
 	p := cephv1.GetMonPlacement(c.spec.Placement)
-	c.setPodPlacement(&d.Spec.Template.Spec, p, nil)
+	k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, p, requiredDuringScheduling(&c.spec), PreferredDuringScheduling,
+		map[string]string{k8sutil.AppAttr: AppName}, nil)
 
 	// setup storage on the canary since scheduling will be affected when
 	// monitors are configured to use persistent volumes. the pvcName is set to
@@ -888,10 +894,11 @@ func (c *Cluster) startMon(m *monConfig, node *NodeInfo) error {
 		if c.Network.IsHost() || !pvcExists {
 			p.PodAffinity = nil
 			p.PodAntiAffinity = nil
-			c.setPodPlacement(&d.Spec.Template.Spec, p,
-				existingDeployment.Spec.Template.Spec.NodeSelector)
+			k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, p, requiredDuringScheduling(&c.spec), PreferredDuringScheduling,
+				map[string]string{k8sutil.AppAttr: AppName}, existingDeployment.Spec.Template.Spec.NodeSelector)
 		} else {
-			c.setPodPlacement(&d.Spec.Template.Spec, p, nil)
+			k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, p, requiredDuringScheduling(&c.spec), PreferredDuringScheduling,
+				map[string]string{k8sutil.AppAttr: AppName}, nil)
 		}
 		return c.updateMon(m, d)
 	}
@@ -912,12 +919,13 @@ func (c *Cluster) startMon(m *monConfig, node *NodeInfo) error {
 	}
 
 	if node == nil {
-		c.setPodPlacement(&d.Spec.Template.Spec, p, nil)
+		k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, p, requiredDuringScheduling(&c.spec), PreferredDuringScheduling,
+			map[string]string{k8sutil.AppAttr: AppName}, nil)
 	} else {
 		p.PodAffinity = nil
 		p.PodAntiAffinity = nil
-		c.setPodPlacement(&d.Spec.Template.Spec, p,
-			map[string]string{v1.LabelHostname: node.Hostname})
+		k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, p, requiredDuringScheduling(&c.spec), PreferredDuringScheduling,
+			map[string]string{k8sutil.AppAttr: AppName}, map[string]string{v1.LabelHostname: node.Hostname})
 	}
 
 	logger.Debugf("Starting mon: %+v", d.Name)
@@ -1036,6 +1044,10 @@ func monFoundInQuorum(name string, monQuorumStatusResp client.MonStatusResponse)
 	}
 
 	return false
+}
+
+func requiredDuringScheduling(spec *cephv1.ClusterSpec) bool {
+	return spec.Network.IsHost() || !spec.Mon.AllowMultiplePerNode
 }
 
 func (c *Cluster) acquireOrchestrationLock() {
