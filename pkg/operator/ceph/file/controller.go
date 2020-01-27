@@ -54,7 +54,6 @@ type FilesystemController struct {
 	ownerRef           metav1.OwnerReference
 	dataDirHostPath    string
 	orchestrationMutex sync.Mutex
-	isUpgrade          bool
 }
 
 // NewFilesystemController create controller for watching filesystem custom resources created
@@ -66,7 +65,6 @@ func NewFilesystemController(
 	clusterSpec *cephv1.ClusterSpec,
 	ownerRef metav1.OwnerReference,
 	dataDirHostPath string,
-	isUpgrade bool,
 ) *FilesystemController {
 	return &FilesystemController{
 		clusterInfo:     clusterInfo,
@@ -76,7 +74,6 @@ func NewFilesystemController(
 		clusterSpec:     clusterSpec,
 		ownerRef:        ownerRef,
 		dataDirHostPath: dataDirHostPath,
-		isUpgrade:       isUpgrade,
 	}
 }
 
@@ -121,7 +118,7 @@ func (c *FilesystemController) onAdd(obj interface{}) {
 	}
 	updateCephFilesystemStatus(filesystem.GetName(), filesystem.GetNamespace(), k8sutil.ProcessingStatus, c.context)
 
-	err = createFilesystem(c.clusterInfo, c.context, *filesystem, c.rookVersion, c.clusterSpec, c.filesystemOwner(filesystem), c.clusterSpec.DataDirHostPath, c.isUpgrade)
+	err = createFilesystem(c.clusterInfo, c.context, *filesystem, c.rookVersion, c.clusterSpec, c.filesystemOwner(filesystem), c.clusterSpec.DataDirHostPath)
 	if err != nil {
 		logger.Errorf("failed to create filesystem %q. %v", filesystem.Name, err)
 		updateCephFilesystemStatus(filesystem.GetName(), filesystem.GetNamespace(), k8sutil.FailedStatus, c.context)
@@ -157,7 +154,7 @@ func (c *FilesystemController) onUpdate(oldObj, newObj interface{}) {
 	// if the filesystem is modified, allow the filesystem to be created if it wasn't already
 	logger.Infof("updating filesystem %s", newFS.Name)
 	updateCephFilesystemStatus(newFS.GetName(), newFS.GetNamespace(), k8sutil.ProcessingStatus, c.context)
-	err = createFilesystem(c.clusterInfo, c.context, *newFS, c.rookVersion, c.clusterSpec, c.filesystemOwner(newFS), c.clusterSpec.DataDirHostPath, c.isUpgrade)
+	err = createFilesystem(c.clusterInfo, c.context, *newFS, c.rookVersion, c.clusterSpec, c.filesystemOwner(newFS), c.clusterSpec.DataDirHostPath)
 	if err != nil {
 		logger.Errorf("failed to create (modify) filesystem %q. %v", newFS.Name, err)
 		updateCephFilesystemStatus(newFS.GetName(), newFS.GetNamespace(), k8sutil.FailedStatus, c.context)
@@ -173,9 +170,6 @@ func (c *FilesystemController) ParentClusterChanged(cluster cephv1.ClusterSpec, 
 		return
 	}
 
-	// This is an upgrade so let's activate the flag
-	c.isUpgrade = isUpgrade
-
 	c.acquireOrchestrationLock()
 	defer c.releaseOrchestrationLock()
 
@@ -187,7 +181,7 @@ func (c *FilesystemController) ParentClusterChanged(cluster cephv1.ClusterSpec, 
 	}
 	for _, fs := range filesystems.Items {
 		logger.Infof("updating the ceph version for filesystem %s to %s", fs.Name, c.clusterSpec.CephVersion.Image)
-		err = createFilesystem(c.clusterInfo, c.context, fs, c.rookVersion, c.clusterSpec, c.filesystemOwner(&fs), c.clusterSpec.DataDirHostPath, c.isUpgrade)
+		err = createFilesystem(c.clusterInfo, c.context, fs, c.rookVersion, c.clusterSpec, c.filesystemOwner(&fs), c.clusterSpec.DataDirHostPath)
 		if err != nil {
 			logger.Errorf("failed to update filesystem %q. %v", fs.Name, err)
 		} else {

@@ -72,7 +72,6 @@ func TestStartMGR(t *testing.T) {
 		metav1.OwnerReference{},
 		"/var/lib/rook/",
 		false,
-		false,
 	)
 	defer os.RemoveAll(c.dataDir)
 

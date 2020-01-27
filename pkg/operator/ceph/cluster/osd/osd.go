@@ -25,6 +25,7 @@ import (
 
 	"k8s.io/client-go/kubernetes"
 
+	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -89,7 +90,6 @@ type Cluster struct {
 	priorityClassName                          string
 	ownerRef                                   metav1.OwnerReference
 	kv                                         *k8sutil.ConfigMapKVStore
-	isUpgrade                                  bool
 	skipUpgradeChecks                          bool
 	continueUpgradeAfterChecksEvenIfNotHealthy bool
 }
@@ -110,7 +110,6 @@ func New(
 	prepareResources v1.ResourceRequirements,
 	priorityClassName string,
 	ownerRef metav1.OwnerReference,
-	isUpgrade bool,
 	skipUpgradeChecks bool,
 	continueUpgradeAfterChecksEvenIfNotHealthy bool,
 ) *Cluster {
@@ -130,7 +129,6 @@ func New(
 		priorityClassName: priorityClassName,
 		ownerRef:          ownerRef,
 		kv:                k8sutil.NewConfigMapKVStore(namespace, context.Clientset, ownerRef),
-		isUpgrade:         isUpgrade,
 		skipUpgradeChecks: skipUpgradeChecks,
 		continueUpgradeAfterChecksEvenIfNotHealthy: continueUpgradeAfterChecksEvenIfNotHealthy,
 	}
@@ -486,21 +484,18 @@ func (c *Cluster) startOSDDaemonsOnPVC(pvcName string, config *provisionConfig, 
 			daemon := string(opconfig.OsdType)
 			var cephVersionToUse cephver.CephVersion
 
-			// If this is not a Ceph upgrade there is no need to check the ceph version
-			if c.isUpgrade {
-				currentCephVersion, err := client.LeastUptodateDaemonVersion(c.context, c.clusterInfo.Name, daemon)
-				if err != nil {
-					logger.Warningf("failed to retrieve current ceph %q version. %v", daemon, err)
-					logger.Debug("could not detect ceph version during update, this is likely an initial bootstrap, proceeding with c.clusterInfo.CephVersion")
-					cephVersionToUse = c.clusterInfo.CephVersion
-				} else {
-					logger.Debugf("current cluster version for osds before upgrading is: %+v", currentCephVersion)
-					cephVersionToUse = currentCephVersion
-				}
+			currentCephVersion, err := client.LeastUptodateDaemonVersion(c.context, c.clusterInfo.Name, daemon)
+			if err != nil {
+				logger.Warningf("failed to retrieve current ceph %q version. %+v", daemon, err)
+				logger.Debug("could not detect ceph version during update, this is likely an initial bootstrap, proceeding with %+v", c.clusterInfo.CephVersion)
+				cephVersionToUse = c.clusterInfo.CephVersion
+			} else {
+				logger.Debugf("current cluster version for osds before upgrading is: %+v", currentCephVersion)
+				cephVersionToUse = currentCephVersion
 			}
 
-			if err = updateDeploymentAndWait(c.context, dp, c.Namespace, daemon, strconv.Itoa(osd.ID), cephVersionToUse, c.isUpgrade, c.skipUpgradeChecks, c.continueUpgradeAfterChecksEvenIfNotHealthy); err != nil {
-				logger.Errorf("failed to update osd deployment %d. %v", osd.ID, err)
+			if err = updateDeploymentAndWait(c.context, dp, c.Namespace, daemon, strconv.Itoa(osd.ID), cephVersionToUse, c.skipUpgradeChecks, c.continueUpgradeAfterChecksEvenIfNotHealthy); err != nil {
+				logger.Errorf("failed to update osd deployment %d. %+v", osd.ID, err)
 			}
 		}
 		logger.Infof("started deployment for osd %d on pvc", osd.ID)
@@ -550,6 +545,14 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 			continue
 		}
 
+		// Set the deployment hash as an annotation
+		err = patch.DefaultAnnotator.SetLastAppliedAnnotation(dp)
+		if err != nil {
+			errMsg := fmt.Sprintf("failed to set annotation for deployment %q. %v", dp.Name, err)
+			config.addError(errMsg)
+			continue
+		}
+
 		createdDeployment, createErr := c.context.Clientset.AppsV1().Deployments(c.Namespace).Create(dp)
 		if createErr != nil {
 			if !kerrors.IsAlreadyExists(createErr) {
@@ -575,21 +578,18 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 			daemon := string(opconfig.OsdType)
 			var cephVersionToUse cephver.CephVersion
 
-			// If this is not a Ceph upgrade there is no need to check the ceph version
-			if c.isUpgrade {
-				currentCephVersion, err := client.LeastUptodateDaemonVersion(c.context, c.clusterInfo.Name, daemon)
-				if err != nil {
-					logger.Warningf("failed to retrieve current ceph %q version. %v", daemon, err)
-					logger.Debug("could not detect ceph version during update, this is likely an initial bootstrap, proceeding with c.clusterInfo.CephVersion")
-					cephVersionToUse = c.clusterInfo.CephVersion
-				} else {
-					logger.Debugf("current cluster version for osds before upgrading is: %+v", currentCephVersion)
-					cephVersionToUse = currentCephVersion
-				}
+			currentCephVersion, err := client.LeastUptodateDaemonVersion(c.context, c.clusterInfo.Name, daemon)
+			if err != nil {
+				logger.Warningf("failed to retrieve current ceph %q version. %+v", daemon, err)
+				logger.Debug("could not detect ceph version during update, this is likely an initial bootstrap, proceeding with %+v", c.clusterInfo.CephVersion)
+				cephVersionToUse = c.clusterInfo.CephVersion
+			} else {
+				logger.Debugf("current cluster version for osds before upgrading is: %+v", currentCephVersion)
+				cephVersionToUse = currentCephVersion
 			}
 
-			if err = updateDeploymentAndWait(c.context, dp, c.Namespace, daemon, strconv.Itoa(osd.ID), cephVersionToUse, c.isUpgrade, c.skipUpgradeChecks, c.continueUpgradeAfterChecksEvenIfNotHealthy); err != nil {
-				logger.Errorf("failed to update osd deployment %d. %v", osd.ID, err)
+			if err = updateDeploymentAndWait(c.context, dp, c.Namespace, daemon, strconv.Itoa(osd.ID), cephVersionToUse, c.skipUpgradeChecks, c.continueUpgradeAfterChecksEvenIfNotHealthy); err != nil {
+				logger.Errorf("failed to update osd deployment %d. %+v", osd.ID, err)
 			}
 		}
 		logger.Infof("started deployment for osd %d", osd.ID)

@@ -74,7 +74,6 @@ func testDeploymentObject(network cephv1.NetworkSpec) *apps.Deployment {
 		&client.CephFilesystemDetails{ID: 15},
 		metav1.OwnerReference{},
 		"/var/lib/rook/",
-		false,
 	)
 	mdsTestConfig := &mdsConfig{
 		DaemonID:     "myfs-a",

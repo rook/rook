@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -43,7 +44,6 @@ type clusterConfig struct {
 	clusterSpec       *cephv1.ClusterSpec
 	ownerRef          metav1.OwnerReference
 	DataPathMap       *config.DataPathMap
-	isUpgrade         bool
 	skipUpgradeChecks bool
 }
 
@@ -141,6 +141,13 @@ func (c *clusterConfig) startRGWPods() error {
 		// Create deployment
 		deployment := c.createDeployment(rgwConfig)
 		logger.Infof("object store %s deployment %s started", c.store.Name, deployment.Name)
+
+		// Set the deployment hash as an annotation
+		err = patch.DefaultAnnotator.SetLastAppliedAnnotation(deployment)
+		if err != nil {
+			return errors.Wrapf(err, "failed to set annotation for deployment %q", deployment.Name)
+		}
+
 		createdDeployment, createErr := c.context.Clientset.AppsV1().Deployments(c.store.Namespace).Create(deployment)
 		if createErr != nil {
 			if !kerrors.IsAlreadyExists(createErr) {
@@ -172,16 +179,16 @@ func (c *clusterConfig) startRGWPods() error {
 			var cephVersionToUse cephver.CephVersion
 			currentCephVersion, err := client.LeastUptodateDaemonVersion(c.context, c.clusterInfo.Name, daemon)
 			if err != nil {
-				logger.Warningf("failed to retrieve current ceph %s version. %v", daemon, err)
-				logger.Debug("could not detect ceph version during update, this is likely an initial bootstrap, proceeding with c.clusterInfo.CephVersion")
+				logger.Warningf("failed to retrieve current ceph %q version. %v", daemon, err)
+				logger.Debug("could not detect ceph version during update, this is likely an initial bootstrap, proceeding with %+v", c.clusterInfo.CephVersion)
 				cephVersionToUse = c.clusterInfo.CephVersion
 
 			} else {
 				logger.Debugf("current cluster version for rgws before upgrading is: %+v", currentCephVersion)
 				cephVersionToUse = currentCephVersion
 			}
-			if err := updateDeploymentAndWait(c.context, deployment, c.store.Namespace, daemon, daemonLetterID, cephVersionToUse, c.isUpgrade, c.skipUpgradeChecks, false); err != nil {
-				return errors.Wrapf(err, "failed to update object store %s deployment %s", c.store.Name, deployment.Name)
+			if err := updateDeploymentAndWait(c.context, deployment, c.store.Namespace, daemon, daemonLetterID, cephVersionToUse, c.skipUpgradeChecks, false); err != nil {
+				return errors.Wrapf(err, "failed to update object store %q deployment %q", c.store.Name, deployment.Name)
 			}
 		}
 
