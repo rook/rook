@@ -49,15 +49,14 @@ func GetInitiatorEnvArr(svctype string, embedded bool, chunkCacheSize resource.Q
 		// adjust chunk cache maximum size
 		cacheSize := rMemLim.Value() * 75 / 100
 		if embedded {
-			if chunkCacheSize.IsZero() {
-				// embedded default case, 100mb
-				cacheSize = 100 * 1024 * 1024
-			} else {
-				if chunkCacheSize.CmpInt64(cacheSize) < 0 {
-					// user wants to set custom that is less then 75% of total
-					cacheSize = chunkCacheSize.Value()
-				}
-			}
+			// embedded default case, 100mb
+			cacheSize = 100 * 1024 * 1024
+		}
+
+		if !chunkCacheSize.IsZero() && chunkCacheSize.CmpInt64(cacheSize) < 0 {
+			// user wants to set custom cache size
+			// It might be lowered below
+			cacheSize = chunkCacheSize.Value()
 		}
 
 		if svctype == "target" {
@@ -104,6 +103,13 @@ func GetInitiatorEnvArr(svctype string, embedded bool, chunkCacheSize resource.Q
 		retArr = append(retArr, v1.EnvVar{
 			Name:  "CCOW_MEMORY_LIMIT",
 			Value: strconv.FormatInt(cacheSize, 10),
+		})
+	}
+	rCpuLim := resources.Limits.Cpu()
+	if !rCpuLim.IsZero() {
+		retArr = append(retArr, v1.EnvVar{
+			Name:  "SVC_CPU_LIMIT",
+			Value: strconv.FormatInt(rCpuLim.Value(), 10),
 		})
 	}
 
