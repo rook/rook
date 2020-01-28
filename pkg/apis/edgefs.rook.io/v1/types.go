@@ -72,7 +72,7 @@ type ClusterSpec struct {
 	ResourceProfile         string            `json:"resourceProfile,omitempty"`
 	ChunkCacheSize          resource.Quantity `json:"chunkCacheSize,omitempty"`
 	TrlogProcessingInterval int               `json:"trlogProcessingInterval,omitempty"`
-	TrlogKeepDays           int               `json:"trlogKeepDays,omitempty"`
+	TrlogKeepDays           float32           `json:"trlogKeepDays,omitempty"`
 	SystemReplicationCount  int               `json:"sysRepCount,omitempty"`
 	FailureDomain           string            `json:"failureDomain,omitempty"`
 	CommitNWait             int               `json:"commitNWait,omitempty"`
