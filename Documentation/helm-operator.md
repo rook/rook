@@ -130,13 +130,14 @@ The following tables lists the configurable parameters of the rook-operator char
 | `csi.enableSnapshotter`          | Enable deployment of snapshotter container in ceph-csi provisioner.                                     | `true`                                                 |
 | `csi.forceCephFSKernelClient`    | Enable Ceph Kernel clients on kernel < 4.17 which support quotas for Cephfs.                            | `true`                                                 |
 | `csi.kubeletDirPath`             | Kubelet root directory path (if the Kubelet uses a different path for the `--root-dir` flag)            | `/var/lib/kubelet`                                     |
-| `csi.cephcsi.image`              | Ceph CSI image.                                                                                         | `quay.io/cephcsi/cephcsi:v1.2.2`                       |
+| `csi.cephcsi.image`              | Ceph CSI image.                                                                                         | `quay.io/cephcsi/cephcsi:v2.0.0`                       |
 | `csi.rbdPluginUpdateStrategy`    | CSI Rbd plugin daemonset update strategy, supported values are OnDelete and RollingUpdate.              | `OnDelete`                                             |
 | `csi.cephFSPluginUpdateStrategy` | CSI CephFS plugin daemonset update strategy, supported values are OnDelete and RollingUpdate.           | `OnDelete`                                             |
-| `csi.registrar.image`            | Kubernetes CSI registrar image.                                                                         | `quay.io/k8scsi/csi-node-driver-registrar:v1.1.0`      |
+| `csi.registrar.image`            | Kubernetes CSI registrar image.                                                                         | `quay.io/k8scsi/csi-node-driver-registrar:v1.2.0`      |
+| `csi.resizer.image`              | Kubernetes CSI resizer image.                                                                           | `quay.io/k8scsi/csi-resizer:v0.4.0`                    |
 | `csi.provisioner.image`          | Kubernetes CSI provisioner image.                                                                       | `quay.io/k8scsi/csi-provisioner:v1.4.0`                |
 | `csi.snapshotter.image`          | Kubernetes CSI snapshotter image.                                                                       | `quay.io/k8scsi/csi-snapshotter:v1.2.2`                |
-| `csi.attacher.image`             | Kubernetes CSI Attacher image.                                                                          | `quay.io/k8scsi/csi-attacher:v1.2.0`                   |
+| `csi.attacher.image`             | Kubernetes CSI Attacher image.                                                                          | `quay.io/k8scsi/csi-attacher:v2.1.0`                   |
 | `agent.flexVolumeDirPath`        | Path where the Rook agent discovers the flex volume plugins (*)                                         | `/usr/libexec/kubernetes/kubelet-plugins/volume/exec/` |
 | `agent.libModulesDirPath`        | Path where the Rook agent should look for kernel modules (*)                                            | `/lib/modules`                                         |
 | `agent.mounts`                   | Additional paths to be mounted in the agent container (**)                                              | <none>                                                 |

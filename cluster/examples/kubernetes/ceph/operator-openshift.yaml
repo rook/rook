@@ -240,6 +240,21 @@ spec:
         # See the upgrade guide: https://rook.io/docs/rook/v1.2/ceph-upgrade.html
         - name: CSI_FORCE_CEPHFS_KERNEL_CLIENT
           value: "true"
+        # The default version of CSI supported by Rook will be started. To change the version
+        # of the CSI driver to something other than what is officially supported, change
+        # these images to the desired release of the CSI driver.
+        #- name: ROOK_CSI_CEPH_IMAGE
+        #  value: "quay.io/cephcsi/cephcsi:v2.0.0"
+        #- name: ROOK_CSI_REGISTRAR_IMAGE
+        #  value: "quay.io/k8scsi/csi-node-driver-registrar:v1.2.0"
+        #- name: ROOK_CSI_RESIZER_IMAGE
+        #  value: "quay.io/k8scsi/csi-resizer:v0.4.0"
+        #- name: ROOK_CSI_PROVISIONER_IMAGE
+        #  value: "quay.io/k8scsi/csi-provisioner:v1.4.0"
+        #- name: ROOK_CSI_SNAPSHOTTER_IMAGE
+        #  value: "quay.io/k8scsi/csi-snapshotter:v1.2.2"
+        #- name: ROOK_CSI_ATTACHER_IMAGE
+        #  value: "quay.io/k8scsi/csi-attacher:v2.1.0"
         # CSI CephFS plugin daemonset update strategy, supported values are OnDelete and RollingUpdate.
         # Default value is RollingUpdate.
         #- name: CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY

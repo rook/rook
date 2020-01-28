@@ -40,6 +40,7 @@ type Param struct {
 	ProvisionerImage           string
 	AttacherImage              string
 	SnapshotterImage           string
+	ResizerImage               string
 	DriverNamePrefix           string
 	EnableSnapshotter          string
 	EnableCSIGRPCMetrics       string
@@ -90,17 +91,20 @@ var (
 // manually challenging.
 var (
 	// image names
-	DefaultCSIPluginImage   = "quay.io/cephcsi/cephcsi:v1.2.2"
-	DefaultRegistrarImage   = "quay.io/k8scsi/csi-node-driver-registrar:v1.1.0"
+	DefaultCSIPluginImage   = "quay.io/cephcsi/cephcsi:v2.0.0"
+	DefaultRegistrarImage   = "quay.io/k8scsi/csi-node-driver-registrar:v1.2.0"
 	DefaultProvisionerImage = "quay.io/k8scsi/csi-provisioner:v1.4.0"
-	DefaultAttacherImage    = "quay.io/k8scsi/csi-attacher:v1.2.0"
+	DefaultAttacherImage    = "quay.io/k8scsi/csi-attacher:v2.1.0"
 	DefaultSnapshotterImage = "quay.io/k8scsi/csi-snapshotter:v1.2.2"
+	defaultResizerImage     = "quay.io/k8scsi/csi-resizer:v0.4.0"
 )
 
 const (
-	KubeMinMajor              = "1"
-	KubeMinMinor              = "13"
-	provDeploymentSuppVersion = "14"
+	KubeMinMajor                   = "1"
+	KubeMinMinor                   = "13"
+	provDeploymentSuppVersion      = "14"
+	kubeMinVerForFilesystemRestore = "15"
+	kubeMinVerForBlockRestore      = "16"
 
 	// toleration and node affinity
 	provisionerTolerationsEnv  = "CSI_PROVISIONER_TOLERATIONS"
@@ -241,6 +245,18 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 
 	if ver.Major > KubeMinMajor || (ver.Major == KubeMinMajor && ver.Minor < provDeploymentSuppVersion) {
 		deployProvSTS = true
+	}
+
+	tp.ResizerImage = os.Getenv("ROOK_CSI_RESIZER_IMAGE")
+	if tp.ResizerImage == "" {
+		tp.ResizerImage = defaultResizerImage
+	}
+
+	if ver.Major < KubeMinMajor || ver.Major == KubeMinMajor && ver.Minor < kubeMinVerForFilesystemRestore {
+		logger.Warning("CSI Filesystem volume expansion requires Kubernetes version >=1.15.0")
+	}
+	if ver.Major < KubeMinMajor || ver.Major == KubeMinMajor && ver.Minor < kubeMinVerForBlockRestore {
+		logger.Warning("CSI Block volume expansion requires Kubernetes version >=1.16.0")
 	}
 
 	if EnableRBD {

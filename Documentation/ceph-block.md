@@ -187,59 +187,27 @@ Continue with the example above for the [wordpress application](#consume-the-sto
 
 ## Advanced Example: Erasure Coded Block Storage
 
-> **IMPORTANT**: This is only possible when using the Flex driver. Ceph CSI 1.2 (with Rook 1.1) does not support this type of configuration yet.
-
 If you want to use erasure coded pool with RBD, your OSDs must use `bluestore` as their `storeType`.
 Additionally the nodes that are going to mount the erasure coded RBD block storage must have Linux kernel >= `4.11`.
 
-To be able to use an erasure coded pool you need to create two pools (as seen below in the definitions): one erasure coded and one replicated.
-The replicated pool must be specified as the `blockPool` parameter. It is used for the metadata of the RBD images.
-The erasure coded pool must be set as the `dataBlockPool` parameter below. It is used for the data of the RBD images.
+**NOTE**: This example requires *at least 3 bluestore OSDs*, with each OSD located on a *different node*.
 
+The OSDs must be located on different nodes, because the [`failureDomain`](ceph-pool-crd.md#spec) is set to `host` and the `erasureCoded` chunk settings require at least 3 different OSDs (2 `dataChunks` + 1 `codingChunks`).
+
+To be able to use an erasure coded pool you need to create two pools (as seen below in the definitions): one erasure coded and one replicated.
 > **NOTE**: This example requires *at least 3 bluestore OSDs*, with each OSD located on a *different node*.
 
 The OSDs must be located on different nodes, because the [`failureDomain`](ceph-pool-crd.md#spec) is set to `host` and the `erasureCoded` chunk settings require at least 3 different OSDs (2 `dataChunks` + 1 `codingChunks`).
 
-```yaml
-apiVersion: ceph.rook.io/v1
-kind: CephBlockPool
-metadata:
-  name: replicated-metadata-pool
-  namespace: rook-ceph
-spec:
-  failureDomain: host
-  replicated:
-    size: 3
----
-apiVersion: ceph.rook.io/v1
-kind: CephBlockPool
-metadata:
-  name: ec-data-pool
-  namespace: rook-ceph
-spec:
-  failureDomain: host
-  # Make sure you have enough nodes and OSDs running bluestore to support the replica size or erasure code chunks.
-  # For the below settings, you need at least 3 OSDs on different nodes (because the `failureDomain` is `host` by default).
-  erasureCoded:
-    dataChunks: 2
-    codingChunks: 1
----
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-   name: rook-ceph-block
-provisioner: ceph.rook.io/block
-parameters:
-  blockPool: replicated-metadata-pool
-  dataBlockPool: ec-data-pool
-  # Specify the namespace of the rook cluster from which to create volumes.
-  # If not specified, it will use `rook` as the default namespace of the cluster.
-  # This is also the namespace where the cluster will be
-  clusterNamespace: rook-ceph
-  # Specify the filesystem type of the volume. If not specified, it will use `ext4`.
-  fstype: xfs
-# Works for Kubernetes 1.14+
-allowVolumeExpansion: true
-```
+### Erasure Coded CSI Driver
 
-(These definitions can also be found in the [`storageclass-ec.yaml`](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/flex/storage-class-ec.yaml) file)
+The erasure coded pool must be set as the `dataPool` parameter in
+[`storageclass-ec.yaml`](https://github.com/rook/rook/blob/{{ branchName
+}}/cluster/examples/kubernetes/ceph/csi/rbd/storage-class-ec.yaml) It is used for the data of the RBD images.
+
+### Erasure Coded Flex Driver
+
+The erasure coded pool must be set as the `dataBlockPool` parameter in
+[`storageclass-ec.yaml`](https://github.com/rook/rook/blob/{{ branchName
+}}/cluster/examples/kubernetes/ceph/flex/storage-class-ec.yaml). It is used for
+the data of the RBD images.
