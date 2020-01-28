@@ -120,6 +120,7 @@ func (c *Cluster) Start() error {
 
 	// Always create double the number of metadata servers to have standby mdses available
 	replicas := c.fs.Spec.MetadataServer.ActiveCount * 2
+
 	// keep list of deployments we want so unwanted ones can be deleted later
 	desiredDeployments := map[string]bool{} // improvised set
 	// Create/update deployments
