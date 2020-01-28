@@ -50,6 +50,8 @@ var (
 	cephLogDir    = "/var/log/ceph"
 	lvmConfPath   = "/etc/lvm/lvm.conf"
 	cvLogDir      = ""
+	// The "ceph-volume raw" command is available since Ceph 14.2.8
+	cephVolumeRawModeMinCephVersion = cephver.CephVersion{Major: 14, Minor: 2, Extra: 8}
 )
 
 type osdInfoBlock struct {
@@ -110,7 +112,7 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 			osds = append(osds, lvmOsds...)
 
 			// List THE existing OSD configured with ceph-volume raw mode
-			if a.cluster.CephVersion.IsAtLeast(cephver.CephVersion{Major: 14, Minor: 2, Extra: 7}) && !lvBackedPV {
+			if a.cluster.CephVersion.IsAtLeast(cephVolumeRawModeMinCephVersion) && !lvBackedPV {
 				// For block mode
 				block = fmt.Sprintf("/mnt/%s", a.nodeName)
 				rawOsds, err = getCephVolumeRawOSDs(context, a.cluster.Name, a.cluster.FSID, block, lvBackedPV)
@@ -131,7 +133,7 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 		osds = append(osds, lvmOsds...)
 
 		// List existing OSD(s) configured with ceph-volume raw mode
-		if a.cluster.CephVersion.IsAtLeast(cephver.CephVersion{Major: 14, Minor: 2, Extra: 7}) && !lvBackedPV {
+		if a.cluster.CephVersion.IsAtLeast(cephVolumeRawModeMinCephVersion) && !lvBackedPV {
 			rawOsds, err = getCephVolumeRawOSDs(context, a.cluster.Name, a.cluster.FSID, block, lvBackedPV)
 			if err != nil {
 				logger.Infof("failed to get devices already provisioned by ceph-volume. %v", err)
@@ -170,7 +172,7 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 	// Only do this after Ceph Nautilus 14.2.6 since it will use the ceph-volume raw mode by default and not LVM anymore
 	//
 	// Or keep doing this if the PV is backend by an LV already
-	if !a.cluster.CephVersion.IsAtLeast(cephver.CephVersion{Major: 14, Minor: 2, Extra: 7}) || lvBackedPV {
+	if !a.cluster.CephVersion.IsAtLeast(cephVolumeRawModeMinCephVersion) || lvBackedPV {
 		if err := updateLVMConfig(context, a.pvcBacked, lvBackedPV); err != nil {
 			return nil, errors.Wrap(err, "failed to update lvm configuration file")
 		}
@@ -195,7 +197,7 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 	osds = append(osds, lvmOsds...)
 
 	// List THE configured OSD with ceph-volume raw mode
-	if a.cluster.CephVersion.IsAtLeast(cephver.CephVersion{Major: 14, Minor: 2, Extra: 7}) && !lvBackedPV {
+	if a.cluster.CephVersion.IsAtLeast(cephVolumeRawModeMinCephVersion) && !lvBackedPV {
 		block = fmt.Sprintf("/mnt/%s", a.nodeName)
 		rawOsds, err = getCephVolumeRawOSDs(context, a.cluster.Name, a.cluster.FSID, block, lvBackedPV)
 		if err != nil {
@@ -214,7 +216,7 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 	var baseArgs []string
 
 	cephVolumeMode := "lvm"
-	if a.cluster.CephVersion.IsAtLeast(cephver.CephVersion{Major: 14, Minor: 2, Extra: 7}) && !lvBackedPV {
+	if a.cluster.CephVersion.IsAtLeast(cephVolumeRawModeMinCephVersion) && !lvBackedPV {
 		cephVolumeMode = "raw"
 	}
 
