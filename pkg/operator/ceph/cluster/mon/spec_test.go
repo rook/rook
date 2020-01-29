@@ -68,7 +68,7 @@ func testPodSpec(t *testing.T, monID string, pvc bool) {
 	}
 	monConfig := testGenMonConfig(monID)
 
-	d := c.makeDeployment(monConfig)
+	d := c.makeDeployment(monConfig, false)
 	assert.NotNil(t, d)
 
 	if pvc {
@@ -116,7 +116,7 @@ func TestDeploymentPVCSpec(t *testing.T) {
 
 	// configured with default storage request
 	c.spec.Mon.VolumeClaimTemplate = &v1.PersistentVolumeClaim{}
-	pvc, err := c.makeDeploymentPVC(monConfig)
+	pvc, err := c.makeDeploymentPVC(monConfig, false)
 	assert.NoError(t, err)
 	defaultReq, err := resource.ParseQuantity(cephMonDefaultStorageRequest)
 	assert.NoError(t, err)
@@ -132,7 +132,7 @@ func TestDeploymentPVCSpec(t *testing.T) {
 			},
 		},
 	}
-	pvc, err = c.makeDeploymentPVC(monConfig)
+	pvc, err = c.makeDeploymentPVC(monConfig, false)
 	assert.NoError(t, err)
 	assert.Equal(t, pvc.Spec.Resources.Limits[v1.ResourceStorage], req)
 
@@ -146,7 +146,7 @@ func TestDeploymentPVCSpec(t *testing.T) {
 			},
 		},
 	}
-	pvc, err = c.makeDeploymentPVC(monConfig)
+	pvc, err = c.makeDeploymentPVC(monConfig, false)
 	assert.NoError(t, err)
 	assert.Equal(t, pvc.Spec.Resources.Requests[v1.ResourceStorage], req)
 }

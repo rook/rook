@@ -148,7 +148,8 @@ func (c *Cluster) checkHealth() error {
 			// when the timeout for the mon has been reached, continue to the
 			// normal failover/delete mon pod part of the code
 			if time.Since(c.monTimeoutList[mon.Name]) <= MonOutTimeout {
-				logger.Warningf("mon %s not found in quorum, waiting for timeout before failover", mon.Name)
+				timeToFailover := int(MonOutTimeout.Seconds() - time.Since(c.monTimeoutList[mon.Name]).Seconds())
+				logger.Warningf("mon %s not found in quorum, waiting for timeout (%d seconds left) before failover", mon.Name, timeToFailover)
 				continue
 			}
 
@@ -182,6 +183,12 @@ func (c *Cluster) checkHealth() error {
 			logger.Infof("removing an extra mon. currently %d are in quorum and only %d are desired", len(quorumStatus.MonMap.Mons), desiredMonCount)
 			return c.removeMon(quorumStatus.MonMap.Mons[0].Name)
 		}
+	}
+
+	// remove any pending/not needed mon canary deployment if everything is ok
+	if allMonsInQuorum && len(quorumStatus.MonMap.Mons) == desiredMonCount {
+		logger.Debug("mon cluster is healthy, removing any existing canary deployment")
+		c.removeCanaryDeployments()
 	}
 
 	return nil
