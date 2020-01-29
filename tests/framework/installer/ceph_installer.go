@@ -180,14 +180,14 @@ func (h *CephInstaller) CreateK8sRookToolbox(namespace string) (err error) {
 
 // CreateK8sRookClusterWithHostPathAndDevices creates rook cluster via kubectl
 func (h *CephInstaller) CreateK8sRookClusterWithHostPathAndDevices(namespace, systemNamespace, storeType string,
-	useAllDevices bool, mon cephv1.MonSpec, startWithAllNodes bool, rbdMirrorWorkers int, cephVersion cephv1.CephVersionSpec) error {
+	mon cephv1.MonSpec, startWithAllNodes bool, rbdMirrorWorkers int, cephVersion cephv1.CephVersionSpec) error {
 
 	dataDirHostPath, err := h.initTestDir(namespace)
 	if err != nil {
 		return fmt.Errorf("failed to create test dir. %+v", err)
 	}
-	logger.Infof("Creating cluster: namespace=%s, systemNamespace=%s, storeType=%s, dataDirHostPath=%s, useAllDevices=%t, startWithAllNodes=%t, mons=%+v",
-		namespace, systemNamespace, storeType, dataDirHostPath, useAllDevices, startWithAllNodes, mon)
+	logger.Infof("Creating cluster: namespace=%s, systemNamespace=%s, storeType=%s, dataDirHostPath=%s, startWithAllNodes=%t, mons=%+v",
+		namespace, systemNamespace, storeType, dataDirHostPath, startWithAllNodes, mon)
 
 	logger.Infof("Creating namespace %s", namespace)
 	ns := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
@@ -209,6 +209,7 @@ func (h *CephInstaller) CreateK8sRookClusterWithHostPathAndDevices(namespace, sy
 		return fmt.Errorf("failed to wipe cluster disks. %+v", err)
 	}
 
+	useAllDevices := true
 	logger.Infof("Starting Rook Cluster with yaml")
 	settings := &ClusterSettings{namespace, storeType, dataDirHostPath, useAllDevices, mon.Count, rbdMirrorWorkers, cephVersion}
 	rookCluster := h.Manifests.GetRookCluster(settings)
@@ -233,6 +234,108 @@ func (h *CephInstaller) CreateK8sRookClusterWithHostPathAndDevices(namespace, sy
 	logger.Infof("Rook Cluster started")
 	err = h.k8shelper.WaitForLabeledPodsToRun("app=rook-ceph-osd", namespace)
 	return err
+}
+
+// CreateK8sRookExternalCluster creates rook external cluster via kubectl
+func (h *CephInstaller) CreateK8sRookExternalCluster(namespace, firstClusterNamespace string) error {
+
+	dataDirHostPath, err := h.initTestDir(namespace)
+	if err != nil {
+		return fmt.Errorf("failed to create test dir. %+v", err)
+	}
+	logger.Infof("Creating external cluster: namespace=%q, firstClusterNamespace=%q", namespace, firstClusterNamespace)
+
+	logger.Infof("Creating namespace %s", namespace)
+	ns := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
+	_, err = h.k8shelper.Clientset.CoreV1().Namespaces().Create(ns)
+	if err != nil && !errors.IsAlreadyExists(err) {
+		return fmt.Errorf("failed to create namespace %q. %v", namespace, err)
+	}
+
+	// Skip this step since the helm chart already includes the roles and bindings
+	if !h.useHelm {
+		logger.Infof("Creating external cluster roles")
+		roles := h.Manifests.GetClusterExternalRoles(namespace, firstClusterNamespace)
+		if _, err := h.k8shelper.KubectlWithStdin(roles, createFromStdinArgs...); err != nil {
+			return fmt.Errorf("failed to create cluster roles. %v", err)
+		}
+	}
+
+	// Inject connection information from the first cluster
+	logger.Info("Injecting cluster connection information")
+	err = h.InjectRookExternalClusterInfo(namespace, firstClusterNamespace)
+	if err != nil {
+		return fmt.Errorf("failed to inject cluster information into the external cluster. %v", err)
+	}
+
+	// Start the external cluster
+	logger.Infof("Starting Rook External Cluster with yaml")
+	settings := &ClusterExternalSettings{namespace, dataDirHostPath}
+	rookCluster := h.Manifests.GetRookExternalCluster(settings)
+	if _, err := h.k8shelper.KubectlWithStdin(rookCluster, createFromStdinArgs...); err != nil {
+		return fmt.Errorf("failed to create rook external cluster. %v ", err)
+	}
+
+	logger.Infof("Rook external cluster started")
+	return err
+}
+
+// InjectRookExternalClusterInfo inject connection information for an external cluster
+func (h *CephInstaller) InjectRookExternalClusterInfo(namespace, firstClusterNamespace string) error {
+	// get config map
+	cm, err := h.GetRookExternalClusterMonConfigMap(firstClusterNamespace)
+	if err != nil {
+		return fmt.Errorf("failed to get configmap. %v", err)
+	}
+
+	// create config map
+	_, err = h.k8shelper.Clientset.CoreV1().ConfigMaps(namespace).Create(cm)
+	if err != nil {
+		return fmt.Errorf("failed to create configmap. %v", err)
+	}
+
+	// get secret
+	secret, err := h.GetRookExternalClusterMonSecret(firstClusterNamespace)
+	if err != nil {
+		return fmt.Errorf("failed to get secret. %v", err)
+	}
+
+	// create secret
+	_, err = h.k8shelper.Clientset.CoreV1().Secrets(namespace).Create(secret)
+	if err != nil {
+		return fmt.Errorf("failed to create secret. %v", err)
+	}
+
+	return nil
+}
+
+// GetRookExternalClusterMonConfigMap gets the monitor kubernetes configmap of the external cluster
+func (h *CephInstaller) GetRookExternalClusterMonConfigMap(namespace string) (*v1.ConfigMap, error) {
+	configMapName := "rook-ceph-mon-endpoints"
+	externalCM, err := h.k8shelper.Clientset.CoreV1().ConfigMaps(namespace).Get(configMapName, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get secret. %v", err)
+	}
+	newCM := &v1.ConfigMap{}
+	newCM.Name = externalCM.Name
+	newCM.Data = externalCM.Data
+
+	return newCM, nil
+}
+
+// GetRookExternalClusterMonSecret gets the monitor kubernetes secret of the external cluster
+func (h *CephInstaller) GetRookExternalClusterMonSecret(namespace string) (*v1.Secret, error) {
+	secretName := "rook-ceph-mon"
+
+	externalSecret, err := h.k8shelper.Clientset.CoreV1().Secrets(namespace).Get(secretName, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get secret. %v", err)
+	}
+	newSecret := &v1.Secret{}
+	newSecret.Name = externalSecret.Name
+	newSecret.Data = externalSecret.Data
+
+	return newSecret, nil
 }
 
 func (h *CephInstaller) initTestDir(namespace string) (string, error) {
@@ -273,7 +376,7 @@ func (h *CephInstaller) GetNodeHostnames() ([]string, error) {
 
 // InstallRookOnK8sWithHostPathAndDevices installs rook on k8s
 func (h *CephInstaller) InstallRookOnK8sWithHostPathAndDevices(namespace, storeType string,
-	useDevices bool, mon cephv1.MonSpec, startWithAllNodes bool, rbdMirrorWorkers int) (bool, error) {
+	mon cephv1.MonSpec, startWithAllNodes bool, rbdMirrorWorkers int) (bool, error) {
 
 	var err error
 	// flag used for local debugging purpose, when rook is pre-installed
@@ -316,7 +419,7 @@ func (h *CephInstaller) InstallRookOnK8sWithHostPathAndDevices(namespace, storeT
 
 	// Create rook cluster
 	err = h.CreateK8sRookClusterWithHostPathAndDevices(namespace, onamespace, storeType,
-		useDevices, cephv1.MonSpec{Count: mon.Count, AllowMultiplePerNode: mon.AllowMultiplePerNode}, startWithAllNodes,
+		cephv1.MonSpec{Count: mon.Count, AllowMultiplePerNode: mon.AllowMultiplePerNode}, startWithAllNodes,
 		rbdMirrorWorkers, h.CephVersion)
 	if err != nil {
 		logger.Errorf("Rook cluster %s not installed, error -> %v", namespace, err)
@@ -360,10 +463,14 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(gatherLogs bool, systemNames
 
 	logger.Infof("Uninstalling Rook")
 	var err error
-	for _, namespace := range namespaces {
+	for clusterNum, namespace := range namespaces {
 		if !h.T().Failed() {
-			// if the test passed, check that the ceph status is HEALTH_OK before we tear the cluster down
-			h.checkCephHealthStatus(namespace)
+			// Only check the Ceph status for the first cluster
+			// The second cluster is external so the check won't work since the first cluster is gone
+			if clusterNum == 0 {
+				// if the test passed, check that the ceph status is HEALTH_OK before we tear the cluster down
+				h.checkCephHealthStatus(namespace)
+			}
 		}
 
 		roles := h.Manifests.GetClusterRoles(namespace, systemNamespace)
@@ -515,7 +622,10 @@ func (h *CephInstaller) purgeClusters() error {
 func (h *CephInstaller) checkCephHealthStatus(namespace string) {
 	clusterResource, err := h.k8shelper.RookClientset.CephV1().CephClusters(namespace).Get(namespace, metav1.GetOptions{})
 	assert.Nil(h.T(), err)
-	assert.Equal(h.T(), "Created", string(clusterResource.Status.State))
+	clusterStatus := string(clusterResource.Status.State)
+	if clusterStatus != "Created" && clusterStatus != "Connected" {
+		assert.Equal(h.T(), "Created", string(clusterResource.Status.State))
+	}
 
 	// Depending on the tests, the health may be fluctuating with different components being started or stopped.
 	// If needed, give it a few seconds to settle and check the status again.

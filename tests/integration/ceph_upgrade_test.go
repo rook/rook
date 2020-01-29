@@ -70,7 +70,6 @@ type UpgradeSuite struct {
 
 func (s *UpgradeSuite) SetupSuite() {
 	s.namespace = "upgrade-ns"
-	useDevices := true
 	mons := 3
 	rbdMirrorWorkers := 0
 	cephVersion := rookcephv1.CephVersionSpec{
@@ -83,7 +82,6 @@ func (s *UpgradeSuite) SetupSuite() {
 		s.namespace,
 		"",
 		false,
-		useDevices,
 		mons,
 		rbdMirrorWorkers,
 		installer.Version1_0,
