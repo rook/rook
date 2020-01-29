@@ -208,7 +208,7 @@ func getImageVersion(cephCluster cephv1.CephCluster) (*version.CephVersion, erro
 	for i := 0; i < getVersionMaxRetries; i++ {
 		// If the Ceph cluster has not yet recorded the image and version for the current image in its spec, then the Crash
 		// controller should wait for the version to be detected.
-		if cephCluster.Spec.CephVersion.Image == cephCluster.Status.CephVersion.Image {
+		if cephCluster.Status.CephVersion != nil && cephCluster.Spec.CephVersion.Image == cephCluster.Status.CephVersion.Image {
 			logger.Debugf("ceph version found %q", cephCluster.Status.CephVersion.Version)
 			return spec.ExtractCephVersionFromLabel(cephCluster.Status.CephVersion.Version)
 		}
