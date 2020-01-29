@@ -35,23 +35,24 @@ import (
 )
 
 type Param struct {
-	CSIPluginImage             string
-	RegistrarImage             string
-	ProvisionerImage           string
-	AttacherImage              string
-	SnapshotterImage           string
-	ResizerImage               string
-	DriverNamePrefix           string
-	EnableSnapshotter          string
-	EnableCSIGRPCMetrics       string
-	KubeletDirPath             string
-	ForceCephFSKernelClient    string
-	CephFSPluginUpdateStrategy string
-	RBDPluginUpdateStrategy    string
-	CephFSGRPCMetricsPort      uint16
-	CephFSLivenessMetricsPort  uint16
-	RBDGRPCMetricsPort         uint16
-	RBDLivenessMetricsPort     uint16
+	CSIPluginImage                string
+	RegistrarImage                string
+	ProvisionerImage              string
+	AttacherImage                 string
+	SnapshotterImage              string
+	ResizerImage                  string
+	DriverNamePrefix              string
+	EnableSnapshotter             string
+	EnableCSIGRPCMetrics          string
+	KubeletDirPath                string
+	ForceCephFSKernelClient       string
+	CephFSPluginUpdateStrategy    string
+	RBDPluginUpdateStrategy       string
+	SetAttacherLeaderElectionType bool
+	CephFSGRPCMetricsPort         uint16
+	CephFSLivenessMetricsPort     uint16
+	RBDGRPCMetricsPort            uint16
+	RBDLivenessMetricsPort        uint16
 }
 
 type templateParam struct {
@@ -94,7 +95,7 @@ var (
 	DefaultCSIPluginImage   = "quay.io/cephcsi/cephcsi:v2.0.0"
 	DefaultRegistrarImage   = "quay.io/k8scsi/csi-node-driver-registrar:v1.2.0"
 	DefaultProvisionerImage = "quay.io/k8scsi/csi-provisioner:v1.4.0"
-	DefaultAttacherImage    = "quay.io/k8scsi/csi-attacher:v2.1.0"
+	DefaultAttacherImage    = "quay.io/k8scsi/csi-attacher:v1.2.0"
 	DefaultSnapshotterImage = "quay.io/k8scsi/csi-snapshotter:v1.2.2"
 	defaultResizerImage     = "quay.io/k8scsi/csi-resizer:v0.4.0"
 )
@@ -217,6 +218,17 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 	} else {
 		tp.ForceCephFSKernelClient = "true"
 	}
+
+	// "--leader-election-type=leases" parameter in external-attacher is
+	// removed in v2.1.0 but it is required if the external-attacher version is
+	// v1.2.x
+	attacher := strings.Split(CSIParam.AttacherImage, ":")
+	if len(attacher) > 1 {
+		if strings.HasPrefix(attacher[1], "v1.2.") {
+			tp.SetAttacherLeaderElectionType = true
+		}
+	}
+
 	// parse GRPC and Liveness ports
 	tp.CephFSGRPCMetricsPort = getPortFromENV("CSI_CEPHFS_GRPC_METRICS_PORT", DefaultCephFSGRPCMerticsPort)
 	tp.CephFSLivenessMetricsPort = getPortFromENV("CSI_CEPHFS_LIVENESS_METRICS_PORT", DefaultCephFSLivenessMerticsPort)

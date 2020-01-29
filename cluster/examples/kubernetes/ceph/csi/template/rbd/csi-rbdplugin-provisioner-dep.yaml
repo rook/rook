@@ -55,6 +55,9 @@ spec:
             - "--timeout=150s"
             - "--csi-address=$(ADDRESS)"
             - "--leader-election=true"
+            {{ if .SetAttacherLeaderElectionType }}
+            - "--leader-election-type=leases"
+            {{ end }}
             - "--leader-election-namespace={{ .Namespace }}"
           env:
             - name: ADDRESS
