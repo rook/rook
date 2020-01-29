@@ -27,7 +27,7 @@ import (
 )
 
 func (c *Cluster) createService(mon *monConfig) (string, error) {
-	labels := c.getLabels(mon.DaemonName)
+	labels := c.getLabels(mon.DaemonName, false, "")
 	svcDef := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   mon.ResourceName,
