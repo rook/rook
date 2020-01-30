@@ -142,8 +142,9 @@ type MonitoringSpec struct {
 }
 
 type ClusterStatus struct {
-	State       ClusterState    `json:"state,omitempty"`
+	Phase       ConditionType   `json:"phase,omitempty"`
 	Message     string          `json:"message,omitempty"`
+	Conditions  []Condition     `json:"conditions,omitempty"`
 	CephStatus  *CephStatus     `json:"ceph,omitempty"`
 	CephVersion *ClusterVersion `json:"version,omitempty"`
 }
@@ -166,15 +167,27 @@ type CephHealthMessage struct {
 	Message  string `json:"message"`
 }
 
-type ClusterState string
+type Condition struct {
+	Type               ConditionType      `json:"type,omitempty"`
+	Status             v1.ConditionStatus `json:"status,omitempty"`
+	Reason             string             `json:"reason,omitempty"`
+	Message            string             `json:"message,omitempty"`
+	LastHeartbeatTime  metav1.Time        `json:"lastHeartbeatTime,omitempty"`
+	LastTransitionTime metav1.Time        `json:"lastTransitionTime,omitempty"`
+}
+
+type ConditionType string
 
 const (
-	ClusterStateCreating   ClusterState = "Creating"
-	ClusterStateCreated    ClusterState = "Created"
-	ClusterStateUpdating   ClusterState = "Updating"
-	ClusterStateConnecting ClusterState = "Connecting"
-	ClusterStateConnected  ClusterState = "Connected"
-	ClusterStateError      ClusterState = "Error"
+	ConditionIgnored     ConditionType = "Ignored"
+	ConditionConnecting  ConditionType = "Connecting"
+	ConditionConnected   ConditionType = "Connected"
+	ConditionProgressing ConditionType = "Progressing"
+	ConditionReady       ConditionType = "Ready"
+	ConditionUpdating    ConditionType = "Updating"
+	ConditionFailure     ConditionType = "Failure"
+	ConditionUpgrading   ConditionType = "Upgrading"
+	ConditionDeleting    ConditionType = "Deleting"
 	// DefaultFailureDomain for PoolSpec
 	DefaultFailureDomain = "host"
 )

@@ -181,7 +181,6 @@ func (c *Cluster) Start() error {
 	if err != nil {
 		return errors.Wrap(err, "error checking pod memory")
 	}
-
 	logger.Infof("start running osds in namespace %s", c.Namespace)
 
 	if c.DesiredStorage.UseAllNodes == false && len(c.DesiredStorage.Nodes) == 0 && len(c.DesiredStorage.VolumeSources) == 0 && len(c.DesiredStorage.StorageClassDeviceSets) == 0 {
@@ -226,7 +225,6 @@ func (c *Cluster) Start() error {
 			}
 		}
 	}
-
 	logger.Infof("completed running osds in namespace %s", c.Namespace)
 	return nil
 }

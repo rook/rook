@@ -49,7 +49,6 @@ func TestClusterDeleteFlexEnabled(t *testing.T) {
 	context := &clusterd.Context{
 		Clientset: clientset,
 	}
-
 	listCount := 0
 	volumeAttachmentController := &attachment.MockAttachment{
 		MockList: func(namespace string) (*rookalpha.VolumeList, error) {
@@ -116,7 +115,6 @@ func TestClusterDeleteFlexDisabled(t *testing.T) {
 	context := &clusterd.Context{
 		Clientset: clientset,
 	}
-
 	listCount := 0
 	volumeAttachmentController := &attachment.MockAttachment{
 		MockList: func(namespace string) (*rookalpha.VolumeList, error) {
