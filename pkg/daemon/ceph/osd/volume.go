@@ -55,6 +55,50 @@ const (
 	cephVolumeMinDBSize  = 1024 // 1GB
 )
 
+<<<<<<< HEAD
+=======
+// These are not constants because they are used by the tests
+var (
+	cephConfigDir = "/var/lib/ceph"
+	cephLogDir    = "/var/log/ceph"
+	lvmConfPath   = "/etc/lvm/lvm.conf"
+	cvLogDir      = ""
+	// The "ceph-volume raw" command is available since Ceph 14.2.8 as well as partition support in ceph-volume
+	cephVolumeRawModeMinCephVersion = cephver.CephVersion{Major: 14, Minor: 2, Extra: 8}
+)
+
+type osdInfoBlock struct {
+	CephFsid string `json:"ceph_fsid"`
+	Device   string `json:"device"`
+	OsdID    int    `json:"osd_id"`
+	OsdUUID  string `json:"osd_uuid"`
+	Type     string `json:"type"`
+}
+
+type osdInfo struct {
+	Name string  `json:"name"`
+	Path string  `json:"path"`
+	Tags osdTags `json:"tags"`
+	// "data" or "journal" for filestore and "block" for bluestore
+	Type string `json:"type"`
+}
+
+type osdTags struct {
+	OSDFSID     string `json:"ceph.osd_fsid"`
+	Encrypted   string `json:"ceph.encrypted"`
+	ClusterFSID string `json:"ceph.cluster_fsid"`
+}
+
+type cephVolReport struct {
+	Changed bool      `json:"changed"`
+	Vg      cephVolVg `json:"vg"`
+}
+
+type cephVolVg struct {
+	Devices string `json:"devices"`
+}
+
+>>>>>>> df3a8564b... ceph: skip partitions depending on the ceph version
 func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *DeviceOsdMapping) ([]oposd.OSDInfo, error) {
 	var osds []oposd.OSDInfo
 	var lv string

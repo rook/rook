@@ -31,8 +31,12 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
+<<<<<<< HEAD
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+=======
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
+>>>>>>> df3a8564b... ceph: skip partitions depending on the ceph version
 	"github.com/rook/rook/pkg/util/sys"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 )
@@ -213,7 +217,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 	logger.Infof("creating and starting the osds")
 
 	// determine the set of devices that can/should be used for OSDs.
-	devices, err := getAvailableDevices(context, agent.devices, agent.metadataDevice, agent.pvcBacked)
+	devices, err := getAvailableDevices(context, agent.devices, agent.metadataDevice, agent.pvcBacked, agent.cluster.CephVersion)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get available devices")
 	}
@@ -279,14 +283,43 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 	return nil
 }
 
-func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevice, metadataDevice string, pvcBacked bool) (*DeviceOsdMapping, error) {
+func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevice, metadataDevice string, pvcBacked bool, cephVersion cephver.CephVersion) (*DeviceOsdMapping, error) {
 
 	available := &DeviceOsdMapping{Entries: map[string]*DeviceOsdIDEntry{}}
 	for _, device := range context.Devices {
 		if device.Type == sys.PartType {
 			continue
 		}
+<<<<<<< HEAD
 		partCount, ownPartitions, fs, err := sys.CheckIfDeviceAvailable(context.Executor, device.Name, pvcBacked)
+=======
+
+		// We need to swap the device name
+		// We need to use the /dev path, provided by the NAME property from lsblk
+		// instead of the /mnt/<block name>
+		deviceToCheck := device.Name
+		if pvcBacked {
+			deviceToCheck = device.RealName
+		}
+
+		// If we detect a partition we have to make sure that ceph-volume will be able to consume it
+		// ceph-volume version 14.2.8 has the right code to support partitions
+		if device.Type == sys.PartType {
+			if !cephVersion.IsAtLeast(cephVolumeRawModeMinCephVersion) {
+				logger.Infof("skipping device %q because it is a partition and ceph version is too old, you need at least ceph %q", device.Name, cephVolumeRawModeMinCephVersion.String())
+				continue
+			}
+		}
+
+		// Check if the desired device is available
+		// When running on PVC we use the real device name instead of the Kubernetes mountpoint
+		// Otherwise ceph-volume inventory will fail on the udevadm check
+		// udevadm does not support device path different than /dev or /sys
+		//
+		// So earlier lsblk extracted the '/dev' path, hence the device.Name property
+		// device.Name can be 'xvdca', later this is formated to '/dev/xvdca'
+		isAvailable, rejectedReason, err := sys.CheckIfDeviceAvailable(context.Executor, deviceToCheck, pvcBacked)
+>>>>>>> df3a8564b... ceph: skip partitions depending on the ceph version
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get device %q info", device.Name)
 		}
