@@ -22,8 +22,10 @@ spec:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"
             - "--leader-election=true"
-            - "--timeout=150s"
+            {{ if .SetAttacherLeaderElectionType }}
             - "--leader-election-type=leases"
+            {{ end }}
+            - "--timeout=150s"
             - "--leader-election-namespace={{ .Namespace }}"
           env:
             - name: ADDRESS
@@ -32,6 +34,23 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
+        {{ if .EnableResizer }}
+        - name: csi-resizer
+          image: {{ .ResizerImage }}
+          args:
+            - "--csi-address=$(ADDRESS)"
+            - "--v=5"
+            - "--csiTimeout=150s"
+            - "--leader-election"
+            - "--leader-election-namespace={{ .Namespace }}"
+          env:
+            - name: ADDRESS
+              value: unix:///csi/csi-provisioner.sock
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+        {{ end }}
         - name: csi-provisioner
           image: {{ .ProvisionerImage }}
           args:

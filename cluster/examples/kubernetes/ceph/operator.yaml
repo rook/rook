@@ -202,15 +202,17 @@ spec:
         # of the CSI driver to something other than what is officially supported, change
         # these images to the desired release of the CSI driver.
         #- name: ROOK_CSI_CEPH_IMAGE
-        #  value: "quay.io/cephcsi/cephcsi:v1.2.2"
+        #  value: "quay.io/cephcsi/cephcsi:v2.0.0"
         #- name: ROOK_CSI_REGISTRAR_IMAGE
-        #  value: "quay.io/k8scsi/csi-node-driver-registrar:v1.1.0"
+        #  value: "quay.io/k8scsi/csi-node-driver-registrar:v1.2.0"
+        #- name: ROOK_CSI_RESIZER_IMAGE
+        #  value: "quay.io/k8scsi/csi-resizer:v0.4.0"
         #- name: ROOK_CSI_PROVISIONER_IMAGE
         #  value: "quay.io/k8scsi/csi-provisioner:v1.4.0"
         #- name: ROOK_CSI_SNAPSHOTTER_IMAGE
         #  value: "quay.io/k8scsi/csi-snapshotter:v1.2.2"
         #- name: ROOK_CSI_ATTACHER_IMAGE
-        #  value: "quay.io/k8scsi/csi-attacher:v1.2.0"
+        #  value: "quay.io/k8scsi/csi-attacher:v2.1.0"
         # kubelet directory path, if kubelet configured to use other than /var/lib/kubelet path.
         #- name: ROOK_CSI_KUBELET_DIR_PATH
         #  value: "/var/lib/kubelet"

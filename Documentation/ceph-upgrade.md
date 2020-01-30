@@ -56,6 +56,39 @@ released, the process of updating from v1.2.0 is as simple as running the follow
 kubectl -n rook-ceph set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.2.2
 ```
 
+If you want to enable the CSI v2.0 driver, additional steps are needed in the
+latest Rook patch release. There are some new features in 2.0 such as
+supporting resizing volumes and support for a new csi attacher. If you don't
+need these features now, you can skip this step for the patch upgrade.
+
+## Enabling the CSI v2.0 driver
+
+To enable the CSI v2.0 driver, you will need to apply updated RBAC settings:
+
+```sh
+kubectl apply -f enable-csi-2.0-rbac.yaml
+```
+
+The following `env` variables will need to be configured in the Rook-Ceph
+operator deployment. The suggested upstream images are included below, which
+you should change to match where your images are located.
+
+```yaml
+  env:
+    - name: ROOK_CSI_CEPH_IMAGE
+        value: "quay.io/cephcsi/cephcsi:v2.0.0"
+    - name: ROOK_CSI_REGISTRAR_IMAGE
+        value: "quay.io/k8scsi/csi-node-driver-registrar:v1.2.0"
+    - name: ROOK_CSI_PROVISIONER_IMAGE
+        value: "quay.io/k8scsi/csi-provisioner:v1.4.0"
+    - name: ROOK_CSI_SNAPSHOTTER_IMAGE
+        value: "quay.io/k8scsi/csi-snapshotter:v1.2.2"
+    - name: ROOK_CSI_ATTACHER_IMAGE
+        value: "quay.io/k8scsi/csi-attacher:v2.1.0"
+    - name: ROOK_CSI_RESIZER_IMAGE
+        value: "quay.io/k8scsi/csi-resizer:v0.4.0"
+```
+
 ## Upgrading from v1.1 to v1.2
 
 **Rook releases from master are expressly unsupported.** It is strongly recommended that you use
@@ -478,7 +511,7 @@ located.
     - name: ROOK_CSI_CEPH_IMAGE
         value: "quay.io/cephcsi/cephcsi:v1.2.2"
     - name: ROOK_CSI_REGISTRAR_IMAGE
-        value: "quay.io/k8scsi/csi-node-driver-registrar:v1.1.0"
+        value: "quay.io/k8scsi/csi-node-driver-registrar:v1.2.0"
     - name: ROOK_CSI_PROVISIONER_IMAGE
         value: "quay.io/k8scsi/csi-provisioner:v1.4.0"
     - name: ROOK_CSI_SNAPSHOTTER_IMAGE
@@ -496,7 +529,7 @@ are updated.
 # kubectl --namespace rook-ceph get pod -o jsonpath='{range .items[*]}{range .spec.containers[*]}{.image}{"\n"}' -l 'app in (csi-rbdplugin,csi-rbdplugin-provisioner,csi-cephfsplugin,csi-cephfsplugin-provisioner)' | sort | uniq
 quay.io/cephcsi/cephcsi:v1.2.2
 quay.io/k8scsi/csi-attacher:v1.2.0
-quay.io/k8scsi/csi-node-driver-registrar:v1.1.0
+quay.io/k8scsi/csi-node-driver-registrar:v1.2.0
 quay.io/k8scsi/csi-provisioner:v1.4.0
 quay.io/k8scsi/csi-snapshotter:v1.2.2
 ```

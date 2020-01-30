@@ -61,7 +61,6 @@ spec:
             - "--type=rbd"
             - "--nodeserver=true"
             - "--drivername={{ .DriverNamePrefix }}rbd.csi.ceph.com"
-            - "--containerized=false"
             - "--pidlimit=-1"
             - "--metricsport={{ .RBDGRPCMetricsPort }}"
             - "--metricspath=/metrics"
