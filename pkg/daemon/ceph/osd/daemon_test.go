@@ -21,6 +21,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/rook/rook/pkg/util/sys"
 	"github.com/stretchr/testify/assert"
@@ -184,13 +185,16 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 		{Name: "rda", RealName: "rda"},
 		{Name: "rdb", RealName: "rdb"},
 		{Name: "/mnt/set1-0-data-qfhfk", RealName: "xvdcy"},
+		{Name: "sdt1", RealName: "sdt1", Type: sys.PartType},
 	}
+
+	version := cephver.Octopus
 
 	// select all devices, including nvme01 for metadata
 	pvcBackedOSD := false
-	mapping, err := getAvailableDevices(context, []DesiredDevice{{Name: "all"}}, "nvme01", pvcBackedOSD)
+	mapping, err := getAvailableDevices(context, []DesiredDevice{{Name: "all"}}, "nvme01", pvcBackedOSD, version)
 	assert.Nil(t, err)
-	assert.Equal(t, 5, len(mapping.Entries))
+	assert.Equal(t, 6, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["sda"].Data)
 	assert.Equal(t, -1, mapping.Entries["sdd"].Data)
 	assert.Equal(t, -1, mapping.Entries["rda"].Data)
@@ -199,30 +203,39 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	assert.NotNil(t, mapping.Entries["nvme01"].Metadata)
 	assert.Equal(t, 0, len(mapping.Entries["nvme01"].Metadata))
 
+	// Partition is skipped
+	version = cephver.Nautilus
+	mapping, err = getAvailableDevices(context, []DesiredDevice{{Name: "all"}}, "nvme01", pvcBackedOSD, version)
+	assert.Nil(t, err)
+	assert.Equal(t, 5, len(mapping.Entries))
+
+	// Do not skip partition anymore
+	version = cephver.Octopus
+
 	// select no devices both using and not using a filter
-	mapping, err = getAvailableDevices(context, nil, "", pvcBackedOSD)
+	mapping, err = getAvailableDevices(context, nil, "", pvcBackedOSD, version)
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(mapping.Entries))
 
-	mapping, err = getAvailableDevices(context, nil, "", pvcBackedOSD)
+	mapping, err = getAvailableDevices(context, nil, "", pvcBackedOSD, version)
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(mapping.Entries))
 
 	// select the sd* devices
-	mapping, err = getAvailableDevices(context, []DesiredDevice{{Name: "^sd.$", IsFilter: true}}, "", pvcBackedOSD)
+	mapping, err = getAvailableDevices(context, []DesiredDevice{{Name: "^sd.$", IsFilter: true}}, "", pvcBackedOSD, version)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["sda"].Data)
 	assert.Equal(t, -1, mapping.Entries["sdd"].Data)
 
 	// select an exact device
-	mapping, err = getAvailableDevices(context, []DesiredDevice{{Name: "sdd"}}, "", pvcBackedOSD)
+	mapping, err = getAvailableDevices(context, []DesiredDevice{{Name: "sdd"}}, "", pvcBackedOSD, version)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["sdd"].Data)
 
 	// select all devices except those that have a prefix of "s"
-	mapping, err = getAvailableDevices(context, []DesiredDevice{{Name: "^[^s]", IsFilter: true}}, "", pvcBackedOSD)
+	mapping, err = getAvailableDevices(context, []DesiredDevice{{Name: "^[^s]", IsFilter: true}}, "", pvcBackedOSD, version)
 	assert.Nil(t, err)
 	assert.Equal(t, 3, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["rda"].Data)
@@ -230,14 +243,14 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	assert.Equal(t, -1, mapping.Entries["nvme01"].Data)
 
 	// select the sd* devices by path names
-	mapping, err = getAvailableDevices(context, []DesiredDevice{{Name: "^/dev/sd.$", IsDevicePathFilter: true}}, "", pvcBackedOSD)
+	mapping, err = getAvailableDevices(context, []DesiredDevice{{Name: "^/dev/sd.$", IsDevicePathFilter: true}}, "", pvcBackedOSD, version)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["sda"].Data)
 	assert.Equal(t, -1, mapping.Entries["sdd"].Data)
 
 	// select the SCSI devices
-	mapping, err = getAvailableDevices(context, []DesiredDevice{{Name: "^/dev/disk/by-path/.*-scsi-.*", IsDevicePathFilter: true}}, "", pvcBackedOSD)
+	mapping, err = getAvailableDevices(context, []DesiredDevice{{Name: "^/dev/disk/by-path/.*-scsi-.*", IsDevicePathFilter: true}}, "", pvcBackedOSD, version)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["sda"].Data)
@@ -245,9 +258,9 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 
 	// test on PVC
 	pvcBackedOSD = true
-	mapping, err = getAvailableDevices(context, []DesiredDevice{{Name: "all"}}, "", pvcBackedOSD)
+	mapping, err = getAvailableDevices(context, []DesiredDevice{{Name: "all"}}, "", pvcBackedOSD, version)
 	assert.Nil(t, err)
-	assert.Equal(t, 6, len(mapping.Entries))
+	assert.Equal(t, 7, len(mapping.Entries))
 }
 
 func TestGetVolumeGroupName(t *testing.T) {
