@@ -31,6 +31,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/util/sys"
 )
 
@@ -194,7 +195,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 	logger.Info("creating and starting the osds")
 
 	// determine the set of devices that can/should be used for OSDs.
-	devices, err := getAvailableDevices(context, agent.devices, agent.metadataDevice, agent.pvcBacked)
+	devices, err := getAvailableDevices(context, agent.devices, agent.metadataDevice, agent.pvcBacked, agent.cluster.CephVersion)
 	if err != nil {
 		return errors.Wrap(err, "failed to get available devices")
 	}
@@ -257,7 +258,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 	return nil
 }
 
-func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevice, metadataDevice string, pvcBacked bool) (*DeviceOsdMapping, error) {
+func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevice, metadataDevice string, pvcBacked bool, cephVersion cephver.CephVersion) (*DeviceOsdMapping, error) {
 
 	available := &DeviceOsdMapping{Entries: map[string]*DeviceOsdIDEntry{}}
 	for _, device := range context.Devices {
@@ -282,6 +283,15 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 		deviceToCheck := device.Name
 		if pvcBacked {
 			deviceToCheck = device.RealName
+		}
+
+		// If we detect a partition we have to make sure that ceph-volume will be able to consume it
+		// ceph-volume version 14.2.8 has the right code to support partitions
+		if device.Type == sys.PartType {
+			if !cephVersion.IsAtLeast(cephVolumeRawModeMinCephVersion) {
+				logger.Infof("skipping device %q because it is a partition and ceph version is too old, you need at least ceph %q", device.Name, cephVolumeRawModeMinCephVersion.String())
+				continue
+			}
 		}
 
 		// Check if the desired device is available

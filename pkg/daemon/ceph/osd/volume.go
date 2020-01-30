@@ -50,7 +50,7 @@ var (
 	cephLogDir    = "/var/log/ceph"
 	lvmConfPath   = "/etc/lvm/lvm.conf"
 	cvLogDir      = ""
-	// The "ceph-volume raw" command is available since Ceph 14.2.8
+	// The "ceph-volume raw" command is available since Ceph 14.2.8 as well as partition support in ceph-volume
 	cephVolumeRawModeMinCephVersion = cephver.CephVersion{Major: 14, Minor: 2, Extra: 8}
 )
 
