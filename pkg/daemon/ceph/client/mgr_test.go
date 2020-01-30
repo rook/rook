@@ -32,6 +32,9 @@ func TestEnableModuleRetries(t *testing.T) {
 	executor.MockExecuteCommandWithOutputFile = func(debug bool, actionName, command, outputFile string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		switch {
+		case args[0] == "balancer" && args[1] == "on":
+			return "", nil
+
 		case args[0] == "mgr" && args[1] == "module" && args[2] == "enable":
 			if args[3] == "prometheus" || args[3] == "pg_autoscaler" || args[3] == "crash" {
 				return "", nil
@@ -53,6 +56,10 @@ func TestEnableModuleRetries(t *testing.T) {
 
 	moduleEnableRetries = 0
 	_ = MgrEnableModule(&clusterd.Context{Executor: executor}, "clusterName", "pg_autoscaler", false)
+	assert.Equal(t, 0, moduleEnableRetries)
+
+	moduleEnableRetries = 0
+	_ = MgrEnableModule(&clusterd.Context{Executor: executor}, "clusterName", "balancer", false)
 	assert.Equal(t, 0, moduleEnableRetries)
 
 }
@@ -87,4 +94,42 @@ func TestEnableModule(t *testing.T) {
 
 	err = enableModule(&clusterd.Context{Executor: executor}, "clusterName", "pg_autoscaler", false, "invalidCommandArgs")
 	assert.Error(t, err)
+}
+
+func TestEnableDisableBalancerModule(t *testing.T) {
+	executor := &exectest.MockExecutor{}
+	executor.MockExecuteCommandWithOutputFile = func(debug bool, actionName, command, outputFile string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		switch {
+		case args[0] == "balancer" && args[1] == "on":
+			return "", nil
+
+		case args[0] == "balancer" && args[1] == "off":
+			return "", nil
+
+		}
+
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+
+	err := enableDisableBalancerModule(&clusterd.Context{Executor: executor}, "clusterName", "on")
+	assert.NoError(t, err)
+
+	err = enableDisableBalancerModule(&clusterd.Context{Executor: executor}, "clusterName", "off")
+	assert.NoError(t, err)
+}
+
+func TestSetBalancerMode(t *testing.T) {
+	executor := &exectest.MockExecutor{}
+	executor.MockExecuteCommandWithOutputFile = func(debug bool, actionName, command, outputFile string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		if args[0] == "balancer" && args[1] == "mode" && args[2] == "upmap" {
+			return "", nil
+		}
+
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+
+	err := setBalancerMode(&clusterd.Context{Executor: executor}, "clusterName", "upmap")
+	assert.NoError(t, err)
 }
