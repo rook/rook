@@ -137,6 +137,7 @@ type StorageClassDeviceSet struct {
 	Config               map[string]string          `json:"config,omitempty"`               // Provider-specific device configuration
 	VolumeClaimTemplates []v1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"` // List of PVC templates for the underlying storage devices
 	Portable             bool                       `json:"portable,omitempty"`             // OSD portability across the hosts
+	TuneSlowDeviceClass  bool                       `json:"tuneDeviceClass,omitempty"`      // TuneSlowDeviceClass Tune the OSD when running on a slow Device Class
 }
 
 type VolumeSource struct {
