@@ -1419,3 +1419,13 @@ func (m *CephManifestsV1_0) GetObc(claimName string, storageClassName string, ob
 func (m *CephManifestsV1_0) GetClient(claimName string, namespace string, caps map[string]string) string {
 	panic("upgrade test not supported for client")
 }
+
+// GetClusterExternalRoles get the cluster roles of an external cluster
+func (m *CephManifestsV1_0) GetClusterExternalRoles(namespace, systemNamespace string) string {
+	return ""
+}
+
+// GetRookExternalCluster get an external cluster
+func (m *CephManifestsV1_0) GetRookExternalCluster(settings *ClusterExternalSettings) string {
+	return ""
+}

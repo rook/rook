@@ -103,7 +103,6 @@ type TestCluster struct {
 	T                func() *testing.T
 	namespace        string
 	storeType        string
-	useDevices       bool
 	mons             int
 	rbdMirrorWorkers int
 }
@@ -132,7 +131,7 @@ func checkIfShouldRunForMinimalTestMatrix(t func() *testing.T, k8sh *utils.K8sHe
 }
 
 // StartTestCluster creates new instance of TestCluster struct
-func StartTestCluster(t func() *testing.T, minimalMatrixK8sVersion, namespace, storeType string, useHelm, useDevices bool, mons,
+func StartTestCluster(t func() *testing.T, minimalMatrixK8sVersion, namespace, storeType string, useHelm bool, mons,
 	rbdMirrorWorkers int, rookVersion string, cephVersion cephv1.CephVersionSpec) (*TestCluster, *utils.K8sHelper) {
 
 	kh, err := utils.CreateK8sHelper(t)
@@ -141,7 +140,7 @@ func StartTestCluster(t func() *testing.T, minimalMatrixK8sVersion, namespace, s
 
 	i := installer.NewCephInstaller(t, kh.Clientset, useHelm, rookVersion, cephVersion)
 
-	op := &TestCluster{i, kh, nil, t, namespace, storeType, useDevices, mons, rbdMirrorWorkers}
+	op := &TestCluster{i, kh, nil, t, namespace, storeType, mons, rbdMirrorWorkers}
 
 	if rookVersion != installer.VersionMaster {
 		// make sure we have the images from a previous release locally so the test doesn't hit a timeout
@@ -157,7 +156,7 @@ func StartTestCluster(t func() *testing.T, minimalMatrixK8sVersion, namespace, s
 // SetUpRook is a wrapper for setting up rook
 func (op *TestCluster) Setup() {
 	isRookInstalled, err := op.installer.InstallRookOnK8sWithHostPathAndDevices(op.namespace, op.storeType,
-		op.useDevices, cephv1.MonSpec{Count: op.mons, AllowMultiplePerNode: true}, false /* startWithAllNodes */, op.rbdMirrorWorkers)
+		cephv1.MonSpec{Count: op.mons, AllowMultiplePerNode: true}, false /* startWithAllNodes */, op.rbdMirrorWorkers)
 
 	if !isRookInstalled || err != nil {
 		logger.Errorf("Rook was not installed successfully: %v", err)
