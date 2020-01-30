@@ -66,7 +66,7 @@ need these features now, you can skip this step for the patch upgrade.
 To enable the CSI v2.0 driver, you will need to apply updated RBAC settings:
 
 ```sh
-kubectl apply -f upgrade-from-v1.2-apply.yaml
+kubectl apply -f enable-csi-2.0-rbac.yaml
 ```
 
 The following `env` variables will need to be configured in the Rook-Ceph
