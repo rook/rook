@@ -52,6 +52,8 @@ const (
 	prometheusModuleName   = "prometheus"
 	crashModuleName        = "crash"
 	pgautoscalerModuleName = "pg_autoscaler"
+	balancerModuleName     = "balancer"
+	balancerModuleMode     = "upmap"
 	metricsPort            = 9283
 	monitoringPath         = "/etc/ceph-monitoring/"
 	serviceMonitorFile     = "service-monitor.yaml"
@@ -305,16 +307,29 @@ func (c *Cluster) configureMgrModules() error {
 			return errors.New("name not specified for the mgr module configuration")
 		}
 		if wellKnownModule(module.Name) {
-			return errors.Errorf("cannot configure mgr module %s that is configured with other cluster settings", module.Name)
+			return errors.Errorf("cannot configure mgr module %q that is configured with other cluster settings", module.Name)
 		}
 		minVersion, versionOK := c.moduleMeetsMinVersion(module.Name)
 		if !versionOK {
-			return errors.Errorf("module %s cannot be configured because it requires at least Ceph version %+v", module.Name, minVersion)
+			return errors.Errorf("module %q cannot be configured because it requires at least Ceph version %q", module.Name, minVersion.String())
 		}
 
 		if module.Enabled {
+			if module.Name == balancerModuleName {
+				// Set min compat client to luminous before enabling the balancer mode "upmap"
+				err := client.SetMinCompatClientLuminous(c.context, c.Namespace)
+				if err != nil {
+					return errors.Wrap(err, "failed to set minimum compatibility client")
+				}
+				// Set balancer module mode
+				err = client.MgrSetBalancerMode(c.context, c.Namespace, balancerModuleMode)
+				if err != nil {
+					return errors.Wrapf(err, "failed to set module %q mode to %q", module.Name, balancerModuleMode)
+				}
+			}
+
 			if err := client.MgrEnableModule(c.context, c.Namespace, module.Name, false); err != nil {
-				return errors.Wrapf(err, "failed to enable mgr module %s", module.Name)
+				return errors.Wrapf(err, "failed to enable mgr module %q", module.Name)
 			}
 
 			// Configure special settings for individual modules that are enabled
@@ -330,9 +345,10 @@ func (c *Cluster) configureMgrModules() error {
 					return errors.Wrapf(err, "failed to set minimal number PGs per (in) osd before we warn the admin to")
 				}
 			}
+
 		} else {
 			if err := client.MgrDisableModule(c.context, c.Namespace, module.Name); err != nil {
-				return errors.Wrapf(err, "failed to disable mgr module %s", module.Name)
+				return errors.Wrapf(err, "failed to disable mgr module %q", module.Name)
 			}
 		}
 	}
@@ -344,6 +360,7 @@ func (c *Cluster) moduleMeetsMinVersion(name string) (*cephver.CephVersion, bool
 	minVersions := map[string]cephver.CephVersion{
 		// The PG autoscaler module requires Nautilus
 		pgautoscalerModuleName: {Major: 14},
+		balancerModuleName:     {Major: 14},
 	}
 	if ver, ok := minVersions[name]; ok {
 		// Check if the required min version is met
