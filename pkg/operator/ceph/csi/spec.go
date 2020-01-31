@@ -189,7 +189,7 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 		return errors.Wrapf(err, "failed creating csi config map")
 	}
 	ownerRef := metav1.OwnerReference{
-		APIVersion: "v1",
+		APIVersion: "core/v1",
 		Kind:       "ConfigMap",
 		Name:       configMap.Name,
 		UID:        configMap.UID,
