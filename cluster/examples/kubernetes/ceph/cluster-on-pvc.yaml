@@ -100,6 +100,19 @@ spec:
           volumeMode: Block
           accessModes:
             - ReadWriteOnce
+      # dedicated block device to store bluestore database (block.db)
+      # - metadata:
+      #     name: metadata
+      #   spec:
+      #     resources:
+      #       requests:
+      #         # Find the right size https://docs.ceph.com/docs/master/rados/configuration/bluestore-config-ref/#sizing
+      #         storage: 5Gi
+      #     # IMPORTANT: Change the storage class depending on your environment (e.g. local-storage, gp2)
+      #     storageClassName: gp2
+      #     volumeMode: Block
+      #     accessModes:
+      #       - ReadWriteOnce
   disruptionManagement:
     managePodBudgets: false
     osdMaintenanceTimeout: 30

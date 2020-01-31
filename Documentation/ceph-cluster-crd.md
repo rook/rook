@@ -81,6 +81,8 @@ spec:
             - ReadWriteOnce
 ```
 
+For a more advanced scenario, such as adding a dedicated device you can refer to the [dedicated metadata device for OSD on PVC section](#dedicated-metadata-device-for-osd-on-pvc).
+
 ## Settings
 
 Settings can be specified at the global level to apply to the cluster as a whole, while other settings can be specified at more fine-grained levels.  If any setting is unspecified, a suitable default will be used automatically.
@@ -695,6 +697,64 @@ spec:
           accessModes:
             - ReadWriteOnce
 ```
+
+### Dedicated metadata device for OSD on PVC
+
+In the simplest case, Ceph OSD BlueStore consumes a single (primary) storage device.
+BlueStore is the engine used by the OSD to store data.
+
+The storage device is normally used as a whole, occupying the full device that is managed directly by BlueStore.
+It is also possible to deploy BlueStore across additional devices such as a DB device.
+This device can be used for storing BlueStore’s internal metadata.
+BlueStore (or rather, the embedded RocksDB) will put as much metadata as it can on the DB device to improve performance.
+If the DB device fills up, metadata will spill back onto the primary device (where it would have been otherwise).
+Again, it is only helpful to provision a DB device if it is faster than the primary device.
+
+You can have multiple `volumeClaimTemplates` where each might either represent a device or a metadata device.
+So just taking the `storage` section this will give something like:
+
+```yaml
+  storage:
+   storageClassDeviceSets:
+    - name: set1
+      count: 3
+      portable: false
+      tuneSlowDeviceClass: false
+      volumeClaimTemplates:
+      - metadata:
+          name: data
+        spec:
+          resources:
+            requests:
+              storage: 10Gi
+          # IMPORTANT: Change the storage class depending on your environment (e.g. local-storage, gp2)
+          storageClassName: gp2
+          volumeMode: Block
+          accessModes:
+            - ReadWriteOnce
+      - metadata:
+          name: metadata
+        spec:
+          resources:
+            requests:
+              # Find the right size https://docs.ceph.com/docs/mimic/rados/configuration/bluestore-config-ref/#sizing
+              storage: 5Gi
+          # IMPORTANT: Change the storage class depending on your environment (e.g. local-storage, gp2)
+          storageClassName: io1
+          volumeMode: Block
+          accessModes:
+            - ReadWriteOnce
+```
+
+> **NOTE**: Note that Rook only supports two naming convention for a given template:
+
+* "data": represents the main OSD block device, where your data are being stored
+* "metadata": represents the metadata device used to store the Ceph Bluestore database for an OSD.
+It is recommended to use a faster storage class for the metadata device, with a slower device for the data.
+Otherwise, having a separate metadata device will not improve the performance.
+To determine the size of the metadata block follow the [official Ceph sizing guide](https://docs.ceph.com/docs/mimic/rados/configuration/bluestore-config-ref/#sizing).
+
+With the present configuration, each OSD will have its main block allocated a 10GB device as well a 5GB device to act as a bluestore database.
 
 ### External cluster
 
