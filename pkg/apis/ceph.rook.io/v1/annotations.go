@@ -22,25 +22,33 @@ import (
 
 // GetMgrAnnotations returns the Annotations for the MGR service
 func GetMgrAnnotations(a rook.AnnotationsSpec) rook.Annotations {
-	return a.All().Merge(a[KeyMgr])
+	return mergeAllAnnotationsWithKey(a, KeyMgr)
 }
 
 // GetMonAnnotations returns the Annotations for the MON service
 func GetMonAnnotations(a rook.AnnotationsSpec) rook.Annotations {
-	return a.All().Merge(a[KeyMon])
+	return mergeAllAnnotationsWithKey(a, KeyMon)
 }
 
 // GetOSDAnnotations returns the annotations for the OSD service
 func GetOSDAnnotations(a rook.AnnotationsSpec) rook.Annotations {
-	return a.All().Merge(a[KeyOSD])
+	return mergeAllAnnotationsWithKey(a, KeyOSD)
 }
 
 // GetRGWAnnotations returns the Annotations for the RBD mirrors
 func GetRGWAnnotations(a rook.AnnotationsSpec) rook.Annotations {
-	return a.All().Merge(a[KeyRGWMirror])
+	return mergeAllAnnotationsWithKey(a, KeyRGW)
 }
 
 // GetRBDMirrorAnnotations returns the Annotations for the RBD mirrors
 func GetRBDMirrorAnnotations(a rook.AnnotationsSpec) rook.Annotations {
-	return a.All().Merge(a[KeyRBDMirror])
+	return mergeAllAnnotationsWithKey(a, KeyRBDMirror)
+}
+
+func mergeAllAnnotationsWithKey(a rook.AnnotationsSpec, name rook.KeyType) rook.Annotations {
+	all := a.All()
+	if all != nil {
+		return all.Merge(a[name])
+	}
+	return a[name]
 }
