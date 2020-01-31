@@ -25,5 +25,5 @@ const (
 	KeyMgr       rook.KeyType = "mgr"
 	KeyOSD       rook.KeyType = "osd"
 	KeyRBDMirror rook.KeyType = "rbdmirror"
-	KeyRGWMirror rook.KeyType = "rgw"
+	KeyRGW       rook.KeyType = "rgw"
 )
