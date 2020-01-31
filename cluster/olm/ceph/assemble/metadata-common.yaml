@@ -1,5 +1,5 @@
 spec:
-  replaces:  rook-ceph.v1.0.1
+  replaces:  rook-ceph.v1.1.1
   customresourcedefinitions:
     owned:
       - kind: CephCluster
@@ -118,6 +118,11 @@ spec:
         version: v1
         displayName: Ceph NFS
         description: Represents a cluster of Ceph NFS ganesha gateways.
+      - kind: CephClient
+        name: cephclients.ceph.rook.io
+        version: v1
+        displayName: Ceph Client
+        description: Represents a Ceph User.
   displayName: Rook-Ceph
   description: |
 
@@ -174,7 +179,7 @@ metadata:
   annotations:
     tectonic-visibility: ocs
     repository: https://github.com/rook/rook
-    containerImage: rook/ceph:v1.0.1
+    containerImage: rook/ceph:v1.2.2
     alm-examples: |-
       [
         {
@@ -283,6 +288,19 @@ metadata:
               "placement": null,
               "annotations": null,
               "resources": null
+            }
+          },
+        {
+          "apiVersion": "ceph.rook.io/v1",
+          "kind": "CephClient",
+          "metadata": {
+            "name": "cinder",
+            "namespace": "rook-ceph"
+          },
+          "spec": {
+            "caps": {
+              "mon": "profile rbd",
+              "osd": "profile rbd pool=volumes, profile rbd pool=vms, profile rbd-read-only pool=images"
             }
           }
         }
