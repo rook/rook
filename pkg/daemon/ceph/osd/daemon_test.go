@@ -184,7 +184,7 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 		{Name: "nvme01", DevLinks: "/dev/disk/by-id/nvme-0246 /dev/disk/by-path/pci-0:2:4:6-nvme-1", RealName: "nvme01"},
 		{Name: "rda", RealName: "rda"},
 		{Name: "rdb", RealName: "rdb"},
-		{Name: "/mnt/set1-0-data-qfhfk", RealName: "xvdcy"},
+		{Name: "/mnt/set1-0-data-qfhfk", RealName: "xvdcy", Type: "data"},
 		{Name: "sdt1", RealName: "sdt1", Type: sys.PartType},
 	}
 
@@ -260,7 +260,7 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	pvcBackedOSD = true
 	mapping, err = getAvailableDevices(context, []DesiredDevice{{Name: "all"}}, "", pvcBackedOSD, version)
 	assert.Nil(t, err)
-	assert.Equal(t, 7, len(mapping.Entries))
+	assert.Equal(t, 1, len(mapping.Entries), mapping)
 }
 
 func TestGetVolumeGroupName(t *testing.T) {

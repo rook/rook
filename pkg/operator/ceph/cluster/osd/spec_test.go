@@ -109,6 +109,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 		DataPathMap: opconfig.NewDatalessDaemonDataPathMap(c.Namespace, "/var/lib/rook"),
 	}
 
+	// Test LVM based on OSD on bare metal
 	deployment, err := c.makeDeployment(osdProp, osd, dataPathMap)
 	assert.Nil(t, err)
 	assert.NotNil(t, deployment)
@@ -139,7 +140,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, 2, len(deployment.Spec.Template.Spec.InitContainers))
 	initCont := deployment.Spec.Template.Spec.InitContainers[0]
 	assert.Equal(t, "ceph/ceph:v12.2.8", initCont.Image)
-	assert.Equal(t, "activate-osd", initCont.Name)
+	assert.Equal(t, "activate", initCont.Name)
 	assert.Equal(t, 3, len(initCont.VolumeMounts))
 
 	assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Containers))
@@ -147,6 +148,74 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, cephVersion.Image, cont.Image)
 	assert.Equal(t, 6, len(cont.VolumeMounts))
 	assert.Equal(t, "ceph-osd", cont.Command[0])
+
+	// Test OSD on PVC with LVM
+	osdProp = osdProperties{
+		crushHostname: n.Name,
+		selection:     n.Selection,
+		resources:     v1.ResourceRequirements{},
+		storeConfig:   config.StoreConfig{},
+		pvc:           v1.PersistentVolumeClaimVolumeSource{ClaimName: "mypvc"},
+	}
+	// Not needed when running on PVC
+	osd = OSDInfo{
+		ID:     0,
+		CVMode: "lvm",
+	}
+
+	deployment, err = c.makeDeployment(osdProp, osd, dataPathMap)
+	assert.Nil(t, err)
+	assert.NotNil(t, deployment)
+	assert.Equal(t, 4, len(deployment.Spec.Template.Spec.InitContainers), deployment.Spec.Template.Spec.InitContainers[2].Name)
+	assert.Equal(t, "config-init", deployment.Spec.Template.Spec.InitContainers[0].Name)
+	assert.Equal(t, "copy-bins", deployment.Spec.Template.Spec.InitContainers[1].Name)
+	assert.Equal(t, "blkdevmapper", deployment.Spec.Template.Spec.InitContainers[2].Name)
+	assert.Equal(t, "chown-container-data-dir", deployment.Spec.Template.Spec.InitContainers[3].Name)
+	assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Containers))
+	initCont = deployment.Spec.Template.Spec.InitContainers[0]
+	assert.Equal(t, 4, len(initCont.VolumeMounts), initCont.VolumeMounts)
+	blkInitCont := deployment.Spec.Template.Spec.InitContainers[2]
+	assert.Equal(t, 1, len(blkInitCont.VolumeDevices))
+	cont = deployment.Spec.Template.Spec.Containers[0]
+	assert.Equal(t, 8, len(cont.VolumeMounts), cont.VolumeMounts)
+
+	// Test OSD on PVC with RAW
+	osd = OSDInfo{
+		ID:     0,
+		CVMode: "raw",
+	}
+	deployment, err = c.makeDeployment(osdProp, osd, dataPathMap)
+	assert.Nil(t, err)
+	assert.NotNil(t, deployment)
+	assert.Equal(t, 3, len(deployment.Spec.Template.Spec.InitContainers), deployment.Spec.Template.Spec.InitContainers[2].Name)
+	assert.Equal(t, "blkdevmapper", deployment.Spec.Template.Spec.InitContainers[0].Name)
+	assert.Equal(t, "activate", deployment.Spec.Template.Spec.InitContainers[1].Name)
+	assert.Equal(t, "chown-container-data-dir", deployment.Spec.Template.Spec.InitContainers[2].Name)
+	assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Containers))
+	cont = deployment.Spec.Template.Spec.Containers[0]
+	assert.Equal(t, 5, len(cont.VolumeMounts), cont.VolumeMounts)
+
+	// Test OSD on PVC with RAW and metadata device
+	osd = OSDInfo{
+		ID:     0,
+		CVMode: "raw",
+	}
+	osdProp.metadataPVC = v1.PersistentVolumeClaimVolumeSource{ClaimName: "mypvc-metadata"}
+	deployment, err = c.makeDeployment(osdProp, osd, dataPathMap)
+	assert.Nil(t, err)
+	assert.NotNil(t, deployment)
+	assert.Equal(t, 4, len(deployment.Spec.Template.Spec.InitContainers))
+	assert.Equal(t, "blkdevmapper", deployment.Spec.Template.Spec.InitContainers[0].Name)
+	assert.Equal(t, "blkdevmapper-metadata", deployment.Spec.Template.Spec.InitContainers[1].Name)
+	assert.Equal(t, "activate", deployment.Spec.Template.Spec.InitContainers[2].Name)
+	assert.Equal(t, "chown-container-data-dir", deployment.Spec.Template.Spec.InitContainers[3].Name)
+	assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Containers))
+	cont = deployment.Spec.Template.Spec.Containers[0]
+	assert.Equal(t, 5, len(cont.VolumeMounts), cont.VolumeMounts)
+	blkInitCont = deployment.Spec.Template.Spec.InitContainers[1]
+	assert.Equal(t, 1, len(blkInitCont.VolumeDevices))
+	blkMetaInitCont := deployment.Spec.Template.Spec.InitContainers[2]
+	assert.Equal(t, 1, len(blkMetaInitCont.VolumeDevices))
 }
 
 func verifyEnvVar(t *testing.T, envVars []v1.EnvVar, expectedName, expectedValue string, expectedFound bool) {

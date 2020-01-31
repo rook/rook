@@ -35,6 +35,11 @@ import (
 	"github.com/rook/rook/pkg/util/sys"
 )
 
+const (
+	pvcDataTypeDevice     = "data"
+	pvcMetadataTypeDevice = "metadata"
+)
+
 var (
 	logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephosd")
 )
@@ -169,16 +174,27 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 	}
 
 	logger.Infof("discovering hardware")
+
 	var rawDevices []*sys.LocalDisk
 	if agent.pvcBacked {
-		if len(agent.devices) > 1 {
-			return errors.New("more than one desired device found in case of PVC backed OSDs. we expect exactly one device")
-		}
 		rawDevice, err := clusterd.PopulateDeviceInfo(agent.devices[0].Name, context.Executor)
 		if err != nil {
 			return errors.Wrapf(err, "failed to get device info for %q", agent.devices[0].Name)
 		}
+		rawDevice.Type = pvcDataTypeDevice
 		rawDevices = append(rawDevices, rawDevice)
+
+		// We have a metadata device
+		if len(agent.devices) > 1 {
+			rawMetadataDevice, err := clusterd.PopulateDeviceInfo(agent.devices[1].Name, context.Executor)
+			if err != nil {
+				return errors.Wrapf(err, "failed to get device info for %q", agent.devices[1].Name)
+			}
+
+			// set it's a metadata device
+			rawMetadataDevice.Type = pvcMetadataTypeDevice
+			rawDevices = append(rawDevices, rawMetadataDevice)
+		}
 	} else {
 		// We still need to use 'lsblk' as the underlaying way to discover devices
 		// Ideally, we would use the "ceph-volume inventory" command instead
@@ -268,6 +284,9 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 }
 
 func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevice, metadataDevice string, pvcBacked bool, cephVersion cephver.CephVersion) (*DeviceOsdMapping, error) {
+
+	logger.Debugf("desiredDevices are %+v", desiredDevices)
+	logger.Debugf("context.Devices are %+v", context.Devices)
 
 	available := &DeviceOsdMapping{Entries: map[string]*DeviceOsdIDEntry{}}
 	for _, device := range context.Devices {
@@ -372,6 +391,12 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 				// the current device matches the user specifies filter/list, use it for data
 				logger.Infof("device %q is selected by the device filter/name %q", device.Name, matchedDevice.Name)
 				deviceInfo = &DeviceOsdIDEntry{Data: unassignedOSDID, Config: matchedDevice, PersistentDevicePaths: strings.Fields(device.DevLinks)}
+
+				// set that this is not an OSD but a metadata device
+				if device.Type == pvcMetadataTypeDevice {
+					logger.Infof("metadata device %q is selected by the device filter/name %q", device.Name, matchedDevice.Name)
+					deviceInfo = &DeviceOsdIDEntry{Config: matchedDevice, PersistentDevicePaths: strings.Fields(device.DevLinks), Metadata: []int{1}}
+				}
 			} else {
 				logger.Infof("skipping device %q that does not match the device filter/list (%v). %v", device.Name, desiredDevices, err)
 			}
@@ -380,7 +405,19 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 		}
 
 		if deviceInfo != nil {
-			available.Entries[device.Name] = deviceInfo
+			// When running on PVC, we typically have a single device only
+			// So it's fine to name the first entry of the map "data" instead of the PVC name
+			// It is particularly useful when a metadata PVC is used because we need to identify it in the map
+			// So the entry must be named "metadata" so it can accessed later
+			if pvcBacked {
+				if device.Type == pvcDataTypeDevice {
+					available.Entries[pvcDataTypeDevice] = deviceInfo
+				} else if device.Type == pvcMetadataTypeDevice {
+					available.Entries[pvcMetadataTypeDevice] = deviceInfo
+				}
+			} else {
+				available.Entries[device.Name] = deviceInfo
+			}
 		}
 	}
 

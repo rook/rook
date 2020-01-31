@@ -292,7 +292,7 @@ func TestParseCephVolumeRawResult(t *testing.T) {
 	}
 
 	context := &clusterd.Context{Executor: executor}
-	osds, err := getCephVolumeRawOSDs(context, "rook", "4bfe8b72-5e69-4330-b6c0-4d914db8ab89", "", false)
+	osds, err := getCephVolumeRawOSDs(context, "rook", "4bfe8b72-5e69-4330-b6c0-4d914db8ab89", "", "", false)
 	assert.Nil(t, err)
 	require.NotNil(t, osds)
 	assert.Equal(t, 2, len(osds))
