@@ -32,13 +32,15 @@ import (
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/sys"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 var (
-	logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephosd")
+	logger                                   = capnslog.NewPackageLogger("github.com/rook/rook", "cephosd")
+	cephVolumePartitionSupportMinCephVersion = cephver.CephVersion{Major: 14, Minor: 2, Extra: 8}
 )
 
 // StartOSD starts an OSD on a device that was provisioned by ceph-volume
@@ -213,7 +215,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 	logger.Infof("creating and starting the osds")
 
 	// determine the set of devices that can/should be used for OSDs.
-	devices, err := getAvailableDevices(context, agent.devices, agent.metadataDevice, agent.pvcBacked)
+	devices, err := getAvailableDevices(context, agent.devices, agent.metadataDevice, agent.pvcBacked, agent.cluster.CephVersion)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get available devices")
 	}
@@ -279,7 +281,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 	return nil
 }
 
-func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevice, metadataDevice string, pvcBacked bool) (*DeviceOsdMapping, error) {
+func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevice, metadataDevice string, pvcBacked bool, cephVersion cephver.CephVersion) (*DeviceOsdMapping, error) {
 
 	available := &DeviceOsdMapping{Entries: map[string]*DeviceOsdIDEntry{}}
 	for _, device := range context.Devices {
@@ -296,6 +298,15 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 			if fs != "" || !ownPartitions {
 				// not OK to use the device because it has a filesystem or rook doesn't own all its partitions
 				logger.Infof("skipping device %q that is in use (not by rook). fs: %s, ownPartitions: %t", device.Name, fs, ownPartitions)
+				continue
+			}
+		}
+
+		// If we detect a partition we have to make sure that ceph-volume will be able to consume it
+		// ceph-volume version 14.2.8 has the right code to support partitions
+		if device.Type == sys.PartType {
+			if !cephVersion.IsAtLeast(cephVolumePartitionSupportMinCephVersion) {
+				logger.Infof("skipping device %q because it is a partition and ceph version is too old, you need at least ceph %q", device.Name, cephVolumePartitionSupportMinCephVersion.String())
 				continue
 			}
 		}
