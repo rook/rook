@@ -18,6 +18,7 @@ package sys
 import (
 	"fmt"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 
@@ -480,4 +481,16 @@ func parseUdevInfo(output string) map[string]string {
 		}
 	}
 	return result
+}
+
+// ListDevicesChild list all child available on a device
+func ListDevicesChild(executor exec.Executor, device string) ([]string, error) {
+	cmd := "lsblk for child"
+
+	childListRaw, err := executor.ExecuteCommandWithOutput(false, cmd, "lsblk", "--noheadings", "--pairs", path.Join("/dev", device))
+	if err != nil {
+		return []string{}, fmt.Errorf("failed to list child devices of %q. %+v", device, err)
+	}
+
+	return strings.Split(childListRaw, "\n"), nil
 }
