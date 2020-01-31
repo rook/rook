@@ -33,8 +33,13 @@ var (
 // MgrEnableModule enables a mgr module
 func MgrEnableModule(context *clusterd.Context, clusterName, name string, force bool) error {
 	retryCount := 5
+	var err error
 	for i := 0; i < retryCount; i++ {
-		err := enableModule(context, clusterName, name, force, "enable")
+		if name == "balancer" {
+			err = enableDisableBalancerModule(context, clusterName, "on")
+		} else {
+			err = enableModule(context, clusterName, name, force, "enable")
+		}
 		if err != nil {
 			if i < retryCount-1 {
 				logger.Warningf("failed to enable mgr module %q. trying again...", name)
@@ -51,6 +56,9 @@ func MgrEnableModule(context *clusterd.Context, clusterName, name string, force 
 
 // MgrDisableModule disables a mgr module
 func MgrDisableModule(context *clusterd.Context, clusterName, name string) error {
+	if name == "balancer" {
+		return enableDisableBalancerModule(context, clusterName, "off")
+	}
 	return enableModule(context, clusterName, name, false, "disable")
 }
 
@@ -92,6 +100,58 @@ func enableModule(context *clusterd.Context, clusterName, name string, force boo
 	_, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
 		return errors.Wrapf(err, "failed to enable mgr module %q", name)
+	}
+
+	return nil
+}
+
+// enableDisableBalancerModule enables the ceph balancer module
+func enableDisableBalancerModule(context *clusterd.Context, clusterName, action string) error {
+	args := []string{"balancer", action}
+	_, err := NewCephCommand(context, clusterName, args).Run()
+	if err != nil {
+		return errors.Wrapf(err, "failed to turn %q the balancer module", action)
+	}
+
+	return nil
+}
+
+func setBalancerMode(context *clusterd.Context, clusterName, mode string) error {
+	args := []string{"balancer", "mode", mode}
+	_, err := NewCephCommand(context, clusterName, args).Run()
+	if err != nil {
+		return errors.Wrapf(err, "failed to set balancer mode %q", mode)
+	}
+
+	return nil
+}
+
+// SetMinCompatClientLuminous set the minimum compatibility for clients to Luminous
+func SetMinCompatClientLuminous(context *clusterd.Context, clusterName string) error {
+	args := []string{"osd", "set-require-min-compat-client", "luminous"}
+	_, err := NewCephCommand(context, clusterName, args).Run()
+	if err != nil {
+		return errors.Wrap(err, "failed to set set-require-min-compat-client to luminous")
+	}
+
+	return nil
+}
+
+// MgrSetBalancerMode sets the given mode to the balancer module
+func MgrSetBalancerMode(context *clusterd.Context, clusterName, balancerModuleMode string) error {
+	retryCount := 5
+	for i := 0; i < retryCount; i++ {
+		err := setBalancerMode(context, clusterName, balancerModuleMode)
+		if err != nil {
+			if i < retryCount-1 {
+				logger.Warningf("failed to set mgr module mode %q. trying again...", balancerModuleMode)
+				time.Sleep(moduleEnableWaitTime)
+				continue
+			} else {
+				return errors.Wrapf(err, "failed to set mgr module mode %q even after %d retries", balancerModuleMode, retryCount)
+			}
+		}
+		break
 	}
 
 	return nil
