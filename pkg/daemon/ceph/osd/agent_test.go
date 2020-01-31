@@ -32,6 +32,7 @@ import (
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/daemon/ceph/test"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -436,9 +437,9 @@ func TestGetPartitionPerfScheme(t *testing.T) {
 		},
 	}
 	context.Executor = executor
-
+	version := cephver.Nautilus
 	pvcBackedOSD := false
-	devices, err := getAvailableDevices(context, []DesiredDevice{{Name: "sda"}, {Name: "sdb"}}, "sdc", pvcBackedOSD)
+	devices, err := getAvailableDevices(context, []DesiredDevice{{Name: "sda"}, {Name: "sdb"}}, "sdc", pvcBackedOSD, version)
 	assert.Nil(t, err)
 	scheme, _, err := a.getPartitionPerfScheme(context, devices, false)
 	assert.Nil(t, err)
@@ -516,7 +517,8 @@ func TestGetPartitionSchemeDiskInUse(t *testing.T) {
 	// get the partition scheme based on the available devices.  Since sda is already in use, the partition
 	// scheme returned should reflect that.
 	pvcBackedOSD := false
-	devices, err := getAvailableDevices(context, []DesiredDevice{{Name: "sda"}}, "", pvcBackedOSD)
+	version := cephver.Nautilus
+	devices, err := getAvailableDevices(context, []DesiredDevice{{Name: "sda"}}, "", pvcBackedOSD, version)
 	scheme, _, err := a.getPartitionPerfScheme(context, devices, false)
 	assert.Nil(t, err)
 
@@ -585,7 +587,8 @@ func TestGetPartitionSchemeDiskNameChanged(t *testing.T) {
 	// get the current partition scheme.  This should notice that the device names changed and update the
 	// partition scheme to have the latest device names
 	pvcBackedOSD := false
-	devices, err := getAvailableDevices(context, []DesiredDevice{{Name: "sda-changed"}}, "nvme01", pvcBackedOSD)
+	version := cephver.Nautilus
+	devices, err := getAvailableDevices(context, []DesiredDevice{{Name: "sda-changed"}}, "nvme01", pvcBackedOSD, version)
 	scheme, _, err := a.getPartitionPerfScheme(context, devices, false)
 	assert.Nil(t, err)
 	require.NotNil(t, scheme)
