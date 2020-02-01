@@ -176,5 +176,15 @@ func PopulateDeviceUdevInfo(d string, executor exec.Executor, disk *sys.LocalDis
 		disk.WWN = val
 	}
 
+	if disk.Type == sys.PartType {
+		if val, ok := udevInfo["PARTNAME"]; ok {
+			disk.Label = val
+		}
+
+		if val, ok := udevInfo["ID_PART_ENTRY_NAME"]; ok {
+			disk.Label = val
+		}
+	}
+
 	return disk, nil
 }

@@ -302,6 +302,16 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 			}
 		}
 
+		// If we detect a partition and this partition is a legacy rook OSD we skip it
+		// we simply let the rook owned partition detection happening with the task above
+		// Later on, it's being taken care of by looking at the number of partitions
+		if device.Type == sys.PartType {
+			if strings.HasPrefix(device.Label, "ROOK-OSD") {
+				logger.Infof("skipping device %q because it is a rook partition: %q", device.Name, device.Label)
+				continue
+			}
+		}
+
 		// If we detect a partition we have to make sure that ceph-volume will be able to consume it
 		// ceph-volume version 14.2.8 has the right code to support partitions
 		if device.Type == sys.PartType {

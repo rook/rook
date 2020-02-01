@@ -83,6 +83,8 @@ type LocalDisk struct {
 	Empty bool `json:"empty"`
 	// Information provided by Ceph Volume Inventory
 	CephVolumeData string `json:"cephVolumeData,omitempty"`
+	// Label is the name of the partition if the disk is a partition
+	Label string `json:"label"`
 }
 
 func ListDevices(executor exec.Executor) ([]string, error) {
