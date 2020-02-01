@@ -18,6 +18,8 @@ package controller
 
 import (
 	"fmt"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"reflect"
 
 	cassandrav1alpha1 "github.com/rook/rook/pkg/apis/cassandra.rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/operator/cassandra/constants"
@@ -80,6 +82,25 @@ func (cc *ClusterController) updateStatus(c *cassandrav1alpha1.Cluster) error {
 			}
 		}
 
+		// Update ConfigMap hashes
+		status.DesiredJMXExporterConfigMapHash = ""
+		if rack.JMXExporterConfigMapName != nil && *rack.JMXExporterConfigMapName != "" {
+			jmxConfigMap, err := cc.kubeClient.CoreV1().ConfigMaps(c.Namespace).Get(*rack.JMXExporterConfigMapName, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+			hash, err := util.GetConfigMapHash(jmxConfigMap)
+			if err != nil {
+				return err
+			}
+			status.DesiredJMXExporterConfigMapHash = hash
+		}
+
+		status.CurrentJMXExporterConfigMapHash = ""
+		if sts != nil {
+			status.CurrentJMXExporterConfigMapHash = sts.Spec.Template.Annotations[constants.JMXExporterConfigMapHashAnnotation]
+		}
+
 		// Update Status for Rack
 		clusterStatus.Racks[rack.Name] = status
 	}
@@ -138,14 +159,20 @@ func (cc *ClusterController) syncCluster(c *cassandrav1alpha1.Cluster) error {
 		}
 	}
 
+	// Check if the config map has changed
+	for _, rack := range c.Spec.Datacenter.Racks {
+		if c.Status.Racks[rack.Name].CurrentJMXExporterConfigMapHash != c.Status.Racks[rack.Name].DesiredJMXExporterConfigMapHash {
+			err := cc.updateRack(rack, c)
+			return err
+		}
+	}
+
 	return nil
 }
 
 // createRack creates a new Cassandra Rack with 0 Members.
 func (cc *ClusterController) createRack(r cassandrav1alpha1.RackSpec, c *cassandrav1alpha1.Cluster) error {
 	sts := util.StatefulSetForRack(r, c, cc.rookImage)
-	c.Spec.Annotations.Merge(r.Annotations).ApplyToObjectMeta(&sts.Spec.Template.ObjectMeta)
-	c.Spec.Annotations.Merge(r.Annotations).ApplyToObjectMeta(&sts.ObjectMeta)
 	existingStatefulset, err := cc.statefulSetLister.StatefulSets(sts.Namespace).Get(sts.Name)
 	if err == nil {
 		return util.VerifyOwner(existingStatefulset, c)
@@ -170,6 +197,37 @@ func (cc *ClusterController) createRack(r cassandrav1alpha1.RackSpec, c *cassand
 	}
 
 	return err
+}
+
+func (cc *ClusterController) updateRack(r cassandrav1alpha1.RackSpec, c *cassandrav1alpha1.Cluster) error {
+	sts, err := cc.kubeClient.AppsV1().StatefulSets(c.Namespace).Get(util.StatefulSetNameForRack(r, c), metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	oldSts := sts.DeepCopy()
+	newSts := sts.DeepCopy()
+
+	newSts.Spec.Template.Annotations[constants.JMXExporterConfigMapHashAnnotation] = c.Status.Racks[r.Name].DesiredJMXExporterConfigMapHash
+	newSts.Spec.Template.Spec.Volumes = util.StatefulSetForRack(r, c, "").Spec.Template.Spec.Volumes
+
+	if reflect.DeepEqual(oldSts, newSts) {
+		return nil
+	}
+
+	err = util.PatchStatefulSet(oldSts, newSts, cc.kubeClient)
+	if err != nil {
+		return err
+	}
+
+	cc.recorder.Event(
+		c,
+		corev1.EventTypeNormal,
+		SuccessSynced,
+		fmt.Sprintf(MessageRackUpdated, r.Name),
+	)
+
+	return nil
 }
 
 // scaleUpRack handles scaling up for an existing Cassandra Rack.

@@ -73,6 +73,29 @@ func PatchStatefulSet(old, new *appsv1.StatefulSet, kubeClient kubernetes.Interf
 	return err
 }
 
+// PatchConfigMap patches the old ConfigMap so that it matches the
+// new ConfigMap.
+func PatchConfigMap(old, new *corev1.ConfigMap, kubeClient kubernetes.Interface) error {
+
+	oldJSON, err := json.Marshal(old)
+	if err != nil {
+		return err
+	}
+
+	newJSON, err := json.Marshal(new)
+	if err != nil {
+		return err
+	}
+
+	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldJSON, newJSON, corev1.ConfigMap{})
+	if err != nil {
+		return err
+	}
+
+	_, err = kubeClient.CoreV1().ConfigMaps(old.Namespace).Patch(old.Name, types.StrategicMergePatchType, patchBytes)
+	return err
+}
+
 // PatchCluster patches the old Cluster so that it matches the new Cluster.
 func PatchClusterStatus(c *cassandrav1alpha1.Cluster, rookClient versioned.Interface) error {
 

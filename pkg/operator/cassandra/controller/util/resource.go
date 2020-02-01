@@ -82,11 +82,8 @@ func StatefulSetForRack(r cassandrav1alpha1.RackSpec, c *cassandrav1alpha1.Clust
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: rackLabels,
-					Annotations: map[string]string{
-						"prometheus.io/scrape": "true",
-						"prometheus.io/port":   "9180",
-					},
+					Labels:      rackLabels,
+					Annotations: RackAnnotations(r, c),
 				},
 				Spec: corev1.PodSpec{
 					Volumes: volumesForRack(r),
@@ -292,7 +289,7 @@ func volumeMountsForRack(r cassandrav1alpha1.RackSpec, c *cassandrav1alpha1.Clus
 	}
 	if *r.JMXExporterConfigMapName != "" {
 		vm = append(vm, corev1.VolumeMount{
-			Name:      "jmx-config",
+			Name:      constants.JMXConfigMapVolume,
 			MountPath: "/etc/cassandra/jmx_exporter_config.yaml",
 			SubPath:   "jmx_exporter_config.yaml",
 		})
@@ -317,7 +314,7 @@ func volumesForRack(r cassandrav1alpha1.RackSpec) []corev1.Volume {
 	}
 	if *r.JMXExporterConfigMapName != "" {
 		volumes = append(volumes, corev1.Volume{
-			Name: "jmx-config",
+			Name: constants.JMXConfigMapVolume,
 			VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{
 				LocalObjectReference: corev1.LocalObjectReference{Name: *r.JMXExporterConfigMapName},
 			}},

@@ -17,6 +17,8 @@ limitations under the License.
 package util
 
 import (
+	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"github.com/rook/rook/pkg/apis/cassandra.rook.io"
 	cassandrav1alpha1 "github.com/rook/rook/pkg/apis/cassandra.rook.io/v1alpha1"
@@ -25,11 +27,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/client-go/kubernetes"
 	appslisters "k8s.io/client-go/listers/apps/v1"
 	corelisters "k8s.io/client-go/listers/core/v1"
+	"reflect"
 	"strconv"
 	"strings"
 )
@@ -83,6 +87,34 @@ func VerifyOwner(obj, owner metav1.Object) error {
 			owner.GetNamespace(), owner.GetName(),
 		)
 	}
+	return nil
+}
+
+func AddOwnerRef(obj metav1.Object, owner metav1.Object) error {
+	runtimeOwner, ok := owner.(runtime.Object)
+	if !ok {
+		return fmt.Errorf("Owner doesn't implement runtime.Object interface: %v", owner)
+	}
+	apiVersion, kind := runtimeOwner.GetObjectKind().GroupVersionKind().ToAPIVersionAndKind()
+	controller := false
+	blockOwnerDeletion := false
+
+	newRef := metav1.OwnerReference{
+		APIVersion:         apiVersion,
+		Kind:               kind,
+		Name:               owner.GetName(),
+		UID:                owner.GetUID(),
+		Controller:         &controller,
+		BlockOwnerDeletion: &blockOwnerDeletion,
+	}
+
+	refs := obj.GetOwnerReferences()
+	for _, ref := range refs {
+		if reflect.DeepEqual(ref, newRef) {
+			return nil
+		}
+	}
+	obj.SetOwnerReferences(append(refs, newRef))
 	return nil
 }
 
@@ -209,4 +241,17 @@ func StatefulSetStatusesStale(c *cassandrav1alpha1.Cluster, statefulSetLister ap
 		}
 	}
 	return false, nil
+}
+
+// GetConfigMapHash returns the hash of the data of a ConfigMap.
+// If the ConfigMap is not found, it returns an empty string.
+func GetConfigMapHash(configMap *corev1.ConfigMap) (string, error) {
+
+	bytes, err := json.Marshal(configMap.Data)
+	if err != nil {
+		return "", err
+	}
+
+	res := sha256.Sum256(bytes)
+	return string(res[:]), nil
 }

@@ -35,6 +35,9 @@ const (
 	// Values: {true, false}
 	DecommissionLabel = "cassandra.rook.io/decommissioned"
 
+	// ConfigMapHash
+	JMXExporterConfigMapHashAnnotation = "cassandra.rook.io/jmx-exporter-configmap-sha256"
+
 	// DeveloperModeAnnotation is present when the user wishes
 	// to bypass production-readiness checks and start the database
 	// either way. Currently useful for scylla, may get removed
@@ -78,4 +81,6 @@ const (
 	ReadinessProbePath = "/readyz"
 	LivenessProbePath  = "/healthz"
 	ProbePort          = 8080
+
+	JMXConfigMapVolume = "jmx-config"
 )

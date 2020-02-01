@@ -51,6 +51,17 @@ func RackLabels(r cassandrav1alpha1.RackSpec, c *cassandrav1alpha1.Cluster) map[
 	return mergeLabels(rackLabels, recLabels)
 }
 
+// RackAnnotations returns a map of annotation keys and values
+// for the given Rack.
+func RackAnnotations(r cassandrav1alpha1.RackSpec, c *cassandrav1alpha1.Cluster) map[string]string {
+	prometheusAnnotations := map[string]string{
+		"prometheus.io/scrape":                       "true",
+		"prometheus.io/port":                         "9180",
+		constants.JMXExporterConfigMapHashAnnotation: c.Status.Racks[r.Name].CurrentJMXExporterConfigMapHash,
+	}
+	return c.Spec.Annotations.Merge(prometheusAnnotations).GetMapStringString()
+}
+
 // StatefulSetPodLabel returns a map of labels to uniquely
 // identify a StatefulSet Pod with the given name
 func StatefulSetPodLabel(name string) map[string]string {

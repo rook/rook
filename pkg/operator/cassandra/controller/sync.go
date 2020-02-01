@@ -32,6 +32,7 @@ const (
 	ErrSyncFailed = "ErrSyncFailed"
 
 	MessageRackCreated             = "Rack %s created"
+	MessageRackUpdated             = "Rack %s updated"
 	MessageRackScaledUp            = "Rack %s scaled up to %d members"
 	MessageRackScaleDownInProgress = "Rack %s scaling down to %d members"
 	MessageRackScaledDown          = "Rack %s scaled down to %d members"
@@ -86,6 +87,11 @@ func (cc *ClusterController) Sync(c *cassandrav1alpha1.Cluster) error {
 			ErrSyncFailed,
 			MessageMemberServicesSyncFailed,
 		)
+		return err
+	}
+
+	// Sync ConfigMap Refs related to Cluster
+	if err := cc.syncClusterConfigMapOwnerRefs(c); err != nil {
 		return err
 	}
 
