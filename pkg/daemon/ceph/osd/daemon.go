@@ -283,25 +283,17 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 
 	available := &DeviceOsdMapping{Entries: map[string]*DeviceOsdIDEntry{}}
 	for _, device := range context.Devices {
-		var partCount int
-		var ownPartitions bool
-		var err error
-		var fs string
-		if device.Type != sys.PartType {
-			partCount, ownPartitions, fs, err = sys.CheckIfDeviceAvailable(context.Executor, device.Name, pvcBacked)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to get device %q info", device.Name)
-			}
-
-			if fs != "" || !ownPartitions {
-				// not OK to use the device because it has a filesystem or rook doesn't own all its partitions
-				logger.Infof("skipping device %q that is in use (not by rook). fs: %s, ownPartitions: %t", device.Name, fs, ownPartitions)
-				continue
-			}
+		if device.Type == sys.PartType {
+			continue
+		}
+		partCount, ownPartitions, fs, err := sys.CheckIfDeviceAvailable(context.Executor, device.Name, pvcBacked)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get device %q info", device.Name)
 		}
 
-		if device.Filesystem != "" {
-			logger.Infof("skipping device %q because it contains a filesystem %q", device.Name, device.Filesystem)
+		if fs != "" || !ownPartitions {
+			// not OK to use the device because it has a filesystem or rook doesn't own all its partitions
+			logger.Infof("skipping device %q that is in use (not by rook). fs: %s, ownPartitions: %t", device.Name, fs, ownPartitions)
 			continue
 		}
 
@@ -314,6 +306,7 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 			deviceInfo = &DeviceOsdIDEntry{Data: unassignedOSDID}
 		} else if len(desiredDevices) > 0 {
 			var matched bool
+			var err error
 			var matchedDevice DesiredDevice
 			for _, desiredDevice := range desiredDevices {
 				if desiredDevice.IsFilter {
