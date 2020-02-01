@@ -128,6 +128,9 @@ type RackStatus struct {
 	ReadyMembers int32 `json:"readyMembers"`
 	// Conditions are the latest available observations of a rack's state.
 	Conditions []RackCondition `json:"conditions,omitempty"`
+
+	CurrentJMXExporterConfigMapHash string `json:"currentJMXExporterConfigMapHash"`
+	DesiredJMXExporterConfigMapHash string `json:"desiredJMXExporterConfigMapHash"`
 }
 
 // RackCondition is an observation about the state of a rack.
