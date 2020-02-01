@@ -67,6 +67,8 @@ type ClusterController struct {
 	serviceListerSynced     cache.InformerSynced
 	podLister               corelisters.PodLister
 	podListerSynced         cache.InformerSynced
+	configMapLister         corelisters.ConfigMapLister
+	configMapListerSynced   cache.InformerSynced
 
 	// queue is a rate limited work queue. This is used to queue work to be
 	// processed instead of performing it as soon as a change happens. This
@@ -87,6 +89,7 @@ func New(
 	statefulSetInformer appsinformers.StatefulSetInformer,
 	serviceInformer coreinformers.ServiceInformer,
 	podInformer coreinformers.PodInformer,
+	configMapInformer coreinformers.ConfigMapInformer,
 ) *ClusterController {
 
 	// Add sample-controller types to the default Kubernetes Scheme so Events can be
@@ -112,6 +115,8 @@ func New(
 		podListerSynced:         podInformer.Informer().HasSynced,
 		serviceLister:           serviceInformer.Lister(),
 		serviceListerSynced:     serviceInformer.Informer().HasSynced,
+		configMapLister:         configMapInformer.Lister(),
+		configMapListerSynced:   configMapInformer.Informer().HasSynced,
 
 		queue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), clusterQueueName),
 		recorder: recorder,
@@ -182,6 +187,21 @@ func New(
 		DeleteFunc: func(obj interface{}) {
 			// TODO: investigate if further action needs to be taken
 		},
+	})
+
+	configMapInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: cc.handleObject,
+		UpdateFunc: func(old, new interface{}) {
+			newConfigMap := new.(*corev1.ConfigMap)
+			oldConfigMap := old.(*corev1.ConfigMap)
+			// If the ConfigMap is the same as the one in our cache, there
+			// is no use adding it again.
+			if newConfigMap.ResourceVersion == oldConfigMap.ResourceVersion {
+				return
+			}
+			cc.handleObject(new)
+		},
+		DeleteFunc: cc.handleObject,
 	})
 
 	return cc
