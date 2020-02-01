@@ -153,9 +153,8 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	require.NoError(s.T(), err)
 
 	// Upgrade Ceph version
-	// Set the skipUpgradeChecks flag since we're not fully waiting for Ceph health during the tests.
 	s.k8sh.Kubectl("-n", s.namespace, "patch", "CephCluster", s.namespace, "--type=merge",
-		"-p", fmt.Sprintf(`{"spec": {"cephVersion": {"image": "%s"}, "skipUpgradeChecks": "true"}}`, installer.NautilusVersion.Image))
+		"-p", fmt.Sprintf(`{"spec": {"cephVersion": {"image": "%s"}}}`, installer.NautilusVersion.Image))
 
 	// we need to make sure Ceph is fully updated (including RGWs and MDSes) before proceeding to
 	// upgrade rook; we do not support upgrading Ceph simultaneously with Rook upgrade
