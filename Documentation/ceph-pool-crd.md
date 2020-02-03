@@ -70,6 +70,7 @@ When creating an erasure-coded pool, it is highly recommended to create the pool
 
 * `replicated`: Settings for a replicated pool. If specified, `erasureCoded` settings must not be specified.
   * `size`: The desired number of copies to make of the data in the pool.
+  * `targetSizeRatio:` gives a hint (%) to Ceph in terms of expected consumption of the total cluster capacity of a given pool, for more info see the [ceph documentation](https://docs.ceph.com/docs/master/rados/operations/placement-groups/#specifying-expected-pool-size)
 * `erasureCoded`: Settings for an erasure-coded pool. If specified, `replicated` settings must not be specified. See below for more details on [erasure coding](#erasure-coding).
   * `dataChunks`: Number of chunks to divide the original object into
   * `codingChunks`: Number of coding chunks to generate
