@@ -43,7 +43,7 @@ const (
 	// test with the latest mimic build
 	mimicTestImage = "ceph/ceph:v13"
 	// test with the latest nautilus build
-	nautilusTestImage = "ceph/ceph:v14.2.6"
+	nautilusTestImage = "ceph/ceph:v14"
 	helmChartName     = "local/rook-ceph"
 	helmDeployName    = "rook-ceph"
 	cephOperatorLabel = "app=rook-ceph-operator"
@@ -209,15 +209,18 @@ func (h *CephInstaller) CreateK8sRookClusterWithHostPathAndDevicesOrPVC(namespac
 		return fmt.Errorf("failed to wipe cluster disks. %+v", err)
 	}
 
-	useAllDevices := true
 	logger.Infof("Starting Rook Cluster with yaml")
-	settings := &ClusterSettings{namespace, storeType, dataDirHostPath, useAllDevices, mon.Count, rbdMirrorWorkers, usePVC, storageClassName, cephVersion}
+	settings := &ClusterSettings{namespace, storeType, dataDirHostPath, mon.Count, rbdMirrorWorkers, usePVC, storageClassName, cephVersion}
 	rookCluster := h.Manifests.GetRookCluster(settings)
 	if _, err := h.k8shelper.KubectlWithStdin(rookCluster, createFromStdinArgs...); err != nil {
 		return fmt.Errorf("Failed to create rook cluster : %v ", err)
 	}
 
 	if err := h.k8shelper.WaitForPodCount("app=rook-ceph-mon", namespace, mon.Count); err != nil {
+		return err
+	}
+
+	if err := h.k8shelper.WaitForPodCount("app=rook-ceph-mgr", namespace, 1); err != nil {
 		return err
 	}
 
@@ -698,7 +701,7 @@ func NewCephInstaller(t func() *testing.T, clientset *kubernetes.Clientset, useH
 		useHelm:         useHelm,
 		k8sVersion:      version.String(),
 		CephVersion:     cephVersion,
-		changeHostnames: rookVersion != Version1_0 && k8shelp.VersionAtLeast("v1.13.0"),
+		changeHostnames: rookVersion != Version1_1 && k8shelp.VersionAtLeast("v1.13.0"),
 		T:               t,
 	}
 	flag.Parse()

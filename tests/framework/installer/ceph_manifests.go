@@ -25,6 +25,11 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 )
 
+const (
+	Version1_1 = "v1.1.9"
+	Version1_2 = "v1.2.3"
+)
+
 type CephManifests interface {
 	GetRookCRDs() string
 	GetRookOperator(namespace string) string
@@ -52,7 +57,6 @@ type ClusterSettings struct {
 	Namespace        string
 	StoreType        string
 	DataDirHostPath  string
-	UseAllDevices    bool
 	Mons             int
 	RBDMirrorWorkers int
 	UsePVCs          bool
@@ -76,8 +80,8 @@ func NewCephManifests(version string) CephManifests {
 	switch version {
 	case VersionMaster:
 		return &CephManifestsMaster{imageTag: VersionMaster}
-	case Version1_0:
-		return &CephManifestsV1_0{imageTag: Version1_0}
+	case Version1_1:
+		return &CephManifestsV1_1{imageTag: Version1_1}
 	}
 	panic(fmt.Errorf("unrecognized ceph manifest version: %s", version))
 }
@@ -1788,7 +1792,7 @@ spec:
   metadataDevice:
   storage:
     useAllNodes: true
-    useAllDevices: ` + strconv.FormatBool(settings.UseAllDevices) + `
+    useAllDevices: true
     deviceFilter:
     config:
       ` + store + `
