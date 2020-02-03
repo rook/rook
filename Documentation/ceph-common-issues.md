@@ -25,6 +25,7 @@ If after trying the suggestions found on this page and the problem is not resolv
 * [Using multiple shared filesystem (CephFS) is attempted on a kernel version older than 4.7](#using-multiple-shared-filesystem-cephfs-is-attempted-on-a-kernel-version-older-than-47)
 * [Activate log to file for a particular Ceph daemon](#activate-log-to-file-for-a-particular-ceph-daemon)
 * [Flex storage class versus Ceph CSI storage class](#flex-storage-class-versus-ceph-csi-storage-class)
+* [A worker node using RBD devices hangs up](#a-worker-node-using-rbd-devices-hangs-up)
 
 ## Troubleshooting Techniques
 
@@ -684,3 +685,39 @@ Ceph CSI in its 1.2 version (with Rook 1.1) does not support the Erasure coded p
 
 So, if you are looking at using such storage class you should enable the Flex driver by setting `ROOK_ENABLE_FLEX_DRIVER: true` in your `operator.yaml`.
 Also, if you are in the need of specific features and wonder if CSI is capable of handling them, you should read [the ceph-csi support matrix](https://github.com/ceph/ceph-csi#support-matrix).
+
+## A worker node using RBD devices hangs up
+
+### Symptoms
+
+* There is no progress on I/O from/to one of RBD devices (`/dev/rbd*` or `/dev/nbd*`).
+* After that, the whole worker node hangs up.
+
+### Investigation
+
+This hapens when the following conditions are satisfied.
+
+- The problematic RBD device and the corresponding OSDs are co-located.
+- There is an XFS filesystem on top of this device.
+
+In addition, when this problem happens, you can see the following messages in `dmesg`.
+
+```console
+# dmesg
+...
+[51717.039319] INFO: task kworker/2:1:5938 blocked for more than 120 seconds.
+[51717.039361]       Not tainted 4.15.0-72-generic #81-Ubuntu
+[51717.039388] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+...
+```
+
+It's so-called `hung_task` problem and means that there is a deadlock in the kernel. For more detail, please refer to [the corresponding issue comment](https://github.com/rook/rook/issues/3132#issuecomment-580508760).
+
+### Solution
+
+This problem will be solve by the following two fixes.
+
+* Linux kernel: A minor feature that is introduced by [this commit](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=8d19f1c8e1937baf74e1962aae9f90fa3aeab463). It will be included in Linux v5.6.
+* Ceph: A fix that uses the above-mentioned kernel's feature. The Ceph community will probably discuss this fix after releasing Linux v5.6.
+
+You can bypass this problem by using ext4 or any other filesystems rather than XFS. Filesystem type can be specified with `csi.storage.k8s.io/fstype` in StorageClass resource.
