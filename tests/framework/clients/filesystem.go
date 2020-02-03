@@ -39,9 +39,9 @@ func CreateFilesystemOperation(k8sh *utils.K8sHelper, manifests installer.CephMa
 }
 
 // Create creates a filesystem in Rook
-func (f *FilesystemOperation) Create(name, namespace string) error {
+func (f *FilesystemOperation) Create(name, namespace string, activeCount int) error {
 	logger.Infof("creating the filesystem via CRD")
-	if err := f.k8sh.ResourceOperation("apply", f.manifests.GetFilesystem(namespace, name, 2)); err != nil {
+	if err := f.k8sh.ResourceOperation("apply", f.manifests.GetFilesystem(namespace, name, activeCount)); err != nil {
 		return err
 	}
 
@@ -49,7 +49,7 @@ func (f *FilesystemOperation) Create(name, namespace string) error {
 	err := f.k8sh.WaitForLabeledPodsToRun(fmt.Sprintf("rook_file_system=%s", name), namespace)
 	assert.Nil(f.k8sh.T(), err)
 
-	assert.True(f.k8sh.T(), f.k8sh.CheckPodCountAndState("rook-ceph-mds", namespace, 4, "Running"),
+	assert.True(f.k8sh.T(), f.k8sh.CheckPodCountAndState("rook-ceph-mds", namespace, activeCount*2, "Running"),
 		"Make sure there are four rook-ceph-mds pods present in Running state")
 
 	return nil
