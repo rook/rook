@@ -124,6 +124,7 @@ func ModelPoolToCephPool(modelPool model.Pool) CephStoragePoolDetails {
 
 	if modelPool.Type == model.Replicated {
 		pool.Size = modelPool.ReplicatedConfig.Size
+		pool.TargetSizeRatio = modelPool.ReplicatedConfig.TargetSizeRatio
 	} else if modelPool.Type == model.ErasureCoded {
 		pool.ErasureCodeProfile = GetErasureCodeProfileForPool(modelPool.Name)
 	}
