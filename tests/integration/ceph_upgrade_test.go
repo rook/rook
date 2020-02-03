@@ -193,38 +193,12 @@ func (s *UpgradeSuite) upgradeCephVersion(newCephImage string, numOSDs int) {
 	oldCephVersion := osdDepList.Items[0].Labels["ceph-version"] // upgraded OSDs should not have this version label
 
 	//
-	// Upgrade Ceph version from Mimic to Nautilus before upgrading to Rook v1.1.
-	// Set the skipUpgradeChecks flag since we're not fully waiting for Ceph health during the tests.
+	// Upgrade Ceph version, for example from Mimic to Nautilus.
 	//
 	s.k8sh.Kubectl("-n", s.namespace, "patch", "CephCluster", s.namespace, "--type=merge",
 		"-p", fmt.Sprintf(`{"spec": {"cephVersion": {"image": "%s"}}}`, newCephImage))
 
-	// we need to make sure Ceph is fully updated (including RGWs and MDSes) before proceeding to
-	// upgrade rook; we do not support upgrading Ceph simultaneously with Rook upgrade
-	monsNotOldVersion := fmt.Sprintf("app=rook-ceph-mon,ceph-version!=%s", oldCephVersion)
-	err = s.k8sh.WaitForDeploymentCount(monsNotOldVersion, s.namespace, s.op.mons)
-	require.NoError(s.T(), err)
-	err = s.k8sh.WaitForLabeledDeploymentsToBeReady(monsNotOldVersion, s.namespace)
-	require.NoError(s.T(), err)
-
-	osdsNotOldVersion := fmt.Sprintf("app=rook-ceph-osd,ceph-version!=%s", oldCephVersion)
-	// It can take a LONG time to update the mgr modules, so wait an extra long time here
-	err = s.k8sh.WaitForDeploymentCountWithRetries(osdsNotOldVersion, s.namespace, numOSDs, utils.RetryLoop*2)
-	require.NoError(s.T(), err)
-	err = s.k8sh.WaitForLabeledDeploymentsToBeReady(osdsNotOldVersion, s.namespace)
-	require.NoError(s.T(), err)
-
-	mdsesNotOldVersion := fmt.Sprintf("app=rook-ceph-mds,ceph-version!=%s", oldCephVersion)
-	err = s.k8sh.WaitForDeploymentCount(mdsesNotOldVersion, s.namespace, 4 /* always expect 4 mdses */)
-	require.NoError(s.T(), err)
-	err = s.k8sh.WaitForLabeledDeploymentsToBeReady(mdsesNotOldVersion, s.namespace)
-	require.NoError(s.T(), err)
-
-	rgwsNotOldVersion := fmt.Sprintf("app=rook-ceph-rgw,ceph-version!=%s", oldCephVersion)
-	err = s.k8sh.WaitForDeploymentCount(rgwsNotOldVersion, s.namespace, 1 /* always expect 1 rgw */)
-	require.NoError(s.T(), err)
-	err = s.k8sh.WaitForLabeledDeploymentsToBeReady(rgwsNotOldVersion, s.namespace)
-	require.NoError(s.T(), err)
+	s.waitForUpgradedDaemons(oldCephVersion, "ceph-version", numOSDs)
 }
 
 func (s *UpgradeSuite) verifyOperatorImage(expectedImage string) {
@@ -256,38 +230,43 @@ func (s *UpgradeSuite) verifyRookUpgrade(numOSDs int) {
 	d := osdDepList.Items[0]
 	oldRookVersion := d.Labels["rook-version"] // upgraded OSDs should not have this version label
 
+	s.waitForUpgradedDaemons(oldRookVersion, "rook-version", numOSDs)
+}
+
+func (s *UpgradeSuite) waitForUpgradedDaemons(previousVersion, versionLabel string, numOSDs int) {
 	// wait for the mon(s) to be updated
-	monsNotOldVersion := fmt.Sprintf("app=rook-ceph-mon,rook-version!=%s", oldRookVersion)
-	err = s.k8sh.WaitForDeploymentCount(monsNotOldVersion, s.namespace, s.op.mons)
+	monsNotOldVersion := fmt.Sprintf("app=rook-ceph-mon,%s!=%s", versionLabel, previousVersion)
+	err := s.k8sh.WaitForDeploymentCount(monsNotOldVersion, s.namespace, s.op.mons)
 	require.NoError(s.T(), err, "mon(s) didn't update")
 	err = s.k8sh.WaitForLabeledDeploymentsToBeReady(monsNotOldVersion, s.namespace)
 	require.NoError(s.T(), err)
 
 	// wait for the mgr to be updated
-	mgrNotOldVersion := fmt.Sprintf("app=rook-ceph-mgr,rook-version!=%s", oldRookVersion)
+	mgrNotOldVersion := fmt.Sprintf("app=rook-ceph-mgr,%s!=%s", versionLabel, previousVersion)
 	err = s.k8sh.WaitForDeploymentCount(mgrNotOldVersion, s.namespace, 1)
 	require.NoError(s.T(), err, "mgr didn't update")
 	err = s.k8sh.WaitForLabeledDeploymentsToBeReady(mgrNotOldVersion, s.namespace)
 	require.NoError(s.T(), err)
 
 	// wait for the osd pods to be updated
-	osdsNotOldVersion := fmt.Sprintf("app=rook-ceph-osd,rook-version!=%s", oldRookVersion)
+	osdsNotOldVersion := fmt.Sprintf("app=rook-ceph-osd,%s!=%s", versionLabel, previousVersion)
 	err = s.k8sh.WaitForDeploymentCount(osdsNotOldVersion, s.namespace, numOSDs)
 	require.NoError(s.T(), err, "osd(s) didn't update")
 	err = s.k8sh.WaitForLabeledDeploymentsToBeReady(osdsNotOldVersion, s.namespace)
 	require.NoError(s.T(), err)
 
 	// wait for the mds pods to be updated
-	mdsesNotOldVersion := fmt.Sprintf("app=rook-ceph-mds,rook-version!=%s", oldRookVersion)
-	err = s.k8sh.WaitForDeploymentCount(mdsesNotOldVersion, s.namespace, 4 /* always expect 4 mdses */)
+	mdsesNotOldVersion := fmt.Sprintf("app=rook-ceph-mds,%s!=%s", versionLabel, previousVersion)
+	err = s.k8sh.WaitForDeploymentCount(mdsesNotOldVersion, s.namespace, 2 /* always expect 2 mdses */)
 	require.NoError(s.T(), err)
 	err = s.k8sh.WaitForLabeledDeploymentsToBeReady(mdsesNotOldVersion, s.namespace)
 	require.NoError(s.T(), err)
 
-	// rgwsNotOldVersion
-	// There is an unlikely corner case with RGWs where the upgrade will fail on upgrades regarding
-	// a pool added for erasure coding. This hasn't been observed by users, so we ignore this
-	// currently.
+	rgwsNotOldVersion := fmt.Sprintf("app=rook-ceph-rgw,%s!=%s", versionLabel, previousVersion)
+	err = s.k8sh.WaitForDeploymentCount(rgwsNotOldVersion, s.namespace, 1 /* always expect 1 rgw */)
+	require.NoError(s.T(), err)
+	err = s.k8sh.WaitForLabeledDeploymentsToBeReady(rgwsNotOldVersion, s.namespace)
+	require.NoError(s.T(), err)
 
 	// Give a few seconds for the daemons to settle down after the upgrade
 	time.Sleep(5 * time.Second)
