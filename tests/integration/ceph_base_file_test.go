@@ -46,8 +46,8 @@ func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.S
 	defer fileTestDataCleanUp(helper, k8sh, s, filePodName, namespace, filesystemName)
 	logger.Infof("Running on Rook Cluster %s", namespace)
 	logger.Infof("File Storage End To End Integration Test - create, mount, write to, read from, and unmount")
-
-	createFilesystem(helper, k8sh, s, namespace, filesystemName)
+	activeCount := 2
+	createFilesystem(helper, k8sh, s, namespace, filesystemName, activeCount)
 
 	// Create a test pod where CephFS is consumed without user creds
 	createFilesystemConsumerPod(helper, k8sh, s, namespace, filesystemName)
@@ -129,13 +129,14 @@ func cleanupFilesystem(helper *clients.TestClient, k8sh *utils.K8sHelper, s suit
 func runFileE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, filesystemName string) {
 	logger.Infof("File Storage End to End Integration Test - create Filesystem and make sure mds pod is running")
 	logger.Infof("Running on Rook Cluster %s", namespace)
-	createFilesystem(helper, k8sh, s, namespace, filesystemName)
+	activeCount := 1
+	createFilesystem(helper, k8sh, s, namespace, filesystemName, activeCount)
 	cleanupFilesystem(helper, k8sh, s, namespace, filesystemName)
 }
 
-func createFilesystem(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace, filesystemName string) {
+func createFilesystem(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace, filesystemName string, activeCount int) {
 	logger.Infof("Create file System")
-	fscErr := helper.FSClient.Create(filesystemName, namespace)
+	fscErr := helper.FSClient.Create(filesystemName, namespace, activeCount)
 	require.Nil(s.T(), fscErr)
 	logger.Infof("File system %s created", filesystemName)
 

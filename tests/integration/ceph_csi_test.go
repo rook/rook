@@ -63,7 +63,8 @@ func createCephPools(helper *clients.TestClient, s suite.Suite, namespace string
 	err := helper.PoolClient.Create(csiPoolRBD, namespace, 1)
 	require.Nil(s.T(), err)
 
-	err = helper.FSClient.Create(csiPoolCephFS, namespace)
+	activeCount := 1
+	err = helper.FSClient.Create(csiPoolCephFS, namespace, activeCount)
 	require.Nil(s.T(), err)
 }
 

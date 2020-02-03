@@ -104,7 +104,8 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 
 	logger.Infof("Initializing file before the upgrade")
 	filesystemName := "upgrade-test-fs"
-	createFilesystem(s.helper, s.k8sh, s.Suite, s.namespace, filesystemName)
+	activeCount := 1
+	createFilesystem(s.helper, s.k8sh, s.Suite, s.namespace, filesystemName, activeCount)
 	createFilesystemConsumerPod(s.helper, s.k8sh, s.Suite, s.namespace, filesystemName)
 	defer func() {
 		cleanupFilesystemConsumer(s.k8sh, s.Suite, s.namespace, filePodName)
