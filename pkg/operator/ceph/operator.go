@@ -199,7 +199,7 @@ func (o *Operator) startSystemDaemons(clusterSpec *cephv1.ClusterSpec) error {
 		return errors.Wrapf(err, "invalid csi params")
 	}
 
-	if err = csi.StartCSIDrivers(o.operatorNamespace, o.context.Clientset, serverVersion); err != nil {
+	if err = csi.StartCSIDrivers(o.operatorNamespace, clusterSpec, o.context.Clientset, serverVersion); err != nil {
 		return errors.Wrapf(err, "failed to start Ceph csi drivers")
 	}
 	logger.Infof("successfully started Ceph CSI driver(s)")

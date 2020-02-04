@@ -24,8 +24,9 @@ import (
 	"strings"
 	"text/template"
 
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+
 	"github.com/pkg/errors"
-	k8sutil "github.com/rook/rook/pkg/operator/k8sutil"
 
 	"github.com/ghodss/yaml"
 	apps "k8s.io/api/apps/v1"
@@ -104,50 +105,20 @@ func templateToDeployment(name, templatePath string, p templateParam) (*apps.Dep
 	return &ds, nil
 }
 
-func getToleration(provisioner bool) []corev1.Toleration {
+func getToleration(provisioner bool, c *cephv1.ClusterSpec) []corev1.Toleration {
 	// Add toleration if any
-	tolerations := []corev1.Toleration{}
-	var err error
-	tolerationsRaw := ""
 	if provisioner {
-		tolerationsRaw = os.Getenv(provisionerTolerationsEnv)
-	} else {
-		tolerationsRaw = os.Getenv(pluginTolerationsEnv)
+		return cephv1.GetCSIProvisionerPlacement(c.Placement).Tolerations
 	}
-	if tolerationsRaw != "" {
-		tolerations, err = k8sutil.YamlToTolerations(tolerationsRaw)
-		if err != nil {
-			logger.Warningf("failed to parse %q. %v", tolerationsRaw, err)
-		}
-	}
-	for i := range tolerations {
-		if tolerations[i].Key == "" {
-			tolerations[i].Operator = corev1.TolerationOpExists
-		}
-
-		if tolerations[i].Operator == corev1.TolerationOpExists {
-			tolerations[i].Value = ""
-		}
-	}
-	return tolerations
+	return cephv1.GetCSIPluginPlacement(c.Placement).Tolerations
 }
 
-func getNodeAffinity(provisioner bool) *corev1.NodeAffinity {
+func getNodeAffinity(provisioner bool, c *cephv1.ClusterSpec) *corev1.NodeAffinity {
 	// Add NodeAffinity if any
-	nodeAffinity := ""
 	if provisioner {
-		nodeAffinity = os.Getenv(provisionerNodeAffinityEnv)
-	} else {
-		nodeAffinity = os.Getenv(pluginNodeAffinityEnv)
+		return cephv1.GetCSIProvisionerPlacement(c.Placement).NodeAffinity
 	}
-	if nodeAffinity != "" {
-		v1NodeAffinity, err := k8sutil.GenerateNodeAffinity(nodeAffinity)
-		if err != nil {
-			logger.Warningf("failed to parse %q. %v", nodeAffinity, err)
-		}
-		return v1NodeAffinity
-	}
-	return nil
+	return cephv1.GetCSIPluginPlacement(c.Placement).NodeAffinity
 }
 
 func applyToPodSpec(pod *corev1.PodSpec, n *corev1.NodeAffinity, t []corev1.Toleration) {

@@ -21,9 +21,11 @@ import (
 )
 
 const (
-	KeyMon       rook.KeyType = "mon"
-	KeyMgr       rook.KeyType = "mgr"
-	KeyOSD       rook.KeyType = "osd"
-	KeyRBDMirror rook.KeyType = "rbdmirror"
-	KeyRGW       rook.KeyType = "rgw"
+	KeyMon            rook.KeyType = "mon"
+	KeyMgr            rook.KeyType = "mgr"
+	KeyOSD            rook.KeyType = "osd"
+	KeyRBDMirror      rook.KeyType = "rbdmirror"
+	KeyRGW            rook.KeyType = "rgw"
+	KeyCSIProvisioner rook.KeyType = "csi-provisioner"
+	KeyCSIPlugin      rook.KeyType = "csi-plugin"
 )

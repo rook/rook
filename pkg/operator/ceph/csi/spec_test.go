@@ -21,6 +21,7 @@ import (
 
 	"github.com/rook/rook/pkg/operator/test"
 
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -44,6 +45,7 @@ func TestStartCSI(t *testing.T) {
 	if err != nil {
 		assert.Nil(t, err)
 	}
-	err = StartCSIDrivers("ns", clientset, serverVersion)
+	clusterSpec := &cephv1.ClusterSpec{}
+	err = StartCSIDrivers("ns", clusterSpec, clientset, serverVersion)
 	assert.Nil(t, err)
 }

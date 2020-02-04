@@ -26,6 +26,7 @@ import (
 
 	"github.com/rook/rook/pkg/operator/k8sutil"
 
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8scsi "k8s.io/api/storage/v1beta1"
@@ -108,12 +109,6 @@ const (
 	kubeMinVerForFilesystemRestore = "15"
 	kubeMinVerForBlockRestore      = "16"
 
-	// toleration and node affinity
-	provisionerTolerationsEnv  = "CSI_PROVISIONER_TOLERATIONS"
-	provisionerNodeAffinityEnv = "CSI_PROVISIONER_NODE_AFFINITY"
-	pluginTolerationsEnv       = "CSI_PLUGIN_TOLERATIONS"
-	pluginNodeAffinityEnv      = "CSI_PLUGIN_NODE_AFFINITY"
-
 	// kubelet directory path
 	DefaultKubeletDirPath = "/var/lib/kubelet"
 
@@ -177,7 +172,8 @@ func ValidateCSIParam() error {
 	return nil
 }
 
-func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *version.Info) error {
+// StartCSIDrivers ...
+func StartCSIDrivers(namespace string, cephClusterSpec *cephv1.ClusterSpec, clientset kubernetes.Interface, ver *version.Info) error {
 	var (
 		err                                                   error
 		rbdPlugin, cephfsPlugin                               *apps.DaemonSet
@@ -318,11 +314,11 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 		}
 	}
 	// get provisioner toleration and node affinity
-	provisionerTolerations := getToleration(true)
-	provisionerNodeAffinity := getNodeAffinity(true)
+	provisionerTolerations := getToleration(true, cephClusterSpec)
+	provisionerNodeAffinity := getNodeAffinity(true, cephClusterSpec)
 	// get plugin toleration and node affinity
-	pluginTolerations := getToleration(false)
-	pluginNodeAffinity := getNodeAffinity(false)
+	pluginTolerations := getToleration(false, cephClusterSpec)
+	pluginNodeAffinity := getNodeAffinity(false, cephClusterSpec)
 	if rbdPlugin != nil {
 		applyToPodSpec(&rbdPlugin.Spec.Template.Spec, pluginNodeAffinity, pluginTolerations)
 		k8sutil.SetOwnerRef(&rbdPlugin.ObjectMeta, &ownerRef)

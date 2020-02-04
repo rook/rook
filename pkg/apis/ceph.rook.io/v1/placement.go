@@ -38,3 +38,13 @@ func GetOSDPlacement(p rook.PlacementSpec) rook.Placement {
 func GetRBDMirrorPlacement(p rook.PlacementSpec) rook.Placement {
 	return p.All().Merge(p[KeyRBDMirror])
 }
+
+// GetCSIProvisionerPlacement returns the placement for CSI Provisioners
+func GetCSIProvisionerPlacement(p rook.PlacementSpec) rook.Placement {
+	return p.All().Merge(p[KeyCSIProvisioner])
+}
+
+// GetCSIPluginPlacement returns the placement for CSI Plugins
+func GetCSIPluginPlacement(p rook.PlacementSpec) rook.Placement {
+	return p.All().Merge(p[KeyCSIPlugin])
+}
