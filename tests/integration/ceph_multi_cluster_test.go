@@ -106,12 +106,14 @@ func (mrc *MultiClusterDeploySuite) TestInstallingMultipleRookClusters() {
 
 // MCTestOperations struct for handling panic and test suite tear down
 type MCTestOperations struct {
-	installer       *installer.CephInstaller
-	kh              *utils.K8sHelper
-	T               func() *testing.T
-	namespace1      string
-	namespace2      string
-	systemNamespace string
+	installer        *installer.CephInstaller
+	kh               *utils.K8sHelper
+	T                func() *testing.T
+	namespace1       string
+	namespace2       string
+	systemNamespace  string
+	storageClassName string
+	testOverPVC      bool
 }
 
 // NewMCTestOperations creates new instance of TestCluster struct
@@ -123,7 +125,12 @@ func NewMCTestOperations(t func() *testing.T, namespace1 string, namespace2 stri
 
 	i := installer.NewCephInstaller(t, kh.Clientset, false, installer.VersionMaster, installer.NautilusVersion)
 
-	op := &MCTestOperations{i, kh, t, namespace1, namespace2, installer.SystemNamespace(namespace1)}
+	op := &MCTestOperations{i, kh, t, namespace1, namespace2, installer.SystemNamespace(namespace1), "", false}
+	p := kh.IsStorageClassPresent("manual")
+	if p == nil && kh.VersionAtLeast("v1.13.0") {
+		op.testOverPVC = true
+		op.storageClassName = "manual"
+	}
 	op.Setup()
 	return op, kh
 }
@@ -164,7 +171,7 @@ func (o MCTestOperations) Teardown() {
 
 func (o MCTestOperations) startCluster(namespace, store string) error {
 	logger.Infof("starting cluster %s", namespace)
-	err := o.installer.CreateK8sRookClusterWithHostPathAndDevices(namespace, o.systemNamespace, store,
+	err := o.installer.CreateK8sRookClusterWithHostPathAndDevicesOrPVC(namespace, o.systemNamespace, store, o.testOverPVC, o.storageClassName,
 		cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, true, 1, installer.NautilusVersion)
 	if err != nil {
 		o.T().Fail()

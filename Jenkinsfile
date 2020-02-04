@@ -176,7 +176,8 @@ def RunIntegrationTest(k, v) {
                     sh "tests/scripts/kubeadm.sh up"
                     sh '''#!/bin/bash
                           export KUBECONFIG=$HOME/admin.conf
-                          tests/scripts/helm.sh up'''
+                          tests/scripts/helm.sh up
+                          tests/scripts/localPathPV.sh'''
                     try{
                         echo "Running full regression"
                         sh '''#!/bin/bash
