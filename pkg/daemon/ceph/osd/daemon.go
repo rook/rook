@@ -233,6 +233,20 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 		return errors.Wrapf(err, "failed to configure devices")
 	}
 
+<<<<<<< HEAD
+=======
+	// Let's fail if no OSDs were configured
+	// This likely means the filter for available devices passed (in PVC case)
+	// but the resulting device was already configured for another cluster (disk not wiped and leftover)
+	// So we need to make sure the list is filled up, otherwise fail
+	if len(deviceOSDs) == 0 {
+		logger.Warningf("skipping OSD configuration as no devices matched the storage settings for this node %q", agent.nodeName)
+		return nil
+	}
+
+	logger.Infof("devices = %+v", deviceOSDs)
+
+>>>>>>> 1c3d449eb... ceph: fail if no devices found
 	// Populate CRUSH location for each OSD on the host
 	for i := range deviceOSDs {
 		deviceOSDs[i].Location = crushLocation
