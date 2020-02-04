@@ -1753,7 +1753,7 @@ spec:
         spec:
           resources:
             requests:
-              storage: 50Gi
+              storage: 10Gi
           storageClassName: ` + settings.UseStorageClass + `
           volumeMode: Block
           accessModes:

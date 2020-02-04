@@ -1,5 +1,7 @@
 #!/bin/bash
 
+lsblk
+
 random_string=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 8)
 
 sudo mkdir -p /var/lib/rook/${random_string}/mon1 /var/lib/rook/${random_string}/mon2 /var/lib/rook/${random_string}/mon3
@@ -93,13 +95,13 @@ metadata:
 spec:
   storageClassName: manual 
   capacity:
-    storage: 50Gi
+    storage: 10Gi
   accessModes:
     - ReadWriteOnce 
   persistentVolumeReclaimPolicy: Retain
   volumeMode: Block
   local:
-    path: "/dev/xvdb" 
+    path: "/dev/xvdc" 
   nodeAffinity:
       required:
         nodeSelectorTerms:
