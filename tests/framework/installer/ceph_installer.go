@@ -178,16 +178,16 @@ func (h *CephInstaller) CreateK8sRookToolbox(namespace string) (err error) {
 	return nil
 }
 
-// CreateK8sRookClusterWithHostPathAndDevices creates rook cluster via kubectl
-func (h *CephInstaller) CreateK8sRookClusterWithHostPathAndDevices(namespace, systemNamespace, storeType string,
+// CreateK8sRookClusterWithHostPathAndDevicesOrPVC creates rook cluster via kubectl
+func (h *CephInstaller) CreateK8sRookClusterWithHostPathAndDevicesOrPVC(namespace, systemNamespace, storeType string, usePVC bool, storageClassName string,
 	mon cephv1.MonSpec, startWithAllNodes bool, rbdMirrorWorkers int, cephVersion cephv1.CephVersionSpec) error {
 
 	dataDirHostPath, err := h.initTestDir(namespace)
 	if err != nil {
 		return fmt.Errorf("failed to create test dir. %+v", err)
 	}
-	logger.Infof("Creating cluster: namespace=%s, systemNamespace=%s, storeType=%s, dataDirHostPath=%s, startWithAllNodes=%t, mons=%+v",
-		namespace, systemNamespace, storeType, dataDirHostPath, startWithAllNodes, mon)
+	logger.Infof("Creating cluster: namespace=%s, systemNamespace=%s, storeType=%s, dataDirHostPath=%s, usePVC=%v, storageClassName=%s, startWithAllNodes=%t, mons=%+v",
+		namespace, systemNamespace, storeType, dataDirHostPath, usePVC, storageClassName, startWithAllNodes, mon)
 
 	logger.Infof("Creating namespace %s", namespace)
 	ns := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
@@ -211,7 +211,7 @@ func (h *CephInstaller) CreateK8sRookClusterWithHostPathAndDevices(namespace, sy
 
 	useAllDevices := true
 	logger.Infof("Starting Rook Cluster with yaml")
-	settings := &ClusterSettings{namespace, storeType, dataDirHostPath, useAllDevices, mon.Count, rbdMirrorWorkers, cephVersion}
+	settings := &ClusterSettings{namespace, storeType, dataDirHostPath, useAllDevices, mon.Count, rbdMirrorWorkers, usePVC, storageClassName, cephVersion}
 	rookCluster := h.Manifests.GetRookCluster(settings)
 	if _, err := h.k8shelper.KubectlWithStdin(rookCluster, createFromStdinArgs...); err != nil {
 		return fmt.Errorf("Failed to create rook cluster : %v ", err)
@@ -374,8 +374,8 @@ func (h *CephInstaller) GetNodeHostnames() ([]string, error) {
 	return names, nil
 }
 
-// InstallRookOnK8sWithHostPathAndDevices installs rook on k8s
-func (h *CephInstaller) InstallRookOnK8sWithHostPathAndDevices(namespace, storeType string,
+// InstallRookOnK8sWithHostPathAndDevicesOrPVC installs rook on k8s
+func (h *CephInstaller) InstallRookOnK8sWithHostPathAndDevicesOrPVC(namespace, storeType string, usePVC bool, storageClassName string,
 	mon cephv1.MonSpec, startWithAllNodes bool, rbdMirrorWorkers int) (bool, error) {
 
 	var err error
@@ -418,7 +418,7 @@ func (h *CephInstaller) InstallRookOnK8sWithHostPathAndDevices(namespace, storeT
 	}
 
 	// Create rook cluster
-	err = h.CreateK8sRookClusterWithHostPathAndDevices(namespace, onamespace, storeType,
+	err = h.CreateK8sRookClusterWithHostPathAndDevicesOrPVC(namespace, onamespace, storeType, usePVC, storageClassName,
 		cephv1.MonSpec{Count: mon.Count, AllowMultiplePerNode: mon.AllowMultiplePerNode}, startWithAllNodes,
 		rbdMirrorWorkers, h.CephVersion)
 	if err != nil {
