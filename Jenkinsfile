@@ -170,8 +170,9 @@ def RunIntegrationTest(k, v) {
         script{
             try{
                 withEnv(["KUBE_VERSION=${v}"]){
-                    unstash 'repo-amd64'
                     echo "running tests on k8s version ${v}"
+                    unstash 'repo-amd64'
+                    sh "tests/scripts/kubeadm.sh clean || 1"
                     sh 'tests/scripts/makeTestImages.sh load amd64'
                     sh "tests/scripts/kubeadm.sh up"
                     sh '''#!/bin/bash
