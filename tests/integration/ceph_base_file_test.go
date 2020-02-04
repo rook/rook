@@ -112,8 +112,11 @@ func downscaleMetadataServers(helper *clients.TestClient, k8sh *utils.K8sHelper,
 func cleanupFilesystemConsumer(k8sh *utils.K8sHelper, s suite.Suite, namespace string, podName string) {
 	logger.Infof("Delete file System consumer")
 	err := k8sh.DeletePod(namespace, podName)
-	require.Nil(s.T(), err)
-	require.True(s.T(), k8sh.IsPodTerminated(podName, namespace), fmt.Sprintf("make sure %s pod is terminated", podName))
+	assert.Nil(s.T(), err)
+	if !k8sh.IsPodTerminated(podName, namespace) {
+		k8sh.PrintPodDescribe(namespace, podName)
+		assert.Fail(s.T(), fmt.Sprintf("make sure %s pod is terminated", podName))
+	}
 	logger.Infof("File system consumer deleted")
 }
 
@@ -121,7 +124,7 @@ func cleanupFilesystemConsumer(k8sh *utils.K8sHelper, s suite.Suite, namespace s
 func cleanupFilesystem(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, filesystemName string) {
 	logger.Infof("Deleting file system")
 	err := helper.FSClient.Delete(filesystemName, namespace)
-	require.Nil(s.T(), err)
+	assert.Nil(s.T(), err)
 	logger.Infof("File system %s deleted", filesystemName)
 }
 
