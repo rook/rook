@@ -40,7 +40,7 @@ func TestPathToVolumeName(t *testing.T) {
 		{"full-width symbols", "q￠￥￦℃℉p", "q-----p"}, // only those written left-to-right
 		{"longer than 63 chars", // if you change the arg string, the hash on the end will change
 			"/this/is/some-path/.that/is_longer/than/$63/chars/1234567890/and/i'm/still/typing",
-			"this-is-some-path--that-i---7890-and-i-m-still-typing-c4132749"},
+			"this-is-some-path--that-i---7890-and-i-m-still-typing-b6b6f18b"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
