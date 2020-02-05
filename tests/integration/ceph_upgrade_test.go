@@ -68,7 +68,7 @@ func (s *UpgradeSuite) SetupSuite() {
 	cephVersion := rookcephv1.CephVersionSpec{
 		// Ceph v13.2.3 got ceph-volume features needed for provisioning
 		// test that when Rook upgrades, it can still run non-ceph-volume osds
-		Image: "ceph/ceph:v13.2.0-20190410",
+		Image: "ceph/ceph:v13",
 	}
 	s.op, s.k8sh = StartTestCluster(s.T,
 		upgradeMinimalTestVersion,
