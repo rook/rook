@@ -129,3 +129,4 @@ rules:
     resources: ["leases"]
     verbs: ["get", "watch", "list", "delete", "update", "create"]
 {{- end }}
+
