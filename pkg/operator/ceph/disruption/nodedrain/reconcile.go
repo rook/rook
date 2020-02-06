@@ -75,7 +75,7 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 		return reconcile.Result{}, nil
 	}
 
-	logger.Debugf("reconciling node: %s", request.Name)
+	logger.Debugf("reconciling node: %q", request.Name)
 
 	// Create or Update the deployment default/foo
 	deploy := &appsv1.Deployment{
@@ -90,10 +90,10 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 	err := r.client.Get(context.TODO(), request.NamespacedName, node)
 	if kerrors.IsNotFound(err) {
 		// delete any canary deployments if the node doesn't exist
-		logger.Infof("deleting drain-canary deployment for deleted node %s", request.Name)
+		logger.Infof("deleting drain-canary deployment for deleted node %q", request.Name)
 		err = r.client.Delete(context.TODO(), deploy)
 		if err != nil {
-			return reconcile.Result{}, fmt.Errorf("could not delete drain-canary deployment for deleted node %s: %+v", request.Name, err)
+			return reconcile.Result{}, errors.Wrapf(err, "could not delete drain-canary deployment for deleted node %q", request.Name)
 		}
 		return reconcile.Result{}, nil
 	} else if err != nil {
@@ -102,13 +102,13 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 
 	nodeHostnameLabel, ok := node.ObjectMeta.Labels[corev1.LabelHostname]
 	if !ok {
-		return reconcile.Result{}, errors.Errorf("Label key %s does not exist on node %s", corev1.LabelHostname, request.NamespacedName)
+		return reconcile.Result{}, errors.Errorf("Label key %q does not exist on node %q", corev1.LabelHostname, request.NamespacedName)
 	}
 
 	osdPodList := &corev1.PodList{}
 	err = r.client.List(context.TODO(), osdPodList, client.MatchingLabels{k8sutil.AppAttr: osd.AppName})
 	if err != nil {
-		return reconcile.Result{}, errors.Wrapf(err, "could not list the osd pods")
+		return reconcile.Result{}, errors.Wrap(err, "could not list the osd pods")
 	}
 
 	// map with tolerations as keys and empty struct as values for uniqueness
@@ -212,16 +212,16 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 	if occupiedByOSD {
 		op, err := controllerutil.CreateOrUpdate(context.TODO(), r.client, deploy, mutateFunc)
 		if err != nil {
-			return reconcile.Result{}, errors.Wrapf(err, "node reconcile failed on op %s", op)
+			return reconcile.Result{}, errors.Wrapf(err, "node reconcile failed on op %q", op)
 		}
-		msg := fmt.Sprintf("deployment successfully reconciled for node %s. operation: %s", request.Name, op)
+		msg := fmt.Sprintf("deployment successfully reconciled for node %q. operation: %q", request.Name, op)
 		if op == controllerutil.OperationResultCreated {
 			logger.Info(msg)
 		} else {
 			logger.Debug(msg)
 		}
 	} else {
-		logger.Debugf("not watching for drains on node %s as there are no osds running there.", request.Name)
+		logger.Debugf("not watching for drains on node %q as there are no osds running there.", request.Name)
 
 		// get the canary deployment
 		canarayDeployment := &appsv1.Deployment{}
@@ -236,7 +236,7 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 		// delete the canary deployments that aren't triggered by drains, but are on nodes that aren't occupied by OSDs
 		// if it's on a draining node, we don't want to kill the canary.
 		if canarayDeployment.Status.ReadyReplicas > 0 {
-			logger.Infof("deleting drain-canary deployment on node %s as OSDs are no longer scheduled here", request.Name)
+			logger.Infof("deleting drain-canary deployment on node %q as OSDs are no longer scheduled here", request.Name)
 			err := r.client.Delete(context.TODO(), canarayDeployment)
 			if err != nil {
 				return reconcile.Result{}, errors.Wrapf(err, "could not delete deployment %q", key)
