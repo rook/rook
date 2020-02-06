@@ -64,16 +64,17 @@ func TestEnableMessenger2(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestEnableNautilusOSD(t *testing.T) {
+func TestEnableReleaseOSDFunctionality(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	executor.MockExecuteCommandWithOutput = func(debug bool, name string, command string, args ...string) (string, error) {
 		assert.Equal(t, "osd", args[0])
 		assert.Equal(t, "require-osd-release", args[1])
+		assert.Equal(t, 3, len(args))
 		return "", nil
 	}
 	context := &clusterd.Context{Executor: executor}
 
-	err := EnableNautilusOSD(context, "rook-ceph")
+	err := EnableReleaseOSDFunctionality(context, "rook-ceph", "nautilus")
 	assert.NoError(t, err)
 }
 
