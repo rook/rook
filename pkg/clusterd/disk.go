@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/coreos/pkg/capnslog"
 
@@ -59,13 +60,13 @@ func DiscoverDevices(executor exec.Executor) ([]*sys.LocalDisk, error) {
 		disk, err := PopulateDeviceInfo(d, executor)
 		if err != nil {
 			// skip device
-			logger.Warningf("skipping device %s: %+v", d, err)
+			logger.Warningf("skipping device %q: %v", d, err)
 			continue
 		}
 		disk, err = PopulateDeviceUdevInfo(d, executor, disk)
 		if err != nil {
 			// go on without udev info
-			logger.Warningf("failed to get udev info for device %s: %+v", d, err)
+			logger.Warningf("failed to get udev info for device %q: %v", d, err)
 		}
 
 		// Test if device has child, if so we skip it and only consider the partitions
@@ -75,13 +76,33 @@ func DiscoverDevices(executor exec.Executor) ([]*sys.LocalDisk, error) {
 		if disk.Type == sys.DiskType {
 			deviceChild, err := sys.ListDevicesChild(executor, d)
 			if err != nil {
-				logger.Warningf("failed to detect child devices for device %q, assuming they are none. %+v", d, err)
+				logger.Warningf("failed to detect child devices for device %q, assuming they are none. %v", d, err)
 			}
+
 			// lsblk will output at least 2 lines if they are partitions, one for the parent
 			// and N for the child
 			if len(deviceChild) > 1 {
-				logger.Infof("skipping device %q because it has child, considering the child instead.", d)
-				continue
+				// We need to set the device to a partition type which it is
+				// so that the PopulateDeviceUdevInfo() will fill up the 'Label'
+				disk.Type = sys.PartType
+
+				// We need to make sure this device is not a legacy, we don't want to skip it
+				// Let's take the last partition, that should be enough
+				part, err := PopulateDeviceUdevInfo(deviceChild[len(deviceChild)-1], executor, disk)
+				if err != nil {
+					// go on without udev info
+					logger.Warningf("failed to get udev info for device %q, skipping it. %v", d, err)
+					continue
+				}
+
+				// only skip if not a rook legacy osd
+				if !strings.HasPrefix(part.Label, "ROOK-OSD") {
+					logger.Infof("skipping device %q because it has child, considering the child instead.", d)
+					continue
+				}
+
+				// Re set the disk type of the parent disk since it' not a rook legacy osd and we want to use it
+				disk.Type = sys.DiskType
 			}
 		}
 
@@ -174,6 +195,16 @@ func PopulateDeviceUdevInfo(d string, executor exec.Executor, disk *sys.LocalDis
 
 	if val, ok := udevInfo["ID_WWN"]; ok {
 		disk.WWN = val
+	}
+
+	if disk.Type == sys.PartType {
+		if val, ok := udevInfo["PARTNAME"]; ok {
+			disk.Label = val
+		}
+
+		if val, ok := udevInfo["ID_PART_ENTRY_NAME"]; ok {
+			disk.Label = val
+		}
 	}
 
 	return disk, nil

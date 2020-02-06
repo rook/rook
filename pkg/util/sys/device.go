@@ -83,6 +83,8 @@ type LocalDisk struct {
 	Empty bool `json:"empty"`
 	// Information provided by Ceph Volume Inventory
 	CephVolumeData string `json:"cephVolumeData,omitempty"`
+	// Label is the name of the partition if the disk is a partition
+	Label string `json:"label"`
 }
 
 func ListDevices(executor exec.Executor) ([]string, error) {
@@ -487,7 +489,7 @@ func parseUdevInfo(output string) map[string]string {
 func ListDevicesChild(executor exec.Executor, device string) ([]string, error) {
 	cmd := "lsblk for child"
 
-	childListRaw, err := executor.ExecuteCommandWithOutput(false, cmd, "lsblk", "--noheadings", "--pairs", path.Join("/dev", device))
+	childListRaw, err := executor.ExecuteCommandWithOutput(false, cmd, "lsblk", "--noheadings", "--list", "-o", "NAME", path.Join("/dev", device))
 	if err != nil {
 		return []string{}, fmt.Errorf("failed to list child devices of %q. %+v", device, err)
 	}

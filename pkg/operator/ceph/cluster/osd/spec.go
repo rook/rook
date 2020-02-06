@@ -362,6 +362,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 
 		storeType := "bluestore"
 		if osd.IsFileStore {
+			doChownDataPath = false
 			storeType = "filestore"
 		}
 
@@ -375,6 +376,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 			"--osd-max-object-name-len", "256",
 			"--osd-max-object-namespace-len", "64",
 			"--crush-location", fmt.Sprintf("root=default host=%s", osdProps.crushHostname),
+			"--setuser-match-path", osd.DataPath,
 		)
 	} else {
 		// other osds can launch the osd daemon directly
