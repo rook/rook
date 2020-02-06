@@ -115,16 +115,16 @@ func EnableMessenger2(context *clusterd.Context, clusterName string) error {
 	return nil
 }
 
-// EnableNautilusOSD disallows pre-Nautilus OSDs and enables all new Nautilus-only functionality
-func EnableNautilusOSD(context *clusterd.Context, clusterName string) error {
-	args := []string{"osd", "require-osd-release", "nautilus"}
+// EnableReleaseOSDFunctionality disallows pre-Nautilus OSDs and enables all new Nautilus-only functionality
+func EnableReleaseOSDFunctionality(context *clusterd.Context, clusterName, release string) error {
+	args := []string{"osd", "require-osd-release", release}
 	buf, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
-		return errors.Wrapf(err, "failed to disallow pre-nautilus osds and enable all new nautilus-only functionality")
+		return errors.Wrapf(err, "failed to disallow pre-%s osds and enable all new %s-only functionality", release, release)
 	}
 	output := string(buf)
 	logger.Debug(output)
-	logger.Infof("successfully disallowed pre-nautilus osds and enabled all new nautilus-only functionality")
+	logger.Infof("successfully disallowed pre-%s osds and enabled all new %s-only functionality", release, release)
 
 	return nil
 }

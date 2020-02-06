@@ -179,7 +179,7 @@ func (c *Cluster) Start() error {
 	// Validate pod's memory if specified
 	err := opspec.CheckPodMemory(c.resources, cephOsdPodMinimumMemory)
 	if err != nil {
-		return errors.Wrap(err, "error checking pod memory")
+		return errors.Wrap(err, "failed to check pod memory")
 	}
 	logger.Infof("start running osds in namespace %s", c.Namespace)
 
@@ -201,30 +201,9 @@ func (c *Cluster) Start() error {
 
 	// The following block is used to apply any command(s) required by an upgrade
 	// The block below handles the upgrade from Mimic to Nautilus.
-	if c.clusterInfo.CephVersion.IsAtLeastNautilus() {
-		versions, err := client.GetAllCephDaemonVersions(c.context, c.clusterInfo.Name)
-		if err != nil {
-			logger.Warningf("failed to get ceph daemons versions; this likely means there are no osds yet. %v", err)
-		} else {
-			// If length is one, this clearly indicates that all the osds are running the same version
-			// If this is the first time we are creating a cluster length will be 0
-			// On an initial OSD boostrap, by the time we reach this code, the OSDs haven't registered yet
-			// Basically, this task is happening too quickly and OSD pods are not running yet.
-			// That's not an issue since it's an initial bootstrap and not an update.
-			if len(versions.Osd) == 1 {
-				for v := range versions.Osd {
-					osdVersion, err := cephver.ExtractCephVersion(v)
-					if err != nil {
-						return errors.Wrapf(err, "failed to extract ceph version")
-					}
-					// if the version of these OSDs is Nautilus then we run the command
-					if osdVersion.IsAtLeastNautilus() {
-						client.EnableNautilusOSD(c.context, c.Namespace)
-					}
-				}
-			}
-		}
-	}
+	// This should only run before Octopus
+	c.applyUpgradeOSDFunctionality()
+
 	logger.Infof("completed running osds in namespace %s", c.Namespace)
 	return nil
 }
@@ -822,4 +801,53 @@ func UpdateLocationWithNodeLabels(location *[]string, nodeLabels map[string]stri
 			client.UpdateCrushMapValue(location, topologyType, topology[topologyType])
 		}
 	}
+}
+
+func (c *Cluster) applyUpgradeOSDFunctionality() {
+	var osdVersion *cephver.CephVersion
+
+	// If mimic, do nothing
+	if c.clusterInfo.CephVersion.IsMimic() {
+		return
+	}
+
+	// Get all the daemons versions
+	versions, err := client.GetAllCephDaemonVersions(c.context, c.clusterInfo.Name)
+	if err != nil {
+		logger.Warningf("failed to get ceph daemons versions; this likely means there are no osds yet. %v", err)
+		return
+	}
+
+	// If length is one, this clearly indicates that all the osds are running the same version
+	// If this is the first time we are creating a cluster length will be 0
+	// On an initial OSD boostrap, by the time we reach this code, the OSDs haven't registered yet
+	// Basically, this task is happening too quickly and OSD pods are not running yet.
+	// That's not an issue since it's an initial bootstrap and not an update.
+	if len(versions.Osd) == 1 {
+		for v := range versions.Osd {
+			osdVersion, err = cephver.ExtractCephVersion(v)
+			if err != nil {
+				logger.Warningf("failed to extract ceph version. %v", err)
+				return
+			}
+			// if the version of these OSDs is Nautilus then we run the command
+			if osdVersion.IsNautilus() {
+				err = client.EnableReleaseOSDFunctionality(c.context, c.Namespace, "nautilus")
+				if err != nil {
+					logger.Warningf("failed to enable new osd functionality. %v", err)
+					return
+				}
+			}
+			// if the version of these OSDs is Octopus then we run the command
+			if osdVersion.IsOctopus() {
+				err = client.EnableReleaseOSDFunctionality(c.context, c.Namespace, "octopus")
+				if err != nil {
+					logger.Warningf("failed to enable new osd functionality. %v", err)
+					return
+				}
+			}
+		}
+	}
+
+	return
 }
