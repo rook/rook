@@ -431,7 +431,15 @@ func (c *Cluster) startOSDDaemonsOnPVC(pvcName string, config *provisionConfig, 
 
 		dp, err := c.makeDeployment(osdProps, osd, config)
 		if err != nil {
-			errMsg := fmt.Sprintf("failed to create deployment for pvc %q: %v", osdProps.crushHostname, err)
+			errMsg := fmt.Sprintf("failed to create deployment for pvc %q. %v", osdProps.crushHostname, err)
+			config.addError(errMsg)
+			continue
+		}
+
+		// Set the deployment hash as an annotation
+		err = patch.DefaultAnnotator.SetLastAppliedAnnotation(dp)
+		if err != nil {
+			errMsg := fmt.Sprintf("failed to set annotation for deployment %q. %v", dp.Name, err)
 			config.addError(errMsg)
 			continue
 		}
