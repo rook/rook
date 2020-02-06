@@ -784,41 +784,32 @@ spec:
                       #
                       udevadm trigger || true
                       vgimport -a || true
+                      # Wipe VGs
                       for vg in $(vgs --noheadings --readonly --separator=' ' -o vg_name); do
                         lvremove --yes --force "$vg"
                         vgremove --yes --force "$vg"
                       done
+                      # Wipe PVs
                       for pv in $(pvs --noheadings --readonly --separator=' ' -o pv_name); do
                         pvremove --yes --force "$pv"
+                        wipefs --all "$pv"
+                        dd if=/dev/zero of="$pv" bs=1M count=100 oflag=direct,dsync
+                        # do not fail the timeout command
+                        # the command seems to hang sometimes for no reason so let's retry
+                        set +Ee
+                        for i in $(seq 1 3); do
+                            timeout --preserve-status 5s sgdisk --zap-all "$pv"
+                            if [ "$?" -eq 0 ]; then
+                                break
+                            fi
+                            sleep 5
+                        done
+                        set -Ee
                       done
-                      #
-                      # we CANNOT wipe the boot disk if it exists
-                      fdisk -l # show the output here for helping debug log output
+                      # Useful debug commands
                       lsblk
-                      parted --script --list
+                      blkid
                       df /
-                      boot_disk=""
-                      all_disks="$(lsblk --paths --nodeps --output=NAME --noheadings)"
-                      for disk in ${all_disks}; do
-                        # parted returns an error if the disk has an unknown label, which we don't
-                        # care about. ceph containers have a very old version of lsblk which makes
-                        # it difficult to ascertain the boot disk programmatically, so part is used
-                        if (parted --script ${disk} print || true) | grep boot; then
-                            boot_disk="${disk}"
-                            break
-                        fi
-                      done
-                      # in cloud environments, the disk could possibly be xvd[a-z]
-                      rook_disks="$(find /dev -regex '/dev/x?[vs]d[a-z]+$' -and -not -wholename "${boot_disk}")"
-                      #
-                      # zap the disks to a fresh, usable state after LVM info is deleted
-                      # (zap-all is important, b/c MBR has to be clean)
-                      for disk in ${rook_disks}; do
-                        wipefs --all "${disk}"
-                        # lvm metadata can be a lot of sectors
-                        dd if=/dev/zero of="${disk}" bs=512 count=2500
-                        sgdisk --zap-all "${disk}"
-                      done
                       #
                       # some devices might still be mapped that lock the disks
                       # this can fail with long-gone vestigial devices, so just assume this is successful
