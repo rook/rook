@@ -147,6 +147,21 @@ func (v *CephVersion) IsMimic() bool {
 	return v.isRelease(Mimic)
 }
 
+// IsNautilus checks if the Ceph version is Nautilus
+func (v *CephVersion) IsNautilus() bool {
+	return v.isRelease(Nautilus)
+}
+
+// IsOctopus checks if the Ceph version is Octopus
+func (v *CephVersion) IsOctopus() bool {
+	return v.isRelease(Octopus)
+}
+
+// IsPacific checks if the Ceph version is Pacific
+func (v *CephVersion) IsPacific() bool {
+	return v.isRelease(Pacific)
+}
+
 // IsAtLeast checks a given Ceph version is at least a given one
 func (v *CephVersion) IsAtLeast(other CephVersion) bool {
 	if v.Major > other.Major {
