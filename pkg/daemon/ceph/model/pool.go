@@ -24,7 +24,8 @@ const (
 type PoolType int
 
 type ReplicatedPoolConfig struct {
-	Size uint `json:"size"`
+	Size            uint    `json:"size"`
+	TargetSizeRatio float64 `json:"targetSizeRatio"`
 }
 
 type ErasureCodedPoolConfig struct {
