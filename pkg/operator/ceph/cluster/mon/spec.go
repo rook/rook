@@ -113,7 +113,6 @@ func (c *Cluster) makeDeploymentPVC(m *monConfig, canary bool) (*v1.PersistentVo
 	k8sutil.AddRookVersionLabelToObjectMeta(&pvc.ObjectMeta)
 	cephv1.GetMonAnnotations(c.spec.Annotations).ApplyToObjectMeta(&pvc.ObjectMeta)
 	opspec.AddCephVersionLabelToObjectMeta(c.ClusterInfo.CephVersion, &pvc.ObjectMeta)
-	k8sutil.SetOwnerRef(&pvc.ObjectMeta, &c.ownerRef)
 
 	// k8s uses limit as the resource request fallback
 	if _, ok := pvc.Spec.Resources.Limits[v1.ResourceStorage]; ok {
