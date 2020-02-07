@@ -322,45 +322,49 @@ func createVolumeMountList(nfsServer *nfsServer) []v1.VolumeMount {
 }
 
 func (c *Controller) createNfsPodSpec(nfsServer *nfsServer, service *v1.Service) v1.PodTemplateSpec {
-	nfsPodSpec := v1.PodTemplateSpec{
+	nfsPodSpec := v1.PodSpec{
+		Containers: []v1.Container{
+			{
+				ImagePullPolicy: "IfNotPresent",
+				Name:            nfsServer.name,
+				Image:           c.containerImage,
+				Args:            []string{"nfs", "server", "--ganeshaConfigPath=" + NFSConfigMapPath + "/" + nfsServer.name},
+				Ports: []v1.ContainerPort{
+					{
+						Name:          "nfs-port",
+						ContainerPort: int32(nfsPort),
+					},
+					{
+						Name:          "rpc-port",
+						ContainerPort: int32(rpcPort),
+					},
+				},
+				VolumeMounts: createVolumeMountList(nfsServer),
+				SecurityContext: &v1.SecurityContext{
+					Capabilities: &v1.Capabilities{
+						Add: []v1.Capability{
+							"SYS_ADMIN",
+							"DAC_READ_SEARCH",
+						},
+					},
+				},
+			},
+		},
+		Volumes: createPVCSpecList(nfsServer),
+	}
+
+	nfsServer.spec.Placement.ApplyToPodSpec(&nfsPodSpec)
+
+	nfsPodTemplateSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      nfsServer.name,
 			Namespace: nfsServer.namespace,
 			Labels:    createAppLabels(nfsServer),
 		},
-		Spec: v1.PodSpec{
-			Containers: []v1.Container{
-				{
-					ImagePullPolicy: "IfNotPresent",
-					Name:            nfsServer.name,
-					Image:           c.containerImage,
-					Args:            []string{"nfs", "server", "--ganeshaConfigPath=" + NFSConfigMapPath + "/" + nfsServer.name},
-					Ports: []v1.ContainerPort{
-						{
-							Name:          "nfs-port",
-							ContainerPort: int32(nfsPort),
-						},
-						{
-							Name:          "rpc-port",
-							ContainerPort: int32(rpcPort),
-						},
-					},
-					VolumeMounts: createVolumeMountList(nfsServer),
-					SecurityContext: &v1.SecurityContext{
-						Capabilities: &v1.Capabilities{
-							Add: []v1.Capability{
-								"SYS_ADMIN",
-								"DAC_READ_SEARCH",
-							},
-						},
-					},
-				},
-			},
-			Volumes: createPVCSpecList(nfsServer),
-		},
+		Spec: nfsPodSpec,
 	}
 
-	return nfsPodSpec
+	return nfsPodTemplateSpec
 }
 
 func (c *Controller) createNfsStatefulSet(nfsServer *nfsServer, replicas int32, service *v1.Service) error {
