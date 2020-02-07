@@ -230,7 +230,7 @@ The operator will automatically add more mons to increase the quorum size again,
 
 # Adopt an existing Rook Ceph cluster into a new Kubernetes cluster
 
-## Situations this section can help resolve
+## Scenario
 
 1. The Kubernetes environment underlying a running Rook Ceph cluster failed catastrophically, requiring a new Kubernetes environment in which the user wishes to recover the previous Rook Ceph cluster.
 2. The user wishes to migrate their existing Rook Ceph cluster to a new Kubernetes environment, and downtime can be tolerated.
@@ -336,3 +336,140 @@ Assuming `dataHostPathData` is `/var/lib/rook`, and the `CephCluster` trying to 
 1. Bring the Rook Ceph operator back online by running `kubectl -n rook-ceph edit deploy/rook-ceph-operator` and set `replicas` to `1`.
 1. Watch the operator logs with `kubectl -n rook-ceph logs -f rook-ceph-operator-xxxxxxx`, and wait until the orchestration has settled.
 1. **STATE**: Now the new cluster should be up and running with authentication enabled. `ceph -s` output should not change much comparing to previous steps.
+
+
+# Adopt an existing Rook Ceph cluster (on PVs) into a new Kubernetes cluster
+
+> This section was written for a cluster running in a dynamic environment where the MONs and OSDs were running on PVs.
+> For example, the cluster may have been configured from [cluster-on-pvc.yaml](https://github.com/rook/rook/blob/master/cluster/examples/kubernetes/ceph/cluster-on-pvc.yaml).
+
+## Scenario
+
+1. The Kubernetes environment underlying a running Rook Ceph cluster failed catastrophically, requiring a new Kubernetes environment in which the user wishes to recover the previous Rook Ceph cluster.
+2. The underlying PVs with the Ceph data (OSDs) and metadata (MONs) are still available in the cloud environment.
+
+### Prerequisites
+
+1. A working Kubernetes cluster to which we will migrate the previous Rook Ceph cluster.
+2. Before the disaster, at least one Ceph mon db was in quorum, and a sufficient number of Ceph OSDs were `up` and `in`.
+3. The required resources were exported from the previous K8s cluster before it went down.
+
+### Exporting Critical Info
+
+Critical keys and info about the mons must be exported from the original cluster. This info is not stored on the PVs by either the mons
+or osds. This info is necessary to restore the cluster in case of disaster.
+
+```
+mkdir critical
+export namespace=rook-ceph
+kubectl -n ${namespace} get secret rook-ceph-mon -o yaml > critical/rook-ceph-mon.yaml
+kubectl -n ${namespace} get cm rook-ceph-mon-endpoints -o yaml > critical/rook-ceph-mon-endpoints.yaml
+kubectl -n ${namespace} get svc -l app=rook-ceph-mon -o yaml > critical/rook-ceph-mon-svc.yaml
+# information about PVCs and PVs to help reconstruct them later
+# TODO: Can we just export these as yamls and import them again directly? At a minimum we would need to filter the PV list since more than Rook PVs would be included.
+kubectl -n ${namespace} get pv -o yaml > critical/pvs.txt
+kubectl -n ${namespace} get pvc -o yaml > critical/pvcs.txt
+```
+
+### Restoring the Cluster
+
+1. Start the new Kubernetes clusterr
+
+2. Modify the critical resources before creating them
+   - Remove all of the `ownerReferences` sections from the resources in `critical/*.yaml`
+   - TODO: Do we need to remove other properties such as `uid`?
+
+3. Import the critical resources that you had exported from the original cluster
+
+```console
+kubectl create namespace rook-ceph
+kubectl create -f critical/
+```
+
+3. Verify that the volumes for the MONs and OSDs are still available from the previous cluster
+
+   <TODO: How to detect that volumes belonged to Rook?>
+
+4. Create PVs for the volumes. If available, refer to `critical/pvs.txt` to know which volumes existed previously.
+
+   <TODO: Commands to create the PVs>
+
+   <TODO: How do we know which PVs belonged to the MONs or OSDs? The volumes just have random names. Do we need to rely on the PV size to indicate
+   which ones were expected to belong to MONs or OSDs?>
+
+5. Create PVCs for the MON volumes. The PVCs must follow the Rook naming convention:
+   `rook-ceph-mon-<ID>` where `<ID>` is the name of the mon. Typically, the `<ID>` will be `a`, `b`, or `c`.
+   See `critica/pvcs.txt` as a reference for the PVCs that existed in the original cluster.
+
+   On a running cluster, you might see these PVs:
+```console
+$ kubectl -n rook-ceph get pvc -l app=rook-ceph-mon
+NAME              STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+rook-ceph-mon-a   Bound    pvc-0cf0e834-1c55-4aec-b1d9-af998382a03c   10Gi       RWO            gp2            31m
+rook-ceph-mon-b   Bound    pvc-d6ed5e13-47ac-48ab-8e63-c1f0d9c10c26   10Gi       RWO            gp2            31m
+rook-ceph-mon-c   Bound    pvc-ed3911dc-eb39-4335-8561-04497670e9ee   10Gi       RWO            gp2            30m
+```
+
+6. Bind the MON PVCs to the PVs. When binding the MON PVs it is important to know that the correct PV must be bound to the mon with the correct name.
+   For example, the PV for `mon-a` must be bound to the PVC from `mon-a`.
+   - If fewer than three mon PVs are available, you may need to follow the instructions above to [restore mon quorum](#restoring-mon-quorum).
+
+   <TODO: How to know which PV belonged to which mon?>
+
+   <TODO: Commands to bind the PVCs to the PVs>
+
+7. Create PVCs for the OSD volumes.
+   - The PVCs must follow the Rook naming convention `<device-set-name>-<index>-<type>-<suffix>` where
+     - `device-set-name` is the `name` of the `storageClassDeviceSet` in the clusterCR. The default example in `cluster-on-pvc.yaml` names this `set1`.
+     - `index` is a zero-based index of the PVC for the device set. If the `count` of PVCs in the device set is `3`, you will see `0`, `1`, and `2` in this position.
+     - `type` is either `data` or `metadata` and corresponds to the `name` of the `volumeClaimTemplate` in the `storageClassDeviceSet`.
+     - `suffix` is a generated random name to make the PVC name unique. There is no need to add the suffix if you are creating the PVCs manually.
+   - Labels must be added to each of the PVCs so they can be identified correctly as belonging to the `storageClassDeviceSet`.
+     The `DeviceSet` label is the same as the `device-set-name` mentioned above and the `DeviceSetPVCId` matches the `device-set-name` and `index` separated by a hyphen.
+
+```yaml
+  labels:
+    ceph.rook.io/DeviceSet: set1
+    ceph.rook.io/DeviceSetPVCId: set1-0
+    ceph.rook.io/setIndex: "0"
+```
+
+   On a running cluster, you might see these PVs:
+```console
+$ oc get pvc -l ceph.rook.io/DeviceSet=set1
+NAME                STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+set1-0-data-msszk   Bound    pvc-aa7814f5-7d6d-44e4-98c0-ceabbd2a3d6d   10Gi       RWO            gp2            45m
+set1-1-data-plxzm   Bound    pvc-d7eff2e9-b6d5-4b67-a291-534df243127c   10Gi       RWO            gp2            45m
+set1-2-data-26hfh   Bound    pvc-c235b126-7a47-4d11-83c3-4b441f4a5456   10Gi       RWO            gp2            45m
+```
+
+8. Bind the OSD PVCs to the PVs. It is not critcal to match the same volume to the same device set or index as in the original cluster,
+   so the OSD binding is more relaxed than the MON bindings.
+
+   <TODO: Commands to bind the PVCs to the PVs>
+
+9. Start the Rook operator
+
+```console
+kubectl create -f common.yaml
+kubectl create -f operator.yaml
+```
+
+10. Create the Rook cluster
+
+```console
+# Use the same cluster settings that you had previously. This cluster-on-pvc.yaml is just an example.
+kubectl create -f cluster-on-pvc.yaml
+```
+
+11. Watch for the MON daemons to start and form quorum. If you see the `rook-ceph-mgr-a` deployment created, this
+    means the quorum was successfully formed. Also see the logs from the operator pod to see if it is waiting for quorum.
+    If the mons don't form quorum, either there was a problem attaching the volumes to the mons, or the mon endpoints are
+    incorrect from the services that were imported from the previous cluster. The mon endpoints are part of their identity
+    and cannot change. If they do need to change, see the section above on [restoring mon quorum](#restoring-mon-quorum).
+
+12. Verify that the cluster is working. You should see three MONs, some number of OSDs, and one MGR daemon running.
+    Connect to the [Rook Toolbox](ceph-toolbox.md) and execute some Ceph commands to view the health.
+
+13. Create any other pool, filesystem, or object store CRs that you had in your previous clusters.
+    Note that the data in the pools will not be re-created. Rook will recognize the pools already exist and skip creating them again.
