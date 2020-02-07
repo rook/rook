@@ -833,6 +833,7 @@ func makeStorageClassDeviceSetPVCID(storageClassDeviceSetName string, setIndex, 
 
 func makeStorageClassDeviceSetPVCLabel(storageClassDeviceSetName, pvcStorageClassDeviceSetPVCId string, pvcIndex, setIndex int) map[string]string {
 	return map[string]string{
+		k8sutil.AppAttr:            AppName,
 		CephDeviceSetLabelKey:      storageClassDeviceSetName,
 		CephSetIndexLabelKey:       fmt.Sprintf("%v", setIndex),
 		CephDeviceSetPVCIDLabelKey: pvcStorageClassDeviceSetPVCId,
