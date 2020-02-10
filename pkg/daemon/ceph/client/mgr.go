@@ -128,7 +128,7 @@ func setBalancerMode(context *clusterd.Context, clusterName, mode string) error 
 
 // SetMinCompatClientLuminous set the minimum compatibility for clients to Luminous
 func SetMinCompatClientLuminous(context *clusterd.Context, clusterName string) error {
-	args := []string{"osd", "set-require-min-compat-client", "luminous"}
+	args := []string{"osd", "set-require-min-compat-client", "luminous", "--yes-i-really-mean-it"}
 	_, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
 		return errors.Wrap(err, "failed to set set-require-min-compat-client to luminous")
