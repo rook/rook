@@ -103,12 +103,11 @@ _output/tests/${platform}/integration/integration -test.v
 ### Test parameters
 In addition to standard go tests parameters, the following custom parameters are available while running tests:
 
-| Parameter         | Description                                  | Possible values  | Default           |
-| ----------------- | -------------------------------------------- | ---------------- | ----------------- |
-| rook_platform     | platform Rook needs to be installed on       | kubernetes       | kubernetes        |
-| k8s_version       | version of Kubernetes to be installed        | v1.10+            | v1.13.1          |
-| rook_image        | Rook image name to be installed              | valid image name | rook/ceph         |
-| skip_install_rook | skips installing Rook (if already installed) | true or false    | false             |
+| Parameter     | Description                            | Possible values  | Default    |
+| ------------- | -------------------------------------- | ---------------- | ---------- |
+| rook_platform | platform Rook needs to be installed on | kubernetes       | kubernetes |
+| k8s_version   | version of Kubernetes to be installed  | v1.10+           | v1.13.1    |
+| rook_image    | Rook image name to be installed        | valid image name | rook/ceph  |
 
 ### Running Tests with parameters.
 #### To run all integration tests run
@@ -125,39 +124,3 @@ go test -v -timeout 1800s -run SmokeSuite github.com/rook/rook/tests/integration
 ```
 go test -v -timeout 1800s -run SmokeSuite github.com/rook/rook/tests/integration -testify.m TestRookClusterInstallation_SmokeTest
 ```
-
-##### To run specific without installing rook
-```
-go test -v -timeout 1800s -run SmokeSuite github.com/rook/rook/tests/integration --skip_install_rook
-```
-If the `skip_install_rook` flag is set to true, then Rook is not uninstalled either.
-
-#### Run Longhaul Tests
-[Longhaul](/tests/block/k8s/longhaul) tests are integration tests that run for extended period of time. A load profile can be configured
-using the following load test flags
-
-| Parameter          | Description                                       | Possible values         | Default |
-| ------------------ | ------------------------------------------------- | ----------------------- | ------- |
-| load_parallel_runs | performs concurrent operations                    | any number              | 20      |
-| load_volumes       | number of volumes                                 | >1                      | 1       |
-| load_time          | number of seconds to run                          | >1                      | 1800    |
-| load_size          | size of load profile (3M, 10M, or 50M per thread) | small, medium, or large | medium  |
-| enable_chaos       | kill random pods in Rook cluster                  | true or false           | false   |
-
-e.g.
-```
-go test -run TestObjectLongHaul github.com/rook/rook/tests/longhaul --load_parallel_runs=20 --load_time 1800 --load_size small --load_volumes 3
-```
-The longhaul test just like other test is going to install Rook if it's not already installed, but it is not going to clean up test data or uninstall Rook after the run.
-Longhaul test is designed to run multiple times on the same setup and installation of Rook to tests its stability. Test data and Rook should be cleaned up manually after the test.
-
-
-You can measure memory, CPU, IOPS, throughput, and other settings on a cluster using Prometheus. The metrics collected during load test can be visualize using Grafana.
-Here a couple of helpful links to get prometheus and grafana started and collect metrics:
-[kube-prometheus](https://github.com/coreos/prometheus-operator/tree/master/contrib/kube-prometheus) and [cluster-deploy-script](https://github.com/coreos/prometheus-operator/blob/master/contrib/kube-prometheus/hack/cluster-monitoring/deploy)
-
-**Prerequisites**:
-* Go installed and GO_PATH set
-* Dep installed
-* Wget installed
-* When running tests locally, make sure `kubectl` is accessible globally in your `PATH` as the test framework uses `kubectl`
