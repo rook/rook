@@ -204,6 +204,11 @@ func GetDevicePropertiesFromPath(devicePath string, executor exec.Executor) (map
 	output, err := executor.ExecuteCommandWithOutput(false, cmd, "lsblk", devicePath,
 		"--bytes", "--nodeps", "--pairs", "--output", "SIZE,ROTA,RO,TYPE,PKNAME,NAME")
 	if err != nil {
+		// The "not a block device" error also returns code 32 so the ExitStatus() check hides this error
+		if strings.Contains(output, "not a block device") {
+			return nil, err
+		}
+
 		// try to get more information about the command error
 		cmdErr, ok := err.(*exec.CommandError)
 		if ok && cmdErr.ExitStatus() == 32 {

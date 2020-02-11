@@ -69,6 +69,8 @@ const (
 	unknownID                           = -1
 	portableKey                         = "portable"
 	cephOsdPodMinimumMemory      uint64 = 2048 // minimum amount of memory in MB to run the pod
+	bluestorePVCMetadata                = "metadata"
+	bluestorePVCBlock                   = "data"
 )
 
 // Cluster keeps track of the OSDs
@@ -142,6 +144,7 @@ type OSDInfo struct {
 	DevicePartUUID string `json:"device-part-uuid"`
 	// BlockPath is the logical Volume path for an OSD created by Ceph-volume with format '/dev/<Volume Group>/<Logical Volume>' or simply /dev/vdb if block mode is used
 	BlockPath     string `json:"lv-path"`
+	MetadataPath  string `json:"metadata-path"`
 	SkipLVRelease bool   `json:"skip-lv-release"`
 	Location      string `json:"location"`
 	LVBackedPV    bool   `json:"lv-backed-pv"`
@@ -162,6 +165,7 @@ type osdProperties struct {
 	crushHostname       string
 	devices             []rookalpha.Device
 	pvc                 v1.PersistentVolumeClaimVolumeSource
+	metadataPVC         v1.PersistentVolumeClaimVolumeSource
 	selection           rookalpha.Selection
 	resources           v1.ResourceRequirements
 	storeConfig         osdconfig.StoreConfig
@@ -231,14 +235,50 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig) {
 		return
 	}
 
-	for _, volume := range c.ValidStorage.VolumeSources {
+	for i, volume := range c.ValidStorage.VolumeSources {
+		// If the metadata template is first, we fail and assume we cannot build the data/metadata block relationship
+		if i == 0 && volume.Type == bluestorePVCMetadata {
+			config.addError("wrong template ordering, the %q device must be declared after the %q device.", bluestorePVCMetadata, bluestorePVCBlock)
+			return
+		}
+
+		metadataDevicePVCSource := v1.PersistentVolumeClaimVolumeSource{}
+
+		// If the volumeTemplate is unknown we do nothing
+		if volume.Type != bluestorePVCMetadata && volume.Type != bluestorePVCBlock {
+			logger.Errorf("unknown PVC template type %q, valid names are %q for the main OSD block and %q for a metadata device to back the OSD.", volume.Type, bluestorePVCBlock, bluestorePVCMetadata)
+			continue
+		}
+
+		// We don't need to use the metadata devices as OSDs
+		// They are just attached to OSD and field in their property
+		if volume.Type == bluestorePVCMetadata {
+			logger.Infof("PVC %q is not an OSD but a %q device", volume.PersistentVolumeClaimSource.ClaimName, volume.Type)
+			continue
+		}
+
+		// Let's see how the next PVC looks like
+		// If the next PVC has been identified as a PVC let's attached to this OSD property
+		//
+		// The logic will get a bit more complex if we plan support for a third device for "block.wal"
+		m := i + 1
+		if m < len(c.ValidStorage.VolumeSources) {
+			if c.ValidStorage.VolumeSources[m].Type == bluestorePVCMetadata {
+				logger.Infof("OSD will have its main bluestore block on %q and its metadata device on %q", volume.PersistentVolumeClaimSource.ClaimName, c.ValidStorage.VolumeSources[m].PersistentVolumeClaimSource.ClaimName)
+				metadataDevicePVCSource = c.ValidStorage.VolumeSources[m].PersistentVolumeClaimSource
+			}
+		}
+
 		osdProps := osdProperties{
 			crushHostname: volume.PersistentVolumeClaimSource.ClaimName,
 			pvc:           volume.PersistentVolumeClaimSource,
+			metadataPVC:   metadataDevicePVCSource,
 			resources:     volume.Resources,
 			placement:     volume.Placement,
 			portable:      volume.Portable,
 		}
+
+		logger.Debugf("osdProps are %+v", osdProps)
 
 		// Update the orchestration status of this pvc to the starting state
 		status := OrchestrationStatus{Status: OrchestrationStatusStarting, PvcBackedOSD: true}
@@ -431,7 +471,15 @@ func (c *Cluster) startOSDDaemonsOnPVC(pvcName string, config *provisionConfig, 
 
 		dp, err := c.makeDeployment(osdProps, osd, config)
 		if err != nil {
-			errMsg := fmt.Sprintf("failed to create deployment for pvc %q: %v", osdProps.crushHostname, err)
+			errMsg := fmt.Sprintf("failed to create deployment for pvc %q. %v", osdProps.crushHostname, err)
+			config.addError(errMsg)
+			continue
+		}
+
+		// Set the deployment hash as an annotation
+		err = patch.DefaultAnnotator.SetLastAppliedAnnotation(dp)
+		if err != nil {
+			errMsg := fmt.Sprintf("failed to set annotation for deployment %q. %v", dp.Name, err)
 			config.addError(errMsg)
 			continue
 		}
@@ -617,11 +665,23 @@ func (c *Cluster) resolveNode(nodeName string) *rookalpha.Node {
 }
 
 func (c *Cluster) getOSDPropsForPVC(pvcName string) (osdProperties, error) {
-	for _, volumeSource := range c.ValidStorage.VolumeSources {
+	var metadataDevicePVCSource v1.PersistentVolumeClaimVolumeSource
+
+	for i, volumeSource := range c.ValidStorage.VolumeSources {
+		// volumeSource should be consistent and the order always identical so doing the +1 thing shouldn't be too dangerous
 		if pvcName == volumeSource.PersistentVolumeClaimSource.ClaimName {
+			m := i + 1
+			if m < len(c.ValidStorage.VolumeSources) {
+				if c.ValidStorage.VolumeSources[m].Type == bluestorePVCMetadata {
+					logger.Infof("OSD will have its main bluestore block on %q and its metadata device on %q", volumeSource.PersistentVolumeClaimSource.ClaimName, c.ValidStorage.VolumeSources[m].PersistentVolumeClaimSource.ClaimName)
+					metadataDevicePVCSource = c.ValidStorage.VolumeSources[m].PersistentVolumeClaimSource
+				}
+			}
+
 			osdProps := osdProperties{
 				crushHostname:       volumeSource.PersistentVolumeClaimSource.ClaimName,
 				pvc:                 volumeSource.PersistentVolumeClaimSource,
+				metadataPVC:         metadataDevicePVCSource,
 				resources:           volumeSource.Resources,
 				placement:           volumeSource.Placement,
 				portable:            volumeSource.Portable,
@@ -677,6 +737,9 @@ func (c *Cluster) getOSDInfo(d *apps.Deployment) ([]OSDInfo, error) {
 		}
 		if envVar.Name == "ROOK_CV_MODE" {
 			osd.CVMode = envVar.Value
+		}
+		if envVar.Name == "ROOK_METADATA_DEVICE" {
+			osd.MetadataPath = envVar.Value
 		}
 	}
 
