@@ -58,6 +58,7 @@ const (
 	blockPVCMapperInitContainer                 = "blkdevmapper"
 	blockPVCMetadataMapperInitContainer         = "blkdevmapper-metadata"
 	activatePVCOSDInitContainer                 = "activate"
+	expandPVCOSDInitContainer                   = "expand-bluefs"
 	osdMemoryTargetSafetyFactor         float32 = 0.8
 	// CephDeviceSetLabelKey is the Rook device set label key
 	CephDeviceSetLabelKey = "ceph.rook.io/DeviceSet"
@@ -373,7 +374,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 
-	initContainers := make([]v1.Container, 0, 3)
+	initContainers := make([]v1.Container, 0, 4)
 	if doConfigInit {
 		initContainers = append(initContainers,
 			v1.Container{
@@ -398,6 +399,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 			initContainers = append(initContainers, c.getPVCMetadataInitContainerActivate(osdDataDirPath, osdProps))
 		}
 		initContainers = append(initContainers, c.getActivatePVCInitContainer(osdProps, osdID))
+		initContainers = append(initContainers, c.getExpandPVCInitContainer(osdProps, osdID))
 	}
 	if doActivateOSDInit {
 		initContainers = append(initContainers, *activateOSDContainer)
@@ -765,6 +767,23 @@ func (c *Cluster) getActivatePVCInitContainer(osdProps osdProperties, osdID stri
 	return container
 }
 
+func (c *Cluster) getExpandPVCInitContainer(osdProps osdProperties, osdID string) v1.Container {
+	osdDataPath := activateOSDMountPath + osdID
+
+	container := v1.Container{
+		Name:  expandPVCOSDInitContainer,
+		Image: c.cephVersion.Image,
+		Command: []string{
+			"ceph-bluestore-tool",
+		},
+		Args:            []string{"bluefs-bdev-expand", "--path", osdDataPath},
+		VolumeMounts:    []v1.VolumeMount{getPvcOSDBridgeMountActivate(osdDataPath, osdProps.pvc.ClaimName)},
+		SecurityContext: opmon.PodSecurityContext(),
+		Resources:       osdProps.resources,
+	}
+
+	return container
+}
 func (c *Cluster) getConfigEnvVars(osdProps osdProperties, dataDir string) []v1.EnvVar {
 	osdOnPVC := osdProps.pvc.ClaimName != ""
 	envVars := []v1.EnvVar{
