@@ -869,11 +869,6 @@ func UpdateLocationWithNodeLabels(location *[]string, nodeLabels map[string]stri
 func (c *Cluster) applyUpgradeOSDFunctionality() {
 	var osdVersion *cephver.CephVersion
 
-	// If mimic, do nothing
-	if c.clusterInfo.CephVersion.IsMimic() {
-		return
-	}
-
 	// Get all the daemons versions
 	versions, err := client.GetAllCephDaemonVersions(c.context, c.clusterInfo.Name)
 	if err != nil {
@@ -892,14 +887,6 @@ func (c *Cluster) applyUpgradeOSDFunctionality() {
 			if err != nil {
 				logger.Warningf("failed to extract ceph version. %v", err)
 				return
-			}
-			// if the version of these OSDs is Nautilus then we run the command
-			if osdVersion.IsNautilus() {
-				err = client.EnableReleaseOSDFunctionality(c.context, c.Namespace, "nautilus")
-				if err != nil {
-					logger.Warningf("failed to enable new osd functionality. %v", err)
-					return
-				}
 			}
 			// if the version of these OSDs is Octopus then we run the command
 			if osdVersion.IsOctopus() {

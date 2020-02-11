@@ -343,17 +343,13 @@ func TestHostNetwork(t *testing.T) {
 
 func TestOsdOnSDNFlag(t *testing.T) {
 	network := cephv1.NetworkSpec{}
-	v := cephver.Mimic
-	args := osdOnSDNFlag(network, v)
+
+	args := osdOnSDNFlag(network)
+	assert.NotEmpty(t, args)
+
+	network.Provider = "host"
+	args = osdOnSDNFlag(network)
 	assert.Empty(t, args)
-
-	v = cephver.CephVersion{Major: 14, Minor: 2, Extra: 2}
-	args = osdOnSDNFlag(network, v)
-	assert.NotEmpty(t, args)
-
-	v = cephver.Octopus
-	args = osdOnSDNFlag(network, v)
-	assert.NotEmpty(t, args)
 }
 
 func TestOsdPrepareResources(t *testing.T) {

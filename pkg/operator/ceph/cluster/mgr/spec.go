@@ -29,7 +29,6 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
-	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -66,21 +65,14 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
 	// Replace default unreachable node toleration
 	k8sutil.AddUnreachableNodeToleration(&podSpec.Spec)
 
-	// if the fix is needed, then the following init containers are created
-	// which explicitly configure the server_addr Ceph configuration option to
-	// be equal to the pod's IP address. Note that when the fix is not needed,
-	// there is additional work done to clear fixes after upgrades. See
-	// clearHttpBindFix() method for more details.
-	if c.needHTTPBindFix() {
-		podSpec.Spec.InitContainers = append(podSpec.Spec.InitContainers, []v1.Container{
-			c.makeSetServerAddrInitContainer(mgrConfig, "dashboard"),
-			c.makeSetServerAddrInitContainer(mgrConfig, "prometheus"),
-		}...)
-		// ceph config set commands want admin keyring
-		podSpec.Spec.Volumes = append(podSpec.Spec.Volumes,
-			keyring.Volume().Admin())
-	}
+	podSpec.Spec.InitContainers = append(podSpec.Spec.InitContainers, []v1.Container{
+		c.makeSetServerAddrInitContainer(mgrConfig, "dashboard"),
+		c.makeSetServerAddrInitContainer(mgrConfig, "prometheus"),
+	}...)
 
+	// ceph config set commands want admin keyring
+	podSpec.Spec.Volumes = append(podSpec.Spec.Volumes,
+		keyring.Volume().Admin())
 	if c.Network.IsHost() {
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
@@ -113,23 +105,6 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
 	return d
 }
 
-func (c *Cluster) needHTTPBindFix() bool {
-	needed := true
-
-	// if mimic and >= 13.2.6
-	if c.clusterInfo.CephVersion.IsMimic() &&
-		c.clusterInfo.CephVersion.IsAtLeast(cephver.CephVersion{Major: 13, Minor: 2, Extra: 6}) {
-		needed = false
-	}
-
-	// if >= 14.1.1
-	if c.clusterInfo.CephVersion.IsAtLeast(cephver.CephVersion{Major: 14, Minor: 1, Extra: 1}) {
-		needed = false
-	}
-
-	return needed
-}
-
 // if we do not need the http bind fix, then we need to be careful. if we are
 // upgrading from a cluster that had the fix applied, then the fix is no longer
 // needed, and furthermore, needs to be removed so that there is not a lingering
@@ -149,15 +124,11 @@ func (c *Cluster) clearHTTPBindFix() error {
 			// there are two forms of the configuration key that might exist which
 			// depends not on the current version, but on the version that may be
 			// the version being upgraded from.
-			for _, ver := range []cephver.CephVersion{cephver.Mimic} {
-				client.MgrSetConfig(c.context, c.Namespace, daemonID, ver,
-					fmt.Sprintf("mgr/%s/server_addr", module), "", false)
+			client.MgrSetConfig(c.context, c.Namespace, daemonID, fmt.Sprintf("mgr/%s/server_addr", module), "", false)
 
-				// this is for the format used in v1.0
-				// https://github.com/rook/rook/commit/11d318fb2f77a6ac9a8f2b9be42c826d3b4a93c3
-				client.MgrSetConfig(c.context, c.Namespace, daemonID, ver,
-					fmt.Sprintf("mgr/%s/%s/server_addr", module, daemonID), "", false)
-			}
+			// this is for the format used in v1.0
+			// https://github.com/rook/rook/commit/11d318fb2f77a6ac9a8f2b9be42c826d3b4a93c3
+			client.MgrSetConfig(c.context, c.Namespace, daemonID, fmt.Sprintf("mgr/%s/%s/server_addr", module, daemonID), "", false)
 		}
 	}
 	c.appliedHttpBind = true
@@ -183,9 +154,7 @@ func (c *Cluster) makeSetServerAddrInitContainer(mgrConfig *mgrConfig, mgrModule
 	cfgSetArgs = append(cfgSetArgs, fmt.Sprintf("mgr.%s", mgrConfig.DaemonID))
 	cfgPath := fmt.Sprintf("mgr/%s/%s/server_addr", mgrModule, mgrConfig.DaemonID)
 	cfgSetArgs = append(cfgSetArgs, cfgPath, opspec.ContainerEnvVarReference(podIPEnvVar))
-	if c.clusterInfo.CephVersion.IsAtLeastNautilus() {
-		cfgSetArgs = append(cfgSetArgs, "--force")
-	}
+	cfgSetArgs = append(cfgSetArgs, "--force")
 	cfgSetArgs = append(cfgSetArgs, "--verbose")
 
 	container := v1.Container{

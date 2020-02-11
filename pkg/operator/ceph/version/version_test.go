@@ -25,7 +25,7 @@ import (
 
 func TestToString(t *testing.T) {
 	assert.Equal(t, "14.0.0-0 nautilus", fmt.Sprintf("%s", &Nautilus))
-	assert.Equal(t, "13.0.0-0 mimic", fmt.Sprintf("%s", &Mimic))
+	assert.Equal(t, "15.0.0-0 octopus", fmt.Sprintf("%s", &Octopus))
 
 	expected := fmt.Sprintf("-1.0.0-0 %s", unknownVersionString)
 	assert.Equal(t, expected, fmt.Sprintf("%s", &CephVersion{-1, 0, 0, 0}))
@@ -33,12 +33,12 @@ func TestToString(t *testing.T) {
 
 func TestCephVersionFormatted(t *testing.T) {
 	assert.Equal(t, "ceph version 14.0.0-0 nautilus", Nautilus.CephVersionFormatted())
-	assert.Equal(t, "ceph version 13.0.0-0 mimic", Mimic.CephVersionFormatted())
+	assert.Equal(t, "ceph version 15.0.0-0 octopus", Octopus.CephVersionFormatted())
 }
 
 func TestReleaseName(t *testing.T) {
 	assert.Equal(t, "nautilus", Nautilus.ReleaseName())
-	assert.Equal(t, "mimic", Mimic.ReleaseName())
+	assert.Equal(t, "octopus", Octopus.ReleaseName())
 	ver := CephVersion{-1, 0, 0, 0}
 	assert.Equal(t, unknownVersionString, ver.ReleaseName())
 }
@@ -102,15 +102,15 @@ func TestSupported(t *testing.T) {
 }
 
 func TestIsRelease(t *testing.T) {
-	assert.True(t, Mimic.isRelease(Mimic))
 	assert.True(t, Nautilus.isRelease(Nautilus))
+	assert.True(t, Octopus.isRelease(Octopus))
 
-	assert.False(t, Mimic.isRelease(Nautilus))
+	assert.False(t, Octopus.isRelease(Nautilus))
 
-	MimicUpdate := Mimic
-	MimicUpdate.Minor = 33
-	MimicUpdate.Extra = 4
-	assert.True(t, MimicUpdate.isRelease(Mimic))
+	OctopusUpdate := Octopus
+	OctopusUpdate.Minor = 33
+	OctopusUpdate.Extra = 4
+	assert.True(t, OctopusUpdate.isRelease(Octopus))
 
 	NautilusUpdate := Nautilus
 	NautilusUpdate.Minor = 33
@@ -119,19 +119,13 @@ func TestIsRelease(t *testing.T) {
 }
 
 func TestIsReleaseX(t *testing.T) {
-	assert.True(t, Mimic.IsMimic())
-	assert.False(t, Nautilus.IsMimic())
-	assert.False(t, Octopus.IsMimic())
+	assert.True(t, Nautilus.IsNautilus())
+	assert.False(t, Octopus.IsNautilus())
 }
 
 func TestVersionAtLeast(t *testing.T) {
-	assert.True(t, Mimic.IsAtLeast(Mimic))
-	assert.False(t, Mimic.IsAtLeast(Nautilus))
-	assert.False(t, Mimic.IsAtLeast(Octopus))
-	assert.True(t, Nautilus.IsAtLeast(Mimic))
 	assert.True(t, Nautilus.IsAtLeast(Nautilus))
 	assert.False(t, Nautilus.IsAtLeast(Octopus))
-	assert.True(t, Octopus.IsAtLeast(Mimic))
 	assert.True(t, Octopus.IsAtLeast(Nautilus))
 	assert.True(t, Octopus.IsAtLeast(Octopus))
 
@@ -147,12 +141,8 @@ func TestVersionAtLeast(t *testing.T) {
 func TestVersionAtLeastX(t *testing.T) {
 	assert.True(t, Octopus.IsAtLeastOctopus())
 	assert.True(t, Octopus.IsAtLeastNautilus())
-	assert.True(t, Octopus.IsAtLeastMimic())
 	assert.True(t, Nautilus.IsAtLeastNautilus())
-	assert.True(t, Nautilus.IsAtLeastMimic())
-	assert.True(t, Mimic.IsAtLeastMimic())
 	assert.True(t, Pacific.IsAtLeastPacific())
-	assert.False(t, Mimic.IsAtLeastNautilus())
 	assert.False(t, Nautilus.IsAtLeastOctopus())
 	assert.False(t, Nautilus.IsAtLeastPacific())
 }

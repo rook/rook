@@ -134,7 +134,7 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 			append(
 				opspec.DaemonFlags(c.clusterInfo, strings.TrimPrefix(generateCephXUser(rgwConfig.ResourceName), "client.")),
 				"--foreground",
-				cephconfig.NewFlag("rgw frontends", fmt.Sprintf("%s %s", rgwFrontend(c.clusterInfo.CephVersion), c.portString(c.clusterInfo.CephVersion))),
+				cephconfig.NewFlag("rgw frontends", fmt.Sprintf("%s %s", rgwFrontendName, c.portString())),
 				cephconfig.NewFlag("host", opspec.ContainerEnvVarReference("POD_NAME")),
 				cephconfig.NewFlag("rgw-mime-types-file", mimeTypesMountPath()),
 			),

@@ -229,29 +229,25 @@ func (c *Cluster) Start() error {
 
 	// enable monitoring if `monitoring: enabled: true`
 	if c.monitoringSpec.Enabled {
-		if c.clusterInfo.CephVersion.IsAtLeastNautilus() {
-			logger.Infof("starting monitoring deployment")
-			// servicemonitor takes some metadata from the service for easy mapping
-			if err := c.enableServiceMonitor(service); err != nil {
-				logger.Errorf("failed to enable service monitor. %v", err)
-			} else {
-				logger.Infof("servicemonitor enabled")
-			}
-			// namespace in which the prometheusRule should be deployed
-			// if left empty, it will be deployed in current namespace
-			namespace := c.monitoringSpec.RulesNamespace
-			if namespace == "" {
-				namespace = c.Namespace
-			}
-			if err := c.deployPrometheusRule(prometheusRuleName, namespace); err != nil {
-				logger.Errorf("failed to deploy prometheus rule. %v", err)
-			} else {
-				logger.Infof("prometheusRule deployed")
-			}
-			logger.Debugf("ended monitoring deployment")
+		logger.Infof("starting monitoring deployment")
+		// servicemonitor takes some metadata from the service for easy mapping
+		if err := c.enableServiceMonitor(service); err != nil {
+			logger.Errorf("failed to enable service monitor. %v", err)
 		} else {
-			logger.Debugf("monitoring not supported for ceph versions <v%v", c.clusterInfo.CephVersion.Major)
+			logger.Infof("servicemonitor enabled")
 		}
+		// namespace in which the prometheusRule should be deployed
+		// if left empty, it will be deployed in current namespace
+		namespace := c.monitoringSpec.RulesNamespace
+		if namespace == "" {
+			namespace = c.Namespace
+		}
+		if err := c.deployPrometheusRule(prometheusRuleName, namespace); err != nil {
+			logger.Errorf("failed to deploy prometheus rule. %v", err)
+		} else {
+			logger.Infof("prometheusRule deployed")
+		}
+		logger.Debugf("ended monitoring deployment")
 	}
 	return nil
 }
@@ -259,10 +255,7 @@ func (c *Cluster) Start() error {
 func (c *Cluster) configureModules(daemonIDs []string) {
 	// Configure the modules asynchronously so we can complete all the configuration much sooner.
 	var wg sync.WaitGroup
-	if !c.needHTTPBindFix() {
-		startModuleConfiguration(&wg, "http bind settings", c.clearHTTPBindFix)
-	}
-
+	startModuleConfiguration(&wg, "http bind settings", c.clearHTTPBindFix)
 	startModuleConfiguration(&wg, "orchestrator modules", c.configureOrchestratorModules)
 	startModuleConfiguration(&wg, "prometheus", c.enablePrometheusModule)
 	startModuleConfiguration(&wg, "crash", c.enableCrashModule)
@@ -335,7 +328,7 @@ func (c *Cluster) configureMgrModules() error {
 			}
 
 			// Configure special settings for individual modules that are enabled
-			if module.Name == pgautoscalerModuleName && c.clusterInfo.CephVersion.IsAtLeastNautilus() {
+			if module.Name == pgautoscalerModuleName {
 				monStore := config.GetMonStore(c.context, c.Namespace)
 				// Ceph Octopus will have that option enabled
 				err := monStore.Set("global", "osd_pool_default_pg_autoscale_mode", "on")
@@ -360,9 +353,8 @@ func (c *Cluster) configureMgrModules() error {
 
 func (c *Cluster) moduleMeetsMinVersion(name string) (*cephver.CephVersion, bool) {
 	minVersions := map[string]cephver.CephVersion{
-		// The PG autoscaler module requires Nautilus
-		pgautoscalerModuleName: {Major: 14},
-		balancerModuleName:     {Major: 14},
+		// Put the modules here, example:
+		// pgautoscalerModuleName: {Major: 14},
 	}
 	if ver, ok := minVersions[name]; ok {
 		// Check if the required min version is met

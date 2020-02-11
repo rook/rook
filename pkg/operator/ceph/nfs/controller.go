@@ -86,10 +86,6 @@ func (c *CephNFSController) onAdd(obj interface{}) {
 	}
 
 	nfs := obj.(*cephv1.CephNFS).DeepCopy()
-	if !c.clusterInfo.CephVersion.IsAtLeastNautilus() {
-		logger.Errorf("Ceph NFS is only supported with Nautilus or newer. CRD %q will be ignored.", nfs.Name)
-		return
-	}
 
 	c.acquireOrchestrationLock()
 	defer c.releaseOrchestrationLock()
@@ -112,10 +108,6 @@ func (c *CephNFSController) onUpdate(oldObj, newObj interface{}) {
 
 	oldNFS := oldObj.(*cephv1.CephNFS).DeepCopy()
 	newNFS := newObj.(*cephv1.CephNFS).DeepCopy()
-	if !c.clusterInfo.CephVersion.IsAtLeastNautilus() {
-		logger.Errorf("Ceph NFS is only supported with Nautilus or newer. CRD %q will be ignored.", newNFS.Name)
-		return
-	}
 
 	if !nfsChanged(oldNFS.Spec, newNFS.Spec) {
 		logger.Debugf("nfs ganesha %q not updated", newNFS.Name)
@@ -152,10 +144,6 @@ func (c *CephNFSController) onDelete(obj interface{}) {
 	}
 
 	nfs := obj.(*cephv1.CephNFS).DeepCopy()
-	if !c.clusterInfo.CephVersion.IsAtLeastNautilus() {
-		logger.Errorf("Ceph NFS is only supported with Nautilus or newer. CRD %q cleanup will be ignored.", nfs.Name)
-		return
-	}
 
 	c.acquireOrchestrationLock()
 	defer c.releaseOrchestrationLock()
@@ -170,7 +158,7 @@ func (c *CephNFSController) onDelete(obj interface{}) {
 // cluster has changed.
 func (c *CephNFSController) ParentClusterChanged(cluster cephv1.ClusterSpec, clusterInfo *cephconfig.ClusterInfo, isUpgrade bool) {
 	c.clusterInfo = clusterInfo
-	if !isUpgrade || !c.clusterInfo.CephVersion.IsAtLeastNautilus() {
+	if !isUpgrade {
 		logger.Debugf("No need to update the nfs daemons after the parent cluster changed")
 		return
 	}

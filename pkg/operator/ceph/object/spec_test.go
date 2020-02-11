@@ -46,7 +46,7 @@ func TestPodSpecs(t *testing.T) {
 	}
 	store.Spec.Gateway.PriorityClassName = "my-priority-class"
 	info := testop.CreateConfigDir(1)
-	info.CephVersion = cephver.Mimic
+	info.CephVersion = cephver.Nautilus
 	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "default", "rook-ceph", "/var/lib/rook/")
 
 	c := &clusterConfig{
@@ -97,7 +97,7 @@ func TestSSLPodSpec(t *testing.T) {
 	}
 	store.Spec.Gateway.PriorityClassName = "my-priority-class"
 	info := testop.CreateConfigDir(1)
-	info.CephVersion = cephver.Mimic
+	info.CephVersion = cephver.Nautilus
 	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "default", "rook-ceph", "/var/lib/rook/")
 	store.Spec.Gateway.SSLCertificateRef = "mycert"
 	store.Spec.Gateway.SecurePort = 443

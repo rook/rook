@@ -81,12 +81,6 @@ func (c *Cluster) setDefaultFlagsMonConfigStore(mdsID string) error {
 		configOptions["mds_cache_memory_limit"] = strconv.Itoa(int(mdsCacheMemoryLimit))
 	}
 
-	// These flags are obsoleted as of Nautilus
-	if !c.clusterInfo.CephVersion.IsAtLeastNautilus() {
-		configOptions["mds_standby_for_fscid"] = c.fsID
-		configOptions["mds_standby_replay"] = strconv.FormatBool(c.fs.Spec.MetadataServer.ActiveStandby)
-	}
-
 	// Set mds_join_fs flag to force mds daemon to join a specific fs
 	if c.clusterInfo.CephVersion.IsAtLeastOctopus() {
 		configOptions["mds_join_fs"] = c.fs.Name

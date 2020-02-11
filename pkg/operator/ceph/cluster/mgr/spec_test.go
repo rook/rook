@@ -174,39 +174,13 @@ func TestHttpBindFix(t *testing.T) {
 		DataPathMap:  config.NewStatelessDaemonDataPathMap(config.MgrType, "a", "rook-ceph", "/var/lib/rook/"),
 	}
 
-	vers := []struct {
-		hasFix bool
-		ver    cephver.CephVersion
-	}{
-		// versions before the fix was introduced
-		{hasFix: false, ver: cephver.CephVersion{Major: 11, Minor: 2, Extra: 1}},
-		{hasFix: false, ver: cephver.CephVersion{Major: 12, Minor: 2, Extra: 11}},
-		{hasFix: false, ver: cephver.CephVersion{Major: 13, Minor: 2, Extra: 5}},
-		{hasFix: false, ver: cephver.CephVersion{Major: 14, Minor: 1, Extra: 0}},
+	c.clusterInfo.CephVersion = cephver.Nautilus
+	expectedInitContainers := 3
+	d := c.makeDeployment(&mgrTestConfig)
+	assert.NotNil(t, d)
+	assert.Equal(t, expectedInitContainers,
+		len(d.Spec.Template.Spec.InitContainers))
 
-		// versions when the fix was introduced
-		{hasFix: true, ver: cephver.CephVersion{Major: 13, Minor: 2, Extra: 6}},
-		{hasFix: true, ver: cephver.CephVersion{Major: 14, Minor: 1, Extra: 1}},
-
-		// versions after the fix
-		{hasFix: true, ver: cephver.CephVersion{Major: 13, Minor: 2, Extra: 7}},
-		{hasFix: true, ver: cephver.CephVersion{Major: 14, Minor: 1, Extra: 2}},
-		{hasFix: true, ver: cephver.CephVersion{Major: 15, Minor: 2, Extra: 0}},
-	}
-
-	for _, test := range vers {
-		c.clusterInfo.CephVersion = test.ver
-
-		expectedInitContainers := 1
-		if !test.hasFix {
-			expectedInitContainers += 2
-		}
-
-		d := c.makeDeployment(&mgrTestConfig)
-		assert.NotNil(t, d)
-		assert.Equal(t, expectedInitContainers,
-			len(d.Spec.Template.Spec.InitContainers))
-	}
 }
 
 func TestApplyPrometheusAnnotations(t *testing.T) {

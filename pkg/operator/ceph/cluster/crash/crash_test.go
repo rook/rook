@@ -19,38 +19,11 @@ package crash
 import (
 	"testing"
 
-	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestGenerateCrashEnvVar(t *testing.T) {
-	v := cephver.Nautilus
-	env := generateCrashEnvVar(v)
-	assert.Equal(t, "CEPH_ARGS", env.Name)
-	assert.Equal(t, "-m $(ROOK_CEPH_MON_HOST) -k /etc/ceph/admin-keyring-store/keyring", env.Value)
-
-	v = cephver.CephVersion{Major: 14, Minor: 2, Extra: 5}
-	env = generateCrashEnvVar(v)
+	env := generateCrashEnvVar()
 	assert.Equal(t, "CEPH_ARGS", env.Name)
 	assert.Equal(t, "-m $(ROOK_CEPH_MON_HOST) -k /etc/ceph/crash-collector-keyring-store/keyring", env.Value)
-}
-
-func TestGetVolumes(t *testing.T) {
-	v := cephver.Nautilus
-	vol := getVolumes(v)
-	assert.Equal(t, "rook-ceph-admin-keyring", vol.Name)
-
-	v = cephver.CephVersion{Major: 14, Minor: 2, Extra: 5}
-	vol = getVolumes(v)
-	assert.Equal(t, "rook-ceph-crash-collector-keyring", vol.Name)
-}
-
-func TestGetVolumeMount(t *testing.T) {
-	v := cephver.Nautilus
-	volMounts := getVolumeMounts(v)
-	assert.Equal(t, "rook-ceph-admin-keyring", volMounts.Name)
-
-	v = cephver.CephVersion{Major: 14, Minor: 2, Extra: 5}
-	volMounts = getVolumeMounts(v)
-	assert.Equal(t, "rook-ceph-crash-collector-keyring", volMounts.Name)
 }
