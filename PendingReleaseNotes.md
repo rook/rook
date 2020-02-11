@@ -10,6 +10,7 @@
 
 - OSD refactor: drop support for Rook legacy OSD, directory OSD and Filestore OSD. For more details refer to the [corresponding issue](https://github.com/rook/rook/issues/4724).
 - OSD on PVC now supports a metadata device, [refer to the cluster on PVC section](Documentation/ceph-cluster-crd.html#dedicated-metatada-device) or the [corresponding issue](https://github.com/rook/rook/issues/3852).
+- OSD on PVC now supports PVC expansion, if the size of the underlying block increases the Bluestore main block and the overall storage capacity will grow up.
 
 ### EdgeFS
 
