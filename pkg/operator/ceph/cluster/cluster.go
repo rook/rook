@@ -40,7 +40,6 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
 	cephspec "github.com/rook/rook/pkg/operator/ceph/spec"
-	"github.com/rook/rook/pkg/operator/ceph/version"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -131,12 +130,12 @@ func (c *cluster) detectCephVersion(rookImage, cephImage string, timeout time.Du
 func (c *cluster) validateCephVersion(version *cephver.CephVersion) error {
 	if !c.Spec.External.Enable {
 		if !version.IsAtLeast(cephver.Minimum) {
-			return errors.Errorf("the version does not meet the minimum version: %q", cephver.Minimum.String())
+			return errors.Errorf("the version does not meet the minimum version %q", cephver.Minimum.String())
 		}
 
 		if !version.Supported() {
 			if !c.Spec.CephVersion.AllowUnsupported {
-				return errors.Errorf("allowUnsupported must be set to true to run with this version: %+v", version)
+				return errors.Errorf("allowUnsupported must be set to true to run with this version %q", version.String())
 			}
 			logger.Warningf("unsupported ceph version detected: %q, pursuing", version)
 		}
@@ -432,34 +431,14 @@ func (c *cluster) postMonStartupActions() error {
 		return errors.Wrapf(err, "failed to create csi kubernetes secrets")
 	}
 
-	// Create Crash Collector Secret
-	// In 14.2.5 the crash daemon will read the client.crash key instead of the admin key
-	if c.Info.CephVersion.IsAtLeast(version.CephVersion{Major: 14, Minor: 2, Extra: 5}) {
-		err = crash.CreateCrashCollectorSecret(c.context, c.Namespace, &c.ownerRef)
-		if err != nil {
-			return errors.Wrapf(err, "failed to create crash collector kubernetes secret")
-		}
+	// Create crash collector Kubernetes Secret
+	err = crash.CreateCrashCollectorSecret(c.context, c.Namespace, &c.ownerRef)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create crash collector kubernetes secret")
 	}
 
 	// Enable Ceph messenger 2 protocol on Nautilus
-	if c.Info.CephVersion.IsAtLeastNautilus() {
-		v, err := client.GetCephMonVersion(c.context, c.Info.Name)
-		if err != nil {
-			return errors.Wrapf(err, "failed to get ceph mon version")
-		}
-		if v.IsAtLeastNautilus() {
-			versions, err := client.GetAllCephDaemonVersions(c.context, c.Info.Name)
-			if err != nil {
-				return errors.Wrapf(err, "failed to get ceph daemons versions")
-			}
-			if len(versions.Mon) == 1 {
-				// If length is one, this clearly indicates that all the mons are running the same version
-				// We are doing this because 'ceph version' might return the Ceph version that a majority of mons has but not all of them
-				// so instead of trying to active msgr2 when mons are not ready, we activate it when we believe that's the right time
-				client.EnableMessenger2(c.context, c.Namespace)
-			}
-		}
-	}
+	client.EnableMessenger2(c.context, c.Namespace)
 
 	return nil
 }

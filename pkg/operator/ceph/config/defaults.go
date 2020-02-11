@@ -35,17 +35,8 @@ func DefaultFlags(fsid, mountedKeyringPath string, cephVersion version.CephVersi
 		NewFlag("mon-cluster-log-to-stderr", "true"),
 		// differentiate debug text from audit text, and the space after 'debug' is critical
 		NewFlag("log-stderr-prefix", "debug "),
-	}
-
-	// As of Nautilus 14.2.1 at least
-	// These new flags control Ceph's daemon logging behavior to files
-	// By default we set them to False so no logs get written on file
-	// However they can be activated at any time via the centralized config store
-	if cephVersion.IsAtLeast(version.CephVersion{Major: 14, Minor: 2, Extra: 1}) {
-		flags = append(flags, []string{
-			NewFlag("default-log-to-file", "false"),
-			NewFlag("default-mon-cluster-log-to-file", "false"),
-		}...)
+		NewFlag("default-log-to-file", "false"),
+		NewFlag("default-mon-cluster-log-to-file", "false"),
 	}
 
 	flags = append(flags, StoredMonHostEnvVarFlags()...)
@@ -63,20 +54,8 @@ func configOverride(who, option, value string) Option {
 func DefaultCentralizedConfigs(cephVersion version.CephVersion) []Option {
 	overrides := []Option{
 		configOverride("global", "mon allow pool delete", "true"),
-	}
-
-	// Everything before Nautilus 14.2.1
-	// Prior to Nautilus 14.2.1 certain log flags were not present
-	// so in order to not log anything on files we must set the following flags to null
-	// Since Nautilus 14.2.1 introduced both 'default-log-to-file' and 'default-mon-cluster-log-to-file' (see above defaultFlagConfigs)
-	// these are not needed
-	if !cephVersion.IsAtLeast(version.CephVersion{Major: 14, Minor: 2, Extra: 1}) {
-		// Set the default log files to empty so they don't bloat containers. Can be changed in
-		// Mimic+ by users if needed.
-		overrides = append(overrides, []Option{
-			configOverride("global", "log file", ""),
-			configOverride("global", "mon cluster log file", ""),
-		}...)
+		configOverride("global", "log file", ""),
+		configOverride("global", "mon cluster log file", ""),
 	}
 
 	// We disable "bluestore warn on legacy statfs"

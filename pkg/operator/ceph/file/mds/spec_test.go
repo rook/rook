@@ -59,7 +59,7 @@ func testDeploymentObject(network cephv1.NetworkSpec) *apps.Deployment {
 	}
 	clusterInfo := &cephconfig.ClusterInfo{
 		FSID:        "myfsid",
-		CephVersion: cephver.Mimic,
+		CephVersion: cephver.Nautilus,
 	}
 
 	c := NewCluster(

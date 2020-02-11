@@ -130,15 +130,7 @@ func EnableReleaseOSDFunctionality(context *clusterd.Context, clusterName, relea
 }
 
 // OkToStop determines if it's ok to stop an upgrade
-func OkToStop(context *clusterd.Context, namespace, deployment, daemonType, daemonName string, cephVersion cephver.CephVersion) error {
-	// The ok-to-stop command for mon and mds landed on 14.2.1
-	// so we return nil if that Ceph version is not satisfied
-	if !cephVersion.IsAtLeast(cephver.CephVersion{Major: 14, Minor: 2, Extra: 1}) {
-		if daemonType != "osd" {
-			return nil
-		}
-	}
-
+func OkToStop(context *clusterd.Context, namespace, deployment, daemonType, daemonName string) error {
 	versions, err := GetAllCephDaemonVersions(context, namespace)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get ceph daemons versions")

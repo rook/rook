@@ -38,12 +38,8 @@ const (
 )
 
 var (
-	// Minimum supported version is 13.2.4 where ceph-volume is supported
-	Minimum = CephVersion{13, 2, 4, 0}
-	// Luminous Ceph version
-	Luminous = CephVersion{12, 0, 0, 0}
-	// Mimic Ceph version
-	Mimic = CephVersion{13, 0, 0, 0}
+	// Minimum supported version is 14.2.5
+	Minimum = CephVersion{14, 2, 5, 0}
 	// Nautilus Ceph version
 	Nautilus = CephVersion{14, 0, 0, 0}
 	// Octopus Ceph version
@@ -52,8 +48,8 @@ var (
 	Pacific = CephVersion{16, 0, 0, 0}
 
 	// supportedVersions are production-ready versions that rook supports
-	supportedVersions   = []CephVersion{Mimic, Nautilus}
-	unsupportedVersions = []CephVersion{Octopus, Pacific}
+	supportedVersions   = []CephVersion{Nautilus, Octopus}
+	unsupportedVersions = []CephVersion{Pacific}
 	// allVersions includes all supportedVersions as well as unreleased versions that are being tested with rook
 	allVersions = append(supportedVersions, unsupportedVersions...)
 
@@ -85,8 +81,6 @@ func (v *CephVersion) ReleaseName() string {
 		return "octopus"
 	case Nautilus.Major:
 		return "nautilus"
-	case Mimic.Major:
-		return "mimic"
 	default:
 		return unknownVersionString
 	}
@@ -142,11 +136,6 @@ func (v *CephVersion) isRelease(other CephVersion) bool {
 	return v.Major == other.Major
 }
 
-// IsMimic checks if the Ceph version is Mimic
-func (v *CephVersion) IsMimic() bool {
-	return v.isRelease(Mimic)
-}
-
 // IsNautilus checks if the Ceph version is Nautilus
 func (v *CephVersion) IsNautilus() bool {
 	return v.isRelease(Nautilus)
@@ -198,11 +187,6 @@ func (v *CephVersion) IsAtLeastOctopus() bool {
 // IsAtLeastNautilus check that the Ceph version is at least Nautilus
 func (v *CephVersion) IsAtLeastNautilus() bool {
 	return v.IsAtLeast(Nautilus)
-}
-
-// IsAtLeastMimic check that the Ceph version is at least Mimic
-func (v *CephVersion) IsAtLeastMimic() bool {
-	return v.IsAtLeast(Mimic)
 }
 
 // IsIdentical checks if Ceph versions are identical

@@ -518,14 +518,10 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 		}
 		mdArgs = append(mdArgs, strings.Split(conf["devices"], " ")...)
 
-		if a.cluster.CephVersion.IsAtLeast(cephver.CephVersion{Major: 14, Minor: 2, Extra: 1}) {
-			mdArgs = append(mdArgs, []string{
-				dbDeviceFlag,
-				path.Join("/dev", md),
-			}...)
-		} else {
-			mdArgs = append(mdArgs, path.Join("/dev", md))
-		}
+		mdArgs = append(mdArgs, []string{
+			dbDeviceFlag,
+			path.Join("/dev", md),
+		}...)
 
 		// Reporting
 		reportArgs := append(mdArgs, []string{

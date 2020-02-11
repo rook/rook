@@ -102,7 +102,7 @@ func TestStartSecureDashboard(t *testing.T) {
 	}
 
 	clusterInfo := &cephconfig.ClusterInfo{
-		CephVersion: cephver.Mimic,
+		CephVersion: cephver.Nautilus,
 	}
 	c := &Cluster{clusterInfo: clusterInfo, context: &clusterd.Context{Clientset: test.New(3), Executor: executor}, Namespace: "myns",
 		dashboard: cephv1.DashboardSpec{Port: dashboardPortHTTP, Enabled: true, SSL: true}, cephVersion: cephv1.CephVersionSpec{Image: "ceph/ceph:v13.2.2"}}

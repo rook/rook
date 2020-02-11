@@ -35,11 +35,6 @@ var (
 
 // Ceph docs about the orchestrator modules: http://docs.ceph.com/docs/master/mgr/orchestrator_cli/
 func (c *Cluster) configureOrchestratorModules() error {
-	if !c.clusterInfo.CephVersion.IsAtLeastNautilus() {
-		logger.Infof("skipping enabling orchestrator modules on releases older than nautilus")
-		return nil
-	}
-
 	if err := client.MgrEnableModule(c.context, c.Namespace, rookModuleName, true); err != nil {
 		return errors.Wrapf(err, "failed to enable mgr rook module")
 	}
@@ -53,10 +48,6 @@ func (c *Cluster) configureOrchestratorModules() error {
 }
 
 func (c *Cluster) setRookOrchestratorBackend() error {
-	if !c.clusterInfo.CephVersion.IsAtLeastNautilus() {
-		return nil
-	}
-
 	// retry a few times in the case that the mgr module is not ready to accept commands
 	_, err := client.ExecuteCephCommandWithRetry(func() ([]byte, error) {
 		args := []string{"orchestrator", "set", "backend", "rook"}

@@ -179,9 +179,6 @@ func TestConfigureModules(t *testing.T) {
 	c.mgrSpec.Modules = []cephv1.Module{
 		{Name: "pg_autoscaler", Enabled: true},
 	}
-	c.clusterInfo.CephVersion = cephver.CephVersion{Major: 13}
-	assert.Error(t, c.configureMgrModules())
-	assert.Equal(t, 0, len(configSettings))
 
 	// one module that has a min version that is met
 	c.mgrSpec.Modules = []cephv1.Module{

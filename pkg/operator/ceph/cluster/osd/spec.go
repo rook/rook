@@ -30,8 +30,6 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
-	"github.com/rook/rook/pkg/operator/ceph/version"
-	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
 	batch "k8s.io/api/batch/v1"
@@ -249,16 +247,13 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	}
 
 	// As of Nautilus Ceph auto-tunes its osd_memory_target on the fly so we don't need to force it
-	if !c.clusterInfo.CephVersion.IsAtLeastNautilus() && !c.resources.Limits.Memory().IsZero() {
+	if !c.resources.Limits.Memory().IsZero() {
 		osdMemoryTargetValue := float32(c.resources.Limits.Memory().Value()) * osdMemoryTargetSafetyFactor
 		commonArgs = append(commonArgs, fmt.Sprintf("--osd-memory-target=%d", int(osdMemoryTargetValue)))
 	}
 
-	if c.clusterInfo.CephVersion.IsAtLeast(version.CephVersion{Major: 14, Minor: 2, Extra: 1}) {
-		commonArgs = append(commonArgs, "--default-log-to-file", "false")
-	}
-
-	commonArgs = append(commonArgs, osdOnSDNFlag(c.Network, c.clusterInfo.CephVersion)...)
+	commonArgs = append(commonArgs, "--default-log-to-file", "false")
+	commonArgs = append(commonArgs, osdOnSDNFlag(c.Network)...)
 
 	var command []string
 	var args []string
@@ -1052,14 +1047,12 @@ func lvBackedPVEnvVar(lvBackedPV string) v1.EnvVar {
 	return v1.EnvVar{Name: lvBackedPVVarName, Value: lvBackedPV}
 }
 
-func osdOnSDNFlag(network cephv1.NetworkSpec, v cephver.CephVersion) []string {
+func osdOnSDNFlag(network cephv1.NetworkSpec) []string {
 	var args []string
 	// OSD fails to find the right IP to bind to when running on SDN
 	// for more details: https://github.com/rook/rook/issues/3140
 	if !network.IsHost() {
-		if v.IsAtLeast(cephver.CephVersion{Major: 14, Minor: 2, Extra: 2}) {
-			args = append(args, "--ms-learn-addr-from-peer=false")
-		}
+		args = append(args, "--ms-learn-addr-from-peer=false")
 	}
 
 	return args
