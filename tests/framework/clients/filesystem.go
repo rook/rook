@@ -55,6 +55,11 @@ func (f *FilesystemOperation) Create(name, namespace string, activeCount int) er
 	return nil
 }
 
+// CreateStorageClass creates a storage class for CephFS clients
+func (f *FilesystemOperation) CreateStorageClass(fsName, namespace, storageClassName string) error {
+	return f.k8sh.ResourceOperation("apply", f.manifests.GetFileStorageClassDef(fsName, storageClassName, namespace))
+}
+
 // ScaleDown scales down the number of active metadata servers of a filesystem in Rook
 func (f *FilesystemOperation) ScaleDown(name, namespace string) error {
 	logger.Infof("scaling down the number of filesystem active metadata servers via CRD")
