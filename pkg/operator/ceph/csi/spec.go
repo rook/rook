@@ -312,11 +312,11 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 		}
 	}
 	// get provisioner toleration and node affinity
-	provisionerTolerations := getToleration(true)
-	provisionerNodeAffinity := getNodeAffinity(true)
+	provisionerTolerations := getToleration(clientset, true)
+	provisionerNodeAffinity := getNodeAffinity(clientset, true)
 	// get plugin toleration and node affinity
-	pluginTolerations := getToleration(false)
-	pluginNodeAffinity := getNodeAffinity(false)
+	pluginTolerations := getToleration(clientset, false)
+	pluginNodeAffinity := getNodeAffinity(clientset, false)
 	if rbdPlugin != nil {
 		applyToPodSpec(&rbdPlugin.Spec.Template.Spec, pluginNodeAffinity, pluginTolerations)
 		err = k8sutil.CreateDaemonSet("csi-rbdplugin", namespace, clientset, rbdPlugin)
