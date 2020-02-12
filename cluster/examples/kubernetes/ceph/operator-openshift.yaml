@@ -88,6 +88,41 @@ users:
   - system:serviceaccount:rook-ceph:rook-csi-cephfs-plugin-sa
   - system:serviceaccount:rook-ceph:rook-csi-cephfs-provisioner-sa
 ---
+# Rook Ceph Operator Config
+# Use this ConfigMap to override operator configurations
+# Precedence will be given to this config in case
+# Env Var also exists for the same
+#
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: rook-ceph-operator-config
+  # should be in the namespace of the operator
+  namespace: rook-ceph
+data:
+  # # (Optional) Ceph Provisioner NodeAffinity.
+  # CSI_PROVISIONER_NODE_AFFINITY: "role=storage-node; storage=rook, ceph"
+  # # (Optional) CEPH CSI provisioner tolerations list. Put here list of taints you want to tolerate in YAML format.
+  # # CSI provisioner would be best to start on the same nodes as other ceph daemons.
+  # CSI_PROVISIONER_TOLERATIONS: |
+  #   - effect: NoSchedule
+  #     key: node-role.kubernetes.io/controlplane
+  #     operator: Exists
+  #   - effect: NoExecute
+  #     key: node-role.kubernetes.io/etcd
+  #     operator: Exists
+  # # (Optional) Ceph CSI plugin NodeAffinity.
+  # CSI_PLUGIN_NODE_AFFINITY: "role=storage-node; storage=rook, ceph"
+  # # (Optional) CEPH CSI plugin tolerations list. Put here list of taints you want to tolerate in YAML format.
+  # # CSI plugins need to be started on all the nodes where the clients need to mount the storage.
+  # CSI_PLUGIN_TOLERATIONS: |
+  #   - effect: NoSchedule
+  #     key: node-role.kubernetes.io/controlplane
+  #     operator: Exists
+  #   - effect: NoExecute
+  #     key: node-role.kubernetes.io/etcd
+  #     operator: Exists
+---
 # The deployment for the rook operator
 # OLM: BEGIN OPERATOR DEPLOYMENT
 apiVersion: apps/v1
