@@ -10,6 +10,8 @@ node_name=$(kubectl get nodes -o jsonpath={.items[*].metadata.name})
 
 kubectl label nodes ${node_name} rook.io/has-disk=true
 
+kubectl delete pv -l type=local
+
 cat <<eof | kubectl apply -f -
 apiVersion: v1
 kind: PersistentVolume
