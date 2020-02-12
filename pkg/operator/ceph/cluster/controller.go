@@ -314,7 +314,7 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 	if !cluster.Info.IsInitialized() {
 		return errors.Errorf("the cluster identity was not established: %+v", cluster.Info)
 	}
-	logger.Info("cluster identity established.")
+	logger.Info("external cluster identity established.")
 
 	// Everything went well so let's update the CR's status to "connected"
 	c.updateClusterStatus(namespace, name, cephv1.ClusterStateConnected, "")
@@ -324,6 +324,19 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 	if err != nil {
 		return errors.Wrapf(err, "failed to create csi kubernetes secrets")
 	}
+
+	// Create CSI config map
+	_, err = csi.CreateCsiConfigMap(namespace, c.context.Clientset)
+	if err != nil {
+		return errors.Wrap(err, "failed to create csi config map")
+	}
+
+	// Save CSI configmap
+	err = csi.SaveClusterConfig(c.context.Clientset, namespace, cluster.Info, c.csiConfigMutex)
+	if err != nil {
+		return errors.Wrap(err, "failed to update csi cluster config")
+	}
+	logger.Infof("successfully updated csi config map")
 
 	// Create Crash Collector Secret
 	// In 14.2.5 the crash daemon will read the client.crash key instead of the admin key
