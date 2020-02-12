@@ -138,6 +138,8 @@ func CreateCsiConfigMap(namespace string, clientset kubernetes.Interface) (*v1.C
 		}
 		return getCsiConfigMap(namespace, clientset)
 	}
+
+	logger.Infof("successfully created csi config map %q", configMap.Name)
 	return created, nil
 }
 
@@ -160,7 +162,7 @@ func DeleteCsiConfigMap(namespace string, clientset kubernetes.Interface) error 
 // SaveClusterConfig updates the config map used to provide ceph-csi with
 // basic cluster configuration. The clusterNamespace and clusterInfo are
 // used to determine what "cluster" in the config map will be updated and
-// and the clusterNamespace value is epxected to match the clusterID
+// and the clusterNamespace value is expected to match the clusterID
 // value that is provided to ceph-csi uses in the storage class.
 // The locker l is typically a mutex and is used to prevent the config
 // map from being updated for multiple clusters simultaneously.
@@ -203,5 +205,6 @@ func SaveClusterConfig(
 	if _, err := clientset.CoreV1().ConfigMaps(csiNamespace).Update(configMap); err != nil {
 		return errors.Wrapf(err, "failed to update csi config map")
 	}
+
 	return nil
 }
