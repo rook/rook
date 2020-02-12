@@ -126,11 +126,10 @@ func (suite *NfsSuite) TestNfsServerInstallation() {
 }
 
 func (suite *NfsSuite) checkReadData(podList []string) bool {
-	inc := 0
 	var result string
 	var err error
 	// the following for loop retries to read data from the first pod in the pod list
-	for inc < utils.RetryLoop {
+	for i := 0; i < utils.RetryLoop; i++ {
 		// the nfs volume is mounted on "/mnt" and the data(hostname of the pod) is written in "/mnt/data" of the pod
 		// results stores the hostname of either one of the pod which is same as the pod name, which is read from "/mnt/data"
 		result, err = suite.rwClient.Read(podList[0])
@@ -139,7 +138,6 @@ func (suite *NfsSuite) checkReadData(podList []string) bool {
 			break
 		}
 		logger.Warning("nfs volume read failed, will try again")
-		inc++
 		time.Sleep(utils.RetryInterval * time.Second)
 	}
 	require.NoError(suite.T(), err)

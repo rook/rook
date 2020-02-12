@@ -30,15 +30,14 @@ import (
 )
 
 var (
-	userid           = "rook-user"
-	userdisplayname  = "A rook RGW user"
-	bucketname       = "smokebkt"
-	objBody          = "Test Rook Object Data"
-	objectKey        = "rookObj1"
-	contentType      = "plain/text"
-	storageClassName = "rook-smoke-delete-bucket"
-	obcName          = "smoke-delete-bucket"
-	region           = "us-east-1"
+	userid          = "rook-user"
+	userdisplayname = "A rook RGW user"
+	bucketname      = "smokebkt"
+	objBody         = "Test Rook Object Data"
+	objectKey       = "rookObj1"
+	contentType     = "plain/text"
+	obcName         = "smoke-delete-bucket"
+	region          = "us-east-1"
 )
 
 // Smoke Test for ObjectStore - Test check the following operations on ObjectStore in order
@@ -94,9 +93,10 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 
 	// Testing creation/deletion of objects using Object Bucket Claim
 	logger.Infof("Step 3 : Create Object Bucket Claim with reclaim policy delete")
-	cobErr := helper.BucketClient.CreateBucketStorageClass(namespace, storeName, storageClassName, "Delete", region)
+	bucketStorageClassName := "rook-smoke-delete-bucket"
+	cobErr := helper.BucketClient.CreateBucketStorageClass(namespace, storeName, bucketStorageClassName, "Delete", region)
 	require.Nil(s.T(), cobErr)
-	cobcErr := helper.BucketClient.CreateObc(obcName, storageClassName, bucketname, true)
+	cobcErr := helper.BucketClient.CreateObc(obcName, bucketStorageClassName, bucketname, true)
 	require.Nil(s.T(), cobcErr)
 
 	for i = 0; i < 4 && !helper.BucketClient.CheckOBC(obcName, "created"); i++ {
@@ -144,7 +144,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	logger.Infof("Object deleted on bucket successfully")
 
 	logger.Infof("Step 8 : Delete Object Bucket Claim")
-	dobcErr := helper.BucketClient.DeleteObc(obcName, storageClassName, bucketname, true)
+	dobcErr := helper.BucketClient.DeleteObc(obcName, bucketStorageClassName, bucketname, true)
 	require.Nil(s.T(), dobcErr)
 	logger.Infof("Checking to see if the obc, secret and cm have all been deleted")
 	for i = 0; i < 4 && !helper.BucketClient.CheckOBC(obcName, "deleted"); i++ {
@@ -166,7 +166,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	assert.NotEqual(s.T(), i, 4)
 	assert.Equal(s.T(), rgwErr, rgw.RGWErrorNotFound)
 
-	dobErr := helper.BucketClient.DeleteBucketStorageClass(namespace, storeName, storageClassName, "Delete", region)
+	dobErr := helper.BucketClient.DeleteBucketStorageClass(namespace, storeName, bucketStorageClassName, "Delete", region)
 	assert.Nil(s.T(), dobErr)
 	logger.Infof("Delete Object Bucket Claim successfully")
 

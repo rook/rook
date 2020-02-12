@@ -39,18 +39,17 @@ type CephManifests interface {
 	GetRookExternalCluster(settings *ClusterExternalSettings) string
 	GetRookToolBox(namespace string) string
 	GetCleanupPod(node, removalDir string) string
-	GetBlockPoolDef(poolName string, namespace string, replicaSize string) string
-	GetBlockStorageClassDef(poolName string, storageClassName string, reclaimPolicy string, namespace string, varClusterName bool) string
-	GetBlockPvcDef(claimName string, storageClassName string, accessModes string, size string) string
-	GetBlockPoolStorageClassAndPvcDef(namespace string, poolName string, storageClassName string, reclaimPolicy string, blockName string, accessMode string) string
-	GetBlockPoolStorageClass(namespace string, poolName string, storageClassName string, reclaimPolicy string) string
+	GetBlockPoolDef(poolName, namespace, replicaSize string) string
+	GetBlockStorageClassDef(csi bool, poolName, storageClassName, reclaimPolicy, namespace, systemNamespace string) string
+	GetFileStorageClassDef(fsName, storageClassName, namespace string) string
+	GetBlockPVCDef(claimName, namespace, storageClassName, accessModes, size string) string
 	GetFilesystem(namepace, name string, activeCount int) string
 	GetNFS(namepace, name, pool string, daemonCount int) string
 	GetObjectStore(namespace, name string, replicaCount, port int) string
-	GetObjectStoreUser(namespace, name string, displayName string, store string) string
-	GetBucketStorageClass(namespace string, storeName string, storageClassName string, reclaimPolicy string, region string) string
-	GetObc(obcName string, storageClassName string, bucketName string, createBucket bool) string
-	GetClient(namespace string, name string, caps map[string]string) string
+	GetObjectStoreUser(namespace, name, displayName, store string) string
+	GetBucketStorageClass(namespace, storeName, storageClassName, reclaimPolicy, region string) string
+	GetObc(obcName, storageClassName, bucketName string, createBucket bool) string
+	GetClient(namespace, name string, caps map[string]string) string
 }
 
 type ClusterSettings struct {
@@ -584,11 +583,7 @@ spec:
 
 // GetRookOperator returns rook Operator manifest
 func (m *CephManifestsMaster) GetRookOperator(namespace string) string {
-	return `kind: Namespace
-apiVersion: v1
-metadata:
-  name: ` + namespace + `
----
+	return `
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: Role
 metadata:
@@ -2000,11 +1995,26 @@ spec:
     targetSizeRatio: .5`
 }
 
-func (m *CephManifestsMaster) GetBlockStorageClassDef(poolName string, storageClassName string, reclaimPolicy string, namespace string, varClusterName bool) string {
-	namespaceParameter := "clusterNamespace"
-	if varClusterName {
-		namespaceParameter = "clusterName"
+func (m *CephManifestsMaster) GetBlockStorageClassDef(csi bool, poolName, storageClassName, reclaimPolicy, namespace, systemNamespace string) string {
+	// Create a CSI driver storage class
+	if csi {
+		return `
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ` + storageClassName + `
+provisioner: ` + systemNamespace + `.rbd.csi.ceph.com
+reclaimPolicy: ` + reclaimPolicy + `
+parameters:
+  pool: ` + poolName + `
+  clusterID: ` + namespace + `
+  csi.storage.k8s.io/provisioner-secret-name: rook-csi-rbd-provisioner
+  csi.storage.k8s.io/provisioner-secret-namespace: ` + namespace + `
+  csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node
+  csi.storage.k8s.io/node-stage-secret-namespace: ` + namespace + `
+`
 	}
+	// Create a FLEX driver storage class
 	return `apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -2014,14 +2024,34 @@ allowVolumeExpansion: true
 reclaimPolicy: ` + reclaimPolicy + `
 parameters:
     blockPool: ` + poolName + `
-    ` + namespaceParameter + `: ` + namespace
+    clusterNamespace: ` + namespace
 }
 
-func (m *CephManifestsMaster) GetBlockPvcDef(claimName, storageClassName, accessModes, size string) string {
+func (m *CephManifestsMaster) GetFileStorageClassDef(fsName, storageClassName, namespace string) string {
+	// Create a CSI driver storage class
+	return `
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ` + storageClassName + `
+provisioner: ` + SystemNamespace(namespace) + `.cephfs.csi.ceph.com
+parameters:
+  clusterID: ` + namespace + `
+  fsName: ` + fsName + `
+  pool: ` + fsName + `-data0
+  csi.storage.k8s.io/provisioner-secret-name: rook-csi-cephfs-provisioner
+  csi.storage.k8s.io/provisioner-secret-namespace: ` + namespace + `
+  csi.storage.k8s.io/node-stage-secret-name: rook-csi-cephfs-node
+  csi.storage.k8s.io/node-stage-secret-namespace: ` + namespace + `
+`
+}
+
+func (m *CephManifestsMaster) GetBlockPVCDef(claimName, namespace, storageClassName, accessModes, size string) string {
 	return `apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: ` + claimName + `
+  namespace: ` + namespace + `
   annotations:
     volume.beta.kubernetes.io/storage-class: ` + storageClassName + `
 spec:
@@ -2030,15 +2060,6 @@ spec:
   resources:
     requests:
       storage: ` + size
-}
-
-func (m *CephManifestsMaster) GetBlockPoolStorageClassAndPvcDef(namespace string, poolName string, storageClassName string, reclaimPolicy string, blockName string, accessMode string) string {
-	return concatYaml(m.GetBlockPoolDef(poolName, namespace, "1"),
-		concatYaml(m.GetBlockStorageClassDef(poolName, storageClassName, reclaimPolicy, namespace, false), m.GetBlockPvcDef(blockName, storageClassName, accessMode, "1M")))
-}
-
-func (m *CephManifestsMaster) GetBlockPoolStorageClass(namespace string, poolName string, storageClassName string, reclaimPolicy string) string {
-	return concatYaml(m.GetBlockPoolDef(poolName, namespace, "1"), m.GetBlockStorageClassDef(poolName, storageClassName, reclaimPolicy, namespace, false))
 }
 
 // GetFilesystem returns the manifest to create a Rook filesystem resource with the given config.

@@ -95,9 +95,3 @@ func checkError(t *testing.T, err error, message string) {
 	}
 	assert.NoError(t, err, "%s. %+v", message, err)
 }
-
-func concatYaml(first, second string) string {
-	return first + `
----
-` + second
-}
