@@ -18,8 +18,10 @@ package k8sutil
 
 import (
 	"fmt"
+	"os"
 	"time"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -35,4 +37,28 @@ func DeleteConfigMap(clientset kubernetes.Interface, cmName, namespace string, o
 	resource := fmt.Sprintf("ConfigMap %s", cmName)
 	defaultWaitOptions := &WaitOptions{RetryCount: 20, RetryInterval: 2 * time.Second}
 	return DeleteResource(delete, verify, resource, opts, defaultWaitOptions)
+}
+
+// GetOperatorSetting gets the operator setting from ConfigMap or Env Var
+// returns defaultValue if setting is not found
+func GetOperatorSetting(clientset kubernetes.Interface, settingName, defaultValue string) (string, error) {
+	// config must be in operator pod namespace
+	const rookCephOperatorSetting string = "rook-ceph-operator-config"
+	namespace := os.Getenv("POD_NAMESPACE")
+	cm, err := clientset.CoreV1().ConfigMaps(namespace).Get(rookCephOperatorSetting, metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			if settingValue, ok := os.LookupEnv(settingName); ok {
+				return settingValue, nil
+			}
+			return defaultValue, nil
+		}
+		return defaultValue, fmt.Errorf("error reading ConfigMap %q. %v", rookCephOperatorSetting, err)
+	}
+	if settingValue, ok := cm.Data[settingName]; ok {
+		return settingValue, nil
+	} else if settingValue, ok := os.LookupEnv(settingName); ok {
+		return settingValue, nil
+	}
+	return defaultValue, nil
 }

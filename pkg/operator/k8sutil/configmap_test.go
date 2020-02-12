@@ -17,10 +17,11 @@ limitations under the License.
 package k8sutil
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -54,4 +55,63 @@ func TestDeleteConfigMap(t *testing.T) {
 	_, err = k8s.CoreV1().ConfigMaps("test-namespace").Get("test-configmap", metav1.GetOptions{})
 	assert.Error(t, err)
 	assert.True(t, errors.IsNotFound(err))
+}
+
+func TestGetOperatorSetting(t *testing.T) {
+	k8s := fake.NewSimpleClientset()
+
+	cm := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rook-ceph-operator-config",
+			Namespace: "test-namespace",
+		},
+		Data: map[string]string{
+			"NODE_AFFINITY": "storage=rook, ceph",
+		},
+	}
+
+	nodeAffinity := "NODE_AFFINITY"
+	podAffinity := "POD_AFFINITY"
+	envSettingValue := "role=storage-node"
+	cmSettingValue := "storage=rook, ceph"
+	defaultValue := ""
+
+	// ConfigMap is not found
+	setting, err := GetOperatorSetting(k8s, nodeAffinity, defaultValue)
+	assert.NoError(t, err)
+
+	// Env Var doesn't exist
+	assert.Equal(t, defaultValue, setting)
+	// Env Var exists
+	err = os.Setenv(nodeAffinity, envSettingValue)
+	assert.NoError(t, err)
+	setting, err = GetOperatorSetting(k8s, nodeAffinity, defaultValue)
+	assert.NoError(t, err)
+	assert.Equal(t, envSettingValue, setting)
+
+	// ConfigMap is found
+	_, err = k8s.CoreV1().ConfigMaps("test-namespace").Create(cm)
+	assert.NoError(t, err)
+
+	// Setting exists in ConfigMap
+	setting, err = GetOperatorSetting(k8s, nodeAffinity, defaultValue)
+	assert.NoError(t, err)
+	// Env Var exists
+	assert.Equal(t, cmSettingValue, setting)
+	// Env Var doesn't exist
+	err = os.Unsetenv(nodeAffinity)
+	assert.NoError(t, err)
+	assert.Equal(t, cmSettingValue, setting)
+
+	// Setting doesn't exist in ConfigMap
+	setting, err = GetOperatorSetting(k8s, podAffinity, defaultValue)
+	assert.NoError(t, err)
+	// Env Var doesn't exist
+	assert.Equal(t, defaultValue, setting)
+	// Env Var exists
+	err = os.Setenv(podAffinity, envSettingValue)
+	assert.NoError(t, err)
+	setting, err = GetOperatorSetting(k8s, podAffinity, defaultValue)
+	assert.NoError(t, err)
+	assert.Equal(t, envSettingValue, setting)
 }
