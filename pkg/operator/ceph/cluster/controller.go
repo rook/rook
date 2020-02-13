@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"github.com/rook/rook/pkg/operator/ceph/csi"
-	"github.com/rook/rook/pkg/operator/ceph/version"
 
 	"github.com/coreos/pkg/capnslog"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -340,11 +339,9 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 	// Create Crash Collector Secret
 	// In 14.2.5 the crash daemon will read the client.crash key instead of the admin key
 	if !cluster.Spec.CrashCollector.Disable {
-		if cluster.Info.CephVersion.IsAtLeast(version.CephVersion{Major: 14, Minor: 2, Extra: 5}) {
-			err = crash.CreateCrashCollectorSecret(c.context, namespace, &cluster.ownerRef)
-			if err != nil {
-				return errors.Wrap(err, "failed to create crash collector kubernetes secret")
-			}
+		err = crash.CreateCrashCollectorSecret(c.context, namespace, &cluster.ownerRef)
+		if err != nil {
+			return errors.Wrap(err, "failed to create crash collector kubernetes secret")
 		}
 	}
 

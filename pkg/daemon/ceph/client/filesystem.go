@@ -192,10 +192,6 @@ func SetNumMDSRanks(context *clusterd.Context, cephVersion cephver.CephVersion, 
 		return errors.Wrapf(err, "failed to set filesystem %s num mds ranks (max_mds) to %d", fsName, activeMDSCount)
 	}
 
-	if cephVersion.IsAtLeastMimic() {
-		return nil
-	}
-
 	// ** Noted section 2 - See note at top of function
 	// Now check the error to see if we can even determine whether we should reduce or not
 	if errAtStart != nil {

@@ -75,12 +75,9 @@ func createFilesystem(
 		return errors.Wrapf(err, "failed to get filesystem %s", fs.Name)
 	}
 
-	// As of Nautilus, allow_standby_replay is a fs property so we need to apply it
-	if clusterInfo.CephVersion.IsAtLeastNautilus() {
-		if fs.Spec.MetadataServer.ActiveStandby {
-			if err = client.AllowStandbyReplay(context, fs.Namespace, fs.Name, fs.Spec.MetadataServer.ActiveStandby); err != nil {
-				return errors.Wrapf(err, "failed to set allow_standby_replay to filesystem %s", fs.Name)
-			}
+	if fs.Spec.MetadataServer.ActiveStandby {
+		if err = client.AllowStandbyReplay(context, fs.Namespace, fs.Name, fs.Spec.MetadataServer.ActiveStandby); err != nil {
+			return errors.Wrapf(err, "failed to set allow_standby_replay to filesystem %s", fs.Name)
 		}
 	}
 
@@ -104,7 +101,7 @@ func createFilesystem(
 func deleteFilesystem(context *clusterd.Context, cephVersion cephver.CephVersion, fs cephv1.CephFilesystem) error {
 	// The most important part of deletion is that the filesystem gets removed from Ceph
 	// The K8s resources will already be removed with the K8s owner references
-	if err := downFilesystem(context, cephVersion, fs.Namespace, fs.Name); err != nil {
+	if err := downFilesystem(context, fs.Namespace, fs.Name); err != nil {
 		// If the fs isn't deleted from Ceph, leave the daemons so it can still be used.
 		return errors.Wrapf(err, "failed to down filesystem %q", fs.Name)
 	}
@@ -244,35 +241,12 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, cephVersion c
 }
 
 // downFilesystem marks the filesystem as down and the MDS' as failed
-func downFilesystem(context *clusterd.Context, cephVersion cephver.CephVersion, clusterName, filesystemName string) error {
+func downFilesystem(context *clusterd.Context, clusterName, filesystemName string) error {
 	logger.Infof("Downing filesystem %s", filesystemName)
 
-	// From Ceph nautilus onwards, a single Ceph command marks the filesystem as down and
-	// MDSes as failed
-	if cephVersion.IsAtLeastNautilus() {
-		if err := client.FailFilesystem(context, clusterName, filesystemName); err != nil {
-			return err
-		}
-		logger.Infof("Downed filesystem %s", filesystemName)
-		return nil
-	}
-
-	// mark the cephFS instance as cluster_down before removing
-	if err := client.MarkFilesystemAsDown(context, clusterName, filesystemName); err != nil {
+	if err := client.FailFilesystem(context, clusterName, filesystemName); err != nil {
 		return err
 	}
-
-	// mark each MDS associated with the filesystem to "failed"
-	fsDetails, err := client.GetFilesystem(context, clusterName, filesystemName)
-	if err != nil {
-		return err
-	}
-	for _, mdsInfo := range fsDetails.MDSMap.Info {
-		if err := client.FailMDS(context, clusterName, mdsInfo.GID); err != nil {
-			return err
-		}
-	}
-
 	logger.Infof("Downed filesystem %s", filesystemName)
 	return nil
 }

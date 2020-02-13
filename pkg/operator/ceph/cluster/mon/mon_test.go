@@ -149,13 +149,13 @@ func TestStartMonPods(t *testing.T) {
 	c := newCluster(context, namespace, cephv1.NetworkSpec{}, true, v1.ResourceRequirements{})
 
 	// start a basic cluster
-	_, err := c.Start(c.ClusterInfo, c.rookVersion, cephver.Mimic, c.spec)
+	_, err := c.Start(c.ClusterInfo, c.rookVersion, cephver.Nautilus, c.spec)
 	assert.Nil(t, err)
 
 	validateStart(t, c)
 
 	// starting again should be a no-op, but still results in an error
-	_, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Mimic, c.spec)
+	_, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Nautilus, c.spec)
 	assert.Nil(t, err)
 
 	validateStart(t, c)
@@ -169,7 +169,7 @@ func TestOperatorRestart(t *testing.T) {
 	c.ClusterInfo = test.CreateConfigDir(1)
 
 	// start a basic cluster
-	info, err := c.Start(c.ClusterInfo, c.rookVersion, cephver.Mimic, c.spec)
+	info, err := c.Start(c.ClusterInfo, c.rookVersion, cephver.Nautilus, c.spec)
 	assert.Nil(t, err)
 	assert.True(t, info.IsInitialized())
 
@@ -178,7 +178,7 @@ func TestOperatorRestart(t *testing.T) {
 	c = newCluster(context, namespace, cephv1.NetworkSpec{}, true, v1.ResourceRequirements{})
 
 	// starting again should be a no-op, but will not result in an error
-	info, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Mimic, c.spec)
+	info, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Nautilus, c.spec)
 	assert.Nil(t, err)
 	assert.True(t, info.IsInitialized())
 
@@ -196,7 +196,7 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 	c.ClusterInfo = test.CreateConfigDir(1)
 
 	// start a basic cluster
-	info, err := c.Start(c.ClusterInfo, c.rookVersion, cephver.Mimic, c.spec)
+	info, err := c.Start(c.ClusterInfo, c.rookVersion, cephver.Nautilus, c.spec)
 	assert.Nil(t, err)
 	assert.True(t, info.IsInitialized())
 
@@ -206,7 +206,7 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 	c = newCluster(context, namespace, cephv1.NetworkSpec{HostNetwork: true}, false, v1.ResourceRequirements{})
 
 	// starting again should be a no-op, but still results in an error
-	info, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Mimic, c.spec)
+	info, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Nautilus, c.spec)
 	assert.Nil(t, err)
 	assert.True(t, info.IsInitialized(), info)
 

@@ -23,7 +23,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
-	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 )
 
 var (
@@ -63,7 +62,7 @@ func MgrDisableModule(context *clusterd.Context, clusterName, name string) error
 }
 
 // MgrSetConfig applies a setting for a single mgr daemon
-func MgrSetConfig(context *clusterd.Context, clusterName, mgrName string, cephVersion cephver.CephVersion, key, val string, force bool) (bool, error) {
+func MgrSetConfig(context *clusterd.Context, clusterName, mgrName string, key, val string, force bool) (bool, error) {
 	var getArgs, setArgs []string
 	mgrID := fmt.Sprintf("mgr.%s", mgrName)
 	getArgs = append(getArgs, "config", "get", mgrID, key)
@@ -72,7 +71,7 @@ func MgrSetConfig(context *clusterd.Context, clusterName, mgrName string, cephVe
 	} else {
 		setArgs = append(setArgs, "config", "set", mgrID, key, val)
 	}
-	if force && cephVersion.IsAtLeastNautilus() {
+	if force {
 		setArgs = append(setArgs, "--force")
 	}
 

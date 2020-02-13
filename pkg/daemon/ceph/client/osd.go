@@ -261,10 +261,6 @@ func OSDRemove(context *clusterd.Context, clusterName string, osdID int) (string
 }
 
 func OsdSafeToDestroy(context *clusterd.Context, clusterName string, osdID int, cephVersion cephver.CephVersion) (bool, error) {
-	if !cephVersion.IsAtLeastNautilus() {
-		logger.Debugf("failed to get safe-to-destroy status: ceph version in lower than Nautilus")
-		return false, nil
-	}
 	args := []string{"osd", "safe-to-destroy", strconv.Itoa(osdID)}
 	cmd := NewCephCommand(context, clusterName, args)
 	buf, err := cmd.Run()

@@ -62,7 +62,7 @@ func TestOrchestratorModules(t *testing.T) {
 	}
 
 	clusterInfo := &cephconfig.ClusterInfo{
-		CephVersion: cephver.Mimic,
+		CephVersion: cephver.Nautilus,
 	}
 
 	c := &Cluster{clusterInfo: clusterInfo, context: context}
@@ -71,21 +71,7 @@ func TestOrchestratorModules(t *testing.T) {
 	}
 	orchestratorInitWaitTime = 0
 
-	// the modules are skipped on mimic
-	c.clusterInfo.CephVersion = cephver.Mimic
 	err := c.configureOrchestratorModules()
-	assert.NoError(t, err)
-	err = c.setRookOrchestratorBackend()
-	assert.NoError(t, err)
-	assert.False(t, orchestratorModuleEnabled)
-	assert.False(t, rookModuleEnabled)
-	assert.False(t, rookBackendSet)
-	assert.Equal(t, 0, backendErrorCount)
-
-	// the modules are configured on nautilus
-	// the rook module will fail to be set
-	c.clusterInfo.CephVersion = cephver.Nautilus
-	err = c.configureOrchestratorModules()
 	assert.Error(t, err)
 	err = c.setRookOrchestratorBackend()
 	assert.NoError(t, err)

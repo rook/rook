@@ -282,10 +282,8 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 			config.NewFlag("public-bind-addr", opspec.ContainerEnvVarReference(podIPEnvVar)))
 	}
 
-	// If deploying Nautilus and newer we need a new port of the monitor container
-	if c.ClusterInfo.CephVersion.IsAtLeastNautilus() {
-		addContainerPort(container, "msgr2", 3300)
-	}
+	// Add messenger 2 port
+	addContainerPort(container, "msgr2", 3300)
 
 	return container
 }
@@ -303,7 +301,7 @@ func UpdateCephDeploymentAndWait(context *clusterd.Context, deployment *apps.Dep
 		logger.Infof("checking if we can %s the deployment %s", action, deployment.Name)
 
 		if action == "stop" {
-			err := client.OkToStop(context, namespace, deployment.Name, daemonType, daemonName, cephVersion)
+			err := client.OkToStop(context, namespace, deployment.Name, daemonType, daemonName)
 			if err != nil {
 				if continueUpgradeAfterChecksEvenIfNotHealthy {
 					logger.Infof("The %s daemon %s is not ok-to-stop but 'continueUpgradeAfterChecksEvenIfNotHealthy' is true, so proceeding to stop...", daemonType, daemonName)

@@ -22,7 +22,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
-	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -126,18 +125,6 @@ func TestOkToContinue(t *testing.T) {
 	context := &clusterd.Context{Executor: executor}
 
 	err := OkToContinue(context, "rook-ceph", "rook-ceph-mon-a", "mon", "a") // mon is not checked on ok-to-continue so nil is expected
-	assert.NoError(t, err)
-}
-
-func TestOkToStop(t *testing.T) {
-	executor := &exectest.MockExecutor{}
-	context := &clusterd.Context{Executor: executor}
-	v := cephver.Nautilus
-
-	err := OkToStop(context, "rook-ceph", "rook-ceph-mon-a", "mon", "a", v)
-	assert.NoError(t, err)
-
-	err = OkToStop(context, "rook-ceph", "rook-ceph-mds-a", "mds", "a", v)
 	assert.NoError(t, err)
 }
 

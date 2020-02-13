@@ -29,7 +29,6 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/ceph/version"
-	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -66,7 +65,7 @@ func (r *ReconcileNode) createOrUpdateCephCrash(node corev1.Node, tolerations []
 	}
 
 	volumes := opspec.DaemonVolumesBase(config.NewDatalessDaemonDataPathMap(cephCluster.GetNamespace(), cephCluster.Spec.DataDirHostPath), "")
-	volumes = append(volumes, getVolumes(*cephVersion))
+	volumes = append(volumes, keyring.Volume().CrashCollector())
 
 	mutateFunc := func() error {
 
@@ -162,10 +161,10 @@ func getCrashChownInitContainer(cephCluster cephv1.CephCluster) corev1.Container
 func getCrashDaemonContainer(cephCluster cephv1.CephCluster, cephVersion version.CephVersion) corev1.Container {
 	cephImage := cephCluster.Spec.CephVersion.Image
 	dataPathMap := config.NewDatalessDaemonDataPathMap(cephCluster.GetNamespace(), cephCluster.Spec.DataDirHostPath)
-	crashEnvVar := generateCrashEnvVar(cephVersion)
+	crashEnvVar := generateCrashEnvVar()
 	envVars := append(opspec.DaemonEnvVars(cephImage), crashEnvVar)
 	volumeMounts := opspec.DaemonVolumeMounts(dataPathMap, "")
-	volumeMounts = append(volumeMounts, getVolumeMounts(cephVersion))
+	volumeMounts = append(volumeMounts, keyring.VolumeMount().CrashCollector())
 
 	container := corev1.Container{
 		Name: "ceph-crash",
@@ -192,38 +191,9 @@ func clusterOwnerRef(clusterName, clusterID string) metav1.OwnerReference {
 	}
 }
 
-func generateCrashEnvVar(v cephver.CephVersion) corev1.EnvVar {
-	val := fmt.Sprintf("-m $(ROOK_CEPH_MON_HOST) -k %s", keyring.VolumeMount().AdminKeyringFilePath())
-	if v.IsAtLeast(cephver.CephVersion{Major: 14, Minor: 2, Extra: 5}) {
-		val = fmt.Sprintf("-m $(ROOK_CEPH_MON_HOST) -k %s", keyring.VolumeMount().CrashCollectorKeyringFilePath())
-	}
-
+func generateCrashEnvVar() corev1.EnvVar {
+	val := fmt.Sprintf("-m $(ROOK_CEPH_MON_HOST) -k %s", keyring.VolumeMount().CrashCollectorKeyringFilePath())
 	env := corev1.EnvVar{Name: "CEPH_ARGS", Value: val}
+
 	return env
-}
-
-func getVolumeMounts(v cephver.CephVersion) corev1.VolumeMount {
-	volumeMounts := keyring.VolumeMount().Admin()
-
-	// As of Ceph Nautilus 14.2.5, the crash collector has its own key
-	// If not running on on at least this version let's use the Ceph admin key
-	// Thanks to https://github.com/ceph/ceph/pull/30844
-	if v.IsAtLeast(cephver.CephVersion{Major: 14, Minor: 2, Extra: 5}) {
-		volumeMounts = keyring.VolumeMount().CrashCollector()
-	}
-
-	return volumeMounts
-}
-
-func getVolumes(v cephver.CephVersion) corev1.Volume {
-	volumes := keyring.Volume().Admin()
-
-	// As of Ceph Nautilus 14.2.5, the crash collector has its own key
-	// If not running on on at least this version let's use the Ceph admin key
-	// Thanks to https://github.com/ceph/ceph/pull/30844
-	if v.IsAtLeast(cephver.CephVersion{Major: 14, Minor: 2, Extra: 5}) {
-		volumes = keyring.Volume().CrashCollector()
-	}
-
-	return volumes
 }
