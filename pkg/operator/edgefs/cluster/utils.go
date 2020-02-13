@@ -290,6 +290,7 @@ func (c *cluster) AddLabelsToNode(nodeName string, labels map[string]string) err
 		tokens = append(tokens, "\""+k+"\":\""+v+"\"")
 	}
 	labelString := "{" + strings.Join(tokens, ",") + "}"
+	// Sprintf formatting is safe as user input isn't being used. Issue https://github.com/rook/rook/issues/4575
 	patch := fmt.Sprintf(`{"metadata":{"labels":%v}}`, labelString)
 	var err error
 	for attempt := 0; attempt < labelingRetries; attempt++ {

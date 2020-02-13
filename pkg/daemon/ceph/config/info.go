@@ -63,6 +63,7 @@ func NewMonInfo(name, ip string, port int32) *MonInfo {
 func (c *ClusterInfo) Log(logger *capnslog.PackageLogger) {
 	mons := []string{}
 	for _, m := range c.Monitors {
+		// Sprintf formatting is safe as user input isn't being used. Issue https://github.com/rook/rook/issues/4575
 		mons = append(mons, fmt.Sprintf("{Name: %s, Endpoint: %s}", m.Name, m.Endpoint))
 	}
 	monsec := ""
