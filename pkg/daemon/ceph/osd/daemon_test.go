@@ -181,6 +181,7 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 		{Name: "sdb", DevLinks: "/dev/disk/by-id/scsi-4567 /dev/disk/by-path/pci-4:5:6:7-scsi-1", RealName: "sdb"},
 		{Name: "sdc", DevLinks: "/dev/disk/by-id/scsi-89ab /dev/disk/by-path/pci-8:9:a:b-scsi-1", RealName: "sdc"},
 		{Name: "sdd", DevLinks: "/dev/disk/by-id/scsi-cdef /dev/disk/by-path/pci-c:d:e:f-scsi-1", RealName: "sdd"},
+		{Name: "sde", DevLinks: "/dev/disk/by-id/sde-0x0000 /dev/disk/by-path/pci-0000:00:18.0-ata-1", RealName: "sde"},
 		{Name: "nvme01", DevLinks: "/dev/disk/by-id/nvme-0246 /dev/disk/by-path/pci-0:2:4:6-nvme-1", RealName: "nvme01"},
 		{Name: "rda", RealName: "rda"},
 		{Name: "rdb", RealName: "rdb"},
@@ -194,7 +195,7 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	pvcBackedOSD := false
 	mapping, err := getAvailableDevices(context, []DesiredDevice{{Name: "all"}}, "nvme01", pvcBackedOSD, version)
 	assert.Nil(t, err)
-	assert.Equal(t, 6, len(mapping.Entries))
+	assert.Equal(t, 7, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["sda"].Data)
 	assert.Equal(t, -1, mapping.Entries["sdd"].Data)
 	assert.Equal(t, -1, mapping.Entries["rda"].Data)
@@ -207,7 +208,7 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	version = cephver.Nautilus
 	mapping, err = getAvailableDevices(context, []DesiredDevice{{Name: "all"}}, "nvme01", pvcBackedOSD, version)
 	assert.Nil(t, err)
-	assert.Equal(t, 5, len(mapping.Entries))
+	assert.Equal(t, 6, len(mapping.Entries))
 
 	// Do not skip partition anymore
 	version = cephver.Octopus
@@ -224,7 +225,7 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	// select the sd* devices
 	mapping, err = getAvailableDevices(context, []DesiredDevice{{Name: "^sd.$", IsFilter: true}}, "", pvcBackedOSD, version)
 	assert.Nil(t, err)
-	assert.Equal(t, 2, len(mapping.Entries))
+	assert.Equal(t, 3, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["sda"].Data)
 	assert.Equal(t, -1, mapping.Entries["sdd"].Data)
 
@@ -245,7 +246,7 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	// select the sd* devices by path names
 	mapping, err = getAvailableDevices(context, []DesiredDevice{{Name: "^/dev/sd.$", IsDevicePathFilter: true}}, "", pvcBackedOSD, version)
 	assert.Nil(t, err)
-	assert.Equal(t, 2, len(mapping.Entries))
+	assert.Equal(t, 3, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["sda"].Data)
 	assert.Equal(t, -1, mapping.Entries["sdd"].Data)
 
@@ -255,6 +256,12 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	assert.Equal(t, 2, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["sda"].Data)
 	assert.Equal(t, -1, mapping.Entries["sdd"].Data)
+
+	// select a device by explicit link
+	mapping, err = getAvailableDevices(context, []DesiredDevice{{Name: "/dev/disk/by-id/sde-0x0000"}}, "", pvcBackedOSD, version)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(mapping.Entries))
+	assert.Equal(t, -1, mapping.Entries["sde"].Data)
 
 	// test on PVC
 	pvcBackedOSD = true
