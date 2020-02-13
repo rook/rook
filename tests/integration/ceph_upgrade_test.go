@@ -152,6 +152,17 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	logger.Infof("Verified upgrade from v1.1 to v1.2")
 
 	//
+	// Upgrade from mimic to nautilus
+	//
+	logger.Infof("*** UPGRADING CEPH FROM Mimic TO Nautilus ***")
+	s.gatherLogs(systemNamespace, "_before_ceph_upgrade")
+	s.upgradeCephVersion(installer.NautilusVersion.Image, numOSDs)
+	newFile = "post-ceph-upgrade-file"
+	s.verifyFilesAfterUpgrade(filesystemName, newFile, message, oldFilesToRead)
+	oldFilesToRead = append(oldFilesToRead, newFile)
+	logger.Infof("Verified upgrade from mimic to nautilus")
+
+	//
 	// Upgrade Rook from v1.2 to master
 	//
 	logger.Infof("*** UPGRADING ROOK FROM v1.2 to master ***")
@@ -165,17 +176,6 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	s.verifyFilesAfterUpgrade(filesystemName, newFile, message, oldFilesToRead)
 	oldFilesToRead = append(oldFilesToRead, newFile)
 	logger.Infof("Verified upgrade from v1.2 to master")
-
-	//
-	// Upgrade from mimic to nautilus
-	//
-	logger.Infof("*** UPGRADING CEPH FROM Mimic TO Nautilus ***")
-	s.gatherLogs(systemNamespace, "_before_ceph_upgrade")
-	s.upgradeCephVersion(installer.NautilusVersion.Image, numOSDs)
-	newFile = "post-ceph-upgrade-file"
-	s.verifyFilesAfterUpgrade(filesystemName, newFile, message, oldFilesToRead)
-	oldFilesToRead = append(oldFilesToRead, newFile)
-	logger.Infof("Verified upgrade from mimic to nautilus")
 }
 
 func (s *UpgradeSuite) gatherLogs(systemNamespace, testSuffix string) {
