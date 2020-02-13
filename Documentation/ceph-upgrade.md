@@ -89,6 +89,40 @@ you should change to match where your images are located.
         value: "quay.io/k8scsi/csi-resizer:v0.4.0"
 ```
 
+### Retroactively enabling volume expansion
+
+When upgrading to the CSI 2.0 driver with existing persistent volumes, the following considerations should be taken into account when choosing to leverage the volume expansion feature:
+
+#### Remediate existing storage classes
+
+It is also necessary to ensure that the controlling StorageClass have the required changes
+to support Volume Expansion see the documentation about configuring [dynamically expanding volumes](ceph-csi-drivers.md#dynamically-expand-volume).
+
+#### Remediate existing persistent volumes
+
+For any existing persistent volumes that you wish to 'upgrade' to allow expansion, you must
+patch them with some needed metadata.
+
+You can do this by:
+
+1. create a patch file, e.g. `csi-expansion-patch.yaml` with the following:
+
+```yaml
+spec:
+  csi:
+    controllerExpandSecretRef:
+      name: rook-ceph-csi
+      namespace: rook-ceph
+```
+
+(replace the secret name and namespace if you are doing something different than default)
+
+2. Patch each pv with something like,
+
+```yaml
+kubectl patch pv $(kubectl get pvc <some pvc> -o=jsonpath='{.spec.volumeName}') --patch "$(cat csi-expansion-patch.yaml)"
+```
+
 ## Upgrading from v1.1 to v1.2
 
 **Rook releases from master are expressly unsupported.** It is strongly recommended that you use
