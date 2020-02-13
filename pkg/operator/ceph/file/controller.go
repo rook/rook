@@ -170,6 +170,7 @@ func (c *FilesystemController) ParentClusterChanged(cluster cephv1.ClusterSpec, 
 		return
 	}
 
+	logger.Infof("waiting for the orchestration lock to update the filesystem")
 	c.acquireOrchestrationLock()
 	defer c.releaseOrchestrationLock()
 

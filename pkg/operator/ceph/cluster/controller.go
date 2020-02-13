@@ -1031,7 +1031,11 @@ func (c *ClusterController) removeFinalizer(obj interface{}) {
 		// Get the latest cluster instead of using the same instance in case it has been changed
 		cluster, err := c.context.RookClientset.CephV1().CephClusters(cl.Namespace).Get(cl.Name, metav1.GetOptions{})
 		if err != nil {
-			logger.Errorf("failed to remove finalizer. failed to get cluster. %v", err)
+			if kerrors.IsNotFound(err) {
+				logger.Errorf("cluster was removed, no need to remove finalizer")
+			} else {
+				logger.Errorf("failed to remove finalizer. failed to get cluster. %v", err)
+			}
 			return
 		}
 		objectMeta := &cluster.ObjectMeta

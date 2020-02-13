@@ -313,7 +313,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 	// Notify the child controllers that the cluster spec might have changed
 	logger.Debug("notifying CR child of the potential upgrade")
 	for _, child := range c.childControllers {
-		child.ParentClusterChanged(*c.Spec, c.Info, c.isUpgrade)
+		go child.ParentClusterChanged(*c.Spec, c.Info, c.isUpgrade)
 	}
 
 	return nil

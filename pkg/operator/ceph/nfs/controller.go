@@ -163,6 +163,7 @@ func (c *CephNFSController) ParentClusterChanged(cluster cephv1.ClusterSpec, clu
 		return
 	}
 
+	logger.Infof("waiting for the orchestration lock to update the nfs daemons")
 	c.acquireOrchestrationLock()
 	defer c.releaseOrchestrationLock()
 
