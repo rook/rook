@@ -196,6 +196,7 @@ func (c *ObjectStoreController) ParentClusterChanged(cluster cephv1.ClusterSpec,
 		return
 	}
 
+	logger.Infof("waiting for the orchestration lock to update the object store")
 	c.acquireOrchestrationLock()
 	defer c.releaseOrchestrationLock()
 
