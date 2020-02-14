@@ -51,6 +51,9 @@ metadata:
   name: rook-ceph
   namespace: rook-ceph
 spec:
+  cephVersion:
+    # see the "Cluster Settings" section below for more details on which image of ceph to run
+    image: ceph/ceph:v14.2.6
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
