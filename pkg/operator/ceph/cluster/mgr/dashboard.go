@@ -34,10 +34,11 @@ import (
 )
 
 const (
-	dashboardModuleName            = "dashboard"
-	dashboardPortHTTPS             = 8443
-	dashboardPortHTTP              = 7000
-	dashboardUsername              = "admin"
+	dashboardModuleName = "dashboard"
+	dashboardPortHTTPS  = 8443
+	dashboardPortHTTP   = 7000
+	dashboardUsername   = "admin"
+	// #nosec because of the word `Password`
 	dashboardPasswordName          = "rook-ceph-dashboard-password"
 	passwordLength                 = 20
 	passwordKeyName                = "password"
@@ -273,6 +274,7 @@ func (c *Cluster) getOrGenerateDashboardPassword() (string, error) {
 }
 
 func generatePassword(length int) (string, error) {
+	// #nosec because of the word password
 	const passwordChars = "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
 	passwd, err := generateRandomBytes(length)
 	if err != nil {

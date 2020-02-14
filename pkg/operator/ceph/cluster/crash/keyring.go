@@ -80,7 +80,7 @@ func createOrUpdateCrashCollectorSecret(namespace, crashCollectorSecretKey strin
 
 	s := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      crashCollectorSecretName,
+			Name:      crashCollectorKeyName,
 			Namespace: namespace,
 		},
 		Data: crashCollectorSecret,
