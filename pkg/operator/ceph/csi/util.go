@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"text/template"
@@ -33,7 +34,7 @@ import (
 )
 
 func loadTemplate(name, templatePath string, p templateParam) (string, error) {
-	b, err := ioutil.ReadFile(templatePath)
+	b, err := ioutil.ReadFile(filepath.Clean(templatePath))
 	if err != nil {
 		return "", err
 	}

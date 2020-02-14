@@ -51,10 +51,10 @@ func FindRBDMappedFile(imageName, poolName, sysBusDir string) (string, error) {
 	}
 
 	for _, idFile := range files {
-		nameContent, err := ioutil.ReadFile(filepath.Join(sysBusDeviceDir, idFile.Name(), "name"))
+		nameContent, err := ioutil.ReadFile(filepath.Clean(filepath.Join(sysBusDeviceDir, idFile.Name(), "name")))
 		if err == nil && imageName == strings.TrimSpace(string(nameContent)) {
 			// the image for the current rbd device matches, now try to match pool
-			poolContent, err := ioutil.ReadFile(filepath.Join(sysBusDeviceDir, idFile.Name(), "pool"))
+			poolContent, err := ioutil.ReadFile(filepath.Clean(filepath.Join(sysBusDeviceDir, idFile.Name(), "pool")))
 			if err == nil && poolName == strings.TrimSpace(string(poolContent)) {
 				// match current device matches both image name and pool name, return the device
 				return idFile.Name(), nil

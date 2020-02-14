@@ -40,7 +40,7 @@ func WriteFile(filePath string, contentBuffer bytes.Buffer) error {
 }
 
 func WriteFileToLog(logger *capnslog.PackageLogger, path string) {
-	contents, err := ioutil.ReadFile(path)
+	contents, err := ioutil.ReadFile(filepath.Clean(path))
 	if err != nil {
 		logger.Warningf("failed to write file %s to log: %+v", path, err)
 		return

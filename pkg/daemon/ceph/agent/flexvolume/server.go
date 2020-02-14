@@ -27,6 +27,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -173,7 +174,7 @@ func LoadFlexSettings(directory string) []byte {
 	// Load the settings from the expected config file, ensure they are valid settings, then return them in
 	// a json string to the caller
 	var status flexvolume.DriverStatus
-	if output, err := ioutil.ReadFile(path.Join(directory, settingsFilename)); err == nil {
+	if output, err := ioutil.ReadFile(filepath.Clean(path.Join(directory, settingsFilename))); err == nil {
 		if err := json.Unmarshal(output, &status); err == nil {
 			if output, err = json.Marshal(status); err == nil {
 				return output
@@ -246,7 +247,7 @@ func configureFlexVolume(driverFile, driverDir, driverName string) error {
 }
 
 func copyFile(src, dest string) error {
-	srcFile, err := os.Open(src)
+	srcFile, err := os.Open(filepath.Clean(src))
 	if err != nil {
 		return errors.Wrapf(err, "error opening source file %s", src)
 	}
