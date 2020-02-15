@@ -25,11 +25,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
-func (o *Operator) startManager(stopCh <-chan struct{}) {
+func (o *Operator) startManager(namespaceToWatch string, stopCh <-chan struct{}) {
 
 	// Set up a manager
 	mgrOpts := manager.Options{
 		LeaderElection: false,
+		Namespace:      namespaceToWatch,
 	}
 
 	logger.Info("setting up the controller-runtime manager")
