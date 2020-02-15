@@ -145,7 +145,7 @@ func (o *Operator) Run() error {
 	}
 
 	// Start the controller-runtime Manager.
-	go o.startManager(stopChan)
+	go o.startManager(namespaceToWatch, stopChan)
 
 	// watch for changes to the rook clusters
 	o.clusterController.StartWatch(namespaceToWatch, stopChan)
