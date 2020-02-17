@@ -296,8 +296,8 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 
 	dataDir := k8sutil.DataDir
 	// Create volume config for /dev so the pod can access devices on the host
-	// Only valid when running OSD with LVM mode
-	if osd.CVMode == "lvm" {
+	// Only valid when running OSD with LVM and Raw mode
+	if !osdProps.onPVC() {
 		devVolume := v1.Volume{Name: "devices", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/dev"}}}
 		volumes = append(volumes, devVolume)
 		devMount := v1.VolumeMount{Name: "devices", MountPath: "/dev"}

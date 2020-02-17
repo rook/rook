@@ -198,7 +198,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	blkInitCont := deployment.Spec.Template.Spec.InitContainers[2]
 	assert.Equal(t, 1, len(blkInitCont.VolumeDevices))
 	cont = deployment.Spec.Template.Spec.Containers[0]
-	assert.Equal(t, 8, len(cont.VolumeMounts), cont.VolumeMounts)
+	assert.Equal(t, 7, len(cont.VolumeMounts), cont.VolumeMounts)
 
 	// Test OSD on PVC with RAW
 	osd = OSDInfo{

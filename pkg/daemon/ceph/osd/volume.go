@@ -27,7 +27,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
@@ -57,8 +56,12 @@ var (
 	cvLogDir      = ""
 	// The "ceph-volume raw" command is available since Ceph 14.2.8 as well as partition support in ceph-volume
 	cephVolumeRawModeMinCephVersion = cephver.CephVersion{Major: 14, Minor: 2, Extra: 8}
-	isEncrypted                     = os.Getenv(oposd.EncryptedDeviceEnvVarName) == "true"
-	isOnPVC                         = os.Getenv(osd.PVCBackedOSDVarName) == "true"
+	// The Ceph Nautilus to include a retry to acquire device lock
+	cephFlockFixNautilusMinCephVersion = cephver.CephVersion{Major: 14, Minor: 2, Extra: 14}
+	// The Ceph Octopus to include a retry to acquire device lock
+	cephFlockFixOctopusMinCephVersion = cephver.CephVersion{Major: 15, Minor: 2, Extra: 9}
+	isEncrypted                       = os.Getenv(oposd.EncryptedDeviceEnvVarName) == "true"
+	isOnPVC                           = os.Getenv(osd.PVCBackedOSDVarName) == "true"
 )
 
 type osdInfoBlock struct {
@@ -179,6 +182,13 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 		}
 		osds = append(osds, lvmOsds...)
 
+		// List existing OSD(s) configured with ceph-volume raw mode
+		rawOsds, err = GetCephVolumeRawOSDs(context, a.clusterInfo, a.clusterInfo.FSID, block, "", "", false)
+		if err != nil {
+			logger.Infof("failed to get device already provisioned by ceph-volume raw. %v", err)
+		}
+		osds = append(osds, rawOsds...)
+
 		return osds, nil
 	}
 
@@ -200,11 +210,17 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 		}
 	}
 
-	// Update LVM configuration file
-	// Only do this after Ceph Nautilus 14.2.6 since it will use the ceph-volume raw mode by default and not LVM anymore
-	if !a.clusterInfo.CephVersion.IsAtLeast(cephVolumeRawModeMinCephVersion) {
-		if err := UpdateLVMConfig(context, a.pvcBacked, lvBackedPV); err != nil {
-			return nil, errors.Wrap(err, "failed to update lvm configuration file")
+	// Should we use ceph-volume raw mode?
+	useRawMode, err := a.useRawMode(context, a.pvcBacked)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to determine which ceph-volume mode to use")
+	}
+
+	// If not raw mode we must execute a few LVM prerequisites
+	if !useRawMode {
+		err = lvmPreReq(context, a.pvcBacked, lvBackedPV)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to run lvm prerequisites")
 		}
 	}
 
@@ -214,30 +230,44 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 			return nil, errors.Wrap(err, "failed to initialize devices on PVC")
 		}
 	} else {
-		if err = a.initializeDevices(context, devices); err != nil {
-			return nil, errors.Wrap(err, "failed to initialize devices")
+		// Initialize block device OSD without LVM
+		if useRawMode {
+			logger.Info("initializing osd disk with raw mode")
+			err := a.initializeDevicesRawMode(context, devices)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to initialize raw based osd")
+			}
+		} else {
+			// Initialize block device OSD with LVM
+			logger.Info("initializing osd disk with lvm mode")
+			err := a.initializeDevicesLVMMode(context, devices)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to initialize lvm based osd")
+			}
 		}
 	}
 
 	// List OSD configured with ceph-volume lvm mode
+	// List THE configured OSD with ceph-volume raw mode
+	// When the block is encrypted we need to list against the encrypted device mapper
+	if !isEncrypted {
+		block = fmt.Sprintf("/mnt/%s", a.nodeName)
+	}
+	// List ALL OSDs when not running on PVC
+	if !a.pvcBacked {
+		block = ""
+	}
+	rawOsds, err = GetCephVolumeRawOSDs(context, a.clusterInfo, a.clusterInfo.FSID, block, metadataBlock, walBlock, lvBackedPV)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get devices already provisioned by ceph-volume raw")
+	}
+	osds = append(osds, rawOsds...)
+
 	lvmOsds, err = GetCephVolumeLVMOSDs(context, a.clusterInfo, a.clusterInfo.FSID, block, false, lvBackedPV)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get devices already provisioned by ceph-volume lvm")
 	}
 	osds = append(osds, lvmOsds...)
-
-	// List THE configured OSD with ceph-volume raw mode
-	if a.clusterInfo.CephVersion.IsAtLeast(cephVolumeRawModeMinCephVersion) {
-		// When the block is encrypted we need to list against the encrypted device mapper
-		if !isEncrypted {
-			block = fmt.Sprintf("/mnt/%s", a.nodeName)
-		}
-		rawOsds, err = GetCephVolumeRawOSDs(context, a.clusterInfo, a.clusterInfo.FSID, block, metadataBlock, walBlock, lvBackedPV)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to get devices already provisioned by ceph-volume raw")
-		}
-		osds = append(osds, rawOsds...)
-	}
 
 	return osds, err
 }
@@ -461,13 +491,27 @@ func UpdateLVMConfig(context *clusterd.Context, onPVC, lvBackedPV bool) error {
 	return nil
 }
 
-func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceOsdMapping) error {
-	// We need at least Ceph 14.2.8 to use ceph-volume raw mode
-	useRawMode := a.clusterInfo.CephVersion.IsAtLeast(cephVolumeRawModeMinCephVersion)
+func (a *OsdAgent) useRawMode(context *clusterd.Context, pvcBacked bool) (bool, error) {
+	if pvcBacked {
+		return a.clusterInfo.CephVersion.IsAtLeast(cephVolumeRawModeMinCephVersion), nil
+	}
+
+	var useRawMode bool
+	// Can we safely use ceph-volume raw mode in the non-PVC case?
+	// On non-PVC we see a race between systemd-udev and the osd process to acquire the lock on the device
+	if a.clusterInfo.CephVersion.IsNautilus() && a.clusterInfo.CephVersion.IsAtLeast(cephFlockFixNautilusMinCephVersion) {
+		logger.Debugf("will use raw mode since cluster version is at least %v", cephFlockFixNautilusMinCephVersion)
+		useRawMode = true
+	}
+
+	if a.clusterInfo.CephVersion.IsOctopus() && a.clusterInfo.CephVersion.IsAtLeast(cephFlockFixOctopusMinCephVersion) {
+		logger.Debugf("will use raw mode since cluster version is at least %v", cephFlockFixOctopusMinCephVersion)
+		useRawMode = true
+	}
 
 	// ceph-volume raw mode does not support encryption yet
 	if a.storeConfig.EncryptedDevice {
-		logger.Infof("won't use raw mode since encryption is enabled")
+		logger.Debug("won't use raw mode since encryption is enabled")
 		useRawMode = false
 	}
 
@@ -475,42 +519,23 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 	osdsPerDeviceCountString := sanitizeOSDsPerDevice(a.storeConfig.OSDsPerDevice)
 	osdsPerDeviceCount, err := strconv.Atoi(osdsPerDeviceCountString)
 	if err != nil {
-		return errors.Wrapf(err, "failed to convert string %q to integer", osdsPerDeviceCountString)
+		return false, errors.Wrapf(err, "failed to convert string %q to integer", osdsPerDeviceCountString)
 	}
 	if osdsPerDeviceCount > 1 {
-		logger.Infof("won't use raw mode since osd per device > 1 is enabled %d", osdsPerDeviceCount)
+		logger.Debugf("won't use raw mode since osd per device is %d", osdsPerDeviceCount)
 		useRawMode = false
 	}
 
 	// ceph-volume raw mode mode does not support metadata device if not running on PVC because the user has specified a whole device
 	if a.metadataDevice != "" {
-		logger.Infof("won't use raw mode since there is a metadata device %q", a.metadataDevice)
+		logger.Debugf("won't use raw mode since there is a metadata device %q", a.metadataDevice)
 		useRawMode = false
 	}
 
-	// Initialize block device OSD without LVM
-	if useRawMode {
-		logger.Info("Initializing OSD disk with raw mode")
-		err := a.initializeDevicesRawMode(context, devices)
-		if err != nil {
-			return errors.Wrap(err, "failed to initialize raw based osd")
-		}
-	} else {
-		// Initialize block device OSD with LVM
-		logger.Info("Initializing OSD disk with LVM mode")
-		err := a.initializeDevicesLVMMode(context, devices)
-		if err != nil {
-			return errors.Wrap(err, "failed to initialize lvm based osd")
-		}
-	}
-
-	return nil
+	return useRawMode, nil
 }
 
 func (a *OsdAgent) initializeDevicesRawMode(context *clusterd.Context, devices *DeviceOsdMapping) error {
-
-	time.Sleep(time.Hour * 350)
-
 	baseCommand := "stdbuf"
 	cephVolumeMode := "raw"
 	baseArgs := []string{"-oL", cephVolumeCmd, cephVolumeMode, "prepare", "--bluestore"}
@@ -546,7 +571,6 @@ func (a *OsdAgent) initializeDevicesRawMode(context *clusterd.Context, devices *
 	}
 
 	return nil
-
 }
 
 func (a *OsdAgent) initializeDevicesLVMMode(context *clusterd.Context, devices *DeviceOsdMapping) error {
@@ -768,6 +792,24 @@ func (a *OsdAgent) initializeDevicesLVMMode(context *clusterd.Context, devices *
 	return nil
 }
 
+func lvmPreReq(context *clusterd.Context, pvcBacked, lvBackedPV bool) error {
+	// Check for the presence of LVM on the host when NOT running on PVC
+	// since this scenario is still using LVM
+	ne := NewNsenter(context, lvmCommandToCheck, []string{"--help"})
+	err := ne.checkIfBinaryExistsOnHost()
+	if err != nil {
+		return errors.Wrapf(err, "binary %q does not exist on the host, make sure lvm2 package is installed", lvmCommandToCheck)
+	}
+
+	// Update LVM configuration file
+	// Only do this after Ceph Nautilus 14.2.6 since it will use the ceph-volume raw mode by default and not LVM anymore
+	if err := UpdateLVMConfig(context, pvcBacked, lvBackedPV); err != nil {
+		return errors.Wrap(err, "failed to update lvm configuration file")
+	}
+
+	return nil
+}
+
 func getDatabaseSize(globalSize int, deviceSize int) int {
 	if deviceSize > 0 {
 		globalSize = deviceSize
@@ -890,8 +932,6 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 	if block == "" {
 		setDevicePathFromList = true
 		args = []string{cvMode, "list", "--format", "json"}
-	} else {
-		blockPath = block
 	}
 
 	result, err := callCephVolume(context, false, args...)
