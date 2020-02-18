@@ -49,8 +49,9 @@ const (
 )
 
 var (
-	MimicVersion    = cephv1.CephVersionSpec{Image: mimicTestImage}
-	NautilusVersion = cephv1.CephVersionSpec{Image: nautilusTestImage}
+	MimicVersion       = cephv1.CephVersionSpec{Image: mimicTestImage}
+	NautilusVersion    = cephv1.CephVersionSpec{Image: nautilusTestImage}
+	globalTestJobIndex = 0
 )
 
 // CephInstaller wraps installing and uninstalling rook on a platform
@@ -172,7 +173,10 @@ func (h *CephInstaller) CreateK8sRookClusterWithHostPathAndDevicesOrPVC(namespac
 	}
 
 	if err := h.WipeClusterDisks(namespace); err != nil {
-		return fmt.Errorf("failed to wipe cluster disks. %+v", err)
+		logger.Warningf("failed to wipe cluster disks. %+v. trying again...", err)
+		if err = h.WipeClusterDisks(namespace); err != nil {
+			return fmt.Errorf("failed to wipe cluster disks. %+v", err)
+		}
 	}
 
 	logger.Infof("Starting Rook Cluster with yaml")
@@ -683,17 +687,18 @@ func NewCephInstaller(t func() *testing.T, clientset *kubernetes.Clientset, useH
 
 // WipeClusterDisks runs a disk wipe job on all nodes in the k8s cluster.
 func (h *CephInstaller) WipeClusterDisks(namespace string) error {
-	wipeJobName := func(node string) string {
-		return k8sutil.TruncateNodeName("rook-ceph-disk-wipe-%s", node)
-	}
-
 	// Wipe clean disks on all nodes
 	nodes, err := h.GetNodeHostnames()
 	if err != nil {
 		return fmt.Errorf("failed to get node hostnames. %+v", err)
 	}
+	var jobNames []string
 	for _, node := range nodes {
-		job := h.GetDiskWipeJob(node, wipeJobName(node), namespace)
+		// Start the new job
+		globalTestJobIndex++
+		jobName := fmt.Sprintf("rook-ceph-disk-wipe-%d", globalTestJobIndex)
+		jobNames = append(jobNames, jobName)
+		job := h.GetDiskWipeJob(node, jobName, namespace)
 		_, err := h.k8shelper.KubectlWithStdin(job, createFromStdinArgs...)
 		if err != nil {
 			return fmt.Errorf("failed to create disk wipe job for host %s. %+v", node, err)
@@ -701,13 +706,13 @@ func (h *CephInstaller) WipeClusterDisks(namespace string) error {
 	}
 
 	allJobsAreComplete := func() (done bool, err error) {
-		for _, node := range nodes {
-			j, err := h.k8shelper.Clientset.BatchV1().Jobs(namespace).Get(wipeJobName(node), metav1.GetOptions{})
+		for _, jobName := range jobNames {
+			j, err := h.k8shelper.Clientset.BatchV1().Jobs(namespace).Get(jobName, metav1.GetOptions{})
 			if err != nil {
 				return false, nil
 			}
 			if j.Status.Failed > 0 {
-				return false, fmt.Errorf("job %s failed", wipeJobName(node))
+				return false, fmt.Errorf("job %s failed", jobName)
 			}
 			if j.Status.Succeeded == 0 {
 				return false, nil
@@ -716,15 +721,19 @@ func (h *CephInstaller) WipeClusterDisks(namespace string) error {
 		return true, nil
 	}
 
-	if err = wait.Poll(5*time.Second, 90*time.Second, allJobsAreComplete); err != nil {
+	// return the error below after cleaning up the jobs
+	err = wait.Poll(5*time.Second, 90*time.Second, allJobsAreComplete)
+
+	// delete the jobs
+	for _, jobName := range jobNames {
+		// if delete fails, don't worry about the error; delete only on best-effort basis
+		wait := false
+		k8sutil.DeleteBatchJob(h.k8shelper.Clientset, namespace, jobName, wait)
+	}
+
+	if err != nil {
 		return fmt.Errorf("failed to wait for wipe jobs to complete. %+v", err)
 	}
-
-	for _, node := range nodes {
-		// if delete fails, don't worry about the error; delete only on best-effort basis
-		h.k8shelper.Clientset.BatchV1().Jobs(namespace).Delete(wipeJobName(node), &metav1.DeleteOptions{})
-	}
-
 	return nil
 }
 
