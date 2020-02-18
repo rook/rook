@@ -84,6 +84,7 @@ Using one of the following:
 - Using Kubeadm
 ```
 tests/scripts/kubeadm.sh up
+export KUBECONFIG=~/admin.conf
 tests/scripts/helm.sh up
 ```
 - Using minikube
@@ -96,7 +97,7 @@ tests/scripts/helm.sh up
 #### 3. Run integration tests:
 Integration tests can be run using tests binary `_output/tests/${platform}/integration` that is generated during build time e.g.:
 ```
-~/integration -test.v
+_output/tests/${platform}/integration/integration -test.v
 ```
 
 ### Test parameters
