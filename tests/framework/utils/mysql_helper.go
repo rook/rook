@@ -51,15 +51,12 @@ func (h *MySQLHelper) CloseConnection() {
 
 // PingSuccess function is used check connection to a database
 func (h *MySQLHelper) PingSuccess() bool {
-	inc := 0
-
-	for inc < 30 {
+	for i := 0; i < 30; i++ {
 		err := h.DB.Ping()
 
 		if err == nil {
 			return true
 		}
-		inc++
 		time.Sleep(3 * time.Second)
 	}
 

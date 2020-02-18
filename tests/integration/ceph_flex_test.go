@@ -17,6 +17,7 @@ limitations under the License.
 package integration
 
 import (
+	"strconv"
 	"testing"
 
 	"fmt"
@@ -28,21 +29,12 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/version"
 )
 
 // ******************************************************
-// *** Scenarios tested by the BlockMountUnMountSuite ***
-// Setup
-// - via the cluster CRD
-// - set up Block PVC - With ReadWriteOnce
-// - set up Block PVC - with ReadWriteMany
-// - Mount Volume on a pod and write some data
-// - UnMount Volume
-// Monitors
-// - one mons in the cluster
-// OSDs
-// - Bluestore running on directory
-// Block Mount & Unmount scenarios - repeat for each PVC
+// *** Scenarios tested by the TestCephFlexSuite ***
+// Flex driver block scenarios - repeat for each PVC
 // 1. ReadWriteOnce
 // 	  a. Mount Volume on a new pod - make sure persisted data is present and write new data
 //    b. Mount volume on two pods with  - mount should be successful only on first pod
@@ -54,25 +46,25 @@ import (
 //  b. Scale down pods
 //  c. Failover pods
 //  d. Delete StatefulSet
+//
+// Flex driver file system scenarios
+// 1. Create a filesystem
+//  a. Mount a directory with the static mount
 // ******************************************************
 
-// NOTE: This suite needs to be last.
-// There is an issue on k8s 1.7 where the CRD controller will frequently fail to create a cluster after this suite is run.
-// The error is "the server does not allow this method on the requested resource (post cephclusters.ceph.rook.io)".
-// Everything appears to have been cleaned up successfully in this test, so it is still unclear what is causing the issue between tests.
-func TestCephBlockSuite(t *testing.T) {
+func TestCephFlexSuite(t *testing.T) {
 	if installer.SkipTestSuite(installer.CephTestSuite) {
 		t.Skip()
 	}
 
-	s := new(CephBlockSuite)
-	defer func(s *CephBlockSuite) {
+	s := new(CephFlexDriverSuite)
+	defer func(s *CephFlexDriverSuite) {
 		HandlePanics(recover(), s.op, s.T)
 	}(s)
 	suite.Run(t, s)
 }
 
-type CephBlockSuite struct {
+type CephFlexDriverSuite struct {
 	suite.Suite
 	testClient *clients.TestClient
 	bc         *clients.BlockOperation
@@ -84,24 +76,29 @@ type CephBlockSuite struct {
 	op         *TestCluster
 }
 
-func (s *CephBlockSuite) SetupSuite() {
+func (s *CephFlexDriverSuite) SetupSuite() {
 
-	s.namespace = "block-test-ns"
+	s.namespace = "flex-ns"
 	s.pvcNameRWO = "block-persistent-rwo"
 	s.pvcNameRWX = "block-persistent-rwx"
 	useHelm := false
 	mons := 1
 	rbdMirrorWorkers := 1
-	s.op, s.kh = StartTestCluster(s.T, blockMinimalTestVersion, s.namespace, "bluestore", useHelm, false, "", mons, rbdMirrorWorkers, installer.VersionMaster, installer.NautilusVersion)
+	s.op, s.kh = StartTestCluster(s.T, flexDriverMinimalTestVersion, s.namespace, "bluestore", useHelm, false, "", mons, rbdMirrorWorkers, installer.VersionMaster, installer.NautilusVersion)
 	s.testClient = clients.CreateTestClient(s.kh, s.op.installer.Manifests)
 	s.bc = s.testClient.BlockClient
 }
 
-func (s *CephBlockSuite) AfterTest(suiteName, testName string) {
+func (s *CephFlexDriverSuite) AfterTest(suiteName, testName string) {
 	s.op.installer.CollectOperatorLog(suiteName, testName, installer.SystemNamespace(s.namespace))
 }
 
-func (s *CephBlockSuite) TestBlockStorageMountUnMountForStatefulSets() {
+func (s *CephFlexDriverSuite) TestFileSystem() {
+	useCSI := false
+	runFileE2ETest(s.testClient, s.kh, s.Suite, s.namespace, "smoke-test-fs", useCSI)
+}
+
+func (s *CephFlexDriverSuite) TestBlockStorageMountUnMountForStatefulSets() {
 	poolName := "stspool"
 	storageClassName := "stssc"
 	reclaimPolicy := "Delete"
@@ -112,7 +109,9 @@ func (s *CephBlockSuite) TestBlockStorageMountUnMountForStatefulSets() {
 	logger.Infof("Test case when block persistent volumes are scaled up and down along with StatefulSet")
 	logger.Info("Step 1: Create pool and storageClass")
 
-	err := s.testClient.PoolClient.CreateStorageClass(s.namespace, poolName, storageClassName, reclaimPolicy)
+	err := s.testClient.PoolClient.Create(poolName, s.namespace, 1)
+	assert.Nil(s.T(), err)
+	err = s.testClient.BlockClient.CreateStorageClass(false, poolName, storageClassName, reclaimPolicy, s.namespace)
 	assert.Nil(s.T(), err)
 	logger.Info("Step 2 : Deploy statefulSet with 1X replication")
 	service, statefulset := getBlockStatefulSetAndServiceDefinition(defaultNamespace, statefulSetName, statefulPodsName, storageClassName)
@@ -148,7 +147,7 @@ func (s *CephBlockSuite) TestBlockStorageMountUnMountForStatefulSets() {
 	require.True(s.T(), s.kh.CheckPvcCountAndStatus(statefulSetName, defaultNamespace, 2, "Bound"))
 }
 
-func (s *CephBlockSuite) statefulSetDataCleanup(namespace, poolName, storageClassName, reclaimPolicy, statefulSetName, statefulPodsName string) {
+func (s *CephFlexDriverSuite) statefulSetDataCleanup(namespace, poolName, storageClassName, reclaimPolicy, statefulSetName, statefulPodsName string) {
 	delOpts := metav1.DeleteOptions{}
 	listOpts := metav1.ListOptions{LabelSelector: "app=" + statefulSetName}
 	// Delete stateful set
@@ -159,41 +158,37 @@ func (s *CephBlockSuite) statefulSetDataCleanup(namespace, poolName, storageClas
 	s.kh.DeletePvcWithLabel(defaultNamespace, statefulSetName)
 	// Delete storageclass and pool
 	s.testClient.PoolClient.DeletePool(s.testClient.BlockClient, s.namespace, poolName)
-	s.testClient.PoolClient.DeleteStorageClass(storageClassName)
+	s.testClient.BlockClient.DeleteStorageClass(storageClassName)
 }
 
-func (s *CephBlockSuite) setupPVCs() {
+func (s *CephFlexDriverSuite) setupPVCs() {
 	logger.Infof("creating the test PVCs")
 	poolNameRWO := "block-pool-rwo"
 	storageClassNameRWO := "rook-ceph-block-rwo"
+	systemNamespace := installer.SystemNamespace(s.namespace)
 
 	// Create PVCs
-	cbErr := s.testClient.PoolClient.CreateStorageClassAndPvc(s.namespace, poolNameRWO, storageClassNameRWO, "Delete", s.pvcNameRWO, "ReadWriteOnce")
-	require.Nil(s.T(), cbErr)
+	useCSI := false
+	err := s.testClient.BlockClient.CreateStorageClassAndPVC(useCSI, defaultNamespace, s.namespace, systemNamespace, poolNameRWO, storageClassNameRWO, "Delete", s.pvcNameRWO, "ReadWriteOnce")
+	require.Nil(s.T(), err)
 	require.True(s.T(), s.kh.WaitUntilPVCIsBound(defaultNamespace, s.pvcNameRWO), "Make sure PVC is Bound")
 
-	cbErr2 := s.testClient.BlockClient.CreatePvc(s.pvcNameRWX, storageClassNameRWO, "ReadWriteMany", "1M")
-	require.Nil(s.T(), cbErr2)
+	err = s.testClient.BlockClient.CreatePVC(defaultNamespace, s.pvcNameRWX, storageClassNameRWO, "ReadWriteMany", "1M")
+	require.Nil(s.T(), err)
 	require.True(s.T(), s.kh.WaitUntilPVCIsBound(defaultNamespace, s.pvcNameRWX), "Make sure PVC is Bound")
 
 	// Mount PVC on a pod and write some data.
-	_, mtErr := s.bc.BlockMap(getBlockPodDefinition("setup-block-rwo", s.pvcNameRWO, false))
-	require.Nil(s.T(), mtErr)
+	err = s.bc.CreateClientPod(getFlexBlockPodDefinition("setup-block-rwo", s.pvcNameRWO, false))
+	require.Nil(s.T(), err)
 	crdName, err := s.kh.GetVolumeResourceName(defaultNamespace, s.pvcNameRWO)
 	require.Nil(s.T(), err)
-	rwoVolumePresent := s.kh.IsVolumeResourcePresent(installer.SystemNamespace(s.namespace), crdName)
-	if !rwoVolumePresent {
-		s.kh.PrintPodDescribe(defaultNamespace, "setup-block-rwo")
-		s.kh.PrintPodStatus(s.namespace)
-		s.kh.PrintPodStatus(installer.SystemNamespace(s.namespace))
-	}
-	require.True(s.T(), rwoVolumePresent, fmt.Sprintf("make sure rwo Volume %s is created", crdName))
+	s.kh.IsVolumeResourcePresent(systemNamespace, crdName)
 
-	_, mtErr1 := s.bc.BlockMap(getBlockPodDefinition("setup-block-rwx", s.pvcNameRWX, false))
-	require.Nil(s.T(), mtErr1)
-	crdName1, err1 := s.kh.GetVolumeResourceName(defaultNamespace, s.pvcNameRWX)
-	require.Nil(s.T(), err1)
-	require.True(s.T(), s.kh.IsVolumeResourcePresent(installer.SystemNamespace(s.namespace), crdName1), fmt.Sprintf("make sure rwx Volume %s is created", crdName))
+	err = s.bc.CreateClientPod(getFlexBlockPodDefinition("setup-block-rwx", s.pvcNameRWX, false))
+	require.Nil(s.T(), err)
+	crdName, err = s.kh.GetVolumeResourceName(defaultNamespace, s.pvcNameRWX)
+	require.Nil(s.T(), err)
+	s.kh.IsVolumeResourcePresent(systemNamespace, crdName)
 	require.True(s.T(), s.kh.IsPodRunning("setup-block-rwo", defaultNamespace), "make sure setup-block-rwo pod is in running state")
 	require.True(s.T(), s.kh.IsPodRunning("setup-block-rwx", defaultNamespace), "make sure setup-block-rwx pod is in running state")
 
@@ -212,41 +207,41 @@ func (s *CephBlockSuite) setupPVCs() {
 	require.True(s.T(), s.kh.IsPodTerminated("setup-block-rwx", defaultNamespace), "make sure setup-block-rwx pod is terminated")
 }
 
-func (s *CephBlockSuite) TearDownSuite() {
+func (s *CephFlexDriverSuite) TearDownSuite() {
 	logger.Infof("Cleaning up block storage")
 
 	s.kh.DeletePods(
 		"setup-block-rwo", "setup-block-rwx", "rwo-block-rw-one", "rwo-block-rw-two", "rwo-block-ro-one",
 		"rwo-block-ro-two", "rwx-block-rw-one", "rwx-block-rw-two", "rwx-block-ro-one", "rwx-block-ro-two")
 
-	s.testClient.PoolClient.DeletePvc(s.namespace, s.pvcNameRWO)
-	s.testClient.PoolClient.DeletePvc(s.namespace, s.pvcNameRWX)
-	s.testClient.PoolClient.DeleteStorageClass("rook-ceph-block-rwo")
-	s.testClient.PoolClient.DeleteStorageClass("rook-ceph-block-rwx")
+	s.testClient.BlockClient.DeletePVC(s.namespace, s.pvcNameRWO)
+	s.testClient.BlockClient.DeletePVC(s.namespace, s.pvcNameRWX)
+	s.testClient.BlockClient.DeleteStorageClass("rook-ceph-block-rwo")
+	s.testClient.BlockClient.DeleteStorageClass("rook-ceph-block-rwx")
 	s.testClient.PoolClient.DeletePool(s.testClient.BlockClient, s.namespace, "block-pool-rwo")
 	s.testClient.PoolClient.DeletePool(s.testClient.BlockClient, s.namespace, "block-pool-rwx")
 	s.op.Teardown()
 }
 
-func (s *CephBlockSuite) TestBlockStorageMountUnMountForDifferentAccessModes() {
+func (s *CephFlexDriverSuite) TestBlockStorageMountUnMountForDifferentAccessModes() {
 	s.setupPVCs()
 
 	logger.Infof("Test case when existing RWO PVC is mounted and unmounted on pods with various accessModes")
 	logger.Infof("Step 1.1: Mount existing ReadWriteOnce and ReadWriteMany PVC on a Pod with RW access")
 	// mount PVC with RWO access on a pod with readonly set to false
-	_, err := s.bc.BlockMap(getBlockPodDefinition("rwo-block-rw-one", s.pvcNameRWO, false))
+	err := s.bc.CreateClientPod(getFlexBlockPodDefinition("rwo-block-rw-one", s.pvcNameRWO, false))
 	require.Nil(s.T(), err)
 	// mount PVC with RWX access on a pod with readonly set to false
-	_, err = s.bc.BlockMap(getBlockPodDefinition("rwx-block-rw-one", s.pvcNameRWX, false))
+	err = s.bc.CreateClientPod(getFlexBlockPodDefinition("rwx-block-rw-one", s.pvcNameRWX, false))
 	require.Nil(s.T(), err)
-	crdName1, err1 := s.kh.GetVolumeResourceName(defaultNamespace, s.pvcNameRWO)
-	crdName2, err2 := s.kh.GetVolumeResourceName(defaultNamespace, s.pvcNameRWX)
-	assert.Nil(s.T(), err1)
-	assert.Nil(s.T(), err2)
-
-	assert.True(s.T(), s.kh.IsVolumeResourcePresent(installer.SystemNamespace(s.namespace), crdName1), fmt.Sprintf("make sure Volume %s is created", crdName1))
+	crdName, err := s.kh.GetVolumeResourceName(defaultNamespace, s.pvcNameRWO)
+	assert.Nil(s.T(), err)
+	assert.True(s.T(), s.kh.IsVolumeResourcePresent(installer.SystemNamespace(s.namespace), crdName), fmt.Sprintf("make sure Volume %s is created", crdName))
 	assert.True(s.T(), s.kh.IsPodRunning("rwo-block-rw-one", defaultNamespace), "make sure block-rw-one pod is in running state")
-	assert.True(s.T(), s.kh.IsVolumeResourcePresent(installer.SystemNamespace(s.namespace), crdName2), fmt.Sprintf("make sure Volume %s is created", crdName2))
+
+	crdName, err = s.kh.GetVolumeResourceName(defaultNamespace, s.pvcNameRWX)
+	assert.Nil(s.T(), err)
+	assert.True(s.T(), s.kh.IsVolumeResourcePresent(installer.SystemNamespace(s.namespace), crdName), fmt.Sprintf("make sure Volume %s is created", crdName))
 	assert.True(s.T(), s.kh.IsPodRunning("rwx-block-rw-one", defaultNamespace), "make sure rwx-block-rw-one pod is in running state")
 
 	logger.Infof("Step 2: Check if previously persisted data is readable from ReadWriteOnce and ReadWriteMany PVC")
@@ -278,10 +273,10 @@ func (s *CephBlockSuite) TestBlockStorageMountUnMountForDifferentAccessModes() {
 	// Mount another Pod with RW access on same PVC
 	logger.Infof("Step 4: Mount existing ReadWriteOnce and ReadWriteMany PVC on a new Pod with RW access")
 	// Mount RWO PVC on a new pod with ReadOnly set to false
-	_, err = s.bc.BlockMap(getBlockPodDefinition("rwo-block-rw-two", s.pvcNameRWO, false))
+	err = s.bc.CreateClientPod(getFlexBlockPodDefinition("rwo-block-rw-two", s.pvcNameRWO, false))
 	assert.Nil(s.T(), err)
 	// Mount RWX PVC on a new pod with ReadOnly set to false
-	_, err = s.bc.BlockMap(getBlockPodDefinition("rwx-block-rw-two", s.pvcNameRWX, false))
+	err = s.bc.CreateClientPod(getFlexBlockPodDefinition("rwx-block-rw-two", s.pvcNameRWX, false))
 	assert.Nil(s.T(), err)
 	assert.True(s.T(), s.kh.IsPodInError("rwo-block-rw-two", defaultNamespace, "FailedMount", "Volume is already attached by pod"), "make sure rwo-block-rw-two pod errors out while mounting the volume")
 	assert.True(s.T(), s.kh.IsPodInError("rwx-block-rw-two", defaultNamespace, "FailedMount", "Volume is already attached by pod"), "make sure rwx-block-rw-two pod errors out while mounting the volume")
@@ -292,10 +287,10 @@ func (s *CephBlockSuite) TestBlockStorageMountUnMountForDifferentAccessModes() {
 
 	logger.Infof("Step 5: Mount existing ReadWriteOnce and ReadWriteMany PVC on a new Pod with RO access")
 	// Mount RWO PVC on a new pod with ReadOnly set to true
-	_, err = s.bc.BlockMap(getBlockPodDefinition("rwo-block-ro-one", s.pvcNameRWO, true))
+	err = s.bc.CreateClientPod(getFlexBlockPodDefinition("rwo-block-ro-one", s.pvcNameRWO, true))
 	assert.Nil(s.T(), err)
 	// Mount RWX PVC on a new pod with ReadOnly set to true
-	_, err = s.bc.BlockMap(getBlockPodDefinition("rwx-block-ro-one", s.pvcNameRWX, true))
+	err = s.bc.CreateClientPod(getFlexBlockPodDefinition("rwx-block-ro-one", s.pvcNameRWX, true))
 	assert.Nil(s.T(), err)
 	assert.True(s.T(), s.kh.IsPodInError("rwo-block-ro-one", defaultNamespace, "FailedMount", "Volume is already attached by pod"), "make sure rwo-block-ro-one pod errors out while mounting the volume")
 	assert.True(s.T(), s.kh.IsPodInError("rwx-block-ro-one", defaultNamespace, "FailedMount", "Volume is already attached by pod"), "make sure rwx-block-ro-one pod errors out while mounting the volume")
@@ -311,16 +306,18 @@ func (s *CephBlockSuite) TestBlockStorageMountUnMountForDifferentAccessModes() {
 	assert.True(s.T(), s.kh.IsPodTerminated("rwx-block-rw-one", defaultNamespace), "make sure rwx-lock-rw-one pod is terminated")
 
 	logger.Infof("Step 7: Mount ReadWriteOnce and ReadWriteMany PVC on two different pods with ReadOnlyMany with Readonly Access")
+
 	// Mount RWO PVC on 2 pods with ReadOnly set to True
-	_, err1 = s.bc.BlockMap(getBlockPodDefinition("rwo-block-ro-one", s.pvcNameRWO, true))
-	_, err2 = s.bc.BlockMap(getBlockPodDefinition("rwo-block-ro-two", s.pvcNameRWO, true))
-	assert.Nil(s.T(), err1)
-	assert.Nil(s.T(), err2)
+	err = s.bc.CreateClientPod(getFlexBlockPodDefinition("rwo-block-ro-one", s.pvcNameRWO, true))
+	assert.Nil(s.T(), err)
+	err = s.bc.CreateClientPod(getFlexBlockPodDefinition("rwo-block-ro-two", s.pvcNameRWO, true))
+	assert.Nil(s.T(), err)
+
 	// Mount RWX PVC on 2 pods with ReadOnly set to True
-	_, err1 = s.bc.BlockMap(getBlockPodDefinition("rwx-block-ro-one", s.pvcNameRWX, true))
-	_, err2 = s.bc.BlockMap(getBlockPodDefinition("rwx-block-ro-two", s.pvcNameRWX, true))
-	assert.Nil(s.T(), err1)
-	assert.Nil(s.T(), err2)
+	err = s.bc.CreateClientPod(getFlexBlockPodDefinition("rwx-block-ro-one", s.pvcNameRWX, true))
+	assert.Nil(s.T(), err)
+	err = s.bc.CreateClientPod(getFlexBlockPodDefinition("rwx-block-ro-two", s.pvcNameRWX, true))
+	assert.Nil(s.T(), err)
 	assert.True(s.T(), s.kh.IsPodRunning("rwo-block-ro-one", defaultNamespace), "make sure rwo-block-ro-one pod is in running state")
 	assert.True(s.T(), s.kh.IsPodRunning("rwo-block-ro-two", defaultNamespace), "make sure rwo-block-ro-two pod is in running state")
 	assert.True(s.T(), s.kh.IsPodRunning("rwx-block-ro-one", defaultNamespace), "make sure rwx-block-ro-one pod is in running state")
@@ -354,4 +351,46 @@ func (s *CephBlockSuite) TestBlockStorageMountUnMountForDifferentAccessModes() {
 	assert.True(s.T(), s.kh.IsPodTerminated("rwo-block-ro-two", defaultNamespace), "make sure rwo-block-ro-two pod is terminated")
 	assert.True(s.T(), s.kh.IsPodTerminated("rwx-block-ro-one", defaultNamespace), "make sure rwx-lock-ro-one pod is terminated")
 	assert.True(s.T(), s.kh.IsPodTerminated("rwx-block-ro-two", defaultNamespace), "make sure rwx-block-ro-two pod is terminated")
+
+	// Test volume expansion
+	v := version.MustParseSemantic(s.kh.GetK8sServerVersion())
+	if v.AtLeast(version.MustParseSemantic("1.15.0")) {
+		logger.Infof("additional step: Expand block storage")
+		// Expanding the image by applying new PVC specs
+		err := s.testClient.BlockClient.CreatePVC(defaultNamespace, s.pvcNameRWO, "rook-ceph-block-rwo", "ReadWriteOnce", "2M")
+		require.Nil(s.T(), err)
+		// Once the pod using the volume is terminated, the filesystem is expanded and the size of the PVC is increased.
+		expandedPodName := "setup-block-rwo"
+		err = s.kh.DeletePod(defaultNamespace, expandedPodName)
+		require.Nil(s.T(), err)
+		err = s.bc.CreateClientPod(getFlexBlockPodDefinition(expandedPodName, s.pvcNameRWO, false))
+		require.Nil(s.T(), err)
+		require.True(s.T(), s.kh.IsPodRunning(expandedPodName, defaultNamespace), "Make sure new pod is running")
+		require.True(s.T(), s.kh.WaitUntilPVCIsExpanded(defaultNamespace, s.pvcNameRWO, "2M"), "Make sure PVC is expanded")
+		logger.Infof("Block Storage successfully expanded")
+	}
+}
+
+func getFlexBlockPodDefinition(podName, blockName string, readOnly bool) string {
+	return `apiVersion: v1
+kind: Pod
+metadata:
+  name: ` + podName + `
+spec:
+  containers:
+  - image: busybox
+    name: block-test1
+    command:
+    - sleep
+    - "3600"
+    imagePullPolicy: IfNotPresent
+    volumeMounts:
+    - name: block-persistent-storage
+      mountPath: ` + utils.TestMountPath + `
+  volumes:
+  - name: block-persistent-storage
+    persistentVolumeClaim:
+      claimName: ` + blockName + `
+      readOnly: ` + strconv.FormatBool(readOnly) + `
+  restartPolicy: Never`
 }

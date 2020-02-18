@@ -120,16 +120,14 @@ func (suite *CockroachDBSuite) TestCockroachDBClusterInstallation() {
 		`create database if not exists rookcockroachdb; use rookcockroachdb; create table if not exists testtable ( testID int ); insert into testtable values (123456789); select * from testtable;`,
 	}
 
-	inc := 0
 	var result string
-	for inc < utils.RetryLoop {
+	for i := 0; i < utils.RetryLoop; i++ {
 		result, err = suite.k8shelper.Exec(suite.systemNamespace, operatorPodName, command, commandArgs)
 		logger.Infof("cockroachdb sql command exited, err: %+v. result: %s", err, result)
 		if err == nil {
 			break
 		}
 		logger.Warning("cockroachdb sql command failed, will try again")
-		inc++
 		time.Sleep(utils.RetryInterval * time.Second)
 	}
 

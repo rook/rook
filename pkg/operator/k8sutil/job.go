@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"time"
 
-	"k8s.io/api/batch/v1"
 	batch "k8s.io/api/batch/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -91,6 +90,9 @@ func DeleteBatchJob(clientset kubernetes.Interface, namespace, name string, wait
 	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
 
 	if err := clientset.BatchV1().Jobs(namespace).Delete(name, options); err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
 		return fmt.Errorf("failed to remove previous provisioning job for node %s. %+v", name, err)
 	}
 
@@ -117,7 +119,7 @@ func DeleteBatchJob(clientset kubernetes.Interface, namespace, name string, wait
 
 // AddRookVersionLabelToJob adds or updates a label reporting the Rook version which last
 // modified a Job.
-func AddRookVersionLabelToJob(j *v1.Job) {
+func AddRookVersionLabelToJob(j *batch.Job) {
 	if j == nil {
 		return
 	}
