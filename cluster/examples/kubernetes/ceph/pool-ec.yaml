@@ -11,7 +11,6 @@ metadata:
 spec:
   # The failure domain will spread the replicas of the data across different failure zones
   failureDomain: osd
-  # For an erasure-coded pool, comment out the replicated size above and uncomment the following settings.
   # Make sure you have enough OSDs to support the replica size or sum of the erasure coding and data chunks.
   # This is the minimal example that requires only 3 OSDs.
   erasureCoded:
