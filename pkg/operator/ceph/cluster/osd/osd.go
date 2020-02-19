@@ -174,6 +174,7 @@ type osdProperties struct {
 	location            string
 	portable            bool
 	tuneSlowDeviceClass bool
+	crushDeviceClass    string
 }
 
 // Start the osd management
@@ -270,12 +271,13 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig) {
 		}
 
 		osdProps := osdProperties{
-			crushHostname: volume.PersistentVolumeClaimSource.ClaimName,
-			pvc:           volume.PersistentVolumeClaimSource,
-			metadataPVC:   metadataDevicePVCSource,
-			resources:     volume.Resources,
-			placement:     volume.Placement,
-			portable:      volume.Portable,
+			crushHostname:    volume.PersistentVolumeClaimSource.ClaimName,
+			pvc:              volume.PersistentVolumeClaimSource,
+			metadataPVC:      metadataDevicePVCSource,
+			resources:        volume.Resources,
+			placement:        volume.Placement,
+			portable:         volume.Portable,
+			crushDeviceClass: volume.CrushDeviceClass,
 		}
 
 		logger.Debugf("osdProps are %+v", osdProps)

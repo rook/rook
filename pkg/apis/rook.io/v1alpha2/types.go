@@ -147,7 +147,8 @@ type VolumeSource struct {
 	Resources                   v1.ResourceRequirements              `json:"resources,omitempty"`
 	Placement                   Placement                            `json:"placement,omitempty"`
 	Config                      map[string]string                    `json:"config,omitempty"`
-	Portable                    bool                                 `json:"portable,omitempty"`        // Portable OSD portability across the hosts
-	TuneSlowDeviceClass         bool                                 `json:"tuneDeviceClass,omitempty"` // TuneSlowDeviceClass Tune the OSD when running on a slow Device Class
-	Type                        string                               `json:"type,omitempty"`            // Type represents the device type for an OSD, possible values are "data": the bluestore 'block' data and "metadata": the bluestore 'block.db' device
+	Portable                    bool                                 `json:"portable,omitempty"`         // Portable OSD portability across the hosts
+	TuneSlowDeviceClass         bool                                 `json:"tuneDeviceClass,omitempty"`  // TuneSlowDeviceClass Tune the OSD when running on a slow Device Class
+	Type                        string                               `json:"type,omitempty"`             // Type represents the device type for an OSD, possible values are "data": the bluestore 'block' data and "metadata": the bluestore 'block.db' device
+	CrushDeviceClass            string                               `json:"crushDeviceClass,omitempty"` // CrushDeviceClass represents the crush device class for an OSD
 }
