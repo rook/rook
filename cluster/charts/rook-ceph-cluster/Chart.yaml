@@ -1,0 +1,9 @@
+apiVersion: v2
+description: A helm chart for rook ceph cluster
+name: rook-ceph-cluster
+version: 0.0.1
+type: application
+appVersion: 1.2.4
+icon: https://rook.io/images/rook-logo.svg
+sources:
+  - https://github.com/rook/rook
