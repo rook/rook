@@ -258,7 +258,14 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 		// This will make the devices.Entries larger than usual
 		if _, ok := devices.Entries["metadata"]; ok {
 			metadataDev = true
-			metadataArg = append(metadataArg, []string{"--block.db", devices.Entries["metadata"].Config.Name}...)
+			metadataArg = append(metadataArg, []string{"--block.db",
+				devices.Entries["metadata"].Config.Name,
+			}...)
+
+			crushDeviceClass := os.Getenv(oposd.CrushDeviceClassVarName)
+			if crushDeviceClass != "" {
+				metadataArg = append(metadataArg, []string{crushDeviceClassFlag, crushDeviceClass}...)
+			}
 			metadataBlockPath = devices.Entries["metadata"].Config.Name
 		}
 

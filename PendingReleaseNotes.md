@@ -14,6 +14,7 @@
 - Ceph Nautilus 14.2.5 is the minimum supported version
 - OSD on PVC doesn't use LVM anymore to configure OSD, but solely relies on the entire block device, done [here](https://github.com/rook/rook/pull/4435).
 - Specific devices for OSDs can now be specified using the full udev path (e.g. /dev/disk/by-id/ata-ST4000DM004-XXXX) instead of the device name.
+- OSD on PVC CRUSH device storage class can now be changed by setting an annotation "crushDeviceClass" on the "data" volume template. See "cluster-on-pvc.yaml" for example.
 
 
 ### EdgeFS

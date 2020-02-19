@@ -57,6 +57,7 @@ func (c *Cluster) prepareStorageClassDeviceSets(config *provisionConfig) []rooka
 					},
 					Portable:            storageClassDeviceSet.Portable,
 					TuneSlowDeviceClass: storageClassDeviceSet.TuneSlowDeviceClass,
+					CrushDeviceClass:    pvcTemplate.Annotations["crushDeviceClass"],
 				})
 				logger.Infof("successfully provisioned pvc %q for VolumeClaimTemplates %q for storageClassDeviceSet %q of set %v", pvc.GetName(), pvcTemplate.GetName(), storageClassDeviceSet.Name, i)
 			}

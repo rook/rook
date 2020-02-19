@@ -91,6 +91,9 @@ spec:
       volumeClaimTemplates:
       - metadata:
           name: data
+          # if you are looking at giving your OSD a different CRUSH device class than the one detected by Ceph
+          # annotations:
+          #   crushDeviceClass: hybrid
         spec:
           resources:
             requests:
