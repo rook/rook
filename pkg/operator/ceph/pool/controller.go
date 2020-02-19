@@ -120,7 +120,7 @@ func (c *PoolController) onUpdate(oldObj, newObj interface{}) {
 		updateCephBlockPoolStatus(pool.GetName(), pool.GetNamespace(), k8sutil.FailedStatus, c.context)
 		return
 	}
-	if pool.Spec.ErasureCoded.CodingChunks != 0 && pool.Spec.ErasureCoded.DataChunks != 0 {
+	if oldPool.Spec.ErasureCoded.CodingChunks != pool.Spec.ErasureCoded.CodingChunks || oldPool.Spec.ErasureCoded.DataChunks != pool.Spec.ErasureCoded.DataChunks {
 		logger.Errorf("failed to update pool %q. erasurecoded update not allowed", pool.Name)
 		updateCephBlockPoolStatus(pool.GetName(), pool.GetNamespace(), k8sutil.FailedStatus, c.context)
 		return
