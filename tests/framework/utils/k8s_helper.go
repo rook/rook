@@ -581,7 +581,7 @@ func (k8sh *K8sHelper) PrintEventsForNamespace(namespace string) {
 // IsPodRunning returns true if a Pod is running status or goes to Running status within 90s else returns false
 func (k8sh *K8sHelper) IsPodRunning(name string, namespace string) bool {
 	getOpts := metav1.GetOptions{}
-	for i := 0; i < 20; i++ {
+	for i := 0; i < 30; i++ {
 		pod, err := k8sh.Clientset.CoreV1().Pods(namespace).Get(name, getOpts)
 		if err == nil {
 			if pod.Status.Phase == "Running" {
