@@ -17,6 +17,7 @@ package client
 
 import (
 	"reflect"
+	"strconv"
 	"testing"
 
 	"github.com/pkg/errors"
@@ -202,4 +203,47 @@ func TestGetPoolStatistics(t *testing.T) {
 	stats, err = GetPoolStatistics(context, "rbd", "cluster")
 	assert.NotNil(t, err)
 	assert.Nil(t, stats)
+}
+
+func TestSetPoolReplicatedSizeProperty(t *testing.T) {
+	// TEST POOL SIZE > 1
+	p := CephStoragePoolDetails{Name: "mypool", Size: 12345}
+	executor := &exectest.MockExecutor{}
+	context := &clusterd.Context{Executor: executor}
+	executor.MockExecuteCommandWithOutputFile = func(debug bool, actionName, command, outputFile string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+
+		if args[2] == "set" {
+			assert.Equal(t, "mypool", args[3])
+			assert.Equal(t, "size", args[4])
+			assert.Equal(t, "12345", args[5])
+			return "", nil
+		}
+
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+
+	size := strconv.FormatUint(uint64(p.Size), 10)
+	err := SetPoolReplicatedSizeProperty(context, "myns", p.Name, size, p.RequireSafeReplicaSize)
+	assert.NoError(t, err)
+
+	// TEST POOL SIZE 1 AND RequireSafeReplicaSize True
+	executor.MockExecuteCommandWithOutputFile = func(debug bool, actionName, command, outputFile string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+
+		if args[2] == "set" {
+			assert.Equal(t, "mypool", args[3])
+			assert.Equal(t, "size", args[4])
+			assert.Equal(t, "1", args[5])
+			assert.Equal(t, "--yes-i-really-mean-it", args[6])
+			return "", nil
+		}
+
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+	p.RequireSafeReplicaSize = true
+	p.Size = 1
+	size = strconv.FormatUint(uint64(p.Size), 10)
+	err = SetPoolReplicatedSizeProperty(context, "myns", p.Name, size, p.RequireSafeReplicaSize)
+	assert.NoError(t, err)
 }
