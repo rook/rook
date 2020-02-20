@@ -21,4 +21,4 @@ spec:
   dataDirHostPath: /var/lib/rook
   # providing an image is optional, do this if you want to create other CRs (rgw, mds, nfs)
   cephVersion:
-    image: ceph/ceph:v14.2.6 # MUST match external cluster version
+    image: ceph/ceph:v14.2.7 # Should match external cluster version
