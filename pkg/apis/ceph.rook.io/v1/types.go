@@ -270,6 +270,9 @@ type ReplicatedSpec struct {
 
 	// TargetSizeRatio gives a hint (%) to Ceph in terms of expected consumption of the total cluster capacity
 	TargetSizeRatio float64 `json:"targetSizeRatio"`
+
+	// RequireSafeReplicaSize if false allows you to set replica 1
+	RequireSafeReplicaSize bool `json:"requireSafeReplicaSize"`
 }
 
 // ErasureCodeSpec represents the spec for erasure code in a pool

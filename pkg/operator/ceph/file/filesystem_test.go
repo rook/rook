@@ -53,7 +53,7 @@ func TestValidateSpec(t *testing.T) {
 
 	// missing data pools
 	assert.NotNil(t, validateFilesystem(context, fs))
-	p := cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1}}
+	p := cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1, RequireSafeReplicaSize: false}}
 	fs.Spec.DataPools = append(fs.Spec.DataPools, p)
 
 	// missing metadata pool
@@ -98,8 +98,8 @@ func TestCreateFilesystem(t *testing.T) {
 	fs := cephv1.CephFilesystem{
 		ObjectMeta: metav1.ObjectMeta{Name: "myfs", Namespace: "ns"},
 		Spec: cephv1.FilesystemSpec{
-			MetadataPool: cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1}},
-			DataPools:    []cephv1.PoolSpec{{Replicated: cephv1.ReplicatedSpec{Size: 1}}},
+			MetadataPool: cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1, RequireSafeReplicaSize: false}},
+			DataPools:    []cephv1.PoolSpec{{Replicated: cephv1.ReplicatedSpec{Size: 1, RequireSafeReplicaSize: false}}},
 			MetadataServer: cephv1.MetadataServerSpec{
 				ActiveCount: 1,
 				Resources: v1.ResourceRequirements{

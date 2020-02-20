@@ -48,6 +48,7 @@ func TestValidatePool(t *testing.T) {
 	// must not specify both replication and EC settings
 	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
 	p.Spec.Replicated.Size = 1
+	p.Spec.Replicated.RequireSafeReplicaSize = false
 	p.Spec.ErasureCoded.CodingChunks = 2
 	p.Spec.ErasureCoded.DataChunks = 3
 	err = ValidatePool(context, &p)
@@ -56,8 +57,16 @@ func TestValidatePool(t *testing.T) {
 	// succeed with replication settings
 	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
 	p.Spec.Replicated.Size = 1
+	p.Spec.Replicated.RequireSafeReplicaSize = false
 	err = ValidatePool(context, &p)
 	assert.Nil(t, err)
+
+	// size is 1 and RequireSafeReplicaSize is true
+	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
+	p.Spec.Replicated.Size = 1
+	p.Spec.Replicated.RequireSafeReplicaSize = true
+	err = ValidatePool(context, &p)
+	assert.Error(t, err)
 
 	// succeed with ec settings
 	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
@@ -65,6 +74,7 @@ func TestValidatePool(t *testing.T) {
 	p.Spec.ErasureCoded.DataChunks = 2
 	err = ValidatePool(context, &p)
 	assert.Nil(t, err)
+
 }
 
 func TestValidateCrushProperties(t *testing.T) {
@@ -82,7 +92,7 @@ func TestValidateCrushProperties(t *testing.T) {
 	p := &cephv1.CephBlockPool{
 		ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"},
 		Spec: cephv1.PoolSpec{
-			Replicated:    cephv1.ReplicatedSpec{Size: 1},
+			Replicated:    cephv1.ReplicatedSpec{Size: 1, RequireSafeReplicaSize: false},
 			FailureDomain: "osd",
 		},
 	}
@@ -119,11 +129,16 @@ func TestCreatePool(t *testing.T) {
 
 	p := &cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
 	p.Spec.Replicated.Size = 1
+	p.Spec.Replicated.RequireSafeReplicaSize = false
 
 	exists, err := poolExists(context, p)
 	assert.False(t, exists)
 	err = createPool(context, p)
 	assert.Nil(t, err)
+
+	p.Spec.Replicated.RequireSafeReplicaSize = true
+	err = createPool(context, p)
+	assert.Error(t, err)
 
 	// fail if both replication and EC are specified
 	p.Spec.ErasureCoded.CodingChunks = 2

@@ -423,6 +423,8 @@ spec:
                   properties:
                     size:
                       type: integer
+                    requireSafeReplicaSize:
+                      type: boolean
                 erasureCoded:
                   properties:
                     dataChunks:
@@ -437,6 +439,8 @@ spec:
                   properties:
                     size:
                       type: integer
+                    requireSafeReplicaSize:
+                      type: boolean
                 erasureCoded:
                   properties:
                     dataChunks:
@@ -491,6 +495,8 @@ spec:
                   maximum: 9
                 targetSizeRatio:
                   type: number
+                requireSafeReplicaSize:
+                  type: boolean
             erasureCoded:
               properties:
                 dataChunks:
@@ -2001,7 +2007,8 @@ metadata:
 spec:
   replicated:
     size: ` + replicaSize + `
-    targetSizeRatio: .5`
+    targetSizeRatio: .5
+    requireSafeReplicaSize: false`
 }
 
 func (m *CephManifestsMaster) GetBlockStorageClassDef(csi bool, poolName, storageClassName, reclaimPolicy, namespace, systemNamespace string) string {
@@ -2082,9 +2089,11 @@ spec:
   metadataPool:
     replicated:
       size: 1
+      requireSafeReplicaSize: false
   dataPools:
   - replicated:
       size: 1
+      requireSafeReplicaSize: false
   metadataServer:
     activeCount: ` + strconv.Itoa(activeCount) + `
     activeStandby: true
@@ -2116,9 +2125,11 @@ spec:
   metadataPool:
     replicated:
       size: 1
+      requireSafeReplicaSize: false
   dataPool:
     replicated:
       size: 1
+      requireSafeReplicaSize: false
   gateway:
     type: s3
     sslCertificateRef:

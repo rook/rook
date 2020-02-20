@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package client
 
 import (
@@ -38,15 +39,16 @@ type CephStoragePoolSummary struct {
 }
 
 type CephStoragePoolDetails struct {
-	Name               string  `json:"pool"`
-	Number             int     `json:"pool_id"`
-	Size               uint    `json:"size"`
-	ErasureCodeProfile string  `json:"erasure_code_profile"`
-	FailureDomain      string  `json:"failureDomain"`
-	CrushRoot          string  `json:"crushRoot"`
-	DeviceClass        string  `json:"deviceClass"`
-	NotEnableAppPool   bool    `json:"notEnableAppPool"`
-	TargetSizeRatio    float64 `json:"target_size_ratio,omitempty"`
+	Name                   string  `json:"pool"`
+	Number                 int     `json:"pool_id"`
+	Size                   uint    `json:"size"`
+	ErasureCodeProfile     string  `json:"erasure_code_profile"`
+	FailureDomain          string  `json:"failureDomain"`
+	CrushRoot              string  `json:"crushRoot"`
+	DeviceClass            string  `json:"deviceClass"`
+	NotEnableAppPool       bool    `json:"notEnableAppPool"`
+	TargetSizeRatio        float64 `json:"target_size_ratio,omitempty"`
+	RequireSafeReplicaSize bool    `json:"requireSafeReplicaSize,omitempty"`
 }
 
 type CephStoragePoolStats struct {
@@ -265,9 +267,8 @@ func CreateReplicatedPoolForApp(context *clusterd.Context, clusterName string, n
 	}
 
 	// the pool is type replicated, set the size for the pool now that it's been created
-	sizeProperty := "size"
-	if err = SetPoolProperty(context, clusterName, newPool.Name, sizeProperty, strconv.FormatUint(uint64(newPool.Size), 10)); err != nil {
-		return errors.Wrapf(err, "failed to set property %q to replicated pool %q to %d", sizeProperty, newPool.Name, newPool.Size)
+	if err = SetPoolReplicatedSizeProperty(context, clusterName, newPool.Name, strconv.FormatUint(uint64(newPool.Size), 10), newPool.RequireSafeReplicaSize); err != nil {
+		return errors.Wrapf(err, "failed to set size property to replicated pool %q to %d", newPool.Name, newPool.Size)
 	}
 
 	targetSizeRatioProperty := "target_size_ratio"
@@ -318,12 +319,28 @@ func createReplicationCrushRule(context *clusterd.Context, clusterName string, n
 }
 
 // SetPoolProperty sets a property to a given pool
-func SetPoolProperty(context *clusterd.Context, clusterName, name, propName string, propVal string) error {
+func SetPoolProperty(context *clusterd.Context, clusterName, name, propName, propVal string) error {
 	args := []string{"osd", "pool", "set", name, propName, propVal}
 	_, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
 		return errors.Wrapf(err, "failed to set pool property %s on pool %s", propName, name)
 	}
+	return nil
+}
+
+// SetPoolReplicatedSizeProperty sets the replica size of a pool
+func SetPoolReplicatedSizeProperty(context *clusterd.Context, clusterName, poolName, propVal string, requireSafeReplicaSize bool) error {
+	propName := "size"
+	args := []string{"osd", "pool", "set", poolName, propName, propVal}
+	if propVal == "1" {
+		args = append(args, "--yes-i-really-mean-it")
+	}
+
+	_, err := NewCephCommand(context, clusterName, args).Run()
+	if err != nil {
+		return errors.Wrapf(err, "failed to set pool property %q on pool %q", propName, poolName)
+	}
+
 	return nil
 }
 
