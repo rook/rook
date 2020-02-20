@@ -57,36 +57,14 @@ var (
 
 // GlobalConfig represents the [global] sections of Ceph's config file.
 type GlobalConfig struct {
-	EnableExperimental       string `ini:"enable experimental unrecoverable data corrupting features,omitempty"`
-	FSID                     string `ini:"fsid,omitempty"`
-	MonMembers               string `ini:"mon initial members,omitempty"`
-	MonHost                  string `ini:"mon host"`
-	LogFile                  string `ini:"log file,omitempty"`
-	MonClusterLogFile        string `ini:"mon cluster log file,omitempty"`
-	PublicAddr               string `ini:"public addr,omitempty"`
-	PublicNetwork            string `ini:"public network,omitempty"`
-	ClusterAddr              string `ini:"cluster addr,omitempty"`
-	ClusterNetwork           string `ini:"cluster network,omitempty"`
-	MonKeyValueDb            string `ini:"mon keyvaluedb"`
-	MonAllowPoolDelete       bool   `ini:"mon_allow_pool_delete"`
-	MaxPgsPerOsd             int    `ini:"mon_max_pg_per_osd"`
-	DebugLogDefaultLevel     int    `ini:"debug default"`
-	DebugLogRadosLevel       int    `ini:"debug rados"`
-	DebugLogMonLevel         int    `ini:"debug mon"`
-	DebugLogOSDLevel         int    `ini:"debug osd"`
-	DebugLogBluestoreLevel   int    `ini:"debug bluestore"`
-	DebugLogJournalLevel     int    `ini:"debug journal"`
-	DebugLogLevelDBLevel     int    `ini:"debug leveldb"`
-	OsdPgBits                int    `ini:"osd pg bits,omitempty"`
-	OsdPgpBits               int    `ini:"osd pgp bits,omitempty"`
-	OsdPoolDefaultSize       int    `ini:"osd pool default size,omitempty"`
-	OsdPoolDefaultPgNum      int    `ini:"osd pool default pg num,omitempty"`
-	OsdPoolDefaultPgpNum     int    `ini:"osd pool default pgp num,omitempty"`
-	OsdMaxObjectNameLen      int    `ini:"osd max object name len,omitempty"`
-	OsdMaxObjectNamespaceLen int    `ini:"osd max object namespace len,omitempty"`
-	OsdObjectStore           string `ini:"osd objectstore,omitempty"`
-	RbdDefaultFeatures       int    `ini:"rbd_default_features,omitempty"`
-	FatalSignalHandlers      string `ini:"fatal signal handlers"`
+	FSID               string `ini:"fsid,omitempty"`
+	MonMembers         string `ini:"mon initial members,omitempty"`
+	MonHost            string `ini:"mon host"`
+	PublicAddr         string `ini:"public addr,omitempty"`
+	PublicNetwork      string `ini:"public network,omitempty"`
+	ClusterAddr        string `ini:"cluster addr,omitempty"`
+	ClusterNetwork     string `ini:"cluster network,omitempty"`
+	MonAllowPoolDelete bool   `ini:"mon_allow_pool_delete"`
 }
 
 // CephConfig represents an entire Ceph config including all sections.
@@ -97,11 +75,6 @@ type CephConfig struct {
 // DefaultConfigFilePath returns the full path to Ceph's default config file
 func DefaultConfigFilePath() string {
 	return path.Join(DefaultConfigDir, DefaultConfigFile)
-}
-
-// DefaultKeyringFilePath returns the full path to Ceph's default keyring file
-func DefaultKeyringFilePath() string {
-	return path.Join(DefaultConfigDir, DefaultKeyringFile)
 }
 
 // GetConfFilePath gets the path of a given cluster's config file
@@ -187,34 +160,16 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo) (*
 	// and "mon hosts" global config field
 	monMembers, monHosts := PopulateMonHostMembers(cluster.Monitors)
 
-	cephLogLevel := logLevelToCephLogLevel(context.LogLevel)
-
 	conf := &CephConfig{
 		GlobalConfig: &GlobalConfig{
-			FSID:                   cluster.FSID,
-			MonMembers:             strings.Join(monMembers, " "),
-			MonHost:                strings.Join(monHosts, ","),
-			PublicAddr:             context.NetworkInfo.PublicAddr,
-			PublicNetwork:          context.NetworkInfo.PublicNetwork,
-			ClusterAddr:            context.NetworkInfo.ClusterAddr,
-			ClusterNetwork:         context.NetworkInfo.ClusterNetwork,
-			MonKeyValueDb:          "rocksdb",
-			MonAllowPoolDelete:     true,
-			MaxPgsPerOsd:           1000,
-			DebugLogDefaultLevel:   cephLogLevel,
-			DebugLogRadosLevel:     cephLogLevel,
-			DebugLogMonLevel:       cephLogLevel,
-			DebugLogOSDLevel:       cephLogLevel,
-			DebugLogBluestoreLevel: cephLogLevel,
-			DebugLogJournalLevel:   cephLogLevel,
-			DebugLogLevelDBLevel:   cephLogLevel,
-			OsdPgBits:              11,
-			OsdPgpBits:             11,
-			OsdPoolDefaultSize:     1,
-			OsdPoolDefaultPgNum:    100,
-			OsdPoolDefaultPgpNum:   100,
-			RbdDefaultFeatures:     3,
-			FatalSignalHandlers:    "false",
+			FSID:               cluster.FSID,
+			MonMembers:         strings.Join(monMembers, " "),
+			MonHost:            strings.Join(monHosts, ","),
+			PublicAddr:         context.NetworkInfo.PublicAddr,
+			PublicNetwork:      context.NetworkInfo.PublicNetwork,
+			ClusterAddr:        context.NetworkInfo.ClusterAddr,
+			ClusterNetwork:     context.NetworkInfo.ClusterNetwork,
+			MonAllowPoolDelete: true,
 		},
 	}
 
@@ -260,35 +215,6 @@ func addClientConfigFileSection(configFile *ini.File, clientName, keyringPath st
 	}
 
 	return nil
-}
-
-// convert a Rook log level to a corresponding Ceph log level
-func logLevelToCephLogLevel(logLevel capnslog.LogLevel) int {
-	switch logLevel {
-	case capnslog.CRITICAL:
-	case capnslog.ERROR:
-	case capnslog.WARNING:
-		return -1
-	case capnslog.NOTICE:
-	case capnslog.INFO:
-		return 0
-	case capnslog.DEBUG:
-		return 10
-	case capnslog.TRACE:
-		return 100
-	}
-
-	return 0
-}
-
-func msgrPrefix(currentMonPort int32) string {
-	// Some installation might only be listening on v2, so let's set the prefix accordingly
-	if currentMonPort == Msgr2port {
-		return msgr2Prefix
-	}
-
-	return msgr1Prefix
-
 }
 
 // PopulateMonHostMembers extracts a list of just the monitor names, which will populate the "mon initial members"
