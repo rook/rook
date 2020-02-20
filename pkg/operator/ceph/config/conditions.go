@@ -18,13 +18,14 @@ limitations under the License.
 package config
 
 import (
-	"time"
-
+	"fmt"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"time"
 )
 
 var (
@@ -44,46 +45,48 @@ func ConditionExport(context *clusterd.Context, namespace, name string, conditio
 
 // setCondition updates the conditions of the cluster custom resource
 func setCondition(context *clusterd.Context, namespace, name string, newCondition cephv1.Condition) {
-	cluster, err := context.RookClientset.CephV1().CephClusters(namespace).Get(name, metav1.GetOptions{})
-	if err != nil {
-		logger.Errorf("failed to get cluster %v", err)
-	}
-	if conditions == nil {
-		conditions = &cluster.Status.Conditions
-		if cluster.Status.Conditions != nil {
-			conditionMapping(*conditions)
+	if name != "" {
+		cluster, err := context.RookClientset.CephV1().CephClusters(namespace).Get(name, metav1.GetOptions{})
+		if err != nil {
+			logger.Errorf("failed to get cluster %v", err)
 		}
-	}
-	conditionMap[newCondition.Type] = newCondition.Status
-	existingCondition := findStatusCondition(*conditions, newCondition.Type)
-	if existingCondition == nil {
-		newCondition.LastTransitionTime = metav1.NewTime(time.Now())
-		newCondition.LastHeartbeatTime = metav1.NewTime(time.Now())
-		*conditions = append(*conditions, newCondition)
-
-	} else if existingCondition.Status != newCondition.Status || existingCondition.Message != newCondition.Message {
-		newCondition.LastTransitionTime = metav1.NewTime(time.Now())
-		existingCondition.Status = newCondition.Status
-		existingCondition.Reason = newCondition.Reason
-		existingCondition.Message = newCondition.Message
-		existingCondition.LastHeartbeatTime = metav1.NewTime(time.Now())
-	}
-	cluster.Status.Conditions = *conditions
-
-	if newCondition.Status == v1.ConditionTrue {
-		cluster.Status.Phase = newCondition.Type
-		if state := translatePhasetoState(newCondition.Type); state != "" {
-			cluster.Status.State = state
+		if conditions == nil {
+			conditions = &cluster.Status.Conditions
+			if cluster.Status.Conditions != nil {
+				conditionMapping(*conditions)
+			}
 		}
-		cluster.Status.Message = newCondition.Message
-		logger.Infof("CephCluster %q status: %q. %q", namespace, cluster.Status.Phase, cluster.Status.Message)
-	}
+		conditionMap[newCondition.Type] = newCondition.Status
+		existingCondition := findStatusCondition(*conditions, newCondition.Type)
+		if existingCondition == nil {
+			newCondition.LastTransitionTime = metav1.NewTime(time.Now())
+			newCondition.LastHeartbeatTime = metav1.NewTime(time.Now())
+			*conditions = append(*conditions, newCondition)
 
-	if _, err := context.RookClientset.CephV1().CephClusters(namespace).Update(cluster); err != nil {
-		logger.Errorf("failed to update cluster condition %v", err)
-	}
-	if newCondition.Type == cephv1.ConditionReady {
-		checkConditionFalse(context, namespace, name)
+		} else if existingCondition.Status != newCondition.Status || existingCondition.Message != newCondition.Message {
+			newCondition.LastTransitionTime = metav1.NewTime(time.Now())
+			existingCondition.Status = newCondition.Status
+			existingCondition.Reason = newCondition.Reason
+			existingCondition.Message = newCondition.Message
+			existingCondition.LastHeartbeatTime = metav1.NewTime(time.Now())
+		}
+		cluster.Status.Conditions = *conditions
+
+		if newCondition.Status == v1.ConditionTrue {
+			cluster.Status.Phase = newCondition.Type
+			if state := translatePhasetoState(newCondition.Type); state != "" {
+				cluster.Status.State = state
+			}
+			cluster.Status.Message = newCondition.Message
+			logger.Infof("CephCluster %q status: %q. %q", namespace, cluster.Status.Phase, cluster.Status.Message)
+		}
+
+		if _, err := context.RookClientset.CephV1().CephClusters(namespace).Update(cluster); err != nil {
+			logger.Errorf("failed to update cluster condition %v", err)
+		}
+		if newCondition.Type == cephv1.ConditionReady {
+			checkConditionFalse(context, namespace, name)
+		}
 	}
 }
 
@@ -172,21 +175,25 @@ func conditionMapping(conditions []cephv1.Condition) {
 }
 
 // CheckConditionReady checks whether the cluster is Ready and returns the message for the Progressing ConditionType
-func CheckConditionReady(context *clusterd.Context, namespace, name string) string {
-	cluster, err := context.RookClientset.CephV1().CephClusters(namespace).Get(name, metav1.GetOptions{})
-	if err != nil {
-		logger.Errorf("failed to get cluster %v", err)
-	}
-	if cluster.Status.Conditions != nil && len(conditionMap) == 0 {
-		conditionMapping(cluster.Status.Conditions)
+func CheckConditionReady(context *clusterd.Context, namespace, name, service string) string {
+	if name != "" {
+		cluster, err := context.RookClientset.CephV1().CephClusters(namespace).Get(name, metav1.GetOptions{})
+		if err != nil {
+			logger.Errorf("failed to get cluster %v", err)
+		}
+		if cluster.Status.Conditions != nil && len(conditionMap) == 0 {
+			conditionMapping(cluster.Status.Conditions)
+		}
 	}
 	if conditionMap[cephv1.ConditionReady] == v1.ConditionTrue {
 		return "Cluster is checking if updates are needed"
+	} else if service == "mgr" {
+		return "Cluster starts running mgr"
 	}
-	return "Cluster is creating"
+	return fmt.Sprintf("Cluster is checking %s health", service)
 }
 
-// ErrorMapping iterate through the Condition Map to see if Failure is True or False
+// ErrorMapping iterate through the ConditionMap to see if Failure is True or False
 func ErrorMapping() error {
 	if conditionMap[cephv1.ConditionFailure] == v1.ConditionTrue {
 		return errors.New("failed to initialize the cluster")

@@ -19,11 +19,10 @@ package osd
 
 import (
 	"fmt"
+	"k8s.io/client-go/kubernetes"
 	"sort"
 	"strconv"
 	"strings"
-
-	"k8s.io/client-go/kubernetes"
 
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/coreos/pkg/capnslog"
@@ -187,6 +186,9 @@ func (c *Cluster) Start() error {
 		return errors.Wrap(err, "failed to check pod memory")
 	}
 	logger.Infof("start running osds in namespace %s", c.Namespace)
+	message := opconfig.CheckConditionReady(c.context, c.Namespace, c.clusterInfo.Name, "osd")
+	opconfig.ConditionExport(c.context, c.Namespace, c.clusterInfo.Name,
+		cephv1.ConditionProgressing, v1.ConditionTrue, "ClusterProgressing", message)
 
 	if c.DesiredStorage.UseAllNodes == false && len(c.DesiredStorage.Nodes) == 0 && len(c.DesiredStorage.VolumeSources) == 0 && len(c.DesiredStorage.StorageClassDeviceSets) == 0 {
 		logger.Warningf("useAllNodes is set to false and no nodes, storageClassDevicesets or volumeSources are specified, no OSD pods are going to be created")
@@ -208,7 +210,6 @@ func (c *Cluster) Start() error {
 	// The block below handles the upgrade from Mimic to Nautilus.
 	// This should only run before Octopus
 	c.applyUpgradeOSDFunctionality()
-
 	logger.Infof("completed running osds in namespace %s", c.Namespace)
 	return nil
 }
@@ -442,7 +443,6 @@ func (c *Cluster) startOSDDaemonsOnPVC(pvcName string, config *provisionConfig, 
 		config.addError(fmt.Sprintf("%v", err))
 		return
 	}
-
 	// start osds
 	for _, osd := range osds {
 		logger.Debugf("start osd %v", osd)
@@ -498,7 +498,7 @@ func (c *Cluster) startOSDDaemonsOnPVC(pvcName string, config *provisionConfig, 
 				logger.Errorf("failed to update osd deployment %d. %+v", osd.ID, err)
 			}
 		}
-		logger.Infof("started deployment for osd %d on pvc", osd.ID)
+		logger.Infof("started deployment for osd %d on pvc ", osd.ID)
 	}
 }
 

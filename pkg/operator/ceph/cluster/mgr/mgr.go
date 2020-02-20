@@ -151,6 +151,10 @@ func (c *Cluster) Start() error {
 	}
 
 	logger.Infof("start running mgr")
+	message := config.CheckConditionReady(c.context, c.Namespace, c.clusterInfo.Name, "mgr")
+	config.ConditionExport(c.context, c.Namespace, c.clusterInfo.Name,
+		cephv1.ConditionProgressing, v1.ConditionTrue, "ClusterProgressing", message)
+
 	daemonIDs := c.getDaemonIDs()
 	for _, daemonID := range daemonIDs {
 		resourceName := fmt.Sprintf("%s-%s", AppName, daemonID)

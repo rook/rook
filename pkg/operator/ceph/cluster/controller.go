@@ -397,7 +397,7 @@ func (c *ClusterController) configureLocalCephCluster(namespace, name string, cl
 				}
 				return false, nil
 			}
-			message := config.CheckConditionReady(c.context, namespace, name)
+			message := config.CheckConditionReady(c.context, namespace, name, "mon")
 			config.ConditionExport(c.context, namespace, name,
 				cephv1.ConditionProgressing, v1.ConditionTrue, "ClusterProgressing", message)
 
