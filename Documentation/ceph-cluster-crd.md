@@ -469,7 +469,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v14.2.6
+    image: ceph/ceph:v14.2.7
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
