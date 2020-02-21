@@ -43,6 +43,8 @@ const (
 	mimicTestImage = "ceph/ceph:v13"
 	// test with the latest nautilus build
 	nautilusTestImage = "ceph/ceph:v14"
+	// test with the latest octopus build
+	octopusTestImage  = "ceph/ceph:v15"
 	helmChartName     = "local/rook-ceph"
 	helmDeployName    = "rook-ceph"
 	cephOperatorLabel = "app=rook-ceph-operator"
@@ -51,6 +53,7 @@ const (
 var (
 	MimicVersion       = cephv1.CephVersionSpec{Image: mimicTestImage}
 	NautilusVersion    = cephv1.CephVersionSpec{Image: nautilusTestImage}
+	OctopusVersion     = cephv1.CephVersionSpec{Image: octopusTestImage}
 	globalTestJobIndex = 0
 )
 
@@ -162,6 +165,22 @@ func (h *CephInstaller) CreateRookCluster(namespace, systemNamespace, storeType 
 	_, err = h.k8shelper.Clientset.CoreV1().Namespaces().Create(ns)
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return fmt.Errorf("failed to create namespace %s. %+v", namespace, err)
+	}
+
+	logger.Infof("Creating custom ceph.conf settings")
+	customSettings := map[string]string{
+		"config": `
+[global]
+osd_pool_default_size = 1
+`}
+	customCM := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "rook-config-override",
+		},
+		Data: customSettings,
+	}
+	if _, err := h.k8shelper.Clientset.CoreV1().ConfigMaps(namespace).Create(customCM); err != nil {
+		return fmt.Errorf("failed to create custom ceph.conf. %+v", err)
 	}
 
 	// Skip this step since the helm chart already includes the roles and bindings
