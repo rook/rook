@@ -146,24 +146,17 @@ func (c *CephNFSController) makeDeployment(nfs cephv1.CephNFS, cfg daemonConfig)
 func (c *CephNFSController) connectionConfigInitContainer(nfs cephv1.CephNFS) v1.Container {
 	_, cephConfigMount := cephConfigVolumeAndMount()
 
-	return v1.Container{
-		Name: opspec.ConfigInitContainerName,
-		// command is already 'rook'
-		Args: []string{
-			"ceph", "config-init",
-			"--username", "client.admin",
-			"--keyring", keyring.VolumeMount().AdminKeyringFilePath(),
-		},
-		Image: c.rookImage,
-		VolumeMounts: []v1.VolumeMount{
+	return opspec.GenerateMinimalCephConfInitContainer(
+		"client.admin",
+		keyring.VolumeMount().AdminKeyringFilePath(),
+		c.clusterSpec.CephVersion.Image,
+		[]v1.VolumeMount{
 			cephConfigMount,
 			keyring.VolumeMount().Admin(),
 		},
-		Env: append(
-			opspec.DaemonEnvVars(c.clusterSpec.CephVersion.Image),
-		),
-		Resources: nfs.Spec.Server.Resources,
-	}
+		nfs.Spec.Server.Resources,
+		mon.PodSecurityContext(),
+	)
 }
 
 func (c *CephNFSController) daemonContainer(nfs cephv1.CephNFS, cfg daemonConfig) v1.Container {
