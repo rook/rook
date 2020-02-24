@@ -26,12 +26,15 @@ import (
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/rook/rook/pkg/clusterd"
 	rookversion "github.com/rook/rook/pkg/version"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-k8sutil")
@@ -167,4 +170,20 @@ func validateLabelValue(value string) string {
 		sanitized = sanitized[:maxlen]
 	}
 	return sanitized
+}
+
+// StartOperatorSettingsWatch starts the watch for Operator Settings ConfigMap
+func StartOperatorSettingsWatch(context *clusterd.Context, operatorNamespace, operatorSettingConfigMapName string,
+	addFunc func(obj interface{}), updateFunc func(oldObj, newObj interface{}), deleteFunc func(obj interface{}), stopCh chan struct{}) {
+	_, cacheController := cache.NewInformer(cache.NewFilteredListWatchFromClient(context.Clientset.CoreV1().RESTClient(),
+		"configmaps", operatorNamespace, func(options *metav1.ListOptions) {
+			options.FieldSelector = fmt.Sprintf("%s=%s", "metadata.name", operatorSettingConfigMapName)
+		}), &v1.ConfigMap{},
+		0,
+		cache.ResourceEventHandlerFuncs{
+			AddFunc:    addFunc,
+			UpdateFunc: updateFunc,
+			DeleteFunc: deleteFunc,
+		})
+	go cacheController.Run(stopCh)
 }

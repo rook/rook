@@ -60,21 +60,22 @@ func TestDeleteConfigMap(t *testing.T) {
 func TestGetOperatorSetting(t *testing.T) {
 	k8s := fake.NewSimpleClientset()
 
-	operatorSettingConfigMapName := "rook-ceph-operator-config"
+	operatorSettingConfigMapName := "rook-operator-config"
+	testNamespace := "test-namespace"
 	cm := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      operatorSettingConfigMapName,
-			Namespace: "test-namespace",
+			Namespace: testNamespace,
 		},
 		Data: map[string]string{
-			"NODE_AFFINITY": "storage=rook, ceph",
+			"NODE_AFFINITY": "storage=rook, worker",
 		},
 	}
 
 	nodeAffinity := "NODE_AFFINITY"
 	podAffinity := "POD_AFFINITY"
 	envSettingValue := "role=storage-node"
-	cmSettingValue := "storage=rook, ceph"
+	cmSettingValue := "storage=rook, worker"
 	defaultValue := ""
 
 	// ConfigMap is not found
@@ -91,7 +92,7 @@ func TestGetOperatorSetting(t *testing.T) {
 	assert.Equal(t, envSettingValue, setting)
 
 	// ConfigMap is found
-	_, err = k8s.CoreV1().ConfigMaps("test-namespace").Create(cm)
+	_, err = k8s.CoreV1().ConfigMaps(testNamespace).Create(cm)
 	assert.NoError(t, err)
 
 	// Setting exists in ConfigMap

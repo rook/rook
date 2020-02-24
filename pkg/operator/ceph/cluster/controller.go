@@ -25,8 +25,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rook/rook/pkg/operator/ceph/csi"
-
 	"github.com/coreos/pkg/capnslog"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -40,6 +38,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/operator/ceph/csi"
 	"github.com/rook/rook/pkg/operator/ceph/file"
 	"github.com/rook/rook/pkg/operator/ceph/nfs"
 	"github.com/rook/rook/pkg/operator/ceph/object"
@@ -97,25 +96,27 @@ var ClusterResource = k8sutil.CustomResource{
 
 // ClusterController controls an instance of a Rook cluster
 type ClusterController struct {
-	context             *clusterd.Context
-	volumeAttachment    attachment.Attachment
-	rookImage           string
-	clusterMap          map[string]*cluster
-	addClusterCallbacks []func(*cephv1.ClusterSpec) error
-	csiConfigMutex      *sync.Mutex
-	nodeStore           cache.Store
-	osdChecker          *osd.Monitor
+	context                 *clusterd.Context
+	volumeAttachment        attachment.Attachment
+	rookImage               string
+	clusterMap              map[string]*cluster
+	operatorConfigCallbacks []func() error
+	addClusterCallbacks     []func() error
+	csiConfigMutex          *sync.Mutex
+	nodeStore               cache.Store
+	osdChecker              *osd.Monitor
 }
 
 // NewClusterController create controller for watching cluster custom resources created
-func NewClusterController(context *clusterd.Context, rookImage string, volumeAttachment attachment.Attachment, addClusterCallbacks []func(*cephv1.ClusterSpec) error) *ClusterController {
+func NewClusterController(context *clusterd.Context, rookImage string, volumeAttachment attachment.Attachment, operatorConfigCallbacks []func() error, addClusterCallbacks []func() error) *ClusterController {
 	return &ClusterController{
-		context:             context,
-		volumeAttachment:    volumeAttachment,
-		rookImage:           rookImage,
-		clusterMap:          make(map[string]*cluster),
-		addClusterCallbacks: addClusterCallbacks,
-		csiConfigMutex:      &sync.Mutex{},
+		context:                 context,
+		volumeAttachment:        volumeAttachment,
+		rookImage:               rookImage,
+		clusterMap:              make(map[string]*cluster),
+		operatorConfigCallbacks: operatorConfigCallbacks,
+		addClusterCallbacks:     addClusterCallbacks,
+		csiConfigMutex:          &sync.Mutex{},
 	}
 }
 
@@ -149,10 +150,10 @@ func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) {
 
 	go nodeController.Run(stopCh)
 
+	operatorNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
 	if disableVal := os.Getenv(disableHotplugEnv); disableVal != "true" {
 		// watch for updates to the device discovery configmap
 		logger.Infof("Enabling hotplug orchestration: %s=%s", disableHotplugEnv, disableVal)
-		operatorNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
 		_, deviceCMController := cache.NewInformer(
 			cache.NewFilteredListWatchFromClient(c.context.Clientset.CoreV1().RESTClient(),
 				"configmaps", operatorNamespace, func(options *metav1.ListOptions) {
@@ -172,6 +173,17 @@ func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) {
 	} else {
 		logger.Infof("Disabling hotplug orchestration via %s", disableHotplugEnv)
 	}
+
+	// watch for "rook-ceph-operator-config" ConfigMap
+	k8sutil.StartOperatorSettingsWatch(c.context, operatorNamespace, controller.OperatorSettingConfigMapName,
+		c.operatorConfigChange,
+		func(oldObj, newObj interface{}) {
+			if reflect.DeepEqual(oldObj, newObj) {
+				return
+			}
+			c.operatorConfigChange(newObj)
+			return
+		}, nil, stopCh)
 }
 
 func (c *ClusterController) StopWatch() {
@@ -188,6 +200,22 @@ func (c *ClusterController) GetClusterCount() int {
 // ************************************************************************************************
 // Add event functions
 // ************************************************************************************************
+func (c *ClusterController) operatorConfigChange(obj interface{}) {
+	cm, ok := obj.(*v1.ConfigMap)
+	if !ok {
+		logger.Warningf("Expected ConfigMap but handler received %T. %#v", obj, obj)
+		return
+	}
+
+	logger.Infof("ConfigMap %q changes detected. Updating configurations", cm.Name)
+	for _, callback := range c.operatorConfigCallbacks {
+		if err := callback(); err != nil {
+			logger.Errorf("%v", err)
+		}
+	}
+	return
+}
+
 func (c *ClusterController) onK8sNodeAdd(obj interface{}) {
 	newNode, ok := obj.(*v1.Node)
 	if !ok {
@@ -251,7 +279,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	logger.Infof("starting cluster in namespace %s", cluster.Namespace)
 
 	for _, callback := range c.addClusterCallbacks {
-		if err := callback(cluster.Spec); err != nil {
+		if err := callback(); err != nil {
 			logger.Errorf("%v", err)
 		}
 	}

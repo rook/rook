@@ -80,14 +80,20 @@ func TestClusterDeleteFlexEnabled(t *testing.T) {
 
 		},
 	}
-	addCallbacks := []func(clusterSpec *cephv1.ClusterSpec) error{
-		func(clusterSpec *cephv1.ClusterSpec) error {
+	operatorConfigCallbacks := []func() error{
+		func() error {
+			logger.Infof("test success callback")
+			return nil
+		},
+	}
+	addCallbacks := []func() error{
+		func() error {
 			logger.Infof("test success callback")
 			return nil
 		},
 	}
 	// create the cluster controller and tell it that the cluster has been deleted
-	controller := NewClusterController(context, "", volumeAttachmentController, addCallbacks)
+	controller := NewClusterController(context, "", volumeAttachmentController, operatorConfigCallbacks, addCallbacks)
 	clusterToDelete := &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: clusterName}}
 	controller.handleDelete(clusterToDelete, time.Microsecond)
 
@@ -117,8 +123,14 @@ func TestClusterDeleteFlexDisabled(t *testing.T) {
 
 		},
 	}
-	addCallbacks := []func(clusterSpec *cephv1.ClusterSpec) error{
-		func(clusterSpec *cephv1.ClusterSpec) error {
+	operatorConfigCallbacks := []func() error{
+		func() error {
+			logger.Infof("test success callback")
+			return nil
+		},
+	}
+	addCallbacks := []func() error{
+		func() error {
 			logger.Infof("test success callback")
 			os.Setenv("ROOK_ENABLE_FLEX_DRIVER", "true")
 			os.Setenv(k8sutil.PodNamespaceEnvVar, rookSystemNamespace)
@@ -127,7 +139,7 @@ func TestClusterDeleteFlexDisabled(t *testing.T) {
 		},
 	}
 	// create the cluster controller and tell it that the cluster has been deleted
-	controller := NewClusterController(context, "", volumeAttachmentController, addCallbacks)
+	controller := NewClusterController(context, "", volumeAttachmentController, operatorConfigCallbacks, addCallbacks)
 	clusterToDelete := &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: clusterName}}
 	controller.handleDelete(clusterToDelete, time.Microsecond)
 
@@ -198,13 +210,20 @@ func TestRemoveFinalizer(t *testing.T) {
 		Clientset:     clientset,
 		RookClientset: rookfake.NewSimpleClientset(),
 	}
-	addCallbacks := []func(clusterSpec *cephv1.ClusterSpec) error{
-		func(clusterSpec *cephv1.ClusterSpec) error {
+	operatorConfigCallbacks := []func() error{
+		func() error {
+			logger.Infof("test success callback")
+			return nil
+		},
+	}
+	addCallbacks := []func() error{
+		func() error {
 			logger.Infof("test success callback")
 			return errors.New("test failed callback")
 		},
 	}
-	controller := NewClusterController(context, "", &attachment.MockAttachment{}, addCallbacks)
+
+	controller := NewClusterController(context, "", &attachment.MockAttachment{}, operatorConfigCallbacks, addCallbacks)
 
 	// *****************************************
 	// start with a current version ceph cluster
