@@ -141,11 +141,6 @@ func verifyConfig(t *testing.T, cephConfig *CephConfig, cluster *ClusterInfo, lo
 
 		assert.True(t, contained, "expectedMons: %+v, actualMons: %+v", expectedMons, cephConfig.MonHost)
 	}
-
-	assert.Equal(t, loggingLevel, cephConfig.DebugLogDefaultLevel)
-	assert.Equal(t, loggingLevel, cephConfig.DebugLogMonLevel)
-	assert.Equal(t, loggingLevel, cephConfig.DebugLogRadosLevel)
-	assert.Equal(t, loggingLevel, cephConfig.DebugLogBluestoreLevel)
 }
 
 func verifyConfigValue(t *testing.T, actualConf *ini.File, section, key, expectedVal string) {
@@ -161,15 +156,4 @@ func verifyConfigValue(t *testing.T, actualConf *ini.File, section, key, expecte
 
 	actualVal := k.Value()
 	assert.Equal(t, expectedVal, actualVal)
-}
-
-func TestOperatorEndpoint(t *testing.T) {
-	var fakeCurrentMonPort int32
-	fakeCurrentMonPort = 3300
-	prefix := msgrPrefix(fakeCurrentMonPort)
-	assert.Equal(t, "v2:", prefix)
-
-	fakeCurrentMonPort = 6789
-	prefix = msgrPrefix(fakeCurrentMonPort)
-	assert.Equal(t, "v1:", prefix)
 }
