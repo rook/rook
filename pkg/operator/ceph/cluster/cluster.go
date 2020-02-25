@@ -180,6 +180,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 		rookImage,
 		spec.CephVersion,
 		spec.Storage,
+		spec.DriveGroups,
 		spec.DataDirHostPath,
 		cephv1.GetOSDPlacement(spec.Placement),
 		cephv1.GetOSDAnnotations(spec.Annotations),

@@ -17,6 +17,7 @@ limitations under the License.
 package ceph
 
 import (
+	"encoding/json"
 	"os"
 	"strconv"
 	"strings"
@@ -67,6 +68,7 @@ var (
 	pvcBackedOSD            bool
 	blockPath               string
 	lvBackedPV              bool
+	driveGroups             string
 )
 
 func addOSDFlags(command *cobra.Command) {
@@ -74,6 +76,7 @@ func addOSDFlags(command *cobra.Command) {
 	addOSDConfigFlags(provisionCmd)
 
 	// flags specific to provisioning
+	provisionCmd.Flags().StringVar(&driveGroups, "drive-groups", "", "JSON marshalled specification of Ceph Drive Groups")
 	provisionCmd.Flags().StringVar(&cfg.devices, "data-devices", "", "comma separated list of devices to use for storage")
 	provisionCmd.Flags().StringVar(&osdDataDeviceFilter, "data-device-filter", "", "a regex filter for the device names to use, or \"all\"")
 	provisionCmd.Flags().StringVar(&osdDataDevicePathFilter, "data-device-path-filter", "", "a regex filter for the device path names to use")
@@ -175,6 +178,14 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	var dgs osdcfg.DriveGroupBlobs
+	if driveGroups != "" {
+		err := json.Unmarshal([]byte(driveGroups), &dgs)
+		if err != nil {
+			return errors.Wrap(err, "failed to unmarshal Ceph Drive Groups spec")
+		}
+	}
+
 	var dataDevices []osddaemon.DesiredDevice
 	if osdDataDeviceFilter != "" {
 		if cfg.devices != "" || osdDataDevicePathFilter != "" {
@@ -211,7 +222,7 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 	forceFormat := false
 	ownerRef := opcontroller.ClusterOwnerRef(clusterInfo.Name, ownerRefID)
 	kv := k8sutil.NewConfigMapKVStore(clusterInfo.Name, context.Clientset, ownerRef)
-	agent := osddaemon.NewAgent(context, dataDevices, cfg.metadataDevice, forceFormat,
+	agent := osddaemon.NewAgent(context, dgs, dataDevices, cfg.metadataDevice, forceFormat,
 		cfg.storeConfig, &clusterInfo, cfg.nodeName, kv, cfg.pvcBacked)
 
 	err = osddaemon.Provision(context, agent, crushLocation)
