@@ -396,6 +396,8 @@ spec:
                   maximum: 9
                 targetSizeRatio:
                   type: number
+                requireSafeReplicaSize:
+                  type: boolean
             erasureCoded:
               properties:
                 dataChunks:

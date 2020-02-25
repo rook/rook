@@ -278,6 +278,11 @@ func ValidatePoolSpec(context *clusterd.Context, namespace string, p *cephv1.Poo
 		}
 	}
 
+	// validate pool replica size
+	if p.Replicated.Size == 1 && p.Replicated.RequireSafeReplicaSize {
+		return errors.Errorf("error pool size is %d and requireSafeReplicaSize is %t, must be false", p.Replicated.Size, p.Replicated.RequireSafeReplicaSize)
+	}
+
 	return nil
 }
 
