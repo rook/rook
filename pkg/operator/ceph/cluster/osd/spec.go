@@ -49,6 +49,7 @@ const (
 	blockPathVarName                            = "ROOK_BLOCK_PATH"
 	cvModeVarName                               = "ROOK_CV_MODE"
 	lvBackedPVVarName                           = "ROOK_LV_BACKED_PV"
+	CrushDeviceClassVarName                     = "ROOK_OSD_CRUSH_DEVICE_CLASS"
 	rookBinariesMountPath                       = "/rook"
 	rookBinariesVolumeName                      = "rook-binaries"
 	activateOSDVolumeName                       = "activate-osd"
@@ -917,6 +918,7 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 		}
 		envVars = append(envVars, dataDevicesEnvVar(strings.Join(dev, ",")))
 		envVars = append(envVars, pvcBackedOSDEnvVar("true"))
+		envVars = append(envVars, crushDeviceClassEnvVar(osdProps.crushDeviceClass))
 	}
 
 	// elevate to be privileged if it is going to mount devices or if running in a restricted environment such as openshift
@@ -1049,6 +1051,10 @@ func cvModeEnvVariable(cvMode string) v1.EnvVar {
 
 func lvBackedPVEnvVar(lvBackedPV string) v1.EnvVar {
 	return v1.EnvVar{Name: lvBackedPVVarName, Value: lvBackedPV}
+}
+
+func crushDeviceClassEnvVar(crushDeviceClass string) v1.EnvVar {
+	return v1.EnvVar{Name: CrushDeviceClassVarName, Value: crushDeviceClass}
 }
 
 func osdOnSDNFlag(network cephv1.NetworkSpec) []string {
