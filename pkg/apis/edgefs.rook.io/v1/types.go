@@ -16,7 +16,7 @@ limitations under the License.
 package v1
 
 import (
-	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -53,13 +53,13 @@ type ClusterList struct {
 }
 
 type ClusterSpec struct {
-	Storage rook.StorageScopeSpec `json:"storage,omitempty"`
+	Storage rookv1.StorageScopeSpec `json:"storage,omitempty"`
 	// The annotations-related configuration to add/set on each Pod related object.
-	Annotations rook.AnnotationsSpec `json:"annotations,omitempty"`
+	Annotations rookv1.AnnotationsSpec `json:"annotations,omitempty"`
 	// The placement-related configuration to pass to kubernetes (affinity, node selector, tolerations).
-	Placement rook.PlacementSpec `json:"placement,omitempty"`
-	Network   rook.NetworkSpec   `json:"network,omitempty"`
-	Dashboard DashboardSpec      `json:"dashboard,omitempty"`
+	Placement rookv1.PlacementSpec `json:"placement,omitempty"`
+	Network   rookv1.NetworkSpec   `json:"network,omitempty"`
+	Dashboard DashboardSpec        `json:"dashboard,omitempty"`
 	// Resources set resource requests and limits
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`
 	// The path on the host where config and data can be persisted.
@@ -117,9 +117,9 @@ type NFSList struct {
 // NFSSpec represent the spec of a pool
 type NFSSpec struct {
 	// The annotations-related configuration to add/set on each Pod related object.
-	Annotations rook.Annotations `json:"annotations,omitempty"`
+	Annotations rookv1.Annotations `json:"annotations,omitempty"`
 	// The affinity to place the NFS pods (default is to place on any available nodes in EdgeFS running namespace)
-	Placement rook.Placement `json:"placement"`
+	Placement rookv1.Placement `json:"placement"`
 	// Resources set resource requests and limits
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`
 	// The number of pods in the NFS replicaset
@@ -150,9 +150,9 @@ type S3List struct {
 // S3Spec represent the spec of a s3 service
 type S3Spec struct {
 	// The annotations-related configuration to add/set on each Pod related object.
-	Annotations rook.Annotations `json:"annotations,omitempty"`
+	Annotations rookv1.Annotations `json:"annotations,omitempty"`
 	// The affinity to place the S3 pods (default is to place on any available nodes in EdgeFS running namespace)
-	Placement rook.Placement `json:"placement"`
+	Placement rookv1.Placement `json:"placement"`
 	// Resources set resource requests and limits
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`
 	// The number of pods in the S3 replicaset
@@ -196,7 +196,7 @@ type SWIFTList struct {
 // SWIFTSpec represent the spec of a swift service
 type SWIFTSpec struct {
 	// The affinity to place the SWIFT pods (default is to place on any available nodes in EdgeFS running namespace)
-	Placement rook.Placement `json:"placement"`
+	Placement rookv1.Placement `json:"placement"`
 	// Resources set resource requests and limits
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`
 	// The number of pods in the S3 replicaset
@@ -238,9 +238,9 @@ type S3XList struct {
 // S3XSpec represent the spec of a s3 service
 type S3XSpec struct {
 	// The annotations-related configuration to add/set on each Pod related object.
-	Annotations rook.Annotations `json:"annotations,omitempty"`
+	Annotations rookv1.Annotations `json:"annotations,omitempty"`
 	// The affinity to place the S3X pods (default is to place on any available nodes in EdgeFS running namespace)
-	Placement rook.Placement `json:"placement"`
+	Placement rookv1.Placement `json:"placement"`
 	// Resources set resource requests and limits
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`
 	// The number of pods in the S3X replicaset
@@ -282,9 +282,9 @@ type ISCSIList struct {
 // ISCSISpec represent the spec of a iscsi service
 type ISCSISpec struct {
 	// The annotations-related configuration to add/set on each Pod related object.
-	Annotations rook.Annotations `json:"annotations,omitempty"`
+	Annotations rookv1.Annotations `json:"annotations,omitempty"`
 	// The affinity to place the ISCSI pods (default is to place on any available nodes in EdgeFS running namespace)
-	Placement rook.Placement `json:"placement"`
+	Placement rookv1.Placement `json:"placement"`
 	// Resources set resource requests and limits
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`
 	// The number of pods in the ISCSI replicaset
@@ -332,9 +332,9 @@ type ISGWConfig struct {
 // ISGWSpec represent the spec of a isgw service
 type ISGWSpec struct {
 	// The annotations-related configuration to add/set on each Pod related object.
-	Annotations rook.Annotations `json:"annotations,omitempty"`
+	Annotations rookv1.Annotations `json:"annotations,omitempty"`
 	// The affinity to place the ISGW pods (default is to place on any available nodes in EdgeFS running namespace)
-	Placement rook.Placement `json:"placement"`
+	Placement rookv1.Placement `json:"placement"`
 	// Resources set resource requests and limits
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`
 	// The number of pods in the ISGW replicaset

@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Rook Authors. All rights reserved.
+Copyright 2019 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -13,8 +13,15 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package nfsrookio
 
-const (
-	CustomResourceGroupName = "nfs.rook.io"
-)
+package v1
+
+// IsHost get whether to use host network provider
+func (net *NetworkSpec) IsHost() bool {
+	return net.Provider == "host"
+}
+
+// IsMultus get whether to use multus network provider
+func (net *NetworkSpec) IsMultus() bool {
+	return net.Provider == "multus"
+}

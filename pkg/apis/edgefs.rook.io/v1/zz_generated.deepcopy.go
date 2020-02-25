@@ -21,7 +21,7 @@ limitations under the License.
 package v1
 
 import (
-	v1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rookiov1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -258,14 +258,14 @@ func (in *ClusterSpec) DeepCopyInto(out *ClusterSpec) {
 	in.Storage.DeepCopyInto(&out.Storage)
 	if in.Annotations != nil {
 		in, out := &in.Annotations, &out.Annotations
-		*out = make(v1alpha2.AnnotationsSpec, len(*in))
+		*out = make(rookiov1.AnnotationsSpec, len(*in))
 		for key, val := range *in {
 			var outVal map[string]string
 			if val == nil {
 				(*out)[key] = nil
 			} else {
 				in, out := &val, &outVal
-				*out = make(v1alpha2.Annotations, len(*in))
+				*out = make(rookiov1.Annotations, len(*in))
 				for key, val := range *in {
 					(*out)[key] = val
 				}
@@ -275,7 +275,7 @@ func (in *ClusterSpec) DeepCopyInto(out *ClusterSpec) {
 	}
 	if in.Placement != nil {
 		in, out := &in.Placement, &out.Placement
-		*out = make(v1alpha2.PlacementSpec, len(*in))
+		*out = make(rookiov1.PlacementSpec, len(*in))
 		for key, val := range *in {
 			(*out)[key] = *val.DeepCopy()
 		}
@@ -438,7 +438,7 @@ func (in *ISCSISpec) DeepCopyInto(out *ISCSISpec) {
 	*out = *in
 	if in.Annotations != nil {
 		in, out := &in.Annotations, &out.Annotations
-		*out = make(v1alpha2.Annotations, len(*in))
+		*out = make(rookiov1.Annotations, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val
 		}
@@ -546,7 +546,7 @@ func (in *ISGWSpec) DeepCopyInto(out *ISGWSpec) {
 	*out = *in
 	if in.Annotations != nil {
 		in, out := &in.Annotations, &out.Annotations
-		*out = make(v1alpha2.Annotations, len(*in))
+		*out = make(rookiov1.Annotations, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val
 		}
@@ -633,7 +633,7 @@ func (in *NFSSpec) DeepCopyInto(out *NFSSpec) {
 	*out = *in
 	if in.Annotations != nil {
 		in, out := &in.Annotations, &out.Annotations
-		*out = make(v1alpha2.Annotations, len(*in))
+		*out = make(rookiov1.Annotations, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val
 		}
@@ -830,7 +830,7 @@ func (in *S3Spec) DeepCopyInto(out *S3Spec) {
 	*out = *in
 	if in.Annotations != nil {
 		in, out := &in.Annotations, &out.Annotations
-		*out = make(v1alpha2.Annotations, len(*in))
+		*out = make(rookiov1.Annotations, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val
 		}
@@ -916,7 +916,7 @@ func (in *S3XSpec) DeepCopyInto(out *S3XSpec) {
 	*out = *in
 	if in.Annotations != nil {
 		in, out := &in.Annotations, &out.Annotations
-		*out = make(v1alpha2.Annotations, len(*in))
+		*out = make(rookiov1.Annotations, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val
 		}

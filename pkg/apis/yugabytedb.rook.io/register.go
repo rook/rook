@@ -16,5 +16,5 @@ limitations under the License.
 package yugabytedbrookio
 
 const (
-	GroupName = "yugabytedb.rook.io"
+	CustomResourceGroupName = "yugabytedb.rook.io"
 )

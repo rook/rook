@@ -29,7 +29,7 @@ const (
 )
 
 // SchemeGroupVersion is group version used to register these objects
-var SchemeGroupVersion = schema.GroupVersion{Group: nfsrookio.GroupName, Version: Version}
+var SchemeGroupVersion = schema.GroupVersion{Group: nfsrookio.CustomResourceGroupName, Version: Version}
 
 // Resource takes an unqualified resource and returns a Group qualified GroupResource
 func Resource(resource string) schema.GroupResource {

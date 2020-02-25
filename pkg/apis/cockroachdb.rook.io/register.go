@@ -1,5 +1,5 @@
 package cockroachdbrookio
 
 const (
-	GroupName = "cockroachdb.rook.io"
+	CustomResourceGroupName = "cockroachdb.rook.io"
 )

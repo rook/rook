@@ -16,10 +16,11 @@ limitations under the License.
 package v1
 
 import (
-	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
-	"k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"strconv"
+
+	rook "github.com/rook/rook/pkg/apis/rook.io/v1"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 const (
