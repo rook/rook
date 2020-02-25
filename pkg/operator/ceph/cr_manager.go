@@ -36,19 +36,19 @@ func (o *Operator) startManager(namespaceToWatch string, stopCh <-chan struct{})
 	logger.Info("setting up the controller-runtime manager")
 	kubeConfig, err := config.GetConfig()
 	if err != nil {
-		logger.Errorf("unable to get client config for controller-runtime manager. %v", err)
+		logger.Errorf("failed to get client config for controller-runtime manager. %v", err)
 		return
 	}
 	mgr, err := manager.New(kubeConfig, mgrOpts)
 	if err != nil {
-		logger.Errorf("unable to set up overall controller-runtime manager. %v", err)
+		logger.Errorf("failed to set up overall controller-runtime manager. %v", err)
 		return
 	}
 
 	// Add the registered controllers to the manager (entrypoint for controllers)
-	err = cluster.AddToManager(mgr)
+	err = cluster.AddToManager(mgr, o.context)
 	if err != nil {
-		logger.Errorf("cannot add controllers to controller-runtime manager. %v", err)
+		logger.Errorf("failed to add controllers to controller-runtime manager. %v", err)
 	}
 	// options to pass to the controllers
 	controllerOpts := &controllerconfig.Context{
@@ -60,7 +60,7 @@ func (o *Operator) startManager(namespaceToWatch string, stopCh <-chan struct{})
 	// Add the registered controllers to the manager (entrypoint for controllers)
 	err = controllers.AddToManager(mgr, controllerOpts)
 	if err != nil {
-		logger.Errorf("cannot add controllers to controller-runtime manager. %v", err)
+		logger.Errorf("failed to add controllers to controller-runtime manager. %v", err)
 	}
 
 	logger.Info("starting the controller-runtime manager")

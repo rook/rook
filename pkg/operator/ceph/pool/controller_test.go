@@ -21,10 +21,18 @@ import (
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
+	"github.com/rook/rook/pkg/operator/k8sutil"
+
 	"github.com/rook/rook/pkg/clusterd"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes/scheme"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 func TestValidatePool(t *testing.T) {
@@ -131,39 +139,13 @@ func TestCreatePool(t *testing.T) {
 	p.Spec.Replicated.Size = 1
 	p.Spec.Replicated.RequireSafeReplicaSize = false
 
-	exists, err := poolExists(context, p)
-	assert.False(t, exists)
-	err = createPool(context, p)
+	err := createPool(context, p)
 	assert.Nil(t, err)
-
-	p.Spec.Replicated.RequireSafeReplicaSize = true
-	err = createPool(context, p)
-	assert.Error(t, err)
-
-	// fail if both replication and EC are specified
-	p.Spec.ErasureCoded.CodingChunks = 2
-	p.Spec.ErasureCoded.DataChunks = 2
-	err = createPool(context, p)
-	assert.NotNil(t, err)
 
 	// succeed with EC
 	p.Spec.Replicated.Size = 0
 	err = createPool(context, p)
 	assert.Nil(t, err)
-}
-
-func TestUpdatePool(t *testing.T) {
-	// the pool did not change for properties that are updatable
-	old := cephv1.PoolSpec{FailureDomain: "osd", ErasureCoded: cephv1.ErasureCodedSpec{CodingChunks: 2, DataChunks: 2}}
-	new := cephv1.PoolSpec{FailureDomain: "host", ErasureCoded: cephv1.ErasureCodedSpec{CodingChunks: 3, DataChunks: 3}}
-	changed := poolChanged(old, new)
-	assert.False(t, changed)
-
-	// the pool changed for properties that are updatable
-	old = cephv1.PoolSpec{FailureDomain: "osd", Replicated: cephv1.ReplicatedSpec{Size: 1}}
-	new = cephv1.PoolSpec{FailureDomain: "osd", Replicated: cephv1.ReplicatedSpec{Size: 2}}
-	changed = poolChanged(old, new)
-	assert.True(t, changed)
 }
 
 func TestDeletePool(t *testing.T) {
@@ -202,38 +184,143 @@ func TestDeletePool(t *testing.T) {
 
 	// delete a pool that exists
 	p := &cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
-	exists, err := poolExists(context, p)
-	assert.Nil(t, err)
-	assert.True(t, exists)
-	err = deletePool(context, p)
+	err := deletePool(context, p)
 	assert.Nil(t, err)
 
 	// succeed even if the pool doesn't exist
 	p = &cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "otherpool", Namespace: "myns"}}
-	exists, err = poolExists(context, p)
-	assert.Nil(t, err)
-	assert.False(t, exists)
 	err = deletePool(context, p)
 	assert.Nil(t, err)
 
 	// fail if images/snapshosts exist in the pool
 	failOnDelete = true
 	p = &cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
-	exists, err = poolExists(context, p)
-	assert.Nil(t, err)
-	assert.True(t, exists)
 	err = deletePool(context, p)
 	assert.NotNil(t, err)
 }
 
-func TestGetPoolObject(t *testing.T) {
-	// get a current version pool object, should return with no error and no migration needed
-	pool, err := getPoolObject(&cephv1.CephBlockPool{})
-	assert.NotNil(t, pool)
-	assert.Nil(t, err)
+// TestCephBlockPoolController runs ReconcileCephBlockPool.Reconcile() against a
+// fake client that tracks a CephBlockPool object.
+func TestCephBlockPoolController(t *testing.T) {
+	//
+	// TEST 1 SETUP
+	//
+	// FAILURE because no CephCluster
+	//
+	var (
+		name           = "my-pool"
+		namespace      = "rook-ceph"
+		replicas  uint = 3
+	)
 
-	// try to get an object that isn't a pool, should return with an error
-	pool, err = getPoolObject(&map[string]string{})
-	assert.Nil(t, pool)
-	assert.NotNil(t, err)
+	// A Pool resource with metadata and spec.
+	pool := &cephv1.CephBlockPool{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: cephv1.PoolSpec{
+			Replicated: cephv1.ReplicatedSpec{
+				Size: replicas,
+			},
+		},
+		Status: &cephv1.Status{
+			Phase: "",
+		},
+	}
+
+	// Objects to track in the fake client.
+	object := []runtime.Object{
+		pool,
+	}
+
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutputFile: func(debug bool, actionName, command, outfile string, args ...string) (string, error) {
+			if args[0] == "status" {
+				return `{"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
+			}
+
+			return "", nil
+		},
+	}
+	context := &clusterd.Context{
+		Executor:      executor,
+		RookClientset: rookclient.NewSimpleClientset()}
+
+	// Register operator types with the runtime scheme.
+	s := scheme.Scheme
+	s.AddKnownTypes(cephv1.SchemeGroupVersion, pool)
+
+	// Create a fake client to mock API calls.
+	cl := fake.NewFakeClient(object...)
+	// Create a ReconcileCephBlockPool object with the scheme and fake client.
+	r := &ReconcileCephBlockPool{client: cl, scheme: s, context: context}
+
+	// Mock request to simulate Reconcile() being called on an event for a
+	// watched resource .
+	req := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      name,
+			Namespace: namespace,
+		},
+	}
+
+	// Create pool for updateCephBlockPoolStatus()
+	_, err := context.RookClientset.CephV1().CephBlockPools(namespace).Create(pool)
+	assert.NoError(t, err)
+	res, err := r.Reconcile(req)
+	assert.NoError(t, err)
+	assert.True(t, res.Requeue)
+
+	//
+	// TEST 2:
+	//
+	// FAILURE we have a cluster but it's not ready
+	//
+	cephCluster := &cephv1.CephCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      namespace,
+			Namespace: namespace,
+		},
+		Status: cephv1.ClusterStatus{
+			Phase: "",
+		},
+	}
+	s.AddKnownTypes(cephv1.SchemeGroupVersion, cephCluster)
+
+	// Create CephCluster for updateCephBlockPoolStatus()
+	_, err = context.RookClientset.CephV1().CephClusters(namespace).Create(cephCluster)
+	assert.NoError(t, err)
+
+	object = append(object, cephCluster)
+	// Create a fake client to mock API calls.
+	cl = fake.NewFakeClient(object...)
+	// Create a ReconcileCephBlockPool object with the scheme and fake client.
+	r = &ReconcileCephBlockPool{client: cl, scheme: s, context: context}
+
+	assert.True(t, res.Requeue)
+
+	//
+	// TEST 3:
+	//
+	// SUCCESS! The CephCluster is ready
+	//
+	cephCluster.Status.Phase = k8sutil.ReadyStatus
+	objects := []runtime.Object{
+		pool,
+		cephCluster,
+	}
+	// Create a fake client to mock API calls.
+	cl = fake.NewFakeClient(objects...)
+	// Create a ReconcileCephBlockPool object with the scheme and fake client.
+	r = &ReconcileCephBlockPool{client: cl, scheme: s, context: context}
+
+	res, err = r.Reconcile(req)
+	assert.NoError(t, err)
+	assert.False(t, res.Requeue)
+
+	// Get the updated CephBlockPool object.
+	pool, err = context.RookClientset.CephV1().CephBlockPools(namespace).Get(name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, "Ready", pool.Status.Phase)
 }

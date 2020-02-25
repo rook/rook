@@ -23,7 +23,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
-	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -53,7 +53,7 @@ func (c *clusterConfig) createDeployment(rgwConfig *rgwConfig) *apps.Deployment 
 	}
 	k8sutil.AddRookVersionLabelToDeployment(d)
 	c.store.Spec.Gateway.Annotations.ApplyToObjectMeta(&d.ObjectMeta)
-	opspec.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, d)
+	controller.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, d)
 	k8sutil.SetOwnerRef(&d.ObjectMeta, &c.ownerRef)
 
 	return d
@@ -69,7 +69,7 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) v1.PodTemplateSpec 
 		},
 		RestartPolicy: v1.RestartPolicyAlways,
 		Volumes: append(
-			opspec.DaemonVolumes(c.DataPathMap, rgwConfig.ResourceName),
+			controller.DaemonVolumes(c.DataPathMap, rgwConfig.ResourceName),
 			c.mimeTypesVolume(),
 		),
 		HostNetwork:       c.clusterSpec.Network.IsHost(),
@@ -113,10 +113,10 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) v1.PodTemplateSpec 
 }
 
 func (c *clusterConfig) makeChownInitContainer(rgwConfig *rgwConfig) v1.Container {
-	return opspec.ChownCephDataDirsInitContainer(
+	return controller.ChownCephDataDirsInitContainer(
 		*c.DataPathMap,
 		c.clusterSpec.CephVersion.Image,
-		opspec.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName),
+		controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName),
 		c.store.Spec.Gateway.Resources,
 		mon.PodSecurityContext(),
 	)
@@ -132,18 +132,18 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 		},
 		Args: append(
 			append(
-				opspec.DaemonFlags(c.clusterInfo, strings.TrimPrefix(generateCephXUser(rgwConfig.ResourceName), "client.")),
+				controller.DaemonFlags(c.clusterInfo, strings.TrimPrefix(generateCephXUser(rgwConfig.ResourceName), "client.")),
 				"--foreground",
 				cephconfig.NewFlag("rgw frontends", fmt.Sprintf("%s %s", rgwFrontendName, c.portString())),
-				cephconfig.NewFlag("host", opspec.ContainerEnvVarReference("POD_NAME")),
+				cephconfig.NewFlag("host", controller.ContainerEnvVarReference("POD_NAME")),
 				cephconfig.NewFlag("rgw-mime-types-file", mimeTypesMountPath()),
 			),
 		),
 		VolumeMounts: append(
-			opspec.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName),
+			controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName),
 			c.mimeTypesVolumeMount(),
 		),
-		Env:       opspec.DaemonEnvVars(c.clusterSpec.CephVersion.Image),
+		Env:       controller.DaemonEnvVars(c.clusterSpec.CephVersion.Image),
 		Resources: c.store.Spec.Gateway.Resources,
 		LivenessProbe: &v1.Probe{
 			Handler: v1.Handler{
@@ -215,7 +215,7 @@ func addPort(service *v1.Service, name string, port int32) {
 }
 
 func (c *clusterConfig) getLabels() map[string]string {
-	labels := opspec.PodLabels(AppName, c.store.Namespace, "rgw", c.store.Name)
+	labels := controller.PodLabels(AppName, c.store.Namespace, "rgw", c.store.Name)
 	labels["rook_object_store"] = c.store.Name
 	return labels
 }

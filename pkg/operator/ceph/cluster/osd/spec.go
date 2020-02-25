@@ -29,7 +29,7 @@ import (
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
-	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
 	batch "k8s.io/api/batch/v1"
@@ -162,7 +162,7 @@ func (c *Cluster) makeJob(osdProps osdProperties, provisionConfig *provisionConf
 	}
 
 	k8sutil.AddRookVersionLabelToJob(job)
-	opspec.AddCephVersionLabelToJob(c.clusterInfo.CephVersion, job)
+	controller.AddCephVersionLabelToJob(c.clusterInfo.CephVersion, job)
 	k8sutil.SetOwnerRef(&job.ObjectMeta, &c.ownerRef)
 	return job, nil
 }
@@ -170,15 +170,15 @@ func (c *Cluster) makeJob(osdProps osdProperties, provisionConfig *provisionConf
 func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionConfig *provisionConfig) (*apps.Deployment, error) {
 	deploymentName := fmt.Sprintf(osdAppNameFmt, osd.ID)
 	replicaCount := int32(1)
-	volumeMounts := opspec.CephVolumeMounts(provisionConfig.DataPathMap, false)
-	configVolumeMounts := opspec.RookVolumeMounts(provisionConfig.DataPathMap, false)
+	volumeMounts := controller.CephVolumeMounts(provisionConfig.DataPathMap, false)
+	configVolumeMounts := controller.RookVolumeMounts(provisionConfig.DataPathMap, false)
 	osdOnPVC := osdProps.pvc.ClaimName != ""
 	osdOnPVCMetadata := osdProps.metadataPVC.ClaimName != ""
 	// When running on PVC, OSDs don't need a bindmount on dataDirHostPath, only the monitors do
 	if osdOnPVC {
 		c.dataDirHostPath = ""
 	}
-	volumes := opspec.PodVolumes(provisionConfig.DataPathMap, c.dataDirHostPath, false)
+	volumes := controller.PodVolumes(provisionConfig.DataPathMap, c.dataDirHostPath, false)
 	failureDomainValue := osdProps.crushHostname
 	doConfigInit := true       // initialize ceph.conf in init container?
 	doBinaryCopyInit := true   // copy tini and rook binaries in an init container?
@@ -375,7 +375,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		initContainers = append(initContainers,
 			v1.Container{
 				Args:            []string{"ceph", "osd", "init"},
-				Name:            opspec.ConfigInitContainerName,
+				Name:            controller.ConfigInitContainerName,
 				Image:           k8sutil.MakeRookImage(c.rookVersion),
 				VolumeMounts:    configVolumeMounts,
 				Env:             configEnvVars,
@@ -419,7 +419,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	// directory. This is a race condition for all OSDs; therefore, do this in an init container.
 	// See more discussion here: https://github.com/rook/rook/pull/3594#discussion_r312279176
 	initContainers = append(initContainers,
-		opspec.ChownCephDataDirsInitContainer(
+		controller.ChownCephDataDirsInitContainer(
 			opconfig.DataPathMap{ContainerDataDir: dataPath},
 			c.cephVersion.Image,
 			volumeMounts,
@@ -491,8 +491,8 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	k8sutil.AddRookVersionLabelToDeployment(deployment)
 	c.annotations.ApplyToObjectMeta(&deployment.ObjectMeta)
 	c.annotations.ApplyToObjectMeta(&deployment.Spec.Template.ObjectMeta)
-	opspec.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, deployment)
-	opspec.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, deployment)
+	controller.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, deployment)
+	controller.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, deployment)
 	k8sutil.SetOwnerRef(&deployment.ObjectMeta, &c.ownerRef)
 	if !osdOnPVC {
 		c.placement.ApplyToPodSpec(&deployment.Spec.Template.Spec)
@@ -568,7 +568,7 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 
 	// ceph-volume is currently set up to use /etc/ceph/ceph.conf; this means no user config
 	// overrides will apply to ceph-volume, but this is unnecessary anyway
-	volumes := append(opspec.PodVolumes(provisionConfig.DataPathMap, c.dataDirHostPath, true), copyBinariesVolume)
+	volumes := append(controller.PodVolumes(provisionConfig.DataPathMap, c.dataDirHostPath, true), copyBinariesVolume)
 
 	// by default, don't define any volume config unless it is required
 	if len(osdProps.devices) > 0 || osdProps.selection.DeviceFilter != "" || osdProps.selection.DevicePathFilter != "" || osdProps.selection.GetUseAllDevices() || osdProps.metadataDevice != "" || osdOnPVC {
@@ -899,7 +899,7 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 
 	// ceph-volume is currently set up to use /etc/ceph/ceph.conf; this means no user config
 	// overrides will apply to ceph-volume, but this is unnecessary anyway
-	volumeMounts := append(opspec.CephVolumeMounts(provisionConfig.DataPathMap, true), copyBinariesMount)
+	volumeMounts := append(controller.CephVolumeMounts(provisionConfig.DataPathMap, true), copyBinariesMount)
 	if devMountNeeded {
 		devMount := v1.VolumeMount{Name: "devices", MountPath: "/dev"}
 		volumeMounts = append(volumeMounts, devMount)

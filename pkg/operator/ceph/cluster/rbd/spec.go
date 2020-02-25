@@ -19,7 +19,7 @@ package rbd
 import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
-	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -30,7 +30,7 @@ func (m *Mirroring) makeDeployment(daemonConfig *daemonConfig) *apps.Deployment 
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   daemonConfig.ResourceName,
-			Labels: opspec.PodLabels(AppName, m.Namespace, string(config.RbdMirrorType), daemonConfig.DaemonID),
+			Labels: controller.PodLabels(AppName, m.Namespace, string(config.RbdMirrorType), daemonConfig.DaemonID),
 		},
 		Spec: v1.PodSpec{
 			InitContainers: []v1.Container{
@@ -40,7 +40,7 @@ func (m *Mirroring) makeDeployment(daemonConfig *daemonConfig) *apps.Deployment 
 				m.makeMirroringDaemonContainer(daemonConfig),
 			},
 			RestartPolicy:     v1.RestartPolicyAlways,
-			Volumes:           opspec.DaemonVolumes(daemonConfig.DataPathMap, daemonConfig.ResourceName),
+			Volumes:           controller.DaemonVolumes(daemonConfig.DataPathMap, daemonConfig.ResourceName),
 			HostNetwork:       m.Network.IsHost(),
 			PriorityClassName: m.priorityClassName,
 		},
@@ -59,7 +59,7 @@ func (m *Mirroring) makeDeployment(daemonConfig *daemonConfig) *apps.Deployment 
 			Name:        daemonConfig.ResourceName,
 			Namespace:   m.Namespace,
 			Annotations: m.annotations,
-			Labels:      opspec.PodLabels(AppName, m.Namespace, string(config.RbdMirrorType), daemonConfig.DaemonID),
+			Labels:      controller.PodLabels(AppName, m.Namespace, string(config.RbdMirrorType), daemonConfig.DaemonID),
 		},
 		Spec: apps.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
@@ -70,16 +70,16 @@ func (m *Mirroring) makeDeployment(daemonConfig *daemonConfig) *apps.Deployment 
 		},
 	}
 	k8sutil.AddRookVersionLabelToDeployment(d)
-	opspec.AddCephVersionLabelToDeployment(m.ClusterInfo.CephVersion, d)
+	controller.AddCephVersionLabelToDeployment(m.ClusterInfo.CephVersion, d)
 	k8sutil.SetOwnerRef(&d.ObjectMeta, &m.ownerRef)
 	return d
 }
 
 func (m *Mirroring) makeChownInitContainer(daemonConfig *daemonConfig) v1.Container {
-	return opspec.ChownCephDataDirsInitContainer(
+	return controller.ChownCephDataDirsInitContainer(
 		*daemonConfig.DataPathMap,
 		m.cephVersion.Image,
-		opspec.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName),
+		controller.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName),
 		m.resources,
 		mon.PodSecurityContext(),
 	)
@@ -92,13 +92,13 @@ func (m *Mirroring) makeMirroringDaemonContainer(daemonConfig *daemonConfig) v1.
 			"rbd-mirror",
 		},
 		Args: append(
-			opspec.DaemonFlags(m.ClusterInfo, daemonConfig.DaemonID),
+			controller.DaemonFlags(m.ClusterInfo, daemonConfig.DaemonID),
 			"--foreground",
 			"--name="+fullDaemonName(daemonConfig.DaemonID),
 		),
 		Image:           m.cephVersion.Image,
-		VolumeMounts:    opspec.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName),
-		Env:             opspec.DaemonEnvVars(m.cephVersion.Image),
+		VolumeMounts:    controller.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName),
+		Env:             controller.DaemonEnvVars(m.cephVersion.Image),
 		Resources:       m.resources,
 		SecurityContext: mon.PodSecurityContext(),
 	}

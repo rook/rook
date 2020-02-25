@@ -19,7 +19,7 @@ package osd
 import (
 	"github.com/pkg/errors"
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
-	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -29,7 +29,7 @@ func (c *Cluster) prepareStorageClassDeviceSets(config *provisionConfig) []rookv
 
 	// Iterate over storageClassDeviceSet
 	for _, storageClassDeviceSet := range c.DesiredStorage.StorageClassDeviceSets {
-		if err := opspec.CheckPodMemory(storageClassDeviceSet.Resources, cephOsdPodMinimumMemory); err != nil {
+		if err := controller.CheckPodMemory(storageClassDeviceSet.Resources, cephOsdPodMinimumMemory); err != nil {
 			config.addError("cannot use storageClassDeviceSet %q for creating osds %v", storageClassDeviceSet.Name, err)
 			continue
 		}
