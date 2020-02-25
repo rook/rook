@@ -133,7 +133,7 @@ func clusterOwnerRef(name, clusterID string) metav1.OwnerReference {
 	}
 }
 
-func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) error {
+func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) {
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.OnAdd,
 		UpdateFunc: c.OnUpdate,
@@ -142,8 +142,6 @@ func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) e
 
 	logger.Infof("start watching yugabytedb clusters in all namespaces")
 	go k8sutil.WatchCR(ClusterResource, namespace, resourceHandlerFuncs, c.context.RookClientset.YugabytedbV1alpha1().RESTClient(), &yugabytedbv1alpha1.YBCluster{}, stopCh)
-
-	return nil
 }
 
 func (c *ClusterController) onDelete(obj interface{}) {

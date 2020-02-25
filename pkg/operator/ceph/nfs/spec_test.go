@@ -59,9 +59,10 @@ func TestDeploymentSpec(t *testing.T) {
 	}
 
 	clusterInfo := &cephconfig.ClusterInfo{FSID: "myfsid"}
+	clientset := optest.New(t, 1)
 	c := NewCephNFSController(
 		clusterInfo,
-		&clusterd.Context{Clientset: optest.New(1)},
+		&clusterd.Context{Clientset: clientset},
 		"/var/lib/rook",
 		"rook-ceph-test-ns",
 		"rook/rook:testimage",

@@ -33,9 +33,10 @@ import (
 )
 
 func TestPodSpec(t *testing.T) {
+	clientset := optest.New(t, 1)
 	c := New(
 		&cephconfig.ClusterInfo{FSID: "myfsid"},
-		&clusterd.Context{Clientset: optest.New(1)},
+		&clusterd.Context{Clientset: clientset},
 		"ns",
 		"rook/rook:myversion",
 		cephv1.CephVersionSpec{Image: "ceph/ceph:myceph"},

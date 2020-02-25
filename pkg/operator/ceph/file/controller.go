@@ -78,7 +78,7 @@ func NewFilesystemController(
 }
 
 // StartWatch watches for instances of Filesystem custom resources and acts on them
-func (c *FilesystemController) StartWatch(namespace string, stopCh chan struct{}) error {
+func (c *FilesystemController) StartWatch(namespace string, stopCh chan struct{}) {
 
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
@@ -88,7 +88,6 @@ func (c *FilesystemController) StartWatch(namespace string, stopCh chan struct{}
 
 	logger.Infof("start watching filesystem resource in namespace %s", c.namespace)
 	go k8sutil.WatchCR(FilesystemResource, namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1().RESTClient(), &cephv1.CephFilesystem{}, stopCh)
-	return nil
 }
 
 func (c *FilesystemController) onAdd(obj interface{}) {

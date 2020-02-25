@@ -34,7 +34,7 @@ import (
 )
 
 func TestStartDiscoveryDaemonset(t *testing.T) {
-	clientset := test.New(3)
+	clientset := test.New(t, 3)
 
 	os.Setenv(k8sutil.PodNamespaceEnvVar, "rook-system")
 	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
@@ -89,7 +89,7 @@ func TestStartDiscoveryDaemonset(t *testing.T) {
 }
 
 func TestGetAvailableDevices(t *testing.T) {
-	clientset := test.New(3)
+	clientset := test.New(t, 3)
 	pvcBackedOSD := false
 	ns := "rook-system"
 	nodeName := "node123"

@@ -31,7 +31,7 @@ import (
 )
 
 func TestRBDMirror(t *testing.T) {
-	clientset := testop.New(1)
+	clientset := testop.New(t, 1)
 	keysCreated := map[string]bool{}
 	executor := &exectest.MockExecutor{}
 	executor.MockExecuteCommandWithOutputFile = func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {

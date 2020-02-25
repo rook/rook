@@ -22,6 +22,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pkg/errors"
 	rookcephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
@@ -124,11 +125,17 @@ func (c *Cluster) clearHTTPBindFix() error {
 			// there are two forms of the configuration key that might exist which
 			// depends not on the current version, but on the version that may be
 			// the version being upgraded from.
-			client.MgrSetConfig(c.context, c.Namespace, daemonID, fmt.Sprintf("mgr/%s/server_addr", module), "", false)
+			if _, err := client.MgrSetConfig(c.context, c.Namespace, daemonID,
+				fmt.Sprintf("mgr/%s/server_addr", module), "", false); err != nil {
+				return errors.Wrapf(err, "failed to set config for an mgr daemon using v2 format.")
+			}
 
 			// this is for the format used in v1.0
 			// https://github.com/rook/rook/commit/11d318fb2f77a6ac9a8f2b9be42c826d3b4a93c3
-			client.MgrSetConfig(c.context, c.Namespace, daemonID, fmt.Sprintf("mgr/%s/%s/server_addr", module, daemonID), "", false)
+			if _, err := client.MgrSetConfig(c.context, c.Namespace, daemonID,
+				fmt.Sprintf("mgr/%s/%s/server_addr", module, daemonID), "", false); err != nil {
+				return errors.Wrapf(err, "failed to set config for an mgr daemon using v1 format.")
+			}
 		}
 	}
 	c.appliedHttpBind = true
@@ -304,7 +311,7 @@ func (c *Cluster) getPodLabels(daemonName string) map[string]string {
 	return labels
 }
 
-func (c *Cluster) applyPrometheusAnnotations(objectMeta *metav1.ObjectMeta) error {
+func (c *Cluster) applyPrometheusAnnotations(objectMeta *metav1.ObjectMeta) {
 	if len(c.annotations) == 0 {
 		t := rookalpha.Annotations{
 			"prometheus.io/scrape": "true",
@@ -313,8 +320,6 @@ func (c *Cluster) applyPrometheusAnnotations(objectMeta *metav1.ObjectMeta) erro
 
 		t.ApplyToObjectMeta(objectMeta)
 	}
-
-	return nil
 }
 
 func (c *Cluster) cephMgrOrchestratorModuleEnvs() []v1.EnvVar {

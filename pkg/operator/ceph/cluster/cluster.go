@@ -438,7 +438,9 @@ func (c *cluster) postMonStartupActions() error {
 	}
 
 	// Enable Ceph messenger 2 protocol on Nautilus
-	client.EnableMessenger2(c.context, c.Namespace)
+	if err := client.EnableMessenger2(c.context, c.Namespace); err != nil {
+		return errors.Wrapf(err, "failed to enable Ceph messenger version 2.")
+	}
 
 	return nil
 }

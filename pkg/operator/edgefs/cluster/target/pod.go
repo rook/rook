@@ -639,8 +639,12 @@ func (c *Cluster) makeStatefulSet(replicas int32, rookImage string, dro edgefsv1
 	k8sutil.SetOwnerRef(&statefulSet.ObjectMeta, &c.ownerRef)
 
 	if c.NetworkSpec.IsMultus() {
-		k8sutil.ApplyMultus(c.NetworkSpec, &statefulSet.ObjectMeta)
-		k8sutil.ApplyMultus(c.NetworkSpec, &statefulSet.Spec.Template.ObjectMeta)
+		if err := k8sutil.ApplyMultus(c.NetworkSpec, &statefulSet.ObjectMeta); err != nil {
+			return nil, fmt.Errorf("failed to apply multus spec to stateful set metadata. %v", err)
+		}
+		if err := k8sutil.ApplyMultus(c.NetworkSpec, &statefulSet.Spec.Template.ObjectMeta); err != nil {
+			return nil, fmt.Errorf("failed to apply multus spec to pod template metadata. %v", err)
+		}
 	}
 	c.annotations.ApplyToObjectMeta(&statefulSet.ObjectMeta)
 	c.annotations.ApplyToObjectMeta(&statefulSet.Spec.Template.ObjectMeta)

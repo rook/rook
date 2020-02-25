@@ -124,7 +124,7 @@ func NewClusterController(context *clusterd.Context, rookImage string, volumeAtt
 }
 
 // StartWatch watches instances of cluster resources
-func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) error {
+func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) {
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
 		UpdateFunc: c.onUpdate,
@@ -176,8 +176,6 @@ func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) e
 	} else {
 		logger.Infof("Disabling hotplug orchestration via %s", disableHotplugEnv)
 	}
-
-	return nil
 }
 
 func (c *ClusterController) StopWatch() {
@@ -462,7 +460,6 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 	// Start nfs ganesha CRD watcher
 	ganeshaController := nfs.NewCephNFSController(cluster.Info, c.context, cluster.Spec.DataDirHostPath, cluster.Namespace, c.rookImage, cluster.Spec, cluster.ownerRef)
 	ganeshaController.StartWatch(cluster.Namespace, cluster.stopCh)
-
 	// Populate childControllers
 	logger.Debug("populating child controllers, so cluster CR spec updates will be propagaged to other CR")
 	cluster.childControllers = []childController{

@@ -31,6 +31,7 @@ import (
 )
 
 func TestOSDStatus(t *testing.T) {
+	clientset := testexec.New(t, 2)
 	cluster := "fake"
 
 	var execCount = 0
@@ -60,7 +61,7 @@ func TestOSDStatus(t *testing.T) {
 	// Setting up objects needed to create OSD
 	context := &clusterd.Context{
 		Executor:  executor,
-		Clientset: testexec.New(2),
+		Clientset: clientset,
 	}
 
 	labels := map[string]string{

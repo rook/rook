@@ -64,7 +64,7 @@ func NewClientController(context *clusterd.Context, namespace string) *ClientCon
 }
 
 // Watch watches for instances of Client custom resources and acts on them
-func (c *ClientController) StartWatch(stopCh chan struct{}) error {
+func (c *ClientController) StartWatch(stopCh chan struct{}) {
 
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
@@ -75,7 +75,6 @@ func (c *ClientController) StartWatch(stopCh chan struct{}) error {
 	logger.Infof("start watching client resources in namespace %q", c.namespace)
 	go k8sutil.WatchCR(ClientResource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1().RESTClient(), &cephv1.CephClient{}, stopCh)
 
-	return nil
 }
 
 func (c *ClientController) onAdd(obj interface{}) {

@@ -45,7 +45,7 @@ func TestClusterDeleteFlexEnabled(t *testing.T) {
 	defer os.Unsetenv("ROOK_ENABLE_FLEX_DRIVER")
 	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
 
-	clientset := testop.New(3)
+	clientset := testop.New(t, 3)
 	context := &clusterd.Context{
 		Clientset: clientset,
 	}
@@ -111,7 +111,7 @@ func TestClusterDeleteFlexDisabled(t *testing.T) {
 	defer os.Unsetenv("ROOK_ENABLE_FLEX_DRIVER")
 	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
 
-	clientset := testop.New(3)
+	clientset := testop.New(t, 3)
 	context := &clusterd.Context{
 		Clientset: clientset,
 	}
@@ -206,7 +206,7 @@ func TestClusterChanged(t *testing.T) {
 }
 
 func TestRemoveFinalizer(t *testing.T) {
-	clientset := testop.New(3)
+	clientset := testop.New(t, 3)
 	context := &clusterd.Context{
 		Clientset:     clientset,
 		RookClientset: rookfake.NewSimpleClientset(),

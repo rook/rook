@@ -60,7 +60,7 @@ func TestValidateClient(t *testing.T) {
 }
 
 func TestGenerateClient(t *testing.T) {
-	clientset := testop.New(1)
+	clientset := testop.New(t, 1)
 	context := &clusterd.Context{Clientset: clientset}
 
 	p := &cephv1.CephClient{ObjectMeta: metav1.ObjectMeta{Name: "client1", Namespace: "myns"},
@@ -100,7 +100,7 @@ func TestGenerateClient(t *testing.T) {
 }
 
 func TestCreateClient(t *testing.T) {
-	clientset := testop.New(1)
+	clientset := testop.New(t, 1)
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command, outfileArg string, args ...string) (string, error) {
 			logger.Infof("Command: %s %v", command, args)
@@ -144,7 +144,7 @@ func TestCreateClient(t *testing.T) {
 }
 
 func TestUpdateClient(t *testing.T) {
-	clientset := testop.New(1)
+	clientset := testop.New(t, 1)
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command, outfileArg string, args ...string) (string, error) {
 			logger.Infof("Command: %s %v", command, args)
@@ -178,7 +178,7 @@ func TestUpdateClient(t *testing.T) {
 }
 
 func TestDeleteClient(t *testing.T) {
-	clientset := testop.New(2)
+	clientset := testop.New(t, 2)
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command, outfileArg string, args ...string) (string, error) {
 			logger.Infof("Command: %s %v", command, args)

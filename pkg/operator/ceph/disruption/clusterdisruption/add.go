@@ -27,8 +27,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-
 	appsv1 "k8s.io/api/apps/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	"k8s.io/apimachinery/pkg/types"
@@ -41,7 +41,9 @@ func Add(mgr manager.Manager, context *controllerconfig.Context) error {
 
 	// Add the cephv1 scheme to the manager scheme
 	mgrScheme := mgr.GetScheme()
-	cephv1.AddToScheme(mgr.GetScheme())
+	if err := cephv1.AddToScheme(mgr.GetScheme()); err != nil {
+		return errors.Wrapf(err, "failed to add ceph scheme to manager scheme.")
+	}
 
 	// this will be used to associate namespaces and cephclusters.
 	sharedClusterMap := &ClusterMap{}

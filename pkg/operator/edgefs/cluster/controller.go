@@ -92,7 +92,7 @@ func ClusterOwnerRef(clusterName, clusterID string) metav1.OwnerReference {
 	}
 }
 
-func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) error {
+func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) {
 
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
@@ -102,8 +102,6 @@ func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) e
 
 	logger.Infof("start watching edgefs clusters in all namespaces")
 	go k8sutil.WatchCR(ClusterResource, namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1().RESTClient(), &edgefsv1.Cluster{}, stopCh)
-
-	return nil
 }
 
 func (c *ClusterController) StopWatch() {
@@ -244,14 +242,14 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	// add the finalizer to the crd
 	err = c.addFinalizer(clusterObj)
 	if err != nil {
-		logger.Errorf("failed to add finalizer to cluster crd. %+v", err)
+		logger.Errorf("failed to add finalizer to cluster crd. %v", err)
 	}
 }
 
 func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 	oldCluster := oldObj.(*edgefsv1.Cluster).DeepCopy()
 	newCluster := newObj.(*edgefsv1.Cluster).DeepCopy()
-	logger.Infof("update event for cluster %s", newCluster.Namespace)
+	logger.Infof("update event for cluster %q", newCluster.Namespace)
 
 	// Check if the cluster is being deleted. This code path is called when a finalizer is specified in the crd.
 	// When a cluster is requested for deletion, K8s will only set the deletion timestamp if there are any finalizers in the list.
@@ -260,7 +258,7 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 		logger.Infof("cluster %s has a deletion timestamp", newCluster.Namespace)
 		err := c.handleDelete(newCluster, time.Duration(clusterDeleteRetryInterval)*time.Second)
 		if err != nil {
-			logger.Errorf("failed finalizer for cluster. %+v", err)
+			logger.Errorf("failed finalizer for cluster. %v", err)
 			return
 		}
 		// remove the finalizer from the crd, which indicates to k8s that the resource can safely be deleted

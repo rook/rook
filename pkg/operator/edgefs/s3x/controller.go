@@ -95,7 +95,7 @@ func NewS3XController(
 }
 
 // StartWatch watches for instances of S3X custom resources and acts on them
-func (c *S3XController) StartWatch(stopCh chan struct{}) error {
+func (c *S3XController) StartWatch(stopCh chan struct{}) {
 
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
@@ -105,8 +105,6 @@ func (c *S3XController) StartWatch(stopCh chan struct{}) error {
 
 	logger.Infof("start watching s3x resources in namespace %s", c.namespace)
 	go k8sutil.WatchCR(S3XResource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1().RESTClient(), &edgefsv1.S3X{}, stopCh)
-
-	return nil
 }
 
 func (c *S3XController) onAdd(obj interface{}) {

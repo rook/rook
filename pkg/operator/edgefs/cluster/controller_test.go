@@ -39,7 +39,7 @@ func TestClusterDelete(t *testing.T) {
 	os.Setenv(k8sutil.PodNamespaceEnvVar, rookSystemNamespace)
 	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
 
-	clientset := testop.New(3)
+	clientset := testop.New(t, 3)
 	context := &clusterd.Context{
 		Clientset: clientset,
 	}
@@ -92,7 +92,7 @@ func TestClusterChanged(t *testing.T) {
 }
 
 func TestRemoveFinalizer(t *testing.T) {
-	clientset := testop.New(3)
+	clientset := testop.New(t, 3)
 	context := &clusterd.Context{
 		Clientset:     clientset,
 		RookClientset: rookfake.NewSimpleClientset(),

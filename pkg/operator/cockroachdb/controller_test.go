@@ -161,7 +161,7 @@ func TestOnAdd(t *testing.T) {
 	}
 
 	// initialize the controller and its dependencies
-	clientset := testop.New(3)
+	clientset := testop.New(t, 3)
 	context := &clusterd.Context{Clientset: clientset, Executor: executor}
 	controller := NewClusterController(context, "rook/cockroachdb:mockTag")
 	controller.createInitRetryInterval = 1 * time.Millisecond

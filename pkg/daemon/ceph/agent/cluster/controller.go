@@ -61,14 +61,13 @@ func NewClusterController(context *clusterd.Context, flexvolumeController flexvo
 }
 
 // StartWatch will start the watching of cluster events by this controller
-func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) error {
+func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) {
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		DeleteFunc: c.onDelete,
 	}
 
 	logger.Infof("start watching cluster resources")
 	go k8sutil.WatchCR(opcluster.ClusterResource, namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1().RESTClient(), &cephv1.CephCluster{}, stopCh)
-	return nil
 }
 
 func (c *ClusterController) onDelete(obj interface{}) {
