@@ -21,7 +21,7 @@ import (
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
@@ -46,7 +46,7 @@ func TestStart(t *testing.T) {
 		CephVersion: cephver.Nautilus,
 	}
 	c := New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "myversion", cephv1.CephVersionSpec{},
-		rookalpha.StorageScopeSpec{}, "", rookalpha.Placement{}, rookalpha.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false)
+		rookv1.StorageScopeSpec{}, "", rookv1.Placement{}, rookv1.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false)
 
 	// Start the first time
 	err := c.Start()
@@ -95,12 +95,12 @@ func createNode(nodeName string, condition v1.NodeConditionType, clientset *fake
 func TestAddRemoveNode(t *testing.T) {
 	// create a storage spec with the given nodes/devices/dirs
 	nodeName := "node8230"
-	storageSpec := rookalpha.StorageScopeSpec{
-		Nodes: []rookalpha.Node{
+	storageSpec := rookv1.StorageScopeSpec{
+		Nodes: []rookv1.Node{
 			{
 				Name: nodeName,
-				Selection: rookalpha.Selection{
-					Devices: []rookalpha.Device{{Name: "sdx"}},
+				Selection: rookv1.Selection{
+					Devices: []rookv1.Device{{Name: "sdx"}},
 				},
 			},
 		},
@@ -130,7 +130,7 @@ func TestAddRemoveNode(t *testing.T) {
 	}
 
 	c := New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: executor}, "ns-add-remove", "myversion", cephv1.CephVersionSpec{},
-		storageSpec, "/foo", rookalpha.Placement{}, rookalpha.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false)
+		storageSpec, "/foo", rookv1.Placement{}, rookv1.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false)
 
 	// kick off the start of the orchestration in a goroutine
 	var startErr error
@@ -207,9 +207,9 @@ func TestAddRemoveNode(t *testing.T) {
 	}
 
 	// modify the storage spec to remove the node from the cluster
-	storageSpec.Nodes = []rookalpha.Node{}
+	storageSpec.Nodes = []rookv1.Node{}
 	c = New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: mockExec}, "ns-add-remove", "myversion", cephv1.CephVersionSpec{},
-		storageSpec, "", rookalpha.Placement{}, rookalpha.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false)
+		storageSpec, "", rookv1.Placement{}, rookv1.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false)
 
 	// reset the orchestration status watcher
 	statusMapWatcher = watch.NewFake()
@@ -237,12 +237,12 @@ func TestAddRemoveNode(t *testing.T) {
 func TestAddNodeFailure(t *testing.T) {
 	// create a storage spec with the given nodes/devices/dirs
 	nodeName := "node1672"
-	storageSpec := rookalpha.StorageScopeSpec{
-		Nodes: []rookalpha.Node{
+	storageSpec := rookv1.StorageScopeSpec{
+		Nodes: []rookv1.Node{
 			{
 				Name: nodeName,
-				Selection: rookalpha.Selection{
-					Devices: []rookalpha.Device{{Name: "sdx"}},
+				Selection: rookv1.Selection{
+					Devices: []rookv1.Device{{Name: "sdx"}},
 				},
 			},
 		},
@@ -266,7 +266,7 @@ func TestAddNodeFailure(t *testing.T) {
 		CephVersion: cephver.Nautilus,
 	}
 	c := New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns-add-remove", "myversion", cephv1.CephVersionSpec{},
-		storageSpec, "/foo", rookalpha.Placement{}, rookalpha.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false)
+		storageSpec, "/foo", rookv1.Placement{}, rookv1.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false)
 
 	// kick off the start of the orchestration in a goroutine
 	var startErr error
@@ -286,7 +286,7 @@ func TestAddNodeFailure(t *testing.T) {
 
 func TestGetOSDInfo(t *testing.T) {
 	c := New(&cephconfig.ClusterInfo{}, &clusterd.Context{}, "ns", "myversion", cephv1.CephVersionSpec{},
-		rookalpha.StorageScopeSpec{}, "", rookalpha.Placement{}, rookalpha.Annotations{}, cephv1.NetworkSpec{},
+		rookv1.StorageScopeSpec{}, "", rookv1.Placement{}, rookv1.Annotations{}, cephv1.NetworkSpec{},
 		v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false)
 
 	node := "n1"
@@ -296,7 +296,7 @@ func TestGetOSDInfo(t *testing.T) {
 	osdProp := osdProperties{
 		crushHostname: node,
 		pvc:           v1.PersistentVolumeClaimVolumeSource{ClaimName: "pvc"},
-		selection:     rookalpha.Selection{},
+		selection:     rookv1.Selection{},
 		resources:     v1.ResourceRequirements{},
 		storeConfig:   config.StoreConfig{},
 	}

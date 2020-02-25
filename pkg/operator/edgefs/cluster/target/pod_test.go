@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	edgefsv1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/edgefs/cluster/target/config"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -32,13 +32,13 @@ import (
 )
 
 func TestStorageSpecConfig(t *testing.T) {
-	storageSpec := rookalpha.StorageScopeSpec{
+	storageSpec := rookv1.StorageScopeSpec{
 		Config: map[string]string{
 			"useAllSSD":   "false",
 			"useBCacheWB": "true",
 			"useBCache":   "true",
 		},
-		Nodes: []rookalpha.Node{
+		Nodes: []rookv1.Node{
 			{
 				Name: "node1",
 				Config: map[string]string{
@@ -46,8 +46,8 @@ func TestStorageSpecConfig(t *testing.T) {
 					"useAllSSD":          "true",
 					"useMetadataOffload": "false",
 				},
-				Selection: rookalpha.Selection{
-					Devices: []rookalpha.Device{{Name: "sda"}, {Name: "sdb"}},
+				Selection: rookv1.Selection{
+					Devices: []rookv1.Device{{Name: "sda"}, {Name: "sdb"}},
 				},
 				Resources: v1.ResourceRequirements{
 					Limits: v1.ResourceList{
@@ -65,7 +65,7 @@ func TestStorageSpecConfig(t *testing.T) {
 	deploymentConfig := edgefsv1.ClusterDeploymentConfig{}
 	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", "",
 		storageSpec, "", *resource.NewQuantity(100000.0, resource.BinarySI),
-		rookalpha.Annotations{}, rookalpha.Placement{}, rookalpha.NetworkSpec{}, v1.ResourceRequirements{}, "", *resource.NewQuantity(0.0, resource.BinarySI),
+		rookv1.Annotations{}, rookv1.Placement{}, rookv1.NetworkSpec{}, v1.ResourceRequirements{}, "", *resource.NewQuantity(0.0, resource.BinarySI),
 		metav1.OwnerReference{}, deploymentConfig, false)
 
 	n := c.Storage.ResolveNode(storageSpec.Nodes[0].Name)

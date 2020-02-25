@@ -28,7 +28,7 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
@@ -67,8 +67,8 @@ type Cluster struct {
 	clusterInfo       *cephconfig.ClusterInfo
 	Namespace         string
 	Replicas          int
-	placement         rookalpha.Placement
-	annotations       rookalpha.Annotations
+	placement         rookv1.Placement
+	annotations       rookv1.Annotations
 	context           *clusterd.Context
 	dataDir           string
 	Network           cephv1.NetworkSpec
@@ -92,8 +92,8 @@ func New(
 	context *clusterd.Context,
 	namespace, rookVersion string,
 	cephVersion cephv1.CephVersionSpec,
-	placement rookalpha.Placement,
-	annotations rookalpha.Annotations,
+	placement rookv1.Placement,
+	annotations rookv1.Annotations,
 	network cephv1.NetworkSpec,
 	dashboard cephv1.DashboardSpec,
 	monitoringSpec cephv1.MonitoringSpec,

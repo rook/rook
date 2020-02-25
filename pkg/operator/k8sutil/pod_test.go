@@ -16,10 +16,10 @@ limitations under the License.
 package k8sutil
 
 import (
-	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"os"
 	"testing"
 
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -176,7 +176,7 @@ func TestAddUnreachableNodeToleration(t *testing.T) {
 
 }
 
-func testPodSpecPlacement(t *testing.T, requiredDuringScheduling, preferredDuringScheduling bool, req, pref int, placement *rook.Placement) {
+func testPodSpecPlacement(t *testing.T, requiredDuringScheduling, preferredDuringScheduling bool, req, pref int, placement *rookv1.Placement) {
 	spec := v1.PodSpec{
 		InitContainers: []v1.Container{},
 		Containers:     []v1.Container{},
@@ -194,8 +194,8 @@ func testPodSpecPlacement(t *testing.T, requiredDuringScheduling, preferredDurin
 		len(spec.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution))
 }
 
-func makePlacement() rook.Placement {
-	return rook.Placement{
+func makePlacement() rookv1.Placement {
+	return rookv1.Placement{
 		PodAntiAffinity: &v1.PodAntiAffinity{
 			RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
 				{
@@ -215,7 +215,7 @@ func makePlacement() rook.Placement {
 
 func TestPodSpecPlacement(t *testing.T) {
 	// no placement settings in the crd
-	p := rook.Placement{}
+	p := rookv1.Placement{}
 	testPodSpecPlacement(t, true, true, 1, 0, &p)
 	testPodSpecPlacement(t, true, false, 1, 0, &p)
 	testPodSpecPlacement(t, false, true, 0, 1, &p)

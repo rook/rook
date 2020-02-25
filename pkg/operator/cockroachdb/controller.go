@@ -27,7 +27,7 @@ import (
 	"time"
 
 	cockroachdbv1alpha1 "github.com/rook/rook/pkg/apis/cockroachdb.rook.io/v1alpha1"
-	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	appsv1 "k8s.io/api/apps/v1"
@@ -85,7 +85,7 @@ type cluster struct {
 	context     *clusterd.Context
 	namespace   string
 	spec        cockroachdbv1alpha1.ClusterSpec
-	annotations rookv1alpha2.Annotations
+	annotations rookv1.Annotations
 	ownerRef    metav1.OwnerReference
 }
 

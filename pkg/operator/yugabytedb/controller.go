@@ -21,7 +21,7 @@ import (
 	"reflect"
 	"strings"
 
-	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	yugabytedbv1alpha1 "github.com/rook/rook/pkg/apis/yugabytedb.rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -99,7 +99,7 @@ type cluster struct {
 	name        string
 	namespace   string
 	spec        yugabytedbv1alpha1.YBClusterSpec
-	annotations rookv1alpha2.Annotations
+	annotations rookv1.Annotations
 	ownerRef    metav1.OwnerReference
 }
 

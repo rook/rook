@@ -22,7 +22,7 @@ import (
 	"fmt"
 
 	"github.com/coreos/pkg/capnslog"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	batch "k8s.io/api/batch/v1"
@@ -45,8 +45,8 @@ type Cluster struct {
 	Namespace      string
 	Version        string
 	serviceAccount string
-	annotations    rookalpha.Annotations
-	placement      rookalpha.Placement
+	annotations    rookv1.Annotations
+	placement      rookv1.Placement
 	context        *clusterd.Context
 	resources      v1.ResourceRequirements
 	ownerRef       metav1.OwnerReference
@@ -57,8 +57,8 @@ type Cluster struct {
 func New(
 	context *clusterd.Context, namespace, version string,
 	serviceAccount string,
-	annotations rookalpha.Annotations,
-	placement rookalpha.Placement,
+	annotations rookv1.Annotations,
+	placement rookv1.Placement,
 	resources v1.ResourceRequirements,
 	ownerRef metav1.OwnerReference,
 ) *Cluster {

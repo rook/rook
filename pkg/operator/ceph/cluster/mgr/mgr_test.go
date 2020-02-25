@@ -23,7 +23,7 @@ import (
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
@@ -62,8 +62,8 @@ func TestStartMGR(t *testing.T) {
 		"ns",
 		"myversion",
 		cephv1.CephVersionSpec{},
-		rookalpha.Placement{},
-		rookalpha.Annotations{"my": "annotation"},
+		rookv1.Placement{},
+		rookv1.Annotations{"my": "annotation"},
 		cephv1.NetworkSpec{},
 		cephv1.DashboardSpec{Enabled: true, SSL: true},
 		cephv1.MonitoringSpec{Enabled: true, RulesNamespace: ""},
