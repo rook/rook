@@ -20,6 +20,7 @@ package attachment
 import (
 	"reflect"
 
+	rook "github.com/rook/rook/pkg/apis/rook.io"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 )
@@ -33,7 +34,7 @@ const (
 var VolumeResource = k8sutil.CustomResource{
 	Name:    CustomResourceName,
 	Plural:  CustomResourceNamePlural,
-	Group:   rookalpha.CustomResourceGroup,
+	Group:   rook.CustomResourceGroupName,
 	Version: rookalpha.Version,
 	Kind:    reflect.TypeOf(rookalpha.Volume{}).Name(),
 }

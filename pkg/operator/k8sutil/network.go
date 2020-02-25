@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"strings"
 
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -85,7 +85,7 @@ func GetMultusIfName(selector string) (string, error) {
 
 // ApplyMultus apply multus selector to Pods
 // Multus supports short and json syntax, use only one kind at a time.
-func ApplyMultus(net rookalpha.NetworkSpec, objectMeta *metav1.ObjectMeta) error {
+func ApplyMultus(net rookv1.NetworkSpec, objectMeta *metav1.ObjectMeta) error {
 	v := make([]string, 0, 2)
 	shortSyntax := false
 	jsonSyntax := false
@@ -112,7 +112,7 @@ func ApplyMultus(net rookalpha.NetworkSpec, objectMeta *metav1.ObjectMeta) error
 		networks = "[" + networks + "]"
 	}
 
-	t := rookalpha.Annotations{
+	t := rookv1.Annotations{
 		"k8s.v1.cni.cncf.io/networks": networks,
 	}
 	t.ApplyToObjectMeta(objectMeta)

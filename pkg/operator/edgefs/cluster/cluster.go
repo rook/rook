@@ -23,7 +23,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	edgefsv1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
-	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/edgefs/cluster/mgr"
 	"github.com/rook/rook/pkg/operator/edgefs/cluster/prepare"
@@ -312,8 +312,8 @@ func (c *cluster) validateClusterSpec() error {
 
 func clusterChanged(oldCluster, newCluster edgefsv1.ClusterSpec) bool {
 	// sort the nodes by name then compare to see if there are changes
-	sort.Sort(rookv1alpha2.NodesByName(oldCluster.Storage.Nodes))
-	sort.Sort(rookv1alpha2.NodesByName(newCluster.Storage.Nodes))
+	sort.Sort(rookv1.NodesByName(oldCluster.Storage.Nodes))
+	sort.Sort(rookv1.NodesByName(newCluster.Storage.Nodes))
 
 	var diff string
 	// any change in the crd will trigger an orchestration

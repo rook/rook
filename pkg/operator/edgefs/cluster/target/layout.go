@@ -23,7 +23,7 @@ import (
 	"strings"
 
 	edgefsv1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/operator/edgefs/cluster/target/config"
 	"github.com/rook/rook/pkg/util/sys"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -320,7 +320,7 @@ func getRTDevices(cntDevs ContainerDevices, storeConfig *config.StoreConfig) (rt
 	return rtDevices, nil
 }
 
-func GetRtlfsDevices(directories []rookalpha.Directory, storeConfig *config.StoreConfig) []edgefsv1.RtlfsDevice {
+func GetRtlfsDevices(directories []rookv1.Directory, storeConfig *config.StoreConfig) []edgefsv1.RtlfsDevice {
 	rtlfsDevices := make([]edgefsv1.RtlfsDevice, 0)
 	walDisabled := 0
 	if storeConfig.WalMode > 0 {
@@ -347,7 +347,7 @@ func GetRtlfsDevices(directories []rookalpha.Directory, storeConfig *config.Stor
 	return rtlfsDevices
 }
 
-func GetRtkvsDevices(disks []string, directories []rookalpha.Directory, storeConfig *config.StoreConfig) edgefsv1.RtkvsDevices {
+func GetRtkvsDevices(disks []string, directories []rookv1.Directory, storeConfig *config.StoreConfig) edgefsv1.RtkvsDevices {
 	rc := edgefsv1.RtkvsDevices{}
 	rc.Devices = make([]edgefsv1.RtkvsDevice, 0)
 	rc.Backend = storeConfig.UseRtkvsBackend

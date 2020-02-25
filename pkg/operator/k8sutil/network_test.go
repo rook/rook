@@ -19,7 +19,7 @@ package k8sutil
 import (
 	"testing"
 
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -77,7 +77,7 @@ func TestNetwork_parseMultusSelectorError(t *testing.T) {
 }
 
 func TestNetwork_ApplyMultusShort(t *testing.T) {
-	net := rookalpha.NetworkSpec{
+	net := rookv1.NetworkSpec{
 		Provider: "multus",
 		Selectors: map[string]string{
 			"server": "macvlan@net1",
@@ -94,7 +94,7 @@ func TestNetwork_ApplyMultusShort(t *testing.T) {
 }
 
 func TestNetwork_ApplyMultusJSON(t *testing.T) {
-	net := rookalpha.NetworkSpec{
+	net := rookv1.NetworkSpec{
 		Provider: "multus",
 		Selectors: map[string]string{
 			"server": `{"name": "macvlan", "interface": "net1"}`,
@@ -111,7 +111,7 @@ func TestNetwork_ApplyMultusJSON(t *testing.T) {
 }
 
 func TestNetwork_ApplyMultusMixedError(t *testing.T) {
-	net := rookalpha.NetworkSpec{
+	net := rookv1.NetworkSpec{
 		Provider: "multus",
 		Selectors: map[string]string{
 			"server": `{"name": "macvlan", "interface": "net1"}`,

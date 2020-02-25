@@ -23,6 +23,7 @@ import (
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	rookfake "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/clusterd"
@@ -151,17 +152,17 @@ func TestClusterDeleteFlexDisabled(t *testing.T) {
 func TestClusterChanged(t *testing.T) {
 	// a new node added, should be a change
 	old := cephv1.ClusterSpec{
-		Storage: rookalpha.StorageScopeSpec{
-			Nodes: []rookalpha.Node{
-				{Name: "node1", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
+		Storage: rookv1.StorageScopeSpec{
+			Nodes: []rookv1.Node{
+				{Name: "node1", Selection: rookv1.Selection{Devices: []rookv1.Device{{Name: "sda"}}}},
 			},
 		},
 	}
 	new := cephv1.ClusterSpec{
-		Storage: rookalpha.StorageScopeSpec{
-			Nodes: []rookalpha.Node{
-				{Name: "node1", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
-				{Name: "node2", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
+		Storage: rookv1.StorageScopeSpec{
+			Nodes: []rookv1.Node{
+				{Name: "node1", Selection: rookv1.Selection{Devices: []rookv1.Device{{Name: "sda"}}}},
+				{Name: "node2", Selection: rookv1.Selection{Devices: []rookv1.Device{{Name: "sda"}}}},
 			},
 		},
 	}
@@ -172,25 +173,25 @@ func TestClusterChanged(t *testing.T) {
 	assert.Equal(t, 0, c.Spec.Mon.Count)
 
 	// a node was removed, should be a change
-	old.Storage.Nodes = []rookalpha.Node{
-		{Name: "node1", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
-		{Name: "node2", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
+	old.Storage.Nodes = []rookv1.Node{
+		{Name: "node1", Selection: rookv1.Selection{Devices: []rookv1.Device{{Name: "sda"}}}},
+		{Name: "node2", Selection: rookv1.Selection{Devices: []rookv1.Device{{Name: "sda"}}}},
 	}
-	new.Storage.Nodes = []rookalpha.Node{
-		{Name: "node1", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
+	new.Storage.Nodes = []rookv1.Node{
+		{Name: "node1", Selection: rookv1.Selection{Devices: []rookv1.Device{{Name: "sda"}}}},
 	}
 	changed, diff = clusterChanged(old, new, c)
 	assert.True(t, changed)
 	assert.NotEqual(t, diff, "")
 
 	// the nodes being in a different order should not be a change
-	old.Storage.Nodes = []rookalpha.Node{
-		{Name: "node1", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
-		{Name: "node2", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
+	old.Storage.Nodes = []rookv1.Node{
+		{Name: "node1", Selection: rookv1.Selection{Devices: []rookv1.Device{{Name: "sda"}}}},
+		{Name: "node2", Selection: rookv1.Selection{Devices: []rookv1.Device{{Name: "sda"}}}},
 	}
-	new.Storage.Nodes = []rookalpha.Node{
-		{Name: "node2", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
-		{Name: "node1", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
+	new.Storage.Nodes = []rookv1.Node{
+		{Name: "node2", Selection: rookv1.Selection{Devices: []rookv1.Device{{Name: "sda"}}}},
+		{Name: "node1", Selection: rookv1.Selection{Devices: []rookv1.Device{{Name: "sda"}}}},
 	}
 	changed, diff = clusterChanged(old, new, c)
 	assert.False(t, changed)

@@ -29,7 +29,7 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
@@ -78,13 +78,13 @@ type Cluster struct {
 	clusterInfo                                *cephconfig.ClusterInfo
 	context                                    *clusterd.Context
 	Namespace                                  string
-	placement                                  rookalpha.Placement
-	annotations                                rookalpha.Annotations
+	placement                                  rookv1.Placement
+	annotations                                rookv1.Annotations
 	Keyring                                    string
 	rookVersion                                string
 	cephVersion                                cephv1.CephVersionSpec
-	DesiredStorage                             rookalpha.StorageScopeSpec // user-defined storage scope spec
-	ValidStorage                               rookalpha.StorageScopeSpec // valid subset of `Storage`, computed at runtime
+	DesiredStorage                             rookv1.StorageScopeSpec // user-defined storage scope spec
+	ValidStorage                               rookv1.StorageScopeSpec // valid subset of `Storage`, computed at runtime
 	dataDirHostPath                            string
 	Network                                    cephv1.NetworkSpec
 	resources                                  v1.ResourceRequirements
@@ -103,10 +103,10 @@ func New(
 	namespace string,
 	rookVersion string,
 	cephVersion cephv1.CephVersionSpec,
-	storageSpec rookalpha.StorageScopeSpec,
+	storageSpec rookv1.StorageScopeSpec,
 	dataDirHostPath string,
-	placement rookalpha.Placement,
-	annotations rookalpha.Annotations,
+	placement rookv1.Placement,
+	annotations rookv1.Annotations,
 	network cephv1.NetworkSpec,
 	resources v1.ResourceRequirements,
 	prepareResources v1.ResourceRequirements,
@@ -163,13 +163,13 @@ type OrchestrationStatus struct {
 type osdProperties struct {
 	//crushHostname refers to the hostname or PVC name when the OSD is provisioned on Nodes or PVC block device, respectively.
 	crushHostname       string
-	devices             []rookalpha.Device
+	devices             []rookv1.Device
 	pvc                 v1.PersistentVolumeClaimVolumeSource
 	metadataPVC         v1.PersistentVolumeClaimVolumeSource
-	selection           rookalpha.Selection
+	selection           rookv1.Selection
 	resources           v1.ResourceRequirements
 	storeConfig         osdconfig.StoreConfig
-	placement           rookalpha.Placement
+	placement           rookv1.Placement
 	metadataDevice      string
 	location            string
 	portable            bool
@@ -358,7 +358,7 @@ func (c *Cluster) startProvisioningOverNodes(config *provisionConfig) {
 		}
 		c.DesiredStorage.Nodes = nil
 		for _, hostname := range hostnameMap {
-			storageNode := rookalpha.Node{
+			storageNode := rookv1.Node{
 				Name: hostname,
 			}
 			c.DesiredStorage.Nodes = append(c.DesiredStorage.Nodes, storageNode)
@@ -655,7 +655,7 @@ func (c *Cluster) discoverStorageNodes() (map[string][]*apps.Deployment, error) 
 	return discoveredNodes, nil
 }
 
-func (c *Cluster) resolveNode(nodeName string) *rookalpha.Node {
+func (c *Cluster) resolveNode(nodeName string) *rookv1.Node {
 	// fully resolve the storage config and resources for this node
 	rookNode := c.ValidStorage.ResolveNode(nodeName)
 	if rookNode == nil {

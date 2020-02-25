@@ -28,7 +28,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
@@ -322,8 +322,8 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 func clusterChanged(oldCluster, newCluster cephv1.ClusterSpec, clusterRef *cluster) (bool, string) {
 
 	// sort the nodes by name then compare to see if there are changes
-	sort.Sort(rookv1alpha2.NodesByName(oldCluster.Storage.Nodes))
-	sort.Sort(rookv1alpha2.NodesByName(newCluster.Storage.Nodes))
+	sort.Sort(rookv1.NodesByName(oldCluster.Storage.Nodes))
+	sort.Sort(rookv1.NodesByName(newCluster.Storage.Nodes))
 
 	// any change in the crd will trigger an orchestration
 	if !reflect.DeepEqual(oldCluster, newCluster) {

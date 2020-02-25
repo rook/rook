@@ -24,7 +24,7 @@ import (
 	"time"
 
 	edgefsv1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
-	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/operator/discover"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
@@ -84,7 +84,7 @@ func ToJSON(obj interface{}) string {
 	return string(bytes)
 }
 
-func (c *cluster) getClusterNodes() ([]rookv1alpha2.Node, error) {
+func (c *cluster) getClusterNodes() ([]rookv1.Node, error) {
 	if c.Spec.Storage.UseAllNodes {
 		c.Spec.Storage.Nodes = nil
 		// Resolve all storage nodes
@@ -95,7 +95,7 @@ func (c *cluster) getClusterNodes() ([]rookv1alpha2.Node, error) {
 			return nil, err
 		}
 		for nodeName := range allNodeDevices {
-			storageNode := rookv1alpha2.Node{
+			storageNode := rookv1.Node{
 				Name: nodeName,
 			}
 			c.Spec.Storage.Nodes = append(c.Spec.Storage.Nodes, storageNode)
@@ -254,7 +254,7 @@ func (c *cluster) PrintDeploymentConfig(deploymentConfig *edgefsv1.ClusterDeploy
 	}
 }
 
-func (c *cluster) resolveNode(nodeName string) *rookv1alpha2.Node {
+func (c *cluster) resolveNode(nodeName string) *rookv1.Node {
 	// Fully resolve the storage config and resources for this node
 	rookNode := c.Spec.Storage.ResolveNode(nodeName)
 	if rookNode == nil {
@@ -267,7 +267,7 @@ func (c *cluster) resolveNode(nodeName string) *rookv1alpha2.Node {
 	rookNode.Resources = k8sutil.MergeResourceRequirements(rookNode.Resources, c.Spec.Resources)
 
 	// Ensure no invalid dirs are specified
-	var validDirs []rookv1alpha2.Directory
+	var validDirs []rookv1.Directory
 	for _, dir := range rookNode.Directories {
 		if dir.Path == k8sutil.DataDir || dir.Path == c.Spec.DataDirHostPath {
 			logger.Warningf("skipping directory %s that would conflict with the dataDirHostPath", dir.Path)

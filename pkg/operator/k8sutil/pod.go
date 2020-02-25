@@ -19,18 +19,17 @@ package k8sutil
 
 import (
 	"fmt"
-	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"io"
 	"os"
 	"path"
 	"strconv"
 	"strings"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -295,7 +294,7 @@ func ClusterDaemonEnvVars(image string) []v1.EnvVar {
 }
 
 // SetNodeAntiAffinityForPod assign pod anti-affinity when pod should not be co-located
-func SetNodeAntiAffinityForPod(pod *v1.PodSpec, p rook.Placement, requiredDuringScheduling, preferredDuringScheduling bool,
+func SetNodeAntiAffinityForPod(pod *v1.PodSpec, p rookv1.Placement, requiredDuringScheduling, preferredDuringScheduling bool,
 	labels, nodeSelector map[string]string) {
 	p.ApplyToPodSpec(pod)
 	pod.NodeSelector = nodeSelector

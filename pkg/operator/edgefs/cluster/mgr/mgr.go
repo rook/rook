@@ -25,7 +25,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	edgefsv1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
@@ -63,10 +63,10 @@ type Cluster struct {
 	Replicas         int
 	dataDirHostPath  string
 	dataVolumeSize   resource.Quantity
-	annotations      rookalpha.Annotations
-	placement        rookalpha.Placement
+	annotations      rookv1.Annotations
+	placement        rookv1.Placement
 	context          *clusterd.Context
-	NetworkSpec      rookalpha.NetworkSpec
+	NetworkSpec      rookv1.NetworkSpec
 	dashboardSpec    edgefsv1.DashboardSpec
 	resources        v1.ResourceRequirements
 	resourceProfile  string
@@ -80,9 +80,9 @@ func New(
 	serviceAccount string,
 	dataDirHostPath string,
 	dataVolumeSize resource.Quantity,
-	annotations rookalpha.Annotations,
-	placement rookalpha.Placement,
-	NetworkSpec rookalpha.NetworkSpec,
+	annotations rookv1.Annotations,
+	placement rookv1.Placement,
+	NetworkSpec rookv1.NetworkSpec,
 	dashboardSpec edgefsv1.DashboardSpec,
 	resources v1.ResourceRequirements,
 	resourceProfile string,
