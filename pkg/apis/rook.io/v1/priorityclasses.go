@@ -1,11 +1,11 @@
 /*
-Copyright 2018 The Rook Authors. All rights reserved.
+Copyright 2019 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,8 +13,13 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package nfsrookio
 
-const (
-	CustomResourceGroupName = "nfs.rook.io"
-)
+package v1
+
+// All returns the priority class name defined for 'all' daemons in the Ceph cluster CRD.
+func (p PriorityClassNamesSpec) All() string {
+	if val, ok := p[KeyAll]; ok {
+		return val
+	}
+	return ""
+}

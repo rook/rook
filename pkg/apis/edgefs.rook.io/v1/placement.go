@@ -16,20 +16,20 @@ limitations under the License.
 package v1
 
 import (
-	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 )
 
 // GetMgrPlacement returns the placement for the MGR service
-func GetMgrPlacement(p rook.PlacementSpec) rook.Placement {
+func GetMgrPlacement(p rookv1.PlacementSpec) rookv1.Placement {
 	return p.All().Merge(p[KeyMgr])
 }
 
 // GetTargetPlacement returns the placement for the Target service
-func GetTargetPlacement(p rook.PlacementSpec) rook.Placement {
+func GetTargetPlacement(p rookv1.PlacementSpec) rookv1.Placement {
 	return p.All().Merge(p[KeyTarget])
 }
 
 // GetPreparePlacement returns the placement for the Host Prepare service
-func GetPreparePlacement(p rook.PlacementSpec) rook.Placement {
+func GetPreparePlacement(p rookv1.PlacementSpec) rookv1.Placement {
 	return p.All().Merge(p[KeyPrepare])
 }

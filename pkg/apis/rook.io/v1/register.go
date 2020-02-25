@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package v1alpha2
+package v1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	Version = "v1alpha2"
+	Version = "v1"
 )
 
 // SchemeGroupVersion is group version used to register these objects
@@ -51,9 +51,7 @@ func init() {
 
 // Adds the list of known types to api.Scheme.
 func addKnownTypes(scheme *runtime.Scheme) error {
-	scheme.AddKnownTypes(SchemeGroupVersion,
-		&Volume{},
-		&VolumeList{})
+	scheme.AddKnownTypes(SchemeGroupVersion)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil
 }

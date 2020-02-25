@@ -17,6 +17,6 @@ limitations under the License.
 package cassandrarookio
 
 const (
-	// GroupName for the cassandra operator's CRDs
-	GroupName = "cassandra.rook.io"
+	// CustomResourceGroupName for the cassandra operator's CRDs
+	CustomResourceGroupName = "cassandra.rook.io"
 )
