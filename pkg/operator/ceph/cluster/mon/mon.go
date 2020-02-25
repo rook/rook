@@ -37,8 +37,8 @@ import (
 	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
-	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
@@ -198,7 +198,7 @@ func (c *Cluster) Start(clusterInfo *cephconfig.ClusterInfo, rookVersion string,
 	}
 
 	// Validate pod's memory if specified
-	err := opspec.CheckPodMemory(cephv1.GetMonResources(c.spec.Resources), cephMonPodMinimumMemory)
+	err := controller.CheckPodMemory(cephv1.GetMonResources(c.spec.Resources), cephMonPodMinimumMemory)
 	if err != nil {
 		return nil, errors.Wrap(err, "error checking pod memory")
 	}
@@ -438,7 +438,7 @@ func realScheduleMonitor(c *Cluster, mon *monConfig) (SchedulingResult, error) {
 	var pvcName string
 	if c.spec.Mon.VolumeClaimTemplate == nil {
 		d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes,
-			opspec.DaemonVolumesDataHostPath(mon.DataPathMap)...)
+			controller.DaemonVolumesDataHostPath(mon.DataPathMap)...)
 	} else {
 		// the pvc that is created here won't be deleted: it will be reattached
 		// to the real monitor deployment.
@@ -460,8 +460,8 @@ func realScheduleMonitor(c *Cluster, mon *monConfig) (SchedulingResult, error) {
 		}
 
 		d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes,
-			opspec.DaemonVolumesDataPVC(mon.ResourceName))
-		opspec.AddVolumeMountSubPath(&d.Spec.Template.Spec, "ceph-daemon-data")
+			controller.DaemonVolumesDataPVC(mon.ResourceName))
+		controller.AddVolumeMountSubPath(&d.Spec.Template.Spec, "ceph-daemon-data")
 	}
 
 	// caller should arrange for clean-up of the PVC only if it was created
@@ -870,7 +870,7 @@ func (c *Cluster) startMon(m *monConfig, node *NodeInfo) error {
 	existingDeployment, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Get(d.Name, metav1.GetOptions{})
 	if err == nil {
 		deploymentExists = true
-		pvcExists = opspec.DaemonVolumesContainsPVC(existingDeployment.Spec.Template.Spec.Volumes)
+		pvcExists = controller.DaemonVolumesContainsPVC(existingDeployment.Spec.Template.Spec.Volumes)
 	} else if !kerrors.IsNotFound(err) {
 		return errors.Wrapf(err, "failed to get mon deployment %s", d.Name)
 	}
@@ -883,11 +883,11 @@ func (c *Cluster) startMon(m *monConfig, node *NodeInfo) error {
 	// the current state of the CRD.
 	if pvcExists || (!deploymentExists && c.spec.Mon.VolumeClaimTemplate != nil) {
 		pvcName := m.ResourceName
-		d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, opspec.DaemonVolumesDataPVC(pvcName))
-		opspec.AddVolumeMountSubPath(&d.Spec.Template.Spec, "ceph-daemon-data")
+		d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, controller.DaemonVolumesDataPVC(pvcName))
+		controller.AddVolumeMountSubPath(&d.Spec.Template.Spec, "ceph-daemon-data")
 		logger.Debugf("adding pvc volume source %s to mon deployment %s", pvcName, d.Name)
 	} else {
-		d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, opspec.DaemonVolumesDataHostPath(m.DataPathMap)...)
+		d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, controller.DaemonVolumesDataHostPath(m.DataPathMap)...)
 		logger.Debugf("adding host path volume source to mon deployment %s", d.Name)
 	}
 

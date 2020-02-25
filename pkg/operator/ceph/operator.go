@@ -21,6 +21,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
@@ -34,11 +35,11 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/file"
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	objectuser "github.com/rook/rook/pkg/operator/ceph/object/user"
-	"github.com/rook/rook/pkg/operator/ceph/pool"
 	"github.com/rook/rook/pkg/operator/ceph/provisioner"
 	"github.com/rook/rook/pkg/operator/discover"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/sig-storage-lib-external-provisioner/controller"
 )
 
@@ -61,6 +62,13 @@ var (
 	EnableFlexDriver = true
 	// Whether to enable the daemon for device discovery. If true, the rook-ceph-discover daemonset will be started.
 	EnableDiscoveryDaemon = true
+
+	// ImmediateRetryResult Return this for a immediate retry of the reconciliation loop with the same request object.
+	ImmediateRetryResult = reconcile.Result{Requeue: true}
+	// WaitForRequeueIfCephClusterNotReadyAfter requeue after 10sec if the operator is not ready
+	WaitForRequeueIfCephClusterNotReadyAfter = 10 * time.Second
+	// WaitForRequeueIfCephClusterNotReady waits for the CephCluster to be ready
+	WaitForRequeueIfCephClusterNotReady = reconcile.Result{Requeue: true, RequeueAfter: WaitForRequeueIfCephClusterNotReadyAfter}
 )
 
 // Operator type for managing storage
@@ -78,7 +86,7 @@ type Operator struct {
 
 // New creates an operator instance
 func New(context *clusterd.Context, volumeAttachmentWrapper attachment.Attachment, rookImage, securityAccount string) *Operator {
-	schemes := []k8sutil.CustomResource{cluster.ClusterResource, pool.PoolResource, object.ObjectStoreResource, objectuser.ObjectStoreUserResource,
+	schemes := []k8sutil.CustomResource{cluster.ClusterResource, object.ObjectStoreResource, objectuser.ObjectStoreUserResource,
 		file.FilesystemResource, attachment.VolumeResource}
 
 	operatorNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)

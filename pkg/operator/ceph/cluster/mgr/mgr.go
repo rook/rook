@@ -34,7 +34,7 @@ import (
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
-	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
@@ -144,7 +144,7 @@ func (c *Cluster) getDaemonIDs() []string {
 // Start begins the process of running a cluster of Ceph mgrs.
 func (c *Cluster) Start() error {
 	// Validate pod's memory if specified
-	err := opspec.CheckPodMemory(c.resources, cephMgrPodMinimumMemory)
+	err := controller.CheckPodMemory(c.resources, cephMgrPodMinimumMemory)
 	if err != nil {
 		return errors.Wrap(err, "error checking pod memory")
 	}

@@ -173,7 +173,7 @@ func CreatePoolWithProfile(context *clusterd.Context, clusterName string, newPoo
 func checkForImagesInPool(context *clusterd.Context, name, namespace string) error {
 	var err error
 	var stats = new(PoolStatistics)
-	logger.Infof("checking any images/snapshosts present in pool %s", name)
+	logger.Debugf("checking any images/snapshosts present in pool %q", name)
 	stats, err = GetPoolStatistics(context, name, namespace)
 	if err != nil {
 		if strings.Contains(err.Error(), "No such file or directory") {
@@ -182,26 +182,27 @@ func checkForImagesInPool(context *clusterd.Context, name, namespace string) err
 		return errors.Wrapf(err, "failed to list images/snapshosts in pool %s", name)
 	}
 	if stats.Images.Count == 0 && stats.Images.SnapCount == 0 {
-		logger.Infof("no images/snapshosts present in pool %s", name)
+		logger.Infof("no images/snapshosts present in pool %q", name)
 		return nil
 	}
 
-	return errors.Errorf("pool %s contains images/snapshosts", name)
+	return errors.Errorf("pool %q contains images/snapshosts", name)
 }
 
+// DeletePool purges a pool from Ceph
 func DeletePool(context *clusterd.Context, clusterName string, name string) error {
 	// check if the pool exists
 	pool, err := GetPoolDetails(context, clusterName, name)
 	if err != nil {
-		logger.Infof("pool %q not found for deletion. %v", name, err)
-		return nil
+		return errors.Wrapf(err, "failed to get pool %q details", name)
 	}
 
 	err = checkForImagesInPool(context, name, clusterName)
 	if err != nil {
-		return errors.Wrapf(err, "failed to delete pool %q", name)
+		return errors.Wrapf(err, "failed to check if pool %q has rbd images", name)
 	}
-	logger.Infof("purging pool %s (id=%d)", name, pool.Number)
+
+	logger.Infof("purging pool %q (id=%d)", name, pool.Number)
 	args := []string{"osd", "pool", "delete", name, name, reallyConfirmFlag}
 	_, err = NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
@@ -212,7 +213,7 @@ func DeletePool(context *clusterd.Context, clusterName string, name string) erro
 	args = []string{"osd", "crush", "rule", "rm", name}
 	_, err = NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
-		logger.Infof("did not delete crush rule %q. %v", name, err)
+		logger.Errorf("failed to delete crush rule %q. %v", name, err)
 	}
 
 	logger.Infof("purge completed for pool %q", name)
@@ -375,63 +376,6 @@ func GetPoolStatistics(context *clusterd.Context, name, clusterName string) (*Po
 	}
 
 	return &poolStats, nil
-}
-
-func GetPools(context *clusterd.Context, clusterName string) ([]model.Pool, error) {
-	// list pool summaries using the ceph client
-	cephPoolSummaries, err := ListPoolSummaries(context, clusterName)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to list pools")
-	}
-
-	// get the details for each pool from its summary information
-	cephPools := make([]CephStoragePoolDetails, len(cephPoolSummaries))
-	for i := range cephPoolSummaries {
-		poolDetails, err := GetPoolDetails(context, clusterName, cephPoolSummaries[i].Name)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get details for pool %s", cephPoolSummaries[i].Name)
-		}
-
-		cephPools[i] = poolDetails
-	}
-
-	var ecProfileDetails map[string]CephErasureCodeProfile
-	lookupECProfileDetails := false
-	for i := range cephPools {
-		if cephPools[i].ErasureCodeProfile != "" {
-			// at least one pool is erasure coded, we'll need to look up erasure code profile details
-			lookupECProfileDetails = true
-			break
-		}
-	}
-	if lookupECProfileDetails {
-		// list each erasure code profile
-		ecProfileNames, err := ListErasureCodeProfiles(context, clusterName)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to list erasure code profiles")
-		}
-
-		// get the details of each erasure code profile and store them in the map
-		ecProfileDetails = make(map[string]CephErasureCodeProfile, len(ecProfileNames))
-		for _, name := range ecProfileNames {
-			ecp, err := GetErasureCodeProfileDetails(context, clusterName, name)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to get erasure code profile details for %q", name)
-			}
-			ecProfileDetails[name] = ecp
-		}
-	}
-
-	// convert the ceph pools details to model pools
-	pools := make([]model.Pool, len(cephPools))
-	for i, p := range cephPools {
-		pool, err := cephPoolToModelPool(p, ecProfileDetails)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to convert ceph pool to model")
-		}
-		pools[i] = pool
-	}
-	return pools, nil
 }
 
 func cephPoolToModelPool(cephPool CephStoragePoolDetails, ecpDetails map[string]CephErasureCodeProfile) (model.Pool, error) {

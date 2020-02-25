@@ -27,7 +27,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
-	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	appsv1 "k8s.io/api/apps/v1"
@@ -64,7 +64,7 @@ func (r *ReconcileNode) createOrUpdateCephCrash(node corev1.Node, tolerations []
 		},
 	}
 
-	volumes := opspec.DaemonVolumesBase(config.NewDatalessDaemonDataPathMap(cephCluster.GetNamespace(), cephCluster.Spec.DataDirHostPath), "")
+	volumes := controller.DaemonVolumesBase(config.NewDatalessDaemonDataPathMap(cephCluster.GetNamespace(), cephCluster.Spec.DataDirHostPath), "")
 	volumes = append(volumes, keyring.Volume().CrashCollector())
 
 	mutateFunc := func() error {
@@ -97,7 +97,7 @@ func (r *ReconcileNode) createOrUpdateCephCrash(node corev1.Node, tolerations []
 		deploy.ObjectMeta.Labels = deploymentLabels
 		k8sutil.AddRookVersionLabelToDeployment(deploy)
 		if cephVersion != nil {
-			opspec.AddCephVersionLabelToDeployment(*cephVersion, deploy)
+			controller.AddCephVersionLabelToDeployment(*cephVersion, deploy)
 		}
 		deploy.Spec.Template = corev1.PodTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{
@@ -141,7 +141,7 @@ func getCrashDirInitContainer(cephCluster cephv1.CephCluster) corev1.Container {
 		Image:           cephCluster.Spec.CephVersion.Image,
 		SecurityContext: mon.PodSecurityContext(),
 		Resources:       cephv1.GetCrashCollectorResources(cephCluster.Spec.Resources),
-		VolumeMounts:    opspec.DaemonVolumeMounts(dataPathMap, ""),
+		VolumeMounts:    controller.DaemonVolumeMounts(dataPathMap, ""),
 	}
 	return container
 }
@@ -149,10 +149,10 @@ func getCrashDirInitContainer(cephCluster cephv1.CephCluster) corev1.Container {
 func getCrashChownInitContainer(cephCluster cephv1.CephCluster) corev1.Container {
 	dataPathMap := config.NewDatalessDaemonDataPathMap(cephCluster.GetNamespace(), cephCluster.Spec.DataDirHostPath)
 
-	return opspec.ChownCephDataDirsInitContainer(
+	return controller.ChownCephDataDirsInitContainer(
 		*dataPathMap,
 		cephCluster.Spec.CephVersion.Image,
-		opspec.DaemonVolumeMounts(dataPathMap, ""),
+		controller.DaemonVolumeMounts(dataPathMap, ""),
 		cephv1.GetCrashCollectorResources(cephCluster.Spec.Resources),
 		mon.PodSecurityContext(),
 	)
@@ -162,8 +162,8 @@ func getCrashDaemonContainer(cephCluster cephv1.CephCluster, cephVersion version
 	cephImage := cephCluster.Spec.CephVersion.Image
 	dataPathMap := config.NewDatalessDaemonDataPathMap(cephCluster.GetNamespace(), cephCluster.Spec.DataDirHostPath)
 	crashEnvVar := generateCrashEnvVar()
-	envVars := append(opspec.DaemonEnvVars(cephImage), crashEnvVar)
-	volumeMounts := opspec.DaemonVolumeMounts(dataPathMap, "")
+	envVars := append(controller.DaemonEnvVars(cephImage), crashEnvVar)
+	volumeMounts := controller.DaemonVolumeMounts(dataPathMap, "")
 	volumeMounts = append(volumeMounts, keyring.VolumeMount().CrashCollector())
 
 	container := corev1.Container{

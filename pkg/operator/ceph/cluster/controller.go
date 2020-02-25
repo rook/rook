@@ -39,13 +39,12 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/file"
 	"github.com/rook/rook/pkg/operator/ceph/nfs"
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/ceph/object/bucket"
 	objectuser "github.com/rook/rook/pkg/operator/ceph/object/user"
-	"github.com/rook/rook/pkg/operator/ceph/pool"
-	"github.com/rook/rook/pkg/operator/ceph/spec"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 
@@ -434,10 +433,6 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 	clientController := cephclient.NewClientController(c.context, cluster.Namespace)
 	clientController.StartWatch(cluster.stopCh)
 
-	// Start pool CRD watcher
-	poolController := pool.NewPoolController(c.context, cluster.Spec)
-	poolController.StartWatch(cluster.Namespace, cluster.stopCh)
-
 	// Start object store CRD watcher
 	objectStoreController := object.NewObjectStoreController(cluster.Info, c.context, cluster.Namespace, c.rookImage, cluster.Spec, cluster.ownerRef, cluster.Spec.DataDirHostPath)
 	objectStoreController.StartWatch(cluster.Namespace, cluster.stopCh)
@@ -463,7 +458,7 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 	// Populate childControllers
 	logger.Debug("populating child controllers, so cluster CR spec updates will be propagaged to other CR")
 	cluster.childControllers = []childController{
-		poolController, objectStoreController, objectStoreUserController, fileController, ganeshaController,
+		objectStoreController, objectStoreUserController, fileController, ganeshaController,
 	}
 
 	// Populate ClusterInfo
@@ -1064,7 +1059,7 @@ func (c *ClusterController) updateClusterCephVersion(namespace string, name stri
 	}
 	clusterVersion := &cephv1.ClusterVersion{
 		Image:   image,
-		Version: spec.GetCephVersionLabel(cephVersion),
+		Version: controller.GetCephVersionLabel(cephVersion),
 	}
 	// update the Ceph version on the retrieved cluster object
 	// do not overwrite the ceph status that is updated in a separate goroutine

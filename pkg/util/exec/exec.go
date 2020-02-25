@@ -193,7 +193,7 @@ func (*CommandExecutor) ExecuteCommandWithOutputFile(debug bool, actionName stri
 	cmd := exec.Command(command, arg...)
 	cmdOut, err := cmd.CombinedOutput()
 	// if there was anything that went to stdout/stderr then log it, even before we return an error
-	if string(cmdOut) != "" && debug {
+	if string(cmdOut) != "" {
 		logger.Debug(string(cmdOut))
 	}
 	if err != nil {

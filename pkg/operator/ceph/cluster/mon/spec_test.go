@@ -24,7 +24,7 @@ import (
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/ceph/config"
-	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	cephtest "github.com/rook/rook/pkg/operator/ceph/test"
 	testop "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
@@ -73,10 +73,10 @@ func testPodSpec(t *testing.T, monID string, pvc bool) {
 
 	if pvc {
 		d.Spec.Template.Spec.Volumes = append(
-			d.Spec.Template.Spec.Volumes, opspec.DaemonVolumesDataPVC("i-am-pvc"))
+			d.Spec.Template.Spec.Volumes, controller.DaemonVolumesDataPVC("i-am-pvc"))
 	} else {
 		d.Spec.Template.Spec.Volumes = append(
-			d.Spec.Template.Spec.Volumes, opspec.DaemonVolumesDataHostPath(monConfig.DataPathMap)...)
+			d.Spec.Template.Spec.Volumes, controller.DaemonVolumesDataHostPath(monConfig.DataPathMap)...)
 	}
 
 	// Deployment should have Ceph labels

@@ -27,7 +27,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	daemonconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
-	cephspec "github.com/rook/rook/pkg/operator/ceph/spec"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
@@ -106,7 +106,7 @@ func (c *ObjectStoreController) onAdd(obj interface{}) {
 	updateCephObjectStoreStatus(objectStore.GetName(), objectStore.GetNamespace(), k8sutil.ProcessingStatus, c.context)
 
 	if c.clusterSpec.External.Enable {
-		_, err := cephspec.ValidateCephVersionsBetweenLocalAndExternalClusters(c.context, c.namespace, c.clusterInfo.CephVersion)
+		_, err := controller.ValidateCephVersionsBetweenLocalAndExternalClusters(c.context, c.namespace, c.clusterInfo.CephVersion)
 		if err != nil {
 			// This handles the case where the operator is running, the external cluster has been upgraded and a CR creation is called
 			// If that's a major version upgrade we fail, if it's a minor version, we continue, it's not ideal but not critical
