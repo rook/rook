@@ -99,27 +99,25 @@ var ClusterResource = k8sutil.CustomResource{
 
 // ClusterController controls an instance of a Rook cluster
 type ClusterController struct {
-	context                *clusterd.Context
-	volumeAttachment       attachment.Attachment
-	rookImage              string
-	clusterMap             map[string]*cluster
-	addClusterCallbacks    []func(*cephv1.ClusterSpec) error
-	removeClusterCallbacks []func() error
-	csiConfigMutex         *sync.Mutex
-	nodeStore              cache.Store
-	osdChecker             *osd.Monitor
+	context             *clusterd.Context
+	volumeAttachment    attachment.Attachment
+	rookImage           string
+	clusterMap          map[string]*cluster
+	addClusterCallbacks []func(*cephv1.ClusterSpec) error
+	csiConfigMutex      *sync.Mutex
+	nodeStore           cache.Store
+	osdChecker          *osd.Monitor
 }
 
 // NewClusterController create controller for watching cluster custom resources created
-func NewClusterController(context *clusterd.Context, rookImage string, volumeAttachment attachment.Attachment, addClusterCallbacks []func(*cephv1.ClusterSpec) error, removeClusterCallbacks []func() error) *ClusterController {
+func NewClusterController(context *clusterd.Context, rookImage string, volumeAttachment attachment.Attachment, addClusterCallbacks []func(*cephv1.ClusterSpec) error) *ClusterController {
 	return &ClusterController{
-		context:                context,
-		volumeAttachment:       volumeAttachment,
-		rookImage:              rookImage,
-		clusterMap:             make(map[string]*cluster),
-		addClusterCallbacks:    addClusterCallbacks,
-		removeClusterCallbacks: removeClusterCallbacks,
-		csiConfigMutex:         &sync.Mutex{},
+		context:             context,
+		volumeAttachment:    volumeAttachment,
+		rookImage:           rookImage,
+		clusterMap:          make(map[string]*cluster),
+		addClusterCallbacks: addClusterCallbacks,
+		csiConfigMutex:      &sync.Mutex{},
 	}
 }
 
@@ -322,7 +320,7 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 	}
 
 	// Create CSI config map
-	_, err = csi.CreateCsiConfigMap(namespace, c.context.Clientset)
+	err = csi.CreateCsiConfigMap(namespace, c.context.Clientset, &cluster.ownerRef)
 	if err != nil {
 		return errors.Wrap(err, "failed to create csi config map")
 	}
@@ -812,20 +810,10 @@ func (c *ClusterController) onDelete(obj interface{}) {
 		logger.Errorf("failed to delete cluster. %v", err)
 	}
 
-	// Note that this lock is held through the callback process, as this deletes CSI resources, but we must lock in
-	// this scope as the clusterMap is authoritative on cluster count. If we ever add additional callback functions,
-	// we should tighten this lock.
-	c.csiConfigMutex.Lock()
 	if cluster, ok := c.clusterMap[clust.Namespace]; ok {
 		close(cluster.stopCh)
 		delete(c.clusterMap, clust.Namespace)
 	}
-	for _, callback := range c.removeClusterCallbacks {
-		if err := callback(); err != nil {
-			logger.Errorf("%v", err)
-		}
-	}
-	c.csiConfigMutex.Unlock()
 
 	// Only valid when the cluster is not external
 	if clust.Spec.External.Enable {

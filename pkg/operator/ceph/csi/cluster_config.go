@@ -120,7 +120,7 @@ func UpdateCsiClusterConfig(
 // CreateCsiConfigMap creates an empty config map that will be later used
 // to provide cluster configuration to ceph-csi. If a config map already
 // exists, it will return it.
-func CreateCsiConfigMap(namespace string, clientset kubernetes.Interface) (*v1.ConfigMap, error) {
+func CreateCsiConfigMap(namespace string, clientset kubernetes.Interface, ownerRef *metav1.OwnerReference) error {
 	configMap := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ConfigName,
@@ -131,25 +131,16 @@ func CreateCsiConfigMap(namespace string, clientset kubernetes.Interface) (*v1.C
 		ConfigKey: "[]",
 	}
 
-	created, err := clientset.CoreV1().ConfigMaps(namespace).Create(configMap)
+	k8sutil.SetOwnerRef(&configMap.ObjectMeta, ownerRef)
+	_, err := clientset.CoreV1().ConfigMaps(namespace).Create(configMap)
 	if err != nil {
 		if !k8serrors.IsAlreadyExists(err) {
-			return nil, errors.Wrapf(err, "failed to create initial csi config map %v (in %v)", configMap.Name, namespace)
+			return errors.Wrapf(err, "failed to create initial csi config map %q (in %q)", configMap.Name, namespace)
 		}
-		return getCsiConfigMap(namespace, clientset)
 	}
 
 	logger.Infof("successfully created csi config map %q", configMap.Name)
-	return created, nil
-}
-
-func getCsiConfigMap(namespace string, clientset kubernetes.Interface) (*v1.ConfigMap, error) {
-	found, err := clientset.CoreV1().ConfigMaps(namespace).Get(ConfigName, metav1.GetOptions{})
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get pre-existing csi config map %q (in %q)",
-			ConfigName, namespace)
-	}
-	return found, err
+	return nil
 }
 
 func DeleteCsiConfigMap(namespace string, clientset kubernetes.Interface) error {
