@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config"
@@ -40,8 +40,8 @@ func TestPodSpec(t *testing.T) {
 		"ns",
 		"rook/rook:myversion",
 		cephv1.CephVersionSpec{Image: "ceph/ceph:myceph"},
-		rookalpha.Placement{},
-		rookalpha.Annotations{},
+		rookv1.Placement{},
+		rookv1.Annotations{},
 		cephv1.NetworkSpec{},
 		cephv1.RBDMirroringSpec{Workers: 2},
 		v1.ResourceRequirements{

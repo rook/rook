@@ -18,7 +18,10 @@ package util
 
 import (
 	"fmt"
-	"github.com/rook/rook/pkg/apis/cassandra.rook.io"
+	"strconv"
+	"strings"
+
+	cassandrarookio "github.com/rook/rook/pkg/apis/cassandra.rook.io"
 	cassandrav1alpha1 "github.com/rook/rook/pkg/apis/cassandra.rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/operator/cassandra/constants"
 	appsv1 "k8s.io/api/apps/v1"
@@ -30,8 +33,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	appslisters "k8s.io/client-go/listers/apps/v1"
 	corelisters "k8s.io/client-go/listers/core/v1"
-	"strconv"
-	"strings"
 )
 
 // GetPodsForCluster returns the existing Pods for
@@ -90,7 +91,7 @@ func VerifyOwner(obj, owner metav1.Object) error {
 // the provided Cluster Object
 func NewControllerRef(c *cassandrav1alpha1.Cluster) metav1.OwnerReference {
 	return *metav1.NewControllerRef(c, schema.GroupVersionKind{
-		Group:   cassandrarookio.GroupName,
+		Group:   cassandrarookio.CustomResourceGroupName,
 		Version: "v1alpha1",
 		Kind:    "Cluster",
 	})

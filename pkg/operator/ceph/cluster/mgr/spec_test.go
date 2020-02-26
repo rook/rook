@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config"
@@ -42,8 +42,8 @@ func TestPodSpec(t *testing.T) {
 		"ns",
 		"rook/rook:myversion",
 		cephv1.CephVersionSpec{Image: "ceph/ceph:myceph"},
-		rookalpha.Placement{},
-		rookalpha.Annotations{},
+		rookv1.Placement{},
+		rookv1.Annotations{},
 		cephv1.NetworkSpec{},
 		cephv1.DashboardSpec{Port: 1234},
 		cephv1.MonitoringSpec{},
@@ -96,8 +96,8 @@ func TestServiceSpec(t *testing.T) {
 		"ns",
 		"myversion",
 		cephv1.CephVersionSpec{},
-		rookalpha.Placement{},
-		rookalpha.Annotations{},
+		rookv1.Placement{},
+		rookv1.Annotations{},
 		cephv1.NetworkSpec{},
 		cephv1.DashboardSpec{},
 		cephv1.MonitoringSpec{},
@@ -124,8 +124,8 @@ func TestHostNetwork(t *testing.T) {
 		"ns",
 		"myversion",
 		cephv1.CephVersionSpec{},
-		rookalpha.Placement{},
-		rookalpha.Annotations{},
+		rookv1.Placement{},
+		rookv1.Annotations{},
 		cephv1.NetworkSpec{HostNetwork: true},
 		cephv1.DashboardSpec{Port: 1234},
 		cephv1.MonitoringSpec{},
@@ -159,8 +159,8 @@ func TestHttpBindFix(t *testing.T) {
 		"ns",
 		"myversion",
 		cephv1.CephVersionSpec{},
-		rookalpha.Placement{},
-		rookalpha.Annotations{},
+		rookv1.Placement{},
+		rookv1.Annotations{},
 		cephv1.NetworkSpec{},
 		cephv1.DashboardSpec{Port: 1234},
 		cephv1.MonitoringSpec{},
@@ -195,8 +195,8 @@ func TestApplyPrometheusAnnotations(t *testing.T) {
 		"ns",
 		"myversion",
 		cephv1.CephVersionSpec{},
-		rookalpha.Placement{},
-		rookalpha.Annotations{},
+		rookv1.Placement{},
+		rookv1.Annotations{},
 		cephv1.NetworkSpec{},
 		cephv1.DashboardSpec{},
 		cephv1.MonitoringSpec{},
@@ -225,7 +225,7 @@ func TestApplyPrometheusAnnotations(t *testing.T) {
 	// re-initialize "d"
 	d = c.makeDeployment(&mgrTestConfig)
 
-	fakeAnnotations := rookalpha.Annotations{
+	fakeAnnotations := rookv1.Annotations{
 		"foo.io/bar": "foobar",
 	}
 	c.annotations = fakeAnnotations

@@ -21,7 +21,7 @@ import (
 	"os"
 	"testing"
 
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -117,7 +117,7 @@ func TestGetAvailableDevices(t *testing.T) {
 	context := &clusterd.Context{
 		Clientset: clientset,
 	}
-	d := []rookalpha.Device{
+	d := []rookv1.Device{
 		{
 			Name: "sdc",
 		},

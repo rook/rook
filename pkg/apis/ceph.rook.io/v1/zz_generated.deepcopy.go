@@ -21,7 +21,7 @@ limitations under the License.
 package v1
 
 import (
-	v1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rookiov1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
@@ -557,14 +557,14 @@ func (in *ClusterSpec) DeepCopyInto(out *ClusterSpec) {
 	in.Storage.DeepCopyInto(&out.Storage)
 	if in.Annotations != nil {
 		in, out := &in.Annotations, &out.Annotations
-		*out = make(v1alpha2.AnnotationsSpec, len(*in))
+		*out = make(rookiov1.AnnotationsSpec, len(*in))
 		for key, val := range *in {
 			var outVal map[string]string
 			if val == nil {
 				(*out)[key] = nil
 			} else {
 				in, out := &val, &outVal
-				*out = make(v1alpha2.Annotations, len(*in))
+				*out = make(rookiov1.Annotations, len(*in))
 				for key, val := range *in {
 					(*out)[key] = val
 				}
@@ -574,7 +574,7 @@ func (in *ClusterSpec) DeepCopyInto(out *ClusterSpec) {
 	}
 	if in.Placement != nil {
 		in, out := &in.Placement, &out.Placement
-		*out = make(v1alpha2.PlacementSpec, len(*in))
+		*out = make(rookiov1.PlacementSpec, len(*in))
 		for key, val := range *in {
 			(*out)[key] = *val.DeepCopy()
 		}
@@ -582,14 +582,14 @@ func (in *ClusterSpec) DeepCopyInto(out *ClusterSpec) {
 	in.Network.DeepCopyInto(&out.Network)
 	if in.Resources != nil {
 		in, out := &in.Resources, &out.Resources
-		*out = make(v1alpha2.ResourceSpec, len(*in))
+		*out = make(rookiov1.ResourceSpec, len(*in))
 		for key, val := range *in {
 			(*out)[key] = *val.DeepCopy()
 		}
 	}
 	if in.PriorityClassNames != nil {
 		in, out := &in.PriorityClassNames, &out.PriorityClassNames
-		*out = make(v1alpha2.PriorityClassNamesSpec, len(*in))
+		*out = make(rookiov1.PriorityClassNamesSpec, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val
 		}
@@ -807,7 +807,7 @@ func (in *GaneshaServerSpec) DeepCopyInto(out *GaneshaServerSpec) {
 	in.Placement.DeepCopyInto(&out.Placement)
 	if in.Annotations != nil {
 		in, out := &in.Annotations, &out.Annotations
-		*out = make(v1alpha2.Annotations, len(*in))
+		*out = make(rookiov1.Annotations, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val
 		}
@@ -832,7 +832,7 @@ func (in *GatewaySpec) DeepCopyInto(out *GatewaySpec) {
 	in.Placement.DeepCopyInto(&out.Placement)
 	if in.Annotations != nil {
 		in, out := &in.Annotations, &out.Annotations
-		*out = make(v1alpha2.Annotations, len(*in))
+		*out = make(rookiov1.Annotations, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val
 		}
@@ -857,7 +857,7 @@ func (in *MetadataServerSpec) DeepCopyInto(out *MetadataServerSpec) {
 	in.Placement.DeepCopyInto(&out.Placement)
 	if in.Annotations != nil {
 		in, out := &in.Annotations, &out.Annotations
-		*out = make(v1alpha2.Annotations, len(*in))
+		*out = make(rookiov1.Annotations, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val
 		}

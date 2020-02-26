@@ -21,9 +21,8 @@ import (
 	"testing"
 
 	"github.com/ghodss/yaml"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/stretchr/testify/assert"
-
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 )
 
 func TestClusterSpecMarshal(t *testing.T) {
@@ -70,9 +69,9 @@ storage:
 		Network: NetworkSpec{
 			HostNetwork: true,
 		},
-		Storage: rookalpha.StorageScopeSpec{
+		Storage: rookv1.StorageScopeSpec{
 			UseAllNodes: false,
-			Selection: rookalpha.Selection{
+			Selection: rookv1.Selection{
 				UseAllDevices:    &useAllDevices,
 				DeviceFilter:     "^sd.",
 				DevicePathFilter: "^/dev/disk/by-path/pci-.*",
@@ -82,10 +81,10 @@ storage:
 				"journalSizeMB":  "1024",
 				"databaseSizeMB": "1024",
 			},
-			Nodes: []rookalpha.Node{
+			Nodes: []rookv1.Node{
 				{
 					Name: "node2",
-					Selection: rookalpha.Selection{
+					Selection: rookv1.Selection{
 						DeviceFilter:     "^foo*",
 						DevicePathFilter: "^/dev/disk/by-id/.*foo.*",
 					},

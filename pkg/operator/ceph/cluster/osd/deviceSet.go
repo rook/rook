@@ -18,14 +18,14 @@ package osd
 
 import (
 	"github.com/pkg/errors"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (c *Cluster) prepareStorageClassDeviceSets(config *provisionConfig) []rookalpha.VolumeSource {
-	volumeSources := []rookalpha.VolumeSource{}
+func (c *Cluster) prepareStorageClassDeviceSets(config *provisionConfig) []rookv1.VolumeSource {
+	volumeSources := []rookv1.VolumeSource{}
 
 	// Iterate over storageClassDeviceSet
 	for _, storageClassDeviceSet := range c.DesiredStorage.StorageClassDeviceSets {
@@ -45,7 +45,7 @@ func (c *Cluster) prepareStorageClassDeviceSets(config *provisionConfig) []rooka
 					config.addError("failed to create osd for storageClassDeviceSet %q for count %d. %v", storageClassDeviceSet.Name, i, err)
 					continue
 				}
-				volumeSources = append(volumeSources, rookalpha.VolumeSource{
+				volumeSources = append(volumeSources, rookv1.VolumeSource{
 					Name:      storageClassDeviceSet.Name,
 					Resources: storageClassDeviceSet.Resources,
 					Placement: storageClassDeviceSet.Placement,
