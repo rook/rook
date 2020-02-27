@@ -425,6 +425,8 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 		}
 	} else {
 		if err := c.configureExternalCephCluster(clusterObj.Namespace, clusterObj.Name, cluster); err != nil {
+			config.ConditionExport(c.context, clusterObj.Namespace, clusterObj.Name,
+				cephv1.ConditionFailure, v1.ConditionTrue, "ClusterFailure", "Failed to configure external ceph cluster")
 			logger.Errorf("failed to configure external ceph cluster. %v", err)
 			return
 		}
