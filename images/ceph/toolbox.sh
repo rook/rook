@@ -32,9 +32,6 @@ write_endpoints() {
     # filter out the mon names
     mon_endpoints=$(echo ${endpoints} | sed 's/[a-z]\+=//g')
 
-    # filter out the legacy mon names
-    mon_endpoints=$(echo ${mon_endpoints} | sed 's/rook-ceph-mon[0-9]\+=//g')
-
     DATE=$(date)
     echo "$DATE writing mon endpoints to ${CEPH_CONFIG}: ${endpoints}"
     cat <<EOF > ${CEPH_CONFIG}
