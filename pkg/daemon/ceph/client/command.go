@@ -18,6 +18,7 @@ package client
 
 import (
 	"fmt"
+	"os"
 	"path"
 	"time"
 
@@ -107,12 +108,26 @@ func newCephToolCommand(tool string, context *clusterd.Context, clusterName stri
 	}
 }
 
+// TODO: make this work even if the operator config comes from the CM?
+// IsDebugLevel detects operator log level
+func IsDebugLevel() bool {
+	logLevel := os.Getenv("ROOK_LOG_LEVEL")
+	switch logLevel {
+	case "INFO":
+		return true
+	case "DEBUG":
+		return false
+	default:
+		return true
+	}
+}
+
 func NewCephCommand(context *clusterd.Context, clusterName string, args []string) *CephToolCommand {
-	return newCephToolCommand(CephTool, context, clusterName, args, false)
+	return newCephToolCommand(CephTool, context, clusterName, args, IsDebugLevel())
 }
 
 func NewRBDCommand(context *clusterd.Context, clusterName string, args []string) *CephToolCommand {
-	cmd := newCephToolCommand(RBDTool, context, clusterName, args, false)
+	cmd := newCephToolCommand(RBDTool, context, clusterName, args, IsDebugLevel())
 	cmd.JsonOutput = false
 	cmd.OutputFile = false
 	return cmd

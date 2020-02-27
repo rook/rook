@@ -83,7 +83,7 @@ func (c *Cluster) checkHealth() error {
 
 	// connect to the mons
 	// get the status and check for quorum
-	quorumStatus, err := client.GetMonQuorumStatus(c.context, c.ClusterInfo.Name, true)
+	quorumStatus, err := client.GetMonQuorumStatus(c.context, c.ClusterInfo.Name, client.IsDebugLevel())
 	if err != nil {
 		return errors.Wrapf(err, "failed to get mon quorum status")
 	}
