@@ -986,7 +986,7 @@ func waitForQuorumWithMons(context *clusterd.Context, clusterName string, mons [
 
 		// get the quorum_status response that contains info about all monitors in the mon map and
 		// their quorum status
-		monQuorumStatusResp, err := client.GetMonQuorumStatus(context, clusterName, false)
+		monQuorumStatusResp, err := client.GetMonQuorumStatus(context, clusterName, client.IsDebugLevel())
 		if err != nil {
 			logger.Debugf("failed to get quorum_status. %v", err)
 			continue
