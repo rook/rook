@@ -110,11 +110,12 @@ func GetPoolNamesByID(context *clusterd.Context, clusterName string) (map[int]st
 	return names, nil
 }
 
+// GetPoolDetails gets all the details of a given pool
 func GetPoolDetails(context *clusterd.Context, clusterName, name string) (CephStoragePoolDetails, error) {
 	args := []string{"osd", "pool", "get", name, "all"}
 	buf, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
-		return CephStoragePoolDetails{}, errors.Wrapf(err, "failed to get pool %s details", name)
+		return CephStoragePoolDetails{}, errors.Wrapf(err, "failed to get pool %s details. %s", name, string(buf))
 	}
 
 	// The response for osd pool get when passing var=all is actually malformed JSON similar to:
@@ -263,7 +264,7 @@ func CreateReplicatedPoolForApp(context *clusterd.Context, clusterName string, n
 
 	buf, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
-		return errors.Wrapf(err, "failed to create replicated pool %s", newPool.Name)
+		return errors.Wrapf(err, "failed to create replicated pool %s. %s", newPool.Name, string(buf))
 	}
 
 	// the pool is type replicated, set the size for the pool now that it's been created
@@ -287,7 +288,7 @@ func CreateReplicatedPoolForApp(context *clusterd.Context, clusterName string, n
 		}
 	}
 
-	logger.Infof("creating replicated pool %s succeeded, buf: %s", newPool.Name, string(buf))
+	logger.Infof("creating replicated pool %s succeeded", newPool.Name)
 	return nil
 }
 

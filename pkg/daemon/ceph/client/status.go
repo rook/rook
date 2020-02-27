@@ -148,7 +148,7 @@ func Status(context *clusterd.Context, clusterName string, debug bool) (CephStat
 	cmd.Debug = debug
 	buf, err := cmd.Run()
 	if err != nil {
-		return CephStatus{}, errors.Wrapf(err, "failed to get status")
+		return CephStatus{}, errors.Wrapf(err, "failed to get status. %s", string(buf))
 	}
 
 	var status CephStatus
