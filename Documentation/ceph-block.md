@@ -74,10 +74,10 @@ parameters:
 reclaimPolicy: Delete
 ```
 
-If you've deployed the Rook operator in a namespace other than "rook-ceph"
-as is common change the prefix in the provisioner to match the namespace
-you used. For example, if the Rook operator is running in "rook-op" the
-provisioner value should be "rook-op.rbd.csi.ceph.com".
+If you've deployed the Rook operator in a namespace other than "rook-ceph",
+change the prefix in the provisioner to match the namespace
+you used. For example, if the Rook operator is running in the namespace "ilovestorage" the
+provisioner value should be "ilovestorage.rbd.csi.ceph.com".
 
 Create the storage class.
 
