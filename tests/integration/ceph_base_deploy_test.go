@@ -157,7 +157,7 @@ func StartTestCluster(t func() *testing.T, minimalMatrixK8sVersion, namespace, s
 
 // SetUpRook is a wrapper for setting up rook
 func (op *TestCluster) Setup() {
-	isRookInstalled, err := op.installer.InstallRookOnK8sWithHostPathAndDevicesOrPVC(op.namespace, op.storeType, op.usePVC, op.storageClassName,
+	isRookInstalled, err := op.installer.InstallRook(op.namespace, op.storeType, op.usePVC, op.storageClassName,
 		cephv1.MonSpec{Count: op.mons, AllowMultiplePerNode: true}, false /* startWithAllNodes */, op.rbdMirrorWorkers)
 
 	if !isRookInstalled || err != nil {

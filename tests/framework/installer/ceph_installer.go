@@ -105,8 +105,8 @@ func (h *CephInstaller) CreateCephOperator(namespace string) (err error) {
 	return nil
 }
 
-// CreateK8sRookOperatorViaHelm creates rook operator via Helm chart named local/rook present in local repo
-func (h *CephInstaller) CreateK8sRookOperatorViaHelm(namespace, chartSettings string) error {
+// CreateRookOperatorViaHelm creates rook operator via Helm chart named local/rook present in local repo
+func (h *CephInstaller) CreateRookOperatorViaHelm(namespace, chartSettings string) error {
 	// creating clusterrolebinding for kubeadm env.
 	h.k8shelper.CreateAnonSystemClusterBinding()
 
@@ -125,8 +125,8 @@ func (h *CephInstaller) CreateK8sRookOperatorViaHelm(namespace, chartSettings st
 	return nil
 }
 
-// CreateK8sRookToolbox creates rook-ceph-tools via kubectl
-func (h *CephInstaller) CreateK8sRookToolbox(namespace string) (err error) {
+// CreateRookToolbox creates rook-ceph-tools via kubectl
+func (h *CephInstaller) CreateRookToolbox(namespace string) (err error) {
 	logger.Infof("Starting Rook toolbox")
 
 	rookToolbox := h.Manifests.GetRookToolBox(namespace)
@@ -145,8 +145,8 @@ func (h *CephInstaller) CreateK8sRookToolbox(namespace string) (err error) {
 	return nil
 }
 
-// CreateK8sRookClusterWithHostPathAndDevicesOrPVC creates rook cluster via kubectl
-func (h *CephInstaller) CreateK8sRookClusterWithHostPathAndDevicesOrPVC(namespace, systemNamespace, storeType string, usePVC bool, storageClassName string,
+// CreateRookCluster creates rook cluster via kubectl
+func (h *CephInstaller) CreateRookCluster(namespace, systemNamespace, storeType string, usePVC bool, storageClassName string,
 	mon cephv1.MonSpec, startWithAllNodes bool, rbdMirrorWorkers int, cephVersion cephv1.CephVersionSpec) error {
 
 	dataDirHostPath, err := h.initTestDir(namespace)
@@ -209,8 +209,8 @@ func (h *CephInstaller) CreateK8sRookClusterWithHostPathAndDevicesOrPVC(namespac
 	return err
 }
 
-// CreateK8sRookExternalCluster creates rook external cluster via kubectl
-func (h *CephInstaller) CreateK8sRookExternalCluster(namespace, firstClusterNamespace string) error {
+// CreateRookExternalCluster creates rook external cluster via kubectl
+func (h *CephInstaller) CreateRookExternalCluster(namespace, firstClusterNamespace string) error {
 
 	dataDirHostPath, err := h.initTestDir(namespace)
 	if err != nil {
@@ -347,8 +347,8 @@ func (h *CephInstaller) GetNodeHostnames() ([]string, error) {
 	return names, nil
 }
 
-// InstallRookOnK8sWithHostPathAndDevicesOrPVC installs rook on k8s
-func (h *CephInstaller) InstallRookOnK8sWithHostPathAndDevicesOrPVC(namespace, storeType string, usePVC bool, storageClassName string,
+// InstallRook installs rook on k8s
+func (h *CephInstaller) InstallRook(namespace, storeType string, usePVC bool, storageClassName string,
 	mon cephv1.MonSpec, startWithAllNodes bool, rbdMirrorWorkers int) (bool, error) {
 
 	var err error
@@ -363,7 +363,7 @@ func (h *CephInstaller) InstallRookOnK8sWithHostPathAndDevicesOrPVC(namespace, s
 		// disable the discovery daemonset with the helm chart
 		settings := "enableDiscoveryDaemon=false"
 		startDiscovery = false
-		err = h.CreateK8sRookOperatorViaHelm(namespace, settings)
+		err = h.CreateRookOperatorViaHelm(namespace, settings)
 		if err != nil {
 			logger.Errorf("Rook Operator not installed ,error -> %v", err)
 			return false, err
@@ -386,7 +386,7 @@ func (h *CephInstaller) InstallRookOnK8sWithHostPathAndDevicesOrPVC(namespace, s
 	}
 
 	// Create rook cluster
-	err = h.CreateK8sRookClusterWithHostPathAndDevicesOrPVC(namespace, onamespace, storeType, usePVC, storageClassName,
+	err = h.CreateRookCluster(namespace, onamespace, storeType, usePVC, storageClassName,
 		cephv1.MonSpec{Count: mon.Count, AllowMultiplePerNode: mon.AllowMultiplePerNode}, startWithAllNodes,
 		rbdMirrorWorkers, h.CephVersion)
 	if err != nil {
@@ -404,7 +404,7 @@ func (h *CephInstaller) InstallRookOnK8sWithHostPathAndDevicesOrPVC(namespace, s
 	}
 
 	// Create rook client
-	err = h.CreateK8sRookToolbox(namespace)
+	err = h.CreateRookToolbox(namespace)
 	if err != nil {
 		logger.Errorf("Rook toolbox in cluster %s not installed, error -> %v", namespace, err)
 		return false, err
