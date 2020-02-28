@@ -308,6 +308,9 @@ spec:
         # (Optional) Ceph Provisioner NodeAffinity.
         # - name: CSI_PROVISIONER_NODE_AFFINITY
         #   value: "role=storage-node; storage=rook, ceph"
+        # (Optional) Allow starting unsupported ceph-csi image
+        - name: ROOK_CSI_ALLOW_UNSUPPORTED_VERSION
+          value: "false"
         # (Optional) CEPH CSI provisioner tolerations list. Put here list of taints you want to tolerate in YAML format.
         # CSI provisioner would be best to start on the same nodes as other ceph daemons.
         # - name: CSI_PROVISIONER_TOLERATIONS
