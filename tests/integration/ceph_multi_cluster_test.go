@@ -171,7 +171,7 @@ func (o MCTestOperations) Teardown() {
 
 func (o MCTestOperations) startCluster(namespace, store string) error {
 	logger.Infof("starting cluster %s", namespace)
-	err := o.installer.CreateK8sRookClusterWithHostPathAndDevicesOrPVC(namespace, o.systemNamespace, store, o.testOverPVC, o.storageClassName,
+	err := o.installer.CreateRookCluster(namespace, o.systemNamespace, store, o.testOverPVC, o.storageClassName,
 		cephv1.MonSpec{Count: 1, AllowMultiplePerNode: true}, true, 1, installer.NautilusVersion)
 	if err != nil {
 		o.T().Fail()
@@ -179,7 +179,7 @@ func (o MCTestOperations) startCluster(namespace, store string) error {
 		return fmt.Errorf("failed to create cluster %s. %+v", namespace, err)
 	}
 
-	if err := o.installer.CreateK8sRookToolbox(namespace); err != nil {
+	if err := o.installer.CreateRookToolbox(namespace); err != nil {
 		o.T().Fail()
 		o.installer.GatherAllRookLogs(o.T().Name(), namespace, o.systemNamespace)
 		return fmt.Errorf("failed to create toolbox for %s. %+v", namespace, err)
@@ -190,7 +190,7 @@ func (o MCTestOperations) startCluster(namespace, store string) error {
 
 func (o MCTestOperations) startExternalCluster(namespace string) error {
 	logger.Infof("starting external cluster %q", namespace)
-	err := o.installer.CreateK8sRookExternalCluster(namespace, o.namespace1)
+	err := o.installer.CreateRookExternalCluster(namespace, o.namespace1)
 	if err != nil {
 		o.T().Fail()
 		o.installer.GatherAllRookLogs(o.T().Name(), namespace, o.systemNamespace)
@@ -198,7 +198,7 @@ func (o MCTestOperations) startExternalCluster(namespace string) error {
 	}
 
 	logger.Infof("running toolbox on namespace %q", namespace)
-	if err := o.installer.CreateK8sRookToolbox(namespace); err != nil {
+	if err := o.installer.CreateRookToolbox(namespace); err != nil {
 		o.T().Fail()
 		o.installer.GatherAllRookLogs(o.T().Name(), namespace, o.systemNamespace)
 		return fmt.Errorf("failed to create toolbox for %s. %+v", namespace, err)

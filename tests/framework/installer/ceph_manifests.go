@@ -60,7 +60,7 @@ type ClusterSettings struct {
 	Mons             int
 	RBDMirrorWorkers int
 	UsePVCs          bool
-	UseStorageClass  string
+	StorageClassName string
 	CephVersion      cephv1.CephVersionSpec
 }
 
@@ -1771,7 +1771,7 @@ spec:
     allowMultiplePerNode: true
     volumeClaimTemplate:
       spec:
-        storageClassName: ` + settings.UseStorageClass + `
+        storageClassName: ` + settings.StorageClassName + `
         resources:
           requests:
             storage: 5Gi
@@ -1801,7 +1801,7 @@ spec:
           resources:
             requests:
               storage: 10Gi
-          storageClassName: ` + settings.UseStorageClass + `
+          storageClassName: ` + settings.StorageClassName + `
           volumeMode: Block
           accessModes:
             - ReadWriteOnce
