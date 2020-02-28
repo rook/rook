@@ -86,15 +86,8 @@ func TestClusterDeleteFlexEnabled(t *testing.T) {
 			return nil
 		},
 	}
-	removeCallbacks := []func() error{
-		func() error {
-			logger.Infof("test success callback")
-			return nil
-		},
-	}
-
 	// create the cluster controller and tell it that the cluster has been deleted
-	controller := NewClusterController(context, "", volumeAttachmentController, addCallbacks, removeCallbacks)
+	controller := NewClusterController(context, "", volumeAttachmentController, addCallbacks)
 	clusterToDelete := &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: clusterName}}
 	controller.handleDelete(clusterToDelete, time.Microsecond)
 
@@ -133,15 +126,8 @@ func TestClusterDeleteFlexDisabled(t *testing.T) {
 			return nil
 		},
 	}
-	removeCallbacks := []func() error{
-		func() error {
-			logger.Infof("test success callback")
-			return nil
-		},
-	}
-
 	// create the cluster controller and tell it that the cluster has been deleted
-	controller := NewClusterController(context, "", volumeAttachmentController, addCallbacks, removeCallbacks)
+	controller := NewClusterController(context, "", volumeAttachmentController, addCallbacks)
 	clusterToDelete := &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: clusterName}}
 	controller.handleDelete(clusterToDelete, time.Microsecond)
 
@@ -218,14 +204,7 @@ func TestRemoveFinalizer(t *testing.T) {
 			return errors.New("test failed callback")
 		},
 	}
-	removeCallbacks := []func() error{
-		func() error {
-			logger.Infof("test success callback")
-			return nil
-		},
-	}
-
-	controller := NewClusterController(context, "", &attachment.MockAttachment{}, addCallbacks, removeCallbacks)
+	controller := NewClusterController(context, "", &attachment.MockAttachment{}, addCallbacks)
 
 	// *****************************************
 	// start with a current version ceph cluster

@@ -92,10 +92,7 @@ func New(context *clusterd.Context, volumeAttachmentWrapper attachment.Attachmen
 	addCallbacks := []func(*cephv1.ClusterSpec) error{
 		o.startSystemDaemons,
 	}
-	removeCallbacks := []func() error{
-		o.stopSystemDaemons,
-	}
-	o.clusterController = cluster.NewClusterController(context, rookImage, volumeAttachmentWrapper, addCallbacks, removeCallbacks)
+	o.clusterController = cluster.NewClusterController(context, rookImage, volumeAttachmentWrapper, addCallbacks)
 	return o
 }
 
@@ -205,27 +202,5 @@ func (o *Operator) startSystemDaemons(clusterSpec *cephv1.ClusterSpec) error {
 	logger.Infof("successfully started Ceph CSI driver(s)")
 
 	o.delayedDaemonsStarted = true
-	return nil
-}
-
-func (o *Operator) stopSystemDaemons() error {
-	if !o.delayedDaemonsStarted || o.clusterController.GetClusterCount() != 0 {
-		return nil
-	}
-	if o.operatorNamespace == "" {
-		return errors.Errorf("Rook operator namespace is not provided. Expose it via downward API in the rook operator manifest file using environment variable %q", k8sutil.PodNamespaceEnvVar)
-	}
-	// TODO: Add removal of FlexVolume daemons
-	if !csi.CSIEnabled() {
-		logger.Infof("CSI driver is not enabled")
-		return nil
-	}
-
-	if err := csi.StopCSIDrivers(o.operatorNamespace, o.context.Clientset); err != nil {
-		return errors.Wrapf(err, "failed to start Ceph csi drivers")
-	}
-	logger.Infof("successfully stopped Ceph CSI driver(s)")
-
-	o.delayedDaemonsStarted = false
 	return nil
 }
