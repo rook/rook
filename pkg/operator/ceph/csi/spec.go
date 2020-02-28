@@ -21,10 +21,12 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/operator/k8sutil/cmdreporter"
 
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -68,6 +70,7 @@ var (
 	EnableRBD            = false
 	EnableCephFS         = false
 	EnableCSIGRPCMetrics = false
+	AllowUnsupported     = false
 
 	//driver names
 	CephFSDriverName string
@@ -134,6 +137,8 @@ const (
 	DefaultRBDGRPCMerticsPort        uint16 = 9090
 	DefaultRBDLivenessMerticsPort    uint16 = 9080
 
+	detectCSIVersionName   = "rook-ceph-csi-detect-version"
+	operatorDeploymentName = "rook-ceph-operator"
 	// default log level for csi containers
 	defaultLogLevel uint8 = 0
 )
@@ -468,4 +473,55 @@ func GetDeploymentOwnerReference(clientset kubernetes.Interface, namespace strin
 		return nil, errors.New("could not find owner reference for rook-ceph deployment")
 	}
 	return deploymentRef, nil
+}
+
+// ValidateCSIVersion checks if the configured ceph-csi image is supported
+func ValidateCSIVersion(clientset kubernetes.Interface, namespace, rookImage, serviceAccountName string) error {
+	var ownerRef metav1.OwnerReference
+	timeout := 15 * time.Minute
+
+	logger.Infof("detecting the ceph csi image version for image %q", CSIParam.CSIPluginImage)
+
+	pod, err := k8sutil.GetRunningPod(clientset)
+	if err != nil {
+		return errors.Wrap(err, "could not get the rook operator pod to obtain the owner reference")
+	}
+	if pod == nil || len(pod.GetOwnerReferences()) == 0 {
+		return errors.New("empty owner reference in rook operator pod")
+	}
+	ownerRef = pod.GetOwnerReferences()[0]
+
+	versionReporter, err := cmdreporter.New(
+		clientset,
+		&ownerRef,
+		detectCSIVersionName, detectCSIVersionName, namespace,
+		[]string{"cephcsi"}, []string{"--version"},
+		rookImage, CSIParam.CSIPluginImage)
+
+	if err != nil {
+		return errors.Wrap(err, "failed to set up ceph CSI version job")
+	}
+
+	job := versionReporter.Job()
+	job.Spec.Template.Spec.ServiceAccountName = serviceAccountName
+
+	stdout, _, retcode, err := versionReporter.Run(timeout)
+	if err != nil {
+		return errors.Wrap(err, "failed to complete ceph CSI version job")
+	}
+
+	if retcode != 0 {
+		return errors.Errorf("ceph CSI version job returned %d", retcode)
+	}
+
+	version, err := extractCephCSIVersion(stdout)
+	if err != nil {
+		return errors.Wrap(err, "failed to extract ceph CSI version")
+	}
+	logger.Infof("Detected ceph CSI image version: %q", version)
+
+	if !version.Supported() {
+		return errors.Errorf("ceph CSI image needs to be at least version %q", minimum.String())
+	}
+	return nil
 }
