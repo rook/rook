@@ -56,6 +56,7 @@ func init() {
 	operatorCmd.Flags().StringVar(&csi.CSIParam.ProvisionerImage, "csi-provisioner-image", csi.DefaultProvisionerImage, "csi provisioner image")
 	operatorCmd.Flags().StringVar(&csi.CSIParam.AttacherImage, "csi-attacher-image", csi.DefaultAttacherImage, "csi attacher image")
 	operatorCmd.Flags().StringVar(&csi.CSIParam.SnapshotterImage, "csi-snapshotter-image", csi.DefaultSnapshotterImage, "csi snapshotter image")
+	operatorCmd.Flags().BoolVar(&csi.AllowUnsupported, "csi-allow-unsupported-version", false, "csi allow unsupported image version")
 
 	// csi deployment templates
 	operatorCmd.Flags().StringVar(&csi.RBDPluginTemplatePath, "csi-rbd-plugin-template-path", csi.DefaultRBDPluginTemplatePath, "path to ceph-csi rbd plugin template")

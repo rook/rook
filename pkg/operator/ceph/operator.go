@@ -196,6 +196,10 @@ func (o *Operator) startSystemDaemons(clusterSpec *cephv1.ClusterSpec) error {
 		return errors.Wrapf(err, "invalid csi params")
 	}
 
+	if err = csi.ValidateCSIVersion(o.context.Clientset, o.operatorNamespace, o.rookImage, o.securityAccount); err != nil {
+		return errors.Wrap(err, "invalid csi version")
+	}
+
 	if err = csi.StartCSIDrivers(o.operatorNamespace, o.context.Clientset, serverVersion); err != nil {
 		return errors.Wrapf(err, "failed to start Ceph csi drivers")
 	}

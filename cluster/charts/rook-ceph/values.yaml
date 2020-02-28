@@ -67,6 +67,8 @@ csi:
   # CSI Rbd plugin daemonset update strategy, supported values are OnDelete and RollingUpdate.
   # Default value is RollingUpdate.
   #cephFSPluginUpdateStrategy: OnDelete
+  # Allow starting unsupported ceph-csi image
+  allowUnsupportedVersion: false
 
   # Set provisonerTolerations and provisionerNodeAffinity for provisioner pod.
   # The CSI provisioner would be best to start on the same nodes as other ceph daemons.

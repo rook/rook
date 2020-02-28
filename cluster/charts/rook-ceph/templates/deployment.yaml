@@ -166,6 +166,10 @@ spec:
         - name: CSI_PROVISIONER_NODE_AFFINITY
           value: {{ .Values.csi.provisionerNodeAffinity }}
 {{- end }}
+{{- if .Values.csi.allowUnsupportedVersion }}
+        - name: ROOK_CSI_ALLOW_UNSUPPORTED_VERSION
+          value: {{ .Values.csi.allowUnsupportedVersion | quote }}
+{{- end }}     
 {{- if .Values.csi.pluginTolerations }}
         - name: CSI_PLUGIN_TOLERATIONS
           value: {{ toYaml .Values.csi.pluginTolerations | quote }}
