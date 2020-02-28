@@ -60,8 +60,9 @@ func IsReadyToReconcile(client client.Client, clustercontext *clusterd.Context, 
 		}
 	}
 
+	logger.Debugf("CephCluster resource %q found in namespace %q", namespacedName.Name, namespacedName.Namespace)
+
 	// If the cluster is ready
-	// Not using k8sutil.ReadyStatus to avoid import cycles
 	if cephCluster.Status.Phase == k8sutil.ReadyStatus {
 		// Test a Ceph command to verify the Operator is ready
 		// This is done to silence errors when the operator just started and cannot reconcile yet
@@ -75,8 +76,10 @@ func IsReadyToReconcile(client client.Client, clustercontext *clusterd.Context, 
 			logger.Errorf("ceph command error %v", err)
 			return cephCluster.Spec, false, cephClusterExists, ImmediateRetryResult
 		}
+		logger.Debugf("operator is ready to run ceph command, reconciling")
 		return cephCluster.Spec, true, cephClusterExists, reconcile.Result{}
 	}
 
+	logger.Debugf("CephCluster resource %q found in namespace %q but not ready yet", namespacedName.Name, namespacedName.Namespace)
 	return cephCluster.Spec, false, cephClusterExists, ImmediateRetryResult
 }
