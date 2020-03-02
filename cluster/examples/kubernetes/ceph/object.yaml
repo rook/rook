@@ -34,6 +34,8 @@ spec:
     securePort:
     # The number of pods in the rgw deployment
     instances: 1
+    # The DNS subdomain for S3 bucket
+    dnsSubdomain: https://bucketname.s3.Region.amazonaws.com
     # The affinity rules to apply to the rgw deployment or daemonset.
     placement:
     #  nodeAffinity:

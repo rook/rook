@@ -419,6 +419,9 @@ type GatewaySpec struct {
 	// The affinity to place the rgw pods (default is to place on any available node)
 	Placement rook.Placement `json:"placement"`
 
+	// The DNS Subdomain for S3 bucket URL.
+	DnsSubdomain string `json:"dnsSubdomain,omitempty"`
+
 	// The annotations-related configuration to add/set on each Pod related object.
 	Annotations rook.Annotations `json:"annotations,omitempty"`
 
