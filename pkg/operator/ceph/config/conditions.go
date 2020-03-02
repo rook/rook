@@ -72,6 +72,9 @@ func setCondition(context *clusterd.Context, namespace, name string, newConditio
 
 	if newCondition.Status == v1.ConditionTrue {
 		cluster.Status.Phase = newCondition.Type
+		if state := translatePhasetoState(newCondition.Type); state != "" {
+			cluster.Status.State = state
+		}
 		cluster.Status.Message = newCondition.Message
 		logger.Infof("CephCluster %q status: %q. %q", namespace, cluster.Status.Phase, cluster.Status.Message)
 	}
@@ -82,6 +85,30 @@ func setCondition(context *clusterd.Context, namespace, name string, newConditio
 	if newCondition.Type == cephv1.ConditionReady {
 		checkConditionFalse(context, namespace, name)
 	}
+}
+
+// translatePhasetoState convert the Phases to corresponding State
+// 1. We still need to set the State in case someone is still using it
+// instead of Phase. If we stopped setting the State it would be a
+// breaking change.
+// 2. We can't change the enum values of the State since that is also
+// a breaking change. Therefore, we translate new phases to the original
+// State values
+func translatePhasetoState(phase cephv1.ConditionType) string {
+	if phase == cephv1.ConditionProgressing {
+		return "Creating"
+	} else if phase == cephv1.ConditionReady {
+		return "Created"
+	} else if phase == cephv1.ConditionUpgrading || phase == cephv1.ConditionUpdating {
+		return "Updating"
+	} else if phase == cephv1.ConditionFailure || phase == cephv1.ConditionIgnored {
+		return "Error"
+	} else if phase == cephv1.ConditionConnected {
+		return "Connected"
+	} else if phase == cephv1.ConditionConnecting {
+		return "Connecting"
+	}
+	return ""
 }
 
 // Updating the status of Progressing, Updating or Upgrading to False once cluster is Ready
