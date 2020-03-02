@@ -477,7 +477,6 @@ func GetDeploymentOwnerReference(clientset kubernetes.Interface, namespace strin
 
 // ValidateCSIVersion checks if the configured ceph-csi image is supported
 func ValidateCSIVersion(clientset kubernetes.Interface, namespace, rookImage, serviceAccountName string) error {
-	var ownerRef metav1.OwnerReference
 	timeout := 15 * time.Minute
 
 	logger.Infof("detecting the ceph csi image version for image %q", CSIParam.CSIPluginImage)
@@ -489,11 +488,13 @@ func ValidateCSIVersion(clientset kubernetes.Interface, namespace, rookImage, se
 	if pod == nil || len(pod.GetOwnerReferences()) == 0 {
 		return errors.New("empty owner reference in rook operator pod")
 	}
-	ownerRef = pod.GetOwnerReferences()[0]
+	ownerRef := pod.GetOwnerReferences()[0].DeepCopy()
+
+	*ownerRef.BlockOwnerDeletion = false
 
 	versionReporter, err := cmdreporter.New(
 		clientset,
-		&ownerRef,
+		ownerRef,
 		detectCSIVersionName, detectCSIVersionName, namespace,
 		[]string{"cephcsi"}, []string{"--version"},
 		rookImage, CSIParam.CSIPluginImage)
