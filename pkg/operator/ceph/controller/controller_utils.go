@@ -41,8 +41,9 @@ var (
 )
 
 // IsReadyToReconcile determines if a controller is ready to reconcile or not
-func IsReadyToReconcile(client client.Client, clustercontext *clusterd.Context, namespacedName types.NamespacedName) (cephv1.ClusterSpec, bool, reconcile.Result) {
+func IsReadyToReconcile(client client.Client, clustercontext *clusterd.Context, namespacedName types.NamespacedName) (cephv1.ClusterSpec, bool, bool, reconcile.Result) {
 	namespacedName.Name = namespacedName.Namespace
+	cephClusterExists := true
 
 	// Running ceph commands won't work and the controller will keep re-queuing so I believe it's fine not to check
 	// Make sure a CephCluster exists before doing anything
@@ -50,11 +51,12 @@ func IsReadyToReconcile(client client.Client, clustercontext *clusterd.Context, 
 	err := client.Get(context.TODO(), namespacedName, cephCluster)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
+			cephClusterExists = false
 			logger.Errorf("CephCluster resource %q not found in namespace %q", namespacedName.Name, namespacedName.Namespace)
-			return cephv1.ClusterSpec{}, false, ImmediateRetryResult
+			return cephv1.ClusterSpec{}, false, cephClusterExists, ImmediateRetryResult
 		} else if err != nil {
 			logger.Errorf("failed to fetch CephCluster %v", err)
-			return cephv1.ClusterSpec{}, false, ImmediateRetryResult
+			return cephv1.ClusterSpec{}, false, cephClusterExists, ImmediateRetryResult
 		}
 	}
 
@@ -67,36 +69,14 @@ func IsReadyToReconcile(client client.Client, clustercontext *clusterd.Context, 
 		if err != nil {
 			if strings.Contains(err.Error(), "error calling conf_read_file") {
 				logger.Info("operator is not ready to run ceph command, cannot reconcile yet.")
-				return cephCluster.Spec, false, WaitForRequeueIfCephClusterNotReady
+				return cephCluster.Spec, false, cephClusterExists, WaitForRequeueIfCephClusterNotReady
 			}
 			// We should not arrive there
 			logger.Errorf("ceph command error %v", err)
-			return cephCluster.Spec, false, ImmediateRetryResult
+			return cephCluster.Spec, false, cephClusterExists, ImmediateRetryResult
 		}
-		return cephCluster.Spec, true, reconcile.Result{}
+		return cephCluster.Spec, true, cephClusterExists, reconcile.Result{}
 	}
 
-	return cephCluster.Spec, false, ImmediateRetryResult
-}
-
-// Contains checks if an item exists in a given list.
-func Contains(list []string, s string) bool {
-	for _, v := range list {
-		if v == s {
-			return true
-		}
-	}
-
-	return false
-}
-
-// Removes any element from a list
-func Remove(list []string, s string) []string {
-	for i, v := range list {
-		if v == s {
-			list = append(list[:i], list[i+1:]...)
-		}
-	}
-
-	return list
+	return cephCluster.Spec, false, cephClusterExists, ImmediateRetryResult
 }
