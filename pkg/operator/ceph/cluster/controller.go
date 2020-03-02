@@ -74,8 +74,8 @@ const (
 const (
 	// DefaultClusterName states the default name of the rook-cluster if not provided.
 	DefaultClusterName         = "rook-ceph"
-	clusterDeleteRetryInterval = 2 // seconds
-	clusterDeleteMaxRetries    = 15
+	clusterDeleteRetryInterval = 2 * time.Second
+	clusterDeleteMaxRetries    = 450
 	disableHotplugEnv          = "ROOK_DISABLE_DEVICE_HOTPLUG"
 	minStoreResyncPeriod       = 10 * time.Hour // the minimum duration for forced Store resyncs.
 )
@@ -567,7 +567,7 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 	// K8s will only delete the crd and child resources when the finalizers have been removed from the crd.
 	if newClust.DeletionTimestamp != nil {
 		logger.Infof("cluster %q has a deletion timestamp", newClust.Namespace)
-		err := c.handleDelete(newClust, time.Duration(clusterDeleteRetryInterval)*time.Second)
+		err := c.handleDelete(newClust, clusterDeleteRetryInterval)
 		if err != nil {
 			logger.Errorf("failed finalizer for cluster. %v", err)
 			return
@@ -798,7 +798,7 @@ func (c *ClusterController) onDelete(obj interface{}) {
 
 	logger.Infof("delete event for cluster %q in namespace %q", clust.Name, clust.Namespace)
 
-	err = c.handleDelete(clust, time.Duration(clusterDeleteRetryInterval)*time.Second)
+	err = c.handleDelete(clust, clusterDeleteRetryInterval)
 	if err != nil {
 		config.ConditionExport(c.context, clust.Namespace, clust.Name,
 			cephv1.ConditionDeleting, v1.ConditionTrue, "ClusterDeleting", "Failed to delete cluster")
