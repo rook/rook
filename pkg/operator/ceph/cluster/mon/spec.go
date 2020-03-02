@@ -26,7 +26,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config"
-	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
@@ -47,7 +47,7 @@ const (
 func (c *Cluster) getLabels(daemonName string, canary bool, pvcName string) map[string]string {
 	// Mons have a service for each mon, so the additional pod data is relevant for its services
 	// Use pod labels to keep "mon: id" for legacy
-	labels := opspec.PodLabels(AppName, c.Namespace, "mon", daemonName)
+	labels := controller.PodLabels(AppName, c.Namespace, "mon", daemonName)
 	// Add "mon_cluster: <namespace>" for legacy
 	labels[monClusterAttr] = c.Namespace
 	if canary {
@@ -70,7 +70,7 @@ func (c *Cluster) makeDeployment(monConfig *monConfig, canary bool) *apps.Deploy
 	}
 	k8sutil.AddRookVersionLabelToDeployment(d)
 	cephv1.GetMonAnnotations(c.spec.Annotations).ApplyToObjectMeta(&d.ObjectMeta)
-	opspec.AddCephVersionLabelToDeployment(c.ClusterInfo.CephVersion, d)
+	controller.AddCephVersionLabelToDeployment(c.ClusterInfo.CephVersion, d)
 	k8sutil.SetOwnerRef(&d.ObjectMeta, &c.ownerRef)
 
 	pod := c.makeMonPod(monConfig, canary, "")
@@ -112,7 +112,7 @@ func (c *Cluster) makeDeploymentPVC(m *monConfig, canary bool) (*v1.PersistentVo
 	}
 	k8sutil.AddRookVersionLabelToObjectMeta(&pvc.ObjectMeta)
 	cephv1.GetMonAnnotations(c.spec.Annotations).ApplyToObjectMeta(&pvc.ObjectMeta)
-	opspec.AddCephVersionLabelToObjectMeta(c.ClusterInfo.CephVersion, &pvc.ObjectMeta)
+	controller.AddCephVersionLabelToObjectMeta(c.ClusterInfo.CephVersion, &pvc.ObjectMeta)
 	k8sutil.SetOwnerRef(&pvc.ObjectMeta, &c.ownerRef)
 
 	// k8s uses limit as the resource request fallback
@@ -151,7 +151,7 @@ func (c *Cluster) makeMonPod(monConfig *monConfig, canary bool, PVCName string) 
 		RestartPolicy: v1.RestartPolicyAlways,
 		// we decide later whether to use a PVC volume or host volumes for mons, so only populate
 		// the base volumes at this point.
-		Volumes:           opspec.DaemonVolumesBase(monConfig.DataPathMap, keyringStoreName),
+		Volumes:           controller.DaemonVolumesBase(monConfig.DataPathMap, keyringStoreName),
 		HostNetwork:       c.Network.IsHost(),
 		PriorityClassName: cephv1.GetMonPriorityClassName(c.spec.PriorityClassNames),
 	}
@@ -195,10 +195,10 @@ func PodSecurityContext() *v1.SecurityContext {
 }
 
 func (c *Cluster) makeChownInitContainer(monConfig *monConfig) v1.Container {
-	return opspec.ChownCephDataDirsInitContainer(
+	return controller.ChownCephDataDirsInitContainer(
 		*monConfig.DataPathMap,
 		c.spec.CephVersion.Image,
-		opspec.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),
+		controller.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),
 		cephv1.GetMonResources(c.spec.Resources),
 		PodSecurityContext(),
 	)
@@ -211,17 +211,17 @@ func (c *Cluster) makeMonFSInitContainer(monConfig *monConfig) v1.Container {
 			cephMonCommand,
 		},
 		Args: append(
-			opspec.DaemonFlags(c.ClusterInfo, monConfig.DaemonName),
+			controller.DaemonFlags(c.ClusterInfo, monConfig.DaemonName),
 			// needed so we can generate an initial monmap
 			// otherwise the mkfs will say: "0  no local addrs match monmap"
 			config.NewFlag("public-addr", monConfig.PublicIP),
 			"--mkfs",
 		),
 		Image:           c.spec.CephVersion.Image,
-		VolumeMounts:    opspec.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),
+		VolumeMounts:    controller.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),
 		SecurityContext: PodSecurityContext(),
 		// filesystem creation does not require ports to be exposed
-		Env:       opspec.DaemonEnvVars(c.spec.CephVersion.Image),
+		Env:       controller.DaemonEnvVars(c.spec.CephVersion.Image),
 		Resources: cephv1.GetMonResources(c.spec.Resources),
 	}
 }
@@ -244,7 +244,7 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 			cephMonCommand,
 		},
 		Args: append(
-			opspec.DaemonFlags(c.ClusterInfo, monConfig.DaemonName),
+			controller.DaemonFlags(c.ClusterInfo, monConfig.DaemonName),
 			"--foreground",
 			// If the mon is already in the monmap, when the port is left off of --public-addr,
 			// it will still advertise on the previous port b/c monmap is saved to mon database.
@@ -258,7 +258,7 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 			config.NewFlag("setuser-match-path", path.Join(monConfig.DataPathMap.ContainerDataDir, "store.db")),
 		),
 		Image:           c.spec.CephVersion.Image,
-		VolumeMounts:    opspec.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),
+		VolumeMounts:    controller.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),
 		SecurityContext: PodSecurityContext(),
 		Ports: []v1.ContainerPort{
 			{
@@ -268,7 +268,7 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 			},
 		},
 		Env: append(
-			opspec.DaemonEnvVars(c.spec.CephVersion.Image),
+			controller.DaemonEnvVars(c.spec.CephVersion.Image),
 			k8sutil.PodIPEnvVar(podIPEnvVar),
 		),
 		Resources: cephv1.GetMonResources(c.spec.Resources),
@@ -279,7 +279,7 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 		// Opposite of the above, --public-bind-addr will *not* still advertise on the previous
 		// port, which makes sense because this is the pod IP, which changes with every new pod.
 		container.Args = append(container.Args,
-			config.NewFlag("public-bind-addr", opspec.ContainerEnvVarReference(podIPEnvVar)))
+			config.NewFlag("public-bind-addr", controller.ContainerEnvVarReference(podIPEnvVar)))
 	}
 
 	// Add messenger 2 port

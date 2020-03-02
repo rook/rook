@@ -86,7 +86,7 @@ func GetCrushMap(context *clusterd.Context, clusterName string) (CrushMap, error
 	args := []string{"osd", "crush", "dump"}
 	buf, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
-		return c, errors.Wrapf(err, "failed to get crush map")
+		return c, errors.Wrapf(err, "failed to get crush map. %s", string(buf))
 	}
 
 	err = json.Unmarshal(buf, &c)

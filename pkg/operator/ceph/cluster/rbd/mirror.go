@@ -30,7 +30,7 @@ import (
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
-	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
@@ -104,7 +104,7 @@ var updateDeploymentAndWait = mon.UpdateCephDeploymentAndWait
 // Start begins the process of running rbd mirroring daemons.
 func (m *Mirroring) Start() error {
 	// Validate pod's memory if specified
-	err := opspec.CheckPodMemory(m.resources, cephRbdMirrorPodMinimumMemory)
+	err := controller.CheckPodMemory(m.resources, cephRbdMirrorPodMinimumMemory)
 	if err != nil {
 		return errors.Wrap(err, "error checking pod memory")
 	}

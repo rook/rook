@@ -29,7 +29,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
-	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -57,7 +57,7 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
 			},
 			ServiceAccountName: serviceAccountName,
 			RestartPolicy:      v1.RestartPolicyAlways,
-			Volumes:            opspec.DaemonVolumes(mgrConfig.DataPathMap, mgrConfig.ResourceName),
+			Volumes:            controller.DaemonVolumes(mgrConfig.DataPathMap, mgrConfig.ResourceName),
 			HostNetwork:        c.Network.IsHost(),
 			PriorityClassName:  c.priorityClassName,
 		},
@@ -101,7 +101,7 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
 		},
 	}
 	k8sutil.AddRookVersionLabelToDeployment(d)
-	opspec.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, d)
+	controller.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, d)
 	k8sutil.SetOwnerRef(&d.ObjectMeta, &c.ownerRef)
 	return d
 }
@@ -143,10 +143,10 @@ func (c *Cluster) clearHTTPBindFix() error {
 }
 
 func (c *Cluster) makeChownInitContainer(mgrConfig *mgrConfig) v1.Container {
-	return opspec.ChownCephDataDirsInitContainer(
+	return controller.ChownCephDataDirsInitContainer(
 		*mgrConfig.DataPathMap,
 		c.cephVersion.Image,
-		opspec.DaemonVolumeMounts(mgrConfig.DataPathMap, mgrConfig.ResourceName),
+		controller.DaemonVolumeMounts(mgrConfig.DataPathMap, mgrConfig.ResourceName),
 		c.resources,
 		mon.PodSecurityContext(),
 	)
@@ -160,7 +160,7 @@ func (c *Cluster) makeSetServerAddrInitContainer(mgrConfig *mgrConfig, mgrModule
 	cfgSetArgs := []string{"config", "set"}
 	cfgSetArgs = append(cfgSetArgs, fmt.Sprintf("mgr.%s", mgrConfig.DaemonID))
 	cfgPath := fmt.Sprintf("mgr/%s/%s/server_addr", mgrModule, mgrConfig.DaemonID)
-	cfgSetArgs = append(cfgSetArgs, cfgPath, opspec.ContainerEnvVarReference(podIPEnvVar))
+	cfgSetArgs = append(cfgSetArgs, cfgPath, controller.ContainerEnvVarReference(podIPEnvVar))
 	cfgSetArgs = append(cfgSetArgs, "--force")
 	cfgSetArgs = append(cfgSetArgs, "--verbose")
 
@@ -170,17 +170,17 @@ func (c *Cluster) makeSetServerAddrInitContainer(mgrConfig *mgrConfig, mgrModule
 			"ceph",
 		},
 		Args: append(
-			opspec.AdminFlags(c.clusterInfo),
+			controller.AdminFlags(c.clusterInfo),
 			cfgSetArgs...,
 		),
 		Image: c.cephVersion.Image,
 		VolumeMounts: append(
-			opspec.DaemonVolumeMounts(mgrConfig.DataPathMap, mgrConfig.ResourceName),
+			controller.DaemonVolumeMounts(mgrConfig.DataPathMap, mgrConfig.ResourceName),
 			keyring.VolumeMount().Admin(),
 		),
 		Env: append(
 			append(
-				opspec.DaemonEnvVars(c.cephVersion.Image),
+				controller.DaemonEnvVars(c.cephVersion.Image),
 				k8sutil.PodIPEnvVar(podIPEnvVar),
 			),
 			c.cephMgrOrchestratorModuleEnvs()...,
@@ -197,7 +197,7 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 			"ceph-mgr",
 		},
 		Args: append(
-			opspec.DaemonFlags(c.clusterInfo, mgrConfig.DaemonID),
+			controller.DaemonFlags(c.clusterInfo, mgrConfig.DaemonID),
 			// for ceph-mgr cephfs
 			// see https://github.com/ceph/ceph-csi/issues/486 for more details
 			config.NewFlag("client-mount-uid", "0"),
@@ -205,7 +205,7 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 			"--foreground",
 		),
 		Image:        c.cephVersion.Image,
-		VolumeMounts: opspec.DaemonVolumeMounts(mgrConfig.DataPathMap, mgrConfig.ResourceName),
+		VolumeMounts: controller.DaemonVolumeMounts(mgrConfig.DataPathMap, mgrConfig.ResourceName),
 		Ports: []v1.ContainerPort{
 			{
 				Name:          "mgr",
@@ -224,7 +224,7 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 			},
 		},
 		Env: append(
-			opspec.DaemonEnvVars(c.cephVersion.Image),
+			controller.DaemonEnvVars(c.cephVersion.Image),
 			c.cephMgrOrchestratorModuleEnvs()...,
 		),
 		Resources: c.resources,
@@ -245,14 +245,14 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 		// Opposite of the above, --public-bind-addr will *not* still advertise on the previous
 		// port, which makes sense because this is the pod IP, which changes with every new pod.
 		container.Args = append(container.Args,
-			config.NewFlag("public-addr", opspec.ContainerEnvVarReference(podIPEnvVar)))
+			config.NewFlag("public-addr", controller.ContainerEnvVarReference(podIPEnvVar)))
 	}
 
 	return container
 }
 
 func (c *Cluster) makeMetricsService(name string) *v1.Service {
-	labels := opspec.AppLabels(AppName, c.Namespace)
+	labels := controller.AppLabels(AppName, c.Namespace)
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -277,7 +277,7 @@ func (c *Cluster) makeMetricsService(name string) *v1.Service {
 }
 
 func (c *Cluster) makeDashboardService(name string) *v1.Service {
-	labels := opspec.AppLabels(AppName, c.Namespace)
+	labels := controller.AppLabels(AppName, c.Namespace)
 	portName := "https-dashboard"
 	if !c.dashboard.SSL {
 		portName = "dashboard"
@@ -305,7 +305,7 @@ func (c *Cluster) makeDashboardService(name string) *v1.Service {
 }
 
 func (c *Cluster) getPodLabels(daemonName string) map[string]string {
-	labels := opspec.PodLabels(AppName, c.Namespace, "mgr", daemonName)
+	labels := controller.PodLabels(AppName, c.Namespace, "mgr", daemonName)
 	// leave "instance" key for legacy usage
 	labels["instance"] = daemonName
 	return labels

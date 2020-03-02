@@ -27,9 +27,9 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/file/mds"
 	"github.com/rook/rook/pkg/operator/ceph/object"
-	"github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/ceph/version"
 
 	"github.com/coreos/pkg/capnslog"
@@ -210,7 +210,7 @@ func getImageVersion(cephCluster cephv1.CephCluster) (*version.CephVersion, erro
 		// controller should wait for the version to be detected.
 		if cephCluster.Status.CephVersion != nil && cephCluster.Spec.CephVersion.Image == cephCluster.Status.CephVersion.Image {
 			logger.Debugf("ceph version found %q", cephCluster.Status.CephVersion.Version)
-			return spec.ExtractCephVersionFromLabel(cephCluster.Status.CephVersion.Version)
+			return controller.ExtractCephVersionFromLabel(cephCluster.Status.CephVersion.Version)
 		}
 		<-time.After(time.Second * getVersionRetryInterval)
 	}

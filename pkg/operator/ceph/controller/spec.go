@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package spec provides Kubernetes controller/pod/container spec items used for many Ceph daemons
-package spec
+// Package controller provides Kubernetes controller/pod/container spec items used for many Ceph daemons
+package controller
 
 import (
 	"fmt"

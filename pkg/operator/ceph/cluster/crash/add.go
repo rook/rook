@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -44,7 +45,7 @@ const (
 )
 
 // Add adds a new Controller based on nodedrain.ReconcileNode and registers the relevant watches and handlers
-func Add(mgr manager.Manager) error {
+func Add(mgr manager.Manager, context *clusterd.Context) error {
 	reconcileNode := &ReconcileNode{
 		client: mgr.GetClient(),
 		scheme: mgr.GetScheme(),

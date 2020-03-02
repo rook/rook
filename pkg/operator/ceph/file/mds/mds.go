@@ -31,7 +31,7 @@ import (
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
-	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -99,7 +99,7 @@ var UpdateDeploymentAndWait = mon.UpdateCephDeploymentAndWait
 // Start starts or updates a Ceph mds cluster in Kubernetes.
 func (c *Cluster) Start() error {
 	// Validate pod's memory if specified
-	err := opspec.CheckPodMemory(c.fs.Spec.MetadataServer.Resources, cephMdsPodMinimumMemory)
+	err := controller.CheckPodMemory(c.fs.Spec.MetadataServer.Resources, cephMdsPodMinimumMemory)
 	if err != nil {
 		return errors.Wrap(err, "error checking pod memory")
 	}
