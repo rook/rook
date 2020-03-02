@@ -196,6 +196,10 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 	if err != nil {
 		logger.Warningf("could not find deployment owner reference to assign to csi drivers. %v", err)
 	}
+	if ownerRef != nil {
+		blockOwnerDeletion := false
+		ownerRef.BlockOwnerDeletion = &blockOwnerDeletion
+	}
 
 	// create an empty config map. config map will be filled with data
 	// later when clusters have mons
