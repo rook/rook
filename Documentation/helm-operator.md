@@ -77,8 +77,8 @@ helm install --namespace rook-ceph rook-master/rook-ceph --version v0.7.0-278.gc
 To deploy from a local build from your development environment:
 
 1. Build the Rook docker image: `make`
-1. Copy the image to your K8s cluster, such as with the `docker save` then the `docker load` commands
-1. Install the helm chart:
+2. Copy the image to your K8s cluster, such as with the `docker save` then the `docker load` commands
+3. Install the helm chart:
 
 ```console
 cd cluster/charts/rook-ceph
