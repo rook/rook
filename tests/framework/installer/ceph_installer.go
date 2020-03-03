@@ -28,6 +28,7 @@ import (
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/cluster"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -64,6 +65,7 @@ type CephInstaller struct {
 	changeHostnames  bool
 	CephVersion      cephv1.CephVersionSpec
 	T                func() *testing.T
+	cleanupHost      bool
 }
 
 // CreateCephOperator creates rook-operator via kubectl
@@ -425,6 +427,12 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, name
 	logger.Infof("Uninstalling Rook")
 	var err error
 	for clusterNum, namespace := range namespaces {
+		if h.cleanupHost {
+			//Add cleanup policy to the ceph cluster
+			err = h.addCleanupPolicy(namespace)
+			assert.NoError(h.T(), err)
+		}
+
 		if !h.T().Failed() {
 			// Only check the Ceph status for the first cluster
 			// The second cluster is external so the check won't work since the first cluster is gone
@@ -449,6 +457,11 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, name
 
 		err = h.k8shelper.DeleteResourceAndWait(false, "-n", namespace, "cephcluster", namespace)
 		checkError(h.T(), err, fmt.Sprintf("cannot remove cluster %s", namespace))
+
+		if h.cleanupHost {
+			err = h.waitForCleanupJobs(namespace)
+			assert.NoError(h.T(), err)
+		}
 
 		crdCheckerFunc := func() error {
 			_, err := h.k8shelper.RookClientset.CephV1().CephClusters(namespace).Get(namespace, metav1.GetOptions{})
@@ -638,7 +651,8 @@ func (h *CephInstaller) GatherAllRookLogs(testName string, namespaces ...string)
 }
 
 // NewCephInstaller creates new instance of CephInstaller
-func NewCephInstaller(t func() *testing.T, clientset *kubernetes.Clientset, useHelm bool, rookVersion string, cephVersion cephv1.CephVersionSpec) *CephInstaller {
+func NewCephInstaller(t func() *testing.T, clientset *kubernetes.Clientset, useHelm bool, rookVersion string,
+	cephVersion cephv1.CephVersionSpec, cleanupHost bool) *CephInstaller {
 
 	// All e2e tests should run ceph commands in the toolbox since we are not inside a container
 	client.RunAllCephCommandsInToolbox = true
@@ -661,6 +675,7 @@ func NewCephInstaller(t func() *testing.T, clientset *kubernetes.Clientset, useH
 		useHelm:         useHelm,
 		k8sVersion:      version.String(),
 		CephVersion:     cephVersion,
+		cleanupHost:     cleanupHost,
 		changeHostnames: rookVersion != Version1_1 && k8shelp.VersionAtLeast("v1.13.0"),
 		T:               t,
 	}
@@ -794,4 +809,53 @@ spec:
                 hostPath:
                   path: /run/udev
 `
+}
+
+func (h *CephInstaller) addCleanupPolicy(namespace string) error {
+	cluster, err := h.k8shelper.RookClientset.CephV1().CephClusters(namespace).Get(namespace, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get ceph cluster. %+v", err)
+	}
+	cluster.Spec.CleanupPolicy.DeleteDataDirOnHosts = "yes-really-destroy-data"
+	_, err = h.k8shelper.RookClientset.CephV1().CephClusters(namespace).Update(cluster)
+	if err != nil {
+		return fmt.Errorf("failed to add clean up policy to the cluster. %+v", err)
+	}
+	logger.Info("successfully added cleanup policy to the ceph cluster")
+	return nil
+}
+
+func (h *CephInstaller) waitForCleanupJobs(namespace string) error {
+	allRookCephCleanupJobs := func() (done bool, err error) {
+		appLabelSelector := fmt.Sprintf("app=%s", cluster.CleanupAppName)
+		cleanupJobs, err := h.k8shelper.Clientset.BatchV1().Jobs(namespace).List(metav1.ListOptions{LabelSelector: appLabelSelector})
+		if err != nil {
+			return false, fmt.Errorf("failed to get cleanup jobs. %+v", err)
+		}
+		// Clean up jobs might take some time to start
+		if len(cleanupJobs.Items) == 0 {
+			logger.Infof("no jobs with label selector %q found.", appLabelSelector)
+			return false, nil
+		}
+		for _, job := range cleanupJobs.Items {
+			logger.Debugf("job %q status: %+v", job.Name, job.Status)
+			if job.Status.Failed > 0 {
+				return false, fmt.Errorf("job %s failed", job.Name)
+			}
+			if job.Status.Succeeded == 0 {
+				return false, nil
+			}
+		}
+		logger.Infof("cleanup job(s) completed")
+		return true, nil
+	}
+
+	logger.Info("waiting for job(s) to cleanup the host...")
+	err := wait.Poll(5*time.Second, 90*time.Second, allRookCephCleanupJobs)
+	if err != nil {
+		return fmt.Errorf("failed to wait for clean up jobs to complete. %+v", err)
+	}
+
+	logger.Info("successfully executed all the ceph clean up jobs")
+	return nil
 }

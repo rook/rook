@@ -580,6 +580,17 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 			logger.Errorf("failed finalizer for cluster. %v", err)
 			return
 		}
+
+		// Start cluster clean up only if cleanupPolicy is applied to the ceph cluster
+		if hasCleanupPolicy(newClust) {
+			cephHosts, err := c.getCephHosts(newClust.Namespace)
+			if err != nil {
+				logger.Errorf("failed to find valid ceph hosts in the cluster %q. %v", newClust.Namespace, err)
+				return
+			}
+			go c.startClusterCleanUp(newClust, cephHosts)
+		}
+
 		// remove the finalizer from the crd, which indicates to k8s that the resource can safely be deleted
 		c.removeFinalizer(newClust)
 		return

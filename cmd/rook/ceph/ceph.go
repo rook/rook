@@ -53,7 +53,8 @@ type config struct {
 }
 
 func init() {
-	Cmd.AddCommand(operatorCmd,
+	Cmd.AddCommand(cleanUpCmd,
+		operatorCmd,
 		agentCmd,
 		osdCmd,
 		configCmd)

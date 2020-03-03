@@ -80,6 +80,7 @@ func (s *UpgradeSuite) SetupSuite() {
 		rbdMirrorWorkers,
 		installer.Version1_1,
 		installer.MimicVersion,
+		false,
 	)
 	s.helper = clients.CreateTestClient(s.k8sh, s.op.installer.Manifests)
 }

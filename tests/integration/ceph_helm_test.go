@@ -59,17 +59,19 @@ func TestCephHelmSuite(t *testing.T) {
 
 type HelmSuite struct {
 	suite.Suite
-	helper    *clients.TestClient
-	kh        *utils.K8sHelper
-	op        *TestCluster
-	namespace string
+	helper          *clients.TestClient
+	kh              *utils.K8sHelper
+	op              *TestCluster
+	namespace       string
+	rookCephCleanup bool
 }
 
 func (hs *HelmSuite) SetupSuite() {
 	hs.namespace = "helm-ns"
 	mons := 1
 	rbdMirrorWorkers := 1
-	hs.op, hs.kh = StartTestCluster(hs.T, helmMinimalTestVersion, hs.namespace, "bluestore", true, false, "", mons, rbdMirrorWorkers, installer.VersionMaster, installer.NautilusVersion)
+	rookCephCleanup := true
+	hs.op, hs.kh = StartTestCluster(hs.T, helmMinimalTestVersion, hs.namespace, "bluestore", true, false, "", mons, rbdMirrorWorkers, installer.VersionMaster, installer.NautilusVersion, rookCephCleanup)
 	hs.helper = clients.CreateTestClient(hs.kh, hs.op.installer.Manifests)
 }
 

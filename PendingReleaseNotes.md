@@ -2,8 +2,8 @@
 
 ## Action Required
 
-
 ## Notable Features
+
 - Added K8s 1.17 to the test matrix and removed K8s 1.12 from the test matrix.
 
 ### Ceph
@@ -18,6 +18,7 @@
 - Rook will now refuse to create pools with replica size 1 unless `requireSafeReplicaSize` is set to false.
 - CSI drivers can now be configured using ["rook-ceph-operator-config"](https://github.com/rook/rook/blob/master/cluster/examples/kubernetes/ceph/operator.yaml) ConfigMap.
 ConfigMap can be used in mix with the already existing Env Vars defined in operator deployment manifest. Precedence will be given to ConfigMap in case of conflicting configurations.
+- Rook Ceph cleanupPolicy will clean up the dataDirHostPath only after user confirmation. For more info about CleanUpPolicy [read the design](https://github.com/rook/rook/blob/master/design/ceph/ceph-cluster-cleanup.md) as well as the documentation [cleanupPolicy](Documentation/ceph-cluster-crd.md#cluster-settings)
 
 ### EdgeFS
 
@@ -26,6 +27,7 @@ ConfigMap can be used in mix with the already existing Env Vars defined in opera
 - Master and TServer pods for YugabyteDB will have resources requests and limits specified as per YugabyteDB recommendations. This will help avoid the soft/hard memory limit issue.
 
 ### Cassandra
+
 - Added [JMX Prometheus exporter](https://github.com/prometheus/jmx_exporter) support.
 
 ## Breaking Changes
@@ -35,11 +37,9 @@ ConfigMap can be used in mix with the already existing Env Vars defined in opera
 ### Minio
 - The minio operator was removed from Rook
 
-
 ## Known Issues
 
 ### <Storage Provider>
-
 
 ## Deprecations
 

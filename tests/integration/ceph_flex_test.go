@@ -84,7 +84,7 @@ func (s *CephFlexDriverSuite) SetupSuite() {
 	useHelm := false
 	mons := 1
 	rbdMirrorWorkers := 1
-	s.op, s.kh = StartTestCluster(s.T, flexDriverMinimalTestVersion, s.namespace, "bluestore", useHelm, false, "", mons, rbdMirrorWorkers, installer.VersionMaster, installer.NautilusVersion)
+	s.op, s.kh = StartTestCluster(s.T, flexDriverMinimalTestVersion, s.namespace, "bluestore", useHelm, false, "", mons, rbdMirrorWorkers, installer.VersionMaster, installer.NautilusVersion, false)
 	s.testClient = clients.CreateTestClient(s.kh, s.op.installer.Manifests)
 	s.bc = s.testClient.BlockClient
 }
