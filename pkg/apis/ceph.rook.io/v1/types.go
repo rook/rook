@@ -142,6 +142,7 @@ type MonitoringSpec struct {
 }
 
 type ClusterStatus struct {
+	State       string          `json:"state,omitempty"`
 	Phase       ConditionType   `json:"phase,omitempty"`
 	Message     string          `json:"message,omitempty"`
 	Conditions  []Condition     `json:"conditions,omitempty"`
