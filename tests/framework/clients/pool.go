@@ -43,10 +43,6 @@ func (p *PoolOperation) Create(name, namespace string, replicas int) error {
 	return p.createOrUpdatePool(name, namespace, "apply", replicas)
 }
 
-func (p *PoolOperation) Delete(name string, namespace string) error {
-	return p.k8sh.ResourceOperation("delete", p.manifests.GetBlockPoolDef(name, namespace, "1"))
-}
-
 func (p *PoolOperation) Update(name, namespace string, replicas int) error {
 	return p.createOrUpdatePool(name, namespace, "apply", replicas)
 }
@@ -119,5 +115,6 @@ func (p *PoolOperation) DeletePool(blockClient *BlockOperation, namespace, poolN
 		}
 	}
 
+	logger.Infof("deleting pool %q", poolName)
 	return p.k8sh.RookClientset.CephV1().CephBlockPools(namespace).Delete(poolName, &metav1.DeleteOptions{})
 }

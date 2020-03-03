@@ -223,6 +223,9 @@ func (suite *SmokeSuite) TestPoolResize() {
 	}
 
 	require.Equal(suite.T(), true, poolFound, fmt.Sprintf("pool %s not found", poolName))
+
+	// clean up the pool
+	suite.helper.PoolClient.DeletePool(suite.helper.BlockClient, suite.namespace, poolName)
 }
 
 // Smoke Test for Client CRD
