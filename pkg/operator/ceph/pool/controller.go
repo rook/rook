@@ -149,6 +149,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		logger.Debugf("deleting pool %q", cephBlockPool.Name)
 		err := deletePool(r.context, cephBlockPool)
 		if err != nil {
+			logger.Errorf("could not delete pool %q. %v", cephBlockPool.Name, err)
 			return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to delete pool %q. ", cephBlockPool.Name)
 		}
 

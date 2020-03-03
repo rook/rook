@@ -64,11 +64,12 @@ type MultiClusterDeploySuite struct {
 	namespace1 string
 	namespace2 string
 	op         *MCTestOperations
+	poolName   string
 }
 
 // Deploy Multiple Rook clusters
 func (mrc *MultiClusterDeploySuite) SetupSuite() {
-
+	mrc.poolName = "multi-cluster-pool1"
 	mrc.namespace1 = "mrc-n1"
 	mrc.namespace2 = "mrc-n2"
 
@@ -83,13 +84,23 @@ func (mrc *MultiClusterDeploySuite) AfterTest(suiteName, testName string) {
 
 func (mrc *MultiClusterDeploySuite) createPools() {
 	// create a test pool in each cluster so that we get some PGs
-	poolName := "multi-cluster-pool1"
-	logger.Infof("Creating pool %s", poolName)
-	err := mrc.testClient.PoolClient.Create(poolName, mrc.namespace1, 1)
+	logger.Infof("Creating pool %s", mrc.poolName)
+	err := mrc.testClient.PoolClient.Create(mrc.poolName, mrc.namespace1, 1)
 	require.Nil(mrc.T(), err)
 }
 
+func (mrc *MultiClusterDeploySuite) deletePools() {
+	// create a test pool in each cluster so that we get some PGs
+	logger.Infof("Deleting pool %s", mrc.poolName)
+	if err := mrc.testClient.PoolClient.DeletePool(mrc.testClient.BlockClient, mrc.namespace1, mrc.poolName); err != nil {
+		logger.Errorf("failed to delete pool %q. %v", mrc.poolName, err)
+	} else {
+		logger.Infof("deleted pool %q", mrc.poolName)
+	}
+}
+
 func (mrc *MultiClusterDeploySuite) TearDownSuite() {
+	mrc.deletePools()
 	mrc.op.Teardown()
 }
 

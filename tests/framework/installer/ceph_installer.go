@@ -437,6 +437,13 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(gatherLogs bool, systemNames
 			}
 		}
 
+		// The pool CRs should already be removed by the tests that created them
+		pools, err := h.k8shelper.RookClientset.CephV1().CephBlockPools(namespace).List(metav1.ListOptions{})
+		assert.NoError(h.T(), err, "failed to retrieve pool CRs")
+		for _, pool := range pools.Items {
+			assert.Failf(h.T(), "pool %q still exists", pool.Name)
+		}
+
 		roles := h.Manifests.GetClusterRoles(namespace, systemNamespace)
 		_, err = h.k8shelper.KubectlWithStdin(roles, deleteFromStdinArgs...)
 
