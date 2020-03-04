@@ -94,21 +94,27 @@ func setCondition(context *clusterd.Context, namespace, name string, newConditio
 // 2. We can't change the enum values of the State since that is also
 // a breaking change. Therefore, we translate new phases to the original
 // State values
-func translatePhasetoState(phase cephv1.ConditionType) string {
-	if phase == cephv1.ConditionProgressing {
-		return "Creating"
-	} else if phase == cephv1.ConditionReady {
-		return "Created"
-	} else if phase == cephv1.ConditionUpgrading || phase == cephv1.ConditionUpdating {
-		return "Updating"
-	} else if phase == cephv1.ConditionFailure || phase == cephv1.ConditionIgnored {
-		return "Error"
-	} else if phase == cephv1.ConditionConnected {
-		return "Connected"
-	} else if phase == cephv1.ConditionConnecting {
-		return "Connecting"
+func translatePhasetoState(phase cephv1.ConditionType) cephv1.ClusterState {
+	switch phase {
+	case cephv1.ConditionConnecting:
+		return cephv1.ClusterStateConnecting
+	case cephv1.ConditionConnected:
+		return cephv1.ClusterStateConnected
+	case cephv1.ConditionFailure:
+		return cephv1.ClusterStateError
+	case cephv1.ConditionIgnored:
+		return cephv1.ClusterStateError
+	case cephv1.ConditionProgressing:
+		return cephv1.ClusterStateCreating
+	case cephv1.ConditionReady:
+		return cephv1.ClusterStateCreated
+	case cephv1.ConditionUpgrading:
+		return cephv1.ClusterStateUpdating
+	case cephv1.ConditionUpdating:
+		return cephv1.ClusterStateUpdating
+	default:
+		return ""
 	}
-	return ""
 }
 
 // Updating the status of Progressing, Updating or Upgrading to False once cluster is Ready
