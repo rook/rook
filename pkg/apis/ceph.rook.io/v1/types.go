@@ -142,7 +142,7 @@ type MonitoringSpec struct {
 }
 
 type ClusterStatus struct {
-	State       string          `json:"state,omitempty"`
+	State       ClusterState    `json:"state,omitempty"`
 	Phase       ConditionType   `json:"phase,omitempty"`
 	Message     string          `json:"message,omitempty"`
 	Conditions  []Condition     `json:"conditions,omitempty"`
@@ -191,6 +191,17 @@ const (
 	ConditionDeleting    ConditionType = "Deleting"
 	// DefaultFailureDomain for PoolSpec
 	DefaultFailureDomain = "host"
+)
+
+type ClusterState string
+
+const (
+	ClusterStateCreating   ClusterState = "Creating"
+	ClusterStateCreated    ClusterState = "Created"
+	ClusterStateUpdating   ClusterState = "Updating"
+	ClusterStateConnecting ClusterState = "Connecting"
+	ClusterStateConnected  ClusterState = "Connected"
+	ClusterStateError      ClusterState = "Error"
 )
 
 type MonSpec struct {
