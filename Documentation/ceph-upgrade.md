@@ -396,7 +396,7 @@ Custom Resource Definitions. This will help with creating or modifying Rook-Ceph
 deployments in the future with the updated schema validation.
 
 ```sh
-kubectl apply -f upgrade-from-v1.1-crds.yaml
+kubectl apply -f upgrade-from-v1.2-crds.yaml
 ```
 
 

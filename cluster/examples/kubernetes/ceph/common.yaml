@@ -175,6 +175,9 @@ spec:
                   type: boolean
             placement: {}
             resources: {}
+  # somehow this is breaking the status, but let's keep this here so we don't forget it once we move to controller-runtime
+  # subresources:
+  #   status: {}
   additionalPrinterColumns:
     - name: DataDirHostPath
       type: string
@@ -222,6 +225,8 @@ spec:
           properties:
             caps:
               type: object
+  subresources:
+    status: {}
 # OLM: END CEPH CLIENT CRD
 # OLM: BEGIN CEPH FS CRD
 ---
@@ -318,6 +323,8 @@ spec:
     - name: Age
       type: date
       JSONPath: .metadata.creationTimestamp
+  subresources:
+    status: {}
 # OLM: END CEPH FS CRD
 # OLM: BEGIN CEPH NFS CRD
 ---
@@ -354,6 +361,8 @@ spec:
                 annotations: {}
                 placement: {}
                 resources: {}
+  subresources:
+    status: {}
 # OLM: END CEPH NFS CRD
 # OLM: BEGIN CEPH OBJECT STORE CRD
 ---
@@ -420,6 +429,8 @@ spec:
                       type: integer
             preservePoolsOnDelete:
               type: boolean
+  subresources:
+    status: {}
 # OLM: END CEPH OBJECT STORE CRD
 # OLM: BEGIN CEPH OBJECT STORE USERS CRD
 ---
@@ -439,6 +450,8 @@ spec:
     - objectuser
   scope: Namespaced
   version: v1
+  subresources:
+    status: {}
 # OLM: END CEPH OBJECT STORE USERS CRD
 # OLM: BEGIN CEPH BLOCK POOL CRD
 ---
@@ -482,6 +495,8 @@ spec:
                   type: integer
                   minimum: 0
                   maximum: 9
+  subresources:
+    status: {}
 # OLM: END CEPH BLOCK POOL CRD
 # OLM: BEGIN CEPH VOLUME POOL CRD
 ---
@@ -500,6 +515,8 @@ spec:
     - rv
   scope: Namespaced
   version: v1alpha2
+  subresources:
+    status: {}
 # OLM: END CEPH VOLUME POOL CRD
 # OLM: BEGIN OBJECTBUCKET CRD
 ---
