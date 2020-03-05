@@ -414,16 +414,14 @@ func (h *CephInstaller) InstallRook(namespace, storeType string, usePVC bool, st
 }
 
 // UninstallRook uninstalls rook from k8s
-func (h *CephInstaller) UninstallRook(namespace string, gatherLogs bool) {
-	h.UninstallRookFromMultipleNS(gatherLogs, SystemNamespace(namespace), namespace)
+func (h *CephInstaller) UninstallRook(namespace string) {
+	h.UninstallRookFromMultipleNS(SystemNamespace(namespace), namespace)
 }
 
 // UninstallRookFromMultipleNS uninstalls rook from multiple namespaces in k8s
-func (h *CephInstaller) UninstallRookFromMultipleNS(gatherLogs bool, systemNamespace string, namespaces ...string) {
-	if gatherLogs {
-		// Gather logs after status checks
-		h.GatherAllRookLogs(h.T().Name(), append([]string{systemNamespace}, namespaces...)...)
-	}
+func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, namespaces ...string) {
+	// Gather logs after status checks
+	h.GatherAllRookLogs(h.T().Name(), append([]string{systemNamespace}, namespaces...)...)
 
 	logger.Infof("Uninstalling Rook")
 	var err error
@@ -581,30 +579,6 @@ func (h *CephInstaller) removeClusterFinalizers(namespace, name string) {
 		return
 	}
 	logger.Infof("removed finalizers from cluster %s", objectMeta.Name)
-}
-
-func (h *CephInstaller) purgeClusters() error {
-	// get all namespaces
-	namespaces, err := h.k8shelper.Clientset.CoreV1().Namespaces().List(metav1.ListOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to get namespaces. %+v", err)
-	}
-
-	// look for the clusters in all namespaces
-	for _, n := range namespaces.Items {
-		namespace := n.Name
-		logger.Infof("looking in namespace %s for clusters to purge", namespace)
-		clusters, err := h.k8shelper.RookClientset.CephV1().CephClusters(namespace).List(metav1.ListOptions{})
-		if err != nil {
-			logger.Warningf("failed to get clusters in namespace %s. %+v", namespace, err)
-			continue
-		}
-		if len(clusters.Items) > 0 {
-			logger.Warningf("FOUND UNEXPECTED CLUSTER IN NAMESPACE %s. Removing...", namespace)
-			h.UninstallRook(namespace, false)
-		}
-	}
-	return nil
 }
 
 func (h *CephInstaller) checkCephHealthStatus(namespace string) {
