@@ -232,6 +232,8 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 	// So we need to make sure the list is filled up, otherwise fail
 	if len(deviceOSDs) == 0 {
 		logger.Warningf("skipping OSD configuration as no devices matched the storage settings for this node %q", agent.nodeName)
+		status = oposd.OrchestrationStatus{OSDs: deviceOSDs, Status: oposd.OrchestrationStatusCompleted, PvcBackedOSD: agent.pvcBacked}
+		oposd.UpdateNodeStatus(agent.kv, agent.nodeName, status)
 		return nil
 	}
 
