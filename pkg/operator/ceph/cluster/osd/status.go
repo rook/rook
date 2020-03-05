@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
@@ -62,11 +61,11 @@ func (c *provisionConfig) addError(message string, args ...interface{}) {
 	c.errorMessages = append(c.errorMessages, fmt.Sprintf(message, args...))
 }
 
-func (c *Cluster) updateOSDStatus(node string, status OrchestrationStatus) error {
-	return UpdateNodeStatus(c.kv, node, status)
+func (c *Cluster) updateOSDStatus(node string, status OrchestrationStatus) {
+	UpdateNodeStatus(c.kv, node, status)
 }
 
-func UpdateNodeStatus(kv *k8sutil.ConfigMapKVStore, node string, status OrchestrationStatus) error {
+func UpdateNodeStatus(kv *k8sutil.ConfigMapKVStore, node string, status OrchestrationStatus) {
 	labels := map[string]string{
 		k8sutil.AppAttr:        AppName,
 		orchestrationStatusKey: provisioningLabelKey,
@@ -81,17 +80,15 @@ func UpdateNodeStatus(kv *k8sutil.ConfigMapKVStore, node string, status Orchestr
 		string(s),
 		labels,
 	); err != nil {
-		return errors.Wrapf(err, "failed to set node %s status", node)
+		// log the error, but allow the orchestration to continue even if the status update failed
+		logger.Errorf("failed to set node %q status to %q for osd orchestration. %s", node, status.Status, status.Message)
 	}
-	return nil
 }
 
 func (c *Cluster) handleOrchestrationFailure(config *provisionConfig, nodeName, message string) {
 	config.addError(message)
 	status := OrchestrationStatus{Status: OrchestrationStatusFailed, Message: message}
-	if err := c.updateOSDStatus(nodeName, status); err != nil {
-		config.addError("failed to update status for node %q. %v", nodeName, err)
-	}
+	UpdateNodeStatus(c.kv, nodeName, status)
 }
 
 func isStatusCompleted(status OrchestrationStatus) bool {
