@@ -441,6 +441,7 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(gatherLogs bool, systemNames
 		pools, err := h.k8shelper.RookClientset.CephV1().CephBlockPools(namespace).List(metav1.ListOptions{})
 		assert.NoError(h.T(), err, "failed to retrieve pool CRs")
 		for _, pool := range pools.Items {
+			logger.Infof("found pools: %v", pools)
 			assert.Failf(h.T(), "pool %q still exists", pool.Name)
 		}
 

@@ -17,6 +17,7 @@ limitations under the License.
 package pool
 
 import (
+	"context"
 	"testing"
 
 	"github.com/pkg/errors"
@@ -243,7 +244,7 @@ func TestCephBlockPoolController(t *testing.T) {
 			return "", nil
 		},
 	}
-	context := &clusterd.Context{
+	c := &clusterd.Context{
 		Executor:      executor,
 		RookClientset: rookclient.NewSimpleClientset()}
 
@@ -254,7 +255,7 @@ func TestCephBlockPoolController(t *testing.T) {
 	// Create a fake client to mock API calls.
 	cl := fake.NewFakeClient(object...)
 	// Create a ReconcileCephBlockPool object with the scheme and fake client.
-	r := &ReconcileCephBlockPool{client: cl, scheme: s, context: context}
+	r := &ReconcileCephBlockPool{client: cl, scheme: s, context: c}
 
 	// Mock request to simulate Reconcile() being called on an event for a
 	// watched resource .
@@ -266,7 +267,7 @@ func TestCephBlockPoolController(t *testing.T) {
 	}
 
 	// Create pool for updateCephBlockPoolStatus()
-	_, err := context.RookClientset.CephV1().CephBlockPools(namespace).Create(pool)
+	_, err := c.RookClientset.CephV1().CephBlockPools(namespace).Create(pool)
 	assert.NoError(t, err)
 	res, err := r.Reconcile(req)
 	assert.NoError(t, err)
@@ -289,14 +290,14 @@ func TestCephBlockPoolController(t *testing.T) {
 	s.AddKnownTypes(cephv1.SchemeGroupVersion, cephCluster)
 
 	// Create CephCluster for updateCephBlockPoolStatus()
-	_, err = context.RookClientset.CephV1().CephClusters(namespace).Create(cephCluster)
+	_, err = c.RookClientset.CephV1().CephClusters(namespace).Create(cephCluster)
 	assert.NoError(t, err)
 
 	object = append(object, cephCluster)
 	// Create a fake client to mock API calls.
 	cl = fake.NewFakeClient(object...)
 	// Create a ReconcileCephBlockPool object with the scheme and fake client.
-	r = &ReconcileCephBlockPool{client: cl, scheme: s, context: context}
+	r = &ReconcileCephBlockPool{client: cl, scheme: s, context: c}
 
 	assert.True(t, res.Requeue)
 
@@ -313,14 +314,13 @@ func TestCephBlockPoolController(t *testing.T) {
 	// Create a fake client to mock API calls.
 	cl = fake.NewFakeClient(objects...)
 	// Create a ReconcileCephBlockPool object with the scheme and fake client.
-	r = &ReconcileCephBlockPool{client: cl, scheme: s, context: context}
+	r = &ReconcileCephBlockPool{client: cl, scheme: s, context: c}
 
 	res, err = r.Reconcile(req)
 	assert.NoError(t, err)
 	assert.False(t, res.Requeue)
 
-	// Get the updated CephBlockPool object.
-	pool, err = context.RookClientset.CephV1().CephBlockPools(namespace).Get(name, metav1.GetOptions{})
+	err = r.client.Get(context.TODO(), req.NamespacedName, pool)
 	assert.NoError(t, err)
 	assert.Equal(t, "Ready", pool.Status.Phase)
 }
