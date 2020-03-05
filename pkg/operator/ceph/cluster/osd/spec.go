@@ -395,7 +395,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 			initContainers = append(initContainers, c.getPVCMetadataInitContainerActivate(osdDataDirPath, osdProps))
 		}
 		initContainers = append(initContainers, c.getActivatePVCInitContainer(osdProps, osdID))
-		initContainers = append(initContainers, c.getExpandPVCInitContainer(osdProps, osdID))
+		//initContainers = append(initContainers, c.getExpandPVCInitContainer(osdProps, osdID))
 	}
 	if doActivateOSDInit {
 		initContainers = append(initContainers, *activateOSDContainer)
