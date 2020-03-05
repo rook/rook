@@ -27,6 +27,7 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	k8sutil "github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -111,9 +112,9 @@ func getToleration(clientset kubernetes.Interface, provisioner bool) []corev1.To
 	var err error
 	tolerationsRaw := ""
 	if provisioner {
-		tolerationsRaw, err = k8sutil.GetOperatorSetting(clientset, provisionerTolerationsEnv, "")
+		tolerationsRaw, err = k8sutil.GetOperatorSetting(clientset, controller.OperatorSettingConfigMapName, provisionerTolerationsEnv, "")
 	} else {
-		tolerationsRaw, err = k8sutil.GetOperatorSetting(clientset, pluginTolerationsEnv, "")
+		tolerationsRaw, err = k8sutil.GetOperatorSetting(clientset, controller.OperatorSettingConfigMapName, pluginTolerationsEnv, "")
 	}
 	if err != nil {
 		// tolerationsRaw is empty
@@ -143,9 +144,9 @@ func getNodeAffinity(clientset kubernetes.Interface, provisioner bool) *corev1.N
 	v1NodeAffinity := &corev1.NodeAffinity{}
 	var err error
 	if provisioner {
-		nodeAffinity, err = k8sutil.GetOperatorSetting(clientset, provisionerNodeAffinityEnv, "")
+		nodeAffinity, err = k8sutil.GetOperatorSetting(clientset, controller.OperatorSettingConfigMapName, provisionerNodeAffinityEnv, "")
 	} else {
-		nodeAffinity, err = k8sutil.GetOperatorSetting(clientset, pluginNodeAffinityEnv, "")
+		nodeAffinity, err = k8sutil.GetOperatorSetting(clientset, controller.OperatorSettingConfigMapName, pluginNodeAffinityEnv, "")
 	}
 	if err != nil {
 		logger.Warningf("node affinity will not be applied. %v", err)
