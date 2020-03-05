@@ -790,13 +790,25 @@ spec:
                       #
                       udevadm trigger || true
                       vgimport -a || true
+                      # We should prepopulate the PVs corresponding to Ceph VGs here.
+                      # It's because getting the relationship of the PVs and the VGs
+                      # is impossible after removing the VGs.
+                      TMP=$(pvs --noheadings --separator=',' -o pv_name,vg_name)
+                      PVS=
+                      for line in $TMP ; do
+                        if [[ $line =~ ,ceph- ]]; then
+                          PVS="$PVS ${line%,*}"
+                        fi
+                      done
                       # Wipe VGs
                       for vg in $(vgs --noheadings --readonly --separator=' ' -o vg_name); do
-                        lvremove --yes --force "$vg"
-                        vgremove --yes --force "$vg"
+                        if [[ $vg =~ ^ceph- ]]; then
+                          lvremove --yes --force "$vg"
+                          vgremove --yes --force "$vg"
+                        fi
                       done
                       # Wipe PVs
-                      for pv in $(pvs --noheadings --readonly --separator=' ' -o pv_name); do
+                      for pv in $PVS; do
                         pvremove --yes --force "$pv"
                         wipefs --all "$pv"
                         dd if=/dev/zero of="$pv" bs=1M count=100 oflag=direct,dsync
