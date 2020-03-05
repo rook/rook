@@ -441,6 +441,8 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, name
 		for _, pool := range pools.Items {
 			logger.Infof("found pools: %v", pools)
 			assert.Failf(h.T(), "pool %q still exists", pool.Name)
+			// Get the operator log
+			h.GatherAllRookLogs(h.T().Name()+"poolcheck", systemNamespace)
 		}
 
 		roles := h.Manifests.GetClusterRoles(namespace, systemNamespace)
