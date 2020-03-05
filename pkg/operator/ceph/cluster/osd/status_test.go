@@ -53,8 +53,7 @@ func TestOrchestrationStatus(t *testing.T) {
 
 	// update the status map with some status
 	status := OrchestrationStatus{Status: OrchestrationStatusOrchestrating, Message: "doing work"}
-	err = UpdateNodeStatus(kv, nodeName, status)
-	assert.Nil(t, err)
+	UpdateNodeStatus(kv, nodeName, status)
 
 	// retrieve the status and verify it
 	statusMap, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(cmName, metav1.GetOptions{})

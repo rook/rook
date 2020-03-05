@@ -284,10 +284,7 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig) {
 
 		// Update the orchestration status of this pvc to the starting state
 		status := OrchestrationStatus{Status: OrchestrationStatusStarting, PvcBackedOSD: true}
-		if err := c.updateOSDStatus(osdProps.crushHostname, status); err != nil {
-			config.addError("failed to set orchestration starting status for pvc %q. %v", osdProps.crushHostname, err)
-			continue
-		}
+		c.updateOSDStatus(osdProps.crushHostname, status)
 
 		// Skip OSD prepare if deployment already exists for the PVC
 		listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s,%s=%s",
@@ -310,10 +307,7 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig) {
 			}
 			// Update the orchestration status of this pvc to the completed state
 			status = OrchestrationStatus{OSDs: osds, Status: OrchestrationStatusCompleted, PvcBackedOSD: true}
-			if err := c.updateOSDStatus(osdProps.crushHostname, status); err != nil {
-				config.addError("failed to update pvc %q status. %v", osdProps.crushHostname, err)
-				continue
-			}
+			c.updateOSDStatus(osdProps.crushHostname, status)
 			continue
 		}
 
@@ -322,10 +316,7 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig) {
 			message := fmt.Sprintf("failed to create prepare job for pvc %s: %v", osdProps.crushHostname, err)
 			config.addError(message)
 			status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: message, PvcBackedOSD: true}
-			if err := c.updateOSDStatus(osdProps.crushHostname, status); err != nil {
-				config.addError("failed to update pvc %q status. %v", osdProps.crushHostname, err)
-				continue
-			}
+			c.updateOSDStatus(osdProps.crushHostname, status)
 		}
 
 		if !c.runJob(job, osdProps.crushHostname, config, "provision") {
@@ -334,9 +325,7 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig) {
 				Message:      fmt.Sprintf("failed to start osd provisioning on pvc %s", osdProps.crushHostname),
 				PvcBackedOSD: true,
 			}
-			if err := c.updateOSDStatus(osdProps.crushHostname, status); err != nil {
-				config.addError("failed to update osd %q status. %v", osdProps.crushHostname, err)
-			}
+			c.updateOSDStatus(osdProps.crushHostname, status)
 		}
 	}
 	logger.Infof("start osds after provisioning is completed, if needed")
@@ -395,10 +384,7 @@ func (c *Cluster) startProvisioningOverNodes(config *provisionConfig) {
 
 		// update the orchestration status of this node to the starting state
 		status := OrchestrationStatus{Status: OrchestrationStatusStarting}
-		if err := c.updateOSDStatus(n.Name, status); err != nil {
-			config.addError("failed to set orchestration starting status for node %q. %v", n.Name, err)
-			continue
-		}
+		c.updateOSDStatus(n.Name, status)
 
 		// create the job that prepares osds on the node
 		storeConfig := osdconfig.ToStoreConfig(n.Config)
@@ -416,17 +402,12 @@ func (c *Cluster) startProvisioningOverNodes(config *provisionConfig) {
 			message := fmt.Sprintf("failed to create prepare job node %q. %v", n.Name, err)
 			config.addError(message)
 			status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: message}
-			if err := c.updateOSDStatus(n.Name, status); err != nil {
-				config.addError("failed to update node %q status. %v", n.Name, err)
-				continue
-			}
+			c.updateOSDStatus(n.Name, status)
 		}
 
 		if !c.runJob(job, n.Name, config, "provision") {
 			status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: fmt.Sprintf("failed to start osd provisioning on node %s", n.Name)}
-			if err := c.updateOSDStatus(n.Name, status); err != nil {
-				config.addError("failed to update node %q status. %v", n.Name, err)
-			}
+			c.updateOSDStatus(n.Name, status)
 		}
 	}
 	logger.Infof("start osds after provisioning is completed, if needed")

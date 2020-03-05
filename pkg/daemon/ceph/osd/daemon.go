@@ -143,9 +143,7 @@ func killCephOSDProcess(context *clusterd.Context, lvPath string) error {
 func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string) error {
 	// set the initial orchestration status
 	status := oposd.OrchestrationStatus{Status: oposd.OrchestrationStatusComputingDiff}
-	if err := oposd.UpdateNodeStatus(agent.kv, agent.nodeName, status); err != nil {
-		return err
-	}
+	oposd.UpdateNodeStatus(agent.kv, agent.nodeName, status)
 
 	// create the ceph.conf with the default settings
 	cephConfig, err := cephconfig.CreateDefaultCephConfig(context, agent.cluster)
@@ -218,9 +216,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 
 	// orchestration is about to start, update the status
 	status = oposd.OrchestrationStatus{Status: oposd.OrchestrationStatusOrchestrating, PvcBackedOSD: agent.pvcBacked}
-	if err := oposd.UpdateNodeStatus(agent.kv, agent.nodeName, status); err != nil {
-		return err
-	}
+	oposd.UpdateNodeStatus(agent.kv, agent.nodeName, status)
 
 	// start the desired OSDs on devices
 	logger.Infof("configuring osd devices: %+v", devices)
@@ -272,13 +268,9 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 		}
 	}
 
-	osds := deviceOSDs
-
 	// orchestration is completed, update the status
-	status = oposd.OrchestrationStatus{OSDs: osds, Status: oposd.OrchestrationStatusCompleted, PvcBackedOSD: agent.pvcBacked}
-	if err := oposd.UpdateNodeStatus(agent.kv, agent.nodeName, status); err != nil {
-		return err
-	}
+	status = oposd.OrchestrationStatus{OSDs: deviceOSDs, Status: oposd.OrchestrationStatusCompleted, PvcBackedOSD: agent.pvcBacked}
+	oposd.UpdateNodeStatus(agent.kv, agent.nodeName, status)
 
 	return nil
 }
