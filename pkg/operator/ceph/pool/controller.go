@@ -235,8 +235,19 @@ func createPool(context *clusterd.Context, p *cephv1.CephBlockPool) error {
 
 // Delete the pool
 func deletePool(context *clusterd.Context, p *cephv1.CephBlockPool) error {
-	if err := cephclient.DeletePool(context, p.Namespace, p.Name); err != nil {
-		return errors.Wrapf(err, "failed to delete pool %q", p.Name)
+	pools, err := cephclient.ListPoolSummaries(context, p.Namespace)
+	if err != nil {
+		return errors.Wrapf(err, "failed to list pools")
+	}
+
+	// Only delete the pool if it exists...
+	for _, pool := range pools {
+		if pool.Name == p.Name {
+			err := cephclient.DeletePool(context, p.Namespace, p.Name)
+			if err != nil {
+				return errors.Wrapf(err, "failed to delete pool %q", p.Name)
+			}
+		}
 	}
 
 	return nil
