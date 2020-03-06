@@ -19,7 +19,6 @@ package osd
 
 import (
 	"fmt"
-	"os"
 	"path"
 	"strconv"
 	"strings"
@@ -570,14 +569,11 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 	// overrides will apply to ceph-volume, but this is unnecessary anyway
 	volumes := append(controller.PodVolumes(provisionConfig.DataPathMap, c.dataDirHostPath, true), copyBinariesVolume)
 
-	// by default, don't define any volume config unless it is required
-	if len(osdProps.devices) > 0 || osdProps.selection.DeviceFilter != "" || osdProps.selection.DevicePathFilter != "" || osdProps.selection.GetUseAllDevices() || osdProps.metadataDevice != "" || osdOnPVC {
-		// create volume config for the data dir and /dev so the pod can access devices on the host
-		devVolume := v1.Volume{Name: "devices", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/dev"}}}
-		volumes = append(volumes, devVolume)
-		udevVolume := v1.Volume{Name: "udev", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/run/udev"}}}
-		volumes = append(volumes, udevVolume)
-	}
+	// create a volume on /dev so the pod can access devices on the host
+	devVolume := v1.Volume{Name: "devices", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/dev"}}}
+	volumes = append(volumes, devVolume)
+	udevVolume := v1.Volume{Name: "udev", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/run/udev"}}}
+	volumes = append(volumes, udevVolume)
 
 	if osdOnPVC {
 		// Create volume config for PVCs
@@ -837,12 +833,6 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 	osdOnPVCMetadata := osdProps.metadataPVC.ClaimName != ""
 	envVars := c.getConfigEnvVars(osdProps, k8sutil.DataDir)
 
-	devMountNeeded := false
-	if osdOnPVC {
-		devMountNeeded = true
-	}
-	privileged := false
-
 	// only 1 of device list, device filter, device path filter and use all devices can be specified.  We prioritize in that order.
 	if len(osdProps.devices) > 0 {
 		deviceNames := make([]string, len(osdProps.devices))
@@ -879,33 +869,24 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 			deviceNames[i] = deviceID + devSuffix
 		}
 		envVars = append(envVars, dataDevicesEnvVar(strings.Join(deviceNames, ",")))
-		devMountNeeded = true
 	} else if osdProps.selection.DeviceFilter != "" {
 		envVars = append(envVars, deviceFilterEnvVar(osdProps.selection.DeviceFilter))
-		devMountNeeded = true
 	} else if osdProps.selection.DevicePathFilter != "" {
 		envVars = append(envVars, devicePathFilterEnvVar(osdProps.selection.DevicePathFilter))
-		devMountNeeded = true
 	} else if osdProps.selection.GetUseAllDevices() {
 		envVars = append(envVars, deviceFilterEnvVar("all"))
-		devMountNeeded = true
 	}
 	envVars = append(envVars, v1.EnvVar{Name: "ROOK_CEPH_VERSION", Value: c.clusterInfo.CephVersion.CephVersionFormatted()})
 
 	if osdProps.metadataDevice != "" {
 		envVars = append(envVars, metadataDeviceEnvVar(osdProps.metadataDevice))
-		devMountNeeded = true
 	}
 
-	// ceph-volume is currently set up to use /etc/ceph/ceph.conf; this means no user config
-	// overrides will apply to ceph-volume, but this is unnecessary anyway
-	volumeMounts := append(controller.CephVolumeMounts(provisionConfig.DataPathMap, true), copyBinariesMount)
-	if devMountNeeded {
-		devMount := v1.VolumeMount{Name: "devices", MountPath: "/dev"}
-		volumeMounts = append(volumeMounts, devMount)
-		udevMount := v1.VolumeMount{Name: "udev", MountPath: "/run/udev"}
-		volumeMounts = append(volumeMounts, udevMount)
-	}
+	volumeMounts := append(controller.CephVolumeMounts(provisionConfig.DataPathMap, true), []v1.VolumeMount{
+		{Name: "devices", MountPath: "/dev"},
+		{Name: "udev", MountPath: "/run/udev"},
+		copyBinariesMount,
+	}...)
 
 	// If the OSD runs on PVC
 	if osdOnPVC {
@@ -921,10 +902,8 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 		envVars = append(envVars, crushDeviceClassEnvVar(osdProps.crushDeviceClass))
 	}
 
-	// elevate to be privileged if it is going to mount devices or if running in a restricted environment such as openshift
-	if devMountNeeded || os.Getenv("ROOK_HOSTPATH_REQUIRES_PRIVILEGED") == "true" || osdOnPVC {
-		privileged = true
-	}
+	// run privileged always since we always mount /dev
+	privileged := true
 	runAsUser := int64(0)
 	runAsNonRoot := false
 	readOnlyRootFilesystem := false
