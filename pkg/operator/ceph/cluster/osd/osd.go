@@ -340,6 +340,10 @@ func (c *Cluster) startProvisioningOverNodes(config *provisionConfig) {
 	}
 
 	if c.DesiredStorage.UseAllNodes {
+		if len(c.DesiredStorage.Nodes) > 0 {
+			logger.Warningf("useAllNodes is TRUE, but nodes are specified. NODES in the cluster CR will be IGNORED unless useAllNodes is FALSE.")
+		}
+
 		// Get the list of all nodes in the cluster. The placement settings will be applied below.
 		hostnameMap, err := k8sutil.GetNodeHostNames(c.context.Clientset)
 		if err != nil {
