@@ -92,3 +92,18 @@ func objectChanged(oldObj, newObj runtime.Object) (bool, error) {
 
 	return true, nil
 }
+
+// WatchPredicateForNonCRDObject is a special filter for create events
+// It only applies to non-CRD objects, meaning, for instance a cephv1.CephBlockPool{}
+// object will not have this filter
+// Only for objects like &v1.Secret{} or &v1.Pod{} etc...
+//
+// We return 'false' on a create event so we don't overstep with the main watcher on cephv1.CephBlockPool{}
+// This avoids a double reconcile when the secret gets deleted.
+func WatchPredicateForNonCRDObject() predicate.Funcs {
+	return predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool {
+			return false
+		},
+	}
+}
