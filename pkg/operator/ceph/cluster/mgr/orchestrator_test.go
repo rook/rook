@@ -88,4 +88,23 @@ func TestOrchestratorModules(t *testing.T) {
 	assert.True(t, orchestratorModuleEnabled)
 	assert.True(t, rookModuleEnabled)
 	assert.True(t, rookBackendSet)
+
+	// Simulate the error because of the CLI name change
+	c.clusterInfo.CephVersion = cephver.Octopus
+	err = c.setRookOrchestratorBackend()
+	assert.Error(t, err)
+	executor.MockExecuteCommandWithOutputFileTimeout = func(debug bool, timeout time.Duration, actionName, command, outputFile string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		if args[0] == "orch" && args[1] == "set" && args[2] == "backend" && args[3] == "rook" {
+			if backendErrorCount < 5 {
+				backendErrorCount++
+				return "", errors.New("test simulation failure")
+			}
+			rookBackendSet = true
+			return "", nil
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+	err = c.setRookOrchestratorBackend()
+	assert.NoError(t, err)
 }
