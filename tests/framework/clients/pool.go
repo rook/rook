@@ -111,7 +111,10 @@ func (p *PoolOperation) DeletePool(blockClient *BlockOperation, namespace, poolN
 	for _, blockImage := range blockImagesList {
 		if poolName == blockImage.PoolName {
 			logger.Infof("force deleting block image %q in pool %q", blockImage, poolName)
-			blockClient.DeleteBlockImage(blockImage, namespace)
+			err := blockClient.DeleteBlockImage(blockImage, namespace)
+			if err != nil {
+				logger.Infof("failed deleting image %q from %q. %v", blockImage, poolName, err)
+			}
 		}
 	}
 
