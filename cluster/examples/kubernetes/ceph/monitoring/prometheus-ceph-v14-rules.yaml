@@ -19,19 +19,19 @@ spec:
   - name: telemeter.rules
     rules:
     - expr: |
-        count(ceph_osd_metadata{job="rook-ceph-mgr"})
+        count by (job)(ceph_osd_metadata)
       record: job:ceph_osd_metadata:count
     - expr: |
         count(kube_persistentvolume_info)
       record: job:kube_pv:count
     - expr: |
-        sum(ceph_pool_rd{job="rook-ceph-mgr"}+ ceph_pool_wr{job="rook-ceph-mgr"})
+        sum by (job)(ceph_pool_rd+ceph_pool_wr)
       record: job:ceph_pools_iops:total
     - expr: |
-        sum(ceph_pool_rd_bytes{job="rook-ceph-mgr"}+ ceph_pool_wr_bytes{job="rook-ceph-mgr"})
+        sum by (job)(ceph_pool_rd_bytes+ceph_pool_wr_bytes)
       record: job:ceph_pools_iops_bytes:total
     - expr: |
-        count(count(ceph_mon_metadata{job="rook-ceph-mgr"} or ceph_osd_metadata{job="rook-ceph-mgr"} or ceph_rgw_metadata{job="rook-ceph-mgr"} or ceph_mds_metadata{job="rook-ceph-mgr"} or ceph_mgr_metadata{job="rook-ceph-mgr"}) by(ceph_version))
+        count(count(ceph_mon_metadata or ceph_osd_metadata or ceph_rgw_metadata or ceph_mds_metadata or ceph_mgr_metadata) by(ceph_version))
       record: job:ceph_versions_running:count
   - name: ceph-mgr-status
     rules:
@@ -67,7 +67,7 @@ spec:
         severity_level: warning
         storage_type: ceph
       expr: |
-        sum(ceph_mds_metadata{job="rook-ceph-mgr"} == 1) < 2
+        sum by(job)(ceph_mds_metadata == 1) < 2
       for: 5m
       labels:
         severity: warning
@@ -80,7 +80,7 @@ spec:
         severity_level: error
         storage_type: ceph
       expr: |
-        count(ceph_mon_quorum_status{job="rook-ceph-mgr"} == 1) <= ((count(ceph_mon_metadata{job="rook-ceph-mgr"}) % 2) + 1)
+        count by(job)(ceph_mon_quorum_status == 1) <= ((count by (job)(ceph_mon_metadata) % 2) + 1)
       for: 15m
       labels:
         severity: critical
@@ -92,7 +92,7 @@ spec:
         severity_level: warning
         storage_type: ceph
       expr: |
-        (ceph_mon_metadata{job="rook-ceph-mgr"} * on (ceph_daemon) group_left() (rate(ceph_mon_num_elections{job="rook-ceph-mgr"}[5m]) * 60)) > 0.95
+        (ceph_mon_metadata * on (ceph_daemon,job) group_left() (rate(ceph_mon_num_elections[5m]) * 60)) > 0.95
       for: 5m
       labels:
         severity: warning
@@ -121,7 +121,7 @@ spec:
         severity_level: error
         storage_type: ceph
       expr: |
-        (ceph_osd_metadata * on (ceph_daemon) group_left() (ceph_osd_stat_bytes_used / ceph_osd_stat_bytes)) >= 0.85
+        (ceph_osd_metadata * on (ceph_daemon,job) group_left() (ceph_osd_stat_bytes_used / ceph_osd_stat_bytes)) >= 0.85
       for: 40s
       labels:
         severity: critical
@@ -134,7 +134,7 @@ spec:
         severity_level: warning
         storage_type: ceph
       expr: |
-        (ceph_osd_metadata * on (ceph_daemon) group_left() (ceph_osd_stat_bytes_used / ceph_osd_stat_bytes)) >= 0.75
+        (ceph_osd_metadata * on (ceph_daemon,job) group_left() (ceph_osd_stat_bytes_used / ceph_osd_stat_bytes)) >= 0.75
       for: 40s
       labels:
         severity: warning
@@ -146,7 +146,7 @@ spec:
         severity_level: error
         storage_type: ceph
       expr: |
-        label_replace((ceph_osd_in == 1 and ceph_osd_up == 0),"disk","$1","ceph_daemon","osd.(.*)") + on(ceph_daemon) group_left(host, device) label_replace(ceph_disk_occupation,"host","$1","exported_instance","(.*)")
+        label_replace((ceph_osd_in == 1 and ceph_osd_up == 0),"disk","$1","ceph_daemon","osd.(.*)") + on(ceph_daemon,job) group_left(host, device) label_replace(ceph_disk_occupation,"host","$1","exported_instance","(.*)")
       for: 1m
       labels:
         severity: critical
@@ -158,7 +158,7 @@ spec:
         severity_level: error
         storage_type: ceph
       expr: |
-        label_replace((ceph_osd_in == 0 and ceph_osd_up == 0),"disk","$1","ceph_daemon","osd.(.*)") + on(ceph_daemon) group_left(host, device) label_replace(ceph_disk_occupation,"host","$1","exported_instance","(.*)")
+        label_replace((ceph_osd_in == 0 and ceph_osd_up == 0),"disk","$1","ceph_daemon","osd.(.*)") + on(ceph_daemon,job) group_left(host, device) label_replace(ceph_disk_occupation,"host","$1","exported_instance","(.*)")
       for: 1m
       labels:
         severity: critical
@@ -193,7 +193,7 @@ spec:
         severity_level: error
         storage_type: ceph
       expr: |
-        ceph_health_status{job="rook-ceph-mgr"} > 1
+        ceph_health_status > 1
       for: 10m
       labels:
         severity: critical
@@ -204,7 +204,7 @@ spec:
         severity_level: warning
         storage_type: ceph
       expr: |
-        ceph_health_status{job="rook-ceph-mgr"} == 1
+        ceph_health_status == 1
       for: 10m
       labels:
         severity: warning
@@ -216,7 +216,7 @@ spec:
         severity_level: warning
         storage_type: ceph
       expr: |
-        count(count(ceph_osd_metadata{job="rook-ceph-mgr"}) by (ceph_version)) > 1
+        count(count(ceph_osd_metadata) by (ceph_version,job)) by (job) > 1
       for: 10m
       labels:
         severity: warning
@@ -228,7 +228,7 @@ spec:
         severity_level: warning
         storage_type: ceph
       expr: |
-        count(count(ceph_mon_metadata{job="rook-ceph-mgr"}) by (ceph_version)) > 1
+        count(count(ceph_mon_metadata) by (ceph_version,job)) by (job) > 1
       for: 10m
       labels:
         severity: warning
@@ -243,7 +243,7 @@ spec:
         severity_level: warning
         storage_type: ceph
       expr: |
-        sum(ceph_osd_stat_bytes_used) / sum(ceph_osd_stat_bytes) > 0.75
+        sum by (job)(ceph_osd_stat_bytes_used) / sum by(job)(ceph_osd_stat_bytes) > 0.75
       for: 30s
       labels:
         severity: warning
@@ -256,7 +256,7 @@ spec:
         severity_level: error
         storage_type: ceph
       expr: |
-        sum(ceph_osd_stat_bytes_used) / sum(ceph_osd_stat_bytes) > 0.85
+        sum by (job)(ceph_osd_stat_bytes_used) / sum by (job)(ceph_osd_stat_bytes) > 0.85
       for: 30s
       labels:
         severity: critical
