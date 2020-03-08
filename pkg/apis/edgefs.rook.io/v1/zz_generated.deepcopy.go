@@ -223,7 +223,7 @@ func (in *ClusterDeploymentConfig) DeepCopy() *ClusterDeploymentConfig {
 func (in *ClusterList) DeepCopyInto(out *ClusterList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]Cluster, len(*in))
@@ -404,7 +404,7 @@ func (in *ISCSI) DeepCopyObject() runtime.Object {
 func (in *ISCSIList) DeepCopyInto(out *ISCSIList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]ISCSI, len(*in))
@@ -512,7 +512,7 @@ func (in *ISGWConfig) DeepCopy() *ISGWConfig {
 func (in *ISGWList) DeepCopyInto(out *ISGWList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]ISGW, len(*in))
@@ -599,7 +599,7 @@ func (in *NFS) DeepCopyObject() runtime.Object {
 func (in *NFSList) DeepCopyInto(out *NFSList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]NFS, len(*in))
@@ -796,7 +796,7 @@ func (in *S3) DeepCopyObject() runtime.Object {
 func (in *S3List) DeepCopyInto(out *S3List) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]S3, len(*in))
@@ -882,7 +882,7 @@ func (in *S3X) DeepCopyObject() runtime.Object {
 func (in *S3XList) DeepCopyInto(out *S3XList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]S3X, len(*in))
@@ -968,7 +968,7 @@ func (in *SWIFT) DeepCopyObject() runtime.Object {
 func (in *SWIFTList) DeepCopyInto(out *SWIFTList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]SWIFT, len(*in))

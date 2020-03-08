@@ -31,7 +31,7 @@ git checkout "${KUBE_CODE_GEN_VERSION}"
     all \
     github.com/rook/rook/pkg/client \
     github.com/rook/rook/pkg/apis \
-    "rook.io:v1alpha2 ceph.rook.io:v1 cockroachdb.rook.io:v1alpha1 nfs.rook.io:v1alpha1 cassandra.rook.io:v1alpha1 edgefs.rook.io:v1 yugabytedb.rook.io:v1alpha1"
+    "rook.io:v1 rook.io:v1alpha2 ceph.rook.io:v1 cockroachdb.rook.io:v1alpha1 nfs.rook.io:v1alpha1 cassandra.rook.io:v1alpha1 edgefs.rook.io:v1 yugabytedb.rook.io:v1alpha1"
 # this seems busted in the release-1.8 branch
 #  --go-header-file ${SCRIPT_ROOT}/build/codegen/header.txt
 
