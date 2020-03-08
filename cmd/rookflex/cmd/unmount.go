@@ -24,7 +24,7 @@ import (
 
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume"
 	"github.com/spf13/cobra"
-	k8smount "k8s.io/kubernetes/pkg/util/mount"
+	k8smount "k8s.io/utils/mount"
 )
 
 var (

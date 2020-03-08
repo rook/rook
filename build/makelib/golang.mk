@@ -37,7 +37,6 @@ GO_SUBDIRS ?= cmd pkg
 GO_INTEGRATION_TESTS_SUBDIRS ?= tests
 
 # Optional directories (relative to CURDIR)
-GO_VENDOR_DIR ?= vendor
 GO_PKG_DIR ?= $(WORK_DIR)/pkg
 
 # Optional build flags passed to go tools
@@ -49,7 +48,7 @@ GO_TEST_FLAGS ?=
 # ====================================================================================
 # Setup go environment
 
-GO_SUPPORTED_VERSIONS ?= 1.11|1.12|1.13
+GO_SUPPORTED_VERSIONS ?= 1.13
 
 GO_PACKAGES := $(foreach t,$(GO_SUBDIRS),$(GO_PROJECT)/$(t)/...)
 GO_INTEGRATION_TEST_PACKAGES := $(foreach t,$(GO_INTEGRATION_TESTS_SUBDIRS),$(GO_PROJECT)/$(t)/integration)
@@ -65,8 +64,6 @@ endif
 GOPATH := $(shell go env GOPATH)
 
 # setup tools used during the build
-DEP_VERSION=v0.5.4
-DEP := $(TOOLS_HOST_DIR)/dep-$(DEP_VERSION)
 GOLINT := $(TOOLS_HOST_DIR)/golint
 GOJUNIT := $(TOOLS_HOST_DIR)/go-junit-report
 
@@ -113,21 +110,21 @@ ifneq ($(shell $(GO) version | grep -q -E '\bgo($(GO_SUPPORTED_VERSIONS))\b' && 
 	$(error unsupported go version. Please make install one of the following supported version: '$(GO_SUPPORTED_VERSIONS)')
 endif
 ifneq ($(realpath ../../../..), $(realpath $(GOPATH)))
-	$(warning WARNING: the source directory is not relative to the GOPATH at $(GOPATH) or you are using symlinks. The build might run into issue. Please move the source directory to be at $(GOPATH)/src/$(GO_PROJECT))
+	$(warning WARNING: the source directory is not relative to the GOPATH at $(GOPATH) or you are you using symlinks. The build might run into issue. Please move the source directory to be at $(GOPATH)/src/$(GO_PROJECT))
 endif
 
 -include go.check
 endif
 
 .PHONY: go.init
-go.init: go.vendor.lite
+go.init:
 	@:
 
 .PHONY: go.build
 go.build:
 	@echo === go build $(PLATFORM)
 	$(foreach p,$(GO_STATIC_PACKAGES),@CGO_ENABLED=0 $(GO) build -v -i -o $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT) $(GO_STATIC_FLAGS) $(p)${\n})
-	$(foreach p,$(GO_TEST_PACKAGES),@CGO_ENABLED=0 $(GO) test -v -i -c -o $(GO_TEST_OUTPUT)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT) $(GO_STATIC_FLAGS) $(p)${\n})
+	$(foreach p,$(GO_TEST_PACKAGES) $(GO_LONGHAUL_TEST_PACKAGES),@CGO_ENABLED=0 $(GO) test -v -i -c -o $(GO_TEST_OUTPUT)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT) $(GO_STATIC_FLAGS) $(p)${\n})
 
 .PHONY: go.install
 go.install:
@@ -166,38 +163,15 @@ go.fmt: $(GOFMT)
 
 go.validate: go.vet go.fmt
 
-.PHONY: go.vendor.lite
-go.vendor.lite: $(DEP)
-#	dep ensure blindly updates the whole vendor tree causing everything to be rebuilt. This workaround
-#	will only call dep ensure if the .lock file changes or if the vendor dir is non-existent.
-	@if [ ! -d $(GO_VENDOR_DIR) ]; then \
-		$(MAKE) go.vendor; \
-	elif ! $(DEP) ensure -no-vendor -dry-run &> /dev/null; then \
-		$(MAKE) go.vendor; \
-	fi
+.PHONY: go.mod
+go.mod: $(DEP)
+	@echo === ensuring modules are tidied
+	@$(GOHOST) mod tidy
 
-.PHONY: go.vendor.check
-go.vendor.check: $(DEP)
-	@echo === checking if vendor deps changed
-	@$(DEP) check -skip-vendor
-	@echo === vendor deps have not changed
-
-.PHONY: go.vendor
-go.vendor: $(DEP)
-	@echo === ensuring vendor dependencies are up to date
-	@$(DEP) ensure
-
-.PHONY: go.vendor.update
-go.vendor.update: $(DEP)
-	@echo === updating vendor dependencies
-	@$(DEP) ensure -update -v
-
-$(DEP):
-	@echo === installing dep
-	@mkdir -p $(TOOLS_HOST_DIR)/tmp
-	@curl -sL -o $(DEP) https://github.com/golang/dep/releases/download/$(DEP_VERSION)/dep-$(GOHOSTOS)-$(GOHOSTARCH)
-	@chmod +x $(DEP)
-	@rm -fr $(TOOLS_HOST_DIR)/tmp
+.PHONY: go.mod.update
+go.mod.update: $(DEP)
+	@echo === updating modules
+	@$(GOHOST) get -u ./...
 
 $(GOLINT):
 	@echo === installing golint
@@ -217,7 +191,3 @@ $(GOJUNIT):
 	@mkdir -p $(TOOLS_HOST_DIR)/tmp
 	@GOPATH=$(TOOLS_HOST_DIR)/tmp GOBIN=$(TOOLS_HOST_DIR) $(GOHOST) get github.com/jstemmer/go-junit-report
 	@rm -fr $(TOOLS_HOST_DIR)/tmp
-
-.PHONY: go.distclean
-go.distclean:
-	@rm -rf $(GO_VENDOR_DIR)
