@@ -33,12 +33,12 @@ data:
   # Set logging level for csi containers.
   # Supported values from 0 to 5. 0 for general useful logs, 5 for trace level verbosity.
   # CSI_LOG_LEVEL: "0"
-  
+
   # Enable Ceph Kernel clients on kernel < 4.17 which support quotas for Cephfs
   # If you disable the kernel client, your application may be disrupted during upgrade.
   # See the upgrade guide: https://rook.io/docs/rook/master/ceph-upgrade.html
   CSI_FORCE_CEPHFS_KERNEL_CLIENT: "true"
-  
+
   # (Optional) Allow starting unsupported ceph-csi image
   ROOK_CSI_ALLOW_UNSUPPORTED_VERSION: "false"
   # The default version of CSI supported by Rook will be started. To change the version
@@ -50,21 +50,23 @@ data:
   # ROOK_CSI_PROVISIONER_IMAGE: "quay.io/k8scsi/csi-provisioner:v1.4.0"
   # ROOK_CSI_SNAPSHOTTER_IMAGE: "quay.io/k8scsi/csi-snapshotter:v1.2.2"
   # ROOK_CSI_ATTACHER_IMAGE: "quay.io/k8scsi/csi-attacher:v2.1.0"
-  
+
   # CSI CephFS plugin daemonset update strategy, supported values are OnDelete and RollingUpdate.
   # Default value is RollingUpdate.
   # CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY: "OnDelete"
   # CSI RBD plugin daemonset update strategy, supported values are OnDelete and RollingUpdate.
   # Default value is RollingUpdate.
   # CSI_RBD_PLUGIN_UPDATE_STRATEGY: "OnDelete"
-  
+
   # kubelet directory path, if kubelet configured to use other than /var/lib/kubelet path.
   # ROOK_CSI_KUBELET_DIR_PATH: "/var/lib/kubelet"
-  
-  # (Optional) Ceph Provisioner NodeAffinity.
-  # CSI_PROVISIONER_NODE_AFFINITY: "role=storage-node; storage=rook, ceph"
-  # (Optional) CEPH CSI provisioner tolerations list. Put here list of taints you want to tolerate in YAML format.
+
+  # (Optional) Ceph Provisioner NodeAffinity. e.g., role=storage-node; storage=rook,ceph
+  # Node affinities are added in <key>=<value>[,<value>]... syntax separated by semicolons (;)
+  # Affinities are added to pods with `requiredDuringSchedulingIgnoredDuringExecution`
   # CSI provisioner would be best to start on the same nodes as other ceph daemons.
+  # CSI_PROVISIONER_NODE_AFFINITY: "role=storage-node; storage=rook,ceph"
+  # (Optional) CEPH CSI provisioner tolerations list. Put here list of taints you want to tolerate in YAML format.
   # CSI_PROVISIONER_TOLERATIONS: |
   #   - effect: NoSchedule
   #     key: node-role.kubernetes.io/controlplane
@@ -72,10 +74,13 @@ data:
   #   - effect: NoExecute
   #     key: node-role.kubernetes.io/etcd
   #     operator: Exists
-  # (Optional) Ceph CSI plugin NodeAffinity.
-  # CSI_PLUGIN_NODE_AFFINITY: "role=storage-node; storage=rook, ceph"
-  # (Optional) CEPH CSI plugin tolerations list. Put here list of taints you want to tolerate in YAML format.
+
+  # (Optional) Ceph CSI plugin NodeAffinity. e.g., role=storage-node; storage=rook,ceph
+  # Node affinities are added in <key>=<value>[,<value>]... syntax separated by semicolons (;)
+  # Affinities are added to pods with `requiredDuringSchedulingIgnoredDuringExecution`
   # CSI plugins need to be started on all the nodes where the clients need to mount the storage.
+  # CSI_PLUGIN_NODE_AFFINITY: "role=storage-node; storage=rook,ceph"
+  # (Optional) CEPH CSI plugin tolerations list. Put here list of taints you want to tolerate in YAML format.
   # CSI_PLUGIN_TOLERATIONS: |
   #   - effect: NoSchedule
   #     key: node-role.kubernetes.io/controlplane
@@ -83,7 +88,7 @@ data:
   #   - effect: NoExecute
   #     key: node-role.kubernetes.io/etcd
   #     operator: Exists
-  
+
   # Configure CSI CSI Ceph FS grpc and liveness metrics port
   # CSI_CEPHFS_GRPC_METRICS_PORT: "9091"
   # CSI_CEPHFS_LIVENESS_METRICS_PORT: "9081"
