@@ -169,7 +169,7 @@ func getOSDsForNodes(osdDataList []OsdData, nodeList []*corev1.Node, failureDoma
 			logger.Warningf("node in nodelist was nil")
 			continue
 		}
-		nodeTopologyMap, _ := osd.ExtractRookTopologyFromLabels(node.GetLabels())
+		nodeTopologyMap := osd.ExtractOSDTopologyFromLabels(node.GetLabels())
 
 		for _, osdData := range osdDataList {
 			// get the crush location of the osd
