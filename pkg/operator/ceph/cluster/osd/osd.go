@@ -832,10 +832,7 @@ func getNode(clientset kubernetes.Interface, nodeName string) (*corev1.Node, err
 
 func UpdateLocationWithNodeLabels(location *[]string, nodeLabels map[string]string) {
 
-	topology, invalidLabels := ExtractRookTopologyFromLabels(nodeLabels)
-	if len(invalidLabels) > 0 {
-		logger.Warningf("ignored invalid node topology labels: %v", invalidLabels)
-	}
+	topology := ExtractOSDTopologyFromLabels(nodeLabels)
 
 	keys := make([]string, 0, len(topology))
 	for k := range topology {

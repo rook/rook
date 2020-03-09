@@ -191,7 +191,7 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 		deploy.ObjectMeta.OwnerReferences = ownerReferences
 
 		// update the deployment labels
-		topology, _ := osd.ExtractRookTopologyFromLabels(node.GetLabels())
+		topology := osd.ExtractOSDTopologyFromLabels(node.GetLabels())
 		for key, value := range topology {
 			selectorLabels[key] = value
 		}
