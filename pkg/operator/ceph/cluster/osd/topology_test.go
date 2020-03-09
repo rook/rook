@@ -37,3 +37,23 @@ func TestOrderedCRUSHLabels(t *testing.T) {
 	assert.Equal(t, "zone", CRUSHMapLevelsOrdered[8])
 	assert.Equal(t, "region", CRUSHMapLevelsOrdered[9])
 }
+
+func TestTopologyLabels(t *testing.T) {
+	// load all the expected labels
+	nodeLabels := map[string]string{
+		"topology.kubernetes.io/region": "r.region",
+		"topology.kubernetes.io/zone":   "z.zone",
+		"kubernetes.io/hostname":        "host.name",
+		"topology.rook.io/rack":         "r.rack",
+		"topology.rook.io/row":          "r.row",
+		"topology.rook.io/datacenter":   "d.datacenter",
+	}
+	topology := ExtractOSDTopologyFromLabels(nodeLabels)
+	assert.Equal(t, 6, len(topology))
+	assert.Equal(t, "r-region", topology["region"])
+	assert.Equal(t, "z-zone", topology["zone"])
+	assert.Equal(t, "host-name", topology["host"])
+	assert.Equal(t, "r-rack", topology["rack"])
+	assert.Equal(t, "r-row", topology["row"])
+	assert.Equal(t, "d-datacenter", topology["datacenter"])
+}

@@ -21,12 +21,12 @@ import (
 	"fmt"
 	"strings"
 
-	"k8s.io/apimachinery/pkg/util/validation"
-
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/kubernetes"
 	helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
 )
@@ -34,12 +34,6 @@ import (
 const (
 	TopologyLabelPrefix = "topology.rook.io/"
 )
-
-var validTopologyLabelKeys = []string{
-	"failure-domain.beta.kubernetes.io", // deprecated in 1.17
-	"topology.kubernetes.io",
-	TopologyLabelPrefix,
-}
 
 // ValidNodeNoSched returns true if the node (1) meets Rook's placement terms,
 // and (2) is ready. Unlike ValidNode, this method will ignore the
@@ -278,25 +272,51 @@ func RookNodesMatchingKubernetesNodes(rookStorage rookv1.StorageScopeSpec, kuber
 	return nodes
 }
 
-func nodeTopologyLocation(kubeNode v1.Node, location string) string {
-	nodeLabels := kubeNode.ObjectMeta.Labels
-	locations := []string{location}
+// ExtractTopologyFromLabels extracts rook topology from labels and returns a map from topology type to value
+func ExtractTopologyFromLabels(labels map[string]string, additionalTopologyIDs []string) map[string]string {
+	topology := make(map[string]string)
 
-	// We're looking for node labels that match the following format:
-	// <validTopologyLabelKey>/<key>: <value>
-	// Where validTopologyLabelKey is an entry in the
-	// validTopologyLabelKeys list, key is a topology element (e.g. region,
-	// zone), and value is the name of the element (e.g. region1, zone2)
-	for label := range nodeLabels {
-		for _, key := range validTopologyLabelKeys {
-			if strings.Contains(label, key) {
-				keys := strings.Split(label, "/")
-				locations = append(locations, fmt.Sprintf("%s=%s", keys[1], nodeLabels[label]))
-			}
-		}
+	// check for the region k8s topology label that was deprecated in 1.17
+	const regionLabel = "region"
+	region, ok := labels[corev1.LabelZoneRegion]
+	if ok {
+		topology[regionLabel] = region
 	}
 
-	return strings.Join(locations, " ")
+	// check for the region k8s topology label that is GA in 1.17.
+	// TODO: Replace with a const when we update to the K8s 1.17 go-client.
+	region, ok = labels["topology.kubernetes.io/region"]
+	if ok {
+		topology[regionLabel] = region
+	}
+
+	// check for the zone k8s topology label that was deprecated in 1.17
+	const zoneLabel = "zone"
+	zone, ok := labels[corev1.LabelZoneFailureDomain]
+	if ok {
+		topology[zoneLabel] = zone
+	}
+
+	// check for the zone k8s topology label that is GA in 1.17.
+	// TODO: Replace with a const when we update to the K8s 1.17 go-client.
+	zone, ok = labels["topology.kubernetes.io/zone"]
+	if ok {
+		topology[zoneLabel] = zone
+	}
+
+	// get host
+	host, ok := labels[corev1.LabelHostname]
+	if ok {
+		topology["host"] = host
+	}
+
+	// get the labels for the CRUSH map hierarchy
+	for _, topologyID := range additionalTopologyIDs {
+		if value, ok := labels[TopologyLabelPrefix+topologyID]; ok {
+			topology[topologyID] = value
+		}
+	}
+	return topology
 }
 
 // NodeIsInRookNodeList will return true if the target node is found in a given list of Rook nodes.
