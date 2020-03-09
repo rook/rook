@@ -966,6 +966,10 @@ sigs.k8s.io/controller-tools v0.2.2-0.20190919191502-76a25b63325a/go.mod h1:8SNG
 sigs.k8s.io/kustomize v2.0.3+incompatible/go.mod h1:MkjgH3RdOWrievjo6c9T245dYlB5QeXV4WCbnt/PEpU=
 sigs.k8s.io/sig-storage-lib-external-provisioner v3.1.0+incompatible h1:1QXsfYQ9YjqJCyMcyCsN1qGKmbzNxYIL6NtC2wjglK8=
 sigs.k8s.io/sig-storage-lib-external-provisioner v3.1.0+incompatible/go.mod h1:qhqLyNwJC49PoUalmtzYb4s9fT8HOMBTLbTY1QoVOqI=
+sigs.k8s.io/sig-storage-lib-external-provisioner v4.0.1+incompatible h1:Wc09EvmeiMCZf7UlasU0W2Rn4GVX/b+Lus4UwmUBvD4=
+sigs.k8s.io/sig-storage-lib-external-provisioner v4.0.1+incompatible/go.mod h1:qhqLyNwJC49PoUalmtzYb4s9fT8HOMBTLbTY1QoVOqI=
+sigs.k8s.io/sig-storage-lib-external-provisioner v4.1.0+incompatible h1:pp7GUmQZKI57EjGnjkY88V4QbVuMpkw/ijKXqL67EsI=
+sigs.k8s.io/sig-storage-lib-external-provisioner v4.1.0+incompatible/go.mod h1:qhqLyNwJC49PoUalmtzYb4s9fT8HOMBTLbTY1QoVOqI=
 sigs.k8s.io/structured-merge-diff v0.0.0-20190525122527-15d366b2352e h1:4Z09Hglb792X0kfOBBJUPFEyvVfQWrYT/l8h5EKA6JQ=
 sigs.k8s.io/structured-merge-diff v0.0.0-20190525122527-15d366b2352e/go.mod h1:wWxsB5ozmmv/SG7nM11ayaAW51xMvak/t1r0CSlcokI=
 sigs.k8s.io/structured-merge-diff v1.0.1-0.20191108220359-b1b620dd3f06 h1:zD2IemQ4LmOcAumeiyDWXKUI2SO0NYDe3H6QGvPOVgU=

@@ -34,7 +34,7 @@ require (
 	k8s.io/kubernetes v1.17.1
 	k8s.io/utils v0.0.0-20191114200735-6ca3b61696b6
 	sigs.k8s.io/controller-runtime v0.4.0
-	sigs.k8s.io/sig-storage-lib-external-provisioner v3.1.0+incompatible
+	sigs.k8s.io/sig-storage-lib-external-provisioner v4.1.0+incompatible
 )
 
 // This looks "horrible", but is due to the Rook including k8s.io/kubernetes directly which is not recommended,
