@@ -302,19 +302,6 @@ func TestRookNodesMatchingKubernetesNodes(t *testing.T) {
 	assert.Len(t, retNodes, 0)
 }
 
-func TestNodeIsInRookList(t *testing.T) {
-	rookNodes := []rookv1.Node{}
-
-	assert.False(t, NodeIsInRookNodeList("node0", rookNodes))
-
-	rookNodes = []rookv1.Node{
-		{Name: "node0-hostname"},
-		{Name: "node2"},
-		{Name: "node5"}}
-	assert.False(t, NodeIsInRookNodeList("node0", rookNodes))
-	assert.True(t, NodeIsInRookNodeList("node0-hostname", rookNodes))
-}
-
 func TestGenerateNodeAffinity(t *testing.T) {
 	type args struct {
 		nodeAffinity string
