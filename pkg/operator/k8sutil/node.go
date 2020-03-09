@@ -319,16 +319,6 @@ func ExtractTopologyFromLabels(labels map[string]string, additionalTopologyIDs [
 	return topology
 }
 
-// NodeIsInRookNodeList will return true if the target node is found in a given list of Rook nodes.
-func NodeIsInRookNodeList(targetNodeName string, rookNodes []rookv1.Node) bool {
-	for _, rn := range rookNodes {
-		if targetNodeName == rn.Name {
-			return true
-		}
-	}
-	return false
-}
-
 // GenerateNodeAffinity will return v1.NodeAffinity or error
 func GenerateNodeAffinity(nodeAffinity string) (*v1.NodeAffinity, error) {
 	newNodeAffinity := &v1.NodeAffinity{
