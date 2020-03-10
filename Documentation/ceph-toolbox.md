@@ -47,35 +47,25 @@ spec:
               secretKeyRef:
                 name: rook-ceph-mon
                 key: admin-secret
-        securityContext:
-          privileged: true
         volumeMounts:
-          - mountPath: /dev
-            name: dev
-          - mountPath: /sys/bus
-            name: sysbus
-          - mountPath: /lib/modules
-            name: libmodules
+          - mountPath: /etc/ceph
+            name: ceph-config
           - name: mon-endpoint-volume
             mountPath: /etc/rook
-      # if hostNetwork: false, the "rbd map" command hangs, see https://github.com/rook/rook/issues/2021
-      hostNetwork: true
       volumes:
-        - name: dev
-          hostPath:
-            path: /dev
-        - name: sysbus
-          hostPath:
-            path: /sys/bus
-        - name: libmodules
-          hostPath:
-            path: /lib/modules
         - name: mon-endpoint-volume
           configMap:
             name: rook-ceph-mon-endpoints
             items:
             - key: data
               path: mon-endpoints
+        - name: ceph-config
+          emptyDir: {}
+      tolerations:
+        - key: "node.kubernetes.io/unreachable"
+          operator: "Exists"
+          effect: "NoExecute"
+          tolerationSeconds: 5
 ```
 
 Launch the rook-ceph-tools pod:
@@ -96,7 +86,7 @@ Once the rook-ceph-tools pod is running, you can connect to it with:
 kubectl -n rook-ceph exec -it $(kubectl -n rook-ceph get pod -l "app=rook-ceph-tools" -o jsonpath='{.items[0].metadata.name}') bash
 ```
 
-All available tools in the toolbox are ready for your troubleshooting needs. 
+All available tools in the toolbox are ready for your troubleshooting needs.
 
 **Example**:
 
