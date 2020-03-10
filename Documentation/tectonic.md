@@ -1,10 +1,10 @@
 ---
-title: Tectonic Bare Metal
-weight: 1600
+title: Tectonic Configuration
+weight: 11800
 indent: true
 ---
 
-# Tectonic Bare Metal
+# Tectonic Configuration
 
 Here is a running guide on how to implement Rook on Tectonic. A complete guide on how to install Tectonic is out of the scope of the Rook project. More info can be found on the [Tectonic website](https://coreos.com/tectonic/docs/latest/)
 

@@ -4,7 +4,7 @@ weight: 1200
 indent: true
 ---
 
-# FlexVolume Configuration
+# Ceph FlexVolume Configuration
 
 FlexVolume is not enabled by default since Rook v1.1. This documentation applies only if you have enabled FlexVolume.
 
@@ -14,19 +14,20 @@ Some Kubernetes deployments require you to configure kubelet with a FlexVolume p
 
 Platform-specific instructions for the following Kubernetes deployment platforms are linked below
 
-* [Atomic](#atomic) - see also [Atomic home page](https://www.projectatomic.io/)
-* [Azure AKS](#azure-aks) - see also [Azure AKS docs](https://docs.microsoft.com/en-us/azure/aks/)
-* [Container Linux](#containerlinux) (previously named CoreOS) - see also [Container Linux docs](https://coreos.com/os/docs/latest/)
-* [Google Kubernetes Engine (GKE)](#google-kubernetes-engine-gke) - see also [GKE home page](https://cloud.google.com/kubernetes-engine/)
-* [Kubespray](#kubespray) prior to v2.11.0 - see also [Kubespray home page](https://kubespray.io/)
-* [OpenShift](#openshift) - see also [OpenShift home page](https://www.openshift.com/)
-* [OpenStack Magnum](#openstack-magnum) - see also [OpenStack Magnum docs](https://docs.openstack.org/magnum/latest/)
-* [Rancher](#rancher) - see also [Rancher home page](http://rancher.com/)
-* [Tectonic](#tectonic) - see also [Tectonic docs](https://coreos.com/tectonic/docs/latest/)
+* [Default FlexVolume path](#default-flexvolume-path)
+* [Atomic](#atomic)
+* [Azure AKS](#azure-aks)
+* [ContainerLinux](#containerlinux)
+* [Google Kubernetes Engine (GKE)](#google-kubernetes-engine-gke)
+* [Kubespray](#kubespray)
+* [OpenShift](#openshift)
+* [OpenStack Magnum](#openstack-magnum)
+* [Rancher](#rancher)
+* [Tectonic](#tectonic)
+* [Custom containerized kubelet](#custom-containerized-kubelet)
+* [Configuring the FlexVolume path](#configuring-the-flexvolume-path)
 
-## Platform specific FlexVolume path
-
-### Most common read/write FlexVolume path
+## Default FlexVolume path
 
 If you are not using a platform that is listed above and the path `/usr/libexec/kubernetes/kubelet-plugins/volume/exec/` is read/write, you don't need to configure anything.
 
@@ -34,27 +35,25 @@ That is because `/usr/libexec/kubernetes/kubelet-plugins/volume/exec/` is the ku
 
 If running `mkdir -p /usr/libexec/kubernetes/kubelet-plugins/volume/exec/` should give you an error about read-only filesystem, you need to use [another read/write FlexVolume path](#other-common-readwrite-flexvolume-paths) and configure it on the Rook operator and kubelet.
 
-### Other common read/write FlexVolume paths
-
-Because `/var/lib/kubelet` is read write on most systems, these are the other commonly used paths:
+These are the other commonly used paths:
 
 * `/var/lib/kubelet/volumeplugins`
 * `/var/lib/kubelet/volume-plugins`
 
 Continue with [configuring the FlexVolume path](#configuring-the-flexvolume-path) to configure Rook to use the FlexVolume path.
 
-### Atomic
+## Atomic
 
 See the [OpenShift](#openshift) section, unless running with OpenStack Magnum, then see [OpenStack Magnum](#openstack-magnum) section.
 
-### Azure AKS
+## Azure AKS
 
 AKS uses a non-standard FlexVolume plugin directory: `/etc/kubernetes/volumeplugins`
 The kubelet on AKS is already configured to use that directory.
 
 Continue with [configuring the FlexVolume path](#configuring-the-flexvolume-path) to configure Rook to use the FlexVolume path.
 
-### ContainerLinux
+## ContainerLinux
 
 Use the [Most common read/write FlexVolume path](#most-common-readwrite-flexvolume-path) for the next steps.
 
@@ -62,16 +61,16 @@ The kubelet's systemD unit file can be located at: `/etc/systemd/system/kubelet.
 
 Continue with [configuring the FlexVolume path](#configuring-the-flexvolume-path) to configure Rook to use the FlexVolume path.
 
-### Google Kubernetes Engine (GKE)
+## Google Kubernetes Engine (GKE)
 
 Google's Kubernetes Engine uses a non-standard FlexVolume plugin directory: `/home/kubernetes/flexvolume`
 The kubelet on GKE is already configured to use that directory.
 
 Continue with [configuring the FlexVolume path](#configuring-the-flexvolume-path) to configure Rook to use the FlexVolume path.
 
-### Kubespray
+## Kubespray
 
-#### Prior to v2.11.0
+### Prior to v2.11.0
 
 Kubespray uses the [kubelet_flexvolumes_plugins_dir](https://github.com/kubernetes-sigs/kubespray/blob/v2.11.0/inventory/sample/group_vars/k8s-cluster/k8s-cluster.yml#L206) variable to define where it sets the plugin directory.
 
@@ -80,7 +79,7 @@ The Kubespray configured kubelet is already configured to use that directory.
 
 If you are using kubespray v2.10.x or older, continue with [configuring the FlexVolume path](#configuring-the-flexvolume-path) to configure Rook to use the FlexVolume path.
 
-#### As of v2.11.0 and newer
+### As of v2.11.0 and newer
 
 Kubespray v2.11.0 included https://github.com/kubernetes-sigs/kubespray/pull/4752 which sets the same plugin directory assumed by rook by default: `/usr/libexec/kubernetes/kubelet-plugins/volume/exec`.
 
@@ -93,19 +92,19 @@ If you have not defined one, and the default path is not writable, the [alternat
 
 If needed, continue with [configuring the FlexVolume path](#configuring-the-flexvolume-path) to configure Rook to use the FlexVolume path.
 
-### OpenShift
+## OpenShift
 
 To find out which FlexVolume directory path you need to set on the Rook operator, please look at the OpenShift docs of the version you are using, [latest OpenShift Flexvolume docs](https://docs.openshift.org/latest/install_config/persistent_storage/persistent_storage_flex_volume.html#flexvolume-installation) (they also contain the FlexVolume path for Atomic).
 
 Continue with [configuring the FlexVolume path](#configuring-the-flexvolume-path) to configure Rook to use the FlexVolume path.
 
-### OpenStack Magnum
+## OpenStack Magnum
 
 OpenStack Magnum is using Atomic, which uses a non-standard FlexVolume plugin directory at:  `/var/lib/kubelet/volumeplugins`
 The kubelet in OpenStack Magnum is already configured to use that directory.
 You will need to use this value when [configuring the Rook operator](#configuring-the-rook-operator)
 
-### Rancher
+## Rancher
 
 Rancher provides an easy way to configure kubelet. The FlexVolume flag will be shown later on in the [configuring the FlexVolume path](#configuring-the-flexvolume-path).
 It can be provided to the kubelet configuration template at deployment time or by using the `up to date` feature if Kubernetes is already deployed.
@@ -133,14 +132,14 @@ FlexVolume path for the Rook operator.
 If the default path as above is used no further configuration is required, otherwise if a different path is used
 the Rook operator will need to be reconfigured, to do this continue with [configuring the FlexVolume path](#configuring-the-flexvolume-path) to configure Rook to use the FlexVolume path.
 
-### Tectonic
+## Tectonic
 
 Follow [these instructions](tectonic.md) to configure the Flexvolume plugin for Rook on Tectonic during ContainerLinux node ignition file provisioning.
 If you want to use Rook with an already provisioned Tectonic cluster, please refer to the [ContainerLinux](#containerlinux) section.
 
 Continue with [configuring the FlexVolume path](#configuring-the-flexvolume-path) to configure Rook to use the FlexVolume path.
 
-### Custom containerized kubelet
+## Custom containerized kubelet
 
 Use the [most common read/write FlexVolume path](#most-common-readwrite-flexvolume-path) for the next steps.
 

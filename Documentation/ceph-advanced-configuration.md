@@ -428,7 +428,7 @@ For example,
     hostNetwork: true
 ```
 
-> IMPORTANT: This setting cannot be changed in a running Rook cluster. Host networking
+> IMPORTANT: Changing this setting is not supported in a running Rook cluster. Host networking
 > should be configured when the cluster is first created.
 
 ### Define the subnets to use for public and private OSD networks

@@ -252,7 +252,7 @@ We want to help you get your storage working and learn from those lessons to pre
 
 ### Investigation
 
-Create a [rook-ceph-tools pod](ceph-toolbox.md) to investigate the current state of CEPH. Here is an example of what one might see. In this case the `ceph status` command would just hang so a CTRL-C needed to be sent.
+Create a [rook-ceph-tools pod](ceph-toolbox.md) to investigate the current state of Ceph. Here is an example of what one might see. In this case the `ceph status` command would just hang so a CTRL-C needed to be sent.
 
 ```console
 $ kubectl -n rook-ceph exec -it $(kubectl -n rook-ceph get pod -l "app=rook-ceph-tools" -o jsonpath='{.items[0].metadata.name}') bash
@@ -277,7 +277,7 @@ rook-ceph-osd-mwxdm                  1/1       Running   0          2d        19
 
 What is happening here is that the MON pods are restarting and one or more of the Ceph daemons are not getting configured with the proper cluster information. This is commonly the result of not specifying a value for `dataDirHostPath` in your Cluster CRD.
 
-The `dataDirHostPath` setting specifies a path on the local host for the CEPH daemons to store configuration and data. Setting this to a path like `/var/lib/rook`, reapplying your Cluster CRD and restarting all the CEPH daemons (MON, MGR, OSD, RGW) should solve this problem. After the CEPH daemons have been restarted, it is advisable to restart the [rook-tool pod](./toolbox.md).
+The `dataDirHostPath` setting specifies a path on the local host for the Ceph daemons to store configuration and data. Setting this to a path like `/var/lib/rook`, reapplying your Cluster CRD and restarting all the Ceph daemons (MON, MGR, OSD, RGW) should solve this problem. After the Ceph daemons have been restarted, it is advisable to restart the [rook-tool pod](./toolbox.md).
 
 ## Monitors are the only pods running
 
@@ -437,11 +437,15 @@ See the section on [why OSDs are not getting created](#osd-pods-are-not-created-
 The CSI driver may not be responding to the requests. Look in the logs of the CSI provisioner pod to see if there are any errors
 during the provisioning.
 
-```
-# There are two provisioner pods
-kubectl -n rook-ceph get pod -l app=csi-rbdplugin-provisioner
+There are two provisioner pods:
 
-# Get the logs of each of the pods. One of them should be the "leader" and be responding to requests.
+```
+kubectl -n rook-ceph get pod -l app=csi-rbdplugin-provisioner
+```
+
+Get the logs of each of the pods. One of them should be the "leader" and be responding to requests.
+
+```
 kubectl -n rook-ceph logs csi-cephfsplugin-provisioner-d77bb49c6-q9hwq csi-provisioner
 ```
 
