@@ -534,11 +534,6 @@ func (c *Cluster) getActivateOSDInitContainer(osdID string, osdInfo OSDInfo, osd
 		volMounts = append(volMounts, getPvcOSDBridgeMount(osdProps.pvc.ClaimName))
 	}
 
-	privileged := true
-	securityContext := &v1.SecurityContext{
-		Privileged: &privileged,
-	}
-
 	container := &v1.Container{
 		Command: []string{
 			"/bin/bash",
@@ -548,7 +543,7 @@ func (c *Cluster) getActivateOSDInitContainer(osdID string, osdInfo OSDInfo, osd
 		Name:            "activate",
 		Image:           c.cephVersion.Image,
 		VolumeMounts:    volMounts,
-		SecurityContext: securityContext,
+		SecurityContext: privilegedContext(),
 		Env:             envVars,
 		Resources:       osdProps.resources,
 	}
@@ -747,7 +742,7 @@ func (c *Cluster) getActivatePVCInitContainer(osdProps osdProperties, osdID stri
 			},
 		},
 		VolumeMounts:    []v1.VolumeMount{getPvcOSDBridgeMountActivate(osdDataPath, osdProps.pvc.ClaimName)},
-		SecurityContext: opmon.PodSecurityContext(),
+		SecurityContext: privilegedContext(),
 		Resources:       osdProps.resources,
 	}
 
@@ -765,7 +760,7 @@ func (c *Cluster) getExpandPVCInitContainer(osdProps osdProperties, osdID string
 		},
 		Args:            []string{"bluefs-bdev-expand", "--path", osdDataPath},
 		VolumeMounts:    []v1.VolumeMount{getPvcOSDBridgeMountActivate(osdDataPath, osdProps.pvc.ClaimName)},
-		SecurityContext: opmon.PodSecurityContext(),
+		SecurityContext: privilegedContext(),
 		Resources:       osdProps.resources,
 	}
 
@@ -1132,4 +1127,12 @@ func getUdevVolume() (v1.Volume, v1.VolumeMount) {
 	}
 
 	return volume, volumeMounts
+}
+
+func privilegedContext() *v1.SecurityContext {
+	privileged := true
+
+	return &v1.SecurityContext{
+		Privileged: &privileged,
+	}
 }
