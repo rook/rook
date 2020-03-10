@@ -576,11 +576,6 @@ func (c *Cluster) getActivateOSDInitContainer(osdID, osdUUID string, isFilestore
 		{Name: k8sutil.ConfigOverrideName, ReadOnly: true, MountPath: opconfig.EtcCephDir},
 	}
 
-	privileged := true
-	securityContext := &v1.SecurityContext{
-		Privileged: &privileged,
-	}
-
 	return volume, &v1.Container{
 		Command: []string{
 			"/bin/bash",
@@ -590,7 +585,7 @@ func (c *Cluster) getActivateOSDInitContainer(osdID, osdUUID string, isFilestore
 		Name:            "activate-osd",
 		Image:           c.cephVersion.Image,
 		VolumeMounts:    volMounts,
-		SecurityContext: securityContext,
+		SecurityContext: privilegedContext(),
 		Env:             envVars,
 		Resources:       osdProps.resources,
 	}
@@ -1088,4 +1083,12 @@ func getUdevVolume() (v1.Volume, v1.VolumeMount) {
 	}
 
 	return volume, volumeMounts
+}
+
+func privilegedContext() *v1.SecurityContext {
+	privileged := true
+
+	return &v1.SecurityContext{
+		Privileged: &privileged,
+	}
 }
