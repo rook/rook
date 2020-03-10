@@ -20,6 +20,7 @@ package objectuser
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -44,11 +45,20 @@ import (
 )
 
 const (
-	appName        = object.AppName
-	controllerName = "ceph-object-store-user-controller"
+	appName             = object.AppName
+	controllerName      = "ceph-object-store-user-controller"
+	cephObjectStoreKind = "CephObjectStoreUser"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
+
+var cephObjectStoreUserKind = reflect.TypeOf(cephv1.CephObjectStoreUser{}).Name()
+
+// Sets the type meta for the controller main object
+var controllerTypeMeta = metav1.TypeMeta{
+	Kind:       cephObjectStoreUserKind,
+	APIVersion: fmt.Sprintf("%s/%s", cephv1.CustomResourceGroup, cephv1.Version),
+}
 
 // ReconcileObjectStoreUser reconciles a ObjectStoreUser object
 type ReconcileObjectStoreUser struct {
@@ -92,10 +102,10 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
 	// Watch secrets
-	err = c.Watch(&source.Kind{Type: &corev1.Secret{}}, &handler.EnqueueRequestForOwner{
+	err = c.Watch(&source.Kind{Type: &corev1.Secret{TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: corev1.SchemeGroupVersion.String()}}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &cephv1.CephObjectStoreUser{},
-	}, opcontroller.WatchPredicateForNonCRDObject())
+	}, opcontroller.WatchPredicateForNonCRDObject(controllerTypeMeta))
 	if err != nil {
 		return err
 	}
