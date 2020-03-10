@@ -545,8 +545,8 @@ the desired level in the [CRUSH map](http://docs.ceph.com/docs/master/rados/oper
 The complete list of labels in hierarchy order from highest to lowest is:
 
 ```text
-failure-domain.beta.kubernetes.io/region
-failure-domain.beta.kubernetes.io/zone
+topology.kubernetes.io/region
+topology.kubernetes.io/zone
 topology.rook.io/datacenter
 topology.rook.io/room
 topology.rook.io/pod
@@ -559,9 +559,11 @@ topology.rook.io/chassis
 For example, if the following labels were added to a node:
 
 ```console
-kubectl label node mynode failure-domain.beta.kubernetes.io/zone=zone1
+kubectl label node mynode topology.kubernetes.io/zone=zone1
 kubectl label node mynode topology.rook.io/rack=rack1
 ```
+
+> For versions previous to K8s 1.17, use the topology key: failure-domain.beta.kubernetes.io/zone or region
 
 These labels would result in the following hierarchy for OSDs on that node (this command can be run in the Rook toolbox):
 
@@ -687,7 +689,7 @@ spec:
                   operator: In
                   values:
                     - cluster1
-                topologyKey: "failure-domain.beta.kubernetes.io/zone"
+                topologyKey: "topology.kubernetes.io/zone"
       volumeClaimTemplates:
       - metadata:
           name: data
