@@ -62,7 +62,7 @@ pipeline {
                 }
             }
             steps {
-                sh 'build/run make -j\$(nproc) mod'
+                sh 'build/run make -j\$(nproc) mod.check'
                 sh 'build/run make -j\$(nproc) build.all'
             }
         }

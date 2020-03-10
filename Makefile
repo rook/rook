@@ -55,7 +55,6 @@ SERVER_PACKAGES = $(GO_PROJECT)/cmd/rook $(GO_PROJECT)/cmd/rookflex
 
 # tests packages that will be compiled into binaries
 TEST_PACKAGES = $(GO_PROJECT)/tests/integration
-LONGHAUL_TEST_PACKAGES = $(GO_PROJECT)/tests/longhaul
 
 # the root go project
 GO_PROJECT=github.com/rook/rook
@@ -80,7 +79,6 @@ GO_LDFLAGS=$(LDFLAGS)
 GO_TAGS=$(TAGS)
 
 GO_TEST_PACKAGES=$(TEST_PACKAGES)
-GO_LONGHAUL_TEST_PACKAGES=$(LONGHAUL_TEST_PACKAGES)
 GO_TEST_FLAGS=$(TESTFLAGS)
 GO_TEST_SUITE=$(SUITE)
 GO_TEST_FILTER=$(TESTFILTER)
@@ -145,10 +143,11 @@ fmt:
 codegen:
 	@build/codegen/codegen.sh
 
-mod: go.mod
+mod.check: go.mod.check
 mod.update: go.mod.update
 
 clean:
+	@$(MAKE) go.mod.clean
 	@$(MAKE) -C images clean
 	@rm -fr $(OUTPUT_DIR) $(WORK_DIR)
 
@@ -162,7 +161,7 @@ csv-ceph:
 	@cluster/olm/ceph/generate-rook-csv.sh $(CSV_VERSION) $(CSV_PLATFORM) $(ROOK_OP_VERSION)
 
 .PHONY: all build.common cross.build.parallel
-.PHONY: build build.all install test check vet fmt codegen mod clean distclean prune
+.PHONY: build build.all install test check vet fmt codegen mod.check clean distclean prune
 
 # ====================================================================================
 # Help
@@ -187,8 +186,9 @@ Targets:
     prune              Prune cached artifacts.
     test               Runs unit tests.
     test-integration   Runs integration tests.
-    mod                Check / Tidy current modules.
+    mod.check          Check / Tidy current modules.
     mod.update         Update all modules.
+    vendor.check       Checks if vendor dependencies changed.
     vet                Runs lint checks on go sources.
 
 Options:

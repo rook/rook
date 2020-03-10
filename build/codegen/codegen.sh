@@ -17,7 +17,7 @@
 # shellcheck disable=SC2086,SC2089,SC2090
 # Disables quote checks, which is needed because of the SED variable here.
 
-KUBE_CODE_GEN_VERSION="kubernetes-1.17.1"
+KUBE_CODE_GEN_VERSION="kubernetes-1.17.2"
 
 scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 

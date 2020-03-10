@@ -124,7 +124,7 @@ go.init:
 go.build:
 	@echo === go build $(PLATFORM)
 	$(foreach p,$(GO_STATIC_PACKAGES),@CGO_ENABLED=0 $(GO) build -v -i -o $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT) $(GO_STATIC_FLAGS) $(p)${\n})
-	$(foreach p,$(GO_TEST_PACKAGES) $(GO_LONGHAUL_TEST_PACKAGES),@CGO_ENABLED=0 $(GO) test -v -i -c -o $(GO_TEST_OUTPUT)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT) $(GO_STATIC_FLAGS) $(p)${\n})
+	$(foreach p,$(GO_TEST_PACKAGES),@CGO_ENABLED=0 $(GO) test -v -i -c -o $(GO_TEST_OUTPUT)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT) $(GO_STATIC_FLAGS) $(p)${\n})
 
 .PHONY: go.install
 go.install:
@@ -163,15 +163,21 @@ go.fmt: $(GOFMT)
 
 go.validate: go.vet go.fmt
 
-.PHONY: go.mod
-go.mod: $(DEP)
+.PHONY: go.mod.update
+go.mod.update:
+	@echo === updating modules
+	@$(GOHOST) get -u ./...
+
+.PHONY: go.mod.check
+go.mod.check:
 	@echo === ensuring modules are tidied
 	@$(GOHOST) mod tidy
 
-.PHONY: go.mod.update
-go.mod.update: $(DEP)
-	@echo === updating modules
-	@$(GOHOST) get -u ./...
+.PHONY: go.mod.clean
+go.mod.clean:
+	@echo === cleaning modules cache
+	@sudo rm -fr $(WORK_DIR)/cross_pkg
+	@$(GOHOST) clean -modcache
 
 $(GOLINT):
 	@echo === installing golint
@@ -190,4 +196,4 @@ $(GOJUNIT):
 	@echo === installing go-junit-report
 	@mkdir -p $(TOOLS_HOST_DIR)/tmp
 	@GOPATH=$(TOOLS_HOST_DIR)/tmp GOBIN=$(TOOLS_HOST_DIR) $(GOHOST) get github.com/jstemmer/go-junit-report
-	@rm -fr $(TOOLS_HOST_DIR)/tmp
+	@$(GOHOST) clean -modcache
