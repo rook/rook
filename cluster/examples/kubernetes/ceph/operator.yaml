@@ -130,9 +130,11 @@ spec:
         # If this is not set to true, the operator will watch for cluster CRDs in all namespaces.
         - name: ROOK_CURRENT_NAMESPACE_ONLY
           value: "false"
+
         # To disable RBAC, uncomment the following:
         # - name: RBAC_ENABLED
         #   value: "false"
+
         # Rook Agent toleration. Will tolerate all taints with all keys.
         # Choose between NoSchedule, PreferNoSchedule and NoExecute:
         # - name: AGENT_TOLERATION
@@ -171,6 +173,7 @@ spec:
         # Mount any extra directories into the agent container
         # - name: AGENT_MOUNTS
         #   value: "somemount=/host/path:/container/path,someothermount=/host/path2:/container/path2"
+
         # Rook Discover toleration. Will tolerate all taints with all keys.
         # Choose between NoSchedule, PreferNoSchedule and NoExecute:
         # - name: DISCOVER_TOLERATION
@@ -193,6 +196,7 @@ spec:
         # (Optional) Discover Agent NodeAffinity.
         # - name: DISCOVER_AGENT_NODE_AFFINITY
         #   value: "role=storage-node; storage=rook, ceph"
+
         # Allow rook to create multiple file systems. Note: This is considered
         # an experimental feature in Ceph as described at
         # http://docs.ceph.com/docs/master/cephfs/experimental-features/#multiple-filesystems-within-a-ceph-cluster
