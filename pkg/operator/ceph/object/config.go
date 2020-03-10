@@ -25,7 +25,6 @@ import (
 	"github.com/pkg/errors"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -77,7 +76,7 @@ func (c *clusterConfig) generateKeyring(rgwConfig *rgwConfig) (string, error) {
 	user := generateCephXUser(rgwConfig.ResourceName)
 	/* TODO: this says `osd allow rwx` while template says `osd allow *`; which is correct? */
 	access := []string{"osd", "allow rwx", "mon", "allow rw"}
-	s := keyring.GetSecretStore(c.context, c.store.Namespace, &c.ownerRef)
+	s := keyring.GetSecretStore(c.context, c.store.Namespace, c.ownerRef)
 
 	key, err := s.GenerateKey(user, access)
 	if err != nil {
@@ -86,14 +85,6 @@ func (c *clusterConfig) generateKeyring(rgwConfig *rgwConfig) (string, error) {
 
 	keyring := fmt.Sprintf(keyringTemplate, user, key)
 	return keyring, s.CreateOrUpdate(rgwConfig.ResourceName, keyring)
-}
-
-func (c *clusterConfig) associateKeyring(existingKeyring string, ownerRef *metav1.OwnerReference) error {
-	resourceName := ownerRef.Name
-
-	s := keyring.GetSecretStore(c.context, c.store.Namespace, ownerRef)
-
-	return s.CreateOrUpdate(resourceName, existingKeyring)
 }
 
 func (c *clusterConfig) setDefaultFlagsMonConfigStore(rgwName string) error {

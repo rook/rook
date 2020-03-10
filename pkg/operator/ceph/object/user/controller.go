@@ -96,7 +96,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
 	// Watch for changes on the CephObjectStoreUser CRD object
-	err = c.Watch(&source.Kind{Type: &cephv1.CephObjectStoreUser{}}, &handler.EnqueueRequestForObject{}, opcontroller.WatchUpdatePredicate())
+	err = c.Watch(&source.Kind{Type: &cephv1.CephObjectStoreUser{TypeMeta: controllerTypeMeta}}, &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate())
 	if err != nil {
 		return err
 	}
@@ -105,7 +105,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	err = c.Watch(&source.Kind{Type: &corev1.Secret{TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: corev1.SchemeGroupVersion.String()}}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &cephv1.CephObjectStoreUser{},
-	}, opcontroller.WatchPredicateForNonCRDObject(controllerTypeMeta))
+	}, opcontroller.WatchPredicateForNonCRDObject(&cephv1.CephObjectStoreUser{TypeMeta: controllerTypeMeta}, mgr.GetScheme()))
 	if err != nil {
 		return err
 	}
@@ -156,7 +156,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 		// This handles the case where the Ceph Cluster is gone and we want to delete that CR
 		// We skip the deleteUser() function since everything is gone already
 		//
-		// ALso, only remove the finalizer if the CephCluster is gone
+		// Also, only remove the finalizer if the CephCluster is gone
 		// If not, we should wait for it to be ready
 		// This handles the case where the operator is not ready to accept Ceph command but the cluster exists
 		if !cephObjectStoreUser.GetDeletionTimestamp().IsZero() && !cephClusterExists {

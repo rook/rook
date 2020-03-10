@@ -55,19 +55,6 @@ type realmType struct {
 	Realms []string `json:"realms"`
 }
 
-func createObjectStore(context *Context, metadataSpec, dataSpec model.Pool, serviceIP string, port int32) error {
-	err := createPools(context, metadataSpec, dataSpec)
-	if err != nil {
-		return errors.Wrapf(err, "failed to create object pools")
-	}
-
-	err = createRealm(context, serviceIP, port)
-	if err != nil {
-		return errors.Wrapf(err, "failed to create object store realm")
-	}
-	return nil
-}
-
 func deleteRealmAndPools(context *Context, preservePoolsOnDelete bool) error {
 	stores, err := getObjectStores(context)
 	if err != nil {
@@ -96,7 +83,7 @@ func deleteRealmAndPools(context *Context, preservePoolsOnDelete bool) error {
 	return nil
 }
 
-func createRealm(context *Context, serviceIP string, port int32) error {
+func reconcileRealm(context *Context, serviceIP string, port int32) error {
 	zoneArg := fmt.Sprintf("--rgw-zone=%s", context.Name)
 	endpointArg := fmt.Sprintf("--endpoints=%s:%d", serviceIP, port)
 	updatePeriod := false

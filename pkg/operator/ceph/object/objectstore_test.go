@@ -26,7 +26,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCreateRealm(t *testing.T) {
+func TestReconcileRealm(t *testing.T) {
 	defaultStore := true
 	executorFunc := func(debug bool, actionName string, command string, args ...string) (string, error) {
 		idResponse := `{"id":"test-id"}`
@@ -58,12 +58,12 @@ func TestCreateRealm(t *testing.T) {
 	context := &clusterd.Context{Executor: executor}
 	objContext := NewContext(context, storeName, "mycluster")
 	// create the first realm, marked as default
-	err := createRealm(objContext, "1.2.3.4", 80)
+	err := reconcileRealm(objContext, "1.2.3.4", 80)
 	assert.Nil(t, err)
 
 	// create the second realm, not marked as default
 	defaultStore = false
-	err = createRealm(objContext, "2.3.4.5", 80)
+	err = reconcileRealm(objContext, "2.3.4.5", 80)
 	assert.Nil(t, err)
 }
 

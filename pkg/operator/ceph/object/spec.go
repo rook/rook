@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
@@ -30,6 +31,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 func (c *clusterConfig) createDeployment(rgwConfig *rgwConfig) *apps.Deployment {
@@ -38,11 +40,11 @@ func (c *clusterConfig) createDeployment(rgwConfig *rgwConfig) *apps.Deployment 
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      rgwConfig.ResourceName,
 			Namespace: c.store.Namespace,
-			Labels:    c.getLabels(),
+			Labels:    getLabels(c.store.Name, c.store.Namespace),
 		},
 		Spec: apps.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
-				MatchLabels: c.getLabels(),
+				MatchLabels: getLabels(c.store.Name, c.store.Namespace),
 			},
 			Template: c.makeRGWPodSpec(rgwConfig),
 			Replicas: &replicas,
@@ -54,7 +56,6 @@ func (c *clusterConfig) createDeployment(rgwConfig *rgwConfig) *apps.Deployment 
 	k8sutil.AddRookVersionLabelToDeployment(d)
 	c.store.Spec.Gateway.Annotations.ApplyToObjectMeta(&d.ObjectMeta)
 	controller.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, d)
-	k8sutil.SetOwnerRef(&d.ObjectMeta, &c.ownerRef)
 
 	return d
 }
@@ -97,13 +98,13 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) v1.PodTemplateSpec 
 		podSpec.Volumes = append(podSpec.Volumes, certVol)
 	}
 	preferredDuringScheduling := false
-	k8sutil.SetNodeAntiAffinityForPod(&podSpec, c.store.Spec.Gateway.Placement, c.clusterSpec.Network.IsHost(), preferredDuringScheduling, c.getLabels(),
+	k8sutil.SetNodeAntiAffinityForPod(&podSpec, c.store.Spec.Gateway.Placement, c.clusterSpec.Network.IsHost(), preferredDuringScheduling, getLabels(c.store.Name, c.store.Namespace),
 		nil)
 
 	podTemplateSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   rgwConfig.ResourceName,
-			Labels: c.getLabels(),
+			Labels: getLabels(c.store.Name, c.store.Namespace),
 		},
 		Spec: podSpec,
 	}
@@ -166,39 +167,50 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 	return container
 }
 
-func (c *clusterConfig) startService() (string, error) {
-	labels := c.getLabels()
+func (r *ReconcileCephObjectStore) generateService(cephObjectStore *cephv1.CephObjectStore) *v1.Service {
+	labels := getLabels(cephObjectStore.Name, cephObjectStore.Namespace)
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      c.instanceName(),
-			Namespace: c.store.Namespace,
+			Name:      instanceName(cephObjectStore.Name),
+			Namespace: cephObjectStore.Namespace,
 			Labels:    labels,
 		},
 		Spec: v1.ServiceSpec{
 			Selector: labels,
 		},
 	}
-	k8sutil.SetOwnerRef(&svc.ObjectMeta, &c.ownerRef)
-	if c.clusterSpec.Network.IsHost() {
+
+	if r.cephClusterSpec.Network.IsHost() {
 		svc.Spec.ClusterIP = v1.ClusterIPNone
 	}
 
-	addPort(svc, "http", c.store.Spec.Gateway.Port)
-	addPort(svc, "https", c.store.Spec.Gateway.SecurePort)
+	addPort(svc, "http", cephObjectStore.Spec.Gateway.Port)
+	addPort(svc, "https", cephObjectStore.Spec.Gateway.SecurePort)
 
-	svc, err := c.context.Clientset.CoreV1().Services(c.store.Namespace).Create(svc)
+	return svc
+}
+
+func (r *ReconcileCephObjectStore) reconcileService(cephObjectStore *cephv1.CephObjectStore) (string, error) {
+	service := r.generateService(cephObjectStore)
+	// Set owner ref to the parent object
+	err := controllerutil.SetControllerReference(cephObjectStore, service, r.scheme)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to set owner reference to ceph object store")
+	}
+
+	svc, err := r.context.Clientset.CoreV1().Services(cephObjectStore.Namespace).Create(service)
 	if err != nil {
 		if !kerrors.IsAlreadyExists(err) {
-			return "", errors.Wrapf(err, "failed to create rgw service")
+			return "", errors.Wrapf(err, "failed to create ceph object store service")
 		}
-		svc, err = c.context.Clientset.CoreV1().Services(c.store.Namespace).Get(c.instanceName(), metav1.GetOptions{})
+		svc, err = r.context.Clientset.CoreV1().Services(cephObjectStore.Namespace).Get(instanceName(cephObjectStore.Name), metav1.GetOptions{})
 		if err != nil {
 			return "", errors.Wrapf(err, "failed to get existing service IP")
 		}
 		return svc.Spec.ClusterIP, nil
 	}
 
-	logger.Infof("Gateway service running at %s:%d", svc.Spec.ClusterIP, c.store.Spec.Gateway.Port)
+	logger.Infof("ceph object store gateway service running at %s:%d", svc.Spec.ClusterIP, cephObjectStore.Spec.Gateway.Port)
 	return svc.Spec.ClusterIP, nil
 }
 
@@ -214,8 +226,8 @@ func addPort(service *v1.Service, name string, port int32) {
 	})
 }
 
-func (c *clusterConfig) getLabels() map[string]string {
-	labels := controller.PodLabels(AppName, c.store.Namespace, "rgw", c.store.Name)
-	labels["rook_object_store"] = c.store.Name
+func getLabels(name, namespace string) map[string]string {
+	labels := controller.PodLabels(AppName, namespace, "rgw", name)
+	labels["rook_object_store"] = name
 	return labels
 }

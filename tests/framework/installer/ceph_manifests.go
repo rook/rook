@@ -720,6 +720,7 @@ rules:
   - pods
   - nodes
   - nodes/proxy
+  - services
   verbs:
   - get
   - list

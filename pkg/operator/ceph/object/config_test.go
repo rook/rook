@@ -30,7 +30,7 @@ func newConfig() *clusterConfig {
 		CephVersion: cephver.Nautilus,
 	}
 	return &clusterConfig{
-		store: cephv1.CephObjectStore{
+		store: &cephv1.CephObjectStore{
 			Spec: cephv1.ObjectStoreSpec{
 				Gateway: cephv1.GatewaySpec{},
 			}},
