@@ -100,6 +100,8 @@ func GetCrushMap(context *clusterd.Context, clusterName string) (CrushMap, error
 // FindOSDInCrushMap finds an OSD in the CRUSH map
 func FindOSDInCrushMap(context *clusterd.Context, clusterName string, osdID int) (*CrushFindResult, error) {
 	args := []string{"osd", "find", strconv.Itoa(osdID)}
+	cmd := NewCephCommand(context, clusterName, args)
+	cmd.Debug = true
 	buf, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to find osd.%d in crush map: %s", osdID, string(buf))
