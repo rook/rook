@@ -250,7 +250,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 		cephObjectStoreUser.Status.Phase = k8sutil.ReconcileFailedStatus
 		errStatus := opcontroller.UpdateStatus(r.client, cephObjectStoreUser)
 		if errStatus != nil {
-			return reconcile.Result{}, errors.Wrap(errStatus, "failed to set status")
+			logger.Errorf("failed to set status. %v", errStatus)
 		}
 		return reconcileResponse, err
 	}
@@ -261,7 +261,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 		cephObjectStoreUser.Status.Phase = k8sutil.ReconcileFailedStatus
 		errStatus := opcontroller.UpdateStatus(r.client, cephObjectStoreUser)
 		if errStatus != nil {
-			return reconcile.Result{}, errors.Wrap(errStatus, "failed to set status")
+			logger.Errorf("failed to set status. %v", errStatus)
 		}
 		return reconcileResponse, err
 	}

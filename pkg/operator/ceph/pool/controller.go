@@ -195,7 +195,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		cephBlockPool.Status.Phase = k8sutil.ReconcileFailedStatus
 		errStatus := opcontroller.UpdateStatus(r.client, cephBlockPool)
 		if errStatus != nil {
-			return reconcile.Result{}, errors.Wrap(errStatus, "failed to set status")
+			logger.Errorf("failed to set status. %v", errStatus)
 		}
 		return reconcileResponse, errors.Wrapf(err, "failed to create pool %q.", cephBlockPool.GetName())
 	}
