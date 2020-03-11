@@ -25,7 +25,6 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
-	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
@@ -96,10 +95,13 @@ func New(context *clusterd.Context, volumeAttachmentWrapper attachment.Attachmen
 		rookImage:         rookImage,
 		securityAccount:   securityAccount,
 	}
-	addCallbacks := []func(*cephv1.ClusterSpec) error{
-		o.startSystemDaemons,
+	operatorConfigCallbacks := []func() error{
+		o.updateDrivers,
 	}
-	o.clusterController = cluster.NewClusterController(context, rookImage, volumeAttachmentWrapper, addCallbacks)
+	addCallbacks := []func() error{
+		o.startDrivers,
+	}
+	o.clusterController = cluster.NewClusterController(context, rookImage, volumeAttachmentWrapper, operatorConfigCallbacks, addCallbacks)
 	return o
 }
 
@@ -165,8 +167,23 @@ func (o *Operator) Run() error {
 	}
 }
 
-func (o *Operator) startSystemDaemons(clusterSpec *cephv1.ClusterSpec) error {
+func (o *Operator) startDrivers() error {
 	if o.delayedDaemonsStarted {
+		return nil
+	}
+
+	o.delayedDaemonsStarted = true
+	if err := o.updateDrivers(); err != nil {
+		o.delayedDaemonsStarted = false // unset because failed to updateDrivers
+		return err
+	}
+
+	return nil
+}
+
+func (o *Operator) updateDrivers() error {
+	// Skipping CSI driver update since the first cluster hasn't been started yet
+	if !o.delayedDaemonsStarted {
 		return nil
 	}
 
@@ -211,7 +228,5 @@ func (o *Operator) startSystemDaemons(clusterSpec *cephv1.ClusterSpec) error {
 		return errors.Wrapf(err, "failed to start Ceph csi drivers")
 	}
 	logger.Infof("successfully started Ceph CSI driver(s)")
-
-	o.delayedDaemonsStarted = true
 	return nil
 }

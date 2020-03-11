@@ -31,6 +31,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+// OperatorSettingConfigMapName refers to ConfigMap that configures rook ceph operator
+const OperatorSettingConfigMapName string = "rook-ceph-operator-config"
+
 var (
 	// ImmediateRetryResult Return this for a immediate retry of the reconciliation loop with the same request object.
 	ImmediateRetryResult = reconcile.Result{Requeue: true}
