@@ -150,6 +150,11 @@ spec:
                   type: boolean
             placement: {}
             resources: {}
+            cleanupPolicy:
+              properties:
+                deleteDataDirOnHosts:
+                  type: string
+                  pattern: ^$|^yes-really-destroy-data$
   additionalPrinterColumns:
     - name: DataDirHostPath
       type: string

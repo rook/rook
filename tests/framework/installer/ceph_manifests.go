@@ -234,6 +234,11 @@ spec:
               properties:
                 enable:
                   type: boolean
+            cleanupPolicy:
+              properties:
+                deleteDataDirOnHosts:
+                  type: string
+                  pattern: ^$|^yes-really-destroy-data$
             placement: {}
             resources: {}
   additionalPrinterColumns:

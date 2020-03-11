@@ -107,6 +107,10 @@ type ClusterSpec struct {
 
 	// Remove the OSD that is out and safe to remove only if this option is true
 	RemoveOSDsIfOutAndSafeToRemove bool `json:"removeOSDsIfOutAndSafeToRemove"`
+
+	// Indicates user intent when deleting a cluster; blocks orchestration and should not be set if cluster
+	// deletion is not imminent.
+	CleanupPolicy CleanupPolicySpec `json:"cleanupPolicy,omitempty"`
 }
 
 // VersionSpec represents the settings for the Ceph version that Rook is orchestrating.
@@ -542,4 +546,8 @@ type CephClientList struct {
 type ClientSpec struct {
 	Name string            `json:"name"`
 	Caps map[string]string `json:"caps"`
+}
+
+type CleanupPolicySpec struct {
+	DeleteDataDirOnHosts string `json:"deleteDataDirOnHosts"`
 }
