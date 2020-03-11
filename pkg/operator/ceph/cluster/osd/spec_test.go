@@ -121,10 +121,10 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, v1.RestartPolicyAlways, deployment.Spec.Template.Spec.RestartPolicy)
 	assert.Equal(t, "my-priority-class", deployment.Spec.Template.Spec.PriorityClassName)
 	if devMountNeeded && len(dataDir) > 0 {
-		assert.Equal(t, 6, len(deployment.Spec.Template.Spec.Volumes))
+		assert.Equal(t, 7, len(deployment.Spec.Template.Spec.Volumes))
 	}
 	if devMountNeeded && len(dataDir) == 0 {
-		assert.Equal(t, 6, len(deployment.Spec.Template.Spec.Volumes))
+		assert.Equal(t, 7, len(deployment.Spec.Template.Spec.Volumes))
 	}
 	if !devMountNeeded && len(dataDir) > 0 {
 		assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Volumes))
@@ -146,7 +146,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Containers))
 	cont := deployment.Spec.Template.Spec.Containers[0]
 	assert.Equal(t, cephVersion.Image, cont.Image)
-	assert.Equal(t, 6, len(cont.VolumeMounts))
+	assert.Equal(t, 7, len(cont.VolumeMounts))
 	assert.Equal(t, "ceph-osd", cont.Command[0])
 }
 
