@@ -77,6 +77,13 @@ spec:
   # enable the crash collector for ceph daemon crash collection
   crashCollector:
     disable: false
+  cleanupPolicy:
+    # cleanupPolicy should only be added to the cluster when the cluster is about to be deleted.
+    # After any field of the cleanup policy is set, Rook will stop configuring the cluster as if the cluster is about
+    # to be destroyed in order to prevent these settings from being deployed unintentionally.
+    # To signify that automatic deletion is desired, use the value "yes-really-destroy-data". Only this and an empty
+    # string are valid values for this field.
+    deleteDataDirOnHosts: ""
   # To control where various services will be scheduled by kubernetes, use the placement configuration sections below.
   # The example under 'all' would have all services scheduled on kubernetes nodes labeled with 'role=storage-node' and
   # tolerate taints with a key of 'storage-node'.

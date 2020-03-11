@@ -153,6 +153,8 @@ For more details on the mons and when to choose a number other than `3`, see the
   * `manageMachineDisruptionBudgets`: if `true`, the operator will create and manage MachineDisruptionBudgets to ensure OSDs are only fenced when the cluster is healthy. Only available on OpenShift.
   * `machineDisruptionBudgetNamespace`: the namespace in which to watch the MachineDisruptionBudgets.
 * `removeOSDsIfOutAndSafeToRemove`: If `true` the operator will remove the OSDs that are down and whose data has been restored to other OSDs. In Ceph terms, the osds are `out` and `safe-to-destroy` when then would be removed.
+* `cleanupPolicy`: The section for confirming that cluster data should be forcibly deleted. If the operator detects a non-empty value for any field in this section, the operator will not perform any orchestration on the cluster other than deletion. This ensures that this setting will not linger on a cluster and cause accidental data loss.
+  * `deleteDataDirOnHosts`: If `yes-really-destroy-data` the operator will automatically delete the hostpath of cluster nodes when a `delete cephcluster` command is issued.  
 
 ### Ceph container images
 
