@@ -251,6 +251,10 @@ spec:
                   type: integer
                 activeStandby:
                   type: boolean
+                activeStandbyCount:
+                  minimum: 0
+                  maximum: 10
+                  type: integer
                 annotations: {}
                 placement: {}
                 resources: {}
@@ -295,6 +299,10 @@ spec:
       type: string
       description: Number of desired active MDS daemons
       JSONPath: .spec.metadataServer.activeCount
+    - name: ActiveStandbyMDS
+      type: integer
+      description: Number of desired active standby MDS daemons
+      JSONPath: .spec.metadataServer.activeStandbyCount
     - name: Age
       type: date
       JSONPath: .metadata.creationTimestamp

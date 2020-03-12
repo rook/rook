@@ -41,7 +41,7 @@ func CreateFilesystemOperation(k8sh *utils.K8sHelper, manifests installer.CephMa
 // Create creates a filesystem in Rook
 func (f *FilesystemOperation) Create(name, namespace string, activeCount int) error {
 	logger.Infof("creating the filesystem via CRD")
-	if err := f.k8sh.ResourceOperation("apply", f.manifests.GetFilesystem(namespace, name, activeCount)); err != nil {
+	if err := f.k8sh.ResourceOperation("apply", f.manifests.GetFilesystem(namespace, name, 2, 1)); err != nil {
 		return err
 	}
 
@@ -58,7 +58,7 @@ func (f *FilesystemOperation) Create(name, namespace string, activeCount int) er
 // ScaleDown scales down the number of active metadata servers of a filesystem in Rook
 func (f *FilesystemOperation) ScaleDown(name, namespace string) error {
 	logger.Infof("scaling down the number of filesystem active metadata servers via CRD")
-	if err := f.k8sh.ResourceOperation("apply", f.manifests.GetFilesystem(namespace, name, 1)); err != nil {
+	if err := f.k8sh.ResourceOperation("apply", f.manifests.GetFilesystem(namespace, name, 1, 1)); err != nil {
 		return err
 	}
 

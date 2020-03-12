@@ -44,6 +44,7 @@ spec:
   metadataServer:
     activeCount: 1
     activeStandby: true
+    activeStandbyCount: 1
     # A key/value list of annotations
     annotations:
     #  key: value
@@ -97,6 +98,7 @@ spec:
   metadataServer:
     activeCount: 1
     activeStandby: true
+    activeStandbyCount: 1
 ```
 
 (These definitions can also be found in the [`filesystem-ec.yaml`](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/filesystem-ec.yaml) file)
@@ -121,6 +123,7 @@ The pools allow all of the settings defined in the Pool CRD spec. For more detai
 The metadata server settings correspond to the MDS daemon settings.
 
 * `activeCount`: The number of active MDS instances. As load increases, CephFS will automatically partition the filesystem across the MDS instances. Rook will create double the number of MDS instances as requested by the active count. The extra instances will be in standby mode for failover.
+* `activeStandbyCount`: The number of active standby MDS instances.  
 * `activeStandby`: If true, the extra MDS instances will be in active standby mode and will keep a warm cache of the filesystem metadata for faster failover. The instances will be assigned by CephFS in failover pairs. If false, the extra MDS instances will all be on passive standby mode and will not maintain a warm cache of the metadata.
 * `annotations`: Key value pair list of annotations to add.
 * `placement`: The mds pods can be given standard Kubernetes placement restrictions with `nodeAffinity`, `tolerations`, `podAffinity`, and `podAntiAffinity` similar to placement defined for daemons configured by the [cluster CRD](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/cluster.yaml).

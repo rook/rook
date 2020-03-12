@@ -30,7 +30,9 @@ spec:
     activeCount: 1
     # Whether each active MDS instance will have an active standby with a warm metadata cache for faster failover.
     # If false, standbys will be available, but will not have a warm cache.
-    activeStandby: true
+    #activeStandby: true
+    #The number of active standby MDS instances
+    activeStandbyCount: 1
     # The affinity rules to apply to the mds deployment
     placement:
     #  nodeAffinity:
