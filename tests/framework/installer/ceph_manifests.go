@@ -1559,6 +1559,7 @@ rules:
   - get
   - list
   - watch
+  - delete
 - apiGroups:
   - batch
   resources:
