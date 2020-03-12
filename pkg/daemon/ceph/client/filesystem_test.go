@@ -18,12 +18,14 @@ package client
 
 import (
 	"encoding/json"
+	"os"
 	"testing"
 
 	"github.com/pkg/errors"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 
 	"github.com/rook/rook/pkg/clusterd"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -165,4 +167,19 @@ func TestFilesystemRemove(t *testing.T) {
 	assert.True(t, metadataDeleted)
 	assert.True(t, dataDeleted)
 	assert.True(t, crushDeleted)
+}
+
+func TestIsMultiFSEnabled(t *testing.T) {
+	v := cephver.Nautilus
+	b := IsMultiFSEnabled(v)
+	assert.False(t, b)
+
+	os.Setenv("ROOK_ALLOW_MULTIPLE_FILESYSTEMS", "true")
+	b = IsMultiFSEnabled(v)
+	assert.True(t, b)
+
+	os.Setenv("ROOK_ALLOW_MULTIPLE_FILESYSTEMS", "false")
+	v = cephver.Octopus
+	b = IsMultiFSEnabled(v)
+	assert.True(t, b)
 }

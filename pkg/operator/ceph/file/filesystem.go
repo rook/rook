@@ -186,7 +186,7 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, cephVersion c
 	if err != nil {
 		return errors.Wrapf(err, "Unable to list existing filesystem")
 	}
-	if len(fslist) > 0 && !client.IsMultiFSEnabled() {
+	if len(fslist) > 0 && !client.IsMultiFSEnabled(cephVersion) {
 		return errors.Errorf("cannot create multiple filesystems. enable %s env variable to create more than one", client.MultiFsEnv)
 	}
 
@@ -232,7 +232,7 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, cephVersion c
 
 	// create the filesystem ('fs new' needs to be forced in order to reuse pre-existing pools)
 	// if only one pool is created new it wont work (to avoid inconsistencies).
-	if err := client.CreateFilesystem(context, clusterName, f.Name, f.metadataPool.Name, dataPoolNames, !poolsCreated); err != nil {
+	if err := client.CreateFilesystem(context, clusterName, f.Name, f.metadataPool.Name, dataPoolNames, !poolsCreated, cephVersion); err != nil {
 		return err
 	}
 

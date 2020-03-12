@@ -122,7 +122,7 @@ func AllowStandbyReplay(context *clusterd.Context, clusterName string, fsName st
 }
 
 // CreateFilesystem performs software configuration steps for Ceph to provide a new filesystem.
-func CreateFilesystem(context *clusterd.Context, clusterName, name, metadataPool string, dataPools []string, force bool) error {
+func CreateFilesystem(context *clusterd.Context, clusterName, name, metadataPool string, dataPools []string, force bool, cephVersion cephver.CephVersion) error {
 	if len(dataPools) == 0 {
 		return errors.New("at least one data pool is required")
 	}
@@ -130,7 +130,7 @@ func CreateFilesystem(context *clusterd.Context, clusterName, name, metadataPool
 	args := []string{}
 	var err error
 
-	if IsMultiFSEnabled() {
+	if IsMultiFSEnabled(cephVersion) {
 		// enable multiple file systems in case this is not the first
 		args = []string{"fs", "flag", "set", "enable_multiple", "true", confirmFlag}
 		_, err = NewCephCommand(context, clusterName, args).Run()
@@ -167,7 +167,11 @@ func CreateFilesystem(context *clusterd.Context, clusterName, name, metadataPool
 
 // IsMultiFSEnabled returns true if ROOK_ALLOW_MULTIPLE_FILESYSTEMS is set to "true", allowing
 // Rook to create multiple Ceph filesystems. False if Rook is not allowed to do so.
-func IsMultiFSEnabled() bool {
+func IsMultiFSEnabled(cephVersion cephver.CephVersion) bool {
+	if cephVersion.IsAtLeastOctopus() {
+		return true
+	}
+
 	t := os.Getenv(MultiFsEnv)
 	if t == "true" {
 		return true
