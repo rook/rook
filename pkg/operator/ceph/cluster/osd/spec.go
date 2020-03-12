@@ -66,6 +66,8 @@ const (
 	CephDeviceSetPVCIDLabelKey = "ceph.rook.io/DeviceSetPVCId"
 	// OSDOverPVCLabelKey is the Rook PVC label key
 	OSDOverPVCLabelKey = "ceph.rook.io/pvc"
+	udevPath           = "/run/udev"
+	udevVolName        = "run-udev"
 )
 
 const (
@@ -344,17 +346,6 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 			fmt.Sprintf("--crush-location=%s", osd.Location),
 		}
 
-		// mount /run/udev in the container so ceph-volume (via `lvs`)
-		// can access the udev database
-		volumes = append(volumes, v1.Volume{
-			Name: "run-udev",
-			VolumeSource: v1.VolumeSource{
-				HostPath: &v1.HostPathVolumeSource{Path: "/run/udev"}}})
-
-		volumeMounts = append(volumeMounts, v1.VolumeMount{
-			Name:      "run-udev",
-			MountPath: "/run/udev"})
-
 	} else if osd.IsDirectory {
 		// config for dir-based osds is gotten from the commandline or from the mon database
 		doConfigInit = false
@@ -387,6 +378,11 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	if osd.IsFileStore {
 		args = append(args, fmt.Sprintf("--osd-journal=%s", osd.Journal))
 	}
+
+	// The osd itself needs to talk to udev to report information about the device (vendor/serial etc)
+	udevVolume, udevVolumeMount := getUdevVolume()
+	volumes = append(volumes, udevVolume)
+	volumeMounts = append(volumeMounts, udevVolumeMount)
 
 	// Add the volume to the spec and the mount to the daemon container
 	copyBinariesVolume, copyBinariesContainer := c.getCopyBinariesContainer()
@@ -580,11 +576,6 @@ func (c *Cluster) getActivateOSDInitContainer(osdID, osdUUID string, isFilestore
 		{Name: k8sutil.ConfigOverrideName, ReadOnly: true, MountPath: opconfig.EtcCephDir},
 	}
 
-	privileged := true
-	securityContext := &v1.SecurityContext{
-		Privileged: &privileged,
-	}
-
 	return volume, &v1.Container{
 		Command: []string{
 			"/bin/bash",
@@ -594,7 +585,7 @@ func (c *Cluster) getActivateOSDInitContainer(osdID, osdUUID string, isFilestore
 		Name:            "activate-osd",
 		Image:           c.cephVersion.Image,
 		VolumeMounts:    volMounts,
-		SecurityContext: securityContext,
+		SecurityContext: privilegedContext(),
 		Env:             envVars,
 		Resources:       osdProps.resources,
 	}
@@ -1076,4 +1067,28 @@ func (c *Cluster) osdRunFlagTuningOnPVC(osdID int) error {
 	}
 
 	return nil
+}
+
+func getUdevVolume() (v1.Volume, v1.VolumeMount) {
+	volume := v1.Volume{
+		Name: udevVolName,
+		VolumeSource: v1.VolumeSource{
+			HostPath: &v1.HostPathVolumeSource{Path: udevPath},
+		},
+	}
+
+	volumeMounts := v1.VolumeMount{
+		Name:      udevVolName,
+		MountPath: udevPath,
+	}
+
+	return volume, volumeMounts
+}
+
+func privilegedContext() *v1.SecurityContext {
+	privileged := true
+
+	return &v1.SecurityContext{
+		Privileged: &privileged,
+	}
 }

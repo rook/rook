@@ -706,12 +706,14 @@ default. When available, Rook will also consider failure domain information in
 the form of Kubernetes node labels when scheduling Ceph monitors.
 
 Currently Rook supports the node label
-`failure-domain.beta.kubernetes.io/zone=<zone>` which can be applied to a node
+`topology.kubernetes.io/zone=<zone>` which can be applied to a node
 to specify its failure domain using the command:
 
 ```console
-kubectl label node <node> failure-domain.beta.kubernetes.io/zone=<zone>
+kubectl label node <node> topology.kubernetes.io/zone=<zone>
 ```
+
+> For versions previous to K8s 1.17, use the topology key: failure-domain.beta.kubernetes.io/zone
 
 Rook uses failure domain labels by trying to schedule monitor pods on different
 failure domains. And all nodes without failure domain labels are treated as a single

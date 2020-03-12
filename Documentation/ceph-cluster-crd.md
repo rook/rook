@@ -31,7 +31,7 @@ metadata:
 spec:
   cephVersion:
     # see the "Cluster Settings" section below for more details on which image of ceph to run
-    image: ceph/ceph:v14.2.7
+    image: ceph/ceph:v14.2.8
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -54,7 +54,7 @@ metadata:
 spec:
   cephVersion:
     # see the "Cluster Settings" section below for more details on which image of ceph to run
-    image: ceph/ceph:v14.2.7
+    image: ceph/ceph:v14.2.8
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -394,7 +394,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v14.2.7
+    image: ceph/ceph:v14.2.8
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -426,7 +426,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v14.2.7
+    image: ceph/ceph:v14.2.8
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -507,7 +507,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v14.2.7
+    image: ceph/ceph:v14.2.8
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -554,7 +554,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v14.2.7
+    image: ceph/ceph:v14.2.8
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -586,8 +586,8 @@ the desired level in the [CRUSH map](http://docs.ceph.com/docs/master/rados/oper
 The complete list of labels in hierarchy order from highest to lowest is:
 
 ```text
-failure-domain.beta.kubernetes.io/region
-failure-domain.beta.kubernetes.io/zone
+topology.kubernetes.io/region
+topology.kubernetes.io/zone
 topology.rook.io/datacenter
 topology.rook.io/room
 topology.rook.io/pod
@@ -600,9 +600,11 @@ topology.rook.io/chassis
 For example, if the following labels were added to a node:
 
 ```console
-kubectl label node mynode failure-domain.beta.kubernetes.io/zone=zone1
+kubectl label node mynode topology.kubernetes.io/zone=zone1
 kubectl label node mynode topology.rook.io/rack=rack1
 ```
+
+> For versions previous to K8s 1.17, use the topology key: failure-domain.beta.kubernetes.io/zone or region
 
 These labels would result in the following hierarchy for OSDs on that node (this command can be run in the Rook toolbox):
 
@@ -652,7 +654,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v14.2.7
+    image: ceph/ceph:v14.2.8
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -698,7 +700,7 @@ spec:
           requests:
             storage: 10Gi
   cephVersion:
-    image: ceph/ceph:v14.2.7
+    image: ceph/ceph:v14.2.8
     allowUnsupported: false
   dashboard:
     enabled: true
@@ -728,7 +730,7 @@ spec:
                   operator: In
                   values:
                     - cluster1
-                topologyKey: "failure-domain.beta.kubernetes.io/zone"
+                topologyKey: "topology.kubernetes.io/zone"
       volumeClaimTemplates:
       - metadata:
           name: data
@@ -798,7 +800,7 @@ spec:
   dataDirHostPath: /var/lib/rook
   # providing an image is optional, do this if you want to create other CRs (rgw, mds, nfs)
   cephVersion:
-    image: ceph/ceph:v14.2.7 # MUST match external cluster version
+    image: ceph/ceph:v14.2.8 # MUST match external cluster version
 ```
 
 Choose the namespace carefully, if you have an existing cluster managed by Rook, you have likely already injected `common.yaml`.

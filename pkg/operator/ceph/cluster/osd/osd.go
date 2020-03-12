@@ -340,6 +340,10 @@ func (c *Cluster) startProvisioningOverNodes(config *provisionConfig) {
 	}
 
 	if c.DesiredStorage.UseAllNodes {
+		if len(c.DesiredStorage.Nodes) > 0 {
+			logger.Warningf("useAllNodes is TRUE, but nodes are specified. NODES in the cluster CR will be IGNORED unless useAllNodes is FALSE.")
+		}
+
 		// Get the list of all nodes in the cluster. The placement settings will be applied below.
 		hostnameMap, err := k8sutil.GetNodeHostNames(c.context.Clientset)
 		if err != nil {
@@ -828,10 +832,7 @@ func getNode(clientset kubernetes.Interface, nodeName string) (*corev1.Node, err
 
 func UpdateLocationWithNodeLabels(location *[]string, nodeLabels map[string]string) {
 
-	topology, invalidLabels := ExtractRookTopologyFromLabels(nodeLabels)
-	if len(invalidLabels) > 0 {
-		logger.Warningf("ignored invalid node topology labels: %v", invalidLabels)
-	}
+	topology := ExtractOSDTopologyFromLabels(nodeLabels)
 
 	keys := make([]string, 0, len(topology))
 	for k := range topology {
