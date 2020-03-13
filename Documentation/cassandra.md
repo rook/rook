@@ -70,7 +70,7 @@ kubectl -n rook-cassandra describe clusters.cassandra.rook.io rook-cassandra
 To get a `cqlsh` shell in your new Cluster:
 
 ```console
-kubectl exec -n rook-cassandra -it rook-cassandra-east-1-east-1a-0 -- cqlsh
+kubectl exec -n rook-cassandra -it rook-cassandra-us-east-1-us-east-1a-0 -- cqlsh
 > DESCRIBE KEYSPACES;
 ```
 
