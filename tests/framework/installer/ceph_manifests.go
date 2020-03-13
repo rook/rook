@@ -1555,6 +1555,7 @@ rules:
   resources:
   - pods
   - services
+  - pods/log
   verbs:
   - get
   - list
