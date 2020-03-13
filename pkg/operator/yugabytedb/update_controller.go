@@ -196,7 +196,8 @@ func (c *ClusterController) updateStatefulSet(newCluster *cluster, isTServerStat
 	vct := *newCluster.spec.Master.VolumeClaimTemplate.DeepCopy()
 	vct.Name = newCluster.addCRNameSuffix(vct.Name)
 	volumeClaimTemplates := []v1.PersistentVolumeClaim{vct}
-	command := createMasterContainerCommand(newCluster.namespace, masterServiceName, masterCompleteName, ports.masterPorts.rpc, newCluster.spec.Master.Replicas)
+	resources := getResourceSpec(newCluster.spec.Master.Resource, isTServerStatefulset)
+	command := createMasterContainerCommand(newCluster.namespace, masterServiceName, masterCompleteName, ports.masterPorts.rpc, newCluster.spec.Master.Replicas, resources)
 	containerPorts := createMasterContainerPortsList(ports)
 
 	if isTServerStatefulset {
@@ -215,8 +216,9 @@ func (c *ClusterController) updateStatefulSet(newCluster *cluster, isTServerStat
 		vct = *newCluster.spec.TServer.VolumeClaimTemplate.DeepCopy()
 		vct.Name = newCluster.addCRNameSuffix(vct.Name)
 		volumeClaimTemplates = []v1.PersistentVolumeClaim{vct}
+		resources = getResourceSpec(newCluster.spec.Master.Resource, isTServerStatefulset)
 		command = createTServerContainerCommand(newCluster.namespace, tserverServiceName, masterServiceName, masterCompleteName,
-			masterRPCPort, ports.tserverPorts.rpc, ports.tserverPorts.postgres, newCluster.spec.TServer.Replicas)
+			masterRPCPort, ports.tserverPorts.rpc, ports.tserverPorts.postgres, newCluster.spec.TServer.Replicas, resources)
 		containerPorts = createTServerContainerPortsList(ports)
 	}
 
@@ -228,6 +230,7 @@ func (c *ClusterController) updateStatefulSet(newCluster *cluster, isTServerStat
 
 	sfs.Spec.Replicas = &replicas
 	sfs.Spec.Template.Spec.Containers[0].Command = command
+	sfs.Spec.Template.Spec.Containers[0].Resources = resources
 	sfs.Spec.Template.Spec.Containers[0].Ports = containerPorts
 	sfs.Spec.Template.Spec.Containers[0].VolumeMounts[0].Name = vct.Name
 	sfs.Spec.VolumeClaimTemplates = volumeClaimTemplates

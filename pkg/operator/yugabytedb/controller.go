@@ -26,6 +26,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -72,6 +73,9 @@ const (
 	envPodName                  = "POD_NAME"
 	envPodNameVal               = "metadata.name"
 	yugabyteDBImageName         = "yugabytedb/yugabyte:2.0.10.0-b4"
+	podCPULimitDefault          = "2"
+	masterMemLimitDefault       = "2Gi"
+	tserverMemLimitDefault      = "4Gi"
 )
 
 var ClusterResource = k8sutil.CustomResource{
@@ -177,6 +181,35 @@ func validateClusterSpec(spec yugabytedbv1alpha1.YBClusterSpec) error {
 
 	if &spec.TServer.VolumeClaimTemplate == nil {
 		return fmt.Errorf("VolumeClaimTemplate unavailable in TServer spec.")
+	}
+
+	validateResourceSpec(spec.Master.Resource, false)
+	validateResourceSpec(spec.TServer.Resource, true)
+
+	return nil
+}
+
+func validateResourceSpec(resourceSpec v1.ResourceRequirements, isTServer bool) error {
+	if (&resourceSpec.Requests == nil || len(resourceSpec.Requests) != 0) && (&resourceSpec.Limits == nil || len(resourceSpec.Limits) != 0) {
+		reqCPU, reqOk := resourceSpec.Requests[v1.ResourceCPU]
+		limCPU, limOk := resourceSpec.Limits[v1.ResourceCPU]
+		podName := "Master"
+
+		if isTServer {
+			podName = "TServer"
+		}
+
+		// q.Cmp(y Quantity) returns -1 if q < y
+		if reqOk && limOk && (&reqCPU).Cmp(limCPU) < 0 {
+			return fmt.Errorf("%s Requested CPU cannot be greater than CPU limit", podName)
+		}
+
+		reqMem, reqOk := resourceSpec.Requests[v1.ResourceMemory]
+		limMem, limOk := resourceSpec.Limits[v1.ResourceMemory]
+		// q.Cmp(y Quantity) returns -1 if q < y
+		if reqOk && limOk && (&reqMem).Cmp(limMem) < 0 {
+			return fmt.Errorf("%s Requested Memory cannot be greater than Memory limit", podName)
+		}
 	}
 
 	return nil
@@ -328,7 +361,7 @@ func getPortsFromSpec(networkSpec yugabytedbv1alpha1.NetworkSpec) (clusterPort *
 	return &ports, nil
 }
 
-func createMasterContainerCommand(namespace, serviceName string, masterCompleteName string, grpcPort, replicas int32) []string {
+func createMasterContainerCommand(namespace, serviceName string, masterCompleteName string, grpcPort, replicas int32, resources v1.ResourceRequirements) []string {
 	command := []string{
 		"/home/yugabyte/bin/yb-master",
 		fmt.Sprintf("--fs_data_dirs=%s", volumeMountPath),
@@ -340,10 +373,17 @@ func createMasterContainerCommand(namespace, serviceName string, masterCompleteN
 		fmt.Sprintf("--replication_factor=%d", replicas),
 		"--logtostderr",
 	}
+
+	if &resources.Limits != nil {
+		if memLimit, ok := getMemoryLimitBytes(resources); ok {
+			command = append(command, fmt.Sprintf("--memory_limit_hard_bytes=%d", memLimit))
+		}
+	}
+
 	return command
 }
 
-func createTServerContainerCommand(namespace, serviceName, masterServiceName string, masterCompleteName string, masterGRPCPort, tserverGRPCPort, pgsqlPort, replicas int32) []string {
+func createTServerContainerCommand(namespace, serviceName, masterServiceName string, masterCompleteName string, masterGRPCPort, tserverGRPCPort, pgsqlPort, replicas int32, resources v1.ResourceRequirements) []string {
 	command := []string{
 		"/home/yugabyte/bin/yb-tserver",
 		fmt.Sprintf("--fs_data_dirs=%s", volumeMountPath),
@@ -355,7 +395,25 @@ func createTServerContainerCommand(namespace, serviceName, masterServiceName str
 		"--enable_ysql=true",
 		"--logtostderr",
 	}
+
+	if &resources.Limits != nil {
+		if memLimit, ok := getMemoryLimitBytes(resources); ok {
+			command = append(command, fmt.Sprintf("--memory_limit_hard_bytes=%d", memLimit))
+		}
+	}
+
 	return command
+}
+
+func getMemoryLimitBytes(resources v1.ResourceRequirements) (int64, bool) {
+	if memLimit, ok := resources.Limits[v1.ResourceMemory]; ok {
+		memBytes, _ := (&memLimit).AsInt64()
+		// Set DB mem limit at 85% of pod memory. 1024 * 85% ~= 870
+		memBytesAdjusted := memBytes * 870 / 1024
+		return memBytesAdjusted, true
+	}
+
+	return int64(0), false
 }
 
 func getMasterAddresses(masterCompleteName string, serviceName string, namespace string, replicas int32, masterGRPCPort int32) string {
@@ -416,4 +474,39 @@ func createTServerContainerPortsList(clusterPortsSpec *clusterPorts) []v1.Contai
 
 func (c *cluster) addCRNameSuffix(str string) string {
 	return fmt.Sprintf("%s-%s", str, c.name)
+}
+
+func getResourceSpec(resourceSpec v1.ResourceRequirements, isTServerStatefulset bool) v1.ResourceRequirements {
+	resources := resourceSpec
+
+	if &resources == nil {
+		resources = v1.ResourceRequirements{
+			Requests: make(map[v1.ResourceName]resource.Quantity),
+			Limits:   make(map[v1.ResourceName]resource.Quantity),
+		}
+	}
+
+	if len(resources.Requests) != 0 || len(resources.Limits) != 0 {
+		return resources
+	}
+
+	memoryLimit := masterMemLimitDefault
+
+	if isTServerStatefulset {
+		memoryLimit = tserverMemLimitDefault
+	}
+
+	if &resources.Requests == nil || len(resources.Requests) == 0 {
+		resources.Requests = make(map[v1.ResourceName]resource.Quantity)
+		resources.Requests[v1.ResourceCPU] = resource.MustParse(podCPULimitDefault)
+		resources.Requests[v1.ResourceMemory] = resource.MustParse(memoryLimit)
+	}
+
+	if &resources.Limits == nil || len(resources.Limits) == 0 {
+		resources.Limits = make(map[v1.ResourceName]resource.Quantity)
+		resources.Limits[v1.ResourceCPU] = resource.MustParse(podCPULimitDefault)
+		resources.Limits[v1.ResourceMemory] = resource.MustParse(memoryLimit)
+	}
+
+	return resources
 }
