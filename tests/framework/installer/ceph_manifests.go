@@ -284,10 +284,10 @@ spec:
                   type: integer
                 activeStandby:
                   type: boolean
-		            activeStandbyCount:
-		              minimum: 0
-		              maximum: 10
-		  					  type: integer
+		  activeStandbyCount:
+		    minimum: 0
+		    maximum: 10
+	            type: integer
                 annotations: {}
                 placement: {}
                 resources: {}
@@ -340,10 +340,10 @@ spec:
       type: string
       description: Number of desired active MDS daemons
       JSONPath: .spec.metadataServer.activeCount
-		- name: ActiveStandbyMDS
-		  type: string
-			description: Number of desired active standby MDS daemons
-			JSONPath: .spec.metadataServer.activeStandbyCount
+    - name: ActiveStandbyMDS
+      type: integer
+      description: Number of desired active standby MDS daemons
+      JSONPath: .spec.metadataServer.activeStandbyCount
     - name: Age
       type: date
       JSONPath: .metadata.creationTimestamp
@@ -2093,7 +2093,7 @@ spec:
 }
 
 // GetFilesystem returns the manifest to create a Rook filesystem resource with the given config.
-func (m *CephManifestsMaster) GetFilesystem(namespace, name string, activeCount int, activeStandbyCount int) string {
+func (m *CephManifestsMaster) GetFilesystem(namespace, name string, activeCount, activeStandbyCount int) string {
 	return `apiVersion: ceph.rook.io/v1
 kind: CephFilesystem
 metadata:
@@ -2111,7 +2111,7 @@ spec:
   metadataServer:
     activeCount: ` + strconv.Itoa(activeCount) + `
     activeStandby: true
-		activeStandbyCount: ` + strconv.Itoa(activeStandbyCount)
+    activeStandbyCount: ` + strconv.Itoa(activeStandbyCount)
 }
 
 // GetFilesystem returns the manifest to create a Rook Ceph NFS resource with the given config.
