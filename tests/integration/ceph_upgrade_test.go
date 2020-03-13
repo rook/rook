@@ -117,7 +117,7 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 
 	logger.Infof("Initializing object before the upgrade")
 	objectStoreName := "upgraded-object"
-	runObjectE2ETestLite(s.helper, s.k8sh, s.Suite, s.namespace, objectStoreName, 1)
+	runObjectE2ETestLite(s.helper, s.k8sh, s.Suite, s.namespace, objectStoreName, 1, false)
 
 	// verify that we're actually running the right pre-upgrade image
 	s.verifyOperatorImage(installer.Version1_1)
