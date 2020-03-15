@@ -18,22 +18,21 @@
 # Disables quote checks, which is needed because of the SED variable here.
 
 KUBE_CODE_GEN_VERSION="kubernetes-1.17.2"
+GROUP_VERSIONS="rook.io:v1 rook.io:v1alpha2 ceph.rook.io:v1 cockroachdb.rook.io:v1alpha1 nfs.rook.io:v1alpha1 cassandra.rook.io:v1alpha1 edgefs.rook.io:v1 yugabytedb.rook.io:v1alpha1"
 
 scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+codegendir="${scriptdir}/../../vendor/k8s.io/code-generator"
 
-# TODO Should we clone the k8s.io/code-generator repository to the `.cache` dir?
-GO111MODULE=off go get -u k8s.io/code-generator/cmd/client-gen
-cd "${GOPATH}/src/k8s.io/code-generator" || { echo ""; exit 1; }
-git reset --hard
-git checkout "${KUBE_CODE_GEN_VERSION}"
+# vendoring k8s.io/code-generator temporarily
+echo "require k8s.io/code-generator ${KUBE_CODE_GEN_VERSION}" >> ${scriptdir}/../../go.mod
+go mod vendor
+git checkout HEAD ${scriptdir}/../../go.mod ${scriptdir}/../../go.sum
 
-./generate-groups.sh \
+bash ${codegendir}/generate-groups.sh \
     all \
     github.com/rook/rook/pkg/client \
     github.com/rook/rook/pkg/apis \
-    "rook.io:v1 rook.io:v1alpha2 ceph.rook.io:v1 cockroachdb.rook.io:v1alpha1 nfs.rook.io:v1alpha1 cassandra.rook.io:v1alpha1 edgefs.rook.io:v1 yugabytedb.rook.io:v1alpha1"
-# this seems busted in the release-1.8 branch
-#  --go-header-file ${SCRIPT_ROOT}/build/codegen/header.txt
+    "${GROUP_VERSIONS}"
 
 SED="sed -i.bak"
 
