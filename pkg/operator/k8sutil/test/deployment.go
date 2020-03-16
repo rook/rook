@@ -2,7 +2,6 @@ package test
 
 import (
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/operator/ceph/version"
 	apps "k8s.io/api/apps/v1"
 )
 
@@ -15,11 +14,11 @@ import (
 // returns a pointer to this slice which the calling func may use to verify the expected contents of
 // deploymentsUpdated based on expected behavior.
 func UpdateDeploymentAndWaitStub() (
-	stubFunc func(context *clusterd.Context, deployment *apps.Deployment, namespace, daemonType, daemonName string, cephVersion version.CephVersion, skipUpgradeChecks, continueUpgradeAfterChecksEvenIfNotHealthy bool) error,
+	stubFunc func(context *clusterd.Context, deployment *apps.Deployment, namespace, daemonType, daemonName string, skipUpgradeChecks, continueUpgradeAfterChecksEvenIfNotHealthy bool) error,
 	deploymentsUpdated *[]*apps.Deployment,
 ) {
 	deploymentsUpdated = &[]*apps.Deployment{}
-	stubFunc = func(context *clusterd.Context, deployment *apps.Deployment, namespace, daemonType, daemonName string, cephVersion version.CephVersion, skipUpgradeChecks, continueUpgradeAfterChecksEvenIfNotHealthy bool) error {
+	stubFunc = func(context *clusterd.Context, deployment *apps.Deployment, namespace, daemonType, daemonName string, skipUpgradeChecks, continueUpgradeAfterChecksEvenIfNotHealthy bool) error {
 		*deploymentsUpdated = append(*deploymentsUpdated, deployment)
 		return nil
 	}

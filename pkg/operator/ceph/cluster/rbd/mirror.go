@@ -26,12 +26,10 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
-	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -140,23 +138,9 @@ func (m *Mirroring) Start() error {
 			}
 			logger.Infof("deployment for rbd-mirror %s already exists. updating if needed", resourceName)
 
-			// Always invoke ceph version before an upgrade so we are sure to be up-to-date
 			daemon := string(config.RbdMirrorType)
-			var cephVersionToUse cephver.CephVersion
 
-			// If this is not a Ceph upgrade there is no need to check the ceph version
-			currentCephVersion, err := client.LeastUptodateDaemonVersion(m.context, m.ClusterInfo.Name, daemon)
-			if err != nil {
-				logger.Warningf("failed to retrieve current ceph %q version. %+v", daemon, err)
-				logger.Debug("could not detect ceph version during update, this is likely an initial bootstrap, proceeding with %+v", m.ClusterInfo.CephVersion)
-				cephVersionToUse = m.ClusterInfo.CephVersion
-
-			} else {
-				logger.Debugf("current cluster version for rbd mirrors before upgrading is: %+v", currentCephVersion)
-				cephVersionToUse = currentCephVersion
-			}
-
-			if err := updateDeploymentAndWait(m.context, d, m.Namespace, daemon, daemonConf.DaemonID, cephVersionToUse, m.skipUpgradeChecks, false); err != nil {
+			if err := updateDeploymentAndWait(m.context, d, m.Namespace, daemon, daemonConf.DaemonID, m.skipUpgradeChecks, false); err != nil {
 				// fail could be an issue updating label selector (immutable), so try del and recreate
 				logger.Debugf("updateDeploymentAndWait failed for rbd-mirror %q. Attempting del-and-recreate. %v", resourceName, err)
 				err = m.context.Clientset.AppsV1().Deployments(m.Namespace).Delete(d.Name, &metav1.DeleteOptions{})
