@@ -21,6 +21,8 @@
 
 ### YugabyteDB
 
+- Master and TServer pods for YugabyteDB will have resources requests and limits specified as per YugabyteDB recommendations. This will help avoid the soft/hard memory limit issue.
+
 ### Cassandra
 - Added [JMX Prometheus exporter](https://github.com/prometheus/jmx_exporter) support.
 

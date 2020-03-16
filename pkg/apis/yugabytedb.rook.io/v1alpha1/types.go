@@ -54,6 +54,7 @@ type YBClusterSpec struct {
 
 type ServerSpec struct {
 	Replicas            int32                    `json:"replicas,omitempty"`
+	Resource            v1.ResourceRequirements  `json:"resource,omitempty"`
 	Network             NetworkSpec              `json:"network,omitempty"`
 	VolumeClaimTemplate v1.PersistentVolumeClaim `json:"volumeClaimTemplate,omitempty"`
 }

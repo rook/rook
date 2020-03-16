@@ -21,6 +21,14 @@ spec:
   master:
     # Replica count for Master.
     replicas: 3
+    # optional. Default values for resource are as below
+    resource:
+      requests:
+        cpu: 2
+        memory: 2Gi
+      limits:
+        cpu: 2
+        memory: 2Gi
     # Mentioning network ports is optional. If some or all ports are not specified, then they will be defaulted to below-mentioned values, except for tserver-ui.
     network:
       ports:
@@ -41,6 +49,14 @@ spec:
   tserver:
     # Replica count for TServer
     replicas: 3
+    # optional. Default values for resource are as below
+    resource:
+      requests:
+        cpu: 2
+        memory: 4Gi
+      limits:
+        cpu: 2
+        memory: 4Gi
     # Mentioning network ports is optional. If some or all ports are not specified, then they will be defaulted to below-mentioned values, except for tserver-ui.
     # For tserver-ui a cluster ip service will be created if the yb-tserver-ui port is explicitly mentioned. If it is not specified, only StatefulSet & headless service will be created for TServer. TServer ClusterIP service creation will be skipped. Whereas for Master, all 3 kubernetes objects will always be created.
     network:
@@ -77,6 +93,11 @@ Specify Master/TServer specific attributes under `master`/`tserver`. The valid a
 ### Replica Count
 
 Specify replica count for `master` & `tserver` pods under `replicas` field. This is a **required** field.
+
+### Resource
+
+Specify resource requests and limits for CPU & Memory. If provided, the given resource values will be used. If omitted the default CPU request & limit will be 2, whereas default memory request & limit will be 2Gi & 4Gi for Master & TServer, respectively. You may override these values for dev environments where the cluster doesn't have CPU/Memory as per the defaults.
+**Though it is recommended to use the defaults for production-like deployments.**
 
 ### Network
 

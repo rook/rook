@@ -148,6 +148,13 @@ metadata:
 spec:
   master:
     replicas: ` + strconv.Itoa(replicaCount) + `
+    resource:
+      requests:
+        cpu: 300m
+        memory: 256Mi
+      limits:
+        cpu: 300m
+        memory: 256Mi
     network:
       ports:
         - name: yb-master-ui
@@ -164,6 +171,13 @@ spec:
             storage: 10Mi
   tserver:
     replicas: ` + strconv.Itoa(replicaCount) + `
+    resource:
+      requests:
+        cpu: 300m
+        memory: 256Mi
+      limits:
+        cpu: 300m
+        memory: 256Mi
     network:
       ports:
         - name: yb-tserver-ui

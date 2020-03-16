@@ -291,9 +291,10 @@ func createPodSpec(cluster *cluster, containerImage string, isTServerStatefulset
 }
 
 func createContainer(cluster *cluster, containerImage string, isTServerStatefulset bool, name, serviceName string) v1.Container {
+	resources := getResourceSpec(cluster.spec.Master.Resource, isTServerStatefulset)
 	ports, _ := getPortsFromSpec(cluster.spec.Master.Network)
 	masterCompleteName := cluster.addCRNameSuffix(masterName)
-	command := createMasterContainerCommand(cluster.namespace, serviceName, masterCompleteName, ports.masterPorts.rpc, cluster.spec.Master.Replicas)
+	command := createMasterContainerCommand(cluster.namespace, serviceName, masterCompleteName, ports.masterPorts.rpc, cluster.spec.Master.Replicas, resources)
 	containerPorts := createMasterContainerPortsList(ports)
 	volumeMountName := cluster.addCRNameSuffix(cluster.spec.Master.VolumeClaimTemplate.Name)
 
@@ -302,7 +303,8 @@ func createContainer(cluster *cluster, containerImage string, isTServerStatefuls
 		masterCompleteName := cluster.addCRNameSuffix(masterName)
 		masterRPCPort := ports.masterPorts.rpc
 		ports, _ = getPortsFromSpec(cluster.spec.TServer.Network)
-		command = createTServerContainerCommand(cluster.namespace, serviceName, masterServiceName, masterCompleteName, masterRPCPort, ports.tserverPorts.rpc, ports.tserverPorts.postgres, cluster.spec.TServer.Replicas)
+		resources = getResourceSpec(cluster.spec.TServer.Resource, isTServerStatefulset)
+		command = createTServerContainerCommand(cluster.namespace, serviceName, masterServiceName, masterCompleteName, masterRPCPort, ports.tserverPorts.rpc, ports.tserverPorts.postgres, cluster.spec.TServer.Replicas, resources)
 		containerPorts = createTServerContainerPortsList(ports)
 		volumeMountName = cluster.addCRNameSuffix(cluster.spec.TServer.VolumeClaimTemplate.Name)
 	}
@@ -333,8 +335,9 @@ func createContainer(cluster *cluster, containerImage string, isTServerStatefuls
 				},
 			},
 		},
-		Command: command,
-		Ports:   containerPorts,
+		Resources: resources,
+		Command:   command,
+		Ports:     containerPorts,
 		VolumeMounts: []v1.VolumeMount{
 			{
 				Name:      volumeMountName,

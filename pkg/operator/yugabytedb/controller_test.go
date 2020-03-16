@@ -260,36 +260,40 @@ func TestGetPortsFromSpec(t *testing.T) {
 
 func TestCreateMasterContainerCommand(t *testing.T) {
 	replicationFactor := int32(3)
+	resources := v1.ResourceRequirements{}
 
 	expectedCommand := getMasterContainerCommand(replicationFactor)
-	actualCommand := createMasterContainerCommand("default", masterNamePlural, masterName, int32(7100), replicationFactor)
+	actualCommand := createMasterContainerCommand("default", masterNamePlural, masterName, int32(7100), replicationFactor, resources)
 
 	assert.Equal(t, expectedCommand, actualCommand)
 }
 
 func TestCreateTServerContainerCommand(t *testing.T) {
 	replicationFactor := int32(3)
+	resources := v1.ResourceRequirements{}
 
 	expectedCommand := getTserverContainerCommand(replicationFactor)
-	actualCommand := createTServerContainerCommand("default", tserverNamePlural, masterNamePlural, masterName, int32(7100), int32(9100), int32(5433), replicationFactor)
+	actualCommand := createTServerContainerCommand("default", tserverNamePlural, masterNamePlural, masterName, int32(7100), int32(9100), int32(5433), replicationFactor, resources)
 
 	assert.Equal(t, expectedCommand, actualCommand)
 }
 
 func TestCreateMasterContainerCommandRF1(t *testing.T) {
 	replicationFactor := int32(1)
+	resources := v1.ResourceRequirements{}
 
 	expectedCommand := getMasterContainerCommand(replicationFactor)
-	actualCommand := createMasterContainerCommand("default", masterNamePlural, masterName, int32(7100), replicationFactor)
+	actualCommand := createMasterContainerCommand("default", masterNamePlural, masterName, int32(7100), replicationFactor, resources)
 
 	assert.Equal(t, expectedCommand, actualCommand)
 }
 
 func TestCreateTServerContainerCommandRF1(t *testing.T) {
 	replicationFactor := int32(1)
+	resources := v1.ResourceRequirements{}
 
 	expectedCommand := getTserverContainerCommand(replicationFactor)
-	actualCommand := createTServerContainerCommand("default", tserverNamePlural, masterNamePlural, masterName, int32(7100), int32(9100), int32(5433), replicationFactor)
+	actualCommand := createTServerContainerCommand("default", tserverNamePlural, masterNamePlural, masterName, int32(7100), int32(9100), int32(5433), replicationFactor, resources)
 
 	assert.Equal(t, expectedCommand, actualCommand)
 }
@@ -402,6 +406,23 @@ func TestOnAdd(t *testing.T) {
 		{Name: masterContainerRPCPortName, ContainerPort: masterRPCPortDefault},
 	}
 	assert.Equal(t, expectedContainerPorts, container.Ports)
+	assert.NotNil(t, container.Resources)
+	assert.Equal(t, 2, len(container.Resources.Requests))
+	assert.Equal(t, 2, len(container.Resources.Limits))
+
+	reqCPU, reqOk := container.Resources.Requests[v1.ResourceCPU]
+	limCPU, limOk := container.Resources.Limits[v1.ResourceCPU]
+	assert.True(t, reqOk)
+	assert.True(t, limOk)
+	assert.Equal(t, 0, (&reqCPU).Cmp(resource.MustParse(podCPULimitDefault)))
+	assert.Equal(t, 0, (&limCPU).Cmp(resource.MustParse(podCPULimitDefault)))
+
+	reqMem, reqOk := container.Resources.Requests[v1.ResourceMemory]
+	limMem, limOk := container.Resources.Limits[v1.ResourceMemory]
+	assert.True(t, reqOk)
+	assert.True(t, reqOk)
+	assert.Equal(t, 0, (&reqMem).Cmp(resource.MustParse(masterMemLimitDefault)))
+	assert.Equal(t, 0, (&limMem).Cmp(resource.MustParse(masterMemLimitDefault)))
 
 	volumeMountName := addCRNameSuffix(cluster.Spec.Master.VolumeClaimTemplate.Name)
 	expectedVolumeMounts := []v1.VolumeMount{{Name: volumeMountName, MountPath: volumeMountPath}}
@@ -440,6 +461,7 @@ func TestOnAdd(t *testing.T) {
 		"--enable_ysql=true",
 		"--replication_factor=3",
 		"--logtostderr",
+		"--memory_limit_hard_bytes=1824522240",
 	}
 	assert.Equal(t, expectedCommand, container.Command)
 
@@ -473,6 +495,23 @@ func TestOnAdd(t *testing.T) {
 		{Name: postgresPortName, ContainerPort: tserverPostgresPortDefault},
 	}
 	assert.Equal(t, expectedContainerPorts, container.Ports)
+	assert.NotNil(t, container.Resources)
+	assert.Equal(t, 2, len(container.Resources.Requests))
+	assert.Equal(t, 2, len(container.Resources.Limits))
+
+	reqCPU, reqOk = container.Resources.Requests[v1.ResourceCPU]
+	limCPU, limOk = container.Resources.Limits[v1.ResourceCPU]
+	assert.True(t, reqOk)
+	assert.True(t, limOk)
+	assert.Equal(t, 0, (&reqCPU).Cmp(resource.MustParse(podCPULimitDefault)))
+	assert.Equal(t, 0, (&limCPU).Cmp(resource.MustParse(podCPULimitDefault)))
+
+	reqMem, reqOk = container.Resources.Requests[v1.ResourceMemory]
+	limMem, limOk = container.Resources.Limits[v1.ResourceMemory]
+	assert.True(t, reqOk)
+	assert.True(t, reqOk)
+	assert.Equal(t, 0, (&reqMem).Cmp(resource.MustParse(tserverMemLimitDefault)))
+	assert.Equal(t, 0, (&limMem).Cmp(resource.MustParse(tserverMemLimitDefault)))
 
 	volumeMountName = addCRNameSuffix(cluster.Spec.TServer.VolumeClaimTemplate.Name)
 	expectedVolumeMounts = []v1.VolumeMount{{Name: volumeMountName, MountPath: volumeMountPath}}
@@ -511,6 +550,7 @@ func TestOnAdd(t *testing.T) {
 		fmt.Sprintf("--tserver_master_addrs=%s", getMasterAddresses(addCRNameSuffix(masterName), addCRNameSuffix(masterNamePlural), namespace, int32(3), int32(7100))),
 		"--enable_ysql=true",
 		"--logtostderr",
+		"--memory_limit_hard_bytes=3649044480",
 	}
 	assert.Equal(t, expectedCommand, container.Command)
 
