@@ -492,21 +492,9 @@ func (c *Cluster) startOSDDaemonsOnPVC(pvcName string, config *provisionConfig, 
 		}
 
 		if createErr != nil && kerrors.IsAlreadyExists(createErr) {
-			// Always invoke ceph version before an upgrade so we are sure to be up-to-date
 			daemon := string(opconfig.OsdType)
-			var cephVersionToUse cephver.CephVersion
 
-			currentCephVersion, err := client.LeastUptodateDaemonVersion(c.context, c.clusterInfo.Name, daemon)
-			if err != nil {
-				logger.Warningf("failed to retrieve current ceph %q version. %+v", daemon, err)
-				logger.Debug("could not detect ceph version during update, this is likely an initial bootstrap, proceeding with %+v", c.clusterInfo.CephVersion)
-				cephVersionToUse = c.clusterInfo.CephVersion
-			} else {
-				logger.Debugf("current cluster version for osds before upgrading is: %+v", currentCephVersion)
-				cephVersionToUse = currentCephVersion
-			}
-
-			if err = updateDeploymentAndWait(c.context, dp, c.Namespace, daemon, strconv.Itoa(osd.ID), cephVersionToUse, c.skipUpgradeChecks, c.continueUpgradeAfterChecksEvenIfNotHealthy); err != nil {
+			if err = updateDeploymentAndWait(c.context, dp, c.Namespace, daemon, strconv.Itoa(osd.ID), c.skipUpgradeChecks, c.continueUpgradeAfterChecksEvenIfNotHealthy); err != nil {
 				logger.Errorf("failed to update osd deployment %d. %+v", osd.ID, err)
 			}
 		}
@@ -586,21 +574,8 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 		}
 
 		if createErr != nil && kerrors.IsAlreadyExists(createErr) {
-			// Always invoke ceph version before an upgrade so we are sure to be up-to-date
 			daemon := string(opconfig.OsdType)
-			var cephVersionToUse cephver.CephVersion
-
-			currentCephVersion, err := client.LeastUptodateDaemonVersion(c.context, c.clusterInfo.Name, daemon)
-			if err != nil {
-				logger.Warningf("failed to retrieve current ceph %q version. %+v", daemon, err)
-				logger.Debug("could not detect ceph version during update, this is likely an initial bootstrap, proceeding with %+v", c.clusterInfo.CephVersion)
-				cephVersionToUse = c.clusterInfo.CephVersion
-			} else {
-				logger.Debugf("current cluster version for osds before upgrading is: %+v", currentCephVersion)
-				cephVersionToUse = currentCephVersion
-			}
-
-			if err = updateDeploymentAndWait(c.context, dp, c.Namespace, daemon, strconv.Itoa(osd.ID), cephVersionToUse, c.skipUpgradeChecks, c.continueUpgradeAfterChecksEvenIfNotHealthy); err != nil {
+			if err = updateDeploymentAndWait(c.context, dp, c.Namespace, daemon, strconv.Itoa(osd.ID), c.skipUpgradeChecks, c.continueUpgradeAfterChecksEvenIfNotHealthy); err != nil {
 				logger.Errorf("failed to update osd deployment %d. %+v", osd.ID, err)
 			}
 		}

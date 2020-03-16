@@ -98,8 +98,7 @@ func (c *CephNFSController) upCephNFS(n cephv1.CephNFS, oldActive int) error {
 				return errors.Wrapf(err, "failed to create ganesha deployment")
 			}
 			logger.Infof("ganesha deployment %s already exists. updating if needed", deployment.Name)
-			// We don't invoke ceph versions here since nfs do not show up in the service map (yet?)
-			if err := updateDeploymentAndWait(c.context, deployment, n.Namespace, "nfs", id, c.clusterInfo.CephVersion, c.clusterSpec.SkipUpgradeChecks, false); err != nil {
+			if err := updateDeploymentAndWait(c.context, deployment, n.Namespace, "nfs", id, c.clusterSpec.SkipUpgradeChecks, false); err != nil {
 				return errors.Wrapf(err, "failed to update ganesha deployment %q", deployment.Name)
 			}
 		} else {

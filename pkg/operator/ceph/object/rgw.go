@@ -30,7 +30,6 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
-	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -174,20 +173,8 @@ func (c *clusterConfig) startRGWPods() error {
 
 		// Generate the mime.types file after the rep. controller as well for the same reason as keyring
 		if createErr != nil && kerrors.IsAlreadyExists(createErr) {
-			// Always invoke ceph version before an upgrade so we are sure to be up-to-date
 			daemon := string(config.RgwType)
-			var cephVersionToUse cephver.CephVersion
-			currentCephVersion, err := client.LeastUptodateDaemonVersion(c.context, c.clusterInfo.Name, daemon)
-			if err != nil {
-				logger.Warningf("failed to retrieve current ceph %q version. %v", daemon, err)
-				logger.Debug("could not detect ceph version during update, this is likely an initial bootstrap, proceeding with %+v", c.clusterInfo.CephVersion)
-				cephVersionToUse = c.clusterInfo.CephVersion
-
-			} else {
-				logger.Debugf("current cluster version for rgws before upgrading is: %+v", currentCephVersion)
-				cephVersionToUse = currentCephVersion
-			}
-			if err := updateDeploymentAndWait(c.context, deployment, c.store.Namespace, daemon, daemonLetterID, cephVersionToUse, c.skipUpgradeChecks, false); err != nil {
+			if err := updateDeploymentAndWait(c.context, deployment, c.store.Namespace, daemon, daemonLetterID, c.skipUpgradeChecks, false); err != nil {
 				return errors.Wrapf(err, "failed to update object store %q deployment %q", c.store.Name, deployment.Name)
 			}
 		}

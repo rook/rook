@@ -182,21 +182,8 @@ func (c *Cluster) Start() error {
 			}
 			logger.Infof("deployment for mgr %s already exists. updating if needed", resourceName)
 
-			// Always invoke ceph version before an upgrade so we are sure to be up-to-date
 			daemon := string(config.MgrType)
-			var cephVersionToUse cephver.CephVersion
-
-			currentCephVersion, err := client.LeastUptodateDaemonVersion(c.context, c.clusterInfo.Name, daemon)
-			if err != nil {
-				logger.Warningf("failed to retrieve current ceph %q version. %+v", daemon, err)
-				logger.Debug("could not detect ceph version during update, this is likely an initial bootstrap, proceeding with %+v", c.clusterInfo.CephVersion)
-				cephVersionToUse = c.clusterInfo.CephVersion
-			} else {
-				logger.Debugf("current cluster version for mgrs before upgrading is: %+v", currentCephVersion)
-				cephVersionToUse = currentCephVersion
-			}
-
-			if err := updateDeploymentAndWait(c.context, d, c.Namespace, daemon, mgrConfig.DaemonID, cephVersionToUse, c.skipUpgradeChecks, false); err != nil {
+			if err := updateDeploymentAndWait(c.context, d, c.Namespace, daemon, mgrConfig.DaemonID, c.skipUpgradeChecks, false); err != nil {
 				logger.Errorf("failed to update mgr deployment %q. %+v", resourceName, err)
 			}
 		}

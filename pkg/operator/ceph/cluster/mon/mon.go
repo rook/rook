@@ -803,19 +803,7 @@ func (c *Cluster) updateMon(m *monConfig, d *apps.Deployment) error {
 		d.Name)
 
 	daemonType := string(config.MonType)
-	var cephVersionToUse cephver.CephVersion
-
-	currentCephVersion, err := client.LeastUptodateDaemonVersion(c.context, c.ClusterInfo.Name, daemonType)
-	if err != nil {
-		logger.Warningf("failed to retrieve current ceph %q version. %+v", daemonType, err)
-		logger.Debug("could not detect ceph version during update, this is likely an initial bootstrap, proceeding with %+v", c.ClusterInfo.CephVersion)
-		cephVersionToUse = c.ClusterInfo.CephVersion
-	} else {
-		logger.Debugf("current cluster version for monitors before upgrading is: %+v", currentCephVersion)
-		cephVersionToUse = currentCephVersion
-	}
-
-	err = updateDeploymentAndWait(c.context, d, c.Namespace, daemonType, m.DaemonName, cephVersionToUse, c.spec.SkipUpgradeChecks, false)
+	err := updateDeploymentAndWait(c.context, d, c.Namespace, daemonType, m.DaemonName, c.spec.SkipUpgradeChecks, false)
 	if err != nil {
 		return errors.Wrapf(err, "failed to update mon deployment %s", m.ResourceName)
 	}
