@@ -2,6 +2,13 @@
 title: Prerequisites
 weight: 1000
 ---
+{% assign url = page.url | split: '/' %}
+{% assign currentVersion = url[3] %}
+{% if currentVersion != 'master' %}
+{% assign branchName = currentVersion | replace: 'v', '' | prepend: 'release-' %}
+{% else %}
+{% assign branchName = currentVersion %}
+{% endif %}
 
 # Prerequisites
 
@@ -11,103 +18,87 @@ you can quickly set one up using [Minikube](#minikube), [Kubeadm](#kubeadm) or [
 
 ## Minimum Version
 
-Kubernetes v1.13 or higher is supported by Rook.
+Kubernetes v1.11 or higher is supported by Rook.
 
-## Privileges and RBAC
+## Ceph Prerequisites
 
-Rook requires privileges to manage the storage in your cluster. See the details [here](psp.md) for
-setting up Rook in a Kubernetes cluster with Pod Security Policies enabled.
+See also **[Ceph Prerequisites](ceph-prerequisites.md)**.
 
-## Flexvolume Configuration
+## Pod Security Policies
 
-The Rook agent requires setup as a Flex volume plugin to manage the storage attachments in your cluster.
-See the [Flex Volume Configuration](flexvolume.md) topic to configure your Kubernetes deployment to load the Rook volume plugin.
+Rook requires privileges to manage the storage in your cluster. If you have Pod Security Policies enabled
+please review this section. By default, Kubernetes clusters do not have PSPs enabled so you may
+be able to skip this section.
 
-## Kernel
+If you are configuring Ceph on OpenShift, the Ceph walkthrough will configure the PSPs as well
+when you start the operator with [operator-openshift.yaml]((https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/operator-openshift.yaml).
 
-### RBD
+### Cluster Role
 
-Rook Ceph requires a Linux kernel built with the RBD module. Many distributions of Linux have this module but some don't,
-e.g. the GKE Container-Optimised OS (COS) does not have RBD. You can test your Kubernetes nodes by running `modprobe rbd`.
-If it says 'not found', you may have to [rebuild your kernel](https://rook.io/docs/rook/master/common-issues.html#rook-agent-rbd-module-missing-error)
-or choose a different Linux distribution.
+> **NOTE**: Cluster role configuration is only needed when you are not already `cluster-admin` in your Kubernetes cluster!
 
-### CephFS
+Creating the Rook operator requires privileges for setting up RBAC. To launch the operator you need to have created your user certificate that is bound to ClusterRole `cluster-admin`.
 
-If you will be creating volumes from a Ceph shared file system (CephFS), the recommended minimum kernel version is 4.17.
-If you have a kernel version less than 4.17, the requested PVC sizes will not be enforced. Storage quotas will only be
-enforced on newer kernels.
-
-## Kernel modules directory configuration
-
-Normally, on Linux, kernel modules can be found in `/lib/modules`. However, there are some distributions that put them elsewhere. In that case the environment variable `LIB_MODULES_DIR_PATH` can be used to override the default. Also see the documentation in [helm-operator](helm-operator.md) on the parameter `agent.libModulesDirPath`. One notable distribution where this setting is useful would be [NixOS](https://nixos.org).
-
-## Extra agent mounts
-
-On certain distributions it may be necessary to mount additional directories into the agent container. That is what the environment variable `AGENT_MOUNTS` is for. Also see the documentation in [helm-operator](helm-operator.md) on the parameter `agent.mounts`. The format of the variable content should be `mountname1=/host/path1:/container/path1,mountname2=/host/path2:/container/path2`.
-
-## LVM package
-
-Some Linux distributions do not ship with the `lvm2` package. This package is required on all storage nodes in your k8s cluster. Please install it using your Linux distribution's package manager; for example:
+One simple way to achieve it is to assign your certificate with the `system:masters` group:
 
 ```console
-# Centos
-sudo yum install -y lvm2
-
-# Ubuntu
-sudo apt-get install -y lvm2
+-subj "/CN=admin/O=system:masters"
 ```
 
-## Bootstrapping Kubernetes
+`system:masters` is a special group that is bound to `cluster-admin` ClusterRole, but it can't be easily revoked so be careful with taking that route in a production setting.
+Binding individual certificate to ClusterRole `cluster-admin` is revocable by deleting the ClusterRoleBinding.
 
-Rook will run wherever Kubernetes is running. Here are some simple environments to help you get started with Rook.
+### RBAC for PodSecurityPolicies
 
-### Minikube
+If you have activated the [PodSecurityPolicy Admission Controller](https://kubernetes.io/docs/admin/admission-controllers/#podsecuritypolicy) and thus are
+using [PodSecurityPolicies](https://kubernetes.io/docs/concepts/policy/pod-security-policy/), you will require additional `(Cluster)RoleBindings`
+for the different `ServiceAccounts` Rook uses to start the Rook Storage Pods.
 
-To install `minikube`, refer to this [page](https://github.com/kubernetes/minikube/releases). Once you have `minikube` installed, start a cluster by doing the following:
+Security policies will differ for different backends. See Ceph's Pod Security Policies set up in
+[common.yaml](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/common.yaml)
+for an example of how this is done in practice.
 
-```console
-$ minikube start
-Starting local Kubernetes cluster...
-Starting VM...
-SSH-ing files into VM...
-Setting up certs...
-Starting cluster components...
-Connecting to cluster...
-Setting up kubeconfig...
-Kubectl is now configured to use the cluster.
+### PodSecurityPolicy
+
+You need at least one `PodSecurityPolicy` that allows privileged `Pod` execution. Here is an example
+which should be more permissive than is needed for any backend:
+
+```yaml
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: privileged
+spec:
+  fsGroup:
+    rule: RunAsAny
+  privileged: true
+  runAsUser:
+    rule: RunAsAny
+  seLinux:
+    rule: RunAsAny
+  supplementalGroups:
+    rule: RunAsAny
+  volumes:
+    - '*'
+  allowedCapabilities:
+    - '*'
+  hostPID: true
+  # hostNetwork is required for using host networking
+  hostNetwork: false
 ```
 
-After these steps, your minikube cluster is ready to install Rook on.
+**Hint**: Allowing `hostNetwork` usage is required when using `hostNetwork: true` in a Cluster `CustomResourceDefinition`!
+You are then also required to allow the usage of `hostPorts` in the `PodSecurityPolicy`. The given
+port range will allow all ports:
 
-### Kubeadm
-
-You can easily spin up Rook on top of a `kubeadm` cluster.
-You can find the instructions on how to install kubeadm in the [Install `kubeadm`](https://kubernetes.io/docs/setup/independent/install-kubeadm/) page.
-
-By using `kubeadm`, you can use Rook in just a few minutes!
-
-### New local Kubernetes cluster with Vagrant
-
-For a quick start with a new local cluster, use the Rook fork of [coreos-kubernetes](https://github.com/rook/coreos-kubernetes). This will bring up a multi-node Kubernetes cluster with `vagrant` and CoreOS virtual machines ready to use Rook immediately.
-
-```console
-git clone https://github.com/rook/coreos-kubernetes.git
-cd coreos-kubernetes/multi-node/vagrant
-vagrant up
-export KUBECONFIG="$(pwd)/kubeconfig"
-kubectl config use-context vagrant-multi
+```yaml
+   hostPorts:
+     # Ceph msgr2 port
+     - min: 1
+       max: 65535
 ```
 
-Then wait for the cluster to come up and verify that kubernetes is done initializing (be patient, it takes a bit):
-
-```console
-kubectl cluster-info
-```
-
-Once you see a url response, your cluster is [ready for use by Rook](ceph-quickstart.md#deploy-rook).
-
-## Support for authenticated docker registries
+## Authenticated docker registries
 
 If you want to use an image from authenticated docker registry (e.g. for image cache/mirror), you'll need to
 add an `imagePullSecret` to all relevant service accounts. This way all pods created by the operator (for service account:
@@ -167,10 +158,31 @@ imagePullSecrets:                # here are the new
 
 After doing this for all service accounts all pods should be able to pull the image from your registry.
 
-## Using Rook in Kubernetes
+## Bootstrapping Kubernetes
 
-Now that you have a Kubernetes cluster running, you can start using Rook with [these steps](ceph-quickstart.md#deploy-rook).
+Rook will run wherever Kubernetes is running. Here are some simple environments to help you get started with Rook.
 
-## Using Rook on Tectonic Bare Metal
+### Minikube
 
-Follow [these instructions](tectonic.md) to run Rook on Tectonic Kubernetes
+To install `minikube`, refer to this [page](https://github.com/kubernetes/minikube/releases). Once you have `minikube` installed, start a cluster by doing the following:
+
+```console
+$ minikube start
+Starting local Kubernetes cluster...
+Starting VM...
+SSH-ing files into VM...
+Setting up certs...
+Starting cluster components...
+Connecting to cluster...
+Setting up kubeconfig...
+Kubectl is now configured to use the cluster.
+```
+
+After these steps, your minikube cluster is ready to install Rook on.
+
+### Kubeadm
+
+You can easily spin up Rook on top of a `kubeadm` cluster.
+You can find the instructions on how to install kubeadm in the [Install `kubeadm`](https://kubernetes.io/docs/setup/independent/install-kubeadm/) page.
+
+By using `kubeadm`, you can use Rook in just a few minutes!

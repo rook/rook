@@ -20,7 +20,10 @@ Kubernetes **v1.10** or higher is supported by Rook.
 
 To make sure you have a Kubernetes cluster that is ready for `Rook`, you can [follow these instructions](k8s-pre-reqs.md).
 
-If you are using `dataDirHostPath` to persist rook data on kubernetes hosts, make sure your host has at least 5GB of space available on the specified path.
+In order to configure the storage cluster, at least one of these local storage options are required:
+- Raw devices (no partitions or formatted filesystems)
+- Raw partitions (no formatted filsystem)
+- PVs available from a storage class in `block` mode
 
 ## TL;DR
 
@@ -71,24 +74,34 @@ kubectl create -f cluster.yaml
 Use `kubectl` to list pods in the `rook-ceph` namespace. You should be able to see the following pods once they are all running.
 The number of osd pods will depend on the number of nodes in the cluster and the number of devices configured.
 If you did not modify the `cluster.yaml` above, it is expected that one OSD will be created per node.
-The `rook-ceph-agent` and `rook-discover` pods are also optional depending on your settings.
+The CSI, `rook-ceph-agent`, and `rook-discover` pods are also optional depending on your settings.
+
+> If the `rook-ceph-mon`, `rook-ceph-mgr`, or `rook-ceph-osd` pods are not created, please refer to the
+> [Ceph common issues](ceph-common-issues.md) for more details and potential solutions.
 
 ```console
 $ kubectl -n rook-ceph get pod
-NAME                                   READY   STATUS      RESTARTS   AGE
-rook-ceph-agent-4zkg8                  1/1     Running     0          140s
-rook-ceph-mgr-a-d9dcf5748-5s9ft        1/1     Running     0          77s
-rook-ceph-mon-a-7d8f675889-nw5pl       1/1     Running     0          105s
-rook-ceph-mon-b-856fdd5cb9-5h2qk       1/1     Running     0          94s
-rook-ceph-mon-c-57545897fc-j576h       1/1     Running     0          85s
-rook-ceph-operator-6c49994c4f-9csfz    1/1     Running     0          141s
-rook-ceph-osd-0-7cbbbf749f-j8fsd       1/1     Running     0          23s
-rook-ceph-osd-1-7f67f9646d-44p7v       1/1     Running     0          24s
-rook-ceph-osd-2-6cd4b776ff-v4d68       1/1     Running     0          25s
-rook-ceph-osd-prepare-node1-vx2rz      0/2     Completed   0          60s
-rook-ceph-osd-prepare-node2-ab3fd      0/2     Completed   0          60s
-rook-ceph-osd-prepare-node3-w4xyz      0/2     Completed   0          60s
-rook-discover-dhkb8                    1/1     Running     0          140s
+NAME                                                 READY   STATUS      RESTARTS   AGE
+csi-cephfsplugin-provisioner-d77bb49c6-n5tgs         5/5     Running     0          140s
+csi-cephfsplugin-provisioner-d77bb49c6-v9rvn         5/5     Running     0          140s
+csi-cephfsplugin-rthrp                               3/3     Running     0          140s
+csi-rbdplugin-hbsm7                                  3/3     Running     0          140s
+csi-rbdplugin-provisioner-5b5cd64fd-nvk6c            6/6     Running     0          140s
+csi-rbdplugin-provisioner-5b5cd64fd-q7bxl            6/6     Running     0          140s
+rook-ceph-agent-4zkg8                                1/1     Running     0          140s
+rook-ceph-crashcollector-minikube-5b57b7c5d4-hfldl   1/1     Running     0          105s
+rook-ceph-mgr-a-64cd7cdf54-j8b5p                     1/1     Running     0          77s
+rook-ceph-mon-a-694bb7987d-fp9w7                     1/1     Running     0          105s
+rook-ceph-mon-b-856fdd5cb9-5h2qk                     1/1     Running     0          94s
+rook-ceph-mon-c-57545897fc-j576h                     1/1     Running     0          85s
+rook-ceph-operator-85f5b946bd-s8grz                  1/1     Running     0          92m
+rook-ceph-osd-0-6bb747b6c5-lnvb6                     1/1     Running     0          23s
+rook-ceph-osd-1-7f67f9646d-44p7v                     1/1     Running     0          24s
+rook-ceph-osd-2-6cd4b776ff-v4d68                     1/1     Running     0          25s
+rook-ceph-osd-prepare-node1-vx2rz                    0/2     Completed   0          60s
+rook-ceph-osd-prepare-node2-ab3fd                    0/2     Completed   0          60s
+rook-ceph-osd-prepare-node3-w4xyz                    0/2     Completed   0          60s
+rook-discover-dhkb8                                  1/1     Running     0          140s
 ```
 
 To verify that the cluster is in a healthy state, connect to the [Rook toolbox](ceph-toolbox.md) and run the

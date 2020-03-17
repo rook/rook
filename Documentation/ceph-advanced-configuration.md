@@ -20,7 +20,6 @@ storage cluster.
 * [OSD Dedicated Network](#osd-dedicated-network)
 * [Phantom OSD Removal](#phantom-osd-removal)
 * [Change Failure Domain](#change-failure-domain)
-* [Monitor placement](#monitor-placement)
 
 ## Prerequisites
 
@@ -155,12 +154,6 @@ do
         echo "END logs from pod: ${p} ${c}"
     done
 done
-for i in $(kubectl -n rook-ceph-system get pods -o jsonpath='{.items[*].metadata.name}')
-do
-    echo "BEGIN logs from pod: ${i}"
-    kubectl -n rook-ceph-system logs ${i}
-    echo "END logs from pod: ${i}"
-done) | gzip > /tmp/rook-logs.gz
 ```
 
 This gets the logs for every container in every Rook pod and then compresses them into a `.gz` archive
@@ -241,112 +234,6 @@ In the following example we will separate SSD drives from spindle-based drives,
 a common practice for those looking to target certain workloads onto faster
 (database) or slower (file archive) storage.
 
-### CRUSH Hierarchy
-
-To see the CRUSH hierarchy of all your hosts and OSDs run:
-
-```console
-ceph osd tree
-```
-
-Before we separate our disks into groups, our example cluster looks like this:
-
-```console
-ID WEIGHT  TYPE NAME          UP/DOWN REWEIGHT PRIMARY-AFFINITY
--1 7.21828 root default
--2 0.94529     host node1
- 0 0.55730         osd.0           up  1.00000          1.00000
- 1 0.11020         osd.1           up  1.00000          1.00000
- 2 0.27779         osd.2           up  1.00000          1.00000
--3 1.22480     host node2
- 3 0.55730         osd.3           up  1.00000          1.00000
- 4 0.11020         osd.4           up  1.00000          1.00000
- 5 0.55730         osd.5           up  1.00000          1.00000
--4 1.22480     host node3
- 6 0.55730         osd.6           up  1.00000          1.00000
- 7 0.11020         osd.7           up  1.00000          1.00000
- 8 0.06670         osd.8           up  1.00000          1.00000
-```
-
-We have one root bucket `default` that every host and OSD is under, so all of
-these storage locations get pooled together for reads/writes/replication.
-
-Let's say that `osd.1`, `osd.3`, and `osd.7` are our small SSD drives that we
-want to use separately.
-
-First we will create a new `root` bucket called `ssd` in our CRUSH map.  Under
-this new bucket we will add new `host` buckets for each node that contains an
-SSD drive so data can be replicated and used separately from the default HDD
-group.
-
-```console
-# Create a new tree in the CRUSH Map for SSD hosts and OSDs
-ceph osd crush add-bucket ssd root
-ceph osd crush add-bucket node1-ssd host
-ceph osd crush add-bucket node2-ssd host
-ceph osd crush add-bucket node3-ssd host
-ceph osd crush move node1-ssd root=ssd
-ceph osd crush move node2-ssd root=ssd
-ceph osd crush move node3-ssd root=ssd
-
-# Create a new rule for replication using the new tree
-ceph osd crush rule create-simple ssd ssd host firstn
-```
-
-Secondly we will move the SSD OSDs into the new `ssd` tree, under their
-respective `host` buckets:
-
-```console
-ceph osd crush set osd.1 .1102 root=ssd host=node1-ssd
-ceph osd crush set osd.3 .1102 root=ssd host=node2-ssd
-ceph osd crush set osd.7 .1102 root=ssd host=node3-ssd
-```
-
-It's important to note that the `ceph osd crush set` command requires a weight
-to be specified (our example uses `.1102`).  If you'd like to change their
-weight you can do that here, otherwise be sure to specify their original weight
-seen in the `ceph osd tree` output.
-
-So let's look at our CRUSH tree again with these changes:
-
-```console
-ID WEIGHT  TYPE NAME          UP/DOWN REWEIGHT PRIMARY-AFFINITY
--8 0.22040 root ssd
--5 0.11020     host node1-ssd
- 1 0.11020         osd.1           up  1.00000          1.00000
--6 0.11020     host node2-ssd
- 4 0.11020         osd.4           up  1.00000          1.00000
--7 0.11020     host node3-ssd
- 7 0.11020         osd.7           up  1.00000          1.00000
--1 7.21828 root default
--2 0.83509     host node1
- 0 0.55730         osd.0           up  1.00000          1.00000
- 2 0.27779         osd.2           up  1.00000          1.00000
--3 1.11460     host node2
- 3 0.55730         osd.3           up  1.00000          1.00000
- 5 0.55730         osd.5           up  1.00000          1.00000
--4 1.11460     host node3
- 6 0.55730         osd.6           up  1.00000          1.00000
- 8 0.55730         osd.8           up  1.00000          1.00000
-```
-
-### Using Disk Groups With Pools
-
-Now we have a separate storage group for our SSDs, but we can't use that storage
-until we associate a pool with it.  The default group already has a pool called
-`rbd` in many cases.  If you [created a pool via CustomResourceDefinition](ceph-pool-crd.md),
-it will use the default storage group as well.
-
-Here's how to create new pools:
-
-```console
-# SSD backed pool with 128 (total) PGs
-ceph osd pool create ssd 128 128 replicated ssd
-```
-
-Now all you need to do is create RBD images or Kubernetes `StorageClass`es that
-specify the `ssd` pool to put it to use.
-
 ## Configuring Pools
 
 ### Placement Group Sizing
@@ -376,57 +263,6 @@ is to back-up the data, [delete the pool](#deleting-a-pool), and [recreate
 it](#creating-a-pool).  With backups you can try a few potentially unsafe
 tricks for live pools, documented
 [here](http://cephnotes.ksperis.com/blog/2015/04/15/ceph-pool-migration).
-
-### Deleting A Pool
-
-Be warned that this deletes all data from the pool, so Ceph by default makes it
-somewhat difficult to do.
-
-First you must inject arguments to the Mon daemons to tell them to allow the
-deletion of pools.  In Rook Tools you can do this:
-
-```console
-ceph tell mon.\* injectargs '--mon-allow-pool-delete=true'
-```
-
-Then to delete a pool, `rbd` in this example, run:
-
-```console
-ceph osd pool rm rbd rbd --yes-i-really-really-mean-it
-```
-
-### Creating A Pool
-
-```console
-# Create a pool called rbd with 1024 total PGs, using the default
-# replication ruleset
-ceph osd pool create rbd 1024 1024 replicated replicated_ruleset
-```
-
-`replicated_ruleset` is the default CRUSH rule that replicates between the hosts
-and OSDs in the `default` root hierarchy.
-
-### Setting The Number Of Replicas
-
-The `size` setting of a pool tells the cluster how many copies of the data
-should be kept for redundancy.  By default the cluster will distribute these
-copies between `host` buckets in the CRUSH Map This can be set when [creating a
-pool via CustomResourceDefinition](ceph-pool-crd.md) or after creation with `ceph`.
-
-So for example let's change the `size` of the `rbd` pool to three:
-
-```console
-ceph osd pool set rbd size 3
-```
-
-Now if you run `ceph -s` you may see "recovery" operations and
-PGs in "undersized" and other "unclean" states.  The cluster is essentially
-fixing itself since the number of replicas has been increased, and should go
-back to "active/clean" state shortly, after data has been replicated between
-hosts.  When that's done you will be able to lose two of your storage nodes and
-still have access to all your data in that pool, since the CRUSH algorithm will
-guarantee that at least one replica will still be available on another storage node.
-Of course you will only have 1/3 the capacity as a tradeoff.
 
 ### Setting PG Count
 
@@ -592,6 +428,9 @@ For example,
     hostNetwork: true
 ```
 
+> IMPORTANT: Changing this setting is not supported in a running Rook cluster. Host networking
+> should be configured when the cluster is first created.
+
 ### Define the subnets to use for public and private OSD networks
 
 Edit the `rook-config-override` configmap to define the custom network
@@ -651,7 +490,7 @@ ceph auth del osd.<ID>
 ceph osd rm <ID>
 ```
 
-To recheck that the Phantom OSD got removed, re-run the following command and check if the OSD with the ID doesn't show up anymore:
+To recheck that the Phantom OSD was removed, re-run the following command and check if the OSD with the ID doesn't show up anymore:
 
 ```console
 ceph osd tree
@@ -698,25 +537,3 @@ crush_rule: replicapool_host_rule
 If the cluster's health was `HEALTH_OK` when we performed this change, immediately, the new rule is applied to the cluster transparently without service disruption.
 
 Exactly the same approach can be used to change from `host` back to `osd`.
-
-## Monitor placement
-
-Rook will try to schedule Ceph monitor pods on different physical nodes by
-default. When available, Rook will also consider failure domain information in
-the form of Kubernetes node labels when scheduling Ceph monitors.
-
-Currently Rook supports the node label
-`topology.kubernetes.io/zone=<zone>` which can be applied to a node
-to specify its failure domain using the command:
-
-```console
-kubectl label node <node> topology.kubernetes.io/zone=<zone>
-```
-
-> For versions previous to K8s 1.17, use the topology key: failure-domain.beta.kubernetes.io/zone
-
-Rook uses failure domain labels by trying to schedule monitor pods on different
-failure domains. And all nodes without failure domain labels are treated as a single
-failure domain from a scheduling point of view. When placing multiple monitor
-pods within a single failure domain Rook will try to run the pods on different
-physical nodes.

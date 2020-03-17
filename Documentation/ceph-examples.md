@@ -41,15 +41,14 @@ Settings for the operator are configured through environment variables on the op
 
 ## Cluster CRD
 
-Now that your operator is running, let's create your Ceph storage cluster:
+Now that your operator is running, let's create your Ceph storage cluster. This CR contains the most critical settings
+that will influence how the operator configures the storage. It is important to understand the various ways to configure
+the cluster. These examples represent a very small set of the different ways to configure the storage.
 
 * `cluster.yaml`: This file contains common settings for a production storage cluster. Requires at least three nodes.
-* `cluster-minimal.yaml`: Brings up a cluster with only one [ceph-mon](http://docs.ceph.com/docs/nautilus/man/8/ceph-mon/) and a [ceph-mgr](http://docs.ceph.com/docs/nautilus/mgr/) so the Ceph dashboard can be used for the remaining cluster configuration.
+* `cluster-on-pvc.yaml`: This file contains common settings for backing the Ceph Mons and OSDs by PVs. Useful when running in cloud environments or where local PVs have been created for Ceph to consume.
 
-See the [Cluster CRD](ceph-cluster-crd.md) topic for more details on the settings.
-
-Monitors may be configured to run on PVC storage. Details on [how to set this up
-and some minor restrctions are described here](ceph-cluster-crd#mon-settings).
+See the [Cluster CRD](ceph-cluster-crd.md) topic for more details and more examples for the settings.
 
 ## Setting up consumable storage
 

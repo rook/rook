@@ -106,6 +106,6 @@ The `failureDomain` must be also be taken into account when determining the numb
 * `host`: All chunks will be placed on unique hosts
 * `osd`: All chunks will be placed on unique OSDs
 
-If you do not have a sufficient number of hosts or OSDs for unique placement the pool can be created, although a PUT to the pool will hang.
+If you do not have a sufficient number of hosts or OSDs for unique placement the pool can be created, writing to the pool will hang.
 
-Rook currently only configures two levels in the CRUSH map. It is also possible to configure other levels such as `rack` with the [Ceph tools](http://docs.ceph.com/docs/master/rados/operations/crush-map/).
+Rook currently only configures two levels in the CRUSH map. It is also possible to configure other levels such as `rack` with by adding [topology labels](ceph-cluster-crd.md#osd-topology) to the nodes.

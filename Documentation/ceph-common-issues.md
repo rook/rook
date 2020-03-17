@@ -8,7 +8,7 @@ indent: true
 
 Many of these problem cases are hard to summarize down to a short phrase that adequately describes the problem. Each problem will start with a bulleted list of symptoms. Keep in mind that all symptoms may not apply depending on the configuration of Rook. If the majority of the symptoms are seen there is a fair chance you are experiencing that problem.
 
-If after trying the suggestions found on this page and the problem is not resolved, the Rook team is very happy to help you troubleshoot the issues in their Slack channel. Once you have [registered for the Rook Slack](https://slack.rook.io), proceed to the General channel to ask for assistance.
+If after trying the suggestions found on this page and the problem is not resolved, the Rook team is very happy to help you troubleshoot the issues in their Slack channel. Once you have [registered for the Rook Slack](https://slack.rook.io), proceed to the `#ceph` channel to ask for assistance.
 
 ## Table of Contents <!-- omit in toc -->
 
@@ -70,6 +70,9 @@ There are many Ceph sub-commands to look at and manipulate Ceph objects, well be
 
 ## Pod Using Ceph Storage Is Not Running
 
+> This topic is specific to creating PVCs based on Rook's **Flex** driver, which is no longer the default option.
+> By default, Rook deploys the CSI driver for binding the PVCs to the storage.
+
 ### Symptoms
 
 * The pod that is configured to use Rook storage is stuck in the `ContainerCreating` status
@@ -77,6 +80,8 @@ There are many Ceph sub-commands to look at and manipulate Ceph objects, well be
   * `PersistentVolumeClaim is not bound`
   * `timeout expired waiting for volumes to attach/mount`
 * `kubectl -n rook-ceph get pod` shows the rook-ceph-agent pods in a `CrashLoopBackOff` status
+
+If you see that the PVC remains in **pending** state, see the topic [PVCs stay in pending state](#pvcs-stay-in-pending-state).
 
 ### Possible Solutions Summary
 
@@ -144,7 +149,7 @@ Once the `rook-ceph-agent` pods are gone, **follow the instructions in the [Flex
 After that has been configured, and the Kubelet has been restarted, start the agent pods up again by restarting `rook-operator`:
 
 ```console
-kubectl -n rook-ceph delete pod -l app=rook-operator
+kubectl -n rook-ceph delete pod -l app=rook-ceph-operator
 ```
 
 #### Volume Creation
@@ -166,7 +171,7 @@ Both your volume and its claim should be in the `Bound` status.
 If one or neither of them is not in the `Bound` status, then look for details of the issue in the `rook-operator` logs:
 
 ```console
-kubectl -n rook-ceph logs `kubectl -n rook-ceph -l app=rook-operator get pods -o jsonpath='{.items[*].metadata.name}'`
+kubectl -n rook-ceph logs `kubectl -n rook-ceph -l app=rook-ceph-operator get pods -o jsonpath='{.items[*].metadata.name}'`
 ```
 
 If the volume is failing to be created, there should be details in the `rook-operator` log output, especially those tagged with `op-provisioner`.
@@ -181,7 +186,7 @@ E0328 18:58:32.060893       5 controller.go:801] Failed to provision volume for 
 . output:
 ```
 
-The solution is to ensure that the [`clusterNamespace`](https://github.com/rook/rook/blob/master/cluster/examples/kubernetes/storageclass.yaml#L20) field matches the **namespace** of the Rook cluster when creating the `StorageClass`.
+The solution is to ensure that the [`clusterNamespace`](https://github.com/rook/rook/blob/master/cluster/examples/kubernetes/ceph/flex/storageclass.yaml#L28) field matches the **namespace** of the Rook cluster when creating the `StorageClass`.
 
 #### Volume Mounting
 
@@ -247,7 +252,7 @@ We want to help you get your storage working and learn from those lessons to pre
 
 ### Investigation
 
-Create a [rook-ceph-tools pod](./ceph-toolbox.md) to investigate the current state of CEPH. Here is an example of what one might see. In this case the `ceph status` command would just hang so a CTRL-C needed to be sent.
+Create a [rook-ceph-tools pod](ceph-toolbox.md) to investigate the current state of Ceph. Here is an example of what one might see. In this case the `ceph status` command would just hang so a CTRL-C needed to be sent.
 
 ```console
 $ kubectl -n rook-ceph exec -it $(kubectl -n rook-ceph get pod -l "app=rook-ceph-tools" -o jsonpath='{.items[0].metadata.name}') bash
@@ -272,7 +277,7 @@ rook-ceph-osd-mwxdm                  1/1       Running   0          2d        19
 
 What is happening here is that the MON pods are restarting and one or more of the Ceph daemons are not getting configured with the proper cluster information. This is commonly the result of not specifying a value for `dataDirHostPath` in your Cluster CRD.
 
-The `dataDirHostPath` setting specifies a path on the local host for the CEPH daemons to store configuration and data. Setting this to a path like `/var/lib/rook`, reapplying your Cluster CRD and restarting all the CEPH daemons (MON, MGR, OSD, RGW) should solve this problem. After the CEPH daemons have been restarted, it is advisable to restart the [rook-tool pod](./toolbox.md).
+The `dataDirHostPath` setting specifies a path on the local host for the Ceph daemons to store configuration and data. Setting this to a path like `/var/lib/rook`, reapplying your Cluster CRD and restarting all the Ceph daemons (MON, MGR, OSD, RGW) should solve this problem. After the Ceph daemons have been restarted, it is advisable to restart the [rook-tool pod](./toolbox.md).
 
 ## Monitors are the only pods running
 
@@ -299,7 +304,7 @@ The likely causes for the mon health not being detected:
 First look at the logs of the operator to confirm if it is able to connect to the mons.
 
 ```console
-kubectl -n rook-ceph logs -l app=rook-operator
+kubectl -n rook-ceph logs -l app=rook-ceph-operator
 ```
 
 Likely you will see an error similar to the following that the operator is timing out when connecting to the mon. The last command is `ceph mon_status`,
@@ -390,7 +395,10 @@ wp-pv-claim      Pending                                      rook-ceph-block   
 There are two common causes for the PVCs staying in pending state:
 
 1. There are no OSDs in the cluster
-2. The operator is not running or is otherwise not responding to the request to create the block image
+2. The CSI provisioner pod is not running or is not responding to the request to provision the storage
+
+If you are still using the Rook flex driver for the volumes (the CSI driver is the default since Rook v1.1),
+another cause could be that the operator is not running or is otherwise not responding to the request to provision the storage.
 
 #### Confirm if there are OSDs
 
@@ -423,6 +431,23 @@ rook-ceph-osd-prepare-minikube-9twvk   0/2     Completed   0          30m
 ```
 
 See the section on [why OSDs are not getting created](#osd-pods-are-not-created-on-my-devices) to investigate the logs.
+
+#### CSI Driver
+
+The CSI driver may not be responding to the requests. Look in the logs of the CSI provisioner pod to see if there are any errors
+during the provisioning.
+
+There are two provisioner pods:
+
+```
+kubectl -n rook-ceph get pod -l app=csi-rbdplugin-provisioner
+```
+
+Get the logs of each of the pods. One of them should be the "leader" and be responding to requests.
+
+```
+kubectl -n rook-ceph logs csi-cephfsplugin-provisioner-d77bb49c6-q9hwq csi-provisioner
+```
 
 #### Operator unresponsiveness
 

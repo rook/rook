@@ -1,11 +1,11 @@
 ---
-title: Monitoring
+title: Prometheus Monitoring
 weight: 2500
 indent: true
 ---
 {% include_relative branch.liquid %}
 
-# Monitoring
+# Prometheus Monitoring
 
 Each Rook Ceph cluster has some built in metrics collectors/exporters for monitoring with [Prometheus](https://prometheus.io/).
 
