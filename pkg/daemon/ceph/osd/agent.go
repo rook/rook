@@ -23,7 +23,6 @@ import (
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/util/proc"
 )
 
 const (
@@ -35,10 +34,8 @@ type OsdAgent struct {
 	cluster        *cephconfig.ClusterInfo
 	nodeName       string
 	forceFormat    bool
-	osdProc        map[int]*proc.MonitoredProc
 	devices        []DesiredDevice
 	metadataDevice string
-	procMan        *proc.ProcManager
 	storeConfig    config.StoreConfig
 	kv             *k8sutil.ConfigMapKVStore
 	pvcBacked      bool
@@ -64,8 +61,6 @@ func NewAgent(context *clusterd.Context, devices []DesiredDevice, metadataDevice
 		nodeName:       nodeName,
 		kv:             kv,
 		pvcBacked:      pvcBacked,
-		procMan:        proc.New(context.Executor),
-		osdProc:        make(map[int]*proc.MonitoredProc),
 	}
 }
 
