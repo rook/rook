@@ -117,7 +117,7 @@ func (k8sh *K8sHelper) GetDockerImage(image string) error {
 	if dockercmd == "" {
 		dockercmd = "docker"
 	}
-	return k8sh.executor.ExecuteCommand(false, "", dockercmd, "pull", image)
+	return k8sh.executor.ExecuteCommand(false, dockercmd, "pull", image)
 }
 
 // SetDeploymentVersion sets the container version on the deployment. It is assumed to be the rook/ceph image.
@@ -162,9 +162,9 @@ func (k8sh *K8sHelper) KubectlWithStdin(stdin string, args ...string) (string, e
 }
 
 func getKubeConfig(executor exec.Executor) (*rest.Config, error) {
-	context, err := executor.ExecuteCommandWithOutput(false, "", "kubectl", "config", "view", "-o", "json")
+	context, err := executor.ExecuteCommandWithOutput(false, "kubectl", "config", "view", "-o", "json")
 	if err != nil {
-		k8slogger.Errorf("Errors Encountered while executing kubectl command : %v", err)
+		k8slogger.Errorf("failed to execute kubectl command. %v", err)
 	}
 
 	// Parse the kubectl context to get the settings for client connections

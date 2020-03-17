@@ -41,15 +41,6 @@ func (e *MockExecutor) ExecuteCommand(debug bool, actionName string, command str
 	return nil
 }
 
-func (e *MockExecutor) StartExecuteCommand(debug bool, actionName string, command string, arg ...string) (*exec.Cmd, error) {
-	if e.MockStartExecuteCommand != nil {
-		return e.MockStartExecuteCommand(debug, actionName, command, arg...)
-	}
-
-	args := []string{command}
-	return &exec.Cmd{Args: append(args, arg...)}, nil
-}
-
 func (e *MockExecutor) ExecuteCommandWithOutput(debug bool, actionName string, command string, arg ...string) (string, error) {
 	if e.MockExecuteCommandWithOutput != nil {
 		return e.MockExecuteCommandWithOutput(debug, actionName, command, arg...)

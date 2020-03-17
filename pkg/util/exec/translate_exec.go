@@ -18,7 +18,6 @@ package exec
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"time"
 )
 
@@ -32,12 +31,6 @@ type TranslateCommandExecutor struct {
 
 	// Translator translates every command before running it
 	Translator func(debug bool, actionName string, command string, arg ...string) (string, []string)
-}
-
-// StartExecuteCommand starts a process and return immediately
-func (e *TranslateCommandExecutor) StartExecuteCommand(debug bool, actionName string, command string, arg ...string) (*exec.Cmd, error) {
-	transCommand, transArgs := e.Translator(debug, actionName, command, arg...)
-	return e.Executor.StartExecuteCommand(debug, actionName, transCommand, transArgs...)
 }
 
 // ExecuteCommand starts a process and wait for its completion
