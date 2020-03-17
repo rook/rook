@@ -92,6 +92,7 @@ func CreateImage(context *clusterd.Context, clusterName, name, poolName, dataPoo
 	if dataPoolName != "" {
 		args = append(args, fmt.Sprintf("--data-pool=%s", dataPoolName))
 	}
+	logger.Infof("creating rbd image %q with size %dMB in pool %q", imageSpec, sizeMB, dataPoolName)
 
 	buf, err := NewRBDCommand(context, clusterName, args).Run()
 	if err != nil {
@@ -117,6 +118,7 @@ func CreateImage(context *clusterd.Context, clusterName, name, poolName, dataPoo
 }
 
 func DeleteImage(context *clusterd.Context, clusterName, name, poolName string) error {
+	logger.Infof("deleting rbd image %q from pool %q", name, poolName)
 	imageSpec := getImageSpec(name, poolName)
 	args := []string{"rm", imageSpec}
 	buf, err := NewRBDCommand(context, clusterName, args).Run()
@@ -129,6 +131,7 @@ func DeleteImage(context *clusterd.Context, clusterName, name, poolName string) 
 }
 
 func ExpandImage(context *clusterd.Context, clusterName, name, poolName, monitors, keyring string, size uint64) error {
+	logger.Infof("expanding rbd image %q in pool %q to size %dMB", name, poolName, display.BToMb(size))
 	imageSpec := getImageSpec(name, poolName)
 	args := []string{
 		"resize",

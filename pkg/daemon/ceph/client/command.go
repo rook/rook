@@ -18,7 +18,6 @@ package client
 
 import (
 	"fmt"
-	"os"
 	"path"
 	"time"
 
@@ -108,26 +107,12 @@ func newCephToolCommand(tool string, context *clusterd.Context, clusterName stri
 	}
 }
 
-// TODO: make this work even if the operator config comes from the CM?
-// IsDebugLevel detects operator log level
-func IsDebugLevel() bool {
-	logLevel := os.Getenv("ROOK_LOG_LEVEL")
-	switch logLevel {
-	case "INFO":
-		return true
-	case "DEBUG":
-		return false
-	default:
-		return true
-	}
-}
-
 func NewCephCommand(context *clusterd.Context, clusterName string, args []string) *CephToolCommand {
-	return newCephToolCommand(CephTool, context, clusterName, args, IsDebugLevel())
+	return newCephToolCommand(CephTool, context, clusterName, args, true)
 }
 
 func NewRBDCommand(context *clusterd.Context, clusterName string, args []string) *CephToolCommand {
-	cmd := newCephToolCommand(RBDTool, context, clusterName, args, IsDebugLevel())
+	cmd := newCephToolCommand(RBDTool, context, clusterName, args, true)
 	cmd.JsonOutput = false
 	cmd.OutputFile = false
 	return cmd
@@ -195,27 +180,27 @@ func ExecuteRBDCommandWithTimeout(context *clusterd.Context, clusterName string,
 }
 
 func ExecuteCephCommandWithRetry(
-	cmd func() ([]byte, error),
+	cmd func() (string, []byte, error),
 	getExitCode func(err error) (int, bool),
 	retries int,
 	retryOnExitCode int,
 	waitTime time.Duration,
 ) ([]byte, error) {
 	for i := 0; i < retries; i++ {
-		data, err := cmd()
+		action, data, err := cmd()
 		if err != nil {
 			exitCode, parsed := getExitCode(err)
 			if parsed {
 				if exitCode == retryOnExitCode {
-					logger.Infof("command failed. trying again...")
+					logger.Infof("command failed for %s. trying again...", action)
 					time.Sleep(waitTime)
 					continue
 				}
 			}
-			return nil, errors.Wrapf(err, "failed to complete command")
+			return nil, errors.Wrapf(err, "failed to complete command for %s", action)
 		}
 		if i > 0 {
-			logger.Infof("command succeeded on attempt %d", i)
+			logger.Infof("action %s succeeded on attempt %d", action, i)
 		}
 		return data, nil
 	}

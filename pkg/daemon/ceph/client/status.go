@@ -142,10 +142,9 @@ type Fsmap struct {
 	UpStandby int `json:"up:standby"`
 }
 
-func Status(context *clusterd.Context, clusterName string, debug bool) (CephStatus, error) {
+func Status(context *clusterd.Context, clusterName string) (CephStatus, error) {
 	args := []string{"status"}
 	cmd := NewCephCommand(context, clusterName, args)
-	cmd.Debug = debug
 	buf, err := cmd.Run()
 	if err != nil {
 		return CephStatus{}, errors.Wrapf(err, "failed to get status. %s", string(buf))
@@ -164,7 +163,7 @@ func Status(context *clusterd.Context, clusterName string, debug bool) (CephStat
 // clean is true if the cluster is clean
 // err is not nil if getting the status failed.
 func IsClusterClean(context *clusterd.Context, clusterName string) (string, bool, error) {
-	status, err := Status(context, clusterName, true)
+	status, err := Status(context, clusterName)
 	if err != nil {
 		return "unable to get PG health", false, err
 	}
@@ -234,7 +233,7 @@ func getMDSRank(status CephStatus, clusterName, fsName string) (int, error) {
 
 // MdsActiveOrStandbyReplay returns wether a given MDS is active or in standby
 func MdsActiveOrStandbyReplay(context *clusterd.Context, clusterName, fsName string) error {
-	status, err := Status(context, clusterName, false)
+	status, err := Status(context, clusterName)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get ceph status")
 	}
@@ -261,7 +260,7 @@ func MdsActiveOrStandbyReplay(context *clusterd.Context, clusterName, fsName str
 // IsCephHealthy verifies Ceph is healthy, useful when performing an upgrade
 // check if it's a minor or major upgrade... too!
 func IsCephHealthy(context *clusterd.Context, clusterName string) bool {
-	cephStatus, err := Status(context, clusterName, false)
+	cephStatus, err := Status(context, clusterName)
 	if err != nil {
 		logger.Errorf("failed to detect if Ceph is healthy. failed to get ceph status. %v", err)
 		return false

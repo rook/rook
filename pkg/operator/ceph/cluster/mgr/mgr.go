@@ -167,7 +167,6 @@ func (c *Cluster) Start() error {
 
 		// start the deployment
 		d := c.makeDeployment(mgrConfig)
-		logger.Debugf("starting mgr deployment: %+v", d)
 
 		// Set the deployment hash as an annotation
 		err = patch.DefaultAnnotator.SetLastAppliedAnnotation(d)

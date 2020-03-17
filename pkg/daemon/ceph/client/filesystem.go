@@ -112,6 +112,7 @@ func GetFilesystem(context *clusterd.Context, clusterName string, fsName string)
 
 // AllowStandbyReplay gets detailed status information about a Ceph filesystem.
 func AllowStandbyReplay(context *clusterd.Context, clusterName string, fsName string, allowStandbyReplay bool) error {
+	logger.Infof("setting allow_standby_replay for filesystem %q", fsName)
 	args := []string{"fs", "set", fsName, "allow_standby_replay", strconv.FormatBool(allowStandbyReplay)}
 	_, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
@@ -127,6 +128,7 @@ func CreateFilesystem(context *clusterd.Context, clusterName, name, metadataPool
 		return errors.New("at least one data pool is required")
 	}
 
+	logger.Infof("creating filesystem %q with metadata pool %q and data pools %v", name, metadataPool, dataPools)
 	args := []string{}
 	var err error
 
