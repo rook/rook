@@ -15,7 +15,6 @@ require (
 	github.com/google/go-cmp v0.3.1
 	github.com/google/uuid v1.1.1
 	github.com/icrowley/fake v0.0.0-20180203215853-4178557ae428
-	github.com/jbw976/go-ps v0.0.0-20170713234100-82859aed1b5d
 	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20200107223247-51020689f1fb
 	github.com/openshift/cluster-api v0.0.0-20191129101638-b09907ac6668
 	github.com/openshift/machine-api-operator v0.2.1-0.20190903202259-474e14e4965a
@@ -30,6 +29,7 @@ require (
 	k8s.io/apimachinery v0.17.2
 	k8s.io/apiserver v0.17.2
 	k8s.io/client-go v12.0.0+incompatible
+	k8s.io/code-generator v0.17.2
 	k8s.io/kube-controller-manager v0.0.0
 	k8s.io/kubernetes v1.17.2
 	k8s.io/utils v0.0.0-20191114200735-6ca3b61696b6
