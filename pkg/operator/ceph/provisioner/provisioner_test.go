@@ -30,6 +30,7 @@ import (
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
+	storage "k8s.io/api/storage/v1"
 	storagebeta "k8s.io/api/storage/v1beta1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -71,7 +72,7 @@ func TestProvisionImage(t *testing.T) {
 	}
 
 	provisioner := New(context, "foo.io")
-	volume := newVolumeOptions(newStorageClass("class-1", "foo.io/block", map[string]string{"pool": "testpool", "clusterNamespace": "testCluster", "fsType": "ext3", "dataBlockPool": ""}, v1.PersistentVolumeReclaimRetain), newClaim("claim-1", "uid-1-1", "class-1", "", "class-1", nil), v1.PersistentVolumeReclaimRetain)
+	volume := newProvisionOptions(newStorageClass("class-1", "foo.io/block", map[string]string{"pool": "testpool", "clusterNamespace": "testCluster", "fsType": "ext3", "dataBlockPool": ""}, v1.PersistentVolumeReclaimRetain), newClaim("claim-1", "uid-1-1", "class-1", "", "class-1", nil), v1.PersistentVolumeReclaimRetain)
 
 	pv, err := provisioner.Provision(volume)
 	assert.Nil(t, err)
@@ -87,7 +88,7 @@ func TestProvisionImage(t *testing.T) {
 	assert.Equal(t, "pvc-uid-1-1", pv.Spec.PersistentVolumeSource.FlexVolume.Options["image"])
 	assert.Equal(t, "", pv.Spec.PersistentVolumeSource.FlexVolume.Options["dataBlockPool"])
 
-	volume = newVolumeOptions(newStorageClass("class-1", "foo.io/block", map[string]string{"pool": "testpool", "clusterNamespace": "testCluster", "fsType": "ext3", "dataBlockPool": "iamdatapool"}, v1.PersistentVolumeReclaimRecycle), newClaim("claim-1", "uid-1-1", "class-1", "", "class-1", nil), v1.PersistentVolumeReclaimRecycle)
+	volume = newProvisionOptions(newStorageClass("class-1", "foo.io/block", map[string]string{"pool": "testpool", "clusterNamespace": "testCluster", "fsType": "ext3", "dataBlockPool": "iamdatapool"}, v1.PersistentVolumeReclaimRecycle), newClaim("claim-1", "uid-1-1", "class-1", "", "class-1", nil), v1.PersistentVolumeReclaimRecycle)
 
 	pv, err = provisioner.Provision(volume)
 	assert.Nil(t, err)
@@ -139,7 +140,7 @@ func TestReclaimPolicyForProvisionedImages(t *testing.T) {
 
 	provisioner := New(context, "foo.io")
 	for _, reclaimPolicy := range []v1.PersistentVolumeReclaimPolicy{v1.PersistentVolumeReclaimDelete, v1.PersistentVolumeReclaimRetain, v1.PersistentVolumeReclaimRecycle} {
-		volume := newVolumeOptions(newStorageClass("class-1", "foo.io/block", map[string]string{"pool": "testpool", "clusterNamespace": "testCluster", "fsType": "ext3", "dataBlockPool": "iamdatapool"}, reclaimPolicy), newClaim("claim-1", "uid-1-1", "class-1", "", "class-1", nil), reclaimPolicy)
+		volume := newProvisionOptions(newStorageClass("class-1", "foo.io/block", map[string]string{"pool": "testpool", "clusterNamespace": "testCluster", "fsType": "ext3", "dataBlockPool": "iamdatapool"}, reclaimPolicy), newClaim("claim-1", "uid-1-1", "class-1", "", "class-1", nil), reclaimPolicy)
 		pv, err := provisioner.Provision(volume)
 		assert.Nil(t, err)
 
@@ -191,12 +192,14 @@ func TestParseClassParametersInvalidOption(t *testing.T) {
 	assert.EqualError(t, err, "invalid option \"foo\" for volume plugin rookVolumeProvisioner")
 }
 
-func newVolumeOptions(storageClass *storagebeta.StorageClass, claim *v1.PersistentVolumeClaim, reclaimPolicy v1.PersistentVolumeReclaimPolicy) controller.VolumeOptions {
-	return controller.VolumeOptions{
-		PersistentVolumeReclaimPolicy: reclaimPolicy,
-		PVName:                        "pvc-" + string(claim.ObjectMeta.UID),
-		PVC:                           claim,
-		Parameters:                    storageClass.Parameters,
+func newProvisionOptions(storageClass *storagebeta.StorageClass, claim *v1.PersistentVolumeClaim, reclaimPolicy v1.PersistentVolumeReclaimPolicy) controller.ProvisionOptions {
+	return controller.ProvisionOptions{
+		StorageClass: &storage.StorageClass{
+			ReclaimPolicy: &reclaimPolicy,
+			Parameters:    storageClass.Parameters,
+		},
+		PVName: "pvc-" + string(claim.ObjectMeta.UID),
+		PVC:    claim,
 	}
 }
 

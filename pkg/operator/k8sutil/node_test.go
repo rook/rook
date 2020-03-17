@@ -28,7 +28,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
-	scheduler "k8s.io/kubernetes/pkg/scheduler/api"
 )
 
 func createNode(nodeName string, condition v1.NodeConditionType, clientset *fake.Clientset) error {
@@ -91,7 +90,7 @@ func taintReservedForOther() v1.Taint {
 }
 
 func taintCordoned() v1.Taint {
-	return v1.Taint{Key: scheduler.TaintNodeUnschedulable, Effect: v1.TaintEffectNoSchedule}
+	return v1.Taint{Key: v1.TaintNodeUnschedulable, Effect: v1.TaintEffectNoSchedule}
 }
 
 func taintAllWellKnown() []v1.Taint {
@@ -200,11 +199,11 @@ func TestNodeIsReady(t *testing.T) {
 	}}}))
 	// if `Ready` condition does not exist, must assume that node is not ready
 	assert.False(t, NodeIsReady(v1.Node{Status: v1.NodeStatus{Conditions: []v1.NodeCondition{
-		{Type: v1.NodeOutOfDisk, Status: v1.ConditionTrue},
+		{Type: v1.NodeDiskPressure, Status: v1.ConditionTrue},
 	}}}))
 	// if `Ready` condition is not accompanied by a status, must assume that node is not ready
 	assert.False(t, NodeIsReady(v1.Node{Status: v1.NodeStatus{Conditions: []v1.NodeCondition{
-		{Type: v1.NodeOutOfDisk},
+		{Type: v1.NodeDiskPressure},
 	}}}))
 }
 

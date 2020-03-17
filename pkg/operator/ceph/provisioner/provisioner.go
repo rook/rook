@@ -72,14 +72,14 @@ func New(context *clusterd.Context, flexDriverVendor string) controller.Provisio
 }
 
 // Provision creates a storage asset and returns a PV object representing it.
-func (p *RookVolumeProvisioner) Provision(options controller.VolumeOptions) (*v1.PersistentVolume, error) {
+func (p *RookVolumeProvisioner) Provision(options controller.ProvisionOptions) (*v1.PersistentVolume, error) {
 
 	var err error
 	if options.PVC.Spec.Selector != nil {
 		return nil, errors.New("claim Selector is not supported")
 	}
 
-	cfg, err := parseClassParameters(options.Parameters)
+	cfg, err := parseClassParameters(options.StorageClass.Parameters)
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +132,7 @@ func (p *RookVolumeProvisioner) Provision(options controller.VolumeOptions) (*v1
 			Name: imageName,
 		},
 		Spec: v1.PersistentVolumeSpec{
-			PersistentVolumeReclaimPolicy: options.PersistentVolumeReclaimPolicy,
+			PersistentVolumeReclaimPolicy: *options.StorageClass.ReclaimPolicy,
 			AccessModes:                   options.PVC.Spec.AccessModes,
 			Capacity: v1.ResourceList{
 				v1.ResourceName(v1.ResourceStorage): quantity,
@@ -201,7 +201,7 @@ func (p *RookVolumeProvisioner) Delete(volume *v1.PersistentVolume) error {
 	return nil
 }
 
-func parseStorageClass(options controller.VolumeOptions) (string, error) {
+func parseStorageClass(options controller.ProvisionOptions) (string, error) {
 	if options.PVC.Spec.StorageClassName != nil {
 		return *options.PVC.Spec.StorageClassName, nil
 	}

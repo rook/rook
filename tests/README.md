@@ -97,7 +97,7 @@ tests/scripts/helm.sh up
 #### 3. Run integration tests:
 Integration tests can be run using tests binary `_output/tests/${platform}/integration` that is generated during build time e.g.:
 ```
-_output/tests/${platform}/integration/integration -test.v
+_output/tests/${platform}/integration -test.v
 ```
 
 ### Test parameters

@@ -42,8 +42,8 @@ func NewNFSProvisioner(clientset kubernetes.Interface, rookClientset rookclient.
 	return &nfsProvisioner{clientset, rookClientset}
 }
 
-func (p *nfsProvisioner) Provision(options controller.VolumeOptions) (*v1.PersistentVolume, error) {
-	logger.Infof("nfs provisioner: VolumeOptions %v", options)
+func (p *nfsProvisioner) Provision(options controller.ProvisionOptions) (*v1.PersistentVolume, error) {
+	logger.Infof("nfs provisioner: ProvisionOptions %v", options)
 
 	// Get the storage class for this volume.
 	storageClass, err := p.getClassForPVC(options.PVC)
@@ -79,9 +79,9 @@ func (p *nfsProvisioner) Provision(options controller.VolumeOptions) (*v1.Persis
 			Name: options.PVName,
 		},
 		Spec: v1.PersistentVolumeSpec{
-			PersistentVolumeReclaimPolicy: options.PersistentVolumeReclaimPolicy,
+			PersistentVolumeReclaimPolicy: *options.StorageClass.ReclaimPolicy,
 			AccessModes:                   options.PVC.Spec.AccessModes,
-			MountOptions:                  options.MountOptions,
+			MountOptions:                  options.StorageClass.MountOptions,
 			Capacity: v1.ResourceList{
 				v1.ResourceName(v1.ResourceStorage): options.PVC.Spec.Resources.Requests[v1.ResourceName(v1.ResourceStorage)],
 			},

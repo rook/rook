@@ -25,7 +25,8 @@ import (
 	"os"
 	"path"
 
-	k8smount "k8s.io/kubernetes/pkg/util/mount"
+	k8sexec "k8s.io/utils/exec"
+	k8smount "k8s.io/utils/mount"
 
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume"
 	"github.com/spf13/cobra"
@@ -69,7 +70,7 @@ func getDriverDir() (string, error) {
 func getMounter() *k8smount.SafeFormatAndMount {
 	return &k8smount.SafeFormatAndMount{
 		Interface: k8smount.New("" /* default mount path */),
-		Exec:      k8smount.NewOsExec(),
+		Exec:      k8sexec.New(),
 	}
 }
 

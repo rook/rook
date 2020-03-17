@@ -37,7 +37,6 @@ GO_SUBDIRS ?= cmd pkg
 GO_INTEGRATION_TESTS_SUBDIRS ?= tests
 
 # Optional directories (relative to CURDIR)
-GO_VENDOR_DIR ?= vendor
 GO_PKG_DIR ?= $(WORK_DIR)/pkg
 
 # Optional build flags passed to go tools
@@ -49,7 +48,7 @@ GO_TEST_FLAGS ?=
 # ====================================================================================
 # Setup go environment
 
-GO_SUPPORTED_VERSIONS ?= 1.11|1.12|1.13
+GO_SUPPORTED_VERSIONS ?= 1.13
 
 GO_PACKAGES := $(foreach t,$(GO_SUBDIRS),$(GO_PROJECT)/$(t)/...)
 GO_INTEGRATION_TEST_PACKAGES := $(foreach t,$(GO_INTEGRATION_TESTS_SUBDIRS),$(GO_PROJECT)/$(t)/integration)
@@ -65,8 +64,6 @@ endif
 GOPATH := $(shell go env GOPATH)
 
 # setup tools used during the build
-DEP_VERSION=v0.5.4
-DEP := $(TOOLS_HOST_DIR)/dep-$(DEP_VERSION)
 GOLINT := $(TOOLS_HOST_DIR)/golint
 GOJUNIT := $(TOOLS_HOST_DIR)/go-junit-report
 
@@ -120,7 +117,7 @@ endif
 endif
 
 .PHONY: go.init
-go.init: go.vendor.lite
+go.init:
 	@:
 
 .PHONY: go.build
@@ -166,38 +163,21 @@ go.fmt: $(GOFMT)
 
 go.validate: go.vet go.fmt
 
-.PHONY: go.vendor.lite
-go.vendor.lite: $(DEP)
-#	dep ensure blindly updates the whole vendor tree causing everything to be rebuilt. This workaround
-#	will only call dep ensure if the .lock file changes or if the vendor dir is non-existent.
-	@if [ ! -d $(GO_VENDOR_DIR) ]; then \
-		$(MAKE) go.vendor; \
-	elif ! $(DEP) ensure -no-vendor -dry-run &> /dev/null; then \
-		$(MAKE) go.vendor; \
-	fi
+.PHONY: go.mod.update
+go.mod.update:
+	@echo === updating modules
+	@$(GOHOST) get -u ./...
 
-.PHONY: go.vendor.check
-go.vendor.check: $(DEP)
-	@echo === checking if vendor deps changed
-	@$(DEP) check -skip-vendor
-	@echo === vendor deps have not changed
+.PHONY: go.mod.check
+go.mod.check:
+	@echo === ensuring modules are tidied
+	@$(GOHOST) mod tidy
 
-.PHONY: go.vendor
-go.vendor: $(DEP)
-	@echo === ensuring vendor dependencies are up to date
-	@$(DEP) ensure
-
-.PHONY: go.vendor.update
-go.vendor.update: $(DEP)
-	@echo === updating vendor dependencies
-	@$(DEP) ensure -update -v
-
-$(DEP):
-	@echo === installing dep
-	@mkdir -p $(TOOLS_HOST_DIR)/tmp
-	@curl -sL -o $(DEP) https://github.com/golang/dep/releases/download/$(DEP_VERSION)/dep-$(GOHOSTOS)-$(GOHOSTARCH)
-	@chmod +x $(DEP)
-	@rm -fr $(TOOLS_HOST_DIR)/tmp
+.PHONY: go.mod.clean
+go.mod.clean:
+	@echo === cleaning modules cache
+	@sudo rm -fr $(WORK_DIR)/cross_pkg
+	@$(GOHOST) clean -modcache
 
 $(GOLINT):
 	@echo === installing golint
@@ -216,8 +196,4 @@ $(GOJUNIT):
 	@echo === installing go-junit-report
 	@mkdir -p $(TOOLS_HOST_DIR)/tmp
 	@GOPATH=$(TOOLS_HOST_DIR)/tmp GOBIN=$(TOOLS_HOST_DIR) $(GOHOST) get github.com/jstemmer/go-junit-report
-	@rm -fr $(TOOLS_HOST_DIR)/tmp
-
-.PHONY: go.distclean
-go.distclean:
-	@rm -rf $(GO_VENDOR_DIR)
+	@$(GOHOST) clean -modcache

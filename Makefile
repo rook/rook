@@ -143,15 +143,15 @@ fmt:
 codegen:
 	@build/codegen/codegen.sh
 
-vendor: go.vendor
-vendor.check: go.vendor.check
-vendor.update: go.vendor.update
+mod.check: go.mod.check
+mod.update: go.mod.update
 
 clean:
+	@$(MAKE) go.mod.clean
 	@$(MAKE) -C images clean
 	@rm -fr $(OUTPUT_DIR) $(WORK_DIR)
 
-distclean: go.distclean clean
+distclean: clean
 	@rm -fr $(CACHE_DIR)
 
 prune:
@@ -161,7 +161,7 @@ csv-ceph:
 	@cluster/olm/ceph/generate-rook-csv.sh $(CSV_VERSION) $(CSV_PLATFORM) $(ROOK_OP_VERSION)
 
 .PHONY: all build.common cross.build.parallel
-.PHONY: build build.all install test check vet fmt codegen vendor clean distclean prune
+.PHONY: build build.all install test check vet fmt codegen mod.check clean distclean prune
 
 # ====================================================================================
 # Help
@@ -186,9 +186,9 @@ Targets:
     prune              Prune cached artifacts.
     test               Runs unit tests.
     test-integration   Runs integration tests.
-    vendor             Update vendor dependencies.
+    mod.check          Check / Tidy current modules.
+    mod.update         Update all modules.
     vendor.check       Checks if vendor dependencies changed.
-    vendor.update      Update all vendor dependencies.
     vet                Runs lint checks on go sources.
 
 Options:

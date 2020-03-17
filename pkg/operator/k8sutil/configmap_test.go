@@ -92,6 +92,7 @@ func TestGetOperatorSetting(t *testing.T) {
 	assert.Equal(t, envSettingValue, setting)
 
 	// ConfigMap is found
+	os.Setenv("POD_NAMESPACE", testNamespace)
 	_, err = k8s.CoreV1().ConfigMaps(testNamespace).Create(cm)
 	assert.NoError(t, err)
 
