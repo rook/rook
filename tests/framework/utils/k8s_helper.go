@@ -350,7 +350,7 @@ func (k8sh *K8sHelper) DeleteResource(args ...string) error {
 func (k8sh *K8sHelper) WaitForCustomResourceDeletion(namespace string, checkerFunc func() error) error {
 
 	// wait for the operator to finalize and delete the CRD
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 30; i++ {
 		err := checkerFunc()
 		if err == nil {
 			logger.Infof("custom resource %s still exists", namespace)

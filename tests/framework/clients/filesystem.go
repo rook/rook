@@ -82,8 +82,13 @@ func (f *FilesystemOperation) Delete(name, namespace string) error {
 		return err
 	}
 
+	crdCheckerFunc := func() error {
+		_, err := f.k8sh.RookClientset.CephV1().CephFilesystems(namespace).Get(name, metav1.GetOptions{})
+		return err
+	}
+
 	logger.Infof("Deleted filesystem %s in namespace %s", name, namespace)
-	return nil
+	return f.k8sh.WaitForCustomResourceDeletion(namespace, crdCheckerFunc)
 }
 
 // List lists filesystems in Rook

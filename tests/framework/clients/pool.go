@@ -116,6 +116,19 @@ func (p *PoolOperation) DeletePool(blockClient *BlockOperation, namespace, poolN
 		}
 	}
 
-	logger.Infof("deleting pool %q", poolName)
-	return p.k8sh.RookClientset.CephV1().CephBlockPools(namespace).Delete(poolName, &metav1.DeleteOptions{})
+	logger.Infof("deleting pool CR %q", poolName)
+	err := p.k8sh.RookClientset.CephV1().CephBlockPools(namespace).Delete(poolName, &metav1.DeleteOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
+		return fmt.Errorf("failed to delete pool CR. %v", err)
+	}
+
+	crdCheckerFunc := func() error {
+		_, err := p.k8sh.RookClientset.CephV1().CephBlockPools(namespace).Get(poolName, metav1.GetOptions{})
+		return err
+	}
+
+	return p.k8sh.WaitForCustomResourceDeletion(namespace, crdCheckerFunc)
 }
