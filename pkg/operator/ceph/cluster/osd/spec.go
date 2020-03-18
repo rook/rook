@@ -823,6 +823,9 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 	osdOnPVCMetadata := osdProps.metadataPVC.ClaimName != ""
 	envVars := c.getConfigEnvVars(osdProps, k8sutil.DataDir)
 
+	// enable debug logging in the prepare job
+	envVars = append(envVars, setDebugLogLevelEnvVar(true))
+
 	// only 1 of device list, device filter, device path filter and use all devices can be specified.  We prioritize in that order.
 	if len(osdProps.devices) > 0 {
 		deviceNames := make([]string, len(osdProps.devices))
@@ -1008,6 +1011,14 @@ func metadataDeviceEnvVar(metadataDevice string) v1.EnvVar {
 
 func pvcBackedOSDEnvVar(pvcBacked string) v1.EnvVar {
 	return v1.EnvVar{Name: pvcBackedOSDVarName, Value: pvcBacked}
+}
+
+func setDebugLogLevelEnvVar(debug bool) v1.EnvVar {
+	level := "INFO"
+	if debug {
+		level = "DEBUG"
+	}
+	return v1.EnvVar{Name: "ROOK_LOG_LEVEL", Value: level}
 }
 
 func blockPathEnvVariable(lvPath string) v1.EnvVar {
