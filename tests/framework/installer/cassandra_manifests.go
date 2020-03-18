@@ -18,6 +18,7 @@ package installer
 
 import (
 	"fmt"
+
 	cassandrav1alpha1 "github.com/rook/rook/pkg/apis/cassandra.rook.io/v1alpha1"
 )
 
@@ -127,7 +128,6 @@ kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-cassandra-operator
-  namespace: %[1]s
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole

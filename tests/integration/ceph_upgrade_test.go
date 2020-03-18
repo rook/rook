@@ -465,7 +465,6 @@ kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-ceph-osd
-  namespace: ` + namespace + `
 rules:
 - apiGroups:
   - ""

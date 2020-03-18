@@ -993,7 +993,6 @@ kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-ceph-global
-  namespace: ` + namespace + `
   labels:
     operator: rook
     storage-backend: ceph

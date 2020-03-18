@@ -748,7 +748,6 @@ kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-ceph-mgr-system
-  namespace: ` + namespace + `
 aggregationRule:
   clusterRoleSelectors:
   - matchLabels:
@@ -759,7 +758,6 @@ kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-ceph-mgr-system-rules
-  namespace: ` + namespace + `
   labels:
     rbac.ceph.rook.io/aggregate-to-rook-ceph-mgr-system: "true"
 rules:
@@ -802,7 +800,6 @@ kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-ceph-global
-  namespace: ` + namespace + `
   labels:
     operator: rook
     storage-backend: ceph
