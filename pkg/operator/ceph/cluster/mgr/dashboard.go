@@ -20,7 +20,6 @@ package mgr
 import (
 	"context"
 	"crypto/rand"
-	"os/exec"
 	"strconv"
 	"syscall"
 	"time"
@@ -208,16 +207,6 @@ func (c *Cluster) createSelfSignedCert() (bool, error) {
 		break
 	}
 	return false, nil
-}
-
-// Get the return code from the process
-func getExitCode(err error) (int, bool) {
-	if exiterr, ok := err.(*exec.ExitError); ok {
-		if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-			return status.ExitStatus(), true
-		}
-	}
-	return 0, false
 }
 
 func (c *Cluster) setLoginCredentials(password string) error {

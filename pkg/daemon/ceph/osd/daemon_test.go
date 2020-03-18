@@ -137,23 +137,23 @@ USEC_INITIALIZED=15981915740802
 func TestAvailableDevices(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	// set up a mock function to return "rook owned" partitions on the device and it does not have a filesystem
-	executor.MockExecuteCommandWithOutput = func(debug bool, name string, command string, args ...string) (string, error) {
-		logger.Infof("OUTPUT for %s. %s %+v", name, command, args)
+	executor.MockExecuteCommandWithOutput = func(debug bool, command string, args ...string) (string, error) {
+		logger.Infof("OUTPUT for %s %v", command, args)
 
 		if command == "lsblk" {
-			if strings.Index(name, "sdb") != -1 {
+			if strings.Index(args[3], "sdb") != -1 {
 				// /dev/sdb has a partition
 				return `NAME="sdb" SIZE="65" TYPE="disk" PKNAME=""
 NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 			}
 			return "", nil
 		} else if command == "blkid" {
-			if strings.Index(name, "sdb1") != -1 {
+			if strings.Index(args[3], "sdb1") != -1 {
 				// partition sdb1 has a label MY-PART
 				return "MY-PART", nil
 			}
 		} else if command == "udevadm" {
-			if strings.Index(name, "sdc") != -1 {
+			if strings.Index(args[3], "sdc") != -1 {
 				// /dev/sdc has a file system
 				return udevFSOutput, nil
 			}

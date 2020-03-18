@@ -96,8 +96,7 @@ func CreateImage(context *clusterd.Context, clusterName, name, poolName, dataPoo
 
 	buf, err := NewRBDCommand(context, clusterName, args).Run()
 	if err != nil {
-		cmdErr, ok := err.(*exec.CommandError)
-		if ok && cmdErr.ExitStatus() == int(syscall.EEXIST) {
+		if code, ok := exec.ExitStatus(err); ok && code == int(syscall.EEXIST) {
 			// Image with the same name already exists in the given rbd pool. Continuing with the link to PV.
 			logger.Warningf("Requested image %s exists in pool %s. Continuing", name, poolName)
 		} else {

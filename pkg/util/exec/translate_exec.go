@@ -16,8 +16,6 @@ limitations under the License.
 package exec
 
 import (
-	"fmt"
-	"os"
 	"time"
 )
 
@@ -30,48 +28,43 @@ type TranslateCommandExecutor struct {
 	Executor Executor
 
 	// Translator translates every command before running it
-	Translator func(debug bool, actionName string, command string, arg ...string) (string, []string)
+	Translator func(suppressLogOutput bool, command string, arg ...string) (string, []string)
 }
 
 // ExecuteCommand starts a process and wait for its completion
-func (e *TranslateCommandExecutor) ExecuteCommand(debug bool, actionName string, command string, arg ...string) error {
-	transCommand, transArgs := e.Translator(debug, actionName, command, arg...)
-	return e.Executor.ExecuteCommand(debug, actionName, transCommand, transArgs...)
+func (e *TranslateCommandExecutor) ExecuteCommand(suppressLogOutput bool, command string, arg ...string) error {
+	transCommand, transArgs := e.Translator(suppressLogOutput, command, arg...)
+	return e.Executor.ExecuteCommand(suppressLogOutput, transCommand, transArgs...)
 }
 
 // ExecuteCommandWithOutput starts a process and wait for its completion
-func (e *TranslateCommandExecutor) ExecuteCommandWithOutput(debug bool, actionName string, command string, arg ...string) (string, error) {
-	transCommand, transArgs := e.Translator(debug, actionName, command, arg...)
-	return e.Executor.ExecuteCommandWithOutput(debug, actionName, transCommand, transArgs...)
+func (e *TranslateCommandExecutor) ExecuteCommandWithOutput(suppressLogOutput bool, command string, arg ...string) (string, error) {
+	transCommand, transArgs := e.Translator(suppressLogOutput, command, arg...)
+	return e.Executor.ExecuteCommandWithOutput(suppressLogOutput, transCommand, transArgs...)
 }
 
 // ExecuteCommandWithCombinedOutput starts a process and returns its stdout and stderr combined.
-func (e *TranslateCommandExecutor) ExecuteCommandWithCombinedOutput(debug bool, actionName string, command string, arg ...string) (string, error) {
-	transCommand, transArgs := e.Translator(debug, actionName, command, arg...)
-	return e.Executor.ExecuteCommandWithCombinedOutput(debug, actionName, transCommand, transArgs...)
+func (e *TranslateCommandExecutor) ExecuteCommandWithCombinedOutput(suppressLogOutput bool, command string, arg ...string) (string, error) {
+	transCommand, transArgs := e.Translator(suppressLogOutput, command, arg...)
+	return e.Executor.ExecuteCommandWithCombinedOutput(suppressLogOutput, transCommand, transArgs...)
 }
 
 // ExecuteCommandWithOutputFile starts a process and saves output to file
-func (e *TranslateCommandExecutor) ExecuteCommandWithOutputFile(debug bool, actionName string, command, outfileArg string, arg ...string) (string, error) {
-	transCommand, transArgs := e.Translator(debug, actionName, command, arg...)
-	return e.Executor.ExecuteCommandWithOutputFile(debug, actionName, transCommand, outfileArg, transArgs...)
+func (e *TranslateCommandExecutor) ExecuteCommandWithOutputFile(suppressLogOutput bool, command, outfileArg string, arg ...string) (string, error) {
+	transCommand, transArgs := e.Translator(suppressLogOutput, command, arg...)
+	return e.Executor.ExecuteCommandWithOutputFile(suppressLogOutput, transCommand, outfileArg, transArgs...)
 }
 
 // ExecuteCommandWithOutputFileTimeout is the same as ExecuteCommandWithOutputFile but with a timeout limit.
 func (e *TranslateCommandExecutor) ExecuteCommandWithOutputFileTimeout(
-	debug bool, timeout time.Duration, actionName string,
+	suppressLogOutput bool, timeout time.Duration,
 	command, outfileArg string, arg ...string) (string, error) {
-	transCommand, transArgs := e.Translator(debug, actionName, command, arg...)
-	return e.Executor.ExecuteCommandWithOutputFileTimeout(debug, timeout, actionName, transCommand, outfileArg, transArgs...)
+	transCommand, transArgs := e.Translator(suppressLogOutput, command, arg...)
+	return e.Executor.ExecuteCommandWithOutputFileTimeout(suppressLogOutput, timeout, transCommand, outfileArg, transArgs...)
 }
 
 // ExecuteCommandWithTimeout starts a process and wait for its completion with timeout.
-func (e *TranslateCommandExecutor) ExecuteCommandWithTimeout(debug bool, timeout time.Duration, actionName string, command string, arg ...string) (string, error) {
-	transCommand, transArgs := e.Translator(debug, actionName, command, arg...)
-	return e.Executor.ExecuteCommandWithTimeout(debug, timeout, actionName, transCommand, transArgs...)
-}
-
-// ExecuteStat returns a file stat
-func (e *TranslateCommandExecutor) ExecuteStat(name string) (os.FileInfo, error) {
-	return nil, fmt.Errorf("TODO: TranslateCommandExecutor.ExecuteStat() not implemented ... is it needed?")
+func (e *TranslateCommandExecutor) ExecuteCommandWithTimeout(suppressLogOutput bool, timeout time.Duration, command string, arg ...string) (string, error) {
+	transCommand, transArgs := e.Translator(suppressLogOutput, command, arg...)
+	return e.Executor.ExecuteCommandWithTimeout(suppressLogOutput, timeout, transCommand, transArgs...)
 }

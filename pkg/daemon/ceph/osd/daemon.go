@@ -68,23 +68,23 @@ func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID, lvPath string,
 
 		go handleTerminate(context, lvPath, volumeGroupName)
 
-		if err := context.Executor.ExecuteCommand(false, "", "vgchange", "-an", volumeGroupName); err != nil {
+		if err := context.Executor.ExecuteCommand(false, "vgchange", "-an", volumeGroupName); err != nil {
 			return errors.Wrapf(err, "failed to deactivate volume group for lv %q", lvPath)
 		}
 
-		if err := context.Executor.ExecuteCommand(false, "", "vgchange", "-ay", volumeGroupName); err != nil {
+		if err := context.Executor.ExecuteCommand(false, "vgchange", "-ay", volumeGroupName); err != nil {
 			return errors.Wrapf(err, "failed to activate volume group for lv %q", lvPath)
 		}
 	}
 
 	// activate the osd with ceph-volume
 	storeFlag := "--" + osdType
-	if err := context.Executor.ExecuteCommand(false, "", "stdbuf", "-oL", "ceph-volume", "lvm", "activate", "--no-systemd", storeFlag, osdID, osdUUID); err != nil {
+	if err := context.Executor.ExecuteCommand(false, "stdbuf", "-oL", "ceph-volume", "lvm", "activate", "--no-systemd", storeFlag, osdID, osdUUID); err != nil {
 		return errors.Wrapf(err, "failed to activate osd")
 	}
 
 	// run the ceph-osd daemon
-	if err := context.Executor.ExecuteCommand(false, "", "ceph-osd", cephArgs...); err != nil {
+	if err := context.Executor.ExecuteCommand(false, "ceph-osd", cephArgs...); err != nil {
 		// Instead of returning, we want to allow the lvm release to happen below, so we just log the err
 		logger.Errorf("failed to start osd or shutting down. %v", err)
 	}
@@ -131,7 +131,7 @@ func killCephOSDProcess(context *clusterd.Context, lvPath string) error {
 		// been testing with kill -9 so this is expected to be safe. There is a fix upstream Ceph that will
 		// improve the shutdown time of the OSD. For cleanliness we should consider removing the -9
 		// once it is backported to Nautilus: https://github.com/ceph/ceph/pull/31677.
-		if err := context.Executor.ExecuteCommand(false, "", "kill", "-9", pid); err != nil {
+		if err := context.Executor.ExecuteCommand(false, "kill", "-9", pid); err != nil {
 			return errors.Wrapf(err, "failed to kill ceph-osd process")
 		}
 	}
@@ -429,7 +429,7 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 
 // releaseLVMDevice deactivates the LV to release the device.
 func releaseLVMDevice(context *clusterd.Context, volumeGroupName string) error {
-	if err := context.Executor.ExecuteCommand(false, "", "lvchange", "-an", volumeGroupName); err != nil {
+	if err := context.Executor.ExecuteCommand(false, "lvchange", "-an", volumeGroupName); err != nil {
 		return errors.Wrapf(err, "failed to deactivate LVM %s", volumeGroupName)
 	}
 	logger.Info("Successfully released device from lvm")

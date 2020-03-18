@@ -37,6 +37,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/exec"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -121,7 +122,7 @@ func New(
 		resources:         resources,
 		priorityClassName: priorityClassName,
 		ownerRef:          ownerRef,
-		exitCode:          getExitCode,
+		exitCode:          exec.ExitStatus,
 		dataDirHostPath:   dataDirHostPath,
 		skipUpgradeChecks: skipUpgradeChecks,
 	}

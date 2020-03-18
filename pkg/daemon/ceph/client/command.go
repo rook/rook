@@ -138,22 +138,22 @@ func (c *CephToolCommand) run() ([]byte, error) {
 			// file in the wrong place, so we will instead capture the output
 			// from stdout for the tests
 			if c.timeout == 0 {
-				output, err = c.context.Executor.ExecuteCommandWithOutput(c.Debug, "", command, args...)
+				output, err = c.context.Executor.ExecuteCommandWithOutput(c.Debug, command, args...)
 			} else {
-				output, err = c.context.Executor.ExecuteCommandWithTimeout(c.Debug, c.timeout, "", command, args...)
+				output, err = c.context.Executor.ExecuteCommandWithTimeout(c.Debug, c.timeout, command, args...)
 			}
 		} else {
 			if c.timeout == 0 {
-				output, err = c.context.Executor.ExecuteCommandWithOutputFile(c.Debug, "", command, "--out-file", args...)
+				output, err = c.context.Executor.ExecuteCommandWithOutputFile(c.Debug, command, "--out-file", args...)
 			} else {
-				output, err = c.context.Executor.ExecuteCommandWithOutputFileTimeout(c.Debug, c.timeout, "", command, "--out-file", args...)
+				output, err = c.context.Executor.ExecuteCommandWithOutputFileTimeout(c.Debug, c.timeout, command, "--out-file", args...)
 			}
 		}
 	} else {
 		if c.timeout == 0 {
-			output, err = c.context.Executor.ExecuteCommandWithOutput(c.Debug, "", command, args...)
+			output, err = c.context.Executor.ExecuteCommandWithOutput(c.Debug, command, args...)
 		} else {
-			output, err = c.context.Executor.ExecuteCommandWithTimeout(c.Debug, c.timeout, "", command, args...)
+			output, err = c.context.Executor.ExecuteCommandWithTimeout(c.Debug, c.timeout, command, args...)
 		}
 	}
 
@@ -175,7 +175,7 @@ func (c *CephToolCommand) RunWithTimeout(timeout time.Duration) ([]byte, error) 
 // configured its arguments. It is future work to integrate this case into the
 // generalization.
 func ExecuteRBDCommandWithTimeout(context *clusterd.Context, clusterName string, args []string) (string, error) {
-	output, err := context.Executor.ExecuteCommandWithTimeout(false, CmdExecuteTimeout, "", RBDTool, args...)
+	output, err := context.Executor.ExecuteCommandWithTimeout(false, CmdExecuteTimeout, RBDTool, args...)
 	return output, err
 }
 

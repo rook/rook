@@ -166,7 +166,7 @@ func TestCephObjectStoreController(t *testing.T) {
 	}
 
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(debug bool, actionName, command, outfile string, args ...string) (string, error) {
+		MockExecuteCommandWithOutputFile: func(debug bool, command, outfile string, args ...string) (string, error) {
 			if args[0] == "status" {
 				return `{"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
 			}
@@ -175,7 +175,7 @@ func TestCephObjectStoreController(t *testing.T) {
 			}
 			return "", nil
 		},
-		MockExecuteCommandWithOutput: func(debug bool, actionName, command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(debug bool, command string, args ...string) (string, error) {
 			if args[0] == "realm" && args[1] == "list" {
 				return realmListJSON, nil
 			}

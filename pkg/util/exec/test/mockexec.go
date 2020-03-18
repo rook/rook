@@ -16,76 +16,66 @@ limitations under the License.
 package test
 
 import (
-	"os"
 	"os/exec"
 	"time"
 )
 
 // ******************** MockExecutor ********************
 type MockExecutor struct {
-	MockExecuteCommand                      func(debug bool, actionName string, command string, arg ...string) error
-	MockStartExecuteCommand                 func(debug bool, actionName string, command string, arg ...string) (*exec.Cmd, error)
-	MockExecuteCommandWithOutput            func(debug bool, actionName string, command string, arg ...string) (string, error)
-	MockExecuteCommandWithCombinedOutput    func(debug bool, actionName string, command string, arg ...string) (string, error)
-	MockExecuteCommandWithOutputFile        func(debug bool, actionName string, command, outfileArg string, arg ...string) (string, error)
-	MockExecuteCommandWithOutputFileTimeout func(debug bool, timeout time.Duration, actionName string, command, outfileArg string, arg ...string) (string, error)
-	MockExecuteCommandWithTimeout           func(debug bool, timeout time.Duration, actionName string, command string, arg ...string) (string, error)
-	MockExecuteStat                         func(name string) (os.FileInfo, error)
+	MockExecuteCommand                      func(suppressLogOutput bool, command string, arg ...string) error
+	MockStartExecuteCommand                 func(suppressLogOutput bool, command string, arg ...string) (*exec.Cmd, error)
+	MockExecuteCommandWithOutput            func(suppressLogOutput bool, command string, arg ...string) (string, error)
+	MockExecuteCommandWithCombinedOutput    func(suppressLogOutput bool, command string, arg ...string) (string, error)
+	MockExecuteCommandWithOutputFile        func(suppressLogOutput bool, command, outfileArg string, arg ...string) (string, error)
+	MockExecuteCommandWithOutputFileTimeout func(suppressLogOutput bool, timeout time.Duration, command, outfileArg string, arg ...string) (string, error)
+	MockExecuteCommandWithTimeout           func(suppressLogOutput bool, timeout time.Duration, command string, arg ...string) (string, error)
 }
 
-func (e *MockExecutor) ExecuteCommand(debug bool, actionName string, command string, arg ...string) error {
+func (e *MockExecutor) ExecuteCommand(suppressLogOutput bool, command string, arg ...string) error {
 	if e.MockExecuteCommand != nil {
-		return e.MockExecuteCommand(debug, actionName, command, arg...)
+		return e.MockExecuteCommand(suppressLogOutput, command, arg...)
 	}
 
 	return nil
 }
 
-func (e *MockExecutor) ExecuteCommandWithOutput(debug bool, actionName string, command string, arg ...string) (string, error) {
+func (e *MockExecutor) ExecuteCommandWithOutput(suppressLogOutput bool, command string, arg ...string) (string, error) {
 	if e.MockExecuteCommandWithOutput != nil {
-		return e.MockExecuteCommandWithOutput(debug, actionName, command, arg...)
+		return e.MockExecuteCommandWithOutput(suppressLogOutput, command, arg...)
 	}
 
 	return "", nil
 }
 
-func (e *MockExecutor) ExecuteCommandWithTimeout(debug bool, timeout time.Duration, actionName string, command string, arg ...string) (string, error) {
+func (e *MockExecutor) ExecuteCommandWithTimeout(suppressLogOutput bool, timeout time.Duration, command string, arg ...string) (string, error) {
 
 	if e.MockExecuteCommandWithTimeout != nil {
-		return e.MockExecuteCommandWithTimeout(debug, time.Second, actionName, command, arg...)
+		return e.MockExecuteCommandWithTimeout(suppressLogOutput, time.Second, command, arg...)
 	}
 
 	return "", nil
 }
 
-func (e *MockExecutor) ExecuteCommandWithCombinedOutput(debug bool, actionName string, command string, arg ...string) (string, error) {
+func (e *MockExecutor) ExecuteCommandWithCombinedOutput(suppressLogOutput bool, command string, arg ...string) (string, error) {
 	if e.MockExecuteCommandWithCombinedOutput != nil {
-		return e.MockExecuteCommandWithCombinedOutput(debug, actionName, command, arg...)
+		return e.MockExecuteCommandWithCombinedOutput(suppressLogOutput, command, arg...)
 	}
 
 	return "", nil
 }
 
-func (e *MockExecutor) ExecuteCommandWithOutputFile(debug bool, actionName string, command, outfileArg string, arg ...string) (string, error) {
+func (e *MockExecutor) ExecuteCommandWithOutputFile(suppressLogOutput bool, command, outfileArg string, arg ...string) (string, error) {
 	if e.MockExecuteCommandWithOutputFile != nil {
-		return e.MockExecuteCommandWithOutputFile(debug, actionName, command, outfileArg, arg...)
+		return e.MockExecuteCommandWithOutputFile(suppressLogOutput, command, outfileArg, arg...)
 	}
 
 	return "", nil
 }
 
-func (e *MockExecutor) ExecuteCommandWithOutputFileTimeout(debug bool, timeout time.Duration, actionName string, command, outfileArg string, arg ...string) (string, error) {
+func (e *MockExecutor) ExecuteCommandWithOutputFileTimeout(suppressLogOutput bool, timeout time.Duration, command, outfileArg string, arg ...string) (string, error) {
 	if e.MockExecuteCommandWithOutputFileTimeout != nil {
-		return e.MockExecuteCommandWithOutputFileTimeout(debug, timeout, actionName, command, outfileArg, arg...)
+		return e.MockExecuteCommandWithOutputFileTimeout(suppressLogOutput, timeout, command, outfileArg, arg...)
 	}
 
 	return "", nil
-}
-
-func (e *MockExecutor) ExecuteStat(name string) (os.FileInfo, error) {
-	if e.MockExecuteStat != nil {
-		return e.MockExecuteStat(name)
-	}
-
-	return nil, nil
 }

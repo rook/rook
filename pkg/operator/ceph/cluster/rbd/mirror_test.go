@@ -34,7 +34,7 @@ func TestRBDMirror(t *testing.T) {
 	clientset := testop.New(t, 1)
 	keysCreated := map[string]bool{}
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutputFile = func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutputFile = func(debug bool, command string, outFileArg string, args ...string) (string, error) {
 		logger.Infof("%s %+v", command, args)
 		if args[0] == "auth" && args[1] == "get-or-create-key" {
 			daemonName := args[2]

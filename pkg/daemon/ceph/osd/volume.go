@@ -294,7 +294,7 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 			}
 
 			// execute ceph-volume with the device
-			op, err := context.Executor.ExecuteCommandWithCombinedOutput(false, "", baseCommand, immediateExecuteArgs...)
+			op, err := context.Executor.ExecuteCommandWithCombinedOutput(false, baseCommand, immediateExecuteArgs...)
 			if err != nil {
 				cvLogFilePath := path.Join(cvLogDir, "ceph-volume.log")
 
@@ -487,12 +487,12 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 				logger.Infof("Base command - %+v", baseCommand)
 				logger.Infof("immediateReportArgs - %+v", baseCommand)
 				logger.Infof("immediateExecuteArgs - %+v", immediateExecuteArgs)
-				if err := context.Executor.ExecuteCommand(false, "", baseCommand, immediateReportArgs...); err != nil {
+				if err := context.Executor.ExecuteCommand(false, baseCommand, immediateReportArgs...); err != nil {
 					return errors.Wrapf(err, "failed ceph-volume report") // fail return here as validation provided by ceph-volume
 				}
 
 				// execute ceph-volume immediately with the device-specific setting instead of batching up multiple devices together
-				if err := context.Executor.ExecuteCommand(false, "", baseCommand, immediateExecuteArgs...); err != nil {
+				if err := context.Executor.ExecuteCommand(false, baseCommand, immediateExecuteArgs...); err != nil {
 					return errors.Wrapf(err, "failed ceph-volume")
 				}
 
@@ -535,7 +535,7 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 			"--report",
 		}...)
 
-		if err := context.Executor.ExecuteCommand(false, "", baseCommand, reportArgs...); err != nil {
+		if err := context.Executor.ExecuteCommand(false, baseCommand, reportArgs...); err != nil {
 			return errors.Wrapf(err, "failed ceph-volume report") // fail return here as validation provided by ceph-volume
 		}
 
@@ -544,7 +544,7 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 			"json",
 		}...)
 
-		cvOut, err := context.Executor.ExecuteCommandWithCombinedOutput(false, "", baseCommand, reportArgs...)
+		cvOut, err := context.Executor.ExecuteCommandWithCombinedOutput(false, baseCommand, reportArgs...)
 		if err != nil {
 			return errors.Wrapf(err, "failed ceph-volume json report: %s", cvOut) // fail return here as validation provided by ceph-volume
 		}
@@ -561,7 +561,7 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 		}
 
 		// execute ceph-volume batching up multiple devices
-		if err := context.Executor.ExecuteCommand(false, "", baseCommand, mdArgs...); err != nil {
+		if err := context.Executor.ExecuteCommand(false, baseCommand, mdArgs...); err != nil {
 			return errors.Wrapf(err, "failed ceph-volume") // fail return here as validation provided by ceph-volume
 		}
 	}
@@ -587,7 +587,7 @@ func getCephVolumeLVMOSDs(context *clusterd.Context, clusterName string, cephfsi
 	// lv can be a block device if raw mode is used
 	cvMode := "lvm"
 
-	result, err := context.Executor.ExecuteCommandWithOutput(false, "", cephVolumeCmd, cvMode, "list", lv, "--format", "json")
+	result, err := context.Executor.ExecuteCommandWithOutput(false, cephVolumeCmd, cvMode, "list", lv, "--format", "json")
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to retrieve ceph-volume %s list results", cvMode)
 	}
@@ -664,7 +664,7 @@ func getCephVolumeRawOSDs(context *clusterd.Context, clusterName string, cephfsi
 	// lv can be a block device if raw mode is used
 	cvMode := "raw"
 
-	result, err := context.Executor.ExecuteCommandWithOutput(false, "", cephVolumeCmd, cvMode, "list", block, "--format", "json")
+	result, err := context.Executor.ExecuteCommandWithOutput(false, cephVolumeCmd, cvMode, "list", block, "--format", "json")
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to retrieve ceph-volume %s list results", cvMode)
 	}

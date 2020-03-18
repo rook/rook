@@ -84,14 +84,14 @@ func newTestStartClusterWithQuorumResponse(t *testing.T, namespace string, monRe
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(debug bool, command string, args ...string) (string, error) {
 			if strings.Contains(command, "ceph-authtool") {
 				err := cephtest.CreateConfigDir(path.Join(configDir, namespace))
 				return "", errors.Wrapf(err, "failed testing of start cluster without quorum response")
 			}
 			return "", nil
 		},
-		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
+		MockExecuteCommandWithOutputFile: func(debug bool, command string, outFileArg string, args ...string) (string, error) {
 			// mock quorum health check because a second `Start()` triggers a health check
 			return monResponse()
 		},

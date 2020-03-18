@@ -46,7 +46,7 @@ func TestProvisionImage(t *testing.T) {
 	defer os.Setenv("POD_NAMESPACE", "")
 	defer os.RemoveAll(configDir)
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(debug bool, command string, args ...string) (string, error) {
 			if strings.Contains(command, "ceph-authtool") {
 				err := cephtest.CreateConfigDir(path.Join(configDir, namespace))
 				assert.Nil(t, err)
@@ -113,7 +113,7 @@ func TestReclaimPolicyForProvisionedImages(t *testing.T) {
 	defer os.Setenv("POD_NAMESPACE", "")
 	defer os.RemoveAll(configDir)
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(debug bool, command string, args ...string) (string, error) {
 			if strings.Contains(command, "ceph-authtool") {
 				err := cephtest.CreateConfigDir(path.Join(configDir, namespace))
 				assert.Nil(t, err)

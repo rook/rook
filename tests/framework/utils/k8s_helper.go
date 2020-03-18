@@ -128,7 +128,7 @@ func (k8sh *K8sHelper) SetDeploymentVersion(namespace, deploymentName, container
 
 // Kubectl is wrapper for executing kubectl commands
 func (k8sh *K8sHelper) Kubectl(args ...string) (string, error) {
-	result, err := k8sh.executor.ExecuteCommandWithTimeout(false, 15*time.Second, "kubectl", "kubectl", args...)
+	result, err := k8sh.executor.ExecuteCommandWithTimeout(false, 15*time.Second, "kubectl", args...)
 	if err != nil {
 		k8slogger.Errorf("Failed to execute: kubectl %+v : %+v. %s", args, err, result)
 		if args[0] == "delete" {

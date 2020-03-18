@@ -127,15 +127,13 @@ func (c *CephNFSController) addRADOSConfigFile(n cephv1.CephNFS, name string) er
 		"--namespace", n.Spec.RADOS.Namespace,
 		"--conf", cephclient.CephConfFilePath(c.context.ConfigDir, c.namespace),
 	}
-	moniker := "rados stat " + config
-	err := c.context.Executor.ExecuteCommand(false, moniker, cmd, append(args, "stat", config)...)
+	err := c.context.Executor.ExecuteCommand(false, cmd, append(args, "stat", config)...)
 	if err == nil {
 		// If stat works then we assume it's present already
 		return nil
 	}
 	// try to create it
-	moniker = "rados create " + config
-	return c.context.Executor.ExecuteCommand(false, moniker, cmd, append(args, "create", config)...)
+	return c.context.Executor.ExecuteCommand(false, cmd, append(args, "create", config)...)
 }
 
 func (c *CephNFSController) addServerToDatabase(nfs cephv1.CephNFS, name string) {
@@ -173,7 +171,7 @@ stderr: %s`, moniker, x.Stdout, x.Stderr)
 	}
 	return nil
 	// The below can be used when/if `ganesha-rados-grace` supports a `--cephconf` or similar option
-	// return c.context.Executor.ExecuteCommand(false, moniker, cmd, args...)
+	// return c.context.Executor.ExecuteCommand(false, cmd, args...)
 }
 
 func (c *CephNFSController) generateConfig(n cephv1.CephNFS, name string) (string, error) {
