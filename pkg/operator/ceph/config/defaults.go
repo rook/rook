@@ -67,8 +67,8 @@ func DefaultCentralizedConfigs(cephVersion version.CephVersion) []Option {
 		}...)
 	}
 
-	// For Octopus
-	if cephVersion.IsAtLeastOctopus() {
+	// For Pacific
+	if cephVersion.IsAtLeastPacific() {
 		overrides = append(overrides, []Option{
 			configOverride("global", "mon allow pool size one", "true"),
 		}...)
