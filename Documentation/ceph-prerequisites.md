@@ -29,8 +29,18 @@ sudo yum install -y lvm2
 
 Ubuntu:
 
-```
+```console
 sudo apt-get install -y lvm2
+```
+
+RancherOS:
+
+- Since version [1.5.0](https://github.com/rancher/os/issues/2551) LVM is supported
+- Logical volumes [will not be activated](https://github.com/rook/rook/issues/5027) during the boot process. You need to add an [runcmd command](https://rancher.com/docs/os/v1.x/en/installation/configuration/running-commands/) for that.
+
+```yaml
+runcmd:
+- [ vgchange, -ay ]
 ```
 
 ## Ceph Flexvolume Configuration
