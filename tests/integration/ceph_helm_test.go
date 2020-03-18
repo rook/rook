@@ -98,5 +98,5 @@ func (hs *HelmSuite) TestFileStoreOnRookInstalledViaHelm() {
 
 // Test Object StoreCreation on Rook that was installed via helm
 func (hs *HelmSuite) TestObjectStoreOnRookInstalledViaHelm() {
-	runObjectE2ETestLite(hs.helper, hs.kh, hs.Suite, hs.namespace, "default", 3)
+	runObjectE2ETestLite(hs.helper, hs.kh, hs.Suite, hs.namespace, "default", 3, true)
 }

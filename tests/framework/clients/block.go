@@ -103,11 +103,10 @@ func (b *BlockOperation) DeleteBlock(manifest string) (string, error) {
 
 }
 
-// List Function to list all the blocks created/being managed by rook
-func (b *BlockOperation) List(namespace string) ([]BlockImage, error) {
+// List Function to list all the block images in all pools
+func (b *BlockOperation) ListAllImages(namespace string) ([]BlockImage, error) {
 	// first list all the pools so that we can retrieve images from all pools
-	context := b.k8sClient.MakeContext()
-	pools, err := client.ListPoolSummaries(context, namespace)
+	pools, err := client.ListPoolSummaries(b.k8sClient.MakeContext(), namespace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list pools: %+v", err)
 	}
@@ -115,20 +114,32 @@ func (b *BlockOperation) List(namespace string) ([]BlockImage, error) {
 	// for each pool, get further details about all the images in the pool
 	images := []BlockImage{}
 	for _, p := range pools {
-		cephImages, err := client.ListImages(context, namespace, p.Name)
+		cephImages, err := b.ListImagesInPool(namespace, p.Name)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get images from pool %s: %+v", p.Name, err)
 		}
+		images = append(images, cephImages...)
+	}
+	return images, nil
+}
 
-		for _, image := range cephImages {
-			// add the current image's details to the result set
-			newImage := BlockImage{
-				Name:     image.Name,
-				PoolName: p.Name,
-				Size:     image.Size,
-			}
-			images = append(images, newImage)
+// List Function to list all the block images in a pool
+func (b *BlockOperation) ListImagesInPool(namespace, poolName string) ([]BlockImage, error) {
+	// for each pool, get further details about all the images in the pool
+	images := []BlockImage{}
+	cephImages, err := client.ListImages(b.k8sClient.MakeContext(), namespace, poolName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get images from pool %s: %+v", poolName, err)
+	}
+
+	for _, image := range cephImages {
+		// add the current image's details to the result set
+		newImage := BlockImage{
+			Name:     image.Name,
+			PoolName: poolName,
+			Size:     image.Size,
 		}
+		images = append(images, newImage)
 	}
 
 	return images, nil

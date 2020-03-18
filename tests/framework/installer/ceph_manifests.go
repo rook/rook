@@ -27,7 +27,7 @@ import (
 
 const (
 	Version1_1 = "v1.1.9"
-	Version1_2 = "v1.2.3"
+	Version1_2 = "v1.2.6"
 )
 
 type CephManifests interface {
@@ -720,6 +720,7 @@ rules:
   - pods
   - nodes
   - nodes/proxy
+  - services
   verbs:
   - get
   - list

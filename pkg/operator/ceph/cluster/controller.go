@@ -41,7 +41,6 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/csi"
 	"github.com/rook/rook/pkg/operator/ceph/file"
 	"github.com/rook/rook/pkg/operator/ceph/nfs"
-	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/ceph/object/bucket"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -460,10 +459,6 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 	clientController := cephclient.NewClientController(c.context, cluster.Namespace)
 	clientController.StartWatch(cluster.stopCh)
 
-	// Start object store CRD watcher
-	objectStoreController := object.NewObjectStoreController(cluster.Info, c.context, cluster.Namespace, c.rookImage, cluster.Spec, cluster.ownerRef, cluster.Spec.DataDirHostPath)
-	objectStoreController.StartWatch(cluster.Namespace, cluster.stopCh)
-
 	// Start the object bucket provisioner
 	bucketProvisioner := bucket.NewProvisioner(c.context, cluster.Namespace)
 	// note: the error return below is ignored and is expected to be removed from the
@@ -481,7 +476,8 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 	// Populate childControllers
 	logger.Debug("populating child controllers, so cluster CR spec updates will be propagaged to other CR")
 	cluster.childControllers = []childController{
-		objectStoreController, fileController, ganeshaController,
+		fileController,
+		ganeshaController,
 	}
 
 	// Populate ClusterInfo

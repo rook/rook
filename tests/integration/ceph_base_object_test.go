@@ -179,7 +179,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 }
 
 // Test Object StoreCreation on Rook that was installed via helm
-func runObjectE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, name string, replicaSize int) {
+func runObjectE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, name string, replicaSize int, deleteStore bool) {
 	logger.Infof("Object Storage End To End Integration Test - Create Object Store and check if rgw service is Running")
 	logger.Infof("Running on Rook Cluster %s", namespace)
 
@@ -195,6 +195,13 @@ func runObjectE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s s
 		"Make sure all rook-ceph-rgw pods are in Running state")
 
 	require.True(s.T(), k8sh.IsServiceUp("rook-ceph-rgw-"+name, namespace))
+
+	if deleteStore {
+		logger.Infof("Delete Object Store")
+		err = helper.ObjectClient.Delete(namespace, name)
+		require.Nil(s.T(), err)
+		logger.Infof("Done deleting object store")
+	}
 
 }
 

@@ -19,6 +19,8 @@ package pool
 
 import (
 	"context"
+	"fmt"
+	"reflect"
 
 	"github.com/coreos/pkg/capnslog"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
@@ -30,6 +32,7 @@ import (
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -47,6 +50,14 @@ const (
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
+
+var cephBlockPoolKind = reflect.TypeOf(cephv1.CephBlockPool{}).Name()
+
+// Sets the type meta for the controller main object
+var controllerTypeMeta = metav1.TypeMeta{
+	Kind:       cephBlockPoolKind,
+	APIVersion: fmt.Sprintf("%s/%s", cephv1.CustomResourceGroup, cephv1.Version),
+}
 
 var _ reconcile.Reconciler = &ReconcileCephBlockPool{}
 
@@ -84,7 +95,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
 	// Watch for changes on the CephBlockPool CRD object
-	err = c.Watch(&source.Kind{Type: &cephv1.CephBlockPool{}}, &handler.EnqueueRequestForObject{}, opcontroller.WatchUpdatePredicate())
+	err = c.Watch(&source.Kind{Type: &cephv1.CephBlockPool{TypeMeta: controllerTypeMeta}}, &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate())
 	if err != nil {
 		return err
 	}
@@ -135,7 +146,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		// This handles the case where the Ceph Cluster is gone and we want to delete that CR
 		// We skip the deletePool() function since everything is gone already
 		//
-		// ALso, only remove the finalizer if the CephCluster is gone
+		// Also, only remove the finalizer if the CephCluster is gone
 		// If not, we should wait for it to be ready
 		// This handles the case where the operator is not ready to accept Ceph command but the cluster exists
 		if !cephBlockPool.GetDeletionTimestamp().IsZero() && !cephClusterExists {
@@ -195,7 +206,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		cephBlockPool.Status.Phase = k8sutil.ReconcileFailedStatus
 		errStatus := opcontroller.UpdateStatus(r.client, cephBlockPool)
 		if errStatus != nil {
-			return reconcile.Result{}, errors.Wrap(errStatus, "failed to set status")
+			logger.Errorf("failed to set status. %v", errStatus)
 		}
 		return reconcileResponse, errors.Wrapf(err, "failed to create pool %q.", cephBlockPool.GetName())
 	}

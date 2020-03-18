@@ -175,7 +175,7 @@ func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string
 		logger.Errorf("invalid JSON in mon mapping. %v", err)
 	}
 
-	logger.Infof("loaded: maxMonID=%d, mons=%+v, mapping=%+v", maxMonID, monEndpointMap, monMapping)
+	logger.Debugf("loaded: maxMonID=%d, mons=%+v, mapping=%+v", maxMonID, monEndpointMap, monMapping)
 	return monEndpointMap, maxMonID, monMapping, nil
 }
 

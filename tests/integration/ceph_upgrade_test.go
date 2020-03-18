@@ -117,7 +117,7 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 
 	logger.Infof("Initializing object before the upgrade")
 	objectStoreName := "upgraded-object"
-	runObjectE2ETestLite(s.helper, s.k8sh, s.Suite, s.namespace, objectStoreName, 1)
+	runObjectE2ETestLite(s.helper, s.k8sh, s.Suite, s.namespace, objectStoreName, 1, false)
 
 	// verify that we're actually running the right pre-upgrade image
 	s.verifyOperatorImage(installer.Version1_1)
@@ -580,5 +580,113 @@ rules:
    - apiGroups: [""]
      resources: ["persistentvolumeclaims/status"]
      verbs: ["update", "patch"]
-`
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: rook-ceph-global-rules
+  labels:
+    operator: rook
+    storage-backend: ceph
+    rbac.ceph.rook.io/aggregate-to-rook-ceph-global: "true"
+rules:
+- apiGroups:
+  - ""
+  resources:
+  # Pod access is needed for fencing
+  - pods
+  # Node access is needed for determining nodes where mons should run
+  - nodes
+  - nodes/proxy
+  - services
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - events
+    # PVs and PVCs are managed by the Rook provisioner
+  - persistentvolumes
+  - persistentvolumeclaims
+  - endpoints
+  verbs:
+  - get
+  - list
+  - watch
+  - patch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - storageclasses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - ceph.rook.io
+  resources:
+  - "*"
+  verbs:
+  - "*"
+- apiGroups:
+  - rook.io
+  resources:
+  - "*"
+  verbs:
+  - "*"
+- apiGroups:
+  - policy
+  - apps
+  resources:
+  # This is for the clusterdisruption controller
+  - poddisruptionbudgets
+  # This is for both clusterdisruption and nodedrain controllers
+  - deployments
+  - replicasets
+  verbs:
+  - "*"
+- apiGroups:
+  - healthchecking.openshift.io
+  resources:
+  - machinedisruptionbudgets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - machine.openshift.io
+  resources:
+  - machines
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - csidrivers
+  verbs:
+  - create`
 }

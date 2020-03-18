@@ -20,6 +20,7 @@ package objectuser
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -44,11 +45,20 @@ import (
 )
 
 const (
-	appName        = object.AppName
-	controllerName = "ceph-object-store-user-controller"
+	appName             = object.AppName
+	controllerName      = "ceph-object-store-user-controller"
+	cephObjectStoreKind = "CephObjectStoreUser"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
+
+var cephObjectStoreUserKind = reflect.TypeOf(cephv1.CephObjectStoreUser{}).Name()
+
+// Sets the type meta for the controller main object
+var controllerTypeMeta = metav1.TypeMeta{
+	Kind:       cephObjectStoreUserKind,
+	APIVersion: fmt.Sprintf("%s/%s", cephv1.CustomResourceGroup, cephv1.Version),
+}
 
 // ReconcileObjectStoreUser reconciles a ObjectStoreUser object
 type ReconcileObjectStoreUser struct {
@@ -86,16 +96,16 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
 	// Watch for changes on the CephObjectStoreUser CRD object
-	err = c.Watch(&source.Kind{Type: &cephv1.CephObjectStoreUser{}}, &handler.EnqueueRequestForObject{}, opcontroller.WatchUpdatePredicate())
+	err = c.Watch(&source.Kind{Type: &cephv1.CephObjectStoreUser{TypeMeta: controllerTypeMeta}}, &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate())
 	if err != nil {
 		return err
 	}
 
 	// Watch secrets
-	err = c.Watch(&source.Kind{Type: &corev1.Secret{}}, &handler.EnqueueRequestForOwner{
+	err = c.Watch(&source.Kind{Type: &corev1.Secret{TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: corev1.SchemeGroupVersion.String()}}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &cephv1.CephObjectStoreUser{},
-	}, opcontroller.WatchPredicateForNonCRDObject())
+	}, opcontroller.WatchPredicateForNonCRDObject(&cephv1.CephObjectStoreUser{TypeMeta: controllerTypeMeta}, mgr.GetScheme()))
 	if err != nil {
 		return err
 	}
@@ -146,7 +156,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 		// This handles the case where the Ceph Cluster is gone and we want to delete that CR
 		// We skip the deleteUser() function since everything is gone already
 		//
-		// ALso, only remove the finalizer if the CephCluster is gone
+		// Also, only remove the finalizer if the CephCluster is gone
 		// If not, we should wait for it to be ready
 		// This handles the case where the operator is not ready to accept Ceph command but the cluster exists
 		if !cephObjectStoreUser.GetDeletionTimestamp().IsZero() && !cephClusterExists {
@@ -240,7 +250,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 		cephObjectStoreUser.Status.Phase = k8sutil.ReconcileFailedStatus
 		errStatus := opcontroller.UpdateStatus(r.client, cephObjectStoreUser)
 		if errStatus != nil {
-			return reconcile.Result{}, errors.Wrap(errStatus, "failed to set status")
+			logger.Errorf("failed to set status. %v", errStatus)
 		}
 		return reconcileResponse, err
 	}
@@ -251,7 +261,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 		cephObjectStoreUser.Status.Phase = k8sutil.ReconcileFailedStatus
 		errStatus := opcontroller.UpdateStatus(r.client, cephObjectStoreUser)
 		if errStatus != nil {
-			return reconcile.Result{}, errors.Wrap(errStatus, "failed to set status")
+			logger.Errorf("failed to set status. %v", errStatus)
 		}
 		return reconcileResponse, err
 	}

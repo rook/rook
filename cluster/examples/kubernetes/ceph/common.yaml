@@ -696,6 +696,7 @@ rules:
   # Node access is needed for determining nodes where mons should run
   - nodes
   - nodes/proxy
+  - services
   verbs:
   - get
   - list

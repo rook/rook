@@ -22,13 +22,17 @@ import (
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
+	config "github.com/rook/rook/pkg/daemon/ceph/config"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/apimachinery/pkg/runtime"
+	fclient "k8s.io/client-go/kubernetes/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func TestStartRGW(t *testing.T) {
@@ -51,16 +55,21 @@ func TestStartRGW(t *testing.T) {
 	version := "v1.1.0"
 	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "my-fs", "rook-ceph", "/var/lib/rook/")
 
+	s := scheme.Scheme
+	object := []runtime.Object{&cephv1.CephObjectStore{}}
+	cl := fake.NewFakeClientWithScheme(s, object...)
+	r := &ReconcileCephObjectStore{client: cl, scheme: s}
+
 	// start a basic cluster
-	c := &clusterConfig{info, context, store, version, &cephv1.ClusterSpec{}, metav1.OwnerReference{}, data, false}
+	c := &clusterConfig{info, context, store, version, &cephv1.ClusterSpec{}, &metav1.OwnerReference{}, data, false, r.client, s}
 	err := c.startRGWPods()
 	assert.Nil(t, err)
 
 	validateStart(t, c, clientset)
 }
 
-func validateStart(t *testing.T, c *clusterConfig, clientset *fake.Clientset) {
-	rgwName := c.instanceName() + "-a"
+func validateStart(t *testing.T, c *clusterConfig, clientset *fclient.Clientset) {
+	rgwName := instanceName(c.store.Name) + "-a"
 	r, err := clientset.AppsV1().Deployments(c.store.Namespace).Get(rgwName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, rgwName, r.Name)
@@ -94,13 +103,17 @@ func TestCreateObjectStore(t *testing.T) {
 	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "my-fs", "rook-ceph", "/var/lib/rook/")
 
 	// create the pools
-	c := &clusterConfig{info, context, store, "1.2.3.4", &cephv1.ClusterSpec{}, metav1.OwnerReference{}, data, false}
-	err := c.createOrUpdate()
+	s := scheme.Scheme
+	object := []runtime.Object{&cephv1.CephObjectStore{}}
+	cl := fake.NewFakeClientWithScheme(s, object...)
+	r := &ReconcileCephObjectStore{client: cl, scheme: s}
+	c := &clusterConfig{info, context, store, "1.2.3.4", &cephv1.ClusterSpec{}, &metav1.OwnerReference{}, data, false, r.client, s}
+	err := c.createOrUpdateStore()
 	assert.Nil(t, err)
 }
 
-func simpleStore() cephv1.CephObjectStore {
-	return cephv1.CephObjectStore{
+func simpleStore() *cephv1.CephObjectStore {
+	return &cephv1.CephObjectStore{
 		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "mycluster"},
 		Spec: cephv1.ObjectStoreSpec{
 			MetadataPool: cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1, RequireSafeReplicaSize: false}},
@@ -108,4 +121,22 @@ func simpleStore() cephv1.CephObjectStore {
 			Gateway:      cephv1.GatewaySpec{Port: 123},
 		},
 	}
+}
+
+func TestGenerateSecretName(t *testing.T) {
+	cl := fake.NewFakeClient([]runtime.Object{}...)
+
+	// start a basic cluster
+	c := &clusterConfig{&config.ClusterInfo{},
+		&clusterd.Context{},
+		&cephv1.CephObjectStore{ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "mycluster"}},
+		"v1.1.0",
+		&cephv1.ClusterSpec{},
+		&metav1.OwnerReference{},
+		&cephconfig.DataPathMap{},
+		false,
+		cl,
+		scheme.Scheme}
+	secret := c.generateSecretName("a")
+	assert.Equal(t, "rook-ceph-rgw-default-a-keyring", secret)
 }
