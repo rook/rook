@@ -90,29 +90,27 @@ type CephToolCommand struct {
 	clusterName string
 	args        []string
 	timeout     time.Duration
-	Debug       bool
 	JsonOutput  bool
 	OutputFile  bool
 }
 
-func newCephToolCommand(tool string, context *clusterd.Context, clusterName string, args []string, debug bool) *CephToolCommand {
+func newCephToolCommand(tool string, context *clusterd.Context, clusterName string, args []string) *CephToolCommand {
 	return &CephToolCommand{
 		context:     context,
 		tool:        tool,
 		clusterName: clusterName,
 		args:        args,
-		Debug:       debug,
 		JsonOutput:  true,
 		OutputFile:  true,
 	}
 }
 
 func NewCephCommand(context *clusterd.Context, clusterName string, args []string) *CephToolCommand {
-	return newCephToolCommand(CephTool, context, clusterName, args, true)
+	return newCephToolCommand(CephTool, context, clusterName, args)
 }
 
 func NewRBDCommand(context *clusterd.Context, clusterName string, args []string) *CephToolCommand {
-	cmd := newCephToolCommand(RBDTool, context, clusterName, args, true)
+	cmd := newCephToolCommand(RBDTool, context, clusterName, args)
 	cmd.JsonOutput = false
 	cmd.OutputFile = false
 	return cmd
@@ -138,22 +136,22 @@ func (c *CephToolCommand) run() ([]byte, error) {
 			// file in the wrong place, so we will instead capture the output
 			// from stdout for the tests
 			if c.timeout == 0 {
-				output, err = c.context.Executor.ExecuteCommandWithOutput(c.Debug, command, args...)
+				output, err = c.context.Executor.ExecuteCommandWithOutput(command, args...)
 			} else {
-				output, err = c.context.Executor.ExecuteCommandWithTimeout(c.Debug, c.timeout, command, args...)
+				output, err = c.context.Executor.ExecuteCommandWithTimeout(c.timeout, command, args...)
 			}
 		} else {
 			if c.timeout == 0 {
-				output, err = c.context.Executor.ExecuteCommandWithOutputFile(c.Debug, command, "--out-file", args...)
+				output, err = c.context.Executor.ExecuteCommandWithOutputFile(command, "--out-file", args...)
 			} else {
-				output, err = c.context.Executor.ExecuteCommandWithOutputFileTimeout(c.Debug, c.timeout, command, "--out-file", args...)
+				output, err = c.context.Executor.ExecuteCommandWithOutputFileTimeout(c.timeout, command, "--out-file", args...)
 			}
 		}
 	} else {
 		if c.timeout == 0 {
-			output, err = c.context.Executor.ExecuteCommandWithOutput(c.Debug, command, args...)
+			output, err = c.context.Executor.ExecuteCommandWithOutput(command, args...)
 		} else {
-			output, err = c.context.Executor.ExecuteCommandWithTimeout(c.Debug, c.timeout, command, args...)
+			output, err = c.context.Executor.ExecuteCommandWithTimeout(c.timeout, command, args...)
 		}
 	}
 
@@ -175,7 +173,7 @@ func (c *CephToolCommand) RunWithTimeout(timeout time.Duration) ([]byte, error) 
 // configured its arguments. It is future work to integrate this case into the
 // generalization.
 func ExecuteRBDCommandWithTimeout(context *clusterd.Context, clusterName string, args []string) (string, error) {
-	output, err := context.Executor.ExecuteCommandWithTimeout(false, CmdExecuteTimeout, RBDTool, args...)
+	output, err := context.Executor.ExecuteCommandWithTimeout(CmdExecuteTimeout, RBDTool, args...)
 	return output, err
 }
 

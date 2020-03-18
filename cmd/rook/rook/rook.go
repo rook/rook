@@ -125,7 +125,6 @@ func NewContext() *clusterd.Context {
 		context.Executor = &exec.TranslateCommandExecutor{
 			Executor: context.Executor,
 			Translator: func(
-				debug bool,
 				command string,
 				arg ...string,
 			) (string, []string) {

@@ -460,7 +460,7 @@ func probeDevices(context *clusterd.Context) ([]sys.LocalDisk, error) {
 // getCephVolumeInventory: Return a map of strings indexed by device with the
 // information about the device returned by the command <ceph-volume inventory>
 func getCephVolumeInventory(context *clusterd.Context) (*map[string]string, error) {
-	inventory, err := context.Executor.ExecuteCommandWithOutput(false, "", "ceph-volume", "inventory", "--format", "json")
+	inventory, err := context.Executor.ExecuteCommandWithOutput("ceph-volume", "inventory", "--format", "json")
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute ceph-volume inventory. %+v", err)
 	}

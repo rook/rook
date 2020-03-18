@@ -110,7 +110,7 @@ type LocalDisk struct {
 
 // ListDevices list all devices available on a machine
 func ListDevices(executor exec.Executor) ([]string, error) {
-	devices, err := executor.ExecuteCommandWithOutput(false, "lsblk", "--all", "--noheadings", "--list", "--output", "KNAME")
+	devices, err := executor.ExecuteCommandWithOutput("lsblk", "--all", "--noheadings", "--list", "--output", "KNAME")
 	if err != nil {
 		return nil, fmt.Errorf("failed to list all devices: %+v", err)
 	}
@@ -129,7 +129,7 @@ func GetDevicePartitions(device string, executor exec.Executor) (partitions []Pa
 		devicePath = device //use the exact device path (like /mnt/<pvc-name>) in case of PVC block device
 	}
 
-	output, err := executor.ExecuteCommandWithOutput(false, "lsblk", devicePath,
+	output, err := executor.ExecuteCommandWithOutput("lsblk", devicePath,
 		"--bytes", "--pairs", "--output", "NAME,SIZE,TYPE,PKNAME")
 	logger.Infof("Output: %+v", output)
 	if err != nil {
@@ -198,7 +198,7 @@ func GetDeviceProperties(device string, executor exec.Executor) (map[string]stri
 
 // GetDevicePropertiesFromPath gets a device property from a path
 func GetDevicePropertiesFromPath(devicePath string, executor exec.Executor) (map[string]string, error) {
-	output, err := executor.ExecuteCommandWithOutput(false, "lsblk", devicePath,
+	output, err := executor.ExecuteCommandWithOutput("lsblk", devicePath,
 		"--bytes", "--nodeps", "--pairs", "--output", "SIZE,ROTA,RO,TYPE,PKNAME,NAME")
 	if err != nil {
 		// The "not a block device" error also returns code 32 so the ExitStatus() check hides this error
@@ -234,7 +234,7 @@ func IsLV(devicePath string, executor exec.Executor) (bool, error) {
 
 // GetUdevInfo gets udev information
 func GetUdevInfo(device string, executor exec.Executor) (map[string]string, error) {
-	output, err := executor.ExecuteCommandWithOutput(false, "udevadm", "info", "--query=property", fmt.Sprintf("/dev/%s", device))
+	output, err := executor.ExecuteCommandWithOutput("udevadm", "info", "--query=property", fmt.Sprintf("/dev/%s", device))
 	if err != nil {
 		return nil, err
 	}
@@ -248,7 +248,7 @@ func GetDeviceFilesystems(device string, executor exec.Executor) (string, error)
 	if len(devicePath) == 1 {
 		device = fmt.Sprintf("/dev/%s", device)
 	}
-	output, err := executor.ExecuteCommandWithOutput(false, "udevadm", "info", "--query=property", device)
+	output, err := executor.ExecuteCommandWithOutput("udevadm", "info", "--query=property", device)
 	if err != nil {
 		return "", err
 	}
@@ -268,7 +268,7 @@ func GetDiskUUID(device string, executor exec.Executor) (string, error) {
 		device = fmt.Sprintf("/dev/%s", device)
 	}
 
-	output, err := executor.ExecuteCommandWithOutput(false, sgdisk, "--print", device)
+	output, err := executor.ExecuteCommandWithOutput(sgdisk, "--print", device)
 	if err != nil {
 		return "", err
 	}
@@ -369,7 +369,7 @@ func inventoryDevice(executor exec.Executor, dev string) (CephVolumeInventory, e
 	device := path.Join("/dev", dev)
 
 	args := []string{"inventory", "--format", "json", device}
-	inventory, err := executor.ExecuteCommandWithOutput(false, "ceph-volume", args...)
+	inventory, err := executor.ExecuteCommandWithOutput("ceph-volume", args...)
 	if err != nil {
 		return CVInventory, fmt.Errorf("failed to execute ceph-volume inventory on disk %q. %v", err, device)
 	}
@@ -385,7 +385,7 @@ func inventoryDevice(executor exec.Executor, dev string) (CephVolumeInventory, e
 
 // ListDevicesChild list all child available on a device
 func ListDevicesChild(executor exec.Executor, device string) ([]string, error) {
-	childListRaw, err := executor.ExecuteCommandWithOutput(false, "lsblk", "--noheadings", "--pairs", path.Join("/dev", device))
+	childListRaw, err := executor.ExecuteCommandWithOutput("lsblk", "--noheadings", "--pairs", path.Join("/dev", device))
 	if err != nil {
 		return []string{}, fmt.Errorf("failed to list child devices of %q. %v", device, err)
 	}

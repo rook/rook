@@ -38,10 +38,10 @@ import (
 func TestStartRGW(t *testing.T) {
 	clientset := testop.New(t, 3)
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(debug bool, command string, outFileArg string, args ...string) (string, error) {
+		MockExecuteCommandWithOutputFile: func(command string, outFileArg string, args ...string) (string, error) {
 			return `{"key":"mysecurekey"}`, nil
 		},
-		MockExecuteCommandWithOutput: func(debug bool, command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			return `{"id":"test-id"}`, nil
 		},
 	}
@@ -76,13 +76,13 @@ func validateStart(t *testing.T, c *clusterConfig, clientset *fclient.Clientset)
 }
 
 func TestCreateObjectStore(t *testing.T) {
-	commandWithOutputFunc := func(debug bool, command string, args ...string) (string, error) {
+	commandWithOutputFunc := func(command string, args ...string) (string, error) {
 		return `{"realms": []}`, nil
 	}
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithCombinedOutput: commandWithOutputFunc,
 		MockExecuteCommandWithOutput:         commandWithOutputFunc,
-		MockExecuteCommandWithOutputFile: func(debug bool, command, outfile string, args ...string) (string, error) {
+		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
 			logger.Infof("Command: %s %v", command, args)
 			if command == "ceph" {
 				if args[1] == "erasure-code-profile" {

@@ -43,7 +43,7 @@ func start(cmd *cobra.Command, args []string) error {
 	rook.SetLogLevel()
 	rook.LogStartupInfo(operatorCmd.Flags())
 	executor := &exec.CommandExecutor{}
-	err := executor.ExecuteCommand(true, edgefStartCmdPath, args...)
+	err := executor.ExecuteCommand(edgefStartCmdPath, args...)
 
 	logger.Infof("Start script %s exited: %+v", edgefStartCmdPath, err)
 	return nil

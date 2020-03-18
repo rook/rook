@@ -137,7 +137,7 @@ USEC_INITIALIZED=15981915740802
 func TestAvailableDevices(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	// set up a mock function to return "rook owned" partitions on the device and it does not have a filesystem
-	executor.MockExecuteCommandWithOutput = func(debug bool, command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 		logger.Infof("OUTPUT for %s %v", command, args)
 
 		if command == "lsblk" {

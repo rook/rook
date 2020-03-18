@@ -117,7 +117,7 @@ func (k8sh *K8sHelper) GetDockerImage(image string) error {
 	if dockercmd == "" {
 		dockercmd = "docker"
 	}
-	return k8sh.executor.ExecuteCommand(false, dockercmd, "pull", image)
+	return k8sh.executor.ExecuteCommand(dockercmd, "pull", image)
 }
 
 // SetDeploymentVersion sets the container version on the deployment. It is assumed to be the rook/ceph image.
@@ -128,7 +128,7 @@ func (k8sh *K8sHelper) SetDeploymentVersion(namespace, deploymentName, container
 
 // Kubectl is wrapper for executing kubectl commands
 func (k8sh *K8sHelper) Kubectl(args ...string) (string, error) {
-	result, err := k8sh.executor.ExecuteCommandWithTimeout(false, 15*time.Second, "kubectl", args...)
+	result, err := k8sh.executor.ExecuteCommandWithTimeout(15*time.Second, "kubectl", args...)
 	if err != nil {
 		k8slogger.Errorf("Failed to execute: kubectl %+v : %+v. %s", args, err, result)
 		if args[0] == "delete" {
@@ -162,7 +162,7 @@ func (k8sh *K8sHelper) KubectlWithStdin(stdin string, args ...string) (string, e
 }
 
 func getKubeConfig(executor exec.Executor) (*rest.Config, error) {
-	context, err := executor.ExecuteCommandWithOutput(false, "kubectl", "config", "view", "-o", "json")
+	context, err := executor.ExecuteCommandWithOutput("kubectl", "config", "view", "-o", "json")
 	if err != nil {
 		k8slogger.Errorf("failed to execute kubectl command. %v", err)
 	}

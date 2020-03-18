@@ -31,25 +31,25 @@ import (
 )
 
 type Executor interface {
-	ExecuteCommand(suppressLogOutput bool, command string, arg ...string) error
-	ExecuteCommandWithOutput(suppressLogCommand bool, command string, arg ...string) (string, error)
-	ExecuteCommandWithCombinedOutput(suppressLogOutput bool, command string, arg ...string) (string, error)
-	ExecuteCommandWithOutputFile(suppressLogOutput bool, command, outfileArg string, arg ...string) (string, error)
-	ExecuteCommandWithOutputFileTimeout(suppressLogOutput bool, timeout time.Duration, command, outfileArg string, arg ...string) (string, error)
-	ExecuteCommandWithTimeout(suppressLogOutput bool, timeout time.Duration, command string, arg ...string) (string, error)
+	ExecuteCommand(command string, arg ...string) error
+	ExecuteCommandWithOutput(command string, arg ...string) (string, error)
+	ExecuteCommandWithCombinedOutput(command string, arg ...string) (string, error)
+	ExecuteCommandWithOutputFile(command, outfileArg string, arg ...string) (string, error)
+	ExecuteCommandWithOutputFileTimeout(timeout time.Duration, command, outfileArg string, arg ...string) (string, error)
+	ExecuteCommandWithTimeout(timeout time.Duration, command string, arg ...string) (string, error)
 }
 
 type CommandExecutor struct {
 }
 
 // Start a process and wait for its completion
-func (*CommandExecutor) ExecuteCommand(suppressLogOutput bool, command string, arg ...string) error {
-	cmd, stdout, stderr, err := startCommand(suppressLogOutput, command, arg...)
+func (*CommandExecutor) ExecuteCommand(command string, arg ...string) error {
+	cmd, stdout, stderr, err := startCommand(command, arg...)
 	if err != nil {
 		return err
 	}
 
-	logOutput(suppressLogOutput, stdout, stderr)
+	logOutput(stdout, stderr)
 
 	if err := cmd.Wait(); err != nil {
 		return err
@@ -59,8 +59,8 @@ func (*CommandExecutor) ExecuteCommand(suppressLogOutput bool, command string, a
 }
 
 // ExecuteCommandWithTimeout starts a process and wait for its completion with timeout.
-func (*CommandExecutor) ExecuteCommandWithTimeout(suppressLogOutput bool, timeout time.Duration, command string, arg ...string) (string, error) {
-	logCommand(suppressLogOutput, command, arg...)
+func (*CommandExecutor) ExecuteCommandWithTimeout(timeout time.Duration, command string, arg ...string) (string, error) {
+	logCommand(command, arg...)
 	cmd := exec.Command(command, arg...)
 
 	var b bytes.Buffer
@@ -84,8 +84,8 @@ func (*CommandExecutor) ExecuteCommandWithTimeout(suppressLogOutput bool, timeou
 				logger.Infof("timeout waiting for process %s to return after interrupt signal was sent. Sending kill signal to the process", command)
 				var e error
 				if err := cmd.Process.Kill(); err != nil {
-					logger.Errorf("Failed to kill process %s: %+v", command, err)
-					e = fmt.Errorf("timeout waiting for the command %s to return after interrupt signal was sent. Tried to kill the process but that failed: %+v", command, err)
+					logger.Errorf("Failed to kill process %s: %v", command, err)
+					e = fmt.Errorf("timeout waiting for the command %s to return after interrupt signal was sent. Tried to kill the process but that failed: %v", command, err)
 				} else {
 					e = fmt.Errorf("timeout waiting for the command %s to return", command)
 				}
@@ -94,7 +94,7 @@ func (*CommandExecutor) ExecuteCommandWithTimeout(suppressLogOutput bool, timeou
 
 			logger.Infof("timeout waiting for process %s to return. Sending interrupt signal to the process", command)
 			if err := cmd.Process.Signal(os.Interrupt); err != nil {
-				logger.Errorf("Failed to send interrupt signal to process %s: %+v", command, err)
+				logger.Errorf("Failed to send interrupt signal to process %s: %v", command, err)
 				// kill signal will be sent next loop
 			}
 			interruptSent = true
@@ -110,20 +110,20 @@ func (*CommandExecutor) ExecuteCommandWithTimeout(suppressLogOutput bool, timeou
 	}
 }
 
-func (*CommandExecutor) ExecuteCommandWithOutput(suppressLogOutput bool, command string, arg ...string) (string, error) {
-	logCommand(suppressLogOutput, command, arg...)
+func (*CommandExecutor) ExecuteCommandWithOutput(command string, arg ...string) (string, error) {
+	logCommand(command, arg...)
 	cmd := exec.Command(command, arg...)
 	return runCommandWithOutput(cmd, false)
 }
 
-func (*CommandExecutor) ExecuteCommandWithCombinedOutput(suppressLogOutput bool, command string, arg ...string) (string, error) {
-	logCommand(suppressLogOutput, command, arg...)
+func (*CommandExecutor) ExecuteCommandWithCombinedOutput(command string, arg ...string) (string, error) {
+	logCommand(command, arg...)
 	cmd := exec.Command(command, arg...)
 	return runCommandWithOutput(cmd, true)
 }
 
 // Same as ExecuteCommandWithOutputFile but with a timeout limit.
-func (*CommandExecutor) ExecuteCommandWithOutputFileTimeout(suppressLogOutput bool, timeout time.Duration,
+func (*CommandExecutor) ExecuteCommandWithOutputFileTimeout(timeout time.Duration,
 	command, outfileArg string, arg ...string) (string, error) {
 
 	outFile, err := ioutil.TempFile("", "")
@@ -134,7 +134,7 @@ func (*CommandExecutor) ExecuteCommandWithOutputFileTimeout(suppressLogOutput bo
 	defer os.Remove(outFile.Name())
 
 	arg = append(arg, outfileArg, outFile.Name())
-	logCommand(suppressLogOutput, command, arg...)
+	logCommand(command, arg...)
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
@@ -145,7 +145,7 @@ func (*CommandExecutor) ExecuteCommandWithOutputFileTimeout(suppressLogOutput bo
 	// if there was anything that went to stdout/stderr then log it, even before
 	// we return an error
 	if string(cmdOut) != "" {
-		writeToLog(suppressLogOutput, string(cmdOut))
+		logger.Debug(string(cmdOut))
 	}
 
 	if ctx.Err() == context.DeadlineExceeded {
@@ -160,7 +160,7 @@ func (*CommandExecutor) ExecuteCommandWithOutputFileTimeout(suppressLogOutput bo
 	return string(fileOut), err
 }
 
-func (*CommandExecutor) ExecuteCommandWithOutputFile(suppressLogOutput bool, command, outfileArg string, arg ...string) (string, error) {
+func (*CommandExecutor) ExecuteCommandWithOutputFile(command, outfileArg string, arg ...string) (string, error) {
 
 	// create a temporary file to serve as the output file for the command to be run and ensure
 	// it is cleaned up after this function is done
@@ -174,12 +174,12 @@ func (*CommandExecutor) ExecuteCommandWithOutputFile(suppressLogOutput bool, com
 	// append the output file argument to the list or args
 	arg = append(arg, outfileArg, outFile.Name())
 
-	logCommand(suppressLogOutput, command, arg...)
+	logCommand(command, arg...)
 	cmd := exec.Command(command, arg...)
 	cmdOut, err := cmd.CombinedOutput()
 	// if there was anything that went to stdout/stderr then log it, even before we return an error
 	if string(cmdOut) != "" {
-		writeToLog(suppressLogOutput, string(cmdOut))
+		logger.Debug(string(cmdOut))
 	}
 	if err != nil {
 		return string(cmdOut), err
@@ -190,8 +190,8 @@ func (*CommandExecutor) ExecuteCommandWithOutputFile(suppressLogOutput bool, com
 	return string(fileOut), err
 }
 
-func startCommand(suppressLogOutput bool, command string, arg ...string) (*exec.Cmd, io.ReadCloser, io.ReadCloser, error) {
-	logCommand(suppressLogOutput, command, arg...)
+func startCommand(command string, arg ...string) (*exec.Cmd, io.ReadCloser, io.ReadCloser, error) {
+	logCommand(command, arg...)
 
 	cmd := exec.Command(command, arg...)
 	stdout, err := cmd.StdoutPipe()
@@ -209,16 +209,16 @@ func startCommand(suppressLogOutput bool, command string, arg ...string) (*exec.
 }
 
 // read from reader line by line and write it to the log
-func logFromReader(suppressLogOutput bool, logger *capnslog.PackageLogger, reader io.ReadCloser) {
+func logFromReader(logger *capnslog.PackageLogger, reader io.ReadCloser) {
 	in := bufio.NewScanner(reader)
 	lastLine := ""
 	for in.Scan() {
 		lastLine = in.Text()
-		writeToLog(suppressLogOutput, lastLine)
+		logger.Debug(lastLine)
 	}
 }
 
-func logOutput(suppressLogOutput bool, stdout, stderr io.ReadCloser) {
+func logOutput(stdout, stderr io.ReadCloser) {
 	if stdout == nil || stderr == nil {
 		logger.Warningf("failed to collect stdout and stderr")
 		return
@@ -235,8 +235,8 @@ func logOutput(suppressLogOutput bool, stdout, stderr io.ReadCloser) {
 		}
 	}
 
-	go logFromReader(suppressLogOutput, childLogger, stderr)
-	logFromReader(suppressLogOutput, childLogger, stdout)
+	go logFromReader(childLogger, stderr)
+	logFromReader(childLogger, stdout)
 }
 
 func runCommandWithOutput(cmd *exec.Cmd, combinedOutput bool) (string, error) {
@@ -258,15 +258,6 @@ func runCommandWithOutput(cmd *exec.Cmd, combinedOutput bool) (string, error) {
 	return out, nil
 }
 
-func logCommand(suppressLogOutput bool, command string, arg ...string) {
-	msg := fmt.Sprintf("Running command: %s %s", command, strings.Join(arg, " "))
-	writeToLog(suppressLogOutput, msg)
-}
-
-func writeToLog(suppressLogOutput bool, msg string) {
-	if suppressLogOutput {
-		logger.Debug(msg)
-	} else {
-		logger.Info(msg)
-	}
+func logCommand(command string, arg ...string) {
+	logger.Debugf("Running command: %s %s", command, strings.Join(arg, " "))
 }

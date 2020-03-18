@@ -24,12 +24,12 @@ import (
 
 func TestDiscoverDevices(t *testing.T) {
 	executor := &exectest.MockExecutor{
-		MockExecuteCommand: func(debug bool, command string, arg ...string) error {
+		MockExecuteCommand: func(command string, arg ...string) error {
 			logger.Infof("mock execute. %s", command)
 			return nil
 		},
-		MockExecuteCommandWithOutput: func(debug bool, command string, arg ...string) (string, error) {
-			logger.Infof("mock execute with outputP. %s", command)
+		MockExecuteCommandWithOutput: func(command string, arg ...string) (string, error) {
+			logger.Infof("mock execute with output. %s", command)
 			return "", nil
 		},
 	}

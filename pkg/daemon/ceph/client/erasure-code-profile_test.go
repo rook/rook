@@ -44,7 +44,7 @@ func testCreateProfile(t *testing.T, failureDomain, crushRoot, deviceClass strin
 
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Executor: executor}
-	executor.MockExecuteCommandWithOutputFile = func(debug bool, command, outputFile string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[1] == "erasure-code-profile" {
 			if args[2] == "get" {

@@ -32,7 +32,7 @@ func TestCreateECPoolWithOverwrites(t *testing.T) {
 	p := CephStoragePoolDetails{Name: "mypool", Size: 12345, ErasureCodeProfile: "myecprofile", FailureDomain: "host"}
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Executor: executor}
-	executor.MockExecuteCommandWithOutputFile = func(debug bool, command, outputFile string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[1] == "pool" {
 			if args[2] == "create" {
@@ -66,7 +66,7 @@ func TestCreateECPoolWithoutOverwrites(t *testing.T) {
 	p := CephStoragePoolDetails{Name: "mypool", Size: 12345, ErasureCodeProfile: "myecprofile", FailureDomain: "host"}
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Executor: executor}
-	executor.MockExecuteCommandWithOutputFile = func(debug bool, command, outputFile string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[1] == "pool" {
 			if args[2] == "create" {
@@ -109,7 +109,7 @@ func testCreateReplicaPool(t *testing.T, failureDomain, crushRoot, deviceClass s
 	crushRuleCreated := false
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Executor: executor}
-	executor.MockExecuteCommandWithOutputFile = func(debug bool, command, outputFile string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[1] == "pool" {
 			if args[2] == "create" {
@@ -180,7 +180,7 @@ func TestGetPoolStatistics(t *testing.T) {
 	p.Trash.SnapCount = 0
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Executor: executor}
-	executor.MockExecuteCommandWithOutput = func(debug bool, command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 		a := "{\"images\":{\"count\":1,\"provisioned_bytes\":1024,\"snap_count\":1},\"trash\":{\"count\":1,\"provisioned_bytes\":2048,\"snap_count\":0}}"
 		logger.Infof("Command: %s %v", command, args)
 
@@ -210,7 +210,7 @@ func TestSetPoolReplicatedSizeProperty(t *testing.T) {
 	p := CephStoragePoolDetails{Name: "mypool", Size: 12345}
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Executor: executor}
-	executor.MockExecuteCommandWithOutputFile = func(debug bool, command, outputFile string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 
 		if args[2] == "set" {
@@ -228,7 +228,7 @@ func TestSetPoolReplicatedSizeProperty(t *testing.T) {
 	assert.NoError(t, err)
 
 	// TEST POOL SIZE 1 AND RequireSafeReplicaSize True
-	executor.MockExecuteCommandWithOutputFile = func(debug bool, command, outputFile string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 
 		if args[2] == "set" {

@@ -486,8 +486,7 @@ func (c *ClusterController) initCluster(cluster *cluster) error {
 	}
 
 	hostFlag := fmt.Sprintf("--host=%s", createQualifiedReplicaServiceName(0, cluster.namespace))
-	out, err := c.context.Executor.ExecuteCommandWithCombinedOutput(false,
-		"/cockroach/cockroach", "init", "--insecure", hostFlag)
+	out, err := c.context.Executor.ExecuteCommandWithCombinedOutput("/cockroach/cockroach", "init", "--insecure", hostFlag)
 	if err != nil {
 		return fmt.Errorf("cluster init failed for namespace %s: %+v. %s", cluster.namespace, err, out)
 	}

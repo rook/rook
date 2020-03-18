@@ -116,7 +116,7 @@ func TestParseFileSystem(t *testing.T) {
 func TestGetPartitions(t *testing.T) {
 	run := 0
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(debug bool, command string, arg ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(command string, arg ...string) (string, error) {
 			run++
 			logger.Infof("run %d command %s", run, command)
 			switch {
@@ -185,7 +185,7 @@ func TestParseUdevInfo(t *testing.T) {
 
 func TestListDevicesChildListDevicesChild(t *testing.T) {
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(debug bool, command string, arg ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(command string, arg ...string) (string, error) {
 			logger.Infof("command %s", command)
 			return lsblkChildOutput, nil
 		},

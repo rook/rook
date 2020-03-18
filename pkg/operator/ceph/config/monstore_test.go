@@ -40,7 +40,7 @@ func TestMonStore_Set(t *testing.T) {
 	execedCmd := ""
 	execInjectErr := false
 	executor.MockExecuteCommandWithOutputFile =
-		func(debug bool, command string, outfile string, args ...string) (string, error) {
+		func(command string, outfile string, args ...string) (string, error) {
 			execedCmd = command + " " + strings.Join(args, " ")
 			if execInjectErr {
 				return "output from cmd with error", errors.New("mocked error")
@@ -85,7 +85,7 @@ func TestMonStore_SetAll(t *testing.T) {
 	execedCmds := []string{}
 	execInjectErrOnKeyword := "donotinjectanerror"
 	executor.MockExecuteCommandWithOutputFile =
-		func(debug bool, command string, outfile string, args ...string) (string, error) {
+		func(command string, outfile string, args ...string) (string, error) {
 			execedCmd := command + " " + strings.Join(args, " ")
 			execedCmds = append(execedCmds, execedCmd)
 			k := execInjectErrOnKeyword

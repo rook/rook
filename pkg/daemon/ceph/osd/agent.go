@@ -17,8 +17,6 @@ limitations under the License.
 package osd
 
 import (
-	"fmt"
-
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
@@ -65,8 +63,7 @@ func NewAgent(context *clusterd.Context, devices []DesiredDevice, metadataDevice
 }
 
 func getDeviceLVPath(context *clusterd.Context, deviceName string) string {
-	cmd := fmt.Sprintf("get logical volume path for device")
-	output, err := context.Executor.ExecuteCommandWithOutput(false, cmd, "pvdisplay", "-C", "-o", "lvpath", "--noheadings", deviceName)
+	output, err := context.Executor.ExecuteCommandWithOutput("pvdisplay", "-C", "-o", "lvpath", "--noheadings", deviceName)
 	if err != nil {
 		logger.Warningf("failed to retrieve logical volume path for %q. %v", deviceName, err)
 		return ""
