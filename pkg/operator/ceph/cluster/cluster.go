@@ -63,7 +63,6 @@ type cluster struct {
 	orchestrationRunning bool
 	orchestrationNeeded  bool
 	orchMux              sync.Mutex
-	childControllers     []childController
 	isUpgrade            bool
 }
 
@@ -308,12 +307,6 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 
 		logger.Infof("Done creating rook instance in namespace %s", c.Namespace)
 		c.initCompleted = true
-	}
-
-	// Notify the child controllers that the cluster spec might have changed
-	logger.Debug("notifying CR child of the potential upgrade")
-	for _, child := range c.childControllers {
-		go child.ParentClusterChanged(*c.Spec, c.Info, c.isUpgrade)
 	}
 
 	return nil

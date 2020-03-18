@@ -25,7 +25,7 @@ require (
 	github.com/yanniszark/go-nodetool v0.0.0-20191206125106-cd8f91fa16be
 	gopkg.in/ini.v1 v1.51.1 // indirect
 	k8s.io/api v0.17.2
-	k8s.io/apiextensions-apiserver v0.15.7
+	k8s.io/apiextensions-apiserver v0.17.2
 	k8s.io/apimachinery v0.17.2
 	k8s.io/apiserver v0.17.2
 	k8s.io/client-go v12.0.0+incompatible

@@ -17,214 +17,287 @@ limitations under the License.
 package nfs
 
 import (
+	"context"
 	"fmt"
 	"reflect"
-	"sync"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
+	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	v1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/cache"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
-var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-nfs")
+const (
+	controllerName = "ceph-nfs-controller"
+)
 
-// CephNFSResource represents the file system custom resource
-var CephNFSResource = k8sutil.CustomResource{
-	Name:    "cephnfs",
-	Plural:  "cephnfses",
-	Group:   cephv1.CustomResourceGroup,
-	Version: cephv1.Version,
-	Kind:    reflect.TypeOf(cephv1.CephNFS{}).Name(),
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
+
+// List of object resources to watch by the controller
+var objectsToWatch = []runtime.Object{
+	&v1.Service{TypeMeta: metav1.TypeMeta{Kind: "Service", APIVersion: v1.SchemeGroupVersion.String()}},
+	&v1.ConfigMap{TypeMeta: metav1.TypeMeta{Kind: "ConfigMap", APIVersion: v1.SchemeGroupVersion.String()}},
+	// Stop watching Deployments until this is resolved: https://github.com/rook/rook/issues/5047
+	// &appsv1.Deployment{TypeMeta: metav1.TypeMeta{Kind: "Deployment", APIVersion: appsv1.SchemeGroupVersion.String()}},
 }
 
-// CephNFSController represents a controller for NFS custom resources
-type CephNFSController struct {
-	clusterInfo        *cephconfig.ClusterInfo
-	context            *clusterd.Context
-	dataDirHostPath    string
-	namespace          string
-	rookImage          string
-	clusterSpec        *cephv1.ClusterSpec
-	orchestrationMutex sync.Mutex
+var cephNFSKind = reflect.TypeOf(cephv1.CephNFS{}).Name()
+
+// Sets the type meta for the controller main object
+var controllerTypeMeta = metav1.TypeMeta{
+	Kind:       cephNFSKind,
+	APIVersion: fmt.Sprintf("%s/%s", cephv1.CustomResourceGroup, cephv1.Version),
 }
 
-// NewCephNFSController create controller for watching NFS custom resources created
-func NewCephNFSController(clusterInfo *cephconfig.ClusterInfo, context *clusterd.Context, dataDirHostPath, namespace, rookImage string, clusterSpec *cephv1.ClusterSpec, ownerRef metav1.OwnerReference) *CephNFSController {
-	return &CephNFSController{
-		clusterInfo:     clusterInfo,
-		context:         context,
-		dataDirHostPath: dataDirHostPath,
-		namespace:       namespace,
-		rookImage:       rookImage,
-		clusterSpec:     clusterSpec,
+// ReconcileCephNFS reconciles a cephNFS object
+type ReconcileCephNFS struct {
+	client          client.Client
+	scheme          *runtime.Scheme
+	context         *clusterd.Context
+	cephClusterSpec *cephv1.ClusterSpec
+	clusterInfo     *cephconfig.ClusterInfo
+}
+
+// Add creates a new cephNFS Controller and adds it to the Manager. The Manager will set fields on the Controller
+// and Start it when the Manager is Started.
+func Add(mgr manager.Manager, context *clusterd.Context) error {
+	return add(mgr, newReconciler(mgr, context))
+}
+
+// newReconciler returns a new reconcile.Reconciler
+func newReconciler(mgr manager.Manager, context *clusterd.Context) reconcile.Reconciler {
+	// Add the cephv1 scheme to the manager scheme so that the controller knows about it
+	mgrScheme := mgr.GetScheme()
+	cephv1.AddToScheme(mgr.GetScheme())
+
+	return &ReconcileCephNFS{
+		client:  mgr.GetClient(),
+		scheme:  mgrScheme,
+		context: context,
 	}
 }
 
-// StartWatch watches for instances of CephNFS custom resources and acts on them
-func (c *CephNFSController) StartWatch(namespace string, stopCh chan struct{}) {
-
-	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
-		AddFunc:    c.onAdd,
-		UpdateFunc: c.onUpdate,
-		DeleteFunc: c.onDelete,
-	}
-
-	logger.Infof("start watching ceph nfs resource in namespace %s", namespace)
-	go k8sutil.WatchCR(CephNFSResource, namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1().RESTClient(), &cephv1.CephNFS{}, stopCh)
-}
-
-func (c *CephNFSController) onAdd(obj interface{}) {
-	if c.clusterSpec.External.Enable && c.clusterSpec.CephVersion.Image == "" {
-		logger.Warningf("Creating nfs for an external ceph cluster is disabled because no Ceph image is specified")
-		return
-	}
-
-	nfs := obj.(*cephv1.CephNFS).DeepCopy()
-
-	c.acquireOrchestrationLock()
-	defer c.releaseOrchestrationLock()
-
-	updateCephNFSStatus(nfs.GetName(), nfs.GetNamespace(), k8sutil.ProcessingStatus, c.context)
-
-	err := c.upCephNFS(*nfs, 0)
+func add(mgr manager.Manager, r reconcile.Reconciler) error {
+	// Create a new controller
+	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r})
 	if err != nil {
-		logger.Errorf("failed to create NFS Ganesha %q. %v", nfs.Name, err)
-		updateCephNFSStatus(nfs.GetName(), nfs.GetNamespace(), k8sutil.FailedStatus, c.context)
+		return err
 	}
-	updateCephNFSStatus(nfs.GetName(), nfs.GetNamespace(), k8sutil.ReadyStatus, c.context)
+
+	// Watch for changes on the cephNFS CRD object
+	err = c.Watch(&source.Kind{Type: &cephv1.CephNFS{TypeMeta: controllerTypeMeta}}, &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate())
+	if err != nil {
+		return err
+	}
+
+	// Watch all other resources
+	for _, t := range objectsToWatch {
+		err = c.Watch(&source.Kind{Type: t}, &handler.EnqueueRequestForOwner{
+			IsController: true,
+			OwnerType:    &cephv1.CephNFS{},
+		}, opcontroller.WatchPredicateForNonCRDObject(&cephv1.CephNFS{TypeMeta: controllerTypeMeta}, mgr.GetScheme()))
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
-func (c *CephNFSController) onUpdate(oldObj, newObj interface{}) {
-	if c.clusterSpec.External.Enable && c.clusterSpec.CephVersion.Image == "" {
-		logger.Warningf("Updating nfs for an external ceph cluster is disabled because no Ceph image is specified")
-		return
+// Reconcile reads that state of the cluster for a cephNFS object and makes changes based on the state read
+// and what is in the cephNFS.Spec
+// The Controller will requeue the Request to be processed again if the returned error is non-nil or
+// Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
+func (r *ReconcileCephNFS) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+	// workaround because the rook logging mechanism is not compatible with the controller-runtime loggin interface
+	reconcileResponse, err := r.reconcile(request)
+	if err != nil {
+		logger.Errorf("failed to reconcile %v", err)
 	}
 
-	oldNFS := oldObj.(*cephv1.CephNFS).DeepCopy()
-	newNFS := newObj.(*cephv1.CephNFS).DeepCopy()
+	return reconcileResponse, err
+}
 
-	if !nfsChanged(oldNFS.Spec, newNFS.Spec) {
-		logger.Debugf("nfs ganesha %q not updated", newNFS.Name)
-		return
+func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Result, error) {
+	// Fetch the cephNFS instance
+	cephNFS := &cephv1.CephNFS{}
+	err := r.client.Get(context.TODO(), request.NamespacedName, cephNFS)
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			logger.Debug("cephNFS resource not found. Ignoring since object must be deleted.")
+			return reconcile.Result{}, nil
+		}
+		// Error reading the object - requeue the request.
+		return reconcile.Result{}, errors.Wrap(err, "failed to get cephNFS")
 	}
 
-	c.acquireOrchestrationLock()
-	defer c.releaseOrchestrationLock()
-
-	logger.Infof("Updating the ganesha server from %d to %d active count", oldNFS.Spec.Server.Active, newNFS.Spec.Server.Active)
-
-	updateCephNFSStatus(newNFS.GetName(), newNFS.GetNamespace(), k8sutil.ProcessingStatus, c.context)
-
-	if oldNFS.Spec.Server.Active < newNFS.Spec.Server.Active {
-		err := c.upCephNFS(*newNFS, oldNFS.Spec.Server.Active)
+	// The CR was just created, initializing status fields
+	if cephNFS.Status == nil {
+		cephNFS.Status = &cephv1.Status{}
+		cephNFS.Status.Phase = k8sutil.Created
+		err := opcontroller.UpdateStatus(r.client, cephNFS)
 		if err != nil {
-			logger.Errorf("Failed to start daemons for CephNFS %q. %v", newNFS.Name, err)
-			updateCephNFSStatus(newNFS.GetName(), newNFS.GetNamespace(), k8sutil.FailedStatus, c.context)
+			return reconcile.Result{}, errors.Wrap(err, "failed to set status")
+		}
+	}
+
+	// Make sure a CephCluster is present otherwise do nothing
+	cephClusterSpec, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.client, r.context, request.NamespacedName)
+	if !isReadyToReconcile {
+		// This handles the case where the Ceph Cluster is gone and we want to delete that CR
+		// We skip the deleteStore() function since everything is gone already
+		//
+		// Also, only remove the finalizer if the CephCluster is gone
+		// If not, we should wait for it to be ready
+		// This handles the case where the operator is not ready to accept Ceph command but the cluster exists
+		if !cephNFS.GetDeletionTimestamp().IsZero() && !cephClusterExists {
+			// Remove finalizer
+			err := opcontroller.RemoveFinalizer(r.client, cephNFS)
+			if err != nil {
+				return reconcile.Result{}, errors.Wrap(err, "failed to remove finalizer")
+			}
+
+			// Return and do not requeue. Successful deletion.
+			return reconcile.Result{}, nil
+		}
+
+		logger.Debugf("CephCluster resource not ready in namespace %q, retrying in %q.", request.NamespacedName.Namespace, opcontroller.WaitForRequeueIfCephClusterNotReadyAfter.String())
+		return reconcileResponse, nil
+	}
+	r.cephClusterSpec = &cephClusterSpec
+
+	// Populate clusterInfo
+	// Always populate it during each reconcile
+	clusterInfo, _, _, err := mon.LoadClusterInfo(r.context, request.NamespacedName.Namespace)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrap(err, "failed to populate cluster info")
+	}
+	r.clusterInfo = clusterInfo
+
+	// Populate CephVersion
+	daemon := string(opconfig.MonType)
+	currentCephVersion, err := cephclient.LeastUptodateDaemonVersion(r.context, r.clusterInfo.Name, daemon)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrapf(err, "failed to retrieve current ceph %q version", daemon)
+	}
+	r.clusterInfo.CephVersion = currentCephVersion
+
+	// Set a finalizer so we can do cleanup before the object goes away
+	err = opcontroller.AddFinalizerIfNotPresent(r.client, cephNFS)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrap(err, "failed to add finalizer")
+	}
+
+	// DELETE: the CR was deleted
+	if !cephNFS.GetDeletionTimestamp().IsZero() {
+		logger.Infof("deleting ceph nfs %q", cephNFS.Name)
+		err := r.removeServersFromDatabase(cephNFS, 0)
+		if err != nil {
+			return reconcile.Result{}, errors.Wrapf(err, "failed to delete filesystem %q. ", cephNFS.Name)
+		}
+
+		// Remove finalizer
+		err = opcontroller.RemoveFinalizer(r.client, cephNFS)
+		if err != nil {
+			return reconcile.Result{}, errors.Wrap(err, "failed to remove finalizer")
+		}
+
+		// Return and do not requeue. Successful deletion.
+		return reconcile.Result{}, nil
+	}
+
+	// validate the store settings
+	if err := validateGanesha(r.context, cephNFS); err != nil {
+		return reconcile.Result{}, errors.Wrapf(err, "invalid ceph nfs %q arguments", cephNFS.Name)
+	}
+
+	// CREATE/UPDATE
+	logger.Debug("reconciling ceph nfs deployments")
+	reconcileResponse, err = r.reconcileCreateCephNFS(cephNFS)
+	if err != nil {
+		return r.setFailedStatus(cephNFS, "failed to create ceph nfs deployments", err)
+	}
+
+	// Set Ready status, we are done reconciling
+	cephNFS.Status.Phase = k8sutil.ReadyStatus
+	err = opcontroller.UpdateStatus(r.client, cephNFS)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrap(err, "failed to set status")
+	}
+
+	// Return and do not requeue
+	logger.Debug("done reconciling ceph nfs")
+	return reconcile.Result{}, nil
+
+}
+
+func (r *ReconcileCephNFS) reconcileCreateCephNFS(cephNFS *cephv1.CephNFS) (reconcile.Result, error) {
+	if r.cephClusterSpec.External.Enable {
+		_, err := opcontroller.ValidateCephVersionsBetweenLocalAndExternalClusters(r.context, cephNFS.Namespace, r.clusterInfo.CephVersion)
+		if err != nil {
+			// This handles the case where the operator is running, the external cluster has been upgraded and a CR creation is called
+			// If that's a major version upgrade we fail, if it's a minor version, we continue, it's not ideal but not critical
+			return reconcile.Result{}, errors.Wrapf(err, "refusing to run new crd")
+		}
+	}
+
+	deployments, err := r.context.Clientset.AppsV1().Deployments(cephNFS.Namespace).List(metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", AppName)})
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			logger.Infof("creating ceph nfs %q", cephNFS.Name)
+			err := r.upCephNFS(cephNFS, 0)
+			if err != nil {
+				return reconcile.Result{}, errors.Wrapf(err, "failed to create ceph nfs %q", cephNFS.Name)
+			}
+		} else {
+			return reconcile.Result{}, errors.Wrapf(err, "failed to list ceph nfs deployments")
 		}
 	} else {
-		err := c.downCephNFS(*oldNFS, newNFS.Spec.Server.Active)
-		if err != nil {
-			logger.Errorf("Failed to stop daemons for CephNFS %q. %v", newNFS.Name, err)
-			updateCephNFSStatus(newNFS.GetName(), newNFS.GetNamespace(), k8sutil.FailedStatus, c.context)
+		// Scale up case (CR value cephNFS.Spec.Server.Active changed)
+		nfsServerListNum := len(deployments.Items)
+		if nfsServerListNum < cephNFS.Spec.Server.Active {
+			logger.Infof("scaling up ceph nfs %q from %d to %d", cephNFS.Name, nfsServerListNum, cephNFS.Spec.Server.Active)
+			err := r.upCephNFS(cephNFS, nfsServerListNum)
+			if err != nil {
+				return reconcile.Result{}, errors.Wrapf(err, "failed to scale up ceph nfs %q", cephNFS.Name)
+			}
+		}
+
+		// Scale down case (CR value cephNFS.Spec.Server.Active changed)
+		if nfsServerListNum > cephNFS.Spec.Server.Active {
+			logger.Infof("scaling down ceph nfs %q from %d to %d", cephNFS.Name, nfsServerListNum, cephNFS.Spec.Server.Active)
+			err := r.downCephNFS(cephNFS, nfsServerListNum)
+			if err != nil {
+				return reconcile.Result{}, errors.Wrapf(err, "failed to scale down ceph nfs %q", cephNFS.Name)
+			}
 		}
 	}
-	updateCephNFSStatus(newNFS.GetName(), newNFS.GetNamespace(), k8sutil.ReadyStatus, c.context)
+
+	return reconcile.Result{}, nil
 }
 
-func (c *CephNFSController) onDelete(obj interface{}) {
-	if c.clusterSpec.External.Enable && c.clusterSpec.CephVersion.Image == "" {
-		logger.Warningf("Deleting nfs for an external ceph cluster is disabled because no Ceph image is specified")
-		return
+func (r *ReconcileCephNFS) setFailedStatus(cephNFS *cephv1.CephNFS, errMessage string, err error) (reconcile.Result, error) {
+	cephNFS.Status.Phase = k8sutil.ReconcileFailedStatus
+	errStatus := opcontroller.UpdateStatus(r.client, cephNFS)
+	if errStatus != nil {
+		logger.Errorf("failed to set status. %v", errStatus)
 	}
 
-	nfs := obj.(*cephv1.CephNFS).DeepCopy()
-
-	c.acquireOrchestrationLock()
-	defer c.releaseOrchestrationLock()
-
-	err := c.downCephNFS(*nfs, 0)
-	if err != nil {
-		logger.Errorf("failed to delete file system %s. %v", nfs.Name, err)
-	}
-}
-
-// ParentClusterChanged performs the steps needed to update the NFS cluster when the parent Ceph
-// cluster has changed.
-func (c *CephNFSController) ParentClusterChanged(cluster cephv1.ClusterSpec, clusterInfo *cephconfig.ClusterInfo, isUpgrade bool) {
-	c.clusterInfo = clusterInfo
-	if !isUpgrade {
-		logger.Debugf("No need to update the nfs daemons after the parent cluster changed")
-		return
-	}
-
-	logger.Infof("waiting for the orchestration lock to update the nfs daemons")
-	c.acquireOrchestrationLock()
-	defer c.releaseOrchestrationLock()
-
-	c.clusterSpec.CephVersion = cluster.CephVersion
-	nfses, err := c.context.RookClientset.CephV1().CephNFSes(c.namespace).List(metav1.ListOptions{})
-	if err != nil {
-		logger.Errorf("failed to retrieve NFSes to update the ceph version. %v", err)
-		return
-	}
-	for _, nfs := range nfses.Items {
-		logger.Infof("updating the ceph version for nfs %q to %q", nfs.Name, c.clusterSpec.CephVersion.Image)
-		err := c.upCephNFS(nfs, 0)
-		if err != nil {
-			logger.Errorf("failed to update nfs %q. %v", nfs.Name, err)
-		} else {
-			logger.Infof("updated nfs %q to ceph version %q", nfs.Name, c.clusterSpec.CephVersion.Image)
-		}
-	}
-}
-
-func nfsChanged(oldNFS, newNFS cephv1.NFSGaneshaSpec) bool {
-	if oldNFS.Server.Active != newNFS.Server.Active {
-		return true
-	}
-	return false
-}
-
-func (c *CephNFSController) acquireOrchestrationLock() {
-	logger.Debugf("Acquiring lock for nfs orchestration")
-	c.orchestrationMutex.Lock()
-	logger.Debugf("Acquired lock for nfs orchestration")
-}
-
-func (c *CephNFSController) releaseOrchestrationLock() {
-	c.orchestrationMutex.Unlock()
-	logger.Debugf("Released lock for nfs orchestration")
-}
-
-func ownerRefs(nfs cephv1.CephNFS) []metav1.OwnerReference {
-	// Set the filesystem CR as the owner
-	return []metav1.OwnerReference{{
-		APIVersion: fmt.Sprintf("%s/%s", CephNFSResource.Group, CephNFSResource.Version),
-		Kind:       CephNFSResource.Kind,
-		Name:       nfs.Name,
-		UID:        nfs.UID,
-	}}
-}
-
-func updateCephNFSStatus(name, namespace, status string, context *clusterd.Context) {
-	updatedCephNFS, err := context.RookClientset.CephV1().CephNFSes(namespace).Get(name, metav1.GetOptions{})
-	if err != nil {
-		logger.Errorf("Unable to update the cephNFS %s status %v", updatedCephNFS.GetName(), err)
-		return
-	}
-	if updatedCephNFS.Status == nil {
-		updatedCephNFS.Status = &cephv1.Status{}
-	} else if updatedCephNFS.Status.Phase == status {
-		return
-	}
-	updatedCephNFS.Status.Phase = status
-	_, err = context.RookClientset.CephV1().CephNFSes(updatedCephNFS.Namespace).Update(updatedCephNFS)
-	if err != nil {
-		logger.Errorf("Unable to update the cephNFS %s status %v", updatedCephNFS.GetName(), err)
-		return
-	}
+	return reconcile.Result{}, errors.Wrapf(err, "%s", errMessage)
 }

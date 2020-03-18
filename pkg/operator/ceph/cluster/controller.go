@@ -39,7 +39,6 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
-	"github.com/rook/rook/pkg/operator/ceph/nfs"
 	"github.com/rook/rook/pkg/operator/ceph/object/bucket"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -464,16 +463,6 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 	//   bucket library's `NewProvisioner` function
 	bucketController, _ := bucket.NewBucketController(c.context.KubeConfig, bucketProvisioner)
 	go bucketController.Run(cluster.stopCh)
-
-	// Start nfs ganesha CRD watcher
-	ganeshaController := nfs.NewCephNFSController(cluster.Info, c.context, cluster.Spec.DataDirHostPath, cluster.Namespace, c.rookImage, cluster.Spec, cluster.ownerRef)
-	ganeshaController.StartWatch(cluster.Namespace, cluster.stopCh)
-
-	// Populate childControllers
-	logger.Debug("populating child controllers, so cluster CR spec updates will be propagaged to other CR")
-	cluster.childControllers = []childController{
-		ganeshaController,
-	}
 
 	// Populate ClusterInfo
 	if cluster.Spec.External.Enable {

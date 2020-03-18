@@ -108,7 +108,22 @@ func WatchControllerPredicate() predicate.Funcs {
 					return true
 				}
 
+			case *cephv1.CephNFS:
+				objNew := e.ObjectNew.(*cephv1.CephNFS)
+				logger.Debug("update event from the parent object CephNFS")
+				diff := cmp.Diff(objOld.Spec, objNew.Spec, resourceQtyComparer)
+				if diff != "" ||
+					objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() ||
+					objOld.GetGeneration() != objNew.GetGeneration() {
+					// Checking if diff is not empty so we don't print it when the CR gets deleted
+					if diff != "" {
+						logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
+					}
+					return true
+				}
+
 			}
+
 			logger.Debug("wont update unknown object")
 			return false
 		},
