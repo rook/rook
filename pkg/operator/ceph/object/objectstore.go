@@ -19,6 +19,7 @@ package object
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -261,7 +262,7 @@ func createSimilarPools(context *Context, pools []string, poolSpec model.Pool) e
 	for _, pool := range pools {
 		// create the pool if it doesn't exist yet
 		name := poolName(context.Name, pool)
-		if _, err := ceph.GetPoolDetails(context.Context, context.ClusterName, name); err != nil {
+		if poolDetails, err := ceph.GetPoolDetails(context.Context, context.ClusterName, name); err != nil {
 			cephConfig.Name = name
 			// If the ceph config has an EC profile, an EC pool must be created. Otherwise, it's necessary
 			// to create a replicated pool.
@@ -275,6 +276,17 @@ func createSimilarPools(context *Context, pools []string, poolSpec model.Pool) e
 			}
 			if err != nil {
 				return errors.Errorf("failed to create pool %s for object store %s", name, context.Name)
+			}
+		} else {
+			// pools already exist
+			if !isECPool {
+				// detect if the replication is different from the pool details
+				if poolDetails.Size != poolSpec.ReplicatedConfig.Size {
+					logger.Infof("pool size is changed from %d to %d", poolDetails.Size, poolSpec.ReplicatedConfig.Size)
+					if err := ceph.SetPoolReplicatedSizeProperty(context.Context, context.ClusterName, poolDetails.Name, strconv.FormatUint(uint64(poolDetails.Size), 10), poolDetails.RequireSafeReplicaSize); err != nil {
+						return errors.Wrapf(err, "failed to set size property to replicated pool %q to %d", poolDetails.Name, poolSpec.ReplicatedConfig.Size)
+					}
+				}
 			}
 		}
 	}
