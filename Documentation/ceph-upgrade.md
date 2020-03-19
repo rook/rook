@@ -63,6 +63,8 @@ need these features now, you can skip this step for the patch upgrade.
 
 ## Enabling the CSI v2.0 driver
 
+> If you are deploying the rook-operator with the helm chart you only need to specify the related images in your values.yaml. The RBAC settings will be created for you by the chart.
+
 To enable the CSI v2.0 driver, you will need to apply updated RBAC settings:
 
 ```sh
