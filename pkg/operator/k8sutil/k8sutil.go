@@ -122,7 +122,7 @@ func deleteResourceAndWait(namespace, name, resourceType string,
 
 	// wait for the resource to be deleted
 	sleepTime := 2 * time.Second
-	for i := 0; i < 30; i++ {
+	for i := 0; i < 45; i++ {
 		// check for the existence of the resource
 		err = getAction()
 		if err != nil {
@@ -133,7 +133,10 @@ func deleteResourceAndWait(namespace, name, resourceType string,
 			return fmt.Errorf("failed to get %s. %+v", name, err)
 		}
 
-		logger.Infof("%s still found. waiting...", name)
+		if i%5 == 0 {
+			// occasionally print a message
+			logger.Infof("%q still found. waiting...", name)
+		}
 		time.Sleep(sleepTime)
 	}
 

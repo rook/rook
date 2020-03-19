@@ -28,7 +28,7 @@ import (
 
 func TestReconcileRealm(t *testing.T) {
 	defaultStore := true
-	executorFunc := func(debug bool, actionName string, command string, args ...string) (string, error) {
+	executorFunc := func(command string, args ...string) (string, error) {
 		idResponse := `{"id":"test-id"}`
 		logger.Infof("Execute: %s %v", command, args)
 		if args[1] == "get" {
@@ -81,7 +81,7 @@ func deleteStore(t *testing.T, name string, existingStores string, expectedDelet
 	executor := &exectest.MockExecutor{}
 	deletedRootPool := false
 	deletedErasureCodeProfile := false
-	executor.MockExecuteCommandWithOutputFile = func(debug bool, actionName, command, outputFile string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
 		//logger.Infof("command: %s %v", command, args)
 		if args[0] == "osd" {
 			if args[1] == "pool" {
@@ -118,7 +118,7 @@ func deleteStore(t *testing.T, name string, existingStores string, expectedDelet
 		}
 		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
-	executorFunc := func(debug bool, actionName, command string, args ...string) (string, error) {
+	executorFunc := func(command string, args ...string) (string, error) {
 		//logger.Infof("Command: %s %v", command, args)
 		if args[0] == "realm" {
 			if args[1] == "delete" {

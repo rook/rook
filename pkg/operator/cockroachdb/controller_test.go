@@ -151,7 +151,7 @@ func TestOnAdd(t *testing.T) {
 	// keep track of if the cockroachdb init command was called
 	initCalled := false
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithCombinedOutput: func(debug bool, actionName string, command string, arg ...string) (string, error) {
+		MockExecuteCommandWithCombinedOutput: func(command string, arg ...string) (string, error) {
 			if strings.Contains(command, "cockroach") && arg[0] == "init" {
 				initCalled = true
 			}

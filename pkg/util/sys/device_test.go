@@ -116,9 +116,9 @@ func TestParseFileSystem(t *testing.T) {
 func TestGetPartitions(t *testing.T) {
 	run := 0
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, arg ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(command string, arg ...string) (string, error) {
 			run++
-			logger.Infof("run %d action %s command %s", run, actionName, command)
+			logger.Infof("run %d command %s", run, command)
 			switch {
 			case run == 1:
 				return `NAME="sdc" SIZE="100000" TYPE="disk" PKNAME=""`, nil
@@ -185,8 +185,8 @@ func TestParseUdevInfo(t *testing.T) {
 
 func TestListDevicesChildListDevicesChild(t *testing.T) {
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, arg ...string) (string, error) {
-			logger.Infof("action %s command %s", actionName, command)
+		MockExecuteCommandWithOutput: func(command string, arg ...string) (string, error) {
+			logger.Infof("command %s", command)
 			return lsblkChildOutput, nil
 		},
 	}

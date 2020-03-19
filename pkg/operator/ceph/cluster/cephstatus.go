@@ -81,7 +81,7 @@ func (c *cephStatusChecker) checkCephStatus(stopCh chan struct{}) {
 // checkStatus queries the status of ceph health then updates the CR status
 func (c *cephStatusChecker) checkStatus() {
 	logger.Debugf("checking health of cluster")
-	status, err := client.Status(c.context, c.namespace, true)
+	status, err := client.Status(c.context, c.namespace)
 	if err != nil {
 		logger.Errorf("failed to get ceph status. %v", err)
 		return

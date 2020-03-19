@@ -19,7 +19,6 @@ package osd
 import (
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
 
@@ -29,7 +28,6 @@ import (
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/util/exec"
 )
 
 const (
@@ -99,24 +97,6 @@ type devicePartInfo struct {
 func (m *DeviceOsdMapping) String() string {
 	b, _ := json.Marshal(m)
 	return string(b)
-}
-
-func waitForPath(path string, executor exec.Executor) error {
-	retryCount := 0
-	retryMax := 25
-	sleepTime := 250
-	for {
-		_, err := executor.ExecuteStat(path)
-		if err == nil {
-			return nil
-		}
-
-		retryCount++
-		if retryCount > retryMax {
-			return err
-		}
-		<-time.After(time.Duration(sleepTime) * time.Millisecond)
-	}
 }
 
 func initializeOSD(config *osdConfig, context *clusterd.Context, cluster *cephconfig.ClusterInfo) error {

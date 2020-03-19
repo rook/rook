@@ -17,13 +17,10 @@ limitations under the License.
 package osd
 
 import (
-	"fmt"
-
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/util/proc"
 )
 
 const (
@@ -35,10 +32,8 @@ type OsdAgent struct {
 	cluster        *cephconfig.ClusterInfo
 	nodeName       string
 	forceFormat    bool
-	osdProc        map[int]*proc.MonitoredProc
 	devices        []DesiredDevice
 	metadataDevice string
-	procMan        *proc.ProcManager
 	storeConfig    config.StoreConfig
 	kv             *k8sutil.ConfigMapKVStore
 	pvcBacked      bool
@@ -64,14 +59,11 @@ func NewAgent(context *clusterd.Context, devices []DesiredDevice, metadataDevice
 		nodeName:       nodeName,
 		kv:             kv,
 		pvcBacked:      pvcBacked,
-		procMan:        proc.New(context.Executor),
-		osdProc:        make(map[int]*proc.MonitoredProc),
 	}
 }
 
 func getDeviceLVPath(context *clusterd.Context, deviceName string) string {
-	cmd := fmt.Sprintf("get logical volume path for device")
-	output, err := context.Executor.ExecuteCommandWithOutput(false, cmd, "pvdisplay", "-C", "-o", "lvpath", "--noheadings", deviceName)
+	output, err := context.Executor.ExecuteCommandWithOutput("pvdisplay", "-C", "-o", "lvpath", "--noheadings", deviceName)
 	if err != nil {
 		logger.Warningf("failed to retrieve logical volume path for %q. %v", deviceName, err)
 		return ""

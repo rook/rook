@@ -262,8 +262,8 @@ var cephVolumeRAWTestResult = `{
 
 func TestParseCephVolumeLVMResult(t *testing.T) {
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(debug bool, name string, command string, args ...string) (string, error) {
-		logger.Infof("%s %+v", command, args)
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		logger.Infof("%s %v", command, args)
 
 		if command == "ceph-volume" {
 			return cephVolumeLVMTestResult, nil
@@ -281,8 +281,8 @@ func TestParseCephVolumeLVMResult(t *testing.T) {
 
 func TestParseCephVolumeRawResult(t *testing.T) {
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(debug bool, name string, command string, args ...string) (string, error) {
-		logger.Infof("%s %+v", command, args)
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		logger.Infof("%s %v", command, args)
 
 		if command == "ceph-volume" {
 			return cephVolumeRAWTestResult, nil
@@ -301,8 +301,8 @@ func TestParseCephVolumeRawResult(t *testing.T) {
 func TestCephVolumeResultMultiClusterSingleOSD(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	// set up a mock function to return "rook owned" partitions on the device and it does not have a filesystem
-	executor.MockExecuteCommandWithOutput = func(debug bool, name string, command string, args ...string) (string, error) {
-		logger.Infof("%s %+v", command, args)
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		logger.Infof("%s %v", command, args)
 
 		if command == "ceph-volume" {
 			return cephVolumeTestResultMultiCluster, nil
@@ -322,8 +322,8 @@ func TestCephVolumeResultMultiClusterSingleOSD(t *testing.T) {
 func TestCephVolumeResultMultiClusterMultiOSD(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	// set up a mock function to return "rook owned" partitions on the device and it does not have a filesystem
-	executor.MockExecuteCommandWithOutput = func(debug bool, name string, command string, args ...string) (string, error) {
-		logger.Infof("%s %+v", command, args)
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		logger.Infof("%s %v", command, args)
 
 		if command == "ceph-volume" {
 			return cephVolumeTestResultMultiClusterMultiOSD, nil

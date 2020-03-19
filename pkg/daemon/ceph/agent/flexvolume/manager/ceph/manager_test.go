@@ -50,13 +50,13 @@ func TestInitLoadRBDModSingleMajor(t *testing.T) {
 	modprobeCalled := false
 
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			assert.Equal(t, "modinfo", command)
 			assert.Equal(t, "rbd", args[2])
 			modInfoCalled = true
 			return "single_major:Use a single major number for all rbd devices (default: false) (bool)", nil
 		},
-		MockExecuteCommand: func(debug bool, actionName string, command string, args ...string) error {
+		MockExecuteCommand: func(command string, args ...string) error {
 			assert.Equal(t, "modprobe", command)
 			assert.Equal(t, "rbd", args[0])
 			assert.Equal(t, "single_major=Y", args[1])
@@ -78,13 +78,13 @@ func TestInitLoadRBDModNoSingleMajor(t *testing.T) {
 	modprobeCalled := false
 
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			assert.Equal(t, "modinfo", command)
 			assert.Equal(t, "rbd", args[2])
 			modInfoCalled = true
 			return "", nil
 		},
-		MockExecuteCommand: func(debug bool, actionName string, command string, args ...string) error {
+		MockExecuteCommand: func(command string, args ...string) error {
 			assert.Equal(t, "modprobe", command)
 			assert.Equal(t, 1, len(args))
 			assert.Equal(t, "rbd", args[0])
@@ -117,14 +117,14 @@ func TestAttach(t *testing.T) {
 	runCount := 1
 
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			if strings.Contains(command, "ceph-authtool") {
 				err := cephtest.CreateConfigDir(path.Join(configDir, clusterNamespace))
 				assert.Nil(t, err)
 			}
 			return "", nil
 		},
-		MockExecuteCommandWithTimeout: func(debug bool, timeout time.Duration, actionName string, command string, args ...string) (string, error) {
+		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
 			assert.Equal(t, "rbd", command)
 			assert.Equal(t, "map", args[0])
 			assert.Equal(t, fmt.Sprintf("testpool/image%d", runCount), args[1])
@@ -201,14 +201,14 @@ func TestDetach(t *testing.T) {
 	clientset.CoreV1().ConfigMaps(clusterNamespace).Create(cm)
 
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			if strings.Contains(command, "ceph-authtool") {
 				err := cephtest.CreateConfigDir(path.Join(configDir, clusterNamespace))
 				assert.Nil(t, err)
 			}
 			return "", nil
 		},
-		MockExecuteCommandWithTimeout: func(debug bool, timeout time.Duration, actionName string, command string, args ...string) (string, error) {
+		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
 			assert.Equal(t, "rbd", command)
 			assert.Equal(t, "unmap", args[0])
 			assert.Equal(t, "testpool/image1", args[1])
@@ -253,14 +253,14 @@ func TestDetachCustomKeyring(t *testing.T) {
 	clientset.CoreV1().ConfigMaps(clusterNamespace).Create(cm)
 
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			if strings.Contains(command, "ceph-authtool") {
 				err := cephtest.CreateConfigDir(path.Join(configDir, clusterNamespace))
 				assert.Nil(t, err)
 			}
 			return "", nil
 		},
-		MockExecuteCommandWithTimeout: func(debug bool, timeout time.Duration, actionName string, command string, args ...string) (string, error) {
+		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
 			assert.Equal(t, "rbd", command)
 			assert.Equal(t, "unmap", args[0])
 			assert.Equal(t, "testpool/image1", args[1])

@@ -366,7 +366,7 @@ func buildHostListFromTree(tree OsdTree) (OsdTree, error) {
 	return osdList, nil
 }
 
-// osdDoNothing determines wether we should perfom upgrade pre-check and post-checks for the OSD daemon
+// osdDoNothing determines wether we should perform upgrade pre-check and post-checks for the OSD daemon
 // it checks for various cluster info like number of OSD and their placement
 // it returns 'true' if we need to do nothing and false and we should pre-check/post-check
 func osdDoNothing(context *clusterd.Context, clusterName string) bool {

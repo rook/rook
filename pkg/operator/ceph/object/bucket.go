@@ -78,7 +78,7 @@ func GetBucketStats(c *Context, bucketName string) (*ObjectBucketStats, bool, er
 		"--bucket", bucketName)
 
 	if err != nil {
-		if strings.Contains(err.Error(), "No such file or directory") {
+		if strings.Contains(err.Error(), "exit status 2") {
 			return nil, true, errors.New("not found")
 		} else {
 			return nil, false, errors.Wrapf(err, "failed to get bucket stats")

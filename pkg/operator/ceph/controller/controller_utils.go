@@ -69,7 +69,7 @@ func IsReadyToReconcile(client client.Client, clustercontext *clusterd.Context, 
 	if cephCluster.Status.Phase == k8sutil.ReadyStatus {
 		// Test a Ceph command to verify the Operator is ready
 		// This is done to silence errors when the operator just started and cannot reconcile yet
-		_, err = cephclient.Status(clustercontext, namespacedName.Namespace, true)
+		_, err = cephclient.Status(clustercontext, namespacedName.Namespace)
 		if err != nil {
 			if strings.Contains(err.Error(), "error calling conf_read_file") {
 				logger.Info("operator is not ready to run ceph command, cannot reconcile yet.")

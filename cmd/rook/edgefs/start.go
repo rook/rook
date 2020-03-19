@@ -25,7 +25,6 @@ import (
 
 const (
 	edgefStartCmdPath = "/opt/nedge/sbin/edgefs-start.sh"
-	logSectionName    = "edgefs-internal"
 )
 
 var startCmd = &cobra.Command{
@@ -44,7 +43,7 @@ func start(cmd *cobra.Command, args []string) error {
 	rook.SetLogLevel()
 	rook.LogStartupInfo(operatorCmd.Flags())
 	executor := &exec.CommandExecutor{}
-	err := executor.ExecuteCommand(true, logSectionName, edgefStartCmdPath, args...)
+	err := executor.ExecuteCommand(edgefStartCmdPath, args...)
 
 	logger.Infof("Start script %s exited: %+v", edgefStartCmdPath, err)
 	return nil

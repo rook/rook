@@ -78,7 +78,7 @@ func TestStartSecureDashboard(t *testing.T) {
 	exitCodeResponse := 0
 	clientset := test.New(t, 3)
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
+		MockExecuteCommandWithOutputFile: func(command string, outFileArg string, args ...string) (string, error) {
 			logger.Infof("command: %s %v", command, args)
 			exitCodeResponse = 0
 			if args[1] == "module" {
@@ -99,8 +99,8 @@ func TestStartSecureDashboard(t *testing.T) {
 			return "", nil
 		},
 	}
-	executor.MockExecuteCommandWithOutputFileTimeout = func(debug bool, timeout time.Duration, actionName string, command, outfileArg string, arg ...string) (string, error) {
-		return executor.MockExecuteCommandWithOutputFile(debug, actionName, command, outfileArg, arg...)
+	executor.MockExecuteCommandWithOutputFileTimeout = func(timeout time.Duration, command, outfileArg string, arg ...string) (string, error) {
+		return executor.MockExecuteCommandWithOutputFile(command, outfileArg, arg...)
 	}
 
 	clusterInfo := &cephconfig.ClusterInfo{

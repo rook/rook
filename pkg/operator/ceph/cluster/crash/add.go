@@ -118,7 +118,6 @@ func Add(mgr manager.Manager, context *clusterd.Context) error {
 					req := reconcile.Request{NamespacedName: types.NamespacedName{Name: nodeName}}
 					return []reconcile.Request{req}
 				}
-				logger.Debugf("%q is not a ceph pod", pod.Name)
 				return []reconcile.Request{}
 			}),
 		},

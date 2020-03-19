@@ -42,7 +42,7 @@ func IsBuiltinKernelModule(name string, executor pkgexec.Executor) (bool, error)
 	}
 
 	kv = fmt.Sprintf("/lib/modules/%s/modules.builtin", kv)
-	out, err := executor.ExecuteCommandWithCombinedOutput(false, "check builtin kmod", "cat", kv)
+	out, err := executor.ExecuteCommandWithCombinedOutput("cat", kv)
 	if err != nil {
 		return false, fmt.Errorf("failed to cat %s: %+v", kv, err)
 	}
@@ -58,7 +58,7 @@ func LoadKernelModule(name string, options []string, executor pkgexec.Executor) 
 
 	args := append([]string{name}, options...)
 
-	if err := executor.ExecuteCommand(false, fmt.Sprintf("modprobe %s", name), "modprobe", args[:]...); err != nil {
+	if err := executor.ExecuteCommand("modprobe", args[:]...); err != nil {
 		return fmt.Errorf("failed to load kernel module %s: %+v", name, err)
 	}
 
@@ -66,7 +66,7 @@ func LoadKernelModule(name string, options []string, executor pkgexec.Executor) 
 }
 
 func CheckKernelModuleParam(name, param string, executor pkgexec.Executor) (bool, error) {
-	out, err := executor.ExecuteCommandWithOutput(false, "check kmod param", "modinfo", "-F", "parm", name)
+	out, err := executor.ExecuteCommandWithOutput("modinfo", "-F", "parm", name)
 	if err != nil {
 		return false, fmt.Errorf("failed to check for %s module %s param: %+v", name, param, err)
 	}

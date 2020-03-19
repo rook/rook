@@ -40,7 +40,7 @@ func runAdminCommandNoRealm(c *Context, args ...string) (string, error) {
 	command, args := client.FinalizeCephCommandArgs("radosgw-admin", args, c.Context.ConfigDir, c.ClusterName)
 
 	// start the rgw admin command
-	output, err := c.Context.Executor.ExecuteCommandWithOutput(client.IsDebugLevel(), "", command, args...)
+	output, err := c.Context.Executor.ExecuteCommandWithOutput(command, args...)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to run radosgw-admin")
 	}

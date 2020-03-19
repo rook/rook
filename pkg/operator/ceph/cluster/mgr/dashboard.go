@@ -20,7 +20,6 @@ package mgr
 import (
 	"context"
 	"crypto/rand"
-	"os/exec"
 	"strconv"
 	"syscall"
 	"time"
@@ -210,29 +209,22 @@ func (c *Cluster) createSelfSignedCert() (bool, error) {
 	return false, nil
 }
 
-// Get the return code from the process
-func getExitCode(err error) (int, bool) {
-	if exiterr, ok := err.(*exec.ExitError); ok {
-		if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-			return status.ExitStatus(), true
-		}
-	}
-	return 0, false
-}
-
 func (c *Cluster) setLoginCredentials(password string) error {
 	// Set the login credentials. Write the command/args to the debug log so we don't write the password by default to the log.
-	logger.Infof("Running command: ceph dashboard set-login-credentials admin *******")
+	logger.Infof("setting ceph dashboard %q login creds", dashboardUsername)
+
 	// retry a few times in the case that the mgr module is not ready to accept commands
-	_, err := client.ExecuteCephCommandWithRetry(func() ([]byte, error) {
+	_, err := client.ExecuteCephCommandWithRetry(func() (string, []byte, error) {
 		args := []string{"dashboard", "set-login-credentials", dashboardUsername, password}
 		cmd := client.NewCephCommand(c.context, c.Namespace, args)
-		cmd.Debug = true
-		return cmd.RunWithTimeout(client.CmdExecuteTimeout)
+		output, err := cmd.RunWithTimeout(client.CmdExecuteTimeout)
+		return "set dashboard creds", output, err
 	}, c.exitCode, 5, invalidArgErrorCode, dashboardInitWaitTime)
 	if err != nil {
 		return errors.Wrapf(err, "failed to set login creds on mgr")
 	}
+
+	logger.Infof("successfully set ceph dashboard creds")
 	return nil
 }
 
