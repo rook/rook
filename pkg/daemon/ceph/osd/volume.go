@@ -186,7 +186,7 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 	// If running on OSD on PVC
 	if a.pvcBacked {
 		if block, metadataBlock, err = a.initializeBlockPVC(context, devices, lvBackedPV); err != nil {
-			return nil, errors.Wrapf(err, "failed to initialize devices")
+			return nil, errors.Wrapf(err, "failed to initialize devices on PVC")
 		}
 	} else {
 		if err = a.initializeDevices(context, devices); err != nil {
