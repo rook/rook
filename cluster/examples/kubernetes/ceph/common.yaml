@@ -903,7 +903,6 @@ kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-ceph-global
-  namespace: rook-ceph
   labels:
     operator: rook
     storage-backend: ceph
@@ -972,7 +971,6 @@ kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-ceph-osd
-  namespace: rook-ceph
 rules:
 - apiGroups:
   - ""
@@ -987,7 +985,6 @@ kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-ceph-mgr-system
-  namespace: rook-ceph
 aggregationRule:
   clusterRoleSelectors:
   - matchLabels:
@@ -998,7 +995,6 @@ kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-ceph-mgr-system-rules
-  namespace: rook-ceph
   labels:
       rbac.ceph.rook.io/aggregate-to-rook-ceph-mgr-system: "true"
 rules:

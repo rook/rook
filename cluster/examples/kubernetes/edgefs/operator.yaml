@@ -351,7 +351,6 @@ kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-edgefs-global
-  namespace: rook-edgefs-system
   labels:
     operator: rook
     storage-backend: edgefs

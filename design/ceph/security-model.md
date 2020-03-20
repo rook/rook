@@ -52,7 +52,6 @@ kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-operator
-  namespace: rook-system
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -93,7 +92,6 @@ kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-ceph-agent
-  namespace: rook-system
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole

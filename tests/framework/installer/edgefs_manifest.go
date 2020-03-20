@@ -141,7 +141,6 @@ kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-edgefs-global
-  namespace: ` + namespace + `
   labels:
     operator: rook
     storage-backend: edgefs
@@ -286,7 +285,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: rook-edgefs-system-psp
-  namespace: ` + namespace + `
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -300,7 +298,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: rook-edgefs-cluster-psp
-  namespace: ` + namespace + `
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
