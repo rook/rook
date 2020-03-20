@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package exec
 
 import (
@@ -35,6 +36,12 @@ type TranslateCommandExecutor struct {
 func (e *TranslateCommandExecutor) ExecuteCommand(command string, arg ...string) error {
 	transCommand, transArgs := e.Translator(command, arg...)
 	return e.Executor.ExecuteCommand(transCommand, transArgs...)
+}
+
+// ExecuteCommandWithEnv starts a process with an env variable and wait for its completion
+func (e *TranslateCommandExecutor) ExecuteCommandWithEnv(env []string, command string, arg ...string) error {
+	transCommand, transArgs := e.Translator(command, arg...)
+	return e.Executor.ExecuteCommandWithEnv(env, transCommand, transArgs...)
 }
 
 // ExecuteCommandWithOutput starts a process and wait for its completion

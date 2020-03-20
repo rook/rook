@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Rook Authors. All rights reserved.
+Copyright 2020 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,11 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package file to manage a rook filesystem
-package file
+// Package nfs to manage a rook ceph nfs
+package nfs
 
 import (
 	"context"
+	"errors"
 	"os"
 	"testing"
 
@@ -39,114 +40,37 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-const (
-	fsGet = `{
-		"mdsmap":{
-		   "epoch":49,
-		   "flags":50,
-		   "ever_allowed_features":32,
-		   "explicitly_allowed_features":32,
-		   "created":"2020-03-17 13:17:43.743717",
-		   "modified":"2020-03-17 15:22:51.020576",
-		   "tableserver":0,
-		   "root":0,
-		   "session_timeout":60,
-		   "session_autoclose":300,
-		   "min_compat_client":"-1 (unspecified)",
-		   "max_file_size":1099511627776,
-		   "last_failure":0,
-		   "last_failure_osd_epoch":0,
-		   "compat":{
-			  "compat":{
-
-			  },
-			  "ro_compat":{
-
-			  },
-			  "incompat":{
-				 "feature_1":"base v0.20",
-				 "feature_2":"client writeable ranges",
-				 "feature_3":"default file layouts on dirs",
-				 "feature_4":"dir inode in separate object",
-				 "feature_5":"mds uses versioned encoding",
-				 "feature_6":"dirfrag is stored in omap",
-				 "feature_8":"no anchor table",
-				 "feature_9":"file layout v2",
-				 "feature_10":"snaprealm v2"
-			  }
-		   },
-		   "max_mds":1,
-		   "in":[
-			  0
-		   ],
-		   "up":{
-			  "mds_0":4463
-		   },
-		   "failed":[
-
-		   ],
-		   "damaged":[
-
-		   ],
-		   "stopped":[
-
-		   ],
-		   "info":{
-			  "gid_4463":{
-				 "gid":4463,
-				 "name":"myfs-a",
-				 "rank":0,
-				 "incarnation":5,
-				 "state":"up:active",
-				 "state_seq":3,
-				 "addr":"172.17.0.12:6801/175789278",
-				 "addrs":{
-					"addrvec":[
-					   {
-						  "type":"v2",
-						  "addr":"172.17.0.12:6800",
-						  "nonce":175789278
-					   },
-					   {
-						  "type":"v1",
-						  "addr":"172.17.0.12:6801",
-						  "nonce":175789278
-					   }
-					]
-				 },
-				 "export_targets":[
-
-				 ],
-				 "features":4611087854031667199,
-				 "flags":0
-			  }
-		   },
-		   "data_pools":[
-			  3
-		   ],
-		   "metadata_pool":2,
-		   "enabled":true,
-		   "fs_name":"myfs",
-		   "balancer":"",
-		   "standby_count_wanted":1
-		},
-		"id":1
-	 }`
-	mdsCephAuthGetOrCreateKey = `{"key":"AQCvzWBeIV9lFRAAninzm+8XFxbSfTiPwoX50g=="}`
-	dummyVersionsRaw          = `
+var (
+	name             = "my-nfs"
+	namespace        = "rook-ceph"
+	dummyVersionsRaw = `
 	{
 		"mon": {
 			"ceph version 14.2.8 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) nautilus (stable)": 3
 		}
 	}`
+	poolDetails = `{
+		"pool": "foo",
+		"pool_id": 1,
+		"size": 3,
+		"min_size": 2,
+		"pg_num": 8,
+		"pgp_num": 8,
+		"crush_rule": "replicated_rule",
+		"hashpspool": true,
+		"nodelete": false,
+		"nopgchange": false,
+		"nosizechange": false,
+		"write_fadvise_dontneed": false,
+		"noscrub": false,
+		"nodeep-scrub": false,
+		"use_gmt_hitset": true,
+		"fast_read": 0,
+		"pg_autoscale_mode": "on"
+	  }`
 )
 
-var (
-	name      = "my-fs"
-	namespace = "rook-ceph"
-)
-
-func TestCephObjectStoreController(t *testing.T) {
+func TestCephNFSController(t *testing.T) {
 	// Set DEBUG logging
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 	os.Setenv("ROOK_LOG_LEVEL", "DEBUG")
@@ -157,14 +81,18 @@ func TestCephObjectStoreController(t *testing.T) {
 	// FAILURE because no CephCluster
 	//
 	// A Pool resource with metadata and spec.
-	fs := &cephv1.CephFilesystem{
+	cephNFS := &cephv1.CephNFS{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec: cephv1.FilesystemSpec{
-			MetadataServer: cephv1.MetadataServerSpec{
-				ActiveCount: 1,
+		Spec: cephv1.NFSGaneshaSpec{
+			RADOS: cephv1.GaneshaRADOSSpec{
+				Pool:      "foo",
+				Namespace: namespace,
+			},
+			Server: cephv1.GaneshaServerSpec{
+				Active: 1,
 			},
 		},
 		TypeMeta: controllerTypeMeta,
@@ -173,7 +101,7 @@ func TestCephObjectStoreController(t *testing.T) {
 
 	// Objects to track in the fake client.
 	object := []runtime.Object{
-		fs,
+		cephNFS,
 	}
 
 	executor := &exectest.MockExecutor{
@@ -181,16 +109,30 @@ func TestCephObjectStoreController(t *testing.T) {
 			if args[0] == "status" {
 				return `{"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
 			}
-			if args[0] == "fs" && args[1] == "get" {
-				return fsGet, nil
-			}
-			if args[0] == "auth" && args[1] == "get-or-create-key" {
-				return mdsCephAuthGetOrCreateKey, nil
-			}
 			if args[0] == "versions" {
 				return dummyVersionsRaw, nil
 			}
-			return "", nil
+			if args[0] == "osd" && args[1] == "pool" && args[2] == "get" {
+				return poolDetails, nil
+			}
+			return "", errors.New("unknown command")
+		},
+		MockExecuteCommand: func(command string, args ...string) error {
+			if command == "rados" {
+				logger.Infof("mock execute. %s. %s", command, args)
+				assert.Equal(t, "stat", args[6])
+				return nil
+			}
+			return errors.New("unknown command")
+		},
+		MockExecuteCommandWithEnv: func(env []string, command string, args ...string) error {
+			if command == "ganesha-rados-grace" {
+				logger.Infof("mock execute. %s. %s", command, args)
+				assert.Equal(t, "add", args[4])
+				assert.Len(t, env, 1)
+				return nil
+			}
+			return errors.New("unknown command")
 		},
 	}
 	clientset := test.New(t, 3)
@@ -202,13 +144,13 @@ func TestCephObjectStoreController(t *testing.T) {
 
 	// Register operator types with the runtime scheme.
 	s := scheme.Scheme
-	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectStore{})
+	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephNFS{})
 	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{})
 
 	// Create a fake client to mock API calls.
 	cl := fake.NewFakeClientWithScheme(s, object...)
-	// Create a ReconcileCephFilesystem object with the scheme and fake client.
-	r := &ReconcileCephFilesystem{client: cl, scheme: s, context: c}
+	// Create a ReconcileCephNFS object with the scheme and fake client.
+	r := &ReconcileCephNFS{client: cl, scheme: s, context: c}
 
 	// Mock request to simulate Reconcile() being called on an event for a
 	// watched resource .
@@ -241,8 +183,8 @@ func TestCephObjectStoreController(t *testing.T) {
 	object = append(object, cephCluster)
 	// Create a fake client to mock API calls.
 	cl = fake.NewFakeClientWithScheme(s, object...)
-	// Create a ReconcileCephFilesystem object with the scheme and fake client.
-	r = &ReconcileCephFilesystem{client: cl, scheme: s, context: c}
+	// Create a ReconcileCephNFS object with the scheme and fake client.
+	r = &ReconcileCephNFS{client: cl, scheme: s, context: c}
 	logger.Info("STARTING PHASE 2")
 	res, err = r.Reconcile(req)
 	assert.NoError(t, err)
@@ -279,15 +221,15 @@ func TestCephObjectStoreController(t *testing.T) {
 	// Create a fake client to mock API calls.
 	cl = fake.NewFakeClientWithScheme(s, object...)
 
-	// Create a ReconcileCephFilesystem object with the scheme and fake client.
-	r = &ReconcileCephFilesystem{client: cl, scheme: s, context: c}
+	// Create a ReconcileCephNFS object with the scheme and fake client.
+	r = &ReconcileCephNFS{client: cl, scheme: s, context: c}
 
 	logger.Info("STARTING PHASE 3")
 	res, err = r.Reconcile(req)
 	assert.NoError(t, err)
 	assert.False(t, res.Requeue)
-	err = r.client.Get(context.TODO(), req.NamespacedName, fs)
+	err = r.client.Get(context.TODO(), req.NamespacedName, cephNFS)
 	assert.NoError(t, err)
-	assert.Equal(t, "Ready", fs.Status.Phase, fs)
+	assert.Equal(t, "Ready", cephNFS.Status.Phase, cephNFS)
 	logger.Info("PHASE 3 DONE")
 }

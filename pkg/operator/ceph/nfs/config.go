@@ -27,7 +27,7 @@ const (
 	userID = "admin"
 )
 
-func getNFSNodeID(n cephv1.CephNFS, name string) string {
+func getNFSNodeID(n *cephv1.CephNFS, name string) string {
 	return fmt.Sprintf("%s.%s", n.Name, name)
 }
 
@@ -35,7 +35,7 @@ func getGaneshaConfigObject(nodeID string) string {
 	return fmt.Sprintf("conf-%s", nodeID)
 }
 
-func getRadosURL(n cephv1.CephNFS, nodeID string) string {
+func getRadosURL(n *cephv1.CephNFS, nodeID string) string {
 	url := fmt.Sprintf("rados://%s/", n.Spec.RADOS.Pool)
 
 	if n.Spec.RADOS.Namespace != "" {
@@ -46,7 +46,7 @@ func getRadosURL(n cephv1.CephNFS, nodeID string) string {
 	return url
 }
 
-func getGaneshaConfig(n cephv1.CephNFS, name string) string {
+func getGaneshaConfig(n *cephv1.CephNFS, name string) string {
 	nodeID := getNFSNodeID(n, name)
 	url := getRadosURL(n, nodeID)
 	return `

@@ -20,18 +20,25 @@ import (
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
+	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
+	"github.com/rook/rook/pkg/operator/test"
 	optest "github.com/rook/rook/pkg/operator/test"
+	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func TestDeploymentSpec(t *testing.T) {
-	nfs := cephv1.CephNFS{
+	nfs := &cephv1.CephNFS{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "my-nfs",
 			Namespace: "rook-ceph-test-ns",
@@ -58,17 +65,47 @@ func TestDeploymentSpec(t *testing.T) {
 		},
 	}
 
-	clusterInfo := &cephconfig.ClusterInfo{FSID: "myfsid"}
-	clientset := optest.New(t, 1)
-	c := NewCephNFSController(
-		clusterInfo,
-		&clusterd.Context{Clientset: clientset},
-		"/var/lib/rook",
-		"rook-ceph-test-ns",
-		"rook/rook:testimage",
-		&cephv1.ClusterSpec{CephVersion: cephv1.CephVersionSpec{Image: "ceph/ceph:testversion"}},
-		metav1.OwnerReference{},
-	)
+	clientset := test.New(t, 1)
+	c := &clusterd.Context{
+		Executor:      &exectest.MockExecutor{},
+		RookClientset: rookclient.NewSimpleClientset(),
+		Clientset:     clientset,
+	}
+
+	s := scheme.Scheme
+	object := []runtime.Object{&cephv1.CephNFS{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: cephv1.NFSGaneshaSpec{
+			RADOS: cephv1.GaneshaRADOSSpec{
+				Pool:      "foo",
+				Namespace: namespace,
+			},
+			Server: cephv1.GaneshaServerSpec{
+				Active: 1,
+			},
+		},
+		TypeMeta: controllerTypeMeta,
+	},
+	}
+	cl := fake.NewFakeClientWithScheme(s, object...)
+
+	r := &ReconcileCephNFS{
+		client:  cl,
+		scheme:  scheme.Scheme,
+		context: c,
+		clusterInfo: &cephconfig.ClusterInfo{
+			FSID:        "myfsid",
+			CephVersion: cephver.Nautilus,
+		},
+		cephClusterSpec: &cephv1.ClusterSpec{
+			CephVersion: cephv1.CephVersionSpec{
+				Image: "ceph/ceph:v14",
+			},
+		},
+	}
 
 	id := "i"
 	configName := "rook-ceph-nfs-my-nfs-i"
@@ -82,14 +119,14 @@ func TestDeploymentSpec(t *testing.T) {
 		},
 	}
 
-	d := c.makeDeployment(nfs, cfg)
+	d := r.makeDeployment(nfs, cfg)
 
 	// Deployment should have Ceph labels
-	optest.AssertLabelsContainRookRequirements(t, d.ObjectMeta.Labels, appName)
+	optest.AssertLabelsContainRookRequirements(t, d.ObjectMeta.Labels, AppName)
 
 	podTemplate := optest.NewPodTemplateSpecTester(t, &d.Spec.Template)
 	podTemplate.RunFullSuite(
-		appName,
+		AppName,
 		optest.ResourceLimitExpectations{
 			CPUResourceLimit:      "500",
 			MemoryResourceLimit:   "1Ki",
