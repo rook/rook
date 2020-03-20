@@ -19,6 +19,7 @@ package mds
 import (
 	"testing"
 
+	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -62,10 +63,10 @@ func testDeploymentObject(t *testing.T, network cephv1.NetworkSpec) (*apps.Deplo
 		CephVersion: cephver.Nautilus,
 	}
 	clientset := testop.New(t, 1)
+
 	c := NewCluster(
 		clusterInfo,
 		&clusterd.Context{Clientset: clientset},
-		"rook/rook:myversion",
 		&cephv1.ClusterSpec{
 			CephVersion: cephv1.CephVersionSpec{Image: "ceph/ceph:testversion"},
 			Network:     network,
@@ -74,6 +75,7 @@ func testDeploymentObject(t *testing.T, network cephv1.NetworkSpec) (*apps.Deplo
 		&client.CephFilesystemDetails{ID: 15},
 		metav1.OwnerReference{},
 		"/var/lib/rook/",
+		scheme.Scheme,
 	)
 	mdsTestConfig := &mdsConfig{
 		DaemonID:     "myfs-a",

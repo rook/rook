@@ -36,6 +36,8 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mds")
@@ -62,6 +64,7 @@ type Cluster struct {
 	fsID            string
 	ownerRef        metav1.OwnerReference
 	dataDirHostPath string
+	scheme          *runtime.Scheme
 }
 
 type mdsConfig struct {
@@ -74,22 +77,22 @@ type mdsConfig struct {
 func NewCluster(
 	clusterInfo *cephconfig.ClusterInfo,
 	context *clusterd.Context,
-	rookVersion string,
 	clusterSpec *cephv1.ClusterSpec,
 	fs cephv1.CephFilesystem,
 	fsdetails *client.CephFilesystemDetails,
 	ownerRef metav1.OwnerReference,
 	dataDirHostPath string,
+	scheme *runtime.Scheme,
 ) *Cluster {
 	return &Cluster{
 		clusterInfo:     clusterInfo,
 		context:         context,
-		rookVersion:     rookVersion,
 		clusterSpec:     clusterSpec,
 		fs:              fs,
 		fsID:            strconv.Itoa(fsdetails.ID),
 		ownerRef:        ownerRef,
 		dataDirHostPath: dataDirHostPath,
+		scheme:          scheme,
 	}
 }
 
@@ -136,7 +139,7 @@ func (c *Cluster) Start() error {
 		}
 
 		// create unique key for each mds saved to k8s secret
-		keyring, err := c.generateKeyring(mdsConfig)
+		_, err := c.generateKeyring(mdsConfig)
 		if err != nil {
 			return errors.Wrapf(err, "failed to generate keyring for %q", resourceName)
 		}
@@ -159,30 +162,30 @@ func (c *Cluster) Start() error {
 		d := c.makeDeployment(mdsConfig)
 		logger.Debugf("starting mds: %+v", d)
 
+		// Set owner ref to cephFilesystem object
+		err = controllerutil.SetControllerReference(&c.fs, d, c.scheme)
+		if err != nil {
+			return errors.Wrapf(err, "failed to set owner reference for ceph filesystem %q secret", d.Name)
+		}
+
 		// Set the deployment hash as an annotation
 		err = patch.DefaultAnnotator.SetLastAppliedAnnotation(d)
 		if err != nil {
 			return errors.Wrapf(err, "failed to set annotation for deployment %q", d.Name)
 		}
 
-		createdDeployment, createErr := c.context.Clientset.AppsV1().Deployments(c.fs.Namespace).Create(d)
+		_, createErr := c.context.Clientset.AppsV1().Deployments(c.fs.Namespace).Create(d)
 		if createErr != nil {
 			if !kerrors.IsAlreadyExists(createErr) {
 				return errors.Wrapf(createErr, "failed to create mds deployment %s", mdsConfig.ResourceName)
 			}
 			logger.Infof("deployment for mds %s already exists. updating if needed", mdsConfig.ResourceName)
-			createdDeployment, err = c.context.Clientset.AppsV1().Deployments(c.fs.Namespace).Get(d.Name, metav1.GetOptions{})
+			_, err = c.context.Clientset.AppsV1().Deployments(c.fs.Namespace).Get(d.Name, metav1.GetOptions{})
 			if err != nil {
 				return errors.Wrapf(err, "failed to get existing mds deployment %s for update", d.Name)
 			}
 		}
 
-		if err := c.associateKeyring(keyring, createdDeployment); err != nil {
-			logger.Warningf("failed to associate keyring with deployment for %q. %v", resourceName, err)
-		}
-
-		// keyring must be generated before update-and-wait since no keyring will prevent the
-		// deployment from reaching ready state
 		if createErr != nil && kerrors.IsAlreadyExists(createErr) {
 			daemon := string(config.MdsType)
 			if err = UpdateDeploymentAndWait(c.context, d, c.fs.Namespace, daemon, daemonLetterID, c.clusterSpec.SkipUpgradeChecks, false); err != nil {
@@ -194,7 +197,7 @@ func (c *Cluster) Start() error {
 	}
 
 	if err := c.scaleDownDeployments(replicas, desiredDeployments); err != nil {
-		return errors.Wrapf(err, "failed to scale down mds deployments")
+		return errors.Wrap(err, "failed to scale down mds deployments")
 	}
 
 	return nil

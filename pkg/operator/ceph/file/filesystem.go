@@ -29,6 +29,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/pool"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 const (
@@ -50,14 +51,12 @@ func createFilesystem(
 	clusterInfo *cephconfig.ClusterInfo,
 	context *clusterd.Context,
 	fs cephv1.CephFilesystem,
-	rookVersion string,
 	clusterSpec *cephv1.ClusterSpec,
 	ownerRefs metav1.OwnerReference,
 	dataDirHostPath string,
+	scheme *runtime.Scheme,
+
 ) error {
-	if err := validateFilesystem(context, fs); err != nil {
-		return err
-	}
 
 	if len(fs.Spec.DataPools) != 0 {
 		var dataPools []*model.Pool
@@ -66,18 +65,18 @@ func createFilesystem(
 		}
 		f := newFS(fs.Name, fs.Spec.MetadataPool.ToModel(""), dataPools, fs.Spec.MetadataServer.ActiveCount)
 		if err := f.doFilesystemCreate(context, clusterInfo.CephVersion, fs.Namespace); err != nil {
-			return errors.Wrapf(err, "failed to create filesystem %s", fs.Name)
+			return errors.Wrapf(err, "failed to create filesystem %q", fs.Name)
 		}
 	}
 
 	filesystem, err := client.GetFilesystem(context, fs.Namespace, fs.Name)
 	if err != nil {
-		return errors.Wrapf(err, "failed to get filesystem %s", fs.Name)
+		return errors.Wrapf(err, "failed to get filesystem %q", fs.Name)
 	}
 
 	if fs.Spec.MetadataServer.ActiveStandby {
 		if err = client.AllowStandbyReplay(context, fs.Namespace, fs.Name, fs.Spec.MetadataServer.ActiveStandby); err != nil {
-			return errors.Wrapf(err, "failed to set allow_standby_replay to filesystem %s", fs.Name)
+			return errors.Wrapf(err, "failed to set allow_standby_replay to filesystem %q", fs.Name)
 		}
 	}
 
@@ -88,8 +87,8 @@ func createFilesystem(
 		}
 	}
 
-	logger.Infof("start running mdses for filesystem %s", fs.Name)
-	c := mds.NewCluster(clusterInfo, context, rookVersion, clusterSpec, fs, filesystem, ownerRefs, dataDirHostPath)
+	logger.Infof("start running mdses for filesystem %q", fs.Name)
+	c := mds.NewCluster(clusterInfo, context, clusterSpec, fs, filesystem, ownerRefs, dataDirHostPath, scheme)
 	if err := c.Start(); err != nil {
 		return err
 	}
@@ -115,7 +114,7 @@ func deleteFilesystem(context *clusterd.Context, cephVersion cephver.CephVersion
 	return nil
 }
 
-func validateFilesystem(context *clusterd.Context, f cephv1.CephFilesystem) error {
+func validateFilesystem(context *clusterd.Context, f *cephv1.CephFilesystem) error {
 	if f.Name == "" {
 		return errors.New("missing name")
 	}

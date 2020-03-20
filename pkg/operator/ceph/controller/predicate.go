@@ -94,6 +94,20 @@ func WatchControllerPredicate() predicate.Funcs {
 					return true
 				}
 
+			case *cephv1.CephFilesystem:
+				objNew := e.ObjectNew.(*cephv1.CephFilesystem)
+				logger.Debug("update event from the parent object CephFilesystem")
+				diff := cmp.Diff(objOld.Spec, objNew.Spec, resourceQtyComparer)
+				if diff != "" ||
+					objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() ||
+					objOld.GetGeneration() != objNew.GetGeneration() {
+					// Checking if diff is not empty so we don't print it when the CR gets deleted
+					if diff != "" {
+						logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
+					}
+					return true
+				}
+
 			}
 			logger.Debug("wont update unknown object")
 			return false
@@ -154,6 +168,8 @@ func WatchPredicateForNonCRDObject(owner runtime.Object, scheme *runtime.Scheme)
 				logger.Debugf("object %q matched on delete", object.GetName())
 				return true
 			}
+
+			logger.Debugf("object %q did not match on delete", object.GetName())
 			return false
 		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
@@ -170,6 +186,7 @@ func WatchPredicateForNonCRDObject(owner runtime.Object, scheme *runtime.Scheme)
 				return objectChanged
 			}
 
+			logger.Debugf("object %q did not match on update", object.GetName())
 			return false
 		},
 		GenericFunc: func(e event.GenericEvent) bool {
