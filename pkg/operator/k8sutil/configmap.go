@@ -43,7 +43,7 @@ func DeleteConfigMap(clientset kubernetes.Interface, cmName, namespace string, o
 // returns defaultValue if setting is not found
 func GetOperatorSetting(clientset kubernetes.Interface, configMapName, settingName, defaultValue string) (string, error) {
 	// config must be in operator pod namespace
-	namespace := os.Getenv("POD_NAMESPACE")
+	namespace := os.Getenv(PodNamespaceEnvVar)
 	cm, err := clientset.CoreV1().ConfigMaps(namespace).Get(configMapName, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {

@@ -1498,15 +1498,19 @@ spec:
             fieldRef:
               fieldPath: metadata.namespace
         - name: ROOK_ENABLE_FLEX_DRIVER
-          value: "true"
-        - name: ROOK_CSI_ENABLE_CEPHFS
-          value: "true"
-        - name: ROOK_CSI_ENABLE_RBD
-          value: "true"
-        - name: ROOK_CSI_ENABLE_GRPC_METRICS
-          value: "true"
+          value: "false"
         - name: ROOK_CURRENT_NAMESPACE_ONLY
           value: "false"
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: rook-ceph-operator-config
+  namespace: ` + namespace + `
+data:
+  ROOK_CSI_ENABLE_CEPHFS: "true"
+  ROOK_CSI_ENABLE_RBD: "true"
+  ROOK_CSI_ENABLE_GRPC_METRICS: "true"
 `
 }
 

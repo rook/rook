@@ -16,6 +16,8 @@
 - Specific devices for OSDs can now be specified using the full udev path (e.g. /dev/disk/by-id/ata-ST4000DM004-XXXX) instead of the device name.
 - OSD on PVC CRUSH device storage class can now be changed by setting an annotation "crushDeviceClass" on the "data" volume template. See "cluster-on-pvc.yaml" for example.
 - Rook will now refuse to create pools with replica size 1 unless `requireSafeReplicaSize` is set to false.
+- CSI drivers can now be configured using ["rook-ceph-operator-config"](https://github.com/rook/rook/blob/master/cluster/examples/kubernetes/ceph/operator.yaml) ConfigMap.
+ConfigMap can be used in mix with the already existing Env Vars defined in operator deployment manifest. Precedence will be given to ConfigMap in case of conflicting configurations.
 
 ### EdgeFS
 
