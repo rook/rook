@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package exec
 
 import (
@@ -30,8 +31,10 @@ import (
 	"github.com/coreos/pkg/capnslog"
 )
 
+// Executor is the main interface for all the exec commands
 type Executor interface {
 	ExecuteCommand(command string, arg ...string) error
+	ExecuteCommandWithEnv(env []string, comand string, arg ...string) error
 	ExecuteCommandWithOutput(command string, arg ...string) (string, error)
 	ExecuteCommandWithCombinedOutput(command string, arg ...string) (string, error)
 	ExecuteCommandWithOutputFile(command, outfileArg string, arg ...string) (string, error)
@@ -39,12 +42,18 @@ type Executor interface {
 	ExecuteCommandWithTimeout(timeout time.Duration, command string, arg ...string) (string, error)
 }
 
+// CommandExecutor is the type of the Executor
 type CommandExecutor struct {
 }
 
-// Start a process and wait for its completion
-func (*CommandExecutor) ExecuteCommand(command string, arg ...string) error {
-	cmd, stdout, stderr, err := startCommand(command, arg...)
+// ExecuteCommand starts a process and wait for its completion
+func (c *CommandExecutor) ExecuteCommand(command string, arg ...string) error {
+	return c.ExecuteCommandWithEnv([]string{}, command, arg...)
+}
+
+// ExecuteCommandWithEnv starts a process with env variables and wait for its completion
+func (*CommandExecutor) ExecuteCommandWithEnv(env []string, command string, arg ...string) error {
+	cmd, stdout, stderr, err := startCommand(env, command, arg...)
 	if err != nil {
 		return err
 	}
@@ -110,19 +119,21 @@ func (*CommandExecutor) ExecuteCommandWithTimeout(timeout time.Duration, command
 	}
 }
 
+// ExecuteCommandWithOutput executes a command with output
 func (*CommandExecutor) ExecuteCommandWithOutput(command string, arg ...string) (string, error) {
 	logCommand(command, arg...)
 	cmd := exec.Command(command, arg...)
 	return runCommandWithOutput(cmd, false)
 }
 
+// ExecuteCommandWithCombinedOutput executes a command with combined output
 func (*CommandExecutor) ExecuteCommandWithCombinedOutput(command string, arg ...string) (string, error) {
 	logCommand(command, arg...)
 	cmd := exec.Command(command, arg...)
 	return runCommandWithOutput(cmd, true)
 }
 
-// Same as ExecuteCommandWithOutputFile but with a timeout limit.
+// ExecuteCommandWithOutputFileTimeout Same as ExecuteCommandWithOutputFile but with a timeout limit.
 func (*CommandExecutor) ExecuteCommandWithOutputFileTimeout(timeout time.Duration,
 	command, outfileArg string, arg ...string) (string, error) {
 
@@ -160,6 +171,7 @@ func (*CommandExecutor) ExecuteCommandWithOutputFileTimeout(timeout time.Duratio
 	return string(fileOut), err
 }
 
+// ExecuteCommandWithOutputFile executes a command with output on a file
 func (*CommandExecutor) ExecuteCommandWithOutputFile(command, outfileArg string, arg ...string) (string, error) {
 
 	// create a temporary file to serve as the output file for the command to be run and ensure
@@ -190,7 +202,7 @@ func (*CommandExecutor) ExecuteCommandWithOutputFile(command, outfileArg string,
 	return string(fileOut), err
 }
 
-func startCommand(command string, arg ...string) (*exec.Cmd, io.ReadCloser, io.ReadCloser, error) {
+func startCommand(env []string, command string, arg ...string) (*exec.Cmd, io.ReadCloser, io.ReadCloser, error) {
 	logCommand(command, arg...)
 
 	cmd := exec.Command(command, arg...)
@@ -201,6 +213,10 @@ func startCommand(command string, arg ...string) (*exec.Cmd, io.ReadCloser, io.R
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		logger.Warningf("failed to open stderr pipe: %+v", err)
+	}
+
+	if len(env) > 0 {
+		cmd.Env = env
 	}
 
 	err = cmd.Start()
