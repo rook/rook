@@ -131,6 +131,12 @@ const (
 		"realm_id": ""
 	}`
 	rgwCephAuthGetOrCreateKey = `{"key":"AQCvzWBeIV9lFRAAninzm+8XFxbSfTiPwoX50g=="}`
+	dummyVersionsRaw          = `
+	{
+		"mon": {
+			"ceph version 14.2.8 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) nautilus (stable)": 3
+		}
+	}`
 )
 
 var (
@@ -172,6 +178,9 @@ func TestCephObjectStoreController(t *testing.T) {
 			}
 			if args[0] == "auth" && args[1] == "get-or-create-key" {
 				return rgwCephAuthGetOrCreateKey, nil
+			}
+			if args[0] == "versions" {
+				return dummyVersionsRaw, nil
 			}
 			return "", nil
 		},

@@ -195,7 +195,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 	daemon := string(opconfig.MonType)
 	currentCephVersion, err := cephclient.LeastUptodateDaemonVersion(r.context, r.clusterInfo.Name, daemon)
 	if err != nil {
-		logger.Errorf("failed to retrieve current ceph %q version. %v", daemon, err)
+		return reconcile.Result{}, errors.Wrapf(err, "failed to retrieve current ceph %q version", daemon)
 	}
 	r.clusterInfo.CephVersion = currentCephVersion
 
