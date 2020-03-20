@@ -140,3 +140,16 @@ func TestGenerateSecretName(t *testing.T) {
 	secret := c.generateSecretName("a")
 	assert.Equal(t, "rook-ceph-rgw-default-a-keyring", secret)
 }
+
+func TestEmptyPoolSpec(t *testing.T) {
+	assert.True(t, emptyPool(cephv1.PoolSpec{}))
+
+	p := cephv1.PoolSpec{FailureDomain: "foo"}
+	assert.False(t, emptyPool(p))
+
+	p = cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1}}
+	assert.False(t, emptyPool(p))
+
+	p = cephv1.PoolSpec{ErasureCoded: cephv1.ErasureCodedSpec{CodingChunks: 1}}
+	assert.False(t, emptyPool(p))
+}
