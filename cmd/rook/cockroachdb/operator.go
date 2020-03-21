@@ -17,6 +17,7 @@ limitations under the License.
 package cockroachdb
 
 import (
+	"github.com/pkg/errors"
 	"github.com/rook/rook/cmd/rook/rook"
 	operator "github.com/rook/rook/pkg/operator/cockroachdb"
 	"github.com/rook/rook/pkg/util/flags"
@@ -48,7 +49,9 @@ func startOperator(cmd *cobra.Command, args []string) error {
 	rookImage := rook.GetOperatorImage(context.Clientset, containerName)
 	op := operator.New(context, rookImage)
 	err := op.Run()
-	rook.TerminateOnError(err, "failed to run operator")
+	if err != nil {
+		rook.TerminateFatal(errors.Wrapf(err, "failed to run operator\n"))
+	}
 
 	return nil
 }

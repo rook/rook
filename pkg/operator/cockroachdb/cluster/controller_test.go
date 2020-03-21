@@ -13,17 +13,19 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package cockroachdb
+package cluster
 
 import (
 	"fmt"
 	"strings"
 	"testing"
-	"time"
 
 	cockroachdbv1alpha1 "github.com/rook/rook/pkg/apis/cockroachdb.rook.io/v1alpha1"
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
+	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
+	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -31,8 +33,12 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/client-go/kubernetes/fake"
+	fakeclient "k8s.io/client-go/kubernetes/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 func TestValidateClusterSpec(t *testing.T) {
@@ -46,7 +52,7 @@ func TestValidateClusterSpec(t *testing.T) {
 			},
 		},
 	}
-	err := validateClusterSpec(spec)
+	err := ValidateClusterSpec(&spec)
 	assert.NotNil(t, err)
 	assert.True(t, strings.Contains(err.Error(), "invalid node count"))
 
@@ -61,7 +67,7 @@ func TestValidateClusterSpec(t *testing.T) {
 		},
 		CachePercent: 150,
 	}
-	err = validateClusterSpec(spec)
+	err = ValidateClusterSpec(&spec)
 	assert.NotNil(t, err)
 	assert.True(t, strings.Contains(err.Error(), "invalid value (150) for cache percent"))
 
@@ -76,7 +82,7 @@ func TestValidateClusterSpec(t *testing.T) {
 		},
 		MaxSQLMemoryPercent: 250,
 	}
-	err = validateClusterSpec(spec)
+	err = ValidateClusterSpec(&spec)
 	assert.NotNil(t, err)
 	assert.True(t, strings.Contains(err.Error(), "invalid value (250) for maxSQLMemory percent"))
 
@@ -89,7 +95,7 @@ func TestValidateClusterSpec(t *testing.T) {
 			},
 		},
 	}
-	err = validateClusterSpec(spec)
+	err = ValidateClusterSpec(&spec)
 	assert.NotNil(t, err)
 	assert.True(t, strings.Contains(err.Error(), "unknown port name"))
 
@@ -103,15 +109,16 @@ func TestValidateClusterSpec(t *testing.T) {
 			},
 		},
 	}
-	err = validateClusterSpec(spec)
+	err = ValidateClusterSpec(&spec)
 	assert.Nil(t, err)
 }
 
-func TestOnAdd(t *testing.T) {
+func TestCreateCluster(t *testing.T) {
+	name := "cluster-824"
 	namespace := "rook-cockroachdb-315"
 	cluster := &cockroachdbv1alpha1.Cluster{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "cluster-824",
+			Name:      name,
 			Namespace: namespace,
 		},
 		Spec: cockroachdbv1alpha1.ClusterSpec{
@@ -148,29 +155,37 @@ func TestOnAdd(t *testing.T) {
 		},
 	}
 
-	// keep track of if the cockroachdb init command was called
-	initCalled := false
+	object := []runtime.Object{
+		cluster,
+	}
+
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithCombinedOutput: func(command string, arg ...string) (string, error) {
-			if strings.Contains(command, "cockroach") && arg[0] == "init" {
-				initCalled = true
-			}
-
 			return "", nil
 		},
 	}
-
-	// initialize the controller and its dependencies
 	clientset := testop.New(t, 3)
-	context := &clusterd.Context{Clientset: clientset, Executor: executor}
-	controller := NewClusterController(context, "rook/cockroachdb:mockTag")
-	controller.createInitRetryInterval = 1 * time.Millisecond
+	context := &clusterd.Context{
+		Clientset:     clientset,
+		RookClientset: rookclient.NewSimpleClientset(),
+		Executor:      executor,
+	}
 
-	// in a background thread, simulate the pods running (fake statefulsets don't automatically do that)
+	s := scheme.Scheme
+	s.AddKnownTypes(cockroachdbv1alpha1.SchemeGroupVersion, cluster)
+
+	// Create a fake client to mock API calls.
+	cl := fake.NewFakeClientWithScheme(s, object...)
+	// Create a ReconcileCephBlockPool object with the scheme and fake client.
+	r := &ReconcileCockroachDBCluster{client: cl, scheme: s, context: context}
+	r.createInitRetryInterval = createInitRetryIntervalDefault
+	r.containerImage = "rook/cockroachdb:mockTag"
+	ownerRef, _ := opcontroller.GetControllerObjectOwnerReference(cluster, s)
+
 	go simulatePodsRunning(clientset, namespace, cluster.Spec.Storage.NodeCount)
 
-	// call onAdd given the specified cluster
-	controller.onAdd(cluster)
+	err := r.CreateCluster(context, cluster, ownerRef)
+	assert.Nil(t, err)
 
 	expectedServicePorts := []v1.ServicePort{
 		{Name: "grpc", Port: int32(456), TargetPort: intstr.FromInt(456)},
@@ -225,12 +240,96 @@ func TestOnAdd(t *testing.T) {
 
 	expectedCommand := []string{"/bin/bash", "-ecx", `exec /cockroach/cockroach start --logtostderr --insecure --advertise-host $(hostname -f) --http-host 0.0.0.0 --port 456 --http-port 123 --join rook-cockroachdb-0.rook-cockroachdb.rook-cockroachdb-315,rook-cockroachdb-1.rook-cockroachdb.rook-cockroachdb-315,rook-cockroachdb-2.rook-cockroachdb.rook-cockroachdb-315,rook-cockroachdb-3.rook-cockroachdb.rook-cockroachdb-315,rook-cockroachdb-4.rook-cockroachdb.rook-cockroachdb-315 --cache 30% --max-sql-memory 40%`}
 	assert.Equal(t, expectedCommand, container.Command)
-
-	// cockroachdb init should have been called
-	assert.True(t, initCalled)
 }
 
-func simulatePodsRunning(clientset *fake.Clientset, namespace string, podCount int) {
+func TestCockroachDBClusterController(t *testing.T) {
+	name := "cluster-824"
+	namespace := "rook-cockroachdb-315"
+	cluster := &cockroachdbv1alpha1.Cluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: cockroachdbv1alpha1.ClusterSpec{
+			Storage: rookv1.StorageScopeSpec{
+				NodeCount: 5,
+				Selection: rookv1.Selection{
+					VolumeClaimTemplates: []v1.PersistentVolumeClaim{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "rook-cockroachdb-test",
+							},
+							Spec: v1.PersistentVolumeClaimSpec{
+								AccessModes: []v1.PersistentVolumeAccessMode{
+									v1.ReadWriteOnce,
+								},
+								Resources: v1.ResourceRequirements{
+									Requests: v1.ResourceList{
+										v1.ResourceStorage: resource.MustParse("1Mi"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			Network: cockroachdbv1alpha1.NetworkSpec{
+				Ports: []cockroachdbv1alpha1.PortSpec{
+					{Name: "http", Port: 123},
+					{Name: "grpc", Port: 456},
+				},
+			},
+			CachePercent:        30,
+			MaxSQLMemoryPercent: 40,
+		},
+		Status: &cockroachdbv1alpha1.Status{},
+	}
+
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithCombinedOutput: func(command string, arg ...string) (string, error) {
+			return "", nil
+		},
+	}
+	clientset := testop.New(t, 3)
+	context := &clusterd.Context{
+		Clientset:     clientset,
+		RookClientset: rookclient.NewSimpleClientset(),
+		Executor:      executor,
+	}
+
+	s := scheme.Scheme
+	s.AddKnownTypes(cockroachdbv1alpha1.SchemeGroupVersion, cluster)
+
+	// UPDATE success
+	cluster.Status.Phase = k8sutil.ReadyStatus
+	object := []runtime.Object{
+		cluster,
+	}
+
+	// Create a fake client to mock API calls.
+	cl := fake.NewFakeClientWithScheme(s, object...)
+	// Create a ReconcileCephBlockPool object with the scheme and fake client.
+	r := &ReconcileCockroachDBCluster{client: cl, scheme: s, context: context}
+	r.createInitRetryInterval = createInitRetryIntervalDefault
+	r.containerImage = "rook/cockroachdb:mockTag"
+
+	// Mock request to simulate Reconcile() being called on an event for a
+	// watched resource .
+	req := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      name,
+			Namespace: namespace,
+		},
+	}
+
+	go simulatePodsRunning(clientset, namespace, cluster.Spec.Storage.NodeCount)
+
+	res, err := r.Reconcile(req)
+	assert.NoError(t, err)
+	assert.False(t, res.Requeue)
+}
+
+func simulatePodsRunning(clientset *fakeclient.Clientset, namespace string, podCount int) {
 	for i := 0; i < podCount; i++ {
 		pod := &v1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
