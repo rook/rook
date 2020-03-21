@@ -35,6 +35,7 @@ type Cluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 	Spec              ClusterSpec `json:"spec"`
+	Status            *Status     `json:"status"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -67,4 +68,8 @@ type PortSpec struct {
 	Name string `json:"name,omitempty"`
 	// Port number
 	Port int32 `json:"port,omitempty"`
+}
+
+type Status struct {
+	Phase string `json:"phase,omitempty"`
 }
