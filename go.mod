@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	github.com/aws/aws-sdk-go v1.16.26
-	github.com/banzaicloud/k8s-objectmatcher v1.2.2
+	github.com/banzaicloud/k8s-objectmatcher v1.1.0
 	github.com/coreos/pkg v0.0.0-20180108230652-97fdf19511ea
 	github.com/coreos/prometheus-operator v0.34.0
 	github.com/corpix/uarand v0.1.1 // indirect

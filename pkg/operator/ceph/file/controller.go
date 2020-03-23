@@ -36,6 +36,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -54,8 +55,7 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
 // List of object resources to watch by the controller
 var objectsToWatch = []runtime.Object{
 	&corev1.Secret{TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: corev1.SchemeGroupVersion.String()}},
-	// Stop watching for Deployment object until https://github.com/rook/rook/issues/5047 is fully resolved
-	// &appsv1.Deployment{TypeMeta: metav1.TypeMeta{Kind: "Deployment", APIVersion: appsv1.SchemeGroupVersion.String()}},
+	&appsv1.Deployment{TypeMeta: metav1.TypeMeta{Kind: "Deployment", APIVersion: appsv1.SchemeGroupVersion.String()}},
 }
 
 var cephFilesystemKind = reflect.TypeOf(cephv1.CephFilesystem{}).Name()
