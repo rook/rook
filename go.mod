@@ -33,7 +33,7 @@ require (
 	k8s.io/kube-controller-manager v0.0.0
 	k8s.io/kubernetes v1.17.2
 	k8s.io/utils v0.0.0-20191114200735-6ca3b61696b6
-	sigs.k8s.io/controller-runtime v0.4.0
+	sigs.k8s.io/controller-runtime v0.5.1
 	sigs.k8s.io/sig-storage-lib-external-provisioner v4.1.0+incompatible
 )
 
