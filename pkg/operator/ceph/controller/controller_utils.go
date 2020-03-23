@@ -84,5 +84,5 @@ func IsReadyToReconcile(client client.Client, clustercontext *clusterd.Context, 
 	}
 
 	logger.Debugf("CephCluster resource %q found in namespace %q but not ready yet", namespacedName.Name, namespacedName.Namespace)
-	return cephCluster.Spec, false, cephClusterExists, ImmediateRetryResult
+	return cephCluster.Spec, false, cephClusterExists, WaitForRequeueIfCephClusterNotReady
 }
