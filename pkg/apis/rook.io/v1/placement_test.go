@@ -22,6 +22,7 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestPlacement_spec(t *testing.T) {
@@ -74,32 +75,41 @@ tolerations:
 	assert.Equal(t, expected, placement)
 }
 
-func TestPlacement_ApplyToPodSpec(t *testing.T) {
+func TestPlacementApplyToPodSpec(t *testing.T) {
 	to := placementTestGetTolerations("foo", "bar")
 	na := placementTestGenerateNodeAffinity()
-	expected := &v1.PodSpec{Affinity: &v1.Affinity{NodeAffinity: na}, Tolerations: to}
+	antiaffinity := placementAntiAffinity("v1")
+	expected := &v1.PodSpec{Affinity: &v1.Affinity{NodeAffinity: na, PodAntiAffinity: antiaffinity}, Tolerations: to}
 
 	var p Placement
 	var ps *v1.PodSpec
 
-	p = Placement{NodeAffinity: na, Tolerations: to}
+	p = Placement{NodeAffinity: na, Tolerations: to, PodAntiAffinity: antiaffinity}
 	ps = &v1.PodSpec{}
 	p.ApplyToPodSpec(ps)
 	assert.Equal(t, expected, ps)
+	assert.Equal(t, 1, len(ps.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution))
+
+	// Appending some other antiaffinity to the pod spec should not alter the original placement antiaffinity
+	otherAntiAffinity := placementAntiAffinity("v2")
+	ps.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution = append(
+		ps.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution,
+		otherAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution...)
+	assert.Equal(t, 1, len(antiaffinity.PreferredDuringSchedulingIgnoredDuringExecution))
 
 	// partial update
-	p = Placement{NodeAffinity: na}
+	p = Placement{NodeAffinity: na, PodAntiAffinity: antiaffinity}
 	ps = &v1.PodSpec{Tolerations: to}
 	p.ApplyToPodSpec(ps)
 	assert.Equal(t, expected, ps)
 
 	// overridden attributes
-	p = Placement{NodeAffinity: na, Tolerations: to}
+	p = Placement{NodeAffinity: na, Tolerations: to, PodAntiAffinity: antiaffinity}
 	ps = &v1.PodSpec{Tolerations: placementTestGetTolerations("bar", "baz")}
 	p.ApplyToPodSpec(ps)
 	assert.Equal(t, expected, ps)
 
-	p = Placement{NodeAffinity: na}
+	p = Placement{NodeAffinity: na, PodAntiAffinity: antiaffinity}
 	nap := placementTestGenerateNodeAffinity()
 	nap.PreferredDuringSchedulingIgnoredDuringExecution[0].Weight = 5
 	ps = &v1.PodSpec{Affinity: &v1.Affinity{NodeAffinity: nap}, Tolerations: to}
@@ -107,7 +117,7 @@ func TestPlacement_ApplyToPodSpec(t *testing.T) {
 	assert.Equal(t, expected, ps)
 }
 
-func TestPlacement_Merge(t *testing.T) {
+func TestPlacementMerge(t *testing.T) {
 	to := placementTestGetTolerations("foo", "bar")
 	na := placementTestGenerateNodeAffinity()
 
@@ -141,6 +151,24 @@ func placementTestGetTolerations(key, value string) []v1.Toleration {
 			Value:             value,
 			Effect:            v1.TaintEffectNoSchedule,
 			TolerationSeconds: &ts,
+		},
+	}
+}
+
+func placementAntiAffinity(value string) *v1.PodAntiAffinity {
+	return &v1.PodAntiAffinity{
+		PreferredDuringSchedulingIgnoredDuringExecution: []v1.WeightedPodAffinityTerm{
+			{
+				Weight: 50,
+				PodAffinityTerm: v1.PodAffinityTerm{
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"app": value,
+						},
+					},
+					TopologyKey: v1.LabelHostname,
+				},
+			},
 		},
 	}
 }
