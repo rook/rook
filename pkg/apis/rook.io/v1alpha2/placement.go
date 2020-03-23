@@ -16,7 +16,7 @@ limitations under the License.
 package v1alpha2
 
 import (
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 )
 
 func (p PlacementSpec) All() Placement {
@@ -29,13 +29,13 @@ func (p Placement) ApplyToPodSpec(t *v1.PodSpec) {
 		t.Affinity = &v1.Affinity{}
 	}
 	if p.NodeAffinity != nil {
-		t.Affinity.NodeAffinity = p.NodeAffinity
+		t.Affinity.NodeAffinity = p.NodeAffinity.DeepCopy()
 	}
 	if p.PodAffinity != nil {
-		t.Affinity.PodAffinity = p.PodAffinity
+		t.Affinity.PodAffinity = p.PodAffinity.DeepCopy()
 	}
 	if p.PodAntiAffinity != nil {
-		t.Affinity.PodAntiAffinity = p.PodAntiAffinity
+		t.Affinity.PodAntiAffinity = p.PodAntiAffinity.DeepCopy()
 	}
 
 	if p.Tolerations != nil {
