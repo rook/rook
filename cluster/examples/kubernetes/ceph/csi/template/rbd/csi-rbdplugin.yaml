@@ -101,6 +101,8 @@ spec:
               mountPath: /etc/ceph-csi-config/
             - name: keys-tmp-dir
               mountPath: /tmp/csi/keys
+            - name: host-run-mount
+              mountPath: /run/mount
         - name: liveness-prometheus
           securityContext:
             privileged: true
@@ -159,3 +161,6 @@ spec:
           emptyDir: {
             medium: "Memory"
           }
+        - name: host-run-mount
+          hostPath:
+            path: /run/mount
