@@ -219,7 +219,7 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 	// v1.2.x
 	attacher := strings.Split(CSIParam.AttacherImage, ":")
 	if len(attacher) > 1 {
-		if strings.HasPrefix(attacher[1], "v1.2.") {
+		if strings.HasPrefix(attacher[len(attacher)-1], "v1.2.") {
 			tp.SetAttacherLeaderElectionType = true
 		}
 	}
@@ -227,7 +227,7 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 	csiPluginImage := strings.Split(CSIParam.CSIPluginImage, ":")
 	// as ceph-csi v2.x.x support resizer, enable it
 	if len(csiPluginImage) > 1 {
-		if strings.HasPrefix(csiPluginImage[1], "v2.") {
+		if strings.HasPrefix(csiPluginImage[len(csiPluginImage)-1], "v2.") {
 			tp.EnableResizer = true
 		}
 	}
