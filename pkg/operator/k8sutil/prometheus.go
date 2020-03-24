@@ -26,6 +26,7 @@ import (
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	monitoringclient "github.com/coreos/prometheus-operator/pkg/client/versioned"
 	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sYAML "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/tools/clientcmd"
@@ -63,16 +64,21 @@ func CreateOrUpdateServiceMonitor(serviceMonitorDefinition *monitoringv1.Service
 	if err != nil {
 		return nil, fmt.Errorf("failed to get monitoring client. %v", err)
 	}
-	sm, err := client.MonitoringV1().ServiceMonitors(namespace).Create(serviceMonitorDefinition)
+	oldSm, err := client.MonitoringV1().ServiceMonitors(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
-		if !errors.IsAlreadyExists(err) {
-			return nil, fmt.Errorf("failed to create servicemonitor. %v", err)
+		if apierrors.IsNotFound(err) {
+			sm, err := client.MonitoringV1().ServiceMonitors(namespace).Create(serviceMonitorDefinition)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create servicemonitor. %v", err)
+			}
+			return sm, nil
 		}
-		sm, err = client.MonitoringV1().ServiceMonitors(namespace).Update(sm)
-		if err != nil {
-			return nil, fmt.Errorf("failed to update servicemonitor. %v", err)
-
-		}
+		return nil, fmt.Errorf("failed to retrieve servicemonitor. %v", err)
+	}
+	serviceMonitorDefinition.ResourceVersion = oldSm.ResourceVersion
+	sm, err := client.MonitoringV1().ServiceMonitors(namespace).Update(serviceMonitorDefinition)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update servicemonitor. %v", err)
 	}
 	return sm, nil
 }
