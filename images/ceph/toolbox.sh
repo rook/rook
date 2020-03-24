@@ -24,6 +24,9 @@ CEPH_CONFIG="/etc/ceph/ceph.conf"
 MON_CONFIG="/etc/rook/mon-endpoints"
 KEYRING_FILE="/etc/ceph/keyring"
 
+# set the default locale to be language neutral
+echo "LANG=C" > /etc/locale.conf
+
 # create a ceph config file in its default location so ceph/rados tools can be used
 # without specifying any arguments
 write_endpoints() {
