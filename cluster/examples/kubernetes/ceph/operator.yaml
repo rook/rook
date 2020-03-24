@@ -155,6 +155,8 @@ spec:
         # - name: AGENT_PRIORITY_CLASS_NAME
         #   value: "<PriorityClassName>"
         # (Optional) Rook Agent NodeAffinity.
+        # Node affinities are added in <key>=<value>[,<value>]... syntax separated by semicolons (;)
+        # Affinities are added to pods with `requiredDuringSchedulingIgnoredDuringExecution`
         # - name: AGENT_NODE_AFFINITY
         #   value: "role=storage-node; storage=rook,ceph"
         # (Optional) Rook Agent mount security mode. Can by `Any` or `Restricted`.
@@ -194,6 +196,8 @@ spec:
         # - name: DISCOVER_PRIORITY_CLASS_NAME
         #   value: "<PriorityClassName>"
         # (Optional) Discover Agent NodeAffinity.
+        # Node affinities are added in <key>=<value>[,<value>]... syntax separated by semicolons (;)
+        # Affinities are added to pods with `requiredDuringSchedulingIgnoredDuringExecution`
         # - name: DISCOVER_AGENT_NODE_AFFINITY
         #   value: "role=storage-node; storage=rook, ceph"
 
