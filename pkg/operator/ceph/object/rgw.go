@@ -19,6 +19,7 @@ package object
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
@@ -281,7 +282,7 @@ func (c *clusterConfig) deleteStore() error {
 
 	// Delete the realm and pools
 	objContext := NewContext(c.context, c.store.Name, c.store.Namespace)
-	err := deleteRealmAndPools(objContext, c.store.Spec.PreservePoolsOnDelete)
+	err := deleteRealmAndPools(objContext, c.store.Spec)
 	if err != nil {
 		return errors.Wrap(err, "failed to delete the realm and pools")
 	}
@@ -310,11 +311,18 @@ func validateStore(context *clusterd.Context, s *cephv1.CephObjectStore) error {
 	if securePort < 0 || securePort > 65535 {
 		return errors.Errorf("securePort value of %d must be between 0 and 65535", securePort)
 	}
-	if err := pool.ValidatePoolSpec(context, s.Namespace, &s.Spec.MetadataPool); err != nil {
-		return errors.Wrapf(err, "invalid metadata pool spec")
+
+	// Validate the pool settings, but allow for empty pools specs in case they have already been created
+	// such as by the ceph mgr
+	if !emptyPool(s.Spec.MetadataPool) {
+		if err := pool.ValidatePoolSpec(context, s.Namespace, &s.Spec.MetadataPool); err != nil {
+			return errors.Wrap(err, "invalid metadata pool spec")
+		}
 	}
-	if err := pool.ValidatePoolSpec(context, s.Namespace, &s.Spec.DataPool); err != nil {
-		return errors.Wrapf(err, "invalid data pool spec")
+	if !emptyPool(s.Spec.DataPool) {
+		if err := pool.ValidatePoolSpec(context, s.Namespace, &s.Spec.DataPool); err != nil {
+			return errors.Wrap(err, "invalid data pool spec")
+		}
 	}
 
 	return nil
@@ -322,4 +330,8 @@ func validateStore(context *clusterd.Context, s *cephv1.CephObjectStore) error {
 
 func (c *clusterConfig) generateSecretName(id string) string {
 	return fmt.Sprintf("%s-%s-%s-keyring", AppName, c.store.Name, id)
+}
+
+func emptyPool(pool cephv1.PoolSpec) bool {
+	return reflect.DeepEqual(pool, cephv1.PoolSpec{})
 }

@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	ceph "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/daemon/ceph/model"
 )
@@ -56,7 +57,7 @@ type realmType struct {
 	Realms []string `json:"realms"`
 }
 
-func deleteRealmAndPools(context *Context, preservePoolsOnDelete bool) error {
+func deleteRealmAndPools(context *Context, spec cephv1.ObjectStoreSpec) error {
 	stores, err := getObjectStores(context)
 	if err != nil {
 		return errors.Wrapf(err, "failed to detect object stores during deletion")
@@ -73,8 +74,8 @@ func deleteRealmAndPools(context *Context, preservePoolsOnDelete bool) error {
 		lastStore = true
 	}
 
-	if !preservePoolsOnDelete {
-		err = deletePools(context, lastStore)
+	if !spec.PreservePoolsOnDelete {
+		err = deletePools(context, spec, lastStore)
 		if err != nil {
 			return errors.Wrapf(err, "failed to delete object store pools")
 		}
@@ -203,7 +204,12 @@ func getObjectStores(context *Context) ([]string, error) {
 	return r.Realms, nil
 }
 
-func deletePools(context *Context, lastStore bool) error {
+func deletePools(context *Context, spec cephv1.ObjectStoreSpec, lastStore bool) error {
+	if emptyPool(spec.DataPool) && emptyPool(spec.MetadataPool) {
+		logger.Info("skipping removal of pools since not specified in the object store")
+		return nil
+	}
+
 	pools := append(metadataPools, dataPools...)
 	if lastStore {
 		pools = append(pools, rootPool)
@@ -235,7 +241,25 @@ func deletePools(context *Context, lastStore bool) error {
 	return nil
 }
 
-func createPools(context *Context, metadataSpec, dataSpec model.Pool) error {
+func createPools(context *Context, spec cephv1.ObjectStoreSpec, metadataSpec, dataSpec model.Pool) error {
+	if emptyPool(spec.DataPool) && emptyPool(spec.MetadataPool) {
+		logger.Info("no pools specified for the object store, checking for their existence...")
+		pools := append(metadataPools, dataPools...)
+		pools = append(pools, rootPool)
+		var missingPools []string
+		for _, pool := range pools {
+			poolName := poolName(context.Name, pool)
+			_, err := ceph.GetPoolDetails(context.Context, context.ClusterName, poolName)
+			if err != nil {
+				logger.Debugf("failed to find pool %q. %v", poolName, err)
+				missingPools = append(missingPools, poolName)
+			}
+		}
+		if len(missingPools) > 0 {
+			return fmt.Errorf("object store pools are missing: %v", missingPools)
+		}
+	}
+
 	if err := createSimilarPools(context, append(metadataPools, rootPool), metadataSpec); err != nil {
 		return errors.Wrapf(err, "failed to create metadata pools")
 	}

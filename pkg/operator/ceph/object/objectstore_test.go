@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/pkg/errors"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -152,18 +153,30 @@ func deleteStore(t *testing.T, name string, existingStores string, expectedDelet
 	executor.MockExecuteCommandWithCombinedOutput = executorFunc
 	context := &Context{Context: &clusterd.Context{Executor: executor}, Name: "myobj", ClusterName: "ns"}
 
-	// Delete an object store
-	err := deleteRealmAndPools(context, false)
+	// Delete an object store without deleting the pools
+	spec := cephv1.ObjectStoreSpec{}
+	err := deleteRealmAndPools(context, spec)
 	assert.Nil(t, err)
-	expectedPoolsDeleted := 6
-	if expectedDeleteRootPool {
-		expectedPoolsDeleted++
-	}
+	expectedPoolsDeleted := 0
 	assert.Equal(t, expectedPoolsDeleted, poolsDeleted)
 	assert.Equal(t, expectedPoolsDeleted, rulesDeleted)
 	assert.True(t, realmDeleted)
 	assert.True(t, zoneGroupDeleted)
 	assert.True(t, zoneDeleted)
+	assert.Equal(t, false, deletedErasureCodeProfile)
+
+	// Delete an object store with the pools
+	spec = cephv1.ObjectStoreSpec{
+		MetadataPool: cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1}},
+		DataPool:     cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1}},
+	}
+	err = deleteRealmAndPools(context, spec)
+	assert.Nil(t, err)
+	expectedPoolsDeleted = 6
+	if expectedDeleteRootPool {
+		expectedPoolsDeleted++
+	}
+	assert.Equal(t, expectedPoolsDeleted, poolsDeleted)
 	assert.Equal(t, expectedDeleteRootPool, deletedRootPool)
 	assert.Equal(t, true, deletedErasureCodeProfile)
 }

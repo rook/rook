@@ -236,25 +236,26 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 		return r.setFailedStatus(cephObjectStore, "failed to reconcile service", err)
 	}
 
-	// RECONCILE POOLS
-	logger.Debug("reconciling object store pools")
 	objContext := NewContext(r.context, cephObjectStore.Name, cephObjectStore.Namespace)
+
+	// RECONCILE POOLS
+	logger.Info("reconciling object store pools")
 	metadataPoolToModel := *cephObjectStore.Spec.MetadataPool.ToModel("")
 	dataPoolToModel := *cephObjectStore.Spec.DataPool.ToModel("")
-	err = createPools(objContext, metadataPoolToModel, dataPoolToModel)
+	err = createPools(objContext, cephObjectStore.Spec, metadataPoolToModel, dataPoolToModel)
 	if err != nil {
 		return r.setFailedStatus(cephObjectStore, "failed to create object pools", err)
 	}
 
 	// RECONCILE REALM
-	logger.Debug("reconciling object store realms")
+	logger.Info("reconciling object store realms")
 	err = reconcileRealm(objContext, serviceIP, cephObjectStore.Spec.Gateway.Port)
 	if err != nil {
 		return r.setFailedStatus(cephObjectStore, "failed to create object store realm", err)
 	}
 
 	// CREATE/UPDATE
-	logger.Debug("reconciling object store deployments")
+	logger.Info("reconciling object store deployments")
 	reconcileResponse, err = r.reconcileCreateObjectStore(cephObjectStore)
 	if err != nil {
 		return r.setFailedStatus(cephObjectStore, "failed to create object store deployments", err)
@@ -270,7 +271,6 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 	// Return and do not requeue
 	logger.Debug("done reconciling")
 	return reconcile.Result{}, nil
-
 }
 
 func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *cephv1.CephObjectStore) (reconcile.Result, error) {
