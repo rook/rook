@@ -77,6 +77,8 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Ceph().V1().CephObjectStores().Informer()}, nil
 	case v1.SchemeGroupVersion.WithResource("cephobjectstoreusers"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Ceph().V1().CephObjectStoreUsers().Informer()}, nil
+	case v1.SchemeGroupVersion.WithResource("cephrbdmirrors"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Ceph().V1().CephRBDMirrors().Informer()}, nil
 
 		// Group=cockroachdb.rook.io, Version=v1alpha1
 	case cockroachdbrookiov1alpha1.SchemeGroupVersion.WithResource("clusters"):

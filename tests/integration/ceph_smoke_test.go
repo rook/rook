@@ -272,6 +272,16 @@ func (suite *SmokeSuite) TestCreateClient() {
 	require.Equal(suite.T(), "allow *", caps["osd"], "wrong caps")
 }
 
+// Smoke Test for RBD Mirror CRD
+func (suite *SmokeSuite) TestCreateRBDMirrorClient() {
+	logger.Infof("Create rbd-mirror Smoke Test")
+
+	rbdMirrorName := "my-rbd-mirror"
+
+	err := suite.helper.RBDMirrorClient.Create(suite.namespace, rbdMirrorName, 1)
+	require.Nil(suite.T(), err)
+}
+
 func (suite *SmokeSuite) getNonCanaryMonDeployments() ([]appsv1.Deployment, error) {
 	opts := metav1.ListOptions{LabelSelector: "app=rook-ceph-mon"}
 	deployments, err := suite.k8sh.Clientset.AppsV1().Deployments(suite.namespace).List(opts)

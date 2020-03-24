@@ -33,6 +33,7 @@ type CephV1Interface interface {
 	CephNFSesGetter
 	CephObjectStoresGetter
 	CephObjectStoreUsersGetter
+	CephRBDMirrorsGetter
 }
 
 // CephV1Client is used to interact with features provided by the ceph.rook.io group.
@@ -66,6 +67,10 @@ func (c *CephV1Client) CephObjectStores(namespace string) CephObjectStoreInterfa
 
 func (c *CephV1Client) CephObjectStoreUsers(namespace string) CephObjectStoreUserInterface {
 	return newCephObjectStoreUsers(c, namespace)
+}
+
+func (c *CephV1Client) CephRBDMirrors(namespace string) CephRBDMirrorInterface {
+	return newCephRBDMirrors(c, namespace)
 }
 
 // NewForConfig creates a new CephV1Client for the given config.

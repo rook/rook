@@ -56,11 +56,6 @@ func GetPrepareOSDResources(p rook.ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyPrepareOSD]
 }
 
-// GetRBDMirrorResources returns the placement for the RBD Mirrors
-func GetRBDMirrorResources(p rook.ResourceSpec) v1.ResourceRequirements {
-	return p[ResourcesKeyRBDMirror]
-}
-
 // GetCrashCollectorResources returns the placement for the crash daemon
 func GetCrashCollectorResources(p rook.ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyCrashCollector]

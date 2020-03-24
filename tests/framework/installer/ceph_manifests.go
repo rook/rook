@@ -43,6 +43,7 @@ type CephManifests interface {
 	GetBlockPVCDef(claimName, namespace, storageClassName, accessModes, size string) string
 	GetFilesystem(namepace, name string, activeCount int) string
 	GetNFS(namepace, name, pool string, daemonCount int) string
+	GetRBDMirror(namepace, name string, daemonCount int) string
 	GetObjectStore(namespace, name string, replicaCount, port int) string
 	GetObjectStoreUser(namespace, name, displayName, store string) string
 	GetBucketStorageClass(namespace, storeName, storageClassName, reclaimPolicy, region string) string
@@ -640,6 +641,31 @@ spec:
                   type: string
                 mds:
                   type: string
+  subresources:
+    status: {}
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: cephrbdmirrors.ceph.rook.io
+spec:
+  group: ceph.rook.io
+  names:
+    kind: CephRBDMirror
+    listKind: CephRBDMirrorList
+    plural: cephrbdmirrors
+    singular: cephrbdmirror
+  scope: Namespaced
+  version: v1
+  validation:
+    openAPIV3Schema:
+      properties:
+        spec:
+          properties:
+            count:
+              type: integer
+              minimum: 1
+              maximum: 100
   subresources:
     status: {}`
 }
@@ -1836,8 +1862,6 @@ spec:
   continueUpgradeAfterChecksEvenIfNotHealthy: false
   dashboard:
     enabled: true
-  rbdMirroring:
-    workers: ` + strconv.Itoa(settings.RBDMirrorWorkers) + `
   network:
     hostNetwork: false
   crashCollector:
@@ -1884,8 +1908,6 @@ spec:
   dashboard:
     enabled: true
   skipUpgradeChecks: true
-  rbdMirroring:
-    workers: ` + strconv.Itoa(settings.RBDMirrorWorkers) + `
   metadataDevice:
   storage:
     useAllNodes: true
@@ -2138,6 +2160,17 @@ spec:
     namespace: nfs-ns
   server:
     active: ` + strconv.Itoa(count)
+}
+
+// GetRBDMirror returns the manifest to create a Rook Ceph RBD Mirror resource with the given config.
+func (m *CephManifestsMaster) GetRBDMirror(namespace, name string, count int) string {
+	return `apiVersion: ceph.rook.io/v1
+kind: CephRBDMirror
+metadata:
+  name: ` + name + `
+  namespace: ` + namespace + `
+spec:
+  count: ` + strconv.Itoa(count)
 }
 
 func (m *CephManifestsMaster) GetObjectStore(namespace, name string, replicaCount, port int) string {

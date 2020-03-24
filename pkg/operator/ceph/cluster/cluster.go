@@ -37,7 +37,6 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
-	"github.com/rook/rook/pkg/operator/ceph/cluster/rbd"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
@@ -297,16 +296,6 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 		err = osds.Start()
 		if err != nil {
 			return errors.Wrapf(err, "failed to start the osds")
-		}
-
-		// Start the rbd mirroring daemon(s)
-		rbdmirror := rbd.New(c.Info, c.context, c.Namespace, rookImage, spec.CephVersion, cephv1.GetRBDMirrorPlacement(spec.Placement),
-			cephv1.GetRBDMirrorAnnotations(spec.Annotations), spec.Network, spec.RBDMirroring,
-			cephv1.GetRBDMirrorResources(spec.Resources), cephv1.GetRBDMirrorPriorityClassName(spec.PriorityClassNames),
-			c.ownerRef, c.Spec.DataDirHostPath, c.Spec.SkipUpgradeChecks)
-		err = rbdmirror.Start()
-		if err != nil {
-			return errors.Wrapf(err, "failed to start the rbd mirrors")
 		}
 
 		logger.Infof("Done creating rook instance in namespace %s", c.Namespace)

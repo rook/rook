@@ -152,7 +152,7 @@ func (h *CephInstaller) CreateRookToolbox(namespace string) (err error) {
 
 // CreateRookCluster creates rook cluster via kubectl
 func (h *CephInstaller) CreateRookCluster(namespace, systemNamespace, storeType string, usePVC bool, storageClassName string,
-	mon cephv1.MonSpec, startWithAllNodes bool, rbdMirrorWorkers int, cephVersion cephv1.CephVersionSpec) error {
+	mon cephv1.MonSpec, startWithAllNodes bool, cephVersion cephv1.CephVersionSpec) error {
 
 	dataDirHostPath, err := h.initTestDir(namespace)
 	if err != nil {
@@ -201,7 +201,7 @@ osd_pool_default_size = 1
 	}
 
 	logger.Infof("Starting Rook Cluster with yaml")
-	settings := &ClusterSettings{namespace, storeType, dataDirHostPath, mon.Count, rbdMirrorWorkers, usePVC, storageClassName, cephVersion}
+	settings := &ClusterSettings{namespace, storeType, dataDirHostPath, mon.Count, 0, usePVC, storageClassName, cephVersion}
 	rookCluster := h.Manifests.GetRookCluster(settings)
 	if _, err := h.k8shelper.KubectlWithStdin(rookCluster, createFromStdinArgs...); err != nil {
 		return fmt.Errorf("Failed to create rook cluster : %v ", err)
@@ -217,12 +217,6 @@ osd_pool_default_size = 1
 
 	if err := h.k8shelper.WaitForPodCount("app=rook-ceph-osd", namespace, 1); err != nil {
 		return err
-	}
-
-	if rbdMirrorWorkers > 0 {
-		if err := h.k8shelper.WaitForPodCount("app=rook-ceph-rbd-mirror", namespace, rbdMirrorWorkers); err != nil {
-			return err
-		}
 	}
 
 	logger.Infof("Rook Cluster started")
@@ -409,8 +403,7 @@ func (h *CephInstaller) InstallRook(namespace, storeType string, usePVC bool, st
 
 	// Create rook cluster
 	err = h.CreateRookCluster(namespace, onamespace, storeType, usePVC, storageClassName,
-		cephv1.MonSpec{Count: mon.Count, AllowMultiplePerNode: mon.AllowMultiplePerNode}, startWithAllNodes,
-		rbdMirrorWorkers, h.CephVersion)
+		cephv1.MonSpec{Count: mon.Count, AllowMultiplePerNode: mon.AllowMultiplePerNode}, startWithAllNodes, h.CephVersion)
 	if err != nil {
 		logger.Errorf("Rook cluster %s not installed, error -> %v", namespace, err)
 		return false, err
@@ -512,7 +505,8 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, name
 		"cephclients.ceph.rook.io",
 		"volumes.rook.io",
 		"objectbuckets.objectbucket.io",
-		"objectbucketclaims.objectbucket.io")
+		"objectbucketclaims.objectbucket.io",
+		"cephrbdmirrors.ceph.rook.io")
 	checkError(h.T(), err, "cannot delete CRDs")
 
 	if h.useHelm {

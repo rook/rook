@@ -163,10 +163,6 @@ spec:
                   type: boolean
                 rulesNamespace:
                   type: string
-            rbdMirroring:
-              properties:
-                workers:
-                  type: integer
             removeOSDsIfOutAndSafeToRemove:
               type: boolean
             external:
@@ -233,6 +229,33 @@ spec:
   subresources:
     status: {}
 # OLM: END CEPH CLIENT CRD
+# OLM: BEGIN CEPH RBD MIRROR CRD
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: cephrbdmirrors.ceph.rook.io
+spec:
+  group: ceph.rook.io
+  names:
+    kind: CephRBDMirror
+    listKind: CephRBDMirrorList
+    plural: cephrbdmirrors
+    singular: cephrbdmirror
+  scope: Namespaced
+  version: v1
+  validation:
+    openAPIV3Schema:
+      properties:
+        spec:
+          properties:
+            count:
+              type: integer
+              minimum: 1
+              maximum: 100
+  subresources:
+    status: {}
+# OLM: END CEPH RBD MIRROR CRD
 # OLM: BEGIN CEPH FS CRD
 ---
 apiVersion: apiextensions.k8s.io/v1beta1

@@ -1856,3 +1856,8 @@ func (m *CephManifestsV1_1) GetRookExternalCluster(settings *ClusterExternalSett
 	// Not implemented in v1.1
 	return ""
 }
+
+func (m *CephManifestsV1_1) GetRBDMirror(namespace, name string, count int) string {
+	// Not implemented in v1.1
+	return ""
+}
