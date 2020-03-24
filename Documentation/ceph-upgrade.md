@@ -78,7 +78,7 @@ you should change to match where your images are located.
 ```yaml
   env:
     - name: ROOK_CSI_CEPH_IMAGE
-        value: "quay.io/cephcsi/cephcsi:v2.0.0"
+        value: "quay.io/cephcsi/cephcsi:v2.0.1"
     - name: ROOK_CSI_REGISTRAR_IMAGE
         value: "quay.io/k8scsi/csi-node-driver-registrar:v1.2.0"
     - name: ROOK_CSI_PROVISIONER_IMAGE
@@ -492,7 +492,8 @@ kubectl -n $ROOK_NAMESPACE exec -it $TOOLS_POD -- ceph config set global mon_war
 
 
 ## CSI Updates
-If you have a v1.1 cluster running with CSI drivers enabled and you have configured the Rook-Ceph
+
+If you have a v1.1+ cluster running with CSI drivers enabled and you have configured the Rook-Ceph
 operator to use custom CSI images, the environment (`env`) variables need to be updated
 periodically. If this is the case, it is easiest to `kubectl edit` the operator deployment and
 modify everything needed at once. You can switch between using Rook-Ceph's default CSI images and
@@ -511,7 +512,7 @@ located.
 ```yaml
   env:
     - name: ROOK_CSI_CEPH_IMAGE
-        value: "quay.io/cephcsi/cephcsi:v1.2.2"
+        value: "quay.io/cephcsi/cephcsi:v2.0.1"
     - name: ROOK_CSI_REGISTRAR_IMAGE
         value: "quay.io/k8scsi/csi-node-driver-registrar:v1.2.0"
     - name: ROOK_CSI_PROVISIONER_IMAGE
@@ -520,6 +521,8 @@ located.
         value: "quay.io/k8scsi/csi-snapshotter:v1.2.2"
     - name: ROOK_CSI_ATTACHER_IMAGE
         value: "quay.io/k8scsi/csi-attacher:v1.2.0"
+    - name: ROOK_CSI_RESIZER_IMAGE
+        value: "quay.io/k8scsi/csi-resizer:v0.4.0"
 ```
 
 ### Verifying updates
@@ -529,9 +532,26 @@ are updated.
 
 ```console
 # kubectl --namespace rook-ceph get pod -o jsonpath='{range .items[*]}{range .spec.containers[*]}{.image}{"\n"}' -l 'app in (csi-rbdplugin,csi-rbdplugin-provisioner,csi-cephfsplugin,csi-cephfsplugin-provisioner)' | sort | uniq
-quay.io/cephcsi/cephcsi:v1.2.2
+quay.io/cephcsi/cephcsi:v2.0.1
 quay.io/k8scsi/csi-attacher:v1.2.0
 quay.io/k8scsi/csi-node-driver-registrar:v1.2.0
 quay.io/k8scsi/csi-provisioner:v1.4.0
 quay.io/k8scsi/csi-snapshotter:v1.2.2
+quay.io/k8scsi/csi-resizer:v0.4.0
 ```
+### Updating cephcsi from v2.0.0 to v2.0.1
+
+If you have a `v2.0.0` cluster, nodes with mounted Ceph persistent volumes will [hang after reboot](ceph-common-issues.md#node-hangs-after-reboot).
+This is fixed by updating `cephcsi` to `v2.0.1`.
+
+The steps below detail how to verify the update is successful and
+were tested on a cluster with [Ceph Block Storage](ceph-block.md).
+
+#### Update process
+
+Follow the steps in [custom images](#use-custom-images) to update
+`cephcsi:v2.0.0` to `cephcsi:v2.0.1`.
+
+All nodes with application pods using Ceph persistent volumes should be drained.
+This is necessary to add the `_netdev` mount option to both the staging and
+publish paths of Ceph persistent volumes.
