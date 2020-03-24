@@ -231,7 +231,7 @@ func givePoolAppTag(context *clusterd.Context, clusterName string, poolName stri
 }
 
 func CreateECPoolForApp(context *clusterd.Context, clusterName string, newPool CephStoragePoolDetails, appName string, enableECOverwrite bool, erasureCodedConfig model.ErasureCodedPoolConfig) error {
-	args := []string{"osd", "pool", "create", newPool.Name, strconv.Itoa(newPool.Number), "erasure", newPool.ErasureCodeProfile}
+	args := []string{"osd", "pool", "create", newPool.Name, "0", "erasure", newPool.ErasureCodeProfile}
 
 	buf, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
@@ -261,7 +261,7 @@ func CreateReplicatedPoolForApp(context *clusterd.Context, clusterName string, n
 		return err
 	}
 
-	args := []string{"osd", "pool", "create", newPool.Name, strconv.Itoa(newPool.Number), "replicated", newPool.Name}
+	args := []string{"osd", "pool", "create", newPool.Name, "0", "replicated", newPool.Name}
 
 	buf, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
