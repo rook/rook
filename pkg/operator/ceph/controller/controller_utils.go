@@ -24,7 +24,6 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -44,7 +43,7 @@ var (
 )
 
 // IsReadyToReconcile determines if a controller is ready to reconcile or not
-func IsReadyToReconcile(client client.Client, clustercontext *clusterd.Context, namespacedName types.NamespacedName) (cephv1.ClusterSpec, bool, bool, reconcile.Result) {
+func IsReadyToReconcile(client client.Client, clustercontext *clusterd.Context, namespacedName types.NamespacedName, controllerName string) (cephv1.ClusterSpec, bool, bool, reconcile.Result) {
 	namespacedName.Name = namespacedName.Namespace
 	cephClusterExists := true
 
@@ -55,34 +54,36 @@ func IsReadyToReconcile(client client.Client, clustercontext *clusterd.Context, 
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			cephClusterExists = false
-			logger.Errorf("CephCluster resource %q not found in namespace %q", namespacedName.Name, namespacedName.Namespace)
-			return cephv1.ClusterSpec{}, false, cephClusterExists, ImmediateRetryResult
+			logger.Errorf("%q: CephCluster resource %q not found in namespace %q", controllerName, namespacedName.Name, namespacedName.Namespace)
+			return cephv1.ClusterSpec{}, false, cephClusterExists, WaitForRequeueIfCephClusterNotReady
 		} else if err != nil {
-			logger.Errorf("failed to fetch CephCluster %v", err)
+			logger.Errorf("%q:failed to fetch CephCluster %v", controllerName, err)
 			return cephv1.ClusterSpec{}, false, cephClusterExists, ImmediateRetryResult
 		}
 	}
 
-	logger.Debugf("CephCluster resource %q found in namespace %q", namespacedName.Name, namespacedName.Namespace)
+	logger.Debugf("%q: CephCluster resource %q found in namespace %q", controllerName, namespacedName.Name, namespacedName.Namespace)
 
-	// If the cluster is ready
-	if cephCluster.Status.Phase == k8sutil.ReadyStatus {
-		// Test a Ceph command to verify the Operator is ready
-		// This is done to silence errors when the operator just started and cannot reconcile yet
-		_, err = cephclient.Status(clustercontext, namespacedName.Namespace)
-		if err != nil {
-			if strings.Contains(err.Error(), "error calling conf_read_file") {
-				logger.Info("operator is not ready to run ceph command, cannot reconcile yet.")
-				return cephCluster.Spec, false, cephClusterExists, WaitForRequeueIfCephClusterNotReady
-			}
-			// We should not arrive there
-			logger.Errorf("ceph command error %v", err)
-			return cephCluster.Spec, false, cephClusterExists, ImmediateRetryResult
+	// If the cluster is healthy
+	// Test a Ceph command to verify the Operator is ready
+	// This is done to silence errors when the operator just started and cannot reconcile yet
+	status, err := cephclient.Status(clustercontext, namespacedName.Namespace)
+	if err != nil {
+		if strings.Contains(err.Error(), "error calling conf_read_file") {
+			logger.Infof("%q: operator is not ready to run ceph command, cannot reconcile yet.", controllerName)
+			return cephCluster.Spec, false, cephClusterExists, WaitForRequeueIfCephClusterNotReady
 		}
-		logger.Debugf("operator is ready to run ceph command, reconciling")
+		// We should not arrive there
+		logger.Errorf("%q: ceph command error %v", controllerName, err)
+		return cephCluster.Spec, false, cephClusterExists, ImmediateRetryResult
+	}
+
+	// If Ceph status is ok we can reconcile
+	if status.Health.Status == "HEALTH_OK" || status.Health.Status == "HEALTH_WARN" {
+		logger.Debugf("%q: ceph status is %q, operator is ready to run ceph command, reconciling", controllerName, status.Health.Status)
 		return cephCluster.Spec, true, cephClusterExists, reconcile.Result{}
 	}
 
-	logger.Debugf("CephCluster resource %q found in namespace %q but not ready yet", namespacedName.Name, namespacedName.Namespace)
-	return cephCluster.Spec, false, cephClusterExists, ImmediateRetryResult
+	logger.Debugf("%q: CephCluster resource %q found in namespace %q but cluster state is not appropriate %q", controllerName, namespacedName.Name, namespacedName.Namespace, status.Health.Status)
+	return cephCluster.Spec, false, cephClusterExists, WaitForRequeueIfCephClusterNotReady
 }

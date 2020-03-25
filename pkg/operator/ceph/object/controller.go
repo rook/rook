@@ -31,6 +31,7 @@ import (
 	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -54,8 +55,7 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
 var objectsToWatch = []runtime.Object{
 	&corev1.Secret{TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: corev1.SchemeGroupVersion.String()}},
 	&v1.Service{TypeMeta: metav1.TypeMeta{Kind: "Service", APIVersion: v1.SchemeGroupVersion.String()}},
-	// Stop watching for Deployment object until https://github.com/rook/rook/issues/5047 is fully resolved
-	// &appsv1.Deployment{TypeMeta: metav1.TypeMeta{Kind: "Deployment", APIVersion: appsv1.SchemeGroupVersion.String()}},
+	&appsv1.Deployment{TypeMeta: metav1.TypeMeta{Kind: "Deployment", APIVersion: appsv1.SchemeGroupVersion.String()}},
 }
 
 var cephObjectStoreKind = reflect.TypeOf(cephv1.CephObjectStore{}).Name()
@@ -159,7 +159,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
-	cephClusterSpec, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.client, r.context, request.NamespacedName)
+	cephClusterSpec, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.client, r.context, request.NamespacedName, controllerName)
 	if !isReadyToReconcile {
 		// This handles the case where the Ceph Cluster is gone and we want to delete that CR
 		// We skip the deleteStore() function since everything is gone already
@@ -178,7 +178,6 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 			return reconcile.Result{}, nil
 		}
 
-		logger.Debugf("CephCluster resource not ready in namespace %q, retrying in %q.", request.NamespacedName.Namespace, opcontroller.WaitForRequeueIfCephClusterNotReadyAfter.String())
 		return reconcileResponse, nil
 	}
 	r.cephClusterSpec = &cephClusterSpec

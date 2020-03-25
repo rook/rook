@@ -141,7 +141,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
-	_, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.client, r.context, request.NamespacedName)
+	_, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.client, r.context, request.NamespacedName, controllerName)
 	if !isReadyToReconcile {
 		// This handles the case where the Ceph Cluster is gone and we want to delete that CR
 		// We skip the deletePool() function since everything is gone already
@@ -159,8 +159,6 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 			// Return and do not requeue. Successful deletion.
 			return reconcile.Result{}, nil
 		}
-
-		logger.Debugf("CephCluster resource not ready in namespace %q, retrying in %q.", request.NamespacedName.Namespace, opcontroller.WaitForRequeueIfCephClusterNotReadyAfter.String())
 		return reconcileResponse, nil
 	}
 

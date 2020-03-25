@@ -107,32 +107,12 @@ func TestCephNFSController(t *testing.T) {
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
 			if args[0] == "status" {
-				return `{"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
+				return `{"fsid":"c47cac40-9bee-4d52-823b-ccd803ba5bfe","health":{"checks":{},"status":"HEALTH_ERR"},"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
 			}
 			if args[0] == "versions" {
 				return dummyVersionsRaw, nil
 			}
-			if args[0] == "osd" && args[1] == "pool" && args[2] == "get" {
-				return poolDetails, nil
-			}
-			return "", errors.New("unknown command")
-		},
-		MockExecuteCommand: func(command string, args ...string) error {
-			if command == "rados" {
-				logger.Infof("mock execute. %s. %s", command, args)
-				assert.Equal(t, "stat", args[6])
-				return nil
-			}
-			return errors.New("unknown command")
-		},
-		MockExecuteCommandWithEnv: func(env []string, command string, args ...string) error {
-			if command == "ganesha-rados-grace" {
-				logger.Infof("mock execute. %s. %s", command, args)
-				assert.Equal(t, "add", args[4])
-				assert.Len(t, env, 1)
-				return nil
-			}
-			return errors.New("unknown command")
+			return "", nil
 		},
 	}
 	clientset := test.New(t, 3)
@@ -220,6 +200,39 @@ func TestCephNFSController(t *testing.T) {
 
 	// Create a fake client to mock API calls.
 	cl = fake.NewFakeClientWithScheme(s, object...)
+
+	executor = &exectest.MockExecutor{
+		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
+			if args[0] == "status" {
+				return `{"fsid":"c47cac40-9bee-4d52-823b-ccd803ba5bfe","health":{"checks":{},"status":"HEALTH_OK"},"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
+			}
+			if args[0] == "versions" {
+				return dummyVersionsRaw, nil
+			}
+			if args[0] == "osd" && args[1] == "pool" && args[2] == "get" {
+				return poolDetails, nil
+			}
+			return "", errors.New("unknown command")
+		},
+		MockExecuteCommand: func(command string, args ...string) error {
+			if command == "rados" {
+				logger.Infof("mock execute. %s. %s", command, args)
+				assert.Equal(t, "stat", args[6])
+				return nil
+			}
+			return errors.New("unknown command")
+		},
+		MockExecuteCommandWithEnv: func(env []string, command string, args ...string) error {
+			if command == "ganesha-rados-grace" {
+				logger.Infof("mock execute. %s. %s", command, args)
+				assert.Equal(t, "add", args[4])
+				assert.Len(t, env, 1)
+				return nil
+			}
+			return errors.New("unknown command")
+		},
+	}
+	c.Executor = executor
 
 	// Create a ReconcileCephNFS object with the scheme and fake client.
 	r = &ReconcileCephNFS{client: cl, scheme: s, context: c}

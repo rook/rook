@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	github.com/aws/aws-sdk-go v1.16.26
-	github.com/banzaicloud/k8s-objectmatcher v1.2.2
+	github.com/banzaicloud/k8s-objectmatcher v1.1.0
 	github.com/coreos/pkg v0.0.0-20180108230652-97fdf19511ea
 	github.com/coreos/prometheus-operator v0.34.0
 	github.com/corpix/uarand v0.1.1 // indirect
@@ -33,7 +33,7 @@ require (
 	k8s.io/kube-controller-manager v0.0.0
 	k8s.io/kubernetes v1.17.2
 	k8s.io/utils v0.0.0-20191114200735-6ca3b61696b6
-	sigs.k8s.io/controller-runtime v0.4.0
+	sigs.k8s.io/controller-runtime v0.5.1
 	sigs.k8s.io/sig-storage-lib-external-provisioner v4.1.0+incompatible
 )
 
