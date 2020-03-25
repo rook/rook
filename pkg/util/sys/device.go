@@ -19,7 +19,7 @@ package sys
 import (
 	"encoding/json"
 	"fmt"
-	"os"
+	osexec "os/exec"
 	"path"
 	"strconv"
 	"strings"
@@ -41,7 +41,7 @@ const (
 	LVMType = "lvm"
 	// LinearType is a linear type
 	LinearType = "linear"
-	sgdisk     = "sgdisk"
+	sgdiskCmd  = "sgdisk"
 	mountCmd   = "mount"
 	// CephLVPrefix is the prefix of a LV owned by ceph-volume
 	CephLVPrefix = "ceph--"
@@ -258,7 +258,7 @@ func GetDeviceFilesystems(device string, executor exec.Executor) (string, error)
 
 // GetDiskUUID look up the UUID for a disk.
 func GetDiskUUID(device string, executor exec.Executor) (string, error) {
-	if _, err := os.Stat("/usr/sbin/sgdisk"); err != nil {
+	if _, err := osexec.LookPath(sgdiskCmd); err != nil {
 		logger.Warningf("sgdisk not found. skipping disk UUID.")
 		return "sgdiskNotFound", nil
 	}
@@ -268,7 +268,7 @@ func GetDiskUUID(device string, executor exec.Executor) (string, error) {
 		device = fmt.Sprintf("/dev/%s", device)
 	}
 
-	output, err := executor.ExecuteCommandWithOutput(sgdisk, "--print", device)
+	output, err := executor.ExecuteCommandWithOutput(sgdiskCmd, "--print", device)
 	if err != nil {
 		return "", err
 	}
