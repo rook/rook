@@ -34,8 +34,13 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/display"
 	"github.com/rook/rook/pkg/util/sys"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+)
+
+const (
+	fiveGiBInBytes uint64 = 5 * 1024 * 1024 * 1024 // this is 5GiB in Bytes
 )
 
 var (
@@ -338,6 +343,12 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 		// If the disk/partition has a filesystem
 		if device.Filesystem != "" {
 			logger.Infof("skipping device %q because it contains a filesystem %q", device.Name, device.Filesystem)
+			continue
+		}
+
+		// If the disk/partition is smaller than 5GiB
+		if device.Size < fiveGiBInBytes {
+			logger.Infof("skipping device %q because it is smaller than 5GiB, actual size is %q", device.Name, display.BytesToString(device.Size))
 			continue
 		}
 

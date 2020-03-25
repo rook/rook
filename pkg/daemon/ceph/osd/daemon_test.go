@@ -170,7 +170,7 @@ func TestAvailableDevices(t *testing.T) {
 		if command == "lsblk" {
 			if strings.Index(name, "sdb") != -1 {
 				// /dev/sdb has a partition
-				return `NAME="sdb" SIZE="65" TYPE="disk" PKNAME=""
+				return `NAME="sdb" SIZE="510825332736" TYPE="disk" PKNAME=""
 NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 			}
 			return "", nil
@@ -192,14 +192,15 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 
 	context := &clusterd.Context{Executor: executor}
 	context.Devices = []*sys.LocalDisk{
-		{Name: "sda", DevLinks: "/dev/disk/by-id/scsi-0123 /dev/disk/by-path/pci-0:1:2:3-scsi-1"},
-		{Name: "sdb", DevLinks: "/dev/disk/by-id/scsi-4567 /dev/disk/by-path/pci-4:5:6:7-scsi-1"},
-		{Name: "sdc", DevLinks: "/dev/disk/by-id/scsi-89ab /dev/disk/by-path/pci-8:9:a:b-scsi-1"},
-		{Name: "sdd", DevLinks: "/dev/disk/by-id/scsi-cdef /dev/disk/by-path/pci-c:d:e:f-scsi-1"},
-		{Name: "nvme01", DevLinks: "/dev/disk/by-id/nvme-0246 /dev/disk/by-path/pci-0:2:4:6-nvme-1"},
-		{Name: "rda"},
-		{Name: "rdb"},
-		{Name: "sdt1", Type: sys.PartType},
+		{Name: "sda", DevLinks: "/dev/disk/by-id/scsi-0123 /dev/disk/by-path/pci-0:1:2:3-scsi-1", Size: 510825332736},
+		{Name: "sdb", DevLinks: "/dev/disk/by-id/scsi-4567 /dev/disk/by-path/pci-4:5:6:7-scsi-1", Size: 510825332736},
+		{Name: "sdc", DevLinks: "/dev/disk/by-id/scsi-89ab /dev/disk/by-path/pci-8:9:a:b-scsi-1", Size: 510825332736},
+		{Name: "sdd", DevLinks: "/dev/disk/by-id/scsi-cdef /dev/disk/by-path/pci-c:d:e:f-scsi-1", Size: 510825332736},
+		{Name: "nvme01", DevLinks: "/dev/disk/by-id/nvme-0246 /dev/disk/by-path/pci-0:2:4:6-nvme-1", Size: 510825332736},
+		{Name: "rda", Size: 510825332736},
+		{Name: "rdb", Size: 510825332736},
+		{Name: "sdt1", Type: sys.PartType, Size: 510825332736},
+		{Name: "sdz1", Type: sys.PartType, Size: 209715200},
 	}
 
 	version := cephver.Octopus
