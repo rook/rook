@@ -321,6 +321,21 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 			}
 		}
 
+		// If filesystem is empty, let's try again with lsblk
+		// Sometime udev does not report the filesystem...
+		if device.Filesystem == "" {
+			partFS, err := sys.GetPVCDeviceFileSystems(context.Executor, device.Name)
+			if err != nil {
+				logger.Warningf("failed to get lsblk filesystem info for device %q, might be missing filesystem information. %v", device.Name, err)
+			} else {
+				if partFS != "" {
+					// Looks like there is a filesystem after all
+					device.Filesystem = partFS
+				}
+			}
+		}
+
+		// If the disk/partition has a filesystem
 		if device.Filesystem != "" {
 			logger.Infof("skipping device %q because it contains a filesystem %q", device.Name, device.Filesystem)
 			continue
