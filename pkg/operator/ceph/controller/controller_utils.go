@@ -56,7 +56,7 @@ func IsReadyToReconcile(client client.Client, clustercontext *clusterd.Context, 
 		if kerrors.IsNotFound(err) {
 			cephClusterExists = false
 			logger.Errorf("CephCluster resource %q not found in namespace %q", namespacedName.Name, namespacedName.Namespace)
-			return cephv1.ClusterSpec{}, false, cephClusterExists, ImmediateRetryResult
+			return cephv1.ClusterSpec{}, false, cephClusterExists, WaitForRequeueIfCephClusterNotReady
 		} else if err != nil {
 			logger.Errorf("failed to fetch CephCluster %v", err)
 			return cephv1.ClusterSpec{}, false, cephClusterExists, ImmediateRetryResult
