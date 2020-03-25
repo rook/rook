@@ -36,7 +36,6 @@ const (
 
 	configVolumeName = "rook-ceph-config"
 
-	confFileName         = "ceph.conf"
 	monHostKey           = "mon_host"
 	monInitialMembersKey = "mon_initial_members"
 	// Msgr2port is the listening port of the messenger v2 protocol

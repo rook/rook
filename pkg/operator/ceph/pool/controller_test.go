@@ -128,6 +128,7 @@ func TestValidateCrushProperties(t *testing.T) {
 func TestCreatePool(t *testing.T) {
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
+			logger.Infof("Command: %s %v", command, args)
 			if command == "ceph" && args[1] == "erasure-code-profile" {
 				return `{"k":"2","m":"1","plugin":"jerasure","technique":"reed_sol_van"}`, nil
 			}
@@ -145,6 +146,8 @@ func TestCreatePool(t *testing.T) {
 
 	// succeed with EC
 	p.Spec.Replicated.Size = 0
+	p.Spec.ErasureCoded.CodingChunks = 1
+	p.Spec.ErasureCoded.DataChunks = 2
 	err = createPool(context, p)
 	assert.Nil(t, err)
 }

@@ -160,7 +160,6 @@ func (c *Cluster) Start() error {
 
 		// start the deployment
 		d := c.makeDeployment(mdsConfig)
-		logger.Debugf("starting mds: %+v", d)
 
 		// Set owner ref to cephFilesystem object
 		err = controllerutil.SetControllerReference(&c.fs, d, c.scheme)
