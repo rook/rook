@@ -243,7 +243,7 @@ a common practice for those looking to target certain workloads onto faster
 > checkout [Ceph New in Nautilus: PG merging and autotuning](https://ceph.io/rados/new-in-nautilus-pg-merging-and-autotuning/) article.
 >
 > To enable the `pg_autoscaler` module automatically in a Rook Ceph cluster,
-> you can comment in the `pg_autoscaler` entry in the `spec.mgr.modules`
+> you can add the `pg_autoscaler` entry in the `spec.mgr.modules`
 > struct of CephCluster CRD.
 
 The general rules for deciding how many PGs your pool(s) should contain is:
