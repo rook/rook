@@ -373,12 +373,12 @@ func CheckIfDeviceAvailable(executor exec.Executor, name string, pvcBacked bool)
 
 //GetPVCDeviceFileSystems returns the file system on a PVC device.
 func GetPVCDeviceFileSystems(executor exec.Executor, device string) (string, error) {
-	cmd := fmt.Sprintf("get pvc filesystem type for %q", device)
+	cmd := fmt.Sprintf("get filesystem type for %q", device)
 	output, err := executor.ExecuteCommandWithOutput(false, cmd, "lsblk", device, "--bytes", "--nodeps", "--noheadings", "--output", "FSTYPE")
 	if err != nil {
 		return "", fmt.Errorf("command %q failed. %+v", cmd, err)
 	}
-	logger.Debugf("filesystem on pvc device %q is %q", device, output)
+	logger.Debugf("filesystem on device %q is %q", device, output)
 
 	return output, nil
 }
