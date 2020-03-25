@@ -174,28 +174,10 @@ func TestCephObjectStoreController(t *testing.T) {
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
 			if args[0] == "status" {
-				return `{"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
-			}
-			if args[0] == "auth" && args[1] == "get-or-create-key" {
-				return rgwCephAuthGetOrCreateKey, nil
+				return `{"fsid":"c47cac40-9bee-4d52-823b-ccd803ba5bfe","health":{"checks":{},"status":"HEALTH_ERR"},"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
 			}
 			if args[0] == "versions" {
 				return dummyVersionsRaw, nil
-			}
-			return "", nil
-		},
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
-			if args[0] == "realm" && args[1] == "list" {
-				return realmListJSON, nil
-			}
-			if args[0] == "realm" && args[1] == "get" {
-				return realmGetJSON, nil
-			}
-			if args[0] == "zonegroup" && args[1] == "get" {
-				return zoneGroupGetJSON, nil
-			}
-			if args[0] == "zone" && args[1] == "get" {
-				return zoneGetJSON, nil
 			}
 			return "", nil
 		},
@@ -280,11 +262,40 @@ func TestCephObjectStoreController(t *testing.T) {
 	_, err = c.Clientset.CoreV1().Secrets(namespace).Create(secret)
 	assert.NoError(t, err)
 
-	// Add ready status to the CephCluster
-	cephCluster.Status.Phase = k8sutil.ReadyStatus
-
 	// Create a fake client to mock API calls.
 	cl = fake.NewFakeClientWithScheme(s, object...)
+
+	// Override executor with the new ceph status and more content
+	executor = &exectest.MockExecutor{
+		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
+			if args[0] == "status" {
+				return `{"fsid":"c47cac40-9bee-4d52-823b-ccd803ba5bfe","health":{"checks":{},"status":"HEALTH_OK"},"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
+			}
+			if args[0] == "auth" && args[1] == "get-or-create-key" {
+				return rgwCephAuthGetOrCreateKey, nil
+			}
+			if args[0] == "versions" {
+				return dummyVersionsRaw, nil
+			}
+			return "", nil
+		},
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			if args[0] == "realm" && args[1] == "list" {
+				return realmListJSON, nil
+			}
+			if args[0] == "realm" && args[1] == "get" {
+				return realmGetJSON, nil
+			}
+			if args[0] == "zonegroup" && args[1] == "get" {
+				return zoneGroupGetJSON, nil
+			}
+			if args[0] == "zone" && args[1] == "get" {
+				return zoneGetJSON, nil
+			}
+			return "", nil
+		},
+	}
+	c.Executor = executor
 
 	// Create a ReconcileCephObjectStore object with the scheme and fake client.
 	r = &ReconcileCephObjectStore{client: cl, scheme: s, context: c}

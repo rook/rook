@@ -118,13 +118,7 @@ func TestCephObjectStoreUserController(t *testing.T) {
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
 			if args[0] == "status" {
-				return `{"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
-			}
-			return "", nil
-		},
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
-			if args[0] == "user" {
-				return userCreateJSON, nil
+				return `{"fsid":"c47cac40-9bee-4d52-823b-ccd803ba5bfe","health":{"checks":{},"status":"HEALTH_ERR"},"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
 			}
 			return "", nil
 		},
@@ -190,6 +184,23 @@ func TestCephObjectStoreUserController(t *testing.T) {
 	cephCluster.Status.Phase = k8sutil.ReadyStatus
 	// Create a fake client to mock API calls.
 	cl = fake.NewFakeClientWithScheme(s, object...)
+
+	executor = &exectest.MockExecutor{
+		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
+			if args[0] == "status" {
+				return `{"fsid":"c47cac40-9bee-4d52-823b-ccd803ba5bfe","health":{"checks":{},"status":"HEALTH_OK"},"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
+			}
+			return "", nil
+		},
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			if args[0] == "user" {
+				return userCreateJSON, nil
+			}
+			return "", nil
+		},
+	}
+	c.Executor = executor
+
 	// Create a ReconcileObjectStoreUser object with the scheme and fake client.
 	r = &ReconcileObjectStoreUser{client: cl, scheme: s, context: c}
 
