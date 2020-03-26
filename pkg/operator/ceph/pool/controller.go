@@ -28,7 +28,6 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/model"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -235,7 +234,7 @@ func (r *ReconcileCephBlockPool) reconcileCreatePool(cephBlockPool *cephv1.CephB
 func createPool(context *clusterd.Context, p *cephv1.CephBlockPool) error {
 	// create the pool
 	logger.Infof("creating pool %q in namespace %q", p.Name, p.Namespace)
-	if err := cephclient.CreatePoolWithProfile(context, p.Namespace, *p.Spec.ToModel(p.Name), poolApplicationNameRBD); err != nil {
+	if err := cephclient.CreatePoolWithProfile(context, p.Namespace, p.Name, p.Spec, poolApplicationNameRBD); err != nil {
 		return errors.Wrapf(err, "failed to create pool %q", p.Name)
 	}
 
@@ -257,83 +256,6 @@ func deletePool(context *clusterd.Context, p *cephv1.CephBlockPool) error {
 				return errors.Wrapf(err, "failed to delete pool %q", p.Name)
 			}
 		}
-	}
-
-	return nil
-}
-
-// ModelToSpec reflect the internal pool struct from a pool spec
-func ModelToSpec(pool model.Pool) cephv1.PoolSpec {
-	ec := pool.ErasureCodedConfig
-	return cephv1.PoolSpec{
-		FailureDomain: pool.FailureDomain,
-		CrushRoot:     pool.CrushRoot,
-		DeviceClass:   pool.DeviceClass,
-		Replicated:    cephv1.ReplicatedSpec{Size: pool.ReplicatedConfig.Size},
-		ErasureCoded:  cephv1.ErasureCodedSpec{CodingChunks: ec.CodingChunkCount, DataChunks: ec.DataChunkCount, Algorithm: ec.Algorithm},
-	}
-}
-
-// ValidatePool Validate the pool arguments
-func ValidatePool(context *clusterd.Context, p *cephv1.CephBlockPool) error {
-	if p.Name == "" {
-		return errors.New("missing name")
-	}
-	if p.Namespace == "" {
-		return errors.New("missing namespace")
-	}
-	if err := ValidatePoolSpec(context, p.Namespace, &p.Spec); err != nil {
-		return err
-	}
-	return nil
-}
-
-// ValidatePoolSpec validates the Ceph block pool spec CR
-func ValidatePoolSpec(context *clusterd.Context, namespace string, p *cephv1.PoolSpec) error {
-	if p.Replication() != nil && p.ErasureCode() != nil {
-		return errors.New("both replication and erasure code settings cannot be specified")
-	}
-
-	var crush cephclient.CrushMap
-	var err error
-	if p.FailureDomain != "" || p.CrushRoot != "" {
-		crush, err = cephclient.GetCrushMap(context, namespace)
-		if err != nil {
-			return errors.Wrapf(err, "failed to get crush map")
-		}
-	}
-
-	// validate the failure domain if specified
-	if p.FailureDomain != "" {
-		found := false
-		for _, t := range crush.Types {
-			if t.Name == p.FailureDomain {
-				found = true
-				break
-			}
-		}
-		if !found {
-			return errors.Errorf("unrecognized failure domain %s", p.FailureDomain)
-		}
-	}
-
-	// validate the crush root if specified
-	if p.CrushRoot != "" {
-		found := false
-		for _, t := range crush.Buckets {
-			if t.Name == p.CrushRoot {
-				found = true
-				break
-			}
-		}
-		if !found {
-			return errors.Errorf("unrecognized crush root %s", p.CrushRoot)
-		}
-	}
-
-	// validate pool replica size
-	if p.Replicated.Size == 1 && p.Replicated.RequireSafeReplicaSize {
-		return errors.Errorf("error pool size is %d and requireSafeReplicaSize is %t, must be false", p.Replicated.Size, p.Replicated.RequireSafeReplicaSize)
 	}
 
 	return nil

@@ -239,9 +239,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 
 	// RECONCILE POOLS
 	logger.Info("reconciling object store pools")
-	metadataPoolToModel := *cephObjectStore.Spec.MetadataPool.ToModel("")
-	dataPoolToModel := *cephObjectStore.Spec.DataPool.ToModel("")
-	err = createPools(objContext, cephObjectStore.Spec, metadataPoolToModel, dataPoolToModel)
+	err = createPools(objContext, cephObjectStore.Spec)
 	if err != nil {
 		return r.setFailedStatus(cephObjectStore, "failed to create object pools", err)
 	}
