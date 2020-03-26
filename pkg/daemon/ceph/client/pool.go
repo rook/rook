@@ -154,13 +154,14 @@ func CreatePoolWithProfile(context *clusterd.Context, clusterName string, newPoo
 
 	isReplicatedPool := newPool.ErasureCodeProfile == "" && newPool.Size > 0
 	if isReplicatedPool {
-		return CreateReplicatedPoolForApp(context, clusterName, newPool, appName)
+		return CreateReplicatedPoolForApp(context, clusterName, newPool, DefaultPGCount, appName)
 	}
 	// If the pool is not a replicated pool, then the only other option is an erasure coded pool.
 	return CreateECPoolForApp(
 		context,
 		clusterName,
 		newPool,
+		DefaultPGCount,
 		appName,
 		true, /* enableECOverwrite */
 		newPoolReq.ErasureCodedConfig,
@@ -226,8 +227,8 @@ func givePoolAppTag(context *clusterd.Context, clusterName string, poolName stri
 	return nil
 }
 
-func CreateECPoolForApp(context *clusterd.Context, clusterName string, newPool CephStoragePoolDetails, appName string, enableECOverwrite bool, erasureCodedConfig model.ErasureCodedPoolConfig) error {
-	args := []string{"osd", "pool", "create", newPool.Name, strconv.Itoa(newPool.Number), "erasure", newPool.ErasureCodeProfile}
+func CreateECPoolForApp(context *clusterd.Context, clusterName string, newPool CephStoragePoolDetails, pgCount, appName string, enableECOverwrite bool, erasureCodedConfig model.ErasureCodedPoolConfig) error {
+	args := []string{"osd", "pool", "create", newPool.Name, pgCount, "erasure", newPool.ErasureCodeProfile}
 
 	buf, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
@@ -251,13 +252,13 @@ func CreateECPoolForApp(context *clusterd.Context, clusterName string, newPool C
 	return nil
 }
 
-func CreateReplicatedPoolForApp(context *clusterd.Context, clusterName string, newPool CephStoragePoolDetails, appName string) error {
+func CreateReplicatedPoolForApp(context *clusterd.Context, clusterName string, newPool CephStoragePoolDetails, pgCount, appName string) error {
 	// create a crush rule for a replicated pool, if a failure domain is specified
 	if err := createReplicationCrushRule(context, clusterName, newPool, newPool.Name); err != nil {
 		return err
 	}
 
-	args := []string{"osd", "pool", "create", newPool.Name, strconv.Itoa(newPool.Number), "replicated", newPool.Name}
+	args := []string{"osd", "pool", "create", newPool.Name, pgCount, "replicated", newPool.Name}
 
 	buf, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
