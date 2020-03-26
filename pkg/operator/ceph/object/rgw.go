@@ -165,7 +165,7 @@ func (c *clusterConfig) startRGWPods() error {
 		// Generate the mime.types file after the rep. controller as well for the same reason as keyring
 		if createErr != nil && kerrors.IsAlreadyExists(createErr) {
 			daemon := string(config.RgwType)
-			if err := updateDeploymentAndWait(c.context, deployment, c.store.Namespace, daemon, daemonLetterID, c.skipUpgradeChecks, false); err != nil {
+			if err := updateDeploymentAndWait(c.context, deployment, c.store.Namespace, daemon, daemonLetterID, c.skipUpgradeChecks, c.clusterSpec.ContinueUpgradeAfterChecksEvenIfNotHealthy); err != nil {
 				return errors.Wrapf(err, "failed to update object store %q deployment %q", c.store.Name, deployment.Name)
 			}
 		}

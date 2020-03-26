@@ -187,7 +187,7 @@ func (c *Cluster) Start() error {
 
 		if createErr != nil && kerrors.IsAlreadyExists(createErr) {
 			daemon := string(config.MdsType)
-			if err = UpdateDeploymentAndWait(c.context, d, c.fs.Namespace, daemon, daemonLetterID, c.clusterSpec.SkipUpgradeChecks, false); err != nil {
+			if err = UpdateDeploymentAndWait(c.context, d, c.fs.Namespace, daemon, daemonLetterID, c.clusterSpec.SkipUpgradeChecks, c.clusterSpec.ContinueUpgradeAfterChecksEvenIfNotHealthy); err != nil {
 				return errors.Wrapf(err, "failed to update mds deployment %s", d.Name)
 			}
 		}
