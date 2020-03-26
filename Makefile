@@ -188,7 +188,6 @@ Targets:
     test-integration   Runs integration tests.
     mod.check          Check / Tidy current modules.
     mod.update         Update all modules.
-    vendor.check       Checks if vendor dependencies changed.
     vet                Runs lint checks on go sources.
 
 Options:
