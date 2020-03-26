@@ -61,7 +61,7 @@ func TestCreateECPoolWithOverwrites(t *testing.T) {
 		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
 
-	err := CreateECPoolForApp(context, "myns", poolName, "mypoolprofile", p, "myapp", true)
+	err := CreateECPoolForApp(context, "myns", poolName, "mypoolprofile", p, DefaultPGCount, "myapp", true)
 	assert.Nil(t, err)
 }
 
@@ -97,7 +97,7 @@ func TestCreateECPoolWithoutOverwrites(t *testing.T) {
 		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
 
-	err := CreateECPoolForApp(context, "myns", poolName, "mypoolprofile", p, "myapp", false)
+	err := CreateECPoolForApp(context, "myns", poolName, "mypoolprofile", p, DefaultPGCount, "myapp", false)
 	assert.Nil(t, err)
 }
 
@@ -166,7 +166,7 @@ func testCreateReplicaPool(t *testing.T, failureDomain, crushRoot, deviceClass s
 		FailureDomain: failureDomain, CrushRoot: crushRoot, DeviceClass: deviceClass,
 		Replicated: cephv1.ReplicatedSpec{Size: 12345},
 	}
-	err := CreateReplicatedPoolForApp(context, "myns", "mypool", p, "myapp")
+	err := CreateReplicatedPoolForApp(context, "myns", "mypool", p, DefaultPGCount, "myapp")
 	assert.Nil(t, err)
 	assert.True(t, crushRuleCreated)
 }
