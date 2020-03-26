@@ -62,6 +62,18 @@ func (m *MonStore) Set(who, option, value string) error {
 	return nil
 }
 
+// Set sets a config in the centralized mon configuration database.
+// https://docs.ceph.com/docs/master/rados/configuration/ceph-conf/#monitor-configuration-database
+func (m *MonStore) Get(who, option string) (string, error) {
+	args := []string{"config", "get", who, normalizeKey(option)}
+	cephCmd := client.NewCephCommand(m.context, m.namespace, args)
+	out, err := cephCmd.Run()
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to get config setting %q for user %q", option, who)
+	}
+	return string(out), nil
+}
+
 // SetAll sets all configs from the overrides in the centralized mon configuration database.
 // See MonStore.Set for more.
 func (m *MonStore) SetAll(options ...Option) error {

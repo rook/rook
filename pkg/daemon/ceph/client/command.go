@@ -42,6 +42,8 @@ const (
 	CrushTool             = "crushtool"
 	CmdExecuteTimeout     = 1 * time.Minute
 	cephConnectionTimeout = "15" // in seconds
+	// When PG count is 0, Ceph will use the internal default
+	DefaultPGCount = "0"
 )
 
 // CephConfFilePath returns the location to the cluster's config file in the operator container.

@@ -57,7 +57,7 @@ func TestCreateECPoolWithOverwrites(t *testing.T) {
 		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
 
-	err := CreateECPoolForApp(context, "myns", p, "myapp", true, model.ErasureCodedPoolConfig{DataChunkCount: 1})
+	err := CreateECPoolForApp(context, "myns", p, DefaultPGCount, "myapp", true, model.ErasureCodedPoolConfig{DataChunkCount: 1})
 	assert.Nil(t, err)
 }
 
@@ -89,7 +89,7 @@ func TestCreateECPoolWithoutOverwrites(t *testing.T) {
 		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
 
-	err := CreateECPoolForApp(context, "myns", p, "myapp", false, model.ErasureCodedPoolConfig{DataChunkCount: 1})
+	err := CreateECPoolForApp(context, "myns", p, DefaultPGCount, "myapp", false, model.ErasureCodedPoolConfig{DataChunkCount: 1})
 	assert.Nil(t, err)
 }
 
@@ -155,7 +155,7 @@ func testCreateReplicaPool(t *testing.T, failureDomain, crushRoot, deviceClass s
 	}
 
 	p := CephStoragePoolDetails{Name: "mypool", Size: 12345, FailureDomain: failureDomain, CrushRoot: crushRoot, DeviceClass: deviceClass}
-	err := CreateReplicatedPoolForApp(context, "myns", p, "myapp")
+	err := CreateReplicatedPoolForApp(context, "myns", p, DefaultPGCount, "myapp")
 	assert.Nil(t, err)
 	assert.True(t, crushRuleCreated)
 }
