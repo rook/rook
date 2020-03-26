@@ -118,6 +118,15 @@ func UpdateDeploymentAndWait(context *clusterd.Context, modifiedDeployment *apps
 
 				return d, nil
 			}
+
+			// If ProgressDeadlineExceeded is reached let's fail earlier
+			// This can happen if one of the deployment cannot be scheduled on a node and stays in "pending" state
+			for _, condition := range d.Status.Conditions {
+				if condition.Type == v1.DeploymentProgressing && condition.Reason == "ProgressDeadlineExceeded" {
+					return nil, fmt.Errorf("gave up waiting for deployment %q to update because %q", modifiedDeployment.Name, condition.Reason)
+				}
+			}
+
 			logger.Debugf("deployment %q status=%+v", d.Name, d.Status)
 			time.Sleep(time.Duration(sleepTime) * time.Second)
 		}
