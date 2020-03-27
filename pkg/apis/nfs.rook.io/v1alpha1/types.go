@@ -50,6 +50,9 @@ type NFSServerSpec struct {
 	// The annotations-related configuration to add/set on each Pod related object.
 	Annotations rookalpha.Annotations `json:"annotations,omitempty"`
 
+	// The affinity and tolerations for the NFS pods
+	Placement rookalpha.Placement `json:"placement"`
+
 	// Replicas of the NFS daemon
 	Replicas int `json:"replicas,omitempty"`
 

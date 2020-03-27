@@ -134,6 +134,7 @@ func (in *NFSServerSpec) DeepCopyInto(out *NFSServerSpec) {
 			(*out)[key] = val
 		}
 	}
+	in.Placement.DeepCopyInto(&out.Placement)
 	if in.Exports != nil {
 		in, out := &in.Exports, &out.Exports
 		*out = make([]ExportsSpec, len(*in))
