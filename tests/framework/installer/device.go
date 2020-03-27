@@ -40,9 +40,14 @@ func IsAdditionalDeviceAvailableOnCluster() bool {
 		if props["TYPE"] != "disk" {
 			continue
 		}
+		devicePath, ok := props["NAME"]
+		if !ok {
+			logger.Warningf("failed to find device path for %q", device)
+			continue
+		}
 
 		pvcBackedOSD := false
-		isAvailable, rejectedReason, err := sys.CheckIfDeviceAvailable(executor, device, pvcBackedOSD)
+		isAvailable, rejectedReason, err := sys.CheckIfDeviceAvailable(executor, devicePath, pvcBackedOSD)
 		if err != nil {
 			logger.Warningf("failed to detect device %q availability. %v", device, err)
 			continue

@@ -177,16 +177,15 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 
 	context := &clusterd.Context{Executor: executor}
 	context.Devices = []*sys.LocalDisk{
-		{Name: "sda", DevLinks: "/dev/disk/by-id/scsi-0123 /dev/disk/by-path/pci-0:1:2:3-scsi-1", RealName: "sda"},
-		{Name: "sdb", DevLinks: "/dev/disk/by-id/scsi-4567 /dev/disk/by-path/pci-4:5:6:7-scsi-1", RealName: "sdb"},
-		{Name: "sdc", DevLinks: "/dev/disk/by-id/scsi-89ab /dev/disk/by-path/pci-8:9:a:b-scsi-1", RealName: "sdc"},
-		{Name: "sdd", DevLinks: "/dev/disk/by-id/scsi-cdef /dev/disk/by-path/pci-c:d:e:f-scsi-1", RealName: "sdd"},
-		{Name: "sde", DevLinks: "/dev/disk/by-id/sde-0x0000 /dev/disk/by-path/pci-0000:00:18.0-ata-1", RealName: "sde"},
-		{Name: "nvme01", DevLinks: "/dev/disk/by-id/nvme-0246 /dev/disk/by-path/pci-0:2:4:6-nvme-1", RealName: "nvme01"},
-		{Name: "rda", RealName: "rda"},
-		{Name: "rdb", RealName: "rdb"},
-		{Name: "/mnt/set1-0-data-qfhfk", RealName: "xvdcy", Type: "data"},
-		{Name: "sdt1", RealName: "sdt1", Type: sys.PartType},
+		{Name: "sda", DevLinks: "/dev/disk/by-id/scsi-0123 /dev/disk/by-path/pci-0:1:2:3-scsi-1", RealPath: "/dev/sda"},
+		{Name: "sdb", DevLinks: "/dev/disk/by-id/scsi-4567 /dev/disk/by-path/pci-4:5:6:7-scsi-1", RealPath: "/dev/sdb"},
+		{Name: "sdc", DevLinks: "/dev/disk/by-id/scsi-89ab /dev/disk/by-path/pci-8:9:a:b-scsi-1", RealPath: "/dev/sdc"},
+		{Name: "sdd", DevLinks: "/dev/disk/by-id/scsi-cdef /dev/disk/by-path/pci-c:d:e:f-scsi-1", RealPath: "/dev/sdd"},
+		{Name: "sde", DevLinks: "/dev/disk/by-id/sde-0x0000 /dev/disk/by-path/pci-0000:00:18.0-ata-1", RealPath: "/dev/sde"},
+		{Name: "nvme01", DevLinks: "/dev/disk/by-id/nvme-0246 /dev/disk/by-path/pci-0:2:4:6-nvme-1", RealPath: "/dev/nvme01"},
+		{Name: "rda", RealPath: "/dev/rda"},
+		{Name: "rdb", RealPath: "/dev/rdb"},
+		{Name: "sdt1", RealPath: "/dev/sdt1", Type: sys.PartType},
 	}
 
 	version := cephver.Octopus
@@ -265,6 +264,9 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 
 	// test on PVC
 	pvcBackedOSD = true
+	context.Devices = []*sys.LocalDisk{
+		{Name: "/mnt/set1-0-data-qfhfk", RealPath: "/dev/xvdcy", Type: "data"},
+	}
 	mapping, err = getAvailableDevices(context, []DesiredDevice{{Name: "all"}}, "", pvcBackedOSD, version)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(mapping.Entries), mapping)
