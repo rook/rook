@@ -28,7 +28,6 @@ import (
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -42,7 +41,7 @@ const (
 	// test with the latest mimic build
 	mimicTestImage = "ceph/ceph:v13"
 	// test with the latest nautilus build
-	nautilusTestImage = "ceph/ceph:v14.2.7"
+	nautilusTestImage = "ceph/ceph:v14"
 	helmChartName     = "local/rook-ceph"
 	helmDeployName    = "rook-ceph"
 	cephOperatorLabel = "app=rook-ceph-operator"
@@ -707,14 +706,6 @@ func (h *CephInstaller) WipeClusterDisks(namespace string) error {
 
 	// return the error below after cleaning up the jobs
 	err = wait.Poll(5*time.Second, 90*time.Second, allJobsAreComplete)
-
-	// delete the jobs
-	for _, jobName := range jobNames {
-		// if delete fails, don't worry about the error; delete only on best-effort basis
-		wait := false
-		k8sutil.DeleteBatchJob(h.k8shelper.Clientset, namespace, jobName, wait)
-	}
-
 	if err != nil {
 		return fmt.Errorf("failed to wait for wipe jobs to complete. %+v", err)
 	}
@@ -775,6 +766,12 @@ spec:
                         done
                         set -Ee
                       done
+                      # Wipe the specific disk in the CI that was running in raw mode
+                      set +Ee
+                      block=/dev/xvdc
+                      wipefs --all "$block"
+                      dd if=/dev/zero of="$block" bs=1M count=100 oflag=direct,dsync
+                      set -Ee
                       # Useful debug commands
                       lsblk
                       blkid
