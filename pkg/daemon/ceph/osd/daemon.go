@@ -299,14 +299,6 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 			continue
 		}
 
-		// We need to swap the device name
-		// We need to use the /dev path, provided by the NAME property from lsblk
-		// instead of the /mnt/<block name>
-		deviceToCheck := device.Name
-		if pvcBacked {
-			deviceToCheck = device.RealName
-		}
-
 		// If we detect a partition we have to make sure that ceph-volume will be able to consume it
 		// ceph-volume version 14.2.8 has the right code to support partitions
 		if device.Type == sys.PartType {
@@ -317,13 +309,17 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 		}
 
 		// Check if the desired device is available
+		//
+		// We need to use the /dev path, provided by the NAME property from "lsblk --paths",
+		// especially when running on PVC and/or on dm device
 		// When running on PVC we use the real device name instead of the Kubernetes mountpoint
+		// When running on dm device we use the dm device name like "/dev/mapper/foo" instead of "/dev/dm-1"
 		// Otherwise ceph-volume inventory will fail on the udevadm check
 		// udevadm does not support device path different than /dev or /sys
 		//
 		// So earlier lsblk extracted the '/dev' path, hence the device.Name property
 		// device.Name can be 'xvdca', later this is formated to '/dev/xvdca'
-		isAvailable, rejectedReason, err := sys.CheckIfDeviceAvailable(context.Executor, deviceToCheck, pvcBacked)
+		isAvailable, rejectedReason, err := sys.CheckIfDeviceAvailable(context.Executor, device.RealPath, pvcBacked)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get device %q info", device.Name)
 		}
