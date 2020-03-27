@@ -92,7 +92,9 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 		// delete any canary deployments if the node doesn't exist
 		logger.Infof("deleting drain-canary deployment for deleted node %q", request.Name)
 		err = r.client.Delete(context.TODO(), deploy)
-		if err != nil {
+		if kerrors.IsNotFound(err) {
+			return reconcile.Result{}, nil
+		} else if err != nil {
 			return reconcile.Result{}, errors.Wrapf(err, "could not delete drain-canary deployment for deleted node %q", request.Name)
 		}
 		return reconcile.Result{}, nil
