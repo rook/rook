@@ -23,6 +23,8 @@ import (
 	"strings"
 	"time"
 
+	controllerutil "github.com/rook/rook/pkg/operator/ceph/controller"
+
 	"github.com/pkg/errors"
 
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -141,6 +143,10 @@ const (
 	operatorDeploymentName = "rook-ceph-operator"
 	// default log level for csi containers
 	defaultLogLevel uint8 = 0
+
+	// update strategy
+	rollingUpdate = "RollingUpdate"
+	onDelete      = "OnDelete"
 )
 
 func CSIEnabled() bool {
@@ -224,43 +230,70 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 	tp.EnableCSIGRPCMetrics = fmt.Sprintf("%t", EnableCSIGRPCMetrics)
 
 	// If not set or set to anything but "false", the kernel client will be enabled
-	kClinet := os.Getenv("CSI_FORCE_CEPHFS_KERNEL_CLIENT")
-	if strings.EqualFold(kClinet, "false") {
+	kClient, err := k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "CSI_FORCE_CEPHFS_KERNEL_CLIENT", "true")
+	if err != nil {
+		return errors.Wrap(err, "failed to load CSI_FORCE_CEPHFS_KERNEL_CLIENT setting")
+	}
+	if strings.EqualFold(kClient, "false") {
 		tp.ForceCephFSKernelClient = "false"
 	} else {
 		tp.ForceCephFSKernelClient = "true"
 	}
 	// parse GRPC and Liveness ports
-	tp.CephFSGRPCMetricsPort = getPortFromENV("CSI_CEPHFS_GRPC_METRICS_PORT", DefaultCephFSGRPCMerticsPort)
-	tp.CephFSLivenessMetricsPort = getPortFromENV("CSI_CEPHFS_LIVENESS_METRICS_PORT", DefaultCephFSLivenessMerticsPort)
+	tp.CephFSGRPCMetricsPort, err = getPortFromConfig(clientset, "CSI_CEPHFS_GRPC_METRICS_PORT", DefaultCephFSGRPCMerticsPort)
+	if err != nil {
+		return errors.Wrap(err, "error getting CSI CephFS GRPC metrics port.")
+	}
+	tp.CephFSLivenessMetricsPort, err = getPortFromConfig(clientset, "CSI_CEPHFS_LIVENESS_METRICS_PORT", DefaultCephFSLivenessMerticsPort)
+	if err != nil {
+		return errors.Wrap(err, "error getting CSI CephFS liveness metrics port.")
+	}
 
-	tp.RBDGRPCMetricsPort = getPortFromENV("CSI_RBD_GRPC_METRICS_PORT", DefaultRBDGRPCMerticsPort)
-	tp.RBDLivenessMetricsPort = getPortFromENV("CSI_RBD_LIVENESS_METRICS_PORT", DefaultRBDLivenessMerticsPort)
+	tp.RBDGRPCMetricsPort, err = getPortFromConfig(clientset, "CSI_RBD_GRPC_METRICS_PORT", DefaultRBDGRPCMerticsPort)
+	if err != nil {
+		return errors.Wrap(err, "error getting CSI RBD GRPC metrics port.")
+	}
+	tp.RBDLivenessMetricsPort, err = getPortFromConfig(clientset, "CSI_RBD_LIVENESS_METRICS_PORT", DefaultRBDLivenessMerticsPort)
+	if err != nil {
+		return errors.Wrap(err, "error getting CSI RBD liveness metrics port.")
+	}
 
-	enableSnap := os.Getenv("CSI_ENABLE_SNAPSHOTTER")
+	enableSnap, err := k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "CSI_ENABLE_SNAPSHOTTER", "true")
+	if err != nil {
+		return errors.Wrap(err, "failed to load CSI_ENABLE_SNAPSHOTTER setting")
+	}
 	if !strings.EqualFold(enableSnap, "false") {
 		tp.EnableSnapshotter = "true"
 	}
 
-	updateStrategy := os.Getenv("CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY")
-	if strings.EqualFold(updateStrategy, "ondelete") {
-		tp.CephFSPluginUpdateStrategy = "OnDelete"
+	updateStrategy, err := k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY", rollingUpdate)
+	if err != nil {
+		return errors.Wrap(err, "failed to load CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY setting")
+	}
+	if strings.EqualFold(updateStrategy, onDelete) {
+		tp.CephFSPluginUpdateStrategy = onDelete
 	} else {
-		tp.CephFSPluginUpdateStrategy = "RollingUpdate"
+		tp.CephFSPluginUpdateStrategy = rollingUpdate
 	}
 
-	updateStrategy = os.Getenv("CSI_RBD_PLUGIN_UPDATE_STRATEGY")
-	if strings.EqualFold(updateStrategy, "ondelete") {
-		tp.RBDPluginUpdateStrategy = "OnDelete"
+	updateStrategy, err = k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "CSI_RBD_PLUGIN_UPDATE_STRATEGY", rollingUpdate)
+	if err != nil {
+		return errors.Wrap(err, "failed to load CSI_RBD_PLUGIN_UPDATE_STRATEGY setting")
+	}
+	if strings.EqualFold(updateStrategy, onDelete) {
+		tp.RBDPluginUpdateStrategy = onDelete
 	} else {
-		tp.RBDPluginUpdateStrategy = "RollingUpdate"
+		tp.RBDPluginUpdateStrategy = rollingUpdate
 	}
 
 	if ver.Major > KubeMinMajor || (ver.Major == KubeMinMajor && ver.Minor < provDeploymentSuppVersion) {
 		deployProvSTS = true
 	}
 
-	tp.ResizerImage = os.Getenv("ROOK_CSI_RESIZER_IMAGE")
+	tp.ResizerImage, err = k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "ROOK_CSI_RESIZER_IMAGE", defaultResizerImage)
+	if err != nil {
+		return errors.Wrap(err, "failed to load ROOK_CSI_RESIZER_IMAGE setting")
+	}
 	if tp.ResizerImage == "" {
 		tp.ResizerImage = defaultResizerImage
 	}
@@ -272,7 +305,11 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 		logger.Warning("CSI Block volume expansion requires Kubernetes version >=1.16.0")
 	}
 
-	logLevel := os.Getenv("CSI_LOG_LEVEL")
+	logLevel, err := k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "CSI_LOG_LEVEL", "")
+	if err != nil {
+		// logging a warning and intentionally continuing with the default log level
+		logger.Warningf("failed to load CSI_LOG_LEVEL. Defaulting to %d. %v", defaultLogLevel, err)
+	}
 	tp.LogLevel = defaultLogLevel
 	if logLevel != "" {
 		l, err := strconv.ParseUint(logLevel, 10, 8)

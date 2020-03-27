@@ -20,6 +20,7 @@ package operator
 import (
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -30,6 +31,7 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
 	"github.com/rook/rook/pkg/operator/ceph/agent"
 	"github.com/rook/rook/pkg/operator/ceph/cluster"
+	cephController "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
 	"github.com/rook/rook/pkg/operator/ceph/provisioner"
 	"github.com/rook/rook/pkg/operator/discover"
@@ -179,6 +181,8 @@ func (o *Operator) startDrivers() error {
 }
 
 func (o *Operator) updateDrivers() error {
+	var err error
+
 	// Skipping CSI driver update since the first cluster hasn't been started yet
 	if !o.delayedDaemonsStarted {
 		return nil
@@ -198,6 +202,10 @@ func (o *Operator) updateDrivers() error {
 	serverVersion, err := o.context.Clientset.Discovery().ServerVersion()
 	if err != nil {
 		return errors.Wrapf(err, "error getting server version")
+	}
+
+	if err = o.setCSIParams(); err != nil {
+		return errors.Wrap(err, "failed to configure CSI parameters")
 	}
 
 	if !csi.CSIEnabled() {
@@ -225,5 +233,67 @@ func (o *Operator) updateDrivers() error {
 		return errors.Wrapf(err, "failed to start Ceph csi drivers")
 	}
 	logger.Infof("successfully started Ceph CSI driver(s)")
+	return nil
+}
+
+func (o *Operator) setCSIParams() error {
+	var err error
+
+	csiEnableRBD, err := k8sutil.GetOperatorSetting(o.context.Clientset, cephController.OperatorSettingConfigMapName, "ROOK_CSI_ENABLE_RBD", "true")
+	if err != nil {
+		return errors.Wrap(err, "unable to determine if CSI driver for RBD is enabled")
+	}
+	if csi.EnableRBD, err = strconv.ParseBool(csiEnableRBD); err != nil {
+		return errors.Wrap(err, "unable to parse value for 'ROOK_CSI_ENABLE_RBD'")
+	}
+
+	csiEnableCephFS, err := k8sutil.GetOperatorSetting(o.context.Clientset, cephController.OperatorSettingConfigMapName, "ROOK_CSI_ENABLE_CEPHFS", "true")
+	if err != nil {
+		return errors.Wrap(err, "unable to determine if CSI driver for CephFS is enabled")
+	}
+	if csi.EnableCephFS, err = strconv.ParseBool(csiEnableCephFS); err != nil {
+		return errors.Wrap(err, "unable to parse value for 'ROOK_CSI_ENABLE_CEPHFS'")
+	}
+
+	csiAllowUnsupported, err := k8sutil.GetOperatorSetting(o.context.Clientset, cephController.OperatorSettingConfigMapName, "ROOK_CSI_ALLOW_UNSUPPORTED_VERSION", "false")
+	if err != nil {
+		return errors.Wrap(err, "unable to determine if unsupported version is allowed")
+	}
+	if csi.AllowUnsupported, err = strconv.ParseBool(csiAllowUnsupported); err != nil {
+		return errors.Wrap(err, "unable to parse value for 'ROOK_CSI_ALLOW_UNSUPPORTED_VERSION'")
+	}
+
+	csiEnableCSIGRPCMetrics, err := k8sutil.GetOperatorSetting(o.context.Clientset, cephController.OperatorSettingConfigMapName, "ROOK_CSI_ENABLE_GRPC_METRICS", "true")
+	if err != nil {
+		return errors.Wrap(err, "unable to determine if CSI GRPC metrics is enabled")
+	}
+	if csi.EnableCSIGRPCMetrics, err = strconv.ParseBool(csiEnableCSIGRPCMetrics); err != nil {
+		return errors.Wrap(err, "unable to parse value for 'ROOK_CSI_ENABLE_GRPC_METRICS'")
+	}
+
+	csi.CSIParam.CSIPluginImage, err = k8sutil.GetOperatorSetting(o.context.Clientset, cephController.OperatorSettingConfigMapName, "ROOK_CSI_CEPH_IMAGE", csi.DefaultCSIPluginImage)
+	if err != nil {
+		return errors.Wrap(err, "unable to configure CSI plugin image")
+	}
+	csi.CSIParam.RegistrarImage, err = k8sutil.GetOperatorSetting(o.context.Clientset, cephController.OperatorSettingConfigMapName, "ROOK_CSI_REGISTRAR_IMAGE", csi.DefaultRegistrarImage)
+	if err != nil {
+		return errors.Wrap(err, "unable to configure CSI registrar image")
+	}
+	csi.CSIParam.ProvisionerImage, err = k8sutil.GetOperatorSetting(o.context.Clientset, cephController.OperatorSettingConfigMapName, "ROOK_CSI_PROVISIONER_IMAGE", csi.DefaultProvisionerImage)
+	if err != nil {
+		return errors.Wrap(err, "unable to configure CSI provisioner image")
+	}
+	csi.CSIParam.AttacherImage, err = k8sutil.GetOperatorSetting(o.context.Clientset, cephController.OperatorSettingConfigMapName, "ROOK_CSI_ATTACHER_IMAGE", csi.DefaultAttacherImage)
+	if err != nil {
+		return errors.Wrap(err, "unable to configure CSI attacher image")
+	}
+	csi.CSIParam.SnapshotterImage, err = k8sutil.GetOperatorSetting(o.context.Clientset, cephController.OperatorSettingConfigMapName, "ROOK_CSI_SNAPSHOTTER_IMAGE", csi.DefaultSnapshotterImage)
+	if err != nil {
+		return errors.Wrap(err, "unable to configure CSI snapshotter image")
+	}
+	csi.CSIParam.KubeletDirPath, err = k8sutil.GetOperatorSetting(o.context.Clientset, cephController.OperatorSettingConfigMapName, "ROOK_CSI_KUBELET_DIR_PATH", csi.DefaultKubeletDirPath)
+	if err != nil {
+		return errors.Wrap(err, "unable to configure CSI kubelet directory path")
+	}
 	return nil
 }

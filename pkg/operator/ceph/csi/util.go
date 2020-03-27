@@ -19,7 +19,6 @@ package csi
 import (
 	"bytes"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -169,19 +168,20 @@ func applyToPodSpec(pod *corev1.PodSpec, n *corev1.NodeAffinity, t []corev1.Tole
 	}
 }
 
-func getPortFromENV(env string, defaultPort uint16) uint16 {
-	port := os.Getenv(env)
+func getPortFromConfig(clientset kubernetes.Interface, env string, defaultPort uint16) (uint16, error) {
+	port, err := k8sutil.GetOperatorSetting(clientset, controller.OperatorSettingConfigMapName, env, strconv.Itoa(int(defaultPort)))
+	if err != nil {
+		return defaultPort, errors.Wrapf(err, "failed to load value for %q.", env)
+	}
 	if strings.TrimSpace(port) == "" {
-		return defaultPort
+		return defaultPort, nil
 	}
 	p, err := strconv.ParseUint(port, 10, 64)
 	if err != nil {
-		logger.Debugf("failed to parse port value for env %q. using default port %d. %v", env, defaultPort, err)
-		return defaultPort
+		return defaultPort, errors.Wrapf(err, "failed to parse port value for %q.", env)
 	}
 	if p > 65535 {
-		logger.Debugf("%s port value is greater than 65535. using default port %d for %s", port, defaultPort, env)
-		return defaultPort
+		return defaultPort, errors.Errorf("%s port value is greater than 65535 for %s.", port, env)
 	}
-	return uint16(p)
+	return uint16(p), nil
 }
