@@ -144,7 +144,7 @@ func GetPoolDetails(context *clusterd.Context, namespace, name string) (CephStor
 
 func CreatePoolWithProfile(context *clusterd.Context, namespace, poolName string, pool cephv1.PoolSpec, appName string) error {
 	if pool.IsReplicated() {
-		return CreateReplicatedPoolForApp(context, namespace, poolName, pool, appName)
+		return CreateReplicatedPoolForApp(context, namespace, poolName, pool, DefaultPGCount, appName)
 	}
 
 	if !pool.IsErasureCoded() {
@@ -165,6 +165,7 @@ func CreatePoolWithProfile(context *clusterd.Context, namespace, poolName string
 		poolName,
 		ecProfileName,
 		pool,
+		DefaultPGCount,
 		appName,
 		true /* enableECOverwrite */)
 }
@@ -233,9 +234,8 @@ func GetErasureCodeProfileForPool(baseName string) string {
 	return fmt.Sprintf("%s_ecprofile", baseName)
 }
 
-func CreateECPoolForApp(context *clusterd.Context, namespace, poolName, ecProfileName string, pool cephv1.PoolSpec, appName string, enableECOverwrite bool) error {
-	args := []string{"osd", "pool", "create", poolName, "0", "erasure", ecProfileName}
-
+func CreateECPoolForApp(context *clusterd.Context, namespace, poolName, ecProfileName string, pool cephv1.PoolSpec, pgCount, appName string, enableECOverwrite bool) error {
+	args := []string{"osd", "pool", "create", poolName, pgCount, "erasure", ecProfileName}
 	output, err := NewCephCommand(context, namespace, args).Run()
 	if err != nil {
 		return errors.Wrapf(err, "failed to create EC pool %s. %s", poolName, string(output))
@@ -258,13 +258,13 @@ func CreateECPoolForApp(context *clusterd.Context, namespace, poolName, ecProfil
 	return nil
 }
 
-func CreateReplicatedPoolForApp(context *clusterd.Context, namespace, poolName string, pool cephv1.PoolSpec, appName string) error {
+func CreateReplicatedPoolForApp(context *clusterd.Context, namespace, poolName string, pool cephv1.PoolSpec, pgCount, appName string) error {
 	// create a crush rule for a replicated pool, if a failure domain is specified
 	if err := createReplicationCrushRule(context, namespace, poolName, pool); err != nil {
 		return err
 	}
 
-	args := []string{"osd", "pool", "create", poolName, "0", "replicated", poolName}
+	args := []string{"osd", "pool", "create", poolName, pgCount, "replicated", poolName}
 	output, err := NewCephCommand(context, namespace, args).Run()
 	if err != nil {
 		return errors.Wrapf(err, "failed to create replicated pool %s. %s", poolName, string(output))
