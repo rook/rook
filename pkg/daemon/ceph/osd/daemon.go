@@ -329,7 +329,12 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 		// If filesystem is empty, let's try again with lsblk
 		// Sometime udev does not report the filesystem...
 		if device.Filesystem == "" {
-			partFS, err := sys.GetPVCDeviceFileSystems(context.Executor, device.Name)
+			devicePath := device.Name
+			if !pvcBacked {
+				devicePath = fmt.Sprintf("/dev/%s", device.Name)
+			}
+
+			partFS, err := sys.GetPVCDeviceFileSystems(context.Executor, devicePath)
 			if err != nil {
 				logger.Warningf("failed to get lsblk filesystem info for device %q, might be missing filesystem information. %v", device.Name, err)
 			} else {
