@@ -58,6 +58,9 @@ type CephVolumeInventory struct {
 	LVS             json.RawMessage `json:"lvs"`
 }
 
+// CephVolumeLVMList represents the output of the ceph-volume lvm list command
+type CephVolumeLVMList map[string][]map[string]interface{}
+
 // Partition represents a partition metadata
 type Partition struct {
 	Name       string
@@ -279,12 +282,42 @@ func GetDiskUUID(device string, executor exec.Executor) (string, error) {
 // CheckIfDeviceAvailable checks if a device is available for consumption. The caller
 // needs to decide based on the return values whether it is available.
 func CheckIfDeviceAvailable(executor exec.Executor, devicePath string, pvcBacked bool) (bool, string, error) {
-	isAvailable, rejectedReason, err := isDeviceAvailable(executor, devicePath)
+	checker := isDeviceAvailable
+
+	isLV, err := IsLV(devicePath, executor)
+	if err != nil {
+		return false, "", fmt.Errorf("failed to determine if the device was LV. %v", err)
+	}
+	if isLV {
+		if !pvcBacked {
+			return false, "LV is not supported for non-PVC backed device", nil
+		}
+		checker = isLVAvailable
+	}
+
+	isAvailable, rejectedReason, err := checker(executor, devicePath)
 	if err != nil {
 		return false, "", fmt.Errorf("failed to determine if the device was available. %v", err)
 	}
 
 	return isAvailable, rejectedReason, nil
+}
+
+// GetLVName returns the LV name of the device in the form of "VG/LV".
+func GetLVName(executor exec.Executor, devicePath string) (string, error) {
+	devInfo, err := executor.ExecuteCommandWithOutput("dmsetup", "info", "-c", "--noheadings", "-o", "name", devicePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to execute dmsetup info for %q. %v", devicePath, err)
+	}
+	out, err := executor.ExecuteCommandWithOutput("dmsetup", "splitname", "--noheadings", devInfo)
+	if err != nil {
+		return "", fmt.Errorf("failed to execute dmsetup splitname for %q. %v", devInfo, err)
+	}
+	split := strings.Split(out, ":")
+	if len(split) < 2 {
+		return "", fmt.Errorf("dmsetup splitname returned unexpected result for %q. output: %q", devInfo, out)
+	}
+	return fmt.Sprintf("%s/%s", split[0], split[1]), nil
 }
 
 // finds the disk uuid in the output of sgdisk
@@ -380,6 +413,39 @@ func inventoryDevice(executor exec.Executor, devicePath string) (CephVolumeInven
 	}
 
 	return CVInventory, nil
+}
+
+func isLVAvailable(executor exec.Executor, devicePath string) (bool, string, error) {
+	lv, err := GetLVName(executor, devicePath)
+	if err != nil {
+		return false, "", fmt.Errorf("failed to get the LV name for the device %q. %v", devicePath, err)
+	}
+
+	cvLVMList, err := lvmList(executor, lv)
+	if err != nil {
+		return false, "", fmt.Errorf("failed to determine if the device %q is available. %v", devicePath, err)
+	}
+
+	if len(cvLVMList) == 0 {
+		return true, "", nil
+	}
+	return false, "Used by Ceph", nil
+}
+
+func lvmList(executor exec.Executor, lv string) (CephVolumeLVMList, error) {
+	args := []string{"lvm", "list", "--format", "json", lv}
+	output, err := executor.ExecuteCommandWithOutput("ceph-volume", args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute ceph-volume lvm list on LV %q. %v", lv, err)
+	}
+
+	var cvLVMList CephVolumeLVMList
+	err = json.Unmarshal([]byte(output), &cvLVMList)
+	if err != nil {
+		return nil, fmt.Errorf("error unmarshalling json data coming from ceph-volume lvm list %q. %v", lv, err)
+	}
+
+	return cvLVMList, nil
 }
 
 // ListDevicesChild list all child available on a device

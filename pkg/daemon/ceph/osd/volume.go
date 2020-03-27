@@ -275,7 +275,7 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 			var deviceArg string
 			if lvBackedPV {
 				// pass 'vg/lv' to ceph-volume
-				deviceArg, err = getLVNameFromDevicePath(context, device.Config.Name)
+				deviceArg, err = sys.GetLVName(context.Executor, device.Config.Name)
 				if err != nil {
 					return "", "", errors.Wrapf(err, "failed to get lv name from device path %q", device.Config.Name)
 				}
@@ -338,22 +338,6 @@ func getLVPath(op string) string {
 		}
 	}
 	return ""
-}
-
-func getLVNameFromDevicePath(context *clusterd.Context, devicePath string) (string, error) {
-	devInfo, err := context.Executor.ExecuteCommandWithOutput("dmsetup", "info", "-c", "--noheadings", "-o", "name", devicePath)
-	if err != nil {
-		return "", errors.Wrapf(err, "failed dmsetup info. output: %q", devInfo)
-	}
-	out, err := context.Executor.ExecuteCommandWithOutput("dmsetup", "splitname", devInfo, "--noheadings")
-	if err != nil {
-		return "", errors.Wrapf(err, "failed dmsetup splitname %q", devInfo)
-	}
-	split := strings.Split(out, ":")
-	if len(split) < 2 {
-		return "", errors.Wrapf(err, "dmsetup splitname returned unexpected result for %q. output: %q", devInfo, out)
-	}
-	return fmt.Sprintf("%s/%s", split[0], split[1]), nil
 }
 
 func updateLVMConfig(context *clusterd.Context, onPVC, lvBackedPV bool) error {

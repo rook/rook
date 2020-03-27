@@ -145,6 +145,13 @@ func TestAvailableDevices(t *testing.T) {
 				// /dev/sdb has a partition
 				return `NAME="sdb" SIZE="65" TYPE="disk" PKNAME=""
 NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
+			} else if strings.Index(args[0], "vg1-lv") != -1 {
+				// /dev/mapper/vg1-lv* are LVs
+				return `TYPE="lvm"`, nil
+			} else if strings.Index(args[0], "sdt1") != -1 {
+				return `TYPE="part"`, nil
+			} else if strings.HasPrefix(args[0], "/dev") {
+				return `TYPE="disk"`, nil
 			}
 			return "", nil
 		} else if command == "blkid" {
@@ -158,7 +165,19 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 				return udevFSOutput, nil
 			}
 			return "", nil
-		} else if command == "ceph-volume" {
+		} else if command == "dmsetup" && args[0] == "info" {
+			if strings.Index(args[5], "vg1-lv1") != -1 {
+				return "vg1-lv1", nil
+			} else if strings.Index(args[5], "vg1-lv2") != -1 {
+				return "vg1-lv2", nil
+			}
+		} else if command == "dmsetup" && args[0] == "splitname" {
+			if strings.Index(args[2], "vg1-lv1") != -1 {
+				return "vg1:lv1:", nil
+			} else if strings.Index(args[2], "vg1-lv2") != -1 {
+				return "vg1:lv2:", nil
+			}
+		} else if command == "ceph-volume" && args[0] == "inventory" {
 			if strings.Index(args[3], "/mnt/set1-0-data-qfhfk") != -1 {
 				return cvInventoryOutputNotAvailableBluestoreLabel, nil
 			} else if strings.Index(args[3], "sdb") != -1 {
@@ -170,6 +189,11 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 			}
 
 			return cvInventoryOutputAvailable, nil
+		} else if command == "ceph-volume" && args[0] == "lvm" {
+			if args[4] == "vg1/lv2" {
+				return `{"0":[{"name":"lv2","type":"block"}]}`, nil
+			}
+			return "{}", nil
 		}
 
 		return "", errors.Errorf("unknown command %s %s", command, args)
@@ -270,6 +294,22 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	mapping, err = getAvailableDevices(context, []DesiredDevice{{Name: "all"}}, "", pvcBackedOSD, version)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(mapping.Entries), mapping)
+
+	// on PVC, backed by LV, available
+	context.Devices = []*sys.LocalDisk{
+		{Name: "/mnt/set1-0-data-wjkla", RealPath: "/dev/mapper/vg1-lv1", Type: "data"},
+	}
+	mapping, err = getAvailableDevices(context, []DesiredDevice{{Name: "all"}}, "", pvcBackedOSD, version)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(mapping.Entries), mapping)
+
+	// on PVC, backed by LV, already used
+	context.Devices = []*sys.LocalDisk{
+		{Name: "/mnt/set1-0-data-uvepz", RealPath: "/dev/mapper/vg1-lv2", Type: "data"},
+	}
+	mapping, err = getAvailableDevices(context, []DesiredDevice{{Name: "all"}}, "", pvcBackedOSD, version)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(mapping.Entries), mapping)
 }
 
 func TestGetVolumeGroupName(t *testing.T) {
