@@ -1498,7 +1498,7 @@ spec:
             fieldRef:
               fieldPath: metadata.namespace
         - name: ROOK_ENABLE_FLEX_DRIVER
-          value: "false"
+          value: "true"
         - name: ROOK_CURRENT_NAMESPACE_ONLY
           value: "false"
 ---
