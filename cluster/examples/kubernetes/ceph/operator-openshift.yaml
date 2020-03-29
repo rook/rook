@@ -305,9 +305,6 @@ spec:
         - name: ROOK_ENABLE_MACHINE_DISRUPTION_BUDGET
           value: "false"
 
-        - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
-          value: "true"
-
         # Time to wait until the node controller will move Rook pods to other
         # nodes after detecting an unreachable node.
         # Pods affected by this setting are:
