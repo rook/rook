@@ -34,6 +34,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
+const (
+	livenessProbePath = "/swift/healthcheck"
+)
+
 func (c *clusterConfig) createDeployment(rgwConfig *rgwConfig) *apps.Deployment {
 	replicas := int32(1)
 	d := &apps.Deployment{
@@ -144,17 +148,9 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 			controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName),
 			c.mimeTypesVolumeMount(),
 		),
-		Env:       controller.DaemonEnvVars(c.clusterSpec.CephVersion.Image),
-		Resources: c.store.Spec.Gateway.Resources,
-		LivenessProbe: &v1.Probe{
-			Handler: v1.Handler{
-				HTTPGet: &v1.HTTPGetAction{
-					Path: "/swift/healthcheck",
-					Port: intstr.FromInt(int(c.store.Spec.Gateway.Port)),
-				},
-			},
-			InitialDelaySeconds: 10,
-		},
+		Env:             controller.DaemonEnvVars(c.clusterSpec.CephVersion.Image),
+		Resources:       c.store.Spec.Gateway.Resources,
+		LivenessProbe:   c.generateLiveProbe(),
 		SecurityContext: mon.PodSecurityContext(),
 	}
 
@@ -167,7 +163,50 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 	return container
 }
 
-func (r *ReconcileCephObjectStore) generateService(cephObjectStore *cephv1.CephObjectStore) *v1.Service {
+func (c *clusterConfig) generateLiveProbe() *v1.Probe {
+	return &v1.Probe{
+		Handler: v1.Handler{
+			HTTPGet: &v1.HTTPGetAction{
+				Path:   livenessProbePath,
+				Port:   c.generateLiveProbePort(),
+				Scheme: c.generateLiveProbeScheme(),
+			},
+		},
+		InitialDelaySeconds: 10,
+	}
+}
+
+func (c *clusterConfig) generateLiveProbeScheme() v1.URIScheme {
+	// Default to HTTP
+	uriScheme := v1.URISchemeHTTP
+
+	// If rgw is configured to use a secured port we need get on https://
+	// Only do this when the Non-SSL port is not used
+	if c.store.Spec.Gateway.Port == 0 && c.store.Spec.Gateway.SecurePort != 0 && c.store.Spec.Gateway.SSLCertificateRef != "" {
+		uriScheme = v1.URISchemeHTTPS
+	}
+
+	return uriScheme
+}
+
+func (c *clusterConfig) generateLiveProbePort() intstr.IntOrString {
+	// The port the liveness probe needs to probe
+	// Assume we run on SDN by default
+	port := intstr.FromInt(int(rgwPortInternalPort))
+
+	// If Host Networking is enabled, the port from the spec must be reflected
+	if c.clusterSpec.Network.IsHost() {
+		if c.store.Spec.Gateway.Port == 0 && c.store.Spec.Gateway.SecurePort != 0 && c.store.Spec.Gateway.SSLCertificateRef != "" {
+			port = intstr.FromInt(int(c.store.Spec.Gateway.SecurePort))
+		} else {
+			port = intstr.FromInt(int(c.store.Spec.Gateway.Port))
+		}
+	}
+
+	return port
+}
+
+func (c *clusterConfig) generateService(cephObjectStore *cephv1.CephObjectStore) *v1.Service {
 	labels := getLabels(cephObjectStore.Name, cephObjectStore.Namespace)
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -180,30 +219,31 @@ func (r *ReconcileCephObjectStore) generateService(cephObjectStore *cephv1.CephO
 		},
 	}
 
-	if r.cephClusterSpec.Network.IsHost() {
+	if c.clusterSpec.Network.IsHost() {
 		svc.Spec.ClusterIP = v1.ClusterIPNone
 	}
 
-	addPort(svc, "http", cephObjectStore.Spec.Gateway.Port)
-	addPort(svc, "https", cephObjectStore.Spec.Gateway.SecurePort)
+	destPort := c.generateLiveProbePort()
+	addPort(svc, "http", cephObjectStore.Spec.Gateway.Port, destPort.IntVal)
+	addPort(svc, "https", cephObjectStore.Spec.Gateway.SecurePort, cephObjectStore.Spec.Gateway.SecurePort)
 
 	return svc
 }
 
-func (r *ReconcileCephObjectStore) reconcileService(cephObjectStore *cephv1.CephObjectStore) (string, error) {
-	service := r.generateService(cephObjectStore)
+func (c *clusterConfig) reconcileService(cephObjectStore *cephv1.CephObjectStore) (string, error) {
+	service := c.generateService(cephObjectStore)
 	// Set owner ref to the parent object
-	err := controllerutil.SetControllerReference(cephObjectStore, service, r.scheme)
+	err := controllerutil.SetControllerReference(cephObjectStore, service, c.scheme)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to set owner reference to ceph object store")
 	}
 
-	svc, err := r.context.Clientset.CoreV1().Services(cephObjectStore.Namespace).Create(service)
+	svc, err := c.context.Clientset.CoreV1().Services(cephObjectStore.Namespace).Create(service)
 	if err != nil {
 		if !kerrors.IsAlreadyExists(err) {
 			return "", errors.Wrapf(err, "failed to create ceph object store service")
 		}
-		svc, err = r.context.Clientset.CoreV1().Services(cephObjectStore.Namespace).Get(instanceName(cephObjectStore.Name), metav1.GetOptions{})
+		svc, err = c.context.Clientset.CoreV1().Services(cephObjectStore.Namespace).Get(instanceName(cephObjectStore.Name), metav1.GetOptions{})
 		if err != nil {
 			return "", errors.Wrapf(err, "failed to get existing service IP")
 		}
@@ -214,14 +254,14 @@ func (r *ReconcileCephObjectStore) reconcileService(cephObjectStore *cephv1.Ceph
 	return svc.Spec.ClusterIP, nil
 }
 
-func addPort(service *v1.Service, name string, port int32) {
-	if port == 0 {
+func addPort(service *v1.Service, name string, port, destPort int32) {
+	if port == 0 || destPort == 0 {
 		return
 	}
 	service.Spec.Ports = append(service.Spec.Ports, v1.ServicePort{
 		Name:       name,
 		Port:       port,
-		TargetPort: intstr.FromInt(int(port)),
+		TargetPort: intstr.FromInt(int(destPort)),
 		Protocol:   v1.ProtocolTCP,
 	})
 }
