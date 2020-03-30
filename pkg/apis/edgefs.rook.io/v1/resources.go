@@ -29,6 +29,9 @@ const (
 
 	hostLocalTimeVolName = "host-local-time"
 	hostLocalTimePath    = "/etc/localtime"
+
+	hostTimeZoneVolName = "host-time-zone"
+	hostTimeZonePath    = "/etc/timezone"
 )
 
 // GetMgrResources returns the placement for the MGR service
@@ -142,6 +145,25 @@ func GetHostLocalTimeVolume() v1.Volume {
 		VolumeSource: v1.VolumeSource{
 			HostPath: &v1.HostPathVolumeSource{
 				Path: hostLocalTimePath,
+			},
+		},
+	}
+}
+
+func GetHostTimeZoneVolumeMount() v1.VolumeMount {
+	return v1.VolumeMount{
+		Name:      hostTimeZoneVolName,
+		MountPath: hostTimeZonePath,
+		ReadOnly:  true,
+	}
+}
+
+func GetHostTimeZoneVolume() v1.Volume {
+	return v1.Volume{
+		Name: hostTimeZoneVolName,
+		VolumeSource: v1.VolumeSource{
+			HostPath: &v1.HostPathVolumeSource{
+				Path: hostTimeZonePath,
 			},
 		},
 	}

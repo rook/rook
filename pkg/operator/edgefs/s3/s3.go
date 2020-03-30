@@ -171,6 +171,7 @@ func (c *S3Controller) makeDeployment(svcname, namespace, rookImage, imageArgs s
 
 	if c.useHostLocalTime {
 		volumes = append(volumes, edgefsv1.GetHostLocalTimeVolume())
+		volumes = append(volumes, edgefsv1.GetHostTimeZoneVolume())
 	}
 
 	// add ssl certificate volume if defined
@@ -289,6 +290,7 @@ func (c *S3Controller) s3Container(svcname, name, containerImage, args string, s
 
 	if c.useHostLocalTime {
 		volumeMounts = append(volumeMounts, edgefsv1.GetHostLocalTimeVolumeMount())
+		volumeMounts = append(volumeMounts, edgefsv1.GetHostTimeZoneVolumeMount())
 	}
 
 	if len(s3Spec.SSLCertificateRef) > 0 {
