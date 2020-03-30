@@ -20,6 +20,7 @@
 ConfigMap can be used in mix with the already existing Env Vars defined in operator deployment manifest. Precedence will be given to ConfigMap in case of conflicting configurations.
 - Rook Ceph cleanupPolicy will clean up the dataDirHostPath only after user confirmation. For more info about CleanUpPolicy [read the design](https://github.com/rook/rook/blob/master/design/ceph/ceph-cluster-cleanup.md) as well as the documentation [cleanupPolicy](Documentation/ceph-cluster-crd.md#cluster-settings)
 - Rook monitor, mds and osd now have liveness probe checks on their respective sockets
+- Pools can now be configured to inline compress the data using the `compressionMode` parameter. Support added [here](https://github.com/rook/rook/pull/5124)
 
 ### EdgeFS
 
