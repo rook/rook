@@ -67,6 +67,7 @@ pipeline {
                 sh 'git diff-index --quiet HEAD || { echo "CHANGES FOUND. You may need to run make clean"; git status -s; exit 1; }'
                 // run the build
                 sh 'build/run make -j\$(nproc) build.all'
+                sh 'git status'
             }
         }
         stage('Unit Tests') {
@@ -94,6 +95,9 @@ pipeline {
             steps {
                 sh 'docker login -u="${DOCKER_USR}" -p="${DOCKER_PSW}"'
                 sh 'build/run make -j\$(nproc) -C build/release build BRANCH_NAME=${BRANCH_NAME} GIT_API_TOKEN=${GIT_PSW}'
+                sh 'git status'
+                sh 'git diff'
+                sh 'git restore go.sum'
                 sh 'build/run make -j\$(nproc) -C build/release publish BRANCH_NAME=${BRANCH_NAME} AWS_ACCESS_KEY_ID=${AWS_USR} AWS_SECRET_ACCESS_KEY=${AWS_PSW} GIT_API_TOKEN=${GIT_PSW}'
                 // automatically promote the master builds
                 sh 'build/run make -j\$(nproc) -C build/release promote BRANCH_NAME=master CHANNEL=master AWS_ACCESS_KEY_ID=${AWS_USR} AWS_SECRET_ACCESS_KEY=${AWS_PSW}'
@@ -150,6 +154,9 @@ pipeline {
             steps {
                 sh 'docker login -u="${DOCKER_USR}" -p="${DOCKER_PSW}"'
                 sh 'build/run make -j\$(nproc) -C build/release build BRANCH_NAME=${BRANCH_NAME} TAG_WITH_SUFFIX=true GIT_API_TOKEN=${GIT_PSW}'
+                sh 'git status'
+                sh 'git diff'
+                sh 'git restore go.sum'
                 sh 'build/run make -j\$(nproc) -C build/release publish BRANCH_NAME=${BRANCH_NAME} TAG_WITH_SUFFIX=true AWS_ACCESS_KEY_ID=${AWS_USR} AWS_SECRET_ACCESS_KEY=${AWS_PSW} GIT_API_TOKEN=${GIT_PSW}'
             }
         }
