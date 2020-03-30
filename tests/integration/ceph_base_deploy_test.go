@@ -40,11 +40,11 @@ const (
 	// These versions are for running a minimal test suite for more efficient tests across different versions of K8s
 	// instead of running all suites on all versions
 	// To run on multiple versions, add a comma separate list such as 1.16.0,1.17.0
-	flexDriverMinimalTestVersion   = "1.13.0"
-	multiClusterMinimalTestVersion = "1.14.0"
-	helmMinimalTestVersion         = "1.15.0"
-	upgradeMinimalTestVersion      = "1.16.0"
-	smokeSuiteMinimalTestVersion   = "1.17.0"
+	flexDriverMinimalTestVersion   = "1.14.0"
+	multiClusterMinimalTestVersion = "1.15.0"
+	helmMinimalTestVersion         = "1.16.0"
+	upgradeMinimalTestVersion      = "1.17.0"
+	smokeSuiteMinimalTestVersion   = "1.18.0"
 )
 
 var (
