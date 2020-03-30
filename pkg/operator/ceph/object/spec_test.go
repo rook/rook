@@ -163,3 +163,51 @@ func TestValidateSpec(t *testing.T) {
 	err = validateStore(context, s)
 	assert.Nil(t, err)
 }
+
+func TestGenerateLiveProbe(t *testing.T) {
+	store := simpleStore()
+	c := &clusterConfig{
+		store: store,
+		clusterSpec: &cephv1.ClusterSpec{
+			Network: cephv1.NetworkSpec{
+				HostNetwork: false,
+			},
+		},
+	}
+
+	// No SSL - HostNetwork is disabled - using internal port
+	p := c.generateLiveProbe()
+	assert.Equal(t, int32(8080), p.Handler.HTTPGet.Port.IntVal)
+	assert.Equal(t, v1.URISchemeHTTP, p.Handler.HTTPGet.Scheme)
+
+	// SSL - HostNetwork is disabled - using internal port
+	c.store.Spec.Gateway.Port = 0
+	c.store.Spec.Gateway.SecurePort = 321
+	c.store.Spec.Gateway.SSLCertificateRef = "foo"
+	p = c.generateLiveProbe()
+	assert.Equal(t, int32(8080), p.Handler.HTTPGet.Port.IntVal)
+	assert.Equal(t, v1.URISchemeHTTPS, p.Handler.HTTPGet.Scheme)
+
+	// No SSL - HostNetwork is enabled
+	c.store.Spec.Gateway.Port = 123
+	c.store.Spec.Gateway.SecurePort = 0
+	c.clusterSpec.Network.HostNetwork = true
+	p = c.generateLiveProbe()
+	assert.Equal(t, int32(123), p.Handler.HTTPGet.Port.IntVal)
+
+	// SSL - HostNetwork is enabled
+	c.store.Spec.Gateway.Port = 0
+	c.store.Spec.Gateway.SecurePort = 321
+	c.store.Spec.Gateway.SSLCertificateRef = "foo"
+	p = c.generateLiveProbe()
+	assert.Equal(t, int32(321), p.Handler.HTTPGet.Port.IntVal)
+
+	// Both Non-SSL and SSL are enabled
+	// liveprobe just on Non-SSL
+	c.store.Spec.Gateway.Port = 123
+	c.store.Spec.Gateway.SecurePort = 321
+	c.store.Spec.Gateway.SSLCertificateRef = "foo"
+	p = c.generateLiveProbe()
+	assert.Equal(t, v1.URISchemeHTTP, p.Handler.HTTPGet.Scheme)
+	assert.Equal(t, int32(123), p.Handler.HTTPGet.Port.IntVal)
+}

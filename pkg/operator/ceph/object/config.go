@@ -35,10 +35,11 @@ caps mon = "allow rw"
 caps osd = "allow rwx"
 `
 
-	certVolumeName = "rook-ceph-rgw-cert"
-	certDir        = "/etc/ceph/private"
-	certKeyName    = "cert"
-	certFilename   = "rgw-cert.pem"
+	certVolumeName            = "rook-ceph-rgw-cert"
+	certDir                   = "/etc/ceph/private"
+	certKeyName               = "cert"
+	certFilename              = "rgw-cert.pem"
+	rgwPortInternalPort int32 = 8080
 )
 
 var (
@@ -50,6 +51,9 @@ func (c *clusterConfig) portString() string {
 
 	port := c.store.Spec.Gateway.Port
 	if port != 0 {
+		if !c.clusterSpec.Network.IsHost() {
+			port = rgwPortInternalPort
+		}
 		portString = fmt.Sprintf("port=%s", strconv.Itoa(int(port)))
 	}
 	if c.store.Spec.Gateway.SecurePort != 0 && c.store.Spec.Gateway.SSLCertificateRef != "" {

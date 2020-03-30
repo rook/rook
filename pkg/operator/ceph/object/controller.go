@@ -228,29 +228,6 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 		return reconcile.Result{}, errors.Wrapf(err, "invalid object store %q arguments", cephObjectStore.Name)
 	}
 
-	// RECONCILE SERVICE
-	logger.Debug("reconciling object store service")
-	serviceIP, err := r.reconcileService(cephObjectStore)
-	if err != nil {
-		return r.setFailedStatus(cephObjectStore, "failed to reconcile service", err)
-	}
-
-	objContext := NewContext(r.context, cephObjectStore.Name, cephObjectStore.Namespace)
-
-	// RECONCILE POOLS
-	logger.Info("reconciling object store pools")
-	err = createPools(objContext, cephObjectStore.Spec)
-	if err != nil {
-		return r.setFailedStatus(cephObjectStore, "failed to create object pools", err)
-	}
-
-	// RECONCILE REALM
-	logger.Info("reconciling object store realms")
-	err = reconcileRealm(objContext, serviceIP, cephObjectStore.Spec.Gateway.Port)
-	if err != nil {
-		return r.setFailedStatus(cephObjectStore, "failed to create object store realm", err)
-	}
-
 	// CREATE/UPDATE
 	logger.Info("reconciling object store deployments")
 	reconcileResponse, err = r.reconcileCreateObjectStore(cephObjectStore)
@@ -292,7 +269,30 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 		skipUpgradeChecks: r.cephClusterSpec.SkipUpgradeChecks,
 	}
 
-	err := cfg.createOrUpdateStore()
+	// RECONCILE SERVICE
+	logger.Debug("reconciling object store service")
+	serviceIP, err := cfg.reconcileService(cephObjectStore)
+	if err != nil {
+		return r.setFailedStatus(cephObjectStore, "failed to reconcile service", err)
+	}
+
+	objContext := NewContext(r.context, cephObjectStore.Name, cephObjectStore.Namespace)
+
+	// RECONCILE POOLS
+	logger.Info("reconciling object store pools")
+	err = createPools(objContext, cephObjectStore.Spec)
+	if err != nil {
+		return r.setFailedStatus(cephObjectStore, "failed to create object pools", err)
+	}
+
+	// RECONCILE REALM
+	logger.Info("reconciling object store realms")
+	err = reconcileRealm(objContext, serviceIP, cephObjectStore.Spec.Gateway.Port)
+	if err != nil {
+		return r.setFailedStatus(cephObjectStore, "failed to create object store realm", err)
+	}
+
+	err = cfg.createOrUpdateStore()
 	if err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "failed to create object store %q", cephObjectStore.Name)
 	}

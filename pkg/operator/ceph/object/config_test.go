@@ -29,12 +29,19 @@ func newConfig() *clusterConfig {
 	clusterInfo := &cephconfig.ClusterInfo{
 		CephVersion: cephver.Nautilus,
 	}
+	clusterSpec := &cephv1.ClusterSpec{
+		Network: cephv1.NetworkSpec{
+			HostNetwork: false,
+		},
+	}
 	return &clusterConfig{
 		store: &cephv1.CephObjectStore{
 			Spec: cephv1.ObjectStoreSpec{
 				Gateway: cephv1.GatewaySpec{},
 			}},
-		clusterInfo: clusterInfo}
+		clusterInfo: clusterInfo,
+		clusterSpec: clusterSpec,
+	}
 }
 
 func TestPortString(t *testing.T) {
@@ -45,6 +52,8 @@ func TestPortString(t *testing.T) {
 
 	// Insecure port on beast
 	cfg = newConfig()
+	// Set host networking
+	cfg.clusterSpec.Network.HostNetwork = true
 	cfg.store.Spec.Gateway.Port = 80
 	result = cfg.portString()
 	assert.Equal(t, "port=80", result)
@@ -58,6 +67,8 @@ func TestPortString(t *testing.T) {
 
 	// Both ports on beast
 	cfg = newConfig()
+	// Set host networking
+	cfg.clusterSpec.Network.HostNetwork = true
 	cfg.store.Spec.Gateway.Port = 80
 	cfg.store.Spec.Gateway.SecurePort = 443
 	cfg.store.Spec.Gateway.SSLCertificateRef = "some-k8s-key-secret"
@@ -69,6 +80,12 @@ func TestPortString(t *testing.T) {
 	cfg.store.Spec.Gateway.SecurePort = 443
 	result = cfg.portString()
 	assert.Equal(t, "", result)
+
+	// Using SDN, no host networking so the rgw port internal is not the same
+	cfg = newConfig()
+	cfg.store.Spec.Gateway.Port = 80
+	result = cfg.portString()
+	assert.Equal(t, "port=8080", result)
 }
 
 func TestGenerateCephXUser(t *testing.T) {
