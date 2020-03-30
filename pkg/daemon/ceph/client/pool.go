@@ -45,6 +45,7 @@ type CephStoragePoolDetails struct {
 	FailureDomain          string  `json:"failureDomain"`
 	CrushRoot              string  `json:"crushRoot"`
 	DeviceClass            string  `json:"deviceClass"`
+	CompressionMode        string  `json:"compression_mode"`
 	TargetSizeRatio        float64 `json:"target_size_ratio,omitempty"`
 	RequireSafeReplicaSize bool    `json:"requireSafeReplicaSize,omitempty"`
 }
@@ -230,6 +231,26 @@ func givePoolAppTag(context *clusterd.Context, namespace string, poolName string
 	return nil
 }
 
+func setCommonPoolProperties(context *clusterd.Context, pool cephv1.PoolSpec, namespace, poolName, appName string) error {
+	compressionModeProperty := "compression_mode"
+	if pool.CompressionMode != "" {
+		err := SetPoolProperty(context, namespace, poolName, compressionModeProperty, pool.CompressionMode)
+		if err != nil {
+			return errors.Wrapf(err, "failed to set property %q on pool %q to %q", compressionModeProperty, poolName, pool.CompressionMode)
+		}
+	}
+
+	// ensure that the newly created pool gets an application tag
+	if appName != "" {
+		err := givePoolAppTag(context, namespace, poolName, appName)
+		if err != nil {
+			return errors.Wrapf(err, "failed to tag pool %q for application %q", poolName, appName)
+		}
+	}
+
+	return nil
+}
+
 func GetErasureCodeProfileForPool(baseName string) string {
 	return fmt.Sprintf("%s_ecprofile", baseName)
 }
@@ -247,11 +268,8 @@ func CreateECPoolForApp(context *clusterd.Context, namespace, poolName, ecProfil
 		}
 	}
 
-	if appName != "" {
-		err = givePoolAppTag(context, namespace, poolName, appName)
-		if err != nil {
-			return err
-		}
+	if err = setCommonPoolProperties(context, pool, namespace, poolName, appName); err != nil {
+		return err
 	}
 
 	logger.Infof("creating EC pool %s succeeded", poolName)
@@ -283,12 +301,8 @@ func CreateReplicatedPoolForApp(context *clusterd.Context, namespace, poolName s
 		}
 	}
 
-	// ensure that the newly created pool gets an application tag
-	if appName != "" {
-		err = givePoolAppTag(context, namespace, poolName, appName)
-		if err != nil {
-			return err
-		}
+	if err = setCommonPoolProperties(context, pool, namespace, poolName, appName); err != nil {
+		return err
 	}
 
 	logger.Infof("creating replicated pool %s succeeded", poolName)

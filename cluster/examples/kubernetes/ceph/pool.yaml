@@ -27,6 +27,9 @@ spec:
   # The Ceph CRUSH device class associated with the CRUSH replicated rule
   # For reference: https://docs.ceph.com/docs/nautilus/rados/operations/crush-map/#device-classes
   #deviceClass: my-class
+  # Inline compression mode for the data pool
+  # Further reference: https://docs.ceph.com/docs/nautilus/rados/configuration/bluestore-config-ref/#inline-compression
+  compressionMode: none
   # A key/value list of annotations
   annotations:
   #  key: value

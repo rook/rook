@@ -84,6 +84,38 @@ func TestValidatePool(t *testing.T) {
 	err = ValidatePool(context, &p)
 	assert.Nil(t, err)
 
+	// Tests with various compression modes
+	// succeed with compression mode "none"
+	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
+	p.Spec.Replicated.Size = 1
+	p.Spec.Replicated.RequireSafeReplicaSize = false
+	p.Spec.CompressionMode = "none"
+	err = ValidatePool(context, &p)
+	assert.Nil(t, err)
+
+	// succeed with compression mode "aggressive"
+	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
+	p.Spec.Replicated.Size = 1
+	p.Spec.Replicated.RequireSafeReplicaSize = false
+	p.Spec.CompressionMode = "aggressive"
+	err = ValidatePool(context, &p)
+	assert.Nil(t, err)
+
+	// fail with compression mode "unsupported"
+	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
+	p.Spec.Replicated.Size = 1
+	p.Spec.Replicated.RequireSafeReplicaSize = false
+	p.Spec.CompressionMode = "unsupported"
+	err = ValidatePool(context, &p)
+	assert.Error(t, err)
+
+	// succeed with ec pool and valid compression mode
+	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
+	p.Spec.ErasureCoded.CodingChunks = 1
+	p.Spec.ErasureCoded.DataChunks = 2
+	p.Spec.CompressionMode = "passive"
+	err = ValidatePool(context, &p)
+	assert.Nil(t, err)
 }
 
 func TestValidateCrushProperties(t *testing.T) {

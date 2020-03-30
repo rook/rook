@@ -11,3 +11,4 @@ metadata:
 spec:
   replicated:
     size: 1
+  compressionMode: none

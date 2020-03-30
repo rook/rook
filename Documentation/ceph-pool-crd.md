@@ -83,6 +83,7 @@ When creating an erasure-coded pool, it is highly recommended to create the pool
     > **NOTE**: Neither Rook, nor Ceph, prevent the creation of a cluster where the replicated data (or Erasure Coded chunks) can be written safely. By design, Ceph will delay checking for suitable OSDs until a write request is made and this write can hang if there are not sufficient OSDs to satisfy the request.
 * `deviceClass`: Sets up the CRUSH rule for the pool to distribute data only on the specified device class. If left empty or unspecified, the pool will use the cluster's default CRUSH root, which usually distributes data over all OSDs, regardless of their class.
 * `crushRoot`: The root in the crush map to be used by the pool. If left empty or unspecified, the default root will be used. Creating a crush hierarchy for the OSDs currently requires the Rook toolbox to run the Ceph tools described [here](http://docs.ceph.com/docs/master/rados/operations/crush-map/#modifying-the-crush-map).
+* `compressionMode`: Sets up the pool for inline compression when using a Bluestore OSD. If left unspecified does not setup any compression mode for the pool. Values supported are the same as Bluestore inline compression [modes](https://docs.ceph.com/docs/master/rados/configuration/bluestore-config-ref/#inline-compression), such as `none`, `passive`, `aggressive`, and `force`.
 
 ### Erasure Coding
 
