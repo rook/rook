@@ -32,7 +32,10 @@ bash ${codegendir}/generate-groups.sh \
     all \
     github.com/rook/rook/pkg/client \
     github.com/rook/rook/pkg/apis \
-    "${GROUP_VERSIONS}"
+    "${GROUP_VERSIONS}" \
+    --output-base "${scriptdir}/../../vendor" \
+    --go-header-file "${scriptdir}/boilerplate.go.txt"
+cp -r "${scriptdir}/../../vendor/github.com/rook/rook/pkg/" "${scriptdir}/../../pkg/"
 
 SED="sed -i.bak"
 
