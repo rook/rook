@@ -153,6 +153,8 @@ For more details on the mons and when to choose a number other than `3`, see the
   * `manageMachineDisruptionBudgets`: if `true`, the operator will create and manage MachineDisruptionBudgets to ensure OSDs are only fenced when the cluster is healthy. Only available on OpenShift.
   * `machineDisruptionBudgetNamespace`: the namespace in which to watch the MachineDisruptionBudgets.
 * `removeOSDsIfOutAndSafeToRemove`: If `true` the operator will remove the OSDs that are down and whose data has been restored to other OSDs. In Ceph terms, the osds are `out` and `safe-to-destroy` when then would be removed.
+* `cleanupPolicy`: The section for confirming that cluster data should be forcibly deleted. The cleanupPolicy should only be added to the cluster when the cluster is about to be deleted. After any field of the cleanup policy is set, Rook will stop configuring the cluster as if the cluster is about to be destroyed in order to prevent these settings from being deployed unintentionally.
+  * `deleteDataDirOnHosts`: If `yes-really-destroy-data` the operator will automatically delete the hostpath of cluster nodes when a `delete cephcluster` command is issued. Only `yes-really-destroy-data` and an empty string are valid values for this field.
 
 ### Ceph container images
 

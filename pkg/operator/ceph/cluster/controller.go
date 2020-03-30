@@ -260,6 +260,11 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		return
 	}
 
+	if hasCleanupPolicy(clusterObj) {
+		logger.Infof("skipping orchestration for cluster object %q in namespace %q because its cleanup policy is set", clusterObj.Name, clusterObj.Namespace)
+		return
+	}
+
 	if existing, ok := c.clusterMap[clusterObj.Namespace]; ok {
 		logger.Errorf("failed to add cluster cr %q in namespace %q. Cluster cr %q already exists in this namespace. Only one cluster cr per namespace is supported.",
 			clusterObj.Name, clusterObj.Namespace, existing.crdName)
@@ -575,10 +580,27 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 			logger.Errorf("failed finalizer for cluster. %v", err)
 			return
 		}
+
+		// Start cluster clean up only if cleanupPolicy is applied to the ceph cluster
+		if hasCleanupPolicy(newClust) {
+			cephHosts, err := c.getCephHosts(newClust.Namespace)
+			if err != nil {
+				logger.Errorf("failed to find valid ceph hosts in the cluster %q. %v", newClust.Namespace, err)
+				return
+			}
+			go c.startClusterCleanUp(newClust, cephHosts)
+		}
+
 		// remove the finalizer from the crd, which indicates to k8s that the resource can safely be deleted
 		c.removeFinalizer(newClust)
 		return
 	}
+
+	if hasCleanupPolicy(newClust) {
+		logger.Infof("skipping orchestration for cluster object %q in namespace %q because its cleanup policy is set", newClust.Name, newClust.Namespace)
+		return
+	}
+
 	cluster, ok := c.clusterMap[newClust.Namespace]
 	if !ok {
 		logger.Errorf("cannot update cluster %q that does not exist", newClust.Namespace)
@@ -1152,4 +1174,9 @@ func populateConfigOverrideConfigMap(context *clusterd.Context, namespace string
 	}
 
 	return nil
+}
+
+func hasCleanupPolicy(cephCluster *cephv1.CephCluster) bool {
+	policy := cephCluster.Spec.CleanupPolicy
+	return policy.DeleteDataDirOnHosts != ""
 }

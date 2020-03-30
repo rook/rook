@@ -134,13 +134,13 @@ func checkIfShouldRunForMinimalTestMatrix(t func() *testing.T, k8sh *utils.K8sHe
 
 // StartTestCluster creates new instance of TestCluster struct
 func StartTestCluster(t func() *testing.T, minimalMatrixK8sVersion, namespace, storeType string, useHelm bool, usePVC bool, storageClassName string, mons,
-	rbdMirrorWorkers int, rookVersion string, cephVersion cephv1.CephVersionSpec) (*TestCluster, *utils.K8sHelper) {
+	rbdMirrorWorkers int, rookVersion string, cephVersion cephv1.CephVersionSpec, cleanupHost bool) (*TestCluster, *utils.K8sHelper) {
 
 	kh, err := utils.CreateK8sHelper(t)
 	require.NoError(t(), err)
 	checkIfShouldRunForMinimalTestMatrix(t, kh, minimalMatrixK8sVersion)
 
-	i := installer.NewCephInstaller(t, kh.Clientset, useHelm, rookVersion, cephVersion)
+	i := installer.NewCephInstaller(t, kh.Clientset, useHelm, rookVersion, cephVersion, cleanupHost)
 
 	op := &TestCluster{i, kh, nil, t, namespace, storeType, storageClassName, usePVC, mons, rbdMirrorWorkers}
 
