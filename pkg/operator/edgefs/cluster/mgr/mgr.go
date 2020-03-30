@@ -291,6 +291,7 @@ func (c *Cluster) makeDeployment(name, clusterName, rookImage string, replicas i
 
 	if c.useHostLocalTime {
 		volumes = append(volumes, edgefsv1.GetHostLocalTimeVolume())
+		volumes = append(volumes, edgefsv1.GetHostTimeZoneVolume())
 	}
 
 	if c.dataVolumeSize.Value() > 0 {
@@ -382,6 +383,7 @@ func (c *Cluster) uiContainer(name string, containerImage string) v1.Container {
 	volumeMounts := []v1.VolumeMount{}
 	if c.useHostLocalTime {
 		volumeMounts = append(volumeMounts, edgefsv1.GetHostLocalTimeVolumeMount())
+		volumeMounts = append(volumeMounts, edgefsv1.GetHostTimeZoneVolumeMount())
 	}
 
 	return v1.Container{
@@ -452,6 +454,7 @@ func (c *Cluster) restApiContainer(name string, containerImage string) v1.Contai
 
 	if c.useHostLocalTime {
 		volumeMounts = append(volumeMounts, edgefsv1.GetHostLocalTimeVolumeMount())
+		volumeMounts = append(volumeMounts, edgefsv1.GetHostTimeZoneVolumeMount())
 	}
 
 	cont := v1.Container{
@@ -548,6 +551,7 @@ func (c *Cluster) grpcProxyContainer(name string, containerImage string) v1.Cont
 
 	if c.useHostLocalTime {
 		volumeMounts = append(volumeMounts, edgefsv1.GetHostLocalTimeVolumeMount())
+		volumeMounts = append(volumeMounts, edgefsv1.GetHostTimeZoneVolumeMount())
 	}
 
 	cont := v1.Container{

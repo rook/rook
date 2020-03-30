@@ -89,6 +89,7 @@ func (c *Cluster) makeCorosyncContainer(containerImage string) v1.Container {
 
 	if c.useHostLocalTime {
 		volumeMounts = append(volumeMounts, edgefsv1.GetHostLocalTimeVolumeMount())
+		volumeMounts = append(volumeMounts, edgefsv1.GetHostTimeZoneVolumeMount())
 	}
 
 	return v1.Container{
@@ -141,6 +142,7 @@ func (c *Cluster) makeAuditdContainer(containerImage string) v1.Container {
 
 	if c.useHostLocalTime {
 		volumeMounts = append(volumeMounts, edgefsv1.GetHostLocalTimeVolumeMount())
+		volumeMounts = append(volumeMounts, edgefsv1.GetHostTimeZoneVolumeMount())
 	}
 
 	return v1.Container{
@@ -221,6 +223,7 @@ func (c *Cluster) makeDaemonContainer(containerImage string, dro edgefsv1.Device
 
 	if c.useHostLocalTime {
 		volumeMounts = append(volumeMounts, edgefsv1.GetHostLocalTimeVolumeMount())
+		volumeMounts = append(volumeMounts, edgefsv1.GetHostTimeZoneVolumeMount())
 	}
 
 	if containerSlaveIndex > 0 {
@@ -427,6 +430,7 @@ func (c *Cluster) createPodSpec(rookImage string, dro edgefsv1.DevicesResurrectO
 
 	if c.useHostLocalTime {
 		volumes = append(volumes, edgefsv1.GetHostLocalTimeVolume())
+		volumes = append(volumes, edgefsv1.GetHostTimeZoneVolume())
 	}
 
 	hostPathDirectoryOrCreate := v1.HostPathDirectoryOrCreate

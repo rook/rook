@@ -137,6 +137,7 @@ func (c *NFSController) makeDeployment(svcname, namespace, rookImage string, nfs
 
 	if c.useHostLocalTime {
 		volumes = append(volumes, edgefsv1.GetHostLocalTimeVolume())
+		volumes = append(volumes, edgefsv1.GetHostTimeZoneVolume())
 	}
 
 	if c.dataVolumeSize.Value() > 0 {
@@ -233,6 +234,7 @@ func (c *NFSController) nfsContainer(svcname, name, containerImage string, nfsSp
 
 	if c.useHostLocalTime {
 		volumeMounts = append(volumeMounts, edgefsv1.GetHostLocalTimeVolumeMount())
+		volumeMounts = append(volumeMounts, edgefsv1.GetHostTimeZoneVolumeMount())
 	}
 
 	cont := v1.Container{
