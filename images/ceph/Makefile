@@ -18,9 +18,9 @@ include ../image.mk
 # Image Build Options
 
 ifeq ($(GOARCH),amd64)
-CEPH_VERSION = v14.2.9-20200506
+CEPH_VERSION = v15.2.3-20200530
 else
-CEPH_VERSION = v14.2.9-20200506
+CEPH_VERSION = v15.2.3-20200530
 endif
 BASEIMAGE = ceph/ceph-$(GOARCH):$(CEPH_VERSION)
 CEPH_IMAGE = $(BUILD_REGISTRY)/ceph-$(GOARCH)
