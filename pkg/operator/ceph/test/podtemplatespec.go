@@ -19,7 +19,6 @@ package test
 import (
 	"testing"
 
-	"github.com/rook/rook/pkg/operator/ceph/config"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -38,7 +37,7 @@ func NewPodTemplateSpecTester(t *testing.T, template *v1.PodTemplateSpec) *PodTe
 // AssertLabelsContainCephRequirements asserts that the PodTemplateSpec under test contains labels
 // which all Ceph pods should have.
 func (pt *PodTemplateSpecTester) AssertLabelsContainCephRequirements(
-	daemonType config.DaemonType, daemonID, appName, namespace string,
+	daemonType, daemonID, appName, namespace string,
 ) {
 	AssertLabelsContainCephRequirements(pt.t, pt.template.ObjectMeta.Labels,
 		daemonType, daemonID, appName, namespace)
@@ -46,8 +45,7 @@ func (pt *PodTemplateSpecTester) AssertLabelsContainCephRequirements(
 
 // RunFullSuite runs all assertion tests for the PodTemplateSpec under test and its sub-resources.
 func (pt *PodTemplateSpecTester) RunFullSuite(
-	daemonType config.DaemonType,
-	daemonID, appName, namespace, cephImage,
+	daemonType, daemonID, appName, namespace, cephImage,
 	cpuResourceLimit, cpuResourceRequest,
 	memoryResourceLimit, memoryResourceRequest string,
 	priorityClassName string,

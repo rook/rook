@@ -120,7 +120,7 @@ func (c *Cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
 		),
 		Resources:       c.fs.Spec.MetadataServer.Resources,
 		SecurityContext: mon.PodSecurityContext(),
-		LivenessProbe:   controller.GenerateLivenessProbeExecDaemon(string(config.MdsType), mdsConfig.DaemonID),
+		LivenessProbe:   controller.GenerateLivenessProbeExecDaemon(config.MdsType, mdsConfig.DaemonID),
 	}
 
 	return container

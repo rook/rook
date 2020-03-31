@@ -506,7 +506,7 @@ func (c *daemonConfig) buildSocketPath() string {
 
 func (c *daemonConfig) buildAdminSocketCommand() string {
 	command := "status"
-	if c.daemonType == string(config.MonType) {
+	if c.daemonType == config.MonType {
 		command = "mon_status"
 	}
 
