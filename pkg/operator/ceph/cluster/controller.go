@@ -726,12 +726,10 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 					return
 				}
 			}
-			// If Ceph is healthy let's start the upgrade!
-			config.ConditionExport(c.context, newClust.Namespace, newClust.Name,
-				cephv1.ConditionUpgrading, v1.ConditionTrue, "ClusterUpgrading", "Cluster is upgrading")
-			cluster.isUpgrade = true
 		}
 		// If Ceph is healthy let's start the upgrade!
+		config.ConditionExport(c.context, newClust.Namespace, newClust.Name,
+			cephv1.ConditionUpgrading, v1.ConditionTrue, "ClusterUpgrading", "Cluster is upgrading")
 		cluster.isUpgrade = true
 	} else {
 		logger.Infof("ceph daemons running versions are: %+v", runningVersions)
@@ -748,8 +746,10 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 		return c.handleUpdate(newClust.Name, cluster)
 	})
 	if err != nil {
-		config.ConditionExport(c.context, newClust.Namespace, newClust.Name, cephv1.ConditionUpgrading, v1.ConditionFalse, "ClusterUpgradeFailure",
-			fmt.Sprintf("giving up trying to update cluster in namespace %q after %q. %v", cluster.Namespace, updateClusterTimeout, err))
+		config.MarkProgressConditionsCompleted(c.context, newClust.Namespace, newClust.Name)
+		logger.Errorf("giving up trying to update cluster in namespace %q after %q. %v", cluster.Namespace, updateClusterTimeout, err)
+		config.ConditionExport(c.context, newClust.Namespace, newClust.Name,
+			cephv1.ConditionFailure, v1.ConditionTrue, "ClusterUpdateFailure", "Giving up trying to update cluster")
 		return
 	}
 
@@ -776,12 +776,14 @@ func (c *ClusterController) detectAndValidateCephVersion(cluster *cluster, image
 
 func (c *ClusterController) handleUpdate(crdName string, cluster *cluster) (bool, error) {
 
-	config.ConditionExport(c.context, cluster.Namespace, crdName,
-		cephv1.ConditionUpdating, v1.ConditionTrue, "ClusterUpdating", "Cluster is updating")
 	if err := cluster.createInstance(c.rookImage, cluster.Info.CephVersion); err != nil {
+		config.MarkProgressConditionsCompleted(c.context, cluster.Namespace, crdName)
+		config.SetCondition(c.context, cluster.Namespace, crdName,
+			cephv1.ConditionFailure, v1.ConditionTrue, "ClusterUpdateFailure", "Cluster failed to update")
 		logger.Errorf("failed to update cluster in namespace %q. %v", cluster.Namespace, err)
 		return false, nil
 	}
+
 	config.ConditionExport(c.context, cluster.Namespace, crdName,
 		cephv1.ConditionReady, v1.ConditionTrue, "ClusterUpdated", "Cluster updated successfully")
 	logger.Infof("succeeded updating cluster in namespace %q", cluster.Namespace)

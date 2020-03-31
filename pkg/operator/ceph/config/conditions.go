@@ -83,7 +83,7 @@ func setCondition(context *clusterd.Context, namespace, name string, newConditio
 		logger.Errorf("failed to update cluster condition %v", err)
 	}
 	if newCondition.Type == cephv1.ConditionReady {
-		checkConditionFalse(context, namespace, name)
+		MakeConditionFalse(context, namespace, name)
 	}
 }
 
@@ -117,28 +117,32 @@ func translatePhasetoState(phase cephv1.ConditionType) cephv1.ClusterState {
 	}
 }
 
-// Updating the status of Progressing, Updating or Upgrading to False once cluster is Ready
-func checkConditionFalse(context *clusterd.Context, namespace, name string) {
+// MakeConditionFalse Updates the status of Progressing, Updating or Upgrading to False once cluster is Ready
+func MakeConditionFalse(context *clusterd.Context, namespace, name string) {
 	tempConditionList := []cephv1.ConditionType{cephv1.ConditionUpdating, cephv1.ConditionUpgrading, cephv1.ConditionProgressing}
-	var tempCondition cephv1.ConditionType
+	var tempCondition []cephv1.ConditionType
 	for _, conditionType := range tempConditionList {
 		if conditionMap[conditionType] == v1.ConditionTrue {
-			tempCondition = conditionType
+			tempCondition = append(tempCondition, conditionType)
 		}
 	}
-	reason := ""
-	message := ""
-	if tempCondition == cephv1.ConditionUpdating {
-		reason = "UpdateCompleted"
-		message = "Cluster updating is completed"
-	} else if tempCondition == cephv1.ConditionUpgrading {
-		reason = "UpgradeCompleted"
-		message = "Cluster upgrading is completed"
-	} else {
-		reason = "ProgressingCompleted"
-		message = "Cluster progression is completed"
+	for _, conditionType := range tempCondition {
+		reason := ""
+		message := ""
+		if conditionType == cephv1.ConditionUpdating {
+			reason = "UpdateCompleted"
+			message = "Cluster updating is completed"
+		} else if conditionType == cephv1.ConditionUpgrading {
+			reason = "UpgradeCompleted"
+			message = "Cluster upgrading is completed"
+		} else if conditionType == cephv1.ConditionProgressing {
+			reason = "ProgressingCompleted"
+			message = "Cluster progression is completed"
+		}
+		if reason != "" {
+			ConditionExport(context, namespace, name, conditionType, v1.ConditionFalse, reason, message)
+		}
 	}
-	ConditionExport(context, namespace, name, tempCondition, v1.ConditionFalse, reason, message)
 }
 
 // ConditionInitialize initializes some of the conditions at the beginning of cluster creation
@@ -194,7 +198,7 @@ func ErrorMapping() error {
 	return nil
 }
 
-//findStatusCondition is used to find the already existing Condition Type
+// findStatusCondition is used to find the already existing Condition Type
 func findStatusCondition(conditions []cephv1.Condition, conditionType cephv1.ConditionType) *cephv1.Condition {
 	for i := range conditions {
 		if conditions[i].Type == conditionType {
