@@ -101,6 +101,11 @@ func (m *Mirroring) makeMirroringDaemonContainer(daemonConfig *daemonConfig) v1.
 		Env:             controller.DaemonEnvVars(m.cephVersion.Image),
 		Resources:       m.resources,
 		SecurityContext: mon.PodSecurityContext(),
+		// TODO:
+		// Not implemented at this point since the socket name is '/run/ceph/ceph-client.rbd-mirror.a.1.94362516231272.asok'
+		// Also the command to run will be:
+		// ceph --admin-daemon /run/ceph/ceph-client.rbd-mirror.a.1.94362516231272.asok rbd mirror status
+		// LivenessProbe:   controller.GenerateLivenessProbeExecDaemon(string(config.RbdMirrorType), daemonConfig.DaemonID),
 	}
 	return container
 }
