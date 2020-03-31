@@ -190,10 +190,9 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 	r.clusterInfo = clusterInfo
 
 	// Populate CephVersion
-	daemon := string(opconfig.MonType)
-	currentCephVersion, err := cephclient.LeastUptodateDaemonVersion(r.context, r.clusterInfo.Name, daemon)
+	currentCephVersion, err := cephclient.LeastUptodateDaemonVersion(r.context, r.clusterInfo.Name, opconfig.MonType)
 	if err != nil {
-		return reconcile.Result{}, errors.Wrapf(err, "failed to retrieve current ceph %q version", daemon)
+		return reconcile.Result{}, errors.Wrapf(err, "failed to retrieve current ceph %q version", opconfig.MonType)
 	}
 	r.clusterInfo.CephVersion = currentCephVersion
 

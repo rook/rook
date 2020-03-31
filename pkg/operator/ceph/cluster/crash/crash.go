@@ -75,7 +75,7 @@ func (r *ReconcileNode) createOrUpdateCephCrash(node corev1.Node, tolerations []
 			k8sutil.AppAttr:      AppName,
 			NodeNameLabel:        node.GetName(),
 		}
-		deploymentLabels[string(config.CrashType)] = "crash"
+		deploymentLabels[config.CrashType] = "crash"
 		deploymentLabels["ceph_daemon_id"] = "crash"
 		deploymentLabels[k8sutil.ClusterAttr] = cephCluster.GetNamespace()
 

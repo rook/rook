@@ -104,44 +104,40 @@ func TestCheckPodMemory(t *testing.T) {
 }
 
 func TestBuildAdminSocketCommand(t *testing.T) {
-	daemonType := string(config.OsdType)
-	c := getDaemonConfig(daemonType, "")
+	c := getDaemonConfig(config.OsdType, "")
 
 	command := c.buildAdminSocketCommand()
 	assert.Equal(t, "status", command)
 
-	c.daemonType = string(config.MonType)
+	c.daemonType = config.MonType
 	command = c.buildAdminSocketCommand()
 	assert.Equal(t, "mon_status", command)
 }
 
 func TestBuildSocketName(t *testing.T) {
-	daemonType := string(config.OsdType)
 	daemonID := "0"
-	c := getDaemonConfig(daemonType, daemonID)
+	c := getDaemonConfig(config.OsdType, daemonID)
 
 	socketName := c.buildSocketName()
 	assert.Equal(t, "ceph-osd.0.asok", socketName)
 
-	c.daemonType = string(config.MonType)
+	c.daemonType = config.MonType
 	c.daemonID = "a"
 	socketName = c.buildSocketName()
 	assert.Equal(t, "ceph-mon.a.asok", socketName)
 }
 
 func TestBuildSocketPath(t *testing.T) {
-	daemonType := string(config.OsdType)
 	daemonID := "0"
-	c := getDaemonConfig(daemonType, daemonID)
+	c := getDaemonConfig(config.OsdType, daemonID)
 
 	socketPath := c.buildSocketPath()
 	assert.Equal(t, "/run/ceph/ceph-osd.0.asok", socketPath)
 }
 
 func TestGenerateLivenessProbeExecDaemon(t *testing.T) {
-	daemonType := string(config.OsdType)
 	daemonID := "0"
-	probe := GenerateLivenessProbeExecDaemon(daemonType, daemonID)
+	probe := GenerateLivenessProbeExecDaemon(config.OsdType, daemonID)
 	expectedCommand := []string{"env",
 		"-i",
 		"sh",

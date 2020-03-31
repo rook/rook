@@ -492,9 +492,7 @@ func (c *Cluster) startOSDDaemonsOnPVC(pvcName string, config *provisionConfig, 
 		}
 
 		if createErr != nil && kerrors.IsAlreadyExists(createErr) {
-			daemon := string(opconfig.OsdType)
-
-			if err = updateDeploymentAndWait(c.context, dp, c.Namespace, daemon, strconv.Itoa(osd.ID), c.skipUpgradeChecks, c.continueUpgradeAfterChecksEvenIfNotHealthy); err != nil {
+			if err = updateDeploymentAndWait(c.context, dp, c.Namespace, opconfig.OsdType, strconv.Itoa(osd.ID), c.skipUpgradeChecks, c.continueUpgradeAfterChecksEvenIfNotHealthy); err != nil {
 				logger.Errorf("failed to update osd deployment %d. %+v", osd.ID, err)
 			}
 		}
@@ -574,8 +572,7 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 		}
 
 		if createErr != nil && kerrors.IsAlreadyExists(createErr) {
-			daemon := string(opconfig.OsdType)
-			if err = updateDeploymentAndWait(c.context, dp, c.Namespace, daemon, strconv.Itoa(osd.ID), c.skipUpgradeChecks, c.continueUpgradeAfterChecksEvenIfNotHealthy); err != nil {
+			if err = updateDeploymentAndWait(c.context, dp, c.Namespace, opconfig.OsdType, strconv.Itoa(osd.ID), c.skipUpgradeChecks, c.continueUpgradeAfterChecksEvenIfNotHealthy); err != nil {
 				logger.Errorf("failed to update osd deployment %d. %+v", osd.ID, err)
 			}
 		}

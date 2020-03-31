@@ -182,8 +182,7 @@ func (c *Cluster) Start() error {
 			}
 			logger.Infof("deployment for mgr %s already exists. updating if needed", resourceName)
 
-			daemon := string(config.MgrType)
-			if err := updateDeploymentAndWait(c.context, d, c.Namespace, daemon, mgrConfig.DaemonID, c.skipUpgradeChecks, false); err != nil {
+			if err := updateDeploymentAndWait(c.context, d, c.Namespace, config.MgrType, mgrConfig.DaemonID, c.skipUpgradeChecks, false); err != nil {
 				logger.Errorf("failed to update mgr deployment %q. %+v", resourceName, err)
 			}
 		}
