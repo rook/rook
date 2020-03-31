@@ -72,10 +72,11 @@ type Selection struct {
 type PlacementSpec map[KeyType]Placement
 
 type Placement struct {
-	NodeAffinity    *v1.NodeAffinity    `json:"nodeAffinity,omitempty"`
-	PodAffinity     *v1.PodAffinity     `json:"podAffinity,omitempty"`
-	PodAntiAffinity *v1.PodAntiAffinity `json:"podAntiAffinity,omitempty"`
-	Tolerations     []v1.Toleration     `json:"tolerations,omitempty"`
+	NodeAffinity              *v1.NodeAffinity              `json:"nodeAffinity,omitempty"`
+	PodAffinity               *v1.PodAffinity               `json:"podAffinity,omitempty"`
+	PodAntiAffinity           *v1.PodAntiAffinity           `json:"podAntiAffinity,omitempty"`
+	Tolerations               []v1.Toleration               `json:"tolerations,omitempty"`
+	TopologySpreadConstraints []v1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
 }
 
 type ResourceSpec map[string]v1.ResourceRequirements
