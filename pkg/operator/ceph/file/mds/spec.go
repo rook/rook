@@ -22,6 +22,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
+	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
@@ -119,6 +120,7 @@ func (c *Cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
 		),
 		Resources:       c.fs.Spec.MetadataServer.Resources,
 		SecurityContext: mon.PodSecurityContext(),
+		LivenessProbe:   controller.GenerateLivenessProbeExecDaemon(string(config.MdsType), mdsConfig.DaemonID),
 	}
 
 	return container
