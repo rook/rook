@@ -8,12 +8,14 @@
 #
 # Also see other operator sample files for variations of operator.yaml:
 # - operator-openshift.yaml: Common settings for running in OpenShift
-#################################################################################################################
-# Rook Ceph Operator Config
-# Use this ConfigMap to override operator configurations
-# Precedence will be given to this config in case
-# Env Var also exists for the same
-#
+###############################################################################################################
+
+# Rook Ceph Operator Config ConfigMap
+# Use this ConfigMap to override Rook-Ceph Operator configurations.
+# NOTE! Precedence will be given to this config if the same Env Var config also exists in the
+#       Operator Deployment.
+# To move a configuration(s) from the Operator Deployment to this ConfigMap, add the config
+# here. It is recommended to then remove it from the Deployment to eliminate any future confusion.
 kind: ConfigMap
 apiVersion: v1
 metadata:
@@ -33,12 +35,12 @@ data:
   # Set logging level for csi containers.
   # Supported values from 0 to 5. 0 for general useful logs, 5 for trace level verbosity.
   # CSI_LOG_LEVEL: "0"
-  
+
   # Enable Ceph Kernel clients on kernel < 4.17 which support quotas for Cephfs
   # If you disable the kernel client, your application may be disrupted during upgrade.
   # See the upgrade guide: https://rook.io/docs/rook/master/ceph-upgrade.html
   CSI_FORCE_CEPHFS_KERNEL_CLIENT: "true"
-  
+
   # (Optional) Allow starting unsupported ceph-csi image
   ROOK_CSI_ALLOW_UNSUPPORTED_VERSION: "false"
   # The default version of CSI supported by Rook will be started. To change the version
@@ -50,17 +52,17 @@ data:
   # ROOK_CSI_PROVISIONER_IMAGE: "quay.io/k8scsi/csi-provisioner:v1.4.0"
   # ROOK_CSI_SNAPSHOTTER_IMAGE: "quay.io/k8scsi/csi-snapshotter:v1.2.2"
   # ROOK_CSI_ATTACHER_IMAGE: "quay.io/k8scsi/csi-attacher:v2.1.0"
-  
+
   # CSI CephFS plugin daemonset update strategy, supported values are OnDelete and RollingUpdate.
   # Default value is RollingUpdate.
   # CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY: "OnDelete"
   # CSI RBD plugin daemonset update strategy, supported values are OnDelete and RollingUpdate.
   # Default value is RollingUpdate.
   # CSI_RBD_PLUGIN_UPDATE_STRATEGY: "OnDelete"
-  
+
   # kubelet directory path, if kubelet configured to use other than /var/lib/kubelet path.
   # ROOK_CSI_KUBELET_DIR_PATH: "/var/lib/kubelet"
-  
+
   # (Optional) Ceph Provisioner NodeAffinity.
   # CSI_PROVISIONER_NODE_AFFINITY: "role=storage-node; storage=rook, ceph"
   # (Optional) CEPH CSI provisioner tolerations list. Put here list of taints you want to tolerate in YAML format.
@@ -83,7 +85,7 @@ data:
   #   - effect: NoExecute
   #     key: node-role.kubernetes.io/etcd
   #     operator: Exists
-  
+
   # Configure CSI CSI Ceph FS grpc and liveness metrics port
   # CSI_CEPHFS_GRPC_METRICS_PORT: "9091"
   # CSI_CEPHFS_LIVENESS_METRICS_PORT: "9081"
