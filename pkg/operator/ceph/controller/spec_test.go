@@ -20,9 +20,11 @@ import (
 	"math"
 	"testing"
 
+	"github.com/rook/rook/pkg/operator/ceph/config"
 	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
+	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -99,4 +101,49 @@ func TestCheckPodMemory(t *testing.T) {
 	if err := CheckPodMemory(test_resource, PodMinimumMemory); err != nil {
 		t.Errorf("Error case 3: %s", err.Error())
 	}
+}
+
+func TestBuildAdminSocketCommand(t *testing.T) {
+	c := getDaemonConfig(config.OsdType, "")
+
+	command := c.buildAdminSocketCommand()
+	assert.Equal(t, "status", command)
+
+	c.daemonType = config.MonType
+	command = c.buildAdminSocketCommand()
+	assert.Equal(t, "mon_status", command)
+}
+
+func TestBuildSocketName(t *testing.T) {
+	daemonID := "0"
+	c := getDaemonConfig(config.OsdType, daemonID)
+
+	socketName := c.buildSocketName()
+	assert.Equal(t, "ceph-osd.0.asok", socketName)
+
+	c.daemonType = config.MonType
+	c.daemonID = "a"
+	socketName = c.buildSocketName()
+	assert.Equal(t, "ceph-mon.a.asok", socketName)
+}
+
+func TestBuildSocketPath(t *testing.T) {
+	daemonID := "0"
+	c := getDaemonConfig(config.OsdType, daemonID)
+
+	socketPath := c.buildSocketPath()
+	assert.Equal(t, "/run/ceph/ceph-osd.0.asok", socketPath)
+}
+
+func TestGenerateLivenessProbeExecDaemon(t *testing.T) {
+	daemonID := "0"
+	probe := GenerateLivenessProbeExecDaemon(config.OsdType, daemonID)
+	expectedCommand := []string{"env",
+		"-i",
+		"sh",
+		"-c",
+		"ceph --admin-daemon /run/ceph/ceph-osd.0.asok status",
+	}
+
+	assert.Equal(t, expectedCommand, probe.Handler.Exec.Command)
 }

@@ -19,6 +19,7 @@ package controller
 
 import (
 	"fmt"
+	"path"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
@@ -37,7 +38,13 @@ const (
 	logVolumeName           = "rook-ceph-log"
 	volumeMountSubPath      = "data"
 	crashVolumeName         = "rook-ceph-crash"
+	daemonSocketDir         = "/run/ceph"
 )
+
+type daemonConfig struct {
+	daemonType string
+	daemonID   string
+}
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "ceph-spec")
 
@@ -455,4 +462,53 @@ func StoredLogAndCrashVolumeMount(varLogCephDir, varLibCephCrashDir string) []v1
 			MountPath: varLibCephCrashDir,
 		},
 	}
+}
+
+// GenerateLivenessProbeExecDaemon makes sure a daemon has a socket and that it can be called and returns 0
+func GenerateLivenessProbeExecDaemon(daemonType, daemonID string) *v1.Probe {
+	confDaemon := getDaemonConfig(daemonType, daemonID)
+
+	return &v1.Probe{
+		Handler: v1.Handler{
+			Exec: &v1.ExecAction{
+				// Run with env -i to clean env variables in the exec context
+				// This avoids conflict with the CEPH_ARGS env
+				//
+				// Example:
+				// env -i sh -c ceph --admin-daemon /run/ceph/ceph-osd.0.asok status
+				Command: []string{
+					"env",
+					"-i",
+					"sh",
+					"-c",
+					fmt.Sprintf("ceph --admin-daemon %s %s", confDaemon.buildSocketPath(), confDaemon.buildAdminSocketCommand()),
+				},
+			},
+		},
+		InitialDelaySeconds: 10,
+	}
+}
+
+func getDaemonConfig(daemonType, daemonID string) *daemonConfig {
+	return &daemonConfig{
+		daemonType: string(daemonType),
+		daemonID:   daemonID,
+	}
+}
+
+func (c *daemonConfig) buildSocketName() string {
+	return fmt.Sprintf("ceph-%s.%s.asok", c.daemonType, c.daemonID)
+}
+
+func (c *daemonConfig) buildSocketPath() string {
+	return path.Join(daemonSocketDir, c.buildSocketName())
+}
+
+func (c *daemonConfig) buildAdminSocketCommand() string {
+	command := "status"
+	if c.daemonType == config.MonType {
+		command = "mon_status"
+	}
+
+	return command
 }

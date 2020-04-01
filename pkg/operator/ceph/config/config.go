@@ -32,30 +32,27 @@ import (
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-config")
 
-// DaemonType defines the type of a daemon. e.g., mon, mgr, osd, mds, rgw
-type DaemonType string
-
 const (
 	// MonType defines the mon DaemonType
-	MonType DaemonType = "mon"
+	MonType = "mon"
 
 	// MgrType defines the mgr DaemonType
-	MgrType DaemonType = "mgr"
+	MgrType = "mgr"
 
 	// OsdType defines the osd DaemonType
-	OsdType DaemonType = "osd"
+	OsdType = "osd"
 
 	// MdsType defines the mds DaemonType
-	MdsType DaemonType = "mds"
+	MdsType = "mds"
 
 	// RgwType defines the rgw DaemonType
-	RgwType DaemonType = "rgw"
+	RgwType = "rgw"
 
 	// RbdMirrorType defines the rbd-mirror DaemonType
-	RbdMirrorType DaemonType = "rbd-mirror"
+	RbdMirrorType = "rbd-mirror"
 
 	// CrashType defines the crash collector DaemonType
-	CrashType DaemonType = "crashcollector"
+	CrashType = "crashcollector"
 
 	// CephUser is the Linux Ceph username
 	CephUser = "ceph"

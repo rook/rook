@@ -270,7 +270,8 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 			controller.DaemonEnvVars(c.spec.CephVersion.Image),
 			k8sutil.PodIPEnvVar(podIPEnvVar),
 		),
-		Resources: cephv1.GetMonResources(c.spec.Resources),
+		Resources:     cephv1.GetMonResources(c.spec.Resources),
+		LivenessProbe: controller.GenerateLivenessProbeExecDaemon(config.MonType, monConfig.DaemonName),
 	}
 
 	// If host networking is enabled, we don't need a bind addr that is different from the public addr

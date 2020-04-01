@@ -30,7 +30,7 @@ func (m *Mirroring) makeDeployment(daemonConfig *daemonConfig) *apps.Deployment 
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   daemonConfig.ResourceName,
-			Labels: controller.PodLabels(AppName, m.Namespace, string(config.RbdMirrorType), daemonConfig.DaemonID),
+			Labels: controller.PodLabels(AppName, m.Namespace, config.RbdMirrorType, daemonConfig.DaemonID),
 		},
 		Spec: v1.PodSpec{
 			InitContainers: []v1.Container{
@@ -59,7 +59,7 @@ func (m *Mirroring) makeDeployment(daemonConfig *daemonConfig) *apps.Deployment 
 			Name:        daemonConfig.ResourceName,
 			Namespace:   m.Namespace,
 			Annotations: m.annotations,
-			Labels:      controller.PodLabels(AppName, m.Namespace, string(config.RbdMirrorType), daemonConfig.DaemonID),
+			Labels:      controller.PodLabels(AppName, m.Namespace, config.RbdMirrorType, daemonConfig.DaemonID),
 		},
 		Spec: apps.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
@@ -101,6 +101,11 @@ func (m *Mirroring) makeMirroringDaemonContainer(daemonConfig *daemonConfig) v1.
 		Env:             controller.DaemonEnvVars(m.cephVersion.Image),
 		Resources:       m.resources,
 		SecurityContext: mon.PodSecurityContext(),
+		// TODO:
+		// Not implemented at this point since the socket name is '/run/ceph/ceph-client.rbd-mirror.a.1.94362516231272.asok'
+		// Also the command to run will be:
+		// ceph --admin-daemon /run/ceph/ceph-client.rbd-mirror.a.1.94362516231272.asok rbd mirror status
+		// LivenessProbe:   controller.GenerateLivenessProbeExecDaemon(config.RbdMirrorType, daemonConfig.DaemonID),
 	}
 	return container
 }
