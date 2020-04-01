@@ -311,6 +311,14 @@ spec:
                       minimum: 0
                       maximum: 10
                       type: integer
+                compressionMode:
+                  type: string
+                  enum:
+                  - ""
+                  - none
+                  - passive
+                  - aggressive
+                  - force
             dataPools:
               type: array
               items:
@@ -333,6 +341,14 @@ spec:
                         minimum: 0
                         maximum: 10
                         type: integer
+                  compressionMode:
+                    type: string
+                    enum:
+                    - ""
+                    - none
+                    - passive
+                    - aggressive
+                    - force
             preservePoolsOnDelete:
               type: boolean
   additionalPrinterColumns:
@@ -431,6 +447,14 @@ spec:
                       type: integer
                     codingChunks:
                       type: integer
+                compressionMode:
+                  type: string
+                  enum:
+                  - ""
+                  - none
+                  - passive
+                  - aggressive
+                  - force
             dataPool:
               properties:
                 failureDomain:
@@ -447,6 +471,14 @@ spec:
                       type: integer
                     codingChunks:
                       type: integer
+                compressionMode:
+                  type: string
+                  enum:
+                  - ""
+                  - none
+                  - passive
+                  - aggressive
+                  - force
             preservePoolsOnDelete:
               type: boolean
   subresources:
@@ -511,6 +543,14 @@ spec:
                   type: integer
                   minimum: 0
                   maximum: 9
+            compressionMode:
+                type: string
+                enum:
+                - ""
+                - none
+                - passive
+                - aggressive
+                - force
   subresources:
     status: {}
 ---
@@ -2024,7 +2064,8 @@ spec:
   replicated:
     size: ` + replicaSize + `
     targetSizeRatio: .5
-    requireSafeReplicaSize: false`
+    requireSafeReplicaSize: false
+  compressionMode: aggressive`
 }
 
 func (m *CephManifestsMaster) GetBlockStorageClassDef(csi bool, poolName, storageClassName, reclaimPolicy, namespace, systemNamespace string) string {
@@ -2110,6 +2151,7 @@ spec:
   - replicated:
       size: 1
       requireSafeReplicaSize: false
+    compressionMode: none
   metadataServer:
     activeCount: ` + strconv.Itoa(activeCount) + `
     activeStandby: true`
@@ -2145,6 +2187,7 @@ spec:
     replicated:
       size: 1
       requireSafeReplicaSize: false
+    compressionMode: passive
   gateway:
     type: s3
     sslCertificateRef:

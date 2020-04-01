@@ -268,6 +268,9 @@ type PoolSpec struct {
 	// The device class the OSD should set to (options are: hdd, ssd, or nvme)
 	DeviceClass string `json:"deviceClass"`
 
+	// The inline compression mode in Bluestore OSD to set to (options are: none, passive, aggressive, force)
+	CompressionMode string `json:"compressionMode"`
+
 	// The replication settings
 	Replicated ReplicatedSpec `json:"replicated"`
 

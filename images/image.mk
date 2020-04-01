@@ -17,7 +17,9 @@
 
 override GOOS=linux
 
+ifeq ($(origin DOCKERCMD),undefined)
 DOCKERCMD := docker
+endif
 
 # include the common make file
 SELF_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
