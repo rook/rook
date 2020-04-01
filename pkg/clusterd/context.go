@@ -17,6 +17,7 @@ package clusterd
 
 import (
 	"github.com/coreos/pkg/capnslog"
+	netclient "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/client/clientset/versioned/typed/k8s.cni.cncf.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/sys"
@@ -54,6 +55,9 @@ type Context struct {
 
 	// Information about the network for this machine and its cluster
 	NetworkInfo NetworkInfo
+
+	// NetworkClient is a connection to the CNI plugin API
+	NetworkClient netclient.K8sCniCncfIoV1Interface
 
 	// The local devices detected on the node
 	Devices []*sys.LocalDisk

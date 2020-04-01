@@ -231,7 +231,7 @@ func (c *Cluster) startMons(targetCount int) error {
 	// only once and do it as early as possible in the mon orchestration.
 	setConfigsNeedsRetry := false
 	if existingCount > 0 {
-		err := config.SetDefaultConfigs(c.context, c.Namespace, c.ClusterInfo)
+		err := config.SetDefaultConfigs(c.context, c.Namespace, c.ClusterInfo, c.spec.Network)
 		if err != nil {
 			// If we fail here, it could be because the mons are not healthy, and this might be
 			// fixed by updating the mon deployments. Instead of returning error here, log a
@@ -252,7 +252,7 @@ func (c *Cluster) startMons(targetCount int) error {
 			// values in the config database. Do this only when the existing count is zero so that
 			// this is only done once when the cluster is created.
 			if existingCount == 0 {
-				err := config.SetDefaultConfigs(c.context, c.Namespace, c.ClusterInfo)
+				err := config.SetDefaultConfigs(c.context, c.Namespace, c.ClusterInfo, c.spec.Network)
 				if err != nil {
 					return errors.Wrapf(err, "failed to set Rook and/or user-defined Ceph config options after creating the first mon")
 				}
@@ -260,7 +260,7 @@ func (c *Cluster) startMons(targetCount int) error {
 				// Or if we need to retry, only do this when we are on the first iteration of the
 				// loop. This could be in the same if statement as above, but separate it to get a
 				// different error message.
-				err := config.SetDefaultConfigs(c.context, c.Namespace, c.ClusterInfo)
+				err := config.SetDefaultConfigs(c.context, c.Namespace, c.ClusterInfo, c.spec.Network)
 				if err != nil {
 					return errors.Wrapf(err, "failed to set Rook and/or user-defined Ceph config options after updating the existing mons")
 				}
@@ -274,7 +274,7 @@ func (c *Cluster) startMons(targetCount int) error {
 		}
 
 		if setConfigsNeedsRetry {
-			err := config.SetDefaultConfigs(c.context, c.Namespace, c.ClusterInfo)
+			err := config.SetDefaultConfigs(c.context, c.Namespace, c.ClusterInfo, c.spec.Network)
 			if err != nil {
 				return errors.Wrapf(err, "failed to set Rook and/or user-defined Ceph config options after forcefully updating the existing mons")
 			}

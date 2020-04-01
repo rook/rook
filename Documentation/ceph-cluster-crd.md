@@ -123,8 +123,7 @@ If this value is empty, each pod will get an ephemeral directory to store their 
       Recommended:
     * If you have a single Rook Ceph cluster, set the `rulesNamespace` to the same namespace as the cluster or keep it empty.
     * If you have multiple Rook Ceph clusters in the same Kubernetes cluster, choose the same namespace to set `rulesNamespace` for all the clusters (ideally, namespace with prometheus deployed). Otherwise, you will get duplicate alerts with duplicate alert definitions.
-* `network`: The network settings for the cluster
-  * `hostNetwork`: uses network of the hosts instead of using the SDN below the containers.
+* `network`: For the network settings for the cluster, refer to the [network configuration settings](#network-configuration-settings)
 * `mon`: contains mon related options [mon settings](#mon-settings)
 For more details on the mons and when to choose a number other than `3`, see the [mon health design doc](https://github.com/rook/rook/blob/master/design/ceph/mon-health.md).
 * `mgr`: manager top level section
@@ -207,6 +206,44 @@ mgr:
 Some modules will have special configuration to ensure the module is fully functional after being enabled. Specifically:
 
 * `pg_autoscaler`: Rook will configure all new pools with PG autoscaling by setting: `osd_pool_default_pg_autoscale_mode = on`
+
+### Network Configuration Settings
+
+If not specified, the default SDN will be used.
+Configure the network that will be enabled for the cluster and services.
+
+* `provider`: Specifies the network provider that will be used to connect the network interface. You can choose between `host`, and `multus`.
+* `selectors`: List the network selector(s) that will be used associated by a key.
+
+#### Host Networking
+
+To use host networking, set `provider: host`.
+
+#### Multus (EXPERIMENTAL)
+
+Rook has experimental support for Multus.
+
+The selector keys are required to be `public` and `cluster` where each represent:
+
+* `public`: client communications with the cluster (reads/writes)
+* `cluster`: internal Ceph replication network
+
+If you want to learn more, please read [Ceph Networking reference](https://docs.ceph.com/docs/master/rados/configuration/network-config-ref/).
+
+Based on the configuration, the operator will do the following:
+
+  1. if only the `public` selector is specified both communication and replication will happen on that network
+  2. if both `public` and `cluster` selectors are specified the first one will run the communication network and the second the replication network
+
+In order to work, each selector value must match a `NetworkAttachmentDefinition` object name in Multus.
+For example, you can do:
+
+* `public`: "my-public-storage-network"
+* `cluster`: "my-replication-storage-network"
+
+For `multus` network provider, an already working cluster with Multus networking is required. Network attachment definition that later will be attached to the cluster needs to be created before the Cluster CRD.
+If Rook cannot find the provided Network attachment definition it will fail running the Ceph OSD pods.
+You can add the Multus network attachment selection annotation selecting the created network attachment definition on `selectors`.
 
 ### Node Settings
 

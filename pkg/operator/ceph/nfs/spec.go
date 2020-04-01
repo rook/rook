@@ -143,6 +143,13 @@ func (r *ReconcileCephNFS) makeDeployment(nfs *cephv1.CephNFS, cfg daemonConfig)
 		},
 		Spec: podSpec,
 	}
+
+	if r.cephClusterSpec.Network.IsHost() {
+		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
+	} else if r.cephClusterSpec.Network.NetworkSpec.IsMultus() {
+		k8sutil.ApplyMultus(r.cephClusterSpec.Network.NetworkSpec, &podTemplateSpec.ObjectMeta)
+	}
+
 	nfs.Spec.Server.Annotations.ApplyToObjectMeta(&podTemplateSpec.ObjectMeta)
 
 	// Multiple replicas of the nfs service would be handled by creating a service and a new deployment for each one, rather than increasing the pod count here

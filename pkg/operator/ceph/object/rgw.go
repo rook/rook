@@ -51,6 +51,7 @@ type clusterConfig struct {
 	skipUpgradeChecks bool
 	client            client.Client
 	scheme            *runtime.Scheme
+	Network           cephv1.NetworkSpec
 }
 
 type rgwConfig struct {

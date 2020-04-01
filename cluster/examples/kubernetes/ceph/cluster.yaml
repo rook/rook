@@ -68,8 +68,20 @@ spec:
     # deployed) to set rulesNamespace for all the clusters. Otherwise, you will get duplicate alerts with multiple alert definitions.
     rulesNamespace: rook-ceph
   network:
-    # toggle to use hostNetwork
-    hostNetwork: false
+    # enable host networking
+    #provider: host
+    # EXPERIMENTAL: enable the Multus network provider
+    #provider: multus
+    #selectors:
+      # The selector keys are required to be `public` and `cluster`.
+      # Based on the configuration, the operator will do the following:
+      #   1. if only the `public` selector key is specified both public_network and cluster_network Ceph settings will listen on that interface
+      #   2. if both `public` and `cluster` selector keys are specified the first one will point to 'public_network' flag and the second one to 'cluster_network'
+      #
+      # In order to work, each selector value must match a NetworkAttachmentDefinition object in Multus
+      #
+      #public: public-conf --> NetworkAttachmentDefinition object name in Multus
+      #cluster: cluster-conf --> NetworkAttachmentDefinition object name in Multus
   rbdMirroring:
     # The number of daemons that will perform the rbd mirroring.
     # rbd mirroring must be configured with "rbd mirror" from the rook toolbox.

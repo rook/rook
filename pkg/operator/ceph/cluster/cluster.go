@@ -246,7 +246,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 
 	if c.Spec.External.Enable {
 		// Apply CRD ConfigOverrideName to the external cluster
-		err = config.SetDefaultConfigs(c.context, c.Namespace, c.Info)
+		err = config.SetDefaultConfigs(c.context, c.Namespace, c.Info, cephv1.NetworkSpec{})
 		if err != nil {
 			// Mons are up, so something else is wrong
 			return errors.Wrapf(err, "failed to set Rook and/or user-defined Ceph config options on the external cluster monitors")

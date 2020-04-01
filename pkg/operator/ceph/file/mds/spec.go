@@ -60,9 +60,6 @@ func (c *Cluster) makeDeployment(mdsConfig *mdsConfig) *apps.Deployment {
 	// Replace default unreachable node toleration
 	k8sutil.AddUnreachableNodeToleration(&podSpec.Spec)
 
-	if c.clusterSpec.Network.IsHost() {
-		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
-	}
 	c.fs.Spec.MetadataServer.Annotations.ApplyToObjectMeta(&podSpec.ObjectMeta)
 	c.fs.Spec.MetadataServer.Placement.ApplyToPodSpec(&podSpec.Spec)
 
@@ -84,6 +81,13 @@ func (c *Cluster) makeDeployment(mdsConfig *mdsConfig) *apps.Deployment {
 			},
 		},
 	}
+
+	if c.clusterSpec.Network.IsHost() {
+		d.Spec.Template.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
+	} else if c.clusterSpec.Network.NetworkSpec.IsMultus() {
+		k8sutil.ApplyMultus(c.clusterSpec.Network.NetworkSpec, &podSpec.ObjectMeta)
+	}
+
 	k8sutil.AddRookVersionLabelToDeployment(d)
 	c.fs.Spec.MetadataServer.Annotations.ApplyToObjectMeta(&d.ObjectMeta)
 	controller.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, d)

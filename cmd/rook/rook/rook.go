@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/coreos/pkg/capnslog"
+	netclient "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/client/clientset/versioned/typed/k8s.cni.cncf.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -153,6 +154,9 @@ func NewContext() *clusterd.Context {
 
 	context.RookClientset, err = rookclient.NewForConfig(context.KubeConfig)
 	TerminateOnError(err, "failed to create rook clientset")
+
+	context.NetworkClient, err = netclient.NewForConfig(context.KubeConfig)
+	TerminateOnError(err, "failed to create network clientset")
 
 	return context
 }
