@@ -553,8 +553,14 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, name
 		nodes, err := h.GetNodeHostnames()
 		checkError(h.T(), err, "cannot get node names")
 		for _, node := range nodes {
-			err = h.cleanupDir(node, h.hostPathToDelete)
-			logger.Infof("removing %s from node %s. err=%v", h.hostPathToDelete, node, err)
+			if h.cleanupHost {
+				err = h.verifyDirCleanup(node, h.hostPathToDelete)
+				logger.Infof("verifying clean up of %s from node %s. err=%v", h.hostPathToDelete, node, err)
+				assert.NoError(h.T(), err)
+			} else {
+				err = h.cleanupDir(node, h.hostPathToDelete)
+				logger.Infof("removing %s from node %s. err=%v", h.hostPathToDelete, node, err)
+			}
 		}
 	}
 	if h.changeHostnames {
@@ -627,6 +633,12 @@ func (h *CephInstaller) checkCephHealthStatus(namespace string) {
 
 func (h *CephInstaller) cleanupDir(node, dir string) error {
 	resources := h.Manifests.GetCleanupPod(node, dir)
+	_, err := h.k8shelper.KubectlWithStdin(resources, createFromStdinArgs...)
+	return err
+}
+
+func (h *CephInstaller) verifyDirCleanup(node, dir string) error {
+	resources := h.Manifests.GetCleanupVerificationPod(node, dir)
 	_, err := h.k8shelper.KubectlWithStdin(resources, createFromStdinArgs...)
 	return err
 }
