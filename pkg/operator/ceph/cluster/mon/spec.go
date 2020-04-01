@@ -154,9 +154,7 @@ func (c *Cluster) makeMonPod(monConfig *monConfig, canary bool, PVCName string) 
 		HostNetwork:       c.Network.IsHost(),
 		PriorityClassName: cephv1.GetMonPriorityClassName(c.spec.PriorityClassNames),
 	}
-	if c.Network.IsHost() {
-		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
-	}
+
 	// Replace default unreachable node toleration
 	if c.spec.Mon.VolumeClaimTemplate != nil {
 		k8sutil.AddUnreachableNodeToleration(&podSpec)
@@ -171,6 +169,12 @@ func (c *Cluster) makeMonPod(monConfig *monConfig, canary bool, PVCName string) 
 		Spec: podSpec,
 	}
 	cephv1.GetMonAnnotations(c.spec.Annotations).ApplyToObjectMeta(&pod.ObjectMeta)
+
+	if c.Network.IsHost() {
+		pod.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
+	} else if c.Network.NetworkSpec.IsMultus() {
+		k8sutil.ApplyMultus(c.Network.NetworkSpec, &pod.ObjectMeta)
+	}
 
 	return pod
 }

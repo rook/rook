@@ -50,6 +50,8 @@ func (m *Mirroring) makeDeployment(daemonConfig *daemonConfig) *apps.Deployment 
 
 	if m.Network.IsHost() {
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
+	} else if m.Network.NetworkSpec.IsMultus() {
+		k8sutil.ApplyMultus(m.Network.NetworkSpec, &podSpec.ObjectMeta)
 	}
 	m.placement.ApplyToPodSpec(&podSpec.Spec)
 

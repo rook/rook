@@ -709,6 +709,12 @@ rules:
   - create
   - update
   - delete
+- apiGroups:
+  - k8s.cni.cncf.io
+  resources:
+  - network-attachment-definitions
+  verbs:
+  - get
 ---
 # The cluster role for managing the Rook CRDs
 apiVersion: rbac.authorization.k8s.io/v1beta1

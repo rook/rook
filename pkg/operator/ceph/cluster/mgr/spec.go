@@ -76,7 +76,10 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
 		keyring.Volume().Admin())
 	if c.Network.IsHost() {
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
+	} else if c.Network.NetworkSpec.IsMultus() {
+		k8sutil.ApplyMultus(c.Network.NetworkSpec, &podSpec.ObjectMeta)
 	}
+
 	c.annotations.ApplyToObjectMeta(&podSpec.ObjectMeta)
 	c.applyPrometheusAnnotations(&podSpec.ObjectMeta)
 	c.placement.ApplyToPodSpec(&podSpec.Spec)

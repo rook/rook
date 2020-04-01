@@ -15,6 +15,7 @@ require (
 	github.com/google/go-cmp v0.3.1
 	github.com/google/uuid v1.1.1
 	github.com/icrowley/fake v0.0.0-20180203215853-4178557ae428
+	github.com/k8snetworkplumbingwg/network-attachment-definition-client v0.0.0-20200401090632-ee27f62faef8
 	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20200107223247-51020689f1fb
 	github.com/openshift/cluster-api v0.0.0-20191129101638-b09907ac6668
 	github.com/openshift/machine-api-operator v0.2.1-0.20190903202259-474e14e4965a
@@ -55,6 +56,7 @@ replace (
 	k8s.io/csi-translation-lib => k8s.io/csi-translation-lib v0.17.2
 	k8s.io/kube-aggregator => k8s.io/kube-aggregator v0.17.2
 	k8s.io/kube-controller-manager => k8s.io/kube-controller-manager v0.17.2
+	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20191107075043-30be4d16710a // forces sigs.k8s.io/structured-merge-diff to v1 and not v3
 	k8s.io/kube-proxy => k8s.io/kube-proxy v0.17.2
 	k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.17.2
 	k8s.io/kubectl => k8s.io/kubectl v0.17.2
