@@ -39,6 +39,7 @@ type CephManifests interface {
 	GetRookExternalCluster(settings *ClusterExternalSettings) string
 	GetRookToolBox(namespace string) string
 	GetCleanupPod(node, removalDir string) string
+	GetCleanupVerificationPod(node, hostDirPath string) string
 	GetBlockPoolDef(poolName, namespace, replicaSize string) string
 	GetBlockStorageClassDef(csi bool, poolName, storageClassName, reclaimPolicy, namespace, systemNamespace string) string
 	GetFileStorageClassDef(fsName, storageClassName, namespace string) string
@@ -2052,6 +2053,41 @@ spec:
               - name: cleaner
                 hostPath:
                    path:  ` + removalDir
+}
+
+// GetCleanupVerificationPod asserts that the dataDirHostPath is empty
+func (m *CephManifestsMaster) GetCleanupVerificationPod(node, hostPathDir string) string {
+	return `apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rook-verify-cleanup-` + uuid.Must(uuid.NewRandom()).String() + `
+spec:
+    template:
+      spec:
+          restartPolicy: Never
+          containers:
+              - name: rook-cleaner
+                image: rook/ceph:` + m.imageTag + `
+                securityContext:
+                    privileged: true
+                volumeMounts:
+                    - name: cleaner
+                      mountPath: /scrub
+                command:
+                    - "sh"
+                    - "-c"
+                    - |
+                      set -xEeuo pipefail
+                      #Assert dataDirHostPath is empty
+                      if [ "$(ls -A /scrub/)" ]; then
+                          exit 1
+                      fi
+          nodeSelector:
+            kubernetes.io/hostname: ` + node + `
+          volumes:
+              - name: cleaner
+                hostPath:
+                   path:  ` + hostPathDir
 }
 
 func (m *CephManifestsMaster) GetBlockPoolDef(poolName string, namespace string, replicaSize string) string {

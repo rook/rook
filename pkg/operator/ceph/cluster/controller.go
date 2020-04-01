@@ -575,20 +575,26 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 	// K8s will only delete the crd and child resources when the finalizers have been removed from the crd.
 	if newClust.DeletionTimestamp != nil {
 		logger.Infof("cluster %q has a deletion timestamp", newClust.Namespace)
-		err := c.handleDelete(newClust, time.Duration(clusterDeleteRetryInterval)*time.Second)
-		if err != nil {
-			logger.Errorf("failed finalizer for cluster. %v", err)
-			return
-		}
 
 		// Start cluster clean up only if cleanupPolicy is applied to the ceph cluster
 		if hasCleanupPolicy(newClust) {
+			monSecret, err := c.getMonSecret(newClust.Namespace)
+			if err != nil {
+				logger.Errorf("failed to clean up cluster. %v", err)
+				return
+			}
 			cephHosts, err := c.getCephHosts(newClust.Namespace)
 			if err != nil {
 				logger.Errorf("failed to find valid ceph hosts in the cluster %q. %v", newClust.Namespace, err)
 				return
 			}
-			go c.startClusterCleanUp(newClust, cephHosts)
+			go c.startClusterCleanUp(newClust, cephHosts, monSecret)
+		}
+
+		err = c.handleDelete(newClust, time.Duration(clusterDeleteRetryInterval)*time.Second)
+		if err != nil {
+			logger.Errorf("failed finalizer for cluster. %v", err)
+			return
 		}
 
 		// remove the finalizer from the crd, which indicates to k8s that the resource can safely be deleted
