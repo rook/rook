@@ -87,5 +87,15 @@ func ValidatePoolSpec(context *clusterd.Context, namespace string, p *cephv1.Poo
 		return errors.Errorf("error pool size is %d and requireSafeReplicaSize is %t, must be false", p.Replicated.Size, p.Replicated.RequireSafeReplicaSize)
 	}
 
+	// validate pool compression mode if specified
+	if p.CompressionMode != "" {
+		switch p.CompressionMode {
+		case "none", "passive", "aggressive", "force":
+			break
+		default:
+			return errors.Errorf("unrecognized compression mode %q", p.CompressionMode)
+		}
+	}
+
 	return nil
 }

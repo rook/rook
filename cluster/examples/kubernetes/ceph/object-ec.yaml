@@ -21,6 +21,8 @@ spec:
     erasureCoded:
       dataChunks: 2
       codingChunks: 1
+    # Inline compression mode for the data pool
+    compressionMode: none
   # Whether to preserve metadata and data pools on object store deletion
   preservePoolsOnDelete: true
   # The gateway service configuration
