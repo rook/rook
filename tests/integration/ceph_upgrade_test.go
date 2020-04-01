@@ -161,7 +161,7 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	// Upgrade from mimic to nautilus
 	//
 	logger.Infof("*** UPGRADING CEPH FROM Mimic TO Nautilus ***")
-	s.gatherLogs(systemNamespace, "_before_ceph_upgrade")
+	s.gatherLogs(systemNamespace, "_before_nautilus_upgrade")
 	s.upgradeCephVersion(installer.NautilusVersion.Image, numOSDs)
 
 	// Start the file test client now that the CSI driver is supported on nautilus
@@ -175,7 +175,7 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	}()
 
 	// Verify reading and writing to the test clients
-	newFile = "post-ceph-upgrade-file"
+	newFile = "post-nautilus-upgrade-file"
 	s.verifyFilesAfterUpgrade(filesystemName, newFile, message, rbdFilesToRead, cephfsFilesToRead)
 	rbdFilesToRead = append(rbdFilesToRead, newFile)
 	cephfsFilesToRead = append(cephfsFilesToRead, newFile)
@@ -196,6 +196,19 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	rbdFilesToRead = append(rbdFilesToRead, newFile)
 	cephfsFilesToRead = append(cephfsFilesToRead, newFile)
 	logger.Infof("Verified upgrade from v1.2 to master")
+
+	//
+	// Upgrade from nautilus to octopus
+	//
+	logger.Infof("*** UPGRADING CEPH FROM Nautilus TO Octopus ***")
+	s.gatherLogs(systemNamespace, "_before_octopus_upgrade")
+	s.upgradeCephVersion(installer.OctopusVersion.Image, numOSDs)
+	// Verify reading and writing to the test clients
+	newFile = "post-octopus-upgrade-file"
+	s.verifyFilesAfterUpgrade(filesystemName, newFile, message, rbdFilesToRead, cephfsFilesToRead)
+	rbdFilesToRead = append(rbdFilesToRead, newFile)
+	cephfsFilesToRead = append(cephfsFilesToRead, newFile)
+	logger.Infof("Verified upgrade from nautilus to octopus")
 }
 
 func (s *UpgradeSuite) gatherLogs(systemNamespace, testSuffix string) {
