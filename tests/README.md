@@ -100,15 +100,6 @@ Integration tests can be run using tests binary `_output/tests/${platform}/integ
 _output/tests/${platform}/integration -test.v
 ```
 
-### Test parameters
-In addition to standard go tests parameters, the following custom parameters are available while running tests:
-
-| Parameter     | Description                            | Possible values  | Default    |
-| ------------- | -------------------------------------- | ---------------- | ---------- |
-| rook_platform | platform Rook needs to be installed on | kubernetes       | kubernetes |
-| k8s_version   | version of Kubernetes to be installed  | v1.10+           | v1.13.1    |
-| rook_image    | Rook image name to be installed        | valid image name | rook/ceph  |
-
 ### Running Tests with parameters.
 #### To run all integration tests run
 ```
@@ -117,10 +108,10 @@ go test -v -timeout 1800s github.com/rook/rook/tests/integration
 
 #### To run a specific suite (uses regex)
 ```
-go test -v -timeout 1800s -run SmokeSuite github.com/rook/rook/tests/integration
+go test -v -timeout 1800s -run CephSmokeSuite github.com/rook/rook/tests/integration
 ```
 
 #### To run specific tests inside a suite:
 ```
-go test -v -timeout 1800s -run SmokeSuite github.com/rook/rook/tests/integration -testify.m TestRookClusterInstallation_SmokeTest
+go test -v -timeout 1800s -run CephSmokeSuite github.com/rook/rook/tests/integration -testify.m TestRookClusterInstallation_SmokeTest
 ```

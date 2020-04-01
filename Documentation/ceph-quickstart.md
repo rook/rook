@@ -14,15 +14,15 @@ from other pods running in your cluster.
 
 ## Minimum Version
 
-Kubernetes **v1.10** or higher is supported by Rook.
+Kubernetes **v1.11** or higher is supported by Rook.
 
 ## Prerequisites
 
 To make sure you have a Kubernetes cluster that is ready for `Rook`, you can [follow these instructions](k8s-pre-reqs.md).
 
-In order to configure the storage cluster, at least one of these local storage options are required:
+In order to configure the Ceph storage cluster, at least one of these local storage options are required:
 - Raw devices (no partitions or formatted filesystems)
-- Raw partitions (no formatted filsystem)
+- Raw partitions (no formatted filesystem)
 - PVs available from a storage class in `block` mode
 
 ## TL;DR

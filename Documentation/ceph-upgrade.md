@@ -45,6 +45,38 @@ With this upgrade guide, there are a few notes to consider:
   both Rook operator updates and for Ceph version updates.
 * We recommend that you read this document in full before you undertake a Rook cluster upgrade.
 
+## Before you Upgrade
+
+Rook v1.3 has several breaking changes that must be considered **before** upgrading to Rook v1.3.
+1. Ceph Mimic is no longer supported. You must update to Ceph Nautilus v14.2.5 or newer **before** updating to Rook v1.3. See the
+   Rook v1.2 [Upgrade Guide for Ceph](https://rook.github.io/docs/rook/v1.2/ceph-upgrade.html#ceph-version-upgrades).
+2. Directory-based OSDs are no longer supported. If you are specifying a
+   [`directory`](https://github.com/rook/rook/blob/release-1.2/cluster/examples/kubernetes/ceph/cluster-test.yaml#L49-L50)
+   in your CephCluster CR you will need to convert these OSDs to device-based OSDs. See the next section.
+3. OSDs created **before Rook v0.9** are no longer supported during upgrade. To detect if you have these legacy
+   OSDs in your cluster, run `lsblk` on each host to see what partitions exist.
+   - If you see **three partitions** on a device running an OSD, this is a legacy OSD. See below for instructions to convert them.
+   - If you see a single partition or LV with the `ceph` prefix, the OSD is **not** a legacy OSD and you will not need to convert the OSDs.
+
+### Converting Legacy OSDs
+
+If you have legacy OSDs as described in the previous section, it is recommended to migrate the OSDs before the upgrade,
+although the migration is not strictly required before upgrade. If you proceed with the upgrade to v1.3 the OSDs will
+continue running. However, they will no longer be managed by Rook. The OSDs will never again be updated when you update
+Ceph or any other settings in your CephCluster CR.
+
+The procedure to migrate the OSDs requires raw devices or partitions be available as mentioned in the [Ceph Prerequisites](ceph-prerequisites.md).
+After you have available storage devices available in your cluster, do the following:
+1. Configure OSDs on the new devices using the [Storage selection settings](https://rook.github.io/docs/rook/v1.3/ceph-cluster-crd.html#storage-selection-settings).
+   If you have specified `useAllDevices: true`, you may need to restart the operator in order to trigger creation of new OSDs on new devices.
+2. Follow the [OSD Removal Guide](https://rook.github.io/docs/rook/v1.3/ceph-osd-mgmt.html#remove-an-osd) to remove the legacy OSDs.
+   - Before removing each OSD, ensure the PGs are all `active+clean` before continuing with the next OSD to ensure your data is safe.
+
+If you need to re-use your devices and add OSDs to the same devices, you'll need to zap a device before creating a new
+OSD on the same device. For steps on zapping the device see the [Rook cleanup instructions](ceph-teardown.md#zapping-devices).
+
+> **Removing OSDs and zapping devices is destructive so proceed with extreme caution**
+
 ## Upgrading the Rook-Ceph Operator
 
 ## Patch Release Upgrades
@@ -232,13 +264,15 @@ time without compatibility support and without prior notice.
 
 Let's get started!
 
+## 0. Migrate Legacy OSDs
+
+As described above in the [Before You Upgrade](#before-you-upgrade) section, you must migrate legacy OSDs
+before upgrading to Rook v1.3.
+
 ## 1. Update Ceph to Nautilus version 14.2.5 or higher
 
-Rook v1.3 supports Ceph Nautilus v14.2.5 or newer and Ceph Octopus v15.2.0 or newer. These are the
-only supported major versions of Ceph. Rook v1.2 does not support Ceph Octopus. Therefore, if your
-Rook v1.2 cluster must be updated to Ceph Nautilus v14.2.5 or higher before upgrading the Rook
-Operator to v1.3. If an upgrade is necessary, follow the Ceph upgrade steps from Rook's v1.2 release
-[here](https://rook.io/docs/rook/v1.2/ceph-upgrade.html#ceph-version-upgrades).
+As described above in the [Before You Upgrade](#before-you-upgrade) section, you must upgrade to
+Nautilus version 14.2.5 or higher before upgrading to Rook v1.3.
 
 
 ## 2. Update the RBAC and CRDs
@@ -255,7 +289,7 @@ kubectl apply -f upgrade-from-v1.2-apply.yaml -f upgrade-from-v1.2-crds.yaml
 
 If you have specified custom CSI images in the Rook-Ceph Operator deployment, you should update your
 the deployment to use the latest Ceph-CSI v2.0 and related drivers. If you have not specified custom
-CSI images in the Operator deployment this step is unnecessary; Rook v1.3 will use the latest
+CSI images in the Operator deployment this step is unnecessary since Rook v1.3 will use the latest
 drivers by default.
 
 See the section [CSI Updates](#csi-updates) for details about how to do this.
