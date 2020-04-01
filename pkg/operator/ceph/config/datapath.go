@@ -52,7 +52,7 @@ type DataPathMap struct {
 // which may include data from other daemons.
 func NewStatefulDaemonDataPathMap(
 	dataDirHostPath, daemonDataDirHostRelativePath string,
-	daemonType DaemonType, daemonID, namespace string,
+	daemonType, daemonID, namespace string,
 ) *DataPathMap {
 	return &DataPathMap{
 		HostDataDir:        path.Join(dataDirHostPath, daemonDataDirHostRelativePath),
@@ -64,7 +64,7 @@ func NewStatefulDaemonDataPathMap(
 // NewStatelessDaemonDataPathMap returns a new DataPathMap for a daemon which does not persist data
 // to the host (mgrs, mdses, rgws)
 func NewStatelessDaemonDataPathMap(
-	daemonType DaemonType, daemonID, namespace, dataDirHostPath string,
+	daemonType, daemonID, namespace, dataDirHostPath string,
 ) *DataPathMap {
 	return &DataPathMap{
 		HostDataDir:        "",
@@ -83,9 +83,9 @@ func NewDatalessDaemonDataPathMap(namespace, dataDirHostPath string) *DataPathMa
 	}
 }
 
-func cephDataDir(daemonType DaemonType, daemonID string) string {
+func cephDataDir(daemonType, daemonID string) string {
 	// daemons' default data dirs are: /var/lib/ceph/<daemon-type>/ceph-<daemon-id>
-	return path.Join(VarLibCephDir, string(daemonType), "ceph-"+daemonID)
+	return path.Join(VarLibCephDir, daemonType, "ceph-"+daemonID)
 }
 
 // ContainerCrashDir returns the directory of the crash collector

@@ -802,8 +802,7 @@ func (c *Cluster) updateMon(m *monConfig, d *apps.Deployment) error {
 	logger.Infof("deployment for mon %s already exists. updating if needed",
 		d.Name)
 
-	daemonType := string(config.MonType)
-	err := updateDeploymentAndWait(c.context, d, c.Namespace, daemonType, m.DaemonName, c.spec.SkipUpgradeChecks, false)
+	err := updateDeploymentAndWait(c.context, d, c.Namespace, config.MonType, m.DaemonName, c.spec.SkipUpgradeChecks, false)
 	if err != nil {
 		return errors.Wrapf(err, "failed to update mon deployment %s", m.ResourceName)
 	}
