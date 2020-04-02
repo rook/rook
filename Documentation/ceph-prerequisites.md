@@ -6,6 +6,13 @@ indent: true
 
 # Ceph Prerequisites
 
+To make sure you have a Kubernetes cluster that is ready for `Rook`, review the general [Rook Prerequisites](k8s-pre-reqs.md).
+
+In order to configure the Ceph storage cluster, at least one of these local storage options are required:
+- Raw devices (no partitions or formatted filesystems)
+- Raw partitions (no formatted filesystem)
+- PVs available from a storage class in `block` mode
+
 ## LVM package
 
 Ceph OSDs have a dependency on LVM in the following scenarios:
