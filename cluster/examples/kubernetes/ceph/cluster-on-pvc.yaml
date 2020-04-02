@@ -82,15 +82,15 @@ spec:
               topologyKey: kubernetes.io/hostname
         topologySpreadConstraints:
         - maxSkew: 1
-           topologyKey: kubernetes.io/hostname
-           whenUnsatisfiable: DoNotSchedule
-           labelSelector:
-             matchExpressions:
-             - key: app
-               operator: In
-               values:
-               - rook-ceph-osd
-               - rook-ceph-osd-prepare
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchExpressions:
+            - key: app
+              operator: In
+              values:
+              - rook-ceph-osd
+              - rook-ceph-osd-prepare
       resources:
       #   limits:
       #     cpu: "500m"
