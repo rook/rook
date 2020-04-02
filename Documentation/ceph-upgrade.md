@@ -19,6 +19,8 @@ We welcome feedback and opening issues!
 
 ## Supported Versions
 
+This guide is for upgrading from **Rook v1.2.x to Rook v1.3.x**.
+
 Please refer to the upgrade guides from previous releases for supported upgrade paths.
 Rook upgrades are only supported between official releases. Upgrades to and from `master` are not
 supported.
@@ -52,10 +54,10 @@ Rook v1.3 has several breaking changes that must be considered **before** upgrad
    Rook v1.2 [Upgrade Guide for Ceph](https://rook.github.io/docs/rook/v1.2/ceph-upgrade.html#ceph-version-upgrades).
 2. Directory-based OSDs are no longer supported. If you are specifying a
    [`directory`](https://github.com/rook/rook/blob/release-1.2/cluster/examples/kubernetes/ceph/cluster-test.yaml#L49-L50)
-   in your CephCluster CR you will need to convert these OSDs to device-based OSDs. See the next section.
+   in your CephCluster CR you will need to convert these OSDs to device-based OSDs. See below for [converting legacy OSDs](#converting-legacy-osds).
 3. OSDs created **before Rook v0.9** are no longer supported during upgrade. To detect if you have these legacy
    OSDs in your cluster, run `lsblk` on each host to see what partitions exist.
-   - If you see **three partitions** on a device running an OSD, this is a legacy OSD. See below for instructions to convert them.
+   - If you see **three partitions** on a device running an OSD, this is a legacy OSD. See below for [converting legacy OSDs](#converting-legacy-osds).
    - If you see a single partition or LV with the `ceph` prefix, the OSD is **not** a legacy OSD and you will not need to convert the OSDs.
 
 ### Converting Legacy OSDs
@@ -88,6 +90,14 @@ released, the process of updating from v1.3.0 is as simple as running the follow
 ```console
 kubectl -n rook-ceph set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.3.1
 ```
+
+## Helm Upgrades
+
+If you have installed Rook via the Helm chart, Helm will handle some details of the upgrade for you.
+In particular, Helm will handle updating the RBAC and trigger the operator update.
+The details expected to be handled by Helm will be noted in each section as follows:
+
+> Automatically updated if you are upgrading via the helm chart
 
 ## Upgrading from v1.2 to v1.3
 
@@ -122,8 +132,8 @@ export ROOK_SYSTEM_NAMESPACE="rook-ceph"
 export ROOK_NAMESPACE="rook-ceph"
 ```
 
-You must also perform a sed-replace on one of the upgrade manifests to set the namespace for your
-unique cluster if you aren't using the `rook-ceph` namespace above.
+You must also update one of the upgrade manifests to set the namespace for your
+unique cluster if you aren't using the default `rook-ceph` namespace above.
 ```sh
 sed -i.bak "s/namespace: rook-ceph/namespace: $ROOK_NAMESPACE/g" upgrade-from-v1.2-apply.yaml
 ```
@@ -264,18 +274,19 @@ time without compatibility support and without prior notice.
 
 Let's get started!
 
-## 0. Migrate Legacy OSDs
-
-As described above in the [Before You Upgrade](#before-you-upgrade) section, you must migrate legacy OSDs
-before upgrading to Rook v1.3.
-
-## 1. Update Ceph to Nautilus version 14.2.5 or higher
+## 0. Update Ceph to Nautilus version 14.2.5 or higher
 
 As described above in the [Before You Upgrade](#before-you-upgrade) section, you must upgrade to
 Nautilus version 14.2.5 or higher before upgrading to Rook v1.3.
 
+## 1. Migrate Legacy OSDs
+
+As described above in the [Before You Upgrade](#before-you-upgrade) section, it is recommended to migrate legacy OSDs
+before upgrading to Rook v1.3.
 
 ## 2. Update the RBAC and CRDs
+
+> Automatically updated if you are upgrading via the helm chart
 
 First apply new resources. This includes slightly modified privileges (RBAC) needed by the Operator.
 Also update Ceph Custom Resource Definitions (CRDs) at this time. Many CRDs have had a `status` item
@@ -295,6 +306,8 @@ drivers by default.
 See the section [CSI Updates](#csi-updates) for details about how to do this.
 
 ## 4. Update the Rook Operator
+
+> Automatically updated if you are upgrading via the helm chart
 
 The largest portion of the upgrade is triggered when the operator's image is updated to `v1.3.x`.
 When the operator is updated, it will proceed to update all of the Ceph daemons.
