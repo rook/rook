@@ -30,6 +30,7 @@ ConfigMap can be used in mix with the already existing Env Vars defined in opera
 - Various improvements to the integration tests including tests for an external cluster and for a cluster running on PVCs.
 - Pools can now be configured to inline compress the data using the `compressionMode` parameter. Support added [here](https://github.com/rook/rook/pull/5124)
 - Ceph OSDs do not use the host PID, but the PID namespace of the pod (more security). The OSD does not see host running processes anymore.
+- placement of all the ceph daemons now supports [topologySpreadConstraints](Documentation/ceph-cluster-crd.md#placement-configuration-settings).
 
 ### EdgeFS
 
