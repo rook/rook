@@ -14,7 +14,7 @@ This chart bootstraps a [rook-ceph-operator](https://github.com/rook/rook) deplo
 
 ## Prerequisites
 
-* Kubernetes 1.10+
+* Kubernetes 1.11+
 
 ### RBAC
 
@@ -130,7 +130,7 @@ The following tables lists the configurable parameters of the rook-operator char
 | `csi.rbdLivenessMetricsPort`     | Ceph CSI RBD driver metrics port.                                                                                           | `8080`                                                 |
 | `csi.enableSnapshotter`          | Enable deployment of snapshotter container in ceph-csi provisioner.                                                         | `true`                                                 |
 | `csi.forceCephFSKernelClient`    | Enable Ceph Kernel clients on kernel < 4.17 which support quotas for Cephfs.                                                | `true`                                                 |
-| `csi.allowUnsupportedVersion`    | Allow to run unsupported and untested CSI image.                                                                           | `false`                                                |
+| `csi.allowUnsupportedVersion`    | Allow to run unsupported and untested CSI image.                                                                            | `false`                                                |
 | `csi.kubeletDirPath`             | Kubelet root directory path (if the Kubelet uses a different path for the `--root-dir` flag)                                | `/var/lib/kubelet`                                     |
 | `csi.cephcsi.image`              | Ceph CSI image.                                                                                                             | `quay.io/cephcsi/cephcsi:v2.0.0`                       |
 | `csi.rbdPluginUpdateStrategy`    | CSI Rbd plugin daemonset update strategy, supported values are OnDelete and RollingUpdate.                                  | `OnDelete`                                             |

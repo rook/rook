@@ -66,6 +66,8 @@ In the future this step will not be necessary when we build on the K8s local sto
 
 If you modified the demo settings, additional cleanup is up to you for devices, host paths, etc.
 
+### Zapping Devices
+
 Disks on nodes used by Rook for osds can be reset to a usable state with the following methods:
 
 ```console
@@ -74,6 +76,7 @@ DISK="/dev/sdb"
 # Zap the disk to a fresh, usable state (zap-all is important, b/c MBR has to be clean)
 # You will have to run this step for all disks.
 sgdisk --zap-all $DISK
+dd if=/dev/zero of="$DISK" bs=1M count=100 oflag=direct,dsync
 
 # These steps only have to be run once on each node
 # If rook sets up osds using ceph-volume, teardown leaves some devices mapped that lock the disks.
