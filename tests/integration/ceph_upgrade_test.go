@@ -50,6 +50,11 @@ func TestCephUpgradeSuite(t *testing.T) {
 		t.Skip()
 	}
 
+	// Skip the suite if CSI is not supported
+	kh, err := utils.CreateK8sHelper(func() *testing.T { return t })
+	require.NoError(t, err)
+	checkSkipCSITest(t, kh)
+
 	s := new(UpgradeSuite)
 	defer func(s *UpgradeSuite) {
 		HandlePanics(recover(), s.op, s.T)
@@ -90,8 +95,6 @@ func (s *UpgradeSuite) TearDownSuite() {
 }
 
 func (s *UpgradeSuite) TestUpgradeToMaster() {
-	checkSkipCSITest(s.Suite, s.k8sh)
-
 	systemNamespace := installer.SystemNamespace(s.namespace)
 
 	//
