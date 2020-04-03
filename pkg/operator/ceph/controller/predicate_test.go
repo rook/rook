@@ -17,6 +17,7 @@ limitations under the License.
 package controller
 
 import (
+	"fmt"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -73,4 +74,31 @@ func TestObjectChanged(t *testing.T) {
 	changed, err = objectChanged(oldObject, newObject)
 	assert.NoError(t, err)
 	assert.True(t, changed)
+}
+
+func TestIsUpgrade(t *testing.T) {
+	oldLabel := make(map[string]string)
+	newLabel := map[string]string{
+		"foo": "bar",
+	}
+
+	// no value do nothing
+	b := isUpgrade(oldLabel, newLabel)
+	assert.False(t, b)
+
+	// different value do something
+	newLabel["ceph_version"] = "15.2.0-octopus"
+	b = isUpgrade(oldLabel, newLabel)
+	assert.True(t, b, fmt.Sprintf("%v,%v", oldLabel, newLabel))
+
+	// same value do nothing
+	oldLabel["ceph_version"] = "15.2.0-octopus"
+	newLabel["ceph_version"] = "15.2.0-octopus"
+	b = isUpgrade(oldLabel, newLabel)
+	assert.False(t, b, fmt.Sprintf("%v,%v", oldLabel, newLabel))
+
+	// different value do something
+	newLabel["ceph_version"] = "15.2.1-octopus"
+	b = isUpgrade(oldLabel, newLabel)
+	assert.True(t, b, fmt.Sprintf("%v,%v", oldLabel, newLabel))
 }
