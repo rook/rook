@@ -31,6 +31,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
+const (
+	cephVersionLabelKey = "ceph_version"
+)
+
 // WatchControllerPredicate is a special update filter for update events
 // do not reconcile if the the status changes, this avoids a reconcile storm loop
 //
@@ -63,6 +67,11 @@ func WatchControllerPredicate() predicate.Funcs {
 					if diff != "" {
 						logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
 					}
+					return true
+				}
+				// Handling upgrades
+				isUpgrade := isUpgrade(objOld.GetLabels(), objNew.GetLabels())
+				if isUpgrade {
 					return true
 				}
 
@@ -107,6 +116,11 @@ func WatchControllerPredicate() predicate.Funcs {
 					}
 					return true
 				}
+				// Handling upgrades
+				isUpgrade := isUpgrade(objOld.GetLabels(), objNew.GetLabels())
+				if isUpgrade {
+					return true
+				}
 
 			case *cephv1.CephNFS:
 				objNew := e.ObjectNew.(*cephv1.CephNFS)
@@ -121,7 +135,11 @@ func WatchControllerPredicate() predicate.Funcs {
 					}
 					return true
 				}
-
+				// Handling upgrades
+				isUpgrade := isUpgrade(objOld.GetLabels(), objNew.GetLabels())
+				if isUpgrade {
+					return true
+				}
 			}
 
 			logger.Debug("wont update unknown object")
@@ -237,4 +255,26 @@ func isValidEvent(patch []byte) bool {
 
 	logger.Debugf("will reconcile based on patch %s", patchString)
 	return true
+}
+
+func isUpgrade(oldLabels, newLabels map[string]string) bool {
+	oldLabelVal, oldLabelKeyExist := oldLabels[cephVersionLabelKey]
+	newLabelVal, newLabelKeyExist := newLabels[cephVersionLabelKey]
+
+	// Nothing exists
+	if !oldLabelKeyExist && !newLabelKeyExist {
+		return false
+	}
+
+	// The new object has the label key so we reconcile
+	if !oldLabelKeyExist && newLabelKeyExist {
+		return true
+	}
+
+	// Both objects have the label and values are different so we reconcile
+	if (oldLabelKeyExist && newLabelKeyExist) && oldLabelVal != newLabelVal {
+		return true
+	}
+
+	return false
 }

@@ -20,6 +20,7 @@ package cluster
 import (
 	"reflect"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -64,12 +65,6 @@ type cluster struct {
 	orchestrationNeeded  bool
 	orchMux              sync.Mutex
 	isUpgrade            bool
-}
-
-// ChildController is implemented by CRs that are owned by the CephCluster
-type childController interface {
-	// ParentClusterChanged is called when the CephCluster CR is updated, for example for a newer ceph version
-	ParentClusterChanged(cluster cephv1.ClusterSpec, clusterInfo *cephconfig.ClusterInfo, isUpgrade bool)
 }
 
 func newCluster(c *cephv1.CephCluster, context *clusterd.Context, csiMutex *sync.Mutex) *cluster {
@@ -277,6 +272,15 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 			return errors.Wrapf(err, "failed to execute post actions after all the monitors started")
 		}
 
+		// If this is an upgrade, notify all the child controllers
+		if c.isUpgrade {
+			logger.Info("upgrade in progress, notifying child CRs")
+			err := c.notifyChildControllerOfUpgrade()
+			if err != nil {
+				return errors.Wrap(err, "failed to notify child CRs of upgrade")
+			}
+		}
+
 		mgrs := mgr.New(c.Info, c.context, c.Namespace, rookImage,
 			spec.CephVersion, cephv1.GetMgrPlacement(spec.Placement), cephv1.GetMgrAnnotations(c.Spec.Annotations),
 			spec.Network, spec.Dashboard, spec.Monitoring, spec.Mgr, cephv1.GetMgrResources(spec.Resources),
@@ -433,6 +437,58 @@ func (c *cluster) postMonStartupActions() error {
 	// Enable Ceph messenger 2 protocol on Nautilus
 	if err := client.EnableMessenger2(c.context, c.Namespace); err != nil {
 		return errors.Wrapf(err, "failed to enable Ceph messenger version 2.")
+	}
+
+	return nil
+}
+
+func (c *cluster) notifyChildControllerOfUpgrade() error {
+	version := strings.Replace(c.Info.CephVersion.String(), " ", "-", -1)
+
+	// List all child controllers
+	cephFilesystems, err := c.context.RookClientset.CephV1().CephFilesystems(c.Namespace).List(metav1.ListOptions{})
+	if err != nil {
+		return errors.Wrap(err, "failed to list ceph filesystem CRs")
+	}
+	for _, cephFilesystem := range cephFilesystems.Items {
+		if cephFilesystem.Labels == nil {
+			cephFilesystem.Labels = map[string]string{}
+		}
+		cephFilesystem.Labels["ceph_version"] = version
+		_, err := c.context.RookClientset.CephV1().CephFilesystems(c.Namespace).Update(&cephFilesystem)
+		if err != nil {
+			return errors.Wrapf(err, "failed to update ceph filesystem CR %q with new label", cephFilesystem.Name)
+		}
+	}
+
+	cephObjectStores, err := c.context.RookClientset.CephV1().CephObjectStores(c.Namespace).List(metav1.ListOptions{})
+	if err != nil {
+		return errors.Wrap(err, "failed to list ceph object store CRs")
+	}
+	for _, cephObjectStore := range cephObjectStores.Items {
+		if cephObjectStore.Labels == nil {
+			cephObjectStore.Labels = map[string]string{}
+		}
+		cephObjectStore.Labels["ceph_version"] = version
+		_, err := c.context.RookClientset.CephV1().CephObjectStores(c.Namespace).Update(&cephObjectStore)
+		if err != nil {
+			return errors.Wrapf(err, "failed to update ceph object store CR %q with new label", cephObjectStore.Name)
+		}
+	}
+
+	cephNFSes, err := c.context.RookClientset.CephV1().CephNFSes(c.Namespace).List(metav1.ListOptions{})
+	if err != nil {
+		return errors.Wrap(err, "failed to list ceph nfs CRs")
+	}
+	for _, cephNFS := range cephNFSes.Items {
+		if cephNFS.Labels == nil {
+			cephNFS.Labels = map[string]string{}
+		}
+		cephNFS.Labels["ceph_version"] = version
+		_, err := c.context.RookClientset.CephV1().CephNFSes(c.Namespace).Update(&cephNFS)
+		if err != nil {
+			return errors.Wrapf(err, "failed to update ceph nfs CR %q with new label", cephNFS.Name)
+		}
 	}
 
 	return nil
