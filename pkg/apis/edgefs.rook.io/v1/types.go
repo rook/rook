@@ -133,6 +133,39 @@ type NFSSpec struct {
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
+type SMB struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+	Spec              SMBSpec `json:"spec"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type SMBList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+	Items           []SMB `json:"items"`
+}
+
+// SMBSpec represent the spec of a pool
+type SMBSpec struct {
+	// The annotations-related configuration to add/set on each Pod related object.
+	Annotations rookv1.Annotations `json:"annotations,omitempty"`
+	// The affinity to place the SMB pods (default is to place on any available nodes in EdgeFS running namespace)
+	Placement rookv1.Placement `json:"placement"`
+	// Resources set resource requests and limits
+	Resources v1.ResourceRequirements `json:"resources,omitempty"`
+	// The number of pods in the SMB replicaset
+	Instances         int32             `json:"instances"`
+	RelaxedDirUpdates bool              `json:"relaxedDirUpdates,omitempty"`
+	ResourceProfile   string            `json:"resourceProfile,omitempty"`
+	ChunkCacheSize    resource.Quantity `json:"chunkCacheSize,omitempty"`
+}
+
+// +genclient
+// +genclient:noStatus
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
 type S3 struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`

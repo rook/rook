@@ -142,3 +142,13 @@ Currently we adding new node `node3072ub16` with two drives `sdb` and `sdc` on i
 
 * Save CRD and operator will update all target nodes and related pods of the EdgeFS cluster.
 * Login to EdgeFS mgr toolbox and adjust FlexHash table to a new configuration using `efscli system fhtable` command.
+
+
+## EdgeFS Operator Upgrade
+
+In terms of to bring new Rook Operator features on a running system, it needs to be upgraded first.
+And once upgraded, you will need to create new CustomResourceDefinition(s).
+
+1. Edit deployment with `kubectl edit deploy rook-edgefs-operator -n rook-edgefs-system` and set to a new version
+2. Apply new CRDs or changes. Look at examples in cluster/examples/kubernetes/edgefs/operator.yaml.
+3. Monitor operator logs with `kubectl logs rook-edgefs-operator-ID -n rook-edgefs-system`

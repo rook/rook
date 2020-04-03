@@ -30,4 +30,6 @@ type S3Expansion interface{}
 
 type S3XExpansion interface{}
 
+type SMBExpansion interface{}
+
 type SWIFTExpansion interface{}

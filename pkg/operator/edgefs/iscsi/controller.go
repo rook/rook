@@ -173,7 +173,7 @@ func (c *ISCSIController) ParentClusterChanged(cluster edgefsv1.ClusterSpec) {
 
 	iscsis, err := c.context.RookClientset.EdgefsV1().ISCSIs(c.namespace).List(metav1.ListOptions{})
 	if err != nil {
-		logger.Errorf("failed to retrieve NFSes to update the Edgefs version. %+v", err)
+		logger.Errorf("failed to retrieve ISCSIes to update the Edgefs version. %+v", err)
 		return
 	}
 	for _, iscsi := range iscsis.Items {

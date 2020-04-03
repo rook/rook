@@ -32,6 +32,7 @@ import (
 	"github.com/rook/rook/pkg/operator/edgefs/nfs"
 	"github.com/rook/rook/pkg/operator/edgefs/s3"
 	"github.com/rook/rook/pkg/operator/edgefs/s3x"
+	"github.com/rook/rook/pkg/operator/edgefs/smb"
 	"github.com/rook/rook/pkg/operator/edgefs/swift"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -169,6 +170,19 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		cluster.ownerRef,
 		cluster.Spec.UseHostLocalTime)
 	NFSController.StartWatch(cluster.stopCh)
+
+	// Start SMB service CRD watcher
+	SMBController := smb.NewSMBController(c.context,
+		cluster.Namespace,
+		c.containerImage,
+		cluster.Spec.Network,
+		cluster.Spec.DataDirHostPath, cluster.Spec.DataVolumeSize,
+		edgefsv1.GetTargetPlacement(cluster.Spec.Placement),
+		cluster.Spec.Resources,
+		cluster.Spec.ResourceProfile,
+		cluster.ownerRef,
+		cluster.Spec.UseHostLocalTime)
+	SMBController.StartWatch(cluster.stopCh)
 
 	// Start S3 service CRD watcher
 	S3Controller := s3.NewS3Controller(c.context,
