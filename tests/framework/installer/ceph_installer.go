@@ -26,6 +26,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster"
@@ -651,13 +652,13 @@ func (h *CephInstaller) checkCephHealthStatus(namespace string) {
 }
 
 func (h *CephInstaller) cleanupDir(node, dir string) error {
-	resources := h.Manifests.GetCleanupPod(node, dir)
+	resources := h.GetCleanupPod(node, dir)
 	_, err := h.k8shelper.KubectlWithStdin(resources, createFromStdinArgs...)
 	return err
 }
 
 func (h *CephInstaller) verifyDirCleanup(node, dir string) error {
-	resources := h.Manifests.GetCleanupVerificationPod(node, dir)
+	resources := h.GetCleanupVerificationPod(node, dir)
 	_, err := h.k8shelper.KubectlWithStdin(resources, createFromStdinArgs...)
 	return err
 }
@@ -840,6 +841,71 @@ spec:
                 hostPath:
                   path: /run/udev
 `
+}
+
+// GetCleanupPod gets a cleanup Pod that cleans up the dataDirHostPath
+func (h *CephInstaller) GetCleanupPod(node, removalDir string) string {
+	return `apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rook-cleanup-` + uuid.Must(uuid.NewRandom()).String() + `
+spec:
+    template:
+      spec:
+          restartPolicy: Never
+          containers:
+              - name: rook-cleaner
+                image: rook/ceph:` + VersionMaster + `
+                securityContext:
+                    privileged: true
+                volumeMounts:
+                    - name: cleaner
+                      mountPath: /scrub
+                command:
+                    - "sh"
+                    - "-c"
+                    - "rm -rf /scrub/*"
+          nodeSelector:
+            kubernetes.io/hostname: ` + node + `
+          volumes:
+              - name: cleaner
+                hostPath:
+                   path:  ` + removalDir
+}
+
+// GetCleanupVerificationPod verifies that the dataDirHostPath is empty
+func (h *CephInstaller) GetCleanupVerificationPod(node, hostPathDir string) string {
+	return `apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rook-verify-cleanup-` + uuid.Must(uuid.NewRandom()).String() + `
+spec:
+    template:
+      spec:
+          restartPolicy: Never
+          containers:
+              - name: rook-cleaner
+                image: rook/ceph:` + VersionMaster + `
+                securityContext:
+                    privileged: true
+                volumeMounts:
+                    - name: cleaner
+                      mountPath: /scrub
+                command:
+                    - "sh"
+                    - "-c"
+                    - |
+                      set -xEeuo pipefail
+                      #Assert dataDirHostPath is empty
+                      if [ "$(ls -A /scrub/)" ]; then
+                          exit 1
+                      fi
+          nodeSelector:
+            kubernetes.io/hostname: ` + node + `
+          volumes:
+              - name: cleaner
+                hostPath:
+                   path:  ` + hostPathDir
 }
 
 func (h *CephInstaller) addCleanupPolicy(namespace string) error {

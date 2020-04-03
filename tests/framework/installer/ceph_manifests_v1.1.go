@@ -18,8 +18,6 @@ package installer
 
 import (
 	"strconv"
-
-	"github.com/google/uuid"
 )
 
 // CephManifestsV1_1 wraps rook yaml definitions
@@ -1666,41 +1664,6 @@ spec:
         items:
         - key: data
           path: mon-endpoints`
-}
-
-// GetCleanupPod gets a cleanup Pod manifest
-func (m *CephManifestsV1_1) GetCleanupPod(node, removalDir string) string {
-	return `apiVersion: batch/v1
-kind: Job
-metadata:
-  name: rook-cleanup-` + uuid.Must(uuid.NewRandom()).String() + `
-spec:
-    template:
-      spec:
-          restartPolicy: Never
-          containers:
-              - name: rook-cleaner
-                image: rook/ceph:` + m.imageTag + `
-                securityContext:
-                    privileged: true
-                volumeMounts:
-                    - name: cleaner
-                      mountPath: /scrub
-                command:
-                    - "sh"
-                    - "-c"
-                    - "rm -rf /scrub/*"
-          nodeSelector:
-            kubernetes.io/hostname: ` + node + `
-          volumes:
-              - name: cleaner
-                hostPath:
-                   path:  ` + removalDir
-}
-
-// GetCleanupVerificationPod asserts that the dataDirHostPath is empty
-func (m *CephManifestsV1_1) GetCleanupVerificationPod(node, hostPathDir string) string {
-	return ""
 }
 
 func (m *CephManifestsV1_1) GetBlockPoolDef(poolName string, namespace string, replicaSize string) string {
