@@ -33,26 +33,9 @@ import (
 )
 
 func TestReconcileRealm(t *testing.T) {
-	defaultStore := true
 	executorFunc := func(command string, args ...string) (string, error) {
 		idResponse := `{"id":"test-id"}`
 		logger.Infof("Execute: %s %v", command, args)
-		if args[1] == "get" {
-			return "", errors.New("induce a create")
-		} else if args[1] == "create" {
-			for _, arg := range args {
-				if arg == "--default" {
-					assert.True(t, defaultStore, "did not expect to find --default in %v", args)
-					return idResponse, nil
-				}
-			}
-			assert.False(t, defaultStore, "did not find --default flag in %v", args)
-		} else if args[0] == "realm" && args[1] == "list" {
-			if defaultStore {
-				return "", errors.New("failed to run radosgw-admin: Failed to complete : exit status 2")
-			}
-			return `{"realms": ["myobj"]}`, nil
-		}
 		return idResponse, nil
 	}
 	executor := &exectest.MockExecutor{
@@ -64,12 +47,12 @@ func TestReconcileRealm(t *testing.T) {
 	context := &clusterd.Context{Executor: executor}
 	objContext := NewContext(context, storeName, "mycluster")
 	// create the first realm, marked as default
-	err := reconcileRealm(objContext, "1.2.3.4", 80)
+	spec := cephv1.ObjectStoreSpec{}
+	err := setMultisite(objContext, "1.2.3.4", spec, storeName, storeName, storeName)
 	assert.Nil(t, err)
 
 	// create the second realm, not marked as default
-	defaultStore = false
-	err = reconcileRealm(objContext, "2.3.4.5", 80)
+	err = setMultisite(objContext, "2.3.4.5", spec, storeName, storeName, storeName)
 	assert.Nil(t, err)
 }
 

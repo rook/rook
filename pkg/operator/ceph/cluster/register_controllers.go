@@ -29,7 +29,10 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/file"
 	"github.com/rook/rook/pkg/operator/ceph/nfs"
 	"github.com/rook/rook/pkg/operator/ceph/object"
+	"github.com/rook/rook/pkg/operator/ceph/object/realm"
 	objectuser "github.com/rook/rook/pkg/operator/ceph/object/user"
+	"github.com/rook/rook/pkg/operator/ceph/object/zone"
+	"github.com/rook/rook/pkg/operator/ceph/object/zonegroup"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
 
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -57,6 +60,9 @@ var AddToManagerFuncs = []func(manager.Manager, *clusterd.Context) error{
 	crash.Add,
 	pool.Add,
 	objectuser.Add,
+	realm.Add,
+	zonegroup.Add,
+	zone.Add,
 	object.Add,
 	file.Add,
 	nfs.Add,

@@ -148,6 +148,9 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 				cephconfig.NewFlag("rgw frontends", fmt.Sprintf("%s %s", rgwFrontendName, c.portString())),
 				cephconfig.NewFlag("host", controller.ContainerEnvVarReference(k8sutil.PodNameEnvVar)),
 				cephconfig.NewFlag("rgw-mime-types-file", mimeTypesMountPath()),
+				cephconfig.NewFlag("rgw realm", rgwConfig.Realm),
+				cephconfig.NewFlag("rgw zonegroup", rgwConfig.ZoneGroup),
+				cephconfig.NewFlag("rgw zone", rgwConfig.Zone),
 			),
 		),
 		VolumeMounts: append(

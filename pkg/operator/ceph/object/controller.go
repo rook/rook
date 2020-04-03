@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"syscall"
+	"time"
 
 	"github.com/coreos/pkg/capnslog"
 	bktclient "github.com/kube-object-storage/lib-bucket-provisioner/pkg/client/clientset/versioned"
@@ -33,6 +35,7 @@ import (
 	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/exec"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
@@ -51,6 +54,8 @@ import (
 const (
 	controllerName = "ceph-object-controller"
 )
+
+var waitForRequeueIfObjectStoreNotReady = reconcile.Result{Requeue: true, RequeueAfter: 10 * time.Second}
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
 
@@ -273,6 +278,20 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 		skipUpgradeChecks: r.cephClusterSpec.SkipUpgradeChecks,
 	}
 
+	// Reconcile realm/zonegroup/zone CRs & update their names
+	realmName, zoneGroupName, zoneName, reconcileResponse, err := r.reconcileMultisiteCRs(cephObjectStore)
+	if err != nil {
+		return reconcileResponse, err
+	}
+
+	// Reconcile Ceph Zone if Multisite
+	if cephObjectStore.Spec.IsMultisite() {
+		reconcileResponse, err := r.reconcileCephZone(cephObjectStore, zoneGroupName, realmName)
+		if err != nil {
+			return reconcileResponse, err
+		}
+	}
+
 	// RECONCILE SERVICE
 	logger.Debug("reconciling object store service")
 	serviceIP, err := cfg.reconcileService(cephObjectStore)
@@ -290,18 +309,73 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 	}
 
 	// RECONCILE REALM
-	logger.Info("reconciling object store realms")
-	err = reconcileRealm(objContext, serviceIP, cephObjectStore.Spec.Gateway.Port)
+	logger.Infof("setting multisite settings for object store %q", cephObjectStore.Name)
+	err = setMultisite(objContext, serviceIP, cephObjectStore.Spec, realmName, zoneGroupName, zoneName)
 	if err != nil {
-		return r.setFailedStatus(name, "failed to create object store realm", err)
+		return r.setFailedStatus(name, "failed to configure multisite for object store", err)
 	}
 
-	err = cfg.createOrUpdateStore()
+	err = cfg.createOrUpdateStore(realmName, zoneGroupName, zoneName)
 	if err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "failed to create object store %q", cephObjectStore.Name)
 	}
 
 	return reconcile.Result{}, nil
+}
+
+func (r *ReconcileCephObjectStore) reconcileCephZone(store *cephv1.CephObjectStore, zoneGroupName string, realmName string) (reconcile.Result, error) {
+	realmArg := fmt.Sprintf("--rgw-realm=%s", realmName)
+	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", zoneGroupName)
+	zoneArg := fmt.Sprintf("--rgw-zone=%s", store.Spec.Zone.Name)
+	objContext := NewContext(r.context, store.Name, store.Namespace)
+
+	_, err := RunAdminCommandNoRealm(objContext, "zone", "get", realmArg, zoneGroupArg, zoneArg)
+	if err != nil {
+		if code, ok := exec.ExitStatus(err); ok && code == int(syscall.ENOENT) {
+			return waitForRequeueIfObjectStoreNotReady, errors.Wrapf(err, "ceph zone %q not found", store.Spec.Zone.Name)
+		} else {
+			return waitForRequeueIfObjectStoreNotReady, errors.Wrapf(err, "radosgw-admin zone get failed with code %d", code)
+		}
+	}
+
+	logger.Infof("Zone %q found in Ceph cluster will include object store %q", store.Spec.Zone.Name, store.Name)
+	return reconcile.Result{}, nil
+}
+
+func (r *ReconcileCephObjectStore) reconcileMultisiteCRs(cephObjectStore *cephv1.CephObjectStore) (string, string, string, reconcile.Result, error) {
+	if cephObjectStore.Spec.IsMultisite() {
+		zoneName := cephObjectStore.Spec.Zone.Name
+		zone, err := r.context.RookClientset.CephV1().CephObjectZones(cephObjectStore.Namespace).Get(zoneName, metav1.GetOptions{})
+		if err != nil {
+			if kerrors.IsNotFound(err) {
+				return "", "", "", waitForRequeueIfObjectStoreNotReady, err
+			}
+			return "", "", "", waitForRequeueIfObjectStoreNotReady, errors.Wrapf(err, "error getting CephObjectZone %q", cephObjectStore.Spec.Zone.Name)
+		}
+		logger.Infof("CephObjectZone resource %s found", zone.Name)
+
+		zonegroup, err := r.context.RookClientset.CephV1().CephObjectZoneGroups(cephObjectStore.Namespace).Get(zone.Spec.ZoneGroup, metav1.GetOptions{})
+		if err != nil {
+			if kerrors.IsNotFound(err) {
+				return "", "", "", waitForRequeueIfObjectStoreNotReady, err
+			}
+			return "", "", "", waitForRequeueIfObjectStoreNotReady, errors.Wrapf(err, "error getting CephObjectZoneGroup %q", zone.Spec.ZoneGroup)
+		}
+		logger.Infof("CephObjectZoneGroup resource %s found", zonegroup.Name)
+
+		realm, err := r.context.RookClientset.CephV1().CephObjectRealms(cephObjectStore.Namespace).Get(zonegroup.Spec.Realm, metav1.GetOptions{})
+		if err != nil {
+			if kerrors.IsNotFound(err) {
+				return "", "", "", waitForRequeueIfObjectStoreNotReady, err
+			}
+			return "", "", "", waitForRequeueIfObjectStoreNotReady, errors.Wrapf(err, "error getting CephObjectRealm %q", zonegroup.Spec.Realm)
+		}
+		logger.Infof("CephObjectRealm resource %s found", realm.Name)
+
+		return realm.Name, zonegroup.Name, zone.Name, reconcile.Result{}, nil
+	}
+
+	return cephObjectStore.Name, cephObjectStore.Name, cephObjectStore.Name, reconcile.Result{}, nil
 }
 
 func (r *ReconcileCephObjectStore) setFailedStatus(name types.NamespacedName, errMessage string, err error) (reconcile.Result, error) {

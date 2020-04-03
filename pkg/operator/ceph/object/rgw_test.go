@@ -62,7 +62,7 @@ func TestStartRGW(t *testing.T) {
 
 	// start a basic cluster
 	c := &clusterConfig{info, context, store, version, &cephv1.ClusterSpec{}, &metav1.OwnerReference{}, data, false, r.client, s, cephv1.NetworkSpec{}}
-	err := c.startRGWPods()
+	err := c.startRGWPods(store.Name, store.Name, store.Name)
 	assert.Nil(t, err)
 
 	validateStart(t, c, clientset)
@@ -108,7 +108,7 @@ func TestCreateObjectStore(t *testing.T) {
 	cl := fake.NewFakeClientWithScheme(s, object...)
 	r := &ReconcileCephObjectStore{client: cl, scheme: s}
 	c := &clusterConfig{info, context, store, "1.2.3.4", &cephv1.ClusterSpec{}, &metav1.OwnerReference{}, data, false, r.client, s, cephv1.NetworkSpec{}}
-	err := c.createOrUpdateStore()
+	err := c.createOrUpdateStore(store.Name, store.Name, store.Name)
 	assert.Nil(t, err)
 }
 
