@@ -425,6 +425,8 @@ func realScheduleMonitor(c *Cluster, mon *monConfig) (SchedulingResult, error) {
 	d.Spec.Template.Spec.Containers[0].Image = c.rookVersion
 	d.Spec.Template.Spec.Containers[0].Command = []string{"/tini"}
 	d.Spec.Template.Spec.Containers[0].Args = []string{"--", "sleep", "3600"}
+	// remove the liveness probe on the canary pod
+	d.Spec.Template.Spec.Containers[0].LivenessProbe = nil
 
 	// setup affinity settings for pod scheduling
 	p := cephv1.GetMonPlacement(c.spec.Placement)
