@@ -1,11 +1,10 @@
 apiVersion: edgefs.rook.io/v1
-kind: S3X
+kind: SMB
 metadata:
-  name: s3x01 # this name has to match efscli service
+  name: smb01 # this name has to match efscli service
   namespace: rook-edgefs
 spec:
   instances: 1
-  #sslCertificateRef: s3x-ssl-secret
   #placement:
   #  nodeAffinity:
   #    requiredDuringSchedulingIgnoredDuringExecution:

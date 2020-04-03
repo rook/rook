@@ -35,6 +35,9 @@ ConfigMap can be used in mix with the already existing Env Vars defined in opera
 
 ### EdgeFS
 
+- Enhanced support for Time zones, now geo-distributed name space can be properly identified in case of Kubernetes stretched clusters.
+- Added support for Microsoft Windows CIFS/SMB CRD. Now, it is possible to orchestrate Windows CIFS/SMB Scale-Out service managed by [Rook SMB CRD](Documentation/edgefs-smb-crd.md).
+
 ### YugabyteDB
 
 - Master and TServer pods for YugabyteDB will have resources requests and limits specified as per YugabyteDB recommendations. This will help avoid the soft/hard memory limit issue.

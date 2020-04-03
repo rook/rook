@@ -66,6 +66,14 @@ type S3XListerExpansion interface{}
 // S3XNamespaceLister.
 type S3XNamespaceListerExpansion interface{}
 
+// SMBListerExpansion allows custom methods to be added to
+// SMBLister.
+type SMBListerExpansion interface{}
+
+// SMBNamespaceListerExpansion allows custom methods to be added to
+// SMBNamespaceLister.
+type SMBNamespaceListerExpansion interface{}
+
 // SWIFTListerExpansion allows custom methods to be added to
 // SWIFTLister.
 type SWIFTListerExpansion interface{}

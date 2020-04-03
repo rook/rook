@@ -1,7 +1,7 @@
 apiVersion: edgefs.rook.io/v1
 kind: S3
 metadata:
-  name: s301
+  name: s301 # this name has to match efscli service
   namespace: rook-edgefs
 spec:
   instances: 1

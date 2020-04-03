@@ -1,7 +1,7 @@
 apiVersion: edgefs.rook.io/v1
 kind: ISCSI
 metadata:
-  name: iscsi01
+  name: iscsi01 # this name has to match efscli service
   namespace: rook-edgefs
 spec:
   #targetName:
