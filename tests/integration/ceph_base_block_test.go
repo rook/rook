@@ -19,6 +19,7 @@ package integration
 import (
 	"fmt"
 	"strconv"
+	"testing"
 	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -36,17 +37,17 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func checkSkipCSITest(s suite.Suite, k8sh *utils.K8sHelper) {
+func checkSkipCSITest(t *testing.T, k8sh *utils.K8sHelper) {
 	if !k8sh.VersionAtLeast("v1.13.0") {
 		logger.Info("Skipping tests as kube version is less than 1.13.0 for the CSI driver")
-		s.T().Skip()
+		t.Skip()
 	}
 }
 
 // Smoke Test for Block Storage - Test check the following operations on Block Storage in order
 // Create,Mount,Write,Read,Expand,Unmount and Delete.
 func runBlockCSITest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
-	checkSkipCSITest(s, k8sh)
+	checkSkipCSITest(s.T(), k8sh)
 
 	podName := "block-test"
 	poolName := "replicapool"
@@ -196,7 +197,7 @@ func restartOSDPods(k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
 }
 
 func runBlockCSITestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, clusterNamespace, systemNamespace string, version cephv1.CephVersionSpec) {
-	checkSkipCSITest(s, k8sh)
+	checkSkipCSITest(s.T(), k8sh)
 
 	logger.Infof("Block Storage End to End Integration Test - create storageclass,pool and pvc")
 	logger.Infof("Running on Rook Cluster %s", clusterNamespace)
