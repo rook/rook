@@ -36,6 +36,8 @@ type Interface interface {
 	S3s() S3Informer
 	// S3Xs returns a S3XInformer.
 	S3Xs() S3XInformer
+	// SMBs returns a SMBInformer.
+	SMBs() SMBInformer
 	// SWIFTs returns a SWIFTInformer.
 	SWIFTs() SWIFTInformer
 }
@@ -79,6 +81,11 @@ func (v *version) S3s() S3Informer {
 // S3Xs returns a S3XInformer.
 func (v *version) S3Xs() S3XInformer {
 	return &s3XInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// SMBs returns a SMBInformer.
+func (v *version) SMBs() SMBInformer {
+	return &sMBInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // SWIFTs returns a SWIFTInformer.

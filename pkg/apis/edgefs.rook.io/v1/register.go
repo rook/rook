@@ -57,6 +57,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&ClusterList{},
 		&NFS{},
 		&NFSList{},
+		&SMB{},
+		&SMBList{},
 		&S3{},
 		&S3List{},
 		&SWIFT{},
