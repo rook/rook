@@ -84,6 +84,6 @@ func IsReadyToReconcile(client client.Client, clustercontext *clusterd.Context, 
 		return cephCluster.Spec, true, cephClusterExists, reconcile.Result{}
 	}
 
-	logger.Debugf("%q: CephCluster resource %q found in namespace %q but cluster state is not appropriate %q", controllerName, namespacedName.Name, namespacedName.Namespace, status.Health.Status)
+	logger.Infof("%s: CephCluster %q found but skipping reconcile since Ceph health is %q", controllerName, namespacedName.Name, status.Health.Status)
 	return cephCluster.Spec, false, cephClusterExists, WaitForRequeueIfCephClusterNotReady
 }
