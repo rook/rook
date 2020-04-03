@@ -19,6 +19,7 @@ package k8sutil
 import (
 	"testing"
 
+	netapi "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -123,4 +124,33 @@ func TestNetwork_ApplyMultusMixedError(t *testing.T) {
 	err := ApplyMultus(net, &objMeta)
 
 	assert.Error(t, err)
+}
+
+func TestGetNetworkAttachmentConfig(t *testing.T) {
+	dummyNetAttachDef := netapi.NetworkAttachmentDefinition{
+		Spec: netapi.NetworkAttachmentDefinitionSpec{
+			Config: `{
+				"cniVersion": "0.3.0",
+				"type": "macvlan",
+				"master": "eth2",
+				"mode": "bridge",
+				"ipam": {
+				  "type": "host-local",
+				  "subnet": "172.18.8.0/24",
+				  "rangeStart": "172.18.8.200",
+				  "rangeEnd": "172.18.8.216",
+				  "routes": [
+					{
+					  "dst": "0.0.0.0/0"
+					}
+				  ],
+				  "gateway": "172.18.8.1"
+				}
+			  }`,
+		},
+	}
+
+	config, err := GetNetworkAttachmentConfig(dummyNetAttachDef)
+	assert.NoError(t, err)
+	assert.Equal(t, "172.18.8.0/24", config.Ipam.Subnet)
 }

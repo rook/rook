@@ -39,8 +39,6 @@ spec:
   dashboard:
     enabled: true
     ssl: true
-  network:
-    hostNetwork: false
   crashCollector:
     disable: false
   storage:

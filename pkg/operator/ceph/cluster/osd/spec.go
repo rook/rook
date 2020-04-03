@@ -361,11 +361,6 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	// needed for luksOpen synchronization when devices are encrypted and the osd is prepared with LVM
 	hostIPC := osdProps.storeConfig.EncryptedDevice
 
-	DNSPolicy := v1.DNSClusterFirst
-	if c.Network.IsHost() {
-		DNSPolicy = v1.DNSClusterFirstWithHostNet
-	}
-
 	initContainers := make([]v1.Container, 0, 4)
 	if doConfigInit {
 		initContainers = append(initContainers,
@@ -423,6 +418,42 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 			securityContext,
 		))
 
+	podTemplateSpec := v1.PodTemplateSpec{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   AppName,
+			Labels: c.getOSDLabels(osd.ID, failureDomainValue, osdProps.portable),
+		},
+		Spec: v1.PodSpec{
+			RestartPolicy:      v1.RestartPolicyAlways,
+			ServiceAccountName: serviceAccountName,
+			HostNetwork:        c.Network.IsHost(),
+			HostPID:            hostPID,
+			HostIPC:            hostIPC,
+			PriorityClassName:  c.priorityClassName,
+			InitContainers:     initContainers,
+			Containers: []v1.Container{
+				{
+					Command:         command,
+					Args:            args,
+					Name:            "osd",
+					Image:           c.cephVersion.Image,
+					VolumeMounts:    volumeMounts,
+					Env:             envVars,
+					Resources:       osdProps.resources,
+					SecurityContext: securityContext,
+					LivenessProbe:   controller.GenerateLivenessProbeExecDaemon(opconfig.OsdType, osdID),
+				},
+			},
+			Volumes: volumes,
+		},
+	}
+
+	if c.Network.IsHost() {
+		podTemplateSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
+	} else if c.Network.NetworkSpec.IsMultus() {
+		k8sutil.ApplyMultus(c.Network.NetworkSpec, &podTemplateSpec.ObjectMeta)
+	}
+
 	deployment := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      deploymentName,
@@ -440,36 +471,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 			Strategy: apps.DeploymentStrategy{
 				Type: apps.RecreateDeploymentStrategyType,
 			},
-			Template: v1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:   AppName,
-					Labels: c.getOSDLabels(osd.ID, failureDomainValue, osdProps.portable),
-				},
-				Spec: v1.PodSpec{
-					RestartPolicy:      v1.RestartPolicyAlways,
-					ServiceAccountName: serviceAccountName,
-					HostNetwork:        c.Network.IsHost(),
-					HostPID:            hostPID,
-					HostIPC:            hostIPC,
-					DNSPolicy:          DNSPolicy,
-					PriorityClassName:  c.priorityClassName,
-					InitContainers:     initContainers,
-					Containers: []v1.Container{
-						{
-							Command:         command,
-							Args:            args,
-							Name:            "osd",
-							Image:           c.cephVersion.Image,
-							VolumeMounts:    volumeMounts,
-							Env:             envVars,
-							Resources:       osdProps.resources,
-							SecurityContext: securityContext,
-							LivenessProbe:   controller.GenerateLivenessProbeExecDaemon(opconfig.OsdType, osdID),
-						},
-					},
-					Volumes: volumes,
-				},
-			},
+			Template: podTemplateSpec,
 			Replicas: &replicaCount,
 		},
 	}

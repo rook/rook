@@ -83,10 +83,6 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) v1.PodTemplateSpec 
 	// Replace default unreachable node toleration
 	k8sutil.AddUnreachableNodeToleration(&podSpec)
 
-	if c.clusterSpec.Network.IsHost() {
-		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
-	}
-
 	// Set the ssl cert if specified
 	if c.store.Spec.Gateway.SSLCertificateRef != "" {
 		// Keep the SSL secret as secure as possible in the container. Give only user read perms.
@@ -113,6 +109,12 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) v1.PodTemplateSpec 
 		Spec: podSpec,
 	}
 	c.store.Spec.Gateway.Annotations.ApplyToObjectMeta(&podTemplateSpec.ObjectMeta)
+
+	if c.clusterSpec.Network.IsHost() {
+		podTemplateSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
+	} else if c.clusterSpec.Network.IsMultus() {
+		k8sutil.ApplyMultus(c.Network.NetworkSpec, &podTemplateSpec.ObjectMeta)
+	}
 
 	return podTemplateSpec
 }

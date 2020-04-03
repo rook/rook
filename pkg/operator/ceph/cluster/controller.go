@@ -375,7 +375,9 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 	return nil
 }
 
-func (c *ClusterController) configureLocalCephCluster(namespace, name string, cluster *cluster, clusterObj *cephv1.CephCluster) error {
+// Validate the cluster Specs
+func (c *ClusterController) preClusterStartValidation(cluster *cluster, clusterObj *cephv1.CephCluster) error {
+
 	if cluster.Spec.Mon.Count == 0 {
 		logger.Warningf("mon count should be at least 1, will use default value of %d", mon.DefaultMonCount)
 		cluster.Spec.Mon.Count = mon.DefaultMonCount
@@ -386,11 +388,46 @@ func (c *ClusterController) configureLocalCephCluster(namespace, name string, cl
 	if len(cluster.Spec.Storage.Directories) != 0 {
 		logger.Warning("running osds on directory is not supported anymore, use devices instead.")
 	}
+	if cluster.Spec.Network.IsMultus() {
+		_, isPublic := cluster.Spec.Network.Selectors[config.PublicNetworkSelectorKeyName]
+		_, isCluster := cluster.Spec.Network.Selectors[config.ClusterNetworkSelectorKeyName]
+		if !isPublic && !isCluster {
+			return errors.New("both network selector values for public and cluster selector cannot be empty for multus provider")
+		}
+
+		for _, selector := range config.NetworkSelectors {
+			// If one selector is empty, we continue
+			// This means a single interface is used both public and cluster network
+			if _, ok := cluster.Spec.Network.Selectors[selector]; !ok {
+				continue
+			}
+
+			// Get network attachment definition
+			_, err := c.context.NetworkClient.NetworkAttachmentDefinitions(cluster.Namespace).Get(cluster.Spec.Network.Selectors[selector], metav1.GetOptions{})
+			if err != nil {
+				if kerrors.IsNotFound(err) {
+					return errors.Wrapf(err, "specified network attachment definition for selector %q does not exist", selector)
+				}
+				return errors.Wrapf(err, "failed to fetch network attachment definition for selector %q", selector)
+			}
+		}
+	}
+
+	logger.Debug("cluster spec successfully validated")
+	return nil
+}
+
+func (c *ClusterController) configureLocalCephCluster(namespace, name string, cluster *cluster, clusterObj *cephv1.CephCluster) error {
+	// Cluster Spec validation
+	err := c.preClusterStartValidation(cluster, clusterObj)
+	if err != nil {
+		return errors.Wrap(err, "failed to perform validation before cluster creation")
+	}
 
 	// Start the Rook cluster components. Retry several times in case of failure.
 	failedMessage := ""
 
-	err := wait.Poll(clusterCreateInterval, clusterCreateTimeout,
+	err = wait.Poll(clusterCreateInterval, clusterCreateTimeout,
 		func() (bool, error) {
 			cephVersion, canRetry, err := c.detectAndValidateCephVersion(cluster, cluster.Spec.CephVersion.Image)
 			if err != nil {
