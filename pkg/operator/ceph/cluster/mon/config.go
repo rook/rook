@@ -258,10 +258,11 @@ func genSecret(executor exec.Executor, configDir, name string, args []string) (s
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to read secret file")
 	}
-	return extractKey(string(contents))
+	return ExtractKey(string(contents))
 }
 
-func extractKey(contents string) (string, error) {
+// ExtractKey retrives mon secret key from the keyring file
+func ExtractKey(contents string) (string, error) {
 	secret := ""
 	slice := strings.Fields(sys.Grep(string(contents), "key"))
 	if len(slice) >= 3 {

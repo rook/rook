@@ -1698,6 +1698,11 @@ spec:
                    path:  ` + removalDir
 }
 
+// GetCleanupVerificationPod asserts that the dataDirHostPath is empty
+func (m *CephManifestsV1_1) GetCleanupVerificationPod(node, hostPathDir string) string {
+	return ""
+}
+
 func (m *CephManifestsV1_1) GetBlockPoolDef(poolName string, namespace string, replicaSize string) string {
 	return `apiVersion: ceph.rook.io/v1
 kind: CephBlockPool

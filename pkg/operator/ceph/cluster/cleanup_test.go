@@ -61,7 +61,7 @@ func TestCleanUpJobSpec(t *testing.T) {
 		},
 	}
 	controller := NewClusterController(context, "", &attachment.MockAttachment{}, operatorConfigCallbacks, addCallbacks)
-	podTemplateSpec := controller.cleanUpJobTemplateSpec(cluster)
+	podTemplateSpec := controller.cleanUpJobTemplateSpec(cluster, "monSecret")
 	assert.Equal(t, expectedHostPath, podTemplateSpec.Spec.Containers[0].Env[0].Value)
 	assert.Equal(t, expectedNamespace, podTemplateSpec.Spec.Containers[0].Env[1].Value)
 }
