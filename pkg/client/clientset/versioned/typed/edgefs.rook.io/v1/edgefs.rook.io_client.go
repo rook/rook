@@ -32,6 +32,7 @@ type EdgefsV1Interface interface {
 	NFSsGetter
 	S3sGetter
 	S3XsGetter
+	SMBsGetter
 	SWIFTsGetter
 }
 
@@ -62,6 +63,10 @@ func (c *EdgefsV1Client) S3s(namespace string) S3Interface {
 
 func (c *EdgefsV1Client) S3Xs(namespace string) S3XInterface {
 	return newS3Xs(c, namespace)
+}
+
+func (c *EdgefsV1Client) SMBs(namespace string) SMBInterface {
+	return newSMBs(c, namespace)
 }
 
 func (c *EdgefsV1Client) SWIFTs(namespace string) SWIFTInterface {

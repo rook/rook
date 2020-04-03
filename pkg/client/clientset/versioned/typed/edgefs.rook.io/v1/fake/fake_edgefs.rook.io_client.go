@@ -52,6 +52,10 @@ func (c *FakeEdgefsV1) S3Xs(namespace string) v1.S3XInterface {
 	return &FakeS3Xs{c, namespace}
 }
 
+func (c *FakeEdgefsV1) SMBs(namespace string) v1.SMBInterface {
+	return &FakeSMBs{c, namespace}
+}
+
 func (c *FakeEdgefsV1) SWIFTs(namespace string) v1.SWIFTInterface {
 	return &FakeSWIFTs{c, namespace}
 }
