@@ -658,21 +658,12 @@ metadata:
 rules:
 - apiGroups:
   - ""
+  - apps
+  - extensions
   resources:
   - pods
   - configmaps
   - services
-  verbs:
-  - get
-  - list
-  - watch
-  - patch
-  - create
-  - update
-  - delete
-- apiGroups:
-  - apps
-  resources:
   - daemonsets
   - statefulsets
   - deployments
@@ -680,6 +671,7 @@ rules:
   - get
   - list
   - watch
+  - patch
   - create
   - update
   - delete
@@ -724,6 +716,7 @@ rules:
   - delete
 - apiGroups:
   - apps
+  - extensions
   resources:
   - deployments
   - daemonsets
@@ -817,6 +810,7 @@ rules:
 - apiGroups:
   - policy
   - apps
+  - extensions
   resources:
   # This is for the clusterdisruption controller
   - poddisruptionbudgets
