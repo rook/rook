@@ -570,10 +570,32 @@ $ kubectl -n rook-ceph delete pod -l app=rook-ceph-operator
 
 ## Node hangs after reboot
 
+This issue is fixed in `cephcsi:v2.0.1` and newer.
+
 ### Symptoms
 
 * After issuing a `reboot` command, node never returned online
 * Only a power cycle helps
+
+### Investigation
+
+On a node running a pod with a Ceph persistent volume
+
+```console
+$ mount | grep rbd
+
+# _netdev mount option is absent, also occurs for cephfs
+# OS is not aware PV is mounted over network
+/dev/rbdx on ... (rw,relatime, ..., noquota)
+```
+
+When the reboot command is issued, network interfaces are terminated before disks
+are unmounted. This results in the node hanging as repeated attempts to unmount
+Ceph persistent volumes fail with the following error:
+
+```
+libceph: connect [monitor-ip]:6789 error -101
+```
 
 ### Solution
 
