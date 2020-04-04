@@ -209,7 +209,11 @@ func (c *Cluster) completeOSDsForAllNodes(config *provisionConfig, configOSDs bo
 					break ResultLoop
 				}
 				if e.Type == watch.Modified {
-					configMap := e.Object.(*v1.ConfigMap)
+					configMap, ok := e.Object.(*v1.ConfigMap)
+					if !ok {
+						logger.Errorf("expected type ConfigMap but found %T", configMap)
+						continue
+					}
 					node, ok := configMap.Labels[nodeLabelKey]
 					if !ok {
 						logger.Infof("missing node label on configmap %s", configMap.Name)
