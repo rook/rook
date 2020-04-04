@@ -113,7 +113,11 @@ func (c *ClusterController) StopWatch() {
 }
 
 func (c *ClusterController) onAdd(obj interface{}) {
-	clusterObj := obj.(*edgefsv1.Cluster).DeepCopy()
+	clusterObj, ok := obj.(*edgefsv1.Cluster)
+	if !ok {
+		return
+	}
+	clusterObj = clusterObj.DeepCopy()
 	logger.Infof("new cluster %s added to namespace %s", clusterObj.Name, clusterObj.Namespace)
 
 	cluster := newCluster(clusterObj, c.context)
@@ -261,8 +265,18 @@ func (c *ClusterController) onAdd(obj interface{}) {
 }
 
 func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
-	oldCluster := oldObj.(*edgefsv1.Cluster).DeepCopy()
-	newCluster := newObj.(*edgefsv1.Cluster).DeepCopy()
+	oldCluster, ok := oldObj.(*edgefsv1.Cluster)
+	if !ok {
+		return
+	}
+	oldCluster = oldCluster.DeepCopy()
+
+	newCluster, ok := newObj.(*edgefsv1.Cluster)
+	if !ok {
+		return
+	}
+	newCluster = newCluster.DeepCopy()
+
 	logger.Infof("update event for cluster %q", newCluster.Namespace)
 
 	// Check if the cluster is being deleted. This code path is called when a finalizer is specified in the crd.
