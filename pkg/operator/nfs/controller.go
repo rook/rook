@@ -394,7 +394,11 @@ func (c *Controller) createNfsStatefulSet(nfsServer *nfsServer, replicas int32, 
 }
 
 func (c *Controller) onAdd(obj interface{}) {
-	nfsObj := obj.(*nfsv1alpha1.NFSServer).DeepCopy()
+	nfsObj, ok := obj.(*nfsv1alpha1.NFSServer)
+	if !ok {
+		return
+	}
+	nfsObj = nfsObj.DeepCopy()
 
 	nfsServer := newNfsServer(nfsObj, c.context)
 
@@ -424,7 +428,11 @@ func (c *Controller) onAdd(obj interface{}) {
 }
 
 func (c *Controller) onUpdate(oldObj, newObj interface{}) {
-	oldNfsServ := oldObj.(*nfsv1alpha1.NFSServer).DeepCopy()
+	oldNfsServ, ok := oldObj.(*nfsv1alpha1.NFSServer)
+	if !ok {
+		return
+	}
+	oldNfsServ = oldNfsServ.DeepCopy()
 
 	logger.Infof("Received update on NFS server %s in namespace %s. This is currently unsupported.", oldNfsServ.Name, oldNfsServ.Namespace)
 }
