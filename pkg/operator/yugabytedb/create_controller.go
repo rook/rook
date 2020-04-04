@@ -26,7 +26,11 @@ import (
 )
 
 func (c *ClusterController) OnAdd(obj interface{}) {
-	clusterObj := obj.(*yugabytedbv1alpha1.YBCluster).DeepCopy()
+	clusterObj, ok := obj.(*yugabytedbv1alpha1.YBCluster)
+	if !ok {
+		return
+	}
+	clusterObj = clusterObj.DeepCopy()
 	logger.Infof("new cluster %s added to namespace %s", clusterObj.Name, clusterObj.Namespace)
 
 	cluster := NewCluster(clusterObj, c.context)
