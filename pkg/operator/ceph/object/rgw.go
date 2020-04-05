@@ -205,6 +205,12 @@ func (c *clusterConfig) startRGWPods() error {
 			if err != nil {
 				logger.Infof("failed to delete rgw key %q. %v", depNameToRemove, err)
 			}
+
+			// Delete configuration in centralized mon database
+			err = c.deleteFlagsMonConfigStore(depNameToRemove)
+			if err != nil {
+				logger.Errorf("%v", err)
+			}
 		}
 		// verify scale down was successful
 		deps, err = k8sutil.GetDeployments(c.context.Clientset, c.store.Namespace, c.storeLabelSelector())
@@ -269,11 +275,18 @@ func (c *clusterConfig) deleteLegacyDaemons() {
 func (c *clusterConfig) deleteStore() error {
 	logger.Infof("deleting object store %q from namespace %q", c.store.Name, c.store.Namespace)
 
-	// Delete rgw CephX keys
+	// Delete rgw CephX keys and configuration in centralized mon database
 	for i := 0; i < int(c.store.Spec.Gateway.Instances); i++ {
 		daemonLetterID := k8sutil.IndexToName(i)
 		depNameToRemove := fmt.Sprintf("%s-%s-%s", AppName, c.store.Name, daemonLetterID)
-		err := cephclient.AuthDelete(c.context, c.store.Namespace, generateCephXUser(depNameToRemove))
+
+		// Delete configuration in centralized mon database
+		err := c.deleteFlagsMonConfigStore(depNameToRemove)
+		if err != nil {
+			return err
+		}
+
+		err = cephclient.AuthDelete(c.context, c.store.Namespace, generateCephXUser(depNameToRemove))
 		if err != nil {
 			return err
 		}

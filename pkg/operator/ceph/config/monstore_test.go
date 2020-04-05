@@ -17,6 +17,7 @@ limitations under the License.
 package config
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 
@@ -70,6 +71,117 @@ func TestMonStore_Set(t *testing.T) {
 	e = monStore.Set("mon.*", "unknown_setting", "10")
 	assert.Error(t, e)
 	assert.Contains(t, execedCmd, " config set mon.* unknown_setting 10 ")
+}
+
+func TestMonStore_Delete(t *testing.T) {
+	executor := &exectest.MockExecutor{}
+	clientset := testop.New(t, 1)
+	ctx := &clusterd.Context{
+		Clientset: clientset,
+		Executor:  executor,
+	}
+
+	// create a mock command runner which creates a simple string of the command it ran, and allow
+	// us to cause it to return an error when it detects a keyword.
+	execedCmd := ""
+	execInjectErr := false
+	executor.MockExecuteCommandWithOutputFile =
+		func(command string, outfile string, args ...string) (string, error) {
+			execedCmd = command + " " + strings.Join(args, " ")
+			if execInjectErr {
+				return "output from cmd with error", errors.New("mocked error")
+			}
+			return "", nil
+		}
+
+	monStore := GetMonStore(ctx, "ns")
+
+	// ceph config rm called as expected
+	e := monStore.Delete("global", "debug ms")
+	assert.NoError(t, e)
+	assert.Contains(t, execedCmd, "config rm global debug_ms")
+
+	// errors returned as expected
+	execInjectErr = true
+	e = monStore.Delete("mon.*", "unknown_setting")
+	assert.Error(t, e)
+	assert.Contains(t, execedCmd, " config rm mon.* unknown_setting ")
+}
+
+func TestMonStore_GetDaemon(t *testing.T) {
+	executor := &exectest.MockExecutor{}
+	clientset := testop.New(t, 1)
+	ctx := &clusterd.Context{
+		Clientset: clientset,
+		Executor:  executor,
+	}
+
+	// create a mock command runner which creates a simple string of the command it ran, and allow
+	// us to cause it to return an error when it detects a keyword and to return a specific string
+	execedCmd := ""
+	execReturn := "{\"rbd_default_features\":{\"value\":\"3\",\"section\":\"global\",\"mask\":{}," +
+		"\"can_update_at_runtime\":true}," +
+		"\"rgw_enable_usage_log\":{\"value\":\"true\",\"section\":\"client.rgw.test.a\",\"mask\":{}," +
+		"\"can_update_at_runtime\":true}}"
+	execInjectErr := false
+	executor.MockExecuteCommandWithOutputFile =
+		func(command string, outfile string, args ...string) (string, error) {
+			execedCmd = command + " " + strings.Join(args, " ")
+			if execInjectErr {
+				return "output from cmd with error", errors.New("mocked error")
+			}
+			return execReturn, nil
+		}
+
+	monStore := GetMonStore(ctx, "ns")
+
+	// ceph config get called as expected
+	options, e := monStore.GetDaemon("client.rgw.test.a")
+	assert.NoError(t, e)
+	assert.Contains(t, execedCmd, "ceph config get client.rgw.test.a")
+	assert.True(t, reflect.DeepEqual(options, []Option{{"client.rgw.test.a", "rgw_enable_usage_log", "true"}}))
+
+	// json parse exception return as expected
+	execReturn = "bad json output"
+	_, e = monStore.GetDaemon("client.rgw.test.a")
+	assert.Error(t, e)
+	assert.Contains(t, e.Error(), "failed to parse json config for daemon \"client.rgw.test.a\". json: "+
+		"bad json output")
+
+	// errors returned as expected
+	execInjectErr = true
+	_, e = monStore.GetDaemon("mon.*")
+	assert.Error(t, e)
+	assert.Contains(t, execedCmd, " config get mon.* ")
+}
+
+func TestMonStore_DeleteDaemon(t *testing.T) {
+	executor := &exectest.MockExecutor{}
+	clientset := testop.New(t, 1)
+	ctx := &clusterd.Context{
+		Clientset: clientset,
+		Executor:  executor,
+	}
+
+	// create a mock command runner which creates a simple string of the command it ran, and allow
+	// us to cause it to return an error when it detects a keyword and to return a specific string
+	execedCmd := ""
+	execReturn := "{\"rbd_default_features\":{\"value\":\"3\",\"section\":\"global\",\"mask\":{}," +
+		"\"can_update_at_runtime\":true}," +
+		"\"rgw_enable_usage_log\":{\"value\":\"true\",\"section\":\"client.rgw.test.a\",\"mask\":{}," +
+		"\"can_update_at_runtime\":true}}"
+	executor.MockExecuteCommandWithOutputFile =
+		func(command string, outfile string, args ...string) (string, error) {
+			execedCmd = command + " " + strings.Join(args, " ")
+			return execReturn, nil
+		}
+
+	monStore := GetMonStore(ctx, "ns")
+
+	// ceph config rm rgw_enable_usage_log called as expected
+	e := monStore.DeleteDaemon("client.rgw.test.a")
+	assert.NoError(t, e)
+	assert.Contains(t, execedCmd, "ceph config rm client.rgw.test.a rgw_enable_usage_log")
 }
 
 func TestMonStore_SetAll(t *testing.T) {
