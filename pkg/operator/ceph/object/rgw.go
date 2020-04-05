@@ -20,7 +20,6 @@ package object
 import (
 	"fmt"
 	"reflect"
-	"strings"
 
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/pkg/errors"
@@ -273,8 +272,8 @@ func (c *clusterConfig) deleteStore() error {
 	// Delete rgw CephX keys
 	for i := 0; i < int(c.store.Spec.Gateway.Instances); i++ {
 		daemonLetterID := k8sutil.IndexToName(i)
-		keyName := fmt.Sprintf("client.%s.%s", strings.Replace(c.store.Name, "-", ".", -1), daemonLetterID)
-		err := cephclient.AuthDelete(c.context, c.store.Namespace, keyName)
+		depNameToRemove := fmt.Sprintf("%s-%s-%s", AppName, c.store.Name, daemonLetterID)
+		err := cephclient.AuthDelete(c.context, c.store.Namespace, generateCephXUser(depNameToRemove))
 		if err != nil {
 			return err
 		}
