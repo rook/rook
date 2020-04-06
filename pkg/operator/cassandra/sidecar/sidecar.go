@@ -18,6 +18,12 @@ package sidecar
 
 import (
 	"fmt"
+	"net/url"
+	"os"
+	"os/exec"
+	"reflect"
+	"time"
+
 	"github.com/coreos/pkg/capnslog"
 	"github.com/davecgh/go-spew/spew"
 	cassandrav1alpha1 "github.com/rook/rook/pkg/apis/cassandra.rook.io/v1alpha1"
@@ -34,11 +40,6 @@ import (
 	corelisters "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
-	"net/url"
-	"os"
-	"os/exec"
-	"reflect"
-	"time"
 )
 
 // MemberController encapsulates all the tools the sidecar needs to
@@ -123,7 +124,10 @@ func New(
 
 	serviceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			svc := obj.(*corev1.Service)
+			svc, ok := obj.(*corev1.Service)
+			if !ok {
+				return
+			}
 			if svc.Name != m.name {
 				logger.Errorf("Lister returned unexpected service %s", svc.Name)
 				return
@@ -131,8 +135,14 @@ func New(
 			m.enqueueMemberService(svc)
 		},
 		UpdateFunc: func(old, new interface{}) {
-			oldService := old.(*corev1.Service)
-			newService := new.(*corev1.Service)
+			oldService, ok := old.(*corev1.Service)
+			if !ok {
+				return
+			}
+			newService, ok := new.(*corev1.Service)
+			if !ok {
+				return
+			}
 			if oldService.ResourceVersion == newService.ResourceVersion {
 				return
 			}
@@ -143,7 +153,10 @@ func New(
 			m.enqueueMemberService(newService)
 		},
 		DeleteFunc: func(obj interface{}) {
-			svc := obj.(*corev1.Service)
+			svc, ok := obj.(*corev1.Service)
+			if !ok {
+				return
+			}
 			if svc.Name == m.name {
 				logger.Errorf("Unexpected deletion of MemberService %s", svc.Name)
 			}
