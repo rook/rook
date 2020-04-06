@@ -25,8 +25,15 @@ import (
 
 func (c *ClusterController) OnUpdate(oldObj, newObj interface{}) {
 	// TODO Create the cluster if previous attempt to create has failed.
-	_ = oldObj.(*yugabytedbv1alpha1.YBCluster).DeepCopy()
-	newObjCluster := newObj.(*yugabytedbv1alpha1.YBCluster).DeepCopy()
+	oldYBCluster, ok := oldObj.(*yugabytedbv1alpha1.YBCluster)
+	if !ok {
+		return
+	}
+	_ = oldYBCluster.DeepCopy()
+	newObjCluster, ok := newObj.(*yugabytedbv1alpha1.YBCluster)
+	if !ok {
+		return
+	}
 	newYBCluster := NewCluster(newObjCluster, c.context)
 
 	// Validate new spec

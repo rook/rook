@@ -71,7 +71,11 @@ func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) {
 }
 
 func (c *ClusterController) onDelete(obj interface{}) {
-	cluster := obj.(*cephv1.CephCluster).DeepCopy()
+	cluster, ok := obj.(*cephv1.CephCluster)
+	if !ok {
+		return
+	}
+	cluster = cluster.DeepCopy()
 
 	c.handleClusterDelete(cluster, removeAttachmentRetryInterval*time.Second)
 }
