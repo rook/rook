@@ -20,6 +20,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"strings"
 )
 
 // MonStore provides methods for setting Ceph configurations in the centralized mon
@@ -71,7 +72,7 @@ func (m *MonStore) Get(who, option string) (string, error) {
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to get config setting %q for user %q", option, who)
 	}
-	return string(out), nil
+	return strings.TrimSpace(string(out)), nil
 }
 
 // SetAll sets all configs from the overrides in the centralized mon configuration database.
