@@ -69,11 +69,6 @@ func WatchControllerPredicate() predicate.Funcs {
 					}
 					return true
 				}
-				// Handling upgrades
-				isUpgrade := isUpgrade(objOld.GetLabels(), objNew.GetLabels())
-				if isUpgrade {
-					return true
-				}
 
 			case *cephv1.CephObjectStoreUser:
 				objNew := e.ObjectNew.(*cephv1.CephObjectStoreUser)
@@ -116,11 +111,6 @@ func WatchControllerPredicate() predicate.Funcs {
 					}
 					return true
 				}
-				// Handling upgrades
-				isUpgrade := isUpgrade(objOld.GetLabels(), objNew.GetLabels())
-				if isUpgrade {
-					return true
-				}
 
 			case *cephv1.CephNFS:
 				objNew := e.ObjectNew.(*cephv1.CephNFS)
@@ -135,11 +125,12 @@ func WatchControllerPredicate() predicate.Funcs {
 					}
 					return true
 				}
-				// Handling upgrades
-				isUpgrade := isUpgrade(objOld.GetLabels(), objNew.GetLabels())
-				if isUpgrade {
-					return true
-				}
+
+			case *cephv1.CephCluster:
+				objNew := e.ObjectNew.(*cephv1.CephCluster)
+				logger.Debug("update event from the parent object CephCluster")
+				return objOld.Spec.CephVersion.Image != objNew.Spec.CephVersion.Image
+
 			}
 
 			logger.Debug("wont update unknown object")
@@ -253,26 +244,4 @@ func isValidEvent(patch []byte) bool {
 
 	logger.Infof("will reconcile based on patch %s", patchString)
 	return true
-}
-
-func isUpgrade(oldLabels, newLabels map[string]string) bool {
-	oldLabelVal, oldLabelKeyExist := oldLabels[cephVersionLabelKey]
-	newLabelVal, newLabelKeyExist := newLabels[cephVersionLabelKey]
-
-	// Nothing exists
-	if !oldLabelKeyExist && !newLabelKeyExist {
-		return false
-	}
-
-	// The new object has the label key so we reconcile
-	if !oldLabelKeyExist && newLabelKeyExist {
-		return true
-	}
-
-	// Both objects have the label and values are different so we reconcile
-	if (oldLabelKeyExist && newLabelKeyExist) && oldLabelVal != newLabelVal {
-		return true
-	}
-
-	return false
 }

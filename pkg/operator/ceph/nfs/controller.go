@@ -100,6 +100,18 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
+	// Build Handler function to return the list of nfs gateways
+	handerFunc, err := opcontroller.ObjectToCRMapper(mgr.GetClient(), &cephv1.CephNFSList{}, mgr.GetScheme())
+	if err != nil {
+		return err
+	}
+
+	// Watch for changes on the CephCluster CR object
+	err = c.Watch(&source.Kind{Type: &cephv1.CephCluster{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: handerFunc}, opcontroller.WatchControllerPredicate())
+	if err != nil {
+		return err
+	}
+
 	// Watch for changes on the cephNFS CRD object
 	err = c.Watch(&source.Kind{Type: &cephv1.CephNFS{TypeMeta: controllerTypeMeta}}, &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate())
 	if err != nil {
