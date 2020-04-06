@@ -338,22 +338,25 @@ subjects:
 }
 
 func waitForFilesystemActive(k8sh *utils.K8sHelper, namespace, filesystemName string) error {
-	cmd := cephclient.NewCephCommand(k8sh.MakeContext(), namespace, []string{"fs", "status", filesystemName})
-	var stat []byte
+	command, args := cephclient.FinalizeCephCommandArgs("ceph", []string{"fs", "status", filesystemName}, k8sh.MakeContext().ConfigDir, namespace)
+	var stat string
 	var err error
+
 	logger.Infof("waiting for filesystem %q to be active", filesystemName)
 	for i := 0; i < utils.RetryLoop; i++ {
-		stat, err := cmd.Run()
+		// start the rgw admin command
+		stat, err := k8sh.MakeContext().Executor.ExecuteCommandWithCombinedOutput(command, args...)
 		if err != nil {
 			logger.Warningf("failed to get filesystem %q status. %+v", filesystemName, err)
 		}
+
 		// as long as at least one mds is active, it's okay
-		if strings.Contains(string(stat), "active") {
+		if strings.Contains(stat, "active") {
 			logger.Infof("done waiting for filesystem %q to be active", filesystemName)
 			return nil
 		}
 		logger.Infof("waiting for filesystem %q to be active", filesystemName)
 		time.Sleep(utils.RetryInterval * time.Second)
 	}
-	return fmt.Errorf("gave up waiting to get filesystem %q status [err: %+v] Status returned:\n%s", filesystemName, err, string(stat))
+	return fmt.Errorf("gave up waiting to get filesystem %q status [err: %+v] Status returned:\n%s", filesystemName, err, stat)
 }
