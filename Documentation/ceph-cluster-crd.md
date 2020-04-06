@@ -491,7 +491,8 @@ spec:
     nodes:
     - name: "172.17.4.201"
       devices:             # specific devices to use for storage can be specified for each node
-      - name: "sdb"
+      - name: "sdb" # Whole storage device
+      - name: "sdc1" # One specific partition. Should not have a file system on it.
       - name: "/dev/disk/by-id/ata-ST4000DM004-XXXX" # both device name and explicit udev links are supported
       config:         # configuration can be specified at the node level which overrides the cluster level config
         storeType: bluestore
