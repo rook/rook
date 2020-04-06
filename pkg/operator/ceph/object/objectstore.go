@@ -297,6 +297,12 @@ func createSimilarPools(context *Context, pools []string, poolSpec model.Pool, p
 			if err != nil {
 				return errors.Errorf("failed to create pool %s for object store %s", name, context.Name)
 			}
+			if pgCount != ceph.DefaultPGCount {
+				err = ceph.SetPoolProperty(context.Context, context.ClusterName, name, "pg_num_min", pgCount)
+				if err != nil {
+					return errors.Wrapf(err, "failed to set pg_num_min on pool %q to %q", name, pgCount)
+				}
+			}
 		}
 	}
 	return nil
