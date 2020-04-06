@@ -44,7 +44,7 @@ const (
 // Create,Mount,Write,Read,Unmount and Delete.
 func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace, filesystemName string, useCSI bool) {
 	if useCSI {
-		checkSkipCSITest(s, k8sh)
+		checkSkipCSITest(s.T(), k8sh)
 	}
 
 	defer fileTestDataCleanUp(helper, k8sh, s, filePodName, namespace, filesystemName)
