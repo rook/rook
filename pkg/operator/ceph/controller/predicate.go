@@ -173,7 +173,6 @@ func objectChanged(oldObj, newObj runtime.Object) (bool, error) {
 		return doReconcile, nil
 	}
 
-	logger.Debugf("diff is %+v", diff.String())
 	return isValidEvent(diff.Patch), nil
 }
 
@@ -219,7 +218,6 @@ func WatchPredicateForNonCRDObject(owner runtime.Object, scheme *runtime.Scheme)
 				return objectChanged
 			}
 
-			logger.Debugf("object %q did not match on update", object.GetName())
 			return false
 		},
 		GenericFunc: func(e event.GenericEvent) bool {

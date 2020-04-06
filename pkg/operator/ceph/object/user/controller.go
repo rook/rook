@@ -398,7 +398,7 @@ func (r *ReconcileObjectStoreUser) objectStoreInitialized(cephObjectStoreUser *c
 
 	// check if at least one pod is running
 	if len(pods.Items) > 0 {
-		logger.Debugf("CephObjectStore %q is running with %d pods. %v", cephObjectStoreUser.Name, len(pods.Items), pods)
+		logger.Debugf("CephObjectStore %q is running with %d pods", cephObjectStoreUser.Name, len(pods.Items))
 		return nil
 	}
 

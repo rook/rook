@@ -80,7 +80,7 @@ func (suite *SmokeSuite) SetupSuite() {
 	suite.namespace = "smoke-ns"
 	mons := 3
 	rbdMirrorWorkers := 1
-	suite.op, suite.k8sh = StartTestCluster(suite.T, smokeSuiteMinimalTestVersion, suite.namespace, "bluestore", false, false, "", mons, rbdMirrorWorkers, installer.VersionMaster, installer.NautilusVersion, false)
+	suite.op, suite.k8sh = StartTestCluster(suite.T, smokeSuiteMinimalTestVersion, suite.namespace, "bluestore", false, false, "", mons, rbdMirrorWorkers, installer.VersionMaster, installer.OctopusVersion, false)
 	suite.helper = clients.CreateTestClient(suite.k8sh, suite.op.installer.Manifests)
 }
 
