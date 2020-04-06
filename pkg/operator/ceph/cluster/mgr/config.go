@@ -30,7 +30,7 @@ const (
 	keyringTemplate = `
 [mgr.%s]
 	key = %s
-	caps mon = "allow *"
+	caps mon = "allow profile mgr"
 	caps mds = "allow *"
 	caps osd = "allow *"
 `
@@ -58,8 +58,7 @@ func (c *Cluster) dashboardPort() int {
 
 func (c *Cluster) generateKeyring(m *mgrConfig) (string, error) {
 	user := fmt.Sprintf("mgr.%s", m.DaemonID)
-	/* TODO: the access string here does not match the access from the keyring template. should they match? */
-	access := []string{"mon", "allow *", "mds", "allow *", "osd", "allow *"}
+	access := []string{"mon", "allow profile mgr", "mds", "allow *", "osd", "allow *"}
 	s := keyring.GetSecretStore(c.context, c.Namespace, &c.ownerRef)
 
 	key, err := s.GenerateKey(user, access)
