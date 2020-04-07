@@ -251,7 +251,7 @@ func isValidEvent(patch []byte) bool {
 		return false
 	}
 
-	logger.Debugf("will reconcile based on patch %s", patchString)
+	logger.Infof("will reconcile based on patch %s", patchString)
 	return true
 }
 
