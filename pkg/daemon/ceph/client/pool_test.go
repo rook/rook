@@ -122,6 +122,8 @@ func testCreateReplicaPool(t *testing.T, failureDomain, crushRoot, deviceClass s
 			if args[2] == "create" {
 				assert.Equal(t, "mypool", args[3])
 				assert.Equal(t, "replicated", args[5])
+				assert.Equal(t, "--size", args[7])
+				assert.Equal(t, "12345", args[8])
 				return "", nil
 			}
 			if args[2] == "set" {
