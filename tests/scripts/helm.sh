@@ -31,8 +31,7 @@ install() {
         # Download and unpack helm
         local dist
         dist="$(uname -s)"
-        # shellcheck disable=SC2021
-        dist=$(echo "${dist}" | tr "[A-Z]" "[a-z]")
+        dist=$(echo "${dist}" | tr "[:upper:]" "[:lower:]")
         mkdir -p "${temp}"
         wget "https://storage.googleapis.com/kubernetes-helm/helm-v2.13.1-${dist}-${arch}.tar.gz" -O "${temp}/helm.tar.gz"
         tar -C "${temp}" -zxvf "${temp}/helm.tar.gz"
@@ -59,7 +58,7 @@ install() {
         sleep 10
         (( ++INC ))
         helm_ready=$(kubectl get pods -l app=helm -n kube-system -o jsonpath='{.items[0].status.phase}')
-        echo "helm pod status: $(helm_ready)"
+        echo "helm pod status: ${helm_ready}"
     done
 
     if [ "${helm_ready}" != "Running" ]; then
@@ -83,6 +82,12 @@ install() {
 }
 
 helm_reset() {
+    if ! helm_loc="$(type -p "helm")" || [[ -z ${helm_loc} ]]; then
+        local dist
+        dist="$(uname -s)"
+        dist=$(echo "${dist}" | tr "[:upper:]" "[:lower:]")
+        HELM="${temp}/${dist}-${arch}/helm"
+    fi
     "${HELM}" reset
     # shellcheck disable=SC2021
     pgrep "${HELM}" | grep -v grep | awk '{print $2}'| xargs kill -9
