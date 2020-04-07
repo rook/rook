@@ -118,10 +118,10 @@ Now cluster is setup, services can be now created and attached to CSI provisione
 ```console
 efscli service create smb smb-cola
 efscli service serve smb-cola Hawaii/Cola/bk1
-efscli service config smb-cola X-SMB-OPTS-Cola-bk1 "security = share;guest account = nobody"
+efscli service config smb-cola X-SMB-OPTS-Cola-bk1 "force user = root;public = yes;directory mask = 777;create mask = 666"
 efscli service create smb smb-pepsi
 efscli service serve smb-pepsi Hawaii/Pepsi/bk1
-efscli service config smb-pepsi X-SMB-OPTS-Pepsi-bk1 "security = share;guest account = nobody"
+efscli service config smb-pepsi X-SMB-OPTS-Pepsi-bk1 "force user = root;public = yes;directory mask = 777;create mask = 666"
 ```
 
 Also, notice that we setting password-less configuration for bk1 share.
