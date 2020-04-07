@@ -95,6 +95,8 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Edgefs().V1().S3s().Informer()}, nil
 	case edgefsrookiov1.SchemeGroupVersion.WithResource("s3xs"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Edgefs().V1().S3Xs().Informer()}, nil
+	case edgefsrookiov1.SchemeGroupVersion.WithResource("smbs"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Edgefs().V1().SMBs().Informer()}, nil
 	case edgefsrookiov1.SchemeGroupVersion.WithResource("swifts"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Edgefs().V1().SWIFTs().Informer()}, nil
 
