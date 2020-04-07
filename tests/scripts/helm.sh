@@ -31,8 +31,7 @@ install() {
         # Download and unpack helm
         local dist
         dist="$(uname -s)"
-        # shellcheck disable=SC2021
-        dist=$(echo "${dist}" | tr "[A-Z]" "[a-z]")
+        dist=$(echo "${dist}" | tr "[:upper:]" "[:lower:]")
         mkdir -p "${temp}"
         wget "https://storage.googleapis.com/kubernetes-helm/helm-v2.13.1-${dist}-${arch}.tar.gz" -O "${temp}/helm.tar.gz"
         tar -C "${temp}" -zxvf "${temp}/helm.tar.gz"
@@ -86,8 +85,7 @@ helm_reset() {
     if ! helm_loc="$(type -p "helm")" || [[ -z ${helm_loc} ]]; then
         local dist
         dist="$(uname -s)"
-        # shellcheck disable=SC2021
-        dist=$(echo "${dist}" | tr "[A-Z]" "[a-z]")
+        dist=$(echo "${dist}" | tr "[:upper:]" "[:lower:]")
         HELM="${temp}/${dist}-${arch}/helm"
     fi
     "${HELM}" reset
