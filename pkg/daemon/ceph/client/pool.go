@@ -282,7 +282,7 @@ func CreateReplicatedPoolForApp(context *clusterd.Context, namespace, poolName s
 		return err
 	}
 
-	args := []string{"osd", "pool", "create", poolName, pgCount, "replicated", poolName}
+	args := []string{"osd", "pool", "create", poolName, pgCount, "replicated", poolName, "--size", strconv.FormatUint(uint64(pool.Replicated.Size), 10)}
 	output, err := NewCephCommand(context, namespace, args).Run()
 	if err != nil {
 		return errors.Wrapf(err, "failed to create replicated pool %s. %s", poolName, string(output))
