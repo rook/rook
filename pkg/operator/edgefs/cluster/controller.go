@@ -254,7 +254,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	ISGWController.StartWatch(cluster.stopCh)
 
 	cluster.childControllers = []childController{
-		NFSController, S3Controller, S3XController, SWIFTController, ISCSIController, ISGWController,
+		NFSController, SMBController, S3Controller, S3XController, SWIFTController, ISCSIController, ISGWController,
 	}
 
 	// add the finalizer to the crd

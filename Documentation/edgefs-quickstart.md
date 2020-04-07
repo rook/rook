@@ -15,7 +15,7 @@ from other pods running in your cluster, in decentralized ways.
 
 ## Minimum Version
 
-EdgeFS operator, CSI plugin and CRDs were tested with Kubernetes **v1.11** or higher.
+EdgeFS operator, CSI plugin and CRDs were tested with Kubernetes **v1.13** or higher.
 
 ## Prerequisites
 
