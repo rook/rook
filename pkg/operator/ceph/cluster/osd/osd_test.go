@@ -291,8 +291,9 @@ func TestGetOSDInfo(t *testing.T) {
 
 	node := "n1"
 	location := "root=default host=myhost zone=myzone"
-	osd1 := OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "dev/logical-volume-path", Location: location}
-	osd2 := OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: ""}
+	osd1 := OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "dev/logical-volume-path", CVMode: "raw", Location: location}
+	osd2 := OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "vg1/lv1", CVMode: "lvm", LVBackedPV: true}
+	osd3 := OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: ""}
 	osdProp := osdProperties{
 		crushHostname: node,
 		pvc:           v1.PersistentVolumeClaimVolumeSource{ClaimName: "pvc"},
@@ -308,10 +309,19 @@ func TestGetOSDInfo(t *testing.T) {
 	assert.Equal(t, 1, len(osds1))
 	assert.Equal(t, osd1.ID, osds1[0].ID)
 	assert.Equal(t, osd1.BlockPath, osds1[0].BlockPath)
+	assert.Equal(t, osd1.CVMode, osds1[0].CVMode)
 	assert.Equal(t, location, osds1[0].Location)
 
 	d2, _ := c.makeDeployment(osdProp, osd2, dataPathMap)
-	osds2, err := c.getOSDInfo(d2)
-	assert.Equal(t, 0, len(osds2))
+	osds2, _ := c.getOSDInfo(d2)
+	assert.Equal(t, 1, len(osds2))
+	assert.Equal(t, osd2.ID, osds2[0].ID)
+	assert.Equal(t, osd2.BlockPath, osds2[0].BlockPath)
+	assert.Equal(t, osd2.CVMode, osds2[0].CVMode)
+	assert.Equal(t, osd2.LVBackedPV, osds2[0].LVBackedPV)
+
+	d3, _ := c.makeDeployment(osdProp, osd3, dataPathMap)
+	osds3, err := c.getOSDInfo(d3)
+	assert.Equal(t, 0, len(osds3))
 	assert.NotNil(t, err)
 }

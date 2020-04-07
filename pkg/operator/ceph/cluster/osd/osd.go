@@ -697,6 +697,13 @@ func (c *Cluster) getOSDInfo(d *apps.Deployment) ([]OSDInfo, error) {
 		if envVar.Name == "ROOK_CV_MODE" {
 			osd.CVMode = envVar.Value
 		}
+		if envVar.Name == "ROOK_LV_BACKED_PV" {
+			lvBackedPV, err := strconv.ParseBool(envVar.Value)
+			if err != nil {
+				return []OSDInfo{}, errors.Wrap(err, "error parsing ROOK_LV_BACKED_PV")
+			}
+			osd.LVBackedPV = lvBackedPV
+		}
 		if envVar.Name == "ROOK_METADATA_DEVICE" {
 			osd.MetadataPath = envVar.Value
 		}
