@@ -170,6 +170,11 @@ func (c *Cluster) initializeSecureDashboard() (bool, error) {
 			return false, nil
 		}
 	}
+	if c.dashboard.ReadOnly {
+		if err := c.setAdminReadOnly(); err != nil {
+			return false, errors.Wrap(err, "failed to set read-only for admin in the ceph dashboard")
+		}
+	}
 
 	if err := c.setLoginCredentials(password); err != nil {
 		return false, errors.Wrapf(err, "failed to set login credentials for the ceph dashboard")
@@ -225,6 +230,25 @@ func (c *Cluster) setLoginCredentials(password string) error {
 	}
 
 	logger.Infof("successfully set ceph dashboard creds")
+	return nil
+}
+
+func (c *Cluster) setAdminReadOnly() error {
+	// Set the login credentials. Write the command/args to the debug log so we don't write the password by default to the log.
+	logger.Infof("setting ceph dashboard %q user to read-only", dashboardUsername)
+
+	// retry a few times in the case that the mgr module is not ready to accept commands
+	_, err := client.ExecuteCephCommandWithRetry(func() (string, []byte, error) {
+		args := []string{"dashboard", "ac-user-set-roles", dashboardUsername, "read-only"}
+		cmd := client.NewCephCommand(c.context, c.Namespace, args)
+		output, err := cmd.RunWithTimeout(client.CmdExecuteTimeout)
+		return "set dashboard role", output, err
+	}, c.exitCode, 5, invalidArgErrorCode, dashboardInitWaitTime)
+	if err != nil {
+		return errors.Wrap(err, "failed to set read-only role")
+	}
+
+	logger.Info("successfully set ceph dashboard user to read-only")
 	return nil
 }
 

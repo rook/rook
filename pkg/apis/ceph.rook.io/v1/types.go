@@ -132,6 +132,8 @@ type DashboardSpec struct {
 	Port int `json:"port,omitempty"`
 	// Whether SSL should be used
 	SSL bool `json:"ssl,omitempty"`
+	// Dashboard Admin user have read-only role
+	ReadOnly bool `json:"readonly,omitempty"`
 }
 
 // MonitoringSpec represents the settings for Prometheus based Ceph monitoring

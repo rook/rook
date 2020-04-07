@@ -60,6 +60,7 @@ The following dashboard configuration settings are supported:
       urlPrefix: /ceph-dashboard
       port: 8443
       ssl: true
+      readonly: false
 ```
 
 * `urlPrefix` If you are accessing the dashboard via a reverse proxy, you may
@@ -71,6 +72,8 @@ The following dashboard configuration settings are supported:
 * `ssl` The dashboard may be served without SSL (useful for when you deploy the
   dashboard behind a proxy already served using SSL) by setting the `ssl` option
   to be false.
+
+* `readonly` assigns admin user read-only role
 
 ## Viewing the Dashboard External to the Cluster
 

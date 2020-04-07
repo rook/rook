@@ -75,6 +75,7 @@ func TestStartSecureDashboard(t *testing.T) {
 	enables := 0
 	disables := 0
 	moduleRetries := 0
+	readonly := 0
 	exitCodeResponse := 0
 	clientset := test.New(t, 3)
 	executor := &exectest.MockExecutor{
@@ -96,6 +97,9 @@ func TestStartSecureDashboard(t *testing.T) {
 					return "", errors.New("test failure")
 				}
 			}
+			if args[0] == "dashboard" && args[1] == "ac-user-set-roles" {
+				readonly++
+			}
 			return "", nil
 		},
 	}
@@ -107,7 +111,7 @@ func TestStartSecureDashboard(t *testing.T) {
 		CephVersion: cephver.Nautilus,
 	}
 	c := &Cluster{clusterInfo: clusterInfo, context: &clusterd.Context{Clientset: clientset, Executor: executor}, Namespace: "myns",
-		dashboard: cephv1.DashboardSpec{Port: dashboardPortHTTP, Enabled: true, SSL: true}, cephVersion: cephv1.CephVersionSpec{Image: "ceph/ceph:v13.2.2"}}
+		dashboard: cephv1.DashboardSpec{Port: dashboardPortHTTP, Enabled: true, SSL: true, ReadOnly: true}, cephVersion: cephv1.CephVersionSpec{Image: "ceph/ceph:v13.2.2"}}
 	c.exitCode = func(err error) (int, bool) {
 		if exitCodeResponse != 0 {
 			return exitCodeResponse, true
@@ -138,6 +142,7 @@ func TestStartSecureDashboard(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 2, enables)
 	assert.Equal(t, 2, disables)
+	assert.Equal(t, 1, readonly)
 
 	svc, err = c.context.Clientset.CoreV1().Services(c.Namespace).Get("rook-ceph-mgr-dashboard", metav1.GetOptions{})
 	assert.NotNil(t, err)
