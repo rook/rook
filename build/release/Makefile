@@ -74,7 +74,7 @@ S3_SYNC_DEL := aws s3 sync --only-show-errors --delete
 # ====================================================================================
 # tools
 
-MANIFEST_TOOL_VERSION=v1.0.0
+MANIFEST_TOOL_VERSION=v1.0.2
 MANIFEST_TOOL := $(TOOLS_HOST_DIR)/manifest-tool-$(MANIFEST_TOOL_VERSION)
 
 $(MANIFEST_TOOL):
