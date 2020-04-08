@@ -24,7 +24,7 @@ First deploy the Rook NFS operator using the following commands:
 
 ```console
 git clone --single-branch --branch {{ branchName }} https://github.com/rook/rook.git
-cd cluster/examples/kubernetes/nfs
+cd rook/cluster/examples/kubernetes/nfs
 kubectl create -f operator.yaml
 ```
 

@@ -21,7 +21,7 @@ First deploy the Rook CockroachDB operator using the following commands:
 
 ```console
 git clone --single-branch --branch {{ branchName }} https://github.com/rook/rook.git
-cd cluster/examples/kubernetes/cockroachdb
+cd rook/cluster/examples/kubernetes/cockroachdb
 kubectl create -f operator.yaml
 ```
 

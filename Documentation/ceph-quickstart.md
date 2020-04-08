@@ -31,7 +31,7 @@ If you're feeling lucky, a simple Rook cluster can be created with the following
 
 ```console
 git clone --single-branch --branch {{ branchName }} https://github.com/rook/rook.git
-cd cluster/examples/kubernetes/ceph
+cd rook/cluster/examples/kubernetes/ceph
 kubectl create -f common.yaml
 kubectl create -f operator.yaml
 kubectl create -f cluster.yaml

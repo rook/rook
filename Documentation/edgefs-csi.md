@@ -107,7 +107,7 @@ Check configuration options and create kubernetes secret for Edgefs CSI NFS plug
 
 ```console
 git clone --single-branch --branch {{ branchName }} https://github.com/rook/rook.git
-cd cluster/examples/kubernetes/edgefs/csi/nfs
+cd rook/cluster/examples/kubernetes/edgefs/csi/nfs
 kubectl create secret generic edgefs-nfs-csi-driver-config --from-file=./edgefs-nfs-csi-driver-config.yaml
 ```
 
