@@ -49,7 +49,7 @@ If you're feeling lucky, a simple EdgeFS Rook cluster can be created with the fo
 
 ```console
 git clone --single-branch --branch {{ branchName }} https://github.com/rook/rook.git
-cd cluster/examples/kubernetes/edgefs
+cd rook/cluster/examples/kubernetes/edgefs
 kubectl create -f operator.yaml
 kubectl create -f cluster.yaml
 ```
