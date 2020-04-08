@@ -22,7 +22,7 @@ First deploy the Rook Cassandra Operator using the following commands:
 
 ```console
 git clone --single-branch --branch {{ branchName }} https://github.com/rook/rook.git
-cd cluster/examples/kubernetes/cassandra
+cd rook/cluster/examples/kubernetes/cassandra
 kubectl apply -f operator.yaml
 ```
 
