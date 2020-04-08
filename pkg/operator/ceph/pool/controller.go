@@ -33,6 +33,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -131,12 +132,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 
 	// The CR was just created, initializing status fields
 	if cephBlockPool.Status == nil {
-		cephBlockPool.Status = &cephv1.Status{}
-		cephBlockPool.Status.Phase = k8sutil.Created
-		err := opcontroller.UpdateStatus(r.client, cephBlockPool)
-		if err != nil {
-			return reconcile.Result{}, errors.Wrap(err, "failed to set status")
-		}
+		updateStatus(r.client, request.NamespacedName, k8sutil.Created)
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
@@ -190,30 +186,17 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		return reconcile.Result{}, errors.Wrapf(err, "invalid pool CR %q spec", cephBlockPool.Name)
 	}
 
-	// Start object reconciliation, updating status for this
-	cephBlockPool.Status.Phase = k8sutil.ReconcilingStatus
-	err = opcontroller.UpdateStatus(r.client, cephBlockPool)
-	if err != nil {
-		return reconcile.Result{}, errors.Wrap(err, "failed to set status")
-	}
+	updateStatus(r.client, request.NamespacedName, k8sutil.ReconcilingStatus)
 
 	// CREATE/UPDATE
 	reconcileResponse, err = r.reconcileCreatePool(cephBlockPool)
 	if err != nil {
-		cephBlockPool.Status.Phase = k8sutil.ReconcileFailedStatus
-		errStatus := opcontroller.UpdateStatus(r.client, cephBlockPool)
-		if errStatus != nil {
-			logger.Errorf("failed to set status. %v", errStatus)
-		}
+		updateStatus(r.client, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return reconcileResponse, errors.Wrapf(err, "failed to create pool %q.", cephBlockPool.GetName())
 	}
 
 	// Set Ready status, we are done reconciling
-	cephBlockPool.Status.Phase = k8sutil.ReadyStatus
-	err = opcontroller.UpdateStatus(r.client, cephBlockPool)
-	if err != nil {
-		return reconcile.Result{}, errors.Wrap(err, "failed to set status")
-	}
+	updateStatus(r.client, request.NamespacedName, k8sutil.ReadyStatus)
 
 	// Return and do not requeue
 	logger.Debug("done reconciling")
@@ -259,4 +242,29 @@ func deletePool(context *clusterd.Context, p *cephv1.CephBlockPool) error {
 	}
 
 	return nil
+}
+
+// updateStatus updates a pool CR with the given status
+func updateStatus(client client.Client, poolName types.NamespacedName, status string) {
+	pool := &cephv1.CephBlockPool{}
+	err := client.Get(context.TODO(), poolName, pool)
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			logger.Debug("CephBlockPool resource not found. Ignoring since object must be deleted.")
+			return
+		}
+		logger.Warningf("failed to retrieve pool %q to update status to %q. %v", poolName, status, err)
+		return
+	}
+
+	if pool.Status == nil {
+		pool.Status = &cephv1.Status{}
+	}
+
+	pool.Status.Phase = status
+	if err := opcontroller.UpdateStatus(client, pool); err != nil {
+		logger.Warningf("failed to set pool %q status to %q. %v", pool.Name, status, err)
+		return
+	}
+	logger.Debugf("pool %q status updated to %q", poolName, status)
 }
