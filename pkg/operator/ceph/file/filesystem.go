@@ -33,7 +33,7 @@ import (
 
 const (
 	dataPoolSuffix     = "data"
-	metadataPoolSuffix = "metadata"
+	metaDataPoolSuffix = "metadata"
 	appName            = "cephfs"
 )
 
@@ -140,6 +140,26 @@ func newFS(name, namespace string) *Filesystem {
 	}
 }
 
+// SetPoolSize function sets the sizes for MetadataPool and dataPool
+func SetPoolSize(f *Filesystem, context *clusterd.Context, spec cephv1.FilesystemSpec) error {
+	// generating the metadata pool's name
+	metadataPoolName := generateMetaDataPoolName(f)
+	err := client.CreatePoolWithProfile(context, f.Namespace, metadataPoolName, spec.MetadataPool, appName)
+	if err != nil {
+		return errors.Wrapf(err, "failed to update metadata pool %q", metadataPoolName)
+	}
+	// generating the data pool's name
+	dataPoolNames := generateDataPoolNames(f, spec)
+	for i, pool := range spec.DataPools {
+		poolName := dataPoolNames[i]
+		err := client.CreatePoolWithProfile(context, f.Namespace, poolName, pool, appName)
+		if err != nil {
+			return errors.Wrapf(err, "failed to update datapool  %q", poolName)
+		}
+	}
+	return nil
+}
+
 // doFilesystemCreate starts the Ceph file daemons and creates the filesystem in Ceph.
 func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, cephVersion cephver.CephVersion, spec cephv1.FilesystemSpec) error {
 
@@ -155,6 +175,9 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, cephVersion c
 					fmt.Sprintf("USER should verify that the number of active mdses is %d with 'ceph fs get %s'", spec.MetadataServer.ActiveCount, f.Name) +
 					fmt.Sprintf(". %v", err),
 			)
+		}
+		if err := SetPoolSize(f, context, spec); err != nil {
+			return errors.Wrap(err, "failed to set pools size")
 		}
 		return nil
 	}
@@ -184,7 +207,7 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, cephVersion c
 	}
 
 	poolsCreated := false
-	metadataPoolName := fmt.Sprintf("%s-%s", f.Name, metadataPoolSuffix)
+	metadataPoolName := generateMetaDataPoolName(f)
 	if _, poolFound := reversedPoolMap[metadataPoolName]; !poolFound {
 		poolsCreated = true
 		err = client.CreatePoolWithProfile(context, f.Namespace, metadataPoolName, spec.MetadataPool, "")
@@ -193,10 +216,9 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, cephVersion c
 		}
 	}
 
-	var dataPoolNames []string
+	dataPoolNames := generateDataPoolNames(f, spec)
 	for i, pool := range spec.DataPools {
-		poolName := fmt.Sprintf("%s-%s%d", f.Name, dataPoolSuffix, i)
-		dataPoolNames = append(dataPoolNames, poolName)
+		poolName := dataPoolNames[i]
 		if _, poolFound := reversedPoolMap[poolName]; !poolFound {
 			poolsCreated = true
 			err = client.CreatePoolWithProfile(context, f.Namespace, poolName, pool, "")
@@ -231,4 +253,19 @@ func downFilesystem(context *clusterd.Context, namespace, filesystemName string)
 	}
 	logger.Infof("Downed filesystem %s", filesystemName)
 	return nil
+}
+
+// generateDataPoolName generates DataPool name by prefixing the filesystem name to the constant DataPoolSuffix
+func generateDataPoolNames(f *Filesystem, spec cephv1.FilesystemSpec) []string {
+	var dataPoolNames []string
+	for i := range spec.DataPools {
+		poolName := fmt.Sprintf("%s-%s%d", f.Name, dataPoolSuffix, i)
+		dataPoolNames = append(dataPoolNames, poolName)
+	}
+	return dataPoolNames
+}
+
+// generateMetaDataPoolName generates MetaDataPool name by prefixing the filesystem name to the constant metaDataPoolSuffix
+func generateMetaDataPoolName(f *Filesystem) string {
+	return fmt.Sprintf("%s-%s", f.Name, metaDataPoolSuffix)
 }
