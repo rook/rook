@@ -25,6 +25,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/daemon/ceph/config"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -39,15 +40,17 @@ type cephStatusChecker struct {
 	namespace    string
 	resourceName string
 	interval     time.Duration
+	externalCred config.ExternalCred
 }
 
 // newCephStatusChecker creates a new HealthChecker object
-func newCephStatusChecker(context *clusterd.Context, namespace, resourceName string) *cephStatusChecker {
+func newCephStatusChecker(context *clusterd.Context, namespace, resourceName string, externalCred config.ExternalCred) *cephStatusChecker {
 	c := &cephStatusChecker{
 		context:      context,
 		namespace:    namespace,
 		resourceName: resourceName,
 		interval:     defaultStatusCheckInterval,
+		externalCred: externalCred,
 	}
 
 	// allow overriding the check interval with an env var on the operator
@@ -80,8 +83,24 @@ func (c *cephStatusChecker) checkCephStatus(stopCh chan struct{}) {
 
 // checkStatus queries the status of ceph health then updates the CR status
 func (c *cephStatusChecker) checkStatus() {
+	var status client.CephStatus
+	var err error
+
 	logger.Debugf("checking health of cluster")
-	status, err := client.Status(c.context, c.namespace)
+
+	// Set the user health check to the admin user
+	healthCheckUser := client.AdminUsername
+
+	// This is an external cluster OR if the admin keyring is not present
+	// As of 1.3 an external cluster is deployed it uses a different user to check ceph's status
+	if c.externalCred.Username != "" && c.externalCred.Secret != "" {
+		if c.externalCred.Username != client.AdminUsername {
+			healthCheckUser = c.externalCred.Username
+		}
+	}
+
+	// Check ceph's status
+	status, err = client.StatusWithUser(c.context, c.namespace, healthCheckUser)
 	if err != nil {
 		logger.Errorf("failed to get ceph status. %v", err)
 		return

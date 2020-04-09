@@ -158,6 +158,23 @@ func Status(context *clusterd.Context, clusterName string) (CephStatus, error) {
 	return status, nil
 }
 
+func StatusWithUser(context *clusterd.Context, clusterName, userName string) (CephStatus, error) {
+	args := []string{"status", "--format", "json"}
+	command, args := FinalizeCephCommandArgs("ceph", args, context.ConfigDir, clusterName, userName)
+
+	buf, err := context.Executor.ExecuteCommandWithOutput(command, args...)
+	if err != nil {
+		return CephStatus{}, errors.Wrapf(err, "failed to get status. %s", string(buf))
+	}
+
+	var status CephStatus
+	if err := json.Unmarshal([]byte(buf), &status); err != nil {
+		return CephStatus{}, errors.Wrapf(err, "failed to unmarshal status response")
+	}
+
+	return status, nil
+}
+
 // IsClusterClean returns msg (string), clean (bool), err (error)
 // msg describes the state of the PGs
 // clean is true if the cluster is clean

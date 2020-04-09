@@ -31,6 +31,7 @@ type ClusterInfo struct {
 	FSID          string
 	MonitorSecret string
 	AdminSecret   string
+	ExternalCred  ExternalCred
 	Name          string
 	Monitors      map[string]*MonInfo
 	CephVersion   cephver.CephVersion
@@ -40,6 +41,12 @@ type ClusterInfo struct {
 type MonInfo struct {
 	Name     string `json:"name"`
 	Endpoint string `json:"endpoint"`
+}
+
+// ExternalCred represents the external cluster username and key
+type ExternalCred struct {
+	Username string `json:"name"`
+	Secret   string `json:"secret"`
 }
 
 // IsInitialized returns true if the critical information in the ClusterInfo struct has been filled
@@ -62,6 +69,26 @@ func (c *ClusterInfo) IsInitialized() bool {
 	}
 
 	return isInitialized
+}
+
+// IsInitializedExternalCred returns true if the critical information in the ExternalCred struct has been filled
+// in for the external cluster connection
+func (c *ClusterInfo) IsInitializedExternalCred(logError bool) bool {
+	var isInitializedExternalCred bool
+
+	if c.ExternalCred.Username == "" {
+		if logError {
+			logger.Error("external credential username is empty")
+		}
+	} else if c.ExternalCred.Secret == "" {
+		if logError {
+			logger.Error("external credential secret is empty")
+		}
+	} else {
+		isInitializedExternalCred = true
+	}
+
+	return isInitializedExternalCred
 }
 
 // NewMonInfo returns a new Ceph mon info struct from the given inputs.
