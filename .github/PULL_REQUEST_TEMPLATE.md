@@ -9,6 +9,9 @@ Resolves #
 
 **Checklist:**
 
+- [ ] **CommitLint Bot**: Commit titles and messages follow guidelines in the [developer guide](https://rook.io/docs/rook/master/development-flow.html#commit-structure).
+- [ ] **Skip Tests for Docs**: Add the flag for skipping the build if this is only a documentation change. See [here](https://github.com/rook/rook/blob/master/INSTALL.md#skip-ci) for the flag.
+- [ ] **Skip Unrelated Tests**: Add a flag to run tests for a specific storage provider. See [test options](https://github.com/rook/rook/blob/master/INSTALL.md#test-storage-provider).
 - [ ] Reviewed the developer guide on [Submitting a Pull Request](https://rook.io/docs/rook/master/development-flow.html#submitting-a-pull-request)
 - [ ] Documentation has been updated, if necessary.
 - [ ] Unit tests have been added, if necessary.
@@ -16,5 +19,3 @@ Resolves #
 - [ ] Pending release notes updated with breaking and/or notable changes, if necessary.
 - [ ] Upgrade from previous release is tested and upgrade user guide is updated, if necessary.
 - [ ] Code generation (`make codegen`) has been run to update object specifications, if necessary.
-- [ ] Comments have been added or updated based on the standards set in [CONTRIBUTING.md](https://github.com/rook/rook/blob/master/CONTRIBUTING.md#comments)
-- [ ] Add the flag for skipping the CI if this PR does not require a build. See [here](https://github.com/rook/rook/blob/master/INSTALL.md#skip-ci) for more details.
