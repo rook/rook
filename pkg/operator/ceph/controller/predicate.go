@@ -60,14 +60,14 @@ func WatchControllerPredicate() predicate.Funcs {
 				objNew := e.ObjectNew.(*cephv1.CephObjectStore)
 				logger.Debug("update event from the parent object CephObjectStore")
 				diff := cmp.Diff(objOld.Spec, objNew.Spec, resourceQtyComparer)
-				if diff != "" ||
-					objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() ||
-					objOld.GetGeneration() != objNew.GetGeneration() {
+				if diff != "" || objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() {
 					// Checking if diff is not empty so we don't print it when the CR gets deleted
 					if diff != "" {
 						logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
 					}
 					return true
+				} else if objOld.GetGeneration() != objNew.GetGeneration() {
+					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
 				}
 				// Handling upgrades
 				isUpgrade := isUpgrade(objOld.GetLabels(), objNew.GetLabels())
@@ -79,42 +79,42 @@ func WatchControllerPredicate() predicate.Funcs {
 				objNew := e.ObjectNew.(*cephv1.CephObjectStoreUser)
 				logger.Debug("update event from the parent object CephObjectStoreUser")
 				diff := cmp.Diff(objOld.Spec, objNew.Spec, resourceQtyComparer)
-				if diff != "" ||
-					objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() ||
-					objOld.GetGeneration() != objNew.GetGeneration() {
+				if diff != "" || objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() {
 					// Checking if diff is not empty so we don't print it when the CR gets deleted
 					if diff != "" {
 						logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
 					}
 					return true
+				} else if objOld.GetGeneration() != objNew.GetGeneration() {
+					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
 				}
 
 			case *cephv1.CephBlockPool:
 				objNew := e.ObjectNew.(*cephv1.CephBlockPool)
 				logger.Debug("update event from the parent object CephBlockPool")
 				diff := cmp.Diff(objOld.Spec, objNew.Spec, resourceQtyComparer)
-				if diff != "" ||
-					objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() ||
-					objOld.GetGeneration() != objNew.GetGeneration() {
+				if diff != "" || objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() {
 					// Checking if diff is not empty so we don't print it when the CR gets deleted
 					if diff != "" {
 						logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
 					}
 					return true
+				} else if objOld.GetGeneration() != objNew.GetGeneration() {
+					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
 				}
 
 			case *cephv1.CephFilesystem:
 				objNew := e.ObjectNew.(*cephv1.CephFilesystem)
 				logger.Debug("update event from the parent object CephFilesystem")
 				diff := cmp.Diff(objOld.Spec, objNew.Spec, resourceQtyComparer)
-				if diff != "" ||
-					objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() ||
-					objOld.GetGeneration() != objNew.GetGeneration() {
+				if diff != "" || objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() {
 					// Checking if diff is not empty so we don't print it when the CR gets deleted
 					if diff != "" {
 						logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
 					}
 					return true
+				} else if objOld.GetGeneration() != objNew.GetGeneration() {
+					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
 				}
 				// Handling upgrades
 				isUpgrade := isUpgrade(objOld.GetLabels(), objNew.GetLabels())
@@ -126,14 +126,14 @@ func WatchControllerPredicate() predicate.Funcs {
 				objNew := e.ObjectNew.(*cephv1.CephNFS)
 				logger.Debug("update event from the parent object CephNFS")
 				diff := cmp.Diff(objOld.Spec, objNew.Spec, resourceQtyComparer)
-				if diff != "" ||
-					objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() ||
-					objOld.GetGeneration() != objNew.GetGeneration() {
+				if diff != "" || objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() {
 					// Checking if diff is not empty so we don't print it when the CR gets deleted
 					if diff != "" {
 						logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
 					}
 					return true
+				} else if objOld.GetGeneration() != objNew.GetGeneration() {
+					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
 				}
 				// Handling upgrades
 				isUpgrade := isUpgrade(objOld.GetLabels(), objNew.GetLabels())
