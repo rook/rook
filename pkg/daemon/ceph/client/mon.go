@@ -66,3 +66,22 @@ func GetMonQuorumStatus(context *clusterd.Context, clusterName string) (MonStatu
 
 	return resp, nil
 }
+
+// GetMonQuorumStatusHealth calls quorum_status mon_command with a special client key
+func GetMonQuorumStatusHealth(context *clusterd.Context, clusterName, userName string) (MonStatusResponse, error) {
+	args := []string{"quorum_status", "--format", "json"}
+	command, args := FinalizeCephCommandArgs("ceph", args, context.ConfigDir, clusterName, userName)
+
+	buf, err := context.Executor.ExecuteCommandWithOutput(command, args...)
+	if err != nil {
+		return MonStatusResponse{}, errors.Wrap(err, "mon quorum status failed")
+	}
+
+	var resp MonStatusResponse
+	err = json.Unmarshal([]byte(buf), &resp)
+	if err != nil {
+		return MonStatusResponse{}, errors.Wrapf(err, "unmarshal failed. raw buffer response: %s", buf)
+	}
+
+	return resp, nil
+}

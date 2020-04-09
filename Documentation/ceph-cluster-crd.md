@@ -831,25 +831,37 @@ The script will look for the following populated environment variables:
 
 * `NAMESPACE`: the namespace where the configmap and secrets should be injected
 * `ROOK_EXTERNAL_FSID`: the fsid of the external Ceph cluster, it can be retrieved via the `ceph fsid` command
-* `ROOK_EXTERNAL_ADMIN_SECRET`: the external Ceph cluster admin secret key, it can be retrieved via the `ceph auth get-key client.admin` command
 * `ROOK_EXTERNAL_CEPH_MON_DATA`: is a common-separated list of running monitors IP address along with their ports, e.g: `a=172.17.0.4:6789,b=172.17.0.5:6789,c=172.17.0.6:6789`. You don't need to specify all the monitors, you can simply pass one and the Operator will discover the rest. The name of the monitor is the name that appears in the `ceph status` output.
+
+Now, we need to give Rook a key to connect to the cluster in order to perform various operations such as health cluster check, CSI keys management etc...
+It is recommended to generate keys with minimal access so the admin key does not need to be used by the external cluster.
+In this case, the admin key is only needed to generate the keys that will be used by the external cluster.
+But if the admin key is to be used by the external cluster, set the following variable:
+
+* `ROOK_EXTERNAL_ADMIN_SECRET`: **OPTIONAL:** the external Ceph cluster admin secret key, it can be retrieved via the `ceph auth get-key client.admin` command.
+
+> **WARNING**: If you plan to create CRs (pool, rgw, mds, nfs) in the external cluster, you **MUST** inject the client.admin keyring as well as injecting `cluster-external-management.yaml`
 
 **Example**:
 
 ```console
 export NAMESPACE=rook-ceph-external
 export ROOK_EXTERNAL_FSID=3240b4aa-ddbc-42ee-98ba-4ea7b2a61514
-export ROOK_EXTERNAL_ADMIN_SECRET=AQC6Ylxdja+NDBAAB7qy9MEAr4VLLq4dCIvxtg==
 export ROOK_EXTERNAL_CEPH_MON_DATA=a=172.17.0.4:6789
+export ROOK_EXTERNAL_ADMIN_SECRET=AQC6Ylxdja+NDBAAB7qy9MEAr4VLLq4dCIvxtg==
 ```
 
-Then you can simply execute the script like this:
+If the Ceph admin key is not provided, the following script needs to be executed on a machine that can connect to the Ceph cluster using the Ceph admin key.
+On that machine, run `cluster/examples/kubernetes/ceph/create-external-cluster-resources.sh`.
+The script will automatically create users and keys with the lowest possible privileges and populate the necessary environment variables for `cluster/examples/kubernetes/ceph/import-external-cluster.sh` to work correctly.
+
+Finally, you can simply execute the script like this from a machine that has access to your Kubernetes cluster:
 
 ```console
 bash cluster/examples/kubernetes/ceph/import-external-cluster.sh
 ```
 
-#### CephCluster example
+#### CephCluster example (consumer)
 
 Assuming the above section has successfully completed, here is a CR example:
 
@@ -862,10 +874,8 @@ metadata:
 spec:
   external:
     enable: true
-  dataDirHostPath: /var/lib/rook
-  # providing an image is optional, do this if you want to create other CRs (rgw, mds, nfs)
-  cephVersion:
-    image: ceph/ceph:v14.2.9 # MUST match external cluster version
+  crashCollector:
+    disable: true
 ```
 
 Choose the namespace carefully, if you have an existing cluster managed by Rook, you have likely already injected `common.yaml`.
@@ -880,3 +890,25 @@ kubectl create -f cluster/examples/kubernetes/ceph/cluster-external.yaml
 If the previous section has not been completed, the Rook Operator will still acknowledge the CR creation but will wait forever to receive connection information.
 
 > **WARNING**: If no cluster is managed by the current Rook Operator, you need to inject `common.yaml`, then modify `cluster-external.yaml` and specify `rook-ceph` as `namespace`.
+
+#### CephCluster example (management)
+
+The following CephCluster CR represents a cluster that will perform management tasks on the external cluster.
+It will not only act as a consumer but will also allow the deployment of other CRDs such as CephFilesystem or CephObjectStore.
+As mentioned above, you would need to inject the admin keyring for that.
+
+The corresponding YAML example:
+
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephCluster
+metadata:
+  name: rook-ceph-external
+  namespace: rook-ceph-external
+spec:
+  external:
+    enable: true
+  dataDirHostPath: /var/lib/rook
+  cephVersion:
+    image: ceph/ceph:v14.2.9 # Should match external cluster version
+```

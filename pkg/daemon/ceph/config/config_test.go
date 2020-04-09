@@ -99,6 +99,9 @@ func TestGenerateConfigFile(t *testing.T) {
 		CephVersion: cephver.Nautilus,
 	}
 
+	isInitialized := clusterInfo.IsInitialized()
+	assert.True(t, isInitialized)
+
 	// generate the config file to disk now
 	configFilePath, err := GenerateConfigFile(context, clusterInfo, configDir, "myuser", filepath.Join(configDir, "mykeyring"), nil, nil)
 	assert.Nil(t, err)

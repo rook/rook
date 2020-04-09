@@ -37,7 +37,7 @@ func NewContext(context *clusterd.Context, name, clusterName string) *Context {
 }
 
 func runAdminCommandNoRealm(c *Context, args ...string) (string, error) {
-	command, args := client.FinalizeCephCommandArgs("radosgw-admin", args, c.Context.ConfigDir, c.ClusterName)
+	command, args := client.FinalizeCephCommandArgs("radosgw-admin", args, c.Context.ConfigDir, c.ClusterName, client.AdminUsername)
 
 	// start the rgw admin command
 	output, err := c.Context.Executor.ExecuteCommandWithOutput(command, args...)

@@ -33,10 +33,11 @@ func TestFinalizeCephCommandArgs(t *testing.T) {
 		"--connect-timeout=15",
 		"--cluster=rook",
 		"--conf=/var/lib/rook/rook-ceph/rook/rook.config",
+		"--name=client.admin",
 		"--keyring=/var/lib/rook/rook-ceph/rook/client.admin.keyring",
 	}
 
-	cmd, args := FinalizeCephCommandArgs(expectedCommand, args, configDir, clusterName)
+	cmd, args := FinalizeCephCommandArgs(expectedCommand, args, configDir, clusterName, "client.admin")
 	assert.Exactly(t, expectedCommand, cmd)
 	assert.Exactly(t, expectedArgs, args)
 }
@@ -62,10 +63,11 @@ func TestFinalizeRadosGWAdminCommandArgs(t *testing.T) {
 		"--rgw-zonegroup=default-rook",
 		"--cluster=rook",
 		"--conf=/var/lib/rook/rook-ceph/rook/rook.config",
+		"--name=client.admin",
 		"--keyring=/var/lib/rook/rook-ceph/rook/client.admin.keyring",
 	}
 
-	cmd, args := FinalizeCephCommandArgs(expectedCommand, args, configDir, clusterName)
+	cmd, args := FinalizeCephCommandArgs(expectedCommand, args, configDir, clusterName, "client.admin")
 	assert.Exactly(t, expectedCommand, cmd)
 	assert.Exactly(t, expectedArgs, args)
 }
@@ -88,7 +90,7 @@ func TestFinalizeCephCommandArgsToolBox(t *testing.T) {
 		"--connect-timeout=15",
 	}
 
-	cmd, args := FinalizeCephCommandArgs(expectedCommand, args, configDir, clusterName)
+	cmd, args := FinalizeCephCommandArgs(expectedCommand, args, configDir, clusterName, "client.admin")
 	assert.Exactly(t, "kubectl", cmd)
 	assert.Exactly(t, expectedArgs, args)
 }
@@ -104,7 +106,7 @@ func TestFinalizeCephCommandArgsClusterDefaultName(t *testing.T) {
 		"--connect-timeout=15",
 	}
 
-	cmd, args := FinalizeCephCommandArgs(expectedCommand, args, configDir, clusterName)
+	cmd, args := FinalizeCephCommandArgs(expectedCommand, args, configDir, clusterName, "client.admin")
 	assert.Exactly(t, expectedCommand, cmd)
 	assert.Exactly(t, expectedArgs, args)
 }

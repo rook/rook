@@ -81,6 +81,26 @@ func (c *Cluster) checkHealth() error {
 
 	logger.Debugf("Checking health for mons in cluster. %s", c.ClusterInfo.Name)
 
+	// For an external connection we use a special function to get the status
+	if c.spec.External.Enable {
+		var err error
+		var quorumStatus client.MonStatusResponse
+		// backward compatibility for existing deployments on 1.2 that are using the admin key
+		if c.ClusterInfo.AdminSecret != AdminSecretName {
+			quorumStatus, err = client.GetMonQuorumStatus(c.context, c.ClusterInfo.Name)
+			if err != nil {
+				return errors.Wrapf(err, "failed to get external mon quorum status")
+			}
+		} else {
+			quorumStatus, err = client.GetMonQuorumStatusHealth(c.context, c.ClusterInfo.Name, c.ClusterInfo.ExternalCred.Username)
+			if err != nil {
+				return errors.Wrapf(err, "failed to get external mon quorum status")
+			}
+		}
+
+		return c.handleExternalMonStatus(quorumStatus)
+	}
+
 	// connect to the mons
 	// get the status and check for quorum
 	quorumStatus, err := client.GetMonQuorumStatus(c.context, c.ClusterInfo.Name)
@@ -88,9 +108,6 @@ func (c *Cluster) checkHealth() error {
 		return errors.Wrapf(err, "failed to get mon quorum status")
 	}
 	logger.Debugf("Mon quorum status: %+v", quorumStatus)
-	if c.spec.External.Enable {
-		return c.handleExternalMonStatus(quorumStatus)
-	}
 
 	// Use a local mon count in case the user updates the crd in another goroutine.
 	// We need to complete a health check with a consistent value.
@@ -308,22 +325,22 @@ func removeMonitorFromQuorum(context *clusterd.Context, clusterName, name string
 
 func (c *Cluster) handleExternalMonStatus(status client.MonStatusResponse) error {
 	// We don't need to validate Ceph version if no image is present
-	if c.spec.CephVersion.Image == "" {
+	if c.spec.CephVersion.Image != "" {
 		_, err := controller.ValidateCephVersionsBetweenLocalAndExternalClusters(c.context, c.Namespace, c.ClusterInfo.CephVersion)
 		if err != nil {
-			return errors.Wrapf(err, "failed to validate external ceph version")
+			return errors.Wrap(err, "failed to validate external ceph version")
 		}
 	}
 
 	changed, err := c.addOrRemoveExternalMonitor(status)
 	if err != nil {
-		return errors.Wrapf(err, "failed to add or remove external mon")
+		return errors.Wrap(err, "failed to add or remove external mon")
 	}
 
 	// let's save the monitor's config if anything happened
 	if changed {
 		if err := c.saveMonConfig(); err != nil {
-			return errors.Wrapf(err, "failed to save mon config after adding/removing external mon")
+			return errors.Wrap(err, "failed to save mon config after adding/removing external mon")
 		}
 	}
 

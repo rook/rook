@@ -338,7 +338,7 @@ subjects:
 }
 
 func waitForFilesystemActive(k8sh *utils.K8sHelper, namespace, filesystemName string) error {
-	command, args := cephclient.FinalizeCephCommandArgs("ceph", []string{"fs", "status", filesystemName}, k8sh.MakeContext().ConfigDir, namespace)
+	command, args := cephclient.FinalizeCephCommandArgs("ceph", []string{"fs", "status", filesystemName}, k8sh.MakeContext().ConfigDir, namespace, cephclient.AdminUsername)
 	var stat string
 	var err error
 
