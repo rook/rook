@@ -703,7 +703,7 @@ func NewCephInstaller(t func() *testing.T, clientset *kubernetes.Clientset, useH
 		k8sVersion:      version.String(),
 		CephVersion:     cephVersion,
 		cleanupHost:     cleanupHost,
-		changeHostnames: rookVersion != Version1_1 && k8shelp.VersionAtLeast("v1.13.0"),
+		changeHostnames: rookVersion != Version1_2 && k8shelp.VersionAtLeast("v1.13.0"),
 		T:               t,
 	}
 	flag.Parse()
