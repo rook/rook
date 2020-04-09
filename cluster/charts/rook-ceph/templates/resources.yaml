@@ -265,6 +265,8 @@ spec:
                     - force
             preservePoolsOnDelete:
               type: boolean
+  subresources:
+    status: {}
   additionalPrinterColumns:
     - name: ActiveMDS
       type: string
@@ -307,6 +309,8 @@ spec:
                 annotations: {}
                 placement: {}
                 resources: {}
+  subresources:
+    status: {}
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -387,6 +391,8 @@ spec:
                   - force
             preservePoolsOnDelete:
               type: boolean
+  subresources:
+    status: {}
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -404,6 +410,8 @@ spec:
     - objectuser
   scope: Namespaced
   version: v1
+  subresources:
+    status: {}
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -453,6 +461,8 @@ spec:
               - passive
               - aggressive
               - force
+  subresources:
+    status: {}
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -469,6 +479,8 @@ spec:
     - rv
   scope: Namespaced
   version: v1alpha2
+  subresources:
+    status: {}
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -534,3 +546,5 @@ spec:
           properties:
             caps:
               type: object
+  subresources:
+    status: {}
