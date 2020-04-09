@@ -28,7 +28,6 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -240,16 +239,9 @@ func (c *clusterConfig) reconcileService(cephObjectStore *cephv1.CephObjectStore
 		return "", errors.Wrapf(err, "failed to set owner reference to ceph object store")
 	}
 
-	svc, err := c.context.Clientset.CoreV1().Services(cephObjectStore.Namespace).Create(service)
+	svc, err := k8sutil.CreateOrUpdateService(c.context.Clientset, cephObjectStore.Namespace, service)
 	if err != nil {
-		if !kerrors.IsAlreadyExists(err) {
-			return "", errors.Wrapf(err, "failed to create ceph object store service")
-		}
-		svc, err = c.context.Clientset.CoreV1().Services(cephObjectStore.Namespace).Get(instanceName(cephObjectStore.Name), metav1.GetOptions{})
-		if err != nil {
-			return "", errors.Wrapf(err, "failed to get existing service IP")
-		}
-		return svc.Spec.ClusterIP, nil
+		return "", errors.Wrapf(err, "failed to create or update object store %q service", cephObjectStore.Name)
 	}
 
 	logger.Infof("ceph object store gateway service running at %s:%d", svc.Spec.ClusterIP, cephObjectStore.Spec.Gateway.Port)
