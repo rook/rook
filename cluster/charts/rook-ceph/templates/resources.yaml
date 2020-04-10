@@ -117,7 +117,10 @@ spec:
                             pattern: ^(true|false)$
                       useAllDevices:
                         type: boolean
-                      deviceFilter: {}
+                      deviceFilter:
+                        type: string
+                      devicePathFilter:
+                        type: string
                       devices:
                         type: array
                         items:
@@ -129,7 +132,10 @@ spec:
                   type: array
                 useAllDevices:
                   type: boolean
-                deviceFilter: {}
+                deviceFilter:
+                  type: string
+                devicePathFilter:
+                  type: string
                 config: {}
                 storageClassDeviceSets: {}
             monitoring:
@@ -167,10 +173,14 @@ spec:
     - name: Age
       type: date
       JSONPath: .metadata.creationTimestamp
-    - name: State
+    - name: Phase
       type: string
-      description: Current State
-      JSONPath: .status.state
+      description: Phase
+      JSONPath: .status.phase
+    - name: Message
+      type: string
+      description: Message
+      JSONPath: .status.message
     - name: Health
       type: string
       description: Ceph Health
@@ -215,6 +225,8 @@ spec:
                       minimum: 0
                       maximum: 10
                       type: integer
+                    requireSafeReplicaSize:
+                      type: boolean
                 erasureCoded:
                   properties:
                     dataChunks:
@@ -245,6 +257,8 @@ spec:
                         minimum: 0
                         maximum: 10
                         type: integer
+                      requireSafeReplicaSize:
+                        type: boolean
                   erasureCoded:
                     properties:
                       dataChunks:

@@ -1,0 +1,13 @@
+{{- if (ne .Values.clusterNamespace  "") }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{  .Values.clusterNamespace }}
+{{- end }}
+
+{{- if (ne .Release.Namespace  "default") }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{  .Release.Namespace }}
+{{- end }}

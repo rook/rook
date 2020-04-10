@@ -10,7 +10,7 @@ metadata:
 aggregationRule:
   clusterRoleSelectors:
   - matchLabels:
-      rbac.rook.ceph.io/aggregate-to-rook-ceph-cluster-mgmt: "true"
+      rbac.ceph.rook.io/aggregate-to-rook-ceph-cluster-mgmt: "true"
 rules: []
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
@@ -20,7 +20,7 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
-    rbac.rook.ceph.io/aggregate-to-rook-ceph-cluster-mgmt: "true"
+    rbac.ceph.rook.io/aggregate-to-rook-ceph-cluster-mgmt: "true"
 rules:
 - apiGroups:
   - ""
@@ -497,7 +497,7 @@ aggregationRule:
       rbac.ceph.rook.io/aggregate-to-rook-ceph-system-psp-user: "true"
 rules: []
 ---
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: 'psp:rook'
@@ -512,7 +512,7 @@ rules:
   resources:
   - podsecuritypolicies
   resourceNames:
-  - 00-rook-ceph-operator
+  - rook-privileged
   verbs:
   - use
 {{- end }}

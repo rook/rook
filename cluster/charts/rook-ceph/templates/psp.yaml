@@ -14,7 +14,7 @@
 apiVersion: policy/v1beta1
 kind: PodSecurityPolicy
 metadata:
-  name: 00-rook-ceph-operator
+  name: rook-privileged
 spec:
   privileged: true
   allowedCapabilities:

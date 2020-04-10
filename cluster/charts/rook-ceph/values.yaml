@@ -165,3 +165,4 @@ discoverDaemonUdev:
 # imagePullSecrets option allow to pull docker images from private docker registry. Option will be passed to all service accounts.
 # imagePullSecrets:
 # - name: my-registry-secret
+clusterNamespace: ""

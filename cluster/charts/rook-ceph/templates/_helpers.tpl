@@ -24,3 +24,10 @@ imagePullSecrets:
 {{ toYaml .Values.imagePullSecrets }}
 {{- end -}}
 {{- end -}}
+
+{{/*
+Define clusterNamespace option to use a different namespace for a ceph custer.
+*/}}
+{{- define "clusterNamespace" }}
+{{- default .Release.Namespace  .Values.clusterNamespace -}}
+{{- end -}}
