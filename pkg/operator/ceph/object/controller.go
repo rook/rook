@@ -37,6 +37,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -150,12 +151,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 
 	// The CR was just created, initializing status fields
 	if cephObjectStore.Status == nil {
-		cephObjectStore.Status = &cephv1.Status{}
-		cephObjectStore.Status.Phase = k8sutil.Created
-		err := opcontroller.UpdateStatus(r.client, cephObjectStore)
-		if err != nil {
-			return reconcile.Result{}, errors.Wrap(err, "failed to set status")
-		}
+		updateStatus(r.client, request.NamespacedName, k8sutil.Created)
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
@@ -229,24 +225,20 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 
 	// CREATE/UPDATE
 	logger.Info("reconciling object store deployments")
-	reconcileResponse, err = r.reconcileCreateObjectStore(cephObjectStore)
+	reconcileResponse, err = r.reconcileCreateObjectStore(cephObjectStore, request.NamespacedName)
 	if err != nil {
-		return r.setFailedStatus(cephObjectStore, "failed to create object store deployments", err)
+		return r.setFailedStatus(request.NamespacedName, "failed to create object store deployments", err)
 	}
 
 	// Set Ready status, we are done reconciling
-	cephObjectStore.Status.Phase = k8sutil.ReadyStatus
-	err = opcontroller.UpdateStatus(r.client, cephObjectStore)
-	if err != nil {
-		return reconcile.Result{}, errors.Wrap(err, "failed to set status")
-	}
+	updateStatus(r.client, request.NamespacedName, k8sutil.ReadyStatus)
 
 	// Return and do not requeue
 	logger.Debug("done reconciling")
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *cephv1.CephObjectStore) (reconcile.Result, error) {
+func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *cephv1.CephObjectStore, name types.NamespacedName) (reconcile.Result, error) {
 	if r.cephClusterSpec.External.Enable {
 		_, err := opcontroller.ValidateCephVersionsBetweenLocalAndExternalClusters(r.context, cephObjectStore.Namespace, r.clusterInfo.CephVersion)
 		if err != nil {
@@ -272,7 +264,7 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 	logger.Debug("reconciling object store service")
 	serviceIP, err := cfg.reconcileService(cephObjectStore)
 	if err != nil {
-		return r.setFailedStatus(cephObjectStore, "failed to reconcile service", err)
+		return r.setFailedStatus(name, "failed to reconcile service", err)
 	}
 
 	objContext := NewContext(r.context, cephObjectStore.Name, cephObjectStore.Namespace)
@@ -281,14 +273,14 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 	logger.Info("reconciling object store pools")
 	err = createPools(objContext, cephObjectStore.Spec)
 	if err != nil {
-		return r.setFailedStatus(cephObjectStore, "failed to create object pools", err)
+		return r.setFailedStatus(name, "failed to create object pools", err)
 	}
 
 	// RECONCILE REALM
 	logger.Info("reconciling object store realms")
 	err = reconcileRealm(objContext, serviceIP, cephObjectStore.Spec.Gateway.Port)
 	if err != nil {
-		return r.setFailedStatus(cephObjectStore, "failed to create object store realm", err)
+		return r.setFailedStatus(name, "failed to create object store realm", err)
 	}
 
 	err = cfg.createOrUpdateStore()
@@ -299,12 +291,30 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileCephObjectStore) setFailedStatus(cephObjectStore *cephv1.CephObjectStore, errMessage string, err error) (reconcile.Result, error) {
-	cephObjectStore.Status.Phase = k8sutil.ReconcileFailedStatus
-	errStatus := opcontroller.UpdateStatus(r.client, cephObjectStore)
-	if errStatus != nil {
-		logger.Errorf("failed to set status. %v", errStatus)
+func (r *ReconcileCephObjectStore) setFailedStatus(name types.NamespacedName, errMessage string, err error) (reconcile.Result, error) {
+	updateStatus(r.client, name, k8sutil.ReconcileFailedStatus)
+	return reconcile.Result{}, errors.Wrapf(err, "%s", errMessage)
+}
+
+// updateStatus updates an object with a given status
+func updateStatus(client client.Client, name types.NamespacedName, status string) {
+	objectStore := &cephv1.CephObjectStore{}
+	if err := client.Get(context.TODO(), name, objectStore); err != nil {
+		if kerrors.IsNotFound(err) {
+			logger.Debug("CephObjectStore resource not found. Ignoring since object must be deleted.")
+			return
+		}
+		logger.Warningf("failed to retrieve object store %q to update status to %q. %v", name, status, err)
+		return
+	}
+	if objectStore.Status == nil {
+		objectStore.Status = &cephv1.Status{}
 	}
 
-	return reconcile.Result{}, errors.Wrapf(err, "%s", errMessage)
+	objectStore.Status.Phase = status
+	if err := opcontroller.UpdateStatus(client, objectStore); err != nil {
+		logger.Errorf("failed to set object store %q status to %q. %v", name, status, err)
+		return
+	}
+	logger.Debugf("object store %q status updated to %q", name, status)
 }

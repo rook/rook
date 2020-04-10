@@ -24,6 +24,7 @@ import (
 
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -142,12 +143,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 
 	// The CR was just created, initializing status fields
 	if cephObjectStoreUser.Status == nil {
-		cephObjectStoreUser.Status = &cephv1.Status{}
-		cephObjectStoreUser.Status.Phase = k8sutil.Created
-		err := opcontroller.UpdateStatus(r.client, cephObjectStoreUser)
-		if err != nil {
-			return reconcile.Result{}, errors.Wrap(err, "failed to set status")
-		}
+		updateStatus(r.client, request.NamespacedName, k8sutil.Created)
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
@@ -192,11 +188,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 			return reconcile.Result{}, nil
 		}
 		logger.Debugf("ObjectStore resource not ready in namespace %q, retrying in %q. %v", request.NamespacedName.Namespace, opcontroller.WaitForRequeueIfCephClusterNotReadyAfter.String(), err)
-		cephObjectStoreUser.Status.Phase = k8sutil.ReconcileFailedStatus
-		err := opcontroller.UpdateStatus(r.client, cephObjectStoreUser)
-		if err != nil {
-			return reconcile.Result{}, errors.Wrap(err, "failed to set status")
-		}
+		updateStatus(r.client, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return opcontroller.WaitForRequeueIfCephClusterNotReady, nil
 	}
 	// Set the object store context
@@ -227,49 +219,26 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	// validate the user settings
 	err = ValidateUser(cephObjectStoreUser)
 	if err != nil {
-		cephObjectStoreUser.Status.Phase = k8sutil.ReconcileFailedStatus
-		err := opcontroller.UpdateStatus(r.client, cephObjectStoreUser)
-		if err != nil {
-			return reconcile.Result{}, errors.Wrap(err, "failed to set status")
-		}
+		updateStatus(r.client, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return reconcile.Result{}, errors.Wrapf(err, "invalid pool CR %q spec", cephObjectStoreUser.Name)
-	}
-
-	// Start object reconciliation, updating status for this
-	cephObjectStoreUser.Status.Phase = k8sutil.ReconcilingStatus
-	err = opcontroller.UpdateStatus(r.client, cephObjectStoreUser)
-	if err != nil {
-		return reconcile.Result{}, errors.Wrap(err, "failed to set status")
 	}
 
 	// CREATE/UPDATE CEPH USER
 	reconcileResponse, err = r.reconcileCephUser(cephObjectStoreUser)
 	if err != nil {
-		cephObjectStoreUser.Status.Phase = k8sutil.ReconcileFailedStatus
-		errStatus := opcontroller.UpdateStatus(r.client, cephObjectStoreUser)
-		if errStatus != nil {
-			logger.Errorf("failed to set status. %v", errStatus)
-		}
+		updateStatus(r.client, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return reconcileResponse, err
 	}
 
 	// CREATE/UPDATE KUBERNETES SECRET
 	reconcileResponse, err = r.reconcileCephUserSecret(cephObjectStoreUser)
 	if err != nil {
-		cephObjectStoreUser.Status.Phase = k8sutil.ReconcileFailedStatus
-		errStatus := opcontroller.UpdateStatus(r.client, cephObjectStoreUser)
-		if errStatus != nil {
-			logger.Errorf("failed to set status. %v", errStatus)
-		}
+		updateStatus(r.client, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return reconcileResponse, err
 	}
 
 	// Set Ready status, we are done reconciling
-	cephObjectStoreUser.Status.Phase = k8sutil.ReadyStatus
-	err = opcontroller.UpdateStatus(r.client, cephObjectStoreUser)
-	if err != nil {
-		return reconcile.Result{}, errors.Wrap(err, "failed to set status")
-	}
+	updateStatus(r.client, request.NamespacedName, k8sutil.ReadyStatus)
 
 	// Return and do not requeue
 	logger.Debug("done reconciling")
@@ -472,4 +441,27 @@ func ValidateUser(u *cephv1.CephObjectStoreUser) error {
 
 func labelsForRgw(name string) map[string]string {
 	return map[string]string{"rgw": name, k8sutil.AppAttr: appName}
+}
+
+// updateStatus updates an object with a given status
+func updateStatus(client client.Client, name types.NamespacedName, status string) {
+	user := &cephv1.CephObjectStoreUser{}
+	if err := client.Get(context.TODO(), name, user); err != nil {
+		if kerrors.IsNotFound(err) {
+			logger.Debug("CephObjectStoreUser resource not found. Ignoring since object must be deleted.")
+			return
+		}
+		logger.Warningf("failed to retrieve object store user %q to update status to %q. %v", name, status, err)
+		return
+	}
+	if user.Status == nil {
+		user.Status = &cephv1.Status{}
+	}
+
+	user.Status.Phase = status
+	if err := opcontroller.UpdateStatus(client, user); err != nil {
+		logger.Errorf("failed to set object store user %q status to %q. %v", name, status, err)
+		return
+	}
+	logger.Debugf("object store user %q status updated to %q", name, status)
 }

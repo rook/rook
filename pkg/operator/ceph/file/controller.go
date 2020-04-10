@@ -35,6 +35,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -150,12 +151,7 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 
 	// The CR was just created, initializing status fields
 	if cephFilesystem.Status == nil {
-		cephFilesystem.Status = &cephv1.Status{}
-		cephFilesystem.Status.Phase = k8sutil.Created
-		err := opcontroller.UpdateStatus(r.client, cephFilesystem)
-		if err != nil {
-			return reconcile.Result{}, errors.Wrap(err, "failed to set status")
-		}
+		updateStatus(r.client, request.NamespacedName, k8sutil.Created)
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
@@ -230,20 +226,12 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 	logger.Debug("reconciling ceph filesystem store deployments")
 	reconcileResponse, err = r.reconcileCreateFilesystem(cephFilesystem)
 	if err != nil {
-		cephFilesystem.Status.Phase = k8sutil.ReconcileFailedStatus
-		errStatus := opcontroller.UpdateStatus(r.client, cephFilesystem)
-		if errStatus != nil {
-			logger.Errorf("failed to set status. %v", errStatus)
-		}
+		updateStatus(r.client, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return reconcileResponse, err
 	}
 
 	// Set Ready status, we are done reconciling
-	cephFilesystem.Status.Phase = k8sutil.ReadyStatus
-	err = opcontroller.UpdateStatus(r.client, cephFilesystem)
-	if err != nil {
-		return reconcile.Result{}, errors.Wrap(err, "failed to set status")
-	}
+	updateStatus(r.client, request.NamespacedName, k8sutil.ReadyStatus)
 
 	// Return and do not requeue
 	logger.Debug("done reconciling")
@@ -273,4 +261,29 @@ func (r *ReconcileCephFilesystem) reconcileCreateFilesystem(cephFilesystem *ceph
 	}
 
 	return reconcile.Result{}, nil
+}
+
+// updateStatus updates an object with a given status
+func updateStatus(client client.Client, name types.NamespacedName, status string) {
+	fs := &cephv1.CephFilesystem{}
+	err := client.Get(context.TODO(), name, fs)
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			logger.Debug("CephFilesystem resource not found. Ignoring since object must be deleted.")
+			return
+		}
+		logger.Warningf("failed to retrieve filesystem %q to update status to %q. %v", name, status, err)
+		return
+	}
+
+	if fs.Status == nil {
+		fs.Status = &cephv1.Status{}
+	}
+
+	fs.Status.Phase = status
+	if err := opcontroller.UpdateStatus(client, fs); err != nil {
+		logger.Errorf("failed to set filesystem %q status to %q. %v", fs.Name, status, err)
+		return
+	}
+	logger.Debugf("filesystem %q status updated to %q", name, status)
 }

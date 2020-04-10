@@ -36,6 +36,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -149,12 +150,7 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 
 	// The CR was just created, initializing status fields
 	if cephNFS.Status == nil {
-		cephNFS.Status = &cephv1.Status{}
-		cephNFS.Status.Phase = k8sutil.Created
-		err := opcontroller.UpdateStatus(r.client, cephNFS)
-		if err != nil {
-			return reconcile.Result{}, errors.Wrap(err, "failed to set status")
-		}
+		updateStatus(r.client, request.NamespacedName, k8sutil.Created)
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
@@ -228,15 +224,12 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 	logger.Debug("reconciling ceph nfs deployments")
 	reconcileResponse, err = r.reconcileCreateCephNFS(cephNFS)
 	if err != nil {
-		return r.setFailedStatus(cephNFS, "failed to create ceph nfs deployments", err)
+		updateStatus(r.client, request.NamespacedName, k8sutil.FailedStatus)
+		return reconcile.Result{}, errors.Wrapf(err, "failed to create ceph nfs deployments")
 	}
 
 	// Set Ready status, we are done reconciling
-	cephNFS.Status.Phase = k8sutil.ReadyStatus
-	err = opcontroller.UpdateStatus(r.client, cephNFS)
-	if err != nil {
-		return reconcile.Result{}, errors.Wrap(err, "failed to set status")
-	}
+	updateStatus(r.client, request.NamespacedName, k8sutil.ReadyStatus)
 
 	// Return and do not requeue
 	logger.Debug("done reconciling ceph nfs")
@@ -289,12 +282,25 @@ func (r *ReconcileCephNFS) reconcileCreateCephNFS(cephNFS *cephv1.CephNFS) (reco
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileCephNFS) setFailedStatus(cephNFS *cephv1.CephNFS, errMessage string, err error) (reconcile.Result, error) {
-	cephNFS.Status.Phase = k8sutil.ReconcileFailedStatus
-	errStatus := opcontroller.UpdateStatus(r.client, cephNFS)
-	if errStatus != nil {
-		logger.Errorf("failed to set status. %v", errStatus)
+// updateStatus updates an object with a given status
+func updateStatus(client client.Client, name types.NamespacedName, status string) {
+	nfs := &cephv1.CephNFS{}
+	err := client.Get(context.TODO(), name, nfs)
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			logger.Debug("CephNFS resource not found. Ignoring since object must be deleted.")
+			return
+		}
+		logger.Warningf("failed to retrieve nfs %q to update status to %q. %v", name, status, err)
+		return
+	}
+	if nfs.Status == nil {
+		nfs.Status = &cephv1.Status{}
 	}
 
-	return reconcile.Result{}, errors.Wrapf(err, "%s", errMessage)
+	nfs.Status.Phase = status
+	if err := opcontroller.UpdateStatus(client, nfs); err != nil {
+		logger.Errorf("failed to set nfs %q status to %q. %v", nfs.Name, status, err)
+	}
+	logger.Debugf("nfs %q status updated to %q", name, status)
 }
