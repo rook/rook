@@ -32,58 +32,48 @@ var (
 	conditionMap = make(map[cephv1.ConditionType]v1.ConditionStatus)
 )
 
-// ConditionExport function will export each condition into the cluster custom resource
-func ConditionExport(context *clusterd.Context, namespace, name string, conditionType cephv1.ConditionType, status v1.ConditionStatus, reason, message string) {
-	setCondition(context, namespace, name, cephv1.Condition{
+// SetCondition updates the conditions of the cluster custom resource
+func SetCondition(context *clusterd.Context, namespace, name string, conditionType cephv1.ConditionType, status v1.ConditionStatus, reason, message string) {
+	condition := cephv1.Condition{
 		Type:    conditionType,
 		Status:  status,
 		Reason:  reason,
 		Message: message,
-	})
-}
-
-// setCondition updates the conditions of the cluster custom resource
-func setCondition(context *clusterd.Context, namespace, name string, newCondition cephv1.Condition) {
+	}
 	cluster, err := context.RookClientset.CephV1().CephClusters(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		logger.Errorf("failed to get cluster %v", err)
 	}
-	if conditions == nil {
-		conditions = &cluster.Status.Conditions
-		if cluster.Status.Conditions != nil {
-			conditionMapping(*conditions)
-		}
-	}
-	conditionMap[newCondition.Type] = newCondition.Status
-	existingCondition := findStatusCondition(*conditions, newCondition.Type)
+	conditionMap[condition.Type] = condition.Status
+	existingCondition := findStatusCondition(*conditions, condition.Type)
 	if existingCondition == nil {
-		newCondition.LastTransitionTime = metav1.NewTime(time.Now())
-		newCondition.LastHeartbeatTime = metav1.NewTime(time.Now())
-		*conditions = append(*conditions, newCondition)
+		condition.LastTransitionTime = metav1.NewTime(time.Now())
+		condition.LastHeartbeatTime = metav1.NewTime(time.Now())
+		*conditions = append(*conditions, condition)
 
-	} else if existingCondition.Status != newCondition.Status || existingCondition.Message != newCondition.Message {
-		newCondition.LastTransitionTime = metav1.NewTime(time.Now())
-		existingCondition.Status = newCondition.Status
-		existingCondition.Reason = newCondition.Reason
-		existingCondition.Message = newCondition.Message
+	} else if existingCondition.Status != condition.Status || existingCondition.Message != condition.Message {
+		condition.LastTransitionTime = metav1.NewTime(time.Now())
+		existingCondition.Status = condition.Status
+		existingCondition.Reason = condition.Reason
+		existingCondition.Message = condition.Message
 		existingCondition.LastHeartbeatTime = metav1.NewTime(time.Now())
 	}
 	cluster.Status.Conditions = *conditions
 
-	if newCondition.Status == v1.ConditionTrue {
-		cluster.Status.Phase = newCondition.Type
-		if state := translatePhasetoState(newCondition.Type); state != "" {
+	if condition.Status == v1.ConditionTrue {
+		cluster.Status.Phase = condition.Type
+		if state := translatePhasetoState(condition.Type); state != "" {
 			cluster.Status.State = state
 		}
-		cluster.Status.Message = newCondition.Message
+		cluster.Status.Message = condition.Message
 		logger.Infof("CephCluster %q status: %q. %q", namespace, cluster.Status.Phase, cluster.Status.Message)
 	}
 
 	if _, err := context.RookClientset.CephV1().CephClusters(namespace).Update(cluster); err != nil {
 		logger.Errorf("failed to update cluster condition %v", err)
 	}
-	if newCondition.Type == cephv1.ConditionReady {
-		MakeConditionFalse(context, namespace, name)
+	if condition.Type == cephv1.ConditionReady {
+		MarkProgressConditionsCompleted(context, namespace, name)
 	}
 }
 
@@ -117,54 +107,72 @@ func translatePhasetoState(phase cephv1.ConditionType) cephv1.ClusterState {
 	}
 }
 
-// MakeConditionFalse Updates the status of Progressing, Updating or Upgrading to False once cluster is Ready
-func MakeConditionFalse(context *clusterd.Context, namespace, name string) {
-	tempConditionList := []cephv1.ConditionType{cephv1.ConditionUpdating, cephv1.ConditionUpgrading, cephv1.ConditionProgressing}
-	var tempCondition []cephv1.ConditionType
-	for _, conditionType := range tempConditionList {
+// MarkProgressConditionsCompleted Updates the status of Progressing, Updating or Upgrading to False once cluster is Ready
+func MarkProgressConditionsCompleted(context *clusterd.Context, namespace, name string) {
+	conditionsToUpdate := []cephv1.ConditionType{cephv1.ConditionUpdating, cephv1.ConditionUpgrading, cephv1.ConditionProgressing}
+	for _, conditionType := range conditionsToUpdate {
 		if conditionMap[conditionType] == v1.ConditionTrue {
-			tempCondition = append(tempCondition, conditionType)
-		}
-	}
-	for _, conditionType := range tempCondition {
-		reason := ""
-		message := ""
-		if conditionType == cephv1.ConditionUpdating {
-			reason = "UpdateCompleted"
-			message = "Cluster updating is completed"
-		} else if conditionType == cephv1.ConditionUpgrading {
-			reason = "UpgradeCompleted"
-			message = "Cluster upgrading is completed"
-		} else if conditionType == cephv1.ConditionProgressing {
-			reason = "ProgressingCompleted"
-			message = "Cluster progression is completed"
-		}
-		if reason != "" {
-			ConditionExport(context, namespace, name, conditionType, v1.ConditionFalse, reason, message)
+			reason := ""
+			message := ""
+			if conditionType == cephv1.ConditionUpdating {
+				reason = "UpdateCompleted"
+				message = "Cluster updating is completed"
+			} else if conditionType == cephv1.ConditionUpgrading {
+				reason = "UpgradeCompleted"
+				message = "Cluster upgrading is completed"
+			} else if conditionType == cephv1.ConditionProgressing {
+				reason = "ProgressingCompleted"
+				message = "Cluster progression is completed"
+			}
+			if reason != "" {
+				SetCondition(context, namespace, name, conditionType, v1.ConditionFalse, reason, message)
+			}
 		}
 	}
 }
 
 // ConditionInitialize initializes some of the conditions at the beginning of cluster creation
 func ConditionInitialize(context *clusterd.Context, namespace, name string) {
-	setCondition(context, namespace, name, cephv1.Condition{
-		Type:    cephv1.ConditionFailure,
-		Status:  v1.ConditionFalse,
-		Reason:  "",
-		Message: "",
-	})
-	setCondition(context, namespace, name, cephv1.Condition{
-		Type:    cephv1.ConditionIgnored,
-		Status:  v1.ConditionFalse,
-		Reason:  "",
-		Message: "",
-	})
-	setCondition(context, namespace, name, cephv1.Condition{
-		Type:    cephv1.ConditionUpgrading,
-		Status:  v1.ConditionFalse,
-		Reason:  "",
-		Message: "",
-	})
+	cluster, err := context.RookClientset.CephV1().CephClusters(namespace).Get(name, metav1.GetOptions{})
+	if err != nil {
+		logger.Errorf("failed to get cluster %v", err)
+	}
+	if conditions == nil {
+		conditions = &cluster.Status.Conditions
+		if cluster.Status.Conditions != nil {
+			conditionMapping(*conditions)
+		}
+	}
+
+	if conditionMap[cephv1.ConditionReady] != v1.ConditionTrue {
+		conditions = &[]cephv1.Condition{
+			{
+				Type:               cephv1.ConditionFailure,
+				Status:             v1.ConditionFalse,
+				Reason:             "",
+				Message:            "",
+				LastHeartbeatTime:  metav1.NewTime(time.Now()),
+				LastTransitionTime: metav1.NewTime(time.Now()),
+			}, {
+				Type:               cephv1.ConditionIgnored,
+				Status:             v1.ConditionFalse,
+				Reason:             "",
+				Message:            "",
+				LastHeartbeatTime:  metav1.NewTime(time.Now()),
+				LastTransitionTime: metav1.NewTime(time.Now()),
+			}, {
+				Type:               cephv1.ConditionUpgrading,
+				Status:             v1.ConditionFalse,
+				Reason:             "",
+				Message:            "",
+				LastHeartbeatTime:  metav1.NewTime(time.Now()),
+				LastTransitionTime: metav1.NewTime(time.Now()),
+			},
+		}
+		conditionMap[cephv1.ConditionFailure] = v1.ConditionFalse
+		conditionMap[cephv1.ConditionIgnored] = v1.ConditionFalse
+		conditionMap[cephv1.ConditionUpgrading] = v1.ConditionFalse
+	}
 }
 
 // conditionMapping maps the condition type to its status
