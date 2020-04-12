@@ -26,6 +26,7 @@ If after trying the suggestions found on this page and the problem is not resolv
 * [Activate log to file for a particular Ceph daemon](#activate-log-to-file-for-a-particular-ceph-daemon)
 * [Flex storage class versus Ceph CSI storage class](#flex-storage-class-versus-ceph-csi-storage-class)
 * [A worker node using RBD devices hangs up](#a-worker-node-using-rbd-devices-hangs-up)
+* [Too few PGs per OSD warning is shown](#too-few-pgs-per-osd-warning-is-shown)
 
 ## Troubleshooting Techniques
 
@@ -768,3 +769,23 @@ This problem will be solve by the following two fixes.
 * Ceph: A fix that uses the above-mentioned kernel's feature. The Ceph community will probably discuss this fix after releasing Linux v5.6.
 
 You can bypass this problem by using ext4 or any other filesystems rather than XFS. Filesystem type can be specified with `csi.storage.k8s.io/fstype` in StorageClass resource.
+
+## Too few PGs per OSD warning is shown
+
+### Symptoms
+
+- `ceph status` shows "too few PGs per OSD" warning as follows.
+
+```console
+# ceph status
+  cluster:
+    id:     fd06d7c3-5c5c-45ca-bdea-1cf26b783065
+    health: HEALTH_WARN
+            too few PGs per OSD (16 < min 30)
+```
+
+### Solution
+
+The meaning of this warning is written in [the document](https://docs.ceph.com/docs/master/rados/operations/health-checks#too-few-pgs).
+However, in many cases it is benign. For more information, please see [the blog entry](http://ceph.com/community/new-luminous-pg-overdose-protection/).
+Please refer to [Configuring Pools](ceph-advanced-configuration.md#configuring-pools) if you want to know the proper `pg_num` of pools and change these values.
