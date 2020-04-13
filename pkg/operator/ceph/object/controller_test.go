@@ -161,7 +161,18 @@ func TestCephObjectStoreController(t *testing.T) {
 			Name:      store,
 			Namespace: namespace,
 		},
-		Spec:     cephv1.ObjectStoreSpec{},
+		Spec: cephv1.ObjectStoreSpec{
+			MetadataPool: cephv1.PoolSpec{
+				Replicated: cephv1.ReplicatedSpec{
+					Size: 1,
+				},
+			},
+			DataPool: cephv1.PoolSpec{
+				Replicated: cephv1.ReplicatedSpec{
+					Size: 1,
+				},
+			},
+		},
 		TypeMeta: controllerTypeMeta,
 	}
 	cephCluster := &cephv1.CephCluster{}

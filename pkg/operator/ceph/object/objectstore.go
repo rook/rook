@@ -19,7 +19,6 @@ package object
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -281,27 +280,8 @@ func createSimilarPools(context *Context, pools []string, poolSpec cephv1.PoolSp
 	for _, pool := range pools {
 		// create the pool if it doesn't exist yet
 		name := poolName(context.Name, pool)
-		if poolDetails, err := ceph.GetPoolDetails(context.Context, context.ClusterName, name); err != nil {
-			if err := ceph.CreatePoolWithProfile(context.Context, context.ClusterName, name, poolSpec, AppName, pgCount, false); err != nil {
-				return errors.Wrapf(err, "failed to create pool %s for object store %s.", name, context.Name)
-			}
-		} else {
-			// pools already exist
-			if !poolSpec.IsErasureCoded() {
-				// detect if the replication is different from the pool details
-				if poolDetails.Size != poolSpec.Replicated.Size {
-					logger.Infof("pool size is changed from %d to %d", poolDetails.Size, poolSpec.Replicated.Size)
-					if err := ceph.SetPoolReplicatedSizeProperty(context.Context, context.ClusterName, poolDetails.Name, strconv.FormatUint(uint64(poolSpec.Replicated.Size), 10)); err != nil {
-						return errors.Wrapf(err, "failed to set size property to replicated pool %q to %d", poolDetails.Name, poolSpec.Replicated.Size)
-					}
-				}
-			}
-			if pgCount != ceph.DefaultPGCount {
-				err = ceph.SetPoolProperty(context.Context, context.ClusterName, name, "pg_num_min", pgCount)
-				if err != nil {
-					return errors.Wrapf(err, "failed to set pg_num_min on pool %q to %q", name, pgCount)
-				}
-			}
+		if err := ceph.CreatePoolWithProfile(context.Context, context.ClusterName, name, poolSpec, AppName, pgCount, false); err != nil {
+			return errors.Wrapf(err, "failed to create pool %s for object store %s.", name, context.Name)
 		}
 	}
 	return nil

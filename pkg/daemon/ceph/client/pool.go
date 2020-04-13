@@ -46,6 +46,7 @@ type CephStoragePoolDetails struct {
 	CrushRoot              string  `json:"crushRoot"`
 	DeviceClass            string  `json:"deviceClass"`
 	CompressionMode        string  `json:"compression_mode"`
+	PgNumMin               uint    `json:"pg_num_min,omitempty"`
 	TargetSizeRatio        float64 `json:"target_size_ratio,omitempty"`
 	RequireSafeReplicaSize bool    `json:"requireSafeReplicaSize,omitempty"`
 }
@@ -253,16 +254,19 @@ func GetErasureCodeProfileForPool(baseName string) string {
 }
 
 func CreateECPoolForApp(context *clusterd.Context, namespace, poolName string, pool cephv1.PoolSpec, pgCount, appName string, enableECOverwrite bool) error {
-	// create a new erasure code profile for the new pool
-	ecProfileName := GetErasureCodeProfileForPool(poolName)
-	if err := CreateErasureCodeProfile(context, namespace, ecProfileName, pool); err != nil {
-		return errors.Wrapf(err, "failed to create erasure code profile for pool %q", poolName)
-	}
-
-	args := []string{"osd", "pool", "create", poolName, pgCount, "erasure", ecProfileName}
-	output, err := NewCephCommand(context, namespace, args).Run()
+	_, err := GetPoolDetails(context, namespace, poolName)
 	if err != nil {
-		return errors.Wrapf(err, "failed to create EC pool %s. %s", poolName, string(output))
+		// create a new erasure code profile for the new pool
+		ecProfileName := GetErasureCodeProfileForPool(poolName)
+		if err := CreateErasureCodeProfile(context, namespace, ecProfileName, pool); err != nil {
+			return errors.Wrapf(err, "failed to create erasure code profile for pool %q", poolName)
+		}
+
+		args := []string{"osd", "pool", "create", poolName, pgCount, "erasure", ecProfileName}
+		output, err := NewCephCommand(context, namespace, args).Run()
+		if err != nil {
+			return errors.Wrapf(err, "failed to create EC pool %s. %s", poolName, string(output))
+		}
 	}
 
 	if enableECOverwrite {
@@ -280,27 +284,46 @@ func CreateECPoolForApp(context *clusterd.Context, namespace, poolName string, p
 }
 
 func CreateReplicatedPoolForApp(context *clusterd.Context, namespace, poolName string, pool cephv1.PoolSpec, pgCount, appName string) error {
-	// create a crush rule for a replicated pool, if a failure domain is specified
-	if err := createReplicationCrushRule(context, namespace, poolName, pool); err != nil {
-		return err
-	}
-
-	args := []string{"osd", "pool", "create", poolName, pgCount, "replicated", poolName, "--size", strconv.FormatUint(uint64(pool.Replicated.Size), 10)}
-	output, err := NewCephCommand(context, namespace, args).Run()
+	poolDetails, err := GetPoolDetails(context, namespace, poolName)
 	if err != nil {
-		return errors.Wrapf(err, "failed to create replicated pool %s. %s", poolName, string(output))
+		// create a crush rule for a replicated pool, if a failure domain is specified
+		if err := createReplicationCrushRule(context, namespace, poolName, pool); err != nil {
+			return err
+		}
+
+		args := []string{"osd", "pool", "create", poolName, pgCount, "replicated", poolName, "--size", strconv.FormatUint(uint64(pool.Replicated.Size), 10)}
+		output, err := NewCephCommand(context, namespace, args).Run()
+		if err != nil {
+			return errors.Wrapf(err, "failed to create replicated pool %s. %s", poolName, string(output))
+		}
+
+		poolDetails, err = GetPoolDetails(context, namespace, poolName)
+		if err != nil {
+			return errors.Wrapf(err, "failed to get configuration for pool %s.", poolName)
+		}
 	}
 
-	// the pool is type replicated, set the size for the pool now that it's been created
-	if err = SetPoolReplicatedSizeProperty(context, namespace, poolName, strconv.FormatUint(uint64(pool.Replicated.Size), 10)); err != nil {
-		return errors.Wrapf(err, "failed to set size property to replicated pool %q to %d", poolName, pool.Replicated.Size)
+	// detect if the replication is different from the pool details
+	if poolDetails.Size != pool.Replicated.Size {
+		logger.Infof("pool size is changed from %d to %d", poolDetails.Size, pool.Replicated.Size)
+		if err = SetPoolReplicatedSizeProperty(context, namespace, poolName, strconv.FormatUint(uint64(pool.Replicated.Size), 10)); err != nil {
+			return errors.Wrapf(err, "failed to set size property to replicated pool %q to %d", poolDetails.Name, pool.Replicated.Size)
+		}
 	}
 
 	targetSizeRatioProperty := "target_size_ratio"
-	if pool.Replicated.TargetSizeRatio != 0 {
+	if pool.Replicated.TargetSizeRatio != 0 && poolDetails.TargetSizeRatio != pool.Replicated.TargetSizeRatio {
 		err = SetPoolProperty(context, namespace, poolName, targetSizeRatioProperty, strconv.FormatFloat(pool.Replicated.TargetSizeRatio, 'f', -1, 32))
 		if err != nil {
 			return errors.Wrapf(err, "failed to set property %q to replicated pool %q to %.2f", targetSizeRatioProperty, poolName, pool.Replicated.TargetSizeRatio)
+		}
+	}
+
+	pgNumMinProperty := "pg_num_min"
+	if pgCount != DefaultPGCount && strconv.FormatUint(uint64(poolDetails.PgNumMin), 10) == DefaultPGCount {
+		err = SetPoolProperty(context, namespace, poolName, pgNumMinProperty, pgCount)
+		if err != nil {
+			return errors.Wrapf(err, "failed to set %q on pool %q to %q", pgNumMinProperty, poolName, pgCount)
 		}
 	}
 
