@@ -143,9 +143,13 @@ func GetPoolDetails(context *clusterd.Context, namespace, name string) (CephStor
 	return poolDetails, nil
 }
 
-func CreatePoolWithProfile(context *clusterd.Context, namespace, poolName string, pool cephv1.PoolSpec, appName string) error {
+func CreatePoolWithProfileDefaultPG(context *clusterd.Context, namespace, poolName string, pool cephv1.PoolSpec, appName string) error {
+	return CreatePoolWithProfile(context, namespace, poolName, pool, appName, DefaultPGCount, true)
+}
+
+func CreatePoolWithProfile(context *clusterd.Context, namespace, poolName string, pool cephv1.PoolSpec, appName string, pgCount string, enableECOverwrite bool) error {
 	if pool.IsReplicated() {
-		return CreateReplicatedPoolForApp(context, namespace, poolName, pool, DefaultPGCount, appName)
+		return CreateReplicatedPoolForApp(context, namespace, poolName, pool, pgCount, appName)
 	}
 
 	if !pool.IsErasureCoded() {
@@ -153,22 +157,15 @@ func CreatePoolWithProfile(context *clusterd.Context, namespace, poolName string
 		return fmt.Errorf("pool %q type is not defined as replicated or erasure coded", poolName)
 	}
 
-	// create a new erasure code profile for the new pool
-	ecProfileName := GetErasureCodeProfileForPool(poolName)
-	if err := CreateErasureCodeProfile(context, namespace, ecProfileName, pool); err != nil {
-		return errors.Wrapf(err, "failed to create erasure code profile for pool %q", poolName)
-	}
-
 	// If the pool is not a replicated pool, then the only other option is an erasure coded pool.
 	return CreateECPoolForApp(
 		context,
 		namespace,
 		poolName,
-		ecProfileName,
 		pool,
-		DefaultPGCount,
+		pgCount,
 		appName,
-		true /* enableECOverwrite */)
+		enableECOverwrite /* enableECOverwrite */)
 }
 
 func checkForImagesInPool(context *clusterd.Context, name, namespace string) error {
@@ -255,7 +252,13 @@ func GetErasureCodeProfileForPool(baseName string) string {
 	return fmt.Sprintf("%s_ecprofile", baseName)
 }
 
-func CreateECPoolForApp(context *clusterd.Context, namespace, poolName, ecProfileName string, pool cephv1.PoolSpec, pgCount, appName string, enableECOverwrite bool) error {
+func CreateECPoolForApp(context *clusterd.Context, namespace, poolName string, pool cephv1.PoolSpec, pgCount, appName string, enableECOverwrite bool) error {
+	// create a new erasure code profile for the new pool
+	ecProfileName := GetErasureCodeProfileForPool(poolName)
+	if err := CreateErasureCodeProfile(context, namespace, ecProfileName, pool); err != nil {
+		return errors.Wrapf(err, "failed to create erasure code profile for pool %q", poolName)
+	}
+
 	args := []string{"osd", "pool", "create", poolName, pgCount, "erasure", ecProfileName}
 	output, err := NewCephCommand(context, namespace, args).Run()
 	if err != nil {

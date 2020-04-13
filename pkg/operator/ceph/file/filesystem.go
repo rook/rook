@@ -171,7 +171,7 @@ func newFS(name, namespace string) *Filesystem {
 func SetPoolSize(f *Filesystem, context *clusterd.Context, spec cephv1.FilesystemSpec) error {
 	// generating the metadata pool's name
 	metadataPoolName := generateMetaDataPoolName(f)
-	err := client.CreatePoolWithProfile(context, f.Namespace, metadataPoolName, spec.MetadataPool, "")
+	err := client.CreatePoolWithProfileDefaultPG(context, f.Namespace, metadataPoolName, spec.MetadataPool, "")
 	if err != nil {
 		return errors.Wrapf(err, "failed to update metadata pool %q", metadataPoolName)
 	}
@@ -179,7 +179,7 @@ func SetPoolSize(f *Filesystem, context *clusterd.Context, spec cephv1.Filesyste
 	dataPoolNames := generateDataPoolNames(f, spec)
 	for i, pool := range spec.DataPools {
 		poolName := dataPoolNames[i]
-		err := client.CreatePoolWithProfile(context, f.Namespace, poolName, pool, "")
+		err := client.CreatePoolWithProfileDefaultPG(context, f.Namespace, poolName, pool, "")
 		if err != nil {
 			return errors.Wrapf(err, "failed to update datapool  %q", poolName)
 		}
@@ -237,7 +237,7 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, cephVersion c
 	metadataPoolName := generateMetaDataPoolName(f)
 	if _, poolFound := reversedPoolMap[metadataPoolName]; !poolFound {
 		poolsCreated = true
-		err = client.CreatePoolWithProfile(context, f.Namespace, metadataPoolName, spec.MetadataPool, "")
+		err = client.CreatePoolWithProfileDefaultPG(context, f.Namespace, metadataPoolName, spec.MetadataPool, "")
 		if err != nil {
 			return errors.Wrapf(err, "failed to create metadata pool %q", metadataPoolName)
 		}
@@ -248,7 +248,7 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, cephVersion c
 		poolName := dataPoolNames[i]
 		if _, poolFound := reversedPoolMap[poolName]; !poolFound {
 			poolsCreated = true
-			err = client.CreatePoolWithProfile(context, f.Namespace, poolName, pool, "")
+			err = client.CreatePoolWithProfileDefaultPG(context, f.Namespace, poolName, pool, "")
 			if err != nil {
 				return errors.Wrapf(err, "failed to create data pool %q", poolName)
 			}

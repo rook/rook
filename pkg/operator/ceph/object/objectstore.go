@@ -266,42 +266,23 @@ func createPools(context *Context, spec cephv1.ObjectStoreSpec) error {
 		metadataPoolPGs = ceph.DefaultPGCount
 	}
 
-	if err := createSimilarPools(context, append(metadataPools, rootPool), spec.MetadataPool, metadataPoolPGs, ""); err != nil {
+	if err := createSimilarPools(context, append(metadataPools, rootPool), spec.MetadataPool, metadataPoolPGs); err != nil {
 		return errors.Wrap(err, "failed to create metadata pools")
 	}
 
-	ecProfileName := ""
-	if spec.DataPool.IsErasureCoded() {
-		ecProfileName = client.GetErasureCodeProfileForPool(context.Name)
-		// create a new erasure code profile for the data pool
-		if err := ceph.CreateErasureCodeProfile(context.Context, context.ClusterName, ecProfileName, spec.DataPool); err != nil {
-			return errors.Wrapf(err, "failed to create erasure code profile for object store %s", context.Name)
-		}
-	}
-
-	if err := createSimilarPools(context, []string{dataPoolName}, spec.DataPool, ceph.DefaultPGCount, ecProfileName); err != nil {
+	if err := createSimilarPools(context, []string{dataPoolName}, spec.DataPool, ceph.DefaultPGCount); err != nil {
 		return errors.Wrap(err, "failed to create data pool")
 	}
 
 	return nil
 }
 
-func createSimilarPools(context *Context, pools []string, poolSpec cephv1.PoolSpec, pgCount, ecProfileName string) error {
+func createSimilarPools(context *Context, pools []string, poolSpec cephv1.PoolSpec, pgCount string) error {
 	for _, pool := range pools {
 		// create the pool if it doesn't exist yet
 		name := poolName(context.Name, pool)
 		if poolDetails, err := ceph.GetPoolDetails(context.Context, context.ClusterName, name); err != nil {
-			// If the ceph config has an EC profile, an EC pool must be created. Otherwise, it's necessary
-			// to create a replicated pool.
-			var err error
-			if poolSpec.IsErasureCoded() {
-				// An EC pool backing an object store does not need to enable EC overwrites, so the pool is
-				// created with that property disabled to avoid unnecessary performance impact.
-				err = ceph.CreateECPoolForApp(context.Context, context.ClusterName, name, ecProfileName, poolSpec, pgCount, AppName, false /* enableECOverwrite */)
-			} else {
-				err = ceph.CreateReplicatedPoolForApp(context.Context, context.ClusterName, name, poolSpec, pgCount, AppName)
-			}
-			if err != nil {
+			if err := ceph.CreatePoolWithProfile(context.Context, context.ClusterName, name, poolSpec, AppName, pgCount, false); err != nil {
 				return errors.Wrapf(err, "failed to create pool %s for object store %s.", name, context.Name)
 			}
 		} else {

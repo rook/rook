@@ -16,6 +16,7 @@ limitations under the License.
 package client
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -56,13 +57,13 @@ func testCreateECPool(t *testing.T, overwrite bool, compressionMode string) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[1] == "pool" {
 			if args[2] == "create" {
-				assert.Equal(t, "mypool", args[3])
+				assert.Equal(t, poolName, args[3])
 				assert.Equal(t, "erasure", args[5])
-				assert.Equal(t, "mypoolprofile", args[6])
+				assert.Equal(t, fmt.Sprintf("%s_ecprofile", poolName), args[6])
 				return "", nil
 			}
 			if args[2] == "set" {
-				assert.Equal(t, "mypool", args[3])
+				assert.Equal(t, poolName, args[3])
 				if args[4] == "allow_ec_overwrites" {
 					assert.Equal(t, true, overwrite)
 					assert.Equal(t, "true", args[5])
@@ -76,15 +77,23 @@ func testCreateECPool(t *testing.T, overwrite bool, compressionMode string) {
 			}
 			if args[2] == "application" {
 				assert.Equal(t, "enable", args[3])
-				assert.Equal(t, "mypool", args[4])
+				assert.Equal(t, poolName, args[4])
 				assert.Equal(t, "myapp", args[5])
+				return "", nil
+			}
+		}
+		if args[1] == "erasure-code-profile" {
+			if args[2] == "get" {
+				return `{"plugin":"myplugin","technique":"t"}`, nil
+			}
+			if args[2] == "set" {
 				return "", nil
 			}
 		}
 		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
 
-	err := CreateECPoolForApp(context, "myns", poolName, "mypoolprofile", p, DefaultPGCount, "myapp", overwrite)
+	err := CreateECPoolForApp(context, "myns", poolName, p, DefaultPGCount, "myapp", overwrite)
 	assert.Nil(t, err)
 	if compressionMode != "" {
 		assert.True(t, compressionModeCreated)

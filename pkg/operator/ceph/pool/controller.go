@@ -218,7 +218,7 @@ func (r *ReconcileCephBlockPool) reconcileCreatePool(cephBlockPool *cephv1.CephB
 func createPool(context *clusterd.Context, p *cephv1.CephBlockPool) error {
 	// create the pool
 	logger.Infof("creating pool %q in namespace %q", p.Name, p.Namespace)
-	if err := cephclient.CreatePoolWithProfile(context, p.Namespace, p.Name, p.Spec, poolApplicationNameRBD); err != nil {
+	if err := cephclient.CreatePoolWithProfileDefaultPG(context, p.Namespace, p.Name, p.Spec, poolApplicationNameRBD); err != nil {
 		return errors.Wrapf(err, "failed to create pool %q", p.Name)
 	}
 
