@@ -71,14 +71,14 @@ Use [helm.sh](/tests/scripts/helm.sh) to install Helm and set up Rook charts def
 these scripts should be run from project root. e.g., `tests/script/kubeadm.sh up`.
 
 **NOTE**: If Helm is not available in your `PATH`, Helm will be downloaded to a temporary directory (`/tmp/rook-tests-scripts-helm`) and used from that directory.
-The temporary directory the Helm binary is in needs to be given to the `integration` binary calls. The flag for that is `--helm=HELM_BINARY`, e.g., `--helm=/tmp/rook-tests-scripts-helm/linux-amd64/helm`.
 
 ## Run Tests
 From the project root do the following:
-#### 1. Build rook:
+
+### 1. Build rook:
 Run `make build`
 
-#### 2. Start Kubernetes
+### 2. Start Kubernetes
 Using one of the following:
 
 - Using Kubeadm
@@ -94,24 +94,22 @@ tests/scripts/minikube.sh helm
 tests/scripts/helm.sh up
 ```
 
-#### 3. Run integration tests:
-Integration tests can be run using tests binary `_output/tests/${platform}/integration` that is generated during build time e.g.:
-```
-_output/tests/${platform}/integration -test.v
-```
+### 3. Run integration tests:
 
-### Running Tests with parameters.
-#### To run all integration tests run
+Some settings are available to run the tests under different environments. The settings are all configured with environment variables.
+See [environment.go](/tests/framework/installer/environment.go) for the available environment variables.
+
+To run all integration tests:
 ```
 go test -v -timeout 1800s github.com/rook/rook/tests/integration
 ```
 
-#### To run a specific suite (uses regex)
+To run a specific suite (uses regex):
 ```
 go test -v -timeout 1800s -run CephSmokeSuite github.com/rook/rook/tests/integration
 ```
 
-#### To run specific tests inside a suite:
+To run specific tests inside a suite:
 ```
 go test -v -timeout 1800s -run CephSmokeSuite github.com/rook/rook/tests/integration -testify.m TestRookClusterInstallation_SmokeTest
 ```

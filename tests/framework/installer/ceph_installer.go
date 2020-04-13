@@ -333,10 +333,11 @@ func (h *CephInstaller) GetRookExternalClusterMonSecret(namespace string) (*v1.S
 }
 
 func (h *CephInstaller) initTestDir(namespace string) (string, error) {
-	h.hostPathToDelete = path.Join(baseTestDir, "rook-test")
+	h.hostPathToDelete = path.Join(baseTestDir(), "rook-test")
 	testDir := path.Join(h.hostPathToDelete, namespace)
 
-	if createBaseTestDir {
+	// skip the test dir creation if we are not running under "/data"
+	if baseTestDir() != "/data" {
 		// Create the test dir on the local host
 		if err := os.MkdirAll(testDir, 0777); err != nil {
 			return "", err
@@ -401,7 +402,7 @@ func (h *CephInstaller) InstallRook(namespace, storeType string, usePVC bool, st
 	}
 	if !h.k8shelper.IsPodInExpectedState("rook-ceph-operator", onamespace, "Running") {
 		logger.Error("rook-ceph-operator is not running")
-		h.k8shelper.GetLogsFromNamespace(onamespace, "test-setup", Env.HostType)
+		h.k8shelper.GetLogsFromNamespace(onamespace, "test-setup", testEnvName())
 		logger.Error("rook-ceph-operator is not Running, abort!")
 		return false, err
 	}
@@ -664,21 +665,21 @@ func (h *CephInstaller) verifyDirCleanup(node, dir string) error {
 }
 
 func (h *CephInstaller) CollectOperatorLog(suiteName, testName, namespace string) {
-	if !h.T().Failed() && Env.Logs != "all" {
+	if !h.T().Failed() && TestLogCollectionLevel() != "all" {
 		return
 	}
 	name := fmt.Sprintf("%s_%s", suiteName, testName)
-	h.k8shelper.CollectPodLogsFromLabel(cephOperatorLabel, namespace, name, Env.HostType)
+	h.k8shelper.CollectPodLogsFromLabel(cephOperatorLabel, namespace, name, testEnvName())
 }
 
 func (h *CephInstaller) GatherAllRookLogs(testName string, namespaces ...string) {
-	if !h.T().Failed() && Env.Logs != "all" {
+	if !h.T().Failed() && TestLogCollectionLevel() != "all" {
 		return
 	}
 	logger.Infof("gathering all logs from the test")
 	for _, namespace := range namespaces {
-		h.k8shelper.GetLogsFromNamespace(namespace, testName, Env.HostType)
-		h.k8shelper.GetPodDescribeFromNamespace(namespace, testName, Env.HostType)
+		h.k8shelper.GetLogsFromNamespace(namespace, testName, testEnvName())
+		h.k8shelper.GetPodDescribeFromNamespace(namespace, testName, testEnvName())
 	}
 }
 
@@ -703,7 +704,7 @@ func NewCephInstaller(t func() *testing.T, clientset *kubernetes.Clientset, useH
 	h := &CephInstaller{
 		Manifests:       NewCephManifests(rookVersion),
 		k8shelper:       k8shelp,
-		helmHelper:      utils.NewHelmHelper(Env.Helm),
+		helmHelper:      utils.NewHelmHelper(testHelmPath()),
 		useHelm:         useHelm,
 		k8sVersion:      version.String(),
 		CephVersion:     cephVersion,

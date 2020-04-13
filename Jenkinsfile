@@ -197,10 +197,14 @@ def RunIntegrationTest(k, v) {
                               set -o pipefail
                               export PATH="/tmp/rook-tests-scripts-helm/linux-amd64:$PATH" \
                                   KUBECONFIG=$HOME/admin.conf \
+                                  TEST_HELM_PATH=/tmp/rook-tests-scripts-helm/linux-amd64/helm \
+                                  TEST_ENV_NAME='''+"${k}"+''' \
+                                  TEST_BASE_DIR="WORKING_DIR" \
+                                  TEST_LOG_COLLECTION_LEVEL='''+"${env.getLogs}"+''' \
                                   STORAGE_PROVIDER_TESTS='''+"${env.testProvider}"+''' \
                                   TEST_ARGUMENTS='''+"${env.testArgs}"+'''
                               kubectl config view
-                              _output/tests/linux_amd64/integration -test.v -test.timeout 7200s --base_test_dir "" --host_type '''+"${k}"+''' --logs '''+"${env.getLogs}"+''' --helm /tmp/rook-tests-scripts-helm/linux-amd64/helm 2>&1 | tee _output/tests/integrationTests.log'''
+                              _output/tests/linux_amd64/integration -test.v -test.timeout 7200s 2>&1 | tee _output/tests/integrationTests.log'''
                     }
                     finally{
                         sh "journalctl -u kubelet > _output/tests/kubelet_${v}.log"
