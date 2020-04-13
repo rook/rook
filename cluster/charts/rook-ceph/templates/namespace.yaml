@@ -1,4 +1,4 @@
-{{- if (ne .Values.clusterNamespace  "") }}
+{{- if (ne .Values.clusterNamespace "") }}
 apiVersion: v1
 kind: Namespace
 metadata:
