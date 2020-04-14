@@ -162,10 +162,10 @@ func (ci *CassandraInstaller) UninstallCassandra(systemNamespace string, namespa
 }
 
 func (ci *CassandraInstaller) GatherAllCassandraLogs(systemNamespace, namespace, testName string) {
-	if !ci.T().Failed() && Env.Logs != "all" {
+	if !ci.T().Failed() && TestLogCollectionLevel() != "all" {
 		return
 	}
 	logger.Infof("Gathering all logs from Cassandra Cluster %s", namespace)
-	ci.k8sHelper.GetLogsFromNamespace(systemNamespace, testName, Env.HostType)
-	ci.k8sHelper.GetLogsFromNamespace(namespace, testName, Env.HostType)
+	ci.k8sHelper.GetLogsFromNamespace(systemNamespace, testName, testEnvName())
+	ci.k8sHelper.GetLogsFromNamespace(namespace, testName, testEnvName())
 }

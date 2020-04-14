@@ -213,7 +213,7 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 
 func (s *UpgradeSuite) gatherLogs(systemNamespace, testSuffix string) {
 	// Gather logs before Ceph upgrade to help with debugging
-	if installer.Env.Logs == "all" {
+	if installer.TestLogCollectionLevel() == "all" {
 		s.k8sh.PrintPodDescribe(s.namespace)
 	}
 	n := strings.Replace(s.T().Name(), "/", "_", -1) + testSuffix

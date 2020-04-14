@@ -190,10 +190,10 @@ func (h *NFSInstaller) UninstallNFSServer(systemNamespace, namespace string) {
 
 // GatherAllNFSServerLogs gathers all NFS Server logs
 func (h *NFSInstaller) GatherAllNFSServerLogs(systemNamespace, namespace, testName string) {
-	if !h.T().Failed() && Env.Logs != "all" {
+	if !h.T().Failed() && TestLogCollectionLevel() != "all" {
 		return
 	}
 	logger.Infof("Gathering all logs from NFSServer %s", namespace)
-	h.k8shelper.GetLogsFromNamespace(systemNamespace, testName, Env.HostType)
-	h.k8shelper.GetLogsFromNamespace(namespace, testName, Env.HostType)
+	h.k8shelper.GetLogsFromNamespace(systemNamespace, testName, testEnvName())
+	h.k8shelper.GetLogsFromNamespace(namespace, testName, testEnvName())
 }
