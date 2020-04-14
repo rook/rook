@@ -31,7 +31,7 @@ please review this section. By default, Kubernetes clusters do not have PSPs ena
 be able to skip this section.
 
 If you are configuring Ceph on OpenShift, the Ceph walkthrough will configure the PSPs as well
-when you start the operator with [operator-openshift.yaml]((https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/operator-openshift.yaml).
+when you start the operator with [operator-openshift.yaml](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/operator-openshift.yaml).
 
 ### Cluster Role
 
