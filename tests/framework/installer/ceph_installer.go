@@ -804,7 +804,6 @@ spec:
                       # Wipe VGs
                       for vg in $(vgs --noheadings --readonly --separator=' ' -o vg_name); do
                         if [[ $vg =~ ^ceph- ]]; then
-                          lvremove --yes --force "$vg"
                           vgremove --yes --force "$vg"
                         fi
                       done
