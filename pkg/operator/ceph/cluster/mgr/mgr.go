@@ -183,7 +183,7 @@ func (c *Cluster) Start() error {
 			logger.Infof("deployment for mgr %s already exists. updating if needed", resourceName)
 
 			if err := updateDeploymentAndWait(c.context, d, c.Namespace, config.MgrType, mgrConfig.DaemonID, c.skipUpgradeChecks, false); err != nil {
-				logger.Errorf("failed to update mgr deployment %q. %+v", resourceName, err)
+				logger.Errorf("failed to update mgr deployment %q. %v", resourceName, err)
 			}
 		}
 		if existingDeployment, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Get(d.GetName(), metav1.GetOptions{}); err != nil {
