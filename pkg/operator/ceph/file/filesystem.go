@@ -34,7 +34,6 @@ import (
 const (
 	dataPoolSuffix     = "data"
 	metaDataPoolSuffix = "metadata"
-	appName            = "cephfs"
 )
 
 // Filesystem represents an instance of a Ceph filesystem (CephFS)
@@ -144,7 +143,7 @@ func newFS(name, namespace string) *Filesystem {
 func SetPoolSize(f *Filesystem, context *clusterd.Context, spec cephv1.FilesystemSpec) error {
 	// generating the metadata pool's name
 	metadataPoolName := generateMetaDataPoolName(f)
-	err := client.CreatePoolWithProfile(context, f.Namespace, metadataPoolName, spec.MetadataPool, appName)
+	err := client.CreatePoolWithProfile(context, f.Namespace, metadataPoolName, spec.MetadataPool, "")
 	if err != nil {
 		return errors.Wrapf(err, "failed to update metadata pool %q", metadataPoolName)
 	}
@@ -152,7 +151,7 @@ func SetPoolSize(f *Filesystem, context *clusterd.Context, spec cephv1.Filesyste
 	dataPoolNames := generateDataPoolNames(f, spec)
 	for i, pool := range spec.DataPools {
 		poolName := dataPoolNames[i]
-		err := client.CreatePoolWithProfile(context, f.Namespace, poolName, pool, appName)
+		err := client.CreatePoolWithProfile(context, f.Namespace, poolName, pool, "")
 		if err != nil {
 			return errors.Wrapf(err, "failed to update datapool  %q", poolName)
 		}
