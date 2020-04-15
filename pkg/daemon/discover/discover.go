@@ -32,6 +32,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/clusterd"
+	cephcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/sys"
 
@@ -93,7 +94,7 @@ func Run(context *clusterd.Context, probeInterval time.Duration, useCV bool) err
 	}
 
 	udevEvents := make(chan string)
-	go udevBlockMonitor(udevEvents, udevEventPeriod)
+	go udevBlockMonitor(context, udevEvents, udevEventPeriod)
 	for {
 		select {
 		case <-sigc:
@@ -187,7 +188,7 @@ func rawUdevBlockMonitor(c chan string, matches, exclusions []string) {
 
 // Monitors udev for block device changes, and collapses these events such that
 // only one event is emitted per period in order to deal with flapping.
-func udevBlockMonitor(c chan string, period time.Duration) {
+func udevBlockMonitor(context *clusterd.Context, c chan string, period time.Duration) {
 	defer close(c)
 	var udevFilter []string
 
@@ -195,12 +196,12 @@ func udevBlockMonitor(c chan string, period time.Duration) {
 	// events. string matching is case-insensitive
 	events := make(chan string)
 
-	// get discoverDaemonUdevBlacklist from the environment variable
+	// get discoverDaemonUdevBlacklist from the operator setting
 	// if user doesn't provide any regex; generate the default regex
 	// else use the regex provided by user
-	discoverUdev := os.Getenv(discoverDaemonUdev)
-	if discoverUdev == "" {
-		discoverUdev = "(?i)dm-[0-9]+,(?i)rbd[0-9]+,(?i)nbd[0-9]+"
+	discoverUdev, err := k8sutil.GetOperatorSetting(context.Clientset, cephcontroller.OperatorSettingConfigMapName, discoverDaemonUdev, "(?i)dm-[0-9]+,(?i)rbd[0-9]+,(?i)nbd[0-9]+")
+	if err != nil {
+		return
 	}
 	udevFilter = strings.Split(discoverUdev, ",")
 	logger.Infof("using the regular expressions %q", udevFilter)
