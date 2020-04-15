@@ -201,10 +201,9 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 	// DELETE: the CR was deleted
 	if !cephFilesystem.GetDeletionTimestamp().IsZero() {
 		logger.Debugf("deleting filesystem %q", cephFilesystem.Name)
-		err = deleteFilesystem(r.context, r.clusterInfo.CephVersion, *cephFilesystem)
+		err = r.reconcileDeleteFilesystem(cephFilesystem)
 		if err != nil {
 			return reconcile.Result{}, errors.Wrapf(err, "failed to delete filesystem %q. ", cephFilesystem.Name)
-
 		}
 
 		// Remove finalizer
@@ -261,6 +260,21 @@ func (r *ReconcileCephFilesystem) reconcileCreateFilesystem(cephFilesystem *ceph
 	}
 
 	return reconcile.Result{}, nil
+}
+
+func (r *ReconcileCephFilesystem) reconcileDeleteFilesystem(cephFilesystem *cephv1.CephFilesystem) error {
+	// Create the controller owner ref
+	ref, err := opcontroller.GetControllerObjectOwnerReference(cephFilesystem, r.scheme)
+	if err != nil || ref == nil {
+		return errors.Wrapf(err, "failed to get controller %q owner reference", cephFilesystem.Name)
+	}
+
+	err = deleteFilesystem(r.clusterInfo, r.context, *cephFilesystem, r.cephClusterSpec, *ref, r.cephClusterSpec.DataDirHostPath, r.scheme)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // updateStatus updates an object with a given status
