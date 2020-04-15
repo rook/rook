@@ -135,11 +135,19 @@ func WatchControllerPredicate() predicate.Funcs {
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
 				}
-				// Handling upgrades
-				isUpgrade := isUpgrade(objOld.GetLabels(), objNew.GetLabels())
-				if isUpgrade {
+
+			case *cephv1.CephRBDMirror:
+				objNew := e.ObjectNew.(*cephv1.CephRBDMirror)
+				logger.Debug("update event from the parent object CephRBDMirror")
+				diff := cmp.Diff(objOld.Spec, objNew.Spec, resourceQtyComparer)
+				if diff != "" || objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() {
+					// Checking if diff is not empty so we don't print it when the CR gets deleted
+					if diff != "" {
+						logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
+					}
 					return true
 				}
+
 			}
 
 			logger.Debug("wont update unknown object")

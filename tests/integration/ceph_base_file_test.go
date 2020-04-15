@@ -85,7 +85,8 @@ func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.S
 	cleanupFilesystemConsumer(helper, k8sh, s, namespace, filePodName)
 	downscaleMetadataServers(helper, k8sh, s, namespace, filesystemName)
 	cleanupFilesystem(helper, k8sh, s, namespace, filesystemName)
-	helper.BlockClient.DeleteStorageClass(storageClassName)
+	err = helper.BlockClient.DeleteStorageClass(storageClassName)
+	assertNoErrorUnlessNotFound(s, err)
 }
 
 func testNFSDaemons(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, filesystemName string) {

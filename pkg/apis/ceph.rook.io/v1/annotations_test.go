@@ -49,9 +49,6 @@ func TestAnnotationMerge(t *testing.T) {
 	a = GetRGWAnnotations(testAnnotations)
 	assert.Equal(t, "rgwval", a["rgwkey"])
 	assert.Equal(t, 1, len(a))
-	a = GetRBDMirrorAnnotations(testAnnotations)
-	assert.Equal(t, "rbdmirrorval", a["rbdmirrorkey"])
-	assert.Equal(t, 1, len(a))
 
 	// No annotations matching the component
 	testAnnotations = rook.AnnotationsSpec{

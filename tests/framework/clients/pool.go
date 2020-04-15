@@ -19,6 +19,7 @@ package clients
 import (
 	"fmt"
 	"strconv"
+	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
@@ -110,9 +111,16 @@ func (p *PoolOperation) DeletePool(blockClient *BlockOperation, namespace, poolN
 	blockImagesList, _ := blockClient.ListImagesInPool(namespace, poolName)
 	for _, blockImage := range blockImagesList {
 		logger.Infof("force deleting block image %q in pool %q", blockImage, poolName)
-		err := blockClient.DeleteBlockImage(blockImage, namespace)
-		if err != nil {
-			logger.Infof("failed deleting image %q from %q. %v", blockImage, poolName, err)
+		// Wait and retry up to 10 times/seconds to delete RBD images
+		for i := 0; i < 10; i++ {
+			err := blockClient.DeleteBlockImage(blockImage, namespace)
+			if err != nil {
+				logger.Infof("failed deleting image %q from %q. %v", blockImage, poolName, err)
+				time.Sleep(2 * time.Second)
+			} else {
+				break
+			}
+			return fmt.Errorf("gave up waiting for image %q from %q to be deleted. %v", blockImage, poolName, err)
 		}
 	}
 

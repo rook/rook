@@ -31,3 +31,5 @@ type CephNFSExpansion interface{}
 type CephObjectStoreExpansion interface{}
 
 type CephObjectStoreUserExpansion interface{}
+
+type CephRBDMirrorExpansion interface{}

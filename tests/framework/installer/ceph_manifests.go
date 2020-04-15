@@ -25,8 +25,10 @@ import (
 )
 
 const (
-	Version1_1 = "v1.1.9"
-	Version1_2 = "v1.2.6"
+	// Version1_2 rook version 1.2
+	Version1_2 = "v1.2.7"
+	// Version1_3 rook version 1.3
+	Version1_3 = "v1.3.1"
 )
 
 type CephManifests interface {
@@ -43,6 +45,7 @@ type CephManifests interface {
 	GetBlockPVCDef(claimName, namespace, storageClassName, accessModes, size string) string
 	GetFilesystem(namepace, name string, activeCount int) string
 	GetNFS(namepace, name, pool string, daemonCount int) string
+	GetRBDMirror(namepace, name string, daemonCount int) string
 	GetObjectStore(namespace, name string, replicaCount, port int) string
 	GetObjectStoreUser(namespace, name, displayName, store string) string
 	GetBucketStorageClass(namespace, storeName, storageClassName, reclaimPolicy, region string) string
@@ -77,8 +80,8 @@ func NewCephManifests(version string) CephManifests {
 	switch version {
 	case VersionMaster:
 		return &CephManifestsMaster{imageTag: VersionMaster}
-	case Version1_1:
-		return &CephManifestsV1_1{imageTag: Version1_1}
+	case Version1_2:
+		return &CephManifestsV1_2{imageTag: Version1_2}
 	}
 	panic(fmt.Errorf("unrecognized ceph manifest version: %s", version))
 }
@@ -641,6 +644,31 @@ spec:
                 mds:
                   type: string
   subresources:
+    status: {}
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: cephrbdmirrors.ceph.rook.io
+spec:
+  group: ceph.rook.io
+  names:
+    kind: CephRBDMirror
+    listKind: CephRBDMirrorList
+    plural: cephrbdmirrors
+    singular: cephrbdmirror
+  scope: Namespaced
+  version: v1
+  validation:
+    openAPIV3Schema:
+      properties:
+        spec:
+          properties:
+            count:
+              type: integer
+              minimum: 1
+              maximum: 100
+  subresources:
     status: {}`
 }
 
@@ -759,7 +787,9 @@ rules:
 - apiGroups:
   - ""
   resources:
+  # Pod access is needed for fencing
   - pods
+  # Node access is needed for determining nodes where mons should run
   - nodes
   - nodes/proxy
   - services
@@ -771,6 +801,7 @@ rules:
   - ""
   resources:
   - events
+    # PVs and PVCs are managed by the Rook provisioner
   - persistentvolumes
   - persistentvolumeclaims
   - endpoints
@@ -1836,8 +1867,6 @@ spec:
   continueUpgradeAfterChecksEvenIfNotHealthy: false
   dashboard:
     enabled: true
-  rbdMirroring:
-    workers: ` + strconv.Itoa(settings.RBDMirrorWorkers) + `
   network:
     hostNetwork: false
   crashCollector:
@@ -1884,8 +1913,6 @@ spec:
   dashboard:
     enabled: true
   skipUpgradeChecks: true
-  rbdMirroring:
-    workers: ` + strconv.Itoa(settings.RBDMirrorWorkers) + `
   metadataDevice:
   storage:
     useAllNodes: true
@@ -1899,76 +1926,6 @@ spec:
     modules:
     - name: pg_autoscaler
       enabled: true`
-}
-
-// GetClusterExternalRoles returns rook-cluster-external manifest
-func (m *CephManifestsMaster) GetClusterExternalRoles(namespace, firstClusterNamespace string) string {
-	return `apiVersion: v1
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-cluster-mgmt
-  namespace: ` + namespace + `
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: rook-ceph-cluster-mgmt
-subjects:
-- kind: ServiceAccount
-  name: rook-ceph-system
-  namespace: ` + firstClusterNamespace + `
----
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-cmd-reporter
-  namespace: ` + namespace + `
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: rook-ceph-cmd-reporter
-subjects:
-- kind: ServiceAccount
-  name: rook-ceph-cmd-reporter
-  namespace: ` + namespace + `
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: rook-ceph-cmd-reporter
-  namespace: ` + namespace + `
----
-kind: Role
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: rook-ceph-cmd-reporter
-  namespace: ` + namespace + `
-rules:
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  - configmaps
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - delete`
-}
-
-// GetRookExternalCluster returns rook-cluster-external manifest
-func (m *CephManifestsMaster) GetRookExternalCluster(settings *ClusterExternalSettings) string {
-	return `apiVersion: ceph.rook.io/v1
-kind: CephCluster
-metadata:
-  name: ` + settings.Namespace + `
-  namespace: ` + settings.Namespace + `
-spec:
-  external:
-    enable: true
-  dataDirHostPath: ` + settings.DataDirHostPath + ``
 }
 
 // GetRookToolBox returns rook-toolbox manifest
@@ -2070,6 +2027,8 @@ parameters:
 
 func (m *CephManifestsMaster) GetFileStorageClassDef(fsName, storageClassName, namespace string) string {
 	// Create a CSI driver storage class
+	csiCephFSNodeSecret := "rook-csi-cephfs-node"
+	csiCephFSProvisionerSecret := "rook-csi-cephfs-provisioner"
 	return `
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
@@ -2080,9 +2039,9 @@ parameters:
   clusterID: ` + namespace + `
   fsName: ` + fsName + `
   pool: ` + fsName + `-data0
-  csi.storage.k8s.io/provisioner-secret-name: rook-csi-cephfs-provisioner
+  csi.storage.k8s.io/provisioner-secret-name: ` + csiCephFSProvisionerSecret + `
   csi.storage.k8s.io/provisioner-secret-namespace: ` + namespace + `
-  csi.storage.k8s.io/node-stage-secret-name: rook-csi-cephfs-node
+  csi.storage.k8s.io/node-stage-secret-name: ` + csiCephFSNodeSecret + `
   csi.storage.k8s.io/node-stage-secret-namespace: ` + namespace + `
 `
 }
@@ -2151,11 +2110,11 @@ spec:
     replicated:
       size: 1
       requireSafeReplicaSize: false
+    compressionMode: passive
   dataPool:
     replicated:
       size: 1
       requireSafeReplicaSize: false
-    compressionMode: passive
   gateway:
     type: s3
     sslCertificateRef:
@@ -2206,7 +2165,6 @@ spec:
   storageClassName: ` + storageClassName
 }
 
-//GetClient returns the manifest to create client CRD
 func (m *CephManifestsMaster) GetClient(namespace string, claimName string, caps map[string]string) string {
 	clientCaps := []string{}
 	for name, cap := range caps {
@@ -2221,4 +2179,83 @@ metadata:
 spec:
   caps:
     ` + strings.Join(clientCaps, "\n    ")
+}
+
+func (m *CephManifestsMaster) GetClusterExternalRoles(namespace, firstClusterNamespace string) string {
+	return `apiVersion: v1
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-cluster-mgmt
+  namespace: ` + namespace + `
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-cluster-mgmt
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-system
+  namespace: ` + firstClusterNamespace + `
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-cmd-reporter
+  namespace: ` + namespace + `
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-ceph-cmd-reporter
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-cmd-reporter
+  namespace: ` + namespace + `
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-ceph-cmd-reporter
+  namespace: ` + namespace + `
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-cmd-reporter
+  namespace: ` + namespace + `
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete`
+}
+
+func (m *CephManifestsMaster) GetRookExternalCluster(settings *ClusterExternalSettings) string {
+	return `apiVersion: ceph.rook.io/v1
+kind: CephCluster
+metadata:
+  name: ` + settings.Namespace + `
+  namespace: ` + settings.Namespace + `
+spec:
+  external:
+    enable: true
+  dataDirHostPath: ` + settings.DataDirHostPath + ``
+}
+
+// GetRBDMirror returns the manifest to create a Rook Ceph RBD Mirror resource with the given config.
+func (m *CephManifestsMaster) GetRBDMirror(namespace, name string, count int) string {
+	return `apiVersion: ceph.rook.io/v1
+kind: CephRBDMirror
+metadata:
+  name: ` + name + `
+  namespace: ` + namespace + `
+spec:
+  count: ` + strconv.Itoa(count)
 }

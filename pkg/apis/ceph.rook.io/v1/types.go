@@ -86,9 +86,6 @@ type ClusterSpec struct {
 	// A spec for mon related options
 	Mon MonSpec `json:"mon,omitempty"`
 
-	// A spec for rbd mirroring
-	RBDMirroring RBDMirroringSpec `json:"rbdMirroring"`
-
 	// A spec for the crash controller
 	CrashCollector CrashCollectorSpec `json:"crashCollector"`
 
@@ -228,10 +225,6 @@ type Module struct {
 // ExternalSpec represents the options supported by an external cluster
 type ExternalSpec struct {
 	Enable bool `json:"enable"`
-}
-
-type RBDMirroringSpec struct {
-	Workers int `json:"workers"`
 }
 
 // CrashCollectorSpec represents options to configure the crash controller
@@ -553,4 +546,40 @@ type ClientSpec struct {
 
 type CleanupPolicySpec struct {
 	DeleteDataDirOnHosts string `json:"deleteDataDirOnHosts"`
+}
+
+// +genclient
+// +genclient:noStatus
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type CephRBDMirror struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+	Spec              RBDMirroringSpec `json:"spec"`
+	Status            *Status          `json:"status"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type CephRBDMirrorList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+	Items           []CephRBDMirror `json:"items"`
+}
+
+type RBDMirroringSpec struct {
+	// Count represents the number of rbd mirror instance to run
+	Count int `json:"count"`
+
+	// The affinity to place the rgw pods (default is to place on any available node)
+	Placement rookv1.Placement `json:"placement"`
+
+	// The annotations-related configuration to add/set on each Pod related object.
+	Annotations rookv1.Annotations `json:"annotations,omitempty"`
+
+	// The resource requirements for the rgw pods
+	Resources v1.ResourceRequirements `json:"resources"`
+
+	// PriorityClassName sets priority classes on the rgw pods
+	PriorityClassName string `json:"priorityClassName,omitempty"`
 }

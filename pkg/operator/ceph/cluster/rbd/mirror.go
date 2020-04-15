@@ -21,22 +21,17 @@ import (
 	"fmt"
 
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
-	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
-	"github.com/rook/rook/pkg/clusterd"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
-
-var logger = capnslog.NewPackageLogger("github.com/rook/rook", "rbd-mirror")
 
 const (
 	// AppName is the ceph rbd mirror  application name
@@ -45,86 +40,49 @@ const (
 	cephRbdMirrorPodMinimumMemory uint64 = 512
 )
 
-// Mirroring represents the Rook and environment configuration settings needed to set up rbd mirroring.
-type Mirroring struct {
-	ClusterInfo       *cephconfig.ClusterInfo
-	Namespace         string
-	placement         rookv1.Placement
-	annotations       rookv1.Annotations
-	context           *clusterd.Context
-	resources         v1.ResourceRequirements
-	priorityClassName string
-	ownerRef          metav1.OwnerReference
-	spec              cephv1.RBDMirroringSpec
-	cephVersion       cephv1.CephVersionSpec
-	rookVersion       string
-	Network           cephv1.NetworkSpec
-	dataDirHostPath   string
-	skipUpgradeChecks bool
-}
-
-// New creates an instance of the rbd mirroring
-func New(
-	cluster *cephconfig.ClusterInfo,
-	context *clusterd.Context,
-	namespace, rookVersion string,
-	cephVersion cephv1.CephVersionSpec,
-	placement rookv1.Placement,
-	annotations rookv1.Annotations,
-	network cephv1.NetworkSpec,
-	spec cephv1.RBDMirroringSpec,
-	resources v1.ResourceRequirements,
-	priorityClassName string,
-	ownerRef metav1.OwnerReference,
-	dataDirHostPath string,
-	skipUpgradeChecks bool,
-) *Mirroring {
-	return &Mirroring{
-		ClusterInfo:       cluster,
-		context:           context,
-		Namespace:         namespace,
-		placement:         placement,
-		annotations:       annotations,
-		rookVersion:       rookVersion,
-		cephVersion:       cephVersion,
-		spec:              spec,
-		Network:           network,
-		resources:         resources,
-		priorityClassName: priorityClassName,
-		ownerRef:          ownerRef,
-		dataDirHostPath:   dataDirHostPath,
-		skipUpgradeChecks: skipUpgradeChecks,
-	}
-}
-
 var updateDeploymentAndWait = mon.UpdateCephDeploymentAndWait
 
 // Start begins the process of running rbd mirroring daemons.
-func (m *Mirroring) Start() error {
+func (r *ReconcileCephRBDMirror) start(cephRBDMirror *cephv1.CephRBDMirror) error {
 	// Validate pod's memory if specified
-	err := controller.CheckPodMemory(m.resources, cephRbdMirrorPodMinimumMemory)
+	err := controller.CheckPodMemory(cephRBDMirror.Spec.Resources, cephRbdMirrorPodMinimumMemory)
 	if err != nil {
 		return errors.Wrap(err, "error checking pod memory")
 	}
 
-	logger.Infof("configure rbd-mirroring with %d workers", m.spec.Workers)
+	// Create the controller owner ref
+	// It will be associated to all resources of the CephRBDMirror
+	ref, err := opcontroller.GetControllerObjectOwnerReference(cephRBDMirror, r.scheme)
+	if err != nil || ref == nil {
+		return errors.Wrapf(err, "failed to get controller %q owner reference", cephRBDMirror.Name)
+	}
 
-	for i := 0; i < m.spec.Workers; i++ {
+	logger.Infof("configure rbd-mirroring with %d workers", cephRBDMirror.Spec.Count)
+
+	for i := 0; i < cephRBDMirror.Spec.Count; i++ {
 		daemonID := k8sutil.IndexToName(i)
 		resourceName := fmt.Sprintf("%s-%s", AppName, daemonID)
 		daemonConf := &daemonConfig{
 			DaemonID:     daemonID,
 			ResourceName: resourceName,
-			DataPathMap:  config.NewDatalessDaemonDataPathMap(m.Namespace, m.dataDirHostPath),
+			DataPathMap:  config.NewDatalessDaemonDataPathMap(cephRBDMirror.Namespace, r.cephClusterSpec.DataDirHostPath),
+			ownerRef:     *ref,
+			namespace:    cephRBDMirror.Namespace,
 		}
 
-		keyring, err := m.generateKeyring(daemonConf)
+		_, err := r.generateKeyring(daemonConf)
 		if err != nil {
 			return errors.Wrapf(err, "failed to generate keyring for %q", resourceName)
 		}
 
 		// Start the deployment
-		d := m.makeDeployment(daemonConf)
+		d := r.makeDeployment(daemonConf, cephRBDMirror)
+
+		// Set owner ref to cephRBDMirror object
+		err = controllerutil.SetControllerReference(cephRBDMirror, d, r.scheme)
+		if err != nil {
+			return errors.Wrapf(err, "failed to set owner reference for ceph filesystem %q secret", d.Name)
+		}
 
 		// Set the deployment hash as an annotation
 		err = patch.DefaultAnnotator.SetLastAppliedAnnotation(d)
@@ -132,37 +90,30 @@ func (m *Mirroring) Start() error {
 			return errors.Wrapf(err, "failed to set annotation for deployment %q", d.Name)
 		}
 
-		if _, err := m.context.Clientset.AppsV1().Deployments(m.Namespace).Create(d); err != nil {
+		if _, err := r.context.Clientset.AppsV1().Deployments(cephRBDMirror.Namespace).Create(d); err != nil {
 			if !kerrors.IsAlreadyExists(err) {
-				return errors.Wrapf(err, "failed to create %s deployment", resourceName)
+				return errors.Wrapf(err, "failed to create %q deployment", resourceName)
 			}
-			logger.Infof("deployment for rbd-mirror %s already exists. updating if needed", resourceName)
+			logger.Infof("deployment for rbd-mirror %q already exists. updating if needed", resourceName)
 
-			if err := updateDeploymentAndWait(m.context, d, m.Namespace, config.RbdMirrorType, daemonConf.DaemonID, m.skipUpgradeChecks, false); err != nil {
+			if err := updateDeploymentAndWait(r.context, d, cephRBDMirror.Namespace, config.RbdMirrorType, daemonConf.DaemonID, r.cephClusterSpec.SkipUpgradeChecks, false); err != nil {
 				// fail could be an issue updating label selector (immutable), so try del and recreate
 				logger.Debugf("updateDeploymentAndWait failed for rbd-mirror %q. Attempting del-and-recreate. %v", resourceName, err)
-				err = m.context.Clientset.AppsV1().Deployments(m.Namespace).Delete(d.Name, &metav1.DeleteOptions{})
+				err = r.context.Clientset.AppsV1().Deployments(cephRBDMirror.Namespace).Delete(cephRBDMirror.Name, &metav1.DeleteOptions{})
 				if err != nil {
-					return errors.Wrapf(err, "failed to delete rbd-mirror %s during del-and-recreate update attempt", resourceName)
+					return errors.Wrapf(err, "failed to delete rbd-mirror %q during del-and-recreate update attempt", resourceName)
 				}
-				if _, err := m.context.Clientset.AppsV1().Deployments(m.Namespace).Create(d); err != nil {
-					return errors.Wrapf(err, "failed to recreate rbd-mirror deployment %s during del-and-recreate update attempt", resourceName)
+				if _, err := r.context.Clientset.AppsV1().Deployments(cephRBDMirror.Namespace).Create(d); err != nil {
+					return errors.Wrapf(err, "failed to recreate rbd-mirror deployment %q during del-and-recreate update attempt", resourceName)
 				}
 			}
 		}
 
-		if existingDeployment, err := m.context.Clientset.AppsV1().Deployments(m.Namespace).Get(d.GetName(), metav1.GetOptions{}); err != nil {
-			logger.Warningf("failed to find rbd-mirror deployment %q for keyring association. %v", resourceName, err)
-		} else {
-			if err = m.associateKeyring(keyring, existingDeployment); err != nil {
-				logger.Warningf("failed to associate keyring with rbd-mirror deployment %q. %v", resourceName, err)
-			}
-		}
-		logger.Infof("%s deployment started", resourceName)
+		logger.Infof("%q deployment started", resourceName)
 	}
 
 	// Remove extra rbd-mirror deployments if necessary
-	err = m.removeExtraMirrors()
+	err = r.removeExtraMirrors(cephRBDMirror)
 	if err != nil {
 		logger.Errorf("failed to remove extra mirrors. %v", err)
 	}
@@ -170,20 +121,20 @@ func (m *Mirroring) Start() error {
 	return nil
 }
 
-func (m *Mirroring) removeExtraMirrors() error {
+func (r *ReconcileCephRBDMirror) removeExtraMirrors(cephRBDMirror *cephv1.CephRBDMirror) error {
 	opts := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", AppName)}
-	d, err := m.context.Clientset.AppsV1().Deployments(m.Namespace).List(opts)
+	d, err := r.context.Clientset.AppsV1().Deployments(cephRBDMirror.Namespace).List(opts)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get mirrors")
 	}
 
-	if len(d.Items) <= m.spec.Workers {
-		logger.Infof("no extra daemons to remove")
+	if len(d.Items) <= cephRBDMirror.Spec.Count {
+		logger.Info("no extra daemons to remove")
 		return nil
 	}
 
 	for _, deploy := range d.Items {
-		daemonName, ok := deploy.Labels["rbdmirror"]
+		daemonName, ok := deploy.Labels["rbd-mirror"]
 		if !ok {
 			logger.Warningf("unrecognized rbdmirror %s", deploy.Name)
 			continue
@@ -193,16 +144,16 @@ func (m *Mirroring) removeExtraMirrors() error {
 			logger.Warningf("unrecognized rbdmirror %s with label %s", deploy.Name, daemonName)
 			continue
 		}
-		if index >= m.spec.Workers {
-			logger.Infof("removing extra rbd-mirror %s", daemonName)
+		if index >= cephRBDMirror.Spec.Count {
+			logger.Infof("removing extra rbd-mirror %q", daemonName)
 			var gracePeriod int64
 			propagation := metav1.DeletePropagationForeground
 			deleteOpts := metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
-			if err = m.context.Clientset.AppsV1().Deployments(m.Namespace).Delete(deploy.Name, &deleteOpts); err != nil {
+			if err = r.context.Clientset.AppsV1().Deployments(cephRBDMirror.Namespace).Delete(deploy.Name, &deleteOpts); err != nil {
 				logger.Warningf("failed to delete rbd-mirror %q. %v", daemonName, err)
 			}
 
-			logger.Infof("removed rbd-mirror %s", daemonName)
+			logger.Infof("removed rbd-mirror %q", daemonName)
 		}
 	}
 	return nil
