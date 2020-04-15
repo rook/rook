@@ -6,7 +6,8 @@ null_str=
 KUBE_INSTALL_VERSION="${KUBE_VERSION/v/$null_str}"-00
 
 # Kubelet cannot run with swap enabled: https://github.com/kubernetes/kubernetes/issues/34726
-# Disabling swap when installing k8s 1.8.x via kubeadm
+# Disabling swap when installing k8s via kubeadm
+which systemctl >/dev/null && sudo systemctl stop swap.target
 sudo swapoff -a
 
 wait_for_dpkg_unlock() {
