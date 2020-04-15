@@ -34,8 +34,12 @@ will have Ceph's default PG count.
 
 An easier option exists for Rook-Ceph clusters running Ceph Nautilus (v14.2.x) or newer. Nautilus
 [introduced the PG auto-scaler mgr module](https://ceph.com/rados/new-in-nautilus-pg-merging-and-autotuning/)
-capable of automatically managing PG and PGP values for pools. This module is not enabled by default
-but can be enabled by the following setting in the [CephCluster CR](ceph-cluster-crd.md#mgr-settings):
+capable of automatically managing PG and PGP values for pools. Please see
+[Ceph New in Nautilus: PG merging and autotuning](https://ceph.io/rados/new-in-nautilus-pg-merging-and-autotuning/)
+for more information about this module.
+
+In Nautilus, This module is not enabled by default, but can be enabled by the following setting
+in the [CephCluster CR](ceph-cluster-crd.md#mgr-settings):
 
 ```yaml
 spec:
@@ -45,10 +49,15 @@ spec:
       enabled: true
 ```
 
+In Octopus (v15.2.x), this module is enabled by default without the above-mentioned setting.
+
 With that setting, the autoscaler will be enabled for all new pools. If you do not desire to have
-the autoscaler enabled for all pools, you will need to use the Rook toolbox to enable the module
+the autoscaler enabled for all new pools, you will need to use the Rook toolbox to enable the module
 and [enable the autoscaling](https://docs.ceph.com/docs/master/rados/operations/placement-groups/)
 on individual pools.
+
+The autoscaler is not enabled for the existing pools after enabling the module. So if you want to
+enable the autoscaling for these existing pools, they must be configured from the toolbox.
 
 ## Specifying configuration options
 
