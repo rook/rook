@@ -493,7 +493,7 @@ func (c *Cluster) startOSDDaemonsOnPVC(pvcName string, config *provisionConfig, 
 
 		if createErr != nil && kerrors.IsAlreadyExists(createErr) {
 			if err = updateDeploymentAndWait(c.context, dp, c.Namespace, opconfig.OsdType, strconv.Itoa(osd.ID), c.skipUpgradeChecks, c.continueUpgradeAfterChecksEvenIfNotHealthy); err != nil {
-				logger.Errorf("failed to update osd deployment %d. %+v", osd.ID, err)
+				logger.Errorf("failed to update osd deployment %d. %v", osd.ID, err)
 			}
 		}
 		logger.Infof("started deployment for osd %d on pvc", osd.ID)
@@ -573,7 +573,7 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 
 		if createErr != nil && kerrors.IsAlreadyExists(createErr) {
 			if err = updateDeploymentAndWait(c.context, dp, c.Namespace, opconfig.OsdType, strconv.Itoa(osd.ID), c.skipUpgradeChecks, c.continueUpgradeAfterChecksEvenIfNotHealthy); err != nil {
-				logger.Errorf("failed to update osd deployment %d. %+v", osd.ID, err)
+				logger.Errorf("failed to update osd deployment %d. %v", osd.ID, err)
 			}
 		}
 		logger.Infof("started deployment for osd %d", osd.ID)

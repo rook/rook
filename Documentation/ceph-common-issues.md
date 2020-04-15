@@ -545,6 +545,15 @@ Here are some key lines to look for in the log:
 ```console
 # A device will be skipped if Rook sees it has partitions or a filesystem
 2019-05-30 19:02:57.353171 W | cephosd: skipping device sda that is in use
+2019-05-30 19:02:57.452168 W | skipping device "sdb5": ["Used by ceph-disk"]
+
+# Other messages about a disk being unusable by ceph include:
+Insufficient space (<5GB) on vgs
+Insufficient space (<5GB)
+LVM detected
+Has BlueStore device label
+locked
+read-only
 
 # A device is going to be configured
 2019-05-30 19:02:57.535598 I | cephosd: device sdc to be configured by ceph-volume
@@ -557,10 +566,12 @@ Here are some key lines to look for in the log:
 
 ### Solution
 
-After you have either updated the CRD with the correct settings, or you have cleaned the partitions or filesystem from your devices,
-you can trigger the operator to analyze the devices again by restarting the operator. Each time the operator starts, it
-will ensure all the desired devices are configured. The operator does automatically deploy OSDs in most scenarios, but an operator restart
-will cover any scenarios that the operator doesn't detect automatically.
+Either update the CR with the correct settings, or clean the partitions or filesystem from your devices.
+To clean devices from a previous install see the [cleanup guide](ceph-teardown.md#zapping-devices).
+
+After the settings are updated or the devices are cleaned, trigger the operator to analyze the devices again by restarting the operator.
+Each time the operator starts, it will ensure all the desired devices are configured. The operator does automatically
+deploy OSDs in most scenarios, but an operator restart will cover any scenarios that the operator doesn't detect automatically.
 
 ```console
 # Restart the operator to ensure devices are configured. A new pod will automatically be started when the current operator pod is deleted.
