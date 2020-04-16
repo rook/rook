@@ -6,7 +6,8 @@ null_str=
 KUBE_INSTALL_VERSION="${KUBE_VERSION/v/$null_str}"-00
 
 # Kubelet cannot run with swap enabled: https://github.com/kubernetes/kubernetes/issues/34726
-# Disabling swap when installing k8s 1.8.x via kubeadm
+# Disabling swap when installing k8s via kubeadm
+which systemctl >/dev/null && sudo systemctl stop swap.target
 sudo swapoff -a
 
 wait_for_dpkg_unlock() {
@@ -47,8 +48,8 @@ sudo apt-get update
 wait_for_dpkg_unlock
 sleep 5
 wait_for_dpkg_unlock
-sudo apt-get install -y kubernetes-cni="0.6.0-00"
-sudo apt-get install -y kubelet="${KUBE_INSTALL_VERSION}"  && sudo apt-get install -y kubeadm="${KUBE_INSTALL_VERSION}"
+sudo apt-get install -y --allow-downgrades kubernetes-cni="0.6.0-00"
+sudo apt-get install -y --allow-downgrades kubelet="${KUBE_INSTALL_VERSION}"  && sudo apt-get install -y --allow-downgrades kubeadm="${KUBE_INSTALL_VERSION}"
 
 #get matching kubectl
 case ${ARCH} in
