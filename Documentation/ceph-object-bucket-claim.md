@@ -26,8 +26,8 @@ metadata:
 spec:
   bucketName: [3]
   generateBucketName: photo-booth [4]
-  storageClassName: rook-ceph-bucket [4]
-  additionalConfig: [5]
+  storageClassName: rook-ceph-bucket [5]
+  additionalConfig: [6]
     ANY_KEY: VALUE ...
 ```
 1. `name` of the `ObjectBucketClaim`. This name becomes the name of the Secret and ConfigMap.
