@@ -81,10 +81,22 @@ func (s *CephFlexDriverSuite) SetupSuite() {
 	s.namespace = "flex-ns"
 	s.pvcNameRWO = "block-persistent-rwo"
 	s.pvcNameRWX = "block-persistent-rwx"
-	useHelm := false
-	mons := 1
-	rbdMirrorWorkers := 1
-	s.op, s.kh = StartTestCluster(s.T, flexDriverMinimalTestVersion, s.namespace, "bluestore", useHelm, false, "", mons, rbdMirrorWorkers, installer.VersionMaster, installer.OctopusVersion, false)
+
+	flexTestCluster := TestCluster{
+		namespace:               s.namespace,
+		storeType:               "bluestore",
+		storageClassName:        "",
+		useHelm:                 false,
+		usePVC:                  false,
+		mons:                    1,
+		rbdMirrorWorkers:        1,
+		rookCephCleanup:         false,
+		minimalMatrixK8sVersion: flexDriverMinimalTestVersion,
+		rookVersion:             installer.VersionMaster,
+		cephVersion:             installer.OctopusVersion,
+	}
+
+	s.op, s.kh = StartTestCluster(s.T, &flexTestCluster)
 	s.testClient = clients.CreateTestClient(s.kh, s.op.installer.Manifests)
 	s.bc = s.testClient.BlockClient
 }

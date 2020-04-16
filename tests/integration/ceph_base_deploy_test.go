@@ -97,16 +97,21 @@ func HandlePanics(r interface{}, op installer.TestSuite, t func() *testing.T) {
 
 // TestCluster struct for handling panic and test suite tear down
 type TestCluster struct {
-	installer        *installer.CephInstaller
-	kh               *utils.K8sHelper
-	helper           *clients.TestClient
-	T                func() *testing.T
-	namespace        string
-	storeType        string
-	storageClassName string
-	usePVC           bool
-	mons             int
-	rbdMirrorWorkers int
+	installer               *installer.CephInstaller
+	kh                      *utils.K8sHelper
+	helper                  *clients.TestClient
+	T                       func() *testing.T
+	namespace               string
+	storeType               string
+	storageClassName        string
+	useHelm                 bool
+	usePVC                  bool
+	mons                    int
+	rbdMirrorWorkers        int
+	rookCephCleanup         bool
+	minimalMatrixK8sVersion string
+	rookVersion             string
+	cephVersion             cephv1.CephVersionSpec
 }
 
 func checkIfShouldRunForMinimalTestMatrix(t func() *testing.T, k8sh *utils.K8sHelper, version string) {
@@ -133,26 +138,25 @@ func checkIfShouldRunForMinimalTestMatrix(t func() *testing.T, k8sh *utils.K8sHe
 }
 
 // StartTestCluster creates new instance of TestCluster struct
-func StartTestCluster(t func() *testing.T, minimalMatrixK8sVersion, namespace, storeType string, useHelm bool, usePVC bool, storageClassName string, mons,
-	rbdMirrorWorkers int, rookVersion string, cephVersion cephv1.CephVersionSpec, cleanupHost bool) (*TestCluster, *utils.K8sHelper) {
-
+func StartTestCluster(t func() *testing.T, cluster *TestCluster) (*TestCluster, *utils.K8sHelper) {
 	kh, err := utils.CreateK8sHelper(t)
 	require.NoError(t(), err)
-	checkIfShouldRunForMinimalTestMatrix(t, kh, minimalMatrixK8sVersion)
+	checkIfShouldRunForMinimalTestMatrix(t, kh, cluster.minimalMatrixK8sVersion)
 
-	i := installer.NewCephInstaller(t, kh.Clientset, useHelm, rookVersion, cephVersion, cleanupHost)
+	cluster.installer = installer.NewCephInstaller(t, kh.Clientset, cluster.useHelm, cluster.rookVersion, cluster.cephVersion, cluster.rookCephCleanup)
+	cluster.kh = kh
+	cluster.helper = nil
+	cluster.T = t
 
-	op := &TestCluster{i, kh, nil, t, namespace, storeType, storageClassName, usePVC, mons, rbdMirrorWorkers}
-
-	if rookVersion != installer.VersionMaster {
+	if cluster.rookVersion != installer.VersionMaster {
 		// make sure we have the images from a previous release locally so the test doesn't hit a timeout
-		assert.NoError(t(), kh.GetDockerImage("rook/ceph:"+rookVersion))
+		assert.NoError(t(), kh.GetDockerImage("rook/ceph:"+cluster.rookVersion))
 	}
 
-	assert.NoError(t(), kh.GetDockerImage(cephVersion.Image))
+	assert.NoError(t(), kh.GetDockerImage(cluster.cephVersion.Image))
 
-	op.Setup()
-	return op, kh
+	cluster.Setup()
+	return cluster, kh
 }
 
 // SetUpRook is a wrapper for setting up rook

@@ -72,21 +72,21 @@ type UpgradeSuite struct {
 
 func (s *UpgradeSuite) SetupSuite() {
 	s.namespace = "upgrade-ns"
-	mons := 1
-	rbdMirrorWorkers := 0
-	s.op, s.k8sh = StartTestCluster(s.T,
-		upgradeMinimalTestVersion,
-		s.namespace,
-		"",
-		false,
-		false,
-		"",
-		mons,
-		rbdMirrorWorkers,
-		installer.Version1_2,
-		installer.NautilusVersion,
-		false,
-	)
+	upgradeTestCluster := TestCluster{
+		namespace:               s.namespace,
+		storeType:               "",
+		storageClassName:        "",
+		useHelm:                 false,
+		usePVC:                  false,
+		mons:                    1,
+		rbdMirrorWorkers:        0,
+		rookCephCleanup:         false,
+		minimalMatrixK8sVersion: upgradeMinimalTestVersion,
+		rookVersion:             installer.Version1_2,
+		cephVersion:             installer.NautilusVersion,
+	}
+
+	s.op, s.k8sh = StartTestCluster(s.T, &upgradeTestCluster)
 	s.helper = clients.CreateTestClient(s.k8sh, s.op.installer.Manifests)
 }
 
