@@ -56,10 +56,11 @@ var provisionerConfigs = map[string]string{
 }
 
 var (
-	// Whether to enable the flex driver. If true, the rook-ceph-agent daemonset will be started.
-	EnableFlexDriver = true
-	// Whether to enable the daemon for device discovery. If true, the rook-ceph-discover daemonset will be started.
-	EnableDiscoveryDaemon = true
+	// EnableFlexDriver Whether to enable the flex driver. If true, the rook-ceph-agent daemonset will be started.
+	EnableFlexDriver bool
+
+	// EnableDiscoveryDaemon Whether to enable the daemon for device discovery. If true, the rook-ceph-discover daemonset will be started.
+	EnableDiscoveryDaemon bool
 
 	// ImmediateRetryResult Return this for a immediate retry of the reconciliation loop with the same request object.
 	ImmediateRetryResult = reconcile.Result{Requeue: true}
