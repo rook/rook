@@ -48,8 +48,8 @@ sudo apt-get update
 wait_for_dpkg_unlock
 sleep 5
 wait_for_dpkg_unlock
-sudo apt-get install -y kubernetes-cni="0.6.0-00"
-sudo apt-get install -y kubelet="${KUBE_INSTALL_VERSION}"  && sudo apt-get install -y kubeadm="${KUBE_INSTALL_VERSION}"
+sudo apt-get install -y --allow-downgrades kubernetes-cni="0.6.0-00"
+sudo apt-get install -y --allow-downgrades kubelet="${KUBE_INSTALL_VERSION}"  && sudo apt-get install -y --allow-downgrades kubeadm="${KUBE_INSTALL_VERSION}"
 
 #get matching kubectl
 case ${ARCH} in
