@@ -47,11 +47,21 @@ type MonInfo struct {
 // of the ClusterInfo struct during startup, specifically that it is expected to exist after the
 // Rook operator has started up or connected to the first components of the Ceph cluster.
 func (c *ClusterInfo) IsInitialized() bool {
-	if c == nil || c.FSID == "" || c.MonitorSecret == "" || c.AdminSecret == "" {
-		logger.Errorf("clusterInfo: %+v", c)
-		return false
+	var isInitialized bool
+
+	if c == nil {
+		logger.Error("clusterInfo is nil")
+	} else if c.FSID == "" {
+		logger.Error("cluster fsid is empty")
+	} else if c.MonitorSecret == "" {
+		logger.Error("monitor secret is empty")
+	} else if c.AdminSecret == "" {
+		logger.Error("admin secret is empty")
+	} else {
+		isInitialized = true
 	}
-	return true
+
+	return isInitialized
 }
 
 // NewMonInfo returns a new Ceph mon info struct from the given inputs.
