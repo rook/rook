@@ -18,12 +18,16 @@ package controller
 
 import (
 	"context"
+	"fmt"
+	"reflect"
 	"strings"
 	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/k8sutil"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -85,4 +89,26 @@ func IsReadyToReconcile(c client.Client, clustercontext *clusterd.Context, names
 
 	logger.Infof("%s: CephCluster %q found but skipping reconcile since Ceph health is %q", controllerName, cephCluster.Name, status.Health.Status)
 	return cephCluster.Spec, false, cephClusterExists, WaitForRequeueIfCephClusterNotReady
+}
+
+// ClusterOwnerRef represents the owner reference of the CephCluster CR
+func ClusterOwnerRef(clusterName, clusterID string) metav1.OwnerReference {
+	blockOwner := true
+	return metav1.OwnerReference{
+		APIVersion:         fmt.Sprintf("%s/%s", ClusterResource.Group, ClusterResource.Version),
+		Kind:               ClusterResource.Kind,
+		Name:               clusterName,
+		UID:                types.UID(clusterID),
+		BlockOwnerDeletion: &blockOwner,
+	}
+}
+
+// ClusterResource operator-kit Custom Resource Definition
+var ClusterResource = k8sutil.CustomResource{
+	Name:       "cephcluster",
+	Plural:     "cephclusters",
+	Group:      cephv1.CustomResourceGroup,
+	Version:    cephv1.Version,
+	Kind:       reflect.TypeOf(cephv1.CephCluster{}).Name(),
+	APIVersion: fmt.Sprintf("%s/%s", cephv1.CustomResourceGroup, cephv1.Version),
 }

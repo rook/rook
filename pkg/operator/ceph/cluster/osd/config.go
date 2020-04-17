@@ -21,7 +21,6 @@ import (
 	"strconv"
 
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
-	apps "k8s.io/api/apps/v1"
 )
 
 const (
@@ -47,9 +46,4 @@ func (c *Cluster) generateKeyring(osdID int) (string, error) {
 
 	keyring := fmt.Sprintf(keyringTemplate, osdIDStr, key)
 	return keyring, s.CreateOrUpdate(deploymentName, keyring)
-}
-
-func (c *Cluster) associateKeyring(existingKeyring string, d *apps.Deployment) error {
-	s := keyring.GetSecretStoreForDeployment(c.context, d)
-	return s.CreateOrUpdate(d.GetName(), existingKeyring)
 }

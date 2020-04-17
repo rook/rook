@@ -159,8 +159,9 @@ func (c *Cluster) Start() error {
 			DataPathMap:  config.NewStatelessDaemonDataPathMap(config.MgrType, daemonID, c.Namespace, c.dataDirHostPath),
 		}
 
-		// generate keyring specific to this mgr daemon saved to k8s secret
-		keyring, err := c.generateKeyring(mgrConfig)
+		// We set the owner reference of the Secret to the Object controller instead of the replicaset
+		// because we watch for that resource and reconcile if anything happens to it
+		_, err := c.generateKeyring(mgrConfig)
 		if err != nil {
 			return errors.Wrapf(err, "failed to generate keyring for %q", resourceName)
 		}
@@ -183,13 +184,6 @@ func (c *Cluster) Start() error {
 
 			if err := updateDeploymentAndWait(c.context, d, c.Namespace, config.MgrType, mgrConfig.DaemonID, c.skipUpgradeChecks, false); err != nil {
 				logger.Errorf("failed to update mgr deployment %q. %v", resourceName, err)
-			}
-		}
-		if existingDeployment, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Get(d.GetName(), metav1.GetOptions{}); err != nil {
-			logger.Warningf("failed to find mgr deployment %q for keyring association. %v", resourceName, err)
-		} else {
-			if err = c.associateKeyring(keyring, existingDeployment); err != nil {
-				logger.Warningf("failed to associate keyring with mgr deployment %q. %v", resourceName, err)
 			}
 		}
 	}

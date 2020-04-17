@@ -245,6 +245,20 @@ func TestGetCrushMap(t *testing.T) {
 	assert.Equal(t, 2, len(crush.Rules))
 }
 
+func TestGetOSDOnHost(t *testing.T) {
+	executor := &exectest.MockExecutor{}
+	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		if args[1] == "crush" && args[2] == "ls" {
+			return "[\"osd.2\",\"osd.0\",\"osd.1\"]", nil
+		}
+		return "", errors.Errorf("unexpected ceph command '%v'", args)
+	}
+
+	_, err := GetOSDOnHost(&clusterd.Context{Executor: executor}, "rook-ceph", "my-host")
+	assert.Nil(t, err)
+}
+
 func TestCrushName(t *testing.T) {
 	// each is slightly different than the last
 	crushNames := []string{

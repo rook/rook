@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Rook Authors. All rights reserved.
+Copyright 2020 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,22 +14,26 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package cluster to manage a Ceph cluster.
 package cluster
 
 import (
-	"github.com/pkg/errors"
+	"testing"
+
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
+	"github.com/stretchr/testify/assert"
 )
 
-func getClusterObject(obj interface{}) (cluster *cephv1.CephCluster, err error) {
-	var ok bool
-	cluster, ok = obj.(*cephv1.CephCluster)
-	if ok {
-		// the cluster object is of the latest type, simply return it
-		cluster = cluster.DeepCopy()
-		return cluster, nil
-	}
+func TestValidateExternalClusterSpec(t *testing.T) {
+	c := &cluster{Spec: &cephv1.ClusterSpec{}, mons: &mon.Cluster{}}
+	err := validateExternalClusterSpec(c)
+	assert.NoError(t, err)
 
-	return nil, errors.Errorf("not a known cluster object: %+v", obj)
+	c.Spec.CephVersion.Image = "ceph/ceph:v14.2.9"
+	err = validateExternalClusterSpec(c)
+	assert.Error(t, err)
+
+	c.Spec.DataDirHostPath = "path"
+	err = validateExternalClusterSpec(c)
+	assert.NoError(t, err, err)
 }

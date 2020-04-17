@@ -59,8 +59,9 @@ const (
 	MappingKey = "mapping"
 
 	// AppName is the name of the secret storing cluster mon.admin key, fsid and name
-	AppName        = "rook-ceph-mon"
-	operatorCreds  = "rook-ceph-operator-creds"
+	AppName = "rook-ceph-mon"
+	// OperatorCreds is the name of the secret
+	OperatorCreds  = "rook-ceph-operator-creds"
 	monNodeAttr    = "mon_node"
 	monClusterAttr = "mon_cluster"
 	tprName        = "mon.rook.io"

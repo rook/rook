@@ -22,7 +22,7 @@ import (
 
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
-	"github.com/rook/rook/pkg/operator/ceph/cluster"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -38,7 +38,7 @@ func TestOperator(t *testing.T) {
 	assert.Equal(t, context, o.context)
 	assert.Equal(t, len(o.resources), 2)
 	for _, r := range o.resources {
-		if r.Name != cluster.ClusterResource.Name && r.Name != attachment.VolumeResource.Name {
+		if r.Name != opcontroller.ClusterResource.Name && r.Name != attachment.VolumeResource.Name {
 			assert.Fail(t, fmt.Sprintf("Resource %s is not valid", r.Name))
 		}
 	}

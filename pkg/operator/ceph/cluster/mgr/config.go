@@ -21,7 +21,6 @@ import (
 
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
-	apps "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -78,9 +77,4 @@ func (c *Cluster) generateKeyring(m *mgrConfig) (string, error) {
 
 	keyring := fmt.Sprintf(keyringTemplate, m.DaemonID, key)
 	return keyring, s.CreateOrUpdate(m.ResourceName, keyring)
-}
-
-func (c *Cluster) associateKeyring(existingKeyring string, d *apps.Deployment) error {
-	s := keyring.GetSecretStoreForDeployment(c.context, d)
-	return s.CreateOrUpdate(d.GetName(), existingKeyring)
 }

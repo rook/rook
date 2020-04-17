@@ -193,3 +193,8 @@ func (c *ClusterController) getMonSecret(namespace string) (string, error) {
 
 	return clusterInfo.MonitorSecret, nil
 }
+
+func hasCleanupPolicy(cephCluster *cephv1.CephCluster) bool {
+	policy := cephCluster.Spec.CleanupPolicy
+	return policy.DeleteDataDirOnHosts != ""
+}

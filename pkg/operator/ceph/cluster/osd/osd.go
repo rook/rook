@@ -449,7 +449,7 @@ func (c *Cluster) startOSDDaemonsOnPVC(pvcName string, config *provisionConfig, 
 
 		// keyring must be generated before deployment creation in order to avoid a race condition resulting
 		// in intermittent failure of first-attempt OSD pods.
-		keyring, err := c.generateKeyring(osd.ID)
+		_, err := c.generateKeyring(osd.ID)
 		if err != nil {
 			errMsg := fmt.Sprintf("failed to create keyring for pvc %q, osd %v. %v", osdProps.crushHostname, osd, err)
 			config.addError(errMsg)
@@ -471,24 +471,18 @@ func (c *Cluster) startOSDDaemonsOnPVC(pvcName string, config *provisionConfig, 
 			continue
 		}
 
-		createdDeployment, createErr := c.context.Clientset.AppsV1().Deployments(c.Namespace).Create(dp)
+		_, createErr := c.context.Clientset.AppsV1().Deployments(c.Namespace).Create(dp)
 		if createErr != nil {
-			if !kerrors.IsAlreadyExists(createErr) {
+			if kerrors.IsAlreadyExists(createErr) {
+				logger.Infof("deployment for osd %d already exists. updating if needed", osd.ID)
+				if err = updateDeploymentAndWait(c.context, dp, c.Namespace, opconfig.OsdType, strconv.Itoa(osd.ID), c.skipUpgradeChecks, c.continueUpgradeAfterChecksEvenIfNotHealthy); err != nil {
+					logger.Errorf("failed to update osd deployment %d. %v", osd.ID, err)
+				}
+			} else {
 				// we failed to create job, update the orchestration status for this pvc
 				logger.Warningf("failed to create osd deployment for pvc %q, osd %v. %v", osdProps.pvc.ClaimName, osd, createErr)
 				continue
 			}
-			logger.Infof("deployment for osd %d already exists. updating if needed", osd.ID)
-			createdDeployment, err = c.context.Clientset.AppsV1().Deployments(c.Namespace).Get(dp.Name, metav1.GetOptions{})
-			if err != nil {
-				logger.Warningf("failed to get existing OSD deployment %q for update. %v", dp.Name, err)
-				continue
-			}
-		}
-
-		err = c.associateKeyring(keyring, createdDeployment)
-		if err != nil {
-			logger.Errorf("failed to associate keyring for pvc %q, osd %v. %v", osdProps.pvc.ClaimName, osd, err)
 		}
 
 		if createErr != nil && kerrors.IsAlreadyExists(createErr) {
@@ -529,7 +523,7 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 
 		// keyring must be generated before deployment creation in order to avoid a race condition resulting
 		// in intermittent failure of first-attempt OSD pods.
-		keyring, err := c.generateKeyring(osd.ID)
+		_, err := c.generateKeyring(osd.ID)
 		if err != nil {
 			errMsg := fmt.Sprintf("failed to create keyring for node %q, osd %v. %v", n.Name, osd, err)
 			config.addError(errMsg)
@@ -551,29 +545,17 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 			continue
 		}
 
-		createdDeployment, createErr := c.context.Clientset.AppsV1().Deployments(c.Namespace).Create(dp)
+		_, createErr := c.context.Clientset.AppsV1().Deployments(c.Namespace).Create(dp)
 		if createErr != nil {
-			if !kerrors.IsAlreadyExists(createErr) {
-				// we failed to create job, update the orchestration status for this node
+			if kerrors.IsAlreadyExists(createErr) {
+				logger.Infof("deployment for osd %d already exists. updating if needed", osd.ID)
+				if err = updateDeploymentAndWait(c.context, dp, c.Namespace, opconfig.OsdType, strconv.Itoa(osd.ID), c.skipUpgradeChecks, c.continueUpgradeAfterChecksEvenIfNotHealthy); err != nil {
+					logger.Errorf("failed to update osd deployment %d. %v", osd.ID, err)
+				}
+			} else {
+				// we failed to create job, update the orchestration status for this pvc
 				logger.Warningf("failed to create osd deployment for node %q, osd %+v. %v", n.Name, osd, createErr)
 				continue
-			}
-			logger.Infof("deployment for osd %d already exists. updating if needed", osd.ID)
-			createdDeployment, err = c.context.Clientset.AppsV1().Deployments(c.Namespace).Get(dp.Name, metav1.GetOptions{})
-			if err != nil {
-				logger.Warningf("failed to get existing OSD deployment %q for update. %v", dp.Name, err)
-				continue
-			}
-		}
-
-		err = c.associateKeyring(keyring, createdDeployment)
-		if err != nil {
-			logger.Errorf("failed to associate keyring for node %q, osd %v. %v", n.Name, osd, err)
-		}
-
-		if createErr != nil && kerrors.IsAlreadyExists(createErr) {
-			if err = updateDeploymentAndWait(c.context, dp, c.Namespace, opconfig.OsdType, strconv.Itoa(osd.ID), c.skipUpgradeChecks, c.continueUpgradeAfterChecksEvenIfNotHealthy); err != nil {
-				logger.Errorf("failed to update osd deployment %d. %v", osd.ID, err)
 			}
 		}
 		logger.Infof("started deployment for osd %d", osd.ID)

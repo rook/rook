@@ -101,6 +101,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	if err != nil {
 		return err
 	}
+	logger.Info("successfully started")
 
 	// Watch for changes on the CephFilesystem CRD object
 	err = c.Watch(&source.Kind{Type: &cephv1.CephFilesystem{TypeMeta: controllerTypeMeta}}, &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate())
