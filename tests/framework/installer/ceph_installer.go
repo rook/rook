@@ -758,6 +758,10 @@ func (h *CephInstaller) WipeClusterDisks(namespace string) error {
 // (non-boot) disks on a node, allowing Ceph to use the disk(s) during its testing.
 func (h *CephInstaller) GetDiskWipeJob(nodeName, jobName, namespace string) string {
 	// put the wipe job in the cluster namespace so that logs get picked up in failure conditions
+	scratchDevice := os.Getenv("TEST_SCRATCH_DEVICE")
+	if scratchDevice == "" {
+		scratchDevice = "/dev/xvdc"
+	}
 	return `apiVersion: batch/v1
 kind: Job
 metadata:
@@ -821,7 +825,7 @@ spec:
                       done
                       # Wipe the specific disk in the CI that was running in raw mode
                       set +Ee
-                      block=/dev/xvdc
+                      block=` + scratchDevice + `
                       wipefs --all "$block"
                       dd if=/dev/zero of="$block" bs=1M count=100 oflag=direct,dsync
                       set -Ee
