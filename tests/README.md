@@ -6,9 +6,10 @@ quickly spin up a Kubernetes cluster.The Test framework is designed to install R
 
 ## Requirements
 1. Docker version => 1.2 && < 17.0 (for other alternatives, see below)
-2. Ubuntu 16 (the framework has only been tested on this version)
-3. Kubernetes with kubectl configured
-4. Rook
+1. Ubuntu 16 (the framework has only been tested on this version)
+1. kernel >= 4.8
+1. Kubernetes with kubectl configured
+1. Rook
 
 ## Instructions
 
