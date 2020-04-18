@@ -190,7 +190,7 @@ def RunIntegrationTest(k, v) {
                     sh '''#!/bin/bash
                           export KUBECONFIG=$HOME/admin.conf
                           tests/scripts/helm.sh up
-                          tests/scripts/localPathPV.sh'''
+                          tests/scripts/localPathPV.sh /dev/xvdc'''
                     try{
                         echo "Running full regression"
                         sh '''#!/bin/bash
@@ -202,7 +202,8 @@ def RunIntegrationTest(k, v) {
                                   TEST_BASE_DIR="WORKING_DIR" \
                                   TEST_LOG_COLLECTION_LEVEL='''+"${env.getLogs}"+''' \
                                   STORAGE_PROVIDER_TESTS='''+"${env.testProvider}"+''' \
-                                  TEST_ARGUMENTS='''+"${env.testArgs}"+'''
+                                  TEST_ARGUMENTS='''+"${env.testArgs}"+''' \
+                                  TEST_SCRATCH_DEVICE=/dev/xvdc
                               kubectl config view
                               _output/tests/linux_amd64/integration -test.v -test.timeout 7200s 2>&1 | tee _output/tests/integrationTests.log'''
                     }
