@@ -23,33 +23,57 @@ import (
 )
 
 var (
-	testVersion            = CephCSIVersion{2, 0, 0}
-	testVersionUnsupported = CephCSIVersion{2, 1, 0}
+	testMinVersion         = CephCSIVersion{2, 0, 0}
+	testReleaseV210        = CephCSIVersion{2, 1, 0}
+	testVersionUnsupported = CephCSIVersion{2, 2, 0}
 )
 
 func TestIsAtLeast(t *testing.T) {
 	// Test version which is smaller
 	var version = CephCSIVersion{1, 40, 10}
-	ret := testVersion.isAtLeast(&version)
+	ret := testMinVersion.isAtLeast(&version)
 	assert.Equal(t, true, ret)
 
 	// Test version which is equal
-	ret = testVersion.isAtLeast(&testVersion)
+	ret = testMinVersion.isAtLeast(&testMinVersion)
 	assert.Equal(t, true, ret)
 
 	// Test version which is greater (minor)
 	version = CephCSIVersion{2, 1, 0}
-	ret = testVersion.isAtLeast(&version)
+	ret = testMinVersion.isAtLeast(&version)
 	assert.Equal(t, false, ret)
 
 	// Test version which is greater (bugfix)
+	version = CephCSIVersion{2, 2, 0}
+	ret = testMinVersion.isAtLeast(&version)
+	assert.Equal(t, false, ret)
+
+	// Test for v2.1.0
+	// Test version which is greater (bugfix)
 	version = CephCSIVersion{2, 0, 1}
-	ret = testVersion.isAtLeast(&version)
+	ret = testReleaseV210.isAtLeast(&version)
+	assert.Equal(t, true, ret)
+
+	// Test version which is equal
+	ret = testReleaseV210.isAtLeast(&testReleaseV210)
+	assert.Equal(t, true, ret)
+
+	// Test version which is greater (minor)
+	version = CephCSIVersion{2, 1, 1}
+	ret = testReleaseV210.isAtLeast(&version)
+	assert.Equal(t, false, ret)
+
+	// Test version which is greater (bugfix)
+	version = CephCSIVersion{2, 2, 0}
+	ret = testMinVersion.isAtLeast(&version)
 	assert.Equal(t, false, ret)
 }
 
 func TestSupported(t *testing.T) {
-	ret := testVersion.Supported()
+	ret := testMinVersion.Supported()
+	assert.Equal(t, true, ret)
+
+	ret = testReleaseV210.Supported()
 	assert.Equal(t, true, ret)
 
 	ret = testVersionUnsupported.Supported()
