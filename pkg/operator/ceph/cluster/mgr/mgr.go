@@ -22,7 +22,6 @@ import (
 	"path"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/coreos/pkg/capnslog"
@@ -240,20 +239,15 @@ func (c *Cluster) Start() error {
 
 func (c *Cluster) configureModules(daemonIDs []string) {
 	// Configure the modules asynchronously so we can complete all the configuration much sooner.
-	var wg sync.WaitGroup
-	startModuleConfiguration(&wg, "http bind settings", c.clearHTTPBindFix)
-	startModuleConfiguration(&wg, "orchestrator modules", c.configureOrchestratorModules)
-	startModuleConfiguration(&wg, "prometheus", c.enablePrometheusModule)
-	startModuleConfiguration(&wg, "crash", c.enableCrashModule)
-	startModuleConfiguration(&wg, "mgr module(s) from the spec", c.configureMgrModules)
-	startModuleConfiguration(&wg, "dashboard", c.configureDashboardModules)
-
-	// Wait for the goroutines to complete before continuing
-	wg.Wait()
+	startModuleConfiguration("http bind settings", c.clearHTTPBindFix)
+	startModuleConfiguration("orchestrator modules", c.configureOrchestratorModules)
+	startModuleConfiguration("prometheus", c.enablePrometheusModule)
+	startModuleConfiguration("crash", c.enableCrashModule)
+	startModuleConfiguration("mgr module(s) from the spec", c.configureMgrModules)
+	startModuleConfiguration("dashboard", c.configureDashboardModules)
 }
 
-func startModuleConfiguration(wg *sync.WaitGroup, description string, configureModules func() error) {
-	wg.Add(1)
+func startModuleConfiguration(description string, configureModules func() error) {
 	go func() {
 		err := configureModules()
 		if err != nil {
@@ -261,7 +255,6 @@ func startModuleConfiguration(wg *sync.WaitGroup, description string, configureM
 		} else {
 			logger.Infof("successful modules: %s", description)
 		}
-		wg.Done()
 	}()
 }
 
