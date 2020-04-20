@@ -9,7 +9,7 @@
 # Then common-external.yaml
 #
 # If there is no cluster managed by the current Rook Operator
-# you can simply replace all occurence of rook-ceph-external with rook-ceph
+# you can simply replace all occurrence of rook-ceph-external with rook-ceph
 #
 # And remove the following code:
 #

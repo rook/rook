@@ -294,7 +294,7 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 	// Make sure the spec contains all the information we need
 	err := validateExternalClusterSpec(cluster)
 	if err != nil {
-		return errors.Wrapf(err, "failed to validate external cluster specs")
+		return errors.Wrap(err, "failed to validate external cluster specs")
 	}
 
 	config.ConditionExport(c.context, namespace, name,
@@ -303,6 +303,23 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 	// loop until we find the secret necessary to connect to the external cluster
 	// then populate clusterInfo
 	cluster.Info = populateExternalClusterInfo(c.context, namespace)
+
+	// If the user to check the ceph health and status is not the admin,
+	// we validate that ExternalCred has been populated correctly,
+	// then we check if the key (whether admin or not) is encoded in base64
+	if !isExternalHealthCheckUserAdmin(cluster.Info.AdminSecret) {
+		if !cluster.Info.IsInitializedExternalCred(true) {
+			return errors.New("invalid user health checker credentials")
+		}
+		if !cephconfig.IsKeyringBase64Encoded(cluster.Info.ExternalCred.Secret) {
+			return errors.Errorf("invalid user health checker key %q", cluster.Info.ExternalCred.Username)
+		}
+	} else {
+		// If the client.admin is used
+		if !cephconfig.IsKeyringBase64Encoded(cluster.Info.AdminSecret) {
+			return errors.Errorf("invalid user health checker key %q", client.AdminUsername)
+		}
+	}
 
 	// Write connection info (ceph config file and keyring) for ceph commands
 	if cluster.Spec.CephVersion.Image == "" {
@@ -317,7 +334,7 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 	if cluster.Spec.CephVersion.Image != "" {
 		_, _, err = c.detectAndValidateCephVersion(cluster, cluster.Spec.CephVersion.Image)
 		if err != nil {
-			return errors.Wrapf(err, "failed to detect and validate ceph version")
+			return errors.Wrap(err, "failed to detect and validate ceph version")
 		}
 
 		// Write the rook-config-override configmap (used by various daemons to apply config overrides)
@@ -333,18 +350,16 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 
 	// The cluster Identity must be established at this point
 	if !cluster.Info.IsInitialized() {
-		return errors.Errorf("the cluster identity was not established: %+v", cluster.Info)
+		return errors.New("the cluster identity was not established")
 	}
-	logger.Info("external cluster identity established.")
+	logger.Info("external cluster identity established")
 
-	// Everything went well so let's update the CR's status to "connected"
-	config.ConditionExport(c.context, namespace, name,
-		cephv1.ConditionConnected, v1.ConditionTrue, "ClusterConnected", "Cluster connected successfully")
-
-	// Create CSI Secrets
-	err = csi.CreateCSISecrets(c.context, namespace, &cluster.ownerRef)
-	if err != nil {
-		return errors.Wrapf(err, "failed to create csi kubernetes secrets")
+	// Create CSI Secrets only if the user has provided the admin key
+	if cluster.Info.AdminSecret != mon.AdminSecretName {
+		err = csi.CreateCSISecrets(c.context, namespace, &cluster.ownerRef)
+		if err != nil {
+			return errors.Wrap(err, "failed to create csi kubernetes secrets")
+		}
 	}
 
 	// Create CSI config map
@@ -358,7 +373,7 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 	if err != nil {
 		return errors.Wrap(err, "failed to update csi cluster config")
 	}
-	logger.Infof("successfully updated csi config map")
+	logger.Info("successfully updated csi config map")
 
 	// Create Crash Collector Secret
 	// In 14.2.5 the crash daemon will read the client.crash key instead of the admin key
@@ -368,6 +383,10 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 			return errors.Wrap(err, "failed to create crash collector kubernetes secret")
 		}
 	}
+
+	// Everything went well so let's update the CR's status to "connected"
+	config.ConditionExport(c.context, namespace, name,
+		cephv1.ConditionConnected, v1.ConditionTrue, "ClusterConnected", "Cluster connected successfully")
 
 	// Mark initialization has done
 	cluster.initCompleted = true
@@ -522,7 +541,7 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 	}
 
 	// Start the ceph status checker
-	cephChecker := newCephStatusChecker(c.context, cluster.Namespace, clusterObj.Name)
+	cephChecker := newCephStatusChecker(c.context, cluster.Namespace, clusterObj.Name, cluster.Info.ExternalCred)
 	go cephChecker.checkCephStatus(cluster.stopCh)
 
 	// add the finalizer to the crd
@@ -1172,8 +1191,10 @@ func printOverallCephVersion(context *clusterd.Context, namespace string) {
 }
 
 func validateExternalClusterSpec(cluster *cluster) error {
-	if cluster.Spec.DataDirHostPath == "" {
-		return errors.New("dataDirHostPath must be specified")
+	if cluster.Spec.CephVersion.Image != "" {
+		if cluster.Spec.DataDirHostPath == "" {
+			return errors.New("dataDirHostPath must be specified")
+		}
 	}
 
 	return nil
@@ -1190,12 +1211,32 @@ func populateExternalClusterInfo(context *clusterd.Context, namespace string) *c
 			time.Sleep(externalConnectionRetry)
 			continue
 		} else {
-			logger.Infof("found the cluster info to connect to the external cluster. mons=%+v", clusterInfo.Monitors)
-			break
+			// If an admin key was provided we don't need to load the other resources
+			// Some people might want to give the admin key
+			// The necessary users/keys/secrets will be created by Rook
+			// This is also done to allow backward compatibility
+			if isExternalHealthCheckUserAdmin(clusterInfo.AdminSecret) {
+				break
+			}
+			externalCred, err := mon.ValidateAndLoadExternalClusterSecrets(context, namespace)
+			if err != nil {
+				logger.Warningf("waiting for the connection info of the external cluster. retrying in %s.", externalConnectionRetry.String())
+				logger.Debugf("%v", err)
+				time.Sleep(externalConnectionRetry)
+				continue
+			} else {
+				clusterInfo.ExternalCred = externalCred
+				logger.Infof("found the cluster info to connect to the external cluster. will use %q to check health and monitor status. mons=%+v", clusterInfo.ExternalCred.Username, clusterInfo.Monitors)
+				break
+			}
 		}
 	}
 
 	return clusterInfo
+}
+
+func isExternalHealthCheckUserAdmin(adminSecret string) bool {
+	return adminSecret != mon.AdminSecretName
 }
 
 func populateConfigOverrideConfigMap(context *clusterd.Context, namespace string, ownerRef metav1.OwnerReference) error {

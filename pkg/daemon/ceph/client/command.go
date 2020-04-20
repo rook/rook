@@ -53,7 +53,7 @@ func CephConfFilePath(configDir, clusterName string) string {
 }
 
 // FinalizeCephCommandArgs builds the command line to be called
-func FinalizeCephCommandArgs(command string, args []string, configDir, clusterName string) (string, []string) {
+func FinalizeCephCommandArgs(command string, args []string, configDir, clusterName, username string) (string, []string) {
 	// the rbd client tool does not support the '--connect-timeout' option
 	// so we only use it for the 'ceph' command
 	// Also, there is no point of adding that option to 'crushtool' since that CLI does not connect to anything
@@ -77,10 +77,11 @@ func FinalizeCephCommandArgs(command string, args []string, configDir, clusterNa
 	}
 
 	// Append the args to find the config and keyring
-	keyringFile := fmt.Sprintf("%s.keyring", AdminUsername)
+	keyringFile := fmt.Sprintf("%s.keyring", username)
 	configArgs := []string{
 		fmt.Sprintf("--cluster=%s", clusterName),
 		fmt.Sprintf("--conf=%s", CephConfFilePath(configDir, clusterName)),
+		fmt.Sprintf("--name=%s", username),
 		fmt.Sprintf("--keyring=%s", path.Join(configDir, clusterName, keyringFile)),
 	}
 	return command, append(args, configArgs...)
@@ -94,6 +95,7 @@ type CephToolCommand struct {
 	timeout     time.Duration
 	JsonOutput  bool
 	OutputFile  bool
+	authUser    string
 }
 
 func newCephToolCommand(tool string, context *clusterd.Context, clusterName string, args []string) *CephToolCommand {
@@ -104,6 +106,7 @@ func newCephToolCommand(tool string, context *clusterd.Context, clusterName stri
 		args:        args,
 		JsonOutput:  true,
 		OutputFile:  true,
+		authUser:    AdminUsername,
 	}
 }
 
@@ -119,7 +122,7 @@ func NewRBDCommand(context *clusterd.Context, clusterName string, args []string)
 }
 
 func (c *CephToolCommand) run() ([]byte, error) {
-	command, args := FinalizeCephCommandArgs(c.tool, c.args, c.context.ConfigDir, c.clusterName)
+	command, args := FinalizeCephCommandArgs(c.tool, c.args, c.context.ConfigDir, c.clusterName, c.authUser)
 	if c.JsonOutput {
 		args = append(args, "--format", "json")
 	} else {

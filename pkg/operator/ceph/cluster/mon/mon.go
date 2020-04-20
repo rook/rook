@@ -59,13 +59,15 @@ const (
 	MappingKey = "mapping"
 
 	// AppName is the name of the secret storing cluster mon.admin key, fsid and name
-	AppName           = "rook-ceph-mon"
-	monNodeAttr       = "mon_node"
-	monClusterAttr    = "mon_cluster"
-	tprName           = "mon.rook.io"
-	fsidSecretName    = "fsid"
-	monSecretName     = "mon-secret"
-	adminSecretName   = "admin-secret"
+	AppName        = "rook-ceph-mon"
+	operatorCreds  = "rook-ceph-operator-creds"
+	monNodeAttr    = "mon_node"
+	monClusterAttr = "mon_cluster"
+	tprName        = "mon.rook.io"
+	fsidSecretName = "fsid"
+	monSecretName  = "mon-secret"
+	// AdminSecretName is the name of the admin secret
+	AdminSecretName   = "admin-secret"
 	clusterSecretName = "cluster-name"
 
 	// DefaultMonCount Default mon count for a cluster
