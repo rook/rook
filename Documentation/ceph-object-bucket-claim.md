@@ -91,7 +91,7 @@ spec:
 ```
 1. use `env:` if mapping of the defined key names to the env var names used by the app is needed.
 1. makes available to the pod as env variables: `BUCKET_HOST`, `BUCKET_PORT`, `BUCKET_NAME`
-1. makes available to the pod as env variables: `ACCESS_KEY_ID`, `SECRET_ACCESS_KEY`
+1. makes available to the pod as env variables: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`
 
 ### StorageClass
 ```yaml
