@@ -29,16 +29,16 @@ import (
 const (
 	csiKeyringRBDProvisionerUsername = "client.csi-rbd-provisioner"
 	csiKeyringRBDNodeUsername        = "client.csi-rbd-node"
-	csiRBDNodeSecret                 = "rook-csi-rbd-node"
-	csiRBDProvisionerSecret          = "rook-csi-rbd-provisioner"
+	CsiRBDNodeSecret                 = "rook-csi-rbd-node"
+	CsiRBDProvisionerSecret          = "rook-csi-rbd-provisioner"
 )
 
 // #nosec because of the word `Secret`
 const (
 	csiKeyringCephFSProvisionerUsername = "client.csi-cephfs-provisioner"
 	csiKeyringCephFSNodeUsername        = "client.csi-cephfs-node"
-	csiCephFSNodeSecret                 = "rook-csi-cephfs-node"
-	csiCephFSProvisionerSecret          = "rook-csi-cephfs-provisioner"
+	CsiCephFSNodeSecret                 = "rook-csi-cephfs-node"
+	CsiCephFSProvisionerSecret          = "rook-csi-cephfs-provisioner"
 )
 
 func createCSIKeyringRBDNode(s *keyring.SecretStore) (string, error) {
@@ -135,10 +135,10 @@ func createOrUpdateCSISecret(namespace, csiRBDProvisionerSecretKey, csiRBDNodeSe
 	}
 
 	keyringSecretMap := make(map[string]map[string][]byte)
-	keyringSecretMap[csiRBDProvisionerSecret] = csiRBDProvisionerSecrets
-	keyringSecretMap[csiRBDNodeSecret] = csiRBDNodeSecrets
-	keyringSecretMap[csiCephFSProvisionerSecret] = csiCephFSProvisionerSecrets
-	keyringSecretMap[csiCephFSNodeSecret] = csiCephFSNodeSecrets
+	keyringSecretMap[CsiRBDProvisionerSecret] = csiRBDProvisionerSecrets
+	keyringSecretMap[CsiRBDNodeSecret] = csiRBDNodeSecrets
+	keyringSecretMap[CsiCephFSProvisionerSecret] = csiCephFSProvisionerSecrets
+	keyringSecretMap[CsiCephFSNodeSecret] = csiCephFSNodeSecrets
 
 	for secretName, secret := range keyringSecretMap {
 		s := &v1.Secret{

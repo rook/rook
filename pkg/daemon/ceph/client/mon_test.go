@@ -25,18 +25,18 @@ import (
 func TestCephArgs(t *testing.T) {
 	// cluster a under /etc
 	args := []string{}
-	command, args := FinalizeCephCommandArgs(CephTool, args, "/etc", "a")
+	command, args := FinalizeCephCommandArgs(CephTool, args, "/etc", "a", "client.admin")
 	assert.Equal(t, CephTool, command)
-	assert.Equal(t, 4, len(args))
-	assert.Equal(t, 4, len(args))
+	assert.Equal(t, 5, len(args))
 	assert.Equal(t, "--connect-timeout=15", args[0])
 	assert.Equal(t, "--cluster=a", args[1])
 	assert.Equal(t, "--conf=/etc/a/a.config", args[2])
-	assert.Equal(t, "--keyring=/etc/a/client.admin.keyring", args[3])
+	assert.Equal(t, "--name=client.admin", args[3])
+	assert.Equal(t, "--keyring=/etc/a/client.admin.keyring", args[4])
 
 	RunAllCephCommandsInToolbox = true
 	args = []string{}
-	command, args = FinalizeCephCommandArgs(CephTool, args, "/etc", "a")
+	command, args = FinalizeCephCommandArgs(CephTool, args, "/etc", "a", "client.admin")
 	assert.Equal(t, Kubectl, command)
 	assert.Equal(t, 8, len(args), fmt.Sprintf("%+v", args))
 	assert.Equal(t, "-it", args[0])
@@ -51,17 +51,18 @@ func TestCephArgs(t *testing.T) {
 
 	// cluster under /var/lib/rook
 	args = []string{"myarg"}
-	command, args = FinalizeCephCommandArgs(RBDTool, args, "/var/lib/rook", "rook")
+	command, args = FinalizeCephCommandArgs(RBDTool, args, "/var/lib/rook", "rook", "client.admin")
 	assert.Equal(t, RBDTool, command)
-	assert.Equal(t, 4, len(args))
+	assert.Equal(t, 5, len(args))
 	assert.Equal(t, "myarg", args[0])
 	assert.Equal(t, "--cluster=rook", args[1])
 	assert.Equal(t, "--conf=/var/lib/rook/rook/rook.config", args[2])
-	assert.Equal(t, "--keyring=/var/lib/rook/rook/client.admin.keyring", args[3])
+	assert.Equal(t, "--name=client.admin", args[3])
+	assert.Equal(t, "--keyring=/var/lib/rook/rook/client.admin.keyring", args[4])
 
 	// the default ceph cluster will not need the config args
 	args = []string{"myarg"}
-	command, args = FinalizeCephCommandArgs(CephTool, args, "/etc", "ceph")
+	command, args = FinalizeCephCommandArgs(CephTool, args, "/etc", "ceph", "client.admin")
 	assert.Equal(t, CephTool, command)
 	assert.Equal(t, 2, len(args))
 	assert.Equal(t, "myarg", args[0])

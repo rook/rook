@@ -95,7 +95,16 @@ func GenerateAdminConnectionConfigWithSettings(context *clusterd.Context, cluste
 	keyringPath := path.Join(root, fmt.Sprintf("%s.keyring", client.AdminUsername))
 	err := writeKeyring(AdminKeyring(cluster), keyringPath)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to write keyring to %s", root)
+		return "", errors.Wrapf(err, "failed to write admin keyring to %s", root)
+	}
+
+	// If this is an external cluster
+	if cluster.IsInitializedExternalCred(false) {
+		keyringPath := path.Join(root, fmt.Sprintf("%s.keyring", cluster.ExternalCred.Username))
+		err := writeKeyring(ExternalUserKeyring(cluster.ExternalCred.Username, cluster.ExternalCred.Secret), keyringPath)
+		if err != nil {
+			return "", errors.Wrapf(err, "failed to write keyring %q to %s", cluster.ExternalCred.Username, root)
+		}
 	}
 
 	filePath, err := GenerateConfigFile(context, cluster, root, client.AdminUsername, keyringPath, settings, nil)
@@ -122,6 +131,14 @@ func GenerateConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoo
 	qualifiedUser := getQualifiedUser(user)
 	if err := addClientConfigFileSection(configFile, qualifiedUser, keyringPath, clientSettings); err != nil {
 		return "", errors.Wrapf(err, "failed to add admin client config section")
+	}
+
+	if cluster.IsInitializedExternalCred(false) {
+		keyringPath = path.Join(path.Join(context.ConfigDir, cluster.Name), fmt.Sprintf("%s.keyring", cluster.ExternalCred.Username))
+		qualifiedUser := getQualifiedUser(cluster.ExternalCred.Username)
+		if err := addClientConfigFileSection(configFile, qualifiedUser, keyringPath, clientSettings); err != nil {
+			return "", errors.Wrap(err, "failed to add user client config section")
+		}
 	}
 
 	// write the entire config to disk

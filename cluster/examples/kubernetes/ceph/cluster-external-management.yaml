@@ -8,7 +8,7 @@
 
 # If there is already a cluster managed by Rook in 'rook-ceph' then do:
 #   kubectl create -f common-external.yaml
-#   kubectl create -f cluster-external.yaml
+#   kubectl create -f cluster-external-management.yaml
 #################################################################################################################
 apiVersion: ceph.rook.io/v1
 kind: CephCluster
@@ -18,5 +18,7 @@ metadata:
 spec:
   external:
     enable: true
-  crashCollector:
-    disable: true
+  dataDirHostPath: /var/lib/rook
+  # providing an image is required, if you want to create other CRs (rgw, mds, nfs)
+  cephVersion:
+    image: ceph/ceph:v14.2.8 # Should match external cluster version
