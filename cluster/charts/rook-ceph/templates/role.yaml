@@ -4,26 +4,36 @@ apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: Role
 metadata:
   name: rook-ceph-system
+  namespace:  {{  .Release.Namespace }}
   labels:
     operator: rook
     storage-backend: ceph
 rules:
 - apiGroups:
   - ""
-  - apps
-  - extensions
   resources:
   - pods
   - configmaps
   - services
-  - daemonsets
-  - statefulsets
-  - deployment
   verbs:
   - get
   - list
   - watch
   - patch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - apps
+  - extensions
+  resources:
+  - daemonsets
+  - statefulsets
+  - deployments
+  verbs:
+  - get
+  - list
+  - watch
   - create
   - update
   - delete
@@ -38,6 +48,7 @@ kind: Role
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-ceph-osd
+  namespace:  {{  .Release.Namespace }}
 rules:
 - apiGroups: [""]
   resources: ["configmaps"]
@@ -51,6 +62,7 @@ kind: Role
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-ceph-mgr
+  namespace:  {{  .Release.Namespace }}
 rules:
 - apiGroups:
   - ""
@@ -85,6 +97,7 @@ kind: Role
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-ceph-cmd-reporter
+  namespace:  {{  .Release.Namespace }}
 rules:
 - apiGroups:
   - ""
@@ -103,6 +116,7 @@ kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: cephfs-external-provisioner-cfg
+  namespace:  {{  .Release.Namespace }}
 rules:
   - apiGroups: [""]
     resources: ["endpoints"]
@@ -118,6 +132,7 @@ kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rbd-external-provisioner-cfg
+  namespace:  {{  .Release.Namespace }}
 rules:
   - apiGroups: [""]
     resources: ["endpoints"]

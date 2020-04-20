@@ -1926,7 +1926,7 @@ spec:
   storage:
     useAllNodes: true
     useAllDevices: true
-    deviceFilter:
+    deviceFilter: ''
     config:
       ` + store + `
       databaseSizeMB: "1024"
