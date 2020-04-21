@@ -152,7 +152,7 @@ Before we begin the upgrade process, let's first review some ways that you can v
 your cluster, ensuring that the upgrade is going smoothly after each step. Most of the health
 verification checks for your cluster during the upgrade process can be performed with the Rook
 toolbox. For more information about how to run the toolbox, please visit the
-[Rook toolbox readme](./ceph-toolbox.md#running-the-toolbox-in-kubernetes).
+[Rook toolbox readme](./ceph-toolbox.md).
 
 See the common issues pages for troubleshooting and correcting health issues:
 
