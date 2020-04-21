@@ -36,8 +36,8 @@ type CephManifests interface {
 	GetRookOperator(namespace string) string
 	GetClusterRoles(namespace, systemNamespace string) string
 	GetClusterExternalRoles(namespace, systemNamespace string) string
-	GetRookCluster(settings *ClusterSettings) string
-	GetRookExternalCluster(settings *ClusterExternalSettings) string
+	GetRookCluster(settings *clusterSettings) string
+	GetRookExternalCluster(settings *clusterExternalSettings) string
 	GetRookToolBox(namespace string) string
 	GetBlockPoolDef(poolName, namespace, replicaSize string) string
 	GetBlockStorageClassDef(csi bool, poolName, storageClassName, reclaimPolicy, namespace, systemNamespace string) string
@@ -53,7 +53,8 @@ type CephManifests interface {
 	GetClient(namespace, name string, caps map[string]string) string
 }
 
-type ClusterSettings struct {
+type clusterSettings struct {
+	ClusterName      string
 	Namespace        string
 	StoreType        string
 	DataDirHostPath  string
@@ -64,8 +65,8 @@ type ClusterSettings struct {
 	CephVersion      cephv1.CephVersionSpec
 }
 
-// ClusterExternalSettings represents the settings of an external cluster
-type ClusterExternalSettings struct {
+// clusterExternalSettings represents the settings of an external cluster
+type clusterExternalSettings struct {
 	Namespace       string
 	DataDirHostPath string
 }
@@ -1844,7 +1845,7 @@ subjects:
 }
 
 // GetRookCluster returns rook-cluster manifest
-func (m *CephManifestsMaster) GetRookCluster(settings *ClusterSettings) string {
+func (m *CephManifestsMaster) GetRookCluster(settings *clusterSettings) string {
 	store := "# storeType not specified; Rook will use default store types"
 	if settings.StoreType != "" {
 		store = `storeType: "` + settings.StoreType + `"`
@@ -1854,7 +1855,8 @@ func (m *CephManifestsMaster) GetRookCluster(settings *ClusterSettings) string {
 		return `apiVersion: ceph.rook.io/v1
 kind: CephCluster
 metadata:
-  name: ` + settings.Namespace + `
+  # set the name to something different from the namespace
+  name: ` + settings.ClusterName + `
   namespace: ` + settings.Namespace + `
 spec:
   dataDirHostPath: ` + settings.DataDirHostPath + `
@@ -1905,7 +1907,7 @@ spec:
 	return `apiVersion: ceph.rook.io/v1
 kind: CephCluster
 metadata:
-  name: ` + settings.Namespace + `
+  name: ` + settings.ClusterName + `
   namespace: ` + settings.Namespace + `
 spec:
   cephVersion:
@@ -2244,7 +2246,7 @@ rules:
   - delete`
 }
 
-func (m *CephManifestsMaster) GetRookExternalCluster(settings *ClusterExternalSettings) string {
+func (m *CephManifestsMaster) GetRookExternalCluster(settings *clusterExternalSettings) string {
 	return `apiVersion: ceph.rook.io/v1
 kind: CephCluster
 metadata:

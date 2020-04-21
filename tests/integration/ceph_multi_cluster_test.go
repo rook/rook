@@ -135,7 +135,7 @@ func NewMCTestOperations(t func() *testing.T, namespace1 string, namespace2 stri
 	checkIfShouldRunForMinimalTestMatrix(t, kh, multiClusterMinimalTestVersion)
 
 	cleanupHost := false
-	i := installer.NewCephInstaller(t, kh.Clientset, false, installer.VersionMaster, installer.NautilusVersion, cleanupHost)
+	i := installer.NewCephInstaller(t, kh.Clientset, false, "", installer.VersionMaster, installer.NautilusVersion, cleanupHost)
 
 	op := &MCTestOperations{i, kh, t, namespace1, namespace2, installer.SystemNamespace(namespace1), "", false}
 	p := kh.IsStorageClassPresent("manual")

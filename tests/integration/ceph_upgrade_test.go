@@ -73,6 +73,7 @@ type UpgradeSuite struct {
 func (s *UpgradeSuite) SetupSuite() {
 	s.namespace = "upgrade-ns"
 	upgradeTestCluster := TestCluster{
+		clusterName:             s.namespace,
 		namespace:               s.namespace,
 		storeType:               "",
 		storageClassName:        "",

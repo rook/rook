@@ -129,8 +129,7 @@ func TestCephObjectStoreUserController(t *testing.T) {
 
 	// Register operator types with the runtime scheme.
 	s := scheme.Scheme
-	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectStoreUser{})
-	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{})
+	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectStoreUser{}, &cephv1.CephCluster{}, &cephv1.CephClusterList{})
 
 	// Create a fake client to mock API calls.
 	cl := fake.NewFakeClientWithScheme(s, object...)

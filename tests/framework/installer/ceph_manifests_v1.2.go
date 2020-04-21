@@ -1609,7 +1609,7 @@ subjects:
 }
 
 // GetRookCluster returns rook-cluster manifest
-func (m *CephManifestsV1_2) GetRookCluster(settings *ClusterSettings) string {
+func (m *CephManifestsV1_2) GetRookCluster(settings *clusterSettings) string {
 	store := "# storeType not specified; Rook will use default store types"
 	if settings.StoreType != "" {
 		store = `storeType: "` + settings.StoreType + `"`
@@ -1619,7 +1619,7 @@ func (m *CephManifestsV1_2) GetRookCluster(settings *ClusterSettings) string {
 		return `apiVersion: ceph.rook.io/v1
 kind: CephCluster
 metadata:
-  name: ` + settings.Namespace + `
+  name: ` + settings.ClusterName + `
   namespace: ` + settings.Namespace + `
 spec:
   dataDirHostPath: ` + settings.DataDirHostPath + `
@@ -1672,7 +1672,7 @@ spec:
 	return `apiVersion: ceph.rook.io/v1
 kind: CephCluster
 metadata:
-  name: ` + settings.Namespace + `
+  name: ` + settings.ClusterName + `
   namespace: ` + settings.Namespace + `
 spec:
   cephVersion:
@@ -1987,7 +1987,7 @@ rules:
   - delete`
 }
 
-func (m *CephManifestsV1_2) GetRookExternalCluster(settings *ClusterExternalSettings) string {
+func (m *CephManifestsV1_2) GetRookExternalCluster(settings *clusterExternalSettings) string {
 	return `apiVersion: ceph.rook.io/v1
 kind: CephCluster
 metadata:

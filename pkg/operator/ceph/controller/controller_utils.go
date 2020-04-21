@@ -24,7 +24,6 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -43,26 +42,26 @@ var (
 )
 
 // IsReadyToReconcile determines if a controller is ready to reconcile or not
-func IsReadyToReconcile(client client.Client, clustercontext *clusterd.Context, namespacedName types.NamespacedName, controllerName string) (cephv1.ClusterSpec, bool, bool, reconcile.Result) {
-	namespacedName.Name = namespacedName.Namespace
-	cephClusterExists := true
+func IsReadyToReconcile(c client.Client, clustercontext *clusterd.Context, namespacedName types.NamespacedName, controllerName string) (cephv1.ClusterSpec, bool, bool, reconcile.Result) {
+	cephClusterExists := false
 
 	// Running ceph commands won't work and the controller will keep re-queuing so I believe it's fine not to check
 	// Make sure a CephCluster exists before doing anything
-	cephCluster := &cephv1.CephCluster{}
-	err := client.Get(context.TODO(), namespacedName, cephCluster)
+	var cephCluster cephv1.CephCluster
+	clusterList := &cephv1.CephClusterList{}
+	err := c.List(context.TODO(), clusterList, client.InNamespace(namespacedName.Namespace))
 	if err != nil {
-		if kerrors.IsNotFound(err) {
-			cephClusterExists = false
-			logger.Errorf("%q: CephCluster resource %q not found in namespace %q", controllerName, namespacedName.Name, namespacedName.Namespace)
-			return cephv1.ClusterSpec{}, false, cephClusterExists, WaitForRequeueIfCephClusterNotReady
-		} else if err != nil {
-			logger.Errorf("%q:failed to fetch CephCluster %v", controllerName, err)
-			return cephv1.ClusterSpec{}, false, cephClusterExists, ImmediateRetryResult
-		}
+		logger.Errorf("%q:failed to fetch CephCluster %v", controllerName, err)
+		return cephv1.ClusterSpec{}, false, cephClusterExists, ImmediateRetryResult
 	}
+	if len(clusterList.Items) == 0 {
+		logger.Errorf("%q: no CephCluster resource found in namespace %q", controllerName, namespacedName.Namespace)
+		return cephv1.ClusterSpec{}, false, cephClusterExists, WaitForRequeueIfCephClusterNotReady
+	}
+	cephClusterExists = true
+	cephCluster = clusterList.Items[0]
 
-	logger.Debugf("%q: CephCluster resource %q found in namespace %q", controllerName, namespacedName.Name, namespacedName.Namespace)
+	logger.Debugf("%q: CephCluster resource %q found in namespace %q", controllerName, cephCluster.Name, namespacedName.Namespace)
 
 	// If the cluster is healthy
 	// Test a Ceph command to verify the Operator is ready
@@ -84,6 +83,6 @@ func IsReadyToReconcile(client client.Client, clustercontext *clusterd.Context, 
 		return cephCluster.Spec, true, cephClusterExists, reconcile.Result{}
 	}
 
-	logger.Infof("%s: CephCluster %q found but skipping reconcile since Ceph health is %q", controllerName, namespacedName.Name, status.Health.Status)
+	logger.Infof("%s: CephCluster %q found but skipping reconcile since Ceph health is %q", controllerName, cephCluster.Name, status.Health.Status)
 	return cephCluster.Spec, false, cephClusterExists, WaitForRequeueIfCephClusterNotReady
 }
