@@ -45,7 +45,7 @@ type EdgefsSuite struct {
 }
 
 func TestEdgefsSuite(t *testing.T) {
-	if installer.SkipTestSuite(installer.EdgeFSTestSuite) {
+	if installer.SkipTestSuite(installer.EdgeFSTestSuite) || installer.RunOnlyCephSuite() {
 		t.Skip()
 	}
 

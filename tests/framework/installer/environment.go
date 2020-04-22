@@ -18,6 +18,7 @@ package installer
 
 import (
 	"os"
+	"strconv"
 )
 
 // testEnvName gets the name of the test environment. In the CI it is "aws_1.18.x" or similar.
@@ -38,6 +39,41 @@ func TestLogCollectionLevel() string {
 // testStorageProvider gets the storage provider for which tests should be run
 func testStorageProvider() string {
 	return getEnvVarWithDefault("STORAGE_PROVIDER_TESTS", "")
+}
+
+func TestPlatform() string {
+	return getEnvVarWithDefault("TEST_PLATFORM", "kubernetes")
+}
+
+func SkipCephMultiClusterSuite() bool {
+	return isEnvVarPresent("SKIP_MULTI_CLUSTER_SUITE")
+}
+
+func SkipCephUpgradeSuite() bool {
+	return isEnvVarPresent("SKIP_CEPH_UPGRADE_SUITE")
+}
+
+func SkipCephHelmSuite() bool {
+	return isEnvVarPresent("SKIP_CEPH_HELM_SUITE")
+}
+
+func RunOnlyCephSuite() bool {
+	return isEnvVarPresent("RUN_ONLY_CEPH_SUITE")
+}
+
+
+func testRetryNumber() int {
+	count := getEnvVarWithDefault("RETRY_MAX", "30");
+	number, err := strconv.Atoi(count)
+	if err != nil {
+		panic("Error when converting to numeric value")
+	}
+	return number
+}
+
+func isEnvVarPresent(env string) bool {
+	_, present := os.LookupEnv(env)
+	return present
 }
 
 // baseTestDir gets the base test directory

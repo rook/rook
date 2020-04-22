@@ -193,12 +193,12 @@ osd_pool_default_size = 1
 		}
 	}
 
-	if err := h.WipeClusterDisks(namespace); err != nil {
+	/* 	if err := h.WipeClusterDisks(namespace); err != nil {
 		logger.Warningf("failed to wipe cluster disks. %+v. trying again...", err)
 		if err = h.WipeClusterDisks(namespace); err != nil {
 			return fmt.Errorf("failed to wipe cluster disks. %+v", err)
 		}
-	}
+	} */
 
 	logger.Infof("Starting Rook Cluster with yaml")
 	settings := &ClusterSettings{namespace, storeType, dataDirHostPath, mon.Count, 0, usePVC, storageClassName, cephVersion}
@@ -747,7 +747,7 @@ func (h *CephInstaller) WipeClusterDisks(namespace string) error {
 	}
 
 	// return the error below after cleaning up the jobs
-	err = wait.Poll(5*time.Second, 90*time.Second, allJobsAreComplete)
+	err = wait.Poll(5*time.Second, 180*time.Second, allJobsAreComplete)
 	if err != nil {
 		return fmt.Errorf("failed to wait for wipe jobs to complete. %+v", err)
 	}

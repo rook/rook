@@ -46,7 +46,7 @@ const (
 // - One mon in the cluster
 // ************************************************
 func TestCephUpgradeSuite(t *testing.T) {
-	if installer.SkipTestSuite(installer.CephTestSuite) {
+	if installer.SkipTestSuite(installer.CephTestSuite) || installer.SkipCephUpgradeSuite() {
 		t.Skip()
 	}
 

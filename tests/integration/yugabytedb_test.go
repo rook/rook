@@ -37,7 +37,7 @@ type YugabyteDBSuite struct {
 }
 
 func TestYugabyteDBSuite(t *testing.T) {
-	if installer.SkipTestSuite(installer.YugabyteDBTestSuite) {
+	if installer.SkipTestSuite(installer.YugabyteDBTestSuite) || installer.RunOnlyCephSuite() {
 		t.Skip()
 	}
 

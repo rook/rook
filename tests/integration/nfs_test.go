@@ -38,7 +38,7 @@ import (
 //   - Mount a NFS export and write data to it and verify
 // *******************************************************
 func TestNfsSuite(t *testing.T) {
-	if installer.SkipTestSuite(installer.NFSTestSuite) {
+	if installer.SkipTestSuite(installer.NFSTestSuite) || installer.RunOnlyCephSuite() {
 		t.Skip()
 	}
 

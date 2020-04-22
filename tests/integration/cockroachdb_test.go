@@ -40,7 +40,7 @@ import (
 //   - 25% cache, 25% maxSQLMemory
 // ************************************************
 func TestCockroachDBSuite(t *testing.T) {
-	if installer.SkipTestSuite(installer.CockroachDBTestSuite) {
+	if installer.SkipTestSuite(installer.CockroachDBTestSuite) || installer.RunOnlyCephSuite() {
 		t.Skip()
 	}
 

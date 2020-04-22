@@ -17,6 +17,7 @@ limitations under the License.
 package installer
 
 import (
+	"bytes"
 	"fmt"
 	"strconv"
 	"strings"
@@ -676,9 +677,107 @@ spec:
     status: {}`
 }
 
+func getOpenshiftSCC(namespace string) string {
+	return `---
+kind: SecurityContextConstraints
+# older versions of openshift have "apiVersion: v1"
+apiVersion: security.openshift.io/v1
+metadata:
+  name: rook-ceph
+allowPrivilegedContainer: true
+allowHostNetwork: true
+allowHostDirVolumePlugin: true
+priority:
+allowedCapabilities: []
+allowHostPorts: true
+allowHostPID: true
+allowHostIPC: true
+readOnlyRootFilesystem: false
+requiredDropCapabilities: []
+defaultAddCapabilities: []
+runAsUser:
+  type: RunAsAny
+seLinuxContext:
+  type: MustRunAs
+fsGroup:
+  type: MustRunAs
+supplementalGroups:
+  type: RunAsAny
+allowedFlexVolumes:
+  - driver: "ceph.rook.io/rook"
+  - driver: "ceph.rook.io/rook-ceph"
+volumes:
+  - configMap
+  - downwardAPI
+  - emptyDir
+  - flexVolume
+  - hostPath
+  - persistentVolumeClaim
+  - projected
+  - secret
+users:
+  # A user needs to be added for each rook service account.
+  # This assumes running in the default sample "rook-ceph" namespace.
+  # If other namespaces or service accounts are configured, they need to be updated here.
+  - system:serviceaccount:` + namespace + `:rook-ceph-system
+  - system:serviceaccount:` + namespace + `:default
+  - system:serviceaccount:` + namespace + `:rook-ceph-mgr
+  - system:serviceaccount:` + namespace + `:rook-ceph-osd
+---
+kind: SecurityContextConstraints
+# older versions of openshift have "apiVersion: v1"
+apiVersion: security.openshift.io/v1
+metadata:
+  name: rook-ceph-csi
+allowPrivilegedContainer: true
+allowHostNetwork: true
+allowHostDirVolumePlugin: true
+priority:
+allowedCapabilities: ['*']
+allowHostPorts: true
+allowHostPID: true
+allowHostIPC: true
+readOnlyRootFilesystem: false
+requiredDropCapabilities: []
+defaultAddCapabilities: []
+runAsUser:
+  type: RunAsAny
+seLinuxContext:
+  type: RunAsAny
+fsGroup:
+  type: RunAsAny
+supplementalGroups:
+  type: RunAsAny
+allowedFlexVolumes:
+  - driver: "ceph.rook.io/rook"
+  - driver: "ceph.rook.io/rook-ceph"
+volumes: ['*']
+users:
+  # A user needs to be added for each rook service account.
+  # This assumes running in the default sample "rook-ceph" namespace.
+  # If other namespaces or service accounts are configured, they need to be updated here.
+  - system:serviceaccount:` + namespace + `:rook-csi-rbd-plugin-sa
+  - system:serviceaccount:` + namespace + `:rook-csi-rbd-provisioner-sa
+  - system:serviceaccount:` + namespace + `:rook-csi-cephfs-plugin-sa
+  - system:serviceaccount:` + namespace + `:rook-csi-cephfs-provisioner-sa
+`
+}
+
 // GetRookOperator returns rook Operator manifest
 func (m *CephManifestsMaster) GetRookOperator(namespace string) string {
-	return `
+	var operatorManifest bytes.Buffer
+	openshiftEnv := ""
+
+	if TestPlatform() == "openshift" {
+    openshiftEnv = `
+        - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
+          value: "true"
+        - name: FLEXVOLUME_DIR_PATH
+          value: "/etc/kubernetes/kubelet-plugins/volume/exec"`
+		operatorManifest.WriteString(getOpenshiftSCC(namespace))
+	}
+
+	operatorManifest.WriteString(`---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: Role
 metadata:
@@ -1581,7 +1680,17 @@ spec:
         - name: ROOK_ENABLE_FLEX_DRIVER
           value: "true"
         - name: ROOK_CURRENT_NAMESPACE_ONLY
-          value: "false"
+          value: "false"` + openshiftEnv + `
+        volumeMounts:
+        - mountPath: /var/lib/rook
+          name: rook-config
+        - mountPath: /etc/ceph
+          name: default-config-dir
+      volumes:
+      - name: rook-config
+        emptyDir: {}
+      - name: default-config-dir
+        emptyDir: {}
 ---
 kind: ConfigMap
 apiVersion: v1
@@ -1591,8 +1700,8 @@ metadata:
 data:
   ROOK_CSI_ENABLE_CEPHFS: "true"
   ROOK_CSI_ENABLE_RBD: "true"
-  ROOK_CSI_ENABLE_GRPC_METRICS: "true"
-`
+  ROOK_CSI_ENABLE_GRPC_METRICS: "true"`)
+	return operatorManifest.String()
 }
 
 // GetClusterRoles returns rook-cluster manifest

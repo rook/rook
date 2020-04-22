@@ -46,7 +46,7 @@ var (
 // - Create the object store via the CRD
 // ***************************************************
 func TestCephHelmSuite(t *testing.T) {
-	if installer.SkipTestSuite(installer.CephTestSuite) {
+	if installer.SkipTestSuite(installer.CephTestSuite) || installer.SkipCephHelmSuite() {
 		t.Skip()
 	}
 

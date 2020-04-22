@@ -69,7 +69,12 @@ func SkipTestSuite(name string) bool {
 }
 
 func SystemNamespace(namespace string) string {
-	return fmt.Sprintf("%s-system", namespace)
+	if TestPlatform() == "openshift" {
+		logger.Infof("For openshift execution used system namespace: %s", namespace)
+		return namespace
+	} else {
+		return fmt.Sprintf("%s-system", namespace)
+	}
 }
 
 func checkError(t *testing.T, err error, message string) {

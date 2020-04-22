@@ -51,7 +51,7 @@ type CassandraSuite struct {
 
 // TestCassandraSuite initiates the CassandraSuite
 func TestCassandraSuite(t *testing.T) {
-	if installer.SkipTestSuite(installer.CassandraTestSuite) {
+	if installer.SkipTestSuite(installer.CassandraTestSuite) || installer.RunOnlyCephSuite() {
 		t.Skip()
 	}
 
