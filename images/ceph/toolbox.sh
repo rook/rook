@@ -70,4 +70,6 @@ EOF
 write_endpoints
 
 # continuously update the mon endpoints if they fail over
-watch_endpoints
+if [ "$1" != "--skip-watch" ]; then
+  watch_endpoints
+fi
