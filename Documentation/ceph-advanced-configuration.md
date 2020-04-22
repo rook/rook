@@ -145,7 +145,7 @@ subjects:
 All Rook logs can be collected in a Kubernetes environment with the following command:
 
 ```console
-(for p in $(kubectl -n rook-ceph get pods -o jsonpath='{.items[*].metadata.name}')
+for p in $(kubectl -n rook-ceph get pods -o jsonpath='{.items[*].metadata.name}')
 do
     for c in $(kubectl -n rook-ceph get pod ${p} -o jsonpath='{.spec.containers[*].name}')
     do
@@ -153,8 +153,7 @@ do
         kubectl -n rook-ceph logs -c ${c} ${p}
         echo "END logs from pod: ${p} ${c}"
     done
-done
-```
+done | gzip - > rook-ceph.logs.gz```
 
 This gets the logs for every container in every Rook pod and then compresses them into a `.gz` archive
 for easy sharing.  Note that instead of `gzip`, you could instead pipe to `less` or to a single text file.
