@@ -31,6 +31,9 @@ pipeline {
                           env.getLogs = "all"
                     }
 
+                    // When running in a PR we assuming it's not an official build
+                    env.isOfficialBuild = "false"
+
                     if (!body.contains("[test full]")) {
                         // By default run the min test matrix (all tests run, but will be distributed on different versions of K8s).
                         // This only affects the PR builds. The master and release builds will always run the full matrix.
@@ -111,10 +114,16 @@ pipeline {
                     return env.shouldBuild != "false" && env.shouldTest != "false" && !params.skipIntegrationTests
                 }
             }
-            steps{
+            steps {
+                // If it's not a PR assume it is an "official" master or release build
+                script {
+                    if (env.isOfficialBuild == "") {
+                        env.isOfficialBuild = "true"
+                    }
+                }
                 sh 'cat _output/version | xargs tests/scripts/makeTestImages.sh  save amd64'
                 stash name: 'repo-amd64',includes: 'ceph-amd64.tar,cockroachdb-amd64.tar,cassandra-amd64.tar,nfs-amd64.tar,yugabytedb-amd64.tar,build/common.sh,_output/tests/linux_amd64/,_output/charts/,tests/scripts/'
-                script{
+                script {
                     def data = [
                         "aws_1.14.x": "v1.14.10",
                         "aws_1.15.x": "v1.15.11",
@@ -203,6 +212,7 @@ def RunIntegrationTest(k, v) {
                                   TEST_LOG_COLLECTION_LEVEL='''+"${env.getLogs}"+''' \
                                   STORAGE_PROVIDER_TESTS='''+"${env.testProvider}"+''' \
                                   TEST_ARGUMENTS='''+"${env.testArgs}"+''' \
+                                  TEST_IS_OFFICIAL_BUILD='''+"${env.isOfficialBuild}"+''' \
                                   TEST_SCRATCH_DEVICE=/dev/xvdc
                               kubectl config view
                               _output/tests/linux_amd64/integration -test.v -test.timeout 7200s 2>&1 | tee _output/tests/integrationTests.log'''

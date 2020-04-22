@@ -45,7 +45,9 @@ const (
 	// test with the latest nautilus build
 	nautilusTestImage = "ceph/ceph:v14"
 	// test with the latest octopus build
-	octopusTestImage   = "ceph/ceph:v15"
+	octopusTestImage = "ceph/ceph:v15"
+	// test with the latest master image
+	masterTestImage    = "ceph/daemon-base:latest-master-devel"
 	helmChartName      = "local/rook-ceph"
 	helmDeployName     = "rook-ceph"
 	cephOperatorLabel  = "app=rook-ceph-operator"
@@ -56,6 +58,7 @@ var (
 	MimicVersion       = cephv1.CephVersionSpec{Image: mimicTestImage}
 	NautilusVersion    = cephv1.CephVersionSpec{Image: nautilusTestImage}
 	OctopusVersion     = cephv1.CephVersionSpec{Image: octopusTestImage}
+	MasterVersion      = cephv1.CephVersionSpec{Image: masterTestImage, AllowUnsupported: true}
 	globalTestJobIndex = 0
 )
 
@@ -101,6 +104,10 @@ func (h *CephInstaller) CreateCephOperator(namespace string) (err error) {
 		}
 	}
 
+	if err = h.WipeDisks(namespace, 2); err != nil {
+		return err
+	}
+
 	rookOperator := h.Manifests.GetRookOperator(namespace)
 	_, err = h.k8shelper.KubectlWithStdin(rookOperator, createFromStdinArgs...)
 	if err != nil {
@@ -129,6 +136,10 @@ func (h *CephInstaller) CreateRookOperatorViaHelm(namespace, chartSettings strin
 
 	}
 
+	if err = h.WipeDisks(namespace, 2); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -152,9 +163,20 @@ func (h *CephInstaller) CreateRookToolbox(namespace string) (err error) {
 	return nil
 }
 
+// Execute a command in the ceph toolbox
+func (h *CephInstaller) Execute(command string, parameters []string, namespace string) (error, string) {
+	cmd, args := client.FinalizeCephCommandArgs(command, parameters, h.k8shelper.MakeContext().ConfigDir, namespace, client.AdminUsername)
+	result, err := h.k8shelper.MakeContext().Executor.ExecuteCommandWithOutput(cmd, args...)
+	if err != nil {
+		logger.Warningf("Error executing command %q: <%v>", command, err)
+		return err, result
+	}
+	return nil, result
+}
+
 // CreateRookCluster creates rook cluster via kubectl
 func (h *CephInstaller) CreateRookCluster(namespace, systemNamespace, storeType string, usePVC bool, storageClassName string,
-	mon cephv1.MonSpec, startWithAllNodes bool, cephVersion cephv1.CephVersionSpec) error {
+	mon cephv1.MonSpec, startWithAllNodes bool, skipOSDCreation bool, cephVersion cephv1.CephVersionSpec) error {
 
 	dataDirHostPath, err := h.initTestDir(namespace)
 	if err != nil {
@@ -195,15 +217,8 @@ osd_pool_default_size = 1
 		}
 	}
 
-	if err := h.WipeClusterDisks(namespace); err != nil {
-		logger.Warningf("failed to wipe cluster disks. %+v. trying again...", err)
-		if err = h.WipeClusterDisks(namespace); err != nil {
-			return fmt.Errorf("failed to wipe cluster disks. %+v", err)
-		}
-	}
-
 	logger.Infof("Starting Rook Cluster with yaml")
-	settings := &clusterSettings{h.clusterName, namespace, storeType, dataDirHostPath, mon.Count, 0, usePVC, storageClassName, cephVersion}
+	settings := &clusterSettings{h.clusterName, namespace, storeType, dataDirHostPath, mon.Count, 0, usePVC, storageClassName, skipOSDCreation, cephVersion}
 	rookCluster := h.Manifests.GetRookCluster(settings)
 	if _, err := h.k8shelper.KubectlWithStdin(rookCluster, createFromStdinArgs...); err != nil {
 		return fmt.Errorf("Failed to create rook cluster : %v ", err)
@@ -217,13 +232,19 @@ osd_pool_default_size = 1
 		return err
 	}
 
-	if err := h.k8shelper.WaitForPodCount("app=rook-ceph-osd", namespace, 1); err != nil {
-		return err
+	if !skipOSDCreation {
+		if err := h.k8shelper.WaitForPodCount("app=rook-ceph-osd", namespace, 1); err != nil {
+			return err
+		}
 	}
 
 	logger.Infof("Rook Cluster started")
-	err = h.k8shelper.WaitForLabeledPodsToRun("app=rook-ceph-osd", namespace)
-	return err
+	if !skipOSDCreation {
+		err = h.k8shelper.WaitForLabeledPodsToRun("app=rook-ceph-osd", namespace)
+		return err
+	}
+
+	return nil
 }
 
 // CreateRookExternalCluster creates rook external cluster via kubectl
@@ -367,7 +388,7 @@ func (h *CephInstaller) GetNodeHostnames() ([]string, error) {
 
 // InstallRook installs rook on k8s
 func (h *CephInstaller) InstallRook(namespace, storeType string, usePVC bool, storageClassName string,
-	mon cephv1.MonSpec, startWithAllNodes bool, rbdMirrorWorkers int) (bool, error) {
+	mon cephv1.MonSpec, startWithAllNodes bool, rbdMirrorWorkers int, skipOSDCreation bool) (bool, error) {
 
 	var err error
 	k8sversion := h.k8shelper.GetK8sServerVersion()
@@ -405,7 +426,8 @@ func (h *CephInstaller) InstallRook(namespace, storeType string, usePVC bool, st
 
 	// Create rook cluster
 	err = h.CreateRookCluster(namespace, onamespace, storeType, usePVC, storageClassName,
-		cephv1.MonSpec{Count: mon.Count, AllowMultiplePerNode: mon.AllowMultiplePerNode}, startWithAllNodes, h.CephVersion)
+		cephv1.MonSpec{Count: mon.Count, AllowMultiplePerNode: mon.AllowMultiplePerNode}, startWithAllNodes,
+		skipOSDCreation, h.CephVersion)
 	if err != nil {
 		logger.Errorf("Rook cluster %s not installed, error -> %v", namespace, err)
 		return false, err
@@ -719,8 +741,21 @@ func NewCephInstaller(t func() *testing.T, clientset *kubernetes.Clientset, useH
 	return h
 }
 
-// WipeClusterDisks runs a disk wipe job on all nodes in the k8s cluster.
-func (h *CephInstaller) WipeClusterDisks(namespace string) error {
+// Wipe cluster disks
+func (h *CephInstaller) WipeDisks(namespace string, retries int) (err error) {
+	for i := 1; i <= retries; i++ {
+		if err = h.wipeClusterDisks(namespace); err == nil {
+			logger.Info("disks wiped successfully")
+			return nil
+		} else {
+			logger.Warningf("failed to wipe cluster disks. %+v. Attemp %d/%d ...", err, i, retries)
+		}
+	}
+	return fmt.Errorf("failed to wipe cluster disks. %+v", err)
+}
+
+// wipeClusterDisks runs a disk wipe job on all nodes in the k8s cluster.
+func (h *CephInstaller) wipeClusterDisks(namespace string) error {
 	// Wipe clean disks on all nodes
 	nodes, err := h.GetNodeHostnames()
 	if err != nil {
