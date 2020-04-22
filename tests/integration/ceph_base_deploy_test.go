@@ -101,6 +101,7 @@ type TestCluster struct {
 	kh                      *utils.K8sHelper
 	helper                  *clients.TestClient
 	T                       func() *testing.T
+	clusterName             string
 	namespace               string
 	storeType               string
 	storageClassName        string
@@ -143,7 +144,7 @@ func StartTestCluster(t func() *testing.T, cluster *TestCluster) (*TestCluster, 
 	require.NoError(t(), err)
 	checkIfShouldRunForMinimalTestMatrix(t, kh, cluster.minimalMatrixK8sVersion)
 
-	cluster.installer = installer.NewCephInstaller(t, kh.Clientset, cluster.useHelm, cluster.rookVersion, cluster.cephVersion, cluster.rookCephCleanup)
+	cluster.installer = installer.NewCephInstaller(t, kh.Clientset, cluster.useHelm, cluster.clusterName, cluster.rookVersion, cluster.cephVersion, cluster.rookCephCleanup)
 	cluster.kh = kh
 	cluster.helper = nil
 	cluster.T = t
