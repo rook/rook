@@ -396,6 +396,11 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 	metadataDevices := make(map[string]map[string]string)
 	for name, device := range devices.Entries {
 		if device.Data == -1 {
+			if device.Metadata != nil {
+				logger.Infof("skipping metadata device %s config since it will be configured with a data device", name)
+				continue
+			}
+
 			logger.Infof("configuring new device %s", name)
 			deviceArg := path.Join("/dev", name)
 			// ceph-volume prefers to use /dev/mapper/<name> if the device has this kind of alias
