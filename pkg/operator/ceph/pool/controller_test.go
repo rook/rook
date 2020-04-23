@@ -322,7 +322,8 @@ func TestCephBlockPoolController(t *testing.T) {
 			Phase: "",
 		},
 	}
-	s.AddKnownTypes(cephv1.SchemeGroupVersion, cephCluster)
+
+	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{}, &cephv1.CephClusterList{})
 
 	// Create CephCluster for updateCephBlockPoolStatus()
 	_, err = c.RookClientset.CephV1().CephClusters(namespace).Create(cephCluster)
