@@ -1,0 +1,32 @@
+#################################################################################################################
+# Define the settings for the rook-ceph cluster with common settings for a small test cluster.
+# All nodes with available raw devices will be used for the Ceph cluster. One node is sufficient
+# in this example.
+
+# For example, to create the cluster:
+#   kubectl create -f common.yaml
+#   kubectl create -f operator.yaml
+#   kubectl create -f cluster-test.yaml
+#################################################################################################################
+
+apiVersion: ceph.rook.io/v1
+kind: CephCluster
+metadata:
+  name: my-cluster
+  namespace: rook-ceph
+spec:
+  dataDirHostPath: /var/lib/rook
+  cephVersion:
+    image: ceph/ceph:v15
+    allowUnsupported: true
+  mon:
+    count: 1
+    allowMultiplePerNode: true
+  dashboard:
+    enabled: true
+  crashCollector:
+    disable: true
+  storage:
+    useAllNodes: true
+    useAllDevices: true
+    #deviceFilter:
