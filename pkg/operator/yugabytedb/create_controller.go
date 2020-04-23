@@ -331,7 +331,7 @@ func createContainer(cluster *cluster, containerImage string, isTServerStatefuls
 				},
 			},
 			{
-				Name: envPodName,
+				Name: k8sutil.PodNameEnvVar,
 				ValueFrom: &v1.EnvVarSource{
 					FieldRef: &v1.ObjectFieldSelector{
 						FieldPath: envPodNameVal,

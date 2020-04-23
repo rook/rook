@@ -704,7 +704,7 @@ func (c *Cluster) getOSDInfo(d *apps.Deployment) ([]OSDInfo, error) {
 			}
 			osd.LVBackedPV = lvBackedPV
 		}
-		if envVar.Name == "ROOK_METADATA_DEVICE" {
+		if envVar.Name == osdMetadataDeviceEnvVarName {
 			osd.MetadataPath = envVar.Value
 		}
 	}

@@ -141,7 +141,7 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 				controller.DaemonFlags(c.clusterInfo, strings.TrimPrefix(generateCephXUser(rgwConfig.ResourceName), "client.")),
 				"--foreground",
 				cephconfig.NewFlag("rgw frontends", fmt.Sprintf("%s %s", rgwFrontendName, c.portString())),
-				cephconfig.NewFlag("host", controller.ContainerEnvVarReference("POD_NAME")),
+				cephconfig.NewFlag("host", controller.ContainerEnvVarReference(k8sutil.PodNameEnvVar)),
 				cephconfig.NewFlag("rgw-mime-types-file", mimeTypesMountPath()),
 			),
 		),
