@@ -39,11 +39,15 @@ kubectl create -f cluster.yaml
 
 After the cluster is running, you can create [block, object, or file](#storage) storage to be consumed by other applications in your cluster.
 
-### Production Environments
+### Cluster Environments
 
-For production environments it is required to have local storage devices attached to your nodes.
-In this walk-through, the requirement of local storage devices is relaxed so you can get a cluster up and running
-as a "test" environment to experiment with Rook. See the [Ceph examples](ceph-examples.md) for more details.
+The Rook documentation is focused around starting Rook in a production environment. Examples are also
+provided to relax some settings for test environments. When creating the cluster later in this guide, consider these example cluster manifests:
+- [cluster.yaml](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/cluster.yaml): Cluster settings for a production cluster running on bare metal
+- [cluster-on-pvc.yaml](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/cluster-on-pvc.yaml): Cluster settings for a production cluster running in a dynamic cloud environment
+- [cluster-test.yaml](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/cluster-test.yaml): Cluster settings for a test environment such as minikube.
+
+See the [Ceph examples](ceph-examples.md) for more details.
 
 ## Deploy the Rook Operator
 
