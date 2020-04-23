@@ -29,7 +29,8 @@ var (
 	minimum = CephCSIVersion{2, 0, 0}
 
 	//supportedCSIVersions are versions that rook supports
-	supportedCSIVersions = []CephCSIVersion{minimum}
+	releaseV210          = CephCSIVersion{2, 1, 0}
+	supportedCSIVersions = []CephCSIVersion{minimum, releaseV210}
 
 	// for parsing the output of `cephcsi`
 	versionCSIPattern = regexp.MustCompile(`v(\d+)\.(\d+)\.(\d+)`)
