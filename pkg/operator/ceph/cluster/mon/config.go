@@ -127,7 +127,7 @@ func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerR
 func ValidateAndLoadExternalClusterSecrets(context *clusterd.Context, namespace string) (cephconfig.ExternalCred, error) {
 	var externalCred cephconfig.ExternalCred
 
-	secret, err := context.Clientset.CoreV1().Secrets(namespace).Get(operatorCreds, metav1.GetOptions{})
+	secret, err := context.Clientset.CoreV1().Secrets(namespace).Get(OperatorCreds, metav1.GetOptions{})
 	if err != nil {
 		if !kerrors.IsNotFound(err) {
 			return externalCred, errors.Wrap(err, "failed to get external user secret")
