@@ -62,8 +62,7 @@ func DiscoverDevices(executor exec.Executor) ([]*sys.LocalDisk, error) {
 		// Populate device information coming from lsblk
 		disk, err := PopulateDeviceInfo(d, executor)
 		if err != nil {
-			// skip device if lsblk fails
-			logger.Warningf("skipping device %q because 'lsblk' failed. %v", d, err)
+			logger.Warningf("skipping device %q. %v", d, err)
 			continue
 		}
 
