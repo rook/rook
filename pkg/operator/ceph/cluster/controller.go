@@ -1025,28 +1025,33 @@ func (c *ClusterController) handleDelete(cluster *cephv1.CephCluster, retryInter
 }
 
 func purgeExternalCluster(clientset kubernetes.Interface, namespace string) error {
-	// purge the mon endpoint config map
-	err := clientset.CoreV1().ConfigMaps(namespace).Delete(mon.EndpointConfigMapName, &metav1.DeleteOptions{})
-	if err != nil && !kerrors.IsNotFound(err) {
-		return err
+	// Purge the config maps
+	cmsToDelete := []string{
+		mon.EndpointConfigMapName,
+		config.StoreName,
+		k8sutil.ConfigOverrideName,
+	}
+	for _, cm := range cmsToDelete {
+		err := clientset.CoreV1().ConfigMaps(namespace).Delete(cm, &metav1.DeleteOptions{})
+		if err != nil && !kerrors.IsNotFound(err) {
+			logger.Errorf("failed to delete config map %+v. %v", cm, err)
+		}
 	}
 
-	// purge the config flag overrides
-	err = clientset.CoreV1().ConfigMaps(namespace).Delete(config.StoreName, &metav1.DeleteOptions{})
-	if err != nil && !kerrors.IsNotFound(err) {
-		return err
+	// Purge the secrets
+	secretsToDelete := []string{
+		mon.AppName,
+		mon.OperatorCreds,
+		csi.CsiRBDNodeSecret,
+		csi.CsiRBDProvisionerSecret,
+		csi.CsiCephFSNodeSecret,
+		csi.CsiCephFSProvisionerSecret,
 	}
-
-	// purge config override configmap?
-	err = clientset.CoreV1().ConfigMaps(namespace).Delete(k8sutil.ConfigOverrideName, &metav1.DeleteOptions{})
-	if err != nil && !kerrors.IsNotFound(err) {
-		return err
-	}
-
-	// Now delete secret
-	err = clientset.CoreV1().Secrets(namespace).Delete(mon.AppName, &metav1.DeleteOptions{})
-	if err != nil {
-		return errors.Wrapf(err, "failed to delete secret %+v", mon.AppName)
+	for _, secret := range secretsToDelete {
+		err := clientset.CoreV1().Secrets(namespace).Delete(secret, &metav1.DeleteOptions{})
+		if err != nil && !kerrors.IsNotFound(err) {
+			logger.Errorf("failed to delete config map %+v. %v", secret, err)
+		}
 	}
 
 	return nil
