@@ -441,7 +441,7 @@ func TestOnAdd(t *testing.T) {
 			},
 		},
 		{
-			Name: envPodName,
+			Name: k8sutil.PodNameEnvVar,
 			ValueFrom: &v1.EnvVarSource{
 				FieldRef: &v1.ObjectFieldSelector{
 					FieldPath: envPodNameVal,
@@ -530,7 +530,7 @@ func TestOnAdd(t *testing.T) {
 			},
 		},
 		{
-			Name: envPodName,
+			Name: k8sutil.PodNameEnvVar,
 			ValueFrom: &v1.EnvVarSource{
 				FieldRef: &v1.ObjectFieldSelector{
 					FieldPath: envPodNameVal,
