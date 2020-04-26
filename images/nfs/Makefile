@@ -39,7 +39,7 @@ CURRENT_IMAGE_ID := $$($(DOCKERCMD) images -q $(NFS_IMAGE))
 IMAGE_FILENAME := $(IMAGE_OUTPUT_DIR)/nfs.tar.gz
 
 do.build:
-	@echo === docker build $(NFS_IMAGE)
+	@echo === container build $(NFS_IMAGE)
 	@cp Dockerfile $(TEMP)
 	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rook $(TEMP)
 	@cd $(TEMP) && $(SED_CMD) 's|NFS_BASEIMAGE|$(NFS_BASEIMAGE)|g' Dockerfile

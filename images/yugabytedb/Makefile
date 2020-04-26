@@ -25,7 +25,7 @@ TEMP := $(shell mktemp -d)
 # Build Rook YugabyteDB
 
 do.build:
-	@echo === docker build $(YUGABYTEDB_IMAGE)
+	@echo === container build $(YUGABYTEDB_IMAGE)
 	@cp Dockerfile $(TEMP)
 	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rook $(TEMP)
 	@$(DOCKERCMD) build $(BUILD_ARGS) \
