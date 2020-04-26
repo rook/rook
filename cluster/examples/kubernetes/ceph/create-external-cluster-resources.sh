@@ -56,6 +56,46 @@ function createCephCSIKeyringCephFSProvisioner() {
   echo "export CSI_CEPHFS_PROVISIONER_SECRET=$cephCSIKeyringCephFSProvisionerKey"
 }
 
+function getCephExternalFSID() {
+  cephFSID=$(ceph fsid)
+  echo "export ROOK_EXTERNAL_FSID=$cephFSID"
+}
+
+function getCephExternalMonData() {
+  cephQuorumOp="$(ceph quorum_status)"
+  # fetch the quorum leader name
+  cephQuorumLeaderName="$(echo $cephQuorumOp |sed -n 's@.*"quorum_leader_name":"\([^"]*\)".*@\1@gp')"
+  # get the <ip_address>:<port> of the quorum leader
+  # (and remove any '/<digit>' from the tail end of the output)
+  cephQuorumLeaderIP="$(echo $cephQuorumOp |sed -n -r 's@.*"name":"'$cephQuorumLeaderName'",(.*)@\1@gp' |sed -r -n 's@"public_addr":"([^"]*)".*|.@\1@gp' |sed 's@/.*@@g')"
+  rookExternalMonData="$cephQuorumLeaderName=$cephQuorumLeaderIP"
+  echo "export ROOK_EXTERNAL_MON_DATA='$rookExternalMonData'"
+}
+
+function generateJSON() {
+  local outFile=$1
+  [ -z "$outFile" ] && outFile=/dev/null
+  cat <<EOF >$outFile
+{
+  "CSI_CEPHFS_PROVISIONER_SECRET": "$cephCSIKeyringCephFSProvisionerKey",
+  "CSI_CEPHFS_NODE_SECRET": "$cephCSIKeyringCephFSNodeKey",
+  "CSI_RBD_PROVISIONER_SECRET": "$cephCSIKeyringRBDProvisionerKey",
+  "CSI_RBD_NODE_SECRET_SECRET": "$cephCSIKeyringRBDNodeKey",
+  "ROOK_EXTERNAL_USERNAME": "$CLIENT_CHECKER_NAME",
+  "ROOK_EXTERNAL_USER_SECRET": "$checkerKey",
+  "ROOK_EXTERNAL_FSID": "$cephFSID",
+  "ROOK_EXTERNAL_MON_DATA": "$rookExternalMonData"
+}
+EOF
+}
+
+function processJSONArgs() {
+  local jsonArg="$(echo $* |sed -n -r 's@.*[[:space:]]*(--\<json\>)[[:space:]]*.*@\1@gp')"
+  # if there is no JSON arg return silently
+  [ -z "$jsonArg" ] && return
+  local jsonFile="$(echo $* |sed -n -r 's@.*[[:space:]]*--json[[:space:]]+([^ ]*).*@\1@gp')"
+  generateJSON "$jsonFile"
+}
 
 ########
 # MAIN #
@@ -66,5 +106,9 @@ createCephCSIKeyringRBDNode
 createCephCSIKeyringRBDProvisioner
 createCephCSIKeyringCephFSNode
 createCephCSIKeyringCephFSProvisioner
+getCephExternalFSID
+getCephExternalMonData
 
-echo -e "successfully created users and keys, execute the above commands and run import-external-cluster.sh to inject them in your Kubernetes cluster."
+processJSONArgs $*
+
+echo -e "# successfully created users and keys, execute the above commands and run import-external-cluster.sh to inject them in your Kubernetes cluster."
