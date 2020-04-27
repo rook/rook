@@ -626,6 +626,9 @@ ID CLASS WEIGHT  TYPE NAME                 STATUS REWEIGHT PRI-AFF
  1   hdd 0.00679                 osd.1         up  1.00000 1.00000
 ```
 
+Ceph requires unique names at every level in the hierarchy (CRUSH map). For example, you cannot have two racks
+with the same name that are in different zones. Racks in different zones must be named uniquely.
+
 Note that the `host` is added automatically to the hierarchy by Rook. The host cannot be specified with a topology label.
 All topology labels are optional.
 
