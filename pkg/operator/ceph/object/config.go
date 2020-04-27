@@ -111,3 +111,15 @@ func (c *clusterConfig) setDefaultFlagsMonConfigStore(rgwName string) error {
 
 	return nil
 }
+
+func (c *clusterConfig) deleteFlagsMonConfigStore(rgwName string) error {
+	monStore := cephconfig.GetMonStore(c.context, c.store.Namespace)
+	who := generateCephXUser(rgwName)
+	err := monStore.DeleteDaemon(who)
+	if err != nil {
+		return errors.Wrapf(err, "failed to delete rgw config for %q in mon configuration database", who)
+	}
+
+	logger.Infof("successfully deleted rgw config for %q in mon configuration database", who)
+	return nil
+}

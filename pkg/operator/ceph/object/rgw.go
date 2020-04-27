@@ -200,10 +200,9 @@ func (c *clusterConfig) startRGWPods() error {
 				logger.Warningf("failed to delete rgw secret %q. %v", secretToRemove, err)
 			}
 
-			// Delete the auth key
-			err = cephclient.AuthDelete(c.context, c.store.Namespace, generateCephXUser(depNameToRemove))
+			err := c.deleteRgwCephObjects(depNameToRemove)
 			if err != nil {
-				logger.Infof("failed to delete rgw key %q. %v", depNameToRemove, err)
+				logger.Warningf("%v", err)
 			}
 		}
 		// verify scale down was successful
@@ -269,11 +268,12 @@ func (c *clusterConfig) deleteLegacyDaemons() {
 func (c *clusterConfig) deleteStore() error {
 	logger.Infof("deleting object store %q from namespace %q", c.store.Name, c.store.Namespace)
 
-	// Delete rgw CephX keys
+	// Delete rgw CephX keys and configuration in centralized mon database
 	for i := 0; i < int(c.store.Spec.Gateway.Instances); i++ {
 		daemonLetterID := k8sutil.IndexToName(i)
 		depNameToRemove := fmt.Sprintf("%s-%s-%s", AppName, c.store.Name, daemonLetterID)
-		err := cephclient.AuthDelete(c.context, c.store.Namespace, generateCephXUser(depNameToRemove))
+
+		err := c.deleteRgwCephObjects(depNameToRemove)
 		if err != nil {
 			return err
 		}
@@ -287,6 +287,24 @@ func (c *clusterConfig) deleteStore() error {
 	}
 
 	logger.Infof("completed deleting object store %q from namespace %q", c.store.Name, c.store.Namespace)
+	return nil
+}
+
+func (c *clusterConfig) deleteRgwCephObjects(depNameToRemove string) error {
+	logger.Infof("deleting rgw CephX key and configuration in centralized mon database for %q", depNameToRemove)
+
+	// Delete configuration in centralized mon database
+	err := c.deleteFlagsMonConfigStore(depNameToRemove)
+	if err != nil {
+		return err
+	}
+
+	err = cephclient.AuthDelete(c.context, c.store.Namespace, generateCephXUser(depNameToRemove))
+	if err != nil {
+		return err
+	}
+
+	logger.Infof("completed deleting rgw CephX key and configuration in centralized mon database for %q", depNameToRemove)
 	return nil
 }
 

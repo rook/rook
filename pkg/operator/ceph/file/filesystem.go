@@ -18,6 +18,7 @@ package file
 
 import (
 	"fmt"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -88,7 +89,33 @@ func createFilesystem(
 }
 
 // deleteFileSystem deletes the filesystem from Ceph
-func deleteFilesystem(context *clusterd.Context, cephVersion cephver.CephVersion, fs cephv1.CephFilesystem) error {
+func deleteFilesystem(
+	clusterInfo *cephconfig.ClusterInfo,
+	context *clusterd.Context,
+	fs cephv1.CephFilesystem,
+	clusterSpec *cephv1.ClusterSpec,
+	ownerRefs metav1.OwnerReference,
+	dataDirHostPath string,
+	scheme *runtime.Scheme,
+) error {
+	filesystem, err := client.GetFilesystem(context, fs.Namespace, fs.Name)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get filesystem %q", fs.Name)
+	}
+	c := mds.NewCluster(clusterInfo, context, clusterSpec, fs, filesystem, ownerRefs, dataDirHostPath, scheme)
+
+	// Delete mds CephX keys and configuration in centralized mon database
+	replicas := fs.Spec.MetadataServer.ActiveCount * 2
+	for i := 0; i < int(replicas); i++ {
+		daemonLetterID := k8sutil.IndexToName(i)
+		daemonName := fmt.Sprintf("%s-%s", fs.Name, daemonLetterID)
+
+		err = c.DeleteMdsCephObjects(daemonName)
+		if err != nil {
+			return errors.Wrapf(err, "failed to delete mds ceph objects for filesystem %q", fs.Name)
+		}
+	}
+
 	// The most important part of deletion is that the filesystem gets removed from Ceph
 	// The K8s resources will already be removed with the K8s owner references
 	if err := downFilesystem(context, fs.Namespace, fs.Name); err != nil {

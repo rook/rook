@@ -20,6 +20,7 @@ package mds
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
@@ -239,6 +240,12 @@ func (c *Cluster) scaleDownDeployments(replicas int32, desiredDeployments map[st
 				errCount++
 				logger.Errorf("error during deletion of extraneous mds deployments. %v", err)
 			}
+
+			daemonName := strings.Replace(d.GetName(), fmt.Sprintf("%s-", AppName), "", -1)
+			err := c.DeleteMdsCephObjects(daemonName)
+			if err != nil {
+				logger.Errorf("%v", err)
+			}
 		}
 	}
 	if errCount > 0 {
@@ -246,6 +253,23 @@ func (c *Cluster) scaleDownDeployments(replicas int32, desiredDeployments map[st
 	}
 	logger.Infof("successfully deleted extraneous mds deployments")
 
+	return nil
+}
+
+func (c *Cluster) DeleteMdsCephObjects(mdsID string) error {
+	monStore := config.GetMonStore(c.context, c.fs.Namespace)
+	who := fmt.Sprintf("mds.%s", mdsID)
+	err := monStore.DeleteDaemon(who)
+	if err != nil {
+		return errors.Wrapf(err, "failed to delete mds config for %q in mon configuration database", who)
+	}
+	logger.Infof("successfully deleted mds config for %q in mon configuration database", who)
+
+	err = client.AuthDelete(c.context, c.fs.Namespace, who)
+	if err != nil {
+		return err
+	}
+	logger.Infof("successfully deleted mds CephX key for %q", who)
 	return nil
 }
 
