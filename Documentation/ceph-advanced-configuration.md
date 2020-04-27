@@ -145,7 +145,7 @@ subjects:
 All Rook logs can be collected in a Kubernetes environment with the following command:
 
 ```console
-(for p in $(kubectl -n rook-ceph get pods -o jsonpath='{.items[*].metadata.name}')
+for p in $(kubectl -n rook-ceph get pods -o jsonpath='{.items[*].metadata.name}')
 do
     for c in $(kubectl -n rook-ceph get pod ${p} -o jsonpath='{.spec.containers[*].name}')
     do
