@@ -1363,7 +1363,7 @@ roleRef:
 apiVersion: policy/v1beta1
 kind: PodSecurityPolicy
 metadata:
-  name: rook-privileged
+  name: 00-rook-privileged
   annotations:
     seccomp.security.alpha.kubernetes.io/allowedProfileNames: 'runtime/default'
     seccomp.security.alpha.kubernetes.io/defaultProfileName:  'runtime/default'
@@ -1437,7 +1437,7 @@ rules:
     resources:
       - podsecuritypolicies
     resourceNames:
-      - rook-privileged
+      - 00-rook-privileged
     verbs:
       - use
 ---
