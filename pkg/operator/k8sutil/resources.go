@@ -19,6 +19,9 @@ package k8sutil
 
 // MergeResourceRequirements merges two resource requirements together (first overrides second values)
 import (
+	"encoding/json"
+
+	"github.com/ghodss/yaml"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -88,4 +91,27 @@ func SetOwnerRefsWithoutBlockOwner(object *metav1.ObjectMeta, ownerRefs []metav1
 
 func SetOwnerRefs(object *metav1.ObjectMeta, ownerRefs []metav1.OwnerReference) {
 	object.SetOwnerReferences(ownerRefs)
+}
+
+type ContainerResource struct {
+	Name     string                  `json:"name"`
+	Resource v1.ResourceRequirements `json:"resource"`
+}
+
+// YamlToContainerResource takes raw YAML string and converts it to array of
+// ContainerResource
+func YamlToContainerResource(raw string) ([]ContainerResource, error) {
+	resources := []ContainerResource{}
+	if raw == "" {
+		return resources, nil
+	}
+	rawJSON, err := yaml.YAMLToJSON([]byte(raw))
+	if err != nil {
+		return resources, err
+	}
+	err = json.Unmarshal(rawJSON, &resources)
+	if err != nil {
+		return resources, err
+	}
+	return resources, nil
 }
