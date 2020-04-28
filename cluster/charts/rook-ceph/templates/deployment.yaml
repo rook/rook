@@ -202,6 +202,22 @@ spec:
         - name: CSI_LOG_LEVEL
           value: {{ .Values.csi.logLevel | quote }}
 {{- end }}
+{{- if .Values.csi.csiRBDProvisionerResource }}
+        - name: CSI_RBD_PROVISIONER_RESOURCE
+          value: {{ .Values.csi.csiRBDProvisionerResource | quote }}
+{{- end }}
+{{- if .Values.csi.csiRBDPluginResource }}
+        - name: CSI_RBD_PLUGIN_RESOURCE
+          value: {{ .Values.csi.csiRBDPluginResource | quote }}
+{{- end }}
+{{- if .Values.csi.csiCephFSProvisionerResource }}
+        - name: CSI_CEPHFS_PROVISIONER_RESOURCE
+          value: {{ .Values.csi.csiCephFSProvisionerResource | quote }}
+{{- end }}
+{{- if .Values.csi.csiCephFSPluginResource }}
+        - name: CSI_CEPHFS_PLUGIN_RESOURCE
+          value: {{ .Values.csi.csiCephFSPluginResource | quote }}
+{{- end }}
 {{- end }}
         - name: ROOK_ENABLE_FLEX_DRIVER
           value: "{{ .Values.enableFlexDriver }}"
