@@ -86,6 +86,12 @@ SUBSYSTEM=block
 `
 )
 
+var (
+	lsblkChildOutput = `NAME="ceph--cec981b8--2eca--45cd--bf91--a4472779f2a9-osd--data--428984b7--f94d--40cd--9cb7--1458e1613eab" MAJ:MIN="252:0" RM="0" SIZE="29G" RO="0" TYPE="lvm" MOUNTPOINT=""
+NAME="vdb" MAJ:MIN="253:16" RM="0" SIZE="30G" RO="0" TYPE="disk" MOUNTPOINT=""
+NAME="vdb1" MAJ:MIN="253:17" RM="0" SIZE="30G" RO="0" TYPE="part" MOUNTPOINT=""`
+)
+
 func TestFindUUID(t *testing.T) {
 	output := `Disk /dev/sdb: 10485760 sectors, 5.0 GiB
 Logical sector size: 512 bytes
@@ -107,45 +113,12 @@ func TestParseFileSystem(t *testing.T) {
 	assert.Equal(t, "ext2", result)
 }
 
-func TestMountDeviceWithOptions(t *testing.T) {
-	testCount := 0
-	e := &exectest.MockExecutor{
-		MockExecuteCommand: func(debug bool, actionName string, command string, arg ...string) error {
-			switch testCount {
-			case 0:
-				assert.Equal(t, []string{"/dev/abc1", "/tmp/mount1"}, arg)
-			case 1:
-				assert.Equal(t, []string{"-o", "foo=bar,baz=biz", "/dev/abc1", "/tmp/mount1"}, arg)
-			case 2:
-				assert.Equal(t, []string{"-t", "myfstype", "/dev/abc1", "/tmp/mount1"}, arg)
-			case 3:
-				assert.Equal(t, []string{"-t", "myfstype", "-o", "foo=bar,baz=biz", "/dev/abc1", "/tmp/mount1"}, arg)
-			}
-
-			testCount++
-			return nil
-		},
-	}
-
-	// no fstype or options
-	MountDeviceWithOptions("/dev/abc1", "/tmp/mount1", "", "", e)
-
-	// options specified
-	MountDeviceWithOptions("/dev/abc1", "/tmp/mount1", "", "foo=bar,baz=biz", e)
-
-	// fstype specified
-	MountDeviceWithOptions("/dev/abc1", "/tmp/mount1", "myfstype", "", e)
-
-	// both fstype and options specified
-	MountDeviceWithOptions("/dev/abc1", "/tmp/mount1", "myfstype", "foo=bar,baz=biz", e)
-}
-
 func TestGetPartitions(t *testing.T) {
 	run := 0
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, arg ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(command string, arg ...string) (string, error) {
 			run++
-			logger.Infof("run %d action %s command %s", run, actionName, command)
+			logger.Infof("run %d command %s", run, command)
 			switch {
 			case run == 1:
 				return `NAME="sdc" SIZE="100000" TYPE="disk" PKNAME=""`, nil
@@ -208,4 +181,18 @@ NAME="ceph--89fa04fa--b93a--4874--9364--c95be3ec01c6-osd--data--70847bdb--2ec1--
 func TestParseUdevInfo(t *testing.T) {
 	m := parseUdevInfo(udevOutput)
 	assert.Equal(t, m["ID_FS_TYPE"], "ext2")
+}
+
+func TestListDevicesChildListDevicesChild(t *testing.T) {
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, arg ...string) (string, error) {
+			logger.Infof("command %s", command)
+			return lsblkChildOutput, nil
+		},
+	}
+
+	device := "/dev/vdb"
+	child, err := ListDevicesChild(executor, device)
+	assert.NoError(t, err)
+	assert.Equal(t, 3, len(child))
 }

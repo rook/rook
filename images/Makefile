@@ -22,7 +22,7 @@ export TINI_VERSION = v0.16.1
 # ====================================================================================
 # Image Targets
 
-cross: cross.linux_amd64
+cross: cross.linux_amd64 ## Build images used for cross building.
 cross.%:
 	@$(MAKE) -C cross PLATFORM=$*
 
@@ -31,9 +31,6 @@ ceph.%:
 
 cockroachdb.%:
 	@$(MAKE) -C cockroachdb PLATFORM=$*
-
-minio.%:
-	@$(MAKE) -C minio PLATFORM=$*
 
 edgefs.%:
 	@$(MAKE) -C edgefs PLATFORM=$*
@@ -51,37 +48,28 @@ yugabytedb.%:
 do.build.images.%: $(foreach i,$(IMAGES), $(i).%);
 
 do.build: do.build.images.$(PLATFORM) ;
-build.all: $(foreach p,$(PLATFORMS), do.build.images.$(p)) ;
+build.all: $(foreach p,$(PLATFORMS), do.build.images.$(p)) ; ## Build images for all platforms.
 
 # ====================================================================================
 # Help
+define HELPTEXT
+Options:
+    PLATFORM     The platform to build.
+    PULL         Whether to pull base images. Default is 1.
+    V            Set to 1 enable verbose build. Default is 0.
 
+Advanced Options:
+    PRUNE_HOURS  The number of hours from when an image is
+                 last used for it to be considered a target for
+                 pruning. Default is 48 hrs.
+    PRUNE_KEEP   The minimum number of cached images to keep.
+                 Default is 24 images.
+endef
+export HELPTEXT
 .PHONY: help
-help:
-	@echo 'Usage: make <OPTIONS> ... <TARGETS>'
-	@echo ''
-	@echo 'Targets:'
-	@echo '    build        Build images for the host platform.'
-	@echo '    build.all    Build images for all platforms.'
-	@echo '    clean        Remove all images created from the'
-	@echo '                 current build.'
-	@echo '    prune        Prunes orphaned and cached images at the.'
-	@echo '                 host level.'
-	@echo ''
-	@echo 'Advanced Targets:'
-	@echo '    cross        Build images used for cross building.'
-	@echo '    clean.all    Remove all images including cached.'
-	@echo '                 images at the host level.'
-	@echo '    prune.all    Prune everything ignoring policy.'
-	@echo ''
-	@echo 'Options:'
-	@echo '    PLATFORM     The platform to build.'
-	@echo '    PULL         Whether to pull base images. Default is 1.'
-	@echo '    V            Set to 1 enable verbose build. Default is 0.'
-	@echo ''
-	@echo 'Advanced Options:'
-	@echo '    PRUNE_HOURS  The number of hours from when an image is'
-	@echo '                 last used for it to be considered a target for'
-	@echo '                 pruning. Default is 48 hrs.'
-	@echo '    PRUNE_KEEP   The minimum number of cached images to keep.'
-	@echo '                 Default is 24 images.'
+help: ## Show this help menu.
+	@echo "Usage: make [TARGET ...]"
+	@echo ""
+	@grep --no-filename -E '^[a-zA-Z_%-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+	@echo ""
+	@echo "$$HELPTEXT"

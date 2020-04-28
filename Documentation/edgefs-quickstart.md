@@ -10,12 +10,12 @@ indent: true
 
 EdgeFS Data Fabric virtualzing common storage protocols and enables multi-cluster, multi-region data flow topologies.
 
-This guide will walk you through the basic setup of a EdgeFS cluster namespaces and enable you to consume S3 object, NFS file access, and iSCSI block storage
+This guide will walk you through the basic setup of a EdgeFS cluster namespaces and enable you to consume S3 object, NFS/SMB file access, and iSCSI block storage
 from other pods running in your cluster, in decentralized ways.
 
 ## Minimum Version
 
-EdgeFS operator, CSI plugin and CRDs were tested with Kubernetes **v1.11** or higher.
+EdgeFS operator, CSI plugin and CRDs were tested with Kubernetes **v1.13** or higher.
 
 ## Prerequisites
 
@@ -49,12 +49,12 @@ If you're feeling lucky, a simple EdgeFS Rook cluster can be created with the fo
 
 ```console
 git clone --single-branch --branch {{ branchName }} https://github.com/rook/rook.git
-cd cluster/examples/kubernetes/edgefs
+cd rook/cluster/examples/kubernetes/edgefs
 kubectl create -f operator.yaml
 kubectl create -f cluster.yaml
 ```
 
-After the cluster is running, you can create [NFS, S3, or iSCSI](#storage) storage to be consumed by other applications in your cluster.
+After the cluster is running, you can create [NFS, SMB, S3, or iSCSI](#storage) storage to be consumed by other applications in your cluster.
 
 ## Deploy the Rook Operator
 
@@ -107,6 +107,7 @@ Notice that EdgeFS Targets are running as StatefulSet.
 For a walkthrough of the types of Storage CRDs exposed by EdgeFS Rook, see the guides for:
 
 * **[NFS Server](edgefs-nfs-crd.md)**: Create Scale-Out NFS storage to be consumed by multiple pods, simultaneously
+* **[SMB Server](edgefs-smb-crd.md)**: Create Scale-Out Microsoft CIFS/SMB storage to be consumed by multiple pods, simultaneously
 * **[S3X](edgefs-s3x-crd.md)**: Create an Extended S3 HTTP/2 compatible object and key-value store that is accessible inside or outside the Kubernetes cluster
 * **[AWS S3](edgefs-s3-crd.md)**: Create an AWS S3 compatible object store that is accessible inside or outside the Kubernetes cluster
 * **[iSCSI Target](edgefs-iscsi-crd.md)**: Create low-latency and high-throughput iSCSI block to be consumed by a pod

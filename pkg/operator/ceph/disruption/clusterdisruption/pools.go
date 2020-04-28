@@ -44,7 +44,7 @@ func (r *ReconcileClusterDisruption) processPools(request reconcile.Request) (*c
 	cephBlockPoolList := &cephv1.CephBlockPoolList{}
 	err := r.client.List(context.TODO(), cephBlockPoolList, namespaceListOpt)
 	if err != nil {
-		return nil, nil, "", poolCount, errors.Wrapf(err, "could not list the CephBlockpools %s", request.NamespacedName)
+		return nil, nil, "", poolCount, errors.Wrapf(err, "could not list the CephBlockpools %v", request.NamespacedName)
 	}
 	poolCount += len(cephBlockPoolList.Items)
 	for _, cephBlockPool := range cephBlockPoolList.Items {
@@ -54,7 +54,7 @@ func (r *ReconcileClusterDisruption) processPools(request reconcile.Request) (*c
 	cephFilesystemList := &cephv1.CephFilesystemList{}
 	err = r.client.List(context.TODO(), cephFilesystemList, namespaceListOpt)
 	if err != nil {
-		return nil, nil, "", poolCount, errors.Wrapf(err, "could not list the CephFilesystems %s", request.NamespacedName)
+		return nil, nil, "", poolCount, errors.Wrapf(err, "could not list the CephFilesystems %v", request.NamespacedName)
 	}
 	poolCount += len(cephFilesystemList.Items)
 	for _, cephFilesystem := range cephFilesystemList.Items {
@@ -66,7 +66,7 @@ func (r *ReconcileClusterDisruption) processPools(request reconcile.Request) (*c
 	cephObjectStoreList := &cephv1.CephObjectStoreList{}
 	err = r.client.List(context.TODO(), cephObjectStoreList, namespaceListOpt)
 	if err != nil {
-		return nil, nil, "", poolCount, errors.Wrapf(err, "could not list the CephObjectStores %s", request.NamespacedName)
+		return nil, nil, "", poolCount, errors.Wrapf(err, "could not list the CephObjectStores %v", request.NamespacedName)
 	}
 	poolCount += len(cephObjectStoreList.Items)
 	for _, cephObjectStore := range cephObjectStoreList.Items {
@@ -115,7 +115,7 @@ func (r *ReconcileClusterDisruption) getOngoingDrains(request reconcile.Request)
 	operatorNameSpaceListOpts := client.InNamespace(request.Namespace)
 	err := r.client.List(context.TODO(), canaryDeploymentList, client.MatchingLabels{k8sutil.AppAttr: nodedrain.CanaryAppName}, operatorNameSpaceListOpts)
 	if err != nil {
-		return nil, errors.Wrapf(err, "could not list canary deployments")
+		return nil, errors.Wrap(err, "could not list canary deployments")
 	}
 
 	ongoingDrains := make([]*corev1.Node, 0)
@@ -129,10 +129,15 @@ func (r *ReconcileClusterDisruption) getOngoingDrains(request reconcile.Request)
 
 			nodeList := &corev1.NodeList{}
 			err = r.client.List(context.TODO(), nodeList, client.MatchingLabels{corev1.LabelHostname: nodeHostname})
-			nodeNum := len(nodeList.Items)
-			if err != nil || nodeNum < 1 {
+			if err != nil {
 				return nil, errors.Errorf("could not get node: %s ", nodeHostname)
-			} else if nodeNum > 1 {
+			} else if len(nodeList.Items) < 1 {
+				logger.Infof("node %q does not exist, deleting corresponding drain-canary", nodeHostname)
+				err = r.client.DeleteAllOf(context.TODO(), &appsv1.Deployment{}, client.MatchingLabels{corev1.LabelHostname: nodeHostname, k8sutil.AppAttr: nodedrain.CanaryAppName})
+				if err != nil {
+					return nil, errors.Wrapf(err, "could not delete drain-canary for host %q", nodeHostname)
+				}
+			} else if len(nodeList.Items) > 1 {
 				logger.Warningf("found more than one node with %s=%s", corev1.LabelHostname, nodeHostname)
 			}
 			ongoingDrains = append(ongoingDrains, &nodeList.Items[0])
@@ -180,7 +185,7 @@ func (r *ReconcileClusterDisruption) reconcileCephObjectStore(cephObjectStoreLis
 		request := types.NamespacedName{Name: pdbName, Namespace: namespace}
 		err := r.reconcileStaticPDB(request, pdb)
 		if err != nil {
-			return errors.Wrapf(err, "could not reconcile cephobjectstore pdb %s", request)
+			return errors.Wrapf(err, "could not reconcile cephobjectstore pdb %v", request)
 		}
 	}
 	return nil
@@ -229,7 +234,7 @@ func (r *ReconcileClusterDisruption) reconcileCephFilesystem(cephFilesystemList 
 		request := types.NamespacedName{Name: pdbName, Namespace: namespace}
 		err := r.reconcileStaticPDB(request, pdb)
 		if err != nil {
-			return errors.Wrapf(err, "could not reconcile cephfs pdb %s", request)
+			return errors.Wrapf(err, "could not reconcile cephfs pdb %v", request)
 		}
 	}
 	return nil

@@ -21,7 +21,7 @@ The maintainers have the responsibility of ensuring this criteria is met.
   * All issues in the project board are in the "Done" column, with the exception of issues we are planning to include in a possible upcoming minor release.
   * Pending release notes have been authored and cover all notable features and changes in the release.
 * Codebase Hygiene
-  * Dependencies in the vendor tree as well as the vendor lock file are up to date (`make vendor`).
+  * Dependencies in the `go.mod` file as well as the `go.sum` file are up to date (`make mod.check`).
   * Generated code is up to date and in sync with the types in each API group (`make codegen`).
 * Documentation
   * The Quickstart guides for each storage provider have been tested thoroughly and completely.

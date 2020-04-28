@@ -22,7 +22,7 @@ First deploy the Rook Cassandra Operator using the following commands:
 
 ```console
 git clone --single-branch --branch {{ branchName }} https://github.com/rook/rook.git
-cd cluster/examples/kubernetes/cassandra
+cd rook/cluster/examples/kubernetes/cassandra
 kubectl apply -f operator.yaml
 ```
 
@@ -147,4 +147,60 @@ If everything looks OK in the operator logs, you can also look in the logs for o
 
 ```console
 kubectl -n rook-cassandra logs rook-cassandra-0
+```
+
+## Cassandra Monitoring
+
+To enable jmx_exporter for cassandra rack, you should specify `jmxExporterConfigMapName` option for rack in CassandraCluster CRD.
+
+For example:
+```yaml
+apiVersion: cassandra.rook.io/v1alpha1
+kind: Cluster
+metadata:
+  name: my-cassandra
+  namespace: rook-cassandra
+spec:
+  ...
+  datacenter:
+    name: my-datacenter
+    racks:
+    - name: my-rack
+      members: 3
+      jmxExporterConfigMapName: jmx-exporter-settings
+      storage:
+        volumeClaimTemplates:
+        - metadata:
+            name: rook-cassandra-data
+          spec:
+            storageClassName: my-storage-class
+            resources:
+              requests:
+                storage: 200Gi
+```
+
+Simple config map example to get all metrics:
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jmx-exporter-settings
+  namespace: rook-cassandra
+data:
+  jmx_exporter_config.yaml: |
+    lowercaseOutputLabelNames: true
+    lowercaseOutputName: true
+    whitelistObjectNames: ["org.apache.cassandra.metrics:*"]
+```
+
+ConfigMap's data field must contain `jmx_exporter_config.yaml` key with jmx exporter settings.
+
+There is no automatic reloading mechanism for pods when the config map updated.
+After the configmap changed, you should restart all rack pods manually:
+
+```bash
+NAMESPACE=<namespace>
+CLUSTER=<cluster_name>
+RACKS=$(kubectl get sts -n ${NAMESPACE} -l "cassandra.rook.io/cluster=${CLUSTER}")
+echo ${RACKS} | xargs -n1 kubectl rollout restart -n ${NAMESPACE}
 ```

@@ -55,7 +55,6 @@ SERVER_PACKAGES = $(GO_PROJECT)/cmd/rook $(GO_PROJECT)/cmd/rookflex
 
 # tests packages that will be compiled into binaries
 TEST_PACKAGES = $(GO_PROJECT)/tests/integration
-LONGHAUL_TEST_PACKAGES = $(GO_PROJECT)/tests/longhaul
 
 # the root go project
 GO_PROJECT=github.com/rook/rook
@@ -80,7 +79,6 @@ GO_LDFLAGS=$(LDFLAGS)
 GO_TAGS=$(TAGS)
 
 GO_TEST_PACKAGES=$(TEST_PACKAGES)
-GO_LONGHAUL_TEST_PACKAGES=$(LONGHAUL_TEST_PACKAGES)
 GO_TEST_FLAGS=$(TESTFLAGS)
 GO_TEST_SUITE=$(SUITE)
 GO_TEST_FILTER=$(TESTFILTER)
@@ -97,7 +95,7 @@ build.version:
 	@mkdir -p $(OUTPUT_DIR)
 	@echo "$(VERSION)" > $(OUTPUT_DIR)/version
 
-build.common: build.version helm.build
+build.common: build.version helm.build mod.check
 	@$(MAKE) go.init
 	@$(MAKE) go.validate
 
@@ -106,7 +104,7 @@ do.build.platform.%:
 
 do.build.parallel: $(foreach p,$(PLATFORMS), do.build.platform.$(p))
 
-build: build.common
+build: build.common ## Build source code for host platform.
 	@$(MAKE) go.build
 # if building on non-linux platforms, also build the linux container
 ifneq ($(GOOS),linux)
@@ -114,7 +112,7 @@ ifneq ($(GOOS),linux)
 endif
 	@$(MAKE) -C images PLATFORM=linux_$(GOHOSTARCH)
 
-build.all: build.common
+build.all: build.common ## Build source code for all platforms. Best done in the cross build container due to cross compiler dependencies.
 ifneq ($(GOHOSTARCH),amd64)
 	$(error cross platform image build only supported on amd64 host currently)
 endif
@@ -124,75 +122,50 @@ endif
 install: build.common
 	@$(MAKE) go.install
 
-check test:
+check test: ## Runs unit tests.
 	@$(MAKE) go.test.unit
 
-test-integration:
+test-integration: ## Runs integration tests.
 	@$(MAKE) go.test.integration
 
-lint:
+lint: ## Check syntax and styling of go sources.
 	@$(MAKE) go.init
 	@$(MAKE) go.lint
 
-vet:
+vet: ## Runs lint checks on go sources.
 	@$(MAKE) go.init
 	@$(MAKE) go.vet
 
-fmt:
+fmt: ## Check formatting of go sources.
 	@$(MAKE) go.init
 	@$(MAKE) go.fmt
 
-codegen:
+codegen: ## Run code generators.
 	@build/codegen/codegen.sh
 
-vendor: go.vendor
-vendor.check: go.vendor.check
-vendor.update: go.vendor.update
+mod.check: go.mod.check ## Check if any go modules changed.
+mod.update: go.mod.update ## Update all go modules.
 
-clean:
+clean: ## Remove all files that are created by building.
+	@$(MAKE) go.mod.clean
 	@$(MAKE) -C images clean
 	@rm -fr $(OUTPUT_DIR) $(WORK_DIR)
 
-distclean: go.distclean clean
+distclean: clean ## Remove all files that are created by building or configuring.
 	@rm -fr $(CACHE_DIR)
 
-prune:
+prune: ## Prune cached artifacts.
 	@$(MAKE) -C images prune
 
-csv-ceph:
+csv-ceph: ## Generate a CSV file for OLM.
 	@cluster/olm/ceph/generate-rook-csv.sh $(CSV_VERSION) $(CSV_PLATFORM) $(ROOK_OP_VERSION)
 
 .PHONY: all build.common cross.build.parallel
-.PHONY: build build.all install test check vet fmt codegen vendor clean distclean prune
+.PHONY: build build.all install test check vet fmt codegen mod.check clean distclean prune
 
 # ====================================================================================
 # Help
-
 define HELPTEXT
-Usage: make <OPTIONS> ... <TARGETS>
-
-Targets:
-    build              Build source code for host platform.
-    build.all          Build source code for all platforms.
-                       Best done in the cross build container
-                       due to cross compiler dependencies.
-    check              Runs unit tests.
-    clean              Remove all files that are created by building.
-    codegen            Run code generators.
-    csv-ceph           Generate a CSV file for OLM.
-    distclean          Remove all files that are created
-                       by building or configuring.
-    fmt                Check formatting of go sources.
-    lint               Check syntax and styling of go sources.
-    help               Show this help info.
-    prune              Prune cached artifacts.
-    test               Runs unit tests.
-    test-integration   Runs integration tests.
-    vendor             Update vendor dependencies.
-    vendor.check       Checks if vendor dependencies changed.
-    vendor.update      Update all vendor dependencies.
-    vet                Runs lint checks on go sources.
-
 Options:
     DEBUG        Whether to generate debug symbols. Default is 0.
     IMAGES       Backend images to make. All by default. See: /rook/images/ dir
@@ -202,9 +175,12 @@ Options:
     VERSION      The version information compiled into binaries.
                  The default is obtained from git.
     V            Set to 1 enable verbose build. Default is 0.
-
 endef
 export HELPTEXT
 .PHONY: help
-help:
+help: ## Show this help menu.
+	@echo "Usage: make [TARGET ...]"
+	@echo ""
+	@grep --no-filename -E '^[a-zA-Z_%-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+	@echo ""
 	@echo "$$HELPTEXT"

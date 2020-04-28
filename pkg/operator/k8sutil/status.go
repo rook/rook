@@ -23,4 +23,10 @@ const (
 	ProcessingStatus = "Processing"
 	// FailedStatus reflects that some task failed for ceph related CRs
 	FailedStatus = "Failed"
+	// ReconcilingStatus indicates the CR is reconciling
+	ReconcilingStatus = "Reconciling"
+	// ReconcileFailedStatus indicates a reconciliation failed
+	ReconcileFailedStatus = "ReconcileFailed"
+	// Created indicates the object just got created
+	Created = "Created"
 )

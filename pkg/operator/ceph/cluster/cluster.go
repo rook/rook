@@ -20,6 +20,7 @@ package cluster
 import (
 	"reflect"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -28,7 +29,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
@@ -36,11 +37,9 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
-	"github.com/rook/rook/pkg/operator/ceph/cluster/rbd"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
-	cephspec "github.com/rook/rook/pkg/operator/ceph/spec"
-	"github.com/rook/rook/pkg/operator/ceph/version"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -56,6 +55,7 @@ type cluster struct {
 	Namespace            string
 	Spec                 *cephv1.ClusterSpec
 	crdName              string
+	condition            *cephv1.ClusterStatus
 	mons                 *mon.Cluster
 	initCompleted        bool
 	stopCh               chan struct{}
@@ -63,14 +63,7 @@ type cluster struct {
 	orchestrationRunning bool
 	orchestrationNeeded  bool
 	orchMux              sync.Mutex
-	childControllers     []childController
 	isUpgrade            bool
-}
-
-// ChildController is implemented by CRs that are owned by the CephCluster
-type childController interface {
-	// ParentClusterChanged is called when the CephCluster CR is updated, for example for a newer ceph version
-	ParentClusterChanged(cluster cephv1.ClusterSpec, clusterInfo *cephconfig.ClusterInfo, isUpgrade bool)
 }
 
 func newCluster(c *cephv1.CephCluster, context *clusterd.Context, csiMutex *sync.Mutex) *cluster {
@@ -86,8 +79,7 @@ func newCluster(c *cephv1.CephCluster, context *clusterd.Context, csiMutex *sync
 		crdName:   c.Name,
 		stopCh:    make(chan struct{}),
 		ownerRef:  ownerRef,
-		// we set isUpgrade to false since it's a new cluster
-		mons: mon.New(context, c.Namespace, c.Spec.DataDirHostPath, c.Spec.Network, ownerRef, csiMutex, false),
+		mons:      mon.New(context, c.Namespace, c.Spec.DataDirHostPath, c.Spec.Network, ownerRef, csiMutex),
 	}
 }
 
@@ -131,12 +123,12 @@ func (c *cluster) detectCephVersion(rookImage, cephImage string, timeout time.Du
 func (c *cluster) validateCephVersion(version *cephver.CephVersion) error {
 	if !c.Spec.External.Enable {
 		if !version.IsAtLeast(cephver.Minimum) {
-			return errors.Errorf("the version does not meet the minimum version: %q", cephver.Minimum.String())
+			return errors.Errorf("the version does not meet the minimum version %q", cephver.Minimum.String())
 		}
 
 		if !version.Supported() {
 			if !c.Spec.CephVersion.AllowUnsupported {
-				return errors.Errorf("allowUnsupported must be set to true to run with this version: %+v", version)
+				return errors.Errorf("allowUnsupported must be set to true to run with this version %q", version.String())
 			}
 			logger.Warningf("unsupported ceph version detected: %q, pursuing", version)
 		}
@@ -164,7 +156,7 @@ func (c *cluster) validateCephVersion(version *cephver.CephVersion) error {
 	}
 
 	if c.Spec.External.Enable && c.Spec.CephVersion.Image != "" {
-		c.Info.CephVersion, err = cephspec.ValidateCephVersionsBetweenLocalAndExternalClusters(c.context, c.Namespace, *version)
+		c.Info.CephVersion, err = controller.ValidateCephVersionsBetweenLocalAndExternalClusters(c.context, c.Namespace, *version)
 		if err != nil {
 			return errors.Wrapf(err, "failed to validate ceph version between external and local")
 		}
@@ -248,7 +240,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 
 	if c.Spec.External.Enable {
 		// Apply CRD ConfigOverrideName to the external cluster
-		err = config.SetDefaultConfigs(c.context, c.Namespace, c.Info)
+		err = config.SetDefaultConfigs(c.context, c.Namespace, c.Info, cephv1.NetworkSpec{})
 		if err != nil {
 			// Mons are up, so something else is wrong
 			return errors.Wrapf(err, "failed to set Rook and/or user-defined Ceph config options on the external cluster monitors")
@@ -261,7 +253,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 	} else {
 		// This gets triggered on CR update so let's not run that (mon/mgr/osd daemons)
 		// Start the mon pods
-		clusterInfo, err := c.mons.Start(c.Info, rookImage, cephVersion, *c.Spec, c.isUpgrade)
+		clusterInfo, err := c.mons.Start(c.Info, rookImage, cephVersion, *c.Spec)
 		if err != nil {
 			return errors.Wrapf(err, "failed to start the mons")
 		}
@@ -279,10 +271,19 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 			return errors.Wrapf(err, "failed to execute post actions after all the monitors started")
 		}
 
+		// If this is an upgrade, notify all the child controllers
+		if c.isUpgrade {
+			logger.Info("upgrade in progress, notifying child CRs")
+			err := c.notifyChildControllerOfUpgrade()
+			if err != nil {
+				return errors.Wrap(err, "failed to notify child CRs of upgrade")
+			}
+		}
+
 		mgrs := mgr.New(c.Info, c.context, c.Namespace, rookImage,
 			spec.CephVersion, cephv1.GetMgrPlacement(spec.Placement), cephv1.GetMgrAnnotations(c.Spec.Annotations),
 			spec.Network, spec.Dashboard, spec.Monitoring, spec.Mgr, cephv1.GetMgrResources(spec.Resources),
-			cephv1.GetMgrPriorityClassName(spec.PriorityClassNames), c.ownerRef, c.Spec.DataDirHostPath, c.isUpgrade, c.Spec.SkipUpgradeChecks)
+			cephv1.GetMgrPriorityClassName(spec.PriorityClassNames), c.ownerRef, c.Spec.DataDirHostPath, c.Spec.SkipUpgradeChecks)
 		err = mgrs.Start()
 		if err != nil {
 			return errors.Wrapf(err, "failed to start the ceph mgr")
@@ -291,31 +292,14 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 		// Start the OSDs
 		osds := osd.New(c.Info, c.context, c.Namespace, rookImage, spec.CephVersion, spec.Storage, spec.DataDirHostPath,
 			cephv1.GetOSDPlacement(spec.Placement), cephv1.GetOSDAnnotations(spec.Annotations), spec.Network,
-			cephv1.GetOSDResources(spec.Resources), cephv1.GetPrepareOSDResources(spec.Resources),
-			cephv1.GetOSDPriorityClassName(spec.PriorityClassNames), c.ownerRef, c.isUpgrade, c.Spec.SkipUpgradeChecks, c.Spec.ContinueUpgradeAfterChecksEvenIfNotHealthy)
+			cephv1.GetOSDResources(spec.Resources), cephv1.GetPrepareOSDResources(spec.Resources), cephv1.GetOSDPriorityClassName(spec.PriorityClassNames), c.ownerRef, c.Spec.SkipUpgradeChecks, c.Spec.ContinueUpgradeAfterChecksEvenIfNotHealthy)
 		err = osds.Start()
 		if err != nil {
 			return errors.Wrapf(err, "failed to start the osds")
 		}
 
-		// Start the rbd mirroring daemon(s)
-		rbdmirror := rbd.New(c.Info, c.context, c.Namespace, rookImage, spec.CephVersion, cephv1.GetRBDMirrorPlacement(spec.Placement),
-			cephv1.GetRBDMirrorAnnotations(spec.Annotations), spec.Network, spec.RBDMirroring,
-			cephv1.GetRBDMirrorResources(spec.Resources), cephv1.GetRBDMirrorPriorityClassName(spec.PriorityClassNames),
-			c.ownerRef, c.Spec.DataDirHostPath, c.isUpgrade, c.Spec.SkipUpgradeChecks)
-		err = rbdmirror.Start()
-		if err != nil {
-			return errors.Wrapf(err, "failed to start the rbd mirrors")
-		}
-
 		logger.Infof("Done creating rook instance in namespace %s", c.Namespace)
 		c.initCompleted = true
-	}
-
-	// Notify the child controllers that the cluster spec might have changed
-	logger.Debug("notifying CR child of the potential upgrade")
-	for _, child := range c.childControllers {
-		child.ParentClusterChanged(*c.Spec, c.Info, c.isUpgrade)
 	}
 
 	return nil
@@ -324,8 +308,8 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 func clusterChanged(oldCluster, newCluster cephv1.ClusterSpec, clusterRef *cluster) (bool, string) {
 
 	// sort the nodes by name then compare to see if there are changes
-	sort.Sort(rookv1alpha2.NodesByName(oldCluster.Storage.Nodes))
-	sort.Sort(rookv1alpha2.NodesByName(newCluster.Storage.Nodes))
+	sort.Sort(rookv1.NodesByName(oldCluster.Storage.Nodes))
+	sort.Sort(rookv1.NodesByName(newCluster.Storage.Nodes))
 
 	// any change in the crd will trigger an orchestration
 	if !reflect.DeepEqual(oldCluster, newCluster) {
@@ -433,32 +417,66 @@ func (c *cluster) postMonStartupActions() error {
 		return errors.Wrapf(err, "failed to create csi kubernetes secrets")
 	}
 
-	// Create Crash Collector Secret
-	// In 14.2.5 the crash daemon will read the client.crash key instead of the admin key
-	if c.Info.CephVersion.IsAtLeast(version.CephVersion{Major: 14, Minor: 2, Extra: 5}) {
-		err = crash.CreateCrashCollectorSecret(c.context, c.Namespace, &c.ownerRef)
-		if err != nil {
-			return errors.Wrapf(err, "failed to create crash collector kubernetes secret")
-		}
+	// Create crash collector Kubernetes Secret
+	err = crash.CreateCrashCollectorSecret(c.context, c.Namespace, &c.ownerRef)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create crash collector kubernetes secret")
 	}
 
 	// Enable Ceph messenger 2 protocol on Nautilus
-	if c.Info.CephVersion.IsAtLeastNautilus() {
-		v, err := client.GetCephMonVersion(c.context, c.Info.Name)
-		if err != nil {
-			return errors.Wrapf(err, "failed to get ceph mon version")
+	if err := client.EnableMessenger2(c.context, c.Namespace); err != nil {
+		return errors.Wrapf(err, "failed to enable Ceph messenger version 2.")
+	}
+
+	return nil
+}
+
+func (c *cluster) notifyChildControllerOfUpgrade() error {
+	version := strings.Replace(c.Info.CephVersion.String(), " ", "-", -1)
+
+	// List all child controllers
+	cephFilesystems, err := c.context.RookClientset.CephV1().CephFilesystems(c.Namespace).List(metav1.ListOptions{})
+	if err != nil {
+		return errors.Wrap(err, "failed to list ceph filesystem CRs")
+	}
+	for _, cephFilesystem := range cephFilesystems.Items {
+		if cephFilesystem.Labels == nil {
+			cephFilesystem.Labels = map[string]string{}
 		}
-		if v.IsAtLeastNautilus() {
-			versions, err := client.GetAllCephDaemonVersions(c.context, c.Info.Name)
-			if err != nil {
-				return errors.Wrapf(err, "failed to get ceph daemons versions")
-			}
-			if len(versions.Mon) == 1 {
-				// If length is one, this clearly indicates that all the mons are running the same version
-				// We are doing this because 'ceph version' might return the Ceph version that a majority of mons has but not all of them
-				// so instead of trying to active msgr2 when mons are not ready, we activate it when we believe that's the right time
-				client.EnableMessenger2(c.context, c.Namespace)
-			}
+		cephFilesystem.Labels["ceph_version"] = version
+		_, err := c.context.RookClientset.CephV1().CephFilesystems(c.Namespace).Update(&cephFilesystem)
+		if err != nil {
+			return errors.Wrapf(err, "failed to update ceph filesystem CR %q with new label", cephFilesystem.Name)
+		}
+	}
+
+	cephObjectStores, err := c.context.RookClientset.CephV1().CephObjectStores(c.Namespace).List(metav1.ListOptions{})
+	if err != nil {
+		return errors.Wrap(err, "failed to list ceph object store CRs")
+	}
+	for _, cephObjectStore := range cephObjectStores.Items {
+		if cephObjectStore.Labels == nil {
+			cephObjectStore.Labels = map[string]string{}
+		}
+		cephObjectStore.Labels["ceph_version"] = version
+		_, err := c.context.RookClientset.CephV1().CephObjectStores(c.Namespace).Update(&cephObjectStore)
+		if err != nil {
+			return errors.Wrapf(err, "failed to update ceph object store CR %q with new label", cephObjectStore.Name)
+		}
+	}
+
+	cephNFSes, err := c.context.RookClientset.CephV1().CephNFSes(c.Namespace).List(metav1.ListOptions{})
+	if err != nil {
+		return errors.Wrap(err, "failed to list ceph nfs CRs")
+	}
+	for _, cephNFS := range cephNFSes.Items {
+		if cephNFS.Labels == nil {
+			cephNFS.Labels = map[string]string{}
+		}
+		cephNFS.Labels["ceph_version"] = version
+		_, err := c.context.RookClientset.CephV1().CephNFSes(c.Namespace).Update(&cephNFS)
+		if err != nil {
+			return errors.Wrapf(err, "failed to update ceph nfs CR %q with new label", cephNFS.Name)
 		}
 	}
 

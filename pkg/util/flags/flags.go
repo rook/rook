@@ -38,38 +38,6 @@ func VerifyRequiredFlags(cmd *cobra.Command, requiredFlags []string) error {
 	return createRequiredFlagError(cmd.Name(), missingFlags)
 }
 
-type RenamedFlag struct {
-	NewFlagName string
-	OldFlagName string
-}
-
-func VerifyRenamedFlags(cmd *cobra.Command, renamedFlags []RenamedFlag) error {
-	var missingFlags []string
-	for _, renamedFlag := range renamedFlags {
-		val, err := cmd.Flags().GetString(renamedFlag.NewFlagName)
-		if err != nil || val == "" {
-			val, err := cmd.Flags().GetString(renamedFlag.OldFlagName)
-			if err != nil || val == "" {
-				missingFlags = append(missingFlags, renamedFlag.NewFlagName)
-			}
-		}
-	}
-
-	return createRequiredFlagError(cmd.Name(), missingFlags)
-}
-
-func VerifyRequiredUint64Flags(cmd *cobra.Command, requiredFlags []string) error {
-	var missingFlags []string
-	for _, reqFlag := range requiredFlags {
-		val, err := cmd.Flags().GetUint64(reqFlag)
-		if err != nil || val == 0 {
-			missingFlags = append(missingFlags, reqFlag)
-		}
-	}
-
-	return createRequiredFlagError(cmd.Name(), missingFlags)
-}
-
 func createRequiredFlagError(name string, flags []string) error {
 	if len(flags) == 0 {
 		return nil
@@ -82,24 +50,35 @@ func createRequiredFlagError(name string, flags []string) error {
 	return fmt.Errorf("%s are required for %s", strings.Join(flags, ","), name)
 }
 
-func SetLoggingFlags(flags *pflag.FlagSet) {
+func SetLoggingFlags(flags *pflag.FlagSet) error {
 	//Add commandline flags to the flagset. We will always write to stderr
 	//and not to a file by default
 	flags.AddGoFlagSet(flag.CommandLine)
-	flags.Set("logtostderr", "true")
-	flags.Parse(nil)
+	if err := flags.Set("logtostderr", "true"); err != nil {
+		return fmt.Errorf("failed to set flag %q. %v", "logtostderr", err)
+	}
+	if err := flags.Parse(nil); err != nil {
+		return fmt.Errorf("failed to parse logging flag. %v", err)
+	}
+	return nil
 }
 
 func SetFlagsFromEnv(flags *pflag.FlagSet, prefix string) error {
+	var errorFlag bool
+	var err error
 	flags.VisitAll(func(f *pflag.Flag) {
 		envVar := prefix + "_" + strings.Replace(strings.ToUpper(f.Name), "-", "_", -1)
 		value := os.Getenv(envVar)
 		if value != "" {
 			// Set the environment variable. Will override default values, but be overridden by command line parameters.
-			flags.Set(f.Name, value)
+			if err = flags.Set(f.Name, value); err != nil {
+				errorFlag = true
+			}
 		}
 	})
-
+	if errorFlag != false {
+		return fmt.Errorf("error while setting CLI flags from environment variables. %v", err)
+	}
 	return nil
 }
 

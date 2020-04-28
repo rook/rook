@@ -21,14 +21,15 @@ import (
 	"testing"
 
 	"github.com/pkg/errors"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCreateRealm(t *testing.T) {
+func TestReconcileRealm(t *testing.T) {
 	defaultStore := true
-	executorFunc := func(debug bool, actionName string, command string, args ...string) (string, error) {
+	executorFunc := func(command string, args ...string) (string, error) {
 		idResponse := `{"id":"test-id"}`
 		logger.Infof("Execute: %s %v", command, args)
 		if args[1] == "get" {
@@ -58,12 +59,12 @@ func TestCreateRealm(t *testing.T) {
 	context := &clusterd.Context{Executor: executor}
 	objContext := NewContext(context, storeName, "mycluster")
 	// create the first realm, marked as default
-	err := createRealm(objContext, "1.2.3.4", 80)
+	err := reconcileRealm(objContext, "1.2.3.4", 80)
 	assert.Nil(t, err)
 
 	// create the second realm, not marked as default
 	defaultStore = false
-	err = createRealm(objContext, "2.3.4.5", 80)
+	err = reconcileRealm(objContext, "2.3.4.5", 80)
 	assert.Nil(t, err)
 }
 
@@ -81,7 +82,7 @@ func deleteStore(t *testing.T, name string, existingStores string, expectedDelet
 	executor := &exectest.MockExecutor{}
 	deletedRootPool := false
 	deletedErasureCodeProfile := false
-	executor.MockExecuteCommandWithOutputFile = func(debug bool, actionName, command, outputFile string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
 		//logger.Infof("command: %s %v", command, args)
 		if args[0] == "osd" {
 			if args[1] == "pool" {
@@ -118,7 +119,7 @@ func deleteStore(t *testing.T, name string, existingStores string, expectedDelet
 		}
 		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
-	executorFunc := func(debug bool, actionName, command string, args ...string) (string, error) {
+	executorFunc := func(command string, args ...string) (string, error) {
 		//logger.Infof("Command: %s %v", command, args)
 		if args[0] == "realm" {
 			if args[1] == "delete" {
@@ -152,18 +153,30 @@ func deleteStore(t *testing.T, name string, existingStores string, expectedDelet
 	executor.MockExecuteCommandWithCombinedOutput = executorFunc
 	context := &Context{Context: &clusterd.Context{Executor: executor}, Name: "myobj", ClusterName: "ns"}
 
-	// Delete an object store
-	err := deleteRealmAndPools(context, false)
+	// Delete an object store without deleting the pools
+	spec := cephv1.ObjectStoreSpec{}
+	err := deleteRealmAndPools(context, spec)
 	assert.Nil(t, err)
-	expectedPoolsDeleted := 6
-	if expectedDeleteRootPool {
-		expectedPoolsDeleted++
-	}
+	expectedPoolsDeleted := 0
 	assert.Equal(t, expectedPoolsDeleted, poolsDeleted)
 	assert.Equal(t, expectedPoolsDeleted, rulesDeleted)
 	assert.True(t, realmDeleted)
 	assert.True(t, zoneGroupDeleted)
 	assert.True(t, zoneDeleted)
+	assert.Equal(t, false, deletedErasureCodeProfile)
+
+	// Delete an object store with the pools
+	spec = cephv1.ObjectStoreSpec{
+		MetadataPool: cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1}},
+		DataPool:     cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1}},
+	}
+	err = deleteRealmAndPools(context, spec)
+	assert.Nil(t, err)
+	expectedPoolsDeleted = 6
+	if expectedDeleteRootPool {
+		expectedPoolsDeleted++
+	}
+	assert.Equal(t, expectedPoolsDeleted, poolsDeleted)
 	assert.Equal(t, expectedDeleteRootPool, deletedRootPool)
 	assert.Equal(t, true, deletedErasureCodeProfile)
 }

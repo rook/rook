@@ -234,7 +234,6 @@ func GetOSDPerfStats(context *clusterd.Context, clusterName string) (*OSDPerfSta
 func GetOSDDump(context *clusterd.Context, clusterName string) (*OSDDump, error) {
 	args := []string{"osd", "dump"}
 	cmd := NewCephCommand(context, clusterName, args)
-	cmd.Debug = true
 	buf, err := cmd.Run()
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get osd dump")
@@ -254,17 +253,7 @@ func OSDOut(context *clusterd.Context, clusterName string, osdID int) (string, e
 	return string(buf), err
 }
 
-func OSDRemove(context *clusterd.Context, clusterName string, osdID int) (string, error) {
-	args := []string{"osd", "rm", strconv.Itoa(osdID)}
-	buf, err := NewCephCommand(context, clusterName, args).Run()
-	return string(buf), err
-}
-
 func OsdSafeToDestroy(context *clusterd.Context, clusterName string, osdID int, cephVersion cephver.CephVersion) (bool, error) {
-	if !cephVersion.IsAtLeastNautilus() {
-		logger.Debugf("failed to get safe-to-destroy status: ceph version in lower than Nautilus")
-		return false, nil
-	}
 	args := []string{"osd", "safe-to-destroy", strconv.Itoa(osdID)}
 	cmd := NewCephCommand(context, clusterName, args)
 	buf, err := cmd.Run()
@@ -280,16 +269,6 @@ func OsdSafeToDestroy(context *clusterd.Context, clusterName string, osdID int, 
 		return true, nil
 	}
 	return false, nil
-}
-
-func (usage *OSDUsage) ByID(osdID int) *OSDNodeUsage {
-	for i := range usage.OSDNodes {
-		if usage.OSDNodes[i].ID == osdID {
-			return &usage.OSDNodes[i]
-		}
-	}
-
-	return nil
 }
 
 // HostTree returns the osd tree

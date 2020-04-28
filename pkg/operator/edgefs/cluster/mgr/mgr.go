@@ -25,7 +25,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	edgefsv1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
@@ -63,10 +63,10 @@ type Cluster struct {
 	Replicas         int
 	dataDirHostPath  string
 	dataVolumeSize   resource.Quantity
-	annotations      rookalpha.Annotations
-	placement        rookalpha.Placement
+	annotations      rookv1.Annotations
+	placement        rookv1.Placement
 	context          *clusterd.Context
-	NetworkSpec      rookalpha.NetworkSpec
+	NetworkSpec      rookv1.NetworkSpec
 	dashboardSpec    edgefsv1.DashboardSpec
 	resources        v1.ResourceRequirements
 	resourceProfile  string
@@ -80,9 +80,9 @@ func New(
 	serviceAccount string,
 	dataDirHostPath string,
 	dataVolumeSize resource.Quantity,
-	annotations rookalpha.Annotations,
-	placement rookalpha.Placement,
-	NetworkSpec rookalpha.NetworkSpec,
+	annotations rookv1.Annotations,
+	placement rookv1.Placement,
+	NetworkSpec rookv1.NetworkSpec,
 	dashboardSpec edgefsv1.DashboardSpec,
 	resources v1.ResourceRequirements,
 	resourceProfile string,
@@ -291,6 +291,7 @@ func (c *Cluster) makeDeployment(name, clusterName, rookImage string, replicas i
 
 	if c.useHostLocalTime {
 		volumes = append(volumes, edgefsv1.GetHostLocalTimeVolume())
+		volumes = append(volumes, edgefsv1.GetHostTimeZoneVolume())
 	}
 
 	if c.dataVolumeSize.Value() > 0 {
@@ -344,7 +345,9 @@ func (c *Cluster) makeDeployment(name, clusterName, rookImage string, replicas i
 	if c.NetworkSpec.IsHost() {
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	} else if c.NetworkSpec.IsMultus() {
-		k8sutil.ApplyMultus(c.NetworkSpec, &podSpec.ObjectMeta)
+		if err := k8sutil.ApplyMultus(c.NetworkSpec, &podSpec.ObjectMeta); err != nil {
+			logger.Errorf("failed to apply multus spec to pod template metadata. %v", err)
+		}
 	}
 
 	c.annotations.ApplyToObjectMeta(&podSpec.ObjectMeta)
@@ -380,6 +383,7 @@ func (c *Cluster) uiContainer(name string, containerImage string) v1.Container {
 	volumeMounts := []v1.VolumeMount{}
 	if c.useHostLocalTime {
 		volumeMounts = append(volumeMounts, edgefsv1.GetHostLocalTimeVolumeMount())
+		volumeMounts = append(volumeMounts, edgefsv1.GetHostTimeZoneVolumeMount())
 	}
 
 	return v1.Container{
@@ -450,6 +454,7 @@ func (c *Cluster) restApiContainer(name string, containerImage string) v1.Contai
 
 	if c.useHostLocalTime {
 		volumeMounts = append(volumeMounts, edgefsv1.GetHostLocalTimeVolumeMount())
+		volumeMounts = append(volumeMounts, edgefsv1.GetHostTimeZoneVolumeMount())
 	}
 
 	cont := v1.Container{
@@ -546,6 +551,7 @@ func (c *Cluster) grpcProxyContainer(name string, containerImage string) v1.Cont
 
 	if c.useHostLocalTime {
 		volumeMounts = append(volumeMounts, edgefsv1.GetHostLocalTimeVolumeMount())
+		volumeMounts = append(volumeMounts, edgefsv1.GetHostTimeZoneVolumeMount())
 	}
 
 	cont := v1.Container{

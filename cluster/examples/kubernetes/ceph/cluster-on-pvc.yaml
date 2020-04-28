@@ -32,15 +32,15 @@ spec:
           requests:
             storage: 10Gi
   cephVersion:
-    image: ceph/ceph:v14.2.5
+    image: ceph/ceph:v14.2.9
     allowUnsupported: false
   skipUpgradeChecks: false
   continueUpgradeAfterChecksEvenIfNotHealthy: false
   dashboard:
     enabled: true
     ssl: true
-  network:
-    hostNetwork: false
+  crashCollector:
+    disable: false
   storage:
     storageClassDeviceSets:
     - name: set1
@@ -58,8 +58,7 @@ spec:
       # across nodes as much as possible. Unfortunately the pod anti-affinity breaks down
       # as soon as you have more than one OSD per node. If you have more OSDs than nodes, K8s may
       # choose to schedule many of them on the same node. What we need is the Pod Topology
-      # Spread Constraints, which is alpha in K8s 1.16. This means that a feature gate must be
-      # enabled for this feature, and Rook also still needs to add support for this feature.
+      # Spread Constraints.
       # Another approach for a small number of OSDs is to create a separate device set for each
       # zone (or other set of nodes with a common label) so that the OSDs will end up on different
       # nodes. This would require adding nodeAffinity to the placement here.
@@ -79,6 +78,17 @@ spec:
                   values:
                   - rook-ceph-osd-prepare
               topologyKey: kubernetes.io/hostname
+        topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchExpressions:
+            - key: app
+              operator: In
+              values:
+              - rook-ceph-osd
+              - rook-ceph-osd-prepare
       resources:
       #   limits:
       #     cpu: "500m"
@@ -89,6 +99,9 @@ spec:
       volumeClaimTemplates:
       - metadata:
           name: data
+          # if you are looking at giving your OSD a different CRUSH device class than the one detected by Ceph
+          # annotations:
+          #   crushDeviceClass: hybrid
         spec:
           resources:
             requests:
@@ -98,6 +111,19 @@ spec:
           volumeMode: Block
           accessModes:
             - ReadWriteOnce
+      # dedicated block device to store bluestore database (block.db)
+      # - metadata:
+      #     name: metadata
+      #   spec:
+      #     resources:
+      #       requests:
+      #         # Find the right size https://docs.ceph.com/docs/master/rados/configuration/bluestore-config-ref/#sizing
+      #         storage: 5Gi
+      #     # IMPORTANT: Change the storage class depending on your environment (e.g. local-storage, gp2)
+      #     storageClassName: gp2
+      #     volumeMode: Block
+      #     accessModes:
+      #       - ReadWriteOnce
   disruptionManagement:
     managePodBudgets: false
     osdMaintenanceTimeout: 30

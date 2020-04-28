@@ -1,11 +1,11 @@
 ---
-title: Monitoring
+title: Prometheus Monitoring
 weight: 2500
 indent: true
 ---
 {% include_relative branch.liquid %}
 
-# Monitoring
+# Prometheus Monitoring
 
 Each Rook Ceph cluster has some built in metrics collectors/exporters for monitoring with [Prometheus](https://prometheus.io/).
 
@@ -39,7 +39,7 @@ From the root of your locally cloned Rook repo, go the monitoring directory:
 
 ```console
 git clone --single-branch --branch {{ branchName }} https://github.com/rook/rook.git
-cd cluster/examples/kubernetes/ceph/monitoring
+cd rook/cluster/examples/kubernetes/ceph/monitoring
 ```
 
 Create the service monitor as well as the Prometheus server pod and service:

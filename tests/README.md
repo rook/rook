@@ -6,9 +6,10 @@ quickly spin up a Kubernetes cluster.The Test framework is designed to install R
 
 ## Requirements
 1. Docker version => 1.2 && < 17.0 (for other alternatives, see below)
-2. Ubuntu 16 (the framework has only been tested on this version)
-3. Kubernetes with kubectl configured
-4. Rook
+1. Ubuntu 16 (the framework has only been tested on this version)
+1. kernel >= 4.8
+1. Kubernetes with kubectl configured
+1. Rook
 
 ## Instructions
 
@@ -71,19 +72,20 @@ Use [helm.sh](/tests/scripts/helm.sh) to install Helm and set up Rook charts def
 these scripts should be run from project root. e.g., `tests/script/kubeadm.sh up`.
 
 **NOTE**: If Helm is not available in your `PATH`, Helm will be downloaded to a temporary directory (`/tmp/rook-tests-scripts-helm`) and used from that directory.
-The temporary directory the Helm binary is in needs to be given to the `integration` binary calls. The flag for that is `--helm=HELM_BINARY`, e.g., `--helm=/tmp/rook-tests-scripts-helm/linux-amd64/helm`.
 
 ## Run Tests
 From the project root do the following:
-#### 1. Build rook:
+
+### 1. Build rook:
 Run `make build`
 
-#### 2. Start Kubernetes
+### 2. Start Kubernetes
 Using one of the following:
 
 - Using Kubeadm
 ```
 tests/scripts/kubeadm.sh up
+export KUBECONFIG=~/admin.conf
 tests/scripts/helm.sh up
 ```
 - Using minikube
@@ -93,70 +95,22 @@ tests/scripts/minikube.sh helm
 tests/scripts/helm.sh up
 ```
 
-#### 3. Run integration tests:
-Integration tests can be run using tests binary `_output/tests/${platform}/integration` that is generated during build time e.g.:
-```
-~/integration -test.v
-```
+### 3. Run integration tests:
 
-### Test parameters
-In addition to standard go tests parameters, the following custom parameters are available while running tests:
+Some settings are available to run the tests under different environments. The settings are all configured with environment variables.
+See [environment.go](/tests/framework/installer/environment.go) for the available environment variables.
 
-| Parameter         | Description                                  | Possible values  | Default           |
-| ----------------- | -------------------------------------------- | ---------------- | ----------------- |
-| rook_platform     | platform Rook needs to be installed on       | kubernetes       | kubernetes        |
-| k8s_version       | version of Kubernetes to be installed        | v1.10+            | v1.13.1          |
-| rook_image        | Rook image name to be installed              | valid image name | rook/ceph         |
-| skip_install_rook | skips installing Rook (if already installed) | true or false    | false             |
-
-### Running Tests with parameters.
-#### To run all integration tests run
+To run all integration tests:
 ```
 go test -v -timeout 1800s github.com/rook/rook/tests/integration
 ```
 
-#### To run a specific suite (uses regex)
+To run a specific suite (uses regex):
 ```
-go test -v -timeout 1800s -run SmokeSuite github.com/rook/rook/tests/integration
-```
-
-#### To run specific tests inside a suite:
-```
-go test -v -timeout 1800s -run SmokeSuite github.com/rook/rook/tests/integration -testify.m TestRookClusterInstallation_SmokeTest
+go test -v -timeout 1800s -run CephSmokeSuite github.com/rook/rook/tests/integration
 ```
 
-##### To run specific without installing rook
+To run specific tests inside a suite:
 ```
-go test -v -timeout 1800s -run SmokeSuite github.com/rook/rook/tests/integration --skip_install_rook
+go test -v -timeout 1800s -run CephSmokeSuite github.com/rook/rook/tests/integration -testify.m TestRookClusterInstallation_SmokeTest
 ```
-If the `skip_install_rook` flag is set to true, then Rook is not uninstalled either.
-
-#### Run Longhaul Tests
-[Longhaul](/tests/block/k8s/longhaul) tests are integration tests that run for extended period of time. A load profile can be configured
-using the following load test flags
-
-| Parameter          | Description                                       | Possible values         | Default |
-| ------------------ | ------------------------------------------------- | ----------------------- | ------- |
-| load_parallel_runs | performs concurrent operations                    | any number              | 20      |
-| load_volumes       | number of volumes                                 | >1                      | 1       |
-| load_time          | number of seconds to run                          | >1                      | 1800    |
-| load_size          | size of load profile (3M, 10M, or 50M per thread) | small, medium, or large | medium  |
-| enable_chaos       | kill random pods in Rook cluster                  | true or false           | false   |
-
-e.g.
-```
-go test -run TestObjectLongHaul github.com/rook/rook/tests/longhaul --load_parallel_runs=20 --load_time 1800 --load_size small --load_volumes 3
-```
-The longhaul test just like other test is going to install Rook if it's not already installed, but it is not going to clean up test data or uninstall Rook after the run.
-Longhaul test is designed to run multiple times on the same setup and installation of Rook to tests its stability. Test data and Rook should be cleaned up manually after the test.
-
-
-You can measure memory, CPU, IOPS, throughput, and other settings on a cluster using Prometheus. The metrics collected during load test can be visualize using Grafana.
-Here a couple of helpful links to get prometheus and grafana started and collect metrics:
-[kube-prometheus](https://github.com/coreos/prometheus-operator/tree/master/contrib/kube-prometheus) and [cluster-deploy-script](https://github.com/coreos/prometheus-operator/blob/master/contrib/kube-prometheus/hack/cluster-monitoring/deploy)
-
-**Prerequisites**:
-* Go installed and GO_PATH set
-* Dep installed
-* Wget installed
-* When running tests locally, make sure `kubectl` is accessible globally in your `PATH` as the test framework uses `kubectl`

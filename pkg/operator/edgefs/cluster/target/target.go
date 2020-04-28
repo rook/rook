@@ -23,7 +23,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	edgefsv1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -49,13 +49,13 @@ const (
 type Cluster struct {
 	context          *clusterd.Context
 	Namespace        string
-	annotations      rookalpha.Annotations
-	placement        rookalpha.Placement
+	annotations      rookv1.Annotations
+	placement        rookv1.Placement
 	Version          string
-	Storage          rookalpha.StorageScopeSpec
+	Storage          rookv1.StorageScopeSpec
 	dataDirHostPath  string
 	dataVolumeSize   resource.Quantity
-	NetworkSpec      rookalpha.NetworkSpec
+	NetworkSpec      rookv1.NetworkSpec
 	Privileged       bool
 	resources        v1.ResourceRequirements
 	resourceProfile  string
@@ -72,12 +72,12 @@ func New(
 	namespace,
 	version,
 	serviceAccount string,
-	storageSpec rookalpha.StorageScopeSpec,
+	storageSpec rookv1.StorageScopeSpec,
 	dataDirHostPath string,
 	dataVolumeSize resource.Quantity,
-	annotations rookalpha.Annotations,
-	placement rookalpha.Placement,
-	NetworkSpec rookalpha.NetworkSpec,
+	annotations rookv1.Annotations,
+	placement rookv1.Placement,
+	NetworkSpec rookv1.NetworkSpec,
 	resources v1.ResourceRequirements,
 	resourceProfile string,
 	chunkCacheSize resource.Quantity,
@@ -113,7 +113,7 @@ func New(
 }
 
 // Start the target management
-func (c *Cluster) Start(rookImage string, nodes []rookalpha.Node, dro edgefsv1.DevicesResurrectOptions) (err error) {
+func (c *Cluster) Start(rookImage string, nodes []rookv1.Node, dro edgefsv1.DevicesResurrectOptions) (err error) {
 	logger.Infof("start running targets in namespace %s", c.Namespace)
 
 	logger.Infof("Target Image is %s", rookImage)

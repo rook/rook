@@ -4,6 +4,7 @@ apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: Role
 metadata:
   name: rook-ceph-system
+  namespace:  {{  .Release.Namespace }}
   labels:
     operator: rook
     storage-backend: ceph
@@ -24,10 +25,11 @@ rules:
   - delete
 - apiGroups:
   - apps
+  - extensions
   resources:
   - daemonsets
   - statefulsets
-  - deployment
+  - deployments
   verbs:
   - get
   - list
@@ -35,11 +37,18 @@ rules:
   - create
   - update
   - delete
+- apiGroups:
+  - k8s.cni.cncf.io
+  resources:
+  - network-attachment-definitions
+  verbs:
+  - get
 ---
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-ceph-osd
+  namespace:  {{  .Release.Namespace }}
 rules:
 - apiGroups: [""]
   resources: ["configmaps"]
@@ -53,16 +62,19 @@ kind: Role
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-ceph-mgr
+  namespace:  {{  .Release.Namespace }}
 rules:
 - apiGroups:
   - ""
   resources:
   - pods
   - services
+  - pods/log
   verbs:
   - get
   - list
   - watch
+  - delete
 - apiGroups:
   - batch
   resources:
@@ -85,6 +97,7 @@ kind: Role
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-ceph-cmd-reporter
+  namespace:  {{  .Release.Namespace }}
 rules:
 - apiGroups:
   - ""
@@ -103,6 +116,7 @@ kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: cephfs-external-provisioner-cfg
+  namespace:  {{  .Release.Namespace }}
 rules:
   - apiGroups: [""]
     resources: ["endpoints"]
@@ -118,6 +132,7 @@ kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rbd-external-provisioner-cfg
+  namespace:  {{  .Release.Namespace }}
 rules:
   - apiGroups: [""]
     resources: ["endpoints"]

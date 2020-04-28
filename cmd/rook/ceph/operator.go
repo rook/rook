@@ -46,17 +46,6 @@ func init() {
 	operatorCmd.Flags().BoolVar(&operator.EnableFlexDriver, "enable-flex-driver", true, "enable the rook flex driver")
 	operatorCmd.Flags().BoolVar(&operator.EnableDiscoveryDaemon, "enable-discovery-daemon", true, "enable the rook discovery daemon")
 
-	operatorCmd.Flags().BoolVar(&csi.EnableRBD, "csi-enable-rbd", true, "enable ceph-csi rbd support")
-	operatorCmd.Flags().BoolVar(&csi.EnableCephFS, "csi-enable-cephfs", true, "enable ceph-csi cephfs support")
-	operatorCmd.Flags().StringVar(&csi.CSIParam.DriverNamePrefix, "csi-driver-name-prefix", "", "custom csi driver name prefix")
-
-	// csi images
-	operatorCmd.Flags().StringVar(&csi.CSIParam.CSIPluginImage, "csi-ceph-image", csi.DefaultCSIPluginImage, "ceph-csi plugin image")
-	operatorCmd.Flags().StringVar(&csi.CSIParam.RegistrarImage, "csi-registrar-image", csi.DefaultRegistrarImage, "csi registrar image")
-	operatorCmd.Flags().StringVar(&csi.CSIParam.ProvisionerImage, "csi-provisioner-image", csi.DefaultProvisionerImage, "csi provisioner image")
-	operatorCmd.Flags().StringVar(&csi.CSIParam.AttacherImage, "csi-attacher-image", csi.DefaultAttacherImage, "csi attacher image")
-	operatorCmd.Flags().StringVar(&csi.CSIParam.SnapshotterImage, "csi-snapshotter-image", csi.DefaultSnapshotterImage, "csi snapshotter image")
-
 	// csi deployment templates
 	operatorCmd.Flags().StringVar(&csi.RBDPluginTemplatePath, "csi-rbd-plugin-template-path", csi.DefaultRBDPluginTemplatePath, "path to ceph-csi rbd plugin template")
 	operatorCmd.Flags().StringVar(&csi.RBDProvisionerSTSTemplatePath, "csi-rbd-provisioner-sts-template-path", csi.DefaultRBDProvisionerSTSTemplatePath, "path to ceph-csi rbd provisioner statefulset template")
@@ -65,9 +54,6 @@ func init() {
 	operatorCmd.Flags().StringVar(&csi.CephFSPluginTemplatePath, "csi-cephfs-plugin-template-path", csi.DefaultCephFSPluginTemplatePath, "path to ceph-csi cephfs plugin template")
 	operatorCmd.Flags().StringVar(&csi.CephFSProvisionerSTSTemplatePath, "csi-cephfs-provisioner-sts-template-path", csi.DefaultCephFSProvisionerSTSTemplatePath, "path to ceph-csi cephfs provisioner statefulset template")
 	operatorCmd.Flags().StringVar(&csi.CephFSProvisionerDepTemplatePath, "csi-cephfs-provisioner-dep-template-path", csi.DefaultCephFSProvisionerDepTemplatePath, "path to ceph-csi cephfs provisioner deployment template")
-	operatorCmd.Flags().BoolVar(&csi.EnableCSIGRPCMetrics, "csi-enable-grpc-metrics", true, "enable grpc metrics in ceph-csi")
-
-	operatorCmd.Flags().StringVar(&csi.CSIParam.KubeletDirPath, "csi-kubelet-dir-path", csi.DefaultKubeletDirPath, "kubelet directory path for mounting volumes")
 
 	operatorCmd.Flags().BoolVar(&disruption.EnableMachineDisruptionBudget, "enable-machine-disruption-budget", false, "enable fencing controllers")
 

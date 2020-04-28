@@ -13,38 +13,13 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package v1
 
-import "github.com/rook/rook/pkg/daemon/ceph/model"
-
-func (p *PoolSpec) ToModel(name string) *model.Pool {
-	pool := &model.Pool{Name: name, FailureDomain: p.FailureDomain, CrushRoot: p.CrushRoot, DeviceClass: p.DeviceClass}
-	r := p.Replication()
-	if r != nil {
-		pool.ReplicatedConfig.Size = r.Size
-		pool.Type = model.Replicated
-	} else {
-		ec := p.ErasureCode()
-		if ec != nil {
-			pool.ErasureCodedConfig.CodingChunkCount = ec.CodingChunks
-			pool.ErasureCodedConfig.DataChunkCount = ec.DataChunks
-			pool.Type = model.ErasureCoded
-		}
-	}
-	return pool
+func (p *PoolSpec) IsReplicated() bool {
+	return p.Replicated.Size > 0
 }
 
-func (p *PoolSpec) Replication() *ReplicatedSpec {
-	if p.Replicated.Size > 0 {
-		return &p.Replicated
-	}
-	return nil
-}
-
-func (p *PoolSpec) ErasureCode() *ErasureCodedSpec {
-	ec := &p.ErasureCoded
-	if ec.CodingChunks > 0 || ec.DataChunks > 0 {
-		return ec
-	}
-	return nil
+func (p *PoolSpec) IsErasureCoded() bool {
+	return p.ErasureCoded.CodingChunks > 0 || p.ErasureCoded.DataChunks > 0
 }

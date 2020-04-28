@@ -60,7 +60,7 @@ func TestValidateClient(t *testing.T) {
 }
 
 func TestGenerateClient(t *testing.T) {
-	clientset := testop.New(1)
+	clientset := testop.New(t, 1)
 	context := &clusterd.Context{Clientset: clientset}
 
 	p := &cephv1.CephClient{ObjectMeta: metav1.ObjectMeta{Name: "client1", Namespace: "myns"},
@@ -100,9 +100,9 @@ func TestGenerateClient(t *testing.T) {
 }
 
 func TestCreateClient(t *testing.T) {
-	clientset := testop.New(1)
+	clientset := testop.New(t, 1)
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command, outfileArg string, args ...string) (string, error) {
+		MockExecuteCommandWithOutputFile: func(command, outfileArg string, args ...string) (string, error) {
 			logger.Infof("Command: %s %v", command, args)
 			if command == "ceph" && args[1] == "get-or-create-key" {
 				return `{"key":"AQC7ilJdAPijOBAABp+YAzg2QupRAWdnIh7w/Q=="}`, nil
@@ -144,9 +144,9 @@ func TestCreateClient(t *testing.T) {
 }
 
 func TestUpdateClient(t *testing.T) {
-	clientset := testop.New(1)
+	clientset := testop.New(t, 1)
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command, outfileArg string, args ...string) (string, error) {
+		MockExecuteCommandWithOutputFile: func(command, outfileArg string, args ...string) (string, error) {
 			logger.Infof("Command: %s %v", command, args)
 			return "", nil
 		},
@@ -178,9 +178,9 @@ func TestUpdateClient(t *testing.T) {
 }
 
 func TestDeleteClient(t *testing.T) {
-	clientset := testop.New(2)
+	clientset := testop.New(t, 2)
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command, outfileArg string, args ...string) (string, error) {
+		MockExecuteCommandWithOutputFile: func(command, outfileArg string, args ...string) (string, error) {
 			logger.Infof("Command: %s %v", command, args)
 			if command == "ceph" && args[1] == "get-key" && args[2] == "client1" {
 				return `{"key":"AQC7ilJdAPijOBAABp+YAzg2QupRAWdnIh7w/Q=="}`, nil

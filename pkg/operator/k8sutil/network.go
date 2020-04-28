@@ -21,12 +21,31 @@ import (
 	"fmt"
 	"strings"
 
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	netapi "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// NetworkAttachmentConfig represents the configuration of the NetworkAttachmentDefinitions object
+type NetworkAttachmentConfig struct {
+	CniVersion string `json:"cniVersion"`
+	Type       string `json:"type"`
+	Master     string `json:"master"`
+	Mode       string `json:"mode"`
+	Ipam       struct {
+		Type       string `json:"type"`
+		Subnet     string `json:"subnet"`
+		RangeStart string `json:"rangeStart"`
+		RangeEnd   string `json:"rangeEnd"`
+		Routes     []struct {
+			Dst string `json:"dst"`
+		} `json:"routes"`
+		Gateway string `json:"gateway"`
+	} `json:"ipam"`
+}
+
 // parseMultusSelector will parse short and JSON form of individual multus
-// network attachment selection annotation. Valid JSON will be unmarshaled and
+// network attachment selection annotation. Valid JSON will be unmarshalled and
 // return as is, while invalid JSON will be tried using
 // <namespace>/<name>@<interface> short syntax.
 func parseMultusSelector(selector string) (map[string]string, error) {
@@ -75,7 +94,7 @@ func GetMultusIfName(selector string) (string, error) {
 		ifName = name
 	}
 
-	// fail selector without inteface name
+	// fail selector without interface name
 	if ifName == "" {
 		return "", fmt.Errorf("GetMultusIfname: missing interface")
 	}
@@ -85,7 +104,7 @@ func GetMultusIfName(selector string) (string, error) {
 
 // ApplyMultus apply multus selector to Pods
 // Multus supports short and json syntax, use only one kind at a time.
-func ApplyMultus(net rookalpha.NetworkSpec, objectMeta *metav1.ObjectMeta) error {
+func ApplyMultus(net rookv1.NetworkSpec, objectMeta *metav1.ObjectMeta) error {
 	v := make([]string, 0, 2)
 	shortSyntax := false
 	jsonSyntax := false
@@ -112,10 +131,23 @@ func ApplyMultus(net rookalpha.NetworkSpec, objectMeta *metav1.ObjectMeta) error
 		networks = "[" + networks + "]"
 	}
 
-	t := rookalpha.Annotations{
+	t := rookv1.Annotations{
 		"k8s.v1.cni.cncf.io/networks": networks,
 	}
 	t.ApplyToObjectMeta(objectMeta)
 
 	return nil
+}
+
+// GetNetworkAttachmentConfig returns the NetworkAttachmentDefinitions configuration
+func GetNetworkAttachmentConfig(n netapi.NetworkAttachmentDefinition) (NetworkAttachmentConfig, error) {
+	netConfigJSON := n.Spec.Config
+	var netConfig NetworkAttachmentConfig
+
+	err := json.Unmarshal([]byte(netConfigJSON), &netConfig)
+	if err != nil {
+		return netConfig, fmt.Errorf("failed to unmarshal netconfig json %q. %v", netConfigJSON, err)
+	}
+
+	return netConfig, nil
 }

@@ -24,7 +24,7 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/google/go-cmp/cmp"
 	edgefsv1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
@@ -54,11 +54,11 @@ type NFSController struct {
 	context          *clusterd.Context
 	namespace        string
 	rookImage        string
-	NetworkSpec      rookalpha.NetworkSpec
+	NetworkSpec      rookv1.NetworkSpec
 	dataDirHostPath  string
 	dataVolumeSize   resource.Quantity
-	annotations      rookalpha.Annotations
-	placement        rookalpha.Placement
+	annotations      rookv1.Annotations
+	placement        rookv1.Placement
 	resources        v1.ResourceRequirements
 	resourceProfile  string
 	ownerRef         metav1.OwnerReference
@@ -70,10 +70,10 @@ func NewNFSController(
 	context *clusterd.Context,
 	namespace string,
 	rookImage string,
-	NetworkSpec rookalpha.NetworkSpec,
+	NetworkSpec rookv1.NetworkSpec,
 	dataDirHostPath string,
 	dataVolumeSize resource.Quantity,
-	placement rookalpha.Placement,
+	placement rookv1.Placement,
 	resources v1.ResourceRequirements,
 	resourceProfile string,
 	ownerRef metav1.OwnerReference,
@@ -95,7 +95,7 @@ func NewNFSController(
 }
 
 // StartWatch watches for instances of NFS custom resources and acts on them
-func (c *NFSController) StartWatch(stopCh chan struct{}) error {
+func (c *NFSController) StartWatch(stopCh chan struct{}) {
 
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
@@ -106,7 +106,6 @@ func (c *NFSController) StartWatch(stopCh chan struct{}) error {
 	logger.Infof("start watching nfs resources in namespace %s", c.namespace)
 	go k8sutil.WatchCR(NFSResource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1().RESTClient(), &edgefsv1.NFS{}, stopCh)
 
-	return nil
 }
 
 func (c *NFSController) onAdd(obj interface{}) {

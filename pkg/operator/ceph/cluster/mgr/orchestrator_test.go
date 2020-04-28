@@ -34,7 +34,7 @@ func TestOrchestratorModules(t *testing.T) {
 	rookModuleEnabled := false
 	rookBackendSet := false
 	backendErrorCount := 0
-	executor.MockExecuteCommandWithOutputFile = func(debug bool, actionName, command, outputFile string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[0] == "mgr" && args[1] == "module" && args[2] == "enable" {
 			if args[3] == "orchestrator_cli" {
@@ -48,7 +48,7 @@ func TestOrchestratorModules(t *testing.T) {
 		}
 		return "", errors.Errorf("unexpected ceph command '%v'", args)
 	}
-	executor.MockExecuteCommandWithOutputFileTimeout = func(debug bool, timeout time.Duration, actionName, command, outputFile string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutputFileTimeout = func(timeout time.Duration, command, outputFile string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[0] == "orchestrator" && args[1] == "set" && args[2] == "backend" && args[3] == "rook" {
 			if backendErrorCount < 5 {
@@ -62,7 +62,7 @@ func TestOrchestratorModules(t *testing.T) {
 	}
 
 	clusterInfo := &cephconfig.ClusterInfo{
-		CephVersion: cephver.Mimic,
+		CephVersion: cephver.Nautilus,
 	}
 
 	c := &Cluster{clusterInfo: clusterInfo, context: context}
@@ -71,21 +71,7 @@ func TestOrchestratorModules(t *testing.T) {
 	}
 	orchestratorInitWaitTime = 0
 
-	// the modules are skipped on mimic
-	c.clusterInfo.CephVersion = cephver.Mimic
 	err := c.configureOrchestratorModules()
-	assert.NoError(t, err)
-	err = c.setRookOrchestratorBackend()
-	assert.NoError(t, err)
-	assert.False(t, orchestratorModuleEnabled)
-	assert.False(t, rookModuleEnabled)
-	assert.False(t, rookBackendSet)
-	assert.Equal(t, 0, backendErrorCount)
-
-	// the modules are configured on nautilus
-	// the rook module will fail to be set
-	c.clusterInfo.CephVersion = cephver.Nautilus
-	err = c.configureOrchestratorModules()
 	assert.Error(t, err)
 	err = c.setRookOrchestratorBackend()
 	assert.NoError(t, err)
@@ -102,4 +88,23 @@ func TestOrchestratorModules(t *testing.T) {
 	assert.True(t, orchestratorModuleEnabled)
 	assert.True(t, rookModuleEnabled)
 	assert.True(t, rookBackendSet)
+
+	// Simulate the error because of the CLI name change
+	c.clusterInfo.CephVersion = cephver.Octopus
+	err = c.setRookOrchestratorBackend()
+	assert.Error(t, err)
+	executor.MockExecuteCommandWithOutputFileTimeout = func(timeout time.Duration, command, outputFile string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		if args[0] == "orch" && args[1] == "set" && args[2] == "backend" && args[3] == "rook" {
+			if backendErrorCount < 5 {
+				backendErrorCount++
+				return "", errors.New("test simulation failure")
+			}
+			rookBackendSet = true
+			return "", nil
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+	err = c.setRookOrchestratorBackend()
+	assert.NoError(t, err)
 }

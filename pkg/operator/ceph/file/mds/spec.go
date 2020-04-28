@@ -22,7 +22,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
-	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
+	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -51,7 +52,7 @@ func (c *Cluster) makeDeployment(mdsConfig *mdsConfig) *apps.Deployment {
 				c.makeMdsDaemonContainer(mdsConfig),
 			},
 			RestartPolicy:     v1.RestartPolicyAlways,
-			Volumes:           opspec.DaemonVolumes(mdsConfig.DataPathMap, mdsConfig.ResourceName),
+			Volumes:           controller.DaemonVolumes(mdsConfig.DataPathMap, mdsConfig.ResourceName),
 			HostNetwork:       c.clusterSpec.Network.IsHost(),
 			PriorityClassName: c.fs.Spec.MetadataServer.PriorityClassName,
 		},
@@ -59,9 +60,6 @@ func (c *Cluster) makeDeployment(mdsConfig *mdsConfig) *apps.Deployment {
 	// Replace default unreachable node toleration
 	k8sutil.AddUnreachableNodeToleration(&podSpec.Spec)
 
-	if c.clusterSpec.Network.IsHost() {
-		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
-	}
 	c.fs.Spec.MetadataServer.Annotations.ApplyToObjectMeta(&podSpec.ObjectMeta)
 	c.fs.Spec.MetadataServer.Placement.ApplyToPodSpec(&podSpec.Spec)
 
@@ -83,18 +81,25 @@ func (c *Cluster) makeDeployment(mdsConfig *mdsConfig) *apps.Deployment {
 			},
 		},
 	}
+
+	if c.clusterSpec.Network.IsHost() {
+		d.Spec.Template.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
+	} else if c.clusterSpec.Network.NetworkSpec.IsMultus() {
+		k8sutil.ApplyMultus(c.clusterSpec.Network.NetworkSpec, &podSpec.ObjectMeta)
+	}
+
 	k8sutil.AddRookVersionLabelToDeployment(d)
 	c.fs.Spec.MetadataServer.Annotations.ApplyToObjectMeta(&d.ObjectMeta)
-	opspec.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, d)
-	k8sutil.SetOwnerRef(&d.ObjectMeta, &c.ownerRef)
+	controller.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, d)
+
 	return d
 }
 
 func (c *Cluster) makeChownInitContainer(mdsConfig *mdsConfig) v1.Container {
-	return opspec.ChownCephDataDirsInitContainer(
+	return controller.ChownCephDataDirsInitContainer(
 		*mdsConfig.DataPathMap,
 		c.clusterSpec.CephVersion.Image,
-		opspec.DaemonVolumeMounts(mdsConfig.DataPathMap, mdsConfig.ResourceName),
+		controller.DaemonVolumeMounts(mdsConfig.DataPathMap, mdsConfig.ResourceName),
 		c.fs.Spec.MetadataServer.Resources,
 		mon.PodSecurityContext(),
 	)
@@ -102,7 +107,7 @@ func (c *Cluster) makeChownInitContainer(mdsConfig *mdsConfig) v1.Container {
 
 func (c *Cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
 	args := append(
-		opspec.DaemonFlags(c.clusterInfo, mdsConfig.DaemonID),
+		controller.DaemonFlags(c.clusterInfo, mdsConfig.DaemonID),
 		"--foreground",
 	)
 
@@ -113,19 +118,20 @@ func (c *Cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
 		},
 		Args:         args,
 		Image:        c.clusterSpec.CephVersion.Image,
-		VolumeMounts: opspec.DaemonVolumeMounts(mdsConfig.DataPathMap, mdsConfig.ResourceName),
+		VolumeMounts: controller.DaemonVolumeMounts(mdsConfig.DataPathMap, mdsConfig.ResourceName),
 		Env: append(
-			opspec.DaemonEnvVars(c.clusterSpec.CephVersion.Image),
+			controller.DaemonEnvVars(c.clusterSpec.CephVersion.Image),
 		),
 		Resources:       c.fs.Spec.MetadataServer.Resources,
 		SecurityContext: mon.PodSecurityContext(),
+		LivenessProbe:   controller.GenerateLivenessProbeExecDaemon(config.MdsType, mdsConfig.DaemonID),
 	}
 
 	return container
 }
 
 func (c *Cluster) podLabels(mdsConfig *mdsConfig) map[string]string {
-	labels := opspec.PodLabels(AppName, c.fs.Namespace, "mds", mdsConfig.DaemonID)
+	labels := controller.PodLabels(AppName, c.fs.Namespace, "mds", mdsConfig.DaemonID)
 	labels["rook_file_system"] = c.fs.Name
 	return labels
 }

@@ -20,6 +20,8 @@ spec:
     failureDomain: host
     replicated:
       size: 3
+    # Inline compression mode for the data pool
+    compressionMode: none
   # Whether to preserve metadata and data pools on object store deletion
   preservePoolsOnDelete: true
   # The gateway service configuration
@@ -44,6 +46,7 @@ spec:
     #          operator: In
     #          values:
     #          - rgw-node
+    #  topologySpreadConstraints:
     #  tolerations:
     #  - key: rgw-node
     #    operator: Exists

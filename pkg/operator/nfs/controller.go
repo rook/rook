@@ -70,7 +70,7 @@ func NewController(context *clusterd.Context, containerImage string) *Controller
 }
 
 // StartWatch watches for instances of nfsserver custom resources and acts on them
-func (c *Controller) StartWatch(namespace string, stopCh chan struct{}) error {
+func (c *Controller) StartWatch(namespace string, stopCh chan struct{}) {
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
 		UpdateFunc: c.onUpdate,
@@ -79,8 +79,6 @@ func (c *Controller) StartWatch(namespace string, stopCh chan struct{}) error {
 
 	logger.Infof("start watching nfs server resources in namespace %s", namespace)
 	go k8sutil.WatchCR(NFSResource, namespace, resourceHandlerFuncs, c.context.RookClientset.NfsV1alpha1().RESTClient(), &nfsv1alpha1.NFSServer{}, stopCh)
-
-	return nil
 }
 
 type nfsServer struct {
@@ -396,7 +394,11 @@ func (c *Controller) createNfsStatefulSet(nfsServer *nfsServer, replicas int32, 
 }
 
 func (c *Controller) onAdd(obj interface{}) {
-	nfsObj := obj.(*nfsv1alpha1.NFSServer).DeepCopy()
+	nfsObj, ok := obj.(*nfsv1alpha1.NFSServer)
+	if !ok {
+		return
+	}
+	nfsObj = nfsObj.DeepCopy()
 
 	nfsServer := newNfsServer(nfsObj, c.context)
 
@@ -426,7 +428,11 @@ func (c *Controller) onAdd(obj interface{}) {
 }
 
 func (c *Controller) onUpdate(oldObj, newObj interface{}) {
-	oldNfsServ := oldObj.(*nfsv1alpha1.NFSServer).DeepCopy()
+	oldNfsServ, ok := oldObj.(*nfsv1alpha1.NFSServer)
+	if !ok {
+		return
+	}
+	oldNfsServ = oldNfsServ.DeepCopy()
 
 	logger.Infof("Received update on NFS server %s in namespace %s. This is currently unsupported.", oldNfsServ.Name, oldNfsServ.Namespace)
 }

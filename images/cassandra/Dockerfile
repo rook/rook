@@ -26,6 +26,8 @@ RUN mkdir -p /sidecar/plugins
 ADD rook /sidecar/
 # Jolokia plugin for JMX<->HTTP
 ADD "http://search.maven.org/remotecontent?filepath=org/jolokia/jolokia-jvm/1.6.0/jolokia-jvm-1.6.0-agent.jar" /sidecar/plugins/jolokia.jar
+# JMX exporter for prometheus metrics
+ADD "https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.11.0/jmx_prometheus_javaagent-0.11.0.jar" /sidecar/plugins/jmx_prometheus.jar
 
 # Run tini as PID 1 and avoid signal handling issues
 ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-static-${ARCH} /sidecar/tini

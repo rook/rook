@@ -20,12 +20,11 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"log"
 	"os/exec"
 	"strings"
-	"syscall"
 
 	"github.com/coreos/pkg/capnslog"
+	utilexec "github.com/rook/rook/pkg/util/exec"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "testutil")
@@ -111,17 +110,14 @@ func ExecuteCommand(cmdStruct CommandArgs) CommandOut {
 		stdin.Close()
 	}
 
-	if err := cmd.Wait(); err != nil {
-		if exiterr, ok := err.(*exec.ExitError); ok {
-			// The program has exited with an exit code != 0
-			if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-				log.Printf("Exit Status: %d", status.ExitStatus())
-				return CommandOut{StdErr: errBuffer.String(), StdOut: outBuffer.String(), ExitCode: status.ExitStatus(), Err: exiterr}
-			}
-		} else {
-			return CommandOut{StdErr: errBuffer.String(), StdOut: outBuffer.String(), Err: nil}
+	err = cmd.Wait()
+	out := CommandOut{StdErr: errBuffer.String(), StdOut: outBuffer.String()}
+	if err != nil {
+		out.Err = err
+		if code, ok := utilexec.ExitStatus(err); ok {
+			out.ExitCode = code
 		}
 	}
 
-	return CommandOut{StdErr: errBuffer.String(), StdOut: outBuffer.String(), Err: err}
+	return out
 }

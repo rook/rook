@@ -17,7 +17,7 @@ limitations under the License.
 package v1
 
 import (
-	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rook "github.com/rook/rook/pkg/apis/rook.io/v1"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -54,11 +54,6 @@ func GetOSDResources(p rook.ResourceSpec) v1.ResourceRequirements {
 // GetPrepareOSDResources returns the placement for the OSDs prepare job
 func GetPrepareOSDResources(p rook.ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyPrepareOSD]
-}
-
-// GetRBDMirrorResources returns the placement for the RBD Mirrors
-func GetRBDMirrorResources(p rook.ResourceSpec) v1.ResourceRequirements {
-	return p[ResourcesKeyRBDMirror]
 }
 
 // GetCrashCollectorResources returns the placement for the crash daemon

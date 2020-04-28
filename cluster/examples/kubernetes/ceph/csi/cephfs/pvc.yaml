@@ -9,4 +9,4 @@ spec:
   resources:
     requests:
       storage: 1Gi
-  storageClassName: csi-cephfs
+  storageClassName: rook-cephfs

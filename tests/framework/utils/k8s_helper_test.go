@@ -96,7 +96,7 @@ var rawContext = `{
 
 func TestLoadMinikubeContext(t *testing.T) {
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(debug bool, command string, subcommand string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			return fmt.Sprintf(rawContext, "minikube"), nil
 		}}
 	config, err := getKubeConfig(executor)
@@ -111,7 +111,7 @@ func TestLoadMinikubeContext(t *testing.T) {
 
 func TestLoadDindContext(t *testing.T) {
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(debug bool, command string, subcommand string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			return fmt.Sprintf(rawContext, "dind"), nil
 		}}
 	config, err := getKubeConfig(executor)
@@ -126,7 +126,7 @@ func TestLoadDindContext(t *testing.T) {
 
 func TestLoadVagrantContext(t *testing.T) {
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(debug bool, command string, subcommand string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			return fmt.Sprintf(rawContext, "vagrant-single"), nil
 		}}
 	config, err := getKubeConfig(executor)

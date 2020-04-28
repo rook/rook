@@ -21,13 +21,13 @@ import (
 	"reflect"
 	"testing"
 
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	optest "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
-	scheduler "k8s.io/kubernetes/pkg/scheduler/api"
 )
 
 func createNode(nodeName string, condition v1.NodeConditionType, clientset *fake.Clientset) error {
@@ -51,8 +51,8 @@ func TestValidNode(t *testing.T) {
 	nodeA := "nodeA"
 	nodeB := "nodeB"
 
-	storage := rookalpha.StorageScopeSpec{
-		Nodes: []rookalpha.Node{
+	storage := rookv1.StorageScopeSpec{
+		Nodes: []rookv1.Node{
 			{
 				Name: nodeA,
 			},
@@ -61,7 +61,7 @@ func TestValidNode(t *testing.T) {
 			},
 		},
 	}
-	var placement rookalpha.Placement
+	var placement rookv1.Placement
 	// set up a fake k8s client set and watcher to generate events that the operator will listen to
 	clientset := fake.NewSimpleClientset()
 
@@ -90,7 +90,7 @@ func taintReservedForOther() v1.Taint {
 }
 
 func taintCordoned() v1.Taint {
-	return v1.Taint{Key: scheduler.TaintNodeUnschedulable, Effect: v1.TaintEffectNoSchedule}
+	return v1.Taint{Key: v1.TaintNodeUnschedulable, Effect: v1.TaintEffectNoSchedule}
 }
 
 func taintAllWellKnown() []v1.Taint {
@@ -199,17 +199,17 @@ func TestNodeIsReady(t *testing.T) {
 	}}}))
 	// if `Ready` condition does not exist, must assume that node is not ready
 	assert.False(t, NodeIsReady(v1.Node{Status: v1.NodeStatus{Conditions: []v1.NodeCondition{
-		{Type: v1.NodeOutOfDisk, Status: v1.ConditionTrue},
+		{Type: v1.NodeDiskPressure, Status: v1.ConditionTrue},
 	}}}))
 	// if `Ready` condition is not accompanied by a status, must assume that node is not ready
 	assert.False(t, NodeIsReady(v1.Node{Status: v1.NodeStatus{Conditions: []v1.NodeCondition{
-		{Type: v1.NodeOutOfDisk},
+		{Type: v1.NodeDiskPressure},
 	}}}))
 }
 
 func TestGetRookNodesMatchingKubernetesNodes(t *testing.T) {
-	clientset := optest.New(3) // create nodes 0, 1, and 2
-	rookNodes := []rookalpha.Node{}
+	clientset := optest.New(t, 3) // create nodes 0, 1, and 2
+	rookNodes := []rookv1.Node{}
 
 	getNode := func(name string) v1.Node {
 		n, err := clientset.CoreV1().Nodes().Get(name, metav1.GetOptions{})
@@ -223,7 +223,7 @@ func TestGetRookNodesMatchingKubernetesNodes(t *testing.T) {
 	assert.Empty(t, nodes)
 
 	// more rook nodes specified than nodes exist
-	rookNodes = []rookalpha.Node{
+	rookNodes = []rookv1.Node{
 		{Name: "node0"},
 		{Name: "node2"},
 		{Name: "node5"}}
@@ -234,7 +234,7 @@ func TestGetRookNodesMatchingKubernetesNodes(t *testing.T) {
 	assert.Contains(t, nodes, getNode("node2"))
 
 	// rook nodes match k8s nodes
-	rookNodes = []rookalpha.Node{
+	rookNodes = []rookv1.Node{
 		{Name: "node0"},
 		{Name: "node1"},
 		{Name: "node2"}}
@@ -246,14 +246,14 @@ func TestGetRookNodesMatchingKubernetesNodes(t *testing.T) {
 	assert.Contains(t, nodes, getNode("node2"))
 
 	// no k8s nodes exist
-	clientset = optest.New(0)
+	clientset = optest.New(t, 0)
 	nodes, err = GetKubernetesNodesMatchingRookNodes(rookNodes, clientset)
 	assert.NoError(t, err)
 	assert.Len(t, nodes, 0)
 }
 
 func TestRookNodesMatchingKubernetesNodes(t *testing.T) {
-	clientset := optest.New(3) // create nodes 0, 1, and 2
+	clientset := optest.New(t, 3) // create nodes 0, 1, and 2
 
 	getNode := func(name string) v1.Node {
 		n, err := clientset.CoreV1().Nodes().Get(name, metav1.GetOptions{})
@@ -268,50 +268,37 @@ func TestRookNodesMatchingKubernetesNodes(t *testing.T) {
 	k8sNodes := []v1.Node{n0, n1, n2}
 
 	// no rook nodes specified for input
-	rookStorage := rookalpha.StorageScopeSpec{
-		Nodes: []rookalpha.Node{},
+	rookStorage := rookv1.StorageScopeSpec{
+		Nodes: []rookv1.Node{},
 	}
 	retNodes := RookNodesMatchingKubernetesNodes(rookStorage, k8sNodes)
 	assert.Len(t, retNodes, 0)
 
 	// all rook nodes specified
-	rookStorage.Nodes = []rookalpha.Node{
+	rookStorage.Nodes = []rookv1.Node{
 		{Name: "node0"},
 		{Name: "node1"},
 		{Name: "node2"}}
 	retNodes = RookNodesMatchingKubernetesNodes(rookStorage, k8sNodes)
 	assert.Len(t, retNodes, 3)
 	// this should return nodes named by hostname if that is available
-	assert.Contains(t, retNodes, rookalpha.Node{Name: "node0-hostname"})
-	assert.Contains(t, retNodes, rookalpha.Node{Name: "node1"})
-	assert.Contains(t, retNodes, rookalpha.Node{Name: "node2"})
+	assert.Contains(t, retNodes, rookv1.Node{Name: "node0-hostname"})
+	assert.Contains(t, retNodes, rookv1.Node{Name: "node1"})
+	assert.Contains(t, retNodes, rookv1.Node{Name: "node2"})
 
 	// more rook nodes specified than exist
-	rookStorage.Nodes = []rookalpha.Node{
+	rookStorage.Nodes = []rookv1.Node{
 		{Name: "node0-hostname"},
 		{Name: "node2"},
 		{Name: "node5"}}
 	retNodes = RookNodesMatchingKubernetesNodes(rookStorage, k8sNodes)
 	assert.Len(t, retNodes, 2)
-	assert.Contains(t, retNodes, rookalpha.Node{Name: "node0-hostname"})
-	assert.Contains(t, retNodes, rookalpha.Node{Name: "node2"})
+	assert.Contains(t, retNodes, rookv1.Node{Name: "node0-hostname"})
+	assert.Contains(t, retNodes, rookv1.Node{Name: "node2"})
 
 	// no k8s nodes specified
 	retNodes = RookNodesMatchingKubernetesNodes(rookStorage, []v1.Node{})
 	assert.Len(t, retNodes, 0)
-}
-
-func TestNodeIsInRookList(t *testing.T) {
-	rookNodes := []rookalpha.Node{}
-
-	assert.False(t, NodeIsInRookNodeList("node0", rookNodes))
-
-	rookNodes = []rookalpha.Node{
-		{Name: "node0-hostname"},
-		{Name: "node2"},
-		{Name: "node5"}}
-	assert.False(t, NodeIsInRookNodeList("node0", rookNodes))
-	assert.True(t, NodeIsInRookNodeList("node0-hostname", rookNodes))
 }
 
 func TestGenerateNodeAffinity(t *testing.T) {
@@ -349,7 +336,7 @@ func TestGenerateNodeAffinity(t *testing.T) {
 		{
 			name: "FailGenerateNodeAffinity",
 			args: args{
-				nodeAffinity: "rook.io/ceph,minio=true",
+				nodeAffinity: "rook.io/ceph,cassandra=true",
 			},
 			want:    nil,
 			wantErr: true,
@@ -388,4 +375,76 @@ func TestGenerateNodeAffinity(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestTopologyLabels(t *testing.T) {
+	additionalTopologyLabels := []string{
+		"rack", "row", "datacenter",
+	}
+	nodeLabels := map[string]string{}
+	topology := ExtractTopologyFromLabels(nodeLabels, additionalTopologyLabels)
+	assert.Equal(t, 0, len(topology))
+
+	// invalid non-namespaced zone and region labels are simply ignored
+	nodeLabels = map[string]string{
+		"region": "badregion",
+		"zone":   "badzone",
+	}
+	topology = ExtractTopologyFromLabels(nodeLabels, additionalTopologyLabels)
+	assert.Equal(t, 0, len(topology))
+
+	// invalid zone and region labels are simply ignored
+	nodeLabels = map[string]string{
+		"topology.rook.io/region": "r1",
+		"topology.rook.io/zone":   "z1",
+	}
+	topology = ExtractTopologyFromLabels(nodeLabels, additionalTopologyLabels)
+	assert.Equal(t, 0, len(topology))
+
+	// load all the expected labels
+	nodeLabels = map[string]string{
+		"topology.kubernetes.io/region": "r1",
+		"topology.kubernetes.io/zone":   "z1",
+		"kubernetes.io/hostname":        "myhost",
+		"topology.rook.io/rack":         "rack1",
+		"topology.rook.io/row":          "row1",
+		"topology.rook.io/datacenter":   "d1",
+	}
+	topology = ExtractTopologyFromLabels(nodeLabels, additionalTopologyLabels)
+	assert.Equal(t, 6, len(topology))
+	assert.Equal(t, "r1", topology["region"])
+	assert.Equal(t, "z1", topology["zone"])
+	assert.Equal(t, "myhost", topology["host"])
+	assert.Equal(t, "rack1", topology["rack"])
+	assert.Equal(t, "row1", topology["row"])
+	assert.Equal(t, "d1", topology["datacenter"])
+
+	// ensure deprecated k8s labels are loaded
+	nodeLabels = map[string]string{
+		corev1.LabelZoneRegion:        "r1",
+		corev1.LabelZoneFailureDomain: "z1",
+	}
+	topology = ExtractTopologyFromLabels(nodeLabels, additionalTopologyLabels)
+	assert.Equal(t, 2, len(topology))
+	assert.Equal(t, "r1", topology["region"])
+	assert.Equal(t, "z1", topology["zone"])
+
+	// ensure deprecated k8s labels are overridden
+	nodeLabels = map[string]string{
+		"topology.kubernetes.io/region": "r1",
+		"topology.kubernetes.io/zone":   "z1",
+		corev1.LabelZoneRegion:          "oldregion",
+		corev1.LabelZoneFailureDomain:   "oldzone",
+	}
+	topology = ExtractTopologyFromLabels(nodeLabels, additionalTopologyLabels)
+	assert.Equal(t, 2, len(topology))
+	assert.Equal(t, "r1", topology["region"])
+	assert.Equal(t, "z1", topology["zone"])
+
+	// invalid labels under topology.rook.io return an error
+	nodeLabels = map[string]string{
+		"topology.rook.io/row/bad": "r1",
+	}
+	topology = ExtractTopologyFromLabels(nodeLabels, additionalTopologyLabels)
+	assert.Equal(t, 0, len(topology))
 }

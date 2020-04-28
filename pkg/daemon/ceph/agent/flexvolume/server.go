@@ -27,6 +27,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -89,7 +90,9 @@ func (s *FlexvolumeServer) Start(driverVendor, driverName string) error {
 	// remove unix socket if it existed previously
 	if _, err := os.Stat(unixSocketFile); !os.IsNotExist(err) {
 		logger.Info("Deleting unix domain socket file.")
-		os.Remove(unixSocketFile)
+		if err := os.Remove(unixSocketFile); err != nil {
+			logger.Errorf("failed to remove unix socket file. %v", err)
+		}
 	}
 
 	listener, err := net.Listen("unix", unixSocketFile)
@@ -119,7 +122,9 @@ func (s *FlexvolumeServer) StopAll() {
 		// closing the listener should remove the unix socket file. But lets try it remove it just in case.
 		if _, err := os.Stat(unixSocketFile); !os.IsNotExist(err) {
 			logger.Infof("deleting unix domain socket file %q.", unixSocketFile)
-			os.Remove(unixSocketFile)
+			if err := os.Remove(unixSocketFile); err != nil {
+				logger.Errorf("failed to delete unix domain socker file. %v", err)
+			}
 		}
 	}
 	s.listeners = make(map[string]net.Listener)
@@ -173,7 +178,7 @@ func LoadFlexSettings(directory string) []byte {
 	// Load the settings from the expected config file, ensure they are valid settings, then return them in
 	// a json string to the caller
 	var status flexvolume.DriverStatus
-	if output, err := ioutil.ReadFile(path.Join(directory, settingsFilename)); err == nil {
+	if output, err := ioutil.ReadFile(filepath.Clean(path.Join(directory, settingsFilename))); err == nil {
 		if err := json.Unmarshal(output, &status); err == nil {
 			if output, err = json.Marshal(status); err == nil {
 				return output
@@ -246,7 +251,7 @@ func configureFlexVolume(driverFile, driverDir, driverName string) error {
 }
 
 func copyFile(src, dest string) error {
-	srcFile, err := os.Open(src)
+	srcFile, err := os.Open(filepath.Clean(src))
 	if err != nil {
 		return errors.Wrapf(err, "error opening source file %s", src)
 	}

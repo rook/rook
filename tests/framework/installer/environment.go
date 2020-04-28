@@ -17,40 +17,43 @@ limitations under the License.
 package installer
 
 import (
-	"flag"
+	"os"
 )
 
-// EnvironmentManifest contains information about system under test
-type EnvironmentManifest struct {
-	HostType           string
-	Helm               string
-	RookImageName      string
-	ToolboxImageName   string
-	BaseTestDir        string
-	SkipInstallRook    bool
-	LoadVolumeNumber   int
-	LoadConcurrentRuns int
-	LoadTime           int
-	LoadSize           string
-	EnableChaos        bool
-	Logs               string
+// testEnvName gets the name of the test environment. In the CI it is "aws_1.18.x" or similar.
+func testEnvName() string {
+	return getEnvVarWithDefault("TEST_ENV_NAME", "localhost")
 }
 
-var Env EnvironmentManifest
+// testHelmPath gets the helm path
+func testHelmPath() string {
+	return getEnvVarWithDefault("TEST_HELM_PATH", "helm")
+}
 
-func init() {
-	Env = EnvironmentManifest{}
-	flag.StringVar(&Env.HostType, "host_type", "localhost", "Host where tests are run eg - localhost, GCE or AWS")
-	flag.StringVar(&Env.Helm, "helm", "helm", "Path to helm binary")
-	flag.StringVar(&Env.RookImageName, "rook_image", "rook/ceph", "Docker image name for the rook container to install, must be in docker hub or local environment")
-	flag.StringVar(&Env.ToolboxImageName, "toolbox_image", "rook/ceph", "Docker image name of the toolbox container to install, must be in docker hub or local environment")
-	flag.StringVar(&Env.BaseTestDir, "base_test_dir", "/data", "Base test directory, for use only when kubernetes master is running on localhost")
-	flag.BoolVar(&Env.SkipInstallRook, "skip_install_rook", false, "Indicate if Rook need to installed - false if tests are being running at Rook that is pre-installed")
-	flag.IntVar(&Env.LoadConcurrentRuns, "load_parallel_runs", 20, "number of routines for load test")
-	flag.IntVar(&Env.LoadVolumeNumber, "load_volumes", 1, "number of volumes(file,object or block) to be created for load test")
-	flag.IntVar(&Env.LoadTime, "load_time", 1800, "number of seconds each thread perform operations for")
-	flag.StringVar(&Env.LoadSize, "load_size", "medium", "load size for each thread performing operations - small,medium or large.")
-	flag.BoolVar(&Env.EnableChaos, "enable_chaos", false, "used to determine if random pods in a namespace are to be killed during load test.")
-	flag.StringVar(&Env.Logs, "logs", "", "Gather rook logs, eg - all")
-	flag.Parse()
+// TestLogCollectionLevel gets whether to collect all logs
+func TestLogCollectionLevel() string {
+	return getEnvVarWithDefault("TEST_LOG_COLLECTION_LEVEL", "")
+}
+
+// testStorageProvider gets the storage provider for which tests should be run
+func testStorageProvider() string {
+	return getEnvVarWithDefault("STORAGE_PROVIDER_TESTS", "")
+}
+
+// baseTestDir gets the base test directory
+func baseTestDir() string {
+	// If the base test directory is actively set to empty (as in CI), we use the current working directory.
+	val := getEnvVarWithDefault("TEST_BASE_DIR", "/data")
+	if val == "WORKING_DIR" {
+		val, _ = os.Getwd()
+	}
+	return val
+}
+
+func getEnvVarWithDefault(env, defaultValue string) string {
+	val := os.Getenv(env)
+	if val == "" {
+		return defaultValue
+	}
+	return val
 }

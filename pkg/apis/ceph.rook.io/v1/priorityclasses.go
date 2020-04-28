@@ -17,7 +17,7 @@ limitations under the License.
 package v1
 
 import (
-	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rook "github.com/rook/rook/pkg/apis/rook.io/v1"
 )
 
 // GetMgrPriorityClassName returns the priority class name for the MGR service
@@ -42,12 +42,4 @@ func GetOSDPriorityClassName(p rook.PriorityClassNamesSpec) string {
 		return p.All()
 	}
 	return p[KeyOSD]
-}
-
-// GetRBDMirrorPriorityClassName returns the priority class name for the RBD Mirrors
-func GetRBDMirrorPriorityClassName(p rook.PriorityClassNamesSpec) string {
-	if _, ok := p[KeyRBDMirror]; !ok {
-		return p.All()
-	}
-	return p[KeyRBDMirror]
 }

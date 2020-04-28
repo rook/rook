@@ -21,7 +21,6 @@ package v1
 import (
 	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
-	serializer "k8s.io/apimachinery/pkg/runtime/serializer"
 	rest "k8s.io/client-go/rest"
 )
 
@@ -34,6 +33,7 @@ type CephV1Interface interface {
 	CephNFSesGetter
 	CephObjectStoresGetter
 	CephObjectStoreUsersGetter
+	CephRBDMirrorsGetter
 }
 
 // CephV1Client is used to interact with features provided by the ceph.rook.io group.
@@ -69,6 +69,10 @@ func (c *CephV1Client) CephObjectStoreUsers(namespace string) CephObjectStoreUse
 	return newCephObjectStoreUsers(c, namespace)
 }
 
+func (c *CephV1Client) CephRBDMirrors(namespace string) CephRBDMirrorInterface {
+	return newCephRBDMirrors(c, namespace)
+}
+
 // NewForConfig creates a new CephV1Client for the given config.
 func NewForConfig(c *rest.Config) (*CephV1Client, error) {
 	config := *c
@@ -101,7 +105,7 @@ func setConfigDefaults(config *rest.Config) error {
 	gv := v1.SchemeGroupVersion
 	config.GroupVersion = &gv
 	config.APIPath = "/apis"
-	config.NegotiatedSerializer = serializer.DirectCodecFactory{CodecFactory: scheme.Codecs}
+	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
 
 	if config.UserAgent == "" {
 		config.UserAgent = rest.DefaultKubernetesUserAgent()

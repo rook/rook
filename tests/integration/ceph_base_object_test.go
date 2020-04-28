@@ -30,15 +30,14 @@ import (
 )
 
 var (
-	userid           = "rook-user"
-	userdisplayname  = "A rook RGW user"
-	bucketname       = "smokebkt"
-	objBody          = "Test Rook Object Data"
-	objectKey        = "rookObj1"
-	contentType      = "plain/text"
-	storageClassName = "rook-smoke-delete-bucket"
-	obcName          = "smoke-delete-bucket"
-	region           = "us-east-1"
+	userid          = "rook-user"
+	userdisplayname = "A rook RGW user"
+	bucketname      = "smokebkt"
+	objBody         = "Test Rook Object Data"
+	objectKey       = "rookObj1"
+	contentType     = "plain/text"
+	obcName         = "smoke-delete-bucket"
+	region          = "us-east-1"
 )
 
 // Smoke Test for ObjectStore - Test check the following operations on ObjectStore in order
@@ -51,20 +50,30 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	logger.Infof("Object Storage End To End Integration Test - Create Object Store, User,Bucket and read/write to bucket")
 	logger.Infof("Running on Rook Cluster %s", namespace)
 
-	logger.Infof("Step 0 : Create Object Store")
+	logger.Infof("Step 0 : Create Object Store User")
+	cosuErr := helper.ObjectUserClient.Create(namespace, userid, userdisplayname, storeName)
+	require.Nil(s.T(), cosuErr)
+
+	logger.Infof("Step 1 : Create Object Store")
 	cobsErr := helper.ObjectClient.Create(namespace, storeName, 3)
-	// check that ObjectStore is created
 	require.Nil(s.T(), cobsErr)
+
+	// check that ObjectStore is created
+	logger.Infof("Check that RGW pods are Running")
+	i := 0
+	for i = 0; i < 24 && k8sh.CheckPodCountAndState("rook-ceph-rgw", namespace, 1, "Running") == false; i++ {
+		logger.Infof("(%d) RGW pod check sleeping for 5 seconds ...", i)
+		time.Sleep(5 * time.Second)
+	}
+	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-ceph-rgw", namespace, 1, "Running"))
+	logger.Infof("RGW pods are running")
 	logger.Infof("Object store created successfully")
 
-	logger.Infof("Step 1 : Create Object Store User")
-	cosuErr := helper.ObjectUserClient.Create(namespace, userid, userdisplayname, storeName)
 	// check that ObjectUser is created
-	require.Nil(s.T(), cosuErr)
 	logger.Infof("Waiting 10 seconds to ensure user was created")
 	time.Sleep(10 * time.Second)
 	logger.Infof("Checking to see if the user secret has been created")
-	i := 0
+	i = 0
 	for i = 0; i < 4 && helper.ObjectUserClient.UserSecretExists(namespace, storeName, userid) == false; i++ {
 		logger.Infof("(%d) secret check sleeping for 5 seconds ...", i)
 		time.Sleep(5 * time.Second)
@@ -94,9 +103,10 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 
 	// Testing creation/deletion of objects using Object Bucket Claim
 	logger.Infof("Step 3 : Create Object Bucket Claim with reclaim policy delete")
-	cobErr := helper.BucketClient.CreateBucketStorageClass(namespace, storeName, storageClassName, "Delete", region)
+	bucketStorageClassName := "rook-smoke-delete-bucket"
+	cobErr := helper.BucketClient.CreateBucketStorageClass(namespace, storeName, bucketStorageClassName, "Delete", region)
 	require.Nil(s.T(), cobErr)
-	cobcErr := helper.BucketClient.CreateObc(obcName, storageClassName, bucketname, true)
+	cobcErr := helper.BucketClient.CreateObc(obcName, bucketStorageClassName, bucketname, true)
 	require.Nil(s.T(), cobcErr)
 
 	for i = 0; i < 4 && !helper.BucketClient.CheckOBC(obcName, "created"); i++ {
@@ -144,7 +154,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	logger.Infof("Object deleted on bucket successfully")
 
 	logger.Infof("Step 8 : Delete Object Bucket Claim")
-	dobcErr := helper.BucketClient.DeleteObc(obcName, storageClassName, bucketname, true)
+	dobcErr := helper.BucketClient.DeleteObc(obcName, bucketStorageClassName, bucketname, true)
 	require.Nil(s.T(), dobcErr)
 	logger.Infof("Checking to see if the obc, secret and cm have all been deleted")
 	for i = 0; i < 4 && !helper.BucketClient.CheckOBC(obcName, "deleted"); i++ {
@@ -166,7 +176,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	assert.NotEqual(s.T(), i, 4)
 	assert.Equal(s.T(), rgwErr, rgw.RGWErrorNotFound)
 
-	dobErr := helper.BucketClient.DeleteBucketStorageClass(namespace, storeName, storageClassName, "Delete", region)
+	dobErr := helper.BucketClient.DeleteBucketStorageClass(namespace, storeName, bucketStorageClassName, "Delete", region)
 	assert.Nil(s.T(), dobErr)
 	logger.Infof("Delete Object Bucket Claim successfully")
 
@@ -179,7 +189,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 }
 
 // Test Object StoreCreation on Rook that was installed via helm
-func runObjectE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, name string, replicaSize int) {
+func runObjectE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, name string, replicaSize int, deleteStore bool) {
 	logger.Infof("Object Storage End To End Integration Test - Create Object Store and check if rgw service is Running")
 	logger.Infof("Running on Rook Cluster %s", namespace)
 
@@ -195,6 +205,13 @@ func runObjectE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s s
 		"Make sure all rook-ceph-rgw pods are in Running state")
 
 	require.True(s.T(), k8sh.IsServiceUp("rook-ceph-rgw-"+name, namespace))
+
+	if deleteStore {
+		logger.Infof("Delete Object Store")
+		err = helper.ObjectClient.Delete(namespace, name)
+		require.Nil(s.T(), err)
+		logger.Infof("Done deleting object store")
+	}
 
 }
 

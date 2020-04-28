@@ -162,7 +162,7 @@ SELECT key,value FROM map WHERE key='test_key';`,
 
 	time.Sleep(30 * time.Second)
 	var result string
-	for inc := 0; inc < utils.RetryLoop; inc++ {
+	for i := 0; i < utils.RetryLoop; i++ {
 		result, err = s.k8sHelper.Exec(s.namespace, podName, command, commandArgs)
 		logger.Infof("cassandra cql command exited, err: %v. result: %s", err, result)
 		if err == nil {

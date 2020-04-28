@@ -17,49 +17,52 @@ limitations under the License.
 package rbd
 
 import (
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
-	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (m *Mirroring) makeDeployment(daemonConfig *daemonConfig) *apps.Deployment {
+func (r *ReconcileCephRBDMirror) makeDeployment(daemonConfig *daemonConfig, rbdMirror *cephv1.CephRBDMirror) *apps.Deployment {
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   daemonConfig.ResourceName,
-			Labels: opspec.PodLabels(AppName, m.Namespace, string(config.RbdMirrorType), daemonConfig.DaemonID),
+			Labels: controller.PodLabels(AppName, rbdMirror.Namespace, config.RbdMirrorType, daemonConfig.DaemonID),
 		},
 		Spec: v1.PodSpec{
 			InitContainers: []v1.Container{
-				m.makeChownInitContainer(daemonConfig),
+				r.makeChownInitContainer(daemonConfig, rbdMirror),
 			},
 			Containers: []v1.Container{
-				m.makeMirroringDaemonContainer(daemonConfig),
+				r.makeMirroringDaemonContainer(daemonConfig, rbdMirror),
 			},
 			RestartPolicy:     v1.RestartPolicyAlways,
-			Volumes:           opspec.DaemonVolumes(daemonConfig.DataPathMap, daemonConfig.ResourceName),
-			HostNetwork:       m.Network.IsHost(),
-			PriorityClassName: m.priorityClassName,
+			Volumes:           controller.DaemonVolumes(daemonConfig.DataPathMap, daemonConfig.ResourceName),
+			HostNetwork:       r.cephClusterSpec.Network.IsHost(),
+			PriorityClassName: rbdMirror.Spec.PriorityClassName,
 		},
 	}
 	// Replace default unreachable node toleration
 	k8sutil.AddUnreachableNodeToleration(&podSpec.Spec)
 
-	if m.Network.IsHost() {
+	if r.cephClusterSpec.Network.IsHost() {
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
+	} else if r.cephClusterSpec.Network.IsMultus() {
+		k8sutil.ApplyMultus(r.cephClusterSpec.Network.NetworkSpec, &podSpec.ObjectMeta)
 	}
-	m.placement.ApplyToPodSpec(&podSpec.Spec)
+	rbdMirror.Spec.Placement.ApplyToPodSpec(&podSpec.Spec)
 
 	replicas := int32(1)
 	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        daemonConfig.ResourceName,
-			Namespace:   m.Namespace,
-			Annotations: m.annotations,
-			Labels:      opspec.PodLabels(AppName, m.Namespace, string(config.RbdMirrorType), daemonConfig.DaemonID),
+			Namespace:   rbdMirror.Namespace,
+			Annotations: rbdMirror.Spec.Annotations,
+			Labels:      controller.PodLabels(AppName, rbdMirror.Namespace, config.RbdMirrorType, daemonConfig.DaemonID),
 		},
 		Spec: apps.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
@@ -70,37 +73,42 @@ func (m *Mirroring) makeDeployment(daemonConfig *daemonConfig) *apps.Deployment 
 		},
 	}
 	k8sutil.AddRookVersionLabelToDeployment(d)
-	opspec.AddCephVersionLabelToDeployment(m.ClusterInfo.CephVersion, d)
-	k8sutil.SetOwnerRef(&d.ObjectMeta, &m.ownerRef)
+	controller.AddCephVersionLabelToDeployment(r.clusterInfo.CephVersion, d)
+
 	return d
 }
 
-func (m *Mirroring) makeChownInitContainer(daemonConfig *daemonConfig) v1.Container {
-	return opspec.ChownCephDataDirsInitContainer(
+func (r *ReconcileCephRBDMirror) makeChownInitContainer(daemonConfig *daemonConfig, rbdMirror *cephv1.CephRBDMirror) v1.Container {
+	return controller.ChownCephDataDirsInitContainer(
 		*daemonConfig.DataPathMap,
-		m.cephVersion.Image,
-		opspec.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName),
-		m.resources,
+		r.cephClusterSpec.CephVersion.Image,
+		controller.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName),
+		rbdMirror.Spec.Resources,
 		mon.PodSecurityContext(),
 	)
 }
 
-func (m *Mirroring) makeMirroringDaemonContainer(daemonConfig *daemonConfig) v1.Container {
+func (r *ReconcileCephRBDMirror) makeMirroringDaemonContainer(daemonConfig *daemonConfig, rbdMirror *cephv1.CephRBDMirror) v1.Container {
 	container := v1.Container{
 		Name: "rbd-mirror",
 		Command: []string{
 			"rbd-mirror",
 		},
 		Args: append(
-			opspec.DaemonFlags(m.ClusterInfo, daemonConfig.DaemonID),
+			controller.DaemonFlags(r.clusterInfo, daemonConfig.DaemonID),
 			"--foreground",
 			"--name="+fullDaemonName(daemonConfig.DaemonID),
 		),
-		Image:           m.cephVersion.Image,
-		VolumeMounts:    opspec.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName),
-		Env:             opspec.DaemonEnvVars(m.cephVersion.Image),
-		Resources:       m.resources,
+		Image:           r.cephClusterSpec.CephVersion.Image,
+		VolumeMounts:    controller.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName),
+		Env:             controller.DaemonEnvVars(r.cephClusterSpec.CephVersion.Image),
+		Resources:       rbdMirror.Spec.Resources,
 		SecurityContext: mon.PodSecurityContext(),
+		// TODO:
+		// Not implemented at this point since the socket name is '/run/ceph/ceph-client.rbd-mirror.a.1.94362516231272.asok'
+		// Also the command to run will be:
+		// ceph --admin-daemon /run/ceph/ceph-client.rbd-mirror.a.1.94362516231272.asok rbd mirror status
+		// LivenessProbe:   controller.GenerateLivenessProbeExecDaemon(config.RbdMirrorType, daemonConfig.DaemonID),
 	}
 	return container
 }

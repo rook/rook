@@ -21,7 +21,6 @@ package v1
 import (
 	v1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
-	serializer "k8s.io/apimachinery/pkg/runtime/serializer"
 	rest "k8s.io/client-go/rest"
 )
 
@@ -33,6 +32,7 @@ type EdgefsV1Interface interface {
 	NFSsGetter
 	S3sGetter
 	S3XsGetter
+	SMBsGetter
 	SWIFTsGetter
 }
 
@@ -63,6 +63,10 @@ func (c *EdgefsV1Client) S3s(namespace string) S3Interface {
 
 func (c *EdgefsV1Client) S3Xs(namespace string) S3XInterface {
 	return newS3Xs(c, namespace)
+}
+
+func (c *EdgefsV1Client) SMBs(namespace string) SMBInterface {
+	return newSMBs(c, namespace)
 }
 
 func (c *EdgefsV1Client) SWIFTs(namespace string) SWIFTInterface {
@@ -101,7 +105,7 @@ func setConfigDefaults(config *rest.Config) error {
 	gv := v1.SchemeGroupVersion
 	config.GroupVersion = &gv
 	config.APIPath = "/apis"
-	config.NegotiatedSerializer = serializer.DirectCodecFactory{CodecFactory: scheme.Codecs}
+	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
 
 	if config.UserAgent == "" {
 		config.UserAgent = rest.DefaultKubernetesUserAgent()

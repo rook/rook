@@ -21,6 +21,8 @@ spec:
     - erasureCoded:
         dataChunks: 2
         codingChunks: 1
+      # Inline compression mode for the data pool
+      compressionMode: none
   # Whether to preserve metadata and data pools on filesystem deletion
   preservePoolsOnDelete: true
   # The metadata service (mds) configuration
@@ -40,6 +42,7 @@ spec:
     #          operator: In
     #          values:
     #          - mds-node
+    #  topologySpreadConstraints:
     #  tolerations:
     #  - key: mds-node
     #    operator: Exists
@@ -52,9 +55,21 @@ spec:
                 operator: In
                 values:
                 - rook-ceph-mds
-            # topologyKey: failure-domain.beta.kubernetes.io/zone can be used to spread MDS across different AZ
             # topologyKey: kubernetes.io/hostname will place MDS across different hosts
             topologyKey: kubernetes.io/hostname
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                    - rook-ceph-mds
+                # topologyKey: */zone can be used to spread MDS across different AZ
+                # Use <topologyKey: failure-domain.beta.kubernetes.io/zone> in k8s cluster if your cluster is v1.16 or lower
+                # Use <topologyKey: topology.kubernetes.io/zone>  in k8s cluster is v1.17 or upper
+                topologyKey: topology.kubernetes.io/zone
     # A key/value list of annotations
     annotations:
     #  key: value

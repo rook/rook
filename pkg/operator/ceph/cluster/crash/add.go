@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -44,7 +45,7 @@ const (
 )
 
 // Add adds a new Controller based on nodedrain.ReconcileNode and registers the relevant watches and handlers
-func Add(mgr manager.Manager) error {
+func Add(mgr manager.Manager, context *clusterd.Context) error {
 	reconcileNode := &ReconcileNode{
 		client: mgr.GetClient(),
 		scheme: mgr.GetScheme(),
@@ -60,8 +61,14 @@ func Add(mgr manager.Manager) error {
 	// Watch for changes to the nodes
 	specChangePredicate := predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			nodeOld := e.ObjectOld.DeepCopyObject().(*corev1.Node)
-			nodeNew := e.ObjectNew.DeepCopyObject().(*corev1.Node)
+			nodeOld, ok := e.ObjectOld.DeepCopyObject().(*corev1.Node)
+			if !ok {
+				return false
+			}
+			nodeNew, ok := e.ObjectNew.DeepCopyObject().(*corev1.Node)
+			if !ok {
+				return false
+			}
 			return !reflect.DeepEqual(nodeOld.Spec, nodeNew.Spec)
 		},
 	}
@@ -117,7 +124,6 @@ func Add(mgr manager.Manager) error {
 					req := reconcile.Request{NamespacedName: types.NamespacedName{Name: nodeName}}
 					return []reconcile.Request{req}
 				}
-				logger.Debugf("%q is not a ceph pod", pod.Name)
 				return []reconcile.Request{}
 			}),
 		},

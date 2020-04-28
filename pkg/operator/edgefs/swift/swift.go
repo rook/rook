@@ -160,6 +160,7 @@ func (c *SWIFTController) makeDeployment(svcname, namespace, rookImage, imageArg
 
 	if c.useHostLocalTime {
 		volumes = append(volumes, edgefsv1.GetHostLocalTimeVolume())
+		volumes = append(volumes, edgefsv1.GetHostTimeZoneVolume())
 	}
 
 	// add ssl certificate volume if defined
@@ -271,6 +272,7 @@ func (c *SWIFTController) swiftContainer(svcname, name, containerImage, args str
 
 	if c.useHostLocalTime {
 		volumeMounts = append(volumeMounts, edgefsv1.GetHostLocalTimeVolumeMount())
+		volumeMounts = append(volumeMounts, edgefsv1.GetHostTimeZoneVolumeMount())
 	}
 
 	if len(swiftSpec.SSLCertificateRef) > 0 {

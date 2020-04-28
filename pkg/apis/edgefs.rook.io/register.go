@@ -1,5 +1,5 @@
 package edgefsrookio
 
 const (
-	GroupName = "edgefs.rook.io"
+	CustomResourceGroupName = "edgefs.rook.io"
 )

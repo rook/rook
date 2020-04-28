@@ -19,6 +19,8 @@ import (
 	"os"
 	"testing"
 
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
+
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -173,4 +175,60 @@ func TestAddUnreachableNodeToleration(t *testing.T) {
 	assert.Equal(t, 1, len(podSpec.Tolerations))
 	assert.Equal(t, expectedURToleration, podSpec.Tolerations[0])
 
+}
+
+func testPodSpecPlacement(t *testing.T, requiredDuringScheduling, preferredDuringScheduling bool, req, pref int, placement *rookv1.Placement) {
+	spec := v1.PodSpec{
+		InitContainers: []v1.Container{},
+		Containers:     []v1.Container{},
+		RestartPolicy:  v1.RestartPolicyAlways,
+	}
+
+	SetNodeAntiAffinityForPod(&spec, *placement, requiredDuringScheduling, preferredDuringScheduling, map[string]string{"app": "mon"}, nil)
+
+	// should have a required anti-affinity and no preferred anti-affinity
+	assert.Equal(t,
+		req,
+		len(spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution))
+	assert.Equal(t,
+		pref,
+		len(spec.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution))
+}
+
+func makePlacement() rookv1.Placement {
+	return rookv1.Placement{
+		PodAntiAffinity: &v1.PodAntiAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
+				{
+					TopologyKey: v1.LabelZoneFailureDomain,
+				},
+			},
+			PreferredDuringSchedulingIgnoredDuringExecution: []v1.WeightedPodAffinityTerm{
+				{
+					PodAffinityTerm: v1.PodAffinityTerm{
+						TopologyKey: v1.LabelZoneFailureDomain,
+					},
+				},
+			},
+		},
+	}
+}
+
+func TestPodSpecPlacement(t *testing.T) {
+	// no placement settings in the crd
+	p := rookv1.Placement{}
+	testPodSpecPlacement(t, true, true, 1, 0, &p)
+	testPodSpecPlacement(t, true, false, 1, 0, &p)
+	testPodSpecPlacement(t, false, true, 0, 1, &p)
+	testPodSpecPlacement(t, false, false, 0, 0, &p)
+
+	// crd has other preferred and required anti-affinity setting
+	p = makePlacement()
+	testPodSpecPlacement(t, true, true, 2, 1, &p)
+	p = makePlacement()
+	testPodSpecPlacement(t, true, false, 2, 1, &p)
+	p = makePlacement()
+	testPodSpecPlacement(t, false, true, 1, 2, &p)
+	p = makePlacement()
+	testPodSpecPlacement(t, false, false, 1, 1, &p)
 }

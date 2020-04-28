@@ -18,7 +18,6 @@ package object
 
 import (
 	"fmt"
-	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -47,7 +46,7 @@ func TestPodSpecs(t *testing.T) {
 	}
 	store.Spec.Gateway.PriorityClassName = "my-priority-class"
 	info := testop.CreateConfigDir(1)
-	info.CephVersion = cephver.Mimic
+	info.CephVersion = cephver.Nautilus
 	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "default", "rook-ceph", "/var/lib/rook/")
 
 	c := &clusterConfig{
@@ -75,7 +74,7 @@ func TestPodSpecs(t *testing.T) {
 		1,
 		len(s.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution))
 	assert.Equal(t,
-		c.getLabels(),
+		getLabels(c.store.Name, c.store.Namespace),
 		s.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[0].LabelSelector.MatchLabels)
 
 	podTemplate := cephtest.NewPodTemplateSpecTester(t, &s)
@@ -98,7 +97,7 @@ func TestSSLPodSpec(t *testing.T) {
 	}
 	store.Spec.Gateway.PriorityClassName = "my-priority-class"
 	info := testop.CreateConfigDir(1)
-	info.CephVersion = cephver.Mimic
+	info.CephVersion = cephver.Nautilus
 	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "default", "rook-ceph", "/var/lib/rook/")
 	store.Spec.Gateway.SSLCertificateRef = "mycert"
 	store.Spec.Gateway.SecurePort = 443
@@ -165,52 +164,50 @@ func TestValidateSpec(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func testPodSpecPlacement(t *testing.T, hostNet bool, req int, placement *rook.Placement) {
-	c := newConfig()
-	c.clusterSpec = &cephv1.ClusterSpec{
-		Network: cephv1.NetworkSpec{HostNetwork: hostNet},
-	}
-
-	d := v1.PodSpec{
-		InitContainers:    []v1.Container{},
-		Containers:        []v1.Container{},
-		RestartPolicy:     v1.RestartPolicyAlways,
-		HostNetwork:       hostNet,
-		PriorityClassName: c.store.Spec.Gateway.PriorityClassName,
-	}
-
-	if placement != nil {
-		c.store.Spec.Gateway.Placement = *placement
-	}
-
-	c.setPodPlacement(&d, c.store.Spec.Gateway.Placement)
-
-	// should have a required anti-affnity
-	assert.Equal(t,
-		req,
-		len(d.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution))
-}
-
-func makePlacement() rook.Placement {
-	return rook.Placement{
-		PodAntiAffinity: &v1.PodAntiAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
-				{
-					TopologyKey: v1.LabelZoneFailureDomain,
-				},
+func TestGenerateLiveProbe(t *testing.T) {
+	store := simpleStore()
+	c := &clusterConfig{
+		store: store,
+		clusterSpec: &cephv1.ClusterSpec{
+			Network: cephv1.NetworkSpec{
+				HostNetwork: false,
 			},
 		},
 	}
-}
 
-func TestPodSpecPlacement(t *testing.T) {
-	// no placement settings in the crd
-	testPodSpecPlacement(t, true, 1, nil)
-	testPodSpecPlacement(t, false, 0, nil)
+	// No SSL - HostNetwork is disabled - using internal port
+	p := c.generateLiveProbe()
+	assert.Equal(t, int32(8080), p.Handler.HTTPGet.Port.IntVal)
+	assert.Equal(t, v1.URISchemeHTTP, p.Handler.HTTPGet.Scheme)
 
-	// crd has other preferred and required anti-affinity setting
-	p := makePlacement()
-	testPodSpecPlacement(t, true, 2, &p)
-	p = makePlacement()
-	testPodSpecPlacement(t, false, 1, &p)
+	// SSL - HostNetwork is disabled - using internal port
+	c.store.Spec.Gateway.Port = 0
+	c.store.Spec.Gateway.SecurePort = 321
+	c.store.Spec.Gateway.SSLCertificateRef = "foo"
+	p = c.generateLiveProbe()
+	assert.Equal(t, int32(8080), p.Handler.HTTPGet.Port.IntVal)
+	assert.Equal(t, v1.URISchemeHTTPS, p.Handler.HTTPGet.Scheme)
+
+	// No SSL - HostNetwork is enabled
+	c.store.Spec.Gateway.Port = 123
+	c.store.Spec.Gateway.SecurePort = 0
+	c.clusterSpec.Network.HostNetwork = true
+	p = c.generateLiveProbe()
+	assert.Equal(t, int32(123), p.Handler.HTTPGet.Port.IntVal)
+
+	// SSL - HostNetwork is enabled
+	c.store.Spec.Gateway.Port = 0
+	c.store.Spec.Gateway.SecurePort = 321
+	c.store.Spec.Gateway.SSLCertificateRef = "foo"
+	p = c.generateLiveProbe()
+	assert.Equal(t, int32(321), p.Handler.HTTPGet.Port.IntVal)
+
+	// Both Non-SSL and SSL are enabled
+	// liveprobe just on Non-SSL
+	c.store.Spec.Gateway.Port = 123
+	c.store.Spec.Gateway.SecurePort = 321
+	c.store.Spec.Gateway.SSLCertificateRef = "foo"
+	p = c.generateLiveProbe()
+	assert.Equal(t, v1.URISchemeHTTP, p.Handler.HTTPGet.Scheme)
+	assert.Equal(t, int32(123), p.Handler.HTTPGet.Port.IntVal)
 }

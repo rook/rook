@@ -30,6 +30,7 @@ const (
 	RGWErrorNotFound
 	RGWErrorBadData
 	RGWErrorParse
+	ErrorCodeFileExists = 17
 )
 
 // An ObjectUser defines the details of an object store user.
@@ -100,7 +101,7 @@ func GetUser(c *Context, id string) (*ObjectUser, int, error) {
 
 // CreateUser creates a new user with the information given.
 func CreateUser(c *Context, user ObjectUser) (*ObjectUser, int, error) {
-	logger.Infof("Creating user: %s", user.UserID)
+	logger.Debugf("Creating user: %s", user.UserID)
 
 	if strings.TrimSpace(user.UserID) == "" {
 		return nil, RGWErrorBadData, errors.New("userId cannot be empty")
@@ -127,7 +128,7 @@ func CreateUser(c *Context, user ObjectUser) (*ObjectUser, int, error) {
 	}
 
 	if strings.HasPrefix(result, "could not create user: unable to create user, user: ") && strings.HasSuffix(result, " exists") {
-		return nil, RGWErrorBadData, errors.New("user already exists")
+		return nil, ErrorCodeFileExists, errors.New("user already exists")
 	}
 
 	if strings.HasPrefix(result, "could not create user: unable to create user, email: ") && strings.HasSuffix(result, " is the email address an existing user") {
@@ -164,7 +165,6 @@ func UpdateUser(c *Context, user ObjectUser) (*ObjectUser, int, error) {
 
 // DeleteUser deletes the user with the given ID.
 func DeleteUser(c *Context, id string, opts ...string) (string, int, error) {
-	logger.Infof("Deleting user: %s", id)
 	args := []string{"user", "rm", "--uid", id}
 	if opts != nil {
 		args = append(args, opts...)

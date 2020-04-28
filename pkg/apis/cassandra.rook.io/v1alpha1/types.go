@@ -17,7 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
-	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -59,7 +59,7 @@ type ClusterList struct {
 // ClusterSpec is the desired state for a Cassandra Cluster.
 type ClusterSpec struct {
 	// The annotations-related configuration to add/set on each Pod related object.
-	Annotations rook.Annotations
+	Annotations rookv1.Annotations
 	// Version of Cassandra to use.
 	Version string `json:"version"`
 	// Repository to pull the image from.
@@ -95,12 +95,14 @@ type RackSpec struct {
 	Members int32 `json:"members"`
 	// User-provided ConfigMap applied to the specific statefulset.
 	ConfigMapName *string `json:"configMapName,omitempty"`
+	// User-provided ConfigMap for jmx prometheus exporter
+	JMXExporterConfigMapName *string `json:"jmxExporterConfigMapName,omitempty"`
 	// Storage describes the underlying storage that Cassandra will consume.
-	Storage rook.StorageScopeSpec `json:"storage"`
+	Storage rookv1.StorageScopeSpec `json:"storage"`
 	// The annotations-related configuration to add/set on each Pod related object.
-	Annotations rook.Annotations
+	Annotations rookv1.Annotations
 	// Placement describes restrictions for the nodes Cassandra is scheduled on.
-	Placement *rook.Placement `json:"placement,omitempty"`
+	Placement *rookv1.Placement `json:"placement,omitempty"`
 	// Resources the Cassandra Pods will use.
 	Resources corev1.ResourceRequirements `json:"resources"`
 }

@@ -16,7 +16,7 @@ limitations under the License.
 package v1alpha1
 
 import (
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -48,7 +48,7 @@ type NFSServerList struct {
 // NFSServerSpec represents the spec of NFS daemon
 type NFSServerSpec struct {
 	// The annotations-related configuration to add/set on each Pod related object.
-	Annotations rookalpha.Annotations `json:"annotations,omitempty"`
+	Annotations rookv1.Annotations `json:"annotations,omitempty"`
 
 	// Replicas of the NFS daemon
 	Replicas int `json:"replicas,omitempty"`

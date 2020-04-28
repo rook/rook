@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
@@ -62,11 +61,11 @@ func (c *provisionConfig) addError(message string, args ...interface{}) {
 	c.errorMessages = append(c.errorMessages, fmt.Sprintf(message, args...))
 }
 
-func (c *Cluster) updateOSDStatus(node string, status OrchestrationStatus) error {
-	return UpdateNodeStatus(c.kv, node, status)
+func (c *Cluster) updateOSDStatus(node string, status OrchestrationStatus) {
+	UpdateNodeStatus(c.kv, node, status)
 }
 
-func UpdateNodeStatus(kv *k8sutil.ConfigMapKVStore, node string, status OrchestrationStatus) error {
+func UpdateNodeStatus(kv *k8sutil.ConfigMapKVStore, node string, status OrchestrationStatus) {
 	labels := map[string]string{
 		k8sutil.AppAttr:        AppName,
 		orchestrationStatusKey: provisioningLabelKey,
@@ -81,17 +80,15 @@ func UpdateNodeStatus(kv *k8sutil.ConfigMapKVStore, node string, status Orchestr
 		string(s),
 		labels,
 	); err != nil {
-		return errors.Wrapf(err, "failed to set node %s status", node)
+		// log the error, but allow the orchestration to continue even if the status update failed
+		logger.Errorf("failed to set node %q status to %q for osd orchestration. %s", node, status.Status, status.Message)
 	}
-	return nil
 }
 
 func (c *Cluster) handleOrchestrationFailure(config *provisionConfig, nodeName, message string) {
 	config.addError(message)
 	status := OrchestrationStatus{Status: OrchestrationStatusFailed, Message: message}
-	if err := c.updateOSDStatus(nodeName, status); err != nil {
-		config.addError("failed to update status for node %q. %v", nodeName, err)
-	}
+	UpdateNodeStatus(c.kv, nodeName, status)
 }
 
 func isStatusCompleted(status OrchestrationStatus) bool {
@@ -199,9 +196,7 @@ func (c *Cluster) completeOSDsForAllNodes(config *provisionConfig, configOSDs bo
 					logger.Infof("orchestration status config map result channel closed, will restart watch.")
 					w.Stop()
 					<-time.After(5 * time.Second)
-					leftNodes := 0
-					leftRemainingNodes := util.NewSet()
-					leftNodes, leftRemainingNodes, completed, statuses, err = c.checkNodesCompleted(selector, config, configOSDs)
+					leftNodes, leftRemainingNodes, completed, _, err := c.checkNodesCompleted(selector, config, configOSDs)
 					if err == nil {
 						if completed {
 							logger.Infof("additional %d/%d node(s) completed osd provisioning", leftNodes, originalNodes)
@@ -214,7 +209,11 @@ func (c *Cluster) completeOSDsForAllNodes(config *provisionConfig, configOSDs bo
 					break ResultLoop
 				}
 				if e.Type == watch.Modified {
-					configMap := e.Object.(*v1.ConfigMap)
+					configMap, ok := e.Object.(*v1.ConfigMap)
+					if !ok {
+						logger.Errorf("expected type ConfigMap but found %T", configMap)
+						continue
+					}
 					node, ok := configMap.Labels[nodeLabelKey]
 					if !ok {
 						logger.Infof("missing node label on configmap %s", configMap.Name)
@@ -270,7 +269,9 @@ func (c *Cluster) handleStatusConfigMapStatus(nodeName string, config *provision
 				c.startOSDDaemonsOnNode(nodeName, config, configMap, status)
 			}
 			// remove the status configmap that indicated the progress
-			c.kv.ClearStore(fmt.Sprintf(orchestrationStatusMapName, nodeName))
+			if err := c.kv.ClearStore(fmt.Sprintf(orchestrationStatusMapName, nodeName)); err != nil {
+				logger.Errorf("failed to remove the status configmap. %v", err)
+			}
 		}
 
 		return true

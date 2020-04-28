@@ -25,8 +25,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rook/rook/pkg/operator/ceph/csi"
-
 	"github.com/coreos/pkg/capnslog"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -35,15 +33,13 @@ import (
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
 	cephclient "github.com/rook/rook/pkg/operator/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/crash"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/config"
-	"github.com/rook/rook/pkg/operator/ceph/file"
-	"github.com/rook/rook/pkg/operator/ceph/nfs"
-	"github.com/rook/rook/pkg/operator/ceph/object"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/operator/ceph/csi"
 	"github.com/rook/rook/pkg/operator/ceph/object/bucket"
-	objectuser "github.com/rook/rook/pkg/operator/ceph/object/user"
-	"github.com/rook/rook/pkg/operator/ceph/pool"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 
@@ -97,33 +93,32 @@ var ClusterResource = k8sutil.CustomResource{
 
 // ClusterController controls an instance of a Rook cluster
 type ClusterController struct {
-	context                *clusterd.Context
-	volumeAttachment       attachment.Attachment
-	devicesInUse           bool
-	rookImage              string
-	clusterMap             map[string]*cluster
-	addClusterCallbacks    []func(*cephv1.ClusterSpec) error
-	removeClusterCallbacks []func() error
-	csiConfigMutex         *sync.Mutex
-	nodeStore              cache.Store
-	osdChecker             *osd.Monitor
+	context                 *clusterd.Context
+	volumeAttachment        attachment.Attachment
+	rookImage               string
+	clusterMap              map[string]*cluster
+	operatorConfigCallbacks []func() error
+	addClusterCallbacks     []func() error
+	csiConfigMutex          *sync.Mutex
+	nodeStore               cache.Store
+	osdChecker              *osd.Monitor
 }
 
 // NewClusterController create controller for watching cluster custom resources created
-func NewClusterController(context *clusterd.Context, rookImage string, volumeAttachment attachment.Attachment, addClusterCallbacks []func(*cephv1.ClusterSpec) error, removeClusterCallbacks []func() error) *ClusterController {
+func NewClusterController(context *clusterd.Context, rookImage string, volumeAttachment attachment.Attachment, operatorConfigCallbacks []func() error, addClusterCallbacks []func() error) *ClusterController {
 	return &ClusterController{
-		context:                context,
-		volumeAttachment:       volumeAttachment,
-		rookImage:              rookImage,
-		clusterMap:             make(map[string]*cluster),
-		addClusterCallbacks:    addClusterCallbacks,
-		removeClusterCallbacks: removeClusterCallbacks,
-		csiConfigMutex:         &sync.Mutex{},
+		context:                 context,
+		volumeAttachment:        volumeAttachment,
+		rookImage:               rookImage,
+		clusterMap:              make(map[string]*cluster),
+		operatorConfigCallbacks: operatorConfigCallbacks,
+		addClusterCallbacks:     addClusterCallbacks,
+		csiConfigMutex:          &sync.Mutex{},
 	}
 }
 
 // StartWatch watches instances of cluster resources
-func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) error {
+func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) {
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
 		UpdateFunc: c.onUpdate,
@@ -152,10 +147,10 @@ func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) e
 
 	go nodeController.Run(stopCh)
 
+	operatorNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
 	if disableVal := os.Getenv(disableHotplugEnv); disableVal != "true" {
 		// watch for updates to the device discovery configmap
 		logger.Infof("Enabling hotplug orchestration: %s=%s", disableHotplugEnv, disableVal)
-		operatorNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
 		_, deviceCMController := cache.NewInformer(
 			cache.NewFilteredListWatchFromClient(c.context.Clientset.CoreV1().RESTClient(),
 				"configmaps", operatorNamespace, func(options *metav1.ListOptions) {
@@ -176,7 +171,16 @@ func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) e
 		logger.Infof("Disabling hotplug orchestration via %s", disableHotplugEnv)
 	}
 
-	return nil
+	// watch for "rook-ceph-operator-config" ConfigMap
+	k8sutil.StartOperatorSettingsWatch(c.context, operatorNamespace, controller.OperatorSettingConfigMapName,
+		c.operatorConfigChange,
+		func(oldObj, newObj interface{}) {
+			if reflect.DeepEqual(oldObj, newObj) {
+				return
+			}
+			c.operatorConfigChange(newObj)
+			return
+		}, nil, stopCh)
 }
 
 func (c *ClusterController) StopWatch() {
@@ -193,6 +197,22 @@ func (c *ClusterController) GetClusterCount() int {
 // ************************************************************************************************
 // Add event functions
 // ************************************************************************************************
+func (c *ClusterController) operatorConfigChange(obj interface{}) {
+	cm, ok := obj.(*v1.ConfigMap)
+	if !ok {
+		logger.Warningf("Expected ConfigMap but handler received %T. %#v", obj, obj)
+		return
+	}
+
+	logger.Infof("ConfigMap %q changes detected. Updating configurations", cm.Name)
+	for _, callback := range c.operatorConfigCallbacks {
+		if err := callback(); err != nil {
+			logger.Errorf("%v", err)
+		}
+	}
+	return
+}
+
 func (c *ClusterController) onK8sNodeAdd(obj interface{}) {
 	newNode, ok := obj.(*v1.Node)
 	if !ok {
@@ -240,6 +260,11 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		return
 	}
 
+	if hasCleanupPolicy(clusterObj) {
+		logger.Infof("skipping orchestration for cluster object %q in namespace %q because its cleanup policy is set", clusterObj.Name, clusterObj.Namespace)
+		return
+	}
+
 	if existing, ok := c.clusterMap[clusterObj.Namespace]; ok {
 		logger.Errorf("failed to add cluster cr %q in namespace %q. Cluster cr %q already exists in this namespace. Only one cluster cr per namespace is supported.",
 			clusterObj.Name, clusterObj.Namespace, existing.crdName)
@@ -256,7 +281,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	logger.Infof("starting cluster in namespace %s", cluster.Namespace)
 
 	for _, callback := range c.addClusterCallbacks {
-		if err := callback(cluster.Spec); err != nil {
+		if err := callback(); err != nil {
 			logger.Errorf("%v", err)
 		}
 	}
@@ -269,14 +294,32 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 	// Make sure the spec contains all the information we need
 	err := validateExternalClusterSpec(cluster)
 	if err != nil {
-		return errors.Wrapf(err, "failed to validate external cluster specs")
+		return errors.Wrap(err, "failed to validate external cluster specs")
 	}
 
-	c.updateClusterStatus(namespace, name, cephv1.ClusterStateConnecting, "")
+	config.ConditionExport(c.context, namespace, name,
+		cephv1.ConditionConnecting, v1.ConditionTrue, "ClusterConnecting", "Cluster is connecting")
 
 	// loop until we find the secret necessary to connect to the external cluster
 	// then populate clusterInfo
 	cluster.Info = populateExternalClusterInfo(c.context, namespace)
+
+	// If the user to check the ceph health and status is not the admin,
+	// we validate that ExternalCred has been populated correctly,
+	// then we check if the key (whether admin or not) is encoded in base64
+	if !isExternalHealthCheckUserAdmin(cluster.Info.AdminSecret) {
+		if !cluster.Info.IsInitializedExternalCred(true) {
+			return errors.New("invalid user health checker credentials")
+		}
+		if !cephconfig.IsKeyringBase64Encoded(cluster.Info.ExternalCred.Secret) {
+			return errors.Errorf("invalid user health checker key %q", cluster.Info.ExternalCred.Username)
+		}
+	} else {
+		// If the client.admin is used
+		if !cephconfig.IsKeyringBase64Encoded(cluster.Info.AdminSecret) {
+			return errors.Errorf("invalid user health checker key %q", client.AdminUsername)
+		}
+	}
 
 	// Write connection info (ceph config file and keyring) for ceph commands
 	if cluster.Spec.CephVersion.Image == "" {
@@ -291,33 +334,59 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 	if cluster.Spec.CephVersion.Image != "" {
 		_, _, err = c.detectAndValidateCephVersion(cluster, cluster.Spec.CephVersion.Image)
 		if err != nil {
-			return errors.Wrapf(err, "failed to detect and validate ceph version")
+			return errors.Wrap(err, "failed to detect and validate ceph version")
 		}
 
-		// Write the rook-ceph-config configmap (used by various daemons to apply config overrides)
+		// Write the rook-config-override configmap (used by various daemons to apply config overrides)
 		// If we don't do this, daemons will never start, waiting forever for this configmap to be present
 		//
 		// Only do this when doing a bit of management...
-		err = config.GetStore(cluster.context, namespace, &cluster.ownerRef).CreateOrUpdate(cluster.Info)
+		logger.Info("creating 'rook-ceph-config' configmap.")
+		err = populateConfigOverrideConfigMap(cluster.context, namespace, cluster.ownerRef)
 		if err != nil {
-			return errors.Wrapf(err, "failed to set config store")
+			return errors.Wrapf(err, "failed to populate config override config map")
 		}
 	}
 
 	// The cluster Identity must be established at this point
 	if !cluster.Info.IsInitialized() {
-		return errors.Errorf("the cluster identity was not established: %+v", cluster.Info)
+		return errors.New("the cluster identity was not established")
 	}
-	logger.Info("cluster identity established.")
+	logger.Info("external cluster identity established")
+
+	// Create CSI Secrets only if the user has provided the admin key
+	if cluster.Info.AdminSecret != mon.AdminSecretName {
+		err = csi.CreateCSISecrets(c.context, namespace, &cluster.ownerRef)
+		if err != nil {
+			return errors.Wrap(err, "failed to create csi kubernetes secrets")
+		}
+	}
+
+	// Create CSI config map
+	err = csi.CreateCsiConfigMap(namespace, c.context.Clientset, &cluster.ownerRef)
+	if err != nil {
+		return errors.Wrap(err, "failed to create csi config map")
+	}
+
+	// Save CSI configmap
+	err = csi.SaveClusterConfig(c.context.Clientset, namespace, cluster.Info, c.csiConfigMutex)
+	if err != nil {
+		return errors.Wrap(err, "failed to update csi cluster config")
+	}
+	logger.Info("successfully updated csi config map")
+
+	// Create Crash Collector Secret
+	// In 14.2.5 the crash daemon will read the client.crash key instead of the admin key
+	if !cluster.Spec.CrashCollector.Disable {
+		err = crash.CreateCrashCollectorSecret(c.context, namespace, &cluster.ownerRef)
+		if err != nil {
+			return errors.Wrap(err, "failed to create crash collector kubernetes secret")
+		}
+	}
 
 	// Everything went well so let's update the CR's status to "connected"
-	c.updateClusterStatus(namespace, name, cephv1.ClusterStateConnected, "")
-
-	// Create CSI Secrets
-	err = csi.CreateCSISecrets(c.context, namespace, &cluster.ownerRef)
-	if err != nil {
-		return errors.Wrapf(err, "failed to create csi kubernetes secrets")
-	}
+	config.ConditionExport(c.context, namespace, name,
+		cephv1.ConditionConnected, v1.ConditionTrue, "ClusterConnected", "Cluster connected successfully")
 
 	// Mark initialization has done
 	cluster.initCompleted = true
@@ -325,7 +394,9 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 	return nil
 }
 
-func (c *ClusterController) configureLocalCephCluster(namespace, name string, cluster *cluster, clusterObj *cephv1.CephCluster) error {
+// Validate the cluster Specs
+func (c *ClusterController) preClusterStartValidation(cluster *cluster, clusterObj *cephv1.CephCluster) error {
+
 	if cluster.Spec.Mon.Count == 0 {
 		logger.Warningf("mon count should be at least 1, will use default value of %d", mon.DefaultMonCount)
 		cluster.Spec.Mon.Count = mon.DefaultMonCount
@@ -333,21 +404,49 @@ func (c *ClusterController) configureLocalCephCluster(namespace, name string, cl
 	if cluster.Spec.Mon.Count%2 == 0 {
 		logger.Warningf("mon count is even (given: %d), should be uneven, continuing", cluster.Spec.Mon.Count)
 	}
+	if len(cluster.Spec.Storage.Directories) != 0 {
+		logger.Warning("running osds on directory is not supported anymore, use devices instead.")
+	}
+	if cluster.Spec.Network.IsMultus() {
+		_, isPublic := cluster.Spec.Network.Selectors[config.PublicNetworkSelectorKeyName]
+		_, isCluster := cluster.Spec.Network.Selectors[config.ClusterNetworkSelectorKeyName]
+		if !isPublic && !isCluster {
+			return errors.New("both network selector values for public and cluster selector cannot be empty for multus provider")
+		}
 
-	if c.devicesInUse && cluster.Spec.Storage.AnyUseAllDevices() {
-		c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1.ClusterStateError, "using all devices in more than one namespace is not supported")
-		return errors.New("using all devices in more than one namespace is not supported")
+		for _, selector := range config.NetworkSelectors {
+			// If one selector is empty, we continue
+			// This means a single interface is used both public and cluster network
+			if _, ok := cluster.Spec.Network.Selectors[selector]; !ok {
+				continue
+			}
+
+			// Get network attachment definition
+			_, err := c.context.NetworkClient.NetworkAttachmentDefinitions(cluster.Namespace).Get(cluster.Spec.Network.Selectors[selector], metav1.GetOptions{})
+			if err != nil {
+				if kerrors.IsNotFound(err) {
+					return errors.Wrapf(err, "specified network attachment definition for selector %q does not exist", selector)
+				}
+				return errors.Wrapf(err, "failed to fetch network attachment definition for selector %q", selector)
+			}
+		}
 	}
 
-	if cluster.Spec.Storage.AnyUseAllDevices() {
-		c.devicesInUse = true
+	logger.Debug("cluster spec successfully validated")
+	return nil
+}
+
+func (c *ClusterController) configureLocalCephCluster(namespace, name string, cluster *cluster, clusterObj *cephv1.CephCluster) error {
+	// Cluster Spec validation
+	err := c.preClusterStartValidation(cluster, clusterObj)
+	if err != nil {
+		return errors.Wrap(err, "failed to perform validation before cluster creation")
 	}
 
 	// Start the Rook cluster components. Retry several times in case of failure.
 	failedMessage := ""
-	state := cephv1.ClusterStateError
 
-	err := wait.Poll(clusterCreateInterval, clusterCreateTimeout,
+	err = wait.Poll(clusterCreateInterval, clusterCreateTimeout,
 		func() (bool, error) {
 			cephVersion, canRetry, err := c.detectAndValidateCephVersion(cluster, cluster.Spec.CephVersion.Image)
 			if err != nil {
@@ -359,8 +458,9 @@ func (c *ClusterController) configureLocalCephCluster(namespace, name string, cl
 				}
 				return false, nil
 			}
-
-			c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1.ClusterStateCreating, "")
+			message := config.CheckConditionReady(c.context, namespace, name)
+			config.ConditionExport(c.context, namespace, name,
+				cephv1.ConditionProgressing, v1.ConditionTrue, "ClusterProgressing", message)
 
 			err = cluster.createInstance(c.rookImage, *cephVersion)
 			if err != nil {
@@ -368,21 +468,21 @@ func (c *ClusterController) configureLocalCephCluster(namespace, name string, cl
 				logger.Errorf(failedMessage)
 				return false, nil
 			}
-
-			state = cephv1.ClusterStateCreated
+			config.ConditionExport(c.context, namespace, name,
+				cephv1.ConditionReady, v1.ConditionTrue, "ClusterCreated", "Cluster created successfully")
 			failedMessage = ""
 			return true, nil
 		})
 
 	if err != nil {
+		config.ConditionExport(c.context, namespace, name,
+			cephv1.ConditionFailure, v1.ConditionTrue, "ClusterFailure", "Giving up waiting for cluster creating")
 		return errors.Wrapf(err, "giving up waiting for cluster creating")
 	}
 
-	c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, state, failedMessage)
-
-	if state == cephv1.ClusterStateError {
-		// the cluster could not be initialized
-		return errors.New("failed to initialized the cluster")
+	msg := config.ErrorMapping()
+	if msg != nil {
+		return errors.Wrapf(msg, "failed to create the cluster")
 	}
 
 	return nil
@@ -399,7 +499,7 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 			return
 		}
 	}
-
+	config.ConditionInitialize(c.context, clusterObj.Namespace, clusterObj.Name)
 	if !cluster.Spec.External.Enable {
 		if err := c.configureLocalCephCluster(clusterObj.Namespace, clusterObj.Name, cluster, clusterObj); err != nil {
 			logger.Errorf("failed to configure local ceph cluster. %v", err)
@@ -407,6 +507,8 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 		}
 	} else {
 		if err := c.configureExternalCephCluster(clusterObj.Namespace, clusterObj.Name, cluster); err != nil {
+			config.ConditionExport(c.context, clusterObj.Namespace, clusterObj.Name,
+				cephv1.ConditionFailure, v1.ConditionTrue, "ClusterFailure", "Failed to configure external ceph cluster")
 			logger.Errorf("failed to configure external ceph cluster. %v", err)
 			return
 		}
@@ -416,38 +518,12 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 	clientController := cephclient.NewClientController(c.context, cluster.Namespace)
 	clientController.StartWatch(cluster.stopCh)
 
-	// Start pool CRD watcher
-	poolController := pool.NewPoolController(c.context, cluster.Spec)
-	poolController.StartWatch(cluster.Namespace, cluster.stopCh)
-
-	// Start object store CRD watcher
-	objectStoreController := object.NewObjectStoreController(cluster.Info, c.context, cluster.Namespace, c.rookImage, cluster.Spec, cluster.ownerRef, cluster.Spec.DataDirHostPath, cluster.isUpgrade)
-	objectStoreController.StartWatch(cluster.Namespace, cluster.stopCh)
-
-	// Start object store user CRD watcher
-	objectStoreUserController := objectuser.NewObjectStoreUserController(c.context, cluster.Spec, cluster.Namespace, cluster.ownerRef)
-	objectStoreUserController.StartWatch(cluster.stopCh)
-
 	// Start the object bucket provisioner
 	bucketProvisioner := bucket.NewProvisioner(c.context, cluster.Namespace)
 	// note: the error return below is ignored and is expected to be removed from the
 	//   bucket library's `NewProvisioner` function
 	bucketController, _ := bucket.NewBucketController(c.context.KubeConfig, bucketProvisioner)
 	go bucketController.Run(cluster.stopCh)
-
-	// Start file system CRD watcher
-	fileController := file.NewFilesystemController(cluster.Info, c.context, cluster.Namespace, c.rookImage, cluster.Spec, cluster.ownerRef, cluster.Spec.DataDirHostPath, cluster.isUpgrade)
-	fileController.StartWatch(cluster.Namespace, cluster.stopCh)
-
-	// Start nfs ganesha CRD watcher
-	ganeshaController := nfs.NewCephNFSController(cluster.Info, c.context, cluster.Spec.DataDirHostPath, cluster.Namespace, c.rookImage, cluster.Spec, cluster.ownerRef)
-	ganeshaController.StartWatch(cluster.Namespace, cluster.stopCh)
-
-	// Populate childControllers
-	logger.Debug("populating child controllers, so cluster CR spec updates will be propagaged to other CR")
-	cluster.childControllers = []childController{
-		poolController, objectStoreController, objectStoreUserController, fileController, ganeshaController,
-	}
 
 	// Populate ClusterInfo
 	if cluster.Spec.External.Enable {
@@ -465,7 +541,7 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 	}
 
 	// Start the ceph status checker
-	cephChecker := newCephStatusChecker(c.context, cluster.Namespace, clusterObj.Name)
+	cephChecker := newCephStatusChecker(c.context, cluster.Namespace, clusterObj.Name, cluster.Info.ExternalCred)
 	go cephChecker.checkCephStatus(cluster.stopCh)
 
 	// add the finalizer to the crd
@@ -555,15 +631,38 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 	// K8s will only delete the crd and child resources when the finalizers have been removed from the crd.
 	if newClust.DeletionTimestamp != nil {
 		logger.Infof("cluster %q has a deletion timestamp", newClust.Namespace)
-		err := c.handleDelete(newClust, time.Duration(clusterDeleteRetryInterval)*time.Second)
+
+		// Start cluster clean up only if cleanupPolicy is applied to the ceph cluster
+		if hasCleanupPolicy(newClust) {
+			monSecret, err := c.getMonSecret(newClust.Namespace)
+			if err != nil {
+				logger.Errorf("failed to clean up cluster. %v", err)
+				return
+			}
+			cephHosts, err := c.getCephHosts(newClust.Namespace)
+			if err != nil {
+				logger.Errorf("failed to find valid ceph hosts in the cluster %q. %v", newClust.Namespace, err)
+				return
+			}
+			go c.startClusterCleanUp(newClust, cephHosts, monSecret)
+		}
+
+		err = c.handleDelete(newClust, time.Duration(clusterDeleteRetryInterval)*time.Second)
 		if err != nil {
 			logger.Errorf("failed finalizer for cluster. %v", err)
 			return
 		}
+
 		// remove the finalizer from the crd, which indicates to k8s that the resource can safely be deleted
 		c.removeFinalizer(newClust)
 		return
 	}
+
+	if hasCleanupPolicy(newClust) {
+		logger.Infof("skipping orchestration for cluster object %q in namespace %q because its cleanup policy is set", newClust.Name, newClust.Namespace)
+		return
+	}
+
 	cluster, ok := c.clusterMap[newClust.Namespace]
 	if !ok {
 		logger.Errorf("cannot update cluster %q that does not exist", newClust.Namespace)
@@ -585,6 +684,9 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 	}
 
 	logger.Infof("update event for cluster %q is supported, orchestrating update now", newClust.Namespace)
+
+	config.ConditionExport(c.context, newClust.Namespace, newClust.Name,
+		cephv1.ConditionUpdating, v1.ConditionTrue, "ClusterUpdating", "Cluster is updating")
 
 	if oldClust.Spec.RemoveOSDsIfOutAndSafeToRemove != newClust.Spec.RemoveOSDsIfOutAndSafeToRemove {
 		logger.Infof("removeOSDsIfOutAndSafeToRemove is set to %t", newClust.Spec.RemoveOSDsIfOutAndSafeToRemove)
@@ -643,6 +745,10 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 					return
 				}
 			}
+			// If Ceph is healthy let's start the upgrade!
+			config.ConditionExport(c.context, newClust.Namespace, newClust.Name,
+				cephv1.ConditionUpgrading, v1.ConditionTrue, "ClusterUpgrading", "Cluster is upgrading")
+			cluster.isUpgrade = true
 		}
 		// If Ceph is healthy let's start the upgrade!
 		cluster.isUpgrade = true
@@ -661,13 +767,16 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 		return c.handleUpdate(newClust.Name, cluster)
 	})
 	if err != nil {
-		c.updateClusterStatus(newClust.Namespace, newClust.Name, cephv1.ClusterStateError,
+		config.ConditionExport(c.context, newClust.Namespace, newClust.Name, cephv1.ConditionUpgrading, v1.ConditionFalse, "ClusterUpgradeFailure",
 			fmt.Sprintf("giving up trying to update cluster in namespace %q after %q. %v", cluster.Namespace, updateClusterTimeout, err))
 		return
 	}
 
 	// Display success after upgrade
 	if versionChanged {
+		message := "Cluster upgraded successfully"
+		config.ConditionExport(c.context, newClust.Namespace, newClust.Name,
+			cephv1.ConditionReady, v1.ConditionTrue, "ClusterReady", message)
 		printOverallCephVersion(c.context, cluster.Namespace)
 	}
 }
@@ -680,21 +789,21 @@ func (c *ClusterController) detectAndValidateCephVersion(cluster *cluster, image
 	if err := cluster.validateCephVersion(version); err != nil {
 		return nil, false, err
 	}
-	cephver.RegisterImageVersion(image, *version)
+	c.updateClusterCephVersion(cluster.Namespace, cluster.crdName, image, *version)
 	return version, false, nil
 }
 
 func (c *ClusterController) handleUpdate(crdName string, cluster *cluster) (bool, error) {
-	c.updateClusterStatus(cluster.Namespace, crdName, cephv1.ClusterStateUpdating, "")
 
+	config.ConditionExport(c.context, cluster.Namespace, crdName,
+		cephv1.ConditionUpdating, v1.ConditionTrue, "ClusterUpdating", "Cluster is updating")
 	if err := cluster.createInstance(c.rookImage, cluster.Info.CephVersion); err != nil {
 		logger.Errorf("failed to update cluster in namespace %q. %v", cluster.Namespace, err)
 		return false, nil
 	}
-
-	c.updateClusterStatus(cluster.Namespace, crdName, cephv1.ClusterStateCreated, "")
-
-	logger.Infof("succeeded updating cluster in namespace %s", cluster.Namespace)
+	config.ConditionExport(c.context, cluster.Namespace, crdName,
+		cephv1.ConditionReady, v1.ConditionTrue, "ClusterUpdated", "Cluster updated successfully")
+	logger.Infof("succeeded updating cluster in namespace %q", cluster.Namespace)
 	return true, nil
 }
 
@@ -765,6 +874,9 @@ func (c *ClusterController) onDelete(obj interface{}) {
 		return
 	}
 
+	config.ConditionExport(c.context, clust.Namespace, clust.Name,
+		cephv1.ConditionDeleting, v1.ConditionTrue, "ClusterDeleting", "Cluster is deleting")
+
 	if existing, ok := c.clusterMap[clust.Namespace]; ok && existing.crdName != clust.Name {
 		logger.Errorf("Skipping deletion of cluster cr %q in namespace %q. Cluster cr %q already exists in this namespace. Only one cluster cr per namespace is supported.",
 			clust.Name, clust.Namespace, existing.crdName)
@@ -775,33 +887,23 @@ func (c *ClusterController) onDelete(obj interface{}) {
 
 	err = c.handleDelete(clust, time.Duration(clusterDeleteRetryInterval)*time.Second)
 	if err != nil {
+		config.ConditionExport(c.context, clust.Namespace, clust.Name,
+			cephv1.ConditionDeleting, v1.ConditionTrue, "ClusterDeleting", "Failed to delete cluster")
 		logger.Errorf("failed to delete cluster. %v", err)
 	}
 
-	// Note that this lock is held through the callback process, as this deletes CSI resources, but we must lock in
-	// this scope as the clusterMap is authoritative on cluster count. If we ever add additional callback functions,
-	// we should tighten this lock.
-	c.csiConfigMutex.Lock()
 	if cluster, ok := c.clusterMap[clust.Namespace]; ok {
 		close(cluster.stopCh)
 		delete(c.clusterMap, clust.Namespace)
 	}
-	for _, callback := range c.removeClusterCallbacks {
-		if err := callback(); err != nil {
-			logger.Errorf("%v", err)
-		}
-	}
-	c.csiConfigMutex.Unlock()
 
 	// Only valid when the cluster is not external
-	if !clust.Spec.External.Enable {
-		if clust.Spec.Storage.AnyUseAllDevices() {
-			c.devicesInUse = false
-		}
-	} else {
+	if clust.Spec.External.Enable {
 		err := purgeExternalCluster(c.context.Clientset, clust.Namespace)
 		if err != nil {
-			logger.Errorf("failed to purge external cluster ressources. %v", err)
+			config.ConditionExport(c.context, clust.Namespace, clust.Name,
+				cephv1.ConditionDeleting, v1.ConditionTrue, "ClusterDeleting", "Failed to purge external cluster resources")
+			logger.Errorf("failed to purge external cluster resources. %v", err)
 		}
 		return
 	}
@@ -998,7 +1100,11 @@ func (c *ClusterController) removeFinalizer(obj interface{}) {
 		// Get the latest cluster instead of using the same instance in case it has been changed
 		cluster, err := c.context.RookClientset.CephV1().CephClusters(cl.Namespace).Get(cl.Name, metav1.GetOptions{})
 		if err != nil {
-			logger.Errorf("failed to remove finalizer. failed to get cluster. %v", err)
+			if kerrors.IsNotFound(err) {
+				logger.Errorf("cluster was removed, no need to remove finalizer")
+			} else {
+				logger.Errorf("failed to remove finalizer. failed to get cluster. %v", err)
+			}
 			return
 		}
 		objectMeta := &cluster.ObjectMeta
@@ -1030,22 +1136,23 @@ func (c *ClusterController) removeFinalizer(obj interface{}) {
 	logger.Warningf("giving up from removing the %s cluster finalizer", finalizerName)
 }
 
-// updateClusterStatus updates the status of the cluster custom resource, whether it is being updated or is completed
-func (c *ClusterController) updateClusterStatus(namespace, name string, state cephv1.ClusterState, message string) {
-	logger.Infof("CephCluster %q status: %q. %s", namespace, state, message)
+func (c *ClusterController) updateClusterCephVersion(namespace string, name string, image string, cephVersion cephver.CephVersion) {
+	logger.Infof("cluster %q: version %q detected for image %q", namespace, cephVersion.String(), image)
 
 	// get the most recent cluster CRD object
 	cluster, err := c.context.RookClientset.CephV1().CephClusters(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
-		logger.Errorf("failed to get cluster from namespace %q prior to updating its status to %q. %v", namespace, state, err)
+		logger.Errorf("failed to get cluster from namespace %q prior to updating its Ceph version to %q. %v", namespace, cephVersion.String(), err)
 	}
-
-	// update the status on the retrieved cluster object
+	clusterVersion := &cephv1.ClusterVersion{
+		Image:   image,
+		Version: controller.GetCephVersionLabel(cephVersion),
+	}
+	// update the Ceph version on the retrieved cluster object
 	// do not overwrite the ceph status that is updated in a separate goroutine
-	cluster.Status.State = state
-	cluster.Status.Message = message
+	cluster.Status.CephVersion = clusterVersion
 	if _, err := c.context.RookClientset.CephV1().CephClusters(namespace).Update(cluster); err != nil {
-		logger.Errorf("failed to update cluster %q status: %v", namespace, err)
+		logger.Errorf("failed to update version for cluster %q. %v", namespace, err)
 	}
 }
 
@@ -1084,8 +1191,10 @@ func printOverallCephVersion(context *clusterd.Context, namespace string) {
 }
 
 func validateExternalClusterSpec(cluster *cluster) error {
-	if cluster.Spec.DataDirHostPath == "" {
-		return errors.New("dataDirHostPath must be specified")
+	if cluster.Spec.CephVersion.Image != "" {
+		if cluster.Spec.DataDirHostPath == "" {
+			return errors.New("dataDirHostPath must be specified")
+		}
 	}
 
 	return nil
@@ -1102,12 +1211,32 @@ func populateExternalClusterInfo(context *clusterd.Context, namespace string) *c
 			time.Sleep(externalConnectionRetry)
 			continue
 		} else {
-			logger.Infof("found the cluster info to connect to the external cluster. mons=%+v", clusterInfo.Monitors)
-			break
+			// If an admin key was provided we don't need to load the other resources
+			// Some people might want to give the admin key
+			// The necessary users/keys/secrets will be created by Rook
+			// This is also done to allow backward compatibility
+			if isExternalHealthCheckUserAdmin(clusterInfo.AdminSecret) {
+				break
+			}
+			externalCred, err := mon.ValidateAndLoadExternalClusterSecrets(context, namespace)
+			if err != nil {
+				logger.Warningf("waiting for the connection info of the external cluster. retrying in %s.", externalConnectionRetry.String())
+				logger.Debugf("%v", err)
+				time.Sleep(externalConnectionRetry)
+				continue
+			} else {
+				clusterInfo.ExternalCred = externalCred
+				logger.Infof("found the cluster info to connect to the external cluster. will use %q to check health and monitor status. mons=%+v", clusterInfo.ExternalCred.Username, clusterInfo.Monitors)
+				break
+			}
 		}
 	}
 
 	return clusterInfo
+}
+
+func isExternalHealthCheckUserAdmin(adminSecret string) bool {
+	return adminSecret != mon.AdminSecretName
 }
 
 func populateConfigOverrideConfigMap(context *clusterd.Context, namespace string, ownerRef metav1.OwnerReference) error {
@@ -1129,4 +1258,9 @@ func populateConfigOverrideConfigMap(context *clusterd.Context, namespace string
 	}
 
 	return nil
+}
+
+func hasCleanupPolicy(cephCluster *cephv1.CephCluster) bool {
+	policy := cephCluster.Spec.CleanupPolicy
+	return policy.DeleteDataDirOnHosts != ""
 }

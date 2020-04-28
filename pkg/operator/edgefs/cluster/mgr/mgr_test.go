@@ -22,7 +22,7 @@ import (
 	"testing"
 
 	edgefsv1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -34,19 +34,20 @@ import (
 
 func TestStartMGR(t *testing.T) {
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
+		MockExecuteCommandWithOutputFile: func(command string, outFileArg string, args ...string) (string, error) {
 			return "{\"key\":\"mysecurekey\"}", nil
 		},
 	}
 
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
+	clientset := testop.New(t, 3)
 	context := &clusterd.Context{
 		Executor:  executor,
 		ConfigDir: configDir,
-		Clientset: testop.New(3)}
+		Clientset: clientset}
 	volSize := resource.NewQuantity(100000.0, resource.BinarySI)
-	c := New(context, "ns", "myversion", "", "", *volSize, rookalpha.Annotations{}, rookalpha.Placement{}, rookalpha.NetworkSpec{},
+	c := New(context, "ns", "myversion", "", "", *volSize, rookv1.Annotations{}, rookv1.Placement{}, rookv1.NetworkSpec{},
 		edgefsv1.DashboardSpec{}, v1.ResourceRequirements{}, "", metav1.OwnerReference{}, false)
 
 	// start a basic service
@@ -65,9 +66,10 @@ func validateStart(t *testing.T, c *Cluster) {
 }
 
 func TestPodSpec(t *testing.T) {
+	clientset := testop.New(t, 1)
 	volSize := resource.NewQuantity(100000.0, resource.BinarySI)
-	c := New(&clusterd.Context{Clientset: testop.New(1)}, "ns", "rook/rook:myversion", "", "", *volSize, rookalpha.Annotations{}, rookalpha.Placement{},
-		rookalpha.NetworkSpec{}, edgefsv1.DashboardSpec{}, v1.ResourceRequirements{
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "rook/rook:myversion", "", "", *volSize, rookv1.Annotations{}, rookv1.Placement{},
+		rookv1.NetworkSpec{}, edgefsv1.DashboardSpec{}, v1.ResourceRequirements{
 			Limits: v1.ResourceList{
 				v1.ResourceCPU: *resource.NewQuantity(100.0, resource.BinarySI),
 			},
@@ -108,8 +110,8 @@ func TestPodSpec(t *testing.T) {
 
 func TestServiceSpec(t *testing.T) {
 	volSize := resource.NewQuantity(100000.0, resource.BinarySI)
-	c := New(&clusterd.Context{}, "ns", "myversion", "", "", *volSize, rookalpha.Annotations{}, rookalpha.Placement{},
-		rookalpha.NetworkSpec{}, edgefsv1.DashboardSpec{}, v1.ResourceRequirements{},
+	c := New(&clusterd.Context{}, "ns", "myversion", "", "", *volSize, rookv1.Annotations{}, rookv1.Placement{},
+		rookv1.NetworkSpec{}, edgefsv1.DashboardSpec{}, v1.ResourceRequirements{},
 		"", metav1.OwnerReference{}, false)
 
 	s := c.makeMgrService("rook-edgefs-mgr")
@@ -119,14 +121,15 @@ func TestServiceSpec(t *testing.T) {
 }
 
 func TestHostNetwork(t *testing.T) {
+	clientset := testop.New(t, 1)
 	volSize := resource.NewQuantity(100000.0, resource.BinarySI)
-	net := rookalpha.NetworkSpec{
+	net := rookv1.NetworkSpec{
 		Provider: "host",
 		Selectors: map[string]string{
 			"server": "eth0",
 		},
 	}
-	c := New(&clusterd.Context{Clientset: testop.New(1)}, "ns", "myversion", "", "", *volSize, rookalpha.Annotations{}, rookalpha.Placement{},
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "myversion", "", "", *volSize, rookv1.Annotations{}, rookv1.Placement{},
 		net, edgefsv1.DashboardSpec{}, v1.ResourceRequirements{},
 		"", metav1.OwnerReference{}, false)
 

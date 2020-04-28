@@ -45,7 +45,12 @@ const (
 	scyllaJMXPath              = "/usr/lib/scylla/jmx/scylla-jmx"
 
 	// Common
-	jolokiaPath            = constants.PluginDirName + "/" + "jolokia.jar"
+	jolokiaPath = constants.PluginDirName + "/" + "jolokia.jar"
+
+	jmxExporterPath       = constants.PluginDirName + "/" + "jmx_prometheus.jar"
+	jmxExporterConfigPath = configDirCassandra + "/" + "jmx_exporter_config.yaml"
+	jmxExporterPort       = "9180"
+
 	entrypointPath         = "/entrypoint.sh"
 	rackDCPropertiesFormat = "dc=%s" + "\n" + "rack=%s" + "\n" + "prefer_local=false" + "\n"
 )
@@ -134,11 +139,15 @@ func (m *MemberController) generateCassandraConfigFiles() error {
 		return fmt.Errorf("error setting HEAP_NEWSIZE: %s", err.Error())
 	}
 
-	// Add jolokia javaagent
-	jolokiaConfig := []byte(fmt.Sprintf(`JVM_OPTS="$JVM_OPTS %s"`,
-		getJolokiaConfig()))
+	// Generate jmx_agent_config
+	jmxConfig := ""
+	if _, err := os.Stat(jmxExporterConfigPath); !os.IsNotExist(err) {
+		jmxConfig = getJmxExporterConfig()
+	}
 
-	err = ioutil.WriteFile(cassandraEnvPath, append(cassandraEnv, jolokiaConfig...), os.ModePerm)
+	agentsConfig := []byte(fmt.Sprintf(`JVM_OPTS="$JVM_OPTS %s %s"`, getJolokiaConfig(), jmxConfig))
+
+	err = ioutil.WriteFile(cassandraEnvPath, append(cassandraEnv, agentsConfig...), os.ModePerm)
 	if err != nil {
 		return fmt.Errorf("error trying to write cassandra-env.sh: %s", err.Error())
 	}
@@ -365,7 +374,6 @@ func (m *MemberController) getSeeds() (string, error) {
 	sel := fmt.Sprintf("%s,%s=%s", constants.SeedLabel, constants.ClusterNameLabel, m.cluster)
 
 	for {
-
 		services, err = m.kubeClient.CoreV1().Services(m.namespace).List(metav1.ListOptions{LabelSelector: sel})
 		if err != nil {
 			return "", err
@@ -413,12 +421,20 @@ func getJolokiaConfig() string {
 	return fmt.Sprintf("-javaagent:%s=%s", jolokiaPath, strings.Join(cmd, ","))
 }
 
+func getJmxExporterConfig() string {
+	return fmt.Sprintf("-javaagent:%s=%s:%s", jmxExporterPath, jmxExporterPort, jmxExporterConfigPath)
+}
+
 // Merge YAMLs merges two arbitrary YAML structures on the top level.
 func mergeYAMLs(initialYAML, overrideYAML []byte) ([]byte, error) {
 
 	var initial, override map[string]interface{}
-	yaml.Unmarshal(initialYAML, &initial)
-	yaml.Unmarshal(overrideYAML, &override)
+	if err := yaml.Unmarshal(initialYAML, &initial); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal initial yaml. %v", err)
+	}
+	if err := yaml.Unmarshal(overrideYAML, &override); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal override yaml. %v", err)
+	}
 
 	if initial == nil {
 		initial = make(map[string]interface{})

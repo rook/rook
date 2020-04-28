@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"k8s.io/client-go/kubernetes/fake"
 )
 
 var (
@@ -115,31 +116,42 @@ func TestStatefulSetTemplate(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func Test_getPortFromENV(t *testing.T) {
+func Test_getPortFromConfig(t *testing.T) {
+	k8s := fake.NewSimpleClientset()
+
 	var key = "TEST_CSI_PORT_ENV"
 	var defaultPort uint16 = 8000
-	// emtpty env variable
-	port := getPortFromENV(key, defaultPort)
-	assert.Equal(t, port, defaultPort)
-	// valid port is set in env
-	err := os.Setenv(key, "9000")
+
+	// empty env variable
+	port, err := getPortFromConfig(k8s, key, defaultPort)
 	assert.Nil(t, err)
-	port = getPortFromENV(key, defaultPort)
+	assert.Equal(t, port, defaultPort)
+
+	// valid port is set in env
+	err = os.Setenv(key, "9000")
+	assert.Nil(t, err)
+	port, err = getPortFromConfig(k8s, key, defaultPort)
+	assert.Nil(t, err)
 	assert.Equal(t, port, uint16(9000))
+
 	err = os.Unsetenv(key)
 	assert.Nil(t, err)
 	// higher port value is set in env
 	err = os.Setenv(key, "65536")
 	assert.Nil(t, err)
-	port = getPortFromENV(key, defaultPort)
+	port, err = getPortFromConfig(k8s, key, defaultPort)
+	assert.Error(t, err)
 	assert.Equal(t, port, defaultPort)
+
 	err = os.Unsetenv(key)
 	assert.Nil(t, err)
 	// negative port is set in env
 	err = os.Setenv(key, "-1")
 	assert.Nil(t, err)
-	port = getPortFromENV(key, defaultPort)
+	port, err = getPortFromConfig(k8s, key, defaultPort)
+	assert.Error(t, err)
 	assert.Equal(t, port, defaultPort)
+
 	err = os.Unsetenv(key)
 	assert.Nil(t, err)
 }

@@ -71,31 +71,16 @@ Partition table holds up to 128 entries
 func TestProbeDevices(t *testing.T) {
 	// set up mock execute so we can verify the partitioning happens on sda
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(debug bool, name string, command string, args ...string) (string, error) {
-		logger.Infof("RUN Command for '%s'. %s arg %+v", name, command, args)
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		logger.Infof("RUN Command %s  %v", command, args)
 		output := ""
-		switch name {
-		case "lsblk all":
+		if args[0] == "--all" {
 			output = "testa"
-		case "lsblk /dev/testa":
+		} else if args[0] == "/dev/testa" {
 			output = `SIZE="249510756352" ROTA="1" RO="0" TYPE="disk" PKNAME=""`
-		case "get filesystem type for /dev/testa":
-			output = udevOutput
-		case "get parent for device testa":
-			output = `       testa
-testa    testa1
-testa    testa2
-testa2   centos_host13-root
-testa2   centos_host13-swap
-testa2   centos_host13-home
-`
-		case "get disk /dev/testa uuid":
-			output = sgdiskOutput
-
-		case "get disk testa fs serial":
+		} else if args[0] == "info" && args[1] == "--query=property" {
 			output = udevOutput
 		}
-
 		return output, nil
 	}
 
@@ -105,7 +90,6 @@ testa2   centos_host13-home
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(devices))
 	assert.Equal(t, "ext2", devices[0].Filesystem)
-
 }
 
 func TestMatchUdevMonitorFiltering(t *testing.T) {
@@ -354,9 +338,9 @@ func TestDeviceListsEqual(t *testing.T) {
 func TestGetCephVolumeInventory(t *testing.T) {
 	run := 0
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, arg ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(command string, arg ...string) (string, error) {
 			run++
-			logger.Infof("run %d action %s command %s", run, actionName, command)
+			logger.Infof("run %d command %s", run, command)
 			switch {
 			case run == 1:
 				return `[{"available": true, "rejected_reasons": [], "sys_api": {"scheduler_mode": "noop",

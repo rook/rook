@@ -32,13 +32,13 @@ import (
 )
 
 func TestCreateClusterSecrets(t *testing.T) {
-	clientset := test.New(1)
+	clientset := test.New(t, 1)
 	configDir := "ns"
 	os.MkdirAll(configDir, 0755)
 	defer os.RemoveAll(configDir)
 	adminSecret := "AQDkLIBd9vLGJxAAnXsIKPrwvUXAmY+D1g0X1Q=="
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			logger.Infof("COMMAND: %s %v", command, args)
 			if command == "ceph-authtool" && args[0] == "--create-keyring" {
 				filename := args[1]

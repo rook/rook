@@ -25,8 +25,6 @@ import (
 	"github.com/pkg/errors"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
-	cephver "github.com/rook/rook/pkg/operator/ceph/version"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -37,57 +35,37 @@ caps mon = "allow rw"
 caps osd = "allow rwx"
 `
 
-	certVolumeName = "rook-ceph-rgw-cert"
-	certDir        = "/etc/ceph/private"
-	certKeyName    = "cert"
-	certFilename   = "rgw-cert.pem"
+	certVolumeName            = "rook-ceph-rgw-cert"
+	certDir                   = "/etc/ceph/private"
+	certKeyName               = "cert"
+	certFilename              = "rgw-cert.pem"
+	rgwPortInternalPort int32 = 8080
 )
 
 var (
-	rgwFrontendName = "civetweb"
+	rgwFrontendName = "beast"
 )
 
-func rgwFrontend(v cephver.CephVersion) string {
-	if v.IsAtLeastNautilus() {
-		rgwFrontendName = "beast"
-	}
-
-	return rgwFrontendName
-}
-
-func (c *clusterConfig) portString(v cephver.CephVersion) string {
+func (c *clusterConfig) portString() string {
 	var portString string
 
 	port := c.store.Spec.Gateway.Port
 	if port != 0 {
+		if !c.clusterSpec.Network.IsHost() {
+			port = rgwPortInternalPort
+		}
 		portString = fmt.Sprintf("port=%s", strconv.Itoa(int(port)))
 	}
 	if c.store.Spec.Gateway.SecurePort != 0 && c.store.Spec.Gateway.SSLCertificateRef != "" {
 		certPath := path.Join(certDir, certFilename)
 		// This is the beast backend
 		// Config is: http://docs.ceph.com/docs/master/radosgw/frontends/#id3
-		if v.IsAtLeastNautilus() {
-			if port != 0 {
-				portString = fmt.Sprintf("%s ssl_port=%d ssl_certificate=%s",
-					portString, c.store.Spec.Gateway.SecurePort, certPath)
-			} else {
-				portString = fmt.Sprintf("ssl_port=%d ssl_certificate=%s",
-					c.store.Spec.Gateway.SecurePort, certPath)
-			}
+		if port != 0 {
+			portString = fmt.Sprintf("%s ssl_port=%d ssl_certificate=%s",
+				portString, c.store.Spec.Gateway.SecurePort, certPath)
 		} else {
-			// This is civetweb config
-			// Config is http://docs.ceph.com/docs/master/radosgw/frontends/#id5
-			var separator string
-			if port != 0 {
-				separator = "+"
-			} else {
-				// This means there is only one port and it's a secured one
-				portString = "port="
-			}
-			// with ssl enabled, the port number must end with the letter s.
-			// e.g., "443s ssl_certificate=/etc/ceph/private/keyandcert.pem"
-			portString = fmt.Sprintf("%s%s%ds ssl_certificate=%s",
-				portString, separator, c.store.Spec.Gateway.SecurePort, certPath)
+			portString = fmt.Sprintf("ssl_port=%d ssl_certificate=%s",
+				c.store.Spec.Gateway.SecurePort, certPath)
 		}
 	}
 	return portString
@@ -102,7 +80,7 @@ func (c *clusterConfig) generateKeyring(rgwConfig *rgwConfig) (string, error) {
 	user := generateCephXUser(rgwConfig.ResourceName)
 	/* TODO: this says `osd allow rwx` while template says `osd allow *`; which is correct? */
 	access := []string{"osd", "allow rwx", "mon", "allow rw"}
-	s := keyring.GetSecretStore(c.context, c.store.Namespace, &c.ownerRef)
+	s := keyring.GetSecretStore(c.context, c.store.Namespace, c.ownerRef)
 
 	key, err := s.GenerateKey(user, access)
 	if err != nil {
@@ -111,14 +89,6 @@ func (c *clusterConfig) generateKeyring(rgwConfig *rgwConfig) (string, error) {
 
 	keyring := fmt.Sprintf(keyringTemplate, user, key)
 	return keyring, s.CreateOrUpdate(rgwConfig.ResourceName, keyring)
-}
-
-func (c *clusterConfig) associateKeyring(existingKeyring string, ownerRef *metav1.OwnerReference) error {
-	resourceName := ownerRef.Name
-
-	s := keyring.GetSecretStore(c.context, c.store.Namespace, ownerRef)
-
-	return s.CreateOrUpdate(resourceName, existingKeyring)
 }
 
 func (c *clusterConfig) setDefaultFlagsMonConfigStore(rgwName string) error {
@@ -139,5 +109,17 @@ func (c *clusterConfig) setDefaultFlagsMonConfigStore(rgwName string) error {
 		}
 	}
 
+	return nil
+}
+
+func (c *clusterConfig) deleteFlagsMonConfigStore(rgwName string) error {
+	monStore := cephconfig.GetMonStore(c.context, c.store.Namespace)
+	who := generateCephXUser(rgwName)
+	err := monStore.DeleteDaemon(who)
+	if err != nil {
+		return errors.Wrapf(err, "failed to delete rgw config for %q in mon configuration database", who)
+	}
+
+	logger.Infof("successfully deleted rgw config for %q in mon configuration database", who)
 	return nil
 }

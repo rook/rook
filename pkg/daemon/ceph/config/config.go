@@ -57,39 +57,13 @@ var (
 
 // GlobalConfig represents the [global] sections of Ceph's config file.
 type GlobalConfig struct {
-	EnableExperimental       string `ini:"enable experimental unrecoverable data corrupting features,omitempty"`
-	FSID                     string `ini:"fsid,omitempty"`
-	MonMembers               string `ini:"mon initial members,omitempty"`
-	MonHost                  string `ini:"mon host"`
-	LogFile                  string `ini:"log file,omitempty"`
-	MonClusterLogFile        string `ini:"mon cluster log file,omitempty"`
-	PublicAddr               string `ini:"public addr,omitempty"`
-	PublicNetwork            string `ini:"public network,omitempty"`
-	ClusterAddr              string `ini:"cluster addr,omitempty"`
-	ClusterNetwork           string `ini:"cluster network,omitempty"`
-	MonKeyValueDb            string `ini:"mon keyvaluedb"`
-	MonAllowPoolDelete       bool   `ini:"mon_allow_pool_delete"`
-	MaxPgsPerOsd             int    `ini:"mon_max_pg_per_osd"`
-	DebugLogDefaultLevel     int    `ini:"debug default"`
-	DebugLogRadosLevel       int    `ini:"debug rados"`
-	DebugLogMonLevel         int    `ini:"debug mon"`
-	DebugLogOSDLevel         int    `ini:"debug osd"`
-	DebugLogBluestoreLevel   int    `ini:"debug bluestore"`
-	DebugLogFilestoreLevel   int    `ini:"debug filestore"`
-	DebugLogJournalLevel     int    `ini:"debug journal"`
-	DebugLogLevelDBLevel     int    `ini:"debug leveldb"`
-	FileStoreOmapBackend     string `ini:"filestore_omap_backend"`
-	OsdPgBits                int    `ini:"osd pg bits,omitempty"`
-	OsdPgpBits               int    `ini:"osd pgp bits,omitempty"`
-	OsdPoolDefaultSize       int    `ini:"osd pool default size,omitempty"`
-	OsdPoolDefaultMinSize    int    `ini:"osd pool default min size,omitempty"`
-	OsdPoolDefaultPgNum      int    `ini:"osd pool default pg num,omitempty"`
-	OsdPoolDefaultPgpNum     int    `ini:"osd pool default pgp num,omitempty"`
-	OsdMaxObjectNameLen      int    `ini:"osd max object name len,omitempty"`
-	OsdMaxObjectNamespaceLen int    `ini:"osd max object namespace len,omitempty"`
-	OsdObjectStore           string `ini:"osd objectstore,omitempty"`
-	RbdDefaultFeatures       int    `ini:"rbd_default_features,omitempty"`
-	FatalSignalHandlers      string `ini:"fatal signal handlers"`
+	FSID           string `ini:"fsid,omitempty"`
+	MonMembers     string `ini:"mon initial members,omitempty"`
+	MonHost        string `ini:"mon host"`
+	PublicAddr     string `ini:"public addr,omitempty"`
+	PublicNetwork  string `ini:"public network,omitempty"`
+	ClusterAddr    string `ini:"cluster addr,omitempty"`
+	ClusterNetwork string `ini:"cluster network,omitempty"`
 }
 
 // CephConfig represents an entire Ceph config including all sections.
@@ -100,11 +74,6 @@ type CephConfig struct {
 // DefaultConfigFilePath returns the full path to Ceph's default config file
 func DefaultConfigFilePath() string {
 	return path.Join(DefaultConfigDir, DefaultConfigFile)
-}
-
-// DefaultKeyringFilePath returns the full path to Ceph's default keyring file
-func DefaultKeyringFilePath() string {
-	return path.Join(DefaultConfigDir, DefaultKeyringFile)
 }
 
 // GetConfFilePath gets the path of a given cluster's config file
@@ -126,7 +95,16 @@ func GenerateAdminConnectionConfigWithSettings(context *clusterd.Context, cluste
 	keyringPath := path.Join(root, fmt.Sprintf("%s.keyring", client.AdminUsername))
 	err := writeKeyring(AdminKeyring(cluster), keyringPath)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to write keyring to %s", root)
+		return "", errors.Wrapf(err, "failed to write admin keyring to %s", root)
+	}
+
+	// If this is an external cluster
+	if cluster.IsInitializedExternalCred(false) {
+		keyringPath := path.Join(root, fmt.Sprintf("%s.keyring", cluster.ExternalCred.Username))
+		err := writeKeyring(ExternalUserKeyring(cluster.ExternalCred.Username, cluster.ExternalCred.Secret), keyringPath)
+		if err != nil {
+			return "", errors.Wrapf(err, "failed to write keyring %q to %s", cluster.ExternalCred.Username, root)
+		}
 	}
 
 	filePath, err := GenerateConfigFile(context, cluster, root, client.AdminUsername, keyringPath, settings, nil)
@@ -153,6 +131,14 @@ func GenerateConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoo
 	qualifiedUser := getQualifiedUser(user)
 	if err := addClientConfigFileSection(configFile, qualifiedUser, keyringPath, clientSettings); err != nil {
 		return "", errors.Wrapf(err, "failed to add admin client config section")
+	}
+
+	if cluster.IsInitializedExternalCred(false) {
+		keyringPath = path.Join(path.Join(context.ConfigDir, cluster.Name), fmt.Sprintf("%s.keyring", cluster.ExternalCred.Username))
+		qualifiedUser := getQualifiedUser(cluster.ExternalCred.Username)
+		if err := addClientConfigFileSection(configFile, qualifiedUser, keyringPath, clientSettings); err != nil {
+			return "", errors.Wrap(err, "failed to add user client config section")
+		}
 	}
 
 	// write the entire config to disk
@@ -187,86 +173,19 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo) (*
 	}
 
 	// extract a list of just the monitor names, which will populate the "mon initial members"
-	// global config field
-	monMembers := make([]string, len(cluster.Monitors))
-	monHosts := make([]string, len(cluster.Monitors))
-	i := 0
-	for _, monitor := range cluster.Monitors {
-		monMembers[i] = monitor.Name
-		monIP := cephutil.GetIPFromEndpoint(monitor.Endpoint)
-
-		// This tries to detect the current port if the mon already exists
-		// This basically handles the transition between monitors running on 6790 to msgr2
-		// So whatever the previous monitor port was we keep it
-		currentMonPort := cephutil.GetPortFromEndpoint(monitor.Endpoint)
-
-		monPorts := [2]string{strconv.Itoa(int(Msgr2port)), strconv.Itoa(int(currentMonPort))}
-		msgr1Endpoint := net.JoinHostPort(monIP, monPorts[1])
-
-		// Mimic daemons like OSD won't be able to parse this, so only the operator should get this config
-		// they will fail with
-		// 		unable to parse addrs in 'v1:10.104.92.199:6790,v1:10.110.137.107:6790,v1:10.102.38.86:6790'
-		// 		server name not found: v1:10.104.92.199:6790 (Name or service not known)
-		// 		2019-04-25 10:31:08.614 7f5971aae1c0 -1 monclient: get_monmap_and_config cannot identify monitors to contact
-		// 		2019-04-25 10:31:08.614 7f5971aae1c0 -1 monclient: get_monmap_and_config cannot identify monitors to contact
-		// 		failed to fetch mon config (--no-mon-config to skip)
-		// The operator always fails this test since it does not have the env var 'ROOK_CEPH_VERSION'
-		podName := os.Getenv("POD_NAME")
-		if cluster.CephVersion.IsAtLeastNautilus() {
-			monHosts[i] = msgr1Prefix + msgr1Endpoint
-		} else if podName != "" && strings.Contains(podName, "operator") {
-			// This is an operator and its version is always based on Nautilus
-			// so it knows how to parse both msgr1 and msgr2 syntax
-			prefix := msgrPrefix(currentMonPort)
-			monHosts[i] = prefix + msgr1Endpoint
-		} else {
-			// This is not the operator, it's an OSD and its Ceph version is before Nautilus
-			monHosts[i] = msgr1Endpoint
-		}
-		i++
-	}
-
-	cephLogLevel := logLevelToCephLogLevel(context.LogLevel)
+	// and "mon hosts" global config field
+	monMembers, monHosts := PopulateMonHostMembers(cluster.Monitors)
 
 	conf := &CephConfig{
 		GlobalConfig: &GlobalConfig{
-			FSID:                   cluster.FSID,
-			MonMembers:             strings.Join(monMembers, " "),
-			MonHost:                strings.Join(monHosts, ","),
-			PublicAddr:             context.NetworkInfo.PublicAddr,
-			PublicNetwork:          context.NetworkInfo.PublicNetwork,
-			ClusterAddr:            context.NetworkInfo.ClusterAddr,
-			ClusterNetwork:         context.NetworkInfo.ClusterNetwork,
-			MonKeyValueDb:          "rocksdb",
-			MonAllowPoolDelete:     true,
-			MaxPgsPerOsd:           1000,
-			DebugLogDefaultLevel:   cephLogLevel,
-			DebugLogRadosLevel:     cephLogLevel,
-			DebugLogMonLevel:       cephLogLevel,
-			DebugLogOSDLevel:       cephLogLevel,
-			DebugLogBluestoreLevel: cephLogLevel,
-			DebugLogFilestoreLevel: cephLogLevel,
-			DebugLogJournalLevel:   cephLogLevel,
-			DebugLogLevelDBLevel:   cephLogLevel,
-			FileStoreOmapBackend:   "rocksdb",
-			OsdPgBits:              11,
-			OsdPgpBits:             11,
-			OsdPoolDefaultSize:     1,
-			OsdPoolDefaultMinSize:  1,
-			OsdPoolDefaultPgNum:    100,
-			OsdPoolDefaultPgpNum:   100,
-			RbdDefaultFeatures:     3,
-			FatalSignalHandlers:    "false",
+			FSID:           cluster.FSID,
+			MonMembers:     strings.Join(monMembers, " "),
+			MonHost:        strings.Join(monHosts, ","),
+			PublicAddr:     context.NetworkInfo.PublicAddr,
+			PublicNetwork:  context.NetworkInfo.PublicNetwork,
+			ClusterAddr:    context.NetworkInfo.ClusterAddr,
+			ClusterNetwork: context.NetworkInfo.ClusterNetwork,
 		},
-	}
-
-	// Everything before 14.2.1
-	// These new flags control Ceph's daemon logging behavior to files
-	// By default we set them to False so no logs get written on file
-	// However they can be activated at any time via the centralized config store
-	if !cluster.CephVersion.IsAtLeast(cephver.CephVersion{Major: 14, Minor: 2, Extra: 1}) {
-		conf.LogFile = "/dev/stderr"
-		conf.MonClusterLogFile = "/dev/stderr"
 	}
 
 	return conf, nil
@@ -313,31 +232,29 @@ func addClientConfigFileSection(configFile *ini.File, clientName, keyringPath st
 	return nil
 }
 
-// convert a Rook log level to a corresponding Ceph log level
-func logLevelToCephLogLevel(logLevel capnslog.LogLevel) int {
-	switch logLevel {
-	case capnslog.CRITICAL:
-	case capnslog.ERROR:
-	case capnslog.WARNING:
-		return -1
-	case capnslog.NOTICE:
-	case capnslog.INFO:
-		return 0
-	case capnslog.DEBUG:
-		return 10
-	case capnslog.TRACE:
-		return 100
+// PopulateMonHostMembers extracts a list of just the monitor names, which will populate the "mon initial members"
+// and "mon hosts" global config field
+func PopulateMonHostMembers(monitors map[string]*MonInfo) ([]string, []string) {
+	monMembers := make([]string, len(monitors))
+	monHosts := make([]string, len(monitors))
+
+	i := 0
+	for _, monitor := range monitors {
+		monMembers[i] = monitor.Name
+		monIP := cephutil.GetIPFromEndpoint(monitor.Endpoint)
+
+		// This tries to detect the current port if the mon already exists
+		// This basically handles the transition between monitors running on 6790 to msgr2
+		// So whatever the previous monitor port was we keep it
+		currentMonPort := cephutil.GetPortFromEndpoint(monitor.Endpoint)
+
+		monPorts := [2]string{strconv.Itoa(int(Msgr2port)), strconv.Itoa(int(currentMonPort))}
+		msgr2Endpoint := net.JoinHostPort(monIP, monPorts[0])
+		msgr1Endpoint := net.JoinHostPort(monIP, monPorts[1])
+
+		monHosts[i] = "[v2:" + msgr2Endpoint + ",v1:" + msgr1Endpoint + "]"
+		i++
 	}
 
-	return 0
-}
-
-func msgrPrefix(currentMonPort int32) string {
-	// Some installation might only be listening on v2, so let's set the prefix accordingly
-	if currentMonPort == Msgr2port {
-		return msgr2Prefix
-	}
-
-	return msgr1Prefix
-
+	return monMembers, monHosts
 }

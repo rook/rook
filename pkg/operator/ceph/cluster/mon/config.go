@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -30,6 +31,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/csi"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/sys"
@@ -107,7 +109,7 @@ func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerR
 			Name:          string(secrets.Data[clusterSecretName]),
 			FSID:          string(secrets.Data[fsidSecretName]),
 			MonitorSecret: string(secrets.Data[monSecretName]),
-			AdminSecret:   string(secrets.Data[adminSecretName]),
+			AdminSecret:   string(secrets.Data[AdminSecretName]),
 		}
 		logger.Debugf("found existing monitor secrets for cluster %s", clusterInfo.Name)
 	}
@@ -119,6 +121,51 @@ func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerR
 	}
 
 	return clusterInfo, maxMonID, monMapping, nil
+}
+
+// ValidateAndLoadExternalClusterSecrets returns the secret value of the client health checker key
+func ValidateAndLoadExternalClusterSecrets(context *clusterd.Context, namespace string) (cephconfig.ExternalCred, error) {
+	var externalCred cephconfig.ExternalCred
+
+	secret, err := context.Clientset.CoreV1().Secrets(namespace).Get(operatorCreds, metav1.GetOptions{})
+	if err != nil {
+		if !kerrors.IsNotFound(err) {
+			return externalCred, errors.Wrap(err, "failed to get external user secret")
+		}
+	}
+	// Populate external credential
+	externalCred.Username = string(secret.Data["userID"])
+	externalCred.Secret = string(secret.Data["userKey"])
+
+	_, err = context.Clientset.CoreV1().Secrets(namespace).Get(csi.CsiRBDNodeSecret, metav1.GetOptions{})
+	if err != nil {
+		if !kerrors.IsNotFound(err) {
+			return externalCred, errors.Wrapf(err, "failed to get %q secret", csi.CsiRBDNodeSecret)
+		}
+	}
+
+	_, err = context.Clientset.CoreV1().Secrets(namespace).Get(csi.CsiRBDProvisionerSecret, metav1.GetOptions{})
+	if err != nil {
+		if !kerrors.IsNotFound(err) {
+			return externalCred, errors.Wrapf(err, "failed to get %q secret", csi.CsiRBDProvisionerSecret)
+		}
+	}
+
+	_, err = context.Clientset.CoreV1().Secrets(namespace).Get(csi.CsiCephFSNodeSecret, metav1.GetOptions{})
+	if err != nil {
+		if !kerrors.IsNotFound(err) {
+			return externalCred, errors.Wrapf(err, "failed to get %q secret", csi.CsiCephFSNodeSecret)
+		}
+	}
+
+	_, err = context.Clientset.CoreV1().Secrets(namespace).Get(csi.CsiCephFSProvisionerSecret, metav1.GetOptions{})
+	if err != nil {
+		if !kerrors.IsNotFound(err) {
+			return externalCred, errors.Wrapf(err, "failed to get %q secret", csi.CsiCephFSProvisionerSecret)
+		}
+	}
+
+	return externalCred, nil
 }
 
 // WriteConnectionConfig save monitor connection config to disk
@@ -174,7 +221,7 @@ func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string
 		logger.Errorf("invalid JSON in mon mapping. %v", err)
 	}
 
-	logger.Infof("loaded: maxMonID=%d, mons=%+v, mapping=%+v", maxMonID, monEndpointMap, monMapping)
+	logger.Debugf("loaded: maxMonID=%d, mons=%+v, mapping=%+v", maxMonID, monEndpointMap, monMapping)
 	return monEndpointMap, maxMonID, monMapping, nil
 }
 
@@ -187,7 +234,7 @@ func createClusterAccessSecret(clientset kubernetes.Interface, namespace string,
 		clusterSecretName: []byte(clusterInfo.Name),
 		fsidSecretName:    []byte(clusterInfo.FSID),
 		monSecretName:     []byte(clusterInfo.MonitorSecret),
-		adminSecretName:   []byte(clusterInfo.AdminSecret),
+		AdminSecretName:   []byte(clusterInfo.AdminSecret),
 	}
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -248,19 +295,20 @@ func genSecret(executor exec.Executor, configDir, name string, args []string) (s
 		"-n", name,
 	}
 	args = append(base, args...)
-	_, err := executor.ExecuteCommandWithOutput(false, "gen secret", "ceph-authtool", args...)
+	_, err := executor.ExecuteCommandWithOutput("ceph-authtool", args...)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to gen secret")
 	}
 
-	contents, err := ioutil.ReadFile(path)
+	contents, err := ioutil.ReadFile(filepath.Clean(path))
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to read secret file")
 	}
-	return extractKey(string(contents))
+	return ExtractKey(string(contents))
 }
 
-func extractKey(contents string) (string, error) {
+// ExtractKey retrives mon secret key from the keyring file
+func ExtractKey(contents string) (string, error) {
 	secret := ""
 	slice := strings.Fields(sys.Grep(string(contents), "key"))
 	if len(slice) >= 3 {

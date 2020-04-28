@@ -83,16 +83,13 @@ func StatefulSetForRack(r cassandrav1alpha1.RackSpec, c *cassandrav1alpha1.Clust
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: rackLabels,
+					Annotations: map[string]string{
+						"prometheus.io/scrape": "true",
+						"prometheus.io/port":   "9180",
+					},
 				},
 				Spec: corev1.PodSpec{
-					Volumes: []corev1.Volume{
-						{
-							Name: "shared",
-							VolumeSource: corev1.VolumeSource{
-								EmptyDir: &corev1.EmptyDirVolumeSource{},
-							},
-						},
-					},
+					Volumes: volumesForRack(r),
 					InitContainers: []corev1.Container{
 						{
 							Name:            "rook-install",
@@ -293,7 +290,13 @@ func volumeMountsForRack(r cassandrav1alpha1.RackSpec, c *cassandrav1alpha1.Clus
 			ReadOnly:  true,
 		},
 	}
-
+	if r.JMXExporterConfigMapName != nil && *r.JMXExporterConfigMapName != "" {
+		vm = append(vm, corev1.VolumeMount{
+			Name:      "jmx-config",
+			MountPath: "/etc/cassandra/jmx_exporter_config.yaml",
+			SubPath:   "jmx_exporter_config.yaml",
+		})
+	}
 	if len(r.Storage.VolumeClaimTemplates) > 0 {
 		vm = append(vm, corev1.VolumeMount{
 			Name:      r.Storage.VolumeClaimTemplates[0].Name,
@@ -301,6 +304,26 @@ func volumeMountsForRack(r cassandrav1alpha1.RackSpec, c *cassandrav1alpha1.Clus
 		})
 	}
 	return vm
+}
+
+func volumesForRack(r cassandrav1alpha1.RackSpec) []corev1.Volume {
+	volumes := []corev1.Volume{
+		{
+			Name: "shared",
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+	}
+	if r.JMXExporterConfigMapName != nil && *r.JMXExporterConfigMapName != "" {
+		volumes = append(volumes, corev1.Volume{
+			Name: "jmx-config",
+			VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{Name: *r.JMXExporterConfigMapName},
+			}},
+		})
+	}
+	return volumes
 }
 
 func tolerationsForRack(r cassandrav1alpha1.RackSpec) []corev1.Toleration {

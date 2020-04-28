@@ -38,6 +38,8 @@ type Interface interface {
 	CephObjectStores() CephObjectStoreInformer
 	// CephObjectStoreUsers returns a CephObjectStoreUserInformer.
 	CephObjectStoreUsers() CephObjectStoreUserInformer
+	// CephRBDMirrors returns a CephRBDMirrorInformer.
+	CephRBDMirrors() CephRBDMirrorInformer
 }
 
 type version struct {
@@ -84,4 +86,9 @@ func (v *version) CephObjectStores() CephObjectStoreInformer {
 // CephObjectStoreUsers returns a CephObjectStoreUserInformer.
 func (v *version) CephObjectStoreUsers() CephObjectStoreUserInformer {
 	return &cephObjectStoreUserInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// CephRBDMirrors returns a CephRBDMirrorInformer.
+func (v *version) CephRBDMirrors() CephRBDMirrorInformer {
+	return &cephRBDMirrorInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

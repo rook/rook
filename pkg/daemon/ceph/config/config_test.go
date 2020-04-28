@@ -40,7 +40,7 @@ func TestCreateDefaultCephConfig(t *testing.T) {
 			"node0": {Name: "mon0", Endpoint: "10.0.0.1:6789"},
 			"node1": {Name: "mon1", Endpoint: "10.0.0.2:6789"},
 		},
-		CephVersion: cephver.Mimic,
+		CephVersion: cephver.Nautilus,
 	}
 
 	// start with INFO level logging
@@ -96,8 +96,11 @@ func TestGenerateConfigFile(t *testing.T) {
 		Monitors: map[string]*MonInfo{
 			"node0": {Name: "mon0", Endpoint: "10.0.0.1:6789"},
 		},
-		CephVersion: cephver.Mimic,
+		CephVersion: cephver.Nautilus,
 	}
+
+	isInitialized := clusterInfo.IsInitialized()
+	assert.True(t, isInitialized)
 
 	// generate the config file to disk now
 	configFilePath, err := GenerateConfigFile(context, clusterInfo, configDir, "myuser", filepath.Join(configDir, "mykeyring"), nil, nil)
@@ -127,11 +130,8 @@ func verifyConfig(t *testing.T, cephConfig *CephConfig, cluster *ClusterInfo, lo
 	}
 
 	// Testing mon_host
-	expectedMons := "10.0.0.1:6789,10.0.0.2:6789"
 
-	if cluster.CephVersion.IsAtLeastNautilus() {
-		expectedMons = "[v2:10.0.0.1:3300,v1:10.0.0.1:6789],[v2:10.0.0.2:3300,v1:10.0.0.2:6789]"
-	}
+	expectedMons := "[v2:10.0.0.1:3300,v1:10.0.0.1:6789],[v2:10.0.0.2:3300,v1:10.0.0.2:6789]"
 
 	for _, expectedMon := range strings.Split(expectedMons, ",") {
 		contained := false
@@ -144,11 +144,6 @@ func verifyConfig(t *testing.T, cephConfig *CephConfig, cluster *ClusterInfo, lo
 
 		assert.True(t, contained, "expectedMons: %+v, actualMons: %+v", expectedMons, cephConfig.MonHost)
 	}
-
-	assert.Equal(t, loggingLevel, cephConfig.DebugLogDefaultLevel)
-	assert.Equal(t, loggingLevel, cephConfig.DebugLogMonLevel)
-	assert.Equal(t, loggingLevel, cephConfig.DebugLogRadosLevel)
-	assert.Equal(t, loggingLevel, cephConfig.DebugLogBluestoreLevel)
 }
 
 func verifyConfigValue(t *testing.T, actualConf *ini.File, section, key, expectedVal string) {
@@ -164,15 +159,4 @@ func verifyConfigValue(t *testing.T, actualConf *ini.File, section, key, expecte
 
 	actualVal := k.Value()
 	assert.Equal(t, expectedVal, actualVal)
-}
-
-func TestOperatorEndpoint(t *testing.T) {
-	var fakeCurrentMonPort int32
-	fakeCurrentMonPort = 3300
-	prefix := msgrPrefix(fakeCurrentMonPort)
-	assert.Equal(t, "v2:", prefix)
-
-	fakeCurrentMonPort = 6789
-	prefix = msgrPrefix(fakeCurrentMonPort)
-	assert.Equal(t, "v1:", prefix)
 }

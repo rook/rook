@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Rook Authors. All rights reserved.
+Copyright 2020 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -13,15 +13,15 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package v1
 
 import (
 	"time"
 
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 )
 
 // ***************************************************************************
@@ -54,22 +54,22 @@ type ClusterSpec struct {
 	CephVersion CephVersionSpec `json:"cephVersion,omitempty"`
 
 	// A spec for available storage in the cluster and how it should be used
-	Storage rook.StorageScopeSpec `json:"storage,omitempty"`
+	Storage rookv1.StorageScopeSpec `json:"storage,omitempty"`
 
 	// The annotations-related configuration to add/set on each Pod related object.
-	Annotations rook.AnnotationsSpec `json:"annotations,omitempty"`
+	Annotations rookv1.AnnotationsSpec `json:"annotations,omitempty"`
 
 	// The placement-related configuration to pass to kubernetes (affinity, node selector, tolerations).
-	Placement rook.PlacementSpec `json:"placement,omitempty"`
+	Placement rookv1.PlacementSpec `json:"placement,omitempty"`
 
 	// Network related configuration
 	Network NetworkSpec `json:"network,omitempty"`
 
 	// Resources set resource requests and limits
-	Resources rook.ResourceSpec `json:"resources,omitempty"`
+	Resources rookv1.ResourceSpec `json:"resources,omitempty"`
 
 	// PriorityClassNames sets priority classes on components
-	PriorityClassNames rook.PriorityClassNamesSpec `json:"priorityClassNames,omitempty"`
+	PriorityClassNames rookv1.PriorityClassNamesSpec `json:"priorityClassNames,omitempty"`
 
 	// The path on the host where config and data can be persisted.
 	DataDirHostPath string `json:"dataDirHostPath,omitempty"`
@@ -86,8 +86,8 @@ type ClusterSpec struct {
 	// A spec for mon related options
 	Mon MonSpec `json:"mon,omitempty"`
 
-	// A spec for rbd mirroring
-	RBDMirroring RBDMirroringSpec `json:"rbdMirroring"`
+	// A spec for the crash controller
+	CrashCollector CrashCollectorSpec `json:"crashCollector"`
 
 	// Dashboard settings
 	Dashboard DashboardSpec `json:"dashboard,omitempty"`
@@ -104,6 +104,10 @@ type ClusterSpec struct {
 
 	// Remove the OSD that is out and safe to remove only if this option is true
 	RemoveOSDsIfOutAndSafeToRemove bool `json:"removeOSDsIfOutAndSafeToRemove"`
+
+	// Indicates user intent when deleting a cluster; blocks orchestration and should not be set if cluster
+	// deletion is not imminent.
+	CleanupPolicy CleanupPolicySpec `json:"cleanupPolicy,omitempty"`
 }
 
 // VersionSpec represents the settings for the Ceph version that Rook is orchestrating.
@@ -139,9 +143,12 @@ type MonitoringSpec struct {
 }
 
 type ClusterStatus struct {
-	State      ClusterState `json:"state,omitempty"`
-	Message    string       `json:"message,omitempty"`
-	CephStatus *CephStatus  `json:"ceph,omitempty"`
+	State       ClusterState    `json:"state,omitempty"`
+	Phase       ConditionType   `json:"phase,omitempty"`
+	Message     string          `json:"message,omitempty"`
+	Conditions  []Condition     `json:"conditions,omitempty"`
+	CephStatus  *CephStatus     `json:"ceph,omitempty"`
+	CephVersion *ClusterVersion `json:"version,omitempty"`
 }
 
 type CephStatus struct {
@@ -152,10 +159,40 @@ type CephStatus struct {
 	PreviousHealth string                       `json:"previousHealth,omitempty"`
 }
 
+type ClusterVersion struct {
+	Image   string `json:"image,omitempty"`
+	Version string `json:"version,omitempty"`
+}
+
 type CephHealthMessage struct {
 	Severity string `json:"severity"`
 	Message  string `json:"message"`
 }
+
+type Condition struct {
+	Type               ConditionType      `json:"type,omitempty"`
+	Status             v1.ConditionStatus `json:"status,omitempty"`
+	Reason             string             `json:"reason,omitempty"`
+	Message            string             `json:"message,omitempty"`
+	LastHeartbeatTime  metav1.Time        `json:"lastHeartbeatTime,omitempty"`
+	LastTransitionTime metav1.Time        `json:"lastTransitionTime,omitempty"`
+}
+
+type ConditionType string
+
+const (
+	ConditionIgnored     ConditionType = "Ignored"
+	ConditionConnecting  ConditionType = "Connecting"
+	ConditionConnected   ConditionType = "Connected"
+	ConditionProgressing ConditionType = "Progressing"
+	ConditionReady       ConditionType = "Ready"
+	ConditionUpdating    ConditionType = "Updating"
+	ConditionFailure     ConditionType = "Failure"
+	ConditionUpgrading   ConditionType = "Upgrading"
+	ConditionDeleting    ConditionType = "Deleting"
+	// DefaultFailureDomain for PoolSpec
+	DefaultFailureDomain = "host"
+)
 
 type ClusterState string
 
@@ -166,8 +203,6 @@ const (
 	ClusterStateConnecting ClusterState = "Connecting"
 	ClusterStateConnected  ClusterState = "Connected"
 	ClusterStateError      ClusterState = "Error"
-	// DefaultFailureDomain for PoolSpec
-	DefaultFailureDomain = "host"
 )
 
 type MonSpec struct {
@@ -192,8 +227,9 @@ type ExternalSpec struct {
 	Enable bool `json:"enable"`
 }
 
-type RBDMirroringSpec struct {
-	Workers int `json:"workers"`
+// CrashCollectorSpec represents options to configure the crash controller
+type CrashCollectorSpec struct {
+	Disable bool `json:"disable"`
 }
 
 // +genclient
@@ -225,6 +261,9 @@ type PoolSpec struct {
 	// The device class the OSD should set to (options are: hdd, ssd, or nvme)
 	DeviceClass string `json:"deviceClass"`
 
+	// The inline compression mode in Bluestore OSD to set to (options are: none, passive, aggressive, force)
+	CompressionMode string `json:"compressionMode"`
+
 	// The replication settings
 	Replicated ReplicatedSpec `json:"replicated"`
 
@@ -236,10 +275,16 @@ type Status struct {
 	Phase string `json:"phase,omitempty"`
 }
 
-// ReplicationSpec represents the spec for replication in a pool
+// ReplicatedSpec represents the spec for replication in a pool
 type ReplicatedSpec struct {
-	// Number of copies per object in a replicated storage pool, including the object itself (required for replicated pool type)
+	// Size - Number of copies per object in a replicated storage pool, including the object itself (required for replicated pool type)
 	Size uint `json:"size"`
+
+	// TargetSizeRatio gives a hint (%) to Ceph in terms of expected consumption of the total cluster capacity
+	TargetSizeRatio float64 `json:"targetSizeRatio"`
+
+	// RequireSafeReplicaSize if false allows you to set replica 1
+	RequireSafeReplicaSize bool `json:"requireSafeReplicaSize"`
 }
 
 // ErasureCodeSpec represents the spec for erasure code in a pool
@@ -297,10 +342,10 @@ type MetadataServerSpec struct {
 	ActiveStandby bool `json:"activeStandby"`
 
 	// The affinity to place the mds pods (default is to place on all available node) with a daemonset
-	Placement rook.Placement `json:"placement"`
+	Placement rookv1.Placement `json:"placement"`
 
 	// The annotations-related configuration to add/set on each Pod related object.
-	Annotations rook.Annotations `json:"annotations,omitempty"`
+	Annotations rookv1.Annotations `json:"annotations,omitempty"`
 
 	// The resource requirements for the rgw pods
 	Resources v1.ResourceRequirements `json:"resources"`
@@ -387,10 +432,10 @@ type GatewaySpec struct {
 	SSLCertificateRef string `json:"sslCertificateRef"`
 
 	// The affinity to place the rgw pods (default is to place on any available node)
-	Placement rook.Placement `json:"placement"`
+	Placement rookv1.Placement `json:"placement"`
 
 	// The annotations-related configuration to add/set on each Pod related object.
-	Annotations rook.Annotations `json:"annotations,omitempty"`
+	Annotations rookv1.Annotations `json:"annotations,omitempty"`
 
 	// The resource requirements for the rgw pods
 	Resources v1.ResourceRequirements `json:"resources"`
@@ -438,10 +483,10 @@ type GaneshaServerSpec struct {
 	Active int `json:"active"`
 
 	// The affinity to place the ganesha pods
-	Placement rook.Placement `json:"placement"`
+	Placement rookv1.Placement `json:"placement"`
 
 	// The annotations-related configuration to add/set on each Pod related object.
-	Annotations rook.Annotations `json:"annotations,omitempty"`
+	Annotations rookv1.Annotations `json:"annotations,omitempty"`
 
 	// Resources set resource requests and limits
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`
@@ -452,7 +497,7 @@ type GaneshaServerSpec struct {
 
 // NetworkSpec for Ceph includes backward compatibility code
 type NetworkSpec struct {
-	rook.NetworkSpec `json:",inline"`
+	rookv1.NetworkSpec `json:",inline"`
 
 	// HostNetwork to enable host network
 	HostNetwork bool `json:"hostNetwork"`
@@ -497,4 +542,44 @@ type CephClientList struct {
 type ClientSpec struct {
 	Name string            `json:"name"`
 	Caps map[string]string `json:"caps"`
+}
+
+type CleanupPolicySpec struct {
+	DeleteDataDirOnHosts string `json:"deleteDataDirOnHosts"`
+}
+
+// +genclient
+// +genclient:noStatus
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type CephRBDMirror struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+	Spec              RBDMirroringSpec `json:"spec"`
+	Status            *Status          `json:"status"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type CephRBDMirrorList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+	Items           []CephRBDMirror `json:"items"`
+}
+
+type RBDMirroringSpec struct {
+	// Count represents the number of rbd mirror instance to run
+	Count int `json:"count"`
+
+	// The affinity to place the rgw pods (default is to place on any available node)
+	Placement rookv1.Placement `json:"placement"`
+
+	// The annotations-related configuration to add/set on each Pod related object.
+	Annotations rookv1.Annotations `json:"annotations,omitempty"`
+
+	// The resource requirements for the rgw pods
+	Resources v1.ResourceRequirements `json:"resources"`
+
+	// PriorityClassName sets priority classes on the rgw pods
+	PriorityClassName string `json:"priorityClassName,omitempty"`
 }

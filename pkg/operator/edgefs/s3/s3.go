@@ -171,6 +171,7 @@ func (c *S3Controller) makeDeployment(svcname, namespace, rookImage, imageArgs s
 
 	if c.useHostLocalTime {
 		volumes = append(volumes, edgefsv1.GetHostLocalTimeVolume())
+		volumes = append(volumes, edgefsv1.GetHostTimeZoneVolume())
 	}
 
 	// add ssl certificate volume if defined
@@ -236,7 +237,9 @@ func (c *S3Controller) makeDeployment(svcname, namespace, rookImage, imageArgs s
 	if c.NetworkSpec.IsHost() {
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	} else if c.NetworkSpec.IsMultus() {
-		k8sutil.ApplyMultus(c.NetworkSpec, &podSpec.ObjectMeta)
+		if err := k8sutil.ApplyMultus(c.NetworkSpec, &podSpec.ObjectMeta); err != nil {
+			logger.Errorf("failed to apply multus spec to podspec metadata for s3. %v", err)
+		}
 	}
 
 	// apply current S3 CRD options to pod's specification
@@ -287,6 +290,7 @@ func (c *S3Controller) s3Container(svcname, name, containerImage, args string, s
 
 	if c.useHostLocalTime {
 		volumeMounts = append(volumeMounts, edgefsv1.GetHostLocalTimeVolumeMount())
+		volumeMounts = append(volumeMounts, edgefsv1.GetHostTimeZoneVolumeMount())
 	}
 
 	if len(s3Spec.SSLCertificateRef) > 0 {

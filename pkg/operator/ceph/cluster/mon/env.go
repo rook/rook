@@ -37,6 +37,6 @@ func SecretEnvVar() v1.EnvVar {
 
 // AdminSecretEnvVar is the admin secret environment var
 func AdminSecretEnvVar() v1.EnvVar {
-	ref := &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: AppName}, Key: adminSecretName}
+	ref := &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: AppName}, Key: AdminSecretName}
 	return v1.EnvVar{Name: "ROOK_ADMIN_SECRET", ValueFrom: &v1.EnvVarSource{SecretKeyRef: ref}}
 }

@@ -31,11 +31,11 @@ import (
 )
 
 func TestGenerateKey(t *testing.T) {
-	clientset := testop.New(1)
+	clientset := testop.New(t, 1)
 	var generateKey = ""
 	var failGenerateKey = false
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
+		MockExecuteCommandWithOutputFile: func(command string, outFileArg string, args ...string) (string, error) {
 			if failGenerateKey {
 				return "", errors.New("test error")
 			}
@@ -70,7 +70,7 @@ func TestGenerateKey(t *testing.T) {
 }
 
 func TestKeyringStore(t *testing.T) {
-	clientset := testop.New(1)
+	clientset := testop.New(t, 1)
 	ctx := &clusterd.Context{
 		Clientset: clientset,
 	}
@@ -112,7 +112,7 @@ func TestKeyringStore(t *testing.T) {
 }
 
 func TestResourceVolumeAndMount(t *testing.T) {
-	clientset := testop.New(1)
+	clientset := testop.New(t, 1)
 	ctx := &clusterd.Context{
 		Clientset: clientset,
 	}

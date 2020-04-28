@@ -1,5 +1,5 @@
 package rookio
 
 const (
-	GroupName = "rook.io"
+	CustomResourceGroupName = "rook.io"
 )

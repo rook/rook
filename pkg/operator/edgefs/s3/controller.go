@@ -24,7 +24,7 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/google/go-cmp/cmp"
 	edgefsv1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
@@ -54,11 +54,11 @@ type S3Controller struct {
 	context          *clusterd.Context
 	namespace        string
 	rookImage        string
-	NetworkSpec      rookalpha.NetworkSpec
+	NetworkSpec      rookv1.NetworkSpec
 	dataDirHostPath  string
 	dataVolumeSize   resource.Quantity
-	annotations      rookalpha.Annotations
-	placement        rookalpha.Placement
+	annotations      rookv1.Annotations
+	placement        rookv1.Placement
 	resources        v1.ResourceRequirements
 	resourceProfile  string
 	ownerRef         metav1.OwnerReference
@@ -70,10 +70,10 @@ func NewS3Controller(
 	context *clusterd.Context,
 	namespace string,
 	rookImage string,
-	NetworkSpec rookalpha.NetworkSpec,
+	NetworkSpec rookv1.NetworkSpec,
 	dataDirHostPath string,
 	dataVolumeSize resource.Quantity,
-	placement rookalpha.Placement,
+	placement rookv1.Placement,
 	resources v1.ResourceRequirements,
 	resourceProfile string,
 	ownerRef metav1.OwnerReference,
@@ -95,7 +95,7 @@ func NewS3Controller(
 }
 
 // StartWatch watches for instances of S3 custom resources and acts on them
-func (c *S3Controller) StartWatch(stopCh chan struct{}) error {
+func (c *S3Controller) StartWatch(stopCh chan struct{}) {
 
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
@@ -105,8 +105,6 @@ func (c *S3Controller) StartWatch(stopCh chan struct{}) error {
 
 	logger.Infof("start watching s3 resources in namespace %s", c.namespace)
 	go k8sutil.WatchCR(S3Resource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1().RESTClient(), &edgefsv1.S3{}, stopCh)
-
-	return nil
 }
 
 func (c *S3Controller) onAdd(obj interface{}) {

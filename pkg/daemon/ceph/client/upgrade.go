@@ -115,30 +115,22 @@ func EnableMessenger2(context *clusterd.Context, clusterName string) error {
 	return nil
 }
 
-// EnableNautilusOSD disallows pre-Nautilus OSDs and enables all new Nautilus-only functionality
-func EnableNautilusOSD(context *clusterd.Context, clusterName string) error {
-	args := []string{"osd", "require-osd-release", "nautilus"}
+// EnableReleaseOSDFunctionality disallows pre-Nautilus OSDs and enables all new Nautilus-only functionality
+func EnableReleaseOSDFunctionality(context *clusterd.Context, clusterName, release string) error {
+	args := []string{"osd", "require-osd-release", release}
 	buf, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
-		return errors.Wrapf(err, "failed to disallow pre-nautilus osds and enable all new nautilus-only functionality")
+		return errors.Wrapf(err, "failed to disallow pre-%s osds and enable all new %s-only functionality", release, release)
 	}
 	output := string(buf)
 	logger.Debug(output)
-	logger.Infof("successfully disallowed pre-nautilus osds and enabled all new nautilus-only functionality")
+	logger.Infof("successfully disallowed pre-%s osds and enabled all new %s-only functionality", release, release)
 
 	return nil
 }
 
 // OkToStop determines if it's ok to stop an upgrade
-func OkToStop(context *clusterd.Context, namespace, deployment, daemonType, daemonName string, cephVersion cephver.CephVersion) error {
-	// The ok-to-stop command for mon and mds landed on 14.2.1
-	// so we return nil if that Ceph version is not satisfied
-	if !cephVersion.IsAtLeast(cephver.CephVersion{Major: 14, Minor: 2, Extra: 1}) {
-		if daemonType != "osd" {
-			return nil
-		}
-	}
-
+func OkToStop(context *clusterd.Context, namespace, deployment, daemonType, daemonName string) error {
 	versions, err := GetAllCephDaemonVersions(context, namespace)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get ceph daemons versions")
@@ -374,7 +366,7 @@ func buildHostListFromTree(tree OsdTree) (OsdTree, error) {
 	return osdList, nil
 }
 
-// osdDoNothing determines wether we should perfom upgrade pre-check and post-checks for the OSD daemon
+// osdDoNothing determines wether we should perform upgrade pre-check and post-checks for the OSD daemon
 // it checks for various cluster info like number of OSD and their placement
 // it returns 'true' if we need to do nothing and false and we should pre-check/post-check
 func osdDoNothing(context *clusterd.Context, clusterName string) bool {

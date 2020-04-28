@@ -22,14 +22,13 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
-	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestGetCephMonVersionString(t *testing.T) {
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(debug bool, name string, command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 		assert.Equal(t, "version", args[0])
 		return "", nil
 	}
@@ -41,7 +40,7 @@ func TestGetCephMonVersionString(t *testing.T) {
 
 func TestGetCephMonVersionsString(t *testing.T) {
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(debug bool, name string, command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 		assert.Equal(t, "versions", args[0])
 		return "", nil
 	}
@@ -53,7 +52,7 @@ func TestGetCephMonVersionsString(t *testing.T) {
 
 func TestEnableMessenger2(t *testing.T) {
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(debug bool, name string, command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 		assert.Equal(t, "mon", args[0])
 		assert.Equal(t, "enable-msgr2", args[1])
 		return "", nil
@@ -64,23 +63,24 @@ func TestEnableMessenger2(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestEnableNautilusOSD(t *testing.T) {
+func TestEnableReleaseOSDFunctionality(t *testing.T) {
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(debug bool, name string, command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 		assert.Equal(t, "osd", args[0])
 		assert.Equal(t, "require-osd-release", args[1])
+		assert.Equal(t, 3, len(args))
 		return "", nil
 	}
 	context := &clusterd.Context{Executor: executor}
 
-	err := EnableNautilusOSD(context, "rook-ceph")
+	err := EnableReleaseOSDFunctionality(context, "rook-ceph", "nautilus")
 	assert.NoError(t, err)
 }
 
 func TestOkToStopDaemon(t *testing.T) {
 	// First test
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(debug bool, name string, command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 		switch {
 		case args[0] == "mon" && args[1] == "ok-to-stop" && args[2] == "a":
 			return "", nil
@@ -94,7 +94,7 @@ func TestOkToStopDaemon(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Second test
-	executor.MockExecuteCommandWithOutput = func(debug bool, name string, command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 		assert.Equal(t, "mgr", args[0])
 		assert.Equal(t, "ok-to-stop", args[1])
 		assert.Equal(t, "a", args[2])
@@ -107,7 +107,7 @@ func TestOkToStopDaemon(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Third test
-	executor.MockExecuteCommandWithOutput = func(debug bool, name string, command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 		assert.Equal(t, "dummy", args[0])
 		assert.Equal(t, "ok-to-stop", args[1])
 		assert.Equal(t, "a", args[2])
@@ -125,18 +125,6 @@ func TestOkToContinue(t *testing.T) {
 	context := &clusterd.Context{Executor: executor}
 
 	err := OkToContinue(context, "rook-ceph", "rook-ceph-mon-a", "mon", "a") // mon is not checked on ok-to-continue so nil is expected
-	assert.NoError(t, err)
-}
-
-func TestOkToStop(t *testing.T) {
-	executor := &exectest.MockExecutor{}
-	context := &clusterd.Context{Executor: executor}
-	v := cephver.Nautilus
-
-	err := OkToStop(context, "rook-ceph", "rook-ceph-mon-a", "mon", "a", v)
-	assert.NoError(t, err)
-
-	err = OkToStop(context, "rook-ceph", "rook-ceph-mds-a", "mds", "a", v)
 	assert.NoError(t, err)
 }
 

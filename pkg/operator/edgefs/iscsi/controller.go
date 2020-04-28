@@ -24,7 +24,7 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/google/go-cmp/cmp"
 	edgefsv1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
@@ -54,11 +54,11 @@ type ISCSIController struct {
 	context          *clusterd.Context
 	namespace        string
 	rookImage        string
-	NetworkSpec      rookalpha.NetworkSpec
+	NetworkSpec      rookv1.NetworkSpec
 	dataDirHostPath  string
 	dataVolumeSize   resource.Quantity
-	placement        rookalpha.Placement
-	annotations      rookalpha.Annotations
+	placement        rookv1.Placement
+	annotations      rookv1.Annotations
 	resources        v1.ResourceRequirements
 	resourceProfile  string
 	ownerRef         metav1.OwnerReference
@@ -70,10 +70,10 @@ func NewISCSIController(
 	context *clusterd.Context,
 	namespace string,
 	rookImage string,
-	NetworkSpec rookalpha.NetworkSpec,
+	NetworkSpec rookv1.NetworkSpec,
 	dataDirHostPath string,
 	dataVolumeSize resource.Quantity,
-	placement rookalpha.Placement,
+	placement rookv1.Placement,
 	resources v1.ResourceRequirements,
 	resourceProfile string,
 	ownerRef metav1.OwnerReference,
@@ -95,7 +95,7 @@ func NewISCSIController(
 }
 
 // StartWatch watches for instances of ISCSI custom resources and acts on them
-func (c *ISCSIController) StartWatch(stopCh chan struct{}) error {
+func (c *ISCSIController) StartWatch(stopCh chan struct{}) {
 
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
@@ -105,8 +105,6 @@ func (c *ISCSIController) StartWatch(stopCh chan struct{}) error {
 
 	logger.Infof("start watching iscsi resources in namespace %s", c.namespace)
 	go k8sutil.WatchCR(ISCSIResource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1().RESTClient(), &edgefsv1.ISCSI{}, stopCh)
-
-	return nil
 }
 
 func (c *ISCSIController) onAdd(obj interface{}) {
@@ -175,7 +173,7 @@ func (c *ISCSIController) ParentClusterChanged(cluster edgefsv1.ClusterSpec) {
 
 	iscsis, err := c.context.RookClientset.EdgefsV1().ISCSIs(c.namespace).List(metav1.ListOptions{})
 	if err != nil {
-		logger.Errorf("failed to retrieve NFSes to update the Edgefs version. %+v", err)
+		logger.Errorf("failed to retrieve ISCSIes to update the Edgefs version. %+v", err)
 		return
 	}
 	for _, iscsi := range iscsis.Items {

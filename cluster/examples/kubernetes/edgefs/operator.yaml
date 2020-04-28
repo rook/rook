@@ -72,6 +72,35 @@ spec:
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
+  name: smbs.edgefs.rook.io
+spec:
+  group: edgefs.rook.io
+  names:
+    kind: SMB
+    listKind: SMBList
+    plural: smbs
+    singular: smb
+  scope: Namespaced
+  version: v1
+  validation:
+    openAPIV3Schema:
+      properties:
+        spec:
+          properties:
+            instances:
+              type: integer
+              minimum: 1
+          required:
+          - instances
+  additionalPrinterColumns:
+    - name: Instances
+      type: string
+      description: Edgefs's service instances count
+      JSONPath: .spec.instances
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
   name: nfss.edgefs.rook.io
 spec:
   group: edgefs.rook.io
@@ -351,7 +380,6 @@ kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-edgefs-global
-  namespace: rook-edgefs-system
   labels:
     operator: rook
     storage-backend: edgefs

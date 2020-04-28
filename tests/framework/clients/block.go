@@ -22,6 +22,7 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // BlockOperation is wrapper for k8s rook block operations
@@ -37,11 +38,6 @@ type BlockImage struct {
 	Device     string `json:"device"`
 	MountPoint string `json:"mountPoint"`
 }
-
-var (
-	writeDataToBlockPod  = []string{"sh", "-c", "WRITE_DATA_CMD"}
-	readDataFromBlockPod = []string{"cat", "READ_DATA_CMD"}
-)
 
 // CreateBlockOperation - Constructor to create BlockOperation - client to perform rook Block operations on k8s
 func CreateBlockOperation(k8shelp *utils.K8sHelper, manifests installer.CephManifests) *BlockOperation {
@@ -64,22 +60,32 @@ func (b *BlockOperation) Create(manifest string, size int) (string, error) {
 
 }
 
-func (b *BlockOperation) CreatePvc(claimName, storageClassName, mode, size string) error {
-	return b.k8sClient.ResourceOperation("apply", b.manifests.GetBlockPvcDef(claimName, storageClassName, mode, size))
+func (b *BlockOperation) CreateStorageClassAndPVC(csi bool, pvcNamespace, clusterNamespace, systemNamespace, poolName, storageClassName, reclaimPolicy, blockName, mode string) error {
+	if err := b.k8sClient.ResourceOperation("apply", b.manifests.GetBlockPoolDef(poolName, clusterNamespace, "1")); err != nil {
+		return err
+	}
+	if err := b.k8sClient.ResourceOperation("apply", b.manifests.GetBlockStorageClassDef(csi, poolName, storageClassName, reclaimPolicy, clusterNamespace, systemNamespace)); err != nil {
+		return err
+	}
+	return b.k8sClient.ResourceOperation("apply", b.manifests.GetBlockPVCDef(blockName, pvcNamespace, storageClassName, mode, "1M"))
 }
 
-func (b *BlockOperation) CreateStorageClass(poolName, storageClassName, reclaimPolicy, namespace string, varClusterName bool) error {
-	return b.k8sClient.ResourceOperation("apply", b.manifests.GetBlockStorageClassDef(poolName, storageClassName, reclaimPolicy, namespace, varClusterName))
+func (b *BlockOperation) CreatePVC(namespace, claimName, storageClassName, mode, size string) error {
+	return b.k8sClient.ResourceOperation("apply", b.manifests.GetBlockPVCDef(claimName, namespace, storageClassName, mode, size))
 }
 
-func (b *BlockOperation) DeletePvc(claimName, storageClassName, mode, size string) error {
-	err := b.k8sClient.ResourceOperation("delete", b.manifests.GetBlockPvcDef(claimName, storageClassName, mode, size))
-	return err
+func (b *BlockOperation) CreateStorageClass(csi bool, poolName, storageClassName, reclaimPolicy, namespace string) error {
+	return b.k8sClient.ResourceOperation("apply", b.manifests.GetBlockStorageClassDef(csi, poolName, storageClassName, reclaimPolicy, namespace, installer.SystemNamespace(namespace)))
 }
 
-func (b *BlockOperation) DeleteStorageClass(poolName, storageClassName, reclaimPolicy, namespace string) error {
-	err := b.k8sClient.ResourceOperation("delete", b.manifests.GetBlockStorageClassDef(poolName, storageClassName, reclaimPolicy, namespace, false))
-	return err
+func (b *BlockOperation) DeletePVC(namespace, claimName string) error {
+	logger.Infof("deleting pvc %q from namespace %q", claimName, namespace)
+	return b.k8sClient.Clientset.CoreV1().PersistentVolumeClaims(namespace).Delete(claimName, &metav1.DeleteOptions{})
+}
+
+func (b *BlockOperation) DeleteStorageClass(storageClassName string) error {
+	logger.Infof("deleting storage class %q", storageClassName)
+	return b.k8sClient.Clientset.StorageV1().StorageClasses().Delete(storageClassName, &metav1.DeleteOptions{})
 }
 
 // BlockDelete Function to delete a Block using Rook
@@ -97,11 +103,10 @@ func (b *BlockOperation) DeleteBlock(manifest string) (string, error) {
 
 }
 
-// List Function to list all the blocks created/being managed by rook
-func (b *BlockOperation) List(namespace string) ([]BlockImage, error) {
+// List Function to list all the block images in all pools
+func (b *BlockOperation) ListAllImages(namespace string) ([]BlockImage, error) {
 	// first list all the pools so that we can retrieve images from all pools
-	context := b.k8sClient.MakeContext()
-	pools, err := client.ListPoolSummaries(context, namespace)
+	pools, err := client.ListPoolSummaries(b.k8sClient.MakeContext(), namespace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list pools: %+v", err)
 	}
@@ -109,20 +114,32 @@ func (b *BlockOperation) List(namespace string) ([]BlockImage, error) {
 	// for each pool, get further details about all the images in the pool
 	images := []BlockImage{}
 	for _, p := range pools {
-		cephImages, err := client.ListImages(context, namespace, p.Name)
+		cephImages, err := b.ListImagesInPool(namespace, p.Name)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get images from pool %s: %+v", p.Name, err)
 		}
+		images = append(images, cephImages...)
+	}
+	return images, nil
+}
 
-		for _, image := range cephImages {
-			// add the current image's details to the result set
-			newImage := BlockImage{
-				Name:     image.Name,
-				PoolName: p.Name,
-				Size:     image.Size,
-			}
-			images = append(images, newImage)
+// List Function to list all the block images in a pool
+func (b *BlockOperation) ListImagesInPool(namespace, poolName string) ([]BlockImage, error) {
+	// for each pool, get further details about all the images in the pool
+	images := []BlockImage{}
+	cephImages, err := client.ListImages(b.k8sClient.MakeContext(), namespace, poolName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get images from pool %s: %+v", poolName, err)
+	}
+
+	for _, image := range cephImages {
+		// add the current image's details to the result set
+		newImage := BlockImage{
+			Name:     image.Name,
+			PoolName: poolName,
+			Size:     image.Size,
 		}
+		images = append(images, newImage)
 	}
 
 	return images, nil
@@ -134,17 +151,7 @@ func (b *BlockOperation) DeleteBlockImage(image BlockImage, namespace string) er
 	return client.DeleteImage(context, namespace, image.Name, image.PoolName)
 }
 
-// BlockMap Function to map a Block using Rook
-// Input parameters -
-// manifest - Pod definition  - pod should be defined to use a pvc that was created earlier
-// Output  - k8s create pod operation output and/or error
-func (b *BlockOperation) BlockMap(manifest string) (string, error) {
-	args := []string{"apply", "-f", "-"}
-	result, err := b.k8sClient.KubectlWithStdin(manifest, args...)
-	if err != nil {
-		return "", fmt.Errorf("Unable to map block -- : %s", err)
-
-	}
-	return result, nil
-
+// CreateClientPod starts a pod that should have a block PVC.
+func (b *BlockOperation) CreateClientPod(manifest string) error {
+	return b.k8sClient.ResourceOperation("apply", manifest)
 }

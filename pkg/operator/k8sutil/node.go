@@ -21,12 +21,12 @@ import (
 	"fmt"
 	"strings"
 
-	"k8s.io/apimachinery/pkg/util/validation"
-
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/kubernetes"
 	helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
 )
@@ -35,16 +35,10 @@ const (
 	TopologyLabelPrefix = "topology.rook.io/"
 )
 
-var validTopologyLabelKeys = []string{
-	"failure-domain.beta.kubernetes.io",
-	"failure-domain.kubernetes.io",
-	TopologyLabelPrefix,
-}
-
 // ValidNodeNoSched returns true if the node (1) meets Rook's placement terms,
 // and (2) is ready. Unlike ValidNode, this method will ignore the
 // Node.Spec.Unschedulable flag. False otherwise.
-func ValidNodeNoSched(node v1.Node, placement rookalpha.Placement) (bool, error) {
+func ValidNodeNoSched(node v1.Node, placement rookv1.Placement) (bool, error) {
 	p, err := NodeMeetsPlacementTerms(node, placement, false)
 	if err != nil {
 		return false, fmt.Errorf("failed to check if node meets Rook placement terms. %+v", err)
@@ -62,7 +56,7 @@ func ValidNodeNoSched(node v1.Node, placement rookalpha.Placement) (bool, error)
 
 // ValidNode returns true if the node (1) is schedulable, (2) meets Rook's placement terms, and
 // (3) is ready. False otherwise.
-func ValidNode(node v1.Node, placement rookalpha.Placement) (bool, error) {
+func ValidNode(node v1.Node, placement rookv1.Placement) (bool, error) {
 	if !GetNodeSchedulable(node) {
 		return false, nil
 	}
@@ -72,12 +66,12 @@ func ValidNode(node v1.Node, placement rookalpha.Placement) (bool, error) {
 
 // GetValidNodes returns all nodes that (1) are not cordoned, (2) meet Rook's placement terms, and
 // (3) are ready.
-func GetValidNodes(rookStorage rookalpha.StorageScopeSpec, clientset kubernetes.Interface, placement rookalpha.Placement) []rookalpha.Node {
+func GetValidNodes(rookStorage rookv1.StorageScopeSpec, clientset kubernetes.Interface, placement rookv1.Placement) []rookv1.Node {
 	matchingK8sNodes, err := GetKubernetesNodesMatchingRookNodes(rookStorage.Nodes, clientset)
 	if err != nil {
 		// cannot list nodes, return empty nodes
 		logger.Errorf("failed to list nodes: %+v", err)
-		return []rookalpha.Node{}
+		return []rookv1.Node{}
 	}
 
 	validK8sNodes := []v1.Node{}
@@ -119,6 +113,10 @@ func GetNodeHostName(clientset kubernetes.Interface, nodeName string) (string, e
 	if err != nil {
 		return "", err
 	}
+	return GetNodeHostNameLabel(node)
+}
+
+func GetNodeHostNameLabel(node *v1.Node) (string, error) {
 	hostname, ok := node.Labels[v1.LabelHostname]
 	if !ok {
 		return "", fmt.Errorf("hostname not found on the node")
@@ -159,7 +157,7 @@ func GetNodeSchedulable(node v1.Node) bool {
 // and (2) its taints are tolerated by the placements tolerations.
 // There is the option to ignore well known taints defined in WellKnownTaints. See WellKnownTaints
 // for more information.
-func NodeMeetsPlacementTerms(node v1.Node, placement rookalpha.Placement, ignoreWellKnownTaints bool) (bool, error) {
+func NodeMeetsPlacementTerms(node v1.Node, placement rookv1.Placement, ignoreWellKnownTaints bool) (bool, error) {
 	a, err := NodeMeetsAffinityTerms(node, placement.NodeAffinity)
 	if err != nil {
 		return false, fmt.Errorf("failed to check if node %s meets affinity terms. regarding as not match. %+v", node.Name, err)
@@ -225,7 +223,7 @@ func NodeIsReady(node v1.Node) bool {
 	return false
 }
 
-func rookNodeMatchesKubernetesNode(rookNode rookalpha.Node, kubernetesNode v1.Node) bool {
+func rookNodeMatchesKubernetesNode(rookNode rookv1.Node, kubernetesNode v1.Node) bool {
 	hostname := normalizeHostname(kubernetesNode)
 	return rookNode.Name == hostname || rookNode.Name == kubernetesNode.Name
 }
@@ -241,7 +239,7 @@ func normalizeHostname(kubernetesNode v1.Node) string {
 
 // GetKubernetesNodesMatchingRookNodes lists all the nodes in Kubernetes and returns all the
 // Kubernetes nodes that have a corresponding match in the list of Rook nodes.
-func GetKubernetesNodesMatchingRookNodes(rookNodes []rookalpha.Node, clientset kubernetes.Interface) ([]v1.Node, error) {
+func GetKubernetesNodesMatchingRookNodes(rookNodes []rookv1.Node, clientset kubernetes.Interface) ([]v1.Node, error) {
 	nodes := []v1.Node{}
 	nodeOptions := metav1.ListOptions{}
 	nodeOptions.TypeMeta.Kind = "Node"
@@ -261,8 +259,8 @@ func GetKubernetesNodesMatchingRookNodes(rookNodes []rookalpha.Node, clientset k
 
 // RookNodesMatchingKubernetesNodes returns only the given Rook nodes which have a corresponding
 // match in the list of Kubernetes nodes.
-func RookNodesMatchingKubernetesNodes(rookStorage rookalpha.StorageScopeSpec, kubernetesNodes []v1.Node) []rookalpha.Node {
-	nodes := []rookalpha.Node{}
+func RookNodesMatchingKubernetesNodes(rookStorage rookv1.StorageScopeSpec, kubernetesNodes []v1.Node) []rookv1.Node {
+	nodes := []rookv1.Node{}
 	for _, kn := range kubernetesNodes {
 		for _, rn := range rookStorage.Nodes {
 			if rookNodeMatchesKubernetesNode(rn, kn) {
@@ -274,35 +272,51 @@ func RookNodesMatchingKubernetesNodes(rookStorage rookalpha.StorageScopeSpec, ku
 	return nodes
 }
 
-func nodeTopologyLocation(kubeNode v1.Node, location string) string {
-	nodeLabels := kubeNode.ObjectMeta.Labels
-	locations := []string{location}
+// ExtractTopologyFromLabels extracts rook topology from labels and returns a map from topology type to value
+func ExtractTopologyFromLabels(labels map[string]string, additionalTopologyIDs []string) map[string]string {
+	topology := make(map[string]string)
 
-	// We're looking for node labels that match the following format:
-	// <validTopologyLabelKey>/<key>: <value>
-	// Where validTopologyLabelKey is an entry in the
-	// validTopologyLabelKeys list, key is a topology element (e.g. region,
-	// zone), and value is the name of the element (e.g. region1, zone2)
-	for label := range nodeLabels {
-		for _, key := range validTopologyLabelKeys {
-			if strings.Contains(label, key) {
-				keys := strings.Split(label, "/")
-				locations = append(locations, fmt.Sprintf("%s=%s", keys[1], nodeLabels[label]))
-			}
-		}
+	// check for the region k8s topology label that was deprecated in 1.17
+	const regionLabel = "region"
+	region, ok := labels[corev1.LabelZoneRegion]
+	if ok {
+		topology[regionLabel] = region
 	}
 
-	return strings.Join(locations, " ")
-}
+	// check for the region k8s topology label that is GA in 1.17.
+	// TODO: Replace with a const when we update to the K8s 1.17 go-client.
+	region, ok = labels["topology.kubernetes.io/region"]
+	if ok {
+		topology[regionLabel] = region
+	}
 
-// NodeIsInRookNodeList will return true if the target node is found in a given list of Rook nodes.
-func NodeIsInRookNodeList(targetNodeName string, rookNodes []rookalpha.Node) bool {
-	for _, rn := range rookNodes {
-		if targetNodeName == rn.Name {
-			return true
+	// check for the zone k8s topology label that was deprecated in 1.17
+	const zoneLabel = "zone"
+	zone, ok := labels[corev1.LabelZoneFailureDomain]
+	if ok {
+		topology[zoneLabel] = zone
+	}
+
+	// check for the zone k8s topology label that is GA in 1.17.
+	// TODO: Replace with a const when we update to the K8s 1.17 go-client.
+	zone, ok = labels["topology.kubernetes.io/zone"]
+	if ok {
+		topology[zoneLabel] = zone
+	}
+
+	// get host
+	host, ok := labels[corev1.LabelHostname]
+	if ok {
+		topology["host"] = host
+	}
+
+	// get the labels for the CRUSH map hierarchy
+	for _, topologyID := range additionalTopologyIDs {
+		if value, ok := labels[TopologyLabelPrefix+topologyID]; ok {
+			topology[topologyID] = value
 		}
 	}
-	return false
+	return topology
 }
 
 // GenerateNodeAffinity will return v1.NodeAffinity or error

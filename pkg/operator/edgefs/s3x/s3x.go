@@ -155,6 +155,7 @@ func (c *S3XController) makeDeployment(svcname, namespace, rookImage string, s3x
 
 	if c.useHostLocalTime {
 		volumes = append(volumes, edgefsv1.GetHostLocalTimeVolume())
+		volumes = append(volumes, edgefsv1.GetHostTimeZoneVolume())
 	}
 
 	// add ssl certificate volume if defined
@@ -221,7 +222,9 @@ func (c *S3XController) makeDeployment(svcname, namespace, rookImage string, s3x
 	if c.NetworkSpec.IsHost() {
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	} else if c.NetworkSpec.IsMultus() {
-		k8sutil.ApplyMultus(c.NetworkSpec, &podSpec.ObjectMeta)
+		if err := k8sutil.ApplyMultus(c.NetworkSpec, &podSpec.ObjectMeta); err != nil {
+			logger.Errorf("failed to apply multus spec to podspec metadata for s3x. %v", err)
+		}
 	}
 
 	// apply current S3X CRD options to pod's specification
@@ -272,6 +275,7 @@ func (c *S3XController) s3xContainer(svcname, name, containerImage string, s3xSp
 
 	if c.useHostLocalTime {
 		volumeMounts = append(volumeMounts, edgefsv1.GetHostLocalTimeVolumeMount())
+		volumeMounts = append(volumeMounts, edgefsv1.GetHostTimeZoneVolumeMount())
 	}
 
 	if len(s3xSpec.SSLCertificateRef) > 0 {

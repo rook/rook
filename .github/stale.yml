@@ -2,7 +2,9 @@
 
 # Issues or Pull Requests with these labels will never be considered stale. Set to `[]` to disable
 exemptLabels:
+  - keepalive
   - security
+  - reliability
   - CNCF requirement
 
 # Set to true to ignore issues in a project (defaults to false)

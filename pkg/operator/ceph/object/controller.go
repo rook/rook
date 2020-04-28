@@ -17,291 +17,304 @@ limitations under the License.
 package object
 
 import (
+	"context"
 	"fmt"
 	"reflect"
-	"sync"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	daemonconfig "github.com/rook/rook/pkg/daemon/ceph/config"
-	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
-	cephspec "github.com/rook/rook/pkg/operator/ceph/spec"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
+	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/cache"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
-var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-object")
+const (
+	controllerName = "ceph-object-controller"
+)
 
-// ObjectStoreResource represents the object store custom resource
-var ObjectStoreResource = k8sutil.CustomResource{
-	Name:    "cephobjectstore",
-	Plural:  "cephobjectstores",
-	Group:   cephv1.CustomResourceGroup,
-	Version: cephv1.Version,
-	Kind:    reflect.TypeOf(cephv1.CephObjectStore{}).Name(),
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
+
+// List of object resources to watch by the controller
+var objectsToWatch = []runtime.Object{
+	&corev1.Secret{TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: corev1.SchemeGroupVersion.String()}},
+	&v1.Service{TypeMeta: metav1.TypeMeta{Kind: "Service", APIVersion: v1.SchemeGroupVersion.String()}},
+	&appsv1.Deployment{TypeMeta: metav1.TypeMeta{Kind: "Deployment", APIVersion: appsv1.SchemeGroupVersion.String()}},
 }
 
-// ObjectStoreController represents a controller object for object store custom resources
-type ObjectStoreController struct {
-	clusterInfo        *daemonconfig.ClusterInfo
-	clusterSpec        *cephv1.ClusterSpec
-	context            *clusterd.Context
-	namespace          string
-	rookImage          string
-	ownerRef           metav1.OwnerReference
-	dataDirHostPath    string
-	orchestrationMutex sync.Mutex
-	isUpgrade          bool
+var cephObjectStoreKind = reflect.TypeOf(cephv1.CephObjectStore{}).Name()
+
+// Sets the type meta for the controller main object
+var controllerTypeMeta = metav1.TypeMeta{
+	Kind:       cephObjectStoreKind,
+	APIVersion: fmt.Sprintf("%s/%s", cephv1.CustomResourceGroup, cephv1.Version),
 }
 
-// NewObjectStoreController create controller for watching object store custom resources created
-func NewObjectStoreController(
-	clusterInfo *daemonconfig.ClusterInfo,
-	context *clusterd.Context,
-	namespace string,
-	rookImage string,
-	clusterSpec *cephv1.ClusterSpec,
-	ownerRef metav1.OwnerReference,
-	dataDirHostPath string,
-	isUpgrade bool,
-) *ObjectStoreController {
-	return &ObjectStoreController{
-		clusterInfo:     clusterInfo,
-		clusterSpec:     clusterSpec,
-		context:         context,
-		namespace:       namespace,
-		rookImage:       rookImage,
-		ownerRef:        ownerRef,
-		dataDirHostPath: dataDirHostPath,
-		isUpgrade:       isUpgrade,
+// ReconcileCephObjectStore reconciles a cephObjectStore object
+type ReconcileCephObjectStore struct {
+	client          client.Client
+	scheme          *runtime.Scheme
+	context         *clusterd.Context
+	cephClusterSpec *cephv1.ClusterSpec
+	clusterInfo     *cephconfig.ClusterInfo
+}
+
+// Add creates a new cephObjectStore Controller and adds it to the Manager. The Manager will set fields on the Controller
+// and Start it when the Manager is Started.
+func Add(mgr manager.Manager, context *clusterd.Context) error {
+	return add(mgr, newReconciler(mgr, context))
+}
+
+// newReconciler returns a new reconcile.Reconciler
+func newReconciler(mgr manager.Manager, context *clusterd.Context) reconcile.Reconciler {
+	// Add the cephv1 scheme to the manager scheme so that the controller knows about it
+	mgrScheme := mgr.GetScheme()
+	cephv1.AddToScheme(mgr.GetScheme())
+
+	return &ReconcileCephObjectStore{
+		client:  mgr.GetClient(),
+		scheme:  mgrScheme,
+		context: context,
 	}
 }
 
-// StartWatch watches for instances of ObjectStore custom resources and acts on them
-func (c *ObjectStoreController) StartWatch(namespace string, stopCh chan struct{}) error {
-	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
-		AddFunc:    c.onAdd,
-		UpdateFunc: c.onUpdate,
-		DeleteFunc: c.onDelete,
+func add(mgr manager.Manager, r reconcile.Reconciler) error {
+	// Create a new controller
+	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r})
+	if err != nil {
+		return err
 	}
 
-	logger.Infof("start watching object store resources in namespace %s", c.namespace)
-	go k8sutil.WatchCR(ObjectStoreResource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1().RESTClient(), &cephv1.CephObjectStore{}, stopCh)
+	// Watch for changes on the cephObjectStore CRD object
+	err = c.Watch(&source.Kind{Type: &cephv1.CephObjectStore{TypeMeta: controllerTypeMeta}}, &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate())
+	if err != nil {
+		return err
+	}
+
+	// Watch all other resources
+	for _, t := range objectsToWatch {
+		err = c.Watch(&source.Kind{Type: t}, &handler.EnqueueRequestForOwner{
+			IsController: true,
+			OwnerType:    &cephv1.CephObjectStore{},
+		}, opcontroller.WatchPredicateForNonCRDObject(&cephv1.CephObjectStore{TypeMeta: controllerTypeMeta}, mgr.GetScheme()))
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
-func (c *ObjectStoreController) onAdd(obj interface{}) {
-	if c.clusterSpec.External.Enable && c.clusterSpec.CephVersion.Image == "" {
-		logger.Warningf("Creating object store for an external ceph cluster is disabled because no Ceph image is specified")
-		return
-	}
-
-	objectStore, err := getObjectStoreObject(obj)
+// Reconcile reads that state of the cluster for a cephObjectStore object and makes changes based on the state read
+// and what is in the cephObjectStore.Spec
+// The Controller will requeue the Request to be processed again if the returned error is non-nil or
+// Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
+func (r *ReconcileCephObjectStore) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+	// workaround because the rook logging mechanism is not compatible with the controller-runtime loggin interface
+	reconcileResponse, err := r.reconcile(request)
 	if err != nil {
-		logger.Errorf("failed to get objectstore object. %v", err)
-		return
+		logger.Errorf("failed to reconcile %v", err)
 	}
 
-	c.acquireOrchestrationLock()
-	defer c.releaseOrchestrationLock()
-	updateCephObjectStoreStatus(objectStore.GetName(), objectStore.GetNamespace(), k8sutil.ProcessingStatus, c.context)
+	return reconcileResponse, err
+}
 
-	if c.clusterSpec.External.Enable {
-		_, err := cephspec.ValidateCephVersionsBetweenLocalAndExternalClusters(c.context, c.namespace, c.clusterInfo.CephVersion)
+func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconcile.Result, error) {
+	// Fetch the cephObjectStore instance
+	cephObjectStore := &cephv1.CephObjectStore{}
+	err := r.client.Get(context.TODO(), request.NamespacedName, cephObjectStore)
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			logger.Debug("cephObjectStore resource not found. Ignoring since object must be deleted.")
+			return reconcile.Result{}, nil
+		}
+		// Error reading the object - requeue the request.
+		return reconcile.Result{}, errors.Wrap(err, "failed to get cephObjectStore")
+	}
+
+	// The CR was just created, initializing status fields
+	if cephObjectStore.Status == nil {
+		updateStatus(r.client, request.NamespacedName, k8sutil.Created)
+	}
+
+	// Make sure a CephCluster is present otherwise do nothing
+	cephClusterSpec, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.client, r.context, request.NamespacedName, controllerName)
+	if !isReadyToReconcile {
+		// This handles the case where the Ceph Cluster is gone and we want to delete that CR
+		// We skip the deleteStore() function since everything is gone already
+		//
+		// Also, only remove the finalizer if the CephCluster is gone
+		// If not, we should wait for it to be ready
+		// This handles the case where the operator is not ready to accept Ceph command but the cluster exists
+		if !cephObjectStore.GetDeletionTimestamp().IsZero() && !cephClusterExists {
+			// Remove finalizer
+			err := opcontroller.RemoveFinalizer(r.client, cephObjectStore)
+			if err != nil {
+				return reconcile.Result{}, errors.Wrap(err, "failed to remove finalizer")
+			}
+
+			// Return and do not requeue. Successful deletion.
+			return reconcile.Result{}, nil
+		}
+
+		return reconcileResponse, nil
+	}
+	r.cephClusterSpec = &cephClusterSpec
+
+	// Populate clusterInfo
+	// Always populate it during each reconcile
+	clusterInfo, _, _, err := mon.LoadClusterInfo(r.context, request.NamespacedName.Namespace)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrap(err, "failed to populate cluster info")
+	}
+	r.clusterInfo = clusterInfo
+
+	// Populate CephVersion
+	currentCephVersion, err := cephclient.LeastUptodateDaemonVersion(r.context, r.clusterInfo.Name, opconfig.MonType)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrapf(err, "failed to retrieve current ceph %q version", opconfig.MonType)
+	}
+	r.clusterInfo.CephVersion = currentCephVersion
+
+	// Set a finalizer so we can do cleanup before the object goes away
+	err = opcontroller.AddFinalizerIfNotPresent(r.client, cephObjectStore)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrap(err, "failed to add finalizer")
+	}
+
+	// DELETE: the CR was deleted
+	if !cephObjectStore.GetDeletionTimestamp().IsZero() {
+		logger.Debugf("deleting store %q", cephObjectStore.Name)
+		cfg := clusterConfig{context: r.context, store: cephObjectStore}
+		err := cfg.deleteStore()
+		if err != nil {
+			return reconcile.Result{}, errors.Wrapf(err, "failed to delete store %q. ", cephObjectStore.Name)
+		}
+
+		// Remove finalizer
+		err = opcontroller.RemoveFinalizer(r.client, cephObjectStore)
+		if err != nil {
+			return reconcile.Result{}, errors.Wrap(err, "failed to remove finalizer")
+		}
+
+		// Return and do not requeue. Successful deletion.
+		return reconcile.Result{}, nil
+	}
+
+	// validate the store settings
+	if err := validateStore(r.context, cephObjectStore); err != nil {
+		return reconcile.Result{}, errors.Wrapf(err, "invalid object store %q arguments", cephObjectStore.Name)
+	}
+
+	// CREATE/UPDATE
+	logger.Info("reconciling object store deployments")
+	reconcileResponse, err = r.reconcileCreateObjectStore(cephObjectStore, request.NamespacedName)
+	if err != nil {
+		return r.setFailedStatus(request.NamespacedName, "failed to create object store deployments", err)
+	}
+
+	// Set Ready status, we are done reconciling
+	updateStatus(r.client, request.NamespacedName, k8sutil.ReadyStatus)
+
+	// Return and do not requeue
+	logger.Debug("done reconciling")
+	return reconcile.Result{}, nil
+}
+
+func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *cephv1.CephObjectStore, name types.NamespacedName) (reconcile.Result, error) {
+	if r.cephClusterSpec.External.Enable {
+		_, err := opcontroller.ValidateCephVersionsBetweenLocalAndExternalClusters(r.context, cephObjectStore.Namespace, r.clusterInfo.CephVersion)
 		if err != nil {
 			// This handles the case where the operator is running, the external cluster has been upgraded and a CR creation is called
 			// If that's a major version upgrade we fail, if it's a minor version, we continue, it's not ideal but not critical
-			logger.Errorf("refusing to run new crd. %v", err)
-			updateCephObjectStoreStatus(objectStore.GetName(), objectStore.GetNamespace(), k8sutil.FailedStatus, c.context)
+			return reconcile.Result{}, errors.Wrapf(err, "refusing to run new crd")
+		}
+	}
+
+	cfg := clusterConfig{
+		context:           r.context,
+		clusterInfo:       r.clusterInfo,
+		store:             cephObjectStore,
+		rookVersion:       r.cephClusterSpec.CephVersion.Image,
+		clusterSpec:       r.cephClusterSpec,
+		DataPathMap:       opconfig.NewStatelessDaemonDataPathMap(opconfig.RgwType, cephObjectStore.Name, cephObjectStore.Namespace, r.cephClusterSpec.DataDirHostPath),
+		client:            r.client,
+		scheme:            r.scheme,
+		skipUpgradeChecks: r.cephClusterSpec.SkipUpgradeChecks,
+	}
+
+	// RECONCILE SERVICE
+	logger.Debug("reconciling object store service")
+	serviceIP, err := cfg.reconcileService(cephObjectStore)
+	if err != nil {
+		return r.setFailedStatus(name, "failed to reconcile service", err)
+	}
+
+	objContext := NewContext(r.context, cephObjectStore.Name, cephObjectStore.Namespace)
+
+	// RECONCILE POOLS
+	logger.Info("reconciling object store pools")
+	err = createPools(objContext, cephObjectStore.Spec)
+	if err != nil {
+		return r.setFailedStatus(name, "failed to create object pools", err)
+	}
+
+	// RECONCILE REALM
+	logger.Info("reconciling object store realms")
+	err = reconcileRealm(objContext, serviceIP, cephObjectStore.Spec.Gateway.Port)
+	if err != nil {
+		return r.setFailedStatus(name, "failed to create object store realm", err)
+	}
+
+	err = cfg.createOrUpdateStore()
+	if err != nil {
+		return reconcile.Result{}, errors.Wrapf(err, "failed to create object store %q", cephObjectStore.Name)
+	}
+
+	return reconcile.Result{}, nil
+}
+
+func (r *ReconcileCephObjectStore) setFailedStatus(name types.NamespacedName, errMessage string, err error) (reconcile.Result, error) {
+	updateStatus(r.client, name, k8sutil.ReconcileFailedStatus)
+	return reconcile.Result{}, errors.Wrapf(err, "%s", errMessage)
+}
+
+// updateStatus updates an object with a given status
+func updateStatus(client client.Client, name types.NamespacedName, status string) {
+	objectStore := &cephv1.CephObjectStore{}
+	if err := client.Get(context.TODO(), name, objectStore); err != nil {
+		if kerrors.IsNotFound(err) {
+			logger.Debug("CephObjectStore resource not found. Ignoring since object must be deleted.")
 			return
 		}
-	}
-	c.createOrUpdateStore(objectStore)
-	updateCephObjectStoreStatus(objectStore.GetName(), objectStore.GetNamespace(), k8sutil.ReadyStatus, c.context)
-}
-
-func (c *ObjectStoreController) onUpdate(oldObj, newObj interface{}) {
-	if c.clusterSpec.External.Enable && c.clusterSpec.CephVersion.Image == "" {
-		logger.Warningf("Updating object store for an external ceph cluster is disabled because no Ceph image is specified")
+		logger.Warningf("failed to retrieve object store %q to update status to %q. %v", name, status, err)
 		return
 	}
+	if objectStore.Status == nil {
+		objectStore.Status = &cephv1.Status{}
+	}
 
-	// if the object store spec is modified, update the object store
-	oldStore, err := getObjectStoreObject(oldObj)
-	if err != nil {
-		logger.Errorf("failed to get old objectstore object. %v", err)
+	objectStore.Status.Phase = status
+	if err := opcontroller.UpdateStatus(client, objectStore); err != nil {
+		logger.Errorf("failed to set object store %q status to %q. %v", name, status, err)
 		return
 	}
-	newStore, err := getObjectStoreObject(newObj)
-	if err != nil {
-		logger.Errorf("failed to get new objectstore object. %v", err)
-		return
-	}
-
-	if !storeChanged(oldStore.Spec, newStore.Spec) {
-		logger.Debugf("object store %q did not change", newStore.Name)
-		return
-	}
-
-	c.acquireOrchestrationLock()
-	defer c.releaseOrchestrationLock()
-
-	updateCephObjectStoreStatus(newStore.GetName(), newStore.GetNamespace(), k8sutil.ProcessingStatus, c.context)
-	c.createOrUpdateStore(newStore)
-	updateCephObjectStoreStatus(newStore.GetName(), newStore.GetNamespace(), k8sutil.ReadyStatus, c.context)
-}
-
-func (c *ObjectStoreController) createOrUpdateStore(objectstore *cephv1.CephObjectStore) {
-	logger.Infof("creating object store %q", objectstore.Name)
-	cfg := clusterConfig{
-		clusterInfo: c.clusterInfo,
-		context:     c.context,
-		store:       *objectstore,
-		rookVersion: c.rookImage,
-		clusterSpec: c.clusterSpec,
-		ownerRef:    c.storeOwners(objectstore),
-		DataPathMap: cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, objectstore.Name, c.clusterInfo.Name, c.dataDirHostPath),
-		isUpgrade:   c.isUpgrade,
-	}
-	if err := cfg.createOrUpdate(); err != nil {
-		logger.Errorf("failed to create or update object store %s. %v", objectstore.Name, err)
-	}
-}
-
-func (c *ObjectStoreController) onDelete(obj interface{}) {
-	if c.clusterSpec.External.Enable && c.clusterSpec.CephVersion.Image == "" {
-		logger.Warningf("Deleting object store for an external ceph cluster is disabled because no Ceph image is specified")
-		return
-	}
-
-	objectstore, err := getObjectStoreObject(obj)
-	if err != nil {
-		logger.Errorf("failed to get objectstore object. %v", err)
-		return
-	}
-
-	c.acquireOrchestrationLock()
-	defer c.releaseOrchestrationLock()
-
-	cfg := clusterConfig{context: c.context, store: *objectstore}
-	if err = cfg.deleteStore(); err != nil {
-		logger.Errorf("failed to delete object store %q. %v", objectstore.Name, err)
-	}
-}
-
-// ParentClusterChanged determines wether or not a CR update has been sent
-func (c *ObjectStoreController) ParentClusterChanged(cluster cephv1.ClusterSpec, clusterInfo *daemonconfig.ClusterInfo, isUpgrade bool) {
-	c.clusterInfo = clusterInfo
-	if !isUpgrade {
-		logger.Debugf("No need to update the object store after the parent cluster changed")
-		return
-	}
-
-	// This is an upgrade so let's activate the flag
-	c.isUpgrade = isUpgrade
-
-	c.acquireOrchestrationLock()
-	defer c.releaseOrchestrationLock()
-
-	c.clusterSpec.CephVersion = cluster.CephVersion
-	objectStores, err := c.context.RookClientset.CephV1().CephObjectStores(c.namespace).List(metav1.ListOptions{})
-	if err != nil {
-		logger.Errorf("failed to retrieve object stores to update the ceph version. %v", err)
-		return
-	}
-	for _, store := range objectStores.Items {
-		logger.Infof("updating the ceph version for object store %q to %q", store.Name, c.clusterSpec.CephVersion.Image)
-		c.createOrUpdateStore(&store)
-		if err != nil {
-			logger.Errorf("failed to update object store %q. %v", store.Name, err)
-		} else {
-			logger.Infof("updated object store %q to ceph version %q", store.Name, c.clusterSpec.CephVersion.Image)
-		}
-	}
-}
-
-func (c *ObjectStoreController) storeOwners(store *cephv1.CephObjectStore) metav1.OwnerReference {
-	// Set the object store CR as the owner
-	return metav1.OwnerReference{
-		APIVersion: fmt.Sprintf("%s/%s", ObjectStoreResource.Group, ObjectStoreResource.Version),
-		Kind:       ObjectStoreResource.Kind,
-		Name:       store.Name,
-		UID:        store.UID,
-	}
-}
-
-func storeChanged(oldStore, newStore cephv1.ObjectStoreSpec) bool {
-	if oldStore.DataPool.Replicated.Size != newStore.DataPool.Replicated.Size {
-		logger.Infof("data pool replication changed from %d to %d", oldStore.DataPool.Replicated.Size, newStore.DataPool.Replicated.Size)
-		return true
-	}
-	if oldStore.MetadataPool.Replicated.Size != newStore.MetadataPool.Replicated.Size {
-		logger.Infof("metadata pool replication changed from %d to %d", oldStore.MetadataPool.Replicated.Size, newStore.MetadataPool.Replicated.Size)
-		return true
-	}
-	if oldStore.Gateway.Instances != newStore.Gateway.Instances {
-		logger.Infof("RGW instances changed from %d to %d", oldStore.Gateway.Instances, newStore.Gateway.Instances)
-		return true
-	}
-	if oldStore.Gateway.Port != newStore.Gateway.Port {
-		logger.Infof("Port changed from %d to %d", oldStore.Gateway.Port, newStore.Gateway.Port)
-		return true
-	}
-	if oldStore.Gateway.SecurePort != newStore.Gateway.SecurePort {
-		logger.Infof("SecurePort changed from %d to %d", oldStore.Gateway.SecurePort, newStore.Gateway.SecurePort)
-		return true
-	}
-	if oldStore.Gateway.AllNodes != newStore.Gateway.AllNodes {
-		logger.Infof("AllNodes changed from %t to %t", oldStore.Gateway.AllNodes, newStore.Gateway.AllNodes)
-		return true
-	}
-	if oldStore.Gateway.SSLCertificateRef != newStore.Gateway.SSLCertificateRef {
-		logger.Infof("SSLCertificateRef changed from %s to %s", oldStore.Gateway.SSLCertificateRef, newStore.Gateway.SSLCertificateRef)
-		return true
-	}
-	return false
-}
-
-func getObjectStoreObject(obj interface{}) (objectstore *cephv1.CephObjectStore, err error) {
-	var ok bool
-	objectstore, ok = obj.(*cephv1.CephObjectStore)
-	if ok {
-		// the objectstore object is of the latest type, simply return it
-		return objectstore.DeepCopy(), nil
-	}
-
-	return nil, errors.Errorf("not a known objectstore object %+v", obj)
-}
-
-func (c *ObjectStoreController) acquireOrchestrationLock() {
-	logger.Debugf("Acquiring lock for object store orchestration")
-	c.orchestrationMutex.Lock()
-	logger.Debugf("Acquired lock for object store orchestration")
-}
-
-func (c *ObjectStoreController) releaseOrchestrationLock() {
-	c.orchestrationMutex.Unlock()
-	logger.Debugf("Released lock for object store orchestration")
-}
-
-func updateCephObjectStoreStatus(name, namespace, status string, context *clusterd.Context) {
-	updatedCephObjectStore, err := context.RookClientset.CephV1().CephObjectStores(namespace).Get(name, metav1.GetOptions{})
-	if err != nil {
-		logger.Errorf("Unable to update the cephObjectStore %s status %v", updatedCephObjectStore.GetName(), err)
-		return
-	}
-	if updatedCephObjectStore.Status == nil {
-		updatedCephObjectStore.Status = &cephv1.Status{}
-	} else if updatedCephObjectStore.Status.Phase == status {
-		return
-	}
-	updatedCephObjectStore.Status.Phase = status
-	_, err = context.RookClientset.CephV1().CephObjectStores(updatedCephObjectStore.Namespace).Update(updatedCephObjectStore)
-	if err != nil {
-		logger.Errorf("Unable to update the cephObjectStore %s status %v", updatedCephObjectStore.GetName(), err)
-		return
-	}
+	logger.Debugf("object store %q status updated to %q", name, status)
 }

@@ -244,6 +244,8 @@ const (
                   mountPath: /etc/ceph-csi-config/
                 - name: keys-tmp-dir
                   mountPath: /tmp/csi/keys
+                - name: host-run-mount
+                  mountPath: /run/mount
           volumes:
             - name: plugin-dir
               hostPath:
@@ -283,6 +285,9 @@ const (
               emptyDir: {
                 medium: "Memory"
               }
+            - name: host-run-mount
+              hostPath:
+                path: /run/mount
     `
 	cephfsProvisionerTemplate = `
     kind: StatefulSet
@@ -484,6 +489,8 @@ const (
                   mountPath: /etc/ceph-csi-config/
                 - name: keys-tmp-dir
                   mountPath: /tmp/csi/keys
+                - name: host-run-mount
+                  mountPath: /run/mount
           volumes:
             - name: plugin-dir
               hostPath:
@@ -522,6 +529,8 @@ const (
               emptyDir: {
                 medium: "Memory"
               }
-
+            - name: host-run-mount
+              hostPath:
+                path: /run/mount
 `
 )

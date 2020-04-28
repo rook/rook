@@ -20,8 +20,10 @@ package mds
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -30,11 +32,13 @@ import (
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
-	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mds")
@@ -61,7 +65,7 @@ type Cluster struct {
 	fsID            string
 	ownerRef        metav1.OwnerReference
 	dataDirHostPath string
-	isUpgrade       bool
+	scheme          *runtime.Scheme
 }
 
 type mdsConfig struct {
@@ -74,24 +78,22 @@ type mdsConfig struct {
 func NewCluster(
 	clusterInfo *cephconfig.ClusterInfo,
 	context *clusterd.Context,
-	rookVersion string,
 	clusterSpec *cephv1.ClusterSpec,
 	fs cephv1.CephFilesystem,
 	fsdetails *client.CephFilesystemDetails,
 	ownerRef metav1.OwnerReference,
 	dataDirHostPath string,
-	isUpgrade bool,
+	scheme *runtime.Scheme,
 ) *Cluster {
 	return &Cluster{
 		clusterInfo:     clusterInfo,
 		context:         context,
-		rookVersion:     rookVersion,
 		clusterSpec:     clusterSpec,
 		fs:              fs,
 		fsID:            strconv.Itoa(fsdetails.ID),
 		ownerRef:        ownerRef,
 		dataDirHostPath: dataDirHostPath,
-		isUpgrade:       isUpgrade,
+		scheme:          scheme,
 	}
 }
 
@@ -101,7 +103,7 @@ var UpdateDeploymentAndWait = mon.UpdateCephDeploymentAndWait
 // Start starts or updates a Ceph mds cluster in Kubernetes.
 func (c *Cluster) Start() error {
 	// Validate pod's memory if specified
-	err := opspec.CheckPodMemory(c.fs.Spec.MetadataServer.Resources, cephMdsPodMinimumMemory)
+	err := controller.CheckPodMemory(c.fs.Spec.MetadataServer.Resources, cephMdsPodMinimumMemory)
 	if err != nil {
 		return errors.Wrap(err, "error checking pod memory")
 	}
@@ -120,6 +122,7 @@ func (c *Cluster) Start() error {
 
 	// Always create double the number of metadata servers to have standby mdses available
 	replicas := c.fs.Spec.MetadataServer.ActiveCount * 2
+
 	// keep list of deployments we want so unwanted ones can be deleted later
 	desiredDeployments := map[string]bool{} // improvised set
 	// Create/update deployments
@@ -137,7 +140,7 @@ func (c *Cluster) Start() error {
 		}
 
 		// create unique key for each mds saved to k8s secret
-		keyring, err := c.generateKeyring(mdsConfig)
+		_, err := c.generateKeyring(mdsConfig)
 		if err != nil {
 			return errors.Wrapf(err, "failed to generate keyring for %q", resourceName)
 		}
@@ -158,40 +161,33 @@ func (c *Cluster) Start() error {
 
 		// start the deployment
 		d := c.makeDeployment(mdsConfig)
-		logger.Debugf("starting mds: %+v", d)
-		createdDeployment, createErr := c.context.Clientset.AppsV1().Deployments(c.fs.Namespace).Create(d)
+
+		// Set owner ref to cephFilesystem object
+		err = controllerutil.SetControllerReference(&c.fs, d, c.scheme)
+		if err != nil {
+			return errors.Wrapf(err, "failed to set owner reference for ceph filesystem %q secret", d.Name)
+		}
+
+		// Set the deployment hash as an annotation
+		err = patch.DefaultAnnotator.SetLastAppliedAnnotation(d)
+		if err != nil {
+			return errors.Wrapf(err, "failed to set annotation for deployment %q", d.Name)
+		}
+
+		_, createErr := c.context.Clientset.AppsV1().Deployments(c.fs.Namespace).Create(d)
 		if createErr != nil {
 			if !kerrors.IsAlreadyExists(createErr) {
 				return errors.Wrapf(createErr, "failed to create mds deployment %s", mdsConfig.ResourceName)
 			}
 			logger.Infof("deployment for mds %s already exists. updating if needed", mdsConfig.ResourceName)
-			createdDeployment, err = c.context.Clientset.AppsV1().Deployments(c.fs.Namespace).Get(d.Name, metav1.GetOptions{})
+			_, err = c.context.Clientset.AppsV1().Deployments(c.fs.Namespace).Get(d.Name, metav1.GetOptions{})
 			if err != nil {
 				return errors.Wrapf(err, "failed to get existing mds deployment %s for update", d.Name)
 			}
 		}
 
-		if err := c.associateKeyring(keyring, createdDeployment); err != nil {
-			logger.Warningf("failed to associate keyring with deployment for %q. %v", resourceName, err)
-		}
-
-		// keyring must be generated before update-and-wait since no keyring will prevent the
-		// deployment from reaching ready state
 		if createErr != nil && kerrors.IsAlreadyExists(createErr) {
-			// Always invoke ceph version before an upgrade so we are sure to be up-to-date
-			daemon := string(config.MdsType)
-			var cephVersionToUse cephver.CephVersion
-			currentCephVersion, err := client.LeastUptodateDaemonVersion(c.context, c.clusterInfo.Name, daemon)
-			if err != nil {
-				logger.Warningf("failed to retrieve current ceph %q version. %v", daemon, err)
-				logger.Debug("could not detect ceph version during update, this is likely an initial bootstrap, proceeding with c.clusterInfo.CephVersion")
-				cephVersionToUse = c.clusterInfo.CephVersion
-
-			} else {
-				logger.Debugf("current cluster version for mdss before upgrading is: %+v", currentCephVersion)
-				cephVersionToUse = currentCephVersion
-			}
-			if err = UpdateDeploymentAndWait(c.context, d, c.fs.Namespace, daemon, daemonLetterID, cephVersionToUse, c.isUpgrade, c.clusterSpec.SkipUpgradeChecks, false); err != nil {
+			if err = UpdateDeploymentAndWait(c.context, d, c.fs.Namespace, config.MdsType, daemonLetterID, c.clusterSpec.SkipUpgradeChecks, c.clusterSpec.ContinueUpgradeAfterChecksEvenIfNotHealthy); err != nil {
 				return errors.Wrapf(err, "failed to update mds deployment %s", d.Name)
 			}
 		}
@@ -200,7 +196,7 @@ func (c *Cluster) Start() error {
 	}
 
 	if err := c.scaleDownDeployments(replicas, desiredDeployments); err != nil {
-		return errors.Wrapf(err, "failed to scale down mds deployments")
+		return errors.Wrap(err, "failed to scale down mds deployments")
 	}
 
 	return nil
@@ -244,6 +240,12 @@ func (c *Cluster) scaleDownDeployments(replicas int32, desiredDeployments map[st
 				errCount++
 				logger.Errorf("error during deletion of extraneous mds deployments. %v", err)
 			}
+
+			daemonName := strings.Replace(d.GetName(), fmt.Sprintf("%s-", AppName), "", -1)
+			err := c.DeleteMdsCephObjects(daemonName)
+			if err != nil {
+				logger.Errorf("%v", err)
+			}
 		}
 	}
 	if errCount > 0 {
@@ -251,6 +253,23 @@ func (c *Cluster) scaleDownDeployments(replicas int32, desiredDeployments map[st
 	}
 	logger.Infof("successfully deleted extraneous mds deployments")
 
+	return nil
+}
+
+func (c *Cluster) DeleteMdsCephObjects(mdsID string) error {
+	monStore := config.GetMonStore(c.context, c.fs.Namespace)
+	who := fmt.Sprintf("mds.%s", mdsID)
+	err := monStore.DeleteDaemon(who)
+	if err != nil {
+		return errors.Wrapf(err, "failed to delete mds config for %q in mon configuration database", who)
+	}
+	logger.Infof("successfully deleted mds config for %q in mon configuration database", who)
+
+	err = client.AuthDelete(c.context, c.fs.Namespace, who)
+	if err != nil {
+		return err
+	}
+	logger.Infof("successfully deleted mds CephX key for %q", who)
 	return nil
 }
 

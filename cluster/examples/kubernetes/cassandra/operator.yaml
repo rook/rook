@@ -45,6 +45,8 @@ spec:
                       type: integer
                     configMapName:
                       type: string
+                    jmxExporterConfigMapName:
+                      type: string
                     storage:
                       type: object
                       properties:

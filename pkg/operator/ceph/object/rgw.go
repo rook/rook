@@ -19,32 +19,38 @@ package object
 
 import (
 	"fmt"
-	"strings"
+	"reflect"
 
+	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
-	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 type clusterConfig struct {
 	clusterInfo       *cephconfig.ClusterInfo
 	context           *clusterd.Context
-	store             cephv1.CephObjectStore
+	store             *cephv1.CephObjectStore
 	rookVersion       string
 	clusterSpec       *cephv1.ClusterSpec
-	ownerRef          metav1.OwnerReference
+	ownerRef          *metav1.OwnerReference
 	DataPathMap       *config.DataPathMap
-	isUpgrade         bool
 	skipUpgradeChecks bool
+	client            client.Client
+	scheme            *runtime.Scheme
+	Network           cephv1.NetworkSpec
 }
 
 type rgwConfig struct {
@@ -58,32 +64,14 @@ const (
 
 var updateDeploymentAndWait = mon.UpdateCephDeploymentAndWait
 
-func (c *clusterConfig) createOrUpdate() error {
-	// validate the object store settings
-	if err := validateStore(c.context, c.store); err != nil {
-		return errors.Wrapf(err, "invalid object store %s arguments", c.store.Name)
-	}
-
-	logger.Infof("creating object store %s in namespace %s", c.store.Name, c.store.Namespace)
-
-	// start the service
-	serviceIP, err := c.startService()
-	if err != nil {
-		return errors.Wrapf(err, "failed to start rgw service")
-	}
-
-	// create the ceph artifacts for the object store
-	objContext := NewContext(c.context, c.store.Name, c.store.Namespace)
-	err = createObjectStore(objContext, *c.store.Spec.MetadataPool.ToModel(""), *c.store.Spec.DataPool.ToModel(""), serviceIP, c.store.Spec.Gateway.Port)
-	if err != nil {
-		return errors.Wrapf(err, "failed to create pools")
-	}
+func (c *clusterConfig) createOrUpdateStore() error {
+	logger.Infof("creating object store %q in namespace %q", c.store.Name, c.store.Namespace)
 
 	if err := c.startRGWPods(); err != nil {
-		return errors.Wrapf(err, "failed to start pods")
+		return errors.Wrapf(err, "failed to start rgw pods")
 	}
 
-	logger.Infof("created object store %s", c.store.Name)
+	logger.Infof("created object store %q in namespace %q", c.store.Name, c.store.Namespace)
 	return nil
 }
 
@@ -101,6 +89,14 @@ func (c *clusterConfig) startRGWPods() error {
 		c.store.Spec.Gateway.Instances = 1
 	}
 
+	// Create the controller owner ref
+	// It will be associated to all resources of the CephObjectStore
+	ref, err := opcontroller.GetControllerObjectOwnerReference(c.store, c.scheme)
+	if err != nil || ref == nil {
+		return errors.Wrapf(err, "failed to get controller %q owner reference", c.store.Name)
+	}
+	c.ownerRef = ref
+
 	// start a new deployment and scale up
 	desiredRgwInstances := int(c.store.Spec.Gateway.Instances)
 	for i := 0; i < desiredRgwInstances; i++ {
@@ -117,11 +113,11 @@ func (c *clusterConfig) startRGWPods() error {
 			DaemonID:     daemonName,
 		}
 
-		// Generate the keyring after starting the replication controller so that the keyring may use
-		// the controller as its owner reference; the keyring is deleted with the controller
-		keyring, err := c.generateKeyring(rgwConfig)
+		// We set the owner reference of the Secret to the Object controller instead of the replicaset
+		// because we watch for that resource and reconcile if anything happens to it
+		_, err = c.generateKeyring(rgwConfig)
 		if err != nil {
-			return errors.Wrapf(err, "failed to create rgw keyring")
+			return errors.Wrap(err, "failed to create rgw keyring")
 		}
 
 		// Check for existing deployment and set the daemon config flags
@@ -133,60 +129,48 @@ func (c *clusterConfig) startRGWPods() error {
 				logger.Info("setting rgw config flags")
 				err = c.setDefaultFlagsMonConfigStore(rgwConfig.ResourceName)
 				if err != nil {
-					return errors.Wrapf(err, "failed to set default rgw config options")
+					return errors.Wrap(err, "failed to set default rgw config options")
 				}
 			}
 		}
 
 		// Create deployment
 		deployment := c.createDeployment(rgwConfig)
-		logger.Infof("object store %s deployment %s started", c.store.Name, deployment.Name)
-		createdDeployment, createErr := c.context.Clientset.AppsV1().Deployments(c.store.Namespace).Create(deployment)
+		logger.Infof("object store %q deployment %q started", c.store.Name, deployment.Name)
+
+		// Set owner ref to cephObjectStore object
+		err = controllerutil.SetControllerReference(c.store, deployment, c.scheme)
+		if err != nil {
+			return errors.Wrapf(err, "failed to set owner reference for ceph object %q secret", deployment.Name)
+		}
+
+		// Set the deployment hash as an annotation
+		err = patch.DefaultAnnotator.SetLastAppliedAnnotation(deployment)
+		if err != nil {
+			return errors.Wrapf(err, "failed to set annotation for deployment %q", deployment.Name)
+		}
+
+		_, createErr := c.context.Clientset.AppsV1().Deployments(c.store.Namespace).Create(deployment)
 		if createErr != nil {
 			if !kerrors.IsAlreadyExists(createErr) {
 				return errors.Wrapf(createErr, "failed to create rgw deployment")
 			}
-			logger.Infof("object store %s deployment %s already exists. updating if needed", c.store.Name, deployment.Name)
-			createdDeployment, err = c.context.Clientset.AppsV1().Deployments(c.store.Namespace).Get(deployment.Name, metav1.GetOptions{})
+			logger.Infof("object store %q deployment %q already exists. updating if needed", c.store.Name, deployment.Name)
+			_, err = c.context.Clientset.AppsV1().Deployments(c.store.Namespace).Get(deployment.Name, metav1.GetOptions{})
 			if err != nil {
-				return errors.Wrapf(err, "failed to get existing rgw deployment %s for update", deployment.Name)
+				return errors.Wrapf(err, "failed to get existing rgw deployment %q for update", deployment.Name)
 			}
-		}
-
-		resourceControllerOwnerRef := &metav1.OwnerReference{
-			UID:        createdDeployment.UID,
-			APIVersion: "v1",
-			Kind:       "deployment",
-			Name:       rgwConfig.ResourceName,
-		}
-
-		err = c.associateKeyring(keyring, resourceControllerOwnerRef)
-		if err != nil {
-			logger.Warningf("failed to associate keyring with rgw deployment %q. %v", createdDeployment.Name, err)
 		}
 
 		// Generate the mime.types file after the rep. controller as well for the same reason as keyring
 		if createErr != nil && kerrors.IsAlreadyExists(createErr) {
-			// Always invoke ceph version before an upgrade so we are sure to be up-to-date
-			daemon := string(config.RgwType)
-			var cephVersionToUse cephver.CephVersion
-			currentCephVersion, err := client.LeastUptodateDaemonVersion(c.context, c.clusterInfo.Name, daemon)
-			if err != nil {
-				logger.Warningf("failed to retrieve current ceph %s version. %v", daemon, err)
-				logger.Debug("could not detect ceph version during update, this is likely an initial bootstrap, proceeding with c.clusterInfo.CephVersion")
-				cephVersionToUse = c.clusterInfo.CephVersion
-
-			} else {
-				logger.Debugf("current cluster version for rgws before upgrading is: %+v", currentCephVersion)
-				cephVersionToUse = currentCephVersion
-			}
-			if err := updateDeploymentAndWait(c.context, deployment, c.store.Namespace, daemon, daemonLetterID, cephVersionToUse, c.isUpgrade, c.skipUpgradeChecks, false); err != nil {
-				return errors.Wrapf(err, "failed to update object store %s deployment %s", c.store.Name, deployment.Name)
+			if err := updateDeploymentAndWait(c.context, deployment, c.store.Namespace, config.RgwType, daemonLetterID, c.skipUpgradeChecks, c.clusterSpec.ContinueUpgradeAfterChecksEvenIfNotHealthy); err != nil {
+				return errors.Wrapf(err, "failed to update object store %q deployment %q", c.store.Name, deployment.Name)
 			}
 		}
 
-		if err := c.generateMimeTypes(resourceControllerOwnerRef); err != nil {
-			return errors.Wrapf(err, "failed to generate the rgw mime.types config")
+		if err := c.generateMimeTypes(); err != nil {
+			return errors.Wrap(err, "failed to generate the rgw mime.types config")
 		}
 	}
 
@@ -204,15 +188,21 @@ func (c *clusterConfig) startRGWPods() error {
 			depIDToRemove := currentRgwInstances - 1
 			depNameToRemove := fmt.Sprintf("%s-%s-%s", AppName, c.store.Name, k8sutil.IndexToName(depIDToRemove))
 			if err := k8sutil.DeleteDeployment(c.context.Clientset, c.store.Namespace, depNameToRemove); err != nil {
-				logger.Warning("error during deletion of deployment %q resource. %v", depNameToRemove, err)
+				logger.Warningf("error during deletion of deployment %q resource. %v", depNameToRemove, err)
 			}
 			currentRgwInstances = currentRgwInstances - 1
 			i++
 
-			// Delete the auth key
-			err = client.AuthDelete(c.context, c.store.Namespace, generateCephXUser(depNameToRemove))
+			// Delete the Secret key
+			secretToRemove := c.generateSecretName(k8sutil.IndexToName(depIDToRemove))
+			err = c.context.Clientset.CoreV1().Secrets(c.store.Namespace).Delete(secretToRemove, &metav1.DeleteOptions{})
+			if err != nil && !kerrors.IsNotFound(err) {
+				logger.Warningf("failed to delete rgw secret %q. %v", secretToRemove, err)
+			}
+
+			err := c.deleteRgwCephObjects(depNameToRemove)
 			if err != nil {
-				logger.Infof("failed to delete rgw key %q. %v", depNameToRemove, err)
+				logger.Warningf("%v", err)
 			}
 		}
 		// verify scale down was successful
@@ -246,7 +236,7 @@ func (c *clusterConfig) deleteLegacyDaemons() {
 			}
 		}
 		// Delete legacy rgw key
-		err = client.AuthDelete(c.context, c.store.Namespace, oldRgwKeyName)
+		err = cephclient.AuthDelete(c.context, c.store.Namespace, oldRgwKeyName)
 		if err != nil {
 			logger.Infof("failed to delete legacy rgw key %q. %v", oldRgwKeyName, err)
 		}
@@ -259,13 +249,13 @@ func (c *clusterConfig) deleteLegacyDaemons() {
 		logger.Warning("could not get deployments for object store %q (matching label selector %q). %v", c.store.Name, c.storeLabelSelector(), err)
 	}
 	for _, d := range deps.Items {
-		if d.Name == c.instanceName() {
+		if d.Name == instanceName(c.store.Name) {
 			logger.Infof("legacy deployment in object store %q found %q", c.store.Name, d.Name)
 			if err := k8sutil.DeleteDeployment(c.context.Clientset, c.store.Namespace, d.Name); err != nil {
-				logger.Warning("error during deletion of deployment %q resource. %v", d.Name, err)
+				logger.Warningf("error during deletion of deployment %q resource. %v", d.Name, err)
 			}
 			// Delete legacy rgw key
-			err = client.AuthDelete(c.context, c.store.Namespace, oldRgwKeyName)
+			err = cephclient.AuthDelete(c.context, c.store.Namespace, oldRgwKeyName)
 			if err != nil {
 				logger.Infof("failed to delete legacy rgw key %q. %v", oldRgwKeyName, err)
 			}
@@ -276,40 +266,14 @@ func (c *clusterConfig) deleteLegacyDaemons() {
 // Delete the object store.
 // WARNING: This is a very destructive action that deletes all metadata and data pools.
 func (c *clusterConfig) deleteStore() error {
-	logger.Infof("Deleting object store %s from namespace %s", c.store.Name, c.store.Namespace)
+	logger.Infof("deleting object store %q from namespace %q", c.store.Name, c.store.Namespace)
 
-	var gracePeriod int64
-	propagation := metav1.DeletePropagationForeground
-	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
-
-	// Delete the rgw service
-	err := c.context.Clientset.CoreV1().Services(c.store.Namespace).Delete(c.instanceName(), options)
-	if err != nil && !kerrors.IsNotFound(err) {
-		logger.Warningf("failed to delete rgw service. %v", err)
-	}
-
-	// Make a best effort to delete the rgw pods deployments
-	deps, err := k8sutil.GetDeployments(c.context.Clientset, c.store.Namespace, c.storeLabelSelector())
-	if err != nil {
-		logger.Warning("could not get deployments for object store %s (matching label selector %q). %v", c.store.Namespace, c.storeLabelSelector(), err)
-	}
-	for _, d := range deps.Items {
-		if err := k8sutil.DeleteDeployment(c.context.Clientset, c.store.Namespace, d.Name); err != nil {
-			logger.Warning("error during deletion of deployment %s resource. %v", d.Name, err)
-		}
-	}
-
-	// Delete the rgw config map keyrings
-	err = c.context.Clientset.CoreV1().Secrets(c.store.Namespace).Delete(c.instanceName(), options)
-	if err != nil && !kerrors.IsNotFound(err) {
-		logger.Warningf("failed to delete rgw secret. %v", err)
-	}
-
-	// Delete rgw CephX keys
+	// Delete rgw CephX keys and configuration in centralized mon database
 	for i := 0; i < int(c.store.Spec.Gateway.Instances); i++ {
 		daemonLetterID := k8sutil.IndexToName(i)
-		keyName := fmt.Sprintf("client.%s.%s", strings.Replace(c.store.Name, "-", ".", -1), daemonLetterID)
-		err := client.AuthDelete(c.context, c.store.Namespace, keyName)
+		depNameToRemove := fmt.Sprintf("%s-%s-%s", AppName, c.store.Name, daemonLetterID)
+
+		err := c.deleteRgwCephObjects(depNameToRemove)
 		if err != nil {
 			return err
 		}
@@ -317,17 +281,35 @@ func (c *clusterConfig) deleteStore() error {
 
 	// Delete the realm and pools
 	objContext := NewContext(c.context, c.store.Name, c.store.Namespace)
-	err = deleteRealmAndPools(objContext, c.store.Spec.PreservePoolsOnDelete)
+	err := deleteRealmAndPools(objContext, c.store.Spec)
 	if err != nil {
-		return errors.Wrapf(err, "failed to delete the realm and pools")
+		return errors.Wrap(err, "failed to delete the realm and pools")
 	}
 
-	logger.Infof("Completed deleting object store %s", c.store.Name)
+	logger.Infof("completed deleting object store %q from namespace %q", c.store.Name, c.store.Namespace)
 	return nil
 }
 
-func (c *clusterConfig) instanceName() string {
-	return fmt.Sprintf("%s-%s", AppName, c.store.Name)
+func (c *clusterConfig) deleteRgwCephObjects(depNameToRemove string) error {
+	logger.Infof("deleting rgw CephX key and configuration in centralized mon database for %q", depNameToRemove)
+
+	// Delete configuration in centralized mon database
+	err := c.deleteFlagsMonConfigStore(depNameToRemove)
+	if err != nil {
+		return err
+	}
+
+	err = cephclient.AuthDelete(c.context, c.store.Namespace, generateCephXUser(depNameToRemove))
+	if err != nil {
+		return err
+	}
+
+	logger.Infof("completed deleting rgw CephX key and configuration in centralized mon database for %q", depNameToRemove)
+	return nil
+}
+
+func instanceName(name string) string {
+	return fmt.Sprintf("%s-%s", AppName, name)
 }
 
 func (c *clusterConfig) storeLabelSelector() string {
@@ -335,19 +317,38 @@ func (c *clusterConfig) storeLabelSelector() string {
 }
 
 // Validate the object store arguments
-func validateStore(context *clusterd.Context, s cephv1.CephObjectStore) error {
+func validateStore(context *clusterd.Context, s *cephv1.CephObjectStore) error {
 	if s.Name == "" {
 		return errors.New("missing name")
 	}
 	if s.Namespace == "" {
 		return errors.New("missing namespace")
 	}
-	if err := pool.ValidatePoolSpec(context, s.Namespace, &s.Spec.MetadataPool); err != nil {
-		return errors.Wrapf(err, "invalid metadata pool spec")
+	securePort := s.Spec.Gateway.SecurePort
+	if securePort < 0 || securePort > 65535 {
+		return errors.Errorf("securePort value of %d must be between 0 and 65535", securePort)
 	}
-	if err := pool.ValidatePoolSpec(context, s.Namespace, &s.Spec.DataPool); err != nil {
-		return errors.Wrapf(err, "invalid data pool spec")
+
+	// Validate the pool settings, but allow for empty pools specs in case they have already been created
+	// such as by the ceph mgr
+	if !emptyPool(s.Spec.MetadataPool) {
+		if err := pool.ValidatePoolSpec(context, s.Namespace, &s.Spec.MetadataPool); err != nil {
+			return errors.Wrap(err, "invalid metadata pool spec")
+		}
+	}
+	if !emptyPool(s.Spec.DataPool) {
+		if err := pool.ValidatePoolSpec(context, s.Namespace, &s.Spec.DataPool); err != nil {
+			return errors.Wrap(err, "invalid data pool spec")
+		}
 	}
 
 	return nil
+}
+
+func (c *clusterConfig) generateSecretName(id string) string {
+	return fmt.Sprintf("%s-%s-%s-keyring", AppName, c.store.Name, id)
+}
+
+func emptyPool(pool cephv1.PoolSpec) bool {
+	return reflect.DeepEqual(pool, cephv1.PoolSpec{})
 }

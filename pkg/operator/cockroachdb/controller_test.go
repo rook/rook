@@ -22,7 +22,7 @@ import (
 	"time"
 
 	cockroachdbv1alpha1 "github.com/rook/rook/pkg/apis/cockroachdb.rook.io/v1alpha1"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
@@ -38,7 +38,7 @@ import (
 func TestValidateClusterSpec(t *testing.T) {
 	// invalid node count
 	spec := cockroachdbv1alpha1.ClusterSpec{
-		Storage: rookalpha.StorageScopeSpec{NodeCount: 0},
+		Storage: rookv1.StorageScopeSpec{NodeCount: 0},
 		Network: cockroachdbv1alpha1.NetworkSpec{
 			Ports: []cockroachdbv1alpha1.PortSpec{
 				{Name: "http", Port: 123},
@@ -52,7 +52,7 @@ func TestValidateClusterSpec(t *testing.T) {
 
 	// invalid cache percent
 	spec = cockroachdbv1alpha1.ClusterSpec{
-		Storage: rookalpha.StorageScopeSpec{NodeCount: 1},
+		Storage: rookv1.StorageScopeSpec{NodeCount: 1},
 		Network: cockroachdbv1alpha1.NetworkSpec{
 			Ports: []cockroachdbv1alpha1.PortSpec{
 				{Name: "http", Port: 123},
@@ -67,7 +67,7 @@ func TestValidateClusterSpec(t *testing.T) {
 
 	// invalid max SQL memory percent
 	spec = cockroachdbv1alpha1.ClusterSpec{
-		Storage: rookalpha.StorageScopeSpec{NodeCount: 1},
+		Storage: rookv1.StorageScopeSpec{NodeCount: 1},
 		Network: cockroachdbv1alpha1.NetworkSpec{
 			Ports: []cockroachdbv1alpha1.PortSpec{
 				{Name: "http", Port: 123},
@@ -82,7 +82,7 @@ func TestValidateClusterSpec(t *testing.T) {
 
 	// invalid port spec
 	spec = cockroachdbv1alpha1.ClusterSpec{
-		Storage: rookalpha.StorageScopeSpec{NodeCount: 1},
+		Storage: rookv1.StorageScopeSpec{NodeCount: 1},
 		Network: cockroachdbv1alpha1.NetworkSpec{
 			Ports: []cockroachdbv1alpha1.PortSpec{
 				{Name: "foo-port", Port: 123},
@@ -95,7 +95,7 @@ func TestValidateClusterSpec(t *testing.T) {
 
 	// valid spec
 	spec = cockroachdbv1alpha1.ClusterSpec{
-		Storage: rookalpha.StorageScopeSpec{NodeCount: 1},
+		Storage: rookv1.StorageScopeSpec{NodeCount: 1},
 		Network: cockroachdbv1alpha1.NetworkSpec{
 			Ports: []cockroachdbv1alpha1.PortSpec{
 				{Name: "http", Port: 123},
@@ -115,9 +115,9 @@ func TestOnAdd(t *testing.T) {
 			Namespace: namespace,
 		},
 		Spec: cockroachdbv1alpha1.ClusterSpec{
-			Storage: rookalpha.StorageScopeSpec{
+			Storage: rookv1.StorageScopeSpec{
 				NodeCount: 5,
-				Selection: rookalpha.Selection{
+				Selection: rookv1.Selection{
 					VolumeClaimTemplates: []v1.PersistentVolumeClaim{
 						{
 							ObjectMeta: metav1.ObjectMeta{
@@ -151,7 +151,7 @@ func TestOnAdd(t *testing.T) {
 	// keep track of if the cockroachdb init command was called
 	initCalled := false
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithCombinedOutput: func(debug bool, actionName string, command string, arg ...string) (string, error) {
+		MockExecuteCommandWithCombinedOutput: func(command string, arg ...string) (string, error) {
 			if strings.Contains(command, "cockroach") && arg[0] == "init" {
 				initCalled = true
 			}
@@ -161,7 +161,7 @@ func TestOnAdd(t *testing.T) {
 	}
 
 	// initialize the controller and its dependencies
-	clientset := testop.New(3)
+	clientset := testop.New(t, 3)
 	context := &clusterd.Context{Clientset: clientset, Executor: executor}
 	controller := NewClusterController(context, "rook/cockroachdb:mockTag")
 	controller.createInitRetryInterval = 1 * time.Millisecond

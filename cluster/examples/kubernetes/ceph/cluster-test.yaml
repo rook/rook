@@ -1,6 +1,8 @@
 #################################################################################################################
-# Define the settings for the rook-ceph cluster with settings that should only be used in a test environment.
-# A single filestore OSD will be created in the dataDirHostPath.
+# Define the settings for the rook-ceph cluster with common settings for a small test cluster.
+# All nodes with available raw devices will be used for the Ceph cluster. One node is sufficient
+# in this example.
+
 # For example, to create the cluster:
 #   kubectl create -f common.yaml
 #   kubectl create -f operator.yaml
@@ -10,48 +12,21 @@
 apiVersion: ceph.rook.io/v1
 kind: CephCluster
 metadata:
-  name: rook-ceph
+  name: my-cluster
   namespace: rook-ceph
 spec:
-  cephVersion:
-    image: ceph/ceph:v14.2.5
-    allowUnsupported: true
   dataDirHostPath: /var/lib/rook
-  skipUpgradeChecks: false
-  continueUpgradeAfterChecksEvenIfNotHealthy: false
+  cephVersion:
+    image: ceph/ceph:v15
+    allowUnsupported: true
   mon:
     count: 1
     allowMultiplePerNode: true
   dashboard:
     enabled: true
-    ssl: true
-  monitoring:
-    enabled: false  # requires Prometheus to be pre-installed
-    rulesNamespace: rook-ceph
-  network:
-    hostNetwork: false
-  rbdMirroring:
-    workers: 0
-  mgr:
-    modules:
-    # the pg_autoscaler is only available on nautilus or newer. remove this if testing mimic.
-    - name: pg_autoscaler
-      enabled: true
+  crashCollector:
+    disable: true
   storage:
     useAllNodes: true
-    useAllDevices: false
-    config:
-      databaseSizeMB: "1024" # this value can be removed for environments with normal sized disks (100 GB or larger)
-      journalSizeMB: "1024"  # this value can be removed for environments with normal sized disks (20 GB or larger)
-      osdsPerDevice: "1" # this value can be overridden at the node or device level
-    directories:
-    - path: /var/lib/rook
-#    nodes:
-#    - name: "minikube"
-#      directories:
-#      - path: "/data/rook-dir"
-#      devices:
-#      - name: "sdb"
-#      - name: "nvme01" # multiple osds can be created on high performance devices
-#        config:
-#          osdsPerDevice: "5"
+    useAllDevices: true
+    #deviceFilter:

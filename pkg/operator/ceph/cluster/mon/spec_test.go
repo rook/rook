@@ -21,10 +21,10 @@ import (
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/ceph/config"
-	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	cephtest "github.com/rook/rook/pkg/operator/ceph/test"
 	testop "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
@@ -41,7 +41,7 @@ func TestPodSpecs(t *testing.T) {
 }
 
 func testPodSpec(t *testing.T, monID string, pvc bool) {
-	clientset := testop.New(1)
+	clientset := testop.New(t, 1)
 	c := New(
 		&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook"},
 		"ns",
@@ -49,7 +49,6 @@ func testPodSpec(t *testing.T, monID string, pvc bool) {
 		cephv1.NetworkSpec{},
 		metav1.OwnerReference{},
 		&sync.Mutex{},
-		false,
 	)
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "rook/rook:myversion")
 	c.spec.CephVersion = cephv1.CephVersionSpec{Image: "ceph/ceph:myceph"}
@@ -64,20 +63,20 @@ func testPodSpec(t *testing.T, monID string, pvc bool) {
 			v1.ResourceMemory: *resource.NewQuantity(500.0, resource.BinarySI),
 		},
 	}
-	c.spec.PriorityClassNames = map[rook.KeyType]string{
+	c.spec.PriorityClassNames = map[rookv1.KeyType]string{
 		cephv1.KeyMon: "my-priority-class",
 	}
 	monConfig := testGenMonConfig(monID)
 
-	d := c.makeDeployment(monConfig)
+	d := c.makeDeployment(monConfig, false)
 	assert.NotNil(t, d)
 
 	if pvc {
 		d.Spec.Template.Spec.Volumes = append(
-			d.Spec.Template.Spec.Volumes, opspec.DaemonVolumesDataPVC("i-am-pvc"))
+			d.Spec.Template.Spec.Volumes, controller.DaemonVolumesDataPVC("i-am-pvc"))
 	} else {
 		d.Spec.Template.Spec.Volumes = append(
-			d.Spec.Template.Spec.Volumes, opspec.DaemonVolumesDataHostPath(monConfig.DataPathMap)...)
+			d.Spec.Template.Spec.Volumes, controller.DaemonVolumesDataHostPath(monConfig.DataPathMap)...)
 	}
 
 	// Deployment should have Ceph labels
@@ -91,7 +90,7 @@ func testPodSpec(t *testing.T, monID string, pvc bool) {
 }
 
 func TestDeploymentPVCSpec(t *testing.T) {
-	clientset := testop.New(1)
+	clientset := testop.New(t, 1)
 	c := New(
 		&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook"},
 		"ns",
@@ -99,7 +98,6 @@ func TestDeploymentPVCSpec(t *testing.T) {
 		cephv1.NetworkSpec{},
 		metav1.OwnerReference{},
 		&sync.Mutex{},
-		false,
 	)
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "rook/rook:myversion")
 	c.spec.CephVersion = cephv1.CephVersionSpec{Image: "ceph/ceph:myceph"}
@@ -118,7 +116,7 @@ func TestDeploymentPVCSpec(t *testing.T) {
 
 	// configured with default storage request
 	c.spec.Mon.VolumeClaimTemplate = &v1.PersistentVolumeClaim{}
-	pvc, err := c.makeDeploymentPVC(monConfig)
+	pvc, err := c.makeDeploymentPVC(monConfig, false)
 	assert.NoError(t, err)
 	defaultReq, err := resource.ParseQuantity(cephMonDefaultStorageRequest)
 	assert.NoError(t, err)
@@ -134,7 +132,7 @@ func TestDeploymentPVCSpec(t *testing.T) {
 			},
 		},
 	}
-	pvc, err = c.makeDeploymentPVC(monConfig)
+	pvc, err = c.makeDeploymentPVC(monConfig, false)
 	assert.NoError(t, err)
 	assert.Equal(t, pvc.Spec.Resources.Limits[v1.ResourceStorage], req)
 
@@ -148,79 +146,29 @@ func TestDeploymentPVCSpec(t *testing.T) {
 			},
 		},
 	}
-	pvc, err = c.makeDeploymentPVC(monConfig)
+	pvc, err = c.makeDeploymentPVC(monConfig, false)
 	assert.NoError(t, err)
 	assert.Equal(t, pvc.Spec.Resources.Requests[v1.ResourceStorage], req)
 }
 
-func testPodSpecPlacement(t *testing.T, hostNet, allowMulti bool, req, pref int, placement *rook.Placement) {
-	clientset := testop.New(1)
+func testRequiredDuringScheduling(t *testing.T, hostNetwork, allowMultiplePerNode, required bool) {
 	c := New(
-		&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook"},
+		&clusterd.Context{},
 		"ns",
 		"/var/lib/rook",
-		cephv1.NetworkSpec{HostNetwork: hostNet},
+		cephv1.NetworkSpec{},
 		metav1.OwnerReference{},
 		&sync.Mutex{},
-		false,
 	)
 
-	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: allowMulti}, "rook/rook:myversion")
-	monConfig := testGenMonConfig("a")
-
-	if placement != nil {
-		c.spec.Placement = rook.PlacementSpec{}
-		c.spec.Placement["mon"] = *placement
-	}
-
-	d := c.makeDeployment(monConfig)
-	assert.NotNil(t, d)
-
-	p := cephv1.GetMonPlacement(c.spec.Placement)
-	c.setPodPlacement(&d.Spec.Template.Spec, p, nil)
-
-	// should have a required anti-affnity and no preferred anti-affinity
-	assert.Equal(t,
-		req,
-		len(d.Spec.Template.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution))
-	assert.Equal(t,
-		pref,
-		len(d.Spec.Template.Spec.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution))
+	c.spec.Network.HostNetwork = hostNetwork
+	c.spec.Mon.AllowMultiplePerNode = allowMultiplePerNode
+	assert.Equal(t, required, requiredDuringScheduling(&c.spec))
 }
 
-func makePlacement() rook.Placement {
-	return rook.Placement{
-		PodAntiAffinity: &v1.PodAntiAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
-				{
-					TopologyKey: v1.LabelZoneFailureDomain,
-				},
-			},
-			PreferredDuringSchedulingIgnoredDuringExecution: []v1.WeightedPodAffinityTerm{
-				{
-					PodAffinityTerm: v1.PodAffinityTerm{
-						TopologyKey: v1.LabelZoneFailureDomain,
-					},
-				},
-			},
-		},
-	}
-}
-
-func TestPodSpecPlacement(t *testing.T) {
-	// no placement settings in the crd
-	testPodSpecPlacement(t, true, true, 1, 0, nil)
-	testPodSpecPlacement(t, true, false, 1, 0, nil)
-	testPodSpecPlacement(t, false, true, 0, 1, nil)
-	testPodSpecPlacement(t, false, false, 1, 0, nil)
-
-	// crd has other preferred and required anti-affinity setting
-	p := makePlacement()
-	testPodSpecPlacement(t, true, true, 2, 1, &p)
-	p = makePlacement()
-	testPodSpecPlacement(t, true, false, 2, 1, &p)
-	p = makePlacement()
-	testPodSpecPlacement(t, false, true, 1, 2, &p)
-	p = makePlacement()
-	testPodSpecPlacement(t, false, false, 2, 1, &p)
+func TestRequiredDuringScheduling(t *testing.T) {
+	testRequiredDuringScheduling(t, false, false, true)
+	testRequiredDuringScheduling(t, true, false, true)
+	testRequiredDuringScheduling(t, true, true, true)
+	testRequiredDuringScheduling(t, false, true, false)
 }

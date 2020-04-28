@@ -259,51 +259,80 @@ func TestGetPortsFromSpec(t *testing.T) {
 }
 
 func TestCreateMasterContainerCommand(t *testing.T) {
-	replicationFactor := 3
+	replicationFactor := int32(3)
+	resources := v1.ResourceRequirements{}
 
+	expectedCommand := getMasterContainerCommand(replicationFactor)
+	actualCommand := createMasterContainerCommand("default", masterNamePlural, masterName, int32(7100), replicationFactor, resources)
+
+	assert.Equal(t, expectedCommand, actualCommand)
+}
+
+func TestCreateTServerContainerCommand(t *testing.T) {
+	replicationFactor := int32(3)
+	resources := v1.ResourceRequirements{}
+
+	expectedCommand := getTserverContainerCommand(replicationFactor)
+	actualCommand := createTServerContainerCommand("default", tserverNamePlural, masterNamePlural, masterName, int32(7100), int32(9100), int32(5433), replicationFactor, resources)
+
+	assert.Equal(t, expectedCommand, actualCommand)
+}
+
+func TestCreateMasterContainerCommandRF1(t *testing.T) {
+	replicationFactor := int32(1)
+	resources := v1.ResourceRequirements{}
+
+	expectedCommand := getMasterContainerCommand(replicationFactor)
+	actualCommand := createMasterContainerCommand("default", masterNamePlural, masterName, int32(7100), replicationFactor, resources)
+
+	assert.Equal(t, expectedCommand, actualCommand)
+}
+
+func TestCreateTServerContainerCommandRF1(t *testing.T) {
+	replicationFactor := int32(1)
+	resources := v1.ResourceRequirements{}
+
+	expectedCommand := getTserverContainerCommand(replicationFactor)
+	actualCommand := createTServerContainerCommand("default", tserverNamePlural, masterNamePlural, masterName, int32(7100), int32(9100), int32(5433), replicationFactor, resources)
+
+	assert.Equal(t, expectedCommand, actualCommand)
+}
+
+func getMasterContainerCommand(replicationFactor int32) []string {
 	expectedCommand := []string{
 		"/home/yugabyte/bin/yb-master",
 		"--fs_data_dirs=/mnt/data0",
 		fmt.Sprintf("--rpc_bind_addresses=$(POD_IP):%d", masterRPCPortDefault),
 		fmt.Sprintf("--server_broadcast_addresses=$(POD_NAME).yb-masters:%d", masterRPCPortDefault),
 		"--use_private_ip=never",
-		fmt.Sprintf("--master_addresses=yb-masters.default.svc.cluster.local:%d", masterRPCPortDefault),
-		"--use_initial_sys_catalog_snapshot=true",
-		fmt.Sprintf("--master_replication_factor=%d", replicationFactor),
+		fmt.Sprintf("--master_addresses=%s", getMasterAddresses(masterName, masterNamePlural, "default", replicationFactor, int32(7100))),
+		"--enable_ysql=true",
+		fmt.Sprintf("--replication_factor=%d", replicationFactor),
 		"--logtostderr",
 	}
-
-	actualCommand := createMasterContainerCommand("default", masterNamePlural, int32(7100), int32(3))
-
-	assert.Equal(t, expectedCommand, actualCommand)
+	return expectedCommand
 }
 
-func TestCreateTServerContainerCommand(t *testing.T) {
-	replicationFactor := 3
-
+func getTserverContainerCommand(replicationFactor int32) []string {
 	expectedCommand := []string{
 		"/home/yugabyte/bin/yb-tserver",
 		"--fs_data_dirs=/mnt/data0",
 		fmt.Sprintf("--rpc_bind_addresses=$(POD_IP):%d", tserverRPCPortDefault),
 		fmt.Sprintf("--server_broadcast_addresses=$(POD_NAME).yb-tservers:%d", tserverRPCPortDefault),
-		"--start_pgsql_proxy",
 		fmt.Sprintf("--pgsql_proxy_bind_address=$(POD_IP):%d", tserverPostgresPortDefault),
 		"--use_private_ip=never",
-		fmt.Sprintf("--tserver_master_addrs=yb-masters.default.svc.cluster.local:%d", masterRPCPortDefault),
-		fmt.Sprintf("--tserver_master_replication_factor=%d", replicationFactor),
+		fmt.Sprintf("--tserver_master_addrs=%s", getMasterAddresses(masterName, masterNamePlural, "default", replicationFactor, int32(7100))),
+		"--enable_ysql=true",
 		"--logtostderr",
 	}
-
-	actualCommand := createTServerContainerCommand("default", tserverNamePlural, masterNamePlural, int32(7100), int32(9100), int32(5433), int32(3))
-
-	assert.Equal(t, expectedCommand, actualCommand)
+	return expectedCommand
 }
 
 func TestOnAdd(t *testing.T) {
 	namespace := "rook-yugabytedb"
 
 	// initialize the controller and its dependencies
-	clientset := testop.New(3)
+	clientset := testop.New(t, 3)
 	context := &clusterd.Context{Clientset: clientset}
 	controller := NewClusterController(context, "rook/yugabytedb:mockTag")
 	controllerSet := &ControllerSet{
@@ -377,6 +406,23 @@ func TestOnAdd(t *testing.T) {
 		{Name: masterContainerRPCPortName, ContainerPort: masterRPCPortDefault},
 	}
 	assert.Equal(t, expectedContainerPorts, container.Ports)
+	assert.NotNil(t, container.Resources)
+	assert.Equal(t, 2, len(container.Resources.Requests))
+	assert.Equal(t, 2, len(container.Resources.Limits))
+
+	reqCPU, reqOk := container.Resources.Requests[v1.ResourceCPU]
+	limCPU, limOk := container.Resources.Limits[v1.ResourceCPU]
+	assert.True(t, reqOk)
+	assert.True(t, limOk)
+	assert.Equal(t, 0, (&reqCPU).Cmp(resource.MustParse(podCPULimitDefault)))
+	assert.Equal(t, 0, (&limCPU).Cmp(resource.MustParse(podCPULimitDefault)))
+
+	reqMem, reqOk := container.Resources.Requests[v1.ResourceMemory]
+	limMem, limOk := container.Resources.Limits[v1.ResourceMemory]
+	assert.True(t, reqOk)
+	assert.True(t, reqOk)
+	assert.Equal(t, 0, (&reqMem).Cmp(resource.MustParse(masterMemLimitDefault)))
+	assert.Equal(t, 0, (&limMem).Cmp(resource.MustParse(masterMemLimitDefault)))
 
 	volumeMountName := addCRNameSuffix(cluster.Spec.Master.VolumeClaimTemplate.Name)
 	expectedVolumeMounts := []v1.VolumeMount{{Name: volumeMountName, MountPath: volumeMountPath}}
@@ -395,7 +441,7 @@ func TestOnAdd(t *testing.T) {
 			},
 		},
 		{
-			Name: envPodName,
+			Name: k8sutil.PodNameEnvVar,
 			ValueFrom: &v1.EnvVarSource{
 				FieldRef: &v1.ObjectFieldSelector{
 					FieldPath: envPodNameVal,
@@ -411,10 +457,11 @@ func TestOnAdd(t *testing.T) {
 		"--rpc_bind_addresses=$(POD_IP):7100",
 		fmt.Sprintf("--server_broadcast_addresses=$(POD_NAME).%s:7100", addCRNameSuffix(masterNamePlural)),
 		"--use_private_ip=never",
-		fmt.Sprintf("--master_addresses=%s.%s.svc.cluster.local:7100", addCRNameSuffix(masterNamePlural), namespace),
-		"--use_initial_sys_catalog_snapshot=true",
-		"--master_replication_factor=3",
+		fmt.Sprintf("--master_addresses=%s", getMasterAddresses(addCRNameSuffix(masterName), addCRNameSuffix(masterNamePlural), namespace, int32(3), int32(7100))),
+		"--enable_ysql=true",
+		"--replication_factor=3",
 		"--logtostderr",
+		"--memory_limit_hard_bytes=1824522240",
 	}
 	assert.Equal(t, expectedCommand, container.Command)
 
@@ -448,6 +495,23 @@ func TestOnAdd(t *testing.T) {
 		{Name: postgresPortName, ContainerPort: tserverPostgresPortDefault},
 	}
 	assert.Equal(t, expectedContainerPorts, container.Ports)
+	assert.NotNil(t, container.Resources)
+	assert.Equal(t, 2, len(container.Resources.Requests))
+	assert.Equal(t, 2, len(container.Resources.Limits))
+
+	reqCPU, reqOk = container.Resources.Requests[v1.ResourceCPU]
+	limCPU, limOk = container.Resources.Limits[v1.ResourceCPU]
+	assert.True(t, reqOk)
+	assert.True(t, limOk)
+	assert.Equal(t, 0, (&reqCPU).Cmp(resource.MustParse(podCPULimitDefault)))
+	assert.Equal(t, 0, (&limCPU).Cmp(resource.MustParse(podCPULimitDefault)))
+
+	reqMem, reqOk = container.Resources.Requests[v1.ResourceMemory]
+	limMem, limOk = container.Resources.Limits[v1.ResourceMemory]
+	assert.True(t, reqOk)
+	assert.True(t, reqOk)
+	assert.Equal(t, 0, (&reqMem).Cmp(resource.MustParse(tserverMemLimitDefault)))
+	assert.Equal(t, 0, (&limMem).Cmp(resource.MustParse(tserverMemLimitDefault)))
 
 	volumeMountName = addCRNameSuffix(cluster.Spec.TServer.VolumeClaimTemplate.Name)
 	expectedVolumeMounts = []v1.VolumeMount{{Name: volumeMountName, MountPath: volumeMountPath}}
@@ -466,7 +530,7 @@ func TestOnAdd(t *testing.T) {
 			},
 		},
 		{
-			Name: envPodName,
+			Name: k8sutil.PodNameEnvVar,
 			ValueFrom: &v1.EnvVarSource{
 				FieldRef: &v1.ObjectFieldSelector{
 					FieldPath: envPodNameVal,
@@ -481,12 +545,12 @@ func TestOnAdd(t *testing.T) {
 		"--fs_data_dirs=/mnt/data0",
 		"--rpc_bind_addresses=$(POD_IP):9100",
 		fmt.Sprintf("--server_broadcast_addresses=$(POD_NAME).%s:9100", addCRNameSuffix(tserverNamePlural)),
-		"--start_pgsql_proxy",
 		"--pgsql_proxy_bind_address=$(POD_IP):5433",
 		"--use_private_ip=never",
-		fmt.Sprintf("--tserver_master_addrs=%s.%s.svc.cluster.local:7100", addCRNameSuffix(masterNamePlural), namespace),
-		"--tserver_master_replication_factor=3",
+		fmt.Sprintf("--tserver_master_addrs=%s", getMasterAddresses(addCRNameSuffix(masterName), addCRNameSuffix(masterNamePlural), namespace, int32(3), int32(7100))),
+		"--enable_ysql=true",
 		"--logtostderr",
+		"--memory_limit_hard_bytes=3649044480",
 	}
 	assert.Equal(t, expectedCommand, container.Command)
 
@@ -503,7 +567,7 @@ func TestOnAddWithTServerUI(t *testing.T) {
 	namespace := "rook-yugabytedb"
 
 	// initialize the controller and its dependencies
-	clientset := testop.New(3)
+	clientset := testop.New(t, 3)
 	context := &clusterd.Context{Clientset: clientset}
 	controller := NewClusterController(context, "rook/yugabytedb:mockTag")
 	controllerSet := &ControllerSet{
@@ -548,7 +612,7 @@ func TestOnUpdate_replicaCount(t *testing.T) {
 	// initialize the controller and its dependencies
 	namespace := "rook-yugabytedb"
 	initialReplicatCount := 3
-	clientset := testop.New(initialReplicatCount)
+	clientset := testop.New(t, initialReplicatCount)
 	context := &clusterd.Context{Clientset: clientset}
 	controller := NewClusterController(context, "rook/yugabytedb:mockTag")
 	controllerSet := &ControllerSet{
@@ -617,7 +681,7 @@ func TestOnUpdate_volumeClaimTemplate(t *testing.T) {
 	// initialize the controller and its dependencies
 	namespace := "rook-yugabytedb"
 	initialReplicatCount := 3
-	clientset := testop.New(initialReplicatCount)
+	clientset := testop.New(t, initialReplicatCount)
 	context := &clusterd.Context{Clientset: clientset}
 	controller := NewClusterController(context, "rook/yugabytedb:mockTag")
 	controllerSet := &ControllerSet{
@@ -687,7 +751,7 @@ func TestOnUpdate_updateNetworkPorts(t *testing.T) {
 	// initialize the controller and its dependencies
 	namespace := "rook-yugabytedb"
 	initialReplicatCount := 3
-	clientset := testop.New(initialReplicatCount)
+	clientset := testop.New(t, initialReplicatCount)
 	context := &clusterd.Context{Clientset: clientset}
 	controller := NewClusterController(context, "rook/yugabytedb:mockTag")
 	controllerSet := &ControllerSet{
@@ -775,7 +839,7 @@ func TestOnUpdate_addTServerUIPort(t *testing.T) {
 	// initialize the controller and its dependencies
 	namespace := "rook-yugabytedb"
 	initialReplicatCount := 3
-	clientset := testop.New(initialReplicatCount)
+	clientset := testop.New(t, initialReplicatCount)
 	context := &clusterd.Context{Clientset: clientset}
 	controller := NewClusterController(context, "rook/yugabytedb:mockTag")
 	controllerSet := &ControllerSet{
@@ -872,7 +936,7 @@ func TestOnUpdate_removeTServerUIPort(t *testing.T) {
 	// initialize the controller and its dependencies
 	namespace := "rook-yugabytedb"
 	initialReplicatCount := 3
-	clientset := testop.New(initialReplicatCount)
+	clientset := testop.New(t, initialReplicatCount)
 	context := &clusterd.Context{Clientset: clientset}
 	controller := NewClusterController(context, "rook/yugabytedb:mockTag")
 	controllerSet := &ControllerSet{

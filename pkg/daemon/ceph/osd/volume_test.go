@@ -17,6 +17,9 @@ limitations under the License.
 package osd
 
 import (
+	"io/ioutil"
+	"os"
+	"path"
 	"testing"
 
 	"github.com/pkg/errors"
@@ -26,7 +29,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var cephVolumeTestResult = `{
+var cephVolumeLVMTestResult = `{
     "0": [
         {
             "devices": [
@@ -148,6 +151,7 @@ var cephVolumeTestResultMultiCluster = `{
     ]
 }
 `
+
 var cephVolumeTestResultMultiClusterMultiOSD = `{
     "0": [
         {
@@ -238,21 +242,57 @@ var cephVolumeTestResultMultiClusterMultiOSD = `{
 }
 `
 
-func TestParseCephVolumeResult(t *testing.T) {
+var cephVolumeRAWTestResult = `{
+    "0": {
+        "ceph_fsid": "4bfe8b72-5e69-4330-b6c0-4d914db8ab89",
+        "device": "/dev/vdb",
+        "osd_id": 0,
+        "osd_uuid": "c03d7353-96e5-4a41-98de-830dfff97d06",
+        "type": "bluestore"
+    },
+    "1": {
+        "ceph_fsid": "4bfe8b72-5e69-4330-b6c0-4d914db8ab89",
+        "device": "/dev/vdc",
+        "osd_id": 1,
+        "osd_uuid": "62132914-e779-48cf-8f55-fbc9692c8ce5",
+        "type": "bluestore"
+    }
+}
+`
+
+func TestParseCephVolumeLVMResult(t *testing.T) {
 	executor := &exectest.MockExecutor{}
-	// set up a mock function to return "rook owned" partitions on the device and it does not have a filesystem
-	executor.MockExecuteCommandWithCombinedOutput = func(debug bool, name string, command string, args ...string) (string, error) {
-		logger.Infof("%s %+v", command, args)
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		logger.Infof("%s %v", command, args)
 
 		if command == "ceph-volume" {
-			return cephVolumeTestResult, nil
+			return cephVolumeLVMTestResult, nil
 		}
 
 		return "", errors.Errorf("unknown command %s %s", command, args)
 	}
 
 	context := &clusterd.Context{Executor: executor}
-	osds, err := getCephVolumeOSDs(context, "rook", "4bfe8b72-5e69-4330-b6c0-4d914db8ab89", "", false, false)
+	osds, err := getCephVolumeLVMOSDs(context, "rook", "4bfe8b72-5e69-4330-b6c0-4d914db8ab89", "", false, false)
+	assert.Nil(t, err)
+	require.NotNil(t, osds)
+	assert.Equal(t, 2, len(osds))
+}
+
+func TestParseCephVolumeRawResult(t *testing.T) {
+	executor := &exectest.MockExecutor{}
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		logger.Infof("%s %v", command, args)
+
+		if command == "ceph-volume" {
+			return cephVolumeRAWTestResult, nil
+		}
+
+		return "", errors.Errorf("unknown command %s %s", command, args)
+	}
+
+	context := &clusterd.Context{Executor: executor}
+	osds, err := getCephVolumeRawOSDs(context, "rook", "4bfe8b72-5e69-4330-b6c0-4d914db8ab89", "", "", false)
 	assert.Nil(t, err)
 	require.NotNil(t, osds)
 	assert.Equal(t, 2, len(osds))
@@ -261,8 +301,8 @@ func TestParseCephVolumeResult(t *testing.T) {
 func TestCephVolumeResultMultiClusterSingleOSD(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	// set up a mock function to return "rook owned" partitions on the device and it does not have a filesystem
-	executor.MockExecuteCommandWithCombinedOutput = func(debug bool, name string, command string, args ...string) (string, error) {
-		logger.Infof("%s %+v", command, args)
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		logger.Infof("%s %v", command, args)
 
 		if command == "ceph-volume" {
 			return cephVolumeTestResultMultiCluster, nil
@@ -272,7 +312,7 @@ func TestCephVolumeResultMultiClusterSingleOSD(t *testing.T) {
 	}
 
 	context := &clusterd.Context{Executor: executor}
-	osds, err := getCephVolumeOSDs(context, "rook", "451267e6-883f-4936-8dff-080d781c67d5", "", false, false)
+	osds, err := getCephVolumeLVMOSDs(context, "rook", "451267e6-883f-4936-8dff-080d781c67d5", "", false, false)
 	assert.Nil(t, err)
 	require.NotNil(t, osds)
 	assert.Equal(t, 1, len(osds))
@@ -282,8 +322,8 @@ func TestCephVolumeResultMultiClusterSingleOSD(t *testing.T) {
 func TestCephVolumeResultMultiClusterMultiOSD(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	// set up a mock function to return "rook owned" partitions on the device and it does not have a filesystem
-	executor.MockExecuteCommandWithCombinedOutput = func(debug bool, name string, command string, args ...string) (string, error) {
-		logger.Infof("%s %+v", command, args)
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		logger.Infof("%s %v", command, args)
 
 		if command == "ceph-volume" {
 			return cephVolumeTestResultMultiClusterMultiOSD, nil
@@ -293,7 +333,7 @@ func TestCephVolumeResultMultiClusterMultiOSD(t *testing.T) {
 	}
 
 	context := &clusterd.Context{Executor: executor}
-	osds, err := getCephVolumeOSDs(context, "rook", "451267e6-883f-4936-8dff-080d781c67d5", "", false, false)
+	osds, err := getCephVolumeLVMOSDs(context, "rook", "451267e6-883f-4936-8dff-080d781c67d5", "", false, false)
 	assert.Nil(t, err)
 	require.NotNil(t, osds)
 	assert.Equal(t, 1, len(osds))
@@ -310,4 +350,30 @@ func TestSanitizeOSDsPerDevice(t *testing.T) {
 func TestGetDatabaseSize(t *testing.T) {
 	assert.Equal(t, 0, getDatabaseSize(0, 0))
 	assert.Equal(t, 2048, getDatabaseSize(4096, 2048))
+}
+
+func TestPrintCVLogContent(t *testing.T) {
+	tmp, err := ioutil.TempFile("", "cv-log")
+	assert.Nil(t, err)
+
+	defer os.Remove(tmp.Name())
+
+	nodeName := "set1-2-data-jmxdx"
+	cvLogDir = path.Join(tmp.Name(), nodeName)
+	assert.Equal(t, path.Join(tmp.Name(), nodeName), cvLogDir)
+
+	cvLogFilePath := path.Join(cvLogDir, "ceph-volume.log")
+	assert.Equal(t, path.Join(cvLogDir, "ceph-volume.log"), cvLogFilePath)
+
+	// Print c-v log, it is empty so this is similating a failure (e,g: the file does not exist)
+	cvLog := readCVLogContent(tmp.Name())
+	assert.Empty(t, cvLog, cvLog)
+
+	// Write content in the file
+	cvDummyLog := []byte(`dummy log`)
+	_, err = tmp.Write(cvDummyLog)
+	assert.NoError(t, err)
+	// Print again, now there is content
+	cvLog = readCVLogContent(tmp.Name())
+	assert.NotEmpty(t, cvLog, cvLog)
 }

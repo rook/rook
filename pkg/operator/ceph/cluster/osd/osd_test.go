@@ -21,7 +21,7 @@ import (
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
@@ -31,8 +31,6 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -48,7 +46,7 @@ func TestStart(t *testing.T) {
 		CephVersion: cephver.Nautilus,
 	}
 	c := New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "myversion", cephv1.CephVersionSpec{},
-		rookalpha.StorageScopeSpec{}, "", rookalpha.Placement{}, rookalpha.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false, false)
+		rookv1.StorageScopeSpec{}, "", rookv1.Placement{}, rookv1.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false)
 
 	// Start the first time
 	err := c.Start()
@@ -97,13 +95,12 @@ func createNode(nodeName string, condition v1.NodeConditionType, clientset *fake
 func TestAddRemoveNode(t *testing.T) {
 	// create a storage spec with the given nodes/devices/dirs
 	nodeName := "node8230"
-	storageSpec := rookalpha.StorageScopeSpec{
-		Nodes: []rookalpha.Node{
+	storageSpec := rookv1.StorageScopeSpec{
+		Nodes: []rookv1.Node{
 			{
 				Name: nodeName,
-				Selection: rookalpha.Selection{
-					Devices:     []rookalpha.Device{{Name: "sdx"}},
-					Directories: []rookalpha.Directory{{Path: "/rook/storage1"}},
+				Selection: rookv1.Selection{
+					Devices: []rookv1.Device{{Name: "sdx"}},
 				},
 			},
 		},
@@ -127,13 +124,13 @@ func TestAddRemoveNode(t *testing.T) {
 	}
 	generateKey := "expected key"
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
+		MockExecuteCommandWithOutputFile: func(command string, outFileArg string, args ...string) (string, error) {
 			return "{\"key\": \"" + generateKey + "\"}", nil
 		},
 	}
 
 	c := New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: executor}, "ns-add-remove", "myversion", cephv1.CephVersionSpec{},
-		storageSpec, "/foo", rookalpha.Placement{}, rookalpha.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false, false)
+		storageSpec, "/foo", rookv1.Placement{}, rookv1.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false)
 
 	// kick off the start of the orchestration in a goroutine
 	var startErr error
@@ -153,12 +150,6 @@ func TestAddRemoveNode(t *testing.T) {
 	assert.True(t, startCompleted)
 	assert.Nil(t, startErr)
 
-	// Now let's get ready for testing the removal of the node we just added.  We first need to simulate/mock some things:
-
-	// simulate the node having created an OSD dir map
-	kvstore := k8sutil.NewConfigMapKVStore(c.Namespace, c.context.Clientset, metav1.OwnerReference{})
-	config.SaveOSDDirMap(kvstore, nodeName, map[string]int{"/rook/storage1": 0})
-
 	// simulate the OSD pod having been created
 	osdPod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{
 		Name:   "osdPod",
@@ -167,7 +158,7 @@ func TestAddRemoveNode(t *testing.T) {
 
 	// mock the ceph calls that will be called during remove node
 	mockExec := &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(debug bool, actionName, command, outputFile string, args ...string) (string, error) {
+		MockExecuteCommandWithOutputFile: func(command, outputFile string, args ...string) (string, error) {
 			logger.Infof("Command: %s %v", command, args)
 			if args[0] == "status" {
 				return `{"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
@@ -216,9 +207,9 @@ func TestAddRemoveNode(t *testing.T) {
 	}
 
 	// modify the storage spec to remove the node from the cluster
-	storageSpec.Nodes = []rookalpha.Node{}
+	storageSpec.Nodes = []rookv1.Node{}
 	c = New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: mockExec}, "ns-add-remove", "myversion", cephv1.CephVersionSpec{},
-		storageSpec, "", rookalpha.Placement{}, rookalpha.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false, false)
+		storageSpec, "", rookv1.Placement{}, rookv1.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false)
 
 	// reset the orchestration status watcher
 	statusMapWatcher = watch.NewFake()
@@ -243,101 +234,15 @@ func TestAddRemoveNode(t *testing.T) {
 	assert.Nil(t, startErr)
 }
 
-func TestGetIDFromDeployment(t *testing.T) {
-	d := &apps.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "foo"}}
-	d.Labels = map[string]string{"ceph-osd-id": "0"}
-	assert.Equal(t, 0, getIDFromDeployment(d))
-
-	d.Labels = map[string]string{}
-	assert.Equal(t, -1, getIDFromDeployment(d))
-
-	d.Labels = map[string]string{"ceph-osd-id": "101"}
-	assert.Equal(t, 101, getIDFromDeployment(d))
-}
-
-func TestDiscoverOSDs(t *testing.T) {
-	clusterInfo := &cephconfig.ClusterInfo{
-		CephVersion: cephver.Nautilus,
-	}
-	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
-			logger.Infof("Command: %s %v", command, args)
-			// very simple stub that just reports success
-			return "", nil
-		},
-	}
-	context := &clusterd.Context{
-		Executor: executor,
-	}
-	c := New(clusterInfo, context, "ns", "myversion", cephv1.CephVersionSpec{},
-		rookalpha.StorageScopeSpec{}, "", rookalpha.Placement{}, rookalpha.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false, false)
-	node1 := "n1"
-	node2 := "n2"
-
-	osd1 := OSDInfo{ID: 0, IsDirectory: true, IsFileStore: true, DataPath: "/rook/path"}
-	osdProp := osdProperties{
-		crushHostname: node1,
-		selection:     rookalpha.Selection{},
-		resources:     v1.ResourceRequirements{},
-		storeConfig:   config.StoreConfig{},
-	}
-
-	dataPathMap := &provisionConfig{
-		DataPathMap: opconfig.NewDatalessDaemonDataPathMap(c.Namespace, c.dataDirHostPath),
-	}
-
-	d1, err := c.makeDeployment(osdProp, osd1, dataPathMap)
-	assert.Nil(t, err)
-	assert.NotNil(t, d1)
-	assert.Equal(t, "my-priority-class", d1.Spec.Template.Spec.PriorityClassName)
-
-	osd2 := OSDInfo{ID: 101, IsDirectory: true, IsFileStore: true, DataPath: "/rook/path"}
-	d2, err := c.makeDeployment(osdProp, osd2, dataPathMap)
-	assert.Nil(t, err)
-	assert.NotNil(t, d2)
-	assert.Equal(t, "my-priority-class", d2.Spec.Template.Spec.PriorityClassName)
-
-	osdProp2 := osdProperties{
-		crushHostname: node2,
-		selection:     rookalpha.Selection{},
-		resources:     v1.ResourceRequirements{},
-		storeConfig:   config.StoreConfig{},
-	}
-	osd3 := OSDInfo{ID: 23, IsDirectory: true, IsFileStore: true, DataPath: "/rook/path"}
-	d3, err := c.makeDeployment(osdProp2, osd3, dataPathMap)
-	assert.Nil(t, err)
-	assert.NotNil(t, d3)
-	assert.Equal(t, "my-priority-class", d3.Spec.Template.Spec.PriorityClassName)
-
-	clientset := fake.NewSimpleClientset(d1, d2, d3)
-	c.context.Clientset = clientset
-
-	discovered, err := c.discoverStorageNodes()
-	require.Nil(t, err)
-	assert.Equal(t, 2, len(discovered))
-
-	assert.Equal(t, 2, len(discovered[node1]))
-	if discovered[node1][0].Name == "rook-ceph-osd-0" {
-		assert.Equal(t, "rook-ceph-osd-101", discovered[node1][1].Name)
-	} else {
-		assert.Equal(t, "rook-ceph-osd-101", discovered[node1][0].Name)
-		assert.Equal(t, "rook-ceph-osd-0", discovered[node1][1].Name)
-	}
-
-	assert.Equal(t, 1, len(discovered[node2]))
-	assert.Equal(t, "rook-ceph-osd-23", discovered[node2][0].Name)
-}
-
 func TestAddNodeFailure(t *testing.T) {
 	// create a storage spec with the given nodes/devices/dirs
 	nodeName := "node1672"
-	storageSpec := rookalpha.StorageScopeSpec{
-		Nodes: []rookalpha.Node{
+	storageSpec := rookv1.StorageScopeSpec{
+		Nodes: []rookv1.Node{
 			{
 				Name: nodeName,
-				Selection: rookalpha.Selection{
-					Devices:     []rookalpha.Device{{Name: "sdx"}},
-					Directories: []rookalpha.Directory{{Path: "/rook/storage1"}},
+				Selection: rookv1.Selection{
+					Devices: []rookv1.Device{{Name: "sdx"}},
 				},
 			},
 		},
@@ -361,7 +266,7 @@ func TestAddNodeFailure(t *testing.T) {
 		CephVersion: cephver.Nautilus,
 	}
 	c := New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns-add-remove", "myversion", cephv1.CephVersionSpec{},
-		storageSpec, "/foo", rookalpha.Placement{}, rookalpha.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false, false)
+		storageSpec, "/foo", rookv1.Placement{}, rookv1.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false)
 
 	// kick off the start of the orchestration in a goroutine
 	var startErr error
@@ -381,17 +286,18 @@ func TestAddNodeFailure(t *testing.T) {
 
 func TestGetOSDInfo(t *testing.T) {
 	c := New(&cephconfig.ClusterInfo{}, &clusterd.Context{}, "ns", "myversion", cephv1.CephVersionSpec{},
-		rookalpha.StorageScopeSpec{}, "", rookalpha.Placement{}, rookalpha.Annotations{}, cephv1.NetworkSpec{},
-		v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false, false)
+		rookv1.StorageScopeSpec{}, "", rookv1.Placement{}, rookv1.Annotations{}, cephv1.NetworkSpec{},
+		v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false)
 
 	node := "n1"
 	location := "root=default host=myhost zone=myzone"
-	osd1 := OSDInfo{ID: 3, UUID: "osd-uuid", LVPath: "dev/logical-volume-path", DataPath: "/rook/path", CephVolumeInitiated: true, Location: location}
-	osd2 := OSDInfo{ID: 3, UUID: "osd-uuid", LVPath: "", DataPath: "/rook/path", CephVolumeInitiated: true}
+	osd1 := OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "dev/logical-volume-path", CVMode: "raw", Location: location}
+	osd2 := OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "vg1/lv1", CVMode: "lvm", LVBackedPV: true}
+	osd3 := OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: ""}
 	osdProp := osdProperties{
 		crushHostname: node,
 		pvc:           v1.PersistentVolumeClaimVolumeSource{ClaimName: "pvc"},
-		selection:     rookalpha.Selection{},
+		selection:     rookv1.Selection{},
 		resources:     v1.ResourceRequirements{},
 		storeConfig:   config.StoreConfig{},
 	}
@@ -399,14 +305,23 @@ func TestGetOSDInfo(t *testing.T) {
 		DataPathMap: opconfig.NewDatalessDaemonDataPathMap(c.Namespace, c.dataDirHostPath),
 	}
 	d1, _ := c.makeDeployment(osdProp, osd1, dataPathMap)
-	osds1, _ := getOSDInfo(d1)
+	osds1, _ := c.getOSDInfo(d1)
 	assert.Equal(t, 1, len(osds1))
 	assert.Equal(t, osd1.ID, osds1[0].ID)
-	assert.Equal(t, osd1.LVPath, osds1[0].LVPath)
+	assert.Equal(t, osd1.BlockPath, osds1[0].BlockPath)
+	assert.Equal(t, osd1.CVMode, osds1[0].CVMode)
 	assert.Equal(t, location, osds1[0].Location)
 
 	d2, _ := c.makeDeployment(osdProp, osd2, dataPathMap)
-	osds2, err := getOSDInfo(d2)
-	assert.Equal(t, 0, len(osds2))
+	osds2, _ := c.getOSDInfo(d2)
+	assert.Equal(t, 1, len(osds2))
+	assert.Equal(t, osd2.ID, osds2[0].ID)
+	assert.Equal(t, osd2.BlockPath, osds2[0].BlockPath)
+	assert.Equal(t, osd2.CVMode, osds2[0].CVMode)
+	assert.Equal(t, osd2.LVBackedPV, osds2[0].LVBackedPV)
+
+	d3, _ := c.makeDeployment(osdProp, osd3, dataPathMap)
+	osds3, err := c.getOSDInfo(d3)
+	assert.Equal(t, 0, len(osds3))
 	assert.NotNil(t, err)
 }

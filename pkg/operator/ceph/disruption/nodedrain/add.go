@@ -62,8 +62,14 @@ func Add(mgr manager.Manager, context *controllerconfig.Context) error {
 	// Watch for changes to the nodes
 	pred := predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			nodeOld := e.ObjectOld.DeepCopyObject().(*corev1.Node)
-			nodeNew := e.ObjectNew.DeepCopyObject().(*corev1.Node)
+			nodeOld, ok := e.ObjectOld.DeepCopyObject().(*corev1.Node)
+			if !ok {
+				return false
+			}
+			nodeNew, ok := e.ObjectNew.DeepCopyObject().(*corev1.Node)
+			if !ok {
+				return false
+			}
 			return !reflect.DeepEqual(nodeOld.Spec, nodeNew.Spec)
 		},
 	}

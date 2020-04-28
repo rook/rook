@@ -21,7 +21,7 @@ import (
 	"os"
 	"testing"
 
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -34,7 +34,7 @@ import (
 )
 
 func TestStartDiscoveryDaemonset(t *testing.T) {
-	clientset := test.New(3)
+	clientset := test.New(t, 3)
 
 	os.Setenv(k8sutil.PodNamespaceEnvVar, "rook-system")
 	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
@@ -89,7 +89,7 @@ func TestStartDiscoveryDaemonset(t *testing.T) {
 }
 
 func TestGetAvailableDevices(t *testing.T) {
-	clientset := test.New(3)
+	clientset := test.New(t, 3)
 	pvcBackedOSD := false
 	ns := "rook-system"
 	nodeName := "node123"
@@ -117,7 +117,7 @@ func TestGetAvailableDevices(t *testing.T) {
 	context := &clusterd.Context{
 		Clientset: clientset,
 	}
-	d := []rookalpha.Device{
+	d := []rookv1.Device{
 		{
 			Name: "sdc",
 		},

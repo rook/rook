@@ -107,6 +107,7 @@ kubeadm_reset() {
     sudo apt-get -y remove kubelet
     sudo apt-get -y remove kubeadm
     sudo swapon -a
+    which systemctl >/dev/null && sudo systemctl start swap.target
 }
 
 case "${1:-}" in

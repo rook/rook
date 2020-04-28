@@ -9,10 +9,16 @@ indent: true
 The Rook toolbox is a container with common tools used for rook debugging and testing.
 The toolbox is based on CentOS, so more tools of your choosing can be easily installed with `yum`.
 
-## Running the Toolbox in Kubernetes
+The toolbox can be run in two modes:
+1. [Interactive](#interactive-toolbox): Start a toolbox pod where you can connect and execute Ceph commands from a shell
+2. [One-time job](#toolbox-job): Run a script with Ceph commands and collect the results from the job log
 
-The rook toolbox can run as a deployment in a Kubernetes cluster.  After you ensure you have a running Kubernetes cluster with rook deployed (see the [Kubernetes](ceph-quickstart.md) instructions),
-launch the rook-ceph-tools pod.
+> Prerequisite: Before running the toolbox you should have a running Rook cluster deployed (see the [Quickstart Guide](ceph-quickstart.md)).
+
+## Interactive Toolbox
+
+The rook toolbox can run as a deployment in a Kubernetes cluster where you can connect and
+run arbitrary Ceph commands.
 
 Save the tools spec as `toolbox.yaml`:
 
@@ -47,35 +53,25 @@ spec:
               secretKeyRef:
                 name: rook-ceph-mon
                 key: admin-secret
-        securityContext:
-          privileged: true
         volumeMounts:
-          - mountPath: /dev
-            name: dev
-          - mountPath: /sys/bus
-            name: sysbus
-          - mountPath: /lib/modules
-            name: libmodules
+          - mountPath: /etc/ceph
+            name: ceph-config
           - name: mon-endpoint-volume
             mountPath: /etc/rook
-      # if hostNetwork: false, the "rbd map" command hangs, see https://github.com/rook/rook/issues/2021
-      hostNetwork: true
       volumes:
-        - name: dev
-          hostPath:
-            path: /dev
-        - name: sysbus
-          hostPath:
-            path: /sys/bus
-        - name: libmodules
-          hostPath:
-            path: /lib/modules
         - name: mon-endpoint-volume
           configMap:
             name: rook-ceph-mon-endpoints
             items:
             - key: data
               path: mon-endpoints
+        - name: ceph-config
+          emptyDir: {}
+      tolerations:
+        - key: "node.kubernetes.io/unreachable"
+          operator: "Exists"
+          effect: "NoExecute"
+          tolerationSeconds: 5
 ```
 
 Launch the rook-ceph-tools pod:
@@ -96,7 +92,7 @@ Once the rook-ceph-tools pod is running, you can connect to it with:
 kubectl -n rook-ceph exec -it $(kubectl -n rook-ceph get pod -l "app=rook-ceph-tools" -o jsonpath='{.items[0].metadata.name}') bash
 ```
 
-All available tools in the toolbox are ready for your troubleshooting needs. 
+All available tools in the toolbox are ready for your troubleshooting needs.
 
 **Example**:
 
@@ -111,8 +107,78 @@ When you are done with the toolbox, you can remove the deployment:
 kubectl -n rook-ceph delete deployment rook-ceph-tools
 ```
 
-## Troubleshooting without the Toolbox
+## Toolbox Job
 
-The Ceph tools will commonly be the only tools needed to troubleshoot a cluster. In that case, you can connect to any of the rook pods and execute the ceph commands in the same way that you would in the toolbox pod such as the mon pods or the operator pod.
-If connecting to the mon pods, make sure you connect to the mon most recently started. The mons keep the config updated in memory after starting and may not have the latest config on disk.
-For example, after starting the cluster connect to the `mon2` pod instead of `mon0`.
+If you want to run Ceph commands as a one-time operation and collect the results later from the
+logs, you can run a script as a Kubernetes Job. The toolbox job will run a script that is embedded
+in the job spec. The script has the full flexibility of a bash script.
+
+In this example, the `ceph status` command is executed when the job is created.
+
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rook-ceph-toolbox-job
+  namespace: rook-ceph
+  labels:
+    app: ceph-toolbox-job
+spec:
+  template:
+    spec:
+      initContainers:
+      - name: config-init
+        image: rook/ceph:master
+        command: ["/usr/local/bin/toolbox.sh"]
+        args: ["--skip-watch"]
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: ROOK_ADMIN_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: rook-ceph-mon
+              key: admin-secret
+        volumeMounts:
+        - mountPath: /etc/ceph
+          name: ceph-config
+        - name: mon-endpoint-volume
+          mountPath: /etc/rook
+      containers:
+      - name: script
+        image: rook/ceph:master
+        volumeMounts:
+        - mountPath: /etc/ceph
+          name: ceph-config
+          readOnly: true
+        command:
+        - "bash"
+        - "-c"
+        - |
+          # Modify this script to run any ceph, rbd, radosgw-admin, or other commands that could
+          # be run in the toolbox pod. The output of the commands can be seen by getting the pod log.
+          #
+          # example: print the ceph status
+          ceph status
+      volumes:
+      - name: mon-endpoint-volume
+        configMap:
+          name: rook-ceph-mon-endpoints
+          items:
+          - key: data
+            path: mon-endpoints
+      - name: ceph-config
+        emptyDir: {}
+      restartPolicy: Never
+```
+
+Create the toolbox job:
+
+```console
+kubectl create -f toolbox-job.yaml
+```
+
+After the job completes, see the results of the script:
+
+```console
+kubectl -n rook-ceph logs -l job-name=rook-ceph-toolbox-job
+```

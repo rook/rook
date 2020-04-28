@@ -18,296 +18,253 @@ limitations under the License.
 package pool
 
 import (
+	"context"
+	"fmt"
 	"reflect"
 
 	"github.com/coreos/pkg/capnslog"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	ceph "github.com/rook/rook/pkg/daemon/ceph/client"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
-	"github.com/rook/rook/pkg/daemon/ceph/model"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/cache"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 const (
 	replicatedType         = "replicated"
 	erasureCodeType        = "erasure-coded"
 	poolApplicationNameRBD = "rbd"
+	controllerName         = "ceph-block-pool-controller"
 )
 
-var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-pool")
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
 
-// PoolResource represents the Pool custom resource object
-var PoolResource = k8sutil.CustomResource{
-	Name:    "cephblockpool",
-	Plural:  "cephblockpools",
-	Group:   cephv1.CustomResourceGroup,
-	Version: cephv1.Version,
-	Kind:    reflect.TypeOf(cephv1.CephBlockPool{}).Name(),
+var cephBlockPoolKind = reflect.TypeOf(cephv1.CephBlockPool{}).Name()
+
+// Sets the type meta for the controller main object
+var controllerTypeMeta = metav1.TypeMeta{
+	Kind:       cephBlockPoolKind,
+	APIVersion: fmt.Sprintf("%s/%s", cephv1.CustomResourceGroup, cephv1.Version),
 }
 
-// PoolController represents a controller object for pool custom resources
-type PoolController struct {
-	context     *clusterd.Context
-	clusterSpec *cephv1.ClusterSpec
+var _ reconcile.Reconciler = &ReconcileCephBlockPool{}
+
+// ReconcileCephBlockPool reconciles a CephBlockPool object
+type ReconcileCephBlockPool struct {
+	client  client.Client
+	scheme  *runtime.Scheme
+	context *clusterd.Context
 }
 
-// NewPoolController create controller for watching pool custom resources created
-func NewPoolController(context *clusterd.Context, clusterSpec *cephv1.ClusterSpec) *PoolController {
-	return &PoolController{
-		context:     context,
-		clusterSpec: clusterSpec,
+// Add creates a new CephBlockPool Controller and adds it to the Manager. The Manager will set fields on the Controller
+// and Start it when the Manager is Started.
+func Add(mgr manager.Manager, context *clusterd.Context) error {
+	return add(mgr, newReconciler(mgr, context))
+}
+
+// newReconciler returns a new reconcile.Reconciler
+func newReconciler(mgr manager.Manager, context *clusterd.Context) reconcile.Reconciler {
+	// Add the cephv1 scheme to the manager scheme so that the controller knows about it
+	mgrScheme := mgr.GetScheme()
+	cephv1.AddToScheme(mgr.GetScheme())
+
+	return &ReconcileCephBlockPool{
+		client:  mgr.GetClient(),
+		scheme:  mgrScheme,
+		context: context,
 	}
 }
 
-// Watch watches for instances of Pool custom resources and acts on them
-func (c *PoolController) StartWatch(namespace string, stopCh chan struct{}) error {
-
-	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
-		AddFunc:    c.onAdd,
-		UpdateFunc: c.onUpdate,
-		DeleteFunc: c.onDelete,
+func add(mgr manager.Manager, r reconcile.Reconciler) error {
+	// Create a new controller
+	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r})
+	if err != nil {
+		return err
 	}
 
-	logger.Infof("start watching pools in namespace %q", namespace)
-	go k8sutil.WatchCR(PoolResource, namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1().RESTClient(), &cephv1.CephBlockPool{}, stopCh)
+	// Watch for changes on the CephBlockPool CRD object
+	err = c.Watch(&source.Kind{Type: &cephv1.CephBlockPool{TypeMeta: controllerTypeMeta}}, &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate())
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
-func (c *PoolController) onAdd(obj interface{}) {
-	if c.clusterSpec.External.Enable && c.clusterSpec.CephVersion.Image == "" {
-		logger.Warningf("Creating pools for an external ceph cluster is disabled because no Ceph image is specified")
-		return
+// Reconcile reads that state of the cluster for a CephBlockPool object and makes changes based on the state read
+// and what is in the CephBlockPool.Spec
+// The Controller will requeue the Request to be processed again if the returned error is non-nil or
+// Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
+func (r *ReconcileCephBlockPool) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+	// workaround because the rook logging mechanism is not compatible with the controller-runtime loggin interface
+	reconcileResponse, err := r.reconcile(request)
+	if err != nil {
+		logger.Errorf("failed to reconcile %v", err)
 	}
 
-	pool, err := getPoolObject(obj)
-	if err != nil {
-		logger.Errorf("failed to get pool object. %v", err)
-		return
-	}
-	updateCephBlockPoolStatus(pool.GetName(), pool.GetNamespace(), k8sutil.ProcessingStatus, c.context)
-	err = createPool(c.context, pool)
-	if err != nil {
-		logger.Errorf("failed to create pool %q. %v", pool.ObjectMeta.Name, err)
-		updateCephBlockPoolStatus(pool.GetName(), pool.GetNamespace(), k8sutil.FailedStatus, c.context)
-		return
-	}
-	updateCephBlockPoolStatus(pool.GetName(), pool.GetNamespace(), k8sutil.ReadyStatus, c.context)
+	return reconcileResponse, err
 }
 
-func (c *PoolController) onUpdate(oldObj, newObj interface{}) {
-	if c.clusterSpec.External.Enable && c.clusterSpec.CephVersion.Image == "" {
-		logger.Warningf("Updating pools for an external ceph cluster is disabled because no Ceph image is specified")
-		return
-	}
-
-	oldPool, err := getPoolObject(oldObj)
+func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile.Result, error) {
+	// Fetch the CephBlockPool instance
+	cephBlockPool := &cephv1.CephBlockPool{}
+	err := r.client.Get(context.TODO(), request.NamespacedName, cephBlockPool)
 	if err != nil {
-		logger.Errorf("failed to get old pool object. %v", err)
-		return
+		if kerrors.IsNotFound(err) {
+			logger.Debug("CephBlockPool resource not found. Ignoring since object must be deleted.")
+			return reconcile.Result{}, nil
+		}
+		// Error reading the object - requeue the request.
+		return reconcile.Result{}, errors.Wrapf(err, "failed to get CephBlockPool")
 	}
-	pool, err := getPoolObject(newObj)
+
+	// The CR was just created, initializing status fields
+	if cephBlockPool.Status == nil {
+		updateStatus(r.client, request.NamespacedName, k8sutil.Created)
+	}
+
+	// Make sure a CephCluster is present otherwise do nothing
+	_, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.client, r.context, request.NamespacedName, controllerName)
+	if !isReadyToReconcile {
+		// This handles the case where the Ceph Cluster is gone and we want to delete that CR
+		// We skip the deletePool() function since everything is gone already
+		//
+		// Also, only remove the finalizer if the CephCluster is gone
+		// If not, we should wait for it to be ready
+		// This handles the case where the operator is not ready to accept Ceph command but the cluster exists
+		if !cephBlockPool.GetDeletionTimestamp().IsZero() && !cephClusterExists {
+			// Remove finalizer
+			err = opcontroller.RemoveFinalizer(r.client, cephBlockPool)
+			if err != nil {
+				return reconcile.Result{}, errors.Wrap(err, "failed to remove finalizer")
+			}
+
+			// Return and do not requeue. Successful deletion.
+			return reconcile.Result{}, nil
+		}
+		return reconcileResponse, nil
+	}
+
+	// Set a finalizer so we can do cleanup before the object goes away
+	err = opcontroller.AddFinalizerIfNotPresent(r.client, cephBlockPool)
 	if err != nil {
-		logger.Errorf("failed to get new pool object. %v", err)
-		return
+		return reconcile.Result{}, errors.Wrap(err, "failed to add finalizer")
 	}
 
-	if oldPool.Name != pool.Name {
-		logger.Errorf("failed to update pool %q. name update not allowed", pool.Name)
-		updateCephBlockPoolStatus(pool.GetName(), pool.GetNamespace(), k8sutil.FailedStatus, c.context)
-		return
-	}
-	if pool.Spec.ErasureCoded.CodingChunks != 0 && pool.Spec.ErasureCoded.DataChunks != 0 {
-		logger.Errorf("failed to update pool %q. erasurecoded update not allowed", pool.Name)
-		updateCephBlockPoolStatus(pool.GetName(), pool.GetNamespace(), k8sutil.FailedStatus, c.context)
-		return
-	}
-	if !poolChanged(oldPool.Spec, pool.Spec) {
-		logger.Debugf("pool %q not changed", pool.Name)
-		return
-	}
-	updateCephBlockPoolStatus(pool.GetName(), pool.GetNamespace(), k8sutil.ProcessingStatus, c.context)
+	// DELETE: the CR was deleted
+	if !cephBlockPool.GetDeletionTimestamp().IsZero() {
+		logger.Debugf("deleting pool %q", cephBlockPool.Name)
+		err := deletePool(r.context, cephBlockPool)
+		if err != nil {
+			return reconcile.Result{}, errors.Wrapf(err, "failed to delete pool %q. ", cephBlockPool.Name)
+		}
 
-	// if the pool is modified, allow the pool to be created if it wasn't already
-	logger.Infof("updating pool %q", pool.Name)
-	if err := createPool(c.context, pool); err != nil {
-		logger.Errorf("failed to create (modify) pool %q. %v", pool.ObjectMeta.Name, err)
-		updateCephBlockPoolStatus(pool.GetName(), pool.GetNamespace(), k8sutil.FailedStatus, c.context)
-		return
+		// Remove finalizer
+		err = opcontroller.RemoveFinalizer(r.client, cephBlockPool)
+		if err != nil {
+			return reconcile.Result{}, errors.Wrap(err, "failed to remove finalizer")
+		}
+
+		// Return and do not requeue. Successful deletion.
+		return reconcile.Result{}, nil
 	}
-	updateCephBlockPoolStatus(pool.GetName(), pool.GetNamespace(), k8sutil.ReadyStatus, c.context)
+
+	// validate the pool settings
+	if err := ValidatePool(r.context, cephBlockPool); err != nil {
+		return reconcile.Result{}, errors.Wrapf(err, "invalid pool CR %q spec", cephBlockPool.Name)
+	}
+
+	updateStatus(r.client, request.NamespacedName, k8sutil.ReconcilingStatus)
+
+	// CREATE/UPDATE
+	reconcileResponse, err = r.reconcileCreatePool(cephBlockPool)
+	if err != nil {
+		updateStatus(r.client, request.NamespacedName, k8sutil.ReconcileFailedStatus)
+		return reconcileResponse, errors.Wrapf(err, "failed to create pool %q.", cephBlockPool.GetName())
+	}
+
+	// Set Ready status, we are done reconciling
+	updateStatus(r.client, request.NamespacedName, k8sutil.ReadyStatus)
+
+	// Return and do not requeue
+	logger.Debug("done reconciling")
+	return reconcile.Result{}, nil
 }
 
-// ParentClusterChanged determines wether or not a CR update has been sent
-func (c *PoolController) ParentClusterChanged(cluster cephv1.ClusterSpec, clusterInfo *cephconfig.ClusterInfo, isUpgrade bool) {
-	logger.Debugf("No need to update the pool after the parent cluster changed")
-}
-
-func poolChanged(old, new cephv1.PoolSpec) bool {
-	if old.Replicated.Size != new.Replicated.Size {
-		logger.Infof("pool replication changed from %d to %d", old.Replicated.Size, new.Replicated.Size)
-		return true
-	}
-	return false
-}
-
-func (c *PoolController) onDelete(obj interface{}) {
-	if c.clusterSpec.External.Enable && c.clusterSpec.CephVersion.Image == "" {
-		logger.Warningf("Deleting pools for an external ceph cluster is disabled because no Ceph image is specified")
-		return
-	}
-
-	pool, err := getPoolObject(obj)
+func (r *ReconcileCephBlockPool) reconcileCreatePool(cephBlockPool *cephv1.CephBlockPool) (reconcile.Result, error) {
+	err := createPool(r.context, cephBlockPool)
 	if err != nil {
-		logger.Errorf("failed to get pool object. %v", err)
-		return
+		return reconcile.Result{}, errors.Wrapf(err, "failed to create pool %q.", cephBlockPool.GetName())
 	}
-	if err := deletePool(c.context, pool); err != nil {
-		logger.Errorf("failed to delete pool %q. %v", pool.ObjectMeta.Name, err)
-	}
+
+	// Let's return here so that on the initial creation we don't check for update right away
+	return reconcile.Result{}, nil
 }
 
 // Create the pool
 func createPool(context *clusterd.Context, p *cephv1.CephBlockPool) error {
-	// validate the pool settings
-	if err := ValidatePool(context, p); err != nil {
-		return errors.Wrapf(err, "invalid pool %q arguments", p.Name)
-	}
-
 	// create the pool
 	logger.Infof("creating pool %q in namespace %q", p.Name, p.Namespace)
-	if err := ceph.CreatePoolWithProfile(context, p.Namespace, *p.Spec.ToModel(p.Name), poolApplicationNameRBD); err != nil {
+	if err := cephclient.CreatePoolWithProfile(context, p.Namespace, p.Name, p.Spec, poolApplicationNameRBD); err != nil {
 		return errors.Wrapf(err, "failed to create pool %q", p.Name)
 	}
 
-	logger.Infof("created pool %q", p.Name)
 	return nil
 }
 
 // Delete the pool
 func deletePool(context *clusterd.Context, p *cephv1.CephBlockPool) error {
-
-	if err := ceph.DeletePool(context, p.Namespace, p.Name); err != nil {
-		return errors.Wrapf(err, "failed to delete pool %q", p.Name)
-	}
-
-	return nil
-}
-
-// Check if the pool exists
-func poolExists(context *clusterd.Context, p *cephv1.CephBlockPool) (bool, error) {
-	pools, err := ceph.GetPools(context, p.Namespace)
+	pools, err := cephclient.ListPoolSummaries(context, p.Namespace)
 	if err != nil {
-		return false, err
+		return errors.Wrapf(err, "failed to list pools")
 	}
+
+	// Only delete the pool if it exists...
 	for _, pool := range pools {
 		if pool.Name == p.Name {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
-func ModelToSpec(pool model.Pool) cephv1.PoolSpec {
-	ec := pool.ErasureCodedConfig
-	return cephv1.PoolSpec{
-		FailureDomain: pool.FailureDomain,
-		CrushRoot:     pool.CrushRoot,
-		DeviceClass:   pool.DeviceClass,
-		Replicated:    cephv1.ReplicatedSpec{Size: pool.ReplicatedConfig.Size},
-		ErasureCoded:  cephv1.ErasureCodedSpec{CodingChunks: ec.CodingChunkCount, DataChunks: ec.DataChunkCount, Algorithm: ec.Algorithm},
-	}
-}
-
-// Validate the pool arguments
-func ValidatePool(context *clusterd.Context, p *cephv1.CephBlockPool) error {
-	if p.Name == "" {
-		return errors.New("missing name")
-	}
-	if p.Namespace == "" {
-		return errors.New("missing namespace")
-	}
-	if err := ValidatePoolSpec(context, p.Namespace, &p.Spec); err != nil {
-		return err
-	}
-	return nil
-}
-
-// ValidatePoolSpec validates the Ceph block pool spec CR
-func ValidatePoolSpec(context *clusterd.Context, namespace string, p *cephv1.PoolSpec) error {
-	if p.Replication() != nil && p.ErasureCode() != nil {
-		return errors.New("both replication and erasure code settings cannot be specified")
-	}
-
-	var crush ceph.CrushMap
-	var err error
-	if p.FailureDomain != "" || p.CrushRoot != "" {
-		crush, err = ceph.GetCrushMap(context, namespace)
-		if err != nil {
-			return errors.Wrapf(err, "failed to get crush map")
-		}
-	}
-
-	// validate the failure domain if specified
-	if p.FailureDomain != "" {
-		found := false
-		for _, t := range crush.Types {
-			if t.Name == p.FailureDomain {
-				found = true
-				break
+			err := cephclient.DeletePool(context, p.Namespace, p.Name)
+			if err != nil {
+				return errors.Wrapf(err, "failed to delete pool %q", p.Name)
 			}
-		}
-		if !found {
-			return errors.Errorf("unrecognized failure domain %s", p.FailureDomain)
-		}
-	}
-
-	// validate the crush root if specified
-	if p.CrushRoot != "" {
-		found := false
-		for _, t := range crush.Buckets {
-			if t.Name == p.CrushRoot {
-				found = true
-				break
-			}
-		}
-		if !found {
-			return errors.Errorf("unrecognized crush root %s", p.CrushRoot)
 		}
 	}
 
 	return nil
 }
 
-func getPoolObject(obj interface{}) (pool *cephv1.CephBlockPool, err error) {
-	var ok bool
-	pool, ok = obj.(*cephv1.CephBlockPool)
-	if ok {
-		// the pool object is of the latest type, simply return it
-		return pool.DeepCopy(), nil
+// updateStatus updates a pool CR with the given status
+func updateStatus(client client.Client, poolName types.NamespacedName, status string) {
+	pool := &cephv1.CephBlockPool{}
+	err := client.Get(context.TODO(), poolName, pool)
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			logger.Debug("CephBlockPool resource not found. Ignoring since object must be deleted.")
+			return
+		}
+		logger.Warningf("failed to retrieve pool %q to update status to %q. %v", poolName, status, err)
+		return
 	}
 
-	return nil, errors.Errorf("not a known pool object %+v", obj)
-}
+	if pool.Status == nil {
+		pool.Status = &cephv1.Status{}
+	}
 
-func updateCephBlockPoolStatus(name, namespace, status string, context *clusterd.Context) {
-	updatedCephBlockPool, err := context.RookClientset.CephV1().CephBlockPools(namespace).Get(name, metav1.GetOptions{})
-	if err != nil {
-		logger.Errorf("Unable to update the cephBlockPool %s status %v", updatedCephBlockPool.GetName(), err)
+	pool.Status.Phase = status
+	if err := opcontroller.UpdateStatus(client, pool); err != nil {
+		logger.Warningf("failed to set pool %q status to %q. %v", pool.Name, status, err)
 		return
 	}
-	if updatedCephBlockPool.Status == nil {
-		updatedCephBlockPool.Status = &cephv1.Status{}
-	} else if updatedCephBlockPool.Status.Phase == status {
-		return
-	}
-	updatedCephBlockPool.Status.Phase = status
-	_, err = context.RookClientset.CephV1().CephBlockPools(updatedCephBlockPool.Namespace).Update(updatedCephBlockPool)
-	if err != nil {
-		logger.Errorf("Unable to update the cephBlockPool %s status %v", updatedCephBlockPool.GetName(), err)
-		return
-	}
+	logger.Debugf("pool %q status updated to %q", poolName, status)
 }

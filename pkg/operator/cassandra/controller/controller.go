@@ -18,6 +18,9 @@ package controller
 
 import (
 	"fmt"
+	"reflect"
+	"time"
+
 	"github.com/coreos/pkg/capnslog"
 	"github.com/davecgh/go-spew/spew"
 	cassandrav1alpha1 "github.com/rook/rook/pkg/apis/cassandra.rook.io/v1alpha1"
@@ -42,8 +45,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
-	"reflect"
-	"time"
 )
 
 const (
@@ -91,7 +92,9 @@ func New(
 
 	// Add sample-controller types to the default Kubernetes Scheme so Events can be
 	// logged for sample-controller types.
-	rookScheme.AddToScheme(scheme.Scheme)
+	if err := rookScheme.AddToScheme(scheme.Scheme); err != nil {
+		logger.Errorf("failed to add to the default kubernetes scheme. %v", err)
+	}
 	// Create event broadcaster
 	logger.Infof("creating event broadcaster...")
 	eventBroadcaster := record.NewBroadcaster()
@@ -121,12 +124,21 @@ func New(
 
 	clusterInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			newCluster := obj.(*cassandrav1alpha1.Cluster)
+			newCluster, ok := obj.(*cassandrav1alpha1.Cluster)
+			if !ok {
+				return
+			}
 			cc.enqueueCluster(newCluster)
 		},
 		UpdateFunc: func(old, new interface{}) {
-			newCluster := new.(*cassandrav1alpha1.Cluster)
-			oldCluster := old.(*cassandrav1alpha1.Cluster)
+			newCluster, ok := new.(*cassandrav1alpha1.Cluster)
+			if !ok {
+				return
+			}
+			oldCluster, ok := old.(*cassandrav1alpha1.Cluster)
+			if !ok {
+				return
+			}
 			// If the Spec is the same as the one in our cache, there aren't
 			// any changes we are interested in.
 			if reflect.DeepEqual(newCluster.Spec, oldCluster.Spec) {
@@ -145,8 +157,14 @@ func New(
 	statefulSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: cc.handleObject,
 		UpdateFunc: func(old, new interface{}) {
-			newStatefulSet := new.(*appsv1.StatefulSet)
-			oldStatefulSet := old.(*appsv1.StatefulSet)
+			newStatefulSet, ok := new.(*appsv1.StatefulSet)
+			if !ok {
+				return
+			}
+			oldStatefulSet, ok := old.(*appsv1.StatefulSet)
+			if !ok {
+				return
+			}
 			// If the StatefulSet is the same as the one in our cache, there
 			// is no use adding it again.
 			if newStatefulSet.ResourceVersion == oldStatefulSet.ResourceVersion {
@@ -165,15 +183,24 @@ func New(
 
 	serviceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			service := obj.(*corev1.Service)
+			service, ok := obj.(*corev1.Service)
+			if !ok {
+				return
+			}
 			if service.Spec.ClusterIP == corev1.ClusterIPNone {
 				return
 			}
 			cc.handleObject(obj)
 		},
 		UpdateFunc: func(old, new interface{}) {
-			newService := new.(*corev1.Service)
-			oldService := old.(*corev1.Service)
+			newService, ok := new.(*corev1.Service)
+			if !ok {
+				return
+			}
+			oldService, ok := old.(*corev1.Service)
+			if !ok {
+				return
+			}
 			if oldService.ResourceVersion == newService.ResourceVersion {
 				return
 			}

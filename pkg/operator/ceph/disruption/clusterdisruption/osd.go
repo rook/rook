@@ -273,15 +273,21 @@ func (r *ReconcileClusterDisruption) updateNoout(pdbStateMap *corev1.ConfigMap, 
 			}
 			if time.Since(nooutSetTime) >= r.maintenanceTimeout {
 				// noout expired
-				osdDump.UpdateFlagOnCrushUnit(r.context.ClusterdContext, false, namespace, failureDomain, nooutFlag)
+				if _, err := osdDump.UpdateFlagOnCrushUnit(r.context.ClusterdContext, false, namespace, failureDomain, nooutFlag); err != nil {
+					return errors.Wrapf(err, "failed to update flag on crush unit when noout expired.")
+				}
 			} else {
 				// set noout
-				osdDump.UpdateFlagOnCrushUnit(r.context.ClusterdContext, true, namespace, failureDomain, nooutFlag)
+				if _, err := osdDump.UpdateFlagOnCrushUnit(r.context.ClusterdContext, true, namespace, failureDomain, nooutFlag); err != nil {
+					return errors.Wrapf(err, "failed to update flag on crush unit while setting noout.")
+				}
 			}
 
 		} else {
 			// ensure noout unset
-			osdDump.UpdateFlagOnCrushUnit(r.context.ClusterdContext, false, namespace, failureDomain, nooutFlag)
+			if _, err := osdDump.UpdateFlagOnCrushUnit(r.context.ClusterdContext, false, namespace, failureDomain, nooutFlag); err != nil {
+				return errors.Wrapf(err, "failed to update flag on crush unit when ensuring noout is unset.")
+			}
 			// delete the timestamp
 			delete(pdbStateMap.Data, disabledFailureDomainTimeStampKey)
 		}

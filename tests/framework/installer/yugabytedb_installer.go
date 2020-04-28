@@ -161,10 +161,10 @@ func (y *YugabyteDBInstaller) RemoveAllYugabyteDBResources(systemNS, namespace s
 }
 
 func (y *YugabyteDBInstaller) GatherAllLogs(systemNS, namespace, testName string) {
-	if !y.T().Failed() && Env.Logs != "all" {
+	if !y.T().Failed() && TestLogCollectionLevel() != "all" {
 		return
 	}
 	logger.Infof("Gathering all logs from yugabytedb cluster %s", namespace)
-	y.k8sHelper.GetLogsFromNamespace(systemNS, testName, Env.HostType)
-	y.k8sHelper.GetLogsFromNamespace(namespace, testName, Env.HostType)
+	y.k8sHelper.GetLogsFromNamespace(systemNS, testName, testEnvName())
+	y.k8sHelper.GetLogsFromNamespace(namespace, testName, testEnvName())
 }

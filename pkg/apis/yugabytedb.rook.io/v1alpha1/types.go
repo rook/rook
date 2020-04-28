@@ -19,7 +19,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rook "github.com/rook/rook/pkg/apis/rook.io/v1"
 )
 
 // ***************************************************************************
@@ -54,6 +54,7 @@ type YBClusterSpec struct {
 
 type ServerSpec struct {
 	Replicas            int32                    `json:"replicas,omitempty"`
+	Resource            v1.ResourceRequirements  `json:"resource,omitempty"`
 	Network             NetworkSpec              `json:"network,omitempty"`
 	VolumeClaimTemplate v1.PersistentVolumeClaim `json:"volumeClaimTemplate,omitempty"`
 }

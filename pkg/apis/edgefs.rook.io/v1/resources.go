@@ -16,10 +16,11 @@ limitations under the License.
 package v1
 
 import (
-	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
-	"k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"strconv"
+
+	rook "github.com/rook/rook/pkg/apis/rook.io/v1"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 const (
@@ -28,6 +29,9 @@ const (
 
 	hostLocalTimeVolName = "host-local-time"
 	hostLocalTimePath    = "/etc/localtime"
+
+	hostTimeZoneVolName = "host-time-zone"
+	hostTimeZonePath    = "/etc/timezone"
 )
 
 // GetMgrResources returns the placement for the MGR service
@@ -49,15 +53,14 @@ func GetInitiatorEnvArr(svctype string, embedded bool, chunkCacheSize resource.Q
 		// adjust chunk cache maximum size
 		cacheSize := rMemLim.Value() * 75 / 100
 		if embedded {
-			if chunkCacheSize.IsZero() {
-				// embedded default case, 100mb
-				cacheSize = 100 * 1024 * 1024
-			} else {
-				if chunkCacheSize.CmpInt64(cacheSize) < 0 {
-					// user wants to set custom that is less then 75% of total
-					cacheSize = chunkCacheSize.Value()
-				}
-			}
+			// embedded default case, 100mb
+			cacheSize = 100 * 1024 * 1024
+		}
+
+		if !chunkCacheSize.IsZero() && chunkCacheSize.CmpInt64(cacheSize) < 0 {
+			// user wants to set custom cache size
+			// It might be lowered below
+			cacheSize = chunkCacheSize.Value()
 		}
 
 		if svctype == "target" {
@@ -106,6 +109,13 @@ func GetInitiatorEnvArr(svctype string, embedded bool, chunkCacheSize resource.Q
 			Value: strconv.FormatInt(cacheSize, 10),
 		})
 	}
+	rCpuLim := resources.Limits.Cpu()
+	if !rCpuLim.IsZero() {
+		retArr = append(retArr, v1.EnvVar{
+			Name:  "SVC_CPU_LIMIT",
+			Value: strconv.FormatInt(rCpuLim.Value(), 10),
+		})
+	}
 
 	if embedded {
 		retArr = append(retArr, v1.EnvVar{
@@ -135,6 +145,25 @@ func GetHostLocalTimeVolume() v1.Volume {
 		VolumeSource: v1.VolumeSource{
 			HostPath: &v1.HostPathVolumeSource{
 				Path: hostLocalTimePath,
+			},
+		},
+	}
+}
+
+func GetHostTimeZoneVolumeMount() v1.VolumeMount {
+	return v1.VolumeMount{
+		Name:      hostTimeZoneVolName,
+		MountPath: hostTimeZonePath,
+		ReadOnly:  true,
+	}
+}
+
+func GetHostTimeZoneVolume() v1.Volume {
+	return v1.Volume{
+		Name: hostTimeZoneVolName,
+		VolumeSource: v1.VolumeSource{
+			HostPath: &v1.HostPathVolumeSource{
+				Path: hostTimeZonePath,
 			},
 		},
 	}

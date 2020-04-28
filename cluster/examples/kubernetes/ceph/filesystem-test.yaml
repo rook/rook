@@ -12,10 +12,13 @@ spec:
   metadataPool:
     replicated:
       size: 1
+      requireSafeReplicaSize: false
   dataPools:
     - failureDomain: osd
       replicated:
         size: 1
+        requireSafeReplicaSize: false
+      compressionMode: none
   preservePoolsOnDelete: false
   metadataServer:
     activeCount: 1

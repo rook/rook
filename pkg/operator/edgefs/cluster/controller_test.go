@@ -21,7 +21,7 @@ import (
 	"time"
 
 	edgefsv1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	rookfake "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -39,7 +39,7 @@ func TestClusterDelete(t *testing.T) {
 	os.Setenv(k8sutil.PodNamespaceEnvVar, rookSystemNamespace)
 	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
 
-	clientset := testop.New(3)
+	clientset := testop.New(t, 3)
 	context := &clusterd.Context{
 		Clientset: clientset,
 	}
@@ -53,46 +53,46 @@ func TestClusterDelete(t *testing.T) {
 func TestClusterChanged(t *testing.T) {
 	// a new node added, should be a change
 	old := edgefsv1.ClusterSpec{
-		Storage: rookalpha.StorageScopeSpec{
-			Nodes: []rookalpha.Node{
-				{Name: "node1", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
+		Storage: rookv1.StorageScopeSpec{
+			Nodes: []rookv1.Node{
+				{Name: "node1", Selection: rookv1.Selection{Devices: []rookv1.Device{{Name: "sda"}}}},
 			},
 		},
 	}
 	new := edgefsv1.ClusterSpec{
-		Storage: rookalpha.StorageScopeSpec{
-			Nodes: []rookalpha.Node{
-				{Name: "node1", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
-				{Name: "node2", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
+		Storage: rookv1.StorageScopeSpec{
+			Nodes: []rookv1.Node{
+				{Name: "node1", Selection: rookv1.Selection{Devices: []rookv1.Device{{Name: "sda"}}}},
+				{Name: "node2", Selection: rookv1.Selection{Devices: []rookv1.Device{{Name: "sda"}}}},
 			},
 		},
 	}
 	assert.True(t, clusterChanged(old, new))
 
 	// a node was removed, should be a change
-	old.Storage.Nodes = []rookalpha.Node{
-		{Name: "node1", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
-		{Name: "node2", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
+	old.Storage.Nodes = []rookv1.Node{
+		{Name: "node1", Selection: rookv1.Selection{Devices: []rookv1.Device{{Name: "sda"}}}},
+		{Name: "node2", Selection: rookv1.Selection{Devices: []rookv1.Device{{Name: "sda"}}}},
 	}
-	new.Storage.Nodes = []rookalpha.Node{
-		{Name: "node1", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
+	new.Storage.Nodes = []rookv1.Node{
+		{Name: "node1", Selection: rookv1.Selection{Devices: []rookv1.Device{{Name: "sda"}}}},
 	}
 	assert.True(t, clusterChanged(old, new))
 
 	// the nodes being in a different order should not be a change
-	old.Storage.Nodes = []rookalpha.Node{
-		{Name: "node1", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
-		{Name: "node2", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
+	old.Storage.Nodes = []rookv1.Node{
+		{Name: "node1", Selection: rookv1.Selection{Devices: []rookv1.Device{{Name: "sda"}}}},
+		{Name: "node2", Selection: rookv1.Selection{Devices: []rookv1.Device{{Name: "sda"}}}},
 	}
-	new.Storage.Nodes = []rookalpha.Node{
-		{Name: "node2", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
-		{Name: "node1", Selection: rookalpha.Selection{Devices: []rookalpha.Device{{Name: "sda"}}}},
+	new.Storage.Nodes = []rookv1.Node{
+		{Name: "node2", Selection: rookv1.Selection{Devices: []rookv1.Device{{Name: "sda"}}}},
+		{Name: "node1", Selection: rookv1.Selection{Devices: []rookv1.Device{{Name: "sda"}}}},
 	}
 	assert.False(t, clusterChanged(old, new))
 }
 
 func TestRemoveFinalizer(t *testing.T) {
-	clientset := testop.New(3)
+	clientset := testop.New(t, 3)
 	context := &clusterd.Context{
 		Clientset:     clientset,
 		RookClientset: rookfake.NewSimpleClientset(),

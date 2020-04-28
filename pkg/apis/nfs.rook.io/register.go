@@ -16,5 +16,5 @@ limitations under the License.
 package nfsrookio
 
 const (
-	GroupName = "nfs.rook.io"
+	CustomResourceGroupName = "nfs.rook.io"
 )

@@ -30,6 +30,9 @@ spec:
       # Optional: configMapName references a user's custom configuration for
       # a specific Cassandra Rack 
       configMapName: "cassandra-config"
+      # Optional: configMapName with single jmx_exporter_config.yaml file 
+      # reference a custom jmx prometheus exporter configuration for CassandraRack
+      jmxExporterConfigMapName: "jmx-prometheus-config"
       # Rook Common Type: StorageSpec
       storage:
         volumeClaims:

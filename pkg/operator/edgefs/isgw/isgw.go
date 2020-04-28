@@ -202,6 +202,7 @@ func (c *ISGWController) makeDeployment(svcname, namespace, rookImage string, is
 
 	if c.useHostLocalTime {
 		volumes = append(volumes, edgefsv1.GetHostLocalTimeVolume())
+		volumes = append(volumes, edgefsv1.GetHostTimeZoneVolume())
 	}
 
 	if c.dataVolumeSize.Value() > 0 {
@@ -311,6 +312,7 @@ func (c *ISGWController) isgwContainer(svcname, name, containerImage string, isg
 
 	if c.useHostLocalTime {
 		volumeMounts = append(volumeMounts, edgefsv1.GetHostLocalTimeVolumeMount())
+		volumeMounts = append(volumeMounts, edgefsv1.GetHostTimeZoneVolumeMount())
 	}
 
 	configJSON := getISGWConfigJSON(isgwSpec)

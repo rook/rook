@@ -1,8 +1,9 @@
-# Code ownership file that specifies approvers and reviewers for all areas of the Rook codebase.
+# Code ownership file that specifies maintainers and reviewers for all areas of the Rook codebase.
 # all: These members have the given role for all areas of the codebase.
-# common: The rook.io common types, specs, logic, etc.
-# build: The top level makefile, as well as the scripts and makefiles in the `build` directory.
-# All other areas are for specific storage providers and covers all portions of code that is specific to their project.
+# Specific storage provider ownership and covers all portions of code that is specific to their project.
+# Maintainers have push access to merge PRs after approved by another maintainer or reviewer.
+# With the intention of using the Prow bot in the future, the term "approver" is used below.
+# An approver is equivalent to a Rook maintainer for all intents and purposes as described in the Rook governance.
 
 areas:
   all:
@@ -10,18 +11,11 @@ areas:
     - travisn
     - galexrt
     - jbw976
-  common:
-    approvers:
-    - bassam
-  build:
-    approvers:
-    - bassam
   ceph:
     approvers:
+    - travisn
     - BlaineEXE
     - leseb
-    reviewers:
-    - noahdesu
   edgefs:
     approvers:
     - dyusupov
@@ -33,5 +27,7 @@ areas:
   nfs:
     reviewers:
     - rohan47
-  cockroachdb:
-  minio:
+  yugabytedb:
+    approvers:
+    - Arnav15
+    - samkulkarni20

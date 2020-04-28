@@ -21,7 +21,7 @@ limitations under the License.
 package v1alpha1
 
 import (
-	v1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	v1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -57,7 +57,7 @@ func (in *Cluster) DeepCopyObject() runtime.Object {
 func (in *ClusterList) DeepCopyInto(out *ClusterList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]Cluster, len(*in))
@@ -91,7 +91,7 @@ func (in *ClusterSpec) DeepCopyInto(out *ClusterSpec) {
 	*out = *in
 	if in.Annotations != nil {
 		in, out := &in.Annotations, &out.Annotations
-		*out = make(v1alpha2.Annotations, len(*in))
+		*out = make(v1.Annotations, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val
 		}
@@ -214,17 +214,22 @@ func (in *RackSpec) DeepCopyInto(out *RackSpec) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.JMXExporterConfigMapName != nil {
+		in, out := &in.JMXExporterConfigMapName, &out.JMXExporterConfigMapName
+		*out = new(string)
+		**out = **in
+	}
 	in.Storage.DeepCopyInto(&out.Storage)
 	if in.Annotations != nil {
 		in, out := &in.Annotations, &out.Annotations
-		*out = make(v1alpha2.Annotations, len(*in))
+		*out = make(v1.Annotations, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val
 		}
 	}
 	if in.Placement != nil {
 		in, out := &in.Placement, &out.Placement
-		*out = new(v1alpha2.Placement)
+		*out = new(v1.Placement)
 		(*in).DeepCopyInto(*out)
 	}
 	in.Resources.DeepCopyInto(&out.Resources)

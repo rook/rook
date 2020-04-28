@@ -23,7 +23,7 @@ import (
 	"syscall"
 
 	"github.com/rook/rook/pkg/clusterd"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 )
 
 // Operator type for managing NFS Server.

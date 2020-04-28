@@ -16,7 +16,7 @@ resources:
     cpu: 100m
     memory: 256Mi
 
-nodeSelector:
+nodeSelector: {}
 # Constraint rook-ceph-operator Deployment to nodes with label `disktype: ssd`.
 # For more info, see https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector
 #  disktype: ssd
@@ -58,12 +58,17 @@ csi:
   enableCephfsDriver: true
   enableGrpcMetrics: true
   enableSnapshotter: true
+  # Set logging level for csi containers.
+  # Supported values from 0 to 5. 0 for general useful logs, 5 for trace level verbosity.
+  #logLevel: 0
   # CSI CephFS plugin daemonset update strategy, supported values are OnDelete and RollingUpdate.
   # Default value is RollingUpdate.
   #rbdPluginUpdateStrategy: OnDelete
   # CSI Rbd plugin daemonset update strategy, supported values are OnDelete and RollingUpdate.
   # Default value is RollingUpdate.
   #cephFSPluginUpdateStrategy: OnDelete
+  # Allow starting unsupported ceph-csi image
+  allowUnsupportedVersion: false
 
   # Set provisonerTolerations and provisionerNodeAffinity for provisioner pod.
   # The CSI provisioner would be best to start on the same nodes as other ceph daemons.
@@ -89,15 +94,17 @@ csi:
   #rbdLivenessMetricsPort: 9080
   #kubeletDirPath: /var/lib/kubelet
   #cephcsi:
-    #image: quay.io/cephcsi/cephcsi:v1.2.2
+    #image: quay.io/cephcsi/cephcsi:v2.1.0
   #registrar:
-    #image: quay.io/k8scsi/csi-node-driver-registrar:v1.1.0
+    #image: quay.io/k8scsi/csi-node-driver-registrar:v1.2.0
   #provisioner:
     #image: quay.io/k8scsi/csi-provisioner:v1.4.0
   #snapshotter:
     #image: quay.io/k8scsi/csi-snapshotter:v1.2.2
   #attacher:
-    #image: quay.io/k8scsi/csi-attacher:v1.2.0
+    #image: quay.io/k8scsi/csi-attacher:v2.1.0
+  #resizer:
+    #image: quay.io/k8scsi/csi-resizer:v0.4.0
 
 enableFlexDriver: false
 enableDiscoveryDaemon: true

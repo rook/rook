@@ -20,14 +20,12 @@ package mgr
 import (
 	"context"
 	"crypto/rand"
-	"os/exec"
 	"strconv"
 	"syscall"
 	"time"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -35,10 +33,11 @@ import (
 )
 
 const (
-	dashboardModuleName            = "dashboard"
-	dashboardPortHTTPS             = 8443
-	dashboardPortHTTP              = 7000
-	dashboardUsername              = "admin"
+	dashboardModuleName = "dashboard"
+	dashboardPortHTTPS  = 8443
+	dashboardPortHTTP   = 7000
+	dashboardUsername   = "admin"
+	// #nosec because of the word `Password`
 	dashboardPasswordName          = "rook-ceph-dashboard-password"
 	passwordLength                 = 20
 	passwordKeyName                = "password"
@@ -120,14 +119,14 @@ func (c *Cluster) configureDashboardModules() error {
 
 func (c *Cluster) configureDashboardModuleSettings(daemonID string) (bool, error) {
 	// url prefix
-	hasChanged, err := client.MgrSetConfig(c.context, c.Namespace, daemonID, c.clusterInfo.CephVersion, "mgr/dashboard/url_prefix", c.dashboard.UrlPrefix, false)
+	hasChanged, err := client.MgrSetConfig(c.context, c.Namespace, daemonID, "mgr/dashboard/url_prefix", c.dashboard.UrlPrefix, false)
 	if err != nil {
 		return false, err
 	}
 
 	// ssl support
 	ssl := strconv.FormatBool(c.dashboard.SSL)
-	changed, err := client.MgrSetConfig(c.context, c.Namespace, daemonID, c.clusterInfo.CephVersion, "mgr/dashboard/ssl", ssl, false)
+	changed, err := client.MgrSetConfig(c.context, c.Namespace, daemonID, "mgr/dashboard/ssl", ssl, false)
 	if err != nil {
 		return false, err
 	}
@@ -135,21 +134,19 @@ func (c *Cluster) configureDashboardModuleSettings(daemonID string) (bool, error
 
 	// server port
 	port := strconv.Itoa(c.dashboardPort())
-	changed, err = client.MgrSetConfig(c.context, c.Namespace, daemonID, c.clusterInfo.CephVersion, "mgr/dashboard/server_port", port, false)
+	changed, err = client.MgrSetConfig(c.context, c.Namespace, daemonID, "mgr/dashboard/server_port", port, false)
 	if err != nil {
 		return false, err
 	}
 	hasChanged = hasChanged || changed
 
-	// SSL enabled. Needed to set specifically the ssl port setting starting with Nautilus(14.2.1)
+	// SSL enabled. Needed to set specifically the ssl port setting
 	if c.dashboard.SSL {
-		if c.clusterInfo.CephVersion.IsAtLeast(cephver.CephVersion{Major: 14, Minor: 2, Extra: 1}) {
-			changed, err = client.MgrSetConfig(c.context, c.Namespace, daemonID, c.clusterInfo.CephVersion, "mgr/dashboard/ssl_server_port", port, false)
-			if err != nil {
-				return false, err
-			}
-			hasChanged = hasChanged || changed
+		changed, err = client.MgrSetConfig(c.context, c.Namespace, daemonID, "mgr/dashboard/ssl_server_port", port, false)
+		if err != nil {
+			return false, err
 		}
+		hasChanged = hasChanged || changed
 	}
 
 	return hasChanged, nil
@@ -212,29 +209,22 @@ func (c *Cluster) createSelfSignedCert() (bool, error) {
 	return false, nil
 }
 
-// Get the return code from the process
-func getExitCode(err error) (int, bool) {
-	if exiterr, ok := err.(*exec.ExitError); ok {
-		if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-			return status.ExitStatus(), true
-		}
-	}
-	return 0, false
-}
-
 func (c *Cluster) setLoginCredentials(password string) error {
 	// Set the login credentials. Write the command/args to the debug log so we don't write the password by default to the log.
-	logger.Infof("Running command: ceph dashboard set-login-credentials admin *******")
+	logger.Infof("setting ceph dashboard %q login creds", dashboardUsername)
+
 	// retry a few times in the case that the mgr module is not ready to accept commands
-	_, err := client.ExecuteCephCommandWithRetry(func() ([]byte, error) {
+	_, err := client.ExecuteCephCommandWithRetry(func() (string, []byte, error) {
 		args := []string{"dashboard", "set-login-credentials", dashboardUsername, password}
 		cmd := client.NewCephCommand(c.context, c.Namespace, args)
-		cmd.Debug = true
-		return cmd.RunWithTimeout(client.CmdExecuteTimeout)
+		output, err := cmd.RunWithTimeout(client.CmdExecuteTimeout)
+		return "set dashboard creds", output, err
 	}, c.exitCode, 5, invalidArgErrorCode, dashboardInitWaitTime)
 	if err != nil {
 		return errors.Wrapf(err, "failed to set login creds on mgr")
 	}
+
+	logger.Infof("successfully set ceph dashboard creds")
 	return nil
 }
 
@@ -276,6 +266,7 @@ func (c *Cluster) getOrGenerateDashboardPassword() (string, error) {
 }
 
 func generatePassword(length int) (string, error) {
+	// #nosec because of the word password
 	const passwordChars = "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
 	passwd, err := generateRandomBytes(length)
 	if err != nil {
@@ -305,7 +296,11 @@ func decodeSecret(secret *v1.Secret) (string, error) {
 
 func (c *Cluster) restartDashboard() error {
 	logger.Infof("restarting the mgr module")
-	client.MgrDisableModule(c.context, c.Namespace, dashboardModuleName)
-	client.MgrEnableModule(c.context, c.Namespace, dashboardModuleName, true)
+	if err := client.MgrDisableModule(c.context, c.Namespace, dashboardModuleName); err != nil {
+		return errors.Wrapf(err, "failed to disable mgr module %q.", dashboardModuleName)
+	}
+	if err := client.MgrEnableModule(c.context, c.Namespace, dashboardModuleName, true); err != nil {
+		return errors.Wrapf(err, "failed to enable mgr module %q.", dashboardModuleName)
+	}
 	return nil
 }

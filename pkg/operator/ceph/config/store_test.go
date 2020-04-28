@@ -29,7 +29,7 @@ import (
 )
 
 func TestStore(t *testing.T) {
-	clientset := testop.New(1)
+	clientset := testop.New(t, 1)
 	ctx := &clusterd.Context{
 		Clientset: clientset,
 	}
@@ -41,13 +41,21 @@ func TestStore(t *testing.T) {
 	assertConfigStore := func(ci *cephconfig.ClusterInfo) {
 		sec, e := clientset.CoreV1().Secrets(ns).Get(StoreName, metav1.GetOptions{})
 		assert.NoError(t, e)
-		mh := strings.Split(sec.StringData["mon_host"], ",") // list of mon ip:port pairs in cluster
-		assert.Equal(t, len(ci.Monitors), len(mh))
-		mim := strings.Split(sec.StringData["mon_initial_members"], ",") // list of mon ids in cluster
+		mh := strings.Split(sec.StringData["mon_host"], ",")                    // list of mon ip:port pairs in cluster
+		assert.Equal(t, len(ci.Monitors)*2, len(mh), ci.Monitors["a"].Endpoint) // we need to pass x2 since we split on "," above and that returns msgr1 and msgr2 addresses
+		mim := strings.Split(sec.StringData["mon_initial_members"], ",")        // list of mon ids in cluster
 		assert.Equal(t, len(ci.Monitors), len(mim))
 		// make sure every mon has its id/ip:port in mon_initial_members/mon_host
 		for _, id := range mim {
-			assert.Contains(t, mh, ci.Monitors[id].Endpoint)
+			// cannot use "assert.Contains(t, mh, ci.Monitors[id].Endpoint)"
+			// it looks like the value is not found but if present, it might be confused by the brackets
+			contains := false
+			for _, c := range mh {
+				if strings.Contains(c, ci.Monitors[id].Endpoint) {
+					contains = true
+				}
+			}
+			assert.True(t, contains)
 			assert.Contains(t, mim, ci.Monitors[id].Name)
 		}
 	}
@@ -63,7 +71,7 @@ func TestStore(t *testing.T) {
 }
 
 func TestEnvVarsAndFlags(t *testing.T) {
-	clientset := testop.New(1)
+	clientset := testop.New(t, 1)
 	ctx := &clusterd.Context{
 		Clientset: clientset,
 	}

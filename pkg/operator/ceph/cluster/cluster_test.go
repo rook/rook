@@ -113,33 +113,33 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 }
 
 func TestMinVersion(t *testing.T) {
-	c := testSpec()
+	c := testSpec(t)
 	c.Spec.CephVersion.AllowUnsupported = true
 
-	// All versions less than 13.2.4 are invalid
-	v := &cephver.CephVersion{Major: 12, Minor: 2, Extra: 10}
+	// All versions less than 14.2.5 are invalid
+	v := &cephver.CephVersion{Major: 13, Minor: 2, Extra: 3}
 	assert.Error(t, c.validateCephVersion(v))
-	v = &cephver.CephVersion{Major: 13, Minor: 2, Extra: 3}
+	v = &cephver.CephVersion{Major: 14, Minor: 2, Extra: 1}
+	assert.Error(t, c.validateCephVersion(v))
+	v = &cephver.CephVersion{Major: 14}
 	assert.Error(t, c.validateCephVersion(v))
 
-	// All versions at least 13.2.4 are valid
-	v = &cephver.CephVersion{Major: 13, Minor: 2, Extra: 4}
-	assert.NoError(t, c.validateCephVersion(v))
-	v = &cephver.CephVersion{Major: 14}
+	// All versions at least 14.2.5 are valid
+	v = &cephver.CephVersion{Major: 14, Minor: 2, Extra: 5}
 	assert.NoError(t, c.validateCephVersion(v))
 	v = &cephver.CephVersion{Major: 15}
 	assert.NoError(t, c.validateCephVersion(v))
 }
 
 func TestSupportedVersion(t *testing.T) {
-	c := testSpec()
+	c := testSpec(t)
 
 	// Supported versions are valid
-	v := &cephver.CephVersion{Major: 14, Minor: 2, Extra: 0}
+	v := &cephver.CephVersion{Major: 14, Minor: 2, Extra: 5}
 	assert.NoError(t, c.validateCephVersion(v))
 
 	// Unsupported versions are not valid
-	v = &cephver.CephVersion{Major: 15, Minor: 2, Extra: 0}
+	v = &cephver.CephVersion{Major: 16, Minor: 2, Extra: 0}
 	assert.Error(t, c.validateCephVersion(v))
 
 	// Unsupported versions are now valid
@@ -147,10 +147,10 @@ func TestSupportedVersion(t *testing.T) {
 	assert.NoError(t, c.validateCephVersion(v))
 }
 
-func testSpec() cluster {
-	clientset := testop.New(1)
+func testSpec(t *testing.T) *cluster {
+	clientset := testop.New(t, 1)
 	context := &clusterd.Context{
 		Clientset: clientset,
 	}
-	return cluster{Spec: &cephv1.ClusterSpec{}, context: context}
+	return &cluster{Spec: &cephv1.ClusterSpec{}, context: context}
 }

@@ -26,36 +26,34 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-config")
 
-// DaemonType defines the type of a daemon. e.g., mon, mgr, osd, mds, rgw
-type DaemonType string
-
 const (
 	// MonType defines the mon DaemonType
-	MonType DaemonType = "mon"
+	MonType = "mon"
 
 	// MgrType defines the mgr DaemonType
-	MgrType DaemonType = "mgr"
+	MgrType = "mgr"
 
 	// OsdType defines the osd DaemonType
-	OsdType DaemonType = "osd"
+	OsdType = "osd"
 
 	// MdsType defines the mds DaemonType
-	MdsType DaemonType = "mds"
+	MdsType = "mds"
 
 	// RgwType defines the rgw DaemonType
-	RgwType DaemonType = "rgw"
+	RgwType = "rgw"
 
 	// RbdMirrorType defines the rbd-mirror DaemonType
-	RbdMirrorType DaemonType = "rbd-mirror"
+	RbdMirrorType = "rbd-mirror"
 
 	// CrashType defines the crash collector DaemonType
-	CrashType DaemonType = "crashcollector"
+	CrashType = "crashcollector"
 
 	// CephUser is the Linux Ceph username
 	CephUser = "ceph"
@@ -106,6 +104,7 @@ func SetDefaultConfigs(
 	context *clusterd.Context,
 	namespace string,
 	clusterInfo *cephconfig.ClusterInfo,
+	networkSpec cephv1.NetworkSpec,
 ) error {
 	// ceph.conf is never used. All configurations are made in the centralized mon config database,
 	// or they are specified on the commandline when daemons are called.
@@ -117,6 +116,20 @@ func SetDefaultConfigs(
 
 	if err := monStore.SetAll(DefaultLegacyConfigs()...); err != nil {
 		return errors.Wrapf(err, "failed to apply legacy config overrides")
+	}
+
+	// Apply Multus if needed
+	if networkSpec.IsMultus() {
+		logger.Info("configuring ceph network(s) with multus")
+		cephNetworks, err := generateNetworkSettings(context, namespace, networkSpec.Selectors)
+		if err != nil {
+			errors.Wrap(err, "failed to generate network settings")
+		}
+
+		// Apply ceph network settings to the mon config store
+		if err := monStore.SetAll(cephNetworks...); err != nil {
+			return errors.Wrap(err, "failed to network config overrides")
+		}
 	}
 
 	return nil

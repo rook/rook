@@ -41,16 +41,18 @@ Settings for the operator are configured through environment variables on the op
 
 ## Cluster CRD
 
-Now that your operator is running, let's create your Ceph storage cluster:
+Now that your operator is running, let's create your Ceph storage cluster. This CR contains the most critical settings
+that will influence how the operator configures the storage. It is important to understand the various ways to configure
+the cluster. These examples represent a very small set of the different ways to configure the storage.
 
 * `cluster.yaml`: This file contains common settings for a production storage cluster. Requires at least three nodes.
 * `cluster-test.yaml`: Settings for a test cluster where redundancy is not configured. Requires only a single node.
-* `cluster-minimal.yaml`: Brings up a cluster with only one [ceph-mon](http://docs.ceph.com/docs/nautilus/man/8/ceph-mon/) and a [ceph-mgr](http://docs.ceph.com/docs/nautilus/mgr/) so the Ceph dashboard can be used for the remaining cluster configuration.
+* `cluster-on-pvc.yaml`: This file contains common settings for backing the Ceph Mons and OSDs by PVs. Useful when running in cloud environments or where local PVs have been created for Ceph to consume.
+* `cluster-external`: Connect to an [external Ceph cluster](ceph-cluster-crd.md#external-cluster) with minimal access to monitor the health of the cluster and connect to the storage.
+* `cluster-external-management`: Connect to an [external Ceph cluster](ceph-cluster-crd.md#external-cluster) with the admin key of the external cluster to enable
+  remote creation of pools and configure services such as an [Object Store](ceph-object.md) or a [Shared Filesystem](ceph-filesystem.md).
 
-See the [Cluster CRD](ceph-cluster-crd.md) topic for more details on the settings.
-
-Monitors may be configured to run on PVC storage. Details on [how to set this up
-and some minor restrctions are described here](ceph-cluster-crd#mon-settings).
+See the [Cluster CRD](ceph-cluster-crd.md) topic for more details and more examples for the settings.
 
 ## Setting up consumable storage
 
@@ -61,7 +63,7 @@ Now we are ready to setup [block](https://ceph.com/ceph-storage/block-storage/),
 Ceph can provide raw block device volumes to pods. Each example below sets up a storage class which can then be used to provision a block device in kubernetes pods. The storage class is defined with [a pool](http://docs.ceph.com/docs/master/rados/operations/pools/) which defines the level of data redundancy in Ceph:
 
 * `storageclass.yaml`: This example illustrates replication of 3 for production scenarios and requires at least three nodes. Your data is replicated on three different kubernetes worker nodes and intermittent or long-lasting single node failures will not result in data unavailability or loss.
-* `storageclass-ec.yaml`: Configures erasure coding for data durability rather than replication. [Ceph's erasure coding](http://docs.ceph.com/docs/master/rados/operations/erasure-code/) is more efficient than replication so you can get high reliability without the 3x replication cost of the preceding example (but at the cost of higher computational encoding and decoding costs on the worker nodes). Erasure coding requires at least three nodes. See the [Erasure coding](ceph-pool-crd.md#erasure-coded) documentation for more details. **Note: Erasure coding is only available with the flex driver. Support from the CSI driver is coming soon.**
+* `storageclass-ec.yaml`: Configures erasure coding for data durability rather than replication. [Ceph's erasure coding](http://docs.ceph.com/docs/master/rados/operations/erasure-code/) is more efficient than replication so you can get high reliability without the 3x replication cost of the preceding example (but at the cost of higher computational encoding and decoding costs on the worker nodes). Erasure coding requires at least three nodes. See the [Erasure coding](ceph-pool-crd.md#erasure-coded) documentation for more details.
 * `storageclass-test.yaml`: Replication of 1 for test scenarios and it requires only a single node. Do not use this for applications that store valuable data or have high-availability storage requirements, since a single node failure can result in data loss.
 
 The storage classes are found in different sub-directories depending on the driver:

@@ -13,11 +13,13 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package clusterd
 
 import (
 	"errors"
 	"fmt"
+	"path"
 	"regexp"
 	"strconv"
 
@@ -32,7 +34,7 @@ var (
 	isRBD  = regexp.MustCompile("^rbd[0-9]+p?[0-9]{0,}$")
 )
 
-// check whether a device is completely empty
+// GetDeviceEmpty check whether a device is completely empty
 func GetDeviceEmpty(device *sys.LocalDisk) bool {
 	return device.Parent == "" && (device.Type == sys.DiskType || device.Type == sys.SSDType || device.Type == sys.CryptType || device.Type == sys.LVMType) && len(device.Partitions) == 0 && device.Filesystem == ""
 }
@@ -41,7 +43,7 @@ func ignoreDevice(d string) bool {
 	return isRBD.MatchString(d)
 }
 
-// Discover all the details of devices available on the local node
+// DiscoverDevices returns all the details of devices available on the local node
 func DiscoverDevices(executor exec.Executor) ([]*sys.LocalDisk, error) {
 	var disks []*sys.LocalDisk
 	devices, err := sys.ListDevices(executor)
@@ -50,24 +52,48 @@ func DiscoverDevices(executor exec.Executor) ([]*sys.LocalDisk, error) {
 	}
 
 	for _, d := range devices {
-
+		// Ignore RBD device
 		if ignoreDevice(d) {
 			// skip device
+			logger.Warningf("skipping rbd device %q", d)
 			continue
 		}
+
+		// Populate device information coming from lsblk
 		disk, err := PopulateDeviceInfo(d, executor)
 		if err != nil {
-			// skip device
-			logger.Warningf("skipping device %s: %+v", d, err)
+			logger.Warningf("skipping device %q. %v", d, err)
 			continue
 		}
+
+		// Populate udev information coming from udev
 		disk, err = PopulateDeviceUdevInfo(d, executor, disk)
 		if err != nil {
 			// go on without udev info
-			logger.Warningf("failed to get udev info for device %s: %+v", d, err)
+			// not ideal for our filesystem check later but we can't really fail either...
+			logger.Warningf("failed to get udev info for device %q. %v", d, err)
 		}
+
+		// Test if device has child, if so we skip it and only consider the partitions
+		// which will come in later iterations of the loop
+		// We only test if the type is 'disk', this is a property reported by lsblk
+		// and means it's a parent block device
+		if disk.Type == sys.DiskType {
+			deviceChild, err := sys.ListDevicesChild(executor, d)
+			if err != nil {
+				logger.Warningf("failed to detect child devices for device %q, assuming they are none. %v", d, err)
+			}
+			// lsblk will output at least 2 lines if they are partitions, one for the parent
+			// and N for the child
+			if len(deviceChild) > 1 {
+				logger.Infof("skipping device %q because it has child, considering the child instead.", d)
+				continue
+			}
+		}
+
 		disks = append(disks, disk)
 	}
+	logger.Debugf("discovered disks are %v", disks)
 
 	return disks, nil
 }
@@ -118,7 +144,10 @@ func PopulateDeviceInfo(d string, executor exec.Executor) (*sys.LocalDisk, error
 		}
 	}
 	if val, ok := diskProps["PKNAME"]; ok {
-		disk.Parent = val
+		disk.Parent = path.Base(val)
+	}
+	if val, ok := diskProps["NAME"]; ok {
+		disk.RealPath = val
 	}
 
 	return disk, nil
