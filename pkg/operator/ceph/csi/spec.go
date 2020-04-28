@@ -119,6 +119,13 @@ const (
 	pluginTolerationsEnv       = "CSI_PLUGIN_TOLERATIONS"
 	pluginNodeAffinityEnv      = "CSI_PLUGIN_NODE_AFFINITY"
 
+	// compute resource for CSI pods
+	rbdProvisionerResource = "CSI_RBD_PROVISIONER_RESOURCE"
+	rbdPluginResource      = "CSI_RBD_PLUGIN_RESOURCE"
+
+	cephFSProvisionerResource = "CSI_CEPHFS_PROVISIONER_RESOURCE"
+	cephFSPluginResource      = "CSI_CEPHFS_PLUGIN_RESOURCE"
+
 	// kubelet directory path
 	DefaultKubeletDirPath = "/var/lib/kubelet"
 
@@ -370,6 +377,8 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 	pluginNodeAffinity := getNodeAffinity(clientset, false)
 	if rbdPlugin != nil {
 		applyToPodSpec(&rbdPlugin.Spec.Template.Spec, pluginNodeAffinity, pluginTolerations)
+		// apply resource request and limit to rbdplugin containers
+		applyResourcesToContainers(clientset, rbdPluginResource, &rbdPlugin.Spec.Template.Spec)
 		k8sutil.SetOwnerRef(&rbdPlugin.ObjectMeta, ownerRef)
 		err = k8sutil.CreateDaemonSet("csi-rbdplugin", namespace, clientset, rbdPlugin)
 		if err != nil {
@@ -380,6 +389,8 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 
 	if rbdProvisionerSTS != nil {
 		applyToPodSpec(&rbdProvisionerSTS.Spec.Template.Spec, provisionerNodeAffinity, provisionerTolerations)
+		// apply resource request and limit to rbd provisioner containers
+		applyResourcesToContainers(clientset, rbdProvisionerResource, &rbdProvisionerSTS.Spec.Template.Spec)
 		k8sutil.SetOwnerRef(&rbdProvisionerSTS.ObjectMeta, ownerRef)
 		err = k8sutil.CreateStatefulSet("csi-rbdplugin-provisioner", namespace, clientset, rbdProvisionerSTS)
 		if err != nil {
@@ -388,6 +399,8 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 		k8sutil.AddRookVersionLabelToStatefulSet(rbdProvisionerSTS)
 	} else if rbdProvisionerDeployment != nil {
 		applyToPodSpec(&rbdProvisionerDeployment.Spec.Template.Spec, provisionerNodeAffinity, provisionerTolerations)
+		// apply resource request and limit to rbd provisioner containers
+		applyResourcesToContainers(clientset, rbdProvisionerResource, &rbdProvisionerDeployment.Spec.Template.Spec)
 		k8sutil.SetOwnerRef(&rbdProvisionerDeployment.ObjectMeta, ownerRef)
 		err = k8sutil.CreateDeployment("csi-rbdplugin-provisioner", namespace, clientset, rbdProvisionerDeployment)
 		if err != nil {
@@ -406,6 +419,8 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 
 	if cephfsPlugin != nil {
 		applyToPodSpec(&cephfsPlugin.Spec.Template.Spec, pluginNodeAffinity, pluginTolerations)
+		// apply resource request and limit to cephfs plugin containers
+		applyResourcesToContainers(clientset, cephFSPluginResource, &cephfsPlugin.Spec.Template.Spec)
 		k8sutil.SetOwnerRef(&cephfsPlugin.ObjectMeta, ownerRef)
 		err = k8sutil.CreateDaemonSet("csi-cephfsplugin", namespace, clientset, cephfsPlugin)
 		if err != nil {
@@ -416,6 +431,8 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 
 	if cephfsProvisionerSTS != nil {
 		applyToPodSpec(&cephfsProvisionerSTS.Spec.Template.Spec, provisionerNodeAffinity, provisionerTolerations)
+		// apply resource request and limit to cephfs provisioner containers
+		applyResourcesToContainers(clientset, cephFSProvisionerResource, &cephfsProvisionerSTS.Spec.Template.Spec)
 		k8sutil.SetOwnerRef(&cephfsProvisionerSTS.ObjectMeta, ownerRef)
 		err = k8sutil.CreateStatefulSet("csi-cephfsplugin-provisioner", namespace, clientset, cephfsProvisionerSTS)
 		if err != nil {
@@ -425,6 +442,9 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 
 	} else if cephfsProvisionerDeployment != nil {
 		applyToPodSpec(&cephfsProvisionerDeployment.Spec.Template.Spec, provisionerNodeAffinity, provisionerTolerations)
+		// get resource details for cephfs provisioner
+		// apply resource request and limit to cephfs provisioner containers
+		applyResourcesToContainers(clientset, cephFSProvisionerResource, &cephfsProvisionerDeployment.Spec.Template.Spec)
 		k8sutil.SetOwnerRef(&cephfsProvisionerDeployment.ObjectMeta, ownerRef)
 		err = k8sutil.CreateDeployment("csi-cephfsplugin-provisioner", namespace, clientset, cephfsProvisionerDeployment)
 		if err != nil {
