@@ -42,12 +42,12 @@ spec:
   mon:
     count: 3
     allowMultiplePerNode: false
-  # mgr:
-    # modules:
+  mgr:
+    modules:
     # Several modules should not need to be included in this list. The "dashboard" and "monitoring" modules
     # are already enabled by other settings in the cluster CR and the "rook" module is always enabled.
-    # - name: pg_autoscaler
-    #   enabled: true
+    - name: pg_autoscaler
+      enabled: true
   # enable the ceph dashboard for viewing cluster status
   dashboard:
     enabled: true
