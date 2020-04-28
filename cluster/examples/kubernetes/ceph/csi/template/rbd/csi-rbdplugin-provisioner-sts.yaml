@@ -31,7 +31,7 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
-        - name: csi-rbdplugin-attacher
+        - name: csi-attacher
           image: {{ .AttacherImage }}
           args:
             - "--v={{ .LogLevel }}"
