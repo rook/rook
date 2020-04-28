@@ -60,7 +60,7 @@ func getAllCephDaemonVersionsString(context *clusterd.Context, clusterName strin
 	args := []string{"versions"}
 	buf, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to run 'ceph versions")
+		return "", errors.Wrapf(err, "failed to run 'ceph versions. %s", string(buf))
 	}
 	output := string(buf)
 	logger.Debug(output)
@@ -78,7 +78,7 @@ func GetCephMonVersion(context *clusterd.Context, clusterName string) (*cephver.
 
 	v, err := cephver.ExtractCephVersion(output)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to extract ceph version")
+		return nil, errors.Wrap(err, "failed to extract ceph version")
 	}
 
 	return v, nil
@@ -95,7 +95,7 @@ func GetAllCephDaemonVersions(context *clusterd.Context, clusterName string) (*C
 	var cephVersionsResult CephDaemonsVersions
 	err = json.Unmarshal([]byte(output), &cephVersionsResult)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to retrieve ceph versions results")
+		return nil, errors.Wrap(err, "failed to retrieve ceph versions results")
 	}
 
 	return &cephVersionsResult, nil

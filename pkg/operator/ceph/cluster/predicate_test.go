@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Rook Authors. All rights reserved.
+Copyright 2020 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,16 +21,26 @@ import (
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 )
 
-func TestGetClusterObject(t *testing.T) {
-	// get a current version cluster object, should return with no error and no migration needed
-	cluster, err := getClusterObject(&cephv1.CephCluster{})
-	assert.NotNil(t, cluster)
-	assert.Nil(t, err)
+func TestIsHotPlugCM(t *testing.T) {
+	dum := &cephv1.CephBlockPool{}
 
-	// try to get an object that isn't a cluster, should return with an error
-	cluster, err = getClusterObject(&map[string]string{})
-	assert.Nil(t, cluster)
-	assert.NotNil(t, err)
+	b := isHotPlugCM(dum)
+	assert.False(t, b)
+
+	cm := &corev1.ConfigMap{}
+	b = isHotPlugCM(cm)
+	assert.False(t, b)
+
+	cm.Labels = map[string]string{
+		"foo": "bar",
+	}
+	b = isHotPlugCM(cm)
+	assert.False(t, b)
+
+	cm.Labels["app"] = "rook-discover"
+	b = isHotPlugCM(cm)
+	assert.True(t, b)
 }

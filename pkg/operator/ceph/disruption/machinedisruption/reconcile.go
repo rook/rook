@@ -29,7 +29,8 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephClient "github.com/rook/rook/pkg/daemon/ceph/client"
-	cephCluster "github.com/rook/rook/pkg/operator/ceph/cluster"
+
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/machinelabel"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -105,7 +106,7 @@ func (r *MachineDisruptionReconciler) reconcile(request reconcile.Request) (reco
 					MDBCephClusterNamespaceLabelKey: request.Namespace,
 					MDBCephClusterNameLabelKey:      request.Name,
 				},
-				OwnerReferences: []metav1.OwnerReference{cephCluster.ClusterOwnerRef(cephClusterInstance.GetName(), string(cephClusterInstance.GetUID()))},
+				OwnerReferences: []metav1.OwnerReference{opcontroller.ClusterOwnerRef(cephClusterInstance.GetName(), string(cephClusterInstance.GetUID()))},
 			},
 			Spec: healthchecking.MachineDisruptionBudgetSpec{
 				MaxUnavailable: &maxUnavailable,

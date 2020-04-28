@@ -40,6 +40,9 @@ type CustomResource struct {
 
 	// Kind is the serialized interface of the resource.
 	Kind string
+
+	// APIVersion is the full API version name (combine Group and Version)
+	APIVersion string
 }
 
 // WatchCR begins watching the custom resource (CRD). The call will block until a Done signal is raised during in the context.

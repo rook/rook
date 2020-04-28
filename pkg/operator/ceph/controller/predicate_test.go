@@ -21,7 +21,10 @@ import (
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/stretchr/testify/assert"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -65,13 +68,13 @@ func TestObjectChanged(t *testing.T) {
 	}
 
 	// Identical
-	changed, err := objectChanged(oldObject, newObject)
+	changed, err := objectChanged(oldObject, newObject, "foo")
 	assert.NoError(t, err)
 	assert.False(t, changed)
 
 	// Replica size changed
 	oldObject.Spec.Replicated.Size = newReplicas
-	changed, err = objectChanged(oldObject, newObject)
+	changed, err = objectChanged(oldObject, newObject, "foo")
 	assert.NoError(t, err)
 	assert.True(t, changed)
 }
@@ -101,4 +104,133 @@ func TestIsUpgrade(t *testing.T) {
 	newLabel["ceph_version"] = "15.2.1-octopus"
 	b = isUpgrade(oldLabel, newLabel)
 	assert.True(t, b, fmt.Sprintf("%v,%v", oldLabel, newLabel))
+}
+
+func TestIsValidEvent(t *testing.T) {
+	obj := "rook-ceph-mon-a"
+	valid := []byte(`{
+		"metadata": {},
+		"spec": {},
+		"status": {
+		  "conditions": [
+			{
+			  "message": "ReplicaSet \"rook-ceph-mon-b-784fc58bf8\" is progressing.",
+			  "reason": "ReplicaSetUpdated",
+			  "type": "Progressing"
+			}
+		  ]
+		}
+	  }`)
+
+	b := isValidEvent(valid, obj)
+	assert.True(t, b)
+
+	valid = []byte(`{"foo": "bar"}`)
+	b = isValidEvent(valid, obj)
+	assert.True(t, b)
+
+	invalid := []byte(`{
+		"metadata": {},
+		"status": {},
+	  }`)
+	b = isValidEvent(invalid, obj)
+	assert.False(t, b)
+}
+
+func TestIsCanary(t *testing.T) {
+	dum := &cephv1.CephBlockPool{}
+
+	b := isCanary(dum)
+	assert.False(t, b)
+
+	d := &appsv1.Deployment{}
+	b = isCanary(d)
+	assert.False(t, b)
+
+	d.Labels = map[string]string{
+		"foo": "bar",
+	}
+	b = isCanary(d)
+	assert.False(t, b)
+
+	d.Labels["mon_canary"] = "true"
+	b = isCanary(d)
+	assert.True(t, b)
+}
+
+func TestIsCMToIgnoreOnUpdate(t *testing.T) {
+	dum := &cephv1.CephBlockPool{}
+
+	b := isCMTConfigOverride(dum)
+	assert.False(t, b)
+
+	cm := &corev1.ConfigMap{}
+	b = isCMTConfigOverride(cm)
+	assert.False(t, b)
+
+	cm.Name = "rook-ceph-mon-endpoints"
+	b = isCMTConfigOverride(cm)
+	assert.False(t, b)
+
+	cm.Name = "rook-config-override"
+	b = isCMTConfigOverride(cm)
+	assert.True(t, b)
+}
+
+func TestIsCMToIgnoreOnDelete(t *testing.T) {
+	dum := &cephv1.CephBlockPool{}
+
+	b := isCMToIgnoreOnDelete(dum)
+	assert.False(t, b)
+
+	cm := &corev1.ConfigMap{}
+	b = isCMToIgnoreOnDelete(cm)
+	assert.False(t, b)
+
+	cm.Name = "rook-ceph-mon-endpoints"
+	b = isCMToIgnoreOnDelete(cm)
+	assert.False(t, b)
+
+	cm.Name = "rook-ceph-osd-minikube-status"
+	b = isCMToIgnoreOnDelete(cm)
+	assert.True(t, b)
+}
+
+func TestIsSecretToIgnoreOnUpdate(t *testing.T) {
+	dum := &cephv1.CephBlockPool{}
+
+	b := isSecretToIgnoreOnUpdate(dum)
+	assert.False(t, b)
+
+	s := &corev1.Secret{}
+	b = isSecretToIgnoreOnUpdate(s)
+	assert.False(t, b)
+
+	s.Name = "foo"
+	b = isSecretToIgnoreOnUpdate(s)
+	assert.False(t, b)
+
+	s.Name = config.StoreName
+	b = isSecretToIgnoreOnUpdate(s)
+	assert.True(t, b)
+}
+
+func TestIsDoNotReconcile(t *testing.T) {
+	l := map[string]string{
+		"foo": "bar",
+	}
+
+	// value not present
+	b := isDoNotReconcile(l)
+	assert.False(t, b)
+
+	// good value wrong content
+	l["do_not_reconcile"] = "false"
+	b = isDoNotReconcile(l)
+	assert.False(t, b)
+
+	// good value and good content
+	l["do_not_reconcile"] = "true"
+	b = isDoNotReconcile(l)
+	assert.True(t, b)
 }

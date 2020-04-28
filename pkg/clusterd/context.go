@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package clusterd
 
 import (
@@ -24,6 +25,7 @@ import (
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Context for loading or applying the configuration state of a service.
@@ -34,6 +36,9 @@ type Context struct {
 
 	// Clientset is a connection to the core kubernetes API
 	Clientset kubernetes.Interface
+
+	// Represents the Client provided by the controller-runtime package to interact with Kubernetes objects
+	Client client.Client
 
 	// APIExtensionClientset is a connection to the API Extension kubernetes API
 	APIExtensionClientset apiextensionsclient.Interface

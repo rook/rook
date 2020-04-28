@@ -22,9 +22,10 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
 	operator "github.com/rook/rook/pkg/operator/ceph"
+	cluster "github.com/rook/rook/pkg/operator/ceph/cluster"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
-	"github.com/rook/rook/pkg/operator/ceph/disruption"
+
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
@@ -55,7 +56,7 @@ func init() {
 	operatorCmd.Flags().StringVar(&csi.CephFSProvisionerSTSTemplatePath, "csi-cephfs-provisioner-sts-template-path", csi.DefaultCephFSProvisionerSTSTemplatePath, "path to ceph-csi cephfs provisioner statefulset template")
 	operatorCmd.Flags().StringVar(&csi.CephFSProvisionerDepTemplatePath, "csi-cephfs-provisioner-dep-template-path", csi.DefaultCephFSProvisionerDepTemplatePath, "path to ceph-csi cephfs provisioner deployment template")
 
-	operatorCmd.Flags().BoolVar(&disruption.EnableMachineDisruptionBudget, "enable-machine-disruption-budget", false, "enable fencing controllers")
+	operatorCmd.Flags().BoolVar(&cluster.EnableMachineDisruptionBudget, "enable-machine-disruption-budget", false, "enable fencing controllers")
 
 	flags.SetFlagsFromEnv(operatorCmd.Flags(), rook.RookEnvVarPrefix)
 	flags.SetLoggingFlags(operatorCmd.Flags())
@@ -68,7 +69,7 @@ func startOperator(cmd *cobra.Command, args []string) error {
 
 	rook.LogStartupInfo(operatorCmd.Flags())
 
-	logger.Infof("starting operator")
+	logger.Info("starting Rook-Ceph operator")
 	context := createContext()
 	context.NetworkInfo = clusterd.NetworkInfo{}
 	context.ConfigDir = k8sutil.DataDir
@@ -82,7 +83,7 @@ func startOperator(cmd *cobra.Command, args []string) error {
 	op := operator.New(context, volumeAttachment, rookImage, serviceAccountName)
 	err = op.Run()
 	if err != nil {
-		rook.TerminateFatal(errors.Wrapf(err, "failed to run operator\n"))
+		rook.TerminateFatal(errors.Wrap(err, "failed to run operator\n"))
 	}
 
 	return nil

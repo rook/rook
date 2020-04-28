@@ -156,19 +156,12 @@ func (c *clusterConfig) startRGWPods() error {
 				return errors.Wrapf(createErr, "failed to create rgw deployment")
 			}
 			logger.Infof("object store %q deployment %q already exists. updating if needed", c.store.Name, deployment.Name)
-			_, err = c.context.Clientset.AppsV1().Deployments(c.store.Namespace).Get(deployment.Name, metav1.GetOptions{})
-			if err != nil {
-				return errors.Wrapf(err, "failed to get existing rgw deployment %q for update", deployment.Name)
-			}
-		}
-
-		// Generate the mime.types file after the rep. controller as well for the same reason as keyring
-		if createErr != nil && kerrors.IsAlreadyExists(createErr) {
 			if err := updateDeploymentAndWait(c.context, deployment, c.store.Namespace, config.RgwType, daemonLetterID, c.skipUpgradeChecks, c.clusterSpec.ContinueUpgradeAfterChecksEvenIfNotHealthy); err != nil {
 				return errors.Wrapf(err, "failed to update object store %q deployment %q", c.store.Name, deployment.Name)
 			}
 		}
 
+		// Generate the mime.types file after the rep. controller as well for the same reason as keyring
 		if err := c.generateMimeTypes(); err != nil {
 			return errors.Wrap(err, "failed to generate the rgw mime.types config")
 		}

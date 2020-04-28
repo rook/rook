@@ -53,17 +53,25 @@ type ExternalCred struct {
 // in. This method exists less out of necessity than the desire to be explicit about the lifecycle
 // of the ClusterInfo struct during startup, specifically that it is expected to exist after the
 // Rook operator has started up or connected to the first components of the Ceph cluster.
-func (c *ClusterInfo) IsInitialized() bool {
+func (c *ClusterInfo) IsInitialized(logError bool) bool {
 	var isInitialized bool
 
 	if c == nil {
-		logger.Error("clusterInfo is nil")
+		if logError {
+			logger.Error("clusterInfo is nil")
+		}
 	} else if c.FSID == "" {
-		logger.Error("cluster fsid is empty")
+		if logError {
+			logger.Error("cluster fsid is empty")
+		}
 	} else if c.MonitorSecret == "" {
-		logger.Error("monitor secret is empty")
+		if logError {
+			logger.Error("monitor secret is empty")
+		}
 	} else if c.AdminSecret == "" {
-		logger.Error("admin secret is empty")
+		if logError {
+			logger.Error("admin secret is empty")
+		}
 	} else {
 		isInitialized = true
 	}
