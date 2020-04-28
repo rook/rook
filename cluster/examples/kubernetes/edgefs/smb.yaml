@@ -1,3 +1,13 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: dev.local
+  namespace: rook-edgefs
+type: Opaque
+stringData:
+  username: "administrator"
+  password: "Password!"
+---
 apiVersion: edgefs.rook.io/v1
 kind: SMB
 metadata:
@@ -5,6 +15,12 @@ metadata:
   namespace: rook-edgefs
 spec:
   instances: 1
+  #ads:
+  #  domainName: "dev.local"         # AD Domain Name
+  #  dcName: "localdc"               # Preferred Domain Controller Name
+  #  serverName: "edgefs-us-east1"   # NetBIOS Name of our SMB Gateway
+  #  userSecret: "dev.local"         # The name of secret holding username and password
+  #  nameservers: "10.200.1.19"      # The comma separated list of DNS name server IPs
   #placement:
   #  nodeAffinity:
   #    requiredDuringSchedulingIgnoredDuringExecution:

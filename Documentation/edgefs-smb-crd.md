@@ -19,6 +19,12 @@ metadata:
   namespace: rook-edgefs
 spec:
   instances: 3
+  #ads:
+  #  domainName: "corp.example.com"
+  #  dcName: "localdc"
+  #  serverName: "edgefs-smb"
+  #  userSecret: "corp.example.com"
+  #  nameservers: "10.200.1.19"
   #relaxedDirUpdates: true
   #chunkCacheSize: 1Gi
   # A key/value list of annotations
@@ -59,6 +65,34 @@ spec:
 * `placement`: The SMB PODs can be given standard Kubernetes placement restrictions with `nodeAffinity`, `tolerations`, `podAffinity`, and `podAntiAffinity` similar to placement defined for daemons configured by the [cluster CRD](/cluster/examples/kubernetes/edgefs/cluster.yaml).
 * `resourceProfile`: SMB pod resource utilization profile (Memory and CPU). Can be `embedded` or `performance` (default). In case of `performance` an SMB pod trying to increase amount of internal I/O resources that results in higher performance at the cost of additional memory allocation and more CPU load. In `embedded` profile case, SMB pod gives preference to preserving memory over I/O and limiting chunk cache (see `chunkCacheSize` option). The `performance` profile is the default unless cluster wide `embedded` option is defined.
 * `resources`: Set resource requests/limits for the SMB Pod(s), see [Resource Requirements/Limits](edgefs-cluster-crd.md#resource-requirementslimits).
+* `ads`: Set Active Directory service join parameters. If not defined, SMB gateway will start in WORKGROUP mode.
+
+## Joining Windows Active Directory service
+
+Before you begin, please make sure that external IP can be properly provisioned to passthrough ports 445 (smb) and 139 (netbios), pointing to SMB service.
+If for some reason external IP is difficult or impossible to provision, you can use NodePort and setup redirect rules on the node where SMB gateway will be running.
+
+Define "ads" metadata section with the following parameters and reference a secret object:
+
+* `domainName`: AD Domain Name in form of DNS record, like `corp.example.com`.
+* `dcName`: Preferred Domain Controller Name. Could be short name like `localdc`.
+* `serverName`: NetBIOS Name of our SMB Gateway. This name will be used to during SMB share mapping, e.g. `\\edgefs-smb\bk1`.
+* `userSecret`: The name of secret holding username and password keys. Secret object has to be pre-created in the same namespace.
+* `nameservers`: The comma separated list of DNS name server IPs, e.g. `10.3.40.16,10.3.40.17`
+
+Secret object can look like this:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: corp.example.com
+  namespace: rook-edgefs
+type: Opaque
+stringData:
+  username: "Administrator"
+  password: "Password!"
+```
 
 ## Setting up EdgeFS namespace and tenant
 

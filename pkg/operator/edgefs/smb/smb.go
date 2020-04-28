@@ -19,6 +19,7 @@ package smb
 
 import (
 	"fmt"
+	"strings"
 
 	edgefsv1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -172,6 +173,14 @@ func (c *SMBController) makeDeployment(svcname, namespace, rookImage string, smb
 		},
 	}
 
+	if smbSpec.Ads != (edgefsv1.AdsSpec{}) {
+		podSpec.Spec.DNSPolicy = v1.DNSNone
+		podSpec.Spec.DNSConfig = &v1.PodDNSConfig{
+			Nameservers: strings.Split(smbSpec.Ads.Nameservers, ","),
+			Searches:    []string{strings.ToLower(smbSpec.Ads.DomainName)},
+		}
+	}
+
 	if c.NetworkSpec.IsHost() {
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	} else if c.NetworkSpec.IsMultus() {
@@ -274,6 +283,45 @@ func (c *SMBController) smbContainer(svcname, name, containerImage string, smbSp
 			{Name: "microsoft-ds", ContainerPort: 445, Protocol: v1.ProtocolTCP},
 		},
 		VolumeMounts: volumeMounts,
+	}
+
+	if smbSpec.Ads != (edgefsv1.AdsSpec{}) {
+		adsDN := smbSpec.Ads.DomainName
+		cont.Env = append(cont.Env, v1.EnvVar{
+			Name:  "EFSSMB_DOMAIN_NAME",
+			Value: adsDN,
+		})
+		adsShortName := strings.Split(adsDN, ".")[0]
+		cont.Env = append(cont.Env, v1.EnvVar{
+			Name:  "EFSSMB_WORKGROUP",
+			Value: adsShortName,
+		})
+		cont.Env = append(cont.Env, v1.EnvVar{
+			Name:  "EFSSMB_DC1",
+			Value: smbSpec.Ads.DcName,
+		})
+		cont.Env = append(cont.Env, v1.EnvVar{
+			Name:  "EFSSMB_NETBIOS_NAME",
+			Value: smbSpec.Ads.ServerName,
+		})
+		cont.Env = append(cont.Env, v1.EnvVar{
+			Name: "EFSSMB_AD_USERNAME",
+			ValueFrom: &v1.EnvVarSource{
+				SecretKeyRef: &v1.SecretKeySelector{
+					LocalObjectReference: v1.LocalObjectReference{Name: smbSpec.Ads.UserSecret},
+					Key:                  "username",
+				},
+			},
+		})
+		cont.Env = append(cont.Env, v1.EnvVar{
+			Name: "EFSSMB_AD_PASSWORD",
+			ValueFrom: &v1.EnvVarSource{
+				SecretKeyRef: &v1.SecretKeySelector{
+					LocalObjectReference: v1.LocalObjectReference{Name: smbSpec.Ads.UserSecret},
+					Key:                  "password",
+				},
+			},
+		})
 	}
 
 	if smbSpec.RelaxedDirUpdates {
