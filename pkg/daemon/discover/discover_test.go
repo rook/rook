@@ -80,6 +80,8 @@ func TestProbeDevices(t *testing.T) {
 			output = `SIZE="249510756352" ROTA="1" RO="0" TYPE="disk" PKNAME=""`
 		} else if args[0] == "info" && args[1] == "--query=property" {
 			output = udevOutput
+		} else if args[0] == "--print" && args[1] == "/dev/testa" {
+			output = sgdiskOutput
 		}
 		return output, nil
 	}
