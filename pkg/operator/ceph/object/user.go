@@ -46,7 +46,7 @@ type ObjectUser struct {
 func ListUsers(c *Context) ([]string, int, error) {
 	result, err := runAdminCommand(c, "user", "list")
 	if err != nil {
-		return nil, RGWErrorUnknown, errors.Wrapf(err, "failed to list users")
+		return nil, RGWErrorUnknown, errors.Wrap(err, "failed to list users")
 	}
 
 	var s []string
@@ -71,7 +71,7 @@ func decodeUser(data string) (*ObjectUser, int, error) {
 	var user rgwUserInfo
 	err := json.Unmarshal([]byte(data), &user)
 	if err != nil {
-		return nil, RGWErrorParse, errors.Wrapf(err, "Failed to unmarshal json")
+		return nil, RGWErrorParse, errors.Wrap(err, "Failed to unmarshal json")
 	}
 
 	rookUser := ObjectUser{UserID: user.UserID, DisplayName: &user.DisplayName, Email: &user.Email}
@@ -94,7 +94,7 @@ func GetUser(c *Context, id string) (*ObjectUser, int, error) {
 		return nil, RGWErrorNotFound, errors.New("warn: user not found")
 	}
 	if err != nil {
-		return nil, RGWErrorUnknown, errors.Wrapf(err, "radosgw-admin command err")
+		return nil, RGWErrorUnknown, errors.Wrap(err, "radosgw-admin command err")
 	}
 	return decodeUser(result)
 }
@@ -124,7 +124,7 @@ func CreateUser(c *Context, user ObjectUser) (*ObjectUser, int, error) {
 
 	result, err := runAdminCommand(c, args...)
 	if err != nil {
-		return nil, RGWErrorUnknown, errors.Wrapf(err, "failed to create user")
+		return nil, RGWErrorUnknown, errors.Wrap(err, "failed to create user")
 	}
 
 	if strings.HasPrefix(result, "could not create user: unable to create user, user: ") && strings.HasSuffix(result, " exists") {
@@ -153,7 +153,7 @@ func UpdateUser(c *Context, user ObjectUser) (*ObjectUser, int, error) {
 
 	body, err := runAdminCommand(c, args...)
 	if err != nil {
-		return nil, RGWErrorUnknown, errors.Wrapf(err, "failed to update user")
+		return nil, RGWErrorUnknown, errors.Wrap(err, "failed to update user")
 	}
 
 	if body == "could not modify user: unable to modify user, user not found" {
@@ -171,7 +171,7 @@ func DeleteUser(c *Context, id string, opts ...string) (string, int, error) {
 	}
 	result, err := runAdminCommand(c, args...)
 	if err != nil {
-		return "", RGWErrorUnknown, errors.Wrapf(err, "failed to delete user")
+		return "", RGWErrorUnknown, errors.Wrap(err, "failed to delete user")
 	}
 	if result == "unable to remove user, user does not exist" {
 		return "", RGWErrorNotFound, errors.Wrapf(err, "user %q does not exist so cannot delete", id)
@@ -185,7 +185,7 @@ func SetQuotaUserBucketMax(c *Context, id string, max int) (string, int, error) 
 	args := []string{"--quota-scope", "user", "--max-buckets", strconv.Itoa(max)}
 	result, errCode, err := setUserQuota(c, id, args)
 	if errCode != RGWErrorNone {
-		err = errors.Wrapf(err, "failed setting bucket max")
+		err = errors.Wrap(err, "failed setting bucket max")
 	}
 	return result, errCode, err
 }
@@ -194,7 +194,7 @@ func setUserQuota(c *Context, id string, args []string) (string, int, error) {
 	args = append([]string{"quota", "set", "--uid", id}, args...)
 	result, err := runAdminCommand(c, args...)
 	if err != nil {
-		err = errors.Wrapf(err, "failed to set max buckets for user")
+		err = errors.Wrap(err, "failed to set max buckets for user")
 	}
 	return result, RGWErrorNone, err
 }

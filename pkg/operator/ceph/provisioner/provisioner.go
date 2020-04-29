@@ -123,7 +123,7 @@ func (p *RookVolumeProvisioner) Provision(options controller.ProvisionOptions) (
 
 	driverName, err := flexvolume.RookDriverName(p.context)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get driver name")
+		return nil, errors.Wrap(err, "failed to get driver name")
 	}
 
 	flexdriver := fmt.Sprintf("%s/%s", p.flexDriverVendor, driverName)

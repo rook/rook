@@ -69,7 +69,7 @@ func New(clientset kubernetes.Interface) *Agent {
 func (a *Agent) Start(namespace, agentImage, serviceAccount string) error {
 	err := a.createAgentDaemonSet(namespace, agentImage, serviceAccount)
 	if err != nil {
-		return errors.Wrapf(err, "error starting agent daemonset")
+		return errors.Wrap(err, "error starting agent daemonset")
 	}
 	return nil
 }
@@ -267,12 +267,12 @@ func (a *Agent) createAgentDaemonSet(namespace, agentImage, serviceAccount strin
 	_, err = a.clientset.AppsV1().DaemonSets(namespace).Create(ds)
 	if err != nil {
 		if !k8serrors.IsAlreadyExists(err) {
-			return errors.Wrapf(err, "failed to create rook-ceph-agent daemon set")
+			return errors.Wrap(err, "failed to create rook-ceph-agent daemon set")
 		}
 		logger.Infof("rook-ceph-agent daemonset already exists, updating ...")
 		_, err = a.clientset.AppsV1().DaemonSets(namespace).Update(ds)
 		if err != nil {
-			return errors.Wrapf(err, "failed to update rook-ceph-agent daemon set")
+			return errors.Wrap(err, "failed to update rook-ceph-agent daemon set")
 		}
 	} else {
 		logger.Infof("rook-ceph-agent daemonset started")

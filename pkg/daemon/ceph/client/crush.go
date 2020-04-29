@@ -91,7 +91,7 @@ func GetCrushMap(context *clusterd.Context, clusterName string) (CrushMap, error
 
 	err = json.Unmarshal(buf, &c)
 	if err != nil {
-		return c, errors.Wrapf(err, "failed to unmarshal crush map")
+		return c, errors.Wrap(err, "failed to unmarshal crush map")
 	}
 
 	return c, nil

@@ -89,7 +89,7 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 		logger.Info("creating 'rook-ceph-config' configmap.")
 		err = populateConfigOverrideConfigMap(cluster.context, c.namespacedName.Namespace, cluster.ownerRef)
 		if err != nil {
-			return errors.Wrapf(err, "failed to populate config override config map")
+			return errors.Wrap(err, "failed to populate config override config map")
 		}
 	}
 

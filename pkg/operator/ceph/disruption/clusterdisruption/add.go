@@ -42,7 +42,7 @@ func Add(mgr manager.Manager, context *controllerconfig.Context) error {
 	// Add the cephv1 scheme to the manager scheme
 	mgrScheme := mgr.GetScheme()
 	if err := cephv1.AddToScheme(mgr.GetScheme()); err != nil {
-		return errors.Wrapf(err, "failed to add ceph scheme to manager scheme.")
+		return errors.Wrap(err, "failed to add ceph scheme to manager scheme")
 	}
 
 	// this will be used to associate namespaces and cephclusters.

@@ -40,7 +40,7 @@ func (r *ReconcileClusterDisruption) getOsdDataList(request reconcile.Request, p
 	namespaceListOpts := client.InNamespace(request.Namespace)
 	err := r.client.List(context.TODO(), osdDeploymentList, client.MatchingLabels{k8sutil.AppAttr: osd.AppName}, namespaceListOpts)
 	if err != nil {
-		return nil, errors.Wrapf(err, "could not list osd deployments")
+		return nil, errors.Wrap(err, "could not list osd deployments")
 	}
 
 	osds := make([]OsdData, 0)

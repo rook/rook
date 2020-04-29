@@ -128,7 +128,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
-		return reconcile.Result{}, errors.Wrapf(err, "failed to get CephBlockPool")
+		return reconcile.Result{}, errors.Wrap(err, "failed to get CephBlockPool")
 	}
 
 	// The CR was just created, initializing status fields
@@ -229,7 +229,7 @@ func createPool(context *clusterd.Context, p *cephv1.CephBlockPool) error {
 func deletePool(context *clusterd.Context, p *cephv1.CephBlockPool) error {
 	pools, err := cephclient.ListPoolSummaries(context, p.Namespace)
 	if err != nil {
-		return errors.Wrapf(err, "failed to list pools")
+		return errors.Wrap(err, "failed to list pools")
 	}
 
 	// Only delete the pool if it exists...

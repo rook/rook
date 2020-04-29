@@ -202,13 +202,13 @@ func (o *Operator) updateDrivers() error {
 	if EnableFlexDriver {
 		rookAgent := agent.New(o.context.Clientset)
 		if err := rookAgent.Start(o.operatorNamespace, o.rookImage, o.securityAccount); err != nil {
-			return errors.Wrapf(err, "error starting agent daemonset")
+			return errors.Wrap(err, "error starting agent daemonset")
 		}
 	}
 
 	serverVersion, err := o.context.Clientset.Discovery().ServerVersion()
 	if err != nil {
-		return errors.Wrapf(err, "error getting server version")
+		return errors.Wrap(err, "error getting server version")
 	}
 
 	if err = o.setCSIParams(); err != nil {
@@ -229,7 +229,7 @@ func (o *Operator) updateDrivers() error {
 	}
 
 	if err = csi.ValidateCSIParam(); err != nil {
-		return errors.Wrapf(err, "invalid csi params")
+		return errors.Wrap(err, "invalid csi params")
 	}
 
 	if err = csi.ValidateCSIVersion(o.context.Clientset, o.operatorNamespace, o.rookImage, o.securityAccount); err != nil {
@@ -237,7 +237,7 @@ func (o *Operator) updateDrivers() error {
 	}
 
 	if err = csi.StartCSIDrivers(o.operatorNamespace, o.context.Clientset, serverVersion); err != nil {
-		return errors.Wrapf(err, "failed to start Ceph csi drivers")
+		return errors.Wrap(err, "failed to start Ceph csi drivers")
 	}
 	logger.Infof("successfully started Ceph CSI driver(s)")
 	return nil

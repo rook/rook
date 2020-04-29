@@ -130,14 +130,14 @@ func (c *Cluster) clearHTTPBindFix() error {
 			// the version being upgraded from.
 			if _, err := client.MgrSetConfig(c.context, c.Namespace, daemonID,
 				fmt.Sprintf("mgr/%s/server_addr", module), "", false); err != nil {
-				return errors.Wrapf(err, "failed to set config for an mgr daemon using v2 format.")
+				return errors.Wrap(err, "failed to set config for an mgr daemon using v2 format")
 			}
 
 			// this is for the format used in v1.0
 			// https://github.com/rook/rook/commit/11d318fb2f77a6ac9a8f2b9be42c826d3b4a93c3
 			if _, err := client.MgrSetConfig(c.context, c.Namespace, daemonID,
 				fmt.Sprintf("mgr/%s/%s/server_addr", module, daemonID), "", false); err != nil {
-				return errors.Wrapf(err, "failed to set config for an mgr daemon using v1 format.")
+				return errors.Wrap(err, "failed to set config for an mgr daemon using v1 format")
 			}
 		}
 	}

@@ -154,7 +154,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		},
 	)
 	if err != nil {
-		return errors.Wrapf(err, "failed to watch for changes on the ceph pod nodename and enqueue their nodes")
+		return errors.Wrap(err, "failed to watch for changes on the ceph pod nodename and enqueue their nodes")
 	}
 
 	return nil

@@ -47,7 +47,7 @@ func FindRBDMappedFile(imageName, poolName, sysBusDir string) (string, error) {
 
 	files, err := ioutil.ReadDir(sysBusDeviceDir)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to read rbd device dir")
+		return "", errors.Wrap(err, "failed to read rbd device dir")
 	}
 
 	for _, idFile := range files {

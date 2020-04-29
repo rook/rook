@@ -51,12 +51,12 @@ func New(context *clusterd.Context) *Agent {
 func (a *Agent) Run() error {
 	volumeAttachmentController, err := attachment.New(a.context)
 	if err != nil {
-		return errors.Wrapf(err, "failed to create volume attachment controller")
+		return errors.Wrap(err, "failed to create volume attachment controller")
 	}
 
 	volumeManager, err := ceph.NewVolumeManager(a.context)
 	if err != nil {
-		return errors.Wrapf(err, "failed to create volume manager")
+		return errors.Wrap(err, "failed to create volume manager")
 	}
 
 	mountSecurityMode := os.Getenv(agent.AgentMountSecurityModeEnv)
@@ -75,12 +75,12 @@ func (a *Agent) Run() error {
 
 	err = rpc.Register(flexvolumeController)
 	if err != nil {
-		return errors.Wrapf(err, "unable to register rpc")
+		return errors.Wrap(err, "unable to register rpc")
 	}
 
 	driverName, err := flexvolume.RookDriverName(a.context)
 	if err != nil {
-		return errors.Wrapf(err, "failed to get driver name")
+		return errors.Wrap(err, "failed to get driver name")
 	}
 
 	flexDriverVendors := []string{flexvolume.FlexvolumeVendor, flexvolume.FlexvolumeVendorLegacy}

@@ -75,7 +75,7 @@ func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.Obje
 	// dynamically create a new ceph user
 	p.accessKeyID, p.secretAccessKey, err = p.createCephUser("")
 	if err != nil {
-		return nil, errors.Wrapf(err, "Provision: can't create ceph user")
+		return nil, errors.Wrap(err, "Provision: can't create ceph user")
 	}
 
 	s3svc, err := NewS3Agent(p.accessKeyID, p.secretAccessKey, p.getObjectStoreEndpoint())

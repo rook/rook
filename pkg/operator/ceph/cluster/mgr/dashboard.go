@@ -55,18 +55,18 @@ func (c *Cluster) configureDashboardService() error {
 		// expose the dashboard service
 		if _, err := c.context.Clientset.CoreV1().Services(c.Namespace).Create(dashboardService); err != nil {
 			if !kerrors.IsAlreadyExists(err) {
-				return errors.Wrapf(err, "failed to create dashboard mgr service")
+				return errors.Wrap(err, "failed to create dashboard mgr service")
 			}
 			logger.Infof("dashboard service already exists")
 			original, err := c.context.Clientset.CoreV1().Services(c.Namespace).Get(dashboardService.Name, metav1.GetOptions{})
 			if err != nil {
-				return errors.Wrapf(err, "failed to get dashboard service")
+				return errors.Wrap(err, "failed to get dashboard service")
 			}
 			if original.Spec.Ports[0].Port != int32(c.dashboardPort()) {
 				logger.Infof("dashboard port changed. updating service")
 				original.Spec.Ports[0].Port = int32(c.dashboardPort())
 				if _, err := c.context.Clientset.CoreV1().Services(c.Namespace).Update(original); err != nil {
-					return errors.Wrapf(err, "failed to update dashboard mgr service")
+					return errors.Wrap(err, "failed to update dashboard mgr service")
 				}
 			}
 		} else {
@@ -76,7 +76,7 @@ func (c *Cluster) configureDashboardService() error {
 		// delete the dashboard service if it exists
 		err := c.context.Clientset.CoreV1().Services(c.Namespace).Delete(dashboardService.Name, &metav1.DeleteOptions{})
 		if err != nil && !kerrors.IsNotFound(err) {
-			return errors.Wrapf(err, "failed to delete dashboard service")
+			return errors.Wrap(err, "failed to delete dashboard service")
 		}
 	}
 
@@ -98,7 +98,7 @@ func (c *Cluster) configureDashboardModules() error {
 
 	hasChanged, err := c.initializeSecureDashboard()
 	if err != nil {
-		return errors.Wrapf(err, "failed to initialize dashboard")
+		return errors.Wrap(err, "failed to initialize dashboard")
 	}
 
 	for _, daemonID := range c.getDaemonIDs() {
@@ -158,13 +158,13 @@ func (c *Cluster) initializeSecureDashboard() (bool, error) {
 
 	password, err := c.getOrGenerateDashboardPassword()
 	if err != nil {
-		return false, errors.Wrapf(err, "failed to generate a password for the ceph dashboard")
+		return false, errors.Wrap(err, "failed to generate a password for the ceph dashboard")
 	}
 
 	if c.dashboard.SSL {
 		alreadyCreated, err := c.createSelfSignedCert()
 		if err != nil {
-			return false, errors.Wrapf(err, "failed to create a self signed cert for the ceph dashboard")
+			return false, errors.Wrap(err, "failed to create a self signed cert for the ceph dashboard")
 		}
 		if alreadyCreated {
 			return false, nil
@@ -172,7 +172,7 @@ func (c *Cluster) initializeSecureDashboard() (bool, error) {
 	}
 
 	if err := c.setLoginCredentials(password); err != nil {
-		return false, errors.Wrapf(err, "failed to set login credentials for the ceph dashboard")
+		return false, errors.Wrap(err, "failed to set login credentials for the ceph dashboard")
 	}
 
 	return true, nil
@@ -202,7 +202,7 @@ func (c *Cluster) createSelfSignedCert() (bool, error) {
 					continue
 				}
 			}
-			return false, errors.Wrapf(err, "failed to create self signed cert on mgr")
+			return false, errors.Wrap(err, "failed to create self signed cert on mgr")
 		}
 		break
 	}
@@ -235,13 +235,13 @@ func (c *Cluster) getOrGenerateDashboardPassword() (string, error) {
 		return decodeSecret(secret)
 	}
 	if !kerrors.IsNotFound(err) {
-		return "", errors.Wrapf(err, "failed to get dashboard secret")
+		return "", errors.Wrap(err, "failed to get dashboard secret")
 	}
 
 	// Generate a password
 	password, err := generatePassword(passwordLength)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to generate password")
+		return "", errors.Wrap(err, "failed to generate password")
 	}
 
 	// Store the keyring in a secret
@@ -260,7 +260,7 @@ func (c *Cluster) getOrGenerateDashboardPassword() (string, error) {
 
 	_, err = c.context.Clientset.CoreV1().Secrets(c.Namespace).Create(secret)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to save dashboard secret")
+		return "", errors.Wrap(err, "failed to save dashboard secret")
 	}
 	return password, nil
 }
@@ -270,7 +270,7 @@ func generatePassword(length int) (string, error) {
 	const passwordChars = "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
 	passwd, err := generateRandomBytes(length)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to generate password")
+		return "", errors.Wrap(err, "failed to generate password")
 	}
 	for i, pass := range passwd {
 		passwd[i] = passwordChars[pass%byte(len(passwordChars))]
@@ -282,7 +282,7 @@ func generatePassword(length int) (string, error) {
 func generateRandomBytes(length int) ([]byte, error) {
 	bytes := make([]byte, length)
 	if _, err := rand.Read(bytes); err != nil {
-		return nil, errors.Wrapf(err, "failed to generate random bytes")
+		return nil, errors.Wrap(err, "failed to generate random bytes")
 	}
 	return bytes, nil
 }

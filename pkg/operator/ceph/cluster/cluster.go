@@ -371,18 +371,18 @@ func (c *cluster) postMonStartupActions() error {
 	// Create CSI Kubernetes Secrets
 	err := csi.CreateCSISecrets(c.context, c.Namespace, &c.ownerRef)
 	if err != nil {
-		return errors.Wrapf(err, "failed to create csi kubernetes secrets")
+		return errors.Wrap(err, "failed to create csi kubernetes secrets")
 	}
 
 	// Create crash collector Kubernetes Secret
 	err = crash.CreateCrashCollectorSecret(c.context, c.Namespace, &c.ownerRef)
 	if err != nil {
-		return errors.Wrapf(err, "failed to create crash collector kubernetes secret")
+		return errors.Wrap(err, "failed to create crash collector kubernetes secret")
 	}
 
 	// Enable Ceph messenger 2 protocol on Nautilus
 	if err := client.EnableMessenger2(c.context, c.Namespace); err != nil {
-		return errors.Wrapf(err, "failed to enable Ceph messenger version 2.")
+		return errors.Wrap(err, "failed to enable Ceph messenger version 2")
 	}
 
 	return nil
