@@ -22,7 +22,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -86,4 +86,37 @@ func TestOwnerRefCheck(t *testing.T) {
 	SetOwnerRef(&resource.ObjectMeta, ownerRef)
 	require.Equal(t, 1, len(resource.OwnerReferences))
 	assert.Equal(t, ownerRef.Name, resource.OwnerReferences[0].Name)
+}
+
+func TestYamlToContainerResource(t *testing.T) {
+	var validData string = `
+- name: rbdplugin
+  resource:
+    requests:
+      memory: 512Mi
+      cpu: 250m
+    limits:
+      memory: 512Mi
+      cpu: 250m
+- name: rbdplugin
+  resource:
+    requests:
+      memory: 512Mi
+      cpu: 250m
+    limits:
+      memory: 512Mi
+      cpu: 250m`
+	res, err := YamlToContainerResource(validData)
+	assert.Len(t, res, 2)
+	assert.NoError(t, err)
+
+	var invalidData string = `
+	invalid:
+	  data: 512Mi
+	invalid:
+	  memry: 512Mi
+	  cpu: 250m`
+	res, err = YamlToContainerResource(invalidData)
+	assert.Len(t, res, 0)
+	assert.Error(t, err)
 }
