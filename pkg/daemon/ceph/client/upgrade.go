@@ -48,7 +48,7 @@ func getCephMonVersionString(context *clusterd.Context, clusterName string) (str
 	args := []string{"version"}
 	buf, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to run 'ceph version")
+		return "", errors.Wrap(err, "failed to run 'ceph version")
 	}
 	output := string(buf)
 	logger.Debug(output)
@@ -106,7 +106,7 @@ func EnableMessenger2(context *clusterd.Context, clusterName string) error {
 	args := []string{"mon", "enable-msgr2"}
 	buf, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
-		return errors.Wrapf(err, "failed to enable msgr2 protocol")
+		return errors.Wrap(err, "failed to enable msgr2 protocol")
 	}
 	output := string(buf)
 	logger.Debug(output)
@@ -133,7 +133,7 @@ func EnableReleaseOSDFunctionality(context *clusterd.Context, clusterName, relea
 func OkToStop(context *clusterd.Context, namespace, deployment, daemonType, daemonName string) error {
 	versions, err := GetAllCephDaemonVersions(context, namespace)
 	if err != nil {
-		return errors.Wrapf(err, "failed to get ceph daemons versions")
+		return errors.Wrap(err, "failed to get ceph daemons versions")
 	}
 
 	switch daemonType {
@@ -273,12 +273,12 @@ func LeastUptodateDaemonVersion(context *clusterd.Context, clusterName, daemonTy
 	} else {
 		r, err = daemonMapEntry(versions, daemonType)
 		if err != nil {
-			return vv, errors.Wrapf(err, "failed to find daemon map entry")
+			return vv, errors.Wrap(err, "failed to find daemon map entry")
 		}
 		for v := range r {
 			version, err := cephver.ExtractCephVersion(v)
 			if err != nil {
-				return vv, errors.Wrapf(err, "failed to extract ceph version")
+				return vv, errors.Wrap(err, "failed to extract ceph version")
 			}
 			vv = *version
 			// break right after the first iteration
@@ -316,17 +316,17 @@ func daemonMapEntry(versions *CephDaemonsVersions, daemonType string) (map[strin
 func allOSDsSameHost(context *clusterd.Context, clusterName string) (bool, error) {
 	tree, err := HostTree(context, clusterName)
 	if err != nil {
-		return false, errors.Wrapf(err, "failed to get the osd tree")
+		return false, errors.Wrap(err, "failed to get the osd tree")
 	}
 
 	osds, err := OsdListNum(context, clusterName)
 	if err != nil {
-		return false, errors.Wrapf(err, "failed to get the osd list")
+		return false, errors.Wrap(err, "failed to get the osd list")
 	}
 
 	hostOsdTree, err := buildHostListFromTree(tree)
 	if err != nil {
-		return false, errors.Wrapf(err, "failed to build osd tree")
+		return false, errors.Wrap(err, "failed to build osd tree")
 	}
 
 	hostOsdNodes := len(hostOsdTree.Nodes)

@@ -37,7 +37,7 @@ func ListErasureCodeProfiles(context *clusterd.Context, namespace string) ([]str
 	args := []string{"osd", "erasure-code-profile", "ls"}
 	buf, err := NewCephCommand(context, namespace, args).Run()
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to list erasure-code-profiles")
+		return nil, errors.Wrap(err, "failed to list erasure-code-profiles")
 	}
 
 	var ecProfiles []string
@@ -69,7 +69,7 @@ func CreateErasureCodeProfile(context *clusterd.Context, namespace, profileName 
 	// look up the default profile so we can use the default plugin/technique
 	defaultProfile, err := GetErasureCodeProfileDetails(context, namespace, "default")
 	if err != nil {
-		return errors.Wrapf(err, "failed to look up default erasure code profile")
+		return errors.Wrap(err, "failed to look up default erasure code profile")
 	}
 
 	// define the profile with a set of key/value pairs
@@ -93,7 +93,7 @@ func CreateErasureCodeProfile(context *clusterd.Context, namespace, profileName 
 	args = append(args, profilePairs...)
 	_, err = NewCephCommand(context, namespace, args).Run()
 	if err != nil {
-		return errors.Wrapf(err, "failed to set ec-profile")
+		return errors.Wrap(err, "failed to set ec-profile")
 	}
 
 	return nil

@@ -81,7 +81,7 @@ func GetBucketStats(c *Context, bucketName string) (*ObjectBucketStats, bool, er
 		if strings.Contains(err.Error(), "exit status 2") {
 			return nil, true, errors.New("not found")
 		} else {
-			return nil, false, errors.Wrapf(err, "failed to get bucket stats")
+			return nil, false, errors.Wrap(err, "failed to get bucket stats")
 		}
 	}
 
@@ -100,7 +100,7 @@ func GetBucketsStats(c *Context) (map[string]ObjectBucketStats, error) {
 		"bucket",
 		"stats")
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to list buckets")
+		return nil, errors.Wrap(err, "failed to list buckets")
 	}
 
 	var rgwStats []rgwBucketStats
@@ -123,7 +123,7 @@ func getBucketMetadata(c *Context, bucket string) (*ObjectBucketMetadata, bool, 
 		"get",
 		"bucket:"+bucket)
 	if err != nil {
-		return nil, false, errors.Wrapf(err, "failed to list buckets")
+		return nil, false, errors.Wrap(err, "failed to list buckets")
 	}
 
 	if strings.Contains(result, "can't get key") {
@@ -153,7 +153,7 @@ func ListBuckets(c *Context) ([]ObjectBucket, error) {
 
 	stats, err := GetBucketsStats(c)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to get bucket stats")
+		return nil, errors.Wrap(err, "Failed to get bucket stats")
 	}
 
 	buckets := []ObjectBucket{}
@@ -177,7 +177,7 @@ func GetBucket(c *Context, bucket string) (*ObjectBucket, int, error) {
 	}
 
 	if err != nil {
-		return nil, RGWErrorUnknown, errors.Wrapf(err, "Failed to get bucket stats")
+		return nil, RGWErrorUnknown, errors.Wrap(err, "Failed to get bucket stats")
 	}
 
 	metadata, notFound, err := getBucketMetadata(c, bucket)
@@ -200,7 +200,7 @@ func DeleteBucket(c *Context, bucketName string, purge bool) (int, error) {
 
 	result, err := runAdminCommand(c, options...)
 	if err != nil {
-		return RGWErrorUnknown, errors.Wrapf(err, "failed to delete bucket")
+		return RGWErrorUnknown, errors.Wrap(err, "failed to delete bucket")
 	}
 
 	if result == "" {
@@ -211,5 +211,5 @@ func DeleteBucket(c *Context, bucketName string, purge bool) (int, error) {
 		return RGWErrorNotFound, errors.New("Bucket not found")
 	}
 
-	return RGWErrorUnknown, errors.Wrapf(err, "failed to delete bucket")
+	return RGWErrorUnknown, errors.Wrap(err, "failed to delete bucket")
 }

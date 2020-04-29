@@ -89,12 +89,12 @@ func (c *Cluster) checkHealth() error {
 		if c.ClusterInfo.AdminSecret != AdminSecretName {
 			quorumStatus, err = client.GetMonQuorumStatus(c.context, c.ClusterInfo.Name)
 			if err != nil {
-				return errors.Wrapf(err, "failed to get external mon quorum status")
+				return errors.Wrap(err, "failed to get external mon quorum status")
 			}
 		} else {
 			quorumStatus, err = client.GetMonQuorumStatusHealth(c.context, c.ClusterInfo.Name, c.ClusterInfo.ExternalCred.Username)
 			if err != nil {
-				return errors.Wrapf(err, "failed to get external mon quorum status")
+				return errors.Wrap(err, "failed to get external mon quorum status")
 			}
 		}
 
@@ -105,7 +105,7 @@ func (c *Cluster) checkHealth() error {
 	// get the status and check for quorum
 	quorumStatus, err := client.GetMonQuorumStatus(c.context, c.ClusterInfo.Name)
 	if err != nil {
-		return errors.Wrapf(err, "failed to get mon quorum status")
+		return errors.Wrap(err, "failed to get mon quorum status")
 	}
 	logger.Debugf("Mon quorum status: %+v", quorumStatus)
 
@@ -239,7 +239,7 @@ func (c *Cluster) failoverMon(name string) error {
 
 	// Assign the pod to a node
 	if err := c.assignMons(mConf); err != nil {
-		return errors.Wrapf(err, "failed to place new mon on a node")
+		return errors.Wrap(err, "failed to place new mon on a node")
 	}
 
 	if c.Network.IsHost() {
@@ -252,7 +252,7 @@ func (c *Cluster) failoverMon(name string) error {
 		// Create the service endpoint
 		serviceIP, err := c.createService(m)
 		if err != nil {
-			return errors.Wrapf(err, "failed to create mon service")
+			return errors.Wrap(err, "failed to create mon service")
 		}
 		m.PublicIP = serviceIP
 	}

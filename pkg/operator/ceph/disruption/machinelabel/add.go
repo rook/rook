@@ -42,10 +42,10 @@ const (
 func Add(mgr manager.Manager, context *controllerconfig.Context) error {
 	mgrScheme := mgr.GetScheme()
 	if err := cephv1.AddToScheme(mgrScheme); err != nil {
-		return errors.Wrapf(err, "failed to add scheme to ceph.")
+		return errors.Wrap(err, "failed to add scheme to ceph")
 	}
 	if err := mapiv1.AddToScheme(mgrScheme); err != nil {
-		return errors.Wrapf(err, "failed to add scheme to mapi.")
+		return errors.Wrap(err, "failed to add scheme to map")
 	}
 
 	reconcileMachineLabel := &ReconcileMachineLabel{

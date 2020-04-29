@@ -29,7 +29,7 @@ func ValidateCephVersionsBetweenLocalAndExternalClusters(context *clusterd.Conte
 	// health check should tell us if the external cluster has been upgraded and display a message
 	externalVersion, err := client.GetCephMonVersion(context, namespace)
 	if err != nil {
-		return cephver.CephVersion{}, errors.Wrapf(err, "failed to get ceph mon version")
+		return cephver.CephVersion{}, errors.Wrap(err, "failed to get ceph mon version")
 	}
 
 	return *externalVersion, cephver.ValidateCephVersionsBetweenLocalAndExternalClusters(localVersion, *externalVersion)

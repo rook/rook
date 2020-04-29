@@ -154,7 +154,7 @@ func (vm *VolumeManager) Attach(image, pool, id, key, clusterNamespace string) (
 
 		retryCount++
 		if retryCount >= findDevicePathMaxRetries {
-			return "", errors.Wrapf(err, "exceeded retry count while finding device path")
+			return "", errors.Wrap(err, "exceeded retry count while finding device path")
 		}
 
 		logger.Infof("failed to find device path, sleeping 1 second. %v", err)
@@ -254,7 +254,7 @@ func getClusterInfo(context *clusterd.Context, clusterNamespace string) (string,
 func (f *devicePathFinder) FindDevicePath(image, pool, clusterNamespace string) (string, error) {
 	mappedFile, err := cephutil.FindRBDMappedFile(image, pool, cephutil.RBDSysBusPathDefault)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to find mapped image")
+		return "", errors.Wrap(err, "failed to find mapped image")
 	}
 
 	if mappedFile != "" {

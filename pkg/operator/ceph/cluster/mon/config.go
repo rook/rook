@@ -89,7 +89,7 @@ func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerR
 	secrets, err := context.Clientset.CoreV1().Secrets(namespace).Get(AppName, metav1.GetOptions{})
 	if err != nil {
 		if !kerrors.IsNotFound(err) {
-			return nil, maxMonID, monMapping, errors.Wrapf(err, "failed to get mon secrets")
+			return nil, maxMonID, monMapping, errors.Wrap(err, "failed to get mon secrets")
 		}
 		if ownerRef == nil {
 			return nil, maxMonID, monMapping, errors.New("not expected to create new cluster info and did not find existing secret")
@@ -97,7 +97,7 @@ func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerR
 
 		clusterInfo, err = createNamedClusterInfo(context, namespace)
 		if err != nil {
-			return nil, maxMonID, monMapping, errors.Wrapf(err, "failed to create mon secrets")
+			return nil, maxMonID, monMapping, errors.Wrap(err, "failed to create mon secrets")
 		}
 
 		err = createClusterAccessSecret(context.Clientset, namespace, clusterInfo, ownerRef)
@@ -117,7 +117,7 @@ func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerR
 	// get the existing monitor config
 	clusterInfo.Monitors, maxMonID, monMapping, err = loadMonConfig(context.Clientset, namespace)
 	if err != nil {
-		return nil, maxMonID, monMapping, errors.Wrapf(err, "failed to get mon config")
+		return nil, maxMonID, monMapping, errors.Wrap(err, "failed to get mon config")
 	}
 
 	return clusterInfo, maxMonID, monMapping, nil
@@ -172,7 +172,7 @@ func ValidateAndLoadExternalClusterSecrets(context *clusterd.Context, namespace 
 func WriteConnectionConfig(context *clusterd.Context, clusterInfo *cephconfig.ClusterInfo) error {
 	// write the latest config to the config dir
 	if _, err := cephconfig.GenerateAdminConnectionConfig(context, clusterInfo); err != nil {
-		return errors.Wrapf(err, "failed to write connection config")
+		return errors.Wrap(err, "failed to write connection config")
 	}
 
 	return nil
@@ -246,7 +246,7 @@ func createClusterAccessSecret(clientset kubernetes.Interface, namespace string,
 	}
 	k8sutil.SetOwnerRef(&secret.ObjectMeta, ownerRef)
 	if _, err = clientset.CoreV1().Secrets(namespace).Create(secret); err != nil {
-		return errors.Wrapf(err, "failed to save mon secrets")
+		return errors.Wrap(err, "failed to save mon secrets")
 	}
 
 	return nil
@@ -297,12 +297,12 @@ func genSecret(executor exec.Executor, configDir, name string, args []string) (s
 	args = append(base, args...)
 	_, err := executor.ExecuteCommandWithOutput("ceph-authtool", args...)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to gen secret")
+		return "", errors.Wrap(err, "failed to gen secret")
 	}
 
 	contents, err := ioutil.ReadFile(filepath.Clean(path))
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to read secret file")
+		return "", errors.Wrap(err, "failed to read secret file")
 	}
 	return ExtractKey(string(contents))
 }

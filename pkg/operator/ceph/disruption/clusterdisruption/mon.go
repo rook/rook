@@ -65,7 +65,7 @@ func (r *ReconcileClusterDisruption) reconcileMonPDB(cephCluster *cephv1.CephClu
 	}
 	err := r.reconcileStaticPDB(pdbRequest, pdb)
 	if err != nil {
-		return errors.Wrapf(err, "could not reconcile mon pdb")
+		return errors.Wrap(err, "could not reconcile mon pdb")
 	}
 	return nil
 }

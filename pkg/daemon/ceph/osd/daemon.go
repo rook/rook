@@ -56,7 +56,7 @@ func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID, lvPath string,
 
 	// Update LVM config at runtime
 	if err := updateLVMConfig(context, pvcBackedOSD, lvBackedPV); err != nil {
-		return errors.Wrapf(err, "failed to update lvm configuration file") // fail return here as validation provided by ceph-volume
+		return errors.Wrap(err, "failed to update lvm configuration file") // fail return here as validation provided by ceph-volume
 	}
 
 	var volumeGroupName string
@@ -80,7 +80,7 @@ func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID, lvPath string,
 	// activate the osd with ceph-volume
 	storeFlag := "--" + osdType
 	if err := context.Executor.ExecuteCommand("stdbuf", "-oL", "ceph-volume", "lvm", "activate", "--no-systemd", storeFlag, osdID, osdUUID); err != nil {
-		return errors.Wrapf(err, "failed to activate osd")
+		return errors.Wrap(err, "failed to activate osd")
 	}
 
 	// run the ceph-osd daemon
@@ -91,7 +91,7 @@ func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID, lvPath string,
 
 	if pvcBackedOSD && !lvBackedPV {
 		if err := releaseLVMDevice(context, volumeGroupName); err != nil {
-			return errors.Wrapf(err, "failed to release device from lvm")
+			return errors.Wrap(err, "failed to release device from lvm")
 		}
 	}
 
@@ -107,7 +107,7 @@ func handleTerminate(context *clusterd.Context, lvPath, volumeGroupName string) 
 			logger.Infof("shutdown signal received, exiting...")
 			err := killCephOSDProcess(context, lvPath)
 			if err != nil {
-				return errors.Wrapf(err, "failed to kill ceph-osd process")
+				return errors.Wrap(err, "failed to kill ceph-osd process")
 			}
 			return nil
 		}
@@ -132,7 +132,7 @@ func killCephOSDProcess(context *clusterd.Context, lvPath string) error {
 		// improve the shutdown time of the OSD. For cleanliness we should consider removing the -9
 		// once it is backported to Nautilus: https://github.com/ceph/ceph/pull/31677.
 		if err := context.Executor.ExecuteCommand("kill", "-9", pid); err != nil {
-			return errors.Wrapf(err, "failed to kill ceph-osd process")
+			return errors.Wrap(err, "failed to kill ceph-osd process")
 		}
 	}
 
@@ -148,17 +148,17 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 	// create the ceph.conf with the default settings
 	cephConfig, err := cephconfig.CreateDefaultCephConfig(context, agent.cluster)
 	if err != nil {
-		return errors.Wrapf(err, "failed to create default ceph config")
+		return errors.Wrap(err, "failed to create default ceph config")
 	}
 
 	// write the latest config to the config dir
 	confFilePath, err := cephconfig.GenerateAdminConnectionConfigWithSettings(context, agent.cluster, cephConfig)
 	if err != nil {
-		return errors.Wrapf(err, "failed to write connection config")
+		return errors.Wrap(err, "failed to write connection config")
 	}
 	src, err := ioutil.ReadFile(filepath.Clean(confFilePath))
 	if err != nil {
-		return errors.Wrapf(err, "failed to copy connection config to /etc/ceph. failed to read the connection config")
+		return errors.Wrap(err, "failed to copy connection config to /etc/ceph. failed to read the connection config")
 	}
 	err = ioutil.WriteFile(cephconfig.DefaultConfigFilePath(), src, 0444)
 	if err != nil {
@@ -200,7 +200,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 		// See: https://tracker.ceph.com/issues/43579
 		rawDevices, err = clusterd.DiscoverDevices(context.Executor)
 		if err != nil {
-			return errors.Wrapf(err, "failed initial hardware discovery")
+			return errors.Wrap(err, "failed initial hardware discovery")
 		}
 	}
 
