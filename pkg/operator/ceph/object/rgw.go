@@ -68,7 +68,7 @@ func (c *clusterConfig) createOrUpdateStore() error {
 	logger.Infof("creating object store %q in namespace %q", c.store.Name, c.store.Namespace)
 
 	if err := c.startRGWPods(); err != nil {
-		return errors.Wrapf(err, "failed to start rgw pods")
+		return errors.Wrap(err, "failed to start rgw pods")
 	}
 
 	logger.Infof("created object store %q in namespace %q", c.store.Name, c.store.Namespace)
@@ -153,7 +153,7 @@ func (c *clusterConfig) startRGWPods() error {
 		_, createErr := c.context.Clientset.AppsV1().Deployments(c.store.Namespace).Create(deployment)
 		if createErr != nil {
 			if !kerrors.IsAlreadyExists(createErr) {
-				return errors.Wrapf(createErr, "failed to create rgw deployment")
+				return errors.Wrap(createErr, "failed to create rgw deployment")
 			}
 			logger.Infof("object store %q deployment %q already exists. updating if needed", c.store.Name, deployment.Name)
 			if err := updateDeploymentAndWait(c.context, deployment, c.store.Namespace, config.RgwType, daemonLetterID, c.skipUpgradeChecks, c.clusterSpec.ContinueUpgradeAfterChecksEvenIfNotHealthy); err != nil {

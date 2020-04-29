@@ -125,7 +125,7 @@ func (r *ReconcileCephRBDMirror) removeExtraMirrors(cephRBDMirror *cephv1.CephRB
 	opts := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", AppName)}
 	d, err := r.context.Clientset.AppsV1().Deployments(cephRBDMirror.Namespace).List(opts)
 	if err != nil {
-		return errors.Wrapf(err, "failed to get mirrors")
+		return errors.Wrap(err, "failed to get mirrors")
 	}
 
 	if len(d.Items) <= cephRBDMirror.Spec.Count {

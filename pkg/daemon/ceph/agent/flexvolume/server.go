@@ -165,7 +165,7 @@ func generateFlexSettings(enableSELinuxRelabeling, enableFSGroup bool) ([]byte, 
 	}
 	result, err := json.Marshal(status)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Invalid flex settings")
+		return nil, errors.Wrap(err, "Invalid flex settings")
 	}
 	return result, nil
 }

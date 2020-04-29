@@ -194,12 +194,12 @@ func (r *ReconcileCephNFS) createConfigMap(n *cephv1.CephNFS, name string) (stri
 
 	if _, err := r.context.Clientset.CoreV1().ConfigMaps(n.Namespace).Create(configMap); err != nil {
 		if !kerrors.IsAlreadyExists(err) {
-			return "", errors.Wrapf(err, "failed to create ganesha config map")
+			return "", errors.Wrap(err, "failed to create ganesha config map")
 		}
 
 		logger.Debugf("updating config map %q that already exists", configMap.Name)
 		if _, err = r.context.Clientset.CoreV1().ConfigMaps(n.Namespace).Update(configMap); err != nil {
-			return "", errors.Wrapf(err, "failed to update ganesha config map")
+			return "", errors.Wrap(err, "failed to update ganesha config map")
 		}
 	}
 

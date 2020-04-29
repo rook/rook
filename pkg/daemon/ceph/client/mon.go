@@ -55,7 +55,7 @@ func GetMonQuorumStatus(context *clusterd.Context, clusterName string) (MonStatu
 	cmd := NewCephCommand(context, clusterName, args)
 	buf, err := cmd.Run()
 	if err != nil {
-		return MonStatusResponse{}, errors.Wrapf(err, "mon quorum status failed")
+		return MonStatusResponse{}, errors.Wrap(err, "mon quorum status failed")
 	}
 
 	var resp MonStatusResponse

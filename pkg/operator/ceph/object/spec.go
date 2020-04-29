@@ -236,7 +236,7 @@ func (c *clusterConfig) reconcileService(cephObjectStore *cephv1.CephObjectStore
 	// Set owner ref to the parent object
 	err := controllerutil.SetControllerReference(cephObjectStore, service, c.scheme)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to set owner reference to ceph object store")
+		return "", errors.Wrap(err, "failed to set owner reference to ceph object store")
 	}
 
 	svc, err := k8sutil.CreateOrUpdateService(c.context.Clientset, cephObjectStore.Namespace, service)

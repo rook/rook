@@ -150,7 +150,7 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 	// Create OSD bootstrap keyring
 	err = createOSDBootstrapKeyring(context, a.cluster.Name, cephConfigDir)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to generate osd keyring")
+		return nil, errors.Wrap(err, "failed to generate osd keyring")
 	}
 
 	// Check if the PVC is an LVM block device (certain StorageClass do this)
@@ -167,7 +167,7 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 			}
 			lvBackedPV, err = sys.IsLV(dev, context.Executor)
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to check device type")
+				return nil, errors.Wrap(err, "failed to check device type")
 			}
 			break
 		}
@@ -186,11 +186,11 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 	// If running on OSD on PVC
 	if a.pvcBacked {
 		if block, metadataBlock, err = a.initializeBlockPVC(context, devices, lvBackedPV); err != nil {
-			return nil, errors.Wrapf(err, "failed to initialize devices on PVC")
+			return nil, errors.Wrap(err, "failed to initialize devices on PVC")
 		}
 	} else {
 		if err = a.initializeDevices(context, devices); err != nil {
-			return nil, errors.Wrapf(err, "failed to initialize devices")
+			return nil, errors.Wrap(err, "failed to initialize devices")
 		}
 	}
 
@@ -305,7 +305,7 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 				}
 
 				// Return failure
-				return "", "", errors.Wrapf(err, "failed ceph-volume") // fail return here as validation provided by ceph-volume
+				return "", "", errors.Wrap(err, "failed ceph-volume") // fail return here as validation provided by ceph-volume
 			}
 			logger.Infof("%v", op)
 			// if raw mode is used or PV on LV, let's return the path of the device
@@ -476,12 +476,12 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 				logger.Infof("immediateReportArgs - %+v", baseCommand)
 				logger.Infof("immediateExecuteArgs - %+v", immediateExecuteArgs)
 				if err := context.Executor.ExecuteCommand(baseCommand, immediateReportArgs...); err != nil {
-					return errors.Wrapf(err, "failed ceph-volume report") // fail return here as validation provided by ceph-volume
+					return errors.Wrap(err, "failed ceph-volume report") // fail return here as validation provided by ceph-volume
 				}
 
 				// execute ceph-volume immediately with the device-specific setting instead of batching up multiple devices together
 				if err := context.Executor.ExecuteCommand(baseCommand, immediateExecuteArgs...); err != nil {
-					return errors.Wrapf(err, "failed ceph-volume")
+					return errors.Wrap(err, "failed ceph-volume")
 				}
 
 			}
@@ -524,7 +524,7 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 		}...)
 
 		if err := context.Executor.ExecuteCommand(baseCommand, reportArgs...); err != nil {
-			return errors.Wrapf(err, "failed ceph-volume report") // fail return here as validation provided by ceph-volume
+			return errors.Wrap(err, "failed ceph-volume report") // fail return here as validation provided by ceph-volume
 		}
 
 		reportArgs = append(reportArgs, []string{
@@ -541,7 +541,7 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 
 		var cvReport cephVolReport
 		if err = json.Unmarshal([]byte(cvOut), &cvReport); err != nil {
-			return errors.Wrapf(err, "failed to unmarshal ceph-volume report json")
+			return errors.Wrap(err, "failed to unmarshal ceph-volume report json")
 		}
 
 		if path.Join("/dev", md) != cvReport.Vg.Devices {
@@ -550,7 +550,7 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 
 		// execute ceph-volume batching up multiple devices
 		if err := context.Executor.ExecuteCommand(baseCommand, mdArgs...); err != nil {
-			return errors.Wrapf(err, "failed ceph-volume") // fail return here as validation provided by ceph-volume
+			return errors.Wrap(err, "failed ceph-volume") // fail return here as validation provided by ceph-volume
 		}
 	}
 

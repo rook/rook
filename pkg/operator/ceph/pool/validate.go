@@ -50,7 +50,7 @@ func ValidatePoolSpec(context *clusterd.Context, namespace string, p *cephv1.Poo
 	if p.FailureDomain != "" || p.CrushRoot != "" {
 		crush, err = cephclient.GetCrushMap(context, namespace)
 		if err != nil {
-			return errors.Wrapf(err, "failed to get crush map")
+			return errors.Wrap(err, "failed to get crush map")
 		}
 	}
 

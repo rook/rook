@@ -85,7 +85,7 @@ func AuthGetCaps(context *clusterd.Context, clusterName, name string) (caps map[
 	var data []map[string]interface{}
 	err = json.Unmarshal(output, &data)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to unmarshal auth get response")
+		return nil, errors.Wrap(err, "failed to unmarshal auth get response")
 	}
 	caps = make(map[string]string)
 
@@ -119,7 +119,7 @@ func AuthDelete(context *clusterd.Context, clusterName, name string) error {
 func parseAuthKey(buf []byte) (string, error) {
 	var resp map[string]interface{}
 	if err := json.Unmarshal(buf, &resp); err != nil {
-		return "", errors.Wrapf(err, "failed to unmarshal get/create key response")
+		return "", errors.Wrap(err, "failed to unmarshal get/create key response")
 	}
 	return resp["key"].(string), nil
 }

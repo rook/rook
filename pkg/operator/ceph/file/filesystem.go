@@ -18,6 +18,7 @@ package file
 
 import (
 	"fmt"
+
 	"github.com/rook/rook/pkg/operator/k8sutil"
 
 	"github.com/pkg/errors"
@@ -147,11 +148,11 @@ func validateFilesystem(context *clusterd.Context, f *cephv1.CephFilesystem) err
 		return nil
 	}
 	if err := pool.ValidatePoolSpec(context, f.Namespace, &f.Spec.MetadataPool); err != nil {
-		return errors.Wrapf(err, "invalid metadata pool")
+		return errors.Wrap(err, "invalid metadata pool")
 	}
 	for _, p := range f.Spec.DataPools {
 		if err := pool.ValidatePoolSpec(context, f.Namespace, &p); err != nil {
-			return errors.Wrapf(err, "Invalid data pool")
+			return errors.Wrap(err, "Invalid data pool")
 		}
 	}
 
@@ -213,7 +214,7 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, cephVersion c
 
 	fslist, err := client.ListFilesystems(context, f.Namespace)
 	if err != nil {
-		return errors.Wrapf(err, "Unable to list existing filesystem")
+		return errors.Wrap(err, "Unable to list existing filesystem")
 	}
 	if len(fslist) > 0 && !client.IsMultiFSEnabled() {
 		return errors.Errorf("cannot create multiple filesystems. enable %s env variable to create more than one", client.MultiFsEnv)
@@ -221,7 +222,7 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, cephVersion c
 
 	poolNames, err := client.GetPoolNamesByID(context, f.Namespace)
 	if err != nil {
-		return errors.Wrapf(err, "failed to get pool names")
+		return errors.Wrap(err, "failed to get pool names")
 	}
 
 	logger.Infof("Creating filesystem %s", f.Name)

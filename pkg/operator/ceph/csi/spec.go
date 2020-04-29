@@ -218,7 +218,7 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 	// later when clusters have mons
 	err = CreateCsiConfigMap(namespace, clientset, ownerRef)
 	if err != nil {
-		return errors.Wrapf(err, "failed creating csi config map")
+		return errors.Wrap(err, "failed creating csi config map")
 	}
 
 	tp := templateParam{
@@ -330,43 +330,43 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 	if EnableRBD {
 		rbdPlugin, err = templateToDaemonSet("rbdplugin", RBDPluginTemplatePath, tp)
 		if err != nil {
-			return errors.Wrapf(err, "failed to load rbdplugin template")
+			return errors.Wrap(err, "failed to load rbdplugin template")
 		}
 		if deployProvSTS {
 			rbdProvisionerSTS, err = templateToStatefulSet("rbd-provisioner", RBDProvisionerSTSTemplatePath, tp)
 			if err != nil {
-				return errors.Wrapf(err, "failed to load rbd provisioner statefulset template")
+				return errors.Wrap(err, "failed to load rbd provisioner statefulset template")
 			}
 		} else {
 			rbdProvisionerDeployment, err = templateToDeployment("rbd-provisioner", RBDProvisionerDepTemplatePath, tp)
 			if err != nil {
-				return errors.Wrapf(err, "failed to load rbd provisioner deployment template")
+				return errors.Wrap(err, "failed to load rbd provisioner deployment template")
 			}
 		}
 		rbdService, err = templateToService("rbd-service", DefaultRBDPluginServiceTemplatePath, tp)
 		if err != nil {
-			return errors.Wrapf(err, "failed to load rbd plugin service template")
+			return errors.Wrap(err, "failed to load rbd plugin service template")
 		}
 	}
 	if EnableCephFS {
 		cephfsPlugin, err = templateToDaemonSet("cephfsplugin", CephFSPluginTemplatePath, tp)
 		if err != nil {
-			return errors.Wrapf(err, "failed to load CephFS plugin template")
+			return errors.Wrap(err, "failed to load CephFS plugin template")
 		}
 		if deployProvSTS {
 			cephfsProvisionerSTS, err = templateToStatefulSet("cephfs-provisioner", CephFSProvisionerSTSTemplatePath, tp)
 			if err != nil {
-				return errors.Wrapf(err, "failed to load CephFS provisioner statefulset template")
+				return errors.Wrap(err, "failed to load CephFS provisioner statefulset template")
 			}
 		} else {
 			cephfsProvisionerDeployment, err = templateToDeployment("cephfs-provisioner", CephFSProvisionerDepTemplatePath, tp)
 			if err != nil {
-				return errors.Wrapf(err, "failed to load rbd provisioner deployment template")
+				return errors.Wrap(err, "failed to load rbd provisioner deployment template")
 			}
 		}
 		cephfsService, err = templateToService("cephfs-service", DefaultCephFSPluginServiceTemplatePath, tp)
 		if err != nil {
-			return errors.Wrapf(err, "failed to load cephfs plugin service template")
+			return errors.Wrap(err, "failed to load cephfs plugin service template")
 		}
 	}
 	// get provisioner toleration and node affinity

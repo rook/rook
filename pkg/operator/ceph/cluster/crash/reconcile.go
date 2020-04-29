@@ -104,7 +104,7 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 		if len(cephPods) == 0 {
 			return reconcile.Result{}, nil
 		}
-		return reconcile.Result{}, errors.Wrapf(err, "failed to list all ceph pods")
+		return reconcile.Result{}, errors.Wrap(err, "failed to list all ceph pods")
 	}
 
 	namespaceToPodList := make(map[string][]corev1.Pod)

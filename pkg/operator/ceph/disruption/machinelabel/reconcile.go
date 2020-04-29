@@ -96,7 +96,7 @@ func (r *ReconcileMachineLabel) reconcile(request reconcile.Request) (reconcile.
 	machines := &mapiv1.MachineList{}
 	err = r.client.List(context.TODO(), machines, client.InNamespace(cephClusterInstance.Spec.DisruptionManagement.MachineDisruptionBudgetNamespace))
 	if err != nil {
-		return reconcile.Result{}, errors.Wrapf(err, "failed tp fetch machine list")
+		return reconcile.Result{}, errors.Wrap(err, "failed tp fetch machine list")
 	}
 
 	nodeMachineMap := map[string]machine{}
