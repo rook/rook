@@ -9,6 +9,6 @@ metadata:
 spec:
   maintainers:
     - name: The Rook Authors
-      email: info@rook.io
+      email: cncf-rook-info@lists.cncf.io
   provider:
     name: The Rook Authors

@@ -41,7 +41,7 @@ Please use the following to reach members of the community:
 - Slack: Join our [slack channel](https://slack.rook.io)
 - Forums: [rook-dev](https://groups.google.com/forum/#!forum/rook-dev)
 - Twitter: [@rook_io](https://twitter.com/rook_io)
-- Email: [info@rook.io](mailto:info@rook.io)
+- Email: [cncf-rook-info@lists.cncf.io](mailto:cncf-rook-info@lists.cncf.io)
 
 ### Community Meeting
 
@@ -61,7 +61,7 @@ Anyone who wants to discuss the direction of the project, design and implementat
 ### Reporting Security Vulnerabilities
 
 If you find a vulnerability or a potential vulnerability in Rook please let us know immediately at
-[security@rook.io](mailto:security@rook.io). We'll send a confirmation email to acknowledge your
+[cncf-rook-security@lists.cncf.io](mailto:cncf-rook-security@lists.cncf.io). We'll send a confirmation email to acknowledge your
 report, and we'll send an additional email when we've identified the issues positively or
 negatively.
 
