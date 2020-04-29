@@ -105,6 +105,40 @@ func templateToDeployment(name, templatePath string, p templateParam) (*apps.Dep
 	return &ds, nil
 }
 
+func applyResourcesToContainers(clientset kubernetes.Interface, key string, podspec *corev1.PodSpec) {
+	resource := getComputeResource(clientset, key)
+	if len(resource) > 0 {
+		for i, c := range podspec.Containers {
+			for _, r := range resource {
+				if c.Name == r.Name {
+					podspec.Containers[i].Resources = r.Resource
+				}
+			}
+		}
+	}
+}
+
+func getComputeResource(clientset kubernetes.Interface, key string) []k8sutil.ContainerResource {
+	// Add Resource list if any
+	resource := []k8sutil.ContainerResource{}
+	resourceRaw := ""
+	var err error
+
+	resourceRaw, err = k8sutil.GetOperatorSetting(clientset, controller.OperatorSettingConfigMapName, key, "")
+
+	if err != nil {
+		logger.Warningf("resource requirement for %q will not be applied. %v", key, err)
+	}
+
+	if resourceRaw != "" {
+		resource, err = k8sutil.YamlToContainerResource(resourceRaw)
+		if err != nil {
+			logger.Warningf("failed to parse %q. %v", resourceRaw, err)
+		}
+	}
+	return resource
+}
+
 func getToleration(clientset kubernetes.Interface, provisioner bool) []corev1.Toleration {
 	// Add toleration if any
 	tolerations := []corev1.Toleration{}
