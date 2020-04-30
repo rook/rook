@@ -99,7 +99,7 @@ type ClusterController struct {
 	addClusterCallbacks     []func() error
 	csiConfigMutex          *sync.Mutex
 	nodeStore               cache.Store
-	osdChecker              *osd.Monitor
+	osdChecker              *osd.OSDHealthMonitor
 	client                  client.Client
 	namespacedName          types.NamespacedName
 }
